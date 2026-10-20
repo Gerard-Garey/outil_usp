@@ -743,10 +743,12 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # Issue #114 : injections dans une copie du .tex, un seul appel du script
 # --strict, lignes conservees (remplacement de contenu, pas d'insertion) :
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
-# (R2), deplacee avant \Usage (White), doublee (Goldfeld-Quandt) ; rangee
+# (R2), deplacee avant \Usage (Durbin-Watson), doublee (Mann-Kendall) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
 # inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
-# rangee Fisher retiree par #169).
+# rangee Fisher retiree par #169). White et Goldfeld-Quandt, d'abord visees
+# ici, sont des diagnostics par decision depuis #299 (plus de \Pertinence) :
+# les injections portent sur Durbin-Watson et Mann-Kendall.
 .tex_114 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .bornes <- function(lab) {
   d <- grep(sprintf("\\label{%s}", lab), .tex_114, fixed = TRUE)
@@ -756,9 +758,9 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .m <- .tex_114
 .k_reset <- .dans("fiche:reset", "^\\\\Pertinence\\s*$"); .m[.k_reset] <- ""
 .b_r2 <- .bornes("fiche:r2"); .m[.b_r2[2L] - 1L] <- paste(.m[.b_r2[2L] - 1L], "\\Pertinence")
-.k_white <- .dans("fiche:white", "^\\\\Pertinence\\s*$"); .k_white_h <- .dans("fiche:white", "^\\\\Hzero")
+.k_white <- .dans("fiche:durbin-watson", "^\\\\Pertinence\\s*$"); .k_white_h <- .dans("fiche:durbin-watson", "^\\\\Hzero")
 .m[.k_white] <- ""; .m[.k_white_h] <- paste(.m[.k_white_h], "\\Pertinence")
-.k_gq <- .dans("fiche:goldfeld-quandt", "^\\\\Pertinence\\s*$"); .m[.k_gq] <- "\\Pertinence \\Pertinence"
+.k_gq <- .dans("fiche:mann-kendall", "^\\\\Pertinence\\s*$"); .m[.k_gq] <- "\\Pertinence \\Pertinence"
 .k_li <- grep("(\\ref{fiche:lilliefors}) &", .tex_114, fixed = TRUE)
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
@@ -781,9 +783,9 @@ verifier("Issue #114 : --strict signale la fiche de test privee de rubrique 7 (R
          .sortie_a(.bornes("fiche:reset")[1L], "fiche:reset", "rubrique 7 absente de la fiche$"))
 verifier("Issue #114 : --strict signale la rubrique 7 sur un diagnostic (R2)",
          .sortie_a(.b_r2[2L] - 1L, "fiche:r2", "rubrique 7 sur une fiche hors du registre"))
-verifier("Issue #114 : --strict signale la rubrique 7 avant \\Usage (White) et en double (Goldfeld-Quandt)",
-         .sortie_a(.k_white_h, "fiche:white", "rubrique 7 avant \\\\Usage") &&
-           .sortie_a(.k_gq, "fiche:goldfeld-quandt", "rubrique 7 presente 2 fois"))
+verifier("Issue #114 : --strict signale la rubrique 7 avant \\Usage (Durbin-Watson) et en double (Mann-Kendall)",
+         .sortie_a(.k_white_h, "fiche:durbin-watson", "rubrique 7 avant \\\\Usage") &&
+           .sortie_a(.k_gq, "fiche:mann-kendall", "rubrique 7 presente 2 fois"))
 verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee manquante, rangee d'une fiche sans rubrique 7, fiche a rubrique 7 sans rangee",
          .sortie_a(max(.k_li, .k_jb), "fiche:jarque-bera", "fiche citee par 2 rangees") &&
            .sortie_a(NA, "fiche:lilliefors", "fiche a rubrique 7 sans rangee") &&

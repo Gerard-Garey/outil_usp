@@ -693,7 +693,10 @@ DECOMPTES <- list(
        motif = paste0("Ces ", N_, " lignes sont restitu\u00e9es comme diagnostics, sans p-value retenue"),
        champs = "grandeur rivee"),
   list(id = "prime : tests de H2 (graphe d'appels)", methode = "premium",
-       motif = paste0("Chacun des ", N_, " tests dispose de sa propre fonction"),
+       # Depuis #299, la legende de fig:annexe-h2 annonce "une seule d'entre
+       # elles est de type test (Breusch--Pagan studentise)" : le nombre de
+       # tests de H2 n'est plus la phrase "Chacun des six tests" (ancien motif).
+       motif = paste0(N_, " seule d'entre elles est de type test \\(Breusch--Pagan studentis\u00e9\\)"),
        champs = "famille C. type test"),
   list(id = "Merz-Wuthrich : tests de normalite (M5)", methode = "reserve2",
        motif = paste0("Les ", N_, " lignes de normalit\u00e9 \\(M5\\) sont compt\u00e9es parmi les diagnostics"),
