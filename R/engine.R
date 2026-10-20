@@ -2873,17 +2873,16 @@ test_brown_forsythe <- function(u, reg) {
 # normalise par max|h| (le signe de Q ne depend pas de l'echelle ; meme
 # precaution que dw_puissance_ar1()). Approximation numerique (quadrature,
 # uniroot(), tolerance 1e-12 comme dw_puissance_ar1()) d'une quantite
-# exacte sous ce modele. Controle Monte-Carlo hors CI (R = 2e5, statistique
-# ecrite comme rapport des sommes de carres MCO et MCG) : voir le message
-# du commit de #299.
+# exacte sous ce modele. Controle Monte-Carlo hors CI : tests/mesure_lb1_dw_t8.R,
+# section 5 (R = 2e6, chaque sens contre Imhof ; valeurs de reference du
+# commit 484d29a de #299).
 # Hypotheses [H] (specification Fh, section 6.2) : les tests H2 du moteur
 # ne sont invariants sous ce groupe que dans la limite des faibles CV ; hors
 # de la famille (variance en x^k raide), la puissance d'un test H2 peut
 # depasser pi_env : pi_env borne la detection d'un ecart DANS la famille
-# reglementaire. La puissance du test invariant decroit strictement en c
-# dans les deux sens sur J1 et J2 (mesure d'actuary du 20/10/2026, non
-# versionnee) : la limite c -> 0 y est la plus favorable ; non etabli pour
-# d'autres volumes [H]. Invariante par x -> lambda x (xbar / x_t l'est).
+# reglementaire. pi_env est calculee dans la limite c -> 0 ; sa valeur a c
+# fini n'est pas chiffree par l'outil (aucun argument c). Invariante par
+# x -> lambda x (xbar / x_t l'est).
 # Non calculee a volumes constants (usp_volumes_constants() : Sigma1 = Sigma0,
 # aucune alternative ; ligne Breusch-Pagan non applicable, regle R13) : NA ;
 # NA aussi si l'integration d'Imhof ou la recherche de racine echoue : une
