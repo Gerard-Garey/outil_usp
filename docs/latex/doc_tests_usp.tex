@@ -9941,8 +9941,13 @@ qu'invoque ce libellé a été mesurée par une revue interne du 15~octobre 2026
 pas reprise par un script de \code{tests/}~: elle n'est pas chiffrée ici. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
 seuil sous le modèle ajusté (issue~\#166, $R = 2\,000$, $B = 999$~: J1, $0{,}0955$ à
-$\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; constat de simulation,
-section~\ref{sec:calibration-mc}), et la p-value non simulée, ajustement de Stephens établi pour un
+$\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; compatible aux deux seuils
+sur les deux jeux~; constat de simulation, section~\ref{sec:calibration-mc}~; niveau sous la
+variante V3h, p-value de Monte-Carlo du moteur depuis l'issue~\#240, issue~\#229, tableau~T1,
+$R = 2\,000$, $B = 999$, constat de simulation au commit \code{fee9968}~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0935$
+$[0{,}0811~;~0{,}1071]$ à $\alpha = 0{,}10$ et $0{,}0470$ $[0{,}0381~;~0{,}0572]$ à $0{,}05$,
+compatible aux deux seuils~; mesures antérieures à l'issue~\#302, qui portent sur la p-value de
+Monte-Carlo toujours calculée), et la p-value non simulée, ajustement de Stephens établi pour un
 échantillon i.i.d. normal, n'est qu'une approximation à $n$ fini. À $T = 8$, la ligne se lit avec
 celle d'Anderson--Darling, jamais à sa place.
 \end{fiche}
@@ -9995,9 +10000,13 @@ voies n'apporte ici une preuve propre~: il n'existe pas de loi exacte de $D$ sou
 les paramètres étant estimés et $z = P\varepsilon$ n'étant pas un échantillon i.i.d.~; la loi de
 Kolmogorov, asymptotique et établie à paramètres connus, est invalide et très conservatrice (C2)~;
 la p-value de Monte-Carlo, elle, a un niveau voisin du seuil sous le modèle ajusté (issue~\#166,
-$R = 2\,000$, $B = 999$~: J1, $0{,}084$ à $\alpha = 0{,}10$, écart mineur du côté conservateur, et
-$0{,}0455$ à $0{,}05$~; J2, $0{,}090$ et $0{,}046$~; constat de simulation,
-section~\ref{sec:calibration-mc}), mais la même distance de Kolmogorov, calculée sur les résidus
+$R = 2\,000$, $B = 999$~: J1, $0{,}084$ à $\alpha = 0{,}10$, écart mineur du côté conservateur
+($[0{,}072~;~0{,}097]$, $0{,}079$ au bord~1), et $0{,}0455$ à $0{,}05$~; J2, $0{,}090$ et $0{,}046$,
+compatible~; constat de simulation, section~\ref{sec:calibration-mc}~; niveau sous la variante
+V3h, issue~\#229, tableau~T1, $R = 2\,000$, $B = 999$, constat de simulation au commit
+\code{fee9968}~: J1, V3h coïncide avec V1 réplication par réplication sur les 1\,925 réplications à $\hat\delta^{*}$ au bord, seule population du tableau~T1~; les 75 réplications à $\hat\delta^{*}$ intérieur (tableau~T1~bis, descriptif) n'y figurent pas, et le niveau V3h sur l'ensemble de J1 n'est pas tabulé~; J2, $0{,}0885$ $[0{,}0764~;~0{,}1018]$ à $\alpha = 0{,}10$ et
+$0{,}0455$ $[0{,}0368~;~0{,}0556]$ à $0{,}05$, compatible aux deux seuils~; mesures antérieures à
+l'issue~\#302, qui portent sur la p-value de Monte-Carlo toujours calculée), mais la même distance de Kolmogorov, calculée sur les résidus
 re-standardisés et rapportée à la loi qui tient compte de l'estimation, est l'objet de la ligne
 Lilliefors, qui porte l'hypothèse. Le commentaire se termine par «~\code{Restituee en diagnostic
 par decision (issue \#302) : aucun verdict ni p-value retenue ; l'hypothese releve de la ligne
