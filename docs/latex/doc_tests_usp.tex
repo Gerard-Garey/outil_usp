@@ -945,7 +945,8 @@ liste des tests (H0, H1, statistique, 3 p-values, nature~; depuis l'issue~\#240,
 \code{fonction}, issue~\#111~; citation de l'hypothèse H1 à H4 dans le champ \code{famille}, B(2)(g) ou C(2)(e) selon \code{methode}, section~\ref{sec:h1}), enregistrés par l'\code{add()}
 d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
-d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, et, depuis l'issue~\#224, années
+d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, ou, depuis l'issue~\#327, années
+d'influence égale à la précision numérique près, et, depuis l'issue~\#224, années
 non évaluables~; fiche~\ref{fiche:jackknife})~;
 celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
@@ -2178,7 +2179,8 @@ une phrase~; la règle, les repères et leur justification figurent dans les fic
 et~\ref{fiche:ic-bootstrap}), les valeurs dans \code{res\$ajustement}, les champs
 \code{stat} et \code{estim} et \code{res\$ic\_bootstrap}. Ces quatre commentaires ne portent
 plus aucune valeur réelle issue de l'optimiseur, du bootstrap ou du jackknife, seulement des entiers
-(année la plus influente, années non évaluables du jackknife depuis l'issue~\#224, nombres de
+(année la plus influente, ou années les plus influentes depuis l'issue~\#327, années non
+évaluables du jackknife depuis l'issue~\#224, nombres de
 démarrages à l'optimum et sans résultat)~; les deux
 grandeurs sur la part estimée ne sont plus restituées et se recalculent à partir de
 \code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot} (fiches~\ref{fiche:jackknife}
@@ -12081,7 +12083,39 @@ positif, les deux échelles désignent, par construction, la même année d'éca
 donnent à l'écart le même signe. Le moteur restitue $\Delta_{\max}$ dans le champ \code{estim},
 non signé, et, dans le commentaire, l'année $t^\star$ qui l'atteint et le \emph{sens} de l'écart
 sur $\sigma_{\mathrm{USP}}$ (« en baisse », « en hausse » ou « inchangé », sa valeur absolue étant celle du
-champ \code{estim})~; faute d'année déterminée, le commentaire le dit. Jusqu'à la décision M24
+champ \code{estim})~; faute d'année déterminée, le commentaire le dit.
+\emph{Années d'influence égale à la précision numérique près} (issue~\#327). Notons
+$\Delta_t = |\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}|/\sigma_{\mathrm{USP}}$ l'écart
+relatif de l'année évaluable $t$, et $\Delta_{(1)} = \Delta_{\max} \ge \Delta_{(2)}$ les deux plus
+grands. Le moteur (\code{run\_engine()}) désigne toutes les années évaluables telles que
+$\Delta_t \ge \Delta_{(1)} - \tau$, avec
+\[
+  \tau \;=\; 2\cdot\text{\code{REP\_SIGMA\_KKT}}\cdot\big(2 + \Delta_{(1)} + \Delta_{(2)}\big),
+\]
+sans constante nouvelle~; une seule année évaluable est désignée directement, sans~$\tau$.
+\emph{Fondement} (propagation au premier ordre, approximation)~: $\sigma_{\mathrm{USP}}$ est
+linéaire en $\hat\sigma$, de coefficient $c\sqrt{(T+1)/(T-1)} \le \sigma_{\mathrm{USP}}/\hat\sigma$~;
+une erreur relative au plus \code{REP\_SIGMA\_KKT} $= 10^{-6}$ sur chaque $\hat\sigma$ (celle que
+certifie le contrôle de la condition du premier ordre, fiche~\ref{fiche:foc}, ancrée sur la
+décision M9) donne $|\mathrm{d}\Delta_t| \le (1 + \Delta_t)(\varepsilon_t + \varepsilon_0)$, de sorte
+que la différence de deux $\Delta_t$ n'est connue qu'à $\tau$ près~: deux années dont les écarts
+diffèrent de moins de $\tau$ ne sont pas discernables, et \code{which.max} les départagerait au gré
+du bruit de l'optimiseur, qui varie d'une plateforme à l'autre. Une seule année désignée~: phrase
+«~\code{Annee la plus influente : 8 (sigma\_USP en baisse).}~», inchangée. Plusieurs~: phrase
+«~\code{Annees les plus influentes, d'influence egale a la precision numerique pres : 1, 2, 3,
+4, 6, 7 et 8 (sigma\_USP en hausse).}~» (numéros joints par «~,~» puis «~et~»), dont la
+parenthèse donne le sens commun («~\code{en baisse}~», «~\code{inchange}~» ou «~\code{en
+hausse}~») si l'écart a le même signe pour toutes les années citées, «~\code{(sigma\_USP en
+hausse ou en baisse selon l'annee)}~» pour un mélange de hausses et de baisses, et «~\code{(sens
+de la variation de sigma\_USP selon l'annee)}~» pour un ensemble non uniforme qui contient un
+écart nul~; seuls des entiers et un sens sont imprimés (issue~\#76). \emph{Réserve}~: la précision
+$\tau$ n'est certifiée que pour des réajustements qui satisfont la condition du premier ordre~; si
+un réajustement est retenu sans la satisfaire ($\gamma$ intérieur, voir ci-dessous), les années
+citées restent indiscernables, mais la liste peut être incomplète. La formule «~d'influence égale
+à la précision numérique près~» ne désigne pas un ex \ae quo au sens de \code{TOL\_EX\_AEQUO}
+(§\ref{sec:nature}). Mesuré sur les cinq cas lognormaux de référence~: une seule année désignée,
+l'écart entre les deux plus grands $\Delta_t$ allant de $2{,}2\cdot 10^{-2}$ à $9{,}7\cdot 10^{-2}$,
+contre $\tau$ de $4{,}2\cdot 10^{-6}$ à $4{,}5\cdot 10^{-6}$. Jusqu'à la décision M24
 du mainteneur (issue~\#24), le commentaire imprimait aussi
 l'écart signé sur $\sigma_{\mathrm{USP}}$~: valeur issue des réajustements du jackknife et déjà
 restituée dans \code{estim}, elle a été retirée du libellé en application de la règle d'écriture
@@ -12116,13 +12150,29 @@ $\hat\gamma = -12$ et aucun démarrage ne satisfait la condition, le réajusteme
 $\Delta_{\max}$ vaut $0{,}0206$ au lieu de $0{,}3393$ avant l'issue~\#224, valeur que fournissait
 ce seul réajustement, en désignant l'année~5~; $\sigma_{\mathrm{USP}} = 0{,}06205954$ et la ligne
 \code{INFO} sont inchangés. Les sept écarts restants y sont égaux à moins de $2\cdot 10^{-10}$
-près~: l'année désignée parmi eux (l'année~6 dans cette mesure) dépend du bruit d'optimiseur et
-peut changer d'une plateforme à l'autre (bibliothèques d'algèbre linéaire, version de~R), le
-résultat restant reproductible sur une même machine (limite connue, issue~\#327).
-Si aucun réajustement n'est évaluable, la ligne est absente de la table (limite connue,
-issue~\#329)~; le graphique et la note d'influence de l'application ne traitent pas encore ce
-cas d'un jackknife entièrement \code{NA}, ni ne signalent les années non évaluables quand il ne
-l'est que partiellement (limite connue, issue~\#328).
+près (étendue $1{,}6\cdot 10^{-10}$, écart des deux plus grands $3{,}7\cdot 10^{-12}$, contre
+$\tau = 4{,}08\cdot 10^{-6}$)~: depuis l'issue~\#327, le commentaire les cite toutes, «~\code{Annees
+les plus influentes, d'influence egale a la precision numerique pres : 1, 2, 3, 4, 6, 7 et 8
+(sigma\_USP en hausse).}~», suivi de la phrase de l'année~5 non évaluable. Jusqu'à cette issue,
+il n'en désignait qu'une (l'année~6 dans la mesure d'alors), choisie par le bruit d'optimiseur et
+susceptible de changer d'une plateforme à l'autre (bibliothèques d'algèbre linéaire, version
+de~R), le résultat restant reproductible sur une même machine.
+Si aucun réajustement n'est évaluable, la ligne reste dans la table depuis l'issue~\#329~:
+diagnostic \code{INFO}, \code{estim} à \code{NA}, commentaire fixe «~\code{Aucune annee evaluable
+(reajustements sans maximum de vraisemblance etabli, ou en echec) : ecart relatif max non calcule,
+influence non mesuree.}~», pour que l'absence de mesure reste visible au lieu de disparaître de la
+table (jusqu'à cette issue, la ligne était absente). Mesuré sur un jeu construit (volumes du jeu
+de contrôle, $y_t = 0{,}7\,x_t\exp(a\,s_t)$, $s = (+1, -1, +1, \dots)$, $a = e^{-11{,}9925}$,
+$B = 99$, mêmes paramètres)~: l'échantillon complet est accepté ($\hat\gamma = -11{,}9925$,
+intérieur) et les huit réajustements sont refusés par \code{usp\_valider\_ajustement()}
+($\hat\gamma^{(-t)} = -12$, borne de \code{BORNES\_GAMMA}, aucun démarrage qui satisfasse la
+condition de Kuhn et Tucker), \code{ok} vaut \code{TRUE} et la
+table \code{res\$jackknife} est entièrement à \code{NA}. Depuis l'issue~\#328, le graphique
+d'influence de l'application affiche alors un panneau vide au message fixe «~\code{Aucune annee
+evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
+l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
+\code{NA}, la note nomme les années non évaluables, le maximum étant pris hors de ces années.
+L'affichage lit ces années dans la table d'influence, sans calcul.
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
