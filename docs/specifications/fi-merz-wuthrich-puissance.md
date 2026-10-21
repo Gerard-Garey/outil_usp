@@ -47,6 +47,20 @@
 > - **T5** : part de S_xx entre colonnes, S_xy entre et intra, nR² de BP, entre et intra, écart de la contrainte Σ r² = n_j − 1 ; plus la part de S_xy entre dans S_xy et le contrôle |n S_xy²/(S_xx S_yy) − BP observé| ≤ 1e-10.
 > - **Pièces versionnées** : journaux de mesure et de combinaison (`docs/tableaux/AAAAMMJJ-issue309-journal-mesure.md` et `-journal-combinaison.md`), comme pour #206, dans le commit unique des sorties ; le T0 cite leur chemin. (i2′) porte par défaut sur tous les triangles marqués (i2) des volets A et B, et admet le seul écart de motif « statistique observée non définie » (option (iii)), compté à part.
 > - **Durée** : essais à 32,9 h et 34,5 h ; un dépassement net de 36 h est signalé au mainteneur.
+>
+> **Décisions du mainteneur du 21/10/2026 au point d'arrêt D2-Fi (Q-D2-Fi-1 à 4) : point d'arrêt franchi.**
+>
+> *Consignées par la session principale (IA).* Elles s'appuient sur les tableaux de #309 (`docs/tableaux/20261021-issue309-puissance-mw.md`, commit `1e3979c`) et sur l'avis d'`actuary` (fiche de base, lecture seule, 21/10/2026), versé en commentaire `6315239862` de la PR #349. Toutes suivent les recommandations.
+>
+> - **Q-D2-Fi-1 (#301)** : **FWr** retenue (K-301), à la place de BP sur la ligne M2. Effet attendu sur `reserve2` : statistique 0,6502 → 1,4373 ; p_mc 0,103 → 0,285 ; verdict OK inchangé ; validation d'`actuary`. L'algèbre du moteur reproduit exactement celle de `stat_fw()` de `tests/puissance_mw_t8.R`, pour que (i2′) soit `identical()`.
+> - **Q-D2-Fi-2 (#300)** : **MinP4** retenue (K-300), à la place de Grubbs sur la ligne M4. Ses trois limites sont acceptées et seront écrites en rubrique 7 :
+>   - niveau conservateur sous N (0,065 à 0,10) ;
+>   - perte face à Grubbs à CEL4 au seuil de 0,10 (0,183 contre 0,211) ;
+>   - les 3 cellules de la colonne n_j = 3 ne sont pas couvertes, et la puissance y est non mesurée.
+>
+>   **Visa donné** pour Rosner OK → INFO (diagnostic par décision). Décomptes attendus sur `reserve2` : OK 8 → 7, INFO 6 → 7, 20 lignes, σ_USP inchangé, à constater au tableau avant / après.
+> - **Q-D2-Fi-3** : la rubrique 7 de M2 dira que la ligne n'a pas de puissance mesurable à T = 8 sous P1. Le constat est transmis à Fj (#308).
+> - **Q-D2-Fi-4** : le § 3.4 et le `.tex` (`mw:m2bp`) seront corrigés avec les seuls chiffres du T5. La formule « terme quasi constant (≈ 0,65) » est réfutée par le T5 et sera retirée. Le lien BP / S_yy, calcul de session non versionné, n'est pas cité, et les sorties ne sont pas recombinées.
 
 > *Rédigé par l'agent actuary (IA).* Le 19/10/2026, consultation `actuary-approfondi` en lecture seule, sur demande de la session principale, pour la fiche Fi du trente-huitième point d'étape (`docs/feuille-de-route.md`, § 3, fiche « Branche Fi (parallèle) ») et les décisions du mainteneur du 19/10 : Fi = #290, #289, #309, #301, #300, dans cet ordre ; #308 passe en Fj ; pas de Fable ; T = 8. Complément de la session principale (même jour) : Rosner (1983) a été lu en texte intégral (issue #347) ; Q-38-10 est révisée et la règle Q-Fc-10 ne s'applique plus. À versionner en premier commit de Fi sous `docs/specifications/fi-merz-wuthrich-puissance.md`. **Point d'arrêt D1-Fi** : aucun code de Fi avant que le mainteneur ait tranché Q-D1-Fi-1 à Q-D1-Fi-11. **Point d'arrêt D2-Fi** : après les tableaux de #309 (§ 2.7), le mainteneur choisit les variantes de #301 et #300 avant leur code.
 
