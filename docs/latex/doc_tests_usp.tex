@@ -2491,10 +2491,11 @@ Test des suites & \ref{mw:m3runs} & \code{test\_runs()} &
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
 \midrule
-Cellule aberrante (Grubbs) & \ref{mw:m4gr} & \code{test\_grubbs()} &
-\code{test\_grubbs()} (borne de Bonferroni) & \code{Grubbs} \\
+Cellule aberrante du triangle (résidus studentisés externes) & \ref{mw:m4gr} &
+\code{mw\_test\_cellule\_aberrante()} &
+\code{mw\_test\_cellule\_aberrante()} (borne de Bonferroni, non retenue) & \code{MinP4} \\
 Cellules aberrantes multiples (Rosner) & \ref{mw:m4ros} & \code{test\_rosner()} &
-procédure de décision, aucune p-value & --- \\
+diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M5 : normalité (diagnostic, non exigée par le modèle)}}} \\
 \midrule
@@ -3834,7 +3835,7 @@ unique (\code{.mw\_colonne\_degeneree()}, deux volets), ou $\hat\sigma^2_j$ non 
 (issue~\#60~; auparavant $\hat\sigma^2_j = 0$ exact) & \textbf{Avertissement}, non
 bloquant~: le résidu de Mack y vaut $0/0$ si les facteurs sont exactement égaux, et n'est sinon
 que le rapport d'écarts négligeables à la tolérance de l'outil~; ces facteurs sont exclus des
-onze lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
+dix lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
 les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33) et précise que le
 vivier du bootstrap ne contient que les résidus retenus (décision du mainteneur du 5~octobre
 2026). \\
@@ -7074,7 +7075,6 @@ M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$, compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M4, ESD de Rosner (\ref{mw:m4ros}) & Sans objet (procédure sans p-value) & Non étudiée & \code{test\_rosner()} & --- \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -13026,10 +13026,10 @@ comme pour M1 (fiche~\ref{mw:m1a})~: le nombre de résidus est ainsi le même à
 les réplications, et le vivier du bootstrap ne contient que les résidus retenus. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
 (retiré avant le stockage des résidus dans le résultat, dont la structure est inchangée), et
 \code{mw\_valider\_ajustement()} nomme chacune, compte les résidus exclus et retenus et cite les
-onze lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
+dix lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
 tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
 l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
-années de survenance, Durbin--Watson et test des suites~; M4, Grubbs et ESD
+années de survenance, Durbin--Watson et test des suites~; M4, ESD
 généralisé~; M5, Shapiro--Wilk et Lilliefors. Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
@@ -13321,7 +13321,7 @@ M3 & Corrélation entre années de développement & test & Monte-Carlo \\
 M3 & Autocorrélation (Durbin--Watson) & test & Monte-Carlo \\
 M3 & Test des suites & test & Monte-Carlo \\
 M4 & Cellule aberrante (Grubbs) & test & Monte-Carlo \\
-M4 & Cellules aberrantes multiples (Rosner) & procédure de décision & --- \\
+M4 & Cellules aberrantes multiples (Rosner) & diagnostic & --- \\
 M5 & Shapiro--Wilk & diagnostic & --- \\
 M5 & Lilliefors & diagnostic, secondaire & --- \\
 M6 & Extrapolation de $\hat\sigma^2_{J-1}$ & diagnostic & --- \\
@@ -13330,8 +13330,8 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt entrées, dont \textbf{treize} tests d'hypothèse, une procédure de
-décision et \textbf{six} diagnostics, conformément au champ \code{type} que
+Vingt entrées, dont \textbf{treize} tests d'hypothèse, 0 procédure de
+décision et \textbf{sept} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
 restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
 depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
@@ -13340,7 +13340,7 @@ pas celles des résidus de Mack~; leur p-value, calculée sous ce modèle auxili
 i.i.d. normal, est restituée pour information et n'est pas retenue (fiches~\ref{mw:m5sw}
 et~\ref{mw:m5li}). La variance unitaire des résidus (M2) est aussi un diagnostic~: elle
 n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
-\emph{contrainte par construction} (fiche~\ref{mw:m2var}). Aucun des six
+\emph{contrainte par construction} (fiche~\ref{mw:m2var}). Aucun des sept
 diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
 l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
@@ -15181,14 +15181,7 @@ critiques~; un triangle $8\times8$ fournit $27$ résidus de Mack --- et non 28~:
 la colonne $j = J-1$ ne comporte qu'un seul facteur individuel et n'entre pas
 dans les résidus (fiche~\ref{mw:m2var}) ---, ce qui place la procédure à la
 limite de son domaine. À traiter comme un signal d'attention.
-\Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet~: procédure de décision sans p-value (\code{test\_rosner()}, décision par comparaison aux valeurs critiques de Rosner au niveau $\alpha$).
-
-\textbf{Table.} Sans objet.
-
-\textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$. Sous le plan du triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}), la procédure au niveau $\alpha = 0{,}10$ ne déclare aucune cellule aberrante dans les 2\,000 triangles à erreurs gaussiennes (intervalle de Clopper--Pearson à 95~\% $[0~;~0{,}0018]$), seule loi du plan sous laquelle sa normalité est vraie~: une absence de cellule déclarée n'y établit pas l'absence de cellule aberrante.
-
-\textbf{Statut des valeurs.} Taux sous $H_0$~: constat de simulation sous un plan, intervalle de Clopper--Pearson fonction du nombre de triangles simulés.
+Ligne de type diagnostic depuis l'issue~\#300, sans rubrique~7. Puissance non étudiée à $T = 8$. Sous le plan du triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}), la procédure au niveau $\alpha = 0{,}10$ ne déclare aucune cellule aberrante dans les 2\,000 triangles à erreurs gaussiennes (intervalle de Clopper--Pearson à 95~\% $[0~;~0{,}0018]$), seule loi du plan sous laquelle sa normalité est vraie~: une absence de cellule déclarée n'y établit pas l'absence de cellule aberrante. \emph{Statut}~: taux sous $H_0$, constat de simulation sous un plan, intervalle de Clopper--Pearson fonction du nombre de triangles simulés.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
