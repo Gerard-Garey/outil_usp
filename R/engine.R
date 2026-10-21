@@ -3482,9 +3482,10 @@ usp_simuler <- function(fit) {
 # `non_definie` : NULL, ou une fonction du contexte observe rendant le motif
 # (chaine) pour lequel la statistique n'est pas definie sur ces donnees, ou
 # NA_character_ ; lue seulement si la statistique observee n'est pas finie,
-# elle remplace alors le motif generique MOTIF_MC_OBS_NON_FINIE (seul cas :
-# Cox-Stuart avec ex aequo, #85). La p exacte eventuelle de la ligne n'en est
-# pas affectee.
+# elle remplace alors le motif generique MOTIF_MC_OBS_NON_FINIE (deux cas :
+# Cox-Stuart avec ex aequo, #85 ; cellule a influence non bornee de l'entree
+# MinP4 de Merz-Wuthrich, #300, option (iii)). La p exacte eventuelle de la
+# ligne n'en est pas affectee.
 # `extremes` (#125 ; ADR 0003 annote le 12/10/2026, point 5 ; D1-7) : NULL,
 # ou une fonction du contexte observe rendant c(bas, haut), numerique de
 # longueur 2, les extremites du support de la statistique A LA
@@ -8018,8 +8019,10 @@ mw_msep <- function(aj) {
   M3 = c("Homogeneite des residus entre annees de survenance",
          "Autocorrelation des residus (Durbin-Watson)",
          "Test des suites sur les residus de Mack"),
-  M4 = c("Cellule aberrante du triangle (Grubbs)",
-         "Cellules aberrantes multiples (ESD generalise)"),
+  # Depuis #300, la ligne "Cellule aberrante du triangle (residus studentises
+  # externes)" est calculee sur mw_influence() (t(i,j)), non sur
+  # mw_residus() : seule la ligne de Rosner reste en M4 (mesure du test).
+  M4 = "Cellules aberrantes multiples (ESD generalise)",
   M5 = c("Shapiro-Wilk sur les residus de Mack",
          "Lilliefors sur les residus de Mack"))
 .MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
@@ -9940,7 +9943,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
       tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab, figes), silent = TRUE)
+      sb <- try(.mw_stats(ab, figes, replique = TRUE), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -10099,7 +10102,25 @@ MW_CATALOGUE_MC <- list(
   # redresses, colonnes n_j >= 3 (mw_test_heteroscedasticite_intra()). Cle
   # "BP" conservee (scripts de mesure, references).
   BP         = .mc_entree(function(e) mw_test_heteroscedasticite_intra(e$aj, e$res)$stat, "haut"),
-  Grubbs     = .mc_entree(function(e) test_grubbs(e$r)$stat, "haut"),
+  # Cellule aberrante (ligne M4) : minimum des p de Student des residus
+  # studentises externes t(i,j), colonnes n_j >= 4 (mw_test_cellule_aberrante() ;
+  # #300, variante MinP4, decision Q-D2-Fi-2 du 21/10/2026), rejet en queue
+  # basse (petite M). Remplace la cle "Grubbs" (G de Grubbs sur les residus de
+  # Mack), a la meme position. Cle "MinP4" : nom du candidat mesure par #309
+  # (tests/puissance_mw_t8.R, tableaux T1 a T4 de
+  # docs/tableaux/20261021-issue309-puissance-mw.md), pour que la p
+  # Monte-Carlo de la ligne se lise sous le nom de la statistique mesuree
+  # (controle (i2') : --cle-moteur MinP4 --candidat MinP4). Statistique
+  # continue : pas d'extremes (hors des treize statistiques discretes). Le
+  # contexte distingue l'observe (e$replique absent) des replications
+  # (e$replique = TRUE, .mw_stats(replique = TRUE) dans la boucle de
+  # mw_bootstrap()) pour la cellule a influence
+  # non bornee (option (iii), Q-D1-Fi-8) : statistique observee non definie,
+  # motif propre par non_definie ; p_ij = 0 en replication.
+  MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres,
+                                                              replique = isTRUE(e$replique))$stat, "bas",
+                          non_definie = function(e)
+                            .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(e$aj, e$figes$degeneres))),
   DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
   Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux",
                           extremes = function(e) .runs_extremes(e$r)),
@@ -10139,9 +10160,18 @@ MW_CATALOGUE_MC <- list(
 
 # Statistiques bootstrapables de la methode Merz-Wuthrich (catalogue
 # MW_CATALOGUE_MC). figes : ensembles figes de .mw_ensembles_figes() (#278 ;
-# NULL : calcules sur aj).
-.mw_stats <- function(aj, figes = NULL)
-  .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(aj, figes))
+# NULL : calcules sur aj). replique : FALSE (defaut), evaluation d'un
+# triangle comme observe ; TRUE, evaluation d'une REPLICATION, passe par la
+# seule boucle de mw_bootstrap() : le contexte porte alors replique = TRUE, lu
+# par la seule entree MinP4 (cellule a influence non bornee : p_ij = 0 en
+# replication, statistique non definie a l'observe ; #300, option (iii)).
+# Avec replique = FALSE, le contexte est celui de .mw_contexte_mc(), sans cet
+# element, comme le contexte observe de mw_bootstrap().
+.mw_stats <- function(aj, figes = NULL, replique = FALSE) {
+  e <- .mw_contexte_mc(aj, figes)
+  if (replique) e$replique <- TRUE
+  .mc_evaluer(MW_CATALOGUE_MC, e)
+}
 
 # --- B effectif < B sur une ligne Monte-Carlo de Merz-Wuthrich (#204) ---------
 # Phrase ajoutee en fin du detail d'une des 13 lignes Monte-Carlo de
@@ -10221,6 +10251,20 @@ PHRASE_MW_CUMULS_RETIRES <- paste(
 PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
   "Plafond de %d (B + 1) triangles simules atteint : des replications manquent",
   "faute de triangle simule a cumuls strictement positifs."), FACTEUR_B_MAX_MW)
+# Phrase fixe du diagnostic de Rosner sur residus de Mack (ligne M4,
+# decision Q-D1-Fi-7 du 19/10/2026 ; texte d'actuary, premier complement de
+# docs/specifications/fi-merz-wuthrich-puissance.md ; ancrage #347, ecarts 1
+# et 2). Suivie dans le detail du fragment " Valeurs critiques calculees a
+# alpha = %.2f" et, si k^ > 0, des rangs ; aucun nombre issu du bootstrap
+# (#76).
+PHRASE_MW_ROSNER_DIAGNOSTIC <- paste(
+  "Diagnostic sans verdict (ADR 0001) : procedure ESD generalisee de Rosner (1983)",
+  "appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation de",
+  "Student-Bonferroni) et son domaine declare (n >= 25) valent pour un echantillon",
+  "i.i.d. normal ; les residus de Mack, soumis a des contraintes exactes par colonne,",
+  "n'en sont pas un, et le cadre de Rosner (1983) ne les couvre pas. La procedure",
+  "n'est donc pas un test de la ligne : le nombre de cellules declarees se lit comme",
+  "un repere, sans p-value.")
 # Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,
 # puis plafond), "" si aucune. Refus explicite (meme principe que
 # .mw_phrase_b_effectif(), jamais devine) : boot$cumuls_retires ou
@@ -10559,25 +10603,67 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
 
   ## --- M4 : points aberrants ------------------------------------------------
   fam <- "M4. points aberrants et stabilite"
-  gr <- test_grubbs(r)
-  add(fam, "Cellule aberrante du triangle (Grubbs)",
-      fonction = "test_grubbs",
-      "Grubbs (1950, 1969), Technometrics 11",
+  # Cellule aberrante (#300, variante MinP4, decision Q-D2-Fi-2 du 21/10/2026) :
+  # M = min des p de Student des residus studentises externes, colonnes
+  # n_j >= 4 ; meme fonction que l'entree MinP4 du catalogue, donc meme
+  # statistique observee que bootstrap$stats_obs["MinP4"]. Statistique
+  # continue : pas de p_min. Borne de Bonferroni en p non simulee, jamais
+  # retenue (#181) ; p Monte-Carlo retenue (queue basse).
+  ca <- mw_test_cellule_aberrante(aj, jd)
+  n_nj3 <- local({
+    # Cellules non couvertes des colonnes n_j = 3 (hors colonnes degenerees),
+    # nombre lu sur la geometrie du triangle observe, aucun nombre du bootstrap.
+    nj <- aj$I - (0:(aj$J - 1))
+    sum(nj[nj == 3L & !((0:(aj$J - 1)) %in% jd)])
+  })
+  add(fam, "Cellule aberrante du triangle (residus studentises externes)",
+      fonction = "mw_test_cellule_aberrante",
+      paste("Residu studentise externe (cellule retiree) de la regression ponderee",
+            "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j) (Belsley, Kuh & Welsch 1980 ; Cook &",
+            "Weisberg 1982) ; minimum des p de Student, borne de Bonferroni : construction",
+            "de l'outil, colonne par colonne, sur le modele de Mack"),
       H0 = "aucun residu de Mack aberrant", H1 = "exactement un residu aberrant",
-      stat_nom = "G", stat = gr$stat, loi = "Student + Bonferroni -> Monte-Carlo",
-      estim_nom = "rang du residu extreme", estim = gr$idx,
-      p_as = gr$p, mc_nom = "Grubbs",
-      detail = if (is.finite(gr$idx) && gr$idx <= nrow(res))
-        sprintf("residu le plus extreme : annee d'accident %d, developpement %d",
-                res$i[gr$idx], res$j[gr$idx]) else "")
+      stat_nom = "M = min p_ij", stat = ca$stat,
+      loi = "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo",
+      estim_nom = "t(i,j) de la cellule du minimum", estim = ca$t,
+      p_as = ca$p, mc_nom = "MinP4",
+      libelle_p_as = "borne de Bonferroni min(1, N_t M)",
+      detail = paste(
+        "t(i,j) : residu studentise externe de la cellule (i,j) dans la regression ponderee",
+        "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j), cellule retiree de l'estimation de f_j et",
+        "de sigma_j ; p_ij = 2 F_Student(n_j - 2)(-|t(i,j)|) ; M = min p_ij, rejet pour",
+        "M petit. Sous le modele auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j)",
+        "suit, conditionnellement aux cumuls de la colonne j, la loi de Student a n_j - 2",
+        "degres de liberte, et min(1, N_t M) borne la p-value de M (Bonferroni) ; cette",
+        "borne est une p non simulee, jamais retenue a la place de la p Monte-Carlo (#181).",
+        sprintf(paste("Cellules retenues : colonnes n_j >= %d hors colonnes degenerees,",
+                      "N_t = %d ; %d cellule(s) des colonnes n_j = 3 non couverte(s),",
+                      "celles des colonnes n_j <= 2 sans degre de liberte."),
+                MW_NJ_MIN_CELLULE, ca$N_t, n_nj3),
+        if (is.finite(ca$stat))
+          sprintf("Minimum en cellule (annee d'accident %d, developpement %d), n_j = %d.",
+                  as.integer(ca$i), as.integer(ca$j), as.integer(ca$n_j)) else ""))
+  # Rosner sur residus de Mack : diagnostic par decision (Q-D1-Fi-7, decision
+  # du mainteneur du 19/10/2026, contre la recommandation de retrait ; visa du
+  # 21/10/2026 pour le passage OK -> INFO). Le cadre i.i.d. normal de Rosner
+  # (1983) ne couvre pas des residus a contraintes exactes (#347, ecart 1) :
+  # la ligne n'est pas un test, aucun verdict (ADR 0001). k^ et les rangs
+  # (indices dans les residus de Mack r, ordre de mw_residus()) sont
+  # restitues ; phrase fixe d'actuary (premier complement de la specification
+  # Fi). test_rosner() est inchangee (C3).
   ro <- test_rosner(r, alpha = alpha)
   add(fam, "Cellules aberrantes multiples (ESD generalise)",
       fonction = "test_rosner",
-      "Rosner (1983), Technometrics 25", type = "procedure de decision",
+      "Rosner (1983), Technometrics 25", type = "diagnostic",
       H0 = "aucun residu aberrant", H1 = "il existe i <= k residus aberrants",
-      estim_nom = "nb de cellules aberrantes", estim = ro$nb_outliers,
-      detail = sprintf("procedure a niveau alpha = %.2f (aucune p-value)", alpha),
-      verdict = if (ro$nb_outliers >= 2) "ECHEC" else if (ro$nb_outliers == 1) "ALERTE" else "OK")
+      estim_nom = "nb de cellules declarees (repere de Rosner)", estim = ro$nb_outliers,
+      detail = paste0(PHRASE_MW_ROSNER_DIAGNOSTIC,
+                      sprintf(" Valeurs critiques calculees a alpha = %.2f", alpha),
+                      if (ro$nb_outliers > 0)
+                        sprintf(paste(" ; residus declares (rang dans la liste des residus de",
+                                      "Mack, par ordre de retrait) : %s"),
+                                paste(ro$positions, collapse = ", ")) else "",
+                      "."))
 
   ## --- M5 : normalite, DIAGNOSTIC seulement ---------------------------------
   # Deux diagnostics sans verdict (#245, decisions D1-1 (a) et D1-2 (A) du
@@ -11253,6 +11339,96 @@ mw_influence <- function(aj) {
   out$fort_dfbetas <- !is.na(out$dfbetas) & abs(out$dfbetas) > out$repere_dfbetas
   out$dfbetas_non_borne <- nb
   out
+}
+
+# --- Cellule aberrante : residus studentises externes (ligne M4) -------------
+# Issue #300, decision du mainteneur du 21/10/2026 (Q-D2-Fi-2, variante MinP4
+# retenue par le critere K-300 sur les tableaux de #309 ; specification
+# docs/specifications/fi-merz-wuthrich-puissance.md, par. 4.1 et 4.2).
+# Remplace la statistique de Grubbs sur les residus de Mack (G borne par
+# sqrt(n_j - 1) dans chaque colonne, et qui se masque elle-meme ; par. 4.3) ;
+# test_grubbs() est inchangee.
+#   t(i,j) : residu studentise externe de la regression ponderee
+#     C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j) (cellule retiree de l'estimation
+#     de f_j et de sigma_j) ; t = DFBETAS sqrt((1 - h) / h), avec
+#     (1 - h) / h = S_sans / C(i,j), S_sans = somme des AUTRES cellules de la
+#     colonne (.mw_sommes_autres(), forme stable de #233), DFBETAS de
+#     mw_influence() (non modifiee : sa sortie alimente aussi
+#     res$plots_data$influence). Egal a stats::rstudent() de cette regression
+#     (test unitaire, oracle a 1e-13 pres sur reserve2).
+#   p_ij = 2 F_Student(n_j - 2)(-|t(i,j)|) ; statistique M = min p_ij, rejet
+#     en queue basse (petite M), cle "MinP4" de MW_CATALOGUE_MC.
+#   Cellules retenues : colonnes de n_j >= MW_NJ_MIN_CELLULE = 4 (variante
+#     MinP4), hors colonnes degenerees j_degeneres (ensemble fige a l'observe,
+#     #60) ; N_t = leur nombre, fixe par la configuration observee (22 sur
+#     reserve2). Les colonnes n_j <= 2 n'ont aucun degre de liberte ; les
+#     cellules des colonnes n_j = 3 (loi de Cauchy) ne sont pas couvertes
+#     (limite acceptee par le mainteneur, Q-D2-Fi-2).
+#   Cellule a influence non bornee (mw_influence()$dfbetas_non_borne : les
+#     autres cellules de la colonne sont proportionnelles) dans une colonne
+#     retenue (option (iii), decision Q-D1-Fi-8) : a l'observe (replique =
+#     FALSE), statistique NON DEFINIE (stat NA ; cellules nommees dans
+#     non_borne, motif propre pose par le champ non_definie du catalogue) ;
+#     dans une replication (replique = TRUE), p_ij = 0 pour cette cellule
+#     (limite de |t| -> infini) et la replication reste dans B effectif.
+#   Colonne retenue dont le t est NA hors non-borne (colonne devenue
+#     degeneree dans une replication) : statistique NA, la replication sort de
+#     B effectif (volet 2 de #56).
+# ALGEBRE FIGEE (#300, controle (i2') de tests/puissance_mw_t8.R) : memes
+# operations, dans le meme ordre, que influence_t() et cellules_t(aj, figes,
+# 4L, obs, cache) du script de mesure de #309 (t par colonne, n_j par
+# stats::ave(), selection, gardes, tv[nb] <- .Machine$double.xmax, p par
+# 2 * stats::pt(-abs(tv), n_j - 2), p[nb] <- 0, which.min()) ; toute forme
+# equivalente changerait des bits et la p mesuree ne serait plus celle de la
+# ligne.
+# Rend : stat (M), p (borne de Bonferroni min(1, N_t M), p non simulee sous
+# le modele auxiliaire de Mack a erreurs gaussiennes, jamais retenue, #181),
+# N_t, la cellule du minimum (i, j, n_j, t), non_borne (data.frame i, j des
+# cellules retenues a influence non bornee) et cellules (data.frame i, j,
+# n_j, t, p, non_borne des cellules retenues ; NULL si la statistique n'est
+# pas calculee).
+MW_NJ_MIN_CELLULE <- 4L
+mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) {
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  inf <- mw_influence(aj)
+  t <- rep(NA_real_, nrow(inf))
+  for (j in unique(inf$j)) {
+    sel <- which(inf$j == j)
+    t[sel] <- inf$dfbetas[sel] * sqrt(.mw_sommes_autres(inf$C[sel]) / inf$C[sel])
+  }
+  nj <- stats::ave(inf$j, inf$j, FUN = length)
+  k <- nj >= MW_NJ_MIN_CELLULE & !(inf$j %in% jd)
+  vide_nb <- data.frame(i = integer(0), j = integer(0))
+  na <- list(stat = NA_real_, p = NA_real_, N_t = sum(k), i = NA_integer_, j = NA_integer_,
+             n_j = NA_integer_, t = NA_real_, non_borne = vide_nb, cellules = NULL)
+  if (!any(k)) return(na)
+  nb <- inf$dfbetas_non_borne[k]
+  tk <- t[k]; njk <- nj[k]; ik <- inf$i[k]; jk <- inf$j[k]
+  if (any(is.na(tk) & !nb)) return(na)
+  if (any(nb) && !replique) {
+    na$non_borne <- data.frame(i = ik[nb], j = jk[nb])
+    return(na)
+  }
+  tv <- tk; tv[nb] <- .Machine$double.xmax
+  p <- 2 * stats::pt(-abs(tv), njk - 2); p[nb] <- 0
+  im <- which.min(p)
+  M <- min(p)
+  list(stat = M, p = min(1, length(p) * M), N_t = length(p), i = ik[im], j = jk[im],
+       n_j = njk[im], t = tk[im], non_borne = data.frame(i = ik[nb], j = jk[nb]),
+       cellules = data.frame(i = ik, j = jk, n_j = njk, t = tk, p = p, non_borne = nb))
+}
+
+# Motif de la statistique observee non definie de la ligne M4 (option (iii),
+# Q-D1-Fi-8), lu par le champ non_definie de l'entree MinP4 de
+# MW_CATALOGUE_MC : NA_character_ si aucune cellule retenue n'a d'influence
+# non bornee (la statistique observee est alors non finie pour une autre
+# cause, et le motif generique MOTIF_MC_OBS_NON_FINIE reste).
+.mw_motif_cellule_non_bornee <- function(ca) {
+  nb <- ca$non_borne
+  if (is.null(nb) || !nrow(nb)) return(NA_character_)
+  sprintf(paste("statistique observee non definie : residu studentise non borne en %s",
+                "(autres cellules de la colonne proportionnelles)"),
+          paste(sprintf("cellule (%d,%d)", as.integer(nb$i), as.integer(nb$j)), collapse = ", "))
 }
 
 # Contribution de chaque annee de survenance a la reserve et au terme de

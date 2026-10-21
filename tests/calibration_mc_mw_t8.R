@@ -64,6 +64,13 @@
 #  colonne sur les residus redresses, colonnes n_j >= 3,
 #  mw_test_heteroscedasticite_intra()) : sur un moteur posterieur a #301, la
 #  colonne BP mesure FWr, et non la statistique du tableau de #206.
+#  Depuis #300 (decision Q-D2-Fi-2 du mainteneur, 21/10/2026), la cle Grubbs
+#  du moteur est remplacee, a la meme position, par la cle MinP4 (minimum des
+#  p de Student des residus studentises externes, colonnes n_j >= 4, queue
+#  basse, mw_test_cellule_aberrante()) : sur un moteur posterieur a #300, le
+#  controle (b) echoue aussi par la cle (setequal(CLES, names(SENS_SPEC))
+#  faux, sens de Grubbs lu NA), et la colonne Grubbs du tableau de #206 n'a
+#  plus de cle au catalogue. SENS_SPEC n'est pas modifie.
 #
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2), pas un resultat general (par. 0). Aucun theoreme ne
@@ -651,6 +658,7 @@ admettre <- function(tri) {
 # observee de mw_bootstrap() (meme jd, meme jni par le chemin par defaut).
 # La reecriture independante de jni (.jni_oracle()) est dans
 # tests/unitaires/test_tables_mw.R (#270).
+# .mw_stats() sans replique : evaluation observee (#300 : MinP4 NA si une cellule a une influence non bornee).
 stats_oracle <- function(aj) .mw_stats(aj, .mw_ensembles_figes(aj, .mw_colonnes_degenerees(aj)))
 
 # --- Pool brut d'avant #46 (par. 3, C-206-4) ----------------------------------
@@ -1808,7 +1816,7 @@ traiter_sm <- function(b, ctl = FALSE) {
     figes <- .mw_ensembles_figes(aj, jd, jni, jno)   # objet unique (#278)
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
-      sb <- try(.mw_stats(a, figes), silent = TRUE)
+      sb <- try(.mw_stats(a, figes, replique = TRUE), silent = TRUE)
       if (inherits(sb, "try-error")) rep(NA_real_, NS) else unname(sb[CLES])
     }, numeric(NS)))
     colnames(S) <- CLES

@@ -1337,10 +1337,13 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m3cor", tests = "Correlation entre annees de developpement adjacentes"),
   list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),
   list(label = "mw:m3runs", tests = "Test des suites sur les residus de Mack"),
-  list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (Grubbs)"),
-  list(label = "mw:m4ros", tests = "Cellules aberrantes multiples (ESD generalise)")
+  # Ligne M4 renommee par #300 (statistique MinP4, decision Q-D2-Fi-2 du
+  # 21/10/2026).
+  list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (residus studentises externes)")
   # mw:m5sw et mw:m5li retirees (#245, decision D1-1 (a) du 13/10/2026) :
   # les deux lignes M5 sont des diagnostics, sans rubrique 7.
+  # mw:m4ros retiree (#300, decision Q-D1-Fi-7 du 19/10/2026) : la ligne de
+  # Rosner sur residus de Mack est un diagnostic par decision, sans rubrique 7.
 )
 TYPES_RUBRIQUE7 <- c("test", "procedure de decision")
 

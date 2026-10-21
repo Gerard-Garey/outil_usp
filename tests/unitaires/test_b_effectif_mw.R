@@ -58,8 +58,10 @@ sans_244 <- function(d) sub(paste0(" ", PHRASE_VERDICT_SENSIBLE_MC), "", d, fixe
 
 ## --- Triangle ta_pert(9e-13) (Taylor & Ashe, colonne 6 presque degeneree) ------
 # Meme triangle que U181-7 (test_sans_repli_p_non_simulee.R) et ta_pert() de
-# test_merz_wuthrich.R : B_eff < B pour Origine, HomogF, Courbure ; B_eff = B
-# sur les dix autres statistiques Monte-Carlo. Valeurs mesurees (R 4.3.x,
+# test_merz_wuthrich.R : B_eff < B pour Origine, HomogF, Courbure et, depuis
+# #300, MinP4 (colonne retenue devenue degeneree dans la replication : t NA,
+# statistique NA, volet 2 de #56 ; 67 sur 99 et 42 sur 60 mesures, comme les
+# trois autres) ; B_eff = B sur les neuf autres statistiques Monte-Carlo. Valeurs mesurees (R 4.3.x,
 # Linux) : 67 sur 99 et 42 sur 60. La perturbation est placee a la
 # tolerance : ces comptes peuvent varier entre plateformes ; les assertions
 # portent sur des relations (B_eff < B, B_eff >= B_MIN_DEGENERESCENCE pour le
@@ -83,17 +85,29 @@ noms3 <- c(Origine = "Nullite de l'ordonnee a l'origine, colonne par colonne",
            HomogF = "Homogeneite de f_j entre annees de survenance",
            Courbure = "Absence de courbure de la regression")
 ligne <- function(tm, n) Filter(function(l) identical(l$test, n), tm)[[1]]
+# Ligne de cellule aberrante (#300, cle MinP4) : B_eff < B sur ce triangle,
+# assertions propres (libelle de sa p non simulee : borne de Bonferroni).
+NOM_MINP4 <- "Cellule aberrante du triangle (residus studentises externes)"
+noms4 <- c(names(noms3), "MinP4")
 
 ## --- T1 (cas A) : B = 99 ---------------------------------------------------------
 bt99 <- mw_bootstrap(aj204, B = 99); tm99 <- mw_tests(aj204, bt99)
 # B effectif de chaque statistique des trois lignes (67 mesure).
 be99 <- as.integer(bt99$B_effectif[names(noms3)]); names(be99) <- names(noms3)
 pa99 <- function(nm) phrase_a(be99[[nm]], as.integer(bt99$B))
-verifier("T1 ta_pert(9e-13), B = 99 : B_MIN_DEGENERESCENCE <= B_eff < B sur Origine, HomogF, Courbure, B ailleurs",
+verifier("T1 ta_pert(9e-13), B = 99 : B_MIN_DEGENERESCENCE <= B_eff < B sur Origine, HomogF, Courbure et MinP4 (#300), B ailleurs",
          identical(as.integer(bt99$B), 99L) &&
-           all(be99 < bt99$B) && all(be99 >= B_MIN_DEGENERESCENCE) &&
-           all(bt99$B_effectif[setdiff(names(bt99$B_effectif), names(noms3))] == bt99$B) &&
+           all(bt99$B_effectif[noms4] < bt99$B) && all(bt99$B_effectif[noms4] >= B_MIN_DEGENERESCENCE) &&
+           all(bt99$B_effectif[setdiff(names(bt99$B_effectif), noms4)] == bt99$B) &&
            all(is.finite(bt99$p_mc)))
+verifier("T1 MinP4 (#300) : phrase A en fin du detail (avant la phrase de #244), jointe par ' ' apres le point final, p Monte-Carlo retenue",
+         {
+           l <- ligne(tm99, NOM_MINP4); d <- sans_244(l$detail)
+           pa <- phrase_a(as.integer(bt99$B_effectif[["MinP4"]]), as.integer(bt99$B))
+           endsWith(d, paste0(". ", pa)) &&
+             lengths(regmatches(l$detail, gregexpr("B effectif =", l$detail, fixed = TRUE))) == 1L &&
+             identical(l$type, "test") && identical(l$p_retenue, l$p_mc)
+         })
 verifier("T1 Origine, HomogF, Courbure : phrase A (B_eff, B, B - B_eff ; 67, 99, 32 mesures) en fin du detail (avant la phrase de #244)",
          all(vapply(names(noms3), function(nm) {
            l <- ligne(tm99, noms3[[nm]]); d <- sans_244(l$detail)
@@ -117,7 +131,7 @@ verifier("T1 jonction exacte (regle de jonction d'add()) : ' ' apres un point (O
                  fixed = TRUE))
 verifier("T1 les autres lignes (dix lignes Monte-Carlo comprises) ne contiennent pas 'B effectif ='",
          {
-           autres <- Filter(function(l) !l$test %in% noms3, tm99)
+           autres <- Filter(function(l) !l$test %in% c(noms3, NOM_MINP4), tm99)
            !any(vapply(autres, a_beff, logical(1))) &&
              sum(vapply(tm99, function(l) is.finite(l$p_mc), logical(1))) == 13L
          })
@@ -140,8 +154,18 @@ verifier("T2 Origine, HomogF, Courbure : diagnostic de #181, detail fini par 'B 
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001)."))
          }, logical(1))))
+verifier("T2 MinP4 (#300) : 0 < B_eff < B_MIN_DEGENERESCENCE, diagnostic de #181 (borne de Bonferroni non retenue), detail fini par 'B effectif = <B_eff> sur B = <B>.'",
+         {
+           be <- as.integer(bt60$B_effectif[["MinP4"]]); l <- ligne(tm60, NOM_MINP4)
+           be > 0L && be < B_MIN_DEGENERESCENCE &&
+             identical(unname(bt60$motif_mc[["MinP4"]]), MOTIF_MC_REPLIC_INSUFFISANTES) &&
+             endsWith(l$detail, phrase_b(be, as.integer(bt60$B))) &&
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                         " ; borne de Bonferroni min(1, N_t M) non retenue (ADR 0001)."))
+         })
 verifier("T2 les autres lignes ne contiennent pas 'B effectif ='",
-         !any(vapply(Filter(function(l) !l$test %in% noms3, tm60), a_beff, logical(1))))
+         !any(vapply(Filter(function(l) !l$test %in% c(noms3, NOM_MINP4), tm60), a_beff, logical(1))))
 
 ## --- T3 : reserve2 (reference versionnee) ---------------------------------------
 # Lecture de tests/reference/reserve2.rds au lieu d'un run_engine() a B = 999

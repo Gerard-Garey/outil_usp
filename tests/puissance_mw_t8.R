@@ -24,6 +24,16 @@
 #  de #309 se reproduisent au commit 1e3979c (moteur dont l'empreinte est
 #  celle de 754dd0a). Le mode --controle-i2prime reste valide : il compare la
 #  cle du moteur au candidat du script sur les memes replications.
+#  Moteur posterieur a #300 (decision Q-D2-Fi-2 du 21/10/2026) : la cle Grubbs
+#  de MW_CATALOGUE_MC est remplacee par la cle MinP4 (mw_test_cellule_aberrante(),
+#  meme algebre que influence_t() et cellules_t(..., 4L, ...) ci-dessous ;
+#  replication reconnue par l'element replique du contexte, pose par
+#  .mw_stats(replique = TRUE) dans la boucle de mw_bootstrap(), au lieu de la
+#  comparaison au triangle observe). Sur un tel
+#  moteur, les parties qui lisent la cle Grubbs du catalogue (temoins TEM_A
+#  du volet A, controles (a), (c) et K0-t) lisent une cle absente ; elles ne
+#  sont pas modifiees. --controle-i2prime --cle-moteur MinP4 --candidat MinP4
+#  compare la ligne implementee au candidat mesure (#300 : conforme).
 #
 #  Protocole : docs/specifications/fi-merz-wuthrich-puissance.md, par. 2
 #  (#309) et 3 a 4 (candidats de #301 et #300), AVEC l'encadre des decisions

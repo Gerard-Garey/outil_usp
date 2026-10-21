@@ -33,7 +33,10 @@
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
 #  .mw_pente_intra(), .mc_evaluer()...) sont communes, de meme que la
 #  statistique BP, reportee sous la forme de #301
-#  (mw_test_heteroscedasticite_intra()). Chaque fonction est
+#  (mw_test_heteroscedasticite_intra()), et la statistique de cellule
+#  aberrante, reportee sous la forme de #300 (cle MinP4,
+#  mw_test_cellule_aberrante(), evaluee comme observee, comme par .mw_stats()
+#  du moteur par defaut). Chaque fonction est
 #  comparee par meme() (valeur, ou message d'erreur) et par la liste des
 #  avertissements emis, sur les jeux ci-dessous. Chaque cas y figure AU MOINS
 #  UNE FOIS, au plus petit nombre de triangles et de replications qui le
@@ -382,7 +385,11 @@ local({
     # mw_test_heteroscedasticite_intra(), comme .mw_pente_intra() ci-dessous
     # (l'objet de la comparaison est l'assemblage des tables, #239).
     BP         = .mc_entree(function(e) mw_test_heteroscedasticite_intra(e$aj, e$res)$stat, "haut"),
-    Grubbs     = .mc_entree(function(e) test_grubbs(e$r)$stat, "haut"),
+    # Statistique de Grubbs remplacee par #300 (cle MinP4, minimum des p de
+    # Student des residus studentises externes) : fonction commune du moteur,
+    # mw_test_cellule_aberrante(), evaluee comme observee, comme .mw_stats()
+    # du moteur par defaut (replique = FALSE).
+    MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres)$stat, "bas"),
     DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
     Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
     PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
