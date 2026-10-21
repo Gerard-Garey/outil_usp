@@ -14,6 +14,17 @@
 #  --ecrire, --sortie, --brut). Tous les libelles non ASCII du script sont
 #  ecrits en echappements \u (fichier source ASCII).
 #
+#  Moteur posterieur a #301 (decision Q-D2-Fi-1 du 21/10/2026) : la cle BP de
+#  MW_CATALOGUE_MC calcule desormais FWr (mw_test_heteroscedasticite_intra(),
+#  meme algebre que stat_fw() ci-dessous), et non plus le n R^2 de r^2 ~ C.
+#  Sur un tel moteur, le controle (c) de BP (ATTENDU_C, 0,6502 / 0,103), K0-t
+#  (temoin BP contre la colonne pR:BP du brut de #206) et le controle de T5
+#  (n S_xy^2 / (S_xx S_yy) recompose = BP observe) sont en ECHEC par
+#  construction ; ATTENDU_C et ces controles ne sont pas modifies. Les sorties
+#  de #309 se reproduisent au commit 1e3979c (moteur dont l'empreinte est
+#  celle de 754dd0a). Le mode --controle-i2prime reste valide : il compare la
+#  cle du moteur au candidat du script sur les memes replications.
+#
 #  Protocole : docs/specifications/fi-merz-wuthrich-puissance.md, par. 2
 #  (#309) et 3 a 4 (candidats de #301 et #300), AVEC l'encadre des decisions
 #  du mainteneur du 19/10/2026 (point d'arret D1-Fi) et son complement du

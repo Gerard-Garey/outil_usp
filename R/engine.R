@@ -8665,6 +8665,61 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
   if (is.null(co)) NA_real_ else unname(co[3])
 }
 
+# --- Heteroscedasticite residuelle a effets fixes de colonne (ligne M2) -------
+# Issue #301, decision du mainteneur du 21/10/2026 (Q-D2-Fi-1, variante FWr ;
+# specification docs/specifications/fi-merz-wuthrich-puissance.md, par. 3.1).
+# Remplace le nR^2 de r^2 ~ C sur toutes les cellules (Breusch-Pagan /
+# Koenker sans effet de colonne), dont la covariance etait dominee par une part
+# ENTRE colonnes fixee par construction : somme_i r(i,j)^2 = n_j - 1 fixe les
+# moyennes de colonne de r^2, et la variance de C est presque toute entre
+# colonnes (par. 3.1 et 3.4 de la specification).
+# Statistique : LM = n [1 - SCR(y ~ facteur(j) + C) / SCR(y ~ facteur(j))],
+# nR^2 partiel par partialisation (Frisch et Waugh, 1933) : n Sxy^2 / (Sxx Syy)
+# sur y et C centres par colonne (moyenne simple de colonne), avec
+#   y = r~^2 = r^2 / (1 - h), 1 - h = S_sans / S_j (somme des AUTRES cellules
+#   de la colonne sur la somme de la colonne, .mw_sommes_autres() ; meme
+#   redressement du levier h = C(i,j) / S_j que .mw_pool_residus(), #46) ;
+#   cellules des colonnes de n_j >= 3 seulement (a n_j = 2, |r~| = 1
+#   identiquement, ecart mesure 2,2e-16 sur reserve2, et r~^2 ne porte aucune
+#   information) ; colonnes degenerees deja ecartees par
+#   mw_residus(aj, j_degeneres) (ensemble fige, #60).
+# Construction de l'outil pour des residus de Mack, parallele a la pente
+# intra-colonne (.mw_lm_intra(), #119), et non un test publie : la p chi2(1)
+# n'est qu'une p non simulee (jamais retenue, #181) ; la p de reference est la
+# p Monte-Carlo (queue haute, cle "BP" de MW_CATALOGUE_MC).
+# ALGEBRE FIGEE (#301, controle (i2') de tests/puissance_mw_t8.R) : memes
+# operations, dans le meme ordre, que stat_fw(aj, res, redresse = TRUE,
+# n_min = 3) du script de mesure de #309 (centrage y - ave(y, g), sommes par
+# sum(), n Sxy^2 / (Sxx Syy)) ; un centrage pondere equivalent changerait des
+# bits et la p mesuree ne serait plus celle de la ligne.
+# Garde : stat NA si moins de 3 cellules retenues, si SCR(y ~ facteur(j)) = 0
+# (Syy nul ou non fini) ou si C est constant dans chaque colonne retenue (Sxx
+# nul ou non fini). Rend stat, p (chi2(1), bornee), n (cellules retenues) et K
+# (colonnes retenues).
+mw_test_heteroscedasticite_intra <- function(aj, res) {
+  na <- list(stat = NA_real_, p = NA_real_, n = 0L, K = 0L)
+  if (!nrow(res)) return(na)
+  y <- res$residu^2
+  umh <- numeric(nrow(res))
+  for (j in unique(res$j)) {
+    sel <- res$j == j
+    col <- aj$tri[seq_len(aj$I - j), j + 1]
+    umh[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
+  }
+  y <- y / umh
+  nj <- as.vector(table(res$j)[as.character(res$j)])
+  k <- nj >= 3L
+  n <- sum(k); K <- length(unique(res$j[k]))
+  if (n < 3L) return(list(stat = NA_real_, p = NA_real_, n = n, K = K))
+  y <- y[k]; x <- res$C[k]; g <- res$j[k]
+  yc <- y - stats::ave(y, g); xc <- x - stats::ave(x, g)
+  syy <- sum(yc^2); sxx <- sum(xc^2); sxy <- sum(xc * yc)
+  if (!(is.finite(syy) && syy > 0 && is.finite(sxx) && sxx > 0))
+    return(list(stat = NA_real_, p = NA_real_, n = n, K = K))
+  stat <- length(y) * sxy^2 / (sxx * syy)
+  list(stat = stat, p = .p_borne(1 - stats::pchisq(stat, 1)), n = n, K = K)
+}
+
 # --- Tests specifiques de l'hypothese (iii) de l'annexe XVII, D(2)(h) --------
 # L'enonce reglementaire porte "pour TOUTES les annees d'accident" :
 #   E[C(i,j+1) | C(i,j)] = f_j C(i,j)
@@ -10038,12 +10093,12 @@ MW_CATALOGUE_MC <- list(
                           extremes = function(e)
                             .mw_corr_extremes(mw_stat_correlation_dev(e$aj, e$figes$degeneres))),
   # Heteroscedasticite residuelle : les residus de Mack ne doivent plus
-  # dependre de C(i,j) si la variance est bien proportionnelle a C(i,j).
-  BP         = .mc_entree(function(e) {
-    res <- e$res; r <- e$r
-    if (nrow(res) > 3 && stats::sd(res$C) > 0)
-      nrow(res) * summary(stats::lm(I(r^2) ~ res$C))$r.squared else NA_real_
-  }, "haut"),
+  # dependre de C(i,j), a colonne donnee, si la variance est bien
+  # proportionnelle a C(i,j). Depuis #301 (variante FWr, decision Q-D2-Fi-1
+  # du 21/10/2026) : nR^2 partiel a effets fixes de colonne sur les residus
+  # redresses, colonnes n_j >= 3 (mw_test_heteroscedasticite_intra()). Cle
+  # "BP" conservee (scripts de mesure, references).
+  BP         = .mc_entree(function(e) mw_test_heteroscedasticite_intra(e$aj, e$res)$stat, "haut"),
   Grubbs     = .mc_entree(function(e) test_grubbs(e$r)$stat, "haut"),
   DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
   Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux",
@@ -10323,24 +10378,37 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
 
   ## --- M2 : structure de variance (D(2)(h)(iv)) -----------------------------
   fam <- "M2. variance proportionnelle au cumul (annexe XVII D(2)(h)(iv))"
-  bp <- if (n > 3 && stats::sd(res$C) > 0) {
-    m <- stats::lm(I(r^2) ~ res$C); list(stat = n * summary(m)$r.squared,
-      p = .p_borne(1 - stats::pchisq(n * summary(m)$r.squared, 1))) } else list(stat = NA_real_, p = NA_real_)
+  # Effets fixes de colonne, residus redresses, colonnes n_j >= 3 (#301,
+  # variante FWr) : meme fonction que l'entree BP du catalogue, donc meme
+  # statistique observee que bootstrap$stats_obs["BP"].
+  bp <- mw_test_heteroscedasticite_intra(aj, res)
   add(fam, "Heteroscedasticite residuelle vs cumul",
-      fonction = "mw_tests",
-      "Breusch & Pagan (1979) / Koenker (1981), applique aux residus de Mack",
-      H0 = "les residus de Mack ne dependent plus de C(i,j)",
+      fonction = "mw_test_heteroscedasticite_intra",
+      paste("Koenker (1981), J. Econometrics 17(1), forme n R^2 studentisee ; partialisation",
+            "des effets fixes de colonne (theoreme de Frisch & Waugh, 1933, Econometrica 1(4)) ;",
+            "construction de l'outil appliquee aux residus de Mack"),
+      H0 = "a colonne donnee, l'echelle des residus de Mack redresses ne depend pas de C(i,j)",
       H1 = "la ponderation en C(i,j) ne capture pas la variance",
-      stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
+      stat_nom = "LM", stat = bp$stat,
+      loi = "chi2(1) asymptotique (effets fixes de colonne) -> Monte-Carlo",
       p_as = bp$p, mc_nom = "BP",
-      detail = "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus standardises sont d'echelle constante")
+      detail = paste(
+        "Si Var(C(i,j+1)|C(i,j)) = sigma_j^2 C(i,j), les residus redresses r~ = r/sqrt(1 - h)",
+        "ont, a sigma_j connu, une variance egale a 1 dans chaque colonne (h = C(i,j)/S_j,",
+        "levier de la cellule ; 1 - h = somme des autres cellules de la colonne sur S_j).",
+        "LM = n R^2 partiel de la regression de r~^2 sur C(i,j) avec effets fixes d'annee de",
+        "developpement (Frisch-Waugh) : seule la dependance au cumul a colonne donnee est",
+        "testee. L'effet de colonne ecarte la part entre colonnes, fixee par construction pour",
+        "les residus non redresses (somme_i r(i,j)^2 = n_j - 1).",
+        "Colonnes n_j >= 3 seulement (a n_j = 2, |r~| = 1",
+        sprintf("identiquement) : %d cellules dans %d colonnes.", bp$n, bp$K)))
   ev <- mw_test_exposant_variance(aj, jd)
   pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
                            function(n) .mw_fisher_rangs_p_min(n, ev$masse_min),
                            any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
       fonction = "mw_test_exposant_variance",
-      "Annexe XVII, D(2)(h)(iv) ; complement de Breusch-Pagan",
+      "Annexe XVII, D(2)(h)(iv) ; complement de la ligne Heteroscedasticite residuelle vs cumul",
       H0 = "|r(i,j)| ne depend pas de C(i,j) dans chaque colonne",
       H1 = "l'exposant 1 impose par le reglement est inadapte",
       stat_nom = "X de Fisher", stat = ev$stat,
@@ -10379,8 +10447,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                              "exactement N moyenne(r)^2/(N-1) : ce que cette ligne",
                              "donne a lire est le CENTRAGE des residus, ici %s, et la",
                              "coherence interne de la standardisation. La structure de",
-                             "variance est testee par Breusch-Pagan et par l'exposant",
-                             "de variance par colonne."),
+                             "variance est testee par la ligne Heteroscedasticite residuelle vs cumul",
+                             "(n R^2 a effets fixes de colonne) et par l'exposant de variance par colonne."),
                        format(var_attendue, digits = 6),
                        # k = 1 : (N - k)/(N - 1) = 1, "et NON 1" serait faux (#60, R5)
                        if (k_col == 1L) "" else ", et NON 1", n, k_col, n - k_col,

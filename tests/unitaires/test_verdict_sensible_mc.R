@@ -14,8 +14,8 @@
 #  U244-9 : seuils atteignables seulement (g_mc NA ou < s). Renvoi de #215
 #  pose avant la phrase (constat C1 de l'audit).
 #  U244-7 : la regle, recalculee sur les champs des six references, designe
-#  exactement les 11 lignes de la specification, qui seules portent la
-#  phrase ; l'egalite moteur = references (p, verdicts, detail) est portee par
+#  exactement les 10 lignes de la specification (11 avant #301, qui retire
+#  la ligne M2 de reserve2), qui seules portent la phrase ; l'egalite moteur = references (p, verdicts, detail) est portee par
 #  tests/test_reproductibilite.R, et l'absence de toute valeur numerique
 #  changee par l'invariant de tests/patcher_reference.R.
 ###############################################################################
@@ -213,14 +213,15 @@ verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phr
 
 ## --- U244-7 : six references ----------------------------------------------------------
 # Les 11 lignes de la specification (section 5, mesure M1), par cas : indice
-# de la ligne dans res$tests et nom du test.
+# de la ligne dans res$tests et nom du test. Depuis #301 (ligne M2 a effets
+# fixes de colonne, p Monte-Carlo 0,103 -> 0,285 sur reserve2), la ligne 6
+# de reserve2 ne porte plus la phrase : 10 lignes.
 ATTENDU244 <- list(
   premium = c(`12` = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
               `15` = "Homogeneite des dispersions (mediane)"),
   premium_ii6 = NULL, premium_net = NULL, reserve1 = NULL,
   premium_interieur = c(`37` = "Valeur aberrante isolee (Grubbs)"),
-  reserve2 = c(`2` = "Nullite de l'ordonnee a l'origine, colonne par colonne",
-               `6` = "Heteroscedasticite residuelle vs cumul"))
+  reserve2 = c(`2` = "Nullite de l'ordonnee a l'origine, colonne par colonne"))
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
 # Regle recalculee, alignee sur add() (U244-9 et #125) : seuils atteignables
 # seulement, plancher p_min_mc de la ligne s'il est fini, sinon g_mc lu dans
@@ -271,6 +272,6 @@ for (cas in names(ATTENDU244)) local({
            identical(idx_rg, idx_ph))
   n244 <<- n244 + length(idx_ph)
 })
-verifier("U244-7 six cas : 11 lignes marquees au total", n244 == 11L)
+verifier("U244-7 six cas : 10 lignes marquees au total (11 avant #301)", n244 == 10L)
 
 fin_fichier()

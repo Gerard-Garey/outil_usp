@@ -2735,4 +2735,81 @@ verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, det
              identical(x$verdict, "INFO") && identical(x$type, "diagnostic")
          })
 
+
+## --- M2 : heteroscedasticite residuelle a effets fixes de colonne (#301) -----
+# Variante FWr (decision Q-D2-Fi-1 du 21/10/2026) : LM = n R^2 partiel de
+# r~^2 = r^2 / (1 - h) sur C avec effets fixes de colonne, colonnes n_j >= 3.
+# Oracle independant : n [1 - SCR(y ~ factor(j) + C) / SCR(y ~ factor(j))]
+# par lm(), 1 - h = 1 - C / S_j (forme directe, et non la somme des autres
+# cellules du moteur).
+fwr_oracle <- function(aj, res) {
+  S <- stats::ave(res$C, res$j, FUN = sum)
+  d <- data.frame(y = res$residu^2 / (1 - res$C / S), C = res$C, j = factor(res$j))
+  nj <- stats::ave(res$C, res$j, FUN = length)
+  d <- droplevels(d[nj >= 3, ])
+  m0 <- stats::lm(y ~ j, d); m1 <- stats::lm(y ~ j + C, d)
+  nrow(d) * (1 - sum(stats::resid(m1)^2) / sum(stats::resid(m0)^2))
+}
+tri_r2 <- local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
+})
+verifier("M2 (#301) : LM = n R^2 partiel (oracle lm() a effets fixes de colonne), reserve2 et triangle 5 x 5 ; p = chi2(1)",
+         {
+           ok <- vapply(list(tri_r2, tri), function(t) {
+             a <- mw_ajuster(t); rs <- mw_residus(a)
+             h <- mw_test_heteroscedasticite_intra(a, rs)
+             isTRUE(proche(h$stat, fwr_oracle(a, rs), rel = 1e-9)) &&
+               isTRUE(proche(h$p, 1 - stats::pchisq(fwr_oracle(a, rs), 1), rel = 1e-9))
+           }, logical(1))
+           all(ok)
+         })
+verifier("M2 (#301) : reserve2, 25 cellules dans 5 colonnes (n_j >= 3), LM = 1,4373 (spec. Fi, par. 3.2)",
+         {
+           a <- mw_ajuster(tri_r2); h <- mw_test_heteroscedasticite_intra(a, mw_residus(a))
+           identical(h$n, 25L) && identical(h$K, 5L) && isTRUE(round(h$stat, 4) == 1.4373) &&
+             isTRUE(round(h$p, 4) == 0.2306)
+         })
+verifier("M2 (#301) : colonnes n_j <= 2 exclues (residus de la colonne n_j = 2 sans effet ; triangle 3 x 3 -> NA, n = 0)",
+         {
+           a <- mw_ajuster(tri_r2); rs <- mw_residus(a)
+           rs2 <- rs; k <- rs2$j == 5
+           rs2$residu[k] <- rs2$residu[k] * c(7, -0.1)
+           h1 <- mw_test_heteroscedasticite_intra(a, rs)
+           h2 <- mw_test_heteroscedasticite_intra(a, rs2)
+           t3 <- matrix(NA_real_, 3, 3); t3[, 1] <- c(100, 110, 120)
+           t3[1:2, 2] <- c(150, 170); t3[1, 3] <- 180
+           a3 <- mw_ajuster(t3); h3 <- mw_test_heteroscedasticite_intra(a3, mw_residus(a3))
+           sum(k) == 2L && identical(h1$stat, h2$stat) &&
+             is.na(h3$stat) && is.na(h3$p) && identical(h3$n, 0L)
+         })
+verifier("M2 (#301) : garde NA si C constant dans chaque colonne retenue, ou si r~^2 constant a colonne donnee (SCR = 0)",
+         {
+           aj5 <- list(I = 5L, tri = matrix(c(rep(100, 5), rep(150, 4), NA, rep(170, 3), NA, NA,
+                                              rep(NA, 5), rep(NA, 5)), 5, 5))
+           rc <- data.frame(i = c(0:3, 0:2), j = c(rep(0, 4), rep(1, 3)), C = c(rep(100, 4), rep(150, 3)),
+                            residu = c(1.2, -0.3, 0.5, -1.4, 0.8, -1.1, 0.3))
+           hc <- mw_test_heteroscedasticite_intra(aj5, rc)
+           a <- mw_ajuster(tri_r2); rs <- mw_residus(a); rs$residu <- 0
+           h0 <- mw_test_heteroscedasticite_intra(a, rs)
+           is.na(hc$stat) && is.na(hc$p) && identical(hc$n, 7L) &&
+             is.na(h0$stat) && is.na(h0$p) && identical(h0$n, 25L)
+         })
+verifier("M2 (#301) : ligne de mw_tests() = entree BP du catalogue (statistique observee identique), fonction, H0, loi, detail sans nombre du bootstrap",
+         {
+           a <- mw_ajuster(tri_r2); b <- mw_bootstrap(a, B = 99)
+           L <- mw_tests(a, b)
+           x <- L[[which(vapply(L, `[[`, "", "test") == "Heteroscedasticite residuelle vs cumul")]]
+           identical(x$stat, unname(b$stats_obs[["BP"]])) &&
+             identical(x$stat, mw_test_heteroscedasticite_intra(a, mw_residus(a))$stat) &&
+             identical(x$fonction, "mw_test_heteroscedasticite_intra") &&
+             identical(x$H0, "a colonne donnee, l'echelle des residus de Mack redresses ne depend pas de C(i,j)") &&
+             identical(x$loi, "chi2(1) asymptotique (effets fixes de colonne) -> Monte-Carlo") &&
+             identical(x$p_retenue, x$p_mc) && identical(x$nature_p, "Monte-Carlo (bootstrap de residus)") &&
+             grepl("effets fixes d'annee de developpement", x$detail, fixed = TRUE) &&
+             grepl("Colonnes n_j >= 3 seulement", x$detail, fixed = TRUE) &&
+             grepl(": 25 cellules dans 5 colonnes.", x$detail, fixed = TRUE) &&
+             !grepl(format(x$p_mc), x$detail, fixed = TRUE)
+         })
+
 fin_fichier()

@@ -59,6 +59,11 @@
 #  modifie : sur le moteur posterieur a #276, le controle (b) est en ECHEC
 #  (cle Calendrier, "bas" lu contre "deux" attendu ; libelle porte dans
 #  INTEGRITE), et une remesure de #206 passerait par une decision.
+#  De meme, depuis #301 (decision Q-D2-Fi-1 du mainteneur, 21/10/2026), la cle
+#  BP du moteur calcule la variante FWr (n R^2 partiel a effets fixes de
+#  colonne sur les residus redresses, colonnes n_j >= 3,
+#  mw_test_heteroscedasticite_intra()) : sur un moteur posterieur a #301, la
+#  colonne BP mesure FWr, et non la statistique du tableau de #206.
 #
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2), pas un resultat general (par. 0). Aucun theoreme ne
