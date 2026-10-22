@@ -533,7 +533,9 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            }, finally = restaurer_graine())
            mesure <- rownames(M)[rowSums(M) > 0]
            cite <- unlist(.MW_LIGNES_RESIDUS, use.names = FALSE)
-           if (identical(mw_residus, orig) && setequal(mesure, cite) && length(cite) == 11) TRUE
+           # 10 lignes depuis #300 (11 avant : la ligne de cellule aberrante
+           # est calculee sur mw_influence(), non sur mw_residus()).
+           if (identical(mw_residus, orig) && setequal(mesure, cite) && length(cite) == 10) TRUE
            else paste("mesure :", paste(mesure, collapse = " ; "))
          })
 # Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
@@ -822,13 +824,17 @@ verifier("mw_tests : TOUT diagnostic sort en INFO, sens, p_retenue et nature_p N
                                                              l$verdict, l$sens),
                                    character(1)), collapse = " ; "))
          })
-verifier("ESD Merz-Wuthrich (procedure de decision) : verdict OK / ALERTE / ECHEC, sens 'ne pas rejeter'",
+# Depuis #300 (decision Q-D1-Fi-7 du 19/10/2026, visa du 21/10/2026), la
+# ligne de Rosner sur residus de Mack est un diagnostic par decision, sans
+# verdict : mw_tests() n'a plus aucune procedure de decision. Le refus par
+# add() d'une procedure de decision sans verdict reste exerce sur l'ESD
+# lognormal (test_defauts_connus.R).
+verifier("ESD Merz-Wuthrich (#300) : diagnostic sans verdict (INFO, sens NA), aucune procedure de decision dans mw_tests()",
          {
-           e <- Filter(function(l) identical(l$type, "procedure de decision"), lignes_mw)
-           length(e) == 1L &&
-             identical(e[[1]]$test, "Cellules aberrantes multiples (ESD generalise)") &&
-             e[[1]]$verdict %in% c("OK", "ALERTE", "ECHEC") &&
-             identical(e[[1]]$sens, "ne pas rejeter")
+           e <- Filter(function(l) identical(l$test, "Cellules aberrantes multiples (ESD generalise)"), lignes_mw)
+           length(e) == 1L && identical(e[[1]]$type, "diagnostic") &&
+             identical(e[[1]]$verdict, "INFO") && identical(e[[1]]$sens, NA_character_) &&
+             !length(Filter(function(l) identical(l$type, "procedure de decision"), lignes_mw))
          })
 # Gardes de add() (revue d'audit du commit #24), exercees en reinjectant par
 # texte (deparse) un appel fautif dans le corps de mw_tests().
@@ -847,11 +853,11 @@ verifier("add() (mw_tests) refuse un verdict force sur un diagnostic (part de la
            grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
              grepl("Part de la reserve portee par la derniere annee d'accident", m, fixed = TRUE)
          })
-verifier("add() (mw_tests) refuse une procedure de decision sans verdict (ESD)",
+verifier("add() (mw_tests) refuse un verdict force sur le diagnostic de Rosner (#300)",
          {
-           m <- erreur_mw(mw_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
-                                           "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)"))
-           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
+           m <- erreur_mw(mw_tests_modifie('estim_nom = "nb de cellules declarees (repere de Rosner)"',
+                                           'verdict = "OK", estim_nom = "nb de cellules declarees (repere de Rosner)"'))
+           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
              grepl("Cellules aberrantes multiples (ESD generalise)", m, fixed = TRUE)
          })
 verifier("mw_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
@@ -2335,7 +2341,7 @@ verifier("mw_bootstrap() tire dans .mw_pool_residus() ; statistiques observees i
                if (is.null(tb <- tir$tri)) next
                ab <- try(mw_ajuster(tb), silent = TRUE)
                if (inherits(ab, "try-error")) next
-               sb <- try(.mw_stats(ab, .mw_ensembles_figes(ab, jd)), silent = TRUE)
+               sb <- try(.mw_stats(ab, .mw_ensembles_figes(ab, jd), replique = TRUE), silent = TRUE)
                if (inherits(sb, "try-error")) next
                m <- try(mw_msep(ab), silent = TRUE)
                if (!inherits(m, "try-error") && is.finite(m$msep) && ab$reserve > 0)
@@ -2733,6 +2739,269 @@ verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, det
            nrow(mw_calendrier_diagonales(mw_test_annees_calendaires(r$ajustement))) == 0L &&
              identical(x$detail, "aucune diagonale retenue (n_k >= 2)") && is.na(x$estim) &&
              identical(x$verdict, "INFO") && identical(x$type, "diagnostic")
+         })
+
+
+## --- M2 : heteroscedasticite residuelle a effets fixes de colonne (#301) -----
+# Variante FWr (decision Q-D2-Fi-1 du 21/10/2026) : LM = n R^2 partiel de
+# r~^2 = r^2 / (1 - h) sur C avec effets fixes de colonne, colonnes n_j >= 3.
+# Oracle independant : n [1 - SCR(y ~ factor(j) + C) / SCR(y ~ factor(j))]
+# par lm(), 1 - h = 1 - C / S_j (forme directe, et non la somme des autres
+# cellules du moteur).
+fwr_oracle <- function(aj, res) {
+  S <- stats::ave(res$C, res$j, FUN = sum)
+  d <- data.frame(y = res$residu^2 / (1 - res$C / S), C = res$C, j = factor(res$j))
+  nj <- stats::ave(res$C, res$j, FUN = length)
+  d <- droplevels(d[nj >= 3, ])
+  m0 <- stats::lm(y ~ j, d); m1 <- stats::lm(y ~ j + C, d)
+  nrow(d) * (1 - sum(stats::resid(m1)^2) / sum(stats::resid(m0)^2))
+}
+tri_r2 <- local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
+})
+verifier("M2 (#301) : LM = n R^2 partiel (oracle lm() a effets fixes de colonne), reserve2 et triangle 5 x 5 ; p = chi2(1)",
+         {
+           ok <- vapply(list(tri_r2, tri), function(t) {
+             a <- mw_ajuster(t); rs <- mw_residus(a)
+             h <- mw_test_heteroscedasticite_intra(a, rs)
+             isTRUE(proche(h$stat, fwr_oracle(a, rs), rel = 1e-9)) &&
+               isTRUE(proche(h$p, 1 - stats::pchisq(fwr_oracle(a, rs), 1), rel = 1e-9))
+           }, logical(1))
+           all(ok)
+         })
+verifier("M2 (#301) : reserve2, 25 cellules dans 5 colonnes (n_j >= 3), LM = 1,4373 (spec. Fi, par. 3.2)",
+         {
+           a <- mw_ajuster(tri_r2); h <- mw_test_heteroscedasticite_intra(a, mw_residus(a))
+           identical(h$n, 25L) && identical(h$K, 5L) && isTRUE(round(h$stat, 4) == 1.4373) &&
+             isTRUE(round(h$p, 4) == 0.2306)
+         })
+verifier("M2 (#301) : colonnes n_j <= 2 exclues (residus de la colonne n_j = 2 sans effet ; triangle 3 x 3 -> NA, n = 0)",
+         {
+           a <- mw_ajuster(tri_r2); rs <- mw_residus(a)
+           rs2 <- rs; k <- rs2$j == 5
+           rs2$residu[k] <- rs2$residu[k] * c(7, -0.1)
+           h1 <- mw_test_heteroscedasticite_intra(a, rs)
+           h2 <- mw_test_heteroscedasticite_intra(a, rs2)
+           t3 <- matrix(NA_real_, 3, 3); t3[, 1] <- c(100, 110, 120)
+           t3[1:2, 2] <- c(150, 170); t3[1, 3] <- 180
+           a3 <- mw_ajuster(t3); h3 <- mw_test_heteroscedasticite_intra(a3, mw_residus(a3))
+           sum(k) == 2L && identical(h1$stat, h2$stat) &&
+             is.na(h3$stat) && is.na(h3$p) && identical(h3$n, 0L)
+         })
+verifier("M2 (#301) : garde NA si C constant dans chaque colonne retenue, ou si r~^2 constant a colonne donnee (SCR = 0)",
+         {
+           aj5 <- list(I = 5L, tri = matrix(c(rep(100, 5), rep(150, 4), NA, rep(170, 3), NA, NA,
+                                              rep(NA, 5), rep(NA, 5)), 5, 5))
+           rc <- data.frame(i = c(0:3, 0:2), j = c(rep(0, 4), rep(1, 3)), C = c(rep(100, 4), rep(150, 3)),
+                            residu = c(1.2, -0.3, 0.5, -1.4, 0.8, -1.1, 0.3))
+           hc <- mw_test_heteroscedasticite_intra(aj5, rc)
+           a <- mw_ajuster(tri_r2); rs <- mw_residus(a); rs$residu <- 0
+           h0 <- mw_test_heteroscedasticite_intra(a, rs)
+           is.na(hc$stat) && is.na(hc$p) && identical(hc$n, 7L) &&
+             is.na(h0$stat) && is.na(h0$p) && identical(h0$n, 25L)
+         })
+verifier("M2 (#301) : ligne de mw_tests() = entree BP du catalogue (statistique observee identique), fonction, H0, loi, detail sans nombre du bootstrap",
+         {
+           a <- mw_ajuster(tri_r2); b <- mw_bootstrap(a, B = 99)
+           L <- mw_tests(a, b)
+           x <- L[[which(vapply(L, `[[`, "", "test") == "Heteroscedasticite residuelle vs cumul")]]
+           identical(x$stat, unname(b$stats_obs[["BP"]])) &&
+             identical(x$stat, mw_test_heteroscedasticite_intra(a, mw_residus(a))$stat) &&
+             identical(x$fonction, "mw_test_heteroscedasticite_intra") &&
+             identical(x$H0, "a colonne donnee, l'echelle des residus de Mack redresses ne depend pas de C(i,j)") &&
+             identical(x$loi, "chi2(1) asymptotique (effets fixes de colonne) -> Monte-Carlo") &&
+             identical(x$p_retenue, x$p_mc) && identical(x$nature_p, "Monte-Carlo (bootstrap de residus)") &&
+             grepl("effets fixes d'annee de developpement", x$detail, fixed = TRUE) &&
+             grepl("Colonnes n_j >= 3 seulement", x$detail, fixed = TRUE) &&
+             grepl(": 25 cellules dans 5 colonnes.", x$detail, fixed = TRUE) &&
+             !grepl(format(x$p_mc), x$detail, fixed = TRUE)
+         })
+
+## --- M4 : cellule aberrante, residus studentises externes (#300) -------------
+# Variante MinP4 (decision Q-D2-Fi-2 du 21/10/2026 ; specification Fi, par.
+# 4.1 a 4.4) : M = min_{(i,j)} p_ij, p_ij = 2 F_Student(n_j - 2)(-|t(i,j)|),
+# colonnes n_j >= 4 hors colonnes degenerees ; cellule a influence non
+# bornee : statistique observee non definie (option (iii), Q-D1-Fi-8),
+# p_ij = 0 en replication. Rosner sur residus de Mack : diagnostic par
+# decision (Q-D1-Fi-7), phrase fixe du premier complement.
+# Oracle independant de t(i,j) : stats::rstudent() de la regression ponderee
+# lm(C(.,j+1) ~ 0 + C(.,j), weights = 1/C(.,j)), colonne par colonne.
+rstudent_col300 <- function(tr, j) {
+  n <- sum(!is.na(tr[, j + 2]))
+  x <- tr[seq_len(n), j + 1]; y <- tr[seq_len(n), j + 2]
+  unname(stats::rstudent(stats::lm(y ~ 0 + x, weights = 1 / x)))
+}
+verifier("M4 (#300) : t(i,j) = stats::rstudent() a 1e-13 pres sur reserve2, colonnes j = 0 a 3 (retenues) et j = 4 (n_j = 3, seuil abaisse le temps du test)",
+         {
+           a <- mw_ajuster(tri_r2); ca <- mw_test_cellule_aberrante(a)
+           ok03 <- all(vapply(0:3, function(j) {
+             tj <- ca$cellules$t[ca$cellules$j == j]
+             isTRUE(max(abs(tj - rstudent_col300(tri_r2, j))) <= 1e-13 * max(1, max(abs(tj))))
+           }, logical(1)))
+           env <- environment(mw_test_cellule_aberrante)
+           seuil <- get("MW_NJ_MIN_CELLULE", envir = env)
+           ca3 <- tryCatch({ assign("MW_NJ_MIN_CELLULE", 3L, envir = env); mw_test_cellule_aberrante(a) },
+                           finally = assign("MW_NJ_MIN_CELLULE", seuil, envir = env))
+           t4 <- ca3$cellules$t[ca3$cellules$j == 4]
+           ok4 <- length(t4) == 3L && isTRUE(max(abs(t4 - rstudent_col300(tri_r2, 4))) <= 1e-13 * max(1, max(abs(t4))))
+           ok03 && ok4 && identical(get("MW_NJ_MIN_CELLULE", envir = env), 4L)
+         })
+verifier("M4 (#300) : reserve2, M = 0,1033, cellule (0,2), n_j = 5, t = -2,318, N_t = 22, Bonferroni min(1, N_t M) = 1 ; p_ij = 2 pt(-|t|, n_j - 2)",
+         {
+           ca <- mw_test_cellule_aberrante(mw_ajuster(tri_r2))
+           c3 <- ca$cellules
+           isTRUE(round(ca$stat, 4) == 0.1033) && identical(ca$i, 0L) && identical(ca$j, 2L) &&
+             identical(ca$n_j, 5L) && isTRUE(round(ca$t, 3) == -2.318) && identical(ca$N_t, 22L) &&
+             identical(ca$p, 1) && identical(ca$stat, min(c3$p)) &&
+             isTRUE(all.equal(c3$p, 2 * stats::pt(-abs(c3$t), c3$n_j - 2), tolerance = 1e-15)) &&
+             !nrow(ca$non_borne)
+         })
+verifier("M4 (#300) : colonnes n_j <= 3 exclues (C(i,5) modifies : M, t et N_t identiques ; aucune cellule de colonne n_j < 4) ; colonne degeneree passee exclue",
+         {
+           a <- mw_ajuster(tri_r2); ca <- mw_test_cellule_aberrante(a)
+           t2 <- tri_r2; t2[1:3, 6] <- t2[1:3, 6] * c(1.3, 0.8, 1.1)
+           ca2 <- mw_test_cellule_aberrante(mw_ajuster(t2))
+           cd <- mw_test_cellule_aberrante(a, j_degeneres = 0L)
+           all(ca$cellules$n_j >= 4L) && setequal(unique(ca$cellules$j), 0:3) &&
+             identical(ca2$stat, ca$stat) && identical(ca2$cellules, ca$cellules) &&
+             identical(cd$N_t, 15L) && !any(cd$cellules$j == 0L)
+         })
+# Triangle 6 x 6 : colonne j = 0 (n_j = 5), F(i,0) = 1,5 sauf F(2,0) = 1,8 :
+# a la cellule (2,0) retiree, les quatre autres cellules sont exactement
+# proportionnelles (influence non bornee, dfbetas_non_borne), sans que la
+# colonne soit degeneree.
+tri_nb300 <- local({
+  m <- matrix(NA_real_, 6, 6)
+  m[, 1] <- c(100, 120, 90, 110, 130, 105)
+  m[1:5, 2] <- m[1:5, 1] * c(1.5, 1.5, 1.8, 1.5, 1.5)
+  m[1:4, 3] <- m[1:4, 2] * c(1.20, 1.31, 1.17, 1.26)
+  m[1:3, 4] <- m[1:3, 3] * c(1.08, 1.12, 1.05)
+  m[1:2, 5] <- m[1:2, 4] * c(1.03, 1.04)
+  m[1, 6] <- m[1, 5] * 1.01
+  m
+})
+verifier("M4 (#300) option (iii) : cellule (2,0) a influence non bornee -> statistique observee NA (Bonferroni NA), cellule nommee ; en replication p_ij = 0, M = 0",
+         {
+           a <- mw_ajuster(tri_nb300)
+           o <- mw_test_cellule_aberrante(a); r <- mw_test_cellule_aberrante(a, replique = TRUE)
+           !(0L %in% .mw_ensembles_figes(a)$degeneres) &&
+             is.na(o$stat) && is.na(o$p) && identical(o$N_t, 9L) && is.null(o$cellules) &&
+             identical(o$non_borne, data.frame(i = 2L, j = 0L)) &&
+             identical(r$stat, 0) && identical(r$p, 0) && identical(r$i, 2L) && identical(r$j, 0L) &&
+             identical(r$cellules$p[r$cellules$non_borne], 0) &&
+             identical(.mw_motif_cellule_non_bornee(o), paste(
+               "statistique observee non definie : residu studentise non borne en cellule (2,0)",
+               "(autres cellules de la colonne proportionnelles)")) &&
+             is.na(.mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(mw_ajuster(tri_r2))))
+         })
+verifier("M4 (#300) option (iii) : mw_bootstrap() -> stats_obs MinP4 NA, motif propre (non_definie) ; mw_tests() -> p Monte-Carlo et Bonferroni NA, verdict INFO, motif en tete du detail",
+         {
+           a <- mw_ajuster(tri_nb300); b <- mw_bootstrap(a, B = 19)
+           L <- mw_tests(a, b)
+           x <- L[[which(vapply(L, `[[`, "", "test") == "Cellule aberrante du triangle (residus studentises externes)")]]
+           motif <- .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(a))
+           is.na(b$stats_obs[["MinP4"]]) && identical(unname(b$motif_mc[["MinP4"]]), motif) &&
+             is.na(x$p_mc) && is.na(x$p_asymptotique) && is.na(x$p_retenue) && identical(x$verdict, "INFO") &&
+             startsWith(x$detail, paste0("Monte-Carlo indisponible : ", motif, " ; aucune p-value disponible")) &&
+             is.na(x$estim)
+         })
+verifier("M4 (#300) : .mw_stats() evalue comme observe par defaut (MinP4 NA sur tri_nb300), en replication avec replique = TRUE (MinP4 = 0)",
+         {
+           a <- mw_ajuster(tri_nb300); fg <- .mw_ensembles_figes(a)
+           is.na(.mw_stats(a, fg)[["MinP4"]]) && identical(.mw_stats(a, fg, replique = TRUE)[["MinP4"]], 0) &&
+             identical(.mw_stats(a, fg)[["MinP4"]], .mc_evaluer(MW_CATALOGUE_MC, .mw_contexte_mc(a, fg))[["MinP4"]])
+         })
+verifier("M4 (#300) : gardes NA (aucune colonne n_j >= 4 : N_t = 0 ; colonne retenue de t NA hors non-borne : statistique NA, en replication aussi)",
+         {
+           t4 <- tri_nb300[1:4, 1:4]; t4[row(t4) + col(t4) > 5] <- NA
+           c4 <- mw_test_cellule_aberrante(mw_ajuster(t4))
+           td <- tri_nb300; td[1:5, 2] <- td[1:5, 1] * 1.5
+           ad <- mw_ajuster(td)
+           cn <- mw_test_cellule_aberrante(ad, j_degeneres = integer(0))
+           cr <- mw_test_cellule_aberrante(ad, j_degeneres = integer(0), replique = TRUE)
+           cx <- mw_test_cellule_aberrante(ad)
+           is.na(c4$stat) && is.na(c4$p) && identical(c4$N_t, 0L) &&
+             0L %in% .mw_ensembles_figes(ad)$degeneres &&
+             is.na(cn$stat) && is.na(cr$stat) && !nrow(cn$non_borne) &&
+             is.finite(cx$stat) && identical(cx$N_t, 4L)
+         })
+# reserve2 a B = 999, graine par defaut (cas reserve2 de tests/outils_tests.R) :
+# decomptes de la specification Fi, par. 4.4 et decisions Q-D1-Fi-7 et
+# Q-D2-Fi-2 ; environ 35 s.
+outils300 <- new.env(parent = globalenv())
+sys.source(file.path(RACINE, "tests", "outils_tests.R"), envir = outils300)
+res300 <- outils300$CAS$reserve2()
+lig300 <- function(nom) Filter(function(l) identical(l$test, nom), res300$tests)[[1]]
+verifier("M4 (#300) : ligne de mw_tests() = entree MinP4 du catalogue (statistique observee identique), fonction, H0, loi, Bonferroni en p non simulee, p Monte-Carlo retenue, detail sans nombre du bootstrap",
+         {
+           x <- lig300("Cellule aberrante du triangle (residus studentises externes)")
+           a <- mw_ajuster(outils300$.tri); ca <- mw_test_cellule_aberrante(a)
+           identical(x$stat, unname(res300$bootstrap$stats_obs[["MinP4"]])) && identical(x$stat, ca$stat) &&
+             identical(x$fonction, "mw_test_cellule_aberrante") && identical(x$type, "test") &&
+             identical(x$H0, "aucun residu de Mack aberrant") && identical(x$H1, "exactement un residu aberrant") &&
+             identical(x$p_asymptotique, min(1, 22 * x$stat)) && identical(x$estim, ca$t) &&
+             identical(x$p_retenue, x$p_mc) && identical(x$nature_p, "Monte-Carlo (bootstrap de residus)") &&
+             identical(x$p_min, NA_real_) && identical(x$p_min_mc, NA_real_) &&
+             is.null(MW_CATALOGUE_MC$MinP4$extremes) && identical(MW_CATALOGUE_MC$MinP4$queue, "bas") &&
+             is.null(MW_CATALOGUE_MC$Grubbs) &&
+             identical(x$reference, paste(
+               "Residu studentise externe (cellule retiree) de la regression ponderee C(.,j+1) ~ 0 + C(.,j),",
+               "poids 1/C(.,j) (Belsley, Kuh & Welsch 1980 ; Cook & Weisberg 1982) ; minimum des p de",
+               "Student, borne de Bonferroni : construction de l'outil, colonne par colonne, sur le modele de Mack")) &&
+             identical(x$loi, "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo") &&
+             startsWith(x$detail, paste(
+               "t(i,j) : residu studentise externe de la cellule (i,j) dans la regression ponderee",
+               "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j), cellule retiree de l'estimation de f_j et de sigma_j ;",
+               "p_ij = 2 F_Student(n_j - 2)(-|t(i,j)|) ; M = min p_ij, rejet pour M petit. Sous le modele",
+               "auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j) suit, conditionnellement aux",
+               "cumuls de la colonne j, la loi de Student a n_j - 2 degres de liberte, et min(1, N_t M)",
+               "borne la p-value de M (Bonferroni) ; cette borne est une p non simulee, jamais retenue a la",
+               "place de la p Monte-Carlo (#181).")) &&
+             grepl("N_t = 22 ; 3 cellule(s) des colonnes n_j = 3 non couverte(s)", x$detail, fixed = TRUE) &&
+             grepl("Minimum en cellule (annee d'accident 0, developpement 2), n_j = 5.", x$detail, fixed = TRUE) &&
+             !grepl(format(x$p_mc), x$detail, fixed = TRUE) && !grepl(format(x$err_mc), x$detail, fixed = TRUE)
+         })
+verifier("M4 (#300) : reserve2, p_mc 0,898, Bonferroni 1, verdict OK ; B effectif = B",
+         {
+           x <- lig300("Cellule aberrante du triangle (residus studentises externes)")
+           isTRUE(round(x$p_mc, 3) == 0.898) && identical(x$p_asymptotique, 1) && identical(x$verdict, "OK") &&
+             identical(unname(res300$bootstrap$B_effectif[["MinP4"]]), 999)
+         })
+verifier("Rosner (#300) : diagnostic par decision, verdict INFO, estim_nom impose, phrase fixe du premier complement puis le fragment alpha (k^ = 0 : aucun rang)",
+         {
+           x <- lig300("Cellules aberrantes multiples (ESD generalise)")
+           ph <- paste("Diagnostic sans verdict (ADR 0001) : procedure ESD generalisee de Rosner (1983)",
+                       "appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation",
+                       "de Student-Bonferroni) et son domaine declare (n >= 25) valent pour un",
+                       "echantillon i.i.d. normal ; les residus de Mack, soumis a des contraintes",
+                       "exactes par colonne, n'en sont pas un, et le cadre de Rosner (1983) ne les",
+                       "couvre pas. La procedure n'est donc pas un test de la ligne : le nombre de",
+                       "cellules declarees se lit comme un repere, sans p-value.")
+           identical(x$type, "diagnostic") && identical(x$verdict, "INFO") && identical(x$sens, NA_character_) &&
+             identical(x$estim_nom, "nb de cellules declarees (repere de Rosner)") && identical(x$estim, 0) &&
+             identical(x$fonction, "test_rosner") &&
+             identical(x$detail, paste0(ph, " Valeurs critiques calculees a alpha = 0.10."))
+         })
+verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, verdict INFO (k^ injecte)",
+         {
+           f <- mw_tests_modifie("ro <- test_rosner(r, alpha = alpha)",
+                                 "ro <- list(nb_outliers = 2, positions = c(3L, 14L))")
+           L <- f(at, boot_mw_fictif)
+           x <- Filter(function(l) identical(l$test, "Cellules aberrantes multiples (ESD generalise)"), L)[[1]]
+           identical(x$verdict, "INFO") && identical(x$estim, 2) &&
+             endsWith(x$detail, paste0(PHRASE_MW_ROSNER_DIAGNOSTIC,
+                                       " Valeurs critiques calculees a alpha = 0.10 ; residus declares",
+                                       " (rang dans la liste des residus de Mack, par ordre de retrait) : 3, 14."))
+         })
+verifier("Decomptes reserve2 (#300) : 20 lignes, OK 7, INFO 7, ALERTE 2, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+         {
+           v <- vapply(res300$tests, `[[`, "", "verdict")
+           ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
+           length(res300$tests) == 20L &&
+             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(7L, 7L, 2L, 4L)) &&
+             !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
+             isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
          })
 
 fin_fichier()

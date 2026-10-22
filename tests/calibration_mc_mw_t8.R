@@ -59,6 +59,18 @@
 #  modifie : sur le moteur posterieur a #276, le controle (b) est en ECHEC
 #  (cle Calendrier, "bas" lu contre "deux" attendu ; libelle porte dans
 #  INTEGRITE), et une remesure de #206 passerait par une decision.
+#  De meme, depuis #301 (decision Q-D2-Fi-1 du mainteneur, 21/10/2026), la cle
+#  BP du moteur calcule la variante FWr (n R^2 partiel a effets fixes de
+#  colonne sur les residus redresses, colonnes n_j >= 3,
+#  mw_test_heteroscedasticite_intra()) : sur un moteur posterieur a #301, la
+#  colonne BP mesure FWr, et non la statistique du tableau de #206.
+#  Depuis #300 (decision Q-D2-Fi-2 du mainteneur, 21/10/2026), la cle Grubbs
+#  du moteur est remplacee, a la meme position, par la cle MinP4 (minimum des
+#  p de Student des residus studentises externes, colonnes n_j >= 4, queue
+#  basse, mw_test_cellule_aberrante()) : sur un moteur posterieur a #300, le
+#  controle (b) echoue aussi par la cle (setequal(CLES, names(SENS_SPEC))
+#  faux, sens de Grubbs lu NA), et la colonne Grubbs du tableau de #206 n'a
+#  plus de cle au catalogue. SENS_SPEC n'est pas modifie.
 #
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2), pas un resultat general (par. 0). Aucun theoreme ne
@@ -75,11 +87,28 @@
 #          [--sortie-tranche FICHIER [--reprendre PARTIELLE]] [--essai]
 #      Rscript tests/calibration_mc_mw_t8.R --prevol [--unites 1]
 #      Rscript tests/calibration_mc_mw_t8.R --plan L0|L1|L2|L3|L4|L5
+#      Rscript tests/calibration_mc_mw_t8.R --controle-289 [--coeurs N]
+#          [--ecrire [--remplacer]] [--essai --b b1:b2]
 #      Rscript tests/calibration_mc_mw_t8.R --combiner f1 f2 ... | DOSSIER
 #          (--niveau Lk | --reduit) [--journal JOURNAL.md]
 #          [--ecrire [--remplacer] --brut FICHIER --journal JOURNAL.md
 #           | --sortie DOSSIER [--brut FICHIER]]
 #  (--prevol-unite : mode interne de --prevol, une unite de debit.)
+#  --controle-289 (#289, specification de Fi, par. 5) : controle des ensembles
+#  figes a l'observe de la courbure (#270) et de l'ordonnee a l'origine
+#  (#273), sans bootstrap complet. Volet 1 : sur les triangles du plan de #206
+#  (niveau L0 : N 2 000, E 2 000, A 1 000, memes graines), ensembles de
+#  .mw_ensembles_figes(aj) et K des deux verifications. Volet 2 : b = 1..50 de
+#  chaque loi (150 triangles), mw_bootstrap() a B = 999 aux graines de #206
+#  avec un CATALOGUE REDUIT injecte dans MW_CATALOGUE_MC de l'environnement du
+#  moteur (Sonde, Origine, Courbure ; restaure par finally ; la boucle de
+#  tirage n'est pas recopiee, #340) : la sonde compte, par replication, les
+#  colonnes retenues a moins de 2 (ordonnee) ou 3 (courbure) valeurs
+#  distinctes (predicat de #290) et les statistiques NA par cause. Sortie en
+#  markdown sur la console ; --ecrire l'ecrit dans docs/tableaux/ (arbre
+#  propre exige, comme --combiner --ecrire) ; --coeurs : processus
+#  (mclapply, defaut min(4, detectCores()) ; 1 sous Windows) ; --essai --b
+#  b1:b2 : plan reduit (marque, refuse par --ecrire).
 #  Tranche : b de b1 a b2 (1 <= b1 <= b2 <= 2 000 ; loi A : pas de pool
 #  brut ; sous-mesure N : b2 <= 500). Une tranche REFUSE (code 1, avant tout
 #  calcul) un commit non propre ou un code hors du depot
@@ -184,9 +213,9 @@ LOCALE_TRAVAIL <- Sys.getlocale("LC_CTYPE")
 # --- Options -----------------------------------------------------------------
 ARGS <- commandArgs(trailingOnly = TRUE)
 OPTIONS_VALEUR <- c("--loi", "--b", "--pools", "--N0", "--sortie-tranche", "--reprendre", "--journal",
-                    "--sortie", "--brut", "--niveau", "--unites", "--plan")
+                    "--sortie", "--brut", "--niveau", "--unites", "--plan", "--coeurs")
 OPTIONS_DRAPEAU <- c("--oracle", "--sous-mesure-N", "--prevol", "--prevol-unite", "--essai", "--ecrire",
-                     "--remplacer", "--reduit")
+                     "--remplacer", "--reduit", "--controle-289")
 MODE_COMBINER <- FALSE
 FICHIERS_COMB <- character(0)
 local({
@@ -223,6 +252,7 @@ OPT_BRUT      <- lire_option("--brut", NA_character_)
 OPT_NIVEAU    <- lire_option("--niveau", NA_character_)
 OPT_UNITES    <- lire_option("--unites", "1")
 OPT_PLAN      <- lire_option("--plan", NA_character_)
+OPT_COEURS    <- lire_option("--coeurs", NA_character_)
 OPT_ORACLE    <- "--oracle" %in% ARGS
 OPT_SM        <- "--sous-mesure-N" %in% ARGS
 OPT_PREVOL    <- "--prevol" %in% ARGS
@@ -231,33 +261,37 @@ OPT_ESSAI     <- "--essai" %in% ARGS
 OPT_ECRIRE    <- "--ecrire" %in% ARGS
 OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_REDUIT    <- "--reduit" %in% ARGS
+OPT_C289      <- "--controle-289" %in% ARGS
 
 # --remplacer sans --ecrire : refus d'usage, avant tout (libelle commun aux
 # scripts de mesure qui ont --ecrire, #173 ; tests/unitaires/test_garde_ecrasement.R).
 if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 MODE <- if (MODE_COMBINER) "combiner" else if (OPT_UNITE) "unite" else if (OPT_PREVOL) "prevol" else
-  if (!is.na(OPT_PLAN)) "plan" else if (OPT_ORACLE) "oracle" else if (OPT_SM) "sm" else
+  if (OPT_C289) "c289" else if (!is.na(OPT_PLAN)) "plan" else if (OPT_ORACLE) "oracle" else if (OPT_SM) "sm" else
   if (!is.na(OPT_LOI)) "tranche" else NA_character_
-if (is.na(MODE)) stop("aucun mode : --loi (tranche), --oracle, --sous-mesure-N, --prevol, --plan ou --combiner")
-n_modes <- sum(MODE_COMBINER, OPT_UNITE, OPT_PREVOL, !is.na(OPT_PLAN), OPT_ORACLE, OPT_SM)
-if (n_modes > 1L) stop("un mode et un seul : --oracle, --sous-mesure-N, --prevol, --plan, --combiner")
+if (is.na(MODE)) stop("aucun mode : --loi (tranche), --oracle, --sous-mesure-N, --prevol, --plan, --controle-289 ou --combiner")
+n_modes <- sum(MODE_COMBINER, OPT_UNITE, OPT_PREVOL, !is.na(OPT_PLAN), OPT_ORACLE, OPT_SM, OPT_C289)
+if (n_modes > 1L) stop("un mode et un seul : --oracle, --sous-mesure-N, --prevol, --plan, --controle-289, --combiner")
 LOIS <- c("N", "E", "A")
 NIVEAUX_NOMS <- paste0("L", 0:5)
 reserve <- function(opts, modes) for (o in opts) if (o %in% ARGS && !MODE %in% modes)
   stop(o, " : reserve au(x) mode(s) ", paste(modes, collapse = ", "))
-reserve(c("--b"), c("tranche", "sm", "unite"))
+reserve(c("--b"), c("tranche", "sm", "unite", "c289"))
 reserve(c("--pools"), "tranche")
 reserve(c("--N0"), "oracle")
-reserve(c("--sortie-tranche", "--reprendre", "--essai"), c("tranche", "oracle", "sm"))
-reserve(c("--journal", "--sortie", "--brut", "--ecrire", "--remplacer", "--reduit", "--niveau"), "combiner")
+reserve(c("--sortie-tranche", "--reprendre"), c("tranche", "oracle", "sm"))
+reserve(c("--essai"), c("tranche", "oracle", "sm", "c289"))
+reserve(c("--journal", "--sortie", "--brut", "--reduit", "--niveau"), "combiner")
+reserve(c("--ecrire", "--remplacer"), c("combiner", "c289"))
+reserve(c("--coeurs"), "c289")
 reserve(c("--unites"), "prevol")
 reserve(c("--loi"), c("tranche", "oracle", "unite"))
 if (MODE == "combiner" && !length(FICHIERS_COMB)) stop("--combiner : aucun fichier")
 if (MODE == "combiner" && sum(!is.na(OPT_NIVEAU), OPT_REDUIT) != 1L) stop("--combiner : --niveau Lk ou --reduit (un seul)")
 if (!is.na(OPT_NIVEAU) && !OPT_NIVEAU %in% NIVEAUX_NOMS) stop("--niveau : L0 a L5")
 if (!is.na(OPT_PLAN) && !OPT_PLAN %in% NIVEAUX_NOMS) stop("--plan : L0 a L5")
-if (OPT_ECRIRE && is.na(OPT_BRUT)) stop("--ecrire : --brut FICHIER obligatoire (copie des valeurs brutes hors du depot)")
-if (OPT_ECRIRE && is.na(OPT_JOURNAL)) stop("--ecrire : --journal FICHIER obligatoire (debit, niveau et empreinte #231 du JOURNAL)")
+if (OPT_ECRIRE && MODE == "combiner" && is.na(OPT_BRUT)) stop("--ecrire : --brut FICHIER obligatoire (copie des valeurs brutes hors du depot)")
+if (OPT_ECRIRE && MODE == "combiner" && is.na(OPT_JOURNAL)) stop("--ecrire : --journal FICHIER obligatoire (debit, niveau et empreinte #231 du JOURNAL)")
 if (OPT_ECRIRE && OPT_REDUIT) stop("--ecrire : refuse avec --reduit (parametres reduits, non versionnables)")
 if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
@@ -268,6 +302,7 @@ if (MODE == "tranche" && is.na(OPT_POOLS)) stop("--pools redresse ou redresse,br
 if (!is.na(OPT_POOLS) && !OPT_POOLS %in% c("redresse", "redresse,brut")) stop("--pools : redresse ou redresse,brut")
 if (identical(OPT_LOI, "A") && identical(OPT_POOLS, "redresse,brut")) stop("--pools : pas de pool brut pour la loi A (par. 8)")
 B_MAX_SPEC <- 2000L; R_SM_SPEC <- 500L; N0_SPEC <- 20000L
+B_REPL_289 <- 50L                 # triangles par loi du volet 2 de --controle-289 (#289)
 B1 <- B2 <- NA_integer_
 if (!is.na(OPT_B)) {
   m <- regmatches(OPT_B, regexec("^([0-9]+):([0-9]+)$", OPT_B))[[1]]
@@ -275,7 +310,13 @@ if (!is.na(OPT_B)) {
   B1 <- as.integer(m[2]); B2 <- as.integer(m[3])
   if (B1 < 1L || B2 < B1 || B2 > B_MAX_SPEC) stop("--b : 1 <= b1 <= b2 <= 2000 (plages du par. 7)")
   if (MODE == "sm" && B2 > R_SM_SPEC) stop("--b : sous-mesure N sur b <= 500 (par. 9)")
+  if (MODE == "c289" && !OPT_ESSAI) stop("--b : reserve a --essai pour --controle-289 (plan fixe : b = 1..50 de chaque loi)")
+  if (MODE == "c289" && B2 > B_REPL_289) stop("--b : --controle-289 sur b <= ", B_REPL_289)
 }
+if (MODE == "c289" && OPT_ESSAI && is.na(OPT_B)) stop("--controle-289 --essai : --b b1:b2 obligatoire (plan reduit)")
+if (MODE == "c289" && OPT_ESSAI && OPT_ECRIRE) stop("--ecrire : refuse avec --essai (plan reduit, non versionnable)")
+N_COEURS <- if (is.na(OPT_COEURS)) NA_integer_ else suppressWarnings(as.integer(OPT_COEURS))
+if (!is.na(OPT_COEURS) && (is.na(N_COEURS) || N_COEURS < 1L)) stop("--coeurs : entier >= 1")
 N0 <- if (is.na(OPT_N0)) N0_SPEC else suppressWarnings(as.integer(OPT_N0))
 if (is.na(N0) || N0 < 1L || N0 > N0_SPEC) stop("--N0 : entier de 1 a 20 000")
 UNITES <- suppressWarnings(as.integer(OPT_UNITES))
@@ -411,6 +452,21 @@ if (MODE == "combiner" && !is.na(OPT_BRUT)) {
 if (MODE == "combiner" && !is.na(OPT_SORTIE)) {
   if (sous_depot(OPT_SORTIE)) stop("--sortie : dossier sous le depot refuse (--ecrire est le seul chemin qui ecrit dans le depot)")
   if (any(file.exists(file.path(OPT_SORTIE, NOMS_SORTIE)))) stop("--sortie : fichier(s) deja present(s), jamais ecrase(s)")
+}
+# --controle-289 --ecrire (#289) : un seul tableau, de nom fixe par la date du
+# jour ; memes gardes que --combiner --ecrire (arbre propre, code du depot,
+# garde d'ecrasement #173), avant tout calcul.
+NOM_289 <- sprintf("%s-issue289-ensembles-figes-mw.md", DATE_SORTIE)
+CIBLE_289 <- file.path(RACINE, "docs", "tableaux", NOM_289)
+if (MODE == "c289" && OPT_ECRIRE) {
+  nv289 <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(SCRIPT, SPEC), "de l'execution")
+  if (length(nv289)) {
+    message("--controle-289 : --ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv289, collapse = " ; "),
+            " -- relancer sur un arbre propre, ou sans --ecrire (sortie console)")
+    quit(status = 1L)
+  }
+  if (!dir.exists(file.path(RACINE, "docs", "tableaux"))) stop("dossier de sortie introuvable : docs/tableaux")
+  garde_ecrasement(CIBLE_289, OPT_REMPLACER, RACINE)
 }
 if (MODE %in% c("tranche", "oracle", "sm")) {
   if (!OPT_ESSAI) {
@@ -602,6 +658,7 @@ admettre <- function(tri) {
 # observee de mw_bootstrap() (meme jd, meme jni par le chemin par defaut).
 # La reecriture independante de jni (.jni_oracle()) est dans
 # tests/unitaires/test_tables_mw.R (#270).
+# .mw_stats() sans replique : evaluation observee (#300 : MinP4 NA si une cellule a une influence non bornee).
 stats_oracle <- function(aj) .mw_stats(aj, .mw_ensembles_figes(aj, .mw_colonnes_degenerees(aj)))
 
 # --- Pool brut d'avant #46 (par. 3, C-206-4) ----------------------------------
@@ -1759,7 +1816,7 @@ traiter_sm <- function(b, ctl = FALSE) {
     figes <- .mw_ensembles_figes(aj, jd, jni, jno)   # objet unique (#278)
     S <- t(vapply(ajs, function(a) {
       if (is.null(a)) return(rep(NA_real_, NS))
-      sb <- try(.mw_stats(a, figes), silent = TRUE)
+      sb <- try(.mw_stats(a, figes, replique = TRUE), silent = TRUE)
       if (inherits(sb, "try-error")) rep(NA_real_, NS) else unname(sb[CLES])
     }, numeric(NS)))
     colnames(S) <- CLES
@@ -1920,6 +1977,476 @@ TXT_CONFIG <- sprintf("m\u00e9thode %s, segment %d de l'annexe %s ; B = %d (donn
                       METHODE, SEGMENT, ANNEXE, B_BOOT, num(ALPHA, 2), B_MIN_DEGENERESCENCE)
 TXT_GRAINES <- sprintf("triangle b, loi \u2113 : %.0f + %.0f (\u2113 \u2212 1) + b ; bootstrap b, loi \u2113 (les deux pools) : %.0f + %.0f (\u2113 \u2212 1) + b ; oracle k, loi \u2113 : %.0f + %.0f (\u2113 \u2212 1) + k ; \u2113 = 1 (N), 2 (E), 3 (A) ; contr\u00f4les sur reserve2 : %.0f",
                        GRAINE_TRI, PAS_LOI, GRAINE_BOOT, PAS_LOI, GRAINE_ORA, PAS_LOI_ORA, GRAINE_R2)
+
+###############################################################################
+#  MODE --controle-289 (#289 ; specification de Fi, par. 5, S-Fi-4)
+###############################################################################
+# Les niveaux de #206 sont anterieurs a #270 (courbure) et #273 (ordonnee a
+# l'origine), qui figent a l'observe des ensembles de colonnes non
+# identifiables et remplacent une colonne ecartee sans trace par une
+# statistique NA. Le controle verifie deux choses, sans bootstrap complet :
+#   volet 1 (observe) : sur les triangles du plan de #206 (niveau L0, memes
+#     graines), les ensembles de .mw_ensembles_figes(aj) (colonnes non
+#     identifiables de la courbure et de l'ordonnee a l'origine vides ;
+#     colonnes degenerees : voir T1) et K constant ;
+#   volet 2 (replications) : b = 1..B_REPL_289 de chaque loi, mw_bootstrap() a
+#     B = 999 aux graines de #206, catalogue REDUIT {Sonde, Origine,
+#     Courbure} injecte dans MW_CATALOGUE_MC de l'environnement du moteur
+#     (rendu par finally) : la boucle de tirage de mw_bootstrap() n'est pas
+#     recopiee (constat de #340). La sonde est une entree du catalogue
+#     (.mc_entree()) appelee par le moteur sur le contexte observe puis sur
+#     chaque replication reajustee ; elle consigne, dans un registre, par
+#     appel et par verification (O : ordonnee, C : courbure) : colonnes
+#     retenues (hors colonnes figees), colonnes a moins de 2 (O) ou 3 (C)
+#     valeurs distinctes (predicat unique de #290, .mw_colonnes_non_
+#     identifiables(), sur la replication, colonnes degenerees ecartees),
+#     colonnes degenerees, colonnes que la regression ponderee (O, lm()) ou
+#     la forme close (C, depuis #253 : plus de lm()) ecarte, et la cause de
+#     la statistique NA. La cause est le premier cas rencontre en j croissant,
+#     comme dans la boucle de la verification ; la sonde recalcule la
+#     statistique du test pour s'assurer que ses causes redonnent les NA du
+#     moteur (incoherences, attendues nulles).
+CAS_289 <- list(O = list(n_min = 3L, k = 2L, jni = "origine_non_identifiables"),
+                C = list(n_min = 4L, k = 3L, jni = "non_identifiables"))
+CHAMPS_289 <- c("n_ret", "n_peu", "n_deg", "n_ecart", "n_ecart_hors", "na", "cause", "incoh", "err")
+# Causes : 0 statistique finie ; 1 colonne retenue degeneree ; 2 colonne
+# retenue que lm() (O) ou la forme close (C) ecarte ; 3 autre (par exemple
+# aucune colonne retenue) ; 4 erreur du test.
+sonde_cas_289 <- function(aj, figes, cas) {
+  I <- aj$I; J <- aj$J; jd <- figes$degeneres; jni <- figes[[cas$jni]]
+  j <- 0:(J - 1L)
+  ret <- j[(I - j) >= cas$n_min & !(j %in% jd) & !(j %in% jni)]
+  peu <- setdiff(.mw_colonnes_non_identifiables(aj, jd, cas$n_min, cas$k), jni)
+  deg <- vapply(ret, function(k) .mw_colonne_degeneree(aj, k), logical(1))
+  erreur <- 0L
+  ecart <- vapply(seq_along(ret), function(i) {
+    if (deg[i]) return(FALSE)
+    k <- ret[i]; idx <- 0:(I - k - 1)
+    C0 <- aj$tri[idx + 1, k + 1]; C1 <- aj$tri[idx + 1, k + 2]
+    v <- tryCatch(
+      if (cas$k == 2L) {
+        m <- try(.mw_summary_lm(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
+        inherits(m, "try-error") || nrow(m$coefficients) < 2
+      } else is.null(.mw_courbure_colonne(C0, C1)),
+      error = function(e) NA)
+    if (is.na(v)) { erreur <<- erreur + 1L; TRUE } else v
+  }, logical(1))
+  st <- try(if (cas$k == 2L) mw_test_ordonnee_origine(aj, jd, jni)$stat else mw_test_courbure(aj, jd, jni)$stat, silent = TRUE)
+  err_test <- inherits(st, "try-error")
+  na <- err_test || !is.finite(st)
+  premiere <- NA_integer_
+  for (i in seq_along(ret)) if (deg[i]) { premiere <- 1L; break } else if (ecart[i]) { premiere <- 2L; break }
+  cause <- if (err_test) 4L else if (!na) 0L else if (!is.na(premiere)) premiere else 3L
+  c(n_ret = length(ret), n_peu = length(peu), n_deg = sum(deg), n_ecart = sum(ecart),
+    n_ecart_hors = sum(ecart & !(ret %in% peu)), na = as.integer(na), cause = cause,
+    incoh = as.integer(!na && !is.na(premiere)), err = erreur + as.integer(err_test))
+}
+# Entree de catalogue : appel du moteur (contexte observe puis replications) ;
+# le registre est un environnement (fermeture). Valeur rendue : nombre de
+# colonnes a trop peu de valeurs distinctes, pour les deux verifications.
+sonde_289 <- function(registre) function(e) {
+  r <- tryCatch(unlist(lapply(names(CAS_289), function(nm) {
+    v <- sonde_cas_289(e$aj, e$figes, CAS_289[[nm]]); names(v) <- paste0(names(v), "_", nm); v
+  })), error = function(err) NULL)
+  registre$n <- registre$n + 1L
+  registre$lignes[[registre$n]] <- r
+  if (is.null(r)) { registre$erreurs <- registre$erreurs + 1L; return(0) }
+  sum(r[paste0("n_peu_", names(CAS_289))])
+}
+CAT_ORIG <- get("MW_CATALOGUE_MC", envir = ENV_MOTEUR)
+catalogue_289 <- function(registre) c(list(Sonde = .mc_entree(sonde_289(registre), "haut")), CAT_ORIG[c("Origine", "Courbure")])
+avec_catalogue_289 <- function(cat, expr) {
+  assign("MW_CATALOGUE_MC", cat, envir = ENV_MOTEUR)
+  tryCatch(expr, finally = assign("MW_CATALOGUE_MC", CAT_ORIG, envir = ENV_MOTEUR))
+}
+catalogue_restaure <- function() identical(get("MW_CATALOGUE_MC", envir = ENV_MOTEUR), CAT_ORIG)
+nouveau_registre_289 <- function() { r <- new.env(); r$n <- 0L; r$erreurs <- 0L; r$lignes <- list(); r }
+matrice_registre_289 <- function(r) {
+  if (!r$n) return(NULL)
+  ok <- !vapply(r$lignes, is.null, logical(1))
+  if (!any(ok)) return(NULL)
+  m <- do.call(rbind, r$lignes[ok]); rownames(m) <- NULL; m
+}
+# bootstrap de reference du script, catalogue complet, et bootstrap avec
+# catalogue reduit : meme appel mw_bootstrap(aj, B, seed).
+bootstrap_sonde_289 <- function(aj, graine, B = B_BOOT) {
+  reg <- nouveau_registre_289()
+  bt <- avec_catalogue_289(catalogue_289(reg), mw_bootstrap(aj, B = B, seed = graine))
+  list(bt = bt, reg = reg)
+}
+# Rapprochement de la sonde et du moteur pour un bootstrap (#289, audit C4) :
+# aucune erreur de la sonde ni ligne perdue du registre, sonde appelee B + 1
+# fois (observe, puis une fois par replication evaluee) sauf plafond de retirage
+# atteint (replications non evaluees), et, pour chaque verification, B effectif
+# du moteur = replications evaluees - statistiques NA comptees par la sonde.
+reconcilier_289 <- function(bt, reg, B = B_BOOT) {
+  M <- matrice_registre_289(reg)
+  if (is.null(M) || reg$erreurs > 0L || nrow(M) != reg$n) return(FALSE)
+  cle <- c(O = "Origine", C = "Courbure")
+  (reg$n == B + 1 || isTRUE(bt$plafond_cumuls)) &&
+    all(vapply(names(cle), function(nm) isTRUE(unname(bt$B_effectif[[cle[[nm]]]]) == (reg$n - 1L) - sum(M[-1L, paste0("na_", nm)])), logical(1)))
+}
+CLES_289 <- c("Origine", "Courbure")
+champs_id_289 <- c("p_mc", "err_mc", "B_effectif", "motif_mc", "granularite_stat", "p_min_mc", "stats_obs")
+identite_289 <- function(complet, reduit)
+  all(vapply(champs_id_289, function(ch) identical(complet[[ch]][CLES_289], reduit[[ch]][CLES_289]), logical(1))) &&
+  all(vapply(c("sigma_boot", "B", "granularite", "cumuls_retires", "plafond_cumuls"), function(ch) identical(complet[[ch]], reduit[[ch]]), logical(1)))
+
+if (MODE == "c289") {
+  t_c <- Sys.time()
+  N_PROC <- if (.Platform$OS.type == "windows") 1L else if (is.na(N_COEURS)) max(1L, min(4L, parallel::detectCores())) else N_COEURS
+  if (.Platform$OS.type == "windows" && !is.na(N_COEURS) && N_COEURS > 1L)
+    message("--coeurs ignore sous Windows (mclapply) : un processus")
+  appliquer_289 <- function(X, f, prescheduling = TRUE) {
+    g <- function(x) tryCatch(f(x), error = function(e) list(statut = "erreur", loi = x$loi, b = x$b, motif = nettoyer_champ(conditionMessage(e))))
+    if (N_PROC > 1L) parallel::mclapply(X, g, mc.cores = N_PROC, mc.preschedule = prescheduling) else lapply(X, g)
+  }
+  BS_OBS <- if (OPT_ESSAI) stats::setNames(rep(list(B1:B2), 3L), LOIS) else
+    list(N = seq_len(NIVEAUX$L0[["N_red"]]), E = seq_len(NIVEAUX$L0[["E_red"]]), A = seq_len(NIVEAUX$L0[["A_red"]]))
+  BS_REP <- if (OPT_ESSAI) B1:B2 else seq_len(B_REPL_289)
+  message("--controle-289 : ", N_PROC, " processus ; observe ", sum(lengths(BS_OBS)), " triangles ; replications ",
+          length(LOIS) * length(BS_REP), " triangles a B = ", B_BOOT)
+
+  # --- Controles generaux (reserve2) -------------------------------------------
+  cat_ok <- all(CLES_289 %in% names(CAT_ORIG)) && all(QUEUE[CLES_289] == "haut") &&
+    all(vapply(CAT_ORIG[CLES_289], function(x) is.null(x$degenere) && is.null(x$non_definie) && is.null(x$extremes), logical(1)))
+  controle(cat_ok, sprintf("(b289) Origine et Courbure lues dans MW_CATALOGUE_MC (%d cl\u00e9s au total), queue haute, entr\u00e9es sans degenere, non_definie ni extremes", NS))
+  RES_A <- executer_cas("reserve2")
+  cmp_a <- comparer_objets(neutraliser_instables(readRDS(chemin_reference("reserve2"))), neutraliser_instables(RES_A), tol = TOLERANCE)
+  TXT_A <- sprintf("%s ; %d feuille(s), %d non strictement identique(s), \u00e9cart maximal %s", if (cmp_a$conforme) "conforme" else "NON CONFORME",
+                   cmp_a$n_feuilles, cmp_a$n_differentes, formatC(cmp_a$ecart_max, format = "e", digits = 3))
+  controle(cmp_a$conforme && identical(unlist(RES_A$metadata[c("B", "alpha", "seed")]), c(B = as.numeric(B_BOOT), alpha = ALPHA, seed = GRAINE_R2)),
+           sprintf("(a) reserve2, run_engine(seed = %.0f), conforme \u00e0 tests/reference/reserve2.rds (comparer_objets(), tol\u00e9rance %g) : %s", GRAINE_R2, TOLERANCE, TXT_A))
+  cg <- controle_g(); controle(cg$ok, paste("(g)", cg$txt))
+  # (graines) : bloquant, sauf si l'echec est EXACTEMENT le faux positif connu
+  # (#289, avis d'actuary) : seules collisions les litteraux 20840001 et
+  # 20960000, bornes declarees de la plage de #206 (PLAGE_206 de
+  # tests/mesure_calendaire_t8.R), plages disjointes et graines de reserve2
+  # hors des plages. controle_graines() ne rend que (ok, txt) : les trois
+  # conditions sont relues dans son texte ; un texte illisible ou toute autre
+  # cause rend le controle bloquant. Aucune source d'alea n'est ajoutee par ce
+  # mode : graines de #206, engine_sous_graine().
+  cgr <- controle_graines()
+  coll_289 <- regmatches(cgr$txt, regexec("touche une plage : ([0-9, ]+) ;", cgr$txt))[[1]]
+  coll_289 <- if (length(coll_289) == 2L) suppressWarnings(as.numeric(strsplit(trimws(coll_289[2]), ",\\s*")[[1]])) else NA_real_
+  SIGNALEMENT_GRAINES <- !cgr$ok && !anyNA(coll_289) && setequal(coll_289, c(20840001, 20960000)) &&
+    grepl("(disjointes : oui)", cgr$txt, fixed = TRUE) && grepl("hors des plages : oui$", cgr$txt)
+  if (SIGNALEMENT_GRAINES) {
+    CONTROLES <- c(CONTROLES, paste("(graines) signalement sans effet : les litt\u00e9raux 20840001 et 20960000 sont les bornes d\u00e9clar\u00e9es de la plage de #206 (PLAGE_206, tests/mesure_calendaire_t8.R, l. 304), non des graines tir\u00e9es ; aucune source d'al\u00e9a ajout\u00e9e :", cgr$txt))
+  } else controle(cgr$ok, paste("(graines)", cgr$txt))
+  TXT_I3 <- sprintf("empreinte sans commentaires de R/engine.R %s ; md5 de R/engine.R %s, de %s %s, de tests/outils_tests.R %s",
+                    EMPREINTE_SC, MD5_MOTEUR, SCRIPT, md5_fichier(FICHIER_SCRIPT), md5_fichier(file.path(DOSSIER_SCRIPT, "outils_tests.R")))
+  controle(grepl("^[0-9a-f]{32}$", EMPREINTE_SC), paste("(i3)", TXT_I3))
+
+  # --- Controle positif de la sonde ------------------------------------------------
+  # Triangles construits a partir de reserve2 (colonne j = 1, lignes 0 a 5,
+  # modifiee ; ou colonne j = 2 degeneree), ensembles figes de reserve2 (vides
+  # hors la colonne j = 6) :
+  # (1) colonne constante : O et C la comptent a moins de k valeurs distinctes et
+  # l'ecartent, statistique NA ; (2) deux valeurs distinctes : O l'accepte, C
+  # la compte et l'ecarte ; (3) dispersion relative de 1e-9 (six valeurs
+  # distinctes) : le predicat de #290 ne la compte pas, lm() (O) l'ecarte (rang
+  # numerique, option (A) de #273), statistique NA ; C la garde ; (4) colonne
+  # j = 2 degeneree (C(i,3) = 1,5 C(i,2)) : cause 1. Verifie que la sonde sait
+  # compter ce qu'elle cherche.
+  figes_pos <- .mw_ensembles_figes(AJ0)
+  mod_col1 <- function(f) function(t) { t[1:6, 2] <- f(t[1:6, 2]); t }
+  pos <- lapply(list(constante = mod_col1(function(x) rep(1000, 6)),
+                     deux = mod_col1(function(x) c(1000, 1000, 1000, 1100, 1100, 1100)),
+                     quasi = mod_col1(function(x) 1000 * (1 + 1e-9 * (1:6))),
+                     degeneree = function(t) { t[1:5, 4] <- 1.5 * t[1:5, 3]; t }),
+                function(m) { aj <- mw_ajuster(m(.tri)); unlist(lapply(names(CAS_289), function(nm) { v <- sonde_cas_289(aj, figes_pos, CAS_289[[nm]]); names(v) <- paste0(names(v), "_", nm); v })) })
+  attendu_pos <- list(
+    constante = c(n_peu_O = 1, n_deg_O = 0, n_ecart_O = 1, n_ecart_hors_O = 0, na_O = 1, cause_O = 2, incoh_O = 0, n_peu_C = 1, n_deg_C = 0, n_ecart_C = 1, n_ecart_hors_C = 0, na_C = 1, cause_C = 2, incoh_C = 0),
+    deux = c(n_peu_O = 0, n_ecart_O = 0, na_O = 0, cause_O = 0, incoh_O = 0, n_peu_C = 1, n_ecart_C = 1, n_ecart_hors_C = 0, na_C = 1, cause_C = 2, incoh_C = 0),
+    quasi = c(n_peu_O = 0, n_ecart_O = 1, n_ecart_hors_O = 1, na_O = 1, cause_O = 2, incoh_O = 0, n_peu_C = 0, n_ecart_C = 0, na_C = 0, cause_C = 0, incoh_C = 0),
+    degeneree = c(n_peu_O = 0, n_deg_O = 1, n_ecart_O = 0, na_O = 1, cause_O = 1, incoh_O = 0, n_peu_C = 0, n_deg_C = 1, n_ecart_C = 0, na_C = 1, cause_C = 1, incoh_C = 0))
+  ok_pos <- all(vapply(names(attendu_pos), function(nm) all(pos[[nm]][names(attendu_pos[[nm]])] == attendu_pos[[nm]]), logical(1)))
+  controle(ok_pos, sprintf("(sonde+289) contr\u00f4le positif de la sonde sur quatre triangles construits (colonne j = 1 constante ; \u00e0 deux valeurs ; \u00e0 dispersion relative 1e-9 ; colonne j = 2 d\u00e9g\u00e9n\u00e9r\u00e9e, facteurs tous \u00e9gaux \u00e0 1,5) : champs attendus (n_peu, n_deg, n_ecart, n_ecart_hors, na, cause, incoh de O et C) : %s", if (ok_pos) "tous conformes" else "NON CONFORMES"))
+  # Chemin du moteur : mw_bootstrap() avec le catalogue reduit ET un vivier de
+  # residus nul injecte (.mw_pool_residus, technique de avec_pool_brut(),
+  # restauree par finally) sur reserve2, B = 20. Chaque replication a alors
+  # tous ses facteurs egaux a f_j : toutes les colonnes retenues sont
+  # degenerees (colonnes figees de reserve2 : {6} seulement). Verifie que
+  # l'objet e$figes lu par la sonde dans le moteur donne des evenements, que le
+  # B effectif du moteur (0) s'accorde avec les NA de la sonde, et que la
+  # sonde ne voit rien a l'observe.
+  B_POS <- 20L
+  avec_pool_nul_289 <- function(expr) {
+    assign(".mw_pool_residus", function(aj, j_degeneres = NULL) numeric(length(POOL_ORIG(aj, j_degeneres))), envir = ENV_MOTEUR)
+    tryCatch(expr, finally = assign(".mw_pool_residus", POOL_ORIG, envir = ENV_MOTEUR))
+  }
+  ep <- avec_pool_nul_289(bootstrap_sonde_289(AJ0, GRAINE_R2, B = B_POS))
+  Mp <- matrice_registre_289(ep$reg)
+  ok_moteur <- !is.null(Mp) && nrow(Mp) == B_POS + 1L && ep$reg$erreurs == 0L && reconcilier_289(ep$bt, ep$reg, B_POS) &&
+    pool_restaure() && catalogue_restaure() &&
+    all(vapply(names(CAS_289), function(nm) {
+      R <- Mp[-1L, , drop = FALSE]; f <- function(ch) R[, paste0(ch, "_", nm)]
+      all(f("n_ret") > 0) && all(f("n_deg") == f("n_ret")) && all(f("na") == 1) && all(f("cause") == 1) && all(f("incoh") == 0) &&
+        Mp[1L, paste0("n_deg_", nm)] == 0 && Mp[1L, paste0("na_", nm)] == 0
+    }, logical(1))) &&
+    all(unlist(ep$bt$B_effectif[CLES_289]) == 0)
+  controle(ok_moteur, sprintf("(sonde+289, moteur) mw_bootstrap() sur reserve2, B = %d, catalogue r\u00e9duit et vivier de r\u00e9sidus nul inject\u00e9s : toutes les colonnes retenues des %d r\u00e9plications sont d\u00e9g\u00e9n\u00e9r\u00e9es (cause 1) pour O et C, statistiques NA partout et B effectif d'Origine et de Courbure nul (accord avec la sonde), rien \u00e0 l'observ\u00e9, vivier et catalogue restaur\u00e9s (identical()) : %s", B_POS, B_POS, if (ok_moteur) "oui" else "NON"))
+
+  # --- Identite de l'injection (reserve2 et un triangle du plan) ---------------
+  # Avec le catalogue complet (mw_bootstrap() seul) et avec le catalogue reduit
+  # (sonde injectee) : les champs des cles Origine et Courbure, la
+  # distribution des sigma_boot (tirages) et les booleens du retirage sont
+  # identical() ; la sonde est appelee B + 1 fois sur reserve2 (observe, puis
+  # une fois par replication) sans aucune erreur.
+  aj_r2 <- RES_A$ajustement
+  plein_r2 <- mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2)
+  inj_r2 <- bootstrap_sonde_289(aj_r2, GRAINE_R2)
+  id_r2 <- identite_289(plein_r2, inj_r2$bt)
+  tri_id <- engine_sous_graine(graine_tri("N", 1L), gen_triangle_h0(AJ0, tireur("N")))
+  ad_id <- admettre(tri_id)
+  plein_id <- mw_bootstrap(ad_id$aj, B = B_BOOT, seed = graine_boot("N", 1L))
+  inj_id <- bootstrap_sonde_289(ad_id$aj, graine_boot("N", 1L))
+  id_tri <- ad_id$ok && identite_289(plein_id, inj_id$bt)
+  M_r2 <- matrice_registre_289(inj_r2$reg); M_id <- matrice_registre_289(inj_id$reg)
+  appels_ok <- inj_r2$reg$n == B_BOOT + 1 && inj_id$reg$n == B_BOOT + 1 && !inj_r2$reg$erreurs && !inj_id$reg$erreurs
+  controle(id_r2 && id_tri && catalogue_restaure() && appels_ok,
+           sprintf("(i2-289) injection du catalogue r\u00e9duit {Sonde, Origine, Courbure} : sur reserve2 (graine %.0f) et sur le triangle N, b = 1 (graine %.0f), p_mc, err_mc, B_effectif, motif_mc, granularite_stat, p_min_mc et stats_obs des cl\u00e9s Origine et Courbure, sigma_boot, B, granularite, cumuls_retires et plafond_cumuls identiques (identical()) \u00e0 ceux de mw_bootstrap() sans injection (reserve2 : %s ; triangle : %s) ; MW_CATALOGUE_MC restaur\u00e9 (identical()) : %s ; sonde appel\u00e9e %d et %d fois (B + 1 = %d attendu), %d et %d erreur(s) de la sonde",
+                   GRAINE_R2, graine_boot("N", 1L), if (id_r2) "oui" else "NON", if (id_tri) "oui" else "NON", if (catalogue_restaure()) "oui" else "NON",
+                   inj_r2$reg$n, inj_id$reg$n, B_BOOT + 1, inj_r2$reg$erreurs, inj_id$reg$erreurs))
+  incoh_ctl <- sum(M_r2[, paste0("incoh_", names(CAS_289))]) + sum(M_id[, paste0("incoh_", names(CAS_289))])
+  rec_ctl <- reconcilier_289(inj_r2$bt, inj_r2$reg) && reconcilier_289(inj_id$bt, inj_id$reg)
+  controle(incoh_ctl == 0L && rec_ctl, sprintf("(coh289) coh\u00e9rence de la sonde avec le moteur sur reserve2 et le triangle N, b = 1 (%d appels) : %d incoh\u00e9rence(s) (cause pr\u00e9dite par la sonde avec statistique finie du moteur) ; rapprochement B effectif du moteur = r\u00e9plications \u00e9valu\u00e9es \u2212 statistiques NA de la sonde, pour Origine et Courbure : %s", nrow(M_r2) + nrow(M_id), incoh_ctl, if (rec_ctl) "oui" else "NON"))
+  t_ctl <- secondes(t_c)
+  message("--controle-289 : controles generaux et identite de l'injection : ", sprintf("%.0f", t_ctl), " s")
+
+  # --- Volet 1 : a l'observe -----------------------------------------------------
+  observe_289 <- function(x) {
+    tri <- engine_sous_graine(graine_tri(x$loi, x$b), gen_triangle_h0(AJ0, tireur(x$loi)))
+    ad <- admettre(tri)
+    if (!ad$ok) return(list(statut = "refuse", loi = x$loi, b = x$b, motif = ad$motif))
+    aj <- ad$aj; figes <- .mw_ensembles_figes(aj)
+    kO <- mw_test_ordonnee_origine(aj, figes$degeneres, figes$origine_non_identifiables)
+    kC <- mw_test_courbure(aj, figes$degeneres, figes$non_identifiables)
+    kk <- function(r) if (is.null(r$K)) NA_integer_ else as.integer(r$K)
+    list(statut = "admis", loi = x$loi, b = x$b, degeneres = figes$degeneres, non_identifiables = figes$non_identifiables,
+         origine_non_identifiables = figes$origine_non_identifiables, K_O = kk(kO), K_C = kk(kC),
+         stat_O = is.finite(kO$stat), stat_C = is.finite(kC$stat))
+  }
+  t_v1 <- Sys.time()
+  X1 <- unlist(lapply(LOIS, function(l) lapply(BS_OBS[[l]], function(b) list(loi = l, b = b))), recursive = FALSE)
+  R1 <- appliquer_289(X1, observe_289)
+  R1 <- lapply(R1, function(r) if (is.list(r) && !is.null(r$statut)) r else list(statut = "erreur", loi = NA_character_, b = NA_integer_, motif = "echec du processus"))
+  statut1 <- vapply(R1, function(r) r$statut, "")
+  d_v1 <- secondes(t_v1)
+  message("--controle-289 : volet 1 (observe) : ", length(X1), " triangles, ", sprintf("%.0f", d_v1), " s")
+  ens_txt <- function(v) if (length(v)) paste(v, collapse = ",") else "\u2205"
+  lignes_v1 <- lapply(LOIS, function(l) {
+    r <- R1[vapply(R1, function(x) identical(x$loi, l), logical(1))]
+    st <- vapply(r, function(x) x$statut, "")
+    adm <- r[st == "admis"]
+    tab <- function(champ) {
+      v <- vapply(adm, function(x) { y <- x[[champ]]; if (length(y) == 1L && is.na(y)) "NA" else ens_txt(y) }, "")
+      if (!length(v)) return("\u2014")
+      t <- table(v); paste(sprintf("%s : %d", names(t), as.integer(t)), collapse = " ; ")
+    }
+    nv <- function(champ) sum(vapply(adm, function(x) length(x[[champ]]) > 0L, logical(1)))
+    list(l = l, n = length(r), adm = length(adm), ref = sum(st == "refuse"), err = sum(st == "erreur"),
+         jd = tab("degeneres"), nv_ni = nv("non_identifiables"), nv_no = nv("origine_non_identifiables"),
+         KO = tab("K_O"), KC = tab("K_C"),
+         statO = sum(vapply(adm, function(x) !isTRUE(x$stat_O), logical(1))), statC = sum(vapply(adm, function(x) !isTRUE(x$stat_C), logical(1))),
+         motifs = if (sum(st == "refuse")) { t <- table(vapply(r[st == "refuse"], function(x) x$motif, "")); paste(sprintf("%s (%d)", names(t), as.integer(t)), collapse = " ; ") } else "aucun",
+         K_O = vapply(adm, function(x) x$K_O, 1L), K_C = vapply(adm, function(x) x$K_C, 1L),
+         jd_v = vapply(adm, function(x) ens_txt(x$degeneres), ""))
+  })
+  names(lignes_v1) <- LOIS
+  n_adm1 <- sum(vapply(lignes_v1, function(x) x$adm, 1L)); n_err1 <- sum(statut1 == "erreur")
+  nv_ni_tot <- sum(vapply(lignes_v1, function(x) x$nv_ni, 1L)); nv_no_tot <- sum(vapply(lignes_v1, function(x) x$nv_no, 1L))
+  jd_tous <- unique(unlist(lapply(lignes_v1, function(x) x$jd_v)))
+  KO_tous <- unique(unlist(lapply(lignes_v1, function(x) x$K_O))); KC_tous <- unique(unlist(lapply(lignes_v1, function(x) x$K_C)))
+  JD_STRUCT <- as.integer(AJ0$J - 1L)      # colonne j = J - 1 : un seul facteur, degeneree par construction
+  v1_nul <- n_adm1 > 0L && nv_ni_tot == 0L && nv_no_tot == 0L && identical(jd_tous, as.character(JD_STRUCT))
+  v1_K <- length(KO_tous) == 1L && length(KC_tous) == 1L && !anyNA(c(KO_tous, KC_tous))
+  controle(n_err1 == 0L, sprintf("(v1) volet 1 : %d triangle(s) en erreur de calcul sur %d", n_err1, length(X1)))
+
+  # --- Volet 2 : replications ------------------------------------------------------
+  replication_289 <- function(x) {
+    t0 <- Sys.time()
+    tri <- engine_sous_graine(graine_tri(x$loi, x$b), gen_triangle_h0(AJ0, tireur(x$loi)))
+    ad <- admettre(tri)
+    if (!ad$ok) return(list(statut = "refuse", loi = x$loi, b = x$b, motif = ad$motif))
+    r <- bootstrap_sonde_289(ad$aj, graine_boot(x$loi, x$b))
+    list(statut = "admis", loi = x$loi, b = x$b, p = r$bt$p_mc[CLES_289], err = r$bt$err_mc[CLES_289], Be = r$bt$B_effectif[CLES_289],
+         motif = r$bt$motif_mc[CLES_289], plafond = r$bt$plafond_cumuls, cumuls = r$bt$cumuls_retires,
+         n_appels = r$reg$n, erreurs = r$reg$erreurs, M = matrice_registre_289(r$reg), restaure = catalogue_restaure(),
+         rec = reconcilier_289(r$bt, r$reg),
+         duree = secondes(t0))
+  }
+  t_v2 <- Sys.time()
+  X2 <- unlist(lapply(LOIS, function(l) lapply(BS_REP, function(b) list(loi = l, b = b))), recursive = FALSE)
+  R2 <- appliquer_289(X2, replication_289, prescheduling = FALSE)
+  d_v2 <- secondes(t_v2)
+  message("--controle-289 : volet 2 (replications) : ", length(X2), " triangles, ", sprintf("%.0f", d_v2), " s")
+  R2 <- lapply(R2, function(r) if (is.list(r) && !is.null(r$statut)) r else list(statut = "erreur", loi = NA_character_, b = NA_integer_, motif = "echec du processus"))
+  st2 <- vapply(R2, function(r) r$statut, "")
+  adm2 <- R2[st2 == "admis"]
+  n_rec_ko <- sum(!vapply(adm2, function(r) isTRUE(r$rec), logical(1)))
+  controle(!any(st2 == "erreur") && catalogue_restaure() && all(vapply(adm2, function(r) isTRUE(r$restaure), logical(1))) && n_rec_ko == 0L,
+           sprintf("(v2) volet 2 : %d triangle(s) en erreur de calcul sur %d ; MW_CATALOGUE_MC identique \u00e0 l'original (identical()) apr\u00e8s chaque triangle et \u00e0 la fin ; %d triangle(s) dont le registre de la sonde ne s'accorde pas avec le moteur (aucune erreur de la sonde, B + 1 appels sauf plafond de retirage, B effectif d'Origine et de Courbure = r\u00e9plications \u00e9valu\u00e9es \u2212 NA de la sonde)", sum(st2 == "erreur"), length(X2), n_rec_ko))
+  # agregation par loi et verification
+  agreg <- function(l, nm) {
+    r <- R2[st2 == "admis" & vapply(R2, function(x) identical(x$loi, l), logical(1))]
+    M <- do.call(rbind, lapply(r, function(x) x$M[-1L, , drop = FALSE]))      # replications seules
+    Mo <- do.call(rbind, lapply(r, function(x) x$M[1L, , drop = FALSE]))      # observe
+    g <- function(ch) M[, paste0(ch, "_", nm)]
+    go <- function(ch) Mo[, paste0(ch, "_", nm)]
+    cs <- g("cause")
+    list(l = l, nm = nm, tri = length(r), rep = nrow(M), ret = sum(g("n_ret")),
+         peu_c = sum(g("n_peu")), peu_r = sum(g("n_peu") > 0), deg_c = sum(g("n_deg")), deg_r = sum(g("n_deg") > 0),
+         ec_c = sum(g("n_ecart")), ec_r = sum(g("n_ecart") > 0), eh_c = sum(g("n_ecart_hors")), eh_r = sum(g("n_ecart_hors") > 0),
+         na = sum(g("na")), c1 = sum(cs == 1), c2 = sum(cs == 2), c3 = sum(cs == 3), c4 = sum(cs == 4), incoh = sum(g("incoh")), err = sum(g("err")),
+         obs_peu = sum(go("n_peu")), obs_deg = sum(go("n_deg")), obs_ec = sum(go("n_ecart")), obs_na = sum(go("na")))
+  }
+  AG <- unlist(lapply(LOIS, function(l) lapply(names(CAS_289), function(nm) agreg(l, nm))), recursive = FALSE)
+  tot <- function(ch, nm) sum(vapply(AG[vapply(AG, function(a) a$nm == nm, logical(1))], function(a) a[[ch]], 1))
+  n_rep_tot <- sum(vapply(adm2, function(x) nrow(x$M) - 1L, 1L))
+  controle(sum(vapply(AG, function(a) a$incoh + a$err, 1)) == 0, sprintf("(coh289-v2) coh\u00e9rence de la sonde avec le moteur sur les %d r\u00e9plications du volet 2 : %d incoh\u00e9rence(s), %d erreur(s) de la sonde ou du test", n_rep_tot, sum(vapply(AG, function(a) a$incoh, 1)), sum(vapply(AG, function(a) a$err, 1))))
+  borne95 <- function(k, n) if (n > 0) stats::qbeta(0.95, k + 1, n - k) else NA_real_
+  fmt_e <- function(x) if (!is.finite(x)) "\u2014" else sub(".", ",", sprintf("%.1e", x), fixed = TRUE)
+  # B effectif et retirage
+  lignes_Be <- unlist(lapply(LOIS, function(l) lapply(CLES_289, function(k) {
+    r <- adm2[vapply(adm2, function(x) identical(x$loi, l), logical(1))]
+    be <- vapply(r, function(x) as.numeric(x$Be[[k]]), 1)
+    list(l = l, k = k, n = length(r), min = if (length(be)) min(be) else NA_real_, moy = if (length(be)) mean(be) else NA_real_,
+         n_inf = sum(be < B_BOOT), plafond = sum(vapply(r, function(x) isTRUE(x$plafond), logical(1))),
+         cumuls = sum(vapply(r, function(x) isTRUE(x$cumuls), logical(1))),
+         motifs = sum(vapply(r, function(x) !is.na(x$motif[[k]]), logical(1))))
+  })), recursive = FALSE)
+  # --- Comparaison descriptive aux colonnes pR: du brut de #206 --------------------
+  BRUT_206 <- file.path(RACINE, "docs", "tableaux", "20261011-issue206-calibration-mw-brut.tsv")
+  MD_206 <- file.path(RACINE, "docs", "tableaux", "20261011-issue206-calibration-mw.md")
+  brut <- if (file.exists(BRUT_206)) utils::read.delim(BRUT_206, sep = "\t", header = TRUE, quote = "", colClasses = "character", check.names = FALSE) else NULL
+  commit_206 <- if (file.exists(MD_206)) { l <- readLines(MD_206, warn = FALSE, encoding = "UTF-8"); sub("^\\| Commit \\| (.*) \\|$", "\\1", l[grepl("^\\| Commit \\| ", l)][1]) } else NA_character_
+  md5_206 <- if (file.exists(MD_206)) { l <- readLines(MD_206, warn = FALSE, encoding = "UTF-8"); sub("^.*R/engine.R ([0-9a-f]{32}).*$", "\\1", l[grepl("^\\| Empreintes md5 du code ex.cut. \\|", l)][1]) } else NA_character_
+  cmp <- NULL
+  if (!is.null(brut)) {
+    br <- brut[brut$type == "rep", , drop = FALSE]
+    cmp <- do.call(rbind, lapply(adm2, function(x) do.call(rbind, lapply(CLES_289, function(k) {
+      i <- which(br$loi == x$loi & br$b == as.character(x$b))
+      if (length(i) != 1L) return(data.frame(loi = x$loi, b = x$b, cle = k, p_ref = NA_real_, p_new = unname(x$p[[k]]), B_ref = NA_real_, B_new = unname(as.numeric(x$Be[[k]])), stringsAsFactors = FALSE))
+      data.frame(loi = x$loi, b = x$b, cle = k, p_ref = suppressWarnings(as.numeric(br[i, paste0("pR:", k)])), p_new = unname(x$p[[k]]),
+                 B_ref = suppressWarnings(as.numeric(br[i, paste0("BR:", k)])), B_new = unname(as.numeric(x$Be[[k]])), stringsAsFactors = FALSE)
+    }))))
+    cmp$diff <- cmp$p_new - cmp$p_ref
+    cmp$egal <- (is.na(cmp$p_ref) & is.na(cmp$p_new) & is.na(cmp$B_ref)) | (!is.na(cmp$diff) & abs(cmp$diff) <= 1e-12 & cmp$B_ref == cmp$B_new)
+    cmp$egal[is.na(cmp$egal)] <- FALSE
+  }
+
+  # --- Tableaux ----------------------------------------------------------------------
+  DUREE_289 <- c(t_ctl, d_v1, d_v2, secondes(t_debut))
+  PAIRES_289 <- list()
+  ajout_289 <- function(lib, val) PAIRES_289[[length(PAIRES_289) + 1L]] <<- c(lib, val)
+  ajout_289("Mode", sprintf("--controle-289 (#289, sp\u00e9cification de Fi, par. 5)%s", if (OPT_ESSAI) " -- ESSAI, plan r\u00e9duit, non versionnable" else ""))
+  ajout_289("DGP sous H0 (par. 2 de #206)", TXT_DGP)
+  ajout_289("Configuration", TXT_CONFIG)
+  ajout_289("Plan", sprintf("volet 1 (observ\u00e9) : %s ; volet 2 (r\u00e9plications) : b = %d..%d de chaque loi, %d triangles, B = %d, catalogue r\u00e9duit {Sonde, Origine, Courbure} inject\u00e9 dans MW_CATALOGUE_MC",
+                            paste(sprintf("%s %d (b = %d..%d)", LOIS, lengths(BS_OBS), vapply(BS_OBS, min, 1L), vapply(BS_OBS, max, 1L)), collapse = ", "),
+                            min(BS_REP), max(BS_REP), length(X2), B_BOOT))
+  ajout_289("Graines (par. 7 de #206)", TXT_GRAINES)
+  ajout_289("Graines : recherche des collisions", cgr$txt)
+  ajout_289("G\u00e9n\u00e9rateur", paste(ENGINE_RNG_KIND, collapse = ", "))
+  ajout_289("Commit", COMMIT)
+  ajout_289("Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)", plateforme_calcul())
+  ajout_289("Processus (mclapply)", as.character(N_PROC))
+  ajout_289("Empreintes md5 du code ex\u00e9cut\u00e9", EMPREINTES)
+  ajout_289("Empreinte sans commentaires de R/engine.R (#231) et md5 du fichier entier", sprintf("%s (md5 du fichier entier %s)", EMPREINTE_SC, MD5_MOTEUR))
+  ajout_289("Contr\u00f4le (a) : reserve2 contre tests/reference/reserve2.rds", TXT_A)
+  ajout_289("Brut de #206 (comparaison descriptive)", if (is.null(brut)) "introuvable" else sprintf("%s (md5 %s), commit de #206 %s, md5 de R/engine.R de #206 %s",
+                                                                                                 chemin_cite(BRUT_206), md5_fichier(BRUT_206), commit_206, md5_206))
+  ajout_289("Locale LC_CTYPE (origine \u2192 travail)", sprintf("%s \u2192 %s", LOCALE_ORIGINE, LOCALE_TRAVAIL))
+  ajout_289("Dur\u00e9e (s)", sprintf("contr\u00f4les g\u00e9n\u00e9raux et identit\u00e9 de l'injection %.0f ; volet 1 %.0f ; volet 2 %.0f ; total %.0f", DUREE_289[1], DUREE_289[2], DUREE_289[3], DUREE_289[4]))
+  ajout_289("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) "\u00c9CHEC" else if (SIGNALEMENT_GRAINES) "OK (1 signalement sans effet, voir (graines))" else "OK")
+  T1 <- c("### T1 \u2014 volet 1 : ensembles fig\u00e9s et K \u00e0 l'observ\u00e9 (triangles du plan de #206)", "",
+          "Ensembles de `.mw_ensembles_figes(aj)` et K des deux v\u00e9rifications, calcul\u00e9s comme `mw_bootstrap()` les fige (d\u00e9faut du moteur, sur le triangle admis). La colonne `degeneres` liste les valeurs distinctes observ\u00e9es de l'ensemble avec leur effectif ; `\u2205` : ensemble vide.", "",
+          entete_md(c("Loi", "triangles", "admis", "refus\u00e9s", "en erreur", "`degeneres` (valeurs : effectif)", "`non_identifiables` non vide (courbure)",
+                      "`origine_non_identifiables` non vide", "K ordonn\u00e9e (valeur : effectif)", "K courbure (valeur : effectif)", "statistique observ\u00e9e NA (O ; C)")),
+          vapply(lignes_v1, function(x) ligne_md(x$l, x$n, x$adm, x$ref, x$err, x$jd, x$nv_ni, x$nv_no, x$KO, x$KC, sprintf("%d ; %d", x$statO, x$statC)), ""), "",
+          sprintf("Motifs de refus : %s.", paste(sprintf("%s : %s", LOIS, vapply(lignes_v1, function(x) x$motifs, "")), collapse = " ; ")), "",
+          sprintf("Constat : sur %d triangles admis, ensemble des colonnes non identifiables de la courbure non vide dans %d triangle(s), ensemble de l'ordonn\u00e9e \u00e0 l'origine non vide dans %d ; ensemble `degeneres` : %s (colonne j = %d, un seul facteur, n_j = 1, d\u00e9g\u00e9n\u00e9r\u00e9e au sens de `.mw_colonne_degeneree()`) ; K ordonn\u00e9e : %s ; K courbure : %s. Les deux ensembles de #270 et #273 sont %s.",
+                  n_adm1, nv_ni_tot, nv_no_tot, paste(jd_tous, collapse = " ; "), JD_STRUCT, paste(KO_tous, collapse = ", "), paste(KC_tous, collapse = ", "),
+                  if (v1_nul) "vides sur tous les triangles admis" else "NON VIDES sur au moins un triangle admis (contr\u00f4le non nul)"),
+          sprintf("Sp\u00e9cification (par. 5, point 1) : K = 5 pour l'ordonn\u00e9e, K = 4 pour la courbure ; K %s sur tous les triangles admis%s.",
+                  if (v1_K) "constant" else "NON constant",
+                  if (v1_K) sprintf(" (observ\u00e9 : %d et %d)", KO_tous, KC_tous) else ""), "")
+  lib_nm <- c(O = "ordonn\u00e9e (n_j \u2265 3, < 2 valeurs distinctes)", C = "courbure (n_j \u2265 4, < 3 valeurs distinctes)")
+  T2 <- c("### T2 \u2014 volet 2 : colonnes retenues que la r\u00e9plication rend non identifiables", "",
+          sprintf("Colonnes retenues = colonnes de n_j au moins 3 (O) ou 4 (C) hors des colonnes fig\u00e9es \u00e0 l'observ\u00e9. Une colonne retenue est compt\u00e9e **d\u00e9g\u00e9n\u00e9r\u00e9e** (pr\u00e9dicat de #56, sur la r\u00e9plication), **\u00e0 moins de 2 (O) ou 3 (C) valeurs distinctes** (pr\u00e9dicat de #290 appel\u00e9 sur la r\u00e9plication ; les colonnes d\u00e9g\u00e9n\u00e9r\u00e9es en sont \u00e9cart\u00e9es, les deux comptes sont donc disjoints), ou **\u00e9cart\u00e9e** par la r\u00e9gression pond\u00e9r\u00e9e `lm()` (O) ou par la forme close de #253 (C, sans `lm()`) ; \u00ab \u00e9cart\u00e9e hors <k valeurs \u00bb = \u00e9cart\u00e9e sans \u00eatre \u00e0 moins de k valeurs distinctes (rang num\u00e9rique). R\u00e9plications \u00e9valu\u00e9es par le moteur : %d (sur %d triangles admis).", n_rep_tot, length(adm2)), "",
+          entete_md(c("Loi", "v\u00e9rification", "triangles", "r\u00e9plications", "colonnes retenues", "colonnes < k valeurs distinctes (r\u00e9plications)",
+                      "colonnes d\u00e9g\u00e9n\u00e9r\u00e9es (r\u00e9plications)", "colonnes \u00e9cart\u00e9es (r\u00e9plications)", "dont hors < k valeurs (r\u00e9plications)", "observ\u00e9 : < k / d\u00e9g. / \u00e9cart. / NA")),
+          vapply(AG, function(a) ligne_md(a$l, lib_nm[[a$nm]], a$tri, a$rep, a$ret, sprintf("%d (%d)", a$peu_c, a$peu_r), sprintf("%d (%d)", a$deg_c, a$deg_r),
+                                          sprintf("%d (%d)", a$ec_c, a$ec_r), sprintf("%d (%d)", a$eh_c, a$eh_r), sprintf("%d / %d / %d / %d", a$obs_peu, a$obs_deg, a$obs_ec, a$obs_na)), ""), "",
+          "### T3 \u2014 volet 2 : statistiques NA par cause", "",
+          "Cause = premier cas rencontr\u00e9 en j croissant parmi les colonnes retenues (ordre de la boucle de la v\u00e9rification) : colonne d\u00e9g\u00e9n\u00e9r\u00e9e, colonne \u00e9cart\u00e9e par `lm()` ou la forme close ; \u00ab autre \u00bb : statistique NA sans colonne fautive (par exemple aucune colonne retenue) ; \u00ab erreur \u00bb : erreur du test. Incoh\u00e9rences : la sonde pr\u00e9dit une cause alors que la statistique du moteur est finie (attendu 0).", "",
+          entete_md(c("Loi", "v\u00e9rification", "r\u00e9plications", "statistiques NA", "colonne d\u00e9g\u00e9n\u00e9r\u00e9e", "colonne \u00e9cart\u00e9e (lm() / forme close)", "autre", "erreur du test", "incoh\u00e9rences")),
+          vapply(AG, function(a) ligne_md(a$l, lib_nm[[a$nm]], a$rep, a$na, a$c1, a$c2, a$c3, a$c4, a$incoh), ""), "")
+  ev_peu <- tot("peu_r", "O") + tot("peu_r", "C"); ev_deg <- tot("deg_r", "O") + tot("deg_r", "C"); ev_ec <- tot("ec_r", "O") + tot("ec_r", "C")
+  ev_na <- tot("na", "O") + tot("na", "C")
+  n_rep_v <- tot("rep", "O"); ntests <- 2L
+  lecture <- function(nm, lib) {
+    n <- tot("rep", nm); k1 <- tot("peu_r", nm); k2 <- tot("na", nm); k3 <- tot("ec_r", nm); k4 <- tot("deg_r", nm)
+    sprintf("%s : %d r\u00e9plication(s) \u00e9valu\u00e9e(s) ; r\u00e9plications avec au moins une colonne \u00e0 moins de %d valeurs distinctes : %d (taux observ\u00e9 %s, borne sup\u00e9rieure unilat\u00e9rale exacte \u00e0 95 %% %s%s) ; avec une colonne d\u00e9g\u00e9n\u00e9r\u00e9e : %d ; avec une colonne \u00e9cart\u00e9e : %d ; statistiques NA : %d (borne sup\u00e9rieure %s).",
+            lib, n, CAS_289[[nm]]$k, k1, fmt_e(k1 / n), fmt_e(borne95(k1, n)), if (k1 == 0L) sprintf(" ; r\u00e8gle de trois 3/n = %s", fmt_e(3 / n)) else "", k4, k3, k2, fmt_e(borne95(k2, n)))
+  }
+  T3b <- c("### T4 \u2014 B effectif et retirage (cl\u00e9s Origine et Courbure)", "",
+           entete_md(c("Loi", "cl\u00e9", "triangles", "B effectif minimal", "B effectif moyen", "triangles avec B effectif < 999", "triangles avec motif d'absence de p", "plafond de retirage atteint (#257)", "triangles avec triangle simul\u00e9 retir\u00e9 (#257)")),
+           vapply(lignes_Be, function(x) ligne_md(x$l, x$k, x$n, num(x$min, 0), num(x$moy, 3), x$n_inf, x$motifs, x$plafond, x$cumuls), ""), "")
+  # triangles touches par au moins un evenement (colonne a trop peu de valeurs distinctes, degeneree
+  # ou ecartee, ou statistique NA, pour l'une ou l'autre verification), au total et par loi
+  tri_touche <- vapply(adm2, function(x) any(x$M[-1L, grep("^(n_peu|n_deg|n_ecart|na)_", colnames(x$M)), drop = FALSE] > 0), logical(1))
+  loi_tri <- vapply(adm2, function(x) x$loi, "")
+  n_tri <- length(adm2); k_tri <- sum(tri_touche)
+  txt_par_loi <- paste(vapply(LOIS, function(l) sprintf("%s %d sur %d (borne %s)", l, sum(tri_touche[loi_tri == l]), sum(loi_tri == l), fmt_e(borne95(sum(tri_touche[loi_tri == l]), sum(loi_tri == l)))), ""), collapse = " ; ")
+  T5 <- c("### T5 \u2014 lecture", "",
+          sprintf("**Recensement \u00e0 l'observ\u00e9 (volet 1)** : %d triangles admis du plan de #206 (aucun \u00e9chantillonnage) ; ensembles de #270 et #273 non vides dans %d + %d d'entre eux.", n_adm1, nv_ni_tot, nv_no_tot),
+          "", "**\u00c9chantillon de r\u00e9plications (volet 2)**, sous l'hypoth\u00e8se d'ind\u00e9pendance des r\u00e9plications (que le tirage par triangle ne v\u00e9rifie pas : les r\u00e9plications d'un triangle partagent son vivier de r\u00e9sidus) :", "",
+          lecture("O", "Ordonn\u00e9e \u00e0 l'origine"), "", lecture("C", "Courbure"), "",
+          sprintf("Total des deux v\u00e9rifications : %d r\u00e9plications \u00e9valu\u00e9es chacune ; %d (r\u00e9plication, v\u00e9rification) avec colonne \u00e0 trop peu de valeurs distinctes, %d avec colonne d\u00e9g\u00e9n\u00e9r\u00e9e, %d avec colonne \u00e9cart\u00e9e, %d statistiques NA.",
+                  n_rep_v, ev_peu, ev_deg, ev_ec, ev_na),
+          "", sprintf("**Borne par triangle, sans hypoth\u00e8se d'ind\u00e9pendance des r\u00e9plications** : triangles touch\u00e9s par au moins un \u00e9v\u00e9nement : %d sur %d, borne sup\u00e9rieure unilat\u00e9rale exacte \u00e0 95 %% %s ; par loi : %s.", k_tri, n_tri, fmt_e(borne95(k_tri, n_tri)), txt_par_loi),
+          "", sprintf("**Contr\u00f4le %s.**", if (v1_nul && v1_K && ev_peu == 0L && ev_ec == 0L && ev_na == 0L && ev_deg == 0L) "nul sur les deux volets" else "NON NUL (point de d\u00e9cision, sp\u00e9cification de Fi, par. 5, point 4)"),
+          "", sprintf("Statut : constat de simulation sous le plan de #206 (mod\u00e8le de Mack ajust\u00e9 \u00e0 reserve2, g\u00e9om\u00e9trie 8 \u00d7 8) ; volet 1 : les %d triangles du plan de #206 ; volet 2 : %d d'entre eux (b = %d \u00e0 %d par loi). Z\u00e9ro \u00e9v\u00e9nement ne prouve pas l'absence d'\u00e9v\u00e9nement, il en borne le taux. La borne unilat\u00e9rale exacte \u00e0 95 %% est q_{0,95} de la loi b\u00eata(k + 1, n \u2212 k) ; la r\u00e8gle de trois (3/n) en est l'approximation pour k = 0. Le z\u00e9ro du volet 2 est attendu par construction [H] : premi\u00e8re colonne fix\u00e9e \u00e0 huit valeurs distinctes, colonnes suivantes simul\u00e9es \u00e0 partir d'erreurs continues (N, A) ou d'un vivier de 27 valeurs (E), sans co\u00efncidence exacte attendue ; hypoth\u00e8se non d\u00e9montr\u00e9e, et les bornes ci-dessus ne disent rien d'un plan o\u00f9 cette construction ne tiendrait pas. Cette mesure ne porte ni sur le niveau des p_mc ni sur les autres statistiques.", n_adm1, n_tri, min(BS_REP), max(BS_REP)), "")
+  T6 <- c("### T6 \u2014 comparaison descriptive aux colonnes `pR:` du brut de #206", "")
+  if (is.null(cmp)) T6 <- c(T6, "Brut de #206 introuvable.", "") else {
+    T6 <- c(T6, "Comparaison descriptive, **pas un crit\u00e8re** : #206 a \u00e9t\u00e9 mesur\u00e9 sur un autre commit du moteur (voir T0), et des modifications post\u00e9rieures (par exemple #253, forme close de la courbure) ont pu changer des bits. Une ligne est \u00ab \u00e9gale \u00bb si |p_new \u2212 p_ref| \u2264 1e-12 et si les B effectifs co\u00efncident.", "",
+            entete_md(c("Loi", "cl\u00e9", "triangles compar\u00e9s", "\u00e9gaux", "diff\u00e9rents", "\u00e9cart absolu maximal")),
+            unlist(lapply(LOIS, function(l) vapply(CLES_289, function(k) {
+              s <- cmp[cmp$loi == l & cmp$cle == k, ]
+              ligne_md(l, k, nrow(s), sum(s$egal), sum(!s$egal), fmt_e(if (any(is.finite(s$diff))) max(abs(s$diff), na.rm = TRUE) else NA_real_))
+            }, ""))), "")
+    dif <- cmp[!cmp$egal, ]
+    if (nrow(dif)) {
+      T6 <- c(T6, sprintf("Diff\u00e9rences list\u00e9es (%d)%s :", nrow(dif), if (nrow(dif) > 60L) ", 60 premi\u00e8res" else ""), "",
+              entete_md(c("Loi", "b", "cl\u00e9", "p (#206)", "p (cette mesure)", "diff\u00e9rence", "B effectif (#206)", "B effectif (cette mesure)")),
+              vapply(seq_len(min(nrow(dif), 60L)), function(i) ligne_md(dif$loi[i], dif$b[i], dif$cle[i], fmt_p(dif$p_ref[i]), fmt_p(dif$p_new[i]),
+                                                                       if (is.finite(dif$diff[i])) sub(".", ",", sprintf("%+.3g", dif$diff[i]), fixed = TRUE) else "\u2014",
+                                                                       dif$B_ref[i], dif$B_new[i]), ""), "")
+    } else T6 <- c(T6, "Aucune diff\u00e9rence : les p_mc d'Origine et de Courbure des triangles compar\u00e9s sont identiques \u00e0 celles de #206 (|\u00e9cart| \u2264 1e-12, B effectifs \u00e9gaux).", "")
+  }
+  S <- c(sprintf("## Contr\u00f4le #289 : ensembles fig\u00e9s de M1 (courbure, ordonn\u00e9e \u00e0 l'origine) \u00e0 T = 8, Merz-W\u00fcthrich%s", if (OPT_ESSAI) " -- ESSAI" else ""), "",
+         "### T0 \u2014 provenance", "", entete_md(c("Grandeur", "Valeur")),
+         vapply(PAIRES_289, function(p) ligne_md(p[1], nettoyer_champ(p[2])), ""), "",
+         T1, T2, T3b, T5, T6,
+         "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", CONTROLES), "",
+         sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%d contr\u00f4le(s))", length(INTEGRITE)) else if (SIGNALEMENT_GRAINES) "OK (1 signalement sans effet, voir (graines))" else "OK"), "")
+  S <- S[!is.na(S)]
+  ecrire_console(S)
+  if (OPT_ECRIRE) {
+    nv_f <- motifs_non_versionnable(commit_depot(SCRIPT), empreintes_code(SCRIPT, SPEC), "de l'execution")
+    if (length(nv_f) || length(INTEGRITE) || length(chemins_absolus(utf8(S)))) {
+      message("--ecrire refuse : ", paste(c(nv_f, if (length(INTEGRITE)) "controles d'integrite en ECHEC", if (length(chemins_absolus(utf8(S)))) "chemin absolu ou /tmp dans le tableau"), collapse = " ; "))
+      quit(status = 1L)
+    }
+    garde_ecrasement(CIBLE_289, OPT_REMPLACER, RACINE)
+    con <- file(CIBLE_289, open = "wb"); writeLines(utf8(S), con, useBytes = TRUE); close(con)
+    message("ecrit (md5 ", md5_fichier(CIBLE_289), ") : ", chemin_cite(CIBLE_289))
+  }
+  quit(status = if (length(INTEGRITE)) 1L else 0L)
+}
 
 ###############################################################################
 #  MODE --prevol (par. 8)

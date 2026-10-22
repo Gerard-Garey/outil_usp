@@ -14,9 +14,10 @@
 #  U244-9 : seuils atteignables seulement (g_mc NA ou < s). Renvoi de #215
 #  pose avant la phrase (constat C1 de l'audit).
 #  U244-7 : la regle, recalculee sur les champs des six references, designe
-#  exactement les lignes de la specification restees de type test (11
-#  avant #299, 3 depuis : Breusch-Pagan 1979 et Brown-Forsythe des quatre
-#  cas a delta = 1 sont des diagnostics par decision), qui seules portent la
+#  exactement les lignes de la specification restees de type test et
+#  marquees (11 avant #299 ; 3 depuis : Breusch-Pagan 1979 et Brown-Forsythe
+#  des quatre cas a delta = 1 sont des diagnostics par decision ; 2 depuis
+#  #301, qui retire la ligne M2 de reserve2), qui seules portent la
 #  phrase ; l'egalite moteur = references (p, verdicts, detail) est portee par
 #  tests/test_reproductibilite.R, et l'absence de toute valeur numerique
 #  changee par l'invariant de tests/patcher_reference.R.
@@ -227,13 +228,16 @@ verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phr
 # les references d'avant #299 (11 lignes) et sur celles d'apres (3) ; une
 # ligne de la specification devenue diagnostic doit l'etre par #299 (phrase
 # fixe de #299 en fin de detail) et ne pas porter la phrase de #244.
+# Depuis #301 (ligne M2 a effets fixes de colonne, p Monte-Carlo 0,103 ->
+# 0,285 sur reserve2), la ligne M2 de reserve2 (Heteroscedasticite
+# residuelle vs cumul) ne porte plus la phrase et sort de la liste : 10
+# lignes de la specification restent (2 marquees + 8 diagnostics de #299).
 ATTENDU244 <- list(
   premium = c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
               "Homogeneite des dispersions (mediane)"),
   premium_ii6 = NULL, premium_net = NULL, reserve1 = NULL,
   premium_interieur = "Valeur aberrante isolee (Grubbs)",
-  reserve2 = c("Nullite de l'ordonnee a l'origine, colonne par colonne",
-               "Heteroscedasticite residuelle vs cumul"))
+  reserve2 = "Nullite de l'ordonnee a l'origine, colonne par colonne")
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
 DIAG299_244 <- c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
                  "Homogeneite des dispersions (mediane)")
@@ -300,9 +304,10 @@ for (cas in names(ATTENDU244)) local({
                  !grepl(PH, l$detail, fixed = TRUE), logical(1))))
   n244 <<- n244 + length(idx_ph); n_diag299 <<- n_diag299 + length(diag)
 })
-# 11 lignes de la specification : marquees, ou diagnostics de #299 (0 avant
-# #299, 8 depuis : deux lignes dans chacun des quatre cas a delta = 1).
-verifier("U244-7 six cas : 11 lignes de la specification, marquees ou diagnostics de #299 (11 + 0 avant #299, 3 + 8 depuis)",
-         n244 + n_diag299 == 11L && n_diag299 %in% c(0L, 8L))
+# 10 lignes de la specification (11, moins la ligne M2 de reserve2 retiree
+# par #301) : marquees, ou diagnostics de #299 (8 : deux lignes dans chacun
+# des quatre cas a delta = 1).
+verifier("U244-7 six cas : 10 lignes de la specification (11 moins la ligne M2 de reserve2, #301), marquees ou diagnostics de #299 (2 + 8)",
+         n244 == 2L && n_diag299 == 8L)
 
 fin_fichier()

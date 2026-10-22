@@ -1,0 +1,104 @@
+# Journal de la combinaison de la mesure #309
+
+- Début (UTC) : 2026-10-21T09:18:48Z ; fin (UTC) : 2026-10-21T09:19:51Z
+- Commande : Rscript tests/puissance_mw_t8.R --combiner sorties309 --journal JOURNAL.md --ecrire --brut brut.tsv
+- Commit de la combinaison : 754dd0a71e48243bc87240f2c0f3a825c23c8776
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale LC_CTYPE : C.UTF-8 → C.UTF-8
+- Empreinte sans commentaires : 6ce112eecc6a7e9b6500ab639e757891
+- JOURNAL de la mesure : JOURNAL.md (md5 fe10b23239104d47798a152c797884f2) : md5 des 89 sorties conformes ; lignes du débit et de l'empreinte (#231) lues
+- Sorties lues (toutes INTEGRITE OK, FIN en dernière ligne, couvertures exactes, aucun refus) :
+  - ora-A-A.txt md5 3d347653bbd194abb4bb6c72936dd5aa
+  - ora-A-E.txt md5 3ab15cf7be671a4d8b07fe14b6461cc6
+  - ora-A-N.txt md5 9d2b3f8ec0969889e3083a36a61d5937
+  - ora-B-P2.txt md5 527c6852bb47ff53b30738ca98563f96
+  - ora-B-P3.txt md5 85ad7d03c5a44768ecd453ba4031c8f2
+  - va-A-0001-0250.txt md5 6552df3c400f6db15c187e259779b1f3
+  - va-A-0251-0500.txt md5 2ead36601e21cb4259cb6947998d1a3e
+  - va-A-0501-0750.txt md5 b631ffb356feca52650dc0c55a3356c0
+  - va-A-0751-1000.txt md5 4b9a0b96de56e27984d90b2748e80c5e
+  - va-E-0001-0250.txt md5 b9db1dce5825f092cddfa58e56d389c9
+  - va-E-0251-0500.txt md5 b349a47c2591c38b0581626dd7437b26
+  - va-E-0501-0750.txt md5 aba309c4d634c76a31051ba9bc53fe4b
+  - va-E-0751-1000.txt md5 d0cc306ce571639b032a025348660e48
+  - va-E-1001-1250.txt md5 a476b54825ade5178d24b42cdc6c99eb
+  - va-E-1251-1500.txt md5 c72c7f08a609939dc065d851f724576a
+  - va-E-1501-1750.txt md5 bd4c43bd3e63f84e665c3018da7bfe57
+  - va-E-1751-2000.txt md5 dd15bdfdf167a7632c278e77d5ae131e
+  - va-N-0001-0250.txt md5 1d03b729dffd05d986026a53389a0686
+  - va-N-0251-0500.txt md5 10e39ef50a10c77501e862623e288c00
+  - va-N-0501-0750.txt md5 266cc4a7ca36d619fbec71e411974476
+  - va-N-0751-1000.txt md5 43333940976688ac7d266d6d79a74765
+  - va-N-1001-1250.txt md5 04e3a46395206add50ad22c340f0a9cf
+  - va-N-1251-1500.txt md5 b147e2387ddd8014dadc4b6ae4df0c54
+  - va-N-1501-1750.txt md5 14a4ecc412d9450dff0651c275217000
+  - va-N-1751-2000.txt md5 405b9125d6f624dc7dfda8f4b14a4f61
+  - vb-P1-CAL4-0001-0250.txt md5 5332bfcbe34a014e0c6986e4d07ad735
+  - vb-P1-CAL4-0251-0500.txt md5 090a75bbc5a1137e1907f0b1085b69a3
+  - vb-P1-CAL7-0001-0250.txt md5 0603569fdd50251761c37d72ef02afc1
+  - vb-P1-CAL7-0251-0500.txt md5 39ce21ff110c8d502da8ff7fd36185da
+  - vb-P1-CEL4-0001-0250.txt md5 1ebdeebd4596800a79eb382f065182c3
+  - vb-P1-CEL4-0251-0500.txt md5 b88ea758c56b93d3105c54874cfb1eab
+  - vb-P1-CEL4-0501-0750.txt md5 94282735e47638ed053d52e52897a1e9
+  - vb-P1-CEL4-0751-1000.txt md5 6d0a823acff57a0c7007c6b39d924ee1
+  - vb-P1-CEL6-0001-0250.txt md5 492e6cf88069b00a352e3c436378abfc
+  - vb-P1-CEL6-0251-0500.txt md5 e36589e8219f29c983b7ba12cd9bce90
+  - vb-P1-CEL6-0501-0750.txt md5 c9cc32eea13b6d8ca6bbecac86a613bf
+  - vb-P1-CEL6-0751-1000.txt md5 c4a6243fbf0952d3b3b77f074a283db8
+  - vb-P1-CELx4-0001-0250.txt md5 681867222553122c8aa73870a511ee60
+  - vb-P1-CELx4-0251-0500.txt md5 8d2ce3911fce5a598e42f93de2e25872
+  - vb-P1-CST10-0001-0250.txt md5 638a05185b488baa6979c22480b61eba
+  - vb-P1-CST10-0251-0500.txt md5 90bbe8879943410c69ce62c2a25cbfed
+  - vb-P1-CST20-0001-0250.txt md5 94bb19f9f3f89c7c735cf6e01dd4d2f9
+  - vb-P1-CST20-0251-0500.txt md5 7f4e559e4932404a190a347c18177e34
+  - vb-P1-CST20-0501-0750.txt md5 9456ee8e4b7d326a6cb5947010d3c60f
+  - vb-P1-CST20-0751-1000.txt md5 771e70a1f79746c6ab6f60a5c33b4f68
+  - vb-P1-DCAL-0001-0250.txt md5 1025a22ee50a31c3e3387bc84938ba7c
+  - vb-P1-DCAL-0251-0500.txt md5 6f20313dc9b7e5f4300cee301311149e
+  - vb-P1-DFI-0001-0250.txt md5 c7dea51a0940497d414c5ebaf623f546
+  - vb-P1-DFI-0251-0500.txt md5 0e29a59407273baa5f7b1a7d83e1a39c
+  - vb-P1-EXP0-0001-0250.txt md5 08e9471a3cbabd7625a91348ae0d7507
+  - vb-P1-EXP0-0251-0500.txt md5 d5ff283d55bbb946a4978a861aa76e50
+  - vb-P1-EXP2-0001-0250.txt md5 f0d17167bdf207170e7d77a3452f0a27
+  - vb-P1-EXP2-0251-0500.txt md5 018a799dd3c06914880d0103c1fa8716
+  - vb-P1-EXP2-0501-0750.txt md5 8e33a395abac9ce960dd954a3a4d8ae6
+  - vb-P1-EXP2-0751-1000.txt md5 7ffd123837d138f749d43f420a27ca83
+  - vb-P1-H0-0001-0250.txt md5 dbb09e7cc9d942b361987c27ab8cbb0a
+  - vb-P1-H0-0251-0500.txt md5 e1216efd43105789071fd7ee513efabe
+  - vb-P1-H0-0501-0750.txt md5 0d0c43f6894476218cd848e9a2a2b881
+  - vb-P1-H0-0751-1000.txt md5 e24e19235da5b0a741156e2cebc19f83
+  - vb-P1-LIG-0001-0250.txt md5 80eec1b7a06e0ef04757e9678304924d
+  - vb-P1-LIG-0251-0500.txt md5 c242727fe372dea12b39b0d255af6506
+  - vb-P2-CST10-0001-0250.txt md5 3619caad9e24d571ef9a29f5a940045d
+  - vb-P2-CST10-0251-0500.txt md5 2af622fcaee22af613a038a1acc0a031
+  - vb-P2-CST20-0001-0250.txt md5 779620e746efea5d9d8f86593299387b
+  - vb-P2-CST20-0251-0500.txt md5 bf7bc31de278e5f3e4dec78557dac16c
+  - vb-P2-CST20-0501-0750.txt md5 7f4f354c489bd695dafe1a17ca5a2b57
+  - vb-P2-CST20-0751-1000.txt md5 815945985d68a1930a971f7f66e07efa
+  - vb-P2-DFI-0001-0250.txt md5 dbabd95fde6c92dbd2ef4bb865eb49ff
+  - vb-P2-DFI-0251-0500.txt md5 9f258c4a8c40cd57fb901150ad5af355
+  - vb-P2-EXP0-0001-0250.txt md5 c1c1debb133f4050cc256dc3df89f752
+  - vb-P2-EXP0-0251-0500.txt md5 1b17ae657d343695f1586dca529154d3
+  - vb-P2-EXP2-0001-0250.txt md5 69055b8271a0e009367ffa1026789499
+  - vb-P2-EXP2-0251-0500.txt md5 e4be00fed14743dccc50f70874675ed4
+  - vb-P2-EXP2-0501-0750.txt md5 761b1356168fdcf991a35e0ee3b71551
+  - vb-P2-EXP2-0751-1000.txt md5 ade5dbcfa770cb78d25577f48131205a
+  - vb-P2-H0-0001-0250.txt md5 0858f26b38946425c429f99de52b987a
+  - vb-P2-H0-0251-0500.txt md5 090d531ac7f9bcc638233a19de1e7764
+  - vb-P2-H0-0501-0750.txt md5 31782b696e86744889d70ed115506751
+  - vb-P2-H0-0751-1000.txt md5 c1c01b9419b8a2e6994a41c53abbbba8
+  - vb-P3-CST20-0001-0250.txt md5 231a244a9e1554b4f77533998374cdd9
+  - vb-P3-CST20-0251-0500.txt md5 5ffeb1985b2ecc7d7f3c6d4a0cdb48c8
+  - vb-P3-CST20-0501-0750.txt md5 067d871b4df111f3039aa177c8c82bc9
+  - vb-P3-CST20-0751-1000.txt md5 162958201cd6abb1e0e8419fb9349d2d
+  - vb-P3-DFI-0001-0250.txt md5 a4270b9003bf83e8495d0bb0508a97e4
+  - vb-P3-DFI-0251-0500.txt md5 f54c0e0bd10a0263380901b5556c5120
+  - vb-P3-H0-0001-0250.txt md5 64d174573f2e8454541d364c256f6dc5
+  - vb-P3-H0-0251-0500.txt md5 15acc5b9f8d2bfeeeb8034b740938b4f
+  - vb-P3-H0-0501-0750.txt md5 d0d1146c33e8fa5f6c8f9f40b3d8e042
+  - vb-P3-H0-0751-1000.txt md5 220b54d396722e48f9724f563f83a172
+- Fichiers écrits :
+  - 20261021-issue309-puissance-mw.md md5 0bc63866eba9bada0b9d46b14b327bc7
+  - 20261021-issue309-puissance-mw-brut.tsv md5 f616a3bc2e9a0cb6ce255396b0130ba0
+  - 20261021-issue309-journal-mesure.md md5 fe10b23239104d47798a152c797884f2
+

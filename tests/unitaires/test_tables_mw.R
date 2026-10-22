@@ -31,7 +31,12 @@
 #  evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
-#  .mw_pente_intra(), .mc_evaluer()...) sont communes. Chaque fonction est
+#  .mw_pente_intra(), .mc_evaluer()...) sont communes, de meme que la
+#  statistique BP, reportee sous la forme de #301
+#  (mw_test_heteroscedasticite_intra()), et la statistique de cellule
+#  aberrante, reportee sous la forme de #300 (cle MinP4,
+#  mw_test_cellule_aberrante(), evaluee comme observee, comme par .mw_stats()
+#  du moteur par defaut). Chaque fonction est
 #  comparee par meme() (valeur, ou message d'erreur) et par la liste des
 #  avertissements emis, sur les jeux ci-dessous. Chaque cas y figure AU MOINS
 #  UNE FOIS, au plus petit nombre de triangles et de replications qui le
@@ -183,15 +188,19 @@ local({
   # par rbind() avant la boucle, porte par les retours NA. Colonne retenue
   # dont lm() echoue ou rend moins de deux coefficients (second volet de
   # #56, plus de next silencieux) : statistique NA, K NA.
-  .jno_oracle <- function(aj, jd) {
+  # Oracle commun aux deux predicats (#290) : n_j >= n_min, hors des colonnes
+  # exclues, non degeneree, au plus k_max valeurs distinctes de C(i,j) ;
+  # ecrit independamment de .mw_colonnes_non_identifiables().
+  .jx_oracle <- function(aj, jd, n_min, k_max) {
     out <- integer(0)
     for (j in 0:(aj$J - 1)) {
       n <- aj$I - j
-      if (n < 3 || j %in% jd || .mw_colonne_degeneree(aj, j)) next
-      if (length(unique(aj$tri[seq_len(n), j + 1])) == 1L) out <- c(out, as.integer(j))
+      if (n < n_min || j %in% jd || .mw_colonne_degeneree(aj, j)) next
+      if (length(unique(aj$tri[seq_len(n), j + 1])) <= k_max) out <- c(out, as.integer(j))
     }
     out
   }
+  .jno_oracle <- function(aj, jd) .jx_oracle(aj, jd, 3L, 1L)
   mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
     I <- aj$I; J <- aj$J; tri <- aj$tri
     det <- data.frame()
@@ -265,15 +274,7 @@ local({
   # Colonne retenue mais non identifiable dans l'appel (second volet de #270) :
   # statistique NA, K NA. t et p par .mw_courbure_colonne() (forme close de
   # #253), commune aux deux formes.
-  .jni_oracle <- function(aj, jd) {
-    out <- integer(0)
-    for (j in 0:(aj$J - 1)) {
-      n <- aj$I - j
-      if (n < 4 || j %in% jd || .mw_colonne_degeneree(aj, j)) next
-      if (length(unique(aj$tri[seq_len(n), j + 1])) <= 2) out <- c(out, as.integer(j))
-    }
-    out
-  }
+  .jni_oracle <- function(aj, jd) .jx_oracle(aj, jd, 4L, 2L)
   mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
     I <- aj$I; J <- aj$J; tri <- aj$tri
     det <- data.frame()
@@ -379,12 +380,16 @@ local({
   MW_CATALOGUE_MC <- list(
     Calendrier = .mc_entree(function(e) mw_test_annees_calendaires(e$aj, e$figes$degeneres)$stat, "bas"),
     CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux"),
-    BP         = .mc_entree(function(e) {
-      res <- e$res; r <- e$r
-      if (nrow(res) > 3 && stats::sd(res$C) > 0)
-        nrow(res) * summary(stats::lm(I(r^2) ~ res$C))$r.squared else NA_real_
-    }, "haut"),
-    Grubbs     = .mc_entree(function(e) test_grubbs(e$r)$stat, "haut"),
+    # Statistique BP remplacee par #301 (effets fixes de colonne, residus
+    # redresses, colonnes n_j >= 3) : fonction commune du moteur,
+    # mw_test_heteroscedasticite_intra(), comme .mw_pente_intra() ci-dessous
+    # (l'objet de la comparaison est l'assemblage des tables, #239).
+    BP         = .mc_entree(function(e) mw_test_heteroscedasticite_intra(e$aj, e$res)$stat, "haut"),
+    # Statistique de Grubbs remplacee par #300 (cle MinP4, minimum des p de
+    # Student des residus studentises externes) : fonction commune du moteur,
+    # mw_test_cellule_aberrante(), evaluee comme observee, comme .mw_stats()
+    # du moteur par defaut (replique = FALSE).
+    MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres)$stat, "bas"),
     DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
     Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
     PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
@@ -775,6 +780,59 @@ verifier("Ordonnee a l'origine : colonne de l'ensemble fige degeneree dans l'app
              if (!meme(capturer(mw_test_ordonnee_origine, list(a, integer(0), 2L)),
                        capturer(ANCIEN$mw_test_ordonnee_origine, list(a, integer(0), 2L))))
                "!= reecriture independante"))
+         })
+
+# Ensembles par defaut des deux verifications de M1 (#290) : appelees seules
+# (j_degeneres et ensemble fige a NULL), mw_test_ordonnee_origine() et
+# mw_test_courbure() resolvent leurs ensembles par .mw_ensembles_figes(aj) :
+# resultat identique (identical(), ordre des attributs compris) a l'appel qui
+# leur transmet les elements de .mw_ensembles_figes(aj), et element
+# non_identifiables identique a la table construite sur l'ensemble de
+# .mw_ensembles_figes(aj). Cas : reserve2, T1, T3, T4, T6, n_j = 3, quasi
+# constante, tri_deg, T1b, T3b, Taylor & Ashe sain et a colonne degeneree.
+# Garde contre un test vide : au moins un des triangles a un ensemble non vide
+# pour chacun des deux tests.
+verifier("Ensembles par defaut de mw_test_ordonnee_origine() et mw_test_courbure() : identiques a .mw_ensembles_figes(aj) (#290)",
+         {
+           tris <- list(reserve2 = tri_ref, T1 = tri_t1, T3 = tri_t3, T4 = tri_t4, T6 = tri_t6,
+                        n3 = tri_n3, eps = tri_eps, tri_deg = tri_deg, T1b = tri_t1b,
+                        T3b = tri_t3b, ta = ta, ta_deg = ta_deg)
+           ne <- c(origine = 0L, courbure = 0L)
+           e <- unlist(lapply(names(tris), function(nm) {
+             aj <- mw_ajuster(tris[[nm]]); fg <- .mw_ensembles_figes(aj)
+             ne <<- ne + c(length(fg$origine_non_identifiables), length(fg$non_identifiables))
+             o <- mw_test_ordonnee_origine(aj); c1 <- mw_test_courbure(aj)
+             c(if (!meme(o, mw_test_ordonnee_origine(aj, fg$degeneres, fg$origine_non_identifiables)))
+                 paste(nm, ": origine != appel avec les elements de .mw_ensembles_figes()"),
+               if (!meme(c1, mw_test_courbure(aj, fg$degeneres, fg$non_identifiables)))
+                 paste(nm, ": courbure != appel avec les elements de .mw_ensembles_figes()"),
+               if (!meme(o$non_identifiables, .mw_table_non_identifiables(
+                   fg$origine_non_identifiables, aj$I, aj$J, fg$degeneres, 3L)))
+                 paste(nm, ": origine, table non_identifiables"),
+               if (!meme(c1$non_identifiables, .mw_table_non_identifiables(
+                   fg$non_identifiables, aj$I, aj$J, fg$degeneres, 4L)))
+                 paste(nm, ": courbure, table non_identifiables"))
+           }))
+           resultat(c(e, if (any(ne == 0L)) paste("cas non exerce :", paste(names(ne)[ne == 0L], collapse = ", "))))
+         })
+
+# Clause d'exclusion du predicat unique (#290, constat mineur de l'audit) :
+# sur T4, la colonne j = 1 (C(0..5,1) constant) est la seule colonne non
+# identifiable de l'ordonnee a l'origine ; transmise comme colonne exclue
+# (j_degeneres = 1), elle sort de l'ensemble : integer(0). Exerce la clause
+# !(k %in% jd) de .mw_colonnes_non_identifiables(), que les autres cas ne
+# distinguent pas (aucune colonne exclue n'y est constante). Garde contre un
+# test vide : sans exclusion, l'ensemble vaut 1L.
+verifier("Predicat unique des colonnes non identifiables : colonne exclue hors de l'ensemble (T4, j_degeneres = 1 : integer(0) ; sans exclusion : 1L), identique a l'oracle (#290)",
+         {
+           aj_t4 <- mw_ajuster(tri_t4)
+           avec <- .mw_colonnes_origine_non_identifiables(aj_t4, 1L)
+           sans <- .mw_colonnes_origine_non_identifiables(aj_t4, .mw_colonnes_degenerees(aj_t4))
+           resultat(c(
+             if (!identical(sans, 1L)) paste("sans exclusion :", deparse(sans), "(cas non exerce)"),
+             if (!identical(avec, integer(0))) paste("j_degeneres = 1 :", deparse(avec)),
+             if (!identical(avec, ANCIEN$.jno_oracle(aj_t4, .mw_j_exclues(aj_t4, 1L))))
+               "j_degeneres = 1 : != oracle"))
          })
 
 # Plan des triangles tires (en-tete) : taille, variante, noms de lignes.

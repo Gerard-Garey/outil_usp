@@ -155,8 +155,10 @@ for (j in names(tj)) local({
 
 ## --- U181-7 : ta_pert(9e-13), B = 60 (Merz-Wuthrich) ---------------------------
 # Taylor & Ashe (test_merz_wuthrich.R), colonne 6 rendue presque degeneree :
-# B_eff = 42 sur Origine, HomogF et Courbure, B_eff = B sur les dix autres
-# statistiques Monte-Carlo.
+# B_eff = 42 sur Origine, HomogF et Courbure et, depuis #300, sur MinP4 (ligne
+# de cellule aberrante : colonne retenue devenue degeneree dans la
+# replication, statistique NA, volet 2 de #56) ; B_eff = B sur les neuf
+# autres statistiques Monte-Carlo.
 ta181 <- matrix(c(357848, 352118, 290507, 310608, 443160, 396132, 440832, 359480, 376686, 344014,
   1124788, 1236139, 1292306, 1418858, 1136350, 1333217, 1288463, 1421128, 1363294, NA,
   1735330, 2170033, 2218525, 2195047, 2128333, 2180715, 2419861, 2864498, NA, NA,
@@ -174,9 +176,17 @@ tm181 <- mw_tests(aj181, bt181)
 noms3 <- c("Nullite de l'ordonnee a l'origine, colonne par colonne",
            "Homogeneite de f_j entre annees de survenance",
            "Absence de courbure de la regression")
-verifier("U181-7 ta_pert(9e-13), B = 60 : B_eff = 42 sur Origine, HomogF, Courbure, B ailleurs",
-         identical(unname(bt181$B_effectif[c("Origine", "HomogF", "Courbure")]), c(42, 42, 42)) &&
-           all(bt181$B_effectif[setdiff(names(bt181$B_effectif), c("Origine", "HomogF", "Courbure"))] == 60))
+verifier("U181-7 ta_pert(9e-13), B = 60 : B_eff = 42 sur Origine, HomogF, Courbure et MinP4 (#300), B ailleurs",
+         identical(unname(bt181$B_effectif[c("Origine", "HomogF", "Courbure", "MinP4")]), c(42, 42, 42, 42)) &&
+           all(bt181$B_effectif[setdiff(names(bt181$B_effectif), c("Origine", "HomogF", "Courbure", "MinP4"))] == 60))
+verifier("U181-7 MinP4 (#300) : ligne de cellule aberrante en diagnostic au prefixe de #181 (borne de Bonferroni non retenue), p non simulee conservee",
+         {
+           l <- Filter(function(l) identical(l$test, "Cellule aberrante du triangle (residus studentises externes)"),
+                       tm181)[[1]]
+           identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             is.na(l$nature_p) && is.finite(l$p_asymptotique) && identical(l$inoperant, FALSE) &&
+             startsWith(l$detail, pre181(MOTIF_MC_REPLIC_INSUFFISANTES, "borne de Bonferroni min(1, N_t M)"))
+         })
 verifier("U181-7 Origine, HomogF, Courbure en diagnostic au prefixe de #181, p non simulee conservee",
          all(vapply(noms3, function(n) {
            l <- Filter(function(l) identical(l$test, n), tm181)[[1]]
@@ -184,10 +194,10 @@ verifier("U181-7 Origine, HomogF, Courbure en diagnostic au prefixe de #181, p n
              is.na(l$nature_p) && is.finite(l$p_asymptotique) && identical(l$inoperant, FALSE) &&
              startsWith(l$detail, pre181(MOTIF_MC_REPLIC_INSUFFISANTES))
          }, logical(1))))
-verifier("U181-7 les dix autres lignes Monte-Carlo gardent leur p Monte-Carlo retenue",
+verifier("U181-7 les neuf autres lignes Monte-Carlo gardent leur p Monte-Carlo retenue (dix avant #300)",
          {
            mc <- Filter(function(l) is.finite(l$p_mc), tm181)
-           length(mc) == 10L &&
+           length(mc) == 9L &&
              all(vapply(mc, function(l) identical(l$type, "test") && identical(l$p_retenue, l$p_mc) &&
                           identical(l$nature_p, "Monte-Carlo (bootstrap de residus)"), logical(1)))
          })
