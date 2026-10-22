@@ -2926,6 +2926,51 @@ verifier("M4 (#300) : gardes NA (aucune colonne n_j >= 4 : N_t = 0 ; colonne ret
              is.na(cn$stat) && is.na(cr$stat) && !nrow(cn$non_borne) &&
              is.finite(cx$stat) && identical(cx$N_t, 4L)
          })
+# Frontiere numerique de l'influence non bornee (#352, specification Fj,
+# par. 2.3, decision Q-D1-Fj-9 du 22/10/2026) : tri_nb300 dont F(1,0) et
+# F(3,0) sont multiplies par 1 + eps et 1 - eps, colonnes suivantes
+# reconstruites par les memes facteurs. Frontiere mesuree entre 2e-8 et 3e-8 ;
+# eps = 1e-10 et 1e-6 en sont loin dans les deux sens.
+tri_nb300_eps <- function(eps) {
+  m <- matrix(NA_real_, 6, 6)
+  m[, 1] <- c(100, 120, 90, 110, 130, 105)
+  m[1:5, 2] <- m[1:5, 1] * c(1.5, 1.5 * (1 + eps), 1.8, 1.5 * (1 - eps), 1.5)
+  m[1:4, 3] <- m[1:4, 2] * c(1.20, 1.31, 1.17, 1.26)
+  m[1:3, 4] <- m[1:3, 3] * c(1.08, 1.12, 1.05)
+  m[1:2, 5] <- m[1:2, 4] * c(1.03, 1.04)
+  m[1, 6] <- m[1, 5] * 1.01
+  m
+}
+verifier("M4 (#352) : frontiere numerique, eps = 1e-10 -> influence non bornee en (2,0), statistique NA ; mw_tests() : test sans p-value retenue, INFO, non inoperant",
+         {
+           a <- mw_ajuster(tri_nb300_eps(1e-10)); ca <- mw_test_cellule_aberrante(a)
+           L <- mw_tests(a, mw_bootstrap(a, B = 19))
+           x <- L[[which(vapply(L, `[[`, "", "test") == "Cellule aberrante du triangle (residus studentises externes)")]]
+           is.na(ca$stat) && identical(ca$non_borne, data.frame(i = 2L, j = 0L)) &&
+             identical(x$type, "test") && identical(x$verdict, "INFO") &&
+             is.na(x$p_retenue) && identical(x$inoperant, FALSE) && is.na(x$nature_p) &&
+             startsWith(x$detail, paste("Monte-Carlo indisponible : statistique observee non definie :",
+                                        "residu studentise non borne en cellule (2,0)"))
+         })
+verifier("M4 (#352) : frontiere numerique, eps = 1e-6 -> statistique definie (finie, > 0), aucune cellule non bornee, |t(2,0)| > 1e5 (pas d'assertion de verdict : il depend de B)",
+         {
+           ca <- mw_test_cellule_aberrante(mw_ajuster(tri_nb300_eps(1e-6)))
+           t20 <- ca$cellules$t[ca$cellules$i == 2L & ca$cellules$j == 0L]
+           is.finite(ca$stat) && ca$stat > 0 && nrow(ca$non_borne) == 0 &&
+             length(t20) == 1 && abs(t20) > 1e5
+         })
+verifier("Avertissement des colonnes degenerees (#352) : la ligne M4 cellule aberrante est nommee (texte T-2), juste apres la liste des lignes fondees sur les residus et avant la phrase du pool (triangle td, colonne j = 0 degeneree)",
+         {
+           td <- tri_nb300; td[1:5, 2] <- td[1:5, 1] * 1.5
+           av <- av_exclues(run_mw(td)$validation$avertissements)
+           length(av) == 1 &&
+             grepl(paste0("fondees sur ces residus, soit ", .MW_LIGNES_RESIDUS_TEXTE, ". ",
+                          "La ligne M4 \"Cellule aberrante du triangle (residus studentises externes)\", ",
+                          "dont la statistique est calculee sur les residus studentises externes de chaque ",
+                          "colonne et non sur ces ",
+                          "residus, ecarte aussi ces colonnes. ",
+                          "Le pool de reechantillonnage du bootstrap"), av, fixed = TRUE)
+         })
 # reserve2 a B = 999, graine par defaut (cas reserve2 de tests/outils_tests.R) :
 # decomptes de la specification Fi, par. 4.4 et decisions Q-D1-Fi-7 et
 # Q-D2-Fi-2 ; environ 35 s.
@@ -2946,9 +2991,12 @@ verifier("M4 (#300) : ligne de mw_tests() = entree MinP4 du catalogue (statistiq
              is.null(MW_CATALOGUE_MC$MinP4$extremes) && identical(MW_CATALOGUE_MC$MinP4$queue, "bas") &&
              is.null(MW_CATALOGUE_MC$Grubbs) &&
              identical(x$reference, paste(
-               "Residu studentise externe (cellule retiree) de la regression ponderee C(.,j+1) ~ 0 + C(.,j),",
-               "poids 1/C(.,j) (Belsley, Kuh & Welsch 1980 ; Cook & Weisberg 1982) ; minimum des p de",
-               "Student, borne de Bonferroni : construction de l'outil, colonne par colonne, sur le modele de Mack")) &&
+               "Residu studentise externe de la regression ponderee C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j),",
+               "et sa loi de Student a n_j - 2 degres de liberte sous erreurs gaussiennes : Cook & Weisberg",
+               "(1982), par. 2.2.1, p. 20, et annexe A.1, p. 209 (nom RSTUDENT : Belsley, Kuh & Welsch 1980,",
+               "chap. 2) ; borne de Bonferroni sur le plus grand residu : Cook & Weisberg (1982), p. 22 et 26 ;",
+               "construction de l'outil : minimum des p de Student entre colonnes de degres de liberte",
+               "differents, colonnes n_j >= 4, p-value Monte-Carlo sur le modele de Mack")) &&
              identical(x$loi, "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo") &&
              startsWith(x$detail, paste(
                "t(i,j) : residu studentise externe de la cellule (i,j) dans la regression ponderee",

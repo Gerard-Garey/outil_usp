@@ -8352,6 +8352,11 @@ mw_msep <- function(aj) {
 .MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
   sprintf("%s (%s)", fm, paste0("\"", .MW_LIGNES_RESIDUS[[fm]], "\"", collapse = " ; ")),
   character(1)), collapse = ", ")
+# Nom de la ligne M4 "cellule aberrante" (#300), calculee sur mw_influence()
+# et non sur mw_residus() : constante unique lue par add() dans mw_tests() et
+# par l'avertissement des colonnes degenerees de mw_valider_ajustement(),
+# qui la nomme comme ligne qui ecarte aussi ces colonnes (#352).
+.MW_LIGNE_CELLULE_ABERRANTE <- "Cellule aberrante du triangle (residus studentises externes)"
 
 mw_valider_ajustement <- function(aj, msep) {
   err <- character(0)
@@ -8502,6 +8507,9 @@ mw_valider_ajustement <- function(aj, msep) {
       "(residus d'arrondi ou ecarts relatifs de l'ordre de 1e-12) : ",
       "ces %d facteurs individuels sont exclus des residus de Mack ; %d residu(s) de ",
       "Mack sont retenus pour les lignes fondees sur ces residus, soit %s. ",
+      "La ligne M4 \"%s\", dont la statistique est calculee sur les residus ",
+      "studentises externes de chaque ",
+      "colonne et non sur ces residus, ecarte aussi ces colonnes. ",
       "Le pool de reechantillonnage du bootstrap ne contient que les residus retenus ; ",
       "il sert aux p-values Monte-Carlo des lignes M1 a M4 et a l'intervalle de confiance ",
       "bootstrap de sigma. ",
@@ -8509,7 +8517,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
       if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
       paste(sprintf("j = %d (%d facteurs)", ex_col$j, ex_col$n_facteurs), collapse = ", "),
-      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE))
+      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE, .MW_LIGNE_CELLULE_ABERRANTE))
   }
   # Avertissement (et non refus) : reserve positive mais negligeable devant
   # son incertitude (issue #33, decision du mainteneur du 24/09/2026). D(4)
@@ -10948,12 +10956,20 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
     nj <- aj$I - (0:(aj$J - 1))
     sum(nj[nj == 3L & !((0:(aj$J - 1)) %in% jd)])
   })
-  add(fam, "Cellule aberrante du triangle (residus studentises externes)",
+  add(fam, .MW_LIGNE_CELLULE_ABERRANTE,
       fonction = "mw_test_cellule_aberrante",
-      paste("Residu studentise externe (cellule retiree) de la regression ponderee",
-            "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j) (Belsley, Kuh & Welsch 1980 ; Cook &",
-            "Weisberg 1982) ; minimum des p de Student, borne de Bonferroni : construction",
-            "de l'outil, colonne par colonne, sur le modele de Mack"),
+      # Reference T-1 (#352, decision Q-D1-Fj-9 du 22/10/2026) : la borne de
+      # Bonferroni est publiee ; seuls le minimum des p entre colonnes, la
+      # condition n_j >= MW_NJ_MIN_CELLULE et la p Monte-Carlo sont de l'outil.
+      sprintf(paste0(
+        "Residu studentise externe de la regression ponderee C(.,j+1) ~ 0 + C(.,j), ",
+        "poids 1/C(.,j), et sa loi de Student a n_j - 2 degres de liberte sous erreurs ",
+        "gaussiennes : Cook & Weisberg (1982), par. 2.2.1, p. 20, et annexe A.1, p. 209 ",
+        "(nom RSTUDENT : Belsley, Kuh & Welsch 1980, chap. 2) ; borne de Bonferroni sur ",
+        "le plus grand residu : Cook & Weisberg (1982), p. 22 et 26 ; construction de ",
+        "l'outil : minimum des p de Student entre colonnes de degres de liberte ",
+        "differents, colonnes n_j >= %d, p-value Monte-Carlo sur le modele de Mack"),
+        MW_NJ_MIN_CELLULE),
       H0 = "aucun residu de Mack aberrant", H1 = "exactement un residu aberrant",
       stat_nom = "M = min p_ij", stat = ca$stat,
       loi = "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo",
