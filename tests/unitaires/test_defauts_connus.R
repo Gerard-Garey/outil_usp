@@ -413,7 +413,8 @@ verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' so
 # phrase fixe du diagnostic). Trois jeux : bootstrap fictif (k chapeau = 0),
 # run_engine() complet (B = 99), et jeu contamine (y_3 et y_6 x 2,5 ; delta
 # chapeau = 0, k chapeau = 2, rangs 3 et 6, mesure du 20/10/2026). La ligne
-# Merz-Wuthrich reste une procedure de decision (test_merz_wuthrich.R).
+# Merz-Wuthrich est de meme un diagnostic par decision depuis #300
+# (test_merz_wuthrich.R).
 NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
 detail_esd_attendu <- function(alpha, positions)
   paste0(sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value", alpha),
@@ -569,9 +570,9 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
          })
 # Depuis #304, usp_tests() ne produit plus de procedure de decision (l'ESD
 # lognormale est un diagnostic par decision) : la garde de add() est
-# exercee par un appel direct au registre lognormal (et, dans
-# test_merz_wuthrich.R, par mw_tests(), dont l'ESD reste une procedure de
-# decision) ; un verdict force sur la ligne ESD diagnostic est refuse.
+# exercee par un appel direct au registre lognormal (depuis #300,
+# mw_tests() n'en produit plus non plus : aucune ligne du moteur n'est de
+# ce type) ; un verdict force sur la ligne ESD diagnostic est refuse.
 verifier("add() (registre lognormal) refuse une procedure de decision sans verdict ; usp_tests refuse un verdict force sur l'ESD diagnostic (#304)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
