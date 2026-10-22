@@ -43,13 +43,19 @@
 #    - ecart au seuil le plus proche, en err_mc (T3) : |p - s| / err_mc, s
 #      parcourant les seuils de la regle de #244 (add(), R/engine.R :
 #      {alpha/2, alpha} en sens "ne pas rejeter", {alpha,
-#      SEUIL_ECHEC_SENS_REJETER} en sens "rejeter"), atteignables seulement
-#      (plancher p_min_mc s'il est fini, sinon 2 / (B + 1), majorant de la
-#      granularite g_mc a B effectif = B, k <= 2 ; CHOIX DU SCRIPT, g_mc
-#      n'etant pas restitue par ligne). Controle (c) : la condition
-#      min |p - s| < 2 err_mc ainsi recalculee doit coincider, ligne par
-#      ligne, avec la mention de #244 posee par le moteur ; echec : T0, code
-#      de sortie 1, --ecrire refuse ;
+#      SEUIL_ECHEC_SENS_REJETER} en sens "rejeter"), atteignables seulement.
+#      Memes entrees que add() : p exacte, p Monte-Carlo et err_mc de la
+#      ligne (colonnes p_exacte, p_monte_carlo, erreur_MC), type final,
+#      plancher p_min_mc de la ligne s'il est fini. Sinon add() lit la
+#      granularite g_mc de la statistique (bootstrap$granularite_stat), que
+#      la table ne rattache pas a la ligne : le script verifie que son
+#      maximum est inferieur au plus petit seuil (g_mc ne retire alors aucun
+#      seuil, quelle que soit la ligne) et s'arrete sinon (aucune
+#      approximation silencieuse). Aucune fonction nommee du moteur
+#      n'expose la regle (inline dans add()) : elle est transcrite ici.
+#      Controle (c) : la condition min |p - s| < 2 err_mc ainsi recalculee
+#      doit coincider, ligne par ligne, avec la mention de #244 posee par le
+#      moteur ; echec : T0, code de sortie 1, --ecrire refuse ;
 #    - graines secondaires de res$metadata (seed_loi_nulle_sw,
 #      seed_flux_regime, methode de permutation_pente), par cas (T0) ;
 #    - reserve2 : triangles simules retires (bootstrap$cumuls_retires) et
@@ -202,26 +208,46 @@ COEURS <- tryCatch(parallel::detectCores(), error = function(e) NA_integer_)
 
 # Extraction ligne par ligne d'un resultat.
 # Ecart au seuil atteignable le plus proche, en err_mc, selon la regle de
-# #244 (voir l'en-tete) ; d = NA hors ligne de type test a p retenue
-# Monte-Carlo d'err_mc finie > 0. c244 : condition de #244 recalculee.
-distance_seuil <- function(p, err, sens, pmm, type, mc, alpha, B) {
+# #244 (add(), R/engine.R, bloc "Verdict Monte-Carlo proche d'un seuil") ;
+# d = NA hors ligne de type test sans p exacte finie, a p Monte-Carlo et
+# err_mc finies, err_mc > 0 (condition de add() : p_ex non finie, p_mc finie,
+# e_mc finie > 0). c244 : condition de #244 recalculee. Plancher des seuils
+# atteignables : p_min_mc de la ligne s'il est fini (champ de ligne, NA hors
+# de la branche Monte-Carlo de R1), sinon aucun (g_mc, que add() lit mais que
+# la table ne rattache pas a la ligne, est controle par gmax : voir
+# extraire_lignes()). Le seuil s est atteignable si pmm < s (inegalite stricte
+# de add()).
+distance_seuil <- function(p_ex, p_mc, err, sens, pmm, type, alpha) {
   vide <- list(d = NA_real_, s = NA_real_, c244 = FALSE)
-  if (!(identical(type, "test") && mc && is.finite(p) && is.finite(err) && err > 0)) return(vide)
+  if (!(identical(type, "test") && !is.finite(p_ex) && is.finite(p_mc) && is.finite(err) && err > 0)) return(vide)
   seuils <- if (identical(sens, "rejeter")) c(alpha, OT$SEUIL_ECHEC_SENS_REJETER) else c(alpha / 2, alpha)
-  pl <- if (is.finite(pmm)) pmm else 2 / (B + 1)
-  seuils <- seuils[pl < seuils]
+  if (is.finite(pmm)) seuils <- seuils[pmm < seuils]
   if (!length(seuils)) return(vide)
-  d <- abs(p - seuils) / err
+  d <- abs(p_mc - seuils) / err
   j <- which.min(d)
-  list(d = d[j], s = seuils[j], c244 = any(abs(p - seuils) < 2 * err))
+  list(d = d[j], s = seuils[j], c244 = any(abs(p_mc - seuils) < 2 * err))
 }
 extraire_lignes <- function(res) {
   tt <- OT$engine_table_tests(res)
   ph <- OT$PHRASE_VERDICT_SENSIBLE_MC
   mc <- !is.na(tt$nature_p) & grepl("Monte-Carlo", tt$nature_p, fixed = TRUE)
+  alpha <- res$metadata$alpha
+  # g_mc de add() (granularite de la statistique de la ligne) : seuil retire
+  # si g_mc >= s. Non rattache a la ligne par la table : on exige qu'aucune
+  # granularite du bootstrap n'atteigne le plus petit seuil possible
+  # (alpha / 2), auquel cas g_mc ne retire aucun seuil. Seules comptent les
+  # statistiques a p Monte-Carlo finie (add() ne lit g_mc que dans ce cas) :
+  # une statistique sans p (B effectif trop petit, motif) ne declenche pas l'arret.
+  gran <- res$bootstrap$granularite_stat
+  pmc <- res$bootstrap$p_mc
+  gran <- gran[names(gran) %in% names(pmc)[is.finite(pmc)]]
+  gmax <- suppressWarnings(max(unlist(gran), na.rm = TRUE))
+  if (is.finite(gmax) && gmax >= alpha / 2)
+    stop("distance_seuil() : granularite Monte-Carlo maximale ", format(gmax), " >= alpha / 2 = ", format(alpha / 2),
+         " : le plancher g_mc de add() peut retirer un seuil, non rattachable a la ligne par la table (script a mettre a jour)")
   ds <- lapply(seq_len(nrow(tt)), function(i)
-    distance_seuil(tt$p_retenue[i], tt$erreur_MC[i], tt$sens_du_test[i], tt$p_min_mc[i], tt$type[i], mc[i],
-                   res$metadata$alpha, res$metadata$B))
+    distance_seuil(tt$p_exacte[i], tt$p_monte_carlo[i], tt$erreur_MC[i], tt$sens_du_test[i], tt$p_min_mc[i],
+                   tt$type[i], alpha))
   data.frame(cle = paste(tt$famille, tt$test, tt$variante, sep = " | "),
              famille = tt$famille, test = tt$test, variante = tt$variante,
              type = tt$type, p = tt$p_retenue, nature = tt$nature_p, mc = mc,
@@ -269,7 +295,7 @@ for (k in seq_len(nrow(PLAN))) {
     ctrl <- if (!file.exists(ref_f)) list(conforme = FALSE, texte = paste("r\u00e9f\u00e9rence absente :", ref_f)) else {
       cmp <- OT$comparer_objets(OT$neutraliser_instables(readRDS(ref_f)),
                                 OT$neutraliser_instables(OT$nettoyer(res)), tol = OT$TOLERANCE)
-      list(conforme = cmp$conforme, texte = OT$resumer_comparaison(cmp)[1L],
+      list(conforme = cmp$conforme, texte = OT$resumer_comparaison(cmp)[1L], detail = OT$resumer_comparaison(cmp),
            md5 = unname(tools::md5sum(ref_f)))
     }
   }
@@ -309,8 +335,25 @@ ECARTS_C <- unlist(lapply(EXEC, function(e) {
   if (length(k)) sprintf("%s, B = %.0f, ligne %d (%s)", e$cas, e$B, k, e$lignes$test[k]) else character(0)
 }))
 CTRL_C_OK <- !length(ECARTS_C)
+# Compte rendu des controles en echec (console, sortie d'erreur) : controle
+# (a), par cas, texte de comparer_objets() avec ses ecarts detailles
+# (resumer_comparaison(), dix premiers) ; controle (c), lignes en desaccord.
+# Utilise par le refus de --ecrire et par la fin du script.
+rapport_controles <- function() {
+  ctrl_a <- unlist(lapply(EXEC, function(e) {
+    if (is.null(e$ctrl) || isTRUE(e$ctrl$conforme)) return(NULL)
+    c(sprintf("  %s : %s", e$cas, e$ctrl$texte), if (length(e$ctrl$detail) > 1L) paste0("    ", e$ctrl$detail[-1L]))
+  }))
+  c(if (!CTRL_OK) c("controle (a) en echec : une execution a B = 999 differe de sa reference",
+                    if (length(CTRL) != length(NOMS_CAS))
+                      sprintf("  %d execution(s) a B = 999 controlee(s) sur %d cas", length(CTRL), length(NOMS_CAS)),
+                    ctrl_a),
+    if (!CTRL_C_OK) c("controle (c) en echec : condition de #244 recalculee differente de la mention du moteur :",
+                      paste0("  ", ECARTS_C)))
+}
 if (ECRIRE && !(CTRL_OK && CTRL_C_OK)) {
   message("--ecrire refuse : controle (a) ou (c) en echec -- aucun fichier ecrit")
+  for (l in rapport_controles()) message(l)
   quit(status = 1L)
 }
 B_DU_CAS <- function(nom) PLAN$B[PLAN$cas == nom]
@@ -545,7 +588,5 @@ if (ECRIRE) {
   con <- file(CIBLE_MD, open = "wb"); writeLines(enc2utf8(md), con, useBytes = TRUE); close(con)
   cat(sprintf("\nEcrit : %s\n", CIBLE_MD), file = stderr())
 }
-if (!CTRL_OK) message("controle (a) en echec : une execution a B = 999 differe de sa reference")
-if (!CTRL_C_OK) message("controle (c) en echec : condition de #244 recalculee differente de la mention du moteur : ",
-                        paste(ECARTS_C, collapse = " ; "))
+for (l in rapport_controles()) message(l)
 quit(status = if (CTRL_OK && CTRL_C_OK) 0L else 1L)
