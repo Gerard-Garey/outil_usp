@@ -1344,6 +1344,10 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m1b", tests = "Homogeneite de f_j entre annees de survenance"),
   list(label = "mw:m1c", tests = "Absence de courbure de la regression"),
   list(label = "mw:m1d", tests = "Stabilite du facteur selon la ponderation (famille alpha)"),
+  # "Identifiabilite intra-colonne (dispersion des cumuls par colonne)" (#308,
+  # decisions Q-D1-Fj-1 et Q-D1-Fj-2 du 22/10/2026) : diagnostic dans tous les
+  # regimes (INFO, sans p-value retenue), donc sans rubrique 7 et hors registre,
+  # comme la ligne de #275 ci-dessous.
   list(label = "mw:m2bp", tests = "Heteroscedasticite residuelle vs cumul"),
   list(label = "mw:m2b", tests = "Adequation de l'exposant de variance, colonne par colonne"),
   list(label = "mw:m3cal", tests = "Effets d'annee calendaire (test de Mack)"),

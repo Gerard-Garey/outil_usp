@@ -9855,6 +9855,57 @@ mw_famille_alpha <- function(aj) {
   list(stat = sum(det$n * det$amplitude) / sum(det$n), detail = det)
 }
 
+# Identifiabilite intra-colonne (#308, specification Fj, par. 3.3 ; decisions
+# Q-D1-Fj-1, forme F1, et Q-D1-Fj-2 du mainteneur du 22/10/2026) : grandeurs
+# DESCRIPTIVES de la dispersion des cumuls a colonne donnee, dont depend la
+# puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne) et M2
+# (exposant de variance). Ligne de diagnostic de mw_tests(), sans
+# statistique ni p-value (ADR 0001) ; aucun effet minimal detectable n'est
+# calcule ici (Q-D1-Fj-2).
+# Colonnes retenues : j = 0..J-1, n_j = I - j >= 3, j hors de
+# .mw_j_exclues(aj, j_degeneres) (memes colonnes eligibles que l'ordonnee a
+# l'origine). Pour chacune, C0 = C(0..I-j-1, j) et C1 = C(0..I-j-1, j+1) :
+#   CV_j  = sd(C0) / mean(C0)            (ecart-type a n_j - 1)
+#   R_j   = max(C0) / min(C0)
+#   e_a,j = sigma_j sqrt(S_j / D_j) / mean(C1), sigma_j = sqrt(aj$sigma2[j + 1])
+#           (estimateur de Mack), S_j = somme C0,
+#           D_j = S_j somme(1/C0) - n_j^2 = somme_{a<b} ((C0_a - C0_b)/sqrt(C0_a)/sqrt(C0_b))^2.
+# S_j / D_j est l'element (1, 1) de (X'WX)^-1 de la regression ponderee
+# C1 ~ a_j + b_j C0, poids W = 1/C0 (det(X'WX) = D_j) : sigma_j^2 S_j / D_j
+# est la variance de l'estimateur de a_j sous H0, a variance sigma_j^2 C0.
+# D_j est calcule sous la forme STABLE (somme des carres des ecarts relatifs
+# par paire) : chaque terme est positif, sans annulation entre les grandeurs
+# d'ordre n_j^2 de la forme S_j somme(1/C0) - n_j^2, ni debordement de
+# C0_a C0_b. D_j = 0 si et seulement si C0 est constant : e_a,j = NA.
+# Lit aj$tri, aj$I, aj$J, aj$sigma2 et (via .mw_j_exclues()) aj$f ; ne lit pas
+# mw_residus().
+# Avec j_degeneres = integer(0) impose, une colonne degeneree est retenue et
+# donne sigma_j nul ou numeriquement nul, donc e_a,j = 0 ou negligeable ; cas
+# hors du chemin de mw_tests(). Retour :
+# estim = moyenne des CV_j retenus (NA sans colonne retenue) ; detail =
+# data.frame(j, n, cv, R, e_a), une ligne par colonne retenue (data.frame()
+# vide sinon).
+mw_identifiabilite_intra <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  blocs <- list()
+  for (j in 0:(J - 1)) {
+    idx <- 0:(I - j - 1)
+    if (length(idx) < 3 || j %in% jd) next
+    C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
+    rc <- sqrt(C0)
+    q <- outer(seq_along(C0), seq_along(C0),
+               function(a, b) (C0[a] - C0[b]) / rc[a] / rc[b])
+    D <- sum(q[upper.tri(q)]^2)
+    e_a <- if (D > 0) sqrt(aj$sigma2[j + 1]) * sqrt(sum(C0) / D) / mean(C1) else NA_real_
+    blocs[[length(blocs) + 1L]] <- list(j = as.integer(j), n = length(idx),
+                                        cv = stats::sd(C0) / mean(C0),
+                                        R = max(C0) / min(C0), e_a = e_a)
+  }
+  det <- .mw_empiler(blocs)
+  list(estim = if (nrow(det)) mean(det$cv) else NA_real_, detail = det)
+}
+
 # (e) Adequation de l'exposant de variance (hypothese (iv), complement de M2).
 # Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), alors les residus standardises de
 # Mack sont d'echelle constante DANS CHAQUE COLONNE : |r(i,j)| ne doit pas
@@ -10757,6 +10808,37 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       loi = "aucune loi analytique -> Monte-Carlo", mc_nom = "Alpha",
       detail = paste("alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder",
                      "du reglement ; alpha = 2 : ponderation par le carre du volume."))
+  # Identifiabilite intra-colonne (#308, forme F1) : diagnostic sans verdict
+  # (ADR 0001) en fin de M1, grandeurs de mw_identifiabilite_intra() sur
+  # l'observe seul (aucun nombre issu du bootstrap, #76) ; texte T-3 de la
+  # specification Fj, a la lettre.
+  ii <- mw_identifiabilite_intra(aj, jd)
+  tete_ii <- paste(
+    "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee,",
+    "dont depend la puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne)",
+    "et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes",
+    "degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j)",
+    "(sous un exposant de variance k, a f_j et sigma_j connus, le rapport des",
+    "variances des residus de Mack entre les deux cellules extremes vaut R^(k - 1)) ;",
+    "e_a = erreur type de l'ordonnee a l'origine a_j sous H0, sigma_j de Mack,",
+    "rapportee a la moyenne de C(i,j+1) (une ordonnee a l'origine de l'ordre de e_a",
+    "n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois",
+    "e_a, d'autant plus que n_j est petit : multiplicateurs dans la documentation).")
+  dii <- ii$detail
+  detail_ii <- if (!nrow(dii)) paste(tete_ii, "Aucune colonne retenue (n_j >= 3).") else
+    paste0(tete_ii, " Valeurs : ", paste(ifelse(is.na(dii$e_a),
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a non definie (C(i,j) constant)",
+              dii$j, dii$n, dii$cv, dii$R),
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a = %.4f",
+              dii$j, dii$n, dii$cv, dii$R, dii$e_a)), collapse = " ; "), ".")
+  add(fam, "Identifiabilite intra-colonne (dispersion des cumuls par colonne)",
+      fonction = "mw_identifiabilite_intra",
+      paste("Construction de l'outil : dispersion de C(i,j) a colonne donnee et erreur",
+            "type de l'ordonnee a l'origine de la regression ponderee",
+            "C(.,j+1) ~ a_j + b_j C(.,j), poids 1/C(.,j) (Mack 1994, CAS Forum, chap. 5,",
+            "p. 121-123), sous H0, sigma_j de Mack (1993)"),
+      type = "diagnostic", estim_nom = "CV moyen des colonnes retenues",
+      estim = ii$estim, detail = detail_ii)
 
   ## --- M2 : structure de variance (D(2)(h)(iv)) -----------------------------
   fam <- "M2. variance proportionnelle au cumul (annexe XVII D(2)(h)(iv))"
