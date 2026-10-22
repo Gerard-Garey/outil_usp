@@ -9004,8 +9004,9 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # nR^2 partiel par partialisation (Frisch et Waugh, 1933) : n Sxy^2 / (Sxx Syy)
 # sur y et C centres par colonne (moyenne simple de colonne), avec
 #   y = r~^2 = r^2 / (1 - h), 1 - h = S_sans / S_j (somme des AUTRES cellules
-#   de la colonne sur la somme de la colonne, .mw_sommes_autres() ; meme
-#   redressement du levier h = C(i,j) / S_j que .mw_pool_residus(), #46) ;
+#   de la colonne sur la somme de la colonne, .mw_un_moins_h() sur
+#   .mw_sommes_autres(), fonction commune avec .mw_pool_residus() : meme
+#   redressement du levier h = C(i,j) / S_j, #46, #356) ;
 #   cellules des colonnes de n_j >= 3 seulement (a n_j = 2, |r~| = 1
 #   identiquement, ecart mesure 2,2e-16 sur reserve2, et r~^2 ne porte aucune
 #   information) ; colonnes degenerees deja ecartees par
@@ -9027,13 +9028,7 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
   na <- list(stat = NA_real_, p = NA_real_, n = 0L, K = 0L)
   if (!nrow(res)) return(na)
   y <- res$residu^2
-  umh <- numeric(nrow(res))
-  for (j in unique(res$j)) {
-    sel <- res$j == j
-    col <- aj$tri[seq_len(aj$I - j), j + 1]
-    umh[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
-  }
-  y <- y / umh
+  y <- y / .mw_un_moins_h(aj, res)
   nj <- as.vector(table(res$j)[as.character(res$j)])
   k <- nj >= 3L
   n <- sum(k); K <- length(unique(res$j[k]))
@@ -10175,6 +10170,25 @@ FACTEUR_B_MAX_MW <- 25
 .mw_sommes_autres <- function(x)
   vapply(seq_along(x), function(k) sum(x[-k]), numeric(1))
 
+# 1 - h_ij = (S_j - C_ij) / S_j des cellules de res (#46, #356), h_ij = C_ij /
+# S_j etant le levier de la cellule dans l'estimation de f^_j : sur les lignes
+# 0..I-j-1 de la colonne j (memes cellules que mw_residus() et
+# mw_influence()), somme des AUTRES cellules par .mw_sommes_autres() divisee
+# par la somme de la colonne, calculee une fois par colonne. Partagee par
+# .mw_pool_residus() et mw_test_heteroscedasticite_intra() ; res : sortie de
+# mw_residus(aj, j_degeneres), dans l'ordre de ses lignes. Memes operations,
+# dans le meme ordre, que les deux boucles qu'elle remplace, donc memes bits
+# (ALGEBRE FIGEE de #301 : le controle (i2') compare des valeurs).
+.mw_un_moins_h <- function(aj, res) {
+  umh <- numeric(nrow(res))
+  for (j in unique(res$j)) {
+    sel <- res$j == j
+    col <- aj$tri[seq_len(aj$I - j), j + 1]
+    umh[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
+  }
+  umh
+}
+
 # Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
 # mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
 # sigma_j connu, conditionnellement a C_{.,j}, le residu
@@ -10210,17 +10224,9 @@ FACTEUR_B_MAX_MW <- 25
 .mw_pool_residus <- function(aj, j_degeneres = NULL) {
   res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(numeric(0))
-  # 1 - h_ij = (S_j - C_ij) / S_j, sur les lignes 0..I-j-1 de la colonne j
-  # (memes cellules que mw_residus() et mw_influence()), somme des autres
-  # cellules par .mw_sommes_autres(), partagee avec mw_influence() (#260),
-  # calculee une fois par colonne.
-  un_moins_h <- numeric(nrow(res))
-  for (j in unique(res$j)) {
-    sel <- res$j == j
-    col <- aj$tri[seq_len(aj$I - j), j + 1]
-    un_moins_h[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
-  }
-  pool <- res$residu / sqrt(un_moins_h)
+  # 1 - h_ij = (S_j - C_ij) / S_j : .mw_un_moins_h(), partagee avec
+  # mw_test_heteroscedasticite_intra() (#356).
+  pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
   pool - mean(pool)                               # recentrage
 }
 
@@ -11703,10 +11709,12 @@ mw_influence <- function(aj) {
 # ALGEBRE FIGEE (#300, controle (i2') de tests/puissance_mw_t8.R) : memes
 # operations, dans le meme ordre, que influence_t() et cellules_t(aj, figes,
 # 4L, obs, cache) du script de mesure de #309 (t par colonne, n_j par
-# stats::ave(), selection, gardes, tv[nb] <- .Machine$double.xmax, p par
-# 2 * stats::pt(-abs(tv), n_j - 2), p[nb] <- 0, which.min()) ; toute forme
-# equivalente changerait des bits et la p mesuree ne serait plus celle de la
-# ligne.
+# stats::ave(), selection, gardes, p par 2 * stats::pt(-abs(t), n_j - 2),
+# p[nb] <- 0, which.min()) ; toute forme equivalente changerait des bits et la
+# p mesuree ne serait plus celle de la ligne. L'affectation tv[nb] <-
+# .Machine$double.xmax du script de mesure (necessaire a TMax, qui prend le
+# maximum de |t|) est ABSENTE du moteur : p[nb] <- 0 ecrase aussitot la p des
+# cellules non bornees, et tv ne sert qu'a p (#356).
 # Rend : stat (M), p (borne de Bonferroni min(1, N_t M), p non simulee sous
 # le modele auxiliaire de Mack a erreurs gaussiennes, jamais retenue, #181),
 # N_t, la cellule du minimum (i, j, n_j, t), non_borne (data.frame i, j des
@@ -11735,8 +11743,7 @@ mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) 
     na$non_borne <- data.frame(i = ik[nb], j = jk[nb])
     return(na)
   }
-  tv <- tk; tv[nb] <- .Machine$double.xmax
-  p <- 2 * stats::pt(-abs(tv), njk - 2); p[nb] <- 0
+  p <- 2 * stats::pt(-abs(tk), njk - 2); p[nb] <- 0
   im <- which.min(p)
   M <- min(p)
   list(stat = M, p = min(1, length(p) * M), N_t = length(p), i = ik[im], j = jk[im],
