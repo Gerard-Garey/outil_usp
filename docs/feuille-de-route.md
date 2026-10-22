@@ -2097,7 +2097,7 @@ Sur le modèle de C2‴ à C10‴ (Fd, annotation du 15/10). **Disjonction** (*v
 
 ---
 
-### Branche Fj — Merz-Wüthrich : M1 et M2, identifiabilité et pente relative ; restes de M4 (#291, #356, #352, #308, #307 ; proposée au trente-neuvième point, 22/10/2026 ; **décidée** le 22/10 (Q-39-1, Q-39-3, E-22/10 (39e point)) ; branche **`claude/merz-wuthrich-identifiabilite`**, partie de `main` `510b03d` ; PR brouillon, cinq `Closes` ; ce point en premier commit `docs:`)
+### Branche Fj — Merz-Wüthrich : M1 et M2, identifiabilité et pente relative ; restes de M4 (#291, #356, #352, #308, #307 ; proposée au trente-neuvième point, 22/10/2026 ; **décidée** le 22/10 (Q-39-1, Q-39-3, E-22/10 (39e point)) ; branche **`claude/merz-wuthrich-identifiabilite`**, partie de `main` `510b03d` ; PR brouillon **#360**, cinq `Closes` ; ce point en premier commit `docs:` (`6c48439`) ; *22/10 : D1-Fj versionnée, `docs/specifications/fj-merz-wuthrich-identifiabilite.md`, point d'arrêt franchi (E-22/10 (D1-Fj), Q-D1-Fj-1 à 10 selon les recommandations sauf Q-D1-Fj-8 : Mack (1999) à vérifier par une session à accès complet)*)
 
 *Forme.*
 - **Module** : la restitution des lignes M1 et M2 de `mw_tests()` — `mw_test_pente_intra()` (ou son successeur), entrée `PenteIntra` de `MW_CATALOGUE_MC`, ligne « famille α », diagnostic nouveau ou `detail` de #308 — ainsi que la ligne M4 (`reference`, avertissement) et deux refactors sans effet.
