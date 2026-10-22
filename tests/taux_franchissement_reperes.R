@@ -73,6 +73,11 @@
 #    diagnostic quand la pente n'est pas identifiable, regle R4 de #44 ;
 #    lignes non applicables, #59 ; tests inoperants restitues INFO, regle R1
 #    de #44).
+#  Le calcul de l'ecart relatif max du jackknife et de robustesse (annee la
+#  plus influente, annees d'influence egale, annees non evaluables) n'est pas
+#  recopie : le bloc d'affectations de run_engine() est lu dans son corps et
+#  evalue (BLOC_JACK, robustesse_moteur(), #346) ; le controle d'integrite
+#  compare le detail de la ligne jackknife au jeu observe.
 #  Deux ecarts a run_engine(), controles sur le jeu observe (controle
 #  d'integrite ci-dessous) :
 #    - l'IC bootstrap de chaque replication est reconstruit par la boucle de
@@ -756,6 +761,65 @@ ic_bootstrap <- function(fit, param, graine, B) {
   list(sigma_boot = sig, largeur = if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL)
 }
 
+# Elements du jackknife de run_engine() (ecart relatif max sur sigma_USP,
+# annee la plus influente, annees d'influence egale a la precision numerique
+# pres, annees non evaluables : #224, #327, #329), lus dans le corps de
+# run_engine() au lieu d'etre recopies (#346) : aucune fonction nommee du
+# moteur ne les expose, et une copie derive (elle ignorait jack_non_evaluables
+# et jack_annees depuis #224 et #327). Le bloc est le groupe d'affectations
+# consecutives de d_jack a robustesse dans le meme bloc { } que l'affectation
+# de robustesse ; seules celles qui portent sur le jackknife sont evaluees
+# (liste blanche ; les affectations de fit$largeur_ic, fit$largeur_ic_restreint
+# et le reordonnancement de fit, qui s'y intercalent, sont les exclusions
+# attendues). Un nom de la liste blanche introuvable ou en double, un moteur
+# sans ce bloc, ou toute instruction entre d_jack et robustesse qui n'est ni
+# dans la liste blanche, ni une exclusion attendue, ni le if (jack_calcule),
+# est une erreur : le script est a mettre a jour. Limite : l'exclusion du
+# reordonnancement porte sur la cle fit seule, de sorte qu'une autre
+# affectation fit <- ... serait ecartee sans erreur ; elle ne serait vue que
+# par le controle d'integrite du jeu observe (estim et detail de la ligne
+# jackknife).
+CLES_BLOC_JACK <- c("d_jack", "jack_calcule", "fit$ecart_jackknife", "i_jack", "jack_annees", "robustesse")
+CLES_EXCLUES_BLOC_JACK <- c("fit$largeur_ic", "fit$largeur_ic_restreint", "fit")
+BLOC_JACK <- local({
+  cle <- function(st) if (is.call(st) && as.character(st[[1L]])[1L] %in% c("<-", "=")) paste(deparse(st[[2L]]), collapse = "") else NA_character_
+  cherche <- function(x) {
+    if (!is.call(x)) return(NULL)
+    if (identical(x[[1L]], as.name("{"))) {
+      st <- as.list(x)[-1L]
+      if ("robustesse" %in% vapply(st, cle, "")) return(st)
+    }
+    for (el in as.list(x)) { r <- cherche(el); if (!is.null(r)) return(r) }
+    NULL
+  }
+  st <- cherche(body(run_engine))
+  if (is.null(st)) stop("run_engine() : bloc de l'affectation de robustesse introuvable (script a mettre a jour)")
+  k <- vapply(st, cle, "")
+  i0 <- match("d_jack", k); i1 <- match("robustesse", k)
+  if (is.na(i0) || i1 < i0) stop("run_engine() : affectations de d_jack et de robustesse introuvables ou dans l'ordre inverse (script a mettre a jour)")
+  garde <- seq.int(i0, i1)
+  # structure de controle du calcul des annees d'influence egale : if (jack_calcule) { ... jack_annees ... }
+  est_if_jack <- function(x) is.call(x) && identical(x[[1L]], as.name("if")) && identical(x[[2L]], as.name("jack_calcule"))
+  inconnues <- garde[!(k[garde] %in% c(CLES_BLOC_JACK, CLES_EXCLUES_BLOC_JACK)) & !vapply(st[garde], est_if_jack, TRUE)]
+  if (length(inconnues))
+    stop("run_engine() : instruction(s) inattendue(s) entre d_jack et robustesse (ni liste blanche, ni exclusion attendue) : ",
+         paste(vapply(st[inconnues], function(x) substr(paste(deparse(x), collapse = " "), 1L, 70L), ""), collapse = " | "),
+         " (script a mettre a jour)")
+  garde <- garde[k[garde] %in% CLES_BLOC_JACK | vapply(st[garde], est_if_jack, TRUE)]
+  if (!all(CLES_BLOC_JACK %in% k[garde]) || anyDuplicated(k[garde][!is.na(k[garde])]))
+    stop("run_engine() : affectations du jackknife attendues (", paste(CLES_BLOC_JACK, collapse = ", "), ") absentes ou en double (script a mettre a jour)")
+  st[garde]
+})
+# Evalue ce bloc sur l'ajustement fit, le jackknife jack et les parametres
+# param d'une replication ; rend fit (avec ecart_jackknife, NULL si aucune
+# annee evaluable) et robustesse, tels que run_engine() les passe a usp_tests().
+robustesse_moteur <- function(fit, jack, param) {
+  env <- new.env(parent = environment(run_engine))
+  env$fit <- fit; env$jack <- jack; env$param <- param
+  for (st in BLOC_JACK) eval(st, env)
+  list(fit = env$fit, robustesse = env$robustesse)
+}
+
 # Table des tests d'un jeu (x, y) traitee comme par run_engine().
 # Limite : p_mc factice (0,5, sans bootstrap) et pas de p_min_mc ; le type et
 # le prefixe "TEST INOPERANT" des lignes Monte-Carlo suivent donc la branche
@@ -764,13 +828,11 @@ traiter <- function(x, y, graine_ic) {
   fb <- usp_ajuster(x, y)
   param <- usp_parametre(fb, SIGMA_STD, BAREME)
   jack <- usp_jackknife(fb, SIGMA_STD, BAREME)
-  d_jack <- jack$sigma_usp - param$sigma_usp
-  jack_calcule <- any(is.finite(d_jack))
-  fb$ecart_jackknife <- if (jack_calcule) max(abs(d_jack), na.rm = TRUE) / param$sigma_usp else NULL
+  rb <- robustesse_moteur(fb, jack, param)
+  fb <- rb$fit
+  rob <- rb$robustesse
   icb <- ic_bootstrap(fb, param, graine_ic, OPT_B_IC)
   fb$largeur_ic <- icb$largeur
-  i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
-  rob <- list(jack_annee = i_jack, jack_usp = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL)
   e_obs <- .usp_contexte_mc(fb$x, fb$y, fb$z, fb$pi)
   so <- .mc_evaluer(USP_CATALOGUE_MC, e_obs)
   # p_mc factice (lignes Monte-Carlo non lues). Motif d'indisponibilite
@@ -854,6 +916,12 @@ tests_res <- res$tests[!noms_res %in% LIGNES_HORS_PERIMETRE]
 if (length(obs$tests) != length(tests_res) ||
     !identical(lapply(obs$tests, `[`, champs), lapply(tests_res, `[`, champs)))
   integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE)")
+# Ligne jackknife : detail (annees les plus influentes, annees non evaluables)
+# identique a celui de run_engine() (#346) ; NULL des deux cotes si la ligne
+# est absente.
+detail_jack <- function(tt) { i <- match(LIGNE_JACK, vapply(tt, `[[`, "", "test")); if (is.na(i)) NULL else tt[[i]]$detail }
+if (!identical(detail_jack(obs$tests), detail_jack(res$tests)))
+  integrite <- c(integrite, "ligne jackknife : detail reconstruit different de celui de run_engine() (#346)")
 t_controle <- as.numeric(difftime(Sys.time(), t0, units = "secs"))
 # Repere des leviers sur le jeu observe (ligne de run_engine()).
 LEV_OBS <- local({

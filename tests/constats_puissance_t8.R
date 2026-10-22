@@ -2326,11 +2326,15 @@ if (OPT_PARTIE == "esd") {
   # docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R,
   # commit e990a9f, section 2 : set.seed(20261015), matrice 1e5 x 8 remplie
   # par colonne, lignes 1 a 50 000, test_rosner(v, k = 2, alpha = 0.10)),
-  # recalculee ici sous engine_sous_graine().
+  # recalculee ici sous engine_sous_graine(). Son alpha est le parametre
+  # commun de C7 (ALPHA_ESD_MOTEUR, defaut de run_engine(), 0,10 a la date de
+  # la mesure) : C7.a, a la meme valeur, en est le comparant. Si le defaut
+  # change, REF_1510 (valeurs a 0,10) n'est plus reproduit et le controle
+  # bloquant ci-dessous echoue.
   GRAINE_1510 <- 20261015
   Z_1510 <- engine_sous_graine(GRAINE_1510, matrix(stats::rnorm(1e5 * 8), 1e5, 8))
   M_1510 <- t(vapply(seq_len(50000L), function(i) {
-    ro <- test_rosner(Z_1510[i, ], k = 2, alpha = 0.10)
+    ro <- test_rosner(Z_1510[i, ], k = 2, alpha = ALPHA_ESD_MOTEUR)
     c(k = ro$nb_outliers, e1 = ro$R[1] > ro$lambda[1])
   }, numeric(2)))
   rm(Z_1510)
@@ -2379,9 +2383,10 @@ if (OPT_PARTIE == "esd") {
   }
   dans <- function(x, ci) if (x >= ci[1] && x <= ci[2]) "oui" else "**non**"
   Q_1510 <- list(
-    list(nom = "P(k\u0302 \u2265 1)", a = M_1510[, "k"] >= 1, b = M_IID[, col("k", 0.1)] >= 1),
-    list(nom = "P(k\u0302 = 2)", a = M_1510[, "k"] == 2, b = M_IID[, col("k", 0.1)] == 2),
-    list(nom = "premi\u00e8re \u00e9tape seule, P(R\u2081 > \u03bb\u2081)", a = M_1510[, "e1"] == 1, b = M_IID[, col("e1", 0.1)] == 1))
+    list(nom = "P(k\u0302 \u2265 1)", a = M_1510[, "k"] >= 1, b = M_IID[, col("k", ALPHA_ESD_MOTEUR)] >= 1),
+    list(nom = "P(k\u0302 = 2)", a = M_1510[, "k"] == 2, b = M_IID[, col("k", ALPHA_ESD_MOTEUR)] == 2),
+    list(nom = "premi\u00e8re \u00e9tape seule, P(R\u2081 > \u03bb\u2081)", a = M_1510[, "e1"] == 1,
+         b = M_IID[, col("e1", ALPHA_ESD_MOTEUR)] == 1))
   # Comparaison des deux estimations par le test de deux proportions
   # independantes (flux distincts : graine 20261015 contre --graine + 7),
   # proportion commune en pool ; p bilaterale par la loi normale.
@@ -2412,9 +2417,10 @@ if (OPT_PARTIE == "esd") {
                    collapse = " ; "),
              if (all(pmin(1, 3 * P_1510[nominaux]) >= 0.05))
                (if (length(nominaux) == 1L) ", est compatible avec le hasard" else ", sont compatibles avec le hasard") else ""),
-    sprintf(" ; l'IC du 15/10 pour la premi\u00e8re \u00e9tape [%s ; %s] %s la valeur exacte \u03b1 = 0,10.",
+    sprintf(" ; l'IC du 15/10 pour la premi\u00e8re \u00e9tape [%s ; %s] %s la valeur exacte \u03b1 = %s.",
             num(ic_e1_1510[1], 5), num(ic_e1_1510[2], 5),
-            if (0.10 >= ic_e1_1510[1] && 0.10 <= ic_e1_1510[2]) "contient" else "**ne contient pas**"))
+            if (ALPHA_ESD_MOTEUR >= ic_e1_1510[1] && ALPHA_ESD_MOTEUR <= ic_e1_1510[2]) "contient" else "**ne contient pas**",
+            num(ALPHA_ESD_MOTEUR, 2)))
   # Rapprochement avec #166 (docs/tableaux/20261008-issue166-calibration-J1.md
   # et -J2.md, commit 139031d, ligne ESD de la repartition des modalites :
   # OK / ALERTE / ECHEC sur les replications 1 a 2 000, run_engine() complet,
@@ -2482,7 +2488,8 @@ if (OPT_PARTIE == "esd") {
     unlist(lapply(names(MES_ESD), function(cj) lignes_esd(MES_ESD[[cj]]$M[MES_ESD[[cj]]$ok, , drop = FALSE], loi_mod(cj)))), "",
     paste("-", lignes_mod_info), "",
     paste0("Jeux : ", paste(vapply(MES_ESD, function(m) sprintf("%s : %s", m$J$code, m$J$libelle), ""), collapse = " ; "), "."), "",
-    "**C7.c -- Mesure du 15/10/2026 (i.i.d. N(0, 1), T = 8, k = 2, \u03b1 = 0,10), recalcul\u00e9e, contre C7.a (k / n ; taux [IC 95 % C-P])**", "",
+    paste0("**C7.c -- Mesure du 15/10/2026 (i.i.d. N(0, 1), T = 8, k = 2, \u03b1 = ", num(ALPHA_ESD_MOTEUR, 2),
+           "), recalcul\u00e9e, contre C7.a (k / n ; taux [IC 95 % C-P])**"), "",
     paste("Mesure du 15/10/2026 : revue de pertinence des tests,",
           "docs/revues/20261015-pertinence-tests-graphiques/mesures/bloc-4/sim.R (commit e990a9f), section 2 : set.seed(20261015), matrice 100 000 \u00d7 8 remplie par colonne,",
           "lignes 1 \u00e0 50 000, test_rosner(v, k = 2, alpha = 0.10) ; recalcul\u00e9e ici sous engine_sous_graine(20261015, .)",
