@@ -13943,6 +13943,7 @@ M1 & \textbf{Ordonnée à l'origine, colonne par colonne} & test & Monte-Carlo \
 M1 & \textbf{Homogénéité de $f_j$ entre années de survenance} & test & Monte-Carlo \\
 M1 & \textbf{Absence de courbure} & test & Monte-Carlo \\
 M1 & \textbf{Famille $\alpha$ (pondération)} & test & Monte-Carlo \\
+M1 & Identifiabilité intra-colonne (dispersion des cumuls par colonne) & diagnostic & --- \\
 M2 & Hétéroscédasticité résiduelle contre le cumulé & test & Monte-Carlo \\
 M2 & \textbf{Exposant de variance, colonne par colonne} & test & Monte-Carlo \\
 M2 & Variance unitaire des résidus & diagnostic & --- \\
@@ -13962,8 +13963,8 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt entrées, dont \textbf{treize} tests d'hypothèse, 0 procédure de
-décision et \textbf{sept} diagnostics, conformément au champ \code{type} que
+Vingt et une entrées, dont \textbf{treize} tests d'hypothèse, 0 procédure de
+décision et \textbf{huit} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
 restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
 depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
@@ -13972,7 +13973,7 @@ pas celles des résidus de Mack~; leur p-value, calculée sous ce modèle auxili
 i.i.d. normal, est restituée pour information et n'est pas retenue (fiches~\ref{mw:m5sw}
 et~\ref{mw:m5li}). La variance unitaire des résidus (M2) est aussi un diagnostic~: elle
 n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
-\emph{contrainte par construction} (fiche~\ref{mw:m2var}). Aucun des sept
+\emph{contrainte par construction} (fiche~\ref{mw:m2var}). Aucun des huit
 diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
 l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
@@ -19269,7 +19270,7 @@ fournissent des lois de référence.}
 
 % --- Colonne des sorties : abscisse commune ---------------------------------
 \coordinate (cx) at ([xshift=16mm]fi.east);
-\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (5 entrées)};
+\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (6 entrées)};
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
