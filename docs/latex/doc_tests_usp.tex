@@ -1087,14 +1087,17 @@ des $\sum_{l \neq k} x_l$, somme directe par \code{sum()} des $n - 1$ autres val
 différence $\sum_l x_l - x_k$, qui s'annule en flottant quand $x_k$ domine sa colonne
 (issue~\#233)~; partagé depuis l'issue~\#260 par \code{.mw\_pool\_residus()} (numérateur de
 $1 - h_{ij}$) et \code{mw\_influence()} ($S_j - C(i,j)$ et $S'_j - C(i,j+1)$), mêmes opérations
-que les deux formes qu'il remplace, et depuis l'issue~\#301 par
+que les deux formes qu'il remplace, depuis l'issue~\#301 par
 \code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (numérateur de $1 - h_{ij}$,
-fiche~\ref{mw:m2bp}) \\
+fiche~\ref{mw:m2bp}) et depuis l'issue~\#300 par \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}
+(rapport $(1 - h_{ij})/h_{ij}$, fiche~\ref{mw:m4gr}) \\
 \code{mw\_simuler\_triangle()},\newline \code{.mw\_simuler\_}\newline\code{triangle\_etat()},\newline
 \code{.mw\_stats()} & \code{aj}, vivier de
 résidus~; \code{aj}, \code{figes} (objet des ensembles figés à l'observé depuis l'issue~\#278,
 auparavant arguments \code{j\_degeneres} et, depuis l'issue~\#270, \code{j\_non\_identifiables}~;
-\code{NULL}~: construit sur \code{aj}) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+\code{NULL}~: construit sur \code{aj})~; pour \code{.mw\_stats()}, \code{replique} (\code{FALSE} par défaut,
+statistiques de l'observé~; \code{TRUE} dans la seule boucle de \code{mw\_bootstrap()}, où une
+cellule à influence non bornée reçoit $p_{ij} = 0$, issue~\#300, fiche~\ref{mw:m4gr}) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
 strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; depuis
 l'issue~\#278, le calcul est porté par \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()},
 qui rend aussi l'indicateur \code{complet} (\code{FALSE} si le triangle a été rendu au premier
@@ -1138,6 +1141,12 @@ de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()}~; argument \code{res} obligatoire de
 \code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (ligne d'hétéroscédasticité de M2,
 issue~\#301, fiche~\ref{mw:m2bp}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
+\code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
+(\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
+minimum et son $t(i,j)$, cellules à influence non bornée, table des cellules retenues~; motif de
+la statistique observée non définie, lu par le champ \code{non\_definie} de l'entrée
+\code{MinP4} (issue~\#300, fiche~\ref{mw:m4gr}) \\
 \code{mw\_calendrier\_}\newline\code{diagonales()} &
 \code{cal} (résultat de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()}) &
 \code{data.frame} à une ligne par diagonale retenue ($n_k \ge 2$, étiquettes «~*~»
@@ -1317,7 +1326,9 @@ et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
 \code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
 cellule et $1 - h$ tirés des sommes des autres cellules (\code{.mw\_sommes\_autres()} depuis
 l'issue~\#260), écarts au facteur sous forme stable (issue~\#233, fiche~\ref{mw:influence})~;
-table empilée par \code{.mw\_empiler()} depuis l'issue~\#260 \\
+table empilée par \code{.mw\_empiler()} depuis l'issue~\#260~; ses DFBETAS et \code{dfbetas\_non\_borne}
+fournissent depuis l'issue~\#300 les résidus studentisés externes de la ligne de la cellule
+aberrante (\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, fiche~\ref{mw:m4gr}) \\
 \code{mw\_contributions()} & \code{aj}, \code{msep} (sortie de
 \code{mw\_msep()}) & parts de chaque année de survenance dans la réserve et
 dans le terme de variance de processus \\
@@ -2497,10 +2508,12 @@ Test des suites & \ref{mw:m3runs} & \code{test\_runs()} &
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
 \midrule
 Cellule aberrante du triangle (résidus studentisés externes) & \ref{mw:m4gr} &
-\code{mw\_test\_cellule\_aberrante()} &
-\code{mw\_test\_cellule\_aberrante()} (borne de Bonferroni, non retenue) & \code{MinP4} \\
-Cellules aberrantes multiples (Rosner) & \ref{mw:m4ros} & \code{test\_rosner()} &
-diagnostic, aucune p-value & --- \\
+\code{mw\_test\_cellule\_aberrante()} (via \code{mw\_influence()} et \code{.mw\_sommes\_autres()}~;
+colonnes d'au moins \code{MW\_NJ\_MIN\_CELLULE} facteurs~; motif de la statistique non définie
+par \code{.mw\_motif\_cellule\_}\allowbreak\code{non\_bornee()}~; issue~\#300) &
+idem (borne de Bonferroni $\min(1, N_t M)$, p non simulée, non retenue) & \code{MinP4} \\
+Cellules aberrantes multiples (Rosner) & \ref{mw:m4ros} & \code{test\_rosner()} (commentaire~:
+\code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}) & diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M5 : normalité (diagnostic, non exigée par le modèle)}}} \\
 \midrule
@@ -2979,7 +2992,9 @@ Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
 diagnostic d'influence ou de robustesse~; les contrôles numériques de l'estimation n'y
 figurent pas, voir la section~\ref{sec:controles}),
-\emph{procédure de décision} (Rosner, qui ne produit pas de p-value) ou \emph{non applicable}.
+\emph{procédure de décision} (Rosner dans la méthode lognormale, qui ne produit pas de p-value~;
+appliquée aux résidus de Mack, la même procédure est un diagnostic depuis l'issue~\#300,
+fiche~\ref{mw:m4ros}) ou \emph{non applicable}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic depuis
@@ -5026,7 +5041,7 @@ Anderson--Darling et Cramér--von Mises, Dallal et Wilkinson prolongés par Step
 Lilliefors, D'Agostino pour l'asymétrie, Anscombe et Glynn pour l'aplatissement)~;
 \emph{(iii)} une loi exacte ou approchée sous un \emph{modèle auxiliaire gaussien}, non sous
 l'annexe~XVII ($F$ de RESET, de Goldfeld--Quandt et de Brown--Forsythe, Student et combinaison de
-Fisher $\chi^2(2K)$ de lignes de la méthode Merz--Wüthrich, borne de Bonferroni (majorant) de Grubbs, sur la loi de Student)~;
+Fisher $\chi^2(2K)$ de lignes de la méthode Merz--Wüthrich, borne de Bonferroni (majorant) de Grubbs, sur la loi de Student, et, depuis l'issue~\#300, borne de Bonferroni du minimum des p de Student de la cellule aberrante de la méthode Merz--Wüthrich, fiche~\ref{mw:m4gr})~;
 \emph{(iv)} l'approximation normale d'une loi de rangs discrète (Spearman, Mann--Kendall, suites,
 effet calendaire). Au sens du tableau ci-dessus, la famille~(i) est asymptotique, la
 famille~(ii) une approximation numérique, la famille~(iii) exacte ou approchée sous un autre
@@ -5381,7 +5396,9 @@ assumée, le diagnostic étant, au sens de \code{CONTEXT.md}, la ligne dont les 
 ne fondent aucun verdict. Une ligne de type
 test qui n'a alors aucune des trois p-values --- p-value de Monte-Carlo seule, absente faute de
 réplications finies en nombre suffisant, sans p-value exacte ni asymptotique, ou cas de
-Cox--Stuart de la fiche~\ref{fiche:cox-stuart} --- reste de type test, sans p-value retenue ni
+Cox--Stuart de la fiche~\ref{fiche:cox-stuart}, ou, depuis l'issue~\#300, ligne de la cellule
+aberrante de la méthode Merz--Wüthrich dont une cellule retenue a une influence non bornée
+(fiche~\ref{mw:m4gr}) --- reste de type test, sans p-value retenue ni
 verdict (\code{INFO}, sens conservé), état décidé par le mainteneur le 27~septembre 2026~; depuis
 l'issue~\#128 (point~2$'$, restitution précisée le 1\textsuperscript{er}~octobre 2026), son
 commentaire commence par «~\code{aucune p-value disponible sur ces donnees~: aucun verdict (ADR
@@ -6046,13 +6063,19 @@ défaut) & Oui & Oui & Monte-Carlo &
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
 
-Grubbs sur résidus de Mack & \textbf{MW} & $G$ & Borne de Bonferroni & --- & Oui &
-Monte-Carlo & \textbf{Sous conditions} : suppose la normalité, non exigée par le
-modèle & Bootstrap ; borne utilisable comme majorant \\
+Cellule aberrante (résidus studentisés externes, issue~\#300) & \textbf{MW} & $M = \min p_{ij}$ &
+Non & Borne de Bonferroni sous un modèle auxiliaire gaussien (famille~(iii)) &
+Oui & Monte-Carlo, queue basse~; test sans p-value retenue si une cellule a une influence non
+bornée & \textbf{Non} comme p-value : compatible sous erreurs gaussiennes, libérale sous les
+lois E et A du plan mesuré (§\ref{sec:calib-asympt-mw}) & Bootstrap retenu~; niveau
+conservateur sous erreurs gaussiennes, 3 cellules de la colonne de trois facteurs non couvertes
+(fiche~\ref{mw:m4gr}) \\
 
-Rosner (ESD) sur résidus de Mack & \textbf{MW} & $R_i$ & Valeurs critiques
-tabulées & --- & --- & Procédure de décision & Sans objet (pas de p-value) &
-Indicatif ; $n = 27$ à $T = 8$, à la limite du seuil de fiabilité ($n \ge 25$) \\
+Rosner (ESD) sur résidus de Mack & \textbf{MW} & $R_i$ & Non~: valeurs critiques de
+l'éq.~(2.5) de Rosner, valables pour un échantillon i.i.d. normal & --- & --- &
+\textbf{Diagnostic} (issue~\#300), aucune p-value & Sans objet (pas de p-value) &
+Repère seulement~: cadre de Rosner (1983) non applicable aux résidus de Mack
+(fiche~\ref{mw:m4ros}) \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M5 : normalité (diagnostic, non exigée)}}} \\
 
@@ -6353,6 +6376,13 @@ construction & Non établie~; $n = 25$ cellules sur un triangle $8\times 8$ & In
 cellules, en défaut (résidus d'une colonne liés par $\hat f_j$ et $\hat\sigma_j$) &
 Non exploitable~: écart mineur du côté libéral sous le plan mesuré
 (§\ref{sec:calib-asympt-mw})~; bootstrap retenu \\
+
+Cellule aberrante (résidus studentisés externes) & \emph{Aucune} en $T$~: $t(i,j)$ de loi de
+Student à $n_j - 2$ degrés de liberté, exacte à $n_j$ fini sous le modèle auxiliaire gaussien
+seulement~; $\min(1, N_t M)$ en est un majorant (Bonferroni) & --- & Borne, non convergence & Sans
+objet & Erreurs gaussiennes, que le modèle de Mack n'exige pas &
+Borne compatible sous erreurs gaussiennes, libérale sous les lois E et A du plan mesuré
+(§\ref{sec:calib-asympt-mw})~; bootstrap retenu (fiche~\ref{mw:m4gr}) \\
 
 Combinaisons de Fisher (ordonnée à l'origine, homogénéité, courbure,
 exposant de variance) & $X = -2\sum\ln p_k$ & $\chi^2(2K)$ &
@@ -7097,7 +7127,7 @@ M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{
 M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M4, Grubbs (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$, compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (issue~\#309, plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N et sous E à $0{,}10$, compatible ailleurs~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée)~; statistique de Grubbs antérieure à l'issue~\#300 (fiche~\ref{mw:m4gr}, rubrique~5)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$ & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -7563,10 +7593,15 @@ classement étant fragile sur le jeu de contrôle (issue~\#218) et faussé sous 
 Corrélation entre années de développement & Cinq à six paires de colonnes
 seulement comptent au moins trois observations à $T = 8$ &
 Aucune loi analytique n'existe~; bootstrap seul recours, puissance très faible \\
-Rosner (ESD) sur résidus de Mack & Fiabilité annoncée pour $n \ge 25$~; un
-triangle $8\times8$ fournit 27 résidus --- la colonne $j = J-1$ n'ayant qu'un
-seul facteur individuel n'en produit aucun ---, soit la limite du domaine &
-Conservé comme signal d'attention~; aucune exclusion de cellule sur ce fondement \\
+Cellule aberrante (résidus studentisés externes) & Puissance faible contre une cellule
+modérément aberrante, niveau conservateur sous erreurs gaussiennes, 3 cellules de la colonne de
+trois facteurs non couvertes & Lecture conjointe du graphique d'influence~; aucune exclusion de
+cellule sur ce seul fondement (fiche~\ref{mw:m4gr}) \\
+Rosner (ESD) sur résidus de Mack & Valeurs critiques et domaine déclaré ($n \ge 25$) établis
+pour un échantillon i.i.d. normal, que les 27 résidus de Mack d'un triangle $8\times8$ ne sont
+pas (contraintes exactes par colonne) &
+Diagnostic sans verdict depuis l'issue~\#300 (fiche~\ref{mw:m4ros})~; repère seulement, aucune
+exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
 imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
 lorsque $\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ &
@@ -11446,8 +11481,8 @@ sur une analyse métier (sinistre exceptionnel identifié, erreur de saisie avé
 \textbf{Table.} Sans objet.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type procédure de décision dans tous les régimes~; limites des valeurs critiques en rubrique~6. Puissance non étudiée à $T = 8$. Les mesures de l'issue~\#174 citées ici portent sur la ligne de
-la méthode lognormale~; la procédure ESD de la méthode Merz--Wüthrich (fiche~\ref{mw:m4ros})
-relève des issues~\#206, \#300 et~\#309.
+la méthode lognormale~; la procédure ESD appliquée aux résidus de Mack (fiche~\ref{mw:m4ros}),
+diagnostic sans verdict depuis l'issue~\#300, relève des issues~\#206, \#300 et~\#309.
 \emph{Première étape, niveau exact sous i.i.d. normal.} Soit $u_t = (z_t - \bar z)/s_z$,
 $n = T = 8$. (i)~Pour $t$ fixé, $u \mapsto u\sqrt{n(n-2)/\big((n-1)^2 - n u^2\big)}$ est
 strictement croissante sur $[0, (n-1)/\sqrt{n})$ et transforme $|u_t|$ en une variable de loi
@@ -13299,10 +13334,14 @@ méthode elle-même.
 \textcolor{financeblue}{\textbf{Test}} &
 \textcolor{financeblue}{\textbf{Statut}} &
 \textcolor{financeblue}{\textbf{Commentaire}} \\
-Durbin--Watson, test des suites, Grubbs, Rosner, Shapiro--Wilk, Lilliefors &
+Durbin--Watson, test des suites, Rosner, Shapiro--Wilk, Lilliefors &
 réemployés & Appliqués aux résidus de Mack au lieu des résidus standardisés
 $z_t$~; la
-statistique est inchangée, seule la loi de référence est réévaluée. \\
+statistique est inchangée, seule la loi de référence est réévaluée (Rosner et la normalité en
+diagnostic, sans verdict). \\
+Cellule aberrante (résidus studentisés externes) & \textbf{nouveau} & Minimum des p de Student
+des résidus studentisés externes de la régression de Mack, colonne par colonne~; remplace depuis
+l'issue~\#300 le test de Grubbs, réemployé jusque-là sur les résidus de Mack. \\
 Hétéroscédasticité résiduelle ($n R^2$ studentisé de Koenker) & adapté & Régression des carrés des
 résidus redressés sur $C(i,j)$ et non sur le volume $x_t$, à effets fixes de colonne depuis
 l'issue~\#301 (Breusch--Pagan studentisé sur toutes les cellules auparavant)~: teste la puissance~1
@@ -13345,7 +13384,7 @@ M3 & Effets d'année calendaire par diagonale (repère de Mack 1997) & diagnosti
 M3 & Corrélation entre années de développement & test & Monte-Carlo \\
 M3 & Autocorrélation (Durbin--Watson) & test & Monte-Carlo \\
 M3 & Test des suites & test & Monte-Carlo \\
-M4 & Cellule aberrante (Grubbs) & test & Monte-Carlo \\
+M4 & Cellule aberrante (résidus studentisés externes) & test & Monte-Carlo \\
 M4 & Cellules aberrantes multiples (Rosner) & diagnostic & --- \\
 M5 & Shapiro--Wilk & diagnostic & --- \\
 M5 & Lilliefors & diagnostic, secondaire & --- \\
@@ -15250,71 +15289,246 @@ hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pou
 fiches de test et de procédure de décision. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
-\begin{fiche}{M4 --- Cellule aberrante du triangle (Grubbs)}
+\begin{fiche}{M4 --- Cellule aberrante du triangle (résidus studentisés externes)}
 \label{mw:m4gr}
-\refl{F.\,E. Grubbs (1950, 1969), \emph{op.\ cit.}}
+\refl{Résidu studentisé externe et sa loi de Student~: R.\,D. Cook, S.~Weisberg,
+\emph{Residuals and Influence in Regression}, Chapman and Hall, 1982 (section~\ref{sec:biblio}),
+§~2.2.1, p.~20, éq.~(2.2.9)~; identité avec la statistique du test du modèle de décalage de
+moyenne, p.~21, éq.~(2.2.15)~; borne de Bonferroni sur le maximum des $|t_i|$, p.~22 et~26~;
+régression pondérée, annexe~A.1, p.~209. Nom RSTUDENT~: D.\,A. Belsley, E.~Kuh, R.\,E. Welsch
+(1980), \emph{op.\ cit.}, chapitre~2, d'après A.\,C. Atkinson (1983), \emph{Technometrics},
+25(1), p.~24~; ouvrage non relu. Minimum des p de Student entre colonnes de degrés de liberté
+différents, restriction aux colonnes de quatre facteurs au moins et p-value de Monte-Carlo~:
+construction de l'outil, colonne par colonne, sur le modèle de Mack.}
 \Cadre
-Résidus de Mack, considérés comme un échantillon unique. Hypothèse non testée et
-déterminante~: normalité des résidus sous $H_0$, laquelle n'est \emph{pas} une
-hypothèse du modèle de Mack (voir M5).
+Dans chaque colonne $j$, régression pondérée sans constante $C(i,j+1) = f_j\,C(i,j) +
+\varepsilon_{ij}$, de poids $1/C(i,j)$, dont l'estimateur est le facteur chain-ladder
+(fiche~\ref{mw:m1a}). Pour chaque cellule $(i,j)$, $t(i,j)$ est le \emph{résidu studentisé
+externe} de cette régression~: la cellule est retirée de l'estimation de $f_j$ et de
+$\sigma_j$. Il est calculé comme $\mathrm{DFBETAS}(i,j)\sqrt{(1 - h_{ij})/h_{ij}}$, le rapport
+$(1 - h_{ij})/h_{ij}$ étant la somme des autres cellules de la colonne divisée par $C(i,j)$
+(\code{.mw\_sommes\_autres()}), à partir des DFBETAS de \code{mw\_influence()}, inchangée, qui
+alimente aussi le graphique d'influence (fiche~\ref{mw:influence})~; il est égal au résidu de
+\code{stats::rstudent()} sur cette régression (mesuré sur le triangle de contrôle, colonnes
+$j = 0$ à~3~: écart relatif au plus $2{,}2\cdot 10^{-13}$~; oracle des tests unitaires).
+\emph{Cellules retenues}~: celles des colonnes de $n_j \ge 4$ facteurs
+(\code{MW\_NJ\_MIN\_CELLULE}), hors colonnes dégénérées selon l'ensemble figé
+(fiche~\ref{mw:m1a})~; leur nombre $N_t$ est fixé par la configuration observée, 22 sur le
+triangle de contrôle. Les colonnes de $n_j \le 2$ facteurs n'ont aucun degré de liberté~; les
+3~cellules de la colonne de $n_j = 3$ facteurs, à un degré de liberté (loi de Cauchy), ne sont
+\textbf{pas couvertes} (rubrique~7). Hypothèse non testée et déterminante pour la loi de
+référence analytique seulement (rubrique~4)~: erreurs gaussiennes, que le modèle de Mack n'exige
+pas (M5)~; la p-value retenue n'en dépend pas.
+
+\emph{Cellule à influence non bornée} (issue~\#300, option~(iii) retenue par le mainteneur,
+décision Q-D1-Fi-8 du 19~octobre 2026, précisée le 21~octobre 2026). Quand les autres cellules
+d'une colonne retenue sont proportionnelles, la cellule restante a une influence non bornée
+(\code{dfbetas\_non\_borne} de \code{mw\_influence()}) et son $t(i,j)$ n'est pas défini. À
+l'observé, la statistique n'est alors pas définie~: la ligne n'a ni p-value de Monte-Carlo, ni
+borne de Bonferroni, ni p-value exacte, et reste un \textbf{test sans p-value retenue} (type
+\code{test}, \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, sens
+conservé, champ \code{inoperant} à \code{FALSE}~; \code{CONTEXT.md}, «~Test sans p-value
+retenue~», second cas), et non un diagnostic~: aucune p-value n'existe sur ces données. Le
+commentaire commence par «~\code{Monte-Carlo indisponible~: statistique observee non definie~:
+residu studentise non borne en cellule (i,j) (autres cellules de la colonne proportionnelles)~;
+aucune p-value disponible sur ces donnees~: aucun verdict (ADR 0001).}~», le motif étant posé
+par le champ \code{non\_definie} de l'entrée \code{MinP4} de \code{MW\_CATALOGUE\_MC}
+(\code{.mw\_motif\_cellule\_non\_bornee()}). Dans une réplication, la même configuration donne
+$p_{ij} = 0$ (limite de $|t| \to \infty$) et la réplication reste dans $B$ effectif~; une colonne
+retenue dont le $t$ n'est pas défini pour une autre cause (colonne devenue dégénérée) rend la
+statistique \code{NA}, et la réplication sort de $B$ effectif. Mesuré (\code{mw\_bootstrap()},
+$B = 99$, puis \code{mw\_tests()}) sur le triangle de six années des tests unitaires dont les
+facteurs de la colonne $j = 0$ valent $1{,}5$ sauf pour l'année $i = 2$~: cellule $(2,0)$ nommée,
+type \code{test}, verdict \code{INFO}, aucune p-value, $B$ effectif de \code{MinP4} égal à $99$.
+Cas réaliste dans les colonnes tardives, quand plusieurs facteurs individuels valent exactement~1.
 \Hzero
-$H_0$ : aucun résidu aberrant --- toutes les cellules proviennent du même modèle.
-L'alternative est la présence d'exactement une cellule aberrante.
+$H_0$~: aucun résidu de Mack aberrant --- toutes les cellules proviennent du même modèle~;
+$H_1$~: exactement un résidu aberrant (modèle de décalage de moyenne d'une cellule, dont la
+statistique de test est le résidu studentisé externe, Cook et Weisberg, 1982, p.~21).
 \Stat
-$G = \max_{i,j}\big|r(i,j) - \bar r\big| / s_r$.
+$p_{ij} = 2\,F_{t(n_j - 2)}\big(-|t(i,j)|\big)$ pour chaque cellule retenue, et
+\[
+  M = \min_{(i,j)} p_{ij},
+\]
+rejet pour $M$ petit (\code{mw\_test\_cellule\_aberrante()}, même fonction pour la ligne et pour
+l'entrée \code{MinP4} du catalogue). Les opérations sont, dans le même ordre, celles du candidat
+MinP4 de la mesure de l'issue~\#309 (\code{tests/puissance\_mw\_t8.R})~; le contrôle prévu par la
+mesure après l'issue~\#300 (mode \code{--controle-i2prime}) trouve la statistique et la p-value
+de Monte-Carlo de la ligne identiques à celles du candidat, au sens d'\code{identical()}, sur le
+triangle de contrôle et sur les 420 triangles qu'il contrôle~: les niveaux et puissances mesurés
+pour ce candidat (rubrique~7) sont ceux de la ligne. L'estimation restituée est le $t(i,j)$ de la cellule du
+minimum, que le commentaire nomme (année d'accident, développement, $n_j$)~; aucun nombre issu du
+bootstrap n'y figure. Le minimum des p-values plutôt que le maximum des $|t(i,j)|$~: les degrés
+de liberté vont de 2 à 5 selon la colonne, et une même valeur de $|t|$ n'a pas le même sens
+d'une colonne à l'autre (le maximum brut, mesuré comme candidat par l'issue~\#309, désigne la
+cellule visée dans $0{,}551$ des triangles à cellule déplacée de six écarts-types de bruit, mais
+ne rejette que dans $0{,}037$ d'entre eux au seuil $0{,}10$). Les colonnes de trois facteurs
+sont écartées au vu de la même mesure~: la variante qui les couvre (25 cellules) rejette moins
+souvent que celle-ci contre une cellule aberrante (test de McNemar exact apparié, p-values au plus
+$2{,}1\cdot 10^{-5}$ sur les quatre comparaisons à $\lambda = 4$ et~6 et aux seuils $0{,}10$ et
+$0{,}05$) et ne remplit pas la condition fixée avant la mesure face à Grubbs (critère K-300,
+section~\ref{sec:calib-mc-mw}). Sur le triangle de contrôle ($B = 999$, graine 20260831)~:
+$M = 0{,}1033$, minimum en cellule (année d'accident~0, développement~2), $n_j = 5$,
+$t = -2{,}318$, $N_t = 22$.
 \Loi
-Borne de Bonferroni fondée sur la loi de Student, conservatrice~; elle suppose la
-normalité et l'indépendance, toutes deux approximatives ici. Loi de référence~:
-bootstrap de résidus.
+\emph{Sous le modèle auxiliaire de Mack à erreurs gaussiennes seulement}, conditionnellement aux
+cumuls $C(\cdot,j)$ de la colonne, $t(i,j)$ suit la loi de Student à $n_j - 2$ degrés de liberté~:
+c'est la loi $t(n - p' - 1)$ du résidu studentisé externe (Cook et Weisberg, 1982, p.~20), avec
+$n = n_j$ observations et $p' = 1$ coefficient, la pondération n'y changeant rien (annexe~A.1,
+p.~209). Le conditionnement par les cumuls de la colonne est une étape de l'outil, cohérente avec
+le caractère conditionnel du modèle de Mack, que le livre, qui traite les régresseurs comme
+fixes, n'énonce pas. Sous ce modèle, $\min(1, N_t M)$ majore la p-value de $M$ (inégalité de
+Bonferroni~; la borne publiée porte sur le maximum des $|t_i|$ d'une régression, p.~22 et~26~; son
+application à toutes les cellules du triangle est de l'outil). Ce n'est ni une loi exacte sous le
+modèle réglementaire, qui ne fixe que deux moments, ni une loi asymptotique~: une borne sous un
+modèle auxiliaire. Loi de référence retenue~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue~; la borne de Bonferroni est fournie comme
-majorant non simulé. \textbf{Ce majorant est extrêmement conservateur} sur des
-résidus de Mack~: aucun rejet, aux seuils $0{,}10$ et $0{,}05$, sur les 2\,000 triangles
-$8\times 8$ simulés sous $H_0$ sous chacune des lois d'erreurs N et E, ni sur les 1\,000 sous A
-(section~\ref{sec:calib-asympt-mw}). Il ne doit donc jamais servir de critère de
-décision.
+p-value de Monte-Carlo retenue (clé \code{MinP4}, rejet en queue basse), par le bootstrap
+existant, sans tirage supplémentaire~; la borne de Bonferroni est restituée en p non simulée
+(colonne \code{p\_asymptotique}, libellé «~\code{borne de Bonferroni min(1, N\_t M)}~»), jamais
+retenue (issue~\#181). Aucune p-value exacte n'existe, $M$ n'ayant pas de loi exacte sous le
+modèle de Mack~; la borne de Bonferroni ne vaut que sous le modèle auxiliaire gaussien, et, sous
+le plan du triangle de contrôle (issue~\#309, tableau T6), elle rejette sous $H_0$ dans $0{,}1065$
+et $0{,}0595$ des cas aux seuils $0{,}10$ et $0{,}05$ sous erreurs gaussiennes (compatible), mais
+dans $0{,}1405$ et $0{,}090$ sous la loi E et $0{,}256$ et $0{,}147$ sous la loi A (distorsion
+matérielle du côté libéral)~: elle n'est pas utilisable comme p-value. Si la p-value de Monte-Carlo
+manque alors que la statistique observée est définie (réplications finies en nombre insuffisant),
+la borne existe et la ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii),
+issue~\#181)~; si la statistique observée n'est pas définie parce qu'une cellule a une influence
+non bornée, la borne ne l'est pas davantage et la ligne reste un test sans p-value retenue
+(rubrique~1). Sur le triangle de contrôle~: p-value de Monte-Carlo $0{,}898$, erreur de
+Monte-Carlo $0{,}0096$, borne de Bonferroni $1$, verdict \code{OK}. Le libellé \code{reference} de
+la ligne range la borne de Bonferroni dans la «~\code{construction de l'outil}~»~: la borne
+elle-même est publiée pour le maximum des $|t_i|$ d'une régression (Cook et Weisberg, 1982, p.~22
+et~26)~; sont propres à l'outil le minimum des p de Student entre colonnes, la restriction aux
+colonnes de quatre facteurs au moins et la p-value de Monte-Carlo.
+
+\emph{Historique~: la statistique de Grubbs} (jusqu'à l'issue~\#300, décision Q-D2-Fi-2 du
+mainteneur du 21~octobre 2026). La ligne calculait $G = \max_{i,j}\big|r(i,j) - \bar r\big|/s_r$
+(F.\,E. Grubbs, 1950, 1969, \emph{op.\ cit.}, fiche~\ref{fiche:grubbs}) sur les 27 résidus de
+Mack, considérés comme un échantillon unique, la normalité étant une hypothèse non testée et
+déterminante de sa borne de Bonferroni~; clé \code{Grubbs} du catalogue, remplacée à la même
+position par \code{MinP4}, \code{test\_grubbs()} restant inchangée pour la méthode lognormale. Sur
+le triangle de contrôle, $G = 1{,}5932$, p-value de Monte-Carlo $0{,}892$, borne de Bonferroni
+$1$, \code{OK} (tableau avant / après \code{docs/tableaux/}\allowbreak
+\code{20261021-}\allowbreak\code{issue300-reserve2.md}~; verdict et $\sigma_{\mathrm{USP}}$ inchangés). Deux défauts
+de construction~: chaque $|r(i,j)|$ est borné par $\sqrt{n_j - 1}$, conséquence de l'identité
+$\sum_i r(i,j)^2 = n_j - 1$ (fiche~\ref{mw:m2var}), de sorte qu'une cellule très aberrante
+gonfle aussi $s_r$ et se masque~; et la borne de Bonferroni de $G$, \textbf{extrêmement
+conservatrice}, ne rejetait jamais (aucun rejet, aux seuils $0{,}10$ et $0{,}05$, sur les 5\,000
+triangles simulés sous $H_0$, section~\ref{sec:calib-asympt-mw}). Sous le plan du triangle de
+contrôle (issue~\#309, tableau T2), contre une cellule multipliée par~4, $G$ rejetait dans
+$0{,}632$ des cas au seuil $0{,}10$ mais dans $0{,}038$ au seuil $0{,}05$~: presque jamais
+\code{ECHEC}~; et son niveau était en écart non tranché du côté libéral sous la loi A ($0{,}159$
+au seuil $0{,}10$, section~\ref{sec:calib-mc-mw}).
 \Usage
-Le moteur indique les coordonnées $(i,j)$ de la cellule la plus extrême, ce qui
-rend le résultat directement actionnable~: il s'agit typiquement d'un sinistre
-exceptionnel ou d'une erreur de saisie sur une année de développement donnée.
-\textbf{Aucune exclusion de cellule ne doit être opérée sur ce seul fondement}~:
-la justification doit être métier.
+Le moteur nomme la cellule du minimum, ce qui rend le résultat directement actionnable~: il
+s'agit typiquement d'un sinistre exceptionnel ou d'une erreur de saisie sur une année de
+développement donnée (sous le plan du triangle de contrôle, contre une cellule déplacée de six
+écarts-types de bruit, la cellule visée est celle du minimum dans $0{,}864$ des triangles, et
+dans $0{,}925$ des triangles où la ligne rejette, rubrique~7). \textbf{Aucune exclusion de
+cellule ne doit être opérée sur ce seul fondement}~: la justification doit être métier. Les
+3~cellules de la colonne de trois facteurs ne sont pas examinées~: une valeur aberrante n'y est
+pas vue par cette ligne. Un rejet n'est pas spécifique d'une cellule isolée~: une année de
+survenance atypique ou un effet calendaire fait aussi rejeter la ligne (rubrique~7)~; à lire avec
+M3. Le graphique d'influence (fiche~\ref{mw:influence}) donne, pour chaque cellule, les DFBETAS
+dont $t(i,j)$ est tiré.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbs}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $M$, continue~: toute p-value est atteignable (\code{p\_min} à \code{NA}, statistique hors des treize statistiques discrètes). La p-value retenue est de Monte-Carlo (clé \code{MinP4}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}099$ (N), $0{,}075$ (E), $0{,}159$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0445$, $0{,}035$, $0{,}088$ ($\rho = 0{,}049$)~; compatible sous N~; écart mineur du côté conservateur sous E aux deux seuils~; écart non tranché du côté libéral sous A aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$~; test sans p-value retenue (\code{INFO}) quand une cellule retenue a une influence non bornée (rubrique~1). \emph{Puissance} (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; plan du triangle de contrôle, loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$ avec le sien)~: contre une cellule déplacée de $\lambda$ écarts-types de bruit, $0{,}183$ $[0{,}160~;~0{,}208]$ et $0{,}084$ $[0{,}068~;~0{,}103]$ à $\lambda = 4$, $0{,}426$ $[0{,}395~;~0{,}457]$ et $0{,}225$ $[0{,}199~;~0{,}252]$ à $\lambda = 6$ (1\,000 triangles chacun)~; contre une cellule multipliée par~4, $1{,}000$ $[0{,}993~;~1]$ aux deux seuils (500 triangles)~; contre une année de survenance atypique, $0{,}836$ $[0{,}801~;~0{,}867]$ et $0{,}642$ (500 triangles). Une cellule aberrante modérée, de quatre écarts-types de bruit, reste peu détectable à $T = 8$. \emph{Niveau} de la p-value de Monte-Carlo, mesuré sur les triangles et sous les graines de la mesure de l'issue~\#206 (même mesure, tableau T1)~: à $0{,}10$, $0{,}071$ $[0{,}060~;~0{,}083]$ (N), $0{,}0785$ $[0{,}067~;~0{,}091]$ (E), $0{,}118$ $[0{,}099~;~0{,}140]$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}029$ $[0{,}022~;~0{,}037]$, $0{,}0395$ $[0{,}031~;~0{,}049]$, $0{,}047$ $[0{,}035~;~0{,}062]$ ($\rho = 0{,}049$)~; écart mineur du côté conservateur sous N aux deux seuils et sous E à $0{,}10$, compatible ailleurs~; sous $H_0$ de P1 (1\,000 triangles), $0{,}054$ $[0{,}041~;~0{,}070]$ et $0{,}018$ $[0{,}011~;~0{,}028]$.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\emph{Trois limites, acceptées par le mainteneur} (décision Q-D2-Fi-2 du 21~octobre 2026)~:
+(i)~\emph{niveau conservateur sous erreurs gaussiennes}~: sur les 3\,000 triangles gaussiens des deux mesures sous $H_0$, $0{,}065$ $[0{,}057~;~0{,}075]$ au seuil $0{,}10$ et $0{,}025$ $[0{,}020~;~0{,}032]$ au seuil $0{,}05$ (Grubbs~: $0{,}094$ et $0{,}041$)~: la ligne rejette sous $H_0$ moins souvent que son seuil, alors que la borne de Bonferroni y est presque exacte ($0{,}1065$, rubrique~5)~; l'explication avancée, une queue basse de $M$ plus lourde sous le bootstrap que sous la loi gaussienne, reste une hypothèse~; (ii)~\emph{perte face à Grubbs contre une cellule de quatre écarts-types au seuil $0{,}10$}~: $0{,}183$ contre $0{,}211$ (test de McNemar exact apparié~: 46 triangles rejetés par la seule ligne actuelle contre 74 par Grubbs seul, $p = 0{,}013$), case que le critère de choix ne lisait pas~; lus sur les verdicts du moteur (\code{ECHEC} si $p < 0{,}05$, \code{ALERTE} entre $0{,}05$ et $0{,}10$), les rejets de Grubbs étaient surtout des \code{ALERTE} et ceux de la ligne actuelle des \code{ECHEC}~: contre une cellule multipliée par~4, Grubbs donnait $0{,}038$ d'\code{ECHEC} et $0{,}594$ d'\code{ALERTE}, la ligne actuelle $1{,}000$ d'\code{ECHEC}~; (iii)~\emph{couverture}~: 22 cellules sur 25, les 3~cellules de la colonne de trois facteurs n'étant pas couvertes, et la puissance contre une cellule aberrante de cette colonne n'est pas mesurée, aucun scénario ne l'y plaçant~; même couvertes, une p de Student à un degré de liberté inférieure à $0{,}10/25$ exigerait $|t| > 159$ (calcul exact sur la loi de Cauchy, \code{qt(1 - 0.002, 1)}), de sorte que seul un écart grossier y serait vu (raisonnement, non mesure).
+
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives, parts de désignation~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$. Seuil $|t| > 159$~: calcul exact sur la loi de Student à un degré de liberté.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
-\begin{fiche}{M4 --- Cellules aberrantes multiples (ESD généralisé de Rosner)}
+\begin{fiche}{M4 --- Cellules aberrantes multiples (ESD généralisé de Rosner, diagnostic)}
 \label{mw:m4ros}
-\refl{B.~Rosner (1983), \emph{op.\ cit.}}
+\refl{B.~Rosner (1983), \emph{op.\ cit.} (fiche~\ref{fiche:rosner-esd})~; pages lues sur le texte
+intégral (issue~\#347).}
 \Cadre
-Généralisation itérative de Grubbs, appliquée aux résidus de Mack, avec
-$k = \lfloor n/4 \rfloor$ candidats au plus. Hypothèse non testée~: normalité.
+Procédure ESD généralisée de Rosner appliquée aux résidus de Mack (\code{test\_rosner()}, la même
+fonction que pour la méthode lognormale, inchangée), avec au plus $k = \max(1, \lfloor n/4 \rfloor)$
+cellules candidates, $n$ étant le nombre de résidus~: un triangle $8\times8$ fournit $27$ résidus
+de Mack --- et non 28~: la colonne $j = J-1$ ne comporte qu'un seul facteur individuel et n'entre
+pas dans les résidus (fiche~\ref{mw:m2var}) ---, d'où $k = 6$. \textbf{Diagnostic, non test}
+(décision Q-D1-Fi-7 du mainteneur du 19~octobre 2026, contre la recommandation de retrait, et visa
+du 21~octobre 2026 pour le passage de \code{OK} à \code{INFO} sur le triangle de contrôle)~: le
+cadre de Rosner (1983), un échantillon i.i.d. normal (p.~165), ne couvre pas des résidus soumis à
+des contraintes exactes par colonne ($\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ et $\sum_i r(i,j)^2 = n_j
+- 1$), et l'article ne traite pas de résidus (issue~\#347). La rubrique est renseignée par
+cohérence de présentation.
 \Hzero
-$H_0$ : aucune cellule aberrante. On teste séquentiellement les alternatives
-« il y a exactement $i$ cellules aberrantes », $i = 1,\dots,k$.
+Sans objet pour la ligne, qui ne porte pas de verdict. La procédure oppose, dans son cadre,
+l'absence de valeur aberrante à l'existence de $l$ valeurs aberrantes, $l = 1, \ldots, k$~; le
+moteur restitue ces énoncés dans les champs d'hypothèse nulle et d'alternative de la ligne («~\code{aucun residu
+aberrant}~», «~\code{il existe i <= k residus aberrants}~») à titre descriptif.
 \Stat
-$R_i = \max\big|r - \bar r_{\mathcal{S}_i}\big| / s_{\mathcal{S}_i}$ sur
-l'échantillon privé des $i-1$ cellules déjà écartées.
+Pour $i = 1, \ldots, k$, $R_i = \max\big|r - \bar r_{\mathcal{S}_i}\big| / s_{\mathcal{S}_i}$ sur
+l'échantillon $\mathcal{S}_i$ privé des $i-1$ résidus de plus grand écart déjà retirés~: les $k$
+statistiques sont toutes calculées, puis la procédure déclare $\hat k = \max\{i : R_i >
+\lambda_i\}$ cellules (0 si aucun $R_i$ ne dépasse sa valeur critique~; Rosner, 1983,
+éq.~(1.2), p.~165, et~(1.3), p.~166, exemple p.~171). Les valeurs critiques $\lambda_i$ sont
+celles de l'éq.~(2.5) de l'article (p.~166), approximation de Student--Bonferroni, calculées en
+forme close par \code{test\_rosner()} au niveau $\alpha$ de l'exécution~; la table~3 de l'article
+est elle-même calculée par cette équation (p.~167). L'estimation restituée est $\hat k$
+(«~\code{nb de cellules declarees (repere de Rosner)}~»), et, si $\hat k > 0$, le commentaire
+donne les rangs des résidus déclarés dans la liste des résidus de Mack, par ordre de retrait.
+Sur le triangle de contrôle, $\hat k = 0$ à $\alpha = 0{,}10$.
 \Loi
-Valeurs critiques $\lambda_i$ tabulées, fondées sur la loi de Student.
+Sans objet. Les valeurs critiques de l'éq.~(2.5) et le domaine que l'article déclare ($n \ge 25$,
+p.~165, 167 et~171) valent pour un échantillon i.i.d. normal~; aucune loi de $R_i$ n'est établie
+pour des résidus de Mack.
 \Pval
-\textbf{Aucune}~: il s'agit d'une procédure de décision à niveau $\alpha$ fixé,
-non d'un test produisant une p-value.
+Aucune. La procédure décide au niveau $\alpha$ par comparaison aux valeurs critiques, sans
+p-value~; sur des résidus de Mack, \textbf{aucune des trois voies de la hiérarchie n'est
+ouverte}~: ni p-value exacte, faute de loi de $R_i$ sous le modèle de Mack~; ni p-value
+asymptotique~; ni p-value de Monte-Carlo, la procédure n'ayant pas de statistique unique et des
+seuils calibrés par simulation constituant une méthode nouvelle, sans source, que l'issue~\#300
+n'a pas retenue. Le commentaire est la phrase fixe \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}~:
+«~\code{Diagnostic sans verdict (ADR 0001)~: procedure ESD generalisee de Rosner (1983) appliquee
+aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation de Student-Bonferroni) et son
+domaine declare (n >= 25) valent pour un echantillon i.i.d. normal~; les residus de Mack, soumis a
+des contraintes exactes par colonne, n'en sont pas un, et le cadre de Rosner (1983) ne les couvre
+pas. La procedure n'est donc pas un test de la ligne~: le nombre de cellules declarees se lit
+comme un repere, sans p-value.}~», suivie de «~\code{Valeurs critiques calculees a alpha =
+0.10}~» (au seuil de l'exécution) et, si $\hat k > 0$, des rangs~; aucun nombre issu du
+bootstrap.
 \Usage
-Résout le problème de masquage de Grubbs lorsque plusieurs cellules sont
-atypiques. La littérature recommande $n \ge 25$ pour la fiabilité des valeurs
-critiques~; un triangle $8\times8$ fournit $27$ résidus de Mack --- et non 28~:
-la colonne $j = J-1$ ne comporte qu'un seul facteur individuel et n'entre pas
-dans les résidus (fiche~\ref{mw:m2var}) ---, ce qui place la procédure à la
-limite de son domaine. À traiter comme un signal d'attention.
-Ligne de type diagnostic depuis l'issue~\#300, sans rubrique~7. Puissance non étudiée à $T = 8$. Sous le plan du triangle de contrôle (issue~\#206, section~\ref{sec:calib-mc-mw}), la procédure au niveau $\alpha = 0{,}10$ ne déclare aucune cellule aberrante dans les 2\,000 triangles à erreurs gaussiennes (intervalle de Clopper--Pearson à 95~\% $[0~;~0{,}0018]$), seule loi du plan sous laquelle sa normalité est vraie~: une absence de cellule déclarée n'y établit pas l'absence de cellule aberrante. \emph{Statut}~: taux sous $H_0$, constat de simulation sous un plan, intervalle de Clopper--Pearson fonction du nombre de triangles simulés.
+Diagnostic sans verdict (ADR~0001)~: la ligne est restituée \code{INFO}, et $\hat k$ se lit comme
+un repère, non comme une décision. Ligne de type diagnostic depuis l'issue~\#300, sans rubrique~7
+(elle était auparavant une procédure de décision, \code{OK} sur le triangle de contrôle).
+\textbf{Aucune exclusion de cellule ne doit être opérée sur ce fondement.} La procédure ne
+déclare pratiquement jamais rien sur des résidus de Mack~: sous le plan du triangle de contrôle
+(issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak
+\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, intervalles de Clopper--Pearson à 95~\%), la
+fréquence d'au moins une cellule déclarée au niveau $\alpha = 0{,}10$ vaut $0/1\,000$
+$[0~;~0{,}004]$ sous $H_0$, $1/1\,000$ et $2/1\,000$ $[0{,}0002~;~0{,}007]$ contre une cellule
+déplacée de quatre et de six écarts-types de bruit, $0/500$ $[0~;~0{,}007]$ contre une cellule
+multipliée par~4, $0{,}024$ contre un choc calendaire et $0{,}060$ $[0{,}041~;~0{,}085]$ contre une
+année de survenance atypique. La mesure de l'issue~\#206 donnait de même 0 déclaration sur les
+2\,000 triangles à erreurs gaussiennes (intervalle $[0~;~0{,}0018]$), seule loi du plan sous
+laquelle la normalité des erreurs est vraie (section~\ref{sec:calib-mc-mw}). Une absence de
+cellule déclarée n'établit donc pas l'absence de cellule aberrante~; la ligne de la cellule
+aberrante (fiche~\ref{mw:m4gr}) est le test de M4. \emph{Statut}~: constats de simulation sous un
+plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés.
+
+\emph{Écarts corrigés au texte de Rosner (1983)} (issue~\#347~; fichier
+\code{docs/}\allowbreak\code{references/}\allowbreak\code{verifications-fi.md}). Les versions antérieures de cette
+fiche disaient les valeurs critiques «~tabulées~» (elles sont calculées par l'éq.~(2.5)),
+décrivaient un test «~séquentiel~» des alternatives (toutes les $R_i$ sont calculées, puis
+$\hat k$ est le plus grand $i$ dont $R_i$ dépasse $\lambda_i$), attribuaient à la procédure la
+résolution du «~masquage~» de Grubbs (l'avantage revendiqué par Rosner est le contrôle du niveau
+sous l'hypothèse de $l$ valeurs aberrantes, p.~171 et résumé, p.~165~; le masquage n'apparaît que
+dans l'exemple de la p.~171), lisaient les 27 résidus comme plaçant la procédure «~à la limite de
+son domaine~» $n \ge 25$ (domaine déclaré pour un échantillon i.i.d. normal, que les résidus de
+Mack ne sont pas) et écrivaient $k = \lfloor n/4 \rfloor$ (le code prend $\max(1, \lfloor n/4
+\rfloor)$).
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -16273,6 +16487,10 @@ exacte (fiche~\ref{mw:m2var}) \\
 Statistique de la ligne d'hétéroscédasticité (issue~\#301) contre $n$ fois le $R^2$ partiel de
 deux régressions \code{lm()} à effets fixes de colonne (triangle de contrôle) & écart relatif
 $4{,}9\times10^{-15}$ & vérification numérique d'une même définition (fiche~\ref{mw:m2bp}) \\
+Résidu studentisé externe $t(i,j)$ de la cellule aberrante (issue~\#300) contre
+\code{stats::rstudent()} de la régression pondérée de chaque colonne (triangle de contrôle,
+colonnes $j = 0$ à~3) & écart relatif au plus $2{,}2\times10^{-13}$ & vérification numérique
+d'une même définition (fiche~\ref{mw:m4gr}) \\
 \end{tabular}
 \end{center}
 
@@ -16385,7 +16603,7 @@ Test des suites & \textbf{0,135} & \textbf{0,135} & \textbf{0,1285} & \textbf{0,
 $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une colonne négativement
 corrélés, d'où une alternance des signes plus fréquente que sous
 l'échangeabilité supposée par l'approximation normale \\
-Grubbs (borne de Bonferroni) & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
+Grubbs (borne de Bonferroni), statistique antérieure à l'issue~\#300 & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
 \textbf{0} & \textbf{Extrêmement conservatrice.} La borne est un majorant, et les résidus étant
 déjà standardisés par colonne, l'écart au maximum est faible \\
 Shapiro--Wilk (loi nulle simulée i.i.d. normale~; p exacte lors de la mesure) & 0,221 & 0,109 & 0,5945 & 0,4195 & 0,517 &
@@ -16417,6 +16635,16 @@ $0{,}0675$, $0{,}0745$ et $0{,}071$ au seuil $0{,}05$~: écart mineur du côté 
 lois, alors que celle de l'ancienne statistique ne rejetait jamais~; constat de simulation sous ce
 plan. Elle n'est pas retenue (p non simulée, issue~\#181).
 
+\emph{Ligne de la cellule aberrante (issue~\#300).} La statistique de Grubbs du tableau a été
+remplacée par le minimum des p de Student des résidus studentisés externes (fiche~\ref{mw:m4gr}).
+Sa p non simulée est la borne de Bonferroni $\min(1, N_t M)$, borne sous le modèle auxiliaire
+gaussien (famille~(iii)). Mesurée sur les mêmes triangles (issue~\#309, tableau T6), elle rejette
+sous $H_0$ dans $0{,}1065$ (N), $0{,}1405$ (E) et $0{,}256$ (A) des cas au seuil $0{,}10$, et dans
+$0{,}0595$, $0{,}090$ et $0{,}147$ au seuil $0{,}05$~: compatible sous erreurs gaussiennes, où le
+modèle auxiliaire est vrai, écart mineur sous E à $0{,}10$ et distorsion matérielle du côté libéral
+sous E à $0{,}05$ et sous A aux deux seuils, alors que celle de Grubbs ne rejetait jamais~; constat
+de simulation sous ce plan. Elle n'est pas retenue (issue~\#181).
+
 \emph{Effets d'année calendaire en queue basse (issue~\#276).} La ligne du tableau porte sur la
 p asymptotique bilatérale $2\big(1 - \Phi(|Z^\star|)\big)$, restituée jusqu'à cette issue~; la ligne
 restitue depuis $\Phi(Z^\star)$, qui teste la même alternative que sa p-value de Monte-Carlo
@@ -16446,7 +16674,8 @@ p-value de Monte-Carlo ne traduisent pas une erreur de calcul mais la
 \emph{non-validité} des lois de référence classiques sur des résidus de triangle,
 qui ne sont ni indépendants ni échangeables. Trois tests s'en écartent fortement
 et dans des sens opposés~: le test des suites sur-rejette, Grubbs et
-Breusch--Pagan (statistique antérieure à l'issue~\#301) sous-rejettent massivement. Dans les trois cas, c'est la p-value
+Breusch--Pagan (statistiques antérieures aux issues~\#300 et~\#301) sous-rejettent massivement~;
+la borne de Bonferroni qui remplace celle de Grubbs sur-rejette, elle, sous les lois E et A. Dans les trois cas, c'est la p-value
 de Monte-Carlo qui est retenue par le moteur, et elle seule doit être utilisée en
 dossier. La p-value non simulée n'est conservée que pour documenter l'écart. La p-value de
 Monte-Carlo n'est pas pour autant exempte de distorsion~: sous le plan du triangle de
@@ -16572,7 +16801,7 @@ est donné pour N, E et A quand il diffère au millième selon la loi.
 \code{CorrDev} (\ref{mw:m3cor}) & $0{,}098$ & $0{,}0965$ $[0{,}084~;~0{,}110]$ c & $0{,}0995$ $[0{,}087~;~0{,}113]$ c & $0{,}088$ $[0{,}071~;~0{,}107]$ c \\
 \code{DW} (\ref{mw:m3dw}) & $0{,}098$ & $0{,}0855$ $[0{,}074~;~0{,}099]$ c & $0{,}101$ $[0{,}088~;~0{,}115]$ c & $0{,}087$ $[0{,}070~;~0{,}106]$ c \\
 \code{Runs} (\ref{mw:m3runs}) & $0{,}051$~;\newline $0{,}053$~;\newline $0{,}053$ & $0{,}058$ $[0{,}048~;~0{,}069]$ c & $0{,}0525$ $[0{,}043~;~0{,}063]$ c & $0{,}051$ $[0{,}038~;~0{,}067]$ c \\
-\code{Grubbs} (\ref{mw:m4gr}) & $0{,}099$ & $0{,}099$ $[0{,}086~;~0{,}113]$ c & $0{,}075$ $[0{,}064~;~0{,}087]$ m & $0{,}159$ $[0{,}137~;~0{,}183]$ nt \\
+\code{Grubbs} (\ref{mw:m4gr}), avant \#300 & $0{,}099$ & $0{,}099$ $[0{,}086~;~0{,}113]$ c & $0{,}075$ $[0{,}064~;~0{,}087]$ m & $0{,}159$ $[0{,}137~;~0{,}183]$ nt \\
 \end{tabular}
 
 \smallskip
@@ -16602,7 +16831,7 @@ Seuil $\alpha = 0{,}10$.
 \code{CorrDev} (\ref{mw:m3cor}) & $0{,}048$ & $0{,}0515$ $[0{,}042~;~0{,}062]$ c & $0{,}052$ $[0{,}043~;~0{,}063]$ c & $0{,}044$ $[0{,}032~;~0{,}059]$ c \\
 \code{DW} (\ref{mw:m3dw}) & $0{,}048$ & $0{,}0455$ $[0{,}037~;~0{,}056]$ c & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}032$ $[0{,}022~;~0{,}045]$ m \\
 \code{Runs} (\ref{mw:m3runs}) & $0{,}030$~;\newline $0{,}031$~;\newline $0{,}032$ & $0{,}0275$ $[0{,}021~;~0{,}036]$ c & $0{,}0225$ $[0{,}016~;~0{,}030]$ m & $0{,}032$ $[0{,}022~;~0{,}045]$ c \\
-\code{Grubbs} (\ref{mw:m4gr}) & $0{,}049$ & $0{,}0445$ $[0{,}036~;~0{,}054]$ c & $0{,}035$ $[0{,}027~;~0{,}044]$ m & $0{,}088$ $[0{,}071~;~0{,}107]$ nt \\
+\code{Grubbs} (\ref{mw:m4gr}), avant \#300 & $0{,}049$ & $0{,}0445$ $[0{,}036~;~0{,}054]$ c & $0{,}035$ $[0{,}027~;~0{,}044]$ m & $0{,}088$ $[0{,}071~;~0{,}107]$ nt \\
 \end{tabular}
 
 \smallskip
@@ -16625,11 +16854,13 @@ distinguent.
   absence de signal. Constat documenté, moteur alors inchangé (décision du mainteneur du 11~octobre
   2026)~; issue~\#243 traitée par la documentation seule (décision D1-4 du 13~octobre 2026)~;
   la statistique a été remplacée par l'issue~\#301 (ci-dessous et fiche~\ref{mw:m2bp}).
-  \item \emph{Grubbs} (\code{Grubbs}, fiche~\ref{mw:m4gr})~: compatible sous N, écart mineur du
+  \item \emph{Grubbs} (\code{Grubbs}, fiche~\ref{mw:m4gr}, statistique antérieure à
+  l'issue~\#300)~: compatible sous N, écart mineur du
   côté conservateur sous E, écart non tranché du côté libéral sous A ($0{,}159$
   $[0{,}137~;~0{,}183]$ à $0{,}10$, $0{,}088$ $[0{,}071~;~0{,}107]$ à $0{,}05$)~: classes non
   compatibles de part et d'autre de $\rho$ selon la loi des erreurs, à la même statistique et au
-  même seuil, indication descriptive d'un niveau sensible à cette loi. Constat documenté seul.
+  même seuil, indication descriptive d'un niveau sensible à cette loi. Constat documenté seul~;
+  la statistique a été remplacée par l'issue~\#300 (ci-dessous et fiche~\ref{mw:m4gr}).
   \item \emph{Tendance avec le cumulé} (\code{PenteIntra}, fiche~\ref{mw:m1})~: légèrement
   libérale, écart mineur à $0{,}10$ sous les trois lois ($0{,}114$ à $0{,}130$), écart non tranché
   sous A à $0{,}05$ ($0{,}073$). Constat documenté seul.
@@ -16643,7 +16874,7 @@ l'origine ($0{,}085$), compatible partout~; homogénéité de $f_j$ ($0{,}080$),
 (ci-dessus), dont la statistique de remplacement (issue~\#301) a une p-value de $0{,}285$ sur ce
 triangle, loin du seuil. Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu par une p-value dont le niveau au seuil $0{,}10$ ne présente, sous ce plan, aucune distorsion détectée~; cette mesure du niveau ne dit rien de l'erreur de Monte-Carlo de la p-value du triangle lui-même (\code{err\_mc}, fonction de $B$), qui reste à lire ligne par ligne.
 
-\emph{Niveau des statistiques de remplacement (issues~\#301 et~\#309).} La clé \code{BP} calcule depuis
+\emph{Niveau des statistiques de remplacement (issues~\#301, \#300 et~\#309).} La clé \code{BP} calcule depuis
 l'issue~\#301 le $nR^2$ partiel à effets fixes de colonne de la fiche~\ref{mw:m2bp}. Son niveau a été
 mesuré par l'issue~\#309 (ci-dessous) sur les triangles, sous les graines et contre les échantillons
 oracle de la présente mesure, les p-values de Monte-Carlo de l'ancienne statistique y étant
@@ -16652,7 +16883,15 @@ $[0{,}084~;~0{,}111]$ (E), $0{,}086$ $[0{,}069~;~0{,}105]$ (A)~; au seuil $0{,}0
 $[0{,}033~;~0{,}051]$, $0{,}053$ $[0{,}044~;~0{,}064]$, $0{,}046$ $[0{,}034~;~0{,}061]$~; compatible sous
 les trois lois et aux deux seuils ($\rho = 0{,}099$ et $0{,}049$). La distorsion conservatrice de
 l'ancienne statistique disparaît donc sous ce plan~; la puissance de la nouvelle reste nulle ou
-presque contre l'exposant de variance (fiche~\ref{mw:m2bp}, rubrique~7).
+presque contre l'exposant de variance (fiche~\ref{mw:m2bp}, rubrique~7). La clé \code{Grubbs} a été
+remplacée, à la même position, par la clé \code{MinP4} (issue~\#300, minimum des p de Student
+des résidus studentisés externes, rejet en queue basse, fiche~\ref{mw:m4gr}), mesurée de même~:
+au seuil $0{,}10$, $0{,}071$ $[0{,}060~;~0{,}083]$ (N), $0{,}0785$ $[0{,}067~;~0{,}091]$ (E),
+$0{,}118$ $[0{,}099~;~0{,}140]$ (A)~; au seuil $0{,}05$, $0{,}029$ $[0{,}022~;~0{,}037]$, $0{,}0395$
+$[0{,}031~;~0{,}049]$, $0{,}047$ $[0{,}035~;~0{,}062]$~; écart mineur du côté conservateur sous N aux
+deux seuils et sous E à $0{,}10$, compatible ailleurs. L'écart non tranché du côté libéral de
+Grubbs sous la loi A disparaît, au prix d'un niveau conservateur sous erreurs gaussiennes
+(fiche~\ref{mw:m4gr}, rubrique~7, première limite).
 
 \emph{Effet du redressement du vivier} (issue~\#46~; tableaux T1~bis et T2). Sur les 1\,000
 premiers triangles sous N et sous E, mêmes graines, les décisions des deux viviers sont comparées
@@ -16687,8 +16926,8 @@ triangles, $\alpha(1-\alpha)(1/n + 1/N_0)$, et le signal n'est alors plus signif
 de Holm d'environ $0{,}060$, approximation normale). La règle du témoin a été corrigée en
 conséquence pour les statistiques à atomes~; la référence $\rho$ n'en est pas affectée.
 
-\emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé~; mesure antérieure à
-l'issue~\#301, qui a changé l'une des treize statistiques, non reprise depuis). Part des triangles
+\emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé~; mesure antérieure aux
+issues~\#301 et~\#300, qui ont changé deux des treize statistiques, non reprise depuis). Part des triangles
 simulés sous le modèle qui reçoivent au moins une \code{ALERTE} ou un \code{ECHEC} sur les
 verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0{,}655$ (A)~; au moins un
 \code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes alors à verdict, procédure ESD
@@ -16699,7 +16938,8 @@ construction (section~\ref{sec:calib-asympt-mw}). Sous ce plan, un triangle conf
 Mack reçoit donc, dans près de deux cas sur trois, au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo~: le nombre de verdicts
 \code{ALERTE} ou \code{ECHEC} d'un triangle se lit avec cette multiplicité. Le repère
 $1 - 0{,}9^{13} = 0{,}746$ suppose treize décisions indépendantes au niveau $0{,}10$~: c'est un ordre
-de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}) détecte au
+de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}), procédure de
+décision lors de la mesure et diagnostic sans verdict depuis l'issue~\#300, déclare au
 moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{,}0025$) sous E et 23 sur 1\,000 ($0{,}023$) sous A, au niveau $\alpha = 0{,}10$.
 
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
@@ -17144,7 +17384,25 @@ soutient dans le présent document.
   \emph{Portée.} Ouvrage non relu~: le DFBETAS et le repère $2/\sqrt{n}$, dit ajusté à la
   taille, lui sont attribués par des sources secondaires (documentation SAS/STAT~; manuel de
   Stata), d'après lesquelles la fiche~\ref{mw:influence} retient ce repère
-  de lecture, sans verdict (issue~\#89).
+  de lecture, sans verdict (issue~\#89). Le nom RSTUDENT du résidu studentisé externe, que cite
+  la fiche~\ref{mw:m4gr}, lui est attribué (chapitre~2) par A.\,C. Atkinson, \emph{Diagnostic
+  regression analysis and shifted power transformations}, \emph{Technometrics}, 25(1), 1983,
+  p.~23--33, à la p.~24~; la définition et la loi de ce résidu sont appuyées sur Cook et Weisberg
+  (1982, ci-dessous), lu.
+
+  \item R.\,D. Cook, S.~Weisberg, \emph{Residuals and Influence in Regression}, Chapman and Hall,
+  New York et Londres, 1982, x + 230~p.~; texte en libre accès à l'University Digital Conservancy
+  de l'université du Minnesota (notice hdl 11299/37076).
+  \emph{Portée.} Référence de la fiche~\ref{mw:m4gr}~: définition du résidu studentisé externe
+  $t_i$, calculé sans le cas $i$, et sa loi de Student à $n - p' - 1$ degrés de liberté sous
+  normalité (§~2.2.1, p.~20, éq.~(2.2.9))~; identité de $t_i$ avec la statistique du test du
+  modèle de décalage de moyenne d'un cas (§~2.2.2, p.~20--21, éq.~(2.2.15))~; borne de Bonferroni
+  de la p-value du maximum des $|t_i|$ quand le cas suspect n'est pas désigné a priori (p.~22
+  et~26)~; égalité des résidus studentisés en moindres carrés pondérés (annexe~A.1, p.~209). Le
+  livre traite les régresseurs comme fixes et une seule régression~: le conditionnement par les
+  cumuls de la colonne, le minimum des p-values entre colonnes de degrés de liberté différents et
+  la p-value de Monte-Carlo sont de l'outil. Il ne dit rien du comportement de ces quantités sur
+  des résidus de Mack à $T = 8$, mesuré par simulation (section~\ref{sec:calib-mc-mw}).
 
   \item K.\,A. Bollen, R.\,W. Jackman, \emph{Regression diagnostics: an expository treatment of
   outliers and influential cases}, in J.~Fox, J.\,S. Long (dir.), \emph{Modern Methods of Data
@@ -17590,7 +17848,7 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \midrule
 \code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
 exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte, ou, pour la
-procédure ESD de Rosner (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), aucune valeur
+procédure ESD de Rosner de la méthode lognormale (fiche~\ref{fiche:rosner-esd}), aucune valeur
 aberrante détectée au niveau $\alpha$. Pour le TOST et le test de Pitman sur la pente (et, avant
 l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
 \code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$ (constante
@@ -17621,7 +17879,11 @@ la décision M27 du mainteneur (issue~\#76). La condition du premier ordre et la
 convergence multi-démarrages ne sont plus des lignes de la table (issue~\#22)~: ce sont des
 contrôles \code{OK} / \code{ECHEC} de \code{res\$controles} (fiches~\ref{fiche:foc}
 et~\ref{fiche:multi-demarrages}).
-Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO}.
+Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO} (ainsi la ligne de la
+cellule aberrante de la méthode Merz--Wüthrich quand une cellule retenue a une influence non
+bornée, fiche~\ref{mw:m4gr}).
+La procédure ESD de Rosner appliquée aux résidus de Mack est, depuis l'issue~\#300, un
+diagnostic par décision du mainteneur, restitué \code{INFO} (fiche~\ref{mw:m4ros}).
 Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
 atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
 fiche~\ref{fiche:cox-stuart}~; corrélation entre années adjacentes de la
@@ -17646,7 +17908,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \end{tabular}
 \end{center}
 
-\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant l'issue~\#301, qui a changé l'une des treize statistiques)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#301 et~\#300, qui ont changé deux des treize statistiques)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
@@ -18003,9 +18265,12 @@ des tables de tests~: hiérarchie des p-values et verdicts des deux méthodes \\
 bootstrap restreint du rapport de vraisemblance sur $\delta$, la loi nulle de Shapiro--Wilk, les
 permutations aléatoires de la pente et, depuis l'issue~\#240, le flux complémentaire de la
 p-value conditionnelle au régime de $\hat\delta$ \\
-\code{test\_grubbs()} & LN + MW & Grubbs sur $z_t$, sur ratios bruts, et sur
-résidus de Mack \\
-\code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes \\
+\code{test\_grubbs()} & LN & Grubbs sur $z_t$ et sur ratios bruts (sur les résidus de Mack
+jusqu'à l'issue~\#300) \\
+\code{mw\_influence()} & MW & Graphique d'influence (fiche~\ref{mw:influence}) et, depuis
+l'issue~\#300, ligne de la cellule aberrante (fiche~\ref{mw:m4gr}) \\
+\code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes (diagnostic dans la
+méthode Merz--Wüthrich depuis l'issue~\#300) \\
 \code{test\_runs()} & LN + MW & Test des suites, dans les deux méthodes \\
 \code{runs\_p\_exacte()} & LN & p-value exacte des suites sur $z_t$ et, par
 \code{usp\_runsr\_p\_exacte()}, sur ratios bruts \\
@@ -18376,7 +18641,7 @@ fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux
 \node[ded, below=5mm of cal] (cor) {\code{mw\_stat\_}\\ \code{correlation\_dev()},
    \code{mw\_test\_}\\ \code{homogeneite\_accident()}};
 \node[mut, below=5mm of cor] (dw) {\code{stat\_dw()}, \code{test\_runs()}};
-\node[mut, below=5mm of dw] (gr) {\code{test\_grubbs()}, \code{test\_rosner()}};
+\node[mut, below=5mm of dw] (gr) {\code{mw\_test\_cellule\_}\\ \code{aberrante()}, \code{test\_rosner()}};
 \node[mut, below=5mm of gr] (sw) {\code{.shapiro\_sur()}, \code{sw\_p\_loi\_nulle()},\\
    \code{stat\_lilliefors()}, \code{lillie\_p()}};
 
@@ -18424,10 +18689,13 @@ fournissent des lois de référence~; \code{.shapiro\_sur()} alimente \emph{deux
 \end{tikzpicture}
 \caption{Méthode Merz--Wüthrich. \code{mw\_ajuster()} et \code{mw\_residus()}
 sont les deux points de passage obligés~: la première alimente à la fois la MSEP
-et les résidus, la seconde l'intégralité des tests M1 à M5. Quatre blocs de
+et les résidus, la seconde les tests M1 à M5 fondés sur les résidus. Quatre blocs de
 tests reposent sur des fonctions déjà employées par la méthode lognormale
 (en orangé), ce qui mutualise la revue de code mais étend la portée d'une
-anomalie éventuelle.}
+anomalie éventuelle~; dans le bloc M4, seule \code{test\_rosner()} est commune aux deux méthodes,
+\code{mw\_test\_cellule\_aberrante()}, propre à la ligne de la cellule aberrante depuis
+l'issue~\#300, partageant avec le graphique d'influence \code{mw\_influence()}, dont elle tire
+les résidus studentisés externes sans passer par \code{mw\_residus()}.}
 \label{fig:annexe-mw}
 \end{figure}
 \end{landscape}
@@ -18470,8 +18738,7 @@ une anomalie du noyau n'atteint pas la statistique observée de ces six lignes, 
 atteint leur loi de référence, simulée sous le modèle ajusté. La p-value exacte des
 suites dépend en outre du régime de $\hat\pi_t$ et du test de concordance des
 signes. \\
-Fonction commune aux deux méthodes & \code{test\_grubbs()},
-\code{test\_rosner()}, \code{test\_runs()}, \code{stat\_dw()},
+Fonction commune aux deux méthodes & \code{test\_rosner()}, \code{test\_runs()}, \code{stat\_dw()},
 \code{.shapiro\_sur()}, \code{stat\_lilliefors()}, \code{usp\_credibilite()},
 \code{engine\_p\_mc()}, \code{engine\_registre\_}\newline\code{tests()} &
 Portée maximale~: une anomalie affecterait les deux dispositifs, donc les deux
@@ -18499,7 +18766,11 @@ p-value, mais peut changer le type d'une ligne (test ou test inopérant)~; \code
 aussi la statistique observée. Depuis l'issue~\#275, \code{mw\_calendrier\_}\allowbreak\code{diagonales()}
 lit les étiquettes de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()}, sans les
 recalculer~: une anomalie de l'étiquetage atteindrait à la fois le test des effets d'année
-calendaire et le diagnostic par diagonale.
+calendaire et le diagnostic par diagonale. Depuis l'issue~\#300, la ligne de la cellule aberrante
+tire ses résidus studentisés externes des DFBETAS de \code{mw\_influence()}~: une anomalie de
+cette fonction atteindrait à la fois le graphique d'influence et cette ligne~; et
+\code{.mw\_sommes\_autres()} sert au vivier du bootstrap, à \code{mw\_influence()}, à la ligne
+d'hétéroscédasticité (issue~\#301) et à la cellule aberrante.
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
