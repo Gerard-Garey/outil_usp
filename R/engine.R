@@ -6325,10 +6325,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # simulation C7 de #174, docs/tableaux/20261018-issue174-esd.md). type =
   # "diagnostic" pose ici, add() inchangee : verdict INFO, sens, p_retenue et
   # nature_p NA. k chapeau reste en estim, les rangs dans le detail ;
-  # test_rosner() est inchangee, et la ligne Merz-Wuthrich (mw_tests())
-  # reste une procedure de decision. Aucun motif non applicable n'existe
-  # pour cette ligne (test_rosner() rend k chapeau = max(c(0, which(R >
-  # lambda))), entier de 0 a k).
+  # test_rosner() est inchangee ; la ligne Merz-Wuthrich (mw_tests()) est
+  # de meme un diagnostic par decision depuis #300. Aucun motif non
+  # applicable n'existe pour cette ligne (test_rosner() rend k chapeau =
+  # max(c(0, which(R > lambda))), entier de 0 a k).
   ro <- test_rosner(z, alpha = alpha)
   add(fam, "Valeurs aberrantes multiples (ESD generalise)", "Rosner (1983), Technometrics 25",
       fonction = "test_rosner",
