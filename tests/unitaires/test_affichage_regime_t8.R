@@ -163,8 +163,8 @@ LT2 <- c(E$STAT_LIGNE[["AD"]], E$LIGNE_TOST, E$STAT_LIGNE[["BP"]])
 D1 <- E$en_table(list(rep_ligne(1, "bord0", "OEO"), rep_ligne(2, "bord1", "AEO"), rep_ligne(3, "interieur", "OEA")))
 T2 <- E$tableau_t2(list(J1 = E$matrices(D1)), LT2)
 lig_crit <- grep("^\\| J1 \\| population du crit", T2, value = TRUE)
-verifier("D-c STAT_LIGNE : une ligne distincte par statistique du catalogue (34)",
-         setequal(names(E$STAT_LIGNE), E$STATS) && !anyDuplicated(E$STAT_LIGNE) && length(E$STAT_LIGNE) == 34L)
+verifier("D-c STAT_LIGNE : une ligne distincte par statistique du catalogue (31 depuis #303 et #302)",
+         setequal(names(E$STAT_LIGNE), E$STATS) && !anyDuplicated(E$STAT_LIGNE) && length(E$STAT_LIGNE) == 31L)
 verifier("D-b agregat de T2 de J1 sur la population du critere (bords) : n = 2, et non 3",
          length(lig_crit) == 1L && grepl("\\| 2 \\|", lig_crit) && !any(grepl("^\\| J1 \\| tous \\|", T2)))
 verifier("D-c agregat sur les lignes Monte-Carlo : 1/2 replication avec >= 1 A ou E, aucune en E (sature a 1 avec TOST)",

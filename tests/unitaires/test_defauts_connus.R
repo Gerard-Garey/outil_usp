@@ -407,17 +407,64 @@ verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' so
            else all(c("Sensibilite au retrait d'une annee (jackknife)",
                       "Largeur relative de l'IC bootstrap 90%") %in% tab_ln$test)
          })
-verifier("ESD lognormal (procedure de decision) : verdict OK / ALERTE / ECHEC, sens 'ne pas rejeter'",
+# Issue #304 (Q-D1-Fh-6, option (a)) : la procedure ESD lognormale est un
+# diagnostic par decision, pour tout T (verdict INFO, sens, p_retenue et
+# nature_p NA ; k chapeau de test_rosner() en estim, rangs dans le detail,
+# phrase fixe du diagnostic). Trois jeux : bootstrap fictif (k chapeau = 0),
+# run_engine() complet (B = 99), et jeu contamine (y_3 et y_6 x 2,5 ; delta
+# chapeau = 0, k chapeau = 2, rangs 3 et 6, mesure du 20/10/2026). La ligne
+# Merz-Wuthrich reste une procedure de decision (test_merz_wuthrich.R).
+NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
+detail_esd_attendu <- function(alpha, positions)
+  paste0(sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value", alpha),
+         if (length(positions)) paste0(" ; rangs ", paste(positions, collapse = ", ")) else "",
+         ". Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+         " valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
+         " a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
+         " releve de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi.")
+y_esd <- y; y_esd[c(3, 6)] <- y_esd[c(3, 6)] * 2.5
+fit_esd <- usp_ajuster(x, y_esd)
+s_esd <- .stats_bootstrapables(fit_esd$x, fit_esd$y, fit_esd$z, fit_esd$pi)
+boot_esd <- list(stats_obs = as.list(s_esd),
+                 p_mc = stats::setNames(rep(0.5, length(s_esd)), names(s_esd)),
+                 err_mc = stats::setNames(rep(0.01, length(s_esd)), names(s_esd)))
+verifier("ESD lognormal (#304) : diagnostic par decision, INFO, sens / p_retenue / nature_p NA, estim = k chapeau, phrase fixe (k chapeau = 0 et 2)",
          {
-           ok <- TRUE
-           for (tb in list(tab_fictif, tab_ln)) {
-             e <- tb[tb$type == "procedure de decision", ]
-             ok <- ok && nrow(e) == 1L &&
-               identical(e$test, "Valeurs aberrantes multiples (ESD generalise)") &&
-               e$verdict %in% c("OK", "ALERTE", "ECHEC") &&
-               identical(e$sens_du_test, "ne pas rejeter")
+           jeux <- list(
+             fictif = list(L = usp_tests(fit, boot_fictif(), methode = "premium"), z = fit$z),
+             run_engine = list(L = res_ln_ii1$tests,
+                               z = usp_ajuster(res_ln_ii1$donnees$xt, res_ln_ii1$donnees$yt)$z),
+             contamine = list(L = usp_tests(fit_esd, boot_esd, methode = "premium"), z = fit_esd$z))
+           pb <- character(0)
+           for (nj in names(jeux)) {
+             L <- jeux[[nj]]$L
+             e <- Filter(function(l) identical(l$test, NOM_ESD), L)
+             if (length(e) != 1L) { pb <- c(pb, paste(nj, ": ligne ESD absente ou dupliquee")); next }
+             e <- e[[1]]; ro <- test_rosner(jeux[[nj]]$z, alpha = 0.10)
+             if (!(identical(e$type, "diagnostic") && identical(e$verdict, "INFO") &&
+                   is.na(e$sens) && is.na(e$p_retenue) && is.na(e$nature_p) &&
+                   identical(e$inoperant, FALSE) && identical(e$fonction, "test_rosner") &&
+                   identical(e$estim_nom, "nb de valeurs aberrantes") &&
+                   identical(as.numeric(e$estim), as.numeric(ro$nb_outliers)) &&
+                   identical(e$detail, detail_esd_attendu(0.10, ro$positions))))
+               pb <- c(pb, sprintf("%s : type %s, verdict %s, estim %s, detail '%s'", nj, e$type,
+                                   e$verdict, format(e$estim), e$detail))
+             if (any(vapply(L, function(l) identical(l$type, "procedure de decision"), logical(1))))
+               pb <- c(pb, paste(nj, ": procedure de decision encore produite par usp_tests()"))
            }
-           ok
+           k_c <- test_rosner(fit_esd$z, alpha = 0.10)
+           if (!(identical(k_c$nb_outliers, 2L) || identical(k_c$nb_outliers, 2)) ||
+               !identical(sort(k_c$positions), c(3L, 6L)))
+             pb <- c(pb, "jeu contamine : k chapeau different de 2 ou rangs differents de 3, 6 (jeu a revoir)")
+           if (length(pb)) paste(pb, collapse = " ; ") else TRUE
+         })
+verifier("ESD lognormal (#304) : diagnostic par decision a toute valeur d'alpha (0.05), phrase avec alpha = 0.05",
+         {
+           L <- usp_tests(fit_esd, boot_esd, alpha = 0.05, methode = "premium")
+           e <- Filter(function(l) identical(l$test, NOM_ESD), L)[[1]]
+           ro <- test_rosner(fit_esd$z, alpha = 0.05)
+           identical(e$type, "diagnostic") && identical(e$verdict, "INFO") &&
+             identical(e$detail, detail_esd_attendu(0.05, ro$positions))
          })
 verifier("usp_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
          {
@@ -520,13 +567,24 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
-verifier("add() (usp_tests) refuse une procedure de decision sans verdict (ESD)",
+# Depuis #304, usp_tests() ne produit plus de procedure de decision (l'ESD
+# lognormale est un diagnostic par decision) : la garde de add() est
+# exercee par un appel direct au registre lognormal (et, dans
+# test_merz_wuthrich.R, par mw_tests(), dont l'ESD reste une procedure de
+# decision) ; un verdict force sur la ligne ESD diagnostic est refuse.
+verifier("add() (registre lognormal) refuse une procedure de decision sans verdict ; usp_tests refuse un verdict force sur l'ESD diagnostic (#304)",
          {
-           f <- usp_tests_modifie("verdict = if (ro$nb_outliers >= 2)",
-                                  "verdict = if (TRUE) NULL else if (ro$nb_outliers >= 2)")
-           m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m, fixed = TRUE) &&
-             grepl("Valeurs aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+           reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
+           m1 <- message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
+                                        "Rosner (1983), Technometrics 25", fonction = "test_rosner",
+                                        type = "procedure de decision"))
+           f <- usp_tests_modifie('type = "diagnostic", H0 = "aucune valeur aberrante"',
+                                  'type = "diagnostic", verdict = "OK", H0 = "aucune valeur aberrante"')
+           m2 <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
+           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m1, fixed = TRUE) &&
+             grepl(NOM_ESD, m1, fixed = TRUE) &&
+             grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m2, fixed = TRUE) &&
+             grepl(NOM_ESD, m2, fixed = TRUE)
          })
 
 # Provenance des lignes (#111, regles A1, A2, A4) : add() exige fonction,
@@ -686,15 +744,39 @@ verifier("run_engine : jackknife entierement NA -> table produite, une ligne jac
              !any(is.infinite(tb$estimation)) &&
              !"ecart_jackknife" %in% names(r$ajustement)
          })
+# Chemin reel de #329 (Q-D1-Fh-2, commentaire 6261951079 de #327, specification
+# de Fh par. 3.4) : le test precedent substitue usp_jackknife(). Ici rien n'est
+# substitue : jeu construit (non realiste, ratios egaux a 6e-6 pres) dont
+# l'echantillon complet est accepte (gamma = -11,9925, interieur a 0,0075 de la
+# borne -12, KKT satisfaite) alors que les huit reajustements tombent sur la
+# borne sans KKT et sont tous refuses par usp_valider_ajustement(). Marges de
+# 0,0075 en gamma des deux cotes ; stabilite entre plateformes non mesuree.
+verifier("run_engine, chemin reel de #329 : huit reajustements refuses, echantillon complet accepte -> ligne jackknife diagnostic sans estimation, detail fixe",
+         {
+           y_329 <- 0.7 * x * exp(exp(-11.9925) * rep(c(1, -1), 4))
+           r <- run_engine(xt = x, yt = y_329, methode = "premium", segment = 1,
+                           annexe = "II", B = 99, nature_donnees = "brutes")
+           tb <- engine_table_tests(r)
+           lj <- tb[tb$test == NOM_JK, , drop = FALSE]
+           txt <- paste0("Aucune annee evaluable (reajustements sans maximum de ",
+                         "vraisemblance etabli, ou en echec) : ecart relatif max ",
+                         "non calcule, influence non mesuree.")
+           isTRUE(r$ok) && nrow(lj) == 1L &&
+             identical(lj$type, "diagnostic") && identical(lj$verdict, "INFO") &&
+             is.na(lj$estimation) && identical(lj$commentaire, txt) &&
+             nrow(r$jackknife) == 8L && all(is.na(r$jackknife$sigma_usp)) &&
+             !"ecart_jackknife" %in% names(r$ajustement)
+         })
 
 ## --- Issue #224 : reajustements du jackknife refuses ------------------------
 # Un reajustement refuse par usp_valider_ajustement() (meme regle que
 # l'echantillon complet, #188 et #227) est laisse a NA, comme un reajustement
 # en echec ; l'annee est ecartee du maximum et declaree non evaluable dans le
 # detail (phrase de Q-D1-Fc-3, docs/specifications/fc-validation-ajustement.md
-# section 3.2). Criteres (a) a (e) de la section 3.3. Le numero de l'annee la
-# plus influente n'est pas teste sur le jeu de l'issue (ex aequo a la
-# precision de l'optimiseur, section 3.4, I-Fc-1).
+# section 3.2). Criteres (a) a (e) de la section 3.3. Sur le jeu de l'issue,
+# les sept ecarts evaluables sont egaux a la precision de l'optimiseur (3e-10) :
+# depuis #327, le detail cite toutes les annees d'influence egale a la precision
+# numerique pres, au lieu d'en designer une au gre du bruit.
 txt_ne_1 <- function(a) sprintf(paste0(
   "Annee %d non evaluable (reajustement sans maximum de vraisemblance etabli, ",
   "ou en echec) : ecartee du maximum, influence non mesuree."), a)
@@ -714,13 +796,92 @@ verifier("#224 (a) : jeu de l'issue, annee 5 entierement NA, 'Annee 5 non evalua
            isTRUE(res_224$ok) && length(dj) == 1L &&
              all(is.na(unlist(J[5, c("sigma", "sigma_usp", "delta", "gamma")]))) &&
              all(is.finite(J$sigma_usp[-5])) &&
-             startsWith(dj, "Annee la plus influente : ") &&
-             endsWith(dj, paste0(". ", txt_ne_1(5L))) &&
-             !grepl("Annee la plus influente : 5 ", dj, fixed = TRUE) &&
+             identical(dj, paste0("Annees les plus influentes, d'influence egale a la precision numerique pres : 1, 2, 3, 4, 6, 7 et 8 (sigma_USP en hausse). ",
+                                  txt_ne_1(5L))) &&
+             !grepl("Annee la plus influente", dj, fixed = TRUE) &&
+             !grepl("ex aequo", dj, fixed = TRUE) &&
              isTRUE(abs(estim_ligne(tb, NOM_JK) - 0.02063) < 1e-4)
          })
 verifier("#224 (e) : sigma_USP inchange sur le jeu de l'issue (0,06205954)",
          isTRUE(abs(res_224$parametre_final$sigma_usp - 0.06205954) < 1e-8))
+## --- Issue #327 : annees d'influence egale a la precision numerique pres ------
+# run_engine() cite toutes les annees evaluables dont l'ecart relatif D_t est a
+# moins de tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)) du maximum (specification de
+# Fh, par. 3.2-3.3). usp_jackknife() est redefini le temps de l'appel pour fixer
+# les D_t (la table du jackknife est la seule entree de ce calcul) ; sigma_USP
+# complet est celui de res_ln_ii1, qui ne depend pas du jackknife.
+jk_imposer <- function(ecarts) {          # ecarts relatifs signes, un par annee (NA permis)
+  s0 <- res_ln_ii1$parametre_final$sigma_usp
+  e <- environment(run_engine); orig <- get("usp_jackknife", envir = e)
+  assign("usp_jackknife", function(fit, sigma_standard, bareme) {
+    o <- orig(fit, sigma_standard, bareme)
+    o$sigma_usp <- s0 * (1 + ecarts)
+    o
+  }, envir = e)
+  tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
+                      annexe = "II", B = 99, nature_donnees = "brutes"),
+           finally = assign("usp_jackknife", orig, envir = e))
+}
+tau_327 <- function(d1, d2) 2 * REP_SIGMA_KKT * (2 + d1 + d2)
+PL_327 <- "Annees les plus influentes, d'influence egale a la precision numerique pres : "
+verifier("#327 (d) : deux annees a ecarts distincts de 1e-3 -> une seule designee, phrase de l'annee la plus influente inchangee",
+         {
+           e <- rep(0.01, 8); e[1] <- -0.050; e[2] <- 0.049     # D = 0,050 et 0,049
+           dj <- detail_jk(jk_imposer(e))
+           identical(dj, "Annee la plus influente : 1 (sigma_USP en baisse).")
+         })
+verifier("#327 : seuil tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)) -> deux annees a tau/2 du maximum citees, a 2 tau designee seule",
+         {
+           e1 <- rep(0.01, 8); e1[1] <- -0.050
+           ecart <- function(g) { e <- e1; e[2] <- -(0.050 - g); e }
+           tau <- tau_327(0.050, 0.050)
+           d_pl <- detail_jk(jk_imposer(ecart(tau / 2)))
+           d_un <- detail_jk(jk_imposer(ecart(2 * tau)))
+           identical(d_pl, paste0(PL_327, "1 et 2 (sigma_USP en baisse).")) &&
+             identical(d_un, "Annee la plus influente : 1 (sigma_USP en baisse).")
+         })
+verifier("#327 : signes mixtes -> '(sigma_USP en hausse ou en baisse selon l'annee)' ; signe commun positif -> 'en hausse'",
+         {
+           e <- rep(0.01, 8); e[1] <- -0.050; e[3] <- 0.050
+           dm <- detail_jk(jk_imposer(e))
+           e[1] <- 0.050
+           dh <- detail_jk(jk_imposer(e))
+           identical(dm, paste0(PL_327, "1 et 3 (sigma_USP en hausse ou en baisse selon l'annee).")) &&
+             identical(dh, paste0(PL_327, "1 et 3 (sigma_USP en hausse)."))
+         })
+verifier("#327 : signe commun nul -> '(sigma_USP inchange)' ; ecarts signes {0, -a}, a <= tau -> phrase neutre sur le sens de la variation",
+         {
+           ne6 <- txt_ne_n("3, 4, 5, 6, 7 et 8")
+           e0 <- c(0, 0, rep(NA_real_, 6))
+           a <- tau_327(0, 0) / 2                    # a <= tau(D(1) = a, D(2) = 0)
+           e1 <- c(0, -a, rep(NA_real_, 6))
+           identical(detail_jk(jk_imposer(e0)), paste(paste0(PL_327, "1 et 2 (sigma_USP inchange)."), ne6)) &&
+             identical(detail_jk(jk_imposer(e1)),
+                       paste(paste0(PL_327, "1 et 2 (sens de la variation de sigma_USP selon l'annee)."), ne6))
+         })
+verifier("#327 : une seule annee evaluable -> designation directe, sans tolerance ; huit annees egales -> les huit citees",
+         {
+           e <- rep(NA_real_, 8); e[4] <- 0.02
+           d1 <- detail_jk(jk_imposer(e))
+           d8 <- detail_jk(jk_imposer(rep(-0.03, 8)))
+           startsWith(d1, "Annee la plus influente : 4 (sigma_USP en hausse). ") &&
+             grepl("Annees 1, 2, 3, 5, 6, 7 et 8 non evaluables", d1, fixed = TRUE) &&
+             identical(d8, paste0(PL_327, "1, 2, 3, 4, 5, 6, 7 et 8 (sigma_USP en baisse)."))
+         })
+verifier("#327 : usp_tests() direct, jack_annees absent -> phrase de l'annee la plus influente (compatibilite) ; seuls des entiers dans la phrase plurielle",
+         {
+           f <- fit; f$ecart_jackknife <- 0.1; f$largeur_ic <- 0.4
+           dj <- function(rb) {
+             tb <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium", robustesse = rb))
+             tb$commentaire[tb$test == NOM_JK]
+           }
+           d_pl <- dj(list(jack_annee = 3L, jack_usp = -0.1, jack_annees = c(3L, 5L),
+                           jack_usp_annees = c(-0.1, -0.1)))
+           identical(dj(list(jack_annee = 3L, jack_usp = -0.1)),
+                     "Annee la plus influente : 3 (sigma_USP en baisse).") &&
+             identical(d_pl, paste0(PL_327, "3 et 5 (sigma_USP en baisse).")) &&
+             !grepl("[.,][0-9]", d_pl)
+         })
 verifier("#224 (b) : signature et colonnes d'usp_jackknife() inchangees (C-Fc-3)",
          identical(names(formals(usp_jackknife)), c("fit", "sigma_standard", "bareme")) &&
            identical(names(res_224$jackknife),

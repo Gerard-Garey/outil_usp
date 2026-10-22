@@ -406,22 +406,29 @@ verifier("U125-6 premium_interieur : p_min_mc = 0,149 ; 0,058 ; 0,062 ; 0,007 ; 
              all(vapply(c("MK", "SpearTps", "SpearVol"),
                         function(k) isTRUE(proche(b$p_min_mc[[k]], 2 / 1000, rel = 1e-12)), logical(1)))
          })
-verifier("U125-6 premium_interieur : Cox-Stuart inoperant (prefixe Monte-Carlo) ; suites z et r 'ECHEC inatteignable' Monte-Carlo ; Smirnov, MK, Spearman sans texte de R1",
+# Depuis #299, Smirnov et Spearman ratio / temps sont des diagnostics par
+# decision : la branche Monte-Carlo de R1 (ligne de type test) ne s'y
+# applique plus, leur champ p_min_mc vaut NA ; bootstrap$p_min_mc garde
+# leurs planchers (U125-6 ci-dessus).
+verifier("U125-6 premium_interieur : Cox-Stuart inoperant (prefixe Monte-Carlo) ; suites z et r 'ECHEC inatteignable' Monte-Carlo ; Smirnov, MK, Spearman sans texte de R1 (Smirnov, Spearman-temps : diagnostics, #299)",
          {
            tt <- res_pi$tests
            cs <- ligne125(tt, "Tendance par signes du ratio S/P")
            rz <- ligne125(tt, "Test des suites (aleatoire des signes)")
            rr <- ligne125(tt, "Test des suites sur ratios bruts")
-           autres <- lapply(c("Egalite des lois petits vs gros volumes (2 ech.)", "Tendance monotone du ratio S/P",
-                              "Correlation ratio S/P vs temps", "Independance ratio S/P vs volume"),
+           autres <- lapply(c("Tendance monotone du ratio S/P", "Independance ratio S/P vs volume"),
                             function(k) ligne125(tt, k))
+           diag299 <- lapply(c("Egalite des lois petits vs gros volumes (2 ech.)",
+                               "Correlation ratio S/P vs temps"), function(k) ligne125(tt, k))
            sans_r1 <- function(l) !grepl("TEST INOPERANT|ECHEC inatteignable|ECHEC possible|p_min", l$detail)
            isTRUE(cs$inoperant) && identical(cs$type, "diagnostic") &&
              startsWith(cs$detail, sprintf(PRE_MC, 0.1, " (m = 4 differences non nulles)")) &&
              all(vapply(list(rz, rr), function(l) identical(l$type, "test") &&
                           endsWith(l$detail, sprintf(SUF_MC, 0.05, " (n1 = 4, n2 = 4)")) &&
                           !grepl("ECHEC possible", l$detail, fixed = TRUE), logical(1))) &&
-             all(vapply(autres, function(l) identical(l$type, "test") && sans_r1(l), logical(1)))
+             all(vapply(autres, function(l) identical(l$type, "test") && sans_r1(l), logical(1))) &&
+             all(vapply(diag299, function(l) identical(l$type, "diagnostic") && isFALSE(l$inoperant) &&
+                          is.na(l$p_min_mc) && sans_r1(l), logical(1)))
          })
 
 ## --- U125-7 : reserve2 -------------------------------------------------------------

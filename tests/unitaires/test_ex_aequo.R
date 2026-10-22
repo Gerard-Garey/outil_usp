@@ -110,17 +110,25 @@ lig_ea <- function(nom, base = NULL) {
 }
 verifier("run_engine() sur la serie : delta = 1 (pi_t constant, p exactes attribuables)",
          isTRUE(res_ea$ok) && identical(res_ea$ajustement$delta, 1))
-verifier("Spearman x2 et Mann-Kendall : p exacte et p_min NA, motif ex aequo, Monte-Carlo retenue",
+# Depuis #299, Spearman ratio / temps et Smirnov sont des diagnostics par
+# decision : p exacte et p_min toujours NA, p Monte-Carlo calculee mais non
+# retenue ; le motif d'effectifs (suffixe qu'add() ne pose qu'aux lignes
+# de type test) est joint au detail par usp_tests() (detail_decision_299()).
+verifier("Spearman x2 et Mann-Kendall : p exacte et p_min NA, motif ex aequo, Monte-Carlo retenue (Spearman-temps : diagnostic par decision, #299, motif joint par usp_tests())",
          {
-           noms <- c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps",
-                     "Tendance monotone du ratio S/P")
+           noms <- c("Independance ratio S/P vs volume", "Tendance monotone du ratio S/P")
+           st <- lig_ea("Correlation ratio S/P vs temps")
            all(vapply(noms, function(n) {
              l <- lig_ea(n)
              is.na(l$p_exacte) && is.na(l$p_min) && is.finite(l$p_mc) &&
                identical(l$p_retenue, l$p_mc) &&
                grepl("ex aequo dans r : loi de permutation conditionnelle non tabulee",
                      l$detail, fixed = TRUE)
-           }, logical(1)))
+           }, logical(1))) &&
+             identical(st$type, "diagnostic") && is.na(st$p_exacte) && is.na(st$p_min) &&
+             is.finite(st$p_mc) && is.na(st$p_retenue) &&
+             grepl("ex aequo dans r : loi de permutation conditionnelle non tabulee", st$detail, fixed = TRUE) &&
+             grepl("issue #299", st$detail, fixed = TRUE)
          })
 verifier("Cox-Stuart : m = 3 sur n_p = 4 affiche, p_mc non calculee (motif ex aequo)",
          {
@@ -128,20 +136,26 @@ verifier("Cox-Stuart : m = 3 sur n_p = 4 affiche, p_mc non calculee (motif ex ae
            grepl("m = 3 differences non nulles sur n_p = 4 paires", l$detail, fixed = TRUE) &&
              is.na(l$p_mc) && identical(l$p_min, 0.25)
          })
-verifier("Smirnov (option (i)) : p exacte et p_min NA, motif ex aequo dans z, Monte-Carlo retenue",
+verifier("Smirnov (option (i)) : p exacte et p_min NA, Monte-Carlo calculee ; diagnostic par decision (#299), motif ex aequo joint par usp_tests()",
          {
            l <- lig_ea("Egalite des lois petits vs gros volumes (2 ech.)")
-           identical(l$type, "test") && is.na(l$p_exacte) && is.na(l$p_min) &&
-             is.finite(l$stat) && is.finite(l$p_mc) && identical(l$p_retenue, l$p_mc) &&
+           identical(l$type, "diagnostic") && is.na(l$p_exacte) && is.na(l$p_min) &&
+             is.finite(l$stat) && is.finite(l$p_mc) && is.na(l$p_retenue) &&
              grepl("ex aequo dans z : loi conditionnelle non attribuee", l$detail, fixed = TRUE) &&
+             grepl("issue #299", l$detail, fixed = TRUE) &&
              !grepl("minimale atteignable = 0.0286", l$detail, fixed = TRUE)
          })
-verifier("Suites (z et r) : la paire a la mediane ecartee, n1 = n2 = 3",
+# Depuis #303 (regle R15), la ligne Runsr a pi_t constant est un diagnostic :
+# la regle R1, qui imprimait les effectifs, ne s'y applique plus ; la p_min
+# (memes effectifs n1 = n2 = 3) reste dans son champ, egale a celle des
+# suites sur z.
+verifier("Suites (z et r) : la paire a la mediane ecartee, n1 = n2 = 3 (Runsr : diagnostic R15, meme p_min, #303)",
          {
            a <- lig_ea("Test des suites (aleatoire des signes)")
            b <- lig_ea("Test des suites sur ratios bruts")
            grepl("n1 = 3, n2 = 3", a$detail, fixed = TRUE) &&
-             grepl("n1 = 3, n2 = 3", b$detail, fixed = TRUE)
+             identical(b$type, "diagnostic") && is.finite(b$p_min) && identical(a$p_min, b$p_min) &&
+             grepl("regle R15", b$detail, fixed = TRUE)
          })
 verifier("Catalogue Monte-Carlo : memes statistiques observees que usp_tests() (SpearVol, SpearTps, MK, Smirnov, Runs, Runsr)",
          {

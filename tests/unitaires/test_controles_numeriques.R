@@ -915,8 +915,8 @@ verifier("Details des deux controles invariants a une perturbation de gamma de 1
 res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
                   nature_donnees = "brutes")
 tb <- engine_table_tests(res)
-verifier("run_engine : table des tests a 51 lignes (dont les trois de #45), sans les deux controles numeriques",
-         nrow(tb) == 51L && !any(tb$test %in% c(NOM_FOC, NOM_MULTI,
+verifier("run_engine : table des tests a 47 lignes (dont les trois de #45 ; LB1r retiree, #303 ; trois lignes retirees, #302), sans les deux controles numeriques",
+         nrow(tb) == 47L && !any(tb$test %in% c(NOM_FOC, NOM_MULTI,
                                                 "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)")))
 verifier("run_engine : famille G reduite au jackknife, a l'IC, a l'IC restreint et aux deux LR sur delta (#45)",
          identical(tb$test[substr(tb$famille, 1, 2) == "G."],

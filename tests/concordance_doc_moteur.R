@@ -95,8 +95,8 @@
 #          si elle ne sert plus) ; une declaration hors_jeux est verifiee
 #          positivement (issue #121) : la ligne doit etre de type test ou
 #          procedure sur un jeu lognormal synthetique de taille t_positif
-#          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 pour
-#          Anscombe-Glynn) ;
+#          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 a
+#          volumes constants pour Anscombe-Glynn) ;
 #       b) dans le .tex, chaque environnement fiche qui porte \Pertinence le
 #          porte une seule fois, apres \Usage ; l'ensemble des fiches (label
 #          nomme de la ligne qui suit \begin{fiche}{...}) qui la portent est
@@ -118,7 +118,7 @@
 #       donnees (regle R1, R4, regimes) : l'ensemble attendu n'est mesure
 #       que sur les jeux executes (T = 8) ; une fiche dont la ligne n'est de
 #       type test qu'a d'autres T (Cox-Stuart, au plus tot a T = 10 ;
-#       Anscombe-Glynn, T >= 20) est declaree hors_jeux avec son motif,
+#       Anscombe-Glynn, T >= 20 et pi_t constant) est declaree hors_jeux avec son motif,
 #       verifie en ce que la ligne existe, n'est pas de type test sur ces
 #       jeux, et l'est sur le jeu synthetique de taille t_positif (issue
 #       #121) ; ce jeu est unique (sans ex aequo, methode prime) : le type
@@ -654,9 +654,13 @@ DECOMPTES <- list(
   list(id = "prime : lignes sur la base u_t", methode = "premium",
        motif = paste0(N_, " lignes de la table auditable sont calcul\u00e9es sur la base"),
        champs = "base r"),
+  # Depuis #303 (regle R15, Ljung-Box (1) retire de la base r), la base r a une
+  # ligne de moins que la base z : la phrase ne compte plus que les lignes sur
+  # u_t ("leurs homologues", sans nombre), le nombre de lignes de la base z
+  # n'etant plus egal a celui de la base r.
   list(id = "prime : lignes sur u_t et homologues sur z_t", methode = "premium",
-       motif = paste0("les ", N_, " lignes sur base u_t et leurs ", N_, " homologues sur"),
-       champs = c("base r", "base z")),
+       motif = paste0("les ", N_, " lignes sur base u_t et leurs homologues sur"),
+       champs = "base r"),
   list(id = "prime : lignes sur u_t (restent exactes)", methode = "premium",
        motif = paste0("les ", N_, " lignes restent exactes"), champs = "base r"),
   list(id = "prime : lignes sur u_t (detail CONTROLE SANS OBJET ICI)", methode = "premium",
@@ -689,7 +693,10 @@ DECOMPTES <- list(
        motif = paste0("Ces ", N_, " lignes sont restitu\u00e9es comme diagnostics, sans p-value retenue"),
        champs = "grandeur rivee"),
   list(id = "prime : tests de H2 (graphe d'appels)", methode = "premium",
-       motif = paste0("Chacun des ", N_, " tests dispose de sa propre fonction"),
+       # Depuis #299, la legende de fig:annexe-h2 annonce "une seule d'entre
+       # elles est de type test (Breusch--Pagan studentise)" : le nombre de
+       # tests de H2 n'est plus la phrase "Chacun des six tests" (ancien motif).
+       motif = paste0(N_, " seule d'entre elles est de type test \\(Breusch--Pagan studentis\u00e9\\)"),
        champs = "famille C. type test"),
   list(id = "Merz-Wuthrich : tests de normalite (M5)", methode = "reserve2",
        motif = paste0("Les ", N_, " lignes de normalit\u00e9 \\(M5\\) sont compt\u00e9es parmi les diagnostics"),
@@ -701,16 +708,21 @@ DECOMPTES <- list(
   list(id = "Merz-Wuthrich : tests reposant sur le bootstrap", methode = "reserve2",
        motif = paste0("Les (?=", N_, ")", N_, " tests d'hypoth\u00e8se reposent tous sur le bootstrap"),
        champs = c("nature Monte-Carlo", "type test")),
-  # Formulation a qualificatif intercale ("cinq autres lignes"), inventoriee
+  # Formulation a qualificatif intercale ("quatre autres lignes"), inventoriee
   # depuis l'audit de #75 (C2). Le meme nombre est capture deux fois (groupe
   # dans une assertion avant, puis groupe ordinaire, a la meme position) :
   # le nombre de lignes de base r hors test des suites, et le nombre de ces
-  # lignes dont la p-value retenue est de Monte-Carlo ; une ligne de base r
-  # ajoutee ou sortie de Monte-Carlo fait diverger l'un des deux.
-  list(id = "prime : lignes de base r hors suites (restent en Monte-Carlo)", methode = "premium",
+  # lignes qui ont une p-value de Monte-Carlo (p_mc non NA, quelle que soit la
+  # p-value retenue). Depuis #303 (regle R15), la phrase dit que ces lignes
+  # "ont leur p-value de Monte-Carlo dans tous les regimes" et qu'elle n'est
+  # retenue qu'a pi_t variable : a pi_t constant elles sont des diagnostics,
+  # sans nature_p (la grandeur "base r hors suites Monte-Carlo", fondee sur
+  # nature_p, vaut alors 0 et ne mesure plus la phrase). Une ligne de base r
+  # ajoutee, ou sans p_mc, fait diverger l'un des deux nombres.
+  list(id = "prime : lignes de base r hors suites (p-value de Monte-Carlo)", methode = "premium",
        motif = paste0("Les (?=", N_, ")", N_, " autres lignes de la base .{1,3}ratios bruts.{1,3} ",
-                      "restent en Monte-Carlo"),
-       champs = c("base r hors suites", "base r hors suites Monte-Carlo")),
+                      "ont leur p-value de Monte-Carlo"),
+       champs = c("base r hors suites", "base r hors suites avec p_mc")),
   # Issue #59 : lignes restituees non applicables a volumes constants,
   # mesurees sur une execution supplementaire (volumes x_t = 100 constants,
   # pertes y_t de tests/donnees/donnees_ln.csv ; cles premium_vc et
@@ -720,25 +732,23 @@ DECOMPTES <- list(
        motif = paste0(N_, " lignes d'usp_tests\\(\\) sont restitu\u00e9es .{1,3}non applicable"),
        champs = "non applicable volumes constants"),
   # Issue #111 : provenance directe par fonction, lue dans le champ fonction
-  # de res$tests (grandeur "fonction <nom>" de grandeurs_moteur()). Les cinq
-  # phrases qui nomment une seule fonction sont comparees a son nombre de
-  # lignes ; celle qui en nomme cinq ("2 entrees chacune") a leur compte
-  # commun, NA (donc ECART) s'ils different.
+  # de res$tests (grandeur "fonction <nom>" de grandeurs_moteur()). Les trois
+  # phrases qui nomment une seule fonction (test_lm_complet()) sont comparees
+  # a son nombre de lignes ; celle qui en nomme cinq ("2 entrees chacune") a
+  # leur compte commun, NA (donc ECART) s'ils different. Les deux phrases sur
+  # .shapiro_sur() (graphe H3-H4, tableau des portees) sont retirees le
+  # 19/10/2026 (#302) : depuis le retrait de la loi nulle simulee de
+  # Shapiro-Wilk, .shapiro_sur() n'alimente plus qu'une entree (une fonction,
+  # une entree), la phrase "alimente deux entrees" n'a plus d'objet.
   list(id = "provenance : test_lm_complet() (index des fonctions)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) & LN & [^&]{0,160}?", N_, " entr\u00e9es issues d'un seul appel"),
        champs = "fonction test_lm_complet"),
   list(id = "provenance : test_lm_complet() (graphe H1)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) alimente ", N_, " entr\u00e9es de la table des tests"),
        champs = "fonction test_lm_complet"),
-  list(id = "provenance : .shapiro_sur() (graphe H3-H4)", methode = c("premium", "reserve1"),
-       motif = paste0("\\.shapiro_sur\\(\\) alimente ", N_, " entr\u00e9es"),
-       champs = "fonction .shapiro_sur"),
   list(id = "provenance : test_lm_complet() (tableau des portees)", methode = c("premium", "reserve1"),
        motif = paste0("test_lm_complet\\(\\) \\(", N_, " entr\u00e9es\\)"),
        champs = "fonction test_lm_complet"),
-  list(id = "provenance : .shapiro_sur() (tableau des portees)", methode = c("premium", "reserve1"),
-       motif = paste0("\\.shapiro_sur\\(\\) \\(", N_, " entr\u00e9es\\)"),
-       champs = "fonction .shapiro_sur"),
   list(id = "provenance : stat_dw() ... test_grubbs() (tableau des portees)", methode = c("premium", "reserve1"),
        motif = paste0("stat_dw\\(\\), test_runs\\(\\), stat_supF\\(\\), stat_cusum\\(\\) et test_grubbs\\(\\) \\(",
                       N_, " entr\u00e9es chacune"),
@@ -880,7 +890,7 @@ MOTIF_PROVENANCE_INDIRECTE <- paste("provenance indirecte d'entrees (graphe d'ap
 # Population de la mesure de multiplicite T2 / T2 bis (#229, #274) : lignes
 # d'usp_tests() reconstruites par la mesure (fichier date
 # docs/tableaux/20261018-issue229-p-conditionnelle-regime.md), et non lignes
-# de la table courante. 48 = table premium (51 lignes au moteur courant)
+# de la table courante. 48 = table premium de la mesure (51 lignes alors)
 # moins les deux lignes du rapport de vraisemblance sur delta et la largeur de
 # l'intervalle a delta fixe (#45) ; 44 = 48 moins TOST, Pitman, Fisher et
 # ESD. Ces nombres decrivent une simulation passee : les verifier sur la table
@@ -999,8 +1009,8 @@ grandeurs_moteur <- function(tests, controles = NULL, appelants = NULL) {
          "variante secondaire" = sum(champ("variante") %in% "secondaire"),
          "lignes du test des suites" = sum(startsWith(nom, "Test des suites") %in% TRUE),
          "base r hors suites" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE),
-         "base r hors suites Monte-Carlo" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
-                                                  grepl("^Monte-Carlo", nat)),
+         "base r hors suites avec p_mc" = sum(base %in% "r" & !startsWith(nom, "Test des suites") %in% TRUE &
+                                                pmc),
          "grandeur rivee" = sum(startsWith(det, "Grandeur rivee par l'estimation") %in% TRUE),
          "detail sans objet ici" = sum(grepl("CONTROLE SANS OBJET ICI", det, fixed = TRUE)),
          "non applicable volumes constants" =
@@ -1268,14 +1278,18 @@ verifier_cles_mc <- function(cles, catalogues) {
 # procedure sur les jeux executes par le script (le type n'y est atteint
 # qu'a d'autres T) ; t_positif : pour une entree hors_jeux, la taille T du
 # jeu synthetique (jeu_synthetique()) sur lequel la ligne doit etre de type
-# test ou procedure (verification positive, issue #121). Le registre est
-# confronte au moteur par verifier_registre_rubrique7() (jeux a T = 8) et
-# verifier_hors_jeux_positifs() (jeux synthetiques).
+# test ou procedure (verification positive, issue #121) ; volumes_constants :
+# TRUE pour une entree hors_jeux dont la ligne n'est de type test qu'a pi_t
+# constant (Anscombe-Glynn depuis #302) : le jeu synthetique est alors pris a
+# volumes constants (jeu_synthetique(T, volumes_constants = TRUE)), absent ou
+# FALSE sinon. Le registre est confronte au moteur par
+# verifier_registre_rubrique7() (jeux a T = 8) et verifier_hors_jeux_positifs()
+# (jeux synthetiques).
 MOTIF_COX_STUART_T8 <- paste("inoperant pour T <= 9 (regle R1, p_min = 0,125 a T = 8) : ligne de type test",
                              "au plus tot a T = 10 (p_min = 0,0625 < 0,10 sans ex aequo ; avec ex aequo,",
                              "m < n_p et la ligne peut rester inoperante), hors des jeux executes (T = 8)")
-MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20 : type test a partir de T = 20 seulement,",
-                           "hors des jeux executes (T = 8)")
+MOTIF_ANSCOMBE_T8 <- paste("ligne non applicable pour T < 20, et a pi_t variable (#302) : type test a",
+                           "partir de T = 20 et a pi_t constant seulement, hors des jeux executes (T = 8)")
 REGISTRE_RUBRIQUE7 <- list(
   # Methode lognormale
   list(label = "fiche:student-constante", tests = "Nullite de la constante (proportionnalite stricte)"),
@@ -1289,33 +1303,37 @@ REGISTRE_RUBRIQUE7 <- list(
        t_positif = 10L),
   list(label = "fiche:breusch-pagan-koenker",
        tests = "Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)"),
-  list(label = "fiche:breusch-pagan-1979",
-       tests = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)"),
-  list(label = "fiche:white", tests = "Heteroscedasticite (forme quadratique)"),
-  list(label = "fiche:goldfeld-quandt", tests = "Egalite des variances petits vs gros volumes"),
-  list(label = "fiche:brown-forsythe", tests = "Homogeneite des dispersions (mediane)"),
-  list(label = "fiche:smirnov", tests = "Egalite des lois petits vs gros volumes (2 ech.)"),
+  # fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt,
+  # fiche:brown-forsythe et fiche:smirnov retirees (#299, Q-D1-Fh-5) : lignes
+  # en diagnostic par decision dans tous les regimes. fiche:spearman reste,
+  # par sa ligne ratio / volume (la ligne ratio / temps est un diagnostic par
+  # decision depuis #299).
   list(label = "fiche:shapiro-wilk", tests = "Shapiro-Wilk sur residus standardises"),
-  list(label = "fiche:shapiro-wilk-sans-royston",
-       tests = "Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)"),
+  # fiche:shapiro-wilk-sans-royston retiree (#302, Q-D1-Fh-4) : ligne
+  # Shapiro-Wilk a loi nulle simulee retiree du moteur.
   list(label = "fiche:shapiro-francia", tests = "Shapiro-Francia"),
   list(label = "fiche:anderson-darling", tests = "Anderson-Darling"),
-  list(label = "fiche:cramer-von-mises", tests = "Cramer-von Mises"),
-  list(label = "fiche:kolmogorov-smirnov", tests = "Kolmogorov-Smirnov contre N(0,1)"),
+  # fiche:cramer-von-mises et fiche:kolmogorov-smirnov retirees (#302,
+  # Q-D1-Fh-4) : lignes en diagnostic par decision dans tous les regimes.
   list(label = "fiche:lilliefors", tests = "Lilliefors (KS a parametres estimes)"),
   list(label = "fiche:jarque-bera", tests = "Jarque-Bera"),
   list(label = "fiche:dagostino-asymetrie", tests = "Asymetrie (D'Agostino, T >= 8)"),
   list(label = "fiche:anscombe-glynn-aplatissement", tests = "Aplatissement (Anscombe-Glynn, T >= 20)",
-       hors_jeux = MOTIF_ANSCOMBE_T8, t_positif = 20L),
+       hors_jeux = MOTIF_ANSCOMBE_T8, t_positif = 20L, volumes_constants = TRUE),
   list(label = "fiche:durbin-watson", tests = "Autocorrelation d'ordre 1 (Durbin-Watson)"),
-  list(label = "fiche:ljung-box", tests = c("Ljung-Box (retard 1)", "Ljung-Box (retard 2)", "Box-Pierce (retard 2)")),
+  # Ljung-Box (retard 1) et Box-Pierce (retard 2) retirees du moteur avec
+  # leurs entrees LB1 et BP2 (#302, Q-D1-Fh-4 et Q-D1-Fh-9).
+  list(label = "fiche:ljung-box", tests = "Ljung-Box (retard 2)"),
   list(label = "fiche:suites-wald-wolfowitz", tests = "Test des suites (aleatoire des signes)"),
   list(label = "fiche:sup-f", tests = "Rupture de niveau (sup-F)"),
   list(label = "fiche:ols-cusum", tests = "Stabilite cumulee (OLS-CUSUM)"),
   list(label = "fiche:grubbs", tests = "Valeur aberrante isolee (Grubbs)"),
-  list(label = "fiche:rosner-esd", tests = "Valeurs aberrantes multiples (ESD generalise)"),
+  # fiche:rosner-esd retiree (#304, Q-D1-Fh-6, option (a)) : la procedure ESD
+  # lognormale est un diagnostic par decision pour tout T. mw:m4ros reste,
+  # l'ESD Merz-Wuthrich etant une procedure de decision (Fi, #300).
   list(label = "fiche:durbin-watson-ratios-bruts", tests = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts"),
-  list(label = "fiche:ljung-box-ratios-bruts", tests = "Ljung-Box (retard 1) sur ratios bruts"),
+  # fiche:ljung-box-ratios-bruts retiree (#303, Q-D1-Fh-3) : ligne Ljung-Box
+  # (retard 1) sur ratios bruts retiree du moteur avec son entree LB1r.
   list(label = "fiche:suites-ratios-bruts", tests = "Test des suites sur ratios bruts"),
   list(label = "fiche:sup-f-ratios-bruts", tests = "Rupture de niveau (sup-F) sur ratios bruts"),
   list(label = "fiche:ols-cusum-ratios-bruts", tests = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts"),
@@ -1459,8 +1477,9 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
 }
 
 # Verification positive des declarations hors_jeux (issue #121).
-# lignes_synth : data.frame (T, test, type) des lignes de res$tests des
-# executions sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
+# lignes_synth : data.frame (T, test, type, et volumes_constants s'il y a
+# lieu, FALSE si la colonne manque) des lignes de res$tests des executions
+# sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
 # hors_jeux sans t_positif ; t_positif sans hors_jeux ; entree hors_jeux
 # dont aucune ligne n'est de type test ou procedure de decision sur le jeu
 # synthetique de taille t_positif (ou dont ce jeu n'a pas ete execute).
@@ -1476,7 +1495,10 @@ verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQ
       next
     }
     if (is.null(r$t_positif)) { ajoute(r$label, tst, "declaration hors_jeux sans t_positif (aucune verification positive)"); next }
-    sur_t <- lignes_synth[lignes_synth$T %in% r$t_positif, , drop = FALSE]
+    vc_l <- if (is.null(lignes_synth$volumes_constants)) rep(FALSE, nrow(lignes_synth))
+            else as.logical(lignes_synth$volumes_constants)
+    sur_t <- lignes_synth[lignes_synth$T %in% r$t_positif & vc_l == isTRUE(r$volumes_constants), ,
+                          drop = FALSE]
     if (!nrow(sur_t))
       ajoute(r$label, tst, sprintf("declaration hors_jeux non verifiee : jeu synthetique T = %d non execute", r$t_positif))
     else if (!any(sur_t$test %in% r$tests & sur_t$type %in% TYPES_RUBRIQUE7))
@@ -1492,9 +1514,10 @@ verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQ
 # tirage) : volumes x_t = 100 + 10 (t - 1) croissants, pertes
 # y_t = x_t exp(0,1 sin(1,7 t) - 0,3). Ratios y_t / x_t deux a deux
 # distincts, donc sans difference nulle pour Cox-Stuart (m = n_p). Sert a la
-# seule verification positive des declarations hors_jeux.
-jeu_synthetique <- function(T) {
-  t <- seq_len(T); x <- 100 + 10 * (t - 1)
+# seule verification positive des declarations hors_jeux. volumes_constants
+# (#302) : x_t = 100 pour tout t (pi_t constant, regle R13), memes ratios.
+jeu_synthetique <- function(T, volumes_constants = FALSE) {
+  t <- seq_len(T); x <- if (volumes_constants) rep(100, T) else 100 + 10 * (t - 1)
   list(x = x, y = x * exp(0.1 * sin(1.7 * t) - 0.3))
 }
 
@@ -2217,16 +2240,22 @@ if (sys.nframe() == 0L) {
   # executions ne servent qu'a ce controle (ni registre a T = 8, ni sections
   # 2 et 3).
   t_pos <- sort(unique(unlist(lapply(REGISTRE_RUBRIQUE7, `[[`, "t_positif"))))
+  # Un jeu par couple (t_positif, volumes_constants) du registre (#302).
+  jeux_pos <- unique(do.call(rbind, c(list(data.frame(T = integer(0), vc = logical(0))),
+    lapply(Filter(function(r) !is.null(r$t_positif), REGISTRE_RUBRIQUE7), function(r)
+      data.frame(T = as.integer(r$t_positif), vc = isTRUE(r$volumes_constants))))))
   lsy <- do.call(rbind, c(list(data.frame(T = integer(0), test = character(0), type = character(0),
-                                          stringsAsFactors = FALSE)),
-                          lapply(t_pos, function(Tn) {
-    j <- jeu_synthetique(Tn)
+                                          volumes_constants = logical(0), stringsAsFactors = FALSE)),
+                          lapply(seq_len(nrow(jeux_pos)), function(i) {
+    Tn <- jeux_pos$T[i]; vc <- jeux_pos$vc[i]
+    j <- jeu_synthetique(Tn, volumes_constants = vc)
     r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
                            nature_donnees = "brutes")
-    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d : resultat ok = FALSE", Tn), call. = FALSE)
+    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d%s : resultat ok = FALSE", Tn,
+                                    if (vc) " a volumes constants" else ""), call. = FALSE)
     data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
                type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1],
-                             character(1)), stringsAsFactors = FALSE)
+                             character(1)), volumes_constants = vc, stringsAsFactors = FALSE)
   })))
   e_hj <- verifier_hors_jeux_positifs(lsy)
   labels_hj <- vapply(Filter(function(r) !is.null(r$hors_jeux), REGISTRE_RUBRIQUE7), `[[`, character(1), "label")

@@ -40,16 +40,17 @@
 #  reconstruction, aucune transcription.
 #
 #  Tableaux (lus sur engine_table_tests() et res$bootstrap) :
-#    T1     : les 34 statistiques de USP_CATALOGUE_MC ; frequence de
+#    T1     : les 31 statistiques de USP_CATALOGUE_MC ; frequence de
 #             p_mc < 0,10 et de p_mc < 0,05, que la p_mc soit retenue ou non,
 #             parmi les replications ou elle est calculee ;
 #    T1 bis : la meme mesure par regime de delta chapeau* du reajustement
 #             (bord 1 : pi chapeau* constant ; bord 0 ; interieur) ;
-#    T2     : niveau des verdicts des 51 lignes : frequence de p retenue
+#    T2     : niveau des verdicts des 47 lignes : frequence de p retenue
 #             < alpha et < alpha/2 parmi les replications ou la ligne a une p
 #             retenue (niveau conditionnel ; regles R1, R3, R4, R7 et R13
-#             comprises) ; ligne ESD (procedure de decision sans p-value) :
-#             frequence de ALERTE ou ECHEC et de ECHEC sur les replications
+#             comprises) ; ligne ESD (diagnostic par decision depuis #304,
+#             sans p-value ni verdict) : frequence de k chapeau >= 1 et de
+#             k chapeau = 2 (colonne estimation) sur les replications
 #             traitees ; puis composition (types, natures de la p retenue,
 #             verdicts : frequence inconditionnelle des verdicts) ;
 #    T3     : effectifs par regime (run_engine() et code de #72),
@@ -95,10 +96,12 @@
 #      sous le modele ajuste, a = 0) : sens "rejeter", pas de reference ; la
 #      ligne Fisher, diagnostic sans p retenue depuis #169, tombe dans
 #      "sans objet (aucune p retenue)" ;
-#    - ligne ESD : ALERTE ou ECHEC (k chapeau >= 1) contre 0,10, niveau
-#      nominal de la procedure de Rosner (valeurs critiques a 1 - alpha/(2
-#      n_i)), exactitude non etablie a T = 8 ; ECHEC (k chapeau = 2) sans
-#      reference.
+#    - ligne ESD (diagnostic par decision depuis #304 : verdict INFO ; k
+#      chapeau lu dans la colonne estimation, l'ancien verdict ALERTE ou
+#      ECHEC etant k chapeau >= 1, ECHEC k chapeau = 2) : k chapeau >= 1
+#      contre 0,10, niveau nominal de la procedure de Rosner (valeurs
+#      critiques a 1 - alpha/(2 n_i)), exactitude non etablie a T = 8 ;
+#      k chapeau = 2 sans reference.
 #  Aide a la lecture, sans conclure : pour chaque IC, reference dans l'IC
 #  (oui / non) et position par rapport a la bande liberale de Bradley (1978),
 #  [ref/2 ; 3 ref/2] ([0,05 ; 0,15] a 0,10, [0,025 ; 0,075] a 0,05 : le
@@ -109,8 +112,8 @@
 #  elle est "non applicable" si la reference est inferieure a 2/n (n :
 #  denominateur du taux, np en T2), sa demi-largeur etant alors sous la
 #  resolution 1/n du taux ; une reference nulle n'est pas ramenee a {0}.
-#  Multiplicite : 136 intervalles en T1 sur J1 et J2 (34 statistiques x 2
-#  seuils x 2 jeux), environ 7 exclusions attendues par hasard.
+#  Multiplicite : 124 intervalles en T1 sur J1 et J2 (31 statistiques x 2
+#  seuils x 2 jeux), environ 6 exclusions attendues par hasard.
 #
 #  Controles d'integrite (code de sortie 1 si l'un echoue) :
 #    (a)  J1 observe par run_engine(seed = 20260831) (executer_cas("premium")
@@ -118,9 +121,9 @@
 #         comparer_objets(), apres neutraliser_instables() (meme comparaison
 #         que tests/test_reproductibilite.R) ;
 #    (b)  les noms de res$bootstrap$p_mc et de res$bootstrap$motif_mc sont
-#         exactement les 34 de USP_CATALOGUE_MC, dans son ordre, a chaque
+#         exactement les 31 de USP_CATALOGUE_MC, dans son ordre, a chaque
 #         replication ; toute p_mc absente porte un motif ;
-#    (c)  51 lignes par replication, de memes libelles et dans le meme ordre
+#    (c)  47 lignes par replication, de memes libelles et dans le meme ordre
 #         que sur J1 observe (libelles distincts). Critere strict : le
 #         jackknife (deterministe) et l'IC bootstrap (graine 20260831 + b) de
 #         chaque replication sont ceux de #72, dont les tableaux les
@@ -156,7 +159,7 @@
 #         discrete appartient a l'ensemble des p des atomes enumeres par
 #         lois_discretes() (a 1e-9 pres) ; tailles des suites : atteignable
 #         4/70 et 0, lissee 0,05713 et 0,00968 (a 5e-6 pres) ;
-#  plus des controles de coherence du script : 34 statistiques au catalogue ;
+#  plus des controles de coherence du script : 31 statistiques au catalogue ;
 #  correspondance statistique -> ligne (STAT_LIGNE) verifiee sur J1 observe
 #  (p_mc de la ligne identique a celle du bootstrap) ; lignes nommees par les
 #  constantes presentes ; volumes du jeu non constants (pi chapeau* constant
@@ -193,7 +196,7 @@
 #  la tranche, dont la plateforme de calcul et les empreintes md5 du code),
 #  STATS, LIGNES, REPCOLS (colonnes des lignes REP), DUREE, INTEGRITE (OK ou
 #  ECHEC), NCOMPTES, les comptes bruts (COMPTE), NREP, une ligne REP par
-#  replication (b, regime ou "ecartee", 34 p_mc dans l'ordre de STATS, 51 p
+#  replication (b, regime ou "ecartee", 31 p_mc dans l'ordre de STATS, 47 p
 #  retenues dans l'ordre de LIGNES ; NA si absente) et, en derniere ligne,
 #  FIN (nombre de COMPTE). Rediriger la sortie de chaque tranche vers un
 #  fichier HORS du depot, puis --combiner additionne les comptes et imprime
@@ -210,9 +213,9 @@
 #  celles qu'il recalcule ; des tranches qui ne couvrent pas 1..R exactement
 #  une fois ; un invariant du corps d'une tranche faux (invariants_tranche() :
 #  rep = fin - debut + 1, ok + ecartees = rep, somme des reg = ok, somme des
-#  reg72 = rep, l|ligne|n = ok pour les 51 lignes, n + absentes = ok pour les
-#  34 p_mc, lignes REP = rep, b des REP = debut..fin, regimes et ecartees des
-#  REP = comptes, n, k1 et k2 des 34 p_mc (par regime) et des 51 p retenues
+#  reg72 = rep, l|ligne|n = ok pour les 47 lignes, n + absentes = ok pour les
+#  31 p_mc, lignes REP = rep, b des REP = debut..fin, regimes et ecartees des
+#  REP = comptes, n, k1 et k2 des 31 p_mc (par regime) et des 47 p retenues
 #  recomptes sur les lignes REP = comptes ; au total, somme des rep = R) ;
 #  les controles (e3) ou (e4) en echec.
 #  --ecrire (--combiner seulement) : ecrit
@@ -325,8 +328,11 @@ B_BOOT <- 999L
 GRAINE_JEUX <- 20260927
 GRAINE_BOOT <- 20260831
 T_ <- 8L
-N_STATS <- 34L
-N_LIGNES <- 51L
+# 31 statistiques et 47 lignes depuis les retraits de Ljung-Box (1) sur
+# ratios bruts (entree LB1r, #303), de Shapiro-Wilk a loi nulle simulee, de
+# Ljung-Box (1) et de Box-Pierce (2) (entrees LB1 et BP2, #302).
+N_STATS <- 31L
+N_LIGNES <- 47L
 SCRIPT_72 <- file.path("tests", "taux_franchissement_reperes.R")
 TABLEAUX_72 <- c(J1 = "docs/tableaux/20260930-issue122-J1.md",
                  J2 = "docs/tableaux/20260930-issue122-J2.md")
@@ -424,7 +430,7 @@ nettoyer_cle <- function(s) gsub("[|\t\r\n]+", " ", s)
 STAT_LIGNE <- c(
   AD = "Anderson-Darling", CvM = "Cramer-von Mises", KS = "Kolmogorov-Smirnov contre N(0,1)",
   SW = "Shapiro-Wilk sur residus standardises", SF = "Shapiro-Francia", JB = "Jarque-Bera",
-  DW = "Autocorrelation d'ordre 1 (Durbin-Watson)", LB1 = "Ljung-Box (retard 1)",
+  DW = "Autocorrelation d'ordre 1 (Durbin-Watson)",
   supF = "Rupture de niveau (sup-F)", CUSUM = "Stabilite cumulee (OLS-CUSUM)",
   Grubbs = "Valeur aberrante isolee (Grubbs)", Lillie = "Lilliefors (KS a parametres estimes)",
   Intercept = "Nullite de la constante (proportionnalite stricte)", RESET = "RESET (forme fonctionnelle)",
@@ -432,12 +438,12 @@ STAT_LIGNE <- c(
   BP79 = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
   White = "Heteroscedasticite (forme quadratique)", GQ = "Egalite des variances petits vs gros volumes",
   BF = "Homogeneite des dispersions (mediane)", Smirnov = "Egalite des lois petits vs gros volumes (2 ech.)",
-  LB2 = "Ljung-Box (retard 2)", BP2 = "Box-Pierce (retard 2)", Runs = "Test des suites (aleatoire des signes)",
+  LB2 = "Ljung-Box (retard 2)", Runs = "Test des suites (aleatoire des signes)",
   MK = "Tendance monotone du ratio S/P", SpearVol = "Independance ratio S/P vs volume",
   SpearTps = "Correlation ratio S/P vs temps", DAgo = "Asymetrie (D'Agostino, T >= 8)",
   CoxStuart = "Tendance par signes du ratio S/P",
   DWr = "Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts",
-  LB1r = "Ljung-Box (retard 1) sur ratios bruts", Runsr = "Test des suites sur ratios bruts",
+  Runsr = "Test des suites sur ratios bruts",
   supFr = "Rupture de niveau (sup-F) sur ratios bruts",
   CUSUMr = "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
   Grubbsr = "Valeur aberrante isolee (Grubbs) sur ratios bruts")
@@ -653,10 +659,15 @@ controles_72 <- function(cpt, R, jeu) {
 #  TABLEAUX A PARTIR DES COMPTES (execution directe, tranche, --combiner)
 ###############################################################################
 # cpt : vecteur nomme de comptes ; stats : nom -> queue ; lignes : libelles
-# des 51 lignes dans l'ordre de la table. Cles :
+# des 47 lignes dans l'ordre de la table. Cles :
 #   rep, ok ; ecart|b|motif ; reg|r et reg72|r (r : bord1, bord0, interieur,
 #   erreur) ; mc|s|r|n, mc|s|r|k1, mc|s|r|k2 ; mmc|s|motif ;
 #   l|ligne|n, np, k1, k2, t|type, inop, nat|classe, v|verdict ;
+#   l|ligne ESD|kesd1, kesd2 (k chapeau >= 1, k chapeau = 2 : colonne
+#   estimation, #304 ; absentes des comptes anterieurs a #304, ou la ligne
+#   ESD portait v|ALERTE (k chapeau = 1) et v|ECHEC (k chapeau = 2) : T2
+#   somme les deux formes, exacte pour des comptes anciens, nouveaux ou
+#   combines) ;
 #   h|controle|verdict ; lr|borne|r|n, k1, k2 ; lrm|borne|motif ;
 #   ic|n, ic|k50, ic|k80 ; bperdu, bperdu_rep, rechec, lrechec|borne ;
 #   lrnc|borne (LR non calculable sur l'observe, #161).
@@ -670,7 +681,7 @@ tableaux <- function(cpt, stats, lignes) {
   excl_t1 <- 0
   nmc <- vapply(SEUILS, function(a) c(haut = niveau_mc_continu(a, "haut"), deux = niveau_mc_continu(a, "deux")), numeric(2))
   # --- T1
-  L <- c("### T1 -- calibration de p_mc : les 34 statistiques de USP_CATALOGUE_MC (p_mc retenue ou non)", "",
+  L <- c(sprintf("### T1 -- calibration de p_mc : les %d statistiques de USP_CATALOGUE_MC (p_mc retenue ou non)", N_STATS), "",
          entete_md(c("Statistique", "Ligne de usp_tests()", "Queue", "n", cols_niv(1), cols_niv(2), "p_mc absente")))
   for (s in names(stats)) {
     n <- s_mc(s, NULL, "n"); disc <- s %in% names(LOI_STAT)
@@ -691,11 +702,12 @@ tableaux <- function(cpt, stats, lignes) {
                               "de la p_mc autour des atomes de la loi."),
                         n_ok, num(nmc["haut", 1], 3), num(nmc["haut", 2], 3), num(nmc["deux", 1], 3),
                         num(nmc["deux", 2], 3), B_BOOT, B_BOOT),
-         "", sprintf(paste("Multiplicit\u00e9 : T1 compte %d intervalles (34 statistiques \u00d7 2 seuils) ; ici %d excluent la",
-                           "r\u00e9f\u00e9rence. Sur J1 et J2 r\u00e9unis, 136 intervalles : environ 7 exclusions (5 %% de 136) sont",
+         "", sprintf(paste("Multiplicit\u00e9 : T1 compte %d intervalles (%d statistiques \u00d7 2 seuils) ; ici %d excluent la",
+                           "r\u00e9f\u00e9rence. Sur J1 et J2 r\u00e9unis, %d intervalles : environ %d exclusions (5 %% de %d) sont",
                            "attendues par hasard m\u00eame si toutes les r\u00e9f\u00e9rences sont justes (intervalles corr\u00e9l\u00e9s entre eux ;",
                            "ordre de grandeur, pas un test). T1 bis et T2 ajoutent leurs propres intervalles."),
-                     2L * length(stats), excl_t1), "")
+                     2L * length(stats), length(stats), excl_t1, 4L * length(stats),
+                     round(0.05 * 4L * length(stats)), 4L * length(stats)), "")
   # --- T1 bis
   L <- c(L, "### T1 bis -- calibration de p_mc par r\u00e9gime de \u03b4\u0302* du r\u00e9ajustement (r\u00e9f\u00e9rences de T1)", "",
          entete_md(c("Statistique", "R\u00e9gime", "n", cols_niv(1)[-4], cols_niv(2)[-4])))
@@ -714,17 +726,22 @@ tableaux <- function(cpt, stats, lignes) {
                       "des donn\u00e9es et n'ont pas de r\u00e9f\u00e9rence exacte m\u00eame pour une p_mc parfaitement calibr\u00e9e :",
                       "T1 bis localise un \u00e9cart, il ne teste pas la calibration par r\u00e9gime."), "")
   # --- T2
-  L <- c(L, "### T2 -- niveau des verdicts des 51 lignes : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", "",
+  L <- c(L, sprintf("### T2 -- niveau des verdicts des %d lignes : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", N_LIGNES), "",
          entete_md(c("Ligne", "n", "p retenue", cols_niv(1), cols_niv(2))))
   for (li in lignes) {
     cl <- nettoyer_cle(li)
     gl <- function(suf) g(sprintf("l|%s|%s", cl, suf))
     n <- gl("n"); np <- gl("np")
     if (identical(li, LIGNE_ESD)) {
-      # Procedure de decision sans p-value : ALERTE ou ECHEC (k chapeau >= 1)
-      # contre le niveau nominal 0,10 ; ECHEC (k chapeau = 2) sans reference.
-      c1 <- lecture(gl("v|ALERTE") + gl("v|ECHEC"), n, ALPHA); c2 <- lecture(gl("v|ECHEC"), n, NA_real_)
-      L <- c(L, ligne_md(li, n, "\u2014 (proc\u00e9dure sans p-value)",
+      # Diagnostic par decision (#304), sans p-value ni verdict : k chapeau
+      # >= 1 (colonne estimation) contre le niveau nominal 0,10 ; k chapeau
+      # = 2 sans reference. Meme evenement que l'ancien verdict ALERTE ou
+      # ECHEC (resp. ECHEC), fonction deterministe de k chapeau : les comptes
+      # anterieurs a #304 (v|ALERTE, v|ECHEC, sans kesd) restent lisibles ;
+      # depuis #304, la ligne ESD est toujours v|INFO.
+      c1 <- lecture(gl("kesd1") + gl("v|ALERTE") + gl("v|ECHEC"), n, ALPHA)
+      c2 <- lecture(gl("kesd2") + gl("v|ECHEC"), n, NA_real_)
+      L <- c(L, ligne_md(li, n, "diagnostic par decision (#304) : frequence de k\u0302 >= 1",
                          paste(c(c1[c("k", "taux", "ic")], txt_ref(ALPHA, " \u2021"), c1[c("ref_ic", "bande")]), collapse = " | "),
                          paste(c(c2[c("k", "taux", "ic")], "\u2014", "\u2014", "\u2014"), collapse = " | ")))
       next
@@ -761,10 +778,10 @@ tableaux <- function(cpt, stats, lignes) {
                "liss\u00e9e). Une p retenue d'une autre nature (repli asymptotique nomm\u00e9, r\u00e8gle R3 ; attendu 0 \u00e0 T = 8",
                "sans ex \u00e6quo) compte dans np et dans les rejets, non dans la r\u00e9f\u00e9rence, alors suivie de",
                "\u00ab (n hors r\u00e9f. = k) \u00bb."), "",
-         paste("\u2021 Ligne ESD (proc\u00e9dure de d\u00e9cision, sans p-value) : premi\u00e8re colonne, ALERTE ou ECHEC, mesure",
-               "P(k\u0302 \u2265 1), sur les r\u00e9plications trait\u00e9es, contre 0,10, niveau nominal de la proc\u00e9dure de Rosner,",
+         paste("\u2021 Ligne ESD (diagnostic par d\u00e9cision depuis #304, sans p-value ni verdict) : premi\u00e8re colonne, k\u0302 \u2265 1",
+               "(colonne estimation), mesure P(k\u0302 \u2265 1), sur les r\u00e9plications trait\u00e9es, contre 0,10, niveau nominal de la proc\u00e9dure de Rosner,",
                "valeurs critiques \u00e0 1 \u2212 \u03b1/(2 n_i) ; exactitude non \u00e9tablie \u00e0 T = 8 ni sur z = P\u03b5. Seconde",
-               "colonne : ECHEC, mesure P(k\u0302 = 2), sans niveau nominal."), "",
+               "colonne : k\u0302 = 2, mesure P(k\u0302 = 2), sans niveau nominal."), "",
          "### T2 (suite) -- composition des lignes : types, nature de la p retenue, verdicts", "",
          entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (R1)", "non applicable",
                      "proc\u00e9dure de d\u00e9cision", "p exacte", "p Monte-Carlo", "p asymptotique", "autre p",
@@ -974,7 +991,7 @@ invariants_tranche <- function(p) {
   if (!identical(sort(be), sort(b[rg == "ecartee"]))) err <- c(err, "replications ecartees des REP differentes de celles des comptes")
   # Recoupement des lignes REP avec les comptes (constat R3 d'audit) : n, k1
   # et k2 recomptes sur les valeurs brutes (ecrites en %.17g, relues sans
-  # perte) pour les 34 p_mc, par regime, et pour les 51 p retenues.
+  # perte) pour les 31 p_mc, par regime, et pour les 47 p retenues.
   if (length(p$rep) && identical(length(p$repcols), unique(lengths(p$rep)))) {
     M <- do.call(rbind, p$rep); colnames(M) <- p$repcols
     tr <- M[, "regime"] != "ecartee"
@@ -1186,8 +1203,8 @@ COLLISIONS <- local({
     jeux = paste("effet born\u00e9 : r\u00e9plication %d, \\|\u0394p_mc\\| \u2264 1/(B+1) = %s en queue simple et 2/(B+1) = %s en",
                  "bilat\u00e9ral, sur ses seules p_mc (au plus 1/R sur un taux), ses %d autres r\u00e9plications internes",
                  "restant ind\u00e9pendantes de y_%d"),
-    sw = paste("r\u00e9plication %d, lois marginales de p_mc et p_exacte inchang\u00e9es (seule leur loi jointe est",
-               "touch\u00e9e, non mesur\u00e9e)"))
+    sw = paste("r\u00e9plication %d : sans effet sur la branche lognormale depuis #302 (aucune ligne n'emploie",
+               "la loi nulle de Shapiro-Wilk) ; collision d\u00e9clar\u00e9e pour la lecture des tableaux ant\u00e9rieurs"))
   x <- unlist(lapply(names(autres), function(nm) {
     i <- which(g == autres[[nm]])
     if (!length(i)) return(character(0))
@@ -1225,8 +1242,9 @@ controle(setequal(names(STAT_LIGNE), names(USP_CATALOGUE_MC)) && all(STAT_LIGNE 
          "Coh\u00e9rence : correspondance STAT_LIGNE (statistique -> ligne) v\u00e9rifi\u00e9e sur J1 observ\u00e9 (p_mc de la ligne = p_mc du bootstrap)")
 controle(all(names(LIGNES_SANS_NIVEAU) %in% LIGNES) && all(names(LOI_LIGNE) %in% LIGNES) &&
            all(c(LIGNE_ESD, LIGNE_IC) %in% LIGNES) && all(names(LOI_STAT) %in% names(USP_CATALOGUE_MC)) &&
-           identical(TAB_A$type[match(LIGNE_ESD, LIGNES)], "procedure de decision"),
-         "Coh\u00e9rence : lignes et statistiques nomm\u00e9es par les constantes du script pr\u00e9sentes (ESD : proc\u00e9dure de d\u00e9cision)")
+           identical(TAB_A$type[match(LIGNE_ESD, LIGNES)], "diagnostic") &&
+           identical(TAB_A$verdict[match(LIGNE_ESD, LIGNES)], "INFO"),
+         "Coh\u00e9rence : lignes et statistiques nomm\u00e9es par les constantes du script pr\u00e9sentes (ESD : diagnostic par d\u00e9cision, INFO, #304)")
 # (f) References ancrees au moteur (constat F6 d'audit).
 f_atomes <- vapply(names(LOI_LIGNE), function(li) {
   p <- TAB_A$p_exacte[match(li, LIGNES)]
@@ -1305,6 +1323,12 @@ for (b in seq.int(DEBUT, FIN)) {
     if (!is.na(tab$commentaire[k]) && startsWith(tab$commentaire[k], "TEST INOPERANT")) ajoute(sprintf("l|%s|inop", li))
     ajoute(sprintf("l|%s|nat|%s", li, classe_nature(tab$nature_p[k])))
     ajoute(sprintf("l|%s|v|%s", li, nettoyer_cle(tab$verdict[k])))
+    # Ligne ESD (#304) : k chapeau lu dans la colonne estimation (k = 2 a
+    # T = 8 : k chapeau = 2 <=> k chapeau >= 2).
+    if (identical(tab$test[k], LIGNE_ESD) && is.finite(tab$estimation[k])) {
+      if (tab$estimation[k] >= 1) ajoute(sprintf("l|%s|kesd1", li))
+      if (tab$estimation[k] >= 2) ajoute(sprintf("l|%s|kesd2", li))
+    }
     p <- tab$p_retenue[k]
     if (is.finite(p)) {
       ajoute(sprintf("l|%s|np", li))
