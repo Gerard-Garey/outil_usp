@@ -4492,12 +4492,22 @@ $\hat f_j$, et le modèle de Mack ajusté, sous lequel leur écart-type $\hat\si
 dépasse $5\cdot 10^{4}$ sur les cinq premières colonnes. Les réplications de la pente
 intra-colonne s'y concentrent près de $\pm 1$ (toutes dans $[-1{,}0003~;~1{,}0017]$ pour
 $t = -1{,}121$ à l'observé~; $B = 999$, graine 20260831). L'exposant de variance n'y rejette pas
-($p = 0{,}905$)~; l'ancienne statistique de Breusch--Pagan non plus ($p = 0{,}456$), mais la ligne
+($p = 0{,}905$)~; l'ancienne statistique de Breusch--Pagan non plus ($p = 0{,}456$)~; la ligne
 d'hétéroscédasticité à effets fixes de colonne qui la remplace depuis l'issue~\#301
-(fiche~\ref{mw:m2bp}) y est en \code{ECHEC} ($p = 0{,}046$, mesuré par \code{run\_engine()} avec
-le moteur postérieur à l'issue, $B = 999$, graine 20260831), rejet que rien ne rattache à une
-hétéroscédasticité des données et qui n'a pas été analysé plus avant. Ce sont des constats sur un
-triangle construit, non un résultat réglementaire. Durbin--Watson (fiche~\ref{mw:m3dw}) passe d'\code{ALERTE} ($p = 0{,}073$,
+(fiche~\ref{mw:m2bp}) y est en \code{ECHEC} ($\mathrm{LM} = 6{,}04$, $p = 0{,}046$, mesuré par
+\code{run\_engine()} avec le moteur postérieur à l'issue, $B = 999$, graine 20260831). Ce rejet est
+porté par la seule ligne~$0$~: dans les colonnes que retient la ligne d'hétéroscédasticité
+($n_j \ge 3$), ses résidus de Mack sont au plus de $4\cdot 10^{-7}$ en valeur absolue, à la plus
+petite valeur de $C(i,j)$ de chaque colonne, et la même formule restreinte aux 20 cellules des
+autres années vaut $0{,}62$ (calcul sans aléa sur les résidus de \code{mw\_residus()}). Les
+facteurs de la ligne~$0$ sont ceux du triangle de contrôle alors que ses cumulés sont divisés par
+$10^{14}$~: rapportés à l'écart-type $\hat\sigma_j/\sqrt{C(0,j)}$ qu'impose M2, ils sont de l'ordre
+de $10^{7}$ fois trop peu dispersés, ce qui est un écart à la variance proportionnelle au cumulé,
+de $\sigma_j$ commun à toutes les années. Le rejet porte donc sur l'hypothèse que teste la ligne,
+à la différence de ceux de la pente intra-colonne et de l'effet calendaire~; sa p-value de
+Monte-Carlo est lue dans une loi bootstrap dont des triangles simulés ont été retirés (cumul non
+strictement positif, issue~\#257). Ce sont des constats sur un triangle construit, non un résultat
+réglementaire. Durbin--Watson (fiche~\ref{mw:m3dw}) passe d'\code{ALERTE} ($p = 0{,}073$,
 $B_{\text{eff}} = 81$) à \code{OK} à $B = 999$, avec $p = 0{,}100$ exactement, au seuil
 $\alpha = 0{,}10$ (la règle des verdicts est stricte, $p < \alpha$), erreur de Monte-Carlo
 $0{,}014$ et phrase de l'issue~\#244~; à $B = 199$, la même ligne est en \code{ALERTE}
@@ -14462,7 +14472,7 @@ covariance entre $r^2$ et $C$ calculée entre colonnes vaut $-1\,858$ ($44$), qu
 contre $-7$ ($305$) à l'intérieur des colonnes~; la statistique, de moyenne $0{,}316$ ($0{,}133$),
 est presque toute portée par ce terme entre colonnes (la même forme $nR^2$ calculée sur la seule
 covariance entre colonnes vaut $0{,}307$ ($0{,}088$), sur la seule covariance intra-colonne
-$0{,}008$ ($0{,}012$)), et son maximum sur les 2\,000 triangles, $1{,}133$, reste en deçà du quantile
+$0{,}008$ ($0{,}012$)), et son maximum sur les 2\,000 triangles, $1{,}133$ (relu sur \code{docs/tableaux/20261021-issue309-puissance-mw-brut.tsv}, colonne \code{obs:BP}), reste en deçà du quantile
 $0{,}90$ de la loi $\chi^2(1)$ ($2{,}706$)~: sa p du $\chi^2(1)$ n'est inférieure à $0{,}10$ dans
 aucun triangle (tableau T6). La loi de la statistique n'était donc $\chi^2(1)$ ni par sa position
 ni par sa dispersion. C'est la covariance entre colonnes, et non la statistique elle-même, qui
