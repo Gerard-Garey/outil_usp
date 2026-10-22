@@ -408,8 +408,8 @@ Ajouter aussi :
 | Champ | Avant | Après |
 |---|---|---|
 | stat | 0,26002 | 1,73295 |
-| estim | NA | 0,05922 |
-| p_as | 0,79751 | 0,09846 |
+| estim | NA | 0,05917 (corrigé le 22/10/2026 ; transcrit 0,05922 à l’origine) |
+| p_as | 0,79751 | 0,09850 (corrigé le 22/10/2026 ; transcrit 0,09846 à l’origine) |
 | p_mc | 0,778 | 0,090 |
 | err_mc | 0,03085 | 0,01312 |
 | verdict | **OK** | **ALERTE** |
