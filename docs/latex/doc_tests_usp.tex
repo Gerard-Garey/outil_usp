@@ -11957,7 +11957,8 @@ de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi
 \code{premium}, $\hat k = 0$~; $\alpha$ y est imprimé au format \code{\%g}), précédée des rangs
 quand $\hat k \ge 1$. Jusqu'à l'issue~\#304, la ligne était une \emph{procédure de décision},
 verdict \code{ALERTE} si $\hat k = 1$ et \code{ECHEC} si $\hat k = 2$~; la ligne de la méthode
-Merz--Wüthrich (fiche~\ref{mw:m4ros}) l'est encore.
+Merz--Wüthrich (fiche~\ref{mw:m4ros}) l'était aussi jusqu'à l'issue~\#300, qui en a fait un
+diagnostic par décision, restitué \code{INFO}.
 \Usage
 Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, 1983, p.~171, face à une
 procédure à une seule valeur aberrante)~; l'avantage que revendique l'auteur face à l'ESD d'origine
@@ -18450,19 +18451,15 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \textbf{Verdict} & \textbf{Signification} \\
 \midrule
 \code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
-exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte, ou, pour la
-procédure ESD de Rosner de la méthode lognormale (fiche~\ref{fiche:rosner-esd}), aucune valeur
-aberrante détectée au niveau $\alpha$. Pour le TOST et le test de Pitman sur la pente (et, avant
+exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte. Pour le TOST et le test de Pitman sur la pente (et, avant
 l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
 \code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$ (constante
 \code{SEUIL\_ECHEC\_SENS\_REJETER}~; c'est pourquoi \code{run\_engine()} exige
 $0 < \alpha < 0{,}30$, faute de quoi la zone \code{ALERTE} de ces tests disparaîtrait~:
 erreur d'usage, section~\ref{sec:controles}). \\
 \code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha[$ (par défaut
-$[5\,\%\,;\,10\,\%[$), ou, pour la procédure ESD de la méthode Merz--Wüthrich, une valeur aberrante
-détectée (la ligne lognormale est un diagnostic depuis l'issue~\#304). \\
-\code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$, ou, pour la procédure ESD de la méthode Merz--Wüthrich, deux
-valeurs aberrantes ou plus. N'invalide pas
+$[5\,\%\,;\,10\,\%[$). \\
+\code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Toute ligne dont le type n'est ni \code{test} ni \code{procedure de decision}
@@ -18486,8 +18483,12 @@ et~\ref{fiche:multi-demarrages}).
 Une ligne de type \code{test} sans p-value retenue sort aussi \code{INFO} (ainsi la ligne de la
 cellule aberrante de la méthode Merz--Wüthrich quand une cellule retenue a une influence non
 bornée, fiche~\ref{mw:m4gr}).
-La procédure ESD de Rosner appliquée aux résidus de Mack est, depuis l'issue~\#300, un
-diagnostic par décision du mainteneur, restitué \code{INFO} (fiche~\ref{mw:m4ros}).
+La procédure ESD de Rosner est, dans les deux méthodes, un diagnostic par décision du
+mainteneur, restitué \code{INFO}~: depuis l'issue~\#304 dans la méthode lognormale
+(fiche~\ref{fiche:rosner-esd}) et depuis l'issue~\#300 sur les résidus de Mack
+(fiche~\ref{mw:m4ros}). Jusqu'à ces issues, elle était une procédure de décision, sans p-value,
+dont le verdict était \code{OK} sans valeur aberrante détectée au niveau $\alpha$, \code{ALERTE}
+pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type.
 Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
 atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
 fiche~\ref{fiche:cox-stuart}~; corrélation entre années adjacentes de la
@@ -18876,7 +18877,7 @@ jusqu'à l'issue~\#300) \\
 \code{mw\_influence()} & MW & Graphique d'influence (fiche~\ref{mw:influence}) et, depuis
 l'issue~\#300, ligne de la cellule aberrante (fiche~\ref{mw:m4gr}) \\
 \code{test\_rosner()} & LN + MW & ESD généralisé, dans les deux méthodes (diagnostic dans la
-méthode Merz--Wüthrich depuis l'issue~\#300) \\
+méthode lognormale depuis l'issue~\#304, dans la méthode Merz--Wüthrich depuis l'issue~\#300) \\
 \code{test\_runs()} & LN + MW & Test des suites, dans les deux méthodes \\
 \code{runs\_p\_exacte()} & LN & p-value exacte des suites sur $z_t$ et, par
 \code{usp\_runsr\_p\_exacte()}, sur ratios bruts \\
@@ -18945,7 +18946,7 @@ seul appel \\
 
 \node[mut] at ($(bln)!0.5!(bmw) + (0,-24mm)$) (part)
   {fonctions de statistique mutualisées\\[1pt]
-   \scriptsize \code{stat\_dw()}, \code{test\_runs()}, \code{test\_grubbs()},\\
+   \scriptsize \code{stat\_dw()}, \code{test\_runs()},\\
    \scriptsize \code{test\_rosner()}, \code{.shapiro\_sur()},\\
    \scriptsize \code{stat\_lilliefors()}, \code{lillie\_p()}};
 
@@ -18977,7 +18978,8 @@ seul appel \\
 \draw[fl] (cred) -- (out);
 \end{tikzpicture}
 \caption{Vue chapeau. Les deux branches sont disjointes jusqu'aux fonctions de
-statistique, dont sept sont mutualisées (en orangé), puis se rejoignent sur
+statistique, dont six sont mutualisées (en orangé~; \code{test\_grubbs()}, propre à la méthode
+lognormale depuis l'issue~\#300, n'en est plus), puis se rejoignent sur
 \code{usp\_credibilite()}. Une anomalie dans un bloc orangé affecterait
 \emph{les deux} méthodes.}
 \label{fig:annexe-chapeau}
