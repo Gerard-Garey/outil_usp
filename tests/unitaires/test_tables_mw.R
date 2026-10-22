@@ -816,6 +816,25 @@ verifier("Ensembles par defaut de mw_test_ordonnee_origine() et mw_test_courbure
            resultat(c(e, if (any(ne == 0L)) paste("cas non exerce :", paste(names(ne)[ne == 0L], collapse = ", "))))
          })
 
+# Clause d'exclusion du predicat unique (#290, constat mineur de l'audit) :
+# sur T4, la colonne j = 1 (C(0..5,1) constant) est la seule colonne non
+# identifiable de l'ordonnee a l'origine ; transmise comme colonne exclue
+# (j_degeneres = 1), elle sort de l'ensemble : integer(0). Exerce la clause
+# !(k %in% jd) de .mw_colonnes_non_identifiables(), que les autres cas ne
+# distinguent pas (aucune colonne exclue n'y est constante). Garde contre un
+# test vide : sans exclusion, l'ensemble vaut 1L.
+verifier("Predicat unique des colonnes non identifiables : colonne exclue hors de l'ensemble (T4, j_degeneres = 1 : integer(0) ; sans exclusion : 1L), identique a l'oracle (#290)",
+         {
+           aj_t4 <- mw_ajuster(tri_t4)
+           avec <- .mw_colonnes_origine_non_identifiables(aj_t4, 1L)
+           sans <- .mw_colonnes_origine_non_identifiables(aj_t4, .mw_colonnes_degenerees(aj_t4))
+           resultat(c(
+             if (!identical(sans, 1L)) paste("sans exclusion :", deparse(sans), "(cas non exerce)"),
+             if (!identical(avec, integer(0))) paste("j_degeneres = 1 :", deparse(avec)),
+             if (!identical(avec, ANCIEN$.jno_oracle(aj_t4, .mw_j_exclues(aj_t4, 1L))))
+               "j_degeneres = 1 : != oracle"))
+         })
+
 # Plan des triangles tires (en-tete) : taille, variante, noms de lignes.
 PLAN_TIRAGES <- data.frame(
   n        = c(3L, 3L, 4L, 4L, 5L, 6L, 7L, 8L, 8L, 8L, 10L, 12L),
