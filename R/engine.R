@@ -10770,7 +10770,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         "les residus non redresses (somme_i r(i,j)^2 = n_j - 1).",
         "Colonnes n_j >= 3 seulement (a n_j = 2, |r~| = 1",
         sprintf("identiquement) : %d cellules dans %d colonnes.", bp$n, bp$K)))
-  ev <- mw_test_exposant_variance(aj, jd)
+  # res deja calcule plus haut (meme jd) : transmis, pas de second mw_residus()
+  # a l'observe (#291).
+  ev <- mw_test_exposant_variance(aj, jd, res)
   pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
                            function(n) .mw_fisher_rangs_p_min(n, ev$masse_min),
                            any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
@@ -10871,7 +10873,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                           format(100 * REPERE_DIAGONALE_MACK_1997)),
       estim = if (nrow(cdg)) as.numeric(sum(cdg$repere)) else NA_real_,
       detail = detail_cdg)
-  ka <- mw_test_homogeneite_accident(aj, jd)
+  ka <- mw_test_homogeneite_accident(aj, jd, res)  # res : voir ExpVar (#291)
   pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
                            .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
   add(fam, "Homogeneite des residus entre annees de survenance",
