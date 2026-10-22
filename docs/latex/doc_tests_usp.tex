@@ -133,7 +133,7 @@
 \newcommand{\Usage}{\item[\textcolor{financeblue}{\textbf{6. Usage et limites.}}]}
 % Rubrique 7 (issue #114) : p-value minimale atteignable, pertinence et puissance a
 % faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime)
-% et de procedure de decision (ESD) ; jamais sur un diagnostic, un controle
+% et de procedure de decision (type sans ligne depuis #304 et #300) ; jamais sur un diagnostic, un controle
 % numerique, une fiche graphique ou de procedure (docs/latex/CONVENTIONS.md).
 \newcommand{\Pertinence}{\item[\textcolor{financeblue}{\textbf{7. Pertinence et puissance à faible $T$.}}]}
 
@@ -5451,10 +5451,11 @@ temps, $p_{\min}$ reste restituée et, quand elle vaut \code{NA} par ex \ae quo,
 joint au commentaire le motif porté par les effectifs, qu'\code{add()} ne restitue qu'aux lignes de
 type test. Breusch--Pagan studentisé reste un test, sans bascule~: son commentaire porte la
 puissance enveloppe de~H2, fonction des seuls volumes (fiche~\ref{fiche:breusch-pagan-koenker}),
-et aucune règle ne la compare à un seuil. Issue~\#304 (décision Q-D1-Fh-6, option~(a)),
-procédure ESD de Rosner, pour tout $T$, sans p-value et à un niveau réel supérieur à $\alpha$ à
-$T = 8$, une valeur aberrante isolée relevant de Grubbs sur résidus standardisés
-(fiche~\ref{fiche:rosner-esd}). Dans la méthode Merz--Wüthrich, \code{mw\_tests()} restitue de
+et aucune règle ne la compare à un seuil. L'issue~\#304 (décision Q-D1-Fh-6, option~(a))
+restitue de même en diagnostic par décision, pour tout $T$, la procédure ESD de Rosner de la
+méthode lognormale~: elle ne produit pas de p-value, son niveau réel dépasse $\alpha$ à $T = 8$, et
+une valeur aberrante isolée relève de la ligne Grubbs sur résidus standardisés, dont le type et le
+verdict font foi (fiche~\ref{fiche:rosner-esd}). Dans la méthode Merz--Wüthrich, \code{mw\_tests()} restitue de
 même en diagnostic par décision la procédure ESD sur les résidus de Mack (issue~\#300, décision
 Q-D1-Fi-7), dont le cadre i.i.d. normal ne couvre pas ces résidus, avec sa propre phrase fixe
 \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC} (fiche~\ref{mw:m4ros}). Lignes retirées par l'issue~\#302, avec, pour les deux dernières, leurs
