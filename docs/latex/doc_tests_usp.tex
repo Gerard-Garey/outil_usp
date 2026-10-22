@@ -1004,13 +1004,13 @@ maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dé
 volets (écart relatif au plus \code{tol}, ou facteurs que l'aplatissement des ex \ae quo à
 \code{tol} rend tous égaux, issue~\#60)~; ensemble des colonnes dégénérées, figé à l'observé par
 \code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
-\code{.mw\_colonnes\_}\newline\code{non\_identifiables()} & \code{aj}, \code{j\_degeneres}, $n_{\min}$,
-$k$ & prédicat unique des colonnes non identifiables de M1 (issue~\#290)~: vecteur croissant
-d'entiers, éventuellement vide, des $j$ tels que $n_j = I - j \ge n_{\min}$, hors des colonnes
-exclues (\code{.mw\_j\_exclues()}), colonne non dégénérée (\code{.mw\_colonne\_degeneree()}), et
-moins de $k$ valeurs distinctes de $C(i,j)$ (égalité exacte, \code{unique()})~; les deux fonctions
-suivantes en sont des enveloppes d'une ligne ($n_{\min} = 4$ et $k = 3$ pour la courbure,
-$n_{\min} = 3$ et $k = 2$ pour l'ordonnée à l'origine) \\
+\code{.mw\_colonnes\_}\newline\code{non\_identifiables()} & \code{aj}, \code{j\_degeneres}, \code{n\_min},
+\code{k\_distinct} & prédicat unique des colonnes non identifiables de M1 (issue~\#290)~: vecteur
+croissant d'entiers, éventuellement vide, des $j$ tels que $n_j = I - j \ge$ \code{n\_min}, hors des
+colonnes exclues (\code{.mw\_j\_exclues()}), colonne non dégénérée (\code{.mw\_colonne\_degeneree()}),
+et moins de \code{k\_distinct} valeurs distinctes de $C(i,j)$ (égalité exacte, \code{unique()})~; les
+deux fonctions suivantes en sont des enveloppes d'une ligne (\code{n\_min} $= 4$ et \code{k\_distinct}
+$= 3$ pour la courbure, \code{n\_min} $= 3$ et \code{k\_distinct} $= 2$ pour l'ordonnée à l'origine) \\
 \code{.mw\_colonnes\_}\newline\code{courbure\_non\_}\newline\code{identifiables()} & \code{aj},
 \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur \code{aj}) & vecteur croissant
 d'entiers, éventuellement vide, des colonnes non identifiables de la courbure~: $n_j \ge 4$, hors
@@ -1059,8 +1059,9 @@ d'exclusion de M1 (issue~\#60) \\
 colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
 un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
 \code{mw\_valider\_ajustement()} (issue~\#192, §\ref{sec:controles}) \\
-\code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()},\newline \code{.mw\_stat\_non\_}\newline\code{definie\_ni()} & \code{aj},
-\code{j\_degeneres}~; pour la dernière, résultat de \code{.mw\_stat\_}\allowbreak\code{non\_definie()} et table de \code{.mw\_table\_non\_}\allowbreak\code{identifiables()} & colonnes exclues d'une vérification de M1, des résidus de Mack et des
+\code{.mw\_j\_exclues()},\newline \code{.mw\_stat\_non\_definie()},\newline \code{.mw\_stat\_non\_}\newline\code{definie\_ni()} & \code{aj}, \code{j\_degeneres} (pour \code{.mw\_j\_exclues()})~; pour les deux autres, objet
+\code{ex} des colonnes exclues et éligibles de la vérification, et, pour la dernière, table de
+\code{.mw\_table\_non\_}\allowbreak\code{identifiables()} & colonnes exclues d'une vérification de M1, des résidus de Mack et des
 lignes de M2 et M3 qui reçoivent l'ensemble figé (issue~\#60)~; résultat \code{NA} d'une
 réplication de M1 où une colonne retenue devient dégénérée (pour la courbure et, depuis
 l'issue~\#273, pour l'ordonnée à l'origine, colonne hors aussi de l'ensemble figé des colonnes
