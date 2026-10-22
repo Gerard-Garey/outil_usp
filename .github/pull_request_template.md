@@ -14,7 +14,7 @@
 
 - [ ] Les tests passent : `Rscript tests/test_reproductibilite.R`
 - [ ] Les tests unitaires passent : `Rscript tests/test_unitaires.R`
-- [ ] Si des résultats changent volontairement : références régénérées (`Rscript tests/generer_references.R`) et écarts expliqués ci-dessus
+- [ ] Si des résultats changent volontairement : tableau avant / après (skill `verifier-reproductibilite`), références régénérées par la CI (`references.yml`, mode `regeneration`) ou patch chirurgical (`tests/patcher_reference.R`), écarts expliqués ci-dessus
 - [ ] Aucun calcul quantitatif hors de `R/engine.R`
 - [ ] Documentation LaTeX mise à jour selon `docs/latex/CONVENTIONS.md` ; si le `.tex` est modifié, commit de PDF de fin de branche fait après le dernier commit du `.tex` (ADR 0008 amendé)
 - [ ] Circuit d'agents suivi (voir « Sous-agents » dans `CLAUDE.md`) : vérificateurs concernés conformes (`audit`, `app-review`, `regulatory`), validation `actuary` pour toute évolution méthodologique
