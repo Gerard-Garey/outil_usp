@@ -188,38 +188,43 @@ verifier("Inventaire C2 : $6$ lignes, quatre-vingts lignes, quatre-vingt-dix-neu
                      "deux derni\u00e8res entr\u00e9es", "trois autres m\u00eames tests")) &&
            identical(unname(vapply(sub(" .*$", "", .inv_c2$formulation), cc$nombre_fr, numeric(1))),
                      c(6, 80, 99, 5, 2, 3)))
-.id_r <- "prime : lignes de base r hors suites (restent en Monte-Carlo)"
+.id_r <- "prime : lignes de base r hors suites (p-value de Monte-Carlo)"
 .reg_r <- Filter(function(a) identical(a$id, .id_r), cc$DECOMPTES)
-.doc_r <- c("Les six autres lignes de la base \u00ab ratios bruts \u00bb restent en Monte-Carlo dans tous les",
-            "r\u00e9gimes.")
-.g_r <- list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 5))
+.doc_r <- c("Les six autres lignes de la base \u00ab ratios bruts \u00bb ont leur p-value de Monte-Carlo dans tous les",
+            "r\u00e9gimes ; elle n'est retenue qu'\u00e0 $\\hat\\pi_t$ variable.")
+.g_r <- list(premium = c("base r hors suites" = 5, "base r hors suites avec p_mc" = 5))
 .v_r <- cc$verifier_decomptes(.doc_r, .g_r, .reg_r)
 .cl_r <- cc$classer_formulations(.doc_r, .v_r, list())
 verifier("C2 : decompte faux apres un qualificatif intercale (six autres lignes, mesure 5) -> ECART sur les deux grandeurs, formulation verifiee",
          length(.reg_r) == 1L && identical(.v_r$annonce, c(6, 6)) && identical(.v_r$statut, c("ECART", "ECART")) &&
            identical(.cl_r$formulations$formulation, "six autres lignes") &&
            identical(.cl_r$formulations$statut, "verifiee"))
-verifier("C2 : meme phrase juste (cinq), une ligne de base r hors suites sortie de Monte-Carlo -> ECART sur la seconde grandeur",
+verifier("C2 : meme phrase juste (cinq), une ligne de base r hors suites sans p_mc -> ECART sur la seconde grandeur",
          identical(cc$verifier_decomptes(sub("six", "cinq", .doc_r),
-                                         list(premium = c("base r hors suites" = 5, "base r hors suites Monte-Carlo" = 4)),
+                                         list(premium = c("base r hors suites" = 5, "base r hors suites avec p_mc" = 4)),
                                          .reg_r)$statut, c("ok", "ECART")))
-verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi elles en Monte-Carlo",
+# La grandeur compte les p_mc non NA, pas la nature de la p retenue : une
+# ligne restituee en diagnostic (R15, #303) garde sa p_mc et n'a pas de nature_p.
+verifier("grandeurs_moteur : lignes de base r hors test des suites, et parmi elles celles qui ont une p_mc (retenue ou non)",
          {
-           lr <- list(list(base = "r", test = "Test des suites sur ratios bruts", nature_p = "exacte"),
-                      list(base = "r", test = "Grubbs sur ratios bruts", nature_p = "Monte-Carlo (bootstrap parametrique)"),
-                      list(base = "r", test = "sup-F sur ratios bruts", nature_p = "asymptotique (x)"),
-                      list(base = "z", test = "Grubbs", nature_p = "Monte-Carlo (bootstrap parametrique)"))
+           lr <- list(list(base = "r", test = "Test des suites sur ratios bruts", nature_p = "exacte", p_mc = 0.5),
+                      list(base = "r", test = "Grubbs sur ratios bruts", nature_p = "Monte-Carlo (bootstrap parametrique)", p_mc = 0.1),
+                      list(base = "r", test = "sup-F sur ratios bruts", nature_p = NA_character_, p_mc = 0.2),
+                      list(base = "r", test = "DW sur ratios bruts", nature_p = "asymptotique (x)", p_mc = NA_real_),
+                      list(base = "z", test = "Grubbs", nature_p = "Monte-Carlo (bootstrap parametrique)", p_mc = 0.3))
            g <- cc$grandeurs_moteur(lr)
-           isTRUE(all(unname(g[c("base r hors suites", "base r hors suites Monte-Carlo")]) == c(2, 1)))
+           isTRUE(all(unname(g[c("base r hors suites", "base r hors suites avec p_mc")]) == c(3, 2)))
          })
 # Issue #111 (decision du mainteneur, critere "5 + 1 + 2") : des huit
 # exemptions de provenance, deux restaient (provenance indirecte), avec leur
 # risque residuel ecrit ; les six autres sont des phrases du registre.
 # Issue #232 : celle de .fisher_combine() devient une phrase verifiee du
 # registre (graphe d'appels du moteur) ; reste le noeud (q4) de M3.
+# Issue #302 : les deux phrases sur .shapiro_sur() sortent du registre
+# (une fonction, une entree) : quatre phrases directes de provenance.
 verifier("Exemptions de provenance : une restante (noeud du schema), motif ecrivant le risque residuel (#111, #232)",
          sum(vapply(cc$EXEMPTES_DECOMPTES, function(e) grepl("risque residuel", e$motif, fixed = TRUE), logical(1))) == 1L &&
-           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 6L &&
+           sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance : ")) == 4L &&
            sum(startsWith(vapply(cc$DECOMPTES, `[[`, "", "id"), "provenance indirecte : ")) == 1L &&
            !any(grepl("fisher", vapply(cc$EXEMPTES_DECOMPTES, `[[`, "", "contexte"), ignore.case = TRUE)))
 # Issue #232 : appelants directs lus dans le graphe d'appels (all.names du
@@ -338,21 +343,21 @@ verifier("grandeurs_moteur (#111) : lignes par fonction, compte commun des fonct
 .doc_p <- c("\\code{test\\_lm\\_complet()} & LN & Student sur la constante, Student sur la",
             "pente, Fisher global, $R^2$~: \\textbf{trois entr\u00e9es issues d'un seul appel} \\\\",
             "\\caption{Hypoth\u00e8se H1. \\code{test\\_lm\\_complet()} alimente \\textbf{trois}",
-            "entr\u00e9es de la table des tests} ; \\code{.shapiro\\_sur()} alimente \\emph{deux} entr\u00e9es.",
+            "entr\u00e9es de la table des tests}.",
             "Une fonction, plusieurs tests & \\code{test\\_lm\\_complet()} (3 entr\u00e9es),",
-            "\\code{.shapiro\\_sur()} (2 entr\u00e9es)~; \\code{stat\\_dw()}, \\code{test\\_runs()},",
+            "\\code{stat\\_dw()}, \\code{test\\_runs()},",
             "\\code{stat\\_supF()}, \\code{stat\\_cusum()} et \\code{test\\_grubbs()} (2 entr\u00e9es",
             "chacune, sur $z_t$)")
-.g_p <- list(premium = c("fonction test_lm_complet" = 3, "fonction .shapiro_sur" = 2,
+.g_p <- list(premium = c("fonction test_lm_complet" = 3,
                          "fonctions z et u (compte commun)" = 2))
 .g_p$reserve1 <- .g_p$premium
-verifier("Provenance (#111) : six phrases trouvees et justes -> ok ; compte commun NA -> ECART ; 'quatre' pour 3 -> ECART",
+verifier("Provenance (#111) : quatre phrases trouvees et justes -> ok ; compte commun NA -> ECART ; 'quatre' pour 3 -> ECART",
          {
            v <- cc$verifier_decomptes(.doc_p, .g_p, .reg_p)
            g_na <- .g_p; g_na$premium["fonctions z et u (compte commun)"] <- NA_real_
            v_na <- cc$verifier_decomptes(.doc_p, g_na, .reg_p)
            v4 <- cc$verifier_decomptes(sub("(3 entr", "(4 entr", .doc_p, fixed = TRUE), .g_p, .reg_p)
-           length(.reg_p) == 6L && nrow(v) == 12L && all(v$statut == "ok") &&
+           length(.reg_p) == 4L && nrow(v) == 8L && all(v$statut == "ok") &&
              identical(v_na$statut[v_na$grandeur == "premium : fonctions z et u (compte commun)"], "ECART") &&
              identical(sort(unique(v4$statut[grepl("tableau des portees", v4$assertion) &
                                                grepl("test_lm_complet", v4$assertion)])), "ECART")
@@ -557,8 +562,8 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .k75 <- grep("Les treize tests d'hypoth\u00e8se reposent tous", .tex_75, fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
-.k75r <- grep("Les cinq autres lignes de la base", .tex_75, fixed = TRUE)
-writeLines(c(sub("Les cinq autres lignes de la base", "Les six autres lignes de la base",
+.k75r <- grep("Les quatre autres lignes de la base", .tex_75, fixed = TRUE)
+writeLines(c(sub("Les quatre autres lignes de la base", "Les six autres lignes de la base",
                  sub("Les treize tests d'hypoth\u00e8se reposent tous", "Les douze tests d'hypoth\u00e8se reposent tous",
                      .tex_75, fixed = TRUE), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",
@@ -579,9 +584,11 @@ verifier("Garde de contexte (constat 4 de la fin d'E0b) : --strict ne compte pas
          any(grepl(sprintf("^      l\\.%-5d deux lignes +\\[garde : dimension d'un tableau ou d'un fichier\\]", length(.tex_75) + 3L),
                    r_75$sortie)) &&
            !any(grepl(sprintf("^    l\\.%-5d deux lignes ", length(.tex_75) + 3L), r_75$sortie)))
-verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 5)",
+# Mesure 4 depuis le retrait de Ljung-Box (1) sur ratios bruts (#303) : DWr,
+# supFr, CUSUMr et Grubbsr.
+verifier("Audit de #75, C2 : --strict signale le decompte faux injecte apres un qualificatif intercale (six autres lignes, mesure 4)",
          length(.k75r) == 1L &&
-           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 5$",
+           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d prime : lignes de base r hors suites .* base r hors suites +annonce 6 +mesure 4$",
                              .k75r), r_75$sortie)))
 r_b98 <- .lancer_concordance("--B", "98")
 verifier("--B 98 refuse par le script lance (code 1, erreur explicite, moteur non execute)",
@@ -717,8 +724,14 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 50 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, et mw:m5sw, mw:m5li, diagnostics depuis #245), labels et noms uniques",
-         length(.labs) == 50L && !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 40 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302, fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt, fiche:brown-forsythe et fiche:smirnov, diagnostics par decision depuis #299, fiche:rosner-esd, diagnostic par decision depuis #304), labels et noms uniques",
+         length(.labs) == 40L &&
+           !any(c("fiche:ljung-box-ratios-bruts", "fiche:shapiro-wilk-sans-royston", "fiche:cramer-von-mises",
+                  "fiche:kolmogorov-smirnov", "fiche:breusch-pagan-1979", "fiche:white",
+                  "fiche:goldfeld-quandt", "fiche:brown-forsythe", "fiche:smirnov",
+                  "fiche:rosner-esd") %in% .labs) &&
+           !any(c("Ljung-Box (retard 1)", "Box-Pierce (retard 2)") %in% .noms) &&
+           !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
            all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 14L)
 # T245-7 : les deux fiches M5 (diagnostics depuis #245) ne sont plus au
 # registre, ni par leur label ni par le nom de leur ligne.
@@ -731,10 +744,12 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # Issue #114 : injections dans une copie du .tex, un seul appel du script
 # --strict, lignes conservees (remplacement de contenu, pas d'insertion) :
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
-# (R2), deplacee avant \Usage (White), doublee (Goldfeld-Quandt) ; rangee
+# (R2), deplacee avant \Usage (Durbin-Watson), doublee (Mann-Kendall) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
 # inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
-# rangee Fisher retiree par #169).
+# rangee Fisher retiree par #169). White et Goldfeld-Quandt, d'abord visees
+# ici, sont des diagnostics par decision depuis #299 (plus de \Pertinence) :
+# les injections portent sur Durbin-Watson et Mann-Kendall.
 .tex_114 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
 .bornes <- function(lab) {
   d <- grep(sprintf("\\label{%s}", lab), .tex_114, fixed = TRUE)
@@ -744,9 +759,9 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .m <- .tex_114
 .k_reset <- .dans("fiche:reset", "^\\\\Pertinence\\s*$"); .m[.k_reset] <- ""
 .b_r2 <- .bornes("fiche:r2"); .m[.b_r2[2L] - 1L] <- paste(.m[.b_r2[2L] - 1L], "\\Pertinence")
-.k_white <- .dans("fiche:white", "^\\\\Pertinence\\s*$"); .k_white_h <- .dans("fiche:white", "^\\\\Hzero")
+.k_white <- .dans("fiche:durbin-watson", "^\\\\Pertinence\\s*$"); .k_white_h <- .dans("fiche:durbin-watson", "^\\\\Hzero")
 .m[.k_white] <- ""; .m[.k_white_h] <- paste(.m[.k_white_h], "\\Pertinence")
-.k_gq <- .dans("fiche:goldfeld-quandt", "^\\\\Pertinence\\s*$"); .m[.k_gq] <- "\\Pertinence \\Pertinence"
+.k_gq <- .dans("fiche:mann-kendall", "^\\\\Pertinence\\s*$"); .m[.k_gq] <- "\\Pertinence \\Pertinence"
 .k_li <- grep("(\\ref{fiche:lilliefors}) &", .tex_114, fixed = TRUE)
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
@@ -769,9 +784,9 @@ verifier("Issue #114 : --strict signale la fiche de test privee de rubrique 7 (R
          .sortie_a(.bornes("fiche:reset")[1L], "fiche:reset", "rubrique 7 absente de la fiche$"))
 verifier("Issue #114 : --strict signale la rubrique 7 sur un diagnostic (R2)",
          .sortie_a(.b_r2[2L] - 1L, "fiche:r2", "rubrique 7 sur une fiche hors du registre"))
-verifier("Issue #114 : --strict signale la rubrique 7 avant \\Usage (White) et en double (Goldfeld-Quandt)",
-         .sortie_a(.k_white_h, "fiche:white", "rubrique 7 avant \\\\Usage") &&
-           .sortie_a(.k_gq, "fiche:goldfeld-quandt", "rubrique 7 presente 2 fois"))
+verifier("Issue #114 : --strict signale la rubrique 7 avant \\Usage (Durbin-Watson) et en double (Mann-Kendall)",
+         .sortie_a(.k_white_h, "fiche:durbin-watson", "rubrique 7 avant \\\\Usage") &&
+           .sortie_a(.k_gq, "fiche:mann-kendall", "rubrique 7 presente 2 fois"))
 verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee manquante, rangee d'une fiche sans rubrique 7, fiche a rubrique 7 sans rangee",
          .sortie_a(max(.k_li, .k_jb), "fiche:jarque-bera", "fiche citee par 2 rangees") &&
            .sortie_a(NA, "fiche:lilliefors", "fiche a rubrique 7 sans rangee") &&
@@ -869,6 +884,28 @@ verifier("Issue #121 : registre -- Cox-Stuart t_positif = 10, Anscombe-Glynn t_p
          identical(vapply(.hj, `[[`, "", "label"), c("fiche:cox-stuart", "fiche:anscombe-glynn-aplatissement")) &&
            identical(vapply(.hj, function(r) as.integer(r$t_positif), 1L), c(10L, 20L)) &&
            grepl("au plus tot a T = 10", cc$MOTIF_COX_STUART_T8, fixed = TRUE))
+# #302 : Anscombe-Glynn n'est de type test qu'a pi_t constant ; son entree
+# hors_jeux est verifiee sur le jeu synthetique a volumes constants
+# (volumes_constants = TRUE), les lignes de ce jeu etant distinguees par la
+# colonne volumes_constants de lignes_synth (FALSE si elle manque).
+.ag <- Filter(function(r) r$label == "fiche:anscombe-glynn-aplatissement", cc$REGISTRE_RUBRIQUE7)
+.ls_302 <- data.frame(T = c(20L, 20L), test = "Aplatissement (Anscombe-Glynn, T >= 20)",
+                      type = c("non applicable", "test"), volumes_constants = c(FALSE, TRUE),
+                      stringsAsFactors = FALSE)
+verifier("Issue #302 : entree Anscombe-Glynn a volumes constants ; verification positive sur le seul jeu a volumes constants",
+         isTRUE(.ag[[1]]$volumes_constants) && grepl("a pi_t constant seulement", cc$MOTIF_ANSCOMBE_T8, fixed = TRUE) &&
+           !nrow(cc$verifier_hors_jeux_positifs(.ls_302, .ag)) &&
+           .a_motif(cc$verifier_hors_jeux_positifs(.ls_302[1, ], .ag), "fiche:anscombe-glynn-aplatissement",
+                    "T = 20 non execute") &&
+           .a_motif(cc$verifier_hors_jeux_positifs(transform(.ls_302, type = "non applicable"), .ag),
+                    "fiche:anscombe-glynn-aplatissement", "infirmee.*T = 20$") &&
+           # Sans colonne volumes_constants, toutes les lignes sont lues FALSE.
+           !nrow(cc$verifier_hors_jeux_positifs(.ls_121, .reg_121[1])))
+verifier("Issue #302 : jeu_synthetique(T, volumes_constants = TRUE) -- volumes constants, memes ratios",
+         with(cc$jeu_synthetique(20, volumes_constants = TRUE), all(x == 100) && length(y) == 20L) &&
+           isTRUE(all.equal(with(cc$jeu_synthetique(20, TRUE), y / x), with(cc$jeu_synthetique(20), y / x),
+                            tolerance = 1e-14)) &&
+           identical(cc$jeu_synthetique(10), cc$jeu_synthetique(10, volumes_constants = FALSE)))
 verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux a deux distincts",
          identical(cc$jeu_synthetique(10), cc$jeu_synthetique(10)) && length(cc$jeu_synthetique(20)$y) == 20L &&
            !anyDuplicated(with(cc$jeu_synthetique(20), y / x)))
@@ -887,6 +924,20 @@ verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux 
 verifier("Issue #121 : moteur -- Cox-Stuart de type test sur le jeu synthetique T = 10 (declaration confirmee), pas a T = 9 (infirmee)",
          !nrow(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox)) &&
            .a_motif(cc$verifier_hors_jeux_positifs(.lignes_synth, .cox9), "fiche:cox-stuart", "infirmee.*T = 9$"))
+# #302 : moteur execute a T = 20 -- Anscombe-Glynn de type test sur le jeu
+# synthetique a volumes constants (pi_t constant), non applicable sur le jeu
+# a volumes croissants (pi_t variable, delta estime interieur).
+.ag_synth <- do.call(rbind, lapply(c(FALSE, TRUE), function(vc) {
+  j <- cc$jeu_synthetique(20L, volumes_constants = vc)
+  r <- run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
+                  nature_donnees = "brutes")
+  data.frame(T = 20L, test = vapply(r$tests, function(t) t$test, ""), type = vapply(r$tests, function(t) t$type, ""),
+             volumes_constants = vc, stringsAsFactors = FALSE)
+}))
+verifier("Issue #302 : moteur -- Anscombe-Glynn de type test sur le jeu synthetique T = 20 a volumes constants, non applicable a volumes croissants",
+         !nrow(cc$verifier_hors_jeux_positifs(.ag_synth, .ag)) &&
+           identical(.ag_synth$type[.ag_synth$test == "Aplatissement (Anscombe-Glynn, T >= 20)"],
+                     c("non applicable", "test")))
 
 # Reprise (audit de R6) : meme regle dans cles_mc_index() -- une rangee de
 # donnees avec \multicolumn intermediaire n'est plus prise pour un

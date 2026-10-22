@@ -1076,14 +1076,25 @@ verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au s
          })
 # Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
 # de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
-# Grubbs de premium_interieur (128 caracteres) ; phrase seule, homogeneite des
-# dispersions de premium (detail vide hors phrase).
-ref244 <- function(cas, i) readRDS(file.path(.racine, "tests", "reference",
-                                             paste0(cas, ".rds")))$tests[[i]]$detail
+# Grubbs de premium_interieur (128 caracteres) ; phrase seule : detail
+# synthetique egal a PHRASE_VERDICT_SENSIBLE_MC (depuis #299, homogeneite des
+# dispersions de premium, source de ce cas, est un diagnostic par decision
+# sans la phrase de #244, et aucune ligne des references n'a plus un detail
+# reduit a la seule phrase ; cas d'add() a detail vide, U244-8 de
+# test_verdict_sensible_mc.R). Ligne designee par son nom de test (#302 : un
+# retrait de lignes decale les indices), une et une seule par reference
+# (erreur sinon).
+ref244 <- function(cas, nom) {
+  l <- Filter(function(l) identical(l$test, nom),
+              readRDS(file.path(.racine, "tests", "reference", paste0(cas, ".rds")))$tests)
+  if (length(l) != 1L) stop("ref244 : ", length(l), " ligne(s) '", nom, "' dans ", cas)
+  l[[1]]$detail
+}
 verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, texte relu entier (#244, #178)",
          {
-           x_long <- ref244("reserve2", 2); x_court <- ref244("premium_interieur", 37)
-           x_seul <- ref244("premium", 15)
+           x_long <- ref244("reserve2", "Nullite de l'ordonnee a l'origine, colonne par colonne")
+           x_court <- ref244("premium_interieur", "Valeur aberrante isolee (Grubbs)")
+           x_seul <- PHRASE_VERDICT_SENSIBLE_MC
            cr <- .commentaire_replie(c(x_long, x_court, x_seul))
            nchar(x_long) > 200L && endsWith(x_long, PHRASE_VERDICT_SENSIBLE_MC) &&
              startsWith(cr[1], "<details class='com'><summary>") &&
@@ -1468,10 +1479,10 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (34 lignes), tiret sans statistique du bootstrap (17)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
-           sum(is.finite(.g285)) == 34L && sum(!is.finite(.g285)) == 17L &&
+           sum(is.finite(.g285)) == 31L && sum(!is.finite(.g285)) == 16L &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
 verifier("#285 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, sans appariement",
          { k <- .tb285$fonction %in% FONCTIONS_P_MC_EXTERNE

@@ -238,7 +238,9 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
          {
            b2 <- usp_bootstrap(fit, B = 2, seed = 20260831)
            t2 <- usp_tests(fit, b2, methode = "premium")
-           sm <- ligne(t2, "Egalite des lois petits vs gros volumes (2 ech.)")
+           # p exacte gardee : Durbin-Watson (Smirnov, temoin avant #299, est
+           # depuis un diagnostic par decision, sans p retenue).
+           sm <- ligne(t2, "Autocorrelation d'ordre 1 (Durbin-Watson)")
            cs <- ligne(t2, "Tendance par signes du ratio S/P")
            rs <- ligne(t2, "RESET (forme fonctionnelle)")
            sf <- ligne(t2, "Rupture de niveau (sup-F)")
@@ -401,8 +403,8 @@ verifier("add() : motif_mc present mais NA pour une p_mc absente -> erreur ; p_m
 
 ## --- 4. usp_tests() : constante, TOST, pente, Fisher, AD, CvM ---------------
 tt <- usp_tests(fit, boot_fictif(fit), methode = "premium")
-verifier("usp_tests : 46 lignes sans jackknife, IC ni LR sur delta (51 par run_engine()) ; toute ligne non-test hors procedure de decision sort INFO (M7)",
-         length(tt) == 46L &&
+verifier("usp_tests : 42 lignes sans jackknife, IC ni LR sur delta (47 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302) ; toute ligne non-test hors procedure de decision sort INFO (M7)",
+         length(tt) == 42L &&
          all(vapply(Filter(function(l) !l$type %in% c("test", "procedure de decision"), tt),
                     function(l) identical(l$verdict, "INFO") && is.na(l$sens), logical(1))))
 verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continue)",
@@ -1039,14 +1041,16 @@ verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Mo
          })
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
 # calculee" (#214 ; "est retenue" avant) n'est ecrite que hors motif de
-# degenerescence de Runsr (#128).
+# degenerescence de Runsr (#128). Depuis #303 (regle R15), la ligne est un
+# diagnostic dans les deux cas, la p exacte restant calculee ; le motif de
+# degenerescence est pose en tete par usp_tests().
 verifier("Runsr regime 1 : sans motif -> 'EXACTE est calculee' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
          {
            nm <- "Test des suites sur ratios bruts"
            a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
            b <- ligne(usp_tests(fit, boot_fictif(fit, motif = c(Runsr = MOTIF_MC_DISPERSION_NULLE)),
                                 methode = "premium"), nm)
-           identical(a$nature_p, "exacte") &&
+           is.finite(a$p_exacte) && identical(a$type, "diagnostic") && is.na(a$nature_p) &&
              grepl("la p-value EXACTE est calculee (convention bilaterale", a$detail, fixed = TRUE) &&
              !grepl("EXACTE est retenue", a$detail, fixed = TRUE) &&
              identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
@@ -1059,7 +1063,9 @@ verifier("Runsr regime 1 : sans motif -> 'EXACTE est calculee' ; motif de degene
 # estime la meme quantite" n'est ecrite que si p_mc existe (#128, point c,
 # reserve R1 d'actuary : jeu de controle avec usp_bootstrap(B = 40), sous le
 # seuil de 50 replications, p_mc NA).
-verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B = 40) -> absente, p exacte retenue",
+# Depuis #303 (regle R15) : p exacte calculee mais non retenue (diagnostic),
+# proposition de renvoi a nature_p retiree.
+verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B = 40) -> absente, p exacte calculee, diagnostic R15",
          {
            nm <- "Test des suites sur ratios bruts"
            phr <- "La p-value Monte-Carlo de la colonne p_mc estime la meme quantite, a l'erreur Monte-Carlo pres."
@@ -1068,9 +1074,9 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
            k <- ligne(usp_tests(fit, b40, methode = "premium"), nm)
            is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
-             identical(k$nature_p, "exacte") && is.finite(k$p_retenue) &&
-             grepl(paste("standardises (issue #29) ; la p-value retenue, s'il en est une,",
-                         "est nommee par nature_p."), k$detail, fixed = TRUE) &&
+             identical(k$type, "diagnostic") && is.finite(k$p_exacte) && is.na(k$p_retenue) &&
+             grepl("standardises (issue #29). Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
+             !grepl("nommee par nature_p", k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)
          })
@@ -1389,8 +1395,8 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
 # ligne de largeur d'IC presente (48 lignes avant #45) ; sous 21 tirages, que
 # run_engine() n'admet plus, elle manquait (47 lignes). Depuis #45 : plus la
 # ligne de l'IC restreint (meme regle) et les deux lignes LR sur delta.
-verifier("run_engine : 51 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises)",
-         length(res_ln$tests) == 51L && !is.null(res_ln$ic_bootstrap) &&
+verifier("run_engine : 47 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302)",
+         length(res_ln$tests) == 47L && !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
 
@@ -1501,13 +1507,15 @@ verifier("engine_table_tests : colonne logique inoperant, derniere colonne, alig
 # de ces phrases ne depend pas de B), plus les deux jeux de #214 a alpha =
 # 0,05 : regime 1 de Runsr (donnees_ln.csv, p_min = 0,0571 >= alpha) et
 # regime 3 (donnees_ln_interieur.csv, branche Monte-Carlo de R1), tous deux
-# inoperants.
+# inoperants avant #303 ; depuis, le regime 1 est un diagnostic de la regle
+# R15 (pi_t constant), seul le regime 3 reste inoperant.
 NOM_P_214 <- "(p-values?|p_mc|p exacte|p-value EXACTE|Monte-Carlo|exacte|EXACTE|asymptotique)"
 MOTIFS_RETENUE_214 <- c(
   "(?<!n')\\best retenue?s?\\b",
   "\\bp(-values?|_mc)?\\b[^.;:]{0,80}(?<!ne )\\bsont retenue?s\\b",
   paste0("\\b", NOM_P_214, " retenue?s?\\b"))
-EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue",
+# "ni p-value retenue" : phrase fixe de la regle R15 (#303), negative.
+EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue", "ni p-value retenue",
                         "p-value retenue, s'il en est une",
                         "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut")
 affirme_retenue <- function(d) {
@@ -1536,15 +1544,20 @@ cas214 <- list(
   j214_regime1 = lnp214(ln214, methode = "premium", nature_donnees = "brutes", alpha = 0.05),
   j214_regime3 = lnp214(li214, methode = "premium", nature_donnees = "brutes", alpha = 0.05))
 NM_RUNSR <- "Test des suites sur ratios bruts"
-verifier("#214 jeux : Runsr inoperant a alpha = 0,05 (regime 1 p exacte, regime 3 Monte-Carlo), detail renvoyant a nature_p",
+# Depuis #303 (regle R15), Runsr a pi_t constant (regime 1) est un
+# diagnostic pose par usp_tests() : R1 ne s'y applique plus (inoperant
+# FALSE), et la proposition de renvoi a nature_p est retiree ; le regime 3
+# (pi_t variable) reste un test inoperant par R1.
+verifier("#214 jeux : alpha = 0,05, Runsr regime 1 en diagnostic R15 (p exacte calculee), regime 3 inoperant (Monte-Carlo) avec renvoi a nature_p",
          {
            a <- ligne(cas214$j214_regime1$tests, NM_RUNSR); b <- ligne(cas214$j214_regime3$tests, NM_RUNSR)
-           all(vapply(list(a, b), function(l)
-             isTRUE(l$inoperant) && is.na(l$p_retenue) && identical(l$verdict, "INFO") &&
-               startsWith(l$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
-               grepl("la p-value retenue, s'il en est une, est nommee par nature_p", l$detail, fixed = TRUE),
-             logical(1))) &&
+           isFALSE(a$inoperant) && identical(a$type, "diagnostic") && is.na(a$p_retenue) &&
+             identical(a$verdict, "INFO") && grepl("regle R15", a$detail, fixed = TRUE) &&
+             !grepl("nommee par nature_p", a$detail, fixed = TRUE) &&
              is.finite(a$p_exacte) && grepl("EXACTE est calculee", a$detail, fixed = TRUE) &&
+             isTRUE(b$inoperant) && is.na(b$p_retenue) && identical(b$verdict, "INFO") &&
+             startsWith(b$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
+             grepl("la p-value retenue, s'il en est une, est nommee par nature_p", b$detail, fixed = TRUE) &&
              !is.finite(b$p_exacte) && is.finite(b$p_mc)
          })
 verifier("#214 : aucune ligne inoperante (six cas, deux jeux de #214) ne declare une p-value retenue",
@@ -1573,6 +1586,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
                       "la p-value asymptotique retenue", "p_mc est retenue ; la p-value retenue, s'il en est une"),
                     affirme_retenue, logical(1))) &&
            !any(vapply(c("aucune p-value n'est retenue (ADR 0001)", "Aucune p-value retenue : la grandeur",
+                       "Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ;",
                          "pour information, non retenue", "est rapportee pour memoire et non retenue",
                          "la p-value retenue, s'il en est une, est nommee par nature_p.",
                          paste("la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",

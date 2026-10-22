@@ -144,7 +144,8 @@
 #          par le moteur (lignes principales), elle n'est qu'APPROCHEE ;
 #        - controles d'integrite : invariance affine (W, Z et leurs p) sur un
 #          echantillon de chaque loi ; transcription contre run_engine() sur
-#          J1 (W, p de Royston, p par loi nulle, Z et p de D'Agostino ; W et Z
+#          J1 (W, p de Royston, Z et p de D'Agostino ; p par loi nulle
+#          jusqu'a #302, qui retire sa ligne ; W et Z
 #          des z egaux a ceux des log-ratios, pi chapeau constant) ; aucune p
 #          manquante ;
 #        - niveaux (ligne N(0,1)) : INFORMATIFS, aucun code de sortie n'en
@@ -451,9 +452,11 @@
 #          lambda1 ou R2 > lambda2) et k chapeau = 2 <=> R2 > lambda2 sur
 #          toutes les replications ; invariance de k chapeau et de R par
 #          v -> 3 + 0,2 v et v -> -5 - 7 v (100 premiers echantillons i.i.d.) ;
-#          estimation et verdict de la ligne ESD de run_engine() egaux a
-#          test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observes et sur le
-#          premier jeu simule de chacun ; J1 observe (pi chapeau constant) :
+#          estimation de la ligne ESD de run_engine() egale au k chapeau de
+#          test_rosner(usp_ajuster(x, y)$z), ligne de type diagnostic et de
+#          verdict INFO (diagnostic par decision, #304), sur J1 et J2
+#          observes et sur le premier jeu simule de chacun ; J1 observe (pi
+#          chapeau constant) :
 #          R identique sur z et sur les log-ratios ; expression de #72 relue
 #          et identique ; premier tirage de chaque flux identique a un tirage
 #          isole ; RNGkind() et .Random.seed de l'appelant restaures ;
@@ -1087,19 +1090,21 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   tb1 <- engine_table_tests(res1)
   ligne <- function(nom) tb1[tb1$test == nom, ]
   l_sw  <- ligne("Shapiro-Wilk sur residus standardises")
-  l_swn <- ligne("Shapiro-Wilk (loi nulle simulee, sans normalisation de Royston)")
   l_ds  <- ligne("Asymetrie (D'Agostino, T >= 8)")
   fit1 <- usp_ajuster(.ln$xt, .ln$yt)
   m_z <- mesurer_normalite(fit1$z)
   m_lr <- mesurer_normalite(log(.ln$yt / .ln$xt))
-  trans_ok <- nrow(l_sw) == 1L && nrow(l_swn) == 1L && nrow(l_ds) == 1L &&
+  # La ligne Shapiro-Wilk a loi nulle simulee est retiree de run_engine()
+  # (#302) : la p par loi nulle (sw_p_loi_nulle(), fonction du moteur) n'est
+  # plus confrontee a une ligne ; W, qui la determine, l'est toujours.
+  trans_ok <- nrow(l_sw) == 1L && nrow(l_ds) == 1L &&
     isTRUE(diff(range(fit1$pi)) <= 1e-12 * max(fit1$pi)) &&
-    isTRUE(all.equal(c(l_sw$statistique, l_sw$p_asymptotique, l_swn$p_exacte,
+    isTRUE(all.equal(c(l_sw$statistique, l_sw$p_asymptotique,
                        l_ds$statistique, l_ds$p_asymptotique),
-                     unname(m_z[c("W", "p_royston", "p_nulle", "Z", "p_dago")]), tolerance = 1e-10)) &&
+                     unname(m_z[c("W", "p_royston", "Z", "p_dago")]), tolerance = 1e-10)) &&
     isTRUE(all.equal(m_z[c("W", "Z")], m_lr[c("W", "Z")], tolerance = 1e-8))
   ctrl_norm <- c(ctrl_norm, controle(trans_ok, paste(
-    "C4, transcription contre run_engine() sur J1 (W, p de Royston, p par loi nulle, Z et p de",
+    "C4, transcription contre run_engine() sur J1 (W, p de Royston, Z et p de",
     "D'Agostino ; \u03c0\u0302 constant ; W et Z des r\u00e9sidus z \u00e9gaux \u00e0 ceux des log-ratios)")))
   ctrl_norm <- c(ctrl_norm, controle(
     all(vapply(MES8, function(M) all(is.finite(M)), logical(1))) &&
@@ -1307,7 +1312,9 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
     sprintf(paste("- Shapiro-Wilk, p par loi nulle simul\u00e9e : %s. La loi nulle est fig\u00e9e (SEED_LOI_NULLE_SW,",
                   "N = %d tirages) : l'\u00e9cart de la vraie probabilit\u00e9 de rejet au niveau nominal est une erreur",
                   "de quantile d'ordre \u221a(\u03b1(1 \u2212 \u03b1)/N) (%s), qu'aucun R ne",
-                  "r\u00e9duit ; la transcription de sw_p_loi_nulle() est contr\u00f4l\u00e9e contre run_engine() (contr\u00f4les d'int\u00e9grit\u00e9)."),
+                  "r\u00e9duit ; sw_p_loi_nulle() n'a plus de ligne dans run_engine() (Shapiro-Wilk \u00e0 loi nulle",
+                  "simul\u00e9e retir\u00e9e, #302) : seule W, qui la d\u00e9termine, est contr\u00f4l\u00e9e contre run_engine()",
+                  "(contr\u00f4les d'int\u00e9grit\u00e9)."),
             txt_niveau(MES8[[1]][, "p_nulle"]), N_NULLE,
             paste(vapply(ALPHAS_118, function(al) sprintf("%s \u00e0 \u03b1 = %s", num(sqrt(al * (1 - al) / N_NULLE), 4),
                                                            num(al, 2)), ""), collapse = " ; ")),
@@ -2282,20 +2289,23 @@ if (OPT_PARTIE == "esd") {
   ctrl_esd <- c(ctrl_esd, controle(inv_esd, sprintf(
     "C7, invariance de k\u0302 et de R par v \u2192 3 + 0,2 v et v \u2192 \u22125 \u2212 7 v (%d premiers \u00e9chantillons i.i.d.)",
     min(100L, OPT_R))))
-  # Transcription contre run_engine() (alpha par defaut) : estimation et
-  # verdict de la ligne ESD sur le jeu observe et le premier jeu simule de
-  # chaque jeu, contre test_rosner(usp_ajuster(x, y)$z).
-  verdict_esd <- function(k) if (k >= 2) "ECHEC" else if (k == 1) "ALERTE" else "OK"
+  # Transcription contre run_engine() (alpha par defaut) : estimation de la
+  # ligne ESD sur le jeu observe et le premier jeu simule de chaque jeu,
+  # contre test_rosner(usp_ajuster(x, y)$z) ; type diagnostic et verdict
+  # INFO (diagnostic par decision depuis #304 ; l'ancien verdict etait une
+  # fonction deterministe de k chapeau, lu desormais dans estimation).
   trans_esd <- all(vapply(MES_ESD, function(m) all(vapply(list(m$J$y, m$YSIM[1, ]), function(y) {
     tb <- engine_table_tests(run_engine(xt = m$J$x, yt = y, methode = "premium", segment = 1, annexe = "II",
                                         nature_donnees = "brutes", B = 99, seed = 20260831))
     l <- tb[tb$test == LIGNE_ESD, ]
     k <- test_rosner(usp_ajuster(m$J$x, y)$z, alpha = ALPHA_ESD_MOTEUR)$nb_outliers
-    nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) && identical(l$verdict, verdict_esd(k))
+    nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) &&
+      identical(l$type, "diagnostic") && identical(l$verdict, "INFO")
   }, logical(1))), logical(1)))
   ctrl_esd <- c(ctrl_esd, controle(trans_esd, sprintf(paste(
-    "C7, transcription contre run_engine() (\u03b1 = %s) : estimation et verdict de la ligne ESD \u00e9gaux \u00e0",
-    "test_rosner(usp_ajuster(x, y)$z) sur J1 et J2 observ\u00e9s et sur le premier jeu simul\u00e9 de chacun"), num(ALPHA_ESD_MOTEUR, 2))))
+    "C7, transcription contre run_engine() (\u03b1 = %s) : estimation de la ligne ESD \u00e9gale au k\u0302 de",
+    "test_rosner(usp_ajuster(x, y)$z), ligne diagnostic de verdict INFO (#304), sur J1 et J2 observ\u00e9s et sur le",
+    "premier jeu simul\u00e9 de chacun"), num(ALPHA_ESD_MOTEUR, 2))))
   # A pi chapeau constant (J1 observe), R de test_rosner() identique sur les
   # residus z et sur les log-ratios (portee de C7.a).
   f1 <- MES_ESD[["J1"]]$FIT0

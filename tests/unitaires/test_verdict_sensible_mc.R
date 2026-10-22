@@ -14,7 +14,9 @@
 #  U244-9 : seuils atteignables seulement (g_mc NA ou < s). Renvoi de #215
 #  pose avant la phrase (constat C1 de l'audit).
 #  U244-7 : la regle, recalculee sur les champs des six references, designe
-#  exactement les 11 lignes de la specification, qui seules portent la
+#  exactement les lignes de la specification restees de type test (11
+#  avant #299, 3 depuis : Breusch-Pagan 1979 et Brown-Forsythe des quatre
+#  cas a delta = 1 sont des diagnostics par decision), qui seules portent la
 #  phrase ; l'egalite moteur = references (p, verdicts, detail) est portee par
 #  tests/test_reproductibilite.R, et l'absence de toute valeur numerique
 #  changee par l'invariant de tests/patcher_reference.R.
@@ -212,16 +214,31 @@ verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phr
            identical(.usp_poser_renvois(R215), R215))
 
 ## --- U244-7 : six references ----------------------------------------------------------
-# Les 11 lignes de la specification (section 5, mesure M1), par cas : indice
-# de la ligne dans res$tests et nom du test.
+# Les 11 lignes de la specification (section 5, mesure M1), par cas et par
+# nom de test, dans l'ordre de res$tests (lues par leur nom, non par leur
+# indice : #302 a decale Grubbs de premium_interieur de 37 a 34).
+# Depuis #299 (Q-D1-Fh-5), Breusch-Pagan 1979 et Brown-Forsythe sont des
+# diagnostics par decision : add() ne pose la phrase de #244 qu'aux lignes
+# de type test, et ces deux lignes ne la portent plus dans les quatre cas a
+# delta = 1 (aucune ligne marquee dans ces cas ; restent Grubbs de
+# premium_interieur et deux lignes de reserve2, 3 au total, mesure du
+# 20/10/2026 par executer_cas()). Les lignes attendues sont donc celles de la
+# specification restees de type test dans la reference : le test vaut sur
+# les references d'avant #299 (11 lignes) et sur celles d'apres (3) ; une
+# ligne de la specification devenue diagnostic doit l'etre par #299 (phrase
+# fixe de #299 en fin de detail) et ne pas porter la phrase de #244.
 ATTENDU244 <- list(
-  premium = c(`12` = "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
-              `15` = "Homogeneite des dispersions (mediane)"),
+  premium = c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
+              "Homogeneite des dispersions (mediane)"),
   premium_ii6 = NULL, premium_net = NULL, reserve1 = NULL,
-  premium_interieur = c(`37` = "Valeur aberrante isolee (Grubbs)"),
-  reserve2 = c(`2` = "Nullite de l'ordonnee a l'origine, colonne par colonne",
-               `6` = "Heteroscedasticite residuelle vs cumul"))
+  premium_interieur = "Valeur aberrante isolee (Grubbs)",
+  reserve2 = c("Nullite de l'ordonnee a l'origine, colonne par colonne",
+               "Heteroscedasticite residuelle vs cumul"))
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
+DIAG299_244 <- c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
+                 "Homogeneite des dispersions (mediane)")
+FIN299_244 <- paste("la structure de variance releve de la ligne Breusch-Pagan studentise",
+                    "(Koenker), dont le type et le verdict font foi.")
 # Regle recalculee, alignee sur add() (U244-9 et #125) : seuils atteignables
 # seulement, plancher p_min_mc de la ligne s'il est fini, sinon g_mc lu dans
 # bootstrap$granularite_stat. La ligne ne porte pas son mc_nom : la
@@ -255,22 +272,37 @@ verifier("g244() : lignes de usp_lr_delta (p Monte-Carlo externe) de premium -> 
            lr <- Filter(function(l) identical(l$fonction, "usp_lr_delta"), rp$tests)
            length(lr) == 2L && all(is.na(vapply(lr, g244, numeric(1), boot = rp$bootstrap)))
          })
-n244 <- 0L
+n244 <- 0L; n_diag299 <- 0L
 for (cas in names(ATTENDU244)) local({
   ref <- readRDS(file.path(.racine244, "tests", "reference", paste0(cas, ".rds")))
-  att <- ATTENDU244[[cas]]
+  noms <- vapply(ref$tests, `[[`, "", "test")
+  types <- vapply(ref$tests, `[[`, "", "type")
+  spec <- ATTENDU244[[cas]]
+  stopifnot(all(spec %in% noms), !anyDuplicated(noms[noms %in% spec]))
+  att <- spec[types[match(spec, noms)] == "test"]
+  diag <- setdiff(spec, att)
   idx_ph <- which(vapply(ref$tests, function(l) grepl(PH, l$detail, fixed = TRUE), logical(1)))
   idx_rg <- which(vapply(ref$tests, regle244, logical(1), alpha = ref$metadata$alpha,
                          boot = ref$bootstrap))
-  verifier(sprintf("U244-7 %s : phrase sur les seules lignes %s, en dernier, une fois", cas,
-                   paste(names(att), collapse = ", ")),
-           identical(as.character(idx_ph), names(att)) &&
-             identical(vapply(ref$tests[idx_ph], `[[`, "", "test"), unname(att)) &&
+  verifier(sprintf("U244-7 %s : phrase sur les seules lignes de la specification de type test (%s), en dernier, une fois",
+                   cas, if (length(att)) paste(att, collapse = ", ") else "aucune"),
+           identical(noms[idx_ph], att) &&
              all(vapply(ref$tests[idx_ph], function(l) porte(l) && n_phrase(l) == 1L, logical(1))))
   verifier(sprintf("U244-7 %s : la regle recalculee sur les champs designe les memes lignes", cas),
            identical(idx_rg, idx_ph))
-  n244 <<- n244 + length(idx_ph)
+  # Lignes de la specification devenues diagnostics : seulement
+  # Breusch-Pagan 1979 et Brown-Forsythe, par #299, sans la phrase de #244.
+  verifier(sprintf("U244-7 %s : lignes de la specification sans phrase, diagnostics par decision de #299 (%d)",
+                   cas, length(diag)),
+           all(diag %in% DIAG299_244) &&
+             all(vapply(ref$tests[match(diag, noms)], function(l)
+               identical(l$type, "diagnostic") && endsWith(l$detail, FIN299_244) &&
+                 !grepl(PH, l$detail, fixed = TRUE), logical(1))))
+  n244 <<- n244 + length(idx_ph); n_diag299 <<- n_diag299 + length(diag)
 })
-verifier("U244-7 six cas : 11 lignes marquees au total", n244 == 11L)
+# 11 lignes de la specification : marquees, ou diagnostics de #299 (0 avant
+# #299, 8 depuis : deux lignes dans chacun des quatre cas a delta = 1).
+verifier("U244-7 six cas : 11 lignes de la specification, marquees ou diagnostics de #299 (11 + 0 avant #299, 3 + 8 depuis)",
+         n244 + n_diag299 == 11L && n_diag299 %in% c(0L, 8L))
 
 fin_fichier()

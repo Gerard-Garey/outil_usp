@@ -114,7 +114,21 @@ lignes_j <- function(x, y) {
   f <- usp_ajuster(x, y); usp_tests(f, usp_bootstrap(f, B = 40), methode = "premium")
 }
 tj <- list(J1 = lignes_j(d181$xt, d181$yt), J2 = lignes_j(xi181, yi181))
-attendu <- list(J1 = c(diag = 19L, sans_p = 6L), J2 = c(diag = 23L, sans_p = 9L))
+# Depuis #303 : Ljung-Box (1) sur ratios bruts retiree (J1 et J2 : un test sans
+# p-value de moins) ; a pi_t constant (J1), DWr, supFr, CUSUMr et Grubbsr sont
+# des diagnostics de la regle R15 et ne sont plus des tests sans p-value
+# (J1 : 6 -> 1, sup-F sur z seul ; J2 : 9 -> 8). Depuis #302 : Ljung-Box (1)
+# et Box-Pierce (2) retirees, Kolmogorov-Smirnov contre N(0,1) et
+# Cramer-von Mises en diagnostic par decision (motif en tete sous la forme
+# "Monte-Carlo indisponible : <motif>.", hors du prefixe de #181) : quatre
+# lignes de moins au prefixe de #181 (J1 : 19 -> 15 ; J2 : 23 -> 19).
+# Depuis #299 : Breusch-Pagan 1979, White, Goldfeld-Quandt, Brown-Forsythe,
+# Smirnov et Spearman ratio / temps en diagnostic par decision (meme forme
+# du motif que #302) : J1, quatre lignes de moins au prefixe de #181
+# (15 -> 11 ; Smirnov et Spearman-temps y ont une p exacte) ; J2, cinq
+# (19 -> 14, Spearman-temps compris), et Smirnov, sans p non simulee,
+# n'est plus un test sans p-value (8 -> 7).
+attendu <- list(J1 = c(diag = 11L, sans_p = 1L), J2 = c(diag = 14L, sans_p = 7L))
 for (j in names(tj)) local({
   tt <- tj[[j]]; a <- attendu[[j]]
   pre <- pre181(MOTIF_MC_REPLIC_INSUFFISANTES)
