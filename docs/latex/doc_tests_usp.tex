@@ -1116,7 +1116,7 @@ vecteur des $\sum_k w_k (x_i - x_k)/\sum_k w_k$, soit $x_i$ moins la moyenne pon
 par différences deux à deux, sans annulation entre grandeurs de l'ordre d'une cellule
 dominante, sommes par \code{sum()}~; forme partagée depuis l'issue~\#278 par
 \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} ($x = F(\cdot,j)$, $w = C(\cdot,j)$) et
-\code{.mw\_lm\_intra()} (centrage par colonne de $C$ et de $F$). Le terme $k = i$, nul, est
+\code{.mw\_pente\_relative()} (centrage par colonne de $C$ et de $F$). Le terme $k = i$, nul, est
 inclus~; \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} l'omettait avant l'issue, sans
 effet sur le résultat pour $x_i$ et $w_i$ finis, un zéro exact n'ajoutant rien à la somme
 (mesuré~: 20\,000 colonnes de 2 à 10 cellules tirées sur $[10^{-50}~;~10^{50}]$, graine 278,
@@ -1201,7 +1201,7 @@ autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbr
 (issue~\#203, fiche~\ref{mw:m1a})~; \code{mw\_test\_courbure()} l'employait aussi jusqu'à
 l'issue~\#253, qui calcule le terme quadratique en forme close, sans \code{lm()}
 (fiche~\ref{mw:m1c}) \\
-\code{.mw\_lm\_intra()},\newline \code{.mw\_pente\_intra()} & résidus de Mack
+\code{.mw\_pente\_relative()} & résidus de Mack
 (\code{mw\_residus()}, colonnes $j$, $C$, $F$, $\hat\sigma_j$) & ligne «~\code{C}~» (estimation,
 écart-type, $t$, p de Student) de la régression pondérée de $F(i,j)$ sur $C(i,j)$ à effet fixe
 de colonne, et son seul $t$, statistique de la pente intra-colonne~; depuis l'issue~\#253, en
@@ -2490,7 +2490,7 @@ contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés (annexe XVII, D(2)(h)(iii))}}} \\
 \midrule
 Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
-\code{.mw\_lm\_intra()} (via \code{.mw\_pente\_intra()}~; forme close, sans \code{lm()},
+\code{.mw\_pente\_relative()} (forme close, sans \code{lm()},
 depuis l'issue~\#253) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
@@ -14051,7 +14051,7 @@ $t = \hat b / \widehat{\mathrm{se}}(\hat b)$ dans la régression pondérée à e
 fixe de colonne.
 
 \emph{Calcul en forme close} (issue~\#253, décisions D1-5 et D1-6 du mainteneur du 13~octobre
-2026~; \code{.mw\_lm\_intra()}, sans \code{lm()}). Retirer l'effet fixe de colonne revient à
+2026~; \code{.mw\_pente\_relative()}, sans \code{lm()}). Retirer l'effet fixe de colonne revient à
 centrer $C$ et $F$ en moyenne pondérée dans chaque colonne, puis à régresser $F$ centré sur $C$
 centré sans constante~: c'est le théorème de Frisch et Waugh (R.~Frisch, F.\,V. Waugh,
 \emph{Partial time regressions as compared with individual trends}, \emph{Econometrica}, 1(4),
@@ -14087,7 +14087,7 @@ et $\hat\sigma_j$, ce qui invalide les degrés de liberté nominaux. Loi de
 référence~: bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue, au bilatéral. Sa clé, \code{PenteIntra}, désigne la
-statistique $t$ de \code{.mw\_pente\_intra()}, la même que celle qu'affiche la ligne~; elle s'appelait
+statistique $t$ de \code{.mw\_pente\_relative()}, la même que celle qu'affiche la ligne~; elle s'appelait
 \code{Intercept} jusqu'à l'issue~\#41, nom qui ne disait pas ce qu'elle simule. La p-value
 de Student est fournie comme complément non simulé.
 \Usage
@@ -14421,7 +14421,7 @@ cas de référence). Depuis l'issue~\#253, la courbure est calculée en forme cl
 par \code{.mw\_summary\_lm()}. Avec le moteur actuel, aucun avertissement sur les quatre triangles ci-dessus.
 L'interception a été préférée à un recalcul sans \code{summary.lm()} (par \code{lm.fit()} ou
 \code{qr()}), dont l'égalité des valeurs n'aurait été établie que par mesure. La pente
-intra-colonne (\code{.mw\_lm\_intra()}, calculée sans \code{lm()} depuis l'issue~\#253,
+intra-colonne (\code{.mw\_pente\_relative()}, calculée sans \code{lm()} depuis l'issue~\#253,
 fiche~\ref{mw:m1}) et la ligne d'hétéroscédasticité (calculée sans \code{lm()} depuis
 l'issue~\#301, \code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()}, fiche~\ref{mw:m2bp})
 ne sont pas interceptées~: elles n'appellent pas \code{summary.lm()}, et n'émettent aucun
@@ -18848,7 +18848,7 @@ fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{.fisher\_combine()}, \code{.mw\_spearman()}, \code{.mack\_moments\_Z()},\newline
 \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
-\code{.mw\_lm\_intra()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
+\code{.mw\_pente\_relative()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
 point, sont appelées directement par \code{usp\_tests()} ou \code{mw\_tests()}
 et ne sont pas représentées en gris \\
 Bloc vert & Sortie : p-value ou grandeur restituée \\
