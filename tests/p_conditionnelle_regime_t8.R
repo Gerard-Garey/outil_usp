@@ -919,20 +919,30 @@ en_table <- function(champs) {
   for (k in COLS_NUM) d[[k]] <- suppressWarnings(as.numeric(d[[k]]))
   d
 }
+# Regle de V3h, ecrite une seule fois : la valeur de V3b si delta* est
+# interieur (D$regime == "interieur"), celle de V1 sinon. D : table des
+# replications (colonnes regime, statut) ; v3b et v1 : vecteurs (une valeur
+# par ligne de D) ou matrices (une ligne par ligne de D) ; traitee = TRUE
+# exige en plus le statut "traitee" (matrices() des p, des B effectifs et des
+# motifs ; les verdicts et natures n'ajoutent pas cette condition).
+v3h_choisir <- function(D, v3b, v1, traitee = FALSE) {
+  int <- D$regime == "interieur"
+  if (traitee) int <- int & D$statut == "traitee"
+  if (is.matrix(v1)) int <- matrix(int, nrow(v1), ncol(v1))
+  ifelse(int, v3b, v1)
+}
 # Matrices (replications x statistiques) des p, des B effectifs et des
 # motifs de chaque variante ; V3h : V3b a delta* interieur, V1 aux bords.
 matrices <- function(D) {
   mat <- function(ch) { M <- as.matrix(D[, paste0(ch, ":", STATS), drop = FALSE]); dimnames(M) <- list(NULL, STATS); M }
-  int <- matrix(D$statut == "traitee" & D$regime == "interieur", nrow(D), NS)
   P <- list(V1 = mat("p_V1"), V3a = mat("p_V3a"), V3b = mat("p_V3b"))
   B <- list(V1 = mat("B_V1"), V3a = mat("B_V3a"), V3b = mat("B_V3b"))
   M <- list(V1 = mat("m_V1"), V3a = mat("m_V3a"), V3b = mat("m_V3b"))
-  P$V3h <- ifelse(int, P$V3b, P$V1); B$V3h <- ifelse(int, B$V3b, B$V1); M$V3h <- ifelse(int, M$V3b, M$V1)
+  P$V3h <- v3h_choisir(D, P$V3b, P$V1, traitee = TRUE); B$V3h <- v3h_choisir(D, B$V3b, B$V1, traitee = TRUE)
+  M$V3h <- v3h_choisir(D, M$V3b, M$V1, traitee = TRUE)
   for (v in VARIANTES) dimnames(P[[v]]) <- dimnames(B[[v]]) <- dimnames(M[[v]]) <- list(NULL, STATS)
-  verd <- list(V1 = D$verd_V1, V3a = D$verd_V3a, V3b = D$verd_V3b,
-               V3h = ifelse(D$regime == "interieur", D$verd_V3b, D$verd_V1))
-  nat <- list(V1 = D$nat_V1, V3a = D$nat_V3a, V3b = D$nat_V3b,
-              V3h = ifelse(D$regime == "interieur", D$nat_V3b, D$nat_V1))
+  verd <- list(V1 = D$verd_V1, V3a = D$verd_V3a, V3b = D$verd_V3b, V3h = v3h_choisir(D, D$verd_V3b, D$verd_V1))
+  nat <- list(V1 = D$nat_V1, V3a = D$nat_V3a, V3b = D$nat_V3b, V3h = v3h_choisir(D, D$nat_V3b, D$nat_V1))
   list(P = P, B = B, M = M, verd = verd, nat = nat, regime = D$regime, statut = D$statut, n = nrow(D))
 }
 
@@ -1410,7 +1420,7 @@ indic_echec <- function(D, lignes) {
          paste(LIGNES_HORS_ECHEC[is.na(k_hors)], collapse = " ; "))
   tr <- D$statut == "traitee" & D$regime %in% REG
   v1 <- D$verd_V1[tr]
-  vh <- ifelse(D$regime[tr] == "interieur", D$verd_V3b[tr], D$verd_V1[tr])
+  vh <- v3h_choisir(D[tr, , drop = FALSE], D$verd_V3b[tr], D$verd_V1[tr])
   if (any(nchar(c(v1, vh)) != n_l)) stop("agregat ECHEC : verdicts de longueur differente du nombre de lignes de T2 (", n_l, ")")
   e <- function(v, k) Reduce(`|`, lapply(k, function(i) substr(v, i, i) == "E"), rep(FALSE, length(v)))
   pops <- list(hors = setdiff(seq_len(n_l), k_hors), toutes = seq_len(n_l))
@@ -1470,14 +1480,14 @@ transitions_echec <- function(DN, lignes, REF) {
   st_l <- vapply(lh, function(l) { s <- names(STAT_LIGNE)[STAT_LIGNE == l]; s <- intersect(s, STATS)
     if (length(s)) s[1] else NA_character_ }, "")
   ch <- function(d, v, col, kk) {
-    x <- if (v == "V1") d[[paste0(col, "_V1")]] else ifelse(d$regime == "interieur", d[[paste0(col, "_V3b")]], d[[paste0(col, "_V1")]])
+    x <- if (v == "V1") d[[paste0(col, "_V1")]] else v3h_choisir(d, d[[paste0(col, "_V3b")]], d[[paste0(col, "_V1")]])
     substr(x, kk, kk)
   }
   # colonne p absente des valeurs brutes : NA (imprime "-"), de sorte que
   # chaque passage compte soit liste
   colp <- function(d, nm) if (is.null(d[[nm]])) rep(NA_real_, nrow(d)) else d[[nm]]
   pv <- function(d, v, s) if (is.na(s)) rep(NA_real_, nrow(d)) else
-    if (v == "V1") colp(d, paste0("p_V1:", s)) else ifelse(d$regime == "interieur", colp(d, paste0("p_V3b:", s)), colp(d, paste0("p_V1:", s)))
+    if (v == "V1") colp(d, paste0("p_V1:", s)) else v3h_choisir(d, colp(d, paste0("p_V3b:", s)), colp(d, paste0("p_V1:", s)))
   fp <- function(p) ifelse(is.finite(p), sprintf("%.4g", p), "-")
   res <- list(); lst <- character(0); diag_abs <- character(0)
   for (j in intersect(names(DN), names(REF$D))) {
@@ -2735,7 +2745,8 @@ if (OPT_PREVOL) {
                      length(manq_t2), chemin_affiche(fb), paste(sub("^p_retenue:", "", manq_t2), collapse = " ; ")), call. = FALSE)
       pr <- suppressWarnings(as.numeric(PR221[b, paste0("p_retenue:", LIGNES_T2)]))
       r4 <- r4_pente(fit)
-      tc <- t2_classer(pr, codes_t2(ut), r4 = r4)
+      ct <- codes_t2(ut)
+      tc <- t2_classer(pr, ct, r4 = r4)
       t2_pv$n_rep <- t2_pv$n_rep + 1L; t2_pv$n_r4 <- t2_pv$n_r4 + r4
       if (!tc$complet_p) { t2_pv$echec <- c(t2_pv$echec, sprintf("b = %d, %s", b, TXT_COMPLET_P)); t2_pv$cle <- c(t2_pv$cle, "compl\u00e9tude de P") }
       if (!length(tc$dl)) t2_pv$ok <- t2_pv$ok + 1L
@@ -2743,9 +2754,9 @@ if (OPT_PREVOL) {
       ko <- is.na(tc$cause)
       if (any(ko)) t2_pv$cle <- c(t2_pv$cle, sprintf("%s, ancienne p %s, nouvelle p %s", LIGNES_T2[tc$dl[ko]],
                                                      ifelse(is.finite(pr[tc$dl[ko]]), "finie", "NA"),
-                                                     ifelse(is.finite(codes_t2(ut)$p[tc$dl[ko]]), "finie", "NA")))
+                                                     ifelse(is.finite(ct$p[tc$dl[ko]]), "finie", "NA")))
       if (any(ko)) t2_pv$echec <- c(t2_pv$echec, sprintf("b = %d, %s : p retenue de #221 %.17g, nouvelle %.17g", b, LIGNES_T2[tc$dl[ko]],
-                                                         pr[tc$dl[ko]], codes_t2(ut)$p[tc$dl[ko]]))
+                                                         pr[tc$dl[ko]], ct$p[tc$dl[ko]]))
     }
   }
   d_pv <- as.numeric(difftime(Sys.time(), t_pv, units = "secs"))
