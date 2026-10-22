@@ -7137,7 +7137,7 @@ M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{
 M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
 M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (issue~\#309, plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N et sous E à $0{,}10$, compatible ailleurs~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée)~; statistique de Grubbs antérieure à l'issue~\#300 (fiche~\ref{mw:m4gr}, rubrique~5)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$ & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
+M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (issue~\#309, plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N aux deux seuils et sous E à $0{,}10$, compatible sous E à $0{,}05$ et sous A~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée)~; statistique de Grubbs antérieure à l'issue~\#300 (fiche~\ref{mw:m4gr}, rubrique~5)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$ & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -15350,7 +15350,26 @@ statistique \code{NA}, et la réplication sort de $B$ effectif. Mesuré (\code{m
 $B = 99$, puis \code{mw\_tests()}) sur le triangle de six années des tests unitaires dont les
 facteurs de la colonne $j = 0$ valent $1{,}5$ sauf pour l'année $i = 2$~: cellule $(2,0)$ nommée,
 type \code{test}, verdict \code{INFO}, aucune p-value, $B$ effectif de \code{MinP4} égal à $99$.
-Cas réaliste dans les colonnes tardives, quand plusieurs facteurs individuels valent exactement~1.
+Cas possible dans les colonnes tardives d'un triangle plus long, quand plusieurs facteurs
+individuels valent exactement~1~; sur un triangle $8\times 8$, seules les colonnes $j = 0$ à~3 sont
+retenues. \emph{Frontière numérique.} L'influence non bornée est décidée à une tolérance~: la
+cellule est déclarée non bornée quand la variance résiduelle $s^2_{(i)}$ de la colonne privée de
+cette cellule ne dépasse pas $100\,(n_j - 1)\,\varepsilon_{\text{machine}}\,s^2$, $s^2$ étant celle
+de la colonne entière et $\varepsilon_{\text{machine}} = 2{,}2\cdot 10^{-16}$
+(\code{mw\_influence()}). La ligne passe ainsi sans transition d'un test sans p-value retenue
+(\code{INFO}) à un test de statistique extrêmement petite. Sur le triangle de six années des tests
+unitaires, quand deux des quatre facteurs égaux de la colonne $j = 0$ (années $i = 1$ et~3) sont
+multipliés par $1 + \epsilon$ et $1 - \epsilon$, la cellule $(2,0)$ est déclarée non bornée jusqu'à
+$\epsilon = 2\cdot 10^{-8}$~; à $\epsilon = 3\cdot 10^{-8}$, $t(2,0) = 6{,}6\cdot 10^{6}$ et
+$M = 7{,}6\cdot 10^{-21}$, et à $\epsilon = 10^{-4}$, $t(2,0) = 1\,983$ (calcul sans aléa,
+\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()})~; dès $\epsilon = 3\cdot 10^{-8}$, la
+p-value de Monte-Carlo est à son plancher et le verdict est \code{ECHEC} (\code{run\_engine()},
+$B = 99$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$ résulte d'une annulation, et le
+classement peut différer d'une plateforme à l'autre~; les six cas de référence en sont loin. Dans
+les deux régimes, le signal tient d'abord à la dispersion quasi nulle des autres cellules de la
+colonne, qui rend significatif n'importe quel écart de la cellule nommée~: un \code{ECHEC} de cette
+origine ne désigne pas une cellule aberrante au sens métier, et se lit avec le graphique
+d'influence (fiche~\ref{mw:influence}). Constat sur un triangle construit.
 \Hzero
 $H_0$~: aucun résidu de Mack aberrant --- toutes les cellules proviennent du même modèle~;
 $H_1$~: exactement un résidu aberrant (modèle de décalage de moyenne d'une cellule, dont la
@@ -15369,10 +15388,12 @@ triangle de contrôle et sur les 420 triangles qu'il contrôle~: les niveaux et 
 pour ce candidat (rubrique~7) sont ceux de la ligne. L'estimation restituée est le $t(i,j)$ de la cellule du
 minimum, que le commentaire nomme (année d'accident, développement, $n_j$)~; aucun nombre issu du
 bootstrap n'y figure. Le minimum des p-values plutôt que le maximum des $|t(i,j)|$~: les degrés
-de liberté vont de 2 à 5 selon la colonne, et une même valeur de $|t|$ n'a pas le même sens
-d'une colonne à l'autre (le maximum brut, mesuré comme candidat par l'issue~\#309, désigne la
-cellule visée dans $0{,}551$ des triangles à cellule déplacée de six écarts-types de bruit, mais
-ne rejette que dans $0{,}037$ d'entre eux au seuil $0{,}10$). Les colonnes de trois facteurs
+de liberté vont de 2 à 5 selon la colonne retenue (de 1 à 5 avec les colonnes de trois facteurs),
+et une même valeur de $|t|$ n'a pas le même sens d'une colonne à l'autre (le maximum brut, mesuré
+comme candidat par l'issue~\#309 sur les colonnes de trois facteurs au moins, désigne la cellule
+visée dans $0{,}551$ des triangles à cellule déplacée de six écarts-types de bruit, mais ne rejette
+que dans $0{,}037$ de ces triangles au seuil $0{,}10$, et jamais en désignant la cellule visée,
+tableau T4). Les colonnes de trois facteurs
 sont écartées au vu de la même mesure~: la variante qui les couvre (25 cellules) rejette moins
 souvent que celle-ci contre une cellule aberrante (test de McNemar exact apparié, p-values au plus
 $2{,}1\cdot 10^{-5}$ sur les quatre comparaisons à $\lambda = 4$ et~6 et aux seuils $0{,}10$ et
@@ -15400,8 +15421,9 @@ retenue (issue~\#181). Aucune p-value exacte n'existe, $M$ n'ayant pas de loi ex
 modèle de Mack~; la borne de Bonferroni ne vaut que sous le modèle auxiliaire gaussien, et, sous
 le plan du triangle de contrôle (issue~\#309, tableau T6), elle rejette sous $H_0$ dans $0{,}1065$
 et $0{,}0595$ des cas aux seuils $0{,}10$ et $0{,}05$ sous erreurs gaussiennes (compatible), mais
-dans $0{,}1405$ et $0{,}090$ sous la loi E et $0{,}256$ et $0{,}147$ sous la loi A (distorsion
-matérielle du côté libéral)~: elle n'est pas utilisable comme p-value. Si la p-value de Monte-Carlo
+dans $0{,}1405$ et $0{,}090$ sous la loi E (écart mineur à $0{,}10$, distorsion matérielle du côté
+libéral à $0{,}05$) et dans $0{,}256$ et $0{,}147$ sous la loi A (distorsion matérielle du côté
+libéral aux deux seuils)~: elle n'est pas utilisable comme p-value. Si la p-value de Monte-Carlo
 manque alors que la statistique observée est définie (réplications finies en nombre insuffisant),
 la borne existe et la ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii),
 issue~\#181)~; si la statistique observée n'est pas définie parce qu'une cellule a une influence
@@ -16685,7 +16707,7 @@ p-value de Monte-Carlo ne traduisent pas une erreur de calcul mais la
 qui ne sont ni indépendants ni échangeables. Trois tests s'en écartent fortement
 et dans des sens opposés~: le test des suites sur-rejette, Grubbs et
 Breusch--Pagan (statistiques antérieures aux issues~\#300 et~\#301) sous-rejettent massivement~;
-la borne de Bonferroni qui remplace celle de Grubbs sur-rejette, elle, sous les lois E et A. Dans les trois cas, c'est la p-value
+la borne de Bonferroni qui remplace celle de Grubbs sur-rejette, elle, sous les lois E et A. Dans tous ces cas, c'est la p-value
 de Monte-Carlo qui est retenue par le moteur, et elle seule doit être utilisée en
 dossier. La p-value non simulée n'est conservée que pour documenter l'écart. La p-value de
 Monte-Carlo n'est pas pour autant exempte de distorsion~: sous le plan du triangle de
@@ -16937,7 +16959,7 @@ de Holm d'environ $0{,}060$, approximation normale). La règle du témoin a ét�
 conséquence pour les statistiques à atomes~; la référence $\rho$ n'en est pas affectée.
 
 \emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé~; mesure antérieure aux
-issues~\#301 et~\#300, qui ont changé deux des treize statistiques, non reprise depuis). Part des triangles
+issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques (effets calendaires lus en queue basse, hétéroscédasticité, cellule aberrante), non reprise depuis). Part des triangles
 simulés sous le modèle qui reçoivent au moins une \code{ALERTE} ou un \code{ECHEC} sur les
 verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0{,}655$ (A)~; au moins un
 \code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes alors à verdict, procédure ESD
@@ -17918,7 +17940,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \end{tabular}
 \end{center}
 
-\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#301 et~\#300, qui ont changé deux des treize statistiques)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
