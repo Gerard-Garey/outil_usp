@@ -754,8 +754,9 @@ stat_fw <- function(aj, res, redresse, n_min) {
 
 # --- Pente intra-colonne relative (#307, Q-D1-Fi-9, mesuree SANS decision) --
 # Regression de F / f_j sur (C - Cb_j) / Cb_j avec effets de colonne et poids
-# C f_j^2 / sigma_j^2 ; statistique : t de la pente (bilatere). Meme algebre
-# que .mw_lm_intra() ; le centrage pondere par colonne est celui du moteur,
+# C f_j^2 / sigma_j^2 ; statistique : t de la pente (bilatere). Algebre figee
+# dans .mw_pente_relative() du moteur (#307) ; le centrage pondere par
+# colonne est celui du moteur,
 # .mw_centrage_pondere() (forme stable par differences deux a deux, #233 et
 # #278). NA si une colonne a un sigma_j non fini ou nul, si Sxx = 0 ou sans
 # degre de liberte.

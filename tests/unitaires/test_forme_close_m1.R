@@ -5,11 +5,21 @@
 #  Specification d'E2d (docs/specifications/e2d-merz-wuthrich-replications-
 #  definitions.md, section 6, tests T253-1 a T253-7 ; decisions D1-5 a D1-7
 #  du mainteneur, 13/10/2026) : t du terme quadratique de mw_test_courbure()
-#  par .mw_courbure_colonne() (Cauchy-Binet, regle de Cramer) et pente
-#  intra-colonne de .mw_lm_intra() (Frisch et Waugh, 1933), sans lm().
-#  Valeurs attendues ecrites en dur : reference en arithmetique rationnelle
-#  exacte (entrees : les flottants du moteur, convertis exactement ; seule la
-#  racine finale est arrondie), calculee par actuary pour la specification
+#  par .mw_courbure_colonne() (Cauchy-Binet, regle de Cramer), sans lm().
+#  Pente intra-colonne : depuis #307 (decisions Q-D1-Fj-3 et Q-D1-Fj-7 du
+#  22/10/2026 ; specification docs/specifications/fj-merz-wuthrich-
+#  identifiabilite.md, par. 4.1 et 7), pente RELATIVE de .mw_pente_relative()
+#  (Frisch et Waugh, 1933), qui remplace la pente absolue de .mw_lm_intra(),
+#  retiree avec .mw_pente_intra() ; ses assertions sont des oracles sans
+#  valeur en dur de precision etendue : lm(y ~ factor(j) + x, weights = w) a
+#  1e-10 sur reserve2, variante x = C / Cbar_j (meme statistique en
+#  arithmetique exacte, la constante etant absorbee par l'effet de colonne)
+#  a 1e-12 sur les triangles extremes de #253, identical() a stat_pente_rel()
+#  de tests/puissance_mw_t8.R (garde unitaire du controle (i2')), et les
+#  valeurs arrondies de la specification sur reserve2.
+#  Courbure : valeurs attendues ecrites en dur, reference en arithmetique
+#  rationnelle exacte (entrees : les flottants du moteur, convertis
+#  exactement ; seule la racine finale est arrondie), calculee par actuary pour la specification
 #  (T253-1, T253-2, T253-5 « bornes ») et, pour le triangle a deux echelles
 #  extremes de T253-5, par la meme reference lors de l'implementation ; cas
 #  ligne 0 x 1e-14 : reference Rmpfr du script ci-dessous (4 096 bits, memes
@@ -17,12 +27,8 @@
 #  tests/unitaires/generer_valeurs_forme_close_m1.R (hors CI, Rmpfr), qui
 #  les recalcule par une methode independante de la forme close (equations
 #  normales, elimination de Gauss a 4 096 bits, controle a 8 192 bits) et
-#  sort avec le code 1 si l'une s'ecarte de la tolerance de son test.
-#  Convention de la pente intra-colonne : y = F tel que le moteur le stocke
-#  dans mw_residus(), soit le quotient C(i,j+1) / C(i,j) arrondi en double
-#  (pas le quotient exact des deux flottants) ; avec le quotient exact, les
-#  references bougeraient de 1e-15 a 3e-14 en relatif, sous les tolerances
-#  (1e-12 et 1e-10).
+#  sort avec le code 1 si l'une s'ecarte de la tolerance de son test (sa
+#  partie pente, propre a la pente absolue, est retiree depuis #307).
 #  T253-7 (reserve2 sous TOLERANCE, verdicts identiques) est porte par
 #  tests/test_reproductibilite.R.
 ###############################################################################
@@ -42,14 +48,38 @@ tri253 <- local({
 # Ligne i (0-based) multipliee par k
 ligne253 <- function(t, i, k) { t[i + 1, ] <- t[i + 1, ] * k; t }
 # t de la courbure par colonne retenue, K, et t de la pente intra-colonne
+# relative (#307) ; pente_var : meme t par la variante x = C / Cbar_j
 stats253 <- function(t) {
   aj <- mw_ajuster(t)
   res <- mw_residus(aj, .mw_colonnes_degenerees(aj))
   cb <- mw_test_courbure(aj)
-  li <- .mw_lm_intra(res)
+  pr <- .mw_pente_relative(res)
   list(t = cb$detail$t, j = cb$detail$j, K = cb$K, stat = cb$stat, p = cb$p,
-       pente = if (is.null(li)) NA_real_ else unname(li[["t value"]]))
+       pente = pr[["t"]], pente_var = pente_variante307(res), res = res)
 }
+# Variante x = C / Cbar_j de la pente relative (#307, specification Fj,
+# par. 4.1) : meme regression que .mw_pente_relative() a x decale de la
+# constante 1, absorbee par l'effet de colonne ; t egal en arithmetique
+# exacte. Oracle de robustesse numerique : sans la soustraction C - Cbar_j.
+pente_variante307 <- function(res) {
+  Cb <- stats::ave(res$C, res$j)
+  x <- res$C / Cb
+  y <- res$F / res$f_chapeau
+  w <- res$C * res$f_chapeau^2 / res$sigma_j^2
+  w <- w * 2^-floor(log2(max(w)))
+  xt <- yt <- numeric(length(w))
+  for (g in split(seq_along(w), res$j)) {
+    sw <- sum(w[g])
+    xt[g] <- .mw_centrage_pondere(x[g], w[g], sw)
+    yt[g] <- .mw_centrage_pondere(y[g], w[g], sw)
+  }
+  sxx <- sum(w * xt^2)
+  b <- sum(w * xt * yt) / sxx
+  ddl <- length(w) - length(unique(res$j)) - 1L
+  b / sqrt(sum(w * (yt - b * xt)^2) / ddl / sxx)
+}
+# Pente finie et egale a sa variante x = C / Cbar_j a 1e-12 relatif
+pente_ok307 <- function(s) is.finite(s$pente) && isTRUE(proche(s$pente, s$pente_var, rel = 1e-12))
 # Triangle « bornes » : ligne 0 portee a 1e50 (max), ligne 3 a 1e-50 (min)
 bornes253 <- local({
   t <- tri253
@@ -71,39 +101,39 @@ ok_liste <- function(r) {
           sep = " : ", collapse = " ; ")
 }
 
-verifier("T253-1 : reserve2, t de la courbure (n = 7, 6, 5, 4) et de la pente intra-colonne = reference rationnelle a 1e-12 (#253)",
+verifier("T253-1 : reserve2, t de la courbure (n = 7, 6, 5, 4) = reference rationnelle a 1e-12 (#253)",
          {
            s <- stats253(tri253)
            ok_liste(list(
              K = identical(s$K, 4L),
              courbure = proche(s$t, c(0.93422764996969232, -1.9823633206000404,
-                                      -9.1618120029068368, -3.462887950378827), rel = 1e-12),
-             pente = proche(s$pente, 0.2600197442537881, rel = 1e-12)))
+                                      -9.1618120029068368, -3.462887950378827), rel = 1e-12)))
          })
 
-verifier("T253-2 : reserve2, ligne 0 x 1e30, ligne 3 x 1e30, ligne 0 x 1e-30 : t = reference rationnelle a 1e-10 (#253)",
+verifier("T253-2 : reserve2, ligne 0 x 1e30, ligne 3 x 1e30, ligne 0 x 1e-30 : t de la courbure = reference rationnelle a 1e-10 (#253) ; pente relative finie, = variante x = C/Cbar_j a 1e-12 (#307)",
          {
            att <- list(
              l0p30 = list(ligne253(tri253, 0, 1e30),
                           c(-3.2321868753333782, -2.6230673521146479, -1.2246845553777297,
-                            0.27555322316525688), -0.64792170590960629),
+                            0.27555322316525688)),
              l3p30 = list(ligne253(tri253, 3, 1e30),
                           c(-1.7637144365936694, -3.1751739033668485, -1.0848619801581147,
-                            -1.9731120214984617), 0.58992812949620965),
+                            -1.9731120214984617)),
              l0m30 = list(ligne253(tri253, 0, 1e-30),
                           c(3.1467379665547841, 2.1589835486730493, 0.79635768376122973,
-                            -0.58330789698280028), -1.120997177810577))
+                            -0.58330789698280028)))
            ok_liste(unlist(lapply(att, function(a) {
              s <- stats253(a[[1]])
              list(K = identical(s$K, 4L), courbure = proche(s$t, a[[2]], rel = 1e-10),
-                  pente = proche(s$pente, a[[3]], rel = 1e-10))
+                  pente = pente_ok307(s))
            }), recursive = FALSE))
          })
 
 # Avant #253, lm() ecartait le terme par son rang numerique : courbure NA
-# des e = 13 (exclusion silencieuse partielle a e = 12, ligne 3), pente NA
-# des e = 15 (specification, section 4).
-verifier("T253-3 : lignes 0 et 3 x 10^e, e = 12..17, 20, 25, 30 : courbure et pente finies, K = 4 partout (#253)",
+# des e = 13 (exclusion silencieuse partielle a e = 12, ligne 3), pente
+# (absolue) NA des e = 15 (specification, section 4). Depuis #307, pente
+# relative de .mw_pente_relative().
+verifier("T253-3 : lignes 0 et 3 x 10^e, e = 12..17, 20, 25, 30 : courbure et pente relative finies, K = 4 partout (#253, #307)",
          {
            ko <- character(0)
            for (i in c(0, 3)) for (e in c(12:17, 20, 25, 30)) {
@@ -115,7 +145,7 @@ verifier("T253-3 : lignes 0 et 3 x 10^e, e = 12..17, 20, 25, 30 : courbure et pe
            if (!length(ko)) TRUE else paste(ko, collapse = " ; ")
          })
 
-verifier("T253-4 : invariance a l'echelle globale, lambda = 10^-40, 10^-20, 10^20, 10^40 : t a 1e-12 (#253)",
+verifier("T253-4 : invariance a l'echelle globale, lambda = 10^-40, 10^-20, 10^20, 10^40 : t de la courbure et de la pente relative a 1e-12 (#253, #307)",
          {
            s0 <- stats253(tri253)
            ok_liste(unlist(lapply(c(-40, -20, 20, 40), function(k) {
@@ -129,7 +159,7 @@ verifier("T253-4 : invariance a l'echelle globale, lambda = 10^-40, 10^-20, 10^2
 # (produits directs de poids et de differences) y rend NaN et Inf (mesure
 # lors de l'implementation, hypothese [H] de la specification confirmee) ;
 # le calcul a exposant separe reste fini et exact.
-verifier("T253-5 : triangles aux bornes du domaine [1e-50 ; 1e50] de #185 : valides, t finis = reference rationnelle a 1e-10 (#253)",
+verifier("T253-5 : triangles aux bornes du domaine [1e-50 ; 1e50] de #185 : valides, t de la courbure finis = reference rationnelle a 1e-10 (#253) ; pente relative finie, = variante x = C/Cbar_j a 1e-12 (#307)",
          {
            sb <- stats253(bornes253); sx <- stats253(extreme253)
            ok_liste(list(
@@ -138,43 +168,45 @@ verifier("T253-5 : triangles aux bornes du domaine [1e-50 ; 1e50] de #185 : vali
              bornes_K = identical(sb$K, 4L),
              bornes_courbure = proche(sb$t, c(0.081519213694489751, -2.013620676168856,
                                               -4.5274309238335313, -6.6723491946328828), rel = 1e-10),
-             bornes_pente = proche(sb$pente, -0.65007141204537222, rel = 1e-10),
+             bornes_pente = pente_ok307(sb),
              extreme_K = identical(sx$K, 4L),
              extreme_finis = all(is.finite(c(sx$t, sx$stat, sx$p, sx$pente))),
              extreme_courbure = proche(sx$t, c(-4.5539052541909681, -8.7152604957341513,
                                                -3.9732558970578664e+25, 0.46224878577219491),
                                        rel = 1e-10),
-             extreme_pente = proche(sx$pente, -0.78452449405942448, rel = 1e-10)))
+             extreme_pente = pente_ok307(sx)))
          })
 
-verifier("T253-6 / T269-6 : colonne a deux valeurs distinctes de C(i,j) ecartee (K = 3) et enregistree dans non_identifiables ; pente a C constant par colonne : NULL, statistique NA (#253, D1-7, #269)",
+verifier("T253-6 / T269-6 : colonne a deux valeurs distinctes de C(i,j) ecartee (K = 3) et enregistree dans non_identifiables ; pente relative a C constant par colonne : b, se, t et p NA (#253, D1-7, #269, #307)",
          {
            t <- tri253
            t[, 1] <- rep(c(250, 320), 4)            # colonne j = 0 : deux valeurs
            s <- stats253(t)
            ni <- mw_test_courbure(mw_ajuster(t))$non_identifiables
            res <- data.frame(j = rep(0:1, each = 3), C = rep(c(10, 20), each = 3),
-                             sigma_j = rep(c(1, 2), each = 3), F = c(1.5, 1.6, 1.4, 1.1, 1.2, 1.05))
+                             sigma_j = rep(c(1, 2), each = 3), F = c(1.5, 1.6, 1.4, 1.1, 1.2, 1.05),
+                             f_chapeau = rep(c(1.5, 1.12), each = 3))
            ok_liste(list(
              K = identical(s$K, 3L), j = identical(as.integer(s$j), 1:3),
              non_identifiables = nrow(ni) == 1L && identical(ni$j, 0L) &&
                identical(ni$n_facteurs, 7L),
              colonne_null = is.null(.mw_courbure_colonne(t[1:7, 1], t[1:7, 2])),
-             pente_null = is.null(.mw_lm_intra(res)),
-             pente_na = identical(.mw_pente_intra(res), NA_real_)))
+             pente_na = identical(.mw_pente_relative(res),
+                                  c(b = NA_real_, se = NA_real_, t = NA_real_, p = NA_real_))))
          })
 
 # Hors tableau de la specification (demande d'actuary) : seul cas mesure ou
-# l'ancien moteur (lm()) rendait une pente intra-colonne finie et fausse,
-# sans NA ni avertissement (t = -2,566 contre -1,1210, erreur relative 1,29).
-verifier("reserve2, ligne 0 x 1e-14 : t de la courbure et de la pente intra-colonne = reference Rmpfr a 1e-10 (#253)",
+# l'ancien moteur (lm()) rendait une pente intra-colonne (absolue) finie et
+# fausse, sans NA ni avertissement (t = -2,566 contre -1,1210, erreur
+# relative 1,29). Depuis #307 : pente relative, oracle de la variante.
+verifier("reserve2, ligne 0 x 1e-14 : t de la courbure = reference Rmpfr a 1e-10 (#253) ; pente relative finie, = variante x = C/Cbar_j a 1e-12 (#307)",
          {
            s <- stats253(ligne253(tri253, 0, 1e-14))
            ok_liste(list(
              K = identical(s$K, 4L),
              courbure = proche(s$t, c(3.1467379665547831, 2.1589835486730452,
                                       0.79635768376122591, -0.58330789698280312), rel = 1e-10),
-             pente = proche(s$pente, -1.1209971778104361, rel = 1e-10)))
+             pente = pente_ok307(s)))
          })
 
 # Ajustement parfait (G = 0) : colonne j = 0 quadratique exacte en binaire,
@@ -202,25 +234,70 @@ verifier("G = 0 : colonne quadratique exacte, t = +Inf, p = 0, X de Fisher fini 
              affine_stat_na = is.na(.fisher_combine(c(ra[["p"]], 0.5, 0.2))$stat)))
          })
 
-# Hors tableau de la specification : la forme close est celle de lm() la ou
-# lm() est precis (reserve2), y compris a valeurs de C(i,j) repetees (au
-# moins trois distinctes), ou la difference divisee e[Q] de la specification
-# n'est pas definie et ou le developpement de det_Q selon e l'est ; vecteur
-# de .mw_lm_intra() de memes noms que la ligne "C" de summary.lm().
-verifier("Forme close = summary(lm()) a 1e-10 sur reserve2 et a valeurs de C repetees ; noms de .mw_lm_intra() = ceux de co[\"C\", ] (#253)",
+# Hors tableau de la specification : la forme close de la courbure est celle
+# de lm() la ou lm() est precis, a valeurs de C(i,j) repetees (au moins trois
+# distinctes), ou la difference divisee e[Q] de la specification n'est pas
+# definie et ou le developpement de det_Q selon e l'est.
+verifier("Courbure en forme close = summary(lm()) a 1e-10 a valeurs de C repetees (#253)",
          {
-           aj <- mw_ajuster(tri253)
-           res <- mw_residus(aj, .mw_colonnes_degenerees(aj))
-           res$w <- res$C / res$sigma_j^2
-           co <- summary(stats::lm(F ~ factor(j) + C, weights = w, data = res))$coefficients["C", ]
-           li <- .mw_lm_intra(res)
            C0 <- c(300, 300, 320, 340, 360, 360); C1 <- c(960, 985, 1010, 1080, 1110, 1150)
            ref_lm <- summary(stats::lm(C1 ~ C0 + I(C0^2), weights = 1 / C0))$coefficients[3, ]
            cc <- .mw_courbure_colonne(C0, C1)
+           proche(cc[c("c2", "t", "p")], ref_lm[c(1, 3, 4)], rel = 1e-10)
+         })
+
+## --- Pente intra-colonne relative (#307) -----------------------------------
+# Specification Fj, par. 4.1 et 7 ; decisions Q-D1-Fj-3 (la pente relative
+# remplace la pente absolue), Q-D1-Fj-4 (cle PenteIntra) et Q-D1-Fj-7 (retrait
+# de .mw_lm_intra() et .mw_pente_intra(), oracles lm() a la place des valeurs
+# en dur) du 22/10/2026.
+# Oracle lm() : y = F / f_j, x = (C - Cbar_j) / Cbar_j, effets de colonne
+# factor(j), poids w = C f_j^2 / sigma_j^2 ; ligne "x" de summary.lm().
+verifier("Pente relative (#307) : reserve2, b, se, t, p = ligne \"x\" de summary(lm(y ~ factor(j) + x, weights = w)) a 1e-10 ; ddl = N - G - 1 = 20",
+         {
+           res <- stats253(tri253)$res
+           Cb <- stats::ave(res$C, res$j)
+           d <- data.frame(j = res$j, y = res$F / res$f_chapeau, x = (res$C - Cb) / Cb,
+                           w = res$C * res$f_chapeau^2 / res$sigma_j^2)
+           fit <- stats::lm(y ~ factor(j) + x, weights = w, data = d)
+           co <- summary(fit)$coefficients["x", ]
+           pr <- .mw_pente_relative(res)
            ok_liste(list(
-             noms = identical(names(li), names(co)),
-             pente = proche(li, co, rel = 1e-10),
-             repetees = proche(cc[c("c2", "t", "p")], ref_lm[c(1, 3, 4)], rel = 1e-10)))
+             noms = identical(names(pr), c("b", "se", "t", "p")),
+             lm = proche(unname(pr), unname(co), rel = 1e-10),
+             ddl = identical(fit$df.residual, nrow(res) - length(unique(res$j)) - 1L) &&
+               identical(fit$df.residual, 20L)))
+         })
+verifier("Pente relative (#307) : reserve2, t = 1,7330, b = 0,0592, p de Student = 0,0985 (valeurs de la specification Fj, par. 7, a l'arrondi)",
+         {
+           pr <- .mw_pente_relative(stats253(tri253)$res)
+           ok_liste(list(t = proche(pr[["t"]], 1.7330, rel = 0, abs = 5e-5),
+                         b = proche(pr[["b"]], 0.0592, rel = 0, abs = 5e-5),
+                         p = proche(pr[["p"]], 0.0985, rel = 0, abs = 5e-5)))
+         })
+verifier("Pente relative (#307) : triangles extremes de #253 (ligne 0 x 1e15, x 1e-15, x 1e-14, bornes, extreme) : t fini, = variante x = C/Cbar_j a 1e-12",
+         {
+           tris <- list(l0p15 = ligne253(tri253, 0, 1e15), l0m15 = ligne253(tri253, 0, 1e-15),
+                        l0m14 = ligne253(tri253, 0, 1e-14), bornes = bornes253, extreme = extreme253)
+           ok_liste(lapply(tris, function(t) pente_ok307(stats253(t))))
+         })
+# Garde unitaire du controle (i2') : stat_pente_rel() lue par parse() dans
+# le script de mesure de #309, evaluee dans un environnement dont le parent
+# est celui du test (fonctions du moteur visibles), comparee au bit pres.
+verifier("Pente relative (#307) : t = stat_pente_rel() de tests/puissance_mw_t8.R (relue par parse()), identical(), sur reserve2 et les triangles extremes de #253",
+         {
+           src <- parse(file.path(.racine253, "tests", "puissance_mw_t8.R"), keep.source = FALSE)
+           k <- which(vapply(src, function(e) is.call(e) && identical(e[[1]], as.name("<-")) &&
+                               identical(e[[2]], as.name("stat_pente_rel")), logical(1)))
+           if (length(k) != 1L) return(sprintf("stat_pente_rel() : %d definition(s) dans le script", length(k)))
+           env <- new.env(); eval(src[[k]], envir = env)
+           tris <- list(reserve2 = tri253, l0p15 = ligne253(tri253, 0, 1e15),
+                        l0m15 = ligne253(tri253, 0, 1e-15), l0m14 = ligne253(tri253, 0, 1e-14),
+                        bornes = bornes253, extreme = extreme253)
+           ok_liste(lapply(tris, function(t) {
+             res <- stats253(t)$res
+             identical(env$stat_pente_rel(res), .mw_pente_relative(res)[["t"]])
+           }))
          })
 
 ## --- Colonnes non identifiables de la courbure (#269, #270) ---------------

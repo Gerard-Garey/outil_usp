@@ -8352,6 +8352,11 @@ mw_msep <- function(aj) {
 .MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
   sprintf("%s (%s)", fm, paste0("\"", .MW_LIGNES_RESIDUS[[fm]], "\"", collapse = " ; ")),
   character(1)), collapse = ", ")
+# Nom de la ligne M4 "cellule aberrante" (#300), calculee sur mw_influence()
+# et non sur mw_residus() : constante unique lue par add() dans mw_tests() et
+# par l'avertissement des colonnes degenerees de mw_valider_ajustement(),
+# qui la nomme comme ligne qui ecarte aussi ces colonnes (#352).
+.MW_LIGNE_CELLULE_ABERRANTE <- "Cellule aberrante du triangle (residus studentises externes)"
 
 mw_valider_ajustement <- function(aj, msep) {
   err <- character(0)
@@ -8502,6 +8507,9 @@ mw_valider_ajustement <- function(aj, msep) {
       "(residus d'arrondi ou ecarts relatifs de l'ordre de 1e-12) : ",
       "ces %d facteurs individuels sont exclus des residus de Mack ; %d residu(s) de ",
       "Mack sont retenus pour les lignes fondees sur ces residus, soit %s. ",
+      "La ligne M4 \"%s\", dont la statistique est calculee sur les residus ",
+      "studentises externes de chaque ",
+      "colonne et non sur ces residus, ecarte aussi ces colonnes. ",
       "Le pool de reechantillonnage du bootstrap ne contient que les residus retenus ; ",
       "il sert aux p-values Monte-Carlo des lignes M1 a M4 et a l'intervalle de confiance ",
       "bootstrap de sigma. ",
@@ -8509,7 +8517,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
       if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
       paste(sprintf("j = %d (%d facteurs)", ex_col$j, ex_col$n_facteurs), collapse = ", "),
-      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE))
+      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE, .MW_LIGNE_CELLULE_ABERRANTE))
   }
   # Avertissement (et non refus) : reserve positive mais negligeable devant
   # son incertitude (issue #33, decision du mainteneur du 24/09/2026). D(4)
@@ -8641,7 +8649,7 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # egales (le terme k = i est nul). f_j de mw_ajuster() n'est pas modifie.
 # Sommes par sum(), sans produit matriciel (independance du BLAS).
 # Centrage pondere par differences deux a deux (#278, forme partagee par
-# .mw_ecart_facteur_stable() et .mw_lm_intra()) : element i =
+# .mw_ecart_facteur_stable() et .mw_pente_relative(), #307) : element i =
 # somme_k w_k (x_i - x_k) / somme_k w_k, soit x_i moins la moyenne ponderee
 # des x, sans annulation entre grandeurs d'ordre de la cellule dominante. Le
 # terme k = i, w_i (x_i - x_i), est un zero exact pour x_i et w_i finis :
@@ -8935,61 +8943,71 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 }
 
 
-# Pente commune de F(i,j) sur C(i,j) A EFFET DE COLONNE FIXE, ponderee par
-# C(i,j) / sigma_j^2 (moindres carres generalises, hypothese de variance M2).
-# Renvoie la ligne "C" des coefficients (estimation, ecart-type, t, p), ou
-# NULL si le modele n'est pas estimable ; .mw_pente_intra() en tire t, ou NA.
-# Calcul en forme close (#253, voie (R), decision D1-5 du 13/10/2026), sans
-# lm() : theoreme de Frisch et Waugh (1933), applique aux moindres carres
-# ordinaires sur les lignes multipliees par sqrt(w) : retirer les indicatrices
-# de colonne revient a centrer C et F en moyenne ponderee dans chaque colonne,
-# puis a regresser F centre sur C centre sans constante.
-#   C~_i = somme_k w_k (C_i - C_k) / somme_k w_k (k dans la colonne de i),
-#   F~_i de meme (differences deux a deux : aucune annulation entre grandeurs
-#   d'ordre de la cellule dominante, contrairement a C_i - moyenne) ;
-#   beta = somme w C~ F~ / somme w C~^2, u = F~ - beta C~,
-#   ddl = N - G - 1 (G colonnes), se = sqrt(somme w u^2 / ddl / somme w C~^2),
-#   t = beta / se, p = 2 P(T_ddl > |t|) (forme de summary.lm()).
-# Meme statistique que la ligne "C" de summary(lm(F ~ factor(j) + C,
-# weights = w)) en arithmetique exacte ; avant #253, lm() ecartait C par son
-# critere de rang numerique (tolerance 1e-7) sur une cellule dominante
-# (ligne x 1e15) ou une ligne de poids faible (ligne 0 x 1e-15), et la ligne
-# devenait NA. Avec une seule colonne, le centrage est celui de l'ordonnee a
-# l'origine de lm(F ~ C). Poids ramenes a max(w) dans [1, 2[ par une
-# puissance de 2 (multiplication exacte ; t invariant a l'echelle des poids).
-# NULL si somme w C~^2 = 0 exactement (C constant dans chaque colonne).
-.mw_lm_intra <- function(res) {
-  if (nrow(res) < 4 || stats::sd(res$C) == 0) return(NULL)
-  # Ponderation des MOINDRES CARRES GENERALISES : Var(F(i,j)) = sigma_j^2 /
-  # C(i,j), donc le poids exact est C(i,j) / sigma_j^2. Ponderer par C(i,j)
-  # seul ne respecte pas cette variance, sigma_j^2 variant fortement d'une
-  # colonne a l'autre. Mesure #119 (docs/tableaux/20261011-issue119-mw.md,
-  # T6, ligne (2) ; triangles 8 x 8 du plan reserve2, constat de simulation) :
-  # avec C(i,j) seul, la p de Student rejette sous H0 dans 4,8 a 6,0 % des cas
-  # a 0,10 (2,3 a 3,3 % a 0,05) selon la loi des erreurs : test conservateur,
-  # non inoperant.
-  if (!("sigma_j" %in% names(res)) || any(!is.finite(res$sigma_j)) ||
-      any(res$sigma_j <= 0)) return(NULL)
-  w <- res$C / res$sigma_j^2
+# Pente RELATIVE commune a effets fixes de colonne (ligne M1 "Absence de
+# tendance des facteurs avec le cumul, a colonne donnee", cle "PenteIntra" de
+# MW_CATALOGUE_MC). Issue #307, decisions du mainteneur du 22/10/2026 :
+# Q-D1-Fj-3 (critere K-307 adopte, la pente relative remplace la pente
+# absolue de #119 et #253), Q-D1-Fj-4 (cle PenteIntra conservee), Q-D1-Fj-7
+# (retrait de .mw_lm_intra() et .mw_pente_intra()) ; specification
+# docs/specifications/fj-merz-wuthrich-identifiabilite.md, par. 4.1.
+# Regression ponderee de y = F(i,j) / f_j sur x = (C(i,j) - Cbar_j) / Cbar_j,
+# Cbar_j = moyenne simple des cumuls de la colonne j qui portent un facteur
+# (stats::ave()), avec effets fixes d'annee de developpement :
+#   - poids des moindres carres generalises w = C f_j^2 / sigma_j^2, puisque
+#     Var(F / f_j | C) = sigma_j^2 / (C f_j^2) (hypothese de variance M2) ;
+#     poids ramenes a max(w) dans [1, 2[ par une puissance de 2
+#     (multiplication exacte ; t invariant a l'echelle des poids) ;
+#   - effets de colonne par partialisation (Frisch et Waugh, 1933) : x et y
+#     centres en moyenne ponderee dans chaque colonne par
+#     .mw_centrage_pondere() (differences deux a deux, #233 et #278), puis
+#     regression de y centre sur x centre sans constante :
+#     b = somme w x~ y~ / Sxx, Sxx = somme w x~^2, ddl = N - G - 1 (G
+#     colonnes), se = sqrt(somme w (y~ - b x~)^2 / ddl / Sxx), t = b / se ;
+#   - p = 2 P(T_ddl > |t|) (forme de summary.lm()) : p non simulee, jamais
+#     retenue (#181) ; la p de reference est la p Monte-Carlo de PenteIntra.
+# Meme statistique que la ligne "x" de summary(lm(y ~ factor(j) + x,
+# weights = w)) en arithmetique exacte. En unites relatives, une ordonnee a
+# l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j),
+# au premier ordre en (C(i,j) - Cbar_j)/Cbar_j (approximation d'autant
+# meilleure que les cumuls de la colonne sont peu disperses) ; chaque colonne
+# pese selon la dispersion relative de ses cumuls et la precision de ses
+# facteurs, non selon l'echelle de C(i,j) ; b se lit comme une elasticite du
+# facteur au volume au point (Cbar_j, f_j), a colonne donnee.
+# ALGEBRE FIGEE (#307, controle (i2') de tests/puissance_mw_t8.R) : memes
+# operations, dans le meme ordre, que stat_pente_rel(res) du script de mesure
+# de #309 (Cb par stats::ave(), x et y, w puis 2^-floor(log2(max(w))),
+# centrage par colonne dans l'ordre de split(), sommes par sum(), b, ddl, se,
+# t = b / se) ; une ecriture equivalente en arithmetique exacte changerait
+# des bits (variante x = C / Cbar_j : t ecarte de 1,2e-15 en relatif sur
+# reserve2, mesure #307) et la p mesuree ne serait plus celle de la ligne.
+# Gardes identiques a celles du script : NA si nrow(res) < 4, si un
+# sigma_j est non fini ou <= 0, si Sxx est non fini ou <= 0, si ddl < 1 ou si
+# se est non fini ou <= 0 ; le moteur rend alors b, se, t et p tous NA.
+# Retour : vecteur nomme c(b, se, t, p).
+.mw_pente_relative <- function(res) {
+  na <- c(b = NA_real_, se = NA_real_, t = NA_real_, p = NA_real_)
+  if (nrow(res) < 4) return(na)
+  if (any(!is.finite(res$sigma_j)) || any(res$sigma_j <= 0)) return(na)
+  Cb <- stats::ave(res$C, res$j)
+  x <- (res$C - Cb) / Cb
+  y <- res$F / res$f_chapeau
+  w <- res$C * res$f_chapeau^2 / res$sigma_j^2
   w <- w * 2^-floor(log2(max(w)))
-  Ct <- Ft <- numeric(length(w))
+  xt <- yt <- numeric(length(w))
   for (g in split(seq_along(w), res$j)) {
-    wg <- w[g]; sw <- sum(wg)
-    Ct[g] <- .mw_centrage_pondere(res$C[g], wg, sw)
-    Ft[g] <- .mw_centrage_pondere(res$F[g], wg, sw)
+    sw <- sum(w[g])
+    xt[g] <- .mw_centrage_pondere(x[g], w[g], sw)
+    yt[g] <- .mw_centrage_pondere(y[g], w[g], sw)
   }
-  sxx <- sum(w * Ct^2)
-  if (isTRUE(sxx == 0)) return(NULL)
-  b <- sum(w * Ct * Ft) / sxx
+  sxx <- sum(w * xt^2)
+  if (!(is.finite(sxx) && sxx > 0)) return(na)
+  b <- sum(w * xt * yt) / sxx
   ddl <- length(w) - length(unique(res$j)) - 1L
-  se <- sqrt(sum(w * (Ft - b * Ct)^2) / ddl / sxx)
+  if (ddl < 1L) return(na)
+  se <- sqrt(sum(w * (yt - b * xt)^2) / ddl / sxx)
+  if (!(is.finite(se) && se > 0)) return(na)
   tv <- b / se
-  c(Estimate = b, "Std. Error" = se, "t value" = tv,
-    "Pr(>|t|)" = 2 * stats::pt(abs(tv), ddl, lower.tail = FALSE))
-}
-.mw_pente_intra <- function(res) {
-  co <- .mw_lm_intra(res)
-  if (is.null(co)) NA_real_ else unname(co[3])
+  c(b = b, se = se, t = tv, p = 2 * stats::pt(abs(tv), ddl, lower.tail = FALSE))
 }
 
 # --- Heteroscedasticite residuelle a effets fixes de colonne (ligne M2) -------
@@ -9004,16 +9022,17 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 # nR^2 partiel par partialisation (Frisch et Waugh, 1933) : n Sxy^2 / (Sxx Syy)
 # sur y et C centres par colonne (moyenne simple de colonne), avec
 #   y = r~^2 = r^2 / (1 - h), 1 - h = S_sans / S_j (somme des AUTRES cellules
-#   de la colonne sur la somme de la colonne, .mw_sommes_autres() ; meme
-#   redressement du levier h = C(i,j) / S_j que .mw_pool_residus(), #46) ;
+#   de la colonne sur la somme de la colonne, .mw_un_moins_h() sur
+#   .mw_sommes_autres(), fonction commune avec .mw_pool_residus() : meme
+#   redressement du levier h = C(i,j) / S_j, #46, #356) ;
 #   cellules des colonnes de n_j >= 3 seulement (a n_j = 2, |r~| = 1
 #   identiquement, ecart mesure 2,2e-16 sur reserve2, et r~^2 ne porte aucune
 #   information) ; colonnes degenerees deja ecartees par
 #   mw_residus(aj, j_degeneres) (ensemble fige, #60).
 # Construction de l'outil pour des residus de Mack, parallele a la pente
-# intra-colonne (.mw_lm_intra(), #119), et non un test publie : la p chi2(1)
-# n'est qu'une p non simulee (jamais retenue, #181) ; la p de reference est la
-# p Monte-Carlo (queue haute, cle "BP" de MW_CATALOGUE_MC).
+# relative (.mw_pente_relative(), #119, #307), et non un test publie :
+# la p chi2(1) n'est qu'une p non simulee (jamais retenue, #181) ; la p de
+# reference est la p Monte-Carlo (queue haute, cle "BP" de MW_CATALOGUE_MC).
 # ALGEBRE FIGEE (#301, controle (i2') de tests/puissance_mw_t8.R) : memes
 # operations, dans le meme ordre, que stat_fw(aj, res, redresse = TRUE,
 # n_min = 3) du script de mesure de #309 (centrage y - ave(y, g), sommes par
@@ -9027,13 +9046,7 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
   na <- list(stat = NA_real_, p = NA_real_, n = 0L, K = 0L)
   if (!nrow(res)) return(na)
   y <- res$residu^2
-  umh <- numeric(nrow(res))
-  for (j in unique(res$j)) {
-    sel <- res$j == j
-    col <- aj$tri[seq_len(aj$I - j), j + 1]
-    umh[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
-  }
-  y <- y / umh
+  y <- y / .mw_un_moins_h(aj, res)
   nj <- as.vector(table(res$j)[as.character(res$j)])
   k <- nj >= 3L
   n <- sum(k); K <- length(unique(res$j[k]))
@@ -9830,9 +9843,12 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 #   alpha = 0 : moyenne simple des facteurs individuels
 #   alpha = 1 : facteur chain-ladder du reglement
 #   alpha = 2 : ponderation par le carre du volume
-# Sous l'hypothese (iii), les trois estimateurs visent le MEME f_j : une
-# divergence marquee signale que l'esperance n'est pas proportionnelle a
-# C(i,j), ou que la ponderation en C(i,j) de l'hypothese (iv) est inadaptee.
+# Sous l'hypothese (iii), les trois estimateurs visent le MEME f_j, quelle que
+# soit la variance (tout facteur individuel est alors sans biais pour f_j :
+# Mack 1994, CAS Forum, chap. 3, p. 111) : une divergence marquee signale que
+# l'esperance n'est pas proportionnelle a C(i,j) (M1) ; une violation de
+# l'hypothese de variance (iv) seule laisse H0 vraie (specification Fj,
+# par. 4.3 ; decision Q-D1-Fj-5, #307).
 # La statistique est l'amplitude relative moyenne, ponderee par les effectifs.
 mw_famille_alpha <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
@@ -9850,6 +9866,57 @@ mw_famille_alpha <- function(aj) {
   det <- .mw_empiler(blocs)
   if (!nrow(det)) return(list(stat = NA_real_, detail = det))
   list(stat = sum(det$n * det$amplitude) / sum(det$n), detail = det)
+}
+
+# Identifiabilite intra-colonne (#308, specification Fj, par. 3.3 ; decisions
+# Q-D1-Fj-1, forme F1, et Q-D1-Fj-2 du mainteneur du 22/10/2026) : grandeurs
+# DESCRIPTIVES de la dispersion des cumuls a colonne donnee, dont depend la
+# puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2
+# (exposant de variance). Ligne de diagnostic de mw_tests(), sans
+# statistique ni p-value (ADR 0001) ; aucun effet minimal detectable n'est
+# calcule ici (Q-D1-Fj-2).
+# Colonnes retenues : j = 0..J-1, n_j = I - j >= 3, j hors de
+# .mw_j_exclues(aj, j_degeneres) (memes colonnes eligibles que l'ordonnee a
+# l'origine). Pour chacune, C0 = C(0..I-j-1, j) et C1 = C(0..I-j-1, j+1) :
+#   CV_j  = sd(C0) / mean(C0)            (ecart-type a n_j - 1)
+#   R_j   = max(C0) / min(C0)
+#   e_a,j = sigma_j sqrt(S_j / D_j) / mean(C1), sigma_j = sqrt(aj$sigma2[j + 1])
+#           (estimateur de Mack), S_j = somme C0,
+#           D_j = S_j somme(1/C0) - n_j^2 = somme_{a<b} ((C0_a - C0_b)/sqrt(C0_a)/sqrt(C0_b))^2.
+# S_j / D_j est l'element (1, 1) de (X'WX)^-1 de la regression ponderee
+# C1 ~ a_j + b_j C0, poids W = 1/C0 (det(X'WX) = D_j) : sigma_j^2 S_j / D_j
+# est la variance de l'estimateur de a_j sous H0, a variance sigma_j^2 C0.
+# D_j est calcule sous la forme STABLE (somme des carres des ecarts relatifs
+# par paire) : chaque terme est positif, sans annulation entre les grandeurs
+# d'ordre n_j^2 de la forme S_j somme(1/C0) - n_j^2, ni debordement de
+# C0_a C0_b. D_j = 0 si et seulement si C0 est constant : e_a,j = NA.
+# Lit aj$tri, aj$I, aj$J, aj$sigma2 et (via .mw_j_exclues()) aj$f ; ne lit pas
+# mw_residus().
+# Avec j_degeneres = integer(0) impose, une colonne degeneree est retenue et
+# donne sigma_j nul ou numeriquement nul, donc e_a,j = 0 ou negligeable ; cas
+# hors du chemin de mw_tests(). Retour :
+# estim = moyenne des CV_j retenus (NA sans colonne retenue) ; detail =
+# data.frame(j, n, cv, R, e_a), une ligne par colonne retenue (data.frame()
+# vide sinon).
+mw_identifiabilite_intra <- function(aj, j_degeneres = NULL) {
+  I <- aj$I; J <- aj$J; tri <- aj$tri
+  jd <- .mw_j_exclues(aj, j_degeneres)
+  blocs <- list()
+  for (j in 0:(J - 1)) {
+    idx <- 0:(I - j - 1)
+    if (length(idx) < 3 || j %in% jd) next
+    C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
+    rc <- sqrt(C0)
+    q <- outer(seq_along(C0), seq_along(C0),
+               function(a, b) (C0[a] - C0[b]) / rc[a] / rc[b])
+    D <- sum(q[upper.tri(q)]^2)
+    e_a <- if (D > 0) sqrt(aj$sigma2[j + 1]) * sqrt(sum(C0) / D) / mean(C1) else NA_real_
+    blocs[[length(blocs) + 1L]] <- list(j = as.integer(j), n = length(idx),
+                                        cv = stats::sd(C0) / mean(C0),
+                                        R = max(C0) / min(C0), e_a = e_a)
+  }
+  det <- .mw_empiler(blocs)
+  list(estim = if (nrow(det)) mean(det$cv) else NA_real_, detail = det)
 }
 
 # (e) Adequation de l'exposant de variance (hypothese (iv), complement de M2).
@@ -10175,6 +10242,25 @@ FACTEUR_B_MAX_MW <- 25
 .mw_sommes_autres <- function(x)
   vapply(seq_along(x), function(k) sum(x[-k]), numeric(1))
 
+# 1 - h_ij = (S_j - C_ij) / S_j des cellules de res (#46, #356), h_ij = C_ij /
+# S_j etant le levier de la cellule dans l'estimation de f^_j : sur les lignes
+# 0..I-j-1 de la colonne j (memes cellules que mw_residus() et
+# mw_influence()), somme des AUTRES cellules par .mw_sommes_autres() divisee
+# par la somme de la colonne, calculee une fois par colonne. Partagee par
+# .mw_pool_residus() et mw_test_heteroscedasticite_intra() ; res : sortie de
+# mw_residus(aj, j_degeneres), dans l'ordre de ses lignes. Memes operations,
+# dans le meme ordre, que les deux boucles qu'elle remplace, donc memes bits
+# (ALGEBRE FIGEE de #301 : le controle (i2') compare des valeurs).
+.mw_un_moins_h <- function(aj, res) {
+  umh <- numeric(nrow(res))
+  for (j in unique(res$j)) {
+    sel <- res$j == j
+    col <- aj$tri[seq_len(aj$I - j), j + 1]
+    umh[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
+  }
+  umh
+}
+
 # Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
 # mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
 # sigma_j connu, conditionnellement a C_{.,j}, le residu
@@ -10210,17 +10296,9 @@ FACTEUR_B_MAX_MW <- 25
 .mw_pool_residus <- function(aj, j_degeneres = NULL) {
   res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(numeric(0))
-  # 1 - h_ij = (S_j - C_ij) / S_j, sur les lignes 0..I-j-1 de la colonne j
-  # (memes cellules que mw_residus() et mw_influence()), somme des autres
-  # cellules par .mw_sommes_autres(), partagee avec mw_influence() (#260),
-  # calculee une fois par colonne.
-  un_moins_h <- numeric(nrow(res))
-  for (j in unique(res$j)) {
-    sel <- res$j == j
-    col <- aj$tri[seq_len(aj$I - j), j + 1]
-    un_moins_h[sel] <- .mw_sommes_autres(col)[res$i[sel] + 1] / sum(col)
-  }
-  pool <- res$residu / sqrt(un_moins_h)
+  # 1 - h_ij = (S_j - C_ij) / S_j : .mw_un_moins_h(), partagee avec
+  # mw_test_heteroscedasticite_intra() (#356).
+  pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
   pool - mean(pool)                               # recentrage
 }
 
@@ -10452,14 +10530,16 @@ MW_CATALOGUE_MC <- list(
   # triangle. L'EFFET DE COLONNE EST INDISPENSABLE : le facteur f_j decroit
   # avec j alors que le cumule C(i,j) croit, de sorte qu'une regression
   # agregee sans terme d'annee de developpement capte cette relation mecanique
-  # et rejette H0 de facon quasi systematique (mesure #119,
-  # docs/tableaux/20261011-issue119-mw.md, T6, ligne (1) : 96,8 a 98,8 % de
-  # rejets sous H0 a 0,10, triangles 8 x 8 du plan reserve2, constat de
-  # simulation). L'ajout de facteur(j) ramene le test a ce qu'il
-  # pretend mesurer : une dependance au volume A L'INTERIEUR de chaque
-  # colonne. La statistique est la pente intra-colonne de .mw_pente_intra()
-  # (cle renommee a l'issue #41 ; ADR 0003).
-  PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
+  # et rejette H0 de facon quasi systematique (mesure #119, faite sur la
+  # pente absolue de F sur C, docs/tableaux/20261011-issue119-mw.md, T6,
+  # ligne (1) : 96,8 a 98,8 % de rejets sous H0 a 0,10, triangles 8 x 8 du
+  # plan reserve2, constat de simulation). L'ajout de facteur(j) ramene le
+  # test a ce qu'il pretend mesurer : une dependance au volume A L'INTERIEUR
+  # de chaque colonne. La statistique est, depuis #307 (decision Q-D1-Fj-3),
+  # le t de la pente RELATIVE de .mw_pente_relative() (F / f_j sur
+  # (C - Cbar_j) / Cbar_j), qui remplace la pente absolue de F sur C ; cle
+  # renommee a l'issue #41 (ADR 0003) et conservee par Q-D1-Fj-4.
+  PenteIntra = .mc_entree(function(e) .mw_pente_relative(e$res)[["t"]], "deux"),
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
@@ -10655,19 +10735,34 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
 
   ## --- M1 : proportionnalite des cumules (D(2)(h)(iii)) ---------------------
   fam <- "M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii))"
-  ti <- .mw_lm_intra(res)
+  # Pente relative commune a effets fixes de colonne (#307, decision
+  # Q-D1-Fj-3 ; texte T-4 de la specification Fj, a la lettre) : meme fonction
+  # que l'entree PenteIntra du catalogue, donc meme statistique observee que
+  # bootstrap$stats_obs["PenteIntra"] ; la p de Student est une p non simulee
+  # (p_asymptotique), jamais retenue (#181).
+  pr <- .mw_pente_relative(res)
   add(fam, "Absence de tendance des facteurs avec le cumul, a colonne donnee",
-      fonction = ".mw_lm_intra",
-      "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3)",
+      fonction = ".mw_pente_relative",
+      paste("Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ;",
+            "pente relative commune a effets fixes de colonne : construction de l'outil",
+            "(partialisation de Frisch & Waugh, 1933, Econometrica 1(4))"),
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
-      H1 = "les facteurs varient avec le volume a l'interieur d'une colonne",
-      stat_nom = "t", stat = if (!is.null(ti)) unname(ti[3]) else NA_real_,
-      loi = "t ponderee a effet de colonne fixe ; p de reference par Monte-Carlo",
-      p_as = if (!is.null(ti)) unname(ti[4]) else NA_real_, mc_nom = "PenteIntra",
-      detail = paste("Regression ponderee sur tout le triangle AVEC effet fixe d'annee de",
-                     "developpement. Sans ce terme, la decroissance de f_j et la croissance",
-                     "de C(i,j) creent une relation mecanique qui fait rejeter H0 dans la",
-                     "quasi-totalite des cas."))
+      H1 = paste("le facteur relatif F(i,j)/f_j varie avec le volume relatif C(i,j)/Cbar_j,",
+                 "selon une pente commune aux colonnes"),
+      stat_nom = "t", stat = pr[["t"]],
+      loi = "Student(N - G - 1) approx. (pente relative, effets fixes de colonne) -> Monte-Carlo",
+      estim_nom = "pente relative b", estim = pr[["b"]],
+      p_as = pr[["p"]], mc_nom = "PenteIntra",
+      detail = paste("Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j :",
+                     "moyenne simple des cumuls de la colonne j qui portent un facteur), poids",
+                     "C(i,j) f_j^2/sigma_j^2, avec effets fixes d'annee de developpement ; t de la",
+                     "pente commune b. En unites relatives, une ordonnee a l'origine a_j donne",
+                     "dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), au premier ordre en",
+                     "(C(i,j) - Cbar_j)/Cbar_j (approximation d'autant meilleure que les cumuls de",
+                     "la colonne sont peu disperses), et chaque colonne pese selon la dispersion",
+                     "relative de ses cumuls et la precision de ses facteurs, non selon l'echelle",
+                     "de C(i,j). b se lit comme une elasticite du facteur au volume au point",
+                     "(Cbar_j, f_j), a colonne donnee."))
 
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
   oo <- mw_test_ordonnee_origine(aj, jd, figes$origine_non_identifiables)
@@ -10734,15 +10829,65 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # Source des estimateurs ponderes (issue #201, decision Q-201-2) : Mack
   # (1994), CAS Forum, chapitres 3 et 5 ; l'article de l'IME 15 (1994) ne
   # les contient pas.
+  # Option (b') de la decision Q-D1-Fj-5 (#307) : test de (iii) conserve,
+  # verdict inchange ; detail T-5 de la specification Fj, a la lettre :
+  # ce que teste la ligne (M1, non M2 : Mack 1994, chap. 3, p. 111) et la
+  # materialite observee (ecart relatif maximal entre les trois estimateurs,
+  # grandeur de l'observe, aucun nombre issu du bootstrap, #76) ; premiere
+  # phrase seule si la statistique est NA.
+  detail_al <- paste("alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder",
+                     "du reglement ; alpha = 2 : ponderation par le carre du volume.")
+  if (is.finite(al$stat))
+    detail_al <- sprintf(paste(detail_al,
+      "Sous l'hypothese (iii), les trois estimateurs sont sans biais pour f_j quelle que",
+      "soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur",
+      "l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre",
+      "F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme",
+      "ponderation : la ligne vise, comme la pente relative, une association du",
+      "facteur au volume, mais colonne par colonne et sans compensation de signe entre",
+      "colonnes. Ecart relatif maximal entre les trois estimateurs : %.2f %% (colonne",
+      "j = %d) ; seul f_j^(alpha = 1) entre dans sigma_USP."),
+      100 * max(al$detail$amplitude), al$detail$j[which.max(al$detail$amplitude)])
   add(fam, "Stabilite du facteur selon la ponderation (famille alpha)",
       fonction = "mw_famille_alpha",
-      "Mack (1994), CAS Forum (printemps), 101-182, chap. 3 et 5",
+      "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
-      H1 = "la valeur du facteur depend de la ponderation retenue",
+      H1 = paste("les trois estimateurs visent des valeurs differentes (esperance de",
+                 "C(i,j+1) non proportionnelle a C(i,j))"),
       stat_nom = "amplitude relative", stat = al$stat,
       loi = "aucune loi analytique -> Monte-Carlo", mc_nom = "Alpha",
-      detail = paste("alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder",
-                     "du reglement ; alpha = 2 : ponderation par le carre du volume."))
+      detail = detail_al)
+  # Identifiabilite intra-colonne (#308, forme F1) : diagnostic sans verdict
+  # (ADR 0001) en fin de M1, grandeurs de mw_identifiabilite_intra() sur
+  # l'observe seul (aucun nombre issu du bootstrap, #76) ; texte T-3 de la
+  # specification Fj, a la lettre.
+  ii <- mw_identifiabilite_intra(aj, jd)
+  tete_ii <- paste(
+    "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee,",
+    "dont depend la puissance des lignes M1 (ordonnee a l'origine, pente relative)",
+    "et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes",
+    "degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j)",
+    "(sous un exposant de variance k, a f_j et sigma_j connus, le rapport des",
+    "variances des residus de Mack entre les deux cellules extremes vaut R^(k - 1)) ;",
+    "e_a = erreur type de l'ordonnee a l'origine a_j sous H0, sigma_j de Mack,",
+    "rapportee a la moyenne de C(i,j+1) (une ordonnee a l'origine de l'ordre de e_a",
+    "n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois",
+    "e_a, d'autant plus que n_j est petit : multiplicateurs dans la documentation).")
+  dii <- ii$detail
+  detail_ii <- if (!nrow(dii)) paste(tete_ii, "Aucune colonne retenue (n_j >= 3).") else
+    paste0(tete_ii, " Valeurs : ", paste(ifelse(is.na(dii$e_a),
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a non definie (C(i,j) constant)",
+              dii$j, dii$n, dii$cv, dii$R),
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a = %.4f",
+              dii$j, dii$n, dii$cv, dii$R, dii$e_a)), collapse = " ; "), ".")
+  add(fam, "Identifiabilite intra-colonne (dispersion des cumuls par colonne)",
+      fonction = "mw_identifiabilite_intra",
+      paste("Construction de l'outil : dispersion de C(i,j) a colonne donnee et erreur",
+            "type de l'ordonnee a l'origine de la regression ponderee",
+            "C(.,j+1) ~ a_j + b_j C(.,j), poids 1/C(.,j) (Mack 1994, CAS Forum, chap. 5,",
+            "p. 121-123), sous H0, sigma_j de Mack (1993)"),
+      type = "diagnostic", estim_nom = "CV moyen des colonnes retenues",
+      estim = ii$estim, detail = detail_ii)
 
   ## --- M2 : structure de variance (D(2)(h)(iv)) -----------------------------
   fam <- "M2. variance proportionnelle au cumul (annexe XVII D(2)(h)(iv))"
@@ -10770,7 +10915,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         "les residus non redresses (somme_i r(i,j)^2 = n_j - 1).",
         "Colonnes n_j >= 3 seulement (a n_j = 2, |r~| = 1",
         sprintf("identiquement) : %d cellules dans %d colonnes.", bp$n, bp$K)))
-  ev <- mw_test_exposant_variance(aj, jd)
+  # res deja calcule plus haut (meme jd) : transmis, pas de second mw_residus()
+  # a l'observe (#291).
+  ev <- mw_test_exposant_variance(aj, jd, res)
   pm_ev <- .mw_p_min_ligne(is.finite(ev$stat), ev$detail$n, "colonnes n_j",
                            function(n) .mw_fisher_rangs_p_min(n, ev$masse_min),
                            any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
@@ -10871,7 +11018,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                           format(100 * REPERE_DIAGONALE_MACK_1997)),
       estim = if (nrow(cdg)) as.numeric(sum(cdg$repere)) else NA_real_,
       detail = detail_cdg)
-  ka <- mw_test_homogeneite_accident(aj, jd)
+  ka <- mw_test_homogeneite_accident(aj, jd, res)  # res : voir ExpVar (#291)
   pm_ka <- .mw_p_min_ligne(is.finite(ka$stat), ka$tailles, "residus par annee de survenance",
                            .mw_kruskal_p_min, isTRUE(ka$ex_aequo))
   add(fam, "Homogeneite des residus entre annees de survenance",
@@ -10940,12 +11087,20 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
     nj <- aj$I - (0:(aj$J - 1))
     sum(nj[nj == 3L & !((0:(aj$J - 1)) %in% jd)])
   })
-  add(fam, "Cellule aberrante du triangle (residus studentises externes)",
+  add(fam, .MW_LIGNE_CELLULE_ABERRANTE,
       fonction = "mw_test_cellule_aberrante",
-      paste("Residu studentise externe (cellule retiree) de la regression ponderee",
-            "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j) (Belsley, Kuh & Welsch 1980 ; Cook &",
-            "Weisberg 1982) ; minimum des p de Student, borne de Bonferroni : construction",
-            "de l'outil, colonne par colonne, sur le modele de Mack"),
+      # Reference T-1 (#352, decision Q-D1-Fj-9 du 22/10/2026) : la borne de
+      # Bonferroni est publiee ; seuls le minimum des p entre colonnes, la
+      # condition n_j >= MW_NJ_MIN_CELLULE et la p Monte-Carlo sont de l'outil.
+      sprintf(paste0(
+        "Residu studentise externe de la regression ponderee C(.,j+1) ~ 0 + C(.,j), ",
+        "poids 1/C(.,j), et sa loi de Student a n_j - 2 degres de liberte sous erreurs ",
+        "gaussiennes : Cook & Weisberg (1982), par. 2.2.1, p. 20, et annexe A.1, p. 209 ",
+        "(nom RSTUDENT : Belsley, Kuh & Welsch 1980, chap. 2) ; borne de Bonferroni sur ",
+        "le plus grand residu : Cook & Weisberg (1982), p. 22 et 26 ; construction de ",
+        "l'outil : minimum des p de Student entre colonnes de degres de liberte ",
+        "differents, colonnes n_j >= %d, p-value Monte-Carlo sur le modele de Mack"),
+        MW_NJ_MIN_CELLULE),
       H0 = "aucun residu de Mack aberrant", H1 = "exactement un residu aberrant",
       stat_nom = "M = min p_ij", stat = ca$stat,
       loi = "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo",
@@ -11701,10 +11856,12 @@ mw_influence <- function(aj) {
 # ALGEBRE FIGEE (#300, controle (i2') de tests/puissance_mw_t8.R) : memes
 # operations, dans le meme ordre, que influence_t() et cellules_t(aj, figes,
 # 4L, obs, cache) du script de mesure de #309 (t par colonne, n_j par
-# stats::ave(), selection, gardes, tv[nb] <- .Machine$double.xmax, p par
-# 2 * stats::pt(-abs(tv), n_j - 2), p[nb] <- 0, which.min()) ; toute forme
-# equivalente changerait des bits et la p mesuree ne serait plus celle de la
-# ligne.
+# stats::ave(), selection, gardes, p par 2 * stats::pt(-abs(t), n_j - 2),
+# p[nb] <- 0, which.min()) ; toute forme equivalente changerait des bits et la
+# p mesuree ne serait plus celle de la ligne. L'affectation tv[nb] <-
+# .Machine$double.xmax du script de mesure (necessaire a TMax, qui prend le
+# maximum de |t|) est ABSENTE du moteur : p[nb] <- 0 ecrase aussitot la p des
+# cellules non bornees, et tv ne sert qu'a p (#356).
 # Rend : stat (M), p (borne de Bonferroni min(1, N_t M), p non simulee sous
 # le modele auxiliaire de Mack a erreurs gaussiennes, jamais retenue, #181),
 # N_t, la cellule du minimum (i, j, n_j, t), non_borne (data.frame i, j des
@@ -11733,8 +11890,7 @@ mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) 
     na$non_borne <- data.frame(i = ik[nb], j = jk[nb])
     return(na)
   }
-  tv <- tk; tv[nb] <- .Machine$double.xmax
-  p <- 2 * stats::pt(-abs(tv), njk - 2); p[nb] <- 0
+  p <- 2 * stats::pt(-abs(tk), njk - 2); p[nb] <- 0
   im <- which.min(p)
   M <- min(p)
   list(stat = M, p = min(1, length(p) * M), N_t = length(p), i = ik[im], j = jk[im],

@@ -23,16 +23,22 @@
 #      [1, x, x^2], x = C(i,j), y = C(i,j+1) BRUT (pas l'ecart e du moteur),
 #      poids 1 / x ; SCR = somme w (y - Xb)^2, se(c) = sqrt(SCR / (n - 3)
 #      [(X'WX)^-1]_33), t = c / se, n - 3 ddl.
-#    - Pente intra-colonne (.mw_lm_intra()) : regresseurs = indicatrices des
-#      G colonnes de res et C, y = F, poids C / sigma_j^2 ; ddl = N - G - 1.
+#  Pente intra-colonne : partie RETIREE depuis #307 (decision Q-D1-Fj-7 du
+#  mainteneur, 22/10/2026). La pente absolue de .mw_lm_intra() (regresseurs
+#  = indicatrices des G colonnes et C, y = F, poids C / sigma_j^2) n'existe
+#  plus dans le moteur : la pente relative de .mw_pente_relative() la
+#  remplace, et test_forme_close_m1.R la controle par des oracles (lm(),
+#  variante x = C / Cbar_j, stat_pente_rel() du script de mesure) sans valeur
+#  en dur de precision etendue. Une reference Rmpfr de la pente relative
+#  reste a etablir sur un poste qui dispose de Rmpfr, si elle est demandee.
 #  Donnees et gardes du moteur : triangles construits comme dans
 #  test_forme_close_m1.R ; mw_ajuster() et mw_residus(aj,
 #  .mw_colonnes_degenerees(aj)) du moteur (R/engine.R de l'arbre de travail)
 #  fournissent les cellules retenues, F = C(i,j+1) / C(i,j) et sigma_j
 #  (flottants du moteur, sigma_j = sqrt(sigma2_j) comme dans res) ; colonnes
 #  de courbure : n >= 4, hors .mw_j_exclues(aj, NULL), colonne non
-#  degeneree, sd(C0) > 0, au moins trois valeurs distinctes de C(i,j) ; pente :
-#  nrow(res) >= 4, sd(C) > 0, sigma_j fini et > 0. Entrees : ces flottants,
+#  degeneree, sd(C0) > 0, au moins trois valeurs distinctes de C(i,j).
+#  Entrees : ces flottants,
 #  convertis sans perte (mpfr(x, prec) d'un double est exact) ; seuls les
 #  calculs en aval sont arrondis, a 4 096 bits.
 #  Controle de precision : tout est recalcule a 8 192 bits ; les 17 chiffres
@@ -43,7 +49,7 @@
 #  sinon) ; a titre d'information, la valeur du moteur et son ecart.
 #  Code de sortie : 1 si une valeur en dur s'ecarte de la reference de plus
 #  que la tolerance de son test, ou si le controle de precision echoue ; 0
-#  sinon. Un cas sans valeur en dur (courbure ou pente NULL dans CAS) est
+#  sinon. Un cas sans valeur en dur (courbure NULL dans CAS) est
 #  affiche « a ajouter » et n'entre pas dans le code de sortie ; tous les
 #  cas de CAS en ont une, y compris reserve2, ligne 0 x 1e-14 (hors tableau
 #  de la specification).
@@ -80,39 +86,31 @@ extreme253 <- local({
   t
 })
 
-# Cas : triangle, valeurs en dur (courbure, pente ; NULL = pas de valeur),
+# Cas : triangle, valeurs en dur de la courbure (NULL = pas de valeur),
 # tolerance relative du test
 CAS <- list(
   list(nom = "T253-1 reserve2", tri = tri253, rel = 1e-12,
        courbure = c(0.93422764996969232, -1.9823633206000404,
-                    -9.1618120029068368, -3.462887950378827),
-       pente = 0.2600197442537881),
+                    -9.1618120029068368, -3.462887950378827)),
   list(nom = "T253-2 l0 x 1e30", tri = ligne253(tri253, 0, 1e30), rel = 1e-10,
        courbure = c(-3.2321868753333782, -2.6230673521146479, -1.2246845553777297,
-                    0.27555322316525688),
-       pente = -0.64792170590960629),
+                    0.27555322316525688)),
   list(nom = "T253-2 l3 x 1e30", tri = ligne253(tri253, 3, 1e30), rel = 1e-10,
        courbure = c(-1.7637144365936694, -3.1751739033668485, -1.0848619801581147,
-                    -1.9731120214984617),
-       pente = 0.58992812949620965),
+                    -1.9731120214984617)),
   list(nom = "T253-2 l0 x 1e-30", tri = ligne253(tri253, 0, 1e-30), rel = 1e-10,
        courbure = c(3.1467379665547841, 2.1589835486730493, 0.79635768376122973,
-                    -0.58330789698280028),
-       pente = -1.120997177810577),
+                    -0.58330789698280028)),
   list(nom = "T253-5 bornes", tri = bornes253, rel = 1e-10,
        courbure = c(0.081519213694489751, -2.013620676168856,
-                    -4.5274309238335313, -6.6723491946328828),
-       pente = -0.65007141204537222),
+                    -4.5274309238335313, -6.6723491946328828)),
   list(nom = "T253-5 extremes", tri = extreme253, rel = 1e-10,
        courbure = c(-4.5539052541909681, -8.7152604957341513,
-                    -3.9732558970578664e+25, 0.46224878577219491),
-       pente = -0.78452449405942448),
-  # Hors tableau de la specification (demande d'actuary) : seul cas mesure ou
-  # l'ancien moteur (lm()) rendait une pente finie et fausse (-2,566).
+                    -3.9732558970578664e+25, 0.46224878577219491)),
+  # Hors tableau de la specification (demande d'actuary).
   list(nom = "hors spec. l0 x 1e-14", tri = ligne253(tri253, 0, 1e-14), rel = 1e-10,
        courbure = c(3.1467379665547831, 2.1589835486730452, 0.79635768376122591,
-                    -0.58330789698280312),
-       pente = -1.1209971778104361)
+                    -0.58330789698280312))
 )
 
 # --- Elimination de Gauss en mpfr -------------------------------------------------
@@ -174,16 +172,7 @@ reference <- function(tri, prec) {
     tc[[length(tc) + 1L]] <- t_coef_mpfr(list(x * 0 + 1, x, x^2), M(C1), 1 / x, n - 3)
     jc <- c(jc, j)
   }
-  res <- ENG$mw_residus(aj, ENG$.mw_colonnes_degenerees(aj))
-  tp <- NULL
-  if (nrow(res) >= 4 && stats::sd(res$C) != 0 && all(is.finite(res$sigma_j)) &&
-      all(res$sigma_j > 0)) {
-    Cm <- M(res$C); s <- M(res$sigma_j)
-    gs <- sort(unique(res$j))
-    X <- c(lapply(gs, function(g) M(as.numeric(res$j == g))), list(Cm))
-    tp <- t_coef_mpfr(X, M(res$F), Cm / s^2, nrow(res) - length(gs) - 1L)
-  }
-  list(courbure = if (length(tc)) do.call(c, tc) else NULL, j = jc, pente = tp)
+  list(courbure = if (length(tc)) do.call(c, tc) else NULL, j = jc)
 }
 
 f17 <- function(v) Rmpfr::formatMpfr(v, digits = 17)
@@ -194,7 +183,6 @@ for (cas in CAS) {
   r1 <- reference(cas$tri, 4096); r2 <- reference(cas$tri, 8192)
   aj <- ENG$mw_ajuster(cas$tri)
   cb <- ENG$mw_test_courbure(aj)
-  li <- ENG$.mw_lm_intra(ENG$mw_residus(aj, ENG$.mw_colonnes_degenerees(aj)))
   if (!identical(as.integer(cb$detail$j), as.integer(r1$j)))
     ko_precision <- c(ko_precision, sprintf("%s : colonnes du moteur (%s) et du script (%s)",
       cas$nom, paste(cb$detail$j, collapse = ","), paste(r1$j, collapse = ",")))
@@ -222,8 +210,6 @@ for (cas in CAS) {
   for (k in seq_along(r1$j))
     ajoute(sprintf("courbure j=%d", r1$j[k]), r1$courbure[k], r2$courbure[k],
            if (is.null(cas$courbure)) NULL else cas$courbure[k], cb$detail$t[k])
-  ajoute("pente", r1$pente, r2$pente, cas$pente,
-         if (is.null(li)) NA_real_ else unname(li[["t value"]]))
 }
 
 tab <- do.call(rbind, lignes)

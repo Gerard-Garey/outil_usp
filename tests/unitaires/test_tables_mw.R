@@ -31,7 +31,8 @@
 #  evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
-#  .mw_pente_intra(), .mc_evaluer()...) sont communes, de meme que la
+#  .mc_evaluer()...) sont communes, de meme que la statistique PenteIntra,
+#  reportee sous la forme de #307 (.mw_pente_relative()), la
 #  statistique BP, reportee sous la forme de #301
 #  (mw_test_heteroscedasticite_intra()), et la statistique de cellule
 #  aberrante, reportee sous la forme de #300 (cle MinP4,
@@ -382,7 +383,7 @@ local({
     CorrDev    = .mc_entree(function(e) mw_stat_correlation_dev(e$aj, e$figes$degeneres)$stat, "deux"),
     # Statistique BP remplacee par #301 (effets fixes de colonne, residus
     # redresses, colonnes n_j >= 3) : fonction commune du moteur,
-    # mw_test_heteroscedasticite_intra(), comme .mw_pente_intra() ci-dessous
+    # mw_test_heteroscedasticite_intra(), comme .mw_pente_relative() ci-dessous
     # (l'objet de la comparaison est l'assemblage des tables, #239).
     BP         = .mc_entree(function(e) mw_test_heteroscedasticite_intra(e$aj, e$res)$stat, "haut"),
     # Statistique de Grubbs remplacee par #300 (cle MinP4, minimum des p de
@@ -392,7 +393,9 @@ local({
     MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres)$stat, "bas"),
     DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
     Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux"),
-    PenteIntra = .mc_entree(function(e) .mw_pente_intra(e$res), "deux"),
+    # Statistique PenteIntra remplacee par #307 (pente relative, decision
+    # Q-D1-Fj-3) : fonction commune du moteur, .mw_pente_relative().
+    PenteIntra = .mc_entree(function(e) .mw_pente_relative(e$res)[["t"]], "deux"),
     Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
                                                               e$figes$origine_non_identifiables)$stat, "haut"),
     HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut"),
