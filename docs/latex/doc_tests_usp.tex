@@ -17475,6 +17475,14 @@ Résidu studentisé externe $t(i,j)$ de la cellule aberrante (issue~\#300) contr
 \code{stats::rstudent()} de la régression pondérée de chaque colonne (triangle de contrôle,
 colonnes $j = 0$ à~3) & écart relatif au plus $2{,}2\times10^{-13}$ & vérification numérique
 d'une même définition (fiche~\ref{mw:m4gr}) \\
+Pente relative de la tendance avec le cumulé (issue~\#307, forme close) contre la ligne
+«~\code{x}~» de \code{summary(lm(y \textasciitilde\ factor(j) + x, weights = w))} (triangle de
+contrôle) & écart relatif au plus $1{,}5\times10^{-14}$ sur $\hat b$, $\widehat{\mathrm{se}}$,
+$t$ et la p de Student & vérification numérique d'une même définition (fiche~\ref{mw:m1}) \\
+$S_j/D_j$ de l'identifiabilité intra-colonne (issue~\#308) contre l'élément
+\code{cov.unscaled[1, 1]} de \code{lm(C1 \textasciitilde\ C0, weights = 1/C0)} (triangle de
+contrôle, colonnes $j = 0$ à~4) & écart relatif au plus $8{,}9\times10^{-14}$ & identité exacte
+vérifiée numériquement (fiche~\ref{mw:m1id}) \\
 \end{tabular}
 \end{center}
 
