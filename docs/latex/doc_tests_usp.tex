@@ -19711,9 +19711,9 @@ fournissent des lois de référence.}
 
 % --- Colonne des fonctions de test ------------------------------------------
 \node[ded, right=16mm of res, yshift=34mm] (m1)
-  {\code{mw\_test\_ordonnee\_}\\ \code{origine()},
-   \code{mw\_test\_}\\ \code{homogeneite\_f()},
-   \code{mw\_test\_courbure()},\\ \code{mw\_famille\_alpha()}};
+  {\code{.mw\_pente\_relative()},\\ \code{mw\_test\_ordonnee\_}\\ \code{origine()},
+   \code{mw\_test\_}\\ \code{homogeneite\_f()}, \code{mw\_test\_courbure()},\\
+   \code{mw\_famille\_alpha()},\\ \code{mw\_identifiabilite\_}\\ \code{intra()}};
 \node[ded, below=5mm of m1] (m2)
   {\code{mw\_test\_}\\ \code{heteroscedasticite\_}\\ \code{intra()},
    \code{mw\_test\_}\\ \code{exposant\_variance()}};
@@ -19755,6 +19755,9 @@ fournissent des lois de référence.}
 \draw[fl] (aj) -- node[flx,right] {$\hat f_j$, $\hat\sigma_j$} (res);
 \foreach \b in {m1,m2,cal,cor,dw,gr,sw}
   \draw[fl] (res) -| ([xshift=-5mm]\b.west) -- (\b);
+% Les fonctions de M1 autres que .mw_pente_relative() lisent l'ajustement
+% (aj) sans passer par mw_residus().
+\draw[fl] (aj.east) -- node[flx,above,pos=0.22] {$\hat f_j$, $\hat\sigma^2_j$} (aj.east -| m1.west);
 \foreach \a/\b in {cor/q4, dw/q5, gr/q6, sw/q7} \draw[fl] (\a) -- (\b);
 % Convergence puis divergence autour de .fisher_combine() : troncs communs et
 % coudes, pour eviter quatre diagonales issues d'un meme point.
@@ -19776,7 +19779,9 @@ tests reposent sur des fonctions déjà employées par la méthode lognormale
 anomalie éventuelle~; dans le bloc M4, seule \code{test\_rosner()} est commune aux deux méthodes,
 \code{mw\_test\_cellule\_aberrante()}, propre à la ligne de la cellule aberrante depuis
 l'issue~\#300, partageant avec le graphique d'influence \code{mw\_influence()}, dont elle tire
-les résidus studentisés externes sans passer par \code{mw\_residus()}.}
+les résidus studentisés externes sans passer par \code{mw\_residus()}~; dans le bloc M1, seule
+\code{.mw\_pente\_relative()} lit les résidus, les autres fonctions lisant directement
+l'ajustement de \code{mw\_ajuster()}.}
 \label{fig:annexe-mw}
 \end{figure}
 \end{landscape}
