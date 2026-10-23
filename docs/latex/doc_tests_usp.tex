@@ -1121,7 +1121,9 @@ vecteur des $\sum_k w_k (x_i - x_k)/\sum_k w_k$, soit $x_i$ moins la moyenne pon
 par différences deux à deux, sans annulation entre grandeurs de l'ordre d'une cellule
 dominante, sommes par \code{sum()}~; forme partagée depuis l'issue~\#278 par
 \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} ($x = F(\cdot,j)$, $w = C(\cdot,j)$) et
-\code{.mw\_pente\_relative()} (centrage par colonne de $C$ et de $F$). Le terme $k = i$, nul, est
+\code{.mw\_pente\_relative()} (centrage par colonne du régresseur relatif
+$(C(i,j) - \bar C_j)/\bar C_j$ et de $F(i,j)/\hat f_j$ depuis l'issue~\#307, de $C$ et de $F$
+auparavant). Le terme $k = i$, nul, est
 inclus~; \code{.mw\_ecart\_facteur\_}\allowbreak\code{stable()} l'omettait avant l'issue, sans
 effet sur le résultat pour $x_i$ et $w_i$ finis, un zéro exact n'ajoutant rien à la somme
 (mesuré~: 20\,000 colonnes de 2 à 10 cellules tirées sur $[10^{-50}~;~10^{50}]$, graine 278,
@@ -1224,12 +1226,16 @@ autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbr
 (issue~\#203, fiche~\ref{mw:m1a})~; \code{mw\_test\_courbure()} l'employait aussi jusqu'à
 l'issue~\#253, qui calcule le terme quadratique en forme close, sans \code{lm()}
 (fiche~\ref{mw:m1c}) \\
-\code{.mw\_pente\_relative()} & résidus de Mack
-(\code{mw\_residus()}, colonnes $j$, $C$, $F$, $\hat\sigma_j$) & ligne «~\code{C}~» (estimation,
-écart-type, $t$, p de Student) de la régression pondérée de $F(i,j)$ sur $C(i,j)$ à effet fixe
-de colonne, et son seul $t$, statistique de la pente intra-colonne~; depuis l'issue~\#253, en
-forme close (centrage pondéré par colonne, théorème de Frisch et Waugh), sans \code{lm()}
-(fiche~\ref{mw:m1})~; centrage par \code{.mw\_centrage\_pondere()} depuis l'issue~\#278 \\
+\code{.mw\_pente\_relative()} & résidus de Mack \code{res} (\code{mw\_residus()}~: colonnes $j$,
+$C$, $F$, $\hat f_j$, $\hat\sigma_j$) & vecteur nommé ($\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$,
+p de Student) de la régression pondérée de $F(i,j)/\hat f_j$ sur $(C(i,j) - \bar C_j)/\bar C_j$ à
+effets fixes de colonne, poids $C(i,j)\hat f_j^{\,2}/\hat\sigma_j^2$~; son $t$ est la statistique
+de la pente intra-colonne et de l'entrée \code{PenteIntra} du catalogue~; tous \code{NA} sous les
+gardes de la fiche~\ref{mw:m1}. Pente relative depuis l'issue~\#307 (décisions Q-D1-Fj-3 et
+Q-D1-Fj-7), qui retire les deux fonctions de la pente absolue~; forme close (centrage pondéré
+par colonne par \code{.mw\_centrage\_pondere()}, théorème de Frisch et Waugh), sans \code{lm()},
+depuis l'issue~\#253~; algèbre figée sur la statistique candidate de la mesure de l'issue~\#309
+(fiche~\ref{mw:m1}) \\
 \code{.mw\_courbure\_}\newline\code{colonne()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
 colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
@@ -2513,8 +2519,8 @@ contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés (annexe XVII, D(2)(h)(iii))}}} \\
 \midrule
 Tendance avec le cumulé, à colonne donnée & \ref{mw:m1} &
-\code{.mw\_pente\_relative()} (forme close, sans \code{lm()},
-depuis l'issue~\#253) &
+\code{.mw\_pente\_relative()} (pente relative depuis l'issue~\#307~; forme close, sans
+\code{lm()}, depuis l'issue~\#253) &
 idem (p de Student, approchée) & \code{PenteIntra} \\
 Ordonnée à l'origine par colonne & \ref{mw:m1a} &
 \code{mw\_test\_ordonnee\_origine()}~; colonnes dégénérées par \code{.mw\_colonne\_degeneree()}~;
@@ -4554,7 +4560,13 @@ intra-colonne (fiche~\ref{mw:m1}) et l'effet calendaire (fiche~\ref{mw:m3cal}) r
 $p_{\min}^{\mathrm{MC}}$~: $0{,}024$ avant, $0{,}002$ après)~; à $B = 199$, ils sont en
 \code{ECHEC} à $0{,}010$. Depuis l'issue~\#276, l'effet calendaire, lu en queue basse, y est en
 \code{ECHEC} à son plancher $1/(B+1)$~: $0{,}001$ à $B = 999$ et $0{,}005$ à $B = 199$ (mesuré
-dans les mêmes conditions, la pente intra-colonne restant à $0{,}002$ et $0{,}010$). Ces deux rejets ne portent pas sur l'hypothèse que teste chaque ligne.
+dans les mêmes conditions, la pente intra-colonne restant à $0{,}002$ et $0{,}010$). Depuis
+l'issue~\#307, la pente intra-colonne, devenue relative (fiche~\ref{mw:m1}), n'y rejette plus~:
+p-value de Monte-Carlo $0{,}786$ à $B = 999$ et $0{,}820$ à $B = 199$, verdict \code{OK}, l'effet
+calendaire restant en \code{ECHEC} à $0{,}001$ et $0{,}005$ (\code{run\_engine()}, graine 20260831,
+moteur de l'issue)~; ce qui suit sur la pente intra-colonne porte sur la pente absolue. Ni le rejet
+de l'effet calendaire, ni celui de la pente absolue ne portent sur l'hypothèse que teste chaque
+ligne.
 Ils traduisent l'écart entre la ligne~$0$ observée, dont les facteurs restent proches de
 $\hat f_j$, et le modèle de Mack ajusté, sous lequel leur écart-type $\hat\sigma_j/\sqrt{C(0,j)}$
 dépasse $5\cdot 10^{4}$ sur les cinq premières colonnes. Les réplications de la pente
@@ -5671,13 +5683,17 @@ densité en $s$, supposée continue et non nulle, de la p-value à $B$ infini su
 décroît alors en $1/\sqrt{B}$ (argument élémentaire, sans référence). Quand cette p-value a un
 atome voisin de $s$, la décroissance n'intervient qu'une fois la bande plus étroite que la
 distance de l'atome au seuil. Mesuré sur les six cas de référence
-(\code{tests/reference/})~: dix occurrences, toutes au seuil $\alpha = 0{,}10$, aucune à
-$\alpha/2$~: Breusch--Pagan original ($p = 0{,}090$, \code{err\_mc} $= 0{,}0091$, \code{ALERTE}) et
-homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$, \code{OK}) sur chacun des cas
-\code{premium}, \code{premium\_ii6}, \code{premium\_net} et \code{reserve1}~; Grubbs sur
-\code{premium\_interieur} ($0{,}105$, $0{,}0097$, \code{OK})~; nullité de l'ordonnée à l'origine
-($0{,}085$, $0{,}0088$, \code{ALERTE}) sur \code{reserve2}. Jusqu'à l'issue~\#301, la ligne
-d'hétéroscédasticité de \code{reserve2} en portait une onzième (Breusch--Pagan, $0{,}103$,
+(\code{tests/reference/}, références de l'issue~\#307)~: trois occurrences, toutes au seuil
+$\alpha = 0{,}10$, aucune à $\alpha/2$~: Grubbs sur \code{premium\_interieur} ($p = 0{,}105$,
+\code{err\_mc} $= 0{,}0097$, \code{OK})~; nullité de l'ordonnée à l'origine ($0{,}085$, $0{,}0088$,
+\code{ALERTE}) et, depuis l'issue~\#307, pente intra-colonne relative ($0{,}090$, $0{,}0131$,
+\code{ALERTE}, fiche~\ref{mw:m1}) sur \code{reserve2}. Jusqu'à l'issue~\#299, Breusch--Pagan
+original ($0{,}090$, $0{,}0091$, \code{ALERTE}) et homogénéité des dispersions par la médiane
+($0{,}104$, $0{,}0097$, \code{OK}) la portaient aussi sur chacun des cas \code{premium},
+\code{premium\_ii6}, \code{premium\_net} et \code{reserve1}, soit huit occurrences~; devenues
+des diagnostics par décision, ces lignes ne la portent plus, la phrase étant exclue des
+diagnostics (mesuré sur les références avant et après cette issue). Jusqu'à l'issue~\#301, la ligne
+d'hétéroscédasticité de \code{reserve2} en portait une de plus (Breusch--Pagan, $0{,}103$,
 $0{,}0096$, \code{OK})~; sa statistique à effets fixes de colonne a une p-value de Monte-Carlo de
 $0{,}285$, à plus de douze erreurs de Monte-Carlo du seuil (fiche~\ref{mw:m2bp}). La détection
 générique de dégénérescence ne voit qu'une loi simulée \emph{ponctuelle}~: elle n'aurait pas
@@ -6208,10 +6224,12 @@ convergent au bord (Andrews, 2000) \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
 
-Tendance avec le cumulé, à colonne donnée & \textbf{MW} & $t$ pondéré (GLS,
-effet fixe de colonne) & Non & Oui & Oui & Monte-Carlo &
+Tendance avec le cumulé, à colonne donnée & \textbf{MW} & $t$ de la pente relative (GLS,
+effets fixes de colonne, issue~\#307) & Non & Oui (Student) & Oui & Monte-Carlo &
 \textbf{Déconseillée} : les cellules d'une colonne partagent $\hat f_j$ et
-$\hat\sigma_j$ & Version agrégée ; les tests par colonne localisent \\
+$\hat\sigma_j$ & Version agrégée ; les tests par colonne localisent~; p MC légèrement libérale
+sous le plan du triangle de contrôle (écarts mineurs), critère K-307 formulé a posteriori
+(fiche~\ref{mw:m1}) \\
 
 Ordonnée à l'origine par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
@@ -6232,7 +6250,8 @@ résiduels~; colonne à 1 degré de liberté conservée (fiche~\ref{mw:m1c}) \\
 
 Famille $\alpha$ (pondération) & \textbf{MW} & amplitude relative & Non & Non &
 Oui & Monte-Carlo & Sans objet : aucune loi analytique &
-Diagnostic de robustesse ; chiffre l'enjeu du choix de pondération \\
+Test de (iii) seule (M1, issue~\#307), $H_0$ vraie sous une violation de M2 seule, mais niveau
+de la p MC non garanti dans ce cas~; chiffre l'enjeu du choix de pondération (fiche~\ref{mw:m1d}) \\
 
 Identifiabilité intra-colonne (dispersion des cumuls par colonne) & \textbf{MW} & --- & --- & --- &
 --- & Diagnostic & Sans objet & Grandeurs descriptives de l'observé ($\mathrm{CV}_j$, $R_j$,
@@ -6620,6 +6639,19 @@ seulement~; $\min(1, N_t M)$ en est un majorant (Bonferroni) & --- & Borne, non 
 objet & Erreurs gaussiennes, que le modèle de Mack n'exige pas &
 Borne compatible sous erreurs gaussiennes, libérale sous les lois E et A du plan mesuré
 (§\ref{sec:calib-asympt-mw})~; bootstrap retenu (fiche~\ref{mw:m4gr}) \\
+
+Pente relative intra-colonne (issue~\#307) & $t$ de la pente commune à effets fixes de
+colonne & Student$(N - G - 1)$ & Approximation, non convergence établie & Non établie~; $N = 27$
+cellules, $G = 6$ colonnes, 20 degrés de liberté sur un triangle $8\times 8$ & Normalité,
+indépendance des cellules, en défaut (cellules d'une colonne liées par $\hat f_j$ et
+$\hat\sigma_j$, qui entrent dans la réponse et les poids) & p de Student non retenue~; bootstrap
+retenu, de niveau légèrement libéral sous le plan mesuré (§\ref{sec:calib-mc-mw},
+fiche~\ref{mw:m1}) \\
+
+Famille $\alpha$ & $A$, amplitude relative & \emph{aucune limite tabulée} & --- & Sans objet &
+Proportionnalité (iii)~; la loi bootstrap suppose en outre l'exposant de variance~1 &
+Bootstrap seul recours~; niveau compatible sous le plan mesuré, non garanti si M2 est violée
+(fiche~\ref{mw:m1d}) \\
 
 Combinaisons de Fisher (ordonnée à l'origine, homogénéité, courbure,
 exposant de variance) & $X = -2\sum\ln p_k$ & $\chi^2(2K)$ &
@@ -7355,11 +7387,11 @@ Grubbs, ratios bruts (\ref{fiche:grubbs-ratios-bruts}) & Plancher Monte-Carlo $1
 \midrule
 \multicolumn{5}{@{}l@{}}{\textbf{Méthode Merz--Wüthrich}} \\
 \midrule
-M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une ordonnée à l'origine~: $\delta = 0{,}10$, $0{,}330$~; $0{,}226$~; $\delta = 0{,}20$, $0{,}522$~; $0{,}419$~; sous P2, $0{,}862$ et $0{,}932$ à $0{,}10$~; sous P3, $1{,}000$ ($\delta = 0{,}20$)~; dérive de $f_j$ avec l'année vue seulement par colinéarité volume--année ($0{,}124$ sous P3, au niveau)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}114$~; $0{,}064$, E $0{,}1205$~; $0{,}053$, A $0{,}130$~; $0{,}073$, légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
+M1, tendance avec le cumulé (\ref{mw:m1}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Pente relative depuis l'issue~\#307 (issue~\#309, statistique candidate identique à la ligne, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$)~: contre une ordonnée à l'origine, $\delta = 0{,}10$, $0{,}434$~; $0{,}338$~; $\delta = 0{,}20$, $0{,}796$~; $0{,}709$~; sous P2, $0{,}944$ et $0{,}967$ à $0{,}10$~; sous P3, $1{,}000$ ($\delta = 0{,}20$)~; dérive de $f_j$ avec l'année vue seulement par colinéarité volume--année ($0{,}108$ sous P3, au niveau)~; au niveau contre les exposants de variance~; niveau de la $p_{\mathrm{mc}}$ sur les triangles de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}1115$~; $0{,}061$, E $0{,}1105$~; $0{,}0545$, A $0{,}118$~; $0{,}059$, écart mineur sous N et sous A à $0{,}10$, compatible ailleurs~; comparaisons appariées (McNemar exact) à la pente absolue et au test par colonne, critère K-307~; historique, pente absolue~: puissance $0{,}330$~; $0{,}226$ et $0{,}522$~; $0{,}419$ sous P1, niveau N $0{,}114$~; $0{,}064$, E $0{,}1205$~; $0{,}053$, A $0{,}130$~; $0{,}073$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md},\newline \code{docs/tableaux/}\newline \code{20261022-issue307-paires.md} \\
 M1, ordonnée à l'origine (\ref{mw:m1a}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une ordonnée à l'origine~: $\delta = 0{,}10$, $0{,}272$~; $0{,}166$~; $\delta = 0{,}20$, $0{,}683$~; $0{,}504$~; sous P2 et P3, $1{,}000$~; dérive de $f_j$~: $0{,}090$ sous P3, au niveau~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}088$~; $0{,}042$, E $0{,}097$~; $0{,}0475$, A $0{,}106$~; $0{,}061$, compatible sous les trois lois et aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M1, homogénéité de $f_j$ (\ref{mw:m1b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une dérive de $f_j$ avec l'année~: $0{,}214$~; $0{,}124$ (P1), $0{,}190$~; $0{,}098$ (P2), $0{,}208$~; $0{,}114$ (P3)~; non spécifique sous P1 et P2 (ordonnée à l'origine, $\delta = 0{,}20$~: $0{,}612$ et $1{,}000$ à $0{,}10$, $0{,}000$ sous P3)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}039$, E $0{,}089$~; $0{,}0415$, A $0{,}091$~; $0{,}041$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$ & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M1, courbure (\ref{mw:m1c}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Non étudiée (aucun scénario de courbure dans l'issue~\#309, taux sous d'autres alternatives non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}093$~; $0{,}0445$, E $0{,}080$~; $0{,}036$, A $0{,}095$~; $0{,}041$, compatible sous N et A~; écart mineur du côté conservateur sous E aux deux seuils & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une ordonnée à l'origine~: $\delta = 0{,}10$, $0{,}168$~; $0{,}044$~; $\delta = 0{,}20$, $0{,}466$~; $0{,}110$~; sous P2, $0{,}998$ et $1{,}000$ à $0{,}10$~; sous P3, $1{,}000$~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}0385$, E $0{,}097$~; $0{,}042$, A $0{,}102$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
+M1, famille $\alpha$ (\ref{mw:m1d}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une ordonnée à l'origine~: $\delta = 0{,}10$, $0{,}168$~; $0{,}044$~; $\delta = 0{,}20$, $0{,}466$~; $0{,}110$~; sous P2, $0{,}998$ et $1{,}000$ à $0{,}10$~; sous P3, $1{,}000$~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}0385$, E $0{,}097$~; $0{,}042$, A $0{,}102$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; contre les exposants de variance~0 et~2 ($H_0$ vraie, niveau sous violation de M2), $0{,}116$ et $0{,}081$ sous P1, $0{,}146$ et $0{,}091$ sous P2 à $0{,}10$~; profils comparés à la pente relative (McNemar exact apparié) & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md},\newline \code{docs/tableaux/}\newline \code{20261022-issue307-paires.md} \\
 M2, hétéroscédasticité (\ref{mw:m2bp}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre un exposant de variance~0 ou~2~: $0{,}070$~; $0{,}022$ et $0{,}093$~; $0{,}049$, pour un niveau de $0{,}090$~; $0{,}042$~: \textbf{pas de puissance mesurable} (décision Q-D2-Fi-3)~; sous P2, $0{,}124$ et $0{,}112$ à $0{,}10$~; non spécifique (cellule multipliée par~4~: $1{,}000$~; choc calendaire~: $0{,}364$~; année atypique~: $0{,}282$)~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}089$~; $0{,}041$, E $0{,}097$~; $0{,}053$, A $0{,}086$~; $0{,}046$, compatible sous les trois lois et aux deux seuils~; statistique antérieure à l'issue~\#301 (fiche~\ref{mw:m2bp}, rubrique~5)~: N $0{,}016$~; $0{,}005$, E $0{,}0695$~; $0{,}0245$, A $0{,}004$~; $0{,}000$, distorsion matérielle du côté conservateur sous N et A & \code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre un exposant~0 ou~2, à $0{,}10$~: $0{,}092$ et $0{,}098$ (P1), $0{,}080$ et $0{,}091$ (P2), pour un niveau de $0{,}091$ et $0{,}089$~: aucune puissance décelable~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0955$~; $0{,}046$, E $0{,}095$~; $0{,}0495$, A $0{,}098$~; $0{,}048$, compatible sous les trois lois et aux deux seuils & \code{.mw\_fisher\_rangs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-18} = 3{,}81\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (queue basse, issue~\#276) & Puissance sous le plan du triangle de contrôle (loi N, $\alpha = 0{,}10$) contre six effets calendaires (choc de $5$ ou $10~\%$ sur le dernier exercice ou sur l'exercice médian, dérive de $3$ ou $5~\%$)~: de $0{,}162$ à $0{,}401$ en queue basse, contre $0{,}084$ à $0{,}233$ sous la forme bilatérale antérieure~; compensation alternée (côté haut, non testé)~: $0{,}017$~; retrouvée par l'issue~\#309 (choc de $10~\%$, 500 triangles~: $0{,}380$ et $0{,}344$ à $0{,}10$, compatibles)~; niveau de la $p_{\mathrm{mc}}$ en queue basse ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0835$~; $0{,}0305$, E $0{,}091$~; $0{,}0365$, A $0{,}084$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; les niveaux de l'issue~\#206 portent sur la forme bilatérale & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/mesure\_calendaire\_t8.R},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261016-issue276-calendaire.md},\newline \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
@@ -13964,8 +13996,9 @@ Hétéroscédasticité résiduelle ($n R^2$ studentisé de Koenker) & adapté & 
 résidus redressés sur $C(i,j)$ et non sur le volume $x_t$, à effets fixes de colonne depuis
 l'issue~\#301 (Breusch--Pagan studentisé sur toutes les cellules auparavant)~: teste la puissance~1
 de M2. \\
-Test de proportionnalité & adapté & Régression pondérée des facteurs $F(i,j)$
-sur $C(i,j)$~: une pente non nulle contredit M1. \\
+Test de proportionnalité & adapté & Régression pondérée des facteurs relatifs $F(i,j)/\hat f_j$
+sur les cumuls relatifs $(C(i,j) - \bar C_j)/\bar C_j$, à effets fixes de colonne (pente relative
+depuis l'issue~\#307, sur $C(i,j)$ auparavant)~: une pente non nulle contredit M1. \\
 Test des effets d'année calendaire & \textbf{nouveau} & Propre aux triangles~:
 les diagonales représentent les exercices comptables. Sans équivalent dans la
 méthode lognormale. \\
@@ -14061,15 +14094,40 @@ section~\ref{sec:notations-mw}.
 \label{mw:m1}
 \refl{T.~Mack, \emph{Distribution-free calculation of the standard error of chain
 ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~2, hypothèse~(1),
-p.~214, et section~3, hypothèse de variance~(3), p.~217.}
+p.~214, et section~3, hypothèse de variance~(3), p.~217. Pente relative commune à effets fixes
+de colonne~: construction de l'outil (issue~\#307), par la partialisation de R.~Frisch,
+F.\,V. Waugh, \emph{Partial time regressions as compared with individual trends},
+\emph{Econometrica}, 1(4), 1933, p.~387--401.}
 \Cadre
-Régression auxiliaire menée sur l'ensemble des cellules du triangle~:
+Régression auxiliaire menée sur l'ensemble des cellules du triangle qui portent un résidu de Mack
+(colonnes dégénérées exclues selon l'ensemble figé, fiche~\ref{mw:m1a}), en unités relatives
+depuis l'issue~\#307 (décision Q-D1-Fj-3 du mainteneur du 22~octobre 2026)~:
+\[
+  \frac{F(i,j)}{\hat f_j} = \mu_j + b\,\frac{C(i,j) - \bar C_j}{\bar C_j} + \varepsilon_{ij},
+  \qquad \text{poids } w_{ij} = \frac{C(i,j)\,\hat f_j^{\,2}}{\hat\sigma_j^2},
+\]
+où $\mu_j$ est un \textbf{effet fixe d'année de développement} et $\bar C_j$ la moyenne simple
+des cumuls de la colonne~$j$ qui portent un facteur. Le poids est celui des moindres carrés
+généralisés~: sous M2, $\operatorname{Var}\big(F(i,j)/f_j \mid C(i,j)\big) = \sigma_j^2/\big(C(i,j)\,
+f_j^2\big)$. Le régresseur relatif rend la pente sans dimension~: $b$ se lit comme une élasticité
+du facteur au volume au point $(\bar C_j, f_j)$, à colonne donnée. En unités relatives, la moyenne
+pondérée de $F(i,j)/\hat f_j$ vaut exactement~1 dans chaque colonne, puisque $\hat f_j =
+\sum_i C(i,j+1)/\sum_i C(i,j)$~: la relation mécanique entre la décroissance de $f_j$ et la
+croissance de $C(i,j)$, décrite dans l'historique ci-dessous, n'existe plus sous cette forme. Les
+effets fixes restent dans la définition, la pente étant estimée à colonne donnée~; la moyenne
+pondérée du régresseur n'est d'ailleurs pas nulle dans une colonne ($0{,}0007$ à $0{,}0051$ sur le
+triangle de contrôle). Hypothèses non testées~: indépendance des années de survenance (M3) et
+structure de variance M2, dont dépendent les poids~; la normalité n'intervient que dans la p de
+Student, qui n'est pas retenue (rubrique~5).
+
+\emph{Historique~: la pente absolue} (issues~\#119 et~\#253, statistique en place jusqu'à
+l'issue~\#307). La ligne régressait $F(i,j)$ sur $C(i,j)$, avec le même effet fixe~:
 \[
   F(i,j) = \mu_j + b\,C(i,j) + \varepsilon_{ij},
-  \qquad \text{poids } w_{ij} = C(i,j)/\hat\sigma_j^2 ,
+  \qquad \text{poids } w_{ij} = C(i,j)/\hat\sigma_j^2 .
 \]
-où $\mu_j$ est un \textbf{effet fixe d'année de développement}. Deux points de
-construction sont déterminants et ont été établis par simulation.
+Deux points de construction, déterminants pour cette statistique, avaient été établis par
+simulation.
 
 \emph{L'effet fixe de colonne est indispensable.} Le facteur $f_j$ décroît
 fortement avec $j$ (de $3{,}20$ à $1{,}03$ sur le triangle de contrôle, de $3{,}49$ à $1{,}02$ sur
@@ -14080,7 +14138,7 @@ simulés sous $H_0$ selon le modèle de Mack ajusté au triangle de contrôle (i
 section~\ref{sec:calib-asympt-mw}), la p-value de Student d'une telle régression
 (\code{lm(F \textasciitilde\ C)}, poids $C(i,j)/\hat\sigma_j^2$) rejette au seuil $0{,}10$ dans
 \textbf{$96{,}8~\%$ à $98{,}8~\%$ des cas} selon la loi des erreurs. Avec l'effet fixe, la p-value de
-Student de la ligne rejette dans $7{,}6~\%$ à $8{,}3~\%$ des cas au même seuil ($2{,}6~\%$ à
+Student de la ligne rejetait dans $7{,}6~\%$ à $8{,}3~\%$ des cas au même seuil ($2{,}6~\%$ à
 $4{,}0~\%$ à $0{,}05$). Constats de simulation sous ce plan~; la fréquence de $0{,}068$ citée par
 les versions antérieures venait d'une simulation dont ni le plan ni le script n'ont été
 retrouvés, et est retirée.
@@ -14094,81 +14152,137 @@ de Student de la régression à effet de colonne pondérée par $C(i,j)$ seul re
 $4{,}75~\%$ à $6{,}0~\%$ des cas au seuil $0{,}10$ ($2{,}25~\%$ à $3{,}3~\%$ à $0{,}05$)~: ce test
 est conservateur, et non inopérant comme l'affirmaient les versions antérieures («~ne rejette
 jamais sous l'alternative comme sous l'hypothèse nulle~»)~; son comportement sous l'alternative
-n'est pas mesuré.
+n'est pas mesuré. La pondération des moindres carrés généralisés est conservée par la pente
+relative, sous la forme qu'impose son régresseur (ci-dessus).
+
+Sur le triangle de contrôle, la pente absolue valait $t = 0{,}2600$, de p de Student $0{,}7975$ et
+de p-value de Monte-Carlo $0{,}778$ (erreur de Monte-Carlo $0{,}0308$, \code{OK})~; tableau avant /
+après \code{docs/tableaux/}\allowbreak\code{20261022-}\allowbreak\code{issue307-reserve2.md}.
 \Hzero
 $H_0 : b = 0$ --- à année de développement donnée, le facteur de développement ne
-dépend pas du niveau du cumulé.
+dépend pas du niveau du cumulé~; $H_1$, libellé de la ligne~: le facteur relatif $F(i,j)/f_j$
+varie avec le volume relatif $C(i,j)/\bar C_j$, selon une pente commune aux colonnes.
 \Stat
 $t = \hat b / \widehat{\mathrm{se}}(\hat b)$ dans la régression pondérée à effet
-fixe de colonne.
+fixe de colonne. La fonction \code{.mw\_pente\_}\allowbreak\code{relative()} rend $\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$ et
+la p de Student~; la ligne restitue $\hat b$ en estimation («~\code{pente relative b}~»). Sur le
+triangle de contrôle ($N = 27$ cellules, $G = 6$ colonnes)~: $\hat b = 0{,}0592$,
+$\widehat{\mathrm{se}}(\hat b) = 0{,}0341$, $t = 1{,}7330$, à $N - G - 1 = 20$ degrés de liberté.
 
-\emph{Calcul en forme close} (issue~\#253, décisions D1-5 et D1-6 du mainteneur du 13~octobre
-2026~; \code{.mw\_pente\_relative()}, sans \code{lm()}). Retirer l'effet fixe de colonne revient à
-centrer $C$ et $F$ en moyenne pondérée dans chaque colonne, puis à régresser $F$ centré sur $C$
-centré sans constante~: c'est le théorème de Frisch et Waugh (R.~Frisch, F.\,V. Waugh,
-\emph{Partial time regressions as compared with individual trends}, \emph{Econometrica}, 1(4),
-1933, p.~387--401, qui l'établissent pour une tendance temporelle~; il est appliqué ici à des
-indicatrices de colonne, par les moindres carrés ordinaires sur les lignes multipliées par
-$\sqrt{w_{ij}}$). Dans la colonne $j$,
+\emph{Calcul en forme close.} Retirer l'effet fixe de colonne revient à centrer le régresseur
+$x = (C(i,j) - \bar C_j)/\bar C_j$ et la réponse $y = F(i,j)/\hat f_j$ en moyenne pondérée dans
+chaque colonne, puis à régresser $y$ centré sur $x$ centré sans constante~: c'est le théorème de
+Frisch et Waugh (1933, \emph{op.\ cit.}, p.~388, 393 et 396), établi pour une tendance temporelle
+et appliqué ici à des indicatrices de colonne, par les moindres carrés ordinaires sur les lignes
+multipliées par $\sqrt{w_{ij}}$. Dans la colonne $j$,
 \[
-  \tilde C(i,j) = \frac{\sum_k w_{kj}\,\big(C(i,j) - C(k,j)\big)}{\sum_k w_{kj}},
+  \tilde x(i,j) = \frac{\sum_k w_{kj}\,\big(x(i,j) - x(k,j)\big)}{\sum_k w_{kj}},
 \]
-$\tilde F(i,j)$ de même~; $\hat b = \sum w\,\tilde C\tilde F / \sum w\,\tilde C^2$ et
-$\widehat{\mathrm{se}}(\hat b)^2 = \sum w\,(\tilde F - \hat b\,\tilde C)^2 / \big((N - G - 1)
-\sum w\,\tilde C^2\big)$, sommes sur les $N$ cellules des $G$ colonnes, p de Student à
-$N - G - 1$ degrés de liberté. Le centrage par différences deux à deux évite l'annulation entre
-grandeurs de l'ordre d'une cellule dominante~; les poids sont ramenés à $\max w \in [1, 2[$ par une
-puissance de~2 (multiplication exacte, $t$ invariant). En arithmétique exacte, c'est la
-statistique de la ligne «~\code{C}~» de \code{summary(lm(F \textasciitilde\ factor(j) + C,
-weights = w))}~: la définition ne change pas. Avant l'issue, \code{lm()} écartait $C$ par son
-critère de rang numérique (tolérance $10^{-7}$) et la ligne valait \code{NA}~: mesuré, avec le
-moteur de \code{68360f4}, sur le triangle de contrôle dont la ligne~$0$ est multipliée par
-$10^{15}$ ou par $10^{-15}$. Il pouvait aussi rendre une valeur finie et fausse, sans \code{NA} ni
+$\tilde y(i,j)$ de même (\code{.mw\_centrage\_pondere()})~; $\hat b = \sum w\,\tilde x\tilde y /
+\sum w\,\tilde x^2$ et $\widehat{\mathrm{se}}(\hat b)^2 = \sum w\,(\tilde y - \hat b\,\tilde x)^2 /
+\big((N - G - 1) \sum w\,\tilde x^2\big)$, sommes sur les $N$ cellules des $G$ colonnes, p de
+Student bilatérale à $N - G - 1$ degrés de liberté. Frisch et Waugh établissent l'identité des
+coefficients~; que l'erreur type soit aussi celle de la régression complète, à $N - G - 1$ degrés
+de liberté une fois les $G$ effets comptés, découle de l'égalité des résidus des deux régressions,
+identité algébrique des projections que la fiche ne leur attribue pas. Le centrage par
+différences deux à deux évite l'annulation entre grandeurs de l'ordre d'une cellule dominante~;
+les poids sont ramenés à $\max w \in [1, 2[$ par une puissance de~2 (multiplication exacte, $t$
+invariant). En arithmétique exacte, c'est la statistique de la ligne «~\code{x}~» de
+\code{summary(lm(y \textasciitilde\ factor(j) + x, weights = w))}~: sur le triangle de contrôle,
+$\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$ et la p de Student en diffèrent d'au plus
+$1{,}5\cdot 10^{-14}$ en relatif (oracle des tests unitaires, tolérance $10^{-10}$). Gardes~:
+$\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$ et la p valent \code{NA} si moins de quatre cellules
+sont retenues, si un $\hat\sigma_j$ n'est pas fini ou est nul, si $\sum w\,\tilde x^2$ est nul ou non
+fini ($C(i,j)$ constant dans chaque colonne), si $N - G - 1 < 1$ ou si l'erreur type est nulle ou
+non finie. \emph{Algèbre figée}~: les opérations sont, dans le même ordre, celles de la statistique
+candidate de l'issue~\#307 dans la mesure de l'issue~\#309 (\code{tests/puissance\_mw\_t8.R})~; le
+contrôle prévu par la mesure (mode \code{--controle-i2prime}) les trouve identiques, au sens
+d'\code{identical()}, sur le triangle de contrôle et sur les 420 triangles qu'il contrôle~: les
+niveaux et puissances mesurés pour ce candidat (rubrique~7) sont ceux de la ligne.
+\emph{Robustesse numérique} (mesurée avec le moteur de l'issue~\#307)~: sur le triangle de contrôle
+dont la ligne~$0$ est multipliée par $10^{15}$ ou par $10^{-15}$, \code{lm()} écarte le régresseur
+par son critère de rang numérique (coefficient \code{NA}), alors que la forme close rend un $t$ fini
+($-1{,}1379$ et $-0{,}8571$), égal à $2{,}3\cdot 10^{-16}$ près en relatif à celui de la variante
+$x = C(i,j)/\bar C_j$, mathématiquement équivalente puisque la constante est absorbée par l'effet de
+colonne~; le test unitaire exige cette égalité à $10^{-12}$ sur ces deux triangles, sur la
+ligne~$0$ multipliée par $10^{-14}$ et sur deux triangles aux bornes du domaine. Aucune référence de
+précision étendue n'a été établie pour la pente relative (décision Q-D1-Fj-7). Statut~: identité
+algébrique exacte, vérifiée numériquement~; aucune garde à seuil.
+
+\emph{Historique~: forme close de la pente absolue} (issue~\#253, décisions D1-5 et D1-6 du
+mainteneur du 13~octobre 2026~; fonction retirée par l'issue~\#307, décision Q-D1-Fj-7). Même
+centrage, appliqué à $C$ et à $F$. Avant l'issue~\#253, \code{lm()} écartait $C$ par son critère de
+rang numérique (tolérance $10^{-7}$) et la ligne valait \code{NA}~: mesuré, avec le moteur de
+\code{68360f4}, sur le triangle de contrôle dont la ligne~$0$ est multipliée par $10^{15}$ ou par
+$10^{-15}$. Il pouvait aussi rendre une valeur finie et fausse, sans \code{NA} ni
 avertissement~: ligne~$0$ multipliée par $10^{-14}$, $t = -2{,}566$ au lieu de $-1{,}121$ (erreur
-relative $1{,}29$). La forme close y rend $-1{,}1210$, à $9{,}7\cdot 10^{-17}$ en relatif de la
+relative $1{,}29$). La forme close y rendait $-1{,}1210$, à $9{,}7\cdot 10^{-17}$ en relatif de la
 référence calculée par une méthode indépendante (équations normales complètes, élimination de
 Gauss à 4\,096 bits, contrôle à 8\,192 bits~: script hors CI
 \code{tests/unitaires/}\allowbreak\code{generer\_valeurs\_forme\_close\_m1.R}, paquet~R
-Rmpfr~; valeur figée par \code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}).
-Sur le triangle de contrôle lui-même, $t$ change de $1{,}2\cdot 10^{-13}$ en relatif, sans effet
-sur la p-value de Monte-Carlo ni sur le verdict. Statut~: identité algébrique exacte, vérifiée
-numériquement~; aucune garde à seuil n'est ajoutée.
+Rmpfr, dont la partie pente a été retirée par l'issue~\#307~; valeur figée jusque-là par
+\code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}). Sur le triangle de contrôle
+lui-même, $t$ changeait de $1{,}2\cdot 10^{-13}$ en relatif, sans effet sur la p-value de
+Monte-Carlo ni sur le verdict.
 \Loi
 Loi de Student approchée~: les cellules d'une même colonne partagent $\hat f_j$
-et $\hat\sigma_j$, ce qui invalide les degrés de liberté nominaux. Loi de
-référence~: bootstrap de résidus.
+et $\hat\sigma_j$, qui entrent dans la réponse et dans les poids, ce qui invalide les degrés de
+liberté nominaux~; le modèle de Mack ne fixant que les deux premiers moments, la statistique n'a
+pas de loi exacte sous ce modèle. Loi de référence~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue, au bilatéral. Sa clé, \code{PenteIntra}, désigne la
-statistique $t$ de \code{.mw\_pente\_relative()}, la même que celle qu'affiche la ligne~; elle s'appelait
-\code{Intercept} jusqu'à l'issue~\#41, nom qui ne disait pas ce qu'elle simule. La p-value
-de Student est fournie comme complément non simulé.
+p-value de Monte-Carlo retenue, au bilatéral. Sa clé, \code{PenteIntra}, conservée par
+l'issue~\#307 (décision Q-D1-Fj-4), désigne la statistique $t$ de \code{.mw\_pente\_relative()}, la
+même que celle qu'affiche la ligne~; elle s'appelait \code{Intercept} jusqu'à l'issue~\#41, nom
+qui ne disait pas ce qu'elle simule. La p-value de Student est fournie comme complément non simulé,
+sans être retenue (issue~\#181)~: aucune p-value exacte n'existe (rubrique~4), et, la p-value de
+Monte-Carlo étant prévue, la p de Student n'est jamais retenue à sa place~; si celle-ci manque, la
+ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii)). Sur le triangle de contrôle
+($B = 999$, graine 20260831)~: p de Student $0{,}0985$, p-value de Monte-Carlo $0{,}090$, erreur de
+Monte-Carlo $0{,}0131$, verdict \code{ALERTE}, avec la phrase de l'issue~\#244
+($|0{,}090 - 0{,}10| < 2 \times 0{,}0131$)~; la pente absolue y était \code{OK} ($0{,}778$), et ce
+changement de verdict a reçu le visa du mainteneur le 23~octobre 2026 (tableau avant / après
+cité en rubrique~1).
 \Usage
 Ce test est le pendant \emph{agrégé} du test d'ordonnée à l'origine par colonne
-qui suit~: il agrège ce que l'autre localise. Le gain de puissance attendu de l'agrégation n'est
-pas acquis à $T = 8$~: sous le plan du triangle de contrôle (rubrique~7, issue~\#309), contre une
-ordonnée à l'origine, la ligne rejette plus souvent que le test par colonne à $\delta = 0{,}10$
-($0{,}330$ contre $0{,}272$ au seuil $0{,}10$) et moins souvent à $\delta = 0{,}20$ ($0{,}522$
-contre $0{,}683$)~; à $\delta = 0{,}10$, une partie de l'avantage de la ligne tient à son niveau plus élevé sous $H_0$ ($0{,}122$ contre $0{,}096$ au seuil $0{,}10$ sous $H_0$ de P1, tableau T1~bis), et aucune des deux vérifications ne domine l'autre~; constat de simulation sous ce plan. La valeur de $100~\%$ de rejets au seuil
+qui suit~: il agrège ce que l'autre localise. En unités relatives, une ordonnée à l'origine $a_j$
+donne dans la colonne~$j$ une pente voisine de $-a_j/(f_j \bar C_j)$, au premier ordre en
+$(C(i,j) - \bar C_j)/\bar C_j$~: exactement, la pente de la colonne vaut $-a_j/(f_j \bar C_j)$
+multipliée par la pente pondérée de $1/(1 + x)$ sur $x = (C(i,j) - \bar C_j)/\bar C_j$, qui vaut
+$-1$ au premier ordre, le terme suivant dépendant de l'asymétrie de $x$ (algèbre, avis
+d'\code{actuary} du 23~octobre 2026). L'approximation est d'autant meilleure que les cumuls de la
+colonne sont peu dispersés~; sa qualité n'est pas mesurée à $T = 8$. Chaque colonne pèse selon la
+dispersion relative de ses cumuls et la précision de ses facteurs, non selon l'échelle de
+$C(i,j)$~: sur le triangle de contrôle, les parts de $\sum w\,\tilde x^2$ par colonne valent
+$19{,}7$, $15{,}2$, $14{,}2$, $20{,}3$, $27{,}7$ et $2{,}9~\%$ ($j = 0$ à~5), contre $0{,}1$, $2{,}4$,
+$9{,}1$, $28{,}5$, $53{,}4$ et $6{,}6~\%$ pour la pente absolue, que les colonnes tardives
+dominaient. Le gain de puissance attendu de l'agrégation n'est pas acquis à $T = 8$~: contre une
+ordonnée à l'origine (rubrique~7), sous P1, plan du triangle de contrôle, la ligne rejette plus
+souvent que le test par colonne ($0{,}434$ contre $0{,}272$ à $\delta = 0{,}10$, $0{,}796$ contre
+$0{,}683$ à $\delta = 0{,}20$, au seuil $0{,}10$), en partie par son niveau plus élevé sous $H_0$
+($0{,}118$ contre $0{,}096$)~; sous P2, à cumuls plus dispersés, elle rejette moins souvent
+($0{,}944$ et $0{,}967$ contre $1{,}000$)~; aucune des deux vérifications ne domine l'autre~;
+constats de simulation sous ces plans. La valeur de $100~\%$ de rejets au seuil
 de $10~\%$ sous une alternative où le facteur dépend linéairement du volume, citée par les
 versions antérieures, venait d'une simulation sans script versionné et d'intensité inconnue~;
 elle est retirée. Il ne
 dit pas, en revanche, quelle
 colonne est en cause~: c'est le rôle du test par colonne et du graphique en
 petits multiples. Sur le triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-14}$, la
-ligne est en \code{ECHEC} au plancher de sa p-value de Monte-Carlo, à $B = 199$ comme à
-$B = 999$~: rejet non spécifique~: il ne traduit pas une tendance des facteurs avec le cumul,
-mais l'écart entre la ligne~$0$ observée et le modèle de Mack ajusté, sous lequel la loi bootstrap
-de $t$ se concentre près de $\pm 1$~; constat sur un triangle construit et non résultat
-réglementaire (section~\ref{sec:boot-mw},
-issue~\#257).
+ligne est \code{OK}, de p-value de Monte-Carlo $0{,}786$ à $B = 999$ et $0{,}820$ à $B = 199$
+(\code{run\_engine()}, graine 20260831, moteur de l'issue~\#307). La pente absolue y était en
+\code{ECHEC} au plancher de sa p-value de Monte-Carlo, à $B = 199$ comme à $B = 999$~: rejet non
+spécifique, qui ne traduisait pas une tendance des facteurs avec le cumul, mais l'écart entre la
+ligne~$0$ observée et le modèle de Mack ajusté, sous lequel la loi bootstrap de son $t$ se
+concentrait près de $\pm 1$~; constats sur un triangle construit et non résultats réglementaires
+(section~\ref{sec:boot-mw}, issue~\#257).
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $t$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{PenteIntra}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} contre une ordonnée à l'origine (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux de rejet au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, plan du triangle de contrôle, $0{,}330$ $[0{,}289~;~0{,}373]$ et $0{,}226$ à $\delta = 0{,}10$ (500 triangles), $0{,}522$ $[0{,}491~;~0{,}553]$ et $0{,}419$ $[0{,}388~;~0{,}450]$ à $\delta = 0{,}20$ (1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}862$ $[0{,}829~;~0{,}891]$ et $0{,}932$ $[0{,}915~;~0{,}947]$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$. Contre une dérive de $f_j$ avec l'année de survenance, la ligne rejette dans $0{,}178$, $0{,}198$ et $0{,}124$ des cas au seuil $0{,}10$ sous P1, P2 et P3, ce dernier taux au niveau de la ligne sous $H_0$ de P3 ($0{,}129$, tableau T1~bis)~: P3 étant le seul plan où le volume n'est pas colinéaire à l'année, la ligne ne voit cette dérive que par cette colinéarité. Niveau sous $H_0$ de chaque plan (même mesure, tableau T1~bis)~: $0{,}122$, $0{,}116$ et $0{,}129$ au seuil $0{,}10$. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}114$ (N), $0{,}1205$ (E), $0{,}130$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}064$, $0{,}053$, $0{,}073$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Valeurs de la statistique candidate de l'issue~\#307 dans la mesure de l'issue~\#309 (section~\ref{sec:calib-mc-mw}), identique à la ligne (rubrique~3). \emph{Niveau} de la p-value de Monte-Carlo, mesuré sur les triangles et sous les graines de la mesure de l'issue~\#206 (tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md})~: à $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$ $[0{,}097~;~0{,}125]$ (E), $0{,}118$ $[0{,}099~;~0{,}140]$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}061$ $[0{,}051~;~0{,}072]$, $0{,}0545$ $[0{,}045~;~0{,}065]$, $0{,}059$ $[0{,}045~;~0{,}075]$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur sous N aux deux seuils et sous A à $0{,}10$, compatible ailleurs. Sous $H_0$ de chaque plan (loi N, 1\,000 triangles, tableau T1~bis)~: $0{,}118$, $0{,}112$ et $0{,}137$ au seuil $0{,}10$ sous P1, P2 et P3, $0{,}059$, $0{,}059$ et $0{,}075$ $[0{,}059~;~0{,}093]$ au seuil $0{,}05$, ce dernier en écart non tranché du côté libéral. \emph{Critère de remplacement K-307} (décision Q-D1-Fj-3 du mainteneur du 22~octobre 2026), formulé le 22~octobre 2026, \emph{après} la publication des tableaux, et donc sans valeur de pré-enregistrement~: règle de recevabilité explicite, pour un seul candidat, sans sélection. (i)~Sous N et E, aux deux seuils, la classe du niveau est compatible, écart mineur ou distorsion conservatrice, et aucune distorsion matérielle libérale n'apparaît sous A~: tenu. (ii)~Non-infériorité de niveau envers la pente absolue alors en place~: sous $H_0$ de P1, P2 et P3, aux deux seuils, le test de McNemar exact bilatéral apparié (mêmes triangles, mêmes réplications) n'est pas significatif à $0{,}05$~: tenu, p de $0{,}233$ à $0{,}791$ (tableau T1 de la pièce \code{docs/tableaux/}\allowbreak\code{20261022-}\allowbreak\code{issue307-paires.md}, calculée sur les valeurs brutes versionnées de la mesure de l'issue~\#309). (ii) est un critère de non-détection, non d'équivalence~: sur 45 à 116 paires discordantes, un écart de niveau de l'ordre de deux points n'est pas exclu (avis d'\code{actuary}, spécification Fj, §~4.2). \emph{Puissance} contre une ordonnée à l'origine (tableau T2 de la mesure~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, $0{,}434$ $[0{,}390~;~0{,}479]$ et $0{,}338$ à $\delta = 0{,}10$ (500 triangles), $0{,}796$ $[0{,}770~;~0{,}821]$ et $0{,}709$ $[0{,}680~;~0{,}737]$ à $\delta = 0{,}20$ (1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}944$ $[0{,}920~;~0{,}962]$ et $0{,}967$ $[0{,}954~;~0{,}977]$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$. Comparaisons appariées au seuil $0{,}10$ sous P1 (pièce des paires, McNemar exact bilatéral)~: contre la pente absolue, $0{,}434$ et $0{,}330$ ($p = 7{,}3\cdot 10^{-7}$) à $\delta = 0{,}10$, $0{,}796$ et $0{,}522$ ($p = 1{,}5\cdot 10^{-65}$) à $\delta = 0{,}20$~; contre le test par colonne (fiche~\ref{mw:m1a}), $0{,}434$ et $0{,}272$ ($p = 2{,}8\cdot 10^{-9}$), $0{,}796$ et $0{,}683$ ($p = 6{,}5\cdot 10^{-10}$), une part de cet avantage tenant au niveau ($0{,}118$ contre $0{,}096$ sous $H_0$, $p = 0{,}092$)~; sous P2, la ligne rejette moins que le test par colonne ($0{,}944$ et $0{,}967$ contre $1{,}000$). \emph{Nature de l'alternative mesurée}~: le scénario d'ordonnée à l'origine ($a_j = \delta f_j \bar C_j$, $\bar C_j$ calculé comme par la ligne sur les cumuls simulés) donne, au premier ordre, une pente relative \emph{commune} $-\delta$~: c'est exactement l'alternative que vise la ligne, et le gain mesuré l'est donc sous l'alternative la plus favorable à sa paramétrisation~; une ordonnée concentrée sur une seule colonne n'est pas mesurée. Contre une dérive de $f_j$ avec l'année de survenance, $0{,}270$ $[0{,}232~;~0{,}311]$, $0{,}270$ et $0{,}108$ au seuil $0{,}10$ sous P1, P2 et P3, ce dernier taux au niveau de la ligne sous $H_0$ de P3 ($0{,}137$)~: P3 étant le seul plan où le volume n'est pas colinéaire à l'année, la ligne ne voit cette dérive que par cette colinéarité. Contre un exposant de variance~0 ou~2, au niveau ($0{,}116$ et $0{,}109$ sous P1, $0{,}108$ et $0{,}122$ sous P2, au seuil $0{,}10$). \emph{Non-spécificité}~: au seuil $0{,}10$, sous P1, $0{,}920$ contre une cellule multipliée par~4, $0{,}526$ contre une année de survenance atypique, $0{,}516$ et $0{,}340$ contre un choc de $10~\%$ sur l'exercice $t = 7$ et $t = 4$, $0{,}510$ contre une dérive calendaire, $0{,}200$ et $0{,}144$ contre une cellule déplacée de six et quatre écarts-types de bruit~: un rejet n'est pas spécifique d'une tendance des facteurs avec le volume~; à lire avec M3 et M4. \emph{Historique~: la pente absolue} (jusqu'à l'issue~\#307, mêmes mesures)~: niveau sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw}), à $0{,}10$, $0{,}114$ (N), $0{,}1205$ (E), $0{,}130$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}064$, $0{,}053$, $0{,}073$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A~; sous $H_0$ de P1, P2 et P3, $0{,}122$, $0{,}116$ et $0{,}129$ au seuil $0{,}10$. Puissance contre une ordonnée à l'origine~: sous P1, $0{,}330$ $[0{,}289~;~0{,}373]$ et $0{,}226$ à $\delta = 0{,}10$, $0{,}522$ $[0{,}491~;~0{,}553]$ et $0{,}419$ $[0{,}388~;~0{,}450]$ à $\delta = 0{,}20$~; sous P2, $0{,}862$ $[0{,}829~;~0{,}891]$ et $0{,}932$ $[0{,}915~;~0{,}947]$ au seuil $0{,}10$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$~; contre une dérive de $f_j$, $0{,}178$, $0{,}198$ et $0{,}124$ sous P1, P2 et P3.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$. p-values de McNemar~: tests exacts (loi binomiale conditionnelle aux paires discordantes) sur les décisions simulées, sans correction de multiplicité. Critère K-307~: règle de décision du mainteneur, formulée a posteriori. Pente $-\delta$ sous l'alternative mesurée~: approximation au premier ordre, non mesurée.
 \end{fiche}
 
 \begin{fiche}{M1 --- Nullité de l'ordonnée à l'origine, colonne par colonne}
@@ -14478,10 +14592,12 @@ fiche~\ref{mw:m1}) et la ligne d'hétéroscédasticité (calculée sans \code{lm
 l'issue~\#301, \code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()}, fiche~\ref{mw:m2bp})
 ne sont pas interceptées~: elles n'appellent pas \code{summary.lm()}, et n'émettent aucun
 avertissement (\code{run\_engine()} actuel, $B = 199$, aucun avertissement~R sur le triangle de
-contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$~; même mesure, sans
+contrôle multiplié par $10^{k}$, $k = -52, -30, -10, 10, 30, 46$, mesure refaite avec le moteur de
+l'issue~\#307, dont la pente relative vaut $t = 1{,}7330$ aux six échelles~; même mesure, sans
 avertissement, avec le moteur antérieur à l'issue~\#301, dont la régression de Breusch--Pagan
 passait par \code{lm()})~; leur critère est invariant par changement d'unité des cumulés
-(facteurs sans dimension et poids $C(i,j)/\hat\sigma_j^2$ pour la pente intra-colonne, $\tilde
+(facteurs et régresseur relatif sans dimension, poids $C(i,j)\hat f_j^{\,2}/\hat\sigma_j^2$ pour la
+pente intra-colonne, $\hat\sigma_j^2$ étant proportionnel à l'unité des cumulés, $\tilde
 r^2$ sans dimension pour la ligne d'hétéroscédasticité, $r^2$ pour l'ancienne statistique de
 Breusch--Pagan).
 \Usage
@@ -14701,13 +14817,18 @@ sont de probabilité nulle dès que la loi conditionnelle des cumuls a une densi
 Mack n'en fixe que les deux premiers moments)~; dans le bootstrap, qui tire dans un vivier fini,
 ils exigent une coïncidence exacte en double précision. Aucune garde à seuil n'est ajoutée.
 \emph{Vérification}~: le test \code{tests/unitaires/}\allowbreak\code{test\_forme\_close\_m1.R}
-fige les $t_j$ et la pente intra-colonne (fiche~\ref{mw:m1}) sur le triangle de contrôle, sur
+fige les $t_j$ sur le triangle de contrôle, sur
 ses lignes~$0$ et~$3$ multipliées par $10^{30}$, sa ligne~$0$ multipliée par $10^{-30}$ et par
-$10^{-14}$, et sur deux triangles aux bornes du domaine~; ces 35 valeurs sont recalculées par une
+$10^{-14}$, et sur deux triangles aux bornes du domaine~; ces 28 valeurs (quatre colonnes par
+triangle) sont recalculées par une
 méthode indépendante de la forme close (équations normales complètes, élimination de Gauss à
 4\,096 bits, contrôle à 8\,192 bits~: script hors CI
 \code{tests/unitaires/}\allowbreak\code{generer\_valeurs\_forme\_close\_m1.R}, paquet~R
-Rmpfr), dont le moteur s'écarte au plus de $1{,}1\cdot 10^{-13}$ en relatif. Sur le
+Rmpfr). Jusqu'à l'issue~\#307, le même test figeait aussi le $t$ de la pente intra-colonne,
+alors absolue, sur ces sept triangles~: le moteur s'écartait au plus de $1{,}1\cdot 10^{-13}$ en
+relatif sur les 35 valeurs d'alors, maximum non recalculé depuis le retrait de la partie pente du
+script (Rmpfr absent de la session de l'issue). La pente relative y est contrôlée par des oracles
+sans valeur de précision étendue (fiche~\ref{mw:m1}, rubrique~3). Sur le
 triangle de contrôle, $X$ change de $2{,}2\cdot 10^{-14}$ en relatif et sa p-value
 $\chi^2(2K)$ de $1{,}4\cdot 10^{-13}$, sans effet sur la p-value de Monte-Carlo ni sur le verdict.
 
@@ -14920,7 +15041,13 @@ Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans
 \refl{T.~Mack (1994, \emph{CAS Forum}), \emph{op.\ cit.}, chapitre~3, p.~111
 (facteur chain-ladder, moyenne des facteurs individuels pondérée par $C(i,j)$, chacun
 estimateur sans biais de $f_j$), et chapitre~5, p.~122--124 (estimateurs $f_{k0}$, pondéré
-par $C(i,j)^2$, et $f_{k2}$, moyenne simple, soit $\alpha = 2$ et $\alpha = 0$ ici).}
+par $C(i,j)^2$, et $f_{k2}$, moyenne simple, soit $\alpha = 2$ et $\alpha = 0$ ici)~; en
+complément, la famille elle-même, sous cette notation~: T.~Mack, \emph{The standard error of chain
+ladder reserve estimates: recursive calculation and inclusion of a tail factor}, \emph{ASTIN
+Bulletin}, 29(2), 1999, p.~361--366, à la p.~361 (définition, $\alpha \in \{0~;~1~;~2\}$) et à la
+p.~362 («~$\alpha = 1$ gives the historical chain ladder age-to-age factors, $\alpha = 0$ gives the
+straight average of the observed individual development factors and $\alpha = 2$ is the result of
+an ordinary regression of $C_{i,k+1}$ against $C_{ik}$ with intercept~0~»).}
 \Cadre
 On considère la famille d'estimateurs
 \[
@@ -14932,9 +15059,18 @@ où $\alpha = 0$ donne la moyenne simple des facteurs individuels, $\alpha = 1$ 
 facteur chain-ladder du règlement, et $\alpha = 2$ une pondération par le carré
 du volume. \textbf{Sous l'hypothèse M1, les trois estiment la même quantité}~:
 l'espérance conditionnelle étant proportionnelle à $C(i,j)$, tout jeu de poids
-positifs fournit un estimateur sans biais de $f_j$.
+positifs fournit un estimateur sans biais de $f_j$, \emph{quelle que soit la variance}, chaque
+facteur individuel étant lui-même sans biais (Mack, 1994, chapitre~3, p.~111). Le choix de $\alpha$
+relève, lui, de l'hypothèse de variance~: chez Mack (1999, p.~362--363), $\hat f^{(\alpha)}$ est
+l'estimateur linéaire sans biais de variance minimale sous
+$\operatorname{Var}\big(F(i,j) \mid C(i,j)\big) = \sigma_j^2/C(i,j)^{\alpha}$~; le règlement
+retient $\alpha = 1$, qui correspond à M2. Une pondération inadaptée à la variance coûte donc en
+efficacité, non en biais. L'article ne compare pas les trois estimateurs et ne propose aucun test~:
+la statistique $A$ et sa p-value de Monte-Carlo sont une construction de l'outil.
 \Hzero
-$H_0$ : les trois estimateurs visent le même $f_j$ dans chaque colonne.
+$H_0$ : les trois estimateurs visent le même $f_j$ dans chaque colonne~; $H_1$, libellé de la
+ligne~: ils visent des valeurs différentes (espérance de $C(i,j+1)$ non proportionnelle à
+$C(i,j)$).
 \Stat
 Amplitude relative moyenne, pondérée par les effectifs~:
 \[
@@ -14948,21 +15084,38 @@ fortement corrélés sur des colonnes de tailles décroissantes.
 \Pval
 p-value de Monte-Carlo exclusivement.
 \Usage
-Diagnostic de robustesse plus que test d'hypothèse. Une divergence marquée
-signale soit que l'espérance n'est pas proportionnelle à $C(i,j)$ (violation de
-M1), soit que la pondération en $C(i,j)$ est inadaptée (violation de M2)~: le
-test ne sépare pas les deux causes, et doit donc être lu conjointement avec la
-fiche~\ref{mw:m2b}. Son intérêt propre est de chiffrer l'enjeu~: si $A$ est
-faible, le choix de pondération imposé par le règlement est sans conséquence
-matérielle sur le paramètre final.
+Test de l'hypothèse (iii) seule (M1), conservé comme test par décision du mainteneur du
+22~octobre 2026 (issue~\#307, décision Q-D1-Fj-5, option~(b$'$)~; ni passage en diagnostic, ni
+retrait). Les trois estimateurs étant sans biais sous (iii) quelle que soit la variance
+(rubrique~1), une violation de l'hypothèse de variance M2 seule laisse $H_0$ vraie~: une divergence
+marquée signale que l'espérance n'est pas proportionnelle à $C(i,j)$, non que la pondération est
+inadaptée. Cette propriété porte sur l'hypothèse nulle, non sur le niveau~: la p-value de
+Monte-Carlo est calibrée sous l'hypothèse de variance de Mack (le bootstrap tire sous l'exposant~1),
+et son niveau n'est pas garanti si M2 est violée~; il n'est mesuré que contre les exposants~0 et~2
+de la mesure de l'issue~\#309 (rubrique~7), où il dépasse la référence sous P2 à exposant~0. La
+ligne se lit donc avec la fiche~\ref{mw:m2b}, non parce qu'elle testerait M2, mais parce qu'un
+défaut de M2 peut en déplacer le niveau. \emph{Ce que mesure $A$.} Pour $w_\alpha \propto
+C(i,j)^{\alpha}$, $\hat f_j^{(\alpha+1)} - \hat f_j^{(\alpha)} = \operatorname{Cov}_{w_\alpha}(C, F)
+/ \mathbb{E}_{w_\alpha}[C]$, identité exacte~: $A$ agrège, colonne par colonne et sans compensation
+de signe entre colonnes, des covariances entre $F(i,j)$ et $C(i,j)$ non studentisées par
+$\sigma_j$. La ligne vise donc la même famille d'alternatives que la pente intra-colonne
+(fiche~\ref{mw:m1}), une association du facteur au volume, avec une autre pondération~; leurs
+profils de rejet mesurés sont distincts (rubrique~7). Son intérêt propre est de chiffrer
+l'enjeu~: si $A$ est faible, le choix de pondération imposé par le règlement est sans conséquence
+matérielle sur le paramètre final, où seul $\hat f_j^{(1)}$ entre. Le commentaire de la ligne
+restitue l'écart relatif maximal entre les trois estimateurs et sa colonne, grandeur de l'observé~:
+sur le triangle de contrôle, $0{,}17~\%$ (colonne $j = 1$), pour $A = 0{,}00111$ et une p-value de
+Monte-Carlo de $0{,}005$ (\code{ECHEC}, $B = 999$, graine 20260831)~: rejet statistiquement fondé,
+le niveau de la ligne étant compatible sous N, E et A au seuil $0{,}10$ sous le plan du triangle de
+contrôle (rubrique~7), mais d'enjeu matériel faible.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Alpha}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} contre une ordonnée à l'origine, écart à la proportionnalité qui fait viser aux trois estimateurs des quantités différentes (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, plan du triangle de contrôle, $0{,}168$ $[0{,}136~;~0{,}204]$ et $0{,}044$ à $\delta = 0{,}10$ (500 triangles), $0{,}466$ $[0{,}435~;~0{,}497]$ et $0{,}110$ $[0{,}091~;~0{,}131]$ à $\delta = 0{,}20$ (1\,000 triangles)~: au seuil $0{,}05$, la ligne ne rejette pas plus souvent qu'au niveau à $\delta = 0{,}10$ ($0{,}044$ sous $H_0$ de P1, tableau T1~bis)~; sous P2, $0{,}998$ et $1{,}000$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ à $\delta = 0{,}20$. Contre une dérive de $f_j$ avec l'année de survenance, $0{,}348$, $0{,}304$ et $0{,}086$ au seuil $0{,}10$ sous P1, P2 et P3, ce dernier au niveau ($0{,}098$ sous $H_0$ de P3)~: la ligne ne voit cette dérive que par la colinéarité du volume et de l'année, que P3 supprime. Ce classement des alternatives visées est un choix de lecture de l'outil, fondé sur la construction de la statistique, non un résultat de la mesure (avis d'\code{actuary} sur les tableaux de l'issue~\#309). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}097$ (E), $0{,}102$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0385$, $0{,}042$, $0{,}037$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. Avec le vivier d'avant l'issue~\#46, non redressé, la même p-value était libérale, en distorsion matérielle ($0{,}207$ sous N et $0{,}180$ sous E à $0{,}10$, sur les 1\,000 premiers triangles)~; le redressement la ramène à $0{,}100$ et $0{,}097$ sur les mêmes triangles (section~\ref{sec:calib-mc-mw}).
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} contre une ordonnée à l'origine, écart à la proportionnalité qui fait viser aux trois estimateurs des quantités différentes (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, plan du triangle de contrôle, $0{,}168$ $[0{,}136~;~0{,}204]$ et $0{,}044$ à $\delta = 0{,}10$ (500 triangles), $0{,}466$ $[0{,}435~;~0{,}497]$ et $0{,}110$ $[0{,}091~;~0{,}131]$ à $\delta = 0{,}20$ (1\,000 triangles)~: au seuil $0{,}05$, la ligne ne rejette pas plus souvent qu'au niveau à $\delta = 0{,}10$ ($0{,}044$ sous $H_0$ de P1, tableau T1~bis)~; sous P2, $0{,}998$ et $1{,}000$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ à $\delta = 0{,}20$. Contre une dérive de $f_j$ avec l'année de survenance, $0{,}348$, $0{,}304$ et $0{,}086$ au seuil $0{,}10$ sous P1, P2 et P3, ce dernier au niveau ($0{,}098$ sous $H_0$ de P3)~: la ligne ne voit cette dérive que par la colinéarité du volume et de l'année, que P3 supprime. Ce classement des alternatives visées est un choix de lecture de l'outil, fondé sur la construction de la statistique, non un résultat de la mesure (avis d'\code{actuary} sur les tableaux de l'issue~\#309). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}097$ (E), $0{,}102$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}0385$, $0{,}042$, $0{,}037$ ($\rho = 0{,}049$)~; compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$. Avec le vivier d'avant l'issue~\#46, non redressé, la même p-value était libérale, en distorsion matérielle ($0{,}207$ sous N et $0{,}180$ sous E à $0{,}10$, sur les 1\,000 premiers triangles)~; le redressement la ramène à $0{,}100$ et $0{,}097$ sur les mêmes triangles (section~\ref{sec:calib-mc-mw}). \emph{Exposants de variance} (même mesure, tableau T2), alternative sous laquelle $H_0$ de la ligne reste vraie (rubrique~6)~: au seuil $0{,}10$, $0{,}116$ $[0{,}089~;~0{,}147]$ (exposant~0) et $0{,}081$ $[0{,}065~;~0{,}100]$ (exposant~2) sous P1, $0{,}146$ $[0{,}116~;~0{,}180]$ et $0{,}091$ $[0{,}074~;~0{,}111]$ sous P2, pour $0{,}102$ et $0{,}095$ sous $H_0$ de P1 et de P2 ($\rho = 0{,}099$)~: ce ne sont pas des puissances, mais des taux de rejet sous une violation de M2, qui renseignent sur le niveau~; l'excès sous P2 à exposant~0, dont l'intervalle exclut $\rho$, traduit la dépendance de la loi bootstrap à l'exposant~1, non une puissance contre M2 (lecture d'\code{actuary}, spécification Fj, §~4.3). \emph{Profils comparés à la pente intra-colonne} (pièce \code{docs/tableaux/}\allowbreak\code{20261022-}\allowbreak\code{issue307-paires.md}, tableaux T1 et T2, calculés sur les valeurs brutes versionnées de la mesure de l'issue~\#309~; P1, seuil $0{,}10$~; McNemar exact bilatéral apparié, $p \le 0{,}003$ dans les cinq cas)~: dérive calendaire, $0{,}718$ contre $0{,}510$~; dérive de $f_j$, $0{,}348$ contre $0{,}270$~; ordonnée à l'origine à $\delta = 0{,}20$, $0{,}466$ contre $0{,}796$~; cellule multipliée par~4, $0{,}000$ contre $0{,}920$~; année de survenance atypique, $0{,}074$ contre $0{,}526$. Sous $H_0$ de P1, la famille $\alpha$ et la pente relative rejettent ensemble $0{,}019$ des triangles au seuil $0{,}10$ ($0{,}102$ et $0{,}118$ séparément), et la corrélation de rang de leurs p-values de Monte-Carlo vaut $0{,}128$ ($0{,}157$ sous P2, $0{,}086$ sous P3)~: redondance faible et profils opposés~; le retrait de la ligne au motif qu'elle viserait la même alternative que la pente n'est pas soutenu par la mesure.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$. p-values de McNemar~: tests exacts (loi binomiale conditionnelle aux paires discordantes) sur les décisions simulées, sans correction de multiplicité~; corrélations de rang~: descriptives. Identité de covariance~: exacte.
 \end{fiche}
 
 \begin{fiche}{M1 --- Identifiabilité intra-colonne (dispersion des cumuls par colonne, diagnostic)}
@@ -17411,8 +17564,9 @@ Lilliefors (au plus $0{,}023$ sous N et E et $0{,}032$ sous A).
 \textcolor{financeblue}{\textbf{Interprétation (cause proposée)}} \\
 \rowcolor{tableheader}
  & 0,10 & 0,05 & 0,10 & 0,05 & 0,10 & 0,05 & \\
-Tendance avec le cumulé (Student) & 0,081 & 0,0335 & 0,076 & 0,026 & 0,083 & 0,040 &
-Sous le seuil nominal sous N et E~; intervalle le contenant sous A \\
+Tendance avec le cumulé (Student), statistique antérieure à l'issue~\#307 & 0,081 & 0,0335 & 0,076 & 0,026 & 0,083 & 0,040 &
+Sous le seuil nominal sous N et E~; intervalle le contenant sous A~; p de Student de la pente
+relative, non retenue, non mesurée \\
 Ordonnée à l'origine (Fisher) & 0,0915 & 0,0435 & 0,1045 & 0,0475 & 0,109 & 0,056 &
 Intervalles contenant le seuil nominal \\
 Homogénéité de $f_j$ (Fisher) & 0,033 & 0,0125 & 0,038 & 0,0185 & 0,035 & 0,012 &
@@ -17451,7 +17605,8 @@ taux aux deux seuils~: aucune de ses p-values normales ne tombe dans $[0{,}05~;~
 triangles. Les combinaisons de Fisher de l'homogénéité de $f_j$ et de l'exposant de variance, dont
 les p-values de colonne suivent la loi de permutation depuis l'issue~\#90 (fiche~\ref{mw:m1b}),
 sont conservatrices~; c'est le sens qu'annoncerait la sur-uniformité de ces p-values si les colonnes étaient indépendantes et la loi de permutation celle du modèle de Mack, hypothèses non acquises (même fiche)~: la mesure établit le sens de l'écart sous ce plan, non sa cause. Deux autres régressions, hors moteur, éclairent la
-construction de la fiche~\ref{mw:m1}~: la régression agrégée sans effet de colonne rejette dans
+construction de la pente absolue, statistique de la fiche~\ref{mw:m1} jusqu'à l'issue~\#307
+(historique de la rubrique~1)~: la régression agrégée sans effet de colonne rejette dans
 $98{,}35~\%$, $96{,}8~\%$ et $98{,}8~\%$ des cas au seuil $0{,}10$ (N, E, A), et la régression à
 effet de colonne pondérée par $C(i,j)$ seul dans $6{,}0~\%$, $4{,}75~\%$ et $5{,}8~\%$.
 
@@ -17571,7 +17726,7 @@ l'issue~\#257 et n'en dépend pas. Sous le moteur de la mesure, un triangle simu
 strictement positif faisait perdre la réplication sur les treize statistiques à la fois. Or,
 dans les valeurs brutes ($7\,000$ bootstraps, pools redressé et brut, $91\,000$ couples
 (triangle, statistique)), un seul couple a un $B$ effectif inférieur à 999 ($998$,
-\code{PenteIntra}, sous E), les autres statistiques du même triangle étant à 999~: aucun cumul
+\code{PenteIntra}, sous E, statistique antérieure à l'issue~\#307), les autres statistiques du même triangle étant à 999~: aucun cumul
 simulé invalide n'a été tiré. Dans ce cas, \code{mw\_bootstrap()} consomme depuis
 l'issue~\#257 le même flux et rend les mêmes triangles (section~\ref{sec:boot-mw}). Avant toute
 relance, le générateur \code{gen\_triangle\_h0()} et le contrôle~(s) du script, qui
@@ -17618,7 +17773,7 @@ est donné pour N, E et A quand il diffère au millième selon la loi.
 \textcolor{financeblue}{\textbf{N~: taux [IC] classe}} &
 \textcolor{financeblue}{\textbf{E~: taux [IC] classe}} &
 \textcolor{financeblue}{\textbf{A~: taux [IC] classe}} \\
-\code{PenteIntra} (\ref{mw:m1}) & $0{,}098$ & $0{,}114$ $[0{,}100~;~0{,}129]$ m & $0{,}1205$ $[0{,}107~;~0{,}136]$ m & $0{,}130$ $[0{,}110~;~0{,}152]$ m \\
+\code{PenteIntra} (\ref{mw:m1}), avant \#307 & $0{,}098$ & $0{,}114$ $[0{,}100~;~0{,}129]$ m & $0{,}1205$ $[0{,}107~;~0{,}136]$ m & $0{,}130$ $[0{,}110~;~0{,}152]$ m \\
 \code{Origine} (\ref{mw:m1a}) & $0{,}099$ & $0{,}088$ $[0{,}076~;~0{,}101]$ c & $0{,}097$ $[0{,}084~;~0{,}111]$ c & $0{,}106$ $[0{,}088~;~0{,}127]$ c \\
 \code{HomogF} (\ref{mw:m1b}) & $0{,}099$ & $0{,}0955$ $[0{,}083~;~0{,}109]$ c & $0{,}089$ $[0{,}077~;~0{,}102]$ c & $0{,}091$ $[0{,}074~;~0{,}111]$ c \\
 \code{Courbure} (\ref{mw:m1c}) & $0{,}099$ & $0{,}093$ $[0{,}081~;~0{,}107]$ c & $0{,}080$ $[0{,}068~;~0{,}093]$ m & $0{,}095$ $[0{,}078~;~0{,}115]$ c \\
@@ -17648,7 +17803,7 @@ Seuil $\alpha = 0{,}10$.
 \textcolor{financeblue}{\textbf{N~: taux [IC] classe}} &
 \textcolor{financeblue}{\textbf{E~: taux [IC] classe}} &
 \textcolor{financeblue}{\textbf{A~: taux [IC] classe}} \\
-\code{PenteIntra} (\ref{mw:m1}) & $0{,}048$ & $0{,}064$ $[0{,}054~;~0{,}076]$ m & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}073$ $[0{,}058~;~0{,}091]$ nt \\
+\code{PenteIntra} (\ref{mw:m1}), avant \#307 & $0{,}048$ & $0{,}064$ $[0{,}054~;~0{,}076]$ m & $0{,}053$ $[0{,}044~;~0{,}064]$ c & $0{,}073$ $[0{,}058~;~0{,}091]$ nt \\
 \code{Origine} (\ref{mw:m1a}) & $0{,}049$ & $0{,}042$ $[0{,}034~;~0{,}052]$ c & $0{,}0475$ $[0{,}039~;~0{,}058]$ c & $0{,}061$ $[0{,}047~;~0{,}078]$ c \\
 \code{HomogF} (\ref{mw:m1b}) & $0{,}049$ & $0{,}039$ $[0{,}031~;~0{,}048]$ m & $0{,}0415$ $[0{,}033~;~0{,}051]$ c & $0{,}041$ $[0{,}030~;~0{,}055]$ c \\
 \code{Courbure} (\ref{mw:m1c}) & $0{,}049$ & $0{,}0445$ $[0{,}036~;~0{,}054]$ c & $0{,}036$ $[0{,}028~;~0{,}045]$ m & $0{,}041$ $[0{,}030~;~0{,}055]$ c \\
@@ -17690,20 +17845,24 @@ distinguent.
   compatibles de part et d'autre de $\rho$ selon la loi des erreurs, à la même statistique et au
   même seuil, indication descriptive d'un niveau sensible à cette loi. Constat documenté seul~;
   la statistique a été remplacée par l'issue~\#300 (ci-dessous et fiche~\ref{mw:m4gr}).
-  \item \emph{Tendance avec le cumulé} (\code{PenteIntra}, fiche~\ref{mw:m1})~: légèrement
+  \item \emph{Tendance avec le cumulé} (\code{PenteIntra}, fiche~\ref{mw:m1}, statistique
+  antérieure à l'issue~\#307, la pente absolue)~: légèrement
   libérale, écart mineur à $0{,}10$ sous les trois lois ($0{,}114$ à $0{,}130$), écart non tranché
-  sous A à $0{,}05$ ($0{,}073$). Constat documenté seul.
+  sous A à $0{,}05$ ($0{,}073$). Constat documenté seul~; la statistique a été remplacée par la pente
+  relative (issue~\#307, ci-dessous et fiche~\ref{mw:m1}).
 \end{itemize}
 Les autres écarts mineurs sont tous du côté conservateur (homogénéité de $f_j$ et famille
 $\alpha$ sous N à $0{,}05$~; courbure sous E aux deux seuils~; suites sous E à $0{,}05$~;
 homogénéité entre années de survenance sous A à $0{,}10$~; Durbin--Watson sous A à $0{,}05$).
-Les trois p-values voisines du seuil sur le triangle de contrôle s'y lisent ainsi~: ordonnée à
+Les trois p-values voisines du seuil sur le triangle de contrôle lors de la mesure s'y lisent ainsi~: ordonnée à
 l'origine ($0{,}085$), compatible partout~; homogénéité de $f_j$ ($0{,}080$), compatible sauf un
 écart mineur du côté conservateur sous N à $0{,}05$~; Breusch--Pagan ($0{,}103$), conservatrice
 (ci-dessus), dont la statistique de remplacement (issue~\#301) a une p-value de $0{,}285$ sur ce
-triangle, loin du seuil. Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu par une p-value dont le niveau au seuil $0{,}10$ ne présente, sous ce plan, aucune distorsion détectée~; cette mesure du niveau ne dit rien de l'erreur de Monte-Carlo de la p-value du triangle lui-même (\code{err\_mc}, fonction de $B$), qui reste à lire ligne par ligne.
+triangle, loin du seuil~; depuis l'issue~\#307, la pente intra-colonne relative ($0{,}090$,
+\code{ALERTE}) s'y ajoute, dont le niveau, mesuré par l'issue~\#309 (ci-dessous), est légèrement
+libéral. Pour les deux premières, le verdict \code{ALERTE} du triangle de contrôle est rendu par une p-value dont le niveau au seuil $0{,}10$ ne présente, sous ce plan, aucune distorsion détectée~; cette mesure du niveau ne dit rien de l'erreur de Monte-Carlo de la p-value du triangle lui-même (\code{err\_mc}, fonction de $B$), qui reste à lire ligne par ligne.
 
-\emph{Niveau des statistiques de remplacement (issues~\#301, \#300 et~\#309).} La clé \code{BP} calcule depuis
+\emph{Niveau des statistiques de remplacement (issues~\#301, \#300, \#307 et~\#309).} La clé \code{BP} calcule depuis
 l'issue~\#301 le $nR^2$ partiel à effets fixes de colonne de la fiche~\ref{mw:m2bp}. Son niveau a été
 mesuré par l'issue~\#309 (ci-dessous) sur les triangles, sous les graines et contre les échantillons
 oracle de la présente mesure, les p-values de Monte-Carlo de l'ancienne statistique y étant
@@ -17720,7 +17879,15 @@ $0{,}118$ $[0{,}099~;~0{,}140]$ (A)~; au seuil $0{,}05$, $0{,}029$ $[0{,}022~;~0
 $[0{,}031~;~0{,}049]$, $0{,}047$ $[0{,}035~;~0{,}062]$~; écart mineur du côté conservateur sous N aux
 deux seuils et sous E à $0{,}10$, compatible ailleurs. L'écart non tranché du côté libéral de
 Grubbs sous la loi A disparaît, au prix d'un niveau conservateur sous erreurs gaussiennes
-(fiche~\ref{mw:m4gr}, rubrique~7, première limite).
+(fiche~\ref{mw:m4gr}, rubrique~7, première limite). La clé \code{PenteIntra}, conservée, calcule
+depuis l'issue~\#307 la pente relative de la fiche~\ref{mw:m1}, mesurée de même comme candidat
+de l'issue~\#309~: au seuil $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$
+$[0{,}097~;~0{,}125]$ (E), $0{,}118$ $[0{,}099~;~0{,}140]$ (A)~; au seuil $0{,}05$, $0{,}061$
+$[0{,}051~;~0{,}072]$, $0{,}0545$ $[0{,}045~;~0{,}065]$, $0{,}059$ $[0{,}045~;~0{,}075]$ ($\rho =
+0{,}098$ et $0{,}048$)~; écart mineur du côté libéral sous N aux deux seuils et sous A à $0{,}10$,
+compatible ailleurs~: l'écart non tranché de la pente absolue sous A à $0{,}05$ disparaît, le
+niveau restant légèrement libéral (critère de remplacement K-307, formulé a posteriori,
+fiche~\ref{mw:m1}, rubrique~7).
 
 \emph{Effet du redressement du vivier} (issue~\#46~; tableaux T1~bis et T2). Sur les 1\,000
 premiers triangles sous N et sous E, mêmes graines, les décisions des deux viviers sont comparées
@@ -17774,7 +17941,7 @@ moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
 $|p_{\mathrm{mc}} - \alpha|$ inférieur à deux fois \code{err\_mc} va, selon la statistique et la loi, de
 $0{,}009$ (Breusch--Pagan, statistique antérieure à l'issue~\#301, N) à $0{,}0665$ (tendance avec
-le cumulé, E) à $\alpha = 0{,}10$, et de $0{,}001$ (Breusch--Pagan, A) à $0{,}049$ (tendance avec le cumulé, E) à $0{,}05$~: c'est,
+le cumulé, statistique antérieure à l'issue~\#307, E) à $\alpha = 0{,}10$, et de $0{,}001$ (Breusch--Pagan, A) à $0{,}049$ (tendance avec le cumulé, même statistique, E) à $0{,}05$~: c'est,
 sous ce plan, la fréquence de la phrase de l'issue~\#244 due au seul seuil $\alpha$ (phrase
 \code{PHRASE\_VERDICT\_SENSIBLE\_MC} du champ \code{detail}, sans changer ni p-value ni verdict,
 section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~»)~; au seuil par défaut $\alpha = 0{,}10$, la phrase compte
@@ -18536,6 +18703,20 @@ modèle et un mode d'inférence différents.
   cette page avec les probabilités binomiales du moteur est vérifiée sur une transcription de la
   page, non sur le document lui-même). L'annexe~G
   (p.~D6.42--D6.46) garde le test de corrélation entre facteurs adjacents.
+
+  \item T.~Mack, \emph{The standard error of chain ladder reserve estimates: recursive calculation
+  and inclusion of a tail factor}, \emph{ASTIN Bulletin}, 29(2), 1999, p.~361--366 (DOI
+  10.2143/AST.29.2.504622).
+  \emph{Portée.} Cité par la fiche~\ref{mw:m1d} en complément de Mack (1994, \emph{CAS Forum}),
+  et non à sa place~: l'article pose la famille $\hat f_k = \sum_i w_{ik} C_{ik}^{\alpha} F_{ik} /
+  \sum_i w_{ik} C_{ik}^{\alpha}$, $\alpha \in \{0~;~1~;~2\}$ (p.~361), en lit les trois valeurs
+  (p.~362~: facteur chain-ladder, moyenne simple, régression sans constante) et associe à chaque
+  $\alpha$ son hypothèse de variance, $\operatorname{Var}(F_{ik} \mid C_{i1}, \ldots, C_{ik}) =
+  \sigma_k^2/(w_{ik} C_{ik}^{\alpha})$, sous laquelle $\hat f_k$ est l'estimateur linéaire sans
+  biais de variance minimale (p.~362--363, avec renvoi à Mack, 1993). Il ne compare pas les trois
+  estimateurs, ne propose aucun test et n'énonce pas leur absence de biais sous une même hypothèse
+  de variance quelconque, qui reste appuyée sur Mack (1994, chapitre~3, p.~111). Texte intégral lu
+  (relevé \code{docs/references/}\allowbreak\code{verifications-fj.md}, §~2).
 
   \item T.~Mack, \emph{Which stochastic model is underlying the chain ladder
   method~?}, \emph{Insurance: Mathematics and Economics}, 15(2--3), 1994,
