@@ -65,6 +65,18 @@ fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f"
 fmt_p  <- function(v) ifelse(is.finite(v),
                              .num_fr(v, ifelse(is.finite(v) & (v >= 1e-4 | v == 0), "%.4f", "%.3g")),
                              "\u2013")
+# Statistiques de test qui sont elles-memes des probabilites (#353, decision
+# Q-D1-Fm-10) : leur valeur s'affiche par fmt_p() et non fmt_nb() (M = min p_ij
+# = 5,2e-09 s'ecrivait "0,0000"). Liste de noms (champ nom_statistique de
+# engine_table_tests(), stat_nom du moteur), seul recensement a la main ; un
+# test la confronte au moteur sur reserve2. Mise en forme seule, aucun champ
+# nouveau dans add().
+STAT_NOMS_PROBABILITE <- c("M = min p_ij")
+# Valeur d'une statistique de test : fmt_p() si son nom designe une
+# probabilite, fmt_nb() sinon. nom : vecteur de meme longueur que v, ou de
+# longueur 1 (recycle).
+fmt_stat <- function(v, nom) ifelse(rep_len(nom %in% STAT_NOMS_PROBABILITE, length(v)),
+                                    fmt_p(v), fmt_nb(v))
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
@@ -265,7 +277,8 @@ table_synthese_groupe <- function(tb) {
     Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                      .repere_renvoi(tb)),
     `Statistique` = ifelse(is.finite(tb$statistique),
-        paste0("<code>", .txt(tb$nom_statistique), "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
+        paste0("<code>", .txt(tb$nom_statistique), "</code> = ",
+               fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
     Estimation = ifelse(is.finite(tb$estimation),
         paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),

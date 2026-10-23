@@ -1544,6 +1544,30 @@ verifier("#323 : premium_interieur, Pitman et Fisher sans 0,0000 (synthese et de
              identical(de[["p asympt."]][i], "2,95e-06") && identical(de[["p asympt."]][j], "5,91e-06") &&
              !any(c(sy[["p retenue"]], de[["p exacte"]], de[["p asympt."]], de[["p Monte-Carlo"]]) == "0,0000") })
 
+## --- Statistique qui est une probabilite : M = min p_ij (#353, Q-D1-Fm-10) ----
+# STAT_NOMS_PROBABILITE (affichage) est confrontee au stat_nom du moteur sur
+# reserve2 ; une statistique de la liste s'affiche par fmt_p() (5,2e-9 n'est
+# plus "0,0000"), toutes les autres par fmt_nb(). M vaut 0,1033 sur reserve2
+# (reference) : l'affichage y est inchange.
+tb353 <- engine_table_tests(readRDS(file.path(.racine, "tests", "reference", "reserve2.rds")))
+i353 <- which(tb353$test == .MW_LIGNE_CELLULE_ABERRANTE)
+verifier("#353 : le nom_statistique de la ligne des cellules aberrantes de reserve2 appartient a STAT_NOMS_PROBABILITE",
+         length(i353) == 1L && tb353$nom_statistique[i353] %in% STAT_NOMS_PROBABILITE)
+verifier("#353 : reserve2, M = min p_ij s'affiche par fmt_p() en synthese, comme avant (valeur >= 1e-4, 4 decimales)",
+         { sy <- table_synthese_groupe(tb353)
+           m <- tb353$statistique[i353]
+           identical(sy$Statistique[i353],
+                     paste0("<code>M = min p_ij</code> = ", fmt_p(m))) &&
+             identical(sy$Statistique[i353],
+                       paste0("<code>M = min p_ij</code> = ", fmt_nb(m))) })
+verifier("#353 : ligne fabriquee a M = 5,2e-9 : \"5,2e-09\" en synthese, jamais \"0,0000\" ; une autre statistique reste en fmt_nb()",
+         { tbf <- tb353[c(i353, which(tb353$test != .MW_LIGNE_CELLULE_ABERRANTE & is.finite(tb353$statistique) & !is.na(tb353$nom_statistique))[1L]), ]
+           tbf$statistique[1L] <- 5.2e-9; tbf$statistique[2L] <- 5.2e-9
+           sy <- table_synthese_groupe(tbf)
+           identical(sy$Statistique[1L], "<code>M = min p_ij</code> = 5,2e-09") &&
+             identical(sy$Statistique[2L],
+                       paste0("<code>", tbf$nom_statistique[2L], "</code> = 0,0000")) })
+
 ## --- Virgule decimale des nombres affiches (issue #236) ------------------------
 # .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)
 # valeur par valeur) et ne change que le separateur decimal ; aucun espace des
