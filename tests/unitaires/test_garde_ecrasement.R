@@ -27,7 +27,8 @@
 #  couteux (calcul, ou lecture des tranches de --combiner) ; execution sur un depot git temporaire : refus
 #  avant tout calcul des douze scripts de CAS_A (tous sauf
 #  mesure_precision_residus_mw.R, qui exige Rmpfr avant ses gardes, #258, et
-#  mesure_calendaire_t8.R, qui s'arrete avant ses gardes, #355 ;
+#  mesure_calendaire_t8.R, hors de CAS_A pour sa forme, #355 (#365 : il ne
+#  s'arrete plus avant ses gardes) ;
 #  enumeration_spearman_ex_aequo.R compris, #259 ; mesure_b_dossier_t8.R
 #  compris, #325 ; mesure_lb1_dw_t8.R compris, Q-D1-Fh-9 ;
 #  puissance_mw_t8.R compris, #309)
@@ -542,9 +543,10 @@ ordre_appels <- function(f) {
 # cause de sa forme (lignes lues a l'enregistrement de #355) : motifs_non_versionnable()
 # (l. 554) et garde_ecrasement() (l. 561) y suivent mw_ajuster(.tri) (l. 309,
 # DGP sous H0), classe couteuse ici ; il ne controle pas l'existence de
-# docs/tableaux/ avant son calcul ; et, sur le moteur actuel, il s'arrete a
-# la l. 387 (entree Calendrier du catalogue : queue "bas" depuis #276, "deux"
-# attendue), avant ses gardes de --ecrire, qu'aucune execution n'atteint.
+# docs/tableaux/ avant son calcul. (A l'enregistrement de #355 il s'arretait
+# en outre sur le moteur actuel, entree Calendrier du catalogue en queue "bas"
+# depuis #276 ; reetabli par #365 : il atteint ses gardes de --ecrire. Numeros
+# de ligne ci-dessus : ceux de l'enregistrement de #355.)
 GARDES_ANTICIPEES <- list(
   puissance_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   constats_puissance_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),

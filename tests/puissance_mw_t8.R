@@ -14,26 +14,48 @@
 #  --ecrire, --sortie, --brut). Tous les libelles non ASCII du script sont
 #  ecrits en echappements \u (fichier source ASCII).
 #
-#  Moteur posterieur a #301 (decision Q-D2-Fi-1 du 21/10/2026) : la cle BP de
-#  MW_CATALOGUE_MC calcule desormais FWr (mw_test_heteroscedasticite_intra(),
-#  meme algebre que stat_fw() ci-dessous), et non plus le n R^2 de r^2 ~ C.
-#  Sur un tel moteur, le controle (c) de BP (ATTENDU_C, 0,6502 / 0,103), K0-t
-#  (temoin BP contre la colonne pR:BP du brut de #206) et le controle de T5
-#  (n S_xy^2 / (S_xx S_yy) recompose = BP observe) sont en ECHEC par
-#  construction ; ATTENDU_C et ces controles ne sont pas modifies. Les sorties
-#  de #309 se reproduisent au commit 1e3979c (moteur dont l'empreinte est
-#  celle de 754dd0a). Le mode --controle-i2prime reste valide : il compare la
-#  cle du moteur au candidat du script sur les memes replications.
-#  Moteur posterieur a #300 (decision Q-D2-Fi-2 du 21/10/2026) : la cle Grubbs
-#  de MW_CATALOGUE_MC est remplacee par la cle MinP4 (mw_test_cellule_aberrante(),
-#  meme algebre que influence_t() et cellules_t(..., 4L, ...) ci-dessous ;
-#  replication reconnue par l'element replique du contexte, pose par
-#  .mw_stats(replique = TRUE) dans la boucle de mw_bootstrap(), au lieu de la
-#  comparaison au triangle observe). Sur un tel
-#  moteur, les parties qui lisent la cle Grubbs du catalogue (temoins TEM_A
-#  du volet A, controles (a), (c) et K0-t) lisent une cle absente ; elles ne
-#  sont pas modifiees. --controle-i2prime --cle-moteur MinP4 --candidat MinP4
-#  compare la ligne implementee au candidat mesure (#300 : conforme).
+#  REALIGNEMENT SUR LE MOTEUR ACTUEL (R22, #369 ; comme R21 pour
+#  tests/calibration_mc_mw_t8.R, #354). Le tableau de #309
+#  (docs/tableaux/20261021-issue309-puissance-mw.md) mesure le moteur d'avant
+#  #300, #301 et #307 ; le catalogue a depuis change, et ce script lit
+#  desormais le catalogue du moteur charge :
+#    - BP (#301, decision Q-D2-Fi-1 du 21/10/2026) : cle conservee, statistique
+#      FWr (mw_test_heteroscedasticite_intra(), meme algebre que stat_fw()
+#      ci-dessous), et non plus le n R^2 de r^2 ~ C ;
+#    - Grubbs (#300, Q-D2-Fi-2 du 21/10/2026) : cle remplacee, a la meme
+#      position, par MinP4 (mw_test_cellule_aberrante() ; replication
+#      reconnue par l'element replique du contexte, pose par .mw_stats(
+#      replique = TRUE) dans la boucle de mw_bootstrap()). MinP4 est donc a la
+#      fois cle du moteur et candidat du script (meme algebre que
+#      influence_t() et cellules_t(..., 4L, ...)) : la colonne MinP4 est celle
+#      du moteur, comptee une fois (CAND_INJ), et le candidat local ne sert
+#      qu'a --controle-i2prime et aux controles (c) ;
+#    - PenteIntra (#307, Q-D1-Fj-3) : cle conservee, statistique = t de la
+#      pente RELATIVE, la meme que le candidat PenteRel (ligne redondante
+#      retiree de T7, STATS_FJ) ;
+#    - Calendrier (#276, Q-Fd-1) : queue basse (SENS_SPEC).
+#  Grubbs n'est plus au catalogue : K-300 se lit contre lui (TEXTE_CRITERES_309)
+#  et K0-t le compare au brut de #206. Le script le reconstruit donc LOCALEMENT
+#  (ENT_GRUBBS : copie de l'ancienne entree test_grubbs(e$r)$stat, queue
+#  haute), injecte comme temoin au meme titre que les candidats ; colonnes,
+#  paires et tableaux de Grubbs sont inchanges. K0-t ne porte plus que sur ce
+#  temoin : BP du moteur (FWr) n'est plus celle du brut de #206 (n R^2).
+#  Le controle de T5 de #309 (n S_xy^2 / (S_xx S_yy) recompose = BP observe)
+#  n'a plus d'objet, la statistique recomposee n'existant plus au moteur : il
+#  est REMPLACE (colonne "Ecart au BP observe" retiree de T5) par un oracle
+#  independant, controle (T5) de --controles : sur reserve2 et sur les
+#  triangles admis marques (i2), |n S_xy^2 / (S_xx S_yy) - nrow(res) *
+#  summary(lm(I(residu^2) ~ C))$r.squared| <= 1e-10 (ecart_oracle_t5()). (c)
+#  lit pour BP les valeurs de FWr de reserve2 (ATTENDU_C). Les colonnes BP,
+#  MinP4, PenteIntra et Calendrier des sorties ne sont donc pas celles du
+#  tableau de #309 : une remesure passe par une decision. Les paires
+#  (FWr, BP) et (FWb, BP) de T3 sont retirees (BP = FWr depuis #301).
+#  --controle-i2prime --cle-moteur MinP4 --candidat MinP4 compare la ligne du
+#  moteur au candidat local sur les memes replications. REMESURE : la colonne
+#  MinP4 du volet A est desormais la cle du moteur (et non plus le candidat
+#  injecte) ; avant toute lecture de K-300 lors d'une remesure, exiger que
+#  --controle-i2prime --cle-moteur MinP4 --candidat MinP4 soit OK sur le
+#  moteur alors charge.
 #
 #  Protocole : docs/specifications/fi-merz-wuthrich-puissance.md, par. 2
 #  (#309) et 3 a 4 (candidats de #301 et #300), AVEC l'encadre des decisions
@@ -53,8 +75,8 @@
 #               mw_bootstrap() n'est JAMAIS recopiee (constat de #340) ;
 #    par. 2.5 : volet A (niveau des candidats, plan et graines de #206 ;
 #               catalogue reduit {BP, Grubbs, FWb, FWr, MinP, MinP4, TMax} et
-#               PenteRel) ; controle K0-t (p_mc de BP et de Grubbs identiques
-#               aux colonnes pR:BP et pR:Grubbs du brut de #206) ;
+#               PenteRel) ; controle K0-t (p_mc de Grubbs identique a la
+#               colonne pR:Grubbs du brut de #206 ; BP, voir R22 plus haut) ;
 #    par. 2.6 : volet B (puissance, loi N, B = 999, 13 statistiques et
 #               candidats), effectifs R, graines, controles (a), (i2), (c),
 #               K0-x, K0-t, K0-c, (i2') ;
@@ -517,19 +539,29 @@ BORNES_K0C <- c(0.22, 0.28)      # K0-c : moyenne des CV de j = 0 a 3
 # 19/10/2026).
 PUBLIE_K0X <- c(CAL7 = 401L, CAL4 = 319L); N_PUBLIE_K0X <- 1000L
 SEUIL_K0X <- 0.025               # 0,05 / 2 (Bonferroni sur deux cellules)
-# Sens de rejet des treize cles au moteur de ce commit (Calendrier : "bas" depuis #276).
+# Sens de rejet des treize cles au moteur de ce commit (R22, #369) : Calendrier
+# "bas" depuis #276 ; MinP4 ("bas") a la place de Grubbs depuis #300 ; BP
+# (variante FWr, #301) et PenteIntra (pente relative, #307) gardent leur cle et
+# leur sens.
 SENS_SPEC <- c(PenteIntra = "deux", Origine = "haut", HomogF = "haut", Courbure = "haut", Alpha = "haut",
                BP = "haut", ExpVar = "haut", Calendrier = "bas", KruskalAcc = "haut", CorrDev = "deux",
-               DW = "deux", Runs = "deux", Grubbs = "haut")
+               DW = "deux", Runs = "deux", MinP4 = "bas")
 CLES <- names(MW_CATALOGUE_MC)
 NS <- length(CLES)
 QUEUE <- vapply(CLES, function(s) MW_CATALOGUE_MC[[s]]$queue, "")
 CAND <- c("FWb", "FWr", "MinP", "MinP4", "TMax", "PenteRel")
 QUEUE_CAND <- c(FWb = "haut", FWr = "haut", MinP = "bas", MinP4 = "bas", TMax = "haut", PenteRel = "deux")
-STATS_B <- c(CLES, CAND)                       # volet B et oracles : 19 statistiques
-STATS_A <- c("BP", "Grubbs", CAND)              # volet A : catalogue reduit (+ PenteRel, Q-D1-Fi-9)
-QUEUE_ALL <- c(QUEUE, QUEUE_CAND)
-TEM_A <- c("BP", "Grubbs")                      # temoins du volet A (K0-t)
+# Candidats injectes dans le catalogue : MinP4 est une cle du moteur depuis
+# #300 (sa colonne est celle du moteur, comptee une fois ; le candidat local
+# MinP4 reste dans CAND pour (i2') et (c)).
+CAND_INJ <- setdiff(CAND, CLES)
+# Temoin Grubbs (R22, #369) : cle absente du catalogue depuis #300, lue par
+# K-300 et K0-t ; reconstruit localement (ENT_GRUBBS plus bas).
+TEMOIN <- "Grubbs"; QUEUE_TEMOIN <- c(Grubbs = "haut")
+STATS_B <- c(CLES, TEMOIN, CAND_INJ)           # volet B et oracles : 19 statistiques, sans doublon
+STATS_A <- c("BP", TEMOIN, CAND)                # volet A : catalogue reduit (+ PenteRel, Q-D1-Fi-9)
+QUEUE_ALL <- c(QUEUE, QUEUE_TEMOIN, QUEUE_CAND[CAND_INJ])
+TEM_A <- TEMOIN                                 # temoin du volet A (K0-t) : BP n'est plus celle du brut de #206
 NS_B <- length(STATS_B)
 CODES_MOTIF <- c(o = MOTIF_MC_OBS_NON_FINIE, z = MOTIF_MC_AUCUNE_REPLIC, i = MOTIF_MC_REPLIC_INSUFFISANTES,
                  d = MOTIF_MC_DISPERSION_NULLE, c = MOTIF_MC_CONDITION, a = MOTIF_MC_ATOME_HORS_OBS)
@@ -832,7 +864,7 @@ cellules_t <- function(aj, figes, n_min, obs, cache) {
 # triangle de la replication est reconnu observe si son tableau est identique
 # a celui de aj_obs (identical()). Cache de mw_influence() propre a ce jeu
 # d'entrees (une replication a la fois).
-catalogue_candidats <- function(aj_obs, noms = CAND) {
+catalogue_candidats <- function(aj_obs, noms = CAND_INJ) {
   cache <- new.env()
   tri_obs <- aj_obs$tri
   est_obs <- function(e) identical(e$aj$tri, tri_obs)
@@ -856,11 +888,15 @@ avec_catalogue <- function(cat, expr) {
   tryCatch(expr, finally = assign("MW_CATALOGUE_MC", CAT_ORIG, envir = ENV_MOTEUR))
 }
 catalogue_restaure <- function() identical(get("MW_CATALOGUE_MC", envir = ENV_MOTEUR), CAT_ORIG)
-# Catalogue du volet : A (catalogue reduit {BP, Grubbs} + candidats) ou B
-# (13 cles + candidats), pour le triangle observe aj.
-catalogue_volet <- function(volet, aj) {
-  if (volet == "A") c(CAT_ORIG[TEM_A], catalogue_candidats(aj)) else c(CAT_ORIG, catalogue_candidats(aj))
-}
+# Temoin Grubbs (R22, #369) : copie de l'entree du catalogue d'avant #300
+# (test_grubbs() sur les residus e$r, queue haute), absente du moteur actuel.
+ENT_GRUBBS <- .mc_entree(function(e) test_grubbs(e$r)$stat, "haut")
+# Catalogue complet du script pour le triangle observe aj : 13 cles du moteur,
+# temoin Grubbs, candidats injectes (19 entrees, STATS_B, noms distincts).
+catalogue_tout <- function(aj) c(CAT_ORIG, stats::setNames(list(ENT_GRUBBS), TEMOIN), catalogue_candidats(aj))
+# Catalogue du volet : A (catalogue reduit STATS_A : BP, Grubbs, candidats dont
+# MinP4 du moteur) ou B (STATS_B), pour le triangle observe aj.
+catalogue_volet <- function(volet, aj) catalogue_tout(aj)[stats_volet(volet)]
 stats_volet <- function(volet) if (volet == "A") STATS_A else STATS_B
 bootstrap_volet <- function(volet, aj, graine, B = B_BOOT)
   avec_catalogue(catalogue_volet(volet, aj), mw_bootstrap(aj, B = B, seed = graine))
@@ -868,7 +904,7 @@ bootstrap_volet <- function(volet, aj, graine, B = B_BOOT)
 # 19 statistiques, sans bootstrap, ensembles figes de aj.
 stats_oracle <- function(aj) {
   figes <- .mw_ensembles_figes(aj, .mw_colonnes_degenerees(aj))
-  v <- .mc_evaluer(c(CAT_ORIG, catalogue_candidats(aj)), .mw_contexte_mc(aj, figes))
+  v <- .mc_evaluer(catalogue_tout(aj), .mw_contexte_mc(aj, figes))
   v[STATS_B]
 }
 
@@ -885,7 +921,7 @@ cv_colonnes <- function(aj) vapply(0:(aj$J - 1L), function(j) {
 # Decomposition de BP (par. 3.4, T5) : r^2 ~ C sur les cellules de e$res ;
 # sommes entre colonnes (moyennes de colonne) et intra colonne. Meme algebre de
 # centrage par colonne (ave()) que stat_fw() : toute reprise dans le moteur
-# (#301) la reproduira telle quelle pour que (i2') et le controle de T5 restent
+# (#301) la reproduira telle quelle pour que (i2') et l'oracle de T5 restent
 # a 1e-10 (cf. stat_fw()).
 decomposition_bp <- function(res) {
   na <- c(n = NA_real_, sxx_e = NA_real_, sxx_i = NA_real_, sxy_e = NA_real_, sxy_i = NA_real_, syy = NA_real_, dev_col = NA_real_)
@@ -895,6 +931,19 @@ decomposition_bp <- function(res) {
   c(n = length(y), sxx_e = sum((xm - mean(x))^2), sxx_i = sum((x - xm)^2),
     sxy_e = sum((xm - mean(x)) * (ym - mean(y))), sxy_i = sum((x - xm) * (y - ym)), syy = sum((y - mean(y))^2),
     dev_col = max(abs(ym - (nj - 1) / nj)))
+}
+# Oracle independant de la decomposition (R22, #369, avis d'actuary) : la
+# statistique n S_xy^2 / (S_xx S_yy) recomposee par decomposition_bp() est le
+# n R^2 de la regression r^2 ~ C (ancienne entree BP du moteur de #309,
+# nrow(res) * summary(lm(I(residu^2) ~ C))$r.squared). Ecart absolu entre les
+# deux ; 0 si les deux sont non finies (statistique non definie), Inf si une
+# seule l'est.
+ecart_oracle_t5 <- function(aj, figes = .mw_ensembles_figes(aj)) {
+  res <- mw_residus(aj, figes$degeneres); db <- decomposition_bp(res)
+  rec <- db[["n"]] * (db[["sxy_e"]] + db[["sxy_i"]])^2 / ((db[["sxx_e"]] + db[["sxx_i"]]) * db[["syy"]])
+  orc <- if (nrow(res) < 4 || !isTRUE(stats::sd(res$C) > 0)) NA_real_ else
+    nrow(res) * summary(stats::lm(I(residu^2) ~ C, data = res))$r.squared
+  if (!is.finite(rec) && !is.finite(orc)) 0 else if (!is.finite(rec) || !is.finite(orc)) Inf else abs(rec - orc)
 }
 # Grandeurs observees d'un triangle admis (aj) : tout est calcule avec les
 # fonctions du moteur et celles des candidats, ensembles figes de aj.
@@ -1397,7 +1446,7 @@ lire_sortie <- function(f) {
   ctx <- stats::setNames(vapply(ctx, `[`, "", 2L), vapply(ctx, `[`, "", 1L))
   if (!setequal(names(ctx), CLES_CONTEXTE) || anyDuplicated(names(ctx))) refuser(nf, " : lignes CONTEXTE incompletes")
   cl <- unique1("CLES"); co <- unique1("COLS")
-  if (!identical(cl, sprintf("%s=%s", STATS_B, QUEUE_ALL[STATS_B]))) refuser(nf, " : CLES differentes du catalogue (13 cles de MW_CATALOGUE_MC de ce moteur et candidats)")
+  if (!identical(cl, sprintf("%s=%s", STATS_B, QUEUE_ALL[STATS_B]))) refuser(nf, " : CLES differentes du catalogue (13 cles de MW_CATALOGUE_MC de ce moteur, temoin Grubbs local et candidats injectes)")
   if (!identical(co, cols_mode(mode, volet))) refuser(nf, " : COLS differentes de celles du script")
   rp <- champs(ETQ[[mode]])
   n_l <- suppressWarnings(as.integer(unique1("NLIG"))); fin <- suppressWarnings(as.integer(unique1("FIN")))
@@ -1572,8 +1621,12 @@ tableau_puissance <- function(DS) {
   c(L, "")
 }
 # McNemar exact (T3) sur les paires de decision, memes triangles et memes repliques.
+# Les paires (FWr, BP) et (FWb, BP) n'y figurent plus (R22, #369) : depuis #301
+# BP du moteur est la meme algebre que FWr (mw_test_heteroscedasticite_intra()),
+# de sorte que la premiere compare une statistique a elle-meme et que la
+# seconde double (FWb, FWr) ; meme motif que le retrait de PenteIntra de T7.
 PAIRES <- list(c("MinP", "Grubbs"), c("MinP4", "Grubbs"), c("TMax", "Grubbs"), c("MinP", "MinP4"), c("MinP", "TMax"), c("TMax", "MinP4"),
-              c("FWr", "FWb"), c("FWr", "BP"), c("FWb", "BP"))
+              c("FWr", "FWb"))
 mc_paire <- function(D, pr, a) mcnemar(dec(D, pr[1], a), dec(D, pr[2], a))
 tableau_mcnemar <- function(DS) {
   L <- c("### T3 \u2014 McNemar exact sur les paires de d\u00e9cision (paires discordantes, m\u00eames triangles et m\u00eames r\u00e9pliques)", "",
@@ -1622,25 +1675,18 @@ tableau_bp <- function(DS) {
                "\u03a3 n_j (C\u0304_j \u2212 C\u0304)(r\u0304\u00b2_j \u2212 r\u0304\u00b2) ; intra colonne : somme des produits des \u00e9carts \u00e0 la moyenne de colonne. nR\u00b2 de BP = n S_xy\u00b2 / (S_xx S_yy) ;",
                "\u00ab nR\u00b2 entre \u00bb et \u00ab nR\u00b2 intra \u00bb : la m\u00eame forme avec S_xy entre (resp. intra) seul(e) (les deux ne s'additionnent pas : terme crois\u00e9) ;",
                "\u00ab part de S_xy entre \u00bb : S_xy entre / S_xy. \u00ab \u00c9cart de contrainte \u00bb : max_j |moyenne de colonne de r\u00b2 \u2212 (n_j \u2212 1)/n_j| (identit\u00e9 exacte \u03a3_i r(i,j)\u00b2 = n_j \u2212 1, attendue ~ 1e-15).",
-               "\u00ab \u00c9cart au BP observ\u00e9 \u00bb : max |n S_xy\u00b2 / (S_xx S_yy) \u2212 obs:BP| sur les triangles du jeu (contr\u00f4le, seuil 1e-10 : un d\u00e9passement fait refuser la combinaison).",
+               "Depuis #301 (R22, #369), BP du moteur est FWr et non plus n R\u00b2 de r\u00b2 ~ C : \u00ab nR\u00b2 de BP \u00bb est le nR\u00b2 de l'ancien BP, recompos\u00e9 par ce script, et le contr\u00f4le \u00ab \u00e9cart au BP observ\u00e9 \u00bb du moteur de #309 est remplac\u00e9 par l'oracle ind\u00e9pendant du contr\u00f4le (oracle T5) de --controles (nR\u00b2 = nrow(res) \u00d7 R\u00b2 de lm(r\u00b2 ~ C), \u00e9cart \u2264 1e-10 sur reserve2 et sur les triangles admis marqu\u00e9s (i2)).",
                "Moyenne [\u00e9cart-type] sur les triangles admis du jeu. Le m\u00e9canisme de #301 est une hypoth\u00e8se [H] que ce tableau confirme ou non."), "",
-         entete_md(c("Jeu", "n triangles", "part de S_xx entre colonnes", "part de S_xy entre", "S_xy entre", "S_xy intra", "nR\u00b2 de BP", "nR\u00b2 entre", "nR\u00b2 intra",
-                     "\u00e9cart de contrainte max", "\u00e9cart au BP observ\u00e9 max")))
+         entete_md(c("Jeu", "n triangles", "part de S_xx entre colonnes", "part de S_xy entre", "S_xy entre", "S_xy intra", "nR\u00b2 de l'ancien BP", "nR\u00b2 entre", "nR\u00b2 intra",
+                     "\u00e9cart de contrainte max")))
   ms <- function(x) sprintf("%s [%s]", num(mean(x, na.rm = TRUE), 4), num(stats::sd(x, na.rm = TRUE), 4))
   for (cle in c("A-N", "A-E", "A-A", "B-P1.H0", "B-P2.H0", "B-P3.H0")) {
     D <- adm_de(DS$tr[[cle]]); if (is.null(D) || !nrow(D)) next
     sxx <- D$sxx_e + D$sxx_i; sxy <- D$sxy_e + D$sxy_i
     L <- c(L, ligne_md(lib_cellule(cle), nrow(D), ms(D$sxx_e / sxx), ms(D$sxy_e / sxy), ms(D$sxy_e), ms(D$sxy_i), ms(D$n * sxy^2 / (sxx * D$syy)),
-                       ms(D$n * D$sxy_e^2 / (sxx * D$syy)), ms(D$n * D$sxy_i^2 / (sxx * D$syy)), formatC(max(D$dev_col, na.rm = TRUE), format = "e", digits = 2),
-                       formatC(ecart_bp(D), format = "e", digits = 2)))
+                       ms(D$n * D$sxy_e^2 / (sxx * D$syy)), ms(D$n * D$sxy_i^2 / (sxx * D$syy)), formatC(max(D$dev_col, na.rm = TRUE), format = "e", digits = 2)))
   }
   c(L, "")
-}
-# Ecart maximal entre le nR2 recompose de la decomposition et BP observe (T5).
-ecart_bp <- function(D) {
-  if (is.null(D) || !nrow(D)) return(NA_real_)
-  sxx <- D$sxx_e + D$sxx_i; sxy <- D$sxy_e + D$sxy_i
-  max(abs(D$n * sxy^2 / (sxx * D$syy) - D[["obs:BP"]]), na.rm = TRUE)
 }
 # T6 : niveau des p non simulees (volet A).
 PNN <- list(BP = "chi2(1)", FWb = "chi2(1)", FWr = "chi2(1)", Grubbs = "Student + Bonferroni (test_grubbs())", MinP = "Bonferroni N_t M", MinP4 = "Bonferroni N_t M")
@@ -1665,7 +1711,11 @@ tableau_pnn <- function(DS) {
   c(L, "")
 }
 # T7 : grandeurs pour Fj (par. 6).
-STATS_FJ <- c("Origine", "PenteIntra", "Courbure", "HomogF", "ExpVar", "BP", "FWb", "FWr", "PenteRel")
+# PenteIntra (cle du moteur) n'y figure plus (R22, #369) : depuis #307 sa
+# statistique est la pente relative, c'est-a-dire celle de PenteRel ; sa ligne
+# doublerait celle de PenteRel (t = 1,73 et p_mc = 0,090 sur reserve2 pour les
+# deux cles, mesure de R22). BP du moteur est FWr depuis #301 (ligne conservee).
+STATS_FJ <- c("Origine", "Courbure", "HomogF", "ExpVar", "BP", "FWb", "FWr", "PenteRel")
 SCEN_FJ <- c("H0", "CST10", "CST20", "EXP0", "EXP2", "DFI")
 tableau_fj <- function(DS) {
   L <- c("### T7 \u2014 grandeurs pour Fj (par. 6 ; #308, #307)", "",
@@ -1756,9 +1806,12 @@ eval_k0x <- function(DS) {
   list(r = r, ok = all(vapply(r, function(x) isTRUE(x$ok), logical(1))),
        txt = paste(c(vapply(r, `[[`, "", "txt"), sprintf("seuil %s par cellule (Bonferroni sur deux cellules)", num(SEUIL_K0X, 3))), collapse = " ; "))
 }
-# K0-t (par. 2.5) : p_mc de BP et de Grubbs du volet A identiques aux colonnes
-# pR:BP et pR:Grubbs du brut de #206, triangle par triangle (|ecart| <= 1e-12
-# et B effectifs egaux) ; les triangles refuses doivent l'etre dans les deux.
+# K0-t (par. 2.5) : p_mc du temoin du volet A (Grubbs, reconstruit localement
+# depuis #300) identique a la colonne pR:Grubbs du brut de #206, triangle par
+# triangle (|ecart| <= 1e-12 et B effectifs egaux) ; les triangles refuses
+# doivent l'etre dans les deux. BP, qui etait le second temoin, est FWr au
+# moteur depuis #301 et n'est plus la statistique du brut de #206 (R22, #369) :
+# retire de K0-t.
 eval_k0t <- function(DS, B) {
   f <- file.path(RACINE, BRUT_206_REL)
   if (B != 999) return(list(ok = NA, txt = "non \u00e9valuable (B \u2260 999)", dif = NULL, n = 0L))
@@ -1786,7 +1839,7 @@ eval_k0t <- function(DS, B) {
   dif <- if (length(dif)) do.call(rbind, dif) else NULL
   ok <- is.null(dif)
   list(ok = ok, dif = dif, n = n,
-       txt = sprintf("%d (triangle, t\u00e9moin) compar\u00e9s (BP et Grubbs, volet A) : %s", n,
+       txt = sprintf("%d (triangle, t\u00e9moin) compar\u00e9s (Grubbs reconstruit localement, volet A ; BP, FWr depuis #301, sans objet) : %s", n,
                      if (ok) "p_mc et B effectifs identiques \u00e0 pR: et BR: du brut de #206 (|\u00e9cart| \u2264 1e-12)" else sprintf("**%d diff\u00e9rence(s) \u00e0 expliquer**", nrow(dif))))
 }
 tableau_k0t <- function(K) {
@@ -1979,9 +2032,9 @@ if (MODE == "combiner") {
   K0C <- eval_k0c(DS); K0X <- eval_k0x(DS); K0T <- eval_k0t(DS, B_COMB)
   EXPL_K0T <- if (!is.na(OPT_EXPL_K0T)) { if (!file.exists(OPT_EXPL_K0T)) refuser("--explication-k0t introuvable"); readLines(OPT_EXPL_K0T, warn = FALSE, encoding = "UTF-8") } else character(0)
   K301 <- eval_k301(NIV_A); K300 <- eval_k300(NIV_A, DS)
-  # Controle de T5 : n S_xy^2 / (S_xx S_yy) recompose de la decomposition = BP observe, a 1e-10 pres.
-  ECART_BP <- vapply(DS$tr, ecart_bp, 1)
-  if (any(ECART_BP > 1e-10, na.rm = TRUE)) refuser("T5 : n S_xy^2 / (S_xx S_yy) differe de BP observe de plus de 1e-10 (jeu(x) ", paste(names(ECART_BP)[which(ECART_BP > 1e-10)], collapse = ", "), ")")
+  # Controle de T5 de #309 (n S_xy^2 / (S_xx S_yy) recompose = BP observe)
+  # remplace par R22 (#369) par l'oracle de --controles (ecart_oracle_t5()) :
+  # BP du moteur est FWr depuis #301.
   k0t_ok <- isTRUE(K0T$ok) || (is.na(K0T$ok)) || (identical(K0T$ok, FALSE) && length(EXPL_K0T) > 0L)
   nv <- c(motifs_non_versionnable(ctx1[["commit"]], ctx1[["empreintes"]]),
           motifs_non_versionnable(COMMIT_COMB, EMPREINTES_COMB, "de la combinaison"),
@@ -2032,7 +2085,7 @@ if (MODE == "combiner") {
                      if (is.null(D) || !nrow(D)) sprintf("%s : \u2014", pl) else sprintf("%s : %s", pl, paste(vapply(CV_COLS[1:6], function(h) num(mean(D[[h]], na.rm = TRUE), 4), ""), collapse = " ; ")) }, ""), collapse = " / ")),
           ligne_md("K0-c (CV r\u00e9alis\u00e9, moyenne de j = 0 \u00e0 3 dans [0,22 ; 0,28], P2 et P3 s\u00e9par\u00e9ment)", K0C$txt),
           ligne_md("K0-x : test exact de Fisher bilat\u00e9ral, seuil 0,025 par cellule (Bonferroni sur deux cellules) ; Calendrier de CAL7 et CAL4 \u00e0 0,10 contre le T2 de #276", K0X$txt),
-          ligne_md("K0-t (BP et Grubbs du volet A : identiques au brut de #206)", K0T$txt),
+          ligne_md("K0-t (Grubbs du volet A, t\u00e9moin reconstruit localement : identique au brut de #206 ; BP : sans objet depuis #301)", K0T$txt),
           ligne_md("Explication de K0-t (--explication-k0t)", if (length(EXPL_K0T)) nettoyer_champ(paste(EXPL_K0T, collapse = " ")) else "\u2014"),
           ligne_md("Facteur confondant de P2 contre P3 (compl\u00e9ment du 19/10/2026)", "la diff\u00e9rence de profil de CV r\u00e9alis\u00e9 entre P2 et P3 (T7 (a)) est un facteur confondant r\u00e9siduel de la comparaison P2 / P3 ; K0-c y est \u00e9valu\u00e9 s\u00e9par\u00e9ment"),
           ligne_md("Sorties combin\u00e9es (nom, md5, plage)",
@@ -2183,7 +2236,7 @@ TXT_DGP <- sprintf("mod\u00e8le de Mack ajust\u00e9 \u00e0 reserve2 (mw_ajuster(
                    paste(virgule(sprintf("%.4f", C0_P3)), collapse = " ; "), if (length(JD0)) paste(JD0, collapse = ", ") else "aucune",
                    length(POOL0), num(SD_POP0, 4), virgule(format(THETA)), paste(virgule(format(DELTA)), collapse = " ; "), virgule(format(GAMMA)),
                    CIBLE_CEL[["i"]], CIBLE_CEL[["j"]])
-TXT_CONFIG <- sprintf("m\u00e9thode %s, segment %d de l'annexe %s ; B = %d (donn\u00e9e du test calibr\u00e9) ; seuils mesur\u00e9s 0,10 et 0,05 ; chemin mesur\u00e9 mw_bootstrap(aj, B, seed) avec entr\u00e9es des candidats inject\u00e9es dans MW_CATALOGUE_MC (restaur\u00e9 par finally), catalogue complet (volet B : 13 cl\u00e9s + 6 candidats) ou r\u00e9duit (volet A : BP, Grubbs + 6 candidats) ; la boucle de tirage n'est pas recopi\u00e9e ; B_MIN_DEGENERESCENCE = %d ; FACTEUR_B_MAX_MW = %g ; un bootstrap plein est rejou\u00e9 sans injection pour b multiple de %d (contr\u00f4le (i2))",
+TXT_CONFIG <- sprintf("m\u00e9thode %s, segment %d de l'annexe %s ; B = %d (donn\u00e9e du test calibr\u00e9) ; seuils mesur\u00e9s 0,10 et 0,05 ; chemin mesur\u00e9 mw_bootstrap(aj, B, seed) avec entr\u00e9es des candidats inject\u00e9es dans MW_CATALOGUE_MC (restaur\u00e9 par finally), catalogue complet (volet B : 13 cl\u00e9s + le t\u00e9moin Grubbs local + 5 candidats inject\u00e9s, MinP4 \u00e9tant une cl\u00e9, soit 19 statistiques) ou r\u00e9duit (volet A : BP (= FWr depuis #301), Grubbs (t\u00e9moin local) + 6 candidats) ; la boucle de tirage n'est pas recopi\u00e9e ; B_MIN_DEGENERESCENCE = %d ; FACTEUR_B_MAX_MW = %g ; un bootstrap plein est rejou\u00e9 sans injection pour b multiple de %d (contr\u00f4le (i2))",
                       METHODE, SEGMENT, ANNEXE, B_BOOT, B_MIN_DEGENERESCENCE, FACTEUR_B_MAX_MW, CTL_PERIODE)
 TXT_GRAINES <- sprintf("volet A (graines de #206) : triangle b, loi \u2113 : %.0f + %.0f (\u2113 \u2212 1) + b ; bootstrap : %.0f + %.0f (\u2113 \u2212 1) + b ; oracle k : %.0f + %.0f (\u2113 \u2212 1) + k ; \u2113 = 1 (N), 2 (E), 3 (A) ; volet B, P1 et P2, cellule de rang c (P1 : 1 \u00e0 13, P2 : 14 \u00e0 19, dans l'ordre de CELLULES) : triangle %.0f + %.0f (c \u2212 1) + b, bootstrap %.0f + %.0f (c \u2212 1) + b, oracle de P2 : %.0f + k ; P3, c3 = 1 (H0), 2 (CST20), 3 (DFI) : triangle %.0f + %.0f (c3 \u2212 1) + b, bootstrap %.0f + %.0f (c3 \u2212 1) + b, oracle %.0f + k ; contr\u00f4les sur reserve2 : %.0f ; tous les tirages sous engine_sous_graine()",
                        GRAINE_TRI, PAS_LOI, GRAINE_BOOT, PAS_LOI, GRAINE_ORA, PAS_LOI_ORA,
@@ -2194,9 +2247,12 @@ TXT_GRAINES <- sprintf("volet A (graines de #206) : triangle b, loi \u2113 : %.0
 #  CONTROLES GENERAUX SUR reserve2 : (t), (b), (copie), (graines), (g), (sc),
 #  (i3), (a), (c), (i2)
 ###############################################################################
-# Valeurs des candidats sur reserve2 (graine 20260831, B = 999) recopiees des
-# par. 3.2 et 4.4 de la specification : statistique (4 decimales) et p_mc (3).
-ATTENDU_C <- list(BP = c(6502, 103), FWb = c(17598, 214), FWr = c(14373, 285), MinP = c(1033, 944), MinP4 = c(1033, 898), TMax = c(27242, 944))
+# Valeurs des candidats sur reserve2 (graine 20260831, B = 999) : statistique
+# (4 decimales) et p_mc (3). FWb, FWr, MinP, MinP4 et TMax sont celles des
+# par. 3.2 et 4.4 de la specification. BP : FWr au moteur actuel depuis #301
+# (R22, #369) ; la specification donne 0,6502 / 0,103 pour le n R^2 de r^2 ~ C du
+# moteur de #309.
+ATTENDU_C <- list(BP = c(14373, 285), FWb = c(17598, 214), FWr = c(14373, 285), MinP = c(1033, 944), MinP4 = c(1033, 898), TMax = c(27242, 944))
 ATTENDU_MIN <- list(i = 0L, j = 2L, t = -2.318, nt = 25L, nt4 = 22L)
 TXT_SPEC_309 <- if (file.exists(file.path(RACINE, SPEC))) readLines(file.path(RACINE, SPEC), warn = FALSE, encoding = "UTF-8") else character(0)
 present_bloc <- function(bloc) {
@@ -2208,9 +2264,13 @@ controles_generaux <- function(volets) {
   controle(present_bloc(TEXTE_CRITERES_309),
            sprintf("(t) texte des crit\u00e8res K-301 et K-300 (%d lignes) identique \u00e0 %s (md5 %s)", length(TEXTE_CRITERES_309), SPEC, md5_fichier(file.path(RACINE, SPEC))))
   controle(NS == 13L && setequal(CLES, names(SENS_SPEC)) && identical(unname(QUEUE[names(SENS_SPEC)]), unname(SENS_SPEC)) &&
-             identical(names(QUEUE_CAND), CAND) && all(names(CAT_ORIG) == CLES),
-           sprintf("(b) %d cl\u00e9s lues dans MW_CATALOGUE_MC (%s), sens conformes \u00e0 ceux de ce moteur (Calendrier : bas depuis #276) ; candidats %s", NS,
-                   paste(sprintf("%s %s", CLES, QUEUE), collapse = ", "), paste(sprintf("%s %s", CAND, QUEUE_CAND), collapse = ", ")))
+             identical(names(QUEUE_CAND), CAND) && all(names(CAT_ORIG) == CLES) &&
+             !(TEMOIN %in% CLES) && identical(QUEUE_TEMOIN[[TEMOIN]], ENT_GRUBBS$queue) &&
+             identical(unname(QUEUE_CAND[intersect(CAND, CLES)]), unname(QUEUE[intersect(CAND, CLES)])) &&
+             !anyDuplicated(STATS_B) && identical(names(QUEUE_ALL), STATS_B) && NS_B == 19L,
+           sprintf("(b) %d cl\u00e9s lues dans MW_CATALOGUE_MC (%s), sens conformes \u00e0 ceux de ce moteur (Calendrier : bas depuis #276 ; MinP4 \u00e0 la place de Grubbs depuis #300) ; candidats %s ; t\u00e9moin local %s %s (cl\u00e9 absente du moteur) ; %d statistiques sans doublon (cl\u00e9s, t\u00e9moin, candidats hors cl\u00e9s)", NS,
+                   paste(sprintf("%s %s", CLES, QUEUE), collapse = ", "), paste(sprintf("%s %s", CAND, QUEUE_CAND), collapse = ", "),
+                   TEMOIN, QUEUE_TEMOIN[[TEMOIN]], NS_B))
   cc <- controle_copie(); controle(cc$ok, paste("(copie)", cc$txt))
   cgr <- controle_graines(); controle(cgr$ok, paste("(graines)", cgr$txt))
   cg <- controle_g(); controle(cg$ok, paste("(g)", cg$txt))
@@ -2263,10 +2323,25 @@ controles_generaux <- function(volets) {
     txt_c <- sprintf("%s ; PenteRel (informatif, issue #307 : t = 1,73 ; p_mc = 0,090) : t = %s, p_mc = %s",
                      paste(vapply(names(val), function(s) sprintf("%s %s / %s", s, num(val[[s]][1] / 1e4, 4), num(val[[s]][2] / 1e3, 3)), ""), collapse = " ; "),
                      num(as.numeric(bt$stats_obs[["PenteRel"]]), 3), num(bt$p_mc[["PenteRel"]], 3))
-    controle(ok_val, sprintf("(c) reserve2, volet %s : valeurs des candidats (statistique \u00e0 4 d\u00e9cimales / p_mc \u00e0 3 d\u00e9cimales) \u00e9gales \u00e0 celles des par. 3.2 et 4.4 (FWb 1,7598 / 0,214 ; FWr 1,4373 / 0,285 ; BP 0,6502 / 0,103 ; MinP 0,1033 / 0,944 ; MinP4 0,1033 / 0,898 ; TMax 2,7242 / 0,944) : %s",
+    controle(ok_val, sprintf("(c) reserve2, volet %s : valeurs des candidats (statistique \u00e0 4 d\u00e9cimales / p_mc \u00e0 3 d\u00e9cimales) \u00e9gales \u00e0 celles des par. 3.2 et 4.4 de la sp\u00e9cification (FWb 1,7598 / 0,214 ; FWr 1,4373 / 0,285 ; MinP 0,1033 / 0,944 ; MinP4 0,1033 / 0,898 ; TMax 2,7242 / 0,944) et, pour BP, \u00e0 celles de FWr (BP 1,4373 / 0,285 : FWr au moteur actuel depuis #301 (R22) ; la sp\u00e9cification donne 0,6502 / 0,103 pour le n R\u00b2 du moteur de #309) : %s",
                              v, txt_c))
     controle(ok_min, sprintf("(c) reserve2, volet %s : minimum des p_ij en (i, j) = (%s, %s), t = %s, N_t = %s (MinP) et %s (MinP4) ; attendu (0, 2), t = \u22122,318, 25 et 22", v,
                              c3$i, c3$j, num(c3$t_min, 3), c3$nt, c4$nt))
+    # Oracle de T5 : reserve2 puis triangles admis marques (i2) du volet.
+    ec_r2 <- ecart_oracle_t5(aj_r2, go_r2$figes)
+    ec_i2 <- c(); n_ref_i2 <- 0L
+    cles_i2 <- if (v == "A") LOIS else CELLULES$id
+    for (cl in cles_i2) {
+      sp <- spec_cellule(v, cl)
+      for (b in seq(CTL_PERIODE, if (v == "A") R_A[[cl]] else CELLULES$R[CELLULES$id == cl], by = CTL_PERIODE)) {
+        ad <- admettre(triangle_spec(sp, b)$tri)
+        if (!ad$ok) { n_ref_i2 <- n_ref_i2 + 1L; next }
+        ec_i2 <- c(ec_i2, ecart_oracle_t5(ad$aj))
+      }
+    }
+    ok_t5 <- is.finite(ec_r2) && ec_r2 <= 1e-10 && all(ec_i2 <= 1e-10)
+    controle(ok_t5, sprintf("(T5) reserve2 et %d triangle(s) admis marqu\u00e9s (i2) du volet %s (%d refus\u00e9(s) du DGP) : n S_xy\u00b2 / (S_xx S_yy) de decomposition_bp() \u00e9gal \u00e0 l'oracle ind\u00e9pendant nrow(res) \u00d7 summary(lm(I(residu\u00b2) ~ C))$r.squared (\u00e9cart absolu maximal %s, seuil 1e-10 ; reserve2 : %s)",
+                            length(ec_i2), v, n_ref_i2, formatC(max(c(ec_r2, ec_i2)), format = "e", digits = 2), formatC(ec_r2, format = "e", digits = 2)))
     controle(ok_rs, sprintf("(c) reserve2, volet %s : t(i, j) = DFBETAS \u221a((1 \u2212 h) / h) \u00e9gal \u00e0 stats::rstudent() de la r\u00e9gression pond\u00e9r\u00e9e de C(.,j+1) sur C(.,j) sans constante, poids 1/C(.,j), colonnes j = 0 \u00e0 4 : \u00e9cart maximal %s (seuil 1e-10)",
                              v, formatC(mx, format = "e", digits = 2)))
   }
