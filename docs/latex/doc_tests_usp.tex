@@ -1157,11 +1157,22 @@ première colonne et les cellules tirées, d'où la même décision (mesuré sur
 contrôle, graines 1 à 100, vivier multiplié par 1, 30, 100 et 300~: sur ces 400 tirages, dont 237
 triangles incomplets, même triangle que \code{mw\_simuler\_triangle()} et même décision que
 \code{.mw\_triangle\_}\allowbreak\code{incomplet()}) \\
+\code{.mw\_un\_moins\_h()} & \code{aj}, résidus de Mack \code{res} (sortie de
+\code{mw\_residus()}) & vecteur des $1 - h_{ij} = (S_j - C(i,j))/S_j$ des cellules de \code{res},
+dans l'ordre de ses lignes, $h_{ij} = C(i,j)/S_j$ étant le levier de la cellule dans l'estimation
+de $\hat f_j$~: somme des autres cellules de la colonne par \code{.mw\_sommes\_autres()}, divisée
+par $S_j$, une fois par colonne. Fonction commune, depuis l'issue~\#356, du redressement par le
+levier de \code{.mw\_pool\_residus()} (section~\ref{sec:boot-mw}) et de
+\code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()}
+(fiche~\ref{mw:m2bp}), qui en portaient chacune une copie~: mêmes opérations, dans le même ordre,
+d'où le même vecteur au bit près (mesuré~: \code{identical()} entre la fonction et l'ancienne
+boucle sur le triangle de contrôle et sur 200 triangles simulés par
+\code{mw\_simuler\_triangle()}, graine 356) \\
 \code{.mw\_pool\_residus()} & \code{aj}, \code{j\_degeneres} & vivier du bootstrap de Mack~:
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
 divisée par $S_j$ (sommes par \code{.mw\_sommes\_autres()}, une fois par colonne depuis
-l'issue~\#260), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+l'issue~\#260~; par \code{.mw\_un\_moins\_h()} depuis l'issue~\#356), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -19386,7 +19397,10 @@ calendaire et le diagnostic par diagonale. Depuis l'issue~\#300, la ligne de la 
 tire ses résidus studentisés externes des DFBETAS de \code{mw\_influence()}~: une anomalie de
 cette fonction atteindrait à la fois le graphique d'influence et cette ligne~; et
 \code{.mw\_sommes\_autres()} sert au vivier du bootstrap, à \code{mw\_influence()}, à la ligne
-d'hétéroscédasticité (issue~\#301) et à la cellule aberrante.
+d'hétéroscédasticité (issue~\#301) et à la cellule aberrante~; depuis l'issue~\#356, le vivier et
+la ligne d'hétéroscédasticité en tirent $1 - h_{ij}$ par une même fonction,
+\code{.mw\_un\_moins\_h()}, dont une anomalie atteindrait à la fois les p-values de Monte-Carlo de
+la méthode et la statistique observée de cette ligne.
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:
