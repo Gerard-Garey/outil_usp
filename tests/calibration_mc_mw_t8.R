@@ -48,29 +48,25 @@
 #    par. 9 : #119 (regressions agregees, T6 ; sous-mesure N, T7) ;
 #    par. 11 : modes, sorties T0 a T7, criteres de #242.
 #
-#  Forme mesuree de la cle Calendrier (#276) : le sens de rejet est LU au
-#  catalogue (QUEUE) et compare au tableau du par. 1 (SENS_SPEC, controle
-#  (b)). Le tableau de #206 (docs/tableaux/20261011-issue206-calibration-mw.md)
-#  est la trace de la forme BILATERALE ("deux") du test calendaire de Mack ;
-#  depuis #276 (decision Q-Fd-1 du mainteneur, 14/10/2026), l'entree
-#  Calendrier du moteur est en queue basse ("bas"), mesuree par
-#  tests/mesure_calendaire_t8.R (docs/tableaux/20261016-issue276-
-#  calendaire.md). SENS_SPEC, texte de la specification de #206, n'est pas
-#  modifie : sur le moteur posterieur a #276, le controle (b) est en ECHEC
-#  (cle Calendrier, "bas" lu contre "deux" attendu ; libelle porte dans
-#  INTEGRITE), et une remesure de #206 passerait par une decision.
-#  De meme, depuis #301 (decision Q-D2-Fi-1 du mainteneur, 21/10/2026), la cle
-#  BP du moteur calcule la variante FWr (n R^2 partiel a effets fixes de
-#  colonne sur les residus redresses, colonnes n_j >= 3,
-#  mw_test_heteroscedasticite_intra()) : sur un moteur posterieur a #301, la
-#  colonne BP mesure FWr, et non la statistique du tableau de #206.
-#  Depuis #300 (decision Q-D2-Fi-2 du mainteneur, 21/10/2026), la cle Grubbs
-#  du moteur est remplacee, a la meme position, par la cle MinP4 (minimum des
-#  p de Student des residus studentises externes, colonnes n_j >= 4, queue
-#  basse, mw_test_cellule_aberrante()) : sur un moteur posterieur a #300, le
-#  controle (b) echoue aussi par la cle (setequal(CLES, names(SENS_SPEC))
-#  faux, sens de Grubbs lu NA), et la colonne Grubbs du tableau de #206 n'a
-#  plus de cle au catalogue. SENS_SPEC n'est pas modifie.
+#  Catalogue lu et sens attendus (controle (b), R21, #354). Le tableau de #206
+#  (docs/tableaux/20261011-issue206-calibration-mw.md) mesure le moteur
+#  d'avant #276, #300, #301 et #307 ; le catalogue a depuis change :
+#    - Calendrier (#276, decision Q-Fd-1, 14/10/2026) : queue basse ("bas"),
+#      et non la forme bilaterale du tableau (tests/mesure_calendaire_t8.R,
+#      docs/tableaux/20261016-issue276-calendaire.md) ;
+#    - BP (#301, Q-D2-Fi-1, 21/10/2026) : cle conservee, statistique FWr (n R^2
+#      partiel a effets fixes de colonne sur les residus redresses, colonnes
+#      n_j >= 3, mw_test_heteroscedasticite_intra()) ;
+#    - Grubbs remplacee, a la meme position, par MinP4 (#300, Q-D2-Fi-2,
+#      21/10/2026 : minimum des p de Student des residus studentises externes,
+#      colonnes n_j >= 4, queue basse, mw_test_cellule_aberrante()) ;
+#    - PenteIntra (#307, Q-D1-Fj-3) : cle conservee, statistique = t de la pente
+#      RELATIVE (.mw_pente_relative()), et non la pente absolue de #119.
+#  SENS_SPEC porte les treize sens attendus AU MOTEUR ACTUEL ; les colonnes BP,
+#  MinP4, PenteIntra et Calendrier des sorties de ce script ne sont donc pas
+#  celles du tableau de #206 pour les statistiques ci-dessus : une remesure de
+#  #206 passe par une decision. Le nombre de lignes de mw_tests() sur reserve2
+#  (NL_MAX) est lu dans la reference versionnee, non fige.
 #
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2), pas un resultat general (par. 0). Aucun theoreme ne
@@ -518,10 +514,14 @@ BOOTSTRAPS_SPEC <- c(L0 = 7000, L1 = 6500, L2 = 5500, L3 = 5000, L4 = 4000, L5 =
 BUDGET_H <- 20                    # heures d'horloge planifiees (par. 8)
 TAILLE_PAIRE <- 125L; TAILLE_SEULE <- 250L   # triangles par tranche (par. 11)
 SEUIL_K4 <- 0.01; SEUIL_REFUS <- 0.01; NIVEAU_HOLM <- 0.05
-# Sens de rejet du tableau du par. 1 (compare au catalogue, controle (b)).
+# Sens de rejet des treize cles au moteur de ce commit (compare au catalogue,
+# controle (b)) : tableau du par. 1 de la specification, tenu a jour des
+# changements du catalogue (R21, #354). Calendrier : "bas" depuis #276 ;
+# MinP4 ("bas") a la place de Grubbs depuis #300 ; BP (variante FWr, #301) et
+# PenteIntra (pente relative, #307) gardent leur cle et leur sens.
 SENS_SPEC <- c(PenteIntra = "deux", Origine = "haut", HomogF = "haut", Courbure = "haut", Alpha = "haut",
-               BP = "haut", ExpVar = "haut", Calendrier = "deux", KruskalAcc = "haut", CorrDev = "deux",
-               DW = "deux", Runs = "deux", Grubbs = "haut")
+               BP = "haut", ExpVar = "haut", Calendrier = "bas", KruskalAcc = "haut", CorrDev = "deux",
+               DW = "deux", Runs = "deux", MinP4 = "bas")
 CLES <- names(MW_CATALOGUE_MC)
 NS <- length(CLES)
 QUEUE <- vapply(CLES, function(s) MW_CATALOGUE_MC[[s]]$queue, "")
@@ -701,7 +701,11 @@ regressions_119 <- function(aj) {
 ###############################################################################
 #  COLONNES DES LIGNES MACHINE
 ###############################################################################
-NL_MAX <- 19L                      # lignes de mw_tests() sur reserve2 (controle (b))
+# Nombre de lignes de mw_tests() sur reserve2 : lu dans la reference versionnee
+# (controle (a) : le moteur la reproduit ; controle (b) : LIGNES du moteur vivant
+# a le meme nombre), jamais fige dans le script (R21, #354 : 19 fige, 21 lignes
+# depuis #308).
+NL_MAX <- length(readRDS(chemin_reference("reserve2"))$tests)
 COLS_TRANCHE <- c("b", "statut", "motif", "jd", "brut", "dur_R", "dur_B", "duree", "t_agr", "p_agr", "t_ceff", "p_ceff",
                   "verd_R", "verd_B", "nat_R", "nat_B",
                   paste0("obs:", CLES),
@@ -1205,7 +1209,7 @@ evaluation <- function(DS, OR, CEL_R, MC, TM) {
                   if (any(rcl == "R3")) liste_cel(sprintf("%s %s %s", sig2$loi[rcl == "R3"], sig2$s[rcl == "R3"], vapply(sig2$ia[rcl == "R3"], lib_ia, "")), 26) else "\u2014"), "")
   # Lignes a la frontiere de reserve2 (par. 5)
   fr <- CEL_R[vapply(CEL_R, function(x) x$s %in% c("BP", "Origine", "HomogF"), logical(1))]
-  L <- c(L, sprintf("Lignes \u00ab \u00e0 la fronti\u00e8re \u00bb de reserve2 (BP 0,103 ; Origine 0,085 ; HomogF 0,080), classe par loi et seuil : %s.",
+  L <- c(L, sprintf("Lignes \u00ab \u00e0 la fronti\u00e8re \u00bb de reserve2 (valeurs de reserve2 au moteur de #206 : BP 0,103 ; Origine 0,085 ; HomogF 0,080 ; non remesur\u00e9es depuis #301), classe par loi et seuil : %s.",
                     liste_cel(vapply(fr, function(x) sprintf("%s %s %s : %s", x$loi, x$s, lib_ia(x$ia), x$c$classe), ""), 30)), "")
   L
 }
@@ -1890,18 +1894,37 @@ controle <- function(ok, libelle) {
 # plages. Les litteraux AU-DESSUS des plages sont listes au T0 (annotation
 # du 10/10/2026 de la specification, point 1, qui remplace le critere
 # "plus grand litteral + marge" du par. 7 par ce controle).
+# Bornes declarees (R21, #350) : une affectation de la forme EXACTE
+#   PLAGE_<nom> <- c(L1, L2)   [commentaire eventuel]
+# (ex. PLAGE_206 <- c(20840001, 20960000) de tests/mesure_calendaire_t8.R, l. 304)
+# declare les deux bornes d'une plage, non des graines tirees : seuls les deux
+# litteraux du c(L1, L2) sont ecartes de la recherche (litteraux_graines()).
+# Tout autre litteral de la meme ligne (";" suivi d'une instruction, commentaire,
+# comparaison "==", affectation d'un seul litteral, c() a plus de deux termes)
+# reste compte ; une ligne qui n'a pas cette forme exacte n'est pas ecartee.
+# Liste blanche explicite des reemplois DECLARES (R21, #350) : tests/puissance_mw_t8.R
+# (#309, volet A) reprend a dessein les trois graines de base de #206, pour
+# mesurer sur les memes triangles et les memes bootstraps (appariement ; sa
+# ligne GRAINE_TRI <- ... et son commentaire "Graines du volet A : celles de
+# #206" le declarent). Ces trois litteraux sont ecartes DANS CE FICHIER seul :
+# dans tout autre fichier ils restent des collisions.
+REEMPLOIS_DECLARES <- list(puissance_mw_t8.R = c(GRAINE_TRI, GRAINE_BOOT, GRAINE_ORA))
+litteraux_graines <- function(l, ecartes = numeric(0)) {
+  est_plage <- grepl("^[[:space:]]*PLAGE_[A-Za-z0-9_]+[[:space:]]*<-[[:space:]]*c\\([[:space:]]*[0-9]+L?[[:space:]]*,[[:space:]]*[0-9]+L?[[:space:]]*\\)[[:space:]]*(#.*)?$", l)
+  l[est_plage] <- sub("c\\([^)]*\\)", "", l[est_plage])
+  v <- as.numeric(unlist(regmatches(l, gregexpr("(?<![0-9A-Za-z.])2[0-9]{7}(?=L?(?![0-9A-Za-z.]))", l, perl = TRUE))))
+  v[!v %in% ecartes]
+}
 PLAGES <- rbind(triangles = c(graine_tri("N", 1), graine_tri("A", B_MAX_SPEC)),
                 bootstrap = c(graine_boot("N", 1), graine_boot("A", B_MAX_SPEC)),
                 oracle = c(graine_ora("N", 1), graine_ora("A", N0_SPEC)))
 DECALAGE_MAX <- 20000
-controle_graines <- function() {
-  fs <- c(file.path(RACINE, "R", "engine.R"), list.files(file.path(RACINE, "tests"), pattern = "\\.R$", full.names = TRUE),
-          list.files(file.path(RACINE, "tests", "unitaires"), pattern = "\\.R$", full.names = TRUE))
+controle_graines <- function(racine = RACINE) {
+  fs <- c(file.path(racine, "R", "engine.R"), list.files(file.path(racine, "tests"), pattern = "\\.R$", full.names = TRUE),
+          list.files(file.path(racine, "tests", "unitaires"), pattern = "\\.R$", full.names = TRUE))
   fs <- fs[basename(fs) != basename(SCRIPT)]
-  lit <- sort(unique(as.numeric(unlist(lapply(fs, function(f) {
-    l <- readLines(f, warn = FALSE)
-    regmatches(l, gregexpr("(?<![0-9A-Za-z.])2[0-9]{7}(?=L?(?![0-9A-Za-z.]))", l, perl = TRUE))
-  })))))
+  lit <- sort(unique(unlist(lapply(fs, function(f)
+    litteraux_graines(readLines(f, warn = FALSE), REEMPLOIS_DECLARES[[basename(f)]])))))
   touche <- function(a, b) any(a <= PLAGES[, 2] & b >= PLAGES[, 1])
   coll <- lit[vapply(lit, function(v) touche(v, v + DECALAGE_MAX), logical(1))]
   dessus <- lit[lit > max(PLAGES[, 2])]
@@ -1909,7 +1932,7 @@ controle_graines <- function() {
   ext <- c(SEED_LOI_NULLE_SW, GRAINE_R2, 20260831 + 1000 * 500)
   hors_ext <- !any(vapply(ext, function(v) touche(v, v), logical(1)))
   list(ok = disj && !length(coll) && hors_ext,
-       txt = sprintf("plages triangles %.0f-%.0f, bootstrap %.0f-%.0f, oracle %.0f-%.0f (disjointes : %s) ; %d litt\u00e9raux de graine dans %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R), de %.0f \u00e0 %.0f ; litt\u00e9raux L dont [L ; L + %.0f] touche une plage : %s ; litt\u00e9raux au-dessus des plages (sans collision ; annotation du 10/10/2026 de la sp\u00e9cification, point 1) : %s ; litt\u00e9raux en \u00e9criture scientifique non recherch\u00e9s ; SEED_LOI_NULLE_SW %.0f, graine de reserve2 %.0f et r\u00e9seau 20260831 + 1000 k \u2264 20760831 de tests/puissance_t8.R hors des plages : %s",
+       txt = sprintf("plages triangles %.0f-%.0f, bootstrap %.0f-%.0f, oracle %.0f-%.0f (disjointes : %s) ; %d litt\u00e9raux de graine dans %d fichiers (R/engine.R, tests/*.R, tests/unitaires/*.R), de %.0f \u00e0 %.0f ; litt\u00e9raux L dont [L ; L + %.0f] touche une plage : %s ; litt\u00e9raux au-dessus des plages (sans collision ; annotation du 10/10/2026 de la sp\u00e9cification, point 1) : %s ; litt\u00e9raux \u00e9cart\u00e9s de la recherche : lignes affectant PLAGE_* (bornes de plage, R21 #350) et r\u00e9emploi d\u00e9clar\u00e9 des trois graines de base de #206 par tests/puissance_mw_t8.R ; litt\u00e9raux en \u00e9criture scientifique non recherch\u00e9s ; SEED_LOI_NULLE_SW %.0f, graine de reserve2 %.0f et r\u00e9seau 20260831 + 1000 k \u2264 20760831 de tests/puissance_t8.R hors des plages : %s",
                      PLAGES[1, 1], PLAGES[1, 2], PLAGES[2, 1], PLAGES[2, 2], PLAGES[3, 1], PLAGES[3, 2], if (disj) "oui" else "NON",
                      length(lit), length(fs), min(lit), max(lit), DECALAGE_MAX, if (length(coll)) paste(sprintf("%.0f", coll), collapse = ", ") else "aucun",
                      if (length(dessus)) paste(sprintf("%.0f", dessus), collapse = ", ") else "aucun", SEED_LOI_NULLE_SW, GRAINE_R2, if (hors_ext) "oui" else "NON"))
@@ -2118,22 +2141,11 @@ if (MODE == "c289") {
   controle(cmp_a$conforme && identical(unlist(RES_A$metadata[c("B", "alpha", "seed")]), c(B = as.numeric(B_BOOT), alpha = ALPHA, seed = GRAINE_R2)),
            sprintf("(a) reserve2, run_engine(seed = %.0f), conforme \u00e0 tests/reference/reserve2.rds (comparer_objets(), tol\u00e9rance %g) : %s", GRAINE_R2, TOLERANCE, TXT_A))
   cg <- controle_g(); controle(cg$ok, paste("(g)", cg$txt))
-  # (graines) : bloquant, sauf si l'echec est EXACTEMENT le faux positif connu
-  # (#289, avis d'actuary) : seules collisions les litteraux 20840001 et
-  # 20960000, bornes declarees de la plage de #206 (PLAGE_206 de
-  # tests/mesure_calendaire_t8.R), plages disjointes et graines de reserve2
-  # hors des plages. controle_graines() ne rend que (ok, txt) : les trois
-  # conditions sont relues dans son texte ; un texte illisible ou toute autre
-  # cause rend le controle bloquant. Aucune source d'alea n'est ajoutee par ce
+  # (graines) : bloquant dans tous les modes, sans tolerance (les bornes
+  # PLAGE_* de tests/mesure_calendaire_t8.R sont ecartees de la recherche par
+  # litteraux_graines(), R21, #350). Aucune source d'alea n'est ajoutee par ce
   # mode : graines de #206, engine_sous_graine().
-  cgr <- controle_graines()
-  coll_289 <- regmatches(cgr$txt, regexec("touche une plage : ([0-9, ]+) ;", cgr$txt))[[1]]
-  coll_289 <- if (length(coll_289) == 2L) suppressWarnings(as.numeric(strsplit(trimws(coll_289[2]), ",\\s*")[[1]])) else NA_real_
-  SIGNALEMENT_GRAINES <- !cgr$ok && !anyNA(coll_289) && setequal(coll_289, c(20840001, 20960000)) &&
-    grepl("(disjointes : oui)", cgr$txt, fixed = TRUE) && grepl("hors des plages : oui$", cgr$txt)
-  if (SIGNALEMENT_GRAINES) {
-    CONTROLES <- c(CONTROLES, paste("(graines) signalement sans effet : les litt\u00e9raux 20840001 et 20960000 sont les bornes d\u00e9clar\u00e9es de la plage de #206 (PLAGE_206, tests/mesure_calendaire_t8.R, l. 304), non des graines tir\u00e9es ; aucune source d'al\u00e9a ajout\u00e9e :", cgr$txt))
-  } else controle(cgr$ok, paste("(graines)", cgr$txt))
+  cgr <- controle_graines(); controle(cgr$ok, paste("(graines)", cgr$txt))
   TXT_I3 <- sprintf("empreinte sans commentaires de R/engine.R %s ; md5 de R/engine.R %s, de %s %s, de tests/outils_tests.R %s",
                     EMPREINTE_SC, MD5_MOTEUR, SCRIPT, md5_fichier(FICHIER_SCRIPT), md5_fichier(file.path(DOSSIER_SCRIPT, "outils_tests.R")))
   controle(grepl("^[0-9a-f]{32}$", EMPREINTE_SC), paste("(i3)", TXT_I3))
@@ -2360,7 +2372,7 @@ if (MODE == "c289") {
                                                                                                  chemin_cite(BRUT_206), md5_fichier(BRUT_206), commit_206, md5_206))
   ajout_289("Locale LC_CTYPE (origine \u2192 travail)", sprintf("%s \u2192 %s", LOCALE_ORIGINE, LOCALE_TRAVAIL))
   ajout_289("Dur\u00e9e (s)", sprintf("contr\u00f4les g\u00e9n\u00e9raux et identit\u00e9 de l'injection %.0f ; volet 1 %.0f ; volet 2 %.0f ; total %.0f", DUREE_289[1], DUREE_289[2], DUREE_289[3], DUREE_289[4]))
-  ajout_289("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) "\u00c9CHEC" else if (SIGNALEMENT_GRAINES) "OK (1 signalement sans effet, voir (graines))" else "OK")
+  ajout_289("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) "\u00c9CHEC" else "OK")
   T1 <- c("### T1 \u2014 volet 1 : ensembles fig\u00e9s et K \u00e0 l'observ\u00e9 (triangles du plan de #206)", "",
           "Ensembles de `.mw_ensembles_figes(aj)` et K des deux v\u00e9rifications, calcul\u00e9s comme `mw_bootstrap()` les fige (d\u00e9faut du moteur, sur le triangle admis). La colonne `degeneres` liste les valeurs distinctes observ\u00e9es de l'ensemble avec leur effectif ; `\u2205` : ensemble vide.", "",
           entete_md(c("Loi", "triangles", "admis", "refus\u00e9s", "en erreur", "`degeneres` (valeurs : effectif)", "`non_identifiables` non vide (courbure)",
@@ -2432,7 +2444,7 @@ if (MODE == "c289") {
          vapply(PAIRES_289, function(p) ligne_md(p[1], nettoyer_champ(p[2])), ""), "",
          T1, T2, T3b, T5, T6,
          "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", CONTROLES), "",
-         sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%d contr\u00f4le(s))", length(INTEGRITE)) else if (SIGNALEMENT_GRAINES) "OK (1 signalement sans effet, voir (graines))" else "OK"), "")
+         sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%d contr\u00f4le(s))", length(INTEGRITE)) else "OK"), "")
   S <- S[!is.na(S)]
   ecrire_console(S)
   if (OPT_ECRIRE) {
@@ -2553,7 +2565,7 @@ controle(present_bloc(TEXTE_CRITERE_206) && TITRE_B1 %in% TXT_SPEC,
                  length(TEXTE_CRITERE_206), SPEC, md5_fichier(file.path(RACINE, SPEC))))
 # (b) catalogue
 controle(NS == 13L && setequal(CLES, names(SENS_SPEC)) && identical(unname(QUEUE[names(SENS_SPEC)]), unname(SENS_SPEC)),
-         sprintf("(b) %d cl\u00e9s lues dans MW_CATALOGUE_MC (%s), sens conformes au tableau du par. 1", NS,
+         sprintf("(b) %d cl\u00e9s lues dans MW_CATALOGUE_MC (%s), sens conformes \u00e0 ceux de ce moteur (Calendrier : bas depuis #276 ; MinP4 \u00e0 la place de Grubbs depuis #300)", NS,
                  paste(sprintf("%s %s", CLES, QUEUE), collapse = ", ")))
 # (a) reserve2 contre la reference
 RES_A <- executer_cas("reserve2")

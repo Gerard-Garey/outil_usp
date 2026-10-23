@@ -84,8 +84,10 @@ nettoyer_tmp <- function() {
 tryCatch({
   # Definitions de premier niveau du script (affectations "nom <- ..."), dans
   # l'ordre du fichier, sans executer le reste.
-  extraire_defs <- function(f, noms) {
-    env <- new.env(parent = globalenv())
+  # amont : objets que les definitions extraites supposent deja la (ex. NL_MAX
+  # lit la reference reserve2 par chemin_reference() de outils_tests.R, R21).
+  extraire_defs <- function(f, noms, amont = list()) {
+    env <- list2env(amont, parent = globalenv())
     for (e in as.list(parse(f, keep.source = FALSE)))
       if (is.call(e) && identical(e[[1]], as.name("<-")) && is.name(e[[2]]) && as.character(e[[2]]) %in% noms) eval(e, env)
     manquants <- setdiff(noms, ls(env))
@@ -118,8 +120,62 @@ tryCatch({
   verifier("(m1) le script calcule B_RECALC_FORCE par lignes_recalcul_reprise(bs[ok], MODE)",
            any(grepl("B_RECALC_FORCE <- lignes_recalcul_reprise(bs[ok], MODE)", readLines(SCRIPT_MW), fixed = TRUE)))
 
+  ## --- (g) controle (graines) : bornes PLAGE_* ecartees, vraie collision conservee (R21, #350) ---
+  # Definitions extraites par parse() ; arbre factice dans tempdir() (R/engine.R,
+  # tests/*.R, tests/unitaires/*.R) lu par controle_graines(racine = ...).
+  EG <- extraire_defs(SCRIPT_MW, c("SCRIPT", "GRAINE_TRI", "GRAINE_BOOT", "GRAINE_ORA", "PAS_LOI", "PAS_LOI_ORA", "IDX_LOI",
+                                   "B_MAX_SPEC", "N0_SPEC", "GRAINE_R2", "graine_tri", "graine_boot", "graine_ora", "PLAGES",
+                                   "DECALAGE_MAX", "REEMPLOIS_DECLARES", "litteraux_graines", "controle_graines"),
+                      amont = list(SEED_LOI_NULLE_SW = SEED_LOI_NULLE_SW))
+  for (nm in c("graine_tri", "graine_boot", "graine_ora", "litteraux_graines", "controle_graines")) environment(EG[[nm]]) <- EG
+  arbre_graines <- function(engine = "x <- 1", tests = character(0), unit = character(0)) {
+    r <- tempfile("graines_"); dir.create(file.path(r, "R"), recursive = TRUE); dir.create(file.path(r, "tests", "unitaires"), recursive = TRUE)
+    writeLines(engine, file.path(r, "R", "engine.R"))
+    if (length(tests)) writeLines(tests, file.path(r, "tests", "a_t8.R"))
+    if (length(unit)) writeLines(unit, file.path(r, "tests", "unitaires", "test_b.R"))
+    r
+  }
+  # Bornes de la plage de #206 : les deux bornes tombent dans [L ; L + 20 000] d'une plage du script ; la ligne PLAGE_206
+  # est ecartee, une graine posee ailleurs au meme litteral ne l'est pas. Les litteraux sont CALCULES (sprintf) et non ecrits :
+  # ce fichier est lui-meme lu par controle_graines() (tests/unitaires/*.R) et ne doit contenir aucun litteral de graine.
+  bo1 <- unname(EG$PLAGES["triangles", 1]); bo2 <- unname(EG$PLAGES["oracle", 2])          # bornes declarees de #206
+  g_tri <- EG$GRAINE_TRI + 10000; g_boot <- EG$GRAINE_BOOT; g_ora <- EG$GRAINE_ORA + 50000
+  ligne_plage <- sprintf("PLAGE_206 <- c(%.0f, %.0f)", bo1, bo2)
+  verifier("(g) litteraux_graines : PLAGE_<nom> <- c(L1, L2) ecartee (espaces, suffixe L, commentaire final)",
+           length(EG$litteraux_graines(c(ligne_plage, sprintf("  PLAGE_X<-c( %.0fL ,%.0f )", g_tri, g_boot), sprintf("PLAGE_a1 <- c(%.0f, %.0f) # bornes", g_ora, g_tri)))) == 0L)
+  verifier("(g) litteraux_graines : forme non stricte, litteral de plage conserve : '; set.seed', '==', '= L' seul, PLAGE_GRAINE <- L, '=' a la place de '<-', c() a trois termes, graine dans le commentaire",
+           identical(EG$litteraux_graines(c(sprintf("PLAGE_X <- c(1, 2); set.seed(%.0f)", g_tri), sprintf("PLAGE_X == %.0f", g_tri), sprintf("  PLAGE_X = %.0f,", g_tri),
+                                            sprintf("PLAGE_GRAINE <- %.0f", g_tri), sprintf("PLAGE_X = c(%.0f, %.0f)", g_tri, g_boot),
+                                            sprintf("PLAGE_X <- c(%.0f, %.0f, %.0f)", g_tri, g_boot, g_ora), sprintf("PLAGE_X <- c(%.0f, %.0f) # %.0f", bo1, bo2, g_ora))),
+                     c(g_tri, g_tri, g_tri, g_tri, g_tri, g_boot, g_tri, g_boot, g_ora, g_ora)))
+  verifier("(g) litteraux_graines : un litteral de graine hors affectation PLAGE_ est conserve (suffixe L compris), meme apres une ligne PLAGE_",
+           identical(EG$litteraux_graines(c(ligne_plage, sprintf("set.seed(%.0f)", g_tri), sprintf("g <- %.0fL", g_boot), sprintf("x <- PLAGE_206[1] + %.0f", bo1))),
+                     c(g_tri, g_boot, bo1)))
+  verifier("(g) controle_graines : arbre factice avec seule la ligne PLAGE_206 (bornes de #206) : aucune collision, (graines) OK",
+           { r <- arbre_graines(tests = c(ligne_plage, sprintf("GRAINE_TRI <- %.0f", g_ora + 100000)))
+             cg <- EG$controle_graines(racine = r); isTRUE(cg$ok) && grepl("touche une plage : aucun ;", cg$txt, fixed = TRUE) })
+  verifier("(g) controle_graines : collision factice (graine posee dans une plage, tests/*.R) : (graines) en ECHEC, litteral cite",
+           { r <- arbre_graines(tests = c(ligne_plage, sprintf("set.seed(%.0f)", g_tri)))
+             cg <- EG$controle_graines(racine = r); isFALSE(cg$ok) && grepl(sprintf("touche une plage : %.0f ;", g_tri), cg$txt, fixed = TRUE) })
+  verifier("(g) controle_graines : collision factice dans R/engine.R et dans tests/unitaires/*.R : (graines) en ECHEC",
+           { r1 <- arbre_graines(engine = sprintf("seed <- %.0fL", g_boot)); r2 <- arbre_graines(unit = sprintf("s <- %.0f", g_ora))
+             isFALSE(EG$controle_graines(racine = r1)$ok) && isFALSE(EG$controle_graines(racine = r2)$ok) })
+  verifier("(g) controle_graines : un litteral d'une plage reecrit sur une ligne PLAGE_ n'est PAS une collision, le meme hors PLAGE_ l'est",
+           { r1 <- arbre_graines(tests = sprintf("PLAGE_206 <- c(%.0f, %.0f)", g_tri, g_boot)); r2 <- arbre_graines(tests = sprintf("S206 <- c(%.0f, %.0f)", g_tri, g_boot))
+             isTRUE(EG$controle_graines(racine = r1)$ok) && isFALSE(EG$controle_graines(racine = r2)$ok) })
+  verifier("(g) controle_graines : les trois graines de base de #206 sont ecartees dans puissance_mw_t8.R seul (reemploi declare) ; dans un autre fichier, collision",
+           { dir_t <- function(nom) { r <- arbre_graines(); writeLines(sprintf("GRAINE_TRI <- %.0f; GRAINE_BOOT <- %.0f; GRAINE_ORA <- %.0f", EG$GRAINE_TRI, EG$GRAINE_BOOT, EG$GRAINE_ORA),
+                                                             file.path(r, "tests", nom)); r }
+             isTRUE(EG$controle_graines(racine = dir_t("puissance_mw_t8.R"))$ok) && isFALSE(EG$controle_graines(racine = dir_t("autre_t8.R"))$ok) })
+  verifier("(g) controle_graines : dans puissance_mw_t8.R, une autre graine de plage reste une collision",
+           { r <- arbre_graines(); writeLines(sprintf("GRAINE_TRI <- %.0f; S <- %.0f", EG$GRAINE_TRI, g_tri), file.path(r, "tests", "puissance_mw_t8.R"))
+             isFALSE(EG$controle_graines(racine = r)$ok) })
+  verifier("(g) controle_graines sur le depot reel : OK (bornes PLAGE_206 de mesure_calendaire_t8.R ecartees) ; le script ne tolere plus aucun signalement",
+           { cg <- EG$controle_graines(racine = RACINE_DEPOT); isTRUE(cg$ok) && !any(grepl("SIGNALEMENT_GRAINES", readLines(SCRIPT_MW), fixed = TRUE)) })
+
   ## --- Sorties de tranche factices (combinees par le script) --------------------
-  E2 <- extraire_defs(SCRIPT_MW, c("NL_MAX", "CLES", "NS", "QUEUE", "COLS_TRANCHE", "CLES_CONTEXTE", "ecart_journal_sortie"))
+  E2 <- extraire_defs(SCRIPT_MW, c("NL_MAX", "CLES", "NS", "QUEUE", "COLS_TRANCHE", "CLES_CONTEXTE", "ecart_journal_sortie"),
+                      amont = list(chemin_reference = function(nom) file.path(RACINE_DEPOT, "tests", "reference", paste0(nom, ".rds"))))
   EMP <- strrep("ab", 16)
   # Sortie de tranche terminee, INTEGRITE OK, n triangles admis aux p sur la
   # grille ; p119 : valeurs (caractere) de p_agr par ligne ; p_ceff idem.
