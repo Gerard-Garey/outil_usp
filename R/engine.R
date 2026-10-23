@@ -8966,10 +8966,13 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #   - p = 2 P(T_ddl > |t|) (forme de summary.lm()) : p non simulee, jamais
 #     retenue (#181) ; la p de reference est la p Monte-Carlo de PenteIntra.
 # Meme statistique que la ligne "x" de summary(lm(y ~ factor(j) + x,
-# weights = w)) en arithmetique exacte. En unites relatives, chaque colonne
+# weights = w)) en arithmetique exacte. En unites relatives, une ordonnee a
+# l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j),
+# au premier ordre en (C(i,j) - Cbar_j)/Cbar_j (approximation d'autant
+# meilleure que les cumuls de la colonne sont peu disperses) ; chaque colonne
 # pese selon la dispersion relative de ses cumuls et la precision de ses
 # facteurs, non selon l'echelle de C(i,j) ; b se lit comme une elasticite du
-# facteur au volume, a colonne donnee.
+# facteur au volume au point (Cbar_j, f_j), a colonne donnee.
 # ALGEBRE FIGEE (#307, controle (i2') de tests/puissance_mw_t8.R) : memes
 # operations, dans le meme ordre, que stat_pente_rel(res) du script de mesure
 # de #309 (Cb par stats::ave(), x et y, w puis 2^-floor(log2(max(w))),
@@ -10742,7 +10745,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       fonction = ".mw_pente_relative",
       paste("Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ;",
             "pente relative commune a effets fixes de colonne : construction de l'outil",
-            "(partialisation de Frisch & Waugh 1933)"),
+            "(partialisation de Frisch & Waugh, 1933, Econometrica 1(4))"),
       H0 = "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)",
       H1 = paste("le facteur relatif F(i,j)/f_j varie avec le volume relatif C(i,j)/Cbar_j,",
                  "selon une pente commune aux colonnes"),
@@ -10754,10 +10757,12 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                      "moyenne simple des cumuls de la colonne j qui portent un facteur), poids",
                      "C(i,j) f_j^2/sigma_j^2, avec effets fixes d'annee de developpement ; t de la",
                      "pente commune b. En unites relatives, une ordonnee a l'origine a_j donne",
-                     "dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), et chaque colonne",
-                     "pese selon la dispersion relative de ses cumuls et la precision de ses",
-                     "facteurs, non selon l'echelle de C(i,j). b se lit comme une elasticite du",
-                     "facteur au volume, a colonne donnee."))
+                     "dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), au premier ordre en",
+                     "(C(i,j) - Cbar_j)/Cbar_j (approximation d'autant meilleure que les cumuls de",
+                     "la colonne sont peu disperses), et chaque colonne pese selon la dispersion",
+                     "relative de ses cumuls et la precision de ses facteurs, non selon l'echelle",
+                     "de C(i,j). b se lit comme une elasticite du facteur au volume au point",
+                     "(Cbar_j, f_j), a colonne donnee."))
 
   # --- Tests colonne par colonne de l'hypothese (iii) ------------------------
   oo <- mw_test_ordonnee_origine(aj, jd, figes$origine_non_identifiables)

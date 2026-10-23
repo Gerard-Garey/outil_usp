@@ -3185,10 +3185,11 @@ DETAIL307 <- paste0(
   "Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j : moyenne simple ",
   "des cumuls de la colonne j qui portent un facteur), poids C(i,j) f_j^2/sigma_j^2, avec ",
   "effets fixes d'annee de developpement ; t de la pente commune b. En unites relatives, une ",
-  "ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), et ",
-  "chaque colonne pese selon la dispersion relative de ses cumuls et la precision de ses ",
-  "facteurs, non selon l'echelle de C(i,j). b se lit comme une elasticite du facteur au ",
-  "volume, a colonne donnee.")
+  "ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), au ",
+  "premier ordre en (C(i,j) - Cbar_j)/Cbar_j (approximation d'autant meilleure que les cumuls ",
+  "de la colonne sont peu disperses), et chaque colonne pese selon la dispersion relative de ",
+  "ses cumuls et la precision de ses facteurs, non selon l'echelle de C(i,j). b se lit comme ",
+  "une elasticite du facteur au volume au point (Cbar_j, f_j), a colonne donnee.")
 verifier("Pente relative (#307) : reserve2, ligne M1 = entree PenteIntra du catalogue (stat = bootstrap$stats_obs$PenteIntra), estim = b, p de Student en p non simulee non retenue, p Monte-Carlo retenue ; champs T-4 a la lettre",
          {
            x <- lig300(NOM307)
@@ -3213,7 +3214,7 @@ verifier("Pente relative (#307) : reserve2, ligne M1 = entree PenteIntra du cata
              reference = identical(x$reference, paste0(
                "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; ",
                "pente relative commune a effets fixes de colonne : construction de l'outil ",
-               "(partialisation de Frisch & Waugh 1933)")),
+               "(partialisation de Frisch & Waugh, 1933, Econometrica 1(4))")),
              detail = identical(x$detail, DETAIL307) ||
                identical(x$detail, paste(DETAIL307, PHRASE_VERDICT_SENSIBLE_MC)),
              ascii = !grepl("[^ -~]", paste(x$detail, x$reference, x$H1, x$loi)))
