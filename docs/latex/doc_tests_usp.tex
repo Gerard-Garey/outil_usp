@@ -14206,8 +14206,9 @@ différences deux à deux évite l'annulation entre grandeurs de l'ordre d'une c
 les poids sont ramenés à $\max w \in [1, 2[$ par une puissance de~2 (multiplication exacte, $t$
 invariant). En arithmétique exacte, c'est la statistique de la ligne «~\code{x}~» de
 \code{summary(lm(y \textasciitilde\ factor(j) + x, weights = w))}~: sur le triangle de contrôle,
-$\hat b$, $\widehat{\mathrm{se}}(\hat b)$ et $t$ en diffèrent d'au plus $1{,}5\cdot 10^{-14}$ en
-relatif, et la p de Student de $4{,}8\cdot 10^{-14}$ (oracle des tests unitaires, tolérance
+$\hat b$, $\widehat{\mathrm{se}}(\hat b)$ et $t$ en diffèrent d'au plus $2\cdot 10^{-14}$ en
+relatif, et la p de Student de $5\cdot 10^{-14}$ (mesure de la session cloud, R 4.3.3~; oracle des
+tests unitaires, tolérance
 $10^{-10}$). Gardes~:
 $\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$ et la p valent \code{NA} si moins de quatre cellules
 sont retenues, si un $\hat\sigma_j$ n'est pas fini ou est nul, si $\sum w\,\tilde x^2$ est nul ou non
@@ -17513,8 +17514,8 @@ colonnes $j = 0$ à~3) & écart relatif au plus $2{,}2\times10^{-13}$ & vérific
 d'une même définition (fiche~\ref{mw:m4gr}) \\
 Pente relative de la tendance avec le cumulé (issue~\#307, forme close) contre la ligne
 «~\code{x}~» de \code{summary(lm(y \textasciitilde\ factor(j) + x, weights = w))} (triangle de
-contrôle) & écart relatif au plus $1{,}5\times10^{-14}$ sur $\hat b$, $\widehat{\mathrm{se}}$ et
-$t$, $4{,}8\times10^{-14}$ sur la p de Student & vérification numérique d'une même définition (fiche~\ref{mw:m1}) \\
+contrôle) & écart relatif au plus $2\times10^{-14}$ sur $\hat b$, $\widehat{\mathrm{se}}$ et
+$t$, $5\times10^{-14}$ sur la p de Student (mesure de la session cloud, R 4.3.3) & vérification numérique d'une même définition (fiche~\ref{mw:m1}) \\
 $S_j/D_j$ de l'identifiabilité intra-colonne (issue~\#308) contre l'élément
 \code{cov.unscaled[1, 1]} de \code{lm(C1 \textasciitilde\ C0, weights = 1/C0)} (triangle de
 contrôle, colonnes $j = 0$ à~4) & écart relatif au plus $8{,}9\times10^{-14}$ & identité exacte
