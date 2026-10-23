@@ -223,7 +223,7 @@ Hypothèse visée : D(2)(h)(iii), proportionnalité sans constante, alternative 
 - sur `reserve2`, il égale `lm()` à 2e-14.
 - Aucune référence Rmpfr n'a été établie : Rmpfr est absent de la session (Q-D1-Fj-7).
 
-**Mécanisme.** Une ordonnée à l'origine a_j donne dans la colonne j une pente relative ≈ −a_j / (f_j C̄_j), au premier ordre en C = C̄_j [V, algèbre]. Conséquence à dire dans la rubrique 7 : le scénario CST de #309 (a_j = δ f_j C̄_j) produit une pente relative **commune** −δ. C'est exactement l'alternative que vise la pente relative, et le gain mesuré contre CST est donc mesuré sous l'alternative la plus favorable à cette paramétrisation. Une ordonnée concentrée sur une seule colonne n'est **pas mesurée**.
+**Mécanisme.** Une ordonnée à l'origine a_j donne dans la colonne j une pente relative ≈ −a_j / (f_j C̄_j), au premier ordre en C = C̄_j [V, algèbre]. Exactement, la pente de la colonne vaut −a_j / (f_j C̄_j) multiplié par la pente pondérée de 1/(1 + x) sur x = (C − C̄_j)/C̄_j, qui vaut −1 au premier ordre ; le terme suivant dépend de l'asymétrie de x : l'approximation est d'autant meilleure que les cumuls de la colonne sont peu dispersés, ce qui n'est pas mesuré à T = 8 (avis d'`actuary` du 23/10/2026, question Q2 de l'audit de #307 ; retouche du `detail` adoptée par le mainteneur le même jour, qui rattache aussi « élasticité » au point (C̄_j, f_j)). Conséquence à dire dans la rubrique 7 : le scénario CST de #309 (a_j = δ f_j C̄_j) produit une pente relative **commune** −δ. C'est exactement l'alternative que vise la pente relative, et le gain mesuré contre CST est donc mesuré sous l'alternative la plus favorable à cette paramétrisation. Une ordonnée concentrée sur une seule colonne n'est **pas mesurée**.
 
 ### 4.2 Recevabilité du niveau (b) : critère K-307 formulé a posteriori
 
@@ -332,12 +332,14 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 **T-4 (#307, ligne M1 « Absence de tendance des facteurs avec le cumul, a colonne donnee »)** :
 - nom, `stat_nom` (`t`) et H0 inchangés ; `mc_nom` `PenteIntra` ;
 - `fonction` : `.mw_pente_relative` ;
-- `reference` : `Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; pente relative commune a effets fixes de colonne : construction de l'outil (partialisation de Frisch & Waugh 1933)` ;
+- `reference` : `Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; pente relative commune a effets fixes de colonne : construction de l'outil (partialisation de Frisch & Waugh, 1933, Econometrica 1(4))` ;
 - `H1` : `le facteur relatif F(i,j)/f_j varie avec le volume relatif C(i,j)/Cbar_j, selon une pente commune aux colonnes` ;
 - `loi` : `Student(N - G - 1) approx. (pente relative, effets fixes de colonne) -> Monte-Carlo` ;
 - `estim_nom` : `pente relative b` ; `estim` = b̂ ;
 - `detail` :
-> `Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j : moyenne simple des cumuls de la colonne j qui portent un facteur), poids C(i,j) f_j^2/sigma_j^2, avec effets fixes d'annee de developpement ; t de la pente commune b. En unites relatives, une ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), et chaque colonne pese selon la dispersion relative de ses cumuls et la precision de ses facteurs, non selon l'echelle de C(i,j). b se lit comme une elasticite du facteur au volume, a colonne donnee.`
+> `Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j : moyenne simple des cumuls de la colonne j qui portent un facteur), poids C(i,j) f_j^2/sigma_j^2, avec effets fixes d'annee de developpement ; t de la pente commune b. En unites relatives, une ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), au premier ordre en (C(i,j) - Cbar_j)/Cbar_j (approximation d'autant meilleure que les cumuls de la colonne sont peu disperses), et chaque colonne pese selon la dispersion relative de ses cumuls et la precision de ses facteurs, non selon l'echelle de C(i,j). b se lit comme une elasticite du facteur au volume au point (Cbar_j, f_j), a colonne donnee.`
+
+  Retouche du 23/10/2026 (décision du mainteneur, avis d'`actuary` sur les questions Q1 et Q2 de l'audit de #307) : `reference` harmonisée avec la ligne M2 (« Frisch & Waugh, 1933, Econometrica 1(4) ») ; `detail` complété par la condition du premier ordre et le point (Cbar_j, f_j) de l'élasticité.
 
   La phrase « Sans ce terme, la décroissance de f_j… » disparaît : en unités relatives, la moyenne pondérée de F/f̂_j vaut exactement 1 dans chaque colonne, et la relation mécanique de #119 n'existe plus sous cette forme. `add()` joindra la phrase de #244 sur `reserve2` (§ 7).
 
