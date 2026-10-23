@@ -1084,6 +1084,11 @@ contrôlés)~; aucun objet construit par \code{.mw\_ensembles\_figes()} n'est re
 volets du prédicat, repris par l'avertissement des colonnes exclues, l'avertissement
 d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et la phrase
 d'exclusion de M1 (issue~\#60) \\
+\code{.MW\_LIGNE\_CELLULE\_}\newline\code{ABERRANTE} & constante (chaîne) & nom de la ligne M4 de
+la cellule aberrante (fiche~\ref{mw:m4gr}), lu par \code{add()} dans \code{mw\_tests()} et par
+l'avertissement des colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme cette ligne
+comme ligne qui écarte aussi ces colonnes sans être fondée sur les résidus de Mack
+(issue~\#352, §\ref{sec:controles}) \\
 \code{.mw\_triangle\_}\newline\code{totalement\_degenere()} & \code{aj} & \code{TRUE} si toutes les
 colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
 un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
@@ -3908,9 +3913,10 @@ unique (\code{.mw\_colonne\_degeneree()}, deux volets), ou $\hat\sigma^2_j$ non 
 bloquant~: le résidu de Mack y vaut $0/0$ si les facteurs sont exactement égaux, et n'est sinon
 que le rapport d'écarts négligeables à la tolérance de l'outil~; ces facteurs sont exclus des
 dix lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
-les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33) et précise que le
-vivier du bootstrap ne contient que les résidus retenus (décision du mainteneur du 5~octobre
-2026). \\
+les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33), nomme, depuis
+l'issue~\#352, la ligne M4 de la cellule aberrante, qui écarte aussi ces colonnes sans être
+fondée sur les résidus de Mack, et précise que le vivier du bootstrap ne contient que les résidus
+retenus (décision du mainteneur du 5~octobre 2026). \\
 Réserve faible devant son incertitude \emph{(post-ajustement)} & $\sqrt{\mathrm{MSEP}}/\hat R
 \ge 1$ & \textbf{Avertissement}, non bloquant~: D(4) définit le paramètre pour tout
 $\hat R > 0$, sans plancher ni plage~; le repère~1 est un repère de lecture, sans fondement
@@ -13667,7 +13673,17 @@ dix lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\
 tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
 l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
 années de survenance, Durbin--Watson et test des suites~; M4, ESD
-généralisé~; M5, Shapiro--Wilk et Lilliefors. Lorsque $\hat f_{J-2}$ ou
+généralisé~; M5, Shapiro--Wilk et Lilliefors. Depuis l'issue~\#352 (texte retouché par décision du
+mainteneur du 22~octobre 2026), l'avertissement nomme ensuite la ligne M4 «~\code{Cellule
+aberrante du triangle (residus studentises externes)}~», dont la statistique est calculée sur les
+résidus studentisés externes de chaque colonne (fiche~\ref{mw:m4gr}) et non sur ces résidus, et
+qui écarte aussi ces colonnes~: elle n'est pas comptée parmi les lignes fondées sur ces résidus
+(elle ne lit pas \code{mw\_residus()}), mais le lecteur de l'avertissement sait ainsi qu'elle ne
+les examine pas.
+Son nom est porté par une constante unique, \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par
+\code{mw\_tests()} pour la ligne et par l'avertissement (mesuré sur le triangle de six années des
+tests unitaires dont la colonne $j = 0$ est dégénérée, \code{run\_engine()}, $B = 99$~: la phrase
+suit la liste des lignes fondées sur les résidus et précède celle du vivier du bootstrap). Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
@@ -15999,11 +16015,27 @@ la borne existe et la ligne devient un diagnostic (section~\ref{sec:nature}, poi
 issue~\#181)~; si la statistique observée n'est pas définie parce qu'une cellule a une influence
 non bornée, la borne ne l'est pas davantage et la ligne reste un test sans p-value retenue
 (rubrique~1). Sur le triangle de contrôle~: p-value de Monte-Carlo $0{,}898$, erreur de
-Monte-Carlo $0{,}0096$, borne de Bonferroni $1$, verdict \code{OK}. Le libellé \code{reference} de
-la ligne range la borne de Bonferroni dans la «~\code{construction de l'outil}~»~: la borne
-elle-même est publiée pour le maximum des $|t_i|$ d'une régression (Cook et Weisberg, 1982, p.~22
-et~26)~; sont propres à l'outil le minimum des p de Student entre colonnes, la restriction aux
-colonnes de quatre facteurs au moins et la p-value de Monte-Carlo.
+Monte-Carlo $0{,}0096$, borne de Bonferroni $1$, verdict \code{OK}.
+
+\emph{Libellé \code{reference} de la ligne} (issue~\#352, décision Q-D1-Fj-9 du mainteneur du
+22~octobre 2026). Il fait le partage de la présente fiche entre ce qui est publié et ce qui est
+propre à l'outil~: résidu studentisé externe de la régression pondérée et sa loi de Student à
+$n_j - 2$ degrés de liberté sous erreurs gaussiennes (Cook et Weisberg, 1982, §~2.2.1, p.~20, et
+annexe~A.1, p.~209), nom RSTUDENT (Belsley, Kuh et Welsch, 1980, chapitre~2), borne de Bonferroni
+sur le plus grand résidu (Cook et Weisberg, 1982, p.~22 et~26)~; construction de l'outil~: le
+minimum des p de Student entre colonnes de degrés de liberté différents, la restriction aux
+colonnes de $n_j \ge 4$ facteurs (le seuil est lu dans \code{MW\_NJ\_MIN\_CELLULE}) et la p-value de
+Monte-Carlo sur le modèle de Mack. Jusqu'à cette issue, il rangeait aussi la borne de Bonferroni
+dans la «~\code{construction de l'outil}~», alors qu'elle est publiée pour le maximum des $|t_i|$
+d'une régression~; seule son application à toutes les cellules du triangle est de l'outil
+(rubrique~4). Deux précisions ne tiennent pas dans le libellé et sont portées ici. La loi de
+Student qu'il cite est \emph{conditionnelle} aux cumuls $C(\cdot,j)$ de la colonne~: ce
+conditionnement est une étape de l'outil, que le livre, qui traite les régresseurs comme fixes,
+n'énonce pas (rubrique~4). Et l'attribution du nom RSTUDENT à Belsley, Kuh et Welsch n'est
+vérifiée que partiellement~: elle est attestée par A.\,C. Atkinson (1983, \emph{op.\ cit.}, p.~24),
+l'ouvrage de 1980 n'ayant pas été relu (section~\ref{sec:biblio})~; ni la définition ni la loi du
+résidu ne reposent sur lui. Sur le triangle de contrôle, le libellé a changé seul (patch
+chirurgical de la référence de non-régression, aucune p-value ni aucun verdict modifié).
 
 \emph{Historique~: la statistique de Grubbs} (jusqu'à l'issue~\#300, décision Q-D2-Fi-2 du
 mainteneur du 21~octobre 2026). La ligne calculait $G = \max_{i,j}\big|r(i,j) - \bar r\big|/s_r$
