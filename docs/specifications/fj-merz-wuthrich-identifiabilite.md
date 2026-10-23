@@ -315,7 +315,7 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 > `Residu studentise externe de la regression ponderee C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j), et sa loi de Student a n_j - 2 degres de liberte sous erreurs gaussiennes : Cook & Weisberg (1982), par. 2.2.1, p. 20, et annexe A.1, p. 209 (nom RSTUDENT : Belsley, Kuh & Welsch 1980, chap. 2) ; borne de Bonferroni sur le plus grand residu : Cook & Weisberg (1982), p. 22 et 26 ; construction de l'outil : minimum des p de Student entre colonnes de degres de liberte differents, colonnes n_j >= 4, p-value Monte-Carlo sur le modele de Mack`
 
 **T-2 (#352, avertissement)** — phrase insérée juste après « … fondees sur ces residus, soit %s. » et avant « Le pool de reechantillonnage … » :
-> `La ligne M4 "Cellule aberrante du triangle (residus studentises externes)", calculee sur les residus studentises externes de chaque colonne et non sur ces residus, ecarte aussi ces colonnes. `
+> `La ligne M4 "Cellule aberrante du triangle (residus studentises externes)", dont la statistique est calculee sur les residus studentises externes de chaque colonne et non sur ces residus, ecarte aussi ces colonnes. `
 
 **T-3 (#308, ligne de diagnostic)**, champs :
 - `test` : `Identifiabilite intra-colonne (dispersion des cumuls par colonne)` ;
@@ -324,10 +324,12 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 - `estim_nom` : `CV moyen des colonnes retenues` ; pas de H0 ni de H1.
 - `detail` = TETE, puis `" Valeurs : "`, puis les colonnes jointes par `" ; "`, puis `"."` ; sans colonne retenue : TETE puis `" Aucune colonne retenue (n_j >= 3)."`.
   - TETE :
-  > `Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee, dont depend la puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne) et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j) (sous un exposant de variance k, a f_j et sigma_j connus, le rapport des variances des residus de Mack entre les deux cellules extremes vaut R^(k - 1)) ; e_a = erreur type de l'ordonnee a l'origine a_j sous H0, sigma_j de Mack, rapportee a la moyenne de C(i,j+1) (une ordonnee a l'origine de l'ordre de e_a n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois e_a, d'autant plus que n_j est petit : multiplicateurs dans la documentation).`
+  > `Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee, dont depend la puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j) (sous un exposant de variance k, a f_j et sigma_j connus, le rapport des variances des residus de Mack entre les deux cellules extremes vaut R^(k - 1)) ; e_a = erreur type de l'ordonnee a l'origine a_j sous H0, sigma_j de Mack, rapportee a la moyenne de C(i,j+1) (une ordonnee a l'origine de l'ordre de e_a n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois e_a, d'autant plus que n_j est petit : multiplicateurs dans la documentation).`
   - Une colonne : `sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a = %.4f", ...)`, ou, si e_a est NA, `sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a non definie (C(i,j) constant)", ...)`.
   - Fin attendue sur `reserve2` [V] :
   > `Valeurs : j = 0 : n_j = 7, CV = 0.0739, R = 1.229, e_a = 0.0800 ; j = 1 : n_j = 6, CV = 0.0763, R = 1.211, e_a = 0.0930 ; j = 2 : n_j = 5, CV = 0.0796, R = 1.206, e_a = 0.0973 ; j = 3 : n_j = 4, CV = 0.0751, R = 1.182, e_a = 0.0812 ; j = 4 : n_j = 3, CV = 0.0599, R = 1.126, e_a = 0.0685.`
+
+  Retouche du 23/10/2026 (décision du mainteneur, constat C1 de la revue finale) : dans la TETE, « (ordonnee a l'origine, pente intra-colonne) » devient « (ordonnee a l'origine, pente relative) », nom de la ligne M1 en vigueur (`CONTEXT.md`, « Pente relative (M1) »).
 
 **T-4 (#307, ligne M1 « Absence de tendance des facteurs avec le cumul, a colonne donnee »)** :
 - nom, `stat_nom` (`t`) et H0 inchangés ; `mc_nom` `PenteIntra` ;
@@ -348,9 +350,11 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 - `H0` inchangée ;
 - `H1` : `les trois estimateurs visent des valeurs differentes (esperance de C(i,j+1) non proportionnelle a C(i,j))` ;
 - `detail` : `sprintf(..., 100 * max(al$detail$amplitude), al$detail$j[which.max(al$detail$amplitude)])`, avec repli sur la première phrase seule si la statistique est NA :
-> `alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), les trois estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme ponderation : la ligne vise, comme la pente intra-colonne, une association du facteur au volume, mais colonne par colonne et sans compensation de signe entre colonnes. Ecart relatif maximal entre les trois estimateurs : %.2f %% (colonne j = %d) ; seul f_j^(alpha = 1) entre dans sigma_USP.`
+> `alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), les trois estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme ponderation : la ligne vise, comme la pente relative, une association du facteur au volume, mais colonne par colonne et sans compensation de signe entre colonnes. Ecart relatif maximal entre les trois estimateurs : %.2f %% (colonne j = %d) ; seul f_j^(alpha = 1) entre dans sigma_USP.`
 
   Sur `reserve2` : « 0.17 % (colonne j = 1) ».
+
+  Retouche du 23/10/2026 (décision du mainteneur, constat C1 de la revue finale) : « comme la pente intra-colonne » devient « comme la pente relative », nom de la ligne M1 en vigueur (`CONTEXT.md`, « Pente relative (M1) »).
 
 **T-5a (option (a), si elle est retenue)** : `type = "diagnostic"`, même `detail` précédé de :
 > `Diagnostic sans verdict (ADR 0001), par decision du mainteneur (#307) : A mesure l'enjeu du choix de ponderation ; la p-value Monte-Carlo est restituee pour information. `

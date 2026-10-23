@@ -9030,7 +9030,7 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #   information) ; colonnes degenerees deja ecartees par
 #   mw_residus(aj, j_degeneres) (ensemble fige, #60).
 # Construction de l'outil pour des residus de Mack, parallele a la pente
-# intra-colonne (.mw_pente_relative(), #119, #307), et non un test publie :
+# relative (.mw_pente_relative(), #119, #307), et non un test publie :
 # la p chi2(1) n'est qu'une p non simulee (jamais retenue, #181) ; la p de
 # reference est la p Monte-Carlo (queue haute, cle "BP" de MW_CATALOGUE_MC).
 # ALGEBRE FIGEE (#301, controle (i2') de tests/puissance_mw_t8.R) : memes
@@ -9871,7 +9871,7 @@ mw_famille_alpha <- function(aj) {
 # Identifiabilite intra-colonne (#308, specification Fj, par. 3.3 ; decisions
 # Q-D1-Fj-1, forme F1, et Q-D1-Fj-2 du mainteneur du 22/10/2026) : grandeurs
 # DESCRIPTIVES de la dispersion des cumuls a colonne donnee, dont depend la
-# puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne) et M2
+# puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2
 # (exposant de variance). Ligne de diagnostic de mw_tests(), sans
 # statistique ni p-value (ADR 0001) ; aucun effet minimal detectable n'est
 # calcule ici (Q-D1-Fj-2).
@@ -10843,7 +10843,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       "soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur",
       "l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre",
       "F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme",
-      "ponderation : la ligne vise, comme la pente intra-colonne, une association du",
+      "ponderation : la ligne vise, comme la pente relative, une association du",
       "facteur au volume, mais colonne par colonne et sans compensation de signe entre",
       "colonnes. Ecart relatif maximal entre les trois estimateurs : %.2f %% (colonne",
       "j = %d) ; seul f_j^(alpha = 1) entre dans sigma_USP."),
@@ -10864,7 +10864,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   ii <- mw_identifiabilite_intra(aj, jd)
   tete_ii <- paste(
     "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee,",
-    "dont depend la puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne)",
+    "dont depend la puissance des lignes M1 (ordonnee a l'origine, pente relative)",
     "et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes",
     "degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j)",
     "(sous un exposant de variance k, a f_j et sigma_j connus, le rapport des",

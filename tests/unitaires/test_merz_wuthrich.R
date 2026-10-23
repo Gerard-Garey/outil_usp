@@ -2762,7 +2762,7 @@ NOM308 <- "Identifiabilite intra-colonne (dispersion des cumuls par colonne)"
 ligne308 <- function(L) L[[which(vapply(L, `[[`, "", "test") == NOM308)]]
 TETE308 <- paste0(
   "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee, dont ",
-  "depend la puissance des lignes M1 (ordonnee a l'origine, pente intra-colonne) et M2 ",
+  "depend la puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2 ",
   "(exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes degenerees) : ",
   "CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j) (sous un exposant de ",
   "variance k, a f_j et sigma_j connus, le rapport des variances des residus de Mack ",
@@ -3259,7 +3259,7 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
              "la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). ",
              "f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par ",
              "C(i,j)^alpha, rapportee au cumul moyen de meme ponderation : la ligne vise, comme la ",
-             "pente intra-colonne, une association du facteur au volume, mais colonne par colonne et ",
+             "pente relative, une association du facteur au volume, mais colonne par colonne et ",
              "sans compensation de signe entre colonnes. Ecart relatif maximal entre les trois ",
              "estimateurs : 0.17 % (colonne j = 1) ; seul f_j^(alpha = 1) entre dans sigma_USP.")
            ok <- list(
