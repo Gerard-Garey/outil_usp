@@ -539,13 +539,14 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            else paste("mesure :", paste(mesure, collapse = " ; "))
          })
 # Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
-# deux colonnes n'est degeneree, et le detail M6 est celui de la reference
-# versionnee au caractere pres (l'issue #21 ne le modifie pas).
+# deux colonnes n'est degeneree, et le detail M6 (sensibilite de #310
+# comprise) est celui de la reference versionnee au caractere pres.
 verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detail M6 = reserve2.rds",
          {
            d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
            m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
-           ex <- mw_extrapolation_sigma2(mw_ajuster(unname(m)))
+           a <- mw_ajuster(unname(m))
+           ex <- mw_extrapolation_sigma2(a)
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
            k <- which(vapply(ref$tests, function(x) identical(
              x$test, "Extrapolation de sigma pour la derniere annee de developpement"),
@@ -553,7 +554,119 @@ verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detai
            ex$ecart_relatif > 1e-3 && ex$ecart_relatif_Jm2 > 1e-3 &&
              identical(ex$degeneree_Jm3, FALSE) && identical(ex$degeneree_Jm2, FALSE) &&
              identical(ex$degeneree, FALSE) && length(k) == 1 &&
-             identical(.mw_detail_extrapolation(ex), ref$tests[[k]]$detail)
+             identical(.mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex)),
+                       ref$tests[[k]]$detail)
+         })
+
+## --- Sensibilite de racine(MSEP) a sigma2_(J-1) (#310) -----------------------
+# Specification Fm, § 3 et texte T-4 (decisions Q-D1-Fm-6 a Q-D1-Fm-9). Les
+# racines de MSEP de reference sont celles de la mesure m_fm_d de la
+# specification (docs/tableaux/20261023-fm-mesures.md), recalculees ici par un
+# remplacement reecrit hors de la fonction (meme methode que
+# mw_sensibilite_sigma2_dernier() : sigma2[J] et Q[J] remplaces, mw_msep()).
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  t_ref <- unname(m)
+  a <- mw_ajuster(t_ref); J <- a$J
+  ex <- mw_extrapolation_sigma2(a)
+  s <- mw_sensibilite_sigma2_dernier(a, ex)
+  msep_avec <- function(v) {
+    b <- a; b$sigma2[J] <- v; b$Q[J] <- v / b$f[J]^2; mw_msep(b)
+  }
+  verifier("#310 : MSEP recalculee avec la valeur de la regle identical() a mw_msep(aj)",
+           identical(msep_avec(a$sigma2[J]), mw_msep(a)) &&
+             identical(s$racine_msep_regle, sqrt(mw_msep(a)$msep)) &&
+             identical(s$valeur_regle, a$sigma2[J]))
+  verifier("#310 : racines de MSEP sur reserve2 (regle, sigma2_(J-2), quotient, 0) a 1e-6 relatif",
+           isTRUE(s$applicable) &&
+             isTRUE(proche(s$racine_msep_regle, 199.494435, rel = 1e-6)) &&
+             isTRUE(proche(unname(s$racine_msep_arguments),
+                           c(226.413084, 199.494435, 271.305067), rel = 1e-6)) &&
+             isTRUE(proche(s$racine_msep_zero, 166.479535, rel = 1e-6)) &&
+             isTRUE(proche(unname(s$racine_msep_arguments),
+                           vapply(c(ex$sigma2_Jm2, ex$sigma2_Jm3, ex$quotient),
+                                  function(v) sqrt(msep_avec(v)$msep), numeric(1)), rel = 1e-15)) &&
+             identical(names(s$racine_msep_arguments), c("sigma2_Jm2", "sigma2_Jm3", "quotient")))
+  # Texte T-4 de la specification, a la lettre (BASE R1, min(...), SENS, CONTRE).
+  t4 <- paste0(
+    "Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
+    "et non estimee : la regle ne lit que les deux dernieres variances estimees. ",
+    "min(sigma2_(J-2) = 0.189674 ; sigma2_(J-3) = 0.0973248 ; ",
+    "sigma2_(J-2)^2/sigma2_(J-3) = 0.36965) = 0.0973248, minimum atteint par sigma2_(J-3). ",
+    "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+    "(199.494 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+    "avec sigma2_(J-2) : 226.413 (+13.5 %) ; avec sigma2_(J-3) : 199.494 (+0.0 %) ; ",
+    "avec sigma2_(J-2)^2/sigma2_(J-3) : 271.305 (+36.0 %). ",
+    "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+    "contrefactuel qui n'est pas un argument du minimum) : 166.48 (-16.5 %).")
+  verifier("#310 : detail M6 de reserve2 = texte T-4 a la lettre (mw_tests())",
+           identical(detail_m6(run_mw(t_ref)), t4) &&
+             identical(.mw_detail_extrapolation(ex, s), t4))
+  verifier("#310 : vocabulaire R1, ni 'extrapolee' ni 'imposee' dans le detail M6",
+           !grepl("extrapol|impose", t4) &&
+             !grepl("extrapol|impose", .mw_detail_extrapolation(ex)))
+  verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, en fin, un seul TRUE en j = J - 1",
+           {
+             f <- run_mw(t_ref)$plots_data$facteurs
+             identical(names(f), c("j", "f", "sigma", "sigma_regle_minimum")) &&
+               is.logical(f$sigma_regle_minimum) && sum(f$sigma_regle_minimum) == 1L &&
+               identical(f$j[f$sigma_regle_minimum], J - 1L) &&
+               identical(f$sigma, sqrt(a$sigma2))
+           })
+})
+verifier("#310 : quotient non defini (sigma2_(J-3) = 0) -> 'non defini', sans phrase contrefactuelle",
+         {
+           a <- mw_ajuster(tri_deg); ex <- mw_extrapolation_sigma2(a)
+           s <- mw_sensibilite_sigma2_dernier(a, ex)
+           l <- detail_m6(run_mw(tri_deg))
+           is.na(s$racine_msep_arguments[["quotient"]]) && a$sigma2[a$J] == 0 &&
+             identical(l, .mw_detail_extrapolation(ex, s)) &&
+             endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+             grepl("Sensibilite indicative, hors regle et sans effet sur sigma_USP", l, fixed = TRUE) &&
+             !grepl("contrefactuel", l, fixed = TRUE) &&
+             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+         })
+# Contrefactuel omis quand la regle donne 0 a la tolerance de l'outil
+# (colonne degeneree), meme si la valeur de la regle est > 0 en virgule
+# flottante : colonne J-2 de tri_sym constante a 1e-14 pres (valeur de la
+# regle de l'ordre de 1e-50). SENS reste ecrit.
+verifier("#310 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle a la tolerance) : SENS ecrit, sans contrefactuel",
+         {
+           t4 <- tri_sym
+           t4[2, 5] <- 2193 * (1 + 1e-14)
+           a <- mw_ajuster(t4); ex <- mw_extrapolation_sigma2(a)
+           l <- detail_m6(run_mw(t4))
+           a$sigma2[a$J] > 0 && isTRUE(ex$degeneree) &&
+             identical(l, .mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex))) &&
+             grepl("Sensibilite indicative", l, fixed = TRUE) &&
+             !grepl("contrefactuel", l, fixed = TRUE) &&
+             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+         })
+# Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
+# colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non
+# definis, la sensibilite n'est pas applicable (plus de "NaN %").
+verifier("#310 : racine(MSEP) de la regle nulle (facteurs constants par colonne) -> sensibilite non applicable, aucun NaN",
+         {
+           fc <- c(2, 1.5, 1.2, 1.1, 1.05, 1.02, 1.01)
+           tc <- matrix(NA_real_, 8, 8)
+           for (i in 1:8) { tc[i, 1] <- 1000 + 100 * i
+             if (i <= 7) for (j in 2:(9 - i)) tc[i, j] <- tc[i, j - 1] * fc[j - 1] }
+           a <- mw_ajuster(tc); ex <- mw_extrapolation_sigma2(a)
+           s <- mw_sensibilite_sigma2_dernier(a, ex)
+           l <- .mw_detail_extrapolation(ex, s)
+           isTRUE(ex$applicable) && mw_msep(a)$msep == 0 &&
+             identical(s$applicable, FALSE) && is.na(s$racine_msep_regle) &&
+             all(is.na(s$racine_msep_arguments)) && is.na(s$racine_msep_zero) &&
+             !grepl("NaN", l, fixed = TRUE) && !grepl("Sensibilite", l, fixed = TRUE)
+         })
+verifier("#310 : sensibilite non applicable (objet d'ajustement reduit) : aucune valeur, detail sans sensibilite",
+         {
+           ex0 <- mw_extrapolation_sigma2(list(I = 4L, reserve = 10))
+           s0 <- mw_sensibilite_sigma2_dernier(list(I = 4L, reserve = 10), ex0)
+           identical(s0$applicable, FALSE) && is.na(s0$racine_msep_regle) &&
+             identical(.mw_detail_extrapolation(ex0, s0), .mw_detail_extrapolation(ex0)) &&
+             !grepl("Sensibilite", .mw_detail_extrapolation(ex0, s0), fixed = TRUE)
          })
 # Triangle non degenere : la valeur ne change pas (le minimum litteral est
 # applique comme auparavant) et aucun avertissement n'est emis.

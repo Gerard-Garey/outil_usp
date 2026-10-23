@@ -1676,4 +1676,71 @@ verifier("Rapport fige (reference premium) : en-tete, parametre, intervalle \"[a
              grepl("<td>delta (parametre de melange)</td><td>1,00000</td>", h0, fixed = TRUE)
          })
 
+
+## --- Graphique des facteurs Merz-Wuthrich : sigma_j et point J - 1 (#310) ----
+# Panneaux f_j / sigma_j (Q-D1-Fm-9, forme retenue par app-review), point
+# j = J - 1 designe par plots_data$facteurs$sigma_regle_minimum et legende T-5
+# de la specification Fm a la lettre ; objet anterieur a #310 (sans la
+# colonne) : serie "sigma_j", aucun point distingue.
+spec310 <- readLines(file.path(.racine, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
+                     encoding = "UTF-8")
+t5_310 <- spec310[which(startsWith(spec310, "**T-5 (#310"))[1] + 1L]
+t5_310 <- sub("^> `(.*)`$", "\\1", t5_310)
+verifier("Graphique des facteurs : .LEGENDE_SIGMA_REGLE = texte T-5 de la specification Fm, a la lettre (#310)",
+         identical(.LEGENDE_SIGMA_REGLE, t5_310))
+pd310 <- res_mw$plots_data
+pd310_ancien <- pd310; pd310_ancien$facteurs$sigma_regle_minimum <- NULL
+# par() lu avant et apres le trace, sur le peripherique pdf(NULL) du releve.
+leg310 <- function(pd, l = 480) {
+  e <- new.env()
+  r <- releve_base162(function() {
+    e$avant <- graphics::par(c("mfrow", "mar", "oma", "xpd"))
+    plot_mw_facteurs(pd)
+    e$apres <- graphics::par(c("mfrow", "mar", "oma", "xpd"))
+  }, largeur = l / 72, hauteur = 330 / 72)
+  list(n = length(r$leg), texte = if (length(r$leg)) r$leg[[1]]$texte, rect = if (length(r$leg)) r$leg[[1]]$rect,
+       usr = r$usr, par_restaure = identical(e$avant, e$apres))
+}
+verifier("Graphique des facteurs, base R (400, 480, 560 x 330 px) : legende sigma_j estime + T-5, sous le panneau du bas, par() restaure (#310)",
+         all(vapply(c(400, 480, 560), function(l) {
+           r <- leg310(pd310, l)
+           r$n == 1L && identical(r$texte, c("sigma_j estime", .LEGENDE_SIGMA_REGLE)) &&
+             r$rect$top < r$usr[3] && r$par_restaure
+         }, TRUE)))
+verifier("Graphique des facteurs, base R, objet sans sigma_regle_minimum : rendu sans erreur, serie legendee \"sigma_j\" seule (#310)",
+         {
+           r <- leg310(pd310_ancien)
+           r$n == 1L && identical(r$texte, "sigma_j")
+         })
+verifier("Graphique des facteurs : losange J - 1 d'une couleur distincte de la reference f = 1 (COUL$regle != COUL$trait) (#310)",
+         is.character(COUL$regle) && !identical(COUL$regle, COUL$trait))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  b310 <- function(pd) suppressWarnings(plotly::plotly_build(plot_mw_facteurs(pd)))$x
+  verifier("Graphique des facteurs, plotly : deux sous-graphiques a axe j partage, f_j en haut, sigma_j (axe depuis 0) et T-5 en bas, legende horizontale sous le trace (#310)",
+           {
+             b <- b310(pd310); L <- b$layout
+             nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             ya <- vapply(b$data, function(t) t$yaxis, "")
+             xa <- vapply(b$data, function(t) t$xaxis, "")
+             j1 <- b$data[[which(nm == .LEGENDE_SIGMA_REGLE)]]
+             length(b$data) == 4L && all(xa == "x") &&
+               identical(ya[nm == "f_j"], "y") && identical(ya[nm == "sigma_j estime"], "y2") &&
+               identical(ya[nm == .LEGENDE_SIGMA_REGLE], "y2") &&
+               identical(as.numeric(j1$x), as.numeric(pd310$facteurs$j[pd310$facteurs$sigma_regle_minimum])) &&
+               identical(j1$marker$color, COUL$regle) &&
+               min(unlist(L$yaxis$domain)) > max(unlist(L$yaxis2$domain)) &&
+               identical(unlist(L$yaxis2$range)[1], 0) &&
+               identical(L$legend$orientation, "h") && L$legend$y < 0
+           })
+  verifier("Graphique des facteurs, plotly, objet sans sigma_regle_minimum : trois traces, serie \"sigma_j\" sur tous les j (#310)",
+           {
+             b <- b310(pd310_ancien)
+             nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             length(b$data) == 3L && !(.LEGENDE_SIGMA_REGLE %in% nm) &&
+               identical(as.numeric(b$data[[which(nm == "sigma_j")]]$x), as.numeric(pd310$facteurs$j))
+           })
+} else {
+  cat("  note : plotly absent ; sous-graphiques plotly du graphique des facteurs non exerces (#310).\n")
+}
+
 fin_fichier()

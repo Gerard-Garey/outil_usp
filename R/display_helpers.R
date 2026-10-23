@@ -14,10 +14,12 @@
 ###############################################################################
 
 # ref : lignes de reference (gris moyen) ; ref_texte : texte qui les libelle,
-# gris fonce plus contraste sur fond blanc (#162).
+# gris fonce plus contraste sur fond blanc (#162). regle : point de sigma_(J-1)
+# fixe par la regle de minimum (plot_mw_facteurs(), #310), ambre distinct de
+# trait (reference f = 1 du meme graphique).
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
              ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF",
-             env_sim = "#E8F0FC", ref_texte = "#4D5656")
+             env_sim = "#E8F0FC", ref_texte = "#4D5656", regle = "#B9770E")
 
 # L'option usp.graphiques_base force les branches base R des plot_*() meme si
 # plotly est installe. Elle n'est posee que par rapport_html() (graphiques
@@ -995,22 +997,91 @@ plot_mw_qq <- function(pd) {
        "quantiles theoriques N(0,1)", "residu standardise")
 }
 
+# Facteurs f_j (panneau du haut) et ecarts-types sigma_j de Mack (panneau du
+# bas, meme axe j ; #310, Q-D1-Fm-9, forme en panneaux retenue par
+# app-review) : f et sigma sont lus dans pd$facteurs (sigma =
+# racine(sigma2_j) de mw_ajuster(), posee par mw_plots_data()). Le point
+# j = J - 1, dont sigma est fixe par la regle de minimum de D(5)(d)(ii) et non
+# estime, est designe par la colonne logique sigma_regle_minimum du moteur et
+# trace a part (losange COUL$regle, couleur distincte de la reference f = 1 du
+# panneau du haut), avec la legende T-5 de la specification Fm ; les sigma_j
+# estimes sont relies entre eux, sans le relier. Axe des sigma_j lineaire
+# depuis 0 (sigma_j peut valoir 0). Legende hors du trace, sous le panneau du
+# bas. Colonne absente (resultat anterieur a #310) : serie legendee
+# "sigma_j", aucun point distingue.
+.LEGENDE_SIGMA_REGLE <- "sigma_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non estime"
 plot_mw_facteurs <- function(pd) {
   if (is.null(pd$facteurs)) return(.vide())
   d <- pd$facteurs
+  regle <- if (is.null(d$sigma_regle_minimum)) rep(FALSE, nrow(d))
+           else d$sigma_regle_minimum %in% TRUE
+  marque <- any(regle)
+  nom_sigma <- if (marque) "sigma_j estime" else "sigma_j"
+  titre <- "Facteurs chain-ladder f_j et ecarts-types sigma_j (M6)"
+  xlab <- "annee de developpement j"
+  smax <- suppressWarnings(max(d$sigma, na.rm = TRUE))
+  if (!is.finite(smax) || smax <= 0) smax <- 1
+  ylim_sigma <- c(0, 1.05 * smax)
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt,
-                   xlab = "annee de developpement j", ylab = "f_j",
-                   main = "Facteurs de developpement chain-ladder")
-    graphics::abline(h = 1, col = COUL$trait, lty = 2); return(invisible())
+    # xpd figure ici pour que on.exit() restaure aussi celui de l'appelant
+    # (la legende est tracee sous xpd = NA).
+    op <- graphics::par(mfrow = c(2, 1), oma = c(4.2, 0, 1.6, 0), mar = c(0.5, 4.2, 0.5, 1),
+                        mgp = c(2.4, 0.7, 0), bg = COUL$fond, xpd = FALSE)
+    on.exit(graphics::par(op))
+    plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt, xaxt = "n", xlab = "", ylab = "f_j")
+    graphics::abline(h = 1, col = COUL$trait, lty = 2)
+    graphics::par(mar = c(1.6, 4.2, 0.5, 1))
+    plot(d$j[!regle], d$sigma[!regle], type = "b", pch = 1, lty = 3, col = COUL$ref_texte,
+         xlim = range(d$j), ylim = ylim_sigma, xlab = "", ylab = "sigma_j")
+    if (marque)
+      graphics::points(d$j[regle], d$sigma[regle], pch = 23, cex = 1.4,
+                       col = COUL$regle, bg = COUL$regle)
+    graphics::mtext(titre, side = 3, outer = TRUE, line = 0.3, col = COUL$pt)
+    graphics::mtext(xlab, side = 1, outer = TRUE, line = 0.2)
+    # Legende dans la marge externe basse, sous l'intitule de l'axe j : son
+    # bord haut est 1,3 ligne sous le bas de la zone interne (omd[3], en
+    # coordonnees du peripherique normalisees).
+    haut_leg <- graphics::par("omd")[3] - 1.3 * graphics::par("csi") / graphics::par("din")[2]
+    graphics::par(xpd = NA)
+    graphics::legend(graphics::grconvertX(0.01, "ndc", "user"),
+                     graphics::grconvertY(haut_leg, "ndc", "user"),
+                     xjust = 0, yjust = 1, bty = "n", cex = 0.7,
+                     legend = c(nom_sigma, if (marque) .LEGENDE_SIGMA_REGLE),
+                     pch = c(1, if (marque) 23), lty = c(3, if (marque) NA),
+                     col = c(COUL$ref_texte, if (marque) COUL$regle),
+                     pt.bg = c(NA, if (marque) COUL$regle))
+    return(invisible())
   }
-  p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$j), y = c(1, 1),
-        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
-  p <- plotly::add_trace(p, x = d$j, y = d$f, type = "scatter", mode = "lines+markers",
-        line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
-        hovertemplate = "j = %{x}<br>f = %{y:.5f}<extra></extra>")
-  .mep(p, "Facteurs de developpement chain-ladder", "annee de developpement j", "f_j")
+  axe <- function(titre_axe, ...) list(title = titre_axe, zeroline = FALSE, gridcolor = "#EEEEEE", ...)
+  ph <- plotly::plot_ly()
+  ph <- plotly::add_lines(ph, x = range(d$j), y = c(1, 1), showlegend = FALSE,
+         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  ph <- plotly::add_trace(ph, x = d$j, y = d$f, type = "scatter", mode = "lines+markers",
+         name = "f_j", showlegend = FALSE,
+         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
+         hovertemplate = "j = %{x}<br>f = %{y:.5f}<extra></extra>")
+  ph <- plotly::layout(ph, yaxis = axe("f_j"))
+  pb <- plotly::plot_ly()
+  pb <- plotly::add_trace(pb, x = d$j[!regle], y = d$sigma[!regle], type = "scatter",
+         mode = "lines+markers", name = nom_sigma,
+         line = list(color = COUL$ref_texte, dash = "dot"),
+         marker = list(size = 8, color = COUL$fond, line = list(color = COUL$ref_texte, width = 1.5)),
+         hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<extra></extra>")
+  if (marque)
+    pb <- plotly::add_trace(pb, x = d$j[regle], y = d$sigma[regle], type = "scatter",
+           mode = "markers", name = .LEGENDE_SIGMA_REGLE,
+           marker = list(size = 11, symbol = "diamond", color = COUL$regle),
+           hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<br>fixe par la regle de minimum<extra></extra>")
+  pb <- plotly::layout(pb, xaxis = axe(xlab), yaxis = axe("sigma_j", range = ylim_sigma))
+  p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
+                       margin = 0.03)
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
+                 title = list(text = titre, font = list(size = 14, color = COUL$pt)),
+                 showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.25,
+                               yanchor = "top", font = list(size = 10)),
+                 paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
+                 margin = list(t = 45, b = 80))
 }
 
 plot_mw_reserve <- function(pd) {

@@ -8170,10 +8170,16 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 }
 
 # Libelle du diagnostic M6 correspondant : les trois arguments du minimum et
-# celui qui est retenu, pour que le calcul soit refaisable a la lecture.
-.mw_detail_extrapolation <- function(ex) {
-  base <- paste("Valeur non estimee mais extrapolee par la regle min(...) du reglement :",
-                "elle ne repose que sur les dernieres colonnes estimees")
+# celui qui est retenu, pour que le calcul soit refaisable a la lecture, puis,
+# si sens (mw_sensibilite_sigma2_dernier()) est fourni et applicable, la
+# sensibilite indicative de racine(MSEP) a sigma2_(J-1) (issue #310, texte T-4
+# de la specification Fm, a la lettre). Vocabulaire R1 (Q-D1-Fm-8) : valeur
+# "fixee par la regle de minimum", ni "extrapolee" ni "imposee". Aucun nombre
+# issu du bootstrap (regle #76) : les racines de MSEP sont deterministes.
+.mw_detail_extrapolation <- function(ex, sens = NULL) {
+  base <- paste("Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii),",
+                "seconde ligne, et non estimee : la regle ne lit que les deux",
+                "dernieres variances estimees")
   if (!isTRUE(ex$applicable)) return(base)
   q <- if (is.na(ex$quotient))
     "non defini (sigma2_(J-3) = 0), sans effet : le minimum est atteint ailleurs"
@@ -8219,10 +8225,7 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # .mw_colonne_degeneree(), deux volets), si bien qu'une colonne constante a
   # 1e-14 pres donne un sigma2 de l'ordre de 1e-21, non nul. La valeur exacte
   # est imprimee quelques mots plus haut dans la meme chaine. Cette phrase
-  # finale ne figure que dans les branches degenerees. Hors degenerescence, le
-  # libelle ne peut changer que par la regle ex aequo ci-dessus, qui s'y
-  # applique aussi ; pour un minimum unique (triangle de non-regression) il
-  # est identique au libelle anterieur (reference reserve2.rds).
+  # ne figure que dans les branches degenerees ; elle precede la sensibilite.
   d3 <- isTRUE(ex$degeneree_Jm3)
   d2 <- isTRUE(ex$degeneree_Jm2)
   if (d3 && d2)
@@ -8238,6 +8241,30 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
     detail <- paste0(detail, ". Colonne J-2 a facteurs individuels egaux a f_j ",
                      "a la tolerance relative 1e-12 de l'outil ",
                      "(sigma2_(J-2) numeriquement nul) : voir l'avertissement sur les donnees")
+  if (is.null(sens) || !isTRUE(sens$applicable)) return(detail)
+  # Sensibilite (T-4, SENS puis CONTRE) : racines de MSEP par format(digits =
+  # 6), ecarts relatifs a la valeur de la regle en %+.1f %%, "non defini"
+  # pour le quotient NA (sigma2_(J-3) = 0). Le contrefactuel sigma2_(J-1) = 0
+  # (Q-D1-Fm-6) est omis quand la regle donne 0 a la tolerance de l'outil
+  # (colonne J-3 ou J-2 degeneree, ex$degeneree, predicat
+  # .mw_colonne_degeneree() a 1e-12) : il repeterait alors la valeur de la
+  # regle. SENS reste ecrit.
+  r0 <- sens$racine_msep_regle
+  morceau <- function(nom, v)
+    if (is.na(v)) sprintf("avec %s : non defini", nom)
+    else sprintf("avec %s : %s (%+.1f %%)", nom, format(v, digits = 6), 100 * (v / r0 - 1))
+  morceaux <- vapply(seq_along(noms), function(k)
+    morceau(noms[k], sens$racine_msep_arguments[[k]]), character(1))
+  phrase <- paste0("Sensibilite indicative, hors regle et sans effet sur sigma_USP, ",
+                   "de la racine de la MSEP (", format(r0, digits = 6),
+                   " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                   paste(morceaux, collapse = " ; "), ".")
+  detail <- paste0(detail, ". ", phrase)
+  if (!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0))
+    detail <- paste0(detail, " ", sprintf(paste0(
+      "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+      "contrefactuel qui n'est pas un argument du minimum) : %s (%+.1f %%)."),
+      format(sens$racine_msep_zero, digits = 6), 100 * (sens$racine_msep_zero / r0 - 1)))
   detail
 }
 
@@ -8307,6 +8334,53 @@ mw_msep <- function(aj) {
   # sigma_estime, sigma_estime_brut et variation_relative.
   t1 <- unname(t1); t2 <- unname(t2)
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
+}
+
+# --- Sensibilite de racine(MSEP) a sigma2_{J-1} (issue #310) ----------------
+# Restitution indicative, HORS REGLE et SANS EFFET sur sigma_USP : la valeur
+# de sigma2_{J-1} est fixee par la regle de minimum de D(5)(d)(ii), seconde
+# ligne (mw_ajuster()) et n'est pas modifiee ici. On recalcule racine(MSEP)
+# par mw_msep() en remplacant sigma2_{J-1} successivement par chacun des
+# trois arguments du minimum, dans l'ordre du texte (sigma2_{J-2},
+# sigma2_{J-3}, sigma2_{J-2}^2/sigma2_{J-3}), puis par 0, contrefactuel qui
+# n'est pas un argument du minimum (decision Q-D1-Fm-6). Aucun sigma estime
+# ni sigma_USP alternatif n'est produit (Q-D1-Fm-7).
+# Remplacement : sigma2[J] ET Q[J] = sigma2[J] / f[J]^2, car mw_msep() lit Q
+# (par. 5(d)) et non sigma2. Avec la valeur de la regle, l'operation refait
+# exactement le calcul de mw_ajuster() (meme division element par element) :
+# la MSEP recalculee est identical() a mw_msep(aj) (controle des tests
+# unitaires). Quotient non defini (sigma2_{J-3} = 0) : racine(MSEP) NA pour
+# cet argument. Non applicable (J < 3, sigma2 non fini, objet d'ajustement
+# reduit) : applicable = FALSE et aucune valeur. De meme si racine(MSEP)
+# avec la valeur de la regle n'est pas finie et strictement positive : les
+# ecarts relatifs n'auraient pas de sens (division par 0, "NaN %").
+mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) {
+  out <- list(applicable = FALSE, valeur_regle = NA_real_, racine_msep_regle = NA_real_,
+              arguments = c(sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_, quotient = NA_real_),
+              racine_msep_arguments = c(sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_,
+                                        quotient = NA_real_),
+              racine_msep_zero = NA_real_)
+  if (!isTRUE(ex$applicable) ||
+      !all(c("C_chapeau", "Q", "S", "Sp", "dernier_observe") %in% names(aj)))
+    return(out)
+  J <- aj$J
+  racine_avec <- function(v) {
+    a <- aj
+    a$sigma2[J] <- v
+    a$Q[J] <- v / a$f[J]^2
+    sqrt(mw_msep(a)$msep)
+  }
+  r0 <- sqrt(mw_msep(aj)$msep)
+  if (!(is.finite(r0) && r0 > 0)) return(out)
+  args <- c(sigma2_Jm2 = ex$sigma2_Jm2, sigma2_Jm3 = ex$sigma2_Jm3, quotient = ex$quotient)
+  out$applicable <- TRUE
+  out$valeur_regle <- aj$sigma2[J]
+  out$racine_msep_regle <- r0
+  out$arguments <- args
+  out$racine_msep_arguments <- vapply(args, function(v)
+    if (is.na(v)) NA_real_ else racine_avec(v), numeric(1))
+  out$racine_msep_zero <- racine_avec(0)
+  out
 }
 
 # --- Applicabilite de la methode no 2 : reserve et MSEP ----------------------
@@ -11197,12 +11271,15 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   fam <- "M6. robustesse de l'estimation"
   # Restitution des trois arguments du minimum du texte et de celui qui est
   # retenu : c'est ce qui permet au relecteur de refaire le calcul a la main.
+  # La sensibilite de racine(MSEP) a sigma2_(J-1) (#310) est calculee par
+  # mw_sensibilite_sigma2_dernier() (mw_msep() sur sigma2_(J-1) remplace) et
+  # restituee dans le seul detail : ni estim secondaire, ni sigma alternatif.
   ex <- mw_extrapolation_sigma2(aj)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex))
+      detail = .mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(aj, ex)))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -11938,8 +12015,14 @@ mw_plots_data <- function(aj, res, boot, msep = NULL) {
   qq <- stats::qqnorm(res$residu, plot.it = FALSE)
   list(
     methode = "reserve2",
+    # sigma_regle_minimum (#310, Q-D1-Fm-9, colonne ajoutee en fin) : TRUE
+    # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
+    # D(5)(d)(ii), seconde ligne, et non estime ; FALSE partout si la regle
+    # n'est pas applicable (mw_extrapolation_sigma2()$applicable).
     facteurs = data.frame(j = 0:(aj$J - 1), f = aj$f,
-                          sigma = sqrt(aj$sigma2)),
+                          sigma = sqrt(aj$sigma2),
+                          sigma_regle_minimum = (0:(aj$J - 1)) == aj$J - 1 &
+                            isTRUE(mw_extrapolation_sigma2(aj)$applicable)),
     reserve_par_annee = data.frame(i = 0:aj$I,
                                    dernier = aj$dernier_observe,
                                    ultime = aj$ultime,
