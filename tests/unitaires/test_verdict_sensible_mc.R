@@ -232,12 +232,18 @@ verifier("Renvoi #215 : base sans point final -> 'Texte ; ' + renvoi + ' ' + phr
 # 0,285 sur reserve2), la ligne M2 de reserve2 (Heteroscedasticite
 # residuelle vs cumul) ne porte plus la phrase et sort de la liste : 10
 # lignes de la specification restent (2 marquees + 8 diagnostics de #299).
+# Depuis #307 (pente relative, decision Q-D1-Fj-3 ; specification Fj,
+# par. 7 : p Monte-Carlo 0,778 -> 0,090, |0,090 - 0,10| < 2 err_mc), la
+# ligne M1 "Absence de tendance des facteurs avec le cumul, a colonne
+# donnee" de reserve2, hors de la mesure de #244, porte la phrase et entre
+# dans la liste : 3 lignes marquees au total.
 ATTENDU244 <- list(
   premium = c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
               "Homogeneite des dispersions (mediane)"),
   premium_ii6 = NULL, premium_net = NULL, reserve1 = NULL,
   premium_interieur = "Valeur aberrante isolee (Grubbs)",
-  reserve2 = "Nullite de l'ordonnee a l'origine, colonne par colonne")
+  reserve2 = c("Absence de tendance des facteurs avec le cumul, a colonne donnee",
+               "Nullite de l'ordonnee a l'origine, colonne par colonne"))
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
 DIAG299_244 <- c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
                  "Homogeneite des dispersions (mediane)")
@@ -306,8 +312,9 @@ for (cas in names(ATTENDU244)) local({
 })
 # 10 lignes de la specification (11, moins la ligne M2 de reserve2 retiree
 # par #301) : marquees, ou diagnostics de #299 (8 : deux lignes dans chacun
-# des quatre cas a delta = 1).
-verifier("U244-7 six cas : 10 lignes de la specification (11 moins la ligne M2 de reserve2, #301), marquees ou diagnostics de #299 (2 + 8)",
-         n244 == 2L && n_diag299 == 8L)
+# des quatre cas a delta = 1) ; plus la ligne M1 de pente de reserve2,
+# marquee depuis #307.
+verifier("U244-7 six cas : 10 lignes de la specification (11 moins la ligne M2 de reserve2, #301), marquees ou diagnostics de #299 (2 + 8), plus la ligne de pente de reserve2 (#307) : 3 + 8",
+         n244 == 3L && n_diag299 == 8L)
 
 fin_fichier()

@@ -3159,14 +3159,141 @@ verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, ver
                                        " Valeurs critiques calculees a alpha = 0.10 ; residus declares",
                                        " (rang dans la liste des residus de Mack, par ordre de retrait) : 3, 14."))
          })
-verifier("Decomptes reserve2 (#300, #308) : 21 lignes, OK 7, INFO 8, ALERTE 2, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+# Depuis #307 (pente relative, decision Q-D1-Fj-3 ; visa de principe
+# Q-D1-Fj-10) : la ligne "Absence de tendance des facteurs avec le cumul, a
+# colonne donnee" passe d'OK a ALERTE (specification Fj, par. 7) ; la famille
+# alpha reste ECHEC (option (b'), Q-D1-Fj-5) ; 13 tests, 8 diagnostics.
+verifier("Decomptes reserve2 (#300, #308, #307) : 21 lignes (13 tests, 8 diagnostics), OK 6, INFO 8, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
          {
            v <- vapply(res300$tests, `[[`, "", "verdict")
+           ty <- vapply(res300$tests, `[[`, "", "type")
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
            length(res300$tests) == 21L &&
-             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(7L, 8L, 2L, 4L)) &&
+             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(13L, 8L)) &&
+             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(6L, 8L, 3L, 4L)) &&
              !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
              isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
+         })
+
+## --- M1 : pente intra-colonne relative et famille alpha (#307) ---------------
+# Specification Fj, par. 4.1, 4.3, 5 (T-4, T-5) et 7 ; decisions Q-D1-Fj-3
+# (pente relative), Q-D1-Fj-4 (cle PenteIntra conservee) et Q-D1-Fj-5 (famille
+# alpha, option (b')) du 22/10/2026. Lignes lues par leur nom dans res300
+# (reserve2, B = 999, graine par defaut).
+NOM307 <- "Absence de tendance des facteurs avec le cumul, a colonne donnee"
+DETAIL307 <- paste0(
+  "Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j : moyenne simple ",
+  "des cumuls de la colonne j qui portent un facteur), poids C(i,j) f_j^2/sigma_j^2, avec ",
+  "effets fixes d'annee de developpement ; t de la pente commune b. En unites relatives, une ",
+  "ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), et ",
+  "chaque colonne pese selon la dispersion relative de ses cumuls et la precision de ses ",
+  "facteurs, non selon l'echelle de C(i,j). b se lit comme une elasticite du facteur au ",
+  "volume, a colonne donnee.")
+verifier("Pente relative (#307) : reserve2, ligne M1 = entree PenteIntra du catalogue (stat = bootstrap$stats_obs$PenteIntra), estim = b, p de Student en p non simulee non retenue, p Monte-Carlo retenue ; champs T-4 a la lettre",
+         {
+           x <- lig300(NOM307)
+           pr <- .mw_pente_relative(mw_residus(res300$ajustement,
+                                               .mw_colonnes_degenerees(res300$ajustement)))
+           ok <- list(
+             stat_obs = identical(x$stat, res300$bootstrap$stats_obs$PenteIntra),
+             stat = identical(x$stat, pr[["t"]]),
+             estim = identical(x$estim, pr[["b"]]),
+             p_as = identical(x$p_asymptotique, pr[["p"]]),
+             p_mc = identical(x$p_mc, res300$bootstrap$p_mc[["PenteIntra"]]) &&
+               identical(x$p_retenue, x$p_mc),
+             nature = identical(x$nature_p, "Monte-Carlo (bootstrap de residus)"),
+             type = identical(x$type, "test") && startsWith(x$famille, "M1"),
+             fonction = identical(x$fonction, ".mw_pente_relative"),
+             stat_nom = identical(x$stat_nom, "t"),
+             estim_nom = identical(x$estim_nom, "pente relative b"),
+             H0 = identical(x$H0, "a annee de developpement donnee, le facteur ne depend pas du niveau de C(i,j)"),
+             H1 = identical(x$H1, paste0("le facteur relatif F(i,j)/f_j varie avec le volume relatif ",
+                                         "C(i,j)/Cbar_j, selon une pente commune aux colonnes")),
+             loi = identical(x$loi, "Student(N - G - 1) approx. (pente relative, effets fixes de colonne) -> Monte-Carlo"),
+             reference = identical(x$reference, paste0(
+               "Mack (1993), ASTIN Bulletin 23(2), section 2, hyp. (1) ; section 3, hyp. (3) ; ",
+               "pente relative commune a effets fixes de colonne : construction de l'outil ",
+               "(partialisation de Frisch & Waugh 1933)")),
+             detail = identical(x$detail, DETAIL307) ||
+               identical(x$detail, paste(DETAIL307, PHRASE_VERDICT_SENSIBLE_MC)),
+             ascii = !grepl("[^ -~]", paste(x$detail, x$reference, x$H1, x$loi)))
+           k <- !vapply(ok, isTRUE, logical(1))
+           if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
+         })
+verifier("Pente relative (#307) : reserve2, t = 1,7330, b = 0,0592, p_as = 0,0985, p_mc 0,090, ALERTE, phrase de #244 en fin de detail (|0,090 - 0,10| < 2 err_mc) (specification Fj, par. 7)",
+         {
+           x <- lig300(NOM307)
+           isTRUE(proche(x$stat, 1.7330, rel = 0, abs = 5e-5)) &&
+             isTRUE(proche(x$estim, 0.0592, rel = 0, abs = 5e-5)) &&
+             isTRUE(proche(x$p_asymptotique, 0.0985, rel = 0, abs = 5e-5)) &&
+             isTRUE(proche(x$p_mc, 0.090, rel = 1e-12)) && identical(x$verdict, "ALERTE") &&
+             abs(x$p_mc - 0.10) < 2 * x$err_mc &&
+             identical(x$detail, paste(DETAIL307, PHRASE_VERDICT_SENSIBLE_MC))
+         })
+verifier("Pente relative (#307) : gardes de .mw_pente_relative() -> b, se, t, p NA : moins de 4 cellules, sigma_j nul, ddl < 1, Sxx = 0 ; finie a ddl = 1",
+         {
+           r <- data.frame(j = c(0L, 0L, 0L, 1L, 1L), C = c(10, 12, 15, 20, 26),
+                           F = c(1.5, 1.4, 1.6, 1.1, 1.2), f_chapeau = c(1.5, 1.5, 1.5, 1.15, 1.15),
+                           sigma_j = c(0.1, 0.1, 0.1, 0.05, 0.05))
+           na4 <- c(b = NA_real_, se = NA_real_, t = NA_real_, p = NA_real_)
+           s0 <- r; s0$sigma_j[4:5] <- 0
+           d0 <- r[c(1, 2, 4, 5), ]            # 4 cellules, 2 colonnes : ddl = 1
+           d3 <- d0; d3$j <- c(0L, 0L, 1L, 2L) # 4 cellules, 3 colonnes : ddl = 0
+           d4 <- d0; d4$j <- 0:3               # une cellule par colonne : Sxx = 0
+           all(is.finite(.mw_pente_relative(r))) &&
+             identical(.mw_pente_relative(r[1:3, ]), na4) &&
+             identical(.mw_pente_relative(s0), na4) &&
+             all(is.finite(.mw_pente_relative(d0))) &&
+             identical(.mw_pente_relative(d3), na4) &&
+             identical(.mw_pente_relative(d4), na4)
+         })
+verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,00111, p_mc 0,005) ; champs T-5 a la lettre, \"0.17 % (colonne j = 1)\"",
+         {
+           x <- lig300("Stabilite du facteur selon la ponderation (famille alpha)")
+           al <- mw_famille_alpha(res300$ajustement)
+           att <- paste0(
+             "alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; ",
+             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), les trois ",
+             "estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur ",
+             "la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). ",
+             "f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par ",
+             "C(i,j)^alpha, rapportee au cumul moyen de meme ponderation : la ligne vise, comme la ",
+             "pente intra-colonne, une association du facteur au volume, mais colonne par colonne et ",
+             "sans compensation de signe entre colonnes. Ecart relatif maximal entre les trois ",
+             "estimateurs : 0.17 % (colonne j = 1) ; seul f_j^(alpha = 1) entre dans sigma_USP.")
+           ok <- list(
+             verdict = identical(x$verdict, "ECHEC") && identical(x$type, "test"),
+             stat = identical(x$stat, al$stat) && isTRUE(proche(x$stat, 0.00111, rel = 0, abs = 5e-6)),
+             p_mc = isTRUE(proche(x$p_mc, 0.005, rel = 1e-12)),
+             fonction = identical(x$fonction, "mw_famille_alpha"),
+             H0 = identical(x$H0, "les estimateurs alpha = 0, 1 et 2 visent le meme f_j"),
+             H1 = identical(x$H1, paste0("les trois estimateurs visent des valeurs differentes ",
+                                         "(esperance de C(i,j+1) non proportionnelle a C(i,j))")),
+             reference = identical(x$reference,
+               "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124"),
+             detail = identical(x$detail, att) ||
+               identical(x$detail, paste(att, PHRASE_VERDICT_SENSIBLE_MC)),
+             ascii = !grepl("[^ -~]", x$detail))
+           k <- !vapply(ok, isTRUE, logical(1))
+           if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
+         })
+# Repli de T-5 (statistique NA) : branche inatteignable sur un triangle
+# valide (mw_famille_alpha() retient la colonne j = 0 des que I >= 3, et
+# mw_valider_triangle() refuse un triangle de trois annees) ; exercee par
+# mw_tests() appele directement sur un triangle 3 x 3, hors run_engine().
+# add() y pose son prefixe de ligne non applicable devant la premiere phrase.
+verifier("Famille alpha (#307) : statistique NA (aucune colonne n_j >= 3, triangle 3 x 3 hors run_engine()) -> ligne non applicable, detail = prefixe d'add() + premiere phrase seule",
+         {
+           t <- matrix(NA_real_, 3, 3); t[, 1] <- c(100, 120, 90)
+           t[1:2, 2] <- t[1:2, 1] * c(1.5, 1.6); t[1, 3] <- t[1, 2] * 1.1
+           a <- mw_ajuster(t); al <- mw_famille_alpha(a)
+           x <- Filter(function(l) identical(l$test, "Stabilite du facteur selon la ponderation (famille alpha)"),
+                       mw_tests(a, mw_bootstrap(a, B = 19)))
+           is.na(al$stat) && length(x) == 1L && identical(x[[1]]$type, "non applicable") &&
+             identical(x[[1]]$detail, paste(
+               "statistique observee non finie : test non applicable. alpha = 0 : moyenne simple",
+               "des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation",
+               "par le carre du volume."))
          })
 
 fin_fichier()
