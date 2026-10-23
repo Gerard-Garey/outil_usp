@@ -202,10 +202,9 @@
 #         p_retenue des valeurs brutes de #221, au bit pres ; une discordance
 #         n'est admise que sur une ligne dont la statistique Monte-Carlo a
 #         une discordance (i1) expliquee dans la meme replication ;
-#         depuis #303 (regle R15) et #302 (diagnostics par decision de
-#         Kolmogorov-Smirnov contre N(0,1) et de Cramer-von Mises), une
-#         reexecution sur ce moteur suppose une classe (t2) supplementaire, a
-#         arbitrer par actuary ;
+#         classes fermees T, M, P, R (#274) et D (R22, #366 : lignes restituees
+#         en diagnostic par decision du moteur apres #221 : #299, #302, #303
+#         regle R15 ; voir CLASSES_T2 et classe_t2()) ;
 #    (l8) partie P : md5 des epsilon, des t* et des Y du scenario egaux a
 #         ceux du T0 du tableau de la grille ;
 #    (t)  texte du critere identique a la specification ; titres des
@@ -808,7 +807,24 @@ LIGNES_HORS_ECHEC <- c(LIGNE_TOST, "Test de Pitman sur la pente (lien positif pe
 MARQUEUR_R14 <- "EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES"
 CLASSES_T2 <- c(T = "classe T (#298, r\u00e8gle R14, f20c17c)", M = "classe M (#181, Monte-Carlo indisponible, d2f6355)",
                 P = "classe P (#230, #218, r\u00e8gle R4 retir\u00e9e, 57f5da4)",
-                R = "classe R (#125, branche Monte-Carlo de R1, 448676b)")
+                R = "classe R (#125, branche Monte-Carlo de R1, 448676b)",
+                D = "classe D (#299, #302, #303 r\u00e8gle R15, diagnostic par d\u00e9cision, 484d29a, d363721, 99ae529)")
+# Classe D (R22, #366) : lignes de usp_tests() restituees en diagnostic PAR
+# DECISION du moteur apres la mesure de #221 (verdict INFO, sans p retenue ;
+# la p retenue de #221 etait finie). Liste fermee ligne -> marqueur du detail
+# (phrase fixe posee par le moteur), lue sur la nouvelle ligne :
+#   #299 (484d29a) : SpearTps, BP79, White, GQ, BF, Smirnov ;
+#   #302 (d363721) : CvM, KS ;
+#   #303 (99ae529, regle R15, a pi chapeau constant) : DWr, Runsr, supFr,
+#     CUSUMr, Grubbsr.
+# Une autre ligne, ou une ligne sans son marqueur, reste non expliquee.
+MARQUEUR_DIAG_299 <- "Restituee en diagnostic par decision (issue #299)"
+MARQUEUR_DIAG_302 <- "Restituee en diagnostic par decision (issue #302)"
+MARQUEUR_DIAG_R15 <- "Restituee en diagnostic (regle R15)"
+LIGNES_DIAG_DECISION <- c(
+  stats::setNames(rep(MARQUEUR_DIAG_299, 6L), c("SpearTps", "BP79", "White", "GQ", "BF", "Smirnov")),
+  stats::setNames(rep(MARQUEUR_DIAG_302, 2L), c("CvM", "KS")),
+  stats::setNames(rep(MARQUEUR_DIAG_R15, 5L), c("DWr", "Runsr", "supFr", "CUSUMr", "Grubbsr")))
 LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 # Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
 # anterieures (copie declaree de tests/taux_franchissement_reperes.R) :
@@ -898,9 +914,11 @@ COLS_FIXES <- c("b", "statut", "regime", "delta", "gamma", "dd_bord0", "dd_inter
                 "diag_V1", "diag_V3a", "diag_V3b", paste0("h2:", STATS_P2), "duree", "discordances")
 # Colonnes diag_<variante> (#274, critere par transition) : un caractere par
 # ligne de T2, comme verd_ et nat_ : M, diagnostic "Monte-Carlo
-# indisponible" (prefixe du detail pose par add(), #181) ; R, test
-# inoperant par la branche Monte-Carlo de R1 (inoperant TRUE, p_min_mc
-# finie, #125) ; r, inoperant hors de cette branche ; ".", aucun des trois ;
+# indisponible" (prefixe du detail pose par add(), #181) ; D, ligne de
+# LIGNES_DIAG_DECISION restituee en diagnostic par decision du moteur (#299,
+# #302, #303 ; meme predicat que la classe D de classe_t2(), R22/#366) ; R,
+# test inoperant par la branche Monte-Carlo de R1 (inoperant TRUE, p_min_mc
+# finie, #125) ; r, inoperant hors de cette branche ; ".", aucun des quatre ;
 # "-", ligne absente. Absentes des valeurs brutes anterieures a #274.
 COLS_DIAG <- c("diag_V1", "diag_V3a", "diag_V3b")
 PREFIXE_MC_INDISPO <- "Monte-Carlo indisponible : "
@@ -1465,7 +1483,9 @@ lire_brut_echec <- function(f) {
 # brutes de comparaison (REF), ligne par ligne sur les lignes de T2 hors
 # LIGNES_HORS_ECHEC : passages ECHEC -> non-ECHEC (ancien verdict E, nouveau
 # autre) ; seul est ADMIS un passage dont la nouvelle ligne est un
-# diagnostic "Monte-Carlo indisponible" (code M de diag_) ; une nouvelle
+# diagnostic "Monte-Carlo indisponible" (code M de diag_) ou restitue en
+# diagnostic par decision du moteur (code D, LIGNES_DIAG_DECISION : #299, #302,
+# #303 ; R22/#366 : face a un brut d'avant ces decisions) ; une nouvelle
 # ligne inoperante par la branche Monte-Carlo de R1 (code R) est un defaut ;
 # tout autre passage est non explique. Passages non-ECHEC -> ECHEC :
 # descriptifs. p : p de la statistique du catalogue que lit la ligne
@@ -1504,8 +1524,8 @@ transitions_echec <- function(DN, lignes, REF) {
         dg <- ch(dn, v, "diag", kn)
         bs <- er & !en
         cpt[["baisse"]] <- cpt[["baisse"]] + sum(bs); cpt[["hausse"]] <- cpt[["hausse"]] + sum(!er & en)
-        cpt[["admis"]] <- cpt[["admis"]] + sum(bs & dg == "M"); cpt[["defaut"]] <- cpt[["defaut"]] + sum(bs & dg == "R")
-        ko <- bs & dg != "M"
+        cpt[["admis"]] <- cpt[["admis"]] + sum(bs & dg %in% c("M", "D")); cpt[["defaut"]] <- cpt[["defaut"]] + sum(bs & dg == "R")
+        ko <- bs & !(dg %in% c("M", "D"))
         cpt[["autre"]] <- cpt[["autre"]] + sum(ko & dg != "R")
         if (any(ko)) lst <- c(lst, sprintf("%s b = %d, %s, %s : p ancienne %s, nouvelle %s, nouveau verdict %s, code %s%s", j, b[ko], v, l,
                                            fp(pv(dr, v, st_l[[l]])[ko]), fp(pv(dn, v, st_l[[l]])[ko]), ch(dn, v, "verd", kn)[ko], dg[ko],
@@ -1520,15 +1540,15 @@ transitions_echec <- function(DN, lignes, REF) {
   list(tab = tab, lst = lst, manq = manq, diag_abs = diag_abs, n_lignes = length(lh), bloquant = bloquant,
        bilan = if (length(diag_abs)) sprintf("NON EVALUABLE (colonnes diag absentes : %s)", paste(diag_abs, collapse = ", ")) else
          if (n_ko || length(manq)) sprintf("TRANSITIONS NON EXPLIQUEES (%d passage(s) non admis ; %d ligne(s) absente(s) de la comparaison)", n_ko, length(manq)) else
-           "OK (tout passage ECHEC -> non-ECHEC est un diagnostic Monte-Carlo indisponible)")
+           "OK (tout passage ECHEC -> non-ECHEC est un diagnostic Monte-Carlo indisponible ou une restitution en diagnostic par decision)")
 }
 tableau_transitions <- function(TR) {
   L <- c("#### Crit\u00e8re par transition (#274, arbitrage d'actuary du 17/10/2026)", "",
          paste(sprintf("Par jeu et par variante, r\u00e9plications trait\u00e9es appari\u00e9es, %d lignes hors TOST, Pitman, Fisher et ESD :", TR$n_lignes),
                "passages ECHEC \u2192 non-ECHEC (comparaison \u2192 pr\u00e9sente mesure) ; admis : nouvelle ligne en diagnostic",
-               "\u00ab Monte-Carlo indisponible \u00bb (#181) ; d\u00e9faut : nouvelle ligne rendue inop\u00e9rante par la branche Monte-Carlo de R1 (#125) ;",
+               "\u00ab Monte-Carlo indisponible \u00bb (#181) ou restitu\u00e9e en diagnostic par d\u00e9cision (#299, #302, #303) ; d\u00e9faut : nouvelle ligne rendue inop\u00e9rante par la branche Monte-Carlo de R1 (#125) ;",
                "autres : non expliqu\u00e9s. Passages non-ECHEC \u2192 ECHEC : descriptifs. Un passage non admis refuse --ecrire."), "",
-         entete_md(c("Jeu", "Variante", "n appari\u00e9", "ECHEC \u2192 non-ECHEC", "admis (M)", "d\u00e9faut (R1 Monte-Carlo)", "non expliqu\u00e9s",
+         entete_md(c("Jeu", "Variante", "n appari\u00e9", "ECHEC \u2192 non-ECHEC", "admis (M, D)", "d\u00e9faut (R1 Monte-Carlo)", "non expliqu\u00e9s",
                      "non-ECHEC \u2192 ECHEC (descriptif)")))
   if (!is.null(TR$tab)) for (i in seq_len(nrow(TR$tab))) { x <- TR$tab[i, ]
     L <- c(L, ligne_md(x$jeu, x$variante, x$n, x$baisse, x$admis, x$defaut, x$autre, x$hausse)) }
@@ -2383,10 +2403,22 @@ boot_variante <- function(stats_obs, mc, variante = NULL)
          granularite_stat = mc$granularite, motif_mc = mc$motif_mc,
          p_min_mc = mc$p_min_mc),
     if (!is.null(variante)) list(p_mc_regime = list(variante = variante)))
+# Predicat de la classe D (R22, #366), partage par classe_t2() et code_diag() :
+# ligne de LIGNES_DIAG_DECISION, verdict INFO, p retenue NA, type diagnostic,
+# inoperant FALSE, detail portant le marqueur de sa ligne.
+est_diag_decision <- function(t) {
+  k_d <- match(t$test, STAT_LIGNE[names(LIGNES_DIAG_DECISION)])
+  !is.na(k_d) && identical(t$verdict, "INFO") && !is.finite(t$p_retenue) && identical(t$type, "diagnostic") &&
+    identical(t$inoperant, FALSE) && grepl(LIGNES_DIAG_DECISION[[k_d]], as.character(t$detail), fixed = TRUE)
+}
 # Classes fermees de discordances (t2) admises (#274, arbitrages d'actuary du
-# 17/10/2026), liste fermee : (i1), T, M, P, R. classe_t2() lit la nouvelle
+# 17/10/2026 ; D ajoutee par R22, #366), liste fermee : (i1), T, M, P, R, D.
+# classe_t2() lit la nouvelle
 # ligne de usp_tests() (predicats sur ses champs et marqueurs, jamais sur le
-# seul NA) et rend un code candidat : T, ligne TOST restituee en diagnostic
+# seul NA) et rend un code candidat : D, ligne de LIGNES_DIAG_DECISION
+# restituee en diagnostic par decision du moteur (#299, #302, #303 : type
+# diagnostic, verdict INFO, p retenue NA, inoperant FALSE, detail portant le
+# marqueur de sa ligne) ; T, ligne TOST restituee en diagnostic
 # par la regle R14 (#298, f20c17c : type diagnostic, verdict INFO, p retenue
 # NA, detail portant MARQUEUR_R14) ; M, diagnostic "Monte-Carlo
 # indisponible" (#181, d2f6355 : verdict INFO, p retenue NA, detail prefixe
@@ -2404,6 +2436,7 @@ classe_t2 <- function(t) {
   if (info_na && identical(t$test, LIGNE_TOST) && identical(t$type, "diagnostic") &&
       grepl(MARQUEUR_R14, t$detail, fixed = TRUE)) return("T")
   if (info_na && startsWith(as.character(t$detail), PREFIXE_MC_INDISPO)) return("M")
+  if (est_diag_decision(t)) return("D")
   if (!is.finite(pe)) {
     if (!is.finite(pr) && isTRUE(t$inoperant) && is.finite(pmc) && pmc >= ALPHA && (!is.finite(pm) || pm < ALPHA)) return("b")
     if (is.finite(pr) && identical(t$type, "test") && identical(t$inoperant, FALSE) && is.finite(pm) && pm >= ALPHA &&
@@ -2424,7 +2457,7 @@ egal <- function(a, b) identical(as.numeric(a), as.numeric(b))
 # Discordances (t2) d'une replication : pr, p retenues de #221 (lignes de
 # T2) ; ct, codes_t2() de V1 ; expl, statistiques dont la discordance (i1)
 # est expliquee ; r4, regle R4 recalculee. Rend les indices discordants et
-# leur cause ("i1", "T", "M", "P", "R", ou NA : non expliquee, bloquante),
+# leur cause ("i1", "T", "M", "P", "R", "D", ou NA : non expliquee, bloquante),
 # et la completude de P (r4 vrai sans discordance de classe P sur la ligne
 # de la pente : non expliquee).
 t2_classer <- function(pr, ct, expl = character(0), r4 = FALSE) {
@@ -2432,7 +2465,7 @@ t2_classer <- function(pr, ct, expl = character(0), r4 = FALSE) {
   st <- names(STAT_LIGNE)[match(LIGNES_T2[dl], STAT_LIGNE)]
   of <- is.finite(pr[dl]); nf <- is.finite(ct$p[dl]); cl <- ct$cl[dl]
   cause <- ifelse(!is.na(st) & st %in% expl, "i1",
-           ifelse(of & !nf & cl %in% c("T", "M"), cl,
+           ifelse(of & !nf & cl %in% c("T", "M", "D"), cl,
            ifelse(of & !nf & cl == "b", "R",
            ifelse(!of & nf & cl == "h", "R",
            ifelse(!of & nf & cl == "P" & r4, "P", NA_character_)))))
@@ -2443,6 +2476,7 @@ lib_cause_t2 <- function(cause) ifelse(is.na(cause), "NON expliqu\u00e9e", ifels
 TXT_COMPLET_P <- "(t2) compl\u00e9tude de la classe P : r\u00e8gle R4 recalcul\u00e9e vraie sans discordance de classe P sur la ligne de la pente, NON expliqu\u00e9e"
 code_diag <- function(t) {
   if (startsWith(as.character(t$detail), PREFIXE_MC_INDISPO)) return("M")
+  if (est_diag_decision(t)) return("D")
   if (isTRUE(t$inoperant)) return(if (is.finite(t$p_min_mc)) "R" else "r")
   "."
 }
@@ -2711,7 +2745,7 @@ if (OPT_PREVOL) {
   }
   T2_PV <- GROUPE %in% c("J1", "J2")
   PR221 <- if (T2_PV) M[, grep("^p_retenue:", colnames(M), value = TRUE), drop = FALSE] else NULL
-  t2_pv <- list(ok = 0L, expl = c(i1 = 0L, T = 0L, M = 0L, P = 0L, R = 0L), echec = character(0), cle = character(0), n_rep = 0L, n_r4 = 0L)
+  t2_pv <- list(ok = 0L, expl = c(i1 = 0L, T = 0L, M = 0L, P = 0L, R = 0L, D = 0L), echec = character(0), cle = character(0), n_rep = 0L, n_r4 = 0L)
   FONCTIONS_PV <- c("usp_ajuster", "usp_valider_ajustement", ".mc_evaluer (statistiques observees)", "usp_permutation_pente",
                     "usp_tests (p de V1 valides)", "usp_tests (p absentes, R3)", "usp_tests ((t2), p de #221)")
   ERR_PV <- stats::setNames(vector("list", length(FONCTIONS_PV)), FONCTIONS_PV)
@@ -2908,8 +2942,13 @@ if (PARTIE == "regime") {
                     p = matrix(suppressWarnings(as.numeric(M[, paste0("p_mc:", STATS)])), nrow(M), NS, dimnames = list(NULL, STATS)),
                     pr = M[, paste0("p_retenue:", LIGNES_T2), drop = FALSE])
     REG_REF <- BRUT221$regime
-    controle(all(paste0("p_retenue:", LIGNES_T2) %in% colnames(M)) && ncol(M) == 2L + NS + 51L,
-             sprintf("(t2) les %d lignes du p\u00e9rim\u00e8tre de T2 figurent dans les valeurs brutes de #221 (colonnes p_retenue:<ligne>)", length(LIGNES_T2)))
+    # Forme fixee par #221 (R22, #366) : b et regime, 34 colonnes p_mc:<statistique>
+    # (catalogue de #221), 51 colonnes p_retenue:<ligne>. Le catalogue actuel
+    # n'a plus que NS = 31 statistiques (#302, #303) : les colonnes p_mc: des
+    # statistiques actuelles doivent figurer au brut, le total reste celui de #221.
+    NCOL_BRUT_221 <- 2L + 34L + 51L
+    controle(all(paste0("p_retenue:", LIGNES_T2) %in% colnames(M)) && all(paste0("p_mc:", STATS) %in% colnames(M)) && ncol(M) == NCOL_BRUT_221,
+             sprintf("(t2) les %d lignes du p\u00e9rim\u00e8tre de T2 figurent dans les valeurs brutes de #221 (colonnes p_retenue:<ligne>), ainsi que les %d colonnes p_mc: des statistiques du catalogue actuel ; %d colonnes au total, forme de #221", length(LIGNES_T2), NS, NCOL_BRUT_221))
     M175 <- lire_tsv(F_BRUT175)
     B175 <- M175[M175[, "jeu"] == GROUPE, , drop = FALSE]
     SOURCES <- c(fb, F_TAB221[[GROUPE]], F_BRUT175)
@@ -3163,7 +3202,7 @@ calculer_rep <- function(b, y, ctl) {
       } else i1 <- "OK"
       # (t2)
       # Discordance admise : expliquee par (i1), ou d'une classe de la liste
-      # fermee T, M, P, R (#274, t2_classer()) ; toute autre reste bloquante.
+      # fermee T, M, P, R (#274) et D (#366), t2_classer() ; toute autre reste bloquante.
       pr <- suppressWarnings(as.numeric(BRUT221$pr[b, ]))
       tc <- t2_classer(pr, r$t2$V1, expl, r4_pente(r$fit))
       dl <- tc$dl
