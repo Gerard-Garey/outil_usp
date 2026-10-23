@@ -51,7 +51,8 @@ CONST_229 <- c("SCRIPT", "R_SPEC", "RP_SPEC", "CODES_SCEN", "METHODE", "ALPHA", 
                "LIB_LOI", "DISCRETES", "STAT_LIGNE", "LIGNE_TOST", "STATS", "NS", "F_R", "QUEUE", "CODES_MOTIF",
                "LIB_MOTIF", "TEXTE_CRITERE_229", "PROFILS_D", "COLS_FIXES", "CHAMPS_STAT", "REPCOLS", "COLS_NUM",
                "CLASSES", "ETAT", "PRED_C5", "PRED_C5_TXT", "NOTE_C5", "LIGNES_HORS_ECHEC", "MARQUEUR_R14",
-               "CLASSES_T2", "LIGNE_PITMAN", "PREFIXE_MC_INDISPO")
+               "CLASSES_T2", "LIGNE_PITMAN", "PREFIXE_MC_INDISPO", "MARQUEUR_DIAG_299", "MARQUEUR_DIAG_302",
+               "MARQUEUR_DIAG_R15", "LIGNES_DIAG_DECISION")
 EXPRS_229 <- parse(SCRIPT_229, keep.source = FALSE, encoding = "UTF-8")
 E <- new.env(parent = globalenv())
 assign("RACINE", RACINE_229, envir = E)
@@ -323,6 +324,21 @@ verifier("#274 classe_t2() P : ligne de Pitman de type test, seulement si la p r
            identical(E$classe_t2(ligne_t(test = E$LIGNE_PITMAN, p_retenue = 0.2, p_exacte = 0.2 + 1e-12)), "-") &&
            identical(E$classe_t2(ligne_t(test = "Ligne X", p_retenue = 0.2, p_exacte = 0.2)), "-"))
 
+# Classe D (R22, #366) : ligne de LIGNES_DIAG_DECISION en diagnostic INFO sans p
+# retenue, inoperant FALSE, detail portant le marqueur de SA ligne.
+verifier("#366 classe_t2() D : treize lignes (6 de #299, 2 de #302, 5 de #303) ; marqueur propre a la ligne, diagnostic INFO, p NA, inoperant FALSE",
+         length(E$LIGNES_DIAG_DECISION) == 13L && !anyDuplicated(names(E$LIGNES_DIAG_DECISION)) &&
+           all(names(E$LIGNES_DIAG_DECISION) %in% names(E$STAT_LIGNE)) &&
+           all(vapply(names(E$LIGNES_DIAG_DECISION), function(k)
+             identical(E$classe_t2(diag_na(test = E$STAT_LIGNE[[k]], detail = paste("x", E$LIGNES_DIAG_DECISION[[k]]))), "D"), NA)))
+verifier("#366 classe_t2() D : refusee sans marqueur, avec le marqueur d'une autre ligne, hors liste, ligne inoperante, de type test ou de verdict autre",
+         { k <- "SpearTps"; lb <- E$STAT_LIGNE[[k]]; mk <- E$LIGNES_DIAG_DECISION[[k]]
+           identical(E$classe_t2(diag_na(test = lb, detail = "autre motif")), "-") &&
+             identical(E$classe_t2(diag_na(test = lb, detail = E$MARQUEUR_DIAG_302)), "-") &&
+             identical(E$classe_t2(diag_na(test = "Ligne X", detail = mk)), "-") &&
+             identical(E$classe_t2(diag_na(test = lb, detail = mk, inoperant = TRUE)), "-") &&
+             identical(E$classe_t2(ligne_t(test = lb, detail = mk)), "-") &&
+             identical(E$classe_t2(diag_na(test = lb, detail = mk, verdict = "OK")), "-") })
 ## --- #274 : t2_classer() -------------------------------------------------------
 # LIGNES_T2 (calculee par le script a partir de run_engine()) posee ici :
 # pente de Pitman, ligne de BP, autre ligne.
@@ -343,6 +359,10 @@ verifier("#274 t2_classer() M et T : admises seulement de l'ancienne p finie a l
            identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.25, 0.3), c("-", "M", "-"))$cause, NA_character_) &&
            identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.2, NA), c("-", "-", "T"))$cause, "T") &&
            identical(t2c(c(0.1, 0.2, NA), c(0.1, 0.2, 0.3), c("-", "-", "T"))$cause, NA_character_))
+verifier("#366 t2_classer() D : admise de l'ancienne p finie a la nouvelle NA seulement",
+         identical(t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "D", "-"))$cause, "D") &&
+           identical(t2c(c(0.1, NA, 0.3), c(0.1, 0.25, 0.3), c("-", "D", "-"))$cause, NA_character_) &&
+           identical(t2c(c(0.1, 0.2, 0.3), c(0.1, 0.25, 0.3), c("-", "D", "-"))$cause, NA_character_))
 verifier("#274 t2_classer() R : b de finie a NA, h de NA a finie, jamais l'inverse",
          identical(t2c(c(0.1, 0.2, 0.3), c(0.1, NA, 0.3), c("-", "b", "-"))$cause, "R") &&
            identical(t2c(c(0.1, NA, 0.3), c(0.1, 0.25, 0.3), c("-", "h", "-"))$cause, "R") &&
@@ -401,6 +421,21 @@ verifier("#274 transitions_echec() : tout passage admis (diagnostic Monte-Carlo 
          { t <- E$transitions_echec(list(J2 = DNE[1, ]), LE, list(lignes = LE, D = list(J2 = DR[1, ])))
            identical(t$bloquant, FALSE) && startsWith(t$bilan, "OK (") && !length(t$lst) &&
              identical(t$tab$variante, c("V1", "V3h")) && all(t$tab$baisse == 1L & t$tab$admis == 1L) })
+# Code D de diag_ (R22, #366) : meme predicat que la classe D de classe_t2() ;
+# un passage ECHEC -> INFO d'une ligne D face a un brut d'avant #299 est admis.
+verifier("#366 code_diag() D : ligne de LIGNES_DIAG_DECISION avec son marqueur -> 'D' ; sans marqueur, inoperante ou hors liste -> pas 'D' ; M prioritaire",
+         { k <- "SpearTps"; lb <- E$STAT_LIGNE[[k]]; mk <- E$LIGNES_DIAG_DECISION[[k]]
+           identical(E$code_diag(diag_na(test = lb, detail = mk)), "D") &&
+             identical(E$code_diag(diag_na(test = lb, detail = "autre motif")), ".") &&
+             identical(E$code_diag(diag_na(test = lb, detail = E$MARQUEUR_DIAG_302)), ".") &&
+             identical(E$code_diag(diag_na(test = "Ligne X", detail = mk)), ".") &&
+             !identical(E$code_diag(diag_na(test = lb, detail = mk, inoperant = TRUE)), "D") &&
+             identical(E$code_diag(diag_na(test = lb, detail = paste0(E$PREFIXE_MC_INDISPO, mk))), "M") })
+verifier("#366 transitions_echec() : passage ECHEC -> INFO d'une ligne de code D admis (comme M), non bloquant",
+         { dnd <- DNE[1, ]; dnd$diag_V1 <- ".....D"; dnd$diag_V3b <- ".....D"
+           t <- E$transitions_echec(list(J2 = dnd), LE, list(lignes = LE, D = list(J2 = DR[1, ])))
+           identical(t$bloquant, FALSE) && startsWith(t$bilan, "OK (") && !length(t$lst) &&
+             all(t$tab$baisse == 1L & t$tab$admis == 1L & t$tab$defaut == 0L & t$tab$autre == 0L) })
 verifier("#274 transitions_echec() : colonnes diag absentes -> NON EVALUABLE, bloquant ; ligne absente de la comparaison -> bloquant",
          { t1 <- E$transitions_echec(list(J2 = DNE[, setdiff(names(DNE), c("diag_V1", "diag_V3b"))]), LE, REFE)
            # jeu ou tout passage evalue est admis (n_ko = 0) : seul manq rend le bilan bloquant

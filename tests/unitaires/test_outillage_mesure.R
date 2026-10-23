@@ -512,6 +512,31 @@ tryCatch({
   verifier("(r) eval_k0x : CAL7 120 / 500 : p < 0,025, K0-x non tenu",
            isFALSE(r2$ok) && r2$r[[1]]$p < 0.025)
 
+  ## --- (s) puissance_mw_t8.R : catalogue lu et statistiques au moteur actuel (R22, #369) ---
+  # Definitions extraites par parse() (jamais executees en mode calcul) et
+  # confrontees au MW_CATALOGUE_MC REEL du moteur charge : sens attendus (controle
+  # (b) du script, faux depuis #300 par la cle Grubbs), statistiques sans doublon
+  # (MinP4 est cle du moteur ET candidat), temoin Grubbs hors catalogue, ligne
+  # PenteIntra de T7 redondante avec PenteRel depuis #307.
+  E369 <- extraire_defs(SCRIPT_309, c("SENS_SPEC", "CLES", "NS", "QUEUE", "CAND", "QUEUE_CAND", "CAND_INJ", "TEMOIN", "QUEUE_TEMOIN",
+                                      "STATS_B", "STATS_A", "QUEUE_ALL", "TEM_A", "NS_B", "STATS_FJ", "ENT_GRUBBS"))
+  verifier("(s) puissance_mw_t8.R : SENS_SPEC = les treize cles et les sens du MW_CATALOGUE_MC du moteur charge (MinP4 bas, pas de Grubbs)",
+           E369$NS == 13L && setequal(names(E369$SENS_SPEC), names(MW_CATALOGUE_MC)) &&
+             identical(unname(E369$SENS_SPEC), unname(vapply(names(E369$SENS_SPEC), function(k) MW_CATALOGUE_MC[[k]]$queue, ""))) &&
+             "MinP4" %in% names(E369$SENS_SPEC) && !("Grubbs" %in% names(E369$SENS_SPEC)))
+  verifier("(s) puissance_mw_t8.R : STATS_B (19) sans doublon, QUEUE_ALL de memes noms dans le meme ordre, MinP4 et Grubbs une fois ; STATS_A sans doublon et incluse dans STATS_B",
+           E369$NS_B == 19L && !anyDuplicated(E369$STATS_B) && identical(names(E369$QUEUE_ALL), E369$STATS_B) &&
+             sum(E369$STATS_B == "MinP4") == 1L && sum(E369$STATS_B == "Grubbs") == 1L &&
+             !anyDuplicated(E369$STATS_A) && all(E369$STATS_A %in% E369$STATS_B) && length(E369$STATS_A) == 8L)
+  verifier("(s) puissance_mw_t8.R : temoin Grubbs absent du catalogue, de queue haute, seul temoin de K0-t ; candidat MinP4 de meme sens que la cle du moteur ; candidats injectes = candidats hors cles",
+           !("Grubbs" %in% names(MW_CATALOGUE_MC)) && identical(E369$TEMOIN, "Grubbs") && identical(E369$TEM_A, "Grubbs") &&
+             identical(E369$ENT_GRUBBS$queue, "haut") && identical(E369$QUEUE_TEMOIN[["Grubbs"]], "haut") &&
+             identical(E369$QUEUE_CAND[["MinP4"]], MW_CATALOGUE_MC$MinP4$queue) &&
+             setequal(E369$CAND_INJ, setdiff(E369$CAND, names(MW_CATALOGUE_MC))) && !("MinP4" %in% E369$CAND_INJ))
+  verifier("(s) puissance_mw_t8.R : T7 (STATS_FJ) sans la ligne PenteIntra, redondante avec PenteRel depuis #307",
+           "PenteRel" %in% E369$STATS_FJ && !("PenteIntra" %in% E369$STATS_FJ) && !anyDuplicated(E369$STATS_FJ) &&
+             all(E369$STATS_FJ %in% E369$STATS_B))
+
 }, finally = nettoyer_tmp())
 
 fin_fichier()

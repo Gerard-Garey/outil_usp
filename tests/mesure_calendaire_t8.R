@@ -6,10 +6,17 @@
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.
 #  R base + stats (utils, tools et parallel, livres avec R). Il ne modifie ni
-#  R/engine.R, ni tests/reference/, ni le catalogue MW_CATALOGUE_MC : la forme
-#  "bas" est construite LOCALEMENT par copie de l'entree Calendrier du
-#  catalogue avec la queue "bas" (ENT_BAS). Tous les libelles non ASCII sont
-#  ecrits en echappements \u (fichier source ASCII).
+#  R/engine.R, ni tests/reference/, ni le catalogue MW_CATALOGUE_MC.
+#  REALIGNEMENT (#365) : depuis #276 le catalogue porte la forme "bas"
+#  (decision Q-Fd-1 du 14/10/2026) ; la forme bilaterale "deux", qui n'y est
+#  plus, est construite LOCALEMENT par copie de l'entree Calendrier avec la
+#  queue "deux" (ENT_DEUX), la forme "bas" est l'entree du catalogue
+#  (ENT_BAS). Le script ne s'execute plus que sur un moteur modifie par #276
+#  (arret sinon) ; les controles (a) et (i2) lisent la forme "bas". Il rejoue
+#  le plan de la mesure du 16/10/2026 (docs/tableaux/, fichiers *-issue276-
+#  calendaire*) ; une remesure sur le moteur actuel passe par une decision.
+#  Tous les libelles non ASCII sont ecrits en echappements \u (fichier source
+#  ASCII).
 #
 #  Protocole : docs/specifications/fd-test-calendaire.md, par. 2.3 (etape 2
 #  du par. 8), decisions du mainteneur du 14/10/2026 (annotation D1-Fd :
@@ -69,9 +76,9 @@
 #    l'estimation de la duree complete.
 #  --controle-i2prime BRUT.tsv : controle (i2') de l'etape 3 de Fd (a lancer
 #    par audit sur le moteur MODIFIE, entree Calendrier du catalogue en queue
-#    "bas") ; mode a part, sans calcul de tranche ni ecriture : la garde
-#    "queue == deux" et le controle (a) sont sautes (la garde est remplacee
-#    par "queue == bas") ; reserve2 (graine 20260831, B = 999) et chaque
+#    "bas") ; mode a part, sans calcul de tranche ni ecriture : le controle
+#    (a) est saute (depuis #365 la garde "queue == bas" est commune aux deux
+#    modes) ; reserve2 (graine 20260831, B = 999) et chaque
 #    triangle marque i2 = OK du fichier de valeurs brutes BRUT.tsv sont
 #    regeneres par leurs graines (cellule, b ; graines relues dans le fichier
 #    et comparees au calcul) et mw_bootstrap(aj, B, graine) du moteur doit
@@ -82,11 +89,12 @@
 #
 #  Controles (arret par stop() si l'un echoue ; spec par. 2.3) :
 #    (a)  reserve2 (triangle de tests/outils_tests.R, graine 20260831,
-#         B = 999) : p_mc et p_min_mc "deux" du script identiques a ceux de
+#         B = 999) : p_mc et p_min_mc "bas" du script identiques a ceux de
 #         tests/reference/reserve2.rds (bootstrap$p_mc et $p_min_mc, cle
-#         Calendrier), et egales a 0,004 et 0,002 ;
+#         Calendrier), et p_mc et p_min_mc "deux" (forme locale) egales a
+#         0,004 et 0,002, valeurs d'avant #276 (#365) ;
 #    (i2) reserve2 et premier triangle admis de chaque tranche de 50 (un
-#         triangle sur 50 du plan) : p "deux", p_min_mc "deux" et B effectif
+#         triangle sur 50 du plan) : p "bas", p_min_mc "bas" et B effectif
 #         du script identiques (identical()) a ceux de
 #         mw_bootstrap(aj, B, graine) du moteur, cle Calendrier ;
 #    (graines) plages du script disjointes entre elles, de la plage de #206
@@ -380,13 +388,17 @@ appliquer_effet <- function(tri, scenario, param) {
 ###############################################################################
 #  STATISTIQUE CALENDAIRE, FORMES "deux" ET "bas"
 ###############################################################################
-# Entree du catalogue du moteur (forme "deux") et copie locale en queue basse
-# (forme "bas") : meme fonction de calcul, memes extremites (.mw_calendrier_
-# extremes(), qui rend c(bas, haut) ; engine_p_mc() lit "bas" en queue basse).
-ENT_DEUX <- MW_CATALOGUE_MC$Calendrier
-if (!MODE_I2PRIME && !identical(ENT_DEUX$queue, "deux")) stop("entree Calendrier du catalogue : queue \"deux\" attendue (moteur d'avant #276)")
-if (MODE_I2PRIME && !identical(ENT_DEUX$queue, "bas")) stop("--controle-i2prime : entree Calendrier du catalogue en queue \"bas\" attendue (moteur modifie par #276)")
-ENT_BAS <- .mc_entree(ENT_DEUX$calc, "bas", extremes = ENT_DEUX$extremes)
+# Reglage de l'issue #365 : le moteur a ete modifie par #276 (decision Q-Fd-1
+# du 14/10/2026), l'entree Calendrier du catalogue est en queue "bas". Elle
+# sert de forme "bas" (ENT_BAS) ; la forme bilaterale "deux", qui n'est plus au
+# catalogue, est reconstruite LOCALEMENT par copie de cette entree avec la
+# queue "deux" (ENT_DEUX) : meme fonction de calcul, memes extremites
+# (.mw_calendrier_extremes(), qui rend c(bas, haut) ; engine_p_mc() lit "bas"
+# en queue basse). Le script ne rejoue plus la comparaison sur un moteur
+# d'avant #276.
+ENT_BAS <- MW_CATALOGUE_MC$Calendrier
+if (!identical(ENT_BAS$queue, "bas")) stop("entree Calendrier du catalogue : queue \"bas\" attendue (moteur modifie par #276)")
+ENT_DEUX <- .mc_entree(ENT_BAS$calc, "deux", extremes = ENT_BAS$extremes)
 ENTREES <- list(deux = ENT_DEUX, bas = ENT_BAS)
 extremites <- function(ent, e) {
   ex <- ent$extremes(e)
@@ -446,16 +458,19 @@ calcul_triangle <- function(aj, B, seed) {
   list(stat = obs, Z = if (is.null(cal$Z)) NA_real_ else cal$Z, E = if (is.null(cal$E)) NA_real_ else cal$E,
        V = if (is.null(cal$V)) NA_real_ else cal$V, n_k = n_k, z_k = z_k, p_diag = pd,
        n_rep97 = sum(pd <= REPERE_97),
-       p_as_deux = cal$p, p_as_bas = .p_borne(stats::pnorm(obs)),
+       # cal$p est unilatere (queue basse) depuis #276 : la p bilaterale de
+       # l'ancienne forme du moteur est reconstruite ici (#365).
+       p_as_deux = .p_borne(2 * (1 - stats::pnorm(abs(obs)))), p_as_bas = .p_borne(stats::pnorm(obs)),
        p_deux = pf$deux$p_mc, p_bas = pf$bas$p_mc, pmm_deux = pf$deux$p_min_mc, pmm_bas = pf$bas$p_min_mc,
        err_deux = pf$deux$err_mc, err_bas = pf$bas$err_mc, B_eff = pf$deux$B_effectif,
        n_tires = rp$n_tires, retires = rp$retires, plafond = rp$plafond)
 }
-# (i2) : identite avec mw_bootstrap() du moteur (cle Calendrier).
+# (i2) : identite avec mw_bootstrap() du moteur (cle Calendrier, queue "bas"
+# depuis #276 : forme "bas" du script).
 controle_i2 <- function(aj, B, seed, r) {
   bt <- mw_bootstrap(aj, B = B, seed = seed)
-  c(p = identical(unname(bt$p_mc[["Calendrier"]]), r$p_deux),
-    p_min_mc = identical(unname(bt$p_min_mc[["Calendrier"]]), r$pmm_deux),
+  c(p = identical(unname(bt$p_mc[["Calendrier"]]), r$p_bas),
+    p_min_mc = identical(unname(bt$p_min_mc[["Calendrier"]]), r$pmm_bas),
     B_eff = identical(unname(bt$B_effectif[["Calendrier"]]), r$B_eff))
 }
 ligne_triangle <- function(cl, b, i2) {
@@ -505,10 +520,11 @@ en_df <- function(lignes, cols) {
 ###############################################################################
 #  MODE --controle-i2prime (controle (i2') de l'etape 3 de Fd)
 ###############################################################################
-# Moteur modifie : MW_CATALOGUE_MC$Calendrier en queue "bas" (garde plus
-# haut) ; ENT_DEUX porte alors la queue "bas" mais sa fonction de calcul et
-# ses extremites sont celles de la mesure. ENT_BAS (copie locale) sert de
-# forme "bas" du script, comme a la mesure.
+# Moteur modifie par #276 : MW_CATALOGUE_MC$Calendrier en queue "bas" (garde
+# plus haut, commune aux deux modes depuis #365) ; ENT_BAS est cette entree et
+# sert de forme "bas" du script ; ENT_DEUX en est la copie locale en queue
+# "deux". Ce mode ne differe plus du controle (i2) que par la source des
+# triangles (fichier de valeurs brutes BRUT.tsv).
 if (MODE_I2PRIME) {
   ecarts <- character(0)
   verifier_i2p <- function(lib, aj, seed, p_attendu, pmm_attendu) {
@@ -615,14 +631,19 @@ cgr <- controle_graines(); controle(cgr$ok, paste("(graines)", cgr$txt))
 REF_R2 <- readRDS(chemin_reference("reserve2"))
 AJ_R2 <- mw_ajuster(.tri)
 R_R2 <- calcul_triangle(AJ_R2, B_SPEC, GRAINE_R2)
+# Depuis #365 : la reference porte la forme "bas" (moteur modifie par #276) ;
+# la forme "deux" du script, reconstruite localement, doit retrouver les
+# valeurs 0,004 et 0,002 qu'avait la reference d'avant #276 (sur reserve2,
+# 0,004 = 2 x 0,002 et 0,002 = 2 x 0,001, p_mc et p_min_mc "bas" de la reference
+# actuelle).
 ref_p <- unname(REF_R2$bootstrap$p_mc[["Calendrier"]]); ref_pmm <- unname(REF_R2$bootstrap$p_min_mc[["Calendrier"]])
-controle(identical(R_R2$p_deux, ref_p) && identical(R_R2$pmm_deux, ref_pmm) &&
-           all(abs(c(ref_p, ref_pmm) - c(0.004, 0.002)) < 1e-12),
-         sprintf("(a) reserve2 (seed %.0f, B = 999) : p_mc \u00ab deux \u00bb du script %s, r\u00e9f\u00e9rence %s ; p_min_mc \u00ab deux \u00bb du script %s, r\u00e9f\u00e9rence %s (tests/reference/reserve2.rds, md5 %s ; attendu 0,004 et 0,002) ; forme \u00ab bas \u00bb : p_mc %s, p_min_mc %s ; B effectif %.0f",
-                 GRAINE_R2, g6(R_R2$p_deux), g6(ref_p), g6(R_R2$pmm_deux), g6(ref_pmm),
-                 md5_fichier(chemin_reference("reserve2")), g6(R_R2$p_bas), g6(R_R2$pmm_bas), R_R2$B_eff))
+controle(identical(R_R2$p_bas, ref_p) && identical(R_R2$pmm_bas, ref_pmm) &&
+           all(abs(c(R_R2$p_deux, R_R2$pmm_deux) - c(0.004, 0.002)) < 1e-12),
+         sprintf("(a) reserve2 (seed %.0f, B = 999) : p_mc \u00ab bas \u00bb du script %s, r\u00e9f\u00e9rence %s ; p_min_mc \u00ab bas \u00bb du script %s, r\u00e9f\u00e9rence %s (tests/reference/reserve2.rds, md5 %s) ; forme \u00ab deux \u00bb reconstruite localement : p_mc %s, p_min_mc %s (valeurs d'avant #276 attendues : 0,004 et 0,002) ; B effectif %.0f",
+                 GRAINE_R2, g6(R_R2$p_bas), g6(ref_p), g6(R_R2$pmm_bas), g6(ref_pmm),
+                 md5_fichier(chemin_reference("reserve2")), g6(R_R2$p_deux), g6(R_R2$pmm_deux), R_R2$B_eff))
 I2_R2 <- controle_i2(AJ_R2, B_SPEC, GRAINE_R2, R_R2)
-controle(all(I2_R2), sprintf("(i2) reserve2 : p \u00ab deux \u00bb, p_min_mc \u00ab deux \u00bb et B effectif du script identiques (identical()) \u00e0 mw_bootstrap(aj, 999, %.0f) du moteur, cl\u00e9 Calendrier : %s",
+controle(all(I2_R2), sprintf("(i2) reserve2 : p \u00ab bas \u00bb, p_min_mc \u00ab bas \u00bb et B effectif du script identiques (identical()) \u00e0 mw_bootstrap(aj, 999, %.0f) du moteur, cl\u00e9 Calendrier : %s",
                              GRAINE_R2, paste(sprintf("%s %s", names(I2_R2), ifelse(I2_R2, "oui", "NON")), collapse = ", ")))
 T_CTRL <- secondes(t_debut)
 
@@ -735,7 +756,7 @@ for (l in LOIS) { k <- O$k[O$loi == l]; if (anyDuplicated(k) || !setequal(k, seq
 # (i2) sur un triangle sur 50 du plan.
 I2 <- D$i2[!is.na(D$i2)]
 controle(length(I2) > 0 && all(I2 == "OK"),
-         sprintf("(i2) premier triangle admis de chaque tranche de %d (%d triangles du plan) : p \u00ab deux \u00bb, p_min_mc \u00ab deux \u00bb et B effectif du script identiques (identical()) \u00e0 mw_bootstrap(aj, B, graine) du moteur%s",
+         sprintf("(i2) premier triangle admis de chaque tranche de %d (%d triangles du plan) : p \u00ab bas \u00bb, p_min_mc \u00ab bas \u00bb et B effectif du script identiques (identical()) \u00e0 mw_bootstrap(aj, B, graine) du moteur%s",
                  TAILLE_TRANCHE, length(I2), if (all(I2 == "OK")) "" else paste0(" ; \u00e9checs : ", paste(unique(I2[I2 != "OK"]), collapse = " ; "))))
 # Invariants : B_eff <= B, p sur la grille, p "bas" et p_min_mc dans [0, 1].
 adm <- D$statut == "admis"
@@ -911,7 +932,7 @@ tab_t5 <- function() {
 # --- T6 : p asymptotiques ----------------------------------------------------
 tab_t6 <- function() {
   L <- c("### T6 \u2014 niveau des p asymptotiques sous H0", "",
-         paste("p bilat\u00e9rale 2(1 \u2212 \u03a6(|Z*|)) (forme actuelle du moteur) et p unilat\u00e9rale \u03a6(Z*) (Q-Fd-3) : taux de rejet k / n",
+         paste("p bilat\u00e9rale 2(1 \u2212 \u03a6(|Z*|)) (forme du moteur d'avant #276, reconstruite localement) et p unilat\u00e9rale \u03a6(Z*) (Q-Fd-3) : taux de rejet k / n",
                "[IC 95 %] sur les triangles mesur\u00e9s, et taux sur l'\u00e9chantillon oracle (N0 triangles, statistique seule ;",
                "d\u00e9nominateur : triangles oracle admis)."), "",
          entete_md(c("Loi", "Forme", "Seuil", "n", "taux [IC]", "taux oracle (N0)")))
@@ -984,7 +1005,7 @@ SORTIE <- c("## Mesure #276 : test calendaire de Mack \u00e0 T = 8, forme bilat\
                   "calcul\u00e9es par engine_p_mc() sur les m\u00eames r\u00e9plications, reproduction de la boucle de mw_bootstrap() : identit\u00e9",
                   "v\u00e9rifi\u00e9e par (i2) sur un triangle sur 50 ; \u00e9cart possible non couvert : erreur d'une autre statistique de",
                   ".mw_stats() (mesur\u00e9 \u00e0 l'audit : 0 sur 41 958 r\u00e9plications) ; la forme",
-                  "\u00ab bas \u00bb est une copie locale de l'entr\u00e9e Calendrier du catalogue, moteur inchang\u00e9. IC : Clopper-Pearson \u00e0 95 %,",
+                  "\u00ab bas \u00bb est l'entr\u00e9e Calendrier du catalogue (moteur modifi\u00e9 par #276), la forme \u00ab deux \u00bb en est une copie locale en queue bilat\u00e9rale (#365). IC : Clopper-Pearson \u00e0 95 %,",
                   "incertitude sur le taux (fonction de R), distincte de l'erreur de \u03c1 (fonction de N0) et de err_mc (fonction de B).",
                   "Bande de Bradley : convention de lecture (#166), pas th\u00e9or\u00e8me."), "",
             if (OPT_ESSAI) c("**Essai (--essai) : plan r\u00e9duit, non versionnable.**", ""),
