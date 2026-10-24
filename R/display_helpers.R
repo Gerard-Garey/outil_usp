@@ -1089,19 +1089,27 @@ plot_mw_residus_C <- function(pd) {
 .NOTE_MW_QQ <- paste(.NOTE_MW_QQ_LIGNES, collapse = " ")
 .VIDE_MW_QQ <- "QQ-plot non disponible : resultat produit par une version anterieure du moteur (relancer les calculs)"
 plot_mw_qq <- function(pd) {
-  # Message coupe avant "(relancer" : sur une ligne, il deborde d'un PNG de
-  # 560 px en base R (rendu relu) ; saut de ligne "\n" en base R, "<br>" en
+  # Message coupe en trois lignes, apres "disponible :" et avant
+  # "(relancer" : sur une ligne, il deborde d'un PNG de 560 px en base R, et
+  # sur deux lignes encore d'un PNG de 395 px (rendus relus ; constat C1
+  # d'app-review, revue finale) ; saut de ligne "\n" en base R, "<br>" en
   # plotly.
-  if (is.null(pd$qqnorm) || is.null(pd$qqline))
-    return(.vide(sub(" (relancer", if (.plotly_dispo()) "<br>(relancer" else "\n(relancer",
-                     .VIDE_MW_QQ, fixed = TRUE)))
+  if (is.null(pd$qqnorm) || is.null(pd$qqline)) {
+    saut <- if (.plotly_dispo()) "<br>" else "\n"
+    msg <- sub("disponible : ", paste0("disponible :", saut), .VIDE_MW_QQ, fixed = TRUE)
+    return(.vide(sub(" (relancer", paste0(saut, "(relancer"), msg, fixed = TRUE)))
+  }
   d <- pd$qqnorm; a <- pd$qqline[["ordonnee"]]; b <- pd$qqline[["pente"]]
   note <- .NOTE_MW_QQ_LIGNES
   if (!.plotly_dispo()) {
     .cadre()
     op <- graphics::par(mar = c(4.2, 4.2, 5.6, 1))
     on.exit(graphics::par(op))
-    plot(d$theorique, d$empirique, pch = 19, col = COUL$pt,
+    # las = 1 : graduations de l'axe des ordonnees horizontales. Verticales,
+    # elles se chevauchent a 330 px de haut (marge haute de 5,6 lignes) et
+    # R en omet, dont l'origine "0.0" (constat C2 d'app-review, revue
+    # finale, rendus relus a 395 et 560 x 330 px).
+    plot(d$theorique, d$empirique, pch = 19, col = COUL$pt, las = 1,
          xlab = .AXE_X_MW_QQ, ylab = .AXE_Y_MW_QQ, main = "")
     graphics::title(main = .TITRE_MW_QQ_LIGNES[1], line = 3.9)
     graphics::title(main = .TITRE_MW_QQ_LIGNES[2], line = 2.8)
@@ -1164,12 +1172,18 @@ plot_mw_facteurs <- function(pd) {
     # elargie de 4 % de part et d'autre (yaxs = "r") et la reference f = 1
     # n'est pas tracee quand tous les f_j sont assez au-dessus de 1
     # (app-review, reserve sur #310, jointe a #311).
+    # Axe j gradue aux seules annees de developpement d$j, entieres, dans les
+    # deux panneaux (graduations sans libelle en haut) : par defaut, R
+    # gradue par 0,5 un axe court (triangle 5 x 5, J = 4 ; constat C3
+    # d'app-review, revue finale).
     plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt, xaxt = "n", xlab = "", ylab = "f_j",
          ylim = range(c(d$f, 1), finite = TRUE))
+    graphics::axis(1, at = d$j, labels = FALSE)
     graphics::abline(h = 1, col = COUL$trait, lty = 2)
     graphics::par(mar = c(1.6, 4.2, 0.5, 1))
     plot(d$j[!regle], d$sigma[!regle], type = "b", pch = 1, lty = 3, col = COUL$ref_texte,
-         xlim = range(d$j), ylim = ylim_sigma, xlab = "", ylab = "sigma_j")
+         xlim = range(d$j), ylim = ylim_sigma, xaxt = "n", xlab = "", ylab = "sigma_j")
+    graphics::axis(1, at = d$j)
     if (marque)
       graphics::points(d$j[regle], d$sigma[regle], pch = 23, cex = 1.4,
                        col = COUL$regle, bg = COUL$regle)

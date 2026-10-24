@@ -1732,6 +1732,29 @@ verifier("Graphique des facteurs, base R : reference f = 1 dans la zone de trace
            min(pf$facteurs$f) > 1.04 && length(u0) == 4L && length(u1) == 4L &&
              u0[3] <= 1 && 1 <= u0[4] && u1[3] <= 1 && 1 <= u1[4]
          })
+# Axe j gradue aux seules annees de developpement (constat C3 d'app-review,
+# revue finale) : sur un triangle 5 x 5 (J = 4, j = 0..3), R graduait par
+# 0,5. Appels de axis() a graduations explicites (at non NULL) releves
+# pendant le trace base R : plot.default() appelle aussi axis(1) sans at,
+# y compris sous xaxt = "n" (mesure), appels ecartes.
+axes_j311 <- function(pd) {
+  e <- new.env(); e$ax <- list()
+  ns <- asNamespace("graphics")
+  suppressMessages(trace("axis", exit = bquote(if (identical(side, 1) && !is.null(at))
+    assign("ax", c(get("ax", envir = .(e)), list(list(at = at, labels = labels))), envir = .(e))),
+    where = ns, print = FALSE))
+  on.exit(suppressMessages(untrace("axis", where = ns)))
+  releve_base162(function() plot_mw_facteurs(pd), largeur = 395 / 72, hauteur = 330 / 72)
+  e$ax
+}
+verifier("Graphique des facteurs, base R : axe j gradue en d$j dans les deux panneaux (libelles en bas seulement), y compris J = 4 (#311)",
+         all(vapply(list(pd310, local({ p <- pd310; p$facteurs <- p$facteurs[p$facteurs$j <= 3, ]; p })),
+                    function(pd) {
+           ax <- axes_j311(pd)
+           length(ax) == 2L && identical(as.numeric(ax[[1]]$at), as.numeric(pd$facteurs$j)) &&
+             identical(ax[[1]]$labels, FALSE) &&
+             identical(as.numeric(ax[[2]]$at), as.numeric(pd$facteurs$j)) && isTRUE(ax[[2]]$labels)
+         }, TRUE)))
 verifier("Graphique des facteurs : losange J - 1 d'une couleur distincte de la reference f = 1 (COUL$regle != COUL$trait) (#310)",
          is.character(COUL$regle) && !identical(COUL$regle, COUL$trait))
 if (requireNamespace("plotly", quietly = TRUE)) {
@@ -1978,9 +2001,14 @@ vide_311 <- function(pd) {
 verifier("QQ-plot MW, objet sans qqline (version anterieure du moteur) : aucune erreur, .vide() avec le message fixe, sans numero d'issue ; objet courant : aucun appel a .vide() (#311)",
          {
            v0 <- vide_311(pd311_ancien); v1 <- vide_311(pd311)
-           # Base R : message sur deux lignes, coupe avant "(relancer".
+           # Base R : message sur trois lignes, coupe apres "disponible :" et
+           # avant "(relancer" (constat C1 d'app-review, revue finale : deux
+           # lignes debordaient encore d'un PNG de 395 px).
            v0$ok && identical(gsub("\n", " ", v0$msg, fixed = TRUE), .VIDE_MW_QQ) &&
-             grepl("\n(relancer", v0$msg, fixed = TRUE) && v1$ok && is.null(v1$msg) &&
+             grepl("disponible :\nresultat", v0$msg, fixed = TRUE) &&
+             grepl("moteur\n(relancer", v0$msg, fixed = TRUE) &&
+             lengths(regmatches(v0$msg, gregexpr("\n", v0$msg, fixed = TRUE))) == 2L &&
+             v1$ok && is.null(v1$msg) &&
              identical(.VIDE_MW_QQ, paste("QQ-plot non disponible : resultat produit par une version",
                                           "anterieure du moteur (relancer les calculs)")) &&
              !grepl("#", .VIDE_MW_QQ, fixed = TRUE)
