@@ -1107,6 +1107,15 @@ de l'élément \code{non\_identifiables} (table de l'ensemble figé), retour \co
 courbure et de l'ordonnée à l'origine depuis l'issue~\#290 \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
+\code{mw\_sensibilite\_}\newline\code{sigma2\_dernier()} & \code{aj}, \code{ex} (sortie de
+\code{mw\_extrapolation\_}\allowbreak\code{sigma2()}) & sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ à
+$\hat\sigma^2_{J-1}$ (issue~\#310)~: liste qui donne l'applicabilité, la valeur de la règle et
+sa $\sqrt{\mathrm{MSEP}}$, les trois arguments du minimum et les $\sqrt{\mathrm{MSEP}}$ obtenues
+en rappelant \code{mw\_msep()} avec $\hat\sigma^2_{J-1}$ et $\hat Q_{J-1}$ remplacés par
+chacun d'eux (\code{NA} pour un quotient non défini), enfin la $\sqrt{\mathrm{MSEP}}$ du
+contrefactuel $\sigma^2_{J-1} = 0$~; lue par
+\code{.mw\_detail\_extrapolation()}, sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$
+(fiche~\ref{mw:m6sig}) \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
 $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}
@@ -1431,7 +1440,10 @@ et strictement positif (division exacte~; distances de Cook et leviers identique
 calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
-toutes les quantités tracées (branche Merz--Wüthrich) \\
+toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
+logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
+\code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
+D(5)(d)(ii), \code{FALSE} partout si la règle n'est pas applicable \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
@@ -2600,7 +2612,9 @@ l'issue~\#245) & --- \\
 \midrule
 Extrapolation de $\hat\sigma^2_{J-1}$ & \ref{mw:m6sig} &
 \code{mw\_ajuster()} (champ \code{\$sigma2})~; restitution des trois arguments du
-minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()} &
+minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()}~;
+sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ par
+\code{mw\_sensibilite\_}\allowbreak\code{sigma2\_dernier()} (issue~\#310) &
 diagnostic, aucune p-value & --- \\
 Concentration de la réserve & \ref{mw:m6conc} &
 \code{mw\_ajuster()} (champ \code{\$reserve\_par\_annee}) &
@@ -2957,8 +2971,8 @@ Les estimateurs sont
   \hat\sigma_j^2 = \frac{1}{I-j-1}\sum_{i=0}^{I-j-1} C(i,j)
   \big(F(i,j) - \hat f_j\big)^2 ,
 \]
-la variance de la dernière année de développement étant \emph{extrapolée} et non
-estimée (section~\ref{sec:mw}).
+la variance de la dernière année de développement étant \emph{fixée par la règle de minimum}
+de D(5)(d)(ii) et non estimée (section~\ref{sec:mw}).
 
 \subsection*{Résidus des deux méthodes}
 
@@ -3874,8 +3888,10 @@ Données nettes exigées par D(2)(f)~; contrôle de \code{.run\_engine\_mw()}. B
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
-Géométrie carrée & $I = J$ & Restriction d'implémentation~: la formule du
-paragraphe~4 fait intervenir $C(i,I-i)$, indéfinie si $I - i > J$. Bloquant. \\
+Géométrie carrée & $I = J$ & Restriction d'implémentation~: les formules des
+paragraphes~4 et~5 font intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du
+paragraphe~5 aussi $\hat Q_{I-i}$, indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni
+$\hat\sigma^2_j$ au-delà de $j = J-1$). Bloquant. \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
@@ -3994,7 +4010,8 @@ qu'en appel direct, avec une matrice nommée.
 et le bootstrap, \code{mw\_valider\_ajustement()} refuse le triangle quand toutes les colonnes
 $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne dégénérée
 (\code{.mw\_colonne\_degeneree()}, issue~\#56, fiche~\ref{mw:m1a})~; la colonne $J-1$, qui n'a
-qu'un facteur individuel pour $I = J$, n'entre pas dans le prédicat. Le refus a la forme d'un
+qu'un facteur individuel pour $I = J$, seule géométrie admise par \code{mw\_valider\_triangle()},
+n'entre pas dans le prédicat. Le refus a la forme d'un
 refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
 \code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation},
 \code{methode} et \code{metadata}, aucun résultat partiel. Un seul motif (décision du mainteneur
@@ -4095,8 +4112,8 @@ amplitude des volumes), et, par le domaine numérique, sur la seule capacité du
 virgule flottante à traiter les montants, sans jugement économique (issue~\#145)~; ce domaine
 vaut aussi, depuis l'issue~\#185, pour les cellules du triangle. Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend la simple définition des estimateurs~:
-un triangle non carré ou incomplet ne permet pas d'appliquer la formule du
-paragraphe~4. C'est pourquoi la plupart sont bloquants et non de simples
+un triangle non carré ou incomplet ne permet pas d'appliquer les formules des
+paragraphes~4 et~5. C'est pourquoi la plupart sont bloquants et non de simples
 avertissements.
 
 \smallskip
@@ -6351,7 +6368,7 @@ Concentration de la réserve sur la dernière année & \textbf{MW} & --- & --- &
 du résultat sur la ligne la moins informative \\
 
 Extrapolation de $\hat\sigma^2_{J-1}$ & \textbf{MW} & --- & --- & --- & --- &
-Diagnostic & Sans objet & Valeur imposée par le règlement, non estimée :
+Diagnostic & Sans objet & Valeur fixée par la règle de minimum de D(5)(d)(ii), non estimée :
 à signaler dans le dossier, avec les cas $\hat\sigma^2_{J-3} = 0$ ou
 $\hat\sigma^2_{J-2} = 0$ où la lettre du texte l'annule \\
 \end{longtable}
@@ -6605,7 +6622,7 @@ Variances $\hat\sigma_j^2$ & Estimateur pondéré de la variance &
 $\sigma_j^2$ & Convergence en probabilité &
 $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
-\textbf{extrapolée} par la règle du règlement, et nulle lorsque
+\textbf{fixée par la règle de minimum} de D(5)(d)(ii), et nulle lorsque
 $\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ \\
 
 Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
@@ -7917,7 +7934,7 @@ pas (contraintes exactes par colonne) &
 Diagnostic sans verdict depuis l'issue~\#300 (fiche~\ref{mw:m4ros})~; repère seulement, aucune
 exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
-imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
+fixée par la règle de minimum de D(5)(d)(ii), qui ne lit que deux colonnes et l'annule
 lorsque $\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ &
 Diagnostic dédié~; à mentionner explicitement dans le dossier, avertissement de
 validation dans le cas dégénéré \\
@@ -13021,8 +13038,13 @@ $\hat\beta x$~: contrôle visuel direct de la proportionnalité (H1). \\
 $\hat\beta$~: une dérive contredit la constance de $\beta$. \\
 \code{plot\_residus()} & LN & H2 & Résidus $z_t$ contre le volume~: structure
 résiduelle après pondération. \\
-\code{plot\_mw\_facteurs()} & MW & --- & Facteurs $\hat f_j$ par année de
-développement, avec la référence $f = 1$~: visualise la cadence de liquidation. \\
+\code{plot\_mw\_facteurs()} & MW & M6 & Deux panneaux sur le même axe $j$ (issue~\#310)~:
+facteurs $\hat f_j$ par année de développement, avec la référence $f = 1$, qui visualisent la
+cadence de liquidation~; écarts types $\hat\sigma_j$ (\code{facteurs\$sigma}), axe depuis~0, le
+point $j = J-1$, désigné par \code{facteurs\$sigma\_regle\_minimum}, marqué à part et légendé
+«~\texttt{\small sigma\_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non
+estime}~», % \texttt et non \code : "sigma_(" serait lu comme un nom de fonction par tests/concordance_doc_moteur.R
+sans être relié aux $\hat\sigma_j$ estimés (fiche~\ref{mw:m6sig}). \\
 \code{plot\_mw\_reserve()} & MW & M6 & Réserve par année de survenance~: montre
 la concentration sur les années récentes. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Structure de variance}}} \\
@@ -13652,7 +13674,7 @@ qui s'y reporterait y lirait une autre formule.
   \hat\sigma_j^2 = \frac{1}{I-j-1}\sum_{i=0}^{I-j-1} C(i,j)
   \left(\frac{C(i,j+1)}{C(i,j)} - \hat f_j\right)^2,
 \]
-et, pour la dernière année de développement, le règlement impose l'extrapolation
+et, pour la dernière année de développement, la valeur est fixée par la règle de minimum
 \[
   \hat\sigma_{J-1}^2 = \min\!\left(\hat\sigma_{J-2}^2,\ \hat\sigma_{J-3}^2,\
   \frac{\hat\sigma_{J-2}^4}{\hat\sigma_{J-3}^2}\right).
@@ -13938,8 +13960,9 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 
 \begin{encadre}
 \textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
-la formule du paragraphe~4 fait intervenir $C(i, I-i)$, qui n'est définie que si
-$I - i \le J$. Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
+les formules des paragraphes~4 et~5 font intervenir $C(i, I-i)$, qui n'est définie que si
+$I - i \le J$, et celle du paragraphe~5 aussi $\hat Q_{I-i}$, qui ne l'est que si
+$I - i \le J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà de $j = J-1$). Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
 le traitement. Le moteur impose donc $I = J$ (triangle carré) et refuse
 explicitement les autres géométries, plutôt que de les traiter par une convention
 implicite non prévue par le règlement.
@@ -15592,7 +15615,7 @@ retenues donnent $\sum_i r(i,j)^2 = 6,\ 5,\ 4,\ 3,\ 2,\ 1$ pour
 $n_j = 7,\ 6,\ 5,\ 4,\ 3,\ 2$,
 soit $N = 27$, $k = 6$ et $N - k = 21$. La dernière colonne ($j = J-1$) ne
 fournit qu'un seul facteur individuel --- c'est d'ailleurs pourquoi
-$\hat\sigma^2_{J-1}$ y est extrapolée et non estimée (fiche~\ref{mw:m6sig}) ---
+$\hat\sigma^2_{J-1}$ y est fixée par la règle de minimum et non estimée (fiche~\ref{mw:m6sig}) ---
 et n'entre donc pas dans les résidus~: sur un triangle carré $n\times n$ sans
 colonne dégénérée, $N = n(n-1)/2 - 1$ et $k = n-2$. L'identité est vérifiée
 colonne par colonne par la batterie de tests unitaires du dépôt
@@ -15676,8 +15699,8 @@ diagnostic n'a pas de verdict --- le rendre en \code{OK} ou en \code{ALERTE}
 donnerait à une convention d'affichage l'apparence d'une conclusion au seuil
 $\alpha$. Le moteur restitue la valeur observée et la valeur de référence
 recalculée~; c'est au rédacteur du dossier de les commenter. À lire
-conjointement avec la fiche~\ref{mw:m6sig} sur l'extrapolation de
-$\hat\sigma^2_{J-1}$, qui porte, elle, l'incertitude réelle des dernières
+conjointement avec la fiche~\ref{mw:m6sig} sur $\hat\sigma^2_{J-1}$, fixée par la règle
+de minimum, qui porte, elle, l'incertitude réelle des dernières
 colonnes.
 \end{fiche}
 
@@ -16724,7 +16747,10 @@ section~\ref{sec:notations-mw}.
 \refl{Annexe XVII, D(5)(d)(ii), seconde ligne.}
 \Cadre
 La variance de la dernière année de développement ne peut être estimée, faute
-d'observations. \textbf{Diagnostic, non test.}
+de degré de liberté~: sous la contrainte $I = J$ imposée par \code{mw\_valider\_triangle()}
+(section~\ref{sec:controles}), la colonne $J-1$ ne porte qu'un facteur individuel, $F(0,J-1)$,
+soit $I - (J-1) - 1 = 0$ degré de liberté. Sa valeur est \emph{fixée par la règle de minimum}
+de l'annexe~XVII, D(5)(d)(ii), seconde ligne, et non estimée. \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
@@ -16745,26 +16771,84 @@ $\hat\sigma^2_{J-2}$ et précise que le quotient, nul par voie de conséquence,
 n'est pas compté comme argument distinct~; colonnes $J-3$ et $J-2$ toutes deux
 dégénérées, il nomme les deux variances ex aequo~; dans les autres cas, il
 nomme tous les arguments égaux au minimum à $10^{-12}$ près en relatif, ex
-aequo s'ils sont plusieurs.
+aequo s'ils sont plusieurs. Le champ \code{detail} s'ouvre, depuis l'issue~\#310, par
+«~\code{Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), seconde ligne, et non
+estimee : la regle ne lit que les deux dernieres variances estimees}~».
+
+\emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ (issue~\#310).} Le champ \code{detail} se
+termine par la sensibilité de $\sqrt{\mathrm{MSEP}}$ à la valeur de $\hat\sigma^2_{J-1}$,
+calculée par \code{mw\_sensibilite\_sigma2\_dernier()} et transmise à
+\code{.mw\_detail\_extrapolation()}~: \code{mw\_msep()} est rappelée en remplaçant
+$\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} = \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit
+\code{mw\_msep()}, successivement par chacun des trois arguments du minimum, dans l'ordre du
+texte, puis par~$0$. Chaque valeur est imprimée avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$
+de la règle~; l'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
+quand $\hat\sigma^2_{J-3} = 0$. Avec la valeur que retient la règle, la MSEP recalculée est
+identique au bit près à celle de \code{mw\_msep()} (contrôle \code{identical()} des tests
+unitaires). La valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un argument du
+minimum}~», dans une phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement
+ou à la tolérance relative $10^{-12}$ de l'outil (colonne $J-3$ ou $J-2$ dégénérée, champ
+\code{\$degeneree} de \code{mw\_extrapolation\_sigma2()})~: elle répéterait alors la valeur de
+la règle. La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
+$\sqrt{\mathrm{MSEP}}$ de la règle n'est pas finie et strictement positive, les écarts relatifs
+n'ayant alors pas de sens. Les racines de MSEP sont déterministes~: le \code{detail} n'imprime
+aucun nombre issu du bootstrap. Aucun écart type estimé ni aucun
+$\sigma_{(\text{res},s,\mathrm{USP})}$ n'est recalculé avec ces valeurs, et
+$\sigma_{(\text{res},s,\mathrm{USP})}$ n'en dépend pas.
 \Loi
-Sans objet~: la quantité n'est pas estimée mais \emph{imposée} par une règle
-d'extrapolation.
+Sans objet~: la quantité n'est pas estimée mais \emph{fixée par la règle de minimum} de
+D(5)(d)(ii).
 \Pval
 Aucune.
 \Usage
 Ce diagnostic existe pour rendre visible dans le dossier un point que le calcul
-masque~: une des entrées de la MSEP ne provient pas des données mais d'une
-convention réglementaire, reposant sur deux colonnes seulement. Comme la
-dernière année de développement contribue à la MSEP de toutes les années de
-survenance récentes --- celles qui portent l'essentiel de la réserve --- cette
-convention a un effet non négligeable sur le paramètre final. Elle doit être
-mentionnée explicitement.
+masque~: une des entrées de la MSEP ne provient pas d'une estimation mais de la
+règle de minimum du règlement, qui ne lit que deux colonnes. Le terme
+$\hat Q_{J-1}$ entre dans la MSEP de \textbf{toutes} les années de survenance
+$i = 1, \ldots, I$ (formule du paragraphe~5, §\ref{sec:mw})~: pour $i = 1$, par
+$\hat Q_{I-i}/C(i,I-i)$ et $\hat Q_{I-i}/S_{I-i}$, puisque $I - 1 = J - 1$~; pour
+$i \ge 2$, par le terme $j = J-1$ de la somme $\sum_{j=I-i+1}^{J-1}$, et par lui dans la
+double somme des termes croisés. La valeur fixée par la règle pèse donc sur toute la MSEP, et
+non sur les seules années de survenance récentes (mesuré sur le triangle de contrôle~: doubler
+$\hat Q_{J-1}$ augmente le crochet de chacune des sept années $i = 1, \ldots, 7$). Elle doit
+être mentionnée explicitement.
 
-À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités qui
-bornent l'extrapolation sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
+\emph{Sensibilité sur le triangle de contrôle} (\code{tests/donnees/triangle\_mw.csv},
+$I = J = 7$, triangle $8\times 8$~; \code{mw\_sensibilite\_sigma2\_dernier()}, valeurs
+imprimées dans le \code{detail} de la ligne et reprises du script \code{m\_fm\_d.R} de
+\code{docs/tableaux/20261023-fm-mesures.md}). La règle retient
+$\hat\sigma^2_{J-3}$~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}lrrr@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Valeur de $\sigma^2_{J-1}$}} &
+\textcolor{financeblue}{\textbf{Valeur}} &
+\textcolor{financeblue}{\textbf{$\sqrt{\mathrm{MSEP}}$}} &
+\textcolor{financeblue}{\textbf{Écart}} \\
+$\hat\sigma^2_{J-2}$ & $0{,}189674$ & $226{,}413$ & $+13{,}5~\%$ \\
+$\hat\sigma^2_{J-3}$ (retenue par la règle) & $0{,}0973248$ & $199{,}494$ & --- \\
+$\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ & $0{,}36965$ & $271{,}305$ & $+36{,}0~\%$ \\
+$0$ (contrefactuel, hors des arguments du minimum) & $0$ & $166{,}480$ & $-16{,}5~\%$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+Les trois arguments étant, par construction, supérieurs ou égaux à la valeur de la règle, leur
+restitution ne montre que des hausses~; seul le contrefactuel $\sigma^2_{J-1} = 0$, qui n'est
+pas un argument du minimum, mesure le poids de la dernière année de développement dans la MSEP
+($-16{,}5~\%$ de $\sqrt{\mathrm{MSEP}}$ ici). Ces valeurs sont un \emph{calcul exact} sur un jeu
+de données, sans aléa, et non un ordre de grandeur général~; elles sont indicatives, hors règle,
+et sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$, qui reste celui de la règle
+($0{,}04977646$ sur ce triangle).
+
+À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités que lit
+la règle sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
 repose sur deux facteurs individuels et un degré de liberté,
 $\hat\sigma^2_{J-3}$ sur trois facteurs et deux degrés de liberté. La valeur
-extrapolée hérite de cette imprécision, qu'aucune p-value ne mesure ici.
+fixée par la règle hérite de cette imprécision, qu'aucune p-value ne mesure ici.
 
 \medskip
 \textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
@@ -17518,7 +17602,7 @@ vérifiée numériquement (fiche~\ref{mw:m1id}) \\
 
 \noindent
 La conformité de l'erreur type ultime de Mack à sa valeur publiée valide
-simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle d'extrapolation de
+simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle de minimum qui fixe
 $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an. Ce triangle
 n'étant pas dégénéré, le contrôle ne porte que sur le cas
 $\hat\sigma^2_{J-3} > 0$ et $\hat\sigma^2_{J-2} > 0$~; les cas $\hat\sigma^2_{J-3} = 0$ et
@@ -17715,7 +17799,7 @@ y est compatible, et sa p du $\chi^2(1)$ en écart mineur du côté libéral (ci
 méthode, une par entrée de \code{MW\_CATALOGUE\_MC}, chacune p-value retenue de sa ligne sur le
 triangle de contrôle, est mesuré sous un plan unique (issue~\#206)~: le modèle de Mack ajusté au
 triangle de contrôle (\code{tests/donnees/triangle\_mw.csv}, $I = J = 7$, triangle $8\times 8$),
-dont les $\hat f_j$ et les $\hat\sigma_j^2$, $\hat\sigma^2_{J-1}$ extrapolée comprise, sont pris
+dont les $\hat f_j$ et les $\hat\sigma_j^2$, $\hat\sigma^2_{J-1}$ fixée par la règle de minimum comprise, sont pris
 pour vrais et dont la première colonne est fixée. C'est un \emph{constat de simulation sous ce
 plan}, non un résultat général~: il ne se transpose ni à une autre géométrie de triangle ni à un
 autre paramétrage. Aucun théorème ne couvre ce test bootstrap à $T = 8$
@@ -18616,7 +18700,9 @@ projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
-\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
+\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6~;\newline
+\code{mw\_sensibilite\_sigma2\_dernier()}~: sensibilité indicative de $\sqrt{\mathrm{MSEP}}$
+(issue~\#310) \\
 Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 \code{mw\_msep()} \\
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
@@ -18711,7 +18797,7 @@ modèle et un mode d'inférence différents.
   \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises en
   D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
-  $\hat f_j$, $\hat\sigma_j^2$ et de la règle d'extrapolation.
+  $\hat f_j$, $\hat\sigma_j^2$ et de la règle de minimum qui fixe $\hat\sigma^2_{J-1}$.
 
   \item T.~Mack, \emph{Measuring the variability of chain ladder reserve
   estimates}, \emph{Casualty Actuarial Society Forum}, printemps 1994,
