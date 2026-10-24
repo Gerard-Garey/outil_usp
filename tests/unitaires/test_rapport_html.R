@@ -1743,4 +1743,110 @@ if (requireNamespace("plotly", quietly = TRUE)) {
   cat("  note : plotly absent ; sous-graphiques plotly du graphique des facteurs non exerces (#310).\n")
 }
 
+
+## --- Nuages de residus Merz-Wuthrich : moyennes par groupe (#312) ------------
+# Moyennes et effectifs lus dans plots_data$residus_acc_groupes et
+# residus_cal_groupes (Q-D1-Fm-2) ; legendes et infobulles : texte T-2 de la
+# specification Fm, a la lettre. Objet anterieur a #312 (tables absentes) :
+# nuage seul, sans legende.
+i_t2 <- which(startsWith(spec310, "**T-2 (#312"))[1]
+t2_leg <- regmatches(spec310[i_t2 + 1L], gregexpr("`[^`]*`", spec310[i_t2 + 1L]))[[1]]
+t2_leg <- gsub("`", "", t2_leg, fixed = TRUE)
+t2_inf <- regmatches(spec310[i_t2 + 2L], gregexpr("`[^`]*`", spec310[i_t2 + 2L]))[[1]]
+t2_inf <- gsub("^`\"?|\"?`$", "", t2_inf)
+verifier("Nuages de residus : legendes et infobulles des moyennes = texte T-2 de la specification Fm, a la lettre (#312)",
+         length(t2_leg) == 2L && length(t2_inf) == 2L &&
+           identical(c(.LEGENDE_MOYENNE_ACC, .LEGENDE_MOYENNE_CAL), t2_leg) &&
+           identical(.INFOBULLE_MOYENNE_ACC, t2_inf[1]) &&
+           identical(t2_inf[2], "i + j = %{x}") &&
+           identical(.INFOBULLE_MOYENNE_CAL, sub("i = %{x}", "i + j = %{x}", t2_inf[1], fixed = TRUE)))
+pd312 <- res_mw$plots_data
+pd312_ancien <- pd312; pd312_ancien$residus_acc_groupes <- NULL; pd312_ancien$residus_cal_groupes <- NULL
+# Releve, dans l'ordre d'appel, des points traces (graphics::points.default :
+# pch et cex) et des textes de marge (graphics::mtext), en plus des
+# legendes. legend() trace aussi son symbole par points() (pch 23, cex 0,75) :
+# les losanges des moyennes sont les appels pch 23, cex 1,5 ; les residus,
+# les appels pch 19.
+rel312 <- function(f, l = 480) {
+  e <- new.env(); e$pts <- list(); e$mt <- list()
+  ns <- asNamespace("graphics")
+  suppressMessages({
+    trace("points.default", exit = bquote(assign("pts", c(get("pts", envir = .(e)),
+      list(list(x = x, y = y, pch = list(...)$pch, cex = list(...)$cex))), envir = .(e))),
+      where = ns, print = FALSE)
+    trace("mtext", exit = bquote(assign("mt", c(get("mt", envir = .(e)),
+      list(list(text = text, at = at, side = side))), envir = .(e))), where = ns, print = FALSE)
+  })
+  on.exit(suppressMessages({ untrace("points.default", where = ns); untrace("mtext", where = ns) }))
+  r <- releve_base162(f, largeur = l / 72, hauteur = 330 / 72)
+  los <- Filter(function(p) identical(p$pch, 23) && identical(p$cex, 1.5), e$pts)
+  k_los <- which(vapply(e$pts, function(p) identical(p$pch, 23) && identical(p$cex, 1.5), TRUE))
+  k_res <- which(vapply(e$pts, function(p) identical(p$pch, 19), TRUE))
+  c(r, list(pts = los, k_los = k_los, k_res = k_res, mt = e$mt))
+}
+# Effectifs ecrits seuls en marge haute, a l'abscisse de chaque groupe,
+# precedes de l'intitule "n :" (reprise de #312, app-review R2).
+marge_n312 <- function(r, g, cle) {
+  mt <- Filter(function(m) identical(m$side, 3), r$mt)
+  length(mt) == 2L && identical(mt[[1]]$text, as.character(g$n)) &&
+    identical(as.numeric(mt[[1]]$at), as.numeric(g[[cle]])) && identical(mt[[2]]$text, "n :")
+}
+verifier("Nuages de residus, base R (395, 480 et 560 x 330 px) : moyennes par groupe tracees aux valeurs de plots_data, AVANT les residus, effectifs en marge haute, legende T-2 sous le trace (#312)",
+         all(vapply(c(395, 480, 560), function(l) {
+           ra <- rel312(function() plot_mw_residus_acc(pd312), l)
+           rc <- rel312(function() plot_mw_residus_cal(pd312), l)
+           g_a <- pd312$residus_acc_groupes; g_c <- pd312$residus_cal_groupes
+           length(ra$leg) == 1L && identical(ra$leg[[1]]$texte, .LEGENDE_MOYENNE_ACC) &&
+             ra$leg[[1]]$rect$top < ra$usr[3] &&
+             length(rc$leg) == 1L && identical(rc$leg[[1]]$texte, .LEGENDE_MOYENNE_CAL) &&
+             rc$leg[[1]]$rect$top < rc$usr[3] &&
+             length(ra$pts) == 1L && identical(as.numeric(ra$pts[[1]]$x), as.numeric(g_a$i)) &&
+             identical(ra$pts[[1]]$y, g_a$moyenne) &&
+             length(rc$pts) == 1L && identical(as.numeric(rc$pts[[1]]$x), as.numeric(g_c$calendrier)) &&
+             identical(rc$pts[[1]]$y, g_c$moyenne) &&
+             length(ra$k_res) == 1L && ra$k_los < ra$k_res &&
+             length(rc$k_res) == 1L && rc$k_los < rc$k_res &&
+             marge_n312(ra, g_a, "i") && marge_n312(rc, g_c, "calendrier")
+         }, TRUE)))
+verifier("Nuages de residus, base R, objet sans tables de groupes : nuage seul, ni legende, ni moyenne, ni effectif (#312)",
+         {
+           ra <- rel312(function() plot_mw_residus_acc(pd312_ancien))
+           rc <- rel312(function() plot_mw_residus_cal(pd312_ancien))
+           length(ra$leg) == 0L && length(ra$pts) == 0L && length(rc$leg) == 0L && length(rc$pts) == 0L &&
+             length(ra$mt) == 0L && length(rc$mt) == 0L
+         })
+verifier("Nuages de residus : affichage sans calcul, moyennes lues dans plots_data (aucun mean(), tapply() ni stats:: dans le code des nuages) (#312)",
+         {
+           corps <- paste(c(deparse(.nuage_moyennes), deparse(.groupes_nuage),
+                            deparse(plot_mw_residus_acc), deparse(plot_mw_residus_cal)), collapse = "\n")
+           !grepl("mean\\(|tapply\\(|aggregate\\(|stats::", corps)
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  b312 <- function(p) suppressWarnings(plotly::plotly_build(p))$x
+  verifier("Nuages de residus, plotly : trace des moyennes (losange, customdata = n, infobulle T-2) avant les residus, legende horizontale sous le trace (#312)",
+           {
+             ok1 <- function(b, g, cle, leg, inf) {
+               nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+               k <- which(nm == leg)
+               length(k) == 1L && {
+                 t <- b$data[[k]]
+                 identical(as.numeric(t$x), as.numeric(g[[cle]])) && identical(as.numeric(t$y), g$moyenne) &&
+                   identical(as.numeric(t$customdata), as.numeric(g$n)) &&
+                   identical(t$hovertemplate, paste0(inf, "<extra></extra>")) &&
+                   identical(t$marker$symbol, "diamond")
+               } && isTRUE(b$layout$showlegend) && identical(b$layout$legend$orientation, "h") &&
+                 b$layout$legend$y < 0 &&
+                 # Trace des moyennes avant celle des residus (dernier trace) :
+                 # residus dessines au-dessus des losanges.
+                 k < length(b$data) && identical(b$data[[length(b$data)]]$showlegend, FALSE)
+             }
+             ok1(b312(plot_mw_residus_acc(pd312)), pd312$residus_acc_groupes, "i",
+                 .LEGENDE_MOYENNE_ACC, .INFOBULLE_MOYENNE_ACC) &&
+               ok1(b312(plot_mw_residus_cal(pd312)), pd312$residus_cal_groupes, "calendrier",
+                   .LEGENDE_MOYENNE_CAL, .INFOBULLE_MOYENNE_CAL)
+           })
+} else {
+  cat("  note : plotly absent ; trace plotly des moyennes par groupe non exerce (#312).\n")
+}
+
 fin_fichier()

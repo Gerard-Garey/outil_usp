@@ -668,6 +668,127 @@ verifier("#310 : sensibilite non applicable (objet d'ajustement reduit) : aucune
              identical(.mw_detail_extrapolation(ex0, s0), .mw_detail_extrapolation(ex0)) &&
              !grepl("Sensibilite", .mw_detail_extrapolation(ex0, s0), fixed = TRUE)
          })
+
+## --- Test des suites en diagnostic secondaire, moyennes par groupe (#312) ----
+# Specification Fm, par. 1.1, 1.2, 7 et texte T-1 (decisions Q-D1-Fm-1 (B)
+# et Q-D1-Fm-2 du mainteneur, 23/10/2026). Valeurs attendues des moyennes :
+# tableaux du par. 1.2 (mesure m_fm_a, a 1e-5 pres) ; valeurs exactes contre
+# tapply() sur la table des residus qui alimente les nuages.
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  r312 <- run_mw(unname(m))
+  pd <- r312$plots_data; res <- pd$residus
+  ga <- pd$residus_acc_groupes; gc <- pd$residus_cal_groupes
+  verifier("#312 : residus_acc_groupes et residus_cal_groupes en fin de plots_data, apres sigma_boot, aucune feuille deplacee",
+           {
+             nm <- names(pd)
+             identical(utils::tail(nm, 3), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes")) &&
+               identical(nm[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+                                     "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
+                                     "alpha", "origine", "influence", "contributions", "sigma_boot")) &&
+               identical(names(ga), c("i", "n", "moyenne")) &&
+               identical(names(gc), c("calendrier", "n", "moyenne")) &&
+               is.integer(ga$n) && is.integer(gc$n)
+           })
+  verifier("#312 : n et moyennes par groupe = table() et tapply() sur les residus des nuages, a 1e-10",
+           {
+             ta <- tapply(res$residu, res$i, mean); tc <- tapply(res$residu, res$calendrier, mean)
+             identical(as.numeric(ga$i), as.numeric(names(ta))) &&
+               identical(as.numeric(gc$calendrier), as.numeric(names(tc))) &&
+               identical(as.integer(ga$n), as.integer(table(res$i))) &&
+               identical(as.integer(gc$n), as.integer(table(res$calendrier))) &&
+               isTRUE(proche(ga$moyenne, unname(as.numeric(ta)), rel = 1e-10, abs = 1e-10)) &&
+               isTRUE(proche(gc$moyenne, unname(as.numeric(tc)), rel = 1e-10, abs = 1e-10))
+           })
+  verifier("#312 : reserve2, effectifs et moyennes du par. 1.2 de la specification Fm (1e-5), somme des n = N = 27",
+           identical(as.integer(ga$n), c(6L, 6L, 5L, 4L, 3L, 2L, 1L)) &&
+             identical(as.integer(gc$n), c(1L, 2L, 3L, 4L, 5L, 6L, 6L)) &&
+             sum(ga$n) == nrow(res) && sum(gc$n) == nrow(res) && nrow(res) == 27L &&
+             isTRUE(proche(gc$moyenne, c(0.10811, -1.03213, -1.35373, -0.70681, 0.49849, 1.06507, -0.07445),
+                           abs = 1e-5)) &&
+             isTRUE(proche(ga$moyenne, c(-0.5047, -0.3665, -0.2242, 0.3175, 0.7853, 0.9015, 0.5111),
+                           abs = 1e-4)))
+  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre.
+  spec <- readLines(file.path(RACINE, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
+                    encoding = "UTF-8")
+  t1 <- sub("^> `(.*)`$", "\\1", spec[which(startsWith(spec, "**T-1 (#312"))[1] + 1L])
+  lr <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), r312$tests)
+  verifier("#312 : test des suites, variante secondaire et diagnostic par decision (verdict INFO, inoperant FALSE, detail T-1 a la lettre)",
+           length(lr) == 1L && {
+             l <- lr[[1]]
+             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision (issue #312)") &&
+               identical(l$type, "diagnostic") && identical(l$variante, "secondaire") &&
+               identical(l$verdict, "INFO") && identical(l$inoperant, FALSE) &&
+               identical(l$detail, t1) && is.na(l$p_retenue) && is.na(l$nature_p) &&
+               is.na(l$sens) && identical(l$fonction, "test_runs")
+           })
+  verifier("#312 : test des suites, p_mc = bootstrap$p_mc[\"Runs\"], p non simulee conservee, p_min conservee, p_min_mc NA (R1 hors test)",
+           length(lr) == 1L && {
+             l <- lr[[1]]
+             identical(l$p_mc, unname(r312$bootstrap$p_mc[["Runs"]])) && is.finite(l$p_mc) &&
+               identical(l$p_asymptotique, test_runs(mw_residus(r312$ajustement)$residu)$p) &&
+               is.finite(l$p_min) && is.na(l$p_min_mc) &&
+               is.finite(r312$bootstrap$p_min_mc[["Runs"]])
+           })
+  # p Monte-Carlo absente : motif en tete du detail (forme de
+  # detail_diagnostic() de usp_tests()), puis T-1 ; statistique observee non
+  # finie (motif MOTIF_MC_OBS_NON_FINIE) : priorite des motifs non
+  # applicables, la ligne reste de type test et add() la rend non applicable.
+  ligne_runs <- function(motif) {
+    b <- r312$bootstrap
+    b$p_mc[["Runs"]] <- NA_real_; b$motif_mc[["Runs"]] <- motif
+    Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
+           mw_tests(r312$ajustement, b, 0.10))[[1]]
+  }
+  verifier("#312 : p Monte-Carlo absente (replications insuffisantes) -> diagnostic, 'Monte-Carlo indisponible : <motif>.' puis T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_REPLIC_INSUFFISANTES)
+             # La phrase de #204 (B effectif) suit, jointe par l'enveloppe add() de
+             # mw_tests() (bootstrap fictif : p absente avec B effectif = B).
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+               startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                           ". ", t1))
+           })
+  verifier("#312 : motif de degenerescence -> '<motif> : aucune p-value retenue (ADR 0001).' et complement, puis T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_DISPERSION_NULLE)
+             pre <- trimws(paste(c(paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001)."),
+                                   .complement_motif_mc(MOTIF_MC_DISPERSION_NULLE)), collapse = " "))
+             identical(l$type, "diagnostic") && startsWith(l$detail, .engine_joindre(pre, t1))
+           })
+  verifier("#312 : motif statistique observee non finie -> ligne non applicable (priorite des motifs non applicables), sans T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_OBS_NON_FINIE)
+             identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+               startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE) && !grepl("#312", l$detail, fixed = TRUE)
+           })
+})
+verifier("#312 : colonne degeneree (tri_deg, j = 2) exclue des groupes comme dans mw_residus()",
+         {
+           r <- run_mw(tri_deg); pd <- r$plots_data
+           rs <- mw_residus(mw_ajuster(tri_deg))
+           !(2 %in% rs$j) && 2 %in% attr(rs, "colonnes_exclues")$j &&
+             sum(pd$residus_acc_groupes$n) == nrow(rs) &&
+             sum(pd$residus_cal_groupes$n) == nrow(rs) &&
+             isTRUE(proche(pd$residus_acc_groupes$moyenne,
+                           unname(as.numeric(tapply(rs$residu, rs$i, mean))), rel = 1e-10, abs = 1e-10)) &&
+             isTRUE(proche(pd$residus_cal_groupes$moyenne,
+                           unname(as.numeric(tapply(rs$residu, rs$calendrier, mean))), rel = 1e-10, abs = 1e-10))
+         })
+# Zero residu sous les deux formes : table de mw_residus() a zero ligne, et
+# data.frame() sans colonne, sortie de .mw_empiler() quand aucune colonne
+# ne donne de residu (constat C1 de l'audit de #312).
+verifier("#312 : .mw_residus_par_groupe(), table vide (0 ligne, 3 colonnes, n entier) sur zero residu, y compris data.frame() sans colonne ; cle hors de i / calendrier refusee",
+         {
+           rs <- mw_residus(aj)[0, ]
+           g0 <- .mw_residus_par_groupe(rs, "calendrier")
+           vide <- function(g, cle) identical(names(g), c(cle, "n", "moyenne")) && nrow(g) == 0L &&
+             is.integer(g$n) && is.numeric(g$moyenne)
+           vide(g0, "calendrier") && vide(.mw_residus_par_groupe(data.frame(), "i"), "i") &&
+             vide(.mw_residus_par_groupe(data.frame(), "calendrier"), "calendrier") &&
+             inherits(try(.mw_residus_par_groupe(mw_residus(aj), "j"), silent = TRUE), "try-error")
+         })
 # Triangle non degenere : la valeur ne change pas (le minimum litteral est
 # applique comme auparavant) et aucun avertissement n'est emis.
 verifier("Triangle non degenere : sigma2_(J-1) inchange = min(...) et aucun avertissement",
@@ -2177,17 +2298,20 @@ verifier("reserve2 : p_min des six lignes discretes, les 15 autres NA (#115, cri
          })
 # Depuis #125 (D1-8), la p Monte-Carlo etant retenue, R1 lit le plancher
 # Monte-Carlo p_min_mc (B = 99, B_eff = 99) : CorrDev 0,38 >= alpha ->
-# inoperant (prefixe Monte-Carlo) ; Suites 0,02 < alpha/2 -> test sans texte
-# de R1 (le texte "ECHEC possible" lu sur p_min = 4/70 a disparu). p_min
-# reste restituee. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
+# inoperant (prefixe Monte-Carlo). Suites : diagnostic par decision depuis
+# #312 (Q-D1-Fm-1 (B)), hors du domaine de R1 (lignes de type test) :
+# p_min = 4/70 restituee, p_min_mc NA, detail T-1 sans texte de R1 ; le
+# plancher Monte-Carlo du bootstrap (0,02) reste lisible dans
+# bootstrap$p_min_mc. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
 # spec. fd-test-calendaire.md, par. 5.1 et 6) : plancher 0,05 = alpha/2 a
 # B = 99 (0,10 en bilateral, alors inoperant) -> test ALERTE, ECHEC dit
 # inatteignable ; a B = 999, p = p_min_mc = 0,048 < alpha/2 -> ECHEC (ALERTE
 # en bilateral, p = 0,096) ; p_min 0,0625 (0,125 en bilateral).
-verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites test sans texte de R1 (#115, #125)",
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites diagnostic par decision sans texte de R1 (#115, #125, #312)",
          {
            t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
-           d <- engine_table_tests(run_mw(t5))
+           r5 <- run_mw(t5)
+           d <- engine_table_tests(r5)
            l <- function(k, d) d[d$test == k, ]
            pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : plus petite p-value Monte-Carlo",
                         "atteignable sur ces replications >= alpha")
@@ -2209,8 +2333,10 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Ca
              !c9$inoperant && c9$type == "test" && identical(c9$verdict, "ECHEC") &&
              isTRUE(proche(c9$p_retenue, 0.048, 1e-12)) && isTRUE(proche(c9$p_min_mc, 0.048, 1e-12)) &&
              !grepl("inatteignable", c9$commentaire, fixed = TRUE) &&
-             su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
-             isTRUE(proche(su$p_min_mc, 0.02, 1e-12)) &&
+             su$type == "diagnostic" && identical(su$verdict, "INFO") && !su$inoperant &&
+             isTRUE(proche(su$p_min, 4 / 70, 1e-12)) && is.na(su$p_min_mc) &&
+             isTRUE(proche(r5$bootstrap$p_min_mc[["Runs"]], 0.02, 1e-12)) &&
+             startsWith(su$commentaire, "Restituee en diagnostic par decision (issue #312)") &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
@@ -3276,14 +3402,16 @@ verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, ver
 # Q-D1-Fj-10) : la ligne "Absence de tendance des facteurs avec le cumul, a
 # colonne donnee" passe d'OK a ALERTE (specification Fj, par. 7) ; la famille
 # alpha reste ECHEC (option (b'), Q-D1-Fj-5) ; 13 tests, 8 diagnostics.
-verifier("Decomptes reserve2 (#300, #308, #307) : 21 lignes (13 tests, 8 diagnostics), OK 6, INFO 8, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+# Depuis #312 (Q-D1-Fm-1 (B), specification Fm, par. 7) : le test des suites
+# passe en diagnostic par decision, OK -> INFO ; 12 tests, 9 diagnostics.
+verifier("Decomptes reserve2 (#300, #308, #307, #312) : 21 lignes (12 tests, 9 diagnostics), OK 5, INFO 9, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
          {
            v <- vapply(res300$tests, `[[`, "", "verdict")
            ty <- vapply(res300$tests, `[[`, "", "type")
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
            length(res300$tests) == 21L &&
-             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(13L, 8L)) &&
-             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(6L, 8L, 3L, 4L)) &&
+             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(12L, 9L)) &&
+             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(5L, 9L, 3L, 4L)) &&
              !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
              isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
          })

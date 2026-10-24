@@ -11137,14 +11137,56 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   eff_ru <- .runs_effectifs(r)
   pm_ru <- .mw_p_min_ligne(is.finite(ru$stat), eff_ru, NULL,
                            function(n) runs_p_min(n[[1]], n[[2]]))
+  # Variante secondaire et diagnostic par decision (#312 ; decision
+  # Q-D1-Fm-1 (B) du mainteneur du 23/10/2026, specification Fm, par. 1.1,
+  # texte T-1 a la lettre) : forme des diagnostics par decision de Fh (#299,
+  # #302 ; type_decision() et detail_diagnostic() de usp_tests()). Motifs
+  # (niveau et puissance a T = 8, comparaison a Durbin-Watson, calculee sur
+  # les memes residus dans le meme ordre de parcours) : specification Fm,
+  # par. 1.1, mesures de #309. type = "diagnostic" pose ici, add() inchangee
+  # (verdict INFO, ni p retenue, ni nature, ni sens ; p Monte-Carlo et p non
+  # simulee conservees dans leurs colonnes ; inoperant FALSE ; la regle R1 ne
+  # s'applique qu'aux lignes de type test, p_min_mc vaut donc NA). Cle Runs du
+  # catalogue conservee. Priorite des motifs non applicables (comme
+  # stat_definie() de usp_tests()) : statistique observee non finie, ou
+  # motif MOTIF_MC_OBS_NON_FINIE, -> type "test" laisse a add(), qui rend la
+  # ligne non applicable. Sur un diagnostic, add() ne pose pas le motif
+  # Monte-Carlo : il est mis en tete du detail ici quand la p Monte-Carlo
+  # manque, sous la forme de detail_diagnostic() (motif de degenerescence ->
+  # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
+  # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
+  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes ensuite
+  # par l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo.
+  m_ru <- if (!is.null(boot$motif_mc) && "Runs" %in% names(boot$motif_mc))
+    unname(boot$motif_mc[["Runs"]]) else NA_character_
+  ru_definie <- is.finite(ru$stat) && !identical(m_ru, MOTIF_MC_OBS_NON_FINIE)
+  txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
+                       "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
+                       "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
+                       "ordre de parcours, dont le type et le verdict font foi.")
+  # p Monte-Carlo lue sans [[ ]] nu : une cle Runs absente du bootstrap
+  # laisse a add() son refus explicite (ADR 0003, point 3).
+  p_mc_ru <- if ("Runs" %in% names(boot$p_mc)) boot$p_mc[["Runs"]] else NA_real_
+  detail_ru <- if (!ru_definie) "" else {
+    pre_ru <- if (is.finite(p_mc_ru) || is.na(m_ru)) ""
+      else if (m_ru %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                           MOTIF_MC_CONDITION))
+        trimws(paste(c(paste0(m_ru, " : aucune p-value retenue (ADR 0001)."),
+                       .complement_motif_mc(m_ru)), collapse = " "))
+      else paste0("Monte-Carlo indisponible : ", m_ru, ".")
+    trimws(.engine_joindre(pre_ru, txt_diag_ru))
+  }
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
+      type = if (ru_definie) "diagnostic" else "test",
+      variante = "secondaire",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
       estim_nom = "nb de suites", estim = ru$runs,
       p_as = ru$p, mc_nom = "Runs",
-      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs)
+      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs,
+      detail = detail_ru)
 
   ## --- M4 : points aberrants ------------------------------------------------
   fam <- "M4. points aberrants et stabilite"
@@ -12010,6 +12052,35 @@ mw_contributions <- function(aj, msep) {
     stringsAsFactors = FALSE)
 }
 
+# Moyenne des residus de Mack par groupe et effectif n_k du groupe (#312 ;
+# decision Q-D1-Fm-2 du mainteneur du 23/10/2026, specification Fm, par. 1.2),
+# pour les nuages par annee d'accident (cle = "i") et par annee calendaire
+# (cle = "calendrier", k = i + j, meme indexation que
+# mw_calendrier_diagonales()). res : table de mw_residus(), celle qui
+# alimente les nuages (colonnes exclues de mw_residus() absentes, donc hors
+# des groupes). Sur le triangle observe, ce jeu de colonnes est celui des
+# ensembles figes de mw_tests() : mw_residus(aj) et .mw_ensembles_figes(aj)
+# font le meme appel .mw_j_exclues(aj, NULL). Un groupe par valeur de la
+# cle presente dans res, en ordre croissant ; table vide (zero ligne, memes
+# trois colonnes) si res n'a aucun residu, y compris quand res est le
+# data.frame() sans colonne de .mw_empiler() (cle et residu NULL, lus comme
+# vecteurs vides). Moyenne et non mediane, ni bande ni repere autour des
+# moyennes (aucune loi etablie ; ADR 0001) : motifs a la specification Fm,
+# par. 1.2. L'effectif n est restitue pour la lecture.
+.mw_residus_par_groupe <- function(res, cle) {
+  if (!is.character(cle) || length(cle) != 1L || !cle %in% c("i", "calendrier"))
+    stop(".mw_residus_par_groupe() : cle doit valoir \"i\" ou \"calendrier\"", call. = FALSE)
+  g <- res[[cle]]; r <- res$residu
+  if (is.null(g)) g <- integer(0)
+  if (is.null(r)) r <- numeric(0)
+  k <- sort(unique(g))
+  out <- data.frame(k,
+                    n = vapply(k, function(v) sum(g == v), integer(1)),
+                    moyenne = vapply(k, function(v) mean(r[g == v]), numeric(1)))
+  names(out)[1] <- cle
+  out
+}
+
 # Quantites numeriques des graphiques de la methode Merz-Wuthrich.
 mw_plots_data <- function(aj, res, boot, msep = NULL) {
   qq <- stats::qqnorm(res$residu, plot.it = FALSE)
@@ -12058,7 +12129,13 @@ mw_plots_data <- function(aj, res, boot, msep = NULL) {
     origine = mw_test_ordonnee_origine(aj)$detail,
     influence = mw_influence(aj),
     contributions = if (!is.null(msep)) mw_contributions(aj, msep) else NULL,
-    sigma_boot = boot$sigma_boot
+    sigma_boot = boot$sigma_boot,
+    # Moyennes et effectifs par groupe des nuages residus_acc et residus_cal
+    # (#312, Q-D1-Fm-2), ajoutes en fin de liste : aucune feuille existante
+    # n'est deplacee ; residus_acc et residus_cal restent a une ligne par
+    # residu.
+    residus_acc_groupes = .mw_residus_par_groupe(res, "i"),
+    residus_cal_groupes = .mw_residus_par_groupe(res, "calendrier")
   )
 }
 

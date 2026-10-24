@@ -433,7 +433,11 @@ verifier("U125-6 premium_interieur : Cox-Stuart inoperant (prefixe Monte-Carlo) 
 
 ## --- U125-7 : reserve2 -------------------------------------------------------------
 # Calendrier en queue basse depuis #276 (decision Q-Fd-1) : 0,002 -> 0,001.
-verifier("U125-7 reserve2 : p_min_mc = 0,002 (bilateral) et 0,001 (queue haute, queue basse de Calendrier, #276) pour les six statistiques discretes ; aucun texte de R1",
+# Depuis #312 (Q-D1-Fm-1 (B)), la ligne du test des suites est un diagnostic
+# par decision, hors de la branche Monte-Carlo de R1 : son champ de ligne
+# p_min_mc vaut NA (bootstrap$p_min_mc["Runs"] reste 0,002) ; cinq lignes
+# portent un p_min_mc fini au lieu de six.
+verifier("U125-7 reserve2 : p_min_mc = 0,002 (bilateral) et 0,001 (queue haute, queue basse de Calendrier, #276) pour les six statistiques discretes ; aucun texte de R1 ; ligne des suites (diagnostic, #312) a p_min_mc NA",
          {
            b <- res_r2$bootstrap
            pm <- b$p_min_mc
@@ -445,7 +449,8 @@ verifier("U125-7 reserve2 : p_min_mc = 0,002 (bilateral) et 0,001 (queue haute, 
                         function(k) isTRUE(proche(pm[[k]], 1 / 1000, rel = 1e-12)), logical(1))) &&
              all(vapply(Filter(function(l) is.finite(l$p_min_mc), res_r2$tests), function(l)
                !grepl("TEST INOPERANT|ECHEC inatteignable|ECHEC possible|p_min", l$detail), logical(1))) &&
-             sum(vapply(res_r2$tests, function(l) is.finite(l$p_min_mc), logical(1))) == 6L
+             sum(vapply(res_r2$tests, function(l) is.finite(l$p_min_mc), logical(1))) == 5L &&
+             is.na(ligne125(res_r2$tests, "Test des suites sur les residus de Mack")$p_min_mc)
          })
 
 ## --- U125-2 : invariants granularite <= p_min_mc <= p_mc ---------------------------

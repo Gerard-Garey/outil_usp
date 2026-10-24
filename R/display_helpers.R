@@ -945,7 +945,9 @@ plot_calibration <- function(cand) {
 #  res$plots_data (calculees par mw_plots_data dans engine.R).
 # =============================================================================
 
-.nuage <- function(x, y, titre, xlab, ylab, ligne0 = TRUE) {
+.nuage <- function(x, y, titre, xlab, ylab, ligne0 = TRUE, groupes = NULL) {
+  if (!is.null(groupes) && length(groupes$x) > 0L)
+    return(.nuage_moyennes(x, y, titre, xlab, ylab, ligne0, groupes))
   if (!.plotly_dispo()) {
     .cadre(); plot(x, y, pch = 19, col = COUL$pt, xlab = xlab, ylab = ylab, main = titre)
     if (ligne0) graphics::abline(h = 0, col = COUL$trait, lty = 2)
@@ -964,15 +966,96 @@ plot_mw_residus_dev <- function(pd) {
   .nuage(pd$residus_dev$j, pd$residus_dev$residu,
          "Residus de Mack par annee de developpement (M2)", "annee de developpement j", "residu") }
 
+# Moyennes des residus par groupe sur les nuages par annee d'accident et par
+# annee calendaire (#312, Q-D1-Fm-2 ; legendes et infobulles : texte T-2 de
+# la specification Fm, a la lettre). Moyennes et effectifs lus dans
+# pd$residus_acc_groupes et pd$residus_cal_groupes (.mw_residus_par_groupe()
+# du moteur) : aucun calcul ici. Losange plein COUL$trait, distinct des
+# points des residus, trace AVANT eux : un groupe de un ou deux residus, dont
+# la moyenne tombe sur un point ou entre deux, laisse ses points visibles
+# au-dessus du losange. Ni bande ni repere autour des moyennes
+# (specification Fm, par. 1.2). Objet anterieur a #312 (table absente) :
+# nuage seul.
+.LEGENDE_MOYENNE_ACC <- "moyenne par annee d'accident (n = nombre de residus)"
+.LEGENDE_MOYENNE_CAL <- "moyenne par annee calendaire i + j (n = nombre de residus)"
+.INFOBULLE_MOYENNE_ACC <- "i = %{x}<br>moyenne = %{y:.3f}<br>n = %{customdata}"
+.INFOBULLE_MOYENNE_CAL <- "i + j = %{x}<br>moyenne = %{y:.3f}<br>n = %{customdata}"
+# Au-dela de ce nombre de groupes, les effectifs de la marge haute (base R)
+# sont ecrits plus petits (I = 15 : quinze groupes sur 395 px).
+.NB_GROUPES_EFFECTIF_REDUIT <- 10L
+# groupes : list(x, moyenne, n, legende, infobulle). En base R (rapport
+# fige), l'effectif de chaque groupe est ecrit seul en marge haute, a
+# l'abscisse du groupe, sous le titre, precede de l'intitule "n :" dans la
+# marge gauche ; la legende est placee sous l'intitule de l'axe des
+# abscisses, hors du trace. par() : comme les autres nuages, .cadre() pose
+# mar et les parametres du titre sans les restaurer ; mar et xpd, modifies
+# ensuite ici, reviennent en sortie (on.exit()) a leur valeur d'entree :
+# celle posee par .cadre() pour mar, celle de l'appelant pour xpd, que
+# .cadre() ne touche pas. En plotly, effectif dans l'infobulle
+# (customdata), legende horizontale sous le trace.
+.nuage_moyennes <- function(x, y, titre, xlab, ylab, ligne0, groupes) {
+  if (!.plotly_dispo()) {
+    .cadre()
+    op <- graphics::par(mar = c(6.2, 4.2, 3, 1), xpd = FALSE)
+    on.exit(graphics::par(op))
+    plot(x, y, type = "n", xlab = xlab, ylab = ylab, main = titre)
+    if (ligne0) graphics::abline(h = 0, col = COUL$trait, lty = 2)
+    graphics::points(groupes$x, groupes$moyenne, pch = 23, cex = 1.5,
+                     col = COUL$trait, bg = COUL$trait)
+    graphics::points(x, y, pch = 19, col = COUL$pt)
+    cex_n <- if (length(groupes$x) > .NB_GROUPES_EFFECTIF_REDUIT) 0.6 else 0.7
+    graphics::mtext(as.character(groupes$n), side = 3, at = groupes$x, line = 0.2,
+                    cex = cex_n, col = COUL$trait)
+    graphics::mtext("n :", side = 3, at = graphics::par("usr")[1], adj = 1, line = 0.2,
+                    cex = cex_n, col = COUL$trait)
+    # Legende sous l'intitule de l'axe x (ligne 3 de la marge basse) : bord
+    # haut a 4,2 lignes sous le bas de la zone de trace.
+    y_leg <- graphics::grconvertY(graphics::grconvertY(graphics::par("usr")[3], "user", "inches") -
+                                    4.2 * graphics::par("csi"), "inches", "user")
+    graphics::par(xpd = NA)
+    graphics::legend(graphics::par("usr")[1], y_leg, xjust = 0, yjust = 1, bty = "n",
+                     cex = 0.75, legend = groupes$legende, pch = 23,
+                     col = COUL$trait, pt.bg = COUL$trait)
+    return(invisible())
+  }
+  p <- plotly::plot_ly()
+  if (ligne0) p <- plotly::add_lines(p, x = range(x), y = c(0, 0), showlegend = FALSE,
+        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  # Trace des moyennes avant celle des residus (ordre de dessin de plotly) :
+  # les residus restent visibles au-dessus des losanges.
+  p <- plotly::add_markers(p, x = groupes$x, y = groupes$moyenne, customdata = groupes$n,
+        name = groupes$legende,
+        marker = list(size = 12, symbol = "diamond", color = COUL$trait),
+        hovertemplate = paste0(groupes$infobulle, "<extra></extra>"))
+  p <- plotly::add_markers(p, x = x, y = y, showlegend = FALSE,
+        marker = list(size = 9, color = COUL$pt),
+        hovertemplate = paste0(xlab, " = %{x}<br>", ylab, " = %{y:.3f}<extra></extra>"))
+  p <- .mep(p, titre, xlab, ylab)
+  plotly::layout(p, showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.25,
+                               yanchor = "top", font = list(size = 10)),
+                 margin = list(t = 45, b = 80))
+}
+# Groupes lus dans une table de plots_data (colonne de cle, n, moyenne) ;
+# NULL si la table est absente.
+.groupes_nuage <- function(d, cle, legende, infobulle) {
+  if (is.null(d)) return(NULL)
+  list(x = d[[cle]], moyenne = d$moyenne, n = d$n, legende = legende, infobulle = infobulle)
+}
+
 plot_mw_residus_acc <- function(pd) {
   if (is.null(pd$residus_acc)) return(.vide())
   .nuage(pd$residus_acc$i, pd$residus_acc$residu,
-         "Residus de Mack par annee d'accident (M3)", "annee d'accident i", "residu") }
+         "Residus de Mack par annee d'accident (M3)", "annee d'accident i", "residu",
+         groupes = .groupes_nuage(pd$residus_acc_groupes, "i",
+                                  .LEGENDE_MOYENNE_ACC, .INFOBULLE_MOYENNE_ACC)) }
 
 plot_mw_residus_cal <- function(pd) {
   if (is.null(pd$residus_cal)) return(.vide())
   .nuage(pd$residus_cal$calendrier, pd$residus_cal$residu,
-         "Residus de Mack par annee calendaire (M3)", "annee calendaire i + j", "residu") }
+         "Residus de Mack par annee calendaire (M3)", "annee calendaire i + j", "residu",
+         groupes = .groupes_nuage(pd$residus_cal_groupes, "calendrier",
+                                  .LEGENDE_MOYENNE_CAL, .INFOBULLE_MOYENNE_CAL)) }
 
 plot_mw_residus_C <- function(pd) {
   if (is.null(pd$residus_C)) return(.vide())
