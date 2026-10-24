@@ -10335,6 +10335,31 @@ FACTEUR_B_MAX_MW <- 25
   umh
 }
 
+# Residus de Mack redresses par le levier (#311 ; decisions Q-D1-Fm-4 et
+# Q-D1-Fm-5 du mainteneur du 23/10/2026, option (c), specification Fm,
+# par. 2.1) : r~_ij = r_ij / sqrt(1 - h_ij), h_ij = C_ij / S_j, 1 - h_ij
+# calcule par .mw_un_moins_h(). res : sortie de mw_residus(aj, j_degeneres),
+# dans l'ordre de ses lignes ; retour dans le meme ordre.
+# Algebre (deja au .tex, sec:boot-mw) : a sigma_j connu, sous les
+# hypotheses du modele de Mack (esperance et variance conditionnelles,
+# independance des annees de survenance), sans hypothese de loi,
+# Var(r_ij | C) = 1 - h_ij ; r~_ij est donc de variance exactement 1.
+# Borne exacte, pour toute loi : r~_ij^2 <= somme_i r_ij^2 = n_j - 1 (somme
+# des carres residuels de la colonne privee de la cellule, RSS - e^2/(1 - h),
+# >= 0 ; l'egalite somme_i r_ij^2 = n_j - 1 decoule de la definition de
+# sigma^2_j). D'ou |r~_ij| = 1 pour n_j = 2 et |r~_ij| <= sqrt(n_j - 1) :
+# meme sous le modele, les points extremes du QQ-plot sont attendus en deca
+# de la droite identite.
+# Utilisee par mw_plots_data() (feuille qqnorm) et par .mw_pool_residus()
+# (vivier du bootstrap, avant recentrage). ALGEBRE FIGEE (#301, #46) : memes
+# operations, dans le meme ordre, que l'expression qu'elle remplace dans
+# .mw_pool_residus() (res$residu / sqrt(.mw_un_moins_h(aj, res))), donc memes
+# bits pour le vivier et les p_mc (controle : comparer_references.R
+# --seuil 0, bootstrap identique) ; une autre ecriture, meme equivalente en
+# arithmetique exacte, ne s'y substitue pas sans ce controle.
+mw_residus_redresses <- function(aj, res)
+  res$residu / sqrt(.mw_un_moins_h(aj, res))
+
 # Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
 # mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
 # sigma_j connu, conditionnellement a C_{.,j}, le residu
@@ -10371,8 +10396,10 @@ FACTEUR_B_MAX_MW <- 25
   res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(numeric(0))
   # 1 - h_ij = (S_j - C_ij) / S_j : .mw_un_moins_h(), partagee avec
-  # mw_test_heteroscedasticite_intra() (#356).
-  pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
+  # mw_test_heteroscedasticite_intra() (#356) ; redressement par
+  # mw_residus_redresses(), partagee avec le QQ-plot de mw_plots_data()
+  # (#311, memes operations que l'expression qu'elle remplace).
+  pool <- mw_residus_redresses(aj, res)
   pool - mean(pool)                               # recentrage
 }
 
@@ -12082,8 +12109,22 @@ mw_contributions <- function(aj, msep) {
 }
 
 # Quantites numeriques des graphiques de la methode Merz-Wuthrich.
+# QQ-plot (#311, Q-D1-Fm-4 et Q-D1-Fm-5, option (c), specification Fm,
+# par. 2.1) : qqnorm porte les residus redresses par le levier
+# (mw_residus_redresses(), ceux du vivier de mw_bootstrap() avant
+# recentrage), dans l'ordre des lignes de res, et theorique les quantiles
+# N(0,1) de leurs rangs ; qqline (feuille ajoutee en fin de liste) est la
+# droite de reference y = x, posee ici comme qqline du module lognormal : la
+# variance des residus redresses vaut 1 a sigma_j connu, alors que les
+# residus bruts verifient par construction somme r_ij^2 = somme_j (n_j - 1)
+# (21 pour N = 27 residus sur reserve2) et sont de variance 1 - h_ij < 1 par
+# construction : contre la droite identite, ils dessineraient une pente
+# inferieure a 1 (0,88 attendue sous le modele, specification Fm, par. 2.1)
+# sans qu'elle traduise un ecart au modele. Ni enveloppe ni tirage (option
+# (c)) ; les lignes M5 de
+# mw_tests() restent calculees sur les residus bruts.
 mw_plots_data <- function(aj, res, boot, msep = NULL) {
-  qq <- stats::qqnorm(res$residu, plot.it = FALSE)
+  qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
   list(
     methode = "reserve2",
     # sigma_regle_minimum (#310, Q-D1-Fm-9, colonne ajoutee en fin) : TRUE
@@ -12135,7 +12176,10 @@ mw_plots_data <- function(aj, res, boot, msep = NULL) {
     # n'est deplacee ; residus_acc et residus_cal restent a une ligne par
     # residu.
     residus_acc_groupes = .mw_residus_par_groupe(res, "i"),
-    residus_cal_groupes = .mw_residus_par_groupe(res, "calendrier")
+    residus_cal_groupes = .mw_residus_par_groupe(res, "calendrier"),
+    # Droite de reference du QQ-plot (#311), ajoutee en fin de liste : aucune
+    # feuille existante n'est deplacee.
+    qqline = c(ordonnee = 0, pente = 1)
   )
 }
 

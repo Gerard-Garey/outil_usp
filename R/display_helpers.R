@@ -1062,22 +1062,65 @@ plot_mw_residus_C <- function(pd) {
   .nuage(pd$residus_C$C, pd$residus_C$residu,
          "Residus de Mack vs cumul C(i,j) (M1 et M2)", "C(i,j)", "residu") }
 
+# QQ-plot des residus de Mack redresses par le levier (#311, decisions
+# Q-D1-Fm-4 et Q-D1-Fm-5, option (c) : ni enveloppe ni tirage). Points et
+# droite de reference lus dans plots_data : pd$qqnorm (theorique, empirique =
+# r / sqrt(1 - h), mw_residus_redresses() du moteur) et pd$qqline (ordonnee,
+# pente ; y = x, posee par mw_plots_data()) ; aucun calcul ici, aucun
+# stats::. Meme droite dans les deux rendus, pleine, epaisseur 2, COUL$trait,
+# comme plot_qqnorm() du module lognormal (base R : abline() ; plotly :
+# add_lines()). Titre, axes et note : texte T-3 de la specification Fm, a la
+# lettre ; le titre est affiche sur deux lignes, coupees avant
+# "(M5, diagnostic)" (.TITRE_MW_QQ_LIGNES), et la note sur trois lignes
+# coupees aux limites de proposition (.NOTE_MW_QQ_LIGNES) ; jointes par une
+# espace, les lignes redonnent T-3. Note sous le titre en base R, en
+# sous-titre en plotly.
+# Objet sans qqline (resultat d'une version anterieure du moteur, avant
+# #311) : son qqnorm porte les residus bruts, que le titre, l'axe et la
+# droite y = x de T-3 designeraient a tort ; .vide() avec un message qui
+# invite a relancer les calculs.
+.TITRE_MW_QQ_LIGNES <- c("QQ-plot des residus de Mack redresses par le levier", "(M5, diagnostic)")
+.TITRE_MW_QQ <- paste(.TITRE_MW_QQ_LIGNES, collapse = " ")
+.AXE_X_MW_QQ <- "quantiles theoriques N(0,1)"
+.AXE_Y_MW_QQ <- "r / sqrt(1 - h)"
+.NOTE_MW_QQ_LIGNES <- c("droite y = x : variance unitaire a sigma_j connu ;",
+                        "|r / sqrt(1 - h)| <= sqrt(n_j - 1), donc points extremes attendus",
+                        "en deca de la droite, meme sous le modele")
+.NOTE_MW_QQ <- paste(.NOTE_MW_QQ_LIGNES, collapse = " ")
+.VIDE_MW_QQ <- "QQ-plot non disponible : resultat produit par une version anterieure du moteur (relancer les calculs)"
 plot_mw_qq <- function(pd) {
-  if (is.null(pd$qqnorm)) return(.vide())
-  d <- pd$qqnorm
+  # Message coupe avant "(relancer" : sur une ligne, il deborde d'un PNG de
+  # 560 px en base R (rendu relu) ; saut de ligne "\n" en base R, "<br>" en
+  # plotly.
+  if (is.null(pd$qqnorm) || is.null(pd$qqline))
+    return(.vide(sub(" (relancer", if (.plotly_dispo()) "<br>(relancer" else "\n(relancer",
+                     .VIDE_MW_QQ, fixed = TRUE)))
+  d <- pd$qqnorm; a <- pd$qqline[["ordonnee"]]; b <- pd$qqline[["pente"]]
+  note <- .NOTE_MW_QQ_LIGNES
   if (!.plotly_dispo()) {
-    .cadre(); stats::qqnorm(d$empirique, main = "QQ-plot des residus de Mack (M5)",
-                            pch = 19, col = COUL$pt)
-    stats::qqline(d$empirique, col = COUL$trait); return(invisible())
+    .cadre()
+    op <- graphics::par(mar = c(4.2, 4.2, 5.6, 1))
+    on.exit(graphics::par(op))
+    plot(d$theorique, d$empirique, pch = 19, col = COUL$pt,
+         xlab = .AXE_X_MW_QQ, ylab = .AXE_Y_MW_QQ, main = "")
+    graphics::title(main = .TITRE_MW_QQ_LIGNES[1], line = 3.9)
+    graphics::title(main = .TITRE_MW_QQ_LIGNES[2], line = 2.8)
+    for (k in seq_along(note))
+      graphics::mtext(note[k], side = 3, line = 0.2 + 0.75 * (length(note) - k),
+                      cex = 0.7, col = COUL$ref_texte)
+    graphics::abline(a, b, col = COUL$trait, lwd = 2)
+    return(invisible())
   }
   p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$theorique), y = range(d$theorique),
-        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  p <- plotly::add_lines(p, x = range(d$theorique), y = a + b * range(d$theorique),
+        line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 8, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  .mep(p, "QQ-plot des residus de Mack (M5, diagnostic)",
-       "quantiles theoriques N(0,1)", "residu standardise")
+  titre <- paste0(paste(.TITRE_MW_QQ_LIGNES, collapse = "<br>"), "<br><sup>",
+                  paste(note, collapse = "<br>"), "</sup>")
+  p <- .mep(p, titre, .AXE_X_MW_QQ, .AXE_Y_MW_QQ)
+  plotly::layout(p, margin = list(t = 115))
 }
 
 # Facteurs f_j (panneau du haut) et ecarts-types sigma_j de Mack (panneau du
@@ -1093,6 +1136,12 @@ plot_mw_qq <- function(pd) {
 # bas. Colonne absente (resultat anterieur a #310) : serie legendee
 # "sigma_j", aucun point distingue.
 .LEGENDE_SIGMA_REGLE <- "sigma_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non estime"
+# Legende plotly coupee en deux lignes apres "regle de minimum" : sur une
+# ligne, elle est tronquee sous environ 395 px de large (constat
+# d'app-review sur #310, non remesure ici, plotly absent) ; legende placee
+# a y = -0.30 pour la seconde ligne.
+.LEGENDE_SIGMA_REGLE_PLOTLY <- sub("regle de minimum ", "regle de minimum<br>",
+                                   .LEGENDE_SIGMA_REGLE, fixed = TRUE)
 plot_mw_facteurs <- function(pd) {
   if (is.null(pd$facteurs)) return(.vide())
   d <- pd$facteurs
@@ -1111,7 +1160,12 @@ plot_mw_facteurs <- function(pd) {
     op <- graphics::par(mfrow = c(2, 1), oma = c(4.2, 0, 1.6, 0), mar = c(0.5, 4.2, 0.5, 1),
                         mgp = c(2.4, 0.7, 0), bg = COUL$fond, xpd = FALSE)
     on.exit(graphics::par(op))
-    plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt, xaxt = "n", xlab = "", ylab = "f_j")
+    # ylim inclut 1 : sans cela, l'axe ne couvre que l'etendue des f_j
+    # elargie de 4 % de part et d'autre (yaxs = "r") et la reference f = 1
+    # n'est pas tracee quand tous les f_j sont assez au-dessus de 1
+    # (app-review, reserve sur #310, jointe a #311).
+    plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt, xaxt = "n", xlab = "", ylab = "f_j",
+         ylim = range(c(d$f, 1), finite = TRUE))
     graphics::abline(h = 1, col = COUL$trait, lty = 2)
     graphics::par(mar = c(1.6, 4.2, 0.5, 1))
     plot(d$j[!regle], d$sigma[!regle], type = "b", pch = 1, lty = 3, col = COUL$ref_texte,
@@ -1152,7 +1206,7 @@ plot_mw_facteurs <- function(pd) {
          hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<extra></extra>")
   if (marque)
     pb <- plotly::add_trace(pb, x = d$j[regle], y = d$sigma[regle], type = "scatter",
-           mode = "markers", name = .LEGENDE_SIGMA_REGLE,
+           mode = "markers", name = .LEGENDE_SIGMA_REGLE_PLOTLY,
            marker = list(size = 11, symbol = "diamond", color = COUL$regle),
            hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<br>fixe par la regle de minimum<extra></extra>")
   pb <- plotly::layout(pb, xaxis = axe(xlab), yaxis = axe("sigma_j", range = ylim_sigma))
@@ -1161,7 +1215,7 @@ plot_mw_facteurs <- function(pd) {
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
                  title = list(text = titre, font = list(size = 14, color = COUL$pt)),
                  showlegend = TRUE,
-                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.25,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
                  margin = list(t = 45, b = 80))

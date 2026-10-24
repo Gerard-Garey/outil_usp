@@ -680,10 +680,12 @@ local({
   r312 <- run_mw(unname(m))
   pd <- r312$plots_data; res <- pd$residus
   ga <- pd$residus_acc_groupes; gc <- pd$residus_cal_groupes
-  verifier("#312 : residus_acc_groupes et residus_cal_groupes en fin de plots_data, apres sigma_boot, aucune feuille deplacee",
+  # Depuis #311, qqline suit residus_cal_groupes en fin de liste.
+  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311), aucune feuille deplacee",
            {
              nm <- names(pd)
-             identical(utils::tail(nm, 3), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes")) &&
+             identical(utils::tail(nm, 4), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
+                                             "qqline")) &&
                identical(nm[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
                                      "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                      "alpha", "origine", "influence", "contributions", "sigma_boot")) &&
@@ -3537,5 +3539,74 @@ verifier("Famille alpha (#307) : statistique NA (aucune colonne n_j >= 3, triang
                "des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation",
                "par le carre du volume."))
          })
+
+## --- QQ-plot des residus de Mack redresses par le levier (#311) -------------
+# Specification Fm, par. 2.1, 2.3 et 7 (decisions Q-D1-Fm-4 et Q-D1-Fm-5 du
+# mainteneur, 23/10/2026, option (c)) : qqnorm porte r~ = r / sqrt(1 - h)
+# (mw_residus_redresses()), theorique les quantiles N(0,1) de leurs rangs,
+# qqline = c(0, 1) en fin de plots_data ; borne r~^2 <= n_j - 1 ; vivier du
+# bootstrap inchange au bit pres ; lignes M5 sur les residus bruts.
+local({
+  r311 <- run_mw(tri_ref); aj311 <- r311$ajustement; pd <- r311$plots_data
+  res <- pd$residus; rt <- mw_residus_redresses(aj311, res)
+  nj <- as.vector(table(res$j)[as.character(res$j)])
+  verifier("#311 : qqnorm$empirique tries = sort(mw_residus_redresses()) ; theorique = quantiles N(0,1) (ppoints) aux rangs de r~",
+           identical(sort(pd$qqnorm$empirique), sort(rt)) && nrow(pd$qqnorm) == 27L &&
+             identical(names(pd$qqnorm), c("theorique", "empirique")) &&
+             isTRUE(proche(sort(pd$qqnorm$theorique), stats::qnorm(stats::ppoints(27)), rel = 1e-14)) &&
+             identical(order(pd$qqnorm$theorique), order(pd$qqnorm$empirique)))
+  verifier("#311 : mw_residus_redresses() = r / sqrt(1 - C/S) recalcule depuis le triangle (1e-14), dans l'ordre de res",
+           {
+             S <- vapply(seq_len(nrow(res)), function(k)
+               sum(tri_ref[seq_len(nrow(tri_ref) - res$j[k] - 1), res$j[k] + 1]), numeric(1))
+             isTRUE(proche(rt, res$residu / sqrt(1 - res$C / S), rel = 1e-14))
+           })
+  verifier("#311 : |r~| = 1 pour n_j = 2 (1e-14) ; max |r~| / sqrt(n_j - 1) <= 1 + 1e-12 (reserve2, Taylor-Ashe, tri_deg, ta_deg)",
+           any(nj == 2L) && isTRUE(proche(abs(rt[nj == 2L]), rep(1, sum(nj == 2L)), rel = 1e-14)) &&
+             all(vapply(list(tri_ref, ta, tri_deg, ta_deg), function(t) {
+               a <- mw_ajuster(t); rs <- mw_residus(a); n <- as.vector(table(rs$j)[as.character(rs$j)])
+               x <- mw_residus_redresses(a, rs)
+               all(is.finite(x)) && max(abs(x) / sqrt(n - 1)) <= 1 + 1e-12
+             }, logical(1))))
+  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data ; feuilles anterieures inchangees et a leur place",
+           identical(pd$qqline, c(ordonnee = 0, pente = 1)) &&
+             identical(utils::tail(names(pd), 4),
+                       c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline")) &&
+             identical(names(pd)[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+                                          "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
+                                          "alpha", "origine", "influence", "contributions", "sigma_boot")))
+  # Vivier du bootstrap : .mw_pool_residus() appelle mw_residus_redresses().
+  # Forme anterieure a #311 (expression litterale) substituee le temps d'un
+  # bootstrap : p_mc, sigma_boot et statistiques repliquees identiques.
+  pool_avant311 <- function(aj, j_degeneres = NULL) {
+    res <- mw_residus(aj, j_degeneres)
+    if (!nrow(res)) return(numeric(0))
+    pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
+    pool - mean(pool)
+  }
+  verifier("#311 : .mw_pool_residus() identique au bit pres a la forme anterieure (reserve2, Taylor-Ashe, tri_deg, ta_deg, tri_c1)",
+           all(vapply(list(tri_ref, ta, tri_deg, ta_deg, tri_c1), function(t) {
+             a <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(a)
+             identical(.mw_pool_residus(a, jd), pool_avant311(a, jd))
+           }, logical(1))))
+  verifier("#311 : bootstrap (B = 99) identique au bit pres avec le vivier de la forme anterieure : p_mc, sigma_boot",
+           {
+             env <- environment(mw_bootstrap); f0 <- get(".mw_pool_residus", envir = env)
+             b1 <- mw_bootstrap(aj311, B = 99)
+             assign(".mw_pool_residus", pool_avant311, envir = env)
+             b0 <- tryCatch(mw_bootstrap(aj311, B = 99),
+                            finally = assign(".mw_pool_residus", f0, envir = env))
+             identical(b1$p_mc, b0$p_mc) && identical(b1$sigma_boot, b0$sigma_boot) &&
+               identical(get(".mw_pool_residus", envir = env), f0)
+           })
+  verifier("#311 : lignes M5 (Shapiro-Wilk, Lilliefors) calculees sur les residus bruts, non sur r~",
+           {
+             l <- function(nom) Filter(function(x) identical(x$test, nom), r311$tests)[[1]]
+             r <- mw_residus(aj311)$residu
+             identical(l("Shapiro-Wilk sur les residus de Mack")$stat, .shapiro_sur(r)$stat) &&
+               identical(l("Lilliefors sur les residus de Mack")$stat, stat_lilliefors(r)) &&
+               !identical(.shapiro_sur(r)$stat, .shapiro_sur(rt)$stat)
+           })
+})
 
 fin_fichier()

@@ -1712,14 +1712,38 @@ verifier("Graphique des facteurs, base R, objet sans sigma_regle_minimum : rendu
            r <- leg310(pd310_ancien)
            r$n == 1L && identical(r$texte, "sigma_j")
          })
+# Reference f = 1 du panneau du haut (reserve d'app-review sur #310, jointe
+# a #311) : ylim inclut 1, la droite h = 1 tombe dans la zone de trace meme
+# quand tous les f_j sont au-dessus de 1,04. par("usr") releve a l'appel de
+# abline(h = 1).
+usr_f1 <- function(pd) {
+  e <- new.env(); e$usr <- NULL
+  ns <- asNamespace("graphics")
+  suppressMessages(trace("abline", exit = bquote(if (identical(h, 1))
+    assign("usr", graphics::par("usr"), envir = .(e))), where = ns, print = FALSE))
+  on.exit(suppressMessages(untrace("abline", where = ns)))
+  releve_base162(function() plot_mw_facteurs(pd), largeur = 480 / 72, hauteur = 330 / 72)
+  e$usr
+}
+verifier("Graphique des facteurs, base R : reference f = 1 dans la zone de trace du panneau du haut, y compris quand tous les f_j > 1,04 (#311)",
+         {
+           pf <- pd310; pf$facteurs$f <- pf$facteurs$f + 0.3
+           u0 <- usr_f1(pd310); u1 <- usr_f1(pf)
+           min(pf$facteurs$f) > 1.04 && length(u0) == 4L && length(u1) == 4L &&
+             u0[3] <= 1 && 1 <= u0[4] && u1[3] <= 1 && 1 <= u1[4]
+         })
 verifier("Graphique des facteurs : losange J - 1 d'une couleur distincte de la reference f = 1 (COUL$regle != COUL$trait) (#310)",
          is.character(COUL$regle) && !identical(COUL$regle, COUL$trait))
 if (requireNamespace("plotly", quietly = TRUE)) {
   b310 <- function(pd) suppressWarnings(plotly::plotly_build(plot_mw_facteurs(pd)))$x
+  # Nom de trace plotly de T-5 coupe par <br> apres "regle de minimum"
+  # (reserve d'app-review sur #310, jointe a #311) : compare a T-5 une fois
+  # <br> remplace par une espace.
   verifier("Graphique des facteurs, plotly : deux sous-graphiques a axe j partage, f_j en haut, sigma_j (axe depuis 0) et T-5 en bas, legende horizontale sous le trace (#310)",
            {
              b <- b310(pd310); L <- b$layout
              nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             nm <- gsub("<br>", " ", nm, fixed = TRUE)
              ya <- vapply(b$data, function(t) t$yaxis, "")
              xa <- vapply(b$data, function(t) t$xaxis, "")
              j1 <- b$data[[which(nm == .LEGENDE_SIGMA_REGLE)]]
@@ -1730,12 +1754,21 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(j1$marker$color, COUL$regle) &&
                min(unlist(L$yaxis$domain)) > max(unlist(L$yaxis2$domain)) &&
                identical(unlist(L$yaxis2$range)[1], 0) &&
-               identical(L$legend$orientation, "h") && L$legend$y < 0
+               identical(L$legend$orientation, "h") && identical(L$legend$y, -0.30)
+           })
+  verifier("Graphique des facteurs, plotly : legende T-5 coupee en deux lignes apres 'regle de minimum' (largeur < 395 px, #311)",
+           {
+             b <- b310(pd310)
+             nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             k <- grep("<br>", nm, fixed = TRUE)
+             length(k) == 1L && grepl("regle de minimum<br>(annexe", nm[k], fixed = TRUE) &&
+               identical(gsub("<br>", " ", nm[k], fixed = TRUE), .LEGENDE_SIGMA_REGLE)
            })
   verifier("Graphique des facteurs, plotly, objet sans sigma_regle_minimum : trois traces, serie \"sigma_j\" sur tous les j (#310)",
            {
              b <- b310(pd310_ancien)
              nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             nm <- gsub("<br>", " ", nm, fixed = TRUE)
              length(b$data) == 3L && !(.LEGENDE_SIGMA_REGLE %in% nm) &&
                identical(as.numeric(b$data[[which(nm == "sigma_j")]]$x), as.numeric(pd310$facteurs$j))
            })
@@ -1775,7 +1808,7 @@ rel312 <- function(f, l = 480) {
       list(list(x = x, y = y, pch = list(...)$pch, cex = list(...)$cex))), envir = .(e))),
       where = ns, print = FALSE)
     trace("mtext", exit = bquote(assign("mt", c(get("mt", envir = .(e)),
-      list(list(text = text, at = at, side = side))), envir = .(e))), where = ns, print = FALSE)
+      list(list(text = text, at = at, side = side, cex = cex))), envir = .(e))), where = ns, print = FALSE)
   })
   on.exit(suppressMessages({ untrace("points.default", where = ns); untrace("mtext", where = ns) }))
   r <- releve_base162(f, largeur = l / 72, hauteur = 330 / 72)
@@ -1815,6 +1848,21 @@ verifier("Nuages de residus, base R, objet sans tables de groupes : nuage seul, 
            length(ra$leg) == 0L && length(ra$pts) == 0L && length(rc$leg) == 0L && length(rc$pts) == 0L &&
              length(ra$mt) == 0L && length(rc$mt) == 0L
          })
+# Police des effectifs reduite au-dela de .NB_GROUPES_EFFECTIF_REDUIT
+# groupes (reserve M1 de l'audit de #312) : table residus_acc_groupes
+# fictive de 15 lignes (I = 15), contre les 7 groupes de reserve2.
+verifier("Nuages de residus, base R : effectifs et 'n :' en cex 0,6 au-dela de .NB_GROUPES_EFFECTIF_REDUIT groupes (15 lignes), 0,7 en deca (reserve2, 7 groupes) (#312)",
+         {
+           pd15 <- pd312
+           pd15$residus_acc <- data.frame(i = 0:14, residu = seq(-1, 1, length.out = 15))
+           pd15$residus_acc_groupes <- data.frame(i = 0:14, n = rep(1L, 15), moyenne = pd15$residus_acc$residu)
+           cex3 <- function(r) vapply(Filter(function(m) identical(m$side, 3), r$mt), function(m) m$cex, 0)
+           c15 <- cex3(rel312(function() plot_mw_residus_acc(pd15)))
+           c7 <- cex3(rel312(function() plot_mw_residus_acc(pd312)))
+           nrow(pd15$residus_acc_groupes) > .NB_GROUPES_EFFECTIF_REDUIT &&
+             nrow(pd312$residus_acc_groupes) <= .NB_GROUPES_EFFECTIF_REDUIT &&
+             identical(c15, c(0.6, 0.6)) && identical(c7, c(0.7, 0.7))
+         })
 verifier("Nuages de residus : affichage sans calcul, moyennes lues dans plots_data (aucun mean(), tapply() ni stats:: dans le code des nuages) (#312)",
          {
            corps <- paste(c(deparse(.nuage_moyennes), deparse(.groupes_nuage),
@@ -1847,6 +1895,119 @@ if (requireNamespace("plotly", quietly = TRUE)) {
            })
 } else {
   cat("  note : plotly absent ; trace plotly des moyennes par groupe non exerce (#312).\n")
+}
+
+
+## --- QQ-plot Merz-Wuthrich des residus redresses (#311) ---------------------
+# Option (c) de Q-D1-Fm-4 et Q-D1-Fm-5 : points lus dans plots_data$qqnorm
+# (r / sqrt(1 - h)), droite lue dans plots_data$qqline (y = x, posee par le
+# moteur) dans les deux rendus ; titre, axes et note : texte T-3 de la
+# specification Fm, a la lettre (la note, coupee en lignes a l'affichage, est
+# recomposee par une espace ; le titre, coupe en deux lignes avant
+# "(M5, diagnostic)", aussi). Droite pleine, epaisseur 2, COUL$trait, comme
+# plot_qqnorm(). Objet sans qqline (version anterieure du moteur) : .vide()
+# avec un message fixe.
+i_t3 <- which(startsWith(spec310, "**T-3 (#311"))[1]
+bq311 <- function(l) gsub("`", "", regmatches(l, gregexpr("`[^`]*`", l))[[1]], fixed = TRUE)
+t3_titre <- bq311(spec310[i_t3 + 1L]); t3_axes <- bq311(spec310[i_t3 + 2L])
+t3_note <- sub("^ *> `(.*)`$", "\\1", spec310[i_t3 + 4L])
+verifier("QQ-plot MW : titre, axes et note = texte T-3 de la specification Fm, a la lettre (#311)",
+         length(t3_titre) == 1L && length(t3_axes) == 2L &&
+           startsWith(t3_note, "droite y = x : variance unitaire") &&
+           identical(.TITRE_MW_QQ, t3_titre) && identical(c(.AXE_X_MW_QQ, .AXE_Y_MW_QQ), t3_axes) &&
+           identical(.NOTE_MW_QQ, t3_note))
+pd311 <- res_mw$plots_data
+pd311_ancien <- pd311; pd311_ancien$qqline <- NULL
+# Releve du trace base R : points (plot.xy, appele par plot.default() ; un
+# trace de plot.default lui-meme ne releve aucun appel quand ce fichier est
+# execute en entier, mesure, cause non etablie), droites (abline), titres et
+# intitules des axes
+# (title, appele aussi par plot.default()) et textes de marge (mtext).
+rel311 <- function(pd, l = 560) {
+  e <- new.env(); e$pl <- list(); e$ab <- list(); e$ti <- list(); e$mt <- list()
+  ns <- asNamespace("graphics")
+  suppressMessages({
+    trace("plot.xy", tracer = bquote(assign("pl", c(get("pl", envir = .(e)),
+      list(list(x = xy$x, y = xy$y))), envir = .(e))), where = ns, print = FALSE)
+    trace("abline", exit = bquote(assign("ab", c(get("ab", envir = .(e)),
+      list(list(a = a, b = b, lwd = list(...)$lwd, lty = list(...)$lty, col = list(...)$col))),
+      envir = .(e))), where = ns, print = FALSE)
+    trace("title", exit = bquote(assign("ti", c(get("ti", envir = .(e)),
+      list(list(main = main, xlab = xlab, ylab = ylab))), envir = .(e))), where = ns, print = FALSE)
+    trace("mtext", exit = bquote(assign("mt", c(get("mt", envir = .(e)),
+      list(list(text = text, side = side))), envir = .(e))), where = ns, print = FALSE)
+  })
+  on.exit(suppressMessages(for (f in c("plot.xy", "abline", "title", "mtext"))
+    untrace(f, where = ns)))
+  releve_base162(function() plot_mw_qq(pd), largeur = l / 72, hauteur = 330 / 72)
+  as.list(e)
+}
+verifier("QQ-plot MW, base R (560 x 330 px) : points = plots_data$qqnorm, droite abline(qqline) = (0, 1) pleine lwd 2, titre sur deux lignes, axes et note T-3 (#311)",
+         {
+           r <- rel311(pd311)
+           note <- Filter(function(m) identical(m$side, 3), r$mt)
+           # plot.default() appelle title(main = "", xlab, ylab), puis
+           # plot_mw_qq() title() pour chacune des deux lignes du titre T-3 :
+           # titres vides ecartes.
+           tit <- unlist(lapply(r$ti, `[[`, "main"))
+           length(r$pl) == 1L && identical(as.numeric(r$pl[[1]]$x), pd311$qqnorm$theorique) &&
+             identical(as.numeric(r$pl[[1]]$y), pd311$qqnorm$empirique) &&
+             length(r$ti) == 3L && identical(r$ti[[1]]$xlab, t3_axes[1]) &&
+             identical(r$ti[[1]]$ylab, t3_axes[2]) &&
+             length(r$ab) == 1L && identical(r$ab[[1]]$a, pd311$qqline[["ordonnee"]]) &&
+             identical(r$ab[[1]]$b, pd311$qqline[["pente"]]) &&
+             identical(pd311$qqline, c(ordonnee = 0, pente = 1)) &&
+             identical(r$ab[[1]]$lwd, 2) && is.null(r$ab[[1]]$lty) && identical(r$ab[[1]]$col, COUL$trait) &&
+             identical(Filter(nzchar, tit), c("QQ-plot des residus de Mack redresses par le levier",
+                                              "(M5, diagnostic)")) &&
+             identical(paste(Filter(nzchar, tit), collapse = " "), t3_titre) &&
+             length(note) >= 2L &&
+             identical(paste(vapply(note, function(m) m$text, ""), collapse = " "), t3_note)
+         })
+env311 <- environment(plot_mw_qq); vide311 <- get(".vide", envir = env311)
+vide_311 <- function(pd) {
+  msg <- NULL
+  assign(".vide", function(message = formals(vide311)$message) { msg <<- message; vide311(message) },
+         envir = env311)
+  on.exit(assign(".vide", vide311, envir = env311))
+  option <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  r <- tryCatch({ plot_mw_qq(pd); TRUE }, error = function(e) FALSE)
+  list(ok = r, msg = msg)
+}
+verifier("QQ-plot MW, objet sans qqline (version anterieure du moteur) : aucune erreur, .vide() avec le message fixe, sans numero d'issue ; objet courant : aucun appel a .vide() (#311)",
+         {
+           v0 <- vide_311(pd311_ancien); v1 <- vide_311(pd311)
+           # Base R : message sur deux lignes, coupe avant "(relancer".
+           v0$ok && identical(gsub("\n", " ", v0$msg, fixed = TRUE), .VIDE_MW_QQ) &&
+             grepl("\n(relancer", v0$msg, fixed = TRUE) && v1$ok && is.null(v1$msg) &&
+             identical(.VIDE_MW_QQ, paste("QQ-plot non disponible : resultat produit par une version",
+                                          "anterieure du moteur (relancer les calculs)")) &&
+             !grepl("#", .VIDE_MW_QQ, fixed = TRUE)
+         })
+verifier("QQ-plot MW : affichage sans calcul (aucun stats::, qqnorm(), qqline() ni quantile() dans plot_mw_qq()) (#311)",
+         {
+           corps <- paste(deparse(plot_mw_qq), collapse = "\n")
+           !grepl("stats::", corps, fixed = TRUE) && !grepl("qqnorm\\(|qqline\\(|quantile\\(", corps)
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("QQ-plot MW, plotly : droite (0, 1) lue dans qqline, pleine, epaisseur 2, points = qqnorm, titre (deux lignes) et note T-3, axes T-3 (#311)",
+           {
+             b <- suppressWarnings(plotly::plotly_build(plot_mw_qq(pd311)))$x
+             L <- b$layout; x <- range(pd311$qqnorm$theorique)
+             tx <- function(t) if (is.list(t)) t$text else t
+             ttl <- gsub("<br>", " ", gsub("</?sup>", "", tx(L$title)), fixed = TRUE)
+             length(b$data) == 2L &&
+               identical(as.numeric(b$data[[1]]$x), x) && identical(as.numeric(b$data[[1]]$y), 0 + 1 * x) &&
+               identical(b$data[[1]]$line$width, 2) && is.null(b$data[[1]]$line$dash) &&
+               startsWith(tx(L$title), "QQ-plot des residus de Mack redresses par le levier<br>(M5, diagnostic)<br>") &&
+               identical(as.numeric(b$data[[2]]$x), pd311$qqnorm$theorique) &&
+               identical(as.numeric(b$data[[2]]$y), pd311$qqnorm$empirique) &&
+               identical(ttl, paste(t3_titre, t3_note)) &&
+               identical(tx(L$xaxis$title), t3_axes[1]) && identical(tx(L$yaxis$title), t3_axes[2])
+           })
+} else {
+  cat("  note : plotly absent ; rendu plotly du QQ-plot Merz-Wuthrich non exerce (#311).\n")
 }
 
 fin_fichier()
