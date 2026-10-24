@@ -7667,10 +7667,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     observees (i + j > I) valant NA.
 ##
 ##     RESTRICTION D'IMPLEMENTATION : on impose I = J (triangle carre). Le
-##     paragraphe 2(e) autorise I >= J, mais la formule du paragraphe 4 fait
-##     intervenir C(i, I-i), qui n'est definie que si I - i <= J. Le cas I > J
-##     produirait un trapeze dont le texte ne precise pas le traitement ; il est
-##     donc refuse explicitement plutot que traite par convention implicite.
+##     paragraphe 2(e) autorise I >= J, mais les formules des paragraphes 4 et
+##     5 font intervenir C(i, I-i), qui n'est definie que si I - i <= J, et
+##     celle du paragraphe 5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1
+##     (ni f_j ni sigma2_j au-dela de j = J-1). Le cas I > J produirait un
+##     trapeze dont le texte ne precise pas le traitement ; il est donc refuse
+##     explicitement plutot que traite par convention implicite.
 ## =============================================================================
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
@@ -7703,7 +7705,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
   if (I != J)
-    err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par la formule du paragraphe 4 (voir la note d'implementation).", I, J))
+    err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par les formules des paragraphes 4 et 5 (voir la note d'implementation).", I, J))
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
@@ -8377,7 +8379,19 @@ mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) 
   out$valeur_regle <- aj$sigma2[J]
   out$racine_msep_regle <- r0
   out$arguments <- args
-  out$racine_msep_arguments <- vapply(args, function(v)
+  # Quotient "non defini" aussi quand la colonne J-3 est degeneree a la
+  # tolerance 1e-12 de l'outil (ex$degeneree_Jm3, predicat
+  # .mw_colonne_degeneree()), meme si sigma2_{J-3} n'est pas exactement nul :
+  # sigma2_{J-2}^2 / sigma2_{J-3} n'est alors qu'un residu d'arrondi divise
+  # par un autre (colonne constante a 1e-14 pres : quotient ~ 1e23, racine de
+  # la MSEP ~ 1e14). C'est la condition qui omet deja le contrefactuel
+  # sigma2_(J-1) = 0 (erratum (2) du 24/10/2026 de la specification Fm, T-4 ;
+  # constat C1 de la revue finale). arguments["quotient"] garde la valeur
+  # calculee (meme champ que ex$quotient) ; seule la racine de la MSEP
+  # correspondante passe a NA.
+  arg_sens <- args
+  if (isTRUE(ex$degeneree_Jm3)) arg_sens["quotient"] <- NA_real_
+  out$racine_msep_arguments <- vapply(arg_sens, function(v)
     if (is.na(v)) NA_real_ else racine_avec(v), numeric(1))
   out$racine_msep_zero <- racine_avec(0)
   out

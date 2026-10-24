@@ -643,6 +643,62 @@ verifier("#310 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle a la t
              !grepl("contrefactuel", l, fixed = TRUE) &&
              !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
          })
+# Constat C1 de la revue finale (erratum (2) du 24/10/2026 de la specification
+# Fm, T-4) : colonne J-3 constante a 1e-14 pres, F(i, J-3) = 1,1 (1 + 1e-14
+# (i mod 2)), colonnes suivantes reechelonnees. sigma2_(J-3) ~ 1e-25 n'est pas
+# nul, le quotient vaut ~ 1e23 et la racine de la MSEP correspondante ~ 1e14 :
+# la sensibilite l'ecrit "non defini" (meme condition, degeneree_Jm3, que
+# l'omission du contrefactuel). arguments["quotient"] garde sa valeur
+# calculee ; la partie min(...) du detail est inchangee. Le cas exactement
+# constant (eps = 0, quotient deja NA) donne le meme detail qu'avant.
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  m <- unname(m)
+  degen_Jm3 <- function(tri, eps) {
+    I <- nrow(tri) - 1L; j <- ncol(tri) - 4L
+    for (i in 0:(I - j - 1L)) {
+      old <- tri[i + 1, j + 2]
+      new <- tri[i + 1, j + 1] * 1.1 * (1 + eps * (i %% 2))
+      k <- (j + 2):(I - i + 1)
+      tri[i + 1, k] <- tri[i + 1, k] * new / old
+    }
+    tri
+  }
+  sens_phrase <- function(l) sub("^.*(Sensibilite indicative)", "\\1", l)
+  verifier("#310 (C1) : colonne J-3 constante a 1e-14 pres -> quotient de la sensibilite 'non defini', sans 'e+', sans contrefactuel",
+           {
+             t1 <- degen_Jm3(m, 1e-14)
+             a <- mw_ajuster(t1); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex)
+             l <- detail_m6(run_mw(t1))
+             ph <- sens_phrase(l)
+             isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] > 0 &&
+               is.finite(ex$quotient) && ex$quotient > 1e20 &&
+               identical(s$arguments[["quotient"]], ex$quotient) &&
+               is.na(s$racine_msep_arguments[["quotient"]]) &&
+               all(is.finite(s$racine_msep_arguments[c("sigma2_Jm2", "sigma2_Jm3")])) &&
+               identical(l, .mw_detail_extrapolation(ex, s)) &&
+               startsWith(ph, "Sensibilite indicative") &&
+               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+               !grepl("e+", ph, fixed = TRUE) &&
+               !grepl("contrefactuel", l, fixed = TRUE) &&
+               !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+           })
+  verifier("#310 (C1) : colonne J-3 exactement constante -> quotient NA, 'non defini', sans contrefactuel (inchange)",
+           {
+             t0 <- degen_Jm3(m, 0)
+             a <- mw_ajuster(t0); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex)
+             l <- .mw_detail_extrapolation(ex, s)
+             isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] == 0 && is.na(ex$quotient) &&
+               is.na(s$arguments[["quotient"]]) &&
+               is.na(s$racine_msep_arguments[["quotient"]]) &&
+               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+               !grepl("e+", sens_phrase(l), fixed = TRUE) &&
+               !grepl("contrefactuel", l, fixed = TRUE)
+           })
+})
 # Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
 # colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non
 # definis, la sensibilite n'est pas applicable (plus de "NaN %").
