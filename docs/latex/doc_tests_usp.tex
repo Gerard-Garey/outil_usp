@@ -6660,7 +6660,16 @@ $\sigma_j^2$ & Convergence en probabilité &
 $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
 \textbf{fixée par la règle de minimum} de D(5)(d)(ii), et nulle lorsque
-$\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ \\
+$\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ (ligne suivante) \\
+
+Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic) & \emph{Aucune}~: valeur fixée par la règle de
+minimum de D(5)(d)(ii), seconde ligne, et non estimée & --- & --- & --- &
+$\hat\sigma^2_{J-2}$ et $\hat\sigma^2_{J-3}$, estimées à 1 et 2 degrés de liberté sur un triangle
+$8\times 8$ &
+Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ restituée par la ligne
+(triangle de contrôle~: $+13{,}5~\%$ et $+36{,}0~\%$ avec les deux autres arguments du minimum,
+$-16{,}5~\%$ pour le contrefactuel $\sigma^2_{J-1} = 0$~; fiche~\ref{mw:m6sig}), sans effet sur
+$\sigma_{(\text{res},s,\mathrm{USP})}$ \\
 
 Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
 $I$ fini, $\sum_{i,j} r(i,j)^2 = N-k$ pour $N$ résidus répartis sur $k$ colonnes
@@ -6681,6 +6690,11 @@ Convergence en probabilité & Non établie à $I$ fini &
 M1 à M3, modèle correctement spécifié &
 Non quantifiable ; la MSEP hérite de l'incertitude sur $\hat\sigma^2_{J-1}$ \\
 
+Concentration de la réserve (diagnostic) & \emph{Aucune}~: part exacte sur l'observé & --- & --- &
+--- & Réserves chain-ladder par année de survenance~; $\hat R > 0$, le calcul étant refusé sinon &
+Rien ne converge~; repère de $40~\%$ sans fondement réglementaire ni statistique~; part non bornée
+dès qu'une réserve par année est négative (fiche~\ref{mw:m6conc}) \\
+
 Hétéroscédasticité résiduelle (effets fixes de colonne) & $\mathrm{LM} = nR^2$ partiel de
 $\tilde r^2$ sur $C(i,j)$ & $\chi^2(1)$ & Convergence en loi, non établie pour cette
 construction & Non établie~; $n = 25$ cellules sur un triangle $8\times 8$ & Indépendance des
@@ -6694,6 +6708,14 @@ seulement~; $\min(1, N_t M)$ en est un majorant (Bonferroni) & --- & Borne, non 
 objet & Erreurs gaussiennes, que le modèle de Mack n'exige pas &
 Borne compatible sous erreurs gaussiennes, libérale sous les lois E et A du plan mesuré
 (§\ref{sec:calib-asympt-mw})~; bootstrap retenu (fiche~\ref{mw:m4gr}) \\
+
+ESD généralisé sur résidus de Mack (diagnostic) & $R_i$ de Rosner, comparés aux valeurs critiques
+$\lambda_i$ (éq.~(2.5), approximation de Student--Bonferroni) & \emph{Aucune} pour des résidus de
+Mack & --- & --- & Échantillon i.i.d. normal (Rosner, 1983, domaine déclaré $n \ge 25$)~: cadre que
+les 27 résidus d'un triangle $8\times 8$, soumis à des contraintes exactes par colonne, ne
+satisfont pas &
+Aucune p-value (aucune des trois voies ouverte)~; 0 déclaration sur 1\,000 triangles sous $H_0$
+(issue~\#309)~; repère sans verdict (fiche~\ref{mw:m4ros}) \\
 
 Pente relative intra-colonne (issue~\#307) & $t$ de la pente commune à effets fixes de
 colonne & Student$(N - G - 1)$ & Approximation, non convergence établie & Non établie~; $N = 27$
@@ -6722,10 +6744,26 @@ Corrélation entre colonnes & $\hat\rho$ agrégé & \emph{aucune limite tabulabl
 Continuité, absence d'ex \ae quo & Bootstrap seul recours ; 5 à 6 paires
 exploitables à $T = 8$ \\
 
-Durbin--Watson et suites sur résidus de Mack & DW, $Z$ &
-$\mathcal{N}(0,1)$ / loi combinatoire & Convergence en loi &
+Kruskal--Wallis entre années de survenance & $H$ & $\chi^2(k-1)$ & Convergence en loi sous
+$H_0$, effectifs des groupes croissants (Kruskal et Wallis, 1952, fiche~\ref{mw:m3acc}) &
+Non établie~; groupes de 6, 6, 5, 4, 3, 2 et 1 résidus sur un triangle $8\times 8$ &
+Indépendance et échangeabilité des résidus, en défaut (contraintes de colonne) &
+p du $\chi^2$ non retenue, au-dessus du seuil sous le plan mesuré ($0{,}125$ et $0{,}1265$ à
+$0{,}10$ sous N et E, §\ref{sec:calib-asympt-mw})~; bootstrap retenu, niveau compatible sous ce
+plan ($0{,}096$, $0{,}1005$ et $0{,}080$ à $0{,}10$ sous N, E et A, issue~\#206~; écart mineur du
+côté conservateur sous A)~; un résidu par
+année~: $H = N - 1$ par construction, diagnostic \\
+
+Durbin--Watson et suites sur résidus de Mack (suites~: diagnostic par décision depuis
+l'issue~\#312) & DW, $Z$ &
+DW~: \emph{aucune}, la loi d'Imhof étant inapplicable, et aucune p non simulée~; suites~:
+$\mathcal{N}(0,1)$ / loi combinatoire & Convergence en loi (suites seulement) &
 Non établie : les résidus d'une colonne partagent $\hat f_j$ et $\hat\sigma_j$ &
-Échangeabilité, mise en défaut ici & Lois classiques écartées ; bootstrap retenu \\
+Échangeabilité, mise en défaut ici & Lois classiques écartées~; DW~: bootstrap retenu, moyenne
+d'environ $2{,}35$, et non~2, sous le modèle de Mack ajusté au triangle de contrôle à erreurs
+gaussiennes (999 triangles, fiche~\ref{mw:m3cal})~; suites~: p non simulée sur-rejetante
+($0{,}135$ à $0{,}10$ sous N), p-value de Monte-Carlo calculée sans être retenue
+(fiche~\ref{mw:m3runs}) \\
 
 Bootstrap de résidus & $\hat p_{\mathrm{MC}}$ & p-value semi-paramétrique &
 Convergence en $B$ (Monte-Carlo) et en $I$ (validité bootstrap) &
