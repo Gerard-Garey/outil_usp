@@ -298,6 +298,12 @@ Sous (a), la bande simultanée hérite de la citation existante « enveloppe glo
 
 ## 3. S-Fm-3 (#310) : effet de σ²_{J−1} sur √MSEP ; marquage du graphique
 
+> **Erratum du 24/10/2026** (*consigné par la session principale (IA)*, sur la proposition d'`actuary-approfondi` à la validation de fond de #310 ; vérifié sur le code de `2ab9723`) :
+>
+> - **(a) § 7, valeurs de test.** Les √MSEP sont à tester à six décimales, et non à trois : 199,494435 (valeur de la règle), 226,413084, 271,305067 et 166,48… (`tests/unitaires/test_merz_wuthrich.R`, l. 583-585). Les valeurs à trois décimales du tableau ci-dessous et de T-4 restent celles qu'imprime le `detail` (`format(·, digits = 6)`).
+> - **(b) § 3 (c) est faux.** `mw_valider_triangle()` ne refuse pas seulement nrow < ncol : elle refuse aussi I ≠ J (« Triangle non carre (I = %d, J = %d) : cas non couvert par la formule du paragraphe 4 », `R/engine.R`, l. 7705-7706). Le cas I > J n'est donc pas atteignable dans l'outil, et R2 (« aucun degré de liberté, I − j − 1 = 0 ») vaut **sans condition** dans l'outil. La fiche `mw:m6sig` l'écrit « sous la contrainte I = J imposée par `mw_valider_triangle()` ». La lecture de `regulatory` sur le cas I > J (aucun écart) reste valable, sans objet pour le code.
+> - **(c) Condition de `CONTRE` (T-4).** Le contrefactuel est omis quand la règle donne 0 **à la tolérance de l'outil**, c'est-à-dire quand la colonne J − 3 ou J − 2 est dégénérée (`ex$degeneree`, prédicat `.mw_colonne_degeneree()` à 1e-12), et non seulement quand la valeur de la règle est exactement nulle (`R/engine.R`, l. 8247-8263 : `!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0)`).
+
 **Lecture de `regulatory`, reprise** (23/10/2026, aucun écart) :
 - le texte (consolidé, ▼B) donne σ̂²_{J−1} = min(σ̂²_{J−2}, σ̂²_{J−3}, σ̂⁴_{J−2}/σ̂²_{J−3}) : trois arguments exactement, aucune option ;
 - σ̂²_{J−3} = 0 donne un minimum nul par application littérale (#7) ;
