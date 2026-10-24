@@ -6666,9 +6666,9 @@ Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic) & \emph{Aucune}~: valeur fix�
 minimum de D(5)(d)(ii), seconde ligne, et non estimée & --- & --- & --- &
 $\hat\sigma^2_{J-2}$ et $\hat\sigma^2_{J-3}$, estimées à 1 et 2 degrés de liberté sur un triangle
 $8\times 8$ &
-Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ restituée par la ligne
+Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors règle, restituée par la ligne
 (triangle de contrôle~: $+13{,}5~\%$ et $+36{,}0~\%$ avec les deux autres arguments du minimum,
-$-16{,}5~\%$ pour le contrefactuel $\sigma^2_{J-1} = 0$~; fiche~\ref{mw:m6sig}), sans effet sur
+$-16{,}5~\%$ pour le contrefactuel $\sigma^2_{J-1} = 0$, qui n'est pas un argument du minimum~; fiche~\ref{mw:m6sig}), sans effet sur
 $\sigma_{(\text{res},s,\mathrm{USP})}$ \\
 
 Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
@@ -6745,7 +6745,7 @@ Continuité, absence d'ex \ae quo & Bootstrap seul recours ; 5 à 6 paires
 exploitables à $T = 8$ \\
 
 Kruskal--Wallis entre années de survenance & $H$ & $\chi^2(k-1)$ & Convergence en loi sous
-$H_0$, effectifs des groupes croissants (Kruskal et Wallis, 1952, fiche~\ref{mw:m3acc}) &
+$H_0$, effectifs des groupes croissants (Kruskal et Wallis, 1952, non relu sur le texte intégral au 24~octobre 2026~; fiche~\ref{mw:m3acc}) &
 Non établie~; groupes de 6, 6, 5, 4, 3, 2 et 1 résidus sur un triangle $8\times 8$ &
 Indépendance et échangeabilité des résidus, en défaut (contraintes de colonne) &
 p du $\chi^2$ non retenue, au-dessus du seuil sous le plan mesuré ($0{,}125$ et $0{,}1265$ à
@@ -6761,7 +6761,7 @@ $\mathcal{N}(0,1)$ / loi combinatoire & Convergence en loi (suites seulement) &
 Non établie : les résidus d'une colonne partagent $\hat f_j$ et $\hat\sigma_j$ &
 Échangeabilité, mise en défaut ici & Lois classiques écartées~; DW~: bootstrap retenu, moyenne
 d'environ $2{,}35$, et non~2, sous le modèle de Mack ajusté au triangle de contrôle à erreurs
-gaussiennes (999 triangles, fiche~\ref{mw:m3cal})~; suites~: p non simulée sur-rejetante
+gaussiennes (constat de simulation hors moteur, 999 triangles, fiche~\ref{mw:m3cal})~; suites~: p non simulée sur-rejetante
 ($0{,}135$ à $0{,}10$ sous N), p-value de Monte-Carlo calculée sans être retenue
 (fiche~\ref{mw:m3runs}) \\
 
@@ -7495,7 +7495,7 @@ M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi 
 M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-18} = 3{,}81\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (queue basse, issue~\#276) & Puissance sous le plan du triangle de contrôle (loi N, $\alpha = 0{,}10$) contre six effets calendaires (choc de $5$ ou $10~\%$ sur le dernier exercice ou sur l'exercice médian, dérive de $3$ ou $5~\%$)~: de $0{,}162$ à $0{,}401$ en queue basse, contre $0{,}084$ à $0{,}233$ sous la forme bilatérale antérieure~; compensation alternée (côté haut, non testé)~: $0{,}017$~; retrouvée par l'issue~\#309 (choc de $10~\%$, 500 triangles~: $0{,}380$ et $0{,}344$ à $0{,}10$, compatibles)~; niveau de la $p_{\mathrm{mc}}$ en queue basse ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0835$~; $0{,}0305$, E $0{,}091$~; $0{,}0365$, A $0{,}084$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; les niveaux de l'issue~\#206 portent sur la forme bilatérale & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/mesure\_calendaire\_t8.R},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261016-issue276-calendaire.md},\newline \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une année de survenance atypique~: $0{,}590$~; $0{,}436$~; dérive de $f_j$ avec l'année~: $0{,}166$, $0{,}124$, $0{,}170$ à $0{,}10$ (P1, P2, P3)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}096$~; $0{,}0505$, E $0{,}1005$~; $0{,}049$, A $0{,}080$~; $0{,}036$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$ & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance (issue~\#309, loi N, $\alpha = 0{,}10$)~: dérive calendaire de $5~\%$ par exercice, $0{,}204$~; choc de $10~\%$ sur le dernier exercice ou l'exercice médian, $0{,}068$~; $0{,}122$ (plan P1)~; ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2, $0{,}432$~; taux sous $H_0$ $0{,}112$ (P1), $0{,}084$ (P2)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
+M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance (issue~\#309, loi N, $\alpha = 0{,}10$)~: dérive calendaire de $5~\%$ par exercice, $0{,}204$~; choc de $10~\%$ sur le dernier exercice ou l'exercice médian, $0{,}068$~; $0{,}122$ (plan P1)~; taux sous $H_0$ $0{,}112$ (P1)~; taux sous des alternatives d'une autre famille (proportionnalité, M1) au même fichier, non repris~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (issue~\#309, plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N aux deux seuils et sous E à $0{,}10$, compatible sous E à $0{,}05$ et sous A~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée)~; statistique de Grubbs antérieure à l'issue~\#300 (fiche~\ref{mw:m4gr}, rubrique~5)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$ & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 \end{longtable}
 \end{center}
@@ -7935,11 +7935,10 @@ Shapiro--Wilk sur les résidus de Mack & Lilliefors sur les résidus de Mack &
 Complément de recoupement, moins puissant (fiche~\ref{mw:m5li})~; l'une et l'autre sont des
 diagnostics depuis l'issue~\#245. \\
 Durbin--Watson sur les résidus de Mack & Test des suites sur les résidus de Mack &
-Mêmes résidus, même ordre de parcours, même hypothèse (D(2)(h)(i) et~(ii))~; sous les plans
-mesurés, la p-value de Monte-Carlo de la seconde rejette vers $5~\%$ au seuil $0{,}10$, et
-Durbin--Watson rejette au moins
-autant partout où l'une ou l'autre dépasse sa référence de niveau (fiche~\ref{mw:m3runs},
-rubrique~6). \\
+Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) et~(ii))~; sous les plans
+mesurés, la p-value de Monte-Carlo de la seconde rejette vers $5~\%$ au seuil $0{,}10$, taux
+bruts que Durbin--Watson égale ou dépasse partout où l'une ou l'autre dépasse sa référence de
+niveau, à des niveaux effectifs différents (fiche~\ref{mw:m3runs}, rubrique~6). \\
 \end{tabular}
 \end{center}
 
@@ -16048,7 +16047,10 @@ triangles par scénario, sauf mention)~: contre un choc de $10~\%$ sur les incr�
 exercice, $0{,}380$ pour cette ligne et $0{,}068$ pour Durbin--Watson~; sur l'exercice médian,
 $0{,}344$ et $0{,}122$~; contre une dérive de $5~\%$ par exercice à partir de $t = 4$, $0{,}216$ et
 $0{,}204$, avec un rejet conjoint de $0{,}042$ pour un produit des marges de $0{,}044$~; contre une
-ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2 (1\,000 triangles), $0{,}879$ et $0{,}432$.
+ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2 (1\,000 triangles), $0{,}879$ et $0{,}432$~;
+sous le plan P3, mêmes valeurs de la première colonne permutées, aucun rejet sur 1\,000 triangles
+pour le test calendaire, Durbin--Watson et les suites ($[0~;~0{,}004]$), contre $1{,}000$ pour la
+ligne de l'ordonnée à l'origine~: la détection par les lignes M3 tient à l'ordre des expositions.
 Durbin--Watson ne voit presque pas un choc localisé sur une diagonale~; il réagit à des
 structures lisses. La localisation se lit sur les lignes qui la portent~: la présente ligne et
 son diagnostic par diagonale (fiche~\ref{mw:m3caldiag}), l'homogénéité des résidus entre années
@@ -16064,7 +16066,7 @@ $i = 0$ à $i = 5$. $\mathrm{DW} = 1{,}620$~; recalculé sur les résidus centr�
 vaut $1{,}307$, et sur les résidus centrés par année de survenance, $1{,}857$. Ces deux DW centrés
 sont des mesures de la spécification de l'issue (script \code{m\_fm\_c.R}), hors moteur~; sous le
 modèle de Mack ajusté, avec des erreurs gaussiennes (999 triangles), la moyenne de DW vaut
-$2{,}351$, et la proportion de triangles de DW au plus égal à l'observé vaut $0{,}016$, $0$ et
+$2{,}351$, et la proportion de triangles de DW au plus égal à l'observé vaut $0{,}016$, $0$ sur 999 et
 $0{,}085$ pour les trois valeurs. Centrer par diagonale n'efface donc pas le signal de
 Durbin--Watson, alors que centrer par année de survenance l'atténue. \emph{Lecture proposée, non
 démontrée}~: dans l'ordre de parcours, deux voisins $(i,j)$ et $(i+1,j)$ appartiennent à deux
@@ -16396,7 +16398,7 @@ lecture conjointe ci-dessus ne s'appuie sur aucune de ces pages.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%)~: contre une dérive calendaire de $5~\%$ par exercice à partir de $t = 4$, qui rapproche les résidus voisins dans l'ordre de parcours, $0{,}204$ $[0{,}170~;~0{,}242]$ (plan P1, 500 triangles)~; contre un choc de $10~\%$ sur les incréments du dernier exercice ou de l'exercice médian, $0{,}068$ $[0{,}048~;~0{,}094]$ et $0{,}122$ $[0{,}095~;~0{,}154]$ (P1, 500 triangles)~; contre une ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2, dont la première colonne croît avec l'année de survenance, $0{,}432$ $[0{,}401~;~0{,}463]$ (1\,000 triangles)~; pour un taux sous $H_0$ de $0{,}112$ $[0{,}093~;~0{,}133]$ (P1) et $0{,}084$ $[0{,}068~;~0{,}103]$ (P2). Les autres scénarios de la mesure figurent au même fichier, sans être repris ici. Ces taux comparent la ligne à celle du test des suites, calculée sur les mêmes résidus dans le même ordre (fiche~\ref{mw:m3runs}, rubrique~6), et au test calendaire (fiche~\ref{mw:m3cal}, rubrique~6). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0855$ (N), $0{,}101$ (E), $0{,}087$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0455$, $0{,}053$, $0{,}032$ ($\rho = 0{,}048$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%)~: contre une dérive calendaire de $5~\%$ par exercice à partir de $t = 4$, structure calendaire lisse, à laquelle Durbin--Watson est sensible dans l'ordre de parcours (mécanisme proposé, non mesuré), $0{,}204$ $[0{,}170~;~0{,}242]$ (plan P1, 500 triangles)~; contre un choc de $10~\%$ sur les incréments du dernier exercice ou de l'exercice médian, $0{,}068$ $[0{,}048~;~0{,}094]$ et $0{,}122$ $[0{,}095~;~0{,}154]$ (P1, 500 triangles)~; pour un taux sous $H_0$ de $0{,}112$ $[0{,}093~;~0{,}133]$ (P1). Des taux de rejet sous des alternatives d'une autre famille (proportionnalité, M1) figurent au même fichier, sans être repris ici~; ils dépendent de l'ordre des expositions dans la première colonne (fiche~\ref{mw:m3cal}, rubrique~6). Les autres scénarios de la mesure figurent au même fichier, sans être repris ici. Ces taux comparent la ligne à celle du test des suites, calculée sur les mêmes résidus dans le même ordre (fiche~\ref{mw:m3runs}, rubrique~6), et au test calendaire (fiche~\ref{mw:m3cal}, rubrique~6). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0855$ (N), $0{,}101$ (E), $0{,}087$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0455$, $0{,}053$, $0{,}032$ ($\rho = 0{,}048$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissances et taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -16467,23 +16469,34 @@ scénario hors $H_0$ de la mesure~; (iii)~Durbin--Watson rejette au moins autant
 cellules où l'une ou l'autre dépasse sa référence de niveau $\rho$ ($0{,}050$ à $0{,}053$ pour les
 suites, $0{,}098$ pour Durbin--Watson, tableau T1~bis) --- dérive calendaire de $5~\%$ par
 exercice, $0{,}204$ contre $0{,}126$~; ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2,
-$0{,}432$ contre $0{,}159$~; choc de $10~\%$ sur l'exercice médian, $0{,}122$ contre $0{,}046$ ---,
+$0{,}432$ contre $0{,}159$ (sous le plan P3, mêmes valeurs de la première colonne permutées,
+aucun rejet sur 1\,000 triangles pour le test calendaire, Durbin--Watson et les suites
+($[0~;~0{,}004]$), contre $1{,}000$ pour la ligne de l'ordonnée à l'origine~: la détection par les
+lignes M3 tient à l'ordre des expositions)~; choc de $10~\%$ sur l'exercice médian, $0{,}122$ contre $0{,}046$ ---,
 les suites ne rejetant plus souvent que contre l'année de survenance atypique ($0{,}050$ contre
 $0{,}020$) et la cellule multipliée par~4 ($0{,}026$ contre $0{,}004$), où l'une et l'autre restent
 au niveau ou en dessous~; contre un choc de $10~\%$ sur le dernier exercice, $0{,}046$ contre
-$0{,}068$~; (iv)~sous $H_0$, les p-values de Monte-Carlo des suites et de Durbin--Watson sont corrélées
+$0{,}068$. Ces taux sont bruts, aux niveaux effectifs différents de Durbin--Watson et des suites
+(environ $0{,}10$ et $0{,}05$)~; rapporté au taux sous $H_0$ de chaque plan, l'excès de Durbin--Watson
+n'est net que contre une ordonnée à l'origine sous le plan P2 ($\delta = 0{,}10$ et $0{,}20$),
+et, dans les autres cellules où l'une ou l'autre ligne dépasse sa référence, les excès de
+Durbin--Watson et des suites diffèrent d'au plus $0{,}04$~; (iv)~sous $H_0$, les p-values de Monte-Carlo des suites et de Durbin--Watson sont corrélées
 (Spearman $0{,}398$, $0{,}391$ et $0{,}372$ sous P1, P2 et P3), et la part des triangles où les
 suites rejettent sans Durbin--Watson vaut $0{,}019$ sous P1 (script \code{m\_fm\_b.R} de
 \code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak\code{fm-mesures.md}, sur les valeurs brutes de
 l'issue~\#309). Un verdict de plus sur la même hypothèse multiplierait les occasions de rejet sans
 preuve propre. Aucune des trois voies n'est retenue~: la loi exacte suppose l'échangeabilité des
 signes, en défaut (rubrique~4)~; l'approximation normale sur-rejette (rubrique~5)~; la p-value de
-Monte-Carlo, de niveau compatible sous le plan mesuré (ci-dessous), n'est pas écartée pour sa
-qualité, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucune autre voie ne
+Monte-Carlo, de niveau compatible sous le plan mesuré (ci-dessous), n'est pas écartée pour son
+niveau, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucune autre voie ne
 lui est substituée. Le commentaire est «~\code{Restituee en diagnostic par decision (issue \#312)
 : aucun verdict ni p-value retenue ; l'hypothese releve de la ligne Autocorrelation des residus
 (Durbin-Watson), calculee sur les residus de Mack dans le meme ordre de parcours, dont le type et
-le verdict font foi.}~», précédé du motif Monte-Carlo quand la p-value de Monte-Carlo manque et
+le verdict font foi.}~», précédé du motif Monte-Carlo quand la p-value de Monte-Carlo manque, puis, quand
+$p_{\min}$ n'est pas attribuée, du motif qui l'explique (chaîne \code{effectifs} de
+\code{.mw\_p\_min\_ligne()}, que \code{add()} ne restitue qu'aux lignes de type test et que
+\code{mw\_tests()} joint ici, comme sur les lignes de l'issue~\#299~; ce n'est pas le cas sur le
+triangle de contrôle, où $p_{\min}$ est attribuée), et
 suivi, le cas échéant, des phrases fixes que \code{mw\_tests()} joint à toute ligne de
 Monte-Carlo (issues~\#257 et~\#204, section~\ref{sec:boot-mw}).
 Quand la ligne Durbin--Watson ne porte pas de verdict (\code{INFO} faute de p-value, ou non
@@ -17038,7 +17051,7 @@ triangles simulés~; p-value du triangle de contrôle, valeur calculée par le m
 % =============================================================================
 
 \begin{encadre}
-\textbf{Énoncé.} hors énoncé réglementaire~: mesure la concentration du résultat et la part de convention dans le calcul.
+\textbf{Énoncé.} hors énoncé réglementaire~: mesure la concentration du résultat et la part du calcul fixée par la règle de minimum de D(5)(d)(ii), non estimée.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -17086,7 +17099,9 @@ $\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} = \hat\sigma^2_{J-1}/\hat f^2_{J-1}
 \code{mw\_msep()}, successivement par chacun des trois arguments du minimum, dans l'ordre du
 texte, puis par~$0$. Chaque valeur est imprimée avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$
 de la règle~; l'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
-quand $\hat\sigma^2_{J-3} = 0$. Avec la valeur que retient la règle, la MSEP recalculée est
+quand $\hat\sigma^2_{J-3} = 0$, exactement ou à la tolérance relative $10^{-12}$ de l'outil
+(colonne $J-3$ dégénérée, champ \code{\$degeneree\_Jm3} de \code{mw\_extrapolation\_sigma2()})~:
+le quotient d'une variance nulle à la tolérance près n'a pas de valeur interprétable. Avec la valeur que retient la règle, la MSEP recalculée est
 identique au bit près à celle de \code{mw\_msep()} (contrôle \code{identical()} des tests
 unitaires). La valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un argument du
 minimum}~», dans une phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement
@@ -17112,8 +17127,9 @@ $i = 1, \ldots, I$ (formule du paragraphe~5, §\ref{sec:mw})~: pour $i = 1$, par
 $\hat Q_{I-i}/C(i,I-i)$ et $\hat Q_{I-i}/S_{I-i}$, puisque $I - 1 = J - 1$~; pour
 $i \ge 2$, par le terme $j = J-1$ de la somme $\sum_{j=I-i+1}^{J-1}$, et par lui dans la
 double somme des termes croisés. La valeur fixée par la règle pèse donc sur toute la MSEP, et
-non sur les seules années de survenance récentes (mesuré sur le triangle de contrôle~: doubler
-$\hat Q_{J-1}$ augmente le crochet de chacune des sept années $i = 1, \ldots, 7$). Elle doit
+non sur les seules années de survenance récentes (conséquence de la formule, chaque $\Delta_i$
+contenant un terme positif en $\hat Q_{J-1}$~; sur le triangle de contrôle, doubler $\hat Q_{J-1}$
+augmente chacun des sept crochets). Elle doit
 être mentionnée explicitement.
 
 \emph{Sensibilité sur le triangle de contrôle} (\code{tests/donnees/triangle\_mw.csv},
