@@ -821,6 +821,42 @@ local({
              identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
                startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE) && !grepl("#312", l$detail, fixed = TRUE)
            })
+  # p_min non attribuee (constat de /code-review) : add() ne restitue
+  # effectifs qu'aux lignes de type test ; sur le diagnostic, mw_tests() joint
+  # le motif au detail (precedent de detail_decision_299()), dans l'ordre
+  # motif Monte-Carlo, effectifs, T-1. Aucun triangle recevable ne rend
+  # runs_p_min() non fini (NA seulement si un cote de la mediane est vide) :
+  # .mw_p_min_ligne() est substituee le temps d'un appel de mw_tests().
+  ligne_runs_pmin_na <- function(b = r312$bootstrap) {
+    orig <- get(".mw_p_min_ligne", envir = globalenv())
+    on.exit(assign(".mw_p_min_ligne", orig, envir = globalenv()))
+    assign(".mw_p_min_ligne", function(...) {
+      o <- orig(...)
+      list(p_min = NA_real_,
+           effectifs = paste(o$effectifs, "; p_min non calculable sur ces effectifs, p_min non attribuee"))
+    }, envir = globalenv())
+    Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
+           mw_tests(r312$ajustement, b, 0.10))[[1]]
+  }
+  eff_ru <- .runs_effectifs(mw_residus(r312$ajustement)$residu)
+  eff_txt <- paste0(paste(sprintf("%s = %d", names(eff_ru), as.integer(eff_ru)), collapse = ", "),
+                    " ; p_min non calculable sur ces effectifs, p_min non attribuee.")
+  verifier("#312 : p_min non attribuee -> effectifs joints au detail du diagnostic, avant T-1, point final ajoute",
+           {
+             f0 <- .mw_p_min_ligne
+             l <- ligne_runs_pmin_na()
+             identical(l$type, "diagnostic") && is.na(l$p_min) &&
+               identical(l$detail, paste(eff_txt, t1)) && identical(.mw_p_min_ligne, f0)
+           })
+  verifier("#312 : p_min non attribuee et p Monte-Carlo absente -> motif Monte-Carlo, effectifs, T-1",
+           {
+             b <- r312$bootstrap
+             b$p_mc[["Runs"]] <- NA_real_; b$motif_mc[["Runs"]] <- MOTIF_MC_REPLIC_INSUFFISANTES
+             l <- ligne_runs_pmin_na(b)
+             identical(l$type, "diagnostic") &&
+               startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                           ". ", eff_txt, " ", t1))
+           })
 })
 verifier("#312 : colonne degeneree (tri_deg, j = 2) exclue des groupes comme dans mw_residus()",
          {

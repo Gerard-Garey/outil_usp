@@ -11215,7 +11215,18 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         trimws(paste(c(paste0(m_ru, " : aucune p-value retenue (ADR 0001)."),
                        .complement_motif_mc(m_ru)), collapse = " "))
       else paste0("Monte-Carlo indisponible : ", m_ru, ".")
-    trimws(.engine_joindre(pre_ru, txt_diag_ru))
+    # Motif d'un p_min non attribue (effectifs de .mw_p_min_ligne()) : add()
+    # ne le restitue qu'aux lignes de type test ; sur ce diagnostic, il est
+    # joint ici quand p_min n'est pas fini, sur le precedent de
+    # detail_decision_299() (motif_ea, avis d'actuary du 20/10/2026). Ordre :
+    # motif Monte-Carlo, effectifs, phrase T-1 ; point final ajoute s'il
+    # manque. p_min fini (cas courant, reserve2) : detail inchange.
+    ea_ru <- if (!is.finite(pm_ru$p_min) && !is.na(pm_ru$effectifs) &&
+                 nzchar(trimws(pm_ru$effectifs))) {
+      e <- trimws(pm_ru$effectifs)
+      if (endsWith(e, ".")) e else paste0(e, ".")
+    } else ""
+    trimws(.engine_joindre(.engine_joindre(pre_ru, ea_ru), txt_diag_ru))
   }
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
