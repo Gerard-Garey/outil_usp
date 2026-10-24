@@ -14,10 +14,12 @@
 ###############################################################################
 
 # ref : lignes de reference (gris moyen) ; ref_texte : texte qui les libelle,
-# gris fonce plus contraste sur fond blanc (#162).
+# gris fonce plus contraste sur fond blanc (#162). regle : point de sigma_(J-1)
+# fixe par la regle de minimum (plot_mw_facteurs(), #310), ambre distinct de
+# trait (reference f = 1 du meme graphique).
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
              ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF",
-             env_sim = "#E8F0FC", ref_texte = "#4D5656")
+             env_sim = "#E8F0FC", ref_texte = "#4D5656", regle = "#B9770E")
 
 # L'option usp.graphiques_base force les branches base R des plot_*() meme si
 # plotly est installe. Elle n'est posee que par rapport_html() (graphiques
@@ -65,6 +67,18 @@ fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f"
 fmt_p  <- function(v) ifelse(is.finite(v),
                              .num_fr(v, ifelse(is.finite(v) & (v >= 1e-4 | v == 0), "%.4f", "%.3g")),
                              "\u2013")
+# Statistiques de test qui sont elles-memes des probabilites (#353, decision
+# Q-D1-Fm-10) : leur valeur s'affiche par fmt_p() et non fmt_nb() (M = min p_ij
+# = 5,2e-09 s'ecrivait "0,0000"). Liste de noms (champ nom_statistique de
+# engine_table_tests(), stat_nom du moteur), seul recensement a la main ; un
+# test la confronte au moteur sur reserve2. Mise en forme seule, aucun champ
+# nouveau dans add().
+STAT_NOMS_PROBABILITE <- c("M = min p_ij")
+# Valeur d'une statistique de test : fmt_p() si son nom designe une
+# probabilite, fmt_nb() sinon. nom : vecteur de meme longueur que v, ou de
+# longueur 1 (recycle).
+fmt_stat <- function(v, nom) ifelse(rep_len(nom %in% STAT_NOMS_PROBABILITE, length(v)),
+                                    fmt_p(v), fmt_nb(v))
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
@@ -265,7 +279,8 @@ table_synthese_groupe <- function(tb) {
     Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                      .repere_renvoi(tb)),
     `Statistique` = ifelse(is.finite(tb$statistique),
-        paste0("<code>", .txt(tb$nom_statistique), "</code> = ", fmt_nb(tb$statistique)), "\u2013"),
+        paste0("<code>", .txt(tb$nom_statistique), "</code> = ",
+               fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
     Estimation = ifelse(is.finite(tb$estimation),
         paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),
@@ -930,7 +945,9 @@ plot_calibration <- function(cand) {
 #  res$plots_data (calculees par mw_plots_data dans engine.R).
 # =============================================================================
 
-.nuage <- function(x, y, titre, xlab, ylab, ligne0 = TRUE) {
+.nuage <- function(x, y, titre, xlab, ylab, ligne0 = TRUE, groupes = NULL) {
+  if (!is.null(groupes) && length(groupes$x) > 0L)
+    return(.nuage_moyennes(x, y, titre, xlab, ylab, ligne0, groupes))
   if (!.plotly_dispo()) {
     .cadre(); plot(x, y, pch = 19, col = COUL$pt, xlab = xlab, ylab = ylab, main = titre)
     if (ligne0) graphics::abline(h = 0, col = COUL$trait, lty = 2)
@@ -949,55 +966,273 @@ plot_mw_residus_dev <- function(pd) {
   .nuage(pd$residus_dev$j, pd$residus_dev$residu,
          "Residus de Mack par annee de developpement (M2)", "annee de developpement j", "residu") }
 
+# Moyennes des residus par groupe sur les nuages par annee d'accident et par
+# annee calendaire (#312, Q-D1-Fm-2 ; legendes et infobulles : texte T-2 de
+# la specification Fm, a la lettre). Moyennes et effectifs lus dans
+# pd$residus_acc_groupes et pd$residus_cal_groupes (.mw_residus_par_groupe()
+# du moteur) : aucun calcul ici. Losange plein COUL$trait, distinct des
+# points des residus, trace AVANT eux : un groupe de un ou deux residus, dont
+# la moyenne tombe sur un point ou entre deux, laisse ses points visibles
+# au-dessus du losange. Ni bande ni repere autour des moyennes
+# (specification Fm, par. 1.2). Objet anterieur a #312 (table absente) :
+# nuage seul.
+.LEGENDE_MOYENNE_ACC <- "moyenne par annee d'accident (n = nombre de residus)"
+.LEGENDE_MOYENNE_CAL <- "moyenne par annee calendaire i + j (n = nombre de residus)"
+.INFOBULLE_MOYENNE_ACC <- "i = %{x}<br>moyenne = %{y:.3f}<br>n = %{customdata}"
+.INFOBULLE_MOYENNE_CAL <- "i + j = %{x}<br>moyenne = %{y:.3f}<br>n = %{customdata}"
+# Au-dela de ce nombre de groupes, les effectifs de la marge haute (base R)
+# sont ecrits plus petits (I = 15 : quinze groupes sur 395 px).
+.NB_GROUPES_EFFECTIF_REDUIT <- 10L
+# groupes : list(x, moyenne, n, legende, infobulle). En base R (rapport
+# fige), l'effectif de chaque groupe est ecrit seul en marge haute, a
+# l'abscisse du groupe, sous le titre, precede de l'intitule "n :" dans la
+# marge gauche ; la legende est placee sous l'intitule de l'axe des
+# abscisses, hors du trace. par() : comme les autres nuages, .cadre() pose
+# mar et les parametres du titre sans les restaurer ; mar et xpd, modifies
+# ensuite ici, reviennent en sortie (on.exit()) a leur valeur d'entree :
+# celle posee par .cadre() pour mar, celle de l'appelant pour xpd, que
+# .cadre() ne touche pas. En plotly, effectif dans l'infobulle
+# (customdata), legende horizontale sous le trace.
+.nuage_moyennes <- function(x, y, titre, xlab, ylab, ligne0, groupes) {
+  if (!.plotly_dispo()) {
+    .cadre()
+    op <- graphics::par(mar = c(6.2, 4.2, 3, 1), xpd = FALSE)
+    on.exit(graphics::par(op))
+    plot(x, y, type = "n", xlab = xlab, ylab = ylab, main = titre)
+    if (ligne0) graphics::abline(h = 0, col = COUL$trait, lty = 2)
+    graphics::points(groupes$x, groupes$moyenne, pch = 23, cex = 1.5,
+                     col = COUL$trait, bg = COUL$trait)
+    graphics::points(x, y, pch = 19, col = COUL$pt)
+    cex_n <- if (length(groupes$x) > .NB_GROUPES_EFFECTIF_REDUIT) 0.6 else 0.7
+    graphics::mtext(as.character(groupes$n), side = 3, at = groupes$x, line = 0.2,
+                    cex = cex_n, col = COUL$trait)
+    graphics::mtext("n :", side = 3, at = graphics::par("usr")[1], adj = 1, line = 0.2,
+                    cex = cex_n, col = COUL$trait)
+    # Legende sous l'intitule de l'axe x (ligne 3 de la marge basse) : bord
+    # haut a 4,2 lignes sous le bas de la zone de trace.
+    y_leg <- graphics::grconvertY(graphics::grconvertY(graphics::par("usr")[3], "user", "inches") -
+                                    4.2 * graphics::par("csi"), "inches", "user")
+    graphics::par(xpd = NA)
+    graphics::legend(graphics::par("usr")[1], y_leg, xjust = 0, yjust = 1, bty = "n",
+                     cex = 0.75, legend = groupes$legende, pch = 23,
+                     col = COUL$trait, pt.bg = COUL$trait)
+    return(invisible())
+  }
+  p <- plotly::plot_ly()
+  if (ligne0) p <- plotly::add_lines(p, x = range(x), y = c(0, 0), showlegend = FALSE,
+        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  # Trace des moyennes avant celle des residus (ordre de dessin de plotly) :
+  # les residus restent visibles au-dessus des losanges.
+  p <- plotly::add_markers(p, x = groupes$x, y = groupes$moyenne, customdata = groupes$n,
+        name = groupes$legende,
+        marker = list(size = 12, symbol = "diamond", color = COUL$trait),
+        hovertemplate = paste0(groupes$infobulle, "<extra></extra>"))
+  p <- plotly::add_markers(p, x = x, y = y, showlegend = FALSE,
+        marker = list(size = 9, color = COUL$pt),
+        hovertemplate = paste0(xlab, " = %{x}<br>", ylab, " = %{y:.3f}<extra></extra>"))
+  p <- .mep(p, titre, xlab, ylab)
+  plotly::layout(p, showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.25,
+                               yanchor = "top", font = list(size = 10)),
+                 margin = list(t = 45, b = 80))
+}
+# Groupes lus dans une table de plots_data (colonne de cle, n, moyenne) ;
+# NULL si la table est absente.
+.groupes_nuage <- function(d, cle, legende, infobulle) {
+  if (is.null(d)) return(NULL)
+  list(x = d[[cle]], moyenne = d$moyenne, n = d$n, legende = legende, infobulle = infobulle)
+}
+
 plot_mw_residus_acc <- function(pd) {
   if (is.null(pd$residus_acc)) return(.vide())
   .nuage(pd$residus_acc$i, pd$residus_acc$residu,
-         "Residus de Mack par annee d'accident (M3)", "annee d'accident i", "residu") }
+         "Residus de Mack par annee d'accident (M3)", "annee d'accident i", "residu",
+         groupes = .groupes_nuage(pd$residus_acc_groupes, "i",
+                                  .LEGENDE_MOYENNE_ACC, .INFOBULLE_MOYENNE_ACC)) }
 
 plot_mw_residus_cal <- function(pd) {
   if (is.null(pd$residus_cal)) return(.vide())
   .nuage(pd$residus_cal$calendrier, pd$residus_cal$residu,
-         "Residus de Mack par annee calendaire (M3)", "annee calendaire i + j", "residu") }
+         "Residus de Mack par annee calendaire (M3)", "annee calendaire i + j", "residu",
+         groupes = .groupes_nuage(pd$residus_cal_groupes, "calendrier",
+                                  .LEGENDE_MOYENNE_CAL, .INFOBULLE_MOYENNE_CAL)) }
 
 plot_mw_residus_C <- function(pd) {
   if (is.null(pd$residus_C)) return(.vide())
   .nuage(pd$residus_C$C, pd$residus_C$residu,
          "Residus de Mack vs cumul C(i,j) (M1 et M2)", "C(i,j)", "residu") }
 
+# QQ-plot des residus de Mack redresses par le levier (#311, decisions
+# Q-D1-Fm-4 et Q-D1-Fm-5, option (c) : ni enveloppe ni tirage). Points et
+# droite de reference lus dans plots_data : pd$qqnorm (theorique, empirique =
+# r / sqrt(1 - h), mw_residus_redresses() du moteur) et pd$qqline (ordonnee,
+# pente ; y = x, posee par mw_plots_data()) ; aucun calcul ici, aucun
+# stats::. Meme droite dans les deux rendus, pleine, epaisseur 2, COUL$trait,
+# comme plot_qqnorm() du module lognormal (base R : abline() ; plotly :
+# add_lines()). Titre, axes et note : texte T-3 de la specification Fm, a la
+# lettre ; le titre est affiche sur deux lignes, coupees avant
+# "(M5, diagnostic)" (.TITRE_MW_QQ_LIGNES), et la note sur trois lignes
+# coupees aux limites de proposition (.NOTE_MW_QQ_LIGNES) ; jointes par une
+# espace, les lignes redonnent T-3. Note sous le titre en base R, en
+# sous-titre en plotly.
+# Objet sans qqline (resultat d'une version anterieure du moteur, avant
+# #311) : son qqnorm porte les residus bruts, que le titre, l'axe et la
+# droite y = x de T-3 designeraient a tort ; .vide() avec un message qui
+# invite a relancer les calculs.
+.TITRE_MW_QQ_LIGNES <- c("QQ-plot des residus de Mack redresses par le levier", "(M5, diagnostic)")
+.TITRE_MW_QQ <- paste(.TITRE_MW_QQ_LIGNES, collapse = " ")
+.AXE_X_MW_QQ <- "quantiles theoriques N(0,1)"
+.AXE_Y_MW_QQ <- "r / sqrt(1 - h)"
+.NOTE_MW_QQ_LIGNES <- c("droite y = x : variance unitaire a sigma_j connu ;",
+                        "|r / sqrt(1 - h)| <= sqrt(n_j - 1), donc points extremes attendus",
+                        "en deca de la droite, meme sous le modele")
+.NOTE_MW_QQ <- paste(.NOTE_MW_QQ_LIGNES, collapse = " ")
+.VIDE_MW_QQ <- "QQ-plot non disponible : resultat produit par une version anterieure du moteur (relancer les calculs)"
 plot_mw_qq <- function(pd) {
-  if (is.null(pd$qqnorm)) return(.vide())
-  d <- pd$qqnorm
+  # Message coupe en trois lignes, apres "disponible :" et avant
+  # "(relancer" : sur une ligne, il deborde d'un PNG de 560 px en base R, et
+  # sur deux lignes encore d'un PNG de 395 px (rendus relus ; constat C1
+  # d'app-review, revue finale) ; saut de ligne "\n" en base R, "<br>" en
+  # plotly.
+  if (is.null(pd$qqnorm) || is.null(pd$qqline)) {
+    saut <- if (.plotly_dispo()) "<br>" else "\n"
+    msg <- sub("disponible : ", paste0("disponible :", saut), .VIDE_MW_QQ, fixed = TRUE)
+    return(.vide(sub(" (relancer", paste0(saut, "(relancer"), msg, fixed = TRUE)))
+  }
+  d <- pd$qqnorm; a <- pd$qqline[["ordonnee"]]; b <- pd$qqline[["pente"]]
+  note <- .NOTE_MW_QQ_LIGNES
   if (!.plotly_dispo()) {
-    .cadre(); stats::qqnorm(d$empirique, main = "QQ-plot des residus de Mack (M5)",
-                            pch = 19, col = COUL$pt)
-    stats::qqline(d$empirique, col = COUL$trait); return(invisible())
+    .cadre()
+    op <- graphics::par(mar = c(4.2, 4.2, 5.6, 1))
+    on.exit(graphics::par(op))
+    # las = 1 : graduations de l'axe des ordonnees horizontales. Verticales,
+    # elles se chevauchent a 330 px de haut (marge haute de 5,6 lignes) et
+    # R en omet, dont l'origine "0.0" (constat C2 d'app-review, revue
+    # finale, rendus relus a 395 et 560 x 330 px).
+    plot(d$theorique, d$empirique, pch = 19, col = COUL$pt, las = 1,
+         xlab = .AXE_X_MW_QQ, ylab = .AXE_Y_MW_QQ, main = "")
+    graphics::title(main = .TITRE_MW_QQ_LIGNES[1], line = 3.9)
+    graphics::title(main = .TITRE_MW_QQ_LIGNES[2], line = 2.8)
+    for (k in seq_along(note))
+      graphics::mtext(note[k], side = 3, line = 0.2 + 0.75 * (length(note) - k),
+                      cex = 0.7, col = COUL$ref_texte)
+    graphics::abline(a, b, col = COUL$trait, lwd = 2)
+    return(invisible())
   }
   p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$theorique), y = range(d$theorique),
-        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  p <- plotly::add_lines(p, x = range(d$theorique), y = a + b * range(d$theorique),
+        line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 8, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  .mep(p, "QQ-plot des residus de Mack (M5, diagnostic)",
-       "quantiles theoriques N(0,1)", "residu standardise")
+  titre <- paste0(paste(.TITRE_MW_QQ_LIGNES, collapse = "<br>"), "<br><sup>",
+                  paste(note, collapse = "<br>"), "</sup>")
+  p <- .mep(p, titre, .AXE_X_MW_QQ, .AXE_Y_MW_QQ)
+  plotly::layout(p, margin = list(t = 115))
 }
 
+# Facteurs f_j (panneau du haut) et ecarts-types sigma_j de Mack (panneau du
+# bas, meme axe j ; #310, Q-D1-Fm-9, forme en panneaux retenue par
+# app-review) : f et sigma sont lus dans pd$facteurs (sigma =
+# racine(sigma2_j) de mw_ajuster(), posee par mw_plots_data()). Le point
+# j = J - 1, dont sigma est fixe par la regle de minimum de D(5)(d)(ii) et non
+# estime, est designe par la colonne logique sigma_regle_minimum du moteur et
+# trace a part (losange COUL$regle, couleur distincte de la reference f = 1 du
+# panneau du haut), avec la legende T-5 de la specification Fm ; les sigma_j
+# estimes sont relies entre eux, sans le relier. Axe des sigma_j lineaire
+# depuis 0 (sigma_j peut valoir 0). Legende hors du trace, sous le panneau du
+# bas. Colonne absente (resultat anterieur a #310) : serie legendee
+# "sigma_j", aucun point distingue.
+.LEGENDE_SIGMA_REGLE <- "sigma_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non estime"
+# Legende plotly coupee en deux lignes apres "regle de minimum" : sur une
+# ligne, elle est tronquee sous environ 395 px de large (constat
+# d'app-review sur #310, non remesure ici, plotly absent) ; legende placee
+# a y = -0.30 pour la seconde ligne.
+.LEGENDE_SIGMA_REGLE_PLOTLY <- sub("regle de minimum ", "regle de minimum<br>",
+                                   .LEGENDE_SIGMA_REGLE, fixed = TRUE)
 plot_mw_facteurs <- function(pd) {
   if (is.null(pd$facteurs)) return(.vide())
   d <- pd$facteurs
+  regle <- if (is.null(d$sigma_regle_minimum)) rep(FALSE, nrow(d))
+           else d$sigma_regle_minimum %in% TRUE
+  marque <- any(regle)
+  nom_sigma <- if (marque) "sigma_j estime" else "sigma_j"
+  titre <- "Facteurs chain-ladder f_j et ecarts-types sigma_j (M6)"
+  xlab <- "annee de developpement j"
+  smax <- suppressWarnings(max(d$sigma, na.rm = TRUE))
+  if (!is.finite(smax) || smax <= 0) smax <- 1
+  ylim_sigma <- c(0, 1.05 * smax)
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt,
-                   xlab = "annee de developpement j", ylab = "f_j",
-                   main = "Facteurs de developpement chain-ladder")
-    graphics::abline(h = 1, col = COUL$trait, lty = 2); return(invisible())
+    # xpd figure ici pour que on.exit() restaure aussi celui de l'appelant
+    # (la legende est tracee sous xpd = NA).
+    op <- graphics::par(mfrow = c(2, 1), oma = c(4.2, 0, 1.6, 0), mar = c(0.5, 4.2, 0.5, 1),
+                        mgp = c(2.4, 0.7, 0), bg = COUL$fond, xpd = FALSE)
+    on.exit(graphics::par(op))
+    # ylim inclut 1 : sans cela, l'axe ne couvre que l'etendue des f_j
+    # elargie de 4 % de part et d'autre (yaxs = "r") et la reference f = 1
+    # n'est pas tracee quand tous les f_j sont assez au-dessus de 1
+    # (app-review, reserve sur #310, jointe a #311).
+    # Axe j gradue aux seules annees de developpement d$j, entieres, dans les
+    # deux panneaux (graduations sans libelle en haut) : par defaut, R
+    # gradue par 0,5 un axe court (triangle 5 x 5, J = 4 ; constat C3
+    # d'app-review, revue finale).
+    plot(d$j, d$f, type = "b", pch = 19, col = COUL$pt, xaxt = "n", xlab = "", ylab = "f_j",
+         ylim = range(c(d$f, 1), finite = TRUE))
+    graphics::axis(1, at = d$j, labels = FALSE)
+    graphics::abline(h = 1, col = COUL$trait, lty = 2)
+    graphics::par(mar = c(1.6, 4.2, 0.5, 1))
+    plot(d$j[!regle], d$sigma[!regle], type = "b", pch = 1, lty = 3, col = COUL$ref_texte,
+         xlim = range(d$j), ylim = ylim_sigma, xaxt = "n", xlab = "", ylab = "sigma_j")
+    graphics::axis(1, at = d$j)
+    if (marque)
+      graphics::points(d$j[regle], d$sigma[regle], pch = 23, cex = 1.4,
+                       col = COUL$regle, bg = COUL$regle)
+    graphics::mtext(titre, side = 3, outer = TRUE, line = 0.3, col = COUL$pt)
+    graphics::mtext(xlab, side = 1, outer = TRUE, line = 0.2)
+    # Legende dans la marge externe basse, sous l'intitule de l'axe j : son
+    # bord haut est 1,3 ligne sous le bas de la zone interne (omd[3], en
+    # coordonnees du peripherique normalisees).
+    haut_leg <- graphics::par("omd")[3] - 1.3 * graphics::par("csi") / graphics::par("din")[2]
+    graphics::par(xpd = NA)
+    graphics::legend(graphics::grconvertX(0.01, "ndc", "user"),
+                     graphics::grconvertY(haut_leg, "ndc", "user"),
+                     xjust = 0, yjust = 1, bty = "n", cex = 0.7,
+                     legend = c(nom_sigma, if (marque) .LEGENDE_SIGMA_REGLE),
+                     pch = c(1, if (marque) 23), lty = c(3, if (marque) NA),
+                     col = c(COUL$ref_texte, if (marque) COUL$regle),
+                     pt.bg = c(NA, if (marque) COUL$regle))
+    return(invisible())
   }
-  p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$j), y = c(1, 1),
-        line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
-  p <- plotly::add_trace(p, x = d$j, y = d$f, type = "scatter", mode = "lines+markers",
-        line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
-        hovertemplate = "j = %{x}<br>f = %{y:.5f}<extra></extra>")
-  .mep(p, "Facteurs de developpement chain-ladder", "annee de developpement j", "f_j")
+  axe <- function(titre_axe, ...) list(title = titre_axe, zeroline = FALSE, gridcolor = "#EEEEEE", ...)
+  ph <- plotly::plot_ly()
+  ph <- plotly::add_lines(ph, x = range(d$j), y = c(1, 1), showlegend = FALSE,
+         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
+  ph <- plotly::add_trace(ph, x = d$j, y = d$f, type = "scatter", mode = "lines+markers",
+         name = "f_j", showlegend = FALSE,
+         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
+         hovertemplate = "j = %{x}<br>f = %{y:.5f}<extra></extra>")
+  ph <- plotly::layout(ph, yaxis = axe("f_j"))
+  pb <- plotly::plot_ly()
+  pb <- plotly::add_trace(pb, x = d$j[!regle], y = d$sigma[!regle], type = "scatter",
+         mode = "lines+markers", name = nom_sigma,
+         line = list(color = COUL$ref_texte, dash = "dot"),
+         marker = list(size = 8, color = COUL$fond, line = list(color = COUL$ref_texte, width = 1.5)),
+         hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<extra></extra>")
+  if (marque)
+    pb <- plotly::add_trace(pb, x = d$j[regle], y = d$sigma[regle], type = "scatter",
+           mode = "markers", name = .LEGENDE_SIGMA_REGLE_PLOTLY,
+           marker = list(size = 11, symbol = "diamond", color = COUL$regle),
+           hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<br>fixe par la regle de minimum<extra></extra>")
+  pb <- plotly::layout(pb, xaxis = axe(xlab), yaxis = axe("sigma_j", range = ylim_sigma))
+  p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
+                       margin = 0.03)
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
+                 title = list(text = titre, font = list(size = 14, color = COUL$pt)),
+                 showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
+                               yanchor = "top", font = list(size = 10)),
+                 paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
+                 margin = list(t = 45, b = 80))
 }
 
 plot_mw_reserve <- function(pd) {

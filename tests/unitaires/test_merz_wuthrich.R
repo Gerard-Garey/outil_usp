@@ -539,13 +539,14 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            else paste("mesure :", paste(mesure, collapse = " ; "))
          })
 # Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
-# deux colonnes n'est degeneree, et le detail M6 est celui de la reference
-# versionnee au caractere pres (l'issue #21 ne le modifie pas).
+# deux colonnes n'est degeneree, et le detail M6 (sensibilite de #310
+# comprise) est celui de la reference versionnee au caractere pres.
 verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detail M6 = reserve2.rds",
          {
            d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
            m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
-           ex <- mw_extrapolation_sigma2(mw_ajuster(unname(m)))
+           a <- mw_ajuster(unname(m))
+           ex <- mw_extrapolation_sigma2(a)
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
            k <- which(vapply(ref$tests, function(x) identical(
              x$test, "Extrapolation de sigma pour la derniere annee de developpement"),
@@ -553,7 +554,334 @@ verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detai
            ex$ecart_relatif > 1e-3 && ex$ecart_relatif_Jm2 > 1e-3 &&
              identical(ex$degeneree_Jm3, FALSE) && identical(ex$degeneree_Jm2, FALSE) &&
              identical(ex$degeneree, FALSE) && length(k) == 1 &&
-             identical(.mw_detail_extrapolation(ex), ref$tests[[k]]$detail)
+             identical(.mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex)),
+                       ref$tests[[k]]$detail)
+         })
+
+## --- Sensibilite de racine(MSEP) a sigma2_(J-1) (#310) -----------------------
+# Specification Fm, § 3 et texte T-4 (decisions Q-D1-Fm-6 a Q-D1-Fm-9). Les
+# racines de MSEP de reference sont celles de la mesure m_fm_d de la
+# specification (docs/tableaux/20261023-fm-mesures.md), recalculees ici par un
+# remplacement reecrit hors de la fonction (meme methode que
+# mw_sensibilite_sigma2_dernier() : sigma2[J] et Q[J] remplaces, mw_msep()).
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  t_ref <- unname(m)
+  a <- mw_ajuster(t_ref); J <- a$J
+  ex <- mw_extrapolation_sigma2(a)
+  s <- mw_sensibilite_sigma2_dernier(a, ex)
+  msep_avec <- function(v) {
+    b <- a; b$sigma2[J] <- v; b$Q[J] <- v / b$f[J]^2; mw_msep(b)
+  }
+  verifier("#310 : MSEP recalculee avec la valeur de la regle identical() a mw_msep(aj)",
+           identical(msep_avec(a$sigma2[J]), mw_msep(a)) &&
+             identical(s$racine_msep_regle, sqrt(mw_msep(a)$msep)) &&
+             identical(s$valeur_regle, a$sigma2[J]))
+  verifier("#310 : racines de MSEP sur reserve2 (regle, sigma2_(J-2), quotient, 0) a 1e-6 relatif",
+           isTRUE(s$applicable) &&
+             isTRUE(proche(s$racine_msep_regle, 199.494435, rel = 1e-6)) &&
+             isTRUE(proche(unname(s$racine_msep_arguments),
+                           c(226.413084, 199.494435, 271.305067), rel = 1e-6)) &&
+             isTRUE(proche(s$racine_msep_zero, 166.479535, rel = 1e-6)) &&
+             isTRUE(proche(unname(s$racine_msep_arguments),
+                           vapply(c(ex$sigma2_Jm2, ex$sigma2_Jm3, ex$quotient),
+                                  function(v) sqrt(msep_avec(v)$msep), numeric(1)), rel = 1e-15)) &&
+             identical(names(s$racine_msep_arguments), c("sigma2_Jm2", "sigma2_Jm3", "quotient")))
+  # Texte T-4 de la specification, a la lettre (BASE R1, min(...), SENS, CONTRE).
+  t4 <- paste0(
+    "Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
+    "et non estimee : la regle ne lit que les deux dernieres variances estimees. ",
+    "min(sigma2_(J-2) = 0.189674 ; sigma2_(J-3) = 0.0973248 ; ",
+    "sigma2_(J-2)^2/sigma2_(J-3) = 0.36965) = 0.0973248, minimum atteint par sigma2_(J-3). ",
+    "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+    "(199.494 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+    "avec sigma2_(J-2) : 226.413 (+13.5 %) ; avec sigma2_(J-3) : 199.494 (+0.0 %) ; ",
+    "avec sigma2_(J-2)^2/sigma2_(J-3) : 271.305 (+36.0 %). ",
+    "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+    "contrefactuel qui n'est pas un argument du minimum) : 166.48 (-16.5 %).")
+  verifier("#310 : detail M6 de reserve2 = texte T-4 a la lettre (mw_tests())",
+           identical(detail_m6(run_mw(t_ref)), t4) &&
+             identical(.mw_detail_extrapolation(ex, s), t4))
+  verifier("#310 : vocabulaire R1, ni 'extrapolee' ni 'imposee' dans le detail M6",
+           !grepl("extrapol|impose", t4) &&
+             !grepl("extrapol|impose", .mw_detail_extrapolation(ex)))
+  verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, en fin, un seul TRUE en j = J - 1",
+           {
+             f <- run_mw(t_ref)$plots_data$facteurs
+             identical(names(f), c("j", "f", "sigma", "sigma_regle_minimum")) &&
+               is.logical(f$sigma_regle_minimum) && sum(f$sigma_regle_minimum) == 1L &&
+               identical(f$j[f$sigma_regle_minimum], J - 1L) &&
+               identical(f$sigma, sqrt(a$sigma2))
+           })
+})
+verifier("#310 : quotient non defini (sigma2_(J-3) = 0) -> 'non defini', sans phrase contrefactuelle",
+         {
+           a <- mw_ajuster(tri_deg); ex <- mw_extrapolation_sigma2(a)
+           s <- mw_sensibilite_sigma2_dernier(a, ex)
+           l <- detail_m6(run_mw(tri_deg))
+           is.na(s$racine_msep_arguments[["quotient"]]) && a$sigma2[a$J] == 0 &&
+             identical(l, .mw_detail_extrapolation(ex, s)) &&
+             endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+             grepl("Sensibilite indicative, hors regle et sans effet sur sigma_USP", l, fixed = TRUE) &&
+             !grepl("contrefactuel", l, fixed = TRUE) &&
+             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+         })
+# Contrefactuel omis quand la regle donne 0 a la tolerance de l'outil
+# (colonne degeneree), meme si la valeur de la regle est > 0 en virgule
+# flottante : colonne J-2 de tri_sym constante a 1e-14 pres (valeur de la
+# regle de l'ordre de 1e-50). SENS reste ecrit.
+verifier("#310 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle a la tolerance) : SENS ecrit, sans contrefactuel",
+         {
+           t4 <- tri_sym
+           t4[2, 5] <- 2193 * (1 + 1e-14)
+           a <- mw_ajuster(t4); ex <- mw_extrapolation_sigma2(a)
+           l <- detail_m6(run_mw(t4))
+           a$sigma2[a$J] > 0 && isTRUE(ex$degeneree) &&
+             identical(l, .mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex))) &&
+             grepl("Sensibilite indicative", l, fixed = TRUE) &&
+             !grepl("contrefactuel", l, fixed = TRUE) &&
+             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+         })
+# Constat C1 de la revue finale (erratum (2) du 24/10/2026 de la specification
+# Fm, T-4) : colonne J-3 constante a 1e-14 pres, F(i, J-3) = 1,1 (1 + 1e-14
+# (i mod 2)), colonnes suivantes reechelonnees. sigma2_(J-3) ~ 1e-25 n'est pas
+# nul, le quotient vaut ~ 1e23 et la racine de la MSEP correspondante ~ 1e14 :
+# la sensibilite l'ecrit "non defini" (meme condition, degeneree_Jm3, que
+# l'omission du contrefactuel). arguments["quotient"] garde sa valeur
+# calculee ; la partie min(...) du detail est inchangee. Le cas exactement
+# constant (eps = 0, quotient deja NA) donne le meme detail qu'avant.
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  m <- unname(m)
+  degen_Jm3 <- function(tri, eps) {
+    I <- nrow(tri) - 1L; j <- ncol(tri) - 4L
+    for (i in 0:(I - j - 1L)) {
+      old <- tri[i + 1, j + 2]
+      new <- tri[i + 1, j + 1] * 1.1 * (1 + eps * (i %% 2))
+      k <- (j + 2):(I - i + 1)
+      tri[i + 1, k] <- tri[i + 1, k] * new / old
+    }
+    tri
+  }
+  sens_phrase <- function(l) sub("^.*(Sensibilite indicative)", "\\1", l)
+  verifier("#310 (C1) : colonne J-3 constante a 1e-14 pres -> quotient de la sensibilite 'non defini', sans 'e+', sans contrefactuel",
+           {
+             t1 <- degen_Jm3(m, 1e-14)
+             a <- mw_ajuster(t1); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex)
+             l <- detail_m6(run_mw(t1))
+             ph <- sens_phrase(l)
+             isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] > 0 &&
+               is.finite(ex$quotient) && ex$quotient > 1e20 &&
+               identical(s$arguments[["quotient"]], ex$quotient) &&
+               is.na(s$racine_msep_arguments[["quotient"]]) &&
+               all(is.finite(s$racine_msep_arguments[c("sigma2_Jm2", "sigma2_Jm3")])) &&
+               identical(l, .mw_detail_extrapolation(ex, s)) &&
+               startsWith(ph, "Sensibilite indicative") &&
+               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+               !grepl("e+", ph, fixed = TRUE) &&
+               !grepl("contrefactuel", l, fixed = TRUE) &&
+               !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+           })
+  verifier("#310 (C1) : colonne J-3 exactement constante -> quotient NA, 'non defini', sans contrefactuel (inchange)",
+           {
+             t0 <- degen_Jm3(m, 0)
+             a <- mw_ajuster(t0); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex)
+             l <- .mw_detail_extrapolation(ex, s)
+             isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] == 0 && is.na(ex$quotient) &&
+               is.na(s$arguments[["quotient"]]) &&
+               is.na(s$racine_msep_arguments[["quotient"]]) &&
+               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
+               !grepl("e+", sens_phrase(l), fixed = TRUE) &&
+               !grepl("contrefactuel", l, fixed = TRUE)
+           })
+})
+# Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
+# colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non
+# definis, la sensibilite n'est pas applicable (plus de "NaN %").
+verifier("#310 : racine(MSEP) de la regle nulle (facteurs constants par colonne) -> sensibilite non applicable, aucun NaN",
+         {
+           fc <- c(2, 1.5, 1.2, 1.1, 1.05, 1.02, 1.01)
+           tc <- matrix(NA_real_, 8, 8)
+           for (i in 1:8) { tc[i, 1] <- 1000 + 100 * i
+             if (i <= 7) for (j in 2:(9 - i)) tc[i, j] <- tc[i, j - 1] * fc[j - 1] }
+           a <- mw_ajuster(tc); ex <- mw_extrapolation_sigma2(a)
+           s <- mw_sensibilite_sigma2_dernier(a, ex)
+           l <- .mw_detail_extrapolation(ex, s)
+           isTRUE(ex$applicable) && mw_msep(a)$msep == 0 &&
+             identical(s$applicable, FALSE) && is.na(s$racine_msep_regle) &&
+             all(is.na(s$racine_msep_arguments)) && is.na(s$racine_msep_zero) &&
+             !grepl("NaN", l, fixed = TRUE) && !grepl("Sensibilite", l, fixed = TRUE)
+         })
+verifier("#310 : sensibilite non applicable (objet d'ajustement reduit) : aucune valeur, detail sans sensibilite",
+         {
+           ex0 <- mw_extrapolation_sigma2(list(I = 4L, reserve = 10))
+           s0 <- mw_sensibilite_sigma2_dernier(list(I = 4L, reserve = 10), ex0)
+           identical(s0$applicable, FALSE) && is.na(s0$racine_msep_regle) &&
+             identical(.mw_detail_extrapolation(ex0, s0), .mw_detail_extrapolation(ex0)) &&
+             !grepl("Sensibilite", .mw_detail_extrapolation(ex0, s0), fixed = TRUE)
+         })
+
+## --- Test des suites en diagnostic secondaire, moyennes par groupe (#312) ----
+# Specification Fm, par. 1.1, 1.2, 7 et texte T-1 (decisions Q-D1-Fm-1 (B)
+# et Q-D1-Fm-2 du mainteneur, 23/10/2026). Valeurs attendues des moyennes :
+# tableaux du par. 1.2 (mesure m_fm_a, a 1e-5 pres) ; valeurs exactes contre
+# tapply() sur la table des residus qui alimente les nuages.
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  r312 <- run_mw(unname(m))
+  pd <- r312$plots_data; res <- pd$residus
+  ga <- pd$residus_acc_groupes; gc <- pd$residus_cal_groupes
+  # Depuis #311, qqline suit residus_cal_groupes en fin de liste.
+  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311), aucune feuille deplacee",
+           {
+             nm <- names(pd)
+             identical(utils::tail(nm, 4), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
+                                             "qqline")) &&
+               identical(nm[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+                                     "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
+                                     "alpha", "origine", "influence", "contributions", "sigma_boot")) &&
+               identical(names(ga), c("i", "n", "moyenne")) &&
+               identical(names(gc), c("calendrier", "n", "moyenne")) &&
+               is.integer(ga$n) && is.integer(gc$n)
+           })
+  verifier("#312 : n et moyennes par groupe = table() et tapply() sur les residus des nuages, a 1e-10",
+           {
+             ta <- tapply(res$residu, res$i, mean); tc <- tapply(res$residu, res$calendrier, mean)
+             identical(as.numeric(ga$i), as.numeric(names(ta))) &&
+               identical(as.numeric(gc$calendrier), as.numeric(names(tc))) &&
+               identical(as.integer(ga$n), as.integer(table(res$i))) &&
+               identical(as.integer(gc$n), as.integer(table(res$calendrier))) &&
+               isTRUE(proche(ga$moyenne, unname(as.numeric(ta)), rel = 1e-10, abs = 1e-10)) &&
+               isTRUE(proche(gc$moyenne, unname(as.numeric(tc)), rel = 1e-10, abs = 1e-10))
+           })
+  verifier("#312 : reserve2, effectifs et moyennes du par. 1.2 de la specification Fm (1e-5), somme des n = N = 27",
+           identical(as.integer(ga$n), c(6L, 6L, 5L, 4L, 3L, 2L, 1L)) &&
+             identical(as.integer(gc$n), c(1L, 2L, 3L, 4L, 5L, 6L, 6L)) &&
+             sum(ga$n) == nrow(res) && sum(gc$n) == nrow(res) && nrow(res) == 27L &&
+             isTRUE(proche(gc$moyenne, c(0.10811, -1.03213, -1.35373, -0.70681, 0.49849, 1.06507, -0.07445),
+                           abs = 1e-5)) &&
+             isTRUE(proche(ga$moyenne, c(-0.5047, -0.3665, -0.2242, 0.3175, 0.7853, 0.9015, 0.5111),
+                           abs = 1e-4)))
+  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre.
+  spec <- readLines(file.path(RACINE, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
+                    encoding = "UTF-8")
+  t1 <- sub("^> `(.*)`$", "\\1", spec[which(startsWith(spec, "**T-1 (#312"))[1] + 1L])
+  lr <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), r312$tests)
+  verifier("#312 : test des suites, variante secondaire et diagnostic par decision (verdict INFO, inoperant FALSE, detail T-1 a la lettre)",
+           length(lr) == 1L && {
+             l <- lr[[1]]
+             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision (issue #312)") &&
+               identical(l$type, "diagnostic") && identical(l$variante, "secondaire") &&
+               identical(l$verdict, "INFO") && identical(l$inoperant, FALSE) &&
+               identical(l$detail, t1) && is.na(l$p_retenue) && is.na(l$nature_p) &&
+               is.na(l$sens) && identical(l$fonction, "test_runs")
+           })
+  verifier("#312 : test des suites, p_mc = bootstrap$p_mc[\"Runs\"], p non simulee conservee, p_min conservee, p_min_mc NA (R1 hors test)",
+           length(lr) == 1L && {
+             l <- lr[[1]]
+             identical(l$p_mc, unname(r312$bootstrap$p_mc[["Runs"]])) && is.finite(l$p_mc) &&
+               identical(l$p_asymptotique, test_runs(mw_residus(r312$ajustement)$residu)$p) &&
+               is.finite(l$p_min) && is.na(l$p_min_mc) &&
+               is.finite(r312$bootstrap$p_min_mc[["Runs"]])
+           })
+  # p Monte-Carlo absente : motif en tete du detail (forme de
+  # detail_diagnostic() de usp_tests()), puis T-1 ; statistique observee non
+  # finie (motif MOTIF_MC_OBS_NON_FINIE) : priorite des motifs non
+  # applicables, la ligne reste de type test et add() la rend non applicable.
+  ligne_runs <- function(motif) {
+    b <- r312$bootstrap
+    b$p_mc[["Runs"]] <- NA_real_; b$motif_mc[["Runs"]] <- motif
+    Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
+           mw_tests(r312$ajustement, b, 0.10))[[1]]
+  }
+  verifier("#312 : p Monte-Carlo absente (replications insuffisantes) -> diagnostic, 'Monte-Carlo indisponible : <motif>.' puis T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_REPLIC_INSUFFISANTES)
+             # La phrase de #204 (B effectif) suit, jointe par l'enveloppe add() de
+             # mw_tests() (bootstrap fictif : p absente avec B effectif = B).
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+               startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                           ". ", t1))
+           })
+  verifier("#312 : motif de degenerescence -> '<motif> : aucune p-value retenue (ADR 0001).' et complement, puis T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_DISPERSION_NULLE)
+             pre <- trimws(paste(c(paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001)."),
+                                   .complement_motif_mc(MOTIF_MC_DISPERSION_NULLE)), collapse = " "))
+             identical(l$type, "diagnostic") && startsWith(l$detail, .engine_joindre(pre, t1))
+           })
+  verifier("#312 : motif statistique observee non finie -> ligne non applicable (priorite des motifs non applicables), sans T-1",
+           {
+             l <- ligne_runs(MOTIF_MC_OBS_NON_FINIE)
+             identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+               startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE) && !grepl("#312", l$detail, fixed = TRUE)
+           })
+  # p_min non attribuee (constat de /code-review) : add() ne restitue
+  # effectifs qu'aux lignes de type test ; sur le diagnostic, mw_tests() joint
+  # le motif au detail (precedent de detail_decision_299()), dans l'ordre
+  # motif Monte-Carlo, effectifs, T-1. Aucun triangle recevable ne rend
+  # runs_p_min() non fini (NA seulement si un cote de la mediane est vide) :
+  # .mw_p_min_ligne() est substituee le temps d'un appel de mw_tests().
+  ligne_runs_pmin_na <- function(b = r312$bootstrap) {
+    orig <- get(".mw_p_min_ligne", envir = globalenv())
+    on.exit(assign(".mw_p_min_ligne", orig, envir = globalenv()))
+    assign(".mw_p_min_ligne", function(...) {
+      o <- orig(...)
+      list(p_min = NA_real_,
+           effectifs = paste(o$effectifs, "; p_min non calculable sur ces effectifs, p_min non attribuee"))
+    }, envir = globalenv())
+    Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
+           mw_tests(r312$ajustement, b, 0.10))[[1]]
+  }
+  eff_ru <- .runs_effectifs(mw_residus(r312$ajustement)$residu)
+  eff_txt <- paste0(paste(sprintf("%s = %d", names(eff_ru), as.integer(eff_ru)), collapse = ", "),
+                    " ; p_min non calculable sur ces effectifs, p_min non attribuee.")
+  verifier("#312 : p_min non attribuee -> effectifs joints au detail du diagnostic, avant T-1, point final ajoute",
+           {
+             f0 <- .mw_p_min_ligne
+             l <- ligne_runs_pmin_na()
+             identical(l$type, "diagnostic") && is.na(l$p_min) &&
+               identical(l$detail, paste(eff_txt, t1)) && identical(.mw_p_min_ligne, f0)
+           })
+  verifier("#312 : p_min non attribuee et p Monte-Carlo absente -> motif Monte-Carlo, effectifs, T-1",
+           {
+             b <- r312$bootstrap
+             b$p_mc[["Runs"]] <- NA_real_; b$motif_mc[["Runs"]] <- MOTIF_MC_REPLIC_INSUFFISANTES
+             l <- ligne_runs_pmin_na(b)
+             identical(l$type, "diagnostic") &&
+               startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
+                                           ". ", eff_txt, " ", t1))
+           })
+})
+verifier("#312 : colonne degeneree (tri_deg, j = 2) exclue des groupes comme dans mw_residus()",
+         {
+           r <- run_mw(tri_deg); pd <- r$plots_data
+           rs <- mw_residus(mw_ajuster(tri_deg))
+           !(2 %in% rs$j) && 2 %in% attr(rs, "colonnes_exclues")$j &&
+             sum(pd$residus_acc_groupes$n) == nrow(rs) &&
+             sum(pd$residus_cal_groupes$n) == nrow(rs) &&
+             isTRUE(proche(pd$residus_acc_groupes$moyenne,
+                           unname(as.numeric(tapply(rs$residu, rs$i, mean))), rel = 1e-10, abs = 1e-10)) &&
+             isTRUE(proche(pd$residus_cal_groupes$moyenne,
+                           unname(as.numeric(tapply(rs$residu, rs$calendrier, mean))), rel = 1e-10, abs = 1e-10))
+         })
+# Zero residu sous les deux formes : table de mw_residus() a zero ligne, et
+# data.frame() sans colonne, sortie de .mw_empiler() quand aucune colonne
+# ne donne de residu (constat C1 de l'audit de #312).
+verifier("#312 : .mw_residus_par_groupe(), table vide (0 ligne, 3 colonnes, n entier) sur zero residu, y compris data.frame() sans colonne ; cle hors de i / calendrier refusee",
+         {
+           rs <- mw_residus(aj)[0, ]
+           g0 <- .mw_residus_par_groupe(rs, "calendrier")
+           vide <- function(g, cle) identical(names(g), c(cle, "n", "moyenne")) && nrow(g) == 0L &&
+             is.integer(g$n) && is.numeric(g$moyenne)
+           vide(g0, "calendrier") && vide(.mw_residus_par_groupe(data.frame(), "i"), "i") &&
+             vide(.mw_residus_par_groupe(data.frame(), "calendrier"), "calendrier") &&
+             inherits(try(.mw_residus_par_groupe(mw_residus(aj), "j"), silent = TRUE), "try-error")
          })
 # Triangle non degenere : la valeur ne change pas (le minimum litteral est
 # applique comme auparavant) et aucun avertissement n'est emis.
@@ -2064,17 +2392,20 @@ verifier("reserve2 : p_min des six lignes discretes, les 15 autres NA (#115, cri
          })
 # Depuis #125 (D1-8), la p Monte-Carlo etant retenue, R1 lit le plancher
 # Monte-Carlo p_min_mc (B = 99, B_eff = 99) : CorrDev 0,38 >= alpha ->
-# inoperant (prefixe Monte-Carlo) ; Suites 0,02 < alpha/2 -> test sans texte
-# de R1 (le texte "ECHEC possible" lu sur p_min = 4/70 a disparu). p_min
-# reste restituee. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
+# inoperant (prefixe Monte-Carlo). Suites : diagnostic par decision depuis
+# #312 (Q-D1-Fm-1 (B)), hors du domaine de R1 (lignes de type test) :
+# p_min = 4/70 restituee, p_min_mc NA, detail T-1 sans texte de R1 ; le
+# plancher Monte-Carlo du bootstrap (0,02) reste lisible dans
+# bootstrap$p_min_mc. Calendaire en queue basse depuis #276 (decision Q-Fd-1 ;
 # spec. fd-test-calendaire.md, par. 5.1 et 6) : plancher 0,05 = alpha/2 a
 # B = 99 (0,10 en bilateral, alors inoperant) -> test ALERTE, ECHEC dit
 # inatteignable ; a B = 999, p = p_min_mc = 0,048 < alpha/2 -> ECHEC (ALERTE
 # en bilateral, p = 0,096) ; p_min 0,0625 (0,125 en bilateral).
-verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites test sans texte de R1 (#115, #125)",
+verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Calendaire test (queue basse, #276), Suites diagnostic par decision sans texte de R1 (#115, #125, #312)",
          {
            t5 <- tri_ref[1:5, 1:5]; t5[row(t5) + col(t5) > 6] <- NA
-           d <- engine_table_tests(run_mw(t5))
+           r5 <- run_mw(t5)
+           d <- engine_table_tests(r5)
            l <- function(k, d) d[d$test == k, ]
            pre <- paste("TEST INOPERANT au seuil alpha = 0.1 : plus petite p-value Monte-Carlo",
                         "atteignable sur ces replications >= alpha")
@@ -2096,8 +2427,10 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Ca
              !c9$inoperant && c9$type == "test" && identical(c9$verdict, "ECHEC") &&
              isTRUE(proche(c9$p_retenue, 0.048, 1e-12)) && isTRUE(proche(c9$p_min_mc, 0.048, 1e-12)) &&
              !grepl("inatteignable", c9$commentaire, fixed = TRUE) &&
-             su$type == "test" && !su$inoperant && isTRUE(proche(su$p_min, 4 / 70, 1e-12)) &&
-             isTRUE(proche(su$p_min_mc, 0.02, 1e-12)) &&
+             su$type == "diagnostic" && identical(su$verdict, "INFO") && !su$inoperant &&
+             isTRUE(proche(su$p_min, 4 / 70, 1e-12)) && is.na(su$p_min_mc) &&
+             isTRUE(proche(r5$bootstrap$p_min_mc[["Runs"]], 0.02, 1e-12)) &&
+             startsWith(su$commentaire, "Restituee en diagnostic par decision (issue #312)") &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
@@ -3163,14 +3496,16 @@ verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, ver
 # Q-D1-Fj-10) : la ligne "Absence de tendance des facteurs avec le cumul, a
 # colonne donnee" passe d'OK a ALERTE (specification Fj, par. 7) ; la famille
 # alpha reste ECHEC (option (b'), Q-D1-Fj-5) ; 13 tests, 8 diagnostics.
-verifier("Decomptes reserve2 (#300, #308, #307) : 21 lignes (13 tests, 8 diagnostics), OK 6, INFO 8, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+# Depuis #312 (Q-D1-Fm-1 (B), specification Fm, par. 7) : le test des suites
+# passe en diagnostic par decision, OK -> INFO ; 12 tests, 9 diagnostics.
+verifier("Decomptes reserve2 (#300, #308, #307, #312) : 21 lignes (12 tests, 9 diagnostics), OK 5, INFO 9, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
          {
            v <- vapply(res300$tests, `[[`, "", "verdict")
            ty <- vapply(res300$tests, `[[`, "", "type")
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
            length(res300$tests) == 21L &&
-             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(13L, 8L)) &&
-             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(6L, 8L, 3L, 4L)) &&
+             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(12L, 9L)) &&
+             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(5L, 9L, 3L, 4L)) &&
              !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
              isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
          })
@@ -3296,5 +3631,74 @@ verifier("Famille alpha (#307) : statistique NA (aucune colonne n_j >= 3, triang
                "des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation",
                "par le carre du volume."))
          })
+
+## --- QQ-plot des residus de Mack redresses par le levier (#311) -------------
+# Specification Fm, par. 2.1, 2.3 et 7 (decisions Q-D1-Fm-4 et Q-D1-Fm-5 du
+# mainteneur, 23/10/2026, option (c)) : qqnorm porte r~ = r / sqrt(1 - h)
+# (mw_residus_redresses()), theorique les quantiles N(0,1) de leurs rangs,
+# qqline = c(0, 1) en fin de plots_data ; borne r~^2 <= n_j - 1 ; vivier du
+# bootstrap inchange au bit pres ; lignes M5 sur les residus bruts.
+local({
+  r311 <- run_mw(tri_ref); aj311 <- r311$ajustement; pd <- r311$plots_data
+  res <- pd$residus; rt <- mw_residus_redresses(aj311, res)
+  nj <- as.vector(table(res$j)[as.character(res$j)])
+  verifier("#311 : qqnorm$empirique tries = sort(mw_residus_redresses()) ; theorique = quantiles N(0,1) (ppoints) aux rangs de r~",
+           identical(sort(pd$qqnorm$empirique), sort(rt)) && nrow(pd$qqnorm) == 27L &&
+             identical(names(pd$qqnorm), c("theorique", "empirique")) &&
+             isTRUE(proche(sort(pd$qqnorm$theorique), stats::qnorm(stats::ppoints(27)), rel = 1e-14)) &&
+             identical(order(pd$qqnorm$theorique), order(pd$qqnorm$empirique)))
+  verifier("#311 : mw_residus_redresses() = r / sqrt(1 - C/S) recalcule depuis le triangle (1e-14), dans l'ordre de res",
+           {
+             S <- vapply(seq_len(nrow(res)), function(k)
+               sum(tri_ref[seq_len(nrow(tri_ref) - res$j[k] - 1), res$j[k] + 1]), numeric(1))
+             isTRUE(proche(rt, res$residu / sqrt(1 - res$C / S), rel = 1e-14))
+           })
+  verifier("#311 : |r~| = 1 pour n_j = 2 (1e-14) ; max |r~| / sqrt(n_j - 1) <= 1 + 1e-12 (reserve2, Taylor-Ashe, tri_deg, ta_deg)",
+           any(nj == 2L) && isTRUE(proche(abs(rt[nj == 2L]), rep(1, sum(nj == 2L)), rel = 1e-14)) &&
+             all(vapply(list(tri_ref, ta, tri_deg, ta_deg), function(t) {
+               a <- mw_ajuster(t); rs <- mw_residus(a); n <- as.vector(table(rs$j)[as.character(rs$j)])
+               x <- mw_residus_redresses(a, rs)
+               all(is.finite(x)) && max(abs(x) / sqrt(n - 1)) <= 1 + 1e-12
+             }, logical(1))))
+  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data ; feuilles anterieures inchangees et a leur place",
+           identical(pd$qqline, c(ordonnee = 0, pente = 1)) &&
+             identical(utils::tail(names(pd), 4),
+                       c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline")) &&
+             identical(names(pd)[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+                                          "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
+                                          "alpha", "origine", "influence", "contributions", "sigma_boot")))
+  # Vivier du bootstrap : .mw_pool_residus() appelle mw_residus_redresses().
+  # Forme anterieure a #311 (expression litterale) substituee le temps d'un
+  # bootstrap : p_mc, sigma_boot et statistiques repliquees identiques.
+  pool_avant311 <- function(aj, j_degeneres = NULL) {
+    res <- mw_residus(aj, j_degeneres)
+    if (!nrow(res)) return(numeric(0))
+    pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
+    pool - mean(pool)
+  }
+  verifier("#311 : .mw_pool_residus() identique au bit pres a la forme anterieure (reserve2, Taylor-Ashe, tri_deg, ta_deg, tri_c1)",
+           all(vapply(list(tri_ref, ta, tri_deg, ta_deg, tri_c1), function(t) {
+             a <- mw_ajuster(t); jd <- .mw_colonnes_degenerees(a)
+             identical(.mw_pool_residus(a, jd), pool_avant311(a, jd))
+           }, logical(1))))
+  verifier("#311 : bootstrap (B = 99) identique au bit pres avec le vivier de la forme anterieure : p_mc, sigma_boot",
+           {
+             env <- environment(mw_bootstrap); f0 <- get(".mw_pool_residus", envir = env)
+             b1 <- mw_bootstrap(aj311, B = 99)
+             assign(".mw_pool_residus", pool_avant311, envir = env)
+             b0 <- tryCatch(mw_bootstrap(aj311, B = 99),
+                            finally = assign(".mw_pool_residus", f0, envir = env))
+             identical(b1$p_mc, b0$p_mc) && identical(b1$sigma_boot, b0$sigma_boot) &&
+               identical(get(".mw_pool_residus", envir = env), f0)
+           })
+  verifier("#311 : lignes M5 (Shapiro-Wilk, Lilliefors) calculees sur les residus bruts, non sur r~",
+           {
+             l <- function(nom) Filter(function(x) identical(x$test, nom), r311$tests)[[1]]
+             r <- mw_residus(aj311)$residu
+             identical(l("Shapiro-Wilk sur les residus de Mack")$stat, .shapiro_sur(r)$stat) &&
+               identical(l("Lilliefors sur les residus de Mack")$stat, stat_lilliefors(r)) &&
+               !identical(.shapiro_sur(r)$stat, .shapiro_sur(rt)$stat)
+           })
+})
 
 fin_fichier()

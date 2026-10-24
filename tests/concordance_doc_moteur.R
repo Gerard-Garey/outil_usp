@@ -1358,7 +1358,9 @@ REGISTRE_RUBRIQUE7 <- list(
   list(label = "mw:m3acc", tests = "Homogeneite des residus entre annees de survenance"),
   list(label = "mw:m3cor", tests = "Correlation entre annees de developpement adjacentes"),
   list(label = "mw:m3dw", tests = "Autocorrelation des residus (Durbin-Watson)"),
-  list(label = "mw:m3runs", tests = "Test des suites sur les residus de Mack"),
+  # mw:m3runs retiree (#312, decision Q-D1-Fm-1 (B) du 23/10/2026) : le test
+  # des suites sur residus de Mack est une variante secondaire en diagnostic
+  # par decision (statistique observee definie), sans rubrique 7.
   # Ligne M4 renommee par #300 (statistique MinP4, decision Q-D2-Fi-2 du
   # 21/10/2026).
   list(label = "mw:m4gr", tests = "Cellule aberrante du triangle (residus studentises externes)")

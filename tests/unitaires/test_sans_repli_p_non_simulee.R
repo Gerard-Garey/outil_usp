@@ -194,11 +194,17 @@ verifier("U181-7 Origine, HomogF, Courbure en diagnostic au prefixe de #181, p n
              is.na(l$nature_p) && is.finite(l$p_asymptotique) && identical(l$inoperant, FALSE) &&
              startsWith(l$detail, pre181(MOTIF_MC_REPLIC_INSUFFISANTES))
          }, logical(1))))
-verifier("U181-7 les neuf autres lignes Monte-Carlo gardent leur p Monte-Carlo retenue (dix avant #300)",
+# Depuis #312 (Q-D1-Fm-1 (B)), la ligne du test des suites, parmi ces neuf
+# lignes a p Monte-Carlo finie, est un diagnostic par decision : p Monte-Carlo
+# conservee dans sa colonne, aucune p retenue.
+verifier("U181-7 les neuf autres lignes Monte-Carlo gardent leur p Monte-Carlo (dix avant #300) : retenue sur huit tests, conservee sans etre retenue sur le test des suites (diagnostic par decision, #312)",
          {
            mc <- Filter(function(l) is.finite(l$p_mc), tm181)
-           length(mc) == 9L &&
-             all(vapply(mc, function(l) identical(l$type, "test") && identical(l$p_retenue, l$p_mc) &&
+           su <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), mc)
+           ts <- Filter(function(l) !identical(l$test, "Test des suites sur les residus de Mack"), mc)
+           length(mc) == 9L && length(su) == 1L && length(ts) == 8L &&
+             identical(su[[1]]$type, "diagnostic") && is.na(su[[1]]$p_retenue) &&
+             all(vapply(ts, function(l) identical(l$type, "test") && identical(l$p_retenue, l$p_mc) &&
                           identical(l$nature_p, "Monte-Carlo (bootstrap de residus)"), logical(1)))
          })
 

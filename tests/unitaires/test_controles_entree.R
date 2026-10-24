@@ -1359,7 +1359,8 @@ verifier("Triangle 4 x 4 refuse (D(2)(b) et (c))",
 verifier("Triangle 6 x 5 (I > J) refuse : non carre",
          {
            r <- mw_valider_triangle(triangle(6)[, 1:5])
-           !r$ok && contient(r$erreurs, "non carre")
+           !r$ok && contient(r$erreurs, "non carre") &&
+             contient(r$erreurs, "paragraphes 4 et 5")
          })
 verifier("Triangle 5 x 6 (moins d'annees d'accident que de developpement) refuse (D(2)(e))",
          {

@@ -7667,10 +7667,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     observees (i + j > I) valant NA.
 ##
 ##     RESTRICTION D'IMPLEMENTATION : on impose I = J (triangle carre). Le
-##     paragraphe 2(e) autorise I >= J, mais la formule du paragraphe 4 fait
-##     intervenir C(i, I-i), qui n'est definie que si I - i <= J. Le cas I > J
-##     produirait un trapeze dont le texte ne precise pas le traitement ; il est
-##     donc refuse explicitement plutot que traite par convention implicite.
+##     paragraphe 2(e) autorise I >= J, mais les formules des paragraphes 4 et
+##     5 font intervenir C(i, I-i), qui n'est definie que si I - i <= J, et
+##     celle du paragraphe 5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1
+##     (ni f_j ni sigma2_j au-dela de j = J-1). Le cas I > J produirait un
+##     trapeze dont le texte ne precise pas le traitement ; il est donc refuse
+##     explicitement plutot que traite par convention implicite.
 ## =============================================================================
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
@@ -7703,7 +7705,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
   if (I != J)
-    err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par la formule du paragraphe 4 (voir la note d'implementation).", I, J))
+    err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par les formules des paragraphes 4 et 5 (voir la note d'implementation).", I, J))
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
@@ -8170,10 +8172,16 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 }
 
 # Libelle du diagnostic M6 correspondant : les trois arguments du minimum et
-# celui qui est retenu, pour que le calcul soit refaisable a la lecture.
-.mw_detail_extrapolation <- function(ex) {
-  base <- paste("Valeur non estimee mais extrapolee par la regle min(...) du reglement :",
-                "elle ne repose que sur les dernieres colonnes estimees")
+# celui qui est retenu, pour que le calcul soit refaisable a la lecture, puis,
+# si sens (mw_sensibilite_sigma2_dernier()) est fourni et applicable, la
+# sensibilite indicative de racine(MSEP) a sigma2_(J-1) (issue #310, texte T-4
+# de la specification Fm, a la lettre). Vocabulaire R1 (Q-D1-Fm-8) : valeur
+# "fixee par la regle de minimum", ni "extrapolee" ni "imposee". Aucun nombre
+# issu du bootstrap (regle #76) : les racines de MSEP sont deterministes.
+.mw_detail_extrapolation <- function(ex, sens = NULL) {
+  base <- paste("Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii),",
+                "seconde ligne, et non estimee : la regle ne lit que les deux",
+                "dernieres variances estimees")
   if (!isTRUE(ex$applicable)) return(base)
   q <- if (is.na(ex$quotient))
     "non defini (sigma2_(J-3) = 0), sans effet : le minimum est atteint ailleurs"
@@ -8219,10 +8227,7 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   # .mw_colonne_degeneree(), deux volets), si bien qu'une colonne constante a
   # 1e-14 pres donne un sigma2 de l'ordre de 1e-21, non nul. La valeur exacte
   # est imprimee quelques mots plus haut dans la meme chaine. Cette phrase
-  # finale ne figure que dans les branches degenerees. Hors degenerescence, le
-  # libelle ne peut changer que par la regle ex aequo ci-dessus, qui s'y
-  # applique aussi ; pour un minimum unique (triangle de non-regression) il
-  # est identique au libelle anterieur (reference reserve2.rds).
+  # ne figure que dans les branches degenerees ; elle precede la sensibilite.
   d3 <- isTRUE(ex$degeneree_Jm3)
   d2 <- isTRUE(ex$degeneree_Jm2)
   if (d3 && d2)
@@ -8238,6 +8243,30 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
     detail <- paste0(detail, ". Colonne J-2 a facteurs individuels egaux a f_j ",
                      "a la tolerance relative 1e-12 de l'outil ",
                      "(sigma2_(J-2) numeriquement nul) : voir l'avertissement sur les donnees")
+  if (is.null(sens) || !isTRUE(sens$applicable)) return(detail)
+  # Sensibilite (T-4, SENS puis CONTRE) : racines de MSEP par format(digits =
+  # 6), ecarts relatifs a la valeur de la regle en %+.1f %%, "non defini"
+  # pour le quotient NA (sigma2_(J-3) = 0). Le contrefactuel sigma2_(J-1) = 0
+  # (Q-D1-Fm-6) est omis quand la regle donne 0 a la tolerance de l'outil
+  # (colonne J-3 ou J-2 degeneree, ex$degeneree, predicat
+  # .mw_colonne_degeneree() a 1e-12) : il repeterait alors la valeur de la
+  # regle. SENS reste ecrit.
+  r0 <- sens$racine_msep_regle
+  morceau <- function(nom, v)
+    if (is.na(v)) sprintf("avec %s : non defini", nom)
+    else sprintf("avec %s : %s (%+.1f %%)", nom, format(v, digits = 6), 100 * (v / r0 - 1))
+  morceaux <- vapply(seq_along(noms), function(k)
+    morceau(noms[k], sens$racine_msep_arguments[[k]]), character(1))
+  phrase <- paste0("Sensibilite indicative, hors regle et sans effet sur sigma_USP, ",
+                   "de la racine de la MSEP (", format(r0, digits = 6),
+                   " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                   paste(morceaux, collapse = " ; "), ".")
+  detail <- paste0(detail, ". ", phrase)
+  if (!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0))
+    detail <- paste0(detail, " ", sprintf(paste0(
+      "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+      "contrefactuel qui n'est pas un argument du minimum) : %s (%+.1f %%)."),
+      format(sens$racine_msep_zero, digits = 6), 100 * (sens$racine_msep_zero / r0 - 1)))
   detail
 }
 
@@ -8307,6 +8336,65 @@ mw_msep <- function(aj) {
   # sigma_estime, sigma_estime_brut et variation_relative.
   t1 <- unname(t1); t2 <- unname(t2)
   list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
+}
+
+# --- Sensibilite de racine(MSEP) a sigma2_{J-1} (issue #310) ----------------
+# Restitution indicative, HORS REGLE et SANS EFFET sur sigma_USP : la valeur
+# de sigma2_{J-1} est fixee par la regle de minimum de D(5)(d)(ii), seconde
+# ligne (mw_ajuster()) et n'est pas modifiee ici. On recalcule racine(MSEP)
+# par mw_msep() en remplacant sigma2_{J-1} successivement par chacun des
+# trois arguments du minimum, dans l'ordre du texte (sigma2_{J-2},
+# sigma2_{J-3}, sigma2_{J-2}^2/sigma2_{J-3}), puis par 0, contrefactuel qui
+# n'est pas un argument du minimum (decision Q-D1-Fm-6). Aucun sigma estime
+# ni sigma_USP alternatif n'est produit (Q-D1-Fm-7).
+# Remplacement : sigma2[J] ET Q[J] = sigma2[J] / f[J]^2, car mw_msep() lit Q
+# (par. 5(d)) et non sigma2. Avec la valeur de la regle, l'operation refait
+# exactement le calcul de mw_ajuster() (meme division element par element) :
+# la MSEP recalculee est identical() a mw_msep(aj) (controle des tests
+# unitaires). Quotient non defini (sigma2_{J-3} = 0) : racine(MSEP) NA pour
+# cet argument. Non applicable (J < 3, sigma2 non fini, objet d'ajustement
+# reduit) : applicable = FALSE et aucune valeur. De meme si racine(MSEP)
+# avec la valeur de la regle n'est pas finie et strictement positive : les
+# ecarts relatifs n'auraient pas de sens (division par 0, "NaN %").
+mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) {
+  out <- list(applicable = FALSE, valeur_regle = NA_real_, racine_msep_regle = NA_real_,
+              arguments = c(sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_, quotient = NA_real_),
+              racine_msep_arguments = c(sigma2_Jm2 = NA_real_, sigma2_Jm3 = NA_real_,
+                                        quotient = NA_real_),
+              racine_msep_zero = NA_real_)
+  if (!isTRUE(ex$applicable) ||
+      !all(c("C_chapeau", "Q", "S", "Sp", "dernier_observe") %in% names(aj)))
+    return(out)
+  J <- aj$J
+  racine_avec <- function(v) {
+    a <- aj
+    a$sigma2[J] <- v
+    a$Q[J] <- v / a$f[J]^2
+    sqrt(mw_msep(a)$msep)
+  }
+  r0 <- sqrt(mw_msep(aj)$msep)
+  if (!(is.finite(r0) && r0 > 0)) return(out)
+  args <- c(sigma2_Jm2 = ex$sigma2_Jm2, sigma2_Jm3 = ex$sigma2_Jm3, quotient = ex$quotient)
+  out$applicable <- TRUE
+  out$valeur_regle <- aj$sigma2[J]
+  out$racine_msep_regle <- r0
+  out$arguments <- args
+  # Quotient "non defini" aussi quand la colonne J-3 est degeneree a la
+  # tolerance 1e-12 de l'outil (ex$degeneree_Jm3, predicat
+  # .mw_colonne_degeneree()), meme si sigma2_{J-3} n'est pas exactement nul :
+  # sigma2_{J-2}^2 / sigma2_{J-3} n'est alors qu'un residu d'arrondi divise
+  # par un autre (colonne constante a 1e-14 pres : quotient ~ 1e23, racine de
+  # la MSEP ~ 1e14). C'est la condition qui omet deja le contrefactuel
+  # sigma2_(J-1) = 0 (erratum (2) du 24/10/2026 de la specification Fm, T-4 ;
+  # constat C1 de la revue finale). arguments["quotient"] garde la valeur
+  # calculee (meme champ que ex$quotient) ; seule la racine de la MSEP
+  # correspondante passe a NA.
+  arg_sens <- args
+  if (isTRUE(ex$degeneree_Jm3)) arg_sens["quotient"] <- NA_real_
+  out$racine_msep_arguments <- vapply(arg_sens, function(v)
+    if (is.na(v)) NA_real_ else racine_avec(v), numeric(1))
+  out$racine_msep_zero <- racine_avec(0)
+  out
 }
 
 # --- Applicabilite de la methode no 2 : reserve et MSEP ----------------------
@@ -10261,6 +10349,31 @@ FACTEUR_B_MAX_MW <- 25
   umh
 }
 
+# Residus de Mack redresses par le levier (#311 ; decisions Q-D1-Fm-4 et
+# Q-D1-Fm-5 du mainteneur du 23/10/2026, option (c), specification Fm,
+# par. 2.1) : r~_ij = r_ij / sqrt(1 - h_ij), h_ij = C_ij / S_j, 1 - h_ij
+# calcule par .mw_un_moins_h(). res : sortie de mw_residus(aj, j_degeneres),
+# dans l'ordre de ses lignes ; retour dans le meme ordre.
+# Algebre (deja au .tex, sec:boot-mw) : a sigma_j connu, sous les
+# hypotheses du modele de Mack (esperance et variance conditionnelles,
+# independance des annees de survenance), sans hypothese de loi,
+# Var(r_ij | C) = 1 - h_ij ; r~_ij est donc de variance exactement 1.
+# Borne exacte, pour toute loi : r~_ij^2 <= somme_i r_ij^2 = n_j - 1 (somme
+# des carres residuels de la colonne privee de la cellule, RSS - e^2/(1 - h),
+# >= 0 ; l'egalite somme_i r_ij^2 = n_j - 1 decoule de la definition de
+# sigma^2_j). D'ou |r~_ij| = 1 pour n_j = 2 et |r~_ij| <= sqrt(n_j - 1) :
+# meme sous le modele, les points extremes du QQ-plot sont attendus en deca
+# de la droite identite.
+# Utilisee par mw_plots_data() (feuille qqnorm) et par .mw_pool_residus()
+# (vivier du bootstrap, avant recentrage). ALGEBRE FIGEE (#301, #46) : memes
+# operations, dans le meme ordre, que l'expression qu'elle remplace dans
+# .mw_pool_residus() (res$residu / sqrt(.mw_un_moins_h(aj, res))), donc memes
+# bits pour le vivier et les p_mc (controle : comparer_references.R
+# --seuil 0, bootstrap identique) ; une autre ecriture, meme equivalente en
+# arithmetique exacte, ne s'y substitue pas sans ce controle.
+mw_residus_redresses <- function(aj, res)
+  res$residu / sqrt(.mw_un_moins_h(aj, res))
+
 # Pool de reechantillonnage du bootstrap de Mack (issue #46, decision du
 # mainteneur du 06/10/2026, Q-E2r-46-1, variante B). Sous le modele de Mack a
 # sigma_j connu, conditionnellement a C_{.,j}, le residu
@@ -10297,8 +10410,10 @@ FACTEUR_B_MAX_MW <- 25
   res <- mw_residus(aj, j_degeneres)
   if (!nrow(res)) return(numeric(0))
   # 1 - h_ij = (S_j - C_ij) / S_j : .mw_un_moins_h(), partagee avec
-  # mw_test_heteroscedasticite_intra() (#356).
-  pool <- res$residu / sqrt(.mw_un_moins_h(aj, res))
+  # mw_test_heteroscedasticite_intra() (#356) ; redressement par
+  # mw_residus_redresses(), partagee avec le QQ-plot de mw_plots_data()
+  # (#311, memes operations que l'expression qu'elle remplace).
+  pool <- mw_residus_redresses(aj, res)
   pool - mean(pool)                               # recentrage
 }
 
@@ -11063,14 +11178,67 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   eff_ru <- .runs_effectifs(r)
   pm_ru <- .mw_p_min_ligne(is.finite(ru$stat), eff_ru, NULL,
                            function(n) runs_p_min(n[[1]], n[[2]]))
+  # Variante secondaire et diagnostic par decision (#312 ; decision
+  # Q-D1-Fm-1 (B) du mainteneur du 23/10/2026, specification Fm, par. 1.1,
+  # texte T-1 a la lettre) : forme des diagnostics par decision de Fh (#299,
+  # #302 ; type_decision() et detail_diagnostic() de usp_tests()). Motifs
+  # (niveau et puissance a T = 8, comparaison a Durbin-Watson, calculee sur
+  # les memes residus dans le meme ordre de parcours) : specification Fm,
+  # par. 1.1, mesures de #309. type = "diagnostic" pose ici, add() inchangee
+  # (verdict INFO, ni p retenue, ni nature, ni sens ; p Monte-Carlo et p non
+  # simulee conservees dans leurs colonnes ; inoperant FALSE ; la regle R1 ne
+  # s'applique qu'aux lignes de type test, p_min_mc vaut donc NA). Cle Runs du
+  # catalogue conservee. Priorite des motifs non applicables (comme
+  # stat_definie() de usp_tests()) : statistique observee non finie, ou
+  # motif MOTIF_MC_OBS_NON_FINIE, -> type "test" laisse a add(), qui rend la
+  # ligne non applicable. Sur un diagnostic, add() ne pose pas le motif
+  # Monte-Carlo : il est mis en tete du detail ici quand la p Monte-Carlo
+  # manque, sous la forme de detail_diagnostic() (motif de degenerescence ->
+  # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
+  # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
+  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes ensuite
+  # par l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo.
+  m_ru <- if (!is.null(boot$motif_mc) && "Runs" %in% names(boot$motif_mc))
+    unname(boot$motif_mc[["Runs"]]) else NA_character_
+  ru_definie <- is.finite(ru$stat) && !identical(m_ru, MOTIF_MC_OBS_NON_FINIE)
+  txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
+                       "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
+                       "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
+                       "ordre de parcours, dont le type et le verdict font foi.")
+  # p Monte-Carlo lue sans [[ ]] nu : une cle Runs absente du bootstrap
+  # laisse a add() son refus explicite (ADR 0003, point 3).
+  p_mc_ru <- if ("Runs" %in% names(boot$p_mc)) boot$p_mc[["Runs"]] else NA_real_
+  detail_ru <- if (!ru_definie) "" else {
+    pre_ru <- if (is.finite(p_mc_ru) || is.na(m_ru)) ""
+      else if (m_ru %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                           MOTIF_MC_CONDITION))
+        trimws(paste(c(paste0(m_ru, " : aucune p-value retenue (ADR 0001)."),
+                       .complement_motif_mc(m_ru)), collapse = " "))
+      else paste0("Monte-Carlo indisponible : ", m_ru, ".")
+    # Motif d'un p_min non attribue (effectifs de .mw_p_min_ligne()) : add()
+    # ne le restitue qu'aux lignes de type test ; sur ce diagnostic, il est
+    # joint ici quand p_min n'est pas fini, sur le precedent de
+    # detail_decision_299() (motif_ea, avis d'actuary du 20/10/2026). Ordre :
+    # motif Monte-Carlo, effectifs, phrase T-1 ; point final ajoute s'il
+    # manque. p_min fini (cas courant, reserve2) : detail inchange.
+    ea_ru <- if (!is.finite(pm_ru$p_min) && !is.na(pm_ru$effectifs) &&
+                 nzchar(trimws(pm_ru$effectifs))) {
+      e <- trimws(pm_ru$effectifs)
+      if (endsWith(e, ".")) e else paste0(e, ".")
+    } else ""
+    trimws(.engine_joindre(.engine_joindre(pre_ru, ea_ru), txt_diag_ru))
+  }
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
       "Wald & Wolfowitz (1940)",
+      type = if (ru_definie) "diagnostic" else "test",
+      variante = "secondaire",
       H0 = "arrangement aleatoire des signes des residus", H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = ru$stat, loi = "N(0,1) approx. -> Monte-Carlo",
       estim_nom = "nb de suites", estim = ru$runs,
       p_as = ru$p, mc_nom = "Runs",
-      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs)
+      p_min = pm_ru$p_min, effectifs = pm_ru$effectifs,
+      detail = detail_ru)
 
   ## --- M4 : points aberrants ------------------------------------------------
   fam <- "M4. points aberrants et stabilite"
@@ -11197,12 +11365,15 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   fam <- "M6. robustesse de l'estimation"
   # Restitution des trois arguments du minimum du texte et de celui qui est
   # retenu : c'est ce qui permet au relecteur de refaire le calcul a la main.
+  # La sensibilite de racine(MSEP) a sigma2_(J-1) (#310) est calculee par
+  # mw_sensibilite_sigma2_dernier() (mw_msep() sur sigma2_(J-1) remplace) et
+  # restituee dans le seul detail : ni estim secondaire, ni sigma alternatif.
   ex <- mw_extrapolation_sigma2(aj)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex))
+      detail = .mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(aj, ex)))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -11933,13 +12104,62 @@ mw_contributions <- function(aj, msep) {
     stringsAsFactors = FALSE)
 }
 
+# Moyenne des residus de Mack par groupe et effectif n_k du groupe (#312 ;
+# decision Q-D1-Fm-2 du mainteneur du 23/10/2026, specification Fm, par. 1.2),
+# pour les nuages par annee d'accident (cle = "i") et par annee calendaire
+# (cle = "calendrier", k = i + j, meme indexation que
+# mw_calendrier_diagonales()). res : table de mw_residus(), celle qui
+# alimente les nuages (colonnes exclues de mw_residus() absentes, donc hors
+# des groupes). Sur le triangle observe, ce jeu de colonnes est celui des
+# ensembles figes de mw_tests() : mw_residus(aj) et .mw_ensembles_figes(aj)
+# font le meme appel .mw_j_exclues(aj, NULL). Un groupe par valeur de la
+# cle presente dans res, en ordre croissant ; table vide (zero ligne, memes
+# trois colonnes) si res n'a aucun residu, y compris quand res est le
+# data.frame() sans colonne de .mw_empiler() (cle et residu NULL, lus comme
+# vecteurs vides). Moyenne et non mediane, ni bande ni repere autour des
+# moyennes (aucune loi etablie ; ADR 0001) : motifs a la specification Fm,
+# par. 1.2. L'effectif n est restitue pour la lecture.
+.mw_residus_par_groupe <- function(res, cle) {
+  if (!is.character(cle) || length(cle) != 1L || !cle %in% c("i", "calendrier"))
+    stop(".mw_residus_par_groupe() : cle doit valoir \"i\" ou \"calendrier\"", call. = FALSE)
+  g <- res[[cle]]; r <- res$residu
+  if (is.null(g)) g <- integer(0)
+  if (is.null(r)) r <- numeric(0)
+  k <- sort(unique(g))
+  out <- data.frame(k,
+                    n = vapply(k, function(v) sum(g == v), integer(1)),
+                    moyenne = vapply(k, function(v) mean(r[g == v]), numeric(1)))
+  names(out)[1] <- cle
+  out
+}
+
 # Quantites numeriques des graphiques de la methode Merz-Wuthrich.
+# QQ-plot (#311, Q-D1-Fm-4 et Q-D1-Fm-5, option (c), specification Fm,
+# par. 2.1) : qqnorm porte les residus redresses par le levier
+# (mw_residus_redresses(), ceux du vivier de mw_bootstrap() avant
+# recentrage), dans l'ordre des lignes de res, et theorique les quantiles
+# N(0,1) de leurs rangs ; qqline (feuille ajoutee en fin de liste) est la
+# droite de reference y = x, posee ici comme qqline du module lognormal : la
+# variance des residus redresses vaut 1 a sigma_j connu, alors que les
+# residus bruts verifient par construction somme r_ij^2 = somme_j (n_j - 1)
+# (21 pour N = 27 residus sur reserve2) et sont de variance 1 - h_ij < 1 par
+# construction : contre la droite identite, ils dessineraient une pente
+# inferieure a 1 (0,88 attendue sous le modele, specification Fm, par. 2.1)
+# sans qu'elle traduise un ecart au modele. Ni enveloppe ni tirage (option
+# (c)) ; les lignes M5 de
+# mw_tests() restent calculees sur les residus bruts.
 mw_plots_data <- function(aj, res, boot, msep = NULL) {
-  qq <- stats::qqnorm(res$residu, plot.it = FALSE)
+  qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
   list(
     methode = "reserve2",
+    # sigma_regle_minimum (#310, Q-D1-Fm-9, colonne ajoutee en fin) : TRUE
+    # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
+    # D(5)(d)(ii), seconde ligne, et non estime ; FALSE partout si la regle
+    # n'est pas applicable (mw_extrapolation_sigma2()$applicable).
     facteurs = data.frame(j = 0:(aj$J - 1), f = aj$f,
-                          sigma = sqrt(aj$sigma2)),
+                          sigma = sqrt(aj$sigma2),
+                          sigma_regle_minimum = (0:(aj$J - 1)) == aj$J - 1 &
+                            isTRUE(mw_extrapolation_sigma2(aj)$applicable)),
     reserve_par_annee = data.frame(i = 0:aj$I,
                                    dernier = aj$dernier_observe,
                                    ultime = aj$ultime,
@@ -11975,7 +12195,16 @@ mw_plots_data <- function(aj, res, boot, msep = NULL) {
     origine = mw_test_ordonnee_origine(aj)$detail,
     influence = mw_influence(aj),
     contributions = if (!is.null(msep)) mw_contributions(aj, msep) else NULL,
-    sigma_boot = boot$sigma_boot
+    sigma_boot = boot$sigma_boot,
+    # Moyennes et effectifs par groupe des nuages residus_acc et residus_cal
+    # (#312, Q-D1-Fm-2), ajoutes en fin de liste : aucune feuille existante
+    # n'est deplacee ; residus_acc et residus_cal restent a une ligne par
+    # residu.
+    residus_acc_groupes = .mw_residus_par_groupe(res, "i"),
+    residus_cal_groupes = .mw_residus_par_groupe(res, "calendrier"),
+    # Droite de reference du QQ-plot (#311), ajoutee en fin de liste : aucune
+    # feuille existante n'est deplacee.
+    qqline = c(ordonnee = 0, pente = 1)
   )
 }
 

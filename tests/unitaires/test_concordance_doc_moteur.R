@@ -555,25 +555,27 @@ verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee
            any(grepl(sprintf("^    l\\.%-5d Intercept +absente du catalogue MW \\(cle du catalogue USP\\)$", .k91),
                      r_91$sortie)))
 # Issue #75 : deux injections dans une meme copie du .tex (un seul appel du
-# script) -- un decompte faux dans une phrase du registre ("Les treize
-# tests d'hypothese reposent tous" -> "Les douze", mesure 13) et une formulation nouvelle ni
+# script) -- un decompte faux dans une phrase du registre ("Les <nombre>
+# tests d'hypothese reposent tous" -> "Les onze", mesure 12 depuis #312, le
+# nombre ecrit par le document n'etant pas suppose : "treize" tant que le
+# .tex n'a pas suivi #312) et une formulation nouvelle ni
 # verifiee ni exemptee (l'exemple de faux negatif de l'ancien en-tete,
 # "51 lignes de tests pour la prime").
 .tex_75 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
-.k75 <- grep("Les treize tests d'hypoth\u00e8se reposent tous", .tex_75, fixed = TRUE)
+.rx75 <- "Les [[:alpha:]-]+ tests d'hypoth\u00e8se reposent tous"
+.k75 <- grep(.rx75, .tex_75)
 .tex_mutant <- tempfile(fileext = ".tex")
 .k75r <- grep("Les quatre autres lignes de la base", .tex_75, fixed = TRUE)
 writeLines(c(sub("Les quatre autres lignes de la base", "Les six autres lignes de la base",
-                 sub("Les treize tests d'hypoth\u00e8se reposent tous", "Les douze tests d'hypoth\u00e8se reposent tous",
-                     .tex_75, fixed = TRUE), fixed = TRUE),
+                 sub(.rx75, "Les onze tests d'hypoth\u00e8se reposent tous", .tex_75), fixed = TRUE),
              "Mutant : on compte 51~lignes de tests pour la prime.",
              "Mutant : puis $6$ lignes et quatre-vingts lignes.",
              "Mutant : le lecteur refuse un tableau de deux lignes."), .tex_mutant, useBytes = TRUE)
 r_75 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
 unlink(.tex_mutant)
-verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 12, mesure 13)",
+verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 11, mesure 12)",
          length(.k75) == 1L && r_75$code == 1L &&
-           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d Merz-Wuthrich : tests reposant sur le bootstrap +nature Monte-Carlo +annonce 12 +mesure 13$",
+           any(grepl(sprintf("^    \\[ECART +\\] l\\.%-5d Merz-Wuthrich : tests reposant sur le bootstrap +nature Monte-Carlo +annonce 11 +mesure 12$",
                              .k75), r_75$sortie)))
 verifier("Issue #75 : formulations injectees ni verifiees ni exemptees signalees NON CLASSEES (51 lignes, $6$ lignes, quatre-vingts lignes), les autres restant classees",
          any(grepl(sprintf("^    l\\.%-5d 51 lignes ", length(.tex_75) + 1L), r_75$sortie)) &&
@@ -724,15 +726,16 @@ verifier("Issue #114 : registre au moteur -- declaration hors_jeux perimee et li
          .a_motif(.er2, "fiche:b", "hors_jeux perimee") && .a_motif(.er2, "fiche:a, fiche:d", "plusieurs fiches"))
 .labs <- vapply(cc$REGISTRE_RUBRIQUE7, `[[`, character(1), "label")
 .noms <- unlist(lapply(cc$REGISTRE_RUBRIQUE7, `[[`, "tests"))
-verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 39 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302, fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt, fiche:brown-forsythe et fiche:smirnov, diagnostics par decision depuis #299, fiche:rosner-esd, diagnostic par decision depuis #304, mw:m4ros, diagnostic depuis #300), labels et noms uniques",
-         length(.labs) == 39L &&
+verifier("Issue #114 : registre REGISTRE_RUBRIQUE7 -- 38 fiches (53 decidees le 27/09/2026, moins fiche:fisher-global, diagnostic depuis #169, mw:m5sw, mw:m5li, diagnostics depuis #245, fiche:ljung-box-ratios-bruts, ligne retiree par #303, fiche:shapiro-wilk-sans-royston, ligne retiree, fiche:cramer-von-mises et fiche:kolmogorov-smirnov, diagnostics par decision depuis #302, fiche:breusch-pagan-1979, fiche:white, fiche:goldfeld-quandt, fiche:brown-forsythe et fiche:smirnov, diagnostics par decision depuis #299, fiche:rosner-esd, diagnostic par decision depuis #304, mw:m4ros, diagnostic depuis #300, mw:m3runs, diagnostic par decision depuis #312), labels et noms uniques",
+         length(.labs) == 38L &&
            !any(c("fiche:ljung-box-ratios-bruts", "fiche:shapiro-wilk-sans-royston", "fiche:cramer-von-mises",
                   "fiche:kolmogorov-smirnov", "fiche:breusch-pagan-1979", "fiche:white",
                   "fiche:goldfeld-quandt", "fiche:brown-forsythe", "fiche:smirnov",
-                  "fiche:rosner-esd", "mw:m4ros") %in% .labs) &&
+                  "fiche:rosner-esd", "mw:m4ros", "mw:m3runs") %in% .labs) &&
+           !"Test des suites sur les residus de Mack" %in% .noms &&
            !any(c("Ljung-Box (retard 1)", "Box-Pierce (retard 2)") %in% .noms) &&
            !anyDuplicated(.labs) && !anyDuplicated(.noms) &&
-           all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 13L)
+           all(grepl("^(fiche|mw):[a-z0-9-]+$", .labs)) && sum(startsWith(.labs, "mw:")) == 12L)
 # #300 : la ligne de Rosner sur residus de Mack est un diagnostic par
 # decision (Q-D1-Fi-7) ; mw:m4gr porte le nouveau nom de la ligne M4.
 verifier("T300 registre REGISTRE_RUBRIQUE7 sans mw:m4ros ni sa ligne ; mw:m4gr -> ligne M4 renommee",

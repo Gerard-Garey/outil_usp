@@ -1107,6 +1107,15 @@ de l'élément \code{non\_identifiables} (table de l'ensemble figé), retour \co
 courbure et de l'ordonnée à l'origine depuis l'issue~\#290 \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
 \code{\$terme\_covariance} \\
+\code{mw\_sensibilite\_}\newline\code{sigma2\_dernier()} & \code{aj}, \code{ex} (sortie de
+\code{mw\_extrapolation\_}\allowbreak\code{sigma2()}) & sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ à
+$\hat\sigma^2_{J-1}$ (issue~\#310)~: liste qui donne l'applicabilité, la valeur de la règle et
+sa $\sqrt{\mathrm{MSEP}}$, les trois arguments du minimum et les $\sqrt{\mathrm{MSEP}}$ obtenues
+en rappelant \code{mw\_msep()} avec $\hat\sigma^2_{J-1}$ et $\hat Q_{J-1}$ remplacés par
+chacun d'eux (\code{NA} pour un quotient non défini), enfin la $\sqrt{\mathrm{MSEP}}$ du
+contrefactuel $\sigma^2_{J-1} = 0$~; lue par
+\code{.mw\_detail\_extrapolation()}, sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$
+(fiche~\ref{mw:m6sig}) \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
 $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}
@@ -1179,7 +1188,15 @@ boucle sur le triangle de contrôle et sur 200 triangles simulés par
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
 divisée par $S_j$ (sommes par \code{.mw\_sommes\_autres()}, une fois par colonne depuis
-l'issue~\#260~; par \code{.mw\_un\_moins\_h()} depuis l'issue~\#356), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+l'issue~\#260~; par \code{.mw\_un\_moins\_h()} depuis l'issue~\#356~; par
+\code{mw\_residus\_redresses()} depuis l'issue~\#311, mêmes opérations), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+\code{mw\_residus\_}\newline\code{redresses()} & \code{aj}, résidus de Mack \code{res} (sortie de
+\code{mw\_residus()}) & vecteur des résidus redressés par le levier
+$\tilde r(i,j) = r(i,j)/\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ par \code{.mw\_un\_moins\_h()}, dans
+l'ordre des lignes de \code{res}~; de variance~1 à $\sigma_j$ connu, bornés par
+$\sqrt{n_j - 1}$ en valeur absolue~; appelée par \code{.mw\_pool\_residus()} (vivier du
+bootstrap, avant recentrage) et par \code{mw\_plots\_data()} (QQ-plot), issue~\#311
+(section~\ref{sec:boot-mw}, fiche~\ref{mw:m5sw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -1431,7 +1448,22 @@ et strictement positif (division exacte~; distances de Cook et leviers identique
 calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
-toutes les quantités tracées (branche Merz--Wüthrich) \\
+toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
+logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
+\code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
+D(5)(d)(ii), \code{FALSE} partout si la règle n'est pas applicable~; depuis l'issue~\#312, en fin
+de liste, les tables \code{residus\_acc\_groupes} et \code{residus\_cal\_groupes} des
+nuages de résidus~; depuis l'issue~\#311, la table \code{qqnorm} porte les résidus redressés par
+le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ de leurs rangs, et
+la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
+fin de liste \\
+\code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
+\code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
+\code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
+clé, effectif \code{n} et \code{moyenne} des résidus du groupe (année de survenance $i$ ou
+diagonale $k = i + j$, même indexation que \code{mw\_calendrier\_diagonales()})~; table vide à
+trois colonnes sans résidu~; moyenne et effectif seulement, sans bande ni repère (issue~\#312,
+section~\ref{sec:graphiques}) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
@@ -1910,7 +1942,9 @@ consignée dans \code{\$metadata}), elle tirait 499 échantillons $\mathcal{N}(0
 pour l'enveloppe du QQ-plot. Depuis, l'enveloppe est lue dans les résidus réajustés
 \code{bootstrap\$z\_boot} du bootstrap principal, sans aucun tirage (fiche~\ref{fiche:qqnorm})~:
 elle dépend de la graine \code{seed}, et la graine propre, sa constante et son champ de
-\code{\$metadata} ont été retirés.
+\code{\$metadata} ont été retirés. Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
+d'enveloppe et ne tire rien (issue~\#311, décision Q-D1-Fm-4~; fiche~\ref{mw:m5sw})~: il
+n'ajoute aucune source d'aléa.
 Jusqu'à l'issue~\#42, \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
 voie de repli sans le paquet \code{openxlsx}, tiraient une valeur par \code{runif()}, sans
 graine, pour nommer un dossier temporaire qui n'était jamais supprimé. Elles ne tirent plus
@@ -2573,8 +2607,10 @@ Corrélation entre années de développement & \ref{mw:m3cor} &
 \code{.mw\_corr\_p\_min()} ($p_{\min}$, issue~\#115) & \code{CorrDev} \\
 Autocorrélation (Durbin--Watson) & \ref{mw:m3dw} & \code{stat\_dw()} &
 \textbf{aucune} (loi d'Imhof inapplicable aux résidus de Mack) & \code{DW} \\
-Test des suites & \ref{mw:m3runs} & \code{test\_runs()} &
-\code{test\_runs()} (approximation normale)~; \code{runs\_p\_min()} ($p_{\min}$, effectifs par
+Test des suites (diagnostic par décision, variante secondaire, issue~\#312) & \ref{mw:m3runs} &
+\code{test\_runs()} &
+\code{test\_runs()} (approximation normale) et p-value de Monte-Carlo, restituées sans être
+retenues depuis l'issue~\#312~; \code{runs\_p\_min()} ($p_{\min}$, effectifs par
 \code{.runs\_effectifs()}, issue~\#115) & \code{Runs} \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
@@ -2600,7 +2636,9 @@ l'issue~\#245) & --- \\
 \midrule
 Extrapolation de $\hat\sigma^2_{J-1}$ & \ref{mw:m6sig} &
 \code{mw\_ajuster()} (champ \code{\$sigma2})~; restitution des trois arguments du
-minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()} &
+minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()}~;
+sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ par
+\code{mw\_sensibilite\_}\allowbreak\code{sigma2\_dernier()} (issue~\#310) &
 diagnostic, aucune p-value & --- \\
 Concentration de la réserve & \ref{mw:m6conc} &
 \code{mw\_ajuster()} (champ \code{\$reserve\_par\_annee}) &
@@ -2957,8 +2995,8 @@ Les estimateurs sont
   \hat\sigma_j^2 = \frac{1}{I-j-1}\sum_{i=0}^{I-j-1} C(i,j)
   \big(F(i,j) - \hat f_j\big)^2 ,
 \]
-la variance de la dernière année de développement étant \emph{extrapolée} et non
-estimée (section~\ref{sec:mw}).
+la variance de la dernière année de développement étant \emph{fixée par la règle de minimum}
+de D(5)(d)(ii) et non estimée (section~\ref{sec:mw}).
 
 \subsection*{Résidus des deux méthodes}
 
@@ -3874,8 +3912,10 @@ Données nettes exigées par D(2)(f)~; contrôle de \code{.run\_engine\_mw()}. B
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
-Géométrie carrée & $I = J$ & Restriction d'implémentation~: la formule du
-paragraphe~4 fait intervenir $C(i,I-i)$, indéfinie si $I - i > J$. Bloquant. \\
+Géométrie carrée & $I = J$ & Restriction d'implémentation~: les formules des
+paragraphes~4 et~5 font intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du
+paragraphe~5 aussi $\hat Q_{I-i}$, indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni
+$\hat\sigma^2_j$ au-delà de $j = J-1$). Bloquant. \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
@@ -3994,7 +4034,8 @@ qu'en appel direct, avec une matrice nommée.
 et le bootstrap, \code{mw\_valider\_ajustement()} refuse le triangle quand toutes les colonnes
 $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne dégénérée
 (\code{.mw\_colonne\_degeneree()}, issue~\#56, fiche~\ref{mw:m1a})~; la colonne $J-1$, qui n'a
-qu'un facteur individuel pour $I = J$, n'entre pas dans le prédicat. Le refus a la forme d'un
+qu'un facteur individuel pour $I = J$, seule géométrie admise par \code{mw\_valider\_triangle()},
+n'entre pas dans le prédicat. Le refus a la forme d'un
 refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
 \code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation},
 \code{methode} et \code{metadata}, aucun résultat partiel. Un seul motif (décision du mainteneur
@@ -4095,8 +4136,8 @@ amplitude des volumes), et, par le domaine numérique, sur la seule capacité du
 virgule flottante à traiter les montants, sans jugement économique (issue~\#145)~; ce domaine
 vaut aussi, depuis l'issue~\#185, pour les cellules du triangle. Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend la simple définition des estimateurs~:
-un triangle non carré ou incomplet ne permet pas d'appliquer la formule du
-paragraphe~4. C'est pourquoi la plupart sont bloquants et non de simples
+un triangle non carré ou incomplet ne permet pas d'appliquer les formules des
+paragraphes~4 et~5. C'est pourquoi la plupart sont bloquants et non de simples
 avertissements.
 
 \smallskip
@@ -4389,7 +4430,13 @@ avec $h_{ij} = C(i,j)/S_j$ le levier de la cellule dans l'estimation de $\hat f_
   \tilde r(i,j) = \frac{r(i,j)}{\sqrt{1 - h_{ij}}},
 \]
 de variance exactement~1 sous le modèle de Mack à $\sigma_j$ connu, puis recentré
-(\code{.mw\_pool\_residus()}). Le recentrage est nécessaire parce que la contrainte d'estimation de
+(\code{.mw\_pool\_residus()}). Depuis l'issue~\#311, le redressement est porté par
+\code{mw\_residus\_redresses()}, que \code{.mw\_pool\_residus()} appelle avant le recentrage et
+que \code{mw\_plots\_data()} emploie pour le QQ-plot des résidus de Mack
+(fiche~\ref{mw:m5sw})~: mêmes opérations, dans le même ordre, que l'expression qu'elle remplace,
+d'où le même vivier (mesuré~: objet \code{bootstrap} du triangle de contrôle identique, au sens
+d'\code{identical()}, à celui de la référence \code{tests/reference/reserve2.rds}, $B = 999$,
+graine 20260831). Le recentrage est nécessaire parce que la contrainte d'estimation de
 $\hat f_j$ est $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$, et non $\sum_i r(i,j) = 0$~: la moyenne du
 vivier redressé n'est pas nulle. Pour $n_j = 2$, $|r(i,j)| = \sqrt{1 - h_{ij}}$ et
 $|\tilde r(i,j)| = 1$ exactement avant recentrage. $1 - h_{ij}$ est calculé comme
@@ -5297,7 +5344,9 @@ plus, leur champ \code{p\_min\_mc} vaut \code{NA}, et leur plancher reste dans
 \code{bootstrap\$p\_min\_mc} ($0{,}007$ et $0{,}002$, remesurés). Sur
 \code{reserve2}, $0{,}002$ au bilatéral (suites, corrélation entre années adjacentes) et $0{,}001$ en
 queue haute et en queue basse (effet calendaire depuis l'issue~\#276, $0{,}002$ auparavant au
-bilatéral) pour les six vérifications. Sur
+bilatéral) pour les six vérifications~; depuis l'issue~\#312, la ligne des suites est un
+diagnostic par décision~: la règle ne la lit plus, son champ \code{p\_min\_mc} vaut \code{NA},
+et son plancher reste dans \code{bootstrap\$p\_min\_mc} ($0{,}002$, remesuré). Sur
 les quatre cas à $\hat\delta = 1$, la p-value exacte est retenue, ou aucune ne l'est (Cox--Stuart
 inopérant~; depuis les issues~\#303 et~\#299, suites sur ratios bruts, Smirnov et Spearman ratio
 contre temps, diagnostics), et le champ \code{p\_min\_mc} de la
@@ -5498,7 +5547,10 @@ une valeur aberrante isolée relève de la ligne Grubbs sur résidus standardis�
 verdict font foi (fiche~\ref{fiche:rosner-esd}). Dans la méthode Merz--Wüthrich, \code{mw\_tests()} restitue de
 même en diagnostic par décision la procédure ESD sur les résidus de Mack (issue~\#300, décision
 Q-D1-Fi-7), dont le cadre i.i.d. normal ne couvre pas ces résidus, avec sa propre phrase fixe
-\code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC} (fiche~\ref{mw:m4ros}). Lignes retirées par l'issue~\#302, avec, pour les deux dernières, leurs
+\code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC} (fiche~\ref{mw:m4ros}), et, depuis l'issue~\#312
+(décision Q-D1-Fm-1 du mainteneur du 23~octobre 2026, option~(B)), le test des suites sur les
+résidus de Mack, variante secondaire, dont l'hypothèse relève de la ligne Durbin--Watson, calculée
+sur les mêmes résidus dans le même ordre de parcours (fiche~\ref{mw:m3runs}). Lignes retirées par l'issue~\#302, avec, pour les deux dernières, leurs
 entrées « LB1 » et « BP2 » du catalogue \code{USP\_CATALOGUE\_MC}~: Shapiro--Wilk à loi nulle simulée (même $W$ que
 la ligne principale, fiche~\ref{fiche:shapiro-wilk}), Ljung--Box au retard~1 sur $z_t$ (un seul
 test d'autocorrélation d'ordre~1 par base, Durbin--Watson bilatéral) et Box--Pierce au retard~2
@@ -6310,8 +6362,10 @@ Non : loi d'Imhof inapplicable & Oui & Monte-Carlo &
 Sans objet : aucune loi analytique & Bootstrap indispensable \\
 
 Test des suites sur résidus de Mack & \textbf{MW} & $Z$ & Non (échangeabilité en
-défaut) & Oui & Oui & Monte-Carlo &
-\textbf{Déconseillée} : dépendance intra-colonne & Bootstrap recommandé \\
+défaut) & Oui & Oui & \textbf{Diagnostic} par décision (issue~\#312), variante secondaire~:
+Monte-Carlo calculée, non retenue &
+\textbf{Déconseillée} : dépendance intra-colonne & À lire avec Durbin--Watson, qui porte
+l'hypothèse sur les mêmes résidus dans le même ordre (fiche~\ref{mw:m3runs}) \\
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M4 : points aberrants}}} \\
 
@@ -6351,7 +6405,7 @@ Concentration de la réserve sur la dernière année & \textbf{MW} & --- & --- &
 du résultat sur la ligne la moins informative \\
 
 Extrapolation de $\hat\sigma^2_{J-1}$ & \textbf{MW} & --- & --- & --- & --- &
-Diagnostic & Sans objet & Valeur imposée par le règlement, non estimée :
+Diagnostic & Sans objet & Valeur fixée par la règle de minimum de D(5)(d)(ii), non estimée :
 à signaler dans le dossier, avec les cas $\hat\sigma^2_{J-3} = 0$ ou
 $\hat\sigma^2_{J-2} = 0$ où la lettre du texte l'annule \\
 \end{longtable}
@@ -6605,8 +6659,17 @@ Variances $\hat\sigma_j^2$ & Estimateur pondéré de la variance &
 $\sigma_j^2$ & Convergence en probabilité &
 $\mathcal{O}_P(n_j^{-1/2})$, avec $n_j - 1$ degrés de liberté &
 M2, moments d'ordre 4 finis & $\hat\sigma^2_{J-1}$ n'est pas estimée mais
-\textbf{extrapolée} par la règle du règlement, et nulle lorsque
-$\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ \\
+\textbf{fixée par la règle de minimum} de D(5)(d)(ii), et nulle lorsque
+$\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ (ligne suivante) \\
+
+Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic) & \emph{Aucune}~: valeur fixée par la règle de
+minimum de D(5)(d)(ii), seconde ligne, et non estimée & --- & --- & --- &
+$\hat\sigma^2_{J-2}$ et $\hat\sigma^2_{J-3}$, estimées à 1 et 2 degrés de liberté sur un triangle
+$8\times 8$ &
+Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors règle, restituée par la ligne
+(triangle de contrôle~: $+13{,}5~\%$ et $+36{,}0~\%$ avec les deux autres arguments du minimum,
+$-16{,}5~\%$ pour le contrefactuel $\sigma^2_{J-1} = 0$, qui n'est pas un argument du minimum~; fiche~\ref{mw:m6sig}), sans effet sur
+$\sigma_{(\text{res},s,\mathrm{USP})}$ \\
 
 Variance des résidus de Mack (diagnostic) & \emph{Aucune} : identité exacte à
 $I$ fini, $\sum_{i,j} r(i,j)^2 = N-k$ pour $N$ résidus répartis sur $k$ colonnes
@@ -6627,6 +6690,11 @@ Convergence en probabilité & Non établie à $I$ fini &
 M1 à M3, modèle correctement spécifié &
 Non quantifiable ; la MSEP hérite de l'incertitude sur $\hat\sigma^2_{J-1}$ \\
 
+Concentration de la réserve (diagnostic) & \emph{Aucune}~: part exacte sur l'observé & --- & --- &
+--- & Réserves chain-ladder par année de survenance~; $\hat R > 0$, le calcul étant refusé sinon &
+Rien ne converge~; repère de $40~\%$ sans fondement réglementaire ni statistique~; part non bornée
+dès qu'une réserve par année est négative (fiche~\ref{mw:m6conc}) \\
+
 Hétéroscédasticité résiduelle (effets fixes de colonne) & $\mathrm{LM} = nR^2$ partiel de
 $\tilde r^2$ sur $C(i,j)$ & $\chi^2(1)$ & Convergence en loi, non établie pour cette
 construction & Non établie~; $n = 25$ cellules sur un triangle $8\times 8$ & Indépendance des
@@ -6640,6 +6708,14 @@ seulement~; $\min(1, N_t M)$ en est un majorant (Bonferroni) & --- & Borne, non 
 objet & Erreurs gaussiennes, que le modèle de Mack n'exige pas &
 Borne compatible sous erreurs gaussiennes, libérale sous les lois E et A du plan mesuré
 (§\ref{sec:calib-asympt-mw})~; bootstrap retenu (fiche~\ref{mw:m4gr}) \\
+
+ESD généralisé sur résidus de Mack (diagnostic) & $R_i$ de Rosner, comparés aux valeurs critiques
+$\lambda_i$ (éq.~(2.5), approximation de Student--Bonferroni) & \emph{Aucune} pour des résidus de
+Mack & --- & --- & Échantillon i.i.d. normal (Rosner, 1983, domaine déclaré $n \ge 25$)~: cadre que
+les 27 résidus d'un triangle $8\times 8$, soumis à des contraintes exactes par colonne, ne
+satisfont pas &
+Aucune p-value (aucune des trois voies ouverte)~; 0 déclaration sur 1\,000 triangles sous $H_0$
+(issue~\#309)~; repère sans verdict (fiche~\ref{mw:m4ros}) \\
 
 Pente relative intra-colonne (issue~\#307) & $t$ de la pente commune à effets fixes de
 colonne & Student$(N - G - 1)$ & Approximation, non convergence établie & Non établie~; $N = 27$
@@ -6668,10 +6744,26 @@ Corrélation entre colonnes & $\hat\rho$ agrégé & \emph{aucune limite tabulabl
 Continuité, absence d'ex \ae quo & Bootstrap seul recours ; 5 à 6 paires
 exploitables à $T = 8$ \\
 
-Durbin--Watson et suites sur résidus de Mack & DW, $Z$ &
-$\mathcal{N}(0,1)$ / loi combinatoire & Convergence en loi &
+Kruskal--Wallis entre années de survenance & $H$ & $\chi^2(k-1)$ & Convergence en loi sous
+$H_0$, effectifs des groupes croissants (Kruskal et Wallis, 1952, non relu sur le texte intégral au 24~octobre 2026~; fiche~\ref{mw:m3acc}) &
+Non établie~; groupes de 6, 6, 5, 4, 3, 2 et 1 résidus sur un triangle $8\times 8$ &
+Indépendance et échangeabilité des résidus, en défaut (contraintes de colonne) &
+p du $\chi^2$ non retenue, au-dessus du seuil sous le plan mesuré ($0{,}125$ et $0{,}1265$ à
+$0{,}10$ sous N et E, §\ref{sec:calib-asympt-mw})~; bootstrap retenu, niveau compatible sous ce
+plan ($0{,}096$, $0{,}1005$ et $0{,}080$ à $0{,}10$ sous N, E et A, issue~\#206~; écart mineur du
+côté conservateur sous A)~; un résidu par
+année~: $H = N - 1$ par construction, diagnostic \\
+
+Durbin--Watson et suites sur résidus de Mack (suites~: diagnostic par décision depuis
+l'issue~\#312) & DW, $Z$ &
+DW~: \emph{aucune}, la loi d'Imhof étant inapplicable, et aucune p non simulée~; suites~:
+$\mathcal{N}(0,1)$ / loi combinatoire & Convergence en loi (suites seulement) &
 Non établie : les résidus d'une colonne partagent $\hat f_j$ et $\hat\sigma_j$ &
-Échangeabilité, mise en défaut ici & Lois classiques écartées ; bootstrap retenu \\
+Échangeabilité, mise en défaut ici & Lois classiques écartées~; DW~: bootstrap retenu, moyenne
+d'environ $2{,}35$, et non~2, sous le modèle de Mack ajusté au triangle de contrôle à erreurs
+gaussiennes (constat de simulation hors moteur, 999 triangles, fiche~\ref{mw:m3cal})~; suites~: p non simulée sur-rejetante
+($0{,}135$ à $0{,}10$ sous N), p-value de Monte-Carlo calculée sans être retenue
+(fiche~\ref{mw:m3runs}) \\
 
 Bootstrap de résidus & $\hat p_{\mathrm{MC}}$ & p-value semi-paramétrique &
 Convergence en $B$ (Monte-Carlo) et en $I$ (validité bootstrap) &
@@ -6935,11 +7027,14 @@ mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, 
 n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique
 ($p_{\min} \ge \alpha/2$, section~\ref{sec:nature})~; les suites et l'effet calendaire écartent déjà les valeurs égales à la médiane.
 (vii)~\emph{Nature}~: valeurs exactes sous la loi de référence, qui n'est pas celle du modèle de
-Mack~; la p-value retenue de ces lignes est toujours de Monte-Carlo, et ces valeurs n'en sont pas
-une borne (section~\ref{sec:nature})~; depuis l'issue~\#125, la règle~R1 lit le plancher
+Mack~; la p-value retenue de ces lignes, quand elles en ont une, est toujours de Monte-Carlo, et
+ces valeurs n'en sont pas une borne (section~\ref{sec:nature})~; la ligne des suites n'en a plus
+depuis l'issue~\#312 (diagnostic par décision, fiche~\ref{mw:m3runs}). Depuis l'issue~\#125, la
+règle~R1 lit, sur les lignes de type test, le plancher
 Monte-Carlo $p_{\min}^{\mathrm{MC}}$, aux extrémités du support observé déclarées au catalogue,
 seule l'extrémité basse étant lue pour l'effet calendaire depuis l'issue~\#276~:
-suites, comme pour la méthode lognormale~; effet calendaire, $(0 - E)/\sqrt{V}$ et
+suites, comme pour la méthode lognormale (extrémités toujours déclarées, sans lecture par la
+règle depuis l'issue~\#312)~; effet calendaire, $(0 - E)/\sqrt{V}$ et
 $(\sum_k \lfloor n_k/2 \rfloor - E)/\sqrt{V}$ sur les diagonales retenues de l'observé
 (\code{.mw\_calendrier\_extremes()})~; corrélation, $-1$ et $1$ (\code{.mw\_corr\_extremes()})~;
 homogénéité et exposant de variance, statistique de Fisher obtenue quand chaque colonne atteint sa
@@ -6956,8 +7051,10 @@ l'issue~\#125, qui lit $p_{\min}^{\mathrm{MC}}$. À $T = 5$, sur le sous-triangl
 pour $p_{\min} = 1/3$), l'effet calendaire ($n_k = 3, 3$, $p_{\min} = 0{,}0625$) est un test de
 verdict \code{ECHEC} ($p_{\min}^{\mathrm{MC}} = 0{,}048$~; à $B = 99$, $0{,}05$ et \code{ECHEC}
 inatteignable~; sous la forme bilatérale antérieure à l'issue~\#276, $p_{\min} = 0{,}125$,
-$0{,}096$ et \code{ECHEC} inatteignable, $0{,}10$ et ligne inopérante à $B = 99$), et la ligne des suites est un test sans texte de la règle ($0{,}002$~;
-section~\ref{sec:nature}, point~(i))~; dès $T = 6$, toutes les valeurs du tableau sont sous
+$0{,}096$ et \code{ECHEC} inatteignable, $0{,}10$ et ligne inopérante à $B = 99$), et la ligne des suites, diagnostic par
+décision depuis l'issue~\#312 (variante secondaire, \code{INFO}, $p_{\min} = 0{,}0571$ restituée,
+$p_{\min}^{\mathrm{MC}}$ \code{NA}), n'est pas soumise à la règle (section~\ref{sec:nature},
+point~(i)~; mesuré à $B = 999$ et à $B = 99$)~; dès $T = 6$, toutes les valeurs du tableau sont sous
 $\alpha/2$, ce qui ne préjuge pas de $p_{\min}^{\mathrm{MC}}$, au moins égal à la granularité
 $1/(B_{\text{eff}}+1)$ ou $2/(B_{\text{eff}}+1)$.
 
@@ -7398,8 +7495,7 @@ M2, exposant de variance (\ref{mw:m2b}) & $p_{\min} = 1{,}53\cdot 10^{-9}$ (loi 
 M3, effets calendaires (\ref{mw:m3cal}) & $p_{\min} = 2^{-18} = 3{,}81\cdot 10^{-6}$ (loi binomiale indépendante de Mack)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (queue basse, issue~\#276) & Puissance sous le plan du triangle de contrôle (loi N, $\alpha = 0{,}10$) contre six effets calendaires (choc de $5$ ou $10~\%$ sur le dernier exercice ou sur l'exercice médian, dérive de $3$ ou $5~\%$)~: de $0{,}162$ à $0{,}401$ en queue basse, contre $0{,}084$ à $0{,}233$ sous la forme bilatérale antérieure~; compensation alternée (côté haut, non testé)~: $0{,}017$~; retrouvée par l'issue~\#309 (choc de $10~\%$, 500 triangles~: $0{,}380$ et $0{,}344$ à $0{,}10$, compatibles)~; niveau de la $p_{\mathrm{mc}}$ en queue basse ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0835$~; $0{,}0305$, E $0{,}091$~; $0{,}0365$, A $0{,}084$~; $0{,}037$, compatible, sauf un écart mineur du côté conservateur sous N à $0{,}05$~; les niveaux de l'issue~\#206 portent sur la forme bilatérale & \code{.mw\_calendrier\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/mesure\_calendaire\_t8.R},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261016-issue276-calendaire.md},\newline \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, homogénéité entre années (\ref{mw:m3acc}) & $p_{\min} = 8{,}29\cdot 10^{-15}$ (loi de référence échangeable)~; plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral) & Puissance (issue~\#309, plan du triangle de contrôle P1 sauf mention, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une année de survenance atypique~: $0{,}590$~; $0{,}436$~; dérive de $f_j$ avec l'année~: $0{,}166$, $0{,}124$, $0{,}170$ à $0{,}10$ (P1, P2, P3)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}096$~; $0{,}0505$, E $0{,}1005$~; $0{,}049$, A $0{,}080$~; $0{,}036$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}10$ & \code{.mw\_kruskal\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M3, corrélation entre colonnes (\ref{mw:m3cor}) & $p_{\min} = 1{,}61\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0965$~; $0{,}0515$, E $0{,}0995$~; $0{,}052$, A $0{,}088$~; $0{,}044$, compatible sous les trois lois et aux deux seuils & \code{.mw\_corr\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
-M3, suites (\ref{mw:m3runs}) & $p_{\min} = 3{,}85\cdot 10^{-7}$ (loi de référence échangeable)~; plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Non étudiée (taux de l'issue~\#309 sous des alternatives d'une autre famille, non repris)~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}058$~; $0{,}0275$, E $0{,}0525$~; $0{,}0225$, A $0{,}051$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$ & \code{runs\_p\_min()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md} \\
+M3, Durbin--Watson (\ref{mw:m3dw}) & Plancher Monte-Carlo $2/(B+1) = 0{,}002$ (bilatéral) & Puissance (issue~\#309, loi N, $\alpha = 0{,}10$)~: dérive calendaire de $5~\%$ par exercice, $0{,}204$~; choc de $10~\%$ sur le dernier exercice ou l'exercice médian, $0{,}068$~; $0{,}122$ (plan P1)~; taux sous $H_0$ $0{,}112$ (P1)~; taux sous des alternatives d'une autre famille (proportionnalité, M1) au même fichier, non repris~; niveau de la $p_{\mathrm{mc}}$ sous le plan du triangle de contrôle ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}0855$~; $0{,}0455$, E $0{,}101$~; $0{,}053$, A $0{,}087$~; $0{,}032$, compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$ & \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 M4, cellule aberrante (\ref{mw:m4gr}) & Plancher Monte-Carlo $1/(B+1) = 0{,}001$ (unilatéral, queue basse) & Puissance (issue~\#309, plan du triangle de contrôle, loi N, $\alpha = 0{,}10$~; $0{,}05$) contre une cellule déplacée de 4 et 6 écarts-types de bruit~: $0{,}183$~; $0{,}084$ et $0{,}426$~; $0{,}225$~; cellule multipliée par~4~: $1{,}000$~; année atypique~: $0{,}836$~; $0{,}642$~; désignation de la cellule visée~: $0{,}864$~; niveau de la $p_{\mathrm{mc}}$ sur les triangles et graines de l'issue~\#206 ($\alpha = 0{,}10$~; $0{,}05$)~: N $0{,}071$~; $0{,}029$, E $0{,}0785$~; $0{,}0395$, A $0{,}118$~; $0{,}047$, écart mineur du côté conservateur sous N aux deux seuils et sous E à $0{,}10$, compatible sous E à $0{,}05$ et sous A~; trois limites (niveau conservateur sous erreurs gaussiennes, $0{,}065$ sur 3\,000 triangles~; $0{,}183$ contre $0{,}211$ pour Grubbs à 4 écarts-types~; 3 cellules non couvertes, puissance non mesurée)~; statistique de Grubbs antérieure à l'issue~\#300 (fiche~\ref{mw:m4gr}, rubrique~5)~: N $0{,}099$~; $0{,}0445$, E $0{,}075$~; $0{,}035$, A $0{,}159$~; $0{,}088$ & \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, \code{engine\_p\_mc()},\newline \code{tests/calibration\_mc\_mw\_t8.R},\newline \code{tests/puissance\_mw\_t8.R} & \code{docs/tableaux/}\newline \code{20261011-issue206-calibration-mw.md},\newline \code{docs/tableaux/}\newline \code{20261021-issue309-puissance-mw.md} \\
 \end{longtable}
 \end{center}
@@ -7813,8 +7909,10 @@ filtrer l'affichage.
 \subsection{Variantes principales et secondaires}
 \label{sec:variantes}
 
-Deux tests existent dans le dispositif sous deux formes concurrentes. Pour
-alléger la lecture, l'application n'affiche par défaut que la forme retenue
+Dans la méthode lognormale, deux tests existent dans le dispositif sous deux formes concurrentes
+(structure de variance, normalité)~; dans la méthode Merz--Wüthrich, la normalité des résidus de
+Mack (M5) et, depuis l'issue~\#312, l'indépendance dans l'ordre de parcours (M3) ont aussi
+chacune deux formes. Pour alléger la lecture, l'application n'affiche par défaut que la forme retenue
 comme référence, les autres restant accessibles par une case à cocher et
 présentes dans l'export.
 
@@ -7832,15 +7930,26 @@ La forme originale suppose la normalité des erreurs, hypothèse non acquise
 Lilliefors & Kolmogorov--Smirnov contre $\mathcal{N}(0,1)$ &
 La seconde applique une loi de référence valable à paramètres connus~; à
 paramètres estimés elle est vidée de sa puissance. \\
+\multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Méthode Merz--Wüthrich}}} \\
+Shapiro--Wilk sur les résidus de Mack & Lilliefors sur les résidus de Mack &
+Complément de recoupement, moins puissant (fiche~\ref{mw:m5li})~; l'une et l'autre sont des
+diagnostics depuis l'issue~\#245. \\
+Durbin--Watson sur les résidus de Mack & Test des suites sur les résidus de Mack &
+Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) et~(ii))~; sous les plans
+mesurés, la p-value de Monte-Carlo de la seconde rejette vers $5~\%$ au seuil $0{,}10$, taux
+bruts que Durbin--Watson égale ou dépasse partout où l'une ou l'autre dépasse sa référence de
+niveau, à des niveaux effectifs différents (fiche~\ref{mw:m3runs}, rubrique~6). \\
 \end{tabular}
 \end{center}
 
 \noindent
 Le classement en forme de référence et forme secondaire est une convention
 d'\emph{affichage}, consignée dans le champ \code{variante} de la table des
-tests. Depuis les issues~\#299 et~\#302, les deux formes secondaires, Breusch--Pagan original et
-Kolmogorov--Smirnov, sont en outre des diagnostics par décision (section~\ref{sec:nature})~; ce
-type n'est pas déduit du champ \code{variante}. Il ne modifie ni les calculs, ni les verdicts, ni le contenu de l'export.
+tests. Depuis les issues~\#299 et~\#302, les deux formes secondaires de la méthode lognormale,
+Breusch--Pagan original et Kolmogorov--Smirnov, sont en outre des diagnostics par décision
+(section~\ref{sec:nature})~; dans la méthode Merz--Wüthrich, Lilliefors est un diagnostic depuis
+l'issue~\#245, comme Shapiro--Wilk, et le test des suites un diagnostic par décision depuis
+l'issue~\#312~; ce type n'est pas déduit du champ \code{variante}. Il ne modifie ni les calculs, ni les verdicts, ni le contenu de l'export.
 
 \subsection{Tests dont l'usage reste fragile à $T = 8$}
 
@@ -7918,7 +8027,7 @@ pas (contraintes exactes par colonne) &
 Diagnostic sans verdict depuis l'issue~\#300 (fiche~\ref{mw:m4ros})~; repère seulement, aucune
 exclusion de cellule sur ce fondement \\
 Extrapolation de $\hat\sigma^2_{J-1}$ & La quantité n'est pas estimée mais
-imposée par une règle du règlement, appuyée sur deux colonnes, qui l'annule
+fixée par la règle de minimum de D(5)(d)(ii), qui ne lit que deux colonnes et l'annule
 lorsque $\hat\sigma^2_{J-3} = 0$ ou $\hat\sigma^2_{J-2} = 0$ &
 Diagnostic dédié~; à mentionner explicitement dans le dossier, avertissement de
 validation dans le cas dégénéré \\
@@ -13022,8 +13131,10 @@ $\hat\beta x$~: contrôle visuel direct de la proportionnalité (H1). \\
 $\hat\beta$~: une dérive contredit la constance de $\beta$. \\
 \code{plot\_residus()} & LN & H2 & Résidus $z_t$ contre le volume~: structure
 résiduelle après pondération. \\
-\code{plot\_mw\_facteurs()} & MW & --- & Facteurs $\hat f_j$ par année de
-développement, avec la référence $f = 1$~: visualise la cadence de liquidation. \\
+\code{plot\_mw\_facteurs()} & MW & M6 & Deux panneaux sur le même axe $j$ (issue~\#310)~:
+facteurs $\hat f_j$ et référence $f = 1$ (cadence de liquidation)~; écarts types $\hat\sigma_j$,
+le point $j = J-1$, fixé par la règle de minimum (\code{facteurs\$sigma\_regle\_minimum}),
+marqué à part (fiche~\ref{mw:m6sig}). \\
 \code{plot\_mw\_reserve()} & MW & M6 & Réserve par année de survenance~: montre
 la concentration sur les années récentes. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Structure de variance}}} \\
@@ -13041,17 +13152,31 @@ teste conjointement la proportionnalité de la moyenne et celle de la variance. 
 localise la colonne dont la variance est mal spécifiée. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Normalité}}} \\
 \code{plot\_qqnorm()} & LN & H3 & Fiche dédiée. \\
-\code{plot\_mw\_qq()} & MW & M5 & QQ-plot des résidus de Mack. Diagnostic
+\code{plot\_mw\_qq()} & MW & M5 & QQ-plot des résidus de Mack redressés par le levier et
+droite $y = x$, posés par le moteur, sans enveloppe (issue~\#311, fiche~\ref{mw:m5sw}). Diagnostic
 seulement~: la normalité n'est pas une hypothèse du modèle. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Indépendance}}} \\
-\code{plot\_mw\_residus\_acc()} & MW & M3 & Résidus par année de survenance~:
-détecte une ligne atypique du triangle. \\
-\code{plot\_mw\_residus\_cal()} & MW & M3 & Résidus par année calendaire~:
-contrepartie graphique du test des effets calendaires, la plus directement
+\code{plot\_mw\_residus\_acc()} & MW & M3 & Résidus par année de survenance, avec leur
+moyenne par année (ci-dessous)~: détecte une ligne atypique du triangle. \\
+\code{plot\_mw\_residus\_cal()} & MW & M3 & Résidus par année calendaire, avec leur
+moyenne par diagonale (ci-dessous)~: contrepartie graphique du test des effets calendaires, la plus directement
 lisible des trois vues de résidus. \\
 \end{tabular}
 \end{center}
 
+\noindent
+\emph{Moyennes par groupe sur les nuages de résidus} (issue~\#312). Sur les nuages par année de
+survenance et par année calendaire, la moyenne des résidus de chaque groupe (année de
+survenance~$i$, ou diagonale $k = i + j$) est tracée par un losange distinct des points, avec
+l'effectif $n_k$ du groupe, lus dans \code{plots\_data\$}\allowbreak\code{residus\_acc\_groupes}
+et \code{plots\_data\$}\allowbreak\code{residus\_cal\_groupes} (\code{.mw\_residus\_par\_groupe()})~;
+ni bande ni repère autour des moyennes~: les résidus d'une colonne étant liés, un repère du type
+$\pm 2/\sqrt{n_k}$ n'aurait ni loi établie ni calibration, et ferait de la lecture un test
+implicite (ADR~0001). La moyenne d'un groupe est d'espérance nulle sous le modèle de Mack à
+$\sigma_j$ connu. Lecture conjointe avec Durbin--Watson et le test calendaire~:
+fiche~\ref{mw:m3cal}, rubrique~6.
+
+\medskip
 \noindent
 Suite du recensement~: diagnostics d'influence, estimation et calibration.
 
@@ -13653,7 +13778,7 @@ qui s'y reporterait y lirait une autre formule.
   \hat\sigma_j^2 = \frac{1}{I-j-1}\sum_{i=0}^{I-j-1} C(i,j)
   \left(\frac{C(i,j+1)}{C(i,j)} - \hat f_j\right)^2,
 \]
-et, pour la dernière année de développement, le règlement impose l'extrapolation
+et, pour la dernière année de développement, la valeur est fixée par la règle de minimum
 \[
   \hat\sigma_{J-1}^2 = \min\!\left(\hat\sigma_{J-2}^2,\ \hat\sigma_{J-3}^2,\
   \frac{\hat\sigma_{J-2}^4}{\hat\sigma_{J-3}^2}\right).
@@ -13939,8 +14064,9 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 
 \begin{encadre}
 \textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
-la formule du paragraphe~4 fait intervenir $C(i, I-i)$, qui n'est définie que si
-$I - i \le J$. Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
+les formules des paragraphes~4 et~5 font intervenir $C(i, I-i)$, qui n'est définie que si
+$I - i \le J$, et celle du paragraphe~5 aussi $\hat Q_{I-i}$, qui ne l'est que si
+$I - i \le J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà de $j = J-1$). Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
 le traitement. Le moteur impose donc $I = J$ (triangle carré) et refuse
 explicitement les autres géométries, plutôt que de les traiter par une convention
 implicite non prévue par le règlement.
@@ -14004,8 +14130,8 @@ méthode elle-même.
 Durbin--Watson, test des suites, Rosner, Shapiro--Wilk, Lilliefors &
 réemployés & Appliqués aux résidus de Mack au lieu des résidus standardisés
 $z_t$~; la
-statistique est inchangée, seule la loi de référence est réévaluée (Rosner et la normalité en
-diagnostic, sans verdict). \\
+statistique est inchangée, seule la loi de référence est réévaluée (Rosner, le test des suites,
+depuis l'issue~\#312, et la normalité en diagnostic, sans verdict). \\
 Cellule aberrante (résidus studentisés externes) & \textbf{nouveau} & Minimum des p de Student
 des résidus studentisés externes de la régression de Mack, colonne par colonne~; remplace depuis
 l'issue~\#300 le test de Grubbs, réemployé jusque-là sur les résidus de Mack. \\
@@ -14052,7 +14178,7 @@ M3 & Effets d'année calendaire & test & Monte-Carlo \\
 M3 & Effets d'année calendaire par diagonale (repère de Mack 1997) & diagnostic & --- \\
 M3 & Corrélation entre années de développement & test & Monte-Carlo \\
 M3 & Autocorrélation (Durbin--Watson) & test & Monte-Carlo \\
-M3 & Test des suites & test & Monte-Carlo \\
+M3 & Test des suites & diagnostic, secondaire & --- \\
 M4 & Cellule aberrante (résidus studentisés externes) & test & Monte-Carlo \\
 M4 & Cellules aberrantes multiples (Rosner) & diagnostic & --- \\
 M5 & Shapiro--Wilk & diagnostic & --- \\
@@ -14063,8 +14189,8 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt et une entrées, dont \textbf{treize} tests d'hypothèse, 0 procédure de
-décision et \textbf{huit} diagnostics, conformément au champ \code{type} que
+Vingt et une entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
+décision et \textbf{neuf} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
 restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
 depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
@@ -14075,7 +14201,8 @@ et~\ref{mw:m5li}). La variance unitaire des résidus (M2) est aussi un diagnosti
 n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
 \emph{contrainte par construction} (fiche~\ref{mw:m2var}). La ligne d'identifiabilité
 intra-colonne (M1, issue~\#308) en est un par nature~: elle restitue des grandeurs descriptives
-de l'observé, sans hypothèse nulle (fiche~\ref{mw:m1id}). Aucun des huit
+de l'observé, sans hypothèse nulle (fiche~\ref{mw:m1id}). Le test des suites (M3) est restitué
+en diagnostic par décision, variante secondaire, depuis l'issue~\#312 (fiche~\ref{mw:m3runs}). Aucun des neuf
 diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
 l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
@@ -14084,7 +14211,7 @@ l'issue~\#125 sur le plancher Monte-Carlo, section~\ref{sec:nature}, point~(i), 
 tableau~\ref{tab:pmin}), l'effet calendaire reste un test, en queue basse depuis l'issue~\#276
 (il était inopérant à $B = 99$ sous la forme bilatérale antérieure), et
 l'homogénéité de $f_j$, la courbure et l'exposant de variance sont non applicables.
-Les treize tests d'hypothèse reposent tous sur le bootstrap de résidus~; les deux diagnostics de normalité
+Les douze tests d'hypothèse reposent tous sur le bootstrap de résidus~; les deux diagnostics de normalité
 n'y passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson
 (fiche~\ref{mw:m5li}), l'une et l'autre sous le modèle auxiliaire i.i.d. normal. Les six entrées en gras ci-dessus sont celles qui
@@ -15592,7 +15719,7 @@ retenues donnent $\sum_i r(i,j)^2 = 6,\ 5,\ 4,\ 3,\ 2,\ 1$ pour
 $n_j = 7,\ 6,\ 5,\ 4,\ 3,\ 2$,
 soit $N = 27$, $k = 6$ et $N - k = 21$. La dernière colonne ($j = J-1$) ne
 fournit qu'un seul facteur individuel --- c'est d'ailleurs pourquoi
-$\hat\sigma^2_{J-1}$ y est extrapolée et non estimée (fiche~\ref{mw:m6sig}) ---
+$\hat\sigma^2_{J-1}$ y est fixée par la règle de minimum et non estimée (fiche~\ref{mw:m6sig}) ---
 et n'entre donc pas dans les résidus~: sur un triangle carré $n\times n$ sans
 colonne dégénérée, $N = n(n-1)/2 - 1$ et $k = n-2$. L'identité est vérifiée
 colonne par colonne par la batterie de tests unitaires du dépôt
@@ -15676,8 +15803,8 @@ diagnostic n'a pas de verdict --- le rendre en \code{OK} ou en \code{ALERTE}
 donnerait à une convention d'affichage l'apparence d'une conclusion au seuil
 $\alpha$. Le moteur restitue la valeur observée et la valeur de référence
 recalculée~; c'est au rédacteur du dossier de les commenter. À lire
-conjointement avec la fiche~\ref{mw:m6sig} sur l'extrapolation de
-$\hat\sigma^2_{J-1}$, qui porte, elle, l'incertitude réelle des dernières
+conjointement avec la fiche~\ref{mw:m6sig} sur $\hat\sigma^2_{J-1}$, fixée par la règle
+de minimum, qui porte, elle, l'incertitude réelle des dernières
 colonnes.
 \end{fiche}
 
@@ -15902,6 +16029,57 @@ alternative (mesuré par \code{run\_engine()}, $B = 99$, graine 20260831, sur le
 à diagonales équilibrées de \code{tests/unitaires/}\allowbreak\code{test\_merz\_wuthrich.R},
 $Z^\star = 2{,}70$~: p-value de Monte-Carlo~1 et verdict \code{OK}, contre $0{,}02$ et
 \code{ECHEC} sous la forme bilatérale antérieure).
+
+\emph{Lecture conjointe avec Durbin--Watson} (issue~\#312). Les mesures citées viennent des
+scripts \code{m\_fm\_a.R}, \code{m\_fm\_b.R} et \code{m\_fm\_c.R} de la pièce versionnée
+\code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak\code{fm-mesures.md} et du tableau T2
+de la mesure de l'issue~\#309 (\code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak
+\code{issue309-}\allowbreak\code{puissance-mw.md}). Sous le
+modèle de Mack ajusté au triangle de contrôle, les p-values de Monte-Carlo de cette ligne et de
+la ligne Durbin--Watson (fiche~\ref{mw:m3dw}) sont pratiquement indépendantes~: corrélation de
+Spearman de $-0{,}002$, $0{,}019$ et $0{,}004$ sous les plans P1, P2 et P3 de l'issue~\#309
+(section~\ref{sec:calib-mc-mw}, 1\,000 triangles par plan), et rejet conjoint au seuil $0{,}10$ dans
+$0{,}013$, $0{,}010$ et $0{,}008$ des triangles, contre $0{,}011$, $0{,}008$ et $0{,}007$ pour le
+produit des taux marginaux. Deux \code{ECHEC} simultanés ne sont donc ni deux constats d'un même
+effet, ni un constat renforcé par redondance~: ce sont deux signaux distincts. Sous les
+alternatives mesurées, leurs profils diffèrent (taux de rejet au seuil $0{,}10$, plan P1, 500
+triangles par scénario, sauf mention)~: contre un choc de $10~\%$ sur les incréments du dernier
+exercice, $0{,}380$ pour cette ligne et $0{,}068$ pour Durbin--Watson~; sur l'exercice médian,
+$0{,}344$ et $0{,}122$~; contre une dérive de $5~\%$ par exercice à partir de $t = 4$, $0{,}216$ et
+$0{,}204$, avec un rejet conjoint de $0{,}042$ pour un produit des marges de $0{,}044$~; contre une
+ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2 (1\,000 triangles), $0{,}879$ et $0{,}432$~;
+sous le plan P3, mêmes valeurs de la première colonne permutées, aucun rejet sur 1\,000 triangles
+pour le test calendaire, Durbin--Watson et les suites ($[0~;~0{,}004]$), contre $1{,}000$ pour la
+ligne de l'ordonnée à l'origine~: la détection par les lignes M3 tient à l'ordre des expositions.
+Durbin--Watson ne voit presque pas un choc localisé sur une diagonale~; il réagit à des
+structures lisses. La localisation se lit sur les lignes qui la portent~: la présente ligne et
+son diagnostic par diagonale (fiche~\ref{mw:m3caldiag}), l'homogénéité des résidus entre années
+de survenance (fiche~\ref{mw:m3acc}), l'homogénéité de $f_j$ (fiche~\ref{mw:m1b}), et les
+moyennes par groupe des nuages de résidus (section~\ref{sec:graphiques}, issue~\#312).
+\emph{Sur le triangle de contrôle}, le test calendaire et Durbin--Watson rendent l'un et l'autre \code{ECHEC} (p-values de Monte-Carlo
+$0{,}002$ et $0{,}032$). Les moyennes des résidus de Mack par diagonale $k = i + j$
+(\code{plots\_data\$}\allowbreak\code{residus\_cal\_groupes}) valent $0{,}108$, $-1{,}032$, $-1{,}354$, $-0{,}707$,
+$0{,}498$, $1{,}065$ et $-0{,}074$ pour $k = 0$ à~6 (effectifs 1, 2, 3, 4, 5, 6 et~6)~; par année de
+survenance (\code{plots\_data\$}\allowbreak\code{residus\_acc\_groupes}), $-0{,}505$, $-0{,}366$, $-0{,}224$, $0{,}317$,
+$0{,}785$, $0{,}901$ et $0{,}511$ pour $i = 0$ à~6 (effectifs 6, 6, 5, 4, 3, 2 et~1), croissantes de
+$i = 0$ à $i = 5$. $\mathrm{DW} = 1{,}620$~; recalculé sur les résidus centrés par diagonale, il
+vaut $1{,}307$, et sur les résidus centrés par année de survenance, $1{,}857$. Ces deux DW centrés
+sont des mesures de la spécification de l'issue (script \code{m\_fm\_c.R}), hors moteur~; sous le
+modèle de Mack ajusté, avec des erreurs gaussiennes (999 triangles), la moyenne de DW vaut
+$2{,}351$, et la proportion de triangles de DW au plus égal à l'observé vaut $0{,}016$, $0$ sur 999 et
+$0{,}085$ pour les trois valeurs. Centrer par diagonale n'efface donc pas le signal de
+Durbin--Watson, alors que centrer par année de survenance l'atténue. \emph{Lecture proposée, non
+démontrée}~: dans l'ordre de parcours, deux voisins $(i,j)$ et $(i+1,j)$ appartiennent à deux
+années de survenance consécutives, et le signal de Durbin--Watson tiendrait ici davantage à la
+tendance entre années de survenance qu'aux moyennes de diagonale~; les deux \code{ECHEC}
+porteraient alors sur deux traits distincts du même triangle. La ligne d'homogénéité des résidus
+entre années de survenance rend \code{OK} ($0{,}300$) et celle de l'homogénéité de $f_j$
+\code{ALERTE} ($0{,}080$). Mack (1997), p.~D6.15--D6.23, non relues sur le texte intégral au
+23~octobre 2026~: la lecture conjointe ci-dessus ne s'appuie sur aucune de ces pages.
+\emph{Statut}~: corrélations, taux de rejet et proportions sous $H_0$, constats de simulation sous
+un plan, qui ne se transposent ni à une autre géométrie ni à un autre paramétrage~; intervalles
+de Clopper--Pearson des taux, fonction du nombre de triangles, au tableau T2 cité~; moyennes par
+groupe et DW du triangle de contrôle, valeurs calculées.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2^{-18} = 3{,}81\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: plus petite masse cumulée à gauche, $\min_z \mathbb{P}(Z \le z) = \mathbb{P}(Z = 0) = \prod_k 2^{1-n_k}$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. Avant l'issue~\#276, au bilatéral, $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big) = 2^{-17}$~; pour tout $n_k \ge 2$, $\mathbb{P}(Z_k = 0) = 2^{1-n_k} \le \mathbb{P}(Z_k = \lfloor n_k/2 \rfloor)$, de sorte que l'atome bas de $Z$ n'est jamais plus lourd que l'atome haut et que la valeur en queue basse est exactement la moitié de la valeur bilatérale. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}~; $2/(B+1)$ au bilatéral), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, à l'extrémité basse du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$~; $0{,}002$ au bilatéral).
 
@@ -16200,14 +16378,29 @@ développement et calendaire, qui localisent la structure. Sur un triangle const
 contrôle dont la ligne~$0$ est multipliée par $10^{-14}$), le verdict est \code{ALERTE} à
 $B = 199$ et \code{OK} à $B = 999$, avec une p-value égale au seuil~: il est indéterminé à la
 précision de Monte-Carlo (section~\ref{sec:boot-mw}, issue~\#257).
+
+\emph{Lecture conjointe avec les effets d'année calendaire} (issue~\#312~; détail, mesures et
+statut à la fiche~\ref{mw:m3cal}, rubrique~6). Durbin--Watson ne localise rien~: dans l'ordre
+colonne par colonne, il réagit à toute structure qui rapproche les résidus d'années de survenance
+consécutives --- tendance entre années de survenance, tendance calendaire lisse, dérive de $f_j$
+---, et voit peu un choc sur une seule diagonale. Sous le modèle de Mack ajusté au triangle de
+contrôle, ses p-values et celles du test calendaire sont pratiquement indépendantes (corrélation
+de Spearman de $-0{,}002$ à $0{,}019$ sous les plans P1 à P3)~: deux \code{ECHEC} simultanés sont
+deux signaux distincts, ni un même effet compté deux fois, ni un constat renforcé par redondance.
+Sur le triangle de contrôle, $\mathrm{DW} = 1{,}620$ (\code{ECHEC}, p-value de Monte-Carlo
+$0{,}032$), pour une moyenne de $2{,}351$ sous le modèle ajusté avec des erreurs gaussiennes~;
+recalculé hors moteur sur les résidus centrés par diagonale, il vaut $1{,}307$, et sur les résidus
+centrés par année de survenance, $1{,}857$~: le signal résiste au premier centrage et s'atténue au
+second. Mack (1997), p.~D6.15--D6.23, non relues sur le texte intégral au 23~octobre 2026~: la
+lecture conjointe ci-dessus ne s'appuie sur aucune de ces pages.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $DW$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, sans être repris ici (issue~\#309, dont aucun scénario ne vise la dépendance que teste la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0855$ (N), $0{,}101$ (E), $0{,}087$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0455$, $0{,}053$, $0{,}032$ ($\rho = 0{,}048$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Puissance} (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%)~: contre une dérive calendaire de $5~\%$ par exercice à partir de $t = 4$, structure calendaire lisse, à laquelle Durbin--Watson est sensible dans l'ordre de parcours (mécanisme proposé, non mesuré), $0{,}204$ $[0{,}170~;~0{,}242]$ (plan P1, 500 triangles)~; contre un choc de $10~\%$ sur les incréments du dernier exercice ou de l'exercice médian, $0{,}068$ $[0{,}048~;~0{,}094]$ et $0{,}122$ $[0{,}095~;~0{,}154]$ (P1, 500 triangles)~; pour un taux sous $H_0$ de $0{,}112$ $[0{,}093~;~0{,}133]$ (P1). Des taux de rejet sous des alternatives d'une autre famille (proportionnalité, M1) figurent au même fichier, sans être repris ici~; ils dépendent de l'ordre des expositions dans la première colonne (fiche~\ref{mw:m3cal}, rubrique~6). Les autres scénarios de la mesure figurent au même fichier, sans être repris ici. Ces taux comparent la ligne à celle du test des suites, calculée sur les mêmes résidus dans le même ordre (fiche~\ref{mw:m3runs}, rubrique~6), et au test calendaire (fiche~\ref{mw:m3cal}, rubrique~6). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0855$ (N), $0{,}101$ (E), $0{,}087$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0455$, $0{,}053$, $0{,}032$ ($\rho = 0{,}048$)~; compatible, sauf un écart mineur du côté conservateur sous A à $0{,}05$.
 
-\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Aucune valeur de puissance. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+\textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Puissances et taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -16223,37 +16416,95 @@ issue~\#112). On
 note $n_1$ le nombre de signes positifs, $n_2$ le nombre de négatifs,
 $n = n_1 + n_2$ et $R$ le nombre de suites. Le nombre de résidus étant impair
 sur le triangle de contrôle ($27$), la médiane y est l'un d'eux~: un résidu est
-écarté, et $n_1 = n_2 = 13$ (mesuré).
+écarté, et $n_1 = n_2 = 13$ (mesuré). \textbf{Diagnostic par décision, variante secondaire,
+depuis l'issue~\#312}~: \code{mw\_tests()} passe \code{type = "diagnostic"} et
+\code{variante = "secondaire"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et laisse
+\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}, \code{inoperant} à \code{FALSE}~;
+la règle~R1 ne s'applique plus, faute de type test, et le champ \code{p\_min\_mc} vaut \code{NA}
+(forme des diagnostics par décision de la méthode lognormale, section~\ref{sec:nature}). Les
+motifs non applicables priment~: si la statistique observée n'est pas finie, ou si la p-value de
+Monte-Carlo manque pour ce motif, la ligne garde le type test et \code{add()} la rend non
+applicable. Mesuré sur le triangle de contrôle et sur son sous-triangle $5\times 5$
+(\code{run\_engine()}, $B = 999$ et $B = 99$, graine 20260831)~: type diagnostic, variante
+secondaire, verdict \code{INFO}.
 \Hzero
 $H_0$ : la suite des signes est un arrangement aléatoire.
 \Stat
 $Z = \big(R - \mathbb{E}[R]\big)/\sqrt{\operatorname{Var}[R]}$, avec
 $\mathbb{E}[R] = 2n_1n_2/n + 1$ et
-$\operatorname{Var}[R] = 2n_1n_2(2n_1n_2-n)/\big(n^2(n-1)\big)$.
+$\operatorname{Var}[R] = 2n_1n_2(2n_1n_2-n)/\big(n^2(n-1)\big)$. Sur le triangle de contrôle,
+$Z = -0{,}400$.
 \Loi
 La loi combinatoire exacte du nombre de suites suppose l'échangeabilité des
 signes, mise en défaut ici par la dépendance intra-colonne~: elle n'est donc pas
 retenue, contrairement à ce qui est fait pour la méthode lognormale. Loi de
 référence~: bootstrap de résidus.
 \Pval
-p-value de Monte-Carlo retenue~; l'approximation normale est fournie comme
-complément non simulé. \textbf{Celle-ci sur-rejette nettement}~: $13{,}5~\%$ de
+Aucune p-value retenue depuis l'issue~\#312~: la ligne est un diagnostic par décision
+(rubrique~6). Les deux p-values calculées restent dans leurs colonnes, pour information~: la
+p-value de Monte-Carlo (clé \code{Runs}, bilatérale~; $0{,}374$ sur le triangle de contrôle,
+$B = 999$, graine 20260831), retenue jusqu'à l'issue, et l'approximation normale, complément non
+simulé ($0{,}689$). \textbf{Celle-ci sur-rejette nettement}~: $13{,}5~\%$ de
 rejets au seuil nominal de $10~\%$ sur les triangles $8\times 8$ simulés sous $H_0$ avec des
 erreurs gaussiennes ($12{,}85~\%$ et $12{,}2~\%$ sous les lois E et A), et les mêmes taux au seuil
 de $5~\%$ (section~\ref{sec:calib-asympt-mw}).
 Cause proposée, non mesurée~: la contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une même colonne négativement corrélés, ce qui rendrait leurs signes plus alternés que sous l'échangeabilité supposée~; la mesure, bilatérale, ne distingue pas les deux sens de rejet et n'établit pas ce mécanisme.
 \Usage
-Test non paramétrique robuste, sensible aussi bien au regroupement qu'à
-l'alternance excessive des signes. Sa lecture souffre, comme celle de
+Statistique non paramétrique, sensible aussi bien au regroupement qu'à
+l'alternance excessive des signes, dont la loi combinatoire n'est pas celle des résidus de Mack
+(rubrique~4). Sa lecture souffre, comme celle de
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
-\Pertinence
-\textbf{p-value minimale à $T = 8$.} \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$ sur le triangle de contrôle ($n_1 = n_2 = 13$, effectifs de \code{.runs\_effectifs()}~; champ \code{p\_min} de la ligne depuis l'issue~\#115, auparavant valeur indicative non portée par le moteur), sous la loi combinatoire de Swed et Eisenhart, avec le doublement. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle des résidus de Mack (rubrique~4)~: elle ne borne pas la p-value retenue. La p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
 
-\textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
+\textbf{Pourquoi aucun verdict} (diagnostic par décision, issue~\#312, décision Q-D1-Fm-1 du
+mainteneur du 23~octobre 2026, option~(B)~; ADR~0001). L'indépendance, D(2)(h)(i) et~(ii), est
+examinée dans l'ordre de parcours par la ligne Durbin--Watson (fiche~\ref{mw:m3dw}), calculée
+sur les mêmes résidus de Mack dans le même ordre~; la ligne des suites n'apporte pas de preuve
+propre à $T = 8$. Mesures de l'issue~\#309 (section~\ref{sec:calib-mc-mw}, tableaux T1~bis et T2
+de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~;
+loi N, $B = 999$, seuil $0{,}10$)~: (i)~sa p-value de Monte-Carlo fonctionne de fait vers
+$5~\%$, par discrétude de la statistique (référence $\rho$ de $0{,}050$ à $0{,}053$ selon la loi et
+le plan~; taux sous $H_0$ de $0{,}047$, $0{,}047$ et $0{,}042$ sous les plans P1, P2 et P3)~;
+(ii)~son taux de rejet reste au plus de $0{,}159$ dans les dix-neuf cellules plan $\times$
+scénario hors $H_0$ de la mesure~; (iii)~en taux bruts, Durbin--Watson rejette au moins autant dans toutes les
+cellules où l'une ou l'autre dépasse sa référence de niveau $\rho$ ($0{,}050$ à $0{,}053$ pour les
+suites, $0{,}098$ pour Durbin--Watson, tableau T1~bis) --- dérive calendaire de $5~\%$ par
+exercice, $0{,}204$ contre $0{,}126$~; ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2,
+$0{,}432$ contre $0{,}159$ (sous le plan P3, mêmes valeurs de la première colonne permutées,
+aucun rejet sur 1\,000 triangles pour le test calendaire, Durbin--Watson et les suites
+($[0~;~0{,}004]$), contre $1{,}000$ pour la ligne de l'ordonnée à l'origine~: la détection par les
+lignes M3 tient à l'ordre des expositions)~; choc de $10~\%$ sur l'exercice médian, $0{,}122$ contre $0{,}046$ ---,
+les suites ne rejetant plus souvent que contre l'année de survenance atypique ($0{,}050$ contre
+$0{,}020$) et la cellule multipliée par~4 ($0{,}026$ contre $0{,}004$), où l'une et l'autre restent
+au niveau ou en dessous~; contre un choc de $10~\%$ sur le dernier exercice, $0{,}046$ contre
+$0{,}068$. Ces taux sont bruts, aux niveaux effectifs différents de Durbin--Watson et des suites
+(environ $0{,}10$ et $0{,}05$)~; rapporté au taux sous $H_0$ de chaque plan, l'excès de Durbin--Watson
+n'est net que contre une ordonnée à l'origine sous le plan P2 ($\delta = 0{,}10$ et $0{,}20$),
+et, dans les autres cellules où l'une ou l'autre ligne dépasse sa référence, les excès de
+Durbin--Watson et des suites diffèrent d'au plus $0{,}04$~; (iv)~sous $H_0$, les p-values de Monte-Carlo des suites et de Durbin--Watson sont corrélées
+(Spearman $0{,}398$, $0{,}391$ et $0{,}372$ sous P1, P2 et P3), et la part des triangles où les
+suites rejettent sans Durbin--Watson vaut $0{,}019$ sous P1 (script \code{m\_fm\_b.R} de
+\code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak\code{fm-mesures.md}, sur les valeurs brutes de
+l'issue~\#309). Un verdict de plus sur la même hypothèse multiplierait les occasions de rejet sans
+preuve propre. Aucune des trois voies n'est retenue~: la loi exacte suppose l'échangeabilité des
+signes, en défaut (rubrique~4)~; l'approximation normale sur-rejette (rubrique~5)~; la p-value de
+Monte-Carlo, de niveau compatible sous le plan mesuré (ci-dessous), n'est pas écartée pour son
+niveau, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucune autre voie ne
+lui est substituée. Le commentaire est «~\code{Restituee en diagnostic par decision (issue \#312)
+: aucun verdict ni p-value retenue ; l'hypothese releve de la ligne Autocorrelation des residus
+(Durbin-Watson), calculee sur les residus de Mack dans le meme ordre de parcours, dont le type et
+le verdict font foi.}~», précédé du motif Monte-Carlo quand la p-value de Monte-Carlo manque, puis, quand
+$p_{\min}$ n'est pas attribuée, du motif qui l'explique (chaîne \code{effectifs} de
+\code{.mw\_p\_min\_ligne()}, que \code{add()} ne restitue qu'aux lignes de type test et que
+\code{mw\_tests()} joint ici, comme sur les lignes de l'issue~\#299~; ce n'est pas le cas sur le
+triangle de contrôle, où $p_{\min}$ est attribuée), et
+suivi, le cas échéant, des phrases fixes que \code{mw\_tests()} joint à toute ligne de
+Monte-Carlo (issues~\#257 et~\#204, section~\ref{sec:boot-mw}).
+Quand la ligne Durbin--Watson ne porte pas de verdict (\code{INFO} faute de p-value, ou non
+applicable), l'hypothèse n'a pas de verdict sur ces données, et la ligne des suites n'y supplée
+pas (ADR~0001). Variante secondaire, la ligne n'est pas affichée par défaut
+(section~\ref{sec:variantes}) et n'est pas comptée parmi les tests de M3.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Sur le sous-triangle $5 \times 5$ du triangle de contrôle ($n_1 = n_2 = 4$, $p_{\min} = 4/70 = 0{,}0571$), la ligne reste un test à $\alpha = 0{,}10$~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo, $p_{\min}^{\mathrm{MC}} = 0{,}002 < \alpha/2$ (\code{run\_engine()}, $B = 999$), et le commentaire ne porte aucun texte de la règle~; il disait auparavant que l'\code{ECHEC} était possible (section~\ref{sec:nature}). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, sans être repris ici (issue~\#309, dont aucun scénario ne vise la dépendance que teste la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}058$ (N), $0{,}0525$ (E), $0{,}051$ (A), pour $\rho = 0{,}051$, $0{,}053$, $0{,}053$~; à $0{,}05$, $0{,}0275$, $0{,}0225$, $0{,}032$ ($\rho = 0{,}030$, $0{,}031$, $0{,}032$)~; compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (17 valeurs distinctes dans l'échantillon oracle de chaque loi, atome le plus lourd de masse $0{,}168$ à $0{,}177$), non par défaut de la procédure.
-
-\textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi combinatoire, qui n'est pas celle des résidus de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
+Ligne de type diagnostic, variante secondaire, par décision depuis l'issue~\#312, sans rubrique~7. \code{runs\_p\_min(13, 13)} $= 3{,}85\cdot 10^{-7}$ sur le triangle de contrôle ($n_1 = n_2 = 13$, effectifs de \code{.runs\_effectifs()}~; champ \code{p\_min} de la ligne depuis l'issue~\#115), sous la loi combinatoire de Swed et Eisenhart, avec le doublement~: valeur exacte sous cette loi de référence échangeable, qui n'est pas celle des résidus de Mack (rubrique~4). La p-value de Monte-Carlo (clé \code{Runs}, bilatérale) a pour plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), valeur exacte fonction de $B$. Taux de rejet de la p-value de Monte-Carlo sous les alternatives de l'issue~\#309 (tableau T2 cité, loi N, seuil $0{,}10$)~: dérive calendaire de $5~\%$ par exercice, $0{,}126$ $[0{,}098~;~0{,}158]$~; choc de $10~\%$ sur le dernier exercice ou l'exercice médian, $0{,}046$ $[0{,}029~;~0{,}068]$ et $0{,}046$ $[0{,}029~;~0{,}068]$ (plan P1, 500 triangles)~; ordonnée à l'origine $\delta = 0{,}20$ sous le plan P2, $0{,}159$ $[0{,}137~;~0{,}183]$ (1\,000 triangles)~; ces taux mesurent la p-value calculée, non une p-value retenue. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}058$ (N), $0{,}0525$ (E), $0{,}051$ (A), pour $\rho = 0{,}051$, $0{,}053$, $0{,}053$~; à $0{,}05$, $0{,}0275$, $0{,}0225$, $0{,}032$ ($\rho = 0{,}030$, $0{,}031$, $0{,}032$)~; compatible, sauf un écart mineur du côté conservateur sous E à $0{,}05$. La référence est inférieure à $\alpha$ par discrétude de la statistique (17 valeurs distinctes dans l'échantillon oracle de chaque loi, atome le plus lourd de masse $0{,}168$ à $0{,}177$), non par défaut de la procédure. \emph{Statut}~: taux de rejet sous $H_0$ et sous les alternatives, corrélations, constats de simulation sous un plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$~; $p_{\min}$ et plancher, valeurs exactes.
 \end{fiche}
 
 % -----------------------------------------------------------------------------
@@ -16643,6 +16894,87 @@ barème, sans quantile ni hypothèse de loi. Un verdict serait donc à la fois m
 objet réglementaire~; la p-value reste restituée, pour la lecture du QQ-plot ou l'usage d'un
 quantile de la MSEP.
 
+\emph{QQ-plot des résidus de Mack} (issue~\#311, décisions Q-D1-Fm-4 et Q-D1-Fm-5 du mainteneur du
+23~octobre 2026~; mesures de la pièce \code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak
+\code{fm-mesures.md}, scripts \code{m\_fm\_a.R}, \code{m\_fm\_c.R} et \code{m\_fm\_d.R}).
+\emph{Référence.} Le graphique (\code{plot\_mw\_qq()}) trace les résidus \emph{redressés par le
+levier}, $\tilde r(i,j) = r(i,j)/\sqrt{1 - h_{ij}}$, $h_{ij} = C(i,j)/S_j$
+(\code{mw\_residus\_redresses()}, ceux du vivier de \code{mw\_bootstrap()} avant recentrage,
+section~\ref{sec:boot-mw}), contre les quantiles $\mathcal{N}(0,1)$ de leurs rangs
+(\code{plots\_data\$qqnorm}), avec la droite $y = x$ posée par le moteur
+(\code{plots\_data\$qqline}, ordonnée~$0$, pente~$1$)~; l'affichage ne calcule rien. Sous les
+hypothèses du modèle de Mack (espérance et variance conditionnelles, indépendance des années de
+survenance), sans hypothèse de loi, $\operatorname{Var}\big(r(i,j)\mid C\big) = 1 - h_{ij}$ à
+$\sigma_j$ connu (section~\ref{sec:boot-mw})~: $\tilde r$ est de variance exactement~1, et la
+droite $y = x$ est sa référence. Les résidus bruts, eux, vérifient $\sum_i r(i,j)^2 = n_j - 1$
+par colonne (fiche~\ref{mw:m2var})~: contre $y = x$, ils dessineraient une pente inférieure à~1
+sans qu'elle traduise un écart au modèle. \emph{Borne exacte, pour toute loi.}
+$\tilde r(i,j)^2 \le \sum_i r(i,j)^2 = n_j - 1$~: c'est la propriété des moindres carrés, la
+somme des carrés résiduels de la colonne privée de la cellule valant la somme des carrés
+résiduels moins $e^2/(1 - h)$ et restant positive ou nulle~; d'où $|\tilde r| = 1$ exactement
+pour $n_j = 2$ et $|\tilde r| \le \sqrt{n_j - 1}$, soit au plus $\sqrt 2$, $\sqrt 3$, $2$,
+$\sqrt 5$ et $\sqrt 6$ pour $n_j = 3$ à~7. Mesuré sur le triangle de contrôle~:
+$\max |\tilde r|/\sqrt{n_j - 1} = 1{,}000000$, borne atteinte en $n_j = 2$, alors que le quantile
+$\mathcal{N}(0,1)$ du rang extrême, sur 27 points, vaut $2{,}085$. \emph{Courbure attendue sous
+$H_0$.} Même sous le modèle de Mack à erreurs gaussiennes, la courbe attendue n'est pas droite
+(modèle ajusté au triangle de contrôle, première colonne fixée, 999 triangles simulés hors moteur
+sous la graine 20261023~; intervalles~: quantiles à $5~\%$ et $95~\%$ de la distribution sur les
+triangles, non des intervalles de confiance)~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{6.4cm}p{3.6cm}p{3.6cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Grandeur}} &
+\textcolor{financeblue}{\textbf{$r$ brut}} &
+\textcolor{financeblue}{\textbf{$\tilde r$ redressé}} \\
+Moyenne des variances empiriques & $0{,}8077$ & $1{,}0384$ \\
+Pente des moindres carrés des statistiques d'ordre sur les quantiles $\mathcal{N}(0,1)$ &
+$0{,}884$ $[0{,}867~;~0{,}896]$ & $1{,}000$ $[0{,}981~;~1{,}014]$ \\
+Pente par quartiles (forme de \code{stats::qqline()}) & $1{,}030$ $[0{,}855~;~1{,}185]$ &
+$1{,}231$ $[0{,}992~;~1{,}419]$ \\
+Espérance de la statistique d'ordre moins le quantile $\mathcal{N}(0,1)$, rangs 1~/ 7~/ 14~/ 21~/ 27 &
+$+0{,}499$~/ $-0{,}032$~/ $-0{,}002$~/ $+0{,}033$~/ $-0{,}491$ &
+$+0{,}342$~/ $-0{,}189$~/ $-0{,}003$~/ $+0{,}194$~/ $-0{,}333$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+Sur le triangle de contrôle, la pente des moindres carrés vaut $0{,}877$ (brut) et $0{,}989$
+(redressé), la pente par quartiles $1{,}159$ et $1{,}416$. Sur les résidus redressés, les points
+extrêmes sont donc attendus en deçà de la droite d'environ $0{,}33$ en valeur absolue, effet de
+la borne $\sqrt{n_j - 1}$, et les rangs 7 et 21 au-delà d'environ $0{,}19$~: une forme en S
+modérée n'est pas, à elle seule, un indice de queues légères. La note fixe du graphique le
+rappelle («~\code{droite y = x : variance unitaire a sigma\_j connu ; |r / sqrt(1 - h)| <=
+sqrt(n\_j - 1), donc points extremes attendus en deca de la droite, meme sous le modele}~»).
+\emph{Droite par quartiles écartée.} Sa pente attendue sous $H_0$ n'est pas~1 ($1{,}03$ sur les
+résidus bruts, $1{,}23$ sur les résidus redressés), les marges des petites colonnes étant bornées,
+donc plus aplaties que la normale~; la droite par quartiles que traçait le rendu base~R de
+l'affichage avant l'issue, sur les résidus bruts (pente $1{,}159$ sur le triangle de contrôle),
+n'était pas une référence. \emph{Différence avec
+les lignes M5.} Shapiro--Wilk et Lilliefors restent calculées sur les résidus bruts $r$ (valeurs
+inchangées par l'issue)~; le graphique montre les résidus redressés, ceux que rééchantillonne le
+bootstrap. Le facteur $1/\sqrt{1 - h_{ij}}$ va de $1{,}071$ à $1{,}434$ sur le triangle de
+contrôle, et les deux résidus de la colonne à $n_j = 2$ valent exactement $\pm 1$ une fois
+redressés~: ils ne portent qu'un signe. \emph{Absence d'enveloppe} (décision Q-D1-Fm-4, option
+(c)). Une enveloppe lue dans les réplications de \code{mw\_bootstrap()} décrirait la dispersion
+des statistiques d'ordre autour de la loi \emph{empirique} des résidus~: les points observés y
+tomberaient par construction, et elle ne pourrait révéler aucun écart à la normalité (le
+bootstrap de résidus «~ne permet pas de tester la normalité~», tableau~\ref{tab:conv}). Une
+enveloppe simulée sous le modèle de Mack ajusté à erreurs gaussiennes, mesurée hors moteur, est
+calibrée (bande simultanée~: au moins un point hors de la bande dans $0{,}103$ $[0{,}090~;~0{,}118]$
+de 2\,000 triangles indépendants sous $H_0$) mais n'informe que contre une forte asymétrie
+($0{,}582$ contre une loi exponentielle centrée, $0{,}702$ contre une lognormale), peu contre des
+queues lourdes ($0{,}215$ contre une loi de Student à 3 degrés de liberté) ou une cellule isolée
+($0{,}156$ et $0{,}226$ pour une cellule déplacée de 4 ou 6 écarts-types, objet de M4)~; elle
+porte sur une hypothèse que le modèle n'exige pas et dont $\sigma_{(\text{res},s,\mathrm{USP})}$ ne
+dépend pas, au prix d'une source d'aléa supplémentaire. Elle n'est pas retenue~: le QQ-plot de la
+méthode Merz--Wüthrich ne tire rien. \emph{Statut}~: variance $1 - h_{ij}$ et borne
+$\sqrt{n_j - 1}$, résultats exacts (algèbre)~; pentes, écarts des statistiques d'ordre et taux de
+sortie de l'enveloppe, constats de simulation sous un plan (intervalles de Clopper--Pearson des
+taux fonction du nombre de triangles)~; valeurs du triangle de contrôle, calculées.
+
 \emph{Plancher et niveau de la p-value restituée.} La loi de $W$ est continue~; la p-value, lue
 sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus
 (\code{sw\_p\_loi\_nulle()}), a pour plancher $1/20\,001 \approx 5{,}0\cdot 10^{-5}$, fonction du
@@ -16719,7 +17051,7 @@ triangles simulés~; p-value du triangle de contrôle, valeur calculée par le m
 % =============================================================================
 
 \begin{encadre}
-\textbf{Énoncé.} hors énoncé réglementaire~: mesure la concentration du résultat et la part de convention dans le calcul.
+\textbf{Énoncé.} hors énoncé réglementaire~: mesure la concentration du résultat et la part du calcul fixée par la règle de minimum de D(5)(d)(ii), non estimée.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -16731,7 +17063,10 @@ section~\ref{sec:notations-mw}.
 \refl{Annexe XVII, D(5)(d)(ii), seconde ligne.}
 \Cadre
 La variance de la dernière année de développement ne peut être estimée, faute
-d'observations. \textbf{Diagnostic, non test.}
+de degré de liberté~: sous la contrainte $I = J$ imposée par \code{mw\_valider\_triangle()}
+(section~\ref{sec:controles}), la colonne $J-1$ ne porte qu'un facteur individuel, $F(0,J-1)$,
+soit $I - (J-1) - 1 = 0$ degré de liberté. Sa valeur est \emph{fixée par la règle de minimum}
+de l'annexe~XVII, D(5)(d)(ii), seconde ligne, et non estimée. \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
@@ -16752,26 +17087,87 @@ $\hat\sigma^2_{J-2}$ et précise que le quotient, nul par voie de conséquence,
 n'est pas compté comme argument distinct~; colonnes $J-3$ et $J-2$ toutes deux
 dégénérées, il nomme les deux variances ex aequo~; dans les autres cas, il
 nomme tous les arguments égaux au minimum à $10^{-12}$ près en relatif, ex
-aequo s'ils sont plusieurs.
+aequo s'ils sont plusieurs. Le champ \code{detail} s'ouvre, depuis l'issue~\#310, par
+«~\code{Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), seconde ligne, et non
+estimee : la regle ne lit que les deux dernieres variances estimees}~».
+
+\emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ (issue~\#310).} Le champ \code{detail} se
+termine par la sensibilité de $\sqrt{\mathrm{MSEP}}$ à la valeur de $\hat\sigma^2_{J-1}$,
+calculée par \code{mw\_sensibilite\_sigma2\_dernier()} et transmise à
+\code{.mw\_detail\_extrapolation()}~: \code{mw\_msep()} est rappelée en remplaçant
+$\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} = \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit
+\code{mw\_msep()}, successivement par chacun des trois arguments du minimum, dans l'ordre du
+texte, puis par~$0$. Chaque valeur est imprimée avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$
+de la règle~; l'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
+quand $\hat\sigma^2_{J-3} = 0$, exactement ou à la tolérance relative $10^{-12}$ de l'outil
+(colonne $J-3$ dégénérée, champ \code{\$degeneree\_Jm3} de \code{mw\_extrapolation\_sigma2()})~:
+le quotient d'une variance nulle à la tolérance près n'a pas de valeur interprétable. Avec la valeur que retient la règle, la MSEP recalculée est
+identique au bit près à celle de \code{mw\_msep()} (contrôle \code{identical()} des tests
+unitaires). La valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un argument du
+minimum}~», dans une phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement
+ou à la tolérance relative $10^{-12}$ de l'outil (colonne $J-3$ ou $J-2$ dégénérée, champ
+\code{\$degeneree} de \code{mw\_extrapolation\_sigma2()})~: elle répéterait alors la valeur de
+la règle. La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
+$\sqrt{\mathrm{MSEP}}$ de la règle n'est pas finie et strictement positive, les écarts relatifs
+n'ayant alors pas de sens. Les racines de MSEP sont déterministes~: le \code{detail} n'imprime
+aucun nombre issu du bootstrap. Aucun écart type estimé ni aucun
+$\sigma_{(\text{res},s,\mathrm{USP})}$ n'est recalculé avec ces valeurs, et
+$\sigma_{(\text{res},s,\mathrm{USP})}$ n'en dépend pas.
 \Loi
-Sans objet~: la quantité n'est pas estimée mais \emph{imposée} par une règle
-d'extrapolation.
+Sans objet~: la quantité n'est pas estimée mais \emph{fixée par la règle de minimum} de
+D(5)(d)(ii).
 \Pval
 Aucune.
 \Usage
 Ce diagnostic existe pour rendre visible dans le dossier un point que le calcul
-masque~: une des entrées de la MSEP ne provient pas des données mais d'une
-convention réglementaire, reposant sur deux colonnes seulement. Comme la
-dernière année de développement contribue à la MSEP de toutes les années de
-survenance récentes --- celles qui portent l'essentiel de la réserve --- cette
-convention a un effet non négligeable sur le paramètre final. Elle doit être
-mentionnée explicitement.
+masque~: une des entrées de la MSEP ne provient pas d'une estimation mais de la
+règle de minimum du règlement, qui ne lit que deux colonnes. Le terme
+$\hat Q_{J-1}$ entre dans la MSEP de \textbf{toutes} les années de survenance
+$i = 1, \ldots, I$ (formule du paragraphe~5, §\ref{sec:mw})~: pour $i = 1$, par
+$\hat Q_{I-i}/C(i,I-i)$ et $\hat Q_{I-i}/S_{I-i}$, puisque $I - 1 = J - 1$~; pour
+$i \ge 2$, par le terme $j = J-1$ de la somme $\sum_{j=I-i+1}^{J-1}$, et par lui dans la
+double somme des termes croisés. La valeur fixée par la règle pèse donc sur toute la MSEP, et
+non sur les seules années de survenance récentes (conséquence de la formule, chaque $\Delta_i$
+contenant un terme positif en $\hat Q_{J-1}$~; sur le triangle de contrôle, doubler $\hat Q_{J-1}$
+augmente chacun des sept crochets). Elle doit
+être mentionnée explicitement.
 
-À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités qui
-bornent l'extrapolation sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
+\emph{Sensibilité sur le triangle de contrôle} (\code{tests/donnees/triangle\_mw.csv},
+$I = J = 7$, triangle $8\times 8$~; \code{mw\_sensibilite\_sigma2\_dernier()}, valeurs
+imprimées dans le \code{detail} de la ligne et reprises du script \code{m\_fm\_d.R} de
+\code{docs/tableaux/20261023-fm-mesures.md}). La règle retient
+$\hat\sigma^2_{J-3}$~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}lrrr@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Valeur de $\sigma^2_{J-1}$}} &
+\textcolor{financeblue}{\textbf{Valeur}} &
+\textcolor{financeblue}{\textbf{$\sqrt{\mathrm{MSEP}}$}} &
+\textcolor{financeblue}{\textbf{Écart}} \\
+$\hat\sigma^2_{J-2}$ & $0{,}189674$ & $226{,}413$ & $+13{,}5~\%$ \\
+$\hat\sigma^2_{J-3}$ (retenue par la règle) & $0{,}0973248$ & $199{,}494$ & --- \\
+$\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ & $0{,}36965$ & $271{,}305$ & $+36{,}0~\%$ \\
+$0$ (contrefactuel, hors des arguments du minimum) & $0$ & $166{,}480$ & $-16{,}5~\%$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+Les trois arguments étant, par construction, supérieurs ou égaux à la valeur de la règle, leur
+restitution ne montre que des hausses~; seul le contrefactuel $\sigma^2_{J-1} = 0$, qui n'est
+pas un argument du minimum, mesure le poids de la dernière année de développement dans la MSEP
+($-16{,}5~\%$ de $\sqrt{\mathrm{MSEP}}$ ici). Ces valeurs sont un \emph{calcul exact} sur un jeu
+de données, sans aléa, et non un ordre de grandeur général~; elles sont indicatives, hors règle,
+et sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$, qui reste celui de la règle
+($0{,}04977646$ sur ce triangle).
+
+À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités que lit
+la règle sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
 repose sur deux facteurs individuels et un degré de liberté,
 $\hat\sigma^2_{J-3}$ sur trois facteurs et deux degrés de liberté. La valeur
-extrapolée hérite de cette imprécision, qu'aucune p-value ne mesure ici.
+fixée par la règle hérite de cette imprécision, qu'aucune p-value ne mesure ici.
 
 \medskip
 \textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
@@ -17525,7 +17921,7 @@ vérifiée numériquement (fiche~\ref{mw:m1id}) \\
 
 \noindent
 La conformité de l'erreur type ultime de Mack à sa valeur publiée valide
-simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle d'extrapolation de
+simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle de minimum qui fixe
 $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an. Ce triangle
 n'étant pas dégénéré, le contrôle ne porte que sur le cas
 $\hat\sigma^2_{J-3} > 0$ et $\hat\sigma^2_{J-2} > 0$~; les cas $\hat\sigma^2_{J-3} = 0$ et
@@ -17708,7 +18104,8 @@ et dans des sens opposés~: le test des suites sur-rejette, Grubbs et
 Breusch--Pagan (statistiques antérieures aux issues~\#300 et~\#301) sous-rejettent massivement~;
 la borne de Bonferroni qui remplace celle de Grubbs sur-rejette, elle, sous les lois E et A. Dans tous ces cas, c'est la p-value
 de Monte-Carlo qui est retenue par le moteur, et elle seule doit être utilisée en
-dossier. La p-value non simulée n'est conservée que pour documenter l'écart. La p-value de
+dossier~; depuis l'issue~\#312, le test des suites, diagnostic par décision, n'a plus de p-value
+retenue (fiche~\ref{mw:m3runs}). La p-value non simulée n'est conservée que pour documenter l'écart. La p-value de
 Monte-Carlo n'est pas pour autant exempte de distorsion~: sous le plan du triangle de
 contrôle, celle de l'ancienne statistique de Breusch--Pagan était elle aussi conservatrice
 (section~\ref{sec:calib-mc-mw})~; celle de la statistique à effets fixes de colonne qui la remplace
@@ -17720,9 +18117,10 @@ y est compatible, et sa p du $\chi^2(1)$ en écart mineur du côté libéral (ci
 
 \emph{Objet et statut.} Le niveau réel à $T = 8$ des treize p-values de Monte-Carlo de la
 méthode, une par entrée de \code{MW\_CATALOGUE\_MC}, chacune p-value retenue de sa ligne sur le
-triangle de contrôle, est mesuré sous un plan unique (issue~\#206)~: le modèle de Mack ajusté au
+triangle de contrôle lors de la mesure (celle des suites ne l'est plus depuis l'issue~\#312,
+fiche~\ref{mw:m3runs}), est mesuré sous un plan unique (issue~\#206)~: le modèle de Mack ajusté au
 triangle de contrôle (\code{tests/donnees/triangle\_mw.csv}, $I = J = 7$, triangle $8\times 8$),
-dont les $\hat f_j$ et les $\hat\sigma_j^2$, $\hat\sigma^2_{J-1}$ extrapolée comprise, sont pris
+dont les $\hat f_j$ et les $\hat\sigma_j^2$, $\hat\sigma^2_{J-1}$ fixée par la règle de minimum comprise, sont pris
 pour vrais et dont la première colonne est fixée. C'est un \emph{constat de simulation sous ce
 plan}, non un résultat général~: il ne se transpose ni à une autre géométrie de triangle ni à un
 autre paramétrage. Aucun théorème ne couvre ce test bootstrap à $T = 8$
@@ -17970,7 +18368,7 @@ de Holm d'environ $0{,}060$, approximation normale). La règle du témoin a ét�
 conséquence pour les statistiques à atomes~; la référence $\rho$ n'en est pas affectée.
 
 \emph{Verdicts sous $H_0$ et multiplicité} (tableau T4, pool redressé~; mesure antérieure aux
-issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques (effets calendaires lus en queue basse, hétéroscédasticité, cellule aberrante), non reprise depuis). Part des triangles
+issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques (effets calendaires lus en queue basse, hétéroscédasticité, cellule aberrante), et à l'issue~\#312, qui a retiré son verdict à la ligne des suites, non reprise depuis). Part des triangles
 simulés sous le modèle qui reçoivent au moins une \code{ALERTE} ou un \code{ECHEC} sur les
 verdicts des 13 statistiques de Monte-Carlo~: $0{,}6355$ (N), $0{,}6415$ (E), $0{,}655$ (A)~; au moins un
 \code{ECHEC}~: $0{,}3875$, $0{,}381$, $0{,}398$. Sur toutes les lignes alors à verdict, procédure ESD
@@ -18623,7 +19021,9 @@ projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
-\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6 \\
+\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6~;\newline
+\code{mw\_sensibilite\_sigma2\_dernier()}~: sensibilité indicative de $\sqrt{\mathrm{MSEP}}$
+(issue~\#310) \\
 Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 \code{mw\_msep()} \\
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
@@ -18718,7 +19118,7 @@ modèle et un mode d'inférence différents.
   \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises en
   D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
-  $\hat f_j$, $\hat\sigma_j^2$ et de la règle d'extrapolation.
+  $\hat f_j$, $\hat\sigma_j^2$ et de la règle de minimum qui fixe $\hat\sigma^2_{J-1}$.
 
   \item T.~Mack, \emph{Measuring the variability of chain ladder reserve
   estimates}, \emph{Casualty Actuarial Society Forum}, printemps 1994,
@@ -18963,6 +19363,9 @@ mainteneur, restitué \code{INFO}~: depuis l'issue~\#304 dans la méthode lognor
 (fiche~\ref{mw:m4ros}). Jusqu'à ces issues, elle était une procédure de décision, sans p-value,
 dont le verdict était \code{OK} sans valeur aberrante détectée au niveau $\alpha$, \code{ALERTE}
 pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type.
+Le test des suites sur les résidus de Mack est de même un diagnostic par décision, restitué
+\code{INFO}, depuis l'issue~\#312~: l'hypothèse relève de la ligne Durbin--Watson
+(fiche~\ref{mw:m3runs}).
 Relèvent notamment de ce verdict~: test \emph{inopérant}, dont la plus petite p-value
 atteignable $p_{\min}$ atteint ou dépasse $\alpha$ (règle~R1, issue~\#44~; Cox--Stuart à $T = 8$,
 fiche~\ref{fiche:cox-stuart}~; corrélation entre années adjacentes de la
@@ -18987,7 +19390,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \end{tabular}
 \end{center}
 
-\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques, et avant l'issue~\#312, qui a retiré son verdict à la ligne des suites)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
@@ -19157,7 +19560,8 @@ l'est, pour toute donnée à $\hat\pi_t$ constant et sur les deux jeux à $\hat\
 variable, toute ligne à $p_{\min}$ peut l'être selon $p_{\min}^{\mathrm{MC}}$ (suites sur ratios bruts,
 fiche~\ref{fiche:suites-ratios-bruts}). Depuis l'issue~\#115, la
 même règle s'applique à six vérifications de la méthode Merz--Wüthrich, dont la p-value retenue est
-de Monte-Carlo, et, depuis l'issue~\#125, sur leur plancher Monte-Carlo~; aucune n'est inopérante
+de Monte-Carlo, et, depuis l'issue~\#125, sur leur plancher Monte-Carlo, cinq depuis
+l'issue~\#312, qui a fait du test des suites un diagnostic par décision~; aucune n'est inopérante
 sur le triangle $8 \times 8$ de contrôle. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
 de bascule à $\alpha = 0{,}10$ sont au tableau~\ref{tab:pmin}~; la rubrique~7 de chaque fiche de
 test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
@@ -19740,7 +20144,7 @@ fournissent des lois de référence.}
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
-\node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites};
+\node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites (diagnostic)};
 \node[sor, anchor=west] at (cx |- gr)  (q6) {M4 aberrants};
 \node[sor, anchor=west] at (cx |- sw)  (q7) {M5 normalité};
 
