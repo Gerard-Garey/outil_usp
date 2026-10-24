@@ -1188,7 +1188,15 @@ boucle sur le triangle de contrôle et sur 200 triangles simulés par
 résidus retenus par \code{mw\_residus()} (sous forme stable depuis l'issue~\#233), redressés par
 $\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ calculé comme $(S_j - C(i,j))/S_j$, somme des autres cellules
 divisée par $S_j$ (sommes par \code{.mw\_sommes\_autres()}, une fois par colonne depuis
-l'issue~\#260~; par \code{.mw\_un\_moins\_h()} depuis l'issue~\#356), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+l'issue~\#260~; par \code{.mw\_un\_moins\_h()} depuis l'issue~\#356~; par
+\code{mw\_residus\_redresses()} depuis l'issue~\#311, mêmes opérations), puis recentrés (issue~\#46, section~\ref{sec:boot-mw}) \\
+\code{mw\_residus\_}\newline\code{redresses()} & \code{aj}, résidus de Mack \code{res} (sortie de
+\code{mw\_residus()}) & vecteur des résidus redressés par le levier
+$\tilde r(i,j) = r(i,j)/\sqrt{1 - h_{ij}}$, $1 - h_{ij}$ par \code{.mw\_un\_moins\_h()}, dans
+l'ordre des lignes de \code{res}~; de variance~1 à $\sigma_j$ connu, bornés par
+$\sqrt{n_j - 1}$ en valeur absolue~; appelée par \code{.mw\_pool\_residus()} (vivier du
+bootstrap, avant recentrage) et par \code{mw\_plots\_data()} (QQ-plot), issue~\#311
+(section~\ref{sec:boot-mw}, fiche~\ref{mw:m5sw}) \\
 \code{mw\_test\_*()}, \code{mw\_famille\_alpha()},
 \code{mw\_stat\_correlation\_dev()} & \code{aj}~; argument \code{j\_degeneres} des trois
 vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
@@ -1445,7 +1453,10 @@ logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{f
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
 D(5)(d)(ii), \code{FALSE} partout si la règle n'est pas applicable~; depuis l'issue~\#312, en fin
 de liste, les tables \code{residus\_acc\_groupes} et \code{residus\_cal\_groupes} des
-nuages de résidus \\
+nuages de résidus~; depuis l'issue~\#311, la table \code{qqnorm} porte les résidus redressés par
+le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ de leurs rangs, et
+la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
+fin de liste \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -1931,7 +1942,9 @@ consignée dans \code{\$metadata}), elle tirait 499 échantillons $\mathcal{N}(0
 pour l'enveloppe du QQ-plot. Depuis, l'enveloppe est lue dans les résidus réajustés
 \code{bootstrap\$z\_boot} du bootstrap principal, sans aucun tirage (fiche~\ref{fiche:qqnorm})~:
 elle dépend de la graine \code{seed}, et la graine propre, sa constante et son champ de
-\code{\$metadata} ont été retirés.
+\code{\$metadata} ont été retirés. Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
+d'enveloppe et ne tire rien (issue~\#311, décision Q-D1-Fm-4~; fiche~\ref{mw:m5sw})~: il
+n'ajoute aucune source d'aléa.
 Jusqu'à l'issue~\#42, \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
 voie de repli sans le paquet \code{openxlsx}, tiraient une valeur par \code{runif()}, sans
 graine, pour nommer un dossier temporaire qui n'était jamais supprimé. Elles ne tirent plus
@@ -4417,7 +4430,13 @@ avec $h_{ij} = C(i,j)/S_j$ le levier de la cellule dans l'estimation de $\hat f_
   \tilde r(i,j) = \frac{r(i,j)}{\sqrt{1 - h_{ij}}},
 \]
 de variance exactement~1 sous le modèle de Mack à $\sigma_j$ connu, puis recentré
-(\code{.mw\_pool\_residus()}). Le recentrage est nécessaire parce que la contrainte d'estimation de
+(\code{.mw\_pool\_residus()}). Depuis l'issue~\#311, le redressement est porté par
+\code{mw\_residus\_redresses()}, que \code{.mw\_pool\_residus()} appelle avant le recentrage et
+que \code{mw\_plots\_data()} emploie pour le QQ-plot des résidus de Mack
+(fiche~\ref{mw:m5sw})~: mêmes opérations, dans le même ordre, que l'expression qu'elle remplace,
+d'où le même vivier (mesuré~: objet \code{bootstrap} du triangle de contrôle identique, au sens
+d'\code{identical()}, à celui de la référence \code{tests/reference/reserve2.rds}, $B = 999$,
+graine 20260831). Le recentrage est nécessaire parce que la contrainte d'estimation de
 $\hat f_j$ est $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$, et non $\sum_i r(i,j) = 0$~: la moyenne du
 vivier redressé n'est pas nulle. Pour $n_j = 2$, $|r(i,j)| = \sqrt{1 - h_{ij}}$ et
 $|\tilde r(i,j)| = 1$ exactement avant recentrage. $1 - h_{ij}$ est calculé comme
@@ -13076,12 +13095,9 @@ $\hat\beta$~: une dérive contredit la constance de $\beta$. \\
 \code{plot\_residus()} & LN & H2 & Résidus $z_t$ contre le volume~: structure
 résiduelle après pondération. \\
 \code{plot\_mw\_facteurs()} & MW & M6 & Deux panneaux sur le même axe $j$ (issue~\#310)~:
-facteurs $\hat f_j$ par année de développement, avec la référence $f = 1$, qui visualisent la
-cadence de liquidation~; écarts types $\hat\sigma_j$ (\code{facteurs\$sigma}), axe depuis~0, le
-point $j = J-1$, désigné par \code{facteurs\$sigma\_regle\_minimum}, marqué à part et légendé
-«~\texttt{\small sigma\_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non
-estime}~», % \texttt et non \code : "sigma_(" serait lu comme un nom de fonction par tests/concordance_doc_moteur.R
-sans être relié aux $\hat\sigma_j$ estimés (fiche~\ref{mw:m6sig}). \\
+facteurs $\hat f_j$ et référence $f = 1$ (cadence de liquidation)~; écarts types $\hat\sigma_j$,
+le point $j = J-1$, fixé par la règle de minimum (\code{facteurs\$sigma\_regle\_minimum}),
+marqué à part (fiche~\ref{mw:m6sig}). \\
 \code{plot\_mw\_reserve()} & MW & M6 & Réserve par année de survenance~: montre
 la concentration sur les années récentes. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Structure de variance}}} \\
@@ -13099,7 +13115,8 @@ teste conjointement la proportionnalité de la moyenne et celle de la variance. 
 localise la colonne dont la variance est mal spécifiée. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Normalité}}} \\
 \code{plot\_qqnorm()} & LN & H3 & Fiche dédiée. \\
-\code{plot\_mw\_qq()} & MW & M5 & QQ-plot des résidus de Mack. Diagnostic
+\code{plot\_mw\_qq()} & MW & M5 & QQ-plot des résidus de Mack redressés par le levier et
+droite $y = x$, posés par le moteur, sans enveloppe (issue~\#311, fiche~\ref{mw:m5sw}). Diagnostic
 seulement~: la normalité n'est pas une hypothèse du modèle. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Indépendance}}} \\
 \code{plot\_mw\_residus\_acc()} & MW & M3 & Résidus par année de survenance, avec leur
@@ -16825,6 +16842,87 @@ modèle (rubrique~1) ni par le calcul du paramètre~: $\sigma_{\mathrm{USP}}$ es
 barème, sans quantile ni hypothèse de loi. Un verdict serait donc à la fois mal calibré et sans
 objet réglementaire~; la p-value reste restituée, pour la lecture du QQ-plot ou l'usage d'un
 quantile de la MSEP.
+
+\emph{QQ-plot des résidus de Mack} (issue~\#311, décisions Q-D1-Fm-4 et Q-D1-Fm-5 du mainteneur du
+23~octobre 2026~; mesures de la pièce \code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak
+\code{fm-mesures.md}, scripts \code{m\_fm\_a.R}, \code{m\_fm\_c.R} et \code{m\_fm\_d.R}).
+\emph{Référence.} Le graphique (\code{plot\_mw\_qq()}) trace les résidus \emph{redressés par le
+levier}, $\tilde r(i,j) = r(i,j)/\sqrt{1 - h_{ij}}$, $h_{ij} = C(i,j)/S_j$
+(\code{mw\_residus\_redresses()}, ceux du vivier de \code{mw\_bootstrap()} avant recentrage,
+section~\ref{sec:boot-mw}), contre les quantiles $\mathcal{N}(0,1)$ de leurs rangs
+(\code{plots\_data\$qqnorm}), avec la droite $y = x$ posée par le moteur
+(\code{plots\_data\$qqline}, ordonnée~$0$, pente~$1$)~; l'affichage ne calcule rien. Sous les
+hypothèses du modèle de Mack (espérance et variance conditionnelles, indépendance des années de
+survenance), sans hypothèse de loi, $\operatorname{Var}\big(r(i,j)\mid C\big) = 1 - h_{ij}$ à
+$\sigma_j$ connu (section~\ref{sec:boot-mw})~: $\tilde r$ est de variance exactement~1, et la
+droite $y = x$ est sa référence. Les résidus bruts, eux, vérifient $\sum_i r(i,j)^2 = n_j - 1$
+par colonne (fiche~\ref{mw:m2var})~: contre $y = x$, ils dessineraient une pente inférieure à~1
+sans qu'elle traduise un écart au modèle. \emph{Borne exacte, pour toute loi.}
+$\tilde r(i,j)^2 \le \sum_i r(i,j)^2 = n_j - 1$~: c'est la propriété des moindres carrés, la
+somme des carrés résiduels de la colonne privée de la cellule valant la somme des carrés
+résiduels moins $e^2/(1 - h)$ et restant positive ou nulle~; d'où $|\tilde r| = 1$ exactement
+pour $n_j = 2$ et $|\tilde r| \le \sqrt{n_j - 1}$, soit au plus $\sqrt 2$, $\sqrt 3$, $2$,
+$\sqrt 5$ et $\sqrt 6$ pour $n_j = 3$ à~7. Mesuré sur le triangle de contrôle~:
+$\max |\tilde r|/\sqrt{n_j - 1} = 1{,}000000$, borne atteinte en $n_j = 2$, alors que le quantile
+$\mathcal{N}(0,1)$ du rang extrême, sur 27 points, vaut $2{,}085$. \emph{Courbure attendue sous
+$H_0$.} Même sous le modèle de Mack à erreurs gaussiennes, la courbe attendue n'est pas droite
+(modèle ajusté au triangle de contrôle, première colonne fixée, 999 triangles simulés hors moteur
+sous la graine 20261023~; intervalles~: quantiles à $5~\%$ et $95~\%$ de la distribution sur les
+triangles, non des intervalles de confiance)~:
+
+\begin{center}
+\small
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{6.4cm}p{3.6cm}p{3.6cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Grandeur}} &
+\textcolor{financeblue}{\textbf{$r$ brut}} &
+\textcolor{financeblue}{\textbf{$\tilde r$ redressé}} \\
+Moyenne des variances empiriques & $0{,}8077$ & $1{,}0384$ \\
+Pente des moindres carrés des statistiques d'ordre sur les quantiles $\mathcal{N}(0,1)$ &
+$0{,}884$ $[0{,}867~;~0{,}896]$ & $1{,}000$ $[0{,}981~;~1{,}014]$ \\
+Pente par quartiles (forme de \code{stats::qqline()}) & $1{,}030$ $[0{,}855~;~1{,}185]$ &
+$1{,}231$ $[0{,}992~;~1{,}419]$ \\
+Espérance de la statistique d'ordre moins le quantile $\mathcal{N}(0,1)$, rangs 1~/ 7~/ 14~/ 21~/ 27 &
+$+0{,}499$~/ $-0{,}032$~/ $-0{,}002$~/ $+0{,}033$~/ $-0{,}491$ &
+$+0{,}342$~/ $-0{,}189$~/ $-0{,}003$~/ $+0{,}194$~/ $-0{,}333$ \\
+\end{tabular}
+\end{center}
+
+\noindent
+Sur le triangle de contrôle, la pente des moindres carrés vaut $0{,}877$ (brut) et $0{,}989$
+(redressé), la pente par quartiles $1{,}159$ et $1{,}416$. Sur les résidus redressés, les points
+extrêmes sont donc attendus en deçà de la droite d'environ $0{,}33$ en valeur absolue, effet de
+la borne $\sqrt{n_j - 1}$, et les rangs 7 et 21 au-delà d'environ $0{,}19$~: une forme en S
+modérée n'est pas, à elle seule, un indice de queues légères. La note fixe du graphique le
+rappelle («~\code{droite y = x : variance unitaire a sigma\_j connu ; |r / sqrt(1 - h)| <=
+sqrt(n\_j - 1), donc points extremes attendus en deca de la droite, meme sous le modele}~»).
+\emph{Droite par quartiles écartée.} Sa pente attendue sous $H_0$ n'est pas~1 ($1{,}03$ sur les
+résidus bruts, $1{,}23$ sur les résidus redressés), les marges des petites colonnes étant bornées,
+donc plus aplaties que la normale~; la droite par quartiles que traçait le rendu base~R de
+l'affichage avant l'issue, sur les résidus bruts (pente $1{,}159$ sur le triangle de contrôle),
+n'était pas une référence. \emph{Différence avec
+les lignes M5.} Shapiro--Wilk et Lilliefors restent calculées sur les résidus bruts $r$ (valeurs
+inchangées par l'issue)~; le graphique montre les résidus redressés, ceux que rééchantillonne le
+bootstrap. Le facteur $1/\sqrt{1 - h_{ij}}$ va de $1{,}071$ à $1{,}434$ sur le triangle de
+contrôle, et les deux résidus de la colonne à $n_j = 2$ valent exactement $\pm 1$ une fois
+redressés~: ils ne portent qu'un signe. \emph{Absence d'enveloppe} (décision Q-D1-Fm-4, option
+(c)). Une enveloppe lue dans les réplications de \code{mw\_bootstrap()} décrirait la dispersion
+des statistiques d'ordre autour de la loi \emph{empirique} des résidus~: les points observés y
+tomberaient par construction, et elle ne pourrait révéler aucun écart à la normalité (le
+bootstrap de résidus «~ne permet pas de tester la normalité~», tableau~\ref{tab:conv}). Une
+enveloppe simulée sous le modèle de Mack ajusté à erreurs gaussiennes, mesurée hors moteur, est
+calibrée (bande simultanée~: au moins un point hors de la bande dans $0{,}103$ $[0{,}090~;~0{,}118]$
+de 2\,000 triangles indépendants sous $H_0$) mais n'informe que contre une forte asymétrie
+($0{,}582$ contre une loi exponentielle centrée, $0{,}702$ contre une lognormale), peu contre des
+queues lourdes ($0{,}215$ contre une loi de Student à 3 degrés de liberté) ou une cellule isolée
+($0{,}156$ et $0{,}226$ pour une cellule déplacée de 4 ou 6 écarts-types, objet de M4)~; elle
+porte sur une hypothèse que le modèle n'exige pas et dont $\sigma_{(\text{res},s,\mathrm{USP})}$ ne
+dépend pas, au prix d'une source d'aléa supplémentaire. Elle n'est pas retenue~: le QQ-plot de la
+méthode Merz--Wüthrich ne tire rien. \emph{Statut}~: variance $1 - h_{ij}$ et borne
+$\sqrt{n_j - 1}$, résultats exacts (algèbre)~; pentes, écarts des statistiques d'ordre et taux de
+sortie de l'enveloppe, constats de simulation sous un plan (intervalles de Clopper--Pearson des
+taux fonction du nombre de triangles)~; valeurs du triangle de contrôle, calculées.
 
 \emph{Plancher et niveau de la p-value restituée.} La loi de $W$ est continue~; la p-value, lue
 sur une loi nulle simulée de 20\,000 tirages à la taille du vecteur des résidus
