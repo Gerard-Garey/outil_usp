@@ -143,12 +143,20 @@ verifier("D-a masquer_chemins() : autres chemins absolus (LAPACK de la plateform
 verifier("D-a grille_combinaison() (audit A1) : grille hors du depot, chemin absolu garde, motif cite par son seul nom",
          { g <- E$grille_combinaison(sprintf("%s (md5 %s, suivi par git : non)", .tmp, MD5A))
            identical(g$chemin, .tmp) && identical(g$nv, sprintf("tableau de la grille %s%s non suivi par git", basename(.tmp), HD)) })
-.git_ok <- nzchar(Sys.which("git")) && dir.exists(file.path(RACINE_229, ".git"))
+# Depot detecte par git lui-meme et non par dir.exists(".git") : dans un
+# worktree, `.git` est un fichier (#373). Deux causes distinctes de saut :
+# git non installe, racine hors d'un depot.
+.git_installe <- nzchar(Sys.which("git"))
+.git_ok <- .git_installe &&
+  identical(tryCatch(suppressWarnings(system2("git", c("-C", shQuote(RACINE_229), "rev-parse", "--is-inside-work-tree"),
+                                              stdout = TRUE, stderr = FALSE)),
+                     error = function(e) NA_character_), "true")
 if (.git_ok) {
   verifier("D-a grille_combinaison() : grille suivie du depot, chemin relatif rapporte a la racine, aucun motif",
            { g <- E$grille_combinaison(sprintf("docs/tableaux/20261010-issue229-grille.md (md5 %s)", MD5A))
              identical(g$chemin, file.path(RACINE_229, "docs/tableaux/20261010-issue229-grille.md")) && !length(g$nv) })
-} else cat("  (git absent : test de grille_combinaison() sur un fichier suivi saute)\n")
+} else cat(if (!.git_installe) "  (git absent : test de grille_combinaison() sur un fichier suivi saute)\n"
+           else "  (racine hors d'un depot git : test de grille_combinaison() sur un fichier suivi saute)\n")
 verifier("D-a script : JOURNAL, valeurs brutes de #221, de la partie regime et de la grille cites par chemin_affiche(), jamais chemin_cite()",
          { cc <- args_appels("chemin_cite"); ca <- args_appels("chemin_affiche")
            !any(c("OPT_JOURNAL", "frb", "OPT_GRILLE_BRUT", "fb") %in% cc) && all(c("OPT_JOURNAL", "frb", "OPT_GRILLE_BRUT", "fb") %in% ca) })
