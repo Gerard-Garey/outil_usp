@@ -183,10 +183,76 @@
 #  leur effet borne sont declares en T0 (contexte, donc controle de
 #  --combiner) ; leur effet n'est pas corrige.
 #
+#  Lecture conjointe (#297, specification docs/specifications/
+#  fk-lecture-conjointe.md, par. 5 ; decisions du mainteneur du 25/10/2026) :
+#  depuis #297, usp_tests() pose apres ses lignes une ligne de diagnostic par
+#  famille d'au moins deux tests (B. a G.) et une ligne globale (LC)
+#  (engine_p_famille()) ; leur presence depend des donnees (exception a
+#  l'invariant I5). Le script les traite a part :
+#    - LIGNES (T2, controle (c)) : les 47 lignes hors lecture conjointe, de
+#      memes libelles et dans le meme ordre a chaque replication ;
+#    - par replication et par cle de famille (B. a G., LC) : etat (1 : ligne
+#      et p ; 2 : ligne sans p, B effectif de famille < 50, texte T-3b ; 0 :
+#      pas de ligne, k <= 1 ; -1 : incoherence ; -2 : bootstrap$stats_boot
+#      absent), k, B effectif de famille, p, err_mc, m_obs, plus petite p_mc
+#      des membres (colonnes REP etf:, kf:, bf:, pf:, ef:, sf:, minf:) ; comptes
+#      f|cle|... (K-F1, composition, K-F2, K-F4), mult|ae et mult|e (au moins
+#      une ALERTE ou un ECHEC, au moins un ECHEC, parmi les lignes de type
+#      test), mult|ae_npr et mult|e_npr (idem, lignes de sens "ne pas
+#      rejeter" seules), fr|statistique|... (|p_mc - s| < 2 err_mc par
+#      statistique du catalogue, K-F4) ; colonnes REP e_mc: et B_eff: (err_mc
+#      et B effectif de chaque statistique, controlees par --combiner) ;
+#    - controle (k) : etats 0, 1 ou 2 seulement, coherents avec k et le B
+#      effectif recomptes par le script (etat -2 : stats_boot absent, jamais
+#      confondu avec une ligne absente pour k <= 1 ; INTEGRITE ECHEC) ;
+#    - controle (K-F3), sur la premiere replication traitee de chaque
+#      execution : p de famille, m_obs, err_mc et k recalcules dans le script
+#      en R de base (fk_recalcul(), copie declaree de
+#      tests/calibration_mc_mw_t8.R, ecriture independante
+#      d'engine_p_famille()), identical() aux champs des lignes ;
+#    - controle (t297) : texte du critere de Fk (par. 5.3) reporte SANS
+#      MODIFICATION dans TEXTE_CRITERE_FK et present dans la specification ;
+#    - T2 etendu aux lignes ajoutees (diagnostics, INFO).
+#  --combiner ... --campagne 297 [--niveau Lk] [--journal JOURNAL.md] : J1 et
+#  J2 dans une meme combinaison (comptes et controles par jeu), puis
+#  <AAAAMMJJ>-issue297-calibration-famille-ln.md (provenance, critere de Fk,
+#  evaluation mecanique de K-F1 a K-F4 et des profils Phi sans conclure,
+#  tables T-F1 a T-F4, puis T1 a T3 de chaque jeu), son brut
+#  -calibration-famille-ln-brut.tsv (lignes REP des deux jeux, colonne jeu)
+#  et -journal-combinaison-ln.md. --niveau Lk : R de J1 et de J2 fixes par
+#  le plan de Fk (par. 5.2 : L0 et L1 2 000 et 2 000 ; L2 et L3 1 000 et
+#  2 000 ; L4 1 000 et 1 000) ; --ecrire exige --niveau, --journal (une
+#  ligne "- Sortie <nom> : md5 <md5>" par sortie, ligne "- Niveau : Lk") et
+#  --brut. Le JOURNAL de la campagne est copie par la combinaison de
+#  tests/calibration_mc_mw_t8.R (--campagne 297), pas ici.
+#  --essai (M41 (c), meme semantique que tests/calibration_mc_mw_t8.R et
+#  tests/p_conditionnelle_regime_t8.R) : execution d'essai, R par defaut 2
+#  (au lieu de 2 000), marquee dans le contexte (champ essai) et au
+#  markdown, sortie non versionnable : --combiner la combine mais --ecrire la
+#  refuse. Sans --essai, une execution REFUSE (code 1, avant tout calcul) un
+#  commit non propre ou un code hors du depot (motifs_non_versionnable()).
+#  --sortie-tranche FICHIER : sortie complete (markdown et lignes machine)
+#  ecrite dans FICHIER, HORS du depot, jamais ecrase, a la fin du calcul
+#  (format de tests/outillage/lancer_tranches.sh : derniere ligne FIN ; pas
+#  de --reprendre, une sortie interrompue est recalculee) ; le markdown est
+#  aussi imprime sur la console.
+#  --prevol [--unites 5] : cout des controles d'une execution, puis debit a
+#  1, 2, 3 et 4 processus concurrents (sous-processus --prevol-unite, chacun
+#  traitant UNITES replications de J1 puis de J2 par run_engine() complet) ;
+#  imprime c_J1, c_J2 (s par replication, un processus), P_k et la ligne
+#  machine PREVOL_LN, lue par "tests/calibration_mc_mw_t8.R --prevol
+#  --campagne 297 --prevol-ln FICHIER". Rien d'ecrit.
+#
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/calibration_mc_t8.R [--jeu J1|J2] [--R 2000] [--tranche i/K]
-#      Rscript tests/calibration_mc_t8.R --combiner f1 f2 ... [--ecrire [--remplacer] | --sortie DOSSIER]
-#          [--brut FICHIER]
+#          [--essai] [--sortie-tranche FICHIER]
+#      Rscript tests/calibration_mc_t8.R --combiner f1 f2 ... | DOSSIER
+#          [--campagne 166|297 [--niveau Lk] [--journal JOURNAL.md]]
+#          [--ecrire [--remplacer] | --sortie DOSSIER] [--brut FICHIER]
+#      Rscript tests/calibration_mc_t8.R --prevol [--unites 5]
+#  (--prevol-unite --b b1:b2 : mode interne de --prevol.) DOSSIER : fichiers
+#  ln-J<1|2>-R<R>-<b1>-<b2>.txt du plan de la campagne 297 (R dans le nom :
+#  deux niveaux qui different par R ne se melangent pas dans un dossier).
 #  Pas d'option de B ni de graine : B = 999 et les graines sont celles du
 #  protocole (decision Q1 : aucun levier).
 #  --tranche i/K : ne traite que la i-eme de K tranches de replications
@@ -262,8 +328,8 @@
 #        --jeu J1 --tranche $i/8 > $D/J1-$i.txt & done; wait
 #      LC_ALL=C.UTF-8 Rscript tests/calibration_mc_t8.R --combiner $D/J1-*.txt --ecrire \
 #        --brut $D/J1-brut.tsv
-#  Recette : --R 2 rend le code 0 en moins d'une minute (mesure du compte
-#  rendu de #166 ; ligne Duree de T0).
+#  Recette : --essai (R = 2) rend le code 0 en moins d'une minute (mesure du
+#  compte rendu de #166, alors --R 2 ; ligne Duree de T0).
 #  Fonctions reprises par copie declaree (ces scripts executent leur calcul au
 #  chargement et ne peuvent pas etre sources) :
 #    - de tests/taux_franchissement_reperes.R : lire_option(), ligne_md(),
@@ -289,11 +355,12 @@ t_debut <- Sys.time()
 
 # --- Options (lire_option() : copie de tests/taux_franchissement_reperes.R) ---
 ARGS <- commandArgs(trailingOnly = TRUE)
-OPTIONS_APRES_COMBINER <- c("--ecrire", "--remplacer", "--sortie", "--brut")
+OPTIONS_APRES_COMBINER <- c("--ecrire", "--remplacer", "--sortie", "--brut", "--campagne", "--niveau", "--journal")
 i_comb <- match("--combiner", ARGS)
 FICHIERS_COMB <- if (is.na(i_comb)) character(0) else {
   reste <- ARGS[-seq_len(i_comb)]
-  # les options --ecrire, --remplacer, --sortie DOSSIER et --brut FICHIER peuvent suivre la liste
+  # les options --ecrire, --remplacer, --sortie DOSSIER, --brut FICHIER,
+  # --campagne, --niveau et --journal peuvent suivre la liste
   j <- match(OPTIONS_APRES_COMBINER, reste)
   fin <- if (all(is.na(j))) length(reste) else min(j, na.rm = TRUE) - 1L
   reste[seq_len(fin)]
@@ -305,13 +372,37 @@ lire_option <- function(nom, defaut) {
   if (i == length(ARGS)) stop("option ", nom, " sans valeur")
   ARGS[i + 1L]
 }
+OPT_ESSAI   <- "--essai" %in% ARGS
+OPT_PREVOL  <- "--prevol" %in% ARGS
+OPT_UNITE   <- "--prevol-unite" %in% ARGS
 OPT_JEU     <- lire_option("--jeu", "J1")
-OPT_R       <- suppressWarnings(as.integer(lire_option("--R", "2000")))
+# --essai (M41 (c)) : R reduit, 2 par defaut.
+OPT_R       <- suppressWarnings(as.integer(lire_option("--R", if (OPT_ESSAI) "2" else "2000")))
 OPT_TRANCHE <- lire_option("--tranche", NA_character_)
 OPT_ECRIRE  <- "--ecrire" %in% ARGS
 OPT_REMPLACER <- "--remplacer" %in% ARGS
 OPT_SORTIE  <- lire_option("--sortie", NA_character_)
 OPT_BRUT    <- lire_option("--brut", NA_character_)
+OPT_SORTIE_TR <- lire_option("--sortie-tranche", NA_character_)
+OPT_CAMPAGNE <- lire_option("--campagne", "166")
+OPT_NIVEAU  <- lire_option("--niveau", NA_character_)
+OPT_JOURNAL <- lire_option("--journal", NA_character_)
+# --unites : 5 replications de J1 et de J2 par processus au pre-vol (audit
+# m2 de #297 : c_J2 depend du regime de delta chapeau* ; environ 10 min).
+OPT_UNITES  <- suppressWarnings(as.integer(lire_option("--unites", "5")))
+OPT_B       <- lire_option("--b", NA_character_)
+MODE_LN <- if (!is.na(i_comb)) "combiner" else if (OPT_UNITE) "unite" else if (OPT_PREVOL) "prevol" else "execution"
+if (sum(!is.na(i_comb), OPT_UNITE, OPT_PREVOL) > 1L) stop("un mode et un seul : --combiner, --prevol")
+if (MODE_LN != "execution" && (OPT_ESSAI || !is.na(OPT_SORTIE_TR) || !is.na(OPT_TRANCHE)))
+  stop("--essai, --sortie-tranche et --tranche sont reserves a une execution (ni --combiner, ni --prevol)")
+if (MODE_LN != "combiner" && any(c("--campagne", "--niveau", "--journal") %in% ARGS))
+  stop("--campagne, --niveau et --journal sont reserves a --combiner")
+if (!OPT_CAMPAGNE %in% c("166", "297")) stop("--campagne : 166 ou 297")
+if (OPT_CAMPAGNE != "297" && (!is.na(OPT_NIVEAU) || !is.na(OPT_JOURNAL))) stop("--niveau et --journal : reserves a --campagne 297")
+if (!is.na(OPT_NIVEAU) && !OPT_NIVEAU %in% paste0("L", 0:4)) stop("--niveau : L0 a L4 (plan de Fk, par. 5.2)")
+if (MODE_LN != "prevol" && "--unites" %in% ARGS) stop("--unites : reserve a --prevol")
+if (MODE_LN != "unite" && !is.na(OPT_B)) stop("--b : reserve au mode interne --prevol-unite")
+if (is.na(OPT_UNITES) || OPT_UNITES < 1L) stop("--unites : entier >= 1")
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
 if (!is.finite(OPT_R) || OPT_R < 1L) stop("--R : entier >= 1")
 if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs")
@@ -319,6 +410,11 @@ if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (rempla
 if ((OPT_ECRIRE || !is.na(OPT_SORTIE) || !is.na(OPT_BRUT)) && is.na(i_comb))
   stop("--ecrire, --sortie et --brut sont reserves a --combiner (tableaux produits par --combiner)")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
+# Campagne 297 : --ecrire exige le niveau du plan, le JOURNAL et la copie
+# brute hors du depot (comme tests/calibration_mc_mw_t8.R).
+if (OPT_ECRIRE && OPT_CAMPAGNE == "297" && is.na(OPT_NIVEAU)) stop("--ecrire : --niveau Lk obligatoire avec --campagne 297")
+if (OPT_ECRIRE && OPT_CAMPAGNE == "297" && is.na(OPT_JOURNAL)) stop("--ecrire : --journal FICHIER obligatoire avec --campagne 297")
+if (OPT_ECRIRE && OPT_CAMPAGNE == "297" && is.na(OPT_BRUT)) stop("--ecrire : --brut FICHIER obligatoire avec --campagne 297")
 
 # --- Protocole (constantes ; aucune option : decision Q1, aucun levier) -------
 METHODE <- "premium"; SEGMENT <- 1; ANNEXE <- "II"; NATURE <- "brutes"
@@ -357,13 +453,15 @@ source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 # Plateforme de calcul (#171) : R, systeme, machine, BLAS, LAPACK. Champ du
 # contexte : des tranches calculees sur des plateformes differentes ne se
 # combinent pas (certains comptes dependent de l'optimiseur : regime de
-# delta chapeau*, reajustements du bootstrap).
+# delta chapeau*, reajustements du bootstrap). BLAS et LAPACK cites par le
+# NOM de leur bibliotheque, sans chemin absolu (D-a de #242, campagne 297 ;
+# comme tests/calibration_mc_mw_t8.R).
 plateforme_calcul <- function() {
   txt <- function(v) if (is.null(v) || !length(v) || is.na(v[1]) || !nzchar(v[1])) "non renseign\u00e9" else unname(v[1])
   si <- Sys.info()
   sprintf("%s ; %s ; %s, %s ; BLAS : %s ; LAPACK : %s (version %s)",
           R.version.string, txt(utils::sessionInfo()$running), txt(si[["sysname"]]), txt(si[["machine"]]),
-          txt(extSoftVersion()["BLAS"]), txt(La_library()), txt(La_version()))
+          txt(basename(extSoftVersion()[["BLAS"]])), txt(basename(La_library())), txt(La_version()))
 }
 # Empreintes md5 du code execute (constat F1 d'audit, #166 ; #171) : moteur
 # du depot, tests/outils_tests.R effectivement charge (celui du dossier du
@@ -412,6 +510,25 @@ if (OPT_ECRIRE) {
   if (!dir.exists(file.path(RACINE, "docs", "tableaux")))
     stop("dossier de sortie introuvable : ", file.path(RACINE, "docs", "tableaux"))
 }
+# Execution (tranche ou d'un seul tenant) : sortie versionnable seulement sur
+# un commit propre et le code du depot, sinon refus avant tout calcul, sauf
+# --essai (M41 (c), meme regle que tests/calibration_mc_mw_t8.R) ;
+# --sortie-tranche hors du depot, jamais ecrasee.
+if (MODE_LN == "execution") {
+  if (!OPT_ESSAI) {
+    nvt <- motifs_non_versionnable(commit_depot("tests/calibration_mc_t8.R"),
+                                   empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72), "de la sortie")
+    if (length(nvt)) {
+      message("sortie refusee : ", paste(nvt, collapse = " ; "), " -- lancer dans un git worktree au commit propre cite, ou --essai")
+      quit(status = 1L)
+    }
+  }
+  if (!is.na(OPT_SORTIE_TR)) {
+    if (!dir.exists(dirname(OPT_SORTIE_TR))) stop("--sortie-tranche : dossier introuvable")
+    if (sous_depot(dirname(OPT_SORTIE_TR))) stop("--sortie-tranche : chemin sous le depot refuse")
+    if (file.exists(OPT_SORTIE_TR)) stop("--sortie-tranche : fichier existant, jamais ecrase")
+  }
+}
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
 entete_md <- function(cols) c(ligne_md(paste(cols, collapse = " | ")),
@@ -424,6 +541,259 @@ ic_cp <- function(k, n) if (n > 0) {
 txt_ic <- function(ci, d = 4) if (anyNA(ci)) "\u2014" else sprintf("[%s ; %s]", num(ci[1], d), num(ci[2], d))
 # Cle de compte sans separateur ni tabulation.
 nettoyer_cle <- function(s) gsub("[|\t\r\n]+", " ", s)
+
+# Classes de #166 et #206 contre une reference (rho_F, par. 5.3) : copie de
+# lecture() de tests/calibration_mc_mw_t8.R, renommee (ce script a sa propre
+# lecture(), aide a la lecture de T1 et T2) ; valeurs non arrondies.
+D_IC <- 5L
+CLASSES <- c("compatible", "\u00e9cart mineur", "\u00e9cart non tranch\u00e9", "distorsion mat\u00e9rielle")
+lecture_classe <- function(k, n, ref) {
+  if (n == 0 || !is.finite(ref))
+    return(list(k = k, n = n, taux = if (n) k / n else NA_real_, ci = if (n) ic_cp(k, n) else c(NA_real_, NA_real_),
+                evaluable = FALSE, disj = FALSE, cote = NA_character_,
+                classe = if (n == 0) "non \u00e9valuable (n = 0)" else "non \u00e9valuable (\u03c1 absente)"))
+  ci <- ic_cp(k, n); t <- k / n
+  ref_ic <- ref >= ci[1] && ref <= ci[2]
+  cote <- if (ci[2] < ref / 2) "conservateur" else if (ci[1] > 3 * ref / 2) "lib\u00e9ral" else NA_character_
+  classe <- if (ref_ic) CLASSES[1] else if (!is.na(cote)) CLASSES[4] else
+    if (t >= ref / 2 && t <= 3 * ref / 2) CLASSES[2] else CLASSES[3]
+  list(k = k, n = n, taux = t, ci = ci, evaluable = TRUE, disj = !is.na(cote), cote = cote, classe = classe)
+}
+txt_lec <- function(c_) sprintf("%s %s", num(c_$taux, D_IC), txt_ic(c_$ci, D_IC))
+txt_classe <- function(c_) if (c_$disj) sprintf("%s (**%s**)", c_$classe, c_$cote) else c_$classe
+liste_cel <- function(x, n = 10) if (!length(x)) "aucune" else
+  paste(c(utils::head(x, n), if (length(x) > n) sprintf("... (%d en tout)", length(x))), collapse = " ; ")
+# Cles des lignes de lecture conjointe de usp_tests() (#297) : familles B. a
+# G. (G. sans test dans les cas de reference : etat 0 attendu), puis la ligne
+# globale.
+FAM_LN <- c("B.", "C.", "D.", "E.", "F.", "G.", PREFIXE_LECTURE_CONJOINTE)
+# Specification de Fk (#297) : critere K-F1 a K-F4 et profils (controle
+# (t297)) ; presence d'un bloc de lignes, a l'identique (copie de
+# present_bloc() de tests/calibration_mc_mw_t8.R).
+SPEC_FK <- file.path("docs", "specifications", "fk-lecture-conjointe.md")
+present_bloc <- function(bloc, txt) {
+  i <- which(txt == bloc[1])
+  any(vapply(i, function(k) k + length(bloc) - 1L <= length(txt) && identical(txt[k:(k + length(bloc) - 1L)], bloc), logical(1)))
+}
+CODE_ETAT <- c(L = 1, N = 2, A = 0, X = -1, S = -2)
+# Libelle d'une ligne de lecture conjointe dans T2 : champ test de
+# engine_p_famille() (le meme pour toutes les familles), suivi de la cle.
+lib_ligne_fk <- function(f) if (f == FAM_LN[length(FAM_LN)])
+  sprintf("p globale (minP, lecture conjointe de la batterie) [%s]", f) else sprintf("p de famille (minP, lecture conjointe) [%s]", f)
+
+###############################################################################
+#  LECTURE CONJOINTE (#297) : CRITERE DE FK, MEMBRES, ETATS, CONTROLE K-F3
+###############################################################################
+# Copie declaree de tests/calibration_mc_mw_t8.R (memes corps) :
+# TEXTE_CRITERE_FK, RHO_F, fk_champ(), fk_num(), fk_membres(), fk_etats(),
+# fk_etats_ok(), fk_recalcul(), profils_fk() ; CLASSES, lecture_classe()
+# (copie de lecture() de ce script), txt_lec(), txt_classe() et liste_cel()
+# (copies).
+# Texte du critere de Fk (specification de Fk, par. 5.3, approuve tel quel
+# par le mainteneur, Q-D1-Fk-8), reporte SANS MODIFICATION (controle (t297))
+# et au T0 des tableaux de la campagne 297.
+TEXTE_CRITERE_FK <- c(
+  "### 5.3 Crit\u00e8re, fix\u00e9 avant toute ex\u00e9cution (report\u00e9 sans modification dans les scripts et au T0)",
+  "",
+  "**Grandeurs.**",
+  "- Pour chaque jeu simul\u00e9 d, chaque famille f dont la ligne est pr\u00e9sente (k_f \u2265 2, ou \u2265 1 sous Q-D1-Fk-2 (b)) et chaque \u03b1 \u2208 {0,10 ; 0,05} : D = 1 si p_f,d < \u03b1.",
+  "- Une p de famille absente (T-3b) compte comme un non-rejet, compt\u00e9e \u00e0 part (#242).",
+  "- \u03c4_f(\u03b1) = (\u03a3 D) / n_f, o\u00f9 n_f est le nombre de jeux o\u00f9 la ligne est pr\u00e9sente. IC de Clopper-Pearson \u00e0 95 %, calcul\u00e9 sur les valeurs non arrondies.",
+  "- La composition de la famille varie avec le jeu. Elle est rapport\u00e9e : distribution de k_f et part des jeux o\u00f9 la ligne existe.",
+  "",
+  "**R\u00e9f\u00e9rence \u03c1_F(\u03b1)** : la taille du test de Monte-Carlo id\u00e9al \u00e0 B_eff = 999, pour une statistique sans atome, P((1 + K)/1000 < \u03b1) = (\u23081 000 \u03b1\u2309 \u2212 1)/1 000. Elle vaut **0,099** et **0,049** [V, arithm\u00e9tique]. Avec des atomes de m, nombreux pr\u00e8s du plancher, le test id\u00e9al est plus conservateur : \u03c1_F en est un **majorant** [V, raisonnement du \u00a7 2.1]. La masse de p_f au plancher 1/(B_eff + 1) est rapport\u00e9e.",
+  "",
+  "**Classes**, celles de #166 et #206 avec \u03c1_F :",
+  "- *compatible* : \u03c1_F \u2208 IC ;",
+  "- *\u00e9cart mineur* : estimation dans [\u03c1_F/2 ; 3\u03c1_F/2] ;",
+  "- *non tranch\u00e9* : estimation hors de la bande, IC qui la recoupe ;",
+  "- *distorsion mat\u00e9rielle* : IC disjoint de la bande, c\u00f4t\u00e9 lib\u00e9ral ou conservateur.",
+  "",
+  "**Conditions** (\u00e9valu\u00e9es m\u00e9caniquement, sans conclusion dans le tableau) :",
+  "- **K-F1** (principal) : classe de \u03c4_f(\u03b1) pour chaque (jeu ou loi, famille ou globale, \u03b1).",
+  "- **K-F2** (descriptif, T4) : part des jeux \u00e0 au moins une ALERTE ou un ECHEC et \u00e0 au moins un ECHEC, sur les tests ; part des jeux \u00e0 p globale < \u03b1 ; par famille, part \u00e0 au moins un test membre \u00e0 p < \u03b1 contre part \u00e0 p_f < \u03b1.",
+  "- **K-F3** (int\u00e9grit\u00e9) : les contr\u00f4les existants des deux scripts, plus un contr\u00f4le nouveau. Sur le premier jeu de chaque tranche, p_f et m_obs recalcul\u00e9s **dans le script**, en R de base, depuis `bootstrap$stats_boot`, `stats_obs`, le catalogue et les lignes, par une \u00e9criture ind\u00e9pendante d'`engine_p_famille()`, doivent \u00eatre `identical()` aux champs de la ligne. Un \u00e9chec met INTEGRITE \u00e0 ECHEC.",
+  "- **K-F4** (fronti\u00e8re, descriptif) : par cl\u00e9 et pour chaque p de famille, la fr\u00e9quence sous H0 de |p \u2212 s| < 2 err_mc, pour s \u2208 {\u03b1 ; \u03b1/2} (T4 de #206, \u00e9tendu).",
+  "- **Merz-W\u00fcthrich, remesure par cl\u00e9** : K1 \u00e0 K5 de la sp\u00e9cification de #206, \u00a7 5, inchang\u00e9s, avec ses annotations du 10 et du 11/10/2026. La cl\u00e9 Runs, dont la ligne est un diagnostic depuis #312, est lue \u00e0 titre descriptif.",
+  "",
+  "**Profils de lecture pour D2-Fk** (actuary propose, le mainteneur tranche) :",
+  "",
+  "| Profil | Condition | Lecture propos\u00e9e |",
+  "|---|---|---|",
+  "| \u03a60 | K-F3, ou K3 ou K4 de #206, en d\u00e9faut sans explication | Lecture suspendue ; mesure \u00e0 reprendre |",
+  "| \u03a61 | Toutes les p de famille et la p globale compatibles ou en \u00e9cart mineur, aux deux \u03b1, sous chaque jeu et chaque loi | Diagnostic conserv\u00e9 ; niveau document\u00e9 comme constat ; **aucune d\u00e9cision** |",
+  "| \u03a62 | Pas de distorsion mat\u00e9rielle, mais des \u00e9carts non tranch\u00e9s | Idem, avec les IC |",
+  "| \u03a63 | Distorsion mat\u00e9rielle **conservatrice** seulement | Conserv\u00e9 ; la documentation dit qu'une p de famille \u00e9lev\u00e9e est une preuve faible ; aucune d\u00e9cision |",
+  "| \u03a64 | Distorsion mat\u00e9rielle **lib\u00e9rale** pour au moins une (famille, jeu ou loi, \u03b1) | **D\u00e9cision du mainteneur** : garder avec une phrase fixe sourc\u00e9e par la mesure, retirer la ou les lignes, ou reformuler |",
+  "| \u03a65 | Distorsions de c\u00f4t\u00e9s oppos\u00e9s entre jeux ou lois pour une m\u00eame famille | **D\u00e9cision du mainteneur** ; documenter, aucune correction calibr\u00e9e sur un seul plan |",
+  "",
+  "Pour les cl\u00e9s Merz-W\u00fcthrich, un \u03a03 ou un \u03a04 (profils de #206) donne lieu \u00e0 une **issue propos\u00e9e**, sans changement de verdict en Fk. L'issue est rapport\u00e9e \u00e0 D2-Fk \u00e0 titre d'information.")
+# Reference rho_F (par. 5.3) : taille du test de Monte-Carlo ideal a
+# B_eff = 999 pour une statistique sans atome, (ceil(1 000 alpha) - 1)/1 000.
+RHO_F <- c(a10 = 0.099, a05 = 0.049)
+stopifnot(identical(unname(RHO_F), (ceiling(round(1000 * c(0.10, 0.05), 9)) - 1) / 1000))
+# Champs d'une ligne de resultat : caractere (NA si absent, de longueur
+# differente de 1 ou NA) et numerique.
+fk_champ <- function(l, nm) {
+  v <- l[[nm]]
+  if (is.null(v) || length(v) != 1L || is.na(v)) NA_character_ else as.character(v)
+}
+fk_num <- function(l, nm) {
+  v <- l[[nm]]
+  if (is.null(v) || length(v) != 1L) NA_real_ else suppressWarnings(as.numeric(v))
+}
+# Membres des familles, regle du par. 1.3 de la specification de Fk REECRITE
+# ici (ecriture independante d'engine_p_famille()) : ligne de type "test",
+# variante "principale", sens "ne pas rejeter", mc_nom renseigne et p_mc
+# finie ; membres dedoublonnes par mc_nom, dans l'ordre des lignes ; famille
+# = deux premiers caracteres du champ famille ; derniere cle de fam : ligne
+# globale (reunion de tous les membres, familles d'un seul test comprises).
+# Rend membres (cle -> mc_nom), minp (cle -> plus petite p_mc des membres,
+# NA sans membre) et hors (prefixes de membres absents de fam).
+fk_membres <- function(lignes, fam) {
+  ch <- function(nm) vapply(lignes, fk_champ, "", nm)
+  pm <- vapply(lignes, fk_num, 1, "p_mc")
+  mc <- ch("mc_nom"); pref <- substr(ch("famille"), 1L, 2L)
+  memb <- ch("type") %in% "test" & ch("variante") %in% "principale" & ch("sens") %in% "ne pas rejeter" &
+    !is.na(mc) & is.finite(pm) & !ch("fonction") %in% "engine_p_famille"
+  globale <- fam[length(fam)]
+  sel <- lapply(fam, function(f) if (f == globale) memb else memb & pref %in% f)
+  list(membres = stats::setNames(lapply(sel, function(k) unique(mc[k])), fam),
+       minp = stats::setNames(vapply(sel, function(k) if (any(k)) min(pm[k]) else NA_real_, 1), fam),
+       hors = setdiff(unique(pref[memb]), fam))
+}
+# Etat de chaque ligne de lecture conjointe d'un resultat (lignes de
+# engine_p_famille(), cle = deux premiers caracteres de leur famille) :
+#   S : bootstrap$stats_boot absent (aucune ligne de famille ne peut etre
+#       calculee : jamais confondu avec A, reserve d'actuary du 25/10/2026) ;
+#   A : pas de ligne et k <= 1 (Q-D1-Fk-2 (a)) ;
+#   L : ligne de type diagnostic, INFO, k >= 2 (estim = k), B effectif de
+#       famille >= B_MIN_DEGENERESCENCE, p, err_mc et m_obs finies ;
+#   N : idem, B effectif < B_MIN_DEGENERESCENCE, p, err_mc et m_obs absentes
+#       (texte T-3b) ;
+#   X : tout autre cas (incoherence : ligne absente a k >= 2, ligne a k <= 1,
+#       estim different de k, B effectif et p incoherents, ligne en double).
+# B effectif de famille : lignes de stats_boot ou toutes les colonnes des
+# membres sont finies (par. 3), recompte ici. Rend f (cle -> etat, k, bf, p,
+# e, m, minp), inconnues (cles de lignes de famille hors de fam) et hors.
+fk_etats <- function(lignes, boot, fam) {
+  mb <- fk_membres(lignes, fam)
+  S <- boot$stats_boot
+  fo <- vapply(lignes, fk_champ, "", "fonction")
+  cle <- substr(vapply(lignes, fk_champ, "", "famille"), 1L, 2L)
+  lf <- which(fo %in% "engine_p_famille")
+  f_out <- lapply(fam, function(f) {
+    m <- mb$membres[[f]]; k <- length(m)
+    i <- lf[cle[lf] %in% f]
+    bf <- if (is.null(S) || !k || !all(m %in% colnames(S))) NA_real_ else
+      as.numeric(sum(rowSums(!is.finite(S[, m, drop = FALSE])) == 0L))
+    l <- if (length(i) == 1L) lignes[[i]] else NULL
+    v <- function(nm) if (is.null(l)) NA_real_ else fk_num(l, nm)
+    p <- v("p_mc"); e <- v("err_mc"); st <- v("stat")
+    diag_info <- !is.null(l) && identical(fk_champ(l, "type"), "diagnostic") && identical(fk_champ(l, "verdict"), "INFO")
+    etat <- if (is.null(S)) "S" else if (length(i) > 1L) "X" else if (is.null(l)) { if (k <= 1L) "A" else "X" }
+      else if (k < 2L || !diag_info || !identical(v("estim"), as.numeric(k)) || is.na(bf)) "X"
+      else if (is.finite(p)) { if (bf >= B_MIN_DEGENERESCENCE && is.finite(e) && is.finite(st)) "L" else "X" }
+      else if (bf < B_MIN_DEGENERESCENCE && !is.finite(e) && !is.finite(st)) "N" else "X"
+    list(etat = etat, k = k, bf = bf, p = p, e = e, m = st, minp = mb$minp[[f]])
+  })
+  list(f = stats::setNames(f_out, fam), inconnues = setdiff(unique(cle[lf]), fam), hors = mb$hors)
+}
+fk_etats_ok <- function(x) all(vapply(x$f, function(z) z$etat %in% c("L", "N", "A"), logical(1))) && !length(x$inconnues)
+# Controle K-F3 (par. 5.3) : p de famille, m_obs, err_mc et k de chaque ligne
+# de lecture conjointe recalcules en R de base depuis bootstrap$stats_boot,
+# bootstrap$stats_obs, le catalogue (sens de rejet) et les lignes (membres
+# par fk_membres()), par une ecriture INDEPENDANTE d'engine_p_famille() et de
+# .engine_minp_rangs() : pour chaque membre, items 0 (observe) a n
+# (replications completes), N = n + 1, comptes entiers par findInterval() sur
+# la colonne triee (c- = #{<= v}, c+ = N - #{< v}, sans rank()) ; numerateur
+# c+ (haut), c- (bas) ou min(2 min(c+, c-), N) (deux) ; m = minimum par item
+# (pmin) ; p = #{m <= m(0)} / N, m_obs = m(0) / N, err_mc = sqrt(p (1 - p) /
+# n). Comparaison identical() aux champs p_mc, stat, err_mc et estim de la
+# ligne (etat L) ; etat N : p, stat et err_mc absents, n < B_MIN_DEGENERESCENCE.
+# OK si toutes les lignes presentes concordent, aucune n'est incoherente et la
+# ligne globale (derniere cle de fam) est presente et controlee.
+fk_recalcul <- function(lignes, boot, catalogue, fam) {
+  et <- fk_etats(lignes, boot, fam); mb <- fk_membres(lignes, fam)
+  S <- boot$stats_boot
+  fo <- vapply(lignes, fk_champ, "", "fonction")
+  cle <- substr(vapply(lignes, fk_champ, "", "famille"), 1L, 2L)
+  txt <- character(0); ok <- fk_etats_ok(et); n_l <- 0L
+  for (f in fam) {
+    x <- et$f[[f]]
+    if (!x$etat %in% c("L", "N")) next
+    l <- lignes[[which(fo %in% "engine_p_famille" & cle %in% f)]]
+    m <- mb$membres[[f]]
+    X0 <- S[, m, drop = FALSE]
+    X <- X0[rowSums(!is.finite(X0)) == 0L, , drop = FALSE]
+    n <- nrow(X); N <- n + 1L
+    if (n < B_MIN_DEGENERESCENCE) {
+      v <- c(p = is.na(fk_num(l, "p_mc")), m_obs = is.na(fk_num(l, "stat")), err_mc = is.na(fk_num(l, "err_mc")),
+             k = identical(fk_num(l, "estim"), as.numeric(length(m))))
+    } else {
+      A <- rbind(vapply(m, function(c) as.numeric(boot$stats_obs[[c]]), 1), unname(X))
+      cpt <- lapply(seq_along(m), function(j) {
+        v <- A[, j]; tri <- sort(v)
+        bas <- findInterval(v, tri)
+        haut <- N - findInterval(v, tri, left.open = TRUE)
+        switch(catalogue[[m[j]]]$queue, haut = haut, bas = bas, deux = pmin(2L * pmin(haut, bas), N))
+      })
+      mm <- do.call(pmin, cpt)
+      p <- sum(mm <= mm[1L]) / N
+      v <- c(p = identical(p, fk_num(l, "p_mc")), m_obs = identical(mm[1L] / N, fk_num(l, "stat")),
+             err_mc = identical(sqrt(p * (1 - p) / n), fk_num(l, "err_mc")),
+             k = identical(fk_num(l, "estim"), as.numeric(length(m))))
+    }
+    n_l <- n_l + 1L; ok <- ok && all(v)
+    txt <- c(txt, sprintf("%s (\u00e9tat %s, k = %d, B effectif de famille %d) : %s", f, x$etat, length(m), n,
+                          if (all(v)) "identiques" else paste("DIFF\u00c9RENTS :", paste(names(v)[!v], collapse = ", "))))
+  }
+  glob <- et$f[[fam[length(fam)]]]$etat %in% c("L", "N")
+  list(ok = ok && glob, n = n_l,
+       txt = sprintf("%d ligne(s) contr\u00f4l\u00e9e(s)%s ; %s%s", n_l, if (glob) ", ligne globale comprise" else ", LIGNE GLOBALE ABSENTE",
+                     if (length(txt)) paste(txt, collapse = " ; ") else "aucune ligne de lecture conjointe",
+                     if (fk_etats_ok(et)) "" else sprintf(" ; \u00e9tats incoh\u00e9rents : %s",
+                       paste(sprintf("%s %s", names(et$f), vapply(et$f, `[[`, "", "etat")), collapse = ", "))))
+}
+# Profils Phi0 a Phi5 (par. 5.3), evalues mecaniquement SANS CONCLURE sur des
+# cellules list(unite, f, ia, c) (c : lecture() contre rho_F) ; cellules non
+# evaluables (aucune ligne presente) listees a part, hors profils. Phi5 :
+# meme famille, distorsions materielles de cotes opposes entre deux unites
+# (jeux ou lois). phi0 : etat du controle K-F3 et de K3 / K4 de #206. Sans
+# cellule evaluable, aucun profil Phi1 a Phi5 n'est present : Phi1 est
+# "non evaluable", jamais "oui". Chaque volet (lognormal, Merz-Wuthrich)
+# rend ses profils ; LC lognormale et LC Merz-Wuthrich sont deux familles
+# distinctes, Phi5 reste interne a un volet (avis d'actuary du 25/10/2026,
+# point 3) : TXT_PROFIL_GLOBAL le rappelle sous le tableau.
+TXT_PROFIL_GLOBAL <- paste(
+  "Profils propres \u00e0 ce volet : la ligne globale LC de la m\u00e9thode lognormale et celle de Merz-W\u00fcthrich sont deux familles",
+  "distinctes, et \u03a65 reste interne \u00e0 un volet. Profil global de D2-Fk = union des profils pr\u00e9sents dans les deux volets ;",
+  "d\u00e9cision requise si \u03a60, \u03a64 ou \u03a65 appara\u00eet dans l'un ou l'autre.")
+profils_fk <- function(cells, phi0, txt_phi0) {
+  ev <- Filter(function(x) isTRUE(x$c$evaluable), cells)
+  ne <- Filter(function(x) !isTRUE(x$c$evaluable), cells)
+  cl <- vapply(ev, function(x) x$c$classe, "")
+  co <- vapply(ev, function(x) if (isTRUE(x$c$disj)) x$c$cote else NA_character_, "")
+  dist <- cl == CLASSES[4]; lib <- dist & co %in% "lib\u00e9ral"; cons <- dist & co %in% "conservateur"
+  fu <- vapply(ev, `[[`, "", "f"); un <- vapply(ev, `[[`, "", "unite")
+  txt_cel <- function(x) sprintf("%s %s %s", x$unite, x$f, c(a10 = "0,10", a05 = "0,05")[[x$ia]])
+  p5 <- unique(fu[vapply(seq_along(ev), function(i) lib[i] && any(cons & fu == fu[i] & un != un[i]), logical(1))])
+  oui <- function(b) if (b) "**oui**" else "non"
+  c(entete_md(c("Profil", "Condition m\u00e9canique", "Pr\u00e9sent", "Cellules")),
+    ligne_md("\u03a60", "K-F3, ou K3 ou K4 de #206, en d\u00e9faut (\u00ab sans explication \u00bb : jugement d'actuary)", oui(phi0), txt_phi0),
+    ligne_md("\u03a61", "toutes les p de famille et la p globale compatibles ou en \u00e9cart mineur, aux deux \u03b1, sous chaque jeu ou loi",
+             if (!length(ev)) "non \u00e9valuable (aucune cellule \u00e9valuable)" else oui(all(cl %in% CLASSES[1:2])),
+             liste_cel(vapply(ev[!cl %in% CLASSES[1:2]], txt_cel, ""), 30)),
+    ligne_md("\u03a62", "pas de distorsion mat\u00e9rielle, des \u00e9carts non tranch\u00e9s", oui(!any(dist) && any(cl == CLASSES[3])),
+             liste_cel(vapply(ev[cl == CLASSES[3]], txt_cel, ""), 30)),
+    ligne_md("\u03a63", "distorsion mat\u00e9rielle conservatrice seulement", oui(any(cons) && !any(lib)), liste_cel(vapply(ev[cons], txt_cel, ""), 30)),
+    ligne_md("\u03a64", "distorsion mat\u00e9rielle lib\u00e9rale pour au moins une (famille, jeu ou loi, \u03b1)", oui(any(lib)),
+             liste_cel(vapply(ev[lib], txt_cel, ""), 30)),
+    ligne_md("\u03a65", "m\u00eame famille : distorsions de c\u00f4t\u00e9s oppos\u00e9s entre jeux ou lois", oui(length(p5) > 0),
+             if (length(p5)) paste(p5, collapse = ", ") else "\u2014"), "",
+    sprintf("Cellules non \u00e9valuables (aucune ligne de la famille sous le jeu ou la loi, hors profils) : %s.",
+            if (length(ne)) liste_cel(vapply(ne, txt_cel, ""), 30) else "aucune"), "")
+}
 
 # --- Correspondances et classements (constantes, controlees sur J1 observe) ---
 # Statistique du catalogue -> ligne de usp_tests() qui lit sa p_mc (mc_nom).
@@ -726,7 +1096,7 @@ tableaux <- function(cpt, stats, lignes) {
                       "des donn\u00e9es et n'ont pas de r\u00e9f\u00e9rence exacte m\u00eame pour une p_mc parfaitement calibr\u00e9e :",
                       "T1 bis localise un \u00e9cart, il ne teste pas la calibration par r\u00e9gime."), "")
   # --- T2
-  L <- c(L, sprintf("### T2 -- niveau des verdicts des %d lignes : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", N_LIGNES), "",
+  L <- c(L, sprintf("### T2 -- niveau des verdicts des %d lignes (puis des lignes de lecture conjointe, #297) : fr\u00e9quence de p retenue < \u03b1 et < \u03b1/2 parmi les p retenues (r\u00e8gles R1, R3, R4, R7, R13 comprises)", N_LIGNES), "",
          entete_md(c("Ligne", "n", "p retenue", cols_niv(1), cols_niv(2))))
   for (li in lignes) {
     cl <- nettoyer_cle(li)
@@ -765,6 +1135,15 @@ tableaux <- function(cpt, stats, lignes) {
     }, "")
     L <- c(L, ligne_md(li, n, np, cel[1], cel[2]))
   }
+  # Lignes de lecture conjointe (#297) : diagnostics sans p retenue ; n :
+  # replications ou la ligne est presente (sa presence depend des donnees) ;
+  # niveau de la p de famille : T-F1.
+  for (f in FAM_LN) {
+    n <- g(sprintf("f|%s|n", f))
+    cel <- paste(c(lecture(0, 0, NA_real_)[c("k", "taux", "ic")], "sans objet (diagnostic, aucune p retenue ; niveau de la p : T-F1)",
+                   "\u2014", "\u2014"), collapse = " | ")
+    L <- c(L, ligne_md(lib_ligne_fk(f), n, 0, cel, cel))
+  }
   L <- c(L, "", paste("n : r\u00e9plications trait\u00e9es ; p retenue : r\u00e9plications o\u00f9 la ligne a une p retenue. Taux =",
                       "rejets / p retenues (niveau conditionnel \u00e0 l'existence d'une p retenue) ; la fr\u00e9quence",
                       "inconditionnelle du verdict, rejets / n, se lit dans T2 (suite), colonnes ALERTE et ECHEC.",
@@ -786,12 +1165,15 @@ tableaux <- function(cpt, stats, lignes) {
          entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (R1)", "non applicable",
                      "proc\u00e9dure de d\u00e9cision", "p exacte", "p Monte-Carlo", "p asymptotique", "autre p",
                      "aucune p", "OK", "ALERTE", "ECHEC", "INFO")))
-  for (li in lignes) {
-    k <- function(suf) sprintf("%.0f", g(sprintf("l|%s|%s", nettoyer_cle(li), suf)))
-    L <- c(L, ligne_md(li, k("n"), k("t|test"), k("t|diagnostic"), k("inop"), k("t|non applicable"),
-                       k("t|procedure de decision"), k("nat|exacte"), k("nat|mc"), k("nat|asympt"), k("nat|autre"),
-                       k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO")))
+  ligne_t2s <- function(lib, pre) {
+    k <- function(suf) sprintf("%.0f", g(sprintf("%s|%s", pre, suf)))
+    ligne_md(lib, k("n"), k("t|test"), k("t|diagnostic"), k("inop"), k("t|non applicable"),
+             k("t|procedure de decision"), k("nat|exacte"), k("nat|mc"), k("nat|asympt"), k("nat|autre"),
+             k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO"))
   }
+  for (li in lignes) L <- c(L, ligne_t2s(li, sprintf("l|%s", nettoyer_cle(li))))
+  # Lignes de lecture conjointe (#297), presentes selon les donnees.
+  for (f in FAM_LN) L <- c(L, ligne_t2s(lib_ligne_fk(f), sprintf("f|%s", f)))
   L <- c(L, "", paste("Nature : champ nature_p de la ligne (exacte ; Monte-Carlo ; asymptotique, repli nomm\u00e9",
                       "compris ; autre : p sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 du TOST, exacte par permutation de Pitman sur la pente).",
                       "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "")
@@ -880,6 +1262,115 @@ aide_lecture <- function() c(
         "Cox-Stuart) : lecture binaire, compatible ou **\u00e9cart \u00e0 examiner** (k et IC cit\u00e9s), sans \u00e9chelle",
         "mineur / mat\u00e9riel ni d\u00e9cision d\u00e9clench\u00e9e ; une r\u00e9f\u00e9rence nulle n'est pas ramen\u00e9e \u00e0 une bande {0}."), "")
 
+###############################################################################
+#  TABLEAUX DE LA LECTURE CONJOINTE (#297, specification de Fk, par. 5.3)
+###############################################################################
+# CJ : liste nommee jeu -> comptes (cpt) ; cles f|<famille>|n, na, k1, k2,
+# pl, fr1, fr2, m1, m2, kf|<k> ; mult|ae, mult|e (lignes de type test),
+# mult|ae_npr, mult|e_npr (lignes de sens "ne pas rejeter") ;
+# fr|<statistique>|n, 1, 2.
+gj <- function(cp, k) if (k %in% names(cp)) cp[[k]] else 0
+part <- function(a, b) if (b > 0) num(a / b, D_IC) else "\u2014"
+lib_fam_ln <- function(f) if (f == FAM_LN[length(FAM_LN)]) sprintf("%s (globale)", f) else f
+# K-F1 : population, replications traitees ou la ligne est presente (k >= 2) ;
+# une p absente (T-3b) compte comme un non-rejet, comptee a part ;
+# reference rho_F, classes de #166 et #206 (lecture_classe()).
+cellules_fk_ln <- function(CJ) {
+  out <- list()
+  for (j in names(CJ)) for (f in FAM_LN) for (ia in c("a10", "a05")) {
+    cp <- CJ[[j]]
+    c_ <- lecture_classe(gj(cp, sprintf("f|%s|%s", f, if (ia == "a10") "k1" else "k2")), gj(cp, sprintf("f|%s|n", f)), RHO_F[[ia]])
+    c_$absentes <- gj(cp, sprintf("f|%s|na", f))
+    out[[length(out) + 1L]] <- list(unite = j, f = f, ia = ia, ref = RHO_F[[ia]], c = c_, n_ok = gj(cp, "ok"))
+  }
+  out
+}
+tableau_fk1_ln <- function(CEL) {
+  L <- c("### T-F1 \u2014 niveau sous H0 des p de famille et de la p globale (K-F1)", "",
+         paste("Par jeu, famille et seuil : n r\u00e9plications trait\u00e9es o\u00f9 la ligne est pr\u00e9sente (k \u2265 2), dont les p absentes (B effectif de",
+               "famille < 50, texte T-3b ; compt\u00e9es comme non-rejet) ; k rejets (p < \u03b1) ; taux k / n et IC de Clopper-Pearson \u00e0 95 % (5",
+               "d\u00e9cimales ; classe sur les valeurs non arrondies) ; r\u00e9f\u00e9rence \u03c1_F, taille du test de Monte-Carlo id\u00e9al \u00e0 B_eff = 999 pour",
+               "une statistique sans atome (majorant en pr\u00e9sence d'atomes) ; classe de #166 et #206 (c\u00f4t\u00e9 en gras si l'IC est disjoint de",
+               "la bande [\u03c1_F/2 ; 3\u03c1_F/2])."), "",
+         entete_md(c("Jeu", "Famille", "trait\u00e9es", "n (ligne pr\u00e9sente)", "abs. T-3b", "\u03c1_F 0,10", "k 0,10", "taux [IC] 0,10", "classe 0,10",
+                     "\u03c1_F 0,05", "k 0,05", "taux [IC] 0,05", "classe 0,05")))
+  cle <- vapply(CEL, function(x) paste(x$unite, x$f), "")
+  for (u in unique(cle)) {
+    x <- CEL[cle == u]
+    cols <- unlist(lapply(x, function(z) c(num(z$ref, 3), sprintf("%.0f", z$c$k), txt_lec(z$c), txt_classe(z$c))))
+    L <- c(L, ligne_md(x[[1]]$unite, lib_fam_ln(x[[1]]$f), sprintf("%.0f", x[[1]]$n_ok), sprintf("%.0f", x[[1]]$c$n),
+                       sprintf("%.0f", x[[1]]$c$absentes), paste(cols, collapse = " | ")))
+  }
+  c(L, "")
+}
+tableau_fk2_ln <- function(CJ) {
+  L <- c("### T-F2 \u2014 composition des familles : k, pr\u00e9sence de la ligne, plancher", "",
+         paste("Sur les r\u00e9plications trait\u00e9es : k, nombre de tests membres (r\u00e8gle du par. 1.3 de la sp\u00e9cification de Fk, recompt\u00e9e par le",
+               "script) ; ligne pr\u00e9sente si k \u2265 2 (Q-D1-Fk-2 (a)), absente pour k \u2264 1 ; pr\u00e9sente sans p si le B effectif de famille est",
+               "< 50 (T-3b) ; masse au plancher : part des p de famille d\u00e9finies \u00e9gales \u00e0 1/(B effectif de famille + 1)."), "",
+         entete_md(c("Jeu", "Famille", "trait\u00e9es", "distribution de k (k : r\u00e9plications)", "ligne pr\u00e9sente (part)", "dont sans p (T-3b)",
+                     "p d\u00e9finies", "masse au plancher")))
+  for (j in names(CJ)) for (f in FAM_LN) {
+    cp <- CJ[[j]]; ok <- gj(cp, "ok")
+    kk <- grep(sprintf("^f\\|%s\\|kf\\|", gsub(".", "\\.", f, fixed = TRUE)), names(cp), value = TRUE)
+    kv <- as.integer(sub("^.*\\|", "", kk)); kk <- kk[order(kv)]; kv <- sort(kv)
+    n <- gj(cp, sprintf("f|%s|n", f)); na <- gj(cp, sprintf("f|%s|na", f))
+    L <- c(L, ligne_md(j, lib_fam_ln(f), sprintf("%.0f", ok), paste(sprintf("%d : %.0f", kv, cp[kk]), collapse = " ; "),
+                       sprintf("%.0f (%s)", n, part(n, ok)), sprintf("%.0f", na), sprintf("%.0f", n - na),
+                       part(gj(cp, sprintf("f|%s|pl", f)), n - na)))
+  }
+  c(L, "")
+}
+tableau_fk3_ln <- function(CJ) {
+  lc <- FAM_LN[length(FAM_LN)]
+  L <- c("### T-F3 \u2014 multiplicit\u00e9 sous H0 et lecture conjointe (K-F2, descriptif)", "",
+         paste("Sur les r\u00e9plications trait\u00e9es : part \u00e0 au moins une ALERTE ou un ECHEC, et \u00e0 au moins un ECHEC, parmi les lignes de type",
+               "test, puis parmi les seules lignes de sens \u00ab ne pas rejeter \u00bb (sans le TOST ni le test de Pitman, de sens \u00ab rejeter \u00bb, dont",
+               "l'ALERTE ou l'ECHEC ne signale pas un \u00e9cart au mod\u00e8le) ; part \u00e0 p globale < \u03b1 (p absente : non-rejet) ; par famille, part \u00e0 au moins un test membre de p_mc < \u03b1 (plus petite",
+               "p_mc des membres) contre part \u00e0 p de famille < \u03b1 (ligne absente ou sans p : non-rejet). Taux descriptifs, sans r\u00e9f\u00e9rence",
+               "ni classe."), "",
+         entete_md(c("Jeu", "n", "\u2265 1 A ou E (tests)", "\u2265 1 A ou E (tests \u00ab ne pas rejeter \u00bb)", "\u2265 1 E (tests)",
+                     "\u2265 1 E (tests \u00ab ne pas rejeter \u00bb)", "p globale < 0,10", "p globale < 0,05")))
+  for (j in names(CJ)) { cp <- CJ[[j]]; ok <- gj(cp, "ok")
+    L <- c(L, ligne_md(j, sprintf("%.0f", ok), part(gj(cp, "mult|ae"), ok), part(gj(cp, "mult|ae_npr"), ok), part(gj(cp, "mult|e"), ok),
+                       part(gj(cp, "mult|e_npr"), ok),
+                       part(gj(cp, sprintf("f|%s|k1", lc)), ok), part(gj(cp, sprintf("f|%s|k2", lc)), ok))) }
+  L <- c(L, "", entete_md(c("Jeu", "Famille", "n", "\u2265 1 membre p_mc < 0,10", "p de famille < 0,10", "\u2265 1 membre p_mc < 0,05",
+                            "p de famille < 0,05")))
+  for (j in names(CJ)) for (f in FAM_LN) { cp <- CJ[[j]]; ok <- gj(cp, "ok"); q <- function(s) part(gj(cp, sprintf("f|%s|%s", f, s)), ok)
+    L <- c(L, ligne_md(j, lib_fam_ln(f), sprintf("%.0f", ok), q("m1"), q("k1"), q("m2"), q("k2"))) }
+  c(L, "")
+}
+tableau_fk4_ln <- function(CJ, stats) {
+  L <- c("### T-F4 \u2014 voisinage des seuils (K-F4, descriptif)", "",
+         paste("Fr\u00e9quence sous H0 de |p \u2212 s| < 2 err_mc, s \u2208 {0,10 ; 0,05} : sur les p de famille d\u00e9finies (err_mc = \u221a(p (1 \u2212 p)/B_eff),",
+               "queue simple), puis par statistique du catalogue sur les p_mc d\u00e9finies (err_mc d'engine_p_mc()). Les lignes par statistique",
+               "ignorent la bascule de la r\u00e8gle R1 et l'atteignabilit\u00e9 du seuil (plancher de la p) : ce n'est pas l'ensemble \u00ab \u00e0 la",
+               "fronti\u00e8re \u00bb de #244 (r\u00e8gle d'add(), PHRASE_VERDICT_SENSIBLE_MC), seulement la fr\u00e9quence de la condition sur p_mc et err_mc."), "",
+         entete_md(c("Jeu", "Famille ou statistique", "p d\u00e9finies", "\\|p \u2212 0,10\\| < 2 err_mc", "\\|p \u2212 0,05\\| < 2 err_mc")))
+  for (j in names(CJ)) { cp <- CJ[[j]]
+    for (f in FAM_LN) { d <- gj(cp, sprintf("f|%s|n", f)) - gj(cp, sprintf("f|%s|na", f))
+      L <- c(L, ligne_md(j, lib_fam_ln(f), sprintf("%.0f", d), part(gj(cp, sprintf("f|%s|fr1", f)), d), part(gj(cp, sprintf("f|%s|fr2", f)), d))) }
+    for (s_ in stats) { d <- gj(cp, sprintf("fr|%s|n", s_))
+      L <- c(L, ligne_md(j, s_, sprintf("%.0f", d), part(gj(cp, sprintf("fr|%s|1", s_)), d), part(gj(cp, sprintf("fr|%s|2", s_)), d))) } }
+  c(L, "")
+}
+evaluation_fk_ln <- function(CEL) {
+  ev <- Filter(function(x) isTRUE(x$c$evaluable), CEL)
+  un <- unique(vapply(CEL, `[[`, "", "unite"))
+  k1 <- vapply(un, function(u) { cl <- vapply(Filter(function(x) x$unite == u, ev), function(x) x$c$classe, "")
+    t <- table(factor(cl, levels = c(CLASSES, setdiff(unique(cl), CLASSES)))); paste(sprintf("%s %d", names(t), as.integer(t)), collapse = ", ") }, "")
+  c("### \u00c9valuation m\u00e9canique de K-F1 \u00e0 K-F4 et des profils \u03a6 (sans conclusion)", "",
+    "\u00c9tats calcul\u00e9s par le script ; la lecture revient \u00e0 actuary, la d\u00e9cision \u00e9ventuelle au mainteneur (D2-Fk, Q-D1-Fk-9 : d\u00e9cision requise sous \u03a60, \u03a64 ou \u03a65 seulement). Volet lognormal : K3 et K4 de #206 sans objet.", "",
+    entete_md(c("Condition", "\u00c9tat m\u00e9canique", "D\u00e9tail")),
+    ligne_md("K-F1 (principal)", if (length(ev)) "\u00e9valu\u00e9e" else "non \u00e9valuable", if (length(un)) paste(sprintf("%s : %s", un, k1), collapse = " ; ") else "aucun jeu"),
+    ligne_md("K-F2 (descriptif, T4)", "descriptif", "voir T-F3"),
+    ligne_md("K-F3 (int\u00e9grit\u00e9)", "remplie", "INTEGRITE OK et contr\u00f4le (K-F3) OK dans chaque sortie (refus de --combiner sinon)"),
+    ligne_md("K-F4 (fronti\u00e8re, descriptif)", "descriptif", "voir T-F4"),
+    "", profils_fk(CEL, FALSE, "K-F3 rempli (INTEGRITE OK et ligne (K-F3) OK dans chaque sortie) ; K3 et K4 de #206 sans objet pour le volet lognormal"),
+    TXT_PROFIL_GLOBAL, "")
+}
+
 LIBELLES_CONTEXTE <- c(
   jeu = "Jeu", modele = "Mod\u00e8le ajust\u00e9 (usp_ajuster())", configuration = "Configuration de run_engine()",
   sigma_usp = "\u03c3_USP observ\u00e9 (usp_parametre() sur le mod\u00e8le ajust\u00e9)", graines = "Graines",
@@ -887,7 +1378,9 @@ LIBELLES_CONTEXTE <- c(
   commit = "Commit", plateforme = "Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)",
   empreintes = "Empreintes md5 du code ex\u00e9cut\u00e9",
   reference = "Contr\u00f4le (a) : J1 observ\u00e9 contre tests/reference/premium.rds",
-  tailles = "Tailles des lois discr\u00e8tes, P(p < 0,10) et P(p < 0,05) (T = 8, sans ex aequo)")
+  tailles = "Tailles des lois discr\u00e8tes, P(p < 0,10) et P(p < 0,05) (T = 8, sans ex aequo)",
+  essai = "Essai (--essai, non versionnable)",
+  empreinte_sc = "Empreinte sans commentaires de R/engine.R (#231)")
 lignes_contexte <- function(ctx) vapply(names(LIBELLES_CONTEXTE), function(k)
   ligne_md(LIBELLES_CONTEXTE[[k]], ctx[[k]]), "")
 
@@ -904,6 +1397,20 @@ ecrire_fichier <- function(jeu, lignes) {
   writeLines(enc2utf8(lignes), con, useBytes = TRUE)
   close(con)
   message("\u00e9crit : ", f)
+}
+
+# Jeu J2 (lire_j2() : copie de tests/taux_franchissement_reperes.R), lu par
+# l'execution et par --prevol-unite.
+lire_j2 <- function() {
+  f <- file.path(RACINE, "tests", "unitaires", "test_controles_numeriques.R")
+  l <- readLines(f)
+  env <- new.env()
+  for (v in c("xi", "yi")) {
+    li <- grep(sprintf("^%s <- c\\(", v), l, value = TRUE)
+    if (length(li) != 1L) stop("J2 : ligne '", v, " <- c(' introuvable ou multiple dans ", f)
+    eval(parse(text = li), envir = env)
+  }
+  list(x = env$xi, y = env$yi)
 }
 
 ###############################################################################
@@ -958,7 +1465,28 @@ lire_comptes <- function(f) {
        contexte = ctx[names(LIBELLES_CONTEXTE)],
        stats = stats::setNames(sub("^.*=", "", st), sub("=.*$", "", st)), lignes = unique1("LIGNES"),
        repcols = rc, rep = rp, duree = du,
-       comptes = stats::setNames(as.numeric(vapply(cp, `[`, "", 2L)), cles))
+       comptes = stats::setNames(as.numeric(vapply(cp, `[`, "", 2L)), cles),
+       # lignes du controle K-F3 en succes (#297), lues dans le markdown
+       kf3 = sum(grepl("^- \\(K-F3\\) .*: OK$", l)))
+}
+# Ligne du JOURNAL d'une sortie (#248) : exactement une ligne
+# "- Sortie <nom> : md5 <md5>" de md5 egal a celui du fichier ; NULL si
+# conforme (copie de tests/calibration_mc_mw_t8.R).
+ecart_journal_sortie <- function(jl, nom, md5) {
+  m <- regmatches(jl, regexec("^- Sortie (\\S+) : md5 ([0-9a-f]{32})([,[:space:]]|$)", jl))
+  m <- Filter(function(x) length(x) && identical(x[2], nom), m)
+  if (length(m) != 1L)
+    return(sprintf("%d ligne(s) \"- Sortie %s : md5 <md5>\" au JOURNAL (une attendue)", length(m), nom))
+  if (!identical(m[[1]][3], md5))
+    return(sprintf("md5 de %s au JOURNAL (%s) different de celui du fichier (%s)", nom, m[[1]][3], md5))
+  NULL
+}
+# Chemin absolu ou /tmp dans un texte destine a un fichier (#242, D-a ;
+# copie de tests/calibration_mc_mw_t8.R).
+chemins_absolus <- function(lignes) {
+  k <- grepl("/tmp", lignes, fixed = TRUE) |
+    grepl("(^|[ (|`'\"=])(/(home|root|usr|var|mnt|opt|Users|private|srv|media)/|[A-Za-z]:[\\\\/])", lignes, perl = TRUE)
+  lignes[k]
 }
 # Invariants du corps d'une tranche (constat F2 d'audit) : texte des
 # invariants faux, character(0) si tous tiennent.
@@ -1012,12 +1540,40 @@ invariants_tranche <- function(p) {
       cp_x <- vapply(c("np", "k1", "k2"), function(q) g(sprintf("l|%s|%s", nettoyer_cle(li), q)), numeric(1))
       if (!identical(as.numeric(x), unname(cp_x))) ds <- c(ds, sprintf("p retenue %s", li))
     }
+    # err_mc et B effectif (#297) : B effectif entier de 0 a B ; p_mc finie ->
+    # err_mc finie, B effectif >= 1 et p_mc sur la grille k/(B_eff + 1) (x 2
+    # en bilateral, plafonnee a 1) ; p_mc absente -> err_mc absente.
+    if (all(paste0(c("e_mc:", "B_eff:"), rep(names(p$stats), each = 2)) %in% p$repcols)) for (s in names(p$stats)) {
+      pm <- val(paste0("p_mc:", s)); em <- val(paste0("e_mc:", s)); bb <- val(paste0("B_eff:", s))
+      kq <- if (identical(p$stats[[s]], "deux")) 2 else 1; x <- pm * (bb + 1) / kq
+      okg <- is.finite(bb) & bb >= 0 & bb <= B_BOOT & bb == round(bb) &
+        ifelse(is.finite(pm), is.finite(em) & bb >= 1 & (pm == 1 | abs(x - round(x)) < 1e-6), !is.finite(em))
+      if (!all(okg %in% TRUE)) ds <- c(ds, sprintf("err_mc ou B effectif de %s", s))
+    } else ds <- c(ds, "colonnes e_mc: et B_eff: (#297) absentes de REPCOLS")
+    # Lecture conjointe (#297) : etats 0, 1 ou 2 seulement sur les
+    # replications traitees ; lignes presentes (1, 2), absences T-3b (2) et
+    # rejets des p de famille recomptes sur les lignes REP = comptes.
+    if (all(paste0("etf:", FAM_LN) %in% p$repcols)) for (f in FAM_LN) {
+      et <- val(paste0("etf:", f)); pf <- val(paste0("pf:", f))
+      if (!all(et %in% c(0, 1, 2))) ds <- c(ds, sprintf("etat de la ligne de famille %s hors de 0, 1, 2", f))
+      x <- c(sum(et %in% c(1, 2)), sum(et %in% 2), sum(is.finite(pf) & pf < ALPHA), sum(is.finite(pf) & pf < ALPHA2))
+      cp_x <- vapply(c("n", "na", "k1", "k2"), function(q) g(sprintf("f|%s|%s", f, q)), numeric(1))
+      if (!identical(as.numeric(x), unname(cp_x))) ds <- c(ds, sprintf("lecture conjointe %s (n, T-3b, k1, k2)", f))
+    } else ds <- c(ds, "colonnes de lecture conjointe (#297) absentes de REPCOLS")
     if (length(ds)) err <- c(err, paste("lignes REP differentes des comptes (n, k1, k2) :", paste(ds, collapse = ", ")))
   }
+  # Comptes de lecture conjointe (#297) : distribution de k sur ok
+  # replications par famille ; multiplicite au plus ok.
+  for (f in FAM_LN) if (somme(sprintf("f|%s|kf|", f)) != ok)
+    err <- c(err, sprintf("distribution de k de la famille %s : %.0f, ok = %.0f", f, somme(sprintf("f|%s|kf|", f)), ok))
+  if (g("mult|ae") > ok || g("mult|e") > g("mult|ae") || g("mult|ae_npr") > g("mult|ae") || g("mult|e_npr") > g("mult|e") ||
+      g("mult|e_npr") > g("mult|ae_npr"))
+    err <- c(err, "comptes de multiplicite (mult|ae, mult|e, mult|ae_npr, mult|e_npr) incoherents")
   err
 }
 
 if (length(FICHIERS_COMB)) {
+  T_COMB0 <- Sys.time()
   # Gardes des chemins d'ecriture (constat R2 d'audit) : --sortie et --brut
   # hors du depot, --brut sans ecrasement.
   if (!is.na(OPT_SORTIE) && sous_depot(OPT_SORTIE))
@@ -1025,86 +1581,318 @@ if (length(FICHIERS_COMB)) {
   if (!is.na(OPT_BRUT)) {
     if (!dir.exists(dirname(OPT_BRUT))) refuser("--brut : dossier introuvable : ", dirname(OPT_BRUT))
     if (sous_depot(dirname(OPT_BRUT)))
-      refuser("--brut : chemin sous le depot refuse (versionnement des valeurs brutes non decide par le mainteneur) : ", OPT_BRUT)
+      refuser("--brut : chemin sous le depot refuse (copie hors du depot ; --ecrire versionne le brut de la campagne 297) : ", OPT_BRUT)
     if (file.exists(OPT_BRUT)) refuser("--brut : fichier existant, jamais ecrase : ", OPT_BRUT)
   }
-  parts <- lapply(FICHIERS_COMB, lire_comptes)
-  par <- unique(vapply(parts, `[[`, "", "parametres"))
-  if (length(par) != 1L) refuser("parametres differents entre les fichiers (un seul jeu par combinaison)")
-  ctx <- unique(lapply(parts, `[[`, "contexte"))
-  if (length(ctx) != 1L) {
-    k_diff <- names(LIBELLES_CONTEXTE)[vapply(names(LIBELLES_CONTEXTE), function(k)
-      length(unique(vapply(parts, function(p) p$contexte[[k]], ""))) > 1L, logical(1))]
-    refuser("contexte (T0) different entre les tranches : ", paste(k_diff, collapse = ", "))
-  }
-  ctx <- ctx[[1]]
+  # Fichiers : chemins, ou DOSSIER (sorties ln-J<1|2>-R<R>-<b1>-<b2>.txt du plan
+  # de la campagne 297, tests/calibration_mc_mw_t8.R --plan Lk --campagne 297).
+  fichiers <- unlist(lapply(FICHIERS_COMB, function(f) if (dir.exists(f))
+    sort(list.files(f, pattern = "^ln-J[12]-R[0-9]+-[0-9]{4}-[0-9]{4}\\.txt$", full.names = TRUE)) else f))
+  if (!length(fichiers)) refuser("aucun fichier de sortie")
+  if (anyDuplicated(basename(fichiers))) refuser("noms de fichiers en double")
+  parts <- lapply(fichiers, lire_comptes)
+  jeux_p <- vapply(parts, function(p) sub("^jeu=(J[12]);.*$", "\\1", p$parametres), "")
+  if (OPT_CAMPAGNE != "297" && length(unique(jeux_p)) != 1L)
+    refuser("parametres differents entre les fichiers (un seul jeu par combinaison ; J1 et J2 ensemble : --campagne 297)")
   if (length(unique(lapply(parts, `[[`, "stats"))) != 1L) refuser("lignes STATS differentes entre les tranches")
   if (length(unique(lapply(parts, `[[`, "lignes"))) != 1L) refuser("lignes LIGNES differentes entre les tranches")
   if (length(unique(lapply(parts, `[[`, "repcols"))) != 1L) refuser("lignes REPCOLS differentes entre les tranches")
-  if (!identical(ctx[["tailles"]], txt_tailles(TAILLES)))
+  # Contexte commun aux jeux (code, plateforme, generateur, configuration,
+  # graines, reference, tailles, essai) ; le reste (jeu, modele, sigma_USP,
+  # collisions) est propre a chaque jeu.
+  CTX_COMMUN <- c("configuration", "graines", "generateur", "commit", "plateforme", "empreintes", "reference", "tailles", "essai",
+                  "empreinte_sc")
+  k_diff <- CTX_COMMUN[vapply(CTX_COMMUN, function(k) length(unique(vapply(parts, function(p) p$contexte[[k]], ""))) > 1L, logical(1))]
+  if (length(k_diff)) refuser("contexte (T0) different entre les tranches : ", paste(k_diff, collapse = ", "))
+  ctx0 <- parts[[1]]$contexte
+  if (!identical(ctx0[["tailles"]], txt_tailles(TAILLES)))
     refuser("tailles des lois discretes des tranches differentes de celles recalculees par --combiner : ",
-            ctx[["tailles"]], " contre ", txt_tailles(TAILLES))
-  R_tot <- as.integer(sub("^.*;R=([0-9]+);.*$", "\\1", par))
-  jeu_c <- sub("^jeu=(J[12]);.*$", "\\1", par)
-  idx <- unlist(lapply(parts, function(p) seq.int(p$debut, p$fin)))
-  if (anyDuplicated(idx) || !setequal(idx, seq_len(R_tot)))
-    refuser("les tranches ne couvrent pas 1..", R_tot, " exactement une fois")
-  for (p in parts) {
-    e <- invariants_tranche(p)
-    if (length(e)) refuser(p$fichier, " : invariant(s) du corps faux -- ", paste(e, collapse = " ; "))
+            ctx0[["tailles"]], " contre ", txt_tailles(TAILLES))
+  # Campagne 297 : controle K-F3 en succes dans chaque sortie (une ligne).
+  if (OPT_CAMPAGNE == "297") for (p in parts) if (p$kf3 != 1L)
+    refuser(basename(p$fichier), " : ", p$kf3, " ligne(s) \"- (K-F3) ... : OK\" (une attendue) -- sortie anterieure a #297 ou controle K-F3 en echec")
+  # Par jeu : parametres et contexte identiques, couverture de 1..R, invariants,
+  # comptes additionnes, controles (e3) et (e4).
+  JX <- lapply(stats::setNames(nm = sort(unique(jeux_p))), function(j) {
+    pj <- parts[jeux_p == j]
+    par <- unique(vapply(pj, `[[`, "", "parametres"))
+    if (length(par) != 1L) refuser("parametres differents entre les fichiers du jeu ", j)
+    ctx <- unique(lapply(pj, `[[`, "contexte"))
+    if (length(ctx) != 1L) {
+      kd <- names(LIBELLES_CONTEXTE)[vapply(names(LIBELLES_CONTEXTE), function(k)
+        length(unique(vapply(pj, function(p) p$contexte[[k]], ""))) > 1L, logical(1))]
+      refuser("contexte (T0) different entre les tranches du jeu ", j, " : ", paste(kd, collapse = ", "))
+    }
+    R_tot <- as.integer(sub("^.*;R=([0-9]+);.*$", "\\1", par))
+    idx <- unlist(lapply(pj, function(p) seq.int(p$debut, p$fin)))
+    if (anyDuplicated(idx) || !setequal(idx, seq_len(R_tot)))
+      refuser("jeu ", j, " : les tranches ne couvrent pas 1..", R_tot, " exactement une fois")
+    for (p in pj) {
+      e <- invariants_tranche(p)
+      if (length(e)) refuser(p$fichier, " : invariant(s) du corps faux -- ", paste(e, collapse = " ; "))
+    }
+    cles <- unique(unlist(lapply(pj, function(p) names(p$comptes))))
+    cpt <- stats::setNames(vapply(cles, function(k) sum(vapply(pj, function(p)
+      if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
+    if (cpt[["rep"]] != R_tot) refuser(sprintf("jeu %s : somme des rep = %.0f, R = %d", j, cpt[["rep"]], R_tot))
+    c72 <- controles_72(cpt, R_tot, j)
+    if (isFALSE(c72$e3$ok)) refuser("jeu ", j, " : controle (e3) en ECHEC -- ", c72$e3$texte)
+    if (isFALSE(c72$e4$ok)) refuser("jeu ", j, " : controle (e4) en ECHEC -- ", c72$e4$texte)
+    list(jeu = j, par = par, ctx = ctx[[1]], R = R_tot, parts = pj, cpt = cpt, c72 = c72, du = Reduce(`+`, lapply(pj, `[[`, "duree")))
+  })
+  # Niveau du plan de Fk (par. 5.2) : J1 et J2, R du niveau.
+  R_NIV_LN <- list(L0 = c(J1 = 2000L, J2 = 2000L), L1 = c(J1 = 2000L, J2 = 2000L), L2 = c(J1 = 1000L, J2 = 2000L),
+                   L3 = c(J1 = 1000L, J2 = 2000L), L4 = c(J1 = 1000L, J2 = 1000L))
+  if (!is.na(OPT_NIVEAU)) {
+    rn <- R_NIV_LN[[OPT_NIVEAU]]
+    if (!setequal(names(JX), names(rn))) refuser("--niveau ", OPT_NIVEAU, " : jeux J1 et J2 attendus (lus : ", paste(names(JX), collapse = ", "), ")")
+    for (j in names(rn)) if (JX[[j]]$R != rn[[j]]) refuser("--niveau ", OPT_NIVEAU, " : R du jeu ", j, " = ", JX[[j]]$R, " (", rn[[j]], " attendu)")
   }
-  cles <- unique(unlist(lapply(parts, function(p) names(p$comptes))))
-  cpt <- stats::setNames(vapply(cles, function(k) sum(vapply(parts, function(p)
-    if (k %in% names(p$comptes)) p$comptes[[k]] else 0, numeric(1))), numeric(1)), cles)
-  if (cpt[["rep"]] != R_tot) refuser(sprintf("somme des rep = %.0f, R = %d", cpt[["rep"]], R_tot))
-  c72 <- controles_72(cpt, R_tot, jeu_c)
-  if (isFALSE(c72$e3$ok)) refuser("controle (e3) en ECHEC -- ", c72$e3$texte)
-  if (isFALSE(c72$e4$ok)) refuser("controle (e4) en ECHEC -- ", c72$e4$texte)
+  # JOURNAL (campagne 297) : une ligne "- Sortie <nom> : md5 <md5>" par
+  # sortie (ecart_journal_sortie(), copie de tests/calibration_mc_mw_t8.R),
+  # ligne "- Niveau : Lk" egale a --niveau.
+  TXT_JOURNAL <- "non fourni"
+  if (!is.na(OPT_JOURNAL)) {
+    if (!file.exists(OPT_JOURNAL)) refuser("--journal introuvable")
+    jl <- readLines(OPT_JOURNAL, warn = FALSE, encoding = "UTF-8")
+    for (p in parts) { e <- ecart_journal_sortie(jl, basename(p$fichier), unname(tools::md5sum(p$fichier))); if (!is.null(e)) refuser("--journal : ", e) }
+    ln_ <- Filter(length, regmatches(jl, regexec("^\\s*- Niveau : (L[0-5])\\s*$", jl)))
+    if (length(ln_) > 1L) refuser("--journal : plusieurs lignes \"- Niveau : Lk\"")
+    niv_j <- if (length(ln_)) ln_[[1]][2] else NA_character_
+    # Commit et empreinte sans commentaires (#231) portes au JOURNAL par le
+    # pre-vol (audit m4 de #297) : une ligne chacun, egaux a ceux des sorties.
+    lc_ <- Filter(length, regmatches(jl, regexec("^\\s*- Commit : ([0-9a-f]{40})\\s*$", jl)))
+    le_ <- Filter(length, regmatches(jl, regexec("^\\s*- Empreinte sans commentaires : ([0-9a-f]{32})\\s*$", jl)))
+    if (length(lc_) != 1L) refuser("--journal : ", length(lc_), " ligne(s) \"- Commit : <sha>\" (une attendue, ecrite par le pre-vol)")
+    if (length(le_) != 1L) refuser("--journal : ", length(le_), " ligne(s) \"- Empreinte sans commentaires : <md5>\" (une attendue)")
+    if (!identical(lc_[[1]][2], sub(" .*$", "", ctx0[["commit"]])))
+      refuser("--journal : commit du JOURNAL ", lc_[[1]][2], " different de celui des sorties ", sub(" .*$", "", ctx0[["commit"]]))
+    if (!identical(le_[[1]][2], ctx0[["empreinte_sc"]]))
+      refuser("--journal : empreinte du JOURNAL ", le_[[1]][2], " differente de celle des sorties ", ctx0[["empreinte_sc"]])
+    if (!is.na(OPT_NIVEAU) && !identical(niv_j, OPT_NIVEAU)) refuser("--journal : ligne \"- Niveau : ", OPT_NIVEAU, "\" absente ou differente (", niv_j, ")")
+    TXT_JOURNAL <- sprintf("%s (md5 %s) : md5 des %d sorties conformes ; niveau : %s", basename(OPT_JOURNAL), unname(tools::md5sum(OPT_JOURNAL)),
+                           length(parts), if (is.na(niv_j)) "ligne absente" else niv_j)
+  }
   # --ecrire exige un commit propre et le code du depot pour les tranches ET
-  # pour la combinaison elle-meme (constat R1 d'audit).
+  # pour la combinaison elle-meme (constat R1 d'audit) ; sorties d'essai et
+  # combinaison de la campagne 297 sans --niveau non versionnables.
   COMMIT_COMB <- commit_depot("tests/calibration_mc_t8.R")
   EMPREINTES_COMB <- empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72)
-  nv <- c(motifs_non_versionnable(ctx[["commit"]], ctx[["empreintes"]]),
-          motifs_non_versionnable(COMMIT_COMB, EMPREINTES_COMB, "de la combinaison"))
+  nv <- c(motifs_non_versionnable(ctx0[["commit"]], ctx0[["empreintes"]]),
+          motifs_non_versionnable(COMMIT_COMB, EMPREINTES_COMB, "de la combinaison"),
+          if (!identical(ctx0[["essai"]], "non")) "sorties d'essai (--essai)",
+          if (OPT_CAMPAGNE == "297" && is.na(OPT_NIVEAU)) "param\u00e8tres r\u00e9duits (sans --niveau)")
   if (OPT_ECRIRE && length(nv))
     refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv, collapse = " ; "),
             " -- relancer sur un arbre propre, ou utiliser --sortie DOSSIER hors du depot")
-  tb <- tableaux(cpt, parts[[1]]$stats, parts[[1]]$lignes)
-  du <- Reduce(`+`, lapply(parts, `[[`, "duree"))
-  sortie <- c(sprintf("## Calibration des p-values Monte-Carlo \u00e0 T = 8, jeu %s -- combinaison de %d tranche(s) (issue #166)",
-                      jeu_c, length(parts)), "",
-              sprintf("Param\u00e8tres : %s", par), "",
-              "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
-              entete_md(c("Grandeur", "Valeur")),
-              lignes_contexte(ctx),
-              ligne_md("R\u00e9plications", sprintf("%d (%d tranche(s) : %s)", R_tot, length(parts),
-                                                  paste(vapply(parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""),
-                                                        collapse = ", "))),
-              ligne_md("Dur\u00e9e cumul\u00e9e des tranches (s)",
-                       sprintf("contr\u00f4les %.0f ; r\u00e9plications %.0f (%.1f s par r\u00e9plication)", du[1], du[2],
-                               du[2] / max(du[3], 1))),
-              ligne_md("Commit de la combinaison", COMMIT_COMB),
-              ligne_md("Empreintes md5 du combinateur", EMPREINTES_COMB),
-              ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
-              ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s), invariants du corps v\u00e9rifi\u00e9s ; (e3) : %s ; (e4) : %s",
-                                                          length(parts), c72$e3$texte, c72$e4$texte)), "",
-              aide_lecture(), tb$lignes,
-              "### Contr\u00f4les d'int\u00e9grit\u00e9", "",
-              sprintf("- (a) \u00e0 (d), (e1), (e2), (f) et contr\u00f4les de coh\u00e9rence : OK dans les %d tranche(s) (ligne INTEGRITE)", length(parts)),
-              sprintf("- Invariants du corps des tranches (comptes et lignes REP) : OK dans les %d tranche(s) ; somme des rep = R = %d", length(parts), R_tot),
-              sprintf("- (e3) effectifs des r\u00e9gimes contre le tableau de #72 : %s", c72$e3$texte),
-              sprintf("- (e4) largeur de l'IC bootstrap contre le tableau de #72 : %s", c72$e4$texte), "")
-  ecrire_console(sortie)
-  ecrire_fichier(jeu_c, sortie)
-  if (!is.na(OPT_BRUT)) {
-    rp <- do.call(c, lapply(parts, `[[`, "rep"))
-    rp <- rp[order(as.integer(vapply(rp, `[`, "", 1L)))]
-    con <- file(OPT_BRUT, open = "wb")
-    writeLines(enc2utf8(c(paste(parts[[1]]$repcols, collapse = "\t"), vapply(rp, paste, "", collapse = "\t"))),
-               con, useBytes = TRUE)
-    close(con)
-    message("\u00e9crit (valeurs brutes, ", length(rp), " r\u00e9plications) : ", OPT_BRUT)
+  stats0 <- parts[[1]]$stats; lignes0 <- parts[[1]]$lignes; repcols0 <- parts[[1]]$repcols
+  t0_jeu <- function(x) c(lignes_contexte(x$ctx),
+    ligne_md("R\u00e9plications", sprintf("%d (%d tranche(s) : %s)", x$R, length(x$parts),
+                                          paste(vapply(x$parts, function(p) sprintf("%d-%d", p$debut, p$fin), ""), collapse = ", "))),
+    ligne_md("Dur\u00e9e cumul\u00e9e des tranches (s)", sprintf("contr\u00f4les %.0f ; r\u00e9plications %.0f (%.1f s par r\u00e9plication)",
+                                                                    x$du[1], x$du[2], x$du[2] / max(x$du[3], 1))))
+  if (OPT_CAMPAGNE != "297") {
+    x <- JX[[1]]
+    tb <- tableaux(x$cpt, stats0, lignes0)
+    sortie <- c(sprintf("## Calibration des p-values Monte-Carlo \u00e0 T = 8, jeu %s -- combinaison de %d tranche(s) (issue #166)",
+                        x$jeu, length(parts)), "",
+                sprintf("Param\u00e8tres : %s", x$par), "",
+                "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
+                entete_md(c("Grandeur", "Valeur")), t0_jeu(x),
+                ligne_md("Commit de la combinaison", COMMIT_COMB),
+                ligne_md("Empreintes md5 du combinateur", EMPREINTES_COMB),
+                ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
+                ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", sprintf("OK dans les %d tranche(s), invariants du corps v\u00e9rifi\u00e9s ; (e3) : %s ; (e4) : %s",
+                                                                length(parts), x$c72$e3$texte, x$c72$e4$texte)), "",
+                aide_lecture(), tb$lignes,
+                "### Contr\u00f4les d'int\u00e9grit\u00e9", "",
+                sprintf("- (a) \u00e0 (d), (e1), (e2), (f), (k), (K-F3), (t297) et contr\u00f4les de coh\u00e9rence : OK dans les %d tranche(s) (ligne INTEGRITE)", length(parts)),
+                sprintf("- Invariants du corps des tranches (comptes et lignes REP) : OK dans les %d tranche(s) ; somme des rep = R = %d", length(parts), x$R),
+                sprintf("- (e3) effectifs des r\u00e9gimes contre le tableau de #72 : %s", x$c72$e3$texte),
+                sprintf("- (e4) largeur de l'IC bootstrap contre le tableau de #72 : %s", x$c72$e4$texte), "")
+    ecrire_console(sortie)
+    ecrire_fichier(x$jeu, sortie)
+    if (!is.na(OPT_BRUT)) {
+      rp <- do.call(c, lapply(parts, `[[`, "rep"))
+      rp <- rp[order(as.integer(vapply(rp, `[`, "", 1L)))]
+      con <- file(OPT_BRUT, open = "wb")
+      writeLines(enc2utf8(c(paste(repcols0, collapse = "\t"), vapply(rp, paste, "", collapse = "\t"))), con, useBytes = TRUE)
+      close(con)
+      message("\u00e9crit (valeurs brutes, ", length(rp), " r\u00e9plications) : ", OPT_BRUT)
+    }
+    quit(status = 0L)
   }
+  # --- Campagne 297 : tableau unique J1 et J2 ---------------------------------
+  NOMS_297 <- c(md = sprintf("%s-issue297-calibration-famille-ln.md", DATE_SORTIE),
+                brut = sprintf("%s-issue297-calibration-famille-ln-brut.tsv", DATE_SORTIE),
+                jcomb = sprintf("%s-issue297-journal-combinaison-ln.md", DATE_SORTIE))
+  BRUT <- c(paste(c("jeu", repcols0), collapse = "\t"), unlist(lapply(names(JX), function(j) {
+    rp <- do.call(c, lapply(JX[[j]]$parts, `[[`, "rep")); rp <- rp[order(as.integer(vapply(rp, `[`, "", 1L)))]
+    vapply(rp, function(r) paste(c(j, r), collapse = "\t"), "") }), use.names = FALSE))
+  F_BRUT_TMP <- tempfile("ln297_brut_", fileext = ".tsv")
+  con <- file(F_BRUT_TMP, open = "wb"); writeLines(enc2utf8(BRUT), con, useBytes = TRUE); close(con)
+  MD5_BRUT <- unname(tools::md5sum(F_BRUT_TMP))
+  CJ <- lapply(JX, `[[`, "cpt")
+  CEL <- cellules_fk_ln(CJ)
+  plan_txt <- if (is.na(OPT_NIVEAU)) sprintf("sans --niveau (param\u00e8tres r\u00e9duits, non versionnable) : %s",
+                                             paste(sprintf("%s R = %d", names(JX), vapply(JX, `[[`, 1L, "R")), collapse = ", ")) else
+    sprintf("%s (plan de la sp\u00e9cification de Fk, par. 5.2) : %s", OPT_NIVEAU, paste(sprintf("%s R = %d", names(JX), vapply(JX, `[[`, 1L, "R")), collapse = ", "))
+  t0 <- c(entete_md(c("Grandeur", "Valeur")),
+          vapply(CTX_COMMUN, function(k) ligne_md(LIBELLES_CONTEXTE[[k]], ctx0[[k]]), ""),
+          ligne_md("Niveau de l'\u00e9chelle et R", plan_txt),
+          unlist(lapply(JX, function(x) c(ligne_md(sprintf("%s : param\u00e8tres", x$jeu), x$par),
+            vapply(setdiff(names(LIBELLES_CONTEXTE), CTX_COMMUN), function(k) ligne_md(sprintf("%s : %s", x$jeu, LIBELLES_CONTEXTE[[k]]), x$ctx[[k]]), ""),
+            ligne_md(sprintf("%s : r\u00e9plications", x$jeu), sprintf("%d (%d tranche(s) : %s)", x$R, length(x$parts),
+                                                                            paste(vapply(x$parts, function(p) sprintf("%s %d-%d", basename(p$fichier), p$debut, p$fin), ""), collapse = ", "))),
+            ligne_md(sprintf("%s : dur\u00e9e cumul\u00e9e (s)", x$jeu), sprintf("contr\u00f4les %.0f ; r\u00e9plications %.0f (%.1f s par r\u00e9plication)",
+                                                                               x$du[1], x$du[2], x$du[2] / max(x$du[3], 1))),
+            ligne_md(sprintf("%s : (e3) et (e4)", x$jeu), sprintf("%s ; %s", x$c72$e3$texte, x$c72$e4$texte)))), use.names = FALSE),
+          ligne_md("Sorties combin\u00e9es (nom, md5)", paste(vapply(parts, function(p) sprintf("%s %s", basename(p$fichier), unname(tools::md5sum(p$fichier))), ""), collapse = " ; ")),
+          ligne_md("JOURNAL", TXT_JOURNAL),
+          ligne_md("Commit de la combinaison", COMMIT_COMB), ligne_md("Empreintes md5 du combinateur", EMPREINTES_COMB),
+          ligne_md("Valeurs brutes", sprintf("%s : md5 %s, %d lignes (copie hors du d\u00e9p\u00f4t : --brut)", NOMS_297[["brut"]], MD5_BRUT, length(BRUT) - 1L)),
+          ligne_md("Journal de la combinaison", NOMS_297[["jcomb"]]),
+          ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
+          ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", sprintf("OK dans les %d sorties (dont (k), (K-F3) et (t297)) ; invariants du corps v\u00e9rifi\u00e9s ; couvertures exactes par jeu", length(parts))))
+  sortie <- c(sprintf("## Mesure #297 (Fk) : niveau r\u00e9el \u00e0 T = 8 des p de famille et de la p globale, m\u00e9thode lognormale (%s) -- combinaison de %d sortie(s)",
+                      paste(names(JX), collapse = ", "), length(parts)), "",
+              "### T0 \u2014 provenance (contexte commun v\u00e9rifi\u00e9 identique dans toutes les sorties)", "", t0, "",
+              "### Aide \u00e0 la lecture", "",
+              paste("Statut : **constat de simulation sous les mod\u00e8les ajust\u00e9s aux jeux J1 et J2** (usp_simuler(FIT0)), pas un r\u00e9sultat",
+                    "g\u00e9n\u00e9ral. Lecture conjointe (#297) : p de famille et p globale minP en une \u00e9tape (engine_p_famille()), diagnostics sans",
+                    "verdict, p plug-in non exactes (sp\u00e9cification de Fk, par. 1.1) ; r\u00e9f\u00e9rence \u03c1_F = 0,099 et 0,049 (par. 5.3), majorant en",
+                    "pr\u00e9sence d'atomes de la plus petite p. IC : Clopper-Pearson \u00e0 95 %, incertitude Monte-Carlo sur le taux (fonction de R)."), "",
+              "**Crit\u00e8re de la sp\u00e9cification de Fk (par. 5.3), report\u00e9 sans modification, \u00e9valu\u00e9 m\u00e9caniquement sans conclure :**", "",
+              paste(">", TEXTE_CRITERE_FK), "",
+              evaluation_fk_ln(CEL), tableau_fk1_ln(CEL), tableau_fk2_ln(CJ), tableau_fk3_ln(CJ), tableau_fk4_ln(CJ, names(stats0)),
+              unlist(lapply(JX, function(x) c(sprintf("## Jeu %s : tableaux de #166 sur la m\u00eame ex\u00e9cution (T1, T1 bis, T2 \u00e9tendu, T3)", x$jeu), "",
+                                               tableaux(x$cpt, stats0, lignes0)$lignes)), use.names = FALSE),
+              aide_lecture())
+  ecrire_console(sortie)
+  if (length(chemins_absolus(sortie)) && (OPT_ECRIRE || !is.na(OPT_SORTIE)))
+    refuser("ecriture refusee : chemin absolu ou /tmp dans le tableau (D-a de #242)")
+  journal_comb <- function(ecrits) c("# Journal de la combinaison de la mesure #297 (Fk), volet lognormal", "",
+    sprintf("- D\u00e9but (UTC) : %s ; fin (UTC) : %s", format(T_COMB0, "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")),
+    sprintf("- Commande : Rscript tests/calibration_mc_t8.R %s", paste(vapply(ARGS, function(a) if (file.exists(a) || dir.exists(a)) basename(a) else a, ""), collapse = " ")),
+    sprintf("- Commit de la combinaison : %s", COMMIT_COMB), sprintf("- Plateforme : %s", plateforme_calcul()),
+    sprintf("- JOURNAL de la mesure : %s", TXT_JOURNAL),
+    "- Sorties lues (toutes INTEGRITE OK, FIN en derni\u00e8re ligne, couvertures exactes par jeu, aucun refus) :",
+    paste0("  - ", vapply(parts, function(p) sprintf("%s md5 %s", basename(p$fichier), unname(tools::md5sum(p$fichier))), "")),
+    "- Fichiers \u00e9crits :", paste0("  - ", ecrits), "")
+  ecrire_f <- function(f, lignes) { con <- file(f, open = "wb"); writeLines(enc2utf8(lignes), con, useBytes = TRUE); close(con) }
+  if (OPT_ECRIRE) {
+    nv1 <- motifs_non_versionnable(commit_depot("tests/calibration_mc_t8.R"), empreintes_code("tests/calibration_mc_t8.R", SCRIPT_72), "de la combinaison")
+    if (length(nv1)) refuser("--ecrire refuse (tableau versionne dans docs/tableaux/) : ", paste(nv1, collapse = " ; "))
+    cib <- file.path(RACINE, "docs", "tableaux", NOMS_297); names(cib) <- names(NOMS_297)
+    rem <- garde_ecrasement(cib, OPT_REMPLACER, RACINE)
+    if (!file.copy(F_BRUT_TMP, OPT_BRUT) || !identical(unname(tools::md5sum(OPT_BRUT)), MD5_BRUT)) refuser("copie --brut refusee ou md5 different")
+    if (!file.copy(F_BRUT_TMP, cib[["brut"]], overwrite = TRUE) || !identical(unname(tools::md5sum(cib[["brut"]])), MD5_BRUT)) refuser("copie du brut refusee")
+    ecrire_f(cib[["md"]], inserer_t0(sortie, c(ligne_remplacement(rem, cib[["md"]]), ligne_remplacement(rem, cib[["brut"]]))))
+    ecrire_f(cib[["jcomb"]], journal_comb(vapply(c("md", "brut"), function(k) sprintf("%s md5 %s", NOMS_297[[k]], unname(tools::md5sum(cib[[k]]))), "")))
+    message("\u00e9crit : ", paste(NOMS_297, collapse = ", "))
+  } else {
+    if (!is.na(OPT_SORTIE)) {
+      cib <- file.path(OPT_SORTIE, NOMS_297); names(cib) <- names(NOMS_297)
+      if (any(file.exists(cib))) refuser("--sortie : fichier(s) deja present(s), jamais ecrase(s)")
+    }
+    if (!is.na(OPT_BRUT)) { if (!file.copy(F_BRUT_TMP, OPT_BRUT)) refuser("copie --brut refusee"); message("\u00e9crit (valeurs brutes) : ", basename(OPT_BRUT)) }
+    if (!is.na(OPT_SORTIE)) {
+      file.copy(F_BRUT_TMP, cib[["brut"]]); ecrire_f(cib[["md"]], sortie)
+      ecrire_f(cib[["jcomb"]], journal_comb(vapply(c("md", "brut"), function(k) sprintf("%s md5 %s", NOMS_297[[k]], unname(tools::md5sum(cib[[k]]))), "")))
+      message("\u00e9crit : ", paste(NOMS_297, collapse = ", "), " (hors du d\u00e9p\u00f4t, non versionnable)")
+    }
+  }
+  unlink(F_BRUT_TMP)
+  quit(status = 0L)
+}
+
+###############################################################################
+#  MODES --prevol-unite ET --prevol (pre-vol de la campagne 297, #297)
+###############################################################################
+# Unite de debit : replications b1..b2 de J1 puis de J2, chacune traitee par
+# run_engine() complet (B = 999, graine GRAINE_BOOT + b) sur les jeux simules
+# du meme flux que l'execution (GRAINE_JEUX, usp_simuler() du modele ajuste) ;
+# une ligne "UNITE<TAB>jeu<TAB>b<TAB>duree (s)" par replication, FIN en
+# derniere ligne.
+if (MODE_LN == "unite") {
+  m <- regmatches(OPT_B, regexec("^([0-9]+):([0-9]+)$", OPT_B))[[1]]
+  if (length(m) != 3L) stop("--b : forme b1:b2 attendue")
+  b1 <- as.integer(m[2]); b2 <- as.integer(m[3])
+  if (b1 < 1L || b2 < b1) stop("--b : 1 <= b1 <= b2")
+  for (j in c("J1", "J2")) {
+    d <- if (j == "J1") list(x = .ln$xt, y = .ln$yt) else lire_j2()
+    fit <- usp_ajuster(d$x, d$y)
+    ys <- engine_sous_graine(GRAINE_JEUX, t(vapply(seq_len(b2), function(b) usp_simuler(fit), numeric(T_))))
+    for (b in seq.int(b1, b2)) {
+      t1 <- Sys.time()
+      invisible(tryCatch(run_engine(xt = d$x, yt = ys[b, ], methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
+                                    nature_donnees = NATURE, B = B_BOOT, alpha = ALPHA, theta_equiv = THETA_EQUIV,
+                                    seed = GRAINE_BOOT + b), error = function(e) NULL))
+      writeLines(sprintf("UNITE\t%s\t%d\t%.3f", j, b, as.numeric(difftime(Sys.time(), t1, units = "secs"))))
+    }
+  }
+  writeLines("FIN")
+  quit(status = 0L)
+}
+# Pre-vol (specification de Fk, par. 5.5, point 5) : cout des controles
+# d'une execution hors replications (lois discretes, controle (a), jeux
+# simules et (e2) a R = 2 000), puis debit a 1, 2, 3 et 4 processus
+# concurrents (les memes UNITES replications de J1 puis de J2 dans chaque
+# processus) ; c_J1, c_J2 : duree moyenne par replication a
+# un processus ; P_k = k x duree moyenne a un processus / duree moyenne a k
+# processus. Ligne machine "PREVOL_LN<TAB>c_J1<TAB>c_J2<TAB>P1<TAB>P2<TAB>P3
+# <TAB>P4<TAB>c_ctl", lue par tests/calibration_mc_mw_t8.R --prevol
+# --campagne 297 --prevol-ln FICHIER. Rien d'ecrit (sortie console).
+if (MODE_LN == "prevol") {
+  secs <- function(t0) as.numeric(difftime(Sys.time(), t0, units = "secs"))
+  ecrire_console(c("## Pr\u00e9-vol de la mesure #297 (Fk), volet lognormal (rien d'\u00e9crit)", "",
+                   sprintf("Commit : %s ; plateforme : %s ; c\u0153urs (parallel::detectCores()) : %s ; d\u00e9but %s UTC",
+                           commit_depot("tests/calibration_mc_t8.R"), plateforme_calcul(), tryCatch(parallel::detectCores(), error = function(e) "?"),
+                           format(Sys.time(), "%Y-%m-%dT%H:%M:%S", tz = "UTC")), ""))
+  t0 <- Sys.time(); invisible(lois_discretes()); t_lois <- secs(t0)
+  t0 <- Sys.time(); ra <- executer_cas("premium")
+  invisible(comparer_objets(neutraliser_instables(readRDS(chemin_reference("premium"))), neutraliser_instables(ra), tol = TOLERANCE))
+  invisible(engine_table_tests(ra)); t_a <- secs(t0)
+  t0 <- Sys.time(); fit <- usp_ajuster(.ln$xt, .ln$yt)
+  invisible(engine_sous_graine(GRAINE_JEUX, t(vapply(seq_len(2000L), function(b) usp_simuler(fit), numeric(T_))))); t_y <- secs(t0)
+  c_ctl <- t_lois + t_a + 2 * t_y
+  RSCRIPT <- file.path(R.home("bin"), "Rscript")
+  if (is.na(FICHIER_SCRIPT)) stop("--prevol : chemin du script introuvable (lancer par Rscript)")
+  dossier <- tempfile("prevol297ln_"); dir.create(dossier)
+  CB <- list()
+  for (k in 1:4) {
+    fs <- file.path(dossier, sprintf("k%d-%d.txt", k, seq_len(k)))
+    # Memes replications 1..UNITES dans chaque processus : les durees de
+    # replication varient beaucoup d'un jeu simule a l'autre (de 7 a 38 s
+    # mesures au pre-vol du 25/10/2026, regime de delta chapeau*) ; des
+    # indices differents par processus biaisaient P_k (P_4 = 4,55 mesure).
+    for (i in seq_len(k)) {
+      system2(RSCRIPT, c(shQuote(FICHIER_SCRIPT), "--prevol-unite", "--b", sprintf("1:%d", OPT_UNITES)),
+              stdout = fs[i], stderr = sub("\\.txt$", ".err", fs[i]), wait = FALSE)
+    }
+    t_lim <- Sys.time() + 3600
+    repeat {
+      fini <- vapply(fs, function(f) file.exists(f) && any(readLines(f, warn = FALSE) == "FIN"), logical(1))
+      if (all(fini) || Sys.time() > t_lim) break
+      Sys.sleep(2)
+    }
+    if (!all(fini)) stop("--prevol : unite(s) de debit non terminee(s) en 1 h (k = ", k, ")")
+    u <- do.call(rbind, lapply(fs, function(f) do.call(rbind, strsplit(grep("^UNITE\t", readLines(f), value = TRUE), "\t", fixed = TRUE))))
+    CB[[k]] <- data.frame(jeu = u[, 2], d = as.numeric(u[, 4]), stringsAsFactors = FALSE)
+  }
+  unlink(dossier, recursive = TRUE)
+  c_j <- vapply(c("J1", "J2"), function(j) mean(CB[[1]]$d[CB[[1]]$jeu == j]), 1)
+  P_k <- vapply(1:4, function(k) k * mean(CB[[1]]$d) / mean(CB[[k]]$d), 1)
+  ecrire_console(c("### Co\u00fbts et d\u00e9bit du volet lognormal", "",
+                   sprintf(paste("Contr\u00f4les d'une ex\u00e9cution hors r\u00e9plications : %s s (lois discr\u00e8tes %s s ; contr\u00f4le (a) %s s ; jeux simul\u00e9s \u00e0",
+                                 "R = 2 000, deux fois pour (e2), %s s). c_J1 = %s s et c_J2 = %s s par r\u00e9plication (run_engine() complet, un",
+                                 "processus, %d r\u00e9plication(s) par jeu)."),
+                           num(c_ctl, 1), num(t_lois, 1), num(t_a, 1), num(t_y, 1), num(c_j[["J1"]], 2), num(c_j[["J2"]], 2), OPT_UNITES), "",
+                   entete_md(c("processus concurrents", "dur\u00e9e par r\u00e9plication (s) : moyenne [min ; max]", "d\u00e9bit agr\u00e9g\u00e9 P_k")),
+                   vapply(1:4, function(k) ligne_md(k, sprintf("%s [%s ; %s]", num(mean(CB[[k]]$d), 2), num(min(CB[[k]]$d), 2), num(max(CB[[k]]$d), 2)),
+                                                    num(P_k[k], 3)), ""), "",
+                   "Ligne machine (fichier \u00e0 passer \u00e0 tests/calibration_mc_mw_t8.R --prevol --campagne 297 --prevol-ln) :", ""))
+  writeLines(paste(c("PREVOL_LN", sprintf("%.4f", c(c_j[["J1"]], c_j[["J2"]], P_k, c_ctl))), collapse = "\t"))
   quit(status = 0L)
 }
 
@@ -1124,18 +1912,7 @@ controle <- function(ok, libelle) {
   invisible(ok)
 }
 
-# --- Jeu et modele ajuste (lire_j2() : copie de tests/taux_franchissement_reperes.R)
-lire_j2 <- function() {
-  f <- file.path(RACINE, "tests", "unitaires", "test_controles_numeriques.R")
-  l <- readLines(f)
-  env <- new.env()
-  for (v in c("xi", "yi")) {
-    li <- grep(sprintf("^%s <- c\\(", v), l, value = TRUE)
-    if (length(li) != 1L) stop("J2 : ligne '", v, " <- c(' introuvable ou multiple dans ", f)
-    eval(parse(text = li), envir = env)
-  }
-  list(x = env$xi, y = env$yi)
-}
+# --- Jeu et modele ajuste (lire_j2() : definie plus haut)
 JEU <- if (OPT_JEU == "J1")
   list(x = .ln$xt, y = .ln$yt, libelle = "J1 : tests/donnees/donnees_ln.csv (jeu des cas de r\u00e9f\u00e9rence)") else
   c(lire_j2(), libelle = "J2 : xi, yi de tests/unitaires/test_controles_numeriques.R (\u03b4 estim\u00e9 int\u00e9rieur)")
@@ -1228,8 +2005,16 @@ controle(cmp_a$conforme, sprintf("(a) J1 observ\u00e9, run_engine(seed = %.0f), 
 controle(identical(unlist(RES_A$metadata[c("B", "alpha", "seed", "theta_equiv")]),
                    c(B = as.numeric(B_BOOT), alpha = ALPHA, seed = GRAINE_BOOT, theta_equiv = THETA_EQUIV)),
          "(a) configuration du cas premium (B, \u03b1, graine, theta_equiv) = celle du script")
+# Lignes hors lecture conjointe (#297 : les lignes de engine_p_famille(),
+# posees apres les autres et presentes selon les donnees, sont traitees a
+# part, cles f|<famille>).
 TAB_A <- engine_table_tests(RES_A)
+TAB_A <- TAB_A[!TAB_A$fonction %in% "engine_p_famille", , drop = FALSE]
 LIGNES <- TAB_A$test
+FE_A <- fk_etats(RES_A$tests, RES_A$bootstrap, FAM_LN)
+controle(fk_etats_ok(FE_A) && !anyNA(match(names(FE_A$f), FAM_LN)),
+         sprintf("(k) J1 observ\u00e9 : lignes de lecture conjointe coh\u00e9rentes (\u00e9tats %s)",
+                 paste(sprintf("%s %s (k = %d)", names(FE_A$f), vapply(FE_A$f, `[[`, "", "etat"), vapply(FE_A$f, `[[`, 1L, "k")), collapse = ", ")))
 STATS_Q <- vapply(USP_CATALOGUE_MC, `[[`, "", "queue")
 controle(length(USP_CATALOGUE_MC) == N_STATS && identical(names(RES_A$bootstrap$p_mc), names(USP_CATALOGUE_MC)),
          sprintf("(b) J1 observ\u00e9 : %d statistiques au catalogue (attendu %d), noms de bootstrap$p_mc = catalogue",
@@ -1258,6 +2043,12 @@ controle(isTRUE(all.equal(TAILLES$suites$atteignable, c(4 / 70, 0), tolerance = 
          sprintf("(f) taille des suites \u00e0 T = 8 : atteignable %s et %s (4/70 et 0), liss\u00e9e %s et %s (0,05713 et 0,00968)",
                  num(TAILLES$suites$atteignable[1], 6), num(TAILLES$suites$atteignable[2], 6),
                  num(TAILLES$suites$lissee[1], 6), num(TAILLES$suites$lissee[2], 6)))
+# (t297) texte du critere de Fk (specification de Fk, par. 5.3), reporte
+# sans modification.
+TXT_SPEC_FK <- if (file.exists(file.path(RACINE, SPEC_FK))) readLines(file.path(RACINE, SPEC_FK), warn = FALSE, encoding = "UTF-8") else character(0)
+controle(present_bloc(TEXTE_CRITERE_FK, TXT_SPEC_FK),
+         sprintf("(t297) texte du crit\u00e8re de Fk (par. 5.3, K-F1 \u00e0 K-F4, profils \u03a60 \u00e0 \u03a65, %d lignes) identique \u00e0 %s (md5 %s)",
+                 length(TEXTE_CRITERE_FK), SPEC_FK, unname(tools::md5sum(file.path(RACINE, SPEC_FK)))))
 if (OPT_JEU == "J1")
   controle(identical(PARAM0$sigma_usp, RES_A$parametre_final$sigma_usp),
            "Coh\u00e9rence : \u03c3_USP de T0 (usp_parametre()) identique \u00e0 celui de run_engine() sur J1 observ\u00e9")
@@ -1266,13 +2057,23 @@ t_controle <- as.numeric(difftime(Sys.time(), t_c, units = "secs"))
 # --- Replications ----------------------------------------------------------------------
 cpt <- numeric(0)
 ajoute <- function(cle, v = 1) { cpt[cle] <<- (if (cle %in% names(cpt)) cpt[[cle]] else 0) + v }
-echecs_b <- list(b = integer(0), e1 = integer(0), c = integer(0))
+echecs_b <- list(b = integer(0), e1 = integer(0), c = integer(0), k = integer(0))
+KF3 <- NULL                        # controle K-F3 (#297), premiere replication traitee
 classe_nature <- function(nat) if (is.na(nat)) "aucune" else if (identical(nat, "exacte")) "exacte" else
   if (startsWith(nat, "Monte-Carlo")) "mc" else if (startsWith(nat, "asymptotique")) "asympt" else "autre"
-REPCOLS <- c("b", "regime", paste0("p_mc:", names(USP_CATALOGUE_MC)), paste0("p_retenue:", LIGNES))
+# Colonnes de lecture conjointe (#297) en fin de ligne REP : par cle de
+# famille, etat (CODE_ETAT), k, B effectif de famille, p, err_mc, m_obs de
+# la ligne, plus petite p_mc des membres.
+COLS_FK <- as.vector(t(outer(FAM_LN, c("etf", "kf", "bf", "pf", "ef", "sf", "minf"), function(f, c) paste0(c, ":", f))))
+# err_mc et B effectif de chaque statistique (#297, avis d'actuary du
+# 25/10/2026, point 2 ; symetrie avec eR: et BR: du volet Merz-Wuthrich),
+# apres les p_mc.
+REPCOLS <- c("b", "regime", paste0("p_mc:", names(USP_CATALOGUE_MC)), paste0("e_mc:", names(USP_CATALOGUE_MC)),
+             paste0("B_eff:", names(USP_CATALOGUE_MC)), paste0("p_retenue:", LIGNES), COLS_FK)
 REP <- character(0)
-ligne_rep <- function(b, regime, p_mc, p_ret)
-  paste(c(b, regime, sprintf("%.17g", c(p_mc, p_ret))), collapse = "\t")
+ligne_rep <- function(b, regime, p_mc, p_ret, fk = rep(NA_real_, length(COLS_FK)), e_mc = rep(NA_real_, N_STATS),
+                      b_eff = rep(NA_real_, N_STATS))
+  paste(c(b, regime, sprintf("%.17g", c(p_mc, e_mc, b_eff, p_ret, fk))), collapse = "\t")
 t_r <- Sys.time()
 for (b in seq.int(DEBUT, FIN)) {
   y <- YSIM[b, ]
@@ -1313,27 +2114,72 @@ for (b in seq.int(DEBUT, FIN)) {
       ajoute(sprintf("mmc|%s|%s", s, nettoyer_cle(m)))
     }
   }
-  # (c) et T2.
+  # (c) et T2. Lignes de lecture conjointe (#297) a part : cle f|<famille>,
+  # sans n ni p retenue (n compte ci-dessous, par l'etat de la ligne).
   tab <- engine_table_tests(res)
-  if (!identical(tab$test, LIGNES)) echecs_b$c <- c(echecs_b$c, b)
+  lfk <- tab$fonction %in% "engine_p_famille"
+  if (!identical(tab$test[!lfk], LIGNES)) echecs_b$c <- c(echecs_b$c, b)
   for (k in seq_len(nrow(tab))) {
-    li <- nettoyer_cle(tab$test[k])
-    ajoute(sprintf("l|%s|n", li))
-    ajoute(sprintf("l|%s|t|%s", li, tab$type[k]))
-    if (!is.na(tab$commentaire[k]) && startsWith(tab$commentaire[k], "TEST INOPERANT")) ajoute(sprintf("l|%s|inop", li))
-    ajoute(sprintf("l|%s|nat|%s", li, classe_nature(tab$nature_p[k])))
-    ajoute(sprintf("l|%s|v|%s", li, nettoyer_cle(tab$verdict[k])))
+    li <- if (lfk[k]) sprintf("f|%s", substr(tab$famille[k], 1L, 2L)) else sprintf("l|%s", nettoyer_cle(tab$test[k]))
+    if (!lfk[k]) ajoute(sprintf("%s|n", li))
+    ajoute(sprintf("%s|t|%s", li, tab$type[k]))
+    if (!is.na(tab$commentaire[k]) && startsWith(tab$commentaire[k], "TEST INOPERANT")) ajoute(sprintf("%s|inop", li))
+    ajoute(sprintf("%s|nat|%s", li, classe_nature(tab$nature_p[k])))
+    ajoute(sprintf("%s|v|%s", li, nettoyer_cle(tab$verdict[k])))
+    if (lfk[k]) next
     # Ligne ESD (#304) : k chapeau lu dans la colonne estimation (k = 2 a
     # T = 8 : k chapeau = 2 <=> k chapeau >= 2).
     if (identical(tab$test[k], LIGNE_ESD) && is.finite(tab$estimation[k])) {
-      if (tab$estimation[k] >= 1) ajoute(sprintf("l|%s|kesd1", li))
-      if (tab$estimation[k] >= 2) ajoute(sprintf("l|%s|kesd2", li))
+      if (tab$estimation[k] >= 1) ajoute(sprintf("%s|kesd1", li))
+      if (tab$estimation[k] >= 2) ajoute(sprintf("%s|kesd2", li))
     }
     p <- tab$p_retenue[k]
     if (is.finite(p)) {
-      ajoute(sprintf("l|%s|np", li))
-      if (p < ALPHA) ajoute(sprintf("l|%s|k1", li))
-      if (p < ALPHA2) ajoute(sprintf("l|%s|k2", li))
+      ajoute(sprintf("%s|np", li))
+      if (p < ALPHA) ajoute(sprintf("%s|k1", li))
+      if (p < ALPHA2) ajoute(sprintf("%s|k2", li))
+    }
+  }
+  # K-F2 (#297) : au moins une ALERTE ou un ECHEC, au moins un ECHEC, parmi
+  # les lignes de type test.
+  if (any(tab$type == "test" & tab$verdict %in% c("ALERTE", "ECHEC"))) ajoute("mult|ae")
+  if (any(tab$type == "test" & tab$verdict %in% "ECHEC")) ajoute("mult|e")
+  # Restreint aux lignes de sens "ne pas rejeter" (avis d'actuary du
+  # 25/10/2026, point 1 : hors TOST et Pitman, seules lignes de sens
+  # "rejeter").
+  npr <- tab$type == "test" & tab$sens_du_test %in% "ne pas rejeter"
+  if (any(npr & tab$verdict %in% c("ALERTE", "ECHEC"))) ajoute("mult|ae_npr")
+  if (any(npr & tab$verdict %in% "ECHEC")) ajoute("mult|e_npr")
+  # Lecture conjointe (#297) : etat de chaque ligne de famille (fk_etats(),
+  # controle (k)), K-F1 (n, absences T-3b, rejets), composition (k, masse au
+  # plancher), K-F2 (plus petite p_mc des membres < alpha), K-F4 (|p - s| <
+  # 2 err_mc) ; controle K-F3 sur la premiere replication traitee.
+  fe <- fk_etats(res$tests, bt, FAM_LN)
+  if (!fk_etats_ok(fe)) echecs_b$k <- c(echecs_b$k, b)
+  if (is.null(KF3)) KF3 <- c(list(b = b), fk_recalcul(res$tests, bt, USP_CATALOGUE_MC, FAM_LN))
+  for (f in FAM_LN) {
+    x <- fe$f[[f]]
+    ajoute(sprintf("f|%s|kf|%d", f, x$k))
+    if (x$etat %in% c("L", "N")) {
+      ajoute(sprintf("f|%s|n", f))
+      if (x$etat == "N") ajoute(sprintf("f|%s|na", f)) else {
+        if (x$p < ALPHA) ajoute(sprintf("f|%s|k1", f))
+        if (x$p < ALPHA2) ajoute(sprintf("f|%s|k2", f))
+        if (abs(x$p - 1 / (x$bf + 1)) < 1e-12) ajoute(sprintf("f|%s|pl", f))
+        if (abs(x$p - ALPHA) < 2 * x$e) ajoute(sprintf("f|%s|fr1", f))
+        if (abs(x$p - ALPHA2) < 2 * x$e) ajoute(sprintf("f|%s|fr2", f))
+      }
+    }
+    if (is.finite(x$minp) && x$minp < ALPHA) ajoute(sprintf("f|%s|m1", f))
+    if (is.finite(x$minp) && x$minp < ALPHA2) ajoute(sprintf("f|%s|m2", f))
+  }
+  # K-F4 par statistique du catalogue (#297) : |p_mc - s| < 2 err_mc.
+  for (s_ in names(USP_CATALOGUE_MC)) {
+    p <- unname(bt$p_mc[s_]); e <- unname(bt$err_mc[s_])
+    if (is.finite(p) && is.finite(e)) {
+      ajoute(sprintf("fr|%s|n", s_))
+      if (abs(p - ALPHA) < 2 * e) ajoute(sprintf("fr|%s|1", s_))
+      if (abs(p - ALPHA2) < 2 * e) ajoute(sprintf("fr|%s|2", s_))
     }
   }
   # (e4) largeur relative de l'IC bootstrap 90 % (ligne lue par #72).
@@ -1367,7 +2213,10 @@ for (b in seq.int(DEBUT, FIN)) {
   ajoute("rechec", bt$n_echec_restreint)
   # Valeurs brutes (ligne REP) : p_mc dans l'ordre du catalogue, p retenues
   # dans l'ordre de LIGNES (NA si la ligne manque, controle (c)).
-  REP <- c(REP, ligne_rep(b, reg, unname(bt$p_mc[names(USP_CATALOGUE_MC)]), tab$p_retenue[match(LIGNES, tab$test)]))
+  REP <- c(REP, ligne_rep(b, reg, unname(bt$p_mc[names(USP_CATALOGUE_MC)]), tab$p_retenue[!lfk][match(LIGNES, tab$test[!lfk])],
+                          unlist(lapply(FAM_LN, function(f) { x <- fe$f[[f]]
+                            c(CODE_ETAT[[x$etat]], x$k, x$bf, x$p, x$e, x$m, x$minp) })),
+                          unname(bt$err_mc[names(USP_CATALOGUE_MC)]), unname(bt$B_effectif[names(USP_CATALOGUE_MC)])))
 }
 t_rep <- as.numeric(difftime(Sys.time(), t_r, units = "secs"))
 n_rep <- FIN - DEBUT + 1L
@@ -1375,8 +2224,18 @@ liste_b <- function(v) if (length(v)) paste0(" : r\u00e9plication(s) ", paste(ut
                                               if (length(unique(v)) > 20) ", ..." else "") else ""
 controle(!length(echecs_b$b), sprintf("(b) noms de bootstrap$p_mc et motif_mc = les %d du catalogue, p_mc absente avec motif, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
                                       N_STATS, liste_b(echecs_b$b)))
-controle(!length(echecs_b$c), sprintf("(c) %d lignes, m\u00eames libell\u00e9s et m\u00eame ordre que J1 observ\u00e9, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
+controle(!length(echecs_b$c), sprintf("(c) %d lignes hors lecture conjointe, m\u00eames libell\u00e9s et m\u00eame ordre que J1 observ\u00e9, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
                                       N_LIGNES, liste_b(echecs_b$c)))
+controle(!length(echecs_b$k),
+         sprintf(paste("(k) lignes de lecture conjointe (#297, cl\u00e9s %s) : \u00e9tats 1 (ligne et p), 2 (ligne sans p, T-3b) ou 0 (pas de ligne, k \u2264 1)",
+                       "seulement, coh\u00e9rents avec k et le B effectif de famille recompt\u00e9s par le script (\u00e9tat -2 : bootstrap$stats_boot",
+                       "absent, jamais confondu avec une ligne absente pour k \u2264 1), \u00e0 chaque r\u00e9plication trait\u00e9e%s"),
+                 paste(FAM_LN, collapse = ", "), liste_b(echecs_b$k)))
+controle(!is.null(KF3) && isTRUE(KF3$ok),
+         sprintf(paste("(K-F3) premi\u00e8re r\u00e9plication trait\u00e9e (b = %s) : p de famille, m_obs, err_mc et k recalcul\u00e9s dans le script",
+                       "(fk_recalcul(), R de base, \u00e9criture ind\u00e9pendante d'engine_p_famille()) depuis bootstrap$stats_boot, stats_obs,",
+                       "le catalogue et les lignes, identiques (identical()) aux champs des lignes : %s"),
+                 if (is.null(KF3)) "\u2014" else KF3$b, if (is.null(KF3)) "aucune r\u00e9plication trait\u00e9e" else KF3$txt))
 ec <- grep("^ecart\\|", names(cpt), value = TRUE)
 controle(all(nzchar(sub("^ecart\\|[0-9]+\\|", "", ec))),
          sprintf("(d) r\u00e9plications \u00e9cart\u00e9es list\u00e9es en T3 avec leur motif (%d)", length(ec)))
@@ -1413,7 +2272,9 @@ CTX <- c(
   plateforme = plateforme_calcul(),
   empreintes = EMPREINTES,
   reference = TXT_A,
-  tailles = txt_tailles(TAILLES))
+  tailles = txt_tailles(TAILLES),
+  essai = if (OPT_ESSAI) "oui" else "non",
+  empreinte_sc = empreinte_sans_commentaires(file.path(RACINE, "R", "engine.R")))
 stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
 tb <- tableaux(cpt, STATS_Q, LIGNES)
 S <- c(sprintf("## Calibration des p-values Monte-Carlo \u00e0 T = 8, jeu %s (issue #166)", OPT_JEU), "",
@@ -1427,11 +2288,12 @@ S <- c(sprintf("## Calibration des p-values Monte-Carlo \u00e0 T = 8, jeu %s (is
                                          as.numeric(difftime(Sys.time(), t_debut, units = "secs")))),
        ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) "\u00c9CHEC" else "OK"), "")
 if (!COMPLET) S <- c(S, "Tableaux PARTIELS (une tranche) : combiner les sorties des K tranches par --combiner.", "")
-S <- c(S, aide_lecture(), tb$lignes,
+if (OPT_ESSAI) S <- c(S, "**Essai (--essai) : non versionnable.**", "")
+CEL_FK1 <- cellules_fk_ln(stats::setNames(list(cpt), OPT_JEU))
+S <- c(S, aide_lecture(), tb$lignes, tableau_fk1_ln(CEL_FK1), tableau_fk2_ln(stats::setNames(list(cpt), OPT_JEU)),
        "### Contr\u00f4les d'int\u00e9grit\u00e9", "", paste("-", CONTROLES), "",
        sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%d contr\u00f4le(s))", length(INTEGRITE)) else "OK"), "")
-ecrire_console(S)
-ecrire_console(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d", DEBUT, FIN),
+MACHINE <- c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d", DEBUT, FIN),
                  sprintf("CONTEXTE\t%s\t%s", names(CTX), CTX),
                  paste0("STATS\t", paste(sprintf("%s=%s", names(STATS_Q), STATS_Q), collapse = "\t")),
                  paste0("LIGNES\t", paste(LIGNES, collapse = "\t")),
@@ -1442,5 +2304,13 @@ ecrire_console(c(paste0("PARAMETRES\t", PAR), sprintf("TRANCHE\t%d\t%d", DEBUT, 
                  sprintf("COMPTE\t%s\t%.0f", names(cpt), cpt),
                  sprintf("NREP\t%d", length(REP)),
                  paste0("REP\t", REP),
-                 sprintf("FIN\t%d", length(cpt))))
+                 sprintf("FIN\t%d", length(cpt)))
+# --sortie-tranche : sortie complete dans le fichier (ecrite d'un bloc, a la
+# fin ; FIN en derniere ligne), markdown aussi sur la console.
+ecrire_console(S)
+if (is.na(OPT_SORTIE_TR)) ecrire_console(MACHINE) else {
+  if (file.exists(OPT_SORTIE_TR)) stop("--sortie-tranche : fichier apparu pendant le calcul, jamais ecrase")
+  con <- file(OPT_SORTIE_TR, open = "wb"); writeLines(enc2utf8(c(S, MACHINE)), con, useBytes = TRUE); close(con)
+  message("ecrit (sortie, md5 ", unname(tools::md5sum(OPT_SORTIE_TR)), ") : ", basename(OPT_SORTIE_TR))
+}
 quit(status = if (length(INTEGRITE)) 1L else 0L)
