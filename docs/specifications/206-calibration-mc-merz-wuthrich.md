@@ -393,3 +393,51 @@ Aucune exécution n'a eu lieu avant cette approbation.
 - **D6 (a)** : les commentaires de `R/engine.R` visés par #119 sont corrigés sur cette branche, par un commit `moteur:` limité aux commentaires (empreinte #231 inchangée).
 - **D7** : issue #245 (M5), option (a) par défaut : lignes M5 en diagnostic. Le Shapiro-Wilk de `reserve2` passerait d'ALERTE à INFO, sous réserve du visa du mainteneur sur ce changement de verdict.
 - **D8** : issue #246 (outil hors CI de double bootstrap), priorité basse.
+
+---
+
+## Annotation du 24/10/2026 : remesure de la branche Fk (#297), quatre changements du moteur et ensemble « à la frontière »
+
+> *Rédigé par l'agent actuary (IA), versionné par la session principale en premier commit `docs:` de #297 (branche Fk, `claude/lecture-conjointe-familles`).* Source : commentaire `6367489696` de #297, points 1 et 2, publié sur accord du mainteneur le 23/10/2026. Les sorties du 11/10/2026 (commit mesuré `3a95e11`) ne sont ni modifiées ni régénérées. Le critère du § 5 (K1 à K5, profils Π0 à Π5, R1 à R3), le DGP du § 2, les graines du § 7 et les annotations antérieures restent en vigueur. Le plan de la remesure (lois, R, budget) et la lecture de la p de famille sont fixés par la spécification de Fk (`docs/specifications/fk-lecture-conjointe.md`, § 5).
+
+**1. Quatre changements de statistique ou de sens depuis la mesure du 11/10/2026** (commits [V], `git log`) :
+
+| Clé | Changement | Issue, commit du moteur | Décision |
+|---|---|---|---|
+| Calendrier (M3) | test calendaire de Mack en queue basse ; bilatéral dans le tableau du § 1 | #276, `bfec999` (16/10/2026) | Q-Fd-1 (D1-Fd, 14/10/2026) |
+| BP (M2) | hétéroscédasticité en régression à effets fixes de colonne, variante FWr | #301, `62828e4` (21/10/2026) | Q-D2-Fi-1 (21/10/2026) |
+| Grubbs → MinP4 (M4) | minimum des p de Student des résidus studentisés externes ; clé Grubbs retirée de `MW_CATALOGUE_MC` | #300, `969cc98` (21/10/2026) | Q-D2-Fi-2 (21/10/2026) |
+| PenteIntra (M1) | pente intra-colonne relative commune, à effets fixes de colonne | #307, `2e69cc3` (23/10/2026) | Q-D1-Fj-3 (23/10/2026) |
+
+Deux autres changements ne modifient aucune statistique.
+- **#312** (`455038b`, Q-D1-Fm-1) : la ligne du test des suites (clé Runs) est une variante secondaire restituée en diagnostic, sans verdict. La clé et sa statistique sont inchangées ; son niveau se lit désormais à titre descriptif.
+- **#307**, option (b′) de la famille α (Q-D1-Fj-5) : il a changé les textes de la ligne Alpha (référence, H1, `detail`), mais pas sa statistique.
+
+**2. Tableau du § 1 pour la remesure.** Il remplace celui du § 1 pour la remesure de Fk seulement. Valeurs de `tests/reference/reserve2.rds` à `1efa88b`, B_effectif = 999 pour les 13 clés [V] :
+
+| Clé | Ligne de `mw_tests()` | Famille | Queue | p_mc | err_mc | Type, verdict |
+|---|---|---|---|---|---|---|
+| PenteIntra | Absence de tendance des facteurs avec le cumul, à colonne donnée | M1 | deux | 0,090 | 0,0131 | test, ALERTE |
+| Origine | Nullité de l'ordonnée à l'origine, colonne par colonne | M1 | haut | 0,085 | 0,0088 | test, ALERTE |
+| HomogF | Homogénéité de f_j entre années de survenance | M1 | haut | 0,080 | 0,0086 | test, ALERTE |
+| Courbure | Absence de courbure de la régression | M1 | haut | 0,030 | 0,0054 | test, ECHEC |
+| Alpha | Stabilité du facteur selon la pondération (famille alpha) | M1 | haut | 0,005 | 0,0022 | test, ECHEC |
+| BP | Hétéroscédasticité résiduelle vs cumul | M2 | haut | 0,285 | 0,0143 | test, OK |
+| ExpVar | Adéquation de l'exposant de variance, colonne par colonne | M2 | haut | 0,428 | 0,0157 | test, OK |
+| Calendrier | Effets d'année calendaire (test de Mack) | M3 | bas | 0,002 | 0,0014 | test, ECHEC |
+| KruskalAcc | Homogénéité des résidus entre années de survenance | M3 | haut | 0,300 | 0,0145 | test, OK |
+| CorrDev | Corrélation entre années de développement adjacentes | M3 | deux | 0,170 | 0,0176 | test, OK |
+| DW | Autocorrélation des résidus (Durbin-Watson) | M3 | deux | 0,032 | 0,0079 | test, ECHEC |
+| Runs | Test des suites sur les résidus de Mack | M3 | deux | 0,374 | 0,0247 | diagnostic (variante secondaire), INFO |
+| MinP4 | Cellule aberrante du triangle (résidus studentisés externes) | M4 | bas | 0,898 | 0,0096 | test, OK |
+
+Les neuf clés hors des quatre changements gardent la p_mc du tableau du 11/10/2026 [V, comparaison des deux tableaux].
+
+**3. Points de comparaison.** Les cellules du 11/10/2026 (T1, T1 bis, T2, T3, T4) des clés **Calendrier, BP, Grubbs et PenteIntra** portent sur des statistiques ou des sens que le moteur ne calcule plus. Elles **ne servent pas de point de comparaison** pour la remesure : aucune évolution n'est lue entre les deux mesures pour ces quatre clés. Pour les neuf autres clés, la comparaison reste descriptive. Les empreintes (i3) des deux mesures diffèrent, puisque le moteur a changé ailleurs. Les cellules du pool brut et de la loi A, que la remesure de Fk ne reprend pas, restent valides à leur commit cité (C-206-2), pour ces neuf clés seulement.
+
+**4. Ensemble « à la frontière »** (§ 5, paragraphe « Lignes à la frontière de `reserve2` »).
+- **Liste retirée** : la liste figée (BP 0,103 ; Origine 0,085 ; HomogF 0,080) date du moteur d'avant #301 et #307.
+- **Règle** : est « à la frontière » toute ligne de type test telle que |p_mc − s| < 2 err_mc pour un seuil atteignable s ∈ {α ; α/2} (sens « ne pas rejeter »), **calculée sur la référence versionnée**. C'est la règle de #244, que `add()` applique en posant `PHRASE_VERDICT_SENSIBLE_MC` (`R/engine.R:4462-4478`).
+- **Lecture dans le script** : `tests/calibration_mc_mw_t8.R` (l. ~1211) la lit dans la référence, comme `NL_MAX` (l. 708), et non dans une liste écrite en dur.
+- **Sur `reserve2` à `1efa88b` [V]** : PenteIntra (0,090 ; |p − α| = 0,76 err_mc) et Origine (0,085 ; 1,70 err_mc). HomogF (0,080 ; 2,33 err_mc) est juste au-delà du critère, et BP (0,285) hors de l'ensemble.
+- La lecture de ces lignes avec leur τ (§ 5) est inchangée.
