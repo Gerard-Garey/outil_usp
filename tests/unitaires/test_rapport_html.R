@@ -368,10 +368,11 @@ diag_c <- "diagnostics compl\u00e9mentaires"
 ref_attendue <- function(pt) c(
   H1 = paste0("annexe XVII, ", pt, "(i)"),   H2 = paste0("annexe XVII, ", pt, "(ii)"),
   H3 = paste0("annexe XVII, ", pt, "(iii)"), H4 = paste0("annexe XVII, ", pt, "(iv)"),
-  STAB = diag_c, ROB = diag_c)
+  STAB = diag_c, ROB = diag_c, LC = diag_c)
+# LC : ligne globale de lecture conjointe (#297), groupe place en dernier.
 ref_mw <- c(M1 = "annexe XVII, D(2)(h)(iii)", M2 = "annexe XVII, D(2)(h)(iv)",
             M3 = "annexe XVII, D(2)(h)(i) et (ii)", M4 = diag_c,
-            M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c)
+            M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c, LC = diag_c)
 # Reference affichee par groupe, dans l'ordre de cles_groupes() (premiere
 # famille du groupe, comme app.R et rapport_html()).
 refs_groupes <- function(res) {
@@ -402,7 +403,7 @@ verifier("Citation affichee : repli sur GROUPES$ref pour F. et G. (aucune citati
          })
 verifier("Citation affichee, Merz-Wuthrich : M1 a M6 inchanges (egaux a GROUPES$ref)",
          identical(refs_groupes(res_mw), ref_mw) &&
-           identical(unname(ref_mw), unname(vapply(GROUPES[paste0("M", 1:6)],
+           identical(unname(ref_mw), unname(vapply(GROUPES[c(paste0("M", 1:6), "LC")],
                                                    function(g) g$ref, character(1)))))
 verifier("Rapport fige : citations de la methode appliquee seulement (premium B(2)(g), reserve1 C(2)(e))",
          {
@@ -1479,10 +1480,13 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302, hors lignes de lecture conjointe de #297, en tiret)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
-           sum(is.finite(.g285)) == 31L && sum(!is.finite(.g285)) == 16L &&
+           sum(is.finite(.g285)) == 31L &&
+           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 16L &&
+           any(.tb285$fonction == "engine_p_famille") &&
+           all(!is.finite(.g285[.tb285$fonction == "engine_p_famille"])) &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
 verifier("#330 : colonne mc_nom d'engine_table_tests() = mc_nom passe a add() pour chaque ligne",
          identical(.tb285$mc_nom, unname(.mc285)))
@@ -1583,6 +1587,43 @@ verifier("#353 : ligne fabriquee a M = 5,2e-9 : \"5,2e-09\" en synthese, jamais 
            identical(sy$Statistique[1L], "<code>M = min p_ij</code> = 5,2e-09") &&
              identical(sy$Statistique[2L],
                        paste0("<code>", tbf$nom_statistique[2L], "</code> = 0,0000")) })
+
+## --- Lignes de lecture conjointe (#297, reprise du 25/10/2026, point 10) -------
+# STAT_NOMS_PROBABILITE confrontee au stat_nom du moteur (lignes de famille et
+# ligne globale, res_ln et res_mw calcules par le moteur courant) ; vue
+# Synthese : seconde ligne "p de famille (Monte-Carlo)" (ligne globale :
+# "p globale (Monte-Carlo)", constat de la revue app-review) dans la cellule
+# Statistique des seules lignes engine_p_famille a p_monte_carlo finie,
+# "p retenue" et "Nature" a un tiret ; rien sous T-3b (p non calculee).
+tb297 <- rbind(engine_table_tests(res_ln), engine_table_tests(res_mw))
+k297 <- which(tb297$fonction == "engine_p_famille")
+sous297 <- function(p, quoi) paste0("<br><span style='color:#5D6D7E;font-size:11px'>",
+                              quoi, " (Monte-Carlo) = ", fmt_p(p),
+                              " \u2014 diagnostic, aucune p retenue</span>")
+verifier("#297 : les nom_statistique des lignes de lecture conjointe (famille et batterie) appartiennent a STAT_NOMS_PROBABILITE",
+         length(k297) > 0L && all(tb297$nom_statistique[k297] %in% STAT_NOMS_PROBABILITE) &&
+           setequal(unique(tb297$nom_statistique[k297]),
+                    c("plus petite p Monte-Carlo de la famille", "plus petite p Monte-Carlo de la batterie")))
+verifier("#297 : vue Synthese, seconde ligne p de famille (fmt_p) sur les seules lignes engine_p_famille, p retenue et Nature a un tiret",
+         { sy <- table_synthese_groupe(tb297)
+           autres <- setdiff(seq_len(nrow(tb297)), k297)
+           all(is.finite(tb297$p_monte_carlo[k297])) &&
+             identical(sy$Statistique[k297],
+                       paste0("<code>", tb297$nom_statistique[k297], "</code> = ",
+                              fmt_p(tb297$statistique[k297]),
+                              sous297(tb297$p_monte_carlo[k297],
+                                      ifelse(grepl("^p globale", tb297$test[k297]), "p globale", "p de famille")))) &&
+             sum(grepl("p globale (Monte-Carlo)", sy$Statistique[k297], fixed = TRUE)) == 2L &&
+             all(sy[["p retenue"]][k297] == "\u2013") && all(sy$Nature[k297] == "\u2013") &&
+             !any(grepl("(Monte-Carlo) =", sy$Statistique[autres], fixed = TRUE)) })
+verifier("#297 : vue Synthese, ligne de famille sous T-3b (p non calculee) : cellule Statistique a un tiret, sans seconde ligne",
+         { tbf <- tb297[k297[1L], ]
+           tbf$statistique <- NA_real_; tbf$p_monte_carlo <- NA_real_
+           identical(table_synthese_groupe(tbf)$Statistique, "\u2013") })
+verifier("#297 : GROUPES$LC, sous-titre de la decision du 25/10/2026, point 10 (a)",
+         identical(GROUPES$LC$sous,
+                   paste0("plus petite p Monte-Carlo des tests de toutes les familles, ",
+                          "situ\u00e9e dans sa loi sous le mod\u00e8le ajust\u00e9 (diagnostic sans verdict)")))
 
 ## --- Virgule decimale des nombres affiches (issue #236) ------------------------
 # .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)

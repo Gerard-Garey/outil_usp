@@ -748,12 +748,18 @@ verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seu
              is.na(test_tost_intercept(x153, y153, pi153)$non_applicable) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
          })
+# Lignes de famille et ligne globale de lecture conjointe (#297) : derivees
+# des types des autres lignes (composition figee a l'observe), elles changent
+# avec eux ; les comparaisons "autres lignes identiques" portent sur les
+# lignes hors lecture conjointe.
+sans_famille297 <- function(L) Filter(function(l) !identical(l$fonction, "engine_p_famille"), L)
 verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente, Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection, Spearman ratio / volume hors detail et sans renvoi (#168 ; #215)",
          {
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            t12 <- tryCatch(avec_r12_168(usp_tests(f1, b1, methode = "premium")), error = function(e) e)
-           t0 <- usp_tests(f1, b1, methode = "premium")
+           t0 <- sans_famille297(usp_tests(f1, b1, methode = "premium"))
            if (inherits(t12, "error")) return(paste("erreur :", conditionMessage(t12)))
+           t12 <- sans_famille297(t12)
            noms12 <- vapply(t12, function(l) l$test, ""); noms0 <- vapply(t0, function(l) l$test, "")
            pb <- character(0)
            for (nm in LIGNES_R12_168) {
@@ -2408,6 +2414,7 @@ verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constan
            for (m in names(res189)) {
              r <- res189[[m]]; r0 <- neutre189[[m]]
              if (!isTRUE(r$ok) || !isTRUE(r0$ok)) { pb <- c(pb, paste(m, "ok")); next }
+             r$tests <- sans_famille297(r$tests); r0$tests <- sans_famille297(r0$tests)
              p <- lignes_pc189(r$tests, y189)
              if (length(p)) pb <- c(pb, paste(m, p))
              noms <- vapply(r$tests, function(l) l$test, ""); noms0 <- vapply(r0$tests, function(l) l$test, "")

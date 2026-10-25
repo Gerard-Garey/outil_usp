@@ -2375,7 +2375,7 @@ verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
              is.na(s1$p_min) && identical(s1$effectifs,
                "t = 3, 2 ; p_min non calculable sur ces effectifs, p_min non attribuee")
          })
-verifier("reserve2 : p_min des six lignes discretes, les 15 autres NA (#115, critere 1 ; 21 lignes depuis #308)",
+verifier("reserve2 : p_min des six lignes discretes, les 19 autres NA (#115, critere 1 ; 21 lignes depuis #308, 25 avec les quatre lignes de lecture conjointe de #297)",
          {
            d <- engine_table_tests(run_mw(tri_ref))
            att <- c("Homogeneite de f_j entre annees de survenance" = 16 / prod(factorial(7:4)),
@@ -2384,7 +2384,7 @@ verifier("reserve2 : p_min des six lignes discretes, les 15 autres NA (#115, cri
                     "Homogeneite des residus entre annees de survenance" = 8.292518941e-15,
                     "Correlation entre annees de developpement adjacentes" = 2 / 12441600,
                     "Test des suites sur les residus de Mack" = runs_p_min(13, 13))
-           nrow(d) == 21L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
+           nrow(d) == 25L && all(is.na(d$p_min[!d$test %in% names(att)])) &&
              all(vapply(names(att), function(k)
                isTRUE(proche(d$p_min[d$test == k], att[[k]], 1e-6)), logical(1))) &&
              isTRUE(proche(runs_p_min(13, 13), 3.845932e-7, 1e-6)) &&
@@ -3498,14 +3498,17 @@ verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, ver
 # alpha reste ECHEC (option (b'), Q-D1-Fj-5) ; 13 tests, 8 diagnostics.
 # Depuis #312 (Q-D1-Fm-1 (B), specification Fm, par. 7) : le test des suites
 # passe en diagnostic par decision, OK -> INFO ; 12 tests, 9 diagnostics.
-verifier("Decomptes reserve2 (#300, #308, #307, #312) : 21 lignes (12 tests, 9 diagnostics), OK 5, INFO 9, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+# Depuis #297 (Q-D1-Fk-2 (a), Q-D1-Fk-3 (B), specification D1-Fk, par. 6) :
+# lignes de famille M1, M2, M3 et ligne globale LC, diagnostics INFO ajoutes
+# en fin ; 25 lignes, 12 tests, 13 diagnostics, INFO 13.
+verifier("Decomptes reserve2 (#300, #308, #307, #312, #297) : 25 lignes (12 tests, 13 diagnostics), OK 5, INFO 13, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
          {
            v <- vapply(res300$tests, `[[`, "", "verdict")
            ty <- vapply(res300$tests, `[[`, "", "type")
            ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
-           length(res300$tests) == 21L &&
-             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(12L, 9L)) &&
-             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(5L, 9L, 3L, 4L)) &&
+           length(res300$tests) == 25L &&
+             identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(12L, 13L)) &&
+             identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(5L, 13L, 3L, 4L)) &&
              !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
              isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
          })

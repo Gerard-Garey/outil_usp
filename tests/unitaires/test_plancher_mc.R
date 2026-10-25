@@ -499,10 +499,11 @@ verifier("U125-4 p exacte retenue : detail de Cox-Stuart de premium identique a 
          })
 
 ## --- U125-9 : bootstrap$p_min_mc ---------------------------------------------------
-verifier("U125-9 bootstrap$p_min_mc : dernier element, noms du catalogue, NA sur les statistiques continues",
+verifier("U125-9 bootstrap$p_min_mc : avant-dernier element (suivi de stats_boot depuis #297), noms du catalogue, NA sur les statistiques continues",
          {
            ok <- function(b, cat_, disc) {
-             identical(utils::tail(names(b), 1), "p_min_mc") && identical(names(b$p_min_mc), names(cat_)) &&
+             identical(utils::tail(names(b), 2), c("p_min_mc", "stats_boot")) &&
+               identical(names(b$p_min_mc), names(cat_)) &&
                all(is.na(b$p_min_mc[setdiff(names(cat_), disc)])) && all(is.finite(b$p_min_mc[disc]))
            }
            ok(res_p$bootstrap, USP_CATALOGUE_MC, STAT_DISCRETES_USP) &&

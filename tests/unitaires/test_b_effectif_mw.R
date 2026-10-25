@@ -133,7 +133,10 @@ verifier("T1 les autres lignes (dix lignes Monte-Carlo comprises) ne contiennent
          {
            autres <- Filter(function(l) !l$test %in% c(noms3, NOM_MINP4), tm99)
            !any(vapply(autres, a_beff, logical(1))) &&
-             sum(vapply(tm99, function(l) is.finite(l$p_mc), logical(1))) == 13L
+             # Lignes de famille et ligne globale (#297) : p Monte-Carlo
+             # externe (p_mc_ext), hors du compte des 13 statistiques.
+             sum(vapply(tm99, function(l) is.finite(l$p_mc) &&
+                          !identical(l$fonction, "engine_p_famille"), logical(1))) == 13L
          })
 
 ## --- T2 (cas B) : B = 60 ---------------------------------------------------------

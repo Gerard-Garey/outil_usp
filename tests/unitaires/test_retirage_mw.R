@@ -72,8 +72,13 @@ boot_nw <- function(t, B) {
 noms_mc <- names(MW_CATALOGUE_MC)
 # lignes Monte-Carlo : p_mc finie (les 13 statistiques du catalogue ont ici une
 # p Monte-Carlo, B effectif >= B_MIN_DEGENERESCENCE) ; les autres lignes n'en ont pas.
-lignes_mc <- function(tm) Filter(function(l) is.finite(l$p_mc), tm)
-autres <- function(tm) Filter(function(l) !is.finite(l$p_mc), tm)
+# Lignes Monte-Carlo du bootstrap principal : p Monte-Carlo finie, hors
+# lignes de famille et ligne globale de lecture conjointe (#297, p
+# Monte-Carlo externe, sans mc_nom ni phrase de retirage).
+lignes_mc <- function(tm) Filter(function(l) is.finite(l$p_mc) &&
+                                   !identical(l$fonction, "engine_p_famille"), tm)
+autres <- function(tm) Filter(function(l) !is.finite(l$p_mc) ||
+                                identical(l$fonction, "engine_p_famille"), tm)
 a_beff <- function(l) grepl("B effectif =", l$detail, fixed = TRUE)
 pos <- function(motif, d) regexpr(motif, d, fixed = TRUE)[[1]]
 
@@ -197,6 +202,42 @@ verifier("T257-4 / #279 : phrase du plafond sur les 13 lignes Monte-Carlo, nombr
                          logical(1)))
          })
 
+## --- #297 : lecture conjointe au plafond du retirage (constat C2 d'audit) -----------------
+# Au plafond, les replications manquantes le sont sur des lignes entieres de
+# stats_boot (triangle non tire) : toutes les colonnes des membres ont le meme
+# nombre de replications finies, egal au B effectif de famille, inferieur a
+# B. La phrase T-3a, posee si et seulement si un membre a plus de
+# replications finies que la famille (reprise du 25/10/2026, point 1), n'y
+# est donc pas jointe, et la plus petite p restituee (stat) est la plus
+# petite p_mc des membres.
+mw297 <- local({
+  t <- ligne_x(ta8_257, 0L, 1e-17); aj <- mw_ajuster(t)
+  b <- suppressWarnings(mw_bootstrap(aj, B = 99)); list(b = b, tm = mw_tests(aj, b))
+})
+controle_297 <- function(b, tm) {
+  f <- Filter(function(l) identical(l$fonction, "engine_p_famille"), tm)
+  if (!length(f)) return("aucune ligne de famille")
+  memb <- Filter(function(l) identical(l$type, "test") && identical(l$variante, "principale") &&
+                   identical(l$sens, "ne pas rejeter") && !is.na(l$mc_nom) && is.finite(l$p_mc) &&
+                   !identical(l$fonction, "engine_p_famille"), tm)
+  for (l in f) {
+    g <- substr(l$famille, 1L, 2L)
+    m <- if (identical(g, PREFIXE_LECTURE_CONJOINTE)) memb
+         else Filter(function(x) identical(substr(x$famille, 1L, 2L), g), memb)
+    cols <- unique(vapply(m, `[[`, "", "mc_nom"))
+    nf <- colSums(is.finite(b$stats_boot[, cols, drop = FALSE]))
+    if (length(unique(nf)) != 1L || nf[[1]] >= b$B) return(paste(g, ": replications finies"))
+    if (grepl(PHRASE_FAMILLE_B_EFF_REDUIT, l$detail, fixed = TRUE)) return(paste(g, ": T-3a posee"))
+    if (!identical(l$stat, min(vapply(m, `[[`, 0, "p_mc")))) return(paste(g, ": stat"))
+  }
+  TRUE
+}
+verifier("#297 TA8 ligne 0 x 1e-17, B = 99 (plafond atteint) : lignes de famille sans T-3a (memes replications manquantes pour tous les membres), stat = plus petite p_mc des membres",
+         isTRUE(mw297$b$plafond_cumuls) && all(mw297$b$B_effectif[is.finite(mw297$b$p_mc)] < 99) &&
+           isTRUE(controle_297(mw297$b, mw297$tm)))
+verifier("#297 TA8 ligne 0 x 1e-17, B = 999 (plafond atteint) : idem",
+         isTRUE(bt4$b$plafond_cumuls) && isTRUE(controle_297(bt4$b, tm4)))
+
 ## --- T257-5 : TA8, ligne 4 x 0,03, 0,01, 0,003, B = 199 ----------------------------------
 verifier("T257-5 TA8 ligne 4 x 0,03, 0,01 et 0,003, B = 199 : B effectif = B partout, aucun avertissement (#257)",
          all(vapply(c(0.03, 0.01, 0.003), function(k) {
@@ -221,16 +262,18 @@ verifier("TA8 non modifie, B = 99 : cumuls_retires et plafond_cumuls FALSE, aucu
          {
            aj <- mw_ajuster(ta8_257); b <- mw_bootstrap(aj, B = 99); tm <- mw_tests(aj, b)
            identical(b$cumuls_retires, FALSE) && identical(b$plafond_cumuls, FALSE) &&
-             identical(utils::tail(names(b), 3L), c("cumuls_retires", "plafond_cumuls", "p_min_mc")) &&
+             identical(utils::tail(names(b), 4L),
+                       c("cumuls_retires", "plafond_cumuls", "p_min_mc", "stats_boot")) &&
              !any(vapply(tm, function(l) grepl(PHRASE_MW_CUMULS_RETIRES, l$detail, fixed = TRUE) ||
                            grepl(PHRASE_MW_PLAFOND_CUMULS, l$detail, fixed = TRUE), logical(1)))
          })
-verifier("T257-1 reference reserve2 : cumuls_retires et plafond_cumuls FALSE, avant p_min_mc (#257, patch chirurgical)",
+verifier("T257-1 reference reserve2 : cumuls_retires et plafond_cumuls FALSE, avant p_min_mc et stats_boot (#257, patch chirurgical ; #297, regeneration)",
          {
            f <- file.path(.racine257, "tests", "reference", "reserve2.rds")
            b <- readRDS(f)$bootstrap
            identical(b$cumuls_retires, FALSE) && identical(b$plafond_cumuls, FALSE) &&
-             identical(utils::tail(names(b), 3L), c("cumuls_retires", "plafond_cumuls", "p_min_mc"))
+             identical(utils::tail(names(b), 4L),
+                       c("cumuls_retires", "plafond_cumuls", "p_min_mc", "stats_boot"))
          })
 
 ## --- Phrases : aucun nombre issu du bootstrap, refus explicite --------------------------

@@ -5,7 +5,8 @@
 #  statistique Monte-Carlo dans le catalogue de la methode (USP_CATALOGUE_MC,
 #  MW_CATALOGUE_MC), en cinquieme champ de fin de ligne, apres p_min_mc :
 #  l'argument mc_nom tel quel, NA_character_ pour une p Monte-Carlo externe
-#  (p_mc_ext : usp_lr_delta(), usp_permutation_pente()) ou une ligne sans p
+#  (p_mc_ext : usp_lr_delta(), usp_permutation_pente(), engine_p_famille()
+#  depuis #297) ou une ligne sans p
 #  Monte-Carlo du bootstrap. engine_table_tests() l'expose en colonne mc_nom,
 #  apres p_min_mc. Forme decidee par le mainteneur (Q-41-3, 24/10/2026).
 #  La lecture par granularite_lignes() (R/display_helpers.R) est testee dans
@@ -19,7 +20,7 @@ if (!exists("verifier", mode = "function")) {
 debut_fichier("test_mc_nom.R")
 
 FIN330 <- c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")
-EXTERNES330 <- c("usp_lr_delta", "usp_permutation_pente")
+EXTERNES330 <- c("usp_lr_delta", "usp_permutation_pente", "engine_p_famille")
 
 # Invariants du champ sur une liste de lignes de res$tests, catalogue et
 # objet bootstrap de la methode. Rend TRUE ou un message.

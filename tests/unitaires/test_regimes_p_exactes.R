@@ -415,8 +415,9 @@ verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sen
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
                    nature_donnees = "brutes", B = 99, seed = 20260831)
-verifier("run_engine, pi_t variable, B = 99 : 47 lignes (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302), catalogue complet, aucune nature 'exacte' sur les sept",
-         isTRUE(res8$ok) && length(res8$tests) == 47L &&
+verifier("run_engine, pi_t variable, B = 99 : 47 lignes hors lecture conjointe (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 en fin), catalogue complet, aucune nature 'exacte' sur les sept",
+         isTRUE(res8$ok) &&
+           sum(vapply(res8$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 47L &&
            identical(names(res8$bootstrap$p_mc), names(USP_CATALOGUE_MC)) &&
            !any(vapply(res8$tests, function(l)
              l$test %in% NOM && identical(l$nature_p, "exacte"), logical(1))))

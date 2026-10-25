@@ -73,7 +73,10 @@ fmt_p  <- function(v) ifelse(is.finite(v),
 # engine_table_tests(), stat_nom du moteur), seul recensement a la main ; un
 # test la confronte au moteur sur reserve2. Mise en forme seule, aucun champ
 # nouveau dans add().
-STAT_NOMS_PROBABILITE <- c("M = min p_ij")
+# Lignes de lecture conjointe (#297) : plus petite p Monte-Carlo des tests
+# de la famille ou de la batterie (stat_nom d'engine_p_famille()).
+STAT_NOMS_PROBABILITE <- c("M = min p_ij", "plus petite p Monte-Carlo de la famille",
+                           "plus petite p Monte-Carlo de la batterie")
 # Valeur d'une statistique de test : fmt_p() si son nom designe une
 # probabilite, fmt_nb() sinon. nom : vecteur de meme longueur que v, ou de
 # longueur 1 (recycle).
@@ -126,6 +129,13 @@ GROUPES <- list(
               ref  = "hors annexe XVII, D(2)(h)"),
   "M6" = list(cle = "M6", titre = "M6 \u2014 Robustesse de l'estimation",
               sous = "diagnostics num\u00e9riques et de concentration",
+              ref  = "diagnostics compl\u00e9mentaires"),
+  # Ligne globale de lecture conjointe des deux methodes (#297, Q-D1-Fk-3 (B)) :
+  # prefixe PREFIXE_LECTURE_CONJOINTE du moteur, place en dernier. Les lignes
+  # de famille gardent le prefixe de leur famille (B. a F., M1 a M4).
+  "LC" = list(cle = "LC", titre = "Lecture conjointe de la batterie",
+              sous = paste("plus petite p Monte-Carlo des tests de toutes les familles,",
+                           "situ\u00e9e dans sa loi sous le mod\u00e8le ajust\u00e9 (diagnostic sans verdict)"),
               ref  = "diagnostics compl\u00e9mentaires")
 )
 
@@ -262,6 +272,25 @@ type_ligne <- function(tb) {
                 "</span>"))
 }
 
+# p de famille des lignes de lecture conjointe (#297, decision du mainteneur
+# du 25/10/2026, point 10 (b)) : seconde ligne de la cellule Statistique de la
+# vue Synthese, pour les seules lignes fonction == "engine_p_famille" dont
+# p_monte_carlo est finie (rien sous le texte T-3b, p non calculee). La
+# ligne reste un diagnostic : "p retenue" et "Nature" restent a un tiret.
+# Lecture de la colonne p_monte_carlo d'engine_table_tests(), aucun calcul ;
+# colonne fonction absente (objet anterieur) : rien.
+.sous_stat_famille <- function(tb) {
+  if (is.null(tb$fonction) || is.null(tb$p_monte_carlo)) return(rep("", nrow(tb)))
+  k <- tb$fonction %in% "engine_p_famille" & is.finite(tb$p_monte_carlo)
+  # ligne globale (prefixe LC, lu comme groupe_de()) : "p globale"
+  quoi <- ifelse(substr(tb$famille, 1, 2) == "LC", "p globale", "p de famille")
+  ifelse(k,
+         paste0("<br><span style='color:#5D6D7E;font-size:11px'>",
+                quoi, " (Monte-Carlo) = ", fmt_p(tb$p_monte_carlo),
+                " \u2014 diagnostic, aucune p retenue</span>"),
+         "")
+}
+
 # --- Tableaux (mise en forme seule) -----------------------------------------
 # Les colonnes textuelles venant du moteur (test, noms de statistique et
 # d'estimation, H0, H1, loi, sens, reference) sont echappees ICI, source unique
@@ -278,9 +307,10 @@ table_synthese_groupe <- function(tb) {
                      .sous_badge_type(tb)),
     Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                      .repere_renvoi(tb)),
-    `Statistique` = ifelse(is.finite(tb$statistique),
+    `Statistique` = paste0(ifelse(is.finite(tb$statistique),
         paste0("<code>", .txt(tb$nom_statistique), "</code> = ",
                fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
+        .sous_stat_famille(tb)),
     Estimation = ifelse(is.finite(tb$estimation),
         paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),

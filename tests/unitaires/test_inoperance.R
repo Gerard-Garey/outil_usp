@@ -1394,8 +1394,10 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
 # ligne de largeur d'IC presente (48 lignes avant #45) ; sous 21 tirages, que
 # run_engine() n'admet plus, elle manquait (47 lignes). Depuis #45 : plus la
 # ligne de l'IC restreint (meme regle) et les deux lignes LR sur delta.
-verifier("run_engine : 47 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302)",
-         length(res_ln$tests) == 47L && !is.null(res_ln$ic_bootstrap) &&
+verifier("run_engine : 47 lignes hors lecture conjointe sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 en fin)",
+         sum(vapply(res_ln$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 47L &&
+           all(vapply(res_ln$tests[-(1:47)], function(l) identical(l$fonction, "engine_p_famille"), NA)) &&
+           !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
 
@@ -1514,9 +1516,14 @@ MOTIFS_RETENUE_214 <- c(
   "\\bp(-values?|_mc)?\\b[^.;:]{0,80}(?<!ne )\\bsont retenue?s\\b",
   paste0("\\b", NOM_P_214, " retenue?s?\\b"))
 # "ni p-value retenue" : phrase fixe de la regle R15 (#303), negative.
+# "tests dont la p exacte est retenue" : texte T-1 des lignes de famille
+# (#297, DETAIL_P_FAMILLE, specification D1-Fk, par. 4.4), qui parle des
+# lignes membres et non de la ligne de famille (diagnostic sans p retenue) ;
+# sa presence dans le texte du moteur est verifiee ci-dessous.
 EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue", "ni p-value retenue",
                         "p-value retenue, s'il en est une",
-                        "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut")
+                        "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
+                        "tests dont la p exacte est retenue")
 affirme_retenue <- function(d) {
   if (is.na(d)) return(FALSE)
   for (e in EXCLUS_RETENUE_214) d <- gsub(e, "", d, fixed = TRUE)
@@ -1525,6 +1532,8 @@ affirme_retenue <- function(d) {
 verifier("#214 : la phrase admise de add() (R1, p Monte-Carlo retenue hors bascule) figure dans R/engine.R",
          any(grepl(EXCLUS_RETENUE_214[4], readLines(file.path(RACINE, "R", "engine.R"), warn = FALSE),
                    fixed = TRUE)))
+verifier("#214 / #297 : l'exclusion du texte T-1 des lignes de famille figure dans DETAIL_P_FAMILLE",
+         grepl(EXCLUS_RETENUE_214[6], gsub("\\s+", " ", DETAIL_P_FAMILLE), fixed = TRUE))
 ln214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
 li214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
 tri214 <- local({
