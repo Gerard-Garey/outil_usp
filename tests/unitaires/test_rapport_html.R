@@ -1435,9 +1435,9 @@ verifier(".ou_tiret() : NA scalaire -> tiret avant f(), valeur finie -> f(x), ve
 
 ## --- Granularite effective par ligne (#285, option (i)) ----------------------
 # La colonne "granularite MC" du detail des tests est lue dans
-# bootstrap$granularite_stat par granularite_lignes(), qui retrouve la
-# statistique de la ligne par l'egalite exacte de sa p Monte-Carlo et de son
-# erreur. Verite independante : le mc_nom passe a add() pour chaque ligne,
+# bootstrap$granularite_stat par granularite_lignes(), qui lit la statistique
+# de la ligne dans la colonne mc_nom d'engine_table_tests() (#330, posee par
+# add()). Verite independante : le mc_nom passe a add() pour chaque ligne,
 # releve en enveloppant add() le temps d'un calcul (engine_registre_tests()
 # de l'environnement global, restauree en sortie) sur le jeu de res_bmax
 # (V3b arrete a B_max, granularites 1/98 et 2/98). L'enveloppe a pour
@@ -1484,9 +1484,12 @@ verifier("#285 : granularite_lignes() = granularite_stat de la statistique de ch
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
            sum(is.finite(.g285)) == 31L && sum(!is.finite(.g285)) == 16L &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
-verifier("#285 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, sans appariement",
-         { k <- .tb285$fonction %in% FONCTIONS_P_MC_EXTERNE
-           any(k) && any(is.finite(.tb285$p_monte_carlo[k])) && all(is.na(.g285[k])) })
+verifier("#330 : colonne mc_nom d'engine_table_tests() = mc_nom passe a add() pour chaque ligne",
+         identical(.tb285$mc_nom, unname(.mc285)))
+verifier("#285, #330 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, mc_nom NA",
+         { k <- .tb285$fonction %in% c("usp_lr_delta", "usp_permutation_pente")
+           any(k) && any(is.finite(.tb285$p_monte_carlo[k])) && all(is.na(.tb285$mc_nom[k])) &&
+             all(is.na(.g285[k])) })
 verifier("#285 : colonne granularite MC du detail apres p min MC, valeurs lues en %.3g, tiret sans boot",
          { d <- table_detail_groupe(.tb285, boot = .r285$bootstrap)
            d0 <- table_detail_groupe(.tb285)
@@ -1497,18 +1500,31 @@ verifier("#285 : colonne granularite MC du detail apres p min MC, valeurs lues e
              all(c("0,0102", "0,0204") %in% d[["granularité MC"]]) &&
              all(d0[["granularité MC"]] == "–") &&
              identical(d[names(d) != "granularité MC"], d0[names(d0) != "granularité MC"]) })
-verifier("#285 : appariement ambigu (deux statistiques, granularites differentes) -> tiret, jamais choisi",
+# Avant #330, deux statistiques de meme p et de meme erreur Monte-Carlo
+# rendaient l'appariement ambigu (tiret) : la lecture par mc_nom n'en depend
+# plus ; seule la granularite de la statistique de la ligne compte.
+verifier("#330 : granularite lue par mc_nom, independante des autres statistiques de meme p et de meme erreur",
          { b <- .r285$bootstrap; i <- which(is.finite(.g285))[1]; m <- .mc285[i]
            autre <- setdiff(names(b$p_mc), m)[1]
            b$p_mc[[autre]] <- b$p_mc[[m]]; b$err_mc[[autre]] <- b$err_mc[[m]]
            b$granularite_stat[[autre]] <- b$granularite_stat[[m]] + 0.5
-           is.na(granularite_lignes(.tb285, b)[i]) &&
-             { b$granularite_stat[[autre]] <- b$granularite_stat[[m]]
-               identical(granularite_lignes(.tb285, b)[i], .g285[i]) } })
-verifier("#285 : objet sans granularite_stat ou table sans colonne fonction -> tiret partout, sans erreur",
+           identical(granularite_lignes(.tb285, b)[i], .g285[i]) &&
+             { b$granularite_stat[[m]] <- 0.25
+               identical(granularite_lignes(.tb285, b)[i], 0.25) } })
+verifier("#285, #330 : objet sans granularite_stat ou table sans colonne mc_nom -> tiret partout, sans erreur",
          { b <- .r285$bootstrap; b$granularite_stat <- NULL
-           tbf <- .tb285; tbf$fonction <- NULL
+           tbf <- .tb285; tbf$mc_nom <- NULL
            all(is.na(granularite_lignes(.tb285, b))) && all(is.na(granularite_lignes(tbf, .r285$bootstrap))) })
+verifier("#330 : appariement retire, FONCTIONS_P_MC_EXTERNE absente de R/display_helpers.R ; granularite non finie -> tiret",
+         { src <- readLines(file.path(.racine, "R", "display_helpers.R"), encoding = "UTF-8")
+           b <- .r285$bootstrap; i <- which(is.finite(.g285))[1]
+           b$granularite_stat[[.mc285[i]]] <- NA_real_
+           !any(grepl("FONCTIONS_P_MC_EXTERNE", src, fixed = TRUE)) &&
+             !exists("FONCTIONS_P_MC_EXTERNE") && is.na(granularite_lignes(.tb285, b)[i]) })
+verifier("#330 : ligne a mc_nom renseigne mais p Monte-Carlo non finie -> tiret",
+         { i <- which(is.finite(.g285))[1]; tbn <- .tb285; tbn$p_monte_carlo[i] <- NA_real_
+           is.na(granularite_lignes(tbn, .r285$bootstrap)[i]) &&
+             identical(granularite_lignes(tbn, .r285$bootstrap)[-i], .g285[-i]) })
 verifier("#285 : rapport fige, colonne granularite MC dans le detail des tests retenus (section 5)",
          { f <- tempfile(fileext = ".html")
            rapport_html(res_bmax, NULL, f, interactif = FALSE, identite = idt)

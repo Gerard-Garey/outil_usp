@@ -4179,8 +4179,9 @@ PHRASE_RENVOI_NATURE_P <- paste(
 #                 avec p_min ; si p_min est NA, la chaine est restituee telle
 #                 quelle dans detail (elle porte alors le motif de l'absence
 #                 de p_min ; #70)
-#   fonction    : provenance de la ligne (#111), argument obligatoire, dernier
-#                 champ de la ligne : nom de la fonction nommee du moteur qui
+#   fonction    : provenance de la ligne (#111), argument obligatoire, pose
+#                 apres p_min, suivi d'inoperant, p_min_mc et mc_nom : nom
+#                 de la fonction nommee du moteur qui
 #                 calcule stat (a defaut estim), appelee directement ou par la
 #                 fermeture calc du catalogue (DW -> stat_dw, Grubbsr ->
 #                 test_grubbs) ; a defaut (calcul en ligne par stats:: dans le
@@ -4202,6 +4203,14 @@ PHRASE_RENVOI_NATURE_P <- paste(
 #                 inoperant ; NA hors de cette branche (en particulier quand
 #                 la p exacte est retenue). Lu dans boot$p_min_mc[[mc_nom]],
 #                 sans argument d'add().
+#   mc_nom      : nom de la statistique Monte-Carlo de la ligne dans le
+#                 catalogue de la methode (#330), dernier champ de la ligne,
+#                 pose apres p_min_mc : l'argument mc_nom d'add() tel quel
+#                 (chaine), y compris quand la p Monte-Carlo manque (motif
+#                 R3) ; NA_character_ sans mc_nom (p Monte-Carlo externe
+#                 p_mc_ext, ou ligne sans p Monte-Carlo du bootstrap). Lu par
+#                 l'affichage (granularite_lignes()) pour retrouver
+#                 boot$granularite_stat[[mc_nom]] sans appariement.
 #   nature_as   : nature de la p non simulee (colonne p_asymptotique, nom
 #                 conserve) quand c'est elle qui est retenue (#120) :
 #                 "asymptotique" (defaut, loi limite) ou NATURE_APPROX_N_FINI ;
@@ -4570,7 +4579,10 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       # inoperant apres fonction (#129, point 3), pour la meme raison.
       inoperant = inoperant,
       # p_min_mc apres inoperant (#125, D1-10), pour la meme raison.
-      p_min_mc = p_min_mc)
+      p_min_mc = p_min_mc,
+      # mc_nom apres p_min_mc (#330), pour la meme raison : chaine du
+      # catalogue, NA_character_ sans statistique du bootstrap.
+      mc_nom = if (is.na(mc_nom)) NA_character_ else as.character(mc_nom))
   }
   list(add = add, lignes = function() L)
 }
@@ -12922,6 +12934,8 @@ USP_TXT_RENVOI_SV <- paste(
 }
 
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
+# mc_nom (#330) : colonne placee apres p_min_mc, dans l'ordre des champs de
+# fin de ligne (p_min, p_min_mc, mc_nom).
 # renvoi (#215) : colonne derivee, calculee ici par usp_renvois(), placee
 # avant fonction : la table se termine par fonction, inoperant (ordre fixe
 # par l'annotation du 02/10/2026 de l'ADR 0003). reserve2 : usp_renvois()
@@ -12942,6 +12956,9 @@ engine_table_tests <- function(res) {
     # p_min_mc (#125, D1-10), apres p_min : NULL sur un objet anterieur au
     # champ, rendu NA.
     p_min_mc = if (is.null(t$p_min_mc)) NA_real_ else t$p_min_mc,
+    # mc_nom (#330), apres p_min_mc : statistique Monte-Carlo de la ligne
+    # dans le catalogue ; NULL sur un objet anterieur au champ, rendu NA.
+    mc_nom = if (is.null(t$mc_nom)) NA_character_ else t$mc_nom,
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,

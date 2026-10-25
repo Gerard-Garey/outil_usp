@@ -1402,8 +1402,8 @@ verifier("run_engine : 47 lignes sur les donnees de test a B = B_MIN_USAGE (lign
 ## --- 6. Champ inoperant (#129, point 3) ----------------------------------------
 # add() pose sur chaque ligne un logique inoperant, TRUE si et seulement si la
 # bascule de la regle R1 a eu lieu (detail prefixe "TEST INOPERANT"), FALSE
-# sinon, jamais NA ; apres p_min et fonction, suivi du seul champ p_min_mc
-# depuis #125 (D1-10). Invariant verifie sur les lignes de run_engine() de
+# sinon, jamais NA ; apres p_min et fonction, suivi des champs p_min_mc
+# depuis #125 (D1-10) et mc_nom depuis #330. Invariant verifie sur les lignes de run_engine() de
 # ce fichier et sur celles des cinq references versionnees (tests/reference/,
 # qui portent p_min_mc apres la regeneration de #125).
 inv_inop <- function(tt) {
@@ -1413,8 +1413,8 @@ inv_inop <- function(tt) {
                                   sum(!ok_type), "ligne(s)"))
   inop <- vapply(tt, function(l) l$inoperant, logical(1))
   pref <- vapply(tt, function(l) startsWith(l$detail, "TEST INOPERANT"), logical(1))
-  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 4L),
-                                              c("p_min", "fonction", "inoperant", "p_min_mc")),
+  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 5L),
+                                              c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")),
                     logical(1))
   diag_ok <- all(vapply(tt[inop], function(l) identical(l$type, "diagnostic") &&
                           identical(l$verdict, "INFO"), logical(1)))

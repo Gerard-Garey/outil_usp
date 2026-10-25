@@ -472,10 +472,11 @@ verifier("U125-2 granularite_stat <= p_min_mc <= p_mc : cas de reference (premiu
          })
 
 ## --- U125-8 : champ de ligne et colonne de la table --------------------------------
-verifier("U125-8 champ p_min_mc apres inoperant sur chaque ligne ; NA quand la p exacte est retenue (premium)",
+verifier("U125-8 champ p_min_mc apres inoperant sur chaque ligne (suivi de mc_nom depuis #330) ; NA quand la p exacte est retenue (premium)",
          {
            ok_ordre <- all(vapply(c(res_p$tests, res_pi$tests, res_r2$tests), function(l)
-             identical(utils::tail(names(l), 4), c("p_min", "fonction", "inoperant", "p_min_mc")), logical(1)))
+             identical(utils::tail(names(l), 5), c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")),
+             logical(1)))
            pex <- Filter(function(l) identical(l$nature_p, "exacte"), res_p$tests)
            ok_ordre && length(pex) > 0L && all(vapply(pex, function(l) is.na(l$p_min_mc), logical(1))) &&
              all(vapply(res_p$tests, function(l) is.na(l$p_min_mc), logical(1)))

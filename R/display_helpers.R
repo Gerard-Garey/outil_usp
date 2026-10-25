@@ -381,36 +381,26 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
 # Granularite effective de la p Monte-Carlo de chaque ligne (#285, option
 # (i), decision du mainteneur du 15/10/2026) : valeur lue dans
 # bootstrap$granularite_stat (k / (B_eff + 1), calculee par le moteur par
-# statistique, k = 2 en bilateral), aucun calcul ici. La ligne de test ne
-# porte pas le nom de sa statistique Monte-Carlo (mc_nom) : elle est
-# retrouvee par l'egalite exacte (identical()) de sa p Monte-Carlo et de son
-# erreur Monte-Carlo, que add() recopie telles quelles depuis le bootstrap.
-# Tiret (NA) quand la valeur ne peut pas etre lue sans deviner :
-#  - p Monte-Carlo ou erreur non finie (aucune p Monte-Carlo) ;
-#  - p Monte-Carlo calculee hors du bootstrap principal (p_mc_ext de add() :
-#    bootstrap restreint du LR sur delta, permutations aleatoires de
-#    Pitman), sans granularite_stat : fonctions de FONCTIONS_P_MC_EXTERNE,
-#    exclues avant l'appariement (une ligne du LR, p = 1 et erreur 0,
-#    s'apparierait sinon a CoxStuart) ; champ fonction absent (objet
-#    anterieur a #111) : tiret, l'exclusion n'etant pas verifiable ;
-#  - aucune statistique appariee, ou statistiques appariees de granularites
-#    differentes (jamais choisi).
-# Des statistiques appariees de meme granularite donnent cette valeur, qui
-# est alors celle de la ligne quelle que soit sa statistique.
-FONCTIONS_P_MC_EXTERNE <- c("usp_lr_delta", "usp_permutation_pente")
+# statistique, k = 2 en bilateral), aucun calcul ici. La statistique de la
+# ligne est lue dans la colonne mc_nom d'engine_table_tests(), posee par
+# add() (#330) ; aucun appariement.
+# Tiret (NA) :
+#  - mc_nom NA (p Monte-Carlo externe p_mc_ext - bootstrap restreint du LR
+#    sur delta, permutations aleatoires de Pitman -, ou ligne sans p
+#    Monte-Carlo du bootstrap) ;
+#  - p Monte-Carlo de la ligne non finie (motif d'indisponibilite) ;
+#  - mc_nom absent de boot$granularite_stat, ou granularite non finie ;
+#  - colonne mc_nom absente (objet anterieur a #330) ou objet bootstrap sans
+#    granularite_stat.
 granularite_lignes <- function(tb, boot) {
   n <- nrow(tb); out <- rep(NA_real_, n)
-  g <- boot$granularite_stat; pmc <- boot$p_mc; emc <- boot$err_mc
-  if (!n || is.null(g) || is.null(pmc) || is.null(emc) ||
-      is.null(tb$p_monte_carlo) || is.null(tb$erreur_MC) || is.null(tb$fonction)) return(out)
-  noms <- intersect(intersect(names(pmc), names(emc)), names(g))
+  g <- boot$granularite_stat
+  if (!n || is.null(g) || is.null(tb$mc_nom) || is.null(tb$p_monte_carlo)) return(out)
   for (i in seq_len(n)) {
-    p <- tb$p_monte_carlo[i]; e <- tb$erreur_MC[i]; f <- tb$fonction[i]
-    if (!is.finite(p) || !is.finite(e) || is.na(f) || f %in% FONCTIONS_P_MC_EXTERNE) next
-    k <- noms[vapply(noms, function(s) identical(unname(pmc[[s]]), p) &&
-                                       identical(unname(emc[[s]]), e), logical(1))]
-    v <- unique(unname(g[k]))
-    if (length(v) == 1L && is.finite(v)) out[i] <- v
+    m <- tb$mc_nom[i]
+    if (is.na(m) || !is.finite(tb$p_monte_carlo[i]) || !m %in% names(g)) next
+    v <- unname(g[[m]])
+    if (is.finite(v)) out[i] <- v
   }
   out
 }

@@ -2956,7 +2956,7 @@ verifier("Parametre final sans nom (#319) : champs scalaires de parametre_final 
 # la ligne "Part de la reserve portee par la derniere annee d'accident"
 # portait le nom de la derniere ligne ("2024"), lu sur reserve_par_annee.
 .champs_tests <- c("stat", "estim", "p_exacte", "p_asymptotique", "p_mc", "err_mc",
-                   "p_retenue", "p_min", "p_min_mc")
+                   "p_retenue", "p_min", "p_min_mc", "mc_nom")
 verifier("Tests sans nom (#319) : stat, estim et p-values de res$tests sans nom sous un triangle nomme ; res$tests et engine_table_tests() identiques",
          {
            r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
