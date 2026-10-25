@@ -14190,10 +14190,12 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt et une entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
-décision et \textbf{neuf} diagnostics, conformément au champ \code{type} que
+Vingt-cinq entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
+décision et \textbf{treize} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
-restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
+restitue~; quatre de ces diagnostics, absents du tableau ci-dessus, sont les lignes
+de lecture conjointe ajoutées par l'issue~\#297 (une par famille M1, M2 et M3, et une
+ligne globale). Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
 depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
 (D(2)(h)), et leurs lois nulles, celles d'un échantillon i.i.d. normal, ne sont
 pas celles des résidus de Mack~; leur p-value, calculée sous ce modèle auxiliaire
@@ -14203,7 +14205,7 @@ n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
 \emph{contrainte par construction} (fiche~\ref{mw:m2var}). La ligne d'identifiabilité
 intra-colonne (M1, issue~\#308) en est un par nature~: elle restitue des grandeurs descriptives
 de l'observé, sans hypothèse nulle (fiche~\ref{mw:m1id}). Le test des suites (M3) est restitué
-en diagnostic par décision, variante secondaire, depuis l'issue~\#312 (fiche~\ref{mw:m3runs}). Aucun des neuf
+en diagnostic par décision, variante secondaire, depuis l'issue~\#312 (fiche~\ref{mw:m3runs}). Aucun des treize
 diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
 l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
@@ -17311,10 +17313,12 @@ dans 92,5~\% des cas.
 \label{sec:calibration-mc}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 47 lignes de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 52 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
-p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 29 dernières n'ayant
-aucune p-value retenue (28 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
+p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 34 dernières n'ayant
+aucune p-value retenue (33 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
+parmi ces diagnostics, cinq sont les lignes de lecture conjointe ajoutées par l'issue~\#297
+(une par famille de plusieurs tests et une ligne globale)~;
 le TOST compte parmi les diagnostics depuis l'issue~\#298 (règle~R14~: $p_{\text{plancher}} =
 0{,}440 \ge \alpha$ sur ce jeu, section~\ref{sec:nature}).
 Les mesures qui suivent (issues~\#166, \#221, \#175 et~\#229) ont toutes été faites avant
@@ -19524,7 +19528,7 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
         $\succ$ p non simulée} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
-        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 47
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 52
         lignes de la table auditable, 5 retiennent une p-value exacte, et 4 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter quatre p-values exactes au profit
@@ -20141,8 +20145,8 @@ fournissent des lois de référence.}
 
 % --- Colonne des sorties : abscisse commune ---------------------------------
 \coordinate (cx) at ([xshift=16mm]fi.east);
-\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (6 entrées)};
-\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
+\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (7 entrées)};
+\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (4 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
 \node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites (diagnostic)};
