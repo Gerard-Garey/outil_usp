@@ -1,9 +1,24 @@
 # Spécification de Fk : lecture conjointe des tests, p-value de famille (#297), avec les points de fond de #331 — point d'arrêt D1-Fk
 
-> **Statut au 24/10/2026, vers 19:30 UTC : point d'arrêt D1-Fk ouvert.** La spécification est versionnée telle que rendue par `actuary-approfondi`, avant décision, pour qu'elle survive à la session (commit `docs:` préparatoire de la session principale). Les questions Q-D1-Fk-1 à Q-D1-Fk-11 et l'issue proposée **attendent la décision du mainteneur**. L'encadré des décisions sera ajouté ici, par un commit daté, quand elles seront prises. D'ici là :
-> - aucun code de #297 ;
-> - l'annexe A (annotation de la spécification de #206) n'est pas insérée ;
-> - l'annexe B (commentaire sur #297) n'est pas publiée.
+> **Décisions du mainteneur du 25/10/2026, vers 08:30 UTC (E-25/10 (D1-Fk)) : point d'arrêt D1-Fk franchi.**
+>
+> *Consignées par la session principale (IA)* ; source : réponses du mainteneur aux questions de la session principale. Le présent document reprend à la lettre la spécification D1-Fk d'`actuary-approfondi` du 24/10/2026 (lecture seule), versionnée avant décision dans `c369da0`.
+>
+> **Toutes les décisions suivent les recommandations d'`actuary-approfondi`** :
+>
+> - **Q-D1-Fk-1** : familles B. à F. et M1 à M4 ; aucune ligne pour G., M5 et M6. Membres : tests, variante principale, sens « ne pas rejeter », `mc_nom` et `p_mc` finie, composition figée à l'observé ; Pitman et TOST exclus par le sens, rapport de vraisemblance par le type.
+> - **Q-D1-Fk-2** : **(a)**, pas de ligne pour une famille d'un seul test.
+> - **Q-D1-Fk-3** : **(B)**, une ligne globale minP par méthode, préfixe `LC` déclaré dans `GROUPES`, revue par `app-review`, mention des préfixes dans `CLAUDE.md` par un commit `claude:` (accord donné). Écart assumé à la fiche Fk (« sans changer `GROUPES` »).
+> - **Q-D1-Fk-4** : rang symétrique, observé compris, en arithmétique entière, pour tous les membres ; les lignes à p exacte retenue entrent par leur p Monte-Carlo. Le rang « parmi les autres réplications » du corps de #297 est abandonné.
+> - **Q-D1-Fk-5** : matrice des p des lignes (V1 ou V3b, Merz-Wüthrich) ; B_eff de famille = réplications complètes sur les membres ; seuil de 50 ; phrases T-3a et T-3b.
+> - **Q-D1-Fk-6** : diagnostic par nature ; champs du § 4.2 ; p dans `p_monte_carlo` par `p_mc_ext`, `err_mc` binomial ; textes T-1 et T-2 à la lettre ; lignes ajoutées après les lignes existantes ; ni phrase de #244 ni phrase de #204 ; phrase datée du § 4.5 si le relevé de Westfall et Young manque.
+> - **Q-D1-Fk-7** : Q-41-4 confirmée ; matrice `bootstrap$stats_boot` entière, passée à `.mc_p_values()`, en fin d'objet, pour les deux méthodes (+1,04 Mo de références).
+> - **Q-D1-Fk-8** : plan du § 5.2, budget plafond de 10 h d'horloge sur 4 cœurs, échelle L0 à L4 au pré-vol ; critère K-F1 à K-F4 et profils Φ0 à Φ5 approuvés tels quels avant toute exécution ; ensemble « à la frontière » par la règle de #244 lue dans la référence ; `puissance_mw_t8.R` et `p_conditionnelle_regime_t8.R` non relancés.
+> - **Q-D1-Fk-9** : D2-Fk soumise au mainteneur sous Φ0, Φ4 et Φ5 ; sous Φ1 à Φ3, constat documenté, délégué.
+> - **Q-D1-Fk-10 (#331)** : les comparaisons à une borne donnée passent par `usp_delta_bord()`, changement documenté au seul double fl(1 − 10⁻⁶) ; convention actuelle conservée pour δ non fini.
+> - **Q-D1-Fk-11** : commentaire de mise à jour publié sur #297 (annexe B) ; annotation de la spécification de #206 (annexe A) insérée en premier commit `docs:` de #297 ; scripts et sorties de la consultation versionnés dans `docs/tableaux/20261024-fk-mesures.md` (commit `docs:` préparatoire).
+>
+> **Issue proposée** : création acceptée (« tests: p_conditionnelle_regime_t8.R, périmètre F_8 et population de T2 bis après #299 et #303 », `bug`, `needs-triage`, Fg).
 
 > *Rédigé par l'agent actuary (IA).* Consultation `actuary-approfondi` du 24/10/2026, en lecture seule, demandée par la session principale. Elle porte sur la fiche « Branche Fk » du quarante et unième point d'étape (E-24/10 (41e point), M41), sur la branche `claude/lecture-conjointe-familles` (tête `1efa88b`, partie de `main` `44cdaa3`, PR brouillon #374). Le périmètre est fermé, dans l'ordre des commits : #292, #331, #330, #297. La spécification suit l'ordre des questions S-Fk-1 à S-Fk-7.
 >
