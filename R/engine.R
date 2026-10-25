@@ -160,7 +160,9 @@ CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
 # optimum interieur observe (0 sur 1 399 ajustements dans la mesure du
 # 23/09/2026, anciens reglages). Valeur inchangee (decision du mainteneur du
 # 28/09/2026). Unique source de cette tolerance : usp_ajuster()
-# (delta_au_bord) et usp_regime() (pi_constant).
+# (delta_au_bord), usp_regime() (pi_constant) et usp_delta_bord() (#331, bord
+# de delta lu par usp_condition_premier_ordre(), usp_regime() et les deux
+# comparaisons a une borne donnee de usp_lr_delta() et usp_tests()).
 TOL_DELTA_BORD <- 1e-6
 
 # Bornes de recherche de gamma dans usp_ajuster() (L-BFGS-B). Bornes
@@ -1441,6 +1443,43 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
   else NA_character_
 }
 
+# Predicat "delta sur une borne" (#331, par analogie avec usp_gamma_bord()) :
+# SEULE source du moteur de ce test, lu par usp_condition_premier_ordre(),
+# usp_regime(), usp_lr_delta() et la ligne G. d'usp_tests() (comparaison a la
+# borne d0 donnee : identical(usp_delta_bord(delta), "basse" si d0 = 0, "haute"
+# si d0 = 1)). Bornes : [0, 1] (domaine de delta) ; tolerance tol, par defaut
+# TOL_DELTA_BORD. Resultat, pour un delta scalaire :
+#   - "basse" si delta <= tol ;
+#   - "haute" si delta >= 1 - tol (et non "basse") ;
+#   - NA_character_ sinon (delta interieur) ET si delta est NA ou NaN : le
+#     predicat ne repond pas, et usp_regime() propage alors NA dans ses
+#     drapeaux de bord, comme avant #331 ;
+#   - delta = -Inf est "basse" et delta = +Inf "haute" (comparaisons directes).
+# Cette convention de delta non fini reprend celle des comparaisons ecrites en
+# clair avant #331 (identique pour tol < 0,5, domaine impose ci-dessous). Elle
+# DIFFERE volontairement de
+# celle d'usp_gamma_bord() ("non fini -> basse", reprise de
+# usp_valider_ajustement(), #188), qui changerait usp_regime(NA).
+# Garde : tol doit verifier 0 <= tol < 0,5 (fini), domaine ou les bandes
+# [0 ; tol] et [1 - tol ; 1] sont disjointes ; sinon l'ordre "basse" avant
+# "haute" ferait diverger le predicat des comparaisons d'avant #331.
+# "Sur une borne" s'ecrit !is.na(usp_delta_bord(delta)) pour un delta non NA.
+# Changement de comportement documente (#331, Q-D1-Fk-10), pour les deux
+# comparaisons a une borne donnee seulement : l'ancienne forme
+# abs(delta - d0) <= tol et le predicat ne divergeaient qu'au double
+# fl(1 - TOL_DELTA_BORD), juge au bord haut par usp_regime() mais pas par la
+# comparaison ; une seule convention subsiste (au bord haut). delta hors de
+# [0, 1] ou non fini y est aussi desormais juge du cote de la borne qu'il
+# depasse (jamais atteint : delta est estime dans [0, 1]).
+usp_delta_bord <- function(delta, tol = TOL_DELTA_BORD) {
+  if (!(is.finite(tol) && tol >= 0 && tol < 0.5))
+    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0,5 (bandes de bord disjointes)")
+  if (is.na(delta)) NA_character_
+  else if (delta <= tol) "basse"
+  else if (delta >= 1 - tol) "haute"
+  else NA_character_
+}
+
 # Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issues
 # #22 et #71 :
 #   - gradient : usp_gradient() ;
@@ -1448,7 +1487,7 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
 #     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
 #     inchangee a l'interieur. Bord jugee a tol pres (TOL_DELTA_BORD par
 #     defaut), pour delta dans [0, 1] comme pour gamma dans BORNES_GAMMA
-#     (usp_gamma_bord(), #322) ;
+#     (usp_delta_bord(), #331 ; usp_gamma_bord(), #322) ;
 #   - hessienne : usp_hessienne() (pas h) ; H_gamma_gamma est
 #     hessienne["gamma", "gamma"] ;
 #   - grad_ln_sigma : usp_grad_ln_sigma() ;
@@ -1470,8 +1509,7 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
     else if (cote == "basse") min(gi, 0)
     else max(gi, 0)
   }
-  pg <- c(delta = projeter(g[["delta"]], if (delta <= tol) "basse"
-                           else if (delta >= 1 - tol) "haute" else NA_character_),
+  pg <- c(delta = projeter(g[["delta"]], usp_delta_bord(delta, tol)),
           gamma = projeter(g[["gamma"]], bord_gamma))
   H <- usp_hessienne(delta, gamma, x, y, xbar, h)
   gls <- usp_grad_ln_sigma(delta, gamma, x, y, xbar)
@@ -1896,15 +1934,20 @@ usp_pertes_constantes <- function(y, tol = TOL_DELTA_BORD)
 # est general. pi_constant_exact n'est lu que pour le libelle des diagnostics
 # de usp_tests().
 usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
-  delta_au_bord <- delta <= tol || delta >= 1 - tol
+  # Bord de delta lu dans usp_delta_bord() (#331) ; delta NA ou NaN propage NA
+  # dans les drapeaux de bord (le predicat ne repond pas pour un delta NA).
+  cote <- usp_delta_bord(delta, tol)
+  delta_na <- is.na(delta)
+  delta_au_bord <- if (delta_na) NA else !is.na(cote)
+  delta_haut <- if (delta_na) NA else identical(cote, "haute")
   volumes_constants <- usp_volumes_constants(x, tol)
   list(delta_au_bord = delta_au_bord,
        volumes_constants = volumes_constants,
-       pi_constant = delta >= 1 - tol || volumes_constants,
+       pi_constant = delta_haut || volumes_constants,
        pi_constant_exact = delta == 1 || diff(range(x)) == 0,
        # Causes de la constance a la tolerance pres seulement (libelle des
        # diagnostics de usp_tests(), seule definition de la bande).
-       delta_dans_bande = delta >= 1 - tol && delta != 1,
+       delta_dans_bande = delta_haut && delta != 1,
        volumes_dans_bande = volumes_constants && diff(range(x)) != 0)
 }
 
@@ -4818,7 +4861,8 @@ usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
          n_refit_pire = NA_integer_, n_echec = NA_integer_, lr_boot = numeric(0))
   }
   une_borne <- function(d0) {
-    au_bord <- abs(fit$delta - d0) <= TOL_DELTA_BORD
+    # Bord juge par usp_delta_bord() (#331, Q-D1-Fk-10) : d0 vaut 0 ou 1.
+    au_bord <- identical(usp_delta_bord(fit$delta), if (d0 == 0) "basse" else "haute")
     fit_c <- if (au_bord) fit else
       try(usp_ajuster_contraint(x, y, d0, fit$gamma), silent = TRUE)
     if (inherits(fit_c, "try-error")) return(borne_en_echec(d0))
@@ -6746,7 +6790,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   .complement_motif_mc(b$motif_mc))
       if (isTRUE(regime$volumes_constants))
         pref <- c(pref, "VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.")
-      else if (abs(fit$delta - b$delta0) <= TOL_DELTA_BORD)
+      else if (identical(usp_delta_bord(fit$delta),
+                         if (b$delta0 == 0) "basse" else "haute"))
         pref <- c(pref, sprintf("SOLUTION AU BORD delta = %d : LR = 0 par construction.",
                                 as.integer(b$delta0)))
       add(fam, li$nom,

@@ -213,6 +213,24 @@ verifier("U8 ligne LR, loi simulee ponctuelle hors de l'atome : motif puis DETAI
                                          DETAIL_MC_ATOME_HORS_OBS, "Aucun verdict (ADR 0001)")) &&
              !grepl(DETAIL_MC_ATOME_HORS_OBS, t1$detail, fixed = TRUE)
          })
+# Bord juge par usp_delta_bord() aux deux comparaisons a une borne donnee (#331) :
+# delta estime = fl(1 - TOL_DELTA_BORD), seul double ou l'ancienne forme
+# abs(delta - d0) <= tol et usp_regime() divergeaient. La borne 1 est alors au
+# bord : l'ajustement n'est pas refait (fit_c = fit, donc gamma et sigma
+# contraints identiques a ceux de fit, alors qu'un reajustement contraint
+# deplacerait gamma de ~5e-9), LR = 0, et la ligne G. dit SOLUTION AU BORD.
+verifier("#331 delta estime = fl(1 - TOL_DELTA_BORD) : usp_lr_delta() juge la borne 1 au bord (pas de reajustement contraint, LR = 0), la borne 0 non ; la ligne G. de usp_tests() dit SOLUTION AU BORD delta = 1",
+         {
+           fm <- f1; fm$delta <- 1 - TOL_DELTA_BORD
+           lm <- usp_lr_delta(fm, B = B_T, seed = GRAINE)
+           tm <- usp_tests(fm, r1$bootstrap, methode = "premium", lr_delta = lm)
+           n <- length(tm)
+           identical(lm$borne1$gamma_contraint, fm$gamma) && identical(lm$borne1$sigma_contraint, fm$sigma) &&
+             lm$borne1$lr == 0 && lm$borne1$n_refit_pire == 0L &&
+             !identical(lm$borne0$gamma_contraint, fm$gamma) && lm$borne0$lr > 0 &&
+             startsWith(tm[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
+             !grepl("SOLUTION AU BORD", tm[[n - 1]]$detail, fixed = TRUE)
+         })
 verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR",
          {
            L <- r1$plots_data$lr_delta; om <- r1$ajustement$obj_min
