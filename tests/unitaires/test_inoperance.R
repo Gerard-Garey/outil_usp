@@ -1076,7 +1076,7 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
              identical(k$type, "diagnostic") && is.finite(k$p_exacte) && is.na(k$p_retenue) &&
              grepl("standardises (issue #29). Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
-             !grepl("nommee par nature_p", k$detail, fixed = TRUE) &&
+             !grepl(PHRASE_RENVOI_NATURE_P, k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)
          })
@@ -1091,15 +1091,14 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi 
                            methode = "premium")
            r1 <- ligne(ok, "RESET (forme fonctionnelle)"); r2 <- ligne(ko, "RESET (forme fonctionnelle)")
            c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
-           endsWith(r1$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-                                     "la p-value retenue, s'il en est une, est nommee par nature_p.")) &&
+           endsWith(r1$detail, paste0("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ; ",
+                                      PHRASE_RENVOI_NATURE_P, ".")) &&
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
                                        "indisponible sur ces donnees : aucune p-value n'est retenue",
                                        "(ADR 0001).")) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
-             identical(c1$detail, paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est",
-                                        "calculee ; la p-value retenue, s'il en est une, est nommee par",
-                                        "nature_p.")) &&
+             identical(c1$detail, paste0("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
+                                         "calculee ; ", PHRASE_RENVOI_NATURE_P, ".")) &&
              identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
                                          "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
@@ -1553,11 +1552,11 @@ verifier("#214 jeux : alpha = 0,05, Runsr regime 1 en diagnostic R15 (p exacte c
            a <- ligne(cas214$j214_regime1$tests, NM_RUNSR); b <- ligne(cas214$j214_regime3$tests, NM_RUNSR)
            isFALSE(a$inoperant) && identical(a$type, "diagnostic") && is.na(a$p_retenue) &&
              identical(a$verdict, "INFO") && grepl("regle R15", a$detail, fixed = TRUE) &&
-             !grepl("nommee par nature_p", a$detail, fixed = TRUE) &&
+             !grepl(PHRASE_RENVOI_NATURE_P, a$detail, fixed = TRUE) &&
              is.finite(a$p_exacte) && grepl("EXACTE est calculee", a$detail, fixed = TRUE) &&
              isTRUE(b$inoperant) && is.na(b$p_retenue) && identical(b$verdict, "INFO") &&
              startsWith(b$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
-             grepl("la p-value retenue, s'il en est une, est nommee par nature_p", b$detail, fixed = TRUE) &&
+             grepl(PHRASE_RENVOI_NATURE_P, b$detail, fixed = TRUE) &&
              !is.finite(b$p_exacte) && is.finite(b$p_mc)
          })
 verifier("#214 : aucune ligne inoperante (six cas, deux jeux de #214) ne declare une p-value retenue",
@@ -1588,7 +1587,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
            !any(vapply(c("aucune p-value n'est retenue (ADR 0001)", "Aucune p-value retenue : la grandeur",
                        "Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ;",
                          "pour information, non retenue", "est rapportee pour memoire et non retenue",
-                         "la p-value retenue, s'il en est une, est nommee par nature_p.",
+                         paste0(PHRASE_RENVOI_NATURE_P, "."),
                          paste("la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                                "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible"),
                          "la p non simulee (loi du champ loi) non retenue",

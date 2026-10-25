@@ -198,12 +198,12 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, 
            a2 <- ligne(tb, nm)
            b2 <- ligne(usp_tests(fb, boot_fictif(fb, motif = m), methode = "premium"), nm)
            grepl(paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
-                       "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;"),
+                       "est calculee ;", PHRASE_RENVOI_NATURE_P, ";"),
                  a3$detail, fixed = TRUE) && !grepl(" est retenue", a3$detail, fixed = TRUE) &&
              grepl(paste("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,", txt_ind),
                    b3$detail, fixed = TRUE) && !grepl(" est retenue", b3$detail, fixed = TRUE) &&
              grepl("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.",
-                   a2$detail, fixed = TRUE) && !grepl("nommee par nature_p", a2$detail, fixed = TRUE) &&
+                   a2$detail, fixed = TRUE) && !grepl(PHRASE_RENVOI_NATURE_P, a2$detail, fixed = TRUE) &&
              !grepl(" est retenue", a2$detail, fixed = TRUE) &&
              grepl(paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, "."), b2$detail, fixed = TRUE) &&
              !grepl(" est retenue", b2$detail, fixed = TRUE) &&
@@ -454,8 +454,8 @@ verifier("R15 (#303) : la ligne Runsr a pi_t constant garde sa p exacte et sa p_
          {
            b <- ligne(tt, NOM_R15[["Runsr"]])
            is.finite(b$p_exacte) && is.finite(b$p_min) &&
-             !grepl("nommee par nature_p", b$detail, fixed = TRUE) &&
-             !grepl("nommee par nature_p", ligne(tb, NOM_R15[["Runsr"]])$detail, fixed = TRUE)
+             !grepl(PHRASE_RENVOI_NATURE_P, b$detail, fixed = TRUE) &&
+             !grepl(PHRASE_RENVOI_NATURE_P, ligne(tb, NOM_R15[["Runsr"]])$detail, fixed = TRUE)
          })
 verifier("R15 (#303) : pi_t variable (jeu J2, delta interieur ; f8), cinq lignes de type test, p Monte-Carlo retenue, sans phrase R15",
          {

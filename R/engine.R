@@ -4085,6 +4085,17 @@ PHRASE_VERDICT_SENSIBLE_MC <- paste(
   "verdict sensible a l'alea de simulation",
   "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
 
+# Renvoi du detail a nature_p (#214, #292) : la phrase ne declare pas quelle
+# p-value est retenue (la regle R1 peut ecarter la p Monte-Carlo calculee sur
+# une ligne inoperante) ; le champ nature_p la nomme. Ecrite par usp_tests()
+# seul, quand la p Monte-Carlo de la ligne est calculee (mc_dispo()) :
+# RESET, OLS-CUSUM et Runsr a pi_t variable (regime 3). Constante sans
+# majuscule initiale ni ponctuation finale : la ponctuation de jonction (" ;"
+# ou ".") reste a l'appelant. Phrase fixe, sans aucun nombre.
+PHRASE_RENVOI_NATURE_P <- paste(
+  "la p-value retenue, s'il en est une,",
+  "est nommee par nature_p")
+
 # Jonction de deux textes de detail (#264) : fonction unique, appelee par
 # add() (regle R1, restitution d'effectifs, plancher Monte-Carlo, phrase de
 # #244), par mw_tests() (phrases de #257 et #204), par usp_tests() (joindre)
@@ -5589,8 +5600,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  # #214 : la phrase ne declare plus la p retenue (contredite
                  # par la regle R1 sur une ligne inoperante) ; nature_p la nomme.
                  if (mc_dispo("RESET"))
-                   paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-                         "la p-value retenue, s'il en est une, est nommee par nature_p.")
+                   paste0(paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                                PHRASE_RENVOI_NATURE_P), ".")
                  else
                    paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
   if (!vol_cst) {
@@ -6303,8 +6314,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # #214 : la phrase ne declare plus p_mc retenue (contredite par la
       # regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
       detail = if (mc_dispo("CUSUM"))
-        paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
-              "la p-value retenue, s'il en est une, est nommee par nature_p.")
+        paste0(paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
+                     PHRASE_RENVOI_NATURE_P), ".")
       else paste("La formule asymptotique n'a aucune validite a T = 8 ;",
                  txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
@@ -6516,7 +6527,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           # la regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
           if (mc_dispo("Runsr"))
             paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
-                  "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;")
+                  "est calculee ;", PHRASE_RENVOI_NATURE_P, ";")
           else
             paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
           "la statistique differe en general de celle de la ligne des suites sur",
