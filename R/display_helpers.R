@@ -272,8 +272,8 @@ type_ligne <- function(tb) {
                 "</span>"))
 }
 
-# p de famille des lignes de lecture conjointe (#297, decision du mainteneur
-# du 25/10/2026, point 10 (b)) : seconde ligne de la cellule Statistique de la
+# p de famille des lignes de lecture conjointe (#297, annotation du 25/10/2026
+# de docs/specifications/fk-lecture-conjointe.md, point 7) : seconde ligne de la cellule Statistique de la
 # vue Synthese, pour les seules lignes fonction == "engine_p_famille" dont
 # p_monte_carlo est finie (rien sous le texte T-3b, p non calculee). La
 # ligne reste un diagnostic : "p retenue" et "Nature" restent a un tiret.
@@ -282,8 +282,8 @@ type_ligne <- function(tb) {
 .sous_stat_famille <- function(tb) {
   if (is.null(tb$fonction) || is.null(tb$p_monte_carlo)) return(rep("", nrow(tb)))
   k <- tb$fonction %in% "engine_p_famille" & is.finite(tb$p_monte_carlo)
-  # ligne globale (prefixe LC, lu comme groupe_de()) : "p globale"
-  quoi <- ifelse(substr(tb$famille, 1, 2) == "LC", "p globale", "p de famille")
+  # ligne globale (prefixe PREFIXE_LECTURE_CONJOINTE, lu comme groupe_de()) : "p globale"
+  quoi <- ifelse(substr(tb$famille, 1, 2) == PREFIXE_LECTURE_CONJOINTE, "p globale", "p de famille")
   ifelse(k,
          paste0("<br><span style='color:#5D6D7E;font-size:11px'>",
                 quoi, " (Monte-Carlo) = ", fmt_p(tb$p_monte_carlo),

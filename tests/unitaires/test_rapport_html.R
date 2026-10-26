@@ -1588,7 +1588,7 @@ verifier("#353 : ligne fabriquee a M = 5,2e-9 : \"5,2e-09\" en synthese, jamais 
              identical(sy$Statistique[2L],
                        paste0("<code>", tbf$nom_statistique[2L], "</code> = 0,0000")) })
 
-## --- Lignes de lecture conjointe (#297, reprise du 25/10/2026, point 10) -------
+## --- Lignes de lecture conjointe (#297, annotation du 25/10/2026 de docs/specifications/fk-lecture-conjointe.md, point 7) -------
 # STAT_NOMS_PROBABILITE confrontee au stat_nom du moteur (lignes de famille et
 # ligne globale, res_ln et res_mw calcules par le moteur courant) ; vue
 # Synthese : seconde ligne "p de famille (Monte-Carlo)" (ligne globale :
@@ -1620,7 +1620,7 @@ verifier("#297 : vue Synthese, ligne de famille sous T-3b (p non calculee) : cel
          { tbf <- tb297[k297[1L], ]
            tbf$statistique <- NA_real_; tbf$p_monte_carlo <- NA_real_
            identical(table_synthese_groupe(tbf)$Statistique, "\u2013") })
-verifier("#297 : GROUPES$LC, sous-titre de la decision du 25/10/2026, point 10 (a)",
+verifier("#297 : GROUPES$LC, sous-titre (annotation du 25/10/2026 de docs/specifications/fk-lecture-conjointe.md, point 7)",
          identical(GROUPES$LC$sous,
                    paste0("plus petite p Monte-Carlo des tests de toutes les familles, ",
                           "situ\u00e9e dans sa loi sous le mod\u00e8le ajust\u00e9 (diagnostic sans verdict)")))
