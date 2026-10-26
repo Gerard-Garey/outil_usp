@@ -6057,13 +6057,13 @@ de l'ordre de la granularité.
   diagnostic sans verdict), non à un verdict de~H2.
   \item \textbf{La lecture conjointe des verdicts} (issue~\#297). Sous le modèle ajusté
   lui-même, un jeu reçoit au moins un verdict \code{ALERTE} ou \code{ECHEC} dans plus de la
-  moitié des cas~: c'est l'effet du nombre de tests, non une distorsion de chacun
+  moitié des cas (constat de simulation sous les plans J1, J2, N et E)~: c'est l'effet du nombre de tests, non une distorsion de chacun
   (sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}). La p de famille et la p globale
   (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}) situent la plus petite p-value de
   Monte-Carlo d'une famille, ou de la batterie, dans sa loi sous le modèle ajusté~: contrôle du
   taux d'erreur au sens faible, sous ce modèle, par une p-value plug-in, non exacte. Ce sont des
-  diagnostics, sans p-value retenue ni verdict~: aucune loi exacte ni asymptotique n'existe pour
-  ce minimum, et la p-value de Monte-Carlo, calculée et restituée, n'est pas retenue par décision
+  diagnostics, sans p-value retenue ni verdict~: aucune loi exacte ni asymptotique de ce minimum
+  n'est connue ni employée, et la p-value de Monte-Carlo, calculée et restituée, n'est pas retenue par décision
   (ADR~0001). Leur niveau à $T = 8$ n'est établi par aucun résultat publié~; mesuré sous quatre
   plans, il est compatible avec la référence ou en écart mineur du côté conservateur~; leur
   puissance n'est pas mesurée.
@@ -6515,8 +6515,8 @@ ajusté~; niveau compatible ou en écart mineur conservateur sous les quatre pla
 
 p globale (minP, lecture conjointe de la batterie) & Les deux & $m_{\mathrm{obs}}$ de la
 batterie & Non & Non & Oui (idem) & \textbf{Diagnostic}, aucune p-value retenue & Sans objet :
-aucune loi limite employée & Situer le nombre de verdicts \code{ALERTE} ou \code{ECHEC} d'un jeu
-dans sa loi sous le modèle ajusté, sans le compter (fiche~\ref{fiche:p-globale}) \\
+aucune loi limite employée & Situer la plus petite p-value de Monte-Carlo de la batterie dans sa
+loi sous le modèle ajusté~; ne compte pas les verdicts (fiche~\ref{fiche:p-globale}) \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -6746,10 +6746,12 @@ $\hat p_f = \frac{1+\#\{b : m^{(b)} \le m_{\text{obs}}\}}{n+1}$, $m$ plus petite
 Monte-Carlo des membres, rangs symétriques sur les $n$ réplications complètes &
 $\mathbb{P}^{*}(m \le m_{\text{obs}})$ sous la loi bootstrap jointe des membres (marginale, ou
 conditionnelle au régime intérieur de $\hat\delta$~; bootstrap de résidus en Merz--Wüthrich) &
-Convergence en $n$ sous la loi bootstrap (argument de loi des grands nombres, non formalisé
-ici)~; aucune convergence en $T$ employée &
+Convergence en $n$ sous la loi bootstrap (argument de type Glivenko--Cantelli et loi des grands
+nombres, non formalisé ici, la limite n'étant pas établie en présence d'un atome de $m$ en
+$m_{\text{obs}}$)~; aucune convergence en $T$ employée &
 Écart-type approché par la formule binomiale $\sqrt{p(1-p)/n}$ du champ \code{erreur\_MC}, les
-$m^{(b)}$ dépendant de toutes les réplications par les rangs~; $0{,}0095$ à $p = 0{,}10$ et
+$m^{(b)}$ dépendant de toutes les réplications par les rangs (ordre de grandeur, écart à la
+variance réelle non borné)~; $0{,}0095$ à $p = 0{,}10$ et
 $n = 999$~; granularité $1/(n+1)$ & Réplications i.i.d. sous le modèle ajusté~; composition de la
 famille figée à l'observé & Erreur de Monte-Carlo seule contrôlée~; p plug-in, non exacte,
 contrôle au sens faible sous le modèle ajusté~; niveau mesuré sous J1, J2, N et E~: compatible ou
@@ -17612,7 +17614,7 @@ chacune pour sa raison. \emph{Exacte}~: aucune~; la loi jointe des p-values des 
 modèle vrai n'est pas connue, et une p-value exacte par membre ne rendrait pas exacte la loi de
 leur minimum. \emph{Asymptotique}~: aucune~; le moteur n'emploie aucune loi limite du minimum.
 \emph{Monte-Carlo}~: calculée et restituée, mais non retenue, parce que la ligne est un
-diagnostic par décision du mainteneur (Q-D1-Fk-6, maintenue au point d'arrêt D2-Fk,
+diagnostic par nature (décision Q-D1-Fk-6 du mainteneur, maintenue au point d'arrêt D2-Fk,
 rubrique~6). Ce n'est donc pas une p-value manquante remplacée par une autre~: aucun repli n'est
 possible. \emph{B effectif de famille} (Q-D1-Fk-5)~: $n$, au plus égal au plus petit $B$
 effectif des membres~; il vaut 999 sur chaque ligne des six cas de référence (remesuré). Sous
@@ -17785,14 +17787,17 @@ référence ($B = 999$, remesurées et retrouvées en R de base)~: $0{,}131$ ($m
 0{,}002$, effets d'année calendaire) sur \code{reserve2}.
 \Usage
 \emph{Lecture.} La p globale situe la plus petite p-value de Monte-Carlo de la batterie dans sa
-loi sous le modèle ajusté~: elle répond à la question «~ce nombre de verdicts est-il plus grand
-que ce que le modèle produit lui-même~?~», à laquelle aucun verdict isolé ne répond. Sur
+loi sous le modèle ajusté~: elle répond à la question «~la plus petite p-value de la batterie
+est-elle plus petite que ce que le modèle ajusté produit lui-même, compte tenu du nombre de tests
+et de leur dépendance~?~», à laquelle aucun verdict isolé ne répond. Sur
 \code{reserve2}, $0{,}024$ dit que la plus petite p-value ($0{,}002$) est plus petite que ce que
 le modèle ajusté produit en tenant compte des douze membres et de leur dépendance~; sur le jeu de
-contrôle de la méthode lognormale, $0{,}131$ dit que la plus petite p-value de la batterie,
-celle de Breusch--Pagan studentisé ($0{,}018$, seul \code{ECHEC} du jeu), n'est pas inhabituelle
-au seuil de $0{,}10$ sous le modèle ajusté, compte tenu des dix-sept membres et de leur
-dépendance.
+contrôle de la méthode lognormale, $0{,}131$ dit qu'une plus petite p-value au moins aussi
+faible que celle de Breusch--Pagan studentisé ($0{,}018$, seul \code{ECHEC} du jeu) survient dans
+environ 13~\% des jeux simulés sous le modèle ajusté, compte tenu des dix-sept membres et de leur
+dépendance. Elle ne dit pas que cet \code{ECHEC} est une fausse alerte~: le verdict reste celui de
+la ligne (famille C. d'un seul test, sans ligne de famille), et une p globale élevée n'atteste pas
+l'adéquation (puissance non mesurée).
 Mêmes limites que la fiche~\ref{fiche:p-famille}~: contrôle au sens faible, sous le modèle
 ajusté~; aucune p-value ajustée par ligne~; aucun verdict de ligne modifié~; affichage «~p globale
 (Monte-Carlo) = \dots{} --- diagnostic, aucune p retenue~» dans la vue Synthèse~; mêmes raisons
@@ -17803,8 +17808,9 @@ tableau de la fiche~\ref{fiche:p-famille}, lignes LC)~: compatible sous J1 et J2
 lecture} (tableau T-F3, même mesure)~: la part des jeux ou triangles dont au moins un membre a une
 p-value de Monte-Carlo inférieure à $0{,}10$ vaut $0{,}554$ (J1), $0{,}6065$ (J2), $0{,}6245$ (N)
 et $0{,}640$ (E)~; celle des jeux dont la p globale est inférieure à $0{,}10$, $0{,}1075$,
-$0{,}0990$, $0{,}0715$ et $0{,}0860$~: sous ces plans, la lecture conjointe ramène «~au moins une
-alerte~» de 55 à 64~\% des jeux conformes au modèle à 7 à 11~\%. Le détail des verdicts sous le
+$0{,}0990$, $0{,}0715$ et $0{,}0860$~: sous ces plans, la part des jeux conformes au modèle dont
+au moins un membre a une p-value de Monte-Carlo sous $0{,}10$, de 55 à 64~\%, se compare à celle
+dont la p globale est sous $0{,}10$, de 7 à 11~\%. Le détail des verdicts sous le
 modèle, sur tous les tests et sur les seuls tests de sens «~ne pas rejeter~», est aux
 sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance}~: non mesurée à
 $T = 8$~; une p globale élevée n'atteste pas l'adéquation du modèle (issue~\#379). \emph{Statut}~:
@@ -18042,10 +18048,10 @@ relève de la puissance de ces tests, non de leur niveau. Un tel verdict n'est p
 sans portée~: un \code{ECHEC} du TOST à $p \ge 0{,}5$ équivaut à une constante estimée au moins
 égale à la marge en valeur absolue ($p = \max(p_{\text{bas}}, p_{\text{haut}}) \ge 0{,}5$ si et
 seulement si $|\hat a| \ge \Delta$, la loi de Student étant de médiane nulle, fiche~\ref{fiche:tost-constante})~;
-un \code{ECHEC} du test de Pitman à $p \ge 0{,}5$ signale un lien observé qui n'excède pas la
-médiane de sa loi de permutation, de moyenne nulle~: un lien nul ou de signe contraire au modèle en
-est le cas ordinaire, mais un lien faiblement positif peut y conduire quand cette loi est
-asymétrique (fiche~\ref{fiche:student-pente}). L'ensemble des lignes de type test
+un \code{ECHEC} du test de Pitman à $p \ge 0{,}5$ signale un lien observé au plus égal à la plus
+grande médiane de sa loi de permutation, loi de moyenne nulle mais pas nécessairement
+symétrique~: quand elle est asymétrique, un lien faiblement positif peut y conduire, et un lien
+nul ou faiblement négatif peut ne pas y conduire (fiche~\ref{fiche:student-pente}). L'ensemble des lignes de type test
 a changé depuis la mesure de l'issue~\#221 (diagnostics par décision des issues~\#299, \#303
 et~\#304, lignes retirées par l'issue~\#302)~: les deux mesures ne portent pas sur les mêmes
 lignes et ne se comparent pas terme à terme. La p globale de lecture conjointe tombe sous
@@ -19050,7 +19056,8 @@ courbure aux deux seuils, suites à $0{,}05$)~; aucune distorsion matérielle. L
 dont la ligne est un diagnostic depuis l'issue~\#312, est lue à titre descriptif. \emph{Témoins
 oracle} (critère K3)~: les deux mêmes témoins que le 11~octobre sont significatifs, N
 homogénéité de $f_j$ à $0{,}05$ (71 rejets sur 2\,000, p-value de Holm $0{,}031$) et E suites à
-$0{,}05$ (44 sur 2\,000, p-value de Holm $0{,}0042$), mêmes comptes de rejets sur les mêmes
+$0{,}05$ (44 sur 2\,000, p-value de Holm $0{,}0042$), même taille du témoin ($0{,}04996$ et
+$0{,}03639$), mêmes comptes de rejets sur les mêmes
 triangles, contre des échantillons oracle tirés sous les mêmes graines~; ils
 s'expliquent par la règle corrigée de l'annotation du 11~octobre 2026 (paragraphe «~Témoins
 oracle~» ci-dessus~: variance de l'oracle partagé pour l'homogénéité de $f_j$, p-value de Holm
@@ -20395,8 +20402,8 @@ générale). Remesuré sur le moteur courant (issue~\#297, commit \code{7ff4725}
 de type test, dans $30{,}75~\%$ et $35{,}2~\%$ sur les seules lignes de sens «~ne pas rejeter~», et
 dans $38{,}0~\%$ (N) et $39{,}0~\%$ (E) des triangles simulés de la méthode Merz--Wüthrich
 (sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}). La p globale de lecture conjointe
-(fiche~\ref{fiche:p-globale}) situe ce compte dans sa loi sous le modèle ajusté, sans démontrer
-l'adéquation.
+(fiche~\ref{fiche:p-globale}) ne situe pas ce compte~: elle situe la plus petite p-value de
+Monte-Carlo de la batterie dans sa loi sous le modèle ajusté, sans démontrer l'adéquation.
 \end{encadre}
 
 
