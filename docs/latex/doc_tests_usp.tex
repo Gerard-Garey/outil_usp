@@ -640,6 +640,15 @@ prédicat «~$\gamma$ sur une borne~» du moteur, lu par \code{usp\_condition\_p
 (projection du gradient en $\gamma$, pas de Newton), \code{usp\_kkt\_satisfaite()},
 \code{usp\_ajuster()} (champ \code{\$gamma\_bord\_au\_moins\_un}, issue~\#227),
 \code{usp\_controles\_numeriques()} et \code{usp\_valider\_ajustement()} (issue~\#322) \\
+\code{usp\_delta\_bord()} & $\delta$, \code{tol} (\code{TOL\_DELTA\_BORD}~; refus par une erreur
+hors de $0 \le \mathtt{tol} < 0{,}5$) & \code{"basse"} si $\delta \le \mathtt{tol}$,
+\code{"haute"} si $\delta \ge 1 - \mathtt{tol}$, \code{NA} sinon (intérieur) et pour un $\delta$
+\code{NA} ou \code{NaN}~; $-\infty$ compté sur la borne basse, $+\infty$ sur la borne haute~;
+seul prédicat «~$\delta$ sur une borne~» du moteur (issue~\#331), lu par
+\code{usp\_condition\_premier\_ordre()} (projection du gradient en $\delta$),
+\code{usp\_regime()} et les deux comparaisons à une borne $\delta_0$ donnée,
+\code{usp\_lr\_delta()} et la ligne du rapport de vraisemblance d'\code{usp\_tests()}
+(fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
 objectif minimal retenu (issue~\#109), gradient analytique, \code{factr = 1e4}, employé par
@@ -664,7 +673,8 @@ strictement positif, appliqué avant les régressions auxiliaires de RESET et de
 \code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
 \code{\$volumes\_constants}, \code{\$pi\_constant}, \code{\$pi\_constant\_exact},
 \code{\$delta\_dans\_bande}, \code{\$volumes\_dans\_bande} (fiche~\ref{fiche:position-delta},
-fiche~\ref{fiche:centrage}) \\
+fiche~\ref{fiche:centrage})~; bord de $\delta$ lu dans \code{usp\_delta\_bord()} depuis
+l'issue~\#331, un $\delta$ \code{NA} ou \code{NaN} donnant des drapeaux de bord \code{NA} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$, \code{plancher} (1) & p-value exacte (loi mahonienne)~;
 \code{plancher} est celui de l'aplatissement des ex \ae quo (section~\ref{sec:ex-aequo})~: 0
@@ -2451,7 +2461,8 @@ Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct)
 \ae quo) & \code{Smirnov} \\
 Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (champ
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
-tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
+tolérance \code{TOL\_DELTA\_BORD}, bord lu dans \code{usp\_delta\_bord()} (issue~\#331) &
+diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité de la variable modélisée (pertes agrégées~; montant de C(1)(a))}}} \\
 \midrule
@@ -2499,7 +2510,7 @@ Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} 
 \code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
 \code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_gamma\_bord()},
-\code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
+\code{usp\_delta\_bord()}, \code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Existence du maximum de vraisemblance (contrôle de validité, après ajustement, hors table des
 tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma},
@@ -2537,7 +2548,8 @@ aucune hors Monte-Carlo & \code{Grubbsr} \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Robustesse de l'estimation (méthode lognormale)}}} \\
 \midrule
 Rapport de vraisemblance sur $\delta$ & \ref{fiche:rv-delta} &
-\code{usp\_lr\_delta()} & diagnostic, aucune p-value retenue (p de Monte-Carlo
+\code{usp\_lr\_delta()} (borne atteinte jugée par \code{usp\_delta\_bord()}, issue~\#331) &
+diagnostic, aucune p-value retenue (p de Monte-Carlo
 par bootstrap paramétrique restreint dans \code{p\_mc}~; mélange
 $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire) & --- \\
 Jackknife & \ref{fiche:jackknife} & \code{usp\_jackknife()} &
@@ -9943,7 +9955,22 @@ $\mathds{1}\{\hat\delta \le 10^{-6}\ \text{ou}\ \hat\delta \ge 1 - 10^{-6}\}$
 tolérance \code{TOL\_DELTA\_BORD} $= 10^{-6}$, inégalités larges). Cette
 tolérance n'est pas une valeur réglementaire mais une résolution numérique,
 commune au drapeau de constance de $\hat\pi_t$~; sa justification est donnée à
-la fiche~\ref{fiche:centrage}.
+la fiche~\ref{fiche:centrage}. Depuis l'issue~\#331, le bord de $\delta$ est jugé par un seul
+prédicat, \code{usp\_delta\_bord()}, que lisent \code{usp\_regime()}, la projection du gradient
+de la condition du premier ordre (fiche~\ref{fiche:foc}) et les deux comparaisons à une borne
+$\delta_0$ donnée du rapport de vraisemblance (\code{usp\_lr\_delta()} et sa ligne
+d'\code{usp\_tests()}, fiche~\ref{fiche:rv-delta}). Ces deux comparaisons s'écrivaient
+auparavant $|\hat\delta - \delta_0| \le 10^{-6}$~; sur $[0,1]$, cette forme ne différait du drapeau
+ci-dessus qu'en un seul nombre en virgule flottante, le double le plus proche de $1 - 10^{-6}$
+($0{,}99999899999999997124$), jugé au bord par \code{usp\_regime()} et pas au bord par la
+comparaison (mesuré, ainsi que l'accord des deux formes sur les doubles voisins à quatre
+unités du dernier rang près, de part et d'autre~; à la borne~0, $\hat\delta - 0$ est exact et les
+deux formes concordent). Une seule convention subsiste~: ce double est au bord haut~; hors de
+$[0,1]$ ou pour un $\delta$ non fini, cas jamais atteints puisque $\hat\delta$ est estimé sous les
+bornes de \code{L-BFGS-B}, les deux comparaisons suivent aussi le prédicat. Aucun
+$\hat\delta$ des cas de référence n'est sur ce double (mesuré~: $\hat\delta = 1$ sur les quatre cas
+au bord, $0{,}6640$ sur \code{premium\_interieur}), et l'issue ne modifie pas les références de
+non-régression.
 \Loi
 Sans objet.
 \Pval
@@ -11038,7 +11065,9 @@ le $\hat\gamma$ du démarrage retenu était jugé~; cette condition exigeant ell
 hors des bornes (\code{usp\_kkt\_satisfaite()}), le refus revient à un démarrage à l'optimum sur
 une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
 (pour $\gamma$, par le prédicat unique \code{usp\_gamma\_bord()}, issue~\#322, qui compte un
-$\gamma$ non fini sur la borne basse)~; sur une
+$\gamma$ non fini sur la borne basse~; pour $\delta$, par le prédicat unique
+\code{usp\_delta\_bord()}, issue~\#331, qui ne répond pas pour un $\delta$ \code{NA} ou
+\code{NaN}, la composante étant alors laissée telle quelle, fiche~\ref{fiche:position-delta})~; sur une
 borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
 $\max(g, 0)$, à l'intérieur $g$. On en tire (issue~\#71, spécification d'\code{actuary} du
 28~septembre 2026)~:
@@ -11377,7 +11406,10 @@ sont constants. Le moteur décide donc sur cette \emph{cause}, par \code{usp\_re
 sur l'étendue observée des $\hat\pi_t$~: $\hat\pi_t$ est tenu pour constant lorsque
 $\hat\delta \ge 1 - 10^{-6}$ ou que $\max_t x_t - \min_t x_t \le 10^{-6}\,\bar x$. La tolérance
 \code{TOL\_DELTA\_BORD} $= 10^{-6}$ est la même que celle du drapeau « $\hat\delta$ au bord »
-(fiche~\ref{fiche:position-delta}), de sorte que les deux drapeaux ne peuvent plus se contredire~; un seuil
+(fiche~\ref{fiche:position-delta}), de sorte que les deux drapeaux ne peuvent plus se contredire
+(depuis l'issue~\#331, \code{usp\_regime()} lit le bord de $\delta$ dans le prédicat unique
+\code{usp\_delta\_bord()}, le même que les comparaisons à une borne donnée du rapport de
+vraisemblance, fiche~\ref{fiche:position-delta})~; un seuil
 distinct sur l'étendue des $\hat\pi_t$ laissait auparavant une zone où $\hat\delta$ était déclaré
 au bord sans que $\hat\pi_t$ soit déclaré constant. Ce n'est pas une valeur réglementaire mais
 une résolution numérique, choisie au-dessus de celle du critère d'arrêt de l'optimiseur
@@ -12530,8 +12562,10 @@ le premier terme étant calculé par \code{usp\_ajuster\_contraint()} ($\tilde\g
 \code{stats::optimize()} sur les bornes numériques de $\gamma$, à la tolérance
 \code{TOL\_GAMMA\_CONTRAINT} $= 10^{-8}$~; $\ln\tilde\beta_0$ en forme fermée), le second étant
 l'objectif minimal de \code{usp\_ajuster()}. À la borne où se trouve $\hat\delta$ (à
-\code{TOL\_DELTA\_BORD} près), le modèle contraint est le modèle ajusté et $\mathrm{LR} = 0$ par
-construction. \emph{Convention numérique}~: $\mathrm{LR}$ est ramené à $\max(0, \cdot)$ puis à 0
+\code{TOL\_DELTA\_BORD} près, jugé par le prédicat \code{usp\_delta\_bord()} depuis
+l'issue~\#331, la même convention que le drapeau de la fiche~\ref{fiche:position-delta}, qui
+décrit le seul double où l'ancienne comparaison en différait), le modèle contraint est le modèle
+ajusté et $\mathrm{LR} = 0$ par construction. \emph{Convention numérique}~: $\mathrm{LR}$ est ramené à $\max(0, \cdot)$ puis à 0
 s'il est inférieur à \code{tol\_nul} $=$ \code{TOL\_OPTIMUM} $= 10^{-6}$, parce qu'il est la
 différence de deux optimisations, chacune connue à la résolution de l'optimiseur~; ce seuil n'est
 pas une propriété statistique et la même règle s'applique aux réplications. Mesuré sur le jeu de
@@ -18939,7 +18973,7 @@ statistique ou actuarielle.
 \endhead
 Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
-$\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
+$\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD}~; bord de $\delta$ par \code{usp\_delta\_bord()} (issue~\#331) \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
 \code{usp\_runsr\_p\_exacte()}~; attribution des p-values exactes à $\hat\pi_t$ constant seulement
 et libellés selon le régime (règles~R7 et~R8 d'\code{usp\_tests()}, issue~\#70~; champ \code{loi}
@@ -20223,7 +20257,9 @@ de H1 et H2, issue~\#237, index des fonctions) & Une anomalie se propage à tout
 entrées issues de l'appel~; de même, sans calculer de statistique, pour
 \code{usp\_identifiabilite\_pente()} (phrase de contexte de la ligne de la pente, et type de
 cette ligne jusqu'au retrait de la règle~R4),
-\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables) et
+\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables),
+\code{usp\_delta\_bord()} (bord de $\delta$, issue~\#331~: drapeaux d'\code{usp\_regime()},
+projection du gradient, rapport de vraisemblance aux bornes) et
 \code{.usp\_echelle\_exacte()} (modèle commun des lignes de Cook et des leviers et des
 graphiques d'influence, issue~\#153). \\
 Base « ratios bruts » & cinq lignes sur $u_t$, construit par
