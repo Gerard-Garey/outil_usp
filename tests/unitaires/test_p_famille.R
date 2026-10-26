@@ -260,6 +260,11 @@ verifier("#297 seuil B_MIN_DEGENERESCENCE : B effectif de famille 49 -> aucune p
 verifier("#297 sans stats_boot (bootstrap anterieur au champ ou fictif) : aucune ligne ; colonne absente : refus",
          identical(engine_p_famille(L297, boot297[c("stats_obs", "B")], cat297), list()) &&
            leve_erreur(engine_p_famille(L297, within(boot297, stats_boot <- stats_boot[, -1]), cat297)))
+verifier("#297 statistique observee absente de stats_obs : stop() nommant la statistique (pas d'erreur opaque de vapply)",
+         { nm <- colnames(Sj)[1L]
+           b <- boot297; b$stats_obs[[nm]] <- NULL
+           msg <- tryCatch({ engine_p_famille(L297, b, cat297); "" }, error = function(e) conditionMessage(e))
+           grepl("absente(s) de stats_obs", msg, fixed = TRUE) && grepl(nm, msg, fixed = TRUE) })
 verifier("#297 aucune consommation d'alea : .Random.seed inchange",
          {
            set.seed(1); s0 <- .Random.seed

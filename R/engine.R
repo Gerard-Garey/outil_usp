@@ -4623,8 +4623,9 @@ DETAIL_P_FAMILLE <- paste(
   "d'erreur de la famille au sens faible (toutes ses hypotheses vraies), sous le",
   "modele ajuste : p plug-in, non exacte, comme les p Monte-Carlo des lignes.",
   "Diagnostic sans verdict : aucun verdict de ligne n'est modifie.")
-# Texte T-2 (par. 4.4) : %d, nombre de tests (compte de lignes, pas un nombre
-# issu du bootstrap).
+# Texte T-2 (par. 4.4) : %d, nombre de tests ; ne lit aucune valeur numerique
+# du bootstrap, mais peut dependre de la disponibilite d'une p Monte-Carlo
+# (un test n'est membre que si sa p_mc est finie).
 # Reprise du 25/10/2026 (point 5) : la clause sur les verdicts ALERTE ou
 # ECHEC, refutee (verdict fonde sur une p exacte), est remplacee.
 DETAIL_P_GLOBALE <- paste(
@@ -4740,6 +4741,10 @@ engine_p_famille <- function(lignes, boot, catalogue) {
     if (length(inconnus))
       stop("engine_p_famille() : statistique(s) absente(s) de stats_boot ou du catalogue : ",
            paste(inconnus, collapse = ", "))
+    sans_obs <- setdiff(cols, names(boot$stats_obs))
+    if (length(sans_obs))
+      stop("engine_p_famille() : statistique(s) absente(s) de stats_obs : ",
+           paste(sans_obs, collapse = ", "))
     X0 <- S[, cols, drop = FALSE]
     X <- X0[rowSums(!is.finite(X0)) == 0L, , drop = FALSE]
     B_eff <- nrow(X)
