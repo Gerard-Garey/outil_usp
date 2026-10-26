@@ -898,7 +898,8 @@ libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une li
 catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45~; argument obligatoire
 \code{fonction}, provenance de la ligne, refusé s'il est absent, vide, non textuel ou s'il ne
 désigne pas une fonction de l'environnement du moteur, issue~\#111~; champ \code{inoperant}
-posé sur chaque ligne, issue~\#129~; argument \code{nature\_as}, nature d'une p non simulée
+posé sur chaque ligne, issue~\#129~; argument \code{mc\_nom} conservé dans le champ du même nom,
+dernier de la ligne, \code{NA} sans clé, issue~\#330~; argument \code{nature\_as}, nature d'une p non simulée
 retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, toute autre valeur
 refusée, issue~\#120),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
@@ -1478,9 +1479,12 @@ section~\ref{sec:graphiques}) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
-\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 27 colonnes (mesuré
-sur le cas \code{premium}), dont la colonne \code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
-qui la suit (issue~\#125, \code{NA} pour un objet antérieur au champ), la colonne dérivée
+\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 28 colonnes (mesuré
+sur les cas \code{premium} et \code{reserve2}~; 27 avant l'issue~\#330), dont la colonne
+\code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
+qui la suit (issue~\#125, \code{NA} pour un objet antérieur au champ), puis la colonne
+\code{mc\_nom} (issue~\#330, nom de la statistique de Monte-Carlo de la ligne, \code{NA} pour un
+objet antérieur au champ), la colonne dérivée
 \code{renvoi} (issue~\#215~: repère «~voir aussi~», calculé par \code{usp\_renvois()} à partir des
 seuls champs \code{test}, \code{variante}, \code{type} et \code{p\_exacte} des lignes, jamais du
 commentaire~; non posé par \code{add()}, absent des références~; \code{NA} pour toute ligne de la
@@ -1488,7 +1492,7 @@ méthode Merz--Wüthrich, fiche~\ref{fiche:student-constante}, rubrique~6) et, e
 positions, après \code{renvoi}, les colonnes \code{fonction},
 provenance de la ligne (issue~\#111), et \code{inoperant}, indicateur logique de test inopérant
 (issue~\#129~; \code{NA} pour un objet antérieur au champ)~; l'export CSV de l'application
-reprend ces 27 colonnes telles quelles \\
+reprend ces 28 colonnes telles quelles \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -3041,9 +3045,8 @@ elle n'est qu'un \emph{diagnostic facultatif} (M5).
 Les sorties du script distinguent explicitement trois grandeurs, qui ne doivent jamais être
 confondues et figurent dans des champs séparés~:
 
-\begin{center}
-\small
-\begin{tabular}{@{}p{2.3cm}p{12.9cm}@{}}
+{\small
+\begin{longtable}{@{}p{2.3cm}p{12.9cm}@{}}
 \toprule
 \code{stat} & \textbf{Statistique de test}~: la quantité dont la loi sous $H_0$ est connue (ou
 simulée). C'est elle, et elle seule, qui est comparée à une loi de référence pour produire une
@@ -3069,8 +3072,8 @@ la loi de référence discrète peut produire aux effectifs observés (suites, C
 Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
 (section~\ref{sec:nature}) quand la p-value exacte est retenue~; quand la p-value de Monte-Carlo
 l'est, la règle lit depuis l'issue~\#125 le champ \code{p\_min\_mc}, et \code{p\_min} reste
-restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant} et
-\code{p\_min\_mc}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
+restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant},
+\code{p\_min\_mc} et \code{mc\_nom}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
 \code{fonction} & \textbf{Provenance de la ligne} (issue~\#111)~: nom de la fonction nommée de
 \code{R/engine.R} qui calcule la statistique de la ligne (\code{stat}, à défaut \code{estim}),
 appelée directement ou par la fonction de calcul du catalogue Monte-Carlo (\code{DW} $\to$
@@ -3103,14 +3106,30 @@ point~(i)), posé par \code{add()} sur chaque ligne avec la valeur lue dans
 \code{bootstrap\$p\_min\_mc} par la branche Monte-Carlo de la règle, \code{NA} hors de cette
 branche (en particulier quand la p-value exacte est retenue, et pour toute statistique continue).
 Exact pour les réplications tirées, fonction de $B$ et de la graine~; jamais imprimé dans le
-commentaire (issue~\#76). Dernier champ de la ligne~; colonne \code{p\_min\_mc} de la table
+commentaire (issue~\#76). Champ placé après \code{inoperant}, avant \code{mc\_nom} (dernier
+champ de la ligne jusqu'à l'issue~\#330)~; colonne \code{p\_min\_mc} de la table
 auditable, après \code{p\_min} (\code{NA} pour un objet résultat antérieur au champ). Mesuré sur
 les cas de référence~: champ fini sur les vérifications à $p_{\min}$ de type test de
-\code{premium\_interieur} (cinq~; sept avant l'issue~\#299) et de \code{reserve2} (six), \code{NA}
-sur les quatre cas à $\hat\delta = 1$. \\
+\code{premium\_interieur} (cinq~; sept avant l'issue~\#299) et de \code{reserve2} (cinq~; six
+avant l'issue~\#312, qui a fait de la ligne des suites un diagnostic, fiche~\ref{mw:m3runs}),
+\code{NA} sur les quatre cas à $\hat\delta = 1$. \\
+\code{mc\_nom} & \textbf{Nom de la statistique de Monte-Carlo de la ligne} (issue~\#330)~:
+argument \code{mc\_nom} d'\code{add()}, recopié tel quel, nom d'une entrée
+d'\code{USP\_CATALOGUE\_MC} ou de \code{MW\_CATALOGUE\_MC} déjà contrôlé par \code{add()} (un nom
+absent du catalogue ou du bootstrap lève une erreur)~; conservé quand la p-value de
+Monte-Carlo de la ligne manque pour un motif d'indisponibilité~; \code{NA} pour une ligne dont la
+p-value de Monte-Carlo est calculée hors du bootstrap principal (argument \code{p\_mc\_ext}~:
+rapport de vraisemblance sur $\delta$, permutations aléatoires du test de Pitman, lignes de lecture
+conjointe) et pour une ligne sans p-value de Monte-Carlo. Chaîne indépendante des données et du
+régime. Il relie la ligne à son entrée de \code{bootstrap\$granularite\_stat}, lue par
+l'affichage (colonne «~granularité MC~», section~\ref{sec:archi}), et, pour la p-value de famille
+(issue~\#297), à sa colonne de la matrice des réplications. Dernier champ de la ligne~; colonne \code{mc\_nom} de la table
+auditable, juste après \code{p\_min\_mc} (\code{NA} pour un objet résultat antérieur au champ).
+Mesuré sur les cas de référence~: champ renseigné 31 fois sur 52 dans chaque cas lognormal et
+13 fois sur 25 pour \code{reserve2}, chaque nom n'y figurant qu'une fois, \code{NA} ailleurs. \\
 \bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi de référence),
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
