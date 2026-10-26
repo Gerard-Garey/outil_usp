@@ -1325,8 +1325,10 @@ tableau_fk3_ln <- function(CJ) {
   lc <- FAM_LN[length(FAM_LN)]
   L <- c("### T-F3 \u2014 multiplicit\u00e9 sous H0 et lecture conjointe (K-F2, descriptif)", "",
          paste("Sur les r\u00e9plications trait\u00e9es : part \u00e0 au moins une ALERTE ou un ECHEC, et \u00e0 au moins un ECHEC, parmi les lignes de type",
-               "test, puis parmi les seules lignes de sens \u00ab ne pas rejeter \u00bb (sans le TOST ni le test de Pitman, de sens \u00ab rejeter \u00bb, dont",
-               "l'ALERTE ou l'ECHEC ne signale pas un \u00e9cart au mod\u00e8le) ; part \u00e0 p globale < \u03b1 (p absente : non-rejet) ; par famille, part \u00e0 au moins un test membre de p_mc < \u03b1 (plus petite",
+               "test, puis parmi les seules lignes de sens \u00ab ne pas rejeter \u00bb (sans le TOST ni le test de Pitman, de sens \u00ab rejeter \u00bb :",
+               "leur ALERTE ou leur ECHEC est le non-rejet d'une hypoth\u00e8se nulle contraire au mod\u00e8le (constante non n\u00e9gligeable ; absence de lien pertes / volume),",
+               "c'est-\u00e0-dire une propri\u00e9t\u00e9 du mod\u00e8le non d\u00e9montr\u00e9e et non le rejet d'une hypoth\u00e8se du mod\u00e8le ; sous le mod\u00e8le simul\u00e9,",
+               "leur fr\u00e9quence rel\u00e8ve de la puissance de ces tests, non de leur niveau) ; part \u00e0 p globale < \u03b1 (p absente : non-rejet) ; par famille, part \u00e0 au moins un test membre de p_mc < \u03b1 (plus petite",
                "p_mc des membres) contre part \u00e0 p de famille < \u03b1 (ligne absente ou sans p : non-rejet). Taux descriptifs, sans r\u00e9f\u00e9rence",
                "ni classe."), "",
          entete_md(c("Jeu", "n", "\u2265 1 A ou E (tests)", "\u2265 1 A ou E (tests \u00ab ne pas rejeter \u00bb)", "\u2265 1 E (tests)",

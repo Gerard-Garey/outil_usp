@@ -1370,11 +1370,16 @@ tableau_t3 <- function(TM) {
 }
 # T4 : verdicts, multiplicite, frequence de |p_mc - alpha| < 2 err_mc.
 tableau_t4 <- function(DS) {
+  # n = nombre de cles dont la ligne porte un verdict (O, A ou E) sur au moins
+  # un triangle admis, tous pools et toutes lois : celles des colonnes "lignes
+  # MC a verdict" ; une ligne INFO (diagnostic) n'y compte pas.
+  vd <- unlist(lapply(intersect(LOIS, names(DS$tr)), function(l) c(pop(DS$tr[[l]], "redresse")$verd_R, pop(DS$tr[[l]], "brut")$verd_B)))
+  n_mc <- sum(vapply(DS$cle_ligne, function(i) any(substring(vd, i, i) %in% c("O", "A", "E")), logical(1)))
   L <- c("### T4 \u2014 verdicts sous H0, multiplicit\u00e9, voisinage du seuil", "",
          paste("Fr\u00e9quences sur les triangles admis : ALERTE ou ECHEC (A ou E) et ECHEC (E) par ligne de mw_tests() (lignes INFO",
-               "exclues du d\u00e9nominateur) ; part des triangles \u00e0 au moins une ALERTE ou un ECHEC, et \u00e0 au moins un ECHEC, sur les 13",
-               "lignes Monte-Carlo et sur toutes les lignes \u00e0 verdict (rep\u00e8re 1 \u2212 (1 \u2212 \u03b1)^13 :",
-               sprintf("%s \u00e0 \u03b1 = 0,10, ordre de grandeur et non r\u00e9f\u00e9rence) ;", num(1 - 0.9^13, 4)),
+               "exclues du d\u00e9nominateur) ; part des triangles \u00e0 au moins une ALERTE ou un ECHEC, et \u00e0 au moins un ECHEC, sur les lignes",
+               "Monte-Carlo \u00e0 verdict (une ligne Monte-Carlo INFO, diagnostic, n'y compte pas) et sur toutes les lignes \u00e0 verdict (rep\u00e8re",
+               sprintf("1 \u2212 (1 \u2212 \u03b1)^n avec n = %d lignes Monte-Carlo \u00e0 verdict : %s \u00e0 \u03b1 = 0,10, ordre de grandeur et non r\u00e9f\u00e9rence) ;", n_mc, num(1 - 0.9^n_mc, 4)),
                "fr\u00e9quence de |p_mc \u2212 \u03b1| < 2 err_mc par cl\u00e9 (signalement propos\u00e9 de Q-206-9), aux deux seuils, sur les p d\u00e9finies."), "")
   idx_mc <- DS$cle_ligne
   for (pool in c("redresse", "brut")) {
@@ -1391,7 +1396,7 @@ tableau_t4 <- function(DS) {
       }, "")
       L <- c(L, ligne_md(DS$lignes[i], if (i %in% idx_mc) names(idx_mc)[match(i, idx_mc)] else "", paste(cols, collapse = " | ")))
     }
-    L <- c(L, "", entete_md(c("Loi", "n", "\u2265 1 A ou E (13 lignes MC)", "\u2265 1 E (13 lignes MC)", "\u2265 1 A ou E (toutes lignes \u00e0 verdict)",
+    L <- c(L, "", entete_md(c("Loi", "n", "\u2265 1 A ou E (lignes MC \u00e0 verdict)", "\u2265 1 E (lignes MC \u00e0 verdict)", "\u2265 1 A ou E (toutes lignes \u00e0 verdict)",
                               "\u2265 1 E (toutes lignes \u00e0 verdict)")))
     for (l in lois) {
       v <- pop(DS$tr[[l]], pool)[[vc]]
