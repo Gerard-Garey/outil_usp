@@ -78,8 +78,10 @@
 #  liste de V1 dont p_mc, err_mc, B_effectif, granularite_stat et motif_mc
 #  sont ceux de la variante ; delta_equiv et robustesse absents (comme
 #  run_engine() a delta_equiv NULL). Lignes de T2 : les 44 lignes du
-#  perimetre (47 lignes de run_engine() moins les deux lignes du rapport de
-#  vraisemblance sur delta et la largeur de l'IC a delta fixe, #45) ; les
+#  perimetre (52 lignes de run_engine() sur J1 observe, moins les 5 lignes de
+#  lecture conjointe de #297 - p de famille et p globale, diagnostics sans p
+#  retenue, reperees par le champ fonction - soit 47, moins les deux lignes du
+#  rapport de vraisemblance sur delta et la largeur de l'IC a delta fixe, #45) ; les
 #  lignes du jackknife et de la largeur de l'IC bootstrap 90 %, que
 #  usp_tests() n'ecrit que si run_engine() a pose ces grandeurs dans fit,
 #  sont absentes de ce chemin (code "-") : diagnostics sans p retenue (aucune
@@ -110,7 +112,8 @@
 #         d'absence connus (codes de CODES_MOTIF) ; p de V3a ou de V3b
 #         absente alors que celle de V1 existe (cellules comptees par C3) :
 #         motif ni o, ni c, ni x (motifs communs a V1) ; 47 lignes de usp_tests()
-#         sur J1 observe, libelles distincts, 44 lignes du perimetre de T2 ;
+#         sur J1 observe hors les 5 lignes de lecture conjointe de #297 (52 au
+#         total), libelles distincts, 44 lignes du perimetre de T2 ;
 #    (c)  jeux simules identiques (identical()) a l'expression YSIM de #72
 #         (tests/taux_franchissement_reperes.R, lue par parse(), liste
 #         blanche de noms, environnement isole ; J3 : FIT0_J3 synthetique) ;
@@ -388,7 +391,11 @@
 #  une ligne de T2 en ECHEC, V1 et V3h, par jeu, sur les lignes hors TOST,
 #  pente de Pitman, Fisher et procedure ESD (LIGNES_HORS_ECHEC, par
 #  libelle) et sur toutes les lignes ; IC de Clopper-Pearson a 95 % et
-#  McNemar exact V3h contre V1. --brut-reference FICHIER.tsv : valeurs
+#  McNemar exact V3h contre V1. T2 bis ne depend pas de F_8 (#376) : les
+#  lignes restituees en diagnostic (8 par decision, #299 et #302 ; 5 par la
+#  regle R15 a pi chapeau constant seulement ; classe D de (t2)) restent dans
+#  la population par libelle mais, de verdict INFO, ne portent jamais ECHEC ;
+#  les 5 lignes de lecture conjointe de #297 en sont absentes (hors T2). --brut-reference FICHIER.tsv : valeurs
 #  brutes d'une autre mesure de la partie regime (libelles de T2 lus dans
 #  le tableau <...>.md de meme nom), comparaison appariee par b et par
 #  variante (McNemar exact), citee en T0. --agregat-brut FICHIER.tsv (mode
@@ -730,6 +737,16 @@ DELTA3 <- 0.60; BETA3 <- 0.70; SIGMA3 <- 0.10; GAMMA3 <- log(SIGMA3 / BETA3)
 # de #229, par. 1) ; DW, dans F_R, reste la statistique d'autocorrelation
 # d'ordre 1 de la mesure.
 F_T <- c("AD", "CvM", "KS", "SW", "Lillie", "Intercept", "CUSUM", "Runs", "Runsr", "Smirnov", "CoxStuart")
+# F_8 reste "les huit de #175" (specification de #229, par. 1) et ne sert
+# qu'a C2a (plus l'etiquette de famille des tableaux et le controle (b)).
+# Depuis #299 (484d29a), BP79, GQ et BF sont des diagnostics par decision ;
+# depuis #303 (99ae529, regle R15), Grubbsr est un diagnostic a pi chapeau
+# constant seulement, et un test a delta chapeau interieur (regime de C2a).
+# Leurs entrees de USP_CATALOGUE_MC et leurs p Monte-Carlo sont inchangees :
+# C2a mesure la calibration de ces p, non des verdicts ; seules BP, Grubbs,
+# Grubbsr, DAgo et JB portent un verdict a delta chapeau interieur. Changer
+# F_8 demanderait un amendement de la specification (issue #376, decision du
+# mainteneur : F_8 inchange).
 F_8 <- c("BP", "BP79", "GQ", "BF", "Grubbs", "Grubbsr", "DAgo", "JB")
 # Intensites des scenarios de P (par. 6), ajustables par la decision A2 :
 # H, exposant k de Var(Y) proportionnelle a x^k ; C, lambda de la
@@ -834,6 +851,23 @@ SEUIL_PUISSANCE_PENTE_R4 <- 0.5
 # vraisemblance sur delta et largeur de l'IC a delta fixe.
 hors_t2 <- function(lignes) startsWith(lignes, "Rapport de vraisemblance") |
   lignes == "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)"
+# Lignes de lecture conjointe ajoutees par usp_tests() depuis #297 (Fk) : une
+# p de famille (minP) par famille d'au moins deux tests, puis la p globale.
+# Diagnostics INFO sans p retenue, hors du perimetre de T2 et des valeurs
+# brutes de #221 (anterieures a #297). Reperees par le champ fonction
+# (engine_p_famille, comme display_helpers.R) et non par le libelle : les
+# quatre lignes de famille portent le MEME libelle et la famille de leurs
+# membres ("B. ...", "D. ..."), seule la ligne globale porte la famille
+# "LC. ..." (PREFIXE_LECTURE_CONJOINTE du moteur, ajoute comme second critere).
+est_lecture_conjointe <- function(tests)
+  vapply(tests, function(t) identical(t$fonction, "engine_p_famille") ||
+           startsWith(as.character(t$famille), PREFIXE_LECTURE_CONJOINTE), logical(1))
+# Libelles du perimetre de T2 : lignes de usp_tests() hors rapport de
+# vraisemblance, largeur de l'IC a delta fixe (#45) et lecture conjointe (#297).
+lignes_perimetre_t2 <- function(tests) {
+  l <- vapply(tests, `[[`, "", "test")
+  l[!hors_t2(l) & !est_lecture_conjointe(tests)]
+}
 STATS <- names(USP_CATALOGUE_MC)
 NS <- length(STATS)
 F_R <- setdiff(STATS, F_T)
@@ -1429,7 +1463,10 @@ tableau_t2 <- function(DM, LIGNES_T2) {
 # connu, tous regimes (J1 interieur compris : population des chiffres du
 # .tex, 2 000 replications par jeu a fee9968). V3h : verdicts de V3b a
 # delta* interieur, de V1 sinon (comme matrices()). Deux populations de
-# lignes : hors (lignes hors LIGNES_HORS_ECHEC) et toutes.
+# lignes : hors (lignes hors LIGNES_HORS_ECHEC) et toutes. Ne depend pas de
+# F_8 (#376) : les lignes restituees en diagnostic (8 par decision, #299 et
+# #302 ; 5 par R15 a pi chapeau constant seulement) restent dans la
+# population par libelle mais, de verdict INFO, ne portent jamais ECHEC.
 indic_echec <- function(D, lignes) {
   n_l <- length(lignes)
   k_hors <- match(LIGNES_HORS_ECHEC, lignes)
@@ -2670,7 +2707,7 @@ PARTIE <- if (!is.na(OPT_SCEN)) "puissance" else "regime"
 # --- --debit (levier P4) : trois replications de J2 du regime demande ------------
 if (OPT_DEBIT) {
   RES_DEB <- executer_cas("premium")
-  LIGNES_T2 <- local({ l <- vapply(RES_DEB$tests, `[[`, "", "test"); l[!hors_t2(l)] })
+  LIGNES_T2 <- lignes_perimetre_t2(RES_DEB$tests)
   OPT_GRAINE <- GRAINE_JEUX; OPT_R <- R_SPEC
   YD <- engine_sous_graine(OPT_GRAINE, t(vapply(seq_len(OPT_R), function(b) usp_simuler(FIT_J2), numeric(T_))))
   choisis <- integer(0)
@@ -2770,7 +2807,7 @@ if (OPT_PREVOL) {
       ut <- essayer(FONCTIONS_PV[7], b, usp_tests(fit, boot_t2(so, P221[b, ]), ALPHA, theta_equiv = THETA_EQUIV,
                                                   methode = METHODE, lr_delta = NULL, permutation_pente = perm))
       if (is.null(ut)) next
-      if (!exists("LIGNES_T2")) LIGNES_T2 <- local({ l <- vapply(ut, `[[`, "", "test"); l[!hors_t2(l)] })
+      if (!exists("LIGNES_T2")) LIGNES_T2 <- lignes_perimetre_t2(ut)
       # meme controle que le chemin principal ((t2), colonnes p_retenue:),
       # avant toute indexation de PR221
       manq_t2 <- setdiff(paste0("p_retenue:", LIGNES_T2), colnames(PR221))
@@ -2884,13 +2921,17 @@ controle(cmp_a$conforme && identical(unlist(RES_A$metadata[c("B", "alpha", "seed
          sprintf("(a) J1 observ\u00e9, run_engine(seed = %.0f), conforme \u00e0 tests/reference/premium.rds (comparer_objets(), tol\u00e9rance %g) et configuration (B, \u03b1, graine, theta_equiv) = celle du script : %s%s",
                  GRAINE_BOOT, TOLERANCE, TXT_A, if (cmp_a$conforme) "" else paste0(" : ", paste(resumer_comparaison(cmp_a, 5L), collapse = " ; "))))
 # 47 lignes depuis les retraits de Ljung-Box (1) sur ratios bruts (#303), de
-# Shapiro-Wilk a loi nulle simulee, Ljung-Box (1) et Box-Pierce (2) (#302) ;
+# Shapiro-Wilk a loi nulle simulee, Ljung-Box (1) et Box-Pierce (2) (#302),
+# hors les 5 lignes de lecture conjointe ajoutees par #297 (4 p de famille de
+# meme libelle, 1 p globale : 52 lignes de run_engine() sur J1 observe) ;
 # nom de variable conserve.
-LIGNES_51 <- vapply(RES_A$tests, `[[`, "", "test")
-LIGNES_T2 <- LIGNES_51[!hors_t2(LIGNES_51)]
-controle(length(LIGNES_51) == 47L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 44L,
-         sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9, libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
-                 length(LIGNES_51), length(LIGNES_T2)))
+LC_A <- est_lecture_conjointe(RES_A$tests)
+LIGNES_51 <- vapply(RES_A$tests[!LC_A], `[[`, "", "test")
+LIGNES_T2 <- lignes_perimetre_t2(RES_A$tests)
+controle(length(LIGNES_51) == 47L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 44L &&
+           sum(LC_A) == 5L && all(vapply(RES_A$tests[LC_A], `[[`, "", "type") == "diagnostic"),
+         sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9 (hors %d lignes de lecture conjointe, diagnostics sans p retenue, #297), libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
+                 length(LIGNES_51), sum(LC_A), length(LIGNES_T2)))
 # Regle R4 retiree par D1-Fb (#218, #230) ; SEUIL_PUISSANCE_PENTE_R4
 # (decision Q-D1-Fb-7) est defini en tete, lu depuis #274 par r4_pente()
 # (classe P de (t2)) ; la chaine T0 decrit la regle du moteur mesure.
