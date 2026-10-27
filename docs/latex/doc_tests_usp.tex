@@ -1467,7 +1467,8 @@ dans le terme de variance de processus \\
 \code{jackknife}, \code{sigma\_usp}, \code{lr\_delta} & toutes les quantités tracées (branche
 lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
 du profil, issue~\#45, et leur niveau \code{plots\_data\$lr\_delta\$niveau}, valeur de la
-constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot)
+constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot),
+\code{plots\_data\$spread\_enveloppe} (enveloppe du graphique dispersion-niveau, issue~\#306)
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
@@ -1480,6 +1481,17 @@ simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{
 description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample, seuil
 \code{B\_min\_simultane})~; aucune bande sous 20 réplications, pas de bande simultanée sous 500
 (fiche~\ref{fiche:qqnorm}, issue~\#47) \\
+\code{engine\_enveloppe\_}\allowbreak\code{spread()},\newline
+\code{engine\_rang\_}\allowbreak\code{simultane\_dh()},\newline
+\code{SPREAD\_LOWESS\_F},\newline \code{SPREAD\_LOWESS\_ITER} & \code{z\_boot}, $x$~; matrice
+$L$ des courbes simulées~; constantes ($2/3$~; 3) & enveloppe de simulation du graphique
+dispersion-niveau (\code{plots\_data\$spread\_enveloppe}), sans aucun tirage~: courbes
+\code{lowess()} des lignes finies de \code{z\_boot}, aux paramètres \code{SPREAD\_LOWESS\_F} et
+\code{SPREAD\_LOWESS\_ITER} de la courbe observée \code{plots\_data\$spread\_lisse}~; bande
+ponctuelle et bande simultanée à 90~\%, constantes et seuils de l'enveloppe du QQ-plot, rang
+$k^{\star}$ de la bande simultanée selon l'éq.~(4.17) de Davison et Hinkley (1997), calculé par
+\code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence (fiche~\ref{fiche:spread-location},
+issue~\#306) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
@@ -1873,7 +1885,8 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   branche lognormale (p-values Monte-Carlo, complétées à $\hat\delta$ intérieur par le flux de la
   sixième source, erreurs \code{err\_mc},
   \code{sigma\_boot} et les grandeurs qui en sont tirées, dont, depuis l'issue~\#47, l'enveloppe du
-  QQ-plot, lue dans les résidus réajustés \code{z\_boot}), à l'exception du rapport de
+  QQ-plot, et, depuis l'issue~\#306, celle du graphique dispersion-niveau, lues dans les résidus
+  réajustés \code{z\_boot}), à l'exception du rapport de
   vraisemblance sur $\delta$ (item suivant)~; le réajustement à $\delta$ fixé de chaque
   réplication (\code{sigma\_boot\_restreint}, issue~\#45) se fait sur les mêmes $y^{*}$, sans
   aucun tirage supplémentaire, de sorte que \code{sigma\_boot} et les p-values de Monte-Carlo
@@ -1990,7 +2003,11 @@ consignée dans \code{\$metadata}), elle tirait 499 échantillons $\mathcal{N}(0
 pour l'enveloppe du QQ-plot. Depuis, l'enveloppe est lue dans les résidus réajustés
 \code{bootstrap\$z\_boot} du bootstrap principal, sans aucun tirage (fiche~\ref{fiche:qqnorm})~:
 elle dépend de la graine \code{seed}, et la graine propre, sa constante et son champ de
-\code{\$metadata} ont été retirés. Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
+\code{\$metadata} ont été retirés. L'enveloppe du graphique dispersion-niveau
+(\code{engine\_enveloppe\_spread()}, issue~\#306, fiche~\ref{fiche:spread-location}) est lue de
+même dans \code{bootstrap\$z\_boot}, sans aucun tirage~: elle dépend de \code{seed} et de $B$ par
+ces réplications seulement, et son calcul laisse \code{.Random.seed} inchangé (mesure sur les
+références \code{premium} et \code{premium\_interieur}). Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
 d'enveloppe et ne tire rien (issue~\#311, décision Q-D1-Fm-4~; fiche~\ref{mw:m5sw})~: il
 n'ajoute aucune source d'aléa. La p de famille et la p globale de la lecture conjointe
 (issue~\#297, \code{engine\_p\_famille()}, fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})
@@ -13469,13 +13486,32 @@ $B_{\text{eff}}$ lignes entièrement finies. Deux bandes, de niveau \emph{fixe} 
 avec le seuil $\alpha$ du calcul~:
 \begin{itemize}[itemsep=2pt]
 \item la \emph{bande ponctuelle}, quantiles à 5~\% et 95~\% (type~7) de chaque colonne de $S$~;
-\item la \emph{bande simultanée}, enveloppe globale de Davison et Hinkley (1997, chap.~4),
+  principe de l'éq.~(4.16) de Davison et Hinkley (1997, § 4.2.4, p.~152), au choix du quantile
+  près (l'ouvrage prend les statistiques d'ordre de rangs $k$ et $B + 1 - k$)~;
+\item la \emph{bande simultanée}, enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4,
+  éq.~(4.17), p.~152--154),
   celle de la fonction \emph{envelope} du paquet \emph{boot}, réécrite dans le moteur~: bande
   formée, pour chaque statistique d'ordre, des $k$-ièmes plus petite et plus grande valeurs,
   $k^{\star}$ étant le plus grand $k$ tel que la proportion des lignes de $S$ ayant au moins une
   valeur strictement hors de la bande ne dépasse pas $0{,}10$ (les bandes étant emboîtées, la
   proportion croît avec $k$).
 \end{itemize}
+\emph{Règle de rang de la bande simultanée~: écart avec l'éq.~(4.17) et avec le graphique
+dispersion-niveau} (issue~\#385, ouverte). La règle de l'éq.~(4.17) (p.~153--154) fait sortir une
+ligne de la bande de rang $k$ si l'un de ses rangs de colonne est $\le k$ ou
+$\ge B_{\text{eff}} + 1 - k$, ce qui estime, par retrait de la ligne, le taux de sortie d'une courbe
+nouvelle. La règle du QQ-plot ne compte que les valeurs \emph{strictement} hors de la bande
+construite avec la ligne elle-même, soit, sans ex æquo, les rangs $\le k - 1$ ou
+$\ge B_{\text{eff}} + 2 - k$~: son taux au rang $k$ est celui de~(4.17) au rang $k - 1$ (égalité
+\code{identical()} mesurée pour $k = 2$ à 12 sur les références \code{premium} et
+\code{premium\_interieur}), et son $k^{\star}$ dépasse en général d'une unité celui de~(4.17)~:
+$k^{\star} = 8$ contre 7 sur ces deux références, au même taux in-sample ($9{,}2~\%$ et
+$9{,}0~\%$). La bande simultanée du QQ-plot est donc plus étroite d'un rang que celle de~(4.17),
+ce qui est cohérent avec l'optimisme du taux auto-évalué relevé ci-dessous, sans qu'il soit établi
+que ce décalage en soit la seule cause. Le graphique dispersion-niveau suit~(4.17) depuis
+l'issue~\#306 (fiche~\ref{fiche:spread-location})~; le QQ-plot garde sa règle tant que
+l'issue~\#385 n'est pas tranchée (décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026), et les
+deux graphiques ne se lisent donc pas exactement au même rang.
 \code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: source, $B_{\text{eff}}$, niveaux, rang
 $k^{\star}$, taux et seuil de la bande simultanée~; l'affichage les reprend (titre «~enveloppe de
 simulation 90~\%~» ou «~enveloppe indisponible~», sous-titre donnant $k$ et le nombre de
@@ -13655,10 +13691,24 @@ attribuables à une année isolée, ce que le graphique ne prétend pas faire.
 \label{fiche:spread-location}%
 \refl{J.\,W. Tukey, \emph{Exploratory Data Analysis}, Addison-Wesley, 1977 ; lissage local de
 W.\,S. Cleveland, \emph{Robust locally weighted regression and smoothing scatterplots},
-\emph{JASA}, 74(368), 1979, p.~829--836.}
+\emph{JASA}, 74(368), 1979, p.~829--836 ; enveloppe de simulation~: A.\,C. Atkinson (1981) et
+A.\,C. Davison, D.\,V. Hinkley (1997, § 4.2.4, éq.~(4.16) et~(4.17), p.~152--154),
+section~\ref{sec:biblio}.}
 \Cadre
 Nuage $\big(x_t,\ \sqrt{|z_t|}\big)$ avec courbe de lissage local (\emph{lowess}). Rattaché à
-l'hypothèse H2.
+l'hypothèse H2. La courbe observée (\code{plots\_data\$spread\_lisse}) est
+\code{stats::lowess(x, sqrt(abs(z)), f = SPREAD\_LOWESS\_F, iter = SPREAD\_LOWESS\_ITER)}, les
+deux constantes valant les défauts de R, $f = 2/3$ et trois itérations robustes, écrits en clair
+depuis l'issue~\#306 (courbe \code{identical()} à celle de l'appel par défaut sur les cas de
+référence \code{premium} et \code{premium\_interieur}, mesure). Le voisinage de chaque abscisse
+compte $\lfloor f\,n \rfloor$ points (documentation de \code{lowess()}~; dans le code C de R,
+\code{lowess.c}, partie entière de $f\,n$ bornée à $[2, n]$), soit 5 points à $T = 8$~; les
+itérations robustes pondèrent chaque point par le poids biweight de Tukey, avec une coupure à six
+fois la «~MAD~» des résidus (médiane des résidus absolus dans le code). Ces paramètres sont
+vérifiés dans la documentation et le code de R (relevé \code{docs/references/verifications-fn.md},
+S2.2), non dans l'article de Cleveland (1979), dont seule la notice a été vérifiée~: leur origine
+dans l'article n'est pas établie. Depuis l'issue~\#306, le
+graphique porte une enveloppe de simulation à deux bandes (rubrique~6).
 \Hzero
 Sans objet.
 \Stat
@@ -13669,11 +13719,121 @@ Sans objet.
 \Pval
 Sans objet.
 \Usage
-Une courbe lissée horizontale confirme que la pondération capture l'hétéroscédasticité~; une pente
-marquée signale une structure de variance résiduelle non modélisée, en cohérence avec un rejet de
-Breusch--Pagan ou de White. Limite~: le lissage local n'a aucune stabilité en-dessous d'une
-dizaine de points et sa forme dépend fortement du paramètre de fenêtre~; à $T$ faible, seule une
-pente très prononcée doit être retenue.
+Une courbe lissée horizontale est compatible avec une pondération qui capture
+l'hétéroscédasticité, sans le démontrer~; une pente marquée signale une structure de variance
+résiduelle non modélisée, en cohérence avec un rejet du test de Breusch--Pagan studentisé
+(Koenker), dont le verdict fait foi pour H2 (fiche~\ref{fiche:breusch-pagan-koenker}~; White,
+fiche~\ref{fiche:white}, est restitué en diagnostic depuis l'issue~\#299). Limite~: le lissage
+local n'a aucune stabilité en-dessous d'une dizaine de points et sa forme dépend fortement du
+paramètre de fenêtre. Sous le modèle ajusté lui-même, une pente apparente est fréquente~: sur les
+999 courbes simulées des cas de référence \code{premium} (jeu de contrôle) et
+\code{premium\_interieur} (jeu à $\hat\delta$ intérieur), l'écart entre les deux extrémités de la
+courbe dépasse $0{,}3$ dans $43{,}5~\%$ et $43{,}2~\%$ des cas, et l'amplitude de la courbe a pour
+médiane $0{,}52$ et $0{,}61$ (quantile à 90~\%~: $0{,}84$ et $0{,}95$), quand celle de la courbe
+observée vaut $0{,}59$ et $0{,}61$ (mesure sur \code{bootstrap\$z\_boot} des références~; constat
+de simulation sous le modèle ajusté à deux jeux). Une pente visible ne se lit donc qu'à
+l'enveloppe ci-dessous, et seule une sortie de sa bande simultanée retient l'attention.
+
+\emph{Construction de l'enveloppe} (issue~\#306, spécification D1-Fn, décisions du mainteneur
+Q-D1-Fn-1 à Q-D1-Fn-3 du 27~octobre 2026). \code{engine\_enveloppe\_spread()} reprend la
+construction de l'enveloppe du QQ-plot (fiche~\ref{fiche:qqnorm}), sans aucun tirage~: pour chaque
+ligne entièrement finie de \code{bootstrap\$z\_boot} (résidus réajustés du bootstrap paramétrique
+sous le modèle ajusté, construction d'Atkinson~; graine \code{seed}, §\ref{sec:graines}), la courbe
+simulée est \code{lowess()} de $\big(x_t, \sqrt{|z^{*}_t|}\big)$, aux paramètres de la courbe
+observée. Une courbe simulée non finie est écartée (garde inatteignable depuis
+\code{run\_engine()}, où les $z^{*}$ réajustés sont finis). Soit $L$ la matrice
+$B_{\text{eff}} \times T$ des courbes retenues, colonnes dans l'ordre croissant de $x$, celui de la
+courbe observée, et $L_{(k),j}$ la $k$-ième plus petite valeur de la colonne~$j$. Deux bandes, de
+niveau \emph{fixe} de 90~\% (\code{ENVELOPPE\_QQ\_NIVEAU}), sans lien avec le seuil $\alpha$ du
+calcul~:
+\begin{itemize}[itemsep=2pt]
+\item la \emph{bande ponctuelle}, quantiles à 5~\% et 95~\% (type~7, \code{ENVELOPPE\_QQ\_PROBS})
+  de chaque colonne de $L$~: principe de l'éq.~(4.16) de Davison et Hinkley (1997, § 4.2.4,
+  p.~152), qui prend les statistiques d'ordre de rangs $k$ et $B + 1 - k$, avec $k/(B+1)$ égal au
+  taux ponctuel visé, au choix du quantile près~;
+\item la \emph{bande simultanée}, $\big[L_{(k^{\star}),j},\ L_{(B_{\text{eff}}+1-k^{\star}),j}\big]$,
+  dont le rang $k^{\star}$ suit la règle de l'éq.~(4.17) de Davison et Hinkley (1997, § 4.2.4,
+  p.~153--154), celle de la fonction \emph{envelope} du paquet \emph{boot}
+  (\code{engine\_rang\_simultane\_dh()}, décision Q-D1-Fn-2)~: une ligne de $L$ \emph{sort} de la
+  bande de rang $k$ si, dans au moins une colonne~$j$, sa valeur est $\le L_{(k),j}$ ou
+  $\ge L_{(B_{\text{eff}}+1-k),j}$~; inégalités larges, de sorte que la ligne qui porte la valeur de
+  rang $k$ sort, et que les ex æquo d'une borne comptent comme sorties. Le taux est la proportion
+  de ces lignes, rapportée à $B_{\text{eff}}$ (la fonction \emph{envelope} la rapporte à
+  $B_{\text{eff}} + 1$)~; $k^{\star}$ est le plus grand $k$ dont le taux ne dépasse pas
+  \code{ENVELOPPE\_QQ\_TAUX\_MAX} $= 0{,}10$, le balayage s'arrêtant au premier $k$ qui le dépasse
+  (les bandes étant emboîtées, le taux croît avec $k$). Selon l'ouvrage (p.~154), sortir ainsi de
+  la bande de rang $k$ équivaut à sortir de la bande de même rang tirée de toutes les autres
+  lignes~: le taux estime, par retrait de la ligne, le taux de sortie d'une courbe
+  \emph{nouvelle}, ce qu'est la courbe observée.
+\end{itemize}
+\emph{Rang $k = 1$.} À $k = 1$, sortent les lignes qui portent le minimum ou le maximum d'au moins
+une colonne, ex æquo compris~: $k = 1$ n'est admissible que si \emph{au plus 10~\% des lignes
+portent un extrême de colonne}. Sans ex æquo, au plus $2T$ lignes en portent~; $k = 1$ est donc
+admissible dès que $2T \le 0{,}10\,B_{\text{eff}}$, soit, à $T = 8$, dès $B_{\text{eff}} \ge 160$,
+et en particulier pour toute bande simultanée calculée ($B_{\text{eff}} \ge 500$)~: il ne peut
+cesser de l'être qu'avec des ex æquo, ou, à $B_{\text{eff}} = 500$, au-delà de $T = 25$. Faute de $k$
+admissible, la bande simultanée n'est pas restituée.
+
+\emph{Restitution et dégénérescences.} \code{plots\_data\$spread\_enveloppe} (méthode lognormale
+seulement) porte \code{bandes} ($T$ lignes~: \code{x}, \code{bas}, \code{haut}, \code{sim\_bas},
+\code{sim\_haut}), \code{source}, $B_{\text{eff}}$ (nombre de courbes retenues), les niveaux, le
+rang \code{k}, \code{taux\_global\_ponctuel}, \code{taux\_global\_simultane}, le seuil
+\code{B\_min\_simultane}, \code{regle\_rang} (\code{"DH1997\_4.17"}) et \code{motif} (\code{NA}
+sauf dégénérescence), que l'affichage reprend sans calcul (sous-titre~: bandes tracées, $k$ et
+nombre de réplications, puis le motif). \code{taux\_global\_simultane} est le taux de~(4.17) au
+rang $k^{\star}$~; \code{taux\_global\_ponctuel} est la proportion des lignes ayant au moins une
+valeur strictement hors de la bande ponctuelle (convention du QQ-plot), qui coïncide, à
+$B_{\text{eff}} = 999$ et sans ex æquo, avec l'estimateur~(4.17) au rang~50 (les quantiles de
+type~7 à 5~\% et 95~\% tombant strictement entre les statistiques d'ordre 50 et 51, et 949
+et 950~; égalité \code{identical()} mesurée sur les cinq références lognormales). Les seuils sont
+ceux du QQ-plot~: à volumes constants (\code{usp\_volumes\_constants()}), aucune courbe n'est
+calculée, $B_{\text{eff}} = 0$, motif «~\code{volumes constants : graphique dispersion-niveau sans
+objet}~»~; sous $B_{\text{eff}} = 20$ (\code{ENVELOPPE\_QQ\_B\_MIN}), aucune bande~; sous
+$B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), ou faute de $k$ admissible, bande
+ponctuelle seule, chaque cas avec son motif. Sous \code{refit = FALSE} (appel direct de
+\code{usp\_bootstrap()}, hors \code{run\_engine()}), les $z^{*}$ sont des résidus à paramètres
+fixes et l'enveloppe n'est plus celle d'Atkinson. Le calcul ne modifie pas \code{.Random.seed}
+(mesure).
+
+\emph{Mesures sur les références} ($B = 999$, graine 20260831~; mêmes valeurs sur les quatre cas
+du jeu de contrôle, \code{premium}, \code{reserve1}, \code{premium\_ii6}, \code{premium\_net},
+dont les $z^{*}$ sont identiques)~: jeu de contrôle, $B_{\text{eff}} = 999$, $k^{\star} = 9$,
+taux in-sample de la bande simultanée $95/999 = 9{,}5~\%$, de la bande ponctuelle $42{,}3~\%$,
+largeur de la bande ponctuelle de $0{,}50$ à $0{,}84$ selon l'abscisse et de la bande simultanée
+de $0{,}75$ à $1{,}19$~; \code{premium\_interieur}, $k^{\star} = 7$, taux $96/999 = 9{,}6~\%$ et
+$45{,}3~\%$. Sur les deux jeux, la courbe observée reste dans les deux bandes.
+
+\emph{Lecture.} \textbf{Une sortie de la bande ponctuelle n'est pas un signal}~: une courbe tirée
+sous le modèle ajusté en sort en au moins un point dans 42 à 46~\% des cas ($42{,}3~\%$ et
+$45{,}3~\%$ in-sample sur les deux références ci-dessus~; $42{,}2~\%$ et $45{,}7~\%$ en moyenne hors
+échantillon, sur huit bootstraps de $B = 999$, graines 1001 à 1008, évalués sur 8\,000 courbes
+indépendantes, graine 424242). C'est le phénomène que décrivent Davison et Hinkley (1997, § 4.2.4,
+p.~153~: dans leur exemple~4.7, une chance d'environ $0{,}5$ qu'un point sorte de l'enveloppe,
+contre $0{,}1$ ponctuellement). Seule une sortie de la bande simultanée retient l'attention~: une
+courbe tirée sous le modèle ajusté en sort au taux nominal de 10~\%, mesuré hors échantillon à
+$9{,}2~\%$ en moyenne sur chacun des deux jeux (de $8{,}25$ à $10{,}6~\%$ et de $6{,}8$ à
+$10{,}7~\%$ selon la graine, même protocole), contre $10{,}3~\%$ avec la règle de rang du QQ-plot.
+Ces taux sont des constats de simulation sur deux jeux, non un résultat général (pièces
+\code{d\_hors\_ech} et \code{h\_rang} de \code{docs/tableaux/20261027-fn-pilote.md}, spécification
+D1-Fn, § 1.2~; les courbes indépendantes, et celles des huit bootstraps de \code{h\_rang}, y sont
+réajustées par une boucle hors moteur qui appelle \code{usp\_ajuster\_rapide()}). L'enveloppe n'a ni p-value ni verdict (aide graphique, ADR~0001)~; la puissance de cette
+lecture contre une hétéroscédasticité résiduelle n'est pas mesurée, et une courbe contenue dans
+la bande simultanée n'est pas une preuve d'adéquation.
+
+\emph{Bande inconditionnelle au régime de $\hat\delta^{**}$} (décision Q-D1-Fn-3). L'enveloppe est
+construite sur toutes les lignes finies de \code{z\_boot}, les trois régimes de $\hat\delta^{**}$
+mêlés, comme celle du QQ-plot~: la courbe observée est calculée avec $\hat\delta$ estimé, et sa
+loi de référence est celle de la même courbe sous le modèle ajusté, réestimation comprise~; le
+flux complémentaire de la p-value de Monte-Carlo conditionnelle au régime (issue~\#240) ne
+conserve pas les $z^{*}$, et une bande conditionnelle se limiterait aux réplications du bootstrap
+principal à $\hat\delta^{**}$ intérieur, 46 sur le jeu de contrôle et 203 sur
+\code{premium\_interieur}, sous le seuil de 500. \emph{Limite} (constat du 27~octobre 2026, issue
+\#386)~: sur \code{premium\_interieur}, la courbe observée est, au plus grand volume ($x = 300$),
+au rang $0{,}005$ de la loi des 203 courbes à $\hat\delta^{**}$ intérieur, contre $0{,}107$ dans la
+loi inconditionnelle~; la bande simultanée tirée de ces 203 courbes l'exclut avec la règle de rang
+du QQ-plot ($k^{\star} = 2$), la contient avec la règle~(4.17) ($k^{\star} = 1$, bande
+$[\min, \max]$ de chaque colonne). Le régime peut donc changer la lecture en un point d'un cas de
+référence~; constat in-sample, à granularité minimale, sans valeur probante.
 \end{fiche}
 
 \begin{fiche}{Visualisation de la régression chain-ladder (Merz--Wüthrich)}
@@ -19419,7 +19579,10 @@ soutient dans le présent document.
   résidus estimés et non celle d'un échantillon indépendant. C'est la
   construction de l'enveloppe du QQ-plot depuis l'issue~\#47, lue dans les
   résidus réajustés du bootstrap principal (fiche~\ref{fiche:qqnorm})~; sa bande
-  simultanée suit l'enveloppe globale de Davison et Hinkley (1997, chap.~4).
+  simultanée suit l'enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4, éq.~(4.17),
+  p.~152--154), à un rang près (issue~\#385). Depuis l'issue~\#306, l'enveloppe du graphique
+  dispersion-niveau reprend la même construction, avec la règle de rang de l'éq.~(4.17)
+  (fiche~\ref{fiche:spread-location}).
   Aldor-Noiman et al. (2013) construit des bandes
   \emph{simultanées} pour le QQ-plot normal d'un échantillon et soutient la
   distinction, faite dans la même fiche, entre bande ponctuelle et bande
@@ -19428,7 +19591,7 @@ soutient dans le présent document.
   d'un modèle à trois paramètres estimés sur $T = 8$ observations, ni le niveau
   réel de l'enveloppe globale à $B$ fini~: les proportions de sortie de bande et
   les niveaux réels cités dans la fiche sont des constats de simulation propres
-  au jeu de contrôle.
+  au jeu de contrôle, et, pour le graphique dispersion-niveau, à deux jeux.
 
   \item C.\,J. Clopper, E.\,S. Pearson, \emph{The use of confidence or fiducial
   limits illustrated in the case of the binomial}, \emph{Biometrika}, 26(4),
