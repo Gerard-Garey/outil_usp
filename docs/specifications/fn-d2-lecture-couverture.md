@@ -26,7 +26,7 @@ Marques : [V] vérifié (fichier:ligne, commande lue ou relevé versionné avec 
 
 **Ce que les tableaux complets ajoutent [V]**
 - **Queues séparées à 90 %.** Pour I1, I2, I3 et A1, presque tous les manques sont au-dessus (σ0 au-delà de la borne haute) ; pour I1, 0 jeu sur 1 000 sous la borne basse. Pour I4, queues équilibrées et compatibles avec 5 % chacune : 4,5 / 6,0 % (J1), 5,5 / 5,9 % (J2).
-- **95 %.** I4 compatible sur les deux jeux (0,940), avec deux réserves : K-C4, l'IC de τ va jusqu'à 0,0766 et dépasse 3ρ/2 = 0,075 ; queue haute de J1 « non tranchée », 4,3 % [3,1 ; 5,8] contre 2,5 % nominal. I1 à 95 % couvre 0,790 (J1) et 0,714 (J2).
+- **95 %.** I4 compatible sur les deux jeux (0,940), avec deux réserves : K-C4, l'IC de τ va jusqu'à 0,0766 et dépasse 3ρ/2 = 0,075 ; queue haute de J1 « non tranchée », 4,3 % [3,1 ; 5,8] contre 2,5 % nominal. *(Annotation du 27/10/2026 : borne haute de Clopper-Pearson exacte 5,7486 %, `qbeta(0.975, 44, 957)`, soit 5,7 ; le 5,8 venait d'un double arrondi. Le `.tex` écrit 5,7.)* I1 à 95 % couvre 0,790 (J1) et 0,714 (J2).
 - **Régimes (T3).** La sous-couverture du percentile n'est pas un effet du bord : sur J2, 0,632 au bord contre 0,660 à l'intérieur (n = 250) ; J1, où δ0 est au bord, ne fait pas pire que J2. I4 sur J2 : 0,891 au bord, 0,872 [0,824 ; 0,911] à l'intérieur. L'intérieur de J1 (n = 35) n'apporte pas d'information. Rien ne justifie un intervalle conditionnel au régime.
 - **I3 (restreint)** sous-couvre autant que I1 : 0,726 et 0,654.
 - **A1 (percentile × √(9/7))** reste en distorsion libérale : 0,820 et 0,770.
