@@ -442,7 +442,7 @@ if (!is.finite(OPT_B_CTRL) || OPT_B_CTRL < OPT_B)
   stop("--B-controle : entier >= --B (les B premieres replications sont controlees contre usp_bootstrap())")
 
 # --- Outils (copies declarees, voir l'en-tete) -----------------------------------
-git_depot <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", RACINE, ...), stdout = TRUE,
+git_depot <- function(...) tryCatch(suppressWarnings(system2("git", c("-C", shQuote(RACINE), ...), stdout = TRUE,
                                                              stderr = FALSE)),
                                     error = function(e) NULL)
 # commit_depot() et motifs_non_versionnable() : tests/outils_tests.R (#205).
