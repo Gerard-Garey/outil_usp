@@ -348,14 +348,17 @@ l'application. Depuis l'issue~\#285, la vue Détail de l'onglet Tests et les tab
 de la section~5 du rapport figé («~Tests retenus~») portent une colonne «~granularité MC~»~: la
 granularité effective de la p-value de Monte-Carlo de la ligne, $1/(B_{\text{eff}}+1)$, ou
 $2/(B_{\text{eff}}+1)$ en bilatéral, lue sans calcul dans \code{bootstrap\$granularite\_stat}
-par \code{granularite\_lignes()} de \code{R/display\_helpers.R}, qui retrouve la statistique de
-la ligne par l'égalité exacte de sa p-value et de son erreur de Monte-Carlo. La colonne porte
+par \code{granularite\_lignes()} de \code{R/display\_helpers.R}, sous le nom de la statistique de
+Monte-Carlo de la ligne, champ \code{mc\_nom} posé par \code{add()}, sans appariement
+(issue~\#330). La colonne porte
 un tiret quand la ligne n'a pas de p-value de Monte-Carlo, quand celle-ci est calculée hors du
-bootstrap principal (rapport de vraisemblance sur $\delta$, permutations du test de Pitman~:
-\code{FONCTIONS\_P\_MC\_EXTERNE}) ou quand l'appariement est ambigu. Mesuré sur les cas de
+bootstrap principal (rapport de vraisemblance sur $\delta$, permutations du test de Pitman, et,
+depuis l'issue~\#297, p de famille et p globale de la lecture conjointe, sans clé propre~:
+\code{mc\_nom} manquant) ou quand la granularité de la statistique n'est pas disponible. Mesuré sur les cas de
 référence \code{premium} et \code{premium\_interieur}~: granularité lue, $0{,}001$ ou
 $0{,}002$ à $B = 999$, pour toute ligne à p-value de Monte-Carlo finie, sauf celles du rapport de
-vraisemblance sur $\delta$, à tiret. Les tests restitués sont les \emph{tests retenus}
+vraisemblance sur $\delta$ et de la lecture conjointe, à tiret (remesuré par
+\code{granularite\_lignes()} sur les références~: sept tirets par cas, deux et cinq). Les tests restitués sont les \emph{tests retenus}
 selon la règle de l'onglet Tests, appliquée par la même fonction
 (\code{filtrer\_selection()}), les tests exclus figurant en annexe avec leur
 verdict, leur p-value retenue et le motif de leur exclusion~; le tableau de
@@ -639,6 +642,15 @@ prédicat «~$\gamma$ sur une borne~» du moteur, lu par \code{usp\_condition\_p
 (projection du gradient en $\gamma$, pas de Newton), \code{usp\_kkt\_satisfaite()},
 \code{usp\_ajuster()} (champ \code{\$gamma\_bord\_au\_moins\_un}, issue~\#227),
 \code{usp\_controles\_numeriques()} et \code{usp\_valider\_ajustement()} (issue~\#322) \\
+\code{usp\_delta\_bord()} & $\delta$, \code{tol} (\code{TOL\_DELTA\_BORD}~; refus par une erreur
+hors de $0 \le \mathtt{tol} < 0{,}5$) & \code{"basse"} si $\delta \le \mathtt{tol}$,
+\code{"haute"} si $\delta \ge 1 - \mathtt{tol}$, \code{NA} sinon (intérieur) et pour un $\delta$
+\code{NA} ou \code{NaN}~; $-\infty$ compté sur la borne basse, $+\infty$ sur la borne haute~;
+seul prédicat «~$\delta$ sur une borne~» du moteur (issue~\#331), lu par
+\code{usp\_condition\_premier\_ordre()} (projection du gradient en $\delta$),
+\code{usp\_regime()} et les deux comparaisons à une borne $\delta_0$ donnée,
+\code{usp\_lr\_delta()} et la ligne du rapport de vraisemblance d'\code{usp\_tests()}
+(fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}) \\
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
 objectif minimal retenu (issue~\#109), gradient analytique, \code{factr = 1e4}, employé par
@@ -663,7 +675,8 @@ strictement positif, appliqué avant les régressions auxiliaires de RESET et de
 \code{TOL\_DELTA\_BORD}, $10^{-6}$) & drapeaux \code{\$delta\_au\_bord},
 \code{\$volumes\_constants}, \code{\$pi\_constant}, \code{\$pi\_constant\_exact},
 \code{\$delta\_dans\_bande}, \code{\$volumes\_dans\_bande} (fiche~\ref{fiche:position-delta},
-fiche~\ref{fiche:centrage}) \\
+fiche~\ref{fiche:centrage})~; bord de $\delta$ lu dans \code{usp\_delta\_bord()} depuis
+l'issue~\#331, un $\delta$ \code{NA} ou \code{NaN} donnant des drapeaux de bord \code{NA} \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Lois exactes}}} \\
 \code{mk\_p\_exacte()} & série $r_t$, \code{plancher} (1) & p-value exacte (loi mahonienne)~;
 \code{plancher} est celui de l'aplatissement des ex \ae quo (section~\ref{sec:ex-aequo})~: 0
@@ -887,7 +900,8 @@ libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une li
 catalogue, refusés avec une clé \code{mc\_nom}, issue~\#45~; argument obligatoire
 \code{fonction}, provenance de la ligne, refusé s'il est absent, vide, non textuel ou s'il ne
 désigne pas une fonction de l'environnement du moteur, issue~\#111~; champ \code{inoperant}
-posé sur chaque ligne, issue~\#129~; argument \code{nature\_as}, nature d'une p non simulée
+posé sur chaque ligne, issue~\#129~; argument \code{mc\_nom} conservé dans le champ du même nom,
+dernier de la ligne, \code{NA} sans clé, issue~\#330~; argument \code{nature\_as}, nature d'une p non simulée
 retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, toute autre valeur
 refusée, issue~\#120),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
@@ -901,6 +915,22 @@ de Monte-Carlo (issue~\#128), règle de verdict (seuil d'\code{ECHEC} des tests 
 \code{PHRASE\_VERDICT\_SENSIBLE\_MC} d'un verdict de Monte-Carlo à moins de deux erreurs de
 Monte-Carlo d'un seuil atteignable (issue~\#244, §\ref{sec:nature}), refus d'une clé
 Monte-Carlo absente du catalogue ou du bootstrap \\
+\code{engine\_p\_famille()} & lignes enregistrées par \code{add()}, objet bootstrap
+(\code{stats\_boot}, \code{stats\_obs}), catalogue de la méthode & arguments d'\code{add()} des
+lignes de lecture conjointe (issue~\#297, fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale})~: une ligne de diagnostic par famille d'au moins deux membres, dans
+l'ordre des préfixes, puis une ligne globale (famille \code{FAMILLE\_LECTURE\_CONJOINTE}, préfixe
+\code{PREFIXE\_LECTURE\_CONJOINTE})~; p minP en une étape passée par \code{p\_mc\_ext}, son erreur
+de Monte-Carlo par \code{err\_mc\_ext}~; commentaires \code{DETAIL\_P\_FAMILLE},
+\code{DETAIL\_P\_GLOBALE}, \code{PHRASE\_FAMILLE\_B\_EFF\_REDUIT} et
+\code{PHRASE\_FAMILLE\_B\_EFF\_INSUFFISANT}, référence \code{REFERENCE\_P\_FAMILLE}~; liste vide,
+sans repli, si l'objet bootstrap n'a pas de \code{stats\_boot}~; erreur si un membre n'a pas de
+colonne dans \code{stats\_boot} ou d'entrée au catalogue~; aucun tirage~; appelée en fin
+d'\code{usp\_tests()} et de \code{mw\_tests()}, fonction commune aux deux méthodes \\
+\code{.engine\_minp\_rangs()} & matrice des réplications complètes des membres, statistiques
+observées, sens de rejet & numérateurs entiers des rangs symétriques, l'observé compris~: p de
+chaque membre sur l'observé, plus petite p observée et p de famille, sur le dénominateur commun
+$n + 1$~; erreur sur un sens inconnu ou une statistique non finie~; aucun tirage \\
 \code{usp\_simuler()} & \code{fit} & $T$ pertes $y_t$ simulées sous le modèle
 ajusté (ou sous le modèle contraint, pour \code{usp\_lr\_delta()}) \\
 \code{usp\_ajuster\_contraint()},\newline \code{TOL\_GAMMA\_CONTRAINT} & $x$, $y$, $\delta_0$,
@@ -938,8 +968,16 @@ d'\code{usp\_graine\_flux\_regime()} jusqu'à $B$ retenus ou $25\,(B+1)$ tirages
 (\code{FACTEUR\_B\_MAX\_REGIME}), et \code{MOTIF\_MC\_REGIME\_RARE} remplace les motifs de nombre de
 réplications quand ce plafond est atteint avec moins de \code{B\_MIN\_DEGENERESCENCE} tirages
 retenus, à $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (fiche~\ref{fiche:procedure-mc})~;
-en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Carlo par statistique
-(\code{NA} pour les statistiques continues), calculé sur les tirages retenus \\
+depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Carlo par statistique
+(\code{NA} pour les statistiques continues), calculé sur les tirages retenus (dernier élément
+jusqu'à l'issue~\#297)~; en dernier élément depuis l'issue~\#297, \code{stats\_boot}, matrice des
+réplications passée à \code{.mc\_p\_values()}, colonnes dans l'ordre du catalogue~: sous la
+variante marginale, $B$ lignes alignées sur \code{z\_boot}, \code{NA} pour une réplication
+écartée~; sous la variante conditionnelle au régime, les tirages retenus, ceux des $B$ réplications
+d'abord puis ceux du flux complémentaire, \emph{non} alignés sur \code{z\_boot}~; pour chaque
+statistique, \code{engine\_p\_mc()} appliquée à sa colonne redonne \code{p\_mc} (remesuré sur les
+trois cas \code{premium}, \code{premium\_interieur} et \code{reserve2}, matrices $999 \times 31$
+et $999 \times 13$)~; lue par \code{engine\_p\_famille()} (fiche~\ref{fiche:p-famille}) \\
 \code{mw\_bootstrap()} & \code{aj}, $B$ (999), \code{seed} (20260831), \code{figes}
 (\code{NULL}~: objet des ensembles figés construit sur \code{aj} par
 \code{.mw\_ensembles\_figes()}, même calcul~; issue~\#278) &
@@ -947,8 +985,10 @@ en dernier élément depuis l'issue~\#125, \code{p\_min\_mc}, plancher Monte-Car
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, depuis l'issue~\#257 \code{cumuls\_retires} (au moins un triangle simulé
 écarté et remplacé par un nouveau tirage) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
-atteint avant $B$ triangles acceptés~: des réplications manquent), et, en dernier depuis
-l'issue~\#125, \code{p\_min\_mc} \\
+atteint avant $B$ triangles acceptés~: des réplications manquent), depuis
+l'issue~\#125, \code{p\_min\_mc}, et, en dernier depuis l'issue~\#297, \code{stats\_boot}, matrice
+des $B$ réplications passée à \code{.mc\_p\_values()} (\code{NA} pour une réplication écartée), lue
+par \code{engine\_p\_famille()} \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
 \code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
@@ -963,7 +1003,9 @@ d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, ou, depuis l'issue~\#327, années
 d'influence égale à la précision numérique près, et, depuis l'issue~\#224, années
 non évaluables~; fiche~\ref{fiche:jackknife})~;
-celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap}) \\
+celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap})~;
+depuis l'issue~\#297, lignes de lecture conjointe d'\code{engine\_p\_famille()} posées après
+toutes les autres et avant le repère de renvoi, qu'elles ne reçoivent pas \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Robustesse et calibration}}} \\
 \code{usp\_jackknife()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
@@ -1359,7 +1401,9 @@ chaque fonction de test. Précondition~: \code{figes} est l'objet même qui a se
 pas vérifiée, \code{boot} ne portant pas les ensembles figés (les y ajouter changerait les
 références), et un objet différent ferait lire les statistiques observées et simulées de
 \code{boot} avec des ensembles d'une autre définition, sans erreur~; \code{run\_engine()} la
-garantit, \code{.run\_engine\_mw()} construisant l'objet une fois et le passant aux deux appels \\
+garantit, \code{.run\_engine\_mw()} construisant l'objet une fois et le passant aux deux appels~;
+depuis l'issue~\#297, lignes de lecture conjointe d'\code{engine\_p\_famille()} en fin de liste,
+sans les phrases des issues~\#204 et~\#257 \\
 \code{.mw\_phrase\_b\_}\newline\code{effectif()} & \code{boot}, \code{mc\_nom} & phrase
 «~\code{B effectif = \dots{} sur B = \dots}~» jointe par \code{mw\_tests()} au commentaire d'une
 ligne de Monte-Carlo (cas~A, $B_{\text{eff}} < B$ et p-value finie, sous deux formes depuis
@@ -1467,9 +1511,12 @@ section~\ref{sec:graphiques}) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
-\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 27 colonnes (mesuré
-sur le cas \code{premium}), dont la colonne \code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
-qui la suit (issue~\#125, \code{NA} pour un objet antérieur au champ), la colonne dérivée
+\code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 28 colonnes (mesuré
+sur les cas \code{premium} et \code{reserve2}~; 27 avant l'issue~\#330), dont la colonne
+\code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
+qui la suit (issue~\#125, \code{NA} pour un objet antérieur au champ), puis la colonne
+\code{mc\_nom} (issue~\#330, nom de la statistique de Monte-Carlo de la ligne, \code{NA} pour un
+objet antérieur au champ), la colonne dérivée
 \code{renvoi} (issue~\#215~: repère «~voir aussi~», calculé par \code{usp\_renvois()} à partir des
 seuls champs \code{test}, \code{variante}, \code{type} et \code{p\_exacte} des lignes, jamais du
 commentaire~; non posé par \code{add()}, absent des références~; \code{NA} pour toute ligne de la
@@ -1477,7 +1524,7 @@ méthode Merz--Wüthrich, fiche~\ref{fiche:student-constante}, rubrique~6) et, e
 positions, après \code{renvoi}, les colonnes \code{fonction},
 provenance de la ligne (issue~\#111), et \code{inoperant}, indicateur logique de test inopérant
 (issue~\#129~; \code{NA} pour un objet antérieur au champ)~; l'export CSV de l'application
-reprend ces 27 colonnes telles quelles \\
+reprend ces 28 colonnes telles quelles \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
 \code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
@@ -1944,7 +1991,13 @@ pour l'enveloppe du QQ-plot. Depuis, l'enveloppe est lue dans les résidus réaj
 elle dépend de la graine \code{seed}, et la graine propre, sa constante et son champ de
 \code{\$metadata} ont été retirés. Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
 d'enveloppe et ne tire rien (issue~\#311, décision Q-D1-Fm-4~; fiche~\ref{mw:m5sw})~: il
-n'ajoute aucune source d'aléa.
+n'ajoute aucune source d'aléa. La p de famille et la p globale de la lecture conjointe
+(issue~\#297, \code{engine\_p\_famille()}, fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})
+ne tirent rien non plus~: elles comptent des rangs dans la matrice des réplications du bootstrap
+principal (\code{bootstrap\$stats\_boot}) et dans les statistiques observées~; elles dépendent de
+la graine \code{seed} par ces réplications seulement. Mesuré~: un appel direct
+d'\code{engine\_p\_famille()} sur les lignes et le bootstrap de la référence \code{premium} laisse
+\code{.Random.seed} identique.
 Jusqu'à l'issue~\#42, \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
 voie de repli sans le paquet \code{openxlsx}, tiraient une valeur par \code{runif()}, sans
 graine, pour nommer un dossier temporaire qui n'était jamais supprimé. Elles ne tirent plus
@@ -2354,7 +2407,8 @@ il relie \textbf{chaque test documenté} --- méthode lognormale en partie~III,
 méthode Merz--Wüthrich en sections~\ref{sec:mwm1} à~\ref{sec:mwm6} --- à la ou aux fonctions R
 qui calculent sa statistique, et à celle(s) qui calculent chacune des p-values
 disponibles. Les entrées sont groupées par hypothèse~: H1 à H4 pour la méthode
-lognormale, M1 à M6 pour la méthode Merz--Wüthrich. La colonne « Réf. » renvoie à la fiche correspondante. La méthode
+lognormale, M1 à M6 pour la méthode Merz--Wüthrich~; un dernier groupe porte les lignes de
+lecture conjointe, communes aux deux méthodes (section~\ref{sec:lecture-conjointe}). La colonne « Réf. » renvoie à la fiche correspondante. La méthode
 générale de p-value de Monte-Carlo est décrite à part
 (fiche~\ref{fiche:procedure-mc}, page~\pageref{fiche:procedure-mc})~: la colonne « Clé MC » indique,
 pour chaque test, le nom de l'entrée du catalogue des statistiques Monte-Carlo de la méthode
@@ -2450,7 +2504,8 @@ Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct)
 \ae quo) & \code{Smirnov} \\
 Position de $\hat\delta$ & \ref{fiche:position-delta} & \code{usp\_ajuster()} (champ
 \code{\$delta})~; drapeau \code{\$delta\_au\_bord} par \code{usp\_regime()},
-tolérance \code{TOL\_DELTA\_BORD} & diagnostic, aucune p-value & --- \\
+tolérance \code{TOL\_DELTA\_BORD}, bord lu dans \code{usp\_delta\_bord()} (issue~\#331) &
+diagnostic, aucune p-value & --- \\
 
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Hypothèse H3 --- lognormalité de la variable modélisée (pertes agrégées~; montant de C(1)(a))}}} \\
 \midrule
@@ -2498,7 +2553,7 @@ Suites sur ratios bruts & \ref{fiche:suites-ratios-bruts} & \code{test\_runs()} 
 \code{runs\_p\_min()} ($p_{\min}$) & \code{Runsr} \\
 Condition du premier ordre (contrôle numérique, hors table des tests) & \ref{fiche:foc} &
 \code{usp\_condition\_premier\_ordre()}, \code{usp\_kkt\_satisfaite()}, \code{usp\_gamma\_bord()},
-\code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
+\code{usp\_delta\_bord()}, \code{usp\_ajuster()} (champ \code{\$kkt\_au\_moins\_un}), \code{usp\_controles\_numeriques()} &
 contrôle \code{OK} / \code{ECHEC}, aucune p-value & --- \\
 Existence du maximum de vraisemblance (contrôle de validité, après ajustement, hors table des
 tests) & \S\ref{sec:controles} & \code{usp\_valider\_ajustement()} (lit \code{\$gamma},
@@ -2536,7 +2591,8 @@ aucune hors Monte-Carlo & \code{Grubbsr} \\
 \multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Robustesse de l'estimation (méthode lognormale)}}} \\
 \midrule
 Rapport de vraisemblance sur $\delta$ & \ref{fiche:rv-delta} &
-\code{usp\_lr\_delta()} & diagnostic, aucune p-value retenue (p de Monte-Carlo
+\code{usp\_lr\_delta()} (borne atteinte jugée par \code{usp\_delta\_bord()}, issue~\#331) &
+diagnostic, aucune p-value retenue (p de Monte-Carlo
 par bootstrap paramétrique restreint dans \code{p\_mc}~; mélange
 $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire) & --- \\
 Jackknife & \ref{fiche:jackknife} & \code{usp\_jackknife()} &
@@ -2668,6 +2724,15 @@ diagnostic, aucune p-value & --- \\
 Contributions par année de survenance & \ref{mw:influence} &
 \code{mw\_contributions()} & diagnostic, aucune p-value & --- \\
 
+\multicolumn{5}{@{}l@{}}{\textbf{\textcolor{financeblue}{Lecture conjointe des tests (deux méthodes, issue~\#297)}}} \\
+\midrule
+p de famille (minP, lecture conjointe) & \ref{fiche:p-famille} & \code{engine\_p\_famille()},
+\code{.engine\_minp\_rangs()} (plus petite p-value de Monte-Carlo des membres, rangs sur
+\code{bootstrap\$stats\_boot}) & diagnostic, aucune p-value retenue (p de famille de Monte-Carlo
+dans \code{p\_mc}~; aucune p non simulée) & --- (colonnes des membres) \\
+p globale (minP, lecture conjointe de la batterie) & \ref{fiche:p-globale} & idem, sur les
+membres de toutes les familles & idem & --- (colonnes des membres) \\
+
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -2708,7 +2773,9 @@ premier ordre, sa dispersion sous le modèle est gouvernée par celle des poids
 $\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
 modèle~; à $\hat\pi_t$ constant, sa loi simulée porte en outre un atome en la
 valeur observée (centrage et variance unitaire des résidus
-standardisés, fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}). Dans tous les autres cas, la clé
+standardisés, fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire})~; les lignes de
+lecture conjointe, enfin, ont une p-value de Monte-Carlo sans clé propre, calculée sur les
+colonnes des clés de leurs membres (fiche~\ref{fiche:p-famille}). Dans tous les autres cas, la clé
 est le nom d'une entrée du catalogue de la méthode, qui est aussi le nom de colonne retourné
 par \code{.stats\_bootstrapables()} (ou \code{.mw\_stats()}) et consommé par
 \code{usp\_bootstrap()} (ou \code{mw\_bootstrap()}). La fonction d'enregistrement
@@ -3028,9 +3095,8 @@ elle n'est qu'un \emph{diagnostic facultatif} (M5).
 Les sorties du script distinguent explicitement trois grandeurs, qui ne doivent jamais être
 confondues et figurent dans des champs séparés~:
 
-\begin{center}
-\small
-\begin{tabular}{@{}p{2.3cm}p{12.9cm}@{}}
+{\small
+\begin{longtable}{@{}p{2.3cm}p{12.9cm}@{}}
 \toprule
 \code{stat} & \textbf{Statistique de test}~: la quantité dont la loi sous $H_0$ est connue (ou
 simulée). C'est elle, et elle seule, qui est comparée à une loi de référence pour produire une
@@ -3056,8 +3122,8 @@ la loi de référence discrète peut produire aux effectifs observés (suites, C
 Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
 (section~\ref{sec:nature}) quand la p-value exacte est retenue~; quand la p-value de Monte-Carlo
 l'est, la règle lit depuis l'issue~\#125 le champ \code{p\_min\_mc}, et \code{p\_min} reste
-restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant} et
-\code{p\_min\_mc}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
+restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant},
+\code{p\_min\_mc} et \code{mc\_nom}~; colonne \code{p\_min} de la table auditable, après \code{erreur\_MC}. \\
 \code{fonction} & \textbf{Provenance de la ligne} (issue~\#111)~: nom de la fonction nommée de
 \code{R/engine.R} qui calcule la statistique de la ligne (\code{stat}, à défaut \code{estim}),
 appelée directement ou par la fonction de calcul du catalogue Monte-Carlo (\code{DW} $\to$
@@ -3090,18 +3156,35 @@ point~(i)), posé par \code{add()} sur chaque ligne avec la valeur lue dans
 \code{bootstrap\$p\_min\_mc} par la branche Monte-Carlo de la règle, \code{NA} hors de cette
 branche (en particulier quand la p-value exacte est retenue, et pour toute statistique continue).
 Exact pour les réplications tirées, fonction de $B$ et de la graine~; jamais imprimé dans le
-commentaire (issue~\#76). Dernier champ de la ligne~; colonne \code{p\_min\_mc} de la table
+commentaire (issue~\#76). Champ placé après \code{inoperant}, avant \code{mc\_nom} (dernier
+champ de la ligne jusqu'à l'issue~\#330)~; colonne \code{p\_min\_mc} de la table
 auditable, après \code{p\_min} (\code{NA} pour un objet résultat antérieur au champ). Mesuré sur
 les cas de référence~: champ fini sur les vérifications à $p_{\min}$ de type test de
-\code{premium\_interieur} (cinq~; sept avant l'issue~\#299) et de \code{reserve2} (six), \code{NA}
-sur les quatre cas à $\hat\delta = 1$. \\
+\code{premium\_interieur} (cinq~; sept avant l'issue~\#299) et de \code{reserve2} (cinq~; six
+avant l'issue~\#312, qui a fait de la ligne des suites un diagnostic, fiche~\ref{mw:m3runs}),
+\code{NA} sur les quatre cas à $\hat\delta = 1$. \\
+\code{mc\_nom} & \textbf{Nom de la statistique de Monte-Carlo de la ligne} (issue~\#330)~:
+argument \code{mc\_nom} d'\code{add()}, recopié tel quel, nom d'une entrée
+d'\code{USP\_CATALOGUE\_MC} ou de \code{MW\_CATALOGUE\_MC} déjà contrôlé par \code{add()} (un nom
+absent du catalogue ou du bootstrap lève une erreur)~; conservé quand la p-value de
+Monte-Carlo de la ligne manque pour un motif d'indisponibilité~; \code{NA} pour une ligne dont la
+p-value de Monte-Carlo est calculée hors du bootstrap principal (argument \code{p\_mc\_ext}~:
+rapport de vraisemblance sur $\delta$, permutations aléatoires du test de Pitman, lignes de lecture
+conjointe) et pour une ligne sans p-value de Monte-Carlo. Chaîne indépendante des données et du
+régime. Il relie la ligne à son entrée de \code{bootstrap\$granularite\_stat}, lue par
+l'affichage (colonne «~granularité MC~», section~\ref{sec:archi}), et, pour la p-value de famille
+(issue~\#297), à sa colonne de la matrice des réplications. Dernier champ de la ligne~; colonne \code{mc\_nom} de la table
+auditable, juste après \code{p\_min\_mc} (\code{NA} pour un objet résultat antérieur au champ).
+Mesuré sur les cas de référence~: champ renseigné 31 fois sur 52 dans chaque cas lognormal et
+13 fois sur 25 pour \code{reserve2}, chaque nom n'y figurant qu'une fois, \code{NA} ailleurs. \\
 \bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi de référence),
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
-diagnostic d'influence ou de robustesse~; les contrôles numériques de l'estimation n'y
+diagnostic d'influence ou de robustesse, p de famille et p globale de la lecture conjointe,
+fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}~; les contrôles numériques de l'estimation n'y
 figurent pas, voir la section~\ref{sec:controles}),
 \emph{procédure de décision} (type sans ligne depuis les issues~\#304 et~\#300~: la procédure ESD
 de Rosner, qui ne produit pas de p-value, en était la seule ligne~; elle est un diagnostic par
@@ -5972,6 +6055,18 @@ de l'ordre de la granularité.
   variance~; un rejet calibré garde sa valeur. Ce que les données distinguent entre les deux bornes
   de la famille se lit au rapport de vraisemblance sur $\delta$ (fiche~\ref{fiche:rv-delta},
   diagnostic sans verdict), non à un verdict de~H2.
+  \item \textbf{La lecture conjointe des verdicts} (issue~\#297). Sous le modèle ajusté
+  lui-même, un jeu reçoit au moins un verdict \code{ALERTE} ou \code{ECHEC} dans plus de la
+  moitié des cas (constat de simulation sous les plans J1, J2, N et E)~: c'est l'effet du nombre de tests, non une distorsion de chacun
+  (sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}). La p de famille et la p globale
+  (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}) situent la plus petite p-value de
+  Monte-Carlo d'une famille, ou de la batterie, dans sa loi sous le modèle ajusté~: contrôle du
+  taux d'erreur au sens faible, sous ce modèle, par une p-value plug-in, non exacte. Ce sont des
+  diagnostics, sans p-value retenue ni verdict~: aucune loi exacte ni asymptotique de ce minimum
+  n'est connue ni employée, et la p-value de Monte-Carlo, calculée et restituée, n'est pas retenue par décision
+  (ADR~0001). Leur niveau à $T = 8$ n'est établi par aucun résultat publié~; mesuré sous quatre
+  plans, il est compatible avec la référence ou en écart mineur du côté conservateur~; leur
+  puissance n'est pas mesurée.
   \item \textbf{Ce qu'aucune méthode ne restitue.} Ni le bootstrap ni les lois
   exactes n'augmentent la \emph{puissance}. À $T = 8$, l'ensemble du dispositif
   reste très peu puissant~: une p-value élevée n'est pas une validation
@@ -6408,6 +6503,20 @@ Extrapolation de $\hat\sigma^2_{J-1}$ & \textbf{MW} & --- & --- & --- & --- &
 Diagnostic & Sans objet & Valeur fixée par la règle de minimum de D(5)(d)(ii), non estimée :
 à signaler dans le dossier, avec les cas $\hat\sigma^2_{J-3} = 0$ ou
 $\hat\sigma^2_{J-2} = 0$ où la lettre du texte l'annule \\
+
+\multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Lecture conjointe des tests (deux méthodes, issue~\#297)}}} \\
+
+p de famille (minP, lecture conjointe) & Les deux & $m_{\mathrm{obs}}$, plus petite p MC des
+membres & Non & Non & Oui (mêmes réplications, rangs symétriques) & \textbf{Diagnostic}, aucune
+p-value retenue (p de Monte-Carlo plug-in restituée) & Sans objet : aucune loi limite employée &
+Lire comme aide à la lecture conjointe d'une famille~: contrôle au sens faible, sous le modèle
+ajusté~; niveau compatible ou en écart mineur conservateur sous les quatre plans mesurés~; une p
+élevée n'atteste pas l'adéquation, puissance non mesurée (fiche~\ref{fiche:p-famille}) \\
+
+p globale (minP, lecture conjointe de la batterie) & Les deux & $m_{\mathrm{obs}}$ de la
+batterie & Non & Non & Oui (idem) & \textbf{Diagnostic}, aucune p-value retenue & Sans objet :
+aucune loi limite employée & Situer la plus petite p-value de Monte-Carlo de la batterie dans sa
+loi sous le modèle ajusté~; ne compte pas les verdicts (fiche~\ref{fiche:p-globale}) \\
 \end{longtable}
 \end{center}
 \end{landscape}
@@ -6631,6 +6740,23 @@ Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:ols-cusum-ratios-bruts})
 Grubbs sur ratios bruts & $\hat p_{\text{MC}}$ (borne de Bonferroni non employée) &
 $p_{\text{MC}}(\hat\theta)$ & Convergence en $B$ & $\mathcal{O}(B^{-1/2})$ &
 Modèle ajusté pris pour vrai & Idem (fiche~\ref{fiche:grubbs-ratios-bruts}) \\
+
+p de famille et p globale (lecture conjointe, deux méthodes, diagnostics, issue~\#297) &
+$\hat p_f = \frac{1+\#\{b : m^{(b)} \le m_{\text{obs}}\}}{n+1}$, $m$ plus petite p-value de
+Monte-Carlo des membres, rangs symétriques sur les $n$ réplications complètes &
+$\mathbb{P}^{*}(m \le m_{\text{obs}})$ sous la loi bootstrap jointe des membres (marginale, ou
+conditionnelle au régime intérieur de $\hat\delta$~; bootstrap de résidus en Merz--Wüthrich) &
+Convergence en $n$ sous la loi bootstrap (argument de type Glivenko--Cantelli et loi des grands
+nombres, non formalisé ici, la limite n'étant pas établie en présence d'un atome de $m$ en
+$m_{\text{obs}}$)~; aucune convergence en $T$ employée &
+Écart-type approché par la formule binomiale $\sqrt{p(1-p)/n}$ du champ \code{erreur\_MC}, les
+$m^{(b)}$ dépendant de toutes les réplications par les rangs (ordre de grandeur, écart à la
+variance réelle non borné)~; $0{,}0095$ à $p = 0{,}10$ et
+$n = 999$~; granularité $1/(n+1)$ & Réplications i.i.d. sous le modèle ajusté~; composition de la
+famille figée à l'observé & Erreur de Monte-Carlo seule contrôlée~; p plug-in, non exacte,
+contrôle au sens faible sous le modèle ajusté~; niveau mesuré sous J1, J2, N et E~: compatible ou
+écart mineur conservateur partout (constat de simulation, fiche~\ref{fiche:p-famille})~; aucune
+théorie à $T = 8$ \\
 
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(C) Convergence propre à la méthode Merz--Wüthrich}} \\
@@ -8257,6 +8383,8 @@ Mesuré (méthode prime, $B = 999$)~: sur le jeu de contrôle ($\hat\delta = 1$)
 textes ajoutés, la ligne Spearman retenant sa p-value exacte $0{,}882$ (\code{OK})~; sur le jeu à
 $\hat\delta$ intérieur ($\hat\pi_t$ variable), ni repère ni texte.
 \end{encadre}
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Intercept}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -9121,6 +9249,8 @@ colinéaires lorsque l'amplitude des volumes est faible, ce qui réduit encore l
 colinéarité est \emph{statistique}~: la base réduite supprime la perte numérique d'un régresseur,
 pas la faible information que des volumes peu dispersés apportent sur les termes de degré 2 et 3.
 À utiliser en complément, non en substitution, de l'examen graphique.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{RESET}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -9253,6 +9383,8 @@ termine par le texte \code{USP\_TXT\_RENVOI\_SV}, posé par \code{.usp\_poser\_r
 règle d'\code{usp\_renvois()}~; la ligne Spearman ne porte pas elle-même de repère dans la colonne
 \code{renvoi}, que seule la ligne de la constante reçoit.
 \end{encadre}
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne Spearman ratio contre volume est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est retenue~; la ligne ratio contre temps, diagnostic par décision, n'en est pas membre~; aucun verdict n'en est modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{stats::cor.test()}, $T \le 9$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 9$, la p-value retenue est de Monte-Carlo (clé \code{SpearVol}, \code{SpearTps}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: son plancher est au moins $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), et la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125, section~\ref{sec:nature}), mesuré à $0{,}002$ sur \code{premium\_interieur}, aucune réplication n'atteignant une extrémité du support. Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
 
@@ -9320,6 +9452,8 @@ constance de $\beta$. Limites~: l'approximation normale n'est acceptable qu'à p
 $T \approx 10$, en-deçà la loi exacte est nécessaire. Surtout, le test suppose
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
 beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est retenue~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2/T! = 4{,}96\cdot 10^{-5}$ sans ex \ae quo (\code{mk\_p\_min()}). Exacte sur la loi de permutation à $\hat\pi_t$ constant, où la p-value exacte est retenue (\code{mk\_p\_exacte()}, $T \le 12$, sans ex \ae quo)~; à $\hat\pi_t$ variable, ou au-delà de $T = 12$, la p-value retenue est de Monte-Carlo (clé \code{MK}, bilatérale) et $4{,}96\cdot 10^{-5}$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo~: son plancher est au moins $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), et la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125, section~\ref{sec:nature}), mesuré à $0{,}002$ sur \code{premium\_interieur}, aucune réplication n'atteignant une extrémité du support. Avec ex \ae quo, \code{p\_min} vaut \code{NA} et aucune p-value exacte n'est attribuée (issue~\#70).
 
@@ -9455,6 +9589,8 @@ sous les modèles ajustés à J1 et à J2 et sous le plan synthétique J3, sans 
 commentaire disait \code{p-value minimale atteignable sous la loi de reference echangeable =
 0.1250}, valeur qui ne borne pas la p-value de Monte-Carlo. Jusqu'à l'issue~\#44, la ligne sortait \code{OK} sur le jeu de contrôle. Elle ne
 redevient un test qu'à un seuil $\alpha > p_{\min}$, soit $\alpha > 0{,}125$ sans ex \ae quo.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $0{,}125$ ($m = 4$ différences non nulles, \code{cox\_stuart\_p\_min()})~; p-values atteignables $0{,}125$~; $0{,}625$~; $1$. Exacte sur la loi binomiale à $\hat\pi_t$ constant~; à $\hat\pi_t$ variable, où la p-value exacte n'est pas attribuée, $p_{\min}$ de la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo (section~\ref{sec:nature})~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}149$ sur \code{premium\_interieur} et $0{,}143$ sur le jeu à $\hat\delta = 0{,}683$ de \code{tests/unitaires/test\_regimes\_p\_exactes.R} (\code{run\_engine()}, $B = 999$), plancher de la p-value retenue s'il est sous $\alpha$. Avec ex \ae quo, $m < 4$ et $p_{\min} \ge 0{,}25$. Au seuil par défaut $\alpha = 0{,}10$, et plus généralement pour $\alpha \le 0{,}125$, aucune p-value n'est retenue à $T = 8$, la ligne étant un diagnostic (règle~R1). Sans ex \ae quo et pour $0{,}125 < \alpha < 0{,}30$, la ligne est un test à $\hat\pi_t$ constant, qui retient la p-value exacte~; à $\hat\pi_t$ variable, elle n'en est un que si $p_{\min}^{\mathrm{MC}} < \alpha$, et retient alors la p-value de Monte-Carlo (mesuré par \code{run\_engine()} à $\alpha = 0{,}13$~: sur le jeu de contrôle, $\hat\delta = 1$, test, p-value exacte retenue~; sur le jeu à $\hat\delta = 0{,}683$, $p_{\min}^{\mathrm{MC}} = 0{,}143 \ge \alpha$, test inopérant, alors que la lecture de $p_{\min} = 0{,}125$ en faisait un test retenant la p-value de Monte-Carlo avant l'issue~\#125)~; avec ex \ae quo, le cas $m = 3$ et $0{,}25 < \alpha < 0{,}30$ est traité à la rubrique~5.
 
@@ -9638,6 +9774,8 @@ dans la régression auxiliaire, avec $\hat\delta$ à la borne~1, soit une varian
 standardisés croissante avec le volume~; un écart dans la famille de l'annexe~XVII ($\delta < 1$,
 $a_t = \delta + (1-\delta)\bar x/x_t$ décroissant en $x_t$) aurait le sens opposé.
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives d'hétéroscédasticité mesurées, c'est un retour au niveau, non un gain de puissance établi (rubrique~7).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p globale de la méthode (fiche~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; seul membre de la famille C., elle n'a pas de ligne de famille, dont la p serait la sienne~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -9942,7 +10080,22 @@ $\mathds{1}\{\hat\delta \le 10^{-6}\ \text{ou}\ \hat\delta \ge 1 - 10^{-6}\}$
 tolérance \code{TOL\_DELTA\_BORD} $= 10^{-6}$, inégalités larges). Cette
 tolérance n'est pas une valeur réglementaire mais une résolution numérique,
 commune au drapeau de constance de $\hat\pi_t$~; sa justification est donnée à
-la fiche~\ref{fiche:centrage}.
+la fiche~\ref{fiche:centrage}. Depuis l'issue~\#331, le bord de $\delta$ est jugé par un seul
+prédicat, \code{usp\_delta\_bord()}, que lisent \code{usp\_regime()}, la projection du gradient
+de la condition du premier ordre (fiche~\ref{fiche:foc}) et les deux comparaisons à une borne
+$\delta_0$ donnée du rapport de vraisemblance (\code{usp\_lr\_delta()} et sa ligne
+d'\code{usp\_tests()}, fiche~\ref{fiche:rv-delta}). Ces deux comparaisons s'écrivaient
+auparavant $|\hat\delta - \delta_0| \le 10^{-6}$~; sur $[0,1]$, cette forme ne différait du drapeau
+ci-dessus qu'en un seul nombre en virgule flottante, le double le plus proche de $1 - 10^{-6}$
+($0{,}99999899999999997124$), jugé au bord par \code{usp\_regime()} et pas au bord par la
+comparaison (mesuré, ainsi que l'accord des deux formes sur les doubles voisins à quatre
+unités du dernier rang près, de part et d'autre~; à la borne~0, $\hat\delta - 0$ est exact et les
+deux formes concordent). Une seule convention subsiste~: ce double est au bord haut~; hors de
+$[0,1]$ ou pour un $\delta$ non fini, cas jamais atteints puisque $\hat\delta$ est estimé sous les
+bornes de \code{L-BFGS-B}, les deux comparaisons suivent aussi le prédicat. Aucun
+$\hat\delta$ des cas de référence n'est sur ce double (mesuré~: $\hat\delta = 1$ sur les quatre cas
+au bord, $0{,}6640$ sur \code{premium\_interieur}), et l'issue ne modifie pas les références de
+non-régression.
 \Loi
 Sans objet.
 \Pval
@@ -10088,6 +10241,8 @@ constant). \code{sw\_p\_loi\_nulle()} et \code{sw\_loi\_nulle()} restent dans le
 \code{mw\_tests()} (fiche~\ref{mw:m5sw})~; la graine et le champ \code{seed\_loi\_nulle\_sw} de la
 métadonnée lognormale restent consignés, sans emploi dans cette branche
 (section~\ref{sec:graines}).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{SW}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10154,6 +10309,8 @@ légèrement moins contre les alternatives asymétriques (affirmation sans sourc
 par le présent document)~; à $T = 8$, aucune mesure à niveau égal ne permet de la confirmer, la p
 de Royston de Shapiro--Francia étant libérale (C4.c, rubrique~7). Son intérêt est d'être la traduction numérique exacte du QQ-plot, ce qui facilite la
 justification en dossier. Mêmes limites de puissance qu'à la fiche précédente.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $W'$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{SF}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10221,6 +10378,8 @@ précisément là où se joue le capital réglementaire. Limite propre à ce con
 sensibilité est aussi sa fragilité, car sur 8 à 12 points les deux ou trois observations extrêmes
 déterminent presque entièrement $A^2$. À croiser impérativement avec les tests de valeurs
 aberrantes de la section~\ref{sec:stabilite}.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A^2$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{AD}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10403,6 +10562,8 @@ La calibration a été vérifiée par simulation à
 $T = 8$~: 10,6~\% de rejets au seuil nominal de 10~\% et 5,2~\% au seuil de 5~\%, à comparer aux
 0~\% du test de Kolmogorov mal appliqué. Sa puissance reste néanmoins celle de la famille
 Kolmogorov--Smirnov, c'est-à-dire faible devant Shapiro--Wilk et Anderson--Darling.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $D$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Lillie}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10464,6 +10625,8 @@ manifester une queue lourde et le test ne peut pratiquement pas rejeter pour exc
 d'aplatissement. La p-value \code{p\_mc} est ici indispensable~; en son absence, ce test n'apporte
 à peu près rien sur un historique réglementaire minimal.
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{JB}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10512,6 +10675,8 @@ sous-modules catastrophe. Limite~: la transformation $S_U$ est définie dès $T 
 croît avec $T$ sans seuil marqué~: contre une loi exponentielle, elle passe de $39~\%$ à $T = 8$ à
 $81~\%$ à $T = 20$ au seuil de 10~\% (rubrique~7).
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10722,6 +10887,8 @@ figure à la section~\ref{sec:base-residus}~: compatible avec le niveau nominal 
 scénario où $\pi_t$ est constant, inférieure au nominal (9,0~\% au seuil de 10~\%) dans le
 scénario à $\hat\pi_t$ variable, constat propre à ce scénario. Les bornes $d_L/d_U$, établies pour des résidus de moindres carrés, ne sont pas
 utilisées. Le test ne détecte par ailleurs qu'une dépendance d'ordre~1.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H4 (famille E.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est retenue~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet (loi d'Imhof, continue)~: à $\hat\pi_t$ constant, la p-value exacte de \code{dw\_p\_exacte()} est retenue, sans plancher~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale), de plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}).
 
@@ -10792,6 +10959,8 @@ compatible avec le seuil aux deux seuils sur J1 et J2 pour chacune des lignes re
 J1, $0{,}107$ à $\alpha = 0{,}10$ et $0{,}050$ à $0{,}05$, J2, $0{,}109$ et $0{,}053$~;
 Box--Pierce au retard~2~: $0{,}0995$ et $0{,}0485$, $0{,}104$ et $0{,}053$)~: elles ne sont pas
 retirées pour un défaut de calibration.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H4 (famille E.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $Q$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{LB2}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -10964,6 +11133,8 @@ entre $0{,}057$ et $\alpha/2$. \emph{Non-échangeabilité} (fonction du modèle 
 sous des modèles ajustés à volumes croissants dans un rapport~17 ($\sigma = 0{,}5$), la probabilité $\mathbb{P}(R^* = 2)$ qu'une série simulée ne compte que deux suites a été mesurée de $0{,}032$ à $0{,}016$, et jusqu'à $0{,}003$ à volumes extrêmes, contre $2/70 = 0{,}0286$ sous la loi échangeable --- constat de simulation d'\code{actuary} du 27~septembre 2026 (grille de 36 modèles, $B = 5\,000$ par modèle, hors jeux de référence, scripts non versionnés, consigné à l'issue~\#125, seule trace)~; c'est ce qui a conduit l'issue~\#125 à lire la règle~R1
 sur la loi bootstrap. Remède d'usage~: quand la p-value de Monte-Carlo est proche du seuil, relancer
 avec $B = 9\,999$, ce qui réduit la première cause et laisse la seconde inchangée.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H4 (famille E.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est retenue~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()})~; p-values atteignables $0{,}0571$~; $0{,}2286$~; $0{,}7429$~; $1$. Exacte à $\hat\pi_t$ constant, où la p-value exacte de \code{runs\_p\_exacte()} est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, ne borne pas cette p-value de Monte-Carlo (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}058$ sur \code{premium\_interieur}.
 
@@ -11037,7 +11208,9 @@ le $\hat\gamma$ du démarrage retenu était jugé~; cette condition exigeant ell
 hors des bornes (\code{usp\_kkt\_satisfaite()}), le refus revient à un démarrage à l'optimum sur
 une borne sans autre démarrage à l'optimum, de $\gamma$ intérieur, qui la satisfasse), le bord étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près
 (pour $\gamma$, par le prédicat unique \code{usp\_gamma\_bord()}, issue~\#322, qui compte un
-$\gamma$ non fini sur la borne basse)~; sur une
+$\gamma$ non fini sur la borne basse~; pour $\delta$, par le prédicat unique
+\code{usp\_delta\_bord()}, issue~\#331, qui ne répond pas pour un $\delta$ \code{NA} ou
+\code{NaN}, la composante étant alors laissée telle quelle, fiche~\ref{fiche:position-delta})~; sur une
 borne inférieure la composante projetée vaut $\min(g, 0)$, sur une borne supérieure
 $\max(g, 0)$, à l'intérieur $g$. On en tire (issue~\#71, spécification d'\code{actuary} du
 28~septembre 2026)~:
@@ -11376,7 +11549,10 @@ sont constants. Le moteur décide donc sur cette \emph{cause}, par \code{usp\_re
 sur l'étendue observée des $\hat\pi_t$~: $\hat\pi_t$ est tenu pour constant lorsque
 $\hat\delta \ge 1 - 10^{-6}$ ou que $\max_t x_t - \min_t x_t \le 10^{-6}\,\bar x$. La tolérance
 \code{TOL\_DELTA\_BORD} $= 10^{-6}$ est la même que celle du drapeau « $\hat\delta$ au bord »
-(fiche~\ref{fiche:position-delta}), de sorte que les deux drapeaux ne peuvent plus se contredire~; un seuil
+(fiche~\ref{fiche:position-delta}), de sorte que les deux drapeaux ne peuvent plus se contredire
+(depuis l'issue~\#331, \code{usp\_regime()} lit le bord de $\delta$ dans le prédicat unique
+\code{usp\_delta\_bord()}, le même que les comparaisons à une borne donnée du rapport de
+vraisemblance, fiche~\ref{fiche:position-delta})~; un seuil
 distinct sur l'étendue des $\hat\pi_t$ laissait auparavant une zone où $\hat\delta$ était déclaré
 au bord sans que $\hat\pi_t$ soit déclaré constant. Ce n'est pas une valeur réglementaire mais
 une résolution numérique, choisie au-dessus de celle du critère d'arrêt de l'optimiseur
@@ -11774,6 +11950,8 @@ Monte-Carlo près \emph{et} sous le modèle ajusté pris pour vrai~: sa validit�
 bootstrap paramétrique, asymptotique en $T$ et non quantifiable à $T = 8$
 (section~\ref{sec:mc})~; la calibration mesurée sur cette base est un constat de simulation
 (section~\ref{sec:base-residus}).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H4 (famille E.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{DWr}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
@@ -11891,6 +12069,8 @@ sur $u_t$, dont les $r_t$ ne sont pas identiquement distribués, l'écart mesur�
 que sur $z_t$~: $\mathbb{P}(R^* = 2)$ jusqu'à $0{,}26$ contre $2/70$, soit un plancher bootstrap
 au-dessus de $0{,}0571$, issue~\#125~; il peut aller jusqu'au test inopérant si les deux extrêmes
 sont fréquents, possibilité dont la fréquence n'est pas mesurée).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H4 (famille E.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}). Exacte à $\hat\pi_t$ constant, où la statistique et la p-value exacte calculée sont celles de la ligne sur $z_t$ (\code{usp\_runsr\_p\_exacte()}), sans être retenues (règle~R15)~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runsr}, bilatérale, plancher $2/(B+1)$, soit $0{,}002$ à $B = 999$) et $0{,}0571$, $p_{\min}$ de la loi de référence échangeable, n'en est pas une borne (rubrique~6)~; la règle~R1 y lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$ (issue~\#125), $0{,}062$ sur \code{premium\_interieur}.
 
@@ -11951,6 +12131,8 @@ surestime massivement le nombre de ruptures détectées, le maximum sur une diza
 étant mécaniquement grand sous $H_0$. La simulation règle ce problème. Un rejet est très
 informatif~: il signale un changement de politique de souscription, de provisionnement ou de
 périmètre, et peut justifier de restreindre la profondeur $T$ retenue.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{supF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -12006,6 +12188,8 @@ La complémentarité mesurée tient à la position de la rupture plutôt qu'à s
 simulation sous des alternatives choisies, sans portée générale. Sa limite majeure ici est que la
 convergence vers le pont brownien suppose $T$ grand~: à $T = 8$, le processus cumulé n'a aucune chance de ressembler à
 une trajectoire brownienne et seule la simulation donne un niveau correct.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{CUSUM}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -12052,6 +12236,8 @@ petits échantillons, aucune observation ne peut être « suffisamment » extrê
 sensibilité à l'hypothèse de normalité est totale~: sur une vraie loi à queue lourde, le test
 signale des aberrations qui n'en sont pas.
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination mesurées, c'est un gain de puissance au régime intérieur~; sous les alternatives d'asymétrie, un retour au niveau ($0{,}115$ et $0{,}097$ pour $\nu = 4$ et $\nu = 2$, pour un taux intérieur sous le modèle de $0{,}093$ sur J2~; rubrique~7). Sur le cas \code{premium\_interieur}, la p-value retenue vaut $0{,}105$ (marginale~: $0{,}273$), d'erreur de Monte-Carlo $0{,}0097$~: l'écart au seuil $\alpha = 0{,}10$, $0{,}005$, vaut environ une demi-erreur de Monte-Carlo, de sorte que le verdict \code{OK} n'est pas acquis à la précision de la p-value, au regard de l'erreur de Monte-Carlo seule (verdict fragile, réserve d'\code{actuary})~: une bascule vers \code{ALERTE} est possible, non vers \code{ECHEC} ($p < \alpha/2 = 0{,}05$ est à plus de cinq erreurs).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Grubbs}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -12400,6 +12586,8 @@ provisionnement ou de périmètre). À $\hat\pi_t$ constant, quasi-doublon de so
 $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, l'ensemble des points de rupture ne compte
 que quelques candidats et la p-value de Monte-Carlo a la portée du bootstrap paramétrique
 (section~\ref{sec:mc}).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $\sup F$, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{supFr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
@@ -12434,6 +12622,8 @@ Complément graduel du sup-F sur la même base. À $\hat\pi_t$ constant, quasi-d
 homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, le processus cumulé ne
 compte que huit points~: seule la simulation fournit une loi de référence, avec la portée du
 bootstrap paramétrique (section~\ref{sec:mc}).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{CUSUMr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
@@ -12473,6 +12663,8 @@ homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi auc
 la portée du bootstrap paramétrique (section~\ref{sec:mc})~; la calibration mesurée sur cette base
 est un constat de simulation (section~\ref{sec:base-residus}).
 À $\hat\delta$ intérieur, la p-value retenue est, depuis l'issue~\#240, la p-value de Monte-Carlo conditionnelle au régime intérieur de $\hat\delta$ (fiche~\ref{fiche:procedure-mc}, nature suffixée)~: la p-value marginale, seule calculée auparavant, y avait pour ce test un niveau inférieur au nominal, et la p-value conditionnelle ramène le taux de rejet intérieur sous le modèle ajusté, pour les huit statistiques concernées, à $0{,}091$--$0{,}119$ sur J2 et à $0{,}080$--$0{,}123$ sur J3 au seuil de $0{,}10$ (compatible avec le niveau nominal pour les huit sur J2~; sur J3, écart mineur pour trois d'entre elles~: Breusch--Pagan studentisé, $0{,}120$, et Goldfeld--Quandt, $0{,}123$, du côté libéral, Grubbs sur ratios bruts, $0{,}080$, du côté conservateur~; constat de simulation à $T = 8$, sans portée générale, section~\ref{sec:calibration-mc}). Sous les alternatives de contamination et d'asymétrie mesurées, c'est un gain de puissance au régime intérieur (rubrique~7).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de la stabilité (famille F.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $G$, continue~: toute p-value est atteignable. La p-value retenue, à $\hat\pi_t$ variable, est de Monte-Carlo (clé \code{Grubbsr}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue~; à $\hat\pi_t$ constant, aucune p-value n'est retenue (règle~R15).
 
@@ -12529,8 +12721,10 @@ le premier terme étant calculé par \code{usp\_ajuster\_contraint()} ($\tilde\g
 \code{stats::optimize()} sur les bornes numériques de $\gamma$, à la tolérance
 \code{TOL\_GAMMA\_CONTRAINT} $= 10^{-8}$~; $\ln\tilde\beta_0$ en forme fermée), le second étant
 l'objectif minimal de \code{usp\_ajuster()}. À la borne où se trouve $\hat\delta$ (à
-\code{TOL\_DELTA\_BORD} près), le modèle contraint est le modèle ajusté et $\mathrm{LR} = 0$ par
-construction. \emph{Convention numérique}~: $\mathrm{LR}$ est ramené à $\max(0, \cdot)$ puis à 0
+\code{TOL\_DELTA\_BORD} près, jugé par le prédicat \code{usp\_delta\_bord()} depuis
+l'issue~\#331, la même convention que le drapeau de la fiche~\ref{fiche:position-delta}, qui
+décrit le seul double où l'ancienne comparaison en différait), le modèle contraint est le modèle
+ajusté et $\mathrm{LR} = 0$ par construction. \emph{Convention numérique}~: $\mathrm{LR}$ est ramené à $\max(0, \cdot)$ puis à 0
 s'il est inférieur à \code{tol\_nul} $=$ \code{TOL\_OPTIMUM} $= 10^{-6}$, parce qu'il est la
 différence de deux optimisations, chacune connue à la résolution de l'optimiseur~; ce seuil n'est
 pas une propriété statistique et la même règle s'applique aux réplications. Mesuré sur le jeu de
@@ -14189,10 +14383,12 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt et une entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
-décision et \textbf{neuf} diagnostics, conformément au champ \code{type} que
+Vingt-cinq entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
+décision et \textbf{treize} diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
-restitue. Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
+restitue~; quatre de ces diagnostics, absents du tableau ci-dessus, sont les lignes
+de lecture conjointe ajoutées par l'issue~\#297 (une par famille M1, M2 et M3, et une
+ligne globale~; fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}). Les deux lignes de normalité (M5) sont comptées parmi les diagnostics
 depuis l'issue~\#245~: la normalité n'est pas exigée par le modèle réglementaire
 (D(2)(h)), et leurs lois nulles, celles d'un échantillon i.i.d. normal, ne sont
 pas celles des résidus de Mack~; leur p-value, calculée sous ce modèle auxiliaire
@@ -14202,7 +14398,7 @@ n'a ni hypothèse nulle ni loi de référence, et sa valeur est de surcroît
 \emph{contrainte par construction} (fiche~\ref{mw:m2var}). La ligne d'identifiabilité
 intra-colonne (M1, issue~\#308) en est un par nature~: elle restitue des grandeurs descriptives
 de l'observé, sans hypothèse nulle (fiche~\ref{mw:m1id}). Le test des suites (M3) est restitué
-en diagnostic par décision, variante secondaire, depuis l'issue~\#312 (fiche~\ref{mw:m3runs}). Aucun des neuf
+en diagnostic par décision, variante secondaire, depuis l'issue~\#312 (fiche~\ref{mw:m3runs}). Aucun des treize
 diagnostics ne porte de verdict~: tous sont restitués \code{INFO}, conformément à
 l'ADR~0001. Ces types sont ceux du triangle de contrôle $8 \times 8$~:
 sur son sous-triangle $5 \times 5$, à $\alpha = 0{,}10$ (\code{run\_engine()}, $B = 999$), la
@@ -14424,12 +14620,14 @@ concentrait près de $\pm 1$~; constats sur un triangle construit et non résult
 établie (non mesurée)~; le verdict \code{OK} de la pente relative n'atteste pas l'adéquation du
 triangle, dont la ligne d'hétéroscédasticité rejette la structure de variance M2
 (section~\ref{sec:boot-mw}).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $t$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{PenteIntra}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Valeurs de la statistique candidate de l'issue~\#307 dans la mesure de l'issue~\#309 (section~\ref{sec:calib-mc-mw}), identique à la ligne (rubrique~3). \emph{Niveau} de la p-value de Monte-Carlo, mesuré sur les triangles et sous les graines de la mesure de l'issue~\#206 (tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md})~: à $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$ $[0{,}097~;~0{,}125]$ (E), $0{,}118$ $[0{,}099~;~0{,}140]$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}061$ $[0{,}051~;~0{,}072]$, $0{,}0545$ $[0{,}045~;~0{,}065]$, $0{,}059$ $[0{,}045~;~0{,}075]$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur sous N aux deux seuils et sous A à $0{,}10$, compatible ailleurs. Sous $H_0$ de chaque plan (loi N, 1\,000 triangles, tableau T1~bis)~: $0{,}118$, $0{,}112$ et $0{,}137$ au seuil $0{,}10$ sous P1, P2 et P3, $0{,}059$, $0{,}059$ et $0{,}075$ $[0{,}059~;~0{,}093]$ au seuil $0{,}05$, ce dernier en écart non tranché du côté libéral. \emph{Critère de remplacement K-307} (décision Q-D1-Fj-3 du mainteneur du 22~octobre 2026), formulé le 22~octobre 2026, \emph{après} la publication des tableaux, et donc sans valeur de pré-enregistrement~: règle de recevabilité explicite, pour un seul candidat, sans sélection. (i)~Sous N et E, aux deux seuils, la classe du niveau est compatible, écart mineur ou distorsion conservatrice, et aucune distorsion matérielle libérale n'apparaît sous A~: tenu. (ii)~Non-infériorité de niveau envers la pente absolue alors en place~: sous $H_0$ de P1, P2 et P3, aux deux seuils, le test de McNemar exact bilatéral apparié (mêmes triangles, mêmes réplications) n'est pas significatif à $0{,}05$~: tenu, p de $0{,}233$ à $0{,}791$ (tableau T1 de la pièce \code{docs/tableaux/}\allowbreak\code{20261022-}\allowbreak\code{issue307-paires.md}, calculée sur les valeurs brutes versionnées de la mesure de l'issue~\#309). (ii) est un critère de non-détection, non d'équivalence~: sur 45 à 116 paires discordantes, un écart de niveau de l'ordre de deux points n'est pas exclu (avis d'\code{actuary}, spécification Fj, §~4.2). \emph{Puissance} contre une ordonnée à l'origine (tableau T2 de la mesure~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, $0{,}434$ $[0{,}390~;~0{,}479]$ et $0{,}338$ à $\delta = 0{,}10$ (500 triangles), $0{,}796$ $[0{,}770~;~0{,}821]$ et $0{,}709$ $[0{,}680~;~0{,}737]$ à $\delta = 0{,}20$ (1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}944$ $[0{,}920~;~0{,}962]$ et $0{,}967$ $[0{,}954~;~0{,}977]$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$. Comparaisons appariées au seuil $0{,}10$ sous P1 (pièce des paires, McNemar exact bilatéral)~: contre la pente absolue, $0{,}434$ et $0{,}330$ ($p = 7{,}3\cdot 10^{-7}$) à $\delta = 0{,}10$, $0{,}796$ et $0{,}522$ ($p = 1{,}5\cdot 10^{-65}$) à $\delta = 0{,}20$~; contre le test par colonne (fiche~\ref{mw:m1a}), $0{,}434$ et $0{,}272$ ($p = 2{,}8\cdot 10^{-9}$), $0{,}796$ et $0{,}683$ ($p = 6{,}5\cdot 10^{-10}$), une part de cet avantage tenant au niveau ($0{,}118$ contre $0{,}096$ sous $H_0$, $p = 0{,}092$)~; sous P2, la ligne rejette moins que le test par colonne ($0{,}944$ et $0{,}967$ contre $1{,}000$). \emph{Nature de l'alternative mesurée}~: le scénario d'ordonnée à l'origine ($a_j = \delta f_j \bar C_j$, $\bar C_j$ calculé comme par la ligne sur les cumuls simulés) donne, au premier ordre, une pente relative \emph{commune} $-\delta$~: c'est exactement l'alternative que vise la ligne, et le gain mesuré l'est donc sous l'alternative la plus favorable à sa paramétrisation~; une ordonnée concentrée sur une seule colonne n'est pas mesurée. Contre une dérive de $f_j$ avec l'année de survenance, $0{,}270$ $[0{,}232~;~0{,}311]$, $0{,}270$ et $0{,}108$ au seuil $0{,}10$ sous P1, P2 et P3, ce dernier taux au niveau de la ligne sous $H_0$ de P3 ($0{,}137$)~: P3 étant le seul plan où le volume n'est pas colinéaire à l'année, la ligne ne voit cette dérive que par cette colinéarité. Contre un exposant de variance~0 ou~2, au niveau ($0{,}116$ et $0{,}109$ sous P1, $0{,}108$ et $0{,}122$ sous P2, au seuil $0{,}10$). \emph{Non-spécificité}~: au seuil $0{,}10$, sous P1, $0{,}920$ contre une cellule multipliée par~4, $0{,}526$ contre une année de survenance atypique, $0{,}516$ et $0{,}340$ contre un choc de $10~\%$ sur l'exercice $t = 7$ et $t = 4$, $0{,}510$ contre une dérive calendaire, $0{,}200$ et $0{,}144$ contre une cellule déplacée de six et quatre écarts-types de bruit~: un rejet n'est pas spécifique d'une tendance des facteurs avec le volume~; à lire avec M3 et M4. \emph{Historique~: la pente absolue} (jusqu'à l'issue~\#307, mêmes mesures)~: niveau sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw}), à $0{,}10$, $0{,}114$ (N), $0{,}1205$ (E), $0{,}130$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}064$, $0{,}053$, $0{,}073$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A~; sous $H_0$ de P1, P2 et P3, $0{,}122$, $0{,}116$ et $0{,}129$ au seuil $0{,}10$. Puissance contre une ordonnée à l'origine~: sous P1, $0{,}330$ $[0{,}289~;~0{,}373]$ et $0{,}226$ à $\delta = 0{,}10$, $0{,}522$ $[0{,}491~;~0{,}553]$ et $0{,}419$ $[0{,}388~;~0{,}450]$ à $\delta = 0{,}20$~; sous P2, $0{,}862$ $[0{,}829~;~0{,}891]$ et $0{,}932$ $[0{,}915~;~0{,}947]$ au seuil $0{,}10$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$~; contre une dérive de $f_j$, $0{,}178$, $0{,}198$ et $0{,}124$ sous P1, P2 et P3.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. Valeurs de la statistique candidate de l'issue~\#307 dans la mesure de l'issue~\#309 (section~\ref{sec:calib-mc-mw}), identique à la ligne (rubrique~3). \emph{Niveau} de la p-value de Monte-Carlo, mesuré sur les triangles et sous les graines de la mesure de l'issue~\#206 (tableau T1 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md})~: à $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$ $[0{,}097~;~0{,}125]$ (E), $0{,}118$ $[0{,}099~;~0{,}140]$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}061$ $[0{,}051~;~0{,}072]$, $0{,}0545$ $[0{,}045~;~0{,}065]$, $0{,}059$ $[0{,}045~;~0{,}075]$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur sous N aux deux seuils et sous A à $0{,}10$, compatible ailleurs. La remesure de l'issue~\#297 (commit \code{7ff4725}, lois N et E, section~\ref{sec:calib-mc-mw}) reproduit ces taux sous les mêmes graines. Sur le triangle de contrôle, la p-value de la ligne ($0{,}090$, \code{ALERTE}, \code{err\_mc} $= 0{,}0131$) est «~à la frontière~» au sens de l'issue~\#244 ($|p - 0{,}10| < 2$ \code{err\_mc}, phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC} du commentaire), sur un test légèrement libéral sous N ($0{,}1115$ $[0{,}0980~;~0{,}1261]$ à $0{,}10$)~: cette \code{ALERTE} se lit avec ces deux réserves. Sous $H_0$ de chaque plan (loi N, 1\,000 triangles, tableau T1~bis)~: $0{,}118$, $0{,}112$ et $0{,}137$ au seuil $0{,}10$ sous P1, P2 et P3, $0{,}059$, $0{,}059$ et $0{,}075$ $[0{,}059~;~0{,}093]$ au seuil $0{,}05$, ce dernier en écart non tranché du côté libéral. \emph{Critère de remplacement K-307} (décision Q-D1-Fj-3 du mainteneur du 22~octobre 2026), formulé le 22~octobre 2026, \emph{après} la publication des tableaux, et donc sans valeur de pré-enregistrement~: règle de recevabilité explicite, pour un seul candidat, sans sélection. (i)~Sous N et E, aux deux seuils, la classe du niveau est compatible, écart mineur ou distorsion conservatrice, et aucune distorsion matérielle libérale n'apparaît sous A~: tenu. (ii)~Non-infériorité de niveau envers la pente absolue alors en place~: sous $H_0$ de P1, P2 et P3, aux deux seuils, le test de McNemar exact bilatéral apparié (mêmes triangles, mêmes réplications) n'est pas significatif à $0{,}05$~: tenu, p de $0{,}233$ à $0{,}791$ (tableau T1 de la pièce \code{docs/tableaux/}\allowbreak\code{20261022-}\allowbreak\code{issue307-paires.md}, calculée sur les valeurs brutes versionnées de la mesure de l'issue~\#309). (ii) est un critère de non-détection, non d'équivalence~: sur 45 à 116 paires discordantes, un écart de niveau de l'ordre de deux points n'est pas exclu (avis d'\code{actuary}, spécification Fj, §~4.2). \emph{Puissance} contre une ordonnée à l'origine (tableau T2 de la mesure~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis au seuil $0{,}05$)~: sous P1, $0{,}434$ $[0{,}390~;~0{,}479]$ et $0{,}338$ à $\delta = 0{,}10$ (500 triangles), $0{,}796$ $[0{,}770~;~0{,}821]$ et $0{,}709$ $[0{,}680~;~0{,}737]$ à $\delta = 0{,}20$ (1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}944$ $[0{,}920~;~0{,}962]$ et $0{,}967$ $[0{,}954~;~0{,}977]$ au seuil $0{,}10$ à $\delta = 0{,}10$ et $0{,}20$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$. Comparaisons appariées au seuil $0{,}10$ sous P1 (pièce des paires, McNemar exact bilatéral)~: contre la pente absolue, $0{,}434$ et $0{,}330$ ($p = 7{,}3\cdot 10^{-7}$) à $\delta = 0{,}10$, $0{,}796$ et $0{,}522$ ($p = 1{,}5\cdot 10^{-65}$) à $\delta = 0{,}20$~; contre le test par colonne (fiche~\ref{mw:m1a}), $0{,}434$ et $0{,}272$ ($p = 2{,}8\cdot 10^{-9}$), $0{,}796$ et $0{,}683$ ($p = 6{,}5\cdot 10^{-10}$), une part de cet avantage tenant au niveau ($0{,}118$ contre $0{,}096$ sous $H_0$, $p = 0{,}092$)~; sous P2, la ligne rejette moins que le test par colonne ($0{,}944$ et $0{,}967$ contre $1{,}000$). \emph{Nature de l'alternative mesurée}~: le scénario d'ordonnée à l'origine ($a_j = \delta f_j \bar C_j$, $\bar C_j$ calculé comme par la ligne sur les cumuls simulés) donne, au premier ordre, une pente relative \emph{commune} $-\delta$~: c'est exactement l'alternative que vise la ligne, et le gain mesuré l'est donc sous l'alternative la plus favorable à sa paramétrisation~; une ordonnée concentrée sur une seule colonne n'est pas mesurée. Contre une dérive de $f_j$ avec l'année de survenance, $0{,}270$ $[0{,}232~;~0{,}311]$, $0{,}270$ et $0{,}108$ au seuil $0{,}10$ sous P1, P2 et P3, ce dernier taux au niveau de la ligne sous $H_0$ de P3 ($0{,}137$)~: P3 étant le seul plan où le volume n'est pas colinéaire à l'année, la ligne ne voit cette dérive que par cette colinéarité. Contre un exposant de variance~0 ou~2, au niveau ($0{,}116$ et $0{,}109$ sous P1, $0{,}108$ et $0{,}122$ sous P2, au seuil $0{,}10$). \emph{Non-spécificité}~: au seuil $0{,}10$, sous P1, $0{,}920$ contre une cellule multipliée par~4, $0{,}526$ contre une année de survenance atypique, $0{,}516$ et $0{,}340$ contre un choc de $10~\%$ sur l'exercice $t = 7$ et $t = 4$, $0{,}510$ contre une dérive calendaire, $0{,}200$ et $0{,}144$ contre une cellule déplacée de six et quatre écarts-types de bruit~: un rejet n'est pas spécifique d'une tendance des facteurs avec le volume~; à lire avec M3 et M4. \emph{Historique~: la pente absolue} (jusqu'à l'issue~\#307, mêmes mesures)~: niveau sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw}), à $0{,}10$, $0{,}114$ (N), $0{,}1205$ (E), $0{,}130$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}064$, $0{,}053$, $0{,}073$ ($\rho = 0{,}048$)~; légèrement libérale~: écart mineur à $0{,}10$ sous les trois lois~; à $0{,}05$, écart mineur sous N, compatible sous E, écart non tranché sous A~; sous $H_0$ de P1, P2 et P3, $0{,}122$, $0{,}116$ et $0{,}129$ au seuil $0{,}10$. Puissance contre une ordonnée à l'origine~: sous P1, $0{,}330$ $[0{,}289~;~0{,}373]$ et $0{,}226$ à $\delta = 0{,}10$, $0{,}522$ $[0{,}491~;~0{,}553]$ et $0{,}419$ $[0{,}388~;~0{,}450]$ à $\delta = 0{,}20$~; sous P2, $0{,}862$ $[0{,}829~;~0{,}891]$ et $0{,}932$ $[0{,}915~;~0{,}947]$ au seuil $0{,}10$~; sous P3, $1{,}000$ $[0{,}996~;~1]$ à $\delta = 0{,}20$~; contre une dérive de $f_j$, $0{,}178$, $0{,}198$ et $0{,}124$ sous P1, P2 et P3.
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$. p-values de McNemar~: tests exacts (loi binomiale conditionnelle aux paires discordantes) sur les décisions simulées, sans correction de multiplicité. Critère K-307~: règle de décision du mainteneur, formulée a posteriori. Pente $-\delta$ sous l'alternative mesurée~: approximation au premier ordre, non mesurée.
 \end{fiche}
@@ -14766,6 +14964,8 @@ restitué par le moteur donne la colonne responsable, ce qui est la seule lectur
 actionnable. Le nombre d'observations n'est pas seul en cause~: à $n_j$ donné, la puissance dépend de la
 dispersion des cumuls de la colonne, que restitue la ligne «~Identifiabilité intra-colonne~»
 (fiche~\ref{mw:m1id}, issue~\#308~; rubrique~7).
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Origine}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -14887,6 +15087,8 @@ d'une année de survenance à l'autre invaliderait le modèle. En pratique, une
 telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
 porte sur le niveau et non sur la pente.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 16/(7!\,6!\,5!\,4!) = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ facteurs, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115)~: $X$ est maximal si et seulement si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$, chacune avec la probabilité $2/n_j!$ sous des permutations indépendantes des colonnes, $p_j$ étant strictement décroissante en $|\hat\rho_{s,j}|$ et finie en $|\hat\rho_{s,j}| = 1$ depuis l'issue~\#90. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. \emph{Avec ex \ae quo} (issue~\#207, décision Q-E2c-3), $X$ est maximal si et seulement si chaque colonne atteint sa plus petite $p_j$, et $p_{\min} = \prod_j m_j$, $m_j$ étant la masse de cet événement sous la loi conditionnelle aux rangs moyens de la colonne (tableau~\ref{tab:pmin}, note~(iv))~; la mention «~\code{ex aequo : loi de permutation conditionnelle aux rangs moyens, enumeree}~» figure dans le champ \code{effectifs}, et n'apparaît dans le commentaire de la ligne que lorsque la règle~R1 s'y applique ($p_{\min} \ge \alpha/2$). Cette $p_{\min}$ ne borne pas davantage la p-value retenue, et les ex \ae quo ajoutent un écart de sens opposé à celui de la non-échangeabilité~: les facteurs simulés des réplications n'ont en général pas d'ex \ae quo (une égalité n'y survient qu'en colonne~$0$, entre années de même cumul initial qui tirent le même résidu), leurs $p_j$ suivent alors la loi de permutation sans ex \ae quo, et les valeurs simulées de $X$ peuvent atteindre ou dépasser le maximum de $X$ à l'observé bien plus souvent que $p_{\min}$ ne l'indique. Exemple (triangle de six années, énumération exhaustive des $5! \times 4!$ couples de permutations)~: deux colonnes de $5$ et $4$ facteurs à deux paliers ($2$ et $3$ facteurs égaux, puis $2$ et~$2$), $m_j = 0{,}2$ et $1/3$, $p_{\min} = 1/15 = 0{,}0667$, alors que la probabilité, sous la loi de permutation sans ex \ae quo, d'une valeur de $X$ au moins égale à ce maximum vaut $17/120 = 0{,}142$. Avec ex \ae quo, $p_{\min}$ peut donc sous-estimer le plus petit niveau que la p-value de Monte-Carlo atteint en pratique, et celle-ci tend à être conservatrice (argument et exemple établis sous les lois de permutation, non mesurés sous le modèle de Mack). Jusqu'à l'issue~\#125, la règle~R1, appliquée à cette $p_{\min}$, pouvait laisser en test, avec la mention «~\code{ECHEC possible}~», une ligne dont la p-value de Monte-Carlo ne descendrait pas sous $\alpha$ si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo (dans l'exemple, $p_{\min} = 0{,}0667 < \alpha = 0{,}10 < 0{,}142$)~; depuis cette issue (décision D1-8 du 12~octobre 2026, qui remplace la lecture de $p_{\min}$ confirmée le même jour au matin), la règle lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, compté sur les réplications au-delà de $X_{\max}$, statistique de Fisher obtenue quand chaque colonne atteint sa plus petite $p_j$ à sa structure d'ex \ae quo observée (\code{.mw\_fisher\_x\_max()}, sur \code{p\_min\_col} de \code{.mw\_spearman()})~: dans l'exemple, si la loi bootstrap de $X$ était la loi de permutation sans ex \ae quo, ce plancher serait voisin de $0{,}142 \ge \alpha$ et la ligne serait un test inopérant (raisonnement sous cette hypothèse, non mesuré sous le modèle de Mack). Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf facteurs. La p-value retenue est de Monte-Carlo (clé \code{HomogF}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
@@ -15182,6 +15384,8 @@ versionné ne chiffre ce coût, ni le gain de la conservation, à $T = 8$. Aucun
 tranche ce choix à $T = 8$~: la décision repose sur cet arbitrage, sans résultat publié à
 l'appui. Le statut de la p-value retenue n'en dépend pas~: elle reste de
 Monte-Carlo, la colonne étant traitée de la même façon à l'observé et dans chaque réplication.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $X$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Courbure}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -15266,6 +15470,8 @@ sous l'hypothèse de variance de Mack, le niveau de la ligne étant compatible s
 seuil $0{,}10$ sous le plan du triangle de contrôle (rubrique~7), hypothèse que la famille M2 ne
 peut confirmer à $T = 8$ (fiches~\ref{mw:m2bp} et~\ref{mw:m2b}, rubrique~7), mais d'enjeu
 matériel faible.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Alpha}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -15624,6 +15830,8 @@ atypique ou un effet calendaire font aussi rejeter la ligne (rubrique~7)~; à li
 lignes de M3 et de M4. À $T = 8$, sous un plan comme celui du triangle de contrôle, la ligne n'a
 pas de puissance mesurable contre l'exposant (rubrique~7)~: un verdict \code{OK} n'établit pas
 la proportionnalité de la variance.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M2 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de la statistique, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{BP}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -15677,6 +15885,8 @@ inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
 (proportionnelle au carré). \textbf{Le règlement ne laissant pas ce choix
 ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
 et non comme un motif de changement de méthode.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M2 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
@@ -16080,6 +16290,8 @@ entre années de survenance rend \code{OK} ($0{,}300$) et celle de l'homogénéi
 un plan, qui ne se transposent ni à une autre géométrie ni à un autre paramétrage~; intervalles
 de Clopper--Pearson des taux, fonction du nombre de triangles, au tableau T2 cité~; moyennes par
 groupe et DW du triangle de contrôle, valeurs calculées.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M3 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2^{-18} = 3{,}81\cdot 10^{-6}$ sur le triangle de contrôle (diagonales retenues de $n_k = 2, 3, 4, 4, 6, 5$ étiquettes, les étiquettes «~*~» étant écartées~; \code{.mw\_calendrier\_p\_min()}, issue~\#115)~: plus petite masse cumulée à gauche, $\min_z \mathbb{P}(Z \le z) = \mathbb{P}(Z = 0) = \prod_k 2^{1-n_k}$, bornée à~1, sous la loi binomiale indépendante de Mack, dont la loi de $Z$ est obtenue par convolution exacte (rubrique~4). Valeur exacte sous cette loi de référence, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Les $n_k$ dépendent des données. Avant l'issue~\#276, au bilatéral, $p_{\min} = \min_z 2\min\big(\mathbb{P}(Z \le z), \mathbb{P}(Z \ge z)\big) = 2^{-17}$~; pour tout $n_k \ge 2$, $\mathbb{P}(Z_k = 0) = 2^{1-n_k} \le \mathbb{P}(Z_k = \lfloor n_k/2 \rfloor)$, de sorte que l'atome bas de $Z$ n'est jamais plus lourd que l'atome haut et que la valeur en queue basse est exactement la moitié de la valeur bilatérale. La p-value retenue est de Monte-Carlo (clé \code{Calendrier}, queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}~; $2/(B+1)$ au bilatéral), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, à l'extrémité basse du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$~; $0{,}002$ au bilatéral).
 
@@ -16265,6 +16477,8 @@ survenance se comporte différemment des autres, ce qui viole l'hypothèse
 d'indépendance et d'identité de distribution. Limite structurelle~: les groupes
 sont très déséquilibrés, la première ligne comptant $J - 1$ résidus (six sur le triangle de
 contrôle, $J = 7$) et la dernière un seul.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M3 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $7!\prod_i n_i!/27! = 8{,}29\cdot 10^{-15}$ sur le triangle de contrôle ($k = 7$ années de survenance de $n_i = 6, 6, 5, 4, 3, 2, 1$ résidus, $N = 27$~; \code{.mw\_kruskal\_p\_min()}, issue~\#115, décision du mainteneur du 6~octobre 2026), par la forme close de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo des résidus aplatis, ou si la valeur sort de la précision de la machine. La p-value retenue est de Monte-Carlo (clé \code{KruskalAcc}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
@@ -16340,6 +16554,8 @@ faire sur la suivante. Cela contredit l'indépendance des incréments et biaise 
 MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
 un triangle $8\times8$, seules quatre paires de colonnes comptent au moins
 trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M3 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $2/(6!\,5!\,4!\,3!) = 2/12\,441\,600 = 1{,}61\cdot 10^{-7}$ sur le triangle de contrôle (quatre paires de $n_k = 6, 5, 4, 3$ facteurs~; \code{.mw\_corr\_p\_min()}, issue~\#115), par l'argument de chaîne de la rubrique~4. Valeur exacte sous la loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Non attribuée (\code{NA}, motif dans le commentaire) avec un ex \ae quo dans une paire retenue. La p-value retenue est de Monte-Carlo (clé \code{CorrDev}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}002$).
 
@@ -16393,6 +16609,8 @@ recalculé hors moteur sur les résidus centrés par diagonale, il vaut $1{,}307
 centrés par année de survenance, $1{,}857$~: le signal résiste au premier centrage et s'atténue au
 second. Mack (1997), p.~D6.15--D6.23, non relues sur le texte intégral au 23~octobre 2026~: la
 lecture conjointe ci-dessus ne s'appuie sur aucune de ces pages.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M3 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $DW$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{DW}, bilatérale)~: son plancher, $2/(B+1)$, soit $0{,}002$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -16705,6 +16923,8 @@ pas vue par cette ligne. Un rejet n'est pas spécifique d'une cellule isolée~: 
 survenance atypique ou un effet calendaire fait aussi rejeter la ligne (rubrique~7)~; à lire avec
 M3. Le graphique d'influence (fiche~\ref{mw:influence}) donne, pour chaque cellule, les DFBETAS
 dont $t(i,j)$ est tiré.
+
+\emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p globale de la méthode (fiche~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; seul membre de la famille M4, elle n'a pas de ligne de famille, dont la p serait la sienne~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $M$, continue~: toute p-value est atteignable (\code{p\_min} à \code{NA}, statistique hors des treize statistiques discrètes). La p-value retenue est de Monte-Carlo (clé \code{MinP4}, rejet en queue basse)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
 
@@ -17244,6 +17464,360 @@ estimés~: la lecture de la part n'en est que plus nécessaire, faute de
 jackknife disponible pour cette méthode.
 \end{fiche}
 
+% -----------------------------------------------------------------------------
+\clearpage
+% =============================================================================
+\section{Lecture conjointe des tests (p-values de famille)}
+\label{sec:lecture-conjointe}
+% =============================================================================
+
+\begin{encadre}
+\textbf{Énoncé.} hors énoncé réglementaire~: aide à lire ensemble les verdicts d'une famille de
+tests, ou de toute la batterie d'une méthode, compte tenu de leur nombre et de leur dépendance,
+sous le modèle ajusté.
+\end{encadre}
+
+À $T = 8$, un jeu de données simulé sous le modèle ajusté reçoit au moins un verdict
+\code{ALERTE} ou \code{ECHEC} dans plus de la moitié des cas, sur l'une comme sur l'autre méthode
+(constats de simulation des sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw})~: c'est
+la conséquence du nombre de tests appliqués au même jeu, non une distorsion de chacun. Les deux
+fiches ci-dessous décrivent les lignes que \code{engine\_p\_famille()} ajoute, depuis
+l'issue~\#297, après les lignes existantes d'\code{usp\_tests()} et de \code{mw\_tests()}~: une
+ligne par famille d'au moins deux membres (fiche~\ref{fiche:p-famille}) et une ligne globale
+par méthode (fiche~\ref{fiche:p-globale}). Spécification~:
+\code{docs/specifications/}\allowbreak\code{fk-lecture-conjointe.md}, décisions du mainteneur
+des 25 et 26~octobre 2026 (points d'arrêt D1-Fk et D2-Fk). Ces lignes sont des
+\emph{diagnostics} par nature~: aucune p-value retenue, aucun verdict, et aucun verdict de ligne
+n'est modifié. Une même fonction les calcule pour les deux méthodes, et chacune porte sur
+plusieurs tests~: elles sont regroupées ici, à la fin de la partie~III, et les fiches des tests
+membres y renvoient. Elles suivent la structure en six rubriques des diagnostics.
+
+\begin{fiche}{p de famille (minP, lecture conjointe)}
+\label{fiche:p-famille}%
+\refl{Ajustement minP en une étape par rééchantillonnage~: P.\,H. Westfall, S.\,S. Young,
+\emph{Resampling-Based Multiple Testing: Examples and Methods for p-Value Adjustment}, Wiley, 1993
+(cité pour le nom et l'origine de la procédure, non relu)~; Y.~Ge, S.~Dudoit, T.\,P. Speed,
+\emph{Resampling-based multiple testing for microarray data analysis}, rapport technique~633,
+Department of Statistics, University of California, Berkeley, 2003, p.~12, éq.~(10)~; principe
+du test de Monte-Carlo~: Dwass (1957), Hope (1968)~; portée de ces références à la
+section~\ref{sec:biblio}.}
+\Cadre
+\textbf{Diagnostic par nature, non test} (issue~\#297~; décisions Q-D1-Fk-1 à Q-D1-Fk-6 du
+mainteneur du 25~octobre 2026, confirmées par Q-D2-Fk-4 le 26~octobre 2026~; ADR~0001). Une
+\emph{famille} est l'ensemble des lignes de même préfixe du champ \code{famille}~: B.~(H1),
+C.~(H2), D.~(H3), E.~(H4) et F.~(stabilité) pour la méthode lognormale, M1 à M4 pour la méthode
+Merz--Wüthrich. \emph{Membres.} Une ligne est membre de sa famille si, sur les données observées
+et après toutes les règles qui fixent son type (sections~\ref{sec:nature}
+et~\ref{sec:modele-auxiliaire-regles}), elle réunit cinq conditions~: type \code{test}~;
+variante principale~; sens «~ne pas rejeter~»~; champ \code{mc\_nom} renseigné (issue~\#330),
+c'est-à-dire p-value de Monte-Carlo tirée du bootstrap principal~; \code{p\_mc} finie. Les
+membres sont dédoublonnés par \code{mc\_nom}, une colonne des réplications ne comptant qu'une
+fois. Sont hors famille~: le test de Pitman sur la pente et le TOST, de sens «~rejeter~», dont
+une petite p-value conforte le modèle et ne saurait compter comme une alarme~; les diagnostics,
+tests inopérants compris~; les variantes secondaires~; les lignes non applicables~; les lignes
+dont la p-value de Monte-Carlo est calculée hors du bootstrap principal (rapport de vraisemblance
+sur $\delta$). Les lignes dont la p-value exacte est retenue (à $\hat\pi_t$ constant~: Spearman
+ratio contre volume, Mann--Kendall, Durbin--Watson, suites) entrent par leur p-value de
+Monte-Carlo, la seule qui soit définie sur chaque réplication~; une p-value exacte recalculée
+par réplication ne rendrait pas exacte la loi de leur minimum, et les données des réplications
+ne sont pas toutes conservées. \emph{Composition figée à l'observé}~: dans chaque réplication,
+on lit les colonnes des membres, même si la ligne aurait un autre type sur les données de la
+réplication~; la famille est un ensemble fixé d'hypothèses. \emph{Présence}~: une ligne par
+famille d'au moins deux membres (décision Q-D1-Fk-2)~; une famille d'un seul membre n'a pas de
+ligne, sa p de famille étant exactement la p-value de Monte-Carlo de ce membre, que porte déjà sa
+ligne. Sur les six cas de référence (mesuré par \code{engine\_p\_famille()} sur
+\code{tests/reference/})~: B. a quatre membres (constante, RESET, Spearman ratio contre volume,
+Mann--Kendall), D. six (Shapiro--Wilk, Shapiro--Francia, Anderson--Darling, Lilliefors,
+Jarque--Bera, D'Agostino), E. trois à $\hat\pi_t$ constant (cas à $\hat\delta = 1$) et cinq à
+$\hat\pi_t$ variable (\code{premium\_interieur}~: Durbin--Watson, Ljung--Box, suites, puis
+Durbin--Watson et suites sur ratios bruts, diagnostics de la règle~R15 à $\hat\pi_t$ constant),
+F. trois ou six de même (sup-F, OLS-CUSUM, Grubbs, et leurs variantes sur ratios bruts)~; C. n'a qu'un membre (Breusch--Pagan studentisé)
+et G. aucun~; M1 a cinq membres, M2 deux, M3 quatre, M4 un seul (cellule aberrante), M5 et M6
+aucun. \emph{Exception à l'invariant de présence des lignes} (décision du mainteneur du
+25~octobre 2026~; \code{CONTEXT.md}, «~Ligne non applicable~»)~: la présence d'une ligne de
+famille dépend des données~; à volumes constants, la famille B. ne garde que Mann--Kendall et n'a
+pas de ligne, la table comptant alors une ligne de moins (mesuré par \code{run\_engine()} sur les
+pertes du jeu de contrôle avec $x_t = 110$, $B = 99$~; section~\ref{sec:volumes-constants}).
+L'absence ne cache aucune information. \emph{Position}~: les lignes de famille sont posées par
+\code{add()} après toutes les lignes existantes, dans l'ordre des préfixes, puis la ligne globale
+(fiche~\ref{fiche:p-globale})~; aucune ligne existante ne change d'indice. Champ \code{famille}
+des membres, \code{base} \code{commun}, variante principale.
+\Hzero
+$H_0^{(f)}$~: toutes les hypothèses nulles des tests membres de la famille sont vraies, sous le
+modèle ajusté («~\code{toutes les hypotheses nulles des tests de la famille sont vraies (modele
+ajuste)}~»)~; $H_1$~: au moins une est fausse («~\code{au moins une est fausse}~»). C'est
+l'intersection des hypothèses nulles des membres, chacune sur sa base de résidus~: pour H1, la
+forme $\mathbb{E}[Y_t] = \beta x_t$ sans constante, telle que la vérifient les quatre membres.
+La ligne teste cette intersection et elle seule~: aucune p-value ajustée n'est produite pour un
+membre.
+\Stat
+$m_{\mathrm{obs}} = \min_j p^{\mathrm{MC}}_j$, la plus petite p-value de Monte-Carlo des $k$
+membres (champ \code{stat}, «~\code{plus petite p Monte-Carlo de la famille}~»)~; le nombre $k$
+de membres est dans \code{estim} («~\code{nombre de tests de la famille}~»), grandeur
+descriptive. Calculée par les rangs de la rubrique~4, $m_{\mathrm{obs}}$ est \emph{identique}, et
+non égale à une tolérance près, à la plus petite \code{p\_mc} affichée des membres quand leurs
+colonnes sont finies sur les mêmes réplications (même formule que \code{engine\_p\_mc()},
+numérateurs entiers)~; dans le cas contraire, elle est calculée sur les seules réplications
+complètes et peut en différer (texte T-3a, rubrique~5). $k$ ne lit aucune valeur numérique du
+bootstrap~; il peut en revanche dépendre de la \emph{disponibilité} d'une p-value de
+Monte-Carlo (condition \code{p\_mc} finie, événement discret).
+\Loi
+\emph{Loi simulée, plug-in~; aucune loi exacte ni asymptotique.} On restreint la matrice des
+réplications qui fondent les p-values des membres (\code{bootstrap\$stats\_boot}, dernier élément
+de l'objet bootstrap depuis l'issue~\#297) aux colonnes des membres et aux $n$ réplications où
+toutes ces colonnes sont finies ($n$, \emph{B effectif de famille}). L'observé est l'item~0
+(\code{bootstrap\$stats\_obs}), les réplications sont les items $1, \dots, n$. Pour chaque
+membre $j$, de sens de rejet lu au catalogue de la méthode, et chaque item $i$~:
+\[
+  c^{+}_j(i) = \#\{i' \in \{0, \dots, n\} : S_j(i') \ge S_j(i)\}, \qquad
+  c^{-}_j(i) = \#\{i' \in \{0, \dots, n\} : S_j(i') \le S_j(i)\},
+\]
+comptes qui incluent l'item lui-même~; le numérateur $a_j(i)$ vaut $c^{+}_j(i)$ en queue haute,
+$c^{-}_j(i)$ en queue basse et $\min\big(2\min(c^{+}_j(i), c^{-}_j(i)),\, n+1\big)$ en
+bilatéral~; $p_j(i) = a_j(i)/(n+1)$ et $m(i) = \min_j p_j(i)$. La loi de référence de
+$m_{\mathrm{obs}} = m(0)$ est la loi empirique des $m(i)$, $i = 0, \dots, n$~: rang
+\emph{symétrique}, l'observé compris (décision Q-D1-Fk-4). Elle est conditionnelle au régime
+intérieur de $\hat\delta$ quand les p-values des membres le sont (méthode lognormale à $\hat\delta$
+intérieur, ADR~0014, fiche~\ref{fiche:procedure-mc}), marginale sinon~; en Merz--Wüthrich, ce sont
+les réplications du bootstrap de résidus (section~\ref{sec:boot-mw}). Aucune simulation ni graine
+nouvelle. \emph{Propriété dans le cas idéal} (raisonnement du document, non résultat cité)~: si
+les $n+1$ items étaient échangeables, chaque $m(i)$ étant la même fonction symétrique de l'item
+$i$ et de l'ensemble des items, le vecteur $(m(0), \dots, m(n))$ serait échangeable, et le rang
+de $m(0)$, compté avec «~$\le$~», sur-uniforme~: $\mathbb{P}(p_f \le u) \le u$ pour tout $u$, ex
+\ae quo compris. C'est le principe du test de Monte-Carlo (Dwass, 1957~; Hope, 1968) appliqué à
+la statistique $m$. Les réplications étant tirées sous le modèle \emph{ajusté} et non sous le
+modèle vrai, les items ne sont pas échangeables~: la propriété ne vaut que dans le cas idéal, comme
+pour chaque p-value de Monte-Carlo (section~\ref{sec:nature})~; la p de famille est une p-value
+\emph{plug-in}, non exacte. La construction est l'ajustement minP en une étape, tel que
+l'écrivent Ge, Dudoit et Speed (2003, p.~12, éq.~(10)~: $\tilde p_i = \mathbb{P}(\min_l P_l \le
+p_i \mid H_M)$, $H_M$ l'intersection de toutes les hypothèses nulles), appliqué à la seule plus
+petite p-value~; leur algorithme calcule aussi la p-value de chaque réplication sur toutes les
+réplications, l'observé compris, ex \ae quo compris (même rapport, p.~14 et~19). \emph{Variante
+écartée}~: le rang de chaque réplication «~parmi les autres réplications~», d'abord envisagé, met
+les réplications sur la grille $r/n$ et l'observé sur la grille $r/(n+1)$~; aux atomes, une
+réplication de même rang que l'observé n'est pas comptée, et la p-value devient libérale. Sur
+\code{reserve2}, elle vaudrait $0{,}003$ au lieu de $0{,}008$ pour M3, $0{,}020$ au lieu de
+$0{,}023$ pour M1 et $0{,}010$ au lieu de $0{,}024$ pour la ligne globale (remesuré en R de base
+sur \code{bootstrap\$stats\_boot} de la référence).
+\Pval
+$p_f = \#\{i : m(i) \le m(0)\}/(n+1) = \big(1 + \#\{b : m(b) \le m_{\mathrm{obs}}\}\big)/(n+1)$,
+calculée sur les numérateurs entiers (\code{.engine\_minp\_rangs()}), sans aucun tirage
+(section~\ref{sec:graines}). Elle est rangée dans \code{p\_monte\_carlo} (argument
+\code{p\_mc\_ext} d'\code{add()}), avec \code{erreur\_MC} $= \sqrt{p_f(1-p_f)/n}$, erreur de
+Monte-Carlo de $p_f$ approchée par la formule binomiale en queue simple (les $m(b)$ dépendent de
+toutes les réplications par les rangs), fonction de $n$ et non de $T$~; \code{mc\_nom} vaut
+\code{NA}, la ligne n'ayant pas de clé propre au catalogue, et \code{p\_exacte},
+\code{p\_asymptotique}, \code{p\_min} et \code{p\_min\_mc} valent \code{NA}. \textbf{Aucune
+p-value n'est retenue}~: \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent
+\code{NA}, verdict \code{INFO} (ADR~0001). Aucune des trois voies de la hiérarchie n'est retenue,
+chacune pour sa raison. \emph{Exacte}~: aucune~; la loi jointe des p-values des membres sous le
+modèle vrai n'est pas connue, et une p-value exacte par membre ne rendrait pas exacte la loi de
+leur minimum. \emph{Asymptotique}~: aucune~; le moteur n'emploie aucune loi limite du minimum.
+\emph{Monte-Carlo}~: calculée et restituée, mais non retenue, parce que la ligne est un
+diagnostic par nature (décision Q-D1-Fk-6 du mainteneur, maintenue au point d'arrêt D2-Fk,
+rubrique~6). Ce n'est donc pas une p-value manquante remplacée par une autre~: aucun repli n'est
+possible. \emph{B effectif de famille} (Q-D1-Fk-5)~: $n$, au plus égal au plus petit $B$
+effectif des membres~; il vaut 999 sur chaque ligne des six cas de référence (remesuré). Sous
+\code{B\_MIN\_DEGENERESCENCE} $= 50$, aucune p-value n'est calculée (\code{p\_monte\_carlo} à
+\code{NA}) et le commentaire commence par le texte T-3b, «~\code{p de famille non calculee :
+replications completes insuffisantes (B\_effectif < B\_MIN\_DEGENERESCENCE = 50) ; aucune p-value
+(ADR 0001).}~»~; quand $n$ est inférieur au $B$ effectif d'au moins un membre, le texte T-3a est
+joint, «~\code{Calculee sur les seules replications ou les statistiques de tous les tests de la
+famille sont finies, moins nombreuses que celles d'au moins un test : la plus petite p peut alors
+differer de la plus petite p Monte-Carlo affichee.}~» Aucun des deux textes n'apparaît sur les
+cas de référence. \emph{Commentaire de la ligne} (texte T-1, aucun nombre issu du bootstrap,
+issue~\#76)~: il décrit la construction, liste les membres sous la forme «~nom du test [clé]~»,
+«~\code{tous, quelle que soit la selection de restitution}~», et se termine par
+«~\code{Controle du taux d'erreur de la famille au sens faible (toutes ses hypotheses vraies),
+sous le modele ajuste : p plug-in, non exacte, comme les p Monte-Carlo des lignes. Diagnostic
+sans verdict : aucun verdict de ligne n'est modifie.}~» Il ne porte ni la phrase de
+l'issue~\#244 (verdict proche d'un seuil), réservée aux lignes de type test, ni celles des
+issues~\#204 et~\#257. Champ \code{reference}~: «~\code{Westfall \& Young (1993), minP en une etape
+; Ge, Dudoit \& Speed (2003), rapport technique 633, UC Berkeley, eq. (10) ; Dwass (1957), Hope
+(1968)}~». Valeurs sur les cas de référence ($B = 999$, remesurées sur \code{tests/reference/},
+et retrouvées en R de base depuis \code{bootstrap\$stats\_boot})~: B. $0{,}950$, D. $0{,}438$,
+E. $0{,}316$ et F. $0{,}961$ sur les quatre cas à $\hat\delta = 1$~; B. $0{,}955$, D. $0{,}579$,
+E. $0{,}423$ et F. $0{,}290$ sur \code{premium\_interieur}~; M1 $0{,}023$, M2 $0{,}471$ et M3
+$0{,}008$ sur \code{reserve2}.
+\Usage
+\emph{Lecture.} Une p de famille faible dit que la plus petite p-value de Monte-Carlo de la
+famille est plus petite que ce que le modèle ajusté produit, compte tenu du nombre de tests et de
+leur dépendance~: au moins une hypothèse de la famille paraît contredite par les données, sans
+qu'elle dise laquelle. Le
+contrôle du taux d'erreur de la famille est \emph{au sens faible}~: il vaut quand toutes ses
+hypothèses nulles sont vraies, et \emph{sous le modèle ajusté}. Aucune p-value ajustée n'est
+restituée par membre (pas de contrôle au sens fort), et un verdict \code{ALERTE} ou \code{ECHEC}
+d'un membre reste celui de sa ligne. La sélection de restitution de l'application ne change rien
+au calcul~: la ligne porte sur tous ses membres. La vue Synthèse affiche la p de famille comme
+valeur non retenue («~p de famille (Monte-Carlo) = \dots{} --- diagnostic, aucune p retenue~»),
+«~p retenue~» et «~Nature~» restant à un tiret~; la colonne «~granularité MC~» porte un tiret
+(\code{mc\_nom} manquant), la granularité de la ligne étant $1/(n+1)$.
+\emph{Pourquoi aucun verdict} (ADR~0001). Donner un verdict à la ligne ferait coexister deux
+niveaux de décision sur les mêmes hypothèses~: une famille \code{OK} pourrait contenir une ligne
+en \code{ECHEC}, et le dossier deviendrait ambigu sur ce qui fait foi. La mesure du niveau
+ci-dessous est nécessaire mais non suffisante pour en faire un test~: la puissance n'en est pas
+mesurée (décision Q-D2-Fk-4 du 26~octobre 2026~; issue~\#379).
+
+\emph{Niveau à $T = 8$} (issue~\#297, étape~5 de la spécification~: critère K-F1 à K-F4 et
+profils de lecture fixés avant toute exécution). Constat de simulation sous quatre plans, jamais un
+résultat général~: méthode lognormale sous les modèles ajustés aux jeux J1 et J2
+(section~\ref{sec:calibration-mc})~; méthode Merz--Wüthrich sous le modèle de Mack ajusté au
+triangle de contrôle, erreurs des lois N et E (section~\ref{sec:calib-mc-mw})~; $R = 2\,000$ jeux
+ou triangles par plan, $B = 999$, au commit \code{7ff4725}~; sorties
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-ln.md} et
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-mw.md} (tableau T-F1).
+Un rejet, au sens de la mesure, est $p < \alpha$, la ligne ne portant aucun verdict~; référence $\rho_F$, taille du test de
+Monte-Carlo idéal à $B_{\text{eff}} = 999$ pour une statistique sans atome,
+$(\lceil 1000\,\alpha\rceil - 1)/1000$, soit $0{,}099$ et $0{,}049$~; $m$ ayant des atomes près du
+plancher, le test idéal est plus conservateur, et $\rho_F$ en est un \emph{majorant}. Classes de la
+section~\ref{sec:calibration-mc}~: c, compatible~; m, écart mineur. Intervalles de
+Clopper--Pearson à 95~\%, fonction de $R$, arrondis au millième.
+
+\begin{center}
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\rowcolors{2}{tablerow}{white}
+\begin{tabular}{@{}p{1.3cm}p{1.3cm}p{4.4cm}p{4.4cm}@{}}
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Jeu ou loi}} &
+\textcolor{financeblue}{\textbf{Ligne}} &
+\textcolor{financeblue}{\textbf{$\alpha = 0{,}10$~: taux [IC] classe}} &
+\textcolor{financeblue}{\textbf{$\alpha = 0{,}05$~: taux [IC] classe}} \\
+J1 & B. & $0{,}1095$ $[0{,}096~;~0{,}124]$ c & $0{,}0585$ $[0{,}049~;~0{,}070]$ c \\
+J1 & D. & $0{,}0930$ $[0{,}081~;~0{,}107]$ c & $0{,}0470$ $[0{,}038~;~0{,}057]$ c \\
+J1 & E. & $0{,}0930$ $[0{,}081~;~0{,}107]$ c & $0{,}0520$ $[0{,}043~;~0{,}063]$ c \\
+J1 & F. & $0{,}0995$ $[0{,}087~;~0{,}113]$ c & $0{,}0545$ $[0{,}045~;~0{,}065]$ c \\
+J1 & LC & $0{,}1075$ $[0{,}094~;~0{,}122]$ c & $0{,}0525$ $[0{,}043~;~0{,}063]$ c \\
+J2 & B. & $0{,}0830$ $[0{,}071~;~0{,}096]$ m & $0{,}0400$ $[0{,}032~;~0{,}050]$ c \\
+J2 & D. & $0{,}0980$ $[0{,}085~;~0{,}112]$ c & $0{,}0425$ $[0{,}034~;~0{,}052]$ c \\
+J2 & E. & $0{,}0960$ $[0{,}083~;~0{,}110]$ c & $0{,}0555$ $[0{,}046~;~0{,}066]$ c \\
+J2 & F. & $0{,}1020$ $[0{,}089~;~0{,}116]$ c & $0{,}0545$ $[0{,}045~;~0{,}065]$ c \\
+J2 & LC & $0{,}0990$ $[0{,}086~;~0{,}113]$ c & $0{,}0415$ $[0{,}033~;~0{,}051]$ c \\
+N & M1 & $0{,}0925$ $[0{,}080~;~0{,}106]$ c & $0{,}0395$ $[0{,}031~;~0{,}049]$ m \\
+N & M2 & $0{,}0880$ $[0{,}076~;~0{,}101]$ c & $0{,}0375$ $[0{,}030~;~0{,}047]$ m \\
+N & M3 & $0{,}0960$ $[0{,}083~;~0{,}110]$ c & $0{,}0440$ $[0{,}035~;~0{,}054]$ c \\
+N & LC & $0{,}0715$ $[0{,}061~;~0{,}084]$ m & $0{,}0365$ $[0{,}029~;~0{,}046]$ m \\
+E & M1 & $0{,}0850$ $[0{,}073~;~0{,}098]$ m & $0{,}0405$ $[0{,}032~;~0{,}050]$ c \\
+E & M2 & $0{,}0960$ $[0{,}083~;~0{,}110]$ c & $0{,}0500$ $[0{,}041~;~0{,}060]$ c \\
+E & M3 & $0{,}1015$ $[0{,}089~;~0{,}116]$ c & $0{,}0455$ $[0{,}037~;~0{,}056]$ c \\
+E & LC & $0{,}0860$ $[0{,}074~;~0{,}099]$ c & $0{,}0370$ $[0{,}029~;~0{,}046]$ m \\
+\end{tabular}
+\end{center}
+
+\noindent
+Toutes les p de famille et les p globales sont compatibles ou en écart mineur, aux deux seuils,
+sous chaque jeu et chaque loi, et \emph{tous} les écarts mineurs sont du côté conservateur (taux
+sous $\rho_F$)~: aucune distorsion libérale n'est observée, à la précision de la mesure.
+\emph{Composition} (tableau T-F2)~: les lignes C., G. et M4 sont absentes de tous les jeux et
+triangles (au plus un membre)~; les autres lignes sont présentes dans tous, sans texte T-3b, avec
+un $B$ effectif de famille de 999 dans tous les triangles~; $k$ varie avec le régime du jeu simulé
+(B.~: quatre membres, cinq dans 63 jeux de J1 et 3 de J2~; E.~: trois ou cinq~; F.~: trois ou
+six~; ligne globale de J1 et J2~: 17, 22 ou 23 membres), et vaut 5, 2 et 4 pour M1, M2 et M3,
+douze pour la ligne globale de la méthode Merz--Wüthrich~; la part des p de famille égales au
+plancher $1/(n+1)$ ne dépasse pas $0{,}002$. \emph{Voisinage des seuils} (tableau T-F4)~: une p
+de famille est à moins de deux erreurs de Monte-Carlo de $0{,}10$ dans $2{,}7$ à $4{,}45~\%$ des
+jeux ou triangles selon la ligne, de $0{,}05$ dans $2{,}1$ à $3{,}6~\%$. L'erreur de Monte-Carlo
+de la ligne vaut environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$~: une p de famille se lit avec son
+\code{erreur\_MC}, et la ligne ne porte pas la phrase de l'issue~\#244 qui le rappelle sur les
+lignes de type test. \emph{Lecture du point d'arrêt D2-Fk} (décisions du mainteneur du
+26~octobre 2026)~: profil~$\Phi_1$ («~toutes les p de famille et la p globale compatibles ou en
+écart mineur~») sur les deux méthodes~; le profil~$\Phi_0$ que la mesure posait mécaniquement sur
+la méthode Merz--Wüthrich, par deux témoins oracle significatifs de la remesure de
+l'issue~\#206, est levé, ces témoins étant expliqués (section~\ref{sec:calib-mc-mw})~; constat
+documenté, sans modification du moteur, la ligne restant un diagnostic. \emph{Puissance}~: non
+mesurée à $T = 8$~; \textbf{une p de famille élevée n'atteste pas l'adéquation des hypothèses de
+la famille} (issue~\#379). \emph{Statut}~: constats de simulation sous ces quatre plans, au commit
+\code{7ff4725}, qui ne se transposent ni à un autre jeu, ni à une autre géométrie de triangle, ni à
+une autre profondeur~; aucun théorème ne couvre la p de famille à $T = 8$, et la littérature
+citée ne dit rien d'une p minP calculée sur un bootstrap paramétrique sous un modèle ajusté.
+L'incertitude de Clopper--Pearson (fonction de $R$) et l'erreur de Monte-Carlo de chaque p
+(fonction de $n$) sont distinctes de l'erreur d'approximation en $T$, que la mesure ne borne pas.
+\end{fiche}
+
+\begin{fiche}{p globale (minP, lecture conjointe de la batterie)}
+\label{fiche:p-globale}%
+\refl{Mêmes références que la fiche~\ref{fiche:p-famille}.}
+\Cadre
+\textbf{Diagnostic par nature, non test} (issue~\#297~; décision Q-D1-Fk-3 du mainteneur du
+25~octobre 2026~; ADR~0001). Le constat de multiplicité porte sur l'ensemble de la batterie~: la
+part des jeux conformes au modèle qui reçoivent au moins un verdict \code{ALERTE} ou
+\code{ECHEC}. Les lignes de famille n'y répondent pas pour la batterie entière~; la ligne
+globale applique la construction de la fiche~\ref{fiche:p-famille} à la réunion des membres de
+toutes les familles de la méthode, familles d'un seul membre comprises (C. et M4). Une ligne par
+méthode, posée après les lignes de famille, si la batterie compte au moins deux membres. Famille
+\code{FAMILLE\_LECTURE\_CONJOINTE}, «~\code{LC. Lecture conjointe de la batterie (toutes
+familles)}~», de préfixe \code{PREFIXE\_LECTURE\_CONJOINTE} (LC), groupe «~Lecture
+conjointe de la batterie~» de l'affichage. Nombre de membres sur les cas de référence
+(remesuré)~: 17 sur les quatre cas à $\hat\delta = 1$, 22 sur \code{premium\_interieur}, 12 sur
+\code{reserve2}~; 13 à volumes constants (même mesure que la fiche~\ref{fiche:p-famille}, sans
+ligne de famille B.). La présence de la ligne relève de la même exception à l'invariant de
+présence des lignes.
+\Hzero
+$H_0$~: toutes les hypothèses nulles des tests membres de toutes les familles sont vraies, sous
+le modèle ajusté («~\code{toutes les hypotheses nulles des tests de toutes les familles sont
+vraies (modele ajuste)}~»)~; $H_1$~: au moins une est fausse.
+\Stat
+$m_{\mathrm{obs}}$, la plus petite p-value de Monte-Carlo des membres de la batterie (\code{stat},
+«~\code{plus petite p Monte-Carlo de la batterie}~»)~; $k$, nombre de membres, dans \code{estim}
+(«~\code{nombre de tests}~»).
+\Loi
+Celle de la fiche~\ref{fiche:p-famille}, sur les colonnes de tous les membres~: loi empirique des
+plus petites p-values par rang symétrique, l'observé compris, sur les réplications qui fondent les
+p-values des membres~; plug-in, non exacte, aucune loi exacte ni asymptotique.
+\Pval
+Même calcul, mêmes champs et même absence de p-value retenue que la fiche~\ref{fiche:p-famille}
+(rubrique~5), dont les raisons valent ici à l'identique~; textes T-3a et T-3b sur le $B$
+effectif de la batterie. Le commentaire (texte T-2) imprime le nombre de membres, qui ne lit
+aucune valeur numérique du bootstrap (fiche~\ref{fiche:p-famille}, rubrique~3)~: «~\code{Lecture
+conjointe de la batterie (issue \#297) : p minP en une etape sur les [k] tests des familles (tous,
+quelle que soit la selection de restitution), meme construction que les lignes de famille. Elle
+situe la plus petite p Monte-Carlo observee dans sa loi sous le modele ajuste, compte tenu du
+nombre de tests et de leur dependance. Elle porte sur les p Monte-Carlo des tests, pas sur leurs
+p retenues : un verdict fonde sur une p exacte peut ne pas s'y retrouver, et les lignes de sens
+rejeter, hors batterie, n'y entrent pas. Controle du taux d'erreur de la batterie au sens faible,
+sous le modele ajuste : p plug-in, non exacte. Diagnostic sans verdict : aucun verdict de ligne
+n'est modifie.}~», où [k] est le nombre de membres. L'événement «~au moins un membre a une p-value
+de Monte-Carlo inférieure à $\alpha$~» est exactement $\{m_{\mathrm{obs}} < \alpha\}$~; il ne se
+confond pas avec «~au moins un verdict \code{ALERTE} ou \code{ECHEC}~», qui peut venir d'une
+p-value exacte retenue ou d'une ligne de sens «~rejeter~» (sur \code{premium\_interieur}, le TOST
+est en \code{ALERTE} quand $m_{\mathrm{obs}} = 0{,}105 > \alpha$). Valeurs sur les cas de
+référence ($B = 999$, remesurées et retrouvées en R de base)~: $0{,}131$ ($m_{\mathrm{obs}} =
+0{,}018$, Breusch--Pagan studentisé) sur les quatre cas à $\hat\delta = 1$~; $0{,}650$
+($m_{\mathrm{obs}} = 0{,}105$) sur \code{premium\_interieur}~; $0{,}024$ ($m_{\mathrm{obs}} =
+0{,}002$, effets d'année calendaire) sur \code{reserve2}.
+\Usage
+\emph{Lecture.} La p globale situe la plus petite p-value de Monte-Carlo de la batterie dans sa
+loi sous le modèle ajusté~: elle répond à la question «~la plus petite p-value de la batterie
+est-elle plus petite que ce que le modèle ajusté produit lui-même, compte tenu du nombre de tests
+et de leur dépendance~?~», à laquelle aucun verdict isolé ne répond. Sur
+\code{reserve2}, $0{,}024$ dit que la plus petite p-value ($0{,}002$) est plus petite que ce que
+le modèle ajusté produit en tenant compte des douze membres et de leur dépendance~; sur le jeu de
+contrôle de la méthode lognormale, $0{,}131$ dit qu'une plus petite p-value au moins aussi
+faible que celle de Breusch--Pagan studentisé ($0{,}018$, seul \code{ECHEC} du jeu) survient dans
+environ 13~\% des jeux simulés sous le modèle ajusté, compte tenu des dix-sept membres et de leur
+dépendance. Elle ne dit pas que cet \code{ECHEC} est une fausse alerte~: le verdict reste celui de
+la ligne (famille C. d'un seul test, sans ligne de famille), et une p globale élevée n'atteste pas
+l'adéquation (puissance non mesurée).
+Mêmes limites que la fiche~\ref{fiche:p-famille}~: contrôle au sens faible, sous le modèle
+ajusté~; aucune p-value ajustée par ligne~; aucun verdict de ligne modifié~; affichage «~p globale
+(Monte-Carlo) = \dots{} --- diagnostic, aucune p retenue~» dans la vue Synthèse~; mêmes raisons
+de l'absence de verdict (ADR~0001, décision Q-D2-Fk-4). \emph{Niveau à $T = 8$} (même mesure,
+tableau de la fiche~\ref{fiche:p-famille}, lignes LC)~: compatible sous J1 et J2 aux deux seuils
+($0{,}1075$ et $0{,}0990$ à $0{,}10$)~; écart mineur conservateur sous N aux deux seuils
+($0{,}0715$ et $0{,}0365$) et sous E à $0{,}05$ ($0{,}0370$). \emph{Ce que la ligne change à la
+lecture} (tableau T-F3, même mesure)~: la part des jeux ou triangles dont au moins un membre a une
+p-value de Monte-Carlo inférieure à $0{,}10$ vaut $0{,}554$ (J1), $0{,}6065$ (J2), $0{,}6245$ (N)
+et $0{,}640$ (E)~; celle des jeux dont la p globale est inférieure à $0{,}10$, $0{,}1075$,
+$0{,}0990$, $0{,}0715$ et $0{,}0860$~: sous ces plans, la part des jeux conformes au modèle dont
+au moins un membre a une p-value de Monte-Carlo sous $0{,}10$, de 55 à 64~\%, se compare à celle
+dont la p globale est sous $0{,}10$, de 7 à 11~\%. Le détail des verdicts sous le
+modèle, sur tous les tests et sur les seuls tests de sens «~ne pas rejeter~», est aux
+sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance}~: non mesurée à
+$T = 8$~; une p globale élevée n'atteste pas l'adéquation du modèle (issue~\#379). \emph{Statut}~:
+constats de simulation sous les plans J1, J2, N et E, au commit \code{7ff4725}, $R = 2\,000$,
+$B = 999$~; aucun résultat général.
+\end{fiche}
+
 \newpage
 
 \partie{Partie IV}{Validation, références et synthèse}
@@ -17310,10 +17884,13 @@ dans 92,5~\% des cas.
 \label{sec:calibration-mc}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 47 lignes de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 52 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
-p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 29 dernières n'ayant
-aucune p-value retenue (28 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
+p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 34 dernières n'ayant
+aucune p-value retenue (33 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
+parmi ces diagnostics, cinq sont les lignes de lecture conjointe ajoutées par l'issue~\#297
+(une par famille de plusieurs tests et une ligne globale, fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale})~;
 le TOST compte parmi les diagnostics depuis l'issue~\#298 (règle~R14~: $p_{\text{plancher}} =
 0{,}440 \ge \alpha$ sur ce jeu, section~\ref{sec:nature}).
 Les mesures qui suivent (issues~\#166, \#221, \#175 et~\#229) ont toutes été faites avant
@@ -17428,7 +18005,10 @@ d'échangeabilité exclut le modèle ajusté, sous lequel cette calibration simu
 rejet sous ce modèle est une puissance, non un niveau ($0{,}643$ $[0{,}621~;~0{,}665]$ à
 $\alpha = 0{,}10$ sur les 1\,879 jeux simulés de J1 où la ligne est un test, les 121 autres
 étant restitués en diagnostic par la règle~R4, alors en vigueur et retirée depuis par D1-Fb~;
-$1{,}000$ sur J2), et cette calibration ne la
+$1{,}000$ sur J2~; remesurée au commit \code{7ff4725} par la mesure de l'issue~\#297 décrite
+ci-après, mêmes graines, la ligne étant un test dans tous les jeux depuis le retrait de la
+règle~R4~: $0{,}630$ $[0{,}6084~;~0{,}6512]$ sur les 2\,000 jeux simulés de J1, $1{,}000$
+$[0{,}9982~;~1]$ sur J2), et cette calibration ne la
 juge pas. Lu par réplication, le dispositif rend au moins un verdict \code{ALERTE} ou \code{ECHEC} parmi
 ces lignes dans $63{,}45~\%$ des jeux simulés sous le modèle sur J1 et $66{,}0~\%$ sur J2, et
 au moins un \code{ECHEC} dans $37{,}55~\%$ et $39{,}95~\%$ (en moyenne $3{,}1$ et $2{,}9$
@@ -17440,6 +18020,47 @@ elles sont recalculées, en R de base, à partir des p-values retenues des fichi
 brutes (verdict \code{ALERTE} ou \code{ECHEC} si $p < \alpha$, \code{ECHEC} si
 $p < \alpha/2$, pour ces lignes de sens «~ne pas rejeter~»), recalcul qui reproduit, ligne par
 ligne, les comptes des fichiers de résultats.
+
+\emph{Remesure sur le moteur de la branche Fk (issue~\#297).} La mesure du niveau des p de
+famille et de la p globale de la lecture conjointe (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}) rejoue les jeux J1 et J2 sur le moteur courant~: script hors CI
+\code{tests/calibration\_mc\_t8.R}, option \code{--campagne 297}, 16 sorties de 250 réplications
+exécutées et combinées au commit \code{7ff4725}, R~4.3.3 sous Linux, BLAS et LAPACK de référence
+du système (3.12.0), générateur du moteur, $R = 2\,000$ jeux par jeu, $B = 999$, mêmes graines
+que l'issue~\#166 (jeux simulés sous 20260927, bootstrap de la réplication $b$ sous
+$20260831 + b$), contrôles d'intégrité réussis dans chaque sortie, dont le recalcul indépendant
+des p de famille~; sorties \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-ln.md}, valeurs brutes
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-ln-brut.tsv}, journaux
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{mesure.md} et
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{combinaison-ln.md}. Le niveau des p de famille
+est à la fiche~\ref{fiche:p-famille}. \emph{Multiplicité sous le moteur courant} (tableau T-F3,
+constat de simulation au commit \code{7ff4725}, qui complète sans les remplacer les fréquences
+ci-dessus, datées de la mesure de l'issue~\#221)~: au moins un verdict \code{ALERTE} ou
+\code{ECHEC} parmi toutes les lignes de type test, dans $0{,}7070$ des jeux simulés de J1 et
+$0{,}7785$ de J2~; parmi les seules lignes de type test de sens «~ne pas rejeter~», dans
+$0{,}5535$ et $0{,}6100$~; au moins un \code{ECHEC} parmi ces dernières, dans $0{,}3075$ et
+$0{,}3520$ ($0{,}3655$ et $0{,}4095$ sur toutes les lignes de type test). Les deux ensembles
+diffèrent par le TOST et le test de Pitman, de sens «~rejeter~»~: leur \code{ALERTE} ou leur
+\code{ECHEC} est le non-rejet d'une hypothèse nulle contraire au modèle (constante non
+négligeable~; absence de lien pertes / volume), c'est-à-dire une propriété du modèle non
+démontrée et non le rejet d'une hypothèse du modèle~; sous le modèle simulé, leur fréquence
+relève de la puissance de ces tests, non de leur niveau. Un tel verdict n'est pas pour autant
+sans portée~: un \code{ECHEC} du TOST à $p \ge 0{,}5$ équivaut à une constante estimée au moins
+égale à la marge en valeur absolue ($p = \max(p_{\text{bas}}, p_{\text{haut}}) \ge 0{,}5$ si et
+seulement si $|\hat a| \ge \Delta$, la loi de Student étant de médiane nulle, fiche~\ref{fiche:tost-constante})~;
+un \code{ECHEC} du test de Pitman à $p \ge 0{,}5$ signale un lien observé au plus égal à la plus
+grande médiane de sa loi de permutation, loi de moyenne nulle mais pas nécessairement
+symétrique~: quand elle est asymétrique, un lien faiblement positif peut y conduire, et un lien
+nul ou faiblement négatif peut ne pas y conduire (fiche~\ref{fiche:student-pente}). L'ensemble des lignes de type test
+a changé depuis la mesure de l'issue~\#221 (diagnostics par décision des issues~\#299, \#303
+et~\#304, lignes retirées par l'issue~\#302)~: les deux mesures ne portent pas sur les mêmes
+lignes et ne se comparent pas terme à terme. La p globale de lecture conjointe tombe sous
+$0{,}10$ dans $0{,}1075$ (J1) et $0{,}0990$ (J2) des jeux, sous $0{,}05$ dans $0{,}0525$ et
+$0{,}0415$~; au moins un membre de la batterie a une p-value de Monte-Carlo inférieure à $0{,}10$
+dans $0{,}554$ et $0{,}6065$ des jeux (fiche~\ref{fiche:p-globale}). La même sortie rejoue, sur
+cette exécution, les tableaux T1 à T3 de l'issue~\#166~: ce sont des constats au commit
+\code{7ff4725}, qui ne remplacent pas les mesures citées dans cette section, datées à leur
+commit.
 
 \emph{Par régime de $\hat\delta^{*}$.} Les taux conditionnels au régime du réajustement
 dépendent d'un événement fonction des données et n'ont pas de référence exacte, même pour une
@@ -18382,6 +19003,8 @@ $1 - 0{,}9^{13} = 0{,}746$ suppose treize décisions indépendantes au niveau $0
 de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}), procédure de
 décision lors de la mesure et diagnostic sans verdict depuis l'issue~\#300, déclare au
 moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{,}0025$) sous E et 23 sur 1\,000 ($0{,}023$) sous A, au niveau $\alpha = 0{,}10$.
+Ces fréquences sont remesurées sur le moteur courant par la remesure de l'issue~\#297
+(ci-dessous), sans les remplacer.
 
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
 $|p_{\mathrm{mc}} - \alpha|$ inférieur à deux fois \code{err\_mc} va, selon la statistique et la loi, de
@@ -18392,6 +19015,67 @@ sous ce plan, la fréquence de la phrase de l'issue~\#244 due au seul seuil $\al
 section~\ref{sec:nature}, «~Verdict sensible à l'aléa de simulation~»)~; au seuil par défaut $\alpha = 0{,}10$, la phrase compte
 aussi le seuil $\alpha/2 = 0{,}05$, dont la fréquence est celle de la colonne à $0{,}05$, et ne
 compte que les seuils atteignables.
+
+\emph{Remesure sur le moteur de la branche Fk (issue~\#297).} La mesure du niveau des p de famille
+et de la p globale de la lecture conjointe (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})
+remesure, sur les mêmes triangles, les treize clés du catalogue (annotation du 24~octobre 2026 de
+la spécification de l'issue~\#206~; critères K1 à K5 inchangés)~: script hors CI
+\code{tests/calibration\_mc\_mw\_t8.R}, option \code{--campagne 297}, 18 sorties (16 tranches et
+deux échantillons oracle) exécutées et combinées au commit \code{7ff4725}, R~4.3.3 sous Linux,
+BLAS et LAPACK de référence du système (3.12.0), générateur du moteur~; lois N et E, pool redressé
+seul, 2\,000 triangles par loi, $B = 999$, échantillons oracle de $N_0 = 20\,000$ triangles par
+loi, mêmes graines que la mesure de l'issue~\#206~; ni loi A, ni vivier non redressé~; aucun
+triangle refusé, aucune p-value absente, $B$ effectif de 999 partout~; sortie
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-mw.md}, valeurs brutes
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-mw-brut.tsv}, journaux
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{mesure.md} et
+\code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{combinaison-mw.md}. Constat de simulation sous ce plan.
+\emph{Clés changées depuis la mesure de l'issue~\#206} (tableau T1~; taux de rejet sous $H_0$ à
+$0{,}10$ puis à $0{,}05$, intervalle de Clopper--Pearson à 95~\% arrondi au millième)~:
+\code{Calendrier}, en queue basse depuis l'issue~\#276, $0{,}090$ $[0{,}078~;~0{,}103]$ et
+$0{,}0445$ $[0{,}036~;~0{,}054]$ sous N ($\rho = 0{,}090$ et $0{,}041$), $0{,}093$
+$[0{,}081~;~0{,}107]$ et $0{,}038$ $[0{,}030~;~0{,}047]$ sous E ($\rho = 0{,}092$ et $0{,}041$),
+compatible partout, sur un échantillon indépendant de celui de la mesure propre de
+l'issue~\#276 (ci-dessous)~; \code{BP}, statistique de l'issue~\#301, $0{,}089$ et $0{,}041$ sous
+N, $0{,}097$ et $0{,}053$ sous E, compatible partout~; \code{MinP4} (issue~\#300), $0{,}071$ et
+$0{,}029$ sous N, écart mineur conservateur aux deux seuils, $0{,}0785$ (écart mineur
+conservateur) et $0{,}0395$ (compatible) sous E~; \code{PenteIntra}, statistique de
+l'issue~\#307, $0{,}1115$ $[0{,}098~;~0{,}126]$ et $0{,}061$ $[0{,}051~;~0{,}072]$ sous N, écart mineur
+libéral aux deux seuils, $0{,}1105$ et $0{,}0545$ sous E, compatible. Pour \code{BP},
+\code{MinP4} et \code{PenteIntra}, ces taux sont ceux de la mesure de l'issue~\#309, sous les
+mêmes triangles et les mêmes graines (paragraphe précédent). \emph{Clés inchangées}
+(\code{Runs}, \code{HomogF}, \code{Origine}, \code{Courbure}, \code{Alpha}, \code{ExpVar},
+\code{KruskalAcc}, \code{CorrDev}, \code{DW})~: leurs p-values de Monte-Carlo sont identiques à
+celles de la mesure du 11~octobre 2026 sur les 4\,000 triangles communs (remesuré par comparaison
+des deux fichiers de valeurs brutes, égalité exacte), ce qui établit la non-régression de ces
+statistiques~; leurs taux, classes et témoins sont donc ceux des tableaux ci-dessus pour N et E.
+\emph{Bilan du critère K1}~: sur les 26 cellules de chaque loi, sous N, 20 compatibles et 6 écarts
+mineurs (\code{MinP4} et \code{PenteIntra} aux deux seuils, homogénéité de $f_j$ et famille
+$\alpha$ à $0{,}05$), sous E, 22 compatibles et 4 écarts mineurs (\code{MinP4} à $0{,}10$,
+courbure aux deux seuils, suites à $0{,}05$)~; aucune distorsion matérielle. La clé \code{Runs},
+dont la ligne est un diagnostic depuis l'issue~\#312, est lue à titre descriptif. \emph{Témoins
+oracle} (critère K3)~: les deux mêmes témoins que le 11~octobre sont significatifs, N
+homogénéité de $f_j$ à $0{,}05$ (71 rejets sur 2\,000, p-value de Holm $0{,}031$) et E suites à
+$0{,}05$ (44 sur 2\,000, p-value de Holm $0{,}0042$), même taille du témoin ($0{,}04996$ et
+$0{,}03639$), mêmes comptes de rejets sur les mêmes
+triangles, contre des échantillons oracle tirés sous les mêmes graines~; ils
+s'expliquent par la règle corrigée de l'annotation du 11~octobre 2026 (paragraphe «~Témoins
+oracle~» ci-dessus~: variance de l'oracle partagé pour l'homogénéité de $f_j$, p-value de Holm
+d'environ $0{,}060$~; atome de $-1{,}2010$ à cheval sur le seuil pour les suites, de masse
+$0{,}01755$, queues de $0{,}0077$ et $0{,}02525$). Le script n'applique pas encore cette règle
+corrigée et pose donc mécaniquement le profil~$\Phi_0$, levé par décision du mainteneur du
+26~octobre 2026 (issue~\#378). Profil de la remesure par clé~: $\Pi_1$. \emph{Verdicts sous $H_0$
+et multiplicité} (tableaux T4 et T-F3, moteur courant)~: au moins une \code{ALERTE} ou un
+\code{ECHEC} sur les lignes de Monte-Carlo à verdict, au nombre de douze --- la ligne des
+suites étant un diagnostic --- dans $0{,}6245$ (N) et $0{,}6400$ (E) des triangles, au moins un \code{ECHEC} dans
+$0{,}3800$ et $0{,}3900$~; ce sont aussi les fréquences sur toutes les lignes à verdict de la
+méthode, le TOST et le test de Pitman, de sens «~rejeter~», étant propres à la méthode
+lognormale. L'intitulé des colonnes correspondantes du tableau T4 du fichier compte les treize
+clés du catalogue~; ces colonnes portent en fait sur les lignes à verdict, au nombre de douze
+(libellé corrigé dans le script, sortie versionnée non modifiée). Le repère $1 - 0{,}9^{12} = 0{,}718$ est un ordre de grandeur,
+non une référence. La p globale de lecture conjointe tombe sous $0{,}10$ dans $0{,}0715$ (N) et
+$0{,}0860$ (E) des triangles, sous $0{,}05$ dans $0{,}0365$ et $0{,}0370$
+(fiche~\ref{fiche:p-globale}).
 
 \emph{Effets d'année calendaire en queue basse (issue~\#276).} La mesure de l'issue~\#206 est
 antérieure à cette issue~: la ligne \code{Calendrier} des tableaux ci-dessus, et sa part dans les
@@ -18635,6 +19319,32 @@ soutient dans le présent document.
   \emph{Portée.} Ces travaux quantifient la perte de puissance
   induite par un $B$ fini, et fondent le choix d'un $B$ de l'ordre du millier.
   Ils justifient la ligne (B) du tableau~\ref{tab:conv}.
+
+  \item Y.~Ge, S.~Dudoit, T.\,P. Speed, \emph{Resampling-based multiple testing for microarray
+  data analysis}, rapport technique~633, Department of Statistics, University of California,
+  Berkeley, janvier 2003~; version de travail de l'article de même titre, \emph{TEST}, 12(1),
+  2003, p.~1--77, dont la version publiée n'a pas été vue (les pages citées sont celles du
+  rapport). \emph{Portée.} Le rapport définit la p-value ajustée minP en une étape,
+  $\tilde p_i = \mathbb{P}(\min_l P_l \le p_i \mid H_M)$ (p.~12, éq.~(10)), énonce que les
+  procédures minP et maxT contrôlent le taux d'erreur de la famille au sens faible en toutes
+  circonstances, et au sens fort sous la pivotalité des sous-ensembles (p.~12, point~4~; contrôle
+  faible et fort définis p.~8), et calcule la p-value de chaque permutation sur toutes les
+  permutations, l'observé compris, ex \ae quo compris (p.~14 et~19). C'est la construction de la
+  p de famille et de la p globale (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}),
+  appliquée à la seule plus petite p-value. Le rapport raisonne sur des lois calculées sous
+  l'hypothèse nulle complète (permutations)~; il ne dit rien d'une p minP dont les réplications
+  sont tirées par bootstrap paramétrique sous un modèle ajusté, ni du niveau à petit
+  échantillon~: le statut plug-in, non exact, de ces p et leur niveau à $T = 8$, mesuré seulement,
+  relèvent du document. Relevé sur pièce le 25~octobre 2026
+  (\code{docs/references/}\allowbreak\code{verifications-fk.md}).
+
+  \item P.\,H. Westfall, S.\,S. Young, \emph{Resampling-Based Multiple Testing: Examples and
+  Methods for p-Value Adjustment}, Wiley, New York, 1993. \emph{Portée.} Cité pour le nom et
+  l'origine de la procédure minP par rééchantillonnage, que Ge, Dudoit et Speed lui attribuent.
+  L'ouvrage n'a pas été relu sur le texte intégral au 26~octobre 2026~: aucune page, aucun
+  algorithme ni aucune formule n'en est tiré~; la construction décrite aux
+  fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale} et sa validité sous échangeabilité y sont
+  établies sans référence aux formules de l'ouvrage.
 
   \item P.\,J. Bickel, D.\,A. Freedman, \emph{Some asymptotic theory for the
   bootstrap}, \emph{The Annals of Statistics}, 9(6), 1981, p.~1196--1217 ;
@@ -18934,7 +19644,7 @@ statistique ou actuarielle.
 \endhead
 Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
-$\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD} \\
+$\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD}~; bord de $\delta$ par \code{usp\_delta\_bord()} (issue~\#331) \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
 \code{usp\_runsr\_p\_exacte()}~; attribution des p-values exactes à $\hat\pi_t$ constant seulement
 et libellés selon le régime (règles~R7 et~R8 d'\code{usp\_tests()}, issue~\#70~; champ \code{loi}
@@ -18948,6 +19658,10 @@ catalogues \code{USP\_CATALOGUE\_MC} et \code{MW\_CATALOGUE\_MC} (\code{.mc\_ent
 \code{usp\_bootstrap()} (\code{usp\_regime()}, \code{FACTEUR\_B\_MAX\_REGIME},
 \code{MOTIF\_MC\_REGIME\_RARE}, champ \code{p\_mc\_regime}), nature
 \code{NATURE\_MC\_REGIME\_INTERIEUR} passée par \code{usp\_tests()} \\
+Lecture conjointe~: p de famille et p globale (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}, issue~\#297) & \code{engine\_p\_famille()}, \code{.engine\_minp\_rangs()}~;
+matrice des réplications \code{bootstrap\$stats\_boot}, posée par \code{usp\_bootstrap()} et
+\code{mw\_bootstrap()}~; membres reliés à leur colonne par le champ \code{mc\_nom} (issue~\#330) \\
 Hiérarchie exacte $\succ$ MC $\succ$ p non simulée, nature d'une p non simulée retenue
 (§\ref{sec:nature}, issue~\#120) & fonction \code{add()}
 d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} et
@@ -19390,7 +20104,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \end{tabular}
 \end{center}
 
-\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques, et avant l'issue~\#312, qui a retiré son verdict à la ligne des suites)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité.
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques, et avant l'issue~\#312, qui a retiré son verdict à la ligne des suites)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité. Remesurée sur le moteur courant (issue~\#297, commit \code{7ff4725}, lois N et E), cette part vaut $62{,}45$ et $64{,}0~\%$ sur les lignes de Monte-Carlo à verdict, au nombre de douze, la ligne des suites étant un diagnostic~; sous les mêmes plans et ceux de la méthode lognormale, la p globale de lecture conjointe (fiche~\ref{fiche:p-globale}), diagnostic sans verdict, ne tombe sous $0{,}10$ que dans 7 à 11~\% des jeux ou triangles simulés. Les lignes de lecture conjointe sont restituées \code{INFO} comme tout diagnostic~; la vue Synthèse de l'application affiche leur p de famille comme valeur non retenue.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
@@ -19523,7 +20237,7 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
         $\succ$ p non simulée} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
-        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 47
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 52
         lignes de la table auditable, 5 retiennent une p-value exacte, et 4 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter quatre p-values exactes au profit
@@ -19544,6 +20258,12 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         multiplicité d'\code{ECHEC} accrue sous le modèle (même section, point~(d)). Le champ
         \code{bootstrap\$p\_mc\_regime}, et la ligne «~P-values Monte-Carlo~» de l'application
         et du rapport figé, disent laquelle des deux p-values a été calculée.
+  \item \textbf{Lecture conjointe} (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale},
+        diagnostics sans verdict) -- après la lecture ligne à ligne, et sans la remplacer~: la
+        p de famille et la p globale situent la plus petite p-value de Monte-Carlo d'une famille,
+        ou de la batterie, dans sa loi sous le modèle ajusté, compte tenu du nombre de tests et de
+        leur dépendance. Elles ne modifient aucun verdict, se lisent avec leur erreur de
+        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance non mesurée).
 \end{enumerate}
 
 \subsection*{Tests structurellement inopérants à faible $T$}
@@ -19641,7 +20361,11 @@ lignes non applicables avec le motif ci-dessus~; volumes du jeu de contrôle (é
 $0{,}258$), aucun avertissement~; étendue relative $10^{-7}$, avertissement émis, $2\cdot
 10^{-6}$, aucun (\code{engine\_valider\_donnees()} appelée directement). La liste des lignes de
 la table ne dépend pas du régime~: la ligne de
-Smirnov, auparavant absente dans ce cas, est présente à tout $T \ge 8$. Mesuré (méthode prime,
+Smirnov, auparavant absente dans ce cas, est présente à tout $T \ge 8$. Seules font exception
+les lignes de lecture conjointe (issue~\#297, décision du mainteneur du 25~octobre 2026), dont la
+présence dépend des données~: à volumes constants, la famille B. ne garde qu'un membre,
+Mann--Kendall, et n'a pas de ligne de famille, la table comptant une ligne de moins
+(fiche~\ref{fiche:p-famille}, rubrique~1). Mesuré (méthode prime,
 pertes du jeu de contrôle, volumes $100\,(1 \pm \varepsilon)$ alternés, $B = 99$, graine
 20260831)~: à $\varepsilon = 0$, $10^{-12}$, $10^{-9}$, $10^{-8}$ et $10^{-7}$, \code{ok = TRUE}
 et ces lignes sont non applicables avec ce motif, auxquelles s'ajoute, à $T = 8$, la ligne
@@ -19673,7 +20397,13 @@ $T = 8$, au moins un verdict \code{ECHEC} survient dans $37{,}55~\%$ (J1) et $39
 jeux simulés avec la p-value marginale, et dans $38{,}35~\%$ (J1) et $42{,}7~\%$ (J2) avec la
 p-value retenue par le moteur courant, conditionnelle au régime à $\hat\delta$ intérieur depuis
 l'issue~\#240 (section~\ref{sec:calibration-mc}, point~(d)~; constat de simulation, sans portée
-générale).
+générale). Remesuré sur le moteur courant (issue~\#297, commit \code{7ff4725}), au moins un
+\code{ECHEC} survient dans $36{,}55~\%$ (J1) et $40{,}95~\%$ (J2) des jeux sur l'ensemble des lignes
+de type test, dans $30{,}75~\%$ et $35{,}2~\%$ sur les seules lignes de sens «~ne pas rejeter~», et
+dans $38{,}0~\%$ (N) et $39{,}0~\%$ (E) des triangles simulés de la méthode Merz--Wüthrich
+(sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}). La p globale de lecture conjointe
+(fiche~\ref{fiche:p-globale}) ne situe pas ce compte~: elle situe la plus petite p-value de
+Monte-Carlo de la batterie dans sa loi sous le modèle ajusté, sans démontrer l'adéquation.
 \end{encadre}
 
 
@@ -19828,8 +20558,8 @@ seul appel \\
    \scriptsize \code{test\_rosner()}, \code{.shapiro\_sur()},\\
    \scriptsize \code{stat\_lilliefors()}, \code{lillie\_p()}};
 
-\node[ded] at (bln |- part.south) [yshift=-16mm] (tln) {\code{usp\_tests()}\\ \scriptsize H1--H4};
-\node[ded] at (bmw |- part.south) [yshift=-16mm] (tmw) {\code{mw\_tests()}\\ \scriptsize M1--M6};
+\node[ded] at (bln |- part.south) [yshift=-16mm] (tln) {\code{usp\_tests()}\\ \scriptsize H1--H4, lecture conjointe};
+\node[ded] at (bmw |- part.south) [yshift=-16mm] (tmw) {\code{mw\_tests()}\\ \scriptsize M1--M6, lecture conjointe};
 
 % usp_credibilite() est placee SOUS la rangee des deux fonctions de tests,
 % faute de quoi les fleches de convergence la longent au lieu d'y entrer.
@@ -19859,7 +20589,11 @@ seul appel \\
 statistique, dont six sont mutualisées (en orangé~; \code{test\_grubbs()}, propre à la méthode
 lognormale depuis l'issue~\#300, n'en est plus), puis se rejoignent sur
 \code{usp\_credibilite()}. Une anomalie dans un bloc orangé affecterait
-\emph{les deux} méthodes.}
+\emph{les deux} méthodes. Depuis l'issue~\#297, \code{usp\_tests()} et \code{mw\_tests()} se
+terminent par le même appel à \code{engine\_p\_famille()}, qui ajoute les lignes de lecture
+conjointe (familles et ligne globale, préfixe LC) à partir des réplications du bootstrap de la
+méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})~: fonction commune aux deux
+méthodes, non représentée.}
 \label{fig:annexe-chapeau}
 \end{figure}
 
@@ -20140,8 +20874,8 @@ fournissent des lois de référence.}
 
 % --- Colonne des sorties : abscisse commune ---------------------------------
 \coordinate (cx) at ([xshift=16mm]fi.east);
-\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (6 entrées)};
-\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
+\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (7 entrées)};
+\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (4 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
 \node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites (diagnostic)};
@@ -20152,6 +20886,8 @@ fournissent des lois de référence.}
 \node[int, below=5mm of boot] (st)
   {\code{mw\_simuler\_triangle()},\\ \code{.mw\_stats()}};
 \node[sor, below=5mm of st] (pmc) {p-values de Monte-Carlo};
+\node[mut, below=5mm of pmc] (fam) {\code{engine\_p\_famille()},\\ \code{.engine\_minp\_rangs()}};
+\node[sor, below=5mm of fam] (qlc) {M1, M2, M3~: p de famille~;\\ LC~: p globale (diagnostics)};
 
 % --- Liaisons ----------------------------------------------------------------
 \draw[fl] (tri) -- (val); \draw[fl] (val) -- (aj);
@@ -20175,6 +20911,7 @@ fournissent des lois de référence.}
 \draw[fp] (cal) -- (mo); \draw[fl] (mo) -- (q3);
 \draw[fl] (res) -- (boot);
 \draw[fp] (boot) -- (st); \draw[fl] (st) -- (pmc);
+\draw[fl] (pmc) -- node[flx,right] {\code{stats\_boot}} (fam); \draw[fl] (fam) -- (qlc);
 \end{tikzpicture}
 \caption{Méthode Merz--Wüthrich. \code{mw\_ajuster()} et \code{mw\_residus()}
 sont les deux points de passage obligés~: la première alimente à la fois la MSEP
@@ -20186,7 +20923,8 @@ anomalie éventuelle~; dans le bloc M4, seule \code{test\_rosner()} est commune 
 l'issue~\#300, partageant avec le graphique d'influence \code{mw\_influence()}, dont elle tire
 les résidus studentisés externes sans passer par \code{mw\_residus()}~; dans le bloc M1, seule
 \code{.mw\_pente\_relative()} lit les résidus, les autres fonctions lisant directement
-l'ajustement de \code{mw\_ajuster()}.}
+l'ajustement de \code{mw\_ajuster()}. Lecture conjointe (\#297)~: \code{engine\_p\_famille()}~; M1 et M2
+comptent leur ligne de famille.}
 \label{fig:annexe-mw}
 \end{figure}
 \end{landscape}
@@ -20218,7 +20956,9 @@ de H1 et H2, issue~\#237, index des fonctions) & Une anomalie se propage à tout
 entrées issues de l'appel~; de même, sans calculer de statistique, pour
 \code{usp\_identifiabilite\_pente()} (phrase de contexte de la ligne de la pente, et type de
 cette ligne jusqu'au retrait de la règle~R4),
-\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables) et
+\code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables),
+\code{usp\_delta\_bord()} (bord de $\delta$, issue~\#331~: drapeaux d'\code{usp\_regime()},
+projection du gradient, rapport de vraisemblance aux bornes) et
 \code{.usp\_echelle\_exacte()} (modèle commun des lignes de Cook et des leviers et des
 graphiques d'influence, issue~\#153). \\
 Base « ratios bruts » & cinq lignes sur $u_t$, construit par
@@ -20264,7 +21004,13 @@ cette fonction atteindrait à la fois le graphique d'influence et cette ligne~; 
 d'hétéroscédasticité (issue~\#301) et à la cellule aberrante~; depuis l'issue~\#356, le vivier et
 la ligne d'hétéroscédasticité en tirent $1 - h_{ij}$ par une même fonction,
 \code{.mw\_un\_moins\_h()}, dont une anomalie atteindrait à la fois les p-values de Monte-Carlo de
-la méthode et la statistique observée de cette ligne.
+la méthode et la statistique observée de cette ligne. Depuis l'issue~\#297,
+\code{engine\_p\_famille()} et \code{.engine\_minp\_rangs()}, qui calculent les lignes de lecture
+conjointe des deux méthodes (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), relèvent
+aussi des fonctions communes aux deux dispositifs~: une anomalie y atteindrait les p de famille et
+les p globales des deux méthodes~; elles n'écrivent que les lignes qu'elles ajoutent, et
+$\sigma_{\mathrm{USP}}$ ne les lit pas (\code{usp\_parametre()} et \code{mw\_parametre()} ne
+reçoivent pas les tests).
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification retenu lors du développement~:

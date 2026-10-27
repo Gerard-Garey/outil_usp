@@ -472,10 +472,11 @@ verifier("U125-2 granularite_stat <= p_min_mc <= p_mc : cas de reference (premiu
          })
 
 ## --- U125-8 : champ de ligne et colonne de la table --------------------------------
-verifier("U125-8 champ p_min_mc apres inoperant sur chaque ligne ; NA quand la p exacte est retenue (premium)",
+verifier("U125-8 champ p_min_mc apres inoperant sur chaque ligne (suivi de mc_nom depuis #330) ; NA quand la p exacte est retenue (premium)",
          {
            ok_ordre <- all(vapply(c(res_p$tests, res_pi$tests, res_r2$tests), function(l)
-             identical(utils::tail(names(l), 4), c("p_min", "fonction", "inoperant", "p_min_mc")), logical(1)))
+             identical(utils::tail(names(l), 5), c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")),
+             logical(1)))
            pex <- Filter(function(l) identical(l$nature_p, "exacte"), res_p$tests)
            ok_ordre && length(pex) > 0L && all(vapply(pex, function(l) is.na(l$p_min_mc), logical(1))) &&
              all(vapply(res_p$tests, function(l) is.na(l$p_min_mc), logical(1)))
@@ -498,10 +499,11 @@ verifier("U125-4 p exacte retenue : detail de Cox-Stuart de premium identique a 
          })
 
 ## --- U125-9 : bootstrap$p_min_mc ---------------------------------------------------
-verifier("U125-9 bootstrap$p_min_mc : dernier element, noms du catalogue, NA sur les statistiques continues",
+verifier("U125-9 bootstrap$p_min_mc : avant-dernier element (suivi de stats_boot depuis #297), noms du catalogue, NA sur les statistiques continues",
          {
            ok <- function(b, cat_, disc) {
-             identical(utils::tail(names(b), 1), "p_min_mc") && identical(names(b$p_min_mc), names(cat_)) &&
+             identical(utils::tail(names(b), 2), c("p_min_mc", "stats_boot")) &&
+               identical(names(b$p_min_mc), names(cat_)) &&
                all(is.na(b$p_min_mc[setdiff(names(cat_), disc)])) && all(is.finite(b$p_min_mc[disc]))
            }
            ok(res_p$bootstrap, USP_CATALOGUE_MC, STAT_DISCRETES_USP) &&

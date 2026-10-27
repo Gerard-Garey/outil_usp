@@ -13,13 +13,18 @@
 #  Usage (depuis la racine du worktree au commit mesure) :
 #      bash tests/outillage/lancer_tranches.sh -p PLAN -d DOSSIER [-j PROCESSUS]
 #           [-s SCRIPT] [-- OPTIONS_SUPPLEMENTAIRES]
-#    PLAN     : fichier texte, une sortie par ligne "nom<TAB>arguments" (lignes
-#               vides et lignes commencant par # ignorees), produit par
-#               "Rscript tests/calibration_mc_mw_t8.R --plan Lk" ;
+#    PLAN     : fichier texte, une sortie par ligne "nom<TAB>arguments" ou
+#               "nom<TAB>arguments<TAB>script" (troisieme champ facultatif :
+#               script de mesure de cette ligne, a la place de SCRIPT ; plan
+#               de la campagne 297, #297, qui melange les tranches de
+#               tests/calibration_mc_mw_t8.R et de tests/calibration_mc_t8.R)
+#               (lignes vides et lignes commencant par # ignorees), produit par
+#               "Rscript tests/calibration_mc_mw_t8.R --plan Lk [--campagne 297]" ;
 #    DOSSIER  : dossier des sorties, HORS du depot (le script de mesure le
 #               refuse sous le depot) ;
 #    PROCESSUS: nombre de sorties calculees en parallele (defaut 1) ;
-#    SCRIPT   : script de mesure (defaut tests/calibration_mc_mw_t8.R) ;
+#    SCRIPT   : script de mesure des lignes sans troisieme champ (defaut
+#               tests/calibration_mc_mw_t8.R) ;
 #    OPTIONS_SUPPLEMENTAIRES : ajoutees a chaque appel (ex. --essai).
 #  Pour chaque ligne du plan, dans l'ordre :
 #    - verrou de la sortie (#248) : dossier DOSSIER/nom.verrou cree par mkdir
@@ -110,7 +115,8 @@ verrou_prendre() {
 verrou_rendre() { mutex_prendre && { rm -rf "$1.verrou"; mutex_rendre; }; }
 
 lancer_une() {
-  local nom="$1" args="$2" sortie="$DOSSIER/$1" reprise="-" n=1 t0 code rpid
+  local nom="$1" args="$2" script="${3:-$SCRIPT}" sortie="$DOSSIER/$1" reprise="-" n=1 t0 code rpid
+  [ -f "$script" ] || { echo "$nom : script de mesure introuvable : $script, sautee" >&2; return 1; }
   verrou_prendre "$sortie"; code=$?
   if [ "$code" -eq 1 ]; then
     echo "$nom : en cours dans un autre lanceur (verrou $nom.verrou, pid actif(s)$VERROU_ACTIFS), sautee sans renommage"
@@ -136,7 +142,7 @@ lancer_une() {
   fi
   t0=$(utc)
   # shellcheck disable=SC2086
-  Rscript "$SCRIPT" $args ${opts[@]+"${opts[@]}"} --sortie-tranche "$sortie" ${SUPPL[@]+"${SUPPL[@]}"} >> "$DOSSIER/$nom.log" 2>&1 &
+  Rscript "$script" $args ${opts[@]+"${opts[@]}"} --sortie-tranche "$sortie" ${SUPPL[@]+"${SUPPL[@]}"} >> "$DOSSIER/$nom.log" 2>&1 &
   rpid=$!
   echo "$rpid" >> "$sortie.verrou/pid"
   wait "$rpid"
@@ -149,10 +155,10 @@ lancer_une() {
 
 # File d'attente : PROCESSUS sorties en parallele (bash >= 4.3, wait -n).
 actifs=0
-while IFS=$'\t' read -r nom args || [ -n "$nom" ]; do
+while IFS=$'\t' read -r nom args script_l || [ -n "$nom" ]; do
   case "$nom" in ''|'#'*) continue ;; esac
   if [ "$actifs" -ge "$PROCESSUS" ]; then wait -n; actifs=$((actifs - 1)); fi
-  lancer_une "$nom" "$args" &
+  lancer_une "$nom" "$args" "$script_l" &
   actifs=$((actifs + 1))
 done < "$PLAN"
 wait

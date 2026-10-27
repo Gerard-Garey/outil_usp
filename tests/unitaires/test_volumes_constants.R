@@ -121,7 +121,16 @@ verifier("Catalogue Monte-Carlo a volumes quasi constants : Intercept, RESET, BP
 
 ## --- 3. run_engine() dans la bande (regle R13, aucune erreur R) --------------
 res_var <- lancer(x)
-noms_ref <- vapply(res_var$tests, `[[`, character(1), "test")
+# Invariant I5 sur les lignes hors lecture conjointe : les lignes de famille
+# et la ligne globale de #297 dependent des types des autres lignes
+# (composition figee a l'observe ; pas de ligne pour une famille d'un seul
+# test, Q-D1-Fk-2 (a)) ; a volumes constants, la famille B. n'a plus qu'un
+# test (Mann-Kendall) et sa ligne disparait. Exception a I5 acceptee par le
+# mainteneur le 25/10/2026, limitee aux lignes de lecture conjointe (test
+# positif ci-dessous).
+noms_hors297 <- function(L)
+  vapply(Filter(function(l) !identical(l$fonction, "engine_p_famille"), L), `[[`, character(1), "test")
+noms_ref <- noms_hors297(res_var$tests)
 dans_bande <- list(
   "x = 100 (1 +/- 1e-12)" = 100 * (1 + alt * 1e-12),
   "x = 100 (1 +/- 1e-10)" = 100 * (1 + alt * 1e-10),
@@ -140,7 +149,7 @@ controle_r13 <- function(r) {
   if (!isTRUE(r$ok)) return(paste("ok FALSE :", r$validation$erreurs[1]))
   L <- r$tests
   noms <- vapply(L, `[[`, character(1), "test")
-  if (!identical(noms, noms_ref)) return("liste des lignes differente (invariant I5)")
+  if (!identical(noms_hors297(L), noms_ref)) return("liste des lignes differente (invariant I5)")
   pb <- character(0)
   for (l in L[noms %in% NOMS_R13]) {
     if (l$type != "non applicable") pb <- c(pb, paste(l$test, ": type", l$type))
@@ -170,6 +179,25 @@ verifier("Volumes exactement constants : memes types que dans la bande, ligne pa
            ty <- function(r) vapply(r$tests, `[[`, character(1), "type")
            identical(ty(res_bande[["x = rep(110, 8)"]]), ty(res_bande[["x = 110 (1 + (0, 5e-7, 0...))"]]))
          })
+# Lecture conjointe (#297) a volumes exactement constants (B = B_MIN_USAGE =
+# 99), test positif. Exception a l'invariant I5 acceptee par le mainteneur le
+# 25/10/2026 (reprise de #297, point 3, recommandation d'actuary-approfondi),
+# limitee aux lignes de lecture conjointe : leur presence depend des donnees.
+# Ici la famille B. n'a plus qu'un membre (Mann-Kendall, MK) et C. aucun
+# (mesure du 25/10/2026) : pas de ligne B. ni C. ; D., E., F. et la ligne
+# globale (13 tests) sont presentes, apres les lignes existantes, dans l'ordre
+# des prefixes.
+verifier("#297 volumes exactement constants (x = rep(110, 8), B = 99) : lignes de famille D., E., F. puis LC a k = 13, sans ligne B. ni C. (exception a I5 limitee a la lecture conjointe, decision du 25/10/2026)",
+         {
+           L <- res_bande[["x = rep(110, 8)"]]$tests
+           k <- vapply(L, function(l) identical(l$fonction, "engine_p_famille"), NA)
+           f <- L[k]
+           pf <- substr(vapply(f, `[[`, "", "famille"), 1L, 2L)
+           identical(which(k), seq.int(sum(!k) + 1L, length(L))) &&
+             identical(pf, c("D.", "E.", "F.", PREFIXE_LECTURE_CONJOINTE)) &&
+             identical(f[[4]]$estim, 13) &&
+             all(vapply(f, function(l) is.finite(l$p_mc) && identical(l$verdict, "INFO"), NA))
+         })
 verifier("Volumes constants : bootstrap sans erreur, B_effectif = 0 et motif Monte-Carlo pose pour les neuf statistiques (regle R14)",
          {
            b <- res_bande[["x = rep(110, 8)"]]$bootstrap
@@ -184,7 +212,7 @@ verifier("Volumes exactement constants : sigma_USP = 0,1261524 (premium) et 0,12
            r1 <- lancer(rep(110, 8), "reserve1")
            proche(res_bande[["x = rep(110, 8)"]]$parametre_final$sigma_usp, 0.1261524, abs = 5e-8) &&
              proche(r1$parametre_final$sigma_usp, 0.1220524, abs = 5e-8) &&
-             identical(vapply(r1$tests, `[[`, character(1), "test"), noms_ref)
+             identical(noms_hors297(r1$tests), noms_ref)
          })
 
 ## --- 4. Hors de la bande : lignes calculees ------------------------------------
@@ -218,7 +246,7 @@ verifier("x = 100 (1 + 0,01 scale(1:8)), hors bande, huit volumes distincts : tr
            ty <- vapply(L, `[[`, character(1), "type")
            f8 <- usp_ajuster(x8, y)
            isTRUE(r$ok) && length(L) == 13L && all(ty %in% c("test", "diagnostic")) &&
-             identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref) &&
+             identical(noms_hors297(r$tests), noms_ref) &&
              isTRUE(proche(test_reset(x8, y)$stat, reset_std(x8, y), rel = 1e-10)) &&
              isTRUE(proche(test_white(f8$z^2, x8)$stat, white_std(f8$z^2, x8), rel = 1e-10))
          })
@@ -242,7 +270,7 @@ verifier("x = 100 (1 +/- 1e-5), hors bande, k = 2 : onze lignes calculees, RESET
              }, logical(1))) &&
              all(b$motif_mc[c("RESET", "White")] == MOTIF_MC_OBS_NON_FINIE) &&
              all(b$B_effectif[c("RESET", "White")] == 0) &&
-             identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref)
+             identical(noms_hors297(r$tests), noms_ref)
          })
 # A e = 2e-6 une seule annee differe (k = 2) : RESET et White au motif (a) ;
 # la partition par la mediane des volumes laisse 1 et 7 annees, Smirnov n'est
@@ -262,7 +290,7 @@ verifier("x = 110 (1 + (0, 2e-6, 0...)), hors bande, k = 2 : dix lignes calculee
              }, logical(1))) &&
              sm$type == "non applicable" &&
              startsWith(sm$detail, "partition par la mediane des volumes : groupes de 1 et 7") &&
-             identical(vapply(r$tests, `[[`, character(1), "test"), noms_ref)
+             identical(noms_hors297(r$tests), noms_ref)
          })
 
 ## --- 4ter. RESET et White en base reduite (issue #110) ---------------------------

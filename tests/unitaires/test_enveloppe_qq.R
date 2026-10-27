@@ -38,10 +38,11 @@ taux_sortie <- function(S, bas, haut) {
 # --- (i) z_boot : dimension B x T, lignes retenues, valeurs ---------------
 b199 <- usp_bootstrap(f1, B = 199, seed = GRAINE)
 # z_boot n'est plus le dernier champ depuis #240 : p_mc_regime le suit.
-verifier("(i) usp_bootstrap() : z_boot matrice B x T, apres n_echec_restreint, suivi de p_mc_regime (#240) et p_min_mc (#125)",
+verifier("(i) usp_bootstrap() : z_boot matrice B x T, apres n_echec_restreint, suivi de p_mc_regime (#240), p_min_mc (#125) et stats_boot (#297)",
          is.matrix(b199$z_boot) && identical(dim(b199$z_boot), c(199L, T1)) &&
            is.double(b199$z_boot) &&
-           identical(tail(names(b199), 4), c("n_echec_restreint", "z_boot", "p_mc_regime", "p_min_mc")))
+           identical(tail(names(b199), 5),
+                     c("n_echec_restreint", "z_boot", "p_mc_regime", "p_min_mc", "stats_boot")))
 verifier("(i) z_boot : lignes finies en nombre egal au B effectif de AD (statistique toujours finie)",
          sum(apply(is.finite(b199$z_boot), 1, all)) == b199$B_effectif[["AD"]] &&
            all(apply(is.finite(b199$z_boot), 1, all) | apply(is.na(b199$z_boot), 1, all)))

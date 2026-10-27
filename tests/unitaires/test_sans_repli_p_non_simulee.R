@@ -199,7 +199,9 @@ verifier("U181-7 Origine, HomogF, Courbure en diagnostic au prefixe de #181, p n
 # conservee dans sa colonne, aucune p retenue.
 verifier("U181-7 les neuf autres lignes Monte-Carlo gardent leur p Monte-Carlo (dix avant #300) : retenue sur huit tests, conservee sans etre retenue sur le test des suites (diagnostic par decision, #312)",
          {
-           mc <- Filter(function(l) is.finite(l$p_mc), tm181)
+           # Hors lignes de lecture conjointe (#297, p Monte-Carlo externe).
+           mc <- Filter(function(l) is.finite(l$p_mc) &&
+                          !identical(l$fonction, "engine_p_famille"), tm181)
            su <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), mc)
            ts <- Filter(function(l) !identical(l$test, "Test des suites sur les residus de Mack"), mc)
            length(mc) == 9L && length(su) == 1L && length(ts) == 8L &&

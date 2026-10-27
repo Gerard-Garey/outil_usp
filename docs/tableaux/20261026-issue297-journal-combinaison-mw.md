@@ -1,0 +1,33 @@
+# Journal de la combinaison de la mesure #297 (Fk), volet Merz-Wüthrich
+
+- Début (UTC) : 2026-10-26T14:00:31Z ; fin (UTC) : 2026-10-26T14:01:17Z
+- Commande : Rscript tests/calibration_mc_mw_t8.R --combiner campagne --niveau L0 --campagne 297 --journal JOURNAL.md --ecrire --brut 297-mw-brut.tsv
+- Commit de la combinaison : 7ff47251a769a4d864c54e363b1758c45362eaf4
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale LC_CTYPE : C.UTF-8 → C.UTF-8
+- Empreinte sans commentaires : 48adec179f5b1bab043ecfeecebba64a
+- JOURNAL de la mesure : JOURNAL.md (md5 af942ef94ae0e08b1fc7b1b3ec774427) : md5 des 18 sorties conformes ; lignes du débit et de l'empreinte (#231) lues ; niveau : L0
+- Sorties lues (toutes INTEGRITE OK, FIN en dernière ligne, couvertures exactes, aucun refus) :
+  - oracle-E.txt md5 a69a9ff00f99d1327a835fb5e728259f
+  - oracle-N.txt md5 50ab11d6f243d51543e8a02f1df59816
+  - tranche-E-0001-0250.txt md5 0e17424175e3f6bb4505147af82b8a6c
+  - tranche-E-0251-0500.txt md5 564ff35f5ccffe4c2034e6243a02c5af
+  - tranche-E-0501-0750.txt md5 5f68323faa58fb754779a3b9f3d706f2
+  - tranche-E-0751-1000.txt md5 67b46c4928624049af02e18e85c0ad8e
+  - tranche-E-1001-1250.txt md5 91bc5e5ab2193da67145b404c614b0d3
+  - tranche-E-1251-1500.txt md5 ee6c3a727f55564bcd026654ad182b6d
+  - tranche-E-1501-1750.txt md5 1d1132cc6a7626f987f289e3e6d2f228
+  - tranche-E-1751-2000.txt md5 0708aba896d8f1947c5f9c554ef369c1
+  - tranche-N-0001-0250.txt md5 8d075dee50e1eb8a453739502855ca3a
+  - tranche-N-0251-0500.txt md5 f56e5de62fc5ca73dbf560e62cd2687f
+  - tranche-N-0501-0750.txt md5 8b8d4668c98e4514291bb4a611ce6657
+  - tranche-N-0751-1000.txt md5 0217a001af83ae816c88efca84a917cf
+  - tranche-N-1001-1250.txt md5 2d2945ddd9ef3e06d1231a0c907cbb8a
+  - tranche-N-1251-1500.txt md5 61a703242d35721589bc169745a5a7df
+  - tranche-N-1501-1750.txt md5 7a3e6c7cce8d3ad2ea9e7e19a8f201a9
+  - tranche-N-1751-2000.txt md5 d61b3e40a449fd7ffff9a2c507ea5aff
+- Fichiers écrits :
+  - 20261026-issue297-calibration-famille-mw.md md5 b9b372e34fd31357e153ed92d8d5eac9
+  - 20261026-issue297-calibration-famille-mw-brut.tsv md5 01325170c75ccc603707f96332dc1e96
+  - 20261026-issue297-journal-mesure.md md5 af942ef94ae0e08b1fc7b1b3ec774427
+

@@ -1076,7 +1076,7 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
              identical(k$type, "diagnostic") && is.finite(k$p_exacte) && is.na(k$p_retenue) &&
              grepl("standardises (issue #29). Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
-             !grepl("nommee par nature_p", k$detail, fixed = TRUE) &&
+             !grepl(PHRASE_RENVOI_NATURE_P, k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)
          })
@@ -1091,15 +1091,14 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi 
                            methode = "premium")
            r1 <- ligne(ok, "RESET (forme fonctionnelle)"); r2 <- ligne(ko, "RESET (forme fonctionnelle)")
            c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
-           endsWith(r1$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-                                     "la p-value retenue, s'il en est une, est nommee par nature_p.")) &&
+           endsWith(r1$detail, paste0("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ; ",
+                                      PHRASE_RENVOI_NATURE_P, ".")) &&
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
                                        "indisponible sur ces donnees : aucune p-value n'est retenue",
                                        "(ADR 0001).")) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
-             identical(c1$detail, paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est",
-                                        "calculee ; la p-value retenue, s'il en est une, est nommee par",
-                                        "nature_p.")) &&
+             identical(c1$detail, paste0("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
+                                         "calculee ; ", PHRASE_RENVOI_NATURE_P, ".")) &&
              identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
                                          "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
@@ -1395,16 +1394,18 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
 # ligne de largeur d'IC presente (48 lignes avant #45) ; sous 21 tirages, que
 # run_engine() n'admet plus, elle manquait (47 lignes). Depuis #45 : plus la
 # ligne de l'IC restreint (meme regle) et les deux lignes LR sur delta.
-verifier("run_engine : 47 lignes sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302)",
-         length(res_ln$tests) == 47L && !is.null(res_ln$ic_bootstrap) &&
+verifier("run_engine : 47 lignes hors lecture conjointe sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 en fin)",
+         sum(vapply(res_ln$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 47L &&
+           all(vapply(res_ln$tests[-(1:47)], function(l) identical(l$fonction, "engine_p_famille"), NA)) &&
+           !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))
 
 ## --- 6. Champ inoperant (#129, point 3) ----------------------------------------
 # add() pose sur chaque ligne un logique inoperant, TRUE si et seulement si la
 # bascule de la regle R1 a eu lieu (detail prefixe "TEST INOPERANT"), FALSE
-# sinon, jamais NA ; apres p_min et fonction, suivi du seul champ p_min_mc
-# depuis #125 (D1-10). Invariant verifie sur les lignes de run_engine() de
+# sinon, jamais NA ; apres p_min et fonction, suivi des champs p_min_mc
+# depuis #125 (D1-10) et mc_nom depuis #330. Invariant verifie sur les lignes de run_engine() de
 # ce fichier et sur celles des cinq references versionnees (tests/reference/,
 # qui portent p_min_mc apres la regeneration de #125).
 inv_inop <- function(tt) {
@@ -1414,8 +1415,8 @@ inv_inop <- function(tt) {
                                   sum(!ok_type), "ligne(s)"))
   inop <- vapply(tt, function(l) l$inoperant, logical(1))
   pref <- vapply(tt, function(l) startsWith(l$detail, "TEST INOPERANT"), logical(1))
-  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 4L),
-                                              c("p_min", "fonction", "inoperant", "p_min_mc")),
+  noms_ok <- vapply(tt, function(l) identical(tail(names(l), 5L),
+                                              c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")),
                     logical(1))
   diag_ok <- all(vapply(tt[inop], function(l) identical(l$type, "diagnostic") &&
                           identical(l$verdict, "INFO"), logical(1)))
@@ -1515,9 +1516,14 @@ MOTIFS_RETENUE_214 <- c(
   "\\bp(-values?|_mc)?\\b[^.;:]{0,80}(?<!ne )\\bsont retenue?s\\b",
   paste0("\\b", NOM_P_214, " retenue?s?\\b"))
 # "ni p-value retenue" : phrase fixe de la regle R15 (#303), negative.
+# "tests dont la p exacte est retenue" : texte T-1 des lignes de famille
+# (#297, DETAIL_P_FAMILLE, specification D1-Fk, par. 4.4), qui parle des
+# lignes membres et non de la ligne de famille (diagnostic sans p retenue) ;
+# sa presence dans le texte du moteur est verifiee ci-dessous.
 EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue", "ni p-value retenue",
                         "p-value retenue, s'il en est une",
-                        "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut")
+                        "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
+                        "tests dont la p exacte est retenue")
 affirme_retenue <- function(d) {
   if (is.na(d)) return(FALSE)
   for (e in EXCLUS_RETENUE_214) d <- gsub(e, "", d, fixed = TRUE)
@@ -1526,6 +1532,8 @@ affirme_retenue <- function(d) {
 verifier("#214 : la phrase admise de add() (R1, p Monte-Carlo retenue hors bascule) figure dans R/engine.R",
          any(grepl(EXCLUS_RETENUE_214[4], readLines(file.path(RACINE, "R", "engine.R"), warn = FALSE),
                    fixed = TRUE)))
+verifier("#214 / #297 : l'exclusion du texte T-1 des lignes de famille figure dans DETAIL_P_FAMILLE",
+         grepl(EXCLUS_RETENUE_214[6], gsub("\\s+", " ", DETAIL_P_FAMILLE), fixed = TRUE))
 ln214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
 li214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
 tri214 <- local({
@@ -1553,11 +1561,11 @@ verifier("#214 jeux : alpha = 0,05, Runsr regime 1 en diagnostic R15 (p exacte c
            a <- ligne(cas214$j214_regime1$tests, NM_RUNSR); b <- ligne(cas214$j214_regime3$tests, NM_RUNSR)
            isFALSE(a$inoperant) && identical(a$type, "diagnostic") && is.na(a$p_retenue) &&
              identical(a$verdict, "INFO") && grepl("regle R15", a$detail, fixed = TRUE) &&
-             !grepl("nommee par nature_p", a$detail, fixed = TRUE) &&
+             !grepl(PHRASE_RENVOI_NATURE_P, a$detail, fixed = TRUE) &&
              is.finite(a$p_exacte) && grepl("EXACTE est calculee", a$detail, fixed = TRUE) &&
              isTRUE(b$inoperant) && is.na(b$p_retenue) && identical(b$verdict, "INFO") &&
              startsWith(b$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
-             grepl("la p-value retenue, s'il en est une, est nommee par nature_p", b$detail, fixed = TRUE) &&
+             grepl(PHRASE_RENVOI_NATURE_P, b$detail, fixed = TRUE) &&
              !is.finite(b$p_exacte) && is.finite(b$p_mc)
          })
 verifier("#214 : aucune ligne inoperante (six cas, deux jeux de #214) ne declare une p-value retenue",
@@ -1588,7 +1596,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
            !any(vapply(c("aucune p-value n'est retenue (ADR 0001)", "Aucune p-value retenue : la grandeur",
                        "Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ;",
                          "pour information, non retenue", "est rapportee pour memoire et non retenue",
-                         "la p-value retenue, s'il en est une, est nommee par nature_p.",
+                         paste0(PHRASE_RENVOI_NATURE_P, "."),
                          paste("la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                                "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible"),
                          "la p non simulee (loi du champ loi) non retenue",

@@ -1,0 +1,56 @@
+# JOURNAL de la mesure #297 (Fk, étape 5 : niveau sous H0 des p de famille et de la p globale de lecture conjointe ; T4 ; remesure du T1 de #206)
+
+- Commit mesuré : 7ff47251a769a4d864c54e363b1758c45362eaf4 (branche claude/lecture-conjointe-familles, poussé), worktree détaché
+- md5 R/engine.R : 10bd74c2923cc1ac034df6a9a4e9c0c8 ; md5 tests/calibration_mc_mw_t8.R : bcfd4d7f0b1f4b145afd56f82e781df7 ; md5 tests/calibration_mc_t8.R : d82f6cd53d9ee5ff3e96940905a563e7 ; md5 spécification : 941956bccaf278672469040b5c52caf8
+- Locale : LC_ALL=C.UTF-8 ; R 4.3.3 ; 4 cœurs
+- Plan : spécification Fk, § 5.2 (décisions Q-D1-Fk-8 et 9 du mainteneur, 25/10/2026) ; 34 sorties (--plan L0 --campagne 297)
+- Essais : --essai des modes J1, J2, N, E et des oracles N, E au commit mesuré, 2026-10-25T23:10Z : Bilan OK partout, K-F3 OK
+- Pré-vol : calibration_mc_t8.R --prevol --unites 10 (dispersion de c_J1 relevée par l'audit, mineur 3) ; calibration_mc_mw_t8.R --prevol --campagne 297 --unites 3 ; 2026-10-25T23:12Z à 23:30Z
+- Niveau : L0
+- Débit : MW c_b = 17,53 s, P_k = 1,000 / 1,943 / 2,986 / 3,917 ; LN c_J1 = 11,45 s, c_J2 = 8,87 s, P_k = 1,000 / 2,055 / 3,169 / 4,205 ; durée planifiée 7,86 h à 4 processus (pré-vol du 2026-10-25, commit 7ff4725)
+- Borne d'ordonnancement : durée planifiée + 0,75 × durée d'une tranche MW (1,27 h) = 8,82 h, sous le plafond de 10 h (borne d'ordonnancement en liste, hypothèse [H])
+- Remarque : P_4 lognormal mesuré > 4 (bruit de mesure) ; avec P_4 = 4, le volet LN passe d'environ 2,70 h à 2,84 h et la durée planifiée d'environ 7,86 h à 8,0 h : L0 tient encore
+- Commit : 7ff47251a769a4d864c54e363b1758c45362eaf4
+- Empreinte sans commentaires : 48adec179f5b1bab043ecfeecebba64a
+- Lancement 2026-10-25T23:31:00Z : LC_ALL=C.UTF-8 bash tests/outillage/lancer_tranches.sh -p plan-L0.txt -d DOSSIER -j 4 (depuis le worktree au commit mesuré, processus détaché)
+- Interruption : conteneur suspendu peu après le lancement (processus détaché non suivi), constatée le 2026-10-26T01:33Z ; sorties partielles conservées. Relance 2026-10-26T01:33:57Z en tâche de fond suivie par la session, par segments de 2 h, reprise des partielles par le lanceur
+- Arrêt 2026-10-26T03:34:22Z : segment stoppé à la limite de 2 h des tâches de fond ; 6 sorties terminées (oracle-N, oracle-E, tranche-N-0001-0250, tranche-N-0251-0500, tranche-E-0001-0250, tranche-E-0251-0500), 4 partielles (tranche-{N,E}-0501-0750 et -0751-1000), 24 non commencées ; reprise à décider par le mainteneur
+- Décision du mainteneur du 26/10/2026 (vers 06:05 UTC) : poursuite de la campagne par segments de 2 h et branche de sauvegarde claude/sauvegarde-297 (ADR 0007, annotation du 09/10), créée 2026-10-26T06:08:18Z depuis le commit mesuré 7ff4725 ; synchronisation : bash tests/outillage/synchroniser_sauvegarde.sh -d DOSSIER -w WORKTREE -b claude/sauvegarde-297 -c sauvegarde/issue297 -i 600
+- Sortie oracle-E.txt : md5 a69a9ff00f99d1327a835fb5e728259f, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:26Z
+- Sortie oracle-N.txt : md5 50ab11d6f243d51543e8a02f1df59816, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:26Z
+- Sortie tranche-E-0001-0250.txt : md5 0e17424175e3f6bb4505147af82b8a6c, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:26Z
+- Sortie tranche-E-0251-0500.txt : md5 564ff35f5ccffe4c2034e6243a02c5af, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:26Z
+- Sortie tranche-N-0001-0250.txt : md5 8d075dee50e1eb8a453739502855ca3a, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:27Z
+- Sortie tranche-N-0251-0500.txt : md5 f56e5de62fc5ca73dbf560e62cd2687f, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:08:27Z
+- Segment : début 2026-10-26T06:08:39Z
+- Sortie tranche-E-0501-0750.txt : md5 5f68323faa58fb754779a3b9f3d706f2, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:58:59Z
+- Sortie tranche-E-0751-1000.txt : md5 67b46c4928624049af02e18e85c0ad8e, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:58:59Z
+- Sortie tranche-N-0501-0750.txt : md5 8b8d4668c98e4514291bb4a611ce6657, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:58:59Z
+- Sortie tranche-N-0751-1000.txt : md5 0217a001af83ae816c88efca84a917cf, terminee, INTEGRITE OK, synchronisee 2026-10-26T06:58:59Z
+- Segment : début 2026-10-26T08:08:54Z
+- Sortie tranche-E-1001-1250.txt : md5 91bc5e5ab2193da67145b404c614b0d3, terminee, INTEGRITE OK, synchronisee 2026-10-26T08:29:04Z
+- Sortie tranche-E-1251-1500.txt : md5 ee6c3a727f55564bcd026654ad182b6d, terminee, INTEGRITE OK, synchronisee 2026-10-26T08:29:04Z
+- Sortie tranche-N-1001-1250.txt : md5 2d2945ddd9ef3e06d1231a0c907cbb8a, terminee, INTEGRITE OK, synchronisee 2026-10-26T08:29:04Z
+- Sortie tranche-N-1251-1500.txt : md5 61a703242d35721589bc169745a5a7df, terminee, INTEGRITE OK, synchronisee 2026-10-26T08:29:04Z
+- Sortie tranche-E-1501-1750.txt : md5 1d1132cc6a7626f987f289e3e6d2f228, terminee, INTEGRITE OK, synchronisee 2026-10-26T09:49:56Z
+- Sortie tranche-N-1501-1750.txt : md5 7a3e6c7cce8d3ad2ea9e7e19a8f201a9, terminee, INTEGRITE OK, synchronisee 2026-10-26T09:49:56Z
+- Sortie tranche-E-1751-2000.txt : md5 0708aba896d8f1947c5f9c554ef369c1, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:00:01Z
+- Sortie tranche-N-1751-2000.txt : md5 d61b3e40a449fd7ffff9a2c507ea5aff, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:00:02Z
+- Segment : début 2026-10-26T10:09:05Z
+- Sortie ln-J1-R2000-0001-0250.txt : md5 47ec6ce7fcfbce5e9c4df7b6af095059, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:59:19Z
+- Sortie ln-J1-R2000-0251-0500.txt : md5 1dc9780d68706de9bb4d5f3ef5b66068, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:59:19Z
+- Sortie ln-J2-R2000-0001-0250.txt : md5 095441257872817714b2f69d45bb2c8b, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:59:19Z
+- Sortie ln-J2-R2000-0251-0500.txt : md5 5629c6dd5bc232c88a16f3d4b1ca9109, terminee, INTEGRITE OK, synchronisee 2026-10-26T10:59:19Z
+- Sortie ln-J1-R2000-0501-0750.txt : md5 1a0a119e24da172d8cd32929102a0e5f, terminee, INTEGRITE OK, synchronisee 2026-10-26T11:39:34Z
+- Sortie ln-J1-R2000-0751-1000.txt : md5 83c48bcd283a7c4fb36de27ff0ae1bac, terminee, INTEGRITE OK, synchronisee 2026-10-26T11:39:34Z
+- Sortie ln-J2-R2000-0501-0750.txt : md5 76c39bf945caff1be81c1b07aebd5340, terminee, INTEGRITE OK, synchronisee 2026-10-26T11:49:40Z
+- Sortie ln-J2-R2000-0751-1000.txt : md5 8a4d7510c475cb51dcf8076c1f71d490, terminee, INTEGRITE OK, synchronisee 2026-10-26T11:49:40Z
+- Segment : début 2026-10-26T12:09:14Z
+- Sortie ln-J1-R2000-1001-1250.txt : md5 e9273e2c4c44f4a957916b69f0d80537, terminee, INTEGRITE OK, synchronisee 2026-10-26T12:59:32Z
+- Sortie ln-J2-R2000-1001-1250.txt : md5 f2464527f9c741396faf2c64a9295f0a, terminee, INTEGRITE OK, synchronisee 2026-10-26T12:59:33Z
+- Sortie ln-J1-R2000-1251-1500.txt : md5 5f85b35b7b2df47f4c5540d0384129c6, terminee, INTEGRITE OK, synchronisee 2026-10-26T13:09:40Z
+- Sortie ln-J2-R2000-1251-1500.txt : md5 59ceda4c4b9b0cb69af42a7cfcfa5b84, terminee, INTEGRITE OK, synchronisee 2026-10-26T13:09:40Z
+- Sortie ln-J1-R2000-1501-1750.txt : md5 ebecb5eaafe851a58a853ce5bb88f446, terminee, INTEGRITE OK, synchronisee 2026-10-26T14:00:01Z
+- Sortie ln-J1-R2000-1751-2000.txt : md5 6d47db656022a732682e623b650f7da6, terminee, INTEGRITE OK, synchronisee 2026-10-26T14:00:01Z
+- Sortie ln-J2-R2000-1501-1750.txt : md5 160382a611a62b6d65ab5521d2d8f5f2, terminee, INTEGRITE OK, synchronisee 2026-10-26T14:00:01Z
+- Sortie ln-J2-R2000-1751-2000.txt : md5 299e59e91b931d67099d5d21a63698a6, terminee, INTEGRITE OK, synchronisee 2026-10-26T14:00:01Z

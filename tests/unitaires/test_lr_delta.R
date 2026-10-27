@@ -153,37 +153,43 @@ verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootst
            match("lr_delta", n) == match("profil", n) + 1L &&
              match("ic_bootstrap_restreint", n) == match("ic_bootstrap", n) + 1L &&
              identical(tail(names(r1$plots_data), 2), c("lr_delta", "qq_enveloppe")) &&
-             # p_mc_regime (#240) suit z_boot ; p_min_mc (#125) suit p_mc_regime.
-             identical(tail(names(r1$bootstrap), 5), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",
-                                                       "p_mc_regime", "p_min_mc")) &&
+             # p_mc_regime (#240) suit z_boot ; p_min_mc (#125) suit p_mc_regime ;
+             # stats_boot (#297) suit p_min_mc.
+             identical(tail(names(r1$bootstrap), 6), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",
+                                                       "p_mc_regime", "p_min_mc", "stats_boot")) &&
              is.integer(r1$bootstrap$n_echec_restreint) &&
              # gamma_bord_au_moins_un (#227) suit kkt_au_moins_un.
              identical(tail(names(r1$ajustement), 2), c("kkt_au_moins_un", "gamma_bord_au_moins_un")) &&
              "largeur_ic_restreint" %in% names(r1$ajustement)
          })
+# Lignes de famille et ligne globale de lecture conjointe (#297), posees apres
+# toutes les autres : les positions "dernieres lignes" ci-dessous se lisent
+# sur les lignes hors lecture conjointe.
+sans_famille297 <- function(L) Filter(function(l) !identical(l$fonction, "engine_p_famille"), L)
 NOMS_45 <- c("Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
              "Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
              "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)")
-verifier("U8 trois dernieres lignes de tests : diagnostics G., INFO, p_retenue et nature_p NA, apres la largeur de l'IC complet",
+verifier("U8 trois dernieres lignes de tests hors lecture conjointe (#297) : diagnostics G., INFO, p_retenue et nature_p NA, apres la largeur de l'IC complet",
          {
-           n <- length(r1$tests); t3 <- r1$tests[(n - 2):n]
+           tt <- sans_famille297(r1$tests)
+           n <- length(tt); t3 <- tt[(n - 2):n]
            identical(vapply(t3, `[[`, "", "test"), NOMS_45) &&
-             r1$tests[[n - 3]]$test == "Largeur relative de l'IC bootstrap 90%" &&
+             tt[[n - 3]]$test == "Largeur relative de l'IC bootstrap 90%" &&
              all(vapply(t3, function(t) t$type == "diagnostic" && t$verdict == "INFO" &&
                           is.na(t$p_retenue) && is.na(t$nature_p) && is.na(t$sens) &&
                           startsWith(t$famille, "G."), logical(1)))
          })
 verifier("U8 lignes LR sur J1 : stat = LR, estim = sigma contraint, p_mc et err_mc de la borne (finies), p_as du melange",
          {
-           n <- length(r1$tests)
+           tt <- sans_famille297(r1$tests); n <- length(tt)
            all(vapply(1:2, function(k) {
-             t <- r1$tests[[n - 2 + k]]; b <- r1$lr_delta[[k]]
+             t <- tt[[n - 2 + k]]; b <- r1$lr_delta[[k]]
              identical(t$stat, b$lr) && identical(t$estim, b$sigma_contraint) &&
                is.finite(t$p_mc) && identical(t$p_mc, b$p_mc) && identical(t$err_mc, b$err_mc) &&
                identical(t$p_asymptotique, b$p_asymptotique) && is.na(t$p_exacte)
            }, logical(1))) &&
-             startsWith(r1$tests[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
-             startsWith(r1$tests[[n - 1]]$detail, "Aucun verdict (ADR 0001)")
+             startsWith(tt[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
+             startsWith(tt[[n - 1]]$detail, "Aucun verdict (ADR 0001)")
          })
 verifier("U8 add() : p_mc_ext et mc_nom ensemble -> erreur",
          {
@@ -212,6 +218,24 @@ verifier("U8 ligne LR, loi simulee ponctuelle hors de l'atome : motif puis DETAI
              startsWith(t0$detail, paste(paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value Monte-Carlo."),
                                          DETAIL_MC_ATOME_HORS_OBS, "Aucun verdict (ADR 0001)")) &&
              !grepl(DETAIL_MC_ATOME_HORS_OBS, t1$detail, fixed = TRUE)
+         })
+# Bord juge par usp_delta_bord() aux deux comparaisons a une borne donnee (#331) :
+# delta estime = fl(1 - TOL_DELTA_BORD), seul double ou l'ancienne forme
+# abs(delta - d0) <= tol et usp_regime() divergeaient. La borne 1 est alors au
+# bord : l'ajustement n'est pas refait (fit_c = fit, donc gamma et sigma
+# contraints identiques a ceux de fit, alors qu'un reajustement contraint
+# deplacerait gamma de ~5e-9), LR = 0, et la ligne G. dit SOLUTION AU BORD.
+verifier("#331 delta estime = fl(1 - TOL_DELTA_BORD) : usp_lr_delta() juge la borne 1 au bord (pas de reajustement contraint, LR = 0), la borne 0 non ; la ligne G. de usp_tests() dit SOLUTION AU BORD delta = 1",
+         {
+           fm <- f1; fm$delta <- 1 - TOL_DELTA_BORD
+           lm <- usp_lr_delta(fm, B = B_T, seed = GRAINE)
+           tm <- sans_famille297(usp_tests(fm, r1$bootstrap, methode = "premium", lr_delta = lm))
+           n <- length(tm)
+           identical(lm$borne1$gamma_contraint, fm$gamma) && identical(lm$borne1$sigma_contraint, fm$sigma) &&
+             lm$borne1$lr == 0 && lm$borne1$n_refit_pire == 0L &&
+             !identical(lm$borne0$gamma_contraint, fm$gamma) && lm$borne0$lr > 0 &&
+             startsWith(tm[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
+             !grepl("SOLUTION AU BORD", tm[[n - 1]]$detail, fixed = TRUE)
          })
 verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR",
          {

@@ -611,17 +611,19 @@ verifier("add() (#111) refuse fonction absente, non chaine, vide ou inconnue du 
              grepl("fonction inconnue du moteur : cor.test", m_cor, fixed = TRUE) &&
              grepl("fonction inconnue du moteur : ANNEXE_II", m_cst, fixed = TRUE) &&
              identical(m_ok, "") && length(l) == 1L &&
-             # p_min_mc apres inoperant depuis #125 (D1-10).
-             identical(utils::tail(names(l[[1]]), 4), c("p_min", "fonction", "inoperant", "p_min_mc")) &&
+             # p_min_mc apres inoperant depuis #125 (D1-10), mc_nom apres
+             # p_min_mc depuis #330.
+             identical(utils::tail(names(l[[1]]), 5), c("p_min", "fonction", "inoperant", "p_min_mc", "mc_nom")) &&
+             identical(l[[1]]$mc_nom, NA_character_) &&
              identical(l[[1]]$fonction, ".shapiro_sur")
          })
 # Les cinq cas de tests/outils_tests.R (CAS), a B = 99 pour la duree : la
 # liste des lignes et leur fonction ne dependent pas de B (chaine litterale a
 # chaque appel d'add()). Chaque ligne porte une fonction non vide, definie
 # dans l'environnement du moteur, suivie des champs inoperant (#129, point
-# 3) et p_min_mc (#125, D1-10) ; engine_table_tests() l'expose en
-# avant-derniere colonne (p_min_mc y suit p_min).
-verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, suivie d'inoperant et de p_min_mc ; colonne fonction de engine_table_tests()",
+# 3), p_min_mc (#125, D1-10) et mc_nom (#330) ; engine_table_tests() l'expose
+# en avant-derniere colonne (p_min_mc y suit p_min, mc_nom suit p_min_mc).
+verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, suivie d'inoperant, de p_min_mc et de mc_nom ; colonne fonction de engine_table_tests()",
          {
            ln <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
            env_moteur <- environment(engine_registre_tests)
@@ -640,8 +642,8 @@ verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, suivie d'
              tb <- engine_table_tests(r)
              isTRUE(r$ok) && length(f) > 0L && !anyNA(f) && all(nzchar(f)) &&
                all(vapply(f, exists, NA, envir = env_moteur, inherits = FALSE)) &&
-               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 3),
-                                                          c("fonction", "inoperant", "p_min_mc")),
+               all(vapply(r$tests, function(t) identical(utils::tail(names(t), 4),
+                                                          c("fonction", "inoperant", "p_min_mc", "mc_nom")),
                           NA)) &&
                identical(utils::tail(names(tb), 2), c("fonction", "inoperant")) &&
                identical(tb$fonction, unname(f))

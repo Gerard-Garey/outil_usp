@@ -160,7 +160,9 @@ CRED_COURT <- c(`5` = .34, `6` = .51, `7` = .67, `8` = .81, `9` = .92,
 # optimum interieur observe (0 sur 1 399 ajustements dans la mesure du
 # 23/09/2026, anciens reglages). Valeur inchangee (decision du mainteneur du
 # 28/09/2026). Unique source de cette tolerance : usp_ajuster()
-# (delta_au_bord) et usp_regime() (pi_constant).
+# (delta_au_bord), usp_regime() (pi_constant) et usp_delta_bord() (#331, bord
+# de delta lu par usp_condition_premier_ordre(), usp_regime() et les deux
+# comparaisons a une borne donnee de usp_lr_delta() et usp_tests()).
 TOL_DELTA_BORD <- 1e-6
 
 # Bornes de recherche de gamma dans usp_ajuster() (L-BFGS-B). Bornes
@@ -1441,6 +1443,43 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
   else NA_character_
 }
 
+# Predicat "delta sur une borne" (#331, par analogie avec usp_gamma_bord()) :
+# SEULE source du moteur de ce test, lu par usp_condition_premier_ordre(),
+# usp_regime(), usp_lr_delta() et la ligne G. d'usp_tests() (comparaison a la
+# borne d0 donnee : identical(usp_delta_bord(delta), "basse" si d0 = 0, "haute"
+# si d0 = 1)). Bornes : [0, 1] (domaine de delta) ; tolerance tol, par defaut
+# TOL_DELTA_BORD. Resultat, pour un delta scalaire :
+#   - "basse" si delta <= tol ;
+#   - "haute" si delta >= 1 - tol (et non "basse") ;
+#   - NA_character_ sinon (delta interieur) ET si delta est NA ou NaN : le
+#     predicat ne repond pas, et usp_regime() propage alors NA dans ses
+#     drapeaux de bord, comme avant #331 ;
+#   - delta = -Inf est "basse" et delta = +Inf "haute" (comparaisons directes).
+# Cette convention de delta non fini reprend celle des comparaisons ecrites en
+# clair avant #331 (identique pour tol < 0,5, domaine impose ci-dessous). Elle
+# DIFFERE volontairement de
+# celle d'usp_gamma_bord() ("non fini -> basse", reprise de
+# usp_valider_ajustement(), #188), qui changerait usp_regime(NA).
+# Garde : tol doit verifier 0 <= tol < 0,5 (fini), domaine ou les bandes
+# [0 ; tol] et [1 - tol ; 1] sont disjointes ; sinon l'ordre "basse" avant
+# "haute" ferait diverger le predicat des comparaisons d'avant #331.
+# "Sur une borne" s'ecrit !is.na(usp_delta_bord(delta)) pour un delta non NA.
+# Changement de comportement documente (#331, Q-D1-Fk-10), pour les deux
+# comparaisons a une borne donnee seulement : l'ancienne forme
+# abs(delta - d0) <= tol et le predicat ne divergeaient qu'au double
+# fl(1 - TOL_DELTA_BORD), juge au bord haut par usp_regime() mais pas par la
+# comparaison ; une seule convention subsiste (au bord haut). delta hors de
+# [0, 1] ou non fini y est aussi desormais juge du cote de la borne qu'il
+# depasse (jamais atteint : delta est estime dans [0, 1]).
+usp_delta_bord <- function(delta, tol = TOL_DELTA_BORD) {
+  if (!(is.finite(tol) && tol >= 0 && tol < 0.5))
+    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0,5 (bandes de bord disjointes)")
+  if (is.na(delta)) NA_character_
+  else if (delta <= tol) "basse"
+  else if (delta >= 1 - tol) "haute"
+  else NA_character_
+}
+
 # Condition du premier ordre (Kuhn-Tucker) au point (delta, gamma), issues
 # #22 et #71 :
 #   - gradient : usp_gradient() ;
@@ -1448,7 +1487,7 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
 #     bord (borne inferieure : min(g, 0) ; borne superieure : max(g, 0)),
 #     inchangee a l'interieur. Bord jugee a tol pres (TOL_DELTA_BORD par
 #     defaut), pour delta dans [0, 1] comme pour gamma dans BORNES_GAMMA
-#     (usp_gamma_bord(), #322) ;
+#     (usp_delta_bord(), #331 ; usp_gamma_bord(), #322) ;
 #   - hessienne : usp_hessienne() (pas h) ; H_gamma_gamma est
 #     hessienne["gamma", "gamma"] ;
 #   - grad_ln_sigma : usp_grad_ln_sigma() ;
@@ -1470,8 +1509,7 @@ usp_condition_premier_ordre <- function(delta, gamma, x, y, xbar = mean(x),
     else if (cote == "basse") min(gi, 0)
     else max(gi, 0)
   }
-  pg <- c(delta = projeter(g[["delta"]], if (delta <= tol) "basse"
-                           else if (delta >= 1 - tol) "haute" else NA_character_),
+  pg <- c(delta = projeter(g[["delta"]], usp_delta_bord(delta, tol)),
           gamma = projeter(g[["gamma"]], bord_gamma))
   H <- usp_hessienne(delta, gamma, x, y, xbar, h)
   gls <- usp_grad_ln_sigma(delta, gamma, x, y, xbar)
@@ -1896,15 +1934,20 @@ usp_pertes_constantes <- function(y, tol = TOL_DELTA_BORD)
 # est general. pi_constant_exact n'est lu que pour le libelle des diagnostics
 # de usp_tests().
 usp_regime <- function(delta, x, tol = TOL_DELTA_BORD) {
-  delta_au_bord <- delta <= tol || delta >= 1 - tol
+  # Bord de delta lu dans usp_delta_bord() (#331) ; delta NA ou NaN propage NA
+  # dans les drapeaux de bord (le predicat ne repond pas pour un delta NA).
+  cote <- usp_delta_bord(delta, tol)
+  delta_na <- is.na(delta)
+  delta_au_bord <- if (delta_na) NA else !is.na(cote)
+  delta_haut <- if (delta_na) NA else identical(cote, "haute")
   volumes_constants <- usp_volumes_constants(x, tol)
   list(delta_au_bord = delta_au_bord,
        volumes_constants = volumes_constants,
-       pi_constant = delta >= 1 - tol || volumes_constants,
+       pi_constant = delta_haut || volumes_constants,
        pi_constant_exact = delta == 1 || diff(range(x)) == 0,
        # Causes de la constance a la tolerance pres seulement (libelle des
        # diagnostics de usp_tests(), seule definition de la bande).
-       delta_dans_bande = delta >= 1 - tol && delta != 1,
+       delta_dans_bande = delta_haut && delta != 1,
        volumes_dans_bande = volumes_constants && diff(range(x)) != 0)
 }
 
@@ -4085,6 +4128,17 @@ PHRASE_VERDICT_SENSIBLE_MC <- paste(
   "verdict sensible a l'alea de simulation",
   "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
 
+# Renvoi du detail a nature_p (#214, #292) : la phrase ne declare pas quelle
+# p-value est retenue (la regle R1 peut ecarter la p Monte-Carlo calculee sur
+# une ligne inoperante) ; le champ nature_p la nomme. Ecrite par usp_tests()
+# seul, quand la p Monte-Carlo de la ligne est calculee (mc_dispo()) :
+# RESET, OLS-CUSUM et Runsr a pi_t variable (regime 3). Constante sans
+# majuscule initiale ni ponctuation finale : la ponctuation de jonction (" ;"
+# ou ".") reste a l'appelant. Phrase fixe, sans aucun nombre.
+PHRASE_RENVOI_NATURE_P <- paste(
+  "la p-value retenue, s'il en est une,",
+  "est nommee par nature_p")
+
 # Jonction de deux textes de detail (#264) : fonction unique, appelee par
 # add() (regle R1, restitution d'effectifs, plancher Monte-Carlo, phrase de
 # #244), par mw_tests() (phrases de #257 et #204), par usp_tests() (joindre)
@@ -4125,8 +4179,9 @@ PHRASE_VERDICT_SENSIBLE_MC <- paste(
 #                 avec p_min ; si p_min est NA, la chaine est restituee telle
 #                 quelle dans detail (elle porte alors le motif de l'absence
 #                 de p_min ; #70)
-#   fonction    : provenance de la ligne (#111), argument obligatoire, dernier
-#                 champ de la ligne : nom de la fonction nommee du moteur qui
+#   fonction    : provenance de la ligne (#111), argument obligatoire, pose
+#                 apres p_min, suivi d'inoperant, p_min_mc et mc_nom : nom
+#                 de la fonction nommee du moteur qui
 #                 calcule stat (a defaut estim), appelee directement ou par la
 #                 fermeture calc du catalogue (DW -> stat_dw, Grubbsr ->
 #                 test_grubbs) ; a defaut (calcul en ligne par stats:: dans le
@@ -4148,6 +4203,14 @@ PHRASE_VERDICT_SENSIBLE_MC <- paste(
 #                 inoperant ; NA hors de cette branche (en particulier quand
 #                 la p exacte est retenue). Lu dans boot$p_min_mc[[mc_nom]],
 #                 sans argument d'add().
+#   mc_nom      : nom de la statistique Monte-Carlo de la ligne dans le
+#                 catalogue de la methode (#330), dernier champ de la ligne,
+#                 pose apres p_min_mc : l'argument mc_nom d'add() tel quel
+#                 (chaine), y compris quand la p Monte-Carlo manque (motif
+#                 R3) ; NA_character_ sans mc_nom (p Monte-Carlo externe
+#                 p_mc_ext, ou ligne sans p Monte-Carlo du bootstrap). Lu par
+#                 l'affichage (granularite_lignes()) pour retrouver
+#                 boot$granularite_stat[[mc_nom]] sans appariement.
 #   nature_as   : nature de la p non simulee (colonne p_asymptotique, nom
 #                 conserve) quand c'est elle qui est retenue (#120) :
 #                 "asymptotique" (defaut, loi limite) ou NATURE_APPROX_N_FINI ;
@@ -4516,9 +4579,229 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       # inoperant apres fonction (#129, point 3), pour la meme raison.
       inoperant = inoperant,
       # p_min_mc apres inoperant (#125, D1-10), pour la meme raison.
-      p_min_mc = p_min_mc)
+      p_min_mc = p_min_mc,
+      # mc_nom apres p_min_mc (#330), pour la meme raison : chaine du
+      # catalogue, NA_character_ sans statistique du bootstrap.
+      mc_nom = if (is.na(mc_nom)) NA_character_ else as.character(mc_nom))
   }
   list(add = add, lignes = function() L)
+}
+
+# --- Lecture conjointe des tests : p-value de famille minP (#297) -------------
+# Specification D1-Fk (docs/specifications/fk-lecture-conjointe.md, par. 1 a
+# 4 et 9), decisions du mainteneur du 25/10/2026 (Q-D1-Fk-1 a Q-D1-Fk-7).
+# Une ligne de diagnostic par famille d'au moins deux tests (prefixe du champ
+# famille, substr(famille, 1, 2), lecture de GROUPES), puis une ligne globale
+# par methode (prefixe PREFIXE_LECTURE_CONJOINTE, declare dans GROUPES de
+# R/display_helpers.R), ajoutees apres les lignes existantes : lignes de
+# famille dans l'ordre des prefixes (B. < C. < ... < F. ; M1 < ... < M4),
+# puis la ligne globale (decision du mainteneur du 25/10/2026, R2). Aucun tirage,
+# aucune graine (invariant de l'ADR 0004) : les rangs sont lus dans la matrice
+# des replications qui fonde les p Monte-Carlo des lignes
+# (bootstrap$stats_boot) et dans bootstrap$stats_obs. Aucun nombre issu du
+# bootstrap dans les textes (regle #76) : la liste des membres (nom du test
+# et cle mc_nom), le nombre de tests et B_MIN_DEGENERESCENCE seuls y
+# figurent.
+PREFIXE_LECTURE_CONJOINTE <- "LC"
+FAMILLE_LECTURE_CONJOINTE <- "LC. Lecture conjointe de la batterie (toutes familles)"
+REFERENCE_P_FAMILLE <- paste(
+  "Westfall & Young (1993), minP en une etape ; Ge, Dudoit & Speed (2003),",
+  "rapport technique 633, UC Berkeley, eq. (10) ; Dwass (1957), Hope (1968)")
+# Texte T-1 (par. 4.4, reprise du 25/10/2026, point 6) : %s, liste des
+# membres "<test> [<mc_nom>]" (champ test de la premiere ligne membre de
+# chaque statistique, puis sa cle), dans l'ordre des lignes, separes par
+# ", ".
+DETAIL_P_FAMILLE <- paste(
+  "Lecture conjointe des tests de la famille (issue #297) : p minP en une etape,",
+  "proportion des replications, observe compris, dont la plus petite p Monte-Carlo",
+  "des tests de la famille est au plus egale a l'observee ; rangs calcules sur les",
+  "replications qui fondent les p Monte-Carlo des lignes, l'observe compris, et p",
+  "Monte-Carlo utilisee aussi pour les tests dont la p exacte est retenue. Tests de",
+  "la famille (tous, quelle que soit la selection de restitution) : %s. Hors",
+  "famille : lignes de sens rejeter, variantes secondaires, diagnostics et lignes",
+  "sans p Monte-Carlo du bootstrap principal. Controle du taux",
+  "d'erreur de la famille au sens faible (toutes ses hypotheses vraies), sous le",
+  "modele ajuste : p plug-in, non exacte, comme les p Monte-Carlo des lignes.",
+  "Diagnostic sans verdict : aucun verdict de ligne n'est modifie.")
+# Texte T-2 (par. 4.4) : %d, nombre de tests ; ne lit aucune valeur numerique
+# du bootstrap, mais peut dependre de la disponibilite d'une p Monte-Carlo
+# (un test n'est membre que si sa p_mc est finie).
+# Reprise du 25/10/2026 (point 5) : la clause sur les verdicts ALERTE ou
+# ECHEC, refutee (verdict fonde sur une p exacte), est remplacee.
+DETAIL_P_GLOBALE <- paste(
+  "Lecture conjointe de la batterie (issue #297) : p minP en une etape sur les %d",
+  "tests des familles (tous, quelle que soit la selection de restitution), meme",
+  "construction que les lignes de famille. Elle situe la plus petite p Monte-Carlo",
+  "observee dans sa loi sous le modele ajuste, compte tenu du nombre de tests et de",
+  "leur dependance. Elle porte sur les p Monte-Carlo des tests, pas sur leurs p",
+  "retenues : un verdict fonde sur une p exacte peut ne pas s'y retrouver, et les",
+  "lignes de sens rejeter, hors batterie, n'y entrent pas. Controle du taux",
+  "d'erreur de la batterie au sens faible, sous le modele ajuste : p plug-in, non",
+  "exacte. Diagnostic sans verdict : aucun verdict de ligne n'est modifie.")
+# Texte T-3a (par. 4.4 ; reprise du 25/10/2026, points 1 et 9), joint a T-1
+# ou T-2 par .engine_joindre() quand le B effectif de famille est inferieur au
+# B effectif d'au moins un membre (nombre de replications finies de sa
+# colonne de stats_boot) : la plus petite p restituee peut alors differer de
+# la plus petite p_mc affichee des membres.
+PHRASE_FAMILLE_B_EFF_REDUIT <- paste(
+  "Calculee sur les seules replications ou les statistiques de tous les tests",
+  "de la famille sont finies, moins nombreuses que celles d'au moins un test :",
+  "la plus petite p peut alors differer de la plus petite p Monte-Carlo affichee.")
+# Texte T-3b (par. 4.4), en tete du detail quand le B effectif de famille est
+# inferieur a B_MIN_DEGENERESCENCE : aucune p-value, liste des membres conservee.
+PHRASE_FAMILLE_B_EFF_INSUFFISANT <- sprintf(paste(
+  "p de famille non calculee : replications completes insuffisantes",
+  "(B_effectif < B_MIN_DEGENERESCENCE = %d) ; aucune p-value (ADR 0001)."),
+  B_MIN_DEGENERESCENCE)
+
+# Rangs symetriques, observe compris, en arithmetique entiere (par. 2.1,
+# Q-D1-Fk-4). S : matrice n x k des replications, colonnes = statistiques
+# membres, toutes finies ; obs : k statistiques observees (finies), dans
+# l'ordre des colonnes ; queues : k sens de rejet ("haut", "bas", "deux") lus
+# au catalogue. Items 0 (observe) a n (replications), N = n + 1. Pour chaque
+# colonne j et item i, numerateur entier
+#   c+ = #{i' : S_j(i') >= S_j(i)}, c- = #{i' : S_j(i') <= S_j(i)} (l'item
+#   compris) ; a = c+ (haut), c- (bas), min(2 min(c+, c-), N) (deux),
+# p_j(i) = a / N. Pour l'observe, a / N est la p_mc d'engine_p_mc() au bit
+# pres (meme formule ; le facteur 2 est exact en virgule flottante) quand
+# les n lignes sont les B_eff replications finies de la colonne. m(i) =
+# min_j a_j(i) (numerateur commun) ; numerateur de la p de famille =
+# #{i : m(i) <= m(0)}, observe compris. Rend la liste : n (B effectif de
+# famille), N, num_obs (k numerateurs de l'observe), num_m_obs (m(0)) et
+# num_p (numerateur de la p de famille). Aucun tirage.
+.engine_minp_rangs <- function(S, obs, queues) {
+  S <- as.matrix(S)
+  k <- ncol(S); n <- nrow(S); N <- n + 1L
+  if (length(obs) != k || length(queues) != k)
+    stop(".engine_minp_rangs() : obs et queues doivent avoir une valeur par colonne")
+  if (!all(queues %in% c("haut", "bas", "deux")))
+    stop(".engine_minp_rangs() : sens de rejet inconnu : ",
+         paste(setdiff(queues, c("haut", "bas", "deux")), collapse = ", "))
+  A <- rbind(as.numeric(obs), unname(S))
+  if (!all(is.finite(A)))
+    stop(".engine_minp_rangs() : statistiques non finies (observe ou replications)")
+  num <- matrix(vapply(seq_len(k), function(j) {
+    v <- A[, j]
+    up <- as.integer(rank(-v, ties.method = "max"))
+    dn <- as.integer(rank(v, ties.method = "max"))
+    switch(queues[[j]], haut = up, bas = dn, deux = pmin(2L * pmin(up, dn), N))
+  }, integer(N)), nrow = N)
+  m <- apply(num, 1L, min)
+  list(n = n, N = N, num_obs = num[1L, ], num_m_obs = m[[1L]],
+       num_p = sum(m <= m[[1L]]))
+}
+
+# P-value de famille minP en une etape (#297). Entrees : lignes, liste de
+# lignes enregistrees par add() (reg$lignes(), types fixes a l'observe) ;
+# boot, objet bootstrap de la methode (stats_boot, stats_obs) ; catalogue,
+# catalogue Monte-Carlo de la methode (sens de rejet). Membre d'une famille
+# (par. 1.3, Q-D1-Fk-1) : type "test", variante "principale", sens "ne pas
+# rejeter", mc_nom renseigne (#330) et p_mc finie ; composition figee a
+# l'observe ; membres dedoublonnes par mc_nom (une colonne de la matrice ne
+# compte qu'une fois). Pitman et le TOST (sens "rejeter"), les diagnostics
+# (tests inoperants compris), les variantes secondaires et les lignes sans
+# statistique du bootstrap principal (rapport de vraisemblance, p_mc_ext)
+# sont hors famille. Familles dans l'ordre de leur prefixe (tri par
+# octets, method = "radix", independant de la locale : B. < C. < ... < F. ;
+# M1 < ... < M4 ; reprise du 25/10/2026, point 2) ; aucune ligne pour une
+# famille d'un seul membre (Q-D1-Fk-2 (a)). Ligne globale (Q-D1-Fk-3 (B)) :
+# reunion des membres de toutes les familles, familles d'un seul membre
+# comprises, posee si elle compte au moins deux membres. B effectif de
+# famille (par. 3, Q-D1-Fk-5) : lignes de stats_boot
+# ou toutes les colonnes des membres sont finies ; < B_MIN_DEGENERESCENCE :
+# aucune p-value (texte T-3b) ; inferieur au B effectif d'au moins un
+# membre (replications finies de sa colonne) : texte T-3a. p de famille dans
+# p_monte_carlo par p_mc_ext ; err_mc = sqrt(p (1 - p) / B_eff), queue
+# simple. Rend une liste, un element par ligne a poser, dans l'ordre :
+# args (arguments d'add(), fonction = "engine_p_famille", type
+# "diagnostic", donc verdict INFO, sans sens ni p retenue, ADR 0001),
+# membres (mc_nom), B_eff, N, num_obs, num_m_obs, num_p (NA sous T-3b).
+# Objet bootstrap sans stats_boot (anterieur au champ, ou bootstrap fictif
+# des tests unitaires) : aucune ligne (liste vide), sans repli.
+engine_p_famille <- function(lignes, boot, catalogue) {
+  S <- boot$stats_boot
+  if (is.null(S) || !length(lignes)) return(list())
+  chaine <- function(nm) vapply(lignes, function(l) {
+    v <- l[[nm]]
+    if (is.null(v) || length(v) != 1L || is.na(v)) NA_character_ else as.character(v)
+  }, character(1))
+  pm <- vapply(lignes, function(l) {
+    v <- l$p_mc
+    if (is.null(v) || length(v) != 1L) NA_real_ else as.numeric(v)
+  }, numeric(1))
+  fam <- chaine("famille"); mc <- chaine("mc_nom")
+  memb <- chaine("type") %in% "test" & chaine("variante") %in% "principale" &
+    chaine("sens") %in% "ne pas rejeter" & !is.na(mc) & is.finite(pm)
+  pref <- substr(fam, 1L, 2L)
+  tst <- chaine("test")
+  # sel : indices des lignes membres de la famille (ou de la batterie).
+  une_ligne <- function(sel, famille, globale) {
+    cols <- unique(mc[sel])
+    inconnus <- setdiff(cols, intersect(colnames(S), names(catalogue)))
+    if (length(inconnus))
+      stop("engine_p_famille() : statistique(s) absente(s) de stats_boot ou du catalogue : ",
+           paste(inconnus, collapse = ", "))
+    sans_obs <- setdiff(cols, names(boot$stats_obs))
+    if (length(sans_obs))
+      stop("engine_p_famille() : statistique(s) absente(s) de stats_obs : ",
+           paste(sans_obs, collapse = ", "))
+    X0 <- S[, cols, drop = FALSE]
+    X <- X0[rowSums(!is.finite(X0)) == 0L, , drop = FALSE]
+    B_eff <- nrow(X)
+    # T-3a (reprise du 25/10/2026, point 1) : au moins un membre a plus de
+    # replications finies que la famille.
+    reduit <- any(colSums(is.finite(X0)) > B_eff)
+    # Membre "<test> [<mc_nom>]" : test de la premiere ligne membre de la
+    # famille portant la statistique (point 6).
+    etiq <- vapply(cols, function(c) sprintf("%s [%s]", tst[sel][mc[sel] == c][[1L]], c),
+                   character(1), USE.NAMES = FALSE)
+    texte <- if (globale) sprintf(DETAIL_P_GLOBALE, length(cols))
+             else sprintf(DETAIL_P_FAMILLE, paste(etiq, collapse = ", "))
+    r <- NULL
+    if (B_eff < B_MIN_DEGENERESCENCE) {
+      detail <- .engine_joindre(PHRASE_FAMILLE_B_EFF_INSUFFISANT, texte)
+      p <- NA_real_; err <- NA_real_; m_obs <- NA_real_
+    } else {
+      r <- .engine_minp_rangs(X, vapply(cols, function(c) as.numeric(boot$stats_obs[[c]]),
+                                        numeric(1)),
+                              vapply(cols, function(c) catalogue[[c]]$queue, character(1)))
+      p <- r$num_p / r$N
+      err <- sqrt(p * (1 - p) / B_eff)
+      m_obs <- r$num_m_obs / r$N
+      detail <- if (reduit) .engine_joindre(texte, PHRASE_FAMILLE_B_EFF_REDUIT) else texte
+    }
+    args <- list(
+      fam = famille,
+      nom = if (globale) "p globale (minP, lecture conjointe de la batterie)"
+            else "p de famille (minP, lecture conjointe)",
+      ref = REFERENCE_P_FAMILLE, type = "diagnostic", base = "commun",
+      variante = "principale",
+      H0 = if (globale)
+        "toutes les hypotheses nulles des tests de toutes les familles sont vraies (modele ajuste)"
+      else "toutes les hypotheses nulles des tests de la famille sont vraies (modele ajuste)",
+      H1 = "au moins une est fausse",
+      stat_nom = if (globale) "plus petite p Monte-Carlo de la batterie"
+                 else "plus petite p Monte-Carlo de la famille", stat = m_obs,
+      loi = "minimum des p Monte-Carlo -> Monte-Carlo (memes replications, rangs avec l'observe)",
+      estim_nom = if (globale) "nombre de tests" else "nombre de tests de la famille",
+      estim = as.numeric(length(cols)),
+      p_mc_ext = p, err_mc_ext = err, detail = detail, fonction = "engine_p_famille")
+    list(args = args, membres = cols, B_eff = B_eff,
+         N = if (is.null(r)) NA_integer_ else r$N,
+         num_obs = if (is.null(r)) NULL else stats::setNames(r$num_obs, cols),
+         num_m_obs = if (is.null(r)) NA_integer_ else r$num_m_obs,
+         num_p = if (is.null(r)) NA_integer_ else r$num_p)
+  }
+  out <- list()
+  for (g in sort(unique(pref[memb]), method = "radix")) {
+    sel <- which(memb & pref == g)
+    if (length(unique(mc[sel])) >= 2L)
+      out[[length(out) + 1L]] <- une_ligne(sel, fam[[sel[1L]]], globale = FALSE)
+  }
+  sel <- which(memb)
+  if (length(unique(mc[sel])) >= 2L)
+    out[[length(out) + 1L]] <- une_ligne(sel, FAMILLE_LECTURE_CONJOINTE, globale = TRUE)
+  out
 }
 
 # Nature d'une p-value Monte-Carlo de la methode lognormale conditionnelle
@@ -4599,7 +4882,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
   if (!v3b) {
     # V1 : p-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le
     # sens du rejet etant lu au catalogue USP_CATALOGUE_MC.
-    mc <- .mc_p_values(sim, stats_obs, USP_CATALOGUE_MC, e_obs)
+    stats_boot <- sim
+    mc <- .mc_p_values(stats_boot, stats_obs, USP_CATALOGUE_MC, e_obs)
     motif_v1 <- if (reg$volumes_constants) "volumes constants : regime de delta non identifie"
                 else if (reg$delta_au_bord) "delta estime au bord"
                 else "refit = FALSE : delta** non reestime"
@@ -4647,7 +4931,8 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
         S[n, ] <- sb[noms]
       }
     })
-    mc <- .mc_p_values(S[seq_len(n), , drop = FALSE], stats_obs, USP_CATALOGUE_MC, e_obs)
+    stats_boot <- S[seq_len(n), , drop = FALSE]
+    mc <- .mc_p_values(stats_boot, stats_obs, USP_CATALOGUE_MC, e_obs)
     arret <- if (n == B_cible) "cible" else "B_max"
     # Regime interieur rare (specification par. 4.1) : B_max atteint avec
     # moins de B_MIN_DEGENERESCENCE tirages retenus. Seuls les motifs de
@@ -4697,11 +4982,22 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        # compris), retenus de V1 et au total, rejets du flux par cause,
        # arret ("cible" ou "B_max") ; NA hors de V3b.
        p_mc_regime = p_mc_regime,
-       # Plancher Monte-Carlo par statistique (#125, D1-10), dernier element :
-       # vecteur nomme dans l'ordre du catalogue, NA pour les statistiques
-       # sans extremes (continues) ; sous V3b, calcule sur la matrice des
-       # tirages retenus (loi conditionnelle au regime, ADR 0014).
-       p_min_mc = mc$p_min_mc)
+       # Plancher Monte-Carlo par statistique (#125, D1-10) : vecteur nomme
+       # dans l'ordre du catalogue, NA pour les statistiques sans extremes
+       # (continues) ; sous V3b, calcule sur la matrice des tirages retenus
+       # (loi conditionnelle au regime, ADR 0014).
+       p_min_mc = mc$p_min_mc,
+       # Matrice des replications passee a .mc_p_values() (#297, Q-D1-Fk-7 ;
+       # specification D1-Fk, par. 9), dernier element : colonnes dans l'ordre
+       # du catalogue, noms des statistiques. V1 : B lignes, ligne b remplie
+       # si et seulement si la replication b est retenue (alignee sur z_boot),
+       # NA sinon. V3b : les n tirages retenus au regime interieur, ceux de V1
+       # d'abord (b croissant) puis ceux du flux complementaire ; elle n'est
+       # PAS alignee sur z_boot. Pour chaque statistique j,
+       # engine_p_mc(stats_boot[, j], stats_obs[[j]], queue, extremes) redonne
+       # p_mc, err_mc, B_effectif et p_min_mc (hors condition `degenere` du
+       # catalogue). Lue par engine_p_famille() (p de famille, #297).
+       stats_boot = stats_boot)
 }
 
 # Reajustement rapide des replications bootstrap (usp_bootstrap()), unique
@@ -4807,7 +5103,8 @@ usp_lr_delta <- function(fit, B = 999, seed = 20260831) {
          n_refit_pire = NA_integer_, n_echec = NA_integer_, lr_boot = numeric(0))
   }
   une_borne <- function(d0) {
-    au_bord <- abs(fit$delta - d0) <= TOL_DELTA_BORD
+    # Bord juge par usp_delta_bord() (#331, Q-D1-Fk-10) : d0 vaut 0 ou 1.
+    au_bord <- identical(usp_delta_bord(fit$delta), if (d0 == 0) "basse" else "haute")
     fit_c <- if (au_bord) fit else
       try(usp_ajuster_contraint(x, y, d0, fit$gamma), silent = TRUE)
     if (inherits(fit_c, "try-error")) return(borne_en_echec(d0))
@@ -5589,8 +5886,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                  # #214 : la phrase ne declare plus la p retenue (contredite
                  # par la regle R1 sur une ligne inoperante) ; nature_p la nomme.
                  if (mc_dispo("RESET"))
-                   paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
-                         "la p-value retenue, s'il en est une, est nommee par nature_p.")
+                   paste0(paste("La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;",
+                                PHRASE_RENVOI_NATURE_P), ".")
                  else
                    paste0(txt_mc_indispo("La p Monte-Carlo, simulee sous le modele ajuste,"), ".")))
   if (!vol_cst) {
@@ -6303,8 +6600,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # #214 : la phrase ne declare plus p_mc retenue (contredite par la
       # regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
       detail = if (mc_dispo("CUSUM"))
-        paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
-              "la p-value retenue, s'il en est une, est nommee par nature_p.")
+        paste0(paste("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;",
+                     PHRASE_RENVOI_NATURE_P), ".")
       else paste("La formule asymptotique n'a aucune validite a T = 8 ;",
                  txt_mc_indispo("p_mc")))
   gr <- test_grubbs(z)
@@ -6516,7 +6813,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           # la regle R1 sur une ligne inoperante) ; nature_p nomme la p retenue.
           if (mc_dispo("Runsr"))
             paste("Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,",
-                  "est calculee ; la p-value retenue, s'il en est une, est nommee par nature_p ;")
+                  "est calculee ;", PHRASE_RENVOI_NATURE_P, ";")
           else
             paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
           "la statistique differe en general de celle de la ligne des suites sur",
@@ -6735,7 +7032,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   .complement_motif_mc(b$motif_mc))
       if (isTRUE(regime$volumes_constants))
         pref <- c(pref, "VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.")
-      else if (abs(fit$delta - b$delta0) <= TOL_DELTA_BORD)
+      else if (identical(usp_delta_bord(fit$delta),
+                         if (b$delta0 == 0) "basse" else "haute"))
         pref <- c(pref, sprintf("SOLUTION AU BORD delta = %d : LR = 0 par construction.",
                                 as.integer(b$delta0)))
       add(fam, li$nom,
@@ -6748,6 +7046,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           detail = paste(c(pref, txt_lr(is.finite(b$p_mc))), collapse = " "))
     }
   }
+  # Lecture conjointe (#297, specification D1-Fk, par. 4.3) : lignes de
+  # famille et ligne globale, posees apres toutes les lignes existantes (aucun
+  # indice existant ne change), une fois les types fixes a l'observe, et avant
+  # .usp_poser_renvois(), qui apparie par nom de test et ne les touche pas.
+  for (f in engine_p_famille(reg$lignes(), boot, USP_CATALOGUE_MC))
+    do.call(reg$add, f$args)
   # Renvoi croise constante <-> Spearman ratio / volume (#215, option (ii)
   # d'actuary, decision du mainteneur du 07/10/2026) : pose sur les lignes
   # finales, par la regle unique de usp_renvois().
@@ -10489,7 +10793,8 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
   # P-values de Monte-Carlo, erreur de Monte-Carlo et B effectif, le sens du
   # rejet etant lu au catalogue MW_CATALOGUE_MC (fonction partagee avec
   # usp_bootstrap()).
-  mc <- .mc_p_values(sim, obs, MW_CATALOGUE_MC, e_obs)
+  stats_boot <- sim
+  mc <- .mc_p_values(stats_boot, obs, MW_CATALOGUE_MC, e_obs)
   # granularite (B nominal) et granularite_stat (par statistique, sur B_eff) :
   # comme dans usp_bootstrap() (issue #40) ; motif_mc (#44, regle R2) en fin
   # de liste.
@@ -10501,9 +10806,14 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
        # Tracabilite du retirage (#257, D1-3 (a)) : au moins un triangle
        # simule retire ; plafond atteint (des replications manquent).
        cumuls_retires = cumuls_retires, plafond_cumuls = plafond_cumuls,
-       # Plancher Monte-Carlo par statistique (#125, D1-10), dernier element,
-       # comme dans usp_bootstrap().
-       p_min_mc = mc$p_min_mc)
+       # Plancher Monte-Carlo par statistique (#125, D1-10), comme dans
+       # usp_bootstrap().
+       p_min_mc = mc$p_min_mc,
+       # Matrice des replications passee a .mc_p_values() (#297, Q-D1-Fk-7),
+       # dernier element, comme dans usp_bootstrap() : B lignes, NA pour une
+       # replication ecartee (echec de l'ajustement ou des statistiques,
+       # plafond du retirage atteint). Lue par engine_p_famille().
+       stats_boot = stats_boot)
 }
 
 # --- Catalogue Monte-Carlo de la methode Merz-Wuthrich (ADR 0003) -------------
@@ -11393,6 +11703,12 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                              "facteurs sont les plus extrapoles. Repere indicatif de 40 %%,",
                              "sans fondement reglementaire ni statistique : il n'emporte aucun",
                              "verdict."), 100 * part_derniere))
+  # Lecture conjointe (#297, specification D1-Fk, par. 4.3) : lignes de
+  # famille et ligne globale, apres toutes les lignes existantes. reg$add()
+  # direct : sans mc_nom, ces lignes ne recoivent ni les phrases du retirage
+  # (#257) ni celle de #204 (Q-D1-Fk-6).
+  for (f in engine_p_famille(reg$lignes(), boot, MW_CATALOGUE_MC))
+    do.call(reg$add, f$args)
   reg$lignes()
 }
 
@@ -12866,6 +13182,8 @@ USP_TXT_RENVOI_SV <- paste(
 }
 
 # Table des tests sous forme de data.frame auditable (donnees, pas affichage).
+# mc_nom (#330) : colonne placee apres p_min_mc, dans l'ordre des champs de
+# fin de ligne (p_min, p_min_mc, mc_nom).
 # renvoi (#215) : colonne derivee, calculee ici par usp_renvois(), placee
 # avant fonction : la table se termine par fonction, inoperant (ordre fixe
 # par l'annotation du 02/10/2026 de l'ADR 0003). reserve2 : usp_renvois()
@@ -12886,6 +13204,9 @@ engine_table_tests <- function(res) {
     # p_min_mc (#125, D1-10), apres p_min : NULL sur un objet anterieur au
     # champ, rendu NA.
     p_min_mc = if (is.null(t$p_min_mc)) NA_real_ else t$p_min_mc,
+    # mc_nom (#330), apres p_min_mc : statistique Monte-Carlo de la ligne
+    # dans le catalogue ; NULL sur un objet anterieur au champ, rendu NA.
+    mc_nom = if (is.null(t$mc_nom)) NA_character_ else t$mc_nom,
     p_retenue = t$p_retenue, nature_p = t$nature_p,
     sens_du_test = t$sens, verdict = t$verdict,
     commentaire = t$detail, reference = t$reference,

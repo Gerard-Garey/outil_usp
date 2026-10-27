@@ -3,7 +3,7 @@
 #  L'ESTIMATION LOGNORMALE (issue #22, decision M11)
 #
 #  usp_gradient(), usp_gradient_optim(), usp_hessienne(),
-#  usp_gamma_bord() (#322), usp_grad_ln_sigma(), usp_hessienne_libre(),
+#  usp_gamma_bord() (#322), usp_delta_bord() (#331), usp_grad_ln_sigma(), usp_hessienne_libre(),
 #  usp_pas_newton_borne(),
 #  usp_condition_premier_ordre(), usp_kkt_satisfaite(),
 #  usp_controles_numeriques(), champs d'ajustement de usp_ajuster()
@@ -915,8 +915,9 @@ verifier("Details des deux controles invariants a une perturbation de gamma de 1
 res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
                   nature_donnees = "brutes")
 tb <- engine_table_tests(res)
-verifier("run_engine : table des tests a 47 lignes (dont les trois de #45 ; LB1r retiree, #303 ; trois lignes retirees, #302), sans les deux controles numeriques",
-         nrow(tb) == 47L && !any(tb$test %in% c(NOM_FOC, NOM_MULTI,
+verifier("run_engine : table des tests a 47 lignes hors lecture conjointe (dont les trois de #45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 ajoutees en fin), sans les deux controles numeriques",
+         sum(tb$fonction != "engine_p_famille") == 47L &&
+           all(tb$fonction[-(1:47)] == "engine_p_famille") && !any(tb$test %in% c(NOM_FOC, NOM_MULTI,
                                                 "Condition du premier ordre |sum(pi_t*v_t)|/sum(pi_t)")))
 verifier("run_engine : famille G reduite au jackknife, a l'IC, a l'IC restreint et aux deux LR sur delta (#45)",
          identical(tb$test[substr(tb$famille, 1, 2) == "G."],
@@ -976,6 +977,107 @@ verifier("usp_condition_premier_ordre : gradient projete = projection ecrite en 
              }
            ok
          })
+## --- Predicat "delta sur une borne" (#331) ---------------------------------
+# Seule source du predicat, lu par usp_condition_premier_ordre(), usp_regime()
+# et les deux comparaisons a une borne donnee (usp_lr_delta(), ligne G. de
+# usp_tests()). Les formes de reference ci-dessous sont les expressions
+# ecrites en clair avant #331. Convention de delta non fini : NA et NaN
+# donnent NA (usp_regime() y propage NA), -Inf est "basse" et +Inf "haute" ;
+# elle differe de celle d'usp_gamma_bord().
+# Doubles voisins d'une valeur v (v > 0), a n unites de derniere place pres.
+.voisins_ulp <- function(v, n) v + (-n:n) * 2^(floor(log2(v)) - 52)
+.t331 <- TOL_DELTA_BORD
+.haut331 <- 1 - .t331                       # fl(1 - tol)
+verifier("usp_delta_bord : bornes, +/- TOL_DELTA_BORD, 2 tol, interieur, NA, NaN, +/-Inf (#331)",
+         {
+           t <- .t331
+           v <- c(0, t / 2, t, 2 * t, 0.4, 1 - 2 * t, 1 - t, 1 - t / 2, 1, -Inf, Inf, NA, NaN,
+                  -0.5, 1.5)
+           att <- c("basse", "basse", "basse", NA, NA, NA, "haute", "haute", "haute",
+                    "basse", "haute", NA, NA, "basse", "haute")
+           identical(vapply(v, usp_delta_bord, character(1)), att)
+         })
+verifier("usp_delta_bord : argument tol (tol = 0 : borne exacte seule ; tol = 1e-3) (#331)",
+         identical(c(usp_delta_bord(0, 0), usp_delta_bord(1e-9, 0), usp_delta_bord(1, 0),
+                     usp_delta_bord(1 - 1e-9, 0), usp_delta_bord(5e-4, 1e-3),
+                     usp_delta_bord(1 - 5e-4, 1e-3), usp_delta_bord(2e-3, 1e-3)),
+                   c("basse", NA, "haute", NA, "basse", "haute", NA)))
+verifier("usp_delta_bord : garde sur tol (0 <= tol < 0,5 et fini : 0,5, 1, NA, -1, Inf refuses ; TOL_DELTA_BORD, 0 et 0,49 acceptes) (#331)",
+         {
+           refuse <- function(t) inherits(try(usp_delta_bord(0.3, t), silent = TRUE), "try-error")
+           all(vapply(list(0.5, 1, NA_real_, -1, Inf, NaN), refuse, logical(1))) &&
+             !any(vapply(list(TOL_DELTA_BORD, 0, 0.49), refuse, logical(1))) &&
+             inherits(try(usp_regime(0.3, x, tol = 0.5), silent = TRUE), "try-error")
+         })
+verifier("usp_delta_bord = predicat ecrit en clair avant #331, 2 x 129 doubles a +/- 64 ulp de tol et de 1 - tol",
+         {
+           v <- c(.voisins_ulp(.t331, 64), .voisins_ulp(.haut331, 64))
+           bord_avant <- v <= .t331 | v >= 1 - .t331
+           bas_avant <- v <= .t331
+           r <- vapply(v, usp_delta_bord, character(1))
+           identical(!is.na(r), bord_avant) && identical(r %in% "basse", bas_avant)
+         })
+verifier("usp_regime : drapeaux de bord identiques a l'expression ecrite en clair avant #331 (grille de delta, NA, NaN, +/-Inf compris)",
+         {
+           t <- .t331
+           v <- c(0, .voisins_ulp(t, 2), 2 * t, 0.4, 1 - 2 * t, .voisins_ulp(.haut331, 2), 1,
+                  -Inf, Inf, NA, NaN)
+           ok <- TRUE
+           for (xx in list(x, rep(100, 8)))
+             for (d in v) {
+               att <- list(delta_au_bord = d <= t || d >= 1 - t,
+                           volumes_constants = usp_volumes_constants(xx, t),
+                           pi_constant = d >= 1 - t || usp_volumes_constants(xx, t),
+                           pi_constant_exact = d == 1 || diff(range(xx)) == 0,
+                           delta_dans_bande = d >= 1 - t && d != 1,
+                           volumes_dans_bande = usp_volumes_constants(xx, t) && diff(range(xx)) != 0)
+               ok <- ok && identical(usp_regime(d, xx), att)
+             }
+           ok
+         })
+verifier("usp_condition_premier_ordre : gradient projete identique a la projection ecrite en clair avant #331 (grille de delta a +/- 2 ulp de tol et de 1 - tol)",
+         {
+           t <- .t331
+           proj <- function(gi, v) {
+             if (!is.finite(gi)) gi else if (v <= t) min(gi, 0)
+             else if (v >= 1 - t) max(gi, 0) else gi
+           }
+           ok <- TRUE
+           for (d in c(0, .voisins_ulp(t, 2), 2 * t, 0.4, 1 - 2 * t, .voisins_ulp(.haut331, 2), 1)) {
+             gr <- usp_gradient(d, -1, xi, yi)
+             ok <- ok && identical(usp_condition_premier_ordre(d, -1, xi, yi)$gradient_projete[["delta"]],
+                                   proj(gr[["delta"]], d))
+           }
+           ok
+         })
+# Comparaison a une borne donnee d0 (0 ou 1) : ancienne forme
+# abs(delta - d0) <= tol ; nouvelle forme identical(usp_delta_bord(delta), cote).
+# Le seul ecart attendu sur [0, 1] est le double fl(1 - tol) a la borne 1
+# (ancienne forme FALSE, nouvelle TRUE, comme usp_regime()$delta_au_bord) ;
+# hors de [0, 1] ou non fini, la nouvelle forme juge du cote depasse.
+verifier("comparaison a une borne donnee : identique a l'ancienne forme abs(delta - d0) <= tol sur [0, 1], hors le seul double fl(1 - tol) a la borne 1 (#331)",
+         {
+           t <- .t331
+           ancien <- function(d, d0) abs(d - d0) <= t
+           nouveau <- function(d, d0) identical(usp_delta_bord(d), if (d0 == 0) "basse" else "haute")
+           v <- c(0, .voisins_ulp(t, 64), 2 * t, 0.4, 1 - 2 * t, .voisins_ulp(.haut331, 64), 1)
+           ok <- TRUE; ecarts <- list()
+           for (d0 in c(0, 1)) for (d in v) {
+             if (!identical(ancien(d, d0), nouveau(d, d0))) ecarts[[length(ecarts) + 1L]] <- c(d, d0)
+           }
+           ok <- length(ecarts) == 1L && identical(ecarts[[1L]], c(.haut331, 1)) &&
+             isFALSE(ancien(.haut331, 1)) && isTRUE(nouveau(.haut331, 1)) &&
+             isTRUE(!is.na(usp_delta_bord(.haut331)))
+           ok
+         })
+verifier("comparaison a une borne donnee : delta non fini (NA, NaN : FALSE sans erreur ; +/-Inf : du cote de la borne depassee) (#331)",
+         {
+           nouveau <- function(d, d0) identical(usp_delta_bord(d), if (d0 == 0) "basse" else "haute")
+           isFALSE(nouveau(NA_real_, 0)) && isFALSE(nouveau(NaN, 1)) &&
+             isTRUE(nouveau(-Inf, 0)) && isFALSE(nouveau(-Inf, 1)) &&
+             isTRUE(nouveau(Inf, 1)) && isFALSE(nouveau(Inf, 0))
+         })
+
 verifier("usp_valider_ajustement : cote du refus lu dans usp_gamma_bord() (basse, haute, non fini = basse, interieur accepte, KKT satisfaite acceptee) (#322)",
          {
            v <- function(g, kkt = FALSE) usp_valider_ajustement(list(gamma = g, kkt_au_moins_un = kkt))

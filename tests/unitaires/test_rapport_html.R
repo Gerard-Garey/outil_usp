@@ -368,10 +368,11 @@ diag_c <- "diagnostics compl\u00e9mentaires"
 ref_attendue <- function(pt) c(
   H1 = paste0("annexe XVII, ", pt, "(i)"),   H2 = paste0("annexe XVII, ", pt, "(ii)"),
   H3 = paste0("annexe XVII, ", pt, "(iii)"), H4 = paste0("annexe XVII, ", pt, "(iv)"),
-  STAB = diag_c, ROB = diag_c)
+  STAB = diag_c, ROB = diag_c, LC = diag_c)
+# LC : ligne globale de lecture conjointe (#297), groupe place en dernier.
 ref_mw <- c(M1 = "annexe XVII, D(2)(h)(iii)", M2 = "annexe XVII, D(2)(h)(iv)",
             M3 = "annexe XVII, D(2)(h)(i) et (ii)", M4 = diag_c,
-            M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c)
+            M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c, LC = diag_c)
 # Reference affichee par groupe, dans l'ordre de cles_groupes() (premiere
 # famille du groupe, comme app.R et rapport_html()).
 refs_groupes <- function(res) {
@@ -402,7 +403,7 @@ verifier("Citation affichee : repli sur GROUPES$ref pour F. et G. (aucune citati
          })
 verifier("Citation affichee, Merz-Wuthrich : M1 a M6 inchanges (egaux a GROUPES$ref)",
          identical(refs_groupes(res_mw), ref_mw) &&
-           identical(unname(ref_mw), unname(vapply(GROUPES[paste0("M", 1:6)],
+           identical(unname(ref_mw), unname(vapply(GROUPES[c(paste0("M", 1:6), "LC")],
                                                    function(g) g$ref, character(1)))))
 verifier("Rapport fige : citations de la methode appliquee seulement (premium B(2)(g), reserve1 C(2)(e))",
          {
@@ -1435,9 +1436,9 @@ verifier(".ou_tiret() : NA scalaire -> tiret avant f(), valeur finie -> f(x), ve
 
 ## --- Granularite effective par ligne (#285, option (i)) ----------------------
 # La colonne "granularite MC" du detail des tests est lue dans
-# bootstrap$granularite_stat par granularite_lignes(), qui retrouve la
-# statistique de la ligne par l'egalite exacte de sa p Monte-Carlo et de son
-# erreur. Verite independante : le mc_nom passe a add() pour chaque ligne,
+# bootstrap$granularite_stat par granularite_lignes(), qui lit la statistique
+# de la ligne dans la colonne mc_nom d'engine_table_tests() (#330, posee par
+# add()). Verite independante : le mc_nom passe a add() pour chaque ligne,
 # releve en enveloppant add() le temps d'un calcul (engine_registre_tests()
 # de l'environnement global, restauree en sortie) sur le jeu de res_bmax
 # (V3b arrete a B_max, granularites 1/98 et 2/98). L'enveloppe a pour
@@ -1479,14 +1480,20 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302, hors lignes de lecture conjointe de #297, en tiret)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
-           sum(is.finite(.g285)) == 31L && sum(!is.finite(.g285)) == 16L &&
+           sum(is.finite(.g285)) == 31L &&
+           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 16L &&
+           any(.tb285$fonction == "engine_p_famille") &&
+           all(!is.finite(.g285[.tb285$fonction == "engine_p_famille"])) &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
-verifier("#285 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, sans appariement",
-         { k <- .tb285$fonction %in% FONCTIONS_P_MC_EXTERNE
-           any(k) && any(is.finite(.tb285$p_monte_carlo[k])) && all(is.na(.g285[k])) })
+verifier("#330 : colonne mc_nom d'engine_table_tests() = mc_nom passe a add() pour chaque ligne",
+         identical(.tb285$mc_nom, unname(.mc285)))
+verifier("#285, #330 : lignes a p Monte-Carlo externe (usp_lr_delta) en tiret, mc_nom NA",
+         { k <- .tb285$fonction %in% c("usp_lr_delta", "usp_permutation_pente")
+           any(k) && any(is.finite(.tb285$p_monte_carlo[k])) && all(is.na(.tb285$mc_nom[k])) &&
+             all(is.na(.g285[k])) })
 verifier("#285 : colonne granularite MC du detail apres p min MC, valeurs lues en %.3g, tiret sans boot",
          { d <- table_detail_groupe(.tb285, boot = .r285$bootstrap)
            d0 <- table_detail_groupe(.tb285)
@@ -1497,18 +1504,31 @@ verifier("#285 : colonne granularite MC du detail apres p min MC, valeurs lues e
              all(c("0,0102", "0,0204") %in% d[["granularité MC"]]) &&
              all(d0[["granularité MC"]] == "–") &&
              identical(d[names(d) != "granularité MC"], d0[names(d0) != "granularité MC"]) })
-verifier("#285 : appariement ambigu (deux statistiques, granularites differentes) -> tiret, jamais choisi",
+# Avant #330, deux statistiques de meme p et de meme erreur Monte-Carlo
+# rendaient l'appariement ambigu (tiret) : la lecture par mc_nom n'en depend
+# plus ; seule la granularite de la statistique de la ligne compte.
+verifier("#330 : granularite lue par mc_nom, independante des autres statistiques de meme p et de meme erreur",
          { b <- .r285$bootstrap; i <- which(is.finite(.g285))[1]; m <- .mc285[i]
            autre <- setdiff(names(b$p_mc), m)[1]
            b$p_mc[[autre]] <- b$p_mc[[m]]; b$err_mc[[autre]] <- b$err_mc[[m]]
            b$granularite_stat[[autre]] <- b$granularite_stat[[m]] + 0.5
-           is.na(granularite_lignes(.tb285, b)[i]) &&
-             { b$granularite_stat[[autre]] <- b$granularite_stat[[m]]
-               identical(granularite_lignes(.tb285, b)[i], .g285[i]) } })
-verifier("#285 : objet sans granularite_stat ou table sans colonne fonction -> tiret partout, sans erreur",
+           identical(granularite_lignes(.tb285, b)[i], .g285[i]) &&
+             { b$granularite_stat[[m]] <- 0.25
+               identical(granularite_lignes(.tb285, b)[i], 0.25) } })
+verifier("#285, #330 : objet sans granularite_stat ou table sans colonne mc_nom -> tiret partout, sans erreur",
          { b <- .r285$bootstrap; b$granularite_stat <- NULL
-           tbf <- .tb285; tbf$fonction <- NULL
+           tbf <- .tb285; tbf$mc_nom <- NULL
            all(is.na(granularite_lignes(.tb285, b))) && all(is.na(granularite_lignes(tbf, .r285$bootstrap))) })
+verifier("#330 : appariement retire, FONCTIONS_P_MC_EXTERNE absente de R/display_helpers.R ; granularite non finie -> tiret",
+         { src <- readLines(file.path(.racine, "R", "display_helpers.R"), encoding = "UTF-8")
+           b <- .r285$bootstrap; i <- which(is.finite(.g285))[1]
+           b$granularite_stat[[.mc285[i]]] <- NA_real_
+           !any(grepl("FONCTIONS_P_MC_EXTERNE", src, fixed = TRUE)) &&
+             !exists("FONCTIONS_P_MC_EXTERNE") && is.na(granularite_lignes(.tb285, b)[i]) })
+verifier("#330 : ligne a mc_nom renseigne mais p Monte-Carlo non finie -> tiret",
+         { i <- which(is.finite(.g285))[1]; tbn <- .tb285; tbn$p_monte_carlo[i] <- NA_real_
+           is.na(granularite_lignes(tbn, .r285$bootstrap)[i]) &&
+             identical(granularite_lignes(tbn, .r285$bootstrap)[-i], .g285[-i]) })
 verifier("#285 : rapport fige, colonne granularite MC dans le detail des tests retenus (section 5)",
          { f <- tempfile(fileext = ".html")
            rapport_html(res_bmax, NULL, f, interactif = FALSE, identite = idt)
@@ -1567,6 +1587,43 @@ verifier("#353 : ligne fabriquee a M = 5,2e-9 : \"5,2e-09\" en synthese, jamais 
            identical(sy$Statistique[1L], "<code>M = min p_ij</code> = 5,2e-09") &&
              identical(sy$Statistique[2L],
                        paste0("<code>", tbf$nom_statistique[2L], "</code> = 0,0000")) })
+
+## --- Lignes de lecture conjointe (#297, annotation du 25/10/2026 de docs/specifications/fk-lecture-conjointe.md, point 7) -------
+# STAT_NOMS_PROBABILITE confrontee au stat_nom du moteur (lignes de famille et
+# ligne globale, res_ln et res_mw calcules par le moteur courant) ; vue
+# Synthese : seconde ligne "p de famille (Monte-Carlo)" (ligne globale :
+# "p globale (Monte-Carlo)", constat de la revue app-review) dans la cellule
+# Statistique des seules lignes engine_p_famille a p_monte_carlo finie,
+# "p retenue" et "Nature" a un tiret ; rien sous T-3b (p non calculee).
+tb297 <- rbind(engine_table_tests(res_ln), engine_table_tests(res_mw))
+k297 <- which(tb297$fonction == "engine_p_famille")
+sous297 <- function(p, quoi) paste0("<br><span style='color:#5D6D7E;font-size:11px'>",
+                              quoi, " (Monte-Carlo) = ", fmt_p(p),
+                              " \u2014 diagnostic, aucune p retenue</span>")
+verifier("#297 : les nom_statistique des lignes de lecture conjointe (famille et batterie) appartiennent a STAT_NOMS_PROBABILITE",
+         length(k297) > 0L && all(tb297$nom_statistique[k297] %in% STAT_NOMS_PROBABILITE) &&
+           setequal(unique(tb297$nom_statistique[k297]),
+                    c("plus petite p Monte-Carlo de la famille", "plus petite p Monte-Carlo de la batterie")))
+verifier("#297 : vue Synthese, seconde ligne p de famille (fmt_p) sur les seules lignes engine_p_famille, p retenue et Nature a un tiret",
+         { sy <- table_synthese_groupe(tb297)
+           autres <- setdiff(seq_len(nrow(tb297)), k297)
+           all(is.finite(tb297$p_monte_carlo[k297])) &&
+             identical(sy$Statistique[k297],
+                       paste0("<code>", tb297$nom_statistique[k297], "</code> = ",
+                              fmt_p(tb297$statistique[k297]),
+                              sous297(tb297$p_monte_carlo[k297],
+                                      ifelse(grepl("^p globale", tb297$test[k297]), "p globale", "p de famille")))) &&
+             sum(grepl("p globale (Monte-Carlo)", sy$Statistique[k297], fixed = TRUE)) == 2L &&
+             all(sy[["p retenue"]][k297] == "\u2013") && all(sy$Nature[k297] == "\u2013") &&
+             !any(grepl("(Monte-Carlo) =", sy$Statistique[autres], fixed = TRUE)) })
+verifier("#297 : vue Synthese, ligne de famille sous T-3b (p non calculee) : cellule Statistique a un tiret, sans seconde ligne",
+         { tbf <- tb297[k297[1L], ]
+           tbf$statistique <- NA_real_; tbf$p_monte_carlo <- NA_real_
+           identical(table_synthese_groupe(tbf)$Statistique, "\u2013") })
+verifier("#297 : GROUPES$LC, sous-titre (annotation du 25/10/2026 de docs/specifications/fk-lecture-conjointe.md, point 7)",
+         identical(GROUPES$LC$sous,
+                   paste0("plus petite p Monte-Carlo des tests de toutes les familles, ",
+                          "situ\u00e9e dans sa loi sous le mod\u00e8le ajust\u00e9 (diagnostic sans verdict)")))
 
 ## --- Virgule decimale des nombres affiches (issue #236) ------------------------
 # .num_fr() ecrit le nombre comme avant (sprintf(fmt, x), ou format(x, digits)

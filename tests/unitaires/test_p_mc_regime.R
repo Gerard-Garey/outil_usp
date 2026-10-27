@@ -514,15 +514,16 @@ attendu_u7 <- function(fit, B, seed) {
                       hors_regime = as.numeric(v3$cpt[["hors"]]),
                       statistiques = as.numeric(v3$cpt[["stats"]])),
       arret = v3$arret)),
-    # Plancher Monte-Carlo (#125), dernier element, sur la meme matrice V3b.
-    list(p_min_mc = mc$p_min_mc))
+    # Plancher Monte-Carlo (#125), sur la meme matrice V3b, puis la matrice
+    # V3b elle-meme (#297, bootstrap$stats_boot, dernier element).
+    list(p_min_mc = mc$p_min_mc, stats_boot = v3$S))
 }
 for (cc in list(list(nom = "J2 observe, B = 199", x = x2, y = y2, B = 199, seed = 20260831),
                 list(nom = "J3 b = 3, B = 99", x = YB$J3_3$x, y = YB$J3_3$y, B = 99, seed = 20260831 + 3))) {
   fit <- usp_ajuster(cc$x, cc$y)
   bt <- usp_bootstrap(fit, B = cc$B, seed = cc$seed)
   att <- attendu_u7(fit, cc$B, cc$seed)
-  verifier(sprintf("U7 %s : identical() a la contre-implementation (p_mc, err_mc, B_effectif, granularite_stat, motif_mc, p_mc_regime, p_min_mc, champs de V1)",
+  verifier(sprintf("U7 %s : identical() a la contre-implementation (p_mc, err_mc, B_effectif, granularite_stat, motif_mc, p_mc_regime, p_min_mc, stats_boot, champs de V1)",
                    cc$nom),
            {
              diff <- names(att)[!vapply(names(att), function(n) identical(bt[[n]], att[[n]]), logical(1))]
