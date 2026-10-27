@@ -1,0 +1,22 @@
+# JOURNAL de la mesure #305 (Fn, étape 3 : couverture à T = 8 de l'intervalle bootstrap de σ)
+
+- Lancement : 2026-10-27T10:21:21Z
+- Date des sorties : 20261027
+- R par jeu : 1000
+- Niveau : L1 (pré-vol, spécification par. 2.7)
+- B : 999
+- Processus : 3 ; taille des tranches : 100
+- SHA (git rev-parse HEAD) au lancement : 01ea076b79c3bedf5609fe870583a74357eedd0a
+- Commit (commit_depot()) : 01ea076b79c3bedf5609fe870583a74357eedd0a
+- md5 R/engine.R au lancement : f304b88eb6b1c1cf475df727ab993893
+- Empreinte sans commentaires de R/engine.R : 701c6c5042363b9a6597dc548a034e1b
+- Empreintes md5 du code exécuté : R/engine.R f304b88eb6b1c1cf475df727ab993893 ; tests/outils_tests.R chargé (dépôt) 63a27805557d75069137e726102e685c ; script exécuté (dépôt) 0df6f501692843cd802fa7111e164669
+- md5 spécification (docs/specifications/fn-incertitude-bootstrap.md) : c3d475168518d18c39b8dc0fdab59a89
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale : LC_ALL=C.UTF-8 ; LC_CTYPE=C.UTF-8
+- Dossier de travail : /home/user/issue305-travail-R1000
+- Commande : Rscript tests/couverture_ic_sigma_t8.R --R 1000 --niveau L1 --processus 3 --ecrire
+- Contexte des tranches : B=999 || sha=01ea076b79c3bedf5609fe870583a74357eedd0a || md5_moteur=f304b88eb6b1c1cf475df727ab993893 || md5_script=0df6f501692843cd802fa7111e164669 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=100
+- Fin : 2026-10-27T12:11:56Z ; durée de cette exécution 6635 s ; SHA à la fin 01ea076b79c3bedf5609fe870583a74357eedd0a ; md5 R/engine.R à la fin f304b88eb6b1c1cf475df727ab993893 ; INTEGRITE OK
+- Sortie 20261027-issue305-couverture-ic-sigma.md : md5 b031e98d8ee7fac9ed5b86c4674631f8
+- Sortie 20261027-issue305-couverture-ic-sigma-brut.tsv : md5 228934449c234c6cba761f1747730de6
