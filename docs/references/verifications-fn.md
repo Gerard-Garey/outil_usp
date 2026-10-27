@@ -241,3 +241,147 @@ Notice lue sur Google Books et Internet Archive (Chapman & Hall, New York, 1993,
 - Aucune des pages lues ne chiffre la couverture des intervalles « basic » ou de percentile à n = 8, ni pour le modèle lognormal du dépôt : tout chiffre à T = 8 devra venir d'une simulation propre au dépôt, présentée comme telle.
 
 *Toutes les formules et citations de cette section ont été lues sur le rendu graphique des pages ; aucune n'est rapportée de mémoire.*
+
+---
+
+# Relevé du 27/10/2026, second passage
+
+> *Rédigé par Claude (même session de relevé), le 27/10/2026, sur seconde commande de la session principale de Fn (décision du mainteneur du 27/10/2026). Points demandés : Andrews (2000), Cleveland (1979), Davison et Hinkley p. 197-198 et § 5.7, Efron et Tibshirani chap. 22 et 10. Confrontation à la spécification D1-Fn (`docs/specifications/fn-incertitude-bootstrap.md`, § 1.1, 4, 5 et 6) sur la tête `192a84d`. Mêmes règles qu'au premier passage : pages lues en rendu graphique, aucune copie tierce, aucun fichier source dans le dépôt.*
+
+## S2.0 Tableau récapitulatif du second passage
+
+| # | Affirmation | Lieu (tête `192a84d`) | Ce qui est vérifié | Statut |
+|---|---|---|---|---|
+| A1 | Andrews (2000), pagination | `doc_tests_usp.tex:13084` (« 399--406 ») ; spécification § 6 (« 399-405 ») | Crossref, page de l'Econometric Society, OpenAlex : **p. 399-405** | `.tex` **[X]** ; spécification **[V]** |
+| A2 | Andrews : « percentile plus que nominal au bord », moyenne contrainte | spécification § 5.5 ; `doc_tests_usp.tex:13129-13131`, `:6370`, `:6931` | version de travail CFDP 1157 (1997), lue en entier ; texte publié non lu | [P] → **[P+]** : contenu lu sur la version de travail, avec une précision (S2.1) |
+| C1 | Cleveland (1979), notice | `doc_tests_usp.tex:13641-13642` | Crossref : JASA 74(368), 829-836, déc. 1979 | **[V]** |
+| C2 | `lowess` : f = 2/3, 3 itérations robustes, fenêtre | spécification § 1.1 et 1.4 ; `R/engine.R:7891` | documentation et code C de R (`stats/src/lowess.c`) ; article non lu | **[V]** pour R ; « round(f·n) » de la spécification **[X]** (code : `floor`) ; article [NV] |
+| D1 | D-H p. 197-198 (exemple 5.1) | — | lues | [NV] → **[V]** |
+| D2 | D-H § 5.7, couverture à petit n | — | p. 230-231, tableau 5.8 | [NV] → **[V]** |
+| E1 | E-T chap. 22 | — | p. 321, 323-326 lues (p. 322 absente de l'aperçu) | [NV] → **[V]** pour ces pages |
+| E2 | E-T chap. 10, estimation du biais | spécification § 5.2 | p. 124-125, éq. (10.1)-(10.4) | [NV] → **[V]** |
+
+## S2.1 Andrews (2000)
+
+### Sources
+
+| Source | URL | Résultat |
+|---|---|---|
+| Wiley (éditeur) | `https://doi.org/10.1111/1468-0262.00114` → `https://onlinelibrary.wiley.com/doi/10.1111/1468-0262.00114` ; `…/doi/pdf/…` | HTTP 403 |
+| Econometric Society | `https://www.econometricsociety.org/publications/econometrica/2000/03/01/inconsistency-bootstrap-when-parameter-boundary-parameter-space` | HTTP 200 : notice « ECONOMETRICA: MAR, 2000, VOLUME 68, ISSUE 2 », « p. 399-405 » ; texte et résumé derrière « Log In To View Full Content » |
+| JSTOR | `https://www.jstor.org/stable/2999432` | HTTP 200, page anti-robot (« Oops, something went wrong »), rien de lisible |
+| Crossref, OpenAlex | `https://api.crossref.org/works/10.1111/1468-0262.00114` ; `https://api.openalex.org/works/doi:10.1111/1468-0262.00114` | HTTP 200 : titre exact, vol. 68, n° 2, **p. 399-405**, mars 2000 ; aucun résumé ni texte libre |
+| Cowles Foundation, Discussion Paper 1157 | `https://cowles.yale.edu/sites/default/files/2022-08/d1157.pdf` | HTTP 200, PDF de 9 pages, lu en entier en rendu graphique (pdftoppm, 140 dpi) |
+
+**Nature de la source lue.** Le CFDP 1157 est une **version de travail** : « A Simple Counterexample to the Bootstrap », Donald W. K. Andrews, « June 1997, Revised: July 1997 » (couverture : « August 1997 »), 6 pages de texte. Son titre diffère du texte publié ; la couverture rappelle que les Discussion Papers sont « preliminary materials ». Tout ce qui suit vaut pour cette version, pas nécessairement pour le texte publié, que je n'ai pas lu. D'où le statut **[P+]** : le contenu est lu, mais pas dans sa version publiée.
+
+### Pagination [V]
+
+Trois sources indépendantes (Crossref, Econometric Society, OpenAlex) donnent **p. 399-405**. Le `.tex` (`doc_tests_usp.tex:13084`, fiche `fiche:ic-bootstrap`) écrit « p.~399--406 » : **[X]**, à corriger par `docwriter`. La spécification (§ 6) est juste.
+
+### Contenu (version de travail)
+
+- **Cadre (p. 1-2).** X_i i.i.d. N(μ, 1), espace des paramètres μ ≥ 0 ; estimateur du maximum de vraisemblance μ̂_n = max(X̄_n, 0). Éq. (1) : n^{1/2}(μ̂_n − μ) converge en loi vers Z si μ > 0, et vers max(Z, 0) si μ = 0. Pour μ = 0, le bootstrap non paramétrique de n^{1/2}(μ̂\*_n − μ̂_n) n'est pas convergent : « with probability one […] the bootstrap distribution is not consistent » (p. 2), et « the bootstrap distribution is too small (i.e., has too much mass to the left) when μ = 0 ».
+- **Portée (p. 3).** « This counterexample to the bootstrap generalizes to a wide variety of estimation problems », par exemple les variances de coefficients aléatoires nulles. Le résultat général est renvoyé à Andrews (1997), « Estimation When a Parameter Is on a Boundary » (manuscrit), non démontré dans ce texte.
+- **Intervalles (§ 3, p. 5-6).** **Deux** intervalles « percentile » sont étudiés pour **μ**, le paramètre contraint lui-même :
+  - **CI₁ = [μ̂_n − t̂_{1α₁}/n^{1/2}, μ̂_n + t̂_{2α₂}/n^{1/2}]** (éq. (7)), où t̂_{1α₁} est le quantile (1 − α₁) et −t̂_{2α₂} le quantile α₂ de **n^{1/2}(μ̂\*_n − μ̂_n)**. Le texte le dit « what Hall (1992) refers to as the bootstrap percentile confidence interval ». **Par construction, c'est l'intervalle « basic » de Davison et Hinkley (éq. (5.6))** : borne inférieure 2μ̂_n − q\*_{1−α₁}, borne supérieure 2μ̂_n − q\*_{α₂}, q\* étant les quantiles de μ̂\*_n. Cette identification est de moi, déduite de l'éq. (7) ; le mot « basic » n'est pas dans le texte.
+  - **CI₂ = [q\*_{α₁}, q\*_{1−α₂}]** (éq. (10)), quantiles de μ̂\*_n : l'intervalle de percentile d'Efron et Tibshirani (1993), « what Efron and Tibshirani (1993) refer to as the bootstrap percentile confidence interval ».
+  - **Résultat, asymptotique, à μ = 0** : CI₁ « never misses to the left. If α₂ > 0, then its asymptotic coverage probability exceeds its nominal level 1 − α when μ = 0 » ; de même pour CI₂ : « If α₂ > 0, then the asymptotic coverage probability of CI₂ exceeds its nominal level 1 − α when μ = 0 » (p. 6). Le résumé (p. 1) : « they both have asymptotic coverage probability that exceeds the nominal asymptotic level when the true value of the mean μ equals zero ».
+  - **Coquille relevée dans la version de travail, sans conséquence sur la conclusion** : l'éq. (9) écrit la probabilité de couverture de CI₁ comme convergeant vers α₁, et le texte dit ensuite que la couverture asymptotique de CI₂ « is α₁ » ; α₁ est en fait la probabilité limite de **non**-couverture (manque à droite seulement), la couverture tendant vers 1 − α₁ > 1 − α quand α₂ > 0, ce que dit la phrase de conclusion. À ne pas citer en chiffre sans le texte publié.
+- **Alternatives (§ 2, p. 4-5)** : estimateur de la loi asymptotique avec seuil η_n, sous-échantillonnage (Wu, 1990 ; Politis et Romano, 1994), bootstrap « m sur n » (n₀ < n, n₀ → ∞, n₀(ln ln n)/n → 0, éq. (6)).
+
+### Confrontation à la spécification D1-Fn et au `.tex`
+
+- Spécification § 5.5 : « la nuance "percentile plus que nominal au bord" […] comme portant sur la moyenne contrainte de son exemple ». **Conforme**, avec deux précisions :
+  1. Le résultat porte sur **les deux** intervalles, et le premier (CI₁, « percentile » au sens de Hall) est **l'intervalle « basic »** de D-H (5.6). La spécification ne le rattache qu'au percentile ; il vaut aussi pour l'intervalle « basic » de S-Fn-4 (§ 4), dans le cadre d'Andrews.
+  2. Le résultat est **asymptotique** (n → ∞), pour μ = 0 exactement, avec α₂ > 0, dans le modèle N(μ, 1) à variance connue et bootstrap non paramétrique. Il ne donne aucun chiffre à n fini, ni à T = 8.
+- Spécification § 5.5, « elle ne se transpose pas à σ, dont δ n'est qu'un paramètre de nuisance » : c'est un raisonnement de la spécification, que le texte lu ne confirme ni n'infirme (il ne traite pas d'un paramètre d'intérêt distinct du paramètre au bord). Aucune contradiction.
+- `doc_tests_usp.tex:13129-13131` (« Andrews (2000) montre que le bootstrap de l'estimateur sous contrainte n'est pas convergent lorsque le vrai paramètre est sur la frontière ») : conforme au contenu de la version de travail, pour l'exemple et sa généralisation annoncée [P+].
+
+## S2.2 Cleveland (1979) et `lowess`
+
+### Sources
+
+| Source | URL | Résultat |
+|---|---|---|
+| Taylor & Francis | `https://www.tandfonline.com/doi/abs/10.1080/01621459.1979.10481038` ; `…/doi/pdf/…` | HTTP 403 |
+| JSTOR | `https://www.jstor.org/stable/2286407` | HTTP 200, page anti-robot, rien de lisible |
+| Page de l'auteur (Purdue) | `https://www.stat.purdue.edu/~wsc/` | échec TLS par curl (« unable to get local issuer certificate ») ; HTTP 502 par Chromium (« upstream request failed ») |
+| Crossref, OpenAlex | `https://api.crossref.org/works/10.1080/01621459.1979.10481038` ; `https://api.openalex.org/works/doi:10.1080/01621459.1979.10481038` | HTTP 200 : notice ; résumé de l'éditeur (OpenAlex) |
+| R 4.3.3, documentation de `lowess` | `tools::Rd_db("stats")[["lowess.Rd"]]` | lue |
+| Code C de R | `https://raw.githubusercontent.com/wch/r-source/trunk/src/library/stats/src/lowess.c` (miroir du dépôt R, branche de développement) | HTTP 200, lu |
+
+### Constat
+
+- **Notice [V]** : Cleveland, W. S., « Robust Locally Weighted Regression and Smoothing Scatterplots », *JASA* 74(368), 829-836, décembre 1979 (Crossref). Celle du `.tex` (`doc_tests_usp.tex:13641-13642`) est **exacte**.
+- **Résumé de l'éditeur [P]** (relayé par OpenAlex, texte) : la valeur lissée en x_k est « the value of a polynomial fit to the data using weighted least squares, where the weight for (x_i, y_i) is large if x_i is close to x_k and small if it is not. A robust fitting procedure is used that guards against deviant points ». **L'article lui-même n'est pas lu [NV]** : ni la définition de f dans le texte, ni le nombre d'itérations qu'il recommande.
+- **Implémentation de R [V]** (documentation et code, R 4.3.3) : `lowess(x, y, f = 2/3, iter = 3, delta = 0.01 * diff(range(x)))` ; f « gives the proportion of points in the plot which influence the smooth at each value » ; voisinage défini par le « floor(f*n)th nearest neighbour », poids tricubes ; itérations robustes : poids biweight de Tukey, coupure à « 6 times the MAD of the residuals » (code : `cmad = 6 * median(|résidus|)`, `lowess.c:247-258`) ; arrêt si cette MAD est quasi nulle. Code : **`ns = imax2(2, imin2(n, (int)(f*n + 1e-7)))`** (`lowess.c:150`), soit la partie entière de f·n, bornée à [2, n].
+
+### Confrontation à la spécification D1-Fn
+
+- Spécification § 1.1 : « À T = 8, `lowess` avec f = 2/3 lisse sur 5 points (fenêtre `round(f·n)`) avec 3 itérations robustes ». **Écart d'écriture [X], sans effet à T = 8** : le code de R prend la partie entière (`floor`), pas l'arrondi. À n = 8, f·n = 5,33, et les deux donnent 5 ; ils diffèrent dès que la partie fractionnaire de f·n dépasse 0,5 (par exemple n = 10 : floor 6, round 7). Correction proposée : « fenêtre ⌊f·n⌋ (`lowess.c:150`) ».
+- « 3 itérations robustes », « f = 2/3 » : **[V]** comme valeurs par défaut de R ; leur origine dans Cleveland (1979) reste **[NV]**.
+
+## S2.3 Davison et Hinkley (1997), compléments [V]
+
+Pages lues sur l'aperçu Google Books (`https://books.google.com/books?id=4aCDbm_t8jUC&pg=PA197`, `…PA230`, `…PA232`, `…PA234`), HTTP 200. Les p. 197-198, absentes à la première lecture, sont servies cette fois.
+
+### Exemple 5.1, p. 197-198 (bootstrap **paramétrique**, n = 12)
+
+Données de climatisation, modèle exponentiel, intervalle à 95 % pour la moyenne μ, solution exacte connue (bornes 65,9 et 209,2) :
+- approximation normale (5.4) : 46,9 et 169,2 ; sur l'échelle logarithmique (5.9) : 61,4 et 190,3 ;
+- **intervalle « basic » (5.6)**, R = 999 simulations sous le modèle exponentiel ajusté, statistiques d'ordre 25 et 975 : 39,8 et 162,9, « These are no better than the normal approximation limits » ;
+- **intervalle « basic » sur l'échelle logarithmique (5.10)** : 66,2 et 218,8, « much better results » ; « In fact these are simulation approximations to the exact limits, which are based on the exact gamma distribution of Ȳ/μ » ;
+- R = 99 imposerait une interpolation (5.8), car (99 + 1) × 0,025 = 2,5, « This involves quite extreme ordered values and so is somewhat unstable ».
+- Coquille relevée, sans conséquence : la statistique d'ordre basse vaut 53,3 p. 197 et 53,4 p. 198.
+
+Intérêt pour Fn : le seul exemple **paramétrique** lu où l'intervalle « basic » est comparé à une solution exacte ; sur l'échelle logarithmique, il retrouve la solution exacte parce que Ȳ/μ est un pivot exact du modèle. C'est l'argument de la variante I4 (échelle transformée) de la spécification § 4, que l'ouvrage illustre sans la démontrer pour d'autres modèles.
+
+### § 5.7, p. 230-231 : comparaison empirique (bootstrap **non paramétrique**)
+
+- Plan : rapport de moyennes θ = μ₁/μ₂ = 2 de deux échantillons gamma (μ₁ = 100, indice 0,7 ; μ₂ = 50, indice 1), estimé par ȳ₁/ȳ₂ ; 10 000 jeux simulés, R = 999 ; **n₁ = n₂ = 10** et n₁ = n₂ = 25 ; taux d'erreur à gauche et à droite.
+- **Tableau 5.8**, taux d'erreur en %, **n₁ = n₂ = 10**, taux nominal 5 % de chaque côté (borne inférieure ; borne supérieure) :
+
+| Méthode | borne inférieure (5 %) | borne supérieure (5 %) |
+|---|---|---|
+| Exacte | 5,5 | 4,8 |
+| Approximation normale | 1,7 | 15,7 |
+| **Basic** | **0,2** | **21,0** |
+| Basic, échelle log | 8,1 | 7,5 |
+| Studentisée | 4,6 | 6,7 |
+| Studentisée, échelle log | 5,6 | 6,3 |
+| **Percentile** | **6,5** | **8,9** |
+| BC_a | 6,9 | 8,3 |
+| ABC | 7,4 | 8,7 |
+
+  Lus sur l'image. Mon arithmétique, non écrite dans l'ouvrage : pour un intervalle bilatéral à 90 %, la non-couverture totale est d'environ 21,2 % pour « basic » et 15,4 % pour le percentile (n = 10). L'ouvrage indique des erreurs standard de simulation « rates divided by 100 ».
+- Conclusion de l'ouvrage (p. 231) : « the studentized method gives the best results, provided the log scale is used. Otherwise, the studentized method and the percentile, BC_a and ABC methods are comparable but only really satisfactory at the larger sample sizes » ; « the normal, percentile, BC_a and ABC intervals are short compared to the exact ones, and that taking logs improves the basic intervals ».
+- **Portée** : bootstrap non paramétrique, autre modèle, n = 10 par échantillon. Ce n'est pas le plan du dépôt (bootstrap paramétrique réajusté, T = 8) ; aucun chiffre n'est transposable. Ce sont les seuls chiffres de couverture à n ≤ 10 trouvés pour « basic » et percentile côte à côte.
+
+## S2.4 Efron et Tibshirani (1993), compléments [V]
+
+Pages lues sur l'aperçu Google Books (`https://books.google.com/books?id=gLlpIUxRntoC&pg=PA321`, `…PA323`, `…PA325`, `…PA327`, `…PA124`), HTTP 200 ; p. 322 absente de l'aperçu.
+
+### Chap. 22, « Further topics in bootstrap confidence intervals » (p. 321-326)
+
+- § 22.2 (p. 321) : précision au premier ordre, Prob(θ ≤ θ̂[α]) = α + O(n^{−1/2}), éq. (22.2) ; au second ordre, α + O(n⁻¹), éq. (22.3).
+- § 22.3 (p. 323) : P = √n(θ̂ − θ), P̂ = √n(θ̂\* − θ̂) (éq. (22.8)) ; point « un-Studentized » estimé **θ̂_UNS[α] = θ̂ − n^{−1/2} x̂^{(1−α)}** (éq. (22.12)), x̂ quantile de P̂. C'est **la borne de l'intervalle « basic »** (même construction que (13.9) et D-H (5.6) ; rapprochement de moi).
+- P. 324 : « The confidence point θ̂_UNS based on P is only first [order] accurate », éq. (22.14) ; « in order for the bootstrap to improve upon the standard normal procedure it should be based on a studentized quantity, at least when it is used in this simple way ». P. 325, éq. (22.18) : var(P̂) = var(P) + O(n^{−1/2}), cause de cette précision du premier ordre seulement.
+- § 22.4 (p. 325) : BC_a précis au second ordre (22.20) et égal au bootstrap-t à O_p(n^{−3/2}) près (22.21), démonstrations renvoyées à Hall (1988a). § 22.5 (p. 326) : le percentile généralise (22.23) par une transformation m(·) ; BC_a ajoute z₀ (« accounts for possible bias in φ̂ ») et a, « both of which are O_p(n^{−1/2}) ».
+- **Aucun tableau de couverture à petit n dans les pages lues du chap. 22** ; la suite du chapitre (p. 327 et au-delà, ABC) n'est pas relevée.
+
+### Chap. 10, « Estimates of bias » (p. 124-125)
+
+- Biais : bias_F = E_F[s(x)] − t(F), éq. (10.1) ; estimation bootstrap bias_F̂ = E_F̂[s(x\*)] − t(F̂), éq. (10.2) ; à B fini, **bias^_B = θ̂\*(·) − t(F̂)**, θ̂\*(·) = Σ θ̂\*(b)/B, éq. (10.3)-(10.4).
+- P. 124 : « One can use an estimate of bias to bias-correct an estimator. However this can be a dangerous practice, as discussed near the end of the chapter » (fin de chapitre non lue).
+
+**Confrontation à la spécification D1-Fn § 5.2** (« l'écart moyenne(σ\*) − σ̂ est l'estimation bootstrap du biais de σ̂ ») : **conforme** à (10.4), avec θ̂ = t(F̂) = σ̂ et le bootstrap paramétrique à la place de F̂. L'ouvrage pose (10.2)-(10.4) dans le cadre non paramétrique, mais la définition ne dépend que de la loi de rééchantillonnage. La mise en garde de la p. 124 contre une correction de biais appuie le choix de la spécification (§ 5.3) de ne pas présenter √(9/7) comme une correction de biais.
+
+## S2.5 Ce qui reste non vérifié
+
+- Andrews (2000) : texte **publié** et résumé publié (Wiley 403, JSTOR anti-robot, Econometric Society réservée aux membres) ; le contenu ci-dessus vient de la version de travail.
+- Cleveland (1979) : texte de l'article (Taylor & Francis 403, JSTOR anti-robot, page de l'auteur inaccessible).
+- Efron et Tibshirani : p. 322, fin du chap. 10 (« dangerous practice »), p. 327 et suivantes du chap. 22.
+- Aucune source lue ne chiffre la couverture à **n = 8**, ni pour un bootstrap **paramétrique** d'un modèle lognormal : le seul chiffre à n ≤ 10 pour « basic » et percentile côte à côte (D-H tableau 5.8, n = 10) porte sur un bootstrap non paramétrique d'un rapport de moyennes gamma.
+
+*Formules et citations lues sur le rendu graphique des pages (Google Books, PDF de la Cowles Foundation) ; pour Cleveland et `lowess`, seuls la notice, le résumé de l'éditeur, la documentation et le code de R ont été lus, ce que disent les statuts.*
