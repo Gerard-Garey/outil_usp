@@ -1,8 +1,18 @@
 # Spécification de Fn — graphiques et incertitude du bootstrap (#306, #305, champ de #190) — point d'arrêt D1-Fn
 
-> *Rédigé par l'agent actuary (IA).* Consultation `actuary-approfondi` du 27/10/2026, en lecture seule, demandée par la session principale ; versionnée par la session principale **avant décision** (comme D1-Fk). Elle porte sur la fiche « Branche Fn » du quarante-deuxième point d'étape (E-27/10 (42e point), Q-42-9 à Q-42-12) et sur la branche `claude/incertitude-bootstrap-graphiques` (tête `2295d97` ; relevé des sources `90c6590`, lu le 27/10). Périmètre fermé, dans l'ordre des commits : #190, #306, #305 (et #380, sans objet ici). Ordre S-Fn-1 à S-Fn-7.
+> **Décisions du mainteneur du 27/10/2026 (point d'arrêt D1-Fn franchi)**, toutes selon les recommandations, questions soumises par la session principale :
+> - Q-D1-Fn-1 : **(A)**, bandes ponctuelle et simultanée à 90 % tirées de `z_boot` ;
+> - Q-D1-Fn-2 : règle de rang de l'**éq. (4.17)** de Davison et Hinkley ; le QQ-plot garde la sienne jusqu'à #385 ;
+> - Q-D1-Fn-3 : bande **inconditionnelle** ; limite écrite dans la fiche ; issue n° 1 du § 9 créée (**#386**) ;
+> - Q-D1-Fn-4 et Q-D1-Fn-5 : plan de mesure, critère K-C1 à K-C4 et profils Ψ0 à Ψ4 approuvés tels quels avant toute exécution ; I4 mesuré comme candidat ;
+> - Q-D1-Fn-6 : cible σ0 ; A1 et E[corr·σ̂]/σ0 descriptifs ; `regulatory` non consulté ;
+> - Q-D1-Fn-7 et Q-D1-Fn-8 : échelle de σ_USP, repères, régimes, « effectif », deux méthodes ; forme du « basic » ; issue n° 2 du § 9 (Merz-Wüthrich) créée (**#387**) ;
+> - Q-D1-Fn-9 : D2-Fn toujours tenu, sur le « basic » et, sous Ψ2 ou Ψ3, sur le libellé « Intervalle bootstrap 90 % » ;
+> - Q-D1-Fn-10 : pièces de la consultation versées dans `docs/tableaux/20261027-fn-pilote.md`.
 >
-> **Point d'arrêt D1-Fn** : aucun code de #306, ni de la mesure ou du code de #305, tant que le mainteneur n'a pas tranché les questions Q-D1-Fn. #190 n'en dépend pas : le § 7.1 confirme seulement sa forme.
+> *Rédigé par l'agent actuary (IA).* Consultation `actuary-approfondi` du 27/10/2026, en lecture seule, demandée par la session principale ; versionnée par la session principale avant décision (`192a84d`, comme D1-Fk), décisions ajoutées ensuite. Elle porte sur la fiche « Branche Fn » du quarante-deuxième point d'étape (E-27/10 (42e point), Q-42-9 à Q-42-12) et sur la branche `claude/incertitude-bootstrap-graphiques` (tête `2295d97` ; relevé des sources `90c6590`, lu le 27/10). Périmètre fermé, dans l'ordre des commits : #190, #306, #305 (et #380, sans objet ici). Ordre S-Fn-1 à S-Fn-7.
+>
+> **Point d'arrêt D1-Fn** (*franchi le 27/10/2026*) : aucun code de #306, ni de la mesure ou du code de #305, tant que le mainteneur n'a pas tranché les questions Q-D1-Fn. #190 n'en dépend pas : le § 7.1 confirme seulement sa forme.
 
 **Marques** : **[V]** vérifié (source citée avec `fichier:ligne` ou page, ou commande exécutée dont la sortie a été lue) ; **[P]** vérification partielle (source secondaire, résumé ou notice) ; **[H]** hypothèse ou raisonnement non mesuré ; **[NV]** non vérifié.
 
