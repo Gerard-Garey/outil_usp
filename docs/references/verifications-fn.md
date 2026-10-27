@@ -10,13 +10,13 @@ Davison, A. C. et Hinkley, D. V. (1997), *Bootstrap Methods and their Applicatio
 - les enveloppes ponctuelle et simultanée du QQ-plot (chap. 4) ;
 - le bootstrap paramétrique sous le modèle nul ajusté (chap. 4).
 
-**Relevé du 25/10/2026 : le texte n'a pas pu être lu** (§ 2). **Relevé du 27/10/2026 : pages utiles lues dans l'aperçu Google Books de l'ouvrage et d'Efron et Tibshirani (1993)** (section « Relevé du 27/10/2026 », en fin de fichier ; tableau récapitulatif mis à jour). Seuls la notice et la table des matières sont vérifiés sur pièce ; les renvois de la documentation du paquet R *boot* (des mêmes auteurs) sont relevés comme sources secondaires (§ 3).
+**Relevé du 25/10/2026 : le texte n'a pas pu être lu** (§ 2). **Relevé du 27/10/2026 : pages utiles lues dans l'aperçu Google Books de l'ouvrage et d'Efron et Tibshirani (1993)** (section « Relevé du 27/10/2026 », en fin de fichier ; tableau récapitulatif mis à jour). Au 25/10, seuls la notice et la table des matières étaient vérifiés sur pièce (statuts du 27/10 : tableau « Statuts au 27/10/2026 ») ; les renvois de la documentation du paquet R *boot* (des mêmes auteurs) sont relevés comme sources secondaires (§ 3).
 
 Les numéros de ligne citent la tête `269883a` de la branche `claude/lecture-conjointe-familles`.
 
 ## Méthode et statuts
 
-Statuts de `verifications-fj.md` : **[V]** vérifié sur le texte ; **[P]** vérification partielle (notice, table des matières ou source secondaire lue sur pièce, raison donnée) ; **[X]** affirmation fausse, non trouvée, ou écart ; **[NV]** non vérifié (raison donnée). Aucun fichier source déposé dans le dépôt. Aucune formule n'est rapportée : aucune n'a pu être lue dans l'ouvrage.
+Statuts de `verifications-fj.md` : **[V]** vérifié sur le texte ; **[P]** vérification partielle (notice, table des matières ou source secondaire lue sur pièce, raison donnée) ; **[X]** affirmation fausse, non trouvée, ou écart ; **[NV]** non vérifié (raison donnée). Aucun fichier source déposé dans le dépôt. Relevé du 25/10 : aucune formule n'est rapportée, aucune n'ayant pu être lue dans l'ouvrage ; relevé du 27/10 : formules lues sur le rendu graphique des pages (section « Relevé du 27/10/2026 »).
 
 ## Sources consultées (25/10/2026)
 
@@ -80,11 +80,11 @@ Table des matières (Cambridge Core) :
 
 La notice du `.tex` (l. 12503-12504 et 18651-18652 : auteurs, titre, Cambridge University Press, 1997) est **exacte**. Le `.tex` ne donne pas de pages ; s'il en donne, celles de la table ci-dessus sont vérifiées.
 
-## 2. Texte des chapitres 4 à 6 [NV]
+## 2. Texte des chapitres 4 à 6 [NV au 25/10 ; dépassé par le relevé du 27/10, R27.2 à R27.4]
 
 Chapitres derrière « Get access » sur Cambridge Core (abonnement institutionnel ou achat). Aucune autre voie légitime trouvée. **Aucune formule, aucune page intérieure et aucune citation de l'ouvrage n'est donc rapportée.**
 
-Conséquence : les renvois du `.tex` à « Davison et Hinkley (1997, chap. 4) » (l. 12504, 12566, 13262, 18658, 18696) restent à dater « non relu sur le texte intégral » au sens de Q-Fc-10 et Q-37-10 (calendrier : « Davison et Hinkley (1997) avant Fk », non satisfait), sauf fourniture du livre par le mainteneur.
+Conséquence : les renvois du `.tex` à « Davison et Hinkley (1997, chap. 4) » (l. 12504, 12566, 13262, 18658, 18696) restent à dater « non relu sur le texte intégral » au sens de Q-Fc-10 et Q-37-10 (calendrier : « Davison et Hinkley (1997) avant Fk », non satisfait), sauf fourniture du livre par le mainteneur. *Dépassé le 27/10/2026* : les pages des chap. 4 à 6 utiles au dépôt ont été lues dans l'aperçu Google Books (R27.2 à R27.4) ; la phrase datée « non relu » ne vaut plus pour les points 2 à 6 et 8 du tableau du 27/10, et reste pour les pages non lues (R27.6).
 
 ## 3. Sources secondaires : documentation du paquet *boot* [P]
 
@@ -212,7 +212,7 @@ Notation des deux ouvrages : un intervalle de niveau 1 − 2α (α par queue), l
 - `doc_tests_usp.tex:13456-13461`, `:19406` : rattachement de l'enveloppe globale au **chap. 4** : **[V]** (§ 4.2.4, éq. (4.17), ex. 4.8).
 - **[X] — écart de définition, à porter à `actuary` et `audit`** : le `.tex` (l. 13456-13461) dit la bande simultanée « celle de la fonction *envelope* du paquet *boot*, réécrite dans le moteur », k\* étant « le plus grand k tel que la proportion des lignes de S ayant au moins une valeur **strictement hors de la bande** ne dépasse pas 0,10 ». Le moteur (`R/engine.R:7843-7857`, `taux_hors()`) compare chaque ligne à la bande [Sc[k, ], Sc[B_eff + 1 − k, ]] **construite sur toutes les lignes, elle comprise**. Une ligne est strictement hors de cette bande si et seulement si l'un de ses rangs de colonne est **< k** ou **> B_eff + 1 − k** (hors ex aequo), c'est-à-dire ≤ k − 1 ou ≥ B_eff + 2 − k. Le critère de (4.17), p. 154, et celui de `boot::envelope` (code lu : `kf <- function(x, k, R) 1*((min(x) <= k)|(max(x) >= R+1L-k))`, `bootfuns.q:1888`) est rang **≤ k** ou **≥ R + 1 − k**. Le taux du moteur au rang k est donc celui de (4.17) au rang **k − 1** (au dénominateur près : B_eff dans le moteur et dans (4.17), R + 1 dans `boot::envelope`, `bootfuns.q:1889`), et le k\* du moteur est en général **supérieur d'une unité** à celui de `boot::envelope` : bande simultanée plus étroite d'un rang. Le commentaire du moteur le reflète : « k = 1 toujours admissible, taux 0 par construction » (`R/engine.R:7815-7817`), alors que (4.17) à k = 1 donne un taux positif (« about 0.5 » à l'exemple 4.7) et que `boot::envelope` avertit « unable to achieve requested overall error rate » quand le taux à k = 1 dépasse le niveau (`bootfuns.q:1907-1908`). L'optimisme mesuré par le moteur (« taux auto-évalué », niveau réel voisin de 89 % au défaut B = 999, `R/engine.R:7806-7810`) est cohérent avec ce décalage, sans qu'il soit établi ici qu'il en est la seule cause. Ce relevé **ne mesure rien** : effet chiffré, choix de la correction (passer à `<=`/`>=` ou garder la règle actuelle et corriger la phrase du `.tex`) relèvent d'une issue, rédigée ci-dessous pour accord du mainteneur.
 
-**Issue proposée (non créée)** — titre : « Enveloppe simultanée du QQ-plot : règle de sortie décalée d'un rang par rapport à Davison et Hinkley (1997, éq. (4.17)) et à `boot::envelope` » ; libellés : `needs-triage` ; corps : constat ci-dessus (lieux `R/engine.R:7843-7857`, `doc_tests_usp.tex:13456-13461`, `boot/R/bootfuns.q:1888-1889`), question pour `actuary` (quelle règle retenir ; effet sur le niveau réel déjà mesuré par le moteur), surface : tableau avant / après si la bande change (sorties graphiques seulement, aucune p-value ni verdict, ADR 0001).
+**Issue proposée** (*créée le 27/10/2026 sur décision du mainteneur : #385, `needs-triage`, rattachée à Fg*) — titre : « Enveloppe simultanée du QQ-plot : règle de sortie décalée d'un rang par rapport à Davison et Hinkley (1997, éq. (4.17)) et à `boot::envelope` » ; libellés : `needs-triage` ; corps : constat ci-dessus (lieux `R/engine.R:7843-7857`, `doc_tests_usp.tex:13456-13461`, `boot/R/bootfuns.q:1888-1889`), question pour `actuary` (quelle règle retenir ; effet sur le niveau réel déjà mesuré par le moteur), surface : tableau avant / après si la bande change (sorties graphiques seulement, aucune p-value ni verdict, ADR 0001).
 
 ## R27.4 Davison et Hinkley (1997), chap. 6 — résidus modifiés par le levier [V]
 
