@@ -7,6 +7,10 @@
 > - Q-D2-Fn-3 : **(A)**, libellés qualitatifs « niveau nominal », sans chiffre de couverture, note renvoyant à la fiche ;
 > - Q-D2-Fn-4 et Q-D2-Fn-5 : **(A)**, nom de la ligne conservé, `detail` et `reference` selon les textes du § 2 ; `detail` de la ligne restreinte corrigé ;
 > - Q-D2-Fn-6 et Q-D2-Fn-7 : **(A)**, marques de la spécification plus les bornes de I4 sur `plot_boot_sigma()` ; L inchangée dans Fn.
+>
+> **Décisions complémentaires du mainteneur du 27/10/2026**, après les revues du circuit 1 sur `f5d821f` (questions Q1 et Q3 d'`audit`, textes de remplacement d'`actuary-approfondi`), toutes selon les recommandations :
+> - **Q-D2-Fn-4 bis** : `reference` de la ligne « Largeur relative de l'IC bootstrap 90% » portée à `"Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), sections 5.2 et 5.3"` (la ligne mesure la largeur du percentile, § 5.3 ; le « basic » en regard relève du § 5.2) ;
+> - **Q-D2-Fn-5 bis** : dans le `detail` de la ligne restreinte, la phrase sur Andrews devient « Andrews (2000) montre que le bootstrap n'est pas convergent quand le parametre est au bord, dans un modele de moyenne contrainte ; sa transposition a l'estimateur de delta n'est pas demontree, et l'effet sur sigma n'est pas etabli. » (contenu d'Andrews [P+], transposition à δ̂ non démontrée) ; la phrase de couverture est inchangée.
 
 Marques : [V] vérifié (fichier:ligne, commande lue ou relevé versionné avec page) ; [P] partiel ; [H] hypothèse ; [NV] non vérifié.
 
