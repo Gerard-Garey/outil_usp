@@ -972,8 +972,11 @@ REFUS_ECRITURE <- FALSE
 # Copie octet a octet vers docs/tableaux/, apres garde_ecrasement().
 copier_fichier <- function(src, dst) {
   oct <- readBin(src, "raw", n = file.size(src))
-  con <- file(dst, open = "wb"); on.exit(close(con))
+  # La connexion est fermee AVANT la comparaison des md5 : un on.exit() s'executerait
+  # apres le return, tampon non vide, et le md5 de la cible differerait (#305).
+  con <- file(dst, open = "wb")
   writeBin(oct, con)
+  close(con)
   identical(unname(tools::md5sum(dst)), unname(tools::md5sum(src)))
 }
 if (OPT_ECRIRE) {
