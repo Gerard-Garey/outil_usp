@@ -357,10 +357,10 @@ integrite <- character(0)   # constats d'echec S5
 bilan <- list()
 csv_lignes <- list()
 
-commit <- tryCatch(suppressWarnings(system2("git", c("-C", RACINE, "rev-parse", "--short", "HEAD"),
+commit <- tryCatch(suppressWarnings(system2("git", c("-C", shQuote(RACINE), "rev-parse", "--short", "HEAD"),
                                             stdout = TRUE, stderr = FALSE)),
                    error = function(e) "inconnu")
-modif_moteur <- tryCatch(suppressWarnings(system2("git", c("-C", RACINE, "status", "--porcelain", "R/engine.R"),
+modif_moteur <- tryCatch(suppressWarnings(system2("git", c("-C", shQuote(RACINE), "status", "--porcelain", "R/engine.R"),
                                                   stdout = TRUE, stderr = FALSE)),
                          error = function(e) character(0))
 md5_moteur <- unname(tools::md5sum(file.path(RACINE, "R", "engine.R")))

@@ -329,7 +329,7 @@ jeux_tcn <- function() {
 
 # --- En-tete -------------------------------------------------------------------
 md5 <- function(f) unname(tools::md5sum(file.path(RACINE, f)))
-git <- function(...) tryCatch(system2("git", c("-C", RACINE, ...), stdout = TRUE, stderr = FALSE),
+git <- function(...) tryCatch(system2("git", c("-C", shQuote(RACINE), ...), stdout = TRUE, stderr = FALSE),
                               error = function(e) NA_character_, warning = function(w) NA_character_)
 etat_moteur <- git("status", "--porcelain", "--", "R/engine.R")
 ecrire(paste0("# Courbure en \u03b4 du contr\u00f4le KKT \u00e0 volumes quasi constants : plancher de bruit, ",

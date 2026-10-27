@@ -357,6 +357,14 @@ GAMMA_SPEC <- c(J1 = -1.93433, J2 = -2.31999)
 # de #229, par. 1) ; DW, dans F_R, reste la statistique d'autocorrelation
 # d'ordre 1 de la mesure.
 F_T <- c("AD", "CvM", "KS", "SW", "Lillie", "Intercept", "CUSUM", "Runs", "Runsr", "Smirnov", "CoxStuart")
+# Meme commentaire que dans sa copie declaree tests/p_conditionnelle_regime_t8.R (issue #376) : F_8 reste
+# "les huit de #175" (specification de #229, par. 1), inchange. Depuis #299
+# (484d29a), BP79, GQ et BF sont des diagnostics par decision ; depuis #303
+# (99ae529, R15), Grubbsr est un diagnostic a pi chapeau constant seulement,
+# test a delta chapeau interieur (regime de C2a). Leurs entrees de
+# USP_CATALOGUE_MC et leurs p Monte-Carlo sont inchangees : C2a mesure la
+# calibration de ces p, non des verdicts ; seules BP, Grubbs, Grubbsr, DAgo et
+# JB portent un verdict a delta chapeau interieur.
 F_8 <- c("BP", "BP79", "GQ", "BF", "Grubbs", "Grubbsr", "DAgo", "JB")
 # Scenarios de P (par. 6) : code, rang s, famille, parametre. Decision A2
 # (09/10/2026, sous delegation, annotation de la specification) : A8 (nu = 8)
