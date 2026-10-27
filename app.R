@@ -707,6 +707,7 @@ server <- function(input, output, session) {
   # et les champs du navigateur pouvaient garder la saisie.
   version_grille <- reactiveVal(0L)
   selection <- reactiveVal(NULL)             # personnalisation des tests
+  version_tests <- reactiveVal(0L)           # numero du calcul, dans les identifiants du panneau (#380)
   # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
   dernier_refus <- reactiveVal(NULL)
   est_mw <- reactive(identical(input$methode, "reserve2"))
@@ -740,7 +741,9 @@ server <- function(input, output, session) {
   # doit plus pouvoir etre exporte) et on enregistre le motif, qui provient du
   # moteur. Aucune regle metier ici : l'interface ne fait que restituer.
   refuser <- function(titre, motifs) {
-    resultat(NULL); selection(NULL)
+    # La selection est gardee (#380, decision du 27/10/2026) : TB() exige un
+    # resultat, et selection_reportee() la filtre au calcul suivant.
+    resultat(NULL)
     dernier_refus(list(titre = titre, motifs = as.character(motifs)))
   }
 
@@ -764,7 +767,13 @@ server <- function(input, output, session) {
       return(FALSE)
     }
     if (isTRUE(res$ok)) {
-      resultat(res); selection(NULL); dernier_refus(NULL)
+      # Personnalisation gardee ligne par ligne (#380, decision du 27/10/2026) :
+      # une ligne qui existe encore dans ce calcul garde sa case et sa base,
+      # une ligne nouvelle prend son defaut ; le numero du calcul change les
+      # identifiants du panneau (aucune valeur perimee du navigateur n'est lue).
+      selection(selection_reportee(selection(), engine_table_tests(res)))
+      version_tests(version_tests() + 1L)
+      resultat(res); dernier_refus(NULL)
       return(TRUE)
     }
     # Tous les motifs du moteur, sans plafond (issue #287, option (a)).
@@ -1269,20 +1278,28 @@ server <- function(input, output, session) {
     if (is.null(s)) selection_defaut(tb) else s
   })
 
-  observeEvent(input$sel_defaut, selection(NULL))
-  observeEvent(input$sel_tout, { s <- sel_courante(); s$garde <- TRUE; selection(s) })
-  observeEvent(input$sel_rien, { s <- sel_courante(); s$garde <- FALSE; selection(s) })
+  # Les trois boutons changent le numero du calcul des identifiants du panneau
+  # (#380) : sans cela, l'observateur ci-dessous relirait, dans le meme flush,
+  # les cases du rendu precedent et defairait la selection posee ici.
+  observeEvent(input$sel_defaut, { selection(NULL); version_tests(version_tests() + 1L) })
+  observeEvent(input$sel_tout, {
+    s <- sel_courante(); s$garde <- TRUE; selection(s); version_tests(version_tests() + 1L)
+  })
+  observeEvent(input$sel_rien, {
+    s <- sel_courante(); s$garde <- FALSE; selection(s); version_tests(version_tests() + 1L)
+  })
 
   # Le panneau lit les cases a cocher et les boutons radio, et met a jour
   # l'objet de selection. Aucun recalcul n'est declenche : le moteur a deja
   # produit toutes les lignes.
   observe({
-    tb <- TB(); s <- sel_courante(); modif <- FALSE
+    tb <- TB(); s <- sel_courante(); modif <- FALSE; v <- version_tests()
+    cles <- cle_ligne_test(tb)
+    idg <- id_entree_test("g_test", cles, v); idb <- id_entree_test("b_test", cles, v)
     for (k in seq_len(nrow(tb))) {
-      idg <- paste0("g_test_", k); idb <- paste0("b_test_", k)
-      vg <- input[[idg]]
+      vg <- input[[idg[k]]]
       if (!is.null(vg) && !identical(vg, s$garde[k])) { s$garde[k] <- vg; modif <- TRUE }
-      vb <- input[[idb]]
+      vb <- input[[idb[k]]]
       if (!is.null(vb) && tb$base[k] != "commun" && !identical(vb, s$base[k])) {
         s$base[k] <- vb; modif <- TRUE
       }
@@ -1291,7 +1308,8 @@ server <- function(input, output, session) {
   })
 
   output$panneau_personnalisation <- renderUI({
-    tb <- TB(); s <- sel_courante()
+    tb <- TB(); s <- sel_courante(); v <- version_tests()
+    cles <- cle_ligne_test(tb)
     # Les tests declines en deux bases sont apparies par leur libelle de base.
     blocs <- lapply(cles_groupes(), function(k) {
       idx <- which(vapply(tb$famille, function(f) groupe_de(f)$cle, character(1)) == k)
@@ -1302,12 +1320,12 @@ server <- function(input, output, session) {
         sec <- if (tb$variante[r] == "secondaire")
           span(style = "color:#B9770E;font-size:11px", " [variante secondaire]") else NULL
         bas <- if (tb$base[r] != "commun")
-          radioButtons(paste0("b_test_", r), NULL, inline = TRUE,
+          radioButtons(id_entree_test("b_test", cles[r], v), NULL, inline = TRUE,
                        choices = c("z_t" = "z", "ratios" = "r"),
                        selected = s$base[r])
         else div(style = "color:#AAA;font-size:11px;padding-top:6px", "base unique")
         fluidRow(
-          column(1, checkboxInput(paste0("g_test_", r), NULL, value = s$garde[r])),
+          column(1, checkboxInput(id_entree_test("g_test", cles[r], v), NULL, value = s$garde[r])),
           column(8, div(style = "padding-top:6px", etiq, sec)),
           column(3, bas))
       })
