@@ -1466,7 +1466,8 @@ dans le terme de variance de processus \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
 \code{jackknife}, \code{sigma\_usp}, \code{lr\_delta} & toutes les quantités tracées (branche
 lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
-du profil, issue~\#45), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot)
+du profil, issue~\#45, et leur niveau \code{plots\_data\$lr\_delta\$niveau}, valeur de la
+constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot)
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
@@ -12874,6 +12875,20 @@ bootstrap (décisions M24 et M27). Jusqu'à l'issue~\#45, le moteur calculait, d
 \code{usp\_profil()}, un $\mathrm{LR}$ comparé à la loi $\chi^2(1)$ naïve (champs
 \code{lr\_delta0} et \code{lr\_delta1}, supprimés), jamais affiché. Coût mesuré~: de trois à
 quatre secondes par jeu à $B = 999$ (J1 et J2, session Linux).
+\emph{Repères du profil en $\delta$.} Le graphique \code{plot\_profil\_delta()}
+(section~\ref{sec:graphiques}) reporte deux repères tirés de ce diagnostic, calculés par
+\code{engine\_plots\_data()} (\code{plots\_data\$lr\_delta})~: le quantile du mélange
+$\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$, aide de lecture, et, sous chaque borne, le quantile des
+$\mathrm{LR}^{*}$ simulés, tous deux au niveau fixe de la constante
+\code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$ du moteur, porté dans
+\code{plots\_data\$lr\_delta\$niveau} depuis l'issue~\#190, d'où l'affichage tire ses libellés sans
+niveau écrit en dur, et sans lien avec le seuil $\alpha$ du calcul. La ligne du mélange est à
+$\min\mathcal{O} + \chi^2_{2\,\mathrm{niveau} - 1}(1)$, quantile au niveau \code{niveau} du
+mélange, puisque $\mathbb{P}\big(\tfrac12\chi^2(0) + \tfrac12\chi^2(1) \le c\big) = \tfrac12 +
+\tfrac12 F_{\chi^2_1}(c)$ pour $c \ge 0$ (d'où un niveau supérieur à $0{,}5$)~: à $0{,}90$, c'est
+$\chi^2_{0{,}80}(1) = 1{,}642$, au bit près (\code{qchisq(2 * 0.90 - 1, 1)} et
+\code{qchisq(0.80, 1)} sont \code{identical()}). Le champ des marques garde son nom,
+\code{q90\_bootstrap}, quel que soit le niveau. Ces repères ne produisent aucun verdict.
 \end{fiche}
 
 \begin{fiche}{Jackknife (sensibilité au retrait d'une année)}
@@ -13398,7 +13413,8 @@ du rapport de vraisemblance (fiche~\ref{fiche:rv-delta}), calculés par
 $\min\mathcal{O} + \chi^2_{0{,}80}(1) = \min\mathcal{O} + 1{,}642$, quantile à 90~\% du mélange
 $\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$, étiquetée «~repère asymptotique \dots, aide de
 lecture~», et deux marques en $\delta = 0$ et $\delta = 1$ à $\min\mathcal{O}$ plus le
-quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7). Sur le jeu de
+quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7)~; niveau
+\code{LR\_DELTA\_NIVEAU\_REPERES} du moteur (issue~\#190, fiche~\ref{fiche:rv-delta}). Sur le jeu de
 contrôle, les marques sont à $+0{,}40$ et $+0{,}39$, la ligne à $+1{,}64$~: l'écart visible est la
 mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Un point de grille dont
 l'optimisation échoue vaut \code{NA} (\code{usp\_profil()}, issue~\#161)~; si tous le valent,
