@@ -1464,11 +1464,15 @@ aberrante (\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, fiche~\ref{m
 dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
-\code{jackknife}, \code{sigma\_usp}, \code{lr\_delta} & toutes les quantités tracées (branche
+\code{jackknife}, \code{sigma\_usp}, \code{lr\_delta},\newline \code{sigma\_usp\_boot}, \code{ic},
+\code{sigma\_standard},\newline \code{ic\_basic\_log} & toutes les quantités tracées (branche
 lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
 du profil, issue~\#45, et leur niveau \code{plots\_data\$lr\_delta\$niveau}, valeur de la
 constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot),
-\code{plots\_data\$spread\_enveloppe} (enveloppe du graphique dispersion-niveau, issue~\#306)
+\code{plots\_data\$spread\_enveloppe} (enveloppe du graphique dispersion-niveau, issue~\#306),
+\code{plots\_data\$sigma\_usp\_boot}, \code{plots\_data\$regime\_boot} (ou, s'il est \code{NULL},
+\code{plots\_data\$regime\_boot\_motif}) et \code{plots\_data\$boot\_reperes} (distribution
+bootstrap de $\sigma_{\mathrm{USP}}$, issue~\#305, fiche~\ref{fiche:ic-bootstrap})
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
@@ -1492,6 +1496,21 @@ ponctuelle et bande simultanée à 90~\%, constantes et seuils de l'enveloppe du
 $k^{\star}$ de la bande simultanée selon l'éq.~(4.17) de Davison et Hinkley (1997), calculé par
 \code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence (fiche~\ref{fiche:spread-location},
 issue~\#306) \\
+\code{usp\_ic\_basic\_log()} & \code{sigma\_boot}, $\hat\sigma$, $c$,
+$\sqrt{(T+1)/(T-1)}$, $\sigma_{\text{std}}$ & intervalle «~basic~» sur l'échelle logarithmique,
+$\hat\sigma^2/\hat q$ sur l'échelle de $\sigma$ (quantiles de type~7 de \code{sigma\_boot}), reporté
+sur l'échelle de $\sigma_{\mathrm{USP}}$~; vecteur (\code{bas\_95}, \code{bas\_90},
+\code{haut\_90}, \code{haut\_95}) restitué en fin d'objet dans
+\code{res\$ic\_bootstrap\_basic\_log}, méthode lognormale seulement, en regard de
+\code{res\$ic\_bootstrap} (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
+\code{.usp\_regime\_boot()},\newline \code{.engine\_boot\_reperes()},\newline
+\code{IC\_BOOT\_NIVEAU\_REPERES} & \code{boot}, $x$~; \code{sigma\_usp\_boot}, \code{ic},
+$\sigma_{\mathrm{USP}}$, $\sigma_{\text{std}}$, \code{ic\_basic\_log}~; constante ($0{,}90$) & régime
+($\hat\delta^{**}$ au bord~0, intérieur, au bord~1) de chaque réplication, ou \code{NULL} avec un
+motif~; repères du graphique de la distribution bootstrap de $\sigma_{\mathrm{USP}}$
+($\sigma_{\mathrm{USP}}$ retenu, bornes à 90~\% du percentile et, en lognormal, de l'intervalle
+«~basic~» sur l'échelle logarithmique, moyenne des réplications, $\sigma_{\text{std}}$), au niveau
+nominal de la constante (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
@@ -1504,7 +1523,8 @@ $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce max
 et strictement positif (division exacte~; distances de Cook et leviers identiques au bit près au
 calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
-\code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep} &
+\code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep},\newline
+\code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard} &
 toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
 logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
@@ -1513,7 +1533,9 @@ de liste, les tables \code{residus\_acc\_groupes} et \code{residus\_cal\_groupes
 nuages de résidus~; depuis l'issue~\#311, la table \code{qqnorm} porte les résidus redressés par
 le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ de leurs rangs, et
 la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
-fin de liste \\
+fin de liste~; depuis l'issue~\#305, en fin de liste, \code{sigma\_usp\_boot} et
+\code{boot\_reperes} (distribution bootstrap de $\sigma_{\mathrm{USP}}$, sans régime ni intervalle
+«~basic~», fiche~\ref{fiche:ic-bootstrap}) \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -2007,7 +2029,12 @@ elle dépend de la graine \code{seed}, et la graine propre, sa constante et son 
 (\code{engine\_enveloppe\_spread()}, issue~\#306, fiche~\ref{fiche:spread-location}) est lue de
 même dans \code{bootstrap\$z\_boot}, sans aucun tirage~: elle dépend de \code{seed} et de $B$ par
 ces réplications seulement, et son calcul laisse \code{.Random.seed} inchangé (mesure sur les
-références \code{premium} et \code{premium\_interieur}). Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
+références \code{premium} et \code{premium\_interieur}). De même, la distribution bootstrap de
+$\sigma_{\mathrm{USP}}$ et l'intervalle «~basic~» sur l'échelle logarithmique (issue~\#305,
+\code{plots\_data\$sigma\_usp\_boot}, \code{\$regime\_boot}, \code{\$boot\_reperes},
+\code{res\$ic\_bootstrap\_basic\_log}, fiche~\ref{fiche:ic-bootstrap}) sont lus dans
+\code{bootstrap\$sigma\_boot} et \code{bootstrap\$delta\_boot}, sans tirage~: \code{.Random.seed}
+inchangé et valeurs \code{identical()} à la référence \code{premium\_interieur} (mesure). Le QQ-plot de la méthode Merz--Wüthrich, lui, n'a pas
 d'enveloppe et ne tire rien (issue~\#311, décision Q-D1-Fm-4~; fiche~\ref{mw:m5sw})~: il
 n'ajoute aucune source d'aléa. La p de famille et la p globale de la lecture conjointe
 (issue~\#297, \code{engine\_p\_famille()}, fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})
@@ -2357,7 +2384,13 @@ plus aucune valeur réelle issue de l'optimiseur, du bootstrap ou du jackknife, 
 démarrages à l'optimum et sans résultat)~; les deux
 grandeurs sur la part estimée ne sont plus restituées et se recalculent à partir de
 \code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot} (fiches~\ref{fiche:jackknife}
-et~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
+et~\ref{fiche:ic-bootstrap}). Depuis l'issue~\#305, le commentaire de la ligne de l'intervalle
+bootstrap n'est plus une phrase unique~: il nomme l'intervalle de percentile et son niveau nominal,
+dit que sa couverture à $T = 8$ est inférieure à ce niveau sous les modèles simulés, en renvoyant à
+la documentation, et renvoie à l'intervalle «~basic~» sur l'échelle logarithmique~; celui de
+l'intervalle restreint ajoute le même constat de couverture et la portée du résultat d'Andrews
+(2000). Ils n'impriment que les libellés fixes «~90~\%~» et «~$T = 8$~», aucun nombre issu du
+bootstrap (textes à la fiche~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
 $1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donnent à deux
 chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est), elle a été signalée et
@@ -2616,7 +2649,8 @@ $\tfrac12\chi^2_0 + \tfrac12\chi^2_1$ pour mémoire) & --- \\
 Jackknife & \ref{fiche:jackknife} & \code{usp\_jackknife()} &
 diagnostic, aucune p-value & --- \\
 IC bootstrap (complet et à $\delta$ fixé) & \ref{fiche:ic-bootstrap} & \code{usp\_bootstrap()}
-(champs \code{\$sigma\_boot} et \code{\$sigma\_boot\_restreint}) & diagnostic, aucune p-value
+(champs \code{\$sigma\_boot} et \code{\$sigma\_boot\_restreint})~; en regard, intervalle «~basic~»
+sur l'échelle logarithmique, \code{usp\_ic\_basic\_log()} (issue~\#305) & diagnostic, aucune p-value
 & --- \\
 Convergence multi-démarrages (contrôle numérique, hors table des tests) &
 \ref{fiche:multi-demarrages} & \code{usp\_ajuster()} (champs
@@ -4580,7 +4614,9 @@ référence par la CI, tableau \code{docs/tableaux/20261006-issue46-reserve2.md}
 $\sigma_{\mathrm{USP}}$ est inchangé ($0{,}0497764613$), le bootstrap n'entrant pas dans son
 calcul. La médiane de \code{sigma\_boot} passe de $0{,}01636$ à $0{,}01845$, et les quantiles à
 $2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap} de $[0{,}04353~;~0{,}05208]$ à
-$[0{,}04435~;~0{,}05398]$. Les p-values de Monte-Carlo de douze des treize vérifications qui en
+$[0{,}04435~;~0{,}05398]$ (valeurs inchangées depuis). La couverture à $T = 8$ de cet intervalle
+n'est pas mesurée pour la méthode Merz--Wüthrich (issue~\#387~; fiche~\ref{fiche:ic-bootstrap},
+rubrique~6). Les p-values de Monte-Carlo de douze des treize vérifications qui en
 ont une changent~; un verdict change,
 celui de l'hétéroscédasticité résiduelle (Breusch--Pagan), dont la p-value passe de $0{,}086$
 (\code{ALERTE}) à $0{,}103$ (\code{OK}), ligne alors présentée comme \emph{à la frontière du seuil}
@@ -6384,8 +6420,11 @@ n'établit pas la borne~; ligne non applicable, sans aucune p-value, si le $\mat
 n'est pas calculable (issue~\#161) \\
 
 IC bootstrap (complet et à $\delta$ fixé) & LN & $L$ & --- & --- & --- &
-\textbf{Diagnostic} & Sans objet & Présenter les deux intervalles~; le complet n'est pas
-convergent au bord (Andrews, 2000) \\
+\textbf{Diagnostic} & Sans objet & Présenter les deux intervalles de percentile à leur niveau
+\emph{nominal} et, en regard, l'intervalle «~basic~» sur l'échelle logarithmique~; à $T = 8$, le
+percentile sous-couvre nettement (constat de simulation, deux plans, fiche~\ref{fiche:ic-bootstrap})~;
+non-convergence au bord établie par Andrews (2000) pour une moyenne contrainte, transposition à
+$\hat\delta$ non démontrée \\
 
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
@@ -6942,14 +6981,20 @@ plug-in) & $\mathcal{O}(B^{-1/2})$ pour la première~; non établie pour la seco
 Quasi-pivotalité de $\mathrm{LR}$ en $(\gamma, \beta)$, non établie &
 Seule p-value calibrée, restituée sans être retenue (diagnostic, ADR~0001) \\
 
-IC bootstrap de $\sigma_{\mathrm{USP}}$, complet et à $\delta$ fixé (diagnostics) & Quantiles
+IC bootstrap de $\sigma_{\mathrm{USP}}$, complet et à $\delta$ fixé, et intervalle «~basic~» sur
+l'échelle logarithmique (diagnostics) & Quantiles
 bootstrap & Quantiles de la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$ &
 Convergence bootstrap en $T$~; erreur de Monte-Carlo en $B$ &
-Non établie à $T$ petit~; $\mathcal{O}(B^{-1/2})$ pour la part Monte-Carlo &
-Paramètre intérieur au domaine pour l'IC complet (Andrews, 2000)~; structure de variance
-retenue pour l'IC restreint &
-IC complet non convergent quand $\delta$ est au bord~; IC restreint conditionnel à
-$\hat\delta$ (fiche~\ref{fiche:ic-bootstrap}) \\
+Non établie à $T$ petit (limites «~basic~» et de percentile précises au premier ordre seulement,
+résultat asymptotique dans le cadre régulier de Davison et Hinkley, 1997, p.~213)~;
+$\mathcal{O}(B^{-1/2})$ pour la part Monte-Carlo &
+Paramètre intérieur au domaine pour l'IC complet (non-convergence au bord établie par Andrews,
+2000, pour une moyenne contrainte~; transposition à $\hat\delta$ non démontrée)~; structure de
+variance retenue pour l'IC restreint~; quasi-pivotalité de $\hat\sigma/\sigma$ pour l'intervalle
+«~basic~» logarithmique (hypothèse) &
+Couverture mesurée à $T = 8$ sous deux plans (constat de simulation)~: de $0{,}64$ à $0{,}73$ à
+90~\% pour le percentile et l'IC restreint, $0{,}886$ et $0{,}895$ pour l'intervalle «~basic~»
+logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap}) \\
 
 \end{longtable}
 \end{center}
@@ -13111,12 +13156,24 @@ donc pas, à lui seul, sur l'adéquation~; ces taux ne se transposent pas à d'a
 \begin{fiche}{Intervalle de confiance par bootstrap paramétrique}
 \label{fiche:ic-bootstrap}%
 \refl{Efron (1979), \emph{op.\ cit.} ; B.~Efron, R.\,J. Tibshirani, \emph{An Introduction to the
-Bootstrap}, Chapman \& Hall, 1993 ; au bord du domaine~: D.\,W.\,K. Andrews, \emph{Inconsistency of
-the bootstrap when a parameter is on the boundary of the parameter space}, \emph{Econometrica},
-68(2), 2000, p.~399--406.}
+Bootstrap}, Chapman \& Hall, 1993, § 13.3 (éq.~(13.3)-(13.4), p.~170), § 13.4 (éq.~(13.9),
+p.~174) et § 13.8 (p.~176) ; intervalles «~basic~» et de percentile~: A.\,C. Davison,
+D.\,V. Hinkley (1997), \emph{op.\ cit.}, § 5.2.1 (éq.~(5.6), p.~194, et~(5.10), p.~195~; exemple~5.1,
+p.~197--198) et § 5.3.1-5.3.2 (éq.~(5.18), p.~202--203~; exemple~5.4, p.~203) ; au bord du
+domaine~: D.\,W.\,K. Andrews, \emph{Inconsistency of the bootstrap when a parameter is on the
+boundary of the parameter space}, \emph{Econometrica}, 68(2), 2000, p.~399--405.}
 \Cadre
 On réutilise les $B$ réplications décrites en section~\ref{sec:mc}, dont on extrait
 $\sigma_{\mathrm{USP}}^{(b)} = c\,\hat\sigma^{(b)}\sqrt{(T+1)/(T-1)} + (1-c)\,\sigma_{\text{std}}$.
+Depuis l'issue~\#305, ces valeurs sont restituées dans \code{plots\_data\$sigma\_usp\_boot},
+calculées une fois par \code{run\_engine()} par l'expression même qui forme
+\code{res\$ic\_bootstrap}~: leurs quantiles de type~7 sont \code{identical()} à
+\code{res\$ic\_bootstrap} sur les six références (mesure). L'intervalle restitué est
+l'\emph{intervalle de percentile} \code{res\$ic\_bootstrap}~; la méthode lognormale restitue en
+outre, \emph{en regard} de celui-ci et jamais à sa place, l'\emph{intervalle «~basic~» sur
+l'échelle logarithmique} \code{res\$ic\_bootstrap\_basic\_log} (issue~\#305, décisions du
+mainteneur Q-D2-Fn-1 et Q-D2-Fn-2 du 27~octobre 2026~; rubrique~3), sans ligne propre dans la
+table des tests~; la méthode Merz--Wüthrich ne le restitue pas (rubrique~6, issue~\#387).
 \textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
 («~\code{Largeur relative de l'IC bootstrap 90\%}~»), dont chaque réplication réajuste $\delta$ et
 $\gamma$, et, depuis l'issue~\#45, l'intervalle \emph{restreint à $\delta$ fixé}
@@ -13145,9 +13202,48 @@ $\hat\sigma^{(b)}$. On en déduit la largeur relative sur la \emph{part estimée
   \qquad
   L = \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\; L_{\text{est}},
 \]
-où $L_{\text{est}}$ ne dépend ni de la table de l'annexe ni du barème. Le champ \code{estim}
-porte $L$~; le commentaire renvoie seulement, pour les bornes de l'intervalle à 90~\% de
-$\sigma_{\mathrm{USP}}$, à \code{res\$ic\_bootstrap}. Jusqu'à la décision M24 du mainteneur
+où $L_{\text{est}}$ ne dépend ni de la table de l'annexe ni du barème.
+
+\emph{Intervalle «~basic~» sur l'échelle logarithmique} (\code{usp\_ic\_basic\_log()},
+issue~\#305~; noté I4 dans la mesure de couverture, rubrique~4). L'intervalle «~basic~» de Davison
+et Hinkley (1997, § 5.2.1, éq.~(5.6), p.~194) estime les quantiles de $\hat\theta - \theta$ par
+ceux de $\hat\theta^{(b)} - \hat\theta$~; sa version sur une échelle transformée $h$
+(éq.~(5.10), p.~195), prise ici pour $h = \ln$ sur l'échelle de $\sigma$, a pour bornes, au
+niveau $1 - \alpha$,
+\[
+  \Big[\,\frac{\hat\sigma^2}{\hat q_{1-\alpha/2}\big(\hat\sigma^{(\cdot)}\big)},\
+         \frac{\hat\sigma^2}{\hat q_{\alpha/2}\big(\hat\sigma^{(\cdot)}\big)}\Big],
+\]
+chaque borne s'écrivant $\exp\{2\ln\hat\sigma - \ln\hat q_p\}$, avec les quantiles de type~7 des réplications brutes \code{bootstrap\$sigma\_boot} (l'ouvrage
+prend les statistiques d'ordre de rang $(B+1)\alpha/2$, écart de convention). Ces bornes sont
+reportées sur l'échelle de $\sigma_{\mathrm{USP}}$ par l'application affine croissante
+$v \mapsto c\sqrt{(T+1)/(T-1)}\;v + (1-c)\,\sigma_{\text{std}}$, celle qui forme
+$\sigma_{\mathrm{USP}}^{(b)}$~; le logarithme porte sur $\sigma$, et non sur
+$\sigma_{\mathrm{USP}}$, l'ordonnée $(1-c)\,\sigma_{\text{std}}$ étant non nulle. L'application
+étant croissante, un intervalle de l'échelle de $\sigma$ contient la vraie valeur $\sigma_0$ si et
+seulement si son image contient l'image de $\sigma_0$, valeur de $\sigma_{\mathrm{USP}}$ aux vrais
+paramètres~: la couverture se mesure indifféremment sur l'une ou l'autre échelle.
+\code{res\$ic\_bootstrap\_basic\_log} est le vecteur nommé (\code{bas\_95}, \code{bas\_90},
+\code{haut\_90}, \code{haut\_95}), placé en fin d'objet, \code{NULL} quand \code{res\$ic\_bootstrap}
+l'est (au plus 20 réplications), sans troncature. Sur les références ($B = 999$, graine 20260831),
+à 90~\%~: $[0{,}09272~;~0{,}18605]$, contre $[0{,}07522~;~0{,}13698]$ pour le percentile, sur le
+jeu de contrôle (\code{premium})~; $[0{,}07638~;~0{,}13652]$, contre $[0{,}06328~;~0{,}10115]$, sur
+\code{premium\_interieur}~; soit des largeurs égales à $1{,}51$ et $1{,}59$ fois celle du percentile
+(mesure). L'intervalle «~basic~» sur l'échelle de $\sigma$, éq.~(5.6), mesuré aussi (rubrique~4),
+n'est pas restitué (décision Q-D2-Fn-2).
+
+Le champ \code{estim} porte $L$, calculée sur l'intervalle de percentile et inchangée par
+l'issue~\#305 (décision Q-D2-Fn-7). Depuis cette issue (décisions Q-D2-Fn-4 et Q-D2-Fn-4~bis du
+mainteneur), le nom de la ligne est conservé, son commentaire est «~\code{Intervalle bootstrap de}
+\code{percentile du parametre retenu, niveau nominal 90 \% :} \code{res\$ic\_bootstrap{}. A T = 8,}
+\code{couverture inferieure au niveau nominal} \code{sous les modeles simules (constat de}
+\code{simulation, voir la documentation).} \code{Intervalle basic sur l'echelle logarithmique}
+\code{en regard : res\$ic\_bootstrap\_basic\_log{}.}~» et sa référence «~\code{Efron (1979), Ann.}
+\code{Statist. 7 ; Davison et Hinkley (1997),} \code{sections 5.2 et 5.3}~» (la ligne mesure la largeur du percentile, § 5.3~;
+l'intervalle «~basic~» en regard relève du § 5.2)~; le commentaire n'imprime aucun nombre issu du
+bootstrap, le niveau nominal et $T = 8$ étant des libellés fixes. Avant l'issue~\#305, il renvoyait
+seulement, pour les bornes de l'intervalle à 90~\% de $\sigma_{\mathrm{USP}}$, à
+\code{res\$ic\_bootstrap}. Jusqu'à la décision M24 du mainteneur
 (issue~\#24), il imprimait aussi $L$ et ces bornes, quantiles bootstrap restitués ailleurs dans
 l'objet et retirés du libellé en application de la règle d'écriture des libellés
 (§\ref{sec:graines}). Jusqu'à la décision M27 du mainteneur (issue~\#76), il donnait en outre
@@ -13157,14 +13253,131 @@ retiré pour la même raison et n'est plus restitué par le moteur~: il se recal
 \code{res\$ajustement} ($\hat\sigma$).
 \Loi
 La distribution bootstrap approxime la loi d'échantillonnage de $\hat\sigma_{\mathrm{USP}}$
-conditionnellement au modèle ajusté. \textbf{Au bord du domaine, cette approximation n'est pas
-garantie}~: Andrews (2000) montre que le bootstrap de l'estimateur sous contrainte n'est pas
-convergent lorsque le vrai paramètre est sur la frontière, et $\hat\delta$ est au bord dans la
-plupart des cas à $T = 8$ (fiche~\ref{fiche:position-delta}). L'intervalle restreint n'est pas
-concerné par ce résultat, $\delta$ n'y étant pas réestimé~; il décrit l'incertitude
-\emph{conditionnelle} à la structure de variance retenue, et ignore donc celle de $\hat\delta$.
-Les deux intervalles encadrent ainsi la lecture sans qu'aucun ne soit justifié à $T = 8$~; aucune
-référence ne qualifie leur couverture à cette profondeur.
+conditionnellement au modèle ajusté~; cette approximation n'a qu'une justification asymptotique
+en $T$ (section~\ref{sec:biblio}). \textbf{Au bord du domaine, elle n'est pas garantie}~:
+Andrews (2000) montre, dans un modèle de moyenne contrainte ($X_i$ i.i.d. $\mathcal{N}(\mu, 1)$,
+$\mu \ge 0$, estimateur $\max(\bar X_n, 0)$, bootstrap non paramétrique), que le bootstrap de
+l'estimateur n'est pas convergent quand le vrai paramètre est sur la frontière ($\mu = 0$), et annonce que ce contre-exemple se
+généralise à une large classe de problèmes d'estimation~; sa transposition à l'estimateur de
+$\delta$ n'est pas démontrée, et son effet sur $\sigma$ n'est pas établi (\emph{hypothèse}). Or
+$\hat\delta$ est au bord dans la plupart des cas à $T = 8$ (fiche~\ref{fiche:position-delta}).
+Le même texte montre que, à $\mu = 0$ et pour la moyenne contrainte $\mu$ elle-même, \emph{deux}
+intervalles ont une couverture asymptotique supérieure à leur niveau nominal~: l'intervalle de
+percentile d'Efron et Tibshirani, et celui que Hall (1992) nomme intervalle de percentile, construit
+sur $n^{1/2}(\hat\mu^{*}_n - \hat\mu_n)$, qui est par construction l'intervalle «~basic~» de
+Davison et Hinkley (éq.~(5.6)~; rapprochement du relevé des sources, le mot «~basic~» n'étant pas
+dans le texte). Ce résultat est asymptotique, pour $\mu = 0$ exactement, et ne donne aucun chiffre
+à $n$ fini. Statut de la source~: contenu lu sur la version de travail (Cowles Foundation
+Discussion Paper~1157, 1997), le texte publié n'ayant pas pu être relu~; pagination de la version
+publiée vérifiée. Que cette surcouverture ne se transpose pas à $\sigma$, dont $\delta$ n'est
+qu'un paramètre de nuisance, est une \emph{hypothèse}, que le texte lu ne confirme ni n'infirme~;
+la mesure ci-dessous en donne la contrepartie à $T = 8$ pour un plan~: sur le jeu J1, où
+$\delta_0 = 1$ est au bord, ni l'intervalle de percentile ($0{,}710$ à 90~\%) ni l'intervalle
+«~basic~» ($0{,}810$) ne surcouvrent $\sigma_0$. L'intervalle restreint ne réestime pas $\delta$, et
+le résultat d'Andrews ne le vise donc pas~; il décrit l'incertitude \emph{conditionnelle} à la
+structure de variance retenue, ignore celle de $\hat\delta$, et sous-couvre autant que
+l'intervalle complet (ci-dessous).
+
+\emph{Couverture à $T = 8$.} Aucune source lue ne la chiffre à $n = 8$~: les seuls chiffres de
+couverture à $n \le 10$ trouvés pour les intervalles «~basic~» et de percentile côte à côte
+(Davison et Hinkley, 1997, § 5.7, tableau~5.8, p.~230--231) portent sur un bootstrap non
+paramétrique d'un rapport de moyennes de deux échantillons gamma de taille 10, cadre non
+transposable. Une simulation propre au dépôt la mesure (issue~\#305~; script
+\code{tests/couverture\_ic\_sigma\_t8.R}, résultats
+\code{docs/tableaux/20261027-issue305-couverture-ic-sigma.md}~; commit mesuré \code{01ea076},
+moteur de md5 \code{f304b88eb6b1c1cf475df727ab993893}, dont les fonctions de la chaîne simulée
+n'ont pas changé depuis, \code{git diff}~; contrôles d'intégrité réussis). \emph{Plan}~: deux
+modèles ajustés, J1, le jeu de contrôle ($\hat\delta = 1$, $\sigma_0 = 0{,}10531$), et J2, le jeu
+à $\hat\delta$ intérieur ($\hat\delta = 0{,}664$, $\sigma_0 = 0{,}06896$)~; $T = 8$, volumes
+fixés~; $R = 1\,000$ jeux simulés par plan, chacun traité comme \code{run\_engine()} traite un jeu
+observé (\code{usp\_simuler()}, \code{engine\_valider\_donnees()}, \code{usp\_ajuster()},
+\code{usp\_valider\_ajustement()}, puis \code{usp\_bootstrap()} à $B = 999$, graines déclarées),
+sans refus ni échec. \emph{Cible}~: $\sigma_0 = \sigma(\delta_0, \gamma_0)$ du modèle simulé
+(équivalence des deux échelles, rubrique~3). \emph{Critère}, fixé avant l'exécution~: taux de
+non-couverture $\tau$ comparé au nominal $\rho$, «~compatible~» si $\rho$ est dans l'intervalle de
+Clopper--Pearson à 95~\% de $\tau$, «~distorsion matérielle~» si cet intervalle est disjoint de la
+bande $[\rho/2~;~3\rho/2]$. Couverture mesurée, avec, à 90~\%, son intervalle de Clopper--Pearson
+à 95~\% (percentile~: \code{res\$ic\_bootstrap}~; «~basic~» logarithmique~:
+\code{res\$ic\_bootstrap\_basic\_log})~:
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Intervalle & J1, 90~\% & J2, 90~\% & J1, 95~\% & J2, 95~\% \\
+\midrule
+Percentile (restitué) & $0{,}710$ $[0{,}681~;~0{,}738]$ & $0{,}639$ $[0{,}608~;~0{,}669]$ & $0{,}790$ & $0{,}714$ \\
+«~Basic~», éq.~(5.6) (non restitué) & $0{,}810$ $[0{,}784~;~0{,}834]$ & $0{,}752$ $[0{,}724~;~0{,}778]$ & $0{,}839$ & $0{,}820$ \\
+«~Basic~» logarithmique (en regard) & $0{,}895$ $[0{,}874~;~0{,}913]$ & $0{,}886$ $[0{,}865~;~0{,}905]$ & $0{,}940$ & $0{,}940$ \\
+Restreint à $\delta$ fixé (percentile) & $0{,}726$ $[0{,}697~;~0{,}753]$ & $0{,}654$ $[0{,}624~;~0{,}683]$ & $0{,}795$ & $0{,}728$ \\
+Percentile $\times \sqrt{9/7}$ & $0{,}820$ $[0{,}795~;~0{,}843]$ & $0{,}770$ $[0{,}743~;~0{,}796]$ & $0{,}863$ & $0{,}829$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+\emph{Lecture.} L'intervalle de percentile est en distorsion matérielle du côté libéral sur les
+deux plans, à 90~\% comme à 95~\%~: il \textbf{sous-couvre nettement}, et tous ses manques sont
+au-dessus ($\sigma_0$ au-delà de la borne haute~; aucun jeu sur 1\,000 sous la borne basse, sur
+l'un et l'autre plan, aux deux niveaux). L'intervalle «~basic~» sur l'échelle logarithmique est compatible à
+90~\% sur les deux plans, avec des queues équilibrées ($4{,}5~\%$ sous la borne basse et
+$6{,}0~\%$ au-dessus de la borne haute sur J1, $5{,}5~\%$ et $5{,}9~\%$ sur J2)~; à 95~\%, il est
+compatible sur les deux plans, avec deux réserves~: l'intervalle de Clopper--Pearson de $\tau$
+atteint $0{,}0766$ et dépasse le bord $3\rho/2 = 0{,}075$ de la bande, et la queue haute de J1
+n'est pas tranchée ($4{,}3~\%$ $[3{,}1~;~5{,}7]$ contre $2{,}5~\%$ nominal). L'intervalle
+«~basic~» sur l'échelle de $\sigma$, l'intervalle restreint et le percentile multiplié par
+$\sqrt{9/7}$ sont en distorsion libérale sur les deux plans. La sous-couverture du percentile
+n'est pas un effet du bord~: sur J2, il couvre $0{,}632$ pour les jeux simulés à $\hat\delta$ au
+bord ($n = 750$) et $0{,}660$ à $\hat\delta$ intérieur ($n = 250$), l'intervalle «~basic~» sur
+l'échelle logarithmique $0{,}891$ et $0{,}872$~; l'intérieur de J1 ($n = 35$) n'est pas informatif.
+L'intervalle «~basic~» sur l'échelle logarithmique est plus large que le percentile~: en médiane,
+$1{,}067\,\sigma_0$ contre $0{,}730\,\sigma_0$ sur J1 ($+46~\%$) et $1{,}063\,\sigma_0$ contre
+$0{,}693\,\sigma_0$ sur J2 ($+53~\%$)~: la largeur relative $L$, calculée sur le percentile,
+sous-estime l'incertitude. \emph{Statut}~: constat de simulation sous deux modèles ajustés, non un
+résultat général. Les intervalles de Clopper--Pearson ne mesurent que l'incertitude de simulation
+sur la couverture, fonction de $R$~; l'erreur de Monte-Carlo du bootstrap, fonction de $B$, est
+incluse dans chaque intervalle simulé~; ni l'une ni l'autre ne renseigne sur l'erreur
+d'approximation en $T$. La couverture n'est mesurée qu'à $T = 8$, sous ces deux plans de la
+méthode du risque de primes~; son extension à un autre $T$, aux cas \code{reserve1},
+\code{premium\_ii6} et \code{premium\_net} et à des données réelles est une \emph{hypothèse}, non
+mesurée. Pour la méthode Merz--Wüthrich, la couverture n'est pas mesurée (issue~\#387).
+
+\emph{Biais.} Sur les références, la moyenne des réplications $\hat\sigma^{(b)}$ est inférieure à
+$\hat\sigma$ de $11{,}2~\%$ sur le jeu de contrôle (mêmes réplications pour \code{premium},
+\code{reserve1}, \code{premium\_ii6} et \code{premium\_net}~; $\hat\sigma$ divisé par cette moyenne~:
+$1{,}1264$), de $13{,}9~\%$ sur \code{premium\_interieur} ($1{,}1609$) et de $11{,}3~\%$ sur
+\code{reserve2} ($1{,}1271$, pour l'écart-type estimé de la méthode Merz--Wüthrich)~; le rang de
+$\hat\sigma$ dans la loi bootstrap y vaut $0{,}694$, $0{,}733$ et $0{,}713$, et la correction de biais
+de l'intervalle BC$_a$, $\hat z_0 = \Phi^{-1}\big(\#\{\hat\sigma^{(b)} < \hat\sigma\}/B\big)$ (Efron
+et Tibshirani, 1993, éq.~(14.14), p.~186), $0{,}51$, $0{,}62$ et $0{,}56$ (mesure sur
+\code{bootstrap\$sigma\_boot}). L'écart entre la moyenne des réplications et $\hat\sigma$ est
+l'estimation bootstrap du biais de $\hat\sigma$ (Efron et Tibshirani, 1993, chap.~10,
+éq.~(10.4), p.~124--125, posée dans le cadre non paramétrique, la définition ne dépendant que de
+la loi de rééchantillonnage). Dans la mesure de couverture, $\mathbb{E}[\hat\sigma]/\sigma_0$ vaut
+$0{,}902 \pm 0{,}016$ (J1) et $0{,}871 \pm 0{,}016$ (J2), et l'estimation bootstrap du biais
+relatif $0{,}897$ et $0{,}873$ (inverse de la moyenne, sur les jeux simulés, du rapport de
+$\hat\sigma$ à la moyenne de ses réplications)~; le facteur $\sqrt{(T+1)/(T-1)}$ donne
+$\mathbb{E}\big[\sqrt{9/7}\,\hat\sigma\big]/\sigma_0 = 1{,}022 \pm 0{,}018$ (J1, intervalle excluant~1) et
+$0{,}988 \pm 0{,}018$ (J2, intervalle contenant~1), demi-largeurs $1{,}96$ écart-type de la moyenne
+sur les 1\,000 jeux~: constat sous deux plans, qui ne fait pas de ce facteur une correction du biais,
+et qui ne rétablit pas la couverture du percentile ($0{,}820$ et $0{,}770$ à 90~\%). L'intervalle de
+percentile suppose l'estimateur sans biais sur une échelle transformée (Davison et Hinkley, 1997,
+§ 5.3.2, p.~203~: «~This does not usually happen~»~; Efron et Tibshirani, 1993, § 13.8,
+p.~176)~: centré sur la loi des réplications, décalée vers le bas d'environ le biais par rapport à
+$\hat\sigma$, lui-même bas par rapport à $\sigma_0$, il est décalé vers le bas d'environ deux fois
+le biais, ce qui est cohérent avec des manques tous au-dessus (raisonnement heuristique, non
+démontré).
+
+\emph{Pourquoi l'intervalle «~basic~» sur l'échelle logarithmique.} Si $\hat\sigma/\sigma$ était
+un pivot exact, cet intervalle serait exact, à l'erreur de Monte-Carlo près (raisonnement)~:
+Davison et Hinkley (1997, exemple~5.1, p.~197--198) l'illustrent sur un modèle exponentiel à
+$n = 12$, où la version logarithmique de l'intervalle «~basic~» est une approximation par
+simulation des bornes exactes, $\bar Y/\mu$ étant un pivot exact, quand l'intervalle «~basic~» de
+l'éq.~(5.6) n'y fait pas mieux que l'approximation normale. Ici, $\hat\sigma/\sigma$ n'est pas un
+pivot exact ($\pi_t$ dépend de $\gamma$ et de $\delta$)~: sa quasi-pivotalité est une
+\emph{hypothèse}, que la mesure confirme sur ces deux plans seulement (estimation bootstrap du
+biais relatif dans l'incertitude de $\mathbb{E}[\hat\sigma]/\sigma_0$, ci-dessus).
 \Pval
 Aucune. Les lignes de l'intervalle complet et de l'intervalle restreint sont restituées \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 50~\% / 80~\% porte sur $L$, sur
@@ -13178,12 +13391,73 @@ fiche~\ref{fiche:jackknife}~: un repère transposé sur cette échelle bougerait
 l'annexe.
 \Usage
 Quantifie l'incertitude d'échantillonnage du paramètre final, ce que ne fait aucun test
-d'hypothèse. Il est fréquent d'obtenir, sur un historique de 10 ans, un intervalle à 90~\% dont la
-largeur dépasse 50~\% de la valeur centrale~: cela ne disqualifie pas le calibrage (le mélange par
-crédibilité en amortit une partie) mais doit être présenté explicitement. Limites~: l'intervalle
-de percentile n'est corrigé ni du biais ni de l'asymétrie -- les variantes BCa seraient plus
-exactes -- et il reste conditionnel à la validité du modèle paramétrique, donc optimiste si le
-modèle est mal spécifié.
+d'hypothèse. À $T = 8$, un intervalle de percentile à 90~\% plus large que la moitié de
+$\sigma_{\mathrm{USP}}$ est courant~: sous le modèle ajusté au jeu de contrôle, $L$ dépasse
+50~\% dans $49{,}0~\%$ des jeux simulés, et dans $4{,}2~\%$ sous le jeu à $\hat\delta$ intérieur
+(constat de simulation, fin de rubrique)~; cela ne disqualifie pas le calibrage (le mélange par
+crédibilité en amortit une partie) mais doit être présenté explicitement, en sachant que cet
+intervalle sous-couvre à $T = 8$ et que $L$ sous-estime l'incertitude (rubrique~4). Limites~:
+l'intervalle de percentile n'est corrigé ni du biais ni de l'asymétrie~; les variantes BC$_a$ sont
+plus précises au sens d'une précision \emph{asymptotique} du second ordre (Davison et Hinkley,
+1997, p.~203 et 213--214~: les limites «~basic~» et de percentile ne sont précises qu'au premier
+ordre, et seules les méthodes du percentile ajusté et studentisée corrigent les effets du biais,
+d'une variance non constante et de l'asymétrie), gain qui n'est pas mesuré ici et qu'aucune page
+lue ne chiffre à $n = 8$~; BC$_a$ n'est pas proposé, l'accélération $\hat a$ n'étant pas spécifiée
+pour ce modèle. L'intervalle reste conditionnel à la validité du modèle paramétrique, donc
+optimiste si le modèle est mal spécifié.
+
+\emph{Ligne restreinte, libellés et graphique} (issue~\#305). Le commentaire de la ligne de
+l'intervalle restreint est, depuis cette issue (décisions Q-D2-Fn-5 et Q-D2-Fn-5~bis du
+mainteneur)~: «~\code{Bootstrap parametrique a delta fixe a sa} \code{valeur estimee (seul gamma
+reajuste),} \code{memes replications que l'IC complet ;} \code{une replication dont le reajustement}
+\code{contraint echoue est ecartee du seul} \code{bootstrap restreint}
+\code{(res\$bootstrap\$n\_echec\_restreint).} \code{Incertitude conditionnelle a la structure}
+\code{de variance retenue. Couverture} \code{inferieure au niveau nominal a T = 8} \code{sous les
+modeles simules, comme} \code{l'intervalle complet (voir la} \code{documentation). Andrews (2000)
+montre} \code{que le bootstrap n'est pas convergent} \code{quand le parametre est au bord, dans}
+\code{un modele de moyenne contrainte ;} \code{sa transposition a l'estimateur de} \code{delta n'est
+pas demontree, et} \code{l'effet sur sigma n'est pas etabli.} \code{Bornes :
+res\$ic\_bootstrap\_restreint{}.}~», de même portée que la rubrique~4~;
+sa référence reste «~\code{Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68}~».
+L'onglet Calibration et le rapport figé écrivent les deux intervalles par une même fonction
+d'affichage, sans calcul, \code{textes\_ic\_bootstrap()} (décision Q-D2-Fn-3)~: «~Intervalle
+bootstrap de percentile, niveau nominal 90~\%~», puis, en méthode lognormale, «~Intervalle
+bootstrap «~basic~» sur l'échelle logarithmique, niveau nominal 90~\%~», chacun avec ses bornes à
+90 et 95~\%, et une note sans chiffre de couverture~: niveaux nominaux~; à $T = 8$, sous les
+modèles ajustés à deux jeux de référence, l'intervalle de percentile couvre nettement moins que son
+niveau nominal ($\sigma$ sous-estimé, borne haute dépassée), l'intervalle «~basic~» sur l'échelle
+logarithmique près du sien~; constat de simulation, renvoyant à la présente fiche. Le graphique
+\code{plot\_boot\_sigma()} (section~\ref{sec:graphiques}) trace l'histogramme de
+\code{plots\_data\$sigma\_usp\_boot}, sur l'échelle de $\sigma_{\mathrm{USP}}$~: ses quantiles
+étant ceux de \code{res\$ic\_bootstrap}, graphique et intervalle affiché concordent sans recalcul.
+En méthode lognormale, l'histogramme est empilé par régime du $\hat\delta^{**}$ de chaque
+réplication (\code{plots\_data\$regime\_boot}, valeurs \code{bord0}, \code{interieur} et
+\code{bord1}, jugées par \code{usp\_regime()} et \code{usp\_delta\_bord()}, convention unique du
+bord)~: 463, 46 et 490 réplications sur le jeu de contrôle, 419, 203 et 377 sur
+\code{premium\_interieur}, où les médianes de $\sigma_{\mathrm{USP}}^{(b)}$ par régime valent
+$0{,}0785$, $0{,}0820$ et $0{,}0811$ (mesure). La légende écrit «~$\delta$** au bord~0~»,
+«~$\delta$** intérieur~» et «~$\delta$** au bord~1~»~: elle désigne $\hat\delta^{**}$ et omet le
+chapeau pour une raison d'affichage seulement, l'accent combinant ne se rendant pas sur le $\delta$
+grec dans les deux tracés. \code{plots\_data\$regime\_boot} vaut \code{NULL}, avec un motif dans
+\code{plots\_data\$regime\_boot\_motif}, à volumes constants (régime de $\delta$ non identifié),
+sous \code{refit = FALSE} ($\delta$ non réestimé) ou si \code{sigma\_boot} et \code{delta\_boot}
+n'ont pas la même longueur. Les repères sont lus dans \code{plots\_data\$boot\_reperes}, sans
+calcul, au niveau nominal \code{IC\_BOOT\_NIVEAU\_REPERES} $= 0{,}90$ (champ \code{niveau})~:
+$\sigma_{\mathrm{USP}}$ retenu, image exacte de $\hat\sigma$ sur cette échelle, où
+«~$\hat\sigma$~» et «~$\sigma_{\mathrm{USP}}$~» sont donc une même marque~; les bornes à 90~\% de
+l'intervalle de percentile~; en méthode lognormale, celles de l'intervalle «~basic~» sur l'échelle
+logarithmique, qui \textbf{ne sont pas des quantiles de l'histogramme} (décision Q-D2-Fn-6)~; la
+moyenne des $\sigma_{\mathrm{USP}}^{(b)}$, dont l'écart à $\sigma_{\mathrm{USP}}$ rend le biais
+visible~; $\sigma_{\text{std}}$, repère de contexte dont aucune inférence ne découle. Aucun de ces
+repères ne porte de verdict.
+
+\emph{Méthode Merz--Wüthrich.} \code{res\$ic\_bootstrap} y est l'intervalle de percentile des
+$\sigma_{\mathrm{USP}}^{(b)} = c\,\hat\sigma^{(b)} + (1-c)\,\sigma_{\text{std}}$, sans le facteur
+$\sqrt{(T+1)/(T-1)}$ ni ligne dans la table des tests~; \code{mw\_plots\_data()} restitue de même
+\code{plots\_data\$sigma\_usp\_boot} et \code{plots\_data\$boot\_reperes}, sans régime ni
+intervalle «~basic~». La couverture de cet intervalle à $T = 8$ n'est pas mesurée (issue~\#387),
+et l'application l'écrit en note («~Couverture à $T = 8$ non mesurée pour cette méthode.~»)~; le
+biais de ses réplications est rapporté à la rubrique~4.
 
 \emph{Dépendance de $L$ à la table de l'annexe.} À données identiques, $L$ varie avec
 $\sigma_{\text{std}}$ par le dénominateur. Mesuré (méthode prime, jeu de contrôle, segment~6 de
@@ -13443,7 +13717,14 @@ lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; s
 du rapport de vraisemblance, qui ne portent que sur le profil (décision d'\code{actuary} après
 audit de l'issue~\#45). \\
 \code{plot\_boot\_sigma()} & LN + MW & --- & Distribution bootstrap de
-$\hat\sigma$~: matérialise l'incertitude d'échantillonnage du paramètre. \\
+$\sigma_{\mathrm{USP}}$ (de $\hat\sigma$ avant l'issue~\#305), sur l'échelle de
+$\sigma_{\mathrm{USP}}$, dont les quantiles sont \code{res\$ic\_bootstrap}~: matérialise
+l'incertitude d'échantillonnage du paramètre. En méthode lognormale, histogramme empilé par régime
+de $\hat\delta^{**}$ (légende «~$\delta$** au bord~0~», «~intérieur~», «~au bord~1~», chapeau omis
+pour une raison d'affichage). Repères~: $\sigma_{\mathrm{USP}}$ retenu, bornes à 90~\% du
+percentile et, en lognormal, de l'intervalle «~basic~» sur l'échelle logarithmique, qui ne sont pas
+des quantiles de l'histogramme, moyenne des réplications, $\sigma_{\text{std}}$
+(fiche~\ref{fiche:ic-bootstrap}). \\
 \code{plot\_calibration()} & LN + MW & --- & Valeurs candidates et paramètre
 retenu~: situe $\sigma_{\mathrm{USP}}$ entre le standard et l'estimé seul. \\
 \end{tabular}
@@ -19546,14 +19827,23 @@ soutient dans le présent document.
 
   \item D.\,W.\,K. Andrews, \emph{Inconsistency of the bootstrap when a parameter
   is on the boundary of the parameter space}, \emph{Econometrica}, 68(2), 2000,
-  p.~399--406.
-  \emph{Portée.} Contre-exemple établissant que le bootstrap de l'estimateur
-  n'est pas convergent lorsque le vrai paramètre est sur la frontière du domaine.
-  Il concerne l'intervalle bootstrap complet de $\sigma_{\mathrm{USP}}$, qui
-  réajuste $\delta$, quand $\delta$ est au bord, et motive l'intervalle
-  restreint à $\delta$ fixé (fiche~\ref{fiche:ic-bootstrap})~; il ne vise pas le
-  bootstrap restreint du rapport de vraisemblance, dont le modèle simulé est
-  entièrement spécifié sous $H_0$. Il ne chiffre rien à $T = 8$.
+  p.~399--405.
+  \emph{Portée.} Contre-exemple établissant, dans un modèle de moyenne contrainte
+  ($\mathcal{N}(\mu, 1)$, $\mu \ge 0$, bootstrap non paramétrique), que le bootstrap de
+  l'estimateur n'est pas convergent lorsque le vrai paramètre est sur la frontière du
+  domaine~; le texte annonce que le contre-exemple se généralise à une large classe de
+  problèmes d'estimation, sans le démontrer. Il montre aussi que deux intervalles de
+  percentile de la moyenne contrainte, celui d'Efron et Tibshirani et celui de Hall, qui
+  est l'intervalle «~basic~» de Davison et Hinkley, ont à la frontière une couverture
+  asymptotique supérieure à leur niveau nominal. Il motive l'intervalle restreint à $\delta$
+  fixé (fiche~\ref{fiche:ic-bootstrap})~; sa transposition à l'estimateur de $\delta$, et donc
+  à l'intervalle bootstrap complet de $\sigma_{\mathrm{USP}}$, qui réajuste $\delta$, n'est pas
+  démontrée, et son effet sur $\sigma$ n'est pas établi~; à $T = 8$, la couverture mesurée sur le
+  jeu de contrôle, où $\delta$ est au bord, ne montre aucune surcouverture. Il ne vise pas le
+  bootstrap restreint du rapport de vraisemblance, dont le modèle simulé est entièrement
+  spécifié sous $H_0$. Il ne chiffre rien à $T = 8$. Statut~: pagination de la version publiée
+  vérifiée~; contenu lu sur la version de travail (Cowles Foundation Discussion Paper~1157,
+  1997), le texte publié n'ayant pas pu être relu.
 
   \item C.\,M. Crainiceanu, D.~Ruppert, \emph{Likelihood ratio tests in linear
   mixed models with one variance component}, \emph{Journal of the Royal
@@ -20131,6 +20421,15 @@ littérature consultée.
   asymptotiquement normal et le paramètre intérieur au domaine. Ici,
   $\hat\delta$ est fréquemment sur la frontière $\{0,1\}$, situation qui sort de
   ce cadre. Aucun taux ne peut donc être annoncé.
+  \item \textbf{La couverture à $T = 8$ des intervalles bootstrap de $\sigma_{\mathrm{USP}}$}
+  n'est chiffrée par aucune source lue~: les pages lues de Davison et Hinkley (1997) et d'Efron
+  et Tibshirani (1993) ne donnent que des ordres asymptotiques et des simulations sur d'autres
+  modèles, de taille 10 au plus petit. Elle est mesurée par une simulation propre au dépôt, sous
+  deux plans de la méthode lognormale à $T = 8$ (issue~\#305, fiche~\ref{fiche:ic-bootstrap})~:
+  constat de simulation, qui ne vaut ni pour un autre $T$ ni pour d'autres données, et qui n'est
+  pas fait pour la méthode Merz--Wüthrich (issue~\#387). La quasi-pivotalité de
+  $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
+  hypothèse, confirmée sur ces deux plans seulement.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
   d'année calendaire n'est pas établie. Les moments de chaque $Z_k$ sont exacts,
   mais la normalité de leur somme sur un nombre réduit de diagonales n'est
@@ -20403,7 +20702,10 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         identité algébrique, vraie même sans convergence (fiche~\ref{fiche:foc}). La moyenne
         simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:centrage}).
   \item \textbf{Jackknife et intervalle bootstrap} (section~\ref{sec:robustesse}) -- la mesure la
-        plus directe de la solidité du calibrage à $T$ faible.
+        plus directe de la solidité du calibrage à $T$ faible~; l'intervalle de percentile
+        sous-couvrant nettement à $T = 8$ (constat de simulation sous deux plans), il se lit,
+        en méthode lognormale, avec l'intervalle «~basic~» sur l'échelle logarithmique restitué
+        en regard (fiche~\ref{fiche:ic-bootstrap}).
   \item \textbf{Position de $\hat\delta$ et rapport de vraisemblance aux bornes}
         (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}, diagnostics sans verdict) --
         identifiabilité de la structure de variance~; la p-value de Monte-Carlo du rapport de
