@@ -206,9 +206,11 @@
 
 \noindent
 Ce document constitue la documentation de l'\textbf{outil de calibrage des
-paramètres propres à l'entreprise} (USP) au titre des méthodes « risque de
-prime » et « risque de réserve~1 » de l'annexe~XVII du règlement délégué
-(UE)~2015/35. Il couvre le moteur de calcul \code{R/engine.R}, les tests
+paramètres propres à l'entreprise} (USP) au titre de trois méthodes de
+l'annexe~XVII du règlement délégué (UE)~2015/35~: risque de primes (section~B),
+risque de réserve n\textsuperscript{o}~1 (section~C) et risque de réserve
+n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
+an, méthode de Merz--Wüthrich). Il couvre le moteur de calcul \code{R/engine.R}, les tests
 statistiques qu'il met en \oe uvre, et l'application interactive qui l'exploite.
 
 \medskip\noindent
@@ -218,7 +220,11 @@ l'outil, les notations et les contrôles de recevabilité des données. La
 (exactes, asymptotiques, de Monte-Carlo) et séparation de l'erreur numérique
 liée au nombre $B$ de réplications d'avec l'erreur d'approximation liée à la
 taille $T$ de l'échantillon. La \textbf{partie~III} rassemble les fiches de
-tests, groupées par hypothèse réglementaire H1 à H4, chacune suivant une
+tests, groupées par hypothèse~: H1 à H4 pour la méthode lognormale (risque de
+primes et risque de réserve n\textsuperscript{o}~1), suivies de ses diagnostics de
+stabilité, de robustesse et graphiques, M1 à M6 pour la méthode Merz--Wüthrich,
+puis une section de lecture conjointe (p-values de famille), commune aux deux
+méthodes~; chaque fiche suit une
 structure uniforme en six rubriques~: cadre et hypothèses de validité (non
 testées), hypothèse nulle, statistique de test, loi sous l'hypothèse nulle,
 p-value, usage et limites~; les fiches de test et de procédure de décision y
@@ -12756,7 +12762,7 @@ nonstandard conditions}, \emph{Journal of the American Statistical Association},
 p.~605--610 ; D.\,O. Stram, J.\,W. Lee,
 \emph{Variance components testing in the longitudinal mixed effects model}, \emph{Biometrics},
 50(4), 1994, p.~1171--1177 ; loi simulée~: A.\,C. Davison, D.\,V. Hinkley, \emph{Bootstrap Methods
-and their Application}, Cambridge University Press, 1997, chap.~4.}
+and their Application}, Cambridge University Press, 1997, chap.~4, § 4.2.3, éq.~(4.13), p.~148.}
 \Cadre
 On note $\ell(\delta,\gamma)$ la log-vraisemblance et $\mathcal{O}(\delta,\gamma) = -2\ell$ à une
 constante près, soit la fonction objectif minimisée par le moteur ($\ln\beta$ profilé en forme
@@ -12820,7 +12826,9 @@ contrainte (\code{usp\_ajuster\_contraint()}), d'où $\mathrm{LR}^{*} = \max(0, 
 réajustements échoue est écartée (\code{n\_echec}), et le nombre de réplications où le
 réajustement libre est plus mauvais que le contraint de plus de \code{TOL\_OPTIMUM}
 (\code{n\_refit\_pire}, attendu nul) est conservé. C'est le test par bootstrap paramétrique sous le
-modèle nul ajusté de Davison et Hinkley (1997, chap.~4). $B$ et la graine sont ceux de l'appel,
+modèle nul ajusté de Davison et Hinkley (1997, chap.~4, § 4.2.3, p.~148), dont la p-value
+simulée, éq.~(4.13), $(1 + \#\{t^{*}_r \ge t\})/(R + 1)$, a la forme de celle d'\code{engine\_p\_mc()}
+ci-dessous, avec $R = B_{\text{eff}}$. $B$ et la graine sont ceux de l'appel,
 avec une pose de graine par borne (§\ref{sec:graines})~: à la borne où se trouve $\hat\delta$, les
 $y^{*}$ sont ceux du bootstrap principal.
 
@@ -13263,7 +13271,8 @@ $\delta$ n'est pas démontrée, et son effet sur $\sigma$ n'est pas établi (\em
 $\hat\delta$ est au bord dans la plupart des cas à $T = 8$ (fiche~\ref{fiche:position-delta}).
 Le même texte montre que, à $\mu = 0$ et pour la moyenne contrainte $\mu$ elle-même, \emph{deux}
 intervalles ont une couverture asymptotique supérieure à leur niveau nominal~: l'intervalle de
-percentile d'Efron et Tibshirani, et celui que Hall (1992) nomme intervalle de percentile, construit
+percentile d'Efron et Tibshirani, et celui que Hall (1992) nomme, selon Andrews, intervalle de
+percentile, construit
 sur $n^{1/2}(\hat\mu^{*}_n - \hat\mu_n)$, qui est par construction l'intervalle «~basic~» de
 Davison et Hinkley (éq.~(5.6)~; rapprochement du relevé des sources, le mot «~basic~» n'étant pas
 dans le texte). Ce résultat est asymptotique, pour $\mu = 0$ exactement, et ne donne aucun chiffre
@@ -19807,8 +19816,8 @@ soutient dans le présent document.
   bootstrap}, \emph{The Annals of Statistics}, 9(6), 1981, p.~1196--1217 ;
   K.~Singh, \emph{On the asymptotic accuracy of Efron's bootstrap},
   \emph{The Annals of Statistics}, 9(6), 1981, p.~1187--1195.
-  \emph{Portée.} Efron (1979), seule référence bootstrap du
-  document, introduit la méthode mais n'en établit pas la consistance. Ces deux
+  \emph{Portée.} Efron (1979), référence fondatrice du bootstrap citée par
+  les fiches, introduit la méthode mais n'en établit pas la consistance. Ces deux
   articles sont ceux qui démontrent la validité asymptotique, et donc ce qui
   fonde --- et ce qui limite --- l'emploi du bootstrap ici~: la garantie est
   \emph{asymptotique en $T$}, ce qui est précisément le point à signaler à
@@ -19822,8 +19831,37 @@ soutient dans le présent document.
   explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte.
   Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
   des tests de Monte-Carlo tels qu'employés ici~; son chapitre~4 (tests par
-  bootstrap paramétrique sous le modèle nul ajusté) fonde le bootstrap restreint
-  du rapport de vraisemblance sur $\delta$ (fiche~\ref{fiche:rv-delta}).
+  bootstrap paramétrique sous le modèle nul ajusté, § 4.2.3, éq.~(4.13), p.~148) fonde le
+  bootstrap restreint du rapport de vraisemblance sur $\delta$ (fiche~\ref{fiche:rv-delta}),
+  son § 4.2.4 (éq.~(4.16) et~(4.17), p.~151--154) les enveloppes du QQ-plot et du graphique
+  dispersion-niveau (fiches~\ref{fiche:qqnorm} et~\ref{fiche:spread-location}), et son
+  chapitre~5 (§ 5.2.1, éq.~(5.6) et~(5.10), p.~193--195~; exemple~5.1, p.~197--198~; § 5.3,
+  éq.~(5.18), p.~202--203~; § 5.4.1, p.~211--214) les intervalles «~basic~» et de percentile
+  de la fiche~\ref{fiche:ic-bootstrap}. Pages lues dans l'aperçu de l'éditeur (relevé du
+  27~octobre 2026)~: les autres pages de l'ouvrage n'ont pas été relues. Les ordres de
+  précision qu'il donne (premier ordre pour les limites «~basic~» et de percentile, p.~213~;
+  second ordre pour la limite studentisée, p.~212) sont asymptotiques~;
+  ses seuls chiffres de couverture à petite taille (§ 5.7, tableau~5.8, p.~230--231~: bootstrap
+  non paramétrique d'un rapport de moyennes de deux échantillons gamma de taille 10) portent sur
+  un autre problème, et aucune page lue ne chiffre la couverture à $n = 8$.
+
+  \item B.~Efron, R.\,J. Tibshirani, \emph{An Introduction to the Bootstrap}, Chapman \& Hall,
+  New York, 1993.
+  \emph{Portée.} Définition de l'intervalle de percentile (§ 13.3, éq.~(13.3)-(13.4), p.~170)~;
+  intervalle de bornes $2\hat\theta - \hat G^{-1}(1-\alpha)$ et $2\hat\theta - \hat G^{-1}(\alpha)$
+  (§ 13.4, éq.~(13.9), p.~174~; niveau $1 - 2\alpha$, notation de l'ouvrage, $\hat G$ fonction de
+  répartition des réplications), qui est l'intervalle «~basic~» de Davison et Hinkley,
+  éq.~(5.6), sans que ce nom, ni celui d'intervalle «~hybride~», figure dans les pages lues~;
+  limite de l'intervalle de percentile en présence de biais (§ 13.8, p.~176)~; correction de biais
+  $\hat z_0$ de l'intervalle BC$_a$ (éq.~(14.14), p.~186)~; estimation bootstrap du biais
+  (chap.~10, éq.~(10.4), p.~124--125)~; précision au premier ordre des points non studentisés et
+  au second ordre de BC$_a$ (chap.~22, p.~321 et 323--326, résultats asymptotiques). Cités par
+  la fiche~\ref{fiche:ic-bootstrap}. Son tableau~13.3 (p.~175~: $\theta = e^{\mu}$, échantillon
+  normal de taille 10, intervalle à 95~\%) montre une sous-couverture du percentile non
+  paramétrique dans un autre problème~; aucune page lue ne chiffre la couverture à $n = 8$, ni pour
+  le modèle de l'annexe~XVII. Pages lues dans l'aperçu de l'éditeur (relevé du 27~octobre 2026)~:
+  chap.~10, p.~124--125~; chap.~13, p.~168--177~; chap.~14, p.~185--186~; chap.~22, p.~321
+  et 323--326~; les autres pages n'ont pas été relues.
 
   \item D.\,W.\,K. Andrews, \emph{Inconsistency of the bootstrap when a parameter
   is on the boundary of the parameter space}, \emph{Econometrica}, 68(2), 2000,
