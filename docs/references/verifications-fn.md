@@ -385,3 +385,15 @@ Pages lues sur l'aperçu Google Books (`https://books.google.com/books?id=gLlpIU
 - Aucune source lue ne chiffre la couverture à **n = 8**, ni pour un bootstrap **paramétrique** d'un modèle lognormal : le seul chiffre à n ≤ 10 pour « basic » et percentile côte à côte (D-H tableau 5.8, n = 10) porte sur un bootstrap non paramétrique d'un rapport de moyennes gamma.
 
 *Formules et citations lues sur le rendu graphique des pages (Google Books, PDF de la Cowles Foundation) ; pour Cleveland et `lowess`, seuls la notice, le résumé de l'éditeur, la documentation et le code de R ont été lus, ce que disent les statuts.*
+
+---
+
+# Relevé du 27/10/2026, troisième passage
+
+> *Même session, même date, sur troisième commande de la session principale de Fn (point A.4 : texte publié d'Andrews (2000) et article de Cleveland (1979)).*
+
+**Statuts inchangés.** Andrews (2000), contenu : **[P+]** (version de travail CFDP 1157 lue, texte publié non lu) ; pagination 399-405 **[V]**. Cleveland (1979), article : **[NV]** ; notice **[V]** ; résumé de l'éditeur **[P]**.
+
+**Pourquoi rien de plus.** Au second passage, les seules voies vers ces textes ont été refusées par les éditeurs ou leurs plateformes : Wiley (HTTP 403), JSTOR (page anti-robot, stables 2999432 et 2286407), Taylor & Francis (HTTP 403), Econometric Society (réservé aux membres), page de l'auteur à Purdue (HTTP 502). Ces refus ne sont pas réessayés par un navigateur automatisé : ce serait contourner une protection anti-robot. Aucune version en libre accès des auteurs n'est connue pour le texte publié d'Andrews ni pour Cleveland (1979) ; aucune copie tierce n'est utilisée.
+
+**Voie d'accès** : accès institutionnel (JSTOR, Wiley, Taylor & Francis), achat de l'article, ou copie du mainteneur. Le passage de `docwriter` garde, pour Andrews (2000), la mention de la version lue (CFDP 1157) et, pour Cleveland (1979), la seule notice.
