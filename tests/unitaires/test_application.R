@@ -908,6 +908,15 @@ testServer(app, {
       grepl("90 % : \\[[0-9]+,[0-9]{4} ; [0-9]+,[0-9]{4}\\]", bf) &&
       grepl(gsub("(\\d)\\.(\\d)", "\\1,\\2", sprintf("95 %% : [%.4f ; %.4f]", ic[1], ic[5])), bf, fixed = TRUE) &&
       !grepl("[0-9]\\.[0-9]", gsub("style=\"[^\"]*\"", "", bf)))
+  # Libelles des intervalles bootstrap (issue #305, Q-D2-Fn-3 (A)) : ligne
+  # de percentile "niveau nominal", ligne "basic" sur l'echelle
+  # logarithmique dessous, note grise ; ancien libelle absent.
+  i_pc <- regexpr("Intervalle bootstrap de percentile, niveau nominal 90 % : [", bf, fixed = TRUE)
+  i_bl <- regexpr("Intervalle bootstrap « basic » sur l'échelle logarithmique, niveau nominal 90 % : [",
+                  bf, fixed = TRUE)
+  a("bloc du parametre : intervalle de percentile 'niveau nominal', intervalle basic sur l'echelle logarithmique dessous, note grise des niveaux nominaux (#305)",
+    i_pc > 0 && i_bl > i_pc && grepl("Niveaux nominaux. À T = 8, sous les modèles", bf, fixed = TRUE) &&
+      !grepl("Intervalle bootstrap 90 %", bf, fixed = TRUE))
   jo <- output$tab_meta
   a("journal : sigma standard, granularite et alpha en virgule decimale (#236)",
     grepl("sigma standard       : 0,1 ", jo, fixed = TRUE) &&
@@ -1212,8 +1221,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 78 assertions rendues", length(.lignes) == 78L)
-  if (length(.lignes) != 78L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 79 assertions rendues", length(.lignes) == 79L)
+  if (length(.lignes) != 79L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

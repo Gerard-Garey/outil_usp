@@ -1043,18 +1043,127 @@ plot_coupe_delta <- function(pd) {
        "delta", "objectif")
 }
 
+# Distribution bootstrap de sigma_USP (issue #305 ; specification
+# docs/specifications/fn-incertitude-bootstrap.md, par. 3 ; decisions du
+# mainteneur du 27/10/2026, Q-D1-Fn-7 et Q-D2-Fn-6 (A)), deux methodes.
+# Histogramme de pd$sigma_usp_boot, dont les quantiles sont res$ic_bootstrap
+# (echelle de sigma_USP) ; objet anterieur a #305 (sans sigma_usp_boot) :
+# repli sur pd$sigma_boot (sigma* brut), sans reperes, libelles d'origine.
+# En lognormal, histogramme empile par regime de delta** (pd$regime_boot,
+# classes communes : classes de hist() en base R, bingroup en plotly).
+# Reperes lus dans pd$boot_reperes, sans calcul : sigma_USP retenu, bornes
+# de l'intervalle de percentile, moyenne des simulations, sigma standard et
+# bornes de l'intervalle "basic" sur l'echelle logarithmique (lognormal),
+# tracees distinctement (ce ne sont pas des quantiles de l'histogramme) ;
+# niveau des libelles lu dans boot_reperes$niveau (.qq_niveau_txt()),
+# jamais ecrit ici. Un repere non fini n'est pas trace.
+# Libelles : delta** (estimateur reajuste sur un tirage bootstrap,
+# CONTEXT.md), ecrit sans l'accent circonflexe combinant (U+0302), qui ne
+# s'affiche pas sur le delta grec en plotly (Chromium) ni en PNG base R.
+.BOOT_REGIMES <- c(bord0 = "\u03b4** au bord 0", interieur = "\u03b4** int\u00e9rieur",
+                   bord1 = "\u03b4** au bord 1")
+# Couleurs des regimes : interieur en bleu soutenu, bords en teintes pales
+# de familles distinctes (orange, mauve), separees aussi en deuteranopie,
+# protanopie et tritanopie (ecart CIELAB simule d'environ 20 au moins entre
+# les deux bords, selon la matrice de simulation).
+.BOOT_COUL_REGIMES <- c(bord0 = "#F5D08A", interieur = "#5B8BD0", bord1 = "#C9B3DE")
+# Reperes traces : data.frame (valeur, libelle, couleur, lty base R, dash
+# plotly), dans l'ordre de la legende, reperes non finis retires.
+.boot_reperes_traces <- function(r) {
+  if (is.null(r)) return(NULL)
+  n <- .qq_niveau_txt(r$niveau)
+  niv <- if (nzchar(n)) paste0(", nominal", n) else ""
+  v <- function(x) if (length(x) == 1L && is.numeric(x)) x else NA_real_
+  d <- data.frame(
+    valeur = c(v(r$sigma_usp), v(r$ic_bas), v(r$ic_haut), v(r$basic_log_bas),
+               v(r$basic_log_haut), v(r$moyenne), v(r$sigma_standard)),
+    libelle = c("sigma_USP retenu", rep(paste0("percentile", niv), 2),
+                rep(paste0("basic (\u00e9chelle log)", niv), 2),
+                "moyenne des sigma_USP simul\u00e9s", "sigma standard"),
+    couleur = c(COUL$trait, COUL$pt, COUL$pt, COUL$regle, COUL$regle, COUL$ref_texte, COUL$ref),
+    lty = c(1, 2, 2, 4, 4, 3, 5),
+    dash = c("solid", "dash", "dash", "dashdot", "dashdot", "dot", "longdash"),
+    stringsAsFactors = FALSE)
+  d[is.finite(d$valeur), , drop = FALSE]
+}
+
 plot_boot_sigma <- function(pd) {
-  v <- pd$sigma_boot
+  usp <- !is.null(pd$sigma_usp_boot)
+  v <- if (usp) pd$sigma_usp_boot else pd$sigma_boot
   if (!length(v)) return(.vide("Aucune replication bootstrap exploitable"))
+  titre <- if (usp) "Distribution bootstrap de sigma_USP" else "Distribution bootstrap de sigma"
+  xlab <- if (usp) "sigma_USP simul\u00e9" else "sigma simule"
+  reg <- if (usp && length(pd$regime_boot) == length(v)) pd$regime_boot else NULL
+  niv_reg <- if (!is.null(reg)) intersect(names(.BOOT_REGIMES), unique(reg)) else character(0)
+  rp <- if (usp) .boot_reperes_traces(pd$boot_reperes) else NULL
+  # Legende : libelles distincts des reperes (les deux bornes d'un meme
+  # intervalle partagent le leur).
+  leg <- if (!is.null(rp)) rp[!duplicated(rp$libelle), , drop = FALSE] else NULL
   if (!.plotly_dispo()) {
-    .cadre(); graphics::hist(v, breaks = 30, col = COUL$env, border = "white",
-                             xlab = "sigma simule", main = "Distribution bootstrap de sigma")
+    .cadre()
+    br <- graphics::hist(v, breaks = 30, plot = FALSE)$breaks
+    eff <- if (length(niv_reg))
+             vapply(niv_reg, function(k) graphics::hist(v[reg == k], breaks = br, plot = FALSE)$counts,
+                    numeric(length(br) - 1L))
+           else matrix(graphics::hist(v, breaks = br, plot = FALSE)$counts, ncol = 1L)
+    eff <- matrix(eff, ncol = max(1L, length(niv_reg)))
+    haut <- max(rowSums(eff))
+    xl <- range(c(br, rp$valeur))
+    plot(xl, c(0, haut * if (is.null(leg)) 1.05 else 1.45), type = "n",
+         xlab = xlab, ylab = "effectif", main = titre)
+    coul <- if (length(niv_reg)) .BOOT_COUL_REGIMES[niv_reg] else COUL$env
+    bas <- rep(0, nrow(eff))
+    for (k in seq_len(ncol(eff))) {
+      graphics::rect(br[-length(br)], bas, br[-1L], bas + eff[, k], col = coul[k], border = "white")
+      bas <- bas + eff[, k]
+    }
+    if (!is.null(rp) && nrow(rp))
+      graphics::abline(v = rp$valeur, col = rp$couleur, lty = rp$lty, lwd = 2)
+    lib <- c(if (length(niv_reg)) unname(.BOOT_REGIMES[niv_reg]), leg$libelle)
+    if (length(lib))
+      graphics::legend("topright", bty = "n", cex = 0.7, legend = lib,
+                       fill = c(if (length(niv_reg)) coul, rep(NA, NROW(leg))),
+                       border = c(if (length(niv_reg)) rep(COUL$ref, length(niv_reg)), rep(NA, NROW(leg))),
+                       col = c(rep(NA, length(niv_reg)), leg$couleur),
+                       lty = c(rep(NA, length(niv_reg)), leg$lty),
+                       lwd = c(rep(NA, length(niv_reg)), rep(2, NROW(leg))))
     return(invisible())
   }
-  p <- plotly::plot_ly(x = v, type = "histogram", nbinsx = 40,
-        marker = list(color = COUL$env, line = list(color = "white", width = 1)),
-        hovertemplate = "sigma = %{x:.4f}<br>effectif = %{y}<extra></extra>")
-  .mep(p, "Distribution bootstrap de sigma", "sigma simule", "effectif")
+  p <- plotly::plot_ly()
+  if (length(niv_reg)) {
+    for (k in niv_reg)
+      p <- plotly::add_histogram(p, x = v[reg == k], nbinsx = 40, bingroup = 1,
+            name = unname(.BOOT_REGIMES[k]),
+            marker = list(color = unname(.BOOT_COUL_REGIMES[k]), line = list(color = "white", width = 1)),
+            hovertemplate = paste0(unname(.BOOT_REGIMES[k]),
+                                   "<br>sigma_USP = %{x:.4f}<br>effectif = %{y}<extra></extra>"))
+  } else
+    p <- plotly::add_histogram(p, x = v, nbinsx = 40, bingroup = 1,
+          name = if (usp) "sigma_USP simul\u00e9s" else "sigma simul\u00e9s", showlegend = FALSE,
+          marker = list(color = COUL$env, line = list(color = "white", width = 1)),
+          hovertemplate = paste0(if (usp) "sigma_USP" else "sigma",
+                                 " = %{x:.4f}<br>effectif = %{y}<extra></extra>"))
+  # Reperes : segments verticaux sur l'axe des ordonnees en coordonnees du
+  # papier (yaxis2 superpose, de 0 a 1), une trace par libelle pour la
+  # legende, la seconde borne d'un intervalle sans entree de legende.
+  if (!is.null(rp) && nrow(rp))
+    for (i in seq_len(nrow(rp)))
+      p <- plotly::add_lines(p, x = rep(rp$valeur[i], 2), y = c(0, 1), yaxis = "y2",
+            name = rp$libelle[i], legendgroup = rp$libelle[i],
+            showlegend = !duplicated(rp$libelle)[i],
+            line = list(color = rp$couleur[i], dash = rp$dash[i], width = 2),
+            text = rp$libelle[i],
+            hovertemplate = "%{text}<br>%{x:.4f}<extra></extra>")
+  p <- .mep(p, titre, xlab, "effectif")
+  # Legende horizontale sous le titre de l'axe des abscisses, ancree par le
+  # haut a y = -0,45 : sans chevauchement du titre d'axe a 520 x 330,
+  # 800 x 330 (onglet M5, mw_boot), 520 x 420 et 1000 x 420 px (g_boot),
+  # mesure sous Chromium.
+  plotly::layout(p, barmode = "stack",
+                 yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
+                 showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.45, yanchor = "top", font = list(size = 10)),
+                 margin = list(t = 45, b = 120))
 }
 
 plot_calibration <- function(cand) {
@@ -1836,6 +1945,53 @@ texte_formule <- function(res) {
           100 * p$credibilite, m$bareme)
 }
 
+# Intervalles bootstrap du bloc Calibration et de la section 4 du rapport
+# fige (issue #305 ; decision du mainteneur du 27/10/2026, Q-D2-Fn-3 (A),
+# textes de docs/specifications/fn-d2-lecture-couverture.md, par. 2),
+# partages par app.R et rapport_html() : lignes HTML (virgule decimale,
+# separateur "&nbsp;|&nbsp;"), puis note grise en texte brut sans caractere
+# a echapper. Ligne de percentile (res$ic_bootstrap, quantiles 5/95 et
+# 2,5/97,5 %), puis, en lognormal et si le resultat le porte, ligne de
+# l'intervalle "basic" sur l'echelle logarithmique
+# (res$ic_bootstrap_basic_log) ; note : constat de couverture (lognormal ;
+# percentile seul pour un objet anterieur a #305) ou couverture non mesuree
+# (Merz-Wuthrich, #387). Niveaux nominaux ecrits en
+# clair, comme les positions des quantiles qu'ils designent. Aucun calcul.
+# Sans intervalle (res$ic_bootstrap NULL) : NULL.
+textes_ic_bootstrap <- function(res) {
+  ic <- res$ic_bootstrap
+  if (is.null(ic)) return(NULL)
+  sep <- "&nbsp;|&nbsp;"
+  borne <- function(v) .num_fr(v, "%.4f")
+  lignes <- sprintf("Intervalle bootstrap de percentile, niveau nominal 90 %% : [%s ; %s] %s 95 %% : [%s ; %s]",
+                    borne(ic[2]), borne(ic[4]), sep, borne(ic[1]), borne(ic[5]))
+  if (identical(res$metadata$methode, "reserve2"))
+    return(list(lignes = lignes,
+                note = "Couverture à T = 8 non mesurée pour cette méthode."))
+  bl <- res$ic_bootstrap_basic_log
+  if (!is.null(bl))
+    lignes <- c(lignes, sprintf(paste0(
+      "Intervalle bootstrap « basic » sur l'échelle logarithmique, niveau nominal ",
+      "90 %% : [%s ; %s] %s 95 %% : [%s ; %s]"),
+      borne(bl[["bas_90"]]), borne(bl[["haut_90"]]), sep, borne(bl[["bas_95"]]), borne(bl[["haut_95"]])))
+  # Objet anterieur a #305 (sans ic_bootstrap_basic_log) : note reduite a
+  # l'intervalle de percentile, seul affiche.
+  if (is.null(bl))
+    return(list(lignes = lignes,
+                note = paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux",
+                             "jeux de référence, l'intervalle de percentile couvre nettement moins",
+                             "que son niveau nominal (σ sous-estimé, borne haute dépassée).",
+                             "Constat de simulation : voir la documentation, fiche",
+                             "de l'intervalle bootstrap.")))
+  list(lignes = lignes,
+       note = paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux",
+                    "jeux de référence, l'intervalle de percentile couvre nettement moins",
+                    "que son niveau nominal (σ sous-estimé, borne haute dépassée) ;",
+                    "l'intervalle « basic » sur l'échelle logarithmique couvre près",
+                    "de son niveau nominal. Constat de simulation : voir la documentation, fiche",
+                    "de l'intervalle bootstrap."))
+}
+
 # Tableau "Parametre standard remplace" (onglet Calibration et section 4 du
 # rapport fige ; issue #55) : mise en forme de engine_parametre_standard(res),
 # qui fournit toutes les valeurs (nature declaree des donnees, point de
@@ -2486,17 +2642,21 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           if (!is.null(ctr)) html_table(ctr, classe = "data"))
 
     # --- 4. Parametre retenu et calibration -----------------------------------
-    ic <- res$ic_bootstrap
+    # Intervalles bootstrap et note de couverture (issue #305, Q-D2-Fn-3 (A)),
+    # textes partages avec l'onglet Calibration.
+    tic <- textes_ic_bootstrap(res)
     cal <- res$calibration; cand <- res$candidats
     ajout("<h2 id='parametre'>4. Param\u00e8tre retenu et calibration</h2>",
           "<div class='bloc'>",
           sprintf("<div><span class='cle'>sigma_USP = %s</span></div>", .num_fr(p$sigma_usp, "%.4f")),
           sprintf("<div>soit %s %% par rapport au param\u00e8tre standard de %s</div>",
                   .num_fr(100 * p$variation_relative, "%+.1f"), .num_fr(p$sigma_standard, "%.4f")),
-          if (!is.null(ic)) sprintf(paste(
-            "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%s ; %s]",
-            "&nbsp;|&nbsp; 95 %% : [%s ; %s]</div>"), .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
-            .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")),
+          if (!is.null(tic))
+            paste0(sprintf("<div%s>%s</div>",
+                           ifelse(seq_along(tic$lignes) == 1L, " style='margin-top:6px'", ""),
+                           tic$lignes), collapse = ""),
+          if (!is.null(tic))
+            sprintf("<div class='gris' style='margin-top:4px'>%s</div>", .echap_html(tic$note)),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
           paste("<h3>Param\u00e8tre standard remplac\u00e9 (art. 218, paragraphe 1) et",

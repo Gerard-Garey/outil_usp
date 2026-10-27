@@ -624,7 +624,8 @@ verifier("run_engine, residus de y = beta x exactement nuls (injection : .usp_ec
              influence_garde153(ri$plots_data) && all(is.finite(ri$plots_data$influence$levier)) &&
              influence_calcule153(r1$plots_data) &&
              identical(setdiff(names(ri$plots_data), "influence_motif"), names(r1$plots_data)) &&
-             identical(tail(names(ri$plots_data), 2), c("qq_enveloppe", "spread_enveloppe")) &&
+             identical(tail(names(ri$plots_data), 5), c("qq_enveloppe", "spread_enveloppe", "sigma_usp_boot",
+                                                       "regime_boot", "boot_reperes")) &&
              identical(names(ti), names(t1)) && identical(ti$test, t1$test)
          })
 # Garde TOST atteinte a coup sur : avant #153, erreur R de
@@ -867,15 +868,17 @@ motif188 <- function(borne = c("basse", "haute"), methode = c("premium", "reserv
 # atteint (gamma sur la borne basse de BORNES_GAMMA, condition KKT non
 # satisfaite), ok = FALSE au motif de usp_valider_ajustement(), sans defaut
 # intercepte. Donnees de test : ok = TRUE, motif des graphiques d'influence
-# absent, qq_enveloppe et spread_enveloppe (#306) restant en fin de liste.
-verifier("run_engine : y exactement proportionnel a x -> ok = FALSE au motif borne basse, sans erreur_r (decision du mainteneur du 08/10/2026, #188) ; donnees de test : ok = TRUE, plots_data$influence_motif absent, qq_enveloppe et spread_enveloppe en fin de liste (#153, #306)",
+# absent, qq_enveloppe et spread_enveloppe (#306) restant en fin de liste,
+# suivis des trois champs de #305 (sigma_usp_boot, regime_boot, boot_reperes).
+verifier("run_engine : y exactement proportionnel a x -> ok = FALSE au motif borne basse, sans erreur_r (decision du mainteneur du 08/10/2026, #188) ; donnees de test : ok = TRUE, plots_data$influence_motif absent, qq_enveloppe et spread_enveloppe suivis des trois champs de #305 en fin de liste (#153, #306, #305)",
          {
            rp <- calcul_extreme(xp153, xp153 / 2); r1 <- calcul_extreme(x, y)
            identical(rp$ok, FALSE) && identical(names(rp), c("ok", "validation", "metadata")) &&
              is.null(rp$validation$erreur_r) &&
              identical(tail(rp$validation$erreurs, 1), motif188("basse", "premium")) &&
              isTRUE(r1$ok) && is.null(r1$plots_data$influence_motif) &&
-             identical(tail(names(r1$plots_data), 2), c("qq_enveloppe", "spread_enveloppe"))
+             identical(tail(names(r1$plots_data), 5), c("qq_enveloppe", "spread_enveloppe", "sigma_usp_boot",
+                                                       "regime_boot", "boot_reperes"))
          })
 verifier("test_tost_intercept() : entrees sous-normales (x et y x 1e-320, 5e-324) -> sans erreur R, memes champs que la branche calculee ; motif egal a celui que declenchent les conditions de test_tost_intercept() sur ces donnees (volumes constants, marge, x ecarte par lm() (R12), 'statistique non definie' si et seulement si p_bas ou p_haut, recalculees depuis summary(lm(y ~ x)), n'est pas finie), ligne calculee finie sinon (#153)",
          {

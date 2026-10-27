@@ -150,8 +150,9 @@ r999 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "I
                    B = 999, seed = GRAINE, nature_donnees = "brutes")
 e999 <- r999$plots_data$spread_enveloppe
 L999 <- courbes(r999$bootstrap$z_boot)
-verifier("plots_data$spread_enveloppe : dernier champ de plots_data, champs dans l'ordre du par. 1.5, constantes du QQ-plot, regle DH1997_4.17, motif NA",
-         identical(tail(names(r999$plots_data), 2), c("qq_enveloppe", "spread_enveloppe")) &&
+verifier("plots_data$spread_enveloppe : suivi des trois champs de #305 en fin de plots_data, champs dans l'ordre du par. 1.5, constantes du QQ-plot, regle DH1997_4.17, motif NA",
+         identical(tail(names(r999$plots_data), 5), c("qq_enveloppe", "spread_enveloppe", "sigma_usp_boot",
+                                                       "regime_boot", "boot_reperes")) &&
            identical(names(e999), c("bandes", "source", "B_eff", "niveau_ponctuel", "niveau_simultane",
                                     "k", "taux_global_ponctuel", "taux_global_simultane",
                                     "B_min_simultane", "regle_rang", "motif")) &&

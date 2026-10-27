@@ -1489,18 +1489,20 @@ server <- function(input, output, session) {
 
   # --- Calibration ----------------------------------------------------------
   output$bloc_final <- renderUI({
-    r <- R(); p <- r$parametre_final; ic <- r$ic_bootstrap
+    r <- R(); p <- r$parametre_final; tic <- textes_ic_bootstrap(r)
     tagList(
       # Virgule decimale (#236) ; bornes d'intervalle separees par " ; ".
       div(HTML(sprintf("<span class='cle'>sigma_USP = %s</span>", .num_fr(p$sigma_usp, "%.4f")))),
       div(HTML(sprintf("soit %s %% par rapport au parametre standard de %s",
                        .num_fr(100 * p$variation_relative, "%+.1f"),
                        .num_fr(p$sigma_standard, "%.4f")))),
-      if (!is.null(ic))
-        div(style = "margin-top:6px", HTML(sprintf(
-          "Intervalle bootstrap 90 %% : [%s ; %s] &nbsp;|&nbsp; 95 %% : [%s ; %s]",
-          .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
-          .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")))),
+      # Intervalles bootstrap et note de couverture (issue #305, Q-D2-Fn-3 (A)),
+      # textes partages avec le rapport fige (textes_ic_bootstrap()).
+      if (!is.null(tic))
+        lapply(seq_along(tic$lignes), function(k)
+          div(style = if (k == 1L) "margin-top:6px", HTML(tic$lignes[k]))),
+      if (!is.null(tic))
+        div(style = "margin-top:4px;color:#7F8C8D;font-size:12.5px", tic$note),
       # Texte propre a chaque methode (texte_formule, R/display_helpers.R),
       # partage avec le rapport fige : le facteur sqrt((T+1)/(T-1)) ne
       # concerne que les methodes lognormales (#4, piste 4).

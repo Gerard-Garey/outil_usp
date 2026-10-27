@@ -1602,7 +1602,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
                          "la p non simulee (loi du champ loi) non retenue",
                          "le modele restreint delta = 1, retenu par l'outil",
                          "3 residu(s) de Mack sont retenus pour les lignes fondees sur ces residus",
-                         "Intervalle bootstrap du parametre retenu",
+                         "Intervalle bootstrap de percentile du parametre retenu",
                          "conditionnelle a la structure de variance retenue",
                          "les p-values ne sont retenues que si"),
                        affirme_retenue, logical(1))))
