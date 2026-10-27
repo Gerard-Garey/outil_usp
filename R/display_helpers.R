@@ -668,29 +668,50 @@ plot_residus <- function(pd) {
 
 # Reperes du rapport de vraisemblance sur delta (issue #45), lus dans
 # pd$lr_delta (engine_plots_data()) : ligne pointillee au repere asymptotique
-# (quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1), aide de lecture) et
-# marques en delta = 0 et delta = 1 au quantile a 90 % du LR simule sous
-# chaque borne. Aucun calcul : les hauteurs viennent du moteur.
-LIB_LR_ASYMPT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 % (Self & Liang 1987), aide de lecture"
-# Libelle court du repere asymptotique, ecrit dans le cadre le long de la
-# ligne pointillee, hors de toute legende (trace base R et plotly, #162) ; le
-# libelle long, avec sa reference, reste au survol (plotly). Debut et fin
-# repris par la documentation (doc_tests_usp.tex, index des graphiques).
-LIB_LR_ASYMPT_COURT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 %, aide de lecture"
-LIB_LR_Q90 <- c("quantile 90 % du LR simul\u00e9 sous \u03b4 = 0",
-                "quantile 90 % du LR simul\u00e9 sous \u03b4 = 1")
-# Annotations fixes courtes des marques bootstrap (trace plotly, ou .mep()
-# masque la legende) ; le libelle long reste au survol.
-LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
-                      "q90 % du LR simul\u00e9 sous \u03b4 = 1")
-# Etendue verticale du trace : courbe et reperes ; marge haute de 30 % quand
-# les reperes sont presents, pour loger au-dessus de la ligne du repere
-# asymptotique son libelle puis la legende des marques (#162).
+# (quantile du melange 1/2 chi2(0) + 1/2 chi2(1), aide de lecture) et
+# marques en delta = 0 et delta = 1 au quantile du LR simule sous chaque
+# borne. Aucun calcul : les hauteurs viennent du moteur.
+# Libelles construits depuis le niveau porte par le moteur
+# (pd$lr_delta$niveau, LR_DELTA_NIVEAU_REPERES ; issue #190), jamais ecrit
+# ici, formate par .qq_niveau_txt() comme les bandes du QQ-plot (#162) :
+# " 90 %" pour 0,90. Niveau absent ou non fini (objet anterieur a #190) : les
+# libelles omettent le niveau, sans en supposer un, et les reperes restent
+# traces (meme regle que .qq_niveau_txt()). Rend une liste :
+# - asympt : libelle long du repere asymptotique, au survol (plotly) ;
+# - asympt_court : libelle court, ecrit dans le cadre le long de la ligne
+#   pointillee, hors de toute legende (base R et plotly, #162) ; debut et fin
+#   repris par la documentation (doc_tests_usp.tex, index des graphiques) ;
+# - quantile : libelles longs des deux marques bootstrap, au survol (plotly) ;
+# - quantile_court : annotations fixes courtes des marques (plotly, ou .mep()
+#   masque la legende) ;
+# - legende : legende des marques du trace base R.
+.lr_libelles <- function(niveau) {
+  n <- .qq_niveau_txt(niveau)
+  a <- if (nzchar(n)) paste0(" \u00e0", n) else ""
+  base <- paste0("rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1)", a)
+  qc <- if (nzchar(n)) paste0("q", sub("^ ", "", n)) else "quantile"
+  list(
+    asympt = paste0(base, " (Self & Liang 1987), aide de lecture"),
+    asympt_court = paste0(base, ", aide de lecture"),
+    quantile = paste0("quantile", n, " du LR simul\u00e9 sous \u03b4 = ", 0:1),
+    quantile_court = paste0(qc, " du LR simul\u00e9 sous \u03b4 = ", 0:1),
+    legende = paste0("quantile", n, " du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"))
+}
+# Etendue verticale du trace : courbe et reperes ; quand les reperes sont
+# presents, marge haute de 30 %, pour loger au-dessus de la ligne du repere
+# asymptotique son libelle puis la legende des marques (#162), et marge basse
+# de 15 % (#190). Une marque bootstrap peut tomber au bas de l'etendue (a
+# obj_min si le quantile du LR simule est nul) ; son annotation plotly sous la
+# marque (.lr_annotations_q90() : decalage de 8 px plus une ligne de police 10,
+# fond opaque au bord oppose) pouvait alors sortir du cadre. La marge est
+# posee des que les reperes sont presents, sans dependre de la position des
+# marques ni du niveau : regle la plus simple, etendue continue en les
+# donnees. Sans reperes, etendue de la courbe seule, inchangee.
 .lr_hauteurs <- function(pd, v) {
   L <- pd$lr_delta
   if (is.null(L)) return(range(v, na.rm = TRUE))
   r <- range(c(v, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
-  c(r[1], r[2] + 0.30 * diff(r))
+  c(r[1] - 0.15 * diff(r), r[2] + 0.30 * diff(r))
 }
 # Cote du cadre ou loger legende et libelle du repere asymptotique : la
 # moitie de [0 ; 1] qui ne contient pas delta estime, pour que la ligne
@@ -712,6 +733,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (is.null(L)) return(invisible())
   s <- L$seuil_asymptotique
   graphics::abline(h = s, col = COUL$ref, lty = 3, lwd = 1.5)
+  libs <- .lr_libelles(L$niveau)
   q <- unname(L$q90_bootstrap)
   ok <- is.finite(q)
   if (any(ok)) graphics::points(c(0, 1)[ok], q[ok], pch = 17, cex = 1.3, col = COUL$trait)
@@ -721,7 +743,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (length(d0) != 1L || !is.finite(d0)) d0 <- if (gauche) u[2] else u[1]
   ecart <- graphics::strwidth("m", cex = 0.75)
   # Legende : du bord du cadre a la ligne en delta estime, ecart deduit.
-  lib_leg <- "quantile 90 % du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"
+  lib_leg <- libs$legende
   place_leg <- if (gauche) d0 - ecart - u[1] else u[2] - d0 - ecart
   pos_leg <- if (gauche) "topleft" else "topright"
   cex_leg <- 0.75
@@ -740,7 +762,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     marque <- graphics::strwidth("M", cex = 1.3)
     zone <- if (gauche) c(max(u[1], 0 + marque), d0 - ecart) else c(d0 + ecart, min(u[2], 1 - marque))
     taille <- function(lib) min(0.7, 0.98 * diff(zone) / graphics::strwidth(lib, cex = 1))
-    lib <- LIB_LR_ASYMPT_COURT
+    lib <- libs$asympt_court
     if (taille(lib) < 0.65) lib <- sub(", aide de lecture", ",\naide de lecture", lib, fixed = TRUE)
     cex <- taille(lib)
     h <- graphics::strheight(lib, cex = cex) + graphics::strheight("M", cex = cex)
@@ -760,14 +782,15 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
 # la largeur du texte n'etant connue que du navigateur, elle a un fond
 # opaque, et masque la ligne verticale en delta estime au lieu d'etre
 # traversee (#195). q : quantiles en delta = 0 et 1 ; s : seuil du repere ;
-# libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite).
-.lr_annotations_q90 <- function(q, s, libre) {
+# libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite) ; lib : les deux
+# textes (.lr_libelles()$quantile_court, #190).
+.lr_annotations_q90 <- function(q, s, libre, lib) {
   s_ok <- length(s) == 1L && is.finite(s)
   ann <- list()
   for (k in which(is.finite(q))) {
     haut <- !(s_ok && q[k] < s)
     a <- list(
-      text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
+      text = lib[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
       showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
       yshift = if (haut) 8 else -8,
       xanchor = if (k == 1) "left" else "right",
@@ -782,17 +805,18 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (is.null(L)) return(p)
   s <- L$seuil_asymptotique
   s_ok <- length(s) == 1L && is.finite(s)
+  libs <- .lr_libelles(L$niveau)
   p <- plotly::add_lines(p, x = xlim, y = rep(s, 2),
         line = list(color = COUL$ref, dash = "dot", width = 1.5),
-        text = LIB_LR_ASYMPT, hovertemplate = "%{text}<extra></extra>")
+        text = libs$asympt, hovertemplate = "%{text}<extra></extra>")
   q <- unname(L$q90_bootstrap)
   ok <- is.finite(q)
   if (any(ok))
-    p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = LIB_LR_Q90[ok],
+    p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = libs$quantile[ok],
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  ann <- .lr_annotations_q90(q, s, libre)
+  ann <- .lr_annotations_q90(q, s, libre, libs$quantile_court)
   # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
   # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
   # a son annotation q90. La largeur du texte n'etant connue que du navigateur,
@@ -809,7 +833,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     dessous <- is.finite(q[libre]) && q[libre] >= s
     d0 <- pd$delta_estime
     part <- if (length(d0) != 1L || !is.finite(d0)) 1 else if (gauche) d0 else 1 - d0
-    lib <- LIB_LR_ASYMPT_COURT
+    lib <- libs$asympt_court
     if (part < 0.95)
       lib <- sub("asymptotique ", "asymptotique<br>",
                  sub(", aide de lecture", ",<br>aide de lecture", lib, fixed = TRUE), fixed = TRUE)

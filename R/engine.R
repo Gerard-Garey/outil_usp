@@ -7864,6 +7864,19 @@ engine_enveloppe_qq <- function(z_boot, T) {
   list(bandes = bandes, info = info)
 }
 
+# Niveau des reperes du profil de delta (issue #190) : quantile du melange
+# 1/2 chi2(0) + 1/2 chi2(1) pour le repere asymptotique (soit
+# qchisq(2 * niveau - 1, 1), puisque P(1/2 chi2(0) + 1/2 chi2(1) <= c) =
+# 1/2 + 1/2 pchisq(c, 1) pour c >= 0 ; niveau >= 0,5 requis) et quantile
+# (type 7) du LR simule sous chaque borne.
+# Aide de lecture, sans lien avec alpha ni verdict (decision Q3 du
+# 28/09/2026, issue #45). Porte dans plots_data$lr_delta$niveau, d'ou
+# l'affichage tire ses libelles. A 0,90, 2 * 0,90 - 1 vaut 0,80 au bit pres
+# (identical(2 * 0.90 - 1, 0.80) et identical(qchisq(2 * 0.90 - 1, 1),
+# qchisq(0.80, 1)) rendent TRUE, mesure sous R 4.3.3 le 27/10/2026), ce qui
+# laisse seuil_asymptotique inchange.
+LR_DELTA_NIVEAU_REPERES <- 0.90
+
 engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                               sigma_usp = NULL, lr_delta = NULL) {
   T <- fit$T; x <- fit$x; z <- fit$z
@@ -7929,19 +7942,23 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # Reperes du rapport de vraisemblance sur delta (issue #45, decision Q3 du
   # 28/09/2026), en fin de liste, pour plot_profil_delta() seul (decision
   # Q5 : aucun repere sur plot_coupe_delta()) : repere asymptotique
-  # obj_min + qchisq(0,80 ; 1), soit
-  # le quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1) (aide de
-  # lecture), et quantile a 90 % (type 7) du LR simule sous chaque borne par
-  # le bootstrap restreint (NA sans replication finie).
+  # obj_min + qchisq(2 * niveau - 1 ; 1), soit le quantile au niveau
+  # LR_DELTA_NIVEAU_REPERES (0,90) du melange 1/2 chi2(0) + 1/2 chi2(1) (aide
+  # de lecture), et quantile au meme niveau (type 7) du LR simule sous chaque
+  # borne par le bootstrap restreint (NA sans replication finie). Le niveau
+  # est porte en fin de liste (champ niveau, issue #190) ; le nom
+  # q90_bootstrap est conserve.
   if (!is.null(lr_delta)) {
+    niveau <- LR_DELTA_NIVEAU_REPERES
     q90 <- function(v) if (length(v))
-      unname(stats::quantile(v, 0.90, type = 7)) else NA_real_
+      unname(stats::quantile(v, niveau, type = 7)) else NA_real_
     pd$lr_delta <- list(
       obj_min = fit$obj_min,
-      seuil_asymptotique = fit$obj_min + stats::qchisq(0.80, 1),
+      seuil_asymptotique = fit$obj_min + stats::qchisq(2 * niveau - 1, 1),
       q90_bootstrap = c(delta0 = fit$obj_min + q90(lr_delta$borne0$lr_boot),
                         delta1 = fit$obj_min + q90(lr_delta$borne1$lr_boot)),
-      lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr))
+      lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr),
+      niveau = niveau)
   }
   # Description de l'enveloppe du QQ-plot (issue #47), en fin de liste :
   # nombres calcules cites par l'aide et le rapport.

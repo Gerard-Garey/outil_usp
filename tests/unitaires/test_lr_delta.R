@@ -237,17 +237,48 @@ verifier("#331 delta estime = fl(1 - TOL_DELTA_BORD) : usp_lr_delta() juge la bo
              startsWith(tm[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
              !grepl("SOLUTION AU BORD", tm[[n - 1]]$detail, fixed = TRUE)
          })
-verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR",
+verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR, niveau 0,90 (#190)",
          {
            L <- r1$plots_data$lr_delta; om <- r1$ajustement$obj_min
            q <- function(v) unname(stats::quantile(v, 0.90, type = 7))
-           identical(names(L), c("obj_min", "seuil_asymptotique", "q90_bootstrap", "lr")) &&
+           identical(names(L), c("obj_min", "seuil_asymptotique", "q90_bootstrap", "lr", "niveau")) &&
+             identical(L$niveau, LR_DELTA_NIVEAU_REPERES) && LR_DELTA_NIVEAU_REPERES == 0.90 &&
              L$obj_min == om && L$seuil_asymptotique == om + stats::qchisq(0.80, 1) &&
              identical(names(L$q90_bootstrap), c("delta0", "delta1")) &&
              isTRUE(proche(L$q90_bootstrap, c(om + q(r1$lr_delta$borne0$lr_boot),
                                               om + q(r1$lr_delta$borne1$lr_boot)))) &&
              identical(unname(L$lr), c(r1$lr_delta$borne0$lr, r1$lr_delta$borne1$lr))
          })
+# Niveau des reperes porte par LR_DELTA_NIVEAU_REPERES (#190) : la constante
+# forcee a 0,95 deplace seuil et quantiles (seuil obj_min + qchisq(0,90 ; 1),
+# environ obj_min + 2,706 ; quantile 0,95 du LR simule) et le champ niveau ;
+# constante restauree en sortie.
+verifier("U8 plots_data$lr_delta, LR_DELTA_NIVEAU_REPERES force a 0,95 : seuil obj_min + qchisq(0,90 ; 1), quantile 0,95 du LR simule, niveau 0,95 (#190)",
+         {
+           env <- environment(engine_plots_data)
+           ancien <- get("LR_DELTA_NIVEAU_REPERES", envir = env)
+           assign("LR_DELTA_NIVEAU_REPERES", 0.95, envir = env)
+           L <- tryCatch(engine_plots_data(r1$ajustement, r1$bootstrap, r1$profil, r1$jackknife,
+                                           r1$parametre_final$sigma_usp, lr_delta = r1$lr_delta)$lr_delta,
+                         finally = assign("LR_DELTA_NIVEAU_REPERES", ancien, envir = env))
+           om <- r1$ajustement$obj_min
+           q <- function(v) unname(stats::quantile(v, 0.95, type = 7))
+           identical(get("LR_DELTA_NIVEAU_REPERES", envir = env), ancien) &&
+             identical(L$niveau, 0.95) &&
+             isTRUE(proche(L$seuil_asymptotique, om + stats::qchisq(0.90, 1))) &&
+             abs(L$seuil_asymptotique - om - 2.706) < 1e-3 &&
+             isTRUE(proche(unname(L$q90_bootstrap), c(om + q(r1$lr_delta$borne0$lr_boot),
+                                                      om + q(r1$lr_delta$borne1$lr_boot))))
+         })
+# Domaine de LR_DELTA_NIVEAU_REPERES (#190) : le seuil asymptotique
+# obj_min + qchisq(2 * niveau - 1 ; 1) n'est un quantile du melange
+# 1/2 chi2(0) + 1/2 chi2(1) que pour niveau >= 0,5 (qchisq rend NaN sous 0) ;
+# a 0,5 il se confond avec obj_min, a 1 il est infini (et le quantile du LR
+# simule devient son maximum). D'ou 0,5 < niveau < 1, nombre unique.
+verifier("U8 LR_DELTA_NIVEAU_REPERES : nombre unique strictement compris entre 0,5 et 1 (#190)",
+         is.numeric(LR_DELTA_NIVEAU_REPERES) && length(LR_DELTA_NIVEAU_REPERES) == 1L &&
+           is.finite(LR_DELTA_NIVEAU_REPERES) &&
+           LR_DELTA_NIVEAU_REPERES > 0.5 && LR_DELTA_NIVEAU_REPERES < 1)
 verifier("U8 reserve2 : ni lr_delta ni ic_bootstrap_restreint",
          {
            df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
