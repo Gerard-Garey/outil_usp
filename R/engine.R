@@ -4972,8 +4972,9 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        n_echec_restreint = n_echec_r,
        # Residus reajustes z* des replications (issue #47, option A) : matrice
        # B x T, ligne b remplie si et seulement si la replication b est
-       # retenue (sim[b, ] rempli), NA sinon. Source de l'enveloppe du
-       # QQ-plot (engine_enveloppe_qq()). En fin de liste.
+       # retenue (sim[b, ] rempli), NA sinon. Source des enveloppes du
+       # QQ-plot (engine_enveloppe_qq()) et du graphique dispersion-niveau
+       # (engine_enveloppe_spread(), #306). En fin de liste.
        z_boot = zb,
        # Variante de la p-value Monte-Carlo (issue #240, specification
        # par. 3.2), onze elements, en fin de liste : regime de delta estime,
@@ -7864,6 +7865,136 @@ engine_enveloppe_qq <- function(z_boot, T) {
   list(bandes = bandes, info = info)
 }
 
+# Lissage du graphique dispersion-niveau (issue #306) : parametres de
+# stats::lowess() ecrits en clair, valeurs par defaut de R (f = 2/3,
+# iter = 3L ; delta laisse a son defaut 0,01 * etendue(x)). La courbe
+# observee spread_lisse et les courbes simulees de engine_enveloppe_spread()
+# passent par eux.
+SPREAD_LOWESS_F <- 2/3
+SPREAD_LOWESS_ITER <- 3L
+
+# Rang k* de la bande simultanee selon l'eq. (4.17) de Davison et Hinkley
+# (1997, par. 4.2.4, p. 153-154), regle de boot::envelope() (decision
+# Q-D1-Fn-2 du 27/10/2026, issue #306). L : matrice B_eff x T de courbes
+# simulees, toutes finies ; Sc = L triee par colonne. Pour k = 1, 2, ... :
+# une ligne de L sort de la bande de rang k si, dans au moins une colonne,
+# sa valeur est <= Sc[k, ] ou >= Sc[B_eff + 1 - k, ] (inegalites larges :
+# la ligne qui porte la k-ieme valeur sort, ce qui estime par retrait de la
+# ligne le taux de sortie d'une courbe nouvelle) ; taux = proportion de ces
+# lignes sur B_eff. Les bandes sont emboitees et le taux croit avec k : k* =
+# plus grand k dont le taux est <= ENVELOPPE_QQ_TAUX_MAX, balayage arrete au
+# premier k qui le depasse. A k = 1, les lignes qui portent le minimum ou le
+# maximum d'une colonne sortent : k = 1 n'est pas admissible par
+# construction quand leur proportion depasse le seuil, et k* vaut alors NA.
+# Causes : petit B_eff, ex aequo, ou T grand (sans ex aequo, au plus 2T
+# lignes sortent a k = 1 ; k = 1 n'est donc non admissible que si
+# 2T > 0,10 B_eff ou en cas d'ex aequo). Ex aequo : la regle porte sur les valeurs, et
+# toute ligne egale a Sc[k, j] ou a Sc[B_eff + 1 - k, j] sort. Deux ecarts
+# d'ecriture avec boot::envelope() (boot 1.3.30, code lu) : rangs moyens de
+# rank() en cas d'ex aequo, et taux rapporte a B + 1 au lieu de B_eff ; sur
+# les courbes de premium et de premium_interieur (B_eff = 999), k* et bornes
+# identiques a ceux de boot::envelope() (mesure du 27/10/2026, R 4.3.3).
+# Rend list(k, taux, sim_bas, sim_haut), bornes NA si k* est NA. Aucune
+# p-value ni verdict.
+engine_rang_simultane_dh <- function(L) {
+  B_eff <- nrow(L); nc <- ncol(L)
+  res <- list(k = NA_integer_, taux = NA_real_,
+              sim_bas = rep(NA_real_, nc), sim_haut = rep(NA_real_, nc))
+  if (B_eff < 2L) return(res)
+  Sc <- apply(L, 2L, sort)
+  for (k in seq_len(B_eff %/% 2L)) {
+    bas <- Sc[k, ]; haut <- Sc[B_eff + 1L - k, ]
+    tk <- mean(rowSums(L <= rep(bas, each = B_eff) | L >= rep(haut, each = B_eff)) > 0)
+    if (tk > ENVELOPPE_QQ_TAUX_MAX) break
+    res$k <- k; res$taux <- tk; res$sim_bas <- bas; res$sim_haut <- haut
+  }
+  res
+}
+
+# Enveloppe de simulation du graphique dispersion-niveau (issue #306 ;
+# specification docs/specifications/fn-incertitude-bootstrap.md, par. 1.4 et
+# 1.5 ; decisions Q-D1-Fn-1 a Q-D1-Fn-3 du mainteneur du 27/10/2026).
+# Construction de l'enveloppe du QQ-plot (engine_enveloppe_qq(), #47), sans
+# aucun tirage : pour chaque ligne b entierement finie de z_boot (residus
+# reajustes du bootstrap parametrique), courbe simulee
+# lowess(x, sqrt(|z_boot[b, ]|)) aux parametres SPREAD_LOWESS_F et
+# SPREAD_LOWESS_ITER de la courbe observee ; colonnes de z_boot dans l'ordre
+# des annees, comme x ; lowess() rend ses points dans l'ordre croissant de
+# x (x[order(x)]), celui de spread_lisse. Une courbe simulee non finie est
+# ecartee (garde inatteignable depuis run_engine(), comme celle du
+# QQ-plot : les z* reajustes y sont finis et bornes et x n'est pas
+# constant a ce point, avis d'actuary du 27/10/2026). L = matrice B_eff x T
+# des courbes retenues ; B_eff = nombre de courbes simulees retenues
+# (lignes de L), toujours ; il vaut 0 a volumes constants, ou aucune courbe
+# n'est calculee (choix de la reprise du 27/10/2026 : un seul sens du champ,
+# celui de engine_enveloppe_qq(), ou B_eff compte les lignes qui
+# construisent les bandes).
+#  - bande ponctuelle : quantiles ENVELOPPE_QQ_PROBS (type 7) de chaque
+#    colonne de L ; taux_global_ponctuel = proportion des lignes de L ayant
+#    au moins une valeur STRICTEMENT hors de la bande (convention du
+#    QQ-plot) ;
+#  - bande simultanee : rang k* de l'eq. (4.17) de Davison et Hinkley
+#    (engine_rang_simultane_dh()) ; le QQ-plot garde sa propre regle
+#    (inegalites strictes) jusqu'a l'issue #385.
+# Bande inconditionnelle au regime de delta* (decision Q-D1-Fn-3) : toutes
+# les lignes finies de z_boot, comme le QQ-plot. Degenerescences, bornes NA
+# et motif : volumes constants (usp_volumes_constants(), courbe sans objet) ;
+# B_eff < ENVELOPPE_QQ_B_MIN (quatre bornes NA) ; B_eff <
+# ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule) ; aucun k admissible
+# (bande ponctuelle seule). Niveaux, seuils et taux maximal : constantes de
+# l'enveloppe du QQ-plot, sans duplication. Aide graphique, aucune p-value
+# ni verdict (ADR 0001). Sous refit = FALSE (appel direct de
+# usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
+# fixes. Rend la liste portee par plots_data$spread_enveloppe.
+engine_enveloppe_spread <- function(z_boot, x) {
+  T <- length(x)
+  bandes <- data.frame(x = as.double(x[order(x)]), bas = NA_real_, haut = NA_real_,
+                       sim_bas = NA_real_, sim_haut = NA_real_)
+  garde <- if (is.null(z_boot)) logical(0) else apply(is.finite(z_boot), 1L, all)
+  res <- list(bandes = bandes, source = "bootstrap", B_eff = 0L,
+              niveau_ponctuel = ENVELOPPE_QQ_NIVEAU,
+              niveau_simultane = ENVELOPPE_QQ_NIVEAU,
+              k = NA_integer_, taux_global_ponctuel = NA_real_,
+              taux_global_simultane = NA_real_,
+              B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
+              regle_rang = "DH1997_4.17", motif = NA_character_)
+  if (usp_volumes_constants(x)) {
+    res$motif <- "volumes constants : graphique dispersion-niveau sans objet"
+    return(res)
+  }
+  L <- if (sum(garde) > 0L)
+    t(apply(z_boot[garde, , drop = FALSE], 1L, function(z)
+      stats::lowess(x, sqrt(abs(z)), f = SPREAD_LOWESS_F, iter = SPREAD_LOWESS_ITER)$y))
+  else matrix(NA_real_, 0L, T)
+  L <- L[apply(is.finite(L), 1L, all), , drop = FALSE]
+  B_eff <- nrow(L); res$B_eff <- B_eff
+  if (B_eff < ENVELOPPE_QQ_B_MIN) {
+    res$motif <- sprintf("moins de %d replications retenues : enveloppe non disponible",
+                         ENVELOPPE_QQ_B_MIN)
+    return(res)
+  }
+  q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
+  res$bandes$bas <- q[1L, ]; res$bandes$haut <- q[2L, ]
+  res$taux_global_ponctuel <-
+    mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
+  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
+    res$motif <- sprintf("moins de %d replications retenues : bande simultanee non calculee",
+                         ENVELOPPE_QQ_B_MIN_SIM)
+    return(res)
+  }
+  r <- engine_rang_simultane_dh(L)
+  if (is.na(r$k)) {
+    res$motif <- sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
+                               "au rang k = 1 ; bande simultanee non disponible"),
+                         formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
+                                 decimal.mark = ","))
+    return(res)
+  }
+  res$bandes$sim_bas <- r$sim_bas; res$bandes$sim_haut <- r$sim_haut
+  res$k <- r$k; res$taux_global_simultane <- r$taux
+  res
+}
+
 # Niveau des reperes du profil de delta (issue #190) : quantile du melange
 # 1/2 chi2(0) + 1/2 chi2(1) pour le repere asymptotique (soit
 # qchisq(2 * niveau - 1, 1), puisque P(1/2 chi2(0) + 1/2 chi2(1) <= c) =
@@ -7901,7 +8032,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                         fort   = stats::quantile(sort(z[g]),  pr, type = 7))
     }
   }
-  lo <- stats::lowess(x, sqrt(abs(z)))
+  # Courbe lissee observee : parametres de lowess() ecrits en clair (#306),
+  # valeurs par defaut de R, courbe inchangee.
+  lo <- stats::lowess(x, sqrt(abs(z)), f = SPREAD_LOWESS_F, iter = SPREAD_LOWESS_ITER)
   pd <- list(
     ajustement = data.frame(x = x, y = fit$y, ajuste = fit$beta * x),
     beta = fit$beta,
@@ -7934,8 +8067,8 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # .usp_ligne_cook()) rend
   # les graphiques residus vs levier et Cook par annee sans objet ; le motif
   # est expose ici, l'affichage ne fait que le lire. Champ absent si tout est
-  # fini (aucun effet sur les resultats ordinaires), place avant lr_delta et
-  # qq_enveloppe, qui restent en fin de liste.
+  # fini (aucun effet sur les resultats ordinaires), place avant lr_delta,
+  # qq_enveloppe et spread_enveloppe, qui restent en fin de liste.
   if (!all(is.finite(pd$influence$residu_std)) || !all(is.finite(pd$influence$cook)))
     pd$influence_motif <- paste("Residu standardise ou distance de Cook non fini (par exemple",
                                 "residus de y = beta x tous nuls) : graphique non disponible")
@@ -7963,6 +8096,10 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # Description de l'enveloppe du QQ-plot (issue #47), en fin de liste :
   # nombres calcules cites par l'aide et le rapport.
   pd$qq_enveloppe <- env$info
+  # Enveloppe de simulation du graphique dispersion-niveau (issue #306), en
+  # fin de liste : bandes ponctuelle et simultanee de la courbe lissee, lues
+  # dans boot$z_boot, sans nouveau tirage (engine_enveloppe_spread()).
+  pd$spread_enveloppe <- engine_enveloppe_spread(boot$z_boot, x)
   pd
 }
 

@@ -146,13 +146,14 @@ verifier("U8 res$lr_delta : champs dans l'ordre (borne0, borne1, B, seed, tol_nu
 verifier("U8 res$profil sans lr_delta0 ni lr_delta1",
          identical(names(r1$profil), c("delta_grid", "delta_obj", "gamma_grid", "gamma_obj")))
 # Depuis l'issue #47, plots_data$qq_enveloppe suit lr_delta et
-# bootstrap$z_boot suit n_echec_restreint (champs ajoutes en fin de liste).
-verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootstrap, plots_data$lr_delta suivi du seul qq_enveloppe (#47)",
+# bootstrap$z_boot suit n_echec_restreint (champs ajoutes en fin de liste) ;
+# depuis l'issue #306, plots_data$spread_enveloppe suit qq_enveloppe.
+verifier("U8 res : lr_delta apres profil, ic_bootstrap_restreint apres ic_bootstrap, plots_data$lr_delta suivi de qq_enveloppe (#47) puis de spread_enveloppe (#306)",
          {
            n <- names(r1)
            match("lr_delta", n) == match("profil", n) + 1L &&
              match("ic_bootstrap_restreint", n) == match("ic_bootstrap", n) + 1L &&
-             identical(tail(names(r1$plots_data), 2), c("lr_delta", "qq_enveloppe")) &&
+             identical(tail(names(r1$plots_data), 3), c("lr_delta", "qq_enveloppe", "spread_enveloppe")) &&
              # p_mc_regime (#240) suit z_boot ; p_min_mc (#125) suit p_mc_regime ;
              # stats_boot (#297) suit p_min_mc.
              identical(tail(names(r1$bootstrap), 6), c("sigma_boot_restreint", "n_echec_restreint", "z_boot",

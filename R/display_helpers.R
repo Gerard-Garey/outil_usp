@@ -665,21 +665,101 @@ plot_qq2ech <- function(pd) {
        "quantiles \u2014 faible volume", "quantiles \u2014 fort volume")
 }
 
+# Enveloppe du graphique dispersion-niveau (issue #306) : bande simultanee
+# (exterieure, plus claire) puis bande ponctuelle de la courbe lissee, lues
+# dans pd$spread_enveloppe$bandes (x, bas, haut, sim_bas, sim_haut ;
+# engine_enveloppe_spread()), sous la courbe et le nuage. Libelles et
+# niveaux lus dans pd$spread_enveloppe (niveau_ponctuel, niveau_simultane)
+# par les fonctions du QQ-plot, jamais ecrits ici ; motif du moteur restitue
+# tel quel dans le sous-titre. Aucun calcul : une bande dont les bornes sont
+# NA n'est pas tracee. Sans pd$spread_enveloppe (objet anterieur a #306),
+# aucune bande n'est tracee ni legendee.
+.spread_bandes <- function(pd) {
+  e <- pd$spread_enveloppe
+  if (is.null(e) || is.null(e$bandes)) return(c(sim = FALSE, ponct = FALSE))
+  c(sim = any(is.finite(e$bandes$sim_bas)), ponct = any(is.finite(e$bandes$bas)))
+}
+# Sous-titre en une ou deux lignes (vecteur de longueur 0, 1 ou 2) : ce qui
+# est trace, puis, s'il existe, le motif du moteur seul sur la seconde ligne
+# (aucune redite : la premiere ligne ne dit que les bandes tracees).
+.spread_sous_titre <- function(pd) {
+  e <- pd$spread_enveloppe
+  if (is.null(e)) return(character(0))
+  b <- .spread_bandes(pd)
+  quoi <- if (b[["sim"]])
+            sprintf("bandes ponctuelle et simultan\u00e9e (k = %s sur %s r\u00e9plications)",
+                    e$k, e$B_eff)
+          else if (b[["ponct"]])
+            sprintf("bande ponctuelle (%s r\u00e9plications)", e$B_eff)
+          else "aucune bande"
+  c(paste0("bootstrap param\u00e9trique ; ", quoi),
+    if (length(e$motif) == 1L && !is.na(e$motif)) e$motif)
+}
+# Etendue de l'axe des ordonnees, commune aux branches base R et plotly :
+# nuage, courbe et bandes tracees, plus une marge haute de 30 % reservee a
+# la legende des bandes (mise en page seulement).
+.spread_ylim <- function(pd, sim, ponct) {
+  e <- pd$spread_enveloppe
+  yl <- range(c(pd$spread$racine_abs_z, pd$spread_lisse$y,
+                if (ponct) c(e$bandes$bas, e$bandes$haut),
+                if (sim) c(e$bandes$sim_bas, e$bandes$sim_haut)), na.rm = TRUE)
+  if (sim || ponct) yl[2] <- yl[2] + 0.3 * diff(yl)
+  yl
+}
+
 plot_spread <- function(pd) {
   if (is.null(pd$spread)) return(.vide())
+  b <- .spread_bandes(pd); sim <- b[["sim"]]; ponct <- b[["ponct"]]
+  e <- pd$spread_enveloppe; st <- .spread_sous_titre(pd)
+  yl <- .spread_ylim(pd, sim, ponct)
   if (!.plotly_dispo()) {
-    .cadre(); plot(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt,
-                   xlab = "x_t", ylab = "sqrt(|z_t|)", main = "Dispersion-niveau")
+    .cadre()
+    # Sous-titre sur deux lignes : marge haute agrandie, le titre au-dessus.
+    if (length(st) > 1L) graphics::par(mar = graphics::par("mar") + c(0, 0, 0.8, 0))
+    plot(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt, ylim = yl,
+         xlab = "x_t", ylab = "sqrt(|z_t|)", main = "Dispersion-niveau")
+    # Sous-titre : une ligne par element, la derniere au ras du cadre.
+    if (length(st)) graphics::mtext(st, side = 3, line = 0.15 + 0.75 * (rev(seq_along(st)) - 1),
+                                    cex = 0.7, col = COUL$ref)
+    if (sim) .qq_bande_base(e$bandes$x, e$bandes$sim_bas, e$bandes$sim_haut, COUL$env_sim)
+    if (ponct) .qq_bande_base(e$bandes$x, e$bandes$bas, e$bandes$haut, COUL$env)
+    graphics::points(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt)
     graphics::lines(pd$spread_lisse$x, pd$spread_lisse$y, col = COUL$trait, lwd = 2)
+    if (sim || ponct)
+      graphics::legend("topleft", bty = "n", cex = 0.75,
+                       legend = c(.qq_lib_sim(e), .qq_lib_ponct(e))[c(sim, ponct)],
+                       fill = c(COUL$env_sim, COUL$env)[c(sim, ponct)],
+                       border = c(COUL$ref, COUL$ref)[c(sim, ponct)])
     return(invisible())
   }
   p <- plotly::plot_ly()
+  if (sim) p <- .qq_bande_plotly(p, e$bandes$x, e$bandes$sim_bas, e$bandes$sim_haut,
+                                 "rgba(232,240,252,0.9)")
+  if (ponct) p <- .qq_bande_plotly(p, e$bandes$x, e$bandes$bas, e$bandes$haut,
+                                   "rgba(200,220,250,0.7)")
   p <- plotly::add_lines(p, x = pd$spread_lisse$x, y = pd$spread_lisse$y,
         line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = pd$spread$x, y = pd$spread$racine_abs_z,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "x = %{x:.1f}<br>sqrt|z| = %{y:.3f}<extra></extra>")
-  .mep(p, "Dispersion-niveau (H2) \u2014 lissage local", "x_t", "sqrt(|z_t|)")
+  titre <- paste0("Dispersion-niveau (H2) \u2014 lissage local",
+                  if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+  p <- .mep(p, titre, "x_t", "sqrt(|z_t|)")
+  # Meme etendue des ordonnees qu'en base R (marge haute pour la legende).
+  if (sim || ponct) p <- plotly::layout(p, yaxis = list(range = yl))
+  # Legende en annotations fixes (.mep() masque la legende plotly).
+  ann <- list()
+  if (sim) ann[[length(ann) + 1]] <- list(
+    text = .qq_lib_sim(e), x = 0.01, y = 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env_sim,
+    font = list(size = 10, color = COUL$pt))
+  if (ponct) ann[[length(ann) + 1]] <- list(
+    text = .qq_lib_ponct(e), x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
+    font = list(size = 10, color = COUL$pt))
+  if (length(ann) || length(st))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = if (length(st) > 1L) 80 else 60))
+  p
 }
 
 plot_residus <- function(pd) {

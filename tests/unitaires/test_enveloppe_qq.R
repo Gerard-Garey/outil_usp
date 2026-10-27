@@ -113,7 +113,7 @@ verifier("(ii) B = 199 (B_eff < ENVELOPPE_QQ_B_MIN_SIM = 500) : env_sim_bas / en
              identical(e$k, NA_integer_) && is.na(e$taux_global_simultane) &&
              identical(e$B_eff, 199L) && is.finite(e$taux_global_ponctuel)
          })
-verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, seuil, taux ponctuel recalcule ; dernier champ de plots_data",
+verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, seuil, taux ponctuel recalcule ; avant-dernier champ de plots_data, suivi de spread_enveloppe (#306)",
          {
            e <- r1$plots_data$qq_enveloppe
            S <- ordres(r1$bootstrap$z_boot)
@@ -126,7 +126,7 @@ verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, s
              identical(e$B_min_simultane, ENVELOPPE_QQ_B_MIN_SIM) &&
              isTRUE(all.equal(e$taux_global_ponctuel, taux_sortie(S, d$env_bas[o], d$env_haut[o]),
                               tolerance = 0)) &&
-             identical(tail(names(r1$plots_data), 1), "qq_enveloppe") &&
+             identical(tail(names(r1$plots_data), 2), c("qq_enveloppe", "spread_enveloppe")) &&
              identical(names(d), c("theorique", "empirique", "env_bas", "env_haut",
                                    "env_sim_bas", "env_sim_haut"))
          })
