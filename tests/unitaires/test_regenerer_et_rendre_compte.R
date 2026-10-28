@@ -462,4 +462,25 @@ verifier("Issue #82 : sans LC_ALL, sous une locale UTF-8, ecrire_console() et wr
          !.n82$utf8 || (length(.n82$lignes) == 2L && identical(.n82$lignes[[1]], .utf8_82) &&
                           identical(.n82$lignes[[2]], .utf8_82)))
 
+## --- lancer_batterie() sous un RACINE contenant une espace (issue #390) ------
+# Fonction extraite par parse() (sans executer le script) puis exercee sur un
+# script trivial. system2() quote deja la commande : le chemin du script, seul,
+# passe par shQuote() ; un shQuote(rs) en plus fait echouer tous les appels.
+.racine390 <- file.path(tempfile("racine avec espace "), "depot")
+dir.create(file.path(.racine390, "tests"), recursive = TRUE)
+writeLines('cat("TOTAL : 1 ok\\n")', file.path(.racine390, "tests", "trivial.R"))
+.lb390 <- local({
+  ex <- parse(file.path(rg$DOSSIER_TESTS, "regenerer_et_rendre_compte.R"), keep.source = FALSE)
+  k <- which(vapply(ex, function(e) is.call(e) && identical(e[[1]], as.name("<-")) &&
+                      identical(e[[2]], as.name("lancer_batterie")), NA))
+  e <- new.env(parent = globalenv()); e$RACINE <- .racine390
+  if (length(k) == 1L) eval(ex[[k]], e)
+  e$lancer_batterie
+})
+.r390 <- if (is.function(.lb390)) tryCatch(.lb390("trivial.R"), error = function(e) NULL) else NULL
+verifier("Issue #390 : lancer_batterie() sous un RACINE contenant une espace : synthese 'TOTAL : 1 ok', statut 0",
+         grepl(" ", .racine390, fixed = TRUE) && !is.null(.r390) &&
+           identical(.r390$synthese, "TOTAL : 1 ok") && identical(as.integer(.r390$statut), 0L))
+unlink(dirname(.racine390), recursive = TRUE)
+
 fin_fichier()

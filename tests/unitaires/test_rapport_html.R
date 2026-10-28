@@ -2055,7 +2055,10 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                  t <- b$data[[k]]
                  identical(as.numeric(t$x), as.numeric(g[[cle]])) && identical(as.numeric(t$y), g$moyenne) &&
                    identical(as.numeric(t$customdata), as.numeric(g$n)) &&
-                   identical(t$hovertemplate, paste0(inf, "<extra></extra>")) &&
+                   # unique(as.character()) : plotly 4.10.4 renvoie un vecteur repete
+                   # (longueur 7) porteur de l'attribut apiSrc (#389).
+                   length(t$hovertemplate) %in% c(1L, length(t$x)) &&
+                   identical(unique(as.character(t$hovertemplate)), paste0(inf, "<extra></extra>")) &&
                    identical(t$marker$symbol, "diamond")
                } && isTRUE(b$layout$showlegend) && identical(b$layout$legend$orientation, "h") &&
                  b$layout$legend$y < 0 &&
