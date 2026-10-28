@@ -969,15 +969,24 @@ ecrire_fichier(JOURNAL_T, c(sprintf("- Fin : %s ; dur\u00e9e de cette ex\u00e9cu
 ecrire_console(S)
 ecrire_console(c(sprintf("Sorties (dossier de travail, hors du d\u00e9p\u00f4t) : %s ; %s ; %s", f_md, f_tsv, JOURNAL_T)))
 REFUS_ECRITURE <- FALSE
-# Copie octet a octet vers docs/tableaux/, apres garde_ecrasement().
+# Copie octet a octet vers docs/tableaux/, apres garde_ecrasement(). Atomique
+# (#390) : ecriture dans un temporaire du meme dossier, controle du md5, puis
+# file.rename() vers la cible ; le temporaire est supprime en cas d'echec, et
+# la cible n'est jamais partielle (une cible existante reste intacte).
 copier_fichier <- function(src, dst) {
-  oct <- readBin(src, "raw", n = file.size(src))
-  # La connexion est fermee AVANT la comparaison des md5 : un on.exit() s'executerait
-  # apres le return, tampon non vide, et le md5 de la cible differerait (#305).
-  con <- file(dst, open = "wb")
-  writeBin(oct, con)
-  close(con)
-  identical(unname(tools::md5sum(dst)), unname(tools::md5sum(src)))
+  tmp <- tempfile(pattern = paste0(".", basename(dst), "."), tmpdir = dirname(dst))
+  # Nettoyage a la sortie, interruption comprise (que tryCatch(error=) n'attrape pas).
+  on.exit(if (file.exists(tmp)) unlink(tmp), add = TRUE)
+  ok <- tryCatch({
+    oct <- readBin(src, "raw", n = file.size(src))
+    # La connexion est fermee AVANT la comparaison des md5 : un on.exit() s'executerait
+    # apres le return, tampon non vide, et le md5 du temporaire differerait (#305).
+    con <- file(tmp, open = "wb")
+    tryCatch(writeBin(oct, con), finally = close(con))
+    identical(unname(tools::md5sum(tmp)), unname(tools::md5sum(src))) &&
+      isTRUE(suppressWarnings(file.rename(tmp, dst)))
+  }, error = function(e) FALSE)
+  ok
 }
 if (OPT_ECRIRE) {
   if (length(INTEGRITE)) {
