@@ -737,11 +737,12 @@ local({
   pd <- r312$plots_data; res <- pd$residus
   ga <- pd$residus_acc_groupes; gc <- pd$residus_cal_groupes
   # Depuis #311, qqline suit residus_cal_groupes en fin de liste.
-  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311), aucune feuille deplacee",
+  # Depuis #305, sigma_usp_boot et boot_reperes suivent qqline.
+  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311, et les deux champs de #305), aucune feuille deplacee",
            {
              nm <- names(pd)
-             identical(utils::tail(nm, 4), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
-                                             "qqline")) &&
+             identical(utils::tail(nm, 6), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
+                                             "qqline", "sigma_usp_boot", "boot_reperes")) &&
                identical(nm[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
                                      "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                      "alpha", "origine", "influence", "contributions", "sigma_boot")) &&
@@ -3663,10 +3664,11 @@ local({
                x <- mw_residus_redresses(a, rs)
                all(is.finite(x)) && max(abs(x) / sqrt(n - 1)) <= 1 + 1e-12
              }, logical(1))))
-  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data ; feuilles anterieures inchangees et a leur place",
+  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data avant les deux champs de #305 ; feuilles anterieures inchangees et a leur place",
            identical(pd$qqline, c(ordonnee = 0, pente = 1)) &&
-             identical(utils::tail(names(pd), 4),
-                       c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline")) &&
+             identical(utils::tail(names(pd), 6),
+                       c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline",
+                         "sigma_usp_boot", "boot_reperes")) &&
              identical(names(pd)[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
                                           "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                           "alpha", "origine", "influence", "contributions", "sigma_boot")))

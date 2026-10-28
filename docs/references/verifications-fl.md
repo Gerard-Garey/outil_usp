@@ -160,3 +160,47 @@ Venter cite Mack par la version *CAS Forum* 1994 (« Casualty Actuarial Society 
 - **Venter (1998)** : citable pour les fiches `mw:m1a` et `mw:m1b` (`bloc-5.md:121`) avec la notice du § 3.1 et les pages du § 3.3 (constante : p. 812, 815-816 ; stabilité : p. 813, 830-832) ; **à ne pas lui attribuer** : une statistique de test à loi de référence pour la stabilité, ni la p Monte-Carlo de la ligne de constante.
 
 *Aucune page, équation ni citation n'a été ajoutée hors du texte lu.*
+
+---
+
+# Relevé du 27/10/2026
+
+> *Rédigé par Claude (session de relevé de sources, accès internet par le proxy de la session), le 27/10/2026, sur commande de la session principale de Fn et décision du mainteneur du 27/10/2026 (Q-42-12) ; issue #377. Branche `claude/incertitude-bootstrap-graphiques` (PR brouillon #384). Le relevé du 25/10 ci-dessus est conservé.*
+
+## R27.0 Statuts au 27/10/2026 (ancien → nouveau)
+
+| # | Référence | Affirmation | Statut |
+|---|---|---|---|
+| 1a | Mack (1997) | p. D6.15-D6.23 | [NV] → [NV] (site de l'IFoA : HTTP 503 le 27/10/2026 à 08:18 UTC) |
+| 1b | Mack (1997) | repère de 10 %, p. D6.49 | [NV] → [NV] (même cause) |
+| 2a | Kruskal et Wallis (1952) | Notice | [P] → **[V]** (Crossref) |
+| 2a′ | Kruskal et Wallis (1953), errata | Notice | nouveau : **[V]** (Crossref) ; contenu [NV] |
+| 2b | Kruskal et Wallis (1952) | H, loi exacte, χ²(k − 1), ex æquo | [NV] → [NV] |
+
+## R27.1 Mack (1997) : site toujours indisponible [NV]
+
+Une seule requête, conformément à #377 (« vérifier d'abord le site par une seule requête, et s'arrêter si le code est 503 ou 429 ») :
+
+| Date (UTC) | URL | Réponse |
+|---|---|---|
+| 27/10/2026 08:18 | `https://www.actuaries.org.uk/system/files/documents/pdf/crm2-D6.pdf` | **HTTP 503**, `text/html`, 1 020 octets (page de maintenance) ; pas de PDF, SHA-256 attendu (`4d8efee2…`) non vérifiable |
+
+Arrêt après cette requête ; Wayback Machine non retentée (HTTP 429 et tunnel coupé le 25/10). Rien de nouveau sur les p. D6.15-D6.23 ni sur la p. D6.49 : les phrases datées du `.tex` (`doc_tests_usp.tex:16088`, `:16287-16288`, `:16610-16611` sur la tête `c564324`) et la condition Q-40-5 restent en l'état. Historique des tentatives : 25/10 (deux fois), 26/10, 27/10, toutes en 503.
+
+## R27.2 Kruskal et Wallis (1952) et errata (1953)
+
+### Notices [V] (Crossref, `https://api.crossref.org/works?query.bibliographic=…`, HTTP 200)
+
+> W. H. Kruskal et W. A. Wallis, « Use of Ranks in One-Criterion Variance Analysis », *Journal of the American Statistical Association*, vol. 47, n° 260, décembre 1952, p. 583-621, DOI 10.1080/01621459.1952.10483441.
+
+> W. H. Kruskal et W. A. Wallis, « Errata: Use of Ranks in One-Criterion Variance Analysis », *Journal of the American Statistical Association*, vol. 48, n° 264, décembre 1953, p. 907, DOI 10.2307/2281082.
+
+La notice de 1952 concorde avec `doc_tests_usp.tex:16426-16429`. Les errata ne sont pas cités par le `.tex` ; Crossref ne donne que la première page (907).
+
+### Texte [NV]
+
+Aucune nouvelle requête vers JSTOR ni Taylor & Francis : les seules voies sont les pages de l'éditeur qui ont refusé l'accès le 25/10 (JSTOR, page anti-robot ; Taylor & Francis, HTTP 403). Les relancer par un navigateur automatisé pour passer outre ce refus reviendrait à contourner une protection anti-robot ; ce n'est pas fait. Aucune version en libre accès des auteurs n'est connue ; aucune copie tierce n'est utilisée. **Rien n'est relevé** sur H, la loi exacte, l'approximation χ² ni la correction des ex æquo. La phrase datée du `.tex` (« Kruskal et Wallis, 1952, non relu sur le texte intégral au 24~octobre 2026 », `doc_tests_usp.tex:6874`) reste exacte.
+
+Voie d'accès : JSTOR (stable 2280779, et 2281082 pour les errata) ou Taylor & Francis, par accès institutionnel ou achat.
+
+*Aucun énoncé de Mack (1997) ni de Kruskal et Wallis (1952) n'est rapporté.*

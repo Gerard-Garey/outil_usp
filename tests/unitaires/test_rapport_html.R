@@ -834,10 +834,13 @@ releve_base162 <- function(f, largeur = 560 / 72, hauteur = 250 / 72) {
 }
 rb162 <- releve_base162(function() plot_profil_delta(pd162))
 seuil162 <- pd162$lr_delta$seuil_asymptotique
+# Libelles des reperes du profil de delta au niveau porte par le moteur
+# (.lr_libelles(), issue #190).
+LIB90 <- .lr_libelles(pd162$lr_delta$niveau)
 leg162 <- rb162$leg[[length(rb162$leg)]]
 # Libelle du repere asymptotique, sur une ou deux lignes.
 filtre_lib162 <- function(txt)
-  Filter(function(t) identical(gsub("\n", " ", t$labels, fixed = TRUE), LIB_LR_ASYMPT_COURT), txt)
+  Filter(function(t) identical(gsub("\n", " ", t$labels, fixed = TRUE), LIB90$asympt_court), txt)
 lib162 <- filtre_lib162(rb162$txt)
 verifier("Profil de delta, base R (560 x 250 px, rapport fige) : repere asymptotique absent de la legende, libelle dans le cadre, ligne hors de la legende (#162)",
          length(rb162$leg) == 1L &&
@@ -897,10 +900,10 @@ verifier(sprintf("Libelle du repere asymptotique (base R) en COUL$ref_texte, con
          identical(lib162[[1]]$col, COUL$ref_texte) &&
            contraste162(COUL$ref_texte, COUL$fond) >= 4.5)
 verifier("Libelle court du repere asymptotique : debut et fin cites par la documentation, libelle long au survol (#162)",
-         startsWith(LIB_LR_ASYMPT_COURT, "repère asymptotique") &&
-           endsWith(LIB_LR_ASYMPT_COURT, "aide de lecture") &&
-           startsWith(LIB_LR_ASYMPT, "repère asymptotique") &&
-           endsWith(LIB_LR_ASYMPT, "aide de lecture"))
+         startsWith(LIB90$asympt_court, "repère asymptotique") &&
+           endsWith(LIB90$asympt_court, "aide de lecture") &&
+           startsWith(LIB90$asympt, "repère asymptotique") &&
+           endsWith(LIB90$asympt, "aide de lecture"))
 rq162 <- releve_base162(function() plot_qqnorm(p80), largeur = 1000 / 72, hauteur = 420 / 72)
 verifier("QQ-plot base R, qq_enveloppe forge a 0,80 : legende des bandes a 80 % (#162)",
          length(rq162$leg) == 1L &&
@@ -913,14 +916,14 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     b <- plotly::plotly_build(plot_profil_delta(pd))
     an <- b$x$layout$annotations
     est_lib <- vapply(an, function(a) identical(gsub("<br>", " ", a$text, fixed = TRUE),
-                                                LIB_LR_ASYMPT_COURT), TRUE)
+                                                LIB90$asympt_court), TRUE)
     survol <- unlist(lapply(b$x$data, function(t) t$text))
-    if (sum(est_lib) != 1L || !est_lib[length(an)] || !(LIB_LR_ASYMPT %in% survol)) return(NA_character_)
+    if (sum(est_lib) != 1L || !est_lib[length(an)] || !(LIB90$asympt %in% survol)) return(NA_character_)
     a <- an[[length(an)]]
     cote <- if (identical(a$x, 0) && identical(a$xanchor, "left") && a$xshift > 0) "gauche"
             else if (identical(a$x, 1) && identical(a$xanchor, "right") && a$xshift < 0) "droite"
             else "?"
-    q <- Filter(function(x) identical(x$text, LIB_LR_Q90_COURT[if (cote == "droite") 2 else 1]), an)
+    q <- Filter(function(x) identical(x$text, LIB90$quantile_court[if (cote == "droite") 2 else 1]), an)
     ok <- identical(a$xref, "x") && identical(a$bgcolor, COUL$fond) &&
       identical(a$font$color, COUL$ref_texte) && length(q) == 1L &&
       !identical(q[[1]]$yanchor, a$yanchor)
@@ -952,11 +955,12 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 ann195 <- function(pd) {
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
   list(libre = libre, s = pd$lr_delta$seuil_asymptotique, q = unname(pd$lr_delta$q90_bootstrap),
-       ann = .lr_annotations_q90(unname(pd$lr_delta$q90_bootstrap), pd$lr_delta$seuil_asymptotique, libre))
+       ann = .lr_annotations_q90(unname(pd$lr_delta$q90_bootstrap), pd$lr_delta$seuil_asymptotique, libre,
+                                 LIB90$quantile_court))
 }
 # Annotation de l'indice k (1 : delta = 0, 2 : delta = 1), NULL si absente.
 ann_k195 <- function(a, k) {
-  r <- Filter(function(x) identical(x$text, LIB_LR_Q90_COURT[k]), a$ann)
+  r <- Filter(function(x) identical(x$text, LIB90$quantile_court[k]), a$ann)
   if (length(r) == 1L) r[[1]] else NULL
 }
 # Bande verticale hors du repere : au-dessus (bottom, decalage > 0) si la
@@ -983,19 +987,19 @@ verifier("Profil de delta, plotly : annotation q90 du bord oppose hors du repere
 # fond (celle du cote libre garde son rendu de #162) ; seuil non fini : les
 # deux au-dessus de leur marque, comme avant ; quantile non fini : pas
 # d'annotation ; textes inchanges.
-verifier("Placement des annotations q90 (.lr_annotations_q90()) : hors du repere asymptotique pour toute position des marques, fond opaque au seul bord oppose, seuil non fini ou quantile NA traites, textes LIB_LR_Q90_COURT inchanges (#195)",
+verifier("Placement des annotations q90 (.lr_annotations_q90()) : hors du repere asymptotique pour toute position des marques, fond opaque au seul bord oppose, seuil non fini ou quantile NA traites, textes LIB90$quantile_court (niveau 0,90 du moteur) inchanges (#195)",
          all(vapply(list(c(1, 3), c(3, 1), c(1, 1), c(3, 3), c(2, 2)), function(q)
            all(vapply(1:2, function(libre) {
-             an <- .lr_annotations_q90(q, 2, libre)
+             an <- .lr_annotations_q90(q, 2, libre, LIB90$quantile_court)
              length(an) == 2L &&
                all(vapply(1:2, function(k) hors_repere195(an[[k]], q[k], 2) &&
-                            identical(an[[k]]$text, LIB_LR_Q90_COURT[k]) &&
+                            identical(an[[k]]$text, LIB90$quantile_court[k]) &&
                             identical(an[[k]]$bgcolor, if (k == libre) NULL else COUL$fond), TRUE))
            }, TRUE)), TRUE)) &&
-           all(vapply(.lr_annotations_q90(c(1, 3), NA_real_, 1L), function(x) identical(x$yanchor, "bottom"), TRUE)) &&
-           length(.lr_annotations_q90(c(NA, 3), 2, 1L)) == 1L &&
-           identical(.lr_annotations_q90(c(NA, 3), 2, 1L)[[1]]$text, LIB_LR_Q90_COURT[2]) &&
-           identical(LIB_LR_Q90_COURT, c("q90 % du LR simulé sous δ = 0", "q90 % du LR simulé sous δ = 1")))
+           all(vapply(.lr_annotations_q90(c(1, 3), NA_real_, 1L, LIB90$quantile_court), function(x) identical(x$yanchor, "bottom"), TRUE)) &&
+           length(.lr_annotations_q90(c(NA, 3), 2, 1L, LIB90$quantile_court)) == 1L &&
+           identical(.lr_annotations_q90(c(NA, 3), 2, 1L, LIB90$quantile_court)[[1]]$text, LIB90$quantile_court[2]) &&
+           identical(LIB90$quantile_court, c("q90 % du LR simulé sous δ = 0", "q90 % du LR simulé sous δ = 1")))
 if (requireNamespace("plotly", quietly = TRUE)) {
   # Objet plotly_build() : les annotations q90 sont celles de
   # .lr_annotations_q90(), le libelle du repere en dernier.
@@ -1007,10 +1011,101 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              length(an) == n + 1L &&
                all(vapply(seq_len(n), function(i) all(vapply(names(attendu[[i]]), function(nm)
                  isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])), TRUE)), TRUE)) &&
-               identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB_LR_ASYMPT_COURT)
+               identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB90$asympt_court)
            }, TRUE)))
 } else {
   cat("  note : plotly absent ; annotations q90 de l'objet plotly_build() non exercees (#195).\n")
+}
+
+## --- Issue #190 : niveau des reperes du profil de delta lu dans le moteur ---
+# Le niveau est porte par plots_data$lr_delta$niveau
+# (LR_DELTA_NIVEAU_REPERES) ; les cinq libelles (repere asymptotique long et
+# court, marques longues et courtes, legende base R) en sont construits par
+# .lr_libelles(). Niveau force a 0,95 : 95 % partout, aucun 90 % ; niveau
+# absent : libelles sans niveau, reperes traces.
+verifier("Profil de delta : niveau des reperes porte par le moteur (LR_DELTA_NIVEAU_REPERES = 0,90), libelles a 0,90 identiques aux textes anterieurs a #190",
+         identical(pd162$lr_delta$niveau, LR_DELTA_NIVEAU_REPERES) && LR_DELTA_NIVEAU_REPERES == 0.90 &&
+           identical(LIB90, list(
+             asympt = "repère asymptotique ½χ²(0) + ½χ²(1) à 90 % (Self & Liang 1987), aide de lecture",
+             asympt_court = "repère asymptotique ½χ²(0) + ½χ²(1) à 90 %, aide de lecture",
+             quantile = c("quantile 90 % du LR simulé sous δ = 0", "quantile 90 % du LR simulé sous δ = 1"),
+             quantile_court = c("q90 % du LR simulé sous δ = 0", "q90 % du LR simulé sous δ = 1"),
+             legende = "quantile 90 % du LR simulé sous δ = 0 / δ = 1")))
+pd190 <- pd162; pd190$lr_delta$niveau <- 0.95
+LIB95 <- .lr_libelles(0.95)
+a_90_190 <- function(x) any(grepl("90 %|90%", x))
+verifier("Profil de delta, libelles a niveau force 0,95 : les cinq portent 95 %, aucun 90 % (#190)",
+         all(vapply(LIB95, function(x) all(grepl("95 %", x, fixed = TRUE)), TRUE)) &&
+           !a_90_190(unlist(LIB95)) &&
+           identical(LIB95$quantile_court, c("q95 % du LR simulé sous δ = 0", "q95 % du LR simulé sous δ = 1")))
+verifier("Profil de delta, niveau absent ou non fini (objet anterieur a #190) : libelles sans niveau, sans 90 % suppose (#190)",
+         identical(.lr_libelles(NULL), .lr_libelles(NA_real_)) &&
+           !any(grepl("%", unlist(.lr_libelles(NULL)), fixed = TRUE)) &&
+           identical(.lr_libelles(NULL)$asympt_court, "repère asymptotique ½χ²(0) + ½χ²(1), aide de lecture"))
+rb190 <- releve_base162(function() plot_profil_delta(pd190))
+txt_base190 <- c(unlist(lapply(rb190$leg, `[[`, "texte")),
+                 gsub("\n", " ", unlist(lapply(rb190$txt, `[[`, "labels")), fixed = TRUE))
+verifier("Profil de delta, base R, niveau force a 0,95 : legende et libelle du repere a 95 %, aucun 90 % trace (#190)",
+         identical(unlist(lapply(rb190$leg, `[[`, "texte")), LIB95$legende) &&
+           LIB95$asympt_court %in% txt_base190 && !a_90_190(txt_base190))
+pd190na <- pd162; pd190na$lr_delta$niveau <- NULL
+rb190na <- releve_base162(function() plot_profil_delta(pd190na))
+verifier("Profil de delta, base R, niveau absent : legende et libelle sans niveau, reperes traces (#190)",
+         identical(unlist(lapply(rb190na$leg, `[[`, "texte")), .lr_libelles(NULL)$legende) &&
+           .lr_libelles(NULL)$asympt_court %in%
+             gsub("\n", " ", unlist(lapply(rb190na$txt, `[[`, "labels")), fixed = TRUE))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Profil de delta, plotly, niveau force a 0,95 : survols et annotations a 95 %, aucun 90 % (#190)",
+           {
+             b <- plotly::plotly_build(plot_profil_delta(pd190))
+             an <- vapply(b$x$layout$annotations, function(a) gsub("<br>", " ", a$text, fixed = TRUE), "")
+             survol <- unlist(lapply(b$x$data, function(t) t$text))
+             all(LIB95$quantile_court %in% an) && LIB95$asympt_court %in% an &&
+               LIB95$asympt %in% survol && all(LIB95$quantile %in% survol) &&
+               !a_90_190(c(an, survol))
+           })
+} else {
+  cat("  note : plotly absent ; libelles plotly du profil de delta a 0,95 non exerces (#190).\n")
+}
+verifier("display_helpers.R : aucun « 90 % » ni « 90% » litteral dans le code des reperes du profil de delta (#190)",
+         {
+           src <- readLines(file.path(.racine, "R", "display_helpers.R"), encoding = "UTF-8")
+           deb <- grep("^\\.lr_libelles <- function", src)
+           fin <- grep("^plot_surface_objectif <- function", src)
+           code <- sub("#.*$", "", src[deb:(fin - 1L)])
+           length(deb) == 1L && length(fin) == 1L && !a_90_190(code)
+         })
+# Etendue verticale du profil de delta (.lr_hauteurs(), #190) : courbe et
+# reperes, marge basse de 15 % et haute de 30 % de leur etendue quand les
+# reperes sont presents, etendue de la courbe seule sinon. Marque forcee au
+# bas (quantile du LR simule nul, marque a obj_min) : au moins
+# 0,15 / 1,45 (10,3 %) de l'etendue sous elle, place de son annotation plotly
+# sous la marque. Les deux traces lisent ces bornes : ylim du trace base R
+# (par("usr") les contient), ligne en delta estime du trace plotly.
+etendue190 <- function(pd) {
+  L <- pd$lr_delta
+  range(c(pd$profil_delta$objectif, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
+}
+yl190 <- .lr_hauteurs(pd162, pd162$profil_delta$objectif)
+r190 <- etendue190(pd162)
+pd190bas <- pd162; pd190bas$lr_delta$q90_bootstrap[["delta1"]] <- pd162$lr_delta$obj_min
+yl190bas <- .lr_hauteurs(pd190bas, pd190bas$profil_delta$objectif)
+pd190sans <- pd162; pd190sans$lr_delta <- NULL
+verifier("Profil de delta, .lr_hauteurs() : marges basse de 15 % et haute de 30 % avec reperes, etendue de la courbe seule sans reperes, marque au bas a au moins 10,3 % du bas du cadre, bornes lues par le trace base R (#190)",
+         isTRUE(all.equal(yl190, c(r190[1] - 0.15 * diff(r190), r190[2] + 0.30 * diff(r190)))) &&
+           isTRUE(all.equal(.lr_hauteurs(pd190sans, pd162$profil_delta$objectif),
+                            range(pd162$profil_delta$objectif, na.rm = TRUE))) &&
+           (min(pd190bas$lr_delta$q90_bootstrap) - yl190bas[1]) / diff(yl190bas) >= 0.15 / 1.45 - 1e-12 &&
+           rb162$usr[3] <= yl190[1] && rb162$usr[4] >= yl190[2])
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Profil de delta, plotly : ligne en delta estime tracee de .lr_hauteurs()[1] a .lr_hauteurs()[2], marge basse comprise (#190)",
+           {
+             b <- plotly::plotly_build(plot_profil_delta(pd162))
+             v <- Filter(function(t) identical(as.numeric(t$x), rep(pd162$delta_estime, 2)), b$x$data)
+             length(v) == 1L && isTRUE(all.equal(as.numeric(v[[1]]$y), yl190))
+           })
+} else {
+  cat("  note : plotly absent ; ligne en delta estime du trace plotly non exercee (#190).\n")
 }
 
 ## --- Vue Detail et annexe des tests exclus (issue #178) -----------------------

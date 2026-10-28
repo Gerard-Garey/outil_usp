@@ -707,6 +707,10 @@ server <- function(input, output, session) {
   # et les champs du navigateur pouvaient garder la saisie.
   version_grille <- reactiveVal(0L)
   selection <- reactiveVal(NULL)             # personnalisation des tests
+  # Table des tests du dernier calcul abouti : sert aux boutons "Tout conserver"
+  # et "Tout retirer" pendant un refus, ou TB() est indisponible (#380).
+  table_tests_gardee <- reactiveVal(NULL)
+  version_tests <- reactiveVal(0L)           # numero du calcul, dans les identifiants du panneau (#380)
   # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
   dernier_refus <- reactiveVal(NULL)
   est_mw <- reactive(identical(input$methode, "reserve2"))
@@ -740,7 +744,9 @@ server <- function(input, output, session) {
   # doit plus pouvoir etre exporte) et on enregistre le motif, qui provient du
   # moteur. Aucune regle metier ici : l'interface ne fait que restituer.
   refuser <- function(titre, motifs) {
-    resultat(NULL); selection(NULL)
+    # La selection est gardee (#380, decision du 27/10/2026) : TB() exige un
+    # resultat, et selection_reportee() la filtre au calcul suivant.
+    resultat(NULL)
     dernier_refus(list(titre = titre, motifs = as.character(motifs)))
   }
 
@@ -764,7 +770,15 @@ server <- function(input, output, session) {
       return(FALSE)
     }
     if (isTRUE(res$ok)) {
-      resultat(res); selection(NULL); dernier_refus(NULL)
+      # Personnalisation gardee ligne par ligne (#380, decision du 27/10/2026) :
+      # une ligne qui existe encore dans ce calcul garde sa case et sa base,
+      # une ligne nouvelle prend son defaut ; le numero du calcul change les
+      # identifiants du panneau (aucune valeur perimee du navigateur n'est lue).
+      tb_res <- engine_table_tests(res)
+      selection(selection_reportee(selection(), tb_res))
+      table_tests_gardee(tb_res)
+      version_tests(version_tests() + 1L)
+      resultat(res); dernier_refus(NULL)
       return(TRUE)
     }
     # Tous les motifs du moteur, sans plafond (issue #287, option (a)).
@@ -1269,20 +1283,39 @@ server <- function(input, output, session) {
     if (is.null(s)) selection_defaut(tb) else s
   })
 
-  observeEvent(input$sel_defaut, selection(NULL))
-  observeEvent(input$sel_tout, { s <- sel_courante(); s$garde <- TRUE; selection(s) })
-  observeEvent(input$sel_rien, { s <- sel_courante(); s$garde <- FALSE; selection(s) })
+  # Les trois boutons changent le numero du calcul des identifiants du panneau
+  # (#380) : sans cela, l'observateur ci-dessous relirait, dans le meme flush,
+  # les cases du rendu precedent et defairait la selection posee ici.
+  # Les trois boutons s'appliquent aussi apres un calcul refuse (resultat()
+  # NULL, donc TB() indisponible) : "Retablir" remet la selection a NULL, et
+  # "Tout conserver" / "Tout retirer" partent de la selection gardee, ou, faute
+  # de personnalisation, du defaut de la table du dernier calcul abouti ;
+  # selection_reportee() la filtre au calcul suivant. Sans calcul abouti ni
+  # selection, il n'y a rien a appliquer et le panneau le dit.
+  poser_garde <- function(garde) {
+    s <- selection()
+    if (is.null(s)) {
+      tb <- if (!is.null(resultat())) TB() else table_tests_gardee()
+      if (is.null(tb)) return(invisible())
+      s <- selection_defaut(tb)
+    }
+    s$garde <- garde; selection(s); version_tests(version_tests() + 1L)
+  }
+  observeEvent(input$sel_defaut, { selection(NULL); version_tests(version_tests() + 1L) })
+  observeEvent(input$sel_tout, poser_garde(TRUE))
+  observeEvent(input$sel_rien, poser_garde(FALSE))
 
   # Le panneau lit les cases a cocher et les boutons radio, et met a jour
   # l'objet de selection. Aucun recalcul n'est declenche : le moteur a deja
   # produit toutes les lignes.
   observe({
-    tb <- TB(); s <- sel_courante(); modif <- FALSE
+    tb <- TB(); s <- sel_courante(); modif <- FALSE; v <- version_tests()
+    cles <- cle_ligne_test(tb)
+    idg <- id_entree_test("g_test", cles, v); idb <- id_entree_test("b_test", cles, v)
     for (k in seq_len(nrow(tb))) {
-      idg <- paste0("g_test_", k); idb <- paste0("b_test_", k)
-      vg <- input[[idg]]
+      vg <- input[[idg[k]]]
       if (!is.null(vg) && !identical(vg, s$garde[k])) { s$garde[k] <- vg; modif <- TRUE }
-      vb <- input[[idb]]
+      vb <- input[[idb[k]]]
       if (!is.null(vb) && tb$base[k] != "commun" && !identical(vb, s$base[k])) {
         s$base[k] <- vb; modif <- TRUE
       }
@@ -1291,7 +1324,21 @@ server <- function(input, output, session) {
   })
 
   output$panneau_personnalisation <- renderUI({
-    tb <- TB(); s <- sel_courante()
+    # Calcul refuse ou non lance : pas de table a personnaliser (#380).
+    if (is.null(resultat())) {
+      if (is.null(selection()) && is.null(table_tests_gardee()))
+        return(div(class = "avert", paste(
+          "Aucun resultat de calcul : la liste des tests n'est affichee qu'apres un calcul",
+          "abouti. Aucun calcul n'a encore abouti : les boutons ci-dessus sont sans effet.")))
+      return(div(class = "avert", paste(
+        "Aucun resultat de calcul : la liste des tests n'est affichee qu'apres un calcul",
+        "abouti. La personnalisation deja faite est gardee, les trois boutons ci-dessus",
+        "s'appliquent a elle, et elle est reportee ligne par ligne au calcul suivant.",
+        "Si la methode a change depuis le dernier calcul abouti, les tests qu'il ne",
+        "comportait pas reprennent leur selection par defaut.")))
+    }
+    tb <- TB(); s <- sel_courante(); v <- version_tests()
+    cles <- cle_ligne_test(tb)
     # Les tests declines en deux bases sont apparies par leur libelle de base.
     blocs <- lapply(cles_groupes(), function(k) {
       idx <- which(vapply(tb$famille, function(f) groupe_de(f)$cle, character(1)) == k)
@@ -1302,12 +1349,12 @@ server <- function(input, output, session) {
         sec <- if (tb$variante[r] == "secondaire")
           span(style = "color:#B9770E;font-size:11px", " [variante secondaire]") else NULL
         bas <- if (tb$base[r] != "commun")
-          radioButtons(paste0("b_test_", r), NULL, inline = TRUE,
+          radioButtons(id_entree_test("b_test", cles[r], v), NULL, inline = TRUE,
                        choices = c("z_t" = "z", "ratios" = "r"),
                        selected = s$base[r])
         else div(style = "color:#AAA;font-size:11px;padding-top:6px", "base unique")
         fluidRow(
-          column(1, checkboxInput(paste0("g_test_", r), NULL, value = s$garde[r])),
+          column(1, checkboxInput(id_entree_test("g_test", cles[r], v), NULL, value = s$garde[r])),
           column(8, div(style = "padding-top:6px", etiq, sec)),
           column(3, bas))
       })
@@ -1471,18 +1518,20 @@ server <- function(input, output, session) {
 
   # --- Calibration ----------------------------------------------------------
   output$bloc_final <- renderUI({
-    r <- R(); p <- r$parametre_final; ic <- r$ic_bootstrap
+    r <- R(); p <- r$parametre_final; tic <- textes_ic_bootstrap(r)
     tagList(
       # Virgule decimale (#236) ; bornes d'intervalle separees par " ; ".
       div(HTML(sprintf("<span class='cle'>sigma_USP = %s</span>", .num_fr(p$sigma_usp, "%.4f")))),
       div(HTML(sprintf("soit %s %% par rapport au parametre standard de %s",
                        .num_fr(100 * p$variation_relative, "%+.1f"),
                        .num_fr(p$sigma_standard, "%.4f")))),
-      if (!is.null(ic))
-        div(style = "margin-top:6px", HTML(sprintf(
-          "Intervalle bootstrap 90 %% : [%s ; %s] &nbsp;|&nbsp; 95 %% : [%s ; %s]",
-          .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
-          .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")))),
+      # Intervalles bootstrap et note de couverture (issue #305, Q-D2-Fn-3 (A)),
+      # textes partages avec le rapport fige (textes_ic_bootstrap()).
+      if (!is.null(tic))
+        lapply(seq_along(tic$lignes), function(k)
+          div(style = if (k == 1L) "margin-top:6px", HTML(tic$lignes[k]))),
+      if (!is.null(tic))
+        div(style = "margin-top:4px;color:#7F8C8D;font-size:12.5px", tic$note),
       # Texte propre a chaque methode (texte_formule, R/display_helpers.R),
       # partage avec le rapport fige : le facteur sqrt((T+1)/(T-1)) ne
       # concerne que les methodes lognormales (#4, piste 4).

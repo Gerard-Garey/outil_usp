@@ -151,3 +151,70 @@ Attributions du rapport, **non contrôlées dans l'ouvrage** :
 - **Construction du § 2.1** : confirmée par la source secondaire (§ 3.4) ; l'écart [X] du corps de #297 est déjà réglé par le commentaire `6395430599`.
 
 *Aucune page, équation ni citation n'a été ajoutée hors du texte lu.*
+
+---
+
+# Relevé du 27/10/2026
+
+> *Rédigé par Claude (session de relevé de sources, accès internet par le proxy de la session), le 27/10/2026, sur commande de la session principale de Fn et décision du mainteneur du 27/10/2026 (Q-42-12). Branche `claude/incertitude-bootstrap-graphiques` (PR brouillon #384). Le relevé du 25/10 ci-dessus est conservé ; ce qui suit le complète sur Westfall et Young (1993).*
+
+## R27.0 Statuts au 27/10/2026 (ancien → nouveau)
+
+| # | Affirmation | Lieu (tête `c564324`) | Ce qui est vérifié le 27/10 | Statut |
+|---|---|---|---|---|
+| 1 | Notice Westfall et Young (1993) | `doc_tests_usp.tex:17497-17499`, `:19341-19342` | Google Books (titre, auteurs, Wiley) | [V] → [V] |
+| 2 | Contenu de l'ouvrage | spéc. Fk § 0, § 4.5 ; `doc_tests_usp.tex:17497-17499` (« cité pour le nom et l'origine de la procédure, non relu ») | p. 42-43, 49, 67, 116-117 lues ; p. 41, 44-48, 50-51, 65-66, 68 non servies par l'aperçu | [NV] → **[P+]** : pages lues, minP en une étape non lue |
+| 3h-a | Pivotalité des sous-ensembles « p. 42 » (attribution de Ge, Dudoit et Speed) | rapport GDS p. 12 | p. 42, condition 2.1 | [P] → **[V]** |
+| 3h-b | « p. 50 » (maxT déséquilibrés) | rapport GDS p. 13 | p. 50 non servie | [P] → [P] |
+| 3h-c | Section 2.8, preuve du contrôle fort | rapport GDS p. 14 | non lue | [P] → [P] |
+| 3h-d | « Algorithme 2.8, p. 66-67 », minP pas à pas | rapport GDS p. 17 (Box 3) | p. 67 : fin de l'algorithme 2.8 (monotonie) et algorithme 2.9 (minima successifs) ; p. 66 non servie | [P] → **[V]** pour la p. 67 ; début de l'algorithme [P] |
+| 3h-e | « Algorithme 4.1, p. 116-117 », maxT pas à pas | rapport GDS p. 16 (Box 2) | p. 116-117 | [P] → **[V]** |
+
+## R27.1 Source et méthode
+
+| Source | URL | Résultat |
+|---|---|---|
+| Google Books, *Resampling-Based Multiple Testing: Examples and Methods for p-Value Adjustment*, P. H. Westfall et S. S. Young, identifiant `nuQXORVGI1QC` (trouvé par `https://books.google.com/books?vid=ISBN0471557617`, HTTP 200) | `https://books.google.com/books?id=nuQXORVGI1QC&pg=PA<n>` | HTTP 200 ; **aperçu limité autorisé par l'éditeur** (« Pages displayed by permission of John Wiley & Sons ») ; plusieurs pages remplacées par « You have either reached a page that is unavailable for viewing or reached your viewing limit for this book » |
+
+Pages rendues par Chromium (Playwright) et lues **sur l'image**. Servies : p. 42, 43, 49, 67, 116, 117. Non servies (pages blanches de l'aperçu) : p. 41, 44, 46-48, 50, 51, 65, 66, 68 ; p. 45 non demandée. Aucune copie tierce, aucun fichier source dans le dépôt.
+
+## R27.2 Ce qui est lu
+
+### Pivotalité des sous-ensembles (§ 2.2.3, p. 42-43)
+
+- P. 42, « Condition 2.1 Subset Pivotality » : « The distribution of **P** has the *subset pivotality* property if the joint distribution of the subvector {P_i; i ∈ K} is identical under the restrictions ∩_{i∈K} H_{0i} and H_0^C, for all subsets K = {i₁, …, i_j} of true null hypotheses. »
+- P. 42 : « when subset pivotality holds, it will be shown that such resampling-based methods control the FWE in the *strong* sense (at least approximately, under asymptotic subset pivotality). Without this condition, resampling under H_0^C can be assumed to control only the FWEC. » Condition 2.2, pivotalité asymptotique, même page.
+- P. 43, exemple 2.1 (statistiques t de moyennes, normale multivariée : la condition tient) ; exemple 2.2 (tests de corrélations nulles : « the subset pivotality condition fails »).
+
+**Confrontation.** C'est l'énoncé que Ge, Dudoit et Speed attribuent à « Westfall & Young 1993, p. 42 » (§ 3.2) : **attribution exacte [V]**. Notation de l'ouvrage : H_0^C pour l'hypothèse nulle complète (H_M chez Ge, Dudoit et Speed), FWEC pour le contrôle sous l'hypothèse nulle complète (contrôle faible). La lecture de la spécification Fk (« contrôle […] au sens faible ; le contrôle au sens fort et la condition de pivotalité des sous-ensembles ne sont pas en cause », `fk-lecture-conjointe.md:90`) est **conforme** à la p. 42 : sans pivotalité, le rééchantillonnage sous H_0^C ne garantit que le contrôle sous H_0^C.
+
+### Méthodes en une étape (§ 2.3, p. 43 et 49)
+
+- P. 43 : « single-step methods are simultaneous test procedures, or STP's, that perform equivalent multiplicity adjustments for all tests, regardless of the *ordering* of the observed p-values ».
+- P. 49, tableau 2.3 : erreur standard de p̃_i^{(N)} selon N (par exemple 0,0069 pour p̃ = 0,05 à N = 1 000). Algorithme 2.6 (« Normal Linear Model Application ») : données simulées y\*_ij = ε\*_ij i.i.d. N(0, 1) (éq. (2.7)), statistiques t\*_l et p\*_l de la loi de Student. Texte : sous pivotalité, « the joint distributions of the p-value vectors **P** and **P\*** are also identical ».
+- **La définition du minP en une étape (pages précédant la p. 49 et p. 47-48) n'est pas servie** : elle reste lue par la seule source secondaire (Ge, Dudoit et Speed, éq. (10), § 3.2).
+
+### minP pas à pas (p. 67, titre courant « Step-down methods for free combinations »)
+
+- P. 67, étape 5 de l'algorithme 2.8 : monotonie par maximisation successive, p̃_(2)^{(N)} ← max(p̃_(1)^{(N)}, p̃_(2)^{(N)}), etc. ; « N ≥ 10,000 is recommended ». Calcul de toutes les Pr(min_{l∈{r_j,…,r_k}} P_l ≤ p_(j) | H_0^C) « within the *same* simulation ».
+- Algorithme 2.9 (« A Specific Step-Down Illustration ») : minima successifs q\*_5 = p\*_5, q\*_4 = min(q\*_5, p\*_3), …, q\*_1 = min(q\*_2, p\*_2), dans l'ordre des p observées.
+- **Le début de l'algorithme 2.8 (p. 66) n'est pas servi.** Concorde avec ce que Ge, Dudoit et Speed reproduisent dans leur Box 3 (§ 3.4) : [V] pour la p. 67.
+
+### maxT pas à pas (§ 4, p. 116-117)
+
+- Algorithme 4.1 (« Multivariate Permutation Resampling of t-Statistics ») : permutation des vecteurs entiers ; statistiques t\*_k ; maxima successifs u\*_3 = t\*_2, u\*_2 = max(u\*_3, t\*_1), u\*_1 = max(u\*_2, t\*_3) ; **étape 4 : « If u\*_i ≥ t_(i), then COUNT_i ← COUNT_i + 1 »** ; p̃_i^{(N)} = COUNT_i/N ; monotonie par maximisation successive.
+- P. 116 : « the resampled multiplicity-adjusted p-values are exact (up to simulation error) even if the unadjusted p-values are not », dans le cadre de permutation de cet exemple.
+- P. 117 : avec N = 100 000, p ajustée 0,0997, erreur standard {0,0997(1 − 0,0997)/100 000}^{1/2} = 0,00095.
+
+**Confrontation.**
+- Le compte « ≥ » de l'étape 4 (maxT) correspond, pour minP, au compte « ≤ » de la spécification Fk § 2.1 (`fk-lecture-conjointe.md:174-184`) : les ex æquo sont comptés contre l'hypothèse. **Conforme [V].**
+- Le dénominateur de l'ouvrage est **N**, nombre de rééchantillons, sans l'observé. La spécification et Ge, Dudoit et Speed (éq. (16)) comptent l'observé parmi les items (dénominateur n + 1, ou B observé compris). C'est un écart de convention, **sans [X]** : la spécification suit Ge, Dudoit et Speed et Dwass (1957) pour l'exactitude à B fini, et non l'algorithme 4.1.
+- L'exactitude « up to simulation error » de la p. 116 vaut pour un **rééchantillonnage par permutation**. Rien dans les pages lues ne porte sur un bootstrap paramétrique sous un modèle ajusté, ni sur des statistiques discrètes. La phrase du `.tex` « cité pour le nom et l'origine de la procédure » (`doc_tests_usp.tex:17497-17499`) reste juste.
+
+## R27.3 Ce qui reste non lu
+
+Définition du minP en une étape (p. 47-48 ou voisines), p. 50 (maxT déséquilibrés), section 2.8 (preuve du contrôle fort), p. 66 (début de l'algorithme 2.8), traitement des statistiques discrètes et des ex æquo hors de l'étape 4 de l'algorithme 4.1. Voie : l'aperçu Google Books plafonne les pages servies ; ouvrage complet par achat (Wiley) ou prêt.
+
+**Conséquence pour le `.tex`** : la mention « non relu » de `doc_tests_usp.tex:17497-17499` peut devenir « lu en partie (p. 42-43, 49, 67, 116-117, aperçu de l'éditeur, 27 octobre 2026) » ; la p ajustée minP en une étape reste attribuée à l'ouvrage par Ge, Dudoit et Speed (2003, éq. (10)). Décision au passage de `docwriter`.
+
+*Citations et formules lues sur le rendu graphique des pages de l'aperçu ; rien n'est rapporté des pages non servies.*

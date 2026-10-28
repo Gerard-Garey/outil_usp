@@ -65,7 +65,15 @@
 #   - option usp.graphiques_base (issue #295) : sortie_graphique() et
 #     rendu_graphique() lisent .plotly_dispo() (lecture du code) ;
 #     sortie_graphique() en base R sous l'option, plotly simule installe ;
-#     avec shiny, rendu_graphique() en base R sous l'option.
+#     avec shiny, rendu_graphique() en base R sous l'option ;
+#   - personnalisation de l'onglet Tests et nouveau calcul (issue #380,
+#     personnalisation gardee ligne par ligne) : cle_ligne_test(),
+#     id_entree_test() et selection_reportee() hors Shiny ; avec shiny,
+#     scenarios S0 (aucune case touchee), S1 (Pitman decochee en premium puis
+#     reserve no 2, retour en premium) et S2 (relance de meme methode), les
+#     trois boutons de selection (Tout retirer, Tout conserver, Retablir la
+#     selection par defaut) et la personnalisation gardee a travers un calcul
+#     refuse.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -462,6 +470,39 @@ for (.x in .fn_graph) if (identical(as.character(.x[[2]]), "sortie_graphique")) 
 options(.op295)
 verifier("sortie_graphique() : option usp.graphiques_base posee, plotly simule installe -> plotOutput (#295)",
          identical(.so295, c(base = "p")))
+
+## --- Cle de ligne et report de la selection (issue #380) ------------------------
+.dh380 <- new.env()
+sys.source(file.path(.racine, "R", "display_helpers.R"), envir = .dh380)
+# Table minimale au format de engine_table_tests() (famille, test, base,
+# variante) : trois lignes, dont un test decline en deux bases.
+.tb380 <- data.frame(famille = c("M1. a", "M1. a", "M2. b"),
+                     test = c("T1", "T2", "T1"), base = c("commun", "z", "r"),
+                     variante = c("principale", "principale", "secondaire"),
+                     stringsAsFactors = FALSE)
+verifier("cle_ligne_test() : famille, test et base concatenes, une cle par ligne (#380)",
+         identical(.dh380$cle_ligne_test(.tb380),
+                   c("M1. a | T1 | commun", "M1. a | T2 | z", "M2. b | T1 | r")))
+.id380 <- .dh380$id_entree_test("g_test", .dh380$cle_ligne_test(.tb380), 3L)
+verifier("id_entree_test() : prefixe et numero du calcul, reste [0-9a-z_], injectif, accents compris (#380)",
+         all(grepl("^g_test_3_[0-9a-f]+$", .id380)) && !anyDuplicated(.id380) &&
+           !identical(.dh380$id_entree_test("g_test", "a", 3L), .dh380$id_entree_test("g_test", "a", 4L)) &&
+           grepl("^b_test_1_[0-9a-f]+$", .dh380$id_entree_test("b_test", "\u00e9t\u00e9 | x", 1L)))
+# Largeur fixe : avec "%x", "\u03b45" et ";\u0435" donnaient tous deux 3b435 (mesure
+# du 28/10/2026) ; avec "%06x", six chiffres par caractere.
+.col380 <- .dh380$id_entree_test("g_test", c("\u03b45", ";\u0435"), 1L)
+verifier("id_entree_test() : codes de largeurs differentes accoles sans collision ('\u03b45' et ';\u0435'), six chiffres hexadecimaux par caractere (#380)",
+         !anyDuplicated(.col380) &&
+           identical(.col380, c("g_test_1_0003b4000035", "g_test_1_00003b000435")))
+.s380 <- .dh380$selection_defaut(.tb380); .s380$garde[1] <- FALSE; .s380$base[2] <- "r"
+.tb380b <- rbind(.tb380[c(2, 3), ], data.frame(famille = "M9. n", test = "T9", base = "commun",
+                                                variante = "principale", stringsAsFactors = FALSE))
+.r380 <- .dh380$selection_reportee(.s380, .tb380b)
+verifier("selection_reportee() : ligne qui subsiste gardee, ligne nouvelle au defaut, ligne disparue ignoree (#380)",
+         identical(.r380$cle, .dh380$cle_ligne_test(.tb380b)) && identical(.r380$garde, c(TRUE, FALSE, TRUE)) &&
+           identical(.r380$base, c("r", "z", "commun")) && is.null(.dh380$selection_reportee(NULL, .tb380b)))
+verifier("selection_defaut() : cle = cle_ligne_test(), alignement lu par rapport_html() (#380)",
+         identical(.dh380$selection_defaut(.tb380)$cle, .dh380$cle_ligne_test(.tb380)))
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -873,6 +914,15 @@ testServer(app, {
       grepl("90 % : \\[[0-9]+,[0-9]{4} ; [0-9]+,[0-9]{4}\\]", bf) &&
       grepl(gsub("(\\d)\\.(\\d)", "\\1,\\2", sprintf("95 %% : [%.4f ; %.4f]", ic[1], ic[5])), bf, fixed = TRUE) &&
       !grepl("[0-9]\\.[0-9]", gsub("style=\"[^\"]*\"", "", bf)))
+  # Libelles des intervalles bootstrap (issue #305, Q-D2-Fn-3 (A)) : ligne
+  # de percentile "niveau nominal", ligne "basic" sur l'echelle
+  # logarithmique dessous, note grise ; ancien libelle absent.
+  i_pc <- regexpr("Intervalle bootstrap de percentile, niveau nominal 90 % : [", bf, fixed = TRUE)
+  i_bl <- regexpr("Intervalle bootstrap « basic » sur l'échelle logarithmique, niveau nominal 90 % : [",
+                  bf, fixed = TRUE)
+  a("bloc du parametre : intervalle de percentile 'niveau nominal', intervalle basic sur l'echelle logarithmique dessous, note grise des niveaux nominaux (#305)",
+    i_pc > 0 && i_bl > i_pc && grepl("Niveaux nominaux. À T = 8, sous les modèles", bf, fixed = TRUE) &&
+      !grepl("Intervalle bootstrap 90 %", bf, fixed = TRUE))
   jo <- output$tab_meta
   a("journal : sigma standard, granularite et alpha en virgule decimale (#236)",
     grepl("sigma standard       : 0,1 ", jo, fixed = TRUE) &&
@@ -891,6 +941,205 @@ testServer(app, {
     identical(notifs236, "Ligne t = 8 retiree (x_t = 131,22 ; y_t = 117,37)."))
 })
 rm("showNotification", envir = ea)
+)---"
+  # Personnalisation de l'onglet Tests et nouveau calcul (issue #380, decision
+  # du mainteneur du 27/10/2026 : personnalisation gardee ligne par ligne,
+  # cle (famille, test, base)). Le navigateur est simule : le panneau rendu
+  # (output$panneau_personnalisation) est relu et ses cases et radios sont
+  # renvoyees au serveur ; les entrees du rendu precedent restent dans
+  # input, comme dans le navigateur. Mesure avant correction (27/10/2026,
+  # testServer, shiny 1.8.0) : S0 et S1 echouent (entrees g_test_k lues par
+  # indice sur la nouvelle table).
+  .bloc_380 <- r"---(
+## Personnalisation de l'onglet Tests et nouveau calcul (issue #380)
+panneau <- function(output) {
+  h <- as.character(output$panneau_personnalisation$html)
+  ch <- strsplit(h, '<div class="row">', fixed = TRUE)[[1]][-1]
+  boite <- sub('(?s).*?(<input id="g_test_[^>]*>).*', "\\1", ch, perl = TRUE)
+  data.frame(id = sub('^<input id="([^"]*)".*', "\\1", boite),
+             garde = grepl('checked="checked"', boite, fixed = TRUE),
+             texte = sub('(?s).*?padding-top:6px">([^<]*).*', "\\1", ch, perl = TRUE),
+             stringsAsFactors = FALSE)
+}
+radios <- function(output) {
+  h <- as.character(output$panneau_personnalisation$html)
+  r <- regmatches(h, gregexpr('<input type="radio" name="b_test_[^"]*" value="[zr]" checked="checked"', h))[[1]]
+  setNames(as.list(sub('.*value="([zr])".*', "\\1", r)), sub('.*name="([^"]*)".*', "\\1", r))
+}
+envoyer <- function(session, output) {
+  p <- panneau(output)
+  do.call(session$setInputs, c(setNames(as.list(p$garde), p$id), radios(output)))
+  p
+}
+tri380 <- function(session, tr) {
+  k <- which(!is.na(tr), arr.ind = TRUE)
+  do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+}
+# Bascule en reserve no 2, comme la session cloud et le navigateur : grille du
+# triangle relue avant le calcul.
+vers_reserve2 <- function(session, triangle, go) {
+  session$setInputs(methode = "reserve2", reinit = go)
+  tri380(session, triangle())
+  session$setInputs(go = go)
+}
+d380 <- ea$DONNEES_DEFAUT
+saisie380 <- c(setNames(as.list(d380$xt), paste0("x_", seq_len(nrow(d380)))),
+               setNames(as.list(d380$yt), paste0("y_", seq_len(nrow(d380)))))
+# S0 : aucune action de l'utilisateur, panneau affiche une fois.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  n1 <- nrow(TB()); tb1 <- TB()
+  vers_reserve2(session, triangle, 2)
+  p2 <- envoyer(session, output)
+  def <- selection_defaut(TB())
+  a("S0 : premium (52 lignes) puis reserve no 2 (25 lignes), aucune case touchee : selection par defaut de reserve no 2 (#380)",
+    n1 == 52L && nrow(TB()) == 25L && identical(sel_courante(), def) &&
+      sum(p2$garde) == sum(def$garde) && nrow(p2) == 25L)
+  a("S0 : cle de ligne (famille, test, base) unique sur premium et sur reserve no 2 (#380)",
+    !anyDuplicated(paste(TB()$famille, TB()$test, TB()$base)) &&
+      !anyDuplicated(paste(tb1$famille, tb1$test, tb1$base)))
+})
+# S1 : case Pitman decochee en premium, puis reserve no 2.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  i <- grep("Pitman", p1$texte)
+  tb1 <- TB()
+  l1 <- which(grepl("Pitman", tb1$test))
+  do.call(session$setInputs, setNames(list(FALSE), p1$id[i]))
+  a("S1 : la case Pitman decochee en premium est prise en compte (#380)",
+    length(i) == 1L && length(l1) == 1L && !sel_courante()$garde[l1] &&
+      sum(!sel_courante()$garde) == sum(!selection_defaut(tb1)$garde) + 1L)
+  vers_reserve2(session, triangle, 2)
+  p2 <- envoyer(session, output)
+  def <- selection_defaut(TB())
+  m1 <- which(grepl("p de famille", TB()$test) & grepl("^M1", TB()$famille))
+  a("S1 : reserve no 2 apres Pitman decochee en premium : aucune ligne decochee a tort, selection par defaut (#380)",
+    identical(sel_courante(), def) && sum(p2$garde) == sum(def$garde))
+  a("S1 : p de famille de M1 (lecture conjointe) reste cochee (#380)",
+    length(m1) == 1L && sel_courante()$garde[m1])
+  # La ligne Pitman n'existait pas au calcul intermediaire : retour en premium
+  # a son defaut, sans reprendre la valeur perimee du rendu d'origine.
+  session$setInputs(methode = "premium", reinit = 3)
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 3)
+  p3 <- envoyer(session, output)
+  a("S1 : retour en premium, la ligne Pitman absente du calcul intermediaire reprend son defaut (#380)",
+    identical(sel_courante(), selection_defaut(TB())) && sum(p3$garde) == sum(selection_defaut(TB())$garde))
+})
+# S2 : relance de la meme methode, personnalisation gardee ligne par ligne.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  i <- grep("Pitman", p1$texte); l <- which(grepl("Pitman", TB()$test))
+  do.call(session$setInputs, setNames(list(FALSE), p1$id[i]))
+  session$setInputs(go = 2)
+  p2 <- envoyer(session, output)
+  def <- selection_defaut(TB()); s <- sel_courante()
+  a("S2 : relance de meme methode, la ligne decochee reste decochee (#380)",
+    length(l) == 1L && !s$garde[l] && !p2$garde[grep("Pitman", p2$texte)])
+  a("S2 : relance de meme methode, les autres lignes restent a leur defaut (#380)",
+    identical(s$garde[-l], def$garde[-l]) && identical(s$base, def$base) &&
+      sum(p2$garde) == sum(def$garde) - 1L)
+})
+# C1 : les trois boutons de l'onglet Personnalisation. Clic, puis relecture du
+# panneau rendu (le navigateur renvoie ses cases). Avant correction, les cases
+# du rendu precedent etaient relues dans le meme flush et defaisaient le clic.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  def <- selection_defaut(TB())
+  envoyer(session, output)
+  session$setInputs(sel_rien = 1)
+  pr <- envoyer(session, output)
+  a("bouton Tout retirer : aucune ligne conservee, panneau et selection (#380)",
+    !any(sel_courante()$garde) && !any(pr$garde) && nrow(pr) == 52L)
+  session$setInputs(sel_tout = 1)
+  pt <- envoyer(session, output)
+  a("bouton Tout conserver : toutes les lignes conservees, panneau et selection (#380)",
+    all(sel_courante()$garde) && all(pt$garde) && nrow(pt) == 52L)
+  do.call(session$setInputs, setNames(list(FALSE), pt$id[grep("Pitman", pt$texte)]))
+  session$setInputs(sel_defaut = 1)
+  pd <- envoyer(session, output)
+  a("bouton Retablir la selection par defaut : selection par defaut, panneau et selection (#380)",
+    identical(sel_courante(), def) && sum(pd$garde) == sum(def$garde) && is.null(selection()))
+})
+# C2 : un calcul refuse entre deux calculs valides ne remet pas la
+# personnalisation a zero (marge theta vide : refus du moteur avant le calcul).
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  l <- which(grepl("Pitman", TB()$test))
+  do.call(session$setInputs, setNames(list(FALSE), p1$id[grep("Pitman", p1$texte)]))
+  session$setInputs(theta_equiv = NA, go = 2)
+  refuse <- is.null(resultat())
+  session$setInputs(theta_equiv = 0.10, go = 3)
+  p3 <- envoyer(session, output)
+  def <- selection_defaut(TB()); s <- sel_courante()
+  a("calcul refuse entre deux calculs valides : la ligne decochee reste decochee, les autres au defaut (#380)",
+    refuse && isTRUE(resultat()$ok) && length(l) == 1L && !s$garde[l] &&
+      identical(s$garde[-l], def$garde[-l]) && sum(p3$garde) == sum(def$garde) - 1L)
+})
+# C3 : "Tout conserver" et "Tout retirer" apres un calcul refuse (resultat()
+# NULL, TB() indisponible) : avant correction, req(resultat()) perdait le clic,
+# alors que "Retablir" s'appliquait.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  l <- which(grepl("Pitman", TB()$test))
+  do.call(session$setInputs, setNames(list(FALSE), p1$id[grep("Pitman", p1$texte)]))
+  session$setInputs(theta_equiv = NA, go = 2)
+  refuse <- is.null(resultat())
+  txt <- as.character(output$panneau_personnalisation$html)
+  session$setInputs(sel_tout = 1)
+  garde_tout <- all(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 3)
+  p3 <- envoyer(session, output)
+  a("Tout conserver apres un calcul refuse : la ligne Pitman decochee est cochee au calcul suivant, panneau et selection (#380)",
+    refuse && garde_tout && isTRUE(resultat()$ok) && all(sel_courante()$garde) && all(p3$garde) &&
+      nrow(p3) == 52L)
+  a("panneau de personnalisation apres un calcul refuse : texte explicatif, aucune case (#380)",
+    grepl("Aucun resultat de calcul", txt, fixed = TRUE) && !grepl("g_test_", txt, fixed = TRUE))
+  session$setInputs(theta_equiv = NA, go = 4)
+  refuse2 <- is.null(resultat())
+  session$setInputs(sel_rien = 1)
+  garde_rien <- !any(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 5)
+  p5 <- envoyer(session, output)
+  a("Tout retirer apres un calcul refuse : aucune ligne conservee au calcul suivant (#380)",
+    refuse2 && garde_rien && isTRUE(resultat()$ok) && !any(sel_courante()$garde) && !any(p5$garde))
+})
+# C3 bis : sans personnalisation avant le refus (selection NULL), le clic part du
+# defaut de la table du dernier calcul abouti ; sans calcul abouti, rien ne change.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(sel_rien = 1)
+  vide <- is.null(selection())
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  def <- selection_defaut(TB())
+  session$setInputs(theta_equiv = NA, go = 2)
+  session$setInputs(sel_rien = 2)
+  garde_rien <- !is.null(selection()) && !any(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 3)
+  p3 <- envoyer(session, output)
+  a("Tout retirer sans calcul abouti : sans effet ; apres un refus sans personnalisation : part du defaut du dernier calcul (#380)",
+    vide && garde_rien && isTRUE(resultat()$ok) && !any(sel_courante()$garde) && !any(p3$garde) &&
+      sum(p1$garde) == sum(def$garde))
+})
 )---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
@@ -1011,7 +1260,7 @@ rm("showNotification", envir = ea)
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1028,8 +1277,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 66 assertions rendues", length(.lignes) == 66L)
-  if (length(.lignes) != 66L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 83 assertions rendues", length(.lignes) == 83L)
+  if (length(.lignes) != 83L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

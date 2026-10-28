@@ -4972,8 +4972,9 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
        n_echec_restreint = n_echec_r,
        # Residus reajustes z* des replications (issue #47, option A) : matrice
        # B x T, ligne b remplie si et seulement si la replication b est
-       # retenue (sim[b, ] rempli), NA sinon. Source de l'enveloppe du
-       # QQ-plot (engine_enveloppe_qq()). En fin de liste.
+       # retenue (sim[b, ] rempli), NA sinon. Source des enveloppes du
+       # QQ-plot (engine_enveloppe_qq()) et du graphique dispersion-niveau
+       # (engine_enveloppe_spread(), #306). En fin de liste.
        z_boot = zb,
        # Variante de la p-value Monte-Carlo (issue #240, specification
        # par. 3.2), onze elements, en fin de liste : regime de delta estime,
@@ -6958,19 +6959,33 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail = paste0("Aucune annee evaluable (reajustements sans maximum de ",
                         "vraisemblance etabli, ou en echec) : ecart relatif max ",
                         "non calcule, influence non mesuree."))
+  # Issue #305 (decisions du mainteneur du 27/10/2026, Q-D2-Fn-4 (A) ;
+  # reference : Q-D2-Fn-4 bis, meme jour) : nom
+  # de la ligne conserve ; detail et reference requalifies d'apres la mesure
+  # de couverture a T = 8 (docs/tableaux/20261027-issue305-couverture-ic-sigma.md) ;
+  # aucun nombre issu du bootstrap (#76) : le niveau nominal et T = 8 sont des
+  # libelles fixes. estim (largeur sur le percentile) inchange (Q-D2-Fn-7).
   if (!is.null(fit$largeur_ic))
-    add(fam, "Largeur relative de l'IC bootstrap 90%", "Efron (1979), Ann. Statist. 7",
+    add(fam, "Largeur relative de l'IC bootstrap 90%",
+        "Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), sections 5.2 et 5.3",
         fonction = "run_engine",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic,
-        detail = "Intervalle bootstrap du parametre retenu : res$ic_bootstrap.")
+        detail = paste("Intervalle bootstrap de percentile du parametre retenu, niveau nominal",
+                       "90 % : res$ic_bootstrap. A T = 8, couverture inferieure au niveau",
+                       "nominal sous les modeles simules (constat de simulation, voir la",
+                       "documentation). Intervalle basic sur l'echelle logarithmique en",
+                       "regard : res$ic_bootstrap_basic_log."))
   # Issue #45 (specification d'actuary du 28/09/2026, par. 2.7 ; decisions
   # du mainteneur, Q1 et Q6) : IC bootstrap a delta fixe a sa valeur
   # estimee, puis rapport de vraisemblance aux bornes delta = 0 et delta = 1.
   # Diagnostics sans verdict ni p-value retenue (ADR 0001) ; la p
   # Monte-Carlo du bootstrap restreint est restituee dans p_mc (p_mc_ext de
   # add()), la p du melange de Chernoff dans p_asymptotique, pour memoire.
-  # Aucun nombre issu du bootstrap dans detail (#24, #76).
+  # Aucun nombre issu du bootstrap dans detail (#24, #76). Detail de l'IC
+  # restreint corrige par #305 (Q-D2-Fn-5 (A) et Q-D2-Fn-5 bis) : couverture
+  # mesuree a T = 8 ; resultat d'Andrews (2000) cite dans son cadre (moyenne
+  # contrainte), sa transposition a l'estimateur de delta non demontree.
   if (!is.null(fit$largeur_ic_restreint))
     add(fam, "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
         fonction = "run_engine",
@@ -6981,9 +6996,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                        "reajuste), memes replications que l'IC complet ; une replication",
                        "dont le reajustement contraint echoue est ecartee du seul bootstrap",
                        "restreint (res$bootstrap$n_echec_restreint). Incertitude",
-                       "conditionnelle a la structure de variance retenue. Le bootstrap",
-                       "complet, qui reajuste delta, n'est pas convergent quand delta est",
-                       "au bord (Andrews, 2000). Bornes : res$ic_bootstrap_restreint."))
+                       "conditionnelle a la structure de variance retenue. Couverture",
+                       "inferieure au niveau nominal a T = 8 sous les modeles simules, comme",
+                       "l'intervalle complet (voir la documentation). Andrews (2000) montre",
+                       "que le bootstrap n'est pas convergent quand le parametre est au bord,",
+                       "dans un modele de moyenne contrainte ; sa transposition a l'estimateur",
+                       "de delta n'est pas demontree, et l'effet sur sigma n'est pas etabli.",
+                       "Bornes : res$ic_bootstrap_restreint."))
   if (!is.null(lr_delta)) {
     # #182 : la lecture de p_mc n'est ecrite que si p_mc existe (borne par
     # borne, dans la boucle ci-dessous).
@@ -7864,8 +7883,237 @@ engine_enveloppe_qq <- function(z_boot, T) {
   list(bandes = bandes, info = info)
 }
 
+# Lissage du graphique dispersion-niveau (issue #306) : parametres de
+# stats::lowess() ecrits en clair, valeurs par defaut de R (f = 2/3,
+# iter = 3L ; delta laisse a son defaut 0,01 * etendue(x)). La courbe
+# observee spread_lisse et les courbes simulees de engine_enveloppe_spread()
+# passent par eux.
+SPREAD_LOWESS_F <- 2/3
+SPREAD_LOWESS_ITER <- 3L
+
+# Rang k* de la bande simultanee selon l'eq. (4.17) de Davison et Hinkley
+# (1997, par. 4.2.4, p. 153-154), regle de boot::envelope() (decision
+# Q-D1-Fn-2 du 27/10/2026, issue #306). L : matrice B_eff x T de courbes
+# simulees, toutes finies ; Sc = L triee par colonne. Pour k = 1, 2, ... :
+# une ligne de L sort de la bande de rang k si, dans au moins une colonne,
+# sa valeur est <= Sc[k, ] ou >= Sc[B_eff + 1 - k, ] (inegalites larges :
+# la ligne qui porte la k-ieme valeur sort, ce qui estime par retrait de la
+# ligne le taux de sortie d'une courbe nouvelle) ; taux = proportion de ces
+# lignes sur B_eff. Les bandes sont emboitees et le taux croit avec k : k* =
+# plus grand k dont le taux est <= ENVELOPPE_QQ_TAUX_MAX, balayage arrete au
+# premier k qui le depasse. A k = 1, les lignes qui portent le minimum ou le
+# maximum d'une colonne sortent : k = 1 n'est pas admissible par
+# construction quand leur proportion depasse le seuil, et k* vaut alors NA.
+# Causes : petit B_eff, ex aequo, ou T grand (sans ex aequo, au plus 2T
+# lignes sortent a k = 1 ; k = 1 n'est donc non admissible que si
+# 2T > 0,10 B_eff ou en cas d'ex aequo). Ex aequo : la regle porte sur les valeurs, et
+# toute ligne egale a Sc[k, j] ou a Sc[B_eff + 1 - k, j] sort. Deux ecarts
+# d'ecriture avec boot::envelope() (boot 1.3.30, code lu) : rangs moyens de
+# rank() en cas d'ex aequo, et taux rapporte a B + 1 au lieu de B_eff ; sur
+# les courbes de premium et de premium_interieur (B_eff = 999), k* et bornes
+# identiques a ceux de boot::envelope() (mesure du 27/10/2026, R 4.3.3).
+# Rend list(k, taux, sim_bas, sim_haut), bornes NA si k* est NA. Aucune
+# p-value ni verdict.
+engine_rang_simultane_dh <- function(L) {
+  B_eff <- nrow(L); nc <- ncol(L)
+  res <- list(k = NA_integer_, taux = NA_real_,
+              sim_bas = rep(NA_real_, nc), sim_haut = rep(NA_real_, nc))
+  if (B_eff < 2L) return(res)
+  Sc <- apply(L, 2L, sort)
+  for (k in seq_len(B_eff %/% 2L)) {
+    bas <- Sc[k, ]; haut <- Sc[B_eff + 1L - k, ]
+    tk <- mean(rowSums(L <= rep(bas, each = B_eff) | L >= rep(haut, each = B_eff)) > 0)
+    if (tk > ENVELOPPE_QQ_TAUX_MAX) break
+    res$k <- k; res$taux <- tk; res$sim_bas <- bas; res$sim_haut <- haut
+  }
+  res
+}
+
+# Enveloppe de simulation du graphique dispersion-niveau (issue #306 ;
+# specification docs/specifications/fn-incertitude-bootstrap.md, par. 1.4 et
+# 1.5 ; decisions Q-D1-Fn-1 a Q-D1-Fn-3 du mainteneur du 27/10/2026).
+# Construction de l'enveloppe du QQ-plot (engine_enveloppe_qq(), #47), sans
+# aucun tirage : pour chaque ligne b entierement finie de z_boot (residus
+# reajustes du bootstrap parametrique), courbe simulee
+# lowess(x, sqrt(|z_boot[b, ]|)) aux parametres SPREAD_LOWESS_F et
+# SPREAD_LOWESS_ITER de la courbe observee ; colonnes de z_boot dans l'ordre
+# des annees, comme x ; lowess() rend ses points dans l'ordre croissant de
+# x (x[order(x)]), celui de spread_lisse. Une courbe simulee non finie est
+# ecartee (garde inatteignable depuis run_engine(), comme celle du
+# QQ-plot : les z* reajustes y sont finis et bornes et x n'est pas
+# constant a ce point, avis d'actuary du 27/10/2026). L = matrice B_eff x T
+# des courbes retenues ; B_eff = nombre de courbes simulees retenues
+# (lignes de L), toujours ; il vaut 0 a volumes constants, ou aucune courbe
+# n'est calculee (choix de la reprise du 27/10/2026 : un seul sens du champ,
+# celui de engine_enveloppe_qq(), ou B_eff compte les lignes qui
+# construisent les bandes).
+#  - bande ponctuelle : quantiles ENVELOPPE_QQ_PROBS (type 7) de chaque
+#    colonne de L ; taux_global_ponctuel = proportion des lignes de L ayant
+#    au moins une valeur STRICTEMENT hors de la bande (convention du
+#    QQ-plot) ;
+#  - bande simultanee : rang k* de l'eq. (4.17) de Davison et Hinkley
+#    (engine_rang_simultane_dh()) ; le QQ-plot garde sa propre regle
+#    (inegalites strictes) jusqu'a l'issue #385.
+# Bande inconditionnelle au regime de delta* (decision Q-D1-Fn-3) : toutes
+# les lignes finies de z_boot, comme le QQ-plot. Degenerescences, bornes NA
+# et motif : volumes constants (usp_volumes_constants(), courbe sans objet) ;
+# B_eff < ENVELOPPE_QQ_B_MIN (quatre bornes NA) ; B_eff <
+# ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule) ; aucun k admissible
+# (bande ponctuelle seule). Niveaux, seuils et taux maximal : constantes de
+# l'enveloppe du QQ-plot, sans duplication. Aide graphique, aucune p-value
+# ni verdict (ADR 0001). Sous refit = FALSE (appel direct de
+# usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
+# fixes. Rend la liste portee par plots_data$spread_enveloppe.
+engine_enveloppe_spread <- function(z_boot, x) {
+  T <- length(x)
+  bandes <- data.frame(x = as.double(x[order(x)]), bas = NA_real_, haut = NA_real_,
+                       sim_bas = NA_real_, sim_haut = NA_real_)
+  garde <- if (is.null(z_boot)) logical(0) else apply(is.finite(z_boot), 1L, all)
+  res <- list(bandes = bandes, source = "bootstrap", B_eff = 0L,
+              niveau_ponctuel = ENVELOPPE_QQ_NIVEAU,
+              niveau_simultane = ENVELOPPE_QQ_NIVEAU,
+              k = NA_integer_, taux_global_ponctuel = NA_real_,
+              taux_global_simultane = NA_real_,
+              B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
+              regle_rang = "DH1997_4.17", motif = NA_character_)
+  if (usp_volumes_constants(x)) {
+    res$motif <- "volumes constants : graphique dispersion-niveau sans objet"
+    return(res)
+  }
+  L <- if (sum(garde) > 0L)
+    t(apply(z_boot[garde, , drop = FALSE], 1L, function(z)
+      stats::lowess(x, sqrt(abs(z)), f = SPREAD_LOWESS_F, iter = SPREAD_LOWESS_ITER)$y))
+  else matrix(NA_real_, 0L, T)
+  L <- L[apply(is.finite(L), 1L, all), , drop = FALSE]
+  B_eff <- nrow(L); res$B_eff <- B_eff
+  if (B_eff < ENVELOPPE_QQ_B_MIN) {
+    res$motif <- sprintf("moins de %d replications retenues : enveloppe non disponible",
+                         ENVELOPPE_QQ_B_MIN)
+    return(res)
+  }
+  q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
+  res$bandes$bas <- q[1L, ]; res$bandes$haut <- q[2L, ]
+  res$taux_global_ponctuel <-
+    mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
+  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
+    res$motif <- sprintf("moins de %d replications retenues : bande simultanee non calculee",
+                         ENVELOPPE_QQ_B_MIN_SIM)
+    return(res)
+  }
+  r <- engine_rang_simultane_dh(L)
+  if (is.na(r$k)) {
+    res$motif <- sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
+                               "au rang k = 1 ; bande simultanee non disponible"),
+                         formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
+                                 decimal.mark = ","))
+    return(res)
+  }
+  res$bandes$sim_bas <- r$sim_bas; res$bandes$sim_haut <- r$sim_haut
+  res$k <- r$k; res$taux_global_simultane <- r$taux
+  res
+}
+
+# Niveau des reperes du profil de delta (issue #190) : quantile du melange
+# 1/2 chi2(0) + 1/2 chi2(1) pour le repere asymptotique (soit
+# qchisq(2 * niveau - 1, 1), puisque P(1/2 chi2(0) + 1/2 chi2(1) <= c) =
+# 1/2 + 1/2 pchisq(c, 1) pour c >= 0 ; niveau >= 0,5 requis) et quantile
+# (type 7) du LR simule sous chaque borne.
+# Aide de lecture, sans lien avec alpha ni verdict (decision Q3 du
+# 28/09/2026, issue #45). Porte dans plots_data$lr_delta$niveau, d'ou
+# l'affichage tire ses libelles. A 0,90, 2 * 0,90 - 1 vaut 0,80 au bit pres
+# (identical(2 * 0.90 - 1, 0.80) et identical(qchisq(2 * 0.90 - 1, 1),
+# qchisq(0.80, 1)) rendent TRUE, mesure sous R 4.3.3 le 27/10/2026), ce qui
+# laisse seuil_asymptotique inchange.
+LR_DELTA_NIVEAU_REPERES <- 0.90
+
+# Niveau des bornes de l'intervalle bootstrap reportees sur le graphique de
+# la distribution bootstrap de sigma_USP (issue #305, specification
+# docs/specifications/fn-incertitude-bootstrap.md, par. 3 ; decision
+# Q-D2-Fn-6 (A)) : ic_bas et ic_haut sont ic[2] et ic[4], quantiles 5 % et
+# 95 % de res$ic_bootstrap, et les bornes de l'intervalle "basic" sur
+# l'echelle logarithmique sont ses bornes bas_90 et haut_90 ; niveau
+# nominal, porte dans plots_data$boot_reperes$niveau, d'ou l'affichage tire
+# ses libelles. Les probabilites des quantiles restent ecrites en clair dans
+# run_engine() et .run_engine_mw() : la constante ne les pilote pas.
+IC_BOOT_NIVEAU_REPERES <- 0.90
+
+# Intervalle bootstrap "basic" sur l'echelle logarithmique (issue #305 ;
+# decisions du mainteneur du 27/10/2026, Q-D2-Fn-1 et Q-D2-Fn-2 (A) ;
+# specification docs/specifications/fn-incertitude-bootstrap.md, par. 2.3
+# (I4) et 4). Davison et Hinkley (1997), section 5.2.1, eq. (5.6) et (5.10) :
+# sur l'echelle de sigma, [sigma_hat^2 / q_(1 - a) ; sigma_hat^2 / q_a]
+# = exp(2 log sigma_hat - log q), q quantiles de type 7 de sigma* brut
+# (bootstrap$sigma_boot), puis reporte sur l'echelle de sigma_USP par
+# l'application affine croissante de run_engine() (pente cred * corr,
+# ordonnee (1 - cred) sigma_std), ecrite comme usp_b : le log porte sur
+# sigma, pas sur sigma_USP (ordonnee non nulle). Methode lognormale
+# seulement (Merz-Wuthrich : couverture non mesuree, #387). Vecteur nomme
+# c(bas_95, bas_90, haut_90, haut_95) ; aucune troncature. Restitue en
+# regard de l'intervalle de percentile res$ic_bootstrap, jamais a sa place.
+usp_ic_basic_log <- function(sigma_boot, sigma_hat, cred, corr, sigma_standard) {
+  # Garde : le quotient sigma_hat^2 / q n'a de sens que pour q > 0. Tenue
+  # par construction dans run_engine() (usp_bootstrap() ne garde que les
+  # sigma* finis ; sigma = exp(gamma + ln(beta)) > 0, usp_noyau()) ; un
+  # appel direct qui la viole s'arrete au lieu de rendre des bornes fausses.
+  stopifnot(length(sigma_boot) > 0L, all(is.finite(sigma_boot)), all(sigma_boot > 0))
+  q <- stats::quantile(sigma_boot, c(.025, .05, .95, .975), type = 7, names = FALSE)
+  # bas_95 = sigma_hat^2 / q_0,975 ; bas_90 = / q_0,95 ; haut_90 = / q_0,05 ;
+  # haut_95 = / q_0,025.
+  s <- sigma_hat^2 / rev(q)
+  stats::setNames(cred * s * corr + (1 - cred) * sigma_standard,
+                  c("bas_95", "bas_90", "haut_90", "haut_95"))
+}
+
+# Regime de delta** de chaque replication bootstrap (issue #305,
+# specification par. 3), aligne sur bootstrap$sigma_boot : "bord0",
+# "interieur" ou "bord1", bord lu par usp_regime() et cote par
+# usp_delta_bord() (convention unique, #331). sigma_boot et delta_boot sont
+# compactes separement dans usp_bootstrap() ; le moteur ne suppose pas leur
+# alignement en silence : regime NULL avec un motif a volumes constants
+# (regime de delta non identifie, motif de V1 d'usp_bootstrap()), sous
+# refit = FALSE (delta_boot vide) et si les longueurs different. Rend
+# list(regime, motif), motif NA quand le regime est rendu.
+.usp_regime_boot <- function(boot, x) {
+  sb <- boot$sigma_boot; db <- boot$delta_boot
+  motif <- if (usp_volumes_constants(x)) "volumes constants : regime de delta non identifie"
+           else if (!length(db) && length(sb)) "refit = FALSE : delta** non reestime"
+           else if (length(db) != length(sb))
+             "sigma_boot et delta_boot de longueurs differentes : regime non aligne"
+           else NA_character_
+  if (!is.na(motif)) return(list(regime = NULL, motif = motif))
+  regime <- vapply(db, function(d)
+    if (!usp_regime(d, x)$delta_au_bord) "interieur"
+    else if (identical(usp_delta_bord(d), "basse")) "bord0" else "bord1", character(1))
+  list(regime = unname(regime), motif = NA_character_)
+}
+
+# Reperes du graphique de la distribution bootstrap de sigma_USP (issue
+# #305, specification par. 3 ; Q-D2-Fn-6 (A)), communs aux deux methodes,
+# sur l'echelle de sigma_USP : sigma_USP retenu (image exacte de sigma
+# estime), bornes 90 % de l'intervalle de percentile (ic[2], ic[4], NA sans
+# intervalle), moyenne des sigma_USP simules, sigma standard (repere de
+# contexte), et, en lognormal (lognormal = TRUE), les bornes 90 % de
+# l'intervalle "basic" sur l'echelle logarithmique (bas_90 et haut_90 de
+# ic_basic_log, NA sans intervalle). Aucun calcul autre que la moyenne.
+.engine_boot_reperes <- function(sigma_usp_boot, ic, sigma_usp, sigma_standard,
+                                 ic_basic_log = NULL, lognormal = FALSE) {
+  r <- list(echelle = "sigma_USP", niveau = IC_BOOT_NIVEAU_REPERES,
+            sigma_usp = sigma_usp,
+            ic_bas = if (is.null(ic)) NA_real_ else unname(ic[2]),
+            ic_haut = if (is.null(ic)) NA_real_ else unname(ic[4]),
+            moyenne = if (length(sigma_usp_boot)) mean(sigma_usp_boot) else NA_real_,
+            sigma_standard = sigma_standard)
+  if (lognormal) {
+    r$basic_log_bas <- if (is.null(ic_basic_log)) NA_real_ else unname(ic_basic_log[["bas_90"]])
+    r$basic_log_haut <- if (is.null(ic_basic_log)) NA_real_ else unname(ic_basic_log[["haut_90"]])
+  }
+  r
+}
+
 engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
-                              sigma_usp = NULL, lr_delta = NULL) {
+                              sigma_usp = NULL, lr_delta = NULL,
+                              sigma_usp_boot = NULL, ic = NULL,
+                              sigma_standard = NULL, ic_basic_log = NULL) {
   T <- fit$T; x <- fit$x; z <- fit$z
   qq <- stats::qqnorm(z, plot.it = FALSE)
   # Droite de reference du QQ-plot (quartiles), comme stats::qqline
@@ -7888,7 +8136,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                         fort   = stats::quantile(sort(z[g]),  pr, type = 7))
     }
   }
-  lo <- stats::lowess(x, sqrt(abs(z)))
+  # Courbe lissee observee : parametres de lowess() ecrits en clair (#306),
+  # valeurs par defaut de R, courbe inchangee.
+  lo <- stats::lowess(x, sqrt(abs(z)), f = SPREAD_LOWESS_F, iter = SPREAD_LOWESS_ITER)
   pd <- list(
     ajustement = data.frame(x = x, y = fit$y, ajuste = fit$beta * x),
     beta = fit$beta,
@@ -7921,31 +8171,52 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # .usp_ligne_cook()) rend
   # les graphiques residus vs levier et Cook par annee sans objet ; le motif
   # est expose ici, l'affichage ne fait que le lire. Champ absent si tout est
-  # fini (aucun effet sur les resultats ordinaires), place avant lr_delta et
-  # qq_enveloppe, qui restent en fin de liste.
+  # fini (aucun effet sur les resultats ordinaires), place avant lr_delta,
+  # qq_enveloppe et spread_enveloppe, qui restent en fin de liste.
   if (!all(is.finite(pd$influence$residu_std)) || !all(is.finite(pd$influence$cook)))
     pd$influence_motif <- paste("Residu standardise ou distance de Cook non fini (par exemple",
                                 "residus de y = beta x tous nuls) : graphique non disponible")
   # Reperes du rapport de vraisemblance sur delta (issue #45, decision Q3 du
   # 28/09/2026), en fin de liste, pour plot_profil_delta() seul (decision
   # Q5 : aucun repere sur plot_coupe_delta()) : repere asymptotique
-  # obj_min + qchisq(0,80 ; 1), soit
-  # le quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1) (aide de
-  # lecture), et quantile a 90 % (type 7) du LR simule sous chaque borne par
-  # le bootstrap restreint (NA sans replication finie).
+  # obj_min + qchisq(2 * niveau - 1 ; 1), soit le quantile au niveau
+  # LR_DELTA_NIVEAU_REPERES (0,90) du melange 1/2 chi2(0) + 1/2 chi2(1) (aide
+  # de lecture), et quantile au meme niveau (type 7) du LR simule sous chaque
+  # borne par le bootstrap restreint (NA sans replication finie). Le niveau
+  # est porte en fin de liste (champ niveau, issue #190) ; le nom
+  # q90_bootstrap est conserve.
   if (!is.null(lr_delta)) {
+    niveau <- LR_DELTA_NIVEAU_REPERES
     q90 <- function(v) if (length(v))
-      unname(stats::quantile(v, 0.90, type = 7)) else NA_real_
+      unname(stats::quantile(v, niveau, type = 7)) else NA_real_
     pd$lr_delta <- list(
       obj_min = fit$obj_min,
-      seuil_asymptotique = fit$obj_min + stats::qchisq(0.80, 1),
+      seuil_asymptotique = fit$obj_min + stats::qchisq(2 * niveau - 1, 1),
       q90_bootstrap = c(delta0 = fit$obj_min + q90(lr_delta$borne0$lr_boot),
                         delta1 = fit$obj_min + q90(lr_delta$borne1$lr_boot)),
-      lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr))
+      lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr),
+      niveau = niveau)
   }
   # Description de l'enveloppe du QQ-plot (issue #47), en fin de liste :
   # nombres calcules cites par l'aide et le rapport.
   pd$qq_enveloppe <- env$info
+  # Enveloppe de simulation du graphique dispersion-niveau (issue #306), en
+  # fin de liste : bandes ponctuelle et simultanee de la courbe lissee, lues
+  # dans boot$z_boot, sans nouveau tirage (engine_enveloppe_spread()).
+  pd$spread_enveloppe <- engine_enveloppe_spread(boot$z_boot, x)
+  # Distribution bootstrap de sigma_USP (issue #305, specification par. 3),
+  # en fin de liste : sigma_USP simules, calcules une fois par run_engine()
+  # par l'expression qui forme res$ic_bootstrap (quantiles identiques),
+  # absents en appel direct sans sigma_usp_boot ; regime de delta** de chaque
+  # replication (NULL avec regime_boot_motif, voir .usp_regime_boot()) ;
+  # reperes du graphique (.engine_boot_reperes()).
+  if (!is.null(sigma_usp_boot)) pd$sigma_usp_boot <- sigma_usp_boot
+  rb <- .usp_regime_boot(boot, x)
+  pd["regime_boot"] <- list(rb$regime)
+  if (!is.na(rb$motif)) pd$regime_boot_motif <- rb$motif
+  if (!is.null(sigma_usp_boot))
+    pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard,
+                                            ic_basic_log, lognormal = TRUE)
   pd
 }
 
@@ -12105,10 +12376,12 @@ engine_motif_b_alpha <- function(B, alpha) {
     # (structure des references inchangee, issue #33).
     attr(res, "colonnes_exclues") <- NULL
 
+    # sigma_USP simules (issue #305) : calcules une fois, ici, par
+    # l'expression qui forme l'IC, et passes a mw_plots_data() (graphique de
+    # la distribution bootstrap de sigma_USP, quantiles identiques a l'IC).
+    usp_b <- par$credibilite * boot$sigma_boot + (1 - par$credibilite) * sigma_standard
     ic <- if (length(boot$sigma_boot) > 20)
-      stats::quantile(par$credibilite * boot$sigma_boot +
-                      (1 - par$credibilite) * sigma_standard,
-                      c(.025, .05, .5, .95, .975)) else NULL
+      stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
     descriptif <- data.frame(
       grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
@@ -12154,7 +12427,8 @@ engine_motif_b_alpha <- function(B, alpha) {
                              credibilite = par$credibilite,
                              sigma_standard = sigma_standard,
                              variation_relative = par$variation_relative),
-      plots_data = mw_plots_data(aj, res, boot, msep),
+      plots_data = mw_plots_data(aj, res, boot, msep, sigma_usp_boot = usp_b, ic = ic,
+                                 sigma_usp = par$sigma_usp, sigma_standard = sigma_standard),
       metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
                       libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
                       T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
@@ -12464,9 +12738,10 @@ mw_contributions <- function(aj, msep) {
 # sans qu'elle traduise un ecart au modele. Ni enveloppe ni tirage (option
 # (c)) ; les lignes M5 de
 # mw_tests() restent calculees sur les residus bruts.
-mw_plots_data <- function(aj, res, boot, msep = NULL) {
+mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
+                          ic = NULL, sigma_usp = NULL, sigma_standard = NULL) {
   qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
-  list(
+  pd <- list(
     methode = "reserve2",
     # sigma_regle_minimum (#310, Q-D1-Fm-9, colonne ajoutee en fin) : TRUE
     # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
@@ -12522,6 +12797,16 @@ mw_plots_data <- function(aj, res, boot, msep = NULL) {
     # feuille existante n'est deplacee.
     qqline = c(ordonnee = 0, pente = 1)
   )
+  # Distribution bootstrap de sigma_USP (issue #305, specification par. 3),
+  # en fin de liste, comme en lognormal, sans regime de delta : sigma_USP
+  # simules calcules une fois par .run_engine_mw() par l'expression qui
+  # forme res$ic_bootstrap, et reperes du graphique, sans intervalle "basic"
+  # (#387). Absents en appel direct sans sigma_usp_boot.
+  if (!is.null(sigma_usp_boot)) {
+    pd$sigma_usp_boot <- sigma_usp_boot
+    pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard)
+  }
+  pd
 }
 
 run_engine <- function(xt, yt,
@@ -12630,6 +12915,13 @@ run_engine <- function(xt, yt,
     usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
     ic <- if (length(usp_b) > 20)
       stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+    # Intervalle "basic" sur l'echelle logarithmique, en regard de l'IC de
+    # percentile (issue #305, Q-D2-Fn-2 (A), usp_ic_basic_log()) : memes
+    # replications et meme condition d'existence que ic ; NULL sans ic.
+    # usp_b est aussi passe tel quel a engine_plots_data() (graphique de la
+    # distribution bootstrap de sigma_USP, quantiles identiques a ic).
+    ic_bl <- if (!is.null(ic))
+      usp_ic_basic_log(boot$sigma_boot, fit$sigma, cred, corr, sigma_standard) else NULL
     # IC bootstrap a delta fixe a sa valeur estimee (issue #45, decision Q6 :
     # calcule aussi a delta interieur), meme regle que l'IC complet.
     usp_r <- cred * boot$sigma_boot_restreint * corr + (1 - cred) * sigma_standard
@@ -12765,7 +13057,8 @@ run_engine <- function(xt, yt,
       candidats = candidats,
       parametre_final = param,
       plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp,
-                                     lr_delta = lrd),
+                                     lr_delta = lrd, sigma_usp_boot = usp_b, ic = ic,
+                                     sigma_standard = sigma_standard, ic_basic_log = ic_bl),
       metadata = c(
         list(methode = methode, segment = segment, annexe = annexe,
              libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
@@ -12829,7 +13122,11 @@ run_engine <- function(xt, yt,
         list(seed_flux_regime = boot$p_mc_regime$graine_flux),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
-             version_R = R.version.string))
+             version_R = R.version.string)),
+      # Intervalle bootstrap "basic" sur l'echelle logarithmique (issue #305,
+      # Q-D2-Fn-2 (A) ; usp_ic_basic_log()), en fin d'objet : aucun champ
+      # existant n'est deplace ; NULL quand ic_bootstrap l'est.
+      ic_bootstrap_basic_log = ic_bl
     ), class = "usp_engine")
   })
 }

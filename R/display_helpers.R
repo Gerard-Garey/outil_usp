@@ -163,22 +163,57 @@ cles_groupes <- function() unname(vapply(GROUPES, function(g) g$cle, character(1
 
 # --- Selection des tests restitues (personnalisation de l'affichage) ---------
 # La selection est un data.frame aligne ligne a ligne sur engine_table_tests() :
-#   cle   = libelle du test (controle d'alignement),
+#   cle   = cle stable de la ligne, cle_ligne_test() (famille, test, base ;
+#           controle d'alignement et report d'un calcul a l'autre, #380),
 #   garde = TRUE si l'utilisateur conserve le test dans la restitution,
 #   base  = base de residus choisie ("z" ou "r"), "commun" pour les tests a
 #           base unique.
 # Elle ne modifie aucun calcul : le moteur a produit toutes les lignes, la
 # selection ne fait que choisir celles qui sont affichees.
 
+# Cle stable d'une ligne de la table des tests : famille, libelle du test et
+# base, concatenes (issue #380). Elle identifie la ligne d'un calcul a l'autre,
+# la ou son indice change avec le nombre et l'ordre des lignes ; unique dans
+# les 40 configurations mesurees (premium, reserve no 1 et reserve no 2,
+# annexes II et XIV, segments 1 a 4, avec et sans marge delta). Aucun calcul :
+# simple concatenation de champs de engine_table_tests().
+cle_ligne_test <- function(tb) paste(tb$famille, tb$test, tb$base, sep = " | ")
+
+# Identifiant d'une entree du panneau de personnalisation (case ou radio) :
+# prefixe, numero du calcul et cle de ligne codee en hexadecimal (point de
+# code de chaque caractere, utf8ToInt(), sur six chiffres : largeur fixe,
+# faute de quoi des codes accoles de largeurs differentes se confondent :
+# "\u03b45" et ";\u0435" donnaient tous deux 3b435), de sorte que l'identifiant ne
+# contienne que [0-9a-z_] et reste injectif. Le numero du calcul rend
+# inoffensive toute valeur perimee que le navigateur garde pour un identifiant
+# du rendu precedent (#380).
+id_entree_test <- function(prefixe, cle, version)
+  vapply(cle, function(k) paste0(prefixe, "_", version, "_",
+                                 paste(sprintf("%06x", utf8ToInt(k)), collapse = "")),
+         character(1), USE.NAMES = FALSE)
+
 # Selection par defaut : variantes principales uniquement, base "z" pour les
 # tests disponibles dans les deux bases. C'est le parametrage retenu tant que
 # l'utilisateur n'a rien modifie.
 selection_defaut <- function(tb) {
   data.frame(
-    cle = tb$test,
+    cle = cle_ligne_test(tb),
     garde = tb$variante == "principale" & tb$base %in% c("commun", "z"),
     base = ifelse(tb$base == "commun", "commun", "z"),
     stringsAsFactors = FALSE)
+}
+
+# Selection d'un calcul reportee sur la table du calcul suivant (#380, decision
+# du mainteneur du 27/10/2026) : une ligne qui existe encore (meme cle) garde
+# sa case et sa base, une ligne nouvelle prend son defaut. NULL (aucune
+# personnalisation) reste NULL.
+selection_reportee <- function(s, tb) {
+  if (is.null(s)) return(NULL)
+  nouv <- selection_defaut(tb)
+  i <- match(nouv$cle, s$cle); ok <- !is.na(i)
+  nouv$garde[ok] <- s$garde[i[ok]]
+  nouv$base[ok] <- s$base[i[ok]]
+  nouv
 }
 
 # Regle unique definissant un "test retenu" : conserve par l'utilisateur ET
@@ -632,21 +667,101 @@ plot_qq2ech <- function(pd) {
        "quantiles \u2014 faible volume", "quantiles \u2014 fort volume")
 }
 
+# Enveloppe du graphique dispersion-niveau (issue #306) : bande simultanee
+# (exterieure, plus claire) puis bande ponctuelle de la courbe lissee, lues
+# dans pd$spread_enveloppe$bandes (x, bas, haut, sim_bas, sim_haut ;
+# engine_enveloppe_spread()), sous la courbe et le nuage. Libelles et
+# niveaux lus dans pd$spread_enveloppe (niveau_ponctuel, niveau_simultane)
+# par les fonctions du QQ-plot, jamais ecrits ici ; motif du moteur restitue
+# tel quel dans le sous-titre. Aucun calcul : une bande dont les bornes sont
+# NA n'est pas tracee. Sans pd$spread_enveloppe (objet anterieur a #306),
+# aucune bande n'est tracee ni legendee.
+.spread_bandes <- function(pd) {
+  e <- pd$spread_enveloppe
+  if (is.null(e) || is.null(e$bandes)) return(c(sim = FALSE, ponct = FALSE))
+  c(sim = any(is.finite(e$bandes$sim_bas)), ponct = any(is.finite(e$bandes$bas)))
+}
+# Sous-titre en une ou deux lignes (vecteur de longueur 0, 1 ou 2) : ce qui
+# est trace, puis, s'il existe, le motif du moteur seul sur la seconde ligne
+# (aucune redite : la premiere ligne ne dit que les bandes tracees).
+.spread_sous_titre <- function(pd) {
+  e <- pd$spread_enveloppe
+  if (is.null(e)) return(character(0))
+  b <- .spread_bandes(pd)
+  quoi <- if (b[["sim"]])
+            sprintf("bandes ponctuelle et simultan\u00e9e (k = %s sur %s r\u00e9plications)",
+                    e$k, e$B_eff)
+          else if (b[["ponct"]])
+            sprintf("bande ponctuelle (%s r\u00e9plications)", e$B_eff)
+          else "aucune bande"
+  c(paste0("bootstrap param\u00e9trique ; ", quoi),
+    if (length(e$motif) == 1L && !is.na(e$motif)) e$motif)
+}
+# Etendue de l'axe des ordonnees, commune aux branches base R et plotly :
+# nuage, courbe et bandes tracees, plus une marge haute de 30 % reservee a
+# la legende des bandes (mise en page seulement).
+.spread_ylim <- function(pd, sim, ponct) {
+  e <- pd$spread_enveloppe
+  yl <- range(c(pd$spread$racine_abs_z, pd$spread_lisse$y,
+                if (ponct) c(e$bandes$bas, e$bandes$haut),
+                if (sim) c(e$bandes$sim_bas, e$bandes$sim_haut)), na.rm = TRUE)
+  if (sim || ponct) yl[2] <- yl[2] + 0.3 * diff(yl)
+  yl
+}
+
 plot_spread <- function(pd) {
   if (is.null(pd$spread)) return(.vide())
+  b <- .spread_bandes(pd); sim <- b[["sim"]]; ponct <- b[["ponct"]]
+  e <- pd$spread_enveloppe; st <- .spread_sous_titre(pd)
+  yl <- .spread_ylim(pd, sim, ponct)
   if (!.plotly_dispo()) {
-    .cadre(); plot(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt,
-                   xlab = "x_t", ylab = "sqrt(|z_t|)", main = "Dispersion-niveau")
+    .cadre()
+    # Sous-titre sur deux lignes : marge haute agrandie, le titre au-dessus.
+    if (length(st) > 1L) graphics::par(mar = graphics::par("mar") + c(0, 0, 0.8, 0))
+    plot(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt, ylim = yl,
+         xlab = "x_t", ylab = "sqrt(|z_t|)", main = "Dispersion-niveau")
+    # Sous-titre : une ligne par element, la derniere au ras du cadre.
+    if (length(st)) graphics::mtext(st, side = 3, line = 0.15 + 0.75 * (rev(seq_along(st)) - 1),
+                                    cex = 0.7, col = COUL$ref)
+    if (sim) .qq_bande_base(e$bandes$x, e$bandes$sim_bas, e$bandes$sim_haut, COUL$env_sim)
+    if (ponct) .qq_bande_base(e$bandes$x, e$bandes$bas, e$bandes$haut, COUL$env)
+    graphics::points(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt)
     graphics::lines(pd$spread_lisse$x, pd$spread_lisse$y, col = COUL$trait, lwd = 2)
+    if (sim || ponct)
+      graphics::legend("topleft", bty = "n", cex = 0.75,
+                       legend = c(.qq_lib_sim(e), .qq_lib_ponct(e))[c(sim, ponct)],
+                       fill = c(COUL$env_sim, COUL$env)[c(sim, ponct)],
+                       border = c(COUL$ref, COUL$ref)[c(sim, ponct)])
     return(invisible())
   }
   p <- plotly::plot_ly()
+  if (sim) p <- .qq_bande_plotly(p, e$bandes$x, e$bandes$sim_bas, e$bandes$sim_haut,
+                                 "rgba(232,240,252,0.9)")
+  if (ponct) p <- .qq_bande_plotly(p, e$bandes$x, e$bandes$bas, e$bandes$haut,
+                                   "rgba(200,220,250,0.7)")
   p <- plotly::add_lines(p, x = pd$spread_lisse$x, y = pd$spread_lisse$y,
         line = list(color = COUL$trait, width = 2), hoverinfo = "skip")
   p <- plotly::add_markers(p, x = pd$spread$x, y = pd$spread$racine_abs_z,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "x = %{x:.1f}<br>sqrt|z| = %{y:.3f}<extra></extra>")
-  .mep(p, "Dispersion-niveau (H2) \u2014 lissage local", "x_t", "sqrt(|z_t|)")
+  titre <- paste0("Dispersion-niveau (H2) \u2014 lissage local",
+                  if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+  p <- .mep(p, titre, "x_t", "sqrt(|z_t|)")
+  # Meme etendue des ordonnees qu'en base R (marge haute pour la legende).
+  if (sim || ponct) p <- plotly::layout(p, yaxis = list(range = yl))
+  # Legende en annotations fixes (.mep() masque la legende plotly).
+  ann <- list()
+  if (sim) ann[[length(ann) + 1]] <- list(
+    text = .qq_lib_sim(e), x = 0.01, y = 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env_sim,
+    font = list(size = 10, color = COUL$pt))
+  if (ponct) ann[[length(ann) + 1]] <- list(
+    text = .qq_lib_ponct(e), x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
+    xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
+    font = list(size = 10, color = COUL$pt))
+  if (length(ann) || length(st))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = if (length(st) > 1L) 80 else 60))
+  p
 }
 
 plot_residus <- function(pd) {
@@ -668,29 +783,50 @@ plot_residus <- function(pd) {
 
 # Reperes du rapport de vraisemblance sur delta (issue #45), lus dans
 # pd$lr_delta (engine_plots_data()) : ligne pointillee au repere asymptotique
-# (quantile a 90 % du melange 1/2 chi2(0) + 1/2 chi2(1), aide de lecture) et
-# marques en delta = 0 et delta = 1 au quantile a 90 % du LR simule sous
-# chaque borne. Aucun calcul : les hauteurs viennent du moteur.
-LIB_LR_ASYMPT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 % (Self & Liang 1987), aide de lecture"
-# Libelle court du repere asymptotique, ecrit dans le cadre le long de la
-# ligne pointillee, hors de toute legende (trace base R et plotly, #162) ; le
-# libelle long, avec sa reference, reste au survol (plotly). Debut et fin
-# repris par la documentation (doc_tests_usp.tex, index des graphiques).
-LIB_LR_ASYMPT_COURT <- "rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1) \u00e0 90 %, aide de lecture"
-LIB_LR_Q90 <- c("quantile 90 % du LR simul\u00e9 sous \u03b4 = 0",
-                "quantile 90 % du LR simul\u00e9 sous \u03b4 = 1")
-# Annotations fixes courtes des marques bootstrap (trace plotly, ou .mep()
-# masque la legende) ; le libelle long reste au survol.
-LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
-                      "q90 % du LR simul\u00e9 sous \u03b4 = 1")
-# Etendue verticale du trace : courbe et reperes ; marge haute de 30 % quand
-# les reperes sont presents, pour loger au-dessus de la ligne du repere
-# asymptotique son libelle puis la legende des marques (#162).
+# (quantile du melange 1/2 chi2(0) + 1/2 chi2(1), aide de lecture) et
+# marques en delta = 0 et delta = 1 au quantile du LR simule sous chaque
+# borne. Aucun calcul : les hauteurs viennent du moteur.
+# Libelles construits depuis le niveau porte par le moteur
+# (pd$lr_delta$niveau, LR_DELTA_NIVEAU_REPERES ; issue #190), jamais ecrit
+# ici, formate par .qq_niveau_txt() comme les bandes du QQ-plot (#162) :
+# " 90 %" pour 0,90. Niveau absent ou non fini (objet anterieur a #190) : les
+# libelles omettent le niveau, sans en supposer un, et les reperes restent
+# traces (meme regle que .qq_niveau_txt()). Rend une liste :
+# - asympt : libelle long du repere asymptotique, au survol (plotly) ;
+# - asympt_court : libelle court, ecrit dans le cadre le long de la ligne
+#   pointillee, hors de toute legende (base R et plotly, #162) ; debut et fin
+#   repris par la documentation (doc_tests_usp.tex, index des graphiques) ;
+# - quantile : libelles longs des deux marques bootstrap, au survol (plotly) ;
+# - quantile_court : annotations fixes courtes des marques (plotly, ou .mep()
+#   masque la legende) ;
+# - legende : legende des marques du trace base R.
+.lr_libelles <- function(niveau) {
+  n <- .qq_niveau_txt(niveau)
+  a <- if (nzchar(n)) paste0(" \u00e0", n) else ""
+  base <- paste0("rep\u00e8re asymptotique \u00bd\u03c7\u00b2(0) + \u00bd\u03c7\u00b2(1)", a)
+  qc <- if (nzchar(n)) paste0("q", sub("^ ", "", n)) else "quantile"
+  list(
+    asympt = paste0(base, " (Self & Liang 1987), aide de lecture"),
+    asympt_court = paste0(base, ", aide de lecture"),
+    quantile = paste0("quantile", n, " du LR simul\u00e9 sous \u03b4 = ", 0:1),
+    quantile_court = paste0(qc, " du LR simul\u00e9 sous \u03b4 = ", 0:1),
+    legende = paste0("quantile", n, " du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"))
+}
+# Etendue verticale du trace : courbe et reperes ; quand les reperes sont
+# presents, marge haute de 30 %, pour loger au-dessus de la ligne du repere
+# asymptotique son libelle puis la legende des marques (#162), et marge basse
+# de 15 % (#190). Une marque bootstrap peut tomber au bas de l'etendue (a
+# obj_min si le quantile du LR simule est nul) ; son annotation plotly sous la
+# marque (.lr_annotations_q90() : decalage de 8 px plus une ligne de police 10,
+# fond opaque au bord oppose) pouvait alors sortir du cadre. La marge est
+# posee des que les reperes sont presents, sans dependre de la position des
+# marques ni du niveau : regle la plus simple, etendue continue en les
+# donnees. Sans reperes, etendue de la courbe seule, inchangee.
 .lr_hauteurs <- function(pd, v) {
   L <- pd$lr_delta
   if (is.null(L)) return(range(v, na.rm = TRUE))
   r <- range(c(v, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
-  c(r[1], r[2] + 0.30 * diff(r))
+  c(r[1] - 0.15 * diff(r), r[2] + 0.30 * diff(r))
 }
 # Cote du cadre ou loger legende et libelle du repere asymptotique : la
 # moitie de [0 ; 1] qui ne contient pas delta estime, pour que la ligne
@@ -712,6 +848,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (is.null(L)) return(invisible())
   s <- L$seuil_asymptotique
   graphics::abline(h = s, col = COUL$ref, lty = 3, lwd = 1.5)
+  libs <- .lr_libelles(L$niveau)
   q <- unname(L$q90_bootstrap)
   ok <- is.finite(q)
   if (any(ok)) graphics::points(c(0, 1)[ok], q[ok], pch = 17, cex = 1.3, col = COUL$trait)
@@ -721,7 +858,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (length(d0) != 1L || !is.finite(d0)) d0 <- if (gauche) u[2] else u[1]
   ecart <- graphics::strwidth("m", cex = 0.75)
   # Legende : du bord du cadre a la ligne en delta estime, ecart deduit.
-  lib_leg <- "quantile 90 % du LR simul\u00e9 sous \u03b4 = 0 / \u03b4 = 1"
+  lib_leg <- libs$legende
   place_leg <- if (gauche) d0 - ecart - u[1] else u[2] - d0 - ecart
   pos_leg <- if (gauche) "topleft" else "topright"
   cex_leg <- 0.75
@@ -740,7 +877,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     marque <- graphics::strwidth("M", cex = 1.3)
     zone <- if (gauche) c(max(u[1], 0 + marque), d0 - ecart) else c(d0 + ecart, min(u[2], 1 - marque))
     taille <- function(lib) min(0.7, 0.98 * diff(zone) / graphics::strwidth(lib, cex = 1))
-    lib <- LIB_LR_ASYMPT_COURT
+    lib <- libs$asympt_court
     if (taille(lib) < 0.65) lib <- sub(", aide de lecture", ",\naide de lecture", lib, fixed = TRUE)
     cex <- taille(lib)
     h <- graphics::strheight(lib, cex = cex) + graphics::strheight("M", cex = cex)
@@ -760,14 +897,15 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
 # la largeur du texte n'etant connue que du navigateur, elle a un fond
 # opaque, et masque la ligne verticale en delta estime au lieu d'etre
 # traversee (#195). q : quantiles en delta = 0 et 1 ; s : seuil du repere ;
-# libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite).
-.lr_annotations_q90 <- function(q, s, libre) {
+# libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite) ; lib : les deux
+# textes (.lr_libelles()$quantile_court, #190).
+.lr_annotations_q90 <- function(q, s, libre, lib) {
   s_ok <- length(s) == 1L && is.finite(s)
   ann <- list()
   for (k in which(is.finite(q))) {
     haut <- !(s_ok && q[k] < s)
     a <- list(
-      text = LIB_LR_Q90_COURT[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
+      text = lib[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
       showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
       yshift = if (haut) 8 else -8,
       xanchor = if (k == 1) "left" else "right",
@@ -782,17 +920,18 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
   if (is.null(L)) return(p)
   s <- L$seuil_asymptotique
   s_ok <- length(s) == 1L && is.finite(s)
+  libs <- .lr_libelles(L$niveau)
   p <- plotly::add_lines(p, x = xlim, y = rep(s, 2),
         line = list(color = COUL$ref, dash = "dot", width = 1.5),
-        text = LIB_LR_ASYMPT, hovertemplate = "%{text}<extra></extra>")
+        text = libs$asympt, hovertemplate = "%{text}<extra></extra>")
   q <- unname(L$q90_bootstrap)
   ok <- is.finite(q)
   if (any(ok))
-    p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = LIB_LR_Q90[ok],
+    p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = libs$quantile[ok],
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  ann <- .lr_annotations_q90(q, s, libre)
+  ann <- .lr_annotations_q90(q, s, libre, libs$quantile_court)
   # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
   # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
   # a son annotation q90. La largeur du texte n'etant connue que du navigateur,
@@ -809,7 +948,7 @@ LIB_LR_Q90_COURT <- c("q90 % du LR simul\u00e9 sous \u03b4 = 0",
     dessous <- is.finite(q[libre]) && q[libre] >= s
     d0 <- pd$delta_estime
     part <- if (length(d0) != 1L || !is.finite(d0)) 1 else if (gauche) d0 else 1 - d0
-    lib <- LIB_LR_ASYMPT_COURT
+    lib <- libs$asympt_court
     if (part < 0.95)
       lib <- sub("asymptotique ", "asymptotique<br>",
                  sub(", aide de lecture", ",<br>aide de lecture", lib, fixed = TRUE), fixed = TRUE)
@@ -906,18 +1045,132 @@ plot_coupe_delta <- function(pd) {
        "delta", "objectif")
 }
 
+# Distribution bootstrap de sigma_USP (issue #305 ; specification
+# docs/specifications/fn-incertitude-bootstrap.md, par. 3 ; decisions du
+# mainteneur du 27/10/2026, Q-D1-Fn-7 et Q-D2-Fn-6 (A)), deux methodes.
+# Histogramme de pd$sigma_usp_boot, dont les quantiles sont res$ic_bootstrap
+# (echelle de sigma_USP) ; objet anterieur a #305 (sans sigma_usp_boot) :
+# repli sur pd$sigma_boot (sigma* brut), sans reperes, libelles d'origine.
+# En lognormal, histogramme empile par regime de delta** (pd$regime_boot,
+# classes communes : classes de hist() en base R, bingroup en plotly).
+# Reperes lus dans pd$boot_reperes, sans calcul : sigma_USP retenu, bornes
+# de l'intervalle de percentile, moyenne des simulations, sigma standard et
+# bornes de l'intervalle "basic" sur l'echelle logarithmique (lognormal),
+# tracees distinctement (ce ne sont pas des quantiles de l'histogramme) ;
+# niveau des libelles lu dans boot_reperes$niveau (.qq_niveau_txt()),
+# jamais ecrit ici. Un repere non fini n'est pas trace.
+# Libelles : delta** (estimateur reajuste sur un tirage bootstrap,
+# CONTEXT.md), ecrit sans l'accent circonflexe combinant (U+0302), qui ne
+# s'affiche pas sur le delta grec en plotly (Chromium) ni en PNG base R.
+.BOOT_REGIMES <- c(bord0 = "\u03b4** au bord 0", interieur = "\u03b4** int\u00e9rieur",
+                   bord1 = "\u03b4** au bord 1")
+# Couleurs des regimes : interieur en bleu soutenu, bords en teintes pales
+# de familles distinctes (orange, mauve), separees aussi en deuteranopie,
+# protanopie et tritanopie (ecart CIELAB simule d'environ 20 au moins entre
+# les deux bords, selon la matrice de simulation).
+.BOOT_COUL_REGIMES <- c(bord0 = "#F5D08A", interieur = "#5B8BD0", bord1 = "#C9B3DE")
+# Reperes traces : data.frame (valeur, libelle, couleur, lty base R, dash
+# plotly), dans l'ordre de la legende, reperes non finis retires.
+.boot_reperes_traces <- function(r) {
+  if (is.null(r)) return(NULL)
+  n <- .qq_niveau_txt(r$niveau)
+  niv <- if (nzchar(n)) paste0(", nominal", n) else ""
+  v <- function(x) if (length(x) == 1L && is.numeric(x)) x else NA_real_
+  d <- data.frame(
+    valeur = c(v(r$sigma_usp), v(r$ic_bas), v(r$ic_haut), v(r$basic_log_bas),
+               v(r$basic_log_haut), v(r$moyenne), v(r$sigma_standard)),
+    libelle = c("sigma_USP retenu", rep(paste0("percentile", niv), 2),
+                rep(paste0("basic (\u00e9chelle log)", niv), 2),
+                "moyenne des sigma_USP simul\u00e9s", "sigma standard"),
+    couleur = c(COUL$trait, COUL$pt, COUL$pt, COUL$regle, COUL$regle, COUL$ref_texte, COUL$ref),
+    lty = c(1, 2, 2, 4, 4, 3, 5),
+    dash = c("solid", "dash", "dash", "dashdot", "dashdot", "dot", "longdash"),
+    stringsAsFactors = FALSE)
+  d[is.finite(d$valeur), , drop = FALSE]
+}
+
 plot_boot_sigma <- function(pd) {
-  v <- pd$sigma_boot
+  usp <- !is.null(pd$sigma_usp_boot)
+  v <- if (usp) pd$sigma_usp_boot else pd$sigma_boot
   if (!length(v)) return(.vide("Aucune replication bootstrap exploitable"))
+  titre <- if (usp) "Distribution bootstrap de sigma_USP" else "Distribution bootstrap de sigma"
+  xlab <- if (usp) "sigma_USP simul\u00e9" else "sigma simule"
+  reg <- if (usp && length(pd$regime_boot) == length(v)) pd$regime_boot else NULL
+  niv_reg <- if (!is.null(reg)) intersect(names(.BOOT_REGIMES), unique(reg)) else character(0)
+  # Regimes non traces (volumes constants, refit = FALSE...) : motif du moteur
+  # restitue tel quel en sous-titre, comme plot_spread() (#305).
+  st <- if (usp && is.null(reg) && length(pd$regime_boot_motif) == 1L && !is.na(pd$regime_boot_motif))
+          pd$regime_boot_motif else character(0)
+  rp <- if (usp) .boot_reperes_traces(pd$boot_reperes) else NULL
+  # Legende : libelles distincts des reperes (les deux bornes d'un meme
+  # intervalle partagent le leur).
+  leg <- if (!is.null(rp)) rp[!duplicated(rp$libelle), , drop = FALSE] else NULL
   if (!.plotly_dispo()) {
-    .cadre(); graphics::hist(v, breaks = 30, col = COUL$env, border = "white",
-                             xlab = "sigma simule", main = "Distribution bootstrap de sigma")
+    .cadre()
+    br <- graphics::hist(v, breaks = 30, plot = FALSE)$breaks
+    eff <- if (length(niv_reg))
+             vapply(niv_reg, function(k) graphics::hist(v[reg == k], breaks = br, plot = FALSE)$counts,
+                    numeric(length(br) - 1L))
+           else matrix(graphics::hist(v, breaks = br, plot = FALSE)$counts, ncol = 1L)
+    eff <- matrix(eff, ncol = max(1L, length(niv_reg)))
+    haut <- max(rowSums(eff))
+    xl <- range(c(br, rp$valeur))
+    plot(xl, c(0, haut * if (is.null(leg)) 1.05 else 1.45), type = "n",
+         xlab = xlab, ylab = "effectif", main = titre)
+    if (length(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
+    coul <- if (length(niv_reg)) .BOOT_COUL_REGIMES[niv_reg] else COUL$env
+    bas <- rep(0, nrow(eff))
+    for (k in seq_len(ncol(eff))) {
+      graphics::rect(br[-length(br)], bas, br[-1L], bas + eff[, k], col = coul[k], border = "white")
+      bas <- bas + eff[, k]
+    }
+    if (!is.null(rp) && nrow(rp))
+      graphics::abline(v = rp$valeur, col = rp$couleur, lty = rp$lty, lwd = 2)
+    lib <- c(if (length(niv_reg)) unname(.BOOT_REGIMES[niv_reg]), leg$libelle)
+    if (length(lib))
+      graphics::legend("topright", bty = "n", cex = 0.7, legend = lib,
+                       fill = c(if (length(niv_reg)) coul, rep(NA, NROW(leg))),
+                       border = c(if (length(niv_reg)) rep(COUL$ref, length(niv_reg)), rep(NA, NROW(leg))),
+                       col = c(rep(NA, length(niv_reg)), leg$couleur),
+                       lty = c(rep(NA, length(niv_reg)), leg$lty),
+                       lwd = c(rep(NA, length(niv_reg)), rep(2, NROW(leg))))
     return(invisible())
   }
-  p <- plotly::plot_ly(x = v, type = "histogram", nbinsx = 40,
-        marker = list(color = COUL$env, line = list(color = "white", width = 1)),
-        hovertemplate = "sigma = %{x:.4f}<br>effectif = %{y}<extra></extra>")
-  .mep(p, "Distribution bootstrap de sigma", "sigma simule", "effectif")
+  p <- plotly::plot_ly()
+  if (length(niv_reg)) {
+    for (k in niv_reg)
+      p <- plotly::add_histogram(p, x = v[reg == k], nbinsx = 40, bingroup = 1,
+            name = unname(.BOOT_REGIMES[k]),
+            marker = list(color = unname(.BOOT_COUL_REGIMES[k]), line = list(color = "white", width = 1)),
+            hovertemplate = paste0(unname(.BOOT_REGIMES[k]),
+                                   "<br>sigma_USP = %{x:.4f}<br>effectif = %{y}<extra></extra>"))
+  } else
+    p <- plotly::add_histogram(p, x = v, nbinsx = 40, bingroup = 1,
+          name = if (usp) "sigma_USP simul\u00e9s" else "sigma simul\u00e9s", showlegend = FALSE,
+          marker = list(color = COUL$env, line = list(color = "white", width = 1)),
+          hovertemplate = paste0(if (usp) "sigma_USP" else "sigma",
+                                 " = %{x:.4f}<br>effectif = %{y}<extra></extra>"))
+  # Reperes : segments verticaux sur l'axe des ordonnees en coordonnees du
+  # papier (yaxis2 superpose, de 0 a 1), une trace par libelle pour la
+  # legende, la seconde borne d'un intervalle sans entree de legende.
+  if (!is.null(rp) && nrow(rp))
+    for (i in seq_len(nrow(rp)))
+      p <- plotly::add_lines(p, x = rep(rp$valeur[i], 2), y = c(0, 1), yaxis = "y2",
+            name = rp$libelle[i], legendgroup = rp$libelle[i],
+            showlegend = !duplicated(rp$libelle)[i],
+            line = list(color = rp$couleur[i], dash = rp$dash[i], width = 2),
+            text = rp$libelle[i],
+            hovertemplate = "%{text}<br>%{x:.4f}<extra></extra>")
+  p <- .mep(p, paste0(titre, if (length(st)) paste0("<br><sup>", st, "</sup>")), xlab, "effectif")
+  # Legende horizontale sous le titre de l'axe des abscisses, ancree par le
+  # haut a y = -0,45 : sans chevauchement du titre d'axe a 520 x 330,
+  # 800 x 330 (onglet M5, mw_boot), 520 x 420 et 1000 x 420 px (g_boot),
+  # mesure sous Chromium.
+  plotly::layout(p, barmode = "stack",
+                 yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
+                 showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
+                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.45, yanchor = "top", font = list(size = 10)),
+                 margin = list(t = if (length(st)) 60 else 45, b = 120))
 }
 
 plot_calibration <- function(cand) {
@@ -1699,6 +1952,53 @@ texte_formule <- function(res) {
           100 * p$credibilite, m$bareme)
 }
 
+# Intervalles bootstrap du bloc Calibration et de la section 4 du rapport
+# fige (issue #305 ; decision du mainteneur du 27/10/2026, Q-D2-Fn-3 (A),
+# textes de docs/specifications/fn-d2-lecture-couverture.md, par. 2),
+# partages par app.R et rapport_html() : lignes HTML (virgule decimale,
+# separateur "&nbsp;|&nbsp;"), puis note grise en texte brut sans caractere
+# a echapper. Ligne de percentile (res$ic_bootstrap, quantiles 5/95 et
+# 2,5/97,5 %), puis, en lognormal et si le resultat le porte, ligne de
+# l'intervalle "basic" sur l'echelle logarithmique
+# (res$ic_bootstrap_basic_log) ; note : constat de couverture (lognormal ;
+# percentile seul pour un objet anterieur a #305) ou couverture non mesuree
+# (Merz-Wuthrich, #387). Niveaux nominaux ecrits en
+# clair, comme les positions des quantiles qu'ils designent. Aucun calcul.
+# Sans intervalle (res$ic_bootstrap NULL) : NULL.
+textes_ic_bootstrap <- function(res) {
+  ic <- res$ic_bootstrap
+  if (is.null(ic)) return(NULL)
+  sep <- "&nbsp;|&nbsp;"
+  borne <- function(v) .num_fr(v, "%.4f")
+  lignes <- sprintf("Intervalle bootstrap de percentile, niveau nominal 90 %% : [%s ; %s] %s 95 %% : [%s ; %s]",
+                    borne(ic[2]), borne(ic[4]), sep, borne(ic[1]), borne(ic[5]))
+  if (identical(res$metadata$methode, "reserve2"))
+    return(list(lignes = lignes,
+                note = "Couverture \u00e0 T = 8 non mesur\u00e9e pour cette m\u00e9thode."))
+  bl <- res$ic_bootstrap_basic_log
+  if (!is.null(bl))
+    lignes <- c(lignes, sprintf(paste0(
+      "Intervalle bootstrap \u00ab basic \u00bb sur l'\u00e9chelle logarithmique, niveau nominal ",
+      "90 %% : [%s ; %s] %s 95 %% : [%s ; %s]"),
+      borne(bl[["bas_90"]]), borne(bl[["haut_90"]]), sep, borne(bl[["bas_95"]]), borne(bl[["haut_95"]])))
+  # Objet anterieur a #305 (sans ic_bootstrap_basic_log) : note reduite a
+  # l'intervalle de percentile, seul affiche.
+  if (is.null(bl))
+    return(list(lignes = lignes,
+                note = paste("Niveaux nominaux. \u00c0 T = 8, sous les mod\u00e8les ajust\u00e9s \u00e0 deux",
+                             "jeux de r\u00e9f\u00e9rence, l'intervalle de percentile couvre nettement moins",
+                             "que son niveau nominal (\u03c3 sous-estim\u00e9, borne haute d\u00e9pass\u00e9e).",
+                             "Constat de simulation : voir la documentation, fiche",
+                             "de l'intervalle bootstrap.")))
+  list(lignes = lignes,
+       note = paste("Niveaux nominaux. \u00c0 T = 8, sous les mod\u00e8les ajust\u00e9s \u00e0 deux",
+                    "jeux de r\u00e9f\u00e9rence, l'intervalle de percentile couvre nettement moins",
+                    "que son niveau nominal (\u03c3 sous-estim\u00e9, borne haute d\u00e9pass\u00e9e) ;",
+                    "l'intervalle \u00ab basic \u00bb sur l'\u00e9chelle logarithmique couvre pr\u00e8s",
+                    "de son niveau nominal. Constat de simulation : voir la documentation, fiche",
+                    "de l'intervalle bootstrap."))
+}
+
 # Tableau "Parametre standard remplace" (onglet Calibration et section 4 du
 # rapport fige ; issue #55) : mise en forme de engine_parametre_standard(res),
 # qui fournit toutes les valeurs (nature declaree des donnees, point de
@@ -2199,7 +2499,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     stop("rapport_html() : resultat absent ou refuse par le moteur ; aucun rapport a figer.")
   tb <- engine_table_tests(res)
   if (is.null(selection)) selection <- selection_defaut(tb)
-  if (nrow(selection) != nrow(tb) || !identical(as.character(selection$cle), tb$test))
+  if (nrow(selection) != nrow(tb) || !identical(as.character(selection$cle), cle_ligne_test(tb)))
     stop("rapport_html() : la selection ne correspond pas aux tests de ce resultat.")
   m <- res$metadata; p <- res$parametre_final
   mw <- identical(m$methode, "reserve2")
@@ -2349,17 +2649,21 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
           if (!is.null(ctr)) html_table(ctr, classe = "data"))
 
     # --- 4. Parametre retenu et calibration -----------------------------------
-    ic <- res$ic_bootstrap
+    # Intervalles bootstrap et note de couverture (issue #305, Q-D2-Fn-3 (A)),
+    # textes partages avec l'onglet Calibration.
+    tic <- textes_ic_bootstrap(res)
     cal <- res$calibration; cand <- res$candidats
     ajout("<h2 id='parametre'>4. Param\u00e8tre retenu et calibration</h2>",
           "<div class='bloc'>",
           sprintf("<div><span class='cle'>sigma_USP = %s</span></div>", .num_fr(p$sigma_usp, "%.4f")),
           sprintf("<div>soit %s %% par rapport au param\u00e8tre standard de %s</div>",
                   .num_fr(100 * p$variation_relative, "%+.1f"), .num_fr(p$sigma_standard, "%.4f")),
-          if (!is.null(ic)) sprintf(paste(
-            "<div style='margin-top:6px'>Intervalle bootstrap 90 %% : [%s ; %s]",
-            "&nbsp;|&nbsp; 95 %% : [%s ; %s]</div>"), .num_fr(ic[2], "%.4f"), .num_fr(ic[4], "%.4f"),
-            .num_fr(ic[1], "%.4f"), .num_fr(ic[5], "%.4f")),
+          if (!is.null(tic))
+            paste0(sprintf("<div%s>%s</div>",
+                           ifelse(seq_along(tic$lignes) == 1L, " style='margin-top:6px'", ""),
+                           tic$lignes), collapse = ""),
+          if (!is.null(tic))
+            sprintf("<div class='gris' style='margin-top:4px'>%s</div>", .echap_html(tic$note)),
           sprintf("<div class='gris' style='margin-top:6px'>%s</div>", .echap_html(texte_formule(res))),
           "</div>",
           paste("<h3>Param\u00e8tre standard remplac\u00e9 (art. 218, paragraphe 1) et",

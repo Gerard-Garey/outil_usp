@@ -517,15 +517,20 @@ verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (
 # detail ne porte plus aucun pourcentage.
 NOM_JK <- "Sensibilite au retrait d'une annee (jackknife)"
 NOM_IC <- "Largeur relative de l'IC bootstrap 90%"
-DETAIL_IC <- "Intervalle bootstrap du parametre retenu : res$ic_bootstrap."
+# Detail de la ligne de l'IC requalifie par #305 (Q-D2-Fn-4 (A)) : le seul
+# pourcentage qu'il porte est le niveau nominal "90 %", libelle fixe.
+DETAIL_IC <- paste0("Intervalle bootstrap de percentile du parametre retenu, niveau nominal 90 % : ",
+                    "res$ic_bootstrap. A T = 8, couverture inferieure au niveau nominal sous les ",
+                    "modeles simules (constat de simulation, voir la documentation). Intervalle ",
+                    "basic sur l'echelle logarithmique en regard : res$ic_bootstrap_basic_log.")
 estim_ligne <- function(tb, nom) tb$estimation[tb$test == nom]
-verifier("Jackknife et IC : ecart sur sigma_USP (estim) different entre II-1 et II-6, detail sans pourcentage ni part estimee (#76)",
+verifier("Jackknife et IC : ecart sur sigma_USP (estim) different entre II-1 et II-6, detail sans pourcentage (hors niveau nominal 90 %, #305) ni part estimee (#76)",
          {
            t1 <- tab_ln; t6 <- engine_table_tests(res_ln_ii6)
            d <- c(t1$commentaire[t1$test %in% c(NOM_JK, NOM_IC)], t6$commentaire[t6$test %in% c(NOM_JK, NOM_IC)])
            length(d) == 4L && estim_ligne(t1, NOM_JK) != estim_ligne(t6, NOM_JK) &&
              estim_ligne(t1, NOM_IC) != estim_ligne(t6, NOM_IC) &&
-             !any(grepl("%|part estimee", d)) &&
+             !any(grepl("%|part estimee", sub("niveau nominal 90 %", "", d, fixed = TRUE))) &&
              identical(t1$commentaire[t1$test == NOM_IC], DETAIL_IC) &&
              identical(t6$commentaire[t6$test == NOM_IC], DETAIL_IC)
          })

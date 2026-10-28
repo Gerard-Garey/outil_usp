@@ -5,33 +5,34 @@
 #  Teste garde_ecrasement(), ligne_remplacement() et inserer_t0() de
 #  tests/outils_tests.R sur un depot git temporaire (git init dans
 #  tempdir() : un fichier suivi, un non suivi, un absent), puis, sans calcul
-#  long, les quatorze scripts de mesure hors CI qui ont --ecrire :
+#  long, les quinze scripts de mesure hors CI qui ont --ecrire :
 #  (a) fichier suivi sans --remplacer : refus, rien d'ecrit (aucun des
 #      fichiers de l'execution), message qui nomme le fichier ;
 #  (b) fichier non suivi ou absent : aucun refus ;
 #  (c) --remplacer : fichier suivi rendu avec son md5 d'avant, cite par la
 #      ligne de T0 ;
-#  (d) --remplacer sans --ecrire : refus d'usage des quatorze scripts (avant
+#  (d) --remplacer sans --ecrire : refus d'usage des quinze scripts (avant
 #      tout chargement du moteur) ;
 #  git indisponible (commande introuvable) ou racine hors d'un depot, et
 #  fichier existant : refus, meme avec --remplacer ; test statique : chacun
-#  des quatorze scripts appelle la garde avant toute ecriture ; puissance_t8.R
+#  des quinze scripts appelle la garde avant toute ecriture ; puissance_t8.R
 #  --ecrire (hors --combiner) dans un depot git temporaire ou le tableau du
 #  jour est suivi : refus des l'analyse des options, avant tout calcul
 #  (constat m2 d'audit de #173).
 #  Issue #205 : commit_depot() et motifs_non_versionnable() (definition
 #  unique dans tests/outils_tests.R) sur un depot git temporaire ; test
-#  statique : aucun script de mesure ne les redefinit, et chacun des treize
+#  statique : aucun script de mesure ne les redefinit, et chacun des quatorze
 #  scripts qui ont --ecrire (mesure_calendaire_t8.R excepte) evalue ses
 #  gardes (arbre propre, ecrasement, dossier cible) avant le premier appel
 #  couteux (calcul, ou lecture des tranches de --combiner) ; execution sur un depot git temporaire : refus
-#  avant tout calcul des douze scripts de CAS_A (tous sauf
+#  avant tout calcul des treize scripts de CAS_A (tous sauf
 #  mesure_precision_residus_mw.R, qui exige Rmpfr avant ses gardes, #258, et
 #  mesure_calendaire_t8.R, hors de CAS_A pour sa forme, #355 (#365 : il ne
 #  s'arrete plus avant ses gardes) ;
 #  enumeration_spearman_ex_aequo.R compris, #259 ; mesure_b_dossier_t8.R
 #  compris, #325 ; mesure_lb1_dw_t8.R compris, Q-D1-Fh-9 ;
-#  puissance_mw_t8.R compris, #309)
+#  puissance_mw_t8.R compris, #309 ; couverture_ic_sigma_t8.R compris,
+#  #305)
 #  si docs/tableaux/ manque ou si l'arbre
 #  de travail est modifie, et de constats_puissance_t8.R si un tableau du
 #  jour est suivi ; constats_puissance_t8.R --ecrire hors du depot, arbre
@@ -39,6 +40,7 @@
 #  mesure_calendaire_t8.R (#276, enregistre par #355) : quatorzieme script,
 #  controle statiquement et par le refus d'usage (d) comme les autres ;
 #  hors de CAS_A et de GARDES_ANTICIPEES (voir ces listes).
+#  couverture_ic_sigma_t8.R (#305) : quinzieme script, dans les trois listes.
 #  Les tests qui demandent git sont sautes, avec message, si git manque.
 ###############################################################################
 
@@ -207,7 +209,7 @@ if (GIT_OK) {
   cat("  [saute] garde_ecrasement() sur depot git temporaire : git introuvable\n")
 }
 
-## --- Les quatorze scripts ----------------------------------------------------
+## --- Les quinze scripts ------------------------------------------------------
 # grille_regime_t8.R (#229, etape 4) : --ecrire ecrit le tableau seul ; ses
 # valeurs brutes vont hors du depot (--brut, obligatoire avec --ecrire).
 # p_conditionnelle_regime_t8.R (#229, etapes 5 et 6) : --combiner --ecrire
@@ -230,11 +232,13 @@ if (GIT_OK) {
 # mesure_calendaire_t8.R (#276, enregistre par #355) : --ecrire ecrit le
 # tableau et ses valeurs brutes dans docs/tableaux/ ; --travail DOSSIER
 # (hors du depot) obligatoire.
+# couverture_ic_sigma_t8.R (#305) : --ecrire ecrit le tableau, ses valeurs
+# brutes et le JOURNAL de la mesure dans docs/tableaux/ ; --R obligatoire.
 SCRIPTS_ECRIRE <- c("puissance_t8.R", "constats_puissance_t8.R", "calibration_mc_t8.R",
                     "taux_franchissement_reperes.R", "conservatisme_interieur_t8.R", "grille_regime_t8.R",
                     "p_conditionnelle_regime_t8.R", "calibration_mc_mw_t8.R", "mesure_precision_residus_mw.R",
                     "enumeration_spearman_ex_aequo.R", "mesure_b_dossier_t8.R", "mesure_lb1_dw_t8.R",
-                    "puissance_mw_t8.R", "mesure_calendaire_t8.R")
+                    "puissance_mw_t8.R", "mesure_calendaire_t8.R", "couverture_ic_sigma_t8.R")
 .tests <- file.path(.dossier, "..")
 for (sc in SCRIPTS_ECRIRE) {
   L <- readLines(file.path(.tests, sc), encoding = "UTF-8")
@@ -560,7 +564,8 @@ GARDES_ANTICIPEES <- list(
   enumeration_spearman_ex_aequo.R = c("motifs_non_versionnable", "garde_ecrasement"),
   mesure_b_dossier_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   mesure_lb1_dw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
-  puissance_mw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
+  puissance_mw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
+  couverture_ic_sigma_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
 for (sc in names(GARDES_ANTICIPEES)) {
   o <- ordre_appels(file.path(.tests, sc))
   l_cout <- o$premiere(COUTEUSES)
@@ -603,7 +608,7 @@ for (sc in names(GARDES_ANTICIPEES)) {
 
 ## --- Gardes anticipees : execution sur un depot git temporaire (#205) ---------
 # Depot temporaire (racine avec espace) qui porte le moteur, les outils, les
-# donnees et les quatorze scripts, sans docs/tableaux/ ; les tableaux du jour
+# donnees et les quinze scripts, sans docs/tableaux/ ; les tableaux du jour
 # (et du lendemain) de la partie tost de constats_puissance_t8.R sont suivis
 # dans docs/autres/. Preuve qu'aucun calcul n'a commence : aucun titre de
 # sortie ("## ") dans la sortie, et duree mesuree.
@@ -621,7 +626,7 @@ if (GIT_OK) {
   init_a <- identical(ga("init", "-q"), 0L) && identical(ga("add", "-A"), 0L) &&
     identical(ga("-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
                  "commit", "-q", "-m", "init"), 0L)
-  verifier("Gardes anticipees : depot git temporaire (racine avec espace), quatorze scripts commites", init_a)
+  verifier("Gardes anticipees : depot git temporaire (racine avec espace), quinze scripts commites", init_a)
   lancer_a <- function(sc, args) {
     ancien <- setwd(da)
     on.exit(setwd(ancien))
@@ -652,7 +657,8 @@ if (GIT_OK) {
                 mesure_b_dossier_t8.R = "--ecrire",
                 mesure_lb1_dw_t8.R = "--ecrire",
                 puissance_mw_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire", "--brut",
-                                      shQuote(file.path(tempdir(), "mw309-brut-absent.tsv")), "--journal", "journal-absent.md"))
+                                      shQuote(file.path(tempdir(), "mw309-brut-absent.tsv")), "--journal", "journal-absent.md"),
+                couverture_ic_sigma_t8.R = c("--R", "2", "--ecrire"))
   # (1) arbre propre, docs/tableaux/ absent : refus avant tout calcul
   # (constats_puissance_t8.R : --ecrire DOSSIER, refus d'usage du dossier
   # inexistant)
