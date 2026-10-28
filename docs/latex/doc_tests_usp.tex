@@ -1516,7 +1516,9 @@ $\sigma_{\mathrm{USP}}$, $\sigma_{\text{std}}$, \code{ic\_basic\_log}~; constant
 motif~; repères du graphique de la distribution bootstrap de $\sigma_{\mathrm{USP}}$
 ($\sigma_{\mathrm{USP}}$ retenu, bornes à 90~\% du percentile et, en lognormal, de l'intervalle
 «~basic~» sur l'échelle logarithmique, moyenne des réplications, $\sigma_{\text{std}}$), au niveau
-nominal de la constante (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
+nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabilités 5~\% et
+95~\% des quantiles restent écrites en clair dans \code{run\_engine()} et
+\code{.run\_engine\_mw()} (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
@@ -13267,7 +13269,8 @@ Andrews (2000) montre, dans un modèle de moyenne contrainte ($X_i$ i.i.d. $\mat
 $\mu \ge 0$, estimateur $\max(\bar X_n, 0)$, bootstrap non paramétrique), que le bootstrap de
 l'estimateur n'est pas convergent quand le vrai paramètre est sur la frontière ($\mu = 0$), et annonce que ce contre-exemple se
 généralise à une large classe de problèmes d'estimation~; sa transposition à l'estimateur de
-$\delta$ n'est pas démontrée, et son effet sur $\sigma$ n'est pas établi (\emph{hypothèse}). Or
+$\delta$ n'est pas démontrée par le texte lu, et son effet sur l'intervalle de $\sigma$ n'est pas
+établi. Or
 $\hat\delta$ est au bord dans la plupart des cas à $T = 8$ (fiche~\ref{fiche:position-delta}).
 Le même texte montre que, à $\mu = 0$ et pour la moyenne contrainte $\mu$ elle-même, \emph{deux}
 intervalles ont une couverture asymptotique supérieure à leur niveau nominal~: l'intervalle de
@@ -13385,8 +13388,9 @@ $n = 12$, où la version logarithmique de l'intervalle «~basic~» est une appro
 simulation des bornes exactes, $\bar Y/\mu$ étant un pivot exact, quand l'intervalle «~basic~» de
 l'éq.~(5.6) n'y fait pas mieux que l'approximation normale. Ici, $\hat\sigma/\sigma$ n'est pas un
 pivot exact ($\pi_t$ dépend de $\gamma$ et de $\delta$)~: sa quasi-pivotalité est une
-\emph{hypothèse}, que la mesure confirme sur ces deux plans seulement (estimation bootstrap du
-biais relatif dans l'incertitude de $\mathbb{E}[\hat\sigma]/\sigma_0$, ci-dessus).
+\emph{hypothèse}, que la mesure étaye sur ces deux plans seulement, sans la démontrer (couverture
+compatible de l'intervalle «~basic~» sur l'échelle logarithmique~; estimation bootstrap du biais
+relatif dans l'incertitude de $\mathbb{E}[\hat\sigma]/\sigma_0$, ci-dessus).
 \Pval
 Aucune. Les lignes de l'intervalle complet et de l'intervalle restreint sont restituées \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA}). Le repère conventionnel 50~\% / 80~\% porte sur $L$, sur
@@ -13408,7 +13412,7 @@ crédibilité en amortit une partie) mais doit être présenté explicitement, e
 intervalle sous-couvre à $T = 8$ et que $L$ sous-estime l'incertitude (rubrique~4). Limites~:
 l'intervalle de percentile n'est corrigé ni du biais ni de l'asymétrie~; les variantes BC$_a$ sont
 plus précises au sens d'une précision \emph{asymptotique} du second ordre (Davison et Hinkley,
-1997, p.~203 et 213--214~: les limites «~basic~» et de percentile ne sont précises qu'au premier
+1997, p.~203 et 213--214~; Efron et Tibshirani, 1993, § 22.4, éq.~(22.20), p.~325~: les limites «~basic~» et de percentile ne sont précises qu'au premier
 ordre, et seules les méthodes du percentile ajusté et studentisée corrigent les effets du biais,
 d'une variance non constante et de l'asymétrie), gain qui n'est pas mesuré ici et qu'aucune page
 lue ne chiffre à $n = 8$~; BC$_a$ n'est pas proposé, l'accélération $\hat a$ n'étant pas spécifiée
@@ -13451,7 +13455,9 @@ grec dans les deux tracés. \code{plots\_data\$regime\_boot} vaut \code{NULL}, a
 \code{plots\_data\$regime\_boot\_motif}, à volumes constants (régime de $\delta$ non identifié),
 sous \code{refit = FALSE} ($\delta$ non réestimé) ou si \code{sigma\_boot} et \code{delta\_boot}
 n'ont pas la même longueur. Les repères sont lus dans \code{plots\_data\$boot\_reperes}, sans
-calcul, au niveau nominal \code{IC\_BOOT\_NIVEAU\_REPERES} $= 0{,}90$ (champ \code{niveau})~:
+calcul, au niveau nominal \code{IC\_BOOT\_NIVEAU\_REPERES} $= 0{,}90$ (champ \code{niveau}),
+constante qui nomme ce niveau sans fixer les bornes, dont les probabilités 5~\% et 95~\% restent
+écrites en clair dans \code{run\_engine()} et \code{.run\_engine\_mw()}~:
 $\sigma_{\mathrm{USP}}$ retenu, image exacte de $\hat\sigma$ sur cette échelle, où
 «~$\hat\sigma$~» et «~$\sigma_{\mathrm{USP}}$~» sont donc une même marque~; les bornes à 90~\% de
 l'intervalle de percentile~; en méthode lognormale, celles de l'intervalle «~basic~» sur l'échelle
@@ -13689,15 +13695,21 @@ fiche~\ref{mw:m3cal}, rubrique~6.
 \noindent
 Suite du recensement~: diagnostics d'influence, estimation et calibration.
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.7cm}p{1.3cm}p{1.9cm}p{6.3cm}@{}}
+\begin{longtable}{@{}p{4.7cm}p{1.3cm}p{1.9cm}p{6.3cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Fonction}} &
 \textcolor{financeblue}{\textbf{Méthode}} &
 \textcolor{financeblue}{\textbf{Rattachement}} &
 \textcolor{financeblue}{\textbf{Objet}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Fonction}} &
+\textcolor{financeblue}{\textbf{Méthode}} &
+\textcolor{financeblue}{\textbf{Rattachement}} &
+\textcolor{financeblue}{\textbf{Objet}} \\
+\endhead
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Influence et leviers}}} \\
 \code{plot\_influence\_levier()} & LN & --- & Fiche dédiée. \\
 \code{plot\_influence\_cook()} & LN & --- & Fiche dédiée. \\
@@ -13733,11 +13745,14 @@ de $\hat\delta^{**}$ (légende «~$\delta$** au bord~0~», «~intérieur~», «~
 pour une raison d'affichage). Repères~: $\sigma_{\mathrm{USP}}$ retenu, bornes à 90~\% du
 percentile et, en lognormal, de l'intervalle «~basic~» sur l'échelle logarithmique, qui ne sont pas
 des quantiles de l'histogramme, moyenne des réplications, $\sigma_{\text{std}}$
-(fiche~\ref{fiche:ic-bootstrap}). \\
+(fiche~\ref{fiche:ic-bootstrap}). Sans régime tracé (\code{plots\_data\$regime\_boot} à
+\code{NULL}, à volumes constants notamment), le motif du moteur
+(\code{plots\_data\$regime\_boot\_motif}) est restitué tel quel en sous-titre, comme pour
+\code{plot\_spread()}. \\
 \code{plot\_calibration()} & LN + MW & --- & Valeurs candidates et paramètre
 retenu~: situe $\sigma_{\mathrm{USP}}$ entre le standard et l'estimé seul. \\
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \subsection{Fiches détaillées}
 
@@ -14013,9 +14028,10 @@ Une courbe lissée horizontale est compatible avec une pondération qui capture
 l'hétéroscédasticité, sans le démontrer~; une pente marquée signale une structure de variance
 résiduelle non modélisée, en cohérence avec un rejet du test de Breusch--Pagan studentisé
 (Koenker), dont le verdict fait foi pour H2 (fiche~\ref{fiche:breusch-pagan-koenker}~; White,
-fiche~\ref{fiche:white}, est restitué en diagnostic depuis l'issue~\#299). Limite~: le lissage
-local n'a aucune stabilité en-dessous d'une dizaine de points et sa forme dépend fortement du
-paramètre de fenêtre. Sous le modèle ajusté lui-même, une pente apparente est fréquente~: sur les
+fiche~\ref{fiche:white}, est restitué en diagnostic depuis l'issue~\#299). Limite~: à $T = 8$, le lissage
+local porte sur 5 points par abscisse et sa forme dépend fortement du paramètre de fenêtre~; son
+instabilité à ce nombre de points est mesurée ci-dessous (le seuil d'une dizaine de points, repris
+de la version antérieure, est une indication de lecture sans source). Sous le modèle ajusté lui-même, une pente apparente est fréquente~: sur les
 999 courbes simulées des cas de référence \code{premium} (jeu de contrôle) et
 \code{premium\_interieur} (jeu à $\hat\delta$ intérieur), l'écart entre les deux extrémités de la
 courbe dépasse $0{,}3$ dans $43{,}5~\%$ et $43{,}2~\%$ des cas, et l'amplitude de la courbe a pour
@@ -14122,8 +14138,11 @@ principal à $\hat\delta^{**}$ intérieur, 46 sur le jeu de contrôle et 203 sur
 au rang $0{,}005$ de la loi des 203 courbes à $\hat\delta^{**}$ intérieur, contre $0{,}107$ dans la
 loi inconditionnelle~; la bande simultanée tirée de ces 203 courbes l'exclut avec la règle de rang
 du QQ-plot ($k^{\star} = 2$), la contient avec la règle~(4.17) ($k^{\star} = 1$, bande
-$[\min, \max]$ de chaque colonne). Le régime peut donc changer la lecture en un point d'un cas de
-référence~; constat in-sample, à granularité minimale, sans valeur probante.
+$[\min, \max]$ de chaque colonne). Le régime déplace donc fortement la courbe observée dans sa loi
+de référence en un point d'un cas de référence (rang $0{,}005$ contre $0{,}107$)~; la lecture de la
+bande simultanée n'en change qu'avec la règle de rang du QQ-plot, non avec la règle~(4.17) que suit
+le graphique~; constat in-sample, à granularité minimale ($k^{\star}$ de 1 ou 2 sur 203 courbes,
+sous le seuil de 500), sans valeur probante.
 \end{fiche}
 
 \begin{fiche}{Visualisation de la régression chain-ladder (Merz--Wüthrich)}
@@ -19837,7 +19856,7 @@ soutient dans le présent document.
   dispersion-niveau (fiches~\ref{fiche:qqnorm} et~\ref{fiche:spread-location}), et son
   chapitre~5 (§ 5.2.1, éq.~(5.6) et~(5.10), p.~193--195~; exemple~5.1, p.~197--198~; § 5.3,
   éq.~(5.18), p.~202--203~; § 5.4.1, p.~211--214) les intervalles «~basic~» et de percentile
-  de la fiche~\ref{fiche:ic-bootstrap}. Pages lues dans l'aperçu de l'éditeur (relevé du
+  de la fiche~\ref{fiche:ic-bootstrap}. Pages lues dans l'aperçu Google Books de l'ouvrage (relevé du
   27~octobre 2026)~: les autres pages de l'ouvrage n'ont pas été relues. Les ordres de
   précision qu'il donne (premier ordre pour les limites «~basic~» et de percentile, p.~213~;
   second ordre pour la limite studentisée, p.~212) sont asymptotiques~;
@@ -19859,7 +19878,8 @@ soutient dans le présent document.
   la fiche~\ref{fiche:ic-bootstrap}. Son tableau~13.3 (p.~175~: $\theta = e^{\mu}$, échantillon
   normal de taille 10, intervalle à 95~\%) montre une sous-couverture du percentile non
   paramétrique dans un autre problème~; aucune page lue ne chiffre la couverture à $n = 8$, ni pour
-  le modèle de l'annexe~XVII. Pages lues dans l'aperçu de l'éditeur (relevé du 27~octobre 2026)~:
+  le modèle de l'annexe~XVII. Pages lues dans l'aperçu Google Books de l'ouvrage (relevé du
+  27~octobre 2026)~:
   chap.~10, p.~124--125~; chap.~13, p.~168--177~; chap.~14, p.~185--186~; chap.~22, p.~321
   et 323--326~; les autres pages n'ont pas été relues.
 
@@ -20467,7 +20487,7 @@ littérature consultée.
   constat de simulation, qui ne vaut ni pour un autre $T$ ni pour d'autres données, et qui n'est
   pas fait pour la méthode Merz--Wüthrich (issue~\#387). La quasi-pivotalité de
   $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
-  hypothèse, confirmée sur ces deux plans seulement.
+  hypothèse, étayée sur ces deux plans seulement.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
   d'année calendaire n'est pas établie. Les moments de chaque $Z_k$ sont exacts,
   mais la normalité de leur somme sur un nombre réduit de diagonales n'est
