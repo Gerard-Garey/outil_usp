@@ -181,13 +181,15 @@ cle_ligne_test <- function(tb) paste(tb$famille, tb$test, tb$base, sep = " | ")
 
 # Identifiant d'une entree du panneau de personnalisation (case ou radio) :
 # prefixe, numero du calcul et cle de ligne codee en hexadecimal (point de
-# code de chaque caractere, utf8ToInt()), de sorte que l'identifiant ne
+# code de chaque caractere, utf8ToInt(), sur six chiffres : largeur fixe,
+# faute de quoi des codes accoles de largeurs differentes se confondent :
+# "\u03b45" et ";\u0435" donnaient tous deux 3b435), de sorte que l'identifiant ne
 # contienne que [0-9a-z_] et reste injectif. Le numero du calcul rend
 # inoffensive toute valeur perimee que le navigateur garde pour un identifiant
 # du rendu precedent (#380).
 id_entree_test <- function(prefixe, cle, version)
   vapply(cle, function(k) paste0(prefixe, "_", version, "_",
-                                 paste(sprintf("%x", utf8ToInt(k)), collapse = "")),
+                                 paste(sprintf("%06x", utf8ToInt(k)), collapse = "")),
          character(1), USE.NAMES = FALSE)
 
 # Selection par defaut : variantes principales uniquement, base "z" pour les
@@ -1095,6 +1097,10 @@ plot_boot_sigma <- function(pd) {
   xlab <- if (usp) "sigma_USP simul\u00e9" else "sigma simule"
   reg <- if (usp && length(pd$regime_boot) == length(v)) pd$regime_boot else NULL
   niv_reg <- if (!is.null(reg)) intersect(names(.BOOT_REGIMES), unique(reg)) else character(0)
+  # Regimes non traces (volumes constants, refit = FALSE...) : motif du moteur
+  # restitue tel quel en sous-titre, comme plot_spread() (#305).
+  st <- if (usp && is.null(reg) && length(pd$regime_boot_motif) == 1L && !is.na(pd$regime_boot_motif))
+          pd$regime_boot_motif else character(0)
   rp <- if (usp) .boot_reperes_traces(pd$boot_reperes) else NULL
   # Legende : libelles distincts des reperes (les deux bornes d'un meme
   # intervalle partagent le leur).
@@ -1111,6 +1117,7 @@ plot_boot_sigma <- function(pd) {
     xl <- range(c(br, rp$valeur))
     plot(xl, c(0, haut * if (is.null(leg)) 1.05 else 1.45), type = "n",
          xlab = xlab, ylab = "effectif", main = titre)
+    if (length(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
     coul <- if (length(niv_reg)) .BOOT_COUL_REGIMES[niv_reg] else COUL$env
     bas <- rep(0, nrow(eff))
     for (k in seq_len(ncol(eff))) {
@@ -1154,7 +1161,7 @@ plot_boot_sigma <- function(pd) {
             line = list(color = rp$couleur[i], dash = rp$dash[i], width = 2),
             text = rp$libelle[i],
             hovertemplate = "%{text}<br>%{x:.4f}<extra></extra>")
-  p <- .mep(p, titre, xlab, "effectif")
+  p <- .mep(p, paste0(titre, if (length(st)) paste0("<br><sup>", st, "</sup>")), xlab, "effectif")
   # Legende horizontale sous le titre de l'axe des abscisses, ancree par le
   # haut a y = -0,45 : sans chevauchement du titre d'axe a 520 x 330,
   # 800 x 330 (onglet M5, mw_boot), 520 x 420 et 1000 x 420 px (g_boot),
@@ -1163,7 +1170,7 @@ plot_boot_sigma <- function(pd) {
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
                  legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.45, yanchor = "top", font = list(size = 10)),
-                 margin = list(t = 45, b = 120))
+                 margin = list(t = if (length(st)) 60 else 45, b = 120))
 }
 
 plot_calibration <- function(cand) {
@@ -1967,27 +1974,27 @@ textes_ic_bootstrap <- function(res) {
                     borne(ic[2]), borne(ic[4]), sep, borne(ic[1]), borne(ic[5]))
   if (identical(res$metadata$methode, "reserve2"))
     return(list(lignes = lignes,
-                note = "Couverture à T = 8 non mesurée pour cette méthode."))
+                note = "Couverture \u00e0 T = 8 non mesur\u00e9e pour cette m\u00e9thode."))
   bl <- res$ic_bootstrap_basic_log
   if (!is.null(bl))
     lignes <- c(lignes, sprintf(paste0(
-      "Intervalle bootstrap « basic » sur l'échelle logarithmique, niveau nominal ",
+      "Intervalle bootstrap \u00ab basic \u00bb sur l'\u00e9chelle logarithmique, niveau nominal ",
       "90 %% : [%s ; %s] %s 95 %% : [%s ; %s]"),
       borne(bl[["bas_90"]]), borne(bl[["haut_90"]]), sep, borne(bl[["bas_95"]]), borne(bl[["haut_95"]])))
   # Objet anterieur a #305 (sans ic_bootstrap_basic_log) : note reduite a
   # l'intervalle de percentile, seul affiche.
   if (is.null(bl))
     return(list(lignes = lignes,
-                note = paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux",
-                             "jeux de référence, l'intervalle de percentile couvre nettement moins",
-                             "que son niveau nominal (σ sous-estimé, borne haute dépassée).",
+                note = paste("Niveaux nominaux. \u00c0 T = 8, sous les mod\u00e8les ajust\u00e9s \u00e0 deux",
+                             "jeux de r\u00e9f\u00e9rence, l'intervalle de percentile couvre nettement moins",
+                             "que son niveau nominal (\u03c3 sous-estim\u00e9, borne haute d\u00e9pass\u00e9e).",
                              "Constat de simulation : voir la documentation, fiche",
                              "de l'intervalle bootstrap.")))
   list(lignes = lignes,
-       note = paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux",
-                    "jeux de référence, l'intervalle de percentile couvre nettement moins",
-                    "que son niveau nominal (σ sous-estimé, borne haute dépassée) ;",
-                    "l'intervalle « basic » sur l'échelle logarithmique couvre près",
+       note = paste("Niveaux nominaux. \u00c0 T = 8, sous les mod\u00e8les ajust\u00e9s \u00e0 deux",
+                    "jeux de r\u00e9f\u00e9rence, l'intervalle de percentile couvre nettement moins",
+                    "que son niveau nominal (\u03c3 sous-estim\u00e9, borne haute d\u00e9pass\u00e9e) ;",
+                    "l'intervalle \u00ab basic \u00bb sur l'\u00e9chelle logarithmique couvre pr\u00e8s",
                     "de son niveau nominal. Constat de simulation : voir la documentation, fiche",
                     "de l'intervalle bootstrap."))
 }

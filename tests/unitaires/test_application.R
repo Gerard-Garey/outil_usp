@@ -488,6 +488,12 @@ verifier("id_entree_test() : prefixe et numero du calcul, reste [0-9a-z_], injec
          all(grepl("^g_test_3_[0-9a-f]+$", .id380)) && !anyDuplicated(.id380) &&
            !identical(.dh380$id_entree_test("g_test", "a", 3L), .dh380$id_entree_test("g_test", "a", 4L)) &&
            grepl("^b_test_1_[0-9a-f]+$", .dh380$id_entree_test("b_test", "\u00e9t\u00e9 | x", 1L)))
+# Largeur fixe : avec "%x", "\u03b45" et ";\u0435" donnaient tous deux 3b435 (mesure
+# du 28/10/2026) ; avec "%06x", six chiffres par caractere.
+.col380 <- .dh380$id_entree_test("g_test", c("\u03b45", ";\u0435"), 1L)
+verifier("id_entree_test() : codes de largeurs differentes accoles sans collision ('\u03b45' et ';\u0435'), six chiffres hexadecimaux par caractere (#380)",
+         !anyDuplicated(.col380) &&
+           identical(.col380, c("g_test_1_0003b4000035", "g_test_1_00003b000435")))
 .s380 <- .dh380$selection_defaut(.tb380); .s380$garde[1] <- FALSE; .s380$base[2] <- "r"
 .tb380b <- rbind(.tb380[c(2, 3), ], data.frame(famille = "M9. n", test = "T9", base = "commun",
                                                 variante = "principale", stringsAsFactors = FALSE))
@@ -1084,6 +1090,56 @@ testServer(app, {
     refuse && isTRUE(resultat()$ok) && length(l) == 1L && !s$garde[l] &&
       identical(s$garde[-l], def$garde[-l]) && sum(p3$garde) == sum(def$garde) - 1L)
 })
+# C3 : "Tout conserver" et "Tout retirer" apres un calcul refuse (resultat()
+# NULL, TB() indisponible) : avant correction, req(resultat()) perdait le clic,
+# alors que "Retablir" s'appliquait.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  l <- which(grepl("Pitman", TB()$test))
+  do.call(session$setInputs, setNames(list(FALSE), p1$id[grep("Pitman", p1$texte)]))
+  session$setInputs(theta_equiv = NA, go = 2)
+  refuse <- is.null(resultat())
+  txt <- as.character(output$panneau_personnalisation$html)
+  session$setInputs(sel_tout = 1)
+  garde_tout <- all(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 3)
+  p3 <- envoyer(session, output)
+  a("Tout conserver apres un calcul refuse : la ligne Pitman decochee est cochee au calcul suivant, panneau et selection (#380)",
+    refuse && garde_tout && isTRUE(resultat()$ok) && all(sel_courante()$garde) && all(p3$garde) &&
+      nrow(p3) == 52L)
+  a("panneau de personnalisation apres un calcul refuse : texte explicatif, aucune case (#380)",
+    grepl("Aucun resultat de calcul", txt, fixed = TRUE) && !grepl("g_test_", txt, fixed = TRUE))
+  session$setInputs(theta_equiv = NA, go = 4)
+  refuse2 <- is.null(resultat())
+  session$setInputs(sel_rien = 1)
+  garde_rien <- !any(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 5)
+  p5 <- envoyer(session, output)
+  a("Tout retirer apres un calcul refuse : aucune ligne conservee au calcul suivant (#380)",
+    refuse2 && garde_rien && isTRUE(resultat()$ok) && !any(sel_courante()$garde) && !any(p5$garde))
+})
+# C3 bis : sans personnalisation avant le refus (selection NULL), le clic part du
+# defaut de la table du dernier calcul abouti ; sans calcul abouti, rien ne change.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie380)
+  session$setInputs(sel_rien = 1)
+  vide <- is.null(selection())
+  session$setInputs(go = 1)
+  p1 <- envoyer(session, output)
+  def <- selection_defaut(TB())
+  session$setInputs(theta_equiv = NA, go = 2)
+  session$setInputs(sel_rien = 2)
+  garde_rien <- !is.null(selection()) && !any(selection()$garde)
+  session$setInputs(theta_equiv = 0.10, go = 3)
+  p3 <- envoyer(session, output)
+  a("Tout retirer sans calcul abouti : sans effet ; apres un refus sans personnalisation : part du defaut du dernier calcul (#380)",
+    vide && garde_rien && isTRUE(resultat()$ok) && !any(sel_courante()$garde) && !any(p3$garde) &&
+      sum(p1$garde) == sum(def$garde))
+})
 )---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
@@ -1221,8 +1277,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 79 assertions rendues", length(.lignes) == 79L)
-  if (length(.lignes) != 79L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 83 assertions rendues", length(.lignes) == 83L)
+  if (length(.lignes) != 83L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

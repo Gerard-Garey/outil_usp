@@ -707,6 +707,9 @@ server <- function(input, output, session) {
   # et les champs du navigateur pouvaient garder la saisie.
   version_grille <- reactiveVal(0L)
   selection <- reactiveVal(NULL)             # personnalisation des tests
+  # Table des tests du dernier calcul abouti : sert aux boutons "Tout conserver"
+  # et "Tout retirer" pendant un refus, ou TB() est indisponible (#380).
+  table_tests_gardee <- reactiveVal(NULL)
   version_tests <- reactiveVal(0L)           # numero du calcul, dans les identifiants du panneau (#380)
   # Motif du dernier calcul non abouti, remis a NULL des qu'un calcul aboutit.
   dernier_refus <- reactiveVal(NULL)
@@ -771,7 +774,9 @@ server <- function(input, output, session) {
       # une ligne qui existe encore dans ce calcul garde sa case et sa base,
       # une ligne nouvelle prend son defaut ; le numero du calcul change les
       # identifiants du panneau (aucune valeur perimee du navigateur n'est lue).
-      selection(selection_reportee(selection(), engine_table_tests(res)))
+      tb_res <- engine_table_tests(res)
+      selection(selection_reportee(selection(), tb_res))
+      table_tests_gardee(tb_res)
       version_tests(version_tests() + 1L)
       resultat(res); dernier_refus(NULL)
       return(TRUE)
@@ -1281,13 +1286,24 @@ server <- function(input, output, session) {
   # Les trois boutons changent le numero du calcul des identifiants du panneau
   # (#380) : sans cela, l'observateur ci-dessous relirait, dans le meme flush,
   # les cases du rendu precedent et defairait la selection posee ici.
+  # Les trois boutons s'appliquent aussi apres un calcul refuse (resultat()
+  # NULL, donc TB() indisponible) : "Retablir" remet la selection a NULL, et
+  # "Tout conserver" / "Tout retirer" partent de la selection gardee, ou, faute
+  # de personnalisation, du defaut de la table du dernier calcul abouti ;
+  # selection_reportee() la filtre au calcul suivant. Sans calcul abouti ni
+  # selection, il n'y a rien a appliquer et le panneau le dit.
+  poser_garde <- function(garde) {
+    s <- selection()
+    if (is.null(s)) {
+      tb <- if (!is.null(resultat())) TB() else table_tests_gardee()
+      if (is.null(tb)) return(invisible())
+      s <- selection_defaut(tb)
+    }
+    s$garde <- garde; selection(s); version_tests(version_tests() + 1L)
+  }
   observeEvent(input$sel_defaut, { selection(NULL); version_tests(version_tests() + 1L) })
-  observeEvent(input$sel_tout, {
-    s <- sel_courante(); s$garde <- TRUE; selection(s); version_tests(version_tests() + 1L)
-  })
-  observeEvent(input$sel_rien, {
-    s <- sel_courante(); s$garde <- FALSE; selection(s); version_tests(version_tests() + 1L)
-  })
+  observeEvent(input$sel_tout, poser_garde(TRUE))
+  observeEvent(input$sel_rien, poser_garde(FALSE))
 
   # Le panneau lit les cases a cocher et les boutons radio, et met a jour
   # l'objet de selection. Aucun recalcul n'est declenche : le moteur a deja
@@ -1308,6 +1324,19 @@ server <- function(input, output, session) {
   })
 
   output$panneau_personnalisation <- renderUI({
+    # Calcul refuse ou non lance : pas de table a personnaliser (#380).
+    if (is.null(resultat())) {
+      if (is.null(selection()) && is.null(table_tests_gardee()))
+        return(div(class = "avert", paste(
+          "Aucun resultat de calcul : la liste des tests n'est affichee qu'apres un calcul",
+          "abouti. Aucun calcul n'a encore abouti : les boutons ci-dessus sont sans effet.")))
+      return(div(class = "avert", paste(
+        "Aucun resultat de calcul : la liste des tests n'est affichee qu'apres un calcul",
+        "abouti. La personnalisation deja faite est gardee, les trois boutons ci-dessus",
+        "s'appliquent a elle, et elle est reportee ligne par ligne au calcul suivant.",
+        "Si la methode a change depuis le dernier calcul abouti, les tests qu'il ne",
+        "comportait pas reprennent leur selection par defaut.")))
+    }
     tb <- TB(); s <- sel_courante(); v <- version_tests()
     cles <- cle_ligne_test(tb)
     # Les tests declines en deux bases sont apparies par leur libelle de base.

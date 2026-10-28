@@ -233,10 +233,10 @@ verifier("Six cas : ic_bootstrap, ic_bootstrap_restreint, parametre_final et boo
 source(file.path(.racine305, "R", "display_helpers.R"), local = TRUE)
 # Releve, en base R sur pdf(NULL), des libelles d'axes et du titre
 # (title(), appele par plot.default() ; une trace de plot.default() ne
-# survit pas a un premier untrace() dans la session, mesure), des libelles de legende et des positions des reperes
-# verticaux (abline).
+# survit pas a un premier untrace() dans la session, mesure), des libelles de legende, du sous-titre
+# (mtext) et des positions des reperes verticaux (abline).
 releve_base305 <- function(pd) {
-  r <- new.env(); r$axes <- NULL; r$leg <- character(0); r$v <- numeric(0)
+  r <- new.env(); r$axes <- NULL; r$leg <- character(0); r$v <- numeric(0); r$sous <- character(0)
   ns <- asNamespace("graphics")
   suppressMessages({
     trace("title", tracer = bquote(assign("axes", c(xlab = xlab, ylab = ylab, main = main),
@@ -245,8 +245,10 @@ releve_base305 <- function(pd) {
           where = ns, print = FALSE)
     trace("abline", tracer = bquote(assign("v", c(get("v", envir = .(r)), v), envir = .(r))),
           where = ns, print = FALSE)
+    trace("mtext", tracer = bquote(assign("sous", c(get("sous", envir = .(r)), text), envir = .(r))),
+          where = ns, print = FALSE)
   })
-  on.exit(suppressMessages(for (f in c("title", "legend", "abline")) untrace(f, where = ns)))
+  on.exit(suppressMessages(for (f in c("title", "legend", "abline", "mtext")) untrace(f, where = ns)))
   option <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
   on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
   suppressWarnings(plot_boot_sigma(pd))
@@ -271,6 +273,15 @@ verifier("plot_boot_sigma(), base R, niveau forge a 0,95 : legendes 'nominal 95 
            l <- releve_base305(pd)$leg
            any(l == "percentile, nominal 95 %") && any(l == "basic (échelle log), nominal 95 %") &&
              !any(grepl("90", l, fixed = TRUE))
+         })
+MOTIF_VC <- "volumes constants : regime de delta non identifie"
+verifier("plot_boot_sigma(), base R, regime_boot NULL avec motif (#305, App-review C2) : motif restitue tel quel en sous-titre (mtext), un seul histogramme sans legende de regime ; sans motif ou avec regimes tracables, aucun sous-titre",
+         {
+           pd <- pdi; pd["regime_boot"] <- list(NULL); pd$regime_boot_motif <- MOTIF_VC
+           r <- releve_base305(pd)
+           identical(r$sous, MOTIF_VC) && !any(r$leg %in% LIB_REG) && identical(r$leg, LIB_REP) &&
+             !length(releve_base305(pdi)$sous) &&
+             !length(releve_base305(replace(pd, "regime_boot_motif", list(NULL)))$sous)
          })
 rb2 <- releve_base305(R6$reserve2$plots_data)
 verifier("plot_boot_sigma(), base R, reserve2 : axe 'effectif', sans regime ni basic ; cinq reperes",
@@ -297,6 +308,13 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(bp$layout$yaxis$title, "effectif") &&
                identical(bp$layout$title$text, "Distribution bootstrap de sigma_USP") &&
                identical(unique(vapply(bp$data[ty == "scatter"], function(t) t$name, "")), LIB_REP)
+           })
+  verifier("plot_boot_sigma(), plotly, regime_boot NULL avec motif (#305, App-review C2) : motif en sous-titre du titre, comme plot_spread() ; titre inchange sans motif",
+           {
+             pd <- pdi; pd["regime_boot"] <- list(NULL); pd$regime_boot_motif <- MOTIF_VC
+             t1 <- plotly::plotly_build(plot_boot_sigma(pd))$x$layout$title$text
+             identical(t1, paste0("Distribution bootstrap de sigma_USP<br><sup>", MOTIF_VC, "</sup>")) &&
+               identical(bp$layout$title$text, "Distribution bootstrap de sigma_USP")
            })
 } else cat("  note : plotly absent ; branche plotly de plot_boot_sigma() non exercee (attendu en CI, issue #53).\n")
 
