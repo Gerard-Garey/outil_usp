@@ -1518,7 +1518,7 @@ motif~; repères du graphique de la distribution bootstrap de $\sigma_{\mathrm{U
 «~basic~» sur l'échelle logarithmique, moyenne des réplications, $\sigma_{\text{std}}$), au niveau
 nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabilités 5~\% et
 95~\% des quantiles restent écrites en clair dans \code{run\_engine()} et
-\code{.run\_engine\_mw()} (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
+\code{.run\_engine\_mw()} pour l'intervalle de percentile, et dans \code{usp\_ic\_basic\_log()} pour l'intervalle «~basic~» sur l'échelle logarithmique (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
@@ -13457,7 +13457,7 @@ sous \code{refit = FALSE} ($\delta$ non réestimé) ou si \code{sigma\_boot} et 
 n'ont pas la même longueur. Les repères sont lus dans \code{plots\_data\$boot\_reperes}, sans
 calcul, au niveau nominal \code{IC\_BOOT\_NIVEAU\_REPERES} $= 0{,}90$ (champ \code{niveau}),
 constante qui nomme ce niveau sans fixer les bornes, dont les probabilités 5~\% et 95~\% restent
-écrites en clair dans \code{run\_engine()} et \code{.run\_engine\_mw()}~:
+écrites en clair dans \code{run\_engine()} et \code{.run\_engine\_mw()} pour l'intervalle de percentile, et dans \code{usp\_ic\_basic\_log()} pour l'intervalle «~basic~» sur l'échelle logarithmique~:
 $\sigma_{\mathrm{USP}}$ retenu, image exacte de $\hat\sigma$ sur cette échelle, où
 «~$\hat\sigma$~» et «~$\sigma_{\mathrm{USP}}$~» sont donc une même marque~; les bornes à 90~\% de
 l'intervalle de percentile~; en méthode lognormale, celles de l'intervalle «~basic~» sur l'échelle
@@ -13745,7 +13745,7 @@ de $\hat\delta^{**}$ (légende «~$\delta$** au bord~0~», «~intérieur~», «~
 pour une raison d'affichage). Repères~: $\sigma_{\mathrm{USP}}$ retenu, bornes à 90~\% du
 percentile et, en lognormal, de l'intervalle «~basic~» sur l'échelle logarithmique, qui ne sont pas
 des quantiles de l'histogramme, moyenne des réplications, $\sigma_{\text{std}}$
-(fiche~\ref{fiche:ic-bootstrap}). Sans régime tracé (\code{plots\_data\$regime\_boot} à
+(fiche~\ref{fiche:ic-bootstrap}). En méthode lognormale, sans régime tracé (\code{plots\_data\$regime\_boot} à
 \code{NULL}, à volumes constants notamment), le motif du moteur
 (\code{plots\_data\$regime\_boot\_motif}) est restitué tel quel en sous-titre, comme pour
 \code{plot\_spread()}. \\
