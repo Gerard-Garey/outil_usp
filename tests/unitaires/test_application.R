@@ -573,7 +573,7 @@ testServer(app, {
 # qui porte usp_donnees_MW.csv ; le depot n'est pas touche.
 tmp <- tempfile("app155_"); dir.create(file.path(tmp, "R"), recursive = TRUE)
 invisible(file.copy(c("app.R", "DESCRIPTION"), tmp))
-invisible(file.copy(file.path("R", c("engine.R", "display_helpers.R")), file.path(tmp, "R")))
+invisible(file.copy(file.path("R", c("engine.R", "charger_moteur.R", "display_helpers.R")), file.path(tmp, "R")))
 invisible(file.copy(fichier_tri(tri10)$datapath, file.path(tmp, "usp_donnees_MW.csv")))
 ici <- setwd(tmp); eb <- new.env(); app_b <- source("app.R", local = eb)$value; setwd(ici)
 testServer(app_b, {

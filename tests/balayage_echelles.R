@@ -59,7 +59,8 @@ if (length(inconnues)) stop("option inconnue : ", paste(inconnues, collapse = ",
   f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
   if (length(f)) normalizePath(file.path(dirname(f), "..")) else "."
 })
-source(file.path(.racine, "R", "engine.R"))
+source(file.path(.racine, "R", "charger_moteur.R"))
+charger_moteur(file.path(.racine, "R", "engine.R"), dans = globalenv())   # ADR 0016
 outils <- new.env(parent = globalenv())
 sys.source(file.path(.racine, "tests", "outils_tests.R"), envir = outils)
 

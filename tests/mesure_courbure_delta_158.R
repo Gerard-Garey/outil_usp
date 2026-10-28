@@ -126,7 +126,8 @@ SORTIE <- lire_option("--sortie", file.path(RACINE, "docs", "tableaux",
   sprintf("%s-issue158-courbure-delta.md", format(Sys.Date(), "%Y%m%d"))))
 if (file.exists(SORTIE)) stop("fichier de sortie deja present (aucun ecrasement) : ", SORTIE)
 
-source(file.path(RACINE, "R", "engine.R"))
+source(file.path(RACINE, "R", "charger_moteur.R"))
+charger_moteur(file.path(RACINE, "R", "engine.R"), dans = globalenv())   # ADR 0016
 
 # --- Plan --------------------------------------------------------------------
 GRAINE_BASE <- 20261018

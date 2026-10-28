@@ -12,10 +12,15 @@
 #  profils de vraisemblance, calibration, parametre final, et les quantites
 #  numeriques necessaires aux graphiques.
 #
-#  Il est utilisable SANS Shiny :
-#      source("R/engine.R")
+#  Il est utilisable SANS Shiny, charge par son chargeur (R/charger_moteur.R,
+#  ADR 0016, issue #200), qui l'isole de l'environnement global :
+#      source("R/charger_moteur.R")
+#      charger_moteur()          # expose run_engine() et les fonctions du moteur
 #      res <- run_engine(xt = ..., yt = ..., methode = "premium", segment = 1,
 #                        nature_donnees = "brutes")   # ou "nettes" (issue #55)
+#  source("R/engine.R") reste possible (point isole en session vierge, lecture
+#  du code), mais le moteur est alors expose a tout homonyme de
+#  l'environnement global (fonction c(), intersect()...).
 #  Aucune dependance a input$/output$/reactive()/render*() n'y figure.
 #  Dependances : R base + stats uniquement.
 #

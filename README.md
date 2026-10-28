@@ -37,6 +37,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
 
     app.R                       interface Shiny (aucun calcul quantitatif)
     R/engine.R                  MOTEUR : toute la logique statistique et actuarielle
+    R/charger_moteur.R          chargeur du moteur dans un environnement dédié (aucun calcul)
     R/display_helpers.R         formatage et tracés (aucun calcul)
     tests/                      tests unitaires, de reproductibilité et de non-régression
     docs/exigences.md           cahier des charges
@@ -69,7 +70,8 @@ La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le
 
 ## Usage sans Shiny (revue indépendante)
 
-    source("R/engine.R")
+    source("R/charger_moteur.R")
+    charger_moteur()   # charge R/engine.R dans son environnement dédié et expose run_engine()
 
     # méthode lognormale
     # nature_donnees obligatoire pour premium : "brutes" ou "nettes" (#55)
@@ -83,6 +85,19 @@ La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le
 
     res$parametre_final$sigma_usp
     engine_table_tests(res)
+
+`charger_moteur()` (`R/charger_moteur.R`, ADR 0016) charge le moteur dans un
+environnement dédié dont la chaîne de résolution ne voit que le moteur, les
+exports de `stats` et `base` : un objet de l'environnement global (une
+fonction `c`, `intersect` masqué par un paquet…) ne détourne plus ses calculs
+(#200). Les fonctions sont copiées dans l'environnement appelant ; une
+substitution de test se pose dans `environment(run_engine)`.
+`source("R/engine.R")` reste admis pour lire le code ou vérifier un point
+isolé dans une session **vierge** (`Rscript -e 'source("R/engine.R"); …'`),
+mais le moteur est alors exposé à tout homonyme de l'environnement global :
+tout chiffre destiné au dossier, à une référence, à un tableau de
+`docs/tableaux/` ou à la documentation vient d'un chargement par
+`charger_moteur()` ou d'une session `Rscript` vierge.
 
 ## Reproductibilité et tests
 

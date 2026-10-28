@@ -41,15 +41,18 @@
 RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
           if (file.exists("../../R/engine.R")) "../.." else
           stop("R/engine.R introuvable : lancer depuis la racine du depot.")
-# local = TRUE : le moteur est charge dans l'environnement ou ce fichier est
-# evalue. Source normalement (test_reproductibilite.R, generer_references.R,
+# Le moteur est charge par charger_moteur() (R/charger_moteur.R, ADR 0016,
+# #200) dans son environnement dedie, et ses liaisons sont copiees dans
+# l'environnement ou ce fichier est evalue (dans = environment()). Source
+# normalement (test_reproductibilite.R, generer_references.R,
 # comparer_references.R), c'est l'environnement global, comme auparavant ;
 # source avec local = TRUE dans un environnement dedie (patcher_reference.R
 # charge par un test unitaire), le moteur y reste confine au lieu d'etre
-# recharge dans l'environnement global. Le moteur est toujours recharge ici,
+# expose dans l'environnement global. Le moteur est toujours recharge ici,
 # jamais repris d'une session : une reference ne doit pas etre produite par
 # une version perimee de R/engine.R.
-source(file.path(RACINE, "R", "engine.R"), local = TRUE)
+source(file.path(RACINE, "R", "charger_moteur.R"), local = TRUE)
+charger_moteur(file.path(RACINE, "R", "engine.R"), dans = environment())
 
 DOSSIER_REF <- file.path(RACINE, "tests", "reference")
 

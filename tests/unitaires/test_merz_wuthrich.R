@@ -514,10 +514,11 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            })
            mesurer <- function(nom, perturb) {
              aj <- prep[[nom]]$aj; boot <- prep[[nom]]$boot; L0 <- prep[[nom]]$L0
+             # Substitution dans l'environnement du moteur (ADR 0016, #200).
              assign("mw_residus", function(aj, j_degeneres = NULL) perturb(orig(aj, j_degeneres)),
-                    envir = globalenv())
+                    envir = environment(mw_tests))
              L1 <- tryCatch(mw_tests(aj, boot),
-                            finally = assign("mw_residus", orig, envir = globalenv()))
+                            finally = assign("mw_residus", orig, envir = environment(mw_tests)))
              stats::setNames(sig(L0) != sig(L1), vapply(L0, `[[`, "", "test"))
            }
            set.seed(20260923)
@@ -829,13 +830,15 @@ local({
   # runs_p_min() non fini (NA seulement si un cote de la mediane est vide) :
   # .mw_p_min_ligne() est substituee le temps d'un appel de mw_tests().
   ligne_runs_pmin_na <- function(b = r312$bootstrap) {
-    orig <- get(".mw_p_min_ligne", envir = globalenv())
-    on.exit(assign(".mw_p_min_ligne", orig, envir = globalenv()))
+    # Substitution dans l'environnement du moteur (ADR 0016, #200).
+    e <- environment(mw_tests)
+    orig <- get(".mw_p_min_ligne", envir = e)
+    on.exit(assign(".mw_p_min_ligne", orig, envir = e))
     assign(".mw_p_min_ligne", function(...) {
       o <- orig(...)
       list(p_min = NA_real_,
            effectifs = paste(o$effectifs, "; p_min non calculable sur ces effectifs, p_min non attribuee"))
-    }, envir = globalenv())
+    }, envir = e)
     Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
            mw_tests(r312$ajustement, b, 0.10))[[1]]
   }

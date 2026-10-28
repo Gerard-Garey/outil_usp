@@ -11,7 +11,8 @@
 #     3. conserver l'objet retourne ;
 #     4. afficher les elements de cet objet.
 #  Toute la logique quantitative est dans R/engine.R, qui reste utilisable
-#  hors Shiny (source("R/engine.R") puis run_engine(...)).
+#  hors Shiny (source("R/charger_moteur.R"), charger_moteur(), puis
+#  run_engine(...)).
 #
 #  Lancement :  shiny::runApp(".")
 ###############################################################################
@@ -19,7 +20,11 @@
 library(shiny)
 if (requireNamespace("plotly", quietly = TRUE)) library(plotly)
 
-source("R/engine.R", local = FALSE)
+# Moteur charge dans son environnement dedie (ADR 0016, #200) : ses fonctions
+# sont copiees dans l'environnement global, mais leurs appels internes ne
+# voient ni cet environnement ni les paquets attaches (shiny, plotly).
+source("R/charger_moteur.R", local = FALSE)
+charger_moteur("R/engine.R", dans = globalenv())
 source("R/display_helpers.R", local = FALSE)
 
 # Identite du code (version DESCRIPTION, md5 de R/engine.R), relevee au

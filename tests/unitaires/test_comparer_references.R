@@ -211,7 +211,7 @@ verifier("comparer_references.R : reference absente -> ERREUR dans le markdown e
            for (f in c("tests/outils_tests.R", "tests/comparer_references.R"))
              file.copy(file.path(cr$DOSSIER_TESTS, "..", f), file.path(d, f))
            dir.create(file.path(d, "R")); dir.create(file.path(d, "tests", "donnees"))
-           file.copy(file.path(cr$DOSSIER_TESTS, "..", "R", "engine.R"), file.path(d, "R"))
+           file.copy(file.path(cr$DOSSIER_TESTS, "..", "R", c("engine.R", "charger_moteur.R")), file.path(d, "R"))
            file.copy(list.files(file.path(cr$DOSSIER_TESTS, "donnees"), full.names = TRUE),
                      file.path(d, "tests", "donnees"))
            md <- file.path(d, "resume.md")

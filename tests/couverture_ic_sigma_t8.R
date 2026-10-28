@@ -8,7 +8,7 @@
 #  R base + stats ; parallel, utils et tools (livres avec R) :
 #  parallel::mclapply(), utils::sessionInfo(), tools::md5sum(). Il ne modifie
 #  ni R/engine.R ni tests/reference/ : le moteur est charge par
-#  tests/outils_tests.R (source(R/engine.R)), qui porte aussi commit_depot(),
+#  tests/outils_tests.R (charger_moteur(), ADR 0016), qui porte aussi commit_depot(),
 #  motifs_non_versionnable(), garde_ecrasement(), empreinte_sans_commentaires()
 #  et TOLERANCE (definitions uniques).
 #
@@ -204,8 +204,8 @@ FICHIER_SCRIPT <- local({
   if (length(f) == 1L) f else NA_character_
 })
 DOSSIER_SCRIPT <- if (!is.na(FICHIER_SCRIPT)) dirname(FICHIER_SCRIPT) else "tests"
-# tests/outils_tests.R fait source(R/engine.R) (local = TRUE, ici
-# l'environnement global) et definit RACINE, TOLERANCE, commit_depot(),
+# tests/outils_tests.R charge R/engine.R par charger_moteur() (ADR 0016 ;
+# liaisons copiees dans l'environnement global) et definit RACINE, TOLERANCE, commit_depot(),
 # motifs_non_versionnable(), garde_ecrasement(), empreinte_sans_commentaires().
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 

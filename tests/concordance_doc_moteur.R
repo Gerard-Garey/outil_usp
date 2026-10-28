@@ -2028,8 +2028,12 @@ if (sys.nframe() == 0L) {
   RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
     stop("R/engine.R introuvable : lancer depuis la racine du depot.")
 
+  # Moteur charge par son chargeur (ADR 0016, #200) : liaisons copiees dans
+  # env, enclos des fonctions = environnement dedie du moteur ; le chargeur
+  # lui-meme est defini dans env, avec le moteur et l'affichage.
   env <- new.env(parent = globalenv())
-  sys.source(file.path(RACINE, "R", "engine.R"), envir = env)
+  sys.source(file.path(RACINE, "R", "charger_moteur.R"), envir = env)
+  env$charger_moteur(file.path(RACINE, "R", "engine.R"), dans = env)
   sys.source(file.path(RACINE, "R", "display_helpers.R"), envir = env)
   if (is.null(fichier_tex)) fichier_tex <- file.path(RACINE, "docs", "latex", "doc_tests_usp.tex")
   tex <- readLines(fichier_tex, warn = FALSE, encoding = "UTF-8")
