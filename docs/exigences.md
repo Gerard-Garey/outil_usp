@@ -93,6 +93,8 @@ Le moteur n'est pas éclaté en fichiers thématiques (`statistical_tests.R`, `c
 
 `engine.R` est utilisable sans Shiny (`source("R/engine.R")` puis appel direct depuis une session R, un script, un test ou une validation externe). Il ne dépend d'aucun objet Shiny (`input$`, `output$`, `reactive()`, `reactiveVal()`, `reactiveValues()`, `observe()`, `observeEvent()`, `eventReactive()`, `render*()`…). Les entrées sont des arguments R explicites ; les sorties sont des objets R standards et auditables (listes, data.frames, vecteurs, matrices). Les fonctions documentent leurs entrées, sorties, hypothèses, paramètres, graines et dépendances.
 
+Complément (28/10/2026, ADR 0016, #200) : l'application, les tests et toute production de chiffres destinés au dossier chargent le moteur par le chargeur `charger_moteur()` de `R/charger_moteur.R`, qui l'évalue dans un environnement dédié (`usp_moteur`) fermé à l'environnement global et au chemin de recherche, afin qu'aucun objet de la session ne détourne un calcul ; ce chargeur ne contient aucune logique quantitative et `engine.R` n'en dépend pas, de sorte que l'appel par `source("R/engine.R")` ci-dessus reste possible (lecture du code, vérification d'un point isolé en session vierge).
+
 ### 4.3 Orchestration
 
 Une fonction principale, `run_engine()`, lance toute la chaîne de calcul à partir des données, des paramètres utilisateur, des paramètres de simulation et de la graine, et retourne un objet structuré contenant tous les résultats nécessaires à l'application. L'application se limite à : collecter les entrées, appeler `run_engine()`, conserver l'objet retourné, afficher ses éléments — sans reconstruire de résultats à partir de calculs dispersés.
