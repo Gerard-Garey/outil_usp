@@ -576,9 +576,11 @@ tableau_creation_markdown <- function(nom, res, fichier, emp_avant, emp_apres, i
 #  Batteries : relance et extraction des lignes de synthese
 # ---------------------------------------------------------------------------
 
+# system2() quote deja la commande (rs) : seul le chemin du script, passe en
+# argument, se quote ici (#390) ; shQuote(rs) la double-quoterait.
 lancer_batterie <- function(script) {
   rs <- file.path(R.home("bin"), "Rscript")
-  sortie <- suppressWarnings(system2(rs, file.path(RACINE, "tests", script), stdout = TRUE, stderr = TRUE))
+  sortie <- suppressWarnings(system2(rs, shQuote(file.path(RACINE, "tests", script)), stdout = TRUE, stderr = TRUE))
   statut <- attr(sortie, "status"); if (is.null(statut)) statut <- 0L
   synth <- grep("^(TOTAL|OK|ECHEC)|CONFORME|sigma_USP", sortie, value = TRUE)
   list(script = script, statut = statut, synthese = trimws(synth))
