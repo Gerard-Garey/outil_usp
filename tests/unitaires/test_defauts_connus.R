@@ -366,9 +366,9 @@ verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
          })
 
 ## --- Issue #24 : toute ligne non-test sort INFO, sens NA (ADR 0001, M7) ------
-# Amendement du 23/09/2026 de l'ADR 0001 : seule une ligne de type "test" ou
-# "procedure de decision" (ESD) porte un verdict ; toute autre ligne sort
-# INFO, sens NA, et son seuil conventionnel n'est plus qu'un repere nomme
+# Amendement du 23/09/2026 de l'ADR 0001 : seule une ligne de type "test"
+# porte un verdict (type "procedure de decision" retire, #357) ; toute autre
+# ligne sort INFO, sens NA, et son seuil conventionnel n'est plus qu'un repere nomme
 # dans le detail. Invariant symetrique de celui de test_merz_wuthrich.R,
 # verifie sur une batterie sans jackknife ni IC (usp_tests + bootstrap
 # fictif) et sur un run_engine() complet (B = 99), qui les contient.
@@ -388,7 +388,7 @@ lignes_df <- function(L) data.frame(
   stringsAsFactors = FALSE)
 tab_fictif <- lignes_df(usp_tests(fit, boot_fictif(), methode = "premium"))
 invariant_non_test <- function(tb) {
-  k <- !tb$type %in% c("test", "procedure de decision")
+  k <- tb$type != "test"
   faux <- k & !(tb$verdict == "INFO" & is.na(tb$sens_du_test) &
                   is.na(tb$p_retenue) & is.na(tb$nature_p))
   if (!any(k)) "aucune ligne non-test : invariant non exerce"
@@ -398,9 +398,9 @@ invariant_non_test <- function(tb) {
                            tb$sens_du_test[faux], tb$p_retenue[faux], tb$nature_p[faux]),
                    collapse = " ; "))
 }
-verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' sort INFO, sens, p_retenue et nature_p NA (bootstrap fictif)",
+verifier("usp_tests : toute ligne type != 'test' sort INFO, sens, p_retenue et nature_p NA (bootstrap fictif)",
          invariant_non_test(tab_fictif))
-verifier("usp_tests : toute ligne type != 'test' hors 'procedure de decision' sort INFO, sens, p_retenue et nature_p NA (run_engine, B = 99)",
+verifier("usp_tests : toute ligne type != 'test' sort INFO, sens, p_retenue et nature_p NA (run_engine, B = 99)",
          {
            r <- invariant_non_test(tab_ln)
            if (!isTRUE(r)) r
@@ -450,8 +450,6 @@ verifier("ESD lognormal (#304) : diagnostic par decision, INFO, sens / p_retenue
                    identical(e$detail, detail_esd_attendu(0.10, ro$positions))))
                pb <- c(pb, sprintf("%s : type %s, verdict %s, estim %s, detail '%s'", nj, e$type,
                                    e$verdict, format(e$estim), e$detail))
-             if (any(vapply(L, function(l) identical(l$type, "procedure de decision"), logical(1))))
-               pb <- c(pb, paste(nj, ": procedure de decision encore produite par usp_tests()"))
            }
            k_c <- test_rosner(fit_esd$z, alpha = 0.10)
            if (!(identical(k_c$nb_outliers, 2L) || identical(k_c$nb_outliers, 2)) ||
@@ -467,10 +465,10 @@ verifier("ESD lognormal (#304) : diagnostic par decision a toute valeur d'alpha 
            identical(e$type, "diagnostic") && identical(e$verdict, "INFO") &&
              identical(e$detail, detail_esd_attendu(0.05, ro$positions))
          })
-verifier("usp_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
+verifier("usp_tests : types en usage dans {test, diagnostic, non applicable} (#357)",
          {
            ty <- unique(c(tab_fictif$type, tab_ln$type))
-           hors <- setdiff(ty, c("test", "diagnostic", "non applicable", "procedure de decision"))
+           hors <- setdiff(ty, c("test", "diagnostic", "non applicable"))
            if (length(hors)) paste("type hors vocabulaire :", paste(hors, collapse = ", ")) else TRUE
          })
 verifier("Diagnostics lognormaux : repere nomme dans le detail, jamais 'seuil' (#24)",
@@ -553,8 +551,9 @@ verifier("Jackknife et IC : part estimee = ecart sur sigma_USP (estim) * sigma_U
            ok
          })
 
-# Gardes de add() (revue d'audit du commit #24) : un verdict force sur un
-# diagnostic, ou une procedure de decision sans verdict, sont des erreurs de
+# Gardes de add() (revue d'audit du commit #24 ; #357) : un verdict force
+# sur un diagnostic, ou un type hors {test, diagnostic, non applicable}
+# ("procedure de decision" compris, retire par #357), sont des erreurs de
 # programmation. Le corps de usp_tests() est modifie ici par texte (deparse)
 # pour reinjecter un tel appel, puis reevalue dans l'environnement du moteur.
 usp_tests_modifie <- function(avant, apres) {
@@ -570,26 +569,31 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
                                   'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
            m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
-# Depuis #304, usp_tests() ne produit plus de procedure de decision (l'ESD
-# lognormale est un diagnostic par decision) : la garde de add() est
-# exercee par un appel direct au registre lognormal (depuis #300,
-# mw_tests() n'en produit plus non plus : aucune ligne du moteur n'est de
-# ce type) ; un verdict force sur la ligne ESD diagnostic est refuse.
-verifier("add() (registre lognormal) refuse une procedure de decision sans verdict ; usp_tests refuse un verdict force sur l'ESD diagnostic (#304)",
+# Depuis #304 et #300, aucune ligne du moteur n'est de type "procedure de
+# decision" ; #357 retire ce type : add() le refuse, avec ou sans verdict,
+# comme tout type inconnu ou mal forme (appel direct au registre lognormal).
+# Un verdict force sur la ligne ESD diagnostic est refuse.
+verifier("add() (registre lognormal) refuse le type 'procedure de decision', avec ou sans verdict, et tout type inconnu ; usp_tests refuse un verdict force sur l'ESD diagnostic (#357, #304)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
-           m1 <- message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
-                                        "Rosner (1983), Technometrics 25", fonction = "test_rosner",
-                                        type = "procedure de decision"))
+           appel <- function(...) message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
+                                                         "Rosner (1983), Technometrics 25",
+                                                         fonction = "test_rosner", ...))
+           m_sans <- appel(type = "procedure de decision")
+           m_avec <- appel(type = "procedure de decision", verdict = "OK")
+           m_autres <- c(appel(type = "Test"), appel(type = NA_character_),
+                         appel(type = c("test", "diagnostic")), appel(type = 1))
            f <- usp_tests_modifie('type = "diagnostic", H0 = "aucune valeur aberrante"',
                                   'type = "diagnostic", verdict = "OK", H0 = "aucune valeur aberrante"')
            m2 <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("une ligne de type 'procedure de decision' doit fournir son verdict", m1, fixed = TRUE) &&
-             grepl(NOM_ESD, m1, fixed = TRUE) &&
-             grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m2, fixed = TRUE) &&
+           all(grepl("add() : type de ligne inconnu : procedure de decision", c(m_sans, m_avec), fixed = TRUE)) &&
+             all(grepl(NOM_ESD, c(m_sans, m_avec, m_autres), fixed = TRUE)) &&
+             all(grepl("add() : type de ligne inconnu", m_autres, fixed = TRUE)) &&
+             !length(reg$lignes()) &&
+             grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m2, fixed = TRUE) &&
              grepl(NOM_ESD, m2, fixed = TRUE)
          })
 

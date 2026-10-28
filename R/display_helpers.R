@@ -269,14 +269,15 @@ avertissement_T <- function(T) {
 # engine_registre_tests() (#129, point 3) : la distinction est une lecture de
 # ce champ, sans calcul ni lecture du commentaire. Colonne absente ou NA
 # (objet anterieur au champ) : la ligne garde son type. Table sans colonne
-# type (objet anterieur) : NA partout, rien n'est affiche.
+# type (objet anterieur) : NA partout, rien n'est affiche. Un type hors des
+# trois admis par add() (objet anterieur a #357, "procedure de decision")
+# est affiche tel quel.
 type_ligne <- function(tb) {
   n <- nrow(tb)
   if (is.null(tb$type)) return(rep(NA_character_, n))
   inop <- if (is.null(tb$inoperant)) rep(FALSE, n) else tb$inoperant %in% TRUE
   lib <- c("test" = "test", "diagnostic" = "diagnostic",
-           "non applicable" = "non applicable",
-           "procedure de decision" = "proc\u00e9dure de d\u00e9cision")
+           "non applicable" = "non applicable")
   out <- unname(lib[tb$type])
   out[is.na(out) & !is.na(tb$type)] <- tb$type[is.na(out) & !is.na(tb$type)]
   out[inop] <- "test inop\u00e9rant"
@@ -284,8 +285,8 @@ type_ligne <- function(tb) {
 }
 
 # Libelle du type sous le badge de verdict (vue Synthese) : seulement pour
-# les lignes qui ne sont pas des tests ordinaires, qui expliquent un INFO
-# ou une decision sans p-value. Texte echappe.
+# les lignes qui ne sont pas des tests ordinaires, qui expliquent un INFO.
+# Texte echappe.
 .sous_badge_type <- function(tb) {
   ty <- type_ligne(tb)
   ifelse(is.na(ty) | ty == "test", "",

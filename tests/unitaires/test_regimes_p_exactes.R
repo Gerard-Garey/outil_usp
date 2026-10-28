@@ -408,9 +408,9 @@ verifier("Cox-Stuart, alpha = 0,29 : donnees de test -> 'exacte', p_retenue = cx
 verifier("Invariants : 42 lignes usp_tests() a T >= 8 dans tous les regimes testes, 40 a T = 5 (LB1r retiree, #303 ; trois lignes retirees, #302)",
          all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 42L) &&
            length(t5) == 40L)
-verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sens NA",
+verifier("Invariant M7 : hors test, verdict INFO et sens NA",
          all(vapply(c(tt, t5, t8, tb), function(l)
-           l$type %in% c("test", "procedure de decision") ||
+           identical(l$type, "test") ||
              (identical(l$verdict, "INFO") && is.na(l$sens) && is.na(l$p_retenue)),
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",

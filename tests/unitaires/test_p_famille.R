@@ -116,7 +116,7 @@ boot297 <- list(stats_obs = as.list(obsj), B = B297, stats_boot = Sj)
 ligne297 <- function(fam, mc, type = "test", variante = "principale", sens = "ne pas rejeter",
                      p_mc = 0.5)
   list(famille = fam, test = paste(fam, mc), type = type, variante = variante,
-       sens = if (type %in% c("test", "procedure de decision")) sens else NA_character_,
+       sens = if (identical(type, "test")) sens else NA_character_,
        p_mc = p_mc, mc_nom = mc)
 L297 <- list(
   ligne297("B. famille B", "a"), ligne297("B. famille B", "b"),

@@ -4289,6 +4289,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (!exists(fonction, envir = environment(engine_registre_tests), mode = "function",
                 inherits = FALSE))
       stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
+    # Type de la ligne (#357, ADR 0001) : trois valeurs admises, "test" (seul
+    # a porter un verdict), "diagnostic" et "non applicable" ; toute autre est
+    # une erreur de programmation. Le type "procedure de decision" est retire
+    # (aucune ligne ne le produit depuis #304 et #300).
+    if (!is.character(type) || length(type) != 1L || is.na(type) ||
+        !type %in% c("test", "diagnostic", "non applicable"))
+      stop("add() : type de ligne inconnu : ", paste(format(type), collapse = " "),
+           " (", nom, ")", call. = FALSE)
     # Nature de la p non simulee (#120) : deux valeurs admises, toute autre
     # est une erreur de programmation.
     if (!is.character(nature_as) || length(nature_as) != 1L || is.na(nature_as) ||
@@ -4545,17 +4553,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       }
     }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
-    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
-    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
-    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
-    # etre contourne par un appel.
-    porte_verdict <- type %in% c("test", "procedure de decision")
+    # porte un verdict (le type "procedure de decision", sans ligne depuis
+    # #304 et #300, est retire, #357). Toute autre ligne sort INFO et son
+    # sens est NA ; un verdict fourni pour un autre type est une erreur de
+    # programmation, refusee ici pour que l'invariant ne puisse pas etre
+    # contourne par un appel.
+    porte_verdict <- type == "test"
     if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
-    # La procedure de decision (ESD) decide sans p-value : son verdict est
-    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
-    if (type == "procedure de decision" && is.null(verdict))
-      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+      stop("add() : un verdict n'est admis que pour type = 'test' (ADR 0001) : ", nom)
     # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
     if (!porte_verdict) {
       sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_

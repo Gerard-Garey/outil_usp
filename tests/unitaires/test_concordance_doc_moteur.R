@@ -711,10 +711,10 @@ verifier("Issue #114 : fichier cite inexistant signale, fichiers et dossiers exi
              list(label = "fiche:c", tests = "C"),
              list(label = "fiche:d", tests = "D"))
 .lm <- data.frame(test = c("A1", "A2", "B", "C", "X", "Z"),
-                  type = c("test", "diagnostic", "diagnostic", "diagnostic", "procedure de decision", "diagnostic"),
+                  type = c("test", "diagnostic", "diagnostic", "diagnostic", "test", "diagnostic"),
                   stringsAsFactors = FALSE)
 .er <- cc$verifier_registre_rubrique7(.lm, .reg)
-verifier("Issue #114 : registre au moteur -- ligne de type procedure sans fiche, nom perime, fiche sans ligne de type test signales ; hors_jeux accepte",
+verifier("Issue #114 : registre au moteur -- ligne de type test sans fiche, nom perime, fiche sans ligne de type test signales ; hors_jeux accepte",
          .a_motif(.er, NA, "rattachee a aucune fiche") && .er$test[is.na(.er$label)] == "X" &&
            .a_motif(.er, "fiche:d", "produit par aucune execution") &&
            .a_motif(.er, "fiche:c", "aucune ligne de type test") && nrow(.er) == 3L)
