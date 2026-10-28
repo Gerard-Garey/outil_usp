@@ -23,7 +23,7 @@ Lis d'abord `CLAUDE.md` : il décrit l'architecture, les commandes et les règle
 
 ## Vérification avant de rendre la main
 
-1. Le moteur se charge : `source("R/engine.R")` sans erreur.
+1. Le moteur se charge : `source("R/charger_moteur.R"); charger_moteur()` sans erreur (ADR 0016).
 2. **Reproductibilité et non-régression** : lis `.claude/skills/verifier-reproductibilite/SKILL.md` et suis-la pas à pas jusqu'à des tests verts. Elle produit le tableau avant / après de ton compte rendu. Dans un workflow, arrête-toi au tableau expliqué (étape 3 de la skill) : la régénération des références revient à la session principale, après visa.
 3. Si tu ajoutes une méthode ou un cas de calcul, ajoute le cas correspondant dans `tests/outils_tests.R` et sa référence ; dans un workflow, propose la référence sans la générer (la génération revient à la session principale).
 4. La concordance documentation ↔ moteur : `Rscript tests/concordance_doc_moteur.R` ; tout écart nouveau entre dans la surface d'impact documentaire.
