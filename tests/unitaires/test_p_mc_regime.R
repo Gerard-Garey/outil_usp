@@ -674,11 +674,14 @@ local({
                                           " ; p de Student sous le modele auxiliaire pondere non retenue")))
   verifier("U12 p exacte retenue si fournie",
            identical(l3$type, "test") && identical(l3$p_retenue, 0.3) && identical(l3$nature_p, "exacte"))
-  verifier("U12 MOTIF_MC_REGIME_RARE hors des motifs degeneres d'add() (texte de engine_registre_tests())",
+  # Liste unique des motifs degeneres, MOTIFS_MC_DEGENERES, lue par add()
+  # depuis #358 (avant : copie locale motifs_degeneres d'add()).
+  verifier("U12 MOTIF_MC_REGIME_RARE hors des motifs degeneres d'add() (MOTIFS_MC_DEGENERES)",
            {
              src <- paste(deparse(engine_registre_tests), collapse = "\n")
-             grepl("motifs_degeneres <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,", src, fixed = TRUE) &&
-               !grepl("MOTIF_MC_REGIME_RARE", src, fixed = TRUE)
+             grepl("MOTIFS_MC_DEGENERES", src, fixed = TRUE) &&
+               !grepl("MOTIF_MC_REGIME_RARE", src, fixed = TRUE) &&
+               !MOTIF_MC_REGIME_RARE %in% MOTIFS_MC_DEGENERES
            })
 })
 

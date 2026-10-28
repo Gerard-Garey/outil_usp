@@ -791,8 +791,8 @@ local({
                is.finite(l$p_min) && is.na(l$p_min_mc) &&
                is.finite(r312$bootstrap$p_min_mc[["Runs"]])
            })
-  # p Monte-Carlo absente : motif en tete du detail (forme de
-  # detail_diagnostic() de usp_tests()), puis T-1 ; statistique observee non
+  # p Monte-Carlo absente : motif en tete du detail (pose par add(), forme de
+  # .prefixe_motif_mc(), #358), puis T-1 ; statistique observee non
   # finie (motif MOTIF_MC_OBS_NON_FINIE) : priorite des motifs non
   # applicables, la ligne reste de type test et add() la rend non applicable.
   ligne_runs <- function(motif) {
@@ -825,7 +825,7 @@ local({
            })
   # p_min non attribuee (constat de /code-review) : add() ne restitue
   # effectifs qu'aux lignes de type test ; sur le diagnostic, mw_tests() joint
-  # le motif au detail (precedent de detail_decision_299()), dans l'ordre
+  # le motif au detail (precedent de detail_diag() de usp_tests()), dans l'ordre
   # motif Monte-Carlo, effectifs, T-1. Aucun triangle recevable ne rend
   # runs_p_min() non fini (NA seulement si un cote de la mediane est vide) :
   # .mw_p_min_ligne() est substituee le temps d'un appel de mw_tests().
