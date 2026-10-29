@@ -12,18 +12,23 @@
 #                   du test des suites est verifiee par enumeration
 #                   exhaustive dans test_lois_exactes.R) ;
 #    - car        : leveneTest (centre = mediane, i.e. Brown-Forsythe) ;
-#    - ChainLadder: MackChainLadder, CDR (Merz & Wuthrich 2008), GenIns.
+#    - ChainLadder: MackChainLadder, CDR (Merz & Wuthrich 2008), GenIns ;
+#    - boot       : envelope (enveloppe globale de Davison et Hinkley 1997,
+#                   eq. (4.17)), sur les statistiques d'ordre de
+#                   bootstrap$z_boot des references premium et
+#                   premium_interieur (test_enveloppe_qq.R, issue #385).
 #  Valeurs inscrites dans les tests : R 4.3.1, lmtest 0.9-40, tseries 0.10-55,
-#  car 3.1-2, ChainLadder 0.2.18 (versions affichees ci-dessous).
+#  car 3.1-2, ChainLadder 0.2.18 ; boot 1.3.30 sous R 4.3.3 (29/10/2026)
+#  (versions affichees ci-dessous).
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/unitaires/generer_valeurs_externes.R
 ###############################################################################
 
 suppressMessages({
-  library(lmtest); library(tseries); library(car); library(ChainLadder)
+  library(lmtest); library(tseries); library(car); library(ChainLadder); library(boot)
 })
-for (p in c("lmtest", "tseries", "car", "ChainLadder"))
+for (p in c("lmtest", "tseries", "car", "ChainLadder", "boot"))
   cat(p, as.character(utils::packageVersion(p)), "\n")
 options(digits = 15)
 
@@ -62,3 +67,16 @@ cat("\n# sigma_j^2\n");  print(unname(M$sigma^2))
 cat("\n# reserve totale (IBNR)\n"); print(sum(summary(M)$ByOrigin$IBNR))
 cat("\n# erreur type a un an de Merz-Wuthrich (2008), total\n")
 print(utils::tail(ChainLadder::CDR(M)[["CDR(1)S.E."]], 1))
+
+cat("\n# Enveloppe globale du QQ-plot, boot::envelope(level = c(0.90, 0.90)) (#385)\n")
+cat("# k.ov[1] = k ; $overall = (sim_haut, sim_bas) ; err.ov[2] x (B_eff + 1) / B_eff\n")
+cat("# = taux_global_simultane de plots_data$qq_enveloppe\n")
+for (cas in c("premium", "premium_interieur")) {
+  zb <- readRDS(file.path("tests", "reference", paste0(cas, ".rds")))$bootstrap$z_boot
+  S <- t(apply(zb[apply(is.finite(zb), 1, all), , drop = FALSE], 1, sort))
+  ev <- boot::envelope(mat = S, level = c(0.90, 0.90))
+  cat(cas, ": B_eff =", nrow(S), "\n")
+  cat("k.ov :"); print(ev$k.ov)
+  cat("err.ov :"); print(ev$err.ov)
+  cat("err.ov[2] x (B_eff + 1) / B_eff :"); print(ev$err.ov[2] * (nrow(S) + 1) / nrow(S))
+}
