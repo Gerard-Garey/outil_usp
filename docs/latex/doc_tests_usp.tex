@@ -373,8 +373,9 @@ calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
 ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
 déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
 moteur par l'application~; il porte aussi le générateur et les graines fixes des simulations,
-lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont, depuis
-l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
+lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont la graine fixe de
+la loi nulle de Shapiro--Wilk (méthode de réserve n\textsuperscript{o}~2 seulement depuis
+l'issue~\#351, section~\ref{sec:graines}) et, depuis l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
 (\code{\$metadata\$seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 section~\ref{sec:graines}), et, pour ces deux méthodes, une ligne «~P-values Monte-Carlo~» qui dit
 si elles sont conditionnelles au régime intérieur de $\hat\delta$, avec le nombre de tirages, le
@@ -811,7 +812,10 @@ $\max_t|r_t|$ des ratios centrés $u_t$ (issue~\#187) \\
 la graine \code{seed} et le générateur \code{ENGINE\_RNG\_KIND}~; \code{RNGkind()} et
 \code{.Random.seed} de l'appelant restaurés, y compris en cas d'erreur (§\ref{sec:graines}) \\
 \code{ENGINE\_RNG\_KIND},\newline \code{SEED\_LOI\_NULLE\_SW} & constantes & générateur posé
-par le moteur~; graine fixe de la loi nulle de Shapiro--Wilk, consignés dans \code{\$metadata}
+par le moteur, consigné dans \code{\$metadata} pour les trois méthodes~; graine fixe de la loi
+nulle de Shapiro--Wilk, consignée dans \code{\$metadata} pour la méthode de réserve
+n\textsuperscript{o}~2 seulement, seule à tirer sous elle depuis l'issue~\#302 (champ retiré de la
+métadonnée des méthodes lognormales par l'issue~\#351, §\ref{sec:graines})
 (la graine fixe propre à l'enveloppe du QQ-plot a été retirée par l'issue~\#47) \\
 \code{usp\_graine\_flux\_}\newline\code{regime()},\newline \code{DECALAGE\_GRAINE\_}\newline\code{FLUX\_REGIME}
 & \code{seed}~; constante ($539\,169$) & graine du flux complémentaire de la p-value de
@@ -2011,9 +2015,13 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()}, dans la seule branche
   Merz--Wüthrich depuis l'issue~\#302 (dans les deux branches auparavant). \emph{Graine}~: la
   constante \code{SEED\_LOI\_NULLE\_SW}, fixe (20260901),
-  indépendante de \code{seed} et consignée dans \code{\$metadata}, champ
-  \code{seed\_loi\_nulle\_sw} (conservé dans la métadonnée lognormale, sans emploi dans cette
-  branche depuis l'issue~\#302, pour la stabilité de la structure)~;
+  indépendante de \code{seed} et consignée dans \code{\$metadata} de la méthode de réserve
+  n\textsuperscript{o}~2 seulement, champ \code{seed\_loi\_nulle\_sw}. Les méthodes lognormales
+  l'ont consignée aussi, de l'issue~\#37 à l'issue~\#351, sans emploi depuis l'issue~\#302~:
+  l'issue~\#351 l'a retirée de leur métadonnée (décision du mainteneur du 28~octobre 2026, ADR~0004
+  annoté le 29~octobre 2026), au motif qu'une graine consignée doit désigner un tirage
+  effectivement fait par l'exécution, et qu'une graine sans tirage laisserait croire qu'une
+  p-value lognormale dépend d'une loi nulle simulée~;
   \code{engine\_sous\_graine()} pose la graine avant 20\,000 échantillons $\mathcal{N}(0,1)$ de
   taille $n$ tirés par \code{stats::rnorm()}, où $n$ est le nombre de résidus de la branche
   Merz--Wüthrich ($T$ dans la branche lognormale jusqu'à l'issue~\#302). La loi
@@ -2498,8 +2506,9 @@ statistique finie), fiche~\ref{fiche:procedure-mc}), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), la graine fixe de la loi nulle de Shapiro--Wilk
-(\code{seed\_loi\_nulle\_sw}, pour les trois méthodes~; issue~\#37, ADR~0004, point~2~; sans
-emploi dans les méthodes lognormales depuis l'issue~\#302),
+(\code{seed\_loi\_nulle\_sw}, méthode de réserve n\textsuperscript{o}~2 seulement~; issue~\#37,
+ADR~0004, point~2~; consignée aussi par les méthodes lognormales jusqu'à l'issue~\#351, qui l'en a
+retirée, sans emploi dans ces méthodes depuis l'issue~\#302),
 la graine du flux complémentaire de la p-value de Monte-Carlo conditionnelle au régime de
 $\hat\delta$ (\code{seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 placée après \code{permutation\_pente} et avant les champs d'exécution, consignée même quand le
@@ -2513,7 +2522,8 @@ même machine, quel que soit le générateur actif chez l'appelant. Le générat
 sont affichés dans le journal d'exécution de l'application et dans l'en-tête du rapport figé
 (\code{valeurs\_generateur()} de \code{R/display\_helpers.R}, en lecture seule), la graine du
 flux complémentaire comprise depuis l'issue~\#240 (méthodes de primes et de réserve
-n\textsuperscript{o}~1).
+n\textsuperscript{o}~1), la graine de la loi nulle de Shapiro--Wilk en réserve
+n\textsuperscript{o}~2 seulement depuis l'issue~\#351.
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
@@ -10397,9 +10407,10 @@ contre $10{,}21~\%$ pour la normalisation de Royston au seuil de 10~\%, et $5{,}
 $5{,}04~\%$ au seuil de 5~\%, les quatre intervalles de Clopper--Pearson à 95~\% contenant le niveau
 nominal (constat de simulation sur des échantillons i.i.d., qui vaut pour la ligne à $\hat\pi_t$
 constant). \code{sw\_p\_loi\_nulle()} et \code{sw\_loi\_nulle()} restent dans le moteur, appelées par
-\code{mw\_tests()} (fiche~\ref{mw:m5sw})~; la graine et le champ \code{seed\_loi\_nulle\_sw} de la
-métadonnée lognormale restent consignés, sans emploi dans cette branche
-(section~\ref{sec:graines}).
+\code{mw\_tests()} (fiche~\ref{mw:m5sw})~; la graine \code{SEED\_LOI\_NULLE\_SW} n'est plus
+consignée que dans la métadonnée de la méthode de réserve n\textsuperscript{o}~2 (champ
+\code{seed\_loi\_nulle\_sw}, retiré de la métadonnée lognormale par l'issue~\#351~;
+section~\ref{sec:graines}).
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
@@ -20422,9 +20433,9 @@ dans \code{\$metadata\$seed\_flux\_regime}), \code{mw\_bootstrap()} (tirages de
 \code{mw\_simuler\_triangle()}, retirage compris depuis l'issue~\#257, dans le même flux),\newline \code{sw\_loi\_nulle()}, \code{usp\_lr\_delta()}
 (issue~\#45), \code{usp\_permutation\_pente()} (issue~\#169)~; \code{engine\_plots\_data()} ne tire plus rien depuis l'issue~\#47, ni
 \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} depuis l'issue~\#42~; générateur
-fixé \code{ENGINE\_RNG\_KIND} et graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignés dans
-\code{\$metadata} par
-\code{run\_engine()}~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
+fixé \code{ENGINE\_RNG\_KIND}, consigné dans \code{\$metadata} par \code{run\_engine()}, et
+graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignée dans \code{\$metadata} pour la méthode de
+réserve n\textsuperscript{o}~2 seulement depuis l'issue~\#351~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
