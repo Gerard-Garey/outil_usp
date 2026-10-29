@@ -842,7 +842,8 @@ fiche~\ref{fiche:student-constante}, rubrique~6) \\
 (issue~\#264)~: $a$ si $b$ est vide, sinon $b$ si $a$ est vide, sinon $a$ suivi d'une espace s'il
 finit par un point, de «~\code{~; }~» sinon, puis de $b$, sans \code{trimws()} ni majuscule, de
 sorte que $b$ non vide est un suffixe littéral du résultat~; employée par \code{add()} (règle~R1,
-effectifs, plancher, phrase de l'issue~\#244), par \code{mw\_tests()} (phrases des
+effectifs, plancher, phrase de l'issue~\#244, motif Monte-Carlo en tête d'un diagnostic posé par
+l'appelant depuis l'issue~\#358), par \code{mw\_tests()} (phrases des
 issues~\#257 et~\#204), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
 remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
 de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
@@ -862,7 +863,11 @@ et $\delta = 0$, dans la limite des faibles coefficients de variation, par l'int
 (\code{.imhof\_p\_sup0()}) et \code{stats::uniroot()}~; fonction de $x$ et de $\alpha$ seulement,
 invariante par $x \to \lambda x$~; \code{NA} à volumes constants et sur échec ou avertissement de
 l'intégration ou de la recherche de racine~; lue par \code{usp\_tests()} pour la phrase du
-commentaire de Breusch--Pagan studentisé, sans effet sur son type ni sur son verdict \\
+commentaire de Breusch--Pagan studentisé, remplacée par un motif fixe d'échec numérique quand le
+calcul, tenté, rend \code{NA} (issue~\#358), sans effet sur son type ni sur son verdict~; calcul
+fait par \code{.usp\_puissance\_}\allowbreak\code{enveloppe\_h2\_calcul()}, valeur gardée dans l'environnement
+\code{.cache\_pi\_env} sous la clé des bits exacts de $\alpha$ et de $x$ (issue~\#358)~: valeur
+rendue identique au calcul direct, \code{NA} compris, sans tirage aléatoire \\
 \code{usp\_permutation\_}\newline\code{pente()} & $x$, $y$, $B$ (999), \code{seed}
 (20260831), \code{unilateral} (\code{TRUE}) & test de Pitman sur la pente (issue~\#169,
 fiche~\ref{fiche:student-pente})~: $r$ observé et $t_b$ (champ \code{t}, calculé sur $r$ borné
@@ -937,11 +942,21 @@ observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, con
 \code{motif\_mc}~; champ \code{extremes} évalué une fois sur le contexte observé et vecteur
 \code{p\_min\_mc}, dernier élément rendu (issue~\#125)~; erreur si une statistique simulée est
 absente du catalogue \\
+\code{.prefixe\_motif\_mc()},\newline \code{MOTIFS\_MC\_}\newline\code{DEGENERES} & motif
+Monte-Carlo~; liste & préfixe du commentaire d'une ligne dont la p-value de Monte-Carlo manque
+(issue~\#358)~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~» suivi du complément de
+\code{.complement\_motif\_mc()} pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
+<motif>.}~» pour tout autre motif~; appelée par \code{add()} seule, sur une ligne de type test au
+motif de dégénérescence et sur tout diagnostic posé par l'appelant (§\ref{sec:nature})~; liste
+unique des trois motifs de dégénérescence (\code{MOTIF\_MC\_DISPERSION\_NULLE},
+\code{MOTIF\_MC\_ATOME\_HORS\_OBS}, \code{MOTIF\_MC\_CONDITION}), lue par \code{add()}, par
+\code{.prefixe\_motif\_mc()} et par la ligne des suites sur ratios bruts d'\code{usp\_tests()} \\
 \code{.complement\_motif\_mc()},\newline \code{COMPLEMENTS\_}\newline\code{MOTIF\_MC},\newline
 \code{DETAIL\_MC\_ATOME\_}\newline\code{HORS\_OBS} & motif Monte-Carlo~; table~; phrase &
 phrase qui complète le commentaire d'une ligne pour un motif donné (vide sinon)~; table nommée
 motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS\_OBS}~; lue par
-\code{add()} et par les lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
+\code{add()}, par l'intermédiaire de \code{.prefixe\_motif\_mc()} depuis l'issue~\#358, et par les
+lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
 (§\ref{sec:nature}, issue~\#126) \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
@@ -5654,7 +5669,7 @@ d'\code{usp\_regime()} (champ \code{pi\_constant}, bande de tolérance \code{TOL
 comprise~: $\hat\delta \ge 1 - 10^{-6}$ ou volumes constants), les lignes calculées sur les
 ratios centrés $u_t$ --- Durbin--Watson, suites, rupture sup-F, OLS-CUSUM et Grubbs sur ratios
 bruts --- sont restituées en \emph{diagnostic}~: \code{usp\_tests()} passe
-\code{type = "diagnostic"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et
+\code{type = "diagnostic"} à \code{add()}, qui pose le verdict \code{INFO} et
 \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les p-values calculées restent dans
 leurs colonnes (\code{p\_mc}, et \code{p\_exacte} de la ligne des suites sous la double condition
 de la fiche~\ref{fiche:suites-ratios-bruts}), le champ \code{inoperant} vaut \code{FALSE}, la
@@ -5675,17 +5690,23 @@ fixe «~\code{Restituee en diagnostic (regle R15) : aucun verdict ni p-value ret
 releve de la ligne homologue sur residus standardises, dont le type et le verdict font foi.}~»~:
 la formule «~\code{dont le type et le verdict font foi}~» tient compte de ce que la ligne homologue
 peut n'avoir elle-même aucun verdict (diagnostic par la règle~R1, test sans p-value retenue).
-Sans p-value de Monte-Carlo, \code{usp\_tests()} pose le motif en tête selon sa classe, comme
-\code{add()} le ferait pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
-suivi de son complément pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
-<motif>.}~» sinon. Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
+Sans p-value de Monte-Carlo, \code{add()} pose le motif en tête selon sa classe, par
+\code{.prefixe\_motif\_mc()}, comme pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
+suivi de son complément pour un motif de dégénérescence (liste \code{MOTIFS\_MC\_DEGENERES}),
+«~\code{Monte-Carlo indisponible : <motif>.}~» sinon~; elle le fait pour tout diagnostic posé par
+l'appelant dont la p-value de Monte-Carlo manque --- lignes de la règle~R15 et diagnostics par
+décision de la méthode lognormale, ligne des suites sur les résidus de Mack
+(fiche~\ref{mw:m3runs}) ---, et le type reste celui que l'appelant a passé (issue~\#358~; jusqu'à
+cette issue, \code{usp\_tests()} et \code{mw\_tests()} posaient chacune ce préfixe, sous la même
+forme). Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
 règle~R1 et effectifs, mention du plancher, phrase de l'issue~\#244) ne sont pas ajoutés, et la
 proposition «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~» est retirée du
 commentaire de la ligne des suites à $\hat\pi_t$ constant. \emph{Priorité}~: une ligne non
 applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane), sans la
 phrase de la règle. À $\hat\pi_t$ variable, rien ne change~: ces lignes sont des tests qui
-retiennent leur p-value de Monte-Carlo. Comme la règle~R14, la décision est prise dans
-\code{usp\_tests()}, \code{add()} et \code{engine\_registre\_tests()} restant inchangés.
+retiennent leur p-value de Monte-Carlo. Comme pour la règle~R14, la décision est prise dans
+\code{usp\_tests()}~: \code{add()} reçoit le type sans en décider, et ne touche au commentaire
+d'un tel diagnostic que pour y poser le motif Monte-Carlo en tête (issue~\#358).
 Mesuré par \code{run\_engine()} ($B = 999$, graine 20260831)~: sur les quatre cas de référence à
 $\hat\delta = 1$, ces lignes passent de \code{OK} à \code{INFO}, \code{p\_mc} restant
 calculée ($0{,}566$, $0{,}768$, $0{,}931$, $0{,}756$ et $0{,}777$ sur \code{premium}) et la p-value
@@ -5705,13 +5726,13 @@ statistique est distincte mais dominée par une ligne conservée, ou écartée a
 ligne désignée pour l'hypothèse (Breusch--Pagan 1979, ci-dessous), ou mal rattachée à l'hypothèse
 qu'elle vise~: \emph{par décision} quand le motif ne dépend pas des données, \emph{par règle} quand
 il en dépend (règles~R1, R3, R14 et~R15). Un diagnostic par décision prend la forme de la
-règle~R15~: \code{usp\_tests()} passe \code{type = "diagnostic"} à \code{add()}, inchangée, qui pose
+règle~R15~: \code{usp\_tests()} passe \code{type = "diagnostic"} à \code{add()}, qui pose
 le verdict \code{INFO} et \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les
 p-values calculées restent dans leurs colonnes~; le champ \code{inoperant} vaut \code{FALSE} et la
 règle~R1 ne s'applique plus, faute de type test~; les motifs non applicables priment (une ligne
 dont la statistique observée n'est pas définie garde le type test, et \code{add()} la rend non
 applicable)~; le commentaire porte, le cas échéant, le motif Monte-Carlo en tête selon sa classe,
-puis le texte propre à la ligne, puis une phrase fixe «~\code{Restituee en diagnostic par decision
+posé par \code{add()} (issue~\#358), puis le texte propre à la ligne, puis une phrase fixe «~\code{Restituee en diagnostic par decision
 (issue \#N) : aucun verdict ni p-value retenue ; \ldots{} dont le type et le verdict font foi.}~»,
 qui nomme la ligne dont relève l'hypothèse~; le champ \code{variante}, qui ne règle que l'affichage
 par défaut, est inchangé. Les p-values ne sont pas écartées pour leur qualité --- la p-value de
@@ -9802,8 +9823,17 @@ d'un test invariant de delta = 1 contre delta = 0 ou de delta = 0 contre delta =
 grand de la famille de l'annexe XVII, limite des faibles coefficients de variation) : 0.13 avec ces
 volumes ; un OK ne demontre pas la structure de variance.}~» sur le jeu de contrôle ($0{,}34$ sur
 \code{premium\_interieur}). Ce nombre est déterministe, fonction des seuls volumes et de $\alpha$,
-et n'est pas issu du bootstrap (règle de l'issue~\#76)~; la phrase est omise si
-$\pi_{\text{env}}$ n'est pas calculable.
+et n'est pas issu du bootstrap (règle de l'issue~\#76). Le calcul n'est tenté qu'à volumes non
+constants et à statistique observée définie~; ailleurs, la ligne est non applicable et la phrase
+n'est pas écrite. Tenté sans aboutir (valeur \code{NA}, rubrique~6), il laisse place, depuis
+l'issue~\#358, à un motif fixe, sans nombre~: «~\code{Puissance maximale d'un test invariant de
+delta = 1 contre delta = 0 ou de delta = 0 contre delta = 1 (famille de l'annexe XVII) non
+calculee avec ces volumes : echec numerique de l'integration d'Imhof ou de la recherche de racine
+(usp\_puissance\_}\allowbreak\code{enveloppe\_h2()) ; un OK ne demontre pas la structure de variance.}~», qui garde
+la mise en garde sur la portée d'un \code{OK} (mesuré par \code{usp\_tests()} en substituant à
+\code{.imhof\_p\_sup0()}, dans l'environnement du moteur, une fonction qui rend \code{NA}~; la
+ligne reste de type test)~; jusqu'à cette issue, la phrase était omise sans
+motif.
 \Usage
 On souhaite \emph{ne pas} rejeter. Limites sérieuses à $T$ faible~: la convergence vers la loi du
 khi-deux est lente et la taille effective du test s'écarte notablement du niveau nominal pour
@@ -9876,7 +9906,13 @@ non démontrée ni mesurée par l'outil~; $\pi_{\text{env}}$ est calculée dans 
 faibles coefficients de variation, et sa valeur à $c$ fini n'est pas chiffrée par l'outil
 (\code{usp\_puissance\_enveloppe\_h2()} n'a pas d'argument $c$).
 Non calculée à volumes constants ($\Sigma_1 = \Sigma_0$), où la ligne est non applicable, ni en cas
-d'échec de l'intégration ou de la recherche de racine (valeur \code{NA}, phrase omise).
+d'échec de l'intégration ou de la recherche de racine (valeur \code{NA}, motif fixe d'échec
+numérique à la place de la phrase, rubrique~5). Une erreur ou un avertissement de l'une ou l'autre
+étape donne \code{NA}. L'avertissement de \code{stats::uniroot()}, «~\code{NA/Inf replaced by
+maximum positive value}~», ne signale pas une non-convergence~: il dit que des évaluations de
+\code{.imhof\_p\_sup0()} ont rendu \code{NA} et que \code{stats::uniroot()} les a remplacées par
+la plus grande valeur positive (texte de l'avertissement), de sorte que le point rendu n'est pas garanti racine
+de l'équation de niveau~; il n'est pas gardé.
 \emph{Lecture.} Sur le jeu de contrôle, $\pi_{\text{env}} = 0{,}13$ pour $\alpha = 0{,}10$~: même
 l'écart le plus grand de la famille réglementaire n'y serait détecté que dans $13~\%$ des cas par
 le meilleur test invariant, et un \code{OK} de la ligne n'y démontrerait pas la structure de
@@ -12125,9 +12161,11 @@ dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nat
 hors de la double condition, il ne nomme la p-value de Monte-Carlo que si elle
 existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simulee sous le modele
 ajuste avec ses pi\_t, est calculee~; la p-value retenue, s'il en est une, est nommee par
-nature\_p~;}~» ---, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
+nature\_p~;}~» ---, et dit sinon, à $\hat\pi_t$ variable seulement, où la ligne reste de type
+test, qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
 (ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
-\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). \emph{Aucune phrase de
+\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p})~; à $\hat\pi_t$
+constant, hors de la double condition, voir ci-dessous. \emph{Aucune phrase de
 \code{usp\_tests()} ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
 «~\code{la p-value EXACTE est retenue}~» sous la double condition et «~\code{Seule la p-value
 Monte-Carlo [\dots] est retenue}~» à $\hat\pi_t$ variable, ce que contredit la règle~R1 quand elle
@@ -12149,14 +12187,24 @@ où l'écart est attribué au traitement numérique (centrage de $u$ par la moye
 ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue sous~1 sur $z$,
 section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ constant à la
 tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
-nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
+nommée. Dans les deux sous-cas, sa partie propre se termine par «~\code{La p-value Monte-Carlo, simulee sous le
 modele ajuste, est calculee.}~» quand cette p-value existe (issue~\#182~; jusqu'à l'issue~\#303,
 la phrase ajoutait «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~»,
 formule étendue par l'issue~\#214 aux deux autres régimes de la ligne, à RESET et à OLS-CUSUM, et
 retirée de ces deux sous-cas, à $\hat\pi_t$ constant, où la ligne est un diagnostic de la
-règle~R15), et par la phrase
-d'indisponibilité ci-dessus sinon, sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
-(cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
+règle~R15), sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
+(cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Quand elle manque, aucune
+phrase n'est ajoutée depuis l'issue~\#358~: le motif Monte-Carlo en tête du commentaire, posé
+par \code{add()} (section~\ref{sec:nature}, règle~R15), et la phrase fixe de la règle~R15 qui le
+termine disent seuls l'absence de p-value retenue~; jusqu'à cette issue, la phrase
+d'indisponibilité ci-dessus la répétait une troisième fois. Mesuré par \code{usp\_tests()} sur un
+cas construit à partir du jeu de contrôle ($\delta$ fixé à $1 - 5\cdot 10^{-7}$, dans la bande
+\code{TOL\_DELTA\_BORD}, un ratio rapproché de son voisin à $10^{-10}$ près en relatif, objet
+bootstrap sans p-value de Monte-Carlo pour la statistique des suites~; scénario de
+\code{tests/unitaires/test\_regimes\_p\_exactes.R})~: commentaire «~\code{Monte-Carlo
+indisponible : aucune replication finie (B\_effectif = 0). CONTROLE SANS OBJET ICI} \ldots{}
+\code{(issue \#29, seconde condition de la fonction usp\_runsr\_p\_exacte). Restituee en
+diagnostic (regle R15)} \ldots~», type diagnostic, verdict \code{INFO}. Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
 Monte-Carlo près~; le commentaire ne cite cette p-value de Monte-Carlo que si elle existe
 («~\code{La p-value Monte-Carlo de la colonne p\_mc estime la meme quantite, a l'erreur
@@ -17173,8 +17221,10 @@ $n = n_1 + n_2$ et $R$ le nombre de suites. Le nombre de résidus étant impair
 sur le triangle de contrôle ($27$), la médiane y est l'un d'eux~: un résidu est
 écarté, et $n_1 = n_2 = 13$ (mesuré). \textbf{Diagnostic par décision, variante secondaire,
 depuis l'issue~\#312}~: \code{mw\_tests()} passe \code{type = "diagnostic"} et
-\code{variante = "secondaire"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et laisse
-\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}, \code{inoperant} à \code{FALSE}~;
+\code{variante = "secondaire"} à \code{add()}, qui pose le verdict \code{INFO} et laisse
+\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}, \code{inoperant} à \code{FALSE},
+et qui pose aussi, depuis l'issue~\#358, le motif Monte-Carlo en tête du commentaire quand la
+p-value de Monte-Carlo manque (posé jusque-là par \code{mw\_tests()}, sous la même forme)~;
 la règle~R1 ne s'applique plus, faute de type test, et le champ \code{p\_min\_mc} vaut \code{NA}
 (forme des diagnostics par décision de la méthode lognormale, section~\ref{sec:nature}). Les
 motifs non applicables priment~: si la statistique observée n'est pas finie, ou si la p-value de
@@ -17247,7 +17297,7 @@ niveau, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucun
 lui est substituée. Le commentaire est «~\code{Restituee en diagnostic par decision (issue \#312)
 : aucun verdict ni p-value retenue ; l'hypothese releve de la ligne Autocorrelation des residus
 (Durbin-Watson), calculee sur les residus de Mack dans le meme ordre de parcours, dont le type et
-le verdict font foi.}~», précédé du motif Monte-Carlo quand la p-value de Monte-Carlo manque, puis, quand
+le verdict font foi.}~», précédé du motif Monte-Carlo, posé par \code{add()} (issue~\#358), quand la p-value de Monte-Carlo manque, puis, quand
 $p_{\min}$ n'est pas attribuée, du motif qui l'explique (chaîne \code{effectifs} de
 \code{.mw\_p\_min\_ligne()}, que \code{add()} ne restitue qu'aux lignes de type test et que
 \code{mw\_tests()} joint ici, comme sur les lignes de l'issue~\#299~; ce n'est pas le cas sur le
@@ -20256,7 +20306,9 @@ auxiliaire pondéré~» du TOST («~MCO~» avant l'issue~\#215~; §\ref{sec:natu
 retiré par l'issue~\#181)~; \code{runs\_p\_min()},
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
-\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; complément du commentaire par
+\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; préfixe du motif en tête du
+commentaire par \code{.prefixe\_motif\_mc()}, liste \code{MOTIFS\_MC\_DEGENERES} (issue~\#358)~;
+complément du commentaire par
 \code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}, issue~\#126) \\
 Puissance approchée a posteriori de la pente, phrase de contexte du commentaire
 (§\ref{sec:modele-auxiliaire-regles}~; règle~R4 retirée par D1-Fb, issues~\#218 et~\#230) &
