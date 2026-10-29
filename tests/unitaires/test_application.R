@@ -776,7 +776,8 @@ a("objet non fonction rbind global : table des controles identical a celle rendu
   # Ligne "P-values Monte-Carlo" du bloc Etat et du journal, graine du flux
   # dans le journal (issue #240, Q-A4-12 (B)) : textes de texte_p_mc_regime()
   # et de valeurs_generateur(), lus dans le resultat, presents en primes (jeu
-  # par defaut) et absents en reserve no 2 (triangle par defaut).
+  # par defaut) et absents en reserve no 2 (triangle par defaut) ; graine de
+  # la loi nulle SW : l'inverse (reserve no 2 seulement, #351).
   .bloc_240 <- r"---(
 ## Ligne "P-values Monte-Carlo" du bloc Etat (issue #240)
 testServer(app, {
@@ -794,6 +795,9 @@ testServer(app, {
       regexpr("Granularite p_mc", jo, fixed = TRUE) < regexpr("P-values Monte-Carlo", jo, fixed = TRUE) &&
       regexpr("P-values Monte-Carlo", jo, fixed = TRUE) < regexpr("Seuil alpha", jo, fixed = TRUE) &&
       grepl("Graine flux regime   : 20800000 ", jo, fixed = TRUE))
+  a("journal (primes) : pas de ligne 'Graine loi nulle SW' (consignee en reserve no 2 seulement, #351)",
+    !grepl("Graine loi nulle SW", jo, fixed = TRUE) &&
+      is.null(resultat()$metadata$seed_loi_nulle_sw))
   session$setInputs(methode = "reserve2", reinit = 2)
   # Le navigateur rend la grille du triangle : ses cellules observees c_i_j
   # sont relues, sans quoi le moteur refuse un triangle vide.
@@ -808,6 +812,10 @@ testServer(app, {
   a("journal (reserve no 2) : ni ligne P-values Monte-Carlo ni graine du flux (#240)",
     grepl("Seuil alpha", jo, fixed = TRUE) && !grepl("P-values Monte-Carlo", jo, fixed = TRUE) &&
       !grepl("Graine flux regime", jo, fixed = TRUE))
+  a("journal (reserve no 2) : ligne 'Graine loi nulle SW' presente, graine du moteur (#351)",
+    grepl(paste0("Graine loi nulle SW  : ",
+                 format(resultat()$metadata$seed_loi_nulle_sw, scientific = FALSE), " "),
+          jo, fixed = TRUE) && identical(resultat()$metadata$seed_loi_nulle_sw, 20260901))
 })
 )---"
   # Notifications de refus (issue #226) : texte fixe d'interface, motif
@@ -1277,8 +1285,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 83 assertions rendues", length(.lignes) == 83L)
-  if (length(.lignes) != 83L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 85 assertions rendues", length(.lignes) == 85L)
+  if (length(.lignes) != 85L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

@@ -1621,7 +1621,9 @@ server <- function(input, output, session) {
     cat("Seuil alpha          :", .num_fr_defaut(m$alpha), "\n")
     cat("Graine (seed)        :", format(m$seed, scientific = FALSE), "\n")
     # Generateur et graines fixes consignes par le moteur (issue #37) ; un
-    # champ absent de metadata ne produit pas de ligne.
+    # champ absent de metadata ne produit pas de ligne (graine de la loi nulle
+    # SW : reserve no 2 seulement, #351 ; graine du flux : primes et reserve
+    # no 1 seulement, #240).
     # Libelles ASCII, comme les autres lignes de ce bloc.
     gen <- valeurs_generateur(m)
     if (!is.na(gen["generateur"]))

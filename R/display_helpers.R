@@ -573,21 +573,27 @@ plot_ratio <- function(pd) {
 # modele de .spread_sous_titre() : ce qui est trace, puis, s'il existe, le
 # motif du moteur (pd$qq_enveloppe$motif, engine_enveloppe_qq(), #385) seul
 # sur la seconde ligne, tel quel ; aucune cause reconstruite ici (la bande
-# simultanee peut manquer a B_eff >= 500, faute de rang admissible). Objet
-# sans motif (anterieur a #385) : une ligne, aucune cause ecrite.
+# simultanee peut manquer a B_eff >= 500, faute de rang admissible). Aucune
+# redite (principe de .spread_sous_titre()) : quand un motif est present, la
+# premiere ligne ne dit que ce qui est trace ("bande ponctuelle seule sur N
+# replications", "aucune bande"), le motif disant la cause. Objet sans motif
+# (anterieur a #385) : une ligne, ancien libelle avec "indisponible", aucune
+# cause ecrite.
 .qq_sous_titre <- function(pd) {
   e <- pd$qq_enveloppe
   if (is.null(e)) return(character(0))
   b <- .qq_bandes(pd)
+  motif <- length(e$motif) == 1L && !is.na(e$motif)
   quoi <- if (b[["sim"]])
             sprintf("bande ponctuelle et bande simultan\u00e9e (rang k = %s sur %s r\u00e9plications)",
                     e$k, e$B_eff)
           else if (b[["ponct"]])
-            sprintf("bande ponctuelle seule sur %s r\u00e9plications, bande simultan\u00e9e indisponible",
-                    e$B_eff)
+            sprintf("bande ponctuelle seule sur %s r\u00e9plications%s", e$B_eff,
+                    if (motif) "" else ", bande simultan\u00e9e indisponible")
+          else if (motif) sprintf("aucune bande (%s r\u00e9plications)", e$B_eff)
           else sprintf("enveloppe indisponible (%s r\u00e9plications)", e$B_eff)
   c(sprintf("bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, %s", quoi),
-    if (length(e$motif) == 1L && !is.na(e$motif)) e$motif)
+    if (motif) e$motif)
 }
 .qq_bande_base <- function(x, bas, haut, col) {
   o <- order(x)
@@ -2050,7 +2056,8 @@ libelle_derogation <- function(res, parametre) {
 # Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
 # calcul : un champ absent (objet anterieur a l'issue #37) ne produit pas
 # d'element. Rend un vecteur de textes bruts nomme par champ de metadata
-# (generateur, seed_loi_nulle_sw, seed_flux_regime de #240 ; la graine de
+# (generateur ; seed_loi_nulle_sw, reserve no 2 seulement depuis #351 ;
+# seed_flux_regime de #240, primes et reserve no 1 seulement ; la graine de
 # l'enveloppe du QQ-plot est retiree par l'issue #47, l'enveloppe etant lue
 # dans le bootstrap) ; chaque appelant choisit ses libelles (ASCII dans le
 # journal d'execution, accentues dans le rapport, table lib_gen) et echappe

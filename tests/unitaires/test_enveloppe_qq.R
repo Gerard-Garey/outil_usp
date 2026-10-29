@@ -335,11 +335,15 @@ if (!requireNamespace("boot", quietly = TRUE))
 # lignes, sur le modele de .spread_sous_titre() : bandes tracees, puis le
 # motif du moteur seul, tel quel, en seconde ligne, sans cause reconstruite ;
 # objet sans motif (anterieur a #385) : une ligne, aucune cause ecrite.
+# Aucune redite (R2 d'app-review) : avec un motif, la premiere ligne ne dit que
+# ce qui est trace, sans "indisponible" que le motif redirait ; sans motif,
+# l'ancien libelle est conserve.
 # plot_qqnorm() trace une ligne par element (mtext() en base R, <sup> par
 # ligne en plotly, marge haute de 80 px a deux lignes).
 source(file.path(.racine385, "R", "display_helpers.R"), local = TRUE)
 ST0 <- "bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, "
-PONCT199 <- paste0(ST0, "bande ponctuelle seule sur 199 r\u00e9plications, bande simultan\u00e9e indisponible")
+PONCT199 <- paste0(ST0, "bande ponctuelle seule sur 199 r\u00e9plications")
+PONCT199_SANS_MOTIF <- paste0(PONCT199, ", bande simultan\u00e9e indisponible")
 MOTIF500 <- "moins de 500 replications retenues : bande simultanee non calculee"
 MOTIF_K <- paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
                  "au rang k = 1 ; bande simultanee non disponible")
@@ -357,21 +361,24 @@ verifier("Sous-titre QQ, B = 199 : deux lignes, bande ponctuelle seule puis moti
            st <- .qq_sous_titre(r1$plots_data)
            identical(st, c(PONCT199, MOTIF500)) && !any(grepl("B_eff <", st, fixed = TRUE))
          })
-verifier("Sous-titre QQ, B = 10 : deux lignes, enveloppe indisponible puis motif du seuil de 20",
+verifier("Sous-titre QQ, B = 10 : deux lignes, aucune bande tracee puis motif du seuil de 20 (aucune redite)",
          identical(.qq_sous_titre(pd10),
-                   c(paste0(ST0, "enveloppe indisponible (10 r\u00e9plications)"),
+                   c(paste0(ST0, "aucune bande (10 r\u00e9plications)"),
                      "moins de 20 replications retenues : enveloppe non disponible")))
 verifier("Sous-titre QQ, k* NA a B_eff = 500 (T = 26, S construite) : deux lignes, bande ponctuelle seule puis motif 'aucun rang k admissible', aucun '(B_eff < 500)'",
          {
            st <- .qq_sous_titre(pd26)
-           identical(st, c(paste0(ST0, "bande ponctuelle seule sur 500 r\u00e9plications, bande simultan\u00e9e indisponible"),
+           identical(st, c(paste0(ST0, "bande ponctuelle seule sur 500 r\u00e9plications"),
                            MOTIF_K)) && !any(grepl("B_eff <", st, fixed = TRUE))
          })
-verifier("Sous-titre QQ, objet anterieur a #385 (qq_enveloppe sans motif ni regle_rang, B = 199) : une ligne, aucune cause ecrite ; sans qq_enveloppe : aucune ligne",
+verifier("Sous-titre QQ, objet anterieur a #385 (qq_enveloppe sans motif ni regle_rang, B = 199 et B = 10) : une ligne, ancien libelle 'indisponible', aucune cause ecrite ; sans qq_enveloppe : aucune ligne",
          {
            pd <- r1$plots_data; pd$qq_enveloppe$motif <- NULL; pd$qq_enveloppe$regle_rang <- NULL
            pd0 <- r1$plots_data; pd0$qq_enveloppe <- NULL
-           identical(.qq_sous_titre(pd), PONCT199) && identical(.qq_sous_titre(pd0), character(0))
+           pd10s <- pd10; pd10s$qq_enveloppe$motif <- NULL
+           identical(.qq_sous_titre(pd), PONCT199_SANS_MOTIF) &&
+             identical(.qq_sous_titre(pd10s), paste0(ST0, "enveloppe indisponible (10 r\u00e9plications)")) &&
+             identical(.qq_sous_titre(pd0), character(0))
          })
 # Rendu base R (pdf(NULL)) : textes de mtext() releves dans l'ordre d'appel,
 # avec leur argument line (une ligne par element, la derniere au ras du cadre).
