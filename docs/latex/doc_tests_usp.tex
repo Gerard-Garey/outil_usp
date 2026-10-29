@@ -113,7 +113,8 @@
           backgroundcolor=tablerow, skipabove=3mm, skipbelow=3mm]{encadre}
 
 % Fiches de test : six rubriques fixes, plus la rubrique 7 (\Pertinence) pour
-% les fiches de test et de procedure de decision (issue #114).
+% les fiches de test (issue #114 ; et de procedure de decision, type retire
+% d'add() par #357).
 \newcounter{ficheid}
 \newenvironment{fiche}[1]{%
   \stepcounter{ficheid}%
@@ -132,8 +133,9 @@
 \newcommand{\Pval}{\item[\textcolor{financeblue}{\textbf{5. p-value.}}]}
 \newcommand{\Usage}{\item[\textcolor{financeblue}{\textbf{6. Usage et limites.}}]}
 % Rubrique 7 (issue #114) : p-value minimale atteignable, pertinence et puissance a
-% faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime)
-% et de procedure de decision (type sans ligne depuis #304 et #300) ; jamais sur un diagnostic, un controle
+% faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime ;
+% le type procedure de decision, sans ligne depuis #304 et #300, est retire d'add()
+% par #357) ; jamais sur un diagnostic, un controle
 % numerique, une fiche graphique ou de procedure (docs/latex/CONVENTIONS.md).
 \newcommand{\Pertinence}{\item[\textcolor{financeblue}{\textbf{7. Pertinence et puissance à faible $T$.}}]}
 
@@ -227,7 +229,7 @@ puis une section de lecture conjointe (p-values de famille), commune aux deux
 méthodes~; chaque fiche suit une
 structure uniforme en six rubriques~: cadre et hypothèses de validité (non
 testées), hypothèse nulle, statistique de test, loi sous l'hypothèse nulle,
-p-value, usage et limites~; les fiches de test et de procédure de décision y
+p-value, usage et limites~; les fiches de test y
 ajoutent une septième, pertinence et puissance à faible $T$ (p-value minimale
 atteignable, statut de la ligne, puissance lorsqu'elle a été mesurée). La \textbf{partie~IV} rassemble la validation
 empirique de l'implémentation, les références bibliographiques et la synthèse
@@ -3291,11 +3293,15 @@ Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
 diagnostic d'influence ou de robustesse, p de famille et p globale de la lecture conjointe,
 fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}~; les contrôles numériques de l'estimation n'y
-figurent pas, voir la section~\ref{sec:controles}),
-\emph{procédure de décision} (type sans ligne depuis les issues~\#304 et~\#300~: la procédure ESD
-de Rosner, qui ne produit pas de p-value, en était la seule ligne~; elle est un diagnostic par
-décision dans les deux méthodes, fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}) ou
-\emph{non applicable}.
+figurent pas, voir la section~\ref{sec:controles}) ou
+\emph{non applicable}. La fonction \code{add()} n'admet que ces trois valeurs et refuse toute
+autre par une erreur («~\code{add()~: type de ligne inconnu}~»)~; seule une ligne de type
+\code{test} porte un verdict. Un quatrième type, \emph{procédure de décision}, a existé jusqu'à
+l'issue~\#357 (28~octobre 2026, ADR~0001 annoté)~: la procédure ESD de Rosner, qui décide au
+niveau $\alpha$ sans produire de p-value, en était la seule ligne~; resté sans ligne depuis
+les issues~\#304 et~\#300, qui font de cette procédure un diagnostic par décision dans les deux
+méthodes (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), ce type a été retiré
+d'\code{add()}, qui le refuse désormais comme tout type inconnu.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic depuis
@@ -14958,7 +14964,7 @@ régression agrégée initiale, conservée en tête, ne le permettait pas.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M1 --- Absence de tendance des facteurs avec le cumulé, à colonne donnée}
@@ -16206,7 +16212,7 @@ $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M2 --- Hétéroscédasticité résiduelle contre le cumulé}
@@ -16562,7 +16568,7 @@ colonnes.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M3 --- Effets d'année calendaire (test de Mack)}
@@ -17269,7 +17275,7 @@ Ligne de type diagnostic, variante secondaire, par décision depuis l'issue~\#31
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M4 --- Cellule aberrante du triangle (résidus studentisés externes)}
@@ -20242,7 +20248,8 @@ d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} 
 \code{NATURE\_APPROX\_N\_FINI}) \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
-hors des types \code{test} et \code{procedure de decision} \\
+hors du type \code{test} (le type \code{procedure de decision}, qui portait aussi un verdict,
+est refusé par \code{add()} depuis l'issue~\#357) \\
 Test inopérant, Monte-Carlo indisponible (diagnostic, issue~\#181) ou dégénéré, nature «~sous le modèle
 auxiliaire pondéré~» du TOST («~MCO~» avant l'issue~\#215~; §\ref{sec:nature} et~\ref{sec:modele-auxiliaire}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
 \code{effectifs}, \code{libelle\_p\_as}, \code{nature\_forcee} (\code{repli\_asymptotique}
@@ -20633,8 +20640,8 @@ $[5\,\%\,;\,10\,\%[$). \\
 \code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
-\code{INFO} & Toute ligne dont le type n'est ni \code{test} ni \code{procedure de decision}
-(ADR~0001, amendement du 23/09/2026)~: diagnostics et lignes non applicables, dont
+\code{INFO} & Toute ligne dont le type n'est pas \code{test}
+(ADR~0001, amendement du 23/09/2026, annoté le 28/10/2026)~: diagnostics et lignes non applicables, dont
 \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
 qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
 diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
@@ -20659,7 +20666,8 @@ mainteneur, restitué \code{INFO}~: depuis l'issue~\#304 dans la méthode lognor
 (fiche~\ref{fiche:rosner-esd}) et depuis l'issue~\#300 sur les résidus de Mack
 (fiche~\ref{mw:m4ros}). Jusqu'à ces issues, elle était une procédure de décision, sans p-value,
 dont le verdict était \code{OK} sans valeur aberrante détectée au niveau $\alpha$, \code{ALERTE}
-pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type.
+pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type, qu'\code{add()}
+refuse depuis l'issue~\#357.
 Le test des suites sur les résidus de Mack est de même un diagnostic par décision, restitué
 \code{INFO}, depuis l'issue~\#312~: l'hypothèse relève de la ligne Durbin--Watson
 (fiche~\ref{mw:m3runs}).
