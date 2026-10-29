@@ -1544,15 +1544,20 @@ bootstrap de $\sigma_{\mathrm{USP}}$, issue~\#305, fiche~\ref{fiche:ic-bootstrap
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
-\code{engine\_enveloppe\_qq()},\newline \code{ENVELOPPE\_QQ\_NIVEAU},\newline
+\code{engine\_enveloppe\_qq()},\newline \code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
+\code{ENVELOPPE\_QQ\_NIVEAU},\newline
 \code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
 \code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
 constantes ($0{,}90$~; $0{,}05$ et $0{,}95$~; $0{,}10$~; 20~; 500) & bandes ponctuelle et
 simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{env\_haut},
 \code{env\_sim\_bas}, \code{env\_sim\_haut} de \code{plots\_data\$qqnorm}) et leur
-description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample, seuil
-\code{B\_min\_simultane})~; aucune bande sous 20 réplications, pas de bande simultanée sous 500
-(fiche~\ref{fiche:qqnorm}, issue~\#47) \\
+description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k^{\star}$ de l'éq.~(4.17) de Davison
+et Hinkley (1997), calculé par \code{engine\_rang\_simultane\_dh()} depuis l'issue~\#385, taux
+\code{taux\_global\_ponctuel} (in-sample) et \code{taux\_global\_simultane} (taux de~(4.17)),
+seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; aucune bande sous 20
+réplications, pas de bande simultanée sous 500 ni faute de rang $k$ admissible, chaque cas avec
+son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau
+(fiche~\ref{fiche:qqnorm}, issues~\#47 et~\#385) \\
 \code{engine\_enveloppe\_}\allowbreak\code{spread()},\newline
 \code{engine\_rang\_}\allowbreak\code{simultane\_dh()},\newline
 \code{SPREAD\_LOWESS\_F},\newline \code{SPREAD\_LOWESS\_ITER} & \code{z\_boot}, $x$~; matrice
@@ -13907,41 +13912,110 @@ avec le seuil $\alpha$ du calcul~:
 \item la \emph{bande simultanée}, enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4,
   éq.~(4.17), p.~152--154),
   celle de la fonction \emph{envelope} du paquet \emph{boot}, réécrite dans le moteur~: bande
-  formée, pour chaque statistique d'ordre, des $k$-ièmes plus petite et plus grande valeurs,
-  $k^{\star}$ étant le plus grand $k$ tel que la proportion des lignes de $S$ ayant au moins une
-  valeur strictement hors de la bande ne dépasse pas $0{,}10$ (les bandes étant emboîtées, la
-  proportion croît avec $k$).
+  $\big[S_{(k^{\star}),j},\ S_{(B_{\text{eff}}+1-k^{\star}),j}\big]$, où $S_{(k),j}$ désigne la
+  $k$-ième plus petite valeur de la colonne~$j$ de $S$, formée, pour chaque statistique d'ordre,
+  des $k^{\star}$-ièmes plus petite et plus grande valeurs~; le rang $k^{\star}$ suit la règle de
+  l'éq.~(4.17), calculée par \code{engine\_rang\_simultane\_dh()}, la fonction qu'emploie le
+  graphique dispersion-niveau (fiche~\ref{fiche:spread-location})~: une ligne de $S$ \emph{sort}
+  de la bande de rang $k$ si, dans au moins une colonne~$j$, sa valeur est $\le S_{(k),j}$ ou
+  $\ge S_{(B_{\text{eff}}+1-k),j}$~; le taux est la proportion de ces lignes, rapportée à
+  $B_{\text{eff}}$, et $k^{\star}$ est le plus grand $k$ dont le taux ne dépasse pas
+  \code{ENVELOPPE\_QQ\_TAUX\_MAX} $= 0{,}10$, le balayage s'arrêtant au premier $k$ qui le dépasse
+  (les bandes étant emboîtées, le taux croît avec $k$). Sur les cinq références lognormales
+  ($B_{\text{eff}} = 999$), $k^{\star}$ et les bornes de la bande simultanée sont identiques, au
+  sens de \code{identical()}, à ceux de la fonction \emph{envelope} de la version~1.3.30 du paquet
+  \emph{boot} (\code{k.ov} $= (7, 993)$~; mesure du 29~octobre 2026, R~4.3.3).
 \end{itemize}
-\emph{Règle de rang de la bande simultanée~: écart avec l'éq.~(4.17) et avec le graphique
-dispersion-niveau} (issue~\#385, ouverte). La règle de l'éq.~(4.17) (p.~153--154) fait sortir une
-ligne de la bande de rang $k$ si l'un de ses rangs de colonne est $\le k$ ou
-$\ge B_{\text{eff}} + 1 - k$, ce qui estime, par retrait de la ligne, le taux de sortie d'une courbe
-nouvelle. La règle du QQ-plot ne compte que les valeurs \emph{strictement} hors de la bande
+\emph{Règle de rang de la bande simultanée} (issue~\#385, option~(a), décision du mainteneur du
+28~octobre 2026, \code{plots\_data\$qq\_enveloppe\$regle\_rang} $=$ \code{"DH1997\_4.17"}). La
+règle de l'éq.~(4.17) (p.~153--154) compare chaque ligne à l'enveloppe tirée de toutes les
+\emph{autres} lignes~; sans ex æquo dans $S$, sortir de la bande de rang $k$ au sens des inégalités
+larges ci-dessus, la bande étant construite sur toutes les lignes, équivaut exactement à sortir
+strictement de la bande de même rang construite sur toutes les lignes sauf elle (équivalence de
+calcul de l'ouvrage, p.~154). Le taux de~(4.17) est donc, sans ex æquo, un taux \emph{par
+retrait d'une ligne}, qui estime le taux de sortie d'une courbe \emph{nouvelle}, ce qu'est la
+courbe observée~: sur les références \code{premium} et \code{premium\_interieur}, il est égal au
+rang $k^{\star}$, au sens de \code{identical()}, au taux recalculé par retrait de chaque ligne
+($0{,}0921$ et $0{,}0901$~; mesure du 29~octobre 2026). Avec des ex æquo
+dans $S$, la règle porte sur les valeurs~: une ligne égale à une borne sort, là où la fonction
+\emph{envelope}, qui travaille sur les rangs moyens de \code{rank()}, peut ne pas la compter~; le
+taux du moteur est alors au moins égal, et la bande au moins aussi large (règle plus
+conservatrice). Aucun ex æquo n'est mesuré dans $S$ sur les cinq références lognormales. Deux autres
+écarts d'écriture avec la fonction \emph{envelope} sont sans effet mesuré~: elle rapporte le taux
+à $B_{\text{eff}} + 1$ et non à $B_{\text{eff}}$, et cherche $k^{\star}$ par interpolation entre le
+rang~1 et le rang de la bande ponctuelle, là où le moteur balaie les rangs dans l'ordre.
+\emph{Règle antérieure} (moteur jusqu'au 29~octobre 2026, issue~\#385)~: une ligne ne sortait de
+la bande de rang $k$ que si l'une de ses valeurs était \emph{strictement} hors de la bande
 construite avec la ligne elle-même, soit, sans ex æquo, les rangs $\le k - 1$ ou
-$\ge B_{\text{eff}} + 2 - k$~: son taux au rang $k$ est celui de~(4.17) au rang $k - 1$ (égalité
+$\ge B_{\text{eff}} + 2 - k$~; son taux au rang $k$ était celui de~(4.17) au rang $k - 1$ (égalité
 \code{identical()} mesurée pour $k = 2$ à 12 sur les références \code{premium} et
-\code{premium\_interieur}), et son $k^{\star}$ dépasse en général d'une unité celui de~(4.17)~:
-$k^{\star} = 8$ contre 7 sur ces deux références, au même taux in-sample ($9{,}2~\%$ et
-$9{,}0~\%$). La bande simultanée du QQ-plot est donc plus étroite d'un rang que celle de~(4.17),
-ce qui est cohérent avec l'optimisme du taux auto-évalué relevé ci-dessous, sans qu'il soit établi
-que ce décalage en soit la seule cause. Le graphique dispersion-niveau suit~(4.17) depuis
-l'issue~\#306 (fiche~\ref{fiche:spread-location})~; le QQ-plot garde sa règle tant que
-l'issue~\#385 n'est pas tranchée (décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026), et les
-deux graphiques ne se lisent donc pas exactement au même rang.
-\code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: source, $B_{\text{eff}}$, niveaux, rang
-$k^{\star}$, taux et seuil de la bande simultanée~; l'affichage les reprend (titre «~enveloppe de
-simulation 90~\%~» ou «~enveloppe indisponible~», sous-titre donnant $k$ et le nombre de
-réplications, ou «~bande simultanée indisponible ($B_{\text{eff}} < 500$)~»).
-\textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications, aucune bande~; sous
-$B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule. Le seuil de 500,
+\code{premium\_interieur}, mesure renouvelée le 29~octobre 2026 sur les cinq références
+lognormales), son $k^{\star}$ dépassait, sans ex æquo, d'une unité celui
+de~(4.17) ($k^{\star} = 8$ contre 7 sur les cinq références lognormales, au même taux, $9{,}2~\%$
+et $9{,}0~\%$), le rang $k = 1$ était toujours admissible (taux nul par construction), et la bande
+simultanée était plus étroite d'un rang, ce qui était cohérent avec l'optimisme du taux
+auto-évalué relevé ci-dessous, sans qu'il fût établi que ce décalage en fût la seule cause~; sous
+la règle~(4.17), l'écart moyen entre taux auto-évalué et taux hors échantillon reste, sur le jeu
+de contrôle, inférieur à l'erreur Monte-Carlo de la mesure (ci-dessous). Le graphique
+dispersion-niveau suit~(4.17) depuis l'issue~\#306 (fiche~\ref{fiche:spread-location}, décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026)~; depuis
+l'issue~\#385, les deux graphiques se lisent au même rang.
+\code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: \code{source}, $B_{\text{eff}}$, les
+niveaux, le rang \code{k} ($k^{\star}$), \code{taux\_global\_ponctuel},
+\code{taux\_global\_simultane}, le seuil \code{B\_min\_simultane}, \code{regle\_rang} et
+\code{motif} (\code{NA} quand la bande simultanée existe, sinon le motif de dégénérescence, chaîne
+de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau). L'affichage en lit
+les niveaux, $k$ et $B_{\text{eff}}$, et restitue le motif tel quel~; le seuil
+\code{B\_min\_simultane} et \code{regle\_rang} sont descriptifs, non lus par l'affichage. Le titre
+porte «~enveloppe de simulation 90~\%~» ou «~enveloppe indisponible~»~; le sous-titre dit d'abord
+ce qui est tracé (bootstrap paramétrique sous le modèle ajusté, bande ponctuelle et bande
+simultanée avec le rang $k$ et le nombre de réplications, ou bande ponctuelle seule, ou enveloppe
+indisponible), puis, à la ligne et s'il existe, le motif du moteur, tel quel, sans qu'aucune cause
+soit reconstruite par l'affichage (la bande simultanée peut manquer à
+$B_{\text{eff}} \ge 500$, faute de rang admissible).
+\textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications (\code{ENVELOPPE\_QQ\_B\_MIN}), aucune
+bande~; sous $B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule~;
+faute de rang admissible, bande ponctuelle seule~; chaque cas avec son motif. Le seuil de 500,
 décidé par \code{actuary} le 29~septembre 2026, est fondé sur la \emph{granularité} de $k$, non
-sur une calibration~: en deçà, $k^{\star} \le 4$ et la bande simultanée n'est que celle des une à
-quatre valeurs extrêmes de chaque colonne~; à $B_{\text{eff}} = 100$, $k^{\star} = 1$, la bande est
-$[\min, \max]$ de chaque colonne et son taux auto-évalué est nul par construction.
+sur une calibration~: en deçà, sous la règle~(4.17), $k^{\star} \le 3$ (mesures ci-dessous) et la
+bande simultanée n'est que celle des une à trois valeurs extrêmes de chaque colonne~; à
+$B_{\text{eff}} = 100$, aucun rang n'est admissible ($k^{\star}$ non défini sur les huit graines,
+taux de~(4.17) de $0{,}11$ à $0{,}16$ dès $k = 1$). \emph{Rang $k = 1$ non admissible.} À $k = 1$
+sortent les lignes qui portent le minimum ou le maximum d'au moins une colonne~; sans ex æquo, il
+y en a au plus $2T$, et $k = 1$ ne peut être refusé que si $2T > 0{,}10\,B_{\text{eff}}$~: à
+$B_{\text{eff}} \ge 500$, cette condition, nécessaire et non suffisante, exige $T \ge 26$, et le cas
+est inatteignable à $T = 8$~; avec des ex æquo dans $S$, il peut survenir plus tôt. La fonction
+\emph{envelope} garde alors le rang~1 et émet un avertissement~; le moteur ne forme pas la bande
+simultanée.
 Constat de simulation (jeu de contrôle, même algorithme, huit graines par taille, de 1001
-à 1008~; taux hors échantillon évalué sur un bootstrap indépendant de 8\,000 réplications,
-graine 424242~; mesure qui reproduit celle d'\code{actuary} consignée dans le commentaire
-d'\code{engine\_enveloppe\_qq()})~:
+à 1008~; taux hors échantillon, proportion des lignes d'un bootstrap indépendant de 8\,000
+réplications, graine 424242, ayant au moins une valeur strictement hors de la bande~; script
+\code{tests/mesure\_enveloppe\_qq\_t8.R}, hors CI, mesure du 29~octobre 2026, R~4.3.3, reportée
+dans le commentaire d'\code{engine\_enveloppe\_qq()}). Règle~(4.17), celle du moteur~; les lignes
+$B_{\text{eff}} < 500$ décrivent la règle seule, le moteur n'y formant pas la bande simultanée~:
+
+\begin{center}
+\small
+\begin{tabular}{@{}rccc@{}}
+\toprule
+$B_{\text{eff}}$ & $k^{\star}$ & taux auto-évalué & taux hors échantillon (min--max, moyenne) \\
+\midrule
+100  & non défini & ---                & --- \\
+200  & 1   & 5{,}5 à 7{,}5~\%        & 4{,}3 à 9{,}2~\%~~(6{,}7~\%) \\
+300  & 2   & 7{,}7 à 9{,}3~\%        & 6{,}9 à 10{,}7~\%~~(8{,}3~\%) \\
+400  & 2--3 & 7{,}25 à 10~\%         & 7{,}9 à 11{,}3~\%~~(9{,}5~\%) \\
+500  & 3--4 & 8 à 9{,}8~\%           & 6{,}8 à 11{,}6~\%~~(9{,}5~\%) \\
+1\,000 & 7--8 & 9 à 9{,}9~\%          & 8{,}8 à 10{,}6~\%~~(9{,}5~\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Sur les 40 couples (taille, graine) où les deux règles donnent un rang, $k^{\star}$ vaut
+exactement un de moins que sous la règle antérieure, et le taux auto-évalué est le même
+(\code{identical()}~; aucun ex æquo dans $S$). Le caractère conservateur de la règle à 200 et 300
+réplications vient de la granularité de $k^{\star}$ (1 ou 2). Règle antérieure à l'issue~\#385
+(même protocole~; table consignée jusqu'au 29~octobre 2026 dans ce document et dans le commentaire
+d'\code{engine\_enveloppe\_qq()}, et reproduite par le même script)~:
 
 \begin{center}
 \small
@@ -13960,30 +14034,51 @@ $B_{\text{eff}}$ & $k^{\star}$ & taux auto-évalué & taux hors échantillon (mi
 \end{center}
 
 \noindent
-Le taux auto-évalué est optimiste, la bande étant calibrée sur les réplications qui la
-construisent~: de $2{,}7$ points en moyenne à $B_{\text{eff}} = 500$ et d'un point à 1\,000. Le
-niveau réel de la bande simultanée est donc voisin de 88~\% à $B_{\text{eff}} = 500$ et de 89~\%
-vers $B = 1\,000$, soit au défaut $B = 999$, pour 90~\% nominal~; la bande ponctuelle n'est pas
-concernée par cette correction. Ces valeurs sont des mesures sur un seul jeu, non un résultat
-général~: \textbf{aucune référence ne donne le niveau de cette enveloppe à $B$ fini}, ni pour des
-résidus d'un modèle à trois paramètres estimés sur $T = 8$ observations. Les taux restitués
-(\code{taux\_global\_ponctuel}, \code{taux\_global\_simultane}) sont évalués sur les réplications
-mêmes qui construisent les bandes (taux \emph{in-sample}). Sous \code{refit = FALSE} (appel direct
+Sous la règle antérieure, le taux auto-évalué était optimiste, la bande étant calibrée sur les
+réplications qui la construisent~: de $2{,}7$ points en moyenne à $B_{\text{eff}} = 500$ et d'un
+point à 1\,000~; le niveau réel de la bande simultanée était donc voisin de 88~\% à
+$B_{\text{eff}} = 500$ et de 89~\% vers $B = 1\,000$, soit au défaut $B = 999$, pour 90~\% nominal.
+Sous la règle~(4.17), le taux auto-évalué est un taux par retrait d'une ligne~: sa moyenne
+($9{,}1~\%$ à $B_{\text{eff}} = 500$, $9{,}5~\%$ à 1\,000) est voisine de celle du taux hors
+échantillon ($9{,}5~\%$ aux deux tailles), l'écart restant inférieur à l'erreur Monte-Carlo
+ci-dessous. Le niveau hors échantillon de la bande simultanée vaut en
+moyenne $90{,}5~\%$ à $B_{\text{eff}} = 500$ et à 1\,000, avec une erreur Monte-Carlo de cette
+moyenne de l'ordre de $0{,}7$ point à 500 et de $0{,}4$ point à 1\,000 (dispersion entre graines,
+écart-type de la moyenne des huit taux de $0{,}6$ et $0{,}2$ point, composée avec l'erreur
+binomiale de l'échantillon indépendant commun de 8\,000 courbes, $0{,}3$ point), et de $88{,}4$ à
+$93{,}2~\%$ selon l'exécution à 500, de $89{,}4$ à $91{,}2~\%$ à 1\,000~: il est compatible avec
+90~\% nominal~; la bande ponctuelle n'est pas concernée. Cette erreur Monte-Carlo, fonction du
+nombre de réplications, est distincte de l'erreur d'approximation, fonction de $T$, que la mesure
+n'évalue pas~: ces valeurs sont des constats de simulation dans le monde du bootstrap (modèle
+ajusté au jeu de contrôle), sur un seul jeu, non un résultat général, et la couverture de la
+bande simultanée à $T = 8$ sous le vrai modèle n'est établie ni par simulation ni par la
+littérature~: \textbf{aucune référence ne donne le niveau de cette enveloppe à $B$ fini}, ni pour des
+résidus d'un modèle à trois paramètres estimés sur $T = 8$ observations. Les taux restitués sont
+évalués sur les réplications mêmes qui construisent les bandes, sous deux conventions, celles du
+graphique dispersion-niveau~: \code{taux\_global\_simultane} est le taux de~(4.17) au rang
+$k^{\star}$, qui équivaut, sans ex æquo, au taux par retrait d'une ligne~;
+\code{taux\_global\_ponctuel} est la proportion des lignes de $S$ ayant au moins une valeur
+\emph{strictement} hors de la bande ponctuelle construite sur toutes les lignes (taux
+\emph{in-sample}), à peine optimiste~: $47{,}65~\%$ contre $48{,}45~\%$ par retrait de la ligne sur
+la référence \code{premium} ($B_{\text{eff}} = 999$, mesure du 29~octobre 2026). Sous \code{refit = FALSE} (appel direct
 de \code{usp\_bootstrap()}, hors \code{run\_engine()}), \code{z\_boot} contient des résidus à
 paramètres fixes, et l'enveloppe n'est plus celle d'Atkinson.
 
 \emph{Mesures sur le jeu de contrôle} (méthode prime, $B = 999$, graine 20260831)~:
-$B_{\text{eff}} = 999$, $k^{\star} = 8$~; largeur de la bande ponctuelle de $0{,}83$ à $1{,}12$
-selon la statistique d'ordre (de $1{,}40$ à $1{,}97$ pour l'ancienne bande $\mathcal{N}(0,1)$),
-de la bande simultanée de $1{,}13$ à $1{,}53$~; taux in-sample de $9{,}2~\%$ pour la bande
-simultanée et de $47{,}6~\%$ pour la bande ponctuelle~; un résidu observé sort de la bande
-ponctuelle, aucun de la bande simultanée.
+$B_{\text{eff}} = 999$, $k^{\star} = 7$ (8 sous la règle antérieure à l'issue~\#385)~; largeur
+de la bande ponctuelle de $0{,}83$ à $1{,}12$ selon la statistique d'ordre (de $1{,}40$ à $1{,}97$
+pour l'ancienne bande $\mathcal{N}(0,1)$), de la bande simultanée de $1{,}15$ à $1{,}56$ (de
+$1{,}13$ à $1{,}53$ sous la règle antérieure)~; taux de~(4.17) de $9{,}2~\%$ pour la bande
+simultanée et taux in-sample de $47{,}6~\%$ pour la bande ponctuelle~; un résidu observé sort de
+la bande ponctuelle, aucun de la bande simultanée.
 
 \emph{Lecture.} \textbf{Un point hors de la bande ponctuelle n'est pas un signal}~: près de la
 moitié des échantillons simulés sous le modèle ajusté ($47{,}6~\%$ sur le jeu de contrôle) en
 sortent en au moins un point. Seule la bande simultanée se lit globalement~: un point qui en sort
 est un écart que le modèle ajusté produit dans environ un cas sur dix (niveau réel de la bande
-mesuré ci-dessus, 10 à 12~\% de sortie à $B = 999$ sur le jeu de contrôle), une allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
+mesuré ci-dessus, $9{,}5~\%$ de sortie hors échantillon en moyenne à $B_{\text{eff}} = 1\,000$,
+voisin du défaut $B = 999$, sur le jeu de contrôle, de $8{,}8$ à $10{,}6~\%$ selon la graine), une
+allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
 puissance de cette lecture n'est pas étudiée. L'enveloppe n'a ni p-value ni verdict (aide
 graphique, ADR~0001)~; le test numérique correspondant est Shapiro--Francia (rubrique~2), et les
 p-values de Monte-Carlo de la section~\ref{sec:h3} restent la lecture formelle de H3.
@@ -14229,7 +14324,8 @@ p.~153~: dans leur exemple~4.7, une chance d'environ $0{,}5$ qu'un point sorte d
 contre $0{,}1$ ponctuellement). Seule une sortie de la bande simultanée retient l'attention~: une
 courbe tirée sous le modèle ajusté en sort au taux nominal de 10~\%, mesuré hors échantillon à
 $9{,}2~\%$ en moyenne sur chacun des deux jeux (de $8{,}25$ à $10{,}6~\%$ et de $6{,}8$ à
-$10{,}7~\%$ selon la graine, même protocole), contre $10{,}3~\%$ avec la règle de rang du QQ-plot.
+$10{,}7~\%$ selon la graine, même protocole), contre $10{,}3~\%$ avec la règle de rang stricte que
+suivait le QQ-plot jusqu'à l'issue~\#385 (fiche~\ref{fiche:qqnorm}).
 Ces taux sont des constats de simulation sur deux jeux, non un résultat général (pièces
 \code{d\_hors\_ech} et \code{h\_rang} de \code{docs/tableaux/20261027-fn-pilote.md}, spécification
 D1-Fn, § 1.2~; les courbes indépendantes, et celles des huit bootstraps de \code{h\_rang}, y sont
@@ -14248,11 +14344,13 @@ principal à $\hat\delta^{**}$ intérieur, 46 sur le jeu de contrôle et 203 sur
 \#386)~: sur \code{premium\_interieur}, la courbe observée est, au plus grand volume ($x = 300$),
 au rang $0{,}005$ de la loi des 203 courbes à $\hat\delta^{**}$ intérieur, contre $0{,}107$ dans la
 loi inconditionnelle~; la bande simultanée tirée de ces 203 courbes l'exclut avec la règle de rang
-du QQ-plot ($k^{\star} = 2$), la contient avec la règle~(4.17) ($k^{\star} = 1$, bande
+stricte que suivait le QQ-plot jusqu'à l'issue~\#385 ($k^{\star} = 2$), la contient avec la
+règle~(4.17) ($k^{\star} = 1$, bande
 $[\min, \max]$ de chaque colonne). Le régime déplace donc fortement la courbe observée dans sa loi
 de référence en un point d'un cas de référence (rang $0{,}005$ contre $0{,}107$)~; la lecture de la
-bande simultanée n'en change qu'avec la règle de rang du QQ-plot, non avec la règle~(4.17) que suit
-le graphique~; constat in-sample, à granularité minimale ($k^{\star}$ de 1 ou 2 sur 203 courbes,
+bande simultanée n'en change qu'avec cette règle stricte, non avec la règle~(4.17) que suivent le
+graphique et, depuis l'issue~\#385, le QQ-plot~; constat in-sample, à granularité minimale
+($k^{\star}$ de 1 ou 2 sur 203 courbes,
 sous le seuil de 500), sans valeur probante.
 \end{fiche}
 
@@ -20041,7 +20139,8 @@ soutient dans le présent document.
   construction de l'enveloppe du QQ-plot depuis l'issue~\#47, lue dans les
   résidus réajustés du bootstrap principal (fiche~\ref{fiche:qqnorm})~; sa bande
   simultanée suit l'enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4, éq.~(4.17),
-  p.~152--154), à un rang près (issue~\#385). Depuis l'issue~\#306, l'enveloppe du graphique
+  p.~152--154), avec la règle de rang de l'éq.~(4.17) depuis l'issue~\#385 (à un rang près
+  auparavant). Depuis l'issue~\#306, l'enveloppe du graphique
   dispersion-niveau reprend la même construction, avec la règle de rang de l'éq.~(4.17)
   (fiche~\ref{fiche:spread-location}).
   Aldor-Noiman et al. (2013) construit des bandes
