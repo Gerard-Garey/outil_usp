@@ -2950,6 +2950,13 @@ test_brown_forsythe <- function(u, reg) {
 # entrees). Valeur rendue identique au calcul direct (meme code, aucun
 # arrondi) ; NA compris. Aucune source d'alea. Cache non borne : une entree
 # par couple (x, alpha) distinct, negligeable aux tailles du projet.
+# Garde de longueur : un nom de variable d'environnement est limite a 10000
+# octets par R ("variable names are limited to 10000 bytes" ; la cle fait
+# 7 a 23 octets par volume selon les valeurs, ~16 pour 1 + runif(), d'ou
+# une erreur a partir de T ~ 430 a 1400 sans cette garde). Au-dela de
+# LONGUEUR_CLE_CACHE_MAX octets, la cle n'est pas utilisee : le calcul direct
+# est rendu, sans cache (meme valeur, meme code, aucun tirage).
+LONGUEUR_CLE_CACHE_MAX <- 9000L
 .cache_pi_env <- new.env(parent = emptyenv())
 usp_puissance_enveloppe_h2 <- function(x, alpha) {
   if (!is.numeric(x) || length(x) < 3L || !all(is.finite(x)) || any(x <= 0))
@@ -2957,6 +2964,8 @@ usp_puissance_enveloppe_h2 <- function(x, alpha) {
   if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
     stop("usp_puissance_enveloppe_h2() : alpha doit etre dans ]0, 1[")
   cle <- paste(sprintf("%a", c(as.double(alpha), as.double(x))), collapse = " ")
+  if (nchar(cle, type = "bytes") > LONGUEUR_CLE_CACHE_MAX)
+    return(.usp_puissance_enveloppe_h2_calcul(x, alpha))
   if (!is.null(.cache_pi_env[[cle]])) return(.cache_pi_env[[cle]])
   p <- .usp_puissance_enveloppe_h2_calcul(x, alpha)
   .cache_pi_env[[cle]] <- p
@@ -7883,8 +7892,9 @@ engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
 # Seuil de 500 (decision d'actuary du 29/09/2026), fonde sur la granularite
 # de k et non sur la calibration : sous 500 replications, la bande
 # simultanee n'est que celle des quelques valeurs extremes de chaque colonne
-# (mesures ci-dessous : k* <= 3 ; a B_eff = 100, k* NA, taux (4.17) de 0,11
-# a 0,16 des k = 1, au plus 2T = 16 lignes sortant a ce rang).
+# (mesures ci-dessous : k* <= 3 aux tailles mesurees de 100 a 400
+# replications, k* de 3 ou 4 a 500 ; a B_eff = 100, k* NA, taux (4.17) de
+# 0,11 a 0,16 des k = 1, au plus 2T = 16 lignes sortant a ce rang).
 # Mesures du 29/10/2026 (tests/mesure_enveloppe_qq_t8.R, R 4.3.3) sur J1
 # (tests/donnees/donnees_ln.csv), 8 graines par taille (1001 a 1008), taux
 # hors echantillon (sortie stricte d'une courbe nouvelle) evalue sur un

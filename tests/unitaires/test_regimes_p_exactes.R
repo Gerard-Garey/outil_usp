@@ -710,6 +710,22 @@ verifier("#358 : cache de pi_env, valeur identique au calcul direct (J1, J2 ; al
              !is.null(.cache_pi_env[[cle(x, 0.10)]]) &&
              identical(PENV(x_ulp, 0.10), .usp_puissance_enveloppe_h2_calcul(x_ulp, 0.10))
          })
+# Garde de longueur de la cle (revue finale, C1 d'audit) : a T = 650 la cle
+# depasse la limite de 10000 octets des noms de variable de R ; la valeur est
+# alors rendue par le calcul direct, sans erreur et sans entree de cache. Le
+# vecteur de volumes est tire sous engine_sous_graine() (aucun effet sur le
+# .Random.seed de l'appelant).
+verifier("#358 : T = 650, cle du cache au-dela de la limite de 10000 octets -> aucune erreur, valeur identique au calcul direct, aucune entree de cache",
+         {
+           x650 <- engine_sous_graine(20261029L, 1 + stats::runif(650))
+           cle650 <- paste(sprintf("%a", c(0.10, x650)), collapse = " ")
+           cache <- get(".cache_pi_env", envir = environment(run_engine))
+           avant <- ls(cache, all.names = TRUE)
+           v <- tryCatch(PENV(x650, 0.10), error = function(e) e)
+           nchar(cle650, type = "bytes") > 10000L && is.numeric(v) &&
+             identical(v, .usp_puissance_enveloppe_h2_calcul(x650, 0.10)) &&
+             identical(ls(cache, all.names = TRUE), avant)
+         })
 R_X <- c(1.1, 1.5, 2, 3, 5, 10, 20, 30)
 penv_2n <- function(a) vapply(R_X, function(r) PENV(rep(c(1, r), each = 4), a), numeric(1))
 verifier("#299 : pi_env >= alpha (J1, J2, plans a deux niveaux de R_x = 1,1 a 30 ; alpha = 0,10 et 0,05)",
