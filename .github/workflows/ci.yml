@@ -99,6 +99,63 @@ jobs:
         with:
           # Même version que le poste de développement.
           r-version: "4.3.1"
+      # Issue #391 (R27) : shiny et plotly, pour que tests/unitaires/
+      # test_application.R (bloc testServer) et les tests plotly de
+      # test_rapport_html.R, test_enveloppe_spread.R et
+      # test_incertitude_bootstrap.R s'exécutent en CI au lieu de sauter
+      # (requireNamespace() faux). Versions épinglées par un instantané daté
+      # de Posit Package Manager (binaires Ubuntu 22.04 : CRAN au 15/02/2024,
+      # soit shiny 1.8.0 et plotly 4.10.4, les versions du poste de
+      # développement, avec toutes leurs dépendances ; l'instantané ne change
+      # jamais, contrairement à « latest »). R pur : aucun appel à apt, donc
+      # aucun paquet système (OpenBLAS compris) n'est installé ici ; le
+      # contrôle bloquant du BLAS vient après, à l'étape suivante, et valide
+      # l'état final. La version de R reste celle de l'étape précédente.
+      - name: Paquets R de l'application (shiny, plotly), versions épinglées
+        # Comme les tests unitaires : le moteur seul suffit à la concordance.
+        if: needs.changements.outputs.moteur == 'true'
+        env:
+          INSTANTANE_CRAN: "https://packagemanager.posit.co/cran/__linux__/jammy/2024-02-15"
+          VERSION_SHINY: "1.8.0"
+          VERSION_PLOTLY: "4.10.4"
+        run: |
+          set -euo pipefail
+          Rscript - <<'EOF'
+          # Bibliothèque d'installation : la première du chemin d'un processus
+          # R neuf (celle que verront les Rscript des étapes suivantes) si elle
+          # est inscriptible ; sinon R_LIBS_USER, créée ici et lue au démarrage
+          # des processus suivants parce qu'elle existe alors.
+          bib <- .libPaths()[1L]
+          if (file.access(bib, 2L) != 0L) {
+            bib <- Sys.getenv("R_LIBS_USER")
+            if (!nzchar(bib)) stop("aucune bibliothèque inscriptible et R_LIBS_USER vide.")
+            dir.create(bib, recursive = TRUE, showWarnings = FALSE)
+            .libPaths(c(bib, .libPaths()))
+          }
+          cat("Bibliothèque d'installation :", bib, "\n")
+          # Agent utilisateur déclaré : Posit Package Manager sert alors des
+          # binaires (sans lui, des sources à compiler).
+          options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(),
+                    paste(getRversion(), R.version$platform, R.version$arch, R.version$os)))
+          install.packages(c("shiny", "plotly"), lib = bib, Ncpus = 2L,
+                           repos = c(CRAN = Sys.getenv("INSTANTANE_CRAN")))
+          ip <- installed.packages(lib.loc = bib)[, c("Package", "Version")]
+          cat(sprintf("%d paquets installés dans %s :\n", nrow(ip), bib))
+          write.table(ip[order(ip[, "Package"]), ], row.names = FALSE, quote = FALSE)
+          EOF
+          # Contrôle bloquant dans un processus R NEUF, sans .libPaths() : il voit
+          # exactement ce que verront les Rscript des étapes suivantes. Un
+          # écart (version, chargement, bibliothèque non lue) échoue ici ; sans
+          # lui, test_application.R sauterait son bloc shiny en silence.
+          Rscript -e '
+            attendu <- c(shiny = Sys.getenv("VERSION_SHINY"), plotly = Sys.getenv("VERSION_PLOTLY"))
+            for (p in names(attendu)) {
+              if (!requireNamespace(p, quietly = TRUE)) stop(sprintf("%s absent ou non chargeable.", p))
+              v <- as.character(packageVersion(p))
+              if (!identical(v, unname(attendu[p])))
+                stop(sprintf("%s %s installé, %s attendu.", p, v, attendu[p]))
+              cat(sprintf("%s %s (%s)\n", p, v, dirname(find.package(p))))
+            }'
       # BLAS et LAPACK de référence, monothread, avec contrôle bloquant (R ne
       # doit pas charger OpenBLAS) : même action que references.yml, pour que
       # les références soient testées sous le BLAS qui les produit
