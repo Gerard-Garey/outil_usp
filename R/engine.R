@@ -7859,56 +7859,106 @@ engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
 # replications ecartees). S = statistiques d'ordre des B_eff lignes
 # entierement finies.
 #  - bande ponctuelle : quantiles 5 % et 95 % (type 7) de chaque colonne de S ;
-#  - bande simultanee (Davison et Hinkley 1997, enveloppe globale de
-#    boot::envelope()) : bande des k-iemes plus petite et plus grande valeurs
-#    de chaque colonne de S ; k* = plus grand k tel que la proportion de
-#    lignes de S ayant au moins une valeur STRICTEMENT hors de la bande soit
-#    <= ENVELOPPE_QQ_TAUX_MAX. Les bandes sont emboitees (celle de k + 1
-#    est dans celle de k), la proportion croit avec k : le balayage s'arrete
-#    au premier k qui depasse le seuil.
+#  - bande simultanee (Davison et Hinkley 1997, par. 4.2.4, eq. (4.17),
+#    p. 153-154 ; enveloppe globale de boot::envelope()) : bande des
+#    k-iemes plus petite et plus grande valeurs de chaque colonne de S ;
+#    k* = rang de engine_rang_simultane_dh(S), appliquee aux lignes de S
+#    (une ligne sort au rang k si une de ses valeurs est <= Sc[k, ] ou >=
+#    Sc[B_eff + 1 - k, ], Sc = S triee par colonne ; sans ex aequo, c'est
+#    la sortie stricte de l'enveloppe des B_eff - 1 autres lignes) ;
+#    regle_rang = "DH1997_4.17" (issue #385, option (a), decision du
+#    mainteneur du 28/10/2026).
 # Niveau fixe de 90 % pour les deux bandes, sans lien avec alpha (decision
 # Q3) ; probabilites et taux ecrits en litteraux (1 - 0.90 n'est pas 0.10 en
 # virgule flottante). B_eff = nombre de lignes entierement finies de z_boot
-# = nombre de replications retenues. Degenerescence : B_eff <
+# = nombre de replications retenues. Degenerescence, avec le motif de
+# .engine_motif_enveloppe() (NA quand la bande simultanee existe) : B_eff <
 # ENVELOPPE_QQ_B_MIN -> quatre bandes NA et k NA ; B_eff <
-# ENVELOPPE_QQ_B_MIN_SIM -> bande ponctuelle seule, simultanee NA et k NA.
+# ENVELOPPE_QQ_B_MIN_SIM -> bande ponctuelle seule, simultanee NA et k NA ;
+# aucun rang admissible (taux (4.17) > ENVELOPPE_QQ_TAUX_MAX des k = 1)
+# -> bande ponctuelle seule, simultanee NA et k NA. Ce dernier cas est
+# atteignable : sans ex aequo, au plus 2T lignes sortent a k = 1, et k = 1
+# n'est refuse que si 2T > 0,10 B_eff, soit, a B_eff >= 500, des T >= 26
+# (inatteignable a T = 8) ; avec des ex aequo dans S, plus tot.
 # Seuil de 500 (decision d'actuary du 29/09/2026), fonde sur la granularite
-# de k et non sur la calibration : sous 500 replications, k* <= 4 et la bande
-# simultanee n'est que celle des 1 a 4 valeurs extremes de chaque colonne (a
-# B_eff = 100, k* = 1 : bande [min, max], taux auto-evalue nul par
-# construction). Mesures sur J1 (tests/donnees/donnees_ln.csv), 8 graines par
-# taille (1001 a 1008), taux hors echantillon evalue sur un bootstrap
-# independant de B = 8000 (graine 424242), meme algorithme que ci-dessous :
+# de k et non sur la calibration : sous 500 replications, la bande
+# simultanee n'est que celle des quelques valeurs extremes de chaque colonne
+# (mesures ci-dessous : k* <= 3 ; a B_eff = 100, k* NA, taux (4.17) de 0,11
+# a 0,16 des k = 1, au plus 2T = 16 lignes sortant a ce rang).
+# Mesures du 29/10/2026 (tests/mesure_enveloppe_qq_t8.R, R 4.3.3) sur J1
+# (tests/donnees/donnees_ln.csv), 8 graines par taille (1001 a 1008), taux
+# hors echantillon (sortie stricte d'une courbe nouvelle) evalue sur un
+# bootstrap independant de B = 8000 (graine 424242), regle (4.17). Les
+# lignes B_eff < 500 decrivent la regle seule (le moteur n'y forme pas la
+# bande simultanee) ; leur caractere conservateur a 200 et 300 vient de la
+# granularite de k* (k* = 1 ou 2) :
 #   B_eff  k*   taux auto-evalue   taux hors echantillon (min-max, moyenne)
-#   100    1    0                  9 a 18 %   (12,5 %)
-#   200    2    5,5 a 7,5 %        9 a 15 %   (12,3 %)
-#   300    3    7,7 a 9,3 %        10 a 15 %  (12,5 %)
-#   400    3-4  7,3 a 10 %         11 a 15 %  (12,4 %)
-#   500    4-5  8 a 9,8 %          9 a 14 %   (11,8 %)
-#   1000   8-9  9 a 9,9 %          10 a 12 %  (10,6 %)
-# Le taux auto-evalue est optimiste (bande calibree sur les replications qui
-# la construisent) : 2,7 points en moyenne a B_eff = 500, 1 point a 1000. Le
-# niveau reel de la bande simultanee est donc voisin de 88 % a B_eff = 500 et
-# de 89 % au defaut B = 999, pour 90 % nominal ; la bande ponctuelle n'est pas
-# concernee. Ces valeurs sont des mesures par simulation sur un seul jeu,
-# pas un resultat general. Les taux (taux_global_ponctuel,
-# taux_global_simultane) sont evalues sur les
-# replications memes qui construisent les bandes (taux in-sample).
-# Le cas "aucun k >= 1 admissible" est inatteignable : k = 1 toujours
-# admissible, taux 0 par construction (a k = 1 la bande est [min, max] de
-# chaque colonne, dont aucune ligne ne sort strictement) ; le if sur
-# k_etoile ne sert que de garde. Sous refit = FALSE (appel direct de
+#   100    NA   -                  -
+#   200    1    5,5 a 7,5 %        4,3 a 9,2 %   (6,7 %)
+#   300    2    7,7 a 9,3 %        6,9 a 10,7 %  (8,3 %)
+#   400    2-3  7,2 a 10 %         7,9 a 11,3 %  (9,5 %)
+#   500    3-4  8 a 9,8 %          6,8 a 11,6 %  (9,5 %)
+#   1000   7-8  9 a 9,9 %          8,8 a 10,6 %  (9,5 %)
+# Sur ces 40 couples (B, graine) a k* fini, k* vaut exactement un de moins
+# que sous la regle anterieure a #385 et le taux auto-evalue est le meme
+# (aucun ex aequo dans S) ; au defaut B = 999 des cinq cas lognormaux de
+# reference, k* passe de 8 a 7, taux inchange (0,092 ou 0,090), bornes
+# identical() a celles de boot::envelope() 1.3.30 (mesure du 29/10/2026,
+# R 4.3.3). Le niveau hors echantillon de la bande simultanee vaut en
+# moyenne 90,5 % a B_eff = 500 et a 1000 (8 graines ; erreur Monte-Carlo de
+# cette moyenne de l'ordre de 0,7 point a 500 et 0,4 a 1000 : dispersion
+# entre graines, ecart-type de la moyenne 0,6 et 0,2 point, et echantillon
+# independant commun de 8 000, 0,3 point ; 88,4 a 93,2 % par execution a
+# 500, 89,4 a 91,2 % a 1000), compatible avec 90 % nominal ; la bande
+# ponctuelle n'est pas concernee. Ces
+# valeurs sont des mesures par simulation dans le monde du bootstrap (modele
+# ajuste a J1), sur un seul jeu, pas un resultat general : la couverture a
+# T = 8 sous le vrai modele n'est etablie ni par simulation ni par la
+# litterature. Regle anterieure (moteur jusqu'au 29/10/2026, issue #385) :
+# sortie STRICTE de la bande construite sur toutes les lignes, k* superieur
+# d'une unite, k = 1 toujours admissible (taux 0) ; meme protocole, taux
+# hors echantillon moyen de 12,5 % a B_eff = 100, 11,8 % a 500 et 10,6 % a
+# 1000 (niveau voisin de 88 % et 89 %). Les deux taux restitues sont
+# evalues sur les replications memes qui construisent les bandes, sous deux
+# conventions, celles de engine_enveloppe_spread() :
+# taux_global_simultane est le taux (4.17), qui equivaut, sans ex aequo, a
+# un taux par retrait d'une ligne (estimation du taux de sortie d'une
+# courbe nouvelle) ; taux_global_ponctuel est la proportion des lignes
+# STRICTEMENT hors de la bande ponctuelle construite sur toutes les lignes
+# (taux in-sample, a peine optimiste : 47,65 % contre 48,45 % par retrait
+# de la ligne sur la reference premium, B_eff = 999, mesure du
+# 29/10/2026). Sous refit = FALSE (appel direct de
 # usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
 # fixes et l'enveloppe n'est pas celle d'Atkinson. Aucune p-value ni verdict
 # (aide graphique, ADR 0001). Rend list(bandes = matrice T x 4 dans l'ordre
 # des statistiques d'ordre (colonnes bas, haut, sim_bas, sim_haut), info =
-# description reprise dans plots_data$qq_enveloppe, dont le seuil
-# B_min_simultane lu par l'affichage).
+# description reprise dans plots_data$qq_enveloppe ; l'affichage en lit
+# les niveaux, k et B_eff, et restitue le motif tel quel ; le seuil
+# B_min_simultane et la regle regle_rang sont descriptifs, non lus par
+# R/display_helpers.R).
 ENVELOPPE_QQ_NIVEAU <- 0.90
 ENVELOPPE_QQ_PROBS <- c(0.05, 0.95)
 ENVELOPPE_QQ_TAUX_MAX <- 0.10
 ENVELOPPE_QQ_B_MIN <- 20L
 ENVELOPPE_QQ_B_MIN_SIM <- 500L
+# Motifs d'indisponibilite des enveloppes de simulation, communs au QQ-plot
+# (engine_enveloppe_qq()) et au graphique dispersion-niveau
+# (engine_enveloppe_spread()) : B_eff < ENVELOPPE_QQ_B_MIN (aucune bande),
+# B_eff < ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule), aucun rang k
+# admissible pour l'eq. (4.17) (bande ponctuelle seule). Chaine ASCII
+# restituee telle quelle par l'affichage (issue #385).
+.engine_motif_enveloppe <- function(cas) {
+  switch(cas,
+    b_min = sprintf("moins de %d replications retenues : enveloppe non disponible",
+                    ENVELOPPE_QQ_B_MIN),
+    b_min_sim = sprintf("moins de %d replications retenues : bande simultanee non calculee",
+                        ENVELOPPE_QQ_B_MIN_SIM),
+    aucun_k = sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
+                            "au rang k = 1 ; bande simultanee non disponible"),
+                      formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
+                              decimal.mark = ",")),
+    stop("motif d'enveloppe inconnu : ", cas))
+}
 engine_enveloppe_qq <- function(z_boot, T) {
   bandes <- matrix(NA_real_, T, 4L,
                    dimnames = list(NULL, c("bas", "haut", "sim_bas", "sim_haut")))
@@ -7919,30 +7969,31 @@ engine_enveloppe_qq <- function(z_boot, T) {
                niveau_simultane = ENVELOPPE_QQ_NIVEAU,
                k = NA_integer_, taux_global_ponctuel = NA_real_,
                taux_global_simultane = NA_real_,
-               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM)
-  if (B_eff < ENVELOPPE_QQ_B_MIN) return(list(bandes = bandes, info = info))
+               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
+               regle_rang = "DH1997_4.17", motif = NA_character_)
+  if (B_eff < ENVELOPPE_QQ_B_MIN) {
+    info$motif <- .engine_motif_enveloppe("b_min")
+    return(list(bandes = bandes, info = info))
+  }
   S <- t(apply(z_boot[garde, , drop = FALSE], 1L, sort))
-  # Proportion des lignes de S ayant au moins une valeur strictement hors de
-  # la bande [bas, haut] (bornes par colonne).
-  taux_hors <- function(bas, haut)
-    mean(rowSums(S < rep(bas, each = B_eff) | S > rep(haut, each = B_eff)) > 0)
+  # Bande ponctuelle : proportion des lignes de S ayant au moins une valeur
+  # strictement hors de la bande [bas, haut] (bornes par colonne).
   q <- apply(S, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
   bandes[, "bas"] <- q[1L, ]; bandes[, "haut"] <- q[2L, ]
-  info$taux_global_ponctuel <- taux_hors(q[1L, ], q[2L, ])
-  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) return(list(bandes = bandes, info = info))
-  Sc <- apply(S, 2L, sort)
-  k_etoile <- NA_integer_; taux_k <- NA_real_
-  for (k in seq_len(B_eff %/% 2L)) {
-    tk <- taux_hors(Sc[k, ], Sc[B_eff + 1L - k, ])
-    if (tk > ENVELOPPE_QQ_TAUX_MAX) break
-    k_etoile <- k; taux_k <- tk
+  info$taux_global_ponctuel <-
+    mean(rowSums(S < rep(q[1L, ], each = B_eff) | S > rep(q[2L, ], each = B_eff)) > 0)
+  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
+    info$motif <- .engine_motif_enveloppe("b_min_sim")
+    return(list(bandes = bandes, info = info))
   }
-  # Garde inatteignable : k = 1 toujours admissible, taux 0 par construction.
-  if (!is.na(k_etoile)) {
-    bandes[, "sim_bas"] <- Sc[k_etoile, ]
-    bandes[, "sim_haut"] <- Sc[B_eff + 1L - k_etoile, ]
-    info$k <- k_etoile; info$taux_global_simultane <- taux_k
+  # Bande simultanee : rang k* de l'eq. (4.17) sur les lignes de S (#385).
+  r <- engine_rang_simultane_dh(S)
+  if (is.na(r$k)) {
+    info$motif <- .engine_motif_enveloppe("aucun_k")
+    return(list(bandes = bandes, info = info))
   }
+  bandes[, "sim_bas"] <- r$sim_bas; bandes[, "sim_haut"] <- r$sim_haut
+  info$k <- r$k; info$taux_global_simultane <- r$taux
   list(bandes = bandes, info = info)
 }
 
@@ -8015,15 +8066,15 @@ engine_rang_simultane_dh <- function(L) {
 #    au moins une valeur STRICTEMENT hors de la bande (convention du
 #    QQ-plot) ;
 #  - bande simultanee : rang k* de l'eq. (4.17) de Davison et Hinkley
-#    (engine_rang_simultane_dh()) ; le QQ-plot garde sa propre regle
-#    (inegalites strictes) jusqu'a l'issue #385.
+#    (engine_rang_simultane_dh()), regle du QQ-plot depuis l'issue #385.
 # Bande inconditionnelle au regime de delta* (decision Q-D1-Fn-3) : toutes
 # les lignes finies de z_boot, comme le QQ-plot. Degenerescences, bornes NA
 # et motif : volumes constants (usp_volumes_constants(), courbe sans objet) ;
 # B_eff < ENVELOPPE_QQ_B_MIN (quatre bornes NA) ; B_eff <
 # ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule) ; aucun k admissible
-# (bande ponctuelle seule). Niveaux, seuils et taux maximal : constantes de
-# l'enveloppe du QQ-plot, sans duplication. Aide graphique, aucune p-value
+# (bande ponctuelle seule). Niveaux, seuils, taux maximal et motifs
+# (.engine_motif_enveloppe()) : ceux de l'enveloppe du QQ-plot, sans
+# duplication. Aide graphique, aucune p-value
 # ni verdict (ADR 0001). Sous refit = FALSE (appel direct de
 # usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
 # fixes. Rend la liste portee par plots_data$spread_enveloppe.
@@ -8050,8 +8101,7 @@ engine_enveloppe_spread <- function(z_boot, x) {
   L <- L[apply(is.finite(L), 1L, all), , drop = FALSE]
   B_eff <- nrow(L); res$B_eff <- B_eff
   if (B_eff < ENVELOPPE_QQ_B_MIN) {
-    res$motif <- sprintf("moins de %d replications retenues : enveloppe non disponible",
-                         ENVELOPPE_QQ_B_MIN)
+    res$motif <- .engine_motif_enveloppe("b_min")
     return(res)
   }
   q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
@@ -8059,16 +8109,12 @@ engine_enveloppe_spread <- function(z_boot, x) {
   res$taux_global_ponctuel <-
     mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
-    res$motif <- sprintf("moins de %d replications retenues : bande simultanee non calculee",
-                         ENVELOPPE_QQ_B_MIN_SIM)
+    res$motif <- .engine_motif_enveloppe("b_min_sim")
     return(res)
   }
   r <- engine_rang_simultane_dh(L)
   if (is.na(r$k)) {
-    res$motif <- sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
-                               "au rang k = 1 ; bande simultanee non disponible"),
-                         formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
-                                 decimal.mark = ","))
+    res$motif <- .engine_motif_enveloppe("aucun_k")
     return(res)
   }
   res$bandes$sim_bas <- r$sim_bas; res$bandes$sim_haut <- r$sim_haut
@@ -8097,7 +8143,10 @@ LR_DELTA_NIVEAU_REPERES <- 0.90
 # l'echelle logarithmique sont ses bornes bas_90 et haut_90 ; niveau
 # nominal, porte dans plots_data$boot_reperes$niveau, d'ou l'affichage tire
 # ses libelles. Les probabilites des quantiles restent ecrites en clair dans
-# run_engine() et .run_engine_mw() : la constante ne les pilote pas.
+# run_engine() et .run_engine_mw() (c(.025, .05, .5, .95, .975)) et dans
+# usp_ic_basic_log() (c(.025, .05, .95, .975), bornes nommees bas_95,
+# bas_90, haut_90, haut_95, dont .engine_boot_reperes() lit bas_90 et
+# haut_90 par leur nom) : la constante ne les pilote pas (Q-43-11).
 IC_BOOT_NIVEAU_REPERES <- 0.90
 
 # Intervalle bootstrap "basic" sur l'echelle logarithmique (issue #305 ;
