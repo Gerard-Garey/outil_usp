@@ -2102,8 +2102,9 @@ lillie_p <- function(D, n) {
 # moteur, qui tire toujours sous Inversion (ENGINE_RNG_KIND).
 ENGINE_RNG_KIND <- c(kind = "Mersenne-Twister", normal.kind = "Inversion",
                      sample.kind = "Rejection")
-# Graine fixe des simulations autres que le bootstrap (ADR 0004, point 2),
-# consignee dans res$metadata : loi nulle de Shapiro-Wilk (sw_loi_nulle()).
+# Graine fixe des simulations autres que le bootstrap (ADR 0004, point 2) :
+# loi nulle de Shapiro-Wilk (sw_loi_nulle()), consignee dans res$metadata de
+# reserve2 seulement, seule methode qui l'emploie (mw_tests(), #351).
 # L'enveloppe du QQ-plot n'a plus de graine propre depuis l'issue #47 : elle
 # est lue dans les replications de usp_bootstrap() (graine seed).
 SEED_LOI_NULLE_SW <- 20260901
@@ -6272,8 +6273,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # du 19/10/2026, Q-D1-Fh-4, specification Fh) : meme statistique W que la
   # ligne ci-dessus ; son apport, valider la normalisation de Royston, est
   # acquis par la mesure C4 de tests/constats_puissance_t8.R. sw_p_loi_nulle()
-  # et sw_loi_nulle() restent appelees par mw_tests() (SEED_LOI_NULLE_SW et
-  # sa metadonnee inchangees).
+  # et sw_loi_nulle() restent appelees par mw_tests() (SEED_LOI_NULLE_SW
+  # inchangee ; metadonnee seed_loi_nulle_sw consignee en reserve2 seulement,
+  # #351).
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
       fonction = "test_shapiro_francia",
@@ -13130,18 +13132,16 @@ run_engine <- function(xt, yt,
         # tests).
         if (methode == "premium") list(nature_donnees = nature_donnees),
         list(sigma_standard_saisi = saisi),
-        # Generateur pose par engine_sous_graine() et graine fixe des
-        # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
-        # loi nulle de Shapiro-Wilk. Places apres les champs existants, avant
-        # les champs d'execution. La graine de l'enveloppe du QQ-plot est
-        # retiree (issue #47) : l'enveloppe depend de seed et de B.
-        # seed_loi_nulle_sw : sans emploi dans la branche lognormale depuis
-        # #302 (ligne Shapiro-Wilk a loi nulle simulee retiree ; seule
-        # mw_tests() appelle encore sw_p_loi_nulle()) ; champ conserve, valeur
-        # inchangee, pour la stabilite de la structure de res$metadata (et de
-        # son affichage).
-        list(generateur = as.list(ENGINE_RNG_KIND),
-             seed_loi_nulle_sw = SEED_LOI_NULLE_SW),
+        # Generateur pose par engine_sous_graine() (issue #37, ADR 0004
+        # point 2). Place apres les champs existants, avant les champs
+        # d'execution. La graine de l'enveloppe du QQ-plot est retiree
+        # (issue #47) : l'enveloppe depend de seed et de B. La graine de la
+        # loi nulle de Shapiro-Wilk (seed_loi_nulle_sw) est retiree de la
+        # branche lognormale (issue #351, option (a) du mainteneur du
+        # 28/10/2026, Q-43-5) : aucun tirage lognormal ne l'emploie depuis
+        # #302, et une graine consignee doit designer un tirage ; reserve2 la
+        # garde (mw_tests() appelle sw_p_loi_nulle()).
+        list(generateur = as.list(ENGINE_RNG_KIND)),
         # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en
         # dernier avant les champs d'execution (le patch des references
         # ajoute la feuille en fin de metadata).

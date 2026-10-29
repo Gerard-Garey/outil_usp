@@ -1255,15 +1255,20 @@ for (m in names(appels_run)) local({
 # recalcule a partir de metadata). Depuis l'issue #47, l'enveloppe du
 # QQ-plot n'a plus de graine propre : seed_enveloppe_qq est absent pour les
 # trois methodes, et l'enveloppe se recalcule a partir de bootstrap$z_boot
-# (tests/unitaires/test_enveloppe_qq.R, test (ii)).
+# (tests/unitaires/test_enveloppe_qq.R, test (ii)). Depuis l'issue #351, la
+# graine de la loi nulle de Shapiro-Wilk n'est consignee qu'en reserve2, seule
+# methode qui l'emploie (mw_tests()) : absente des methodes lognormales.
 for (m in names(appels_run)) local({
   r <- appels_run[[m]]()
-  verifier(sprintf("run_engine(%s) : generateur et graine consignes dans $metadata, sans seed_enveloppe_qq (#47)", m),
+  verifier(sprintf("run_engine(%s) : generateur et graine consignes dans $metadata, sans seed_enveloppe_qq (#47), seed_loi_nulle_sw en reserve2 seulement (#351)", m),
            {
              md <- r$metadata
              identical(md$generateur, as.list(ENGINE_RNG_KIND)) &&
-               identical(md$seed, 5) && identical(md$seed_loi_nulle_sw, SEED_LOI_NULLE_SW) &&
-               identical(md$seed_loi_nulle_sw, 20260901) &&
+               identical(md$seed, 5) &&
+               (if (m == "reserve2")
+                  identical(md$seed_loi_nulle_sw, SEED_LOI_NULLE_SW) &&
+                    identical(md$seed_loi_nulle_sw, 20260901)
+                else !"seed_loi_nulle_sw" %in% names(md)) &&
                !"seed_enveloppe_qq" %in% names(md)
            })
   if (m != "reserve2")
@@ -1281,7 +1286,7 @@ verifier("sw_loi_nulle() par defaut = loi tiree sous metadata$seed_loi_nulle_sw"
          {
            rm(list = grep("^n9_B300_", ls(.cache_sw), value = TRUE), envir = .cache_sw)
            a <- sw_loi_nulle(9, B_null = 300)
-           b <- sw_loi_nulle(9, B_null = 300, seed = appels_run$premium()$metadata$seed_loi_nulle_sw)
+           b <- sw_loi_nulle(9, B_null = 300, seed = appels_run$reserve2()$metadata$seed_loi_nulle_sw)
            w <- engine_sous_graine(20260901, replicate(300, unname(stats::shapiro.test(stats::rnorm(9))$statistic)))
            identical(a, b) && identical(a, sort(w[is.finite(w)]))
          })

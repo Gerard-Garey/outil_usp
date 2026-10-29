@@ -228,11 +228,12 @@ verifier("(v) z_boot absent (objet bootstrap sans le champ) : quatre colonnes NA
 # --- (vi) graine de l'enveloppe retiree ---------------------------------------
 r_res1 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, annexe = "II",
                      B = B_MIN_USAGE, seed = GRAINE)
-verifier("(vi) SEED_ENVELOPPE_QQ absent du moteur ; metadata sans seed_enveloppe_qq (premium, reserve1)",
+verifier("(vi) SEED_ENVELOPPE_QQ absent du moteur ; metadata sans seed_enveloppe_qq ni seed_loi_nulle_sw (#351) (premium, reserve1)",
          !exists("SEED_ENVELOPPE_QQ") &&
            !"seed_enveloppe_qq" %in% names(r1$metadata) &&
            !"seed_enveloppe_qq" %in% names(r_res1$metadata) &&
-           identical(r1$metadata$seed_loi_nulle_sw, SEED_LOI_NULLE_SW))
+           !"seed_loi_nulle_sw" %in% names(r1$metadata) &&
+           !"seed_loi_nulle_sw" %in% names(r_res1$metadata))
 verifier("(vi) engine_plots_data() ne tire plus : n'appelle pas engine_sous_graine() et laisse .Random.seed intact",
          {
            set.seed(11); avant <- .Random.seed

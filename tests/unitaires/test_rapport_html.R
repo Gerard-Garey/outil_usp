@@ -1419,7 +1419,7 @@ verifier("valeurs_generateur() : seed_flux_regime = \"20800000\" en primes (V1 e
          identical(valeurs_generateur(res_ln$metadata)[["seed_flux_regime"]], "20800000") &&
            identical(valeurs_generateur(res_cible$metadata)[["seed_flux_regime"]], "20800000") &&
            identical(names(valeurs_generateur(res_ln$metadata)),
-                     c("generateur", "seed_loi_nulle_sw", "seed_flux_regime")) &&
+                     c("generateur", "seed_flux_regime")) &&
            !("seed_flux_regime" %in% names(valeurs_generateur(res_mw$metadata))))
 verifier("valeurs_generateur() : seed_flux_regime ecrit sans notation scientifique (-2146944479)",
          identical(valeurs_generateur(list(seed_flux_regime = -2146944479))[["seed_flux_regime"]],
@@ -1430,6 +1430,16 @@ verifier("rapport fige : ligne de la graine du flux (libelle et valeur), aucune 
              !grepl("<td>NA</td>", s0, fixed = TRUE) })
 verifier("rapport fige : reserve2, pas de ligne de la graine du flux",
          !grepl("Graine du flux", .sect_gel(res_mw), fixed = TRUE))
+# Graine de la loi nulle de Shapiro-Wilk (metadata$seed_loi_nulle_sw) :
+# consignee en reserve2 seulement depuis #351 (mw_tests() l'emploie) ;
+# valeurs_generateur() et ligne de l'en-tete du rapport fige.
+verifier("valeurs_generateur() : seed_loi_nulle_sw = \"20260901\" en reserve2 (#351)",
+         identical(names(valeurs_generateur(res_mw$metadata)),
+                   c("generateur", "seed_loi_nulle_sw")) &&
+           identical(valeurs_generateur(res_mw$metadata)[["seed_loi_nulle_sw"]], "20260901"))
+verifier("rapport fige : reserve2, ligne de la graine de la loi nulle de Shapiro-Wilk (libelle et valeur, #351)",
+         grepl(paste0("<td>", .echap_html("Graine de la loi nulle de Shapiro-Wilk"),
+                      "</td><td>20260901</td>"), .sect_gel(res_mw), fixed = TRUE))
 
 # Objet relu et nettoye (#263) : les six references de tests/reference/, sans
 # horodatage, duree_sec ni version_R dans metadata, donnent un rapport sans
