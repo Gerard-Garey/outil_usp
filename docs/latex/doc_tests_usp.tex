@@ -113,8 +113,8 @@
           backgroundcolor=tablerow, skipabove=3mm, skipbelow=3mm]{encadre}
 
 % Fiches de test : six rubriques fixes, plus la rubrique 7 (\Pertinence) pour
-% les fiches de test (issue #114 ; et de procedure de decision, type retire
-% d'add() par #357).
+% les fiches de test (issue #114 ; jusqu'a #357, aussi les fiches de procedure
+% de decision).
 \newcounter{ficheid}
 \newenvironment{fiche}[1]{%
   \stepcounter{ficheid}%
@@ -871,7 +871,10 @@ commentaire de Breusch--Pagan studentisé, remplacée par un motif fixe d'échec
 calcul, tenté, rend \code{NA} (issue~\#358), sans effet sur son type ni sur son verdict~; calcul
 fait par \code{.usp\_puissance\_}\allowbreak\code{enveloppe\_h2\_calcul()}, valeur gardée dans l'environnement
 \code{.cache\_pi\_env} sous la clé des bits exacts de $\alpha$ et de $x$ (issue~\#358)~: valeur
-rendue identique au calcul direct, \code{NA} compris, sans tirage aléatoire \\
+rendue identique au calcul direct, \code{NA} compris, sans tirage aléatoire~; au-delà de
+\code{LONGUEUR\_CLE\_CACHE\_MAX} $= 9\,000$ octets de clé, la clé n'est pas utilisée et le calcul
+direct est rendu sans cache (même valeur), les noms de variable de R étant limités à
+$10\,000$ octets \\
 \code{usp\_permutation\_}\newline\code{pente()} & $x$, $y$, $B$ (999), \code{seed}
 (20260831), \code{unilateral} (\code{TRUE}) & test de Pitman sur la pente (issue~\#169,
 fiche~\ref{fiche:student-pente})~: $r$ observé et $t_b$ (champ \code{t}, calculé sur $r$ borné
@@ -2087,7 +2090,10 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   ne se recouvrent pas sur les $25\,(B+1)$ tirages au plus du flux est \emph{supposé}, comme pour
   toutes les graines du moteur, non démontré. Deux collisions sont déclarées, sans traitement
   (décision du mainteneur du 11~octobre 2026)~: \code{seed} $= 19\,721\,732$ donne
-  $g$ = \code{SEED\_LOI\_NULLE\_SW} $= 20\,260\,901$~; dans une étude de sensibilité à la
+  $g$ = \code{SEED\_LOI\_NULLE\_SW} $= 20\,260\,901$, sans effet depuis l'issue~\#302, le flux
+  complémentaire n'étant posé que par les méthodes de primes et de réserve n\textsuperscript{o}~1
+  et \code{SEED\_LOI\_NULLE\_SW} que par la méthode de réserve n\textsuperscript{o}~2, de sorte
+  que les deux flux ne sont jamais tirés dans une même exécution~; dans une étude de sensibilité à la
   graine, deux graines espacées de $539\,169$ rendent le flux de l'une égal aux tirages de la
   première source de l'autre. Mesuré par \code{usp\_graine\_flux\_regime()}~: $20\,260\,831 \to
   20\,800\,000$, $0 \to 539\,169$, $M \to -2\,146\,944\,479$, $19\,721\,732 \to
@@ -9841,7 +9847,7 @@ volumes ; un OK ne demontre pas la structure de variance.}~» sur le jeu de cont
 et n'est pas issu du bootstrap (règle de l'issue~\#76). Le calcul n'est tenté qu'à volumes non
 constants et à statistique observée définie~; ailleurs, la ligne est non applicable et la phrase
 n'est pas écrite. Tenté sans aboutir (valeur \code{NA}, rubrique~6), il laisse place, depuis
-l'issue~\#358, à un motif fixe, sans nombre~: «~\code{Puissance maximale d'un test invariant de
+l'issue~\#358, à un motif fixe, sans nombre (texte d'\code{actuary})~: «~\code{Puissance maximale d'un test invariant de
 delta = 1 contre delta = 0 ou de delta = 0 contre delta = 1 (famille de l'annexe XVII) non
 calculee avec ces volumes : echec numerique de l'integration d'Imhof ou de la recherche de racine
 (usp\_puissance\_}\allowbreak\code{enveloppe\_h2()) ; un OK ne demontre pas la structure de variance.}~», qui garde
@@ -13934,13 +13940,17 @@ larges ci-dessus, la bande étant construite sur toutes les lignes, équivaut ex
 strictement de la bande de même rang construite sur toutes les lignes sauf elle (équivalence de
 calcul de l'ouvrage, p.~154). Le taux de~(4.17) est donc, sans ex æquo, un taux \emph{par
 retrait d'une ligne}, qui estime le taux de sortie d'une courbe \emph{nouvelle}, ce qu'est la
-courbe observée~: sur les références \code{premium} et \code{premium\_interieur}, il est égal au
+courbe observée~: sur les références \code{premium} et \code{premium\_interieur}, il est égal, au
 rang $k^{\star}$, au sens de \code{identical()}, au taux recalculé par retrait de chaque ligne
 ($0{,}0921$ et $0{,}0901$~; mesure du 29~octobre 2026). Avec des ex æquo
 dans $S$, la règle porte sur les valeurs~: une ligne égale à une borne sort, là où la fonction
 \emph{envelope}, qui travaille sur les rangs moyens de \code{rank()}, peut ne pas la compter~; le
-taux du moteur est alors au moins égal, et la bande au moins aussi large (règle plus
-conservatrice). Aucun ex æquo n'est mesuré dans $S$ sur les cinq références lognormales. Deux autres
+taux du moteur est alors, à rang $k$ égal, au moins égal à celui de la fonction \emph{envelope}
+(toute ligne qu'elle compte sort aussi au sens du moteur, le rang moyen d'un ex æquo n'étant jamais
+inférieur à son plus petit rang ni supérieur à son plus grand)~; son $k^{\star}$ est donc au plus
+égal, et sa bande simultanée au moins aussi large (règle plus conservatrice~; le taux que le moteur
+restitue à son propre $k^{\star}$ peut, lui, être inférieur à celui qu'\emph{envelope} restitue
+au sien). Aucun ex æquo n'est mesuré dans $S$ sur les cinq références lognormales. Deux autres
 écarts d'écriture avec la fonction \emph{envelope} sont sans effet mesuré~: elle rapporte le taux
 à $B_{\text{eff}} + 1$ et non à $B_{\text{eff}}$, et cherche $k^{\star}$ par interpolation entre le
 rang~1 et le rang de la bande ponctuelle, là où le moteur balaie les rangs dans l'ordre.
@@ -13955,8 +13965,8 @@ de~(4.17) ($k^{\star} = 8$ contre 7 sur les cinq références lognormales, au m�
 et $9{,}0~\%$), le rang $k = 1$ était toujours admissible (taux nul par construction), et la bande
 simultanée était plus étroite d'un rang, ce qui était cohérent avec l'optimisme du taux
 auto-évalué relevé ci-dessous, sans qu'il fût établi que ce décalage en fût la seule cause~; sous
-la règle~(4.17), l'écart moyen entre taux auto-évalué et taux hors échantillon reste, sur le jeu
-de contrôle, inférieur à l'erreur Monte-Carlo de la mesure (ci-dessous). Le graphique
+la règle~(4.17), l'écart moyen entre taux auto-évalué et taux hors échantillon ($0{,}4$ point à
+500, $0{,}03$ point à 1\,000) reste, sur le jeu de contrôle, inférieur à l'erreur Monte-Carlo de la mesure (ci-dessous). Le graphique
 dispersion-niveau suit~(4.17) depuis l'issue~\#306 (fiche~\ref{fiche:spread-location}, décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026)~; depuis
 l'issue~\#385, les deux graphiques se lisent au même rang.
 \code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: \code{source}, $B_{\text{eff}}$, les
@@ -13968,16 +13978,20 @@ les niveaux, $k$ et $B_{\text{eff}}$, et restitue le motif tel quel~; le seuil
 \code{B\_min\_simultane} et \code{regle\_rang} sont descriptifs, non lus par l'affichage. Le titre
 porte «~enveloppe de simulation 90~\%~» ou «~enveloppe indisponible~»~; le sous-titre dit d'abord
 ce qui est tracé (bootstrap paramétrique sous le modèle ajusté, bande ponctuelle et bande
-simultanée avec le rang $k$ et le nombre de réplications, ou bande ponctuelle seule, ou enveloppe
-indisponible), puis, à la ligne et s'il existe, le motif du moteur, tel quel, sans qu'aucune cause
-soit reconstruite par l'affichage (la bande simultanée peut manquer à
-$B_{\text{eff}} \ge 500$, faute de rang admissible).
+simultanée avec le rang $k$ et le nombre de réplications, ou «~bande ponctuelle seule sur
+$B_{\text{eff}}$ réplications~», ou «~aucune bande ($B_{\text{eff}}$ réplications)~»), puis, à la
+ligne et s'il existe, le motif du moteur, tel quel, seul à dire la cause, sans qu'aucune cause soit
+reconstruite par l'affichage (la bande simultanée peut manquer à $B_{\text{eff}} \ge 500$, faute
+de rang admissible). Pour un objet sans motif, antérieur à l'issue~\#385, le sous-titre garde son
+ancien libellé, sur une seule ligne~: «~bande ponctuelle seule sur $B_{\text{eff}}$ réplications,
+bande simultanée indisponible~» ou «~enveloppe indisponible ($B_{\text{eff}}$ réplications)~».
 \textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications (\code{ENVELOPPE\_QQ\_B\_MIN}), aucune
 bande~; sous $B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule~;
 faute de rang admissible, bande ponctuelle seule~; chaque cas avec son motif. Le seuil de 500,
 décidé par \code{actuary} le 29~septembre 2026, est fondé sur la \emph{granularité} de $k$, non
-sur une calibration~: en deçà, sous la règle~(4.17), $k^{\star} \le 3$ (mesures ci-dessous) et la
-bande simultanée n'est que celle des une à trois valeurs extrêmes de chaque colonne~; à
+sur une calibration~: en deçà, sous la règle~(4.17), la bande simultanée n'est que celle de
+quelques valeurs extrêmes de chaque colonne ($k^{\star} \le 3$ aux tailles mesurées de 100 à 400
+réplications, table ci-dessous, et $k^{\star}$ de 3 ou 4 dès 500)~; à
 $B_{\text{eff}} = 100$, aucun rang n'est admissible ($k^{\star}$ non défini sur les huit graines,
 taux de~(4.17) de $0{,}11$ à $0{,}16$ dès $k = 1$). \emph{Rang $k = 1$ non admissible.} À $k = 1$
 sortent les lignes qui portent le minimum ou le maximum d'au moins une colonne~; sans ex æquo, il
@@ -14044,8 +14058,11 @@ Sous la règle~(4.17), le taux auto-évalué est un taux par retrait d'une ligne
 ci-dessous. Le niveau hors échantillon de la bande simultanée vaut en
 moyenne $90{,}5~\%$ à $B_{\text{eff}} = 500$ et à 1\,000, avec une erreur Monte-Carlo de cette
 moyenne de l'ordre de $0{,}7$ point à 500 et de $0{,}4$ point à 1\,000 (dispersion entre graines,
-écart-type de la moyenne des huit taux de $0{,}6$ et $0{,}2$ point, composée avec l'erreur
-binomiale de l'échantillon indépendant commun de 8\,000 courbes, $0{,}3$ point), et de $88{,}4$ à
+écart-type de la moyenne des huit taux de $0{,}6$ et $0{,}2$ point, composée en quadrature avec
+l'erreur binomiale de l'échantillon indépendant de 8\,000 courbes, $0{,}3$ point, comptée une fois
+sans division par huit, cet échantillon étant commun aux huit bandes~; composition qui majore
+l'erreur au premier ordre, l'écart-type entre graines, lui-même estimé sur huit valeurs seulement,
+contenant déjà une part de l'erreur d'évaluation), et de $88{,}4$ à
 $93{,}2~\%$ selon l'exécution à 500, de $89{,}4$ à $91{,}2~\%$ à 1\,000~: il est compatible avec
 90~\% nominal~; la bande ponctuelle n'est pas concernée. Cette erreur Monte-Carlo, fonction du
 nombre de réplications, est distincte de l'erreur d'approximation, fonction de $T$, que la mesure
