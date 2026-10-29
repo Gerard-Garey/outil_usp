@@ -258,6 +258,8 @@ Base réglementaire & Directive 2009/138/CE, art.~104(7) ; règlement délégué
 Procédure d'agrément & Règlement d'exécution (UE) 2015/498 \\
 Transposition & Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II) \\
 Moteur de calcul & \code{R/engine.R} (R base et \code{stats} uniquement) \\
+Chargement du moteur & \code{R/charger\_moteur.R} (aucun calcul~; environnement dédié
+\code{usp\_moteur}) \\
 Interface & \code{app.R}, \code{R/display\_helpers.R} (aucun calcul) \\
 Profondeur d'intérêt & $T = 8$ années de survenance \\
 \end{tabular}
@@ -301,6 +303,9 @@ figure dans \code{R/engine.R}.
 p-values, bootstrap, jackknife, calibration, quantités des graphiques &
 Toute primitive Shiny (\code{input\$}, \code{output\$}, \code{reactive()},
 \code{render*()}) \\
+\code{R/charger\_moteur.R} & Chargement de \code{R/engine.R} dans l'environnement dédié
+\code{usp\_moteur}, par la seule fonction \code{charger\_moteur()} (issue~\#200, ADR~0016) &
+Toute logique quantitative~; \code{R/engine.R} n'en dépend pas \\
 \code{app.R} & Saisie, déclenchement, stockage réactif, agencement des onglets &
 Tout calcul statistique ou actuariel \\
 \code{R/display\_helpers.R} & Formatage des nombres et des tableaux, tracés à
@@ -320,12 +325,41 @@ Le moteur s'exécute seul~:
 
 \begin{encadre}
 \small
-\code{source("R/engine.R")}\\
+\code{source("R/charger\_moteur.R")}\\
+\code{charger\_moteur()}\\
 \code{res <- run\_engine(xt = ..., yt = ..., methode = "premium", segment = 1,}\\
 \code{\phantom{res <- run\_engine(}nature\_donnees = "brutes", T = 8, B = 999,}\\
 \code{\phantom{res <- run\_engine(}seed = 20260831)}\\
 \code{res\$parametre\_final\$sigma\_usp \ \ ;\ \ engine\_table\_tests(res)}
 \end{encadre}
+
+\emph{Chargement du moteur.} L'application et les scripts de tests et de mesure chargent le
+moteur, pour tout calcul, par la fonction \code{charger\_moteur()} de \code{R/charger\_moteur.R} (issue~\#200, ADR~0016), qui ne
+contient aucune logique quantitative et dont \code{R/engine.R} ne dépend pas. Elle évalue
+\code{R/engine.R} dans un environnement neuf, l'\emph{environnement du moteur}
+\code{usp\_moteur}, dont la chaîne de résolution des noms est fermée~: \code{usp\_moteur}, puis un
+environnement d'imports, \code{imports:usp\_moteur}, qui porte les exports de \code{stats}, puis
+\code{base}. Ni l'environnement global ni le chemin de recherche n'y figurent~: un objet de la
+session qui porte le nom d'une fonction ou d'une constante de R (\code{c()}, \code{intersect()},
+\code{pi}\ldots), ou un paquet attaché, ne détourne pas le calcul, et un nom non qualifié que le
+moteur ne trouve ni en lui-même, ni dans \code{stats}, ni dans \code{base} lève une erreur au lieu
+d'être cherché ailleurs~; la dépendance déclarée, R base et \code{stats} uniquement, devient ainsi
+une propriété vérifiée à l'exécution. Les objets du moteur sont copiés dans l'environnement
+appelant (argument \code{dans}), sans \code{attach()}~; les fonctions copiées gardent
+l'environnement du moteur pour enclos, de sorte qu'une redéfinition dans l'environnement global
+après le chargement est sans effet sur \code{run\_engine()}. Mesure, méthode de réserve
+n\textsuperscript{o}~1 sur \code{tests/donnees/donnees\_ln.csv}, segment~1 de l'annexe~II,
+$B = 99$ (\code{B\_MIN\_USAGE})~: une fonction \code{c()} de l'environnement global qui multiplie
+les nombres réels par $1 + 10^{-3}$ (scénario de l'issue~\#200) laisse $\sigma_{\mathrm{USP}}$ à
+$0{,}1073524114$ sous le chargeur, et la porte à $0{,}1138150042$, sans aucun signal, quand le
+moteur est chargé par \code{source("R/engine.R")} dans l'environnement global. Le mode de
+chargement est sans effet sur les résultats~: sur les six cas de contrôle de la
+section~\ref{sec:graines}, les objets rendus par \code{run\_engine()} sous le chargeur et sous
+\code{source()} sont identiques au bit près (\code{identical()}, hors horodatage, durée et
+version de R, retirés par \code{nettoyer()}). Le moteur reste chargeable par
+\code{source("R/engine.R")}, mais ce chargement l'expose à tout objet de même nom de
+l'environnement global~; il n'est admis que pour la lecture du code et la vérification d'un point
+isolé dans une session R vierge.
 
 Le \emph{rapport figé}, produit par \code{rapport\_html()}, est un fichier HTML
 unique, sans ressource externe, qui fige l'objet renvoyé par \code{run\_engine()}
@@ -495,6 +529,13 @@ de calibration commune aux deux branches.}
 \textcolor{financeblue}{\textbf{Entrées}} &
 \textcolor{financeblue}{\textbf{Sorties}} \\
 \endhead
+\multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chargement (\code{R/charger\_moteur.R}, hors moteur)}}} \\
+\code{charger\_moteur()} & \code{fichier} (défaut \code{"R/engine.R"}), \code{dans} (défaut~:
+environnement appelant) & environnement du moteur \code{usp\_moteur}, rendu de façon
+invisible~; liaisons du moteur, noms à point compris, copiées dans \code{dans} (aucune si
+\code{dans = NULL})~; erreur R pour un \code{fichier} absent ou qui n'est pas une chaîne unique
+non vide, ou un \code{dans} qui n'est ni \code{NULL} ni un environnement~; aucun calcul
+(section~\ref{sec:archi}, issue~\#200) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
 \code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
@@ -1892,7 +1933,8 @@ Le moteur comporte six sources de tirages aléatoires, et six seulement (la cinq
 l'issue~\#169, la sixième depuis l'issue~\#240), qui toutes
 s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
 expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
-l'environnement global, ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
+l'environnement global (où R tient l'état du générateur, quel que soit l'environnement où le
+moteur est chargé, section~\ref{sec:archi}), ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
 graine sous le générateur fixé \code{ENGINE\_RNG\_KIND} (issue~\#37), évalue l'expression, puis
 restaure le \code{RNGkind()} et l'état initial, ou retire \code{.Random.seed} s'il n'existait
 pas, y compris quand l'évaluation échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
@@ -3192,9 +3234,13 @@ de la fonction de tests, fonction anonyme du catalogue), \code{usp\_tests} ou \c
 Chaîne fixe, indépendante des données et du régime. Argument obligatoire d'\code{add()}, qui
 refuse par une erreur une valeur absente, non textuelle, vide, ou qui ne désigne pas une fonction
 de l'environnement du moteur (mesuré~: \code{"cor.test"} et \code{"ANNEXE\_II"} refusés,
-\code{".shapiro\_sur"} admis). Limite~: le moteur étant chargé par \code{source()} dans
-l'environnement global, le contrôle garantit une fonction existante de cet environnement, non
-une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, avant \code{inoperant}~;
+\code{".shapiro\_sur"} admis). Depuis l'issue~\#200, le moteur étant chargé par
+\code{charger\_moteur()} dans l'environnement dédié \code{usp\_moteur} (section~\ref{sec:archi}),
+le contrôle garantit une fonction de \code{R/engine.R}~: une fonction définie dans
+l'environnement global seulement est refusée (mesuré). Jusque-là, le moteur étant chargé par
+\code{source()} dans l'environnement global, le contrôle ne garantissait qu'une fonction
+existante de cet environnement~; cette limite ne subsiste que pour un chargement par
+\code{source("R/engine.R")}. Champ placé après \code{p\_min}, avant \code{inoperant}~;
 colonne \code{fonction} de la table auditable, avant-dernière. \\
 \code{inoperant} & \textbf{Indicateur de test inopérant} (issue~\#129)~: logique posé par
 \code{add()} sur chaque ligne, \code{TRUE} si et seulement si la bascule de la règle~R1 a eu lieu
@@ -20342,7 +20388,8 @@ L'application Shiny (\code{app.R}, \code{R/display\_helpers.R}) ne contient
 aucun de ces calculs~: elle collecte les entrées, appelle \code{run\_engine()} et
 affiche l'objet retourné. Le moteur s'exécute indépendamment de toute interface,
 ce qui permet une revue et une reproduction externes~:
-\code{source("R/engine.R")} puis \code{run\_engine(xt = ..., yt = ...)}.
+\code{source("R/charger\_moteur.R")}, \code{charger\_moteur()}, puis
+\code{run\_engine(xt = ..., yt = ...)} (chargement du moteur~: section~\ref{sec:archi}).
 
 \subsection*{Méthode Merz--Wüthrich}
 
