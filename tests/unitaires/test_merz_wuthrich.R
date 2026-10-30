@@ -735,6 +735,101 @@ local({
                !grepl("e+", sens_phrase(l), fixed = TRUE) &&
                !grepl("contrefactuel", l, fixed = TRUE)
            })
+  # #372 (1), decision du mainteneur du 30/10/2026 : au-dela d'un rapport v / r0
+  # de 100 (RAPPORT_MAX_ECART_MW), le rapport est imprime a 3 chiffres
+  # significatifs ("x 2.67e+09") a la place de l'ecart en pourcentage ; le
+  # contrefactuel est omis quand sa valeur imprimee est celle de la regle. Mesure
+  # de l'issue : triangle_mw.csv, colonne J-3 presque constante (degen_Jm3).
+  # Texte a la lettre a partir de "Sensibilite indicative" ; la racine du
+  # quotient, 6 chiffres, est lue dans s (sigma2_(J-3) de l'ordre de 1e-20 y est
+  # connu a environ 1e-3 pres, mesure d'actuary, commentaire 6525801408 de
+  # #372) : pour eps = 5e-12, le rapport est calcule sur la machine et seule la
+  # forme "(x 2.67e+09)" est figee, pas ses chiffres.
+  phrase_372 <- function(tri) {
+    a <- mw_ajuster(tri); ex <- mw_extrapolation_sigma2(a)
+    s <- mw_sensibilite_sigma2_dernier(a, ex)
+    l <- detail_m6(run_mw(tri))
+    list(l = l, s = s, a = a, ex = ex, ph = sens_phrase(l),
+         id = identical(l, .mw_detail_extrapolation(ex, s)))
+  }
+  verifier("#372 (1) : eps = 5e-12 (colonne J-3 non degeneree, rapport 2.67e+09) -> '(x 2.67e+09)', contrefactuel omis (egal a la regle a la precision imprimee)",
+           {
+             z <- phrase_372(degen_Jm3(m, 5e-12))
+             q <- z$s$racine_msep_arguments[["quotient"]]
+             !isTRUE(z$ex$degeneree) && z$id && isTRUE(q / z$s$racine_msep_regle > 1e9) &&
+               identical(format(z$s$racine_msep_zero, digits = 6),
+                         format(z$s$racine_msep_regle, digits = 6)) &&
+               identical(z$ph, paste0(
+                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+                 "(160.926 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                 "avec sigma2_(J-2) : 222.538 (+38.3 %) ; avec sigma2_(J-3) : 160.926 (+0.0 %) ; ",
+                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", format(q, digits = 6),
+                 " (", sprintf("x %.3g", q / z$s$racine_msep_regle), ").")) &&
+               grepl("\\(x [0-9]\\.[0-9]{2}e\\+09\\)\\.$", z$ph) &&
+               !grepl("contrefactuel", z$l, fixed = TRUE) && !grepl(" %).", z$ph, fixed = TRUE) &&
+               !grepl("+266", z$ph, fixed = TRUE)
+           })
+  verifier("#372 (1) : eps = 1e-4 (rapport 133 > 100) -> '(x 133)' ; contrefactuel imprime different de la regle (160.931 contre 160.935) -> conserve",
+           {
+             z <- phrase_372(degen_Jm3(m, 1e-4))
+             q <- z$s$racine_msep_arguments[["quotient"]]
+             z$id &&
+               identical(z$ph, paste0(
+                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+                 "(160.935 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                 "avec sigma2_(J-2) : 222.55 (+38.3 %) ; avec sigma2_(J-3) : 160.935 (+0.0 %) ; ",
+                 "avec sigma2_(J-2)^2/sigma2_(J-3) : 21457.6 (x 133). ",
+                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+                 "contrefactuel qui n'est pas un argument du minimum) : 160.931 (-0.0 %)."))
+           })
+  verifier("#372 (1) : eps = 1e-3 (rapport 13.3 < 100) -> pourcentage conserve, contrefactuel conserve",
+           {
+             z <- phrase_372(degen_Jm3(m, 1e-3))
+             z$id &&
+               identical(z$ph, paste0(
+                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+                 "(161.413 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                 "avec sigma2_(J-2) : 222.704 (+38.0 %) ; avec sigma2_(J-3) : 161.413 (+0.0 %) ; ",
+                 "avec sigma2_(J-2)^2/sigma2_(J-3) : 2153.77 (+1234.3 %). ",
+                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+                 "contrefactuel qui n'est pas un argument du minimum) : 161.036 (-0.2 %)."))
+           })
+  # Frontieres de la regle, sur des racines de MSEP posees dans s (ex de
+  # reserve2) : racine de la regle 128 = 2^7, de sorte que racine = 128 x rapport
+  # et rapport = racine / 128 sont exacts par construction (la mise a l'echelle
+  # par une puissance de 2 est sans arrondi) ; rapport 100 exactement ->
+  # pourcentage ; 100.0001 et 101 -> rapport (3 chiffres significatifs) ;
+  # contrefactuel egal a 6 chiffres (1 + 1e-9) -> omis ; different (1 - 1e-3) ->
+  # conserve, ecart relatif.
+  verifier("#372 (1) : frontieres - rapport 100 : '+9900.0 %', 100.0001 et 101 : 'x 100' / 'x 101' ; contrefactuel omis a (1 + 1e-9), conserve a (1 - 1e-3)",
+           {
+             a <- mw_ajuster(m); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex); r0 <- 128
+             avec <- function(rapports, zero) {
+               s2 <- s; s2$racine_msep_regle <- r0
+               s2$racine_msep_arguments[] <- r0 * rapports; s2$racine_msep_zero <- r0 * zero
+               sens_phrase(.mw_detail_extrapolation(ex, s2))
+             }
+             f6 <- function(x) format(x, digits = 6)
+             p1 <- avec(c(100, 100.0001, 101), 1 + 1e-9)
+             p2 <- avec(c(2, 0.5, 99.99), 1 - 1e-3)
+             identical(RAPPORT_MAX_ECART_MW, 100) && isTRUE(s$applicable) && s$valeur_regle > 0 &&
+               identical(p1, paste0(
+                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+                 "(", f6(r0), " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                 "avec sigma2_(J-2) : ", f6(r0 * 100), " (+9900.0 %) ; ",
+                 "avec sigma2_(J-3) : ", f6(r0 * 100.0001), " (x 100) ; ",
+                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", f6(r0 * 101), " (x 101).")) &&
+               identical(p2, paste0(
+                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
+                 "(", f6(r0), " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
+                 "avec sigma2_(J-2) : ", f6(r0 * 2), " (+100.0 %) ; ",
+                 "avec sigma2_(J-3) : ", f6(r0 * 0.5), " (-50.0 %) ; ",
+                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", f6(r0 * 99.99), " (+9899.0 %). ",
+                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
+                 "contrefactuel qui n'est pas un argument du minimum) : ", f6(r0 * (1 - 1e-3)),
+                 " (-0.1 %)."))
+           })
 })
 # Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
 # colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non
@@ -3229,6 +3324,60 @@ verifier("Identifiabilite intra-colonne (#308) : aucune colonne retenue (j = 0 e
            is.na(ii$estim) && !nrow(ii$detail) && is.na(x$estim) && identical(x$verdict, "INFO") &&
              identical(x$detail, paste(TETE308, "Aucune colonne retenue (n_j >= 3)."))
          })
+# Format de R et de e_a hors de [1e-3 ; 1e6[ (#364, decision Q-44-4 (b) du
+# mainteneur du 30/10/2026) : virgule fixe (3 decimales pour R, 4 pour e_a) dans
+# la plage, "%.3e" au-dela, en dessous et pour toute valeur non finie. Les
+# valeurs ci-dessous sont celles de la mesure de l'issue : triangle_mw.csv dont
+# la ligne 0 est multipliee par 1e-14 (R de l'ordre de 1e14, e_a de 1e-9) ou
+# par 1e15 (e_a de 1e-17), qui s'imprimaient "R = 122857142857143.000, e_a =
+# 0.0000" et "R = 984909342734827.500, e_a = 0.0000".
+verifier("Identifiabilite intra-colonne (#364) : .mw_format_echelle() - frontieres 1e-3 inclus, 1e6 exclu, 0, negatif, non fini",
+         {
+           v <- c(1e-3, 9.4e-4, 999999.5, 1e6, 0, -2.5e-5, -0.5, Inf, NaN, NA)
+           identical(.mw_format_echelle(v, 4L),
+                     c("0.0010", "9.400e-04", "999999.5000", "1.000e+06", "0.000e+00",
+                       "-2.500e-05", "-0.5000", "Inf", "NaN", "NA")) &&
+             identical(.mw_format_echelle(v, 3L)[c(1, 3, 7)], c("0.001", "999999.500", "-0.500")) &&
+             identical(.mw_format_echelle(numeric(0), 3L), character(0)) &&
+             # Plage jugee sur la valeur arrondie aux decimales imprimees (C2 de
+             # l'audit) : l'ecriture fixe reste dans [1e-3 ; 1e6[, jamais
+             # "1000000.000" ni "1.000e-03".
+             identical(.mw_format_echelle(999999.99996, 3L), "1.000e+06") &&
+             identical(.mw_format_echelle(-999999.99996, 3L), "-1.000e+06") &&
+             identical(.mw_format_echelle(999999.9994, 3L), "999999.999") &&
+             identical(.mw_format_echelle(0.00099995, 4L), "0.0010") &&
+             identical(.mw_format_echelle(0.00095, 4L), "9.500e-04") &&
+             identical(.mw_format_echelle(-0.00095, 4L), "-9.500e-04") &&
+             identical(.mw_format_echelle(0.00099995, 3L), "0.001") &&
+             identical(.mw_format_echelle(9.4e-4, 4L), "9.400e-04") &&
+             identical(.mw_format_echelle(4e-4, 3L), "4.000e-04")
+         })
+local({
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+  m <- unname(m)
+  ligne0 <- function(fact) { t <- m; t[1, ] <- t[1, ] * fact; t }
+  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e-14 -> R en 1.229e+14, e_a non nul en notation scientifique (texte a la lettre)",
+           {
+             x <- ligne308(run_mw(ligne0(1e-14))$tests)
+             identical(x$detail, paste(TETE308, "Valeurs :",
+               "j = 0 : n_j = 7, CV = 0.4460, R = 1.229e+14, e_a = 1.577e-09 ;",
+               "j = 1 : n_j = 6, CV = 0.4957, R = 1.211e+14, e_a = 1.559e-09 ;",
+               "j = 2 : n_j = 5, CV = 0.5650, R = 1.206e+14, e_a = 1.074e-09 ;",
+               "j = 3 : n_j = 4, CV = 0.6709, R = 1.182e+14, e_a = 6.009e-10 ;",
+               "j = 4 : n_j = 3, CV = 0.8677, R = 1.126e+14, e_a = 8.186e-10."))
+           })
+  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e15 -> R en 9.633e+14 ..., e_a de l'ordre de 1e-17 non nul (texte a la lettre)",
+           {
+             x <- ligne308(run_mw(ligne0(1e15))$tests)
+             identical(x$detail, paste(TETE308, "Valeurs :",
+               "j = 0 : n_j = 7, CV = 2.6458, R = 9.633e+14, e_a = 4.685e-17 ;",
+               "j = 1 : n_j = 6, CV = 2.4495, R = 9.809e+14, e_a = 7.109e-17 ;",
+               "j = 2 : n_j = 5, CV = 2.2361, R = 9.849e+14, e_a = 8.381e-17 ;",
+               "j = 3 : n_j = 4, CV = 2.0000, R = 9.714e+14, e_a = 5.057e-17 ;",
+               "j = 4 : n_j = 3, CV = 1.7321, R = 9.535e+14, e_a = 1.321e-17."))
+           })
+})
 
 
 ## --- M2 : heteroscedasticite residuelle a effets fixes de colonne (#301) -----

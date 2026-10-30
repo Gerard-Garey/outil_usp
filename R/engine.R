@@ -8868,6 +8868,11 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   out
 }
 
+# Rapport v / r0 (racine de MSEP avec l'argument ou le contrefactuel, sur celle
+# de la regle) au-dela duquel la sensibilite du detail M6 imprime le rapport et
+# non l'ecart en pourcentage (#372 (1), decision du mainteneur du 30/10/2026).
+RAPPORT_MAX_ECART_MW <- 100
+
 # Libelle du diagnostic M6 correspondant : les trois arguments du minimum et
 # celui qui est retenu, pour que le calcul soit refaisable a la lecture, puis,
 # si sens (mw_sensibilite_sigma2_dernier()) est fourni et applicable, la
@@ -8943,15 +8948,27 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   if (is.null(sens) || !isTRUE(sens$applicable)) return(detail)
   # Sensibilite (T-4, SENS puis CONTRE) : racines de MSEP par format(digits =
   # 6), ecarts relatifs a la valeur de la regle en %+.1f %%, "non defini"
-  # pour le quotient NA (sigma2_(J-3) = 0). Le contrefactuel sigma2_(J-1) = 0
-  # (Q-D1-Fm-6) est omis quand la regle donne 0 a la tolerance de l'outil
-  # (colonne J-3 ou J-2 degeneree, ex$degeneree, predicat
-  # .mw_colonne_degeneree() a 1e-12) : il repeterait alors la valeur de la
-  # regle. SENS reste ecrit.
+  # pour le quotient NA (sigma2_(J-3) = 0). Au-dela d'un rapport v / r0 de 100
+  # (RAPPORT_MAX_ECART_MW), le rapport est imprime a la place de l'ecart en
+  # pourcentage, a 3 chiffres significatifs ("x 2.67e+09" : %.3g), car un
+  # pourcentage de 12 chiffres ne se lit pas (#372 (1), decision du
+  # 30/10/2026 ; un quotient aussi grand signale seulement que la regle de
+  # minimum est contraignante). Le contrefactuel sigma2_(J-1) = 0 (Q-D1-Fm-6)
+  # est omis quand la regle donne 0 a la tolerance de l'outil (colonne J-3 ou
+  # J-2 degeneree, ex$degeneree, predicat .mw_colonne_degeneree() a 1e-12) :
+  # il repeterait alors la valeur de la regle ; il l'est aussi quand sa valeur
+  # imprimee (format(digits = 6)) est celle de la regle, que la colonne soit
+  # degeneree ou non (#372 (1) : "+0.0 %" releve a eps = 5e-12, colonne J-3
+  # presque constante au-dessus de la tolerance). SENS reste ecrit.
   r0 <- sens$racine_msep_regle
+  ecart <- function(v) {
+    rapport <- v / r0
+    if (rapport > RAPPORT_MAX_ECART_MW) sprintf("x %.3g", rapport)
+    else sprintf("%+.1f %%", 100 * (rapport - 1))
+  }
   morceau <- function(nom, v)
     if (is.na(v)) sprintf("avec %s : non defini", nom)
-    else sprintf("avec %s : %s (%+.1f %%)", nom, format(v, digits = 6), 100 * (v / r0 - 1))
+    else sprintf("avec %s : %s (%s)", nom, format(v, digits = 6), ecart(v))
   morceaux <- vapply(seq_along(noms), function(k)
     morceau(noms[k], sens$racine_msep_arguments[[k]]), character(1))
   phrase <- paste0("Sensibilite indicative, hors regle et sans effet sur sigma_USP, ",
@@ -8959,11 +8976,12 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
                    " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
                    paste(morceaux, collapse = " ; "), ".")
   detail <- paste0(detail, ". ", phrase)
-  if (!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0))
+  if (!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0) &&
+      !identical(format(sens$racine_msep_zero, digits = 6), format(r0, digits = 6)))
     detail <- paste0(detail, " ", sprintf(paste0(
       "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
-      "contrefactuel qui n'est pas un argument du minimum) : %s (%+.1f %%)."),
-      format(sens$racine_msep_zero, digits = 6), 100 * (sens$racine_msep_zero / r0 - 1)))
+      "contrefactuel qui n'est pas un argument du minimum) : %s (%s)."),
+      format(sens$racine_msep_zero, digits = 6), ecart(sens$racine_msep_zero)))
   detail
 }
 
@@ -10714,6 +10732,26 @@ mw_famille_alpha <- function(aj) {
   list(stat = sum(det$n * det$amplitude) / sum(det$n), detail = det)
 }
 
+# Format d'une grandeur du detail de l'identifiabilite intra-colonne (R_j et
+# e_a,j ; #364, decision Q-44-4 (b) du mainteneur du 30/10/2026) : virgule
+# fixe a `decimales` decimales (3 pour R, 4 pour e_a, formats historiques) quand
+# 1e-3 <= |v| < 1e6, notation scientifique "%.3e" hors de cette plage (une
+# virgule fixe rendait un rapport de 1e14 illisible et un e_a de 1e-15 nul) et
+# pour toute valeur non finie. La plage est jugee sur l'ecriture fixe elle-meme
+# (relue par as.numeric), pour que l'ecriture fixe reste dans [1e-3 ; 1e6[
+# (999999.99996 s'ecrirait "1000000.000" en fixe : il passe en "1.000e+06" ;
+# 0.00099995 s'ecrit "0.0010" en fixe, et non "1.000e-03" ; le double le plus
+# proche de 0.00095 s'ecrit "0.0009" a 4 decimales et passe en "9.500e-04",
+# ce que round() ne voyait pas). Vectorise ; sprintf seul, aucun calcul.
+.mw_format_echelle <- function(v, decimales) {
+  sf <- sprintf(paste0("%.", decimales, "f"), v)
+  va <- abs(suppressWarnings(as.numeric(sf)))
+  fixe <- is.finite(v) & is.finite(va) & va >= 1e-3 & va < 1e6
+  out <- sprintf("%.3e", v)
+  out[fixe] <- sf[fixe]
+  out
+}
+
 # Identifiabilite intra-colonne (#308, specification Fj, par. 3.3 ; decisions
 # Q-D1-Fj-1, forme F1, et Q-D1-Fj-2 du mainteneur du 22/10/2026) : grandeurs
 # DESCRIPTIVES de la dispersion des cumuls a colonne donnee, dont depend la
@@ -11739,7 +11777,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # Identifiabilite intra-colonne (#308, forme F1) : diagnostic sans verdict
   # (ADR 0001) en fin de M1, grandeurs de mw_identifiabilite_intra() sur
   # l'observe seul (aucun nombre issu du bootstrap, #76) ; texte T-3 de la
-  # specification Fj, a la lettre.
+  # specification Fj, a la lettre, sauf le format de R et de e_a hors de
+  # [1e-3 ; 1e6[ (.mw_format_echelle(), #364).
   ii <- mw_identifiabilite_intra(aj, jd)
   tete_ii <- paste(
     "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee,",
@@ -11755,10 +11794,11 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   dii <- ii$detail
   detail_ii <- if (!nrow(dii)) paste(tete_ii, "Aucune colonne retenue (n_j >= 3).") else
     paste0(tete_ii, " Valeurs : ", paste(ifelse(is.na(dii$e_a),
-      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a non definie (C(i,j) constant)",
-              dii$j, dii$n, dii$cv, dii$R),
-      sprintf("j = %d : n_j = %d, CV = %.4f, R = %.3f, e_a = %.4f",
-              dii$j, dii$n, dii$cv, dii$R, dii$e_a)), collapse = " ; "), ".")
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %s, e_a non definie (C(i,j) constant)",
+              dii$j, dii$n, dii$cv, .mw_format_echelle(dii$R, 3L)),
+      sprintf("j = %d : n_j = %d, CV = %.4f, R = %s, e_a = %s",
+              dii$j, dii$n, dii$cv, .mw_format_echelle(dii$R, 3L),
+              .mw_format_echelle(dii$e_a, 4L))), collapse = " ; "), ".")
   add(fam, "Identifiabilite intra-colonne (dispersion des cumuls par colonne)",
       fonction = "mw_identifiabilite_intra",
       paste("Construction de l'outil : dispersion de C(i,j) a colonne donnee et erreur",
