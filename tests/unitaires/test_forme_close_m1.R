@@ -581,4 +581,43 @@ verifier("T270-8 : T1, mw_bootstrap() sous un generateur de l'appelant different
                          lecuyer = identical(x$avant$kind[1], "L'Ecuyer-CMRG")))
          })
 
+# #293 (option b) : cache .MW_COMBN_CACHE borne a n <= MW_COMBN_N_MAX. Etat
+# sans effet sur les resultats : reserve2 identique cache froid et cache chaud
+# (hors horodatage et duree) ; n = 20 gardee, n = 21 jamais gardee ; tables
+# identiques a utils::combn() direct (n = 20, 21, 25).
+verifier("T293 : cache des combinaisons de M1 borne a n <= 20 ; reserve2 identique cache froid et cache chaud ; tables identiques a combn() (#293)",
+         {
+           avant <- mget(ls(.MW_COMBN_CACHE), envir = .MW_COMBN_CACHE)
+           on.exit({
+             rm(list = ls(.MW_COMBN_CACHE), envir = .MW_COMBN_CACHE)
+             for (k in names(avant)) assign(k, avant[[k]], envir = .MW_COMBN_CACHE)
+           })
+           vider <- function() rm(list = ls(.MW_COMBN_CACHE), envir = .MW_COMBN_CACHE)
+           direct <- function(n) list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3),
+                                      S4 = utils::combn(n, 4))
+           sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
+           lance <- function() sans_temps(suppressWarnings(
+             run_engine(methode = "reserve2", triangle = tri253, segment = 1, annexe = "II", B = 199)))
+           vider()
+           froid <- lance()
+           cles_froid <- sort(ls(.MW_COMBN_CACHE))
+           chaud <- lance()
+           vider()
+           t20 <- .mw_combinaisons(20L); gardee20 <- exists("20", envir = .MW_COMBN_CACHE, inherits = FALSE)
+           t21 <- .mw_combinaisons(21L); gardee21a <- exists("21", envir = .MW_COMBN_CACHE, inherits = FALSE)
+           t21b <- .mw_combinaisons(21L)
+           t25 <- .mw_combinaisons(25L); gardee25 <- exists("25", envir = .MW_COMBN_CACHE, inherits = FALSE)
+           t20b <- .mw_combinaisons(20L)
+           ok_liste(list(
+             borne = identical(MW_COMBN_N_MAX, 20L),
+             reserve2_ok = isTRUE(froid$ok),
+             cache_rempli = length(cles_froid) > 0L,
+             cache_borne = all(as.integer(cles_froid) <= MW_COMBN_N_MAX),
+             froid_egal_chaud = identical(froid, chaud),
+             n20_gardee = gardee20, n21_jamais = !gardee21a, n25_jamais = !gardee25,
+             t20 = identical(t20, direct(20L)) && identical(t20b, t20),
+             t21 = identical(t21, direct(21L)) && identical(t21b, t21),
+             t25 = identical(t25, direct(25L))))
+         })
+
 fin_fichier()

@@ -10439,8 +10439,18 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # par n et gardees dans .MW_COMBN_CACHE (#278), au lieu d'un recalcul a chaque
 # colonne et a chaque replication. Cache deterministe : la table ne depend que
 # de n, sans alea ; memes matrices que l'appel direct.
+# Etat cache du moteur, sans effet sur les resultats (#293, option b) : il
+# persiste d'un appel de run_engine() a l'autre jusqu'a la fin de la session R,
+# mais la table de n est la meme cache froid ou chaud. Il est borne a
+# n <= MW_COMBN_N_MAX (au plus 17 entrees, n = 4 a 20 ; la plus grosse tient
+# choose(20, 4) x 4 entiers) : au-dela, la table est recalculee a chaque appel
+# et jamais gardee.
+MW_COMBN_N_MAX <- 20L
 .MW_COMBN_CACHE <- new.env(parent = emptyenv())
 .mw_combinaisons <- function(n) {
+  if (n > MW_COMBN_N_MAX) {
+    return(list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4)))
+  }
   cle <- as.character(n)
   tab <- .MW_COMBN_CACHE[[cle]]
   if (is.null(tab)) {
