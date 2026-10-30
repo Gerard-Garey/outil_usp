@@ -403,9 +403,9 @@ verifier("add() : motif_mc present mais NA pour une p_mc absente -> erreur ; p_m
 
 ## --- 4. usp_tests() : constante, TOST, pente, Fisher, AD, CvM ---------------
 tt <- usp_tests(fit, boot_fictif(fit), methode = "premium")
-verifier("usp_tests : 42 lignes sans jackknife, IC ni LR sur delta (47 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302) ; toute ligne non-test hors procedure de decision sort INFO (M7)",
+verifier("usp_tests : 42 lignes sans jackknife, IC ni LR sur delta (47 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302) ; toute ligne non-test sort INFO (M7)",
          length(tt) == 42L &&
-         all(vapply(Filter(function(l) !l$type %in% c("test", "procedure de decision"), tt),
+         all(vapply(Filter(function(l) !identical(l$type, "test"), tt),
                     function(l) identical(l$verdict, "INFO") && is.na(l$sens), logical(1))))
 verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continue)",
          all(vapply(tt, function(l) "p_min" %in% names(l), logical(1))) &&

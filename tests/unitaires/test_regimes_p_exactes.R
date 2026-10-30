@@ -50,7 +50,7 @@ commence_par_r8 <- function(d) startsWith(d, TXT_R8)
 # (Q-D1-Fh-5) ; la regle R7 decide encore de leur p exacte (colonne
 # p_exacte), mais aucune p n'est retenue (nature_p NA) et add() ne restitue
 # plus le motif d'effectifs (ex aequo) dans le detail : usp_tests() le joint
-# lui-meme (detail_decision_299(), avis d'actuary du 20/10/2026).
+# lui-meme (detail_diag(), #358 ; avis d'actuary du 20/10/2026).
 DIAG_299 <- c("Smirnov", "SpearTps")
 MOTIF_EA_R <- "ex aequo dans r : loi de permutation conditionnelle non tabulee, p_min et p exacte non attribuees"
 est_diag_299 <- function(l) identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
@@ -187,8 +187,10 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
 # #187 : p_mc presente, la phrase dit la p Monte-Carlo calculee ; depuis #303
 # (regle R15, pi_t constant), sans renvoi a nature_p, la ligne etant un
 # diagnostic ; p_mc absente, le motif est en tete (motif non degenere :
-# "Monte-Carlo indisponible : <motif>.") et la phrase de R15 en fin.
-verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187, #303) ; absente -> 'indisponible' (3 : test sans p-value ; 2 : diagnostic R15)",
+# "Monte-Carlo indisponible : <motif>.") et la phrase de R15 en fin, sans la
+# phrase txt_mc_indispo(), qui disait une troisieme fois l'absence de p
+# retenue (#358).
+verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187, #303) ; absente -> 'indisponible' (3 : test sans p-value) ou motif et phrase de R15 seuls (2 : diagnostic R15, #358)",
          {
            txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
@@ -205,7 +207,9 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, 
              grepl("La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.",
                    a2$detail, fixed = TRUE) && !grepl(PHRASE_RENVOI_NATURE_P, a2$detail, fixed = TRUE) &&
              !grepl(" est retenue", a2$detail, fixed = TRUE) &&
-             grepl(paste0("Monte-Carlo, simulee sous le modele ajuste, ", txt_ind, "."), b2$detail, fixed = TRUE) &&
+             !grepl(txt_ind, b2$detail, fixed = TRUE) &&
+             grepl("(issue #29, seconde condition de la fonction usp_runsr_p_exacte). Restituee en diagnostic (regle R15)",
+                   b2$detail, fixed = TRUE) &&
              !grepl(" est retenue", b2$detail, fixed = TRUE) &&
              identical(b3$type, "test") && identical(b3$verdict, "INFO") && is.na(b3$p_retenue) &&
              startsWith(b3$detail, "Monte-Carlo indisponible : aucune replication finie") &&
@@ -408,9 +412,9 @@ verifier("Cox-Stuart, alpha = 0,29 : donnees de test -> 'exacte', p_retenue = cx
 verifier("Invariants : 42 lignes usp_tests() a T >= 8 dans tous les regimes testes, 40 a T = 5 (LB1r retiree, #303 ; trois lignes retirees, #302)",
          all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 42L) &&
            length(t5) == 40L)
-verifier("Invariant M7 : hors test et procedure de decision, verdict INFO et sens NA",
+verifier("Invariant M7 : hors test, verdict INFO et sens NA",
          all(vapply(c(tt, t5, t8, tb), function(l)
-           l$type %in% c("test", "procedure de decision") ||
+           identical(l$type, "test") ||
              (identical(l$verdict, "INFO") && is.na(l$sens) && is.na(l$p_retenue)),
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
@@ -693,6 +697,35 @@ verifier("#299 : pi_env invariante par x -> lambda x (lambda = 1e3 et 1e-3)",
          all(vapply(list(x, j2$xt), function(v)
            isTRUE(proche(PENV(1e3 * v, 0.10), PENV(v, 0.10), rel = 1e-9)) &&
              isTRUE(proche(PENV(1e-3 * v, 0.05), PENV(v, 0.05), rel = 1e-9)), logical(1))))
+# Cache de pi_env (#358) : valeur rendue identique au calcul direct, cle
+# exacte (un ulp sur un volume donne une autre entree).
+verifier("#358 : cache de pi_env, valeur identique au calcul direct (J1, J2 ; alpha = 0,10 et 0,05), cle a un ulp pres",
+         {
+           ok <- all(vapply(list(x, j2$xt), function(v) all(vapply(c(0.10, 0.05), function(a)
+             identical(PENV(v, a), .usp_puissance_enveloppe_h2_calcul(v, a)) &&
+               identical(PENV(v, a), PENV(v, a)), logical(1))), logical(1)))
+           x_ulp <- x; x_ulp[1] <- x_ulp[1] * (1 + .Machine$double.eps)
+           cle <- function(v, a) paste(sprintf("%a", c(a, v)), collapse = " ")
+           ok && !identical(cle(x, 0.10), cle(x_ulp, 0.10)) &&
+             !is.null(.cache_pi_env[[cle(x, 0.10)]]) &&
+             identical(PENV(x_ulp, 0.10), .usp_puissance_enveloppe_h2_calcul(x_ulp, 0.10))
+         })
+# Garde de longueur de la cle (revue finale, C1 d'audit) : a T = 650 la cle
+# depasse la limite de 10000 octets des noms de variable de R ; la valeur est
+# alors rendue par le calcul direct, sans erreur et sans entree de cache. Le
+# vecteur de volumes est tire sous engine_sous_graine() (aucun effet sur le
+# .Random.seed de l'appelant).
+verifier("#358 : T = 650, cle du cache au-dela de la limite de 10000 octets -> aucune erreur, valeur identique au calcul direct, aucune entree de cache",
+         {
+           x650 <- engine_sous_graine(20261029L, 1 + stats::runif(650))
+           cle650 <- paste(sprintf("%a", c(0.10, x650)), collapse = " ")
+           cache <- get(".cache_pi_env", envir = environment(run_engine))
+           avant <- ls(cache, all.names = TRUE)
+           v <- tryCatch(PENV(x650, 0.10), error = function(e) e)
+           nchar(cle650, type = "bytes") > 10000L && is.numeric(v) &&
+             identical(v, .usp_puissance_enveloppe_h2_calcul(x650, 0.10)) &&
+             identical(ls(cache, all.names = TRUE), avant)
+         })
 R_X <- c(1.1, 1.5, 2, 3, 5, 10, 20, 30)
 penv_2n <- function(a) vapply(R_X, function(r) PENV(rep(c(1, r), each = 4), a), numeric(1))
 verifier("#299 : pi_env >= alpha (J1, J2, plans a deux niveaux de R_x = 1,1 a 30 ; alpha = 0,10 et 0,05)",
@@ -770,6 +803,41 @@ verifier("#299 : Breusch-Pagan studentise reste un test, detail = phrase propre 
              grepl("0.13 avec ces volumes", ligne(tt, NOM_BP)$detail, fixed = TRUE) &&
              grepl("0.34 avec ces volumes", ligne(tj2, NOM_BP)$detail, fixed = TRUE) &&
              grepl("alpha = 0.05,", ligne(t05, NOM_BP)$detail, fixed = TRUE)
+         })
+# Echec numerique de pi_env (#358, decision d'actuary) : calcul tente (volumes
+# variables, statistique definie) et NA -> motif fixe a la place de la phrase
+# de pi_env. NA provoque par substitution de .imhof_p_sup0() dans
+# l'environnement du moteur (ADR 0016), sur des volumes x * 3 absents du
+# cache ; substitution et entrees du cache retirees en sortie.
+TXT_PENV_ECHEC <- paste(
+  "Puissance maximale d'un test invariant de delta = 1 contre delta = 0 ou de delta = 0",
+  "contre delta = 1 (famille de l'annexe XVII) non calculee avec ces volumes : echec",
+  "numerique de l'integration d'Imhof ou de la recherche de racine",
+  "(usp_puissance_enveloppe_h2()) ; un OK ne demontre pas la structure de variance.")
+verifier("#358 : pi_env tentee et NA (echec numerique simule) -> motif fixe dans le detail de Breusch-Pagan studentise, sans la phrase de pi_env",
+         local({
+           env <- environment(run_engine)
+           orig <- get(".imhof_p_sup0", envir = env)
+           cache <- get(".cache_pi_env", envir = env)
+           avant <- ls(cache, all.names = TRUE)
+           on.exit({
+             assign(".imhof_p_sup0", orig, envir = env)
+             rm(list = setdiff(ls(cache, all.names = TRUE), avant), envir = cache)
+           })
+           assign(".imhof_p_sup0", function(...) NA_real_, envir = env)
+           f3 <- usp_ajuster(3 * x, 3 * y)
+           l <- ligne(usp_tests(f3, boot_fictif(f3), methode = "premium"), NOM_BP)
+           identical(l$type, "test") && identical(l$p_retenue, 0.5) &&
+             identical(l$detail, paste("Doit etre non significatif si la ponderation pi_t est correcte.",
+                                       TXT_PENV_ECHEC)) &&
+             !grepl("avec ces volumes ;", l$detail, fixed = TRUE)
+         }))
+verifier("#358 : substitution levee, pi_env de nouveau calculee sur 3 x (invariance d'echelle)",
+         {
+           f3 <- usp_ajuster(3 * x, 3 * y)
+           startsWith(ligne(usp_tests(f3, boot_fictif(f3), methode = "premium"), NOM_BP)$detail,
+                      paste("Doit etre non significatif si la ponderation pi_t est correcte.",
+                            txt_penv(x, 0.10)))
          })
 verifier("#299 : Spearman ratio / volume et Mann-Kendall restent des tests (H1)",
          all(vapply(list(tt, t8), function(t)

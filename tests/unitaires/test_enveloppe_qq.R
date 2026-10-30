@@ -8,10 +8,22 @@
 #  env_haut, env_sim_bas, env_sim_haut de plots_data$qqnorm et champ
 #  plots_data$qq_enveloppe de engine_plots_data(), retrait de
 #  SEED_ENVELOPPE_QQ et de metadata$seed_enveloppe_qq.
+#  Issue #385 (option (a), decisions du mainteneur du 28/10/2026) : rang k*
+#  de la bande simultanee selon l'eq. (4.17) de Davison et Hinkley (1997)
+#  (engine_rang_simultane_dh() sur les lignes de S), champs regle_rang et
+#  motif de plots_data$qq_enveloppe, cas k* NA (aucun rang admissible) et
+#  sous-titre du QQ-plot (.qq_sous_titre(), R/display_helpers.R), qui
+#  restitue le motif du moteur.
 #  References independantes :
 #    - residus reajustes recalcules replication par replication sous la meme
 #      graine (usp_simuler(), usp_ajuster_rapide() ou usp_noyau()) ;
-#    - quantiles et taux de sortie recalcules a la main a partir de z_boot.
+#    - quantiles et taux de sortie recalcules a la main a partir de z_boot ;
+#    - taux (4.17) recalcule par les rangs "min" et "max" de rank(), sans
+#      balayage des bornes ;
+#    - valeurs de boot::envelope() 1.3.30 ecrites en dur (k.ov = (7, 993),
+#      err.ov[2] = 0,092 et 0,090 sur les references premium et
+#      premium_interieur ; provenance : tests/unitaires/generer_valeurs_externes.R),
+#      et comparaison directe si le paquet boot est installe.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -33,6 +45,16 @@ ordres <- function(zb) t(apply(zb[apply(is.finite(zb), 1, all), , drop = FALSE],
 taux_sortie <- function(S, bas, haut) {
   hors <- vapply(seq_len(nrow(S)), function(i) any(S[i, ] < bas | S[i, ] > haut), logical(1))
   mean(hors)
+}
+# Taux de sortie de l'eq. (4.17) au rang k, ecriture independante de
+# engine_rang_simultane_dh() : une ligne sort au rang k si, dans une colonne,
+# son rang "min" est <= k ou son rang "max" est >= B + 1 - k.
+taux_417 <- function(S, k) {
+  B <- nrow(S)
+  rmin <- apply(S, 2, rank, ties.method = "min")
+  rmax <- apply(S, 2, rank, ties.method = "max")
+  m <- pmin(apply(rmin, 1, min), B + 1 - apply(rmax, 1, max))
+  mean(m <= k)
 }
 
 # --- (i) z_boot : dimension B x T, lignes retenues, valeurs ---------------
@@ -111,16 +133,18 @@ verifier("(ii) B = 199 (B_eff < ENVELOPPE_QQ_B_MIN_SIM = 500) : env_sim_bas / en
            identical(ENVELOPPE_QQ_B_MIN_SIM, 500L) &&
              all(is.na(d$env_sim_bas)) && all(is.na(d$env_sim_haut)) &&
              identical(e$k, NA_integer_) && is.na(e$taux_global_simultane) &&
-             identical(e$B_eff, 199L) && is.finite(e$taux_global_ponctuel)
+             identical(e$B_eff, 199L) && is.finite(e$taux_global_ponctuel) &&
+             identical(e$motif, "moins de 500 replications retenues : bande simultanee non calculee")
          })
-verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, seuil, taux ponctuel recalcule ; suivi de spread_enveloppe (#306) puis des trois champs de #305 en fin de plots_data",
+verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, seuil, regle DH1997_4.17 (#385), taux ponctuel recalcule ; suivi de spread_enveloppe (#306) puis des trois champs de #305 en fin de plots_data",
          {
            e <- r1$plots_data$qq_enveloppe
            S <- ordres(r1$bootstrap$z_boot)
            d <- r1$plots_data$qqnorm; o <- order(d$theorique)
            identical(names(e), c("source", "B_eff", "niveau_ponctuel", "niveau_simultane", "k",
                                  "taux_global_ponctuel", "taux_global_simultane",
-                                 "B_min_simultane")) &&
+                                 "B_min_simultane", "regle_rang", "motif")) &&
+             identical(e$regle_rang, "DH1997_4.17") &&
              identical(e$source, "bootstrap") && identical(e$B_eff, nrow(S)) &&
              identical(e$niveau_ponctuel, 0.90) && identical(e$niveau_simultane, 0.90) &&
              identical(e$B_min_simultane, ENVELOPPE_QQ_B_MIN_SIM) &&
@@ -142,12 +166,12 @@ verifier("(ii) B = 999 : env_sim_bas / env_sim_haut = k*-iemes plus petite et pl
            is.integer(k) && k >= 1L && n >= ENVELOPPE_QQ_B_MIN_SIM &&
              identical(d$env_sim_bas, Sc[k, o]) && identical(d$env_sim_haut, Sc[n + 1L - k, o])
          })
-verifier("(ii) B = 999 : taux_global_simultane recalcule sur les lignes de S a la bande de rang k",
+verifier("(ii) B = 999 : taux_global_simultane = taux (4.17) recalcule par les rangs sur les lignes de S au rang k ; motif NA, regle DH1997_4.17",
          {
            e <- r999$plots_data$qq_enveloppe
-           S <- ordres(r999$bootstrap$z_boot); Sc <- apply(S, 2, sort)
-           isTRUE(all.equal(e$taux_global_simultane,
-                            taux_sortie(S, Sc[e$k, ], Sc[nrow(S) + 1L - e$k, ]), tolerance = 0))
+           S <- ordres(r999$bootstrap$z_boot)
+           isTRUE(all.equal(e$taux_global_simultane, taux_417(S, e$k), tolerance = 0)) &&
+             identical(e$motif, NA_character_) && identical(e$regle_rang, "DH1997_4.17")
          })
 verifier("(ii) niveau fixe : alpha = 0,05 ne change ni les bandes ni qq_enveloppe",
          {
@@ -161,16 +185,59 @@ verifier("(ii) niveau fixe : alpha = 0,05 ne change ni les bandes ni qq_envelopp
 b999 <- r999$bootstrap
 e999 <- engine_enveloppe_qq(b999$z_boot, T1)
 S999 <- ordres(b999$z_boot); Sc999 <- apply(S999, 2, sort); n999 <- nrow(S999)
-verifier("(iii) maximalite de k* (B = 999) : taux global <= 0,10 a k*, > 0,10 a k* + 1",
+verifier("(iii) maximalite de k* (B = 999) selon l'eq. (4.17) : taux (4.17) <= 0,10 a k*, > 0,10 a k* + 1 (recalcul par les rangs) ; k* = 7",
          {
            k <- e999$info$k
-           t_k <- taux_sortie(S999, Sc999[k, ], Sc999[n999 + 1L - k, ])
-           t_k1 <- taux_sortie(S999, Sc999[k + 1L, ], Sc999[n999 - k, ])
-           is.integer(k) && t_k <= 0.10 && t_k1 > 0.10 &&
-             isTRUE(all.equal(e999$info$taux_global_simultane, t_k, tolerance = 0))
+           t_k <- taux_417(S999, k); t_k1 <- taux_417(S999, k + 1L)
+           identical(k, 7L) && t_k <= 0.10 && t_k1 > 0.10 &&
+             isTRUE(all.equal(e999$info$taux_global_simultane, t_k, tolerance = 0)) &&
+             identical(unname(e999$bandes[, "sim_bas"]), Sc999[k, ]) &&
+             identical(unname(e999$bandes[, "sim_haut"]), Sc999[n999 + 1L - k, ])
          })
-verifier("(iii) k = 1 toujours admissible : aucune ligne strictement hors de [min, max] de sa colonne",
-         taux_sortie(S999, Sc999[1, ], Sc999[n999, ]) == 0)
+verifier("(iii) k* = celui de engine_rang_simultane_dh() sur les lignes de S (bornes identical())",
+         {
+           r <- engine_rang_simultane_dh(S999)
+           identical(e999$info$k, r$k) && identical(e999$info$taux_global_simultane, r$taux) &&
+             identical(unname(e999$bandes[, "sim_bas"]), r$sim_bas) &&
+             identical(unname(e999$bandes[, "sim_haut"]), r$sim_haut)
+         })
+verifier("(iii) regle anterieure a #385 (sortie stricte de la bande de toutes les lignes) : elle admettait k* + 1, au taux (4.17) de k* (aucun ex aequo dans S)",
+         {
+           k <- e999$info$k
+           t_strict <- function(kk) taux_sortie(S999, Sc999[kk, ], Sc999[n999 + 1L - kk, ])
+           !any(apply(S999, 2, anyDuplicated) > 0L) &&
+             t_strict(k + 1L) <= 0.10 && t_strict(k + 2L) > 0.10 &&
+             identical(t_strict(k + 1L), taux_417(S999, k)) &&
+             t_strict(1L) == 0 && taux_417(S999, 1L) > 0
+         })
+# Cas k* NA (#385, T >= 26, B_eff = 500) : S construite, colonne j =
+# 1000 j + rang, rangs decales circulairement d'une colonne a l'autre
+# (rang ((i - (2j - 1)) mod 500) + 1 a la ligne i) : le minimum de la
+# colonne j est a la ligne 2j - 1, son maximum a la ligne 2j - 2 (500 pour
+# j = 1), toutes distinctes. A k = 1, 2T lignes sortent : 52/500 > 0,10 a
+# T = 26 (k* NA), 50/500 = 0,10 a T = 25 (k = 1 admissible). Les lignes de
+# z_boot sont passees en ordre decroissant : engine_enveloppe_qq() les trie.
+S_construite <- function(T, B = 500L)
+  vapply(seq_len(T), function(j) 1000 * j + ((seq_len(B) - (2L * j - 1L)) %% B) + 1, numeric(B))
+verifier("(iii) k* NA atteignable (#385) : T = 26, B_eff = 500, 52 lignes sortent a k = 1 -> bornes simultanees NA, k et taux NA, bande ponctuelle finie, motif 'aucun rang k admissible' ; T = 25 : k* = 1, taux 0,10",
+         {
+           S26 <- S_construite(26L); S25 <- S_construite(25L)
+           e26 <- engine_enveloppe_qq(S26[, 26:1], 26L); e25 <- engine_enveloppe_qq(S25[, 25:1], 25L)
+           identical(taux_417(S26, 1L), 52 / 500) && identical(taux_417(S25, 1L), 0.10) &&
+             identical(e26$info$B_eff, 500L) && identical(e26$info$k, NA_integer_) &&
+             identical(e26$info$taux_global_simultane, NA_real_) &&
+             all(is.na(e26$bandes[, c("sim_bas", "sim_haut")])) &&
+             all(is.finite(e26$bandes[, c("bas", "haut")])) &&
+             is.finite(e26$info$taux_global_ponctuel) &&
+             identical(e26$info$motif,
+                       paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
+                             "au rang k = 1 ; bande simultanee non disponible")) &&
+             identical(e26$info$regle_rang, "DH1997_4.17") &&
+             identical(e25$info$k, 1L) && identical(e25$info$taux_global_simultane, 0.10) &&
+             identical(e25$info$motif, NA_character_) &&
+             identical(unname(e25$bandes[, "sim_bas"]), apply(S25, 2, min)) &&
+             identical(unname(e25$bandes[, "sim_haut"]), apply(S25, 2, max))
+         })
 verifier("(iv) emboitement env_sim_bas <= env_bas <= env_haut <= env_sim_haut quand 2 k* < 0,05 (B_eff + 1)",
          {
            k <- e999$info$k; b <- e999$bandes
@@ -189,7 +256,8 @@ verifier("(v) B = 10 (B_eff < 20) : quatre colonnes NA, k NA, taux NA",
            all(is.na(d$env_bas)) && all(is.na(d$env_haut)) &&
              all(is.na(d$env_sim_bas)) && all(is.na(d$env_sim_haut)) &&
              identical(e$B_eff, 10L) && identical(e$k, NA_integer_) &&
-             is.na(e$taux_global_ponctuel) && is.na(e$taux_global_simultane)
+             is.na(e$taux_global_ponctuel) && is.na(e$taux_global_simultane) &&
+             identical(e$motif, "moins de 20 replications retenues : enveloppe non disponible")
          })
 verifier("(v) B = 60 (20 <= B_eff < 500) : bande ponctuelle finie, simultanee NA, k NA",
          {
@@ -197,7 +265,8 @@ verifier("(v) B = 60 (20 <= B_eff < 500) : bande ponctuelle finie, simultanee NA
            all(is.finite(d$env_bas)) && all(is.finite(d$env_haut)) &&
              all(is.na(d$env_sim_bas)) && all(is.na(d$env_sim_haut)) &&
              identical(e$B_eff, 60L) && identical(e$k, NA_integer_) &&
-             is.finite(e$taux_global_ponctuel) && is.na(e$taux_global_simultane)
+             is.finite(e$taux_global_ponctuel) && is.na(e$taux_global_simultane) &&
+             identical(e$motif, "moins de 500 replications retenues : bande simultanee non calculee")
          })
 verifier("(v) B = 199 (20 <= B_eff < 500) : bande ponctuelle finie, simultanee NA, k NA",
          {
@@ -225,14 +294,139 @@ verifier("(v) z_boot absent (objet bootstrap sans le champ) : quatre colonnes NA
              identical(pd$qq_enveloppe$B_eff, 0L)
          })
 
+# --- Concordance avec boot::envelope() (#385) ----------------------------------
+# Valeurs de boot::envelope(mat = S, level = c(0.90, 0.90)) ecrites en dur
+# (boot 1.3.30, R 4.3.3, 29/10/2026 ; tests/unitaires/generer_valeurs_externes.R),
+# S = statistiques d'ordre de bootstrap$z_boot des references premium et
+# premium_interieur (B_eff = 999) : k.ov = (7, 993), err.ov[2] = 0,092 et
+# 0,090, taux rapporte a B_eff + 1 (taux du moteur = err.ov[2] (B_eff + 1) /
+# B_eff). Le bootstrap des references n'est pas touche par #385.
+.racine385 <- if (exists("RACINE", inherits = TRUE)) RACINE else
+              if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else "../.."
+BOOT_ENVELOPE <- list(premium = list(k_ov = c(7, 993), err_ov2 = 0.092),
+                      premium_interieur = list(k_ov = c(7, 993), err_ov2 = 0.090))
+for (cas in names(BOOT_ENVELOPE)) {
+  zb_ref <- readRDS(file.path(.racine385, "tests", "reference", paste0(cas, ".rds")))$bootstrap$z_boot
+  e_ref <- engine_enveloppe_qq(zb_ref, ncol(zb_ref)); n_ref <- e_ref$info$B_eff
+  v <- BOOT_ENVELOPE[[cas]]
+  verifier(sprintf("boot::envelope() en dur (%s, B_eff = 999) : k = k.ov[1] = 7, B_eff + 1 - k = k.ov[2] = 993, taux = err.ov[2] x (B_eff + 1) / B_eff",
+                   cas),
+           identical(n_ref, 999L) && identical(e_ref$info$k, as.integer(v$k_ov[1])) &&
+             identical(n_ref + 1L - e_ref$info$k, as.integer(v$k_ov[2])) &&
+             isTRUE(all.equal(e_ref$info$taux_global_simultane, v$err_ov2 * (n_ref + 1) / n_ref,
+                              tolerance = 1e-12)))
+  if (requireNamespace("boot", quietly = TRUE))
+    verifier(sprintf("boot::envelope() installe (%s) : k.ov, bornes $overall (sim_haut, sim_bas) identical() et err.ov[2] x (B_eff + 1) / B_eff",
+                     cas),
+             {
+               ev <- boot::envelope(mat = ordres(zb_ref), level = c(0.90, 0.90))
+               identical(as.integer(ev$k.ov), c(e_ref$info$k, n_ref + 1L - e_ref$info$k)) &&
+                 identical(unname(ev$overall[1, ]), unname(e_ref$bandes[, "sim_haut"])) &&
+                 identical(unname(ev$overall[2, ]), unname(e_ref$bandes[, "sim_bas"])) &&
+                 isTRUE(all.equal(ev$err.ov[2] * (n_ref + 1) / n_ref, e_ref$info$taux_global_simultane,
+                                  tolerance = 1e-12))
+             })
+}
+if (!requireNamespace("boot", quietly = TRUE))
+  cat("  note : paquet boot absent ; comparaison directe a boot::envelope() non exercee.\n")
+
+# --- Sous-titre du QQ-plot : motif du moteur (#385) -----------------------------
+# .qq_sous_titre() (R/display_helpers.R) rend un vecteur de une ou deux
+# lignes, sur le modele de .spread_sous_titre() : bandes tracees, puis le
+# motif du moteur seul, tel quel, en seconde ligne, sans cause reconstruite ;
+# objet sans motif (anterieur a #385) : une ligne, aucune cause ecrite.
+# Aucune redite (R2 d'app-review) : avec un motif, la premiere ligne ne dit que
+# ce qui est trace, sans "indisponible" que le motif redirait ; sans motif,
+# l'ancien libelle est conserve.
+# plot_qqnorm() trace une ligne par element (mtext() en base R, <sup> par
+# ligne en plotly, marge haute de 80 px a deux lignes).
+source(file.path(.racine385, "R", "display_helpers.R"), local = TRUE)
+ST0 <- "bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, "
+PONCT199 <- paste0(ST0, "bande ponctuelle seule sur 199 r\u00e9plications")
+PONCT199_SANS_MOTIF <- paste0(PONCT199, ", bande simultan\u00e9e indisponible")
+MOTIF500 <- "moins de 500 replications retenues : bande simultanee non calculee"
+MOTIF_K <- paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
+                 "au rang k = 1 ; bande simultanee non disponible")
+e26_st <- engine_enveloppe_qq(S_construite(26L), 26L)
+pd26 <- r1$plots_data
+pd26$qq_enveloppe <- e26_st$info
+pd26$qqnorm <- data.frame(theorique = stats::qnorm(stats::ppoints(26L)), empirique = sort(S_construite(26L)[1, ] / 1000),
+                          env_bas = e26_st$bandes[, "bas"] / 1000, env_haut = e26_st$bandes[, "haut"] / 1000,
+                          env_sim_bas = e26_st$bandes[, "sim_bas"], env_sim_haut = e26_st$bandes[, "sim_haut"])
+verifier("Sous-titre QQ, B = 999 : une ligne, bandes ponctuelle et simultanee, rang k = 7, sans motif",
+         identical(.qq_sous_titre(r999$plots_data),
+                   paste0(ST0, "bande ponctuelle et bande simultan\u00e9e (rang k = 7 sur 999 r\u00e9plications)")))
+verifier("Sous-titre QQ, B = 199 : deux lignes, bande ponctuelle seule puis motif du moteur (seuil de 500) ; plus de '(B_eff < 500)' reconstruit",
+         {
+           st <- .qq_sous_titre(r1$plots_data)
+           identical(st, c(PONCT199, MOTIF500)) && !any(grepl("B_eff <", st, fixed = TRUE))
+         })
+verifier("Sous-titre QQ, B = 10 : deux lignes, aucune bande tracee puis motif du seuil de 20 (aucune redite)",
+         identical(.qq_sous_titre(pd10),
+                   c(paste0(ST0, "aucune bande (10 r\u00e9plications)"),
+                     "moins de 20 replications retenues : enveloppe non disponible")))
+verifier("Sous-titre QQ, k* NA a B_eff = 500 (T = 26, S construite) : deux lignes, bande ponctuelle seule puis motif 'aucun rang k admissible', aucun '(B_eff < 500)'",
+         {
+           st <- .qq_sous_titre(pd26)
+           identical(st, c(paste0(ST0, "bande ponctuelle seule sur 500 r\u00e9plications"),
+                           MOTIF_K)) && !any(grepl("B_eff <", st, fixed = TRUE))
+         })
+verifier("Sous-titre QQ, objet anterieur a #385 (qq_enveloppe sans motif ni regle_rang, B = 199 et B = 10) : une ligne, ancien libelle 'indisponible', aucune cause ecrite ; sans qq_enveloppe : aucune ligne",
+         {
+           pd <- r1$plots_data; pd$qq_enveloppe$motif <- NULL; pd$qq_enveloppe$regle_rang <- NULL
+           pd0 <- r1$plots_data; pd0$qq_enveloppe <- NULL
+           pd10s <- pd10; pd10s$qq_enveloppe$motif <- NULL
+           identical(.qq_sous_titre(pd), PONCT199_SANS_MOTIF) &&
+             identical(.qq_sous_titre(pd10s), paste0(ST0, "enveloppe indisponible (10 r\u00e9plications)")) &&
+             identical(.qq_sous_titre(pd0), character(0))
+         })
+# Rendu base R (pdf(NULL)) : textes de mtext() releves dans l'ordre d'appel,
+# avec leur argument line (une ligne par element, la derniere au ras du cadre).
+releve_mtext385 <- function(pd) {
+  r <- new.env(); r$mt <- list(); ns <- asNamespace("graphics")
+  suppressMessages(trace("mtext", tracer = bquote(assign("mt", c(get("mt", envir = .(r)),
+                                                     list(list(text = text, line = line))), envir = .(r))),
+                         where = ns, print = FALSE))
+  on.exit(suppressMessages(untrace("mtext", where = ns)))
+  option <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  suppressWarnings(plot_qqnorm(pd))
+  r$mt
+}
+verifier("plot_qqnorm(), base R : B = 199 et k* NA, sous-titre sur deux lignes (bandes tracees en ligne 0,9, motif en ligne 0,15) ; B = 999, une ligne en 0,15",
+         {
+           m199 <- releve_mtext385(r1$plots_data); m26 <- releve_mtext385(pd26); m999 <- releve_mtext385(r999$plots_data)
+           length(m199) == 1L && identical(m199[[1]]$text, c(PONCT199, MOTIF500)) &&
+             isTRUE(all.equal(m199[[1]]$line, c(0.9, 0.15))) &&
+             length(m26) == 1L && identical(m26[[1]]$text[2], MOTIF_K) &&
+             length(m999) == 1L && length(m999[[1]]$text) == 1L && isTRUE(all.equal(m999[[1]]$line, 0.15))
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  construit385 <- function(pd) {
+    op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
+    plotly::plotly_build(plot_qqnorm(pd))$x$layout
+  }
+  verifier("plot_qqnorm(), plotly : B = 199, titre suivi de deux <sup> (bandes tracees, motif) et marge haute de 80 ; B = 999, un <sup> et marge de 60",
+           {
+             l199 <- construit385(r1$plots_data); l999 <- construit385(r999$plots_data)
+             t199 <- if (is.list(l199$title)) l199$title$text else l199$title
+             t999 <- if (is.list(l999$title)) l999$title$text else l999$title
+             endsWith(t199, paste0("<br><sup>", PONCT199, "</sup><br><sup>", MOTIF500, "</sup>")) &&
+               identical(l199$margin$t, 80) &&
+               lengths(regmatches(t999, gregexpr("<sup>", t999, fixed = TRUE))) == 1L &&
+               identical(l999$margin$t, 60)
+           })
+} else cat("  note : plotly absent ; sous-titre plotly du QQ-plot non exerce (#385).\n")
+
 # --- (vi) graine de l'enveloppe retiree ---------------------------------------
 r_res1 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, annexe = "II",
                      B = B_MIN_USAGE, seed = GRAINE)
-verifier("(vi) SEED_ENVELOPPE_QQ absent du moteur ; metadata sans seed_enveloppe_qq (premium, reserve1)",
+verifier("(vi) SEED_ENVELOPPE_QQ absent du moteur ; metadata sans seed_enveloppe_qq ni seed_loi_nulle_sw (#351) (premium, reserve1)",
          !exists("SEED_ENVELOPPE_QQ") &&
            !"seed_enveloppe_qq" %in% names(r1$metadata) &&
            !"seed_enveloppe_qq" %in% names(r_res1$metadata) &&
-           identical(r1$metadata$seed_loi_nulle_sw, SEED_LOI_NULLE_SW))
+           !"seed_loi_nulle_sw" %in% names(r1$metadata) &&
+           !"seed_loi_nulle_sw" %in% names(r_res1$metadata))
 verifier("(vi) engine_plots_data() ne tire plus : n'appelle pas engine_sous_graine() et laisse .Random.seed intact",
          {
            set.seed(11); avant <- .Random.seed

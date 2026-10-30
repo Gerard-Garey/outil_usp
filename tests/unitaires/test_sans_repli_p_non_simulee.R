@@ -102,6 +102,28 @@ verifier("U181-5 add() : statistique observee non finie, sans p exacte -> non ap
            identical(l$type, "non applicable") && startsWith(l$detail, MOTIF_MC_OBS_NON_FINIE)
          })
 
+## --- #358 : prefixe du motif sur un diagnostic pose par l'appelant -------------
+# Depuis #358, add() pose elle-meme le motif Monte-Carlo en tete du detail
+# d'une ligne que l'appelant passe de type "diagnostic" (avant : chaque
+# appelant, detail_diagnostic() de usp_tests() et ligne Runs de mw_tests()),
+# sous la forme de .prefixe_motif_mc() : motif degenere -> "<motif> : aucune
+# p-value retenue (ADR 0001)." et son complement ; autre motif ->
+# "Monte-Carlo indisponible : <motif>." ; type inchange, jonction ". ".
+verifier("#358 add() : diagnostic pose par l'appelant, p Monte-Carlo absente -> prefixe .prefixe_motif_mc(), type et p conserves",
+         all(vapply(c(MOTIFS_MC_DEGENERES, MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REPLIC_INSUFFISANTES,
+                      MOTIF_MC_REGIME_RARE), function(m) {
+           l <- ligne181(m, type = "diagnostic", p_as = 0.03, detail = "Phrase fixe.")
+           pre <- if (m %in% MOTIFS_MC_DEGENERES)
+             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."), .complement_motif_mc(m)),
+                          collapse = " "))
+           else paste0("Monte-Carlo indisponible : ", m, ".")
+           identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
+             identical(l$p_asymptotique, 0.03) && identical(l$inoperant, FALSE) &&
+             identical(l$detail, paste(pre, "Phrase fixe."))
+         }, logical(1))) &&
+           identical(MOTIFS_MC_DEGENERES, c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                                            MOTIF_MC_CONDITION)))
+
 ## --- U181-6 : J1 et J2 a usp_bootstrap(B = 40) ---------------------------------
 # J1 : donnees_ln.csv (delta estime = 1) ; J2 : jeu de test_controles_numeriques.R
 # (delta estime = 0,664, V3b). B = 40 < B_MIN_DEGENERESCENCE : toutes les p_mc

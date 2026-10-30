@@ -64,8 +64,10 @@ if (!requireNamespace("Rmpfr", quietly = TRUE))
 
 RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
           if (file.exists("../../R/engine.R")) "../.." else stop("lancer depuis la racine du depot")
-ENG <- new.env()
-sys.source(file.path(RACINE, "R", "engine.R"), envir = ENG)
+# Moteur charge par son chargeur, sans exposition (ADR 0016, #200).
+CHARGEUR <- new.env()
+sys.source(file.path(RACINE, "R", "charger_moteur.R"), envir = CHARGEUR)
+ENG <- CHARGEUR$charger_moteur(file.path(RACINE, "R", "engine.R"), dans = NULL)
 
 # --- Triangles (constructions de test_forme_close_m1.R) -------------------------
 tri253 <- local({

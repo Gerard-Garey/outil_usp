@@ -711,10 +711,10 @@ verifier("Issue #114 : fichier cite inexistant signale, fichiers et dossiers exi
              list(label = "fiche:c", tests = "C"),
              list(label = "fiche:d", tests = "D"))
 .lm <- data.frame(test = c("A1", "A2", "B", "C", "X", "Z"),
-                  type = c("test", "diagnostic", "diagnostic", "diagnostic", "procedure de decision", "diagnostic"),
+                  type = c("test", "diagnostic", "diagnostic", "diagnostic", "test", "diagnostic"),
                   stringsAsFactors = FALSE)
 .er <- cc$verifier_registre_rubrique7(.lm, .reg)
-verifier("Issue #114 : registre au moteur -- ligne de type procedure sans fiche, nom perime, fiche sans ligne de type test signales ; hors_jeux accepte",
+verifier("Issue #114 : registre au moteur -- ligne de type test sans fiche, nom perime, fiche sans ligne de type test signales ; hors_jeux accepte",
          .a_motif(.er, NA, "rattachee a aucune fiche") && .er$test[is.na(.er$label)] == "X" &&
            .a_motif(.er, "fiche:d", "produit par aucune execution") &&
            .a_motif(.er, "fiche:c", "aucune ligne de type test") && nrow(.er) == 3L)
@@ -1179,7 +1179,7 @@ dir.create(file.path(.depot160, "R"), recursive = TRUE)
 dir.create(file.path(.depot160, "tests", "unitaires"), recursive = TRUE)
 dir.create(file.path(.depot160, "docs", "latex"), recursive = TRUE)
 invisible(file.copy(file.path(.racine, c("app.R", "DESCRIPTION")), .depot160))
-invisible(file.copy(file.path(.racine, "R", c("engine.R", "display_helpers.R")), file.path(.depot160, "R")))
+invisible(file.copy(file.path(.racine, "R", c("engine.R", "charger_moteur.R", "display_helpers.R")), file.path(.depot160, "R")))
 invisible(file.copy(list.files(file.path(.racine, "tests"), pattern = "[.]R$", full.names = TRUE), file.path(.depot160, "tests")))
 invisible(file.copy(file.path(.racine, "tests", "donnees"), file.path(.depot160, "tests"), recursive = TRUE))
 invisible(file.copy(file.path(.racine, "tests", "unitaires", "test_controles_numeriques.R"), file.path(.depot160, "tests", "unitaires")))

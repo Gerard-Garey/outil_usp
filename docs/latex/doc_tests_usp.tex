@@ -113,7 +113,8 @@
           backgroundcolor=tablerow, skipabove=3mm, skipbelow=3mm]{encadre}
 
 % Fiches de test : six rubriques fixes, plus la rubrique 7 (\Pertinence) pour
-% les fiches de test et de procedure de decision (issue #114).
+% les fiches de test (issue #114 ; jusqu'a #357, aussi les fiches de procedure
+% de decision).
 \newcounter{ficheid}
 \newenvironment{fiche}[1]{%
   \stepcounter{ficheid}%
@@ -132,8 +133,9 @@
 \newcommand{\Pval}{\item[\textcolor{financeblue}{\textbf{5. p-value.}}]}
 \newcommand{\Usage}{\item[\textcolor{financeblue}{\textbf{6. Usage et limites.}}]}
 % Rubrique 7 (issue #114) : p-value minimale atteignable, pertinence et puissance a
-% faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime)
-% et de procedure de decision (type sans ligne depuis #304 et #300) ; jamais sur un diagnostic, un controle
+% faible T. Reservee aux fiches de test (ligne de type test dans au moins un regime ;
+% le type procedure de decision, sans ligne depuis #304 et #300, est retire d'add()
+% par #357) ; jamais sur un diagnostic, un controle
 % numerique, une fiche graphique ou de procedure (docs/latex/CONVENTIONS.md).
 \newcommand{\Pertinence}{\item[\textcolor{financeblue}{\textbf{7. Pertinence et puissance à faible $T$.}}]}
 
@@ -227,7 +229,7 @@ puis une section de lecture conjointe (p-values de famille), commune aux deux
 méthodes~; chaque fiche suit une
 structure uniforme en six rubriques~: cadre et hypothèses de validité (non
 testées), hypothèse nulle, statistique de test, loi sous l'hypothèse nulle,
-p-value, usage et limites~; les fiches de test et de procédure de décision y
+p-value, usage et limites~; les fiches de test y
 ajoutent une septième, pertinence et puissance à faible $T$ (p-value minimale
 atteignable, statut de la ligne, puissance lorsqu'elle a été mesurée). La \textbf{partie~IV} rassemble la validation
 empirique de l'implémentation, les références bibliographiques et la synthèse
@@ -258,6 +260,8 @@ Base réglementaire & Directive 2009/138/CE, art.~104(7) ; règlement délégué
 Procédure d'agrément & Règlement d'exécution (UE) 2015/498 \\
 Transposition & Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II) \\
 Moteur de calcul & \code{R/engine.R} (R base et \code{stats} uniquement) \\
+Chargement du moteur & \code{R/charger\_moteur.R} (aucun calcul~; environnement dédié
+\code{usp\_moteur}) \\
 Interface & \code{app.R}, \code{R/display\_helpers.R} (aucun calcul) \\
 Profondeur d'intérêt & $T = 8$ années de survenance \\
 \end{tabular}
@@ -301,6 +305,9 @@ figure dans \code{R/engine.R}.
 p-values, bootstrap, jackknife, calibration, quantités des graphiques &
 Toute primitive Shiny (\code{input\$}, \code{output\$}, \code{reactive()},
 \code{render*()}) \\
+\code{R/charger\_moteur.R} & Chargement de \code{R/engine.R} dans l'environnement dédié
+\code{usp\_moteur}, par la seule fonction \code{charger\_moteur()} (issue~\#200, ADR~0016) &
+Toute logique quantitative~; \code{R/engine.R} n'en dépend pas \\
 \code{app.R} & Saisie, déclenchement, stockage réactif, agencement des onglets &
 Tout calcul statistique ou actuariel \\
 \code{R/display\_helpers.R} & Formatage des nombres et des tableaux, tracés à
@@ -320,12 +327,41 @@ Le moteur s'exécute seul~:
 
 \begin{encadre}
 \small
-\code{source("R/engine.R")}\\
+\code{source("R/charger\_moteur.R")}\\
+\code{charger\_moteur()}\\
 \code{res <- run\_engine(xt = ..., yt = ..., methode = "premium", segment = 1,}\\
 \code{\phantom{res <- run\_engine(}nature\_donnees = "brutes", T = 8, B = 999,}\\
 \code{\phantom{res <- run\_engine(}seed = 20260831)}\\
 \code{res\$parametre\_final\$sigma\_usp \ \ ;\ \ engine\_table\_tests(res)}
 \end{encadre}
+
+\emph{Chargement du moteur.} L'application et les scripts de tests et de mesure chargent le
+moteur, pour tout calcul, par la fonction \code{charger\_moteur()} de \code{R/charger\_moteur.R} (issue~\#200, ADR~0016), qui ne
+contient aucune logique quantitative et dont \code{R/engine.R} ne dépend pas. Elle évalue
+\code{R/engine.R} dans un environnement neuf, l'\emph{environnement du moteur}
+\code{usp\_moteur}, dont la chaîne de résolution des noms est fermée~: \code{usp\_moteur}, puis un
+environnement d'imports, \code{imports:usp\_moteur}, qui porte les exports de \code{stats}, puis
+\code{base}. Ni l'environnement global ni le chemin de recherche n'y figurent~: un objet de la
+session qui porte le nom d'une fonction ou d'une constante de R (\code{c()}, \code{intersect()},
+\code{pi}\ldots), ou un paquet attaché, ne détourne pas le calcul, et un nom non qualifié que le
+moteur ne trouve ni en lui-même, ni dans \code{stats}, ni dans \code{base} lève une erreur au lieu
+d'être cherché ailleurs~; la dépendance déclarée, R base et \code{stats} uniquement, devient ainsi
+une propriété vérifiée à l'exécution. Les objets du moteur sont copiés dans l'environnement
+appelant (argument \code{dans}), sans \code{attach()}~; les fonctions copiées gardent
+l'environnement du moteur pour enclos, de sorte qu'une redéfinition dans l'environnement global
+après le chargement est sans effet sur \code{run\_engine()}. Mesure, méthode de réserve
+n\textsuperscript{o}~1 sur \code{tests/donnees/donnees\_ln.csv}, segment~1 de l'annexe~II,
+$B = 99$ (\code{B\_MIN\_USAGE})~: une fonction \code{c()} de l'environnement global qui multiplie
+les nombres réels par $1 + 10^{-3}$ (scénario de l'issue~\#200) laisse $\sigma_{\mathrm{USP}}$ à
+$0{,}1073524114$ sous le chargeur, et la porte à $0{,}1138150042$, sans aucun signal, quand le
+moteur est chargé par \code{source("R/engine.R")} dans l'environnement global. Le mode de
+chargement est sans effet sur les résultats~: sur les six cas de contrôle de la
+section~\ref{sec:graines}, les objets rendus par \code{run\_engine()} sous le chargeur et sous
+\code{source()} sont identiques au bit près (\code{identical()}, hors horodatage, durée et
+version de R, retirés par \code{nettoyer()}). Le moteur reste chargeable par
+\code{source("R/engine.R")}, mais ce chargement l'expose à tout objet de même nom de
+l'environnement global~; il n'est admis que pour la lecture du code et la vérification d'un point
+isolé dans une session R vierge.
 
 Le \emph{rapport figé}, produit par \code{rapport\_html()}, est un fichier HTML
 unique, sans ressource externe, qui fige l'objet renvoyé par \code{run\_engine()}
@@ -337,8 +373,9 @@ calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
 ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
 déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
 moteur par l'application~; il porte aussi le générateur et les graines fixes des simulations,
-lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont, depuis
-l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
+lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont la graine fixe de
+la loi nulle de Shapiro--Wilk (méthode de réserve n\textsuperscript{o}~2 seulement depuis
+l'issue~\#351, section~\ref{sec:graines}) et, depuis l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
 (\code{\$metadata\$seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 section~\ref{sec:graines}), et, pour ces deux méthodes, une ligne «~P-values Monte-Carlo~» qui dit
 si elles sont conditionnelles au régime intérieur de $\hat\delta$, avec le nombre de tirages, le
@@ -495,6 +532,13 @@ de calibration commune aux deux branches.}
 \textcolor{financeblue}{\textbf{Entrées}} &
 \textcolor{financeblue}{\textbf{Sorties}} \\
 \endhead
+\multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chargement (\code{R/charger\_moteur.R}, hors moteur)}}} \\
+\code{charger\_moteur()} & \code{fichier} (défaut \code{"R/engine.R"}), \code{dans} (défaut~:
+environnement appelant) & environnement du moteur \code{usp\_moteur}, rendu de façon
+invisible~; liaisons du moteur, noms à point compris, copiées dans \code{dans} (aucune si
+\code{dans = NULL})~; erreur R pour un \code{fichier} absent ou qui n'est pas une chaîne unique
+non vide, ou un \code{dans} qui n'est ni \code{NULL} ni un environnement~; aucun calcul
+(section~\ref{sec:archi}, issue~\#200) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Contrôles et données}}} \\
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
 \code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
@@ -768,7 +812,10 @@ $\max_t|r_t|$ des ratios centrés $u_t$ (issue~\#187) \\
 la graine \code{seed} et le générateur \code{ENGINE\_RNG\_KIND}~; \code{RNGkind()} et
 \code{.Random.seed} de l'appelant restaurés, y compris en cas d'erreur (§\ref{sec:graines}) \\
 \code{ENGINE\_RNG\_KIND},\newline \code{SEED\_LOI\_NULLE\_SW} & constantes & générateur posé
-par le moteur~; graine fixe de la loi nulle de Shapiro--Wilk, consignés dans \code{\$metadata}
+par le moteur, consigné dans \code{\$metadata} pour les trois méthodes~; graine fixe de la loi
+nulle de Shapiro--Wilk, consignée dans \code{\$metadata} pour la méthode de réserve
+n\textsuperscript{o}~2 seulement, seule à tirer sous elle depuis l'issue~\#302 (champ retiré de la
+métadonnée des méthodes lognormales par l'issue~\#351, §\ref{sec:graines})
 (la graine fixe propre à l'enveloppe du QQ-plot a été retirée par l'issue~\#47) \\
 \code{usp\_graine\_flux\_}\newline\code{regime()},\newline \code{DECALAGE\_GRAINE\_}\newline\code{FLUX\_REGIME}
 & \code{seed}~; constante ($539\,169$) & graine du flux complémentaire de la p-value de
@@ -799,7 +846,8 @@ fiche~\ref{fiche:student-constante}, rubrique~6) \\
 (issue~\#264)~: $a$ si $b$ est vide, sinon $b$ si $a$ est vide, sinon $a$ suivi d'une espace s'il
 finit par un point, de «~\code{~; }~» sinon, puis de $b$, sans \code{trimws()} ni majuscule, de
 sorte que $b$ non vide est un suffixe littéral du résultat~; employée par \code{add()} (règle~R1,
-effectifs, plancher, phrase de l'issue~\#244), par \code{mw\_tests()} (phrases des
+effectifs, plancher, phrase de l'issue~\#244, motif Monte-Carlo en tête d'un diagnostic posé par
+l'appelant depuis l'issue~\#358), par \code{mw\_tests()} (phrases des
 issues~\#257 et~\#204), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
 remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
 de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
@@ -819,7 +867,14 @@ et $\delta = 0$, dans la limite des faibles coefficients de variation, par l'int
 (\code{.imhof\_p\_sup0()}) et \code{stats::uniroot()}~; fonction de $x$ et de $\alpha$ seulement,
 invariante par $x \to \lambda x$~; \code{NA} à volumes constants et sur échec ou avertissement de
 l'intégration ou de la recherche de racine~; lue par \code{usp\_tests()} pour la phrase du
-commentaire de Breusch--Pagan studentisé, sans effet sur son type ni sur son verdict \\
+commentaire de Breusch--Pagan studentisé, remplacée par un motif fixe d'échec numérique quand le
+calcul, tenté, rend \code{NA} (issue~\#358), sans effet sur son type ni sur son verdict~; calcul
+fait par \code{.usp\_puissance\_}\allowbreak\code{enveloppe\_h2\_calcul()}, valeur gardée dans l'environnement
+\code{.cache\_pi\_env} sous la clé des bits exacts de $\alpha$ et de $x$ (issue~\#358)~: valeur
+rendue identique au calcul direct, \code{NA} compris, sans tirage aléatoire~; au-delà de
+\code{LONGUEUR\_CLE\_CACHE\_MAX} $= 9\,000$ octets de clé, la clé n'est pas utilisée et le calcul
+direct est rendu sans cache (même valeur), les noms de variable de R étant limités à
+$10\,000$ octets \\
 \code{usp\_permutation\_}\newline\code{pente()} & $x$, $y$, $B$ (999), \code{seed}
 (20260831), \code{unilateral} (\code{TRUE}) & test de Pitman sur la pente (issue~\#169,
 fiche~\ref{fiche:student-pente})~: $r$ observé et $t_b$ (champ \code{t}, calculé sur $r$ borné
@@ -894,11 +949,21 @@ observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, con
 \code{motif\_mc}~; champ \code{extremes} évalué une fois sur le contexte observé et vecteur
 \code{p\_min\_mc}, dernier élément rendu (issue~\#125)~; erreur si une statistique simulée est
 absente du catalogue \\
+\code{.prefixe\_motif\_mc()},\newline \code{MOTIFS\_MC\_}\newline\code{DEGENERES} & motif
+Monte-Carlo~; liste & préfixe du commentaire d'une ligne dont la p-value de Monte-Carlo manque
+(issue~\#358)~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~» suivi du complément de
+\code{.complement\_motif\_mc()} pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
+<motif>.}~» pour tout autre motif~; appelée par \code{add()} seule, sur une ligne de type test au
+motif de dégénérescence et sur tout diagnostic posé par l'appelant (§\ref{sec:nature})~; liste
+unique des trois motifs de dégénérescence (\code{MOTIF\_MC\_DISPERSION\_NULLE},
+\code{MOTIF\_MC\_ATOME\_HORS\_OBS}, \code{MOTIF\_MC\_CONDITION}), lue par \code{add()}, par
+\code{.prefixe\_motif\_mc()} et par la ligne des suites sur ratios bruts d'\code{usp\_tests()} \\
 \code{.complement\_motif\_mc()},\newline \code{COMPLEMENTS\_}\newline\code{MOTIF\_MC},\newline
 \code{DETAIL\_MC\_ATOME\_}\newline\code{HORS\_OBS} & motif Monte-Carlo~; table~; phrase &
 phrase qui complète le commentaire d'une ligne pour un motif donné (vide sinon)~; table nommée
 motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS\_OBS}~; lue par
-\code{add()} et par les lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
+\code{add()}, par l'intermédiaire de \code{.prefixe\_motif\_mc()} depuis l'issue~\#358, et par les
+lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
 (§\ref{sec:nature}, issue~\#126) \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
@@ -1482,15 +1547,20 @@ bootstrap de $\sigma_{\mathrm{USP}}$, issue~\#305, fiche~\ref{fiche:ic-bootstrap
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
-\code{engine\_enveloppe\_qq()},\newline \code{ENVELOPPE\_QQ\_NIVEAU},\newline
+\code{engine\_enveloppe\_qq()},\newline \code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
+\code{ENVELOPPE\_QQ\_NIVEAU},\newline
 \code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
 \code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
 constantes ($0{,}90$~; $0{,}05$ et $0{,}95$~; $0{,}10$~; 20~; 500) & bandes ponctuelle et
 simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{env\_haut},
 \code{env\_sim\_bas}, \code{env\_sim\_haut} de \code{plots\_data\$qqnorm}) et leur
-description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k$, taux in-sample, seuil
-\code{B\_min\_simultane})~; aucune bande sous 20 réplications, pas de bande simultanée sous 500
-(fiche~\ref{fiche:qqnorm}, issue~\#47) \\
+description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k^{\star}$ de l'éq.~(4.17) de Davison
+et Hinkley (1997), calculé par \code{engine\_rang\_simultane\_dh()} depuis l'issue~\#385, taux
+\code{taux\_global\_ponctuel} (in-sample) et \code{taux\_global\_simultane} (taux de~(4.17)),
+seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; aucune bande sous 20
+réplications, pas de bande simultanée sous 500 ni faute de rang $k$ admissible, chaque cas avec
+son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau
+(fiche~\ref{fiche:qqnorm}, issues~\#47 et~\#385) \\
 \code{engine\_enveloppe\_}\allowbreak\code{spread()},\newline
 \code{engine\_rang\_}\allowbreak\code{simultane\_dh()},\newline
 \code{SPREAD\_LOWESS\_F},\newline \code{SPREAD\_LOWESS\_ITER} & \code{z\_boot}, $x$~; matrice
@@ -1892,7 +1962,8 @@ Le moteur comporte six sources de tirages aléatoires, et six seulement (la cinq
 l'issue~\#169, la sixième depuis l'issue~\#240), qui toutes
 s'exécutent sous \emph{graine locale} par la fonction unique \code{engine\_sous\_graine(seed,
 expr)} (ADR~0004, issue~\#42)~: celle-ci sauvegarde l'objet \code{.Random.seed} de
-l'environnement global, ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
+l'environnement global (où R tient l'état du générateur, quel que soit l'environnement où le
+moteur est chargé, section~\ref{sec:archi}), ou note son absence, et le \code{RNGkind()} de l'appelant, pose la
 graine sous le générateur fixé \code{ENGINE\_RNG\_KIND} (issue~\#37), évalue l'expression, puis
 restaure le \code{RNGkind()} et l'état initial, ou retire \code{.Random.seed} s'il n'existait
 pas, y compris quand l'évaluation échoue. Une recherche dans \code{R/engine.R} de \code{set.seed()}, \code{RNGkind()},
@@ -1952,9 +2023,13 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
 \item \code{sw\_loi\_nulle()}, appelée par \code{sw\_p\_loi\_nulle()}, dans la seule branche
   Merz--Wüthrich depuis l'issue~\#302 (dans les deux branches auparavant). \emph{Graine}~: la
   constante \code{SEED\_LOI\_NULLE\_SW}, fixe (20260901),
-  indépendante de \code{seed} et consignée dans \code{\$metadata}, champ
-  \code{seed\_loi\_nulle\_sw} (conservé dans la métadonnée lognormale, sans emploi dans cette
-  branche depuis l'issue~\#302, pour la stabilité de la structure)~;
+  indépendante de \code{seed} et consignée dans \code{\$metadata} de la méthode de réserve
+  n\textsuperscript{o}~2 seulement, champ \code{seed\_loi\_nulle\_sw}. Les méthodes lognormales
+  l'ont consignée aussi, de l'issue~\#37 à l'issue~\#351, sans emploi depuis l'issue~\#302~:
+  l'issue~\#351 l'a retirée de leur métadonnée (décision du mainteneur du 28~octobre 2026, ADR~0004
+  annoté le 29~octobre 2026), au motif qu'une graine consignée doit désigner un tirage
+  effectivement fait par l'exécution, et qu'une graine sans tirage laisserait croire qu'une
+  p-value lognormale dépend d'une loi nulle simulée~;
   \code{engine\_sous\_graine()} pose la graine avant 20\,000 échantillons $\mathcal{N}(0,1)$ de
   taille $n$ tirés par \code{stats::rnorm()}, où $n$ est le nombre de résidus de la branche
   Merz--Wüthrich ($T$ dans la branche lognormale jusqu'à l'issue~\#302). La loi
@@ -2015,7 +2090,10 @@ l'état du générateur (l'objet \code{.Random.seed} de l'environnement global) 
   ne se recouvrent pas sur les $25\,(B+1)$ tirages au plus du flux est \emph{supposé}, comme pour
   toutes les graines du moteur, non démontré. Deux collisions sont déclarées, sans traitement
   (décision du mainteneur du 11~octobre 2026)~: \code{seed} $= 19\,721\,732$ donne
-  $g$ = \code{SEED\_LOI\_NULLE\_SW} $= 20\,260\,901$~; dans une étude de sensibilité à la
+  $g$ = \code{SEED\_LOI\_NULLE\_SW} $= 20\,260\,901$, sans effet depuis l'issue~\#302, le flux
+  complémentaire n'étant posé que par les méthodes de primes et de réserve n\textsuperscript{o}~1
+  et \code{SEED\_LOI\_NULLE\_SW} que par la méthode de réserve n\textsuperscript{o}~2, de sorte
+  que les deux flux ne sont jamais tirés dans une même exécution~; dans une étude de sensibilité à la
   graine, deux graines espacées de $539\,169$ rendent le flux de l'une égal aux tirages de la
   première source de l'autre. Mesuré par \code{usp\_graine\_flux\_regime()}~: $20\,260\,831 \to
   20\,800\,000$, $0 \to 539\,169$, $M \to -2\,146\,944\,479$, $19\,721\,732 \to
@@ -2439,8 +2517,9 @@ statistique finie), fiche~\ref{fiche:procedure-mc}), le seuil
 $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le moteur
 (\code{generateur}~: \code{kind}, \code{normal.kind}, \code{sample.kind}, soit
 \code{ENGINE\_RNG\_KIND}), la graine fixe de la loi nulle de Shapiro--Wilk
-(\code{seed\_loi\_nulle\_sw}, pour les trois méthodes~; issue~\#37, ADR~0004, point~2~; sans
-emploi dans les méthodes lognormales depuis l'issue~\#302),
+(\code{seed\_loi\_nulle\_sw}, méthode de réserve n\textsuperscript{o}~2 seulement~; issue~\#37,
+ADR~0004, point~2~; consignée aussi par les méthodes lognormales jusqu'à l'issue~\#351, qui l'en a
+retirée, sans emploi dans ces méthodes depuis l'issue~\#302),
 la graine du flux complémentaire de la p-value de Monte-Carlo conditionnelle au régime de
 $\hat\delta$ (\code{seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 placée après \code{permutation\_pente} et avant les champs d'exécution, consignée même quand le
@@ -2454,7 +2533,8 @@ même machine, quel que soit le générateur actif chez l'appelant. Le générat
 sont affichés dans le journal d'exécution de l'application et dans l'en-tête du rapport figé
 (\code{valeurs\_generateur()} de \code{R/display\_helpers.R}, en lecture seule), la graine du
 flux complémentaire comprise depuis l'issue~\#240 (méthodes de primes et de réserve
-n\textsuperscript{o}~1).
+n\textsuperscript{o}~1), la graine de la loi nulle de Shapiro--Wilk en réserve
+n\textsuperscript{o}~2 seulement depuis l'issue~\#351.
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
@@ -3192,9 +3272,13 @@ de la fonction de tests, fonction anonyme du catalogue), \code{usp\_tests} ou \c
 Chaîne fixe, indépendante des données et du régime. Argument obligatoire d'\code{add()}, qui
 refuse par une erreur une valeur absente, non textuelle, vide, ou qui ne désigne pas une fonction
 de l'environnement du moteur (mesuré~: \code{"cor.test"} et \code{"ANNEXE\_II"} refusés,
-\code{".shapiro\_sur"} admis). Limite~: le moteur étant chargé par \code{source()} dans
-l'environnement global, le contrôle garantit une fonction existante de cet environnement, non
-une fonction de \code{R/engine.R}. Champ placé après \code{p\_min}, avant \code{inoperant}~;
+\code{".shapiro\_sur"} admis). Depuis l'issue~\#200, le moteur étant chargé par
+\code{charger\_moteur()} dans l'environnement dédié \code{usp\_moteur} (section~\ref{sec:archi}),
+le contrôle garantit une fonction de \code{R/engine.R}~: une fonction définie dans
+l'environnement global seulement est refusée (mesuré). Jusque-là, le moteur étant chargé par
+\code{source()} dans l'environnement global, le contrôle ne garantissait qu'une fonction
+existante de cet environnement~; cette limite ne subsiste que pour un chargement par
+\code{source("R/engine.R")}. Champ placé après \code{p\_min}, avant \code{inoperant}~;
 colonne \code{fonction} de la table auditable, avant-dernière. \\
 \code{inoperant} & \textbf{Indicateur de test inopérant} (issue~\#129)~: logique posé par
 \code{add()} sur chaque ligne, \code{TRUE} si et seulement si la bascule de la règle~R1 a eu lieu
@@ -3245,11 +3329,15 @@ Le champ \code{type} classe chaque ligne en \emph{test} (hypothèse nulle et loi
 \emph{diagnostic} (grandeur descriptive comme $R^2$, grandeur rivée par l'estimation,
 diagnostic d'influence ou de robustesse, p de famille et p globale de la lecture conjointe,
 fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}~; les contrôles numériques de l'estimation n'y
-figurent pas, voir la section~\ref{sec:controles}),
-\emph{procédure de décision} (type sans ligne depuis les issues~\#304 et~\#300~: la procédure ESD
-de Rosner, qui ne produit pas de p-value, en était la seule ligne~; elle est un diagnostic par
-décision dans les deux méthodes, fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}) ou
-\emph{non applicable}.
+figurent pas, voir la section~\ref{sec:controles}) ou
+\emph{non applicable}. La fonction \code{add()} n'admet que ces trois valeurs et refuse toute
+autre par une erreur («~\code{add()~: type de ligne inconnu}~»)~; seule une ligne de type
+\code{test} porte un verdict. Un quatrième type, \emph{procédure de décision}, a existé jusqu'à
+l'issue~\#357 (28~octobre 2026, ADR~0001 annoté)~: la procédure ESD de Rosner, qui décide au
+niveau $\alpha$ sans produire de p-value, en était la seule ligne~; resté sans ligne depuis
+les issues~\#304 et~\#300, qui font de cette procédure un diagnostic par décision dans les deux
+méthodes (fiches~\ref{fiche:rosner-esd} et~\ref{mw:m4ros}), ce type a été retiré
+d'\code{add()}, qui le refuse désormais comme tout type inconnu.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic depuis
@@ -5602,7 +5690,7 @@ d'\code{usp\_regime()} (champ \code{pi\_constant}, bande de tolérance \code{TOL
 comprise~: $\hat\delta \ge 1 - 10^{-6}$ ou volumes constants), les lignes calculées sur les
 ratios centrés $u_t$ --- Durbin--Watson, suites, rupture sup-F, OLS-CUSUM et Grubbs sur ratios
 bruts --- sont restituées en \emph{diagnostic}~: \code{usp\_tests()} passe
-\code{type = "diagnostic"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et
+\code{type = "diagnostic"} à \code{add()}, qui pose le verdict \code{INFO} et
 \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les p-values calculées restent dans
 leurs colonnes (\code{p\_mc}, et \code{p\_exacte} de la ligne des suites sous la double condition
 de la fiche~\ref{fiche:suites-ratios-bruts}), le champ \code{inoperant} vaut \code{FALSE}, la
@@ -5623,17 +5711,23 @@ fixe «~\code{Restituee en diagnostic (regle R15) : aucun verdict ni p-value ret
 releve de la ligne homologue sur residus standardises, dont le type et le verdict font foi.}~»~:
 la formule «~\code{dont le type et le verdict font foi}~» tient compte de ce que la ligne homologue
 peut n'avoir elle-même aucun verdict (diagnostic par la règle~R1, test sans p-value retenue).
-Sans p-value de Monte-Carlo, \code{usp\_tests()} pose le motif en tête selon sa classe, comme
-\code{add()} le ferait pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
-suivi de son complément pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
-<motif>.}~» sinon. Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
+Sans p-value de Monte-Carlo, \code{add()} pose le motif en tête selon sa classe, par
+\code{.prefixe\_motif\_mc()}, comme pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
+suivi de son complément pour un motif de dégénérescence (liste \code{MOTIFS\_MC\_DEGENERES}),
+«~\code{Monte-Carlo indisponible : <motif>.}~» sinon~; elle le fait pour tout diagnostic posé par
+l'appelant dont la p-value de Monte-Carlo manque --- lignes de la règle~R15 et diagnostics par
+décision de la méthode lognormale, ligne des suites sur les résidus de Mack
+(fiche~\ref{mw:m3runs}) ---, et le type reste celui que l'appelant a passé (issue~\#358~; jusqu'à
+cette issue, \code{usp\_tests()} et \code{mw\_tests()} posaient chacune ce préfixe, sous la même
+forme). Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
 règle~R1 et effectifs, mention du plancher, phrase de l'issue~\#244) ne sont pas ajoutés, et la
 proposition «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~» est retirée du
 commentaire de la ligne des suites à $\hat\pi_t$ constant. \emph{Priorité}~: une ligne non
 applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane), sans la
 phrase de la règle. À $\hat\pi_t$ variable, rien ne change~: ces lignes sont des tests qui
-retiennent leur p-value de Monte-Carlo. Comme la règle~R14, la décision est prise dans
-\code{usp\_tests()}, \code{add()} et \code{engine\_registre\_tests()} restant inchangés.
+retiennent leur p-value de Monte-Carlo. Comme pour la règle~R14, la décision est prise dans
+\code{usp\_tests()}~: \code{add()} reçoit le type sans en décider, et ne touche au commentaire
+d'un tel diagnostic que pour y poser le motif Monte-Carlo en tête (issue~\#358).
 Mesuré par \code{run\_engine()} ($B = 999$, graine 20260831)~: sur les quatre cas de référence à
 $\hat\delta = 1$, ces lignes passent de \code{OK} à \code{INFO}, \code{p\_mc} restant
 calculée ($0{,}566$, $0{,}768$, $0{,}931$, $0{,}756$ et $0{,}777$ sur \code{premium}) et la p-value
@@ -5653,13 +5747,13 @@ statistique est distincte mais dominée par une ligne conservée, ou écartée a
 ligne désignée pour l'hypothèse (Breusch--Pagan 1979, ci-dessous), ou mal rattachée à l'hypothèse
 qu'elle vise~: \emph{par décision} quand le motif ne dépend pas des données, \emph{par règle} quand
 il en dépend (règles~R1, R3, R14 et~R15). Un diagnostic par décision prend la forme de la
-règle~R15~: \code{usp\_tests()} passe \code{type = "diagnostic"} à \code{add()}, inchangée, qui pose
+règle~R15~: \code{usp\_tests()} passe \code{type = "diagnostic"} à \code{add()}, qui pose
 le verdict \code{INFO} et \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les
 p-values calculées restent dans leurs colonnes~; le champ \code{inoperant} vaut \code{FALSE} et la
 règle~R1 ne s'applique plus, faute de type test~; les motifs non applicables priment (une ligne
 dont la statistique observée n'est pas définie garde le type test, et \code{add()} la rend non
 applicable)~; le commentaire porte, le cas échéant, le motif Monte-Carlo en tête selon sa classe,
-puis le texte propre à la ligne, puis une phrase fixe «~\code{Restituee en diagnostic par decision
+posé par \code{add()} (issue~\#358), puis le texte propre à la ligne, puis une phrase fixe «~\code{Restituee en diagnostic par decision
 (issue \#N) : aucun verdict ni p-value retenue ; \ldots{} dont le type et le verdict font foi.}~»,
 qui nomme la ligne dont relève l'hypothèse~; le champ \code{variante}, qui ne règle que l'affichage
 par défaut, est inchangé. Les p-values ne sont pas écartées pour leur qualité --- la p-value de
@@ -9750,8 +9844,17 @@ d'un test invariant de delta = 1 contre delta = 0 ou de delta = 0 contre delta =
 grand de la famille de l'annexe XVII, limite des faibles coefficients de variation) : 0.13 avec ces
 volumes ; un OK ne demontre pas la structure de variance.}~» sur le jeu de contrôle ($0{,}34$ sur
 \code{premium\_interieur}). Ce nombre est déterministe, fonction des seuls volumes et de $\alpha$,
-et n'est pas issu du bootstrap (règle de l'issue~\#76)~; la phrase est omise si
-$\pi_{\text{env}}$ n'est pas calculable.
+et n'est pas issu du bootstrap (règle de l'issue~\#76). Le calcul n'est tenté qu'à volumes non
+constants et à statistique observée définie~; ailleurs, la ligne est non applicable et la phrase
+n'est pas écrite. Tenté sans aboutir (valeur \code{NA}, rubrique~6), il laisse place, depuis
+l'issue~\#358, à un motif fixe, sans nombre (texte d'\code{actuary})~: «~\code{Puissance maximale d'un test invariant de
+delta = 1 contre delta = 0 ou de delta = 0 contre delta = 1 (famille de l'annexe XVII) non
+calculee avec ces volumes : echec numerique de l'integration d'Imhof ou de la recherche de racine
+(usp\_puissance\_}\allowbreak\code{enveloppe\_h2()) ; un OK ne demontre pas la structure de variance.}~», qui garde
+la mise en garde sur la portée d'un \code{OK} (mesuré par \code{usp\_tests()} en substituant à
+\code{.imhof\_p\_sup0()}, dans l'environnement du moteur, une fonction qui rend \code{NA}~; la
+ligne reste de type test)~; jusqu'à cette issue, la phrase était omise sans
+motif.
 \Usage
 On souhaite \emph{ne pas} rejeter. Limites sérieuses à $T$ faible~: la convergence vers la loi du
 khi-deux est lente et la taille effective du test s'écarte notablement du niveau nominal pour
@@ -9824,7 +9927,13 @@ non démontrée ni mesurée par l'outil~; $\pi_{\text{env}}$ est calculée dans 
 faibles coefficients de variation, et sa valeur à $c$ fini n'est pas chiffrée par l'outil
 (\code{usp\_puissance\_enveloppe\_h2()} n'a pas d'argument $c$).
 Non calculée à volumes constants ($\Sigma_1 = \Sigma_0$), où la ligne est non applicable, ni en cas
-d'échec de l'intégration ou de la recherche de racine (valeur \code{NA}, phrase omise).
+d'échec de l'intégration ou de la recherche de racine (valeur \code{NA}, motif fixe d'échec
+numérique à la place de la phrase, rubrique~5). Une erreur ou un avertissement de l'une ou l'autre
+étape donne \code{NA}. L'avertissement de \code{stats::uniroot()}, «~\code{NA/Inf replaced by
+maximum positive value}~», ne signale pas une non-convergence~: il dit que des évaluations de
+\code{.imhof\_p\_sup0()} ont rendu \code{NA} et que \code{stats::uniroot()} les a remplacées par
+la plus grande valeur positive (texte de l'avertissement), de sorte que le point rendu n'est pas garanti racine
+de l'équation de niveau~; il n'est pas gardé.
 \emph{Lecture.} Sur le jeu de contrôle, $\pi_{\text{env}} = 0{,}13$ pour $\alpha = 0{,}10$~: même
 l'écart le plus grand de la famille réglementaire n'y serait détecté que dans $13~\%$ des cas par
 le meilleur test invariant, et un \code{OK} de la ligne n'y démontrerait pas la structure de
@@ -10309,9 +10418,10 @@ contre $10{,}21~\%$ pour la normalisation de Royston au seuil de 10~\%, et $5{,}
 $5{,}04~\%$ au seuil de 5~\%, les quatre intervalles de Clopper--Pearson à 95~\% contenant le niveau
 nominal (constat de simulation sur des échantillons i.i.d., qui vaut pour la ligne à $\hat\pi_t$
 constant). \code{sw\_p\_loi\_nulle()} et \code{sw\_loi\_nulle()} restent dans le moteur, appelées par
-\code{mw\_tests()} (fiche~\ref{mw:m5sw})~; la graine et le champ \code{seed\_loi\_nulle\_sw} de la
-métadonnée lognormale restent consignés, sans emploi dans cette branche
-(section~\ref{sec:graines}).
+\code{mw\_tests()} (fiche~\ref{mw:m5sw})~; la graine \code{SEED\_LOI\_NULLE\_SW} n'est plus
+consignée que dans la métadonnée de la méthode de réserve n\textsuperscript{o}~2 (champ
+\code{seed\_loi\_nulle\_sw}, retiré de la métadonnée lognormale par l'issue~\#351~;
+section~\ref{sec:graines}).
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
@@ -12073,9 +12183,11 @@ dégénérescence de \code{Runsr}, qui l'écarte (ADR~0001, section~\ref{sec:nat
 hors de la double condition, il ne nomme la p-value de Monte-Carlo que si elle
 existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simulee sous le modele
 ajuste avec ses pi\_t, est calculee~; la p-value retenue, s'il en est une, est nommee par
-nature\_p~;}~» ---, et dit sinon qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
+nature\_p~;}~» ---, et dit sinon, à $\hat\pi_t$ variable seulement, où la ligne reste de type
+test, qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
 (ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
-\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p}). \emph{Aucune phrase de
+\code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p})~; à $\hat\pi_t$
+constant, hors de la double condition, voir ci-dessous. \emph{Aucune phrase de
 \code{usp\_tests()} ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
 «~\code{la p-value EXACTE est retenue}~» sous la double condition et «~\code{Seule la p-value
 Monte-Carlo [\dots] est retenue}~» à $\hat\pi_t$ variable, ce que contredit la règle~R1 quand elle
@@ -12097,14 +12209,24 @@ où l'écart est attribué au traitement numérique (centrage de $u$ par la moye
 ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue sous~1 sur $z$,
 section~\ref{sec:ex-aequo}), non à une variation de $\hat\pi_t$~; $\hat\pi_t$ constant à la
 tolérance \code{TOL\_DELTA\_BORD} près seulement, où la variation résiduelle de $\hat\pi_t$ est
-nommée. Dans les deux sous-cas, il se termine par «~\code{La p-value Monte-Carlo, simulee sous le
+nommée. Dans les deux sous-cas, sa partie propre se termine par «~\code{La p-value Monte-Carlo, simulee sous le
 modele ajuste, est calculee.}~» quand cette p-value existe (issue~\#182~; jusqu'à l'issue~\#303,
 la phrase ajoutait «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~»,
 formule étendue par l'issue~\#214 aux deux autres régimes de la ligne, à RESET et à OLS-CUSUM, et
 retirée de ces deux sous-cas, à $\hat\pi_t$ constant, où la ligne est un diagnostic de la
-règle~R15), et par la phrase
-d'indisponibilité ci-dessus sinon, sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
-(cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Sous la double condition, la p-value de
+règle~R15), sans dire la p-value de Monte-Carlo retenue, une règle de restitution pouvant encore l'écarter
+(cas mesuré à la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5). Quand elle manque, aucune
+phrase n'est ajoutée depuis l'issue~\#358~: le motif Monte-Carlo en tête du commentaire, posé
+par \code{add()} (section~\ref{sec:nature}, règle~R15), et la phrase fixe de la règle~R15 qui le
+termine disent seuls l'absence de p-value retenue~; jusqu'à cette issue, la phrase
+d'indisponibilité ci-dessus la répétait une troisième fois. Mesuré par \code{usp\_tests()} sur un
+cas construit à partir du jeu de contrôle ($\delta$ fixé à $1 - 5\cdot 10^{-7}$, dans la bande
+\code{TOL\_DELTA\_BORD}, un ratio rapproché de son voisin à $10^{-10}$ près en relatif, objet
+bootstrap sans p-value de Monte-Carlo pour la statistique des suites~; scénario de
+\code{tests/unitaires/test\_regimes\_p\_exactes.R})~: commentaire «~\code{Monte-Carlo
+indisponible : aucune replication finie (B\_effectif = 0). CONTROLE SANS OBJET ICI} \ldots{}
+\code{(issue \#29, seconde condition de la fonction usp\_runsr\_p\_exacte). Restituee en
+diagnostic (regle R15)} \ldots~», type diagnostic, verdict \code{INFO}. Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
 Monte-Carlo près~; le commentaire ne cite cette p-value de Monte-Carlo que si elle existe
 («~\code{La p-value Monte-Carlo de la colonne p\_mc estime la meme quantite, a l'erreur
@@ -13796,41 +13918,118 @@ avec le seuil $\alpha$ du calcul~:
 \item la \emph{bande simultanée}, enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4,
   éq.~(4.17), p.~152--154),
   celle de la fonction \emph{envelope} du paquet \emph{boot}, réécrite dans le moteur~: bande
-  formée, pour chaque statistique d'ordre, des $k$-ièmes plus petite et plus grande valeurs,
-  $k^{\star}$ étant le plus grand $k$ tel que la proportion des lignes de $S$ ayant au moins une
-  valeur strictement hors de la bande ne dépasse pas $0{,}10$ (les bandes étant emboîtées, la
-  proportion croît avec $k$).
+  $\big[S_{(k^{\star}),j},\ S_{(B_{\text{eff}}+1-k^{\star}),j}\big]$, où $S_{(k),j}$ désigne la
+  $k$-ième plus petite valeur de la colonne~$j$ de $S$, formée, pour chaque statistique d'ordre,
+  des $k^{\star}$-ièmes plus petite et plus grande valeurs~; le rang $k^{\star}$ suit la règle de
+  l'éq.~(4.17), calculée par \code{engine\_rang\_simultane\_dh()}, la fonction qu'emploie le
+  graphique dispersion-niveau (fiche~\ref{fiche:spread-location})~: une ligne de $S$ \emph{sort}
+  de la bande de rang $k$ si, dans au moins une colonne~$j$, sa valeur est $\le S_{(k),j}$ ou
+  $\ge S_{(B_{\text{eff}}+1-k),j}$~; le taux est la proportion de ces lignes, rapportée à
+  $B_{\text{eff}}$, et $k^{\star}$ est le plus grand $k$ dont le taux ne dépasse pas
+  \code{ENVELOPPE\_QQ\_TAUX\_MAX} $= 0{,}10$, le balayage s'arrêtant au premier $k$ qui le dépasse
+  (les bandes étant emboîtées, le taux croît avec $k$). Sur les cinq références lognormales
+  ($B_{\text{eff}} = 999$), $k^{\star}$ et les bornes de la bande simultanée sont identiques, au
+  sens de \code{identical()}, à ceux de la fonction \emph{envelope} de la version~1.3.30 du paquet
+  \emph{boot} (\code{k.ov} $= (7, 993)$~; mesure du 29~octobre 2026, R~4.3.3).
 \end{itemize}
-\emph{Règle de rang de la bande simultanée~: écart avec l'éq.~(4.17) et avec le graphique
-dispersion-niveau} (issue~\#385, ouverte). La règle de l'éq.~(4.17) (p.~153--154) fait sortir une
-ligne de la bande de rang $k$ si l'un de ses rangs de colonne est $\le k$ ou
-$\ge B_{\text{eff}} + 1 - k$, ce qui estime, par retrait de la ligne, le taux de sortie d'une courbe
-nouvelle. La règle du QQ-plot ne compte que les valeurs \emph{strictement} hors de la bande
+\emph{Règle de rang de la bande simultanée} (issue~\#385, option~(a), décision du mainteneur du
+28~octobre 2026, \code{plots\_data\$qq\_enveloppe\$regle\_rang} $=$ \code{"DH1997\_4.17"}). La
+règle de l'éq.~(4.17) (p.~153--154) compare chaque ligne à l'enveloppe tirée de toutes les
+\emph{autres} lignes~; sans ex æquo dans $S$, sortir de la bande de rang $k$ au sens des inégalités
+larges ci-dessus, la bande étant construite sur toutes les lignes, équivaut exactement à sortir
+strictement de la bande de même rang construite sur toutes les lignes sauf elle (équivalence de
+calcul de l'ouvrage, p.~154). Le taux de~(4.17) est donc, sans ex æquo, un taux \emph{par
+retrait d'une ligne}, qui estime le taux de sortie d'une courbe \emph{nouvelle}, ce qu'est la
+courbe observée~: sur les références \code{premium} et \code{premium\_interieur}, il est égal, au
+rang $k^{\star}$, au sens de \code{identical()}, au taux recalculé par retrait de chaque ligne
+($0{,}0921$ et $0{,}0901$~; mesure du 29~octobre 2026). Avec des ex æquo
+dans $S$, la règle porte sur les valeurs~: une ligne égale à une borne sort, là où la fonction
+\emph{envelope}, qui travaille sur les rangs moyens de \code{rank()}, peut ne pas la compter~; le
+taux du moteur est alors, à rang $k$ égal, au moins égal à celui de la fonction \emph{envelope}
+(toute ligne qu'elle compte sort aussi au sens du moteur, le rang moyen d'un ex æquo n'étant jamais
+inférieur à son plus petit rang ni supérieur à son plus grand)~; son $k^{\star}$ est donc au plus
+égal, et sa bande simultanée au moins aussi large (règle plus conservatrice~; le taux que le moteur
+restitue à son propre $k^{\star}$ peut, lui, être inférieur à celui qu'\emph{envelope} restitue
+au sien). Aucun ex æquo n'est mesuré dans $S$ sur les cinq références lognormales. Deux autres
+écarts d'écriture avec la fonction \emph{envelope} sont sans effet mesuré~: elle rapporte le taux
+à $B_{\text{eff}} + 1$ et non à $B_{\text{eff}}$, et cherche $k^{\star}$ par interpolation entre le
+rang~1 et le rang de la bande ponctuelle, là où le moteur balaie les rangs dans l'ordre.
+\emph{Règle antérieure} (moteur jusqu'au 29~octobre 2026, issue~\#385)~: une ligne ne sortait de
+la bande de rang $k$ que si l'une de ses valeurs était \emph{strictement} hors de la bande
 construite avec la ligne elle-même, soit, sans ex æquo, les rangs $\le k - 1$ ou
-$\ge B_{\text{eff}} + 2 - k$~: son taux au rang $k$ est celui de~(4.17) au rang $k - 1$ (égalité
+$\ge B_{\text{eff}} + 2 - k$~; son taux au rang $k$ était celui de~(4.17) au rang $k - 1$ (égalité
 \code{identical()} mesurée pour $k = 2$ à 12 sur les références \code{premium} et
-\code{premium\_interieur}), et son $k^{\star}$ dépasse en général d'une unité celui de~(4.17)~:
-$k^{\star} = 8$ contre 7 sur ces deux références, au même taux in-sample ($9{,}2~\%$ et
-$9{,}0~\%$). La bande simultanée du QQ-plot est donc plus étroite d'un rang que celle de~(4.17),
-ce qui est cohérent avec l'optimisme du taux auto-évalué relevé ci-dessous, sans qu'il soit établi
-que ce décalage en soit la seule cause. Le graphique dispersion-niveau suit~(4.17) depuis
-l'issue~\#306 (fiche~\ref{fiche:spread-location})~; le QQ-plot garde sa règle tant que
-l'issue~\#385 n'est pas tranchée (décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026), et les
-deux graphiques ne se lisent donc pas exactement au même rang.
-\code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: source, $B_{\text{eff}}$, niveaux, rang
-$k^{\star}$, taux et seuil de la bande simultanée~; l'affichage les reprend (titre «~enveloppe de
-simulation 90~\%~» ou «~enveloppe indisponible~», sous-titre donnant $k$ et le nombre de
-réplications, ou «~bande simultanée indisponible ($B_{\text{eff}} < 500$)~»).
-\textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications, aucune bande~; sous
-$B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule. Le seuil de 500,
+\code{premium\_interieur}, mesure renouvelée le 29~octobre 2026 sur les cinq références
+lognormales), son $k^{\star}$ dépassait, sans ex æquo, d'une unité celui
+de~(4.17) ($k^{\star} = 8$ contre 7 sur les cinq références lognormales, au même taux, $9{,}2~\%$
+et $9{,}0~\%$), le rang $k = 1$ était toujours admissible (taux nul par construction), et la bande
+simultanée était plus étroite d'un rang, ce qui était cohérent avec l'optimisme du taux
+auto-évalué relevé ci-dessous, sans qu'il fût établi que ce décalage en fût la seule cause~; sous
+la règle~(4.17), l'écart moyen entre taux auto-évalué et taux hors échantillon ($0{,}4$ point à
+500, $0{,}03$ point à 1\,000) reste, sur le jeu de contrôle, inférieur à l'erreur Monte-Carlo de la mesure (ci-dessous). Le graphique
+dispersion-niveau suit~(4.17) depuis l'issue~\#306 (fiche~\ref{fiche:spread-location}, décision Q-D1-Fn-2 du mainteneur du 27~octobre 2026)~; depuis
+l'issue~\#385, les deux graphiques se lisent au même rang.
+\code{plots\_data\$qq\_enveloppe} décrit l'enveloppe~: \code{source}, $B_{\text{eff}}$, les
+niveaux, le rang \code{k} ($k^{\star}$), \code{taux\_global\_ponctuel},
+\code{taux\_global\_simultane}, le seuil \code{B\_min\_simultane}, \code{regle\_rang} et
+\code{motif} (\code{NA} quand la bande simultanée existe, sinon le motif de dégénérescence, chaîne
+de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau). L'affichage en lit
+les niveaux, $k$ et $B_{\text{eff}}$, et restitue le motif tel quel~; le seuil
+\code{B\_min\_simultane} et \code{regle\_rang} sont descriptifs, non lus par l'affichage. Le titre
+porte «~enveloppe de simulation 90~\%~» ou «~enveloppe indisponible~»~; le sous-titre dit d'abord
+ce qui est tracé (bootstrap paramétrique sous le modèle ajusté, bande ponctuelle et bande
+simultanée avec le rang $k$ et le nombre de réplications, ou «~bande ponctuelle seule sur
+$B_{\text{eff}}$ réplications~», ou «~aucune bande ($B_{\text{eff}}$ réplications)~»), puis, à la
+ligne et s'il existe, le motif du moteur, tel quel, seul à dire la cause, sans qu'aucune cause soit
+reconstruite par l'affichage (la bande simultanée peut manquer à $B_{\text{eff}} \ge 500$, faute
+de rang admissible). Pour un objet sans motif, antérieur à l'issue~\#385, le sous-titre garde son
+ancien libellé, sur une seule ligne~: «~bande ponctuelle seule sur $B_{\text{eff}}$ réplications,
+bande simultanée indisponible~» ou «~enveloppe indisponible ($B_{\text{eff}}$ réplications)~».
+\textbf{Seuils}~: sous $B_{\text{eff}} = 20$ réplications (\code{ENVELOPPE\_QQ\_B\_MIN}), aucune
+bande~; sous $B_{\text{eff}} = 500$ (\code{ENVELOPPE\_QQ\_B\_MIN\_SIM}), bande ponctuelle seule~;
+faute de rang admissible, bande ponctuelle seule~; chaque cas avec son motif. Le seuil de 500,
 décidé par \code{actuary} le 29~septembre 2026, est fondé sur la \emph{granularité} de $k$, non
-sur une calibration~: en deçà, $k^{\star} \le 4$ et la bande simultanée n'est que celle des une à
-quatre valeurs extrêmes de chaque colonne~; à $B_{\text{eff}} = 100$, $k^{\star} = 1$, la bande est
-$[\min, \max]$ de chaque colonne et son taux auto-évalué est nul par construction.
+sur une calibration~: en deçà, sous la règle~(4.17), la bande simultanée n'est que celle de
+quelques valeurs extrêmes de chaque colonne ($k^{\star} \le 3$ aux tailles mesurées de 100 à 400
+réplications, table ci-dessous, et $k^{\star}$ de 3 ou 4 dès 500)~; à
+$B_{\text{eff}} = 100$, aucun rang n'est admissible ($k^{\star}$ non défini sur les huit graines,
+taux de~(4.17) de $0{,}11$ à $0{,}16$ dès $k = 1$). \emph{Rang $k = 1$ non admissible.} À $k = 1$
+sortent les lignes qui portent le minimum ou le maximum d'au moins une colonne~; sans ex æquo, il
+y en a au plus $2T$, et $k = 1$ ne peut être refusé que si $2T > 0{,}10\,B_{\text{eff}}$~: à
+$B_{\text{eff}} \ge 500$, cette condition, nécessaire et non suffisante, exige $T \ge 26$, et le cas
+est inatteignable à $T = 8$~; avec des ex æquo dans $S$, il peut survenir plus tôt. La fonction
+\emph{envelope} garde alors le rang~1 et émet un avertissement~; le moteur ne forme pas la bande
+simultanée.
 Constat de simulation (jeu de contrôle, même algorithme, huit graines par taille, de 1001
-à 1008~; taux hors échantillon évalué sur un bootstrap indépendant de 8\,000 réplications,
-graine 424242~; mesure qui reproduit celle d'\code{actuary} consignée dans le commentaire
-d'\code{engine\_enveloppe\_qq()})~:
+à 1008~; taux hors échantillon, proportion des lignes d'un bootstrap indépendant de 8\,000
+réplications, graine 424242, ayant au moins une valeur strictement hors de la bande~; script
+\code{tests/mesure\_enveloppe\_qq\_t8.R}, hors CI, mesure du 29~octobre 2026, R~4.3.3, reportée
+dans le commentaire d'\code{engine\_enveloppe\_qq()}). Règle~(4.17), celle du moteur~; les lignes
+$B_{\text{eff}} < 500$ décrivent la règle seule, le moteur n'y formant pas la bande simultanée~:
+
+\begin{center}
+\small
+\begin{tabular}{@{}rccc@{}}
+\toprule
+$B_{\text{eff}}$ & $k^{\star}$ & taux auto-évalué & taux hors échantillon (min--max, moyenne) \\
+\midrule
+100  & non défini & ---                & --- \\
+200  & 1   & 5{,}5 à 7{,}5~\%        & 4{,}3 à 9{,}2~\%~~(6{,}7~\%) \\
+300  & 2   & 7{,}7 à 9{,}3~\%        & 6{,}9 à 10{,}7~\%~~(8{,}3~\%) \\
+400  & 2--3 & 7{,}25 à 10~\%         & 7{,}9 à 11{,}3~\%~~(9{,}5~\%) \\
+500  & 3--4 & 8 à 9{,}8~\%           & 6{,}8 à 11{,}6~\%~~(9{,}5~\%) \\
+1\,000 & 7--8 & 9 à 9{,}9~\%          & 8{,}8 à 10{,}6~\%~~(9{,}5~\%) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Sur les 40 couples (taille, graine) où les deux règles donnent un rang, $k^{\star}$ vaut
+exactement un de moins que sous la règle antérieure, et le taux auto-évalué est le même
+(\code{identical()}~; aucun ex æquo dans $S$). Le caractère conservateur de la règle à 200 et 300
+réplications vient de la granularité de $k^{\star}$ (1 ou 2). Règle antérieure à l'issue~\#385
+(même protocole~; table consignée jusqu'au 29~octobre 2026 dans ce document et dans le commentaire
+d'\code{engine\_enveloppe\_qq()}, et reproduite par le même script)~:
 
 \begin{center}
 \small
@@ -13849,30 +14048,54 @@ $B_{\text{eff}}$ & $k^{\star}$ & taux auto-évalué & taux hors échantillon (mi
 \end{center}
 
 \noindent
-Le taux auto-évalué est optimiste, la bande étant calibrée sur les réplications qui la
-construisent~: de $2{,}7$ points en moyenne à $B_{\text{eff}} = 500$ et d'un point à 1\,000. Le
-niveau réel de la bande simultanée est donc voisin de 88~\% à $B_{\text{eff}} = 500$ et de 89~\%
-vers $B = 1\,000$, soit au défaut $B = 999$, pour 90~\% nominal~; la bande ponctuelle n'est pas
-concernée par cette correction. Ces valeurs sont des mesures sur un seul jeu, non un résultat
-général~: \textbf{aucune référence ne donne le niveau de cette enveloppe à $B$ fini}, ni pour des
-résidus d'un modèle à trois paramètres estimés sur $T = 8$ observations. Les taux restitués
-(\code{taux\_global\_ponctuel}, \code{taux\_global\_simultane}) sont évalués sur les réplications
-mêmes qui construisent les bandes (taux \emph{in-sample}). Sous \code{refit = FALSE} (appel direct
+Sous la règle antérieure, le taux auto-évalué était optimiste, la bande étant calibrée sur les
+réplications qui la construisent~: de $2{,}7$ points en moyenne à $B_{\text{eff}} = 500$ et d'un
+point à 1\,000~; le niveau réel de la bande simultanée était donc voisin de 88~\% à
+$B_{\text{eff}} = 500$ et de 89~\% vers $B = 1\,000$, soit au défaut $B = 999$, pour 90~\% nominal.
+Sous la règle~(4.17), le taux auto-évalué est un taux par retrait d'une ligne~: sa moyenne
+($9{,}1~\%$ à $B_{\text{eff}} = 500$, $9{,}5~\%$ à 1\,000) est voisine de celle du taux hors
+échantillon ($9{,}5~\%$ aux deux tailles), l'écart restant inférieur à l'erreur Monte-Carlo
+ci-dessous. Le niveau hors échantillon de la bande simultanée vaut en
+moyenne $90{,}5~\%$ à $B_{\text{eff}} = 500$ et à 1\,000, avec une erreur Monte-Carlo de cette
+moyenne de l'ordre de $0{,}7$ point à 500 et de $0{,}4$ point à 1\,000 (dispersion entre graines,
+écart-type de la moyenne des huit taux de $0{,}6$ et $0{,}2$ point, composée en quadrature avec
+l'erreur binomiale de l'échantillon indépendant de 8\,000 courbes, $0{,}3$ point, comptée une fois
+sans division par huit, cet échantillon étant commun aux huit bandes~; composition qui majore
+l'erreur au premier ordre, l'écart-type entre graines, lui-même estimé sur huit valeurs seulement,
+contenant déjà une part de l'erreur d'évaluation), et de $88{,}4$ à
+$93{,}2~\%$ selon l'exécution à 500, de $89{,}4$ à $91{,}2~\%$ à 1\,000~: il est compatible avec
+90~\% nominal~; la bande ponctuelle n'est pas concernée. Cette erreur Monte-Carlo, fonction du
+nombre de réplications, est distincte de l'erreur d'approximation, fonction de $T$, que la mesure
+n'évalue pas~: ces valeurs sont des constats de simulation dans le monde du bootstrap (modèle
+ajusté au jeu de contrôle), sur un seul jeu, non un résultat général, et la couverture de la
+bande simultanée à $T = 8$ sous le vrai modèle n'est établie ni par simulation ni par la
+littérature~: \textbf{aucune référence ne donne le niveau de cette enveloppe à $B$ fini}, ni pour des
+résidus d'un modèle à trois paramètres estimés sur $T = 8$ observations. Les taux restitués sont
+évalués sur les réplications mêmes qui construisent les bandes, sous deux conventions, celles du
+graphique dispersion-niveau~: \code{taux\_global\_simultane} est le taux de~(4.17) au rang
+$k^{\star}$, qui équivaut, sans ex æquo, au taux par retrait d'une ligne~;
+\code{taux\_global\_ponctuel} est la proportion des lignes de $S$ ayant au moins une valeur
+\emph{strictement} hors de la bande ponctuelle construite sur toutes les lignes (taux
+\emph{in-sample}), à peine optimiste~: $47{,}65~\%$ contre $48{,}45~\%$ par retrait de la ligne sur
+la référence \code{premium} ($B_{\text{eff}} = 999$, mesure du 29~octobre 2026). Sous \code{refit = FALSE} (appel direct
 de \code{usp\_bootstrap()}, hors \code{run\_engine()}), \code{z\_boot} contient des résidus à
 paramètres fixes, et l'enveloppe n'est plus celle d'Atkinson.
 
 \emph{Mesures sur le jeu de contrôle} (méthode prime, $B = 999$, graine 20260831)~:
-$B_{\text{eff}} = 999$, $k^{\star} = 8$~; largeur de la bande ponctuelle de $0{,}83$ à $1{,}12$
-selon la statistique d'ordre (de $1{,}40$ à $1{,}97$ pour l'ancienne bande $\mathcal{N}(0,1)$),
-de la bande simultanée de $1{,}13$ à $1{,}53$~; taux in-sample de $9{,}2~\%$ pour la bande
-simultanée et de $47{,}6~\%$ pour la bande ponctuelle~; un résidu observé sort de la bande
-ponctuelle, aucun de la bande simultanée.
+$B_{\text{eff}} = 999$, $k^{\star} = 7$ (8 sous la règle antérieure à l'issue~\#385)~; largeur
+de la bande ponctuelle de $0{,}83$ à $1{,}12$ selon la statistique d'ordre (de $1{,}40$ à $1{,}97$
+pour l'ancienne bande $\mathcal{N}(0,1)$), de la bande simultanée de $1{,}15$ à $1{,}56$ (de
+$1{,}13$ à $1{,}53$ sous la règle antérieure)~; taux de~(4.17) de $9{,}2~\%$ pour la bande
+simultanée et taux in-sample de $47{,}6~\%$ pour la bande ponctuelle~; un résidu observé sort de
+la bande ponctuelle, aucun de la bande simultanée.
 
 \emph{Lecture.} \textbf{Un point hors de la bande ponctuelle n'est pas un signal}~: près de la
 moitié des échantillons simulés sous le modèle ajusté ($47{,}6~\%$ sur le jeu de contrôle) en
 sortent en au moins un point. Seule la bande simultanée se lit globalement~: un point qui en sort
 est un écart que le modèle ajusté produit dans environ un cas sur dix (niveau réel de la bande
-mesuré ci-dessus, 10 à 12~\% de sortie à $B = 999$ sur le jeu de contrôle), une allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
+mesuré ci-dessus, $9{,}5~\%$ de sortie hors échantillon en moyenne à $B_{\text{eff}} = 1\,000$,
+voisin du défaut $B = 999$, sur le jeu de contrôle, de $8{,}8$ à $10{,}6~\%$ selon la graine), une
+allure contenue dans la bande n'est pas une validation, et, à $T = 8$, la
 puissance de cette lecture n'est pas étudiée. L'enveloppe n'a ni p-value ni verdict (aide
 graphique, ADR~0001)~; le test numérique correspondant est Shapiro--Francia (rubrique~2), et les
 p-values de Monte-Carlo de la section~\ref{sec:h3} restent la lecture formelle de H3.
@@ -14118,7 +14341,8 @@ p.~153~: dans leur exemple~4.7, une chance d'environ $0{,}5$ qu'un point sorte d
 contre $0{,}1$ ponctuellement). Seule une sortie de la bande simultanée retient l'attention~: une
 courbe tirée sous le modèle ajusté en sort au taux nominal de 10~\%, mesuré hors échantillon à
 $9{,}2~\%$ en moyenne sur chacun des deux jeux (de $8{,}25$ à $10{,}6~\%$ et de $6{,}8$ à
-$10{,}7~\%$ selon la graine, même protocole), contre $10{,}3~\%$ avec la règle de rang du QQ-plot.
+$10{,}7~\%$ selon la graine, même protocole), contre $10{,}3~\%$ avec la règle de rang stricte que
+suivait le QQ-plot jusqu'à l'issue~\#385 (fiche~\ref{fiche:qqnorm}).
 Ces taux sont des constats de simulation sur deux jeux, non un résultat général (pièces
 \code{d\_hors\_ech} et \code{h\_rang} de \code{docs/tableaux/20261027-fn-pilote.md}, spécification
 D1-Fn, § 1.2~; les courbes indépendantes, et celles des huit bootstraps de \code{h\_rang}, y sont
@@ -14137,11 +14361,13 @@ principal à $\hat\delta^{**}$ intérieur, 46 sur le jeu de contrôle et 203 sur
 \#386)~: sur \code{premium\_interieur}, la courbe observée est, au plus grand volume ($x = 300$),
 au rang $0{,}005$ de la loi des 203 courbes à $\hat\delta^{**}$ intérieur, contre $0{,}107$ dans la
 loi inconditionnelle~; la bande simultanée tirée de ces 203 courbes l'exclut avec la règle de rang
-du QQ-plot ($k^{\star} = 2$), la contient avec la règle~(4.17) ($k^{\star} = 1$, bande
+stricte que suivait le QQ-plot jusqu'à l'issue~\#385 ($k^{\star} = 2$), la contient avec la
+règle~(4.17) ($k^{\star} = 1$, bande
 $[\min, \max]$ de chaque colonne). Le régime déplace donc fortement la courbe observée dans sa loi
 de référence en un point d'un cas de référence (rang $0{,}005$ contre $0{,}107$)~; la lecture de la
-bande simultanée n'en change qu'avec la règle de rang du QQ-plot, non avec la règle~(4.17) que suit
-le graphique~; constat in-sample, à granularité minimale ($k^{\star}$ de 1 ou 2 sur 203 courbes,
+bande simultanée n'en change qu'avec cette règle stricte, non avec la règle~(4.17) que suivent le
+graphique et, depuis l'issue~\#385, le QQ-plot~; constat in-sample, à granularité minimale
+($k^{\star}$ de 1 ou 2 sur 203 courbes,
 sous le seuil de 500), sans valeur probante.
 \end{fiche}
 
@@ -14868,8 +15094,8 @@ M6 & Concentration de la réserve & diagnostic & --- \\
 \end{center}
 
 \noindent
-Vingt-cinq entrées, dont \textbf{douze} tests d'hypothèse, 0 procédure de
-décision et \textbf{treize} diagnostics, conformément au champ \code{type} que
+Vingt-cinq entrées, dont \textbf{douze} tests d'hypothèse et \textbf{treize}
+diagnostics, conformément au champ \code{type} que
 \code{mw\_tests()} attribue à chaque ligne et qu'\code{engine\_table\_tests()}
 restitue~; quatre de ces diagnostics, absents du tableau ci-dessus, sont les lignes
 de lecture conjointe ajoutées par l'issue~\#297 (une par famille M1, M2 et M3, et une
@@ -14912,7 +15138,7 @@ régression agrégée initiale, conservée en tête, ne le permettait pas.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M1 --- Absence de tendance des facteurs avec le cumulé, à colonne donnée}
@@ -16160,7 +16386,7 @@ $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M2 --- Hétéroscédasticité résiduelle contre le cumulé}
@@ -16516,7 +16742,7 @@ colonnes.
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M3 --- Effets d'année calendaire (test de Mack)}
@@ -17121,8 +17347,10 @@ $n = n_1 + n_2$ et $R$ le nombre de suites. Le nombre de résidus étant impair
 sur le triangle de contrôle ($27$), la médiane y est l'un d'eux~: un résidu est
 écarté, et $n_1 = n_2 = 13$ (mesuré). \textbf{Diagnostic par décision, variante secondaire,
 depuis l'issue~\#312}~: \code{mw\_tests()} passe \code{type = "diagnostic"} et
-\code{variante = "secondaire"} à \code{add()}, inchangée, qui pose le verdict \code{INFO} et laisse
-\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}, \code{inoperant} à \code{FALSE}~;
+\code{variante = "secondaire"} à \code{add()}, qui pose le verdict \code{INFO} et laisse
+\code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}, \code{inoperant} à \code{FALSE},
+et qui pose aussi, depuis l'issue~\#358, le motif Monte-Carlo en tête du commentaire quand la
+p-value de Monte-Carlo manque (posé jusque-là par \code{mw\_tests()}, sous la même forme)~;
 la règle~R1 ne s'applique plus, faute de type test, et le champ \code{p\_min\_mc} vaut \code{NA}
 (forme des diagnostics par décision de la méthode lognormale, section~\ref{sec:nature}). Les
 motifs non applicables priment~: si la statistique observée n'est pas finie, ou si la p-value de
@@ -17195,7 +17423,7 @@ niveau, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucun
 lui est substituée. Le commentaire est «~\code{Restituee en diagnostic par decision (issue \#312)
 : aucun verdict ni p-value retenue ; l'hypothese releve de la ligne Autocorrelation des residus
 (Durbin-Watson), calculee sur les residus de Mack dans le meme ordre de parcours, dont le type et
-le verdict font foi.}~», précédé du motif Monte-Carlo quand la p-value de Monte-Carlo manque, puis, quand
+le verdict font foi.}~», précédé du motif Monte-Carlo, posé par \code{add()} (issue~\#358), quand la p-value de Monte-Carlo manque, puis, quand
 $p_{\min}$ n'est pas attribuée, du motif qui l'explique (chaîne \code{effectifs} de
 \code{.mw\_p\_min\_ligne()}, que \code{add()} ne restitue qu'aux lignes de type test et que
 \code{mw\_tests()} joint ici, comme sur les lignes de l'issue~\#299~; ce n'est pas le cas sur le
@@ -17223,7 +17451,7 @@ Ligne de type diagnostic, variante secondaire, par décision depuis l'issue~\#31
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
 hypothèses H1 à H4 de la méthode lognormale, complétée de la rubrique~7 pour les
-fiches de test et de procédure de décision. Les notations sont celles de la
+fiches de test. Les notations sont celles de la
 section~\ref{sec:notations-mw}.
 
 \begin{fiche}{M4 --- Cellule aberrante du triangle (résidus studentisés externes)}
@@ -18372,7 +18600,7 @@ C'est le point le plus important, puisque ces p-values sont celles retenues pour
 tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 52 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
 p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 34 dernières n'ayant
-aucune p-value retenue (33 diagnostics, 0 procédure de décision et 1 ligne non applicable)~;
+aucune p-value retenue (33 diagnostics et 1 ligne non applicable)~;
 parmi ces diagnostics, cinq sont les lignes de lecture conjointe ajoutées par l'issue~\#297
 (une par famille de plusieurs tests et une ligne globale, fiches~\ref{fiche:p-famille}
 et~\ref{fiche:p-globale})~;
@@ -19928,7 +20156,8 @@ soutient dans le présent document.
   construction de l'enveloppe du QQ-plot depuis l'issue~\#47, lue dans les
   résidus réajustés du bootstrap principal (fiche~\ref{fiche:qqnorm})~; sa bande
   simultanée suit l'enveloppe globale de Davison et Hinkley (1997, chap.~4, § 4.2.4, éq.~(4.17),
-  p.~152--154), à un rang près (issue~\#385). Depuis l'issue~\#306, l'enveloppe du graphique
+  p.~152--154), avec la règle de rang de l'éq.~(4.17) depuis l'issue~\#385 (à un rang près
+  auparavant). Depuis l'issue~\#306, l'enveloppe du graphique
   dispersion-niveau reprend la même construction, avec la règle de rang de l'éq.~(4.17)
   (fiche~\ref{fiche:spread-location}).
   Aldor-Noiman et al. (2013) construit des bandes
@@ -20196,14 +20425,17 @@ d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} 
 \code{NATURE\_APPROX\_N\_FINI}) \\
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
-hors des types \code{test} et \code{procedure de decision} \\
+hors du type \code{test} (le type \code{procedure de decision}, qui portait aussi un verdict,
+est refusé par \code{add()} depuis l'issue~\#357) \\
 Test inopérant, Monte-Carlo indisponible (diagnostic, issue~\#181) ou dégénéré, nature «~sous le modèle
 auxiliaire pondéré~» du TOST («~MCO~» avant l'issue~\#215~; §\ref{sec:nature} et~\ref{sec:modele-auxiliaire}, issue~\#44) & \code{add()}~: arguments \code{p\_min},
 \code{effectifs}, \code{libelle\_p\_as}, \code{nature\_forcee} (\code{repli\_asymptotique}
 retiré par l'issue~\#181)~; \code{runs\_p\_min()},
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
-\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; complément du commentaire par
+\code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; préfixe du motif en tête du
+commentaire par \code{.prefixe\_motif\_mc()}, liste \code{MOTIFS\_MC\_DEGENERES} (issue~\#358)~;
+complément du commentaire par
 \code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}, issue~\#126) \\
 Puissance approchée a posteriori de la pente, phrase de contexte du commentaire
 (§\ref{sec:modele-auxiliaire-regles}~; règle~R4 retirée par D1-Fb, issues~\#218 et~\#230) &
@@ -20317,9 +20549,9 @@ dans \code{\$metadata\$seed\_flux\_regime}), \code{mw\_bootstrap()} (tirages de
 \code{mw\_simuler\_triangle()}, retirage compris depuis l'issue~\#257, dans le même flux),\newline \code{sw\_loi\_nulle()}, \code{usp\_lr\_delta()}
 (issue~\#45), \code{usp\_permutation\_pente()} (issue~\#169)~; \code{engine\_plots\_data()} ne tire plus rien depuis l'issue~\#47, ni
 \code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()} depuis l'issue~\#42~; générateur
-fixé \code{ENGINE\_RNG\_KIND} et graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignés dans
-\code{\$metadata} par
-\code{run\_engine()}~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
+fixé \code{ENGINE\_RNG\_KIND}, consigné dans \code{\$metadata} par \code{run\_engine()}, et
+graine fixe \code{SEED\_LOI\_NULLE\_SW}, consignée dans \code{\$metadata} pour la méthode de
+réserve n\textsuperscript{o}~2 seulement depuis l'issue~\#351~; clé du cache de la loi nulle, \code{sw\_cle\_cache()} (issue~\#37) \\
 Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
@@ -20342,7 +20574,8 @@ L'application Shiny (\code{app.R}, \code{R/display\_helpers.R}) ne contient
 aucun de ces calculs~: elle collecte les entrées, appelle \code{run\_engine()} et
 affiche l'objet retourné. Le moteur s'exécute indépendamment de toute interface,
 ce qui permet une revue et une reproduction externes~:
-\code{source("R/engine.R")} puis \code{run\_engine(xt = ..., yt = ...)}.
+\code{source("R/charger\_moteur.R")}, \code{charger\_moteur()}, puis
+\code{run\_engine(xt = ..., yt = ...)} (chargement du moteur~: section~\ref{sec:archi}).
 
 \subsection*{Méthode Merz--Wüthrich}
 
@@ -20586,8 +20819,8 @@ $[5\,\%\,;\,10\,\%[$). \\
 \code{ECHEC} & p-value retenue sous le seuil strict $\alpha/2$. N'invalide pas
 mécaniquement l'USP, mais impose une justification explicite~: nature de l'écart, retraitement
 envisagé, sensibilité du paramètre final. \\
-\code{INFO} & Toute ligne dont le type n'est ni \code{test} ni \code{procedure de decision}
-(ADR~0001, amendement du 23/09/2026)~: diagnostics et lignes non applicables, dont
+\code{INFO} & Toute ligne dont le type n'est pas \code{test}
+(ADR~0001, amendement du 23/09/2026, annoté le 28/10/2026)~: diagnostics et lignes non applicables, dont
 \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
 qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
 diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
@@ -20612,7 +20845,8 @@ mainteneur, restitué \code{INFO}~: depuis l'issue~\#304 dans la méthode lognor
 (fiche~\ref{fiche:rosner-esd}) et depuis l'issue~\#300 sur les résidus de Mack
 (fiche~\ref{mw:m4ros}). Jusqu'à ces issues, elle était une procédure de décision, sans p-value,
 dont le verdict était \code{OK} sans valeur aberrante détectée au niveau $\alpha$, \code{ALERTE}
-pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type.
+pour une et \code{ECHEC} pour deux ou plus~; aucune ligne n'est plus de ce type, qu'\code{add()}
+refuse depuis l'issue~\#357.
 Le test des suites sur les résidus de Mack est de même un diagnostic par décision, restitué
 \code{INFO}, depuis l'issue~\#312~: l'hypothèse relève de la ligne Durbin--Watson
 (fiche~\ref{mw:m3runs}).

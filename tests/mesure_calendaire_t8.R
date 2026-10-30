@@ -111,7 +111,7 @@
 #  lecture(), mcnemar(), controle des graines (adapte). commit_depot(),
 #  motifs_non_versionnable(), garde_ecrasement(), ligne_remplacement(),
 #  inserer_t0(), empreinte_sans_commentaires(), chemin_reference(), .tri :
-#  tests/outils_tests.R (qui charge R/engine.R par source()).
+#  tests/outils_tests.R (qui charge R/engine.R par charger_moteur()).
 ###############################################################################
 
 t_debut <- Sys.time()
@@ -174,7 +174,7 @@ FICHIER_SCRIPT <- local({
 })
 DOSSIER_SCRIPT <- if (!is.na(FICHIER_SCRIPT)) dirname(FICHIER_SCRIPT) else
   if (file.exists("tests/outils_tests.R")) "tests" else "."
-source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))   # charge R/engine.R (source())
+source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))   # charge R/engine.R (charger_moteur())
 
 # --- Outils (copies de tests/calibration_mc_mw_t8.R) -------------------------
 plateforme_calcul <- function() {

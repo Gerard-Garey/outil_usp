@@ -113,7 +113,7 @@ verifier("run_engine() sur la serie : delta = 1 (pi_t constant, p exactes attrib
 # Depuis #299, Spearman ratio / temps et Smirnov sont des diagnostics par
 # decision : p exacte et p_min toujours NA, p Monte-Carlo calculee mais non
 # retenue ; le motif d'effectifs (suffixe qu'add() ne pose qu'aux lignes
-# de type test) est joint au detail par usp_tests() (detail_decision_299()).
+# de type test) est joint au detail par usp_tests() (detail_diag(), #358).
 verifier("Spearman x2 et Mann-Kendall : p exacte et p_min NA, motif ex aequo, Monte-Carlo retenue (Spearman-temps : diagnostic par decision, #299, motif joint par usp_tests())",
          {
            noms <- c("Independance ratio S/P vs volume", "Tendance monotone du ratio S/P")

@@ -568,10 +568,11 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
              # seed_enveloppe_qq retire par l'issue #47 (enveloppe lue dans
              # le bootstrap), pour les trois methodes.
              # permutation_pente (#169) et seed_flux_regime (#240) : methodes
-             # lognormales seulement.
-             attendu <- c("generateur", "seed_loi_nulle_sw", "bareme_saisi", "n_fournies",
-                          if (!identical(r$metadata$methode, "reserve2"))
-                            c("permutation_pente", "seed_flux_regime"))
+             # lognormales seulement ; seed_loi_nulle_sw : reserve2 seulement
+             # (#351).
+             mw <- identical(r$metadata$methode, "reserve2")
+             attendu <- c("generateur", if (mw) "seed_loi_nulle_sw", "bareme_saisi", "n_fournies",
+                          if (!mw) c("permutation_pente", "seed_flux_regime"))
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",

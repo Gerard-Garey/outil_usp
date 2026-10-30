@@ -13,15 +13,20 @@
 #    leve_erreur(expr)                    : TRUE si expr leve une erreur
 #    debut_fichier(nom) / bilan_fichier() : regroupement et decompte par fichier
 #
-#  Charge aussi le moteur R/engine.R, par chemin relatif a la racine du depot
-#  (les scripts se lancent depuis la racine ou depuis tests/).
+#  Charge aussi le moteur R/engine.R par charger_moteur() (R/charger_moteur.R,
+#  ADR 0016), par chemin relatif a la racine du depot (les scripts se lancent
+#  depuis la racine ou depuis tests/).
 ###############################################################################
 
 if (!exists("ENGINE_CHARGE", inherits = TRUE)) {
   RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
             if (file.exists("../../R/engine.R")) "../.." else
             stop("R/engine.R introuvable : lancer depuis la racine du depot.")
-  source(file.path(RACINE, "R", "engine.R"))
+  # Chargement dedie (ADR 0016, #200) : liaisons du moteur copiees dans
+  # l'environnement global ; une substitution de test se pose dans
+  # environment(run_engine), jamais dans l'environnement global.
+  source(file.path(RACINE, "R", "charger_moteur.R"))
+  charger_moteur(file.path(RACINE, "R", "engine.R"), dans = globalenv())
   ENGINE_CHARGE <- TRUE
 }
 

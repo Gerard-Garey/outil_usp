@@ -514,10 +514,11 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            })
            mesurer <- function(nom, perturb) {
              aj <- prep[[nom]]$aj; boot <- prep[[nom]]$boot; L0 <- prep[[nom]]$L0
+             # Substitution dans l'environnement du moteur (ADR 0016, #200).
              assign("mw_residus", function(aj, j_degeneres = NULL) perturb(orig(aj, j_degeneres)),
-                    envir = globalenv())
+                    envir = environment(mw_tests))
              L1 <- tryCatch(mw_tests(aj, boot),
-                            finally = assign("mw_residus", orig, envir = globalenv()))
+                            finally = assign("mw_residus", orig, envir = environment(mw_tests)))
              stats::setNames(sig(L0) != sig(L1), vapply(L0, `[[`, "", "test"))
            }
            set.seed(20260923)
@@ -790,8 +791,8 @@ local({
                is.finite(l$p_min) && is.na(l$p_min_mc) &&
                is.finite(r312$bootstrap$p_min_mc[["Runs"]])
            })
-  # p Monte-Carlo absente : motif en tete du detail (forme de
-  # detail_diagnostic() de usp_tests()), puis T-1 ; statistique observee non
+  # p Monte-Carlo absente : motif en tete du detail (pose par add(), forme de
+  # .prefixe_motif_mc(), #358), puis T-1 ; statistique observee non
   # finie (motif MOTIF_MC_OBS_NON_FINIE) : priorite des motifs non
   # applicables, la ligne reste de type test et add() la rend non applicable.
   ligne_runs <- function(motif) {
@@ -824,18 +825,20 @@ local({
            })
   # p_min non attribuee (constat de /code-review) : add() ne restitue
   # effectifs qu'aux lignes de type test ; sur le diagnostic, mw_tests() joint
-  # le motif au detail (precedent de detail_decision_299()), dans l'ordre
+  # le motif au detail (precedent de detail_diag() de usp_tests()), dans l'ordre
   # motif Monte-Carlo, effectifs, T-1. Aucun triangle recevable ne rend
   # runs_p_min() non fini (NA seulement si un cote de la mediane est vide) :
   # .mw_p_min_ligne() est substituee le temps d'un appel de mw_tests().
   ligne_runs_pmin_na <- function(b = r312$bootstrap) {
-    orig <- get(".mw_p_min_ligne", envir = globalenv())
-    on.exit(assign(".mw_p_min_ligne", orig, envir = globalenv()))
+    # Substitution dans l'environnement du moteur (ADR 0016, #200).
+    e <- environment(mw_tests)
+    orig <- get(".mw_p_min_ligne", envir = e)
+    on.exit(assign(".mw_p_min_ligne", orig, envir = e))
     assign(".mw_p_min_ligne", function(...) {
       o <- orig(...)
       list(p_min = NA_real_,
            effectifs = paste(o$effectifs, "; p_min non calculable sur ces effectifs, p_min non attribuee"))
-    }, envir = globalenv())
+    }, envir = e)
     Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
            mw_tests(r312$ajustement, b, 0.10))[[1]]
   }
@@ -1139,10 +1142,11 @@ verifier("M6 concentration de la reserve : diagnostic sans verdict (ADR 0001)",
 # de Mack" forcait un verdict ALERTE/OK ; elle sort INFO depuis que sa valeur
 # de reference a ete corrigee. Marque retiree, test ordinaire.
 # Etendu par #24 (ADR 0001, amendement du 23/09/2026) : toute ligne dont le
-# type n'est ni "test" ni "procedure de decision" sort INFO ET sens NA.
+# type n'est pas "test" sort INFO ET sens NA (type "procedure de decision"
+# retire, #357).
 verifier("mw_tests : TOUT diagnostic sort en INFO, sens, p_retenue et nature_p NA (ADR 0001)",
          {
-           faux <- Filter(function(l) !l$type %in% c("test", "procedure de decision") &&
+           faux <- Filter(function(l) !identical(l$type, "test") &&
                                       !(identical(l$verdict, "INFO") &&
                                           identical(l$sens, NA_character_) &&
                                           identical(l$p_retenue, NA_real_) &&
@@ -1155,15 +1159,13 @@ verifier("mw_tests : TOUT diagnostic sort en INFO, sens, p_retenue et nature_p N
          })
 # Depuis #300 (decision Q-D1-Fi-7 du 19/10/2026, visa du 21/10/2026), la
 # ligne de Rosner sur residus de Mack est un diagnostic par decision, sans
-# verdict : mw_tests() n'a plus aucune procedure de decision. Le refus par
-# add() d'une procedure de decision sans verdict reste exerce sur l'ESD
-# lognormal (test_defauts_connus.R).
-verifier("ESD Merz-Wuthrich (#300) : diagnostic sans verdict (INFO, sens NA), aucune procedure de decision dans mw_tests()",
+# verdict ; le type "procedure de decision" est retire (#357) et son refus
+# par add() est exerce sur le registre lognormal (test_defauts_connus.R).
+verifier("ESD Merz-Wuthrich (#300) : diagnostic sans verdict (INFO, sens NA)",
          {
            e <- Filter(function(l) identical(l$test, "Cellules aberrantes multiples (ESD generalise)"), lignes_mw)
            length(e) == 1L && identical(e[[1]]$type, "diagnostic") &&
-             identical(e[[1]]$verdict, "INFO") && identical(e[[1]]$sens, NA_character_) &&
-             !length(Filter(function(l) identical(l$type, "procedure de decision"), lignes_mw))
+             identical(e[[1]]$verdict, "INFO") && identical(e[[1]]$sens, NA_character_)
          })
 # Gardes de add() (revue d'audit du commit #24), exercees en reinjectant par
 # texte (deparse) un appel fautif dans le corps de mw_tests().
@@ -1179,20 +1181,20 @@ verifier("add() (mw_tests) refuse un verdict force sur un diagnostic (part de la
          {
            m <- erreur_mw(mw_tests_modifie('type = "diagnostic", estim_nom = "part"',
                                            'type = "diagnostic", verdict = "OK", estim_nom = "part"'))
-           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
              grepl("Part de la reserve portee par la derniere annee d'accident", m, fixed = TRUE)
          })
 verifier("add() (mw_tests) refuse un verdict force sur le diagnostic de Rosner (#300)",
          {
            m <- erreur_mw(mw_tests_modifie('estim_nom = "nb de cellules declarees (repere de Rosner)"',
                                            'verdict = "OK", estim_nom = "nb de cellules declarees (repere de Rosner)"'))
-           grepl("un verdict n'est admis que pour type = 'test' ou 'procedure de decision'", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
              grepl("Cellules aberrantes multiples (ESD generalise)", m, fixed = TRUE)
          })
-verifier("mw_tests : types en usage dans {test, diagnostic, non applicable, procedure de decision}",
+verifier("mw_tests : types en usage dans {test, diagnostic, non applicable} (#357)",
          {
            hors <- setdiff(unique(vapply(lignes_mw, function(l) l$type, character(1))),
-                           c("test", "diagnostic", "non applicable", "procedure de decision"))
+                           c("test", "diagnostic", "non applicable"))
            if (length(hors)) paste("type hors vocabulaire :", paste(hors, collapse = ", ")) else TRUE
          })
 
@@ -3502,7 +3504,7 @@ verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, ver
 # Depuis #297 (Q-D1-Fk-2 (a), Q-D1-Fk-3 (B), specification D1-Fk, par. 6) :
 # lignes de famille M1, M2, M3 et ligne globale LC, diagnostics INFO ajoutes
 # en fin ; 25 lignes, 12 tests, 13 diagnostics, INFO 13.
-verifier("Decomptes reserve2 (#300, #308, #307, #312, #297) : 25 lignes (12 tests, 13 diagnostics), OK 5, INFO 13, ALERTE 3, ECHEC 4 ; aucune procedure de decision ; sigma_USP = reference",
+verifier("Decomptes reserve2 (#300, #308, #307, #312, #297) : 25 lignes (12 tests, 13 diagnostics), OK 5, INFO 13, ALERTE 3, ECHEC 4 ; sigma_USP = reference",
          {
            v <- vapply(res300$tests, `[[`, "", "verdict")
            ty <- vapply(res300$tests, `[[`, "", "type")
@@ -3510,7 +3512,6 @@ verifier("Decomptes reserve2 (#300, #308, #307, #312, #297) : 25 lignes (12 test
            length(res300$tests) == 25L &&
              identical(as.integer(table(factor(ty, c("test", "diagnostic")))), c(12L, 13L)) &&
              identical(as.integer(table(factor(v, c("OK", "INFO", "ALERTE", "ECHEC")))), c(5L, 13L, 3L, 4L)) &&
-             !any(vapply(res300$tests, function(l) identical(l$type, "procedure de decision"), logical(1))) &&
              isTRUE(all.equal(res300$parametre$sigma_usp, ref$parametre$sigma_usp, tolerance = 1e-6))
          })
 

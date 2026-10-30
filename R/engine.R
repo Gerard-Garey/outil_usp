@@ -12,10 +12,15 @@
 #  profils de vraisemblance, calibration, parametre final, et les quantites
 #  numeriques necessaires aux graphiques.
 #
-#  Il est utilisable SANS Shiny :
-#      source("R/engine.R")
+#  Il est utilisable SANS Shiny, charge par son chargeur (R/charger_moteur.R,
+#  ADR 0016, issue #200), qui l'isole de l'environnement global :
+#      source("R/charger_moteur.R")
+#      charger_moteur()          # expose run_engine() et les fonctions du moteur
 #      res <- run_engine(xt = ..., yt = ..., methode = "premium", segment = 1,
 #                        nature_donnees = "brutes")   # ou "nettes" (issue #55)
+#  source("R/engine.R") reste possible (point isole en session vierge, lecture
+#  du code), mais le moteur est alors expose a tout homonyme de
+#  l'environnement global (fonction c(), intersect()...).
 #  Aucune dependance a input$/output$/reactive()/render*() n'y figure.
 #  Dependances : R base + stats uniquement.
 #
@@ -2097,8 +2102,9 @@ lillie_p <- function(D, n) {
 # moteur, qui tire toujours sous Inversion (ENGINE_RNG_KIND).
 ENGINE_RNG_KIND <- c(kind = "Mersenne-Twister", normal.kind = "Inversion",
                      sample.kind = "Rejection")
-# Graine fixe des simulations autres que le bootstrap (ADR 0004, point 2),
-# consignee dans res$metadata : loi nulle de Shapiro-Wilk (sw_loi_nulle()).
+# Graine fixe des simulations autres que le bootstrap (ADR 0004, point 2) :
+# loi nulle de Shapiro-Wilk (sw_loi_nulle()), consignee dans res$metadata de
+# reserve2 seulement, seule methode qui l'emploie (mw_tests(), #351).
 # L'enveloppe du QQ-plot n'a plus de graine propre depuis l'issue #47 : elle
 # est lue dans les replications de usp_bootstrap() (graine seed).
 SEED_LOI_NULLE_SW <- 20260901
@@ -2929,14 +2935,45 @@ test_brown_forsythe <- function(u, reg) {
 # Non calculee a volumes constants (usp_volumes_constants() : Sigma1 = Sigma0,
 # aucune alternative ; ligne Breusch-Pagan non applicable, regle R13) : NA ;
 # NA aussi si l'integration d'Imhof ou la recherche de racine echoue : une
-# erreur, ou un avertissement (uniroot() signale une non-convergence par un
-# simple warning, sans erreur), rendent NA ; la phrase de usp_tests() est
-# alors omise.
+# erreur, ou un avertissement, rendent NA. L'avertissement de uniroot()
+# ("NA/Inf replaced by maximum positive value") signale des evaluations NA
+# de .imhof_p_sup0() que uniroot() a remplacees ; la valeur rendue n'est
+# alors pas une racine (f.root voisin de -alpha, mesure de #358), et n'est
+# pas gardee. usp_tests() ecrit alors, a la place de la phrase de pi_env,
+# un motif d'echec numerique (#358, decision d'actuary) ; a volumes
+# constants, aucune phrase (ligne non applicable).
+# Cache (#358) : pi_env ne depend que de x et de alpha ; les scripts hors CI
+# qui appellent usp_tests() a x fixe (tests/puissance_t8.R, volet B : x_t
+# gardes sur toutes les replications) la recalculaient a chaque appel. La
+# valeur est gardee dans .cache_pi_env sous la cle des bits exacts de alpha
+# et de x (sprintf("%a"), sans arrondi : deux x differant d'un ulp ont deux
+# entrees). Valeur rendue identique au calcul direct (meme code, aucun
+# arrondi) ; NA compris. Aucune source d'alea. Cache non borne : une entree
+# par couple (x, alpha) distinct, negligeable aux tailles du projet.
+# Garde de longueur : un nom de variable d'environnement est limite a 10000
+# octets par R ("variable names are limited to 10000 bytes" ; la cle fait
+# 7 a 23 octets par volume selon les valeurs, ~16 pour 1 + runif(), d'ou
+# une erreur a partir de T ~ 430 a 1400 sans cette garde). Au-dela de
+# LONGUEUR_CLE_CACHE_MAX octets, la cle n'est pas utilisee : le calcul direct
+# est rendu, sans cache (meme valeur, meme code, aucun tirage).
+LONGUEUR_CLE_CACHE_MAX <- 9000L
+.cache_pi_env <- new.env(parent = emptyenv())
 usp_puissance_enveloppe_h2 <- function(x, alpha) {
   if (!is.numeric(x) || length(x) < 3L || !all(is.finite(x)) || any(x <= 0))
     stop("usp_puissance_enveloppe_h2() : x doit etre un vecteur d'au moins 3 volumes finis strictement positifs")
   if (length(alpha) != 1L || !is.numeric(alpha) || !is.finite(alpha) || alpha <= 0 || alpha >= 1)
     stop("usp_puissance_enveloppe_h2() : alpha doit etre dans ]0, 1[")
+  cle <- paste(sprintf("%a", c(as.double(alpha), as.double(x))), collapse = " ")
+  if (nchar(cle, type = "bytes") > LONGUEUR_CLE_CACHE_MAX)
+    return(.usp_puissance_enveloppe_h2_calcul(x, alpha))
+  if (!is.null(.cache_pi_env[[cle]])) return(.cache_pi_env[[cle]])
+  p <- .usp_puissance_enveloppe_h2_calcul(x, alpha)
+  .cache_pi_env[[cle]] <- p
+  p
+}
+# Calcul de pi_env, sans cache (appele par usp_puissance_enveloppe_h2() seule,
+# arguments deja controles).
+.usp_puissance_enveloppe_h2_calcul <- function(x, alpha) {
   if (usp_volumes_constants(x)) return(NA_real_)
   T <- length(x)
   H <- qr.Q(qr(cbind(1, diag(T))))[, -1L, drop = FALSE]
@@ -3948,7 +3985,7 @@ MOTIF_MC_ATOME_HORS_OBS   <- "loi simulee ponctuelle, statistique observee hors 
 # tirages retenus, a B >= B_MIN_DEGENERESCENCE seulement (decision du
 # 11/10/2026) ; remplace alors MOTIF_MC_REPLIC_INSUFFISANTES et
 # MOTIF_MC_AUCUNE_REPLIC (substitution faite dans usp_bootstrap() seule).
-# Motif non degenere (hors de motifs_degeneres d'add()) : la regle actuelle
+# Motif non degenere (hors de MOTIFS_MC_DEGENERES) : la regle actuelle
 # s'applique (#181, ADR 0003 annote le 12/10/2026, point 2 : diagnostic si
 # une p non simulee existe, sinon test sans p-value ; aucun repli). Aucun
 # nombre issu du bootstrap dans le texte (#76).
@@ -3967,6 +4004,29 @@ COMPLEMENTS_MOTIF_MC <- stats::setNames(DETAIL_MC_ATOME_HORS_OBS, MOTIF_MC_ATOME
 .complement_motif_mc <- function(motif) {
   if (length(motif) == 1L && !is.na(motif) && motif %in% names(COMPLEMENTS_MOTIF_MC))
     unname(COMPLEMENTS_MOTIF_MC[[motif]]) else character(0)
+}
+# Motifs de degenerescence (#44, regle R2 ; ADR 0001) : une statistique dont
+# la p Monte-Carlo manque pour l'un d'eux n'a aucune p-value retenue, la p
+# exacte comprise. Liste unique (#358), lue par add() (engine_registre_tests()),
+# par .prefixe_motif_mc() et par la ligne Runsr de usp_tests(). Les autres
+# motifs (MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REPLIC_INSUFFISANTES,
+# MOTIF_MC_REGIME_RARE, MOTIF_MC_OBS_NON_FINIE, statistique non definie) n'y
+# figurent pas.
+MOTIFS_MC_DEGENERES <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
+                         MOTIF_MC_CONDITION)
+# Prefixe du detail d'une ligne dont la p Monte-Carlo manque (#358 ; forme
+# fixee par l'errata du 19/10/2026 de la specification Fh, section 4.2),
+# pose par add() seule : motif de degenerescence -> "<motif> : aucune p-value
+# retenue (ADR 0001)." suivi de son complement (#126) ; autre motif ->
+# "Monte-Carlo indisponible : <motif>." (forme des lignes de type
+# diagnostic ; une ligne de type test y ajoute, dans add(), le sort de sa p
+# non simulee). Finit toujours par un point : .engine_joindre() le joint par
+# une espace. Aucun nombre issu du bootstrap (regle #76).
+.prefixe_motif_mc <- function(motif) {
+  if (motif %in% MOTIFS_MC_DEGENERES)
+    trimws(paste(c(paste0(motif, " : aucune p-value retenue (ADR 0001)."),
+                   .complement_motif_mc(motif)), collapse = " "))
+  else paste0("Monte-Carlo indisponible : ", motif, ".")
 }
 # p_min_mc (#125 ; ADR 0003 annote le 12/10/2026, point 5 ; D1-7, D1-8) :
 # plancher Monte-Carlo d'une statistique discrete, plus petite valeur que
@@ -4221,7 +4281,7 @@ PHRASE_RENVOI_NATURE_P <- paste(
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
 # fournit pas, puis, pour une ligne de type "test" :
-#   - motif de degenerescence (motifs_degeneres ci-dessous)
+#   - motif de degenerescence (MOTIFS_MC_DEGENERES)
 #     -> diagnostic (INFO), detail prefixe du motif, aucune p retenue, jamais
 #     de repli sur une autre p-value (ADR 0001) ; le prefixe est suivi du
 #     complement de COMPLEMENTS_MOTIF_MC s'il y en a un (#126) ;
@@ -4238,9 +4298,13 @@ PHRASE_RENVOI_NATURE_P <- paste(
 #     libelle_p_as par defaut "p non simulee (loi du champ loi)", la
 #     constante passe le sien ; sans p non simulee, la ligne reste un test
 #     sans p-value retenue (#128, point 2', ci-dessous).
+# Pour une ligne que l'appelant pose de type "diagnostic" (diagnostics par
+# regle ou par decision de usp_tests() et de mw_tests()), le type est
+# inchange et le detail est prefixe de .prefixe_motif_mc(motif), quelle que
+# soit la classe du motif (#358 : prefixe pose ici seulement, plus par les
+# appelants).
 # Une ligne a p exacte finie garde sa p exacte retenue (hierarchie), hors
-# degenerescence (MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
-# MOTIF_MC_CONDITION), qui ecarte aussi la p exacte.
+# degenerescence (MOTIFS_MC_DEGENERES), qui ecarte aussi la p exacte.
 # Une ligne qui reste de type "test" sans aucune p-value garde type, verdict
 # INFO, sens et p_retenue = NA ; son detail le dit en tete (#128, point 2').
 # Une p Monte-Carlo retenue dont le plancher (granularite_stat) rend un
@@ -4255,8 +4319,6 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
   # Plancher Monte-Carlo par statistique (#125) ; NULL pour un objet
   # bootstrap anterieur au champ (lu comme NA).
   pmm <- boot$p_min_mc
-  motifs_degeneres <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
-                        MOTIF_MC_CONDITION)
   L <- list()
   add <- function(fam, nom, ref, type = "test",
                   H0 = NA_character_, H1 = NA_character_,
@@ -4284,6 +4346,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (!exists(fonction, envir = environment(engine_registre_tests), mode = "function",
                 inherits = FALSE))
       stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
+    # Type de la ligne (#357, ADR 0001) : trois valeurs admises, "test" (seul
+    # a porter un verdict), "diagnostic" et "non applicable" ; toute autre est
+    # une erreur de programmation. Le type "procedure de decision" est retire
+    # (aucune ligne ne le produit depuis #304 et #300).
+    if (!is.character(type) || length(type) != 1L || is.na(type) ||
+        !type %in% c("test", "diagnostic", "non applicable"))
+      stop("add() : type de ligne inconnu : ", paste(format(type), collapse = " "),
+           " (", nom, ")", call. = FALSE)
     # Nature de la p non simulee (#120) : deux valeurs admises, toute autre
     # est une erreur de programmation.
     if (!is.character(nature_as) || length(nature_as) != 1L || is.na(nature_as) ||
@@ -4320,11 +4390,16 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (!is.na(mc_nom) && !is.finite(p_mc) && is.na(motif_boot))
       stop("add() : p Monte-Carlo absente sans motif d'indisponibilite dans le bootstrap : ",
            mc_nom, " (", nom, ")")
-    if (type == "test" && !is.na(motif_boot)) {
-      if (motif_boot %in% motifs_degeneres) {
+    if (type == "diagnostic" && !is.na(motif_boot)) {
+      # Diagnostic pose par l'appelant (#358 : prefixe pose ici, et non plus
+      # par chaque appelant) dont la p Monte-Carlo manque : motif en tete du
+      # detail, sous la forme de .prefixe_motif_mc() ; type inchange, la
+      # phrase fixe de l'appelant disant seule l'absence de p retenue.
+      detail <- .engine_joindre(.prefixe_motif_mc(motif_boot), trimws(detail))
+    } else if (type == "test" && !is.na(motif_boot)) {
+      if (motif_boot %in% MOTIFS_MC_DEGENERES) {
         type <- "diagnostic"
-        detail <- trimws(paste(c(paste0(motif_boot, " : aucune p-value retenue (ADR 0001)."),
-                                 .complement_motif_mc(motif_boot), detail), collapse = " "))
+        detail <- trimws(paste(c(.prefixe_motif_mc(motif_boot), detail), collapse = " "))
       } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
         type <- "non applicable"
         detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
@@ -4540,17 +4615,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       }
     }
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
-    # ou "procedure de decision" porte un verdict. Toute autre ligne sort
-    # INFO et son sens est NA ; un verdict fourni pour un autre type est une
-    # erreur de programmation, refusee ici pour que l'invariant ne puisse pas
-    # etre contourne par un appel.
-    porte_verdict <- type %in% c("test", "procedure de decision")
+    # porte un verdict (le type "procedure de decision", sans ligne depuis
+    # #304 et #300, est retire, #357). Toute autre ligne sort INFO et son
+    # sens est NA ; un verdict fourni pour un autre type est une erreur de
+    # programmation, refusee ici pour que l'invariant ne puisse pas etre
+    # contourne par un appel.
+    porte_verdict <- type == "test"
     if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' ou 'procedure de decision' (ADR 0001) : ", nom)
-    # La procedure de decision (ESD) decide sans p-value : son verdict est
-    # toujours fourni par l'appelant ; l'omettre est une erreur de programmation.
-    if (type == "procedure de decision" && is.null(verdict))
-      stop("add() : une ligne de type 'procedure de decision' doit fournir son verdict : ", nom)
+      stop("add() : un verdict n'est admis que pour type = 'test' (ADR 0001) : ", nom)
     # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
     if (!porte_verdict) {
       sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
@@ -5412,9 +5484,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees :",
                                           "aucune p-value n'est retenue (ADR 0001)")
   # Diagnostics poses par usp_tests() (type = "diagnostic" passe a add(),
-  # add() inchangee) : regle R15 (#303, diagnostic par regle) et diagnostics
-  # par decision de #302 (Kolmogorov-Smirnov contre N(0,1), Cramer-von
-  # Mises) et de #299 (Breusch-Pagan 1979, White, Goldfeld-Quandt,
+  # qui en pose le prefixe de motif Monte-Carlo, #358) : regle R15 (#303,
+  # diagnostic par regle) et diagnostics par decision de #302
+  # (Kolmogorov-Smirnov contre N(0,1), Cramer-von Mises) et de #299
+  # (Breusch-Pagan 1979, White, Goldfeld-Quandt,
   # Brown-Forsythe, Smirnov, Spearman ratio / temps). Motif Monte-Carlo de
   # la statistique nm, lu au bootstrap (NA si la p Monte-Carlo est calculee).
   motif_mc_lu <- function(nm)
@@ -5425,55 +5498,39 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # et add() la rend non applicable ; aucun diagnostic n'y est pose.
   stat_definie <- function(nm) is.finite(boot$stats_obs[[nm]]) &&
     !identical(motif_mc_lu(nm), MOTIF_MC_OBS_NON_FINIE)
-  # Detail d'un tel diagnostic : motif Monte-Carlo en tete quand la p
-  # Monte-Carlo manque (sur une ligne de type test, add() l'y pose ; sur un
-  # diagnostic, elle ne le fait pas : il est pose ici pour ne pas etre
-  # perdu), puis le detail de la ligne, puis la phrase fixe du diagnostic.
-  # Forme selon la classe du motif, comme dans add() (errata du 19/10/2026 de
-  # la specification Fh, section 4.2) : motif de degenerescence -> "<motif> :
-  # aucune p-value retenue (ADR 0001)." et son complement ; autre motif
-  # (replications absentes ou insuffisantes, regime rare) -> "Monte-Carlo
-  # indisponible : <motif>.", la phrase fixe disant seule l'absence de p
-  # retenue. Aucun nombre issu du bootstrap (regle #76).
-  motifs_degeneres_diag <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
-                             MOTIF_MC_CONDITION)
-  detail_diagnostic <- function(nm, detail, phrase) {
-    m <- motif_mc_lu(nm)
-    pre <- if (mc_dispo(nm) || is.na(m)) ""
-           else if (m %in% motifs_degeneres_diag)
-             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."),
-                            .complement_motif_mc(m)), collapse = " "))
-           else paste0("Monte-Carlo indisponible : ", m, ".")
-    # trimws() : un detail peut finir par une espace (paste() d'un element
-    # NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par " ; ".
-    joindre(joindre(pre, trimws(detail)), phrase)
-  }
-  # Diagnostics par decision (#302 : Kolmogorov-Smirnov, Cramer-von Mises ;
-  # #299 : Breusch-Pagan 1979, White, Goldfeld-Quandt, Brown-Forsythe,
-  # Smirnov, Spearman ratio / temps) : type "diagnostic" si la statistique
-  # observee est definie, sinon type "test" laisse a add(), qui rend la
-  # ligne non applicable (priorite des motifs non applicables) ; detail par
-  # detail_diagnostic(). Les motifs non applicables poses par l'appelant
-  # (volumes constants, regle R13 ; White a moins de trois volumes
-  # distincts ; partition de Smirnov) sont testes avant.
-  type_decision <- function(nm) if (stat_definie(nm)) "diagnostic" else "test"
-  detail_decision <- function(nm, detail, phrase)
-    if (stat_definie(nm)) detail_diagnostic(nm, detail, phrase) else detail
-  # Lignes de #299 : ordre motif Monte-Carlo (detail_diagnostic()), detail
-  # propre, motif ex aequo (motif_ea, Spearman ratio / temps et Smirnov : la
-  # chaine effectifs de la ligne, jointe ici seulement quand p_min est NA par
-  # ex aequo, dans tous les regimes, add() ne la restituant qu'aux lignes de
-  # type test ; avis d'actuary du 20/10/2026), phrase fixe. Point final
-  # ajoute avant la phrase fixe s'il manque (Smirnov ; Spearman ratio / temps
-  # dans la bande ; motif ex aequo), pour une jointure ". " par
-  # .engine_joindre(), comme sur les autres diagnostics ; statistique
-  # observee non definie : detail inchange. Les lignes de #302 gardent
-  # detail_decision(), au bit pres.
-  detail_decision_299 <- function(nm, detail, phrase, motif_ea = "") {
-    if (!stat_definie(nm)) return(detail)
+  # Enveloppe unique des diagnostics poses par usp_tests() (#358, qui
+  # remplace type_decision(), detail_decision(), detail_decision_299(),
+  # type_r15() et detail_r15()). regle : condition propre au diagnostic, TRUE
+  # pour un diagnostic par decision (#302 : Kolmogorov-Smirnov, Cramer-von
+  # Mises ; #299 : Breusch-Pagan 1979, White, Goldfeld-Quandt,
+  # Brown-Forsythe, Smirnov, Spearman ratio / temps), pi_constant pour la
+  # regle R15. La ligne est un diagnostic si la regle vaut et si la
+  # statistique observee est definie ; sinon type "test" laisse a add()
+  # (regle R15 a pi_t variable : test ordinaire ; statistique non definie :
+  # add() rend la ligne non applicable, priorite des motifs non
+  # applicables) et detail rendu tel quel. Les motifs non applicables poses
+  # par l'appelant (volumes constants, regle R13 ; White a moins de trois
+  # volumes distincts ; partition de Smirnov) sont testes avant.
+  est_diag <- function(nm, regle = TRUE) isTRUE(regle) && stat_definie(nm)
+  type_diag <- function(nm, regle = TRUE) if (est_diag(nm, regle)) "diagnostic" else "test"
+  # Detail d'un diagnostic : detail de la ligne, motif ex aequo (motif_ea,
+  # lignes de #299 Spearman ratio / temps et Smirnov : la chaine effectifs de
+  # la ligne, jointe ici seulement quand p_min est NA par ex aequo, add() ne
+  # la restituant qu'aux lignes de type test ; avis d'actuary du 20/10/2026),
+  # puis phrase fixe du diagnostic. point_final (lignes de #299 seulement) :
+  # point final ajoute avant la phrase fixe s'il manque, pour une jointure
+  # ". " par .engine_joindre() ; les lignes de #302 et de R15 n'en recoivent
+  # pas (detail inchange au bit pres). Le motif Monte-Carlo, quand la p
+  # Monte-Carlo manque, est mis en tete par add() (.prefixe_motif_mc(),
+  # #358). trimws() : un detail peut finir par une espace (paste() d'un
+  # element NULL, branche 1 de Runsr sans p_mc), qui ferait joindre par
+  # " ; ".
+  detail_diag <- function(nm, detail, phrase, regle = TRUE, motif_ea = "",
+                          point_final = FALSE) {
+    if (!est_diag(nm, regle)) return(detail)
     d <- trimws(joindre(trimws(detail), motif_ea))
-    if (nzchar(d) && !endsWith(d, ".")) d <- paste0(d, ".")
-    detail_diagnostic(nm, d, phrase)
+    if (point_final && nzchar(d) && !endsWith(d, ".")) d <- paste0(d, ".")
+    joindre(d, phrase)
   }
 
   # p_min des lignes de rangs (Spearman, Mann-Kendall ; #44, reprise, avis
@@ -5483,7 +5540,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # mk_p_exacte() rend deja NA avec ex aequo), et le motif, porte par
   # effectifs, est restitue dans detail par add() (p_min NA) sur les lignes
   # de type test ; sur Spearman ratio / temps, diagnostic par decision depuis
-  # #299, par detail_decision_299().
+  # #299, par detail_diag().
   # Ex aequo a la tolerance TOL_EX_AEQUO, definition partagee (#112) : r et x
   # sont aplatis une fois (r_ea, x_ea) pour cor.test() ; les autres lignes
   # (Mann-Kendall, Cox-Stuart, suites) aplatissent dans leurs fonctions. r et
@@ -5938,14 +5995,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # ligne de type test) ; les suffixes qu'add() ne pose qu'aux lignes de
   # type test (texte de R1, plancher Monte-Carlo, phrase de #244) ne sont
   # pas repris ; le motif ex aequo (effectifs) est joint par
-  # detail_decision_299().
+  # detail_diag().
   txt_diag_spear_tps <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict",
                               "ni p-value retenue ; meme alternative (tendance monotone du",
                               "ratio) que la ligne Mann-Kendall, dont le type et le verdict",
                               "font foi.")
   add(fam, "Correlation ratio S/P vs temps", "Spearman (1904) ; exact : Best & Roberts (1975)",
       fonction = "usp_tests",
-      type = type_decision("SpearTps"),
+      type = type_diag("SpearTps"),
       H0 = "independance entre le ratio et le rang chronologique",
       H1 = "association monotone avec le temps",
       stat_nom = "S", stat = unname(ct$statistic),
@@ -5955,8 +6012,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_st,
       p_as = ct$p.value, mc_nom = "SpearTps",
       p_min = pmin_rangs(r_ea), effectifs = eff_rangs(r_ea),
-      detail = detail_decision_299("SpearTps", detail_spearman("", p_st), txt_diag_spear_tps,
-                                   motif_ea = if (ex_aequo(r_ea)) eff_rangs(r_ea) else ""))
+      detail = detail_diag("SpearTps", detail_spearman("", p_st), txt_diag_spear_tps,
+                           motif_ea = if (ex_aequo(r_ea)) eff_rangs(r_ea) else "",
+                           point_final = TRUE))
   mk <- test_mann_kendall(r, plancher = 0)
   p_mk <- p_ex_si_pi_constant(mk_p_exacte(r, plancher = 0))
   add(fam, "Tendance monotone du ratio S/P",
@@ -6016,7 +6074,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # applicable, regle R13) ni sur une ligne dont la statistique observee
   # n'est pas definie. Breusch-Pagan 1979, White, Goldfeld-Quandt,
   # Brown-Forsythe et Smirnov (famille C. inchangee) sont des diagnostics par
-  # decision dans tous les regimes (type_decision(), detail_decision_299()) :
+  # decision dans tous les regimes (type_diag(), detail_diag()) :
   # meme mecanisme que #302 ; motifs non applicables prioritaires.
   txt_diag_h2 <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
                        "p-value retenue ; la structure de variance releve de la ligne",
@@ -6026,9 +6084,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                             "volumes, alternative de H1 plutot que de H2 ; l'hypothese H1 releve",
                             "des lignes de la famille B., dont le type et le verdict font foi.")
   bp <- test_breusch_pagan(z^2, x)
-  pi_env <- if (vol_cst || !stat_definie("BP")) NA_real_
-            else usp_puissance_enveloppe_h2(x, alpha)
-  txt_pi_env <- if (!is.finite(pi_env)) ""
+  # Calcul tente seulement hors volumes constants et a statistique definie ;
+  # tente et NA (echec numerique), la phrase de pi_env est remplacee par un
+  # motif fixe (#358, texte decide par actuary), sans nombre.
+  pi_env_tente <- !vol_cst && stat_definie("BP")
+  pi_env <- if (!pi_env_tente) NA_real_ else usp_puissance_enveloppe_h2(x, alpha)
+  txt_pi_env <- if (!pi_env_tente) ""
+    else if (!is.finite(pi_env))
+      paste("Puissance maximale d'un test invariant de delta = 1 contre delta = 0 ou",
+            "de delta = 0 contre delta = 1 (famille de l'annexe XVII) non calculee avec",
+            "ces volumes : echec numerique de l'integration d'Imhof ou de la recherche",
+            "de racine (usp_puissance_enveloppe_h2()) ; un OK ne demontre pas la",
+            "structure de variance.")
     else sprintf(paste("Puissance maximale, au seuil alpha = %g, d'un test invariant de delta = 1",
                        "contre delta = 0 ou de delta = 0 contre delta = 1 (ecart le plus grand",
                        "de la famille de l'annexe XVII,",
@@ -6042,8 +6109,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H1 = "variance residuelle dependante du volume",
       stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
-      # Phrase de pi_env en seconde phrase (point final ajoute a la premiere,
-      # jointure ". " par .engine_joindre()) ; sans pi_env, detail inchange.
+      # Phrase de pi_env (ou motif de son echec, #358) en seconde phrase
+      # (point final ajoute a la premiere, jointure ". " par
+      # .engine_joindre()) ; calcul non tente, detail inchange.
       detail = detail_vol(local({
         d0 <- "Doit etre non significatif si la ponderation pi_t est correcte"
         if (nzchar(txt_pi_env)) joindre(paste0(d0, "."), txt_pi_env) else d0
@@ -6052,7 +6120,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
       fonction = "test_breusch_pagan_original",
       "Breusch & Pagan (1979), Econometrica 47",
-      type = if (vol_cst) "non applicable" else type_decision("BP79"),
+      type = if (vol_cst) "non applicable" else type_diag("BP79"),
       variante = "secondaire",
       H0 = "c1 = 0 ET erreurs normales : variance residuelle independante du volume",
       H1 = "variance residuelle dependante du volume",
@@ -6061,40 +6129,43 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # #299 : la phrase "A confronter systematiquement a la version de
       # Koenker ci-dessus." est retiree (avis d'actuary du 20/10/2026) : la
       # ligne Koenker porte seule le verdict de H2.
-      detail = detail_vol(detail_decision_299("BP79", paste(
+      detail = detail_vol(detail_diag("BP79", paste(
         "Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 sigma^4.",
-        "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales."), txt_diag_h2)))
+        "NON ROBUSTE : sur-rejette si les erreurs ne sont pas normales."), txt_diag_h2,
+        point_final = TRUE)))
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
       fonction = "test_white",
       type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable"
-             else type_decision("White"),
+             else type_diag("White"),
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
       stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
       p_as = wh$p, mc_nom = "White",
       detail = if (vol_cst) txt_vol_cst
       else if (!is.na(wh$non_applicable)) wh$non_applicable
-      else detail_decision_299("White", "", txt_diag_h2))
+      else detail_diag("White", "", txt_diag_h2, point_final = TRUE))
   gq <- test_goldfeld_quandt(z, x)
   add(fam, "Egalite des variances petits vs gros volumes",
       fonction = "test_goldfeld_quandt",
       "Goldfeld & Quandt (1965), JASA 60",
-      type = if (vol_cst) "non applicable" else type_decision("GQ"),
+      type = if (vol_cst) "non applicable" else type_diag("GQ"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
       stat_nom = "F", stat = gq$stat,
       loi = sprintf("F(%d,%d) approx. (residus issus d'un ajustement global)",
                     floor(T / 2), floor(T / 2)),
-      p_as = gq$p, mc_nom = "GQ", detail = detail_vol(detail_decision_299("GQ", "", txt_diag_h2)))
+      p_as = gq$p, mc_nom = "GQ",
+      detail = detail_vol(detail_diag("GQ", "", txt_diag_h2, point_final = TRUE)))
   bf <- test_brown_forsythe(z, x)
   add(fam, "Homogeneite des dispersions (mediane)",
       fonction = "test_brown_forsythe",
       "Brown & Forsythe (1974), JASA 69",
-      type = if (vol_cst) "non applicable" else type_decision("BF"),
+      type = if (vol_cst) "non applicable" else type_diag("BF"),
       H0 = "egalite des dispersions entre les deux groupes",
       H1 = "dispersions inegales",
       stat_nom = "W", stat = bf$stat, loi = sprintf("F(1,%d) approx.", T - 2),
-      p_as = bf$p, mc_nom = "BF", detail = detail_vol(detail_decision_299("BF", "", txt_diag_h2)))
+      p_as = bf$p, mc_nom = "BF",
+      detail = detail_vol(detail_diag("BF", "", txt_diag_h2, point_final = TRUE)))
   # Smirnov (T >= 8) : la ligne existe dans tous les regimes (invariant I5,
   # #59) ; non applicable a volumes constants (regle R13) ou si la partition
   # par la mediane des volumes laisse un groupe de moins de trois annees (ex
@@ -6109,7 +6180,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # effectifs, p Monte-Carlo retenue (regle 2b de #70, comme Spearman et
     # Mann-Kendall). D et sa p_mc restent calcules. Depuis #299, la ligne est
     # un diagnostic par decision : aucune p n'est retenue, et le motif ex
-    # aequo (eff_sm_ea) est joint par detail_decision_299(), add() ne le
+    # aequo (eff_sm_ea) est joint par detail_diag(), add() ne le
     # restituant qu'aux lignes de type test.
     z_ea <- engine_aplatir_ex_aequo(z)
     ea_sm <- anyDuplicated(z_ea) > 0
@@ -6121,7 +6192,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                     "non attribuees"), sum(grp), sum(!grp)) else ""
     add(fam, "Egalite des lois petits vs gros volumes (2 ech.)", "Smirnov (1939)",
         fonction = "usp_tests",
-        type = if (calculable) type_decision("Smirnov") else "non applicable",
+        type = if (calculable) type_diag("Smirnov") else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
         loi = loi_r7("exacte combinatoire (ks.test, sans ex aequo)",
@@ -6137,18 +6208,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                         "annees (moins de 3 dans un groupe, ex aequo sur la mediane) :",
                         "test non applicable"), sum(grp), sum(!grp))
         else if (ea_sm)
-          detail_decision_299("Smirnov", detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm),
-                              txt_diag_smirnov, motif_ea = eff_sm_ea)
+          detail_diag("Smirnov", detail_r7("Voir aussi le QQ-plot a deux echantillons", p_sm),
+                      txt_diag_smirnov, motif_ea = eff_sm_ea, point_final = TRUE)
         # #182 (D1-4) : a pi_t variable, la p retenue est Monte-Carlo et
         # 2/C(n1+n2, n1) ne la borne pas ; le texte dit de quelle loi c'est
         # le minimum.
-        else detail_decision_299("Smirnov", detail_r7(sprintf(paste(
+        else detail_diag("Smirnov", detail_r7(sprintf(paste(
           "Voir aussi le QQ-plot a deux echantillons ; p-value",
           "minimale atteignable%s = %.4f, atteinte seulement pour",
           "D = 1 (deux groupes totalement separes)"),
           if (isTRUE(pi_constant)) ""
           else " sous la loi de reference echangeable",
-          smirnov_p_min(sum(grp), sum(!grp))), p_sm), txt_diag_smirnov))
+          smirnov_p_min(sum(grp), sum(!grp))), p_sm), txt_diag_smirnov, point_final = TRUE))
   }
   # Issue #58 : a volumes constants (usp_regime(), tolerance TOL_DELTA_BORD),
   # a_t = 1 pour tout t, pi_t ne depend plus de delta et la vraisemblance est
@@ -6211,8 +6282,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # du 19/10/2026, Q-D1-Fh-4, specification Fh) : meme statistique W que la
   # ligne ci-dessus ; son apport, valider la normalisation de Royston, est
   # acquis par la mesure C4 de tests/constats_puissance_t8.R. sw_p_loi_nulle()
-  # et sw_loi_nulle() restent appelees par mw_tests() (SEED_LOI_NULLE_SW et
-  # sa metadonnee inchangees).
+  # et sw_loi_nulle() restent appelees par mw_tests() (SEED_LOI_NULLE_SW
+  # inchangee ; metadonnee seed_loi_nulle_sw consignee en reserve2 seulement,
+  # #351).
   sf <- test_shapiro_francia(z)
   add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
       fonction = "test_shapiro_francia",
@@ -6261,12 +6333,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Kolmogorov sur (z - zbar)/s_z, quand stat_ks() la calcule sur z) et, W2
   # etant tres correlee a A2, de la ligne Anderson-Darling ; c'est leur type
   # et leur verdict qui font foi (elles peuvent n'en avoir aucun : diagnostic
-  # #181, test sans p-value). type = "diagnostic" pose ici, add() inchangee
+  # #181, test sans p-value). type = "diagnostic" pose ici par type_diag()
   # (verdict INFO, ni p retenue, ni nature, ni sens ; p-values conservees
   # dans leurs colonnes ; inoperant FALSE). Detail : celui de la ligne, puis, a pi_t
   # variable, la phrase de la section 5.3, puis la phrase fixe du diagnostic
-  # (detail_diagnostic(), motif Monte-Carlo en tete si la p Monte-Carlo
-  # manque). Priorite des motifs non applicables (stat_definie()).
+  # (detail_diag() ; motif Monte-Carlo en tete, pose par add(), si la p
+  # Monte-Carlo manque). Priorite des motifs non applicables (stat_definie()).
   txt_diag_cvm <- paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
                         "p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de",
                         "la ligne Anderson-Darling, dont le type et le verdict font foi.")
@@ -6277,24 +6349,24 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   p_cvm <- if (hors_plage) NA_real_ else cvm_p_stephens(w2_std, T)
   add(fam, "Cramer-von Mises", "Cramer (1928) / von Mises (1928) ; Stephens (1974)",
       fonction = "stat_cvm",
-      type = type_decision("CvM"),
+      type = type_diag("CvM"),
       H0 = H0n, H1 = H1n, stat_nom = "W2", stat = boot$stats_obs$CvM,
       loi = loi_stephens("CvM", hors_plage, mc_dispo("CvM")),
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
       p_as = p_cvm, mc_nom = "CvM",
-      detail = detail_decision("CvM", detail_h3(trimws(txt_plage), p_cvm), txt_diag_cvm))
+      detail = detail_diag("CvM", detail_h3(trimws(txt_plage), p_cvm), txt_diag_cvm))
   p_ks <- { dd <- boot$stats_obs$KS
             if (is.finite(dd)) .p_borne(2 * sum((-1)^(0:99) *
               exp(-2 * (1:100)^2 * T * dd^2))) else NA_real_ }
   add(fam, "Kolmogorov-Smirnov contre N(0,1)", "Kolmogorov (1933) ; Smirnov (1948)",
       fonction = "stat_ks",
-      type = type_decision("KS"),
+      type = type_diag("KS"),
       H0 = H0n, H1 = H1n, stat_nom = "D", stat = boot$stats_obs$KS,
       variante = "secondaire",
       loi = "loi de Kolmogorov (valable a parametres CONNUS)",
       p_as = p_ks,
       mc_nom = "KS",
-      detail = detail_decision("KS", detail_h3(paste(
+      detail = detail_diag("KS", detail_h3(paste(
         "Les residus sont standardises par le MODELE, non par la moyenne",
         "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
         "conservatrice (simulation : 0 rejet sur 3 000 a 5 %)."), p_ks), txt_diag_ks))
@@ -6694,7 +6766,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # doublons (Runsr : doublon exact quand les signes de u et de z
   # coincident) de leurs homologues sur residus standardises, sont
   # restituees en diagnostic : type = "diagnostic" pose
-  # ici, add() inchangee (verdict INFO, ni p retenue, ni nature, ni sens ;
+  # ici (verdict INFO, ni p retenue, ni nature, ni sens ;
   # p-values conservees dans leurs colonnes ; inoperant FALSE, la regle R1
   # ne s'appliquant qu'a une ligne de type test). A pi_t variable, rien ne
   # change. Priorite des motifs non applicables : une ligne dont la
@@ -6704,13 +6776,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   txt_r15 <- paste("Restituee en diagnostic (regle R15) : aucun verdict ni p-value",
                    "retenue ; l'hypothese releve de la ligne homologue sur residus",
                    "standardises, dont le type et le verdict font foi.")
-  r15 <- function(nm) isTRUE(pi_constant) && stat_definie(nm)
-  type_r15 <- function(nm) if (r15(nm)) "diagnostic" else "test"
-  # Detail d'une ligne de R15 : detail_diagnostic() (motif Monte-Carlo en
-  # tete quand la p Monte-Carlo manque, selon sa classe ; detail de la
-  # ligne ; phrase fixe de R15 en fin).
-  detail_r15 <- function(nm, detail)
-    if (!r15(nm)) detail else detail_diagnostic(nm, detail, txt_r15)
+  # Type et detail des cinq lignes : type_diag() et detail_diag(), regle =
+  # pi_constant (#358) ; motif Monte-Carlo en tete pose par add() quand la p
+  # Monte-Carlo manque, selon sa classe ; detail de la ligne ; phrase fixe
+  # de R15 en fin.
   # Ligne Runsr (issue #29, decision M8) : p-value exacte sous la double
   # condition de usp_runsr_p_exacte(), calculee une fois ; le champ loi et le
   # detail en suivent le regime (note_r n'est pas concatenee pour cette
@@ -6727,13 +6796,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # #128 : la phrase "p-value EXACTE est calculee" du regime 1 (renvoi a
   # nature_p, #214) n'est ecrite que hors motif de degenerescence de la
   # statistique Runsr, qui ecarte aussi la p exacte dans add()
-  # (motifs_degeneres d'engine_registre_tests()). Runsr
+  # (MOTIFS_MC_DEGENERES, liste unique, #358). Runsr
   # n'a pas de condition degenere au catalogue, mais une loi simulee
   # ponctuelle (engine_p_mc()) n'est pas exclue par le code.
-  m_runsr <- if (!is.null(boot$motif_mc) && "Runsr" %in% names(boot$motif_mc))
-    unname(boot$motif_mc[["Runsr"]]) else NA_character_
-  runsr_degenere <- !is.na(m_runsr) &&
-    m_runsr %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS, MOTIF_MC_CONDITION)
+  runsr_degenere <- motif_mc_lu("Runsr") %in% MOTIFS_MC_DEGENERES
   eff_u <- .runs_effectifs(u, plancher = plancher_u)
   detail_runsr <- if (is.finite(p_ex_r)) {
     d1 <- paste("CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou volumes",
@@ -6776,6 +6842,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # ecart_tol. La phrase finale ne dit pas la p Monte-Carlo retenue : a
     # pi_t constant, la ligne est un diagnostic de la regle R15 (#303), sans
     # p retenue ; la proposition qui renvoyait a nature_p est retiree.
+    # p Monte-Carlo absente (#358) : aucune phrase ici. Le motif en tete
+    # (add(), .prefixe_motif_mc()) et la phrase fixe de R15 (txt_r15) disent
+    # deja l'absence de p retenue ; la phrase txt_mc_indispo() la repetait
+    # une troisieme fois.
     debut <- if (isTRUE(regime$pi_constant_exact))
       paste("CONTROLE SANS OBJET ICI : pi_t est exactement constant (delta = 1, ou",
             "volumes x_t constants), il n'y a donc aucun artefact de ponderation a",
@@ -6799,8 +6869,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       "peut coincider ou non) et la loi combinatoire de R n'est pas attribuee a",
       "cette ligne (issue #29, seconde condition de la fonction usp_runsr_p_exacte).",
       if (mc_dispo("Runsr"))
-        "La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee."
-      else paste0(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste,"), "."))
+        "La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.")
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
           "de la mediane represente) : aucune p-value exacte (issue #29).")
@@ -6827,8 +6896,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "absence d'autocorrelation d'ordre 1 du ratio S/P",
       H1 = "autocorrelation du ratio S/P",
       stat_nom = "DW", stat = boot$stats_obs$DWr, loi = loi_ind, mc_nom = "DWr",
-      type = type_r15("DWr"),
-      detail = detail_r15("DWr", detail_r()))
+      type = type_diag("DWr", pi_constant),
+      detail = detail_diag("DWr", detail_r(), txt_r15, regle = pi_constant))
   # Ljung-Box (retard 1) sur ratios bruts retiree dans tous les regimes
   # (#303, Q-D1-Fh-3 et Q-D1-Fh-9), entree LB1r du catalogue retiree avec la
   # ligne : un seul test d'autocorrelation d'ordre 1 par base, DWr bilateral
@@ -6850,10 +6919,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # gaussiens : ni Imhof ni loi normale).
       p_ex = p_ex_r, mc_nom = "Runsr",
       # Regle R15 (#303) a pi_t constant ; non applicable prioritaire.
-      type = if (is.finite(boot$stats_obs$Runsr)) type_r15("Runsr") else "non applicable",
+      type = if (is.finite(boot$stats_obs$Runsr)) type_diag("Runsr", pi_constant) else "non applicable",
       p_min = runs_p_min(eff_u[["n1"]], eff_u[["n2"]]),
       effectifs = sprintf("n1 = %d, n2 = %d", eff_u[["n1"]], eff_u[["n2"]]),
-      detail = if (is.finite(boot$stats_obs$Runsr)) detail_r15("Runsr", detail_runsr) else
+      detail = if (is.finite(boot$stats_obs$Runsr))
+        detail_diag("Runsr", detail_runsr, txt_r15, regle = pi_constant) else
         paste("un seul cote de la mediane represente : loi de R non definie,",
               "test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
@@ -6862,17 +6932,18 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "niveau du ratio S/P constant", H1 = "rupture de niveau du ratio S/P",
       stat_nom = "supF", stat = boot$stats_obs$supFr,
       loi = "supremum de processus -> Monte-Carlo", mc_nom = "supFr",
-      type = type_r15("supFr"),
-      detail = detail_r15("supFr",
-                          detail_r("Detecte un changement de regime du ratio, independamment du modele.")))
+      type = type_diag("supFr", pi_constant),
+      detail = detail_diag("supFr",
+                           detail_r("Detecte un changement de regime du ratio, independamment du modele."),
+                           txt_r15, regle = pi_constant))
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
       fonction = "stat_cusum",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
       H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
       loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
-      type = type_r15("CUSUMr"),
-      detail = detail_r15("CUSUMr", detail_r()))
+      type = type_diag("CUSUMr", pi_constant),
+      detail = detail_diag("CUSUMr", detail_r(), txt_r15, regle = pi_constant))
   add(fam, "Valeur aberrante isolee (Grubbs) sur ratios bruts",
       fonction = "test_grubbs",
       "Grubbs (1950, 1969), Technometrics 11", base = "r",
@@ -6881,9 +6952,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "rang du ratio extreme",
       estim = { g <- test_grubbs(u); if (is.finite(g$stat)) g$idx else NA_real_ },
       mc_nom = "Grubbsr",
-      type = type_r15("Grubbsr"),
-      detail = detail_r15("Grubbsr",
-                          detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele.")))
+      type = type_diag("Grubbsr", pi_constant),
+      detail = detail_diag("Grubbsr",
+                           detail_r("Identifie l'annee au boni/mali le plus atypique, sans passer par le modele."),
+                           txt_r15, regle = pi_constant))
 
   add(fam, "Leviers (hat values)", "Hoaglin & Welsch (1978), Amer. Statist. 32",
       fonction = "usp_tests",
@@ -7796,56 +7868,107 @@ engine_contours_cook <- function(T, k = 1L, niveaux = c(0.5, 1), n = 200) {
 # replications ecartees). S = statistiques d'ordre des B_eff lignes
 # entierement finies.
 #  - bande ponctuelle : quantiles 5 % et 95 % (type 7) de chaque colonne de S ;
-#  - bande simultanee (Davison et Hinkley 1997, enveloppe globale de
-#    boot::envelope()) : bande des k-iemes plus petite et plus grande valeurs
-#    de chaque colonne de S ; k* = plus grand k tel que la proportion de
-#    lignes de S ayant au moins une valeur STRICTEMENT hors de la bande soit
-#    <= ENVELOPPE_QQ_TAUX_MAX. Les bandes sont emboitees (celle de k + 1
-#    est dans celle de k), la proportion croit avec k : le balayage s'arrete
-#    au premier k qui depasse le seuil.
+#  - bande simultanee (Davison et Hinkley 1997, par. 4.2.4, eq. (4.17),
+#    p. 153-154 ; enveloppe globale de boot::envelope()) : bande des
+#    k-iemes plus petite et plus grande valeurs de chaque colonne de S ;
+#    k* = rang de engine_rang_simultane_dh(S), appliquee aux lignes de S
+#    (une ligne sort au rang k si une de ses valeurs est <= Sc[k, ] ou >=
+#    Sc[B_eff + 1 - k, ], Sc = S triee par colonne ; sans ex aequo, c'est
+#    la sortie stricte de l'enveloppe des B_eff - 1 autres lignes) ;
+#    regle_rang = "DH1997_4.17" (issue #385, option (a), decision du
+#    mainteneur du 28/10/2026).
 # Niveau fixe de 90 % pour les deux bandes, sans lien avec alpha (decision
 # Q3) ; probabilites et taux ecrits en litteraux (1 - 0.90 n'est pas 0.10 en
 # virgule flottante). B_eff = nombre de lignes entierement finies de z_boot
-# = nombre de replications retenues. Degenerescence : B_eff <
+# = nombre de replications retenues. Degenerescence, avec le motif de
+# .engine_motif_enveloppe() (NA quand la bande simultanee existe) : B_eff <
 # ENVELOPPE_QQ_B_MIN -> quatre bandes NA et k NA ; B_eff <
-# ENVELOPPE_QQ_B_MIN_SIM -> bande ponctuelle seule, simultanee NA et k NA.
+# ENVELOPPE_QQ_B_MIN_SIM -> bande ponctuelle seule, simultanee NA et k NA ;
+# aucun rang admissible (taux (4.17) > ENVELOPPE_QQ_TAUX_MAX des k = 1)
+# -> bande ponctuelle seule, simultanee NA et k NA. Ce dernier cas est
+# atteignable : sans ex aequo, au plus 2T lignes sortent a k = 1, et k = 1
+# n'est refuse que si 2T > 0,10 B_eff, soit, a B_eff >= 500, des T >= 26
+# (inatteignable a T = 8) ; avec des ex aequo dans S, plus tot.
 # Seuil de 500 (decision d'actuary du 29/09/2026), fonde sur la granularite
-# de k et non sur la calibration : sous 500 replications, k* <= 4 et la bande
-# simultanee n'est que celle des 1 a 4 valeurs extremes de chaque colonne (a
-# B_eff = 100, k* = 1 : bande [min, max], taux auto-evalue nul par
-# construction). Mesures sur J1 (tests/donnees/donnees_ln.csv), 8 graines par
-# taille (1001 a 1008), taux hors echantillon evalue sur un bootstrap
-# independant de B = 8000 (graine 424242), meme algorithme que ci-dessous :
+# de k et non sur la calibration : sous 500 replications, la bande
+# simultanee n'est que celle des quelques valeurs extremes de chaque colonne
+# (mesures ci-dessous : k* <= 3 aux tailles mesurees de 100 a 400
+# replications, k* de 3 ou 4 a 500 ; a B_eff = 100, k* NA, taux (4.17) de
+# 0,11 a 0,16 des k = 1, au plus 2T = 16 lignes sortant a ce rang).
+# Mesures du 29/10/2026 (tests/mesure_enveloppe_qq_t8.R, R 4.3.3) sur J1
+# (tests/donnees/donnees_ln.csv), 8 graines par taille (1001 a 1008), taux
+# hors echantillon (sortie stricte d'une courbe nouvelle) evalue sur un
+# bootstrap independant de B = 8000 (graine 424242), regle (4.17). Les
+# lignes B_eff < 500 decrivent la regle seule (le moteur n'y forme pas la
+# bande simultanee) ; leur caractere conservateur a 200 et 300 vient de la
+# granularite de k* (k* = 1 ou 2) :
 #   B_eff  k*   taux auto-evalue   taux hors echantillon (min-max, moyenne)
-#   100    1    0                  9 a 18 %   (12,5 %)
-#   200    2    5,5 a 7,5 %        9 a 15 %   (12,3 %)
-#   300    3    7,7 a 9,3 %        10 a 15 %  (12,5 %)
-#   400    3-4  7,3 a 10 %         11 a 15 %  (12,4 %)
-#   500    4-5  8 a 9,8 %          9 a 14 %   (11,8 %)
-#   1000   8-9  9 a 9,9 %          10 a 12 %  (10,6 %)
-# Le taux auto-evalue est optimiste (bande calibree sur les replications qui
-# la construisent) : 2,7 points en moyenne a B_eff = 500, 1 point a 1000. Le
-# niveau reel de la bande simultanee est donc voisin de 88 % a B_eff = 500 et
-# de 89 % au defaut B = 999, pour 90 % nominal ; la bande ponctuelle n'est pas
-# concernee. Ces valeurs sont des mesures par simulation sur un seul jeu,
-# pas un resultat general. Les taux (taux_global_ponctuel,
-# taux_global_simultane) sont evalues sur les
-# replications memes qui construisent les bandes (taux in-sample).
-# Le cas "aucun k >= 1 admissible" est inatteignable : k = 1 toujours
-# admissible, taux 0 par construction (a k = 1 la bande est [min, max] de
-# chaque colonne, dont aucune ligne ne sort strictement) ; le if sur
-# k_etoile ne sert que de garde. Sous refit = FALSE (appel direct de
+#   100    NA   -                  -
+#   200    1    5,5 a 7,5 %        4,3 a 9,2 %   (6,7 %)
+#   300    2    7,7 a 9,3 %        6,9 a 10,7 %  (8,3 %)
+#   400    2-3  7,2 a 10 %         7,9 a 11,3 %  (9,5 %)
+#   500    3-4  8 a 9,8 %          6,8 a 11,6 %  (9,5 %)
+#   1000   7-8  9 a 9,9 %          8,8 a 10,6 %  (9,5 %)
+# Sur ces 40 couples (B, graine) a k* fini, k* vaut exactement un de moins
+# que sous la regle anterieure a #385 et le taux auto-evalue est le meme
+# (aucun ex aequo dans S) ; au defaut B = 999 des cinq cas lognormaux de
+# reference, k* passe de 8 a 7, taux inchange (0,092 ou 0,090), bornes
+# identical() a celles de boot::envelope() 1.3.30 (mesure du 29/10/2026,
+# R 4.3.3). Le niveau hors echantillon de la bande simultanee vaut en
+# moyenne 90,5 % a B_eff = 500 et a 1000 (8 graines ; erreur Monte-Carlo de
+# cette moyenne de l'ordre de 0,7 point a 500 et 0,4 a 1000 : dispersion
+# entre graines, ecart-type de la moyenne 0,6 et 0,2 point, et echantillon
+# independant commun de 8 000, 0,3 point ; 88,4 a 93,2 % par execution a
+# 500, 89,4 a 91,2 % a 1000), compatible avec 90 % nominal ; la bande
+# ponctuelle n'est pas concernee. Ces
+# valeurs sont des mesures par simulation dans le monde du bootstrap (modele
+# ajuste a J1), sur un seul jeu, pas un resultat general : la couverture a
+# T = 8 sous le vrai modele n'est etablie ni par simulation ni par la
+# litterature. Regle anterieure (moteur jusqu'au 29/10/2026, issue #385) :
+# sortie STRICTE de la bande construite sur toutes les lignes, k* superieur
+# d'une unite, k = 1 toujours admissible (taux 0) ; meme protocole, taux
+# hors echantillon moyen de 12,5 % a B_eff = 100, 11,8 % a 500 et 10,6 % a
+# 1000 (niveau voisin de 88 % et 89 %). Les deux taux restitues sont
+# evalues sur les replications memes qui construisent les bandes, sous deux
+# conventions, celles de engine_enveloppe_spread() :
+# taux_global_simultane est le taux (4.17), qui equivaut, sans ex aequo, a
+# un taux par retrait d'une ligne (estimation du taux de sortie d'une
+# courbe nouvelle) ; taux_global_ponctuel est la proportion des lignes
+# STRICTEMENT hors de la bande ponctuelle construite sur toutes les lignes
+# (taux in-sample, a peine optimiste : 47,65 % contre 48,45 % par retrait
+# de la ligne sur la reference premium, B_eff = 999, mesure du
+# 29/10/2026). Sous refit = FALSE (appel direct de
 # usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
 # fixes et l'enveloppe n'est pas celle d'Atkinson. Aucune p-value ni verdict
 # (aide graphique, ADR 0001). Rend list(bandes = matrice T x 4 dans l'ordre
 # des statistiques d'ordre (colonnes bas, haut, sim_bas, sim_haut), info =
-# description reprise dans plots_data$qq_enveloppe, dont le seuil
-# B_min_simultane lu par l'affichage).
+# description reprise dans plots_data$qq_enveloppe ; l'affichage en lit
+# les niveaux, k et B_eff, et restitue le motif tel quel ; le seuil
+# B_min_simultane et la regle regle_rang sont descriptifs, non lus par
+# R/display_helpers.R).
 ENVELOPPE_QQ_NIVEAU <- 0.90
 ENVELOPPE_QQ_PROBS <- c(0.05, 0.95)
 ENVELOPPE_QQ_TAUX_MAX <- 0.10
 ENVELOPPE_QQ_B_MIN <- 20L
 ENVELOPPE_QQ_B_MIN_SIM <- 500L
+# Motifs d'indisponibilite des enveloppes de simulation, communs au QQ-plot
+# (engine_enveloppe_qq()) et au graphique dispersion-niveau
+# (engine_enveloppe_spread()) : B_eff < ENVELOPPE_QQ_B_MIN (aucune bande),
+# B_eff < ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule), aucun rang k
+# admissible pour l'eq. (4.17) (bande ponctuelle seule). Chaine ASCII
+# restituee telle quelle par l'affichage (issue #385).
+.engine_motif_enveloppe <- function(cas) {
+  switch(cas,
+    b_min = sprintf("moins de %d replications retenues : enveloppe non disponible",
+                    ENVELOPPE_QQ_B_MIN),
+    b_min_sim = sprintf("moins de %d replications retenues : bande simultanee non calculee",
+                        ENVELOPPE_QQ_B_MIN_SIM),
+    aucun_k = sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
+                            "au rang k = 1 ; bande simultanee non disponible"),
+                      formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
+                              decimal.mark = ",")),
+    stop("motif d'enveloppe inconnu : ", cas))
+}
 engine_enveloppe_qq <- function(z_boot, T) {
   bandes <- matrix(NA_real_, T, 4L,
                    dimnames = list(NULL, c("bas", "haut", "sim_bas", "sim_haut")))
@@ -7856,30 +7979,31 @@ engine_enveloppe_qq <- function(z_boot, T) {
                niveau_simultane = ENVELOPPE_QQ_NIVEAU,
                k = NA_integer_, taux_global_ponctuel = NA_real_,
                taux_global_simultane = NA_real_,
-               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM)
-  if (B_eff < ENVELOPPE_QQ_B_MIN) return(list(bandes = bandes, info = info))
+               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
+               regle_rang = "DH1997_4.17", motif = NA_character_)
+  if (B_eff < ENVELOPPE_QQ_B_MIN) {
+    info$motif <- .engine_motif_enveloppe("b_min")
+    return(list(bandes = bandes, info = info))
+  }
   S <- t(apply(z_boot[garde, , drop = FALSE], 1L, sort))
-  # Proportion des lignes de S ayant au moins une valeur strictement hors de
-  # la bande [bas, haut] (bornes par colonne).
-  taux_hors <- function(bas, haut)
-    mean(rowSums(S < rep(bas, each = B_eff) | S > rep(haut, each = B_eff)) > 0)
+  # Bande ponctuelle : proportion des lignes de S ayant au moins une valeur
+  # strictement hors de la bande [bas, haut] (bornes par colonne).
   q <- apply(S, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
   bandes[, "bas"] <- q[1L, ]; bandes[, "haut"] <- q[2L, ]
-  info$taux_global_ponctuel <- taux_hors(q[1L, ], q[2L, ])
-  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) return(list(bandes = bandes, info = info))
-  Sc <- apply(S, 2L, sort)
-  k_etoile <- NA_integer_; taux_k <- NA_real_
-  for (k in seq_len(B_eff %/% 2L)) {
-    tk <- taux_hors(Sc[k, ], Sc[B_eff + 1L - k, ])
-    if (tk > ENVELOPPE_QQ_TAUX_MAX) break
-    k_etoile <- k; taux_k <- tk
+  info$taux_global_ponctuel <-
+    mean(rowSums(S < rep(q[1L, ], each = B_eff) | S > rep(q[2L, ], each = B_eff)) > 0)
+  if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
+    info$motif <- .engine_motif_enveloppe("b_min_sim")
+    return(list(bandes = bandes, info = info))
   }
-  # Garde inatteignable : k = 1 toujours admissible, taux 0 par construction.
-  if (!is.na(k_etoile)) {
-    bandes[, "sim_bas"] <- Sc[k_etoile, ]
-    bandes[, "sim_haut"] <- Sc[B_eff + 1L - k_etoile, ]
-    info$k <- k_etoile; info$taux_global_simultane <- taux_k
+  # Bande simultanee : rang k* de l'eq. (4.17) sur les lignes de S (#385).
+  r <- engine_rang_simultane_dh(S)
+  if (is.na(r$k)) {
+    info$motif <- .engine_motif_enveloppe("aucun_k")
+    return(list(bandes = bandes, info = info))
   }
+  bandes[, "sim_bas"] <- r$sim_bas; bandes[, "sim_haut"] <- r$sim_haut
+  info$k <- r$k; info$taux_global_simultane <- r$taux
   list(bandes = bandes, info = info)
 }
 
@@ -7952,15 +8076,15 @@ engine_rang_simultane_dh <- function(L) {
 #    au moins une valeur STRICTEMENT hors de la bande (convention du
 #    QQ-plot) ;
 #  - bande simultanee : rang k* de l'eq. (4.17) de Davison et Hinkley
-#    (engine_rang_simultane_dh()) ; le QQ-plot garde sa propre regle
-#    (inegalites strictes) jusqu'a l'issue #385.
+#    (engine_rang_simultane_dh()), regle du QQ-plot depuis l'issue #385.
 # Bande inconditionnelle au regime de delta* (decision Q-D1-Fn-3) : toutes
 # les lignes finies de z_boot, comme le QQ-plot. Degenerescences, bornes NA
 # et motif : volumes constants (usp_volumes_constants(), courbe sans objet) ;
 # B_eff < ENVELOPPE_QQ_B_MIN (quatre bornes NA) ; B_eff <
 # ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule) ; aucun k admissible
-# (bande ponctuelle seule). Niveaux, seuils et taux maximal : constantes de
-# l'enveloppe du QQ-plot, sans duplication. Aide graphique, aucune p-value
+# (bande ponctuelle seule). Niveaux, seuils, taux maximal et motifs
+# (.engine_motif_enveloppe()) : ceux de l'enveloppe du QQ-plot, sans
+# duplication. Aide graphique, aucune p-value
 # ni verdict (ADR 0001). Sous refit = FALSE (appel direct de
 # usp_bootstrap(), hors run_engine()), les z* sont des residus a parametres
 # fixes. Rend la liste portee par plots_data$spread_enveloppe.
@@ -7987,8 +8111,7 @@ engine_enveloppe_spread <- function(z_boot, x) {
   L <- L[apply(is.finite(L), 1L, all), , drop = FALSE]
   B_eff <- nrow(L); res$B_eff <- B_eff
   if (B_eff < ENVELOPPE_QQ_B_MIN) {
-    res$motif <- sprintf("moins de %d replications retenues : enveloppe non disponible",
-                         ENVELOPPE_QQ_B_MIN)
+    res$motif <- .engine_motif_enveloppe("b_min")
     return(res)
   }
   q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
@@ -7996,16 +8119,12 @@ engine_enveloppe_spread <- function(z_boot, x) {
   res$taux_global_ponctuel <-
     mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
-    res$motif <- sprintf("moins de %d replications retenues : bande simultanee non calculee",
-                         ENVELOPPE_QQ_B_MIN_SIM)
+    res$motif <- .engine_motif_enveloppe("b_min_sim")
     return(res)
   }
   r <- engine_rang_simultane_dh(L)
   if (is.na(r$k)) {
-    res$motif <- sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
-                               "au rang k = 1 ; bande simultanee non disponible"),
-                         formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
-                                 decimal.mark = ","))
+    res$motif <- .engine_motif_enveloppe("aucun_k")
     return(res)
   }
   res$bandes$sim_bas <- r$sim_bas; res$bandes$sim_haut <- r$sim_haut
@@ -8034,7 +8153,10 @@ LR_DELTA_NIVEAU_REPERES <- 0.90
 # l'echelle logarithmique sont ses bornes bas_90 et haut_90 ; niveau
 # nominal, porte dans plots_data$boot_reperes$niveau, d'ou l'affichage tire
 # ses libelles. Les probabilites des quantiles restent ecrites en clair dans
-# run_engine() et .run_engine_mw() : la constante ne les pilote pas.
+# run_engine() et .run_engine_mw() (c(.025, .05, .5, .95, .975)) et dans
+# usp_ic_basic_log() (c(.025, .05, .95, .975), bornes nommees bas_95,
+# bas_90, haut_90, haut_95, dont .engine_boot_reperes() lit bas_90 et
+# haut_90 par leur nom) : la constante ne les pilote pas (Q-43-11).
 IC_BOOT_NIVEAU_REPERES <- 0.90
 
 # Intervalle bootstrap "basic" sur l'echelle logarithmique (issue #305 ;
@@ -11762,23 +11884,24 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # Variante secondaire et diagnostic par decision (#312 ; decision
   # Q-D1-Fm-1 (B) du mainteneur du 23/10/2026, specification Fm, par. 1.1,
   # texte T-1 a la lettre) : forme des diagnostics par decision de Fh (#299,
-  # #302 ; type_decision() et detail_diagnostic() de usp_tests()). Motifs
+  # #302 ; type_diag() et detail_diag() de usp_tests()). Motifs
   # (niveau et puissance a T = 8, comparaison a Durbin-Watson, calculee sur
   # les memes residus dans le meme ordre de parcours) : specification Fm,
-  # par. 1.1, mesures de #309. type = "diagnostic" pose ici, add() inchangee
+  # par. 1.1, mesures de #309. type = "diagnostic" pose ici
   # (verdict INFO, ni p retenue, ni nature, ni sens ; p Monte-Carlo et p non
   # simulee conservees dans leurs colonnes ; inoperant FALSE ; la regle R1 ne
   # s'applique qu'aux lignes de type test, p_min_mc vaut donc NA). Cle Runs du
   # catalogue conservee. Priorite des motifs non applicables (comme
   # stat_definie() de usp_tests()) : statistique observee non finie, ou
   # motif MOTIF_MC_OBS_NON_FINIE, -> type "test" laisse a add(), qui rend la
-  # ligne non applicable. Sur un diagnostic, add() ne pose pas le motif
-  # Monte-Carlo : il est mis en tete du detail ici quand la p Monte-Carlo
-  # manque, sous la forme de detail_diagnostic() (motif de degenerescence ->
+  # ligne non applicable. Quand la p Monte-Carlo manque, add() met le motif
+  # en tete du detail (.prefixe_motif_mc(), #358 : motif de degenerescence ->
   # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
   # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
-  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes ensuite
-  # par l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo.
+  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes par
+  # l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo, apres
+  # le detail ci-dessous ; add() pose ensuite le prefixe, qui precede donc,
+  # dans le texte, le detail et ces phrases.
   m_ru <- if (!is.null(boot$motif_mc) && "Runs" %in% names(boot$motif_mc))
     unname(boot$motif_mc[["Runs"]]) else NA_character_
   ru_definie <- is.finite(ru$stat) && !identical(m_ru, MOTIF_MC_OBS_NON_FINIE)
@@ -11786,28 +11909,20 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                        "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
                        "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
                        "ordre de parcours, dont le type et le verdict font foi.")
-  # p Monte-Carlo lue sans [[ ]] nu : une cle Runs absente du bootstrap
-  # laisse a add() son refus explicite (ADR 0003, point 3).
-  p_mc_ru <- if ("Runs" %in% names(boot$p_mc)) boot$p_mc[["Runs"]] else NA_real_
   detail_ru <- if (!ru_definie) "" else {
-    pre_ru <- if (is.finite(p_mc_ru) || is.na(m_ru)) ""
-      else if (m_ru %in% c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
-                           MOTIF_MC_CONDITION))
-        trimws(paste(c(paste0(m_ru, " : aucune p-value retenue (ADR 0001)."),
-                       .complement_motif_mc(m_ru)), collapse = " "))
-      else paste0("Monte-Carlo indisponible : ", m_ru, ".")
     # Motif d'un p_min non attribue (effectifs de .mw_p_min_ligne()) : add()
     # ne le restitue qu'aux lignes de type test ; sur ce diagnostic, il est
     # joint ici quand p_min n'est pas fini, sur le precedent de
-    # detail_decision_299() (motif_ea, avis d'actuary du 20/10/2026). Ordre :
-    # motif Monte-Carlo, effectifs, phrase T-1 ; point final ajoute s'il
+    # detail_diag() de usp_tests() (motif_ea, avis d'actuary du 20/10/2026).
+    # Ordre : motif Monte-Carlo (pose par add()), effectifs, phrase T-1 ;
+    # point final ajoute s'il
     # manque. p_min fini (cas courant, reserve2) : detail inchange.
     ea_ru <- if (!is.finite(pm_ru$p_min) && !is.na(pm_ru$effectifs) &&
                  nzchar(trimws(pm_ru$effectifs))) {
       e <- trimws(pm_ru$effectifs)
       if (endsWith(e, ".")) e else paste0(e, ".")
     } else ""
-    trimws(.engine_joindre(.engine_joindre(pre_ru, ea_ru), txt_diag_ru))
+    trimws(.engine_joindre(ea_ru, txt_diag_ru))
   }
   add(fam, "Test des suites sur les residus de Mack",
       fonction = "test_runs",
@@ -13076,18 +13191,16 @@ run_engine <- function(xt, yt,
         # tests).
         if (methode == "premium") list(nature_donnees = nature_donnees),
         list(sigma_standard_saisi = saisi),
-        # Generateur pose par engine_sous_graine() et graine fixe des
-        # simulations autres que le bootstrap (issue #37, ADR 0004 point 2) :
-        # loi nulle de Shapiro-Wilk. Places apres les champs existants, avant
-        # les champs d'execution. La graine de l'enveloppe du QQ-plot est
-        # retiree (issue #47) : l'enveloppe depend de seed et de B.
-        # seed_loi_nulle_sw : sans emploi dans la branche lognormale depuis
-        # #302 (ligne Shapiro-Wilk a loi nulle simulee retiree ; seule
-        # mw_tests() appelle encore sw_p_loi_nulle()) ; champ conserve, valeur
-        # inchangee, pour la stabilite de la structure de res$metadata (et de
-        # son affichage).
-        list(generateur = as.list(ENGINE_RNG_KIND),
-             seed_loi_nulle_sw = SEED_LOI_NULLE_SW),
+        # Generateur pose par engine_sous_graine() (issue #37, ADR 0004
+        # point 2). Place apres les champs existants, avant les champs
+        # d'execution. La graine de l'enveloppe du QQ-plot est retiree
+        # (issue #47) : l'enveloppe depend de seed et de B. La graine de la
+        # loi nulle de Shapiro-Wilk (seed_loi_nulle_sw) est retiree de la
+        # branche lognormale (issue #351, option (a) du mainteneur du
+        # 28/10/2026, Q-43-5) : aucun tirage lognormal ne l'emploie depuis
+        # #302, et une graine consignee doit designer un tirage ; reserve2 la
+        # garde (mw_tests() appelle sw_p_loi_nulle()).
+        list(generateur = as.list(ENGINE_RNG_KIND)),
         # Bareme saisi (issue #93) : place apres les champs de l'issue #37, en
         # dernier avant les champs d'execution (le patch des references
         # ajoute la feuille en fin de metadata).

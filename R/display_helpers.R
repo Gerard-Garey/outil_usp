@@ -269,14 +269,15 @@ avertissement_T <- function(T) {
 # engine_registre_tests() (#129, point 3) : la distinction est une lecture de
 # ce champ, sans calcul ni lecture du commentaire. Colonne absente ou NA
 # (objet anterieur au champ) : la ligne garde son type. Table sans colonne
-# type (objet anterieur) : NA partout, rien n'est affiche.
+# type (objet anterieur) : NA partout, rien n'est affiche. Un type hors des
+# trois admis par add() (objet anterieur a #357, "procedure de decision")
+# est affiche tel quel.
 type_ligne <- function(tb) {
   n <- nrow(tb)
   if (is.null(tb$type)) return(rep(NA_character_, n))
   inop <- if (is.null(tb$inoperant)) rep(FALSE, n) else tb$inoperant %in% TRUE
   lib <- c("test" = "test", "diagnostic" = "diagnostic",
-           "non applicable" = "non applicable",
-           "procedure de decision" = "proc\u00e9dure de d\u00e9cision")
+           "non applicable" = "non applicable")
   out <- unname(lib[tb$type])
   out[is.na(out) & !is.na(tb$type)] <- tb$type[is.na(out) & !is.na(tb$type)]
   out[inop] <- "test inop\u00e9rant"
@@ -284,8 +285,8 @@ type_ligne <- function(tb) {
 }
 
 # Libelle du type sous le badge de verdict (vue Synthese) : seulement pour
-# les lignes qui ne sont pas des tests ordinaires, qui expliquent un INFO
-# ou une decision sans p-value. Texte echappe.
+# les lignes qui ne sont pas des tests ordinaires, qui expliquent un INFO.
+# Texte echappe.
 .sous_badge_type <- function(tb) {
   ty <- type_ligne(tb)
   ifelse(is.na(ty) | ty == "test", "",
@@ -533,8 +534,8 @@ plot_ratio <- function(pd) {
 
 # Enveloppe du QQ-plot (issue #47) : bande simultanee (exterieure, plus
 # claire) puis bande ponctuelle, lues dans pd$qqnorm (env_sim_bas,
-# env_sim_haut, env_bas, env_haut) ; libelles et seuil de la bande
-# simultanee (B_min_simultane) tires de pd$qq_enveloppe
+# env_sim_haut, env_bas, env_haut) ; libelles et motif d'indisponibilite
+# des bandes tires de pd$qq_enveloppe
 # (engine_enveloppe_qq()). Aucun calcul : une bande dont les bornes sont NA
 # n'est pas tracee, et le sous-titre le dit. Sans pd$qq_enveloppe (objet
 # anterieur a l'issue #47, dont les colonnes env_bas / env_haut portaient une
@@ -568,20 +569,31 @@ plot_ratio <- function(pd) {
   paste0("QQ-plot normal (H3) \u2014 enveloppe de simulation",
          if (length(niv) == 1L) niv else "")
 }
+# Sous-titre en une ou deux lignes (vecteur de longueur 0, 1 ou 2), sur le
+# modele de .spread_sous_titre() : ce qui est trace, puis, s'il existe, le
+# motif du moteur (pd$qq_enveloppe$motif, engine_enveloppe_qq(), #385) seul
+# sur la seconde ligne, tel quel ; aucune cause reconstruite ici (la bande
+# simultanee peut manquer a B_eff >= 500, faute de rang admissible). Aucune
+# redite (principe de .spread_sous_titre()) : quand un motif est present, la
+# premiere ligne ne dit que ce qui est trace ("bande ponctuelle seule sur N
+# replications", "aucune bande"), le motif disant la cause. Objet sans motif
+# (anterieur a #385) : une ligne, ancien libelle avec "indisponible", aucune
+# cause ecrite.
 .qq_sous_titre <- function(pd) {
   e <- pd$qq_enveloppe
-  if (is.null(e)) return("")
+  if (is.null(e)) return(character(0))
   b <- .qq_bandes(pd)
-  seuil <- if (is.null(e$B_min_simultane)) "" else
-    sprintf(" (B_eff < %s)", e$B_min_simultane)
+  motif <- length(e$motif) == 1L && !is.na(e$motif)
   quoi <- if (b[["sim"]])
             sprintf("bande ponctuelle et bande simultan\u00e9e (rang k = %s sur %s r\u00e9plications)",
                     e$k, e$B_eff)
           else if (b[["ponct"]])
-            sprintf("bande ponctuelle seule sur %s r\u00e9plications, bande simultan\u00e9e indisponible%s",
-                    e$B_eff, seuil)
+            sprintf("bande ponctuelle seule sur %s r\u00e9plications%s", e$B_eff,
+                    if (motif) "" else ", bande simultan\u00e9e indisponible")
+          else if (motif) sprintf("aucune bande (%s r\u00e9plications)", e$B_eff)
           else sprintf("enveloppe indisponible (%s r\u00e9plications)", e$B_eff)
-  sprintf("bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, %s", quoi)
+  c(sprintf("bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, %s", quoi),
+    if (motif) e$motif)
 }
 .qq_bande_base <- function(x, bas, haut, col) {
   o <- order(x)
@@ -606,9 +618,19 @@ plot_qqnorm <- function(pd) {
   if (!.plotly_dispo()) {
     yl <- range(c(d$empirique, if (ponct) c(d$env_bas, d$env_haut),
                   if (sim) c(d$env_sim_bas, d$env_sim_haut)), na.rm = TRUE)
-    .cadre(); plot(d$theorique, d$empirique, pch = 19, col = COUL$pt, ylim = yl,
-                   xlab = "quantiles N(0,1)", ylab = "residus", main = ti)
-    if (nzchar(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
+    .cadre()
+    # Sous-titre sur deux lignes : marge haute agrandie (comme plot_spread())
+    # et titre pose une ligne plus haut par title(line = ) : a la position
+    # par defaut, le titre du QQ-plot touchait la premiere ligne du
+    # sous-titre (rendu PNG a 700 et 1000 px, #385).
+    deux <- length(st) > 1L
+    if (deux) graphics::par(mar = graphics::par("mar") + c(0, 0, 0.8, 0))
+    plot(d$theorique, d$empirique, pch = 19, col = COUL$pt, ylim = yl,
+         xlab = "quantiles N(0,1)", ylab = "residus", main = if (deux) "" else ti)
+    if (deux) graphics::title(main = ti, line = 2.2)
+    # Sous-titre : une ligne par element, la derniere au ras du cadre.
+    if (length(st)) graphics::mtext(st, side = 3, line = 0.15 + 0.75 * (rev(seq_along(st)) - 1),
+                                    cex = 0.7, col = COUL$ref)
     if (sim) .qq_bande_base(d$theorique, d$env_sim_bas, d$env_sim_haut, COUL$env_sim)
     if (ponct) .qq_bande_base(d$theorique, d$env_bas, d$env_haut, COUL$env)
     graphics::points(d$theorique, d$empirique, pch = 19, col = COUL$pt)
@@ -632,7 +654,7 @@ plot_qqnorm <- function(pd) {
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  titre <- paste0(ti, if (nzchar(st)) paste0("<br><sup>", st, "</sup>"))
+  titre <- paste0(ti, if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
   p <- .mep(p, titre, "quantiles theoriques N(0,1)", "residus standardises")
   # Legende en annotations fixes (.mep() masque la legende plotly).
   ann <- list()
@@ -644,7 +666,8 @@ plot_qqnorm <- function(pd) {
     text = .qq_lib_ponct(pd$qq_enveloppe), x = 0.01, y = if (sim) 0.92 else 0.99, xref = "paper", yref = "paper",
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
-  if (length(ann)) p <- plotly::layout(p, annotations = ann, margin = list(t = 60))
+  if (length(ann) || length(st))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = if (length(st) > 1L) 80 else 60))
   p
 }
 
@@ -2033,7 +2056,8 @@ libelle_derogation <- function(res, parametre) {
 # Donnees et dans l'en-tete du rapport fige). Lecture seule de metadata, aucun
 # calcul : un champ absent (objet anterieur a l'issue #37) ne produit pas
 # d'element. Rend un vecteur de textes bruts nomme par champ de metadata
-# (generateur, seed_loi_nulle_sw, seed_flux_regime de #240 ; la graine de
+# (generateur ; seed_loi_nulle_sw, reserve no 2 seulement depuis #351 ;
+# seed_flux_regime de #240, primes et reserve no 1 seulement ; la graine de
 # l'enveloppe du QQ-plot est retiree par l'issue #47, l'enveloppe etant lue
 # dans le bootstrap) ; chaque appelant choisit ses libelles (ASCII dans le
 # journal d'execution, accentues dans le rapport, table lib_gen) et echappe

@@ -87,14 +87,14 @@
 #          les executions (J1 et volumes constants pour premium et reserve1,
 #          J2 -- delta interieur, xi, yi de
 #          tests/unitaires/test_controles_numeriques.R -- pour premium et
-#          reserve1, triangle pour reserve2) : toute ligne de type "test" ou
-#          "procedure de decision" doit etre rattachee a une et une seule
+#          reserve1, triangle pour reserve2) : toute ligne de type "test"
+#          (seul type a verdict depuis #357) doit etre rattachee a une et une seule
 #          fiche du registre ; chaque nom du registre doit etre produit par
 #          une execution ; chaque fiche du registre doit avoir une ligne de
 #          ce type, sauf declaration hors_jeux motivee (qui devient un ecart
 #          si elle ne sert plus) ; une declaration hors_jeux est verifiee
-#          positivement (issue #121) : la ligne doit etre de type test ou
-#          procedure sur un jeu lognormal synthetique de taille t_positif
+#          positivement (issue #121) : la ligne doit etre de type test
+#          sur un jeu lognormal synthetique de taille t_positif
 #          (jeu_synthetique(), methode prime, T = 10 pour Cox-Stuart, 20 a
 #          volumes constants pour Anscombe-Glynn) ;
 #       b) dans le .tex, chaque environnement fiche qui porte \Pertinence le
@@ -113,7 +113,7 @@
 #       LIMITES : (i) le lien ligne du moteur -> fiche n'existe pas dans le
 #       moteur (issue #111) : il est ecrit a la main dans REGISTRE_RUBRIQUE7,
 #       et le script verifie sa coherence avec le moteur (couverture des
-#       lignes de type test ou procedure, noms existants), pas qu'une ligne
+#       lignes de type test, noms existants), pas qu'une ligne
 #       est rattachee a la BONNE fiche ; (ii) le type d'une ligne depend des
 #       donnees (regle R1, R4, regimes) : l'ensemble attendu n'est mesure
 #       que sur les jeux executes (T = 8) ; une fiche dont la ligne n'est de
@@ -605,11 +605,11 @@ DECOMPTES <- list(
        motif = paste0("m\u00e9thode prime.{0,40}?(\\d+) des (\\d+) lignes de la table auditable retiennent ",
                       "une p-value de Monte-Carlo, contre (\\d+) une p-value exacte, (\\d+) une p-value ",
                       "sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 et (\\d+) une p-value asymptotique, les (\\d+) derni\u00e8res n'ayant aucune ",
-                      "p-value retenue \\((\\d+) diagnostics, (\\d+) proc\u00e9dure de d\u00e9cision et (\\d+) ",
+                      "p-value retenue \\((\\d+) diagnostics et (\\d+) ",
                       "ligne non applicable\\)"),
        champs = c("nature Monte-Carlo", "lignes (total)", "nature exacte", "nature modele auxiliaire pondere",
                   "nature asymptotique", "sans p-value retenue", "type diagnostic",
-                  "type procedure de decision", "type non applicable")),
+                  "type non applicable")),
   list(id = "prime : p-values exactes disposant d'une p_mc",
        methode = "premium",
        motif = paste0("m\u00e9thode prime.{0,40}?des (\\d+) lignes de la table auditable, (\\d+) retiennent une ",
@@ -617,9 +617,9 @@ DECOMPTES <- list(
        champs = c("lignes (total)", "nature exacte", "exacte avec p_mc")),
   list(id = "Merz-Wuthrich : entrees par type",
        methode = "reserve2",
-       motif = paste0("(", MOT_NOMBRE, ") entr\u00e9es, dont (", MOT_NOMBRE, ") tests d'hypoth\u00e8se, (",
-                      MOT_NOMBRE, ") proc\u00e9dure de d\u00e9cision et (", MOT_NOMBRE, ") diagnostics"),
-       champs = c("lignes (total)", "type test", "type procedure de decision", "type diagnostic")),
+       motif = paste0("(", MOT_NOMBRE, ") entr\u00e9es, dont (", MOT_NOMBRE, ") tests d'hypoth\u00e8se et (",
+                      MOT_NOMBRE, ") diagnostics"),
+       champs = c("lignes (total)", "type test", "type diagnostic")),
   list(id = "Merz-Wuthrich : famille M1 (schema)", methode = "reserve2",
        motif = "M1 \\((\\d+) entr\u00e9es\\)", champs = "famille M1"),
   list(id = "Merz-Wuthrich : famille M2 (schema)", methode = "reserve2",
@@ -991,7 +991,6 @@ grandeurs_moteur <- function(tests, controles = NULL, appelants = NULL) {
          "exacte avec p_mc" = sum(grepl("^exacte", nat) & pmc),
          "type test" = sum(typ %in% "test"),
          "type diagnostic" = sum(typ %in% "diagnostic"),
-         "type procedure de decision" = sum(typ %in% "procedure de decision"),
          "type non applicable" = sum(typ %in% "non applicable"),
          # Issue #75 : grandeurs des formulations de l'ancien inventaire.
          # base : "z" (residus standardises), "r" (ratios bruts u_t),
@@ -1269,16 +1268,17 @@ verifier_cles_mc <- function(cles, catalogues) {
 
 # Registre des fiches qui portent la rubrique 7 (decisions du mainteneur du
 # 27/09/2026 sur #114, points 1 et 3) : fiches dont une ligne du moteur est de
-# type "test" ou "procedure de decision" dans au moins un regime. Le moteur
+# type "test" dans au moins un regime (type "procedure de decision" retire,
+# #357). Le moteur
 # ne porte pas le lien ligne -> fiche (objet de l'issue #111) : ce registre
 # l'ecrit, une entree par fiche. label : label nomme de la fiche (ligne qui
 # suit \begin{fiche}{...}, docs/latex/CONVENTIONS.md) ; tests : champ test
 # exact des lignes du moteur rattachees a la fiche ; hors_jeux : NULL, ou
-# motif ecrit pour une fiche dont aucune ligne n'est de type test ou
-# procedure sur les jeux executes par le script (le type n'y est atteint
+# motif ecrit pour une fiche dont aucune ligne n'est de type test
+# sur les jeux executes par le script (le type n'y est atteint
 # qu'a d'autres T) ; t_positif : pour une entree hors_jeux, la taille T du
 # jeu synthetique (jeu_synthetique()) sur lequel la ligne doit etre de type
-# test ou procedure (verification positive, issue #121) ; volumes_constants :
+# test (verification positive, issue #121) ; volumes_constants :
 # TRUE pour une entree hors_jeux dont la ligne n'est de type test qu'a pi_t
 # constant (Anscombe-Glynn depuis #302) : le jeu synthetique est alors pris a
 # volumes constants (jeu_synthetique(T, volumes_constants = TRUE)), absent ou
@@ -1369,7 +1369,7 @@ REGISTRE_RUBRIQUE7 <- list(
   # mw:m4ros retiree (#300, decision Q-D1-Fi-7 du 19/10/2026) : la ligne de
   # Rosner sur residus de Mack est un diagnostic par decision, sans rubrique 7.
 )
-TYPES_RUBRIQUE7 <- c("test", "procedure de decision")
+TYPES_RUBRIQUE7 <- "test"
 
 # Fiches du document et leur rubrique 7. Pour chaque environnement fiche
 # (\begin{fiche} ... premier \end{fiche} qui suit ; commentaires retires) :
@@ -1435,7 +1435,7 @@ verifier_rubrique7 <- function(fiches, attendus) {
                                   "rubrique 7 avant \\Usage (rubrique 6)")
     if (!is.na(fi$label) && !fi$label %in% attendus)
       ajoute(fi$ligne_pertinence, fi$label,
-             "rubrique 7 sur une fiche hors du registre REGISTRE_RUBRIQUE7 (aucune ligne de type test ou procedure de decision)")
+             "rubrique 7 sur une fiche hors du registre REGISTRE_RUBRIQUE7 (aucune ligne de type test)")
   }
   for (a in attendus) {
     k <- which(fiches$label %in% a)
@@ -1449,10 +1449,10 @@ verifier_rubrique7 <- function(fiches, attendus) {
 
 # Registre confronte au moteur. lignes_moteur : data.frame (test, type) des
 # lignes de res$tests de toutes les executions (jeux et methodes). Ecarts :
-# ligne de type test ou procedure de decision rattachee a aucune entree (une
+# ligne de type test rattachee a aucune entree (une
 # ligne nouvelle sans fiche a rubrique 7 au registre) ou a plusieurs ; nom
 # du registre absent de toutes les executions (registre perime) ; entree
-# sans hors_jeux dont aucune ligne n'est de type test ou procedure ; entree
+# sans hors_jeux dont aucune ligne n'est de type test ; entree
 # hors_jeux dont une ligne l'est (declaration perimee). Renvoie un
 # data.frame (label, test, motif).
 verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRIQUE7) {
@@ -1464,7 +1464,7 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
   tp <- unique(lignes_moteur$test[lignes_moteur$type %in% TYPES_RUBRIQUE7])
   for (n in tp) {
     k <- which(noms_reg == n)
-    if (!length(k)) ajoute(NA_character_, n, "ligne de type test ou procedure de decision rattachee a aucune fiche du registre")
+    if (!length(k)) ajoute(NA_character_, n, "ligne de type test rattachee a aucune fiche du registre")
     else if (length(k) > 1L) ajoute(paste(labels_reg[k], collapse = ", "), n, "ligne rattachee a plusieurs fiches du registre")
   }
   for (r in registre) {
@@ -1472,10 +1472,10 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
     for (n in abs) ajoute(r$label, n, "nom de ligne du registre produit par aucune execution du moteur")
     actif <- any(r$tests %in% tp)
     if (is.null(r$hors_jeux) && !actif && !length(abs))
-      ajoute(r$label, paste(r$tests, collapse = " ; "), "aucune ligne de type test ou procedure de decision sur les jeux executes")
+      ajoute(r$label, paste(r$tests, collapse = " ; "), "aucune ligne de type test sur les jeux executes")
     if (!is.null(r$hors_jeux) && actif)
       ajoute(r$label, paste(intersect(r$tests, tp), collapse = " ; "),
-             "declaration hors_jeux perimee : ligne de type test ou procedure sur les jeux executes")
+             "declaration hors_jeux perimee : ligne de type test sur les jeux executes")
   }
   if (!length(e)) return(data.frame(label = character(0), test = character(0), motif = character(0),
                                     stringsAsFactors = FALSE))
@@ -1487,7 +1487,7 @@ verifier_registre_rubrique7 <- function(lignes_moteur, registre = REGISTRE_RUBRI
 # lieu, FALSE si la colonne manque) des lignes de res$tests des executions
 # sur les jeux synthetiques (jeu_synthetique()). Ecarts : entree
 # hors_jeux sans t_positif ; t_positif sans hors_jeux ; entree hors_jeux
-# dont aucune ligne n'est de type test ou procedure de decision sur le jeu
+# dont aucune ligne n'est de type test sur le jeu
 # synthetique de taille t_positif (ou dont ce jeu n'a pas ete execute).
 # Renvoie un data.frame (label, test, motif).
 verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQUE7) {
@@ -1508,8 +1508,8 @@ verifier_hors_jeux_positifs <- function(lignes_synth, registre = REGISTRE_RUBRIQ
     if (!nrow(sur_t))
       ajoute(r$label, tst, sprintf("declaration hors_jeux non verifiee : jeu synthetique T = %d non execute", r$t_positif))
     else if (!any(sur_t$test %in% r$tests & sur_t$type %in% TYPES_RUBRIQUE7))
-      ajoute(r$label, tst, sprintf(paste("declaration hors_jeux infirmee : aucune ligne de type test ou procedure",
-                                         "de decision sur le jeu synthetique T = %d"), r$t_positif))
+      ajoute(r$label, tst, sprintf("declaration hors_jeux infirmee : aucune ligne de type test sur le jeu synthetique T = %d",
+                                         r$t_positif))
   }
   if (!length(e)) return(data.frame(label = character(0), test = character(0), motif = character(0),
                                     stringsAsFactors = FALSE))
@@ -2028,8 +2028,12 @@ if (sys.nframe() == 0L) {
   RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
     stop("R/engine.R introuvable : lancer depuis la racine du depot.")
 
+  # Moteur charge par son chargeur (ADR 0016, #200) : liaisons copiees dans
+  # env, enclos des fonctions = environnement dedie du moteur ; le chargeur
+  # lui-meme est defini dans env, avec le moteur et l'affichage.
   env <- new.env(parent = globalenv())
-  sys.source(file.path(RACINE, "R", "engine.R"), envir = env)
+  sys.source(file.path(RACINE, "R", "charger_moteur.R"), envir = env)
+  env$charger_moteur(file.path(RACINE, "R", "engine.R"), dans = env)
   sys.source(file.path(RACINE, "R", "display_helpers.R"), envir = env)
   if (is.null(fichier_tex)) fichier_tex <- file.path(RACINE, "docs", "latex", "doc_tests_usp.tex")
   tex <- readLines(fichier_tex, warn = FALSE, encoding = "UTF-8")
@@ -2230,7 +2234,7 @@ if (sys.nframe() == 0L) {
   tp7 <- unique(lm7$test[lm7$type %in% TYPES_RUBRIQUE7])
   n_hj <- sum(vapply(REGISTRE_RUBRIQUE7, function(r) !is.null(r$hors_jeux), logical(1)))
   ecrire(sprintf(paste0("\n=== 5. Rubrique 7 (issue #114) : registre de %d fiche(s) (dont %d hors jeux) ; ",
-                     "%d ligne(s) distincte(s) de type test ou procedure de decision sur %d execution(s) du moteur\n"),
+                     "%d ligne(s) distincte(s) de type test sur %d execution(s) du moteur\n"),
               length(attendus), n_hj, length(tp7), length(tous)))
   for (r in REGISTRE_RUBRIQUE7) if (!is.null(r$hors_jeux))
     ecrire(sprintf("  (information) %s hors jeux : %s\n", r$label, r$hors_jeux))

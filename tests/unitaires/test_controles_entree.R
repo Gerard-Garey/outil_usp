@@ -731,11 +731,16 @@ avec_r12_168 <- function(expr) {
   on.exit(for (nm in FONCTIONS_R12_168) assign(nm, orig[[nm]], envir = e))
   avec_pondere237(function(cf) cf[rownames(cf) != "x", , drop = FALSE], expr)
 }
+# Fonction du moteur lue dans son environnement (ADR 0016, #200) : la
+# substitution d'avec_r12_168() est posee dans environment(run_engine), et la
+# copie exposee dans l'environnement global n'est pas substituee ; un appel
+# direct a une fonction substituee passe donc par cet environnement.
+moteur168 <- function(nom) get(nom, envir = environment(run_engine), inherits = FALSE)
 verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seule branche du garde-fou R12 (injection), FALSE sur la branche calculee et a volumes constants, stat et p NA sous R12 ; test_tost_intercept() : motif 'x ecarte' sous R12, 'volumes constants' a volumes constants (#168)",
          {
            xq <- 300 * (1 + c(1, -1, 1, -1, 1, -1, 1, -1) * 1e-8)
-           i12 <- avec_r12_168(test_intercept(x153, y153, pi153))
-           l12 <- avec_r12_168(test_lm_complet(x153, y153))
+           i12 <- avec_r12_168(moteur168("test_intercept")(x153, y153, pi153))
+           l12 <- avec_r12_168(moteur168("test_lm_complet")(x153, y153))
            i0 <- test_intercept(x153, y153, pi153); l0 <- test_lm_complet(x153, y153)
            identical(i12$x_ecarte, TRUE) && identical(l12$x_ecarte, TRUE) &&
              identical(i0$x_ecarte, FALSE) && identical(l0$x_ecarte, FALSE) &&
@@ -744,7 +749,7 @@ verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seu
              identical(i12$stat, NA_real_) && identical(i12$p, NA_real_) &&
              identical(l12$t_pente, NA_real_) && identical(l12$F, NA_real_) && identical(l12$R2, NA_real_) &&
              identical(names(i12), names(i0)) && identical(names(l12), names(l0)) &&
-             identical(avec_r12_168(test_tost_intercept(x153, y153, pi153))$non_applicable, "x ecarte") &&
+             identical(avec_r12_168(moteur168("test_tost_intercept")(x153, y153, pi153))$non_applicable, "x ecarte") &&
              identical(test_tost_intercept(xq, y153, pi153)$non_applicable, "volumes constants") &&
              is.na(test_tost_intercept(x153, y153, pi153)$non_applicable) &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
@@ -2457,7 +2462,7 @@ verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant so
          {
            f <- usp_ajuster(x153, y189); b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
            ref <- names(test_tost_intercept(x153, y153, pi153))
-           r12 <- avec_r12_168(test_tost_intercept(x153, y189, f$pi))
+           r12 <- avec_r12_168(moteur168("test_tost_intercept")(x153, y189, f$pi))
            tt <- tryCatch(suppressWarnings(avec_r12_168(usp_tests(f, b, methode = "premium"))),
                           error = function(e) e)
            !inherits(tt, "error") && identical(r12$non_applicable, "pertes constantes") &&
