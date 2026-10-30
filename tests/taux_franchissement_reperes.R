@@ -504,16 +504,15 @@ tableaux <- function(cpt, R, lev) {
          "### T1 bis -- r\u00e8gle de restitution R4 (r\u00e8gle R4 retir\u00e9e du moteur par D1-Fb, reproduite par le script pour la comparabilit\u00e9 des mesures ant\u00e9rieures) et position de \u03b4\u0302 (constat de simulation sous le mod\u00e8le ajust\u00e9 ; pas des rep\u00e8res de diagnostic)", "",
          tableau_reperes(cpt, "regle"), "", note_n, "")
   lignes <- unique(sub("^nl\\|", "", grep("^nl\\|", names(cpt), value = TRUE)))
-  types <- c("test", "diagnostic", "non applicable", "procedure de decision")
+  types <- c("test", "diagnostic", "non applicable")
   L <- c(L, "### T2 -- classement des lignes de usp_tests() sur les r\u00e9plications (lignes non restitu\u00e9es \"test\" au moins une fois)", "",
-         entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (INFO)", "non applicable",
-                     "proc\u00e9dure de d\u00e9cision")))
+         entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (INFO)", "non applicable")))
   for (li in lignes) {
     n <- g(paste0("nl|", li)); kt <- vapply(types, function(ty) g(paste0("type|", li, "|", ty)), numeric(1))
     ki <- g(paste0("inop|", li))
     if (kt[["test"]] == n && ki == 0) next
     L <- c(L, ligne_md(li, n, pct(kt[["test"]], n), pct(kt[["diagnostic"]], n), pct(ki, n),
-                       pct(kt[["non applicable"]], n), pct(kt[["procedure de decision"]], n)))
+                       pct(kt[["non applicable"]], n)))
   }
   c(L, "", "Inop\u00e9rant : ligne de type test dont p_min \u2265 \u03b1, restitu\u00e9e diagnostic INFO (r\u00e8gle R1, #44) ; compt\u00e9e aussi dans la colonne diagnostic.", "",
     paste0("Hors p\u00e9rim\u00e8tre, non reconstruites dans les r\u00e9plications et absentes de T2 (aucun rep\u00e8re n'y porte ; #45) : ",
