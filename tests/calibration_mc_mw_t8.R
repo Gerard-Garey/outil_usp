@@ -1034,8 +1034,8 @@ regressions_119 <- function(aj) {
 NL_MAX <- length(readRDS(chemin_reference("reserve2"))$tests)
 # Colonnes de lecture conjointe (#297), en fin de ligne : typ_R (types des
 # lignes de mw_tests(), pool redresse, ordre de LIGNES : t test de sens "ne
-# pas rejeter", r test de sens "rejeter", d diagnostic, n non applicable, p
-# procedure de decision, - absente ; code_type()), puis
+# pas rejeter", r test de sens "rejeter", d diagnostic, n non applicable,
+# - absente ; code_type()), puis
 # par cle de famille (M1 a M4, puis la ligne globale LC) : etf (etat, voir
 # fk_etats()), kf (k), bf (B effectif de famille), pf, ef et sf (p, err_mc et
 # m_obs de la ligne), minf (plus petite p_mc des membres). Les cles sont
@@ -1073,8 +1073,7 @@ libelle_ligne <- function(l) if (identical(fk_champ(l, "fonction"), "engine_p_fa
 # reference (aucun champ) ; aucun appel d'add() du moteur ne fournit de
 # verdict a une ligne de type test (recherche de "verdict =" dans
 # R/engine.R, 25/10/2026 : controles numeriques et enregistrement par add()
-# seulement ; la procedure de decision est exclue par son type), de sorte
-# que la condition est sans effet sur les lignes lues.
+# seulement), de sorte que la condition est sans effet sur les lignes lues.
 frontiere_reference <- function() {
   r <- readRDS(chemin_reference("reserve2"))
   L <- r$tests; gs <- r$bootstrap$granularite_stat
@@ -2398,10 +2397,9 @@ traiter_triangle <- function(loi, b, avec_brut, ctl = FALSE) {
 }
 # Type d'une ligne (typ_R) : t test de sens "ne pas rejeter", r test de sens
 # "rejeter" (K-F2 restreint, avis d'actuary du 25/10/2026, point 1), d
-# diagnostic, n non applicable, p procedure de decision, - ligne absente.
+# diagnostic, n non applicable, - ligne absente.
 code_type <- function(t, sens = NA_character_) if (is.null(t) || is.na(t)) "-" else
-  switch(t, test = if (identical(sens, "rejeter")) "r" else "t", diagnostic = "d", "non applicable" = "n",
-         "procedure de decision" = "p", "x")
+  switch(t, test = if (identical(sens, "rejeter")) "r" else "t", diagnostic = "d", "non applicable" = "n", "x")
 codes_tests <- function(tests) {
   nm <- vapply(tests, libelle_ligne, ""); k <- match(LIGNES, nm)
   list(v = paste(vapply(k, function(i) if (is.na(i)) "-" else code_verdict(tests[[i]]$verdict), ""), collapse = ""),

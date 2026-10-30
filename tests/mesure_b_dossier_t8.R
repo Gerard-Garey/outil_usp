@@ -56,8 +56,9 @@
 #      Controle (c) : la condition min |p - s| < 2 err_mc ainsi recalculee
 #      doit coincider, ligne par ligne, avec la mention de #244 posee par le
 #      moteur ; echec : T0, code de sortie 1, --ecrire refuse ;
-#    - graines secondaires de res$metadata (seed_loi_nulle_sw,
-#      seed_flux_regime, methode de permutation_pente), par cas (T0) ;
+#    - graines secondaires de res$metadata (seed_flux_regime et methode de
+#      permutation_pente en lognormal ; seed_loi_nulle_sw en reserve2
+#      seulement depuis #351), par cas (T0) ;
 #    - reserve2 : triangles simules retires (bootstrap$cumuls_retires) et
 #      plafond de retirage atteint (bootstrap$plafond_cumuls).
 #  Lignes nommees : celles dont le verdict differe entre deux B du meme cas
