@@ -541,6 +541,18 @@ verifier("note_influence(), residus de y = beta x nuls (injection) : decompte de
            is.character(n153) && !grepl("NA", n153, fixed = TRUE) &&
              grepl("sans objet", n153, fixed = TRUE) && grepl(lev153, n153, fixed = TRUE)
          })
+# Issue #209 : l'affichage lit repere_levier et repere_cook (seuil_levier et
+# seuil_cook avant #209) ; .influence_ln() reconnait la table lognormale par
+# repere_cook. Valeurs attendues lues dans plots_data.
+verifier("note_influence() et .influence_ln() : reperes lus dans repere_cook et repere_levier (4/T et 2k/T imprimes), table lognormale reconnue, table Merz-Wuthrich non (#209)",
+         {
+           d <- res_ln$plots_data$influence; n209 <- note_influence(res_ln$plots_data)
+           .influence_ln(res_ln$plots_data) && !.influence_ln(res_mw$plots_data) &&
+             grepl(sprintf("rep&egrave;re de Cook (4/T = %s)", .num_fr(d$repere_cook[1], "%.3f")),
+                   n209, fixed = TRUE) &&
+             grepl(sprintf("rep&egrave;re de levier (2k/T = %s)", .num_fr(d$repere_levier[1], "%.3f")),
+                   n209, fixed = TRUE) && !grepl("NA", n209, fixed = TRUE)
+         })
 verifier("run_engine, y proportionnel a x (x = 2^(0:7), y = x / 2) : ok = FALSE, refus 'maximum de vraisemblance non atteint', sans plots_data (decision du mainteneur du 08/10/2026, #188)",
          identical(res_p153$ok, FALSE) && identical(names(res_p153), c("ok", "validation", "metadata")) &&
            is.null(res_p153$validation$erreur_r) &&

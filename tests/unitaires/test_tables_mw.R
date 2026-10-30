@@ -1014,7 +1014,7 @@ local({
       }
       out <- rbind(out, data.frame(
         i = idx, j = j, C = Cij, F = Cij1 / Cij,
-        levier = h, seuil_levier = 2 / length(idx),
+        levier = h, repere_levier = 2 / length(idx),
         f_chapeau = aj$f[j + 1], f_sans_cellule = f_sans,
         dfbeta_relatif = -Cij * ecart_f / S_sans / aj$f[j + 1],
         residu = resid,
@@ -1024,7 +1024,7 @@ local({
     }
     dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
     out$dfbetas <- NULL; out$repere_dfbetas <- NULL; out$dfbetas_non_borne <- NULL
-    out$fort_levier <- out$levier > out$seuil_levier
+    out$fort_levier <- out$levier > out$repere_levier
     out$dfbetas <- dfb
     out$repere_dfbetas <- rep_dfb
     out$fort_dfbetas <- !is.na(out$dfbetas) & abs(out$dfbetas) > out$repere_dfbetas

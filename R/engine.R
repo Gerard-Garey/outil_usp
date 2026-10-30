@@ -5305,9 +5305,10 @@ usp_profil <- function(fit, n = 41) {
                                "y = beta x tous nuls) : diagnostic non applicable")))
   list(type = "diagnostic", estim = max(ck),
        detail = sprintf("repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s",
-                        4 / T, sum(ck > 4 / T),
-                        if (any(ck > 4 / T))
-                          paste0(" (rangs ", paste(which(ck > 4 / T), collapse = ", "), ")") else ""))
+                        REPERE_COOK_LN / T, sum(ck > REPERE_COOK_LN / T),
+                        if (any(ck > REPERE_COOK_LN / T))
+                          paste0(" (rangs ", paste(which(ck > REPERE_COOK_LN / T), collapse = ", "),
+                                 ")") else ""))
 }
 
 # Domaine de validite (#153, critere amende du 02/10/2026) : run_engine()
@@ -6725,6 +6726,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # x -> a x (identical() a l'echelle 1, mesure #153).
   xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
   mlm <- stats::lm(ye ~ xe - 1); ck <- stats::cooks.distance(mlm); hv <- stats::hatvalues(mlm)
+  # k = nombre de parametres du modele ajuste, meme definition que
+  # engine_influence() (#209) : repere de levier REPERE_LEVIER k / T.
+  k_lev <- length(stats::coef(mlm))
   lc <- .usp_ligne_cook(ck, T)
   add(fam, "Points influents (distance de Cook)", "Cook (1977), Technometrics 19",
       fonction = "usp_tests",
@@ -6961,7 +6965,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       fonction = "usp_tests",
       type = "diagnostic", estim_nom = "max h_t", estim = max(hv),
       detail = sprintf("repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus",
-                       2 / T, sum(hv > 2 / T)))
+                       REPERE_LEVIER * k_lev / T, sum(hv > REPERE_LEVIER * k_lev / T)))
 
   ## --- G. Robustesse de l'estimation -----------------------------------------
   fam <- "G. Robustesse de l'estimation"
@@ -7778,8 +7782,28 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
 #   esperance 4,5 cellules sur 25 dans un triangle T = 8 sans anomalie,
 #   confirmee par simulation (tests/taux_franchissement_reperes.R
 #   --seulement mw). C'est un repere de lecture, pas un test.
+# - REPERE_LEVIER : numerateur c du repere de lecture c p / n du levier,
+#   convention 2p/n (deux fois le levier moyen p / n) de Hoaglin et Welsch
+#   (1978), avec p = 1 parametre dans les deux branches : repere_levier =
+#   REPERE_LEVIER k / T (k = 1) de engine_influence() et de la ligne
+#   "Leviers (hat values)" de usp_tests() (branche lognormale) ;
+#   repere_levier = REPERE_LEVIER / n_j du levier de chaque cellule dans la
+#   regression ponderee de sa colonne (mw_influence()). D'elle depend le
+#   booleen fort_levier.
+# - REPERE_COOK_LN : numerateur du repere de lecture repere_cook =
+#   REPERE_COOK_LN / T de la distance de Cook (engine_influence() et
+#   .usp_ligne_cook(), branche lognormale), d'ou le booleen influent.
+#   Valeurs jusqu'ici ecrites en dur (2 * k / T, 2 / T, 2 / n_j, 4 / T),
+#   conservees telles quelles ; colonnes nommees seuil_levier et seuil_cook
+#   avant #209 (renommees : repere de lecture, pas seuil de rejet ;
+#   CONTEXT.md, entree Diagnostic ; ADR 0001, M7). display_helpers.R
+#   reprend ces numerateurs dans ses libelles figes ("4/T", "2k/T"),
+#   dont la coherence avec les constantes est gardee par un test
+#   (tests/unitaires/test_defauts_connus.R, #209).
 REPERE_INFLUENCE_SIGMA <- 0.10
 REPERE_DFBETAS_MW <- 2
+REPERE_LEVIER <- 2
+REPERE_COOK_LN <- 4
 # Surface de la fonction objectif sur une grille (delta, gamma). Elle sert a
 # visualiser la geometrie de l'optimisation, notamment lorsque delta est au
 # bord : un plateau plat en delta signifie que la structure de variance n'est
@@ -7861,7 +7885,7 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
   x <- fit$x; y <- fit$y; T <- fit$T
   xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
   m <- stats::lm(ye ~ xe - 1)
-  k <- 1L
+  k <- length(stats::coef(m))
   h <- stats::hatvalues(m)
   e <- stats::residuals(m)
   s <- sqrt(sum(e^2) / (T - k))
@@ -7871,10 +7895,10 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
     t = seq_len(T), x = x, y = y,
     levier = unname(h), residu_std = unname(r_std), cook = unname(cook),
     z = fit$z,
-    seuil_levier = 2 * k / T, seuil_cook = 4 / T,
+    repere_levier = REPERE_LEVIER * k / T, repere_cook = REPERE_COOK_LN / T,
     stringsAsFactors = FALSE)
-  d$influent <- d$cook > d$seuil_cook
-  d$fort_levier <- d$levier > d$seuil_levier
+  d$influent <- d$cook > d$repere_cook
+  d$fort_levier <- d$levier > d$repere_levier
   if (!is.null(jackknife) && !is.null(sigma_usp)) {
     d$sigma_usp_sans_t <- jackknife$sigma_usp
     d$ecart_sigma <- (jackknife$sigma_usp - sigma_usp) / sigma_usp
@@ -12765,7 +12789,8 @@ engine_motif_b_alpha <- function(B, alpha) {
 #   valeur absolue et n'a plus de sens a la lecture (influence pratiquement
 #   non bornee) : dfbetas NA et dfbetas_non_borne = TRUE (FALSE dans tous
 #   les autres cas, jamais NA).
-# repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), repere de lecture.
+# repere_levier = REPERE_LEVIER / n_j et repere_dfbetas =
+# REPERE_DFBETAS_MW / sqrt(n_j), reperes de lecture.
 mw_influence <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, NULL)
@@ -12818,7 +12843,7 @@ mw_influence <- function(aj) {
     }
     blocs[[length(blocs) + 1L]] <- list(
       i = idx, j = rep(j, n), C = Cij, F = Cij1 / Cij,
-      levier = h, seuil_levier = rep(2 / length(idx), n),
+      levier = h, repere_levier = rep(REPERE_LEVIER / length(idx), n),
       f_chapeau = rep(aj$f[j + 1], n), f_sans_cellule = f_sans,
       # f_j^(-i) - f_j = -C(i,j) (F(i,j) - f_j) / (S_j - C(i,j)), identite
       # exacte, sans la difference f_sans - f_j de deux grandeurs presque
@@ -12833,7 +12858,7 @@ mw_influence <- function(aj) {
   # premieres colonnes est inchange ; dfbetas_non_borne en derniere position.
   dfb <- out$dfbetas; rep_dfb <- out$repere_dfbetas; nb <- out$dfbetas_non_borne
   out$dfbetas <- NULL; out$repere_dfbetas <- NULL; out$dfbetas_non_borne <- NULL
-  out$fort_levier <- out$levier > out$seuil_levier
+  out$fort_levier <- out$levier > out$repere_levier
   out$dfbetas <- dfb
   out$repere_dfbetas <- rep_dfb
   # Coloration du graphique d'influence (plot_mw_dfbeta()) : |DFBETAS| au-dela

@@ -1557,7 +1557,7 @@ plot_mw_reserve <- function(pd) {
 # triangle. Les fonctions ci-dessous verifient donc explicitement la structure
 # recue plutot que de supposer la methode.
 .influence_ln <- function(pd)
-  !is.null(pd$influence) && all(c("residu_std", "cook", "levier", "seuil_cook") %in%
+  !is.null(pd$influence) && all(c("residu_std", "cook", "levier", "repere_cook") %in%
                                 names(pd$influence))
 .influence_mw <- function(pd)
   !is.null(pd$influence) && all(c("dfbeta_relatif", "levier", "residu") %in%
@@ -1593,7 +1593,7 @@ plot_influence_levier <- function(pd) {
   if (!.plotly_dispo()) {
     .cadre()
     plot(d$levier, d$residu_std, pch = 19, col = ifelse(d$influent, COUL$trait, COUL$pt),
-         xlim = c(0, max(d$levier, d$seuil_levier[1]) * 1.15), ylim = lim,
+         xlim = c(0, max(d$levier, d$repere_levier[1]) * 1.15), ylim = lim,
          xlab = "levier h_t", ylab = "residu standardise",
          main = "Residus vs levier (iso-distances de Cook)")
     for (n in unique(cc$niveau)) for (sg in c("+", "-")) {
@@ -1601,7 +1601,7 @@ plot_influence_levier <- function(pd) {
       graphics::lines(k$levier, k$residu, lty = 3, col = COUL$ref)
     }
     graphics::abline(h = 0, col = COUL$ref, lty = 2)
-    graphics::abline(v = d$seuil_levier[1], col = COUL$trait, lty = 2)
+    graphics::abline(v = d$repere_levier[1], col = COUL$trait, lty = 2)
     graphics::text(d$levier, d$residu_std, labels = d$t, pos = 3, cex = 0.8)
     return(invisible())
   }
@@ -1616,7 +1616,7 @@ plot_influence_levier <- function(pd) {
   }
   p <- plotly::add_lines(p, x = c(0, max(d$levier) * 1.15), y = c(0, 0),
         line = list(color = COUL$ref, dash = "dash"), hoverinfo = "skip")
-  p <- plotly::add_lines(p, x = rep(d$seuil_levier[1], 2), y = lim,
+  p <- plotly::add_lines(p, x = rep(d$repere_levier[1], 2), y = lim,
         line = list(color = COUL$trait, dash = "dash"),
         hovertemplate = "repere de levier 2k/T<extra></extra>")
   p <- plotly::add_markers(p, x = d$levier, y = d$residu_std,
@@ -1640,14 +1640,14 @@ plot_influence_cook <- function(pd) {
                       col = ifelse(d$influent, COUL$trait, COUL$env),
                       xlab = "annee t", ylab = "distance de Cook",
                       main = "Distance de Cook par annee")
-    graphics::abline(h = d$seuil_cook[1], col = COUL$trait, lty = 2)
+    graphics::abline(h = d$repere_cook[1], col = COUL$trait, lty = 2)
     return(invisible())
   }
   p <- plotly::plot_ly(x = d$t, y = d$cook, type = "bar",
         marker = list(color = ifelse(d$influent, COUL$trait, COUL$env),
                       line = list(color = COUL$pt, width = 1)),
         hovertemplate = "annee %{x}<br>Cook = %{y:.4f}<extra></extra>")
-  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$seuil_cook[1], 2),
+  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$repere_cook[1], 2),
         line = list(color = COUL$trait, dash = "dash"),
         hovertemplate = "repere 4/T<extra></extra>")
   .mep(p, "Distance de Cook par annee (repere 4/T)", "annee t", "distance de Cook")
@@ -2247,9 +2247,9 @@ note_influence <- function(pd) {
   # vaut NA, le decompte est remplace par une phrase qui renvoie au motif.
   cook <- if (is.null(pd$influence_motif))
     sprintf("<b>%d</b> observation(s) au-del&agrave; du rep&egrave;re de Cook (4/T = %s)",
-            sum(d$influent), .num_fr(d$seuil_cook[1], "%.3f"))
+            sum(d$influent), .num_fr(d$repere_cook[1], "%.3f"))
   else sprintf(paste("Distance de Cook non finie : rep&egrave;re de Cook (4/T = %s) sans objet",
-                     "(motif dans les graphiques) ;"), .num_fr(d$seuil_cook[1], "%.3f"))
+                     "(motif dans les graphiques) ;"), .num_fr(d$repere_cook[1], "%.3f"))
   nl <- sum(d$fort_levier)
   # Annees non evaluables du jackknife (#328, #224, #329) : lues telles
   # quelles (sigma_USP sans l'annee non fini), sans calcul ; sigma_USP n'est
@@ -2319,7 +2319,7 @@ note_influence <- function(pd) {
     "au-del&agrave; du rep&egrave;re de levier (2k/T = %s). %s Un levier &eacute;lev&eacute;",
     "seul n'est pas probl&eacute;matique : c'est sa combinaison avec un r&eacute;sidu",
     "important, mesur&eacute;e par la distance de Cook, qui l'est."),
-    cook, if (is.null(pd$influence_motif)) " et" else "", nl, .num_fr(d$seuil_levier[1], "%.3f"),
+    cook, if (is.null(pd$influence_motif)) " et" else "", nl, .num_fr(d$repere_levier[1], "%.3f"),
     jack)
 }
 
