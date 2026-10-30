@@ -875,7 +875,7 @@ local({
              nm <- names(pd)
              identical(utils::tail(nm, 6), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
                                              "qqline", "sigma_usp_boot", "boot_reperes")) &&
-               identical(nm[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+               identical(nm[1:14], c("facteurs", "reserve_par_annee", "residus", "residus_dev",
                                      "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                      "alpha", "origine", "influence", "contributions", "sigma_boot")) &&
                identical(names(ga), c("i", "n", "moyenne")) &&
@@ -3868,7 +3868,7 @@ local({
              identical(utils::tail(names(pd), 6),
                        c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline",
                          "sigma_usp_boot", "boot_reperes")) &&
-             identical(names(pd)[1:15], c("methode", "facteurs", "reserve_par_annee", "residus", "residus_dev",
+             identical(names(pd)[1:14], c("facteurs", "reserve_par_annee", "residus", "residus_dev",
                                           "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                           "alpha", "origine", "influence", "contributions", "sigma_boot")))
   # Vivier du bootstrap : .mw_pool_residus() appelle mw_residus_redresses().
