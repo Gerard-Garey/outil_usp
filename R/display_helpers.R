@@ -2209,8 +2209,21 @@ note_influence_mw <- function(pd) {
                    txt_nb), collapse = " "))
   lib <- .libelle_repere_dfbetas()
   nd <- sum(d$fort_dfbetas)
-  mx <- d[which.max(abs(d$dfbetas)), ]
-  paste(c(txt, sprintf(paste(
+  # Cellule la plus influente : designee par le moteur (colonne
+  # plus_influente de mw_plots_data(), #396), lue telle quelle ; aucun
+  # maximum calcule ici. Sans cellule designee unique (table d'une autre
+  # forme), la phrase de la cellule la plus influente est omise.
+  mx <- d[d$plus_influente %in% TRUE, , drop = FALSE]
+  # Cellule a DFBETAS non borne (nb non vide, colonne du moteur) : elle n'a
+  # pas de DFBETAS restitue et n'entre pas dans la designation ; la phrase le
+  # dit (lecture de nb, aucun calcul).
+  txt_mx <- if (nrow(mx) == 1L) sprintf(paste(
+    if (length(nb)) "Parmi les cellules &agrave; DFBETAS born&eacute;, la plus influente est"
+    else "La cellule la plus influente est",
+    "<b>(i = %d, j = %d)</b> (DFBETAS = %s), dont le retrait d&eacute;placerait f_%d de",
+    "<b>%s %%</b>."), mx$i, mx$j, .num_fr(mx$dfbetas, "%+.2f"), mx$j,
+    .num_fr(100 * mx$dfbeta_relatif, "%+.2f")) else NULL
+  paste(c(txt, paste(c(sprintf(paste(
     "Le DFBETAS d'une cellule est l'&eacute;cart f_j - f_j(sans la cellule) entre le facteur",
     "estim&eacute; avec et sans cette cellule, exprim&eacute; en &eacute;carts-types estim&eacute;s de f_j :",
     "positif si la cellule tire f_j vers le haut, son retrait faisant alors baisser f_j.",
@@ -2221,11 +2234,7 @@ note_influence_mw <- function(pd) {
     "chiffr&eacute;s dans la documentation des tests, fiche &laquo; Influence et leviers du",
     "triangle (Merz-W&uuml;thrich) &raquo;).",
     "Plusieurs cellules color&eacute;es sont donc attendues sans anomalie, surtout dans",
-    "les colonnes courtes.",
-    "La cellule la plus influente est",
-    "<b>(i = %d, j = %d)</b> (DFBETAS = %s), dont le retrait d&eacute;placerait f_%d de",
-    "<b>%s %%</b>."), nd, lib, mx$i, mx$j, .num_fr(mx$dfbetas, "%+.2f"), mx$j,
-    .num_fr(100 * mx$dfbeta_relatif, "%+.2f")),
+    "les colonnes courtes."), nd, lib), txt_mx), collapse = " "),
     txt_nb), collapse = " ")
 }
 
@@ -2246,15 +2255,56 @@ note_influence <- function(pd) {
   # quelles (sigma_USP sans l'annee non fini), sans calcul ; sigma_USP n'est
   # pas mesure pour ces annees, y compris quand aucune n'est evaluable.
   ne <- .jack_non_evaluables(d)
-  # Maximum calcule hors des annees non evaluables (jamais une annee dite
-  # ecartee du maximum) ; sans ecart fini hors de ne, phrase fixe.
+  # Annee(s) la (les) plus influente(s) : designees par le moteur (colonne
+  # plus_influente, usp_jack_annees(), la designation du detail de la ligne
+  # jackknife, #327 ; #396), lues telles quelles, aucun maximum calcule ici ;
+  # jamais une annee non evaluable. Sans ecart fini hors de ne, phrase fixe.
   e <- d$ecart_sigma; e[d$t %in% ne | !is.finite(e)] <- NA
+  ip <- which(d$plus_influente %in% TRUE & is.finite(e))
   jack <- if (!any(is.finite(e)))
     paste("Aucune ann&eacute;e &eacute;valuable (r&eacute;ajustements sans maximum de",
           "vraisemblance &eacute;tabli, ou en &eacute;chec) : l'influence sur sigma_USP n'est pas mesur&eacute;e.")
   else paste0(
-    sprintf("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de <b>%s %%</b>.",
-            .num_fr(100 * e[which.max(abs(e))], "%+.1f")),
+    # Amplitude affichee arrondie a 0,0 (#396) : aucun signe imprime, le sens
+    # de la variation n'etant pas discernable a la precision affichee
+    # (comparaison de chaines formatees, aucun calcul).
+    if (length(ip) == 1L && .num_fr(abs(100 * e[ip]), "%.1f") == "0,0")
+      paste("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de",
+            "<b>moins de 0,05 %</b> en valeur absolue.")
+    else if (length(ip) == 1L)
+      sprintf("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de <b>%s %%</b>.",
+              .num_fr(100 * e[ip], "%+.1f"))
+    # Plusieurs annees d'influence egale a la precision numerique pres :
+    # toutes citees, comme dans le detail de la ligne jackknife (#327). Leurs
+    # ecarts ne different qu'a tau pres : une seule amplitude est affichee,
+    # celle de la premiere annee designee qui ne s'ecrit pas 0,0 (aucune
+    # selection de maximum), pour ne pas faire paraitre deux valeurs
+    # d'arrondi d'ecarts indiscernables.
+    # Meme signe : une valeur ; signes differents : l'amplitude commune avec
+    # le signe de chaque annee, retrait de chacune pris isolement ; amplitude
+    # arrondie a 0,0 : phrase sans signe, comme pour une seule annee.
+    else if (length(ip) > 1L) {
+      sg <- sign(e[ip])
+      # Amplitudes formatees : 'moins de 0,05 %' seulement si toutes
+      # s'ecrivent 0,0 ; sinon amplitude de la premiere annee designee qui ne
+      # s'ecrit pas 0,0, choix de chaine sans calcul. Un ecart exactement nul
+      # (sign = 0) s'imprimerait '+0,0' a cote d'une amplitude non nulle : cas
+      # que la designation du moteur ne produit pas (ecarts egaux a tau pres,
+      # toutes les annees s'ecrivent alors 0,0).
+      fa <- .num_fr(abs(100 * e[ip]), "%.1f")
+      v <- .num_fr(sg * abs(100 * e[ip[match(TRUE, fa != "0,0", nomatch = 1L)]]), "%+.1f")
+      sprintf(paste("Ann&eacute;es les plus influentes, d'influence &eacute;gale &agrave; la",
+                    "pr&eacute;cision num&eacute;rique pr&egrave;s : %s et %d ; le retrait de",
+                    "chacune d&eacute;place sigma_USP de %s."),
+              paste(d$t[utils::head(ip, -1L)], collapse = ", "), d$t[utils::tail(ip, 1L)],
+              if (all(fa == "0,0"))
+                "<b>moins de 0,05 %</b> en valeur absolue"
+              else if (length(unique(sg)) == 1L) sprintf("<b>%s %%</b>", v[1L])
+              else sprintf("%s et <b>%s %%</b> respectivement",
+                           paste0("<b>", utils::head(v, -1L), " %</b>", collapse = ", "),
+                           utils::tail(v, 1L)))
+    }
+    else "Ann&eacute;e la plus influente non d&eacute;termin&eacute;e.",
     if (length(ne) == 1L)
       sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
                     "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",

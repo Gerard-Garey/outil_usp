@@ -669,8 +669,140 @@ verifier("note_influence(), repere par sigma_usp_sans_t non fini (ecart_sigma fi
            pdq <- pd328; pdq$influence$sigma_usp_sans_t <- NULL
            grepl("Ann&eacute;es 3 et 5 non &eacute;valuables", note_influence(pdr), fixed = TRUE) &&
              grepl("Ann&eacute;e 5 non &eacute;valuable", note_influence(pdq), fixed = TRUE) &&
-             !grepl("Ann&eacute;es", note_influence(pdq), fixed = TRUE)
+             !grepl("non &eacute;valuables", note_influence(pdq), fixed = TRUE)
          })
+## --- Designations lues dans le moteur (issue #396) ----------------------------
+# note_influence() et note_influence_mw() lisent la colonne plus_influente
+# posee par le moteur, sans calculer de maximum : une designation injectee sur
+# une autre annee (ou cellule) que celle du plus grand ecart est citee telle
+# quelle. Jeu de #224 : sept annees d'influence egale a la precision numerique
+# pres (detail de la ligne jackknife, #327), toutes citees par la note.
+PL_396 <- paste("Ann&eacute;es les plus influentes, d'influence &eacute;gale &agrave; la",
+                "pr&eacute;cision num&eacute;rique pr&egrave;s : 1, 2, 3, 4, 6, 7 et 8 ; ")
+# Une seule amplitude, celle de la premiere annee designee (aucune selection
+# de maximum, aucune comparaison des valeurs arrondies) : deux ecarts egaux a
+# tau pres de part et d'autre d'une frontiere d'arrondi (0,02149999 et
+# 0,02150001) s'affichent de meme ; signes opposes : amplitude commune, signe
+# de chaque annee, forme 'respectivement' (retrait de chacune).
+verifier("note_influence(), jeu de #224 : les sept annees designees par le moteur citees comme dans le detail jackknife, retrait de chacune, une valeur (#396)",
+         {
+           n <- note_influence(pd328)
+           identical(which(pd328$influence$plus_influente), c(1L, 2L, 3L, 4L, 6L, 7L, 8L)) &&
+             grepl(paste0(PL_396, "le retrait de chacune d&eacute;place sigma_USP de <b>+2,1 %</b>. "),
+                   n, fixed = TRUE) && compte(n, " %</b>") == 1L &&
+             !grepl("l'ann&eacute;e la plus influente", n, fixed = TRUE) && !grepl("NA", n, fixed = TRUE)
+         })
+verifier("note_influence(), meme signe, ecarts 0,02149999 et 0,02150001 de part et d'autre d'un arrondi (injection) : une seule valeur affichee, celle de la premiere annee designee (#396)",
+         {
+           pda <- pd328; pda$influence$ecart_sigma[1] <- 0.02149999; pda$influence$ecart_sigma[2] <- 0.02150001
+           pdb <- pd328; pdb$influence$ecart_sigma[1] <- 0.02150001; pdb$influence$ecart_sigma[2] <- 0.02149999
+           na <- note_influence(pda); nb <- note_influence(pdb)
+           grepl(paste0(PL_396, "le retrait de chacune d&eacute;place sigma_USP de <b>+2,1 %</b>. "),
+                 na, fixed = TRUE) && compte(na, " %</b>") == 1L &&
+             grepl(paste0(PL_396, "le retrait de chacune d&eacute;place sigma_USP de <b>+2,2 %</b>. "),
+                   nb, fixed = TRUE) && compte(nb, " %</b>") == 1L
+         })
+verifier("note_influence(), signes opposes (injection, annee 2 en baisse) : amplitude commune de la premiere annee designee, signe de chaque annee, 'respectivement', jamais 'leur retrait' (#396)",
+         {
+           pds <- pd328; pds$influence$ecart_sigma[2] <- -0.0315
+           ns <- note_influence(pds)
+           a <- .num_fr(100 * abs(pd328$influence$ecart_sigma[1]), "%.1f")
+           grepl(paste0(PL_396, "le retrait de chacune d&eacute;place sigma_USP de <b>+", a, " %</b>, <b>-", a,
+                        " %</b>, <b>+", a, " %</b>, <b>+", a, " %</b>, <b>+", a, " %</b>, <b>+", a,
+                        " %</b> et <b>+", a, " %</b> respectivement. "), ns, fixed = TRUE) &&
+             !grepl("3,[12] %", ns) && !grepl("leur retrait", ns, fixed = TRUE)
+         })
+# Amplitude affichee arrondie a 0,0 (avis d'actuary, #396) : aucun signe
+# imprime (ni '+0,0' ni '-0,0'), phrase 'moins de 0,05 % en valeur absolue',
+# au pluriel (ecarts 0, 3e-6, -2e-6 sur trois annees designees) comme pour
+# une seule annee designee.
+verifier("note_influence(), amplitude arrondie a 0,0 (injection : ecarts 0, 3e-6, -2e-6 designes ; une seule annee a 1e-6) : 'moins de 0,05 % en valeur absolue', aucun signe sur 0,0 (#396)",
+         {
+           pdz <- pd328; pdz$influence$ecart_sigma[1:3] <- c(0, 3e-6, -2e-6)
+           pdz$influence$plus_influente <- pdz$influence$t %in% 1:3
+           pd1 <- pd328; pd1$influence$ecart_sigma[1] <- -1e-6
+           pd1$influence$plus_influente <- pd1$influence$t == 1
+           nz <- note_influence(pdz); n1 <- note_influence(pd1)
+           grepl(paste("Ann&eacute;es les plus influentes, d'influence &eacute;gale &agrave; la",
+                       "pr&eacute;cision num&eacute;rique pr&egrave;s : 1, 2 et 3 ; le retrait de chacune",
+                       "d&eacute;place sigma_USP de <b>moins de 0,05 %</b> en valeur absolue. "), nz, fixed = TRUE) &&
+             grepl(paste("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de",
+                         "<b>moins de 0,05 %</b> en valeur absolue. "), n1, fixed = TRUE) &&
+             !any(grepl("[+-]0,0 %", c(nz, n1))) && !grepl("respectivement", nz, fixed = TRUE)
+         })
+# Cas mixte (audit, M1) : annees designees de part et d'autre de 0,05 % ;
+# 'moins de 0,05 %' exige que toutes s'ecrivent 0,0, sinon l'amplitude de la
+# premiere annee designee qui ne s'ecrit pas 0,0, sans signe sur 0,0.
+verifier("note_influence(), annees designees a 0,0499 % et 0,0502 % (injection) : pas de 'moins de 0,05 %', amplitude 0,1 %, aucun '0,0 %' (#396)",
+         {
+           pdm <- pd328; pdm$influence$ecart_sigma[1:2] <- c(4.99e-4, 5.02e-4)
+           pdm$influence$plus_influente <- pdm$influence$t %in% 1:2
+           pdm2 <- pdm; pdm2$influence$ecart_sigma[1:2] <- c(4.99e-4, -5.02e-4)
+           nm <- note_influence(pdm); nm2 <- note_influence(pdm2)
+           grepl("1 et 2 ; le retrait de chacune d&eacute;place sigma_USP de <b>+0,1 %</b>. ", nm, fixed = TRUE) &&
+             grepl("1 et 2 ; le retrait de chacune d&eacute;place sigma_USP de <b>+0,1 %</b> et <b>-0,1 %</b> respectivement. ",
+                   nm2, fixed = TRUE) &&
+             !any(grepl("0,0 %|moins de 0,05", c(nm, nm2)))
+         })
+verifier("note_influence(), colonne plus_influente absente, ou toute FALSE avec des ecarts finis (injection) : 'Annee la plus influente non determinee.' (#396)",
+         {
+           pdn <- pd328; pdn$influence$plus_influente <- NULL
+           pdf <- pd328; pdf$influence$plus_influente[] <- FALSE
+           all(vapply(list(note_influence(pdn), note_influence(pdf)), function(n)
+             grepl("Ann&eacute;e la plus influente non d&eacute;termin&eacute;e. Ann&eacute;e 5 non",
+                   n, fixed = TRUE) && !grepl("d&eacute;place sigma_USP", n, fixed = TRUE), logical(1)))
+         })
+verifier("note_influence() : annee designee lue dans plus_influente, pas recalculee (injection sur une annee qui n'est pas le maximum) ; aucune designee -> 'non determinee' (#396)",
+         {
+           d <- res_ln$plots_data$influence
+           k <- which.min(abs(d$ecart_sigma))
+           pdi <- res_ln$plots_data; pdi$influence$plus_influente <- d$t == d$t[k]
+           pd0 <- res_ln$plots_data; pd0$influence$plus_influente[] <- FALSE
+           n_ref <- note_influence(res_ln$plots_data); n_i <- note_influence(pdi)
+           sum(d$plus_influente) == 1L && k != which(d$plus_influente) &&
+             grepl(sprintf("sigma_USP de <b>%s %%</b>.", .num_fr(100 * d$ecart_sigma[d$plus_influente], "%+.1f")),
+                   n_ref, fixed = TRUE) &&
+             grepl(sprintf("sigma_USP de <b>%s %%</b>.", .num_fr(100 * d$ecart_sigma[k], "%+.1f")),
+                   n_i, fixed = TRUE) &&
+             grepl("Ann&eacute;e la plus influente non d&eacute;termin&eacute;e.", note_influence(pd0), fixed = TRUE)
+         })
+verifier("note_influence_mw() : cellule lue dans plus_influente (injection sur une autre cellule) ; aucune designee -> phrase de la cellule omise, reste de la note inchange (#396)",
+         {
+           d <- res_mw$plots_data$influence
+           k <- which(is.finite(d$dfbetas) & !d$plus_influente)[1L]
+           pdi <- res_mw$plots_data; pdi$influence$plus_influente <- seq_len(nrow(d)) == k
+           pd0 <- res_mw$plots_data; pd0$influence$plus_influente[] <- FALSE
+           n_ref <- note_influence_mw(res_mw$plots_data); n_i <- note_influence_mw(pdi)
+           n0 <- note_influence_mw(pd0)
+           grepl("<b>(i = 1, j = 4)</b>", n_ref, fixed = TRUE) &&
+             grepl(sprintf("<b>(i = %d, j = %d)</b> (DFBETAS = %s)", d$i[k], d$j[k],
+                           .num_fr(d$dfbetas[k], "%+.2f")), n_i, fixed = TRUE) &&
+             !grepl("La cellule la plus influente", n0, fixed = TRUE) &&
+             identical(n0, sub(" La cellule la plus influente est.*%</b>\\.", "", n_ref))
+         })
+verifier("note_influence_mw(), colonne plus_influente absente (injection) : phrase de la cellule omise, reste de la note inchange (#396)",
+         {
+           pdn <- res_mw$plots_data; pdn$influence$plus_influente <- NULL
+           pd0 <- res_mw$plots_data; pd0$influence$plus_influente[] <- FALSE
+           identical(note_influence_mw(pdn), note_influence_mw(pd0)) &&
+             !grepl("la plus influente", note_influence_mw(pdn), fixed = TRUE)
+         })
+verifier("note_influence_mw(), une cellule non bornee (injection) et la cellule designee (1, 4) : 'Parmi les cellules a DFBETAS borne, la plus influente est' ; sans cellule non bornee, phrase ordinaire (#396)",
+         {
+           d <- res_mw$plots_data$influence
+           k <- which(!d$plus_influente)[1L]
+           pdb <- res_mw$plots_data
+           pdb$influence$dfbetas_non_borne[k] <- TRUE; pdb$influence$dfbetas[k] <- NA_real_
+           nb <- note_influence_mw(pdb); n0 <- note_influence_mw(res_mw$plots_data)
+           !any(d$dfbetas_non_borne) &&
+             grepl("Parmi les cellules &agrave; DFBETAS born&eacute;, la plus influente est <b>(i = 1, j = 4)</b>",
+                   nb, fixed = TRUE) && !grepl("La cellule la plus influente", nb, fixed = TRUE) &&
+             grepl("DFBETAS non born&eacute;", nb, fixed = TRUE) &&
+             grepl("La cellule la plus influente est <b>(i = 1, j = 4)</b>", n0, fixed = TRUE) &&
+             !grepl("born&eacute;, la plus", n0, fixed = TRUE)
+         })
+verifier("R/display_helpers.R : aucun which.max (maximum de l'influence designe par le moteur, #396)",
+         !any(grepl("which.max", readLines(file.path(.racine, "R", "display_helpers.R")), fixed = TRUE)))
 if (requireNamespace("plotly", quietly = TRUE)) {
   verifier("Graphiques d'influence, residus nuls (injection) et y proportionnel a x, plotly : aucun trace en erreur (#153)",
            all(sans_erreur153(pd153)) && all(sans_erreur153(pdp153)))

@@ -7469,7 +7469,8 @@ engine_empreinte <- function(res) {
   # --- Texte canonique des donnees utilisees par le calcul ------------------
   texte <- NA_character_
   if (isTRUE(res$ok)) {
-    if (identical(res$methode, "reserve2") && !is.null(res$triangle)) {
+    # Methode lue dans res$metadata$methode (doublon res$methode retire, #396).
+    if (identical(res$metadata$methode, "reserve2") && !is.null(res$triangle)) {
       tri <- as.matrix(res$triangle)
       lignes <- c(sprintf("triangle;%d;%d", nrow(tri), ncol(tri)),
                   apply(tri, 1, function(l) paste(num(l), collapse = ";")))
@@ -7801,6 +7802,43 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
        })
 }
 
+# Annees les plus influentes du jackknife (#327), designation unique du
+# moteur, lue par run_engine() (robustesse$jack_annees, detail de la ligne
+# jackknife de usp_tests()) et par engine_influence() (colonne plus_influente
+# de res$plots_data$influence, #396) : l'affichage la lit sans recalculer de
+# maximum.
+#   sigma_usp_jack  sigma_USP sans l'annee t (usp_jackknife()$sigma_usp ; NA
+#                   pour une annee non evaluable, #224) ;
+#   sigma_usp       sigma_USP de l'echantillon complet.
+# Retour : NULL si aucun ecart sigma_USP^(-t) - sigma_USP n'est fini (aucun
+# reajustement abouti) ; sinon les indices t des annees evaluables dont
+# l'ecart relatif D_t = |sigma_USP^(-t) - sigma_USP| / sigma_USP est a moins
+# de tau du maximum D(1), tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)), D(2) second
+# plus grand D_t evaluable. Fondement (propagation au premier ordre) :
+# sigma_USP est lineaire en sigma, avec un coefficient <= sigma_USP / sigma ;
+# une erreur relative eps <= REP_SIGMA_KKT sur chaque sigma (ancre M9,
+# reajustement qui satisfait KKT) donne |dD_t| <= (1 + D_t) (eps_t + eps_0),
+# donc la difference de deux D_t est connue a 2 REP_SIGMA_KKT (2 + D(1) +
+# D(2)) pres. Deux annees dont l'ecart ne depasse pas tau sont d'influence
+# egale a la precision numerique pres : which.max les departagerait au gre
+# du bruit de l'optimiseur, qui varie d'une plateforme a l'autre (jeu de
+# #224, ecarts egaux a 3e-10 pres). Une seule annee evaluable : designation
+# directe, sans tau. Limite [H] : la precision n'est certifiee que pour un
+# reajustement qui satisfait KKT ; un reajustement accepte sans KKT (gamma
+# interieur) n'a pas de precision garantie, tau y est une convention. Aucune
+# constante nouvelle. Code extrait tel quel de run_engine() (#396).
+usp_jack_annees <- function(sigma_usp_jack, sigma_usp) {
+  d_jack <- sigma_usp_jack - sigma_usp
+  if (!any(is.finite(d_jack))) return(NULL)
+  d_rel <- abs(d_jack) / sigma_usp
+  ev <- which(is.finite(d_rel))
+  if (length(ev) == 1L) ev else {
+    d12 <- sort(d_rel[ev], decreasing = TRUE)[1:2]
+    tau <- 2 * REP_SIGMA_KKT * (2 + d12[1] + d12[2])
+    ev[d_rel[ev] >= d12[1] - tau]
+  }
+}
+
 # --- Diagnostics d'influence de la regression (methode lognormale) -----------
 # La regression de reference est le modele reglementaire contraint
 # y_t = beta x_t (sans constante), a k = 1 parametre. Pour ce modele :
@@ -7844,6 +7882,13 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
     # |ecart relatif| au-dela du repere de lecture REPERE_INFLUENCE_SIGMA,
     # calcule ici comme fort_levier (issue #33, constat C1 d'app-review).
     d$fort_ecart_sigma <- abs(d$ecart_sigma) > REPERE_INFLUENCE_SIGMA
+    # Annee(s) la (les) plus influente(s) sur sigma_USP (#396) : designation
+    # de usp_jack_annees(), la meme que robustesse$jack_annees de run_engine()
+    # (detail de la ligne jackknife, #327) ; plusieurs annees TRUE si elles
+    # sont d'influence egale a la precision numerique pres ; FALSE partout si
+    # aucun reajustement n'a abouti. Colonne en fin de table ; note_influence()
+    # la lit sans recalculer de maximum.
+    d$plus_influente <- d$t %in% usp_jack_annees(jackknife$sigma_usp, sigma_usp)
   }
   d
 }
@@ -12402,7 +12447,8 @@ engine_motif_b_alpha <- function(B, alpha) {
 #             dans une fonction de R appelee par le moteur (lm.fit()) est
 #             attribuee a la fonction du moteur qui la porte.
 # Resultat : meme forme que le refus de .run_engine_mw() (ok, validation,
-# methode, metadata$horodatage, metadata$methode). Aucun resultat partiel.
+# metadata$horodatage, metadata$methode ; methode lue dans metadata seule,
+# doublon res$methode retire par #396). Aucun resultat partiel.
 # Les avertissements R ne sont pas captures. Option de developpement
 # options(usp.engine.lever_erreurs = TRUE) : l'erreur est relevee telle
 # quelle, sans interception. Les graines sont restaurees par
@@ -12456,7 +12502,7 @@ engine_motif_b_alpha <- function(B, alpha) {
         appel = if (is.null(appel)) NA_character_ else deparse(appel, nlines = 1L)[1],
         origine = origine,
         pile = pile)
-      structure(list(ok = FALSE, validation = validation, methode = methode,
+      structure(list(ok = FALSE, validation = validation,
                      metadata = list(horodatage = t0, methode = methode)),
                 class = "usp_engine")
     })
@@ -12529,7 +12575,7 @@ engine_motif_b_alpha <- function(B, alpha) {
     validation$erreurs <- c(err_nature, validation$erreurs)
   }
   if (!validation$ok)
-    return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
+    return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0, methode = "reserve2")),
                      class = "usp_engine"))
 
@@ -12575,7 +12621,7 @@ engine_motif_b_alpha <- function(B, alpha) {
     if (!vc$ok) {
       validation$ok <- FALSE
       validation$erreurs <- c(validation$erreurs, vc$erreurs)
-      return(structure(list(ok = FALSE, validation = validation, methode = "reserve2",
+      return(structure(list(ok = FALSE, validation = validation,
                             metadata = list(horodatage = t0, methode = "reserve2")),
                        class = "usp_engine"))
     }
@@ -12624,7 +12670,7 @@ engine_motif_b_alpha <- function(B, alpha) {
       retenu = c(FALSE, FALSE, TRUE), stringsAsFactors = FALSE)
 
     structure(list(
-      ok = TRUE, methode = "reserve2",
+      ok = TRUE,
       triangle = triangle,
       donnees = data.frame(i = res$i, j = res$j, C = res$C, F = res$F,
                            residu = res$residu),
@@ -12957,8 +13003,9 @@ mw_contributions <- function(aj, msep) {
 mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
                           ic = NULL, sigma_usp = NULL, sigma_standard = NULL) {
   qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
+  # Methode : lue dans res$metadata$methode, seul emplacement depuis #396
+  # (doublon plots_data$methode retire).
   pd <- list(
-    methode = "reserve2",
     # sigma_regle_minimum (#310, Q-D1-Fm-9, colonne ajoutee en fin) : TRUE
     # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
     # D(5)(d)(ii), seconde ligne, et non estime ; FALSE partout si la regle
@@ -13000,7 +13047,22 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     }),
     alpha = mw_famille_alpha(aj)$detail,
     origine = mw_test_ordonnee_origine(aj)$detail,
-    influence = mw_influence(aj),
+    # Cellule la plus influente (#396) : plus grand |DFBETAS| parmi les
+    # seules cellules a DFBETAS defini (NA ignores : gardes de l'en-tete de
+    # mw_influence() ; FALSE partout si aucun n'est defini). Les DFBETAS y
+    # sont en expression explicite, sans reajustement iteratif ni
+    # optimiseur : leur erreur est au niveau de l'arrondi machine, d'ou
+    # aucune tolerance analogue a tau (usp_jack_annees()). Egalite exacte :
+    # which.max retient
+    # la premiere cellule dans l'ordre de mw_influence(). Colonne en fin de
+    # table, apres dfbetas_non_borne ; mw_influence() est inchangee (sa
+    # sortie alimente aussi les lignes M4). note_influence_mw() la lit sans
+    # recalculer de maximum.
+    influence = local({
+      inf <- mw_influence(aj)
+      inf$plus_influente <- seq_len(nrow(inf)) %in% which.max(abs(inf$dfbetas))
+      inf
+    }),
     contributions = if (!is.null(msep)) mw_contributions(aj, msep) else NULL,
     sigma_boot = boot$sigma_boot,
     # Moyennes et effectifs par groupe des nuages residus_acc et residus_cal
@@ -13170,35 +13232,17 @@ run_engine <- function(xt, yt,
     # jack_non_evaluables (#224) : annees dont le reajustement est refuse par
     # usp_valider_ajustement() ou en echec (sigma_USP non fini), ecartees du
     # maximum ; entiers, eventuellement vide. Seuls ces numeros sont imprimes.
-    # jack_annees (#327) : annees evaluables dont l'ecart relatif
-    # D_t = |sigma_USP^(-t) - sigma_USP| / sigma_USP est a moins de tau du
-    # maximum D(1) ; jack_usp_annees : leurs ecarts signes relatifs (seul le
-    # signe est imprime). tau = 2 REP_SIGMA_KKT (2 + D(1) + D(2)), D(2) second
-    # plus grand D_t evaluable. Fondement (propagation au premier ordre) :
-    # sigma_USP est lineaire en sigma, avec un coefficient <= sigma_USP / sigma ;
-    # une erreur relative eps <= REP_SIGMA_KKT sur chaque sigma (ancre M9,
-    # reajustement qui satisfait KKT) donne |dD_t| <= (1 + D_t) (eps_t + eps_0),
-    # donc la difference de deux D_t est connue a 2 REP_SIGMA_KKT (2 + D(1) +
-    # D(2)) pres. Deux annees dont l'ecart ne depasse pas tau sont d'influence
-    # egale a la precision numerique pres : which.max les departagerait au gre
-    # du bruit de l'optimiseur, qui varie d'une plateforme a l'autre (jeu de
-    # #224, ecarts egaux a 3e-10 pres). Une seule annee evaluable : designation
-    # directe, sans tau. Limite [H] : la precision n'est certifiee que pour un
-    # reajustement qui satisfait KKT ; un reajustement accepte sans KKT (gamma
-    # interieur) n'a pas de precision garantie, tau y est une convention. Aucune
-    # constante nouvelle. jack_annee (argmax) reste l'annee designee quand
-    # jack_annees n'en compte qu'une ; usp_tests() ne le lit pas sinon.
+    # jack_annees (#327) : annees evaluables d'influence maximale a la
+    # tolerance tau pres, calculees par usp_jack_annees() (definition de tau
+    # et fondement en tete de cette fonction) ; jack_usp_annees : leurs ecarts
+    # signes relatifs (seul le signe est imprime). jack_annee (argmax) reste
+    # l'annee designee quand jack_annees n'en compte qu'une ; usp_tests() ne
+    # le lit pas sinon.
+    # Calcul de jack_annees : usp_jack_annees(), lue aussi par
+    # engine_influence() pour la colonne plus_influente de
+    # res$plots_data$influence (#396) ; NULL si aucun reajustement n'a abouti.
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
-    jack_annees <- NULL
-    if (jack_calcule) {
-      d_rel <- abs(d_jack) / param$sigma_usp
-      ev <- which(is.finite(d_rel))
-      jack_annees <- if (length(ev) == 1L) ev else {
-        d12 <- sort(d_rel[ev], decreasing = TRUE)[1:2]
-        tau <- 2 * REP_SIGMA_KKT * (2 + d12[1] + d12[2])
-        ev[d_rel[ev] >= d12[1] - tau]
-      }
-    }
+    jack_annees <- usp_jack_annees(jack$sigma_usp, param$sigma_usp)
     robustesse <- list(
       jack_annee = i_jack,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
