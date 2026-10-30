@@ -1163,12 +1163,12 @@ tableaux <- function(cpt, stats, lignes) {
                "colonne : k\u0302 = 2, mesure P(k\u0302 = 2), sans niveau nominal."), "",
          "### T2 (suite) -- composition des lignes : types, nature de la p retenue, verdicts", "",
          entete_md(c("Ligne", "n", "test", "diagnostic", "dont inop\u00e9rant (R1)", "non applicable",
-                     "proc\u00e9dure de d\u00e9cision", "p exacte", "p Monte-Carlo", "p asymptotique", "autre p",
+                     "p exacte", "p Monte-Carlo", "p asymptotique", "autre p",
                      "aucune p", "OK", "ALERTE", "ECHEC", "INFO")))
   ligne_t2s <- function(lib, pre) {
     k <- function(suf) sprintf("%.0f", g(sprintf("%s|%s", pre, suf)))
     ligne_md(lib, k("n"), k("t|test"), k("t|diagnostic"), k("inop"), k("t|non applicable"),
-             k("t|procedure de decision"), k("nat|exacte"), k("nat|mc"), k("nat|asympt"), k("nat|autre"),
+             k("nat|exacte"), k("nat|mc"), k("nat|asympt"), k("nat|autre"),
              k("nat|aucune"), k("v|OK"), k("v|ALERTE"), k("v|ECHEC"), k("v|INFO"))
   }
   for (li in lignes) L <- c(L, ligne_t2s(li, sprintf("l|%s", nettoyer_cle(li))))
