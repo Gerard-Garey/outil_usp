@@ -9134,14 +9134,64 @@ mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) 
   M4 = "Cellules aberrantes multiples (ESD generalise)",
   M5 = c("Shapiro-Wilk sur les residus de Mack",
          "Lilliefors sur les residus de Mack"))
-.MW_LIGNES_RESIDUS_TEXTE <- paste(vapply(names(.MW_LIGNES_RESIDUS), function(fm)
-  sprintf("%s (%s)", fm, paste0("\"", .MW_LIGNES_RESIDUS[[fm]], "\"", collapse = " ; ")),
+# Texte d'une liste de lignes par famille : "M1 ("a" ; "b"), M3 ("c")".
+.mw_texte_lignes <- function(lignes) paste(vapply(names(lignes), function(fm)
+  sprintf("%s (%s)", fm, paste0("\"", lignes[[fm]], "\"", collapse = " ; ")),
   character(1)), collapse = ", ")
+.MW_LIGNES_RESIDUS_TEXTE <- .mw_texte_lignes(.MW_LIGNES_RESIDUS)
 # Nom de la ligne M4 "cellule aberrante" (#300), calculee sur mw_influence()
 # et non sur mw_residus() : constante unique lue par add() dans mw_tests() et
-# par l'avertissement des colonnes degenerees de mw_valider_ajustement(),
-# qui la nomme comme ligne qui ecarte aussi ces colonnes (#352).
+# par la constante .MW_LIGNES_COLONNES_ECARTEES ci-dessous, que lit
+# l'avertissement des colonnes degenerees de mw_valider_ajustement() (#352,
+# #363).
 .MW_LIGNE_CELLULE_ABERRANTE <- "Cellule aberrante du triangle (residus studentises externes)"
+# Lignes de mw_tests() qui ecartent les colonnes degenerees (#363, decision
+# Q-44-3 (a) du 30/10/2026) : constante unique, lue par l'avertissement des
+# colonnes degenerees de mw_valider_ajustement(). Une ligne y figure si elle
+# recoit l'ensemble fige jd (figes$degeneres), directement ou par
+# mw_residus(aj, jd) ; les lignes fondees sur les residus de Mack
+# (.MW_LIGNES_RESIDUS) y figurent donc, et l'avertissement ne nomme a part que
+# les autres. La famille alpha (mw_famille_alpha()), l'extrapolation de sigma et
+# la part de la derniere annee ne recoivent pas jd et n'y figurent pas : la
+# famille alpha garde ces colonnes (amplitude nulle). Par famille, dans l'ordre
+# de mw_tests(). Les lignes de lecture conjointe (p de famille, p globale,
+# engine_p_famille()) sont hors du critere : elles combinent des membres, dont
+# Alpha qui garde ces colonnes, et ne recoivent pas jd. A tenir a jour si
+# mw_tests() change : test_merz_wuthrich.R mesure les lignes qui lisent jd par
+# substitution de figes$degeneres et exige l'egalite de la constante avec
+# l'ensemble mesure complete de .MW_LIGNES_RESIDUS (Rosner n'est pas mesure par
+# substitution : sa ligne ne restitue que le nombre et les rangs des cellules
+# declarees, aucune sur ce triangle).
+.MW_LIGNES_COLONNES_ECARTEES <- list(
+  M1 = c("Absence de tendance des facteurs avec le cumul, a colonne donnee",
+         "Nullite de l'ordonnee a l'origine, colonne par colonne",
+         "Homogeneite de f_j entre annees de survenance",
+         "Absence de courbure de la regression",
+         "Identifiabilite intra-colonne (dispersion des cumuls par colonne)"),
+  M2 = c("Heteroscedasticite residuelle vs cumul",
+         "Adequation de l'exposant de variance, colonne par colonne",
+         "Variance unitaire des residus de Mack"),
+  M3 = c("Effets d'annee calendaire (test de Mack)",
+         "Effets d'annee calendaire par diagonale (repere de Mack 1997)",
+         "Homogeneite des residus entre annees de survenance",
+         "Correlation entre annees de developpement adjacentes",
+         "Autocorrelation des residus (Durbin-Watson)",
+         "Test des suites sur les residus de Mack"),
+  M4 = c(.MW_LIGNE_CELLULE_ABERRANTE,
+         "Cellules aberrantes multiples (ESD generalise)"),
+  M5 = c("Shapiro-Wilk sur les residus de Mack",
+         "Lilliefors sur les residus de Mack"))
+# Lignes de la constante qui ne reposent pas sur les residus de Mack, par
+# famille (familles vides omises) : celles que l'avertissement nomme apres la
+# liste .MW_LIGNES_RESIDUS_TEXTE.
+.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS <- local({
+  l <- lapply(names(.MW_LIGNES_COLONNES_ECARTEES), function(fm)
+    setdiff(.MW_LIGNES_COLONNES_ECARTEES[[fm]], .MW_LIGNES_RESIDUS[[fm]]))
+  names(l) <- names(.MW_LIGNES_COLONNES_ECARTEES)
+  l[lengths(l) > 0L]
+})
+.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS_TEXTE <-
+  .mw_texte_lignes(.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS)
 
 mw_valider_ajustement <- function(aj, msep) {
   err <- character(0)
@@ -9292,9 +9342,9 @@ mw_valider_ajustement <- function(aj, msep) {
       "(residus d'arrondi ou ecarts relatifs de l'ordre de 1e-12) : ",
       "ces %d facteurs individuels sont exclus des residus de Mack ; %d residu(s) de ",
       "Mack sont retenus pour les lignes fondees sur ces residus, soit %s. ",
-      "La ligne M4 \"%s\", dont la statistique est calculee sur les residus ",
-      "studentises externes de chaque ",
-      "colonne et non sur ces residus, ecarte aussi ces colonnes. ",
+      "Les autres lignes qui ecartent aussi ces colonnes de leur calcul, sans reposer sur ces ",
+      "residus, sont : %s ; la statistique de la ligne M4 \"%s\" est calculee sur les residus ",
+      "studentises externes de chaque colonne, et non sur ces residus. ",
       "Le pool de reechantillonnage du bootstrap ne contient que les residus retenus ; ",
       "il sert aux p-values Monte-Carlo des lignes M1 a M4 et a l'intervalle de confiance ",
       "bootstrap de sigma. ",
@@ -9302,7 +9352,8 @@ mw_valider_ajustement <- function(aj, msep) {
       "acheve, par exemple) ; verifier l'origine des donnees si ce n'est pas le cas."),
       if (nrow(ex_col) > 1) "Colonnes de developpement" else "Colonne de developpement",
       paste(sprintf("j = %d (%d facteurs)", ex_col$j, ex_col$n_facteurs), collapse = ", "),
-      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE, .MW_LIGNE_CELLULE_ABERRANTE))
+      n_ex, nrow(rs), .MW_LIGNES_RESIDUS_TEXTE,
+      .MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS_TEXTE, .MW_LIGNE_CELLULE_ABERRANTE))
   }
   # Avertissement (et non refus) : reserve positive mais negligeable devant
   # son incertitude (issue #33, decision du mainteneur du 24/09/2026). D(4)

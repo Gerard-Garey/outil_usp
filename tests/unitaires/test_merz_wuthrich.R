@@ -539,6 +539,42 @@ verifier("Lignes citees comme fondees sur les residus = lignes qui consomment mw
            if (identical(mw_residus, orig) && setequal(mesure, cite) && length(cite) == 10) TRUE
            else paste("mesure :", paste(mesure, collapse = " ; "))
          })
+# Coherence de la constante .MW_LIGNES_COLONNES_ECARTEES (#363, decision
+# Q-44-3 (a)) avec mw_tests() : elle nomme exactement les lignes qui recoivent
+# l'ensemble fige jd (figes$degeneres), directement ou par mw_residus(). Mesure
+# par substitution de figes$degeneres (boot fixe, triangle de non-regression,
+# deux ensembles, 2 et 0:3 : chacun des cinq essayes a la mise au point donne a
+# lui seul les memes 17 lignes) : les lignes dont le contenu change lisent jd. Les lignes
+# fondees sur les residus (.MW_LIGNES_RESIDUS, mesurees plus haut par
+# perturbation de mw_residus()) en font partie par construction, mais l'une
+# d'elles, Rosner, n'imprime que son nombre de cellules declarees (0 ici) et
+# ne change pas sous cette substitution : l'ensemble mesure est donc complete
+# par .MW_LIGNES_RESIDUS. La constante porte aussi la famille de chaque ligne.
+verifier("Lignes citees comme ecartant les colonnes degenerees = lignes de mw_tests() qui recoivent jd (mesure, #363)",
+         {
+           d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+           m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
+           a <- mw_ajuster(unname(m)); boot <- mw_bootstrap(a, B = 19)
+           f0 <- .mw_ensembles_figes(a)
+           L0 <- mw_tests(a, boot, figes = f0)
+           noms <- vapply(L0, `[[`, "", "test")
+           mesure <- unique(unlist(lapply(list(2L, 0:3), function(jx) {
+             f1 <- f0; f1$degeneres <- jx
+             L1 <- mw_tests(a, boot, figes = f1)
+             noms[!vapply(seq_along(L0), function(k) identical(L0[[k]], L1[[k]]), NA)]
+           })))
+           cite <- unlist(.MW_LIGNES_COLONNES_ECARTEES, use.names = FALSE)
+           fam_cite <- rep(names(.MW_LIGNES_COLONNES_ECARTEES), lengths(.MW_LIGNES_COLONNES_ECARTEES))
+           fam_ligne <- substr(vapply(L0, `[[`, "", "famille"), 1, 2)[match(cite, noms)]
+           residus <- unlist(.MW_LIGNES_RESIDUS, use.names = FALSE)
+           if (setequal(c(mesure, residus), cite) && !anyDuplicated(cite) &&
+               all(cite %in% noms) && identical(unname(fam_ligne), fam_cite) &&
+               all(residus %in% cite) && length(mesure) == 17 && length(cite) == 18) TRUE
+           else paste("mesure :", paste(mesure, collapse = " ; "),
+                      "| citees hors mesure et hors residus :",
+                      paste(setdiff(cite, c(mesure, residus)), collapse = " ; "),
+                      "| mesurees non citees :", paste(setdiff(mesure, cite), collapse = " ; "))
+         })
 # Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
 # deux colonnes n'est degeneree, et le detail M6 (sensibilite de #310
 # comprise) est celui de la reference versionnee au caractere pres.
@@ -3412,16 +3448,29 @@ verifier("M4 (#352) : frontiere numerique, eps = 1e-6 -> statistique definie (fi
            is.finite(ca$stat) && ca$stat > 0 && nrow(ca$non_borne) == 0 &&
              length(t20) == 1 && abs(t20) > 1e5
          })
-verifier("Avertissement des colonnes degenerees (#352) : la ligne M4 cellule aberrante est nommee (texte T-2), juste apres la liste des lignes fondees sur les residus et avant la phrase du pool (triangle td, colonne j = 0 degeneree)",
+# Texte de l'avertissement (#363, decision Q-44-3 (a)), a la lettre, ecrit ici
+# sans relire la constante du moteur : les lignes qui ecartent aussi les
+# colonnes degenerees sans reposer sur les residus (cellule aberrante de #352
+# comprise), apres la liste des lignes fondees sur les residus et avant la
+# phrase du pool. Triangle td : colonne j = 0 degeneree.
+verifier("Avertissement des colonnes degenerees (#363) : les lignes qui ecartent aussi ces colonnes sans reposer sur les residus sont nommees a la lettre, apres la liste des lignes fondees sur les residus et avant la phrase du pool (triangle td, colonne j = 0 degeneree)",
          {
            td <- tri_nb300; td[1:5, 2] <- td[1:5, 1] * 1.5
            av <- av_exclues(run_mw(td)$validation$avertissements)
            length(av) == 1 &&
              grepl(paste0("fondees sur ces residus, soit ", .MW_LIGNES_RESIDUS_TEXTE, ". ",
-                          "La ligne M4 \"Cellule aberrante du triangle (residus studentises externes)\", ",
-                          "dont la statistique est calculee sur les residus studentises externes de chaque ",
-                          "colonne et non sur ces ",
-                          "residus, ecarte aussi ces colonnes. ",
+                          "Les autres lignes qui ecartent aussi ces colonnes de leur calcul, sans reposer sur ces ",
+                          "residus, sont : ",
+                          "M1 (\"Nullite de l'ordonnee a l'origine, colonne par colonne\" ; ",
+                          "\"Homogeneite de f_j entre annees de survenance\" ; ",
+                          "\"Absence de courbure de la regression\" ; ",
+                          "\"Identifiabilite intra-colonne (dispersion des cumuls par colonne)\"), ",
+                          "M3 (\"Effets d'annee calendaire (test de Mack)\" ; ",
+                          "\"Effets d'annee calendaire par diagonale (repere de Mack 1997)\" ; ",
+                          "\"Correlation entre annees de developpement adjacentes\"), ",
+                          "M4 (\"Cellule aberrante du triangle (residus studentises externes)\") ; ",
+                          "la statistique de la ligne M4 \"Cellule aberrante du triangle (residus studentises externes)\" ",
+                          "est calculee sur les residus studentises externes de chaque colonne, et non sur ces residus. ",
                           "Le pool de reechantillonnage du bootstrap"), av, fixed = TRUE)
          })
 # reserve2 a B = 999, graine par defaut (cas reserve2 de tests/outils_tests.R) :
