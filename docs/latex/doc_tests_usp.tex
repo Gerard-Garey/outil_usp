@@ -4844,7 +4844,7 @@ Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucu
 bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. La revue de
 pertinence du 15~octobre 2026 (issue~\#317) le rapproche des résidus «~modifiés~» par le levier
 du bootstrap de résidus en régression linéaire de A.\,C. Davison et D.\,V. Hinkley (1997,
-chap.~6, section~\ref{sec:biblio})~; ce rapprochement repose sur des sources secondaires et n'a
+chap.~6, section~\ref{sec:biblio})~; ce rapprochement n'a
 pas été vérifié dans l'ouvrage, faute d'accès à son texte~: aucune page ni aucune équation n'en
 est citée, et le redressement reste une interprétation de l'outil. Les résidus
 redressés ont, à $\sigma_j$ connu, la variance unitaire du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
@@ -8584,9 +8584,9 @@ Loi nulle propre pour Shapiro--Wilk~; lecture comme diagnostic seulement \\
 
 % Fondement réglementaire et de supervision de la batterie de tests (issue #334).
 \noindent
-\textbf{Fondement de la batterie de tests.} Les fiches de la présente partie vérifient les
+\textbf{Fondement de la batterie de tests.} Les fiches de la présente partie éprouvent les
 hypothèses de l'annexe~XVII du règlement délégué (UE)~2015/35, rappelées en tête de chaque
-section. Le règlement d'exécution (UE)~2015/498 (\emph{Journal officiel}, L~79 du 25.3.2015,
+section~; un test qui ne rejette pas ne les établit pas (rappel final de la synthèse). Le règlement d'exécution (UE)~2015/498 (\emph{Journal officiel}, L~79 du 25.3.2015,
 p.~8), qui fixe la procédure d'approbation des paramètres propres à l'entreprise, en donne le
 fondement. Son article~2, «~Exactitude des résultats~», demande à l'entreprise d'évaluer si la
 méthode standardisée est appropriée pour les données, si ses hypothèses se vérifient, et si les
@@ -15455,11 +15455,14 @@ au même titre que H1 à H4 pour la méthode lognormale~:
 \begin{tabular}{@{}p{1.5cm}p{6.6cm}p{6.7cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Code}} &
-\textcolor{financeblue}{\textbf{Énoncé (annexe XVII, D(2)(h))}} &
+\textcolor{financeblue}{\textbf{Énoncé (annexe XVII, D(2)(h)) et formalisation retenue}} &
 \textcolor{financeblue}{\textbf{Correspondance lognormale}} \\
-M1 & (iii) $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$ &
+M1 & (iii) espérance du cumulé proportionnelle au cumulé précédent~; formalisée
+$\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$, $f_j$ commun aux années de survenance
+(interprétation de l'outil, D(4)(c)) &
 H1 --- même forme de proportionnalité sans constante \\
-M2 & (iv) $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ &
+M2 & (iv) variance du cumulé proportionnelle au cumulé précédent~; formalisée
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ &
 H2 --- mais puissance 1 imposée, sans mélange $\delta$ à estimer \\
 M3 & (i) et (ii) indépendance entre années de survenance et entre montants
 incrémentaux & H4 --- indépendance \\
@@ -15467,6 +15470,10 @@ M5 & \emph{aucune} & H3 --- \textbf{sans équivalent}~: la lognormalité n'est
 pas requise \\
 \end{tabular}
 \end{center}
+
+La colonne centrale donne la teneur de chaque point de D(2)(h), puis la formalisation retenue
+par l'outil, celle de T.~Mack (1993)~; le texte cité mot pour mot figure en tête des
+sections~\ref{sec:mwm1} et~\ref{sec:mwm2}.
 
 Le support des tests est le résidu standardisé de Mack
 \[
@@ -15589,11 +15596,18 @@ Les douze tests d'hypothèse reposent tous sur le bootstrap de résidus~; les de
 n'y passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson
 (fiche~\ref{mw:m5li}), l'une et l'autre sous le modèle auxiliaire i.i.d. normal. Les six entrées en gras ci-dessus sont celles qui
-vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}~: D(2)(h)(iii) énonce
-la proportionnalité pour le passage «~d'une année de développement~» à la suivante, et D(4)(c)
-estime un facteur unique $\hat f_j$ par année de développement~; le quantificateur «~pour toutes
-les années d'accident~», qui figure aussi aux points (ii) et (iv), porte, lui, sur les lignes du
-triangle. La régression agrégée initiale, conservée en tête, ne le permettait pas.
+complètent la régression agrégée initiale. Cinq vérifient les hypothèses de chaîne d'échelle
+\emph{colonne par colonne}, par une statistique par colonne puis une combinaison des colonnes
+(Fisher, ou moyenne pondérée pour la famille~$\alpha$)~: l'ordonnée à l'origine, l'homogénéité de
+$f_j$, l'absence de courbure et la famille~$\alpha$ (M1), l'exposant de variance (M2)~;
+D(2)(h)(iii) et~(iv) énoncent la proportionnalité de l'espérance et de la variance pour le passage
+«~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$ par
+année de développement. La sixième, l'homogénéité des résidus entre années de survenance (M3,
+fiche~\ref{mw:m3acc}), compare les lignes du triangle, ses résidus étant groupés par année de
+survenance toutes colonnes confondues~; le quantificateur «~pour toutes les années d'accident~»,
+qui figure aussi aux points (ii) et (iv), porte, lui, sur ces lignes. La tendance avec le cumulé,
+conservée en tête, estime une pente commune à toutes les colonnes (fiche~\ref{mw:m1}) et ne les
+vérifie pas une à une.
 
 \clearpage
 % =============================================================================
@@ -15605,9 +15619,10 @@ triangle. La régression agrégée initiale, conservée en tête, ne le permetta
 \textbf{Énoncé.} annexe~XVII, D(2)(h)(iii)~: «~pour toutes les années d'accident, la valeur
 attendue du montant de sinistres cumulé d'une année de développement est proportionnelle au
 montant de sinistres cumulé de l'année de développement précédente~». \textbf{Formalisation
-retenue par l'outil}, celle de T.~Mack (1993, hypothèse~(1), p.~214)~: $\mathbb{E}[C(i,j+1)\mid
-C(i,j)] = f_j\,C(i,j)$, avec un facteur $f_j$ commun à toutes les années de survenance~; cette
-communauté est une interprétation de l'outil, appuyée sur D(4)(c), qui estime un facteur unique
+retenue par l'outil}~: $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$, avec un facteur $f_j$
+commun à toutes les années de survenance, conséquence de l'hypothèse~(1) de T.~Mack (1993,
+p.~214), qui conditionne sur tout le passé $C(i,0),\dots,C(i,j)$ de l'année, et hypothèse du
+modèle de Merz et Wüthrich (2008, hypothèses~2.1, p.~547)~; cette communauté est une interprétation de l'outil, appuyée sur D(4)(c), qui estime un facteur unique
 $\hat f_j$ par année de développement, et non la lettre de D(2)(h)(iii).
 \end{encadre}
 
@@ -16141,10 +16156,12 @@ r^2$ sans dimension pour la ligne d'hétéroscédasticité, $r^2$ pour l'ancienn
 Breusch--Pagan).
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
-fournir. Il porte sur ce que D(2)(h)(iii) énonce littéralement~: une proportionnalité, donc
-\emph{sans constante}, pour \emph{chaque} année de développement. Le graphique des petits multiples (section~\ref{sec:graph-mw})
+fournir. Il porte sur l'absence de constante, que D(2)(h)(iii) énonce littéralement (une
+proportionnalité), éprouvée pour chaque année de développement dans une régression de la
+colonne à pente commune à ses années de survenance, donc sous l'interprétation du facteur
+commun (fiche~\ref{mw:m1b}, rubrique~6). Le graphique des petits multiples (section~\ref{sec:graph-mw})
 en donne la contrepartie visuelle~: la droite pleine est la proportionnalité
-imposée par le règlement, la droite pointillée l'ajustement libre~; l'écart
+à facteur commun $\hat f_j$, la droite pointillée l'ajustement libre~; l'écart
 entre les deux \emph{est} le test.
 
 \medskip
@@ -16278,11 +16295,26 @@ Ce test porte sur la communauté de $f_j$ entre années de survenance, interpré
 appuyée sur D(4)(c), qui estime un facteur unique $\hat f_j$ par année de développement~; ce
 n'est pas une seconde exigence de D(2)(h)(iii), dont le quantificateur «~pour toutes les années
 d'accident~», qui figure aussi aux points (ii) et (iv), ne crée pas d'exigence propre au
-point~(iii). Même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
-d'une année de survenance à l'autre invaliderait le modèle. En pratique, une
-telle dérive traduit un changement de politique de règlement ou de mix de
-portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
-porte sur le niveau et non sur la pente.
+point~(iii). Un facteur qui dériverait d'une année de survenance à l'autre resterait compatible
+avec la lettre de D(2)(h)(iii), chaque année restant proportionnelle à son cumulé précédent, mais
+contredirait la formalisation retenue par l'outil (encadré de la section~\ref{sec:mwm1}), qui est
+aussi celle du modèle sous lequel M.~Merz et M.\,V. Wüthrich (2008, \emph{op.\ cit.},
+hypothèses~2.1, p.~547) établissent l'erreur de prédiction à un an de D(5)~: des facteurs $f_j$
+indépendants de l'année de survenance. Conditionnellement aux cumulés de la colonne, $\hat f_j$
+de D(4)(c) aurait alors pour espérance la moyenne des facteurs $f_{ij}$ des années observées~$i$
+pondérée par leurs cumulés, et non le facteur des années les plus récentes, qui restent à développer~;
+$\hat\sigma_j^2$ serait augmenté, en espérance, de $\sum_i C(i,j)\,(f_{ij}-\bar f_j)^2/(n_j-1)$,
+$\bar f_j$ désignant cette moyenne pondérée~; la MSEP de D(5), établie sous un facteur commun, ne
+rendrait pas compte du biais de projection qui en résulterait (calcul élémentaire). G.\,G. Venter
+(1998, \emph{op.\ cit.}, implication~4, p.~830) le formule en termes d'optimalité~: quand le
+développement est instable, les hypothèses d'optimalité de la chaîne d'échelle ne sont plus
+satisfaites. En pratique, une telle dérive peut traduire, par exemple, un changement de
+politique de règlement ou de mix de portefeuille (exemples, non établis sur les données). Le
+test d'ordonnée à l'origine, qui porte sur le niveau et non sur la pente, ne la vise pas, mais il
+y réagit quand le volume est colinéaire à l'année de survenance~: contre la dérive de
+l'issue~\#309, il rejette dans $0{,}196$ et $0{,}182$ des cas au seuil $0{,}10$ sous P1 et P2, et
+dans $0{,}090$ sous P3, au niveau de la ligne (fiche~\ref{mw:m1a}, rubrique~7)~; cette
+non-spécificité est le pendant de celle de la présente ligne (rubrique~7).
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
