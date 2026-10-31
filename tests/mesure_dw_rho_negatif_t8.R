@@ -28,9 +28,11 @@
 #  N(0,1) sous H0, AR(1) STATIONNAIRE, Sigma = (rho^|i-j|), sous l'alternative ;
 #  SANS reajustement ; statistique calculee sur la serie centree (stat_dw()).
 #  Statut : approximation numerique d'Imhof (quadrature, uniroot()) d'une
-#  quantite EXACTE dans ce cadre, sous z i.i.d., hors modele reglementaire
-#  (l'annexe XVII suppose des annees independantes ; l'AR(1) est une
-#  alternative choisie). La grille d'Imhof est DETERMINISTE (aucun tirage). Le
+#  quantite EXACTE dans ce cadre : loi de DW sous H0 pour z i.i.d. N(0,1),
+#  puissance sous un AR(1) stationnaire, alternative hors modele
+#  reglementaire (l'annexe XVII suppose des annees independantes ; l'AR(1)
+#  est une alternative choisie) ; z n'est pas le vecteur de residus
+#  reajustes du moteur. La grille d'Imhof est DETERMINISTE (aucun tirage). Le
 #  recoupement par simulation (section 2) tire sous engine_sous_graine() avec
 #  la graine explicite SEED_SIM, consignee en T0 avec le generateur : le script
 #  n'est donc plus "sans graine" (avis d'actuary du 31/10/2026, reponse a la
@@ -54,12 +56,12 @@
 #       1 + rho), coefficient de la loi en (1 - |rho|)^(1/2) que le commentaire
 #       de dw_puissance_ar1() releve pour rho < 0 ; mesure du 31/10/2026 :
 #       1,2188 (alpha = 0,10) et 1,8153 (alpha = 0,05) a 1 - |rho| = 1e-6.
-#    2. Controles (code de sortie 1 si l'un echoue ; ecarts toujours
-#       rapportes) :
+#    Controles (section "Controles" de la sortie, sans numero ; code de
+#       sortie 1 si l'un echoue ; ecarts toujours rapportes) :
 #       D1  determinisme : un second appel de dw_puissance_ar1(8, -0,99, 0,10)
 #           rend la valeur de la grille a l'identique (tolerance 0) ;
 #       N   niveau : puissance a rho = 0 egale a alpha, a 1e-8 (tolerance de
-#           tests/unitaires/test_lois_exactes.R, "rho = 0 rend alpha", l. 527 ;
+#           tests/unitaires/test_lois_exactes.R, assertion "rho = 0 rend alpha" ;
 #           ecart mesure le 31/10/2026 : 2,2e-14 a alpha = 0,10 et 7,7e-14 a
 #           alpha = 0,05) ;
 #       M   monotonie : nombre de paires voisines de la grille (|rho|
@@ -80,8 +82,8 @@
 #           a alpha = 0,10 et 4,1e-4 a alpha = 0,05 mesures le 31/10/2026).
 #       Chaque controle L recalcule son point par un appel de
 #       dw_puissance_ar1() propre, que la grille le contienne ou non.
-#    3. RECOUPEMENT PAR SIMULATION, independant d'Imhof pour l'alternative, a
-#       rho = -0,9 et -0,99 (alpha = 0,10 et 0,05), plus rho = 0 (niveau, qui
+#    2. RECOUPEMENT PAR SIMULATION (section 2 de la sortie), independant
+#       d'Imhof pour l'alternative, a rho = -0,9 et -0,99 (alpha = 0,10 et 0,05), plus rho = 0 (niveau, qui
 #       controle les points critiques). N_SIM = 4e5 series AR(1) stationnaires
 #       a T = 8 (z_1 = e_1, z_t = rho z_{t-1} + sqrt(1 - rho^2) e_t, memes
 #       innovations e pour tous les rho), tirees dans un seul flux
@@ -236,7 +238,8 @@ ALPHAS <- if (OPT_ESSAI) 0.10 else ALPHAS_COMPLET
 N_APPELS_LIENS <- 3L   # rho = -0,5 ; -0,3 ; -0,6 (alpha = 0,10), controles L
 N_APPELS_DETERM <- 1L  # second appel du controle D1
 SEED_SIM <- 20261031   # graine du recoupement simule (section 2), engine_sous_graine()
-RHOS_SIM <- if (OPT_ESSAI) -0.99 else c(0, -0.9, -0.99)
+RHOS_SIM_COMPLET <- c(0, -0.9, -0.99)
+RHOS_SIM <- if (OPT_ESSAI) -0.99 else RHOS_SIM_COMPLET
 ALPHAS_SIM <- if (OPT_ESSAI) 0.10 else ALPHAS_COMPLET
 N_SIM_COMPLET <- 400000L
 N_SIM <- if (OPT_ESSAI) 20000L else N_SIM_COMPLET
@@ -271,7 +274,7 @@ for (j in seq_along(ALPHAS)) {
 duree_grille <- as.numeric(difftime(Sys.time(), t_grille, units = "secs"))
 
 ###############################################################################
-# 2. Controles
+# Controles (section "Controles" de la sortie)
 ###############################################################################
 # D1 : determinisme (second appel, meme valeur a l'identique).
 t_d <- Sys.time()
@@ -312,7 +315,7 @@ ctrl("L-0,6", "dw_puissance_ar1(8, -0,6, 0,10) contre 0,355 (mesure_lb1_dw_t8.R,
 duree_controles <- as.numeric(difftime(Sys.time(), t_d, units = "secs"))
 
 ###############################################################################
-# 2bis. Recoupement par simulation (independant d'Imhof pour l'alternative)
+# 2. Recoupement par simulation (independant d'Imhof pour l'alternative)
 ###############################################################################
 # Statistique DW et AR(1) stationnaire sur les lignes d'une matrice (copies
 # declarees de stat_dw_mat() et ar1_mat() de tests/mesure_lb1_dw_t8.R).
@@ -370,7 +373,7 @@ duree_sim <- as.numeric(difftime(Sys.time(), t_sim, units = "secs"))
 INTEGRITE <- all(CTRL$ok)
 
 ###############################################################################
-# 3. Sortie
+# Sortie
 ###############################################################################
 sortie <- character(0)
 ajouter <- function(...) sortie <<- c(sortie, ...)
@@ -387,7 +390,7 @@ ajouter("## Puissance du test de Durbin-Watson \u00e0 T = 8 contre un AR(1) \u00
                                 " = 0,10) ; l'ex\u00e9cution compl\u00e8te porte sur ", length(RHOS_COMPLET), " valeurs de \u03c1 et 2 seuils. Recoupement par simulation r\u00e9duit \u00e0 \u03c1 = \u22120,99, ", ALPHA,
                                 " = 0,10, N = ", format(N_SIM, scientific = FALSE), " (ex\u00e9cution compl\u00e8te : \u03c1 \u2208 {0 ; \u22120,9 ; \u22120,99}, 2 seuils, N = ",
                                 format(N_SIM_COMPLET, scientific = FALSE), ")."), ""),
-        paste0("Statut : approximation num\u00e9rique d'Imhof d'une quantit\u00e9 exacte, recoup\u00e9e par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 \u2264 \u22120,999 non recoup\u00e9s ; sous z i.i.d., hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie). La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
+        paste0("Statut : approximation num\u00e9rique d'Imhof d'une quantit\u00e9 exacte, recoup\u00e9e par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 \u2264 \u22120,999 non recoup\u00e9s ; loi de DW sous H0 pour z i.i.d. N(0,1), puissance sous un AR(1) stationnaire, alternative hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie) ; z n'est pas le vecteur de r\u00e9sidus r\u00e9ajust\u00e9s du moteur. La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
         "Cadre : T = 8 ; z gaussien centr\u00e9, i.i.d. N(0,1) sous H0, AR(1) stationnaire de matrice de covariance (\u03c1^|i\u2212j|) sous l'alternative ; sans r\u00e9ajustement ; statistique calcul\u00e9e sur la s\u00e9rie centr\u00e9e. Test bilat\u00e9ral exact de `dw_p_exacte()` (p = 2 min(P0(DW \u2264 d), P0(DW \u2265 d)), rejet si p < \u03b1), puissance par `dw_puissance_ar1(8, \u03c1, \u03b1)`. Variante \u00e0 d\u00e9part nul : non calcul\u00e9e (`dw_puissance_ar1()` ne porte que l'AR(1) stationnaire).", "",
         "### 1. Puissance de DW par \u03c1", "",
         entete_md(c(RHO, "1 \u2212 \\|\u03c1\\|", cols_a)),
@@ -433,7 +436,7 @@ duree_appel <- (duree_grille + duree_controles) / n_appels
 n_complet <- length(RHOS_COMPLET) * length(ALPHAS_COMPLET) + N_APPELS_DETERM + N_APPELS_LIENS
 # Recoupement : tirage et statistiques proportionnels a N_SIM x nombre de rho ;
 # points critiques et controle S1 comptes par seuil.
-duree_sim_var <- duree_tirage * (N_SIM_COMPLET * 3) / (N_SIM * length(RHOS_SIM))
+duree_sim_var <- duree_tirage * (N_SIM_COMPLET * length(RHOS_SIM_COMPLET)) / (N_SIM * length(RHOS_SIM))
 duree_sim_pc <- duree_pc / length(ALPHAS_SIM) * length(ALPHAS_COMPLET)
 duree_estimee <- duree_fixe + n_complet * duree_appel + duree_sim_var + duree_sim_pc
 LIB_DUREE <- "Dur\u00e9e estim\u00e9e d'une ex\u00e9cution compl\u00e8te (--essai)"
