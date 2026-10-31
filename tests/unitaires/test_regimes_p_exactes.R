@@ -581,9 +581,12 @@ verifier("#302 : KS contre N(0,1) et Cramer-von Mises en diagnostic par decision
 # "Voir le test de Lilliefors ci-dessus." est retire du detail propre de KS.
 verifier("#302 : KS a pi_t constant, detail propre (sans renvoi a Lilliefors) suivi de la phrase fixe ; CvM, phrase fixe seule",
          identical(ligne(tt, NOM_DIAG_302[["KS"]])$detail,
-                   paste("Les residus sont standardises par le MODELE, non par la moyenne",
-                         "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
-                         "conservatrice (simulation : 0 rejet sur 3 000 a 5 %).",
+                   paste("Les residus sont standardises par le MODELE, dont les parametres",
+                         "sont estimes, et non par la moyenne et l'ecart-type empiriques :",
+                         "la loi de Kolmogorov, etablie a parametres connus, rend le test",
+                         "conservateur ; l'ampleur (tres conservateur) n'est constatee que",
+                         "par simulation a T = 8 sur le jeu de controle (issue #114), non",
+                         "pour les donnees saisies.",
                          TXT_DIAG_302[["KS"]])) &&
            identical(ligne(tt, NOM_DIAG_302[["CvM"]])$detail, TXT_DIAG_302[["CvM"]]))
 verifier("#302 : a pi_t variable (f8, J2), phrase H3 sur SW, SF, AD, Lilliefors, JB, D'Agostino (tests, p Monte-Carlo retenue) et avant la phrase fixe de KS et CvM",
