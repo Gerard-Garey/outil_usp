@@ -10034,7 +10034,7 @@ d'autres données à $\hat\pi_t$ variable, la ligne devenant alors un test~: fr�
 $2\,000$ réplications par jeu~; intervalles de Clopper--Pearson à 95~\%). Sous V1, la ligne devient
 un test dans 2 jeux simulés sur $2\,000$ sur J1, 3 sur J2 et 4 sur J3 ($[0{,}00012~;~0{,}0036]$,
 $[0{,}00031~;~0{,}0044]$ et $[0{,}00055~;~0{,}0051]$), toujours avec le verdict \code{OK}
-(p-value de Monte-Carlo de $0{,}578$ à $1$). Sous V3h, p-value retenue du moteur courant depuis
+(p-value de Monte-Carlo de $0{,}578$ à $1$). Sous V3h, p-value retenue du moteur depuis
 l'issue~\#240 (V3b à $\hat\delta^*$ intérieur, V1 au bord), elle devient un test dans 63 jeux sur
 $2\,000$ sur J1 ($[0{,}024~;~0{,}040]$), 3 sur J2 et 7 sur J3 ($[0{,}0014~;~0{,}0072]$), avec le
 verdict \code{OK} sauf dans 4 jeux de J1, tous à $\hat\delta^*$ intérieur, où il est \code{ALERTE}
@@ -19289,7 +19289,8 @@ ligne, les comptes des fichiers de résultats.
 
 \emph{Remesure sur le moteur de la branche Fk (issue~\#297).} La mesure du niveau des p de
 famille et de la p globale de la lecture conjointe (fiches~\ref{fiche:p-famille}
-et~\ref{fiche:p-globale}) rejoue les jeux J1 et J2 sur le moteur courant~: script hors CI
+et~\ref{fiche:p-globale}) rejoue les jeux J1 et J2 sur le moteur du commit \code{7ff4725} (branche Fk, postérieur aux
+issues~\#299, \#302 et~\#303)~: script hors CI
 \code{tests/calibration\_mc\_t8.R}, option \code{--campagne 297}, 16 sorties de 250 réplications
 exécutées et combinées au commit \code{7ff4725}, R~4.3.3 sous Linux, BLAS et LAPACK de référence
 du système (3.12.0), générateur du moteur, $R = 2\,000$ jeux par jeu, $B = 999$, mêmes graines
@@ -19299,8 +19300,8 @@ des p de famille~; sorties \code{docs/tableaux/}\allowbreak\code{20261026-}\allo
 \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-ln-brut.tsv}, journaux
 \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{mesure.md} et
 \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{journal-}\allowbreak\code{combinaison-ln.md}. Le niveau des p de famille
-est à la fiche~\ref{fiche:p-famille}. \emph{Multiplicité sous le moteur courant} (tableau T-F3,
-constat de simulation au commit \code{7ff4725}, qui complète sans les remplacer les fréquences
+est à la fiche~\ref{fiche:p-famille}. \emph{Multiplicité au commit \code{7ff4725}} (tableau T-F3,
+constat de simulation, qui complète sans les remplacer les fréquences
 ci-dessus, datées de la mesure de l'issue~\#221)~: au moins un verdict \code{ALERTE} ou
 \code{ECHEC} parmi toutes les lignes de type test, dans $0{,}7070$ des jeux simulés de J1 et
 $0{,}7785$ de J2~; parmi les seules lignes de type test de sens «~ne pas rejeter~», dans
@@ -20278,7 +20279,7 @@ $1 - 0{,}9^{13} = 0{,}746$ suppose treize décisions indépendantes au niveau $0
 de grandeur, non une référence. La procédure ESD de Rosner (fiche~\ref{mw:m4ros}), procédure de
 décision lors de la mesure et diagnostic sans verdict depuis l'issue~\#300, déclare au
 moins une cellule aberrante dans 0 triangle sur 2\,000 sous N, 5 sur 2\,000 ($0{,}0025$) sous E et 23 sur 1\,000 ($0{,}023$) sous A, au niveau $\alpha = 0{,}10$.
-Ces fréquences sont remesurées sur le moteur courant par la remesure de l'issue~\#297
+Ces fréquences sont remesurées au commit \code{7ff4725} par la remesure de l'issue~\#297
 (ci-dessous), sans les remplacer.
 
 \emph{Voisinage du seuil} (tableau T4). La fréquence sous $H_0$ d'un écart
@@ -20340,7 +20341,7 @@ d'environ $0{,}060$~; atome de $-1{,}2010$ à cheval sur le seuil pour les suite
 $0{,}01755$, queues de $0{,}0077$ et $0{,}02525$). Le script n'applique pas encore cette règle
 corrigée et pose donc mécaniquement le profil~$\Phi_0$, levé par décision du mainteneur du
 26~octobre 2026 (issue~\#378). Profil de la remesure par clé~: $\Pi_1$. \emph{Verdicts sous $H_0$
-et multiplicité} (tableaux T4 et T-F3, moteur courant)~: au moins une \code{ALERTE} ou un
+et multiplicité} (tableaux T4 et T-F3, commit \code{7ff4725})~: au moins une \code{ALERTE} ou un
 \code{ECHEC} sur les lignes de Monte-Carlo à verdict, au nombre de douze --- la ligne des
 suites étant un diagnostic --- dans $0{,}6245$ (N) et $0{,}6400$ (E) des triangles, au moins un \code{ECHEC} dans
 $0{,}3800$ et $0{,}3900$~; ce sont aussi les fréquences sur toutes les lignes à verdict de la
@@ -21822,7 +21823,8 @@ jeux simulés avec la p-value marginale, et dans $38{,}35~\%$ (J1) et $42{,}7~\%
 p-value retenue par le moteur du commit \code{836b55d} (issue~\#274, antérieur aux issues~\#299, \#302 et~\#303),
 conditionnelle au régime à $\hat\delta$ intérieur depuis
 l'issue~\#240 (section~\ref{sec:calibration-mc}, point~(d)~; constat de simulation, sans portée
-générale). Remesuré sur le moteur courant (issue~\#297, commit \code{7ff4725}), au moins un
+générale). Remesuré au commit \code{7ff4725} (issue~\#297, moteur postérieur aux issues~\#299, \#302
+et~\#303), au moins un
 \code{ECHEC} survient dans $36{,}55~\%$ (J1) et $40{,}95~\%$ (J2) des jeux sur l'ensemble des lignes
 de type test, dans $30{,}75~\%$ et $35{,}2~\%$ sur les seules lignes de sens «~ne pas rejeter~», et
 dans $38{,}0~\%$ (N) et $39{,}0~\%$ (E) des triangles simulés de la méthode Merz--Wüthrich
