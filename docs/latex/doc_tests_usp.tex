@@ -4788,7 +4788,8 @@ colonne observée et engendre les suivantes par $C(i,j+1) = \hat f_j\,C(i,j) + e
 ajusté}~: proportionnalité des cumulés (M1), variance proportionnelle au cumulé (M2) et
 indépendance des erreurs (M3) à la fois, avec des erreurs de même loi pour toutes les cellules et
 toutes les colonnes. L'hypothèse nulle de toute p-value de Monte-Carlo de la méthode est ce
-modèle entier, M1~$\wedge$~M2~$\wedge$~M3, et non la seule hypothèse de la famille où la ligne
+modèle entier, M1~$\wedge$~M2~$\wedge$~M3 avec un vivier d'erreurs commun, conditionnellement à la
+première colonne observée et à des cumuls simulés strictement positifs (issue~\#257), et non la seule hypothèse de la famille où la ligne
 est rangée~: chaque ligne teste le modèle complet dans la direction de sa statistique. Un rejet
 dit que le triangle est atypique de ce modèle dans cette direction~; il n'attribue pas l'écart
 à l'hypothèse que la ligne vise.
@@ -6296,8 +6297,8 @@ de l'ordre de la granularité.
   conditionnelles à $\hat\pi_t$ constant s'écartent du niveau nominal (effet de sélection par le
   régime, constat de simulation de la section~\ref{sec:base-residus}, non quantifié au-delà).
   L'utilisateur dont le jeu conduit à $\hat\delta = 1$ lit donc une p-value exacte dont le niveau
-  conditionnel à ce classement n'est pas garanti égal à $\alpha$~; la p-value de Monte-Carlo, qui
-  simule le même modèle ajusté, ne corrige pas cet effet (alinéa suivant). La loi de permutation de
+  conditionnel à ce classement n'est pas garanti égal à $\alpha$~; la p-value de Monte-Carlo, marginale à
+  $\hat\delta$ au bord (variante V3h) et simulée sous le même modèle ajusté, ne corrige pas cet effet (alinéa suivant). La loi de permutation de
   Pitman de la pente est exacte à $T \le 9$ sous sa propre hypothèse nulle
   d'échangeabilité, quel que soit le régime de $\hat\pi_t$, mais non sous le modèle
   réglementaire, que cette hypothèse exclut (second fondement de l'ADR~0002,
@@ -6973,15 +6974,15 @@ $\operatorname{Var}(u^2)=2\sigma^4$ & \textbf{Normalité des erreurs}, en sus
 des précédentes & Non exploitable ; sur-rejet si queues lourdes \\
 
 Ljung--Box (retard~2) & $Q$ & $\chi^2(h)$ & Convergence en loi &
-Non établie ; niveau effectif connu comme dégradé en petit échantillon &
+Non établie dans la littérature consultée &
 Stationnarité, moments d'ordre 2 & Non exploitable ; bootstrap requis \\
 
 Jarque--Bera & $(\sqrt{b_1}, b_2)$ puis JB & $\chi^2(2)$ &
-Convergence en loi & Réputée \emph{très} lente & Moments d'ordre 8 finis
+Convergence en loi & Lente selon Bowman et Shenton (1975, texte non relu), non chiffrée à $T = 8$ & Moments d'ordre 8 finis
 pour la normalité asymptotique de $b_2$ & Non exploitable ; $b_2$ borné
 par $\sim T$ \\
 
-Mann--Kendall & $S$ ($U$-statistique) & $\mathcal{N}(0,1)$ après
+Mann--Kendall & $S$ (statistique de rang~; sous $H_0$, loi d'une $U$-statistique) & $\mathcal{N}(0,1)$ après
 normalisation & Convergence en loi & Berry--Esseen pour $U$-statistiques :
 $\mathcal{O}(T^{-1/2})$, à une constante absolue non explicitée et à un rapport de moments près &
 Variance de la projection non nulle, moment d'ordre 3 &
@@ -7011,7 +7012,7 @@ sur la statistique re-standardisée~; CvM et KS diagnostics par décision depuis
 calculées non retenues \\
 
 sup-F & $\{F(k)\}_k$ & Sup. d'un processus de Bessel &
-Convergence faible & Fonctionnelle : lente, non quantifiée à $T$ petit &
+Convergence faible & Non établie dans la littérature consultée &
 Erreurs i.i.d., écrêtement $\tau$ fixé & Non exploitable ; bootstrap requis \\
 
 OLS-CUSUM & $S(\lfloor uT\rfloor)$ & Pont brownien $B^\circ$ &
@@ -20456,10 +20457,15 @@ soutient dans le présent document.
 
   \item H.~Callaert, P.~Janssen, \emph{The Berry-Esseen theorem for
   $U$-statistics}, \emph{The Annals of Statistics}, 6(2), 1978, p.~417--421.
-  \emph{Portée.} Le $S$ de Mann--Kendall est une $U$-statistique et
-  non une somme de variables indépendantes~: le Berry--Esseen classique ne
-  s'applique pas directement. Cette référence est celle qui couvre exactement le
-  cas rencontré. La référence existante (Mann, 1945) établit la statistique,
+  \emph{Portée.} Le $S$ de Mann--Kendall n'est ni une somme de variables
+  indépendantes, ce qui écarte le Berry--Esseen classique, ni, tel qu'il est écrit, une
+  $U$-statistique d'un échantillon i.i.d. Sous $H_0$ (série i.i.d. continue), il ne dépend que
+  de la permutation des rangs, uniforme, et a la loi de $\binom{T}{2}$ fois le $\tau$ de
+  Kendall d'un échantillon i.i.d. de $T$ couples à composantes indépendantes continues. Celle-ci
+  est une $U$-statistique d'ordre~2, à noyau borné et non dégénérée (variance de la projection
+  $1/9$). C'est par cette représentation, sous $H_0$ seulement, que le théorème s'applique~:
+  vitesse $\mathcal{O}(T^{-1/2})$ à une constante absolue et à un rapport de moments près, sans
+  borne chiffrée à $T = 8$. Texte non relu par le projet. La référence existante (Mann, 1945) établit la statistique,
   pas sa vitesse de convergence.
 
   \item H.~Chernoff, \emph{On the distribution of the likelihood ratio},
