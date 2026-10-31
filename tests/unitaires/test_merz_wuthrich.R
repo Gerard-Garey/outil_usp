@@ -97,8 +97,8 @@ verifier("Homogeneite : C -> lambda C multiplie MSEP par lambda^2 et reserve par
 verifier("MSEP et ses deux termes positifs ou nuls",
          {
            m <- mw_msep(aj)
-           m$terme_variance >= 0 && m$terme_covariance >= 0 &&
-             isTRUE(proche(m$msep, m$terme_variance + m$terme_covariance))
+           m$terme_variance >= 0 && m$terme_estimation >= 0 &&
+             isTRUE(proche(m$msep, m$terme_variance + m$terme_estimation))
          })
 # Scenario du constat sur les reserves negatives (voir test_calibration.R).
 tri_decroissant <- matrix(NA_real_, 5, 5)
@@ -1112,7 +1112,7 @@ verifier("Decoupage restitue : terme_variance = variance de processus seule, som
              at$C_chapeau[i + 1, at$J + 1]^2 * at$Q[at$I - i + 1] /
                at$dernier_observe[i + 1], numeric(1)))
            isTRUE(proche(m$terme_variance, t1p, rel = 1e-12)) &&
-             isTRUE(proche(m$terme_variance + m$terme_covariance,
+             isTRUE(proche(m$terme_variance + m$terme_estimation,
                            msep_reglement(at), rel = 1e-10))
          })
 

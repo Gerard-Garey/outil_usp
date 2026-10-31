@@ -9078,7 +9078,7 @@ RAPPORT_MAX_ECART_MW <- 100
 # DECOUPAGE RESTITUE (choix de presentation, pas une prescription du texte) :
 #   terme_variance    = somme_i C^(i,J)^2 * Q_{I-i}/C(i,I-i)  -- variance de
 #                       processus seule, attribuable annee par annee ;
-#   terme_covariance  = somme_i C^(i,J)^2 * Delta_i
+#   terme_estimation  = somme_i C^(i,J)^2 * Delta_i
 #                       + 2 * somme_{i<k} C^(i,J) C^(k,J) * Delta_i  -- erreur
 #                       d'estimation, y compris ses termes diagonaux.
 # La somme des deux est exactement la MSEP du texte. Ce decoupage
@@ -9119,7 +9119,7 @@ mw_msep <- function(aj) {
   # pour des lignes 2017:2024), propage par mw_parametre() a sigma_usp,
   # sigma_estime, sigma_estime_brut et variation_relative.
   t1 <- unname(t1); t2 <- unname(t2)
-  list(msep = t1 + t2, terme_variance = t1, terme_covariance = t2)
+  list(msep = t1 + t2, terme_variance = t1, terme_estimation = t2)
 }
 
 # --- Sensibilite de racine(MSEP) a sigma2_{J-1} (issue #310) ----------------
