@@ -90,13 +90,33 @@
 #      p-values Monte-Carlo fictives (0,5) : type, estimation, statistique
 #      et inoperance (p_min, lois discretes) n'en dependent pas ; les
 #      verdicts des lignes "test" en dependent et ne sont pas exploites.
-#  Lignes hors perimetre (LIGNES_HORS_PERIMETRE, issue #45) : la largeur de
-#  l'IC bootstrap a delta fixe et les deux rapports de vraisemblance aux
-#  bornes delta = 0 et delta = 1 ne sont pas reconstruites par traiter()
-#  (elles demandent le bootstrap restreint et le bootstrap des LR) ; aucun
-#  repere n'y porte. Le controle d'integrite compare res$tests prive de ces
-#  trois lignes, nommees explicitement (et exige qu'elles y figurent chacune
-#  une fois) ; elles sont absentes de T2 et declarees en T0 et dans CONTEXTE.
+#  Lignes hors perimetre, de deux sortes, absentes de T2 et declarees en T0
+#  et dans CONTEXTE (aucun repere n'y porte) :
+#    - LIGNES_HORS_PERIMETRE (issue #45) : la largeur de l'IC bootstrap a
+#      delta fixe et les deux rapports de vraisemblance aux bornes delta = 0
+#      et delta = 1 ne sont pas reconstruites par traiter() (elles demandent
+#      le bootstrap restreint et le bootstrap des LR) ; nommees
+#      explicitement, et le controle d'integrite exige qu'elles figurent
+#      chacune une fois dans res$tests ;
+#    - lignes de lecture conjointe posees par engine_p_famille() (#297 ; les
+#      lignes "p de famille (minP, lecture conjointe)", une par famille, et la
+#      ligne "p globale (minP, lecture conjointe de la batterie)") : hors
+#      perimetre (#297), exclues PAR LA FONCTION qui les pose
+#      (fonction == "engine_p_famille", FONCTION_LECTURE_CONJOINTE) et non
+#      par leur nom, qui se repete d'une famille a l'autre (le controle
+#      "exactement une fois" de LIGNES_HORS_PERIMETRE les refuserait). Raisons
+#      (avis d'actuary, #402) : aucun repere n'y porte ; leur type est
+#      constant par construction (diagnostic, ADR 0001), donc sans
+#      information dans T2 ; leur p-value depend de la loi jointe du bootstrap,
+#      que traiter() ne reconstruit pas par conception (boot sans stats_boot,
+#      d'ou aucune de ces lignes dans la reconstruction) ; leur niveau est
+#      mesure par la campagne de #297. Le controle d'integrite verifie sur
+#      res$tests que chacune est un diagnostic de verdict INFO sans p retenue,
+#      qu'elles forment un suffixe de la table, et qu'une ligne globale existe
+#      des que deux statistiques Monte-Carlo membres existent ; traiter()
+#      affirme que la reconstruction n'en produit aucune.
+#  Le controle d'integrite compare res$tests prive de ces lignes a la table
+#  reconstruite.
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite. Les R jeux simules sont tires d'un seul flux (graine --graine),
@@ -114,6 +134,25 @@
 #          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
 #      Rscript tests/taux_franchissement_reperes.R --combiner f1 f2 ...
 #          [--ecrire [--remplacer] | --sortie DOSSIER] [--issue N]
+#      Rscript tests/taux_franchissement_reperes.R --essai [--seulement mw]
+#          [--R 2] [--graine 20260927] [--graine-ic 20260831] [--B-ic 999]
+#          [--jeu J1|J2]
+#  --essai (M39, mode d'essai des scripts de mesure hors CI ; meme regle que
+#  l'--essai de tests/mesure_calendaire_t8.R) : execution d'essai sur la
+#  console, R par defaut 2 (au lieu de 2 000), marquee en T0 et sous T0, NON
+#  versionnable (--ecrire, --sortie, --tranche et --combiner refuses : aucune
+#  sortie d'essai ne s'ecrit ni ne se combine). Il annonce, en T0 ("Duree
+#  estimee d'une execution complete") et dans une ligne de la console, la
+#  duree estimee d'une execution COMPLETE (R = 2 000 replications, un seul
+#  processus, ce poste) : duree fixe mesuree (controle d'integrite, tirages
+#  des jeux, chargement ; le volet lognormal compte ses tirages, peu couteux,
+#  dans la part fixe, le volet mw dans la part par replication) + duree
+#  mesuree par replication x 2 000. Estimation
+#  extrapolee de R replications : plus R est petit, plus elle est bruitee
+#  (--R N pour l'affiner) ; elle ne tient pas compte d'un decoupage en
+#  tranches, qui divise l'horloge par le nombre de processus concurrents.
+#  Il rend le code 0 si les controles d'integrite tiennent, 1 sinon, comme
+#  une execution complete (un script perime echoue donc a l'essai).
 #  --tranche i/K : ne traite que la i-eme de K tranches de replications
 #  consecutives et imprime, en plus des tableaux partiels, des lignes machine :
 #  PARAMETRES, TRANCHE, CONTEXTE (contenu de T0 hors durees et hors bornes de
@@ -170,7 +209,13 @@
 #  commit_depot() et motifs_non_versionnable() : definition unique dans
 #  tests/outils_tests.R (#205).
 #  Duree mesuree (poste du mainteneur, R 4.3.1, 27/09/2026) : 0,6 a 0,7 s par
-#  replication a --B-ic 999 ; 2 000 replications en 8 tranches : 1 312 s.
+#  replication a --B-ic 999 ; 2 000 replications en 8 tranches : 1 312 s
+#  (mesure historique, avant les lignes de lecture conjointe de #297).
+#  Duree estimee par --essai le 31/10/2026 (session de R29, 4 coeurs, R 4.3.3 :
+#  "Rscript tests/taux_franchissement_reperes.R --essai --R 8") : 2,5 s par
+#  replication, 23 s fixes, soit 5 067 s (1,41 h) pour 2 000 replications en
+#  un seul processus ; la meme commande a R = 2 : 2,9 s par replication,
+#  5 892 s (1,64 h).
 #  Code de sortie : 0 si les controles d'integrite tiennent, 1 sinon ; en
 #  mode --combiner, 0 si la combinaison est acceptee, 1 si elle est refusee.
 #  La lecture des taux (rubrique 6 des fiches, statut de constat de
@@ -187,7 +232,11 @@ lire_option <- function(nom, defaut) {
   if (i == length(ARGS)) stop("option ", nom, " sans valeur")
   ARGS[i + 1L]
 }
-OPT_R         <- as.integer(lire_option("--R", "2000"))
+# R d'une execution complete (defaut de --R) ; --essai (M39) : R reduit, 2 par
+# defaut, et duree estimee d'une execution complete a R_COMPLET.
+R_COMPLET     <- 2000L
+OPT_ESSAI     <- "--essai" %in% ARGS
+OPT_R         <- as.integer(lire_option("--R", if (OPT_ESSAI) "2" else as.character(R_COMPLET)))
 OPT_GRAINE    <- as.numeric(lire_option("--graine", "20260927"))
 OPT_GRAINE_IC <- as.numeric(lire_option("--graine-ic", "20260831"))
 OPT_B_IC      <- as.integer(lire_option("--B-ic", "999"))
@@ -215,6 +264,9 @@ if (OPT_ECRIRE && !is.na(OPT_SORTIE)) stop("--ecrire et --sortie sont exclusifs"
 if (OPT_REMPLACER && !OPT_ECRIRE) stop("--remplacer : reserve a --ecrire (remplacement d'un tableau suivi par git, #173)")
 if ((OPT_ECRIRE || !is.na(OPT_SORTIE)) && !is.na(OPT_TRANCHE))
   stop("--tranche : sortie partielle, --ecrire et --sortie reserves a --combiner ou a une execution d'un seul tenant")
+# --essai : sortie d'essai, ni ecrite, ni tranchee, ni combinee.
+if (OPT_ESSAI && (OPT_ECRIRE || !is.na(OPT_SORTIE) || !is.na(OPT_TRANCHE) || !is.na(i_comb)))
+  stop("--essai : execution d'essai non versionnable, sans --ecrire, --sortie, --tranche ni --combiner")
 if (!is.na(OPT_SORTIE) && !dir.exists(OPT_SORTIE)) stop("--sortie : dossier introuvable : ", OPT_SORTIE)
 if (!OPT_JEU %in% c("J1", "J2")) stop("--jeu : J1 ou J2")
 # --seulement mw : volet Merz-Wuthrich seul (#89) ; "ln" : volet lognormal
@@ -359,6 +411,18 @@ txt_versionnable <- function(nv) if (length(nv)) paste("non :", paste(nv, collap
 # tests/comparer_ajusteurs_bootstrap.R).
 ecrire_console <- function(x) writeLines(enc2utf8(x), useBytes = TRUE)
 
+# --essai (M39) : duree estimee d'une execution complete (R_COMPLET
+# replications, un seul processus, ce poste) = duree fixe (tout ce qui ne
+# croit pas avec R : controle d'integrite, chargement, ...) + duree par
+# replication x R_COMPLET. t_fixe et t_rep_unit en secondes. Extrapolation
+# de R replications d'essai : estimation bruitee, sans intervalle.
+txt_duree_complete <- function(t_fixe, t_rep_unit, n_rep) {
+  t_c <- t_fixe + t_rep_unit * R_COMPLET
+  sprintf("%.0f s (%.2f h) pour R = %d, un seul processus : %.0f s fixes + %.2f s par r\u00e9plication \u00d7 %d (extrapol\u00e9 de %d r\u00e9plication(s) d'essai)",
+          t_c, t_c / 3600, R_COMPLET, t_fixe, t_rep_unit, R_COMPLET, n_rep)
+}
+LIB_DUREE_COMPLETE <- "Dur\u00e9e estim\u00e9e d'une ex\u00e9cution compl\u00e8te (--essai)"
+
 # --- Mise en forme -------------------------------------------------------------
 ligne_md <- function(...) paste0("| ", paste(..., sep = " | "), " |")
 entete_md <- function(cols) c(ligne_md(paste(cols, collapse = " | ")),
@@ -393,6 +457,19 @@ LIGNES_HORS_PERIMETRE <- c(
   "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)",
   "Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
   "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)")
+# Lignes de lecture conjointe (#297) : posees par engine_p_famille() ("p de
+# famille (minP, lecture conjointe)", une par famille, et "p globale (minP,
+# lecture conjointe de la batterie)"), hors perimetre (#297). Reperees par
+# la fonction qui les pose, non par leur nom (repete d'une famille a l'autre :
+# le controle "exactement une fois" de LIGNES_HORS_PERIMETRE les refuserait ;
+# avis d'actuary sur #402) ; l'etiquette est le champ fonction de add().
+FONCTION_LECTURE_CONJOINTE <- "engine_p_famille"
+fonction_ligne <- function(l) {
+  f <- l$fonction
+  if (is.null(f) || length(f) != 1L || is.na(f)) NA_character_ else as.character(f)
+}
+est_lecture_conjointe <- function(tt) vapply(tt, fonction_ligne, "") %in% FONCTION_LECTURE_CONJOINTE
+TXT_LECTURE_CONJOINTE <- "lignes de lecture conjointe pos\u00e9es par engine_p_famille() (\u00ab p de famille \u00bb, \u00ab p globale \u00bb ; #297)"
 REPERES <- list(
   list(cle = "cook", groupe = "diag", libelle = "Distance de Cook : au moins une observation au-dessus",
        seuil = "4/T", source = "usp_tests() (d\u00e9tail de la ligne)"),
@@ -425,7 +502,7 @@ LIBELLES_CONTEXTE <- c(
   plateforme = "Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)",
   empreintes = "Empreintes md5 du code ex\u00e9cut\u00e9",
   leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)",
-  hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45)")
+  hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45, #297)")
 
 # --- Mode --combiner ---------------------------------------------------------------
 # Refus de la combinaison : message et code de sortie 1, aucun tableau.
@@ -516,7 +593,11 @@ tableaux <- function(cpt, R, lev) {
   }
   c(L, "", "Inop\u00e9rant : ligne de type test dont p_min \u2265 \u03b1, restitu\u00e9e diagnostic INFO (r\u00e8gle R1, #44) ; compt\u00e9e aussi dans la colonne diagnostic.", "",
     paste0("Hors p\u00e9rim\u00e8tre, non reconstruites dans les r\u00e9plications et absentes de T2 (aucun rep\u00e8re n'y porte ; #45) : ",
-           paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = ", "), "."), "")
+           paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = ", "), "."),
+    paste0("Hors p\u00e9rim\u00e8tre (#297), absentes de T2 : ", TXT_LECTURE_CONJOINTE, ". Aucun rep\u00e8re n'y porte ; ",
+           "leur type est constant par construction (diagnostic, ADR 0001), donc sans information ici ; leur p-value d\u00e9pend ",
+           "de la loi jointe du bootstrap, que ce script ne reconstruit pas ; leur niveau est mesur\u00e9 par la campagne de #297 ",
+           "(docs/tableaux/20261026-issue297-calibration-famille-ln.md)."), "")
 }
 
 # --- Volet Merz-Wuthrich (issue #89 ; --seulement mw) -----------------------------
@@ -616,8 +697,10 @@ volet_mw <- function() {
           ligne_md_v(c("Triangles", as.vector(dist))),
           ligne_md_v(c("Part", vapply(as.vector(dist), function(k) pct(k, OPT_R), ""))))
   PAR <- sprintf("volet=mw;triangle=reserve2;R=%d;graine=%.0f;repere=%g/sqrt(n_j)", OPT_R, OPT_GRAINE, REPERE_DFBETAS_MW)
-  NV <- motifs_non_versionnable(commit_depot(), EMPREINTES, "de l'exécution")
+  NV <- c(motifs_non_versionnable(commit_depot(), EMPREINTES, "de l'exécution"), if (OPT_ESSAI) "essai (--essai)")
   t_tot <- as.numeric(difftime(Sys.time(), t_debut, units = "secs"))
+  # --essai : tirages et replications croissent avec R ; le reste est fixe.
+  TXT_DUREE_COMPLETE <- txt_duree_complete(t_tot - t_tirage - t_rep, (t_tirage + t_rep) / OPT_R, OPT_R)
   sortie <- c(
     "## Taux de franchissement du repère DFBETAS de mw_influence() sous le modèle de Mack ajusté (issue #89)", "",
     sprintf("Paramètres : %s", PAR), "",
@@ -639,8 +722,10 @@ volet_mw <- function() {
     ligne_md("Plateforme de calcul (R, système, machine, BLAS, LAPACK)", plateforme_calcul()),
     ligne_md("Empreintes md5 du code exécuté", EMPREINTES),
     ligne_md("Durée (s)", sprintf("tirages %.1f ; réplications %.1f ; total %.1f", t_tirage, t_rep, t_tot)),
+    if (OPT_ESSAI) ligne_md(LIB_DUREE_COMPLETE, TXT_DUREE_COMPLETE),
     ligne_md("Versionnable (--ecrire)", txt_versionnable(NV)),
     ligne_md("Contrôle d'intégrité", if (length(integ)) "ÉCHEC" else "OK"), "",
+    if (OPT_ESSAI) c(paste0("**Essai (--essai) : non versionnable.** ", LIB_DUREE_COMPLETE, " : ", TXT_DUREE_COMPLETE, "."), ""),
     "### M1 -- taux de franchissement par cellule, par n_j (constat de simulation sous le modèle ajusté)", "",
     L1, "",
     sprintf(paste("n_j = 2 : %d cellule(s) par triangle, DFBETAS NA par construction (s²_(i) sans degré de liberté) :",
@@ -820,6 +905,10 @@ robustesse_moteur <- function(fit, jack, param) {
 }
 
 # Table des tests d'un jeu (x, y) traitee comme par run_engine().
+# Les lignes de lecture conjointe de #297 (engine_p_famille()) n'y sont pas
+# reconstruites : boot n'a pas de stats_boot, et engine_p_famille() ne pose
+# alors aucune ligne ; traiter() l'affirme (stop() sinon : un boot factice
+# muni de stats_boot en poserait, hors perimetre, et fausserait T2).
 # Limite : p_mc factice (0,5, sans bootstrap) et pas de p_min_mc ; le type et
 # le prefixe "TEST INOPERANT" des lignes Monte-Carlo suivent donc la branche
 # de la regle R1 qui lit p_min, non la branche Monte-Carlo (#125, #262).
@@ -851,6 +940,9 @@ traiter <- function(x, y, graine_ic) {
                err_mc = ifelse(is.na(motif), 0.01, NA_real_), motif_mc = motif)
   tt <- usp_tests(fb, boot, ALPHA, theta_equiv = THETA_EQUIV, delta_equiv = NULL,
                   robustesse = rob, methode = METHODE)
+  if (any(est_lecture_conjointe(tt)))
+    stop("traiter() : la reconstruction a pose des lignes de lecture conjointe (fonction == \"",
+         FONCTION_LECTURE_CONJOINTE, "\", #297), hors perimetre : boot ne doit pas porter de stats_boot (script a mettre a jour)")
   list(fit = fb, tests = tt, sigma_boot = icb$sigma_boot, regime = usp_regime(fb$delta, fb$x))
 }
 
@@ -895,7 +987,11 @@ compter <- function(cpt, r) {
 # doivent donner : le meme sigma_boot (identical) ; les memes lignes, types,
 # statistiques et estimations (identical), res$tests etant prive des lignes
 # LIGNES_HORS_PERIMETRE (#45), qui doivent y figurer chacune exactement une
-# fois (sinon constante perimee : ECHEC).
+# fois (sinon constante perimee : ECHEC), et des lignes de lecture conjointe
+# (fonction == "engine_p_famille", #297, #402), controlees sur res$tests :
+# diagnostic de verdict INFO sans p retenue, suffixe de la table (ordre
+# garanti par usp_tests()), et au moins une ligne globale des que deux
+# statistiques Monte-Carlo membres existent.
 integrite <- character(0)
 t0 <- Sys.time()
 res <- run_engine(xt = X, yt = JEU$y, methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
@@ -911,10 +1007,30 @@ n_hp <- vapply(LIGNES_HORS_PERIMETRE, function(nm) sum(noms_res == nm), numeric(
 if (any(n_hp != 1))
   integrite <- c(integrite, paste("res$tests : ligne(s) hors perimetre (#45) absente(s) ou multiple(s) :",
                                   paste0("\"", LIGNES_HORS_PERIMETRE[n_hp != 1], "\"", collapse = ", ")))
-tests_res <- res$tests[!noms_res %in% LIGNES_HORS_PERIMETRE]
+lc_res <- est_lecture_conjointe(res$tests)
+for (i in which(lc_res)) {
+  l <- res$tests[[i]]
+  if (!identical(l$type, "diagnostic") || !identical(l$verdict, "INFO") || !is.na(l$p_retenue))
+    integrite <- c(integrite, sprintf("res$tests : ligne de lecture conjointe \"%s\" (%s) hors contrat : type %s, verdict %s, p_retenue %s (diagnostic INFO sans p retenue attendu)",
+                                      l$test, l$famille, format(l$type), format(l$verdict), format(l$p_retenue)))
+}
+if (any(lc_res) && !identical(which(lc_res), seq.int(length(lc_res) - sum(lc_res) + 1L, length(lc_res))))
+  integrite <- c(integrite, "res$tests : les lignes de lecture conjointe (engine_p_famille(), #297) ne forment pas un suffixe de la table")
+# membres de la lecture conjointe : memes criteres qu'engine_p_famille() (type
+# test, variante principale, sens "ne pas rejeter", statistique Monte-Carlo
+# nommee, p Monte-Carlo finie) ; deux statistiques distinctes au moins =>
+# une ligne globale.
+n_membres_lc <- length(unique(unlist(lapply(res$tests, function(l)
+  if (identical(l$type, "test") && identical(l$variante, "principale") && identical(l$sens, "ne pas rejeter") &&
+      length(l$mc_nom) == 1L && !is.na(l$mc_nom) && length(l$p_mc) == 1L && is.finite(l$p_mc)) l$mc_nom))))
+n_globales_lc <- sum(vapply(res$tests[lc_res], function(l) identical(l$famille, FAMILLE_LECTURE_CONJOINTE), logical(1)))
+if (n_membres_lc >= 2L && n_globales_lc < 1L)
+  integrite <- c(integrite, sprintf("res$tests : %d statistiques Monte-Carlo membres mais aucune ligne globale de lecture conjointe (engine_p_famille(), #297)",
+                                    n_membres_lc))
+tests_res <- res$tests[!noms_res %in% LIGNES_HORS_PERIMETRE & !lc_res]
 if (length(obs$tests) != length(tests_res) ||
     !identical(lapply(obs$tests, `[`, champs), lapply(tests_res, `[`, champs)))
-  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE)")
+  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE et lignes de lecture conjointe)")
 # Ligne jackknife : detail (annees les plus influentes, annees non evaluables)
 # identique a celui de run_engine() (#346) ; NULL des deux cotes si la ligne
 # est absente.
@@ -960,9 +1076,13 @@ CTX <- c(
   leviers = sprintf("max h_t = %.4f ; seuil 2k/T = %.4f : %s", LEV_OBS, 2 / T_,
                     if (!is.finite(LEV_OBS)) "NA" else if (LEV_OBS > 2 / T_) "franchi" else "non franchi"),
   hors_perimetre = paste0(paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = " ; "),
-                          " : exclues du contr\u00f4le d'int\u00e9grit\u00e9 et de T2, aucun rep\u00e8re n'y porte"))
+                          " : exclues du contr\u00f4le d'int\u00e9grit\u00e9 et de T2, aucun rep\u00e8re n'y porte ; ",
+                          TXT_LECTURE_CONJOINTE, " : hors p\u00e9rim\u00e8tre (#297), exclues par fonction == \"",
+                          FONCTION_LECTURE_CONJOINTE, "\", contr\u00f4l\u00e9es sur res$tests (diagnostic INFO sans p retenue, suffixe, ligne globale) et absentes de la reconstruction"))
 stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
-NV <- motifs_non_versionnable(CTX[["commit"]], EMPREINTES, "de l'ex\u00e9cution")
+NV <- c(motifs_non_versionnable(CTX[["commit"]], EMPREINTES, "de l'ex\u00e9cution"), if (OPT_ESSAI) "essai (--essai)")
+N_REP <- FIN - DEBUT + 1L
+TXT_DUREE_COMPLETE <- txt_duree_complete(as.numeric(difftime(Sys.time(), t_debut, units = "secs")) - t_rep, t_rep / N_REP, N_REP)
 L0 <- c("## Taux de franchissement des rep\u00e8res des diagnostics sous le mod\u00e8le ajust\u00e9 (issue #72)", "",
         sprintf("Param\u00e8tres : %s", PAR), "",
         "### T0 -- contexte", "",
@@ -971,9 +1091,11 @@ L0 <- c("## Taux de franchissement des rep\u00e8res des diagnostics sous le mod\
         ligne_md("R\u00e9plications", sprintf("%d (trait\u00e9es : %d \u00e0 %d)", OPT_R, DEBUT, FIN)),
         ligne_md("Dur\u00e9e (s)", sprintf("contr\u00f4le %.1f ; r\u00e9plications %.1f ; total %.1f", t_controle, t_rep,
                                           as.numeric(difftime(Sys.time(), t_debut, units = "secs")))),
+        if (OPT_ESSAI) ligne_md(LIB_DUREE_COMPLETE, TXT_DUREE_COMPLETE),
         ligne_md("Versionnable (--ecrire)", if (!is.na(OPT_TRANCHE)) "non : tranche (tableaux partiels)" else txt_versionnable(NV)),
         ligne_md("Contr\u00f4le d'int\u00e9grit\u00e9", if (length(integrite)) "\u00c9CHEC" else "OK"), "")
 SORTIE <- c(L0,
+            if (OPT_ESSAI) c(paste0("**Essai (--essai) : non versionnable.** ", LIB_DUREE_COMPLETE, " : ", TXT_DUREE_COMPLETE, "."), ""),
             if (!is.na(OPT_TRANCHE)) c("Tableaux PARTIELS (une tranche) : combiner les sorties des K tranches par --combiner.", ""),
             tableaux(cpt, FIN - DEBUT + 1L, CTX[["leviers"]]),
             if (length(integrite)) c("Contr\u00f4le d'int\u00e9grit\u00e9 : \u00c9CHEC", paste("-", integrite), ""))
