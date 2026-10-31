@@ -1082,6 +1082,13 @@ toutes les autres et avant le repère de renvoi, qu'elles ne reçoivent pas \\
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
 $\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en échec ou refusé par
 \code{usp\_valider\_ajustement()} (issue~\#224) \\
+\code{usp\_jack\_annees()} & $\sigma_{\mathrm{USP}}^{(-t)}$ (colonne \code{sigma\_usp}
+d'\code{usp\_jackknife()}), $\sigma_{\mathrm{USP}}$ & indices $t$ des années évaluables les plus
+influentes sur $\sigma_{\mathrm{USP}}$, à la tolérance $\tau$ près (issue~\#327), ou \code{NULL}
+si aucun écart n'est fini~; désignation unique du moteur, lue par \code{run\_engine()}
+(commentaire de la ligne jackknife) et par \code{engine\_influence()} (colonne
+\code{plus\_influente}), extraite telle quelle de \code{run\_engine()} par l'issue~\#396
+(fiche~\ref{fiche:jackknife}) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
 $\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()})~; objectif \code{NA} aux seuls points de
@@ -1620,7 +1627,9 @@ nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabi
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
 distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
 jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
-évaluable, issue~\#224)~;
+évaluable, issue~\#224)~; depuis l'issue~\#396, en fin de table, colonne logique
+\code{plus\_influente}, \code{TRUE} pour les années désignées par \code{usp\_jack\_annees()},
+\code{FALSE} partout si aucun réajustement n'a abouti~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -1639,7 +1648,12 @@ le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ 
 la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
 fin de liste~; depuis l'issue~\#305, en fin de liste, \code{sigma\_usp\_boot} et
 \code{boot\_reperes} (distribution bootstrap de $\sigma_{\mathrm{USP}}$, sans régime ni intervalle
-«~basic~», fiche~\ref{fiche:ic-bootstrap}) \\
+«~basic~», fiche~\ref{fiche:ic-bootstrap})~; depuis l'issue~\#396, la colonne logique
+\code{influence\$plus\_influente}, en fin de table \code{influence}~: \code{TRUE} pour la seule
+cellule de plus grand $|\mathrm{DFBETAS}|$ défini (la première dans l'ordre de
+\code{mw\_influence()} en cas d'égalité exacte, sans tolérance), \code{FALSE} partout si aucun
+DFBETAS n'est défini (fiche~\ref{mw:influence})~; la même issue retire la feuille
+\code{methode}, qui doublait \code{metadata\$methode} \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -4294,8 +4308,9 @@ $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne 
 qu'un facteur individuel pour $I = J$, seule géométrie admise par \code{mw\_valider\_triangle()},
 n'entre pas dans le prédicat. Le refus a la forme d'un
 refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
-\code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation},
-\code{methode} et \code{metadata}, aucun résultat partiel. Un seul motif (décision du mainteneur
+\code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation} et
+\code{metadata} (horodatage et méthode~; le champ \code{methode} de premier niveau, qui doublait
+\code{metadata\$methode}, est retiré depuis l'issue~\#396), aucun résultat partiel. Un seul motif (décision du mainteneur
 du 5~octobre 2026)~: les avertissements de colonnes de \code{mw\_valider\_ajustement()}
 (extrapolation de $\hat\sigma^2_{J-1}$, colonnes sans résidu de Mack) ne sont pas émis en plus~;
 ceux de \code{mw\_valider\_triangle()} (crédibilité, $I + 1 < 10$) demeurent. Le motif n'est
@@ -13170,7 +13185,8 @@ champ \code{estim})~; faute d'année déterminée, le commentaire le dit.
 \emph{Années d'influence égale à la précision numérique près} (issue~\#327). Notons
 $\Delta_t = |\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}|/\sigma_{\mathrm{USP}}$ l'écart
 relatif de l'année évaluable $t$, et $\Delta_{(1)} = \Delta_{\max} \ge \Delta_{(2)}$ les deux plus
-grands. Le moteur (\code{run\_engine()}) désigne toutes les années évaluables telles que
+grands. Le moteur (\code{usp\_jack\_annees()}, appelée par \code{run\_engine()} et, depuis
+l'issue~\#396, par \code{engine\_influence()}) désigne toutes les années évaluables telles que
 $\Delta_t \ge \Delta_{(1)} - \tau$, avec
 \[
   \tau \;=\; 2\cdot\text{\code{REP\_SIGMA\_KKT}}\cdot\big(2 + \Delta_{(1)} + \Delta_{(2)}\big),
@@ -13254,8 +13270,24 @@ table \code{res\$jackknife} est entièrement à \code{NA}. Depuis l'issue~\#328,
 d'influence de l'application affiche alors un panneau vide au message fixe «~\code{Aucune annee
 evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
 l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
-\code{NA}, la note nomme les années non évaluables, le maximum étant pris hors de ces années.
-L'affichage lit ces années dans la table d'influence, sans calcul.
+\code{NA}, la note nomme les années non évaluables, qui n'entrent pas dans la désignation.
+L'affichage lit ces années dans la table d'influence, sans calcul. Depuis l'issue~\#396, la note
+ne calcule plus de maximum~: elle lit la colonne \code{plus\_influente} de
+\code{res\$plots\_data\$influence}, posée par \code{engine\_influence()} d'après
+\code{usp\_jack\_annees()}, soit la désignation même du commentaire de la ligne~; jusqu'à cette
+issue, elle refaisait le maximum de l'écart en valeur absolue, sans la tolérance $\tau$. Une
+seule année désignée~: «~Le retrait de l'année la plus influente déplace sigma\_USP de
+$-9{,}4$~\%.~» (cas de référence \code{premium}), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
+après la virgule, «~\dots{} de moins de 0,05~\% en valeur absolue.~», sans signe. Plusieurs
+années désignées~: toutes sont citées, comme dans le commentaire, avec une seule amplitude,
+celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts ne diffèrent
+qu'à $\tau$ près et deux valeurs arrondies distinctes feraient paraître une différence qui n'est
+pas discernable~; sur le jeu de l'issue~\#224~: «~Années les plus influentes, d'influence égale à
+la précision numérique près~: 1, 2, 3, 4, 6, 7 et 8~; le retrait de chacune déplace sigma\_USP
+de $+2{,}1$~\%.~» Si les signes des années diffèrent, l'amplitude commune est écrite avec le
+signe de chaque année, suivie de «~respectivement~»~; si toutes s'écrivent $0{,}0$, la phrase
+finit par «~moins de 0,05~\% en valeur absolue~». Faute d'année désignée alors que des écarts
+sont finis, la note écrit «~Année la plus influente non déterminée.~»
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
@@ -14217,7 +14249,12 @@ de même les cellules dont le DFBETAS dépasse en valeur absolue le repère de l
 secondaires, issue~\#89, fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
 \code{fort\_dfbetas}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
-lit sans comparaison (issue~\#37). Quand un résidu standardisé ou une distance de Cook n'est pas
+lit sans comparaison (issue~\#37). De même, depuis l'issue~\#396, le booléen
+\code{plus\_influente} de la même table désigne l'année, ou les années, la plus influente sur
+$\sigma_{\mathrm{USP}}$ (\code{engine\_influence()}, d'après \code{usp\_jack\_annees()},
+fiche~\ref{fiche:jackknife}) et la cellule de plus grand $|\mathrm{DFBETAS}|$
+(\code{mw\_plots\_data()}, fiche~\ref{mw:influence})~; les notes des graphiques le lisent sans
+recalculer de maximum. Quand un résidu standardisé ou une distance de Cook n'est pas
 fini (par exemple $y_t$ exactement proportionnel à $x_t$, fiche~\ref{fiche:cook}, série que
 \code{run\_engine()} refuse depuis l'issue~\#188~: le cas ne se présente alors qu'en appel direct
 d'\code{engine\_plots\_data()}), les deux
@@ -14577,6 +14614,18 @@ relative de $\hat f_j$, propre à l'outil et sans source, qui ne colorait aucune
 triangle de contrôle (variation relative maximale $0{,}585~\%$). Sur ce triangle, le repère
 $2/\sqrt{n_j}$ colore trois cellules~: $(0,2)$, de DFBETAS $-1{,}102$ (repère $0{,}894$),
 $(0,3)$, $-1{,}498$ (repère $1{,}000$), et $(1,4)$, $+1{,}527$ (repère $1{,}155$).
+La note nomme aussi la cellule la plus influente, désignée depuis
+l'issue~\#396 par le moteur (colonne \code{plus\_influente} de \code{res\$plots\_data\$influence},
+posée par \code{mw\_plots\_data()}), et non plus recalculée par l'affichage~: la cellule de plus
+grand $|\mathrm{DFBETAS}|$ parmi les cellules à DFBETAS défini, la première dans l'ordre des
+cellules de \code{mw\_influence()} en cas d'égalité exacte, aucune si aucun DFBETAS n'est défini.
+Aucune tolérance analogue à celle du jackknife (fiche~\ref{fiche:jackknife}) n'y est appliquée~:
+les DFBETAS sont calculés par expression explicite, sans réajustement itératif ni optimiseur
+(rubrique~1), et leur erreur reste au niveau de l'arrondi machine. Sur le triangle de
+contrôle~: «~La cellule la plus influente est (i = 1, j = 4) (DFBETAS = +1,53), dont le retrait
+déplacerait f\_4 de -0,30~\%.~» Une cellule \code{dfbetas\_non\_borne}, sans DFBETAS restitué,
+n'entre pas dans la désignation~: la phrase commence alors par «~Parmi les cellules à DFBETAS
+borné, la plus influente est~».
 
 \medskip
 \textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
@@ -20575,7 +20624,8 @@ en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~
 de $\hat p$, par statistique, dans \code{granularite\_stat}~; lue par \code{add()} pour la phrase
 \code{PHRASE\_VERDICT\_SENSIBLE\_MC} (issue~\#244) \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
-\code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45) \\
+\code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45)~; années les plus
+influentes du jackknife~: \code{usp\_jack\_annees()} (issues~\#327 et~\#396) \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
