@@ -13299,14 +13299,18 @@ seule année désignée~: «~Le retrait de l'année la plus influente déplace s
 $-9{,}4$~\%.~» (cas de référence \code{premium}), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
 après la virgule, «~\dots{} de moins de 0,05~\% en valeur absolue.~», sans signe. Plusieurs
 années désignées~: toutes sont citées, comme dans le commentaire, avec une seule amplitude,
-celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts ne diffèrent
-qu'à $\tau$ près et deux valeurs arrondies distinctes feraient paraître une différence qui n'est
-pas discernable~; sur le jeu de l'issue~\#224~: «~Années les plus influentes, d'influence égale à
+celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts relatifs en
+valeur absolue, $\Delta_t$, ne diffèrent qu'à $\tau$ près (de l'ordre de $4\cdot 10^{-6}$, contre
+un pas d'affichage de $10^{-3}$) et deux valeurs arrondies distinctes feraient paraître une
+différence qui n'est pas discernable~; sur le jeu de l'issue~\#224~: «~Années les plus influentes, d'influence égale à
 la précision numérique près~: 1, 2, 3, 4, 6, 7 et 8~; le retrait de chacune déplace sigma\_USP
 de $+2{,}1$~\%.~» Si les signes des années diffèrent, l'amplitude commune est écrite avec le
 signe de chaque année, suivie de «~respectivement~»~; si toutes s'écrivent $0{,}0$, la phrase
 finit par «~moins de 0,05~\% en valeur absolue~». Faute d'année désignée alors que des écarts
-sont finis, la note écrit «~Année la plus influente non déterminée.~»
+sont finis, la note écrit «~Année la plus influente non déterminée.~», cas que la désignation du
+moteur ne produit pas pour un $\sigma_{\mathrm{USP}}$ fini et strictement positif,
+\code{usp\_jack\_annees()} désignant au moins une année dès qu'un écart est fini (branche
+défensive de l'affichage).
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
@@ -14626,7 +14630,9 @@ colonne dégénérée, sans résidu de Mack, n'y figurent pas. Il colore les cel
 levier dépasse strictement le repère de lecture $2/n_j$, deux fois le levier moyen $1/n_j$ de la
 colonne (convention $2p/n$ de Hoaglin et Welsch, 1978, avec $p = 1$ coefficient~; constante
 \code{REPERE\_LEVIER} du moteur, colonne \code{repere\_levier} et booléen \code{fort\_levier}
-calculés par \code{mw\_influence()}, que l'affichage lit sans comparaison, issue~\#209), et la
+calculés par \code{mw\_influence()}, que l'affichage lit sans comparaison, issue~\#209~;
+$h(i,j) < 1$ dès que $n_j \ge 2$, de sorte que le repère, égal à~1 pour $n_j = 2$, n'est jamais
+franchi dans ces colonnes et ne peut l'être que pour $n_j \ge 3$), et la
 note du graphique en donne le nombre~; ce repère ne produit aucun verdict. Le
 deuxième donne le DFBETAS cellule par cellule~: de combien d'écarts-types estimés le facteur
 de développement bougerait si cette cellule était retirée~; la variation relative de
@@ -14650,7 +14656,12 @@ grand $|\mathrm{DFBETAS}|$ parmi les cellules à DFBETAS défini, la première d
 cellules de \code{mw\_influence()} en cas d'égalité exacte, aucune si aucun DFBETAS n'est défini.
 Aucune tolérance analogue à celle du jackknife (fiche~\ref{fiche:jackknife}) n'y est appliquée~:
 les DFBETAS sont calculés par expression explicite, sans réajustement itératif ni optimiseur
-(rubrique~1), et leur erreur reste au niveau de l'arrondi machine. Sur le triangle de
+(rubrique~1), et leur erreur relative, mesurée au plus à $1{,}9\cdot 10^{-13}$ contre une
+référence à 256~bits sur la grille de triangles construits de la rubrique~1 (constat numérique,
+hors des cellules à DFBETAS non borné), est sans commune mesure avec la précision $10^{-6}$ des
+réajustements qui fonde $\tau$~; deux cellules dont les $|\mathrm{DFBETAS}|$ ne différeraient que
+de cet ordre seraient départagées par l'ordre des cellules, cas qui ne se présente pas sur le
+triangle de contrôle ($1{,}527$ contre $1{,}498$ pour les deux plus grands). Sur le triangle de
 contrôle~: «~La cellule la plus influente est (i = 1, j = 4) (DFBETAS = +1,53), dont le retrait
 déplacerait f\_4 de -0,30~\%.~» Une cellule \code{dfbetas\_non\_borne}, sans DFBETAS restitué,
 n'entre pas dans la désignation~: la phrase commence alors par «~Parmi les cellules à DFBETAS
@@ -16305,10 +16316,22 @@ matériel faible.
 dégénérées (fiche~\ref{mw:m1a})~: elle garde ces colonnes dans $A$, avec leur poids $n_j$, et
 l'avertissement des colonnes dégénérées ne nomme pas la ligne parmi celles qui les écartent
 (§\ref{sec:controles}, issue~\#363). Chaque $\hat f_j^{(\alpha)}$ étant une moyenne pondérée des
-facteurs individuels de la colonne, l'amplitude d'une telle colonne est bornée par l'écart entre
-ses facteurs extrêmes, donc nulle ou de l'ordre de la tolérance de l'outil (mesuré sur le
-triangle de six années des tests unitaires dont la colonne $j = 0$ est dégénérée~: amplitude
-nulle, $n_0 = 5$).
+facteurs individuels de la colonne, l'amplitude d'une telle colonne est au plus
+$\big(\max_i F(i,j) - \min_i F(i,j)\big)/\hat f_j^{(1)}$, donc nulle ou de l'ordre de la
+tolérance relative $10^{-12}$ de l'outil (au plus $2\cdot 10^{-12}$ par le premier volet du
+prédicat, environ $(n_j-1)\cdot 10^{-12}$ par le second). La colonne garde pourtant son poids
+$n_j$ au dénominateur de $A$~: la statistique observée est multipliée par
+$\sum' n_j/\sum_j n_j$, la somme $\sum'$ portant sur les colonnes non dégénérées de $A$. Il en va
+de même de chaque statistique simulée, le bootstrap tirant la colonne avec $\hat\sigma_j^2$ nul
+ou négligeable à la tolérance de l'outil (section~\ref{sec:boot-mw}), donc dégénérée à son tour.
+La p-value de Monte-Carlo n'en est pas modifiée, à des égalités près de l'ordre de la
+tolérance~; seule la valeur restituée de $A$ est diminuée de ce facteur, et ne se lit plus comme
+l'amplitude moyenne des seules colonnes non dégénérées. Mesuré sur le triangle de six années des
+tests unitaires dont la colonne $j = 0$ est dégénérée ($n_0 = 5$, $n_1 = 4$, $n_2 = 3$~;
+$B = 999$, graine 20260831~; mesure d'\code{actuary}, fin de branche Fq)~: amplitude de la
+colonne $j = 0$ nulle à l'observé et dans les 999 réplications, rapport de $A$ à la statistique
+calculée sans cette colonne égal à $7/12$ à l'observé comme dans chaque réplication, p-value de
+Monte-Carlo $0{,}514$ avec ou sans la colonne.
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
@@ -18191,7 +18214,11 @@ seulement que la règle de minimum est contraignante, le quotient
 $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
 petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
 et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
-retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (avis
+retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (sous l'hypothèse
+auxiliaire d'erreurs gaussiennes, que le modèle de Mack ne fait pas,
+$2\hat\sigma^2_{J-3}/\sigma^2_{J-3}$ suit exactement une loi $\chi^2(2)$, dont les quantiles à
+5~\% et 95~\% sont dans un rapport de 58~: une petite valeur de $\hat\sigma^2_{J-3}$ n'a rien
+d'exceptionnel~; avis
 d'\code{actuary}, issue~\#372). Sur le triangle de contrôle dont la colonne $J-3$ est rendue
 presque constante (facteurs individuels $F(i,J-3)$ égaux à $1{,}1$ pour $i = 0$ et~$2$, et à
 $1{,}1$ à un écart relatif près pour $i = 1$, cumuls suivants de la ligne remis à l'échelle~;
