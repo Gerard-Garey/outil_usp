@@ -1376,7 +1376,12 @@ distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
 (\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
 calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
-déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct \\
+déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct. Depuis
+l'issue~\#293, seules les tables de $n \le$ \code{MW\_COMBN\_N\_MAX} $= 20$ y sont gardées (au
+plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à chaque appel et jamais
+gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
+l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
+même, cache vide ou rempli \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
