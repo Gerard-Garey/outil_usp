@@ -1,6 +1,6 @@
 ###############################################################################
 #  tests/mesure_dw_rho_negatif_t8.R  --  PUISSANCE DU TEST DE DURBIN-WATSON A
-#  T = 8 CONTRE UN AR(1) A rho NEGATIF, JUSQU'A rho = -0,999 (#164)
+#  T = 8 CONTRE UN AR(1) A rho NEGATIF, JUSQU'A LA GARDE rho = -1 + 1e-6 (#164)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
@@ -19,7 +19,8 @@
 #  6541872644 de #164, point "Mesure de la puissance de Durbin-Watson pres de
 #  rho = -1") : tracer la puissance du test bilateral exact de Durbin-Watson
 #  (dw_p_exacte(), p = 2 min(P0(DW <= d), P0(DW >= d)), rejet si p < alpha)
-#  pour rho de -0,999 a 0. Ces valeurs ne figuraient dans aucun fichier
+#  pour rho de -0,999 a 0, grille etendue jusqu'a la garde du moteur
+#  (-1 + 1e-6) sur avis d'actuary du 31/10/2026 (point M3). Ces valeurs ne figuraient dans aucun fichier
 #  versionne ; elles prolongent mesure_lb1_dw_t8.R (rho = -0,6 ; -0,3 ;
 #  +0,3 ; +0,6).
 #
@@ -35,19 +36,24 @@
 #  n'est donc plus "sans graine" (avis d'actuary du 31/10/2026, reponse a la
 #  question 2 de la premiere remise). Statut de la sortie : approximation
 #  numerique d'Imhof d'une quantite exacte, recoupee par simulation a rho =
-#  -0,9 et -0,99 ; rho = -0,999 non recoupe.
+#  -0,9 et -0,99 ; rho <= -0,999 non recoupes.
 #  Variante a depart nul (z_1 = e_1 a la place de la loi stationnaire) : NON
 #  calculee (abandonnee sans issue, avis d'actuary du 31/10/2026).
 #  dw_puissance_ar1() ne porte que l'AR(1) stationnaire (lecture du code).
 #
 #  Protocole.
-#    1. Grille rho dans {-0,999 ; -0,99 ; -0,98 ; -0,95 ; -0,9 ; -0,8 ; -0,7 ;
-#       -0,5 ; -0,3 ; 0}, alpha dans {0,10 ; 0,05} : puissance =
-#       dw_puissance_ar1(8, rho, alpha) ; rho = 0 sert de controle de niveau
-#       (doit rendre alpha). Domaine du moteur : -1 + 1e-6 <= rho (garde de
-#       dw_puissance_ar1()) ; le point le plus proche de -1 de la grille est a
-#       1 - |rho| = 1e-3, soit trois decades de la garde. La colonne "1 -
-#       puissance" (deficit) est la quantite qui tend vers 0 quand rho -> -1.
+#    1. Grille rho dans {-1 + 1e-6 ; -0,99999 ; -0,9999 ; -0,999 ; -0,99 ;
+#       -0,98 ; -0,95 ; -0,9 ; -0,8 ; -0,7 ; -0,5 ; -0,3 ; 0}, alpha dans
+#       {0,10 ; 0,05} : puissance = dw_puissance_ar1(8, rho, alpha) ; rho = 0
+#       sert de controle de niveau (doit rendre alpha). Domaine du moteur :
+#       -1 + 1e-6 <= rho (garde de dw_puissance_ar1()) ; le point -1 + 1e-6 EST
+#       la garde (1 - |rho| = 1e-6, admis : le test de la garde, rho < -1 +
+#       1e-6, est faux sur cette valeur calculee de la meme facon). La colonne
+#       "1 - puissance" (deficit) est la quantite qui tend vers 0 quand rho ->
+#       -1. Deuxieme tableau : deficit / (1 - |rho|)^(1/2) (1 - |rho| lu comme
+#       1 + rho), coefficient de la loi en (1 - |rho|)^(1/2) que le commentaire
+#       de dw_puissance_ar1() releve pour rho < 0 ; mesure du 31/10/2026 :
+#       1,2188 (alpha = 0,10) et 1,8153 (alpha = 0,05) a 1 - |rho| = 1e-6.
 #    2. Controles (code de sortie 1 si l'un echoue ; ecarts toujours
 #       rapportes) :
 #       D1  determinisme : un second appel de dw_puissance_ar1(8, -0,99, 0,10)
@@ -68,6 +74,10 @@
 #           la fiche DW, issue #116) ; rho = -0,3 et -0,6, 0,163 et 0,355 a
 #           5e-4, demi-pas d'arrondi des valeurs a trois decimales de
 #           docs/tableaux/20261020-mesure-lb1-dw-t8.md (sections 3).
+#       C   loi du deficit : ecart relatif du coefficient deficit / (1 -
+#           |rho|)^(1/2) entre 1 - |rho| = 1e-4 (rho = -0,9999) et 1 - |rho| =
+#           1e-6 (rho = -1 + 1e-6), a 1e-3 (constat a T = 8, par seuil ; 1,9e-4
+#           a alpha = 0,10 et 4,1e-4 a alpha = 0,05 mesures le 31/10/2026).
 #       Chaque controle L recalcule son point par un appel de
 #       dw_puissance_ar1() propre, que la grille le contienne ou non.
 #    3. RECOUPEMENT PAR SIMULATION, independant d'Imhof pour l'alternative, a
@@ -95,7 +105,7 @@
 #      Rscript tests/mesure_dw_rho_negatif_t8.R --essai
 #      Rscript tests/mesure_dw_rho_negatif_t8.R --ecrire --issue 164
 #  --essai (M39, mode d'essai des scripts de mesure hors CI) : grille reduite
-#  (rho dans {-0,99 ; 0}, alpha = 0,10) et recoupement REDUIT (rho = -0,99,
+#  (rho dans {-1 + 1e-6 ; -0,9999 ; -0,99 ; 0}, alpha = 0,10) et recoupement REDUIT (rho = -0,99,
 #  alpha = 0,10, N_SIM = 2e4, meme graine ; erreur-type plus grande, controle
 #  S1 sur 300 series), marques en sortie, NON versionnables (--ecrire refuse
 #  avec --essai) ; annonce la duree estimee d'une execution COMPLETE (part
@@ -217,9 +227,11 @@ RHO <- "\u03c1"
 
 # --- Parametres ----------------------------------------------------------------
 T_ <- 8L
-RHOS_COMPLET <- c(-0.999, -0.99, -0.98, -0.95, -0.9, -0.8, -0.7, -0.5, -0.3, 0)
+RHO_GARDE <- -1 + 1e-6   # garde de dw_puissance_ar1() : 1 - |rho| = 1e-6
+RHO_1E4 <- -0.9999       # 1 - |rho| = 1e-4
+RHOS_COMPLET <- c(RHO_GARDE, -0.99999, RHO_1E4, -0.999, -0.99, -0.98, -0.95, -0.9, -0.8, -0.7, -0.5, -0.3, 0)
 ALPHAS_COMPLET <- c(0.10, 0.05)
-RHOS <- if (OPT_ESSAI) c(-0.99, 0) else RHOS_COMPLET
+RHOS <- if (OPT_ESSAI) c(RHO_GARDE, RHO_1E4, -0.99, 0) else RHOS_COMPLET
 ALPHAS <- if (OPT_ESSAI) 0.10 else ALPHAS_COMPLET
 N_APPELS_LIENS <- 3L   # rho = -0,5 ; -0,3 ; -0,6 (alpha = 0,10), controles L
 N_APPELS_DETERM <- 1L  # second appel du controle D1
@@ -279,6 +291,15 @@ for (a in ALPHAS) {
   ctrl(sprintf("B-a%s", num(a, 2)),
        sprintf("constat sur la grille \u00e0 T = 8 (non garanti en g\u00e9n\u00e9ral) : points \u03c1 < 0 o\u00f9 la puissance ne d\u00e9passe pas \u03b1 = %s", num(a, 2)),
        sum(p[RHOS < 0] <= a), 0, 0)
+}
+# C : stabilite du coefficient deficit / (1 - |rho|)^(1/2) de 1e-4 a 1e-6.
+coef_deficit <- function(r, a) (1 - PUIS[format(r), format(a)]) / sqrt(1 + r)
+for (a in ALPHAS) {
+  c4 <- coef_deficit(RHO_1E4, a)
+  ctrl(sprintf("C-a%s", num(a, 2)),
+       sprintf("constat \u00e0 T = 8 : d\u00e9ficit / (1 \u2212 \\|\u03c1\\|)^\u00bd, \u03c1 = \u22121 + 10^\u22126 contre \u03c1 = \u22120,9999 (obtenu et attendu = coefficients), \u03b1 = %s ; tol\u00e9rance = 10^\u22123 en relatif",
+               num(a, 2)),
+       coef_deficit(RHO_GARDE, a), c4, 1e-3 * c4)
 }
 # L : liens aux valeurs versionnees (alpha = 0,10), un appel propre par point.
 p_l5 <- dw_puissance_ar1(T_, -0.5, 0.10)
@@ -354,28 +375,44 @@ INTEGRITE <- all(CTRL$ok)
 sortie <- character(0)
 ajouter <- function(...) sortie <<- c(sortie, ...)
 
-lib_rho <- function(r) if (r == 0) "0 (contr\u00f4le de niveau)" else num(r, 3)
+# rho proches de -1 : sans zeros finaux (num(-0,9999, 3) rendrait -1,000).
+lib_rho <- function(r) if (r == 0) "0 (contr\u00f4le de niveau)" else if (r < -0.999) sub(".", ",", sub("0+$", "", sprintf("%.6f", r)), fixed = TRUE) else num(r, 3)
 lignes <- vapply(seq_along(RHOS), function(i) {
   cel <- unlist(lapply(seq_along(ALPHAS), function(j) c(num(PUIS[i, j], 4), num(1 - PUIS[i, j], 4))))
   ligne_md(lib_rho(RHOS[i]), if (RHOS[i] == 0) "\u2014" else sci(1 + RHOS[i]), paste(cel, collapse = " | "))
 }, "")
 cols_a <- unlist(lapply(ALPHAS, function(a) c(sprintf("Puissance (%s = %s)", ALPHA, num(a, 2)), "1 \u2212 puissance")))
 ajouter("## Puissance du test de Durbin-Watson \u00e0 T = 8 contre un AR(1) \u00e0 \u03c1 n\u00e9gatif (#164)", "",
-        if (OPT_ESSAI) c(paste0("**Essai (--essai) : non versionnable.** Grille r\u00e9duite (\u03c1 \u2208 {\u22120,99 ; 0}, ", ALPHA,
-                                " = 0,10) ; l'ex\u00e9cution compl\u00e8te porte sur 10 valeurs de \u03c1 et 2 seuils. Recoupement par simulation r\u00e9duit \u00e0 \u03c1 = \u22120,99, ", ALPHA,
+        if (OPT_ESSAI) c(paste0("**Essai (--essai) : non versionnable.** Grille r\u00e9duite (\u03c1 \u2208 {\u22121 + 10^\u22126 ; \u22120,9999 ; \u22120,99 ; 0}, ", ALPHA,
+                                " = 0,10) ; l'ex\u00e9cution compl\u00e8te porte sur ", length(RHOS_COMPLET), " valeurs de \u03c1 et 2 seuils. Recoupement par simulation r\u00e9duit \u00e0 \u03c1 = \u22120,99, ", ALPHA,
                                 " = 0,10, N = ", format(N_SIM, scientific = FALSE), " (ex\u00e9cution compl\u00e8te : \u03c1 \u2208 {0 ; \u22120,9 ; \u22120,99}, 2 seuils, N = ",
                                 format(N_SIM_COMPLET, scientific = FALSE), ")."), ""),
-        paste0("Statut : approximation num\u00e9rique d'Imhof d'une quantit\u00e9 exacte, recoup\u00e9e par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 = \u22120,999 non recoup\u00e9 ; sous z i.i.d., hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie). La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
+        paste0("Statut : approximation num\u00e9rique d'Imhof d'une quantit\u00e9 exacte, recoup\u00e9e par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 \u2264 \u22120,999 non recoup\u00e9s ; sous z i.i.d., hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie). La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
         "Cadre : T = 8 ; z gaussien centr\u00e9, i.i.d. N(0,1) sous H0, AR(1) stationnaire de matrice de covariance (\u03c1^|i\u2212j|) sous l'alternative ; sans r\u00e9ajustement ; statistique calcul\u00e9e sur la s\u00e9rie centr\u00e9e. Test bilat\u00e9ral exact de `dw_p_exacte()` (p = 2 min(P0(DW \u2264 d), P0(DW \u2265 d)), rejet si p < \u03b1), puissance par `dw_puissance_ar1(8, \u03c1, \u03b1)`. Variante \u00e0 d\u00e9part nul : non calcul\u00e9e (`dw_puissance_ar1()` ne porte que l'AR(1) stationnaire).", "",
         "### 1. Puissance de DW par \u03c1", "",
         entete_md(c(RHO, "1 \u2212 \\|\u03c1\\|", cols_a)),
         lignes, "",
-        paste0("\u00ab 1 \u2212 puissance \u00bb : d\u00e9ficit de puissance, la quantit\u00e9 qui tend vers 0 quand \u03c1 \u2192 \u22121. Le moteur refuse \u03c1 < \u22121 + 10^\u22126 (garde de `dw_puissance_ar1()`) ; le point le plus proche de \u22121 de la grille est \u00e0 1 \u2212 |\u03c1| = 10^\u22123."), "")
+        paste0("\u00ab 1 \u2212 puissance \u00bb : d\u00e9ficit de puissance, la quantit\u00e9 qui tend vers 0 quand \u03c1 \u2192 \u22121. Le moteur refuse \u03c1 < \u22121 + 10^\u22126 (garde de `dw_puissance_ar1()`) ; le point le plus proche de \u22121 de la grille, \u03c1 = \u22121 + 10^\u22126, est la garde elle-m\u00eame (1 \u2212 |\u03c1| = 10^\u22126, admis)."), "")
 
+# Loi du d\u00e9ficit pr\u00e8s de \u03c1 = \u22121 : coefficient d\u00e9ficit / (1 \u2212 |\u03c1|)^\u00bd, 1 \u2212 |\u03c1| lu comme 1 + \u03c1.
+neg <- which(RHOS < 0)
+ajouter("### 1 bis. D\u00e9ficit rapport\u00e9 \u00e0 (1 \u2212 |\u03c1|)^\u00bd", "",
+        paste0("Coefficient = (1 \u2212 puissance) / (1 \u2212 |\u03c1|)^\u00bd, 1 \u2212 |\u03c1| lu comme 1 + \u03c1 ; mesure pour \u03c1 < 0 de la grille, hors recoupement par simulation. Constat \u00e0 T = 8 : \u00e0 1 \u2212 |\u03c1| = 10^\u22124 et 10^\u22126, les deux coefficients diff\u00e8rent de moins de 10^\u22123 en relatif (contr\u00f4le C) ; la loi en (1 \u2212 |\u03c1|)^\u00bd est celle que rel\u00e8ve le commentaire de `dw_puissance_ar1()`. Au-del\u00e0 de la garde, non \u00e9valu\u00e9 ici."), "",
+        entete_md(c(RHO, "1 \u2212 \\|\u03c1\\|", unlist(lapply(ALPHAS, function(a) sprintf("D\u00e9ficit / (1 \u2212 \\|\u03c1\\|)^\u00bd (%s = %s)", ALPHA, num(a, 2)))))),
+        vapply(neg, function(i) ligne_md(lib_rho(RHOS[i]), sci(1 + RHOS[i]),
+                                         paste(vapply(ALPHAS, function(a) num(coef_deficit(RHOS[i], a), 4), ""), collapse = " | ")), ""), "")
+
+# Signe des ecarts simule - Imhof : constat calcule ; explication proposee
+# seulement si tous les ecarts (au moins deux) sont negatifs.
+n_neg <- sum(SIM$sim - SIM$imhof < 0)
+phrase_signes <- if (n_neg == nrow(SIM) && nrow(SIM) > 1L) {
+  sprintf(" Constat : les %d \u00e9carts simul\u00e9 \u2212 Imhof sont tous n\u00e9gatifs. Explication propos\u00e9e, non test\u00e9e par ce script : les innovations e sont communes \u00e0 tous les \u03c1 et les deux seuils d'un m\u00eame \u03c1 reposent sur les m\u00eames s\u00e9ries, donc les fr\u00e9quences de rejet sont corr\u00e9l\u00e9es et le signe commun ne se lit pas comme %d \u00e9vidences ind\u00e9pendantes d'un \u00e9cart d'Imhof (le crit\u00e8re de validit\u00e9 reste le contr\u00f4le S, \u00e0 3 erreurs-types).", nrow(SIM), nrow(SIM))
+} else sprintf(" Constat : %d \u00e9cart(s) simul\u00e9 \u2212 Imhof n\u00e9gatif(s) sur %d.", n_neg, nrow(SIM))
 ajouter("### 2. Recoupement par simulation (ind\u00e9pendant d'Imhof pour l'alternative)", "",
-        sprintf("N = %s s\u00e9ries AR(1) stationnaires \u00e0 T = 8 par \u03c1 (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1), graine %s sous `engine_sous_graine()`, g\u00e9n\u00e9rateur %s. Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4le S0 contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type = sqrt(p(1 \u2212 p)/N) avec p la valeur d'Imhof (au plus %s ici%s). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1). \u03c1 = \u22120,999 n'est pas recoup\u00e9.",
+        sprintf("N = %s s\u00e9ries AR(1) stationnaires \u00e0 T = 8 par \u03c1 (z_1 = e_1, z_t = \u03c1 z_{t\u22121} + \u221a(1 \u2212 \u03c1\u00b2) e_t, m\u00eames innovations pour tous les \u03c1), graine %s sous `engine_sous_graine()`, g\u00e9n\u00e9rateur %s. Statistique DW sur la s\u00e9rie centr\u00e9e (formule matricielle, contr\u00f4le S0 contre `stat_dw()`) ; points critiques bilat\u00e9raux de la loi nulle exacte (copie d\u00e9clar\u00e9e du calcul de `dw_puissance_ar1()`, contr\u00f4le S1 contre `dw_p_exacte()`). Erreur-type = sqrt(p(1 \u2212 p)/N) avec p la valeur d'Imhof (au plus %s ici%s). \u03c1 = 0 : niveau (valeur de r\u00e9f\u00e9rence \u03b1). Les \u03c1 \u2264 \u22120,999 ne sont pas recoup\u00e9s.%s",
                 format(N_SIM, scientific = FALSE), format(SEED_SIM, scientific = FALSE), paste(ENGINE_RNG_KIND, collapse = ", "), sci(max(SIM$se)),
-                if (max(SIM$se) <= 1e-3) ", soit \u2264 10^\u22123" else " : N r\u00e9duit de l'essai, > 10^\u22123"), "",
+                if (max(SIM$se) <= 1e-3) ", soit \u2264 10^\u22123" else " : N r\u00e9duit de l'essai, > 10^\u22123",
+                phrase_signes), "",
         entete_md(c(RHO, ALPHA, "Imhof (grille)", "Simul\u00e9 \u00b1 erreur-type", "Simul\u00e9 \u2212 Imhof", "\u00c9cart en erreurs-types")),
         vapply(seq_len(nrow(SIM)), function(i) with(SIM[i, ], ligne_md(num(rho, 2), num(alpha, 2), num(imhof, 5), sprintf("%s \u00b1 %s", num(sim, 5), num(se, 5)),
                                                                      num(sim - imhof, 5), num((sim - imhof) / se, 2))), ""), "")
