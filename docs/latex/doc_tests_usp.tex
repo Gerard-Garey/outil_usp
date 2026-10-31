@@ -1082,6 +1082,13 @@ toutes les autres et avant le repère de renvoi, qu'elles ne reçoivent pas \\
 table des $\hat\sigma^{(-t)}$, $\sigma_{\mathrm{USP}}^{(-t)}$, $\hat\delta^{(-t)}$,
 $\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en échec ou refusé par
 \code{usp\_valider\_ajustement()} (issue~\#224) \\
+\code{usp\_jack\_annees()} & $\sigma_{\mathrm{USP}}^{(-t)}$ (colonne \code{sigma\_usp}
+d'\code{usp\_jackknife()}), $\sigma_{\mathrm{USP}}$ & indices $t$ des années évaluables les plus
+influentes sur $\sigma_{\mathrm{USP}}$, à la tolérance $\tau$ près (issue~\#327), ou \code{NULL}
+si aucun écart n'est fini~; désignation unique du moteur, lue par \code{run\_engine()}
+(commentaire de la ligne jackknife) et par \code{engine\_influence()} (colonne
+\code{plus\_influente}), extraite telle quelle de \code{run\_engine()} par l'issue~\#396
+(fiche~\ref{fiche:jackknife}) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
 $\chi^2(1)$ naïve, relève de \code{usp\_lr\_delta()})~; objectif \code{NA} aux seuls points de
@@ -1199,9 +1206,24 @@ d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et l
 d'exclusion de M1 (issue~\#60) \\
 \code{.MW\_LIGNE\_CELLULE\_}\newline\code{ABERRANTE} & constante (chaîne) & nom de la ligne M4 de
 la cellule aberrante (fiche~\ref{mw:m4gr}), lu par \code{add()} dans \code{mw\_tests()} et par
-l'avertissement des colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme cette ligne
-comme ligne qui écarte aussi ces colonnes sans être fondée sur les résidus de Mack
-(issue~\#352, §\ref{sec:controles}) \\
+la constante \code{.MW\_LIGNES\_COLONNES\_ECARTEES}, que lit l'avertissement des colonnes
+dégénérées de \code{mw\_valider\_ajustement()} (issues~\#352 et~\#363, §\ref{sec:controles}) \\
+\code{.MW\_LIGNES\_COLONNES\_}\newline\code{ECARTEES} & constante (liste nommée par famille) &
+noms des lignes de \code{mw\_tests()} qui écartent les colonnes dégénérées de leur calcul, par
+famille et dans l'ordre de \code{mw\_tests()}~: une ligne y figure si elle reçoit l'ensemble
+figé des colonnes dégénérées, directement ou par \code{mw\_residus()}~; les lignes fondées sur les
+résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}) en font donc partie. La famille~$\alpha$
+(fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année d'accident ne
+reçoivent pas cet ensemble et n'y figurent pas, non plus que les lignes de lecture conjointe
+(décision du mainteneur du 30~octobre 2026). Constante unique, lue par l'avertissement des
+colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme celles de ses lignes qui ne
+reposent pas sur les résidus de Mack (issue~\#363, §\ref{sec:controles})~; un test unitaire vérifie
+qu'elle coïncide avec les lignes dont le contenu change quand on substitue l'ensemble figé,
+complétées des lignes fondées sur les résidus \\
+\code{.mw\_texte\_lignes()} & liste de noms de lignes nommée par famille & texte
+«~\code{M1 ("a" ; "b"), M3 ("c")}~» de la liste, partagé par l'énumération des lignes fondées sur
+les résidus et par celle des autres lignes qui écartent les colonnes dégénérées, dans
+l'avertissement de \code{mw\_valider\_ajustement()} (issue~\#363) \\
 \code{.mw\_triangle\_}\newline\code{totalement\_degenere()} & \code{aj} & \code{TRUE} si toutes les
 colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
 un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
@@ -1219,7 +1241,7 @@ réplication~; \code{.mw\_stat\_non\_}\allowbreak\code{definie\_ni()} rend ce m�
 de l'élément \code{non\_identifiables} (table de l'ensemble figé), retour \code{NA} commun de la
 courbure et de l'ordonnée à l'origine depuis l'issue~\#290 \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
-\code{\$terme\_covariance} \\
+\code{\$terme\_estimation} \\
 \code{mw\_sensibilite\_}\newline\code{sigma2\_dernier()} & \code{aj}, \code{ex} (sortie de
 \code{mw\_extrapolation\_}\allowbreak\code{sigma2()}) & sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ à
 $\hat\sigma^2_{J-1}$ (issue~\#310)~: liste qui donne l'applicabilité, la valeur de la règle et
@@ -1335,6 +1357,12 @@ $\mathrm{CV}_j$ des colonnes retenues (\code{NA} sans colonne retenue), et \code
 colonne retenue ($n_j \ge 3$, hors des colonnes exclues), vide sinon~; $e_{a,j}$ \code{NA} si
 $C(\cdot,j)$ est constant~; lit le triangle et les $\hat\sigma_j^2$, non \code{mw\_residus()}
 (issue~\#308, fiche~\ref{mw:m1id}) \\
+\code{.mw\_format\_}\newline\code{echelle()} & valeurs, \code{decimales} & chaînes de
+caractères~: écriture fixe à \code{decimales} décimales quand sa valeur relue est dans
+$[10^{-3}~;~10^{6}[$ en valeur absolue, \code{\%.3e} sinon et pour toute valeur non finie~;
+vectorisée, \code{sprintf()} seul, aucun calcul~; appelée par \code{mw\_tests()} pour écrire
+$R_j$ (3 décimales) et $e_{a,j}$ (4) dans le commentaire de l'identifiabilité intra-colonne
+(issue~\#364, fiche~\ref{mw:m1id}) \\
 \code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
 \code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
 (\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
@@ -1376,7 +1404,12 @@ distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
 (\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
 calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
-déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct \\
+déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct. Depuis
+l'issue~\#293, seules les tables de $n \le$ \code{MW\_COMBN\_N\_MAX} $= 20$ y sont gardées (au
+plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à chaque appel et jamais
+gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
+l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
+même, cache vide ou rempli \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1521,7 +1554,9 @@ arrêté à la colonne en cause), la phrase finissant alors par «~\code{hors de
 Fisher.}~»~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
-\code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
+\code{mw\_influence()} & \code{aj} & levier, son repère de lecture
+\code{repere\_levier} $=$ \code{REPERE\_LEVIER}$/n_j$ (nommé \code{seuil\_levier} avant
+l'issue~\#209) et le booléen de coloration \code{fort\_levier}, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
 \code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
@@ -1592,9 +1627,15 @@ nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabi
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
-distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
+distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), leurs
+repères de lecture \code{repere\_levier} $=$ \code{REPERE\_LEVIER} $\cdot\,k/T$ ($k$ nombre de
+coefficients du modèle ajusté, $k = 1$) et \code{repere\_cook} $=$ \code{REPERE\_COOK\_LN}$/T$
+(colonnes nommées \code{seuil\_levier} et \code{seuil\_cook} avant l'issue~\#209) et les
+booléens de coloration \code{fort\_levier} et \code{influent}, écarts du
 jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
-évaluable, issue~\#224)~;
+évaluable, issue~\#224)~; depuis l'issue~\#396, en fin de table, colonne logique
+\code{plus\_influente}, \code{TRUE} pour les années désignées par \code{usp\_jack\_annees()},
+\code{FALSE} partout si aucun réajustement n'a abouti~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -1613,7 +1654,12 @@ le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ 
 la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
 fin de liste~; depuis l'issue~\#305, en fin de liste, \code{sigma\_usp\_boot} et
 \code{boot\_reperes} (distribution bootstrap de $\sigma_{\mathrm{USP}}$, sans régime ni intervalle
-«~basic~», fiche~\ref{fiche:ic-bootstrap}) \\
+«~basic~», fiche~\ref{fiche:ic-bootstrap})~; depuis l'issue~\#396, la colonne logique
+\code{influence\$plus\_influente}, en fin de table \code{influence}~: \code{TRUE} pour la seule
+cellule de plus grand $|\mathrm{DFBETAS}|$ défini (la première dans l'ordre de
+\code{mw\_influence()} en cas d'égalité exacte, sans tolérance), \code{FALSE} partout si aucun
+DFBETAS n'est défini (fiche~\ref{mw:influence})~; la même issue retire la feuille
+\code{methode}, qui doublait \code{metadata\$methode} \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -1624,6 +1670,12 @@ section~\ref{sec:graphiques}) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
+\code{REPERE\_LEVIER},\newline \code{REPERE\_COOK\_LN} & constantes ($2$, numérateur de $2k/T$
+et de $2/n_j$~; $4$, numérateur de $4/T$) & repères de lecture du levier (deux branches) et de
+la distance de Cook (branche lognormale), lus par \code{engine\_influence()},
+\code{mw\_influence()}, la ligne «~Leviers (\emph{hat values})~» d'\code{usp\_tests()} et
+\code{.usp\_ligne\_cook()}, sans verdict (fiches~\ref{fiche:leviers}, \ref{fiche:cook}
+et~\ref{mw:influence}, issue~\#209) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 28 colonnes (mesuré
 sur les cas \code{premium} et \code{reserve2}~; 27 avant l'issue~\#330), dont la colonne
 \code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
@@ -4202,8 +4254,8 @@ bloquant~: le résidu de Mack y vaut $0/0$ si les facteurs sont exactement égau
 que le rapport d'écarts négligeables à la tolérance de l'outil~; ces facteurs sont exclus des
 dix lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
 les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33), nomme, depuis
-l'issue~\#352, la ligne M4 de la cellule aberrante, qui écarte aussi ces colonnes sans être
-fondée sur les résidus de Mack, et précise que le vivier du bootstrap ne contient que les résidus
+l'issue~\#363, les autres lignes qui écartent aussi ces colonnes de leur calcul sans reposer sur
+les résidus de Mack (M1, M3 et la ligne M4 de la cellule aberrante, issue~\#352), et précise que le vivier du bootstrap ne contient que les résidus
 retenus (décision du mainteneur du 5~octobre 2026). \\
 Réserve faible devant son incertitude \emph{(post-ajustement)} & $\sqrt{\mathrm{MSEP}}/\hat R
 \ge 1$ & \textbf{Avertissement}, non bloquant~: D(4) définit le paramètre pour tout
@@ -4268,8 +4320,9 @@ $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne 
 qu'un facteur individuel pour $I = J$, seule géométrie admise par \code{mw\_valider\_triangle()},
 n'entre pas dans le prédicat. Le refus a la forme d'un
 refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
-\code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation},
-\code{methode} et \code{metadata}, aucun résultat partiel. Un seul motif (décision du mainteneur
+\code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation} et
+\code{metadata} (horodatage et méthode~; le champ \code{methode} de premier niveau, qui doublait
+\code{metadata\$methode}, est retiré depuis l'issue~\#396), aucun résultat partiel. Un seul motif (décision du mainteneur
 du 5~octobre 2026)~: les avertissements de colonnes de \code{mw\_valider\_ajustement()}
 (extrapolation de $\hat\sigma^2_{J-1}$, colonnes sans résidu de Mack) ne sont pas émis en plus~;
 ceux de \code{mw\_valider\_triangle()} (crédibilité, $I + 1 < 10$) demeurent. Le motif n'est
@@ -12646,7 +12699,10 @@ s'agit d'une heuristique sans fondement rigoureux.
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t D_t$. Le commentaire donne
 le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$), le nombre d'observations au-dessus et leurs
-rangs~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
+rangs (cas de référence \code{premium}~: «~\code{repere conventionnel 4/T = 0.500 ; 1
+observation(s) au-dessus (rangs 8)}~»)~; le numérateur~4 est lu par \code{.usp\_ligne\_cook()}
+dans la constante \code{REPERE\_COOK\_LN}, qui fixe aussi la colonne \code{repere\_cook} et le
+booléen \code{influent} d'\code{engine\_influence()} (issue~\#209)~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
 verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} une observation au-dessus de
 $4/T$ et \code{ECHEC} deux ou plus. \emph{Ligne non applicable} (issue~\#153,
 \code{.usp\_ligne\_cook()}, sur le modèle des gardes de RESET et de White)~: si une distance
@@ -12727,7 +12783,11 @@ Aucune.
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t h_t$. Le commentaire donne
 le repère conventionnel $2k/T$ ($2/T = 0{,}250$ à $T = 8$, $k = 1$) et le nombre d'observations
-au-dessus~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
+au-dessus (cas de référence \code{premium}~: «~\code{repere conventionnel 2k/T = 0.250 ; 0
+observation(s) au-dessus}~»)~; le numérateur~2 est lu dans la constante \code{REPERE\_LEVIER}, et
+$k$ est le nombre de coefficients du modèle ajusté (\code{length(coef())}, $k = 1$ pour
+$y = \beta x$), défini comme dans \code{engine\_influence()}, dont la colonne
+\code{repere\_levier} et le booléen \code{fort\_levier} portent le même repère (issue~\#209)~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
 aucun verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} tout dépassement.
 \Usage
 Le levier ne dépend que des $x_t$~: il identifie les années dont le \emph{volume} est atypique,
@@ -13144,7 +13204,8 @@ champ \code{estim})~; faute d'année déterminée, le commentaire le dit.
 \emph{Années d'influence égale à la précision numérique près} (issue~\#327). Notons
 $\Delta_t = |\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}|/\sigma_{\mathrm{USP}}$ l'écart
 relatif de l'année évaluable $t$, et $\Delta_{(1)} = \Delta_{\max} \ge \Delta_{(2)}$ les deux plus
-grands. Le moteur (\code{run\_engine()}) désigne toutes les années évaluables telles que
+grands. Le moteur (\code{usp\_jack\_annees()}, appelée par \code{run\_engine()} et, depuis
+l'issue~\#396, par \code{engine\_influence()}) désigne toutes les années évaluables telles que
 $\Delta_t \ge \Delta_{(1)} - \tau$, avec
 \[
   \tau \;=\; 2\cdot\text{\code{REP\_SIGMA\_KKT}}\cdot\big(2 + \Delta_{(1)} + \Delta_{(2)}\big),
@@ -13228,8 +13289,28 @@ table \code{res\$jackknife} est entièrement à \code{NA}. Depuis l'issue~\#328,
 d'influence de l'application affiche alors un panneau vide au message fixe «~\code{Aucune annee
 evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
 l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
-\code{NA}, la note nomme les années non évaluables, le maximum étant pris hors de ces années.
-L'affichage lit ces années dans la table d'influence, sans calcul.
+\code{NA}, la note nomme les années non évaluables, qui n'entrent pas dans la désignation.
+L'affichage lit ces années dans la table d'influence, sans calcul. Depuis l'issue~\#396, la note
+ne calcule plus de maximum~: elle lit la colonne \code{plus\_influente} de
+\code{res\$plots\_data\$influence}, posée par \code{engine\_influence()} d'après
+\code{usp\_jack\_annees()}, soit la désignation même du commentaire de la ligne~; jusqu'à cette
+issue, elle refaisait le maximum de l'écart en valeur absolue, sans la tolérance $\tau$. Une
+seule année désignée~: «~Le retrait de l'année la plus influente déplace sigma\_USP de
+$-9{,}4$~\%.~» (cas de référence \code{premium}), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
+après la virgule, «~\dots{} de moins de 0,05~\% en valeur absolue.~», sans signe. Plusieurs
+années désignées~: toutes sont citées, comme dans le commentaire, avec une seule amplitude,
+celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts relatifs en
+valeur absolue, $\Delta_t$, ne diffèrent qu'à $\tau$ près (de l'ordre de $4\cdot 10^{-6}$, contre
+un pas d'affichage de $10^{-3}$) et deux valeurs arrondies distinctes feraient paraître une
+différence qui n'est pas discernable~; sur le jeu de l'issue~\#224~: «~Années les plus influentes, d'influence égale à
+la précision numérique près~: 1, 2, 3, 4, 6, 7 et 8~; le retrait de chacune déplace sigma\_USP
+de $+2{,}1$~\%.~» Si les signes des années diffèrent, l'amplitude commune est écrite avec le
+signe de chaque année, suivie de «~respectivement~»~; si toutes s'écrivent $0{,}0$, la phrase
+finit par «~moins de 0,05~\% en valeur absolue~». Faute d'année désignée alors que des écarts
+sont finis, la note écrit «~Année la plus influente non déterminée.~», cas que la désignation du
+moteur ne produit pas pour un $\sigma_{\mathrm{USP}}$ fini et strictement positif,
+\code{usp\_jack\_annees()} désignant au moins une année dès qu'un écart est fini (branche
+défensive de l'affichage).
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
@@ -14191,7 +14272,17 @@ de même les cellules dont le DFBETAS dépasse en valeur absolue le repère de l
 secondaires, issue~\#89, fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
 \code{fort\_dfbetas}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
-lit sans comparaison (issue~\#37). Quand un résidu standardisé ou une distance de Cook n'est pas
+lit sans comparaison (issue~\#37). Il en va de même des deux premiers graphiques~: le premier
+trace le repère de levier $2k/T$ (colonne \code{repere\_levier}, constante \code{REPERE\_LEVIER},
+fiche~\ref{fiche:leviers}) et le second le repère $4/T$ (colonne \code{repere\_cook}, constante
+\code{REPERE\_COOK\_LN}, fiche~\ref{fiche:cook}), et tous deux colorent les années dont la
+distance de Cook dépasse strictement $4/T$ (booléen \code{influent}), valeurs posées par
+\code{engine\_influence()} (issue~\#209). De même, depuis l'issue~\#396, le booléen
+\code{plus\_influente} de la même table désigne l'année, ou les années, la plus influente sur
+$\sigma_{\mathrm{USP}}$ (\code{engine\_influence()}, d'après \code{usp\_jack\_annees()},
+fiche~\ref{fiche:jackknife}) et la cellule de plus grand $|\mathrm{DFBETAS}|$
+(\code{mw\_plots\_data()}, fiche~\ref{mw:influence})~; les notes des graphiques le lisent sans
+recalculer de maximum. Quand un résidu standardisé ou une distance de Cook n'est pas
 fini (par exemple $y_t$ exactement proportionnel à $x_t$, fiche~\ref{fiche:cook}, série que
 \code{run\_engine()} refuse depuis l'issue~\#188~: le cas ne se présente alors qu'en appel direct
 d'\code{engine\_plots\_data()}), les deux
@@ -14535,7 +14626,14 @@ Sans objet.
 \Usage
 Le premier graphique croise levier et résidu de Mack~: il sépare les cellules
 atypiques par leur \emph{poids} de celles qui sont réellement influentes~; les cellules d'une
-colonne dégénérée, sans résidu de Mack, n'y figurent pas. Le
+colonne dégénérée, sans résidu de Mack, n'y figurent pas. Il colore les cellules dont le
+levier dépasse strictement le repère de lecture $2/n_j$, deux fois le levier moyen $1/n_j$ de la
+colonne (convention $2p/n$ de Hoaglin et Welsch, 1978, avec $p = 1$ coefficient~; constante
+\code{REPERE\_LEVIER} du moteur, colonne \code{repere\_levier} et booléen \code{fort\_levier}
+calculés par \code{mw\_influence()}, que l'affichage lit sans comparaison, issue~\#209~;
+$h(i,j) < 1$ dès que $n_j \ge 2$, de sorte que le repère, égal à~1 pour $n_j = 2$, n'est jamais
+franchi dans ces colonnes et ne peut l'être que pour $n_j \ge 3$), et la
+note du graphique en donne le nombre~; ce repère ne produit aucun verdict. Le
 deuxième donne le DFBETAS cellule par cellule~: de combien d'écarts-types estimés le facteur
 de développement bougerait si cette cellule était retirée~; la variation relative de
 $\hat f_j$, directement interprétable en pourcentage, est donnée en infobulle. Les repères
@@ -14551,6 +14649,23 @@ relative de $\hat f_j$, propre à l'outil et sans source, qui ne colorait aucune
 triangle de contrôle (variation relative maximale $0{,}585~\%$). Sur ce triangle, le repère
 $2/\sqrt{n_j}$ colore trois cellules~: $(0,2)$, de DFBETAS $-1{,}102$ (repère $0{,}894$),
 $(0,3)$, $-1{,}498$ (repère $1{,}000$), et $(1,4)$, $+1{,}527$ (repère $1{,}155$).
+La note nomme aussi la cellule la plus influente, désignée depuis
+l'issue~\#396 par le moteur (colonne \code{plus\_influente} de \code{res\$plots\_data\$influence},
+posée par \code{mw\_plots\_data()}), et non plus recalculée par l'affichage~: la cellule de plus
+grand $|\mathrm{DFBETAS}|$ parmi les cellules à DFBETAS défini, la première dans l'ordre des
+cellules de \code{mw\_influence()} en cas d'égalité exacte, aucune si aucun DFBETAS n'est défini.
+Aucune tolérance analogue à celle du jackknife (fiche~\ref{fiche:jackknife}) n'y est appliquée~:
+les DFBETAS sont calculés par expression explicite, sans réajustement itératif ni optimiseur
+(rubrique~1), et leur erreur relative, mesurée au plus à $1{,}9\cdot 10^{-13}$ contre une
+référence à 256~bits sur la grille de triangles construits de la rubrique~1 (constat numérique,
+hors des cellules à DFBETAS non borné), est sans commune mesure avec la précision $10^{-6}$ des
+réajustements qui fonde $\tau$~; deux cellules dont les $|\mathrm{DFBETAS}|$ ne différeraient que
+de cet ordre seraient départagées par l'ordre des cellules, cas qui ne se présente pas sur le
+triangle de contrôle ($1{,}527$ contre $1{,}498$ pour les deux plus grands). Sur le triangle de
+contrôle~: «~La cellule la plus influente est (i = 1, j = 4) (DFBETAS = +1,53), dont le retrait
+déplacerait f\_4 de -0,30~\%.~» Une cellule \code{dfbetas\_non\_borne}, sans DFBETAS restitué,
+n'entre pas dans la désignation~: la phrase commence alors par «~Parmi les cellules à DFBETAS
+borné, la plus influente est~».
 
 \medskip
 \textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
@@ -14588,7 +14703,7 @@ réserve et la part de la variance de processus de la MSEP.
 \medskip
 \textbf{Réserve de lecture importante.} Ce troisième graphique est une
 \emph{décomposition} et non un leave-one-out. Le terme d'erreur d'estimation de
-la MSEP (champ \code{\$terme\_covariance} de \code{mw\_msep()}) comporte des
+la MSEP (champ \code{\$terme\_estimation} de \code{mw\_msep()}) comporte des
 termes croisés, partagés entre paires d'années de survenance, qui ne sont pas
 attribuables à une année isolée~: seule la variance de processus, attribuable
 année par année, y figure.
@@ -14775,17 +14890,32 @@ dix lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\
 tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
 l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
 années de survenance, Durbin--Watson et test des suites~; M4, ESD
-généralisé~; M5, Shapiro--Wilk et Lilliefors. Depuis l'issue~\#352 (texte retouché par décision du
-mainteneur du 22~octobre 2026), l'avertissement nomme ensuite la ligne M4 «~\code{Cellule
-aberrante du triangle (residus studentises externes)}~», dont la statistique est calculée sur les
-résidus studentisés externes de chaque colonne (fiche~\ref{mw:m4gr}) et non sur ces résidus, et
-qui écarte aussi ces colonnes~: elle n'est pas comptée parmi les lignes fondées sur ces résidus
-(elle ne lit pas \code{mw\_residus()}), mais le lecteur de l'avertissement sait ainsi qu'elle ne
-les examine pas.
-Son nom est porté par une constante unique, \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par
-\code{mw\_tests()} pour la ligne et par l'avertissement (mesuré sur le triangle de six années des
-tests unitaires dont la colonne $j = 0$ est dégénérée, \code{run\_engine()}, $B = 99$~: la phrase
-suit la liste des lignes fondées sur les résidus et précède celle du vivier du bootstrap). Lorsque $\hat f_{J-2}$ ou
+généralisé~; M5, Shapiro--Wilk et Lilliefors. Depuis l'issue~\#363 (texte d'\code{actuary},
+retenu par décision du mainteneur du 30~octobre 2026, qui remplace la phrase de
+l'issue~\#352~; la ligne M4 de la cellule aberrante y était déjà nommée seule), l'avertissement
+nomme ensuite «~les autres lignes qui écartent aussi ces colonnes de leur calcul, sans reposer sur
+ces résidus~»~: M1, nullité de l'ordonnée à l'origine, homogénéité de $f_j$ entre années de
+survenance, absence de courbure et identifiabilité intra-colonne~; M3, effets d'année calendaire
+(test de Mack), effets d'année calendaire par diagonale et corrélation entre années de
+développement adjacentes~; M4, «~\code{Cellule aberrante du triangle (residus studentises
+externes)}~», dont il précise que la statistique est calculée sur les résidus studentisés externes
+de chaque colonne (fiche~\ref{mw:m4gr}), et non sur ces résidus. Ces lignes reçoivent l'ensemble
+figé des colonnes dégénérées sans lire \code{mw\_residus()}~: elles ne sont pas comptées parmi les
+lignes fondées sur les résidus, mais le lecteur de l'avertissement sait ainsi qu'elles
+n'examinent pas ces colonnes (sur le triangle cité ci-dessous, la ligne d'identifiabilité
+intra-colonne omet $j = 0$ de ses valeurs). Les deux listes sont tirées d'une constante unique,
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, qui nomme par famille toutes les lignes de
+\code{mw\_tests()} recevant cet ensemble, directement ou par \code{mw\_residus()}~;
+l'avertissement en énumère celles qui ne figurent pas dans \code{.MW\_LIGNES\_RESIDUS}. La
+famille~$\alpha$ (fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année
+d'accident (M6) ne reçoivent pas cet ensemble et ne sont pas nommées~: la famille~$\alpha$ garde
+ces colonnes. Les lignes de lecture conjointe (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}), qui ne le reçoivent pas non plus, sont hors de la constante (décision
+du mainteneur du 30~octobre 2026). Le nom de la ligne de la cellule aberrante est porté par la
+constante \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par \code{mw\_tests()} pour la ligne et par
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES} (mesuré sur le triangle de six années des tests unitaires
+dont la colonne $j = 0$ est dégénérée, \code{run\_engine()}, $B = 99$~: la phrase des autres
+lignes suit la liste des lignes fondées sur les résidus et précède celle du vivier du bootstrap). Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
@@ -14845,7 +14975,7 @@ l'erreur de prédiction à un an de Merz--Wüthrich (2008). Le moteur transcrit 
 \textbf{Restitution du résultat.} \code{mw\_msep()} renvoie la MSEP et deux
 composantes~: \code{\$terme\_variance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,
 \hat Q_{I-i}/C(i,I-i)$, la variance de processus seule, et
-\code{\$terme\_covariance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
+\code{\$terme\_estimation} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
 + 2\sum_{i<k}\hat C(i,J)\,\hat C(k,J)\,\Delta_i$, l'erreur d'estimation, ses
 termes diagonaux compris. Leur somme est exactement la MSEP du texte. Ce
 découpage est un choix de présentation~: le règlement ne prescrit aucune
@@ -16182,6 +16312,27 @@ seuil $0{,}10$ sous le plan du triangle de contrôle (rubrique~7), hypothèse qu
 peut confirmer à $T = 8$ (fiches~\ref{mw:m2bp} et~\ref{mw:m2b}, rubrique~7), mais d'enjeu
 matériel faible.
 
+\emph{Colonnes dégénérées.} \code{mw\_famille\_alpha()} ne reçoit pas l'ensemble figé des colonnes
+dégénérées (fiche~\ref{mw:m1a})~: elle garde ces colonnes dans $A$, avec leur poids $n_j$, et
+l'avertissement des colonnes dégénérées ne nomme pas la ligne parmi celles qui les écartent
+(§\ref{sec:controles}, issue~\#363). Chaque $\hat f_j^{(\alpha)}$ étant une moyenne pondérée des
+facteurs individuels de la colonne, l'amplitude d'une telle colonne est au plus
+$\big(\max_i F(i,j) - \min_i F(i,j)\big)/\hat f_j^{(1)}$, donc nulle ou de l'ordre de la
+tolérance relative $10^{-12}$ de l'outil (au plus $2\cdot 10^{-12}$ par le premier volet du
+prédicat, environ $(n_j-1)\cdot 10^{-12}$ par le second). La colonne garde pourtant son poids
+$n_j$ au dénominateur de $A$~: la statistique observée est multipliée par
+$\sum' n_j/\sum_j n_j$, la somme $\sum'$ portant sur les colonnes non dégénérées de $A$. Il en va
+de même de chaque statistique simulée, le bootstrap tirant la colonne avec $\hat\sigma_j^2$ nul
+ou négligeable à la tolérance de l'outil (section~\ref{sec:boot-mw}), donc dégénérée à son tour.
+La p-value de Monte-Carlo n'en est pas modifiée, à des égalités près de l'ordre de la
+tolérance~; seule la valeur restituée de $A$ est diminuée de ce facteur, et ne se lit plus comme
+l'amplitude moyenne des seules colonnes non dégénérées. Mesuré sur le triangle de six années des
+tests unitaires dont la colonne $j = 0$ est dégénérée ($n_0 = 5$, $n_1 = 4$, $n_2 = 3$~;
+$B = 999$, graine 20260831~; mesure d'\code{actuary}, fin de branche Fq)~: amplitude de la
+colonne $j = 0$ nulle à l'observé et dans les 999 réplications, rapport de $A$ à la statistique
+calculée sans cette colonne égal à $7/12$ à l'observé comme dans chaque réplication, p-value de
+Monte-Carlo $0{,}514$ avec ou sans la colonne.
+
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Alpha}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
@@ -16243,7 +16394,10 @@ le triangle de contrôle~: $S_j/D_j$ égale l'élément \code{cov.unscaled[1, 1]
 \code{summary(lm(C1 \textasciitilde\ C0, weights = 1/C0))} à moins de $10^{-13}$ en relatif dans
 les cinq colonnes (oracle des tests unitaires, tolérance $10^{-10}$). La fonction lit le triangle,
 les $\hat\sigma_j^2$ et les colonnes exclues, et non \code{mw\_residus()}~: la ligne n'est pas
-comptée parmi les lignes fondées sur les résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}). Les trois
+comptée parmi les lignes fondées sur les résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}), mais
+parmi les autres lignes qui écartent les colonnes dégénérées, que nomme l'avertissement de
+\code{mw\_valider\_ajustement()} (\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, issue~\#363,
+§\ref{sec:controles}). Les trois
 grandeurs sont sans dimension et invariantes par changement d'unité des cumulés.
 \Hzero
 Aucune hypothèse nulle~: la ligne est un diagnostic. Le «~\code{sous H0}~» du libellé
@@ -16256,7 +16410,24 @@ $\mathrm{CV}_j$ des colonnes retenues («~\code{CV moyen des colonnes retenues}~
 colonne retenue)~; le commentaire donne, pour chaque colonne retenue, $j$, $n_j$, $\mathrm{CV}_j$,
 $R_j$ et $e_{a,j}$ («~\code{e\_a non definie (C(i,j) constant)}~» si $D_j = 0$), ou
 «~\code{Aucune colonne retenue (n\_j >= 3).}~». Toutes ces grandeurs sont calculées sur le
-triangle observé~; aucune n'est issue du bootstrap (issue~\#76). Sur le triangle de contrôle
+triangle observé~; aucune n'est issue du bootstrap (issue~\#76). \emph{Écriture de $R_j$ et de
+$e_{a,j}$} (issue~\#364, décision Q-44-4 du mainteneur du 30~octobre 2026)~: \code{mw\_tests()}
+les écrit par \code{.mw\_format\_echelle()}, en virgule fixe à trois décimales pour $R_j$ et à
+quatre pour $e_{a,j}$ (\code{\%.3f}, \code{\%.4f}) quand la valeur de cette écriture fixe, relue,
+est dans $[10^{-3}~;~10^{6}[$ en valeur absolue, et en notation scientifique à quatre chiffres
+significatifs (\code{\%.3e}) sinon, ainsi que pour toute valeur non finie (écrite \code{Inf},
+\code{-Inf}, \code{NaN} ou \code{NA}). La plage est jugée sur l'écriture fixe, et non sur la
+valeur elle-même, pour qu'aucune écriture fixe imprimée n'en sorte~: à quatre décimales,
+$0{,}00099995$ s'écrit \code{0.0010}, mais le double le plus proche de $0{,}00095$, que l'écriture
+fixe arrondit à \code{0.0009}, s'écrit \code{9.500e-04}. L'écriture fixe seule, en vigueur
+jusqu'à cette issue, rendait illisible un rapport $R_j$ géant et écrivait nul un $e_{a,j}$ très
+petit~: sur le triangle de contrôle dont la ligne $i = 0$ est multipliée par $10^{-14}$, la
+colonne $j = 0$ s'écrivait «~\code{R = 122857142857143.000, e\_a = 0.0000}~» et s'écrit
+«~\code{R = 1.229e+14, e\_a = 1.577e-09}~»~; la ligne $i = 0$ multipliée par $10^{15}$, elle
+s'écrit «~\code{R = 9.633e+14, e\_a = 4.685e-17}~» (tests unitaires, texte à la lettre). Seule
+l'écriture change~: les valeurs restituées dans \code{\$detail} de
+\code{mw\_identifiabilite\_}\allowbreak\code{intra()} ne sont pas arrondies. Toutes les
+grandeurs du triangle de contrôle sont dans la plage, et son commentaire est inchangé. Sur le triangle de contrôle
 (\code{run\_engine()}, méthode \code{reserve2})~: estimation $0{,}0730$, et, par colonne, avec les
 multiplicateurs et les effets minimaux détectables de la rubrique~6~:
 \begin{center}
@@ -18030,8 +18201,31 @@ calculée par \code{mw\_sensibilite\_sigma2\_dernier()} et transmise à
 \code{.mw\_detail\_extrapolation()}~: \code{mw\_msep()} est rappelée en remplaçant
 $\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} = \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit
 \code{mw\_msep()}, successivement par chacun des trois arguments du minimum, dans l'ordre du
-texte, puis par~$0$. Chaque valeur est imprimée avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$
-de la règle~; l'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
+texte, puis par~$0$. Chaque valeur est imprimée à six chiffres significatifs
+(\code{format(, digits = 6)}), avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$ de la règle, en
+pourcentage à une décimale (\code{\%+.1f \%})~; au-delà d'un rapport de
+\code{RAPPORT\_MAX\_ECART\_MW} $= 100$ entre la $\sqrt{\mathrm{MSEP}}$ obtenue et celle de la règle
+(seuil strict~: un rapport de $100$ exactement s'écrit encore \code{+9900.0 \%}), c'est ce rapport
+qui est imprimé à la place du pourcentage, précédé de «~\code{x}~», à trois chiffres significatifs
+(\code{\%.3g}, zéros finaux supprimés~: «~\code{x 133}~», «~\code{x 2.67e+09}~»~; issue~\#372,
+point~1, décision du mainteneur du 30~octobre 2026). C'est une règle de présentation, non un
+garde-fou~: un pourcentage de douze chiffres ne se lit pas, et un rapport aussi grand signale
+seulement que la règle de minimum est contraignante, le quotient
+$\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
+petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
+et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
+retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (sous l'hypothèse
+auxiliaire d'erreurs gaussiennes, que le modèle de Mack ne fait pas,
+$2\hat\sigma^2_{J-3}/\sigma^2_{J-3}$ suit exactement une loi $\chi^2(2)$, dont les quantiles à
+5~\% et 95~\% sont dans un rapport de 58~: une petite valeur de $\hat\sigma^2_{J-3}$ n'a rien
+d'exceptionnel~; avis
+d'\code{actuary}, issue~\#372). Sur le triangle de contrôle dont la colonne $J-3$ est rendue
+presque constante (facteurs individuels $F(i,J-3)$ égaux à $1{,}1$ pour $i = 0$ et~$2$, et à
+$1{,}1$ à un écart relatif près pour $i = 1$, cumuls suivants de la ligne remis à l'échelle~;
+tests unitaires), colonne non dégénérée à la tolérance de l'outil, la $\sqrt{\mathrm{MSEP}}$ avec
+le quotient s'écrit «~\code{+1234.3 \%}~» à un écart relatif de $10^{-3}$, «~\code{x 133}~» à
+$10^{-4}$ (\code{+13233.1 \%} avant l'issue~\#372) et «~\code{x 2.67e+09}~» à
+$5\times10^{-12}$ (\code{+266637851904.6 \%} avant cette issue). L'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
 quand $\hat\sigma^2_{J-3} = 0$, exactement ou à la tolérance relative $10^{-12}$ de l'outil
 (colonne $J-3$ dégénérée, champ \code{\$degeneree\_Jm3} de \code{mw\_extrapolation\_sigma2()})~:
 le quotient d'une variance nulle à la tolérance près n'a pas de valeur interprétable. Avec la valeur que retient la règle, la MSEP recalculée est
@@ -18040,7 +18234,12 @@ unitaires). La valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un ar
 minimum}~», dans une phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement
 ou à la tolérance relative $10^{-12}$ de l'outil (colonne $J-3$ ou $J-2$ dégénérée, champ
 \code{\$degeneree} de \code{mw\_extrapolation\_sigma2()})~: elle répéterait alors la valeur de
-la règle. La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
+la règle. Depuis l'issue~\#372 (point~1), elle est omise aussi, colonne dégénérée ou non, quand
+la $\sqrt{\mathrm{MSEP}}$ du contrefactuel, imprimée à six chiffres significatifs, est celle de
+la règle~: elle répéterait, à la précision imprimée, la valeur de la règle. Sur la colonne
+$J-3$ presque constante ci-dessus, la phrase est omise à un écart relatif de $5\times10^{-12}$
+(contrefactuel et règle imprimés \code{160.926}) et gardée à $10^{-4}$ (\code{160.931} contre
+\code{160.935}, écart imprimé \code{-0.0 \%}). La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
 $\sqrt{\mathrm{MSEP}}$ de la règle n'est pas finie et strictement positive, les écarts relatifs
 n'ayant alors pas de sens. Les racines de MSEP sont déterministes~: le \code{detail} n'imprime
 aucun nombre issu du bootstrap. Aucun écart type estimé ni aucun
@@ -20481,7 +20680,8 @@ en queue haute ou basse, $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$ au bilatéral~
 de $\hat p$, par statistique, dans \code{granularite\_stat}~; lue par \code{add()} pour la phrase
 \code{PHRASE\_VERDICT\_SENSIBLE\_MC} (issue~\#244) \\
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
-\code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45) \\
+\code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()} (issue~\#45)~; années les plus
+influentes du jackknife~: \code{usp\_jack\_annees()} (issues~\#327 et~\#396) \\
 Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
@@ -20540,7 +20740,9 @@ champ \code{\$kkt\_au\_moins\_un}, puis \code{\$gamma\_bord\_au\_moins\_un}, lu 
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
 \code{mw\_plots\_data()} (branche Merz--Wüthrich)~; repères de lecture des graphiques
-d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETAS\_MW} \\
+d'influence \code{REPERE\_INFLUENCE\_SIGMA}, \code{REPERE\_DFBETAS\_MW}, \code{REPERE\_LEVIER}
+et \code{REPERE\_COOK\_LN} (ces deux dernières lues aussi par les lignes des leviers et de la
+distance de Cook, issue~\#209) \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
 laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}, et, depuis l'issue~\#240, flux complémentaire sous la graine
@@ -20822,7 +21024,7 @@ envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Toute ligne dont le type n'est pas \code{test}
 (ADR~0001, amendement du 23/09/2026, annoté le 28/10/2026)~: diagnostics et lignes non applicables, dont
 \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
-qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
+qu'un verdict soit fourni pour une telle ligne. Les valeurs conventionnelles attachées aux
 diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
 10~\% / 20~\% pour le
 jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les libellés de la
@@ -20915,7 +21117,7 @@ taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation e
 \begin{tabular}{@{}p{4.9cm}p{3.6cm}p{3.1cm}p{3.1cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Repère (fiche)}} &
-\textcolor{financeblue}{\textbf{Source du seuil}} &
+\textcolor{financeblue}{\textbf{Source du repère}} &
 \textcolor{financeblue}{\textbf{J1, \% [IC 95 \%]}} &
 \textcolor{financeblue}{\textbf{J2, \% [IC 95 \%]}} \\
 Cook~: au moins un $D_t > 4/T$ (fiche~\ref{fiche:cook}) & $4/(n-k-1)$ de Bollen et Jackman
@@ -20949,7 +21151,7 @@ $\hat\delta^{*}$ au bord de $[0,1]$ (fiche~\ref{fiche:position-delta}) &
 \end{center}
 
 \noindent
-\emph{Sources des seuils.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
+\emph{Sources des repères.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
 K.\,A. Bollen et R.\,W. Jackman (1990, section~\ref{sec:biblio}) proposent le seuil $4/(n-k-1)$,
 dont le repère $4/T$ du projet est la simplification usuelle (à $T = 8$ et $k = 1$~: $0{,}667$
 contre $0{,}5$)~; le repère $4/T$ reste une convention de lecture, sans source qui le fonde tel

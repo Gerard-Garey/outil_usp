@@ -970,7 +970,7 @@ verifier("run_engine : erreur injectee dans le calcul (usp_simuler, usp_tests) -
              is.list(er) && identical(names(er), c("message", "appel", "origine", "pile")) &&
              is.character(er$message) && length(er$pile) >= 1L &&
              is.character(er$origine) && length(er$origine) == 1L && er$origine %in% er$pile &&
-             identical(r$methode, "premium") && identical(r$metadata$methode, "premium")
+             !"methode" %in% names(r) && identical(r$metadata$methode, "premium")
          }, logical(1))))
 # Origine = derniere fonction de la pile definie dans le moteur. Trois
 # injections : (1) erreur dans usp_simuler(), appelee par usp_bootstrap()
@@ -1034,7 +1034,8 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
            r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = B_MIN_USAGE),
                          error = function(err) err,
                          finally = assign("mw_bootstrap", orig, envir = e))
-           !inherits(r, "error") && identical(r$ok, FALSE) && identical(r$methode, "reserve2") &&
+           !inherits(r, "error") && identical(r$ok, FALSE) && !"methode" %in% names(r) &&
+             identical(r$metadata$methode, "reserve2") &&
              contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
              identical(r$validation$erreur_r$origine, "mw_bootstrap")
          })

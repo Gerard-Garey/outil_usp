@@ -894,6 +894,83 @@ verifier("#327 : usp_tests() direct, jack_annees absent -> phrase de l'annee la 
              identical(d_pl, paste0(PL_327, "3 et 5 (sigma_USP en baisse).")) &&
              !grepl("[.,][0-9]", d_pl)
          })
+## --- Issue #396 : designations publiees par le moteur ------------------------
+# plots_data$influence$plus_influente (derniere colonne) : annees de
+# usp_jack_annees(), la designation robustesse$jack_annees du detail de la
+# ligne jackknife (#327), relevee ici en enveloppant usp_tests() le temps de
+# l'appel ; en Merz-Wuthrich, cellule de plus grand |DFBETAS|. Doublons
+# res$methode et plots_data$methode retires, methode lue dans metadata.
+appels_396 <- list(
+  premium  = function() run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                                   B = B_MIN_USAGE, nature_donnees = "brutes"),
+  reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, annexe = "II",
+                                   B = B_MIN_USAGE),
+  reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw, segment = 1, annexe = "II",
+                                   B = B_MIN_USAGE))
+jack_annees_relevees <- function(appel) {
+  e <- environment(run_engine); orig <- get("usp_tests", envir = e); ja <- "non releve"
+  assign("usp_tests", function(...) { ja <<- list(...)$robustesse$jack_annees; orig(...) }, envir = e)
+  r <- tryCatch(appel(), finally = assign("usp_tests", orig, envir = e))
+  list(res = r, jack_annees = ja)
+}
+verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (identical), annees 1, 2, 3, 4, 6, 7 et 8, derniere colonne logique",
+         {
+           rel <- jack_annees_relevees(function() run_engine(xt = x, yt = y_224, methode = "premium",
+                                                              segment = 1, annexe = "II", B = 99,
+                                                              nature_donnees = "brutes"))
+           d <- rel$res$plots_data$influence
+           is.logical(d$plus_influente) && !anyNA(d$plus_influente) &&
+             identical(utils::tail(names(d), 1L), "plus_influente") &&
+             identical(which(d$plus_influente), as.integer(rel$jack_annees)) &&
+             identical(which(d$plus_influente), c(1L, 2L, 3L, 4L, 6L, 7L, 8L)) &&
+             identical(d$plus_influente, d$t %in% usp_jack_annees(rel$res$jackknife$sigma_usp,
+                                                                 rel$res$parametre_final$sigma_usp))
+         })
+verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau/2 -> 1 et 2 ; a 2 tau -> 1 seule ; NA ecartes ; aucun reajustement -> FALSE partout)",
+         {
+           e1 <- rep(0.01, 8); e1[1] <- -0.050
+           ecart <- function(g) { e <- e1; e[2] <- -(0.050 - g); e }
+           tau <- tau_327(0.050, 0.050)
+           pl <- function(ec) which(jk_imposer(ec)$plots_data$influence$plus_influente)
+           e_na <- rep(NA_real_, 8); e_na[4] <- 0.02
+           identical(pl(ecart(tau / 2)), c(1L, 2L)) && identical(pl(ecart(2 * tau)), 1L) &&
+             identical(pl(e_na), 4L) &&
+             identical(usp_jack_annees(rep(NA_real_, 8), 1), NULL) &&
+             identical(engine_influence(fit, list(sigma_usp = rep(NA_real_, 8)), 1)$plus_influente,
+                       rep(FALSE, 8))
+         })
+verifier("#396 : premium et reserve1 (deux run_engine) : plus_influente = jack_annees releve ; engine_influence() appele directement sans jackknife : pas de colonne",
+         {
+           ok <- TRUE
+           for (m in c("premium", "reserve1")) {
+             rel <- jack_annees_relevees(appels_396[[m]])
+             ok <- ok && identical(which(rel$res$plots_data$influence$plus_influente),
+                                   as.integer(rel$jack_annees)) && length(rel$jack_annees) >= 1L
+           }
+           ok && is.null(engine_influence(usp_ajuster(x, y))$plus_influente)
+         })
+verifier("#396 : Merz-Wuthrich, plus_influente = cellule de plus grand |DFBETAS| (une seule, derniere colonne) ; mw_influence() sans la colonne",
+         {
+           r <- appels_396[["reserve2"]]()
+           d <- r$plots_data$influence
+           di <- mw_influence(mw_ajuster(tri_mw))
+           is.logical(d$plus_influente) && sum(d$plus_influente) == 1L &&
+             identical(utils::tail(names(d), 1L), "plus_influente") &&
+             identical(which(d$plus_influente), which.max(abs(d$dfbetas))) &&
+             identical(paste(d$i[d$plus_influente], d$j[d$plus_influente]), "1 4") &&
+             !"plus_influente" %in% names(di) &&
+             identical(d[setdiff(names(d), "plus_influente")], di)
+         })
+verifier("#396 : doublons de methode retires (res$methode, plots_data$methode), methode dans metadata ; empreinte des donnees du triangle lue par metadata$methode",
+         {
+           r2 <- appels_396[["reserve2"]](); r1 <- appels_396[["premium"]]()
+           em <- engine_empreinte(r2)
+           !"methode" %in% names(r2) && !"methode" %in% names(r2$plots_data) &&
+             !"methode" %in% names(r1) && !"methode" %in% names(r1$plots_data) &&
+             identical(r2$metadata$methode, "reserve2") && identical(r1$metadata$methode, "premium") &&
+             startsWith(em$texte_donnees, sprintf("triangle;%d;%d\n", nrow(tri_mw), ncol(tri_mw))) &&
+             startsWith(engine_empreinte(r1)$texte_donnees, "t;xt;yt\n")
+         })
 verifier("#224 (b) : signature et colonnes d'usp_jackknife() inchangees (C-Fc-3)",
          identical(names(formals(usp_jackknife)), c("fit", "sigma_standard", "bareme")) &&
            identical(names(res_224$jackknife),
@@ -1308,6 +1385,45 @@ verifier("engine_influence() : fort_ecart_sigma = |ecart_sigma| > REPERE_INFLUEN
            dj <- engine_influence(f, list(sigma_usp = c(1.2, 0.95, 1.05, 0.85, 1, 1.11, 0.89, 1)), 1)
            ok && identical(dj$fort_ecart_sigma, c(TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, TRUE, FALSE))
          })
+# Issue #209 (Q-44-5) : reperes de lecture du levier et de la distance de
+# Cook nommes repere_levier et repere_cook (seuil_levier et seuil_cook avant
+# #209), numerateurs en constantes ; valeurs inchangees (2k/T, 4/T, k = 1).
+# Le test fige les constantes a 2 et 4 : il garde la coherence entre les
+# libelles figes "4/T", "2k/T" et "2/n_j" de R/display_helpers.R (et des
+# detail de usp_tests()) et les constantes REPERE_LEVIER et REPERE_COOK_LN.
+verifier("engine_influence() : repere_levier = REPERE_LEVIER k / T = 2/T, repere_cook = REPERE_COOK_LN / T = 4/T, fort_levier et influent lus sur ces colonnes, aucune colonne seuil_* (#209)",
+         {
+           ok <- identical(c(REPERE_LEVIER, REPERE_COOK_LN), c(2, 4))
+           for (m in c("premium", "reserve1")) {
+             d <- appels_run[[m]]()$plots_data$influence; T <- nrow(d)
+             ok <- ok && !any(startsWith(names(d), "seuil")) &&
+               identical(d$repere_levier, rep(2 / T, T)) &&
+               identical(d$repere_cook, rep(4 / T, T)) &&
+               identical(d$fort_levier, d$levier > d$repere_levier) &&
+               identical(d$influent, d$cook > d$repere_cook)
+           }
+           ok
+         })
+# Issue #209 : le repere imprime dans le detail des lignes Leviers et Cook de
+# usp_tests() et la colonne de plots_data$influence viennent de la meme
+# constante ; comparaison a la precision imprimee (%.3f).
+verifier("usp_tests() : repere imprime dans le detail des lignes 'Leviers (hat values)' (2k/T) et 'Points influents (distance de Cook)' (4/T) = plots_data$influence$repere_levier[1] et repere_cook[1] a la precision imprimee (#209)",
+         {
+           ok <- TRUE
+           for (m in c("premium", "reserve1")) {
+             r <- appels_run[[m]](); d <- r$plots_data$influence
+             det <- stats::setNames(vapply(r$tests, function(l) l$detail, character(1)),
+                                    vapply(r$tests, function(l) l$test, character(1)))
+             lu <- function(test, rep) as.numeric(sub(sprintf(".*%s = ([0-9.]+).*", rep), "\\1",
+                                                     det[[test]]))
+             ok <- ok &&
+               identical(lu("Leviers (hat values)", "2k/T"),
+                         as.numeric(sprintf("%.3f", d$repere_levier[1]))) &&
+               identical(lu("Points influents (distance de Cook)", "4/T"),
+                         as.numeric(sprintf("%.3f", d$repere_cook[1])))
+           }
+           ok
+         })
 verifier("engine_influence() sans jackknife : ni ecart_sigma ni fort_ecart_sigma",
          {
            d <- engine_influence(usp_ajuster(x, y))
@@ -1328,21 +1444,23 @@ verifier("mw_influence() : dfbetas = stats::dfbetas() (1e-10) pour n_j >= 3, NA 
            }
            ok && any(d$j == max(d$j) & is.na(d$dfbetas))
          })
-verifier("mw_influence() : colonnes, repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA",
+verifier("plots_data$influence (reserve2) : colonnes de mw_influence() puis plus_influente (#396), repere_levier = REPERE_LEVIER / n_j = 2/n_j et fort_levier lu sur cette colonne (#209), repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA ; mw_influence() = cette table sans plus_influente",
          {
            d <- appels_run$reserve2()$plots_data$influence
            d2 <- mw_influence(mw_ajuster(tri_mw))
            nj <- as.vector(table(d$j)[as.character(d$j)])
-           identical(names(d), c("i", "j", "C", "F", "levier", "seuil_levier", "f_chapeau",
+           identical(names(d), c("i", "j", "C", "F", "levier", "repere_levier", "f_chapeau",
                                  "f_sans_cellule", "dfbeta_relatif", "residu", "fort_levier",
                                  "dfbetas", "repere_dfbetas", "fort_dfbetas",
-                                 "dfbetas_non_borne")) &&
+                                 "dfbetas_non_borne", "plus_influente")) &&
              !("fort_dfbeta" %in% names(d)) &&
+             identical(REPERE_LEVIER, 2) && identical(d$repere_levier, 2 / nj) &&
+             identical(d$fort_levier, d$levier > d$repere_levier) &&
              identical(d$repere_dfbetas, REPERE_DFBETAS_MW / sqrt(nj)) &&
              is.logical(d$fort_dfbetas) && !anyNA(d$fort_dfbetas) &&
              identical(d$fort_dfbetas, !is.na(d$dfbetas) & abs(d$dfbetas) > d$repere_dfbetas) &&
              is.logical(d$dfbetas_non_borne) && !any(d$dfbetas_non_borne) &&
-             identical(d2, d)
+             identical(d2, d[setdiff(names(d), "plus_influente")])
          })
 verifier("mw_influence() : sur reserve2, trois cellules colorees (0,2), (0,3), (1,4)",
          {
