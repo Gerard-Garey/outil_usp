@@ -4835,7 +4835,12 @@ la colonne, et une correction globale $\sqrt{N/(N-k)}$, qui ne corrige ni l'hét
 colonnes ni celle des leviers. Le redressement retenu est une \emph{interprétation de l'outil}
 --- le redressement par le levier des modèles linéaires pondérés, appliqué à la régression de
 Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucune référence
-bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. Les résidus
+bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. La revue de
+pertinence du 15~octobre 2026 (issue~\#317) le rapproche des résidus «~modifiés~» par le levier
+du bootstrap de résidus en régression linéaire de A.\,C. Davison et D.\,V. Hinkley (1997,
+chap.~6, section~\ref{sec:biblio})~; ce rapprochement repose sur des sources secondaires et n'a
+pas été vérifié dans l'ouvrage, faute d'accès à son texte~: aucune page ni aucune équation n'en
+est citée, et le redressement reste une interprétation de l'outil. Les résidus
 redressés ont, à $\sigma_j$ connu, la variance unitaire du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
 colonne, leviers inégaux)~: l'échangeabilité que suppose le rééchantillonnage reste une
 approximation, qu'aucun théorème ne couvre pour ce test bootstrap. Le niveau réel des p-values
@@ -6745,7 +6750,9 @@ contrôle (§\ref{sec:calib-mc-mw}) \\
 
 Homogénéité de $f_j$ entre années de survenance & \textbf{MW} & $X$ de Fisher &
 Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo & Idem &
-Seconde exigence du texte : « pour toutes les années d'accident » ; $p_j$ de colonne sur la
+Communauté de $f_j$ entre années de survenance~: interprétation de l'outil, appuyée sur
+D(4)(c) (un facteur estimé $\hat f_j$ par année de développement), non exigence littérale de
+D(2)(h)(iii)~; $p_j$ de colonne sur la
 loi de permutation à $n_j \le 9$, jamais nulle (issue~\#90), conditionnelle aux rangs moyens
 avec ex \ae quo (issue~\#207) \\
 
@@ -6798,8 +6805,8 @@ $H = N - 1$ par construction, aucune p-value, diagnostic (fiche~\ref{mw:m3acc}) 
 
 Effets d'année calendaire & \textbf{MW} & $Z$ & Non & Oui (moments \emph{exacts} de $Z$) & Oui &
 Monte-Carlo, queue basse (issue~\#276) & \textbf{Sous conditions} : les moments sont exacts, l'approximation
-normale de leur somme ne l'est pas & Bootstrap de résidus ; test le plus
-informatif sur un triangle~; alternative unilatérale de Mack ($Z$ trop petit) \\
+normale de leur somme ne l'est pas & Bootstrap de résidus ; seul test visant un effet
+calendaire~; alternative unilatérale de Mack ($Z$ trop petit) \\
 
 Effets d'année calendaire par diagonale (repère de Mack 1997) & \textbf{MW} & --- & --- & --- &
 --- & Diagnostic & Sans objet & $\mathbb{P}(Z_k \le z_k)$ exacte sous la loi binomiale
@@ -15516,9 +15523,11 @@ Les douze tests d'hypothèse reposent tous sur le bootstrap de résidus~; les de
 n'y passent pas~: Shapiro--Wilk dispose d'une loi nulle propre, pour la raison exposée
 dans sa fiche, et Lilliefors de l'approximation analytique de Dallal et Wilkinson
 (fiche~\ref{mw:m5li}), l'une et l'autre sous le modèle auxiliaire i.i.d. normal. Les six entrées en gras ci-dessus sont celles qui
-vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}, comme
-l'exige la formulation « pour toutes les années d'accident » du texte~; la
-régression agrégée initiale, conservée en tête, ne le permettait pas.
+vérifient les hypothèses de chaîne d'échelle \emph{colonne par colonne}~: D(2)(h)(iii) énonce
+la proportionnalité pour le passage «~d'une année de développement~» à la suivante, et D(4)(c)
+estime un facteur unique $\hat f_j$ par année de développement~; le quantificateur «~pour toutes
+les années d'accident~», qui figure aussi aux points (ii) et (iv), porte, lui, sur les lignes du
+triangle. La régression agrégée initiale, conservée en tête, ne le permettait pas.
 
 \clearpage
 % =============================================================================
@@ -15527,7 +15536,13 @@ régression agrégée initiale, conservée en tête, ne le permettait pas.
 % =============================================================================
 
 \begin{encadre}
-\textbf{Énoncé.} annexe~XVII, D(2)(h)(iii)~: $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$.
+\textbf{Énoncé.} annexe~XVII, D(2)(h)(iii)~: «~pour toutes les années d'accident, la valeur
+attendue du montant de sinistres cumulé d'une année de développement est proportionnelle au
+montant de sinistres cumulé de l'année de développement précédente~». \textbf{Formalisation
+retenue par l'outil}, celle de T.~Mack (1993, hypothèse~(1), p.~214)~: $\mathbb{E}[C(i,j+1)\mid
+C(i,j)] = f_j\,C(i,j)$, avec un facteur $f_j$ commun à toutes les années de survenance~; cette
+communauté est une interprétation de l'outil, appuyée sur D(4)(c), qui estime un facteur unique
+$\hat f_j$ par année de développement, et non la lettre de D(2)(h)(iii).
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -15743,7 +15758,12 @@ triangle, dont la ligne d'hétéroscédasticité rejette la structure de varianc
 ladder reserve estimates}, \emph{ASTIN Bulletin}, 23(2), 1993, section~2, hypothèse~(1),
 p.~214, et section~3, hypothèse de variance~(3), p.~217~; régression pondérée sans constante
 de poids $1/C(i,j)$, dont l'estimateur est le facteur chain-ladder~: T.~Mack (1994,
-\emph{CAS Forum}), \emph{op.\ cit.}, chapitre~5, p.~121--123~;
+\emph{CAS Forum}), \emph{op.\ cit.}, chapitre~5, p.~121--123~; test du terme constant colonne par
+colonne~: G.\,G. Venter, \emph{Testing the assumptions of age-to-age factors}, \emph{Proceedings of
+the Casualty Actuarial Society}, 85, 1998, p.~807--847, implication~2(a), p.~812--813 et 815--816,
+et régression de chaque colonne avec constante, p.~820--821 (incréments régressés sur le cumulé
+précédent, paramètres ajustés par minimisation de la somme des carrés des résidus, p.~815, sans
+la pondération en $1/C(i,j)$ retenue ici)~;
 combinaison des p-values : R.\,A. Fisher, \emph{Statistical Methods for Research
 Workers}, 4\textsuperscript{e} éd., Oliver \& Boyd, 1932, §21.1.}
 \Cadre
@@ -16055,9 +16075,8 @@ r^2$ sans dimension pour la ligne d'hétéroscédasticité, $r^2$ pour l'ancienn
 Breusch--Pagan).
 \Usage
 C'est le test central de M1, et celui que la régression agrégée ne pouvait pas
-fournir. Il répond à la première des deux exigences du texte réglementaire~: une
-proportionnalité \emph{sans constante}, vérifiée \emph{pour chaque} année de
-développement. Le graphique des petits multiples (section~\ref{sec:graph-mw})
+fournir. Il porte sur ce que D(2)(h)(iii) énonce littéralement~: une proportionnalité, donc
+\emph{sans constante}, pour \emph{chaque} année de développement. Le graphique des petits multiples (section~\ref{sec:graph-mw})
 en donne la contrepartie visuelle~: la droite pleine est la proportionnalité
 imposée par le règlement, la droite pointillée l'ajustement libre~; l'écart
 entre les deux \emph{est} le test.
@@ -16089,9 +16108,12 @@ triangle de contrôle, des effets minimaux détectables de $23$ à $56~\%$ selon
 
 \begin{fiche}{M1 --- Homogénéité de $f_j$ entre années de survenance}
 \label{mw:m1b}
-\refl{Annexe XVII, D(2)(h)(iii), dont la formulation « pour toutes les années
-d'accident » constitue la seconde exigence ; C.~Spearman (1904),
-\emph{op.\ cit.} pour la corrélation de rang.}
+\refl{Annexe XVII, D(2)(h)(iii), lu avec D(4)(c), qui estime un facteur unique $\hat f_j$ par
+année de développement~: la communauté de $f_j$ entre années de survenance est une
+interprétation de l'outil (rubrique~6)~; stabilité du facteur dans le temps, examinée par les
+résidus en fonction de l'année et par les facteurs individuels par année de survenance~:
+G.\,G. Venter (1998), \emph{op.\ cit.}, implication~4, p.~813 et 830--832, que l'outil traduit en
+test de corrélation de rang~; C.~Spearman (1904), \emph{op.\ cit.} pour la corrélation de rang.}
 \Cadre
 Dans chaque colonne $j$ comptant au moins quatre observations, on mesure la
 corrélation de rang entre les facteurs individuels $F(i,j)$ et l'indice $i$ de
@@ -16186,8 +16208,11 @@ $13{,}165$, p-value de Monte-Carlo de $0{,}041$ à $0{,}047$, \code{ECHEC} incha
 centaine~: p-value de Monte-Carlo de $0{,}354$ à $0{,}378$, et de $0{,}921$ à $0{,}860$ pour
 l'exposant de variance (fiche~\ref{mw:m2b}), verdicts inchangés (constats sur ces triangles).
 \Usage
-Ce test répond à la \emph{seconde} exigence du texte, distincte de la première~:
-même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
+Ce test porte sur la communauté de $f_j$ entre années de survenance, interprétation de l'outil
+appuyée sur D(4)(c), qui estime un facteur unique $\hat f_j$ par année de développement~; ce
+n'est pas une seconde exigence de D(2)(h)(iii), dont le quantificateur «~pour toutes les années
+d'accident~», qui figure aussi aux points (ii) et (iv), ne crée pas d'exigence propre au
+point~(iii). Même si la proportionnalité vaut dans chaque colonne, un facteur qui dériverait
 d'une année de survenance à l'autre invaliderait le modèle. En pratique, une
 telle dérive traduit un changement de politique de règlement ou de mix de
 portefeuille. Elle n'est pas détectable par le test d'ordonnée à l'origine, qui
@@ -17371,8 +17396,8 @@ espérance~: la p-value asymptotique bilatérale vaut $0{,}573$, en accord avec 
 (p.~167--168), et la p-value en queue basse $\Phi(0{,}564) = 0{,}714$ (calcul à partir des valeurs
 publiées).
 \Usage
-C'est le test le plus informatif du dispositif Merz--Wüthrich, car il détecte ce
-que ni M1 ni M2 ne voient~: un choc affectant un exercice comptable entier
+C'est le seul test du dispositif Merz--Wüthrich qui vise un effet calendaire~; il est
+dirigé vers ce que ni M1 ni M2 ne visent~: un choc affectant un exercice comptable entier
 (inflation, changement de cadence de règlement, modification de la politique de
 provisionnement). Un tel choc viole l'indépendance des années de survenance
 posée par D(2)(h)(i). Limite à $T = 8$~: la somme ne porte que sur $I-1$
@@ -19829,9 +19854,9 @@ Forme bilatérale, antérieure à l'issue~\#276 (queue basse sous le tableau). S
 Kruskal--Wallis & 0,125 & 0,050 & 0,1265 & 0,0525 & 0,100 & 0,037 &
 Sur-rejet à $0{,}10$ sous N et E~: groupes très déséquilibrés \\
 Test des suites & \textbf{0,135} & \textbf{0,135} & \textbf{0,1285} & \textbf{0,1285} &
-\textbf{0,122} & \textbf{0,122} & \textbf{Sur-rejet marqué.} La contrainte
-$\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus d'une colonne négativement
-corrélés, d'où une alternance des signes plus fréquente que sous
+\textbf{0,122} & \textbf{0,122} & \textbf{Sur-rejet marqué.} Cause proposée, non mesurée
+(fiche~\ref{mw:m3runs})~: la contrainte $\sum_i \sqrt{C(i,j)}\,r(i,j) = 0$ rend les résidus
+d'une colonne négativement corrélés, ce qui rendrait les signes plus alternés que sous
 l'échangeabilité supposée par l'approximation normale \\
 Grubbs (borne de Bonferroni), statistique antérieure à l'issue~\#300 & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} & \textbf{0} &
 \textbf{0} & \textbf{Extrêmement conservatrice.} La borne est un majorant, et les résidus étant
@@ -20092,7 +20117,10 @@ distinguent.
   côté conservateur sous E, écart non tranché du côté libéral sous A ($0{,}159$
   $[0{,}137~;~0{,}183]$ à $0{,}10$, $0{,}088$ $[0{,}071~;~0{,}107]$ à $0{,}05$)~: classes non
   compatibles de part et d'autre de $\rho$ selon la loi des erreurs, à la même statistique et au
-  même seuil, indication descriptive d'un niveau sensible à cette loi. Constat documenté seul~;
+  même seuil, indication descriptive d'un niveau sensible à cette loi. La compatibilité sous N
+  porte sur le niveau seul et ne dit rien de la capacité de la statistique à voir une cellule
+  aberrante~: chaque $|r(i,j)|$ étant borné par $\sqrt{n_j - 1}$, une cellule très aberrante
+  gonflait aussi $s_r$ et se masquait (fiche~\ref{mw:m4gr}, historique). Constat documenté seul~;
   la statistique a été remplacée par l'issue~\#300 (ci-dessous et fiche~\ref{mw:m4gr}).
   \item \emph{Tendance avec le cumulé} (\code{PenteIntra}, fiche~\ref{mw:m1}, statistique
   antérieure à l'issue~\#307, la pente absolue)~: légèrement
@@ -21161,6 +21189,19 @@ modèle et un mode d'inférence différents.
   de contrôle. Son statut de référence partagée par la littérature est ce qui
   rend la validation reproductible par un tiers.
 
+  \item G.\,G. Venter, \emph{Testing the assumptions of age-to-age factors}, \emph{Proceedings of
+  the Casualty Actuarial Society}, 85, 1998, p.~807--847.
+  \emph{Portée.} Énumère six conséquences testables des hypothèses de Mack (p.~812--813), dont la
+  supériorité du modèle sans constante sur un modèle avec constante (implication~2(a)), éprouvée
+  par la significativité du terme constant de la régression de chaque colonne (p.~815--816 et
+  820--821), et la stabilité du facteur dans le temps (implication~4, p.~830--832), examinée par
+  les résidus et par les facteurs individuels en fonction de l'année de survenance. Citée aux
+  fiches~\ref{mw:m1a} et~\ref{mw:m1b} comme antécédent de ces vérifications colonne par colonne,
+  non comme source de leur statistique~: l'article ajuste sans la pondération de l'outil et ne
+  combine pas les colonnes, et ses examens de stabilité sont graphiques, le traitement
+  statistique formel étant renvoyé aux modèles à espace d'états (p.~832). Texte intégral lu
+  (fichier publié par la Casualty Actuarial Society) le 31~octobre 2026 pour l'issue~\#317.
+
   \item G.~Barnett, B.~Zehnwirth, \emph{Best estimates for reserves},
   \emph{Proceedings of the Casualty Actuarial Society}, 87, 2000, p.~245--321.
   \emph{Portée.} Discussion des exposants alternatifs de la structure de
@@ -22134,8 +22175,8 @@ fournissent des lois de référence.}
 
 % --- Colonne des sorties : abscisse commune ---------------------------------
 \coordinate (cx) at ([xshift=16mm]fi.east);
-\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (7 entrées)};
-\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (4 entrées)};
+\node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (6 entrées)};
+\node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
 \node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites (diagnostic)};
@@ -22183,8 +22224,8 @@ anomalie éventuelle~; dans le bloc M4, seule \code{test\_rosner()} est commune 
 l'issue~\#300, partageant avec le graphique d'influence \code{mw\_influence()}, dont elle tire
 les résidus studentisés externes sans passer par \code{mw\_residus()}~; dans le bloc M1, seule
 \code{.mw\_pente\_relative()} lit les résidus, les autres fonctions lisant directement
-l'ajustement de \code{mw\_ajuster()}. Lecture conjointe (\#297)~: \code{engine\_p\_famille()}~; M1 et M2
-comptent leur ligne de famille.}
+l'ajustement de \code{mw\_ajuster()}. Lecture conjointe (\#297)~: \code{engine\_p\_famille()}~; ligne
+de famille de M1 à M3 comptée au seul nœud «~p de famille~».}
 \label{fig:annexe-mw}
 \end{figure}
 \end{landscape}
