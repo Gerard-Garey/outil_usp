@@ -3882,7 +3882,7 @@ II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II
 \code{OK} à $T = 10$, \code{ECHEC} et $c = 92~\%$ à $T = 9$~; II-2 avec le barème long saisi
 à $T = 10$, \code{ECHEC} et $c = 74~\%$, le commentaire citant la dérogation et le barème
 réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
-repère statistique distinct, non réglementaire, inchangé.
+repère statistique distinct, non réglementaire (convention du projet, sans source), inchangé.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
@@ -10305,7 +10305,9 @@ $\mathrm{LM}_{\text{Koenker}} / \mathrm{LM}_{1979} = 2T / \big(\sum_t z_t^4 - T\
 algébrique). L'écart ne dépend que de l'aplatissement de l'échantillon des $z_t$, non de la
 validité de l'une ou l'autre p-value. Remesuré sur le jeu de contrôle~: $\mathrm{LM} = 5{,}082$
 contre $2{,}135$, rapport $2{,}380$, égal à $2T/(\sum_t z_t^4 - T)$, soit $\sum_t z_t^4 = 14{,}72$
-et une moyenne de $z_t^4$ de $1{,}84$, sous la valeur~3 de la loi normale (queues légères)~; à
+et une moyenne de $z_t^4$ de $1{,}84$ (aplatissement empirique $b_2$~; son espérance sous i.i.d.
+normal à $T = 8$ est $3(T-1)/(T+1) = 2{,}33$, formule employée par le moteur pour
+Anscombe--Glynn~; valeur descriptive, sans conclusion sur les queues)~; à
 $\hat\pi_t$ variable, $\sum_t z_t^2 \neq T$ et l'identité ne vaut plus (\code{premium\_interieur}~:
 rapport $1{,}362$ contre $1{,}377$).
 \end{encadre} \textbf{Pourquoi aucun verdict} (diagnostic par décision, issue~\#299, décision Q-D1-Fh-5 du mainteneur du 19~octobre 2026, option~(A)~; ADR~0001)~: la structure de variance de l'annexe~XVII, B(2)(g)(ii), relève d'une seule ligne de type test, Breusch--Pagan studentisé (Koenker), dont la statistique porte la même alternative en volume et dont la loi asymptotique ne suppose pas la normalité (fiche~\ref{fiche:breusch-pagan-koenker})~; sur la même régression auxiliaire, la version de 1979 ne diffère de la version studentisée que par un facteur de normalisation établi sous normalité des erreurs, que l'outil ne suppose pas~; un verdict de plus sur la même hypothèse multiplierait les occasions de rejet sans apporter de preuve propre à $T = 8$. Le motif n'est pas une domination~: sous erreurs gaussiennes, la version de 1979 est la plus puissante des deux dans les mesures citées (issue~\#229, alternatives d'hétéroscédasticité hors famille réglementaire au modèle ajusté de J2, p-value de Monte-Carlo marginale, $\alpha = 0{,}10$~: $0{,}261$ contre $0{,}185$ à $k = 0$, $0{,}300$ contre $0{,}280$ à $k = 3$~; mesures ci-dessous et fiche~\ref{fiche:breusch-pagan-koenker}, constat de simulation). Elle est écartée parce que sa normalisation suppose la normalité des erreurs, la version studentisée (Koenker) étant seule désignée pour porter~H2 (décision Q-D1-Fh-5, inchangée). Les p-values ne sont pas écartées pour leur qualité, et la règle de restitution ne retire pas le verdict d'un test calibré au seul motif de sa faible puissance (section~\ref{sec:nature}, «~Ce que la règle ne fait pas~»)~: c'est la désignation d'une seule version qui le retire. Le commentaire se termine par «~\code{Restituee en diagnostic par decision (issue \#299) : aucun verdict ni p-value retenue ; la structure de variance releve de la ligne Breusch-Pagan studentise (Koenker), dont le type et le verdict font foi.}~».
@@ -10959,7 +10961,10 @@ décision (section~\ref{sec:nature}), verdict \code{INFO}, les deux p-values res
 $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3
 (section~\ref{sec:nature}) avant celle du diagnostic.
 \Usage
-Test historiquement dominant mais \emph{le moins puissant} de cette section~: le supremum ne
+Test historiquement dominant mais \emph{le moins puissant} de cette section (issue~\#229,
+tableau~P1, J2, $T = 8$~: taux de rejet le plus bas des sept tests de normalité du tableau dans
+les quatre scénarios de contamination et d'asymétrie, aux deux seuils, p-values de Monte-Carlo~;
+constat de simulation)~: le supremum ne
 retient qu'un seul point d'écart et sous-pondère les queues. Piège classique~: les résidus sont
 standardisés par le modèle, dont les paramètres sont estimés, et appliquer la loi de Kolmogorov,
 établie à paramètres connus, rend le test conservateur, ce qui produirait une fausse impression de
@@ -11039,8 +11044,10 @@ C'est la version correcte du test de Kolmogorov--Smirnov lorsque les paramètres
 sa loi de référence tient compte de l'estimation, que la loi de Kolmogorov ignore (constat~C2,
 fiche précédente). Le niveau de la p-value de Dallal--Wilkinson n'est pas mesuré à $T = 8$ par un
 script versionné~; cette p-value n'est pas retenue, et le niveau de la p-value de Monte-Carlo
-retenue, mesuré sous le modèle ajusté, figure à la rubrique~7. Sa puissance reste néanmoins celle de la famille
-Kolmogorov--Smirnov, c'est-à-dire faible devant Shapiro--Wilk et Anderson--Darling.
+retenue, mesuré sous le modèle ajusté, figure à la rubrique~7. Sous les alternatives de l'issue~\#229
+(tableau~P1, J2, $T = 8$), sa puissance est inférieure à celle de Shapiro--Wilk dans les quatre
+scénarios, voisine de celle d'Anderson--Darling contre une contamination et inférieure contre une
+asymétrie (constat de simulation).
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H3 (famille D.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
@@ -11097,7 +11104,8 @@ l'aplatissement est borné mécaniquement par une quantité de l'ordre de $T$ (d
 mainteneur, issue~\#24, §\ref{sec:graines}). À $\hat\pi_t$ variable, le commentaire de la ligne porte la phrase fixe des p-values non simulées de~H3 (section~\ref{sec:nature}, issue~\#302).
 \Usage
 \textbf{À manier avec une grande prudence en régime USP.} La convergence vers $\chi^2(2)$ est
-lente (K.\,O. Bowman et L.\,R. Shenton, 1975, section~\ref{sec:biblio})~; aucune source vérifiée
+lente (K.\,O. Bowman et L.\,R. Shenton, 1975, section~\ref{sec:biblio}, texte non relu par le
+projet)~; aucune source vérifiée
 n'en chiffre l'écart au niveau nominal à $T = 8$, ni la taille d'échantillon à partir de laquelle
 il devient négligeable, et aucune mesure versionnée de l'outil ne le chiffre.
 Surtout, l'aplatissement empirique est \emph{mécaniquement borné}, $b_2$ ne pouvant dépasser une
@@ -13175,7 +13183,8 @@ la loi de référence est simulée par le bootstrap paramétrique sous le modèl
 p-value de Monte-Carlo en queue haute (clé \code{CUSUMr}), seule calculée, avec son erreur de Monte-Carlo~; retenue à $\hat\pi_t$ variable seulement~: à $\hat\pi_t$ constant, la ligne est un diagnostic (règle~R15, section~\ref{sec:nature}), sans p-value retenue, \code{p\_mc} restant restituée. Mesuré sur le jeu de contrôle~: $\mathrm{CUSUM} = 0{,}533$,
 \code{p\_mc} $= 0{,}756$ (erreur $0{,}014$), non retenue, contre $0{,}495$ et $0{,}817$ sur $z_t$.
 \Usage
-Complément graduel du sup-F sur la même base. À $\hat\pi_t$ constant, quasi-doublon de son
+Complément du sup-F sur la même base (complémentarité liée à la position de la rupture,
+fiche~\ref{fiche:ols-cusum}). À $\hat\pi_t$ constant, quasi-doublon de son
 homologue sur $z_t$ (« \code{CONTROLE SANS OBJET ICI} »). \textbf{Pourquoi aucun verdict à $\hat\pi_t$ constant} (règle~R15, issue~\#303, ADR~0001)~: la ligne y teste la même hypothèse que son homologue sur $z_t$, sur les mêmes données, à une transformation monotone près, et un second verdict compterait deux fois la même information~; elle y est restituée en diagnostic, verdict \code{INFO}, commentaire terminé par la phrase fixe de la règle, l'homologue sur $z_t$ portant seul le type et le verdict~; à $\hat\pi_t$ variable, elle est un test. À $T = 8$, le processus cumulé ne
 compte que huit points~: seule la simulation fournit une loi de référence, avec la portée du
 bootstrap paramétrique (section~\ref{sec:mc}).
@@ -20452,7 +20461,7 @@ soutient dans le présent document.
   $C\rho/(\sigma^3\sqrt{T})$, où $C$ est une constante absolue et $\rho/\sigma^3$, rapport du
   moment absolu d'ordre~3 au cube de l'écart-type, est au moins égal à~1~: le seul facteur
   $8^{-1/2} \approx 0{,}35$ n'en est pas la valeur, et le document n'en tire aucune borne
-  chiffrée à $T = 8$. Aucune référence antérieure du document ne supportait l'énoncé de la
+  chiffrée à $T = 8$. Textes non relus par le projet. Aucune référence antérieure du document ne supportait l'énoncé de la
   vitesse.
 
   \item H.~Callaert, P.~Janssen, \emph{The Berry-Esseen theorem for
