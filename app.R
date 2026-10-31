@@ -341,6 +341,7 @@ ui <- fluidPage(
       width = 9,
       h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
       uiOutput("bandeau_refus"),
+      uiOutput("bandeau_avertissements"),
       div(class = "avert", uiOutput("bandeau_T")),
       tabsetPanel(
         id = "onglets", type = "tabs",
@@ -1230,6 +1231,19 @@ server <- function(input, output, session) {
         if (length(ref$motifs))
           tags$ul(style = "margin:4px 0", lapply(ref$motifs, tags$li)),
         tags$div(EXPLICATION_REFUS))
+  })
+
+  # Avertissements de validation du calcul affiche (#403) : ceux que le moteur
+  # pose dans res$validation$avertissements, y compris apres l'ajustement
+  # Merz-Wuthrich (mw_valider_ajustement()) ; la section 3 du rapport fige les
+  # restitue de la meme source. Lecture seule, aucun texte ni regle ici.
+  output$bandeau_avertissements <- renderUI({
+    r <- resultat()
+    if (is.null(r) || !isTRUE(r$ok)) return(NULL)
+    av <- r$validation$avertissements
+    if (!length(av)) return(NULL)
+    div(class = "avert", tags$b("Avertissements de validation du calcul :"),
+        tags$ul(style = "margin:4px 0", lapply(av, tags$li)))
   })
 
   # B minimal fonction d'alpha (#127) : avertissement avant le clic, texte
