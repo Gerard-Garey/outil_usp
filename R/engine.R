@@ -9032,7 +9032,7 @@ RAPPORT_MAX_ECART_MW <- 100
   r0 <- sens$racine_msep_regle
   ecart <- function(v) {
     rapport <- v / r0
-    if (rapport > RAPPORT_MAX_ECART_MW) sprintf("x %.3g", rapport)
+    if (isTRUE(rapport > RAPPORT_MAX_ECART_MW)) sprintf("x %.3g", rapport)
     else sprintf("%+.1f %%", 100 * (rapport - 1))
   }
   morceau <- function(nom, v)
@@ -10586,14 +10586,11 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 MW_COMBN_N_MAX <- 20L
 .MW_COMBN_CACHE <- new.env(parent = emptyenv())
 .mw_combinaisons <- function(n) {
-  if (n > MW_COMBN_N_MAX) {
-    return(list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4)))
-  }
   cle <- as.character(n)
-  tab <- .MW_COMBN_CACHE[[cle]]
+  tab <- if (n <= MW_COMBN_N_MAX) .MW_COMBN_CACHE[[cle]]
   if (is.null(tab)) {
     tab <- list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4))
-    assign(cle, tab, envir = .MW_COMBN_CACHE)
+    if (n <= MW_COMBN_N_MAX) assign(cle, tab, envir = .MW_COMBN_CACHE)
   }
   tab
 }

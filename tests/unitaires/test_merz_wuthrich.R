@@ -832,6 +832,22 @@ local({
                  "contrefactuel qui n'est pas un argument du minimum) : ", f6(r0 * (1 - 1e-3)),
                  " (-0.1 %)."))
            })
+  # Contrefactuel non fini (racine_msep_zero NA ou NaN) : chemin que
+  # run_engine() n'atteint pas aujourd'hui (MSEP a sigma2_(J-1) = 0 finie) ;
+  # garde defensive isTRUE() de ecart(). Avant elle : erreur "missing value
+  # where TRUE/FALSE needed" (mesure) ; avec elle, le detail rend la chaine et
+  # la valeur s'imprime "NA (NA %)" ou "NaN (NaN %)" (mesure).
+  verifier("#372 (1) : contrefactuel racine_msep_zero = NA ou NaN -> pas d'erreur, chaine rendue, 'NA (NA %)' / 'NaN (NaN %)'",
+           {
+             a <- mw_ajuster(m); ex <- mw_extrapolation_sigma2(a)
+             s <- mw_sensibilite_sigma2_dernier(a, ex)
+             fin <- function(v) {
+               s$racine_msep_zero <- v
+               l <- tryCatch(.mw_detail_extrapolation(ex, s), error = function(e) NULL)
+               if (is.character(l) && length(l) == 1L) sub("^.*contrefactuel[^:]*: ", "", l)
+             }
+             identical(fin(NA_real_), "NA (NA %).") && identical(fin(NaN), "NaN (NaN %).")
+           })
 })
 # Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
 # colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non

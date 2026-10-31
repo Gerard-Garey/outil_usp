@@ -939,7 +939,7 @@ verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau
              identical(engine_influence(fit, list(sigma_usp = rep(NA_real_, 8)), 1)$plus_influente,
                        rep(FALSE, 8))
          })
-verifier("#396 : six cas (premium, reserve1 : plus_influente = jack_annees releve ; sans jackknife : pas de colonne)",
+verifier("#396 : premium et reserve1 (deux run_engine) : plus_influente = jack_annees releve ; engine_influence() appele directement sans jackknife : pas de colonne",
          {
            ok <- TRUE
            for (m in c("premium", "reserve1")) {
