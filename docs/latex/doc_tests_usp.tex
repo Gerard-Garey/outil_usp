@@ -257,7 +257,11 @@ du module « souscription vie » par des paramètres propres à l'entreprise.}
 \textcolor{financeblue}{\textbf{Élément}} & \textcolor{financeblue}{\textbf{Référence}} \\
 Base réglementaire & Directive 2009/138/CE, art.~104(7) ; règlement délégué
 (UE) 2015/35, art.~218 à 220 et annexe XVII \\
-Procédure d'agrément & Règlement d'exécution (UE) 2015/498 \\
+Procédure d'approbation & Règlement d'exécution (UE) 2015/498 (JO~L~79 du 25.3.2015,
+p.~8), art.~1\textsuperscript{er}, 2 et~3 \\
+Orientations et notice & Orientations de l'AEAPP EIOPA-BoS-14/178 (orientation~6) et
+EIOPA-BoS-25/249 (orientation~5)~; notice de l'ACPR, §§~2, 159, 170 et~171 (introduction de la
+partie~III) \\
 Transposition & Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II) \\
 Moteur de calcul & \code{R/engine.R} (R base et \code{stats} uniquement) \\
 Chargement du moteur & \code{R/charger\_moteur.R} (aucun calcul~; environnement dédié
@@ -6480,13 +6484,13 @@ nature \code{asymptotique}.
 \toprule
 \textbf{Test} & \textbf{Méthode} & \textbf{Stat.} & \textbf{Exacte ?} & \textbf{Asympt. ?} &
 \textbf{MC ?} & \textbf{Voie retenue} &
-\textbf{Asympt. utilisable à $T=8$ ?} & \textbf{Recommandation ACPR} \\
+\textbf{Asympt. utilisable à $T=8$ ?} & \textbf{Recommandation pour le dossier ACPR} \\
 \midrule
 \endfirsthead
 \toprule
 \textbf{Test} & \textbf{Méthode} & \textbf{Stat.} & \textbf{Exacte ?} & \textbf{Asympt. ?} &
 \textbf{MC ?} & \textbf{Voie retenue} &
-\textbf{Asympt. utilisable à $T=8$ ?} & \textbf{Recommandation ACPR} \\
+\textbf{Asympt. utilisable à $T=8$ ?} & \textbf{Recommandation pour le dossier ACPR} \\
 \midrule
 \endhead
 \multicolumn{9}{@{}l@{}}{\textit{Suite page suivante}} \\
@@ -8565,6 +8569,46 @@ Loi nulle propre pour Shapiro--Wilk~; lecture comme diagnostic seulement \\
 \newpage
 
 \partie{Partie III}{Fiches de tests par hypothèse}
+
+% Fondement réglementaire et de supervision de la batterie de tests (issue #334).
+\noindent
+\textbf{Fondement de la batterie de tests.} Les fiches de la présente partie vérifient les
+hypothèses de l'annexe~XVII du règlement délégué (UE)~2015/35, rappelées en tête de chaque
+section. Le règlement d'exécution (UE)~2015/498 (\emph{Journal officiel}, L~79 du 25.3.2015,
+p.~8), qui fixe la procédure d'approbation des paramètres propres à l'entreprise, en donne le
+fondement. Son article~2, «~Exactitude des résultats~», demande à l'entreprise d'évaluer si la
+méthode standardisée est appropriée pour les données, si ses hypothèses se vérifient, et si les
+données sont pertinentes au regard de son profil de risque. Son article~1\textsuperscript{er},
+paragraphe~3, points~d), e) et~g), porte sur les pièces de la demande écrite d'approbation, dont
+la démonstration d'un résultat «~le plus exact~» au sens de l'article~101 de la directive
+2009/138/CE~; son article~3, paragraphe~2, charge l'autorité de contrôle d'examiner si les
+hypothèses se vérifient. Le règlement d'exécution ne parle ni de tests statistiques ni de
+périodicité. \textbf{Ces dispositions sont citées d'après leur teneur, non à la lettre}~: le texte
+n'a pas pu être relu le 31/10/2026 (EUR-Lex inaccessible depuis le poste de rédaction)~; la teneur
+retenue est celle d'une lecture du 18/10/2026, que confirme, pour l'article~2, le §~170 de la
+notice de l'ACPR (ci-dessous)~; le libellé est à recopier avant la remise du dossier.
+
+\medskip\noindent
+La notice de l'ACPR «~Modalités de calcul des ratios prudentiels pour les entreprises et groupes
+d'assurance soumis à la Directive Solvabilité~2~» (fichier publié en novembre 2025, dont la page de
+titre porte «~Version du 17/07/2023~», section~\ref{sec:biblio}) rattache, au §~170 (p.~35),
+les tests d'hypothèses à l'article~2 du règlement d'exécution, et précise au §~171 (p.~36) que la
+vérification de la conformité des données aux hypothèses de l'annexe~XVII «~se fait au moyen de
+tests statistiques~».
+
+\medskip\noindent
+Orientations de l'AEAPP sur les paramètres propres à l'entreprise~: EIOPA-BoS-14/178 (2015),
+dont l'orientation~6 (conformité continue), auxquelles l'ACPR s'est déclarée conforme le
+1\textsuperscript{er}~décembre 2023 (notice de l'ACPR, §~2). Elles sont abrogées et remplacées
+par les orientations EIOPA-BoS-25/249, adoptées le 25~juin 2025, applicables deux mois après la
+publication de leurs traductions dans toutes les langues officielles de l'Union (page de
+publication de l'AEAPP, consultée le 31/10/2026)~; la conformité continue y devient
+l'orientation~5 (§§~13 à~15). À la date de rédaction, ni la date de cette publication ni une
+déclaration de conformité de l'ACPR à ces nouvelles orientations n'ont été établies~; la version
+applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
+lors de la demande puis chaque année, avec leurs résultats dans le rapport ORSA, provient de la
+notice de l'ACPR (§~171), non des orientations~; elle incombe à l'entreprise, que l'outil sert
+sans la porter.
 
 % =============================================================================
 \section{Hypothèse H1 --- linéarité et proportionnalité}
@@ -20877,6 +20921,56 @@ soutient dans le présent document.
   La référence ne dit rien de la valeur de $\pi_{\text{env}}$ à $T = 8$, calculée par l'outil.
 \end{itemize}
 
+\subsection*{Textes réglementaires et de supervision}
+
+Les entrées suivantes ne relèvent pas de la littérature statistique~: elles fondent l'obligation
+de vérifier les hypothèses de l'annexe~XVII, que la batterie de tests sert (introduction de la
+partie~III, issue~\#334).
+
+\begin{itemize}[itemsep=4pt]
+  \item Règlement d'exécution (UE)~2015/498 de la Commission, \emph{Journal officiel de l'Union
+  européenne}, L~79 du 25.3.2015, p.~8 (ni version consolidée ni acte modificatif selon l'Office
+  des publications, constat du 18/10/2026).
+  \emph{Portée.} Article~1\textsuperscript{er}, paragraphe~3, points~d), e) et~g) (pièces de la
+  demande écrite d'approbation), article~2 (exactitude des résultats~: méthode standardisée
+  appropriée pour les données, hypothèses vérifiées, données pertinentes au regard du profil de
+  risque) et article~3, paragraphe~2 (examen des hypothèses par l'autorité de contrôle).
+  \textbf{Non relu le 31/10/2026} (EUR-Lex inaccessible depuis le poste de rédaction)~: teneur
+  d'après la lecture du 18/10/2026, libellé à recopier avant la remise du dossier.
+
+  \item Autorité de contrôle prudentiel et de résolution, \emph{Modalités de calcul des ratios
+  prudentiels pour les entreprises et groupes d'assurance soumis à la Directive Solvabilité~2},
+  notice, fichier publié en novembre 2025 dont la page de titre porte «~Version du 17/07/2023~»,
+  \url{https://acpr.banque-france.fr/system/files/2025-11/20251114_Modalites_calcul_ratios_prudentiels_assurance_soumis_Solvabilite_2.pdf}.
+  \emph{Portée.} §~2 (conformité de l'ACPR, déclarée le 1\textsuperscript{er}~décembre 2023, aux
+  orientations de l'AEAPP sur les paramètres propres à l'entreprise)~; §~159, p.~34
+  (justification de l'exclusion des segments non retenus dans la demande écrite d'approbation)~;
+  §~170, p.~35 (rattachement des tests d'hypothèses à l'article~2 du règlement d'exécution
+  (UE)~2015/498)~; §~171, p.~36 (vérification dans la demande d'approbation puis chaque année, au
+  moyen de tests statistiques, résultats dans le rapport ORSA, au titre de l'orientation~6).
+  Relue le 31/10/2026.
+
+  \item Autorité européenne des assurances et des pensions professionnelles (AEAPP),
+  \emph{Orientations sur les paramètres propres à l'entreprise}, EIOPA-BoS-14/178, 2015.
+  \emph{Portée.} Orientation~6 (conformité continue), à laquelle renvoie le §~171 de la notice de
+  l'ACPR~; version à laquelle l'ACPR s'est déclarée conforme (notice, §~2).
+
+  \item AEAPP, \emph{Orientations sur les paramètres propres à l'entreprise}, EIOPA-BoS-25/249,
+  adoptées le 25~juin 2025, qui abrogent et remplacent EIOPA-BoS-14/178 (§~6). Page de l'AEAPP
+  «~Final report on revised guidelines on undertaking-specific parameters~» (publiée le
+  14/07/2025, mise à jour le 08/09/2026, consultée le 31/10/2026).
+  \emph{Portée.} Conformité continue à l'orientation~5 (§§~13 à~15), sans tests statistiques ni
+  périodicité~; orientations~2, 8 et~12 de 2015 supprimées. Applicables deux mois après la
+  publication des traductions dans toutes les langues officielles~; jusque-là, les orientations
+  de 2015 s'appliquent. Date de cette publication et déclaration de conformité de l'ACPR non
+  établies à la date de rédaction. C'est le texte des orientations qui fait référence, non le
+  rapport final, qui garde l'ancienne numérotation.
+
+  \item Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II), cités en page de titre.
+  \emph{Portée.} Ligne «~Transposition~» de la page de titre. \textbf{Non relus} par le projet (Légifrance non
+  consulté)~: renvoi à vérifier avant la remise du dossier.
+\end{itemize}
+
 
 \subsection{Traçabilité entre la documentation et le code}
 
@@ -21688,10 +21782,15 @@ calculées sur une régression auxiliaire de rang déficient.
 
 \vspace{1em}
 \begin{encadre}
-\textbf{Rappel final.} Le décompte des tests en échec ne se substitue pas à l'analyse qualitative
-exigée par le règlement d'exécution (UE)~2015/498~: la note de justification du dossier de
-candidature doit expliquer, segment par segment, en quoi la méthode retenue est adaptée au profil
-de risque de l'organisme, y compris pour les segments non retenus. Aucun test isolé, ni aucun
+\textbf{Rappel final.} Le décompte des tests en échec ne se substitue pas à l'évaluation que
+l'article~2 du règlement d'exécution (UE)~2015/498 demande à l'entreprise~: la méthode
+standardisée est-elle appropriée pour les données, ses hypothèses se vérifient-elles, les données
+sont-elles pertinentes au regard de son profil de risque~? La demande écrite d'approbation porte
+en outre les pièces que fixe l'article~1\textsuperscript{er}, paragraphe~3, point~g), du même
+règlement (teneur de ces dispositions et réserve sur leur relecture~: introduction de la
+partie~III). La justification de l'exclusion des segments des annexes~II et~XIV non retenus pour
+l'application des paramètres propres vient, elle, de la notice de l'ACPR (§~159, p.~34), non du
+règlement d'exécution. Aucun test isolé, ni aucun
 comptage de tests, ne peut établir cette démonstration~: sous le modèle ajusté lui-même, à
 $T = 8$, au moins un verdict \code{ECHEC} survient dans $37{,}55~\%$ (J1) et $39{,}95~\%$ (J2) des
 jeux simulés avec la p-value marginale, et dans $38{,}35~\%$ (J1) et $42{,}7~\%$ (J2) avec la
