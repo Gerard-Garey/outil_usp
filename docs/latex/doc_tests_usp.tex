@@ -4742,6 +4742,19 @@ ne suppose que leur échangeabilité~: les p-values correspondantes sont donc
 \code{mw\_residus()}~: ceux des colonnes dégénérées, au sens du prédicat unique et selon
 l'ensemble figé à l'observé, en sont exclus (issue~\#60, §\ref{sec:mw}).
 
+\emph{Hypothèse nulle des p-values de Monte-Carlo.} Chaque triangle simulé conserve la première
+colonne observée et engendre les suivantes par $C(i,j+1) = \hat f_j\,C(i,j) + e\,\hat\sigma_j
+\sqrt{C(i,j)}$, où $e$ est tiré avec remise dans le vivier commun à toutes les colonnes
+(\code{mw\_simuler\_triangle()}), puis il est réajusté et les statistiques sont recalculées
+(\code{mw\_bootstrap()}). La loi simulée est donc celle du \textbf{modèle de Mack complet
+ajusté}~: proportionnalité des cumulés (M1), variance proportionnelle au cumulé (M2) et
+indépendance des erreurs (M3) à la fois, avec des erreurs de même loi pour toutes les cellules et
+toutes les colonnes. L'hypothèse nulle de toute p-value de Monte-Carlo de la méthode est ce
+modèle entier, M1~$\wedge$~M2~$\wedge$~M3, et non la seule hypothèse de la famille où la ligne
+est rangée~: chaque ligne teste le modèle complet dans la direction de sa statistique. Un rejet
+dit que le triangle est atypique de ce modèle dans cette direction~; il n'attribue pas l'écart
+à l'hypothèse que la ligne vise.
+
 \emph{Redressement du vivier par le levier} (issue~\#46, décision du mainteneur du 6~octobre
 2026, Q-E2r-46-1). Les résidus de Mack ne sont pas d'échelle unitaire. Sous le modèle de Mack à
 $\sigma_j$ connu, conditionnellement aux cumuls $C(\cdot,j)$ de la colonne, avec
@@ -6148,8 +6161,8 @@ Grandeur affectée & L'estimateur $\hat p_{\text{MC}}$ de la p-value bootstrap
 & L'écart entre la loi bootstrap et la vraie loi sous $H_0$ \\
 Ordre de grandeur & $\sqrt{p(1-p)/B}$ en queue haute ou basse,
 $\sqrt{p(2-p)/B}$ au bilatéral, soit $\mathcal{O}(B^{-1/2})$ &
-Dépend du test~; typiquement $\mathcal{O}(T^{-1/2})$ ou $\mathcal{O}(T^{-1})$ \\
-Réduction & Augmenter $B$ (purement numérique, sans donnée supplémentaire~; temps de calcul à peu près proportionnel à $B$~: temps CPU multiplié par $4{,}8$ à $5{,}2$ de $B = 999$ à $B = 4\,999$ sur les six cas de contrôle, machine chargée, issue~\#325, \code{docs/tableaux/}\allowbreak\code{20261018-issue325-b-dossier.md}) &
+Dépend du test~; vitesse non établie dans la littérature consultée pour les statistiques du dispositif (tableau~\ref{tab:conv}) \\
+Réduction & Augmenter $B$ (purement numérique, sans donnée supplémentaire~; temps de calcul à peu près proportionnel à $B$~: temps CPU multiplié par $4{,}8$ à $5{,}3$ de $B = 999$ à $B = 4\,999$ sur les six cas de contrôle, et par $9{,}6$ de $B = 999$ à $B = 9\,999$ sur le cas \code{reserve2}, durées relatives au sein d'une même exécution, machine chargée, issue~\#325, \code{docs/tableaux/}\allowbreak\code{20261022-issue325-b-dossier.md}) &
 \textbf{Impossible}~: $T = 8$ est une donnée du problème \\
 Mesure dans le moteur & champ \code{err\_mc} (colonne \code{erreur\_MC} de la table
 auditable) & non mesurable directement~;
@@ -6234,7 +6247,14 @@ de l'ordre de la granularité.
   Kendall, loi combinatoire du nombre de suites, loi exacte de Smirnov à deux
   échantillons. Ces p-values sont valides sans réserve de taille d'échantillon, sous le
   modèle ajusté et à $\hat\pi_t$ constant seulement~: le moteur ne les attribue que dans ce
-  régime (issue~\#70, section~\ref{sec:base-residus}). La loi de permutation de
+  régime (issue~\#70, section~\ref{sec:base-residus}). Cette exactitude vaut sous le modèle
+  ajusté pris pour vrai, et non conditionnellement au régime de $\hat\delta$, lui-même estimé sur
+  les mêmes données~: même quand le modèle générateur a $\pi_t$ constant, les fréquences de rejet
+  conditionnelles à $\hat\pi_t$ constant s'écartent du niveau nominal (effet de sélection par le
+  régime, constat de simulation de la section~\ref{sec:base-residus}, non quantifié au-delà).
+  L'utilisateur dont le jeu conduit à $\hat\delta = 1$ lit donc une p-value exacte dont le niveau
+  conditionnel à ce classement n'est pas garanti égal à $\alpha$~; la p-value de Monte-Carlo, qui
+  simule le même modèle ajusté, ne corrige pas cet effet (alinéa suivant). La loi de permutation de
   Pitman de la pente est exacte à $T \le 9$ sous sa propre hypothèse nulle
   d'échangeabilité, quel que soit le régime de $\hat\pi_t$, mais non sous le modèle
   réglementaire, que cette hypothèse exclut (second fondement de l'ADR~0002,
@@ -6246,12 +6266,34 @@ de l'ordre de la granularité.
   moteur les restitue sous une nature qui nomme ce modèle (issue~\#44). Celles de la
   constante et du TOST, calculées depuis l'issue~\#215 sur la régression pondérée aux
   poids estimés, ne sont exactes sous aucun modèle.
+  \item \textbf{Niveau conditionnel au régime de $\hat\delta$ des p-values de Monte-Carlo}
+  (variante V3h, ADR~0014, fiche~\ref{fiche:procedure-mc}). La p-value de Monte-Carlo retenue est
+  conditionnelle au régime intérieur quand $\hat\delta$ est intérieur, marginale quand il est au
+  bord. \textbf{Au bord $\hat\delta = 1$ ($\hat\pi_t$ constant), le niveau conditionnel des tests
+  d'hétéroscédasticité dépasse le niveau nominal}~: sur J1, sous le modèle ajusté, la p-value de
+  Monte-Carlo de Breusch--Pagan studentisé, seule ligne de type test de~H2, rejette au seuil de
+  $0{,}10$ dans $0{,}128$ des 995 réplications au bord~1, celles de Breusch--Pagan original et de
+  White, diagnostics par décision depuis l'issue~\#299, dans $0{,}122$ et $0{,}130$~; au bord~0,
+  ces taux sont de $0{,}069$, $0{,}068$ et $0{,}077$, et les deux bords se compensent dans le taux
+  inconditionnel (issue~\#166, constat de simulation sur un jeu, taux conditionnels sans référence
+  exacte, section~\ref{sec:calibration-mc}). Le régime étant choisi par la relation entre la
+  dispersion des résidus et le volume que ces tests mesurent, cette dépendance est attendue~;
+  l'utilisateur dont le jeu conduit à $\hat\delta = 1$ lit, pour ces lignes, une fréquence de
+  fausse alerte de l'ordre de $0{,}12$ à $0{,}13$ au seuil de $0{,}10$. Aucun théorème ne fonde la
+  calibration conditionnelle au régime, qui n'est pas une statistique ancillaire~: à $\hat\delta$
+  intérieur, sa validité est un constat de simulation sur deux jeux, J2 et J3, et son extension à
+  la méthode de réserve n\textsuperscript{o}~1, que la mesure ne couvre pas, reste une hypothèse.
   \item \textbf{Résultats asymptotiques sans justification suffisante à
   $T = 8$.} Les statistiques de type multiplicateur de Lagrange
   (Breusch--Pagan, White), portmanteau (Ljung--Box au retard~2),
-  Jarque--Bera, et les approximations normales de Mann--Kendall,
-  Wald--Wolfowitz et D'Agostino. La littérature disponible ne fournit, pour
-  aucune d'entre elles, de borne d'erreur exploitable à $T = 8$.
+  Jarque--Bera, et les approximations normales de Mann--Kendall et de
+  Wald--Wolfowitz. La littérature disponible ne fournit, pour
+  aucune d'entre elles, de borne d'erreur exploitable à $T = 8$. La p non simulée de D'Agostino
+  (asymétrie) n'en fait pas partie~: ajustée sur les moments exacts de $\sqrt{b_1}$ à $T$ fini
+  par la loi $S_U$ de Johnson, c'est une approximation à $n$ fini sous i.i.d. normal, non
+  asymptotique (famille~(ii) de l'encadré de la section~\ref{sec:nature}, issue~\#120~;
+  tableau~\ref{tab:conv}), et elle n'est pas retenue, la p-value de Monte-Carlo l'étant
+  (fiche~\ref{fiche:dagostino-asymetrie}).
   \item \textbf{Deux cas où aucune p-value de Monte-Carlo n'est possible.} La
   pente et la ligne de Fisher ont une hypothèse nulle sans lien entre pertes et
   volume ($b = 0$, et, depuis l'issue~\#169, pour la pente, l'indépendance des
@@ -6447,6 +6489,11 @@ restituée pour information &
 Sans objet : aucune loi asymptotique employée & Redondant avec le test de Pitman ($F = t_b^2$)~;
 aucun verdict \\
 
+Coefficient de détermination & LN & $R^2$ & --- & --- & --- & \textbf{Diagnostic} & Sans objet &
+Grandeur descriptive de la régression MCO non pondérée, sans p-value ni verdict~; repère
+$R^2 < 0{,}5$, convention du projet, sans source~; l'absence de lien entre pertes et volume est
+testée par la ligne de Pitman (fiche~\ref{fiche:r2}) \\
+
 RESET & LN & $F$ & \textbf{Non} & Oui & Oui & Monte-Carlo &
 \textbf{Déconseillée} : la loi $F$, exacte sous des erreurs additives normales homoscédastiques
 (Milliken et Graybill, 1970), ne l'est pas sous l'erreur lognormale de l'annexe~XVII & Bootstrap
@@ -6496,10 +6543,15 @@ calculée, non retenue &
 \textbf{Déconseillée} : loi $F$ approchée, 4 points par groupe &
 Bootstrap recommandé \\
 
-Smirnov 2 éch. & LN & $D$ & Oui (combinatoire, sans ex \ae quo) & Oui & Oui & \textbf{Diagnostic}
+Smirnov 2 éch. & LN & $D$ & Oui (combinatoire, sans ex \ae quo) & --- (non calculée) & Oui & \textbf{Diagnostic}
 par décision (issue~\#299)~: p-value exacte si $\hat\pi_t$ constant ($\hat\delta = 1$) et sans ex
 \ae quo dans $z$ (issue~\#112), Monte-Carlo sinon, calculée, aucune retenue &
-Inutile & Exacte ; $n_1=n_2=4$ : $p_{\min}=2/70=0{,}029$ (champ \code{p\_min}) \\
+Sans objet : aucune loi asymptotique calculée (\code{p\_asymptotique} à \code{NA}) & Exacte ; $n_1=n_2=4$ : $p_{\min}=2/70=0{,}029$ (champ \code{p\_min}) \\
+
+Position de $\hat\delta$ dans $[0,1]$ & LN & $\hat\delta$ & --- & --- & --- & \textbf{Diagnostic} &
+Sans objet & Valeur de $\hat\delta$ et drapeau de bord (tolérance \code{TOL\_DELTA\_BORD}), sans
+p-value ni verdict~; la comparaison formelle à une borne est le rapport de vraisemblance sur
+$\delta$, lui aussi diagnostic (fiche~\ref{fiche:position-delta}) \\
 
 Shapiro--Wilk & LN & $W$ & Non (ligne à loi nulle simulée retirée à l'issue~\#302)
 & Approx. Royston & Oui & Monte-Carlo, avec p Royston en complément &
@@ -6589,9 +6641,14 @@ OLS-CUSUM & LN & $\sup|S|$ & Non & Oui (Kolmogorov asympt.) & Oui & Monte-Carlo 
 \textbf{Absence de justification} : 8 points ne forment pas une trajectoire
 brownienne & Bootstrap indispensable ; p asympt. fournie pour mémoire \\
 
-Grubbs & LN & $G$ & Borne de Bonferroni & --- & Oui & Monte-Carlo &
-\textbf{Sous conditions} : borne conservatrice, non exacte &
-Bootstrap ; borne utilisable comme majorant \\
+Grubbs & LN & $G$ & Non & Borne de Bonferroni sur la loi de
+Student (famille~(iii)) & Oui & Monte-Carlo &
+\textbf{Sous conditions}, sans être retenue (borne restituée en colonne \code{p\_asymptotique},
+\code{p\_exacte} à \code{NA})~: à $\hat\pi_t$ constant, borne exacte sous i.i.d.
+normal pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$ (deux observations ne peuvent
+franchir ce seuil ensemble, argument de la fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant
+au-delà~; à $\hat\pi_t$ variable, ni exacte ni majorant garanti, $z_t$ n'étant pas i.i.d. &
+Bootstrap ; borne lisible comme majorant à $\hat\pi_t$ constant seulement \\
 
 sup-F sur ratios bruts & LN & $\sup F$ & Non & --- & Oui & Monte-Carlo à $\hat\pi_t$ variable~; \textbf{diagnostic} à $\hat\pi_t$ constant
 (règle~R15) &
@@ -6611,6 +6668,19 @@ Quasi-doublon de la ligne sur $z_t$ à $\hat\pi_t$ constant, d'où le diagnostic
 Rosner (ESD) & LN & $R_i$ & Non~; niveau exact $\alpha$ à l'étape~1 sous i.i.d. normal pour $\alpha < 0{,}240$ à $T = 8$ (démonstration du document) & --- & --- &
 \textbf{Diagnostic} par décision (issue~\#304)~: aucune p-value, aucun verdict & Sans objet (pas de p-value) &
 Indicatif seulement~; valeurs critiques approchées, jugées adéquates par l'auteur pour $n \ge 25$ \\
+
+Distance de Cook & LN & $D_t$ & --- & --- & --- & \textbf{Diagnostic} & Sans objet &
+$\max_t D_t$ comparé au repère $4/T$, simplification du seuil $4/(n-k-1)$ de Bollen et Jackman
+(1990), sans p-value ni verdict (fiche~\ref{fiche:cook}) \\
+
+Leviers & LN & $h_t$ & --- & --- & --- & \textbf{Diagnostic} & Sans objet & $\max_t h_t$ comparé
+au repère $2k/T$, règle empirique de Hoaglin et Welsch (1978), sans p-value ni verdict~; ne
+dépend que des volumes (fiche~\ref{fiche:leviers}) \\
+
+Jackknife (retrait d'une année) & LN & $\Delta_{\max}$ & --- & --- & --- & \textbf{Diagnostic} &
+Sans objet & Écart relatif maximal de $\sigma_{\mathrm{USP}}$ au retrait d'une année, repères
+$10~\%$ et $20~\%$, convention du projet, sans source~; sans p-value ni verdict
+(fiche~\ref{fiche:jackknife}) \\
 
 Rapport de vraisemblance sur $\delta$ ($\delta_0 = 0$ et $1$) & LN & $\mathrm{LR}$ & Non &
 Oui (mélange $\tfrac12\chi^2_0+\tfrac12\chi^2_1$) & Oui (bootstrap restreint) &
@@ -6849,8 +6919,7 @@ Valide à $T = 8$ sous $H_0$ seule, non sous le modèle réglementaire~; rejet p
 dispersion liée au volume ou tendance commune (réserve d'échangeabilité) \\
 
 Breusch--Pagan (Koenker), White & $\mathrm{LM} = TR^2_{\text{aux}}$ & $\chi^2(q)$ &
-Convergence en loi & Non établie de façon exploitable ; TCL sous-jacent en
-$\mathcal{O}(T^{-1/2})$ & Moments d'ordre 4 finis, indépendance &
+Convergence en loi & Non établie dans la littérature consultée & Moments d'ordre 4 finis, indépendance &
 Non exploitable ; bootstrap requis \\
 
 Breusch--Pagan (1979) & $\mathrm{LM} = \tfrac12\,\mathrm{SCE}$ & $\chi^2(q)$ &
@@ -6869,8 +6938,10 @@ par $\sim T$ \\
 
 Mann--Kendall & $S$ ($U$-statistique) & $\mathcal{N}(0,1)$ après
 normalisation & Convergence en loi & Berry--Esseen pour $U$-statistiques :
-$\mathcal{O}(T^{-1/2})$ & Variance de la projection non nulle, moment d'ordre 3 &
-Borne $\mathcal{O}(8^{-1/2})\approx 0{,}35$ : inexploitable. Loi exacte employée à $\hat\pi_t$ constant sans ex \ae quo~; Monte-Carlo sinon \\
+$\mathcal{O}(T^{-1/2})$, à une constante absolue non explicitée et à un rapport de moments près &
+Variance de la projection non nulle, moment d'ordre 3 &
+Aucune borne chiffrée à $T = 8$~: le facteur $8^{-1/2} \approx 0{,}35$ n'est pas la borne, la
+constante et le rapport de moments n'étant pas évalués. Loi exacte employée à $\hat\pi_t$ constant sans ex \ae quo~; Monte-Carlo sinon \\
 
 Wald--Wolfowitz & $R$ & $\mathcal{N}(0,1)$ & Convergence en loi &
 Vitesse non documentée dans la littérature consultée~; loi exacte employée, la
@@ -6878,7 +6949,7 @@ question est sans objet~; recommandation d'usage $n_1,n_2\ge 10$ &
 Continuité, indépendance & Loi exacte employée à $\hat\pi_t$ constant~; Monte-Carlo sinon \\
 
 Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
-$\mathcal{O}(T^{-1/2})$ & Indépendance, absence d'ex \ae quo &
+Non établie dans la littérature consultée & Indépendance, absence d'ex \ae quo &
 Loi de permutation exacte employée à $\hat\pi_t$ constant, $T \le 9$, sans ex \ae quo~; Monte-Carlo sinon \\
 
 D'Agostino & $\sqrt{b_1}$ transformé par la loi $S_U$ de Johnson, ajustée sur les moments exacts
@@ -6889,8 +6960,7 @@ domaine~; p-value de Monte-Carlo retenue, p non simulée en complément \\
 
 Anderson--Darling, CvM, KS & Processus empirique
 $\sqrt{T}(\hat F - F_0)$ & Pont brownien (transformé) &
-Convergence faible dans $D[0,1]$ & $\mathcal{O}(T^{-1/2})$ pour les
-fonctionnelles régulières & $F_0$ continue, paramètres \emph{connus} &
+Convergence faible dans $D[0,1]$ & Non établie dans la littérature consultée & $F_0$ continue, paramètres \emph{connus} &
 Hypothèse violée (paramètres estimés) ; bootstrap requis~; p de Stephens ($A^2$, $W^2$) calculée
 sur la statistique re-standardisée~; CvM et KS diagnostics par décision depuis l'issue~\#302, p
 calculées non retenues \\
@@ -6900,8 +6970,24 @@ Convergence faible & Fonctionnelle : lente, non quantifiée à $T$ petit &
 Erreurs i.i.d., écrêtement $\tau$ fixé & Non exploitable ; bootstrap requis \\
 
 OLS-CUSUM & $S(\lfloor uT\rfloor)$ & Pont brownien $B^\circ$ &
-Convergence faible (principe d'invariance) & $\mathcal{O}(T^{-1/2})$ &
+Convergence faible (principe d'invariance) & Non établie dans la littérature consultée &
 Erreurs i.i.d., variance finie & 8 points : non exploitable \\
+
+Grubbs (sur $z_t$) & \emph{Aucune} en $T$~: $t^\star$ de loi de Student à $T - 2$ degrés de
+liberté pour une observation fixée, exacte sous i.i.d. normal~; $\min\big(1, 2T(1 - F_{t,T-2}(t^\star))\big)$
+en est la borne de Bonferroni & --- & Borne, non convergence & Sans objet & Échantillon i.i.d.
+normal~: à $\hat\pi_t$ constant, $G(z_t)$ est le $G$ des log-ratios, i.i.d. normaux sous le modèle
+ajusté~; à $\hat\pi_t$ variable, aucun échantillon i.i.d. sous-jacent &
+À $\hat\pi_t$ constant, borne exacte pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$
+(fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant au-delà~; à $\hat\pi_t$ variable, ni exacte
+ni majorant garanti~; p non retenue, bootstrap retenu (fiche~\ref{fiche:grubbs}) \\
+
+ESD généralisé de Rosner (sur $z_t$, diagnostic) & $R_i$ de Rosner, comparés aux valeurs
+critiques $\lambda_i$ (éq.~(2.5), approximation de Student--Bonferroni) & \emph{Aucune} & --- &
+--- & Échantillon i.i.d. normal (Rosner, 1983, domaine déclaré $n \ge 25$) &
+Aucune p-value (diagnostic par décision, issue~\#304)~; première étape de niveau exactement
+$\alpha$ sous i.i.d. normal pour $\alpha < 0{,}240$ à $T = 8$ (démonstration du document),
+niveau de la procédure mesuré (constats de simulation, fiche~\ref{fiche:rosner-esd}) \\
 
 Shapiro--Wilk / Francia & $W$, $W'$ & Approx. normalisée de Royston &
 Approximation numérique, non asymptotique & Sans objet (ajustement empirique) &
@@ -20145,10 +20231,13 @@ soutient dans le présent document.
   Astronomi och Fysik}, 28A(9), 1942, p.~1--19.
   \emph{Portée.} Les fiches citaient jusqu'ici uniquement les
   auteurs des tests. Le théorème de Berry--Esseen est la référence qui permet
-  d'énoncer une vitesse $\mathcal{O}(T^{-1/2})$ pour les approximations
-  normales, et donc de montrer qu'à $T = 8$ la borne est de l'ordre de
-  $0{,}35$, c'est-à-dire sans valeur pratique. Aucune référence antérieure du
-  document ne supportait cette affirmation.
+  d'énoncer une vitesse $\mathcal{O}(T^{-1/2})$ pour l'approximation normale
+  d'une somme de variables indépendantes. La borne qu'il donne est
+  $C\rho/(\sigma^3\sqrt{T})$, où $C$ est une constante absolue et $\rho/\sigma^3$, rapport du
+  moment absolu d'ordre~3 au cube de l'écart-type, est au moins égal à~1~: le seul facteur
+  $8^{-1/2} \approx 0{,}35$ n'en est pas la valeur, et le document n'en tire aucune borne
+  chiffrée à $T = 8$. Aucune référence antérieure du document ne supportait l'énoncé de la
+  vitesse.
 
   \item H.~Callaert, P.~Janssen, \emph{The Berry-Esseen theorem for
   $U$-statistics}, \emph{The Annals of Statistics}, 6(2), 1978, p.~417--421.
@@ -21059,7 +21148,7 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte. Pour le TOST et le test de Pitman sur la pente (et, avant
 l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
 \code{ALERTE} à $\alpha \le p < 0{,}30$ et \code{ECHEC} à $p \ge 0{,}30$ (constante
-\code{SEUIL\_ECHEC\_SENS\_REJETER}~; c'est pourquoi \code{run\_engine()} exige
+\code{SEUIL\_ECHEC\_SENS\_REJETER}, convention du projet, sans source~; c'est pourquoi \code{run\_engine()} exige
 $0 < \alpha < 0{,}30$, faute de quoi la zone \code{ALERTE} de ces tests disparaîtrait~:
 erreur d'usage, section~\ref{sec:controles}). \\
 \code{ALERTE} & p-value retenue dans la zone intermédiaire $[\alpha/2\,;\,\alpha[$ (par défaut
