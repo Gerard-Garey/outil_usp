@@ -3444,6 +3444,33 @@ test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} ré
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic depuis
 l'issue~\#169, n'a pas de sens du test).
 
+\emph{Graphie des textes produits par le moteur} (issue~\#294, décision du mainteneur du
+31~octobre 2026). Les textes que produit \code{R/engine.R} --- champ \code{detail} des lignes de
+tests, avec ses motifs d'indisponibilité et son préfixe «~\code{TEST INOPERANT}~», champ
+\code{detail} des contrôles de qualité des données (section~\ref{sec:controles}), messages de
+validation, libellés des dérogations et des étapes de calibration, motifs des graphiques --- sont
+écrits en ASCII, sans accents, et leurs nombres avec le point décimal de R (\code{sprintf()}, ou
+\code{format()} sous l'option de R qui fixe le séparateur décimal, dont la valeur par défaut est
+le point et que le moteur ne modifie pas). L'interface et le
+rapport figé écrivent au contraire avec une virgule décimale les nombres qu'ils mettent en forme
+eux-mêmes (issue~\#236), et restituent les textes du moteur tels quels~: dans une même ligne de
+la table des tests, la p-value retenue s'écrit donc avec une virgule et le commentaire avec un
+point (par exemple «~\code{TEST INOPERANT au seuil alpha = 0.1 :} \dots{}~»). Ce choix est
+délibéré, et vaut pour les accents comme pour le point décimal. Mettre ces textes en forme à la
+source changerait des chaînes des objets de référence (section~\ref{sec:graines}) et des textes
+que le présent document cite, et obligerait à revérifier la règle selon laquelle aucun nombre
+issu du bootstrap n'entre dans un commentaire (issue~\#76)~; les convertir à l'affichage
+remplacerait aussi, à tort, le point des nombres qui ne sont pas des décimaux~: numéros
+d'article («~218.1~»), références et identifiants. Le présent document cite textuellement ces
+chaînes en \code{}, dans leur graphie~; une désignation en romain entre guillemets (nom d'une
+ligne, d'une nature de p-value) en donne le sens en français et n'en est pas la forme textuelle.
+Le point décimal souffre quatre exceptions, écrites en dur dans le moteur~: le motif
+d'enveloppe du QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec
+une virgule (fiche~\ref{fiche:qqnorm})~; le commentaire de la ligne de la variance unitaire des
+résidus de Mack («~\code{2,5e-03}~», fiche~\ref{mw:m2var})~; l'avertissement de validation
+d'une réserve faible devant son incertitude («~\code{0,22}~»)~; le message d'erreur
+d'\code{usp\_delta\_bord()} («~\code{0,5}~»).
+
 \clearpage
 % =============================================================================
 \section{Contrôles de qualité des données}
@@ -4066,7 +4093,7 @@ huit années fournies, $T$ égal à \code{NA} ou textuel, sans troncature de la 
 \code{validation\$T} manquant et sans avertissement, les avertissements portant sur une série
 retenue). Un contrôle de la famille~A qui ne peut pas
 être établi --- valeur manquante, séries de longueurs différentes --- vaut \code{ECHEC}, et son
-champ \code{detail} le dit («~contrôle non établi~») au lieu de juger les seules valeurs
+champ \code{detail} le dit («~\code{controle non etabli}~») au lieu de juger les seules valeurs
 disponibles~; pour $T < 5$, la ligne de crédibilité sort \code{ECHEC} sans appeler le barème,
 qui n'est pas défini en deçà de $T = 5$ (section~G). Ces cas ne se présentent pas dans \code{run\_engine()}, qui
 refuse de telles données en amont~; ils concernent un appel direct de
@@ -5927,8 +5954,8 @@ auparavant calculée sans motif. Depuis l'issue~\#240, à $\hat\delta$ intérieu
 de $25\,(B+1)$ tirages de la p-value conditionnelle au régime est atteint avec moins de
 \code{B\_MIN\_DEGENERESCENCE} tirages retenus (fiche~\ref{fiche:procedure-mc}), et à
 $B \ge$ \code{B\_MIN\_DEGENERESCENCE} seulement (à $B$ plus petit, la cause tient à $B$ et le
-motif générique reste), \code{usp\_bootstrap()} remplace ces deux motifs, «~aucune réplication finie~» et «~réplications
-finies insuffisantes~», par \code{MOTIF\_MC\_REGIME\_RARE}, qui en nomme la cause~; les valeurs
+motif générique reste), \code{usp\_bootstrap()} remplace ces deux motifs, «~\code{aucune replication finie}~» et «~\code{replications
+finies insuffisantes}~», par \code{MOTIF\_MC\_REGIME\_RARE}, qui en nomme la cause~; les valeurs
 de \code{p\_mc}, \code{err\_mc}, \code{B\_effectif} et \code{granularite\_stat} ne changent pas,
 les motifs qui portent sur les données observées (statistique observée non finie, non définie,
 condition \code{degenere}) gardent la priorité, et le motif n'est \emph{pas} un motif de
@@ -15767,7 +15794,7 @@ $J-3$ et $J-2$, trois vérifications de M1, refus du triangle totalement dégén
 (issue~\#192, §\ref{sec:controles}) et exclusion des résidus de Mack (issue~\#60,
 §\ref{sec:mw}). Elle est exclue de la combinaison de Fisher avant tout appel à \code{lm()} ou
 \code{cor.test()}, comme une colonne trop courte, et nommée dans le libellé de la ligne
-(«~$K$ colonne(s) testée(s) sur $n$ éligible(s)~», clause omise depuis l'issue~\#273 quand la
+(«~\code{K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s)}~», clause omise depuis l'issue~\#273 quand la
 statistique observée n'est pas définie, $K$ valant alors \code{NA}), sans champ nouveau~;
 l'exclusion ne vaut pas preuve de proportionnalité. Le seuil $10^{-12}$ est une convention de restitution, environ
 $4\,500$ fois l'epsilon machine ($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne, qui n'a
