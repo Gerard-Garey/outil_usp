@@ -1219,7 +1219,7 @@ réplication~; \code{.mw\_stat\_non\_}\allowbreak\code{definie\_ni()} rend ce m�
 de l'élément \code{non\_identifiables} (table de l'ensemble figé), retour \code{NA} commun de la
 courbure et de l'ordonnée à l'origine depuis l'issue~\#290 \\
 \code{mw\_msep()} & \code{aj} & \code{\$msep}, \code{\$terme\_variance},
-\code{\$terme\_covariance} \\
+\code{\$terme\_estimation} \\
 \code{mw\_sensibilite\_}\newline\code{sigma2\_dernier()} & \code{aj}, \code{ex} (sortie de
 \code{mw\_extrapolation\_}\allowbreak\code{sigma2()}) & sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ à
 $\hat\sigma^2_{J-1}$ (issue~\#310)~: liste qui donne l'applicabilité, la valeur de la règle et
@@ -14588,7 +14588,7 @@ réserve et la part de la variance de processus de la MSEP.
 \medskip
 \textbf{Réserve de lecture importante.} Ce troisième graphique est une
 \emph{décomposition} et non un leave-one-out. Le terme d'erreur d'estimation de
-la MSEP (champ \code{\$terme\_covariance} de \code{mw\_msep()}) comporte des
+la MSEP (champ \code{\$terme\_estimation} de \code{mw\_msep()}) comporte des
 termes croisés, partagés entre paires d'années de survenance, qui ne sont pas
 attribuables à une année isolée~: seule la variance de processus, attribuable
 année par année, y figure.
@@ -14845,7 +14845,7 @@ l'erreur de prédiction à un an de Merz--Wüthrich (2008). Le moteur transcrit 
 \textbf{Restitution du résultat.} \code{mw\_msep()} renvoie la MSEP et deux
 composantes~: \code{\$terme\_variance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,
 \hat Q_{I-i}/C(i,I-i)$, la variance de processus seule, et
-\code{\$terme\_covariance} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
+\code{\$terme\_estimation} $=\sum_{i=1}^{I}\hat C(i,J)^2\,\Delta_i
 + 2\sum_{i<k}\hat C(i,J)\,\hat C(k,J)\,\Delta_i$, l'erreur d'estimation, ses
 termes diagonaux compris. Leur somme est exactement la MSEP du texte. Ce
 découpage est un choix de présentation~: le règlement ne prescrit aucune
