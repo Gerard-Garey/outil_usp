@@ -741,10 +741,12 @@ local({
   # contrefactuel est omis quand sa valeur imprimee est celle de la regle. Mesure
   # de l'issue : triangle_mw.csv, colonne J-3 presque constante (degen_Jm3).
   # Texte a la lettre a partir de "Sensibilite indicative" ; la racine du
-  # quotient, 6 chiffres, est lue dans s (sigma2_(J-3) de l'ordre de 1e-20 y est
-  # connu a environ 1e-3 pres, mesure d'actuary, commentaire 6525801408 de
-  # #372) : pour eps = 5e-12, le rapport est calcule sur la machine et seule la
-  # forme "(x 2.67e+09)" est figee, pas ses chiffres.
+  # quotient, 6 chiffres, est lue dans s. Pour eps = 5e-12, sigma2_(J-3), de
+  # l'ordre de 1e-20, a une erreur relative mesuree de 1e-5 par arithmetique
+  # exacte sur les cumuls stockes (actuary, fin de branche Fq ; l'ordre 1e-3
+  # du commentaire 6525801408 de #372 etait une majoration, selon actuary) :
+  # le rapport est calcule sur la machine et seule la forme "(x 2.67e+09)"
+  # est figee, pas ses chiffres.
   phrase_372 <- function(tri) {
     a <- mw_ajuster(tri); ex <- mw_extrapolation_sigma2(a)
     s <- mw_sensibilite_sigma2_dernier(a, ex)

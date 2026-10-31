@@ -13076,10 +13076,13 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     # seules cellules a DFBETAS defini (NA ignores : gardes de l'en-tete de
     # mw_influence() ; FALSE partout si aucun n'est defini). Les DFBETAS y
     # sont en expression explicite, sans reajustement iteratif ni
-    # optimiseur : leur erreur est au niveau de l'arrondi machine, d'ou
-    # aucune tolerance analogue a tau (usp_jack_annees()). Egalite exacte :
-    # which.max retient
-    # la premiere cellule dans l'ordre de mw_influence(). Colonne en fin de
+    # optimiseur : leur erreur relative, mesuree au plus a 1,9e-13 contre une
+    # reference a 256 bits sur la grille de triangles construits de la section
+    # sec:boot-mw (constat numerique cite dans la fiche mw:influence du .tex),
+    # est sans commune mesure avec la precision 1e-6 des reajustements qui
+    # fonde tau ; d'ou aucune tolerance analogue a tau (usp_jack_annees()).
+    # Egalite exacte : which.max retient la premiere cellule dans l'ordre de
+    # mw_influence(). Colonne en fin de
     # table, apres dfbetas_non_borne ; mw_influence() est inchangee (sa
     # sortie alimente aussi les lignes M4). note_influence_mw() la lit sans
     # recalculer de maximum.
