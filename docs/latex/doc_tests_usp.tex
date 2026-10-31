@@ -1199,9 +1199,24 @@ d'extrapolation de $\hat\sigma^2_{J-1}$, le motif de refus de l'issue~\#192 et l
 d'exclusion de M1 (issue~\#60) \\
 \code{.MW\_LIGNE\_CELLULE\_}\newline\code{ABERRANTE} & constante (chaîne) & nom de la ligne M4 de
 la cellule aberrante (fiche~\ref{mw:m4gr}), lu par \code{add()} dans \code{mw\_tests()} et par
-l'avertissement des colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme cette ligne
-comme ligne qui écarte aussi ces colonnes sans être fondée sur les résidus de Mack
-(issue~\#352, §\ref{sec:controles}) \\
+la constante \code{.MW\_LIGNES\_COLONNES\_ECARTEES}, que lit l'avertissement des colonnes
+dégénérées de \code{mw\_valider\_ajustement()} (issues~\#352 et~\#363, §\ref{sec:controles}) \\
+\code{.MW\_LIGNES\_COLONNES\_}\newline\code{ECARTEES} & constante (liste nommée par famille) &
+noms des lignes de \code{mw\_tests()} qui écartent les colonnes dégénérées de leur calcul, par
+famille et dans l'ordre de \code{mw\_tests()}~: une ligne y figure si elle reçoit l'ensemble
+figé des colonnes dégénérées, directement ou par \code{mw\_residus()}~; les lignes fondées sur les
+résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}) en font donc partie. La famille~$\alpha$
+(fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année d'accident ne
+reçoivent pas cet ensemble et n'y figurent pas, non plus que les lignes de lecture conjointe
+(décision du mainteneur du 30~octobre 2026). Constante unique, lue par l'avertissement des
+colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme celles de ses lignes qui ne
+reposent pas sur les résidus de Mack (issue~\#363, §\ref{sec:controles})~; un test unitaire vérifie
+qu'elle coïncide avec les lignes dont le contenu change quand on substitue l'ensemble figé,
+complétées des lignes fondées sur les résidus \\
+\code{.mw\_texte\_lignes()} & liste de noms de lignes nommée par famille & texte
+«~\code{M1 ("a" ; "b"), M3 ("c")}~» de la liste, partagé par l'énumération des lignes fondées sur
+les résidus et par celle des autres lignes qui écartent les colonnes dégénérées, dans
+l'avertissement de \code{mw\_valider\_ajustement()} (issue~\#363) \\
 \code{.mw\_triangle\_}\newline\code{totalement\_degenere()} & \code{aj} & \code{TRUE} si toutes les
 colonnes $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique, \code{FALSE} sinon, pour
 un objet d'ajustement réduit et pour $J < 2$~; prédicat du refus de
@@ -4207,8 +4222,8 @@ bloquant~: le résidu de Mack y vaut $0/0$ si les facteurs sont exactement égau
 que le rapport d'écarts négligeables à la tolérance de l'outil~; ces facteurs sont exclus des
 dix lignes de M1 à M5 fondées sur les résidus. Un seul avertissement par triangle, qui nomme
 les colonnes, compte les résidus exclus et retenus, cite ces lignes (issue~\#33), nomme, depuis
-l'issue~\#352, la ligne M4 de la cellule aberrante, qui écarte aussi ces colonnes sans être
-fondée sur les résidus de Mack, et précise que le vivier du bootstrap ne contient que les résidus
+l'issue~\#363, les autres lignes qui écartent aussi ces colonnes de leur calcul sans reposer sur
+les résidus de Mack (M1, M3 et la ligne M4 de la cellule aberrante, issue~\#352), et précise que le vivier du bootstrap ne contient que les résidus
 retenus (décision du mainteneur du 5~octobre 2026). \\
 Réserve faible devant son incertitude \emph{(post-ajustement)} & $\sqrt{\mathrm{MSEP}}/\hat R
 \ge 1$ & \textbf{Avertissement}, non bloquant~: D(4) définit le paramètre pour tout
@@ -14780,17 +14795,32 @@ dix lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\
 tendance des facteurs~; M2, hétéroscédasticité résiduelle, adéquation de
 l'exposant de variance et variance unitaire des résidus~; M3, homogénéité entre
 années de survenance, Durbin--Watson et test des suites~; M4, ESD
-généralisé~; M5, Shapiro--Wilk et Lilliefors. Depuis l'issue~\#352 (texte retouché par décision du
-mainteneur du 22~octobre 2026), l'avertissement nomme ensuite la ligne M4 «~\code{Cellule
-aberrante du triangle (residus studentises externes)}~», dont la statistique est calculée sur les
-résidus studentisés externes de chaque colonne (fiche~\ref{mw:m4gr}) et non sur ces résidus, et
-qui écarte aussi ces colonnes~: elle n'est pas comptée parmi les lignes fondées sur ces résidus
-(elle ne lit pas \code{mw\_residus()}), mais le lecteur de l'avertissement sait ainsi qu'elle ne
-les examine pas.
-Son nom est porté par une constante unique, \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par
-\code{mw\_tests()} pour la ligne et par l'avertissement (mesuré sur le triangle de six années des
-tests unitaires dont la colonne $j = 0$ est dégénérée, \code{run\_engine()}, $B = 99$~: la phrase
-suit la liste des lignes fondées sur les résidus et précède celle du vivier du bootstrap). Lorsque $\hat f_{J-2}$ ou
+généralisé~; M5, Shapiro--Wilk et Lilliefors. Depuis l'issue~\#363 (texte d'\code{actuary},
+retenu par décision du mainteneur du 30~octobre 2026, qui remplace la phrase de
+l'issue~\#352~; la ligne M4 de la cellule aberrante y était déjà nommée seule), l'avertissement
+nomme ensuite «~les autres lignes qui écartent aussi ces colonnes de leur calcul, sans reposer sur
+ces résidus~»~: M1, nullité de l'ordonnée à l'origine, homogénéité de $f_j$ entre années de
+survenance, absence de courbure et identifiabilité intra-colonne~; M3, effets d'année calendaire
+(test de Mack), effets d'année calendaire par diagonale et corrélation entre années de
+développement adjacentes~; M4, «~\code{Cellule aberrante du triangle (residus studentises
+externes)}~», dont il précise que la statistique est calculée sur les résidus studentisés externes
+de chaque colonne (fiche~\ref{mw:m4gr}), et non sur ces résidus. Ces lignes reçoivent l'ensemble
+figé des colonnes dégénérées sans lire \code{mw\_residus()}~: elles ne sont pas comptées parmi les
+lignes fondées sur les résidus, mais le lecteur de l'avertissement sait ainsi qu'elles
+n'examinent pas ces colonnes (sur le triangle cité ci-dessous, la ligne d'identifiabilité
+intra-colonne omet $j = 0$ de ses valeurs). Les deux listes sont tirées d'une constante unique,
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, qui nomme par famille toutes les lignes de
+\code{mw\_tests()} recevant cet ensemble, directement ou par \code{mw\_residus()}~;
+l'avertissement en énumère celles qui ne figurent pas dans \code{.MW\_LIGNES\_RESIDUS}. La
+famille~$\alpha$ (fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année
+d'accident (M6) ne reçoivent pas cet ensemble et ne sont pas nommées~: la famille~$\alpha$ garde
+ces colonnes. Les lignes de lecture conjointe (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}), qui ne le reçoivent pas non plus, sont hors de la constante (décision
+du mainteneur du 30~octobre 2026). Le nom de la ligne de la cellule aberrante est porté par la
+constante \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par \code{mw\_tests()} pour la ligne et par
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES} (mesuré sur le triangle de six années des tests unitaires
+dont la colonne $j = 0$ est dégénérée, \code{run\_engine()}, $B = 99$~: la phrase des autres
+lignes suit la liste des lignes fondées sur les résidus et précède celle du vivier du bootstrap). Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
@@ -16187,6 +16217,15 @@ seuil $0{,}10$ sous le plan du triangle de contrôle (rubrique~7), hypothèse qu
 peut confirmer à $T = 8$ (fiches~\ref{mw:m2bp} et~\ref{mw:m2b}, rubrique~7), mais d'enjeu
 matériel faible.
 
+\emph{Colonnes dégénérées.} \code{mw\_famille\_alpha()} ne reçoit pas l'ensemble figé des colonnes
+dégénérées (fiche~\ref{mw:m1a})~: elle garde ces colonnes dans $A$, avec leur poids $n_j$, et
+l'avertissement des colonnes dégénérées ne nomme pas la ligne parmi celles qui les écartent
+(§\ref{sec:controles}, issue~\#363). Chaque $\hat f_j^{(\alpha)}$ étant une moyenne pondérée des
+facteurs individuels de la colonne, l'amplitude d'une telle colonne est bornée par l'écart entre
+ses facteurs extrêmes, donc nulle ou de l'ordre de la tolérance de l'outil (mesuré sur le
+triangle de six années des tests unitaires dont la colonne $j = 0$ est dégénérée~: amplitude
+nulle, $n_0 = 5$).
+
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M1 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $A$, continue~: toute p-value est atteignable. La p-value retenue est de Monte-Carlo (clé \code{Alpha}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est celui de la p-value retenue.
@@ -16248,7 +16287,10 @@ le triangle de contrôle~: $S_j/D_j$ égale l'élément \code{cov.unscaled[1, 1]
 \code{summary(lm(C1 \textasciitilde\ C0, weights = 1/C0))} à moins de $10^{-13}$ en relatif dans
 les cinq colonnes (oracle des tests unitaires, tolérance $10^{-10}$). La fonction lit le triangle,
 les $\hat\sigma_j^2$ et les colonnes exclues, et non \code{mw\_residus()}~: la ligne n'est pas
-comptée parmi les lignes fondées sur les résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}). Les trois
+comptée parmi les lignes fondées sur les résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}), mais
+parmi les autres lignes qui écartent les colonnes dégénérées, que nomme l'avertissement de
+\code{mw\_valider\_ajustement()} (\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, issue~\#363,
+§\ref{sec:controles}). Les trois
 grandeurs sont sans dimension et invariantes par changement d'unité des cumulés.
 \Hzero
 Aucune hypothèse nulle~: la ligne est un diagnostic. Le «~\code{sous H0}~» du libellé
