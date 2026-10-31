@@ -1385,6 +1385,45 @@ verifier("engine_influence() : fort_ecart_sigma = |ecart_sigma| > REPERE_INFLUEN
            dj <- engine_influence(f, list(sigma_usp = c(1.2, 0.95, 1.05, 0.85, 1, 1.11, 0.89, 1)), 1)
            ok && identical(dj$fort_ecart_sigma, c(TRUE, FALSE, FALSE, TRUE, FALSE, TRUE, TRUE, FALSE))
          })
+# Issue #209 (Q-44-5) : reperes de lecture du levier et de la distance de
+# Cook nommes repere_levier et repere_cook (seuil_levier et seuil_cook avant
+# #209), numerateurs en constantes ; valeurs inchangees (2k/T, 4/T, k = 1).
+# Le test fige les constantes a 2 et 4 : il garde la coherence entre les
+# libelles figes "4/T", "2k/T" et "2/n_j" de R/display_helpers.R (et des
+# detail de usp_tests()) et les constantes REPERE_LEVIER et REPERE_COOK_LN.
+verifier("engine_influence() : repere_levier = REPERE_LEVIER k / T = 2/T, repere_cook = REPERE_COOK_LN / T = 4/T, fort_levier et influent lus sur ces colonnes, aucune colonne seuil_* (#209)",
+         {
+           ok <- identical(c(REPERE_LEVIER, REPERE_COOK_LN), c(2, 4))
+           for (m in c("premium", "reserve1")) {
+             d <- appels_run[[m]]()$plots_data$influence; T <- nrow(d)
+             ok <- ok && !any(startsWith(names(d), "seuil")) &&
+               identical(d$repere_levier, rep(2 / T, T)) &&
+               identical(d$repere_cook, rep(4 / T, T)) &&
+               identical(d$fort_levier, d$levier > d$repere_levier) &&
+               identical(d$influent, d$cook > d$repere_cook)
+           }
+           ok
+         })
+# Issue #209 : le repere imprime dans le detail des lignes Leviers et Cook de
+# usp_tests() et la colonne de plots_data$influence viennent de la meme
+# constante ; comparaison a la precision imprimee (%.3f).
+verifier("usp_tests() : repere imprime dans le detail des lignes 'Leviers (hat values)' (2k/T) et 'Points influents (distance de Cook)' (4/T) = plots_data$influence$repere_levier[1] et repere_cook[1] a la precision imprimee (#209)",
+         {
+           ok <- TRUE
+           for (m in c("premium", "reserve1")) {
+             r <- appels_run[[m]](); d <- r$plots_data$influence
+             det <- stats::setNames(vapply(r$tests, function(l) l$detail, character(1)),
+                                    vapply(r$tests, function(l) l$test, character(1)))
+             lu <- function(test, rep) as.numeric(sub(sprintf(".*%s = ([0-9.]+).*", rep), "\\1",
+                                                     det[[test]]))
+             ok <- ok &&
+               identical(lu("Leviers (hat values)", "2k/T"),
+                         as.numeric(sprintf("%.3f", d$repere_levier[1]))) &&
+               identical(lu("Points influents (distance de Cook)", "4/T"),
+                         as.numeric(sprintf("%.3f", d$repere_cook[1])))
+           }
+           ok
+         })
 verifier("engine_influence() sans jackknife : ni ecart_sigma ni fort_ecart_sigma",
          {
            d <- engine_influence(usp_ajuster(x, y))
@@ -1405,16 +1444,18 @@ verifier("mw_influence() : dfbetas = stats::dfbetas() (1e-10) pour n_j >= 3, NA 
            }
            ok && any(d$j == max(d$j) & is.na(d$dfbetas))
          })
-verifier("plots_data$influence (reserve2) : colonnes de mw_influence() puis plus_influente (#396), repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA ; mw_influence() = cette table sans plus_influente",
+verifier("plots_data$influence (reserve2) : colonnes de mw_influence() puis plus_influente (#396), repere_levier = REPERE_LEVIER / n_j = 2/n_j et fort_levier lu sur cette colonne (#209), repere_dfbetas = REPERE_DFBETAS_MW / sqrt(n_j), fort_dfbetas sans NA ; mw_influence() = cette table sans plus_influente",
          {
            d <- appels_run$reserve2()$plots_data$influence
            d2 <- mw_influence(mw_ajuster(tri_mw))
            nj <- as.vector(table(d$j)[as.character(d$j)])
-           identical(names(d), c("i", "j", "C", "F", "levier", "seuil_levier", "f_chapeau",
+           identical(names(d), c("i", "j", "C", "F", "levier", "repere_levier", "f_chapeau",
                                  "f_sans_cellule", "dfbeta_relatif", "residu", "fort_levier",
                                  "dfbetas", "repere_dfbetas", "fort_dfbetas",
                                  "dfbetas_non_borne", "plus_influente")) &&
              !("fort_dfbeta" %in% names(d)) &&
+             identical(REPERE_LEVIER, 2) && identical(d$repere_levier, 2 / nj) &&
+             identical(d$fort_levier, d$levier > d$repere_levier) &&
              identical(d$repere_dfbetas, REPERE_DFBETAS_MW / sqrt(nj)) &&
              is.logical(d$fort_dfbetas) && !anyNA(d$fort_dfbetas) &&
              identical(d$fort_dfbetas, !is.na(d$dfbetas) & abs(d$dfbetas) > d$repere_dfbetas) &&
