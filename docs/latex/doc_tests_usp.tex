@@ -10975,8 +10975,8 @@ $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simul
 \Usage
 Test historiquement dominant mais \emph{le moins puissant} de cette section (issue~\#229,
 tableau~P1, J2, $T = 8$~: taux de rejet le plus bas, parmi les tests de normalité du tableau
-(Shapiro--Wilk, Shapiro--Francia, Jarque--Bera, Anderson--Darling, Cramér--von Mises, Lilliefors
-et lui-même), dans les quatre scénarios de contamination et d'asymétrie, aux deux seuils, p-values de Monte-Carlo~;
+(Shapiro--Wilk, Shapiro--Francia, Jarque--Bera, D'Agostino (asymétrie), Anderson--Darling,
+Cramér--von Mises, Lilliefors et lui-même), dans les quatre scénarios de contamination et d'asymétrie, aux deux seuils, p-values de Monte-Carlo~;
 constat de simulation)~: le supremum ne
 retient qu'un seul point d'écart et sous-pondère les queues. Piège classique~: les résidus sont
 standardisés par le modèle, dont les paramètres sont estimés, et appliquer la loi de Kolmogorov,
@@ -11452,8 +11452,11 @@ La p-value asymptotique $p = 1 - F_{\chi^2_2}(Q_{\mathrm{LB}})$ est restituée d
 haute (clé \code{LB2}, procédure de la fiche~\ref{fiche:procedure-mc}), simulée sous le modèle
 ajusté ($0{,}188$ sur le jeu de contrôle, $B = 999$, remesuré).
 \Usage
-Ljung--Box est à préférer à Box--Pierce, dont l'approximation $\chi^2$ est plus grossière à $T$
-faible. Limites~: la qualité de l'approximation $\chi^2$ à $T = 8$ n'est chiffrée par aucune source
+Ljung--Box est retenu plutôt que Box--Pierce~: G.\,M. Ljung et G.\,E.\,P. Box (1978, notice
+ci-dessus, texte non relu) présentent leur statistique comme une modification de celle de
+Box--Pierce qui améliore l'approximation $\chi^2$ en échantillon fini~; à $T = 8$, aucune des deux
+approximations n'est chiffrée par une source vérifiée, et la p-value retenue étant de Monte-Carlo,
+ce choix porte sur la statistique et non sur la calibration. Limites~: la qualité de l'approximation $\chi^2$ à $T = 8$ n'est chiffrée par aucune source
 vérifiée (tableau~\ref{tab:conv}), et le moteur se limite au retard~2~; c'est pourquoi la
 p-value retenue est de Monte-Carlo. Un rejet au retard~2 non confirmé à
 l'ordre~1 par Durbin--Watson (fiche~\ref{fiche:durbin-watson}) doit être interprété avec
