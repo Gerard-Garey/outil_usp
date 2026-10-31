@@ -3177,9 +3177,55 @@ fusionnés dans $u$ que si $|r_i - r_j| \le 10^{-12}\max_t|r_t|$, à l'arrondi d
 cinq chiffres, $|r_i - r_j| \ge 10^{-10}\max(r_i, r_j)$, si bien qu'aucune fusion n'est possible
 tant que $\max(r_i, r_j) > 10^{-2}\max_t r_t$, c'est-à-dire tant que les ratios S/P des années
 restent dans un facteur~100 les uns des autres (borne déduite de ces deux inégalités). Pour
-$z_t$, transformation non linéaire de $r_t$ par les paramètres estimés, aucune borne n'est
-établie (réserve d'\code{actuary} à la validation de l'issue~\#112)~; pour les résidus de Mack
-(plancher~1, issue~\#152) non plus~: sur le triangle de contrôle
+$z_t$ (plancher~1), transformation non linéaire de $r_t$ par les paramètres estimés, aucune
+borne n'était établie à la validation de l'issue~\#112 (réserve d'\code{actuary})~; depuis
+l'issue~\#159 (avis d'\code{actuary} du 15~octobre 2026), une borne est établie à $\hat\pi_t$
+constant exactement, et aucune borne de cette forme n'existe à $\hat\pi_t$ variable.
+\emph{À $\hat\pi_t$ constant exactement} ($\hat\delta = 1$, ou volumes tous égaux~: drapeau
+\code{\$pi\_constant\_exact} d'\code{usp\_regime()}), $\hat\pi_t = \hat\pi =
+[\ln(1 + e^{2\hat\gamma})]^{-1}$ et $\ln\hat\beta = \overline{\ln r} + 1/(2\hat\pi)$, où
+$\overline{\ln r}$ est la moyenne des $\ln r_t$~; d'où $z_t = \sqrt{\hat\pi}\,(\ln r_t -
+\overline{\ln r})$ et, pour deux ratios distincts de saisies à au plus cinq chiffres
+significatifs,
+\[
+  |z_t - z_s| \;=\; \sqrt{\hat\pi}\,|\ln r_t - \ln r_s|
+  \;\ge\; \sqrt{\hat\pi}\,\frac{|r_t - r_s|}{\max(r_t, r_s)}
+  \;\ge\; \sqrt{\hat\pi}\cdot 10^{-10}
+\]
+(inégalité $\ln(a/b) \ge (a - b)/a$ pour $a > b > 0$, puis écart relatif minimal ci-dessus). La
+tolérance valant $10^{-12}\max(1, |z_t|, |z_s|) \le 10^{-12}\max(1, \sqrt{\hat\pi}\,L)$, avec
+$L = \max_t|\ln r_t - \overline{\ln r}|$, aucune fusion n'est possible, à l'arrondi du calcul de
+$z_t$ près, dès que $\hat\pi > 10^{-4}$ et $L < 100$ (borne déduite de ces inégalités). La
+première condition est remplie pour tout $\hat\gamma$ dont $e^{2\hat\gamma}$ est représentable en
+double précision ($\hat\pi > 1/710$). La seconde l'est dès que les ratios restent dans la plage
+plausible $[0{,}1\,;5[$ ($L < \ln 50 \approx 3{,}9$)~; elle n'échoue que si un ratio s'écarte
+d'un facteur au moins $e^{100} \approx 2{,}7\cdot 10^{43}$ de la moyenne géométrique des ratios,
+ce qui place au moins un ratio hors de la plage plausible et déclenche l'avertissement, non
+bloquant, de l'issue~\#145 (§\ref{sec:controles}). La borne porte sur les écarts logarithmiques
+des ratios, non sur leur ordre de grandeur~: les ratios inférieurs à $10^{-2}$, pour lesquels la
+garantie sur $r_t$ cessait avant l'issue~\#187, n'y font pas exception. À six chiffres, le même
+raisonnement ne garantit l'absence de fusion que si $\hat\pi > 1$ et $L < 1$. Mesuré sur
+\code{tests/donnees/donnees\_ln.csv} (\code{usp\_ajuster()}, $\hat\delta = 1$)~: $\hat\pi =
+48{,}4$, $\sqrt{\hat\pi} = 6{,}96$, $\max_t|z_t| = 1{,}53$, plus petit écart entre deux $z_t$
+$5{,}4\cdot 10^{-3}$ pour une tolérance d'au plus $1{,}53\cdot 10^{-12}$, identité $z_t - z_s =
+\sqrt{\hat\pi}\,(\ln r_t - \ln r_s)$ vérifiée à $4{,}4\cdot 10^{-16}$ près~; la paire
+$99\,999/99\,998$ et $99\,998/99\,997$ (écart relatif $1{,}0\cdot 10^{-10}$), transformée par
+$z = \sqrt{\hat\pi}\,(\ln r - \ln r_1 + L)$ à ce $\hat\pi$, n'est pas déclarée ex \ae quo par
+\code{engine\_ex\_aequo()} à $L = 0$, $50$ et $99$, et l'est à $L = 101$. Dans la bande où
+$\hat\pi_t$ n'est constant qu'à la tolérance \code{TOL\_DELTA\_BORD} près ($\hat\delta \in
+[1 - 10^{-6}\,;1[$, ou volumes égaux à cette tolérance près~: drapeaux
+\code{\$delta\_dans\_bande} et \code{\$volumes\_dans\_bande}), où la règle~R7 attribue pourtant
+les p-values exactes, l'identité n'est qu'approchée et la borne n'est pas établie.
+\emph{À $\hat\pi_t$ variable}, l'écart entre $z_t$ et $z_s$ ne dépend pas du seul écart entre
+$\ln r_t$ et $\ln r_s$~: les facteurs $\sqrt{\hat\pi_t}$ et les termes $1/(2\hat\pi_t)$, propres
+à chaque année, peuvent le compenser, et aucune borne inférieure de cette forme n'existe. La
+règle~R7 n'y attribue aucune p-value exacte aux lignes de rang sur $z_t$ (suites, Smirnov)~; une
+fusion n'y aurait que l'effet d'un ex \ae quo ordinaire sur la statistique observée et sur sa
+p-value de Monte-Carlo (fiche correspondante). Mesuré sur
+\code{tests/donnees/donnees\_ln\_interieur.csv} (\code{usp\_ajuster()}, $\hat\delta = 0{,}664$)~:
+plus petit écart entre deux $z_t$ $6{,}6\cdot 10^{-2}$. La tolérance n'est pas modifiée (même
+avis). Pour les résidus de Mack (plancher~1, issue~\#152), aucune borne n'est établie non
+plus~: sur le triangle de contrôle
 \code{tests/donnees/triangle\_mw.csv}, multiplier une cellule observée par $1 + 4 \times 2^{-52}$
 (quatre fois la précision machine) déplace les résidus de Mack d'au plus $1{,}0\cdot 10^{-13}$
 (pire cellule, $(i, j) = (0, 4)$), soit une marge d'environ~10 seulement sous la tolérance (mesure
