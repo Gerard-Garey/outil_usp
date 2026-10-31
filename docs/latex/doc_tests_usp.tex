@@ -1350,6 +1350,12 @@ $\mathrm{CV}_j$ des colonnes retenues (\code{NA} sans colonne retenue), et \code
 colonne retenue ($n_j \ge 3$, hors des colonnes exclues), vide sinon~; $e_{a,j}$ \code{NA} si
 $C(\cdot,j)$ est constant~; lit le triangle et les $\hat\sigma_j^2$, non \code{mw\_residus()}
 (issue~\#308, fiche~\ref{mw:m1id}) \\
+\code{.mw\_format\_}\newline\code{echelle()} & valeurs, \code{decimales} & chaînes de
+caractères~: écriture fixe à \code{decimales} décimales quand sa valeur relue est dans
+$[10^{-3}~;~10^{6}[$ en valeur absolue, \code{\%.3e} sinon et pour toute valeur non finie~;
+vectorisée, \code{sprintf()} seul, aucun calcul~; appelée par \code{mw\_tests()} pour écrire
+$R_j$ (3 décimales) et $e_{a,j}$ (4) dans le commentaire de l'identifiabilité intra-colonne
+(issue~\#364, fiche~\ref{mw:m1id}) \\
 \code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
 \code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
 (\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
@@ -16303,7 +16309,24 @@ $\mathrm{CV}_j$ des colonnes retenues («~\code{CV moyen des colonnes retenues}~
 colonne retenue)~; le commentaire donne, pour chaque colonne retenue, $j$, $n_j$, $\mathrm{CV}_j$,
 $R_j$ et $e_{a,j}$ («~\code{e\_a non definie (C(i,j) constant)}~» si $D_j = 0$), ou
 «~\code{Aucune colonne retenue (n\_j >= 3).}~». Toutes ces grandeurs sont calculées sur le
-triangle observé~; aucune n'est issue du bootstrap (issue~\#76). Sur le triangle de contrôle
+triangle observé~; aucune n'est issue du bootstrap (issue~\#76). \emph{Écriture de $R_j$ et de
+$e_{a,j}$} (issue~\#364, décision Q-44-4 du mainteneur du 30~octobre 2026)~: \code{mw\_tests()}
+les écrit par \code{.mw\_format\_echelle()}, en virgule fixe à trois décimales pour $R_j$ et à
+quatre pour $e_{a,j}$ (\code{\%.3f}, \code{\%.4f}) quand la valeur de cette écriture fixe, relue,
+est dans $[10^{-3}~;~10^{6}[$ en valeur absolue, et en notation scientifique à quatre chiffres
+significatifs (\code{\%.3e}) sinon, ainsi que pour toute valeur non finie (écrite \code{Inf},
+\code{-Inf}, \code{NaN} ou \code{NA}). La plage est jugée sur l'écriture fixe, et non sur la
+valeur elle-même, pour qu'aucune écriture fixe imprimée n'en sorte~: à quatre décimales,
+$0{,}00099995$ s'écrit \code{0.0010}, mais le double le plus proche de $0{,}00095$, que l'écriture
+fixe arrondit à \code{0.0009}, s'écrit \code{9.500e-04}. L'écriture fixe seule, en vigueur
+jusqu'à cette issue, rendait illisible un rapport $R_j$ géant et écrivait nul un $e_{a,j}$ très
+petit~: sur le triangle de contrôle dont la ligne $i = 0$ est multipliée par $10^{-14}$, la
+colonne $j = 0$ s'écrivait «~\code{R = 122857142857143.000, e\_a = 0.0000}~» et s'écrit
+«~\code{R = 1.229e+14, e\_a = 1.577e-09}~»~; la ligne $i = 0$ multipliée par $10^{15}$, elle
+s'écrit «~\code{R = 9.633e+14, e\_a = 4.685e-17}~» (tests unitaires, texte à la lettre). Seule
+l'écriture change~: les valeurs restituées dans \code{\$detail} de
+\code{mw\_identifiabilite\_}\allowbreak\code{intra()} ne sont pas arrondies. Toutes les
+grandeurs du triangle de contrôle sont dans la plage, et son commentaire est inchangé. Sur le triangle de contrôle
 (\code{run\_engine()}, méthode \code{reserve2})~: estimation $0{,}0730$, et, par colonne, avec les
 multiplicateurs et les effets minimaux détectables de la rubrique~6~:
 \begin{center}
@@ -18077,8 +18100,27 @@ calculée par \code{mw\_sensibilite\_sigma2\_dernier()} et transmise à
 \code{.mw\_detail\_extrapolation()}~: \code{mw\_msep()} est rappelée en remplaçant
 $\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} = \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit
 \code{mw\_msep()}, successivement par chacun des trois arguments du minimum, dans l'ordre du
-texte, puis par~$0$. Chaque valeur est imprimée avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$
-de la règle~; l'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
+texte, puis par~$0$. Chaque valeur est imprimée à six chiffres significatifs
+(\code{format(, digits = 6)}), avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$ de la règle, en
+pourcentage à une décimale (\code{\%+.1f \%})~; au-delà d'un rapport de
+\code{RAPPORT\_MAX\_ECART\_MW} $= 100$ entre la $\sqrt{\mathrm{MSEP}}$ obtenue et celle de la règle
+(seuil strict~: un rapport de $100$ exactement s'écrit encore \code{+9900.0 \%}), c'est ce rapport
+qui est imprimé à la place du pourcentage, précédé de «~\code{x}~», à trois chiffres significatifs
+(\code{\%.3g}, zéros finaux supprimés~: «~\code{x 133}~», «~\code{x 2.67e+09}~»~; issue~\#372,
+point~1, décision du mainteneur du 30~octobre 2026). C'est une règle de présentation, non un
+garde-fou~: un pourcentage de douze chiffres ne se lit pas, et un rapport aussi grand signale
+seulement que la règle de minimum est contraignante, le quotient
+$\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
+petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
+et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
+retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (avis
+d'\code{actuary}, issue~\#372). Sur le triangle de contrôle dont la colonne $J-3$ est rendue
+presque constante (facteurs individuels $F(i,J-3)$ égaux à $1{,}1$ pour $i = 0$ et~$2$, et à
+$1{,}1$ à un écart relatif près pour $i = 1$, cumuls suivants de la ligne remis à l'échelle~;
+tests unitaires), colonne non dégénérée à la tolérance de l'outil, la $\sqrt{\mathrm{MSEP}}$ avec
+le quotient s'écrit «~\code{+1234.3 \%}~» à un écart relatif de $10^{-3}$, «~\code{x 133}~» à
+$10^{-4}$ (\code{+13233.1 \%} avant l'issue~\#372) et «~\code{x 2.67e+09}~» à
+$5\times10^{-12}$ (\code{+266637851904.6 \%} avant cette issue). L'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
 quand $\hat\sigma^2_{J-3} = 0$, exactement ou à la tolérance relative $10^{-12}$ de l'outil
 (colonne $J-3$ dégénérée, champ \code{\$degeneree\_Jm3} de \code{mw\_extrapolation\_sigma2()})~:
 le quotient d'une variance nulle à la tolérance près n'a pas de valeur interprétable. Avec la valeur que retient la règle, la MSEP recalculée est
@@ -18087,7 +18129,12 @@ unitaires). La valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un ar
 minimum}~», dans une phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement
 ou à la tolérance relative $10^{-12}$ de l'outil (colonne $J-3$ ou $J-2$ dégénérée, champ
 \code{\$degeneree} de \code{mw\_extrapolation\_sigma2()})~: elle répéterait alors la valeur de
-la règle. La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
+la règle. Depuis l'issue~\#372 (point~1), elle est omise aussi, colonne dégénérée ou non, quand
+la $\sqrt{\mathrm{MSEP}}$ du contrefactuel, imprimée à six chiffres significatifs, est celle de
+la règle~: elle répéterait, à la précision imprimée, la valeur de la règle. Sur la colonne
+$J-3$ presque constante ci-dessus, la phrase est omise à un écart relatif de $5\times10^{-12}$
+(contrefactuel et règle imprimés \code{160.926}) et gardée à $10^{-4}$ (\code{160.931} contre
+\code{160.935}, écart imprimé \code{-0.0 \%}). La sensibilité n'est pas écrite si la règle n'est pas applicable ou si la
 $\sqrt{\mathrm{MSEP}}$ de la règle n'est pas finie et strictement positive, les écarts relatifs
 n'ayant alors pas de sens. Les racines de MSEP sont déterministes~: le \code{detail} n'imprime
 aucun nombre issu du bootstrap. Aucun écart type estimé ni aucun
