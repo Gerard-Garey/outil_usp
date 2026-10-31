@@ -3183,7 +3183,9 @@ les ratios centrés $u_t$ (plancher $\max_t|r_t|$), deux ratios distincts $r_i$ 
 fusionnés dans $u$ que si $|r_i - r_j| \le 10^{-12}\max_t|r_t|$, à l'arrondi du centrage près~; à
 cinq chiffres, $|r_i - r_j| \ge 10^{-10}\max(r_i, r_j)$, si bien qu'aucune fusion n'est possible
 tant que $\max(r_i, r_j) > 10^{-2}\max_t r_t$, c'est-à-dire tant que les ratios S/P des années
-restent dans un facteur~100 les uns des autres (borne déduite de ces deux inégalités). Pour
+restent dans un facteur~100 les uns des autres (borne déduite de ces deux inégalités). Un
+facteur~100 excède l'amplitude de la plage plausible $[0{,}1\,;5[$ (facteur~50)~: hors de cette
+garantie, l'avertissement de l'issue~\#145 est toujours émis. Pour
 $z_t$ (plancher~1), transformation non linéaire de $r_t$ par les paramètres estimés, aucune
 borne n'était établie à la validation de l'issue~\#112 (réserve d'\code{actuary})~; depuis
 l'issue~\#159 (avis d'\code{actuary} du 15~octobre 2026), une borne est établie à $\hat\pi_t$
@@ -3222,7 +3224,9 @@ $z = \sqrt{\hat\pi}\,(\ln r - \ln r_1 + L)$ à ce $\hat\pi$, n'est pas déclaré
 $\hat\pi_t$ n'est constant qu'à la tolérance \code{TOL\_DELTA\_BORD} près ($\hat\delta \in
 [1 - 10^{-6}\,;1[$, ou volumes égaux à cette tolérance près~: drapeaux
 \code{\$delta\_dans\_bande} et \code{\$volumes\_dans\_bande}), où la règle~R7 attribue pourtant
-les p-values exactes, l'identité n'est qu'approchée et la borne n'est pas établie.
+les p-values exactes, l'identité n'est qu'approchée et la borne n'est pas établie~: la
+perturbation, d'ordre $1-\hat\delta \le 10^{-6}$, excède l'écart minimal garanti à $\hat\pi_t$
+constant.
 \emph{À $\hat\pi_t$ variable}, l'écart entre $z_t$ et $z_s$ ne dépend pas du seul écart entre
 $\ln r_t$ et $\ln r_s$~: les facteurs $\sqrt{\hat\pi_t}$ et les termes $1/(2\hat\pi_t)$, propres
 à chaque année, peuvent le compenser, et aucune borne inférieure de cette forme n'existe. La
