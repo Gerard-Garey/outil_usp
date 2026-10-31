@@ -1554,7 +1554,9 @@ arrêté à la colonne en cause), la phrase finissant alors par «~\code{hors de
 Fisher.}~»~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
-\code{mw\_influence()} & \code{aj} & levier, facteur sans la cellule,
+\code{mw\_influence()} & \code{aj} & levier, son repère de lecture
+\code{repere\_levier} $=$ \code{REPERE\_LEVIER}$/n_j$ (nommé \code{seuil\_levier} avant
+l'issue~\#209) et le booléen de coloration \code{fort\_levier}, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
 \code{fort\_dfbetas} et booléen \code{dfbetas\_non\_borne} (issue~\#89)~; facteur sans la
@@ -1625,7 +1627,11 @@ nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabi
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
 \code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
-distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), écarts du
+distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), leurs
+repères de lecture \code{repere\_levier} $=$ \code{REPERE\_LEVIER} $\cdot\,k/T$ ($k$ nombre de
+coefficients du modèle ajusté, $k = 1$) et \code{repere\_cook} $=$ \code{REPERE\_COOK\_LN}$/T$
+(colonnes nommées \code{seuil\_levier} et \code{seuil\_cook} avant l'issue~\#209) et les
+booléens de coloration \code{fort\_levier} et \code{influent}, écarts du
 jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
 évaluable, issue~\#224)~; depuis l'issue~\#396, en fin de table, colonne logique
 \code{plus\_influente}, \code{TRUE} pour les années désignées par \code{usp\_jack\_annees()},
@@ -1664,6 +1670,12 @@ section~\ref{sec:graphiques}) \\
 \code{REPERE\_INFLUENCE\_SIGMA},\newline \code{REPERE\_DFBETAS\_MW} & constantes ($0{,}10$ et
 $2$, numérateur de $2/\sqrt{n_j}$) & repères de lecture des graphiques d'influence, sans verdict
 (fiches~\ref{fiche:jackknife} et~\ref{mw:influence}) \\
+\code{REPERE\_LEVIER},\newline \code{REPERE\_COOK\_LN} & constantes ($2$, numérateur de $2k/T$
+et de $2/n_j$~; $4$, numérateur de $4/T$) & repères de lecture du levier (deux branches) et de
+la distance de Cook (branche lognormale), lus par \code{engine\_influence()},
+\code{mw\_influence()}, la ligne «~Leviers (\emph{hat values})~» d'\code{usp\_tests()} et
+\code{.usp\_ligne\_cook()}, sans verdict (fiches~\ref{fiche:leviers}, \ref{fiche:cook}
+et~\ref{mw:influence}, issue~\#209) \\
 \code{engine\_table\_tests()} & \code{res} & \code{data.frame} auditable de 28 colonnes (mesuré
 sur les cas \code{premium} et \code{reserve2}~; 27 avant l'issue~\#330), dont la colonne
 \code{p\_min} (issue~\#44), la colonne \code{p\_min\_mc}
@@ -12687,7 +12699,10 @@ s'agit d'une heuristique sans fondement rigoureux.
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t D_t$. Le commentaire donne
 le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$), le nombre d'observations au-dessus et leurs
-rangs~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
+rangs (cas de référence \code{premium}~: «~\code{repere conventionnel 4/T = 0.500 ; 1
+observation(s) au-dessus (rangs 8)}~»)~; le numérateur~4 est lu par \code{.usp\_ligne\_cook()}
+dans la constante \code{REPERE\_COOK\_LN}, qui fixe aussi la colonne \code{repere\_cook} et le
+booléen \code{influent} d'\code{engine\_influence()} (issue~\#209)~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
 verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} une observation au-dessus de
 $4/T$ et \code{ECHEC} deux ou plus. \emph{Ligne non applicable} (issue~\#153,
 \code{.usp\_ligne\_cook()}, sur le modèle des gardes de RESET et de White)~: si une distance
@@ -12768,7 +12783,11 @@ Aucune.
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t h_t$. Le commentaire donne
 le repère conventionnel $2k/T$ ($2/T = 0{,}250$ à $T = 8$, $k = 1$) et le nombre d'observations
-au-dessus~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
+au-dessus (cas de référence \code{premium}~: «~\code{repere conventionnel 2k/T = 0.250 ; 0
+observation(s) au-dessus}~»)~; le numérateur~2 est lu dans la constante \code{REPERE\_LEVIER}, et
+$k$ est le nombre de coefficients du modèle ajusté (\code{length(coef())}, $k = 1$ pour
+$y = \beta x$), défini comme dans \code{engine\_influence()}, dont la colonne
+\code{repere\_levier} et le booléen \code{fort\_levier} portent le même repère (issue~\#209)~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
 aucun verdict. Jusqu'à l'issue~\#24, le script marquait \code{ALERTE} tout dépassement.
 \Usage
 Le levier ne dépend que des $x_t$~: il identifie les années dont le \emph{volume} est atypique,
@@ -14249,7 +14268,12 @@ de même les cellules dont le DFBETAS dépasse en valeur absolue le repère de l
 secondaires, issue~\#89, fiche~\ref{mw:influence}). Les booléens de coloration, \code{fort\_ecart\_sigma} et
 \code{fort\_dfbetas}, sont calculés par le moteur (\code{engine\_influence()},
 \code{mw\_influence()}) et rangés dans \code{res\$plots\_data\$influence}~; l'affichage les
-lit sans comparaison (issue~\#37). De même, depuis l'issue~\#396, le booléen
+lit sans comparaison (issue~\#37). Il en va de même des deux premiers graphiques~: le premier
+trace le repère de levier $2k/T$ (colonne \code{repere\_levier}, constante \code{REPERE\_LEVIER},
+fiche~\ref{fiche:leviers}) et le second le repère $4/T$ (colonne \code{repere\_cook}, constante
+\code{REPERE\_COOK\_LN}, fiche~\ref{fiche:cook}), et tous deux colorent les années dont la
+distance de Cook dépasse strictement $4/T$ (booléen \code{influent}), valeurs posées par
+\code{engine\_influence()} (issue~\#209). De même, depuis l'issue~\#396, le booléen
 \code{plus\_influente} de la même table désigne l'année, ou les années, la plus influente sur
 $\sigma_{\mathrm{USP}}$ (\code{engine\_influence()}, d'après \code{usp\_jack\_annees()},
 fiche~\ref{fiche:jackknife}) et la cellule de plus grand $|\mathrm{DFBETAS}|$
@@ -14598,7 +14622,12 @@ Sans objet.
 \Usage
 Le premier graphique croise levier et résidu de Mack~: il sépare les cellules
 atypiques par leur \emph{poids} de celles qui sont réellement influentes~; les cellules d'une
-colonne dégénérée, sans résidu de Mack, n'y figurent pas. Le
+colonne dégénérée, sans résidu de Mack, n'y figurent pas. Il colore les cellules dont le
+levier dépasse strictement le repère de lecture $2/n_j$, deux fois le levier moyen $1/n_j$ de la
+colonne (convention $2p/n$ de Hoaglin et Welsch, 1978, avec $p = 1$ coefficient~; constante
+\code{REPERE\_LEVIER} du moteur, colonne \code{repere\_levier} et booléen \code{fort\_levier}
+calculés par \code{mw\_influence()}, que l'affichage lit sans comparaison, issue~\#209), et la
+note du graphique en donne le nombre~; ce repère ne produit aucun verdict. Le
 deuxième donne le DFBETAS cellule par cellule~: de combien d'écarts-types estimés le facteur
 de développement bougerait si cette cellule était retirée~; la variation relative de
 $\hat f_j$, directement interprétable en pourcentage, est donnée en infobulle. Les repères
@@ -20684,7 +20713,9 @@ champ \code{\$kkt\_au\_moins\_un}, puis \code{\$gamma\_bord\_au\_moins\_un}, lu 
 \code{\$part\_starts\_convergents}~; gradient analytique \code{usp\_gradient()} \\
 Quantités des graphiques & \code{engine\_plots\_data()} (branche lognormale),\newline
 \code{mw\_plots\_data()} (branche Merz--Wüthrich)~; repères de lecture des graphiques
-d'influence \code{REPERE\_INFLUENCE\_SIGMA} et \code{REPERE\_DFBETAS\_MW} \\
+d'influence \code{REPERE\_INFLUENCE\_SIGMA}, \code{REPERE\_DFBETAS\_MW}, \code{REPERE\_LEVIER}
+et \code{REPERE\_COOK\_LN} (ces deux dernières lues aussi par les lignes des leviers et de la
+distance de Cook, issue~\#209) \\
 Tirages aléatoires et graines (§\ref{sec:graines}) & \code{engine\_sous\_graine()}, par
 laquelle passent toutes les sources~: \code{usp\_bootstrap()} (tirages de
 \code{usp\_simuler()}, et, depuis l'issue~\#240, flux complémentaire sous la graine
@@ -20966,7 +20997,7 @@ envisagé, sensibilité du paramètre final. \\
 \code{INFO} & Toute ligne dont le type n'est pas \code{test}
 (ADR~0001, amendement du 23/09/2026, annoté le 28/10/2026)~: diagnostics et lignes non applicables, dont
 \code{p\_retenue}, \code{nature\_p} et \code{sens\_du\_test} valent \code{NA}~; le moteur refuse
-qu'un verdict soit fourni pour une telle ligne. Les seuils conventionnels attachés aux
+qu'un verdict soit fourni pour une telle ligne. Les valeurs conventionnelles attachées aux
 diagnostics --- $2k/T$ pour les leviers, $4/T$ pour la distance de Cook, $0{,}5$ pour $R^2$,
 10~\% / 20~\% pour le
 jackknife, 50~\% / 80~\% pour la largeur de l'intervalle bootstrap --- et les libellés de la
@@ -21059,7 +21090,7 @@ taux, fonction du nombre de jeux simulés, et rien de l'erreur d'approximation e
 \begin{tabular}{@{}p{4.9cm}p{3.6cm}p{3.1cm}p{3.1cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Repère (fiche)}} &
-\textcolor{financeblue}{\textbf{Source du seuil}} &
+\textcolor{financeblue}{\textbf{Source du repère}} &
 \textcolor{financeblue}{\textbf{J1, \% [IC 95 \%]}} &
 \textcolor{financeblue}{\textbf{J2, \% [IC 95 \%]}} \\
 Cook~: au moins un $D_t > 4/T$ (fiche~\ref{fiche:cook}) & $4/(n-k-1)$ de Bollen et Jackman
@@ -21093,7 +21124,7 @@ $\hat\delta^{*}$ au bord de $[0,1]$ (fiche~\ref{fiche:position-delta}) &
 \end{center}
 
 \noindent
-\emph{Sources des seuils.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
+\emph{Sources des repères.} Cook (1977) compare $D_t$ aux quantiles de la loi $\mathcal{F}(k, T-k)$~;
 K.\,A. Bollen et R.\,W. Jackman (1990, section~\ref{sec:biblio}) proposent le seuil $4/(n-k-1)$,
 dont le repère $4/T$ du projet est la simplification usuelle (à $T = 8$ et $k = 1$~: $0{,}667$
 contre $0{,}5$)~; le repère $4/T$ reste une convention de lecture, sans source qui le fonde tel
