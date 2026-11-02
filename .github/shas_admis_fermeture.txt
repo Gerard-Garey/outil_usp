@@ -1,0 +1,4 @@
+# SHA admis malgre un mot-cle de fermeture (controle de .github/scripts/controle_mots_cles_fermeture.sh, issue #407).
+# Un SHA complet (40 caracteres) par ligne, puis en commentaire le renvoi a l'issue rouverte apres la fusion.
+# Un commit publie ne se reecrit pas (Q-43-13) : c'est le seul acquittement possible d'un commit.
+6566069e408d8d8d5969f47a03422731516f26a0  # message citant le mot-cle de fermeture suivi de #4 ; PR #400, fusion 19e47fc le 31/10/2026 ; issue 4 rouverte le 31/10/2026 (Refs #4, #407)
