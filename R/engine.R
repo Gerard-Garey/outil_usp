@@ -277,7 +277,7 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # au plus 1e-12 (chainage ci-dessous). Deux ratios distincts de saisies a au
 # plus cinq chiffres significatifs different d'au moins 1e-10 en relatif,
 # cent fois la tolerance : aucune fusion, quel que soit leur ordre de
-# grandeur (garantie ; mesure du 06/10/2026 : 99999/10000 et 99998/10000
+# grandeur (garantie ; mesure par engine_ex_aequo() : 99999/10000 et 99998/10000
 # restent distincts a r x 1e-30, 1 et 1e30). A six chiffres l'ecart relatif
 # minimal, 1e-12, coincide avec la tolerance, sans marge : deux ratios
 # distincts peuvent encore etre fusionnes (999999/999998 et 999998/999997,
@@ -289,11 +289,20 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # 2 ulp de max r pres, arrondi du centrage) ; a cinq chiffres,
 # |r_i - r_j| >= 1e-10 max(r_i, r_j), donc aucune fusion tant que
 # max(r_i, r_j) > 1e-2 max r (S/P des annees dans un facteur inferieur a
-# 100). Mesures du 06/10/2026 dans ce domaine : 0 fusion sur 100 000 paires
-# (actuary), 0 sur 54 837 paires tirees et 0 sur 22 103 paires voisines
-# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie ; pour
-# les residus de Mack (plancher 1, #152) non plus (marge mesuree d'environ 15
-# sous la tolerance sur reserve2).
+# 100). Borne deduite de ces deux inegalites, non d'une mesure.
+# z_t (plancher 1) : a pi_t constant exactement (drapeau pi_constant_exact
+# d'usp_regime()), z_t = sqrt(pi) (ln r_t - moyenne des ln r), d'ou, pour deux
+# ratios distincts de saisies a au plus cinq chiffres significatifs,
+# |z_t - z_s| >= sqrt(pi) 1e-10 ; aucune fusion, a l'arrondi du calcul de z_t
+# pres, des que pi > 1e-4 et L < 100 (L = max_t |ln r_t - moyenne des ln r|),
+# borne deduite de ces inegalites. Aucune borne dans la bande TOL_DELTA_BORD
+# (drapeaux delta_dans_bande et volumes_dans_bande, ou la regle R7 attribue
+# pourtant les p-values exactes), ni a pi_t variable. Residus de Mack
+# (plancher 1, #152) : aucune borne ; une cellule de triangle_mw.csv
+# multipliee par 1 + 4 x 2^-52 (cellule (0,4)) deplace les residus d'au plus
+# 1,0e-13, soit une marge d'environ 10 sous la tolerance. Demonstrations,
+# exemples et mesures citees : docs/latex/doc_tests_usp.tex, section "Ex aequo
+# des tests de rang et de signe" (label sec:ex-aequo).
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -2352,9 +2361,7 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # erreur une valeur eloignee de la limite rho -> 1 (0,5899175 a T = 8,
   # alpha = 0,10) : 0,5899253 a 1 - 1e-12, 0,5906 a 1 - 1e-13, 0,4755 a
   # 1 - 1e-15 (#170). Cote negatif, la borne est plus serree (1 - |rho| >=
-  # 1e-6, uniforme en T) : pres de rho = -1, Imhof rend sans erreur une
-  # valeur fausse (1, ou 1,1e-13 a T = 10) ou echoue (erreur d'integration),
-  # voir le domaine de validite plus bas (#339).
+  # 1e-6, uniforme en T) : voir le domaine de validite plus bas (#339).
   if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) ||
       rho > 1 - 1e-10 || rho < -1 + 1e-6)
     stop("dw_puissance_ar1() : rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision numerique)")
@@ -2386,21 +2393,18 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # Domaine de validite (#339) : T entier, 4 <= T <= .Machine$integer.max ;
   # -1 + 1e-6 <= rho <= 1 - 1e-10 ; 0 < alpha < 1. Precision mesuree au
   # voisinage de rho = -1 pour T = 4 a 10, 12, 15, 20, 30, 50, 100 (alpha =
-  # 0,10) et T = 5, 8, 12, 20, 30 (alpha = 0,05) (mesure du 19/10/2026, non
-  # versionnee), et sur la grille de 88 points de #170 (T = 5, 8, 12, 20 ;
-  # rho de -0,99 a 0,99) ; hors de ces T, non mesuree. Pour rho < 0, le
-  # deficit 1 - puissance suit une loi reguliere en (1 - |rho|)^(1/2) (1,2e-3
-  # a 1 - |rho| = 1e-6, T = 8, alpha = 0,10) jusqu'a une rupture, qui depend
-  # de T : au-dela, Imhof rend 1 sans erreur alors que le deficit vrai reste
-  # de l'ordre de 1e-4 a T = 5 et 8 (T = 8 : des 1 - |rho| <= 10^-8,5, deficit
-  # 1,2e-4 a 1e-8 ; T = 5 (alpha = 0,10) : des 1e-9 ; T = 9, 12, 15 : des 1e-8 ; T = 20, 30 : des
-  # 10^-8,5 ; T = 50 : ~0 des 1e-9), ou echoue (T = 4 et 10 : erreur
-  # d'integration a 10^-7,5, valeur fausse 1,1e-13 a 1e-8 pour T = 10). La
-  # garde ne depend pas de T : 1e-6 laisse une decade et demie avant la
-  # rupture la plus precoce mesuree (10^-7,5). A T = 4 (alpha = 0,10) et
-  # T = 5 (alpha = 0,05), la puissance tend vers 0 quand rho -> -1, sans
-  # signature de defaillance (vecteur alterne centre de longueur courte ;
-  # hypothese non verifiee).
+  # 0,10) et T = 5, 8, 12, 20, 30 (alpha = 0,05) par une mesure non versionnee
+  # (19/10/2026), et sur la grille de 88 points de #170 (T = 5, 8, 12, 20 ;
+  # rho de -0,99 a 0,99) ; hors de ces T, non mesuree. Mesure versionnee, a
+  # T = 8 : le deficit 1 - puissance est proportionnel a (1 - |rho|)^(1/2) de
+  # 1 - |rho| = 1e-4 a 1e-6, garde comprise (tests/mesure_dw_rho_negatif_t8.R,
+  # docs/tableaux/20261031-issue164-dw-rho-negatif.md). Au-dela de la garde
+  # (1 - |rho| < 1e-6), le calcul n'est evalue par aucune mesure versionnee.
+  # A T = 4 (alpha = 0,10) et T = 5 (alpha = 0,05), la puissance tend vers 0
+  # quand rho -> -1, sans signature de defaillance (vecteur alterne centre de
+  # longueur courte ; hypothese non verifiee).
+  # Valeurs, reserves et tracabilite : docs/latex/doc_tests_usp.tex, fiche de
+  # dw_puissance_ar1() (domaine de validite, issue #339).
   h_de <- function(d) eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
                             symmetric = TRUE, only.values = TRUE)$values
   h_bas <- h_de(d_bas); h_haut <- h_de(d_haut)
