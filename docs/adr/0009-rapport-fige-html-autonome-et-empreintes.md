@@ -66,3 +66,20 @@ Les décisions de fond ont été prises par le mainteneur le 22 septembre 2026 e
 - **Documentation.** L'index des fonctions et le tableau de traçabilité du `.tex` gagnent `engine_empreinte()` et `rapport_html()` (`docwriter`, fin de branche). `CONTEXT.md` reçoit « Rapport figé », « Empreinte » et « Test retenu ».
 
 Issues : #53 (spécification et décisions du mainteneur du 22/09/2026), #51 (§ 5.6 de `docs/exigences.md`), #4 (piste 4, formule de `bloc_final` pour Merz-Wüthrich, corrigée au passage par `texte_formule()`). Voir `docs/exigences.md` § 5.6, ADR 0006 (empreinte du résultat dépendante de la plateforme), ADR 0007 (branche de travail A-bis, PR #54), `CONTEXT.md` (« Rapport figé », « Empreinte », « Test retenu »).
+
+## Annotation du 2 novembre 2026 — point 4 : l'identité du code porte deux empreintes, `R/engine.R` et `R/charger_moteur.R` (#397, Q-46-5)
+
+**Origine.** Depuis l'ADR 0016 (#200, branche Fg), le résultat dépend de deux fichiers : le moteur, et le chargeur `R/charger_moteur.R`, qui fixe la chaîne d'environnements (`usp_moteur` → exports de `stats` → `base`). Le point 4 ne relève que le md5 de `R/engine.R`. Écart relevé par `audit` et `app-review` sur #200, puis par `docwriter` et `/code-review` (PR #393) ; décision du mainteneur du 02/11/2026 (Q-46-5 (a), `docs/feuille-de-route.md`, § 4, E-02/11 (46e point)).
+
+**Point 4, complété.** L'identité du code comprend :
+- la version de `DESCRIPTION` ;
+- le md5 des octets de `R/engine.R` ;
+- **le md5 des octets de `R/charger_moteur.R`** (champ `md5_chargeur`).
+
+Ces valeurs sont relevées par `identite_code()` au chargement par l'application, avec l'heure du relevé. L'en-tête du rapport figé porte les deux empreintes.
+
+**Option écartée.** Une empreinte composite des deux fichiers : elle ne dirait pas lequel a changé.
+
+**Ce que l'annotation ne change pas.** Les points 1 à 3 et 5. `identite_code()` reste hors de `run_engine()` : l'objet résultat et les références de non-régression sont inchangés.
+
+**Suites.** Mise en œuvre par #397 (branche Fr, étape 7) ; `docs/exigences.md` § 5.6 amendé par le mainteneur à cette étape ; le `.tex` (l. 370-375 à `49eca73`) est aligné par `docwriter` en fin de branche.
