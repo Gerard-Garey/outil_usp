@@ -1,0 +1,68 @@
+name: Mots-clés de fermeture
+
+# Issue #407, decision Q-45-12 (CLAUDE.md, « Git et GitHub »), apres la
+# fermeture a tort de l'issue 4 a la fusion de la PR #400 : aucun mot-cle de
+# fermeture suivi d'un numero d'issue (Close, Fix, Resolve et leurs formes,
+# insensible a la casse) dans un message de commit de la PR ni dans le corps
+# ou le titre de la PR, sauf les lignes du corps qui ne contiennent que
+# « Closes #N ». Le detail du motif, de l'acquittement d'un commit deja
+# publie (.github/shas_admis_fermeture.txt) et de ses limites est dans
+# .github/scripts/controle_mots_cles_fermeture.sh.
+#
+# Brouillons compris (a la difference de pdf-invariant.yml, dont le critere
+# n'a de sens qu'en fin de branche) : un commit fautif ou un corps de PR
+# fautif naissent des l'ouverture du brouillon, et le signaler tot evite
+# d'avoir a acquitter un commit au lieu de le corriger avant publication. Le
+# job dure quelques secondes et ne bloque pas la sortie du brouillon tant
+# qu'il est vert. Le type edited relance le controle a chaque modification du
+# titre ou du corps (le corps est lu au moment de l'evenement) ; le type
+# ready_for_review n'est pas dans les types par defaut de pull_request.
+# Base main seulement (la regle est celle de main) ; les autres bases
+# (main-GPT, branches gpt/...) ne sont pas controlees.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+# Lecture seule : aucune ecriture dans le depot.
+permissions:
+  contents: read
+
+# Un nouveau push ou une nouvelle edition annule l'execution en cours de la
+# meme PR.
+concurrency:
+  group: mots-cles-fermeture-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mots-cles-fermeture:
+    # Nom du statut a exiger dans le ruleset de main (decision du mainteneur du
+    # 02/11/2026) : ne pas le modifier sans mettre le ruleset a jour. ASCII et
+    # sans espace, pour qu'il reste stable.
+    name: mots-cles-fermeture
+    runs-on: ubuntu-22.04
+    # Durée attendue : quelques secondes.
+    timeout-minutes: 5
+    steps:
+      # Historique complet des commits sans les blobs (comme pdf-invariant.yml) :
+      # le controle ne lit que des messages de commit. Le checkout par defaut
+      # d'une PR est le commit de fusion de test : le script et la liste
+      # d'acquittement lus sont ceux de l'arbre qui sera fusionne, donc une PR
+      # peut acquitter, par un commit de plus, un commit fautif qu'elle porte.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - name: Tests du contrôle
+        run: bash .github/scripts/test_controle_mots_cles_fermeture.sh
+      - name: Commits, corps et titre de la PR
+        # Corps, titre et nom de branche sont du texte controle par l'auteur de
+        # la PR : ils passent par l'environnement du pas, jamais par une
+        # interpolation d'expression dans le script (run).
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/controle_mots_cles_fermeture.sh
