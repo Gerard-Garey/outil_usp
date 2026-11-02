@@ -242,6 +242,22 @@ verifier("appelants_directs (#232) : fonctions qui appellent f, f exclue, noms t
            identical(cc$appelants_directs(e, ".f"), c("a", "b")) &&
              identical(cc$appelants_directs(e, "absente"), character(0))
          })
+# Point m5 de #317 : le schema Merz-Wuthrich porte la ligne de famille (#297)
+# dans un noeud a part ; les noeuds M1 et M2 sont verifies hors cette ligne.
+verifier("grandeurs_moteur (#317, m5) : 'famille Mk hors p de famille' exclut la seule ligne engine_p_famille ; noeuds M1 et M2 du registre y sont rattaches",
+         {
+           lg <- list(list(famille = "M1. a", fonction = "f1"), list(famille = "M1. a", fonction = "f2"),
+                      list(famille = "M1. a", fonction = "engine_p_famille"),
+                      list(famille = "M2. b", fonction = "engine_p_famille"),
+                      list(famille = "LC. c", fonction = "engine_p_famille"))
+           g <- cc$grandeurs_moteur(lg)
+           ch <- function(id) cc$DECOMPTES[[which(vapply(cc$DECOMPTES, `[[`, "", "id") == id)]]$champs
+           isTRUE(unname(g["famille M1"]) == 3) && isTRUE(unname(g["famille M1 hors p de famille"]) == 2) &&
+             isTRUE(unname(g["famille M2 hors p de famille"]) == 0) &&
+             isTRUE(unname(g["famille LC hors p de famille"]) == 0) &&
+             identical(ch("Merz-Wuthrich : famille M1 (schema)"), "famille M1 hors p de famille") &&
+             identical(ch("Merz-Wuthrich : famille M2 (schema)"), "famille M2 hors p de famille")
+         })
 verifier("grandeurs_moteur (#232) : lignes servies par un appelant, par famille et hors famille ; sans appelants, aucune grandeur",
          {
            lg <- list(list(famille = "M1. a", fonction = "f1"), list(famille = "M1. a", fonction = "f2"),

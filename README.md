@@ -68,6 +68,8 @@ Au démarrage, l'application charge les fichiers d'échange s'ils existent
 
 La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le triangle garde la dimension de son propre fichier, et seule « Réinitialiser les données » la change (triangle par défaut de T années, T étant plafonné à 40, #194). La limite de 40 années de l'application vaut pour toutes les voies d'entrée : des séries de plus de 40 années ou un triangle de plus de 40 années d'accident sont refusés avec un motif, à l'import (données courantes conservées) comme au démarrage (fichier présent mais refusé, grille vide) (#212, #286). En méthode lognormale, « Réinitialiser les données » charge les 8 années des séries par défaut et ramène le champ T à 8 (#212).
 
+Les textes produits par le moteur (`detail` et motifs des tests, détail des contrôles, messages de validation, libellés de dérogation et de calibration, motifs des graphiques) sont écrits en ASCII, sans accents, avec le point décimal, et l'application les restitue tels quels, alors qu'elle écrit ses propres nombres avec une virgule (#236) : choix délibéré (#294), qui ne modifie ni les références ni les textes cités par la documentation, et évite la conversion à tort des numéros d'article, références et identifiants. Quatre chaînes écrites en dur font exception et portent une virgule décimale (documentation LaTeX, « Convention de restitution »).
+
 ## Usage sans Shiny (revue indépendante)
 
     source("R/charger_moteur.R")

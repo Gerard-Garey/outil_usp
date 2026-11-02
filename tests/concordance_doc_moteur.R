@@ -621,9 +621,9 @@ DECOMPTES <- list(
                       MOT_NOMBRE, ") diagnostics"),
        champs = c("lignes (total)", "type test", "type diagnostic")),
   list(id = "Merz-Wuthrich : famille M1 (schema)", methode = "reserve2",
-       motif = "M1 \\((\\d+) entr\u00e9es\\)", champs = "famille M1"),
+       motif = "M1 \\((\\d+) entr\u00e9es\\)", champs = "famille M1 hors p de famille"),
   list(id = "Merz-Wuthrich : famille M2 (schema)", methode = "reserve2",
-       motif = "M2 \\((\\d+) entr\u00e9es\\)", champs = "famille M2"),
+       motif = "M2 \\((\\d+) entr\u00e9es\\)", champs = "famille M2 hors p de famille"),
   # Issue #75 : formulations de l'ancien inventaire non verifie, rattachees
   # a une grandeur mesurable du moteur.
   list(id = "catalogues Monte-Carlo (index des fonctions)", methode = "code",
@@ -1018,10 +1018,17 @@ grandeurs_moteur <- function(tests, controles = NULL, appelants = NULL) {
   # fonction ; compte commun des FONCTIONS_Z_ET_U, NA s'ils different (une
   # annonce n'est jamais egale a NA : ECART).
   fon <- champ("fonction")
+  fon_pf <- fon %in% "engine_p_famille"
   for (f in unique(fon[!is.na(fon)])) g[paste("fonction", f)] <- sum(fon %in% f)
   n_zu <- vapply(FONCTIONS_Z_ET_U, function(f) sum(fon %in% f), numeric(1))
   g["fonctions z et u (compte commun)"] <- if (length(unique(n_zu)) == 1L) n_zu[[1]] else NA_real_
   for (f in unique(fam)) g[paste("famille", f)] <- sum(fam == f)
+  # Lignes d'une famille hors p-value de famille (#297, fonction
+  # engine_p_famille) : le schema Merz-Wuthrich porte la ligne de famille dans
+  # un noeud a part (M1, M2, M3 : p de famille), ses noeuds de famille la
+  # comptent donc hors de leurs entrees (#317, point m5).
+  for (f in unique(fam))
+    g[paste("famille", f, "hors p de famille")] <- sum(fam == f & !fon_pf)
   for (fi in names(appelants)) {
     sert <- fon %in% appelants[[fi]]
     for (f in unique(fam)) {

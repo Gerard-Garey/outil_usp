@@ -331,6 +331,8 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 
   Retouche du 23/10/2026 (décision du mainteneur, constat C1 de la revue finale) : dans la TETE, « (ordonnee a l'origine, pente intra-colonne) » devient « (ordonnee a l'origine, pente relative) », nom de la ligne M1 en vigueur (`CONTEXT.md`, « Pente relative (M1) »).
 
+  **Erratum du 31/10/2026** (*rédigé par l'agent actuary (IA)*, issue #406, sur le code de `19e47fc` ; décision Q-44-4 (b) du mainteneur du 30/10/2026, #364). Dans les gabarits d'une colonne de T-3, `R = %.3f` et `e_a = %.4f` ne valent plus que pour 1e-3 ≤ |v| < 1e6. R et e_a s'écrivent par `.mw_format_echelle(v, 3L)` et `.mw_format_echelle(v, 4L)` : virgule fixe à 3 et 4 décimales quand l'écriture fixe elle-même, relue par `as.numeric()`, est dans [1e-3 ; 1e6[, et notation `"%.3e"` sinon, ainsi que pour toute valeur non finie. Ainsi 999999.99996 s'écrit `1.000e+06` ; 0.00099995 s'écrit `0.0010`. Le gabarit `e_a non definie (C(i,j) constant)` et le format `CV = %.4f` sont inchangés. Le corps de T-3 n'est pas réécrit. La fin attendue sur `reserve2` (ci-dessus) reste juste, toutes ses valeurs étant dans la plage. Il n'y a d'effet ni sur σ_USP, ni sur les verdicts, ni sur `reserve2`.
+
 **T-4 (#307, ligne M1 « Absence de tendance des facteurs avec le cumul, a colonne donnee »)** :
 - nom, `stat_nom` (`t`) et H0 inchangés ; `mc_nom` `PenteIntra` ;
 - `fonction` : `.mw_pente_relative` ;

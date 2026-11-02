@@ -48,7 +48,8 @@
 #          suites a T = 8 sans ex aequo, alpha pour Durbin-Watson).
 #
 #  C2. "0 rejet sur 3 000 a 5 %" du Kolmogorov-Smirnov contre N(0,1)
-#      (detail de la ligne dans usp_tests() ; fiche et tableau 1 du .tex).
+#      (ancien detail de la ligne dans usp_tests(), reformule sans chiffre
+#      en Fl, #164 ; fiche et tableau 1 du .tex).
 #      Le protocole n'est pas ecrit ; trois lectures sont mesurees, plus une
 #      ligne de reference :
 #        K0 (reference, parametres CONNUS) : echantillons N(0,1) de taille 8,

@@ -2205,7 +2205,9 @@ stat_ks <- function(z) {
   max(pmax(seq_len(n) / n - p, p - (seq_len(n) - 1) / n))
 }
 
-# Shapiro & Francia (1972), JASA 67, 215-216 ; p-value Royston (1993) Appl. Stat.
+# Shapiro & Francia (1972), JASA 67, 215-216 ; p-value Royston (1993),
+# Statistics in Medicine 12, 181-184 (attribution de nortest, EnvStats et du
+# manuel Stata ; article non relu)
 test_shapiro_francia <- function(z) {
   n <- length(z)
   if (n < 5 || n > 5000) return(list(stat = NA_real_, p = NA_real_))
@@ -6287,7 +6289,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # inchangee ; metadonnee seed_loi_nulle_sw consignee en reserve2 seulement,
   # #351).
   sf <- test_shapiro_francia(z)
-  add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; Royston (1993)",
+  add(fam, "Shapiro-Francia", "Shapiro & Francia (1972), JASA 67 ; p-value : Royston (1993), Stat. Med. 12",
       fonction = "test_shapiro_francia",
       H0 = H0n, H1 = H1n, stat_nom = "W'", stat = sf$stat,
       loi = "aucune forme fermee ; normalisation de Royston (1993)",
@@ -6368,9 +6370,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_as = p_ks,
       mc_nom = "KS",
       detail = detail_diag("KS", detail_h3(paste(
-        "Les residus sont standardises par le MODELE, non par la moyenne",
-        "et l'ecart-type empiriques : la loi de Kolmogorov reste tres",
-        "conservatrice (simulation : 0 rejet sur 3 000 a 5 %)."), p_ks), txt_diag_ks))
+        "Les residus sont standardises par le MODELE, dont les parametres",
+        "sont estimes, et non par la moyenne et l'ecart-type empiriques :",
+        "la loi de Kolmogorov, etablie a parametres connus, rend le test",
+        "conservateur ; l'ampleur (tres conservateur) n'est constatee que",
+        "par simulation a T = 8 sur le jeu de controle (issue #114), non",
+        "pour les donnees saisies."), p_ks), txt_diag_ks))
   Dl <- stat_lilliefors(z)
   p_li <- lillie_p(Dl, T)
   add(fam, "Lilliefors (KS a parametres estimes)",
@@ -6685,7 +6690,13 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "aucune valeur aberrante (echantillon normal homogene)",
       H1 = "exactement une valeur aberrante",
       stat_nom = "G", stat = gr$stat,
-      loi = "Student + borne de Bonferroni (conservatrice)",
+      # Champ loi conditionne au regime (#182, D1-4 ; avis d'actuary, Fl) : la
+      # borne de Bonferroni n'est exacte (G >= sqrt((T-1)/2)) que pour un
+      # echantillon i.i.d. normal, ce que z est a pi_t constant seulement.
+      loi = if (isTRUE(pi_constant))
+        "Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2) (p <= 0.24 a T = 8), majorant au-dela"
+      else
+        "Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ; les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni majorant garanti",
       p_as = gr$p, mc_nom = "Grubbs",
       estim_nom = "rang de l'obs. extreme", estim = gr$idx,
       detail = sprintf("G est borne par (T-1)/sqrt(T) = %.3f", (T - 1) / sqrt(T)))

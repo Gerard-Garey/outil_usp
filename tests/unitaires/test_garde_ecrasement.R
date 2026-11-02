@@ -5,23 +5,23 @@
 #  Teste garde_ecrasement(), ligne_remplacement() et inserer_t0() de
 #  tests/outils_tests.R sur un depot git temporaire (git init dans
 #  tempdir() : un fichier suivi, un non suivi, un absent), puis, sans calcul
-#  long, les quinze scripts de mesure hors CI qui ont --ecrire :
+#  long, les seize scripts de mesure hors CI qui ont --ecrire :
 #  (a) fichier suivi sans --remplacer : refus, rien d'ecrit (aucun des
 #      fichiers de l'execution), message qui nomme le fichier ;
 #  (b) fichier non suivi ou absent : aucun refus ;
 #  (c) --remplacer : fichier suivi rendu avec son md5 d'avant, cite par la
 #      ligne de T0 ;
-#  (d) --remplacer sans --ecrire : refus d'usage des quinze scripts (avant
+#  (d) --remplacer sans --ecrire : refus d'usage des seize scripts (avant
 #      tout chargement du moteur) ;
 #  git indisponible (commande introuvable) ou racine hors d'un depot, et
 #  fichier existant : refus, meme avec --remplacer ; test statique : chacun
-#  des quinze scripts appelle la garde avant toute ecriture ; puissance_t8.R
+#  des seize scripts appelle la garde avant toute ecriture ; puissance_t8.R
 #  --ecrire (hors --combiner) dans un depot git temporaire ou le tableau du
 #  jour est suivi : refus des l'analyse des options, avant tout calcul
 #  (constat m2 d'audit de #173).
 #  Issue #205 : commit_depot() et motifs_non_versionnable() (definition
 #  unique dans tests/outils_tests.R) sur un depot git temporaire ; test
-#  statique : aucun script de mesure ne les redefinit, et chacun des quatorze
+#  statique : aucun script de mesure ne les redefinit, et chacun des quinze
 #  scripts qui ont --ecrire (mesure_calendaire_t8.R excepte) evalue ses
 #  gardes (arbre propre, ecrasement, dossier cible) avant le premier appel
 #  couteux (calcul, ou lecture des tranches de --combiner) ; execution sur un depot git temporaire : refus
@@ -41,6 +41,10 @@
 #  controle statiquement et par le refus d'usage (d) comme les autres ;
 #  hors de CAS_A et de GARDES_ANTICIPEES (voir ces listes).
 #  couverture_ic_sigma_t8.R (#305) : quinzieme script, dans les trois listes.
+#  mesure_dw_rho_negatif_t8.R (#164) : seizieme script, dans les trois listes ;
+#  comme mesure_lb1_dw_t8.R, sans option --remplacer (option inconnue) ;
+#  COUTEUSES porte dw_puissance_ar1(), premier appel couteux de ce script
+#  (la grille precede le tirage de engine_sous_graine()).
 #  Les tests qui demandent git sont sautes, avec message, si git manque.
 ###############################################################################
 
@@ -209,7 +213,7 @@ if (GIT_OK) {
   cat("  [saute] garde_ecrasement() sur depot git temporaire : git introuvable\n")
 }
 
-## --- Les quinze scripts ------------------------------------------------------
+## --- Les seize scripts ------------------------------------------------------
 # grille_regime_t8.R (#229, etape 4) : --ecrire ecrit le tableau seul ; ses
 # valeurs brutes vont hors du depot (--brut, obligatoire avec --ecrire).
 # p_conditionnelle_regime_t8.R (#229, etapes 5 et 6) : --combiner --ecrire
@@ -234,11 +238,14 @@ if (GIT_OK) {
 # (hors du depot) obligatoire.
 # couverture_ic_sigma_t8.R (#305) : --ecrire ecrit le tableau, ses valeurs
 # brutes et le JOURNAL de la mesure dans docs/tableaux/ ; --R obligatoire.
+# mesure_dw_rho_negatif_t8.R (#164) : --ecrire --issue N ecrit le tableau seul
+# dans docs/tableaux/.
 SCRIPTS_ECRIRE <- c("puissance_t8.R", "constats_puissance_t8.R", "calibration_mc_t8.R",
                     "taux_franchissement_reperes.R", "conservatisme_interieur_t8.R", "grille_regime_t8.R",
                     "p_conditionnelle_regime_t8.R", "calibration_mc_mw_t8.R", "mesure_precision_residus_mw.R",
                     "enumeration_spearman_ex_aequo.R", "mesure_b_dossier_t8.R", "mesure_lb1_dw_t8.R",
-                    "puissance_mw_t8.R", "mesure_calendaire_t8.R", "couverture_ic_sigma_t8.R")
+                    "puissance_mw_t8.R", "mesure_calendaire_t8.R", "couverture_ic_sigma_t8.R",
+                    "mesure_dw_rho_negatif_t8.R")
 .tests <- file.path(.dossier, "..")
 for (sc in SCRIPTS_ECRIRE) {
   L <- readLines(file.path(.tests, sc), encoding = "UTF-8")
@@ -261,14 +268,14 @@ for (sc in SCRIPTS_ECRIRE) {
   verifier(sprintf("%s : --remplacer documente dans l'usage de l'en-tete", sc),
            any(grepl("^#.*--remplacer", L)))
   # (d) refus d'usage, avant tout chargement du moteur (aucun calcul) ;
-  # mesure_lb1_dw_t8.R n'a pas d'option --remplacer (jamais de remplacement
-  # d'un tableau suivi) : --remplacer y est une option inconnue, refusee de
-  # meme avant tout chargement
+  # mesure_lb1_dw_t8.R et mesure_dw_rho_negatif_t8.R n'ont pas d'option
+  # --remplacer (jamais de remplacement d'un tableau suivi) : --remplacer y
+  # est une option inconnue, refusee de meme avant tout chargement
   verifier(sprintf("(d) %s --remplacer sans --ecrire : refus d'usage (code 1, message)", sc),
            { o <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
                                            c(shQuote(file.path(.tests, sc)), "--remplacer"), stdout = TRUE, stderr = TRUE))
              identical(attr(o, "status"), 1L) &&
-               any(grepl(if (sc == "mesure_lb1_dw_t8.R") "option inconnue : --remplacer" else "--remplacer : reserve a --ecrire",
+               any(grepl(if (sc %in% c("mesure_lb1_dw_t8.R", "mesure_dw_rho_negatif_t8.R")) "option inconnue : --remplacer" else "--remplacer : reserve a --ecrire",
                          o, fixed = TRUE)) })
 }
 # grille_regime_t8.R : --ecrire sans --brut, refus d'usage avant tout
@@ -482,9 +489,14 @@ verifier("tests/outils_tests.R : commit_depot() et motifs_non_versionnable() def
 # (#258 ; mesure : premier appel couteux inchange pour les huit autres
 # scripts). enumerer_taille : enumeration de enumeration_spearman_ex_aequo.R
 # (#259), appelee au premier niveau par lapply(TAILLES, enumerer_taille).
+# dw_puissance_ar1 : premier appel couteux de mesure_dw_rho_negatif_t8.R
+# (#164), la grille d'Imhof, qui precede son tirage (engine_sous_graine) ; les
+# gardes y sont ainsi controlees avant tout calcul, non seulement avant le
+# tirage. Mesure : premier appel couteux inchange pour mesure_lb1_dw_t8.R et
+# puissance_t8.R, les deux autres scripts qui l'appellent.
 COUTEUSES <- c("run_engine", "executer_cas", "usp_ajuster", "usp_bootstrap", "usp_simuler", "engine_sous_graine",
                "mw_ajuster", "mw_bootstrap", "sw_loi_nulle", "lois_discretes", "lire_comptes",
-               "lire_sortie", "mclapply", "enumerer_taille")
+               "lire_sortie", "mclapply", "enumerer_taille", "dw_puissance_ar1")
 ordre_appels <- function(f) {
   # options(keep.parse.data = TRUE) : sys.source() (lanceur
   # tests/test_unitaires.R) la pose a FALSE ; parse() ne garde alors pas les
@@ -565,7 +577,8 @@ GARDES_ANTICIPEES <- list(
   mesure_b_dossier_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   mesure_lb1_dw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
   puissance_mw_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
-  couverture_ic_sigma_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
+  couverture_ic_sigma_t8.R = c("motifs_non_versionnable", "garde_ecrasement"),
+  mesure_dw_rho_negatif_t8.R = c("motifs_non_versionnable", "garde_ecrasement"))
 for (sc in names(GARDES_ANTICIPEES)) {
   o <- ordre_appels(file.path(.tests, sc))
   l_cout <- o$premiere(COUTEUSES)
@@ -608,7 +621,7 @@ for (sc in names(GARDES_ANTICIPEES)) {
 
 ## --- Gardes anticipees : execution sur un depot git temporaire (#205) ---------
 # Depot temporaire (racine avec espace) qui porte le moteur, les outils, les
-# donnees et les quinze scripts, sans docs/tableaux/ ; les tableaux du jour
+# donnees et les seize scripts, sans docs/tableaux/ ; les tableaux du jour
 # (et du lendemain) de la partie tost de constats_puissance_t8.R sont suivis
 # dans docs/autres/. Preuve qu'aucun calcul n'a commence : aucun titre de
 # sortie ("## ") dans la sortie, et duree mesuree.
@@ -626,7 +639,7 @@ if (GIT_OK) {
   init_a <- identical(ga("init", "-q"), 0L) && identical(ga("add", "-A"), 0L) &&
     identical(ga("-c", "user.name=test", "-c", "user.email=test@example.invalid", "-c", "commit.gpgsign=false",
                  "commit", "-q", "-m", "init"), 0L)
-  verifier("Gardes anticipees : depot git temporaire (racine avec espace), quinze scripts commites", init_a)
+  verifier("Gardes anticipees : depot git temporaire (racine avec espace), seize scripts commites", init_a)
   lancer_a <- function(sc, args) {
     ancien <- setwd(da)
     on.exit(setwd(ancien))
@@ -658,7 +671,8 @@ if (GIT_OK) {
                 mesure_lb1_dw_t8.R = "--ecrire",
                 puissance_mw_t8.R = c("--combiner", "tranche-absente.txt", "--ecrire", "--brut",
                                       shQuote(file.path(tempdir(), "mw309-brut-absent.tsv")), "--journal", "journal-absent.md"),
-                couverture_ic_sigma_t8.R = c("--R", "2", "--ecrire"))
+                couverture_ic_sigma_t8.R = c("--R", "2", "--ecrire"),
+                mesure_dw_rho_negatif_t8.R = c("--ecrire", "--issue", "164"))
   # (1) arbre propre, docs/tableaux/ absent : refus avant tout calcul
   # (constats_puissance_t8.R : --ecrire DOSSIER, refus d'usage du dossier
   # inexistant)
