@@ -4034,6 +4034,21 @@ MOTIFS_MC_DEGENERES <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
                    .complement_motif_mc(motif)), collapse = " "))
   else paste0("Monte-Carlo indisponible : ", motif, ".")
 }
+# Motif d'indisponibilite Monte-Carlo de la statistique nm, lu au bootstrap
+# (boot$motif_mc, produit par .mc_p_values()) : NA si la p Monte-Carlo est
+# calculee, ou si l'objet bootstrap n'a pas le champ ou ne nomme pas nm.
+# Lecteur unique de usp_tests(), de mw_tests() et de .mw_phrase_b_effectif()
+# (#399).
+.engine_motif_mc_lu <- function(boot, nm)
+  if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
+    unname(boot$motif_mc[[nm]]) else NA_character_
+# Statistique observee definie (priorite des motifs non applicables) :
+# finie, et sans le motif MOTIF_MC_OBS_NON_FINIE de sa p Monte-Carlo. Par
+# defaut la statistique est lue dans boot$stats_obs (usp_tests()) ; mw_tests()
+# passe celle qu'elle a calculee (#399).
+.engine_stat_definie <- function(boot, nm, stat = boot$stats_obs[[nm]])
+  is.finite(stat) &&
+    !identical(.engine_motif_mc_lu(boot, nm), MOTIF_MC_OBS_NON_FINIE)
 # p_min_mc (#125 ; ADR 0003 annote le 12/10/2026, point 5 ; D1-7, D1-8) :
 # plancher Monte-Carlo d'une statistique discrete, plus petite valeur que
 # p_mc, calculee sur ces memes simulations, peut prendre quand la statistique
@@ -5497,14 +5512,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # (Breusch-Pagan 1979, White, Goldfeld-Quandt,
   # Brown-Forsythe, Smirnov, Spearman ratio / temps). Motif Monte-Carlo de
   # la statistique nm, lu au bootstrap (NA si la p Monte-Carlo est calculee).
-  motif_mc_lu <- function(nm)
-    if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
-      unname(boot$motif_mc[[nm]]) else NA_character_
+  motif_mc_lu <- function(nm) .engine_motif_mc_lu(boot, nm)
   # Priorite des motifs non applicables : une ligne dont la statistique
   # observee n'est pas finie (MOTIF_MC_OBS_NON_FINIE) garde son type "test",
   # et add() la rend non applicable ; aucun diagnostic n'y est pose.
-  stat_definie <- function(nm) is.finite(boot$stats_obs[[nm]]) &&
-    !identical(motif_mc_lu(nm), MOTIF_MC_OBS_NON_FINIE)
+  stat_definie <- function(nm) .engine_stat_definie(boot, nm)
   # Enveloppe unique des diagnostics poses par usp_tests() (#358, qui
   # remplace type_decision(), detail_decision(), detail_decision_299(),
   # type_r15() et detail_r15()). regle : condition propre au diagnostic, TRUE
@@ -8039,7 +8051,8 @@ ENVELOPPE_QQ_B_MIN_SIM <- 500L
 # (engine_enveloppe_qq()) et au graphique dispersion-niveau
 # (engine_enveloppe_spread()) : B_eff < ENVELOPPE_QQ_B_MIN (aucune bande),
 # B_eff < ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule), aucun rang k
-# admissible pour l'eq. (4.17) (bande ponctuelle seule). Chaine ASCII
+# admissible pour l'eq. (4.17) (bande ponctuelle seule), et, pour le seul
+# graphique dispersion-niveau, volumes constants (#399). Chaine ASCII
 # restituee telle quelle par l'affichage (issue #385).
 .engine_motif_enveloppe <- function(cas) {
   switch(cas,
@@ -8051,7 +8064,23 @@ ENVELOPPE_QQ_B_MIN_SIM <- 500L
                             "au rang k = 1 ; bande simultanee non disponible"),
                       formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
                               decimal.mark = ",")),
+    # Graphique dispersion-niveau seul (engine_enveloppe_spread()) : a volumes
+    # constants, aucune courbe n'est calculee (#399).
+    volumes_constants = "volumes constants : graphique dispersion-niveau sans objet",
     stop("motif d'enveloppe inconnu : ", cas))
+}
+# Bande ponctuelle d'une matrice M (B_eff x T, toutes valeurs finies), commune
+# au QQ-plot (engine_enveloppe_qq(), M = statistiques d'ordre triees) et au
+# graphique dispersion-niveau (engine_enveloppe_spread(), M = courbes lissees)
+# : bornes = quantiles ENVELOPPE_QQ_PROBS (type 7) de chaque colonne, taux =
+# proportion des lignes de M ayant au moins une valeur STRICTEMENT hors de la
+# bande [bas, haut] (taux in-sample, calcule une seule fois ici, #399).
+# Rend list(bas, haut, taux). Aucune p-value ni verdict.
+engine_bande_ponctuelle <- function(M) {
+  B_eff <- nrow(M)
+  q <- apply(M, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
+  taux <- mean(rowSums(M < rep(q[1L, ], each = B_eff) | M > rep(q[2L, ], each = B_eff)) > 0)
+  list(bas = q[1L, ], haut = q[2L, ], taux = taux)
 }
 engine_enveloppe_qq <- function(z_boot, T) {
   bandes <- matrix(NA_real_, T, 4L,
@@ -8072,10 +8101,9 @@ engine_enveloppe_qq <- function(z_boot, T) {
   S <- t(apply(z_boot[garde, , drop = FALSE], 1L, sort))
   # Bande ponctuelle : proportion des lignes de S ayant au moins une valeur
   # strictement hors de la bande [bas, haut] (bornes par colonne).
-  q <- apply(S, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
-  bandes[, "bas"] <- q[1L, ]; bandes[, "haut"] <- q[2L, ]
-  info$taux_global_ponctuel <-
-    mean(rowSums(S < rep(q[1L, ], each = B_eff) | S > rep(q[2L, ], each = B_eff)) > 0)
+  bp <- engine_bande_ponctuelle(S)
+  bandes[, "bas"] <- bp$bas; bandes[, "haut"] <- bp$haut
+  info$taux_global_ponctuel <- bp$taux
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
     info$motif <- .engine_motif_enveloppe("b_min_sim")
     return(list(bandes = bandes, info = info))
@@ -8185,7 +8213,7 @@ engine_enveloppe_spread <- function(z_boot, x) {
               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
               regle_rang = "DH1997_4.17", motif = NA_character_)
   if (usp_volumes_constants(x)) {
-    res$motif <- "volumes constants : graphique dispersion-niveau sans objet"
+    res$motif <- .engine_motif_enveloppe("volumes_constants")
     return(res)
   }
   L <- if (sum(garde) > 0L)
@@ -8198,10 +8226,9 @@ engine_enveloppe_spread <- function(z_boot, x) {
     res$motif <- .engine_motif_enveloppe("b_min")
     return(res)
   }
-  q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
-  res$bandes$bas <- q[1L, ]; res$bandes$haut <- q[2L, ]
-  res$taux_global_ponctuel <-
-    mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
+  bp <- engine_bande_ponctuelle(L)
+  res$bandes$bas <- bp$bas; res$bandes$haut <- bp$haut
+  res$taux_global_ponctuel <- bp$taux
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
     res$motif <- .engine_motif_enveloppe("b_min_sim")
     return(res)
@@ -11611,8 +11638,7 @@ MW_CATALOGUE_MC <- list(
          mc_nom, call. = FALSE)
   B <- unname(B); be <- unname(be[[mc_nom]])
   p <- if (mc_nom %in% names(boot$p_mc)) unname(boot$p_mc[[mc_nom]]) else NA_real_
-  m <- if (!is.null(boot$motif_mc) && mc_nom %in% names(boot$motif_mc))
-    unname(boot$motif_mc[[mc_nom]]) else NA_character_
+  m <- .engine_motif_mc_lu(boot, mc_nom)
   if (is.finite(p) && be < B) {
     pl <- boot$plafond_cumuls
     if (!is.logical(pl) || length(pl) != 1L || is.na(pl))
@@ -12073,10 +12099,10 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # (verdict INFO, ni p retenue, ni nature, ni sens ; p Monte-Carlo et p non
   # simulee conservees dans leurs colonnes ; inoperant FALSE ; la regle R1 ne
   # s'applique qu'aux lignes de type test, p_min_mc vaut donc NA). Cle Runs du
-  # catalogue conservee. Priorite des motifs non applicables (comme
-  # stat_definie() de usp_tests()) : statistique observee non finie, ou
-  # motif MOTIF_MC_OBS_NON_FINIE, -> type "test" laisse a add(), qui rend la
-  # ligne non applicable. Quand la p Monte-Carlo manque, add() met le motif
+  # catalogue conservee. Priorite des motifs non applicables (meme
+  # .engine_stat_definie() que stat_definie() de usp_tests()) : statistique
+  # observee non finie, ou motif MOTIF_MC_OBS_NON_FINIE, -> type "test"
+  # laisse a add(), qui rend la ligne non applicable. Quand la p Monte-Carlo manque, add() met le motif
   # en tete du detail (.prefixe_motif_mc(), #358 : motif de degenerescence ->
   # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
   # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
@@ -12084,9 +12110,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo, apres
   # le detail ci-dessous ; add() pose ensuite le prefixe, qui precede donc,
   # dans le texte, le detail et ces phrases.
-  m_ru <- if (!is.null(boot$motif_mc) && "Runs" %in% names(boot$motif_mc))
-    unname(boot$motif_mc[["Runs"]]) else NA_character_
-  ru_definie <- is.finite(ru$stat) && !identical(m_ru, MOTIF_MC_OBS_NON_FINIE)
+  ru_definie <- .engine_stat_definie(boot, "Runs", ru$stat)
   txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
                        "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
                        "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
