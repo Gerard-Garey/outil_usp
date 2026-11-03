@@ -1102,9 +1102,12 @@ $\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en éch
 \code{usp\_jack\_annees()} & $\sigma_{\mathrm{USP}}^{(-t)}$ (colonne \code{sigma\_usp}
 d'\code{usp\_jackknife()}), $\sigma_{\mathrm{USP}}$ & indices $t$ des années évaluables les plus
 influentes sur $\sigma_{\mathrm{USP}}$, à la tolérance $\tau$ près (issue~\#327), ou \code{NULL}
-si aucun écart n'est fini~; désignation unique du moteur, lue par \code{run\_engine()}
-(commentaire de la ligne jackknife) et par \code{engine\_influence()} (colonne
-\code{plus\_influente}), extraite telle quelle de \code{run\_engine()} par l'issue~\#396
+si aucun écart n'est fini et, depuis l'issue~\#405, si aucun écart relatif ne l'est
+($\sigma_{\mathrm{USP}}$ nul ou non fini), jamais \code{integer(0)}~; désignation unique du
+moteur, extraite telle quelle de \code{run\_engine()} par l'issue~\#396, calculée une fois par
+\code{run\_engine()} (élément \code{jack\_annees} de \code{robustesse}, non stocké), qui la lit pour le commentaire de la ligne
+jackknife et, depuis l'issue~\#405, la transmet à \code{engine\_influence()} par
+\code{engine\_plots\_data()} (argument \code{jack\_annees}, colonne \code{plus\_influente})
 (fiche~\ref{fiche:jackknife}) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
@@ -1227,12 +1230,18 @@ la constante \code{.MW\_LIGNES\_COLONNES\_ECARTEES}, que lit l'avertissement des
 dégénérées de \code{mw\_valider\_ajustement()} (issues~\#352 et~\#363, §\ref{sec:controles}) \\
 \code{.MW\_LIGNES\_COLONNES\_}\newline\code{ECARTEES} & constante (liste nommée par famille) &
 noms des lignes de \code{mw\_tests()} qui écartent les colonnes dégénérées de leur calcul, par
-famille et dans l'ordre de \code{mw\_tests()}~: une ligne y figure si elle reçoit l'ensemble
+famille (dans l'ordre de \code{mw\_tests()} jusqu'à l'issue~\#405~; ordre décrit ci-dessous)~: une ligne y figure si elle reçoit l'ensemble
 figé des colonnes dégénérées, directement ou par \code{mw\_residus()}~; les lignes fondées sur les
 résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}) en font donc partie. La famille~$\alpha$
 (fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année d'accident ne
 reçoivent pas cet ensemble et n'y figurent pas, non plus que les lignes de lecture conjointe
-(décision du mainteneur du 30~octobre 2026). Constante unique, lue par l'avertissement des
+(décision du mainteneur du 30~octobre 2026). Depuis l'issue~\#405, elle est construite par
+union, famille par famille, de \code{.MW\_LIGNES\_RESIDUS} et de la liste des seules lignes hors
+résidus (\code{.MW\_LIGNES\_COLONNES\_}\allowbreak\code{ECARTEES\_HORS\_RESIDUS}), de sorte qu'un
+nom de ligne fondée sur les résidus ne s'écrit qu'une fois~; familles dans l'ordre M1 à M5, et,
+dans chacune, lignes fondées sur les résidus puis lignes hors résidus, ce qui n'est plus l'ordre
+de \code{mw\_tests()} en M3 et en M4 (ordre sans lecteur~: l'avertissement lit les deux listes
+séparées). Constante unique, lue par l'avertissement des
 colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme celles de ses lignes qui ne
 reposent pas sur les résidus de Mack (issue~\#363, §\ref{sec:controles})~; un test unitaire vérifie
 qu'elle coïncide avec les lignes dont le contenu change quand on substitue l'ensemble figé,
@@ -1417,7 +1426,8 @@ colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme qua
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
-\code{.mw\_combinaisons()} & $n$ & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
+\code{.mw\_combinaisons()},\newline \code{.MW\_COMBN\_}\newline\code{CACHE\_APPEL} & $n$~; cache
+d'appel & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
 (\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
 calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
@@ -1426,7 +1436,13 @@ l'issue~\#293, seules les tables de $n \le$ \code{MW\_COMBN\_N\_MAX} $= 20$ y so
 plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à chaque appel et jamais
 gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
 l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
-même, cache vide ou rempli \\
+même, cache vide ou rempli. Depuis l'issue~\#405, la table d'un $n >$ \code{MW\_COMBN\_N\_MAX} est
+gardée dans le cache \code{.MW\_COMBN\_CACHE\_APPEL} le temps d'un appel de
+\code{mw\_bootstrap()} seulement, pour les seules valeurs de $n$ rencontrées, puis vidée à la
+sortie de l'appel, erreur comprise~: la mémoire reste bornée hors de l'appel, et la table n'est
+plus recalculée à chaque colonne et à chaque réplication~; hors d'un tel appel (statistique
+observée de \code{mw\_tests()}, appel direct), elle est recalculée à chaque appel, comme
+auparavant. Mêmes matrices que l'appel direct dans tous les cas \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1588,8 +1604,11 @@ dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
 \code{jackknife}, \code{sigma\_usp}, \code{lr\_delta},\newline \code{sigma\_usp\_boot}, \code{ic},
-\code{sigma\_standard},\newline \code{ic\_basic\_log} & toutes les quantités tracées (branche
-lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
+\code{sigma\_standard},\newline \code{ic\_basic\_log},\newline \code{jack\_annees} (par défaut
+\code{usp\_jack\_annees()} sur \code{jackknife} et \code{sigma\_usp}~; issue~\#405) & toutes les
+quantités tracées (branche
+lognormale), sans aucun tirage depuis l'issue~\#47~; désignation jackknife \code{jack\_annees}
+reçue de \code{run\_engine()} et passée telle quelle à \code{engine\_influence()} (issue~\#405)~; dont \code{plots\_data\$lr\_delta} (repères
 du profil, issue~\#45, et leur niveau \code{plots\_data\$lr\_delta\$niveau}, valeur de la
 constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot),
 \code{plots\_data\$spread\_enveloppe} (enveloppe du graphique dispersion-niveau, issue~\#306),
@@ -3966,7 +3985,8 @@ satisfasse la condition, dont le démarrage retenu est intérieur et un autre d�
 l'optimum sur une borne~; elle ne change ni $\sigma_{\mathrm{USP}}$ ni aucun verdict des cas de
 référence. Le refus a la forme d'un refus de
 données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, objet réduit aux
-champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), avertissements de
+champs \code{ok}, \code{validation} et \code{metadata} (horodatage et, depuis l'issue~\#405,
+méthode, comme le refus de la méthode Merz--Wüthrich), avertissements de
 \code{engine\_valider\_donnees()} conservés, aucun résultat partiel, et \textbf{sans}
 \code{validation\$erreur\_r}~: ce n'est pas un défaut de calcul intercepté, l'ajustement a
 abouti et ce sont les données qui ne déterminent pas l'estimateur dans le domaine de recherche.
@@ -13509,8 +13529,12 @@ $\min\mathcal{O} + \chi^2_{2\,\mathrm{niveau} - 1}(1)$, quantile au niveau \code
 mélange, puisque $\mathbb{P}\big(\tfrac12\chi^2(0) + \tfrac12\chi^2(1) \le c\big) = \tfrac12 +
 \tfrac12 F_{\chi^2_1}(c)$ pour $c \ge 0$ (d'où un niveau supérieur à $0{,}5$)~: à $0{,}90$, c'est
 $\chi^2_{0{,}80}(1) = 1{,}642$, au bit près (\code{qchisq(2 * 0.90 - 1, 1)} et
-\code{qchisq(0.80, 1)} sont \code{identical()}). Le champ des marques garde son nom,
-\code{q90\_bootstrap}, quel que soit le niveau. Ces repères ne produisent aucun verdict.
+\code{qchisq(0.80, 1)} sont \code{identical()}). La ligne et les marques sont portées par les
+champs \code{repere\_asymptotique} et \code{quantile\_bootstrap} de \code{plots\_data\$lr\_delta},
+noms donnés par l'issue~\#405 (décisions du mainteneur du 31~octobre 2026)~: le premier
+s'appelait \code{seuil\_asymptotique}, alors qu'il s'agit d'un repère de lecture et non d'un seuil
+de décision, et le second \code{q90\_bootstrap}, nom qui ne valait plus depuis que le niveau est
+porté par le moteur (issue~\#190). Ces repères ne produisent aucun verdict.
 \end{fiche}
 
 \begin{fiche}{Jackknife (sensibilité au retrait d'une année)}
@@ -13653,7 +13677,17 @@ $B = 99$, mêmes paramètres)~: l'échantillon complet est accepté ($\hat\gamma
 intérieur) et les huit réajustements sont refusés par \code{usp\_valider\_ajustement()}
 ($\hat\gamma^{(-t)} = -12$, borne de \code{BORNES\_GAMMA}, aucun démarrage qui satisfasse la
 condition de Kuhn et Tucker), \code{ok} vaut \code{TRUE} et la
-table \code{res\$jackknife} est entièrement à \code{NA}. Depuis l'issue~\#328, le graphique
+table \code{res\$jackknife} est entièrement à \code{NA}. Second cas sans estimation, depuis
+l'issue~\#405 (avis d'\code{actuary}, option~(b))~: des réajustements ont abouti, mais
+$\sigma_{\mathrm{USP}}$ est nul ou non fini, de sorte qu'aucun écart relatif n'est défini~;
+\code{usp\_jack\_annees()} rend alors \code{NULL}, jamais un vecteur vide, qui se lirait comme
+un jackknife calculé, et la ligne est posée de même en diagnostic \code{INFO}, \code{estim} à
+\code{NA}, au commentaire fixe «~\code{sigma\_USP nul ou non fini : ecart relatif non defini,
+influence non mesuree.}~», suivi, le cas échéant, de la phrase des années non évaluables~;
+jusqu'à cette issue, la ligne était omise. Mesuré en forçant $\sigma_{\mathrm{USP}}$ à~$0$ puis
+à \code{NA} par substitution d'\code{usp\_parametre()} dans l'environnement du moteur (jeu de
+contrôle, $B = 99$, test unitaire de \code{tests/unitaires/test\_defauts\_connus.R})~: les huit
+réajustements aboutissent, la ligne porte ce seul commentaire. Depuis l'issue~\#328, le graphique
 d'influence de l'application affiche alors un panneau vide au message fixe «~\code{Aucune annee
 evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
 l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
@@ -14312,7 +14346,15 @@ lecture~», et deux marques en $\delta = 0$ et $\delta = 1$ à $\min\mathcal{O}$
 quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7)~; niveau
 \code{LR\_DELTA\_NIVEAU\_REPERES} du moteur (issue~\#190, fiche~\ref{fiche:rv-delta}). Sur le jeu de
 contrôle, les marques sont à $+0{,}40$ et $+0{,}39$, la ligne à $+1{,}64$~: l'écart visible est la
-mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Un point de grille dont
+mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Depuis l'issue~\#405, une aide
+accompagne le graphique (\code{.note\_profil\_delta()}, en bloc neutre dans l'application et dans
+le rapport figé, absente sans repères ou si le profil n'est pas tracé, texte fixe sans nombre
+calculé)~: la ligne du repère asymptotique ne vaut qu'aux bornes $\delta = 0$ et $\delta = 1$, où
+la loi limite du rapport de vraisemblance est le mélange (fiche~\ref{fiche:rv-delta})~; pour
+$\delta$ intérieur, la loi limite serait $\chi^2(1)$, de quantile plus élevé au même niveau, de
+sorte que l'ensemble des $\delta$ situés sous la ligne \textbf{n'est pas} un intervalle de
+confiance à 90~\% pour $\delta$~; aucune de ces lois limites n'est établie à $T = 8$, et la
+lecture fondée est celle des marques, qui n'ont pas d'équivalent pour $\delta$ intérieur. Un point de grille dont
 l'optimisation échoue vaut \code{NA} (\code{usp\_profil()}, issue~\#161)~; si tous le valent,
 l'affichage remplace le graphique par un message qui renvoie au motif des lignes~G. \\
 \code{plot\_surface\_objectif()} & LN & --- & Surface $-2\ln L$ sur la grille
