@@ -217,7 +217,7 @@
 #
 #  Ligne hors population (#423) : LIGNES_HORS_POPULATION, la ligne "Test de
 #  Student sur la pente (modele auxiliaire MCO)", posee par usp_tests()
-#  depuis #423 (02/11/2026), apres les mesures versionnees sur 47 / 48 lignes
+#  depuis #423 (02/11/2026), apres les mesures versionnees sur 47 lignes
 #  et hors de leur population (decision Q-46-17 (a), aucune mesure longue
 #  relancee ; raison ecrite dans TXT_HORS_POPULATION, specification
 #  d'actuary, #423, comme dans tests/taux_franchissement_reperes.R et
@@ -447,7 +447,7 @@ N_LIGNES <- 47L
 # reperees par leur libelle exact, et raison ecrite de l'exclusion.
 LIGNES_HORS_POPULATION <- "Test de Student sur la pente (modele auxiliaire MCO)"
 TXT_HORS_POPULATION <- paste(
-  "Ligne ajout\u00e9e par #423 (02/11/2026), apr\u00e8s les mesures versionn\u00e9es sur 48 lignes, et hors de leur",
+  "Ligne ajout\u00e9e par #423 (02/11/2026), apr\u00e8s les mesures versionn\u00e9es sur 47 lignes, et hors de leur",
   "population (Q-46-17 (a), aucune mesure longue relanc\u00e9e). La ligne est un diagnostic par construction : de type",
   "diagnostic, ou non applicable sous le pr\u00e9dicat de la ligne Pitman. Son verdict est INFO, sans p retenue : elle ne",
   "porte jamais ECHEC ni ALERTE et n'entre dans aucun agr\u00e9gat de verdicts. Aucun rep\u00e8re n'y porte. Sa p est",

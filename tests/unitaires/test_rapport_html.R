@@ -1962,6 +1962,25 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                                              ifelse(d$exclut_zero %in% TRUE, COUL$trait, COUL$pt)) &&
                !inherits(tryCatch(plotly::plotly_build(plot_coupe_delta(res_ln$plots_data)), error = function(e) e), "error")
            })
+  # Injection (remarque de l'audit de #404) : exclut_zero NA partout (intervalle
+  # non evaluable ou degenere), bornes NA sur une colonne, bas = haut = 0 sur
+  # une autre. exclut_zero NA ne vaut pas TRUE (%in% TRUE) : toutes les barres
+  # et tous les marqueurs prennent COUL$pt, aucune trace COUL$trait, sans erreur.
+  verifier("#404 : plot_mw_origine() (plotly), exclut_zero NA, bornes NA sur une colonne et bas = haut = 0 sur une autre : sans erreur, tout en COUL$pt",
+           {
+             pdi <- res_mw$plots_data
+             stopifnot(nrow(pdi$origine) >= 2L)
+             pdi$origine$exclut_zero <- NA
+             pdi$origine$bas[1L] <- NA_real_; pdi$origine$haut[1L] <- NA_real_
+             pdi$origine$bas[2L] <- 0; pdi$origine$haut[2L] <- 0
+             b <- tryCatch(plotly::plotly_build(plot_mw_origine(pdi))$x, error = function(e) e)
+             if (inherits(b, "error")) return(paste("erreur :", conditionMessage(b)))
+             segs <- Filter(function(tr) identical(tr$mode, "lines") && !identical(tr$line$color, COUL$ref), b$data)
+             mk <- Filter(function(tr) identical(tr$mode, "markers"), b$data)
+             length(segs) == 1L && identical(segs[[1]]$line$color, COUL$pt) &&
+               length(mk) == 1L && all(as.character(mk[[1]]$marker$color) == COUL$pt) &&
+               length(mk[[1]]$marker$color) == nrow(pdi$origine)
+           })
 }
 verifier("#323 : premium_interieur, Pitman et Fisher sans 0,0000 (synthese et detail)",
          { tbp <- engine_table_tests(readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds")))

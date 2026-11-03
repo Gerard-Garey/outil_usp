@@ -3836,6 +3836,17 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
            k <- !vapply(ok, isTRUE, logical(1))
            if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
          })
+# Detail de l'exposant de variance (M2) : le facteur f_j et la constante sigma_j^2
+# communs aux annees sont donnes comme interpretation de l'outil, non comme la
+# lettre du texte (#409, regulatory). Phrase cle lue dans le detail du moteur,
+# sur le cas reserve2 ; le detail peut recevoir en fin la phrase de #244.
+verifier("Exposant de variance (M2, #409) : le detail donne f_j et sigma_j^2 communs aux annees comme interpretation de l'outil (D(4)(c) et D(5)(d)(ii))",
+         {
+           x <- lig300("Adequation de l'exposant de variance, colonne par colonne")
+           ph <- paste("avec un facteur f_j et une constante sigma_j^2 communs aux annees",
+                       "(interpretation de l'outil, D(4)(c) et D(5)(d)(ii))")
+           grepl(ph, x$detail, fixed = TRUE) && !grepl("[^ -~]", x$detail)
+         })
 # Repli de T-5 (statistique NA) : branche inatteignable sur un triangle
 # valide (mw_famille_alpha() retient la colonne j = 0 des que I >= 3, et
 # mw_valider_triangle() refuse un triangle de trois annees) ; exercee par
