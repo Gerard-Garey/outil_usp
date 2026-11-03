@@ -27,8 +27,9 @@ source("R/charger_moteur.R", local = FALSE)
 charger_moteur("R/engine.R", dans = globalenv())
 source("R/display_helpers.R", local = FALSE)
 
-# Identite du code (version DESCRIPTION, md5 de R/engine.R), relevee au
-# moment ou le moteur est charge ; reportee dans le rapport fige.
+# Identite du code (version DESCRIPTION, md5 de R/engine.R et de
+# R/charger_moteur.R), relevee au moment ou le moteur est charge ; reportee
+# dans le rapport fige.
 IDENTITE_CODE <- identite_code(".")
 
 # Sortie graphique polymorphe : plotly si le paquet est disponible, graphique

@@ -2346,16 +2346,22 @@ note_influence <- function(pd) {
 # =============================================================================
 
 # Identite du code : version declaree dans DESCRIPTION et md5 des octets de
-# R/engine.R. Relevee par l'application au demarrage, au moment ou elle
-# charge le moteur. .gitattributes impose des fins de ligne LF dans l'arbre
-# de travail : le md5 porte sur le contenu du fichier versionne.
+# R/engine.R et de R/charger_moteur.R (le resultat depend des deux : le
+# chargeur fixe la chaine d'environnements du moteur, ADR 0016 ; ADR 0009,
+# annotation du 02/11/2026, #397). Relevee par l'application au demarrage, au
+# moment ou elle charge le moteur ; une seule heure de releve pour les deux
+# empreintes. .gitattributes impose des fins de ligne LF dans l'arbre de
+# travail : le md5 porte sur le contenu des fichiers versionnes.
 identite_code <- function(racine = ".") {
   desc <- file.path(racine, "DESCRIPTION")
   eng  <- file.path(racine, "R", "engine.R")
+  chg  <- file.path(racine, "R", "charger_moteur.R")
   list(version = if (file.exists(desc)) unname(read.dcf(desc, fields = "Version")[1, 1])
                  else NA_character_,
        md5_engine = if (file.exists(eng)) unname(as.character(tools::md5sum(eng)))
                     else NA_character_,
+       md5_chargeur = if (file.exists(chg)) unname(as.character(tools::md5sum(chg)))
+                      else NA_character_,
        releve = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
 
@@ -2566,7 +2572,7 @@ code { font-size:12px; }
 #              engine_table_tests(res) ; NULL = selection_defaut()
 #   chemin     fichier HTML a ecrire
 #   interactif TRUE = graphiques plotly si le paquet est installe
-#   identite   liste (version, md5_engine, releve) de identite_code()
+#   identite   liste (version, md5_engine, md5_chargeur, releve) de identite_code()
 # Valeur (invisible) : chemin, taille en octets, mode graphique effectif
 # ("plotly", "png" ou "aucun"), nombre de lignes et de tests retenus,
 # empreintes.
@@ -2655,12 +2661,14 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
         sprintf("marge = %s de la perte moyenne (theta_equiv)", .ou_tiret(m$theta_equiv, .num_fr_defaut))
         else sprintf("marge Delta fix\u00e9e a priori = %s", .ou_tiret(m$delta_equiv, .num_fr_defaut)))
     }
-    idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, releve = NA) else identite
+    idt <- if (is.null(identite)) list(version = NA, md5_engine = NA, md5_chargeur = NA, releve = NA) else identite
     cles <- c(cles, "Version de R", "Version de l'outil (DESCRIPTION)")
     vals <- c(vals, .ou_tiret(m$version_R), .ou_tiret(idt$version))
     empreintes <- data.frame(
-      a = c("Donn\u00e9es du calcul", "R\u00e9sultat du moteur", "Code du moteur (R/engine.R)"),
-      b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine)),
+      a = c("Donn\u00e9es du calcul", "R\u00e9sultat du moteur", "Code du moteur (R/engine.R)",
+            "Chargeur du moteur (R/charger_moteur.R)"),
+      b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine),
+                             .txt(idt$md5_chargeur)),
                  "</code>"),
       c = c(paste("Texte canonique des donn\u00e9es du calcul (valeurs en %.17g, NA, fins de",
                   "ligne LF) ; ne d\u00e9pend que des valeurs. <code>engine_empreinte()</code>."),
@@ -2668,7 +2676,10 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                   "stable sur une m\u00eame machine, <b>d\u00e9pend de la plateforme</b> (ADR 0006) :",
                   "ne se compare pas d'une machine \u00e0 l'autre. <code>engine_empreinte()</code>."),
             paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
-                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application.")),
+                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application."),
+            paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
+                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application ;",
+                  "le chargeur fixe la cha\u00eene d'environnements du moteur (ADR 0016).")),
       stringsAsFactors = FALSE)
     names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
     # Invariant de l'en-tete (#263) : une valeur par cle.

@@ -210,6 +210,27 @@ verifier("Rapport : empreintes des donnees, du resultat et du code presentes",
          all(vapply(c(e1$donnees, e1$resultat, idt$md5_engine),
                     function(x) grepl(x, h, fixed = TRUE), logical(1))) &&
          identical(r_png$empreintes, e1[c("donnees", "resultat")]))
+# Deux empreintes du code (#397, ADR 0009 annote le 02/11/2026) : moteur et
+# chargeur, chacune egale au md5 des octets de son fichier, chacune sous un
+# libelle qui nomme le fichier ; l'identite reste hors de run_engine().
+verifier("Rapport : deux empreintes du code, md5 de R/engine.R et de R/charger_moteur.R (#397)",
+         identical(idt$md5_engine, unname(as.character(tools::md5sum(file.path(.racine, "R", "engine.R"))))) &&
+         identical(idt$md5_chargeur, unname(as.character(tools::md5sum(file.path(.racine, "R", "charger_moteur.R"))))) &&
+         !identical(idt$md5_engine, idt$md5_chargeur) &&
+         compte(h, paste0("<code>", idt$md5_engine, "</code>")) == 1 &&
+         compte(h, paste0("<code>", idt$md5_chargeur, "</code>")) == 1 &&
+         compte(h, "Code du moteur (R/engine.R)") == 1 &&
+         compte(h, "Chargeur du moteur (R/charger_moteur.R)") == 1)
+verifier("Rapport : chaque libelle est sur la ligne de son empreinte (#397)",
+         grepl(paste0("Code du moteur \\(R/engine.R\\)</td><td><code>", idt$md5_engine, "</code>"), h) &&
+         grepl(paste0("Chargeur du moteur \\(R/charger_moteur.R\\)</td><td><code>", idt$md5_chargeur, "</code>"), h))
+verifier("Rapport : sans identite, les deux empreintes du code sont des tirets (#397)", {
+  f_sans <- tempfile(fileext = ".html")
+  rapport_html(res_ln, NULL, f_sans, interactif = FALSE)
+  h_sans <- lire(f_sans)
+  grepl("Chargeur du moteur (R/charger_moteur.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE) &&
+    grepl("Code du moteur (R/engine.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE)
+})
 verifier("Rapport : horodatage du calcul et version DESCRIPTION restitues",
          grepl(format(res_ln$metadata$horodatage, "%Y-%m-%d %H:%M:%S"), h, fixed = TRUE) &&
          grepl(paste0("<td>", idt$version, "</td>"), h, fixed = TRUE))
