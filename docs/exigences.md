@@ -155,7 +155,7 @@ Un bouton de l'application produit un **document HTML autonome** : un seul fichi
 
 - il est construit à partir de l'objet retourné par `run_engine()` au dernier clic sur « Relancer les calculs », et **jamais** à partir de la saisie courante ; il n'est proposé que si le moteur a accepté les données ;
 - il ne fait aucun calcul : toutes les valeurs, y compris les empreintes, proviennent de `engine.R` ;
-- un en-tête identifie le calcul : horodatage, méthode, annexe et segment, T, B, α, graine, barème de crédibilité, σ standard, version de R, version de l'outil (`DESCRIPTION`), empreinte md5 de `R/engine.R`, empreintes des données et du résultat ; il indique que l'empreinte du résultat dépend de la plateforme ;
+- un en-tête identifie le calcul : horodatage, méthode, annexe et segment, T, B, α, graine, barème de crédibilité, σ standard, version de R, version de l'outil (`DESCRIPTION`), empreintes md5 de `R/engine.R` et du chargeur `R/charger_moteur.R` (une par fichier, ADR 0009 annoté le 02/11/2026), empreintes des données et du résultat ; il indique que l'empreinte du résultat dépend de la plateforme ;
 - il restitue les données et leurs contrôles, le paramètre retenu et sa calibration, les tests, les graphiques et les notes, avec l'avertissement lié à T = 8 ;
 - les tests restitués sont ceux que retient la personnalisation de l'onglet Tests, selon la même règle ; un encadré rappelle que cette sélection est une personnalisation de la restitution, sans effet sur le calcul, et les tests exclus sont listés en annexe avec leur verdict ;
 - les graphiques sont interactifs par défaut ; une option les fige en images intégrées au fichier, et leur absence éventuelle est signalée explicitement.
