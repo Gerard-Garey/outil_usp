@@ -408,10 +408,11 @@ verifier("Cox-Stuart, alpha = 0,29 : donnees de test -> 'exacte', p_retenue = cx
 # T = 5 : 40 lignes (Smirnov et Ljung-Box au retard 2 exigent T >= 8),
 # nombre inchange par #70 ; 42 a T >= 8 depuis #302 (Shapiro-Wilk a loi
 # nulle simulee, Ljung-Box (1) et Box-Pierce (2) retirees ; Box-Pierce (2)
-# n'existait qu'a T >= 8).
-verifier("Invariants : 42 lignes usp_tests() a T >= 8 dans tous les regimes testes, 40 a T = 5 (LB1r retiree, #303 ; trois lignes retirees, #302)",
-         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 42L) &&
-           length(t5) == 40L)
+# n'existait qu'a T >= 8). Ligne Student ajoutee par #423, a tout T : 43 et
+# 41.
+verifier("Invariants : 43 lignes usp_tests() a T >= 8 dans tous les regimes testes, 41 a T = 5 (LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423)",
+         all(vapply(list(tt, t8, tb, t2, t3, t10), length, integer(1)) == 43L) &&
+           length(t5) == 41L)
 verifier("Invariant M7 : hors test, verdict INFO et sens NA",
          all(vapply(c(tt, t5, t8, tb), function(l)
            identical(l$type, "test") ||
@@ -419,9 +420,9 @@ verifier("Invariant M7 : hors test, verdict INFO et sens NA",
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
                    nature_donnees = "brutes", B = 99, seed = 20260831)
-verifier("run_engine, pi_t variable, B = 99 : 47 lignes hors lecture conjointe (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 en fin), catalogue complet, aucune nature 'exacte' sur les sept",
+verifier("run_engine, pi_t variable, B = 99 : 48 lignes hors lecture conjointe (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423 ; lignes de famille de #297 en fin), catalogue complet, aucune nature 'exacte' sur les sept",
          isTRUE(res8$ok) &&
-           sum(vapply(res8$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 47L &&
+           sum(vapply(res8$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 48L &&
            identical(names(res8$bootstrap$p_mc), names(USP_CATALOGUE_MC)) &&
            !any(vapply(res8$tests, function(l)
              l$test %in% NOM && identical(l$nature_p, "exacte"), logical(1))))

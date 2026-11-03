@@ -303,8 +303,8 @@ verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libel
 tb_vc <- engine_table_tests(run_engine(xt = rep(100, 8), yt = yt, methode = "premium",
                                        segment = 1, B = 99, nature_donnees = "brutes"))
 i_r13 <- which(tb_vc$type == "non applicable" & startsWith(tb_vc$commentaire, "volumes x_t constants"))
-verifier("Volumes constants (R13) : 13 lignes non applicables, type et motif restitues",
-         length(i_r13) == 13 &&
+verifier("Volumes constants (R13) : 14 lignes non applicables (ligne Student ajoutee, #423), type et motif restitues",
+         length(i_r13) == 14 &&
          all(table_detail_groupe(tb_vc)$Type[i_r13] == "non applicable") &&
          all(startsWith(table_detail_groupe(tb_vc)[["Motif / commentaire"]][i_r13], "volumes x_t constants")) &&
          all(grepl("non applicable</span>", table_synthese_groupe(tb_vc)$Verdict[i_r13], fixed = TRUE)))
@@ -1784,11 +1784,11 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302, hors lignes de lecture conjointe de #297, en tiret)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302 ; 17 depuis l'ajout de la ligne Student, #423 ; hors lignes de lecture conjointe de #297, en tiret)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
            sum(is.finite(.g285)) == 31L &&
-           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 16L &&
+           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 17L &&
            any(.tb285$fonction == "engine_p_famille") &&
            all(!is.finite(.g285[.tb285$fonction == "engine_p_famille"])) &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))

@@ -1008,8 +1008,8 @@ testServer(app, {
   vers_reserve2(session, triangle, 2)
   p2 <- envoyer(session, output)
   def <- selection_defaut(TB())
-  a("S0 : premium (52 lignes) puis reserve no 2 (25 lignes), aucune case touchee : selection par defaut de reserve no 2 (#380)",
-    n1 == 52L && nrow(TB()) == 25L && identical(sel_courante(), def) &&
+  a("S0 : premium (53 lignes) puis reserve no 2 (25 lignes), aucune case touchee : selection par defaut de reserve no 2 (#380)",
+    n1 == 53L && nrow(TB()) == 25L && identical(sel_courante(), def) &&
       sum(p2$garde) == sum(def$garde) && nrow(p2) == 25L)
   a("S0 : cle de ligne (famille, test, base) unique sur premium et sur reserve no 2 (#380)",
     !anyDuplicated(paste(TB()$famille, TB()$test, TB()$base)) &&
@@ -1074,11 +1074,11 @@ testServer(app, {
   session$setInputs(sel_rien = 1)
   pr <- envoyer(session, output)
   a("bouton Tout retirer : aucune ligne conservee, panneau et selection (#380)",
-    !any(sel_courante()$garde) && !any(pr$garde) && nrow(pr) == 52L)
+    !any(sel_courante()$garde) && !any(pr$garde) && nrow(pr) == 53L)
   session$setInputs(sel_tout = 1)
   pt <- envoyer(session, output)
   a("bouton Tout conserver : toutes les lignes conservees, panneau et selection (#380)",
-    all(sel_courante()$garde) && all(pt$garde) && nrow(pt) == 52L)
+    all(sel_courante()$garde) && all(pt$garde) && nrow(pt) == 53L)
   do.call(session$setInputs, setNames(list(FALSE), pt$id[grep("Pitman", pt$texte)]))
   session$setInputs(sel_defaut = 1)
   pd <- envoyer(session, output)
@@ -1122,7 +1122,7 @@ testServer(app, {
   p3 <- envoyer(session, output)
   a("Tout conserver apres un calcul refuse : la ligne Pitman decochee est cochee au calcul suivant, panneau et selection (#380)",
     refuse && garde_tout && isTRUE(resultat()$ok) && all(sel_courante()$garde) && all(p3$garde) &&
-      nrow(p3) == 52L)
+      nrow(p3) == 53L)
   a("panneau de personnalisation apres un calcul refuse : texte explicatif, aucune case (#380)",
     grepl("Aucun resultat de calcul", txt, fixed = TRUE) && !grepl("g_test_", txt, fixed = TRUE))
   session$setInputs(theta_equiv = NA, go = 4)

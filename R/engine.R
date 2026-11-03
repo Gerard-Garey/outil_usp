@@ -5796,9 +5796,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # positif, decision Q-A du mainteneur). p exacte par enumeration a
   # T <= T_MAX_ENUM_PERMUTATION ; au-dela, p Monte-Carlo de B permutations
   # aleatoires (p_mc_ext, hors USP_CATALOGUE_MC). La p de Student unilaterale
-  # (t(T-2), exacte sous le modele auxiliaire MCO seulement) est restituee
-  # dans p_asymptotique, non retenue (la hierarchie retient la p de
-  # permutation, toujours presente sur une ligne applicable).
+  # (t(T-2), exacte sous le modele auxiliaire MCO seulement : autre test,
+  # autre loi de reference) est restituee dans p_asymptotique, non retenue
+  # (la hierarchie retient la p de permutation, toujours presente sur une
+  # ligne applicable) : approximation asymptotique de la p de permutation,
+  # par le theoreme central limite combinatoire sous des conditions sur x
+  # et y (hypothese), non etablie a T = 8 et mauvaise en queue (#423,
+  # decisions Q-46-14 et Q-46-15 du 02/11/2026, ADR 0002 annote). La p de
+  # Student bilaterale a sa propre ligne diagnostic, apres celle-ci.
   # Regle R4 retiree par D1-Fb (#218, #230) : la ligne de la pente n'est plus
   # classee sur la puissance approchee (quantite estimee). Type "test" sur
   # une ligne applicable, "non applicable" sinon ; seule la regle R1 (dans
@@ -5845,7 +5850,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
   perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
   type_pente <- if (!pente_appl) "non applicable" else "test"
-  # p de Student du meme sens que la p de permutation (restituee, non retenue).
+  # p de Student du meme sens que la p de permutation (restituee, non
+  # retenue) : approximation asymptotique de la p de permutation, non
+  # etablie a T = 8 (#423, Q-46-15).
   p_student <- if (!is.finite(lmc$t_pente)) NA_real_
                else stats::pt(lmc$t_pente, T - 2, lower.tail = FALSE)
   txt_pitman <- paste(
@@ -5854,8 +5861,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     if (perm_alea) "B permutations aleatoires, p = (1 + k)/(B + 1) ;"
     else "enumeration des T! appariements, exacte sous H0 seule, hors modele reglementaire ;",
     "un rejet peut aussi traduire une dispersion liee au volume ou une tendance commune a x et y.",
-    "p de Student unilaterale (t(T-2) exacte sous le modele auxiliaire MCO seulement)",
-    "restituee dans p asymptotique, non retenue.",
+    "p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO seulement :",
+    "autre test, autre loi de reference) restituee dans p asymptotique, non retenue :",
+    "approximation asymptotique de la p de permutation, par le theoreme central limite",
+    "combinatoire sous des conditions sur x et y (hypothese, voir la fiche), non etablie",
+    "a T = 8 et mauvaise en queue, ou elle peut etre inferieure a la plus petite p de",
+    "permutation atteignable (champ p_min).",
     # p bilaterale de permutation, pour information (decision du mainteneur
     # du 06/10/2026, point 3) : imprimee a l'enumeration seulement (sans
     # alea) ; au-dela, nombre issu des tirages, non imprime (regle #76), lu
@@ -5877,15 +5888,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   pente_reste_test <- pente_appl && !(is.finite(perm$p_min) && perm$p_min >= alpha)
   txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
     sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
-  # Motifs des lignes pente et Fisher non applicables a statistique non
-  # finie (somme des carres residuelle nulle, ajustement exact de y sur x :
-  # mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
+  # Motifs des lignes Pitman, Student et Fisher non applicables a statistique
+  # non finie (somme des carres residuelle nulle, ajustement exact de y sur
+  # x : mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
   # (#189) et R12, qui gardent la priorite par detail_motif(). Libelles de
   # l'avis d'actuary du 07/10/2026 (regression MCO non ponderee, sans les
-  # poids de txt_stat_non_def).
-  txt_t_pente_non_def <- paste("statistique t non finie (erreur-type de la pente de la",
-                               "regression de y sur x nulle : ajustement exact, ou non",
-                               "calculable) : test non applicable")
+  # poids de txt_stat_non_def). Racine txt_t_non_fini commune a Pitman et a
+  # Student (#423) : la ligne Student, diagnostic, ne dit pas "test", comme
+  # txt_f_non_def ; la chaine de Pitman est inchangee.
+  txt_t_non_fini <- paste("statistique t non finie (erreur-type de la pente de la",
+                          "regression de y sur x nulle : ajustement exact, ou non",
+                          "calculable)")
+  txt_t_pente_non_def   <- paste(txt_t_non_fini, ": test non applicable")
+  txt_t_student_non_def <- paste(txt_t_non_fini, ": non applicable")
   txt_f_non_def <- paste("statistique F non finie (somme des carres residuelle de la",
                          "regression de y sur x nulle : ajustement exact, ou non",
                          "calculable) : non applicable")
@@ -5910,13 +5925,45 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_motif(lmc$x_ecarte,
                             if (!is.finite(lmc$t_pente)) txt_t_pente_non_def
                             else trimws(paste(txt_pitman, txt_puissance, txt_plancher_perm))))
+  # Ligne Student (#423, decisions Q-46-13 et Q-46-18 du 02/11/2026) :
+  # diagnostic, sans verdict ni p retenue ; t de lm(y ~ x) et sa p de
+  # Student t(T-2) bilaterale (Pr(>|t|) de summary.lm, test_lm_complet()),
+  # exacte sous le modele auxiliaire MCO seulement, restituee pour
+  # information dans p_asymptotique (emplacement non retenu ; nom de colonne
+  # conventionnel, la p n'etant pas une loi limite). Egale a la p de la
+  # ligne Fisher (F = t^2), a l'arrondi pres (mesure : ecart 3,1e-16 sur
+  # J1, 1,1e-20 sur J2). Meme predicat d'applicabilite que Pitman
+  # (pente_appl) ; motifs R13, pertes constantes et R12 par detail_motif(),
+  # motif txt_t_student_non_def a t non fini hors de ces cas.
+  txt_student <- paste(
+    "Diagnostic, aucun verdict : la pente est testee par le seul test de Pitman.",
+    "p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous",
+    "le modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ;",
+    "restituee dans p asymptotique pour information, non retenue. Egale a la p de la",
+    "ligne \"Test de Fisher (significativite globale)\" (F = t^2).")
+  add(fam, "Test de Student sur la pente (modele auxiliaire MCO)",
+      "Student (1908), Biometrika 6 ; Fisher (1922), JRSS 85",
+      fonction = "test_lm_complet",
+      type = if (pente_appl) "diagnostic" else "non applicable",
+      H0 = "b = 0", H1 = "b != 0",
+      stat_nom = "t", stat = lmc$t_pente,
+      loi = if (pente_appl)
+        sprintf("t(%d) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales homoscedastiques)",
+                T - 2)
+      else NA_character_,
+      p_as = if (pente_appl) lmc$p_pente else NA_real_,
+      detail = detail_motif(lmc$x_ecarte,
+                            if (!is.finite(lmc$t_pente)) txt_t_student_non_def
+                            else txt_student))
   # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
   # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
   # le modele auxiliaire MCO restitues pour information (p_asymptotique,
   # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
-  # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
-  # leurs motifs (detail_motif()) ; a F non fini hors de ces cas, motif
-  # txt_f_non_def. R1 ne la concerne pas.
+  # aucun second verdict sur b = 0. Sa p est egale a celle de la ligne
+  # Student (F = t^2), ce que dit le detail (#423, Q-46-13 : les deux lignes
+  # sont gardees). R13, pertes constantes et R12 gardent leurs motifs
+  # (detail_motif()) ; a F non fini hors de ces cas, motif txt_f_non_def. R1
+  # ne la concerne pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       # Volumes ou pertes constants : F NA (test_lm_complet(), #189), d'ou
@@ -5931,7 +5978,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_motif(lmc$x_ecarte, if (!is.finite(lmc$F)) txt_f_non_def else paste(
         "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
         "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
-        "non retenue.")))
+        "non retenue ; egale a la p de la ligne \"Test de Student sur la pente (modele",
+        "auxiliaire MCO)\".")))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
       # Motif choisi par les drapeaux (volumes constants, puis pertes
