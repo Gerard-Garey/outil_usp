@@ -3556,6 +3556,14 @@ stat_cusum <- function(z) {
   }
   .p_borne(p)
 }
+# Borne de Bonferroni de Grubbs pour le champ loi (#416) : trois decimales
+# fixes tant que la borne est >= 0.001 (0.240 a T = 8), sinon trois chiffres
+# significatifs (a partir de T = 28, %.3f s'imprimerait 0.000). Texte ASCII,
+# point decimal fixe, independant de getOption("OutDec").
+.format_borne_grubbs <- function(p) {
+  if (is.finite(p) && p >= 0.001) sprintf("%.3f", p)
+  else formatC(p, digits = 3, format = "g", width = 1, decimal.mark = ".")
+}
 test_grubbs <- function(v) {
   n <- length(v); s <- stats::sd(v)
   if (!is.finite(s) || s == 0 || n < 3)
@@ -6773,8 +6781,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # n'est plus un majorant garanti.
       loi = if (isTRUE(pi_constant))
         paste("Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2)",
-              sprintf("(p <= %.3f a T = %d), majorant au-dela",
-                      .grubbs_p_bonferroni(sqrt((T - 1) / 2), T), T))
+              sprintf("(p <= %s a T = %d), majorant au-dela",
+                      .format_borne_grubbs(.grubbs_p_bonferroni(sqrt((T - 1) / 2), T)), T))
       else
         "Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ; les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni majorant garanti",
       p_as = gr$p, mc_nom = "Grubbs",

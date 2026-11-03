@@ -235,4 +235,29 @@ verifier("#416 OutDec = \",\" : point decimal conserve dans la loi de Grubbs",
            identical(l, GR_CST("0.240", 8))
          })
 
+# Format de la borne (.format_borne_grubbs()) : a T = 8 la chaine reste 0.240
+# (reference) ; a partir de T = 28, %.3f imprimerait 0.000 (4.37e-04 a T = 28,
+# 8.18e-06 a T = 40), la borne s'ecrit alors a trois chiffres significatifs.
+# ASCII, point decimal sous OutDec = ",".
+verifier("#416 format de la borne : 0.240 a T = 8 ; ni 0.000 ni virgule a T = 28 et T = 40, trois chiffres significatifs, ASCII",
+         {
+           b <- function(T) .format_borne_grubbs(.grubbs_p_bonferroni(sqrt((T - 1) / 2), T))
+           od <- getOption("OutDec"); options(OutDec = ",")
+           s8 <- b(8); s28 <- b(28); s40 <- b(40)
+           options(OutDec = od)
+           identical(s8, "0.240") && identical(s28, "0.000437") && identical(s40, "8.18e-06") &&
+             all(!grepl("^0\\.000$", c(s28, s40))) && !any(grepl(",", c(s8, s28, s40), fixed = TRUE)) &&
+             all(!grepl("[^ -~]", c(s8, s28, s40))) &&
+             identical(.format_borne_grubbs(0), "0") && identical(.format_borne_grubbs(0.001), "0.001") &&
+             identical(.format_borne_grubbs(0.00099), "0.00099")
+         })
+verifier("#416 champ loi a T = 28 et T = 40 (volumes constants) : borne sans 0.000",
+         {
+           y28 <- 60 + (seq_len(28) %% 7) * 3; y40 <- 60 + (seq_len(40) %% 9) * 2
+           l28 <- loi_gr_vc(y28); l40 <- loi_gr_vc(y40)
+           !grepl("p <= 0.000 ", l28, fixed = TRUE) && !grepl("p <= 0.000 ", l40, fixed = TRUE) &&
+             grepl("(p <= 0.000437 a T = 28)", l28, fixed = TRUE) &&
+             grepl("(p <= 8.18e-06 a T = 40)", l40, fixed = TRUE)
+         })
+
 fin_fichier()
