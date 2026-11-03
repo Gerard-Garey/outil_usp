@@ -3540,11 +3540,11 @@ stat_cusum <- function(z) {
 }
 
 # Grubbs (1969), Technometrics 11, 1-21.
-test_grubbs <- function(v) {
-  n <- length(v); s <- stats::sd(v)
-  if (!is.finite(s) || s == 0 || n < 3)
-    return(list(stat = NA_real_, p = NA_real_, idx = NA))
-  G <- max(abs(v - mean(v))) / s
+# Borne de Bonferroni de la p-value de Grubbs pour la statistique G sur n
+# observations (Student + Bonferroni, bornee dans [0, 1] par .p_borne()).
+# Seule definition de la formule : test_grubbs() l'applique a G observe,
+# usp_tests() au seuil d'exactitude G = sqrt((n-1)/2) pour le champ loi (#416).
+.grubbs_p_bonferroni <- function(G, n) {
   # G est borne par (n-1)/sqrt(n) ; a cette borne le denominateur s'annule
   # (0/0 numerique). On borne alors la p-value a sa valeur limite 0.
   den <- (n - 1)^2 - n * G^2
@@ -3554,7 +3554,14 @@ test_grubbs <- function(v) {
     tt <- sqrt(n * (n - 2) * G^2 / den)
     p <- n * 2 * (1 - stats::pt(tt, n - 2))
   }
-  list(stat = G, p = .p_borne(p), idx = which.max(abs(v - mean(v))))
+  .p_borne(p)
+}
+test_grubbs <- function(v) {
+  n <- length(v); s <- stats::sd(v)
+  if (!is.finite(s) || s == 0 || n < 3)
+    return(list(stat = NA_real_, p = NA_real_, idx = NA))
+  G <- max(abs(v - mean(v))) / s
+  list(stat = G, p = .grubbs_p_bonferroni(G, n), idx = which.max(abs(v - mean(v))))
 }
 
 # Rosner (1983), Technometrics 25, 165-172 : generalized ESD.
@@ -6709,8 +6716,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # Champ loi conditionne au regime (#182, D1-4 ; avis d'actuary, Fl) : la
       # borne de Bonferroni n'est exacte (G >= sqrt((T-1)/2)) que pour un
       # echantillon i.i.d. normal, ce que z est a pi_t constant seulement.
+      # La parenthese donne la borne au seuil d'exactitude pour le T saisi
+      # (#416), par la formule de test_grubbs() ; dans la bande de tolerance,
+      # texte sans txt_bande (Grubbs n'a pas de p exacte, regle de
+      # detail_r7()). loi_r7() n'est pas employee : son libelle a pi_t
+      # variable ("exacte a pi_t constant seulement") ne dit pas que la borne
+      # n'est plus un majorant garanti.
       loi = if (isTRUE(pi_constant))
-        "Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2) (p <= 0.24 a T = 8), majorant au-dela"
+        paste("Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2)",
+              sprintf("(p <= %.3f a T = %d), majorant au-dela",
+                      .grubbs_p_bonferroni(sqrt((T - 1) / 2), T), T))
       else
         "Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ; les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni majorant garanti",
       p_as = gr$p, mc_nom = "Grubbs",

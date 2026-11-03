@@ -14,7 +14,8 @@
 #    4. loi d'Anderson-Darling et de Cramer-von Mises (T < 8, p_mc absente) ;
 #    5. loi des six autres lignes de la regle R7 (DW, suites sur z, MK,
 #       Smirnov, SpearVol, SpearTps) ;
-#    6. detail de Smirnov a pi_t variable.
+#    6. detail de Smirnov a pi_t variable ;
+#    7. loi de Grubbs (#416 : borne au seuil d'exactitude pour le T saisi).
 #  U182-6 (premium_interieur patche sur les seuls champs listes, cinq autres
 #  cas identiques) et U182-7 (aucune p ni aucun verdict modifie) sont portes
 #  par tests/test_reproductibilite.R (references comparees par
@@ -193,6 +194,45 @@ verifier("U182-5 Smirnov, detail : inchange a pi_t constant, loi echangeable nom
              grepl(paste("p-value minimale atteignable sous la loi de reference echangeable = 0.0286,",
                          "atteinte seulement pour D = 1 (deux groupes totalement separes)"),
                    d2, fixed = TRUE)
+         })
+
+## --- #416 : loi de Grubbs, borne au seuil d'exactitude pour le T saisi ---------
+# A pi_t constant, la parenthese donne la borne de Bonferroni de test_grubbs()
+# au seuil G = sqrt((T-1)/2), pour le T de l'ajustement (0.557 a T = 5, 0.240
+# a T = 8, 0.133 a T = 10) ; dans la bande de tolerance, meme texte, sans
+# txt_bande ; a pi_t variable, texte inchange. Point decimal sous OutDec = ",".
+N_GR <- "Valeur aberrante isolee (Grubbs)"
+GR_CST <- function(b, T) paste0("Student + borne de Bonferroni, exacte sous i.i.d. normal pour ",
+                                "G >= sqrt((T-1)/2) (p <= ", b, " a T = ", T, "), majorant au-dela")
+GR_VAR <- paste("Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ;",
+                "les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni",
+                "majorant garanti")
+# Volumes constants : pi_t exactement constant quel que soit delta.
+loi_gr_vc <- function(y) {
+  f <- usp_ajuster(rep(100, length(y)), y); b <- usp_bootstrap(f, B = 19L)
+  lig182(usp_tests(f, b, methode = "premium"), N_GR)$loi
+}
+verifier("#416 pi_t constant (J1, T = 8) : loi de Grubbs avec 0.240",
+         identical(lig182(J1$t, N_GR)$loi, GR_CST("0.240", 8)))
+verifier("#416 pi_t constant (volumes constants, T = 5) : loi de Grubbs avec 0.557",
+         identical(loi_gr_vc(c(60, 70, 65, 80, 72)), GR_CST("0.557", 5)))
+verifier("#416 pi_t constant (volumes constants, T = 10) : loi de Grubbs avec 0.133",
+         identical(loi_gr_vc(c(60, 70, 65, 80, 72, 68, 75, 62, 77, 71)), GR_CST("0.133", 10)))
+verifier("#416 bande de tolerance (delta = 1 - 1e-8) : loi de Grubbs inchangee, sans txt_bande",
+         {
+           f <- J1$f; f$delta <- 1 - 1e-8
+           r <- usp_regime(f$delta, f$x)
+           isTRUE(r$pi_constant) && !isTRUE(r$pi_constant_exact) &&
+             identical(lig182(usp_tests(f, J1$b, methode = "premium"), N_GR)$loi, GR_CST("0.240", 8))
+         })
+verifier("#416 pi_t variable (J2) : loi de Grubbs sans borne chiffree",
+         identical(lig182(J2$t, N_GR)$loi, GR_VAR))
+verifier("#416 OutDec = \",\" : point decimal conserve dans la loi de Grubbs",
+         {
+           od <- getOption("OutDec"); options(OutDec = ",")
+           l <- lig182(usp_tests(J1$f, J1$b, methode = "premium"), N_GR)$loi
+           options(OutDec = od)
+           identical(l, GR_CST("0.240", 8))
          })
 
 fin_fichier()
