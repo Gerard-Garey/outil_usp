@@ -2786,7 +2786,9 @@ aucune (théorique seulement, Andrews 1993) & \code{supF} \\
 OLS-CUSUM & \ref{fiche:ols-cusum} & \code{stat\_cusum()} &
 formule de Kolmogorov, calculée en ligne dans \code{usp\_tests()} & \code{CUSUM} \\
 Grubbs & \ref{fiche:grubbs} & \code{test\_grubbs()} &
-\code{test\_grubbs()} (p non simulée, borne de Bonferroni) & \code{Grubbs} \\
+\code{test\_grubbs()} (p non simulée, borne de Bonferroni par \code{.grubbs\_p\_bonferroni()},
+seule définition de la formule, appelée aussi par \code{usp\_tests()} pour le champ \code{loi},
+issue~\#416) & \code{Grubbs} \\
 Rosner (ESD) & \ref{fiche:rosner-esd} & \code{test\_rosner()} &
 diagnostic par décision depuis l'issue~\#304 (procédure de décision auparavant), aucune p-value & --- \\
 Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
@@ -6707,7 +6709,8 @@ Grubbs & LN & $G$ & Non & Borne de Bonferroni sur la loi de
 Student (famille~(iii)) & Oui & Monte-Carlo &
 \textbf{Sous conditions}, sans être retenue (borne restituée en colonne \code{p\_asymptotique},
 \code{p\_exacte} à \code{NA})~: à $\hat\pi_t$ constant, borne exacte sous i.i.d.
-normal pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$ (deux observations ne peuvent
+normal pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}240$ à $T = 8$ (borne calculée par le moteur
+pour le $T$ saisi, issue~\#416~; deux observations ne peuvent
 franchir ce seuil ensemble, argument de la fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant
 au-delà~; à $\hat\pi_t$ variable, ni exacte ni majorant garanti, $z_t$ n'étant pas i.i.d. &
 Bootstrap ; borne lisible comme majorant à $\hat\pi_t$ constant seulement \\
@@ -7042,8 +7045,9 @@ liberté pour une observation fixée, exacte sous i.i.d. normal~; $\min\big(1, 2
 en est la borne de Bonferroni & --- & Borne, non convergence & Sans objet & Échantillon i.i.d.
 normal~: à $\hat\pi_t$ constant, $G(z_t)$ est le $G$ des log-ratios, i.i.d. normaux sous le modèle
 ajusté~; à $\hat\pi_t$ variable, aucun échantillon i.i.d. sous-jacent &
-À $\hat\pi_t$ constant, borne exacte pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$
-(fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant au-delà~; à $\hat\pi_t$ variable, ni exacte
+À $\hat\pi_t$ constant, borne exacte pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}240$ à $T = 8$
+(borne calculée par le moteur pour le $T$ saisi, issue~\#416~; fiche~\ref{fiche:rosner-esd},
+rubrique~4), majorant au-delà~; à $\hat\pi_t$ variable, ni exacte
 ni majorant garanti~; p non retenue, bootstrap retenu (fiche~\ref{fiche:grubbs}) \\
 
 ESD généralisé de Rosner (sur $z_t$, diagnostic) & $R_i$ de Rosner, comparés aux valeurs
@@ -12802,7 +12806,8 @@ borne est la loi exacte de $G$ pour toute valeur $p \le 0{,}240$, ce qui couvre 
 et un majorant au-delà. Ce résultat suppose un échantillon i.i.d. normal~: il vaut pour la ligne à
 $\hat\pi_t$ constant (rubrique~1), non à $\hat\pi_t$ variable.
 \Pval
-Borne de Bonferroni calculée par \code{test\_grubbs()}, tronquée à 1~:
+Borne de Bonferroni calculée par \code{test\_grubbs()} (formule de
+\code{.grubbs\_p\_bonferroni()}, issue~\#416), tronquée à 1~:
 \[
   p = \min\Big(1,\; 2T\big(1 - F_{t,T-2}(t^\star)\big)\Big),
 \]
@@ -12813,7 +12818,10 @@ retenue~; si elle manque, la ligne devient un diagnostic sans p-value retenue (i
 champ \code{loi} de la ligne dit le statut de la borne selon le régime (issue~\#182, décision
 D1-4~: un texte ne qualifie une loi d'exacte que dans le régime où elle l'est)~: à $\hat\pi_t$
 constant, «~\code{Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2)
-(p <= 0.24 a T = 8), majorant au-dela}~»~; à $\hat\pi_t$ variable, «~\code{Student + borne de
+(p <= 0.240 a T = 8), majorant au-dela}~», dont la parenthèse est calculée pour le $T$ saisi, par
+\code{.grubbs\_p\_bonferroni()} au seuil $G = \sqrt{(T-1)/2}$ (issue~\#416~: $0{,}557$ à $T = 5$,
+$0{,}240$ à $T = 8$, $0{,}133$ à $T = 10$, remesuré~; le texte fixe «~\code{0.24 a T = 8}~» qui la
+précédait n'était juste qu'à $T = 8$)~; à $\hat\pi_t$ variable, «~\code{Student + borne de
 Bonferroni, calibree pour un echantillon i.i.d. normal~; les residus z ne le sont pas dans ce
 regime (pi\_t variable)~: ni exacte ni majorant garanti}~», l'égalité comme l'inégalité de la
 rubrique~4 supposant l'échantillon i.i.d. normal. Mesuré sur les références~: $0{,}861$ en
