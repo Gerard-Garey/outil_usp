@@ -5391,9 +5391,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   pi_constant <- regime$pi_constant
   # Regle R13 (#59, invariants I4 et I5) : a volumes constants
   # (usp_volumes_constants(), tolerance TOL_DELTA_BORD, seule definition), les
-  # treize lignes qui regressent sur x ou partitionnent par x (constante,
-  # TOST, pente, Fisher, R2, RESET, Spearman ratio / volume, Breusch-Pagan
-  # Koenker et 1979, White, Goldfeld-Quandt, Brown-Forsythe, Smirnov) sont
+  # quatorze lignes qui regressent sur x ou partitionnent par x (constante,
+  # TOST, pente (Pitman et Student), Fisher, R2, RESET, Spearman ratio /
+  # volume, Breusch-Pagan Koenker et 1979, White, Goldfeld-Quandt,
+  # Brown-Forsythe, Smirnov) sont
   # restituees "non applicable" avec ce motif unique, au lieu d'etre
   # calculees sur le bruit d'arrondi, restituees en diagnostic par le motif
   # Monte-Carlo, ou absentes (Smirnov). Leurs fonctions rendent NA sous le
@@ -7741,7 +7742,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     # avertissement, sans refus, place avant celui des pertes constantes
     # (ordre de priorite des motifs : R13 > pertes constantes). A x_t
     # constant, a_t = delta + (1 - delta) xbar / x_t = 1 : la vraisemblance
-    # ne depend pas de delta. Les lignes citees sont les treize lignes que
+    # ne depend pas de delta. Les lignes citees sont les quatorze lignes que
     # R13 rend non applicables dans usp_tests().
     if (usp_volumes_constants(xt))
       avt <- c(avt, sprintf(paste("Volumes x_t constants a la tolerance relative TOL_DELTA_BORD",
@@ -12265,14 +12266,14 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # catalogue conservee. Priorite des motifs non applicables (meme
   # .engine_stat_definie() que stat_definie() de usp_tests()) : statistique
   # observee non finie, ou motif MOTIF_MC_OBS_NON_FINIE, -> type "test"
-  # laisse a add(), qui rend la ligne non applicable. Quand la p Monte-Carlo manque, add() met le motif
-  # en tete du detail (.prefixe_motif_mc(), #358 : motif de degenerescence ->
-  # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
-  # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
-  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes par
-  # l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo, apres
-  # le detail ci-dessous ; add() pose ensuite le prefixe, qui precede donc,
-  # dans le texte, le detail et ces phrases.
+  # laisse a add(), qui rend la ligne non applicable. Quand la p Monte-Carlo
+  # manque, add() met le motif en tete du detail (.prefixe_motif_mc(), #358 :
+  # motif de degenerescence -> "<motif> : aucune p-value retenue (ADR 0001)."
+  # et son complement ; autre motif -> "Monte-Carlo indisponible : <motif>.").
+  # Aucun nombre issu du bootstrap (regle #76) ; les phrases de #257 et #204
+  # sont jointes par l'enveloppe add() de mw_tests(), comme sur toute ligne
+  # Monte-Carlo, apres le detail ci-dessous ; add() pose ensuite le prefixe,
+  # qui precede donc, dans le texte, le detail et ces phrases.
   ru_definie <- .engine_stat_definie(boot, "Runs", ru$stat)
   txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
                        "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
