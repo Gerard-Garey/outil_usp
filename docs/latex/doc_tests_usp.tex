@@ -969,6 +969,16 @@ motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS
 \code{add()}, par l'intermédiaire de \code{.prefixe\_motif\_mc()} depuis l'issue~\#358, et par les
 lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
 (§\ref{sec:nature}, issue~\#126) \\
+\code{.engine\_motif\_}\newline\code{mc\_lu()},\newline \code{.engine\_stat\_}\newline\code{definie()}
+& objet bootstrap, nom de la statistique~; et statistique observée (lue par défaut dans
+\code{boot\$stats\_obs}) & motif d'indisponibilité de la p-value de Monte-Carlo de la statistique,
+lu dans \code{boot\$motif\_mc} (\code{NA} si la p-value est calculée, si le champ manque ou s'il
+ne nomme pas la statistique)~; booléen «~statistique observée définie~», vrai si elle est finie et
+si son motif n'est pas \code{MOTIF\_MC\_OBS\_NON\_FINIE} (priorité des motifs non applicables~: une
+ligne dont la statistique n'est pas définie garde son type \code{test}, et \code{add()} la rend
+non applicable)~; lecteur unique du motif, lu par \code{usp\_tests()}, par \code{mw\_tests()}
+(ligne des suites, qui passe la statistique qu'elle a calculée) et par
+\code{.mw\_phrase\_b\_effectif()} (issue~\#399) \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
 (arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
@@ -1586,7 +1596,8 @@ bootstrap de $\sigma_{\mathrm{USP}}$, issue~\#305, fiche~\ref{fiche:ic-bootstrap
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
-\code{engine\_enveloppe\_qq()},\newline \code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
+\code{engine\_enveloppe\_qq()},\newline \code{engine\_bande\_}\allowbreak\code{ponctuelle()},\newline
+\code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
 \code{ENVELOPPE\_QQ\_NIVEAU},\newline
 \code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
 \code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
@@ -1596,9 +1607,15 @@ simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{
 description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k^{\star}$ de l'éq.~(4.17) de Davison
 et Hinkley (1997), calculé par \code{engine\_rang\_simultane\_dh()} depuis l'issue~\#385, taux
 \code{taux\_global\_ponctuel} (in-sample) et \code{taux\_global\_simultane} (taux de~(4.17)),
-seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; aucune bande sous 20
+seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; bornes de la bande ponctuelle
+(quantiles de type~7 aux probabilités \code{ENVELOPPE\_QQ\_PROBS}, colonne par colonne) et taux
+\code{taux\_global\_ponctuel} (proportion des réplications dont au moins une valeur sort
+strictement de la bande) calculés une seule fois par \code{engine\_bande\_ponctuelle()}, commune au
+graphique dispersion-niveau (issue~\#399)~; aucune bande sous 20
 réplications, pas de bande simultanée sous 500 ni faute de rang $k$ admissible, chaque cas avec
-son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau
+son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau,
+qui porte en outre le cas \code{volumes\_constants}, propre à ce graphique («~\code{volumes
+constants : graphique dispersion-niveau sans objet}~», issue~\#399)
 (fiche~\ref{fiche:qqnorm}, issues~\#47 et~\#385) \\
 \code{engine\_enveloppe\_}\allowbreak\code{spread()},\newline
 \code{engine\_rang\_}\allowbreak\code{simultane\_dh()},\newline
@@ -1607,10 +1624,12 @@ $L$ des courbes simulées~; constantes ($2/3$~; 3) & enveloppe de simulation du 
 dispersion-niveau (\code{plots\_data\$spread\_enveloppe}), sans aucun tirage~: courbes
 \code{lowess()} des lignes finies de \code{z\_boot}, aux paramètres \code{SPREAD\_LOWESS\_F} et
 \code{SPREAD\_LOWESS\_ITER} de la courbe observée \code{plots\_data\$spread\_lisse}~; bande
-ponctuelle et bande simultanée à 90~\%, constantes et seuils de l'enveloppe du QQ-plot, rang
+ponctuelle (par \code{engine\_bande\_ponctuelle()} depuis l'issue~\#399) et bande simultanée à
+90~\%, constantes et seuils de l'enveloppe du QQ-plot, rang
 $k^{\star}$ de la bande simultanée selon l'éq.~(4.17) de Davison et Hinkley (1997), calculé par
-\code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence (fiche~\ref{fiche:spread-location},
-issue~\#306) \\
+\code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence, chaîne de
+\code{.engine\_motif\_enveloppe()}, cas \code{volumes\_constants} compris depuis l'issue~\#399
+(fiche~\ref{fiche:spread-location}, issue~\#306) \\
 \code{usp\_ic\_basic\_log()} & \code{sigma\_boot}, $\hat\sigma$, $c$,
 $\sqrt{(T+1)/(T-1)}$, $\sigma_{\text{std}}$ & intervalle «~basic~» sur l'échelle logarithmique,
 $\hat\sigma^2/\hat q$ sur l'échelle de $\sigma$ (quantiles de type~7 de \code{sigma\_boot}), reporté
