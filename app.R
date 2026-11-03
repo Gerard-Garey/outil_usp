@@ -325,6 +325,11 @@ ui <- fluidPage(
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
     details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
+    /* Bandeau des avertissements d'apres calcul (#412) : le resume est un titre
+       complet, pas un debut tronque : ni repere [...] (suggere une troncature),
+       titre en gras. */
+    .avert details.com > summary { font-weight:700; }
+    .avert details.com:not([open]) > summary::after { content:none; }
     /* Grille de saisie du triangle : cellules larges, en-tetes figes. */
     table.triangle { border-collapse:separate; border-spacing:3px 2px; }
     table.triangle th { font-weight:600; color:#00468C; font-size:12px;

@@ -241,6 +241,9 @@ verifier("app.R : texte_p_mc_regime() appelee deux fois, une dans output$etat, u
 verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
          any(grepl("details.com > summary", .src_app, fixed = TRUE)) &&
            any(grepl("details.com:not([open]) > summary::after", .src_app, fixed = TRUE)))
+verifier("app.R : bandeau des avertissements, titre en gras et sans repere [...] de troncature (#412)",
+         any(grepl(".avert details.com > summary { font-weight:700; }", .src_app, fixed = TRUE)) &&
+           any(grepl(".avert details.com:not([open]) > summary::after { content:none; }", .src_app, fixed = TRUE)))
 
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
@@ -1207,6 +1210,26 @@ testServer(app, {
       !grepl("<details[^>]* open", h) &&
       grepl(paste0("<li>", htmltools::htmlEscape(av), "</li>"), h, fixed = TRUE))
 })
+# Rendu tagList de output$note_surface (#405) : la note de la surface puis, dans
+# un bloc distinct de style neutre, l'aide du profil en delta (champ aide de
+# note_surface()) quand le profil est trace ; texte lu dans note_surface()
+# (R/display_helpers.R), aucune regle ici.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(fichier_import = fichier(12)); grille(session, 12)
+  session$setInputs(profondeur = 12, go = 1)
+  pd <- resultat()$plots_data
+  ns <- note_surface(pd)
+  h <- as.character(output$note_surface$html)
+  a("note_surface : profil trace, champ aide non vide (#405)",
+    isTRUE(resultat()$ok) && !is.null(pd$profil_delta) && !all(is.na(pd$profil_delta$objectif)) &&
+      !is.null(ns$aide) && nzchar(ns$aide))
+  a("output$note_surface : contient la note de la surface puis l'aide du profil en delta, bloc neutre (#405)",
+    grepl(ns$html, h, fixed = TRUE) && grepl(ns$aide, h, fixed = TRUE) &&
+      grepl("Profil de vraisemblance en delta : la ligne pointill", h, fixed = TRUE) &&
+      grepl("<div style=\"margin-top:6px;color:#7F8C8D;font-size:12.5px\">", h, fixed = TRUE) &&
+      regexpr(ns$html, h, fixed = TRUE) < regexpr(ns$aide, h, fixed = TRUE))
+})
 )---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
@@ -1344,8 +1367,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 91 assertions rendues", length(.lignes) == 91L)
-  if (length(.lignes) != 91L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 93 assertions rendues", length(.lignes) == 93L)
+  if (length(.lignes) != 93L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

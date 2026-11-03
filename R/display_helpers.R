@@ -998,7 +998,8 @@ plot_profil_delta <- function(pd) {
   yl <- .lr_hauteurs(pd, d$objectif)
   if (!.plotly_dispo()) {
     .cadre(); plot(d$delta, d$objectif, type = "l", lwd = 2, col = COUL$pt, ylim = yl,
-                   xlab = "delta", ylab = "objectif profile", main = "Profil en delta")
+                   xlab = "delta", ylab = "objectif profile",
+                   main = "Profil de vraisemblance en delta")
     graphics::abline(v = pd$delta_estime, col = COUL$trait, lty = 2)
     .lr_reperes_base(pd); return(invisible())
   }
