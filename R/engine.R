@@ -10857,7 +10857,8 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 # l'outil, #409), les trois estimateurs visent le MEME f_j, quelle que soit la
 # variance (tout facteur individuel est alors sans biais pour f_j :
 # Mack 1994, CAS Forum, chap. 3, p. 111) : une divergence marquee signale que
-# l'esperance n'est pas proportionnelle a C(i,j) (M1) ; une violation de
+# l'esperance n'est pas proportionnelle a C(i,j) (M1), ou, sous la lettre de
+# (iii), un facteur propre a chaque annee et associe a C(i,j) ; une violation de
 # l'hypothese de variance (iv) seule laisse H0 vraie (specification Fj,
 # par. 4.3 ; decision Q-D1-Fj-5, #307).
 # La statistique est l'amplitude relative moyenne, ponderee par les effectifs.
@@ -11919,7 +11920,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = paste("les trois estimateurs visent des valeurs differentes (esperance de",
-                 "C(i,j+1) non proportionnelle a C(i,j))"),
+                 "C(i,j+1) non proportionnelle a C(i,j), ou facteur non commun aux",
+                 "annees et associe a C(i,j))"),
       stat_nom = "amplitude relative", stat = al$stat,
       loi = "aucune loi analytique -> Monte-Carlo", mc_nom = "Alpha",
       detail = detail_al)
@@ -11999,8 +12001,10 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
       p_as = ev$p, mc_nom = "ExpVar",
       p_min = pm_ev$p_min, effectifs = pm_ev$effectifs,
-      detail = paste("Si la variance est bien proportionnelle a C(i,j), les residus",
-                     "standardises sont d'echelle constante a l'interieur de chaque colonne."))
+      detail = paste("Si la variance est proportionnelle a C(i,j), avec un facteur f_j et une",
+                     "constante sigma_j^2 communs aux annees (interpretation de l'outil,",
+                     "D(4)(c) et D(5)(d)(ii)), les residus standardises sont d'echelle",
+                     "constante a l'interieur de chaque colonne."))
   # La variance des residus de Mack est CONTRAINTE par construction, et sa
   # valeur de reference n'est pas 1. sigma2_j etant l'estimateur de Mack,
   #   somme_i r(i,j)^2 = somme_i C(i,j) (F(i,j) - f_j)^2 / sigma2_j = n_j - 1

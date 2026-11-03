@@ -3826,7 +3826,8 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
              fonction = identical(x$fonction, "mw_famille_alpha"),
              H0 = identical(x$H0, "les estimateurs alpha = 0, 1 et 2 visent le meme f_j"),
              H1 = identical(x$H1, paste0("les trois estimateurs visent des valeurs differentes ",
-                                         "(esperance de C(i,j+1) non proportionnelle a C(i,j))")),
+                                         "(esperance de C(i,j+1) non proportionnelle a C(i,j), ",
+                                         "ou facteur non commun aux annees et associe a C(i,j))")),
              reference = identical(x$reference,
                "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124"),
              detail = identical(x$detail, att) ||
