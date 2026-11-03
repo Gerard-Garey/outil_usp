@@ -3317,8 +3317,15 @@ Le modèle de chaîne d'échelle postule, pour tout $i$ et tout $j$~:
   \qquad
   \operatorname{Var}\big[C(i,j+1)\mid C(i,j)\big] = \sigma_j^2\,C(i,j),
 \]
-les années de survenance étant mutuellement indépendantes. \textbf{Aucune loi
-n'est spécifiée}~: seuls les deux premiers moments conditionnels le sont, ce qui
+les années de survenance étant mutuellement indépendantes, avec un facteur $f_j$ et une
+constante $\sigma_j^2$ communs à toutes les années de survenance (modèle de T.~Mack, 1993, et de
+Merz et Wüthrich, 2008, hypothèses~2.1, p.~547--548). La lettre de l'annexe~XVII, D(2)(h)(iii)
+et~(iv), énonce, pour chaque année d'accident, la proportionnalité au cumulé précédent de
+l'espérance (sans constante) et de la variance du cumulé suivant, sans exiger un facteur ni une
+constante communs aux années~: cette communauté est une interprétation de l'outil, appuyée sur
+D(4)(c) pour $f_j$ et sur D(5)(d)(ii) pour $\sigma_j^2$, qui n'estiment qu'un $\hat f_j$ et un
+$\hat\sigma_j^2$ par année de développement (sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
+\textbf{Aucune loi n'est spécifiée}~: seuls les deux premiers moments conditionnels le sont, ce qui
 constitue la différence de nature la plus importante avec les méthodes
 lognormales et commande l'ensemble des choix de p-values.
 
@@ -15499,7 +15506,8 @@ $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$, $f_j$ commun aux années de sur
 (interprétation de l'outil, D(4)(c)) &
 H1 --- même forme de proportionnalité sans constante \\
 M2 & (iv) variance du cumulé proportionnelle au cumulé précédent~; formalisée
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ &
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, $\sigma_j^2$ commun aux années de
+survenance (interprétation de l'outil, D(5)(d)(ii)) &
 H2 --- mais puissance 1 imposée, sans mélange $\delta$ à estimer \\
 M3 & (i) et (ii) indépendance entre années de survenance et entre montants
 incrémentaux & H4 --- indépendance \\
@@ -15638,8 +15646,10 @@ complètent la régression agrégée initiale. Cinq éprouvent les hypothèses d
 (Fisher, ou moyenne pondérée pour la famille~$\alpha$)~: l'ordonnée à l'origine, l'homogénéité de
 $f_j$, l'absence de courbure et la famille~$\alpha$ (M1), l'exposant de variance (M2)~;
 D(2)(h)(iii) et~(iv) énoncent la proportionnalité de l'espérance et de la variance pour le passage
-«~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$ par
-année de développement. La sixième, l'homogénéité des résidus entre années de survenance (M3,
+«~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$,
+D(5)(d)(ii) une variance unique $\hat\sigma_j^2$, par année de développement (la communauté de $f_j$
+et de $\sigma_j^2$ entre années de survenance est une interprétation de l'outil,
+sections~\ref{sec:mwm1} et~\ref{sec:mwm2}). La sixième, l'homogénéité des résidus entre années de survenance (M3,
 fiche~\ref{mw:m3acc}), compare les lignes du triangle, ses résidus étant groupés par année de
 survenance toutes colonnes confondues~; le quantificateur «~pour toutes les années d'accident~»,
 qui figure aussi aux points (ii) et (iv), porte, lui, sur ces lignes. La tendance avec le cumulé,
@@ -15907,7 +15917,12 @@ l'hypothèse réglementaire. Hypothèses de validité non testées~: indépendan
 lignes, variance correctement pondérée, erreurs approximativement normales.
 \Hzero
 $H_0 : a_j = 0$ pour toute année de développement $j$, c'est-à-dire la
-proportionnalité stricte exigée par D(2)(h)(iii).
+proportionnalité stricte exigée par D(2)(h)(iii). Cette absence de constante, exigée par la lettre
+du texte, n'est testée que sous la lecture retenue par l'outil (facteur $f_j$ commun aux années de
+survenance, encadré de la section~\ref{sec:mwm1})~: la régression de la colonne~$j$ impose une
+pente $b_j$ commune aux années, une seule observation par année et par colonne ne permettant pas de
+tester l'absence de constante avec un coefficient propre à chaque année~; un rejet de $a_j = 0$
+peut donc aussi traduire un facteur non commun aux années (fiche~\ref{mw:m1b}).
 \Stat
 Statistique de Student $t_j = \hat a_j / \widehat{\mathrm{se}}(\hat a_j)$ dans
 chaque colonne, puis combinaison des $K$ p-values par la méthode de Fisher~:
@@ -16682,7 +16697,9 @@ On considère la famille d'estimateurs
 \]
 où $\alpha = 0$ donne la moyenne simple des facteurs individuels, $\alpha = 1$ le
 facteur chain-ladder du règlement, et $\alpha = 2$ une pondération par le carré
-du volume. \textbf{Sous l'hypothèse M1, les trois estiment la même quantité}~:
+du volume. \textbf{Sous l'hypothèse M1, les trois estiment la même quantité} (M1 formalisée
+avec un facteur $f_j$ commun aux années de survenance, interprétation de l'outil, encadré de la
+section~\ref{sec:mwm1})~:
 l'espérance conditionnelle étant proportionnelle à $C(i,j)$, tout jeu de poids
 positifs fournit un estimateur sans biais de $f_j$, \emph{quelle que soit la variance}, chaque
 facteur individuel étant lui-même sans biais (Mack, 1994, chapitre~3, p.~111). Le choix de $\alpha$
@@ -16693,9 +16710,13 @@ retient $\alpha = 1$, qui correspond à M2. Une pondération inadaptée à la va
 efficacité, non en biais. L'article ne compare pas les trois estimateurs et ne propose aucun test~:
 la statistique $A$ et sa p-value de Monte-Carlo sont une construction de l'outil.
 \Hzero
-$H_0$ : les trois estimateurs visent le même $f_j$ dans chaque colonne~; $H_1$, libellé de la
+$H_0$~: les trois estimateurs visent le même $f_j$ dans chaque colonne~; $H_1$, libellé de la
 ligne~: ils visent des valeurs différentes (espérance de $C(i,j+1)$ non proportionnelle à
-$C(i,j)$).
+$C(i,j)$, ou facteur non commun aux années et associé à $C(i,j)$). La seconde branche de $H_1$
+tient à la lecture de l'outil~: la lettre de D(2)(h)(iii) admet un facteur propre à chaque année
+de survenance~; s'il est associé à $C(i,j)$, les moyennes pondérées par $C(i,j)^{\alpha}$ visent
+des valeurs différentes selon $\alpha$, alors que l'espérance reste proportionnelle, sans
+constante, dans chaque année.
 \Stat
 Amplitude relative moyenne, pondérée par les effectifs~:
 \[
@@ -16713,7 +16734,8 @@ Test de l'hypothèse (iii) seule (M1), conservé comme test par décision du mai
 22~octobre 2026 (issue~\#307, décision Q-D1-Fj-5, option~(b$'$)~; ni passage en diagnostic, ni
 retrait). Les trois estimateurs étant sans biais sous (iii) quelle que soit la variance
 (rubrique~1), une violation de l'hypothèse de variance M2 seule laisse $H_0$ vraie~: une divergence
-marquée signale que l'espérance n'est pas proportionnelle à $C(i,j)$, non que la pondération est
+marquée signale que l'espérance n'est pas proportionnelle à $C(i,j)$, ou, sous la lettre de (iii),
+un facteur propre à chaque année et associé à $C(i,j)$ (rubrique~2), non que la pondération est
 inadaptée. Cette propriété porte sur l'hypothèse nulle, non sur le niveau~: la p-value de
 Monte-Carlo est calibrée sous l'hypothèse de variance de Mack (le bootstrap tire sous l'exposant~1),
 et son niveau n'est pas garanti si M2 est violée~; il n'est mesuré que contre les exposants~0 et~2
@@ -16975,8 +16997,13 @@ plans mesurés, sans transposer leurs taux.
 \textbf{Énoncé.} annexe~XVII, D(2)(h)(iv)~: « pour toutes les années
 d'accident, la variance du montant de sinistres cumulé d'une année de
 développement est proportionnelle au montant de sinistres cumulé de l'année de
-développement précédente », soit
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+développement précédente ». \textbf{Formalisation retenue par l'outil}~:
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, avec une constante $\sigma_j^2$
+commune à toutes les années de survenance, hypothèse du modèle de Merz et Wüthrich (2008,
+hypothèses~2.1, éq.~(2.7), p.~548)~; cette communauté est une interprétation de l'outil, appuyée
+sur D(5)(d)(ii), qui estime une variance unique $\hat\sigma_j^2$ par année de développement, et
+non la lettre de D(2)(h)(iv), qui énonce la proportionnalité de la variance au cumulé précédent
+pour chaque année d'accident sans exiger une constante commune aux années.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -17164,9 +17191,12 @@ colonne trop courte (sans cette garde, \code{cor.test()} rendait une corrélatio
 trace)~; les résidus sont ceux de \code{mw\_residus()}, colonnes dégénérées exclues selon
 l'ensemble figé (fiche~\ref{mw:m1a}).
 \Hzero
-$H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
+$H_0$~: l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ avec un facteur $f_j$ et une
+constante $\sigma_j^2$ communs aux années (interprétation de l'outil, D(4)(c) et D(5)(d)(ii),
+encadrés des sections~\ref{sec:mwm1} et~\ref{sec:mwm2}, comme le dit le commentaire de la
+ligne)~; contre $H_1$~: l'exposant~1 imposé par le règlement est inadapté.
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
 \code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
@@ -21356,7 +21386,11 @@ modèle et un mode d'inférence différents.
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
   publique de cet article (\code{ChainLadder::CDR}) qui fournit la valeur de
-  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}).
+  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}). Ses hypothèses~2.1
+  (éq.~(2.6), p.~547, et~(2.7), p.~548~: constantes $f_j$ et $\sigma_j$ communes à toutes les
+  années de survenance) sont citées pour la formalisation retenue par l'outil des points~(iii)
+  et~(iv) de D(2)(h), qui est une interprétation de l'outil et non la lettre du texte
+  (sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
 
   \item M.\,V. Wüthrich, M.~Merz, \emph{Stochastic Claims Reserving Methods in
   Insurance}, Wiley, 2008.
