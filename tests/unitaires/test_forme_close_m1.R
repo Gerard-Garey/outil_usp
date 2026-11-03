@@ -620,4 +620,56 @@ verifier("T293 : cache des combinaisons de M1 borne a n <= 20 ; reserve2 identiq
              t25 = identical(t25, direct(25L))))
          })
 
+# #405 (point 1 ; audit) : cache d'appel .MW_COMBN_CACHE_APPEL des tables de
+# n > MW_COMBN_N_MAX, ouvert par mw_bootstrap() et vide a sa sortie, erreur
+# comprise. Triangle synthetique 22 x 22 (colonne 1 a 21 lignes : n = 21 >
+# 20), B = 9. (a) Cache rempli pendant l'appel (releve a la fermeture,
+# .mw_combn_appel_fermer() enveloppee), vide et profondeur nulle apres ;
+# (b) resultat identical() avec et sans cache (.mw_combn_appel_ouvrir()
+# neutralisee : profondeur nulle, aucune table gardee) ; (c) erreur levee
+# apres l'ouverture, cache deja rempli : .mw_verifier_figes() substituee
+# (ADR 0016) remplit le cache (n = 21) puis leve une erreur ; cache vide et
+# profondeur nulle apres.
+tri405 <- local({
+  n <- 22L; t <- matrix(NA_real_, n, n)
+  f <- 1 + 0.6 * exp(-(1:(n - 1)) / 3)
+  for (i in 1:n) {
+    t[i, 1] <- 1000 + 37 * ((i * 7) %% 11)
+    for (j in seq_len(n - i)) t[i, j + 1] <- t[i, j] * (f[j] + 0.01 * sin(3 * i + 5 * j))
+  }
+  t
+})
+verifier("T405 : cache d'appel des combinaisons (n > 20) rempli pendant mw_bootstrap(), vide apres, erreur comprise ; resultat identical() avec et sans cache (triangle 22 x 22, B = 9)",
+         {
+           e <- environment(run_engine)
+           aj <- mw_ajuster(tri405)
+           vide_apres <- function() !length(ls(.MW_COMBN_CACHE_APPEL)) &&
+             identical(.MW_COMBN_CACHE_APPEL$.profondeur, 0L)
+           fermer <- get(".mw_combn_appel_fermer", envir = e); vu <- NULL
+           assign(".mw_combn_appel_fermer", function() { vu <<- ls(.MW_COMBN_CACHE_APPEL); fermer() },
+                  envir = e)
+           b_avec <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
+                              finally = assign(".mw_combn_appel_fermer", fermer, envir = e))
+           vide_ok <- vide_apres()
+           ouvrir <- get(".mw_combn_appel_ouvrir", envir = e)
+           assign(".mw_combn_appel_ouvrir", function() invisible(NULL), envir = e)
+           b_sans <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
+                              finally = assign(".mw_combn_appel_ouvrir", ouvrir, envir = e))
+           figes <- get(".mw_verifier_figes", envir = e); vu_err <- NULL
+           assign(".mw_verifier_figes", function(...) {
+             .mw_combinaisons(21L); vu_err <<- ls(.MW_COMBN_CACHE_APPEL)
+             stop("erreur injectee (#405)")
+           }, envir = e)
+           err <- tryCatch(leve_erreur(mw_bootstrap(aj, B = 9, seed = 1)),
+                           finally = assign(".mw_verifier_figes", figes, envir = e))
+           ok_liste(list(
+             rempli_pendant = identical(vu, "21"), vide_apres = vide_ok,
+             identique = identical(b_avec, b_sans),
+             erreur = err, rempli_avant_erreur = identical(vu_err, "21"),
+             vide_apres_erreur = vide_apres(),
+             restaures = identical(get(".mw_verifier_figes", envir = e), figes) &&
+               identical(get(".mw_combn_appel_ouvrir", envir = e), ouvrir) &&
+               identical(get(".mw_combn_appel_fermer", envir = e), fermer)))
+         })
+
 fin_fichier()

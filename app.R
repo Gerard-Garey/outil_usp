@@ -1541,8 +1541,13 @@ server <- function(input, output, session) {
     if (identical(R()$metadata$methode, "reserve2")) return(NULL)
     n <- note_surface(R()$plots_data)
     if (is.null(n)) return(NULL)
-    if (n$alerte) div(class = "avert", HTML(n$html))
-    else div(style = "color:#1E8449", HTML(n$html))
+    # Aide du profil en delta (#405) : bloc distinct, style neutre, sans la
+    # couleur de la note de la surface ; absente si le profil n'est pas trace.
+    tagList(
+      if (n$alerte) div(class = "avert", HTML(n$html))
+      else div(style = "color:#1E8449", HTML(n$html)),
+      if (!is.null(n$aide))
+        div(style = "margin-top:6px;color:#7F8C8D;font-size:12.5px", HTML(n$aide)))
   })
 
   # --- Calibration ----------------------------------------------------------

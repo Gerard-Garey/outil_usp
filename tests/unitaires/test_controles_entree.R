@@ -2528,7 +2528,8 @@ lancer188 <- function(xx, yy, methode) suppressWarnings(
              B = B_MIN_USAGE, seed = 20260831))
 refus188 <- function(r, borne, methode)
   identical(r$ok, FALSE) && identical(names(r), c("ok", "validation", "metadata")) &&
-    is.null(r$validation$erreur_r) && identical(names(r$metadata), "horodatage") &&
+    is.null(r$validation$erreur_r) && identical(names(r$metadata), c("horodatage", "methode")) &&
+    identical(r$metadata$methode, methode) &&
     is.null(r$metadata$permutation_pente) &&
     identical(tail(r$validation$erreurs, 1), motif188(borne, methode))
 jeux188 <- list(
@@ -2538,7 +2539,7 @@ jeux188 <- list(
   "x153, y = 0,7 x153"       = list(x153, 0.7 * x153, "basse"),
   "rep(100, 8) / rep(70, 8)" = list(rep(100, 8), rep(70, 8), "basse"),
   "x exp(3 w)"               = list(xs188, xs188 * exp(3 * w188), "haute"))
-verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata sans permutation_pente, motif exact (#188)",
+verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata = horodatage et methode (#405), sans permutation_pente, motif exact (#188)",
          {
            pb <- character(0)
            for (nm in names(jeux188)) for (m in c("premium", "reserve1")) {

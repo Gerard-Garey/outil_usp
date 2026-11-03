@@ -939,6 +939,33 @@ verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau
              identical(engine_influence(fit, list(sigma_usp = rep(NA_real_, 8)), 1)$plus_influente,
                        rep(FALSE, 8))
          })
+# #405 (avis d'actuary, option b) : sigma_USP nul ou non fini, force par
+# substitution de usp_parametre() dans l'environnement du moteur (ADR 0016) ;
+# les reajustements du jackknife aboutissent (aucune annee non evaluable),
+# mais aucun ecart relatif n'est fini : usp_jack_annees() NULL, ligne
+# jackknife posee en diagnostic sans estimation, detail propre.
+jk_sigma_usp_force <- function(v) {
+  e <- environment(run_engine); orig <- get("usp_parametre", envir = e)
+  assign("usp_parametre", function(...) { p <- orig(...); p$sigma_usp <- v; p }, envir = e)
+  tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                      B = 99, nature_donnees = "brutes"),
+           finally = assign("usp_parametre", orig, envir = e))
+}
+verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diagnostic sans estimation, detail 'sigma_USP nul ou non fini' ; usp_jack_annees(c(1, 2, NA), 0) NULL",
+         {
+           ok <- TRUE
+           for (v in c(0, NA_real_)) {
+             r <- jk_sigma_usp_force(v)
+             tb <- engine_table_tests(r); i <- which(tb$test == NOM_JK)
+             ok <- ok && isTRUE(r$ok) && length(i) == 1L && is.null(r$ajustement$ecart_jackknife) &&
+               all(is.finite(r$jackknife$sigma_usp)) &&
+               identical(tb$type[i], "diagnostic") && is.na(tb$estimation[i]) &&
+               identical(tb$verdict[i], "INFO") &&
+               identical(tb$commentaire[i],
+                         "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree.")
+           }
+           ok && identical(usp_jack_annees(c(1, 2, NA), 0), NULL)
+         })
 verifier("#396 : premium et reserve1 (deux run_engine) : plus_influente = jack_annees releve ; engine_influence() appele directement sans jackknife : pas de colonne",
          {
            ok <- TRUE

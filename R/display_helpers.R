@@ -842,15 +842,15 @@ plot_residus <- function(pd) {
 # asymptotique son libelle puis la legende des marques (#162), et marge basse
 # de 15 % (#190). Une marque bootstrap peut tomber au bas de l'etendue (a
 # obj_min si le quantile du LR simule est nul) ; son annotation plotly sous la
-# marque (.lr_annotations_q90() : decalage de 8 px plus une ligne de police 10,
-# fond opaque au bord oppose) pouvait alors sortir du cadre. La marge est
+# marque (.lr_annotations_quantile() : decalage de 8 px plus une ligne de
+# police 10, fond opaque au bord oppose) pouvait alors sortir du cadre. La marge est
 # posee des que les reperes sont presents, sans dependre de la position des
 # marques ni du niveau : regle la plus simple, etendue continue en les
 # donnees. Sans reperes, etendue de la courbe seule, inchangee.
 .lr_hauteurs <- function(pd, v) {
   L <- pd$lr_delta
   if (is.null(L)) return(range(v, na.rm = TRUE))
-  r <- range(c(v, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
+  r <- range(c(v, L$repere_asymptotique, L$quantile_bootstrap), na.rm = TRUE)
   c(r[1] - 0.15 * diff(r), r[2] + 0.30 * diff(r))
 }
 # Cote du cadre ou loger legende et libelle du repere asymptotique : la
@@ -871,10 +871,10 @@ plot_residus <- function(pd) {
 .lr_reperes_base <- function(pd) {
   L <- pd$lr_delta
   if (is.null(L)) return(invisible())
-  s <- L$seuil_asymptotique
+  s <- L$repere_asymptotique
   graphics::abline(h = s, col = COUL$ref, lty = 3, lwd = 1.5)
   libs <- .lr_libelles(L$niveau)
-  q <- unname(L$q90_bootstrap)
+  q <- unname(L$quantile_bootstrap)
   ok <- is.finite(q)
   if (any(ok)) graphics::points(c(0, 1)[ok], q[ok], pch = 17, cex = 1.3, col = COUL$trait)
   u <- graphics::par("usr")
@@ -912,8 +912,8 @@ plot_residus <- function(pd) {
   }
   invisible()
 }
-# Annotations q90 des marques bootstrap du trace plotly (listes de layout,
-# sans plotly : la logique de placement se teste hors navigateur). Chaque
+# Annotations des quantiles des marques bootstrap du trace plotly (listes de
+# layout, sans plotly : la logique de placement se teste hors navigateur). Chaque
 # annotation est du cote de sa marque oppose a la ligne du repere
 # asymptotique : au-dessus si la marque est sur la ligne ou au-dessus, au-dessous
 # sinon ; la ligne horizontale du repere ne la traverse donc jamais (#162 pour
@@ -924,7 +924,7 @@ plot_residus <- function(pd) {
 # traversee (#195). q : quantiles en delta = 0 et 1 ; s : seuil du repere ;
 # libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite) ; lib : les deux
 # textes (.lr_libelles()$quantile_court, #190).
-.lr_annotations_q90 <- function(q, s, libre, lib) {
+.lr_annotations_quantile <- function(q, s, libre, lib) {
   s_ok <- length(s) == 1L && is.finite(s)
   ann <- list()
   for (k in which(is.finite(q))) {
@@ -943,31 +943,32 @@ plot_residus <- function(pd) {
 .lr_reperes_plotly <- function(p, pd, xlim) {
   L <- pd$lr_delta
   if (is.null(L)) return(p)
-  s <- L$seuil_asymptotique
+  s <- L$repere_asymptotique
   s_ok <- length(s) == 1L && is.finite(s)
   libs <- .lr_libelles(L$niveau)
   p <- plotly::add_lines(p, x = xlim, y = rep(s, 2),
         line = list(color = COUL$ref, dash = "dot", width = 1.5),
         text = libs$asympt, hovertemplate = "%{text}<extra></extra>")
-  q <- unname(L$q90_bootstrap)
+  q <- unname(L$quantile_bootstrap)
   ok <- is.finite(q)
   if (any(ok))
     p <- plotly::add_markers(p, x = c(0, 1)[ok], y = q[ok], text = libs$quantile[ok],
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  ann <- .lr_annotations_q90(q, s, libre, libs$quantile_court)
+  ann <- .lr_annotations_quantile(q, s, libre, libs$quantile_court)
   # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
   # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
-  # a son annotation q90. La largeur du texte n'etant connue que du navigateur,
-  # le libelle a un fond opaque et vient en dernier : dans un cadre trop etroit,
-  # il masque la ligne en delta estime ou une annotation q90 au lieu d'etre
-  # traverse ou recouvert. Le libelle long reste au survol de la ligne (#162).
+  # a son annotation de quantile. La largeur du texte n'etant connue que du
+  # navigateur, le libelle a un fond opaque et vient en dernier : dans un cadre
+  # trop etroit, il masque la ligne en delta estime ou une annotation de
+  # quantile au lieu d'etre traverse ou recouvert. Le libelle long reste au survol de la ligne (#162).
   # Le libelle tient sur une ligne (environ 270 px) si le cadre libre fait au
   # moins 95 % de [0 ; 1] (delta estime au bord ou presque), sur trois
   # (environ 110 px) sinon : dans le cadre le plus etroit, celui de
   # l'application (environ 320 px de large), il reste alors en deca de la ligne
-  # en delta estime et de l'annotation q90 de l'autre bord (environ 150 px).
+  # en delta estime et de l'annotation de quantile de l'autre bord (environ
+  # 150 px).
   if (s_ok) {
     gauche <- libre == 1L
     dessous <- is.finite(q[libre]) && q[libre] >= s
@@ -2154,22 +2155,62 @@ table_robustesse <- function(tb) {
              stringsAsFactors = FALSE, row.names = NULL)
 }
 
+# Aide du graphique « Profil de vraisemblance en delta » (plot_profil_delta(),
+# titre du trace plotly ; #405 ; avis d'actuary transmis a l'issue, decision
+# du mainteneur du 31/10/2026) : la ligne du repere asymptotique
+# (pd$lr_delta$repere_asymptotique) ne vaut qu'aux bornes delta = 0 et
+# delta = 1, ou la loi limite du rapport de vraisemblance est le melange
+# 1/2 chi2(0) + 1/2 chi2(1) (Chernoff 1954 ; Self et Liang 1987) ; pour delta
+# interieur, la loi limite serait chi2(1), de quantile plus eleve au meme
+# niveau : l'ensemble des delta sous la ligne n'est pas un intervalle de
+# confiance pour delta. La lecture fondee est le quantile du LR simule
+# (pd$lr_delta$quantile_bootstrap), marque aux deux bornes seulement. Texte
+# fixe, sans nombre calcule ; le niveau est celui que porte le moteur
+# (pd$lr_delta$niveau, .qq_niveau_txt(), omis s'il est absent). NULL sans
+# reperes (pd$lr_delta absent), et NULL si le profil n'est pas trace : meme
+# condition, sur la meme donnee, que plot_profil_delta() (pd$profil_delta
+# absent ou objectif entierement NA, #161), aucun calcul nouveau.
+.note_profil_delta <- function(pd) {
+  L <- pd$lr_delta
+  if (is.null(L)) return(NULL)
+  d <- pd$profil_delta
+  if (is.null(d) || all(is.na(d$objectif))) return(NULL)
+  n <- .qq_niveau_txt(L$niveau)
+  a <- if (nzchar(n)) paste0(" &agrave;", n) else ""
+  paste0(
+    "Profil de vraisemblance en delta : la ligne pointill&eacute;e (rep&egrave;re ",
+    "asymptotique &frac12;&chi;&sup2;(0) + &frac12;&chi;&sup2;(1)) ne vaut qu'aux ",
+    "bornes delta = 0 et delta = 1. Pour delta int&eacute;rieur, la loi limite du ",
+    "rapport de vraisemblance serait &chi;&sup2;(1), de quantile plus ",
+    "&eacute;lev&eacute; au m&ecirc;me niveau : l'ensemble des delta situ&eacute;s ",
+    "sous la ligne <b>n'est pas</b> un intervalle de confiance", a, " pour delta. ",
+    "Aucune de ces lois limites n'est &eacute;tablie pour un petit nombre d'ann&eacute;es ",
+    "(T = 8 en particulier) : la lecture fond&eacute;e est celle des marques, ",
+    "quantiles", a, " du rapport de vraisemblance simul&eacute; sous chacune des ",
+    "deux bornes ; elles n'ont pas d'&eacute;quivalent pour delta int&eacute;rieur.")
+}
+
 # Notes contextuelles des onglets graphiques (HTML). NULL si la quantite
-# n'existe pas pour la methode du resultat.
+# n'existe pas pour la methode du resultat. note_surface() porte aussi, dans
+# un champ distinct (aide), l'aide du graphique « Profil de vraisemblance en
+# delta » du meme onglet (.note_profil_delta(), #405 ; NULL si elle n'a pas
+# lieu) : affichee a part, en style neutre, elle n'herite pas de la couleur
+# de la note de la surface (alerte ou delta interieur).
 note_surface <- function(pd) {
   S <- pd$surface
   if (is.null(S)) return(NULL)
+  aide <- .note_profil_delta(pd)
   if (isTRUE(S$au_bord))
     list(alerte = TRUE, html = sprintf(paste(
       "delta est estim&eacute; <b>au bord</b> (%s). Amplitude de",
       "l'objectif le long de delta &agrave; gamma optimal : <b>%s</b>.",
       "Une amplitude faible confirme un plateau, donc une structure de",
       "variance non identifi&eacute;e."), .num_fr(S$delta_opt, "%.4f"),
-      .num_fr(S$amplitude_delta, "%.4f")))
+      .num_fr(S$amplitude_delta, "%.4f")), aide = aide)
   else
     list(alerte = FALSE, html = sprintf(
       "delta = %s est int&eacute;rieur au domaine ; amplitude le long de delta : %s.",
-      .num_fr(S$delta_opt, "%.4f"), .num_fr(S$amplitude_delta, "%.4f")))
+      .num_fr(S$delta_opt, "%.4f"), .num_fr(S$amplitude_delta, "%.4f")), aide = aide)
 }
 
 # alpha : seuil des verdicts du calcul (res$metadata$alpha), et non 0,10 en
@@ -2442,7 +2483,8 @@ encoder_base64 <- function(octets) {
     list(titre = "H3 - normalit\u00e9", note = NULL,
          g = list(g(function() plot_qqnorm(pd), 420, TRUE))),
     list(titre = "Surface objectif",
-         note = if (!is.null(ns)) list(html = ns$html, classe = if (ns$alerte) "avert" else "ok"),
+         note = if (!is.null(ns)) list(html = ns$html, classe = if (ns$alerte) "avert" else "ok",
+                                       aide = ns$aide),
          g = list(g(function() plot_surface_objectif(pd), 520, TRUE),
                   g(function() plot_coupe_delta(pd), 250), g(function() plot_profil_delta(pd), 250))),
     list(titre = "Influence et leviers", note = note_influence(pd),
@@ -2893,7 +2935,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     for (o in .graphiques_rapport(res)) {
       ajout(sprintf("<h3>%s</h3>", o$titre))
       if (!is.null(o$note)) {
-        if (is.list(o$note)) ajout(sprintf("<div class='%s'>%s</div>", o$note$classe, o$note$html))
+        if (is.list(o$note)) {
+          ajout(sprintf("<div class='%s'>%s</div>", o$note$classe, o$note$html))
+          # Aide d'un graphique de l'onglet (profil en delta, #405) : bloc
+          # distinct, classe neutre, sans la couleur de la note qui precede.
+          if (!is.null(o$note$aide)) ajout(sprintf("<div class='gris'>%s</div>", o$note$aide))
+        }
         else ajout(sprintf("<div class='gris'>%s</div>", o$note))
       }
       ajout("<div class='grille'>")
