@@ -3488,12 +3488,14 @@ remplacerait aussi, à tort, le point des nombres qui ne sont pas des décimaux~
 d'article («~218.1~»), références et identifiants. Le présent document cite textuellement ces
 chaînes en \code{}, dans leur graphie~; une désignation en romain entre guillemets (nom d'une
 ligne, d'une nature de p-value) en donne le sens en français et n'en est pas la forme textuelle.
-Le point décimal souffre quatre exceptions, écrites en dur dans le moteur~: le motif
-d'enveloppe du QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec
-une virgule (fiche~\ref{fiche:qqnorm})~; le commentaire de la ligne de la variance unitaire des
-résidus de Mack («~\code{2,5e-03}~», fiche~\ref{mw:m2var})~; l'avertissement de validation
-d'une réserve faible devant son incertitude («~\code{0,22}~»)~; le message d'erreur
-d'\code{usp\_delta\_bord()} («~\code{0,5}~»).
+Le point décimal vaut sans exception depuis l'issue~\#413~: les quatre chaînes écrites en dur
+qui portaient jusque-là une virgule décimale écrivent le point --- le motif d'enveloppe du
+QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec un séparateur
+fixé, indépendant de l'option de R qui fixe le séparateur décimal (fiche~\ref{fiche:qqnorm})~; le
+commentaire de la ligne de la variance unitaire des résidus de Mack («~\code{2.5e-03}~»,
+fiche~\ref{mw:m2var})~; l'avertissement de validation d'une réserve faible devant son
+incertitude («~\code{0.22}~»)~; le message d'erreur d'\code{usp\_delta\_bord()}
+(«~\code{0.5}~»).
 
 \clearpage
 % =============================================================================
