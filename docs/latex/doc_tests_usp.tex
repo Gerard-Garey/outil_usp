@@ -1671,7 +1671,13 @@ nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabi
 \code{.run\_engine\_mw()} pour l'intervalle de percentile, et dans \code{usp\_ic\_basic\_log()} pour l'intervalle «~basic~» sur l'échelle logarithmique (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
-\code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
+\code{sigma\_usp}, \code{jack\_annees} (désignation reçue de \code{run\_engine()} par
+\code{engine\_plots\_data()} depuis l'issue~\#405, calculée par \code{usp\_jack\_annees()} en
+appel direct sans cet argument)~; $T$ & surface de l'objectif en $(\delta,\gamma)$, dont,
+depuis l'issue~\#404, en fin de liste, \code{objectif\_coupe}, coupe exacte de l'objectif à
+$\hat\gamma$ sur la grille des $\delta$, évaluée en $\gamma = \hat\gamma$ et non lue dans la
+colonne de la grille la plus proche, tracée telle quelle par \code{plot\_coupe\_delta()}
+(\code{amplitude\_delta} en est l'étendue, inchangée au bit près)~; leviers,
 distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), leurs
 repères de lecture \code{repere\_levier} $=$ \code{REPERE\_LEVIER} $\cdot\,k/T$ ($k$ nombre de
 coefficients du modèle ajusté, $k = 1$) et \code{repere\_cook} $=$ \code{REPERE\_COOK\_LN}$/T$
@@ -1680,7 +1686,11 @@ booléens de coloration \code{fort\_levier} et \code{influent}, écarts du
 jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
 évaluable, issue~\#224)~; depuis l'issue~\#396, en fin de table, colonne logique
 \code{plus\_influente}, \code{TRUE} pour les années désignées par \code{usp\_jack\_annees()},
-\code{FALSE} partout si aucun réajustement n'a abouti~;
+\code{FALSE} partout si aucun réajustement n'a abouti~; depuis l'issue~\#404, après elle,
+colonne logique \code{non\_evaluable}, \code{TRUE} pour une année dont
+$\sigma_{\mathrm{USP}}^{(-t)}$ n'est pas fini (réajustement refusé ou en échec, même critère que
+les années non évaluables du commentaire de la ligne jackknife, issue~\#224), lue par la note et
+le graphique d'influence sans test de finitude dans l'affichage~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -1688,7 +1698,9 @@ et strictement positif (division exacte~; distances de Cook et leviers identique
 calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep},\newline
-\code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard} &
+\code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard},
+\code{alpha} (dernier argument, défaut $0{,}10$, passé par \code{.run\_engine\_mw()}~;
+issue~\#404) &
 toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
 logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
@@ -1704,7 +1716,22 @@ fin de liste~; depuis l'issue~\#305, en fin de liste, \code{sigma\_usp\_boot} et
 cellule de plus grand $|\mathrm{DFBETAS}|$ défini (la première dans l'ordre de
 \code{mw\_influence()} en cas d'égalité exacte, sans tolérance), \code{FALSE} partout si aucun
 DFBETAS n'est défini (fiche~\ref{mw:influence})~; la même issue retire la feuille
-\code{methode}, qui doublait \code{metadata\$methode} \\
+\code{methode}, qui doublait \code{metadata\$methode}~; depuis l'issue~\#404, la table
+\code{origine} (une ligne par colonne testée de l'ordonnée à l'origine) porte en fin de table six
+colonnes posées par \code{.mw\_origine\_intervalles()}~: \code{niveau}, \code{quantile\_t},
+\code{bas}, \code{haut}, \code{exclut\_zero} et \code{plus\_petite\_p} (sec.~\ref{sec:graph-mw}) \\
+\code{.mw\_origine\_}\newline\code{intervalles()} & table \code{detail} de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (une ligne par colonne retenue~: $j$,
+$n_j$, $\hat a_j$, $\widehat{\mathrm{se}}(\hat a_j)$, $t_j$, p de Student de \code{summary.lm()},
+$\hat b_j$, $\hat f_j$), \code{alpha} & même table, complétée en fin de table, dans cet ordre,
+de \code{niveau} $= 1 - \alpha$, niveau nominal~; \code{quantile\_t} $= t_{1-\alpha/2,\,n_j-2}$
+(\code{qt()}), au nombre de degrés de liberté de la p de Student de la colonne~; \code{bas} et
+\code{haut} $= \hat a_j \mp$ \code{quantile\_t}$\,\widehat{\mathrm{se}}(\hat a_j)$, intervalle de
+Student de $a_j$, dual du test de Student de la colonne~; \code{exclut\_zero}, vrai si
+\code{bas} $> 0$ ou \code{haut} $< 0$, \code{NA} si \code{bas}, \code{haut} ou la p ne sont pas
+finis~; \code{plus\_petite\_p}, vrai sur la colonne de plus petite p (la première en cas
+d'égalité exacte, \code{FALSE} partout si aucune p n'est finie)~; table vide rendue telle quelle.
+Aucune correction de multiplicité, aucun verdict (issue~\#404, sec.~\ref{sec:graph-mw}) \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -13860,13 +13887,17 @@ d'influence de l'application affiche alors un panneau vide au message fixe «~\c
 evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
 l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
 \code{NA}, la note nomme les années non évaluables, qui n'entrent pas dans la désignation.
-L'affichage lit ces années dans la table d'influence, sans calcul. Depuis l'issue~\#396, la note
+L'affichage lit ces années dans la table d'influence, sans calcul~: depuis l'issue~\#404, dans
+sa colonne \code{non\_evaluable}, posée par \code{engine\_influence()} sur le critère des années
+non évaluables du commentaire ($\sigma_{\mathrm{USP}}^{(-t)}$ non fini), et non plus par un test de
+finitude de l'affichage. Depuis l'issue~\#396, la note
 ne calcule plus de maximum~: elle lit la colonne \code{plus\_influente} de
 \code{res\$plots\_data\$influence}, posée par \code{engine\_influence()} d'après
 \code{usp\_jack\_annees()}, soit la désignation même du commentaire de la ligne~; jusqu'à cette
 issue, elle refaisait le maximum de l'écart en valeur absolue, sans la tolérance $\tau$. Une
-seule année désignée~: «~Le retrait de l'année la plus influente déplace sigma\_USP de
-$-9{,}4$~\%.~» (cas de référence \code{premium}), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
+seule année désignée~: «~Le retrait de l'année la plus influente, 8, déplace sigma\_USP de
+$-9{,}4$~\%.~» (cas de référence \code{premium}~; la phrase nomme l'année depuis
+l'issue~\#404, comme la phrase plurielle et le commentaire de la ligne), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
 après la virgule, «~\dots{} de moins de 0,05~\% en valeur absolue.~», sans signe. Plusieurs
 années désignées~: toutes sont citées, comme dans le commentaire, avec une seule amplitude,
 celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts relatifs en
@@ -14444,7 +14475,9 @@ la concentration sur les années récentes. \\
 \code{plot\_mw\_regressions()} & MW & M1 & Fiche dédiée. Petits multiples
 $C(i,j+1)$ contre $C(i,j)$, une vignette par année de développement. \\
 \code{plot\_mw\_origine()} & MW & M1 & Fiche dédiée. Ordonnée à l'origine
-estimée par colonne, avec son intervalle à 95~\%. \\
+estimée par colonne, avec son intervalle de Student de niveau nominal $1 - \alpha$, lu dans
+\code{plots\_data\$origine} (issue~\#404~; «~à 95~\%~», avec un quantile normal écrit en dur
+dans l'affichage, jusqu'à cette issue). \\
 \code{plot\_mw\_alpha()} & MW & M1 & Fiche dédiée. Facteur estimé selon
 $\alpha = 0$, 1 et 2. \\
 \code{plot\_mw\_residus\_C()} & MW & M1, M2 & Résidus de Mack contre $C(i,j)$~:
@@ -14528,7 +14561,9 @@ l'affichage remplace le graphique par un message qui renvoie au motif des lignes
 \code{plot\_surface\_objectif()} & LN & --- & Surface $-2\ln L$ sur la grille
 $(\delta,\gamma)$~: montre si l'optimum au bord est un vrai minimum. \\
 \code{plot\_coupe\_delta()} & LN & --- & Coupe de la surface à $\hat\gamma$~:
-lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; sans les repères
+lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; depuis
+l'issue~\#404, coupe exacte à $\hat\gamma$ lue dans \code{plots\_data\$surface\$objectif\_coupe},
+au lieu de la colonne de la grille la plus proche de $\hat\gamma$ choisie par l'affichage~; sans les repères
 du rapport de vraisemblance, qui ne portent que sur le profil (décision d'\code{actuary} après
 audit de l'issue~\#45). \\
 \code{plot\_boot\_sigma()} & LN + MW & --- & Distribution bootstrap de
@@ -15066,10 +15101,12 @@ compare les estimateurs pondérés par $C(i,j)^2$, par $C(i,j)$ et non pondéré
 \Cadre
 Trois représentations, rattachées à l'hypothèse M1. La première est un ensemble
 de petits multiples~: pour chaque année de développement $j$, le nuage des
-couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ --- celle
-qu'impose le règlement, passant par l'origine --- et la droite ajustée avec
-constante. La deuxième porte les ordonnées à l'origine estimées $\hat a_j$ avec
-leur intervalle à 95~\%. La troisième compare les estimateurs
+couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ et la droite ajustée avec
+constante. La droite passant par l'origine, sans constante, traduit la lettre de
+l'annexe~XVII, D(2)(h)(iii)~; qu'elle ait le même facteur $f_j$ pour toutes les années de
+survenance, estimé par $\hat f_j$ de D(4)(c), est la lecture de l'outil, non la lettre du texte
+(encadré de la section~\ref{sec:mwm1}). La deuxième porte les ordonnées à l'origine estimées
+$\hat a_j$ avec leur intervalle de Student de niveau nominal $1 - \alpha$ (rubrique~6). La troisième compare les estimateurs
 $\hat f_j^{(\alpha)}$ pour $\alpha = 0$, 1 et 2.
 \Hzero
 Sans objet. Les tests numériques correspondants sont les fiches~\ref{mw:m1a}
@@ -15090,12 +15127,32 @@ que les dernières colonnes ne reposent que sur deux ou trois points.
 
 \medskip
 Le graphique des ordonnées à l'origine résume les mêmes informations sous forme
-compacte, les colonnes significatives étant mises en évidence~: celles dont la p-value de
-Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$metadata\$alpha}),
-lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
-compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
-colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
-colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Ce graphique représente les
+compacte. Depuis l'issue~\#404, il ne calcule rien~: \code{plot\_mw\_origine(pd)} et la note
+\code{note\_m1(pd)}, sans argument \code{alpha}, lisent dans \code{plots\_data\$origine}, posée
+par \code{.mw\_origine\_intervalles()}, les bornes \code{bas} et \code{haut} de l'intervalle de
+Student de $a_j$, son niveau \code{niveau} $= 1 - \alpha$ (seuil du calcul,
+\code{res\$metadata\$alpha}) et la colonne de plus petite p (\code{plus\_petite\_p})~; la
+couleur de repère des colonnes dont l'intervalle exclut~$0$ est lue dans \code{exclut\_zero},
+dual de $p_j < \alpha$ pour la p de Student de la colonne. Avant cette issue, l'affichage
+calculait un intervalle «~à 95~\%~» avec le quantile normal $1{,}96$ écrit en dur, comparait les
+p au seuil (non plus fixé à $0{,}10$ depuis l'issue~\#4, piste~3) et la note comptait les
+colonnes dites significatives~; elle n'en compte plus et n'en qualifie plus aucune de
+significative. Mesuré sur le triangle de contrôle (\code{reserve2}, $\alpha = 0{,}10$)~: niveau
+$0{,}9$, \code{quantile\_t} $= t_{0{,}95,\,n_j-2}$ de $2{,}015$ ($n_j = 7$) à $6{,}314$
+($n_j = 3$)~; seule la colonne $j = 1$ ($p = 0{,}030$) a un intervalle qui exclut~$0$, et elle
+porte la plus petite p. \emph{Statut de l'intervalle} (avis d'\code{actuary})~: le pivot
+$(\hat a_j - a_j)/\widehat{\mathrm{se}}(\hat a_j)$ suit la loi $t(n_j - 2)$ \textbf{exactement},
+à $n_j$ fini, sous le seul modèle auxiliaire gaussien de la colonne (erreurs gaussiennes
+indépendantes, de variance proportionnelle à $C(i,j)$, conditionnellement aux $C(\cdot,j)$),
+\textbf{non sous l'annexe~XVII}, qui ne spécifie pas de loi~: le niveau $1 - \alpha$ est
+\emph{nominal}, et la couverture n'est pas établie à $T = 8$ sous le modèle réglementaire
+(l'intervalle est le dual d'une p non simulée de la famille~(iii) de la
+section~\ref{sec:nature}). La couverture est
+\emph{marginale}, colonne par colonne, et non simultanée sur les colonnes. Cette coloration
+colonne par colonne est une aide de lecture, sans verdict~: elle ne tient pas compte de la
+multiplicité des colonnes, et le verdict est celui de la ligne «~\code{Nullite de l'ordonnee a
+l'origine, colonne par colonne}~» (fiche~\ref{mw:m1a}), qui combine les p des colonnes par la
+méthode de Fisher. Ce graphique représente les
 colonnes testées par l'appel observé de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
 (élément \code{detail})~: une colonne exclue comme dégénérée ou non identifiable de l'ordonnée à
 l'origine (moins de deux valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis
@@ -15259,7 +15316,8 @@ triangle de contrôle ($1{,}527$ contre $1{,}498$ pour les deux plus grands). Su
 contrôle~: «~La cellule la plus influente est (i = 1, j = 4) (DFBETAS = +1,53), dont le retrait
 déplacerait f\_4 de -0,30~\%.~» Une cellule \code{dfbetas\_non\_borne}, sans DFBETAS restitué,
 n'entre pas dans la désignation~: la phrase commence alors par «~Parmi les cellules à DFBETAS
-borné, la plus influente est~».
+borné, la plus influente est~», et, depuis l'issue~\#404, elle suit la phrase qui nomme la ou les
+cellules à DFBETAS non borné, à laquelle elle renvoie (elle la précédait auparavant).
 
 \medskip
 \textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
