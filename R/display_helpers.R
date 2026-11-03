@@ -1052,11 +1052,14 @@ plot_surface_objectif <- function(pd) {
 }
 
 # --- Coupe de la surface a gamma optimal (lecture 2D de la platitude) --------
+# Coupe exacte a gamma optimal lue dans S$objectif_coupe, posee par le moteur
+# (engine_surface_objectif(), #404) : aucune colonne de la grille choisie
+# ici. Resultat anterieur a #404 (sans objectif_coupe) : graphique vide.
 plot_coupe_delta <- function(pd) {
   if (is.null(pd$surface)) return(.vide())
   S <- pd$surface
-  j <- which.min(abs(S$gamma - S$gamma_opt))
-  v <- S$objectif[, j]
+  v <- S$objectif_coupe
+  if (is.null(v)) return(.vide("Coupe a gamma optimal indisponible (resultat anterieur a #404)"))
   if (!.plotly_dispo()) {
     .cadre(); plot(S$delta, v, type = "l", lwd = 2, col = COUL$pt,
                    xlab = "delta", ylab = "objectif", main = "Coupe a gamma optimal")
@@ -1661,14 +1664,12 @@ plot_influence_cook <- function(pd) {
 # sigma_USP se deplace si l'annee t est retiree (jackknife).
 # Couleur de repere : booleen fort_ecart_sigma, calcule par le moteur
 # (engine_influence(), repere REPERE_INFLUENCE_SIGMA ; issue #33).
-# Annees non evaluables du jackknife, lues dans la table d'influence : sigma_USP
-# sans l'annee non fini (copie de jackknife$sigma_usp, meme critere que
-# jack_non_evaluables du moteur, #224), a defaut ecart_sigma non fini. Selection
-# seulement, aucun calcul.
-.jack_non_evaluables <- function(d) {
-  v <- if (is.null(d$sigma_usp_sans_t)) d$ecart_sigma else d$sigma_usp_sans_t
-  d$t[!is.finite(v)]
-}
+# Annees non evaluables du jackknife, lues dans la colonne non_evaluable de la
+# table d'influence, posee par le moteur (engine_influence(), meme critere que
+# jack_non_evaluables de run_engine(), #224 ; #404). Lecture seulement, aucun
+# test de finitude ici ; resultat anterieur a #404 (colonne absente) : aucune
+# annee reperee.
+.jack_non_evaluables <- function(d) d$t[d$non_evaluable %in% TRUE]
 plot_influence_sigma <- function(pd) {
   if (!.influence_ln(pd)) return(.vide())
   d <- pd$influence
@@ -1822,8 +1823,10 @@ plot_mw_contributions <- function(pd) {
 
 # --- Régressions par année de développement (M1) ------------------------------
 # Petits multiples : pour chaque colonne j, le nuage C(i,j+1) contre C(i,j), la
-# droite de proportionnalite y = f_j x (celle du reglement, sans constante) et
-# la droite ajustee avec constante. L'ecart entre les deux droites est la
+# droite de proportionnalite y = f_j x (sans constante, comme le veut la lettre
+# de l'annexe XVII, D(2)(h)(iii) ; f_j commun aux annees de survenance :
+# lecture de l'outil, appuyee sur D(4)(c), non la lettre ; #409) et la droite
+# ajustee avec constante. L'ecart entre les deux droites est la
 # traduction visuelle du test de nullite de l'ordonnee a l'origine.
 # Fenetre d'affichage d'un panneau de regression. Le trace centre sur le nuage
 # de points plutot que sur l'origine : forcer l'axe a partir de zero comprime
@@ -1887,33 +1890,47 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
-# alpha : seuil des verdicts du calcul (res$metadata$alpha), qui colore les
-# colonnes a ordonnee significative (issue #4, piste 3 : plus de 0,10 en dur).
-plot_mw_origine <- function(pd, alpha) {
+# Intervalle de Student de niveau 1 - alpha (alpha : seuil des verdicts du
+# calcul) : bornes bas et haut, niveau et indicateur exclut_zero lus dans
+# pd$origine, poses par le moteur (.mw_origine_intervalles(), #404 ; issue
+# #4, piste 3). Aucun quantile ni aucune comparaison a alpha ici. Couleur de
+# repere sur les colonnes dont l'intervalle exclut 0 : lecture par colonne,
+# non corrigee pour la multiplicite, sans verdict (verdict : ligne M1 du
+# moteur). Resultat anterieur a #404 (sans bornes) : graphique vide.
+plot_mw_origine <- function(pd) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(.vide("Ordonnees a l'origine indisponibles"))
-  bas <- d$a - 1.96 * d$se_a; haut <- d$a + 1.96 * d$se_a
-  sig <- d$p < alpha
+  if (is.null(d$bas) || is.null(d$haut) || is.null(d$exclut_zero))
+    return(.vide("Intervalles de l'ordonnee a l'origine indisponibles (resultat anterieur a #404)"))
+  coul <- ifelse(d$exclut_zero %in% TRUE, COUL$trait, COUL$pt)
+  niv <- .qq_niveau_txt(d$niveau[1L])
+  titre <- paste0("Ordonnee a l'origine par colonne, intervalle de Student",
+                  if (nzchar(niv)) paste0(", niveau nominal", niv) else "", " (M1)")
   if (!.plotly_dispo()) {
     .cadre()
-    plot(d$j, d$a, pch = 19, col = ifelse(sig, COUL$trait, COUL$pt),
-         ylim = range(c(bas, haut, 0)), xlab = "annee de developpement j",
-         ylab = "ordonnee a l'origine a_j", main = "Ordonnee a l'origine par colonne (M1)")
-    graphics::arrows(d$j, bas, d$j, haut, angle = 90, code = 3, length = 0.04,
-                     col = ifelse(sig, COUL$trait, COUL$pt))
+    plot(d$j, d$a, pch = 19, col = coul,
+         ylim = range(c(d$bas, d$haut, 0), finite = TRUE), xlab = "annee de developpement j",
+         ylab = "ordonnee a l'origine a_j", main = titre)
+    graphics::arrows(d$j, d$bas, d$j, d$haut, angle = 90, code = 3, length = 0.04,
+                     col = coul)
     graphics::abline(h = 0, col = COUL$ref, lty = 2)
     return(invisible())
   }
   p <- plotly::plot_ly()
   p <- plotly::add_lines(p, x = range(d$j), y = c(0, 0),
         line = list(color = COUL$ref, dash = "dash"), hoverinfo = "skip")
+  # Barres de l'intervalle : une trace de segments par couleur, celle de
+  # exclut_zero, comme les marqueurs et la branche base R.
+  for (cl in unique(coul)) {
+    k <- coul == cl
+    p <- plotly::add_segments(p, x = d$j[k], xend = d$j[k], y = d$bas[k], yend = d$haut[k],
+          line = list(color = cl), hoverinfo = "skip")
+  }
   p <- plotly::add_trace(p, x = d$j, y = d$a, type = "scatter", mode = "markers",
-        error_y = list(type = "data", array = 1.96 * d$se_a, color = COUL$pt),
-        marker = list(size = 10, color = ifelse(sig, COUL$trait, COUL$pt)),
+        marker = list(size = 10, color = coul),
         text = paste0("p = ", fmt_p(d$p)),
         hovertemplate = "j = %{x}<br>a = %{y:,.0f}<br>%{text}<extra></extra>")
-  .mep(p, "Ordonnee a l'origine par colonne, intervalle a 95 % (M1)",
-       "annee de developpement j", "ordonnee a l'origine a_j")
+  .mep(p, titre, "annee de developpement j", "ordonnee a l'origine a_j")
 }
 
 # --- Famille alpha : sensibilite du facteur a la ponderation -----------------
@@ -2213,22 +2230,51 @@ note_surface <- function(pd) {
       .num_fr(S$delta_opt, "%.4f"), .num_fr(S$amplitude_delta, "%.4f")), aide = aide)
 }
 
-# alpha : seuil des verdicts du calcul (res$metadata$alpha), et non 0,10 en
-# dur (issue #4, piste 3).
-note_m1 <- function(pd, alpha) {
+# Note du volet M1 (#404 ; specification d'actuary-approfondi, decision
+# Q-46-19 du mainteneur du 02/11/2026). Lecture seule de pd$origine, posee
+# par le moteur (.mw_origine_intervalles()) : colonne de plus petite p
+# designee par plus_petite_p, niveau des intervalles lu dans niveau ; aucun
+# decompte, aucun minimum ni aucune comparaison a alpha ici. Aucune colonne
+# n'est qualifiee de significative : les lectures par colonne ne sont pas
+# corrigees pour la multiplicite, et le verdict est celui de la ligne M1 du
+# moteur. Lettre et lecture de l'outil distinguees selon regulatory (#409) :
+# la droite sans constante est la lettre de D(2)(h)(iii), le facteur f_j
+# commun aux annees de survenance la lecture de l'outil (D(4)(c)). Resultat
+# anterieur a #404 (colonnes absentes) : phrases du niveau et de la plus
+# petite p omises.
+note_m1 <- function(pd) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(NULL)
-  k <- sum(d$p < alpha, na.rm = TRUE)
-  w <- d[which.min(d$p), ]
-  sprintf(paste(
-    "Le r&egrave;glement impose E[C(i,j+1) | C(i,j)] = f_j C(i,j),",
-    "soit une droite <b>passant par l'origine</b> (trait plein). Le pointill&eacute;",
-    "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
-    "entre les deux signale une composante fixe non pr&eacute;vue par le mod&egrave;le.",
-    "<br><b>%d colonne(s) sur %d</b> pr&eacute;sentent une ordonn&eacute;e &agrave;",
-    "l'origine significative au seuil alpha = %s, la plus marqu&eacute;e &eacute;tant",
-    "<b>j = %d</b> (p = %s)."), k, nrow(d), .num_fr_defaut(alpha), w$j,
-    fmt_p(w$p))
+  w <- d[d$plus_petite_p %in% TRUE, , drop = FALSE]
+  niv <- .qq_niveau_txt(d$niveau[1L])
+  paste(c(
+    paste("L'annexe XVII, D(2)(h)(iii), pose une esp&eacute;rance du cumul&eacute;",
+          "<b>proportionnelle</b> au cumul&eacute; de l'ann&eacute;e de d&eacute;veloppement",
+          "pr&eacute;c&eacute;dente, soit une droite <b>passant par l'origine</b>, sans constante.",
+          "L'outil lit cette hypoth&egrave;se avec un facteur f_j commun aux ann&eacute;es de",
+          "survenance (interpr&eacute;tation de l'outil, et non lettre du texte ; elle",
+          "s'appuie sur l'estimateur unique f_j de D(4)(c)) :",
+          "E[C(i,j+1) | C(i,j)] = f_j C(i,j). Le trait plein est la droite y = f_j x, au",
+          "facteur f_j estim&eacute; selon D(4)(c) ; le pointill&eacute;",
+          "est la droite ajust&eacute;e avec constante : un &eacute;cart marqu&eacute;",
+          "entre les deux peut signaler une composante fixe non pr&eacute;vue par le",
+          "mod&egrave;le ; sur une colonne courte, un &eacute;cart visible reste compatible",
+          "avec la seule variabilit&eacute; d'&eacute;chantillonnage, que mesure l'intervalle",
+          "de l'ordonn&eacute;e &agrave; l'origine."),
+    if (nzchar(niv))
+      sprintf(paste("<br>Le graphique de l'ordonn&eacute;e &agrave; l'origine porte, pour",
+                    "chaque colonne, l'intervalle de Student de a_j, de niveau nominal%s",
+                    "(exact sous erreurs gaussiennes seulement)."), niv),
+    if (!is.null(d$exclut_zero))
+      paste("Les colonnes dont l'intervalle exclut 0 sont marqu&eacute;es en rouge :",
+            "simple rep&egrave;re de lecture, par colonne, sans verdict."),
+    if (nrow(w) == 1L)
+      sprintf("Plus petite p-value par colonne : <b>j = %d</b> (p = %s).", w$j, fmt_p(w$p)),
+    paste("Ces lectures colonne par colonne ne sont pas corrig&eacute;es pour la",
+          "multiplicit&eacute; et ne portent pas de verdict : le verdict est celui de la",
+          "ligne &laquo; Nullite de l'ordonnee a l'origine, colonne par colonne &raquo;",
+          "de la famille M1 des tests (combinaison de Fisher des colonnes).")),
+    collapse = " ")
 }
 
 note_influence_mw <- function(pd) {
@@ -2259,7 +2305,9 @@ note_influence_mw <- function(pd) {
   mx <- d[d$plus_influente %in% TRUE, , drop = FALSE]
   # Cellule a DFBETAS non borne (nb non vide, colonne du moteur) : elle n'a
   # pas de DFBETAS restitue et n'entre pas dans la designation ; la phrase le
-  # dit (lecture de nb, aucun calcul).
+  # dit (lecture de nb, aucun calcul). Ordre des phrases (#404) : la phrase
+  # du DFBETAS non borne (txt_nb) precede celle de la cellule la plus
+  # influente, qui renvoie aux cellules a DFBETAS borne.
   txt_mx <- if (nrow(mx) == 1L) sprintf(paste(
     if (length(nb)) "Parmi les cellules &agrave; DFBETAS born&eacute;, la plus influente est"
     else "La cellule la plus influente est",
@@ -2277,8 +2325,7 @@ note_influence_mw <- function(pd) {
     "chiffr&eacute;s dans la documentation des tests, fiche &laquo; Influence et leviers du",
     "triangle (Merz-W&uuml;thrich) &raquo;).",
     "Plusieurs cellules color&eacute;es sont donc attendues sans anomalie, surtout dans",
-    "les colonnes courtes."), nd, lib), txt_mx), collapse = " "),
-    txt_nb), collapse = " ")
+    "les colonnes courtes."), nd, lib), txt_nb, txt_mx), collapse = " ")), collapse = " ")
 }
 
 note_influence <- function(pd) {
@@ -2311,12 +2358,14 @@ note_influence <- function(pd) {
     # Amplitude affichee arrondie a 0,0 (#396) : aucun signe imprime, le sens
     # de la variation n'etant pas discernable a la precision affichee
     # (comparaison de chaines formatees, aucun calcul).
+    # Annee designee nommee (#404), comme dans la phrase plurielle et le
+    # detail de la ligne jackknife.
     if (length(ip) == 1L && .num_fr(abs(100 * e[ip]), "%.1f") == "0,0")
-      paste("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de",
-            "<b>moins de 0,05 %</b> en valeur absolue.")
+      sprintf(paste("Le retrait de l'ann&eacute;e la plus influente, %d, d&eacute;place sigma_USP de",
+                    "<b>moins de 0,05 %%</b> en valeur absolue."), d$t[ip])
     else if (length(ip) == 1L)
-      sprintf("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de <b>%s %%</b>.",
-              .num_fr(100 * e[ip], "%+.1f"))
+      sprintf("Le retrait de l'ann&eacute;e la plus influente, %d, d&eacute;place sigma_USP de <b>%s %%</b>.",
+              d$t[ip], .num_fr(100 * e[ip], "%+.1f"))
     # Plusieurs annees d'influence egale a la precision numerique pres :
     # toutes citees, comme dans le detail de la ligne jackknife (#327). Leurs
     # ecarts ne different qu'a tau pres : une seule amplitude est affichee,
@@ -2460,9 +2509,9 @@ encoder_base64 <- function(octets) {
   if (identical(res$metadata$methode, "reserve2")) return(list(
     list(titre = "Ajustement", note = NULL,
          g = list(g(function() plot_mw_facteurs(pd)), g(function() plot_mw_reserve(pd)))),
-    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd, res$metadata$alpha),
+    list(titre = "M1 - r\u00e9gressions", note = note_m1(pd),
          g = list(g(function() plot_mw_regressions(pd), 560, TRUE),
-                  g(function() plot_mw_origine(pd, res$metadata$alpha)),
+                  g(function() plot_mw_origine(pd)),
                   g(function() plot_mw_alpha(pd)))),
     list(titre = "M2 - variance", note = NULL,
          g = list(g(function() plot_mw_residus_C(pd)), g(function() plot_mw_residus_dev(pd)))),

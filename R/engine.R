@@ -7916,16 +7916,21 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
   gg <- seq(fit$gamma - marge_gamma, fit$gamma + marge_gamma, length.out = n_gamma)
   M <- outer(gd, gg, Vectorize(function(d, g)
     usp_objectif(c(d, g), fit$x, fit$y, fit$xbar)))
+  # Coupe exacte de l'objectif a gamma optimal, sur la grille gd des delta
+  # (#404) : evaluee en gamma = fit$gamma lui-meme, et non lue dans la
+  # colonne de M la plus proche de gamma optimal ; plot_coupe_delta() la
+  # trace telle quelle, sans selection de colonne dans l'affichage.
+  coupe <- vapply(gd, function(d) usp_objectif(c(d, fit$gamma), fit$x, fit$y,
+                                               fit$xbar), numeric(1))
   list(delta = gd, gamma = gg, objectif = M,
        delta_opt = fit$delta, gamma_opt = fit$gamma, objectif_opt = fit$obj_min,
        au_bord = isTRUE(fit$delta_au_bord),
        # Amplitude relative de l'objectif le long de delta, a gamma optimal :
        # mesure quantitative de la platitude (identifiabilite de delta).
-       amplitude_delta = {
-         v <- vapply(gd, function(d) usp_objectif(c(d, fit$gamma), fit$x, fit$y,
-                                                  fit$xbar), numeric(1))
-         diff(range(v))
-       })
+       amplitude_delta = diff(range(coupe)),
+       # Coupe a gamma optimal (#404), en fin de liste : aucune feuille
+       # existante n'est deplacee.
+       objectif_coupe = coupe)
 }
 
 # Annees les plus influentes du jackknife (#327), designation unique du
@@ -8028,6 +8033,13 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL,
     # NULL). Colonne en fin de table ; note_influence() la lit sans
     # recalculer de maximum.
     d$plus_influente <- d$t %in% jack_annees
+    # Annees non evaluables du jackknife (#404) : sigma_USP sans l'annee non
+    # fini (reajustement refuse par usp_valider_ajustement() ou en echec),
+    # meme critere que robustesse$jack_non_evaluables de run_engine() (#224).
+    # Colonne en fin de table, apres plus_influente ; note_influence() et
+    # plot_influence_sigma() la lisent sans tester la finitude de
+    # sigma_usp_sans_t ; leurs gardes de lecture sur ecart_sigma restent.
+    d$non_evaluable <- !is.finite(jackknife$sigma_usp)
   }
   d
 }
@@ -12901,7 +12913,8 @@ engine_motif_b_alpha <- function(B, alpha) {
                              sigma_standard = sigma_standard,
                              variation_relative = par$variation_relative),
       plots_data = mw_plots_data(aj, res, boot, msep, sigma_usp_boot = usp_b, ic = ic,
-                                 sigma_usp = par$sigma_usp, sigma_standard = sigma_standard),
+                                 sigma_usp = par$sigma_usp, sigma_standard = sigma_standard,
+                                 alpha = alpha),
       metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
                       libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
                       T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
@@ -13197,6 +13210,59 @@ mw_contributions <- function(aj, msep) {
   out
 }
 
+# Intervalles de l'ordonnee a l'origine par colonne (#404 ; specification
+# d'actuary-approfondi, decision Q-46-19 du mainteneur du 02/11/2026).
+# det : table detail de mw_test_ordonnee_origine() (une ligne par colonne
+# retenue : j, n, a, se_a, t, p de Student de summary.lm(), b, f_cl) ;
+# alpha : seuil des verdicts. Colonnes ajoutees en fin de table, dans cet
+# ordre :
+#   niveau         1 - alpha, niveau nominal de l'intervalle ;
+#   quantile_t     qt(1 - alpha/2, n - 2) : quantile de Student au nombre de
+#                  degres de liberte residuels de la regression ponderee a
+#                  deux parametres de la colonne, celui de la p de Student de
+#                  la table (n >= 3 garanti par mw_test_ordonnee_origine(),
+#                  donc au moins 1 ddl) ;
+#   bas, haut      a -/+ quantile_t se_a : intervalle de Student de a_j, dual
+#                  du test de Student de la colonne (a_j = 0 hors de
+#                  l'intervalle si et seulement si p < alpha, en arithmetique
+#                  exacte ; en virgule flottante, ecart mesure seulement a
+#                  alpha egal a p au bit pres, ou l'intervalle peut exclure
+#                  0 alors que p < alpha est faux). Pivot
+#                  (a_hat - a_j) / se_a de loi t(n - 2) exacte a n_j fini
+#                  sous le seul modele auxiliaire gaussien (erreurs
+#                  gaussiennes independantes, de variance proportionnelle a
+#                  C(i,j), conditionnellement a C(., j)), non sous
+#                  l'annexe XVII : niveau nominal, couverture non etablie a
+#                  T = 8 sous le modele reglementaire (p non simulee,
+#                  famille (iii) de CONTEXT.md) ; couverture marginale par
+#                  colonne, non simultanee ;
+#   exclut_zero    bas > 0 ou haut < 0 ; NA quand bas, haut ou p n'est pas
+#                  fini (aucune lecture ; cas vise : a = se_a = 0, t = 0/0,
+#                  colonne d'ordinaire ecartee avant lm() par la garde des
+#                  colonnes degenerees) ;
+#   plus_petite_p  TRUE sur la colonne de plus petite p (premiere en cas
+#                  d'egalite exacte, p non finies ignorees ; FALSE partout si
+#                  aucune p n'est finie).
+# Lectures colonne par colonne, sans correction de multiplicite : le verdict
+# de M1 est celui de la ligne "Nullite de l'ordonnee a l'origine, colonne par
+# colonne" de mw_tests() (statistique de Fisher qui combine les p par
+# colonne). Table vide
+# (aucune colonne retenue) rendue telle quelle.
+.mw_origine_intervalles <- function(det, alpha) {
+  if (!nrow(det)) return(det)
+  q <- stats::qt(1 - alpha / 2, det$n - 2)
+  bas <- det$a - q * det$se_a
+  haut <- det$a + q * det$se_a
+  det$niveau <- rep(1 - alpha, nrow(det))
+  det$quantile_t <- q
+  det$bas <- bas
+  det$haut <- haut
+  det$exclut_zero <- ifelse(is.finite(bas) & is.finite(haut) & is.finite(det$p),
+                            bas > 0 | haut < 0, NA)
+  det$plus_petite_p <- seq_len(nrow(det)) %in% which.min(det$p)
+  det
+}
+
 # Quantites numeriques des graphiques de la methode Merz-Wuthrich.
 # QQ-plot (#311, Q-D1-Fm-4 et Q-D1-Fm-5, option (c), specification Fm,
 # par. 2.1) : qqnorm porte les residus redresses par le levier
@@ -13212,8 +13278,13 @@ mw_contributions <- function(aj, msep) {
 # sans qu'elle traduise un ecart au modele. Ni enveloppe ni tirage (option
 # (c)) ; les lignes M5 de
 # mw_tests() restent calculees sur les residus bruts.
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), qui fixe le
+# niveau 1 - alpha des intervalles de l'ordonnee a l'origine (feuille origine,
+# .mw_origine_intervalles(), #404) ; en fin d'arguments, defaut 0,10 de
+# run_engine() et de mw_tests().
 mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
-                          ic = NULL, sigma_usp = NULL, sigma_standard = NULL) {
+                          ic = NULL, sigma_usp = NULL, sigma_standard = NULL,
+                          alpha = 0.10) {
   qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
   # Methode : lue dans res$metadata$methode, seul emplacement depuis #396
   # (doublon plots_data$methode retire).
@@ -13258,7 +13329,10 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
       out
     }),
     alpha = mw_famille_alpha(aj)$detail,
-    origine = mw_test_ordonnee_origine(aj)$detail,
+    # Table detail de mw_test_ordonnee_origine(), completee des intervalles
+    # de niveau 1 - alpha et des indicateurs lus par plot_mw_origine() et
+    # note_m1() (#404, .mw_origine_intervalles()).
+    origine = .mw_origine_intervalles(mw_test_ordonnee_origine(aj)$detail, alpha),
     # Cellule la plus influente (#396) : plus grand |DFBETAS| parmi les
     # seules cellules a DFBETAS defini (NA ignores : gardes de l'en-tete de
     # mw_influence() ; FALSE partout si aucun n'est defini). Les DFBETAS y

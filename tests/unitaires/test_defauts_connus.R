@@ -913,18 +913,22 @@ jack_annees_relevees <- function(appel) {
   r <- tryCatch(appel(), finally = assign("usp_tests", orig, envir = e))
   list(res = r, jack_annees = ja)
 }
-verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (identical), annees 1, 2, 3, 4, 6, 7 et 8, derniere colonne logique",
+# Depuis #404, la colonne non_evaluable (annees non evaluables du jackknife)
+# suit plus_influente en fin de table.
+verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (identical), annees 1, 2, 3, 4, 6, 7 et 8, colonne logique suivie de non_evaluable (#404)",
          {
            rel <- jack_annees_relevees(function() run_engine(xt = x, yt = y_224, methode = "premium",
                                                               segment = 1, annexe = "II", B = 99,
                                                               nature_donnees = "brutes"))
            d <- rel$res$plots_data$influence
            is.logical(d$plus_influente) && !anyNA(d$plus_influente) &&
-             identical(utils::tail(names(d), 1L), "plus_influente") &&
+             identical(utils::tail(names(d), 2L), c("plus_influente", "non_evaluable")) &&
              identical(which(d$plus_influente), as.integer(rel$jack_annees)) &&
              identical(which(d$plus_influente), c(1L, 2L, 3L, 4L, 6L, 7L, 8L)) &&
              identical(d$plus_influente, d$t %in% usp_jack_annees(rel$res$jackknife$sigma_usp,
-                                                                 rel$res$parametre_final$sigma_usp))
+                                                                 rel$res$parametre_final$sigma_usp)) &&
+             is.logical(d$non_evaluable) && identical(which(d$non_evaluable), 5L) &&
+             identical(d$non_evaluable, !is.finite(rel$res$jackknife$sigma_usp))
          })
 verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau/2 -> 1 et 2 ; a 2 tau -> 1 seule ; NA ecartes ; aucun reajustement -> FALSE partout)",
          {

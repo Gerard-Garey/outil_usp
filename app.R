@@ -1491,13 +1491,13 @@ server <- function(input, output, session) {
   output$mw_rcal <- rendu_graphique(plot_mw_residus_cal(R()$plots_data))
   output$mw_qq   <- rendu_graphique(plot_mw_qq(R()$plots_data))
   output$mw_reg   <- rendu_graphique(plot_mw_regressions(R()$plots_data))
-  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data, R()$metadata$alpha))
+  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data))
   output$mw_alpha <- rendu_graphique(plot_mw_alpha(R()$plots_data))
 
   # Note contextuelle du volet M1 : les valeurs proviennent du moteur.
   # Texte partage avec le rapport fige (note_m1, R/display_helpers.R).
   output$note_m1 <- renderUI({
-    n <- note_m1(R()$plots_data, R()$metadata$alpha)
+    n <- note_m1(R()$plots_data)
     if (is.null(n)) return(NULL)
     helpText(HTML(n))
   })
@@ -1509,8 +1509,10 @@ server <- function(input, output, session) {
   output$mw_dfb      <- rendu_graphique(plot_mw_dfbeta(R()$plots_data))
   output$mw_contrib  <- rendu_graphique(plot_mw_contributions(R()$plots_data))
 
-  # Notes contextuelles : les seuils et les comptages viennent du moteur ;
-  # textes partages avec le rapport fige (R/display_helpers.R).
+  # Notes contextuelles : les reperes de lecture et les booleens qui les
+  # franchissent viennent du moteur ; les notes lisent, mettent en forme et,
+  # au plus, decomptent ces booleens (mise en forme, CONTEXT.md) ; textes
+  # partages avec le rapport fige (R/display_helpers.R).
   output$note_influence_mw <- renderUI({
     n <- note_influence_mw(R()$plots_data)
     if (is.null(n)) return(NULL)
