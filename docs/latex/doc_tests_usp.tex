@@ -371,12 +371,15 @@ Le \emph{rapport figé}, produit par \code{rapport\_html()}, est un fichier HTML
 unique, sans ressource externe, qui fige l'objet renvoyé par \code{run\_engine()}
 tel qu'il est en mémoire, et jamais la saisie en cours~; il ne relance aucun
 calcul et refuse un résultat que le moteur a rejeté (\code{docs/exigences.md},
-§~5.6~; ADR~0009). Son en-tête porte trois empreintes md5~: celle des données du
-calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
+§~5.6~; ADR~0009). Son en-tête porte quatre empreintes md5, chacune sur sa ligne~: celle
+des données du calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
 (la seconde est stable sur une même machine et dépend de la plateforme,
-ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
-déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
-moteur par l'application~; il porte aussi le générateur et les graines fixes des simulations,
+ADR~0006), et celles des octets de \code{R/engine.R} et, depuis l'issue~\#397, de
+\code{R/charger\_moteur.R}, une par fichier, sans empreinte composite, le résultat dépendant
+aussi du chargeur, qui fixe la chaîne d'environnements du moteur (ADR~0016)~; ces deux
+dernières sont relevées avec la version déclarée dans \code{DESCRIPTION} par
+\code{identite\_code()}, hors de \code{run\_engine()}, au chargement du moteur par
+l'application, à une même heure de relevé (ADR~0009, annotation du 2~novembre 2026)~; il porte aussi le générateur et les graines fixes des simulations,
 lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont la graine fixe de
 la loi nulle de Shapiro--Wilk (méthode de réserve n\textsuperscript{o}~2 seulement depuis
 l'issue~\#351, section~\ref{sec:graines}) et, depuis l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
