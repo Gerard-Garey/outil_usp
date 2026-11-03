@@ -1487,7 +1487,7 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
 # depasse (jamais atteint : delta est estime dans [0, 1]).
 usp_delta_bord <- function(delta, tol = TOL_DELTA_BORD) {
   if (!(is.finite(tol) && tol >= 0 && tol < 0.5))
-    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0,5 (bandes de bord disjointes)")
+    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0.5 (bandes de bord disjointes)")
   if (is.na(delta)) NA_character_
   else if (delta <= tol) "basse"
   else if (delta >= 1 - tol) "haute"
@@ -8063,7 +8063,7 @@ ENVELOPPE_QQ_B_MIN_SIM <- 500L
     aucun_k = sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
                             "au rang k = 1 ; bande simultanee non disponible"),
                       formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
-                              decimal.mark = ",")),
+                              decimal.mark = ".")),
     # Graphique dispersion-niveau seul (engine_enveloppe_spread()) : a volumes
     # constants, aucune courbe n'est calculee (#399).
     volumes_constants = "volumes constants : graphique dispersion-niveau sans objet",
@@ -9500,7 +9500,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "Reserve chain-ladder positive mais faible devant son incertitude : sigma estime = ",
       "racine(MSEP) / R = %s >= 1 (R = %s%s). ",
       "Le parametre est defini (annexe XVII, D(4)) mais hors de toute plage ou le melange ",
-      "par credibilite a un sens (aucun sigma(res,s) des annexes II et XIV n'excede 0,22). ",
+      "par credibilite a un sens (aucun sigma(res,s) des annexes II et XIV n'excede 0.22). ",
       "Deux lectures : reserve residuelle d'un segment en run-off, ou triangle anormalement ",
       "volatil. Le repere 1 est un repere de lecture, sans fondement reglementaire ni ",
       "statistique ; le calcul n'est pas refuse."),
@@ -11983,7 +11983,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                              "vaut N - k = %d - %d = %d et var(r) est contrainte par",
                              "construction. Cette ligne ne teste donc PAS la structure",
                              "de variance -- mesure : une variance en C^2 au lieu de",
-                             "C^1 laisse var(r) a 2,5e-03 de la reference, quand",
+                             "C^1 laisse var(r) a 2.5e-03 de la reference, quand",
                              "l'identite tient a 1e-15. L'ecart a la reference vaut",
                              "exactement N moyenne(r)^2/(N-1) : ce que cette ligne",
                              "donne a lire est le CENTRAGE des residus, ici %s, et la",

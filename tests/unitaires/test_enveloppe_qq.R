@@ -230,7 +230,7 @@ verifier("(iii) k* NA atteignable (#385) : T = 26, B_eff = 500, 52 lignes sorten
              all(is.finite(e26$bandes[, c("bas", "haut")])) &&
              is.finite(e26$info$taux_global_ponctuel) &&
              identical(e26$info$motif,
-                       paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
+                       paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0.10",
                              "au rang k = 1 ; bande simultanee non disponible")) &&
              identical(e26$info$regle_rang, "DH1997_4.17") &&
              identical(e25$info$k, 1L) && identical(e25$info$taux_global_simultane, 0.10) &&
@@ -345,7 +345,7 @@ ST0 <- "bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, "
 PONCT199 <- paste0(ST0, "bande ponctuelle seule sur 199 r\u00e9plications")
 PONCT199_SANS_MOTIF <- paste0(PONCT199, ", bande simultan\u00e9e indisponible")
 MOTIF500 <- "moins de 500 replications retenues : bande simultanee non calculee"
-MOTIF_K <- paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
+MOTIF_K <- paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0.10",
                  "au rang k = 1 ; bande simultanee non disponible")
 e26_st <- engine_enveloppe_qq(S_construite(26L), 26L)
 pd26 <- r1$plots_data
