@@ -10041,11 +10041,25 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 }
 
 # --- Tests specifiques de l'hypothese (iii) de l'annexe XVII, D(2)(h) --------
-# L'enonce reglementaire porte "pour TOUTES les annees d'accident" :
-#   E[C(i,j+1) | C(i,j)] = f_j C(i,j)
-# Il comporte donc DEUX exigences distinctes, testables separement :
-#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne ;
-#   (b) un facteur f_j COMMUN a toutes les annees d'accident de la colonne.
+# Lettre du texte : "pour toutes les annees d'accident, la valeur attendue du
+# montant de sinistres cumule d'une annee de developpement est proportionnelle
+# au montant de sinistres cumule de l'annee de developpement precedente". Elle
+# impose une proportionnalite SANS CONSTANTE, dans chaque ligne, par annee de
+# developpement ; elle ne dit pas que le coefficient est le meme d'une ligne a
+# l'autre.
+# Lecture retenue par l'outil (lecture B, celle du modele de Mack ; decision du
+# mainteneur du 31/10/2026, #409) : un facteur f_j COMMUN a toutes les annees
+# d'accident,
+#   E[C(i,j+1) | C(i,j)] = f_j C(i,j),
+# appuyee sur D(4)(c), qui estime un facteur unique f_j par annee de
+# developpement, et sur D(4)-D(5), qui n'emploient que ce facteur. C'est une
+# interpretation de l'outil, non la lettre du texte (reference de la ligne
+# "Homogeneite de f_j entre annees de survenance").
+# Les tests M1 en tirent deux exigences distinctes, testables separement :
+#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne (absence de
+#       constante exigee par la lettre, testee sous la lecture retenue) ;
+#   (b) un facteur f_j COMMUN a toutes les annees d'accident de la colonne
+#       (lecture retenue, non la lettre).
 # Une regression unique agregee sur l'ensemble du triangle ne teste ni l'une ni
 # l'autre : elle melange des colonnes d'echelles tres differentes.
 #
@@ -11834,7 +11848,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                            any(hf$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
-      "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
+      "Annexe XVII, D(2)(h)(iii), lu avec D(4)(c) : facteur f_j commun (interpretation de l'outil)",
       H0 = "le facteur f_j est commun a toutes les annees de survenance",
       H1 = "les facteurs individuels derivent avec l'annee de survenance",
       stat_nom = "X de Fisher", stat = hf$stat,
