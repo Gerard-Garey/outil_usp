@@ -83,3 +83,5 @@ Ces valeurs sont relevées par `identite_code()` au chargement par l'application
 **Ce que l'annotation ne change pas.** Les points 1 à 3 et 5. `identite_code()` reste hors de `run_engine()` : l'objet résultat et les références de non-régression sont inchangés.
 
 **Suites.** Mise en œuvre par #397 (branche Fr, étape 7) ; `docs/exigences.md` § 5.6 amendé par le mainteneur à cette étape ; le `.tex` (l. 370-375 à `49eca73`) est aligné par `docwriter` en fin de branche.
+
+**Réalisation (03/11/2026).** `docs/exigences.md` § 5.6 amendé (`6a75b61`, puis `bb687e0` : seule l'identité du code est relevée hors du moteur) et visé par le mainteneur le 03/11/2026 ; `identite_code()` relève `md5_chargeur` et l'en-tête du rapport figé porte deux lignes distinctes, « Code du moteur (R/engine.R) » et « Chargeur du moteur (R/charger_moteur.R) » (`a839415`, branche Fr). `CONTEXT.md`, « Empreinte », mis à jour.

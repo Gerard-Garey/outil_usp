@@ -358,6 +358,8 @@ Chaînes du moteur en ASCII, sans accents. `%` littéral écrit `%%` dans `sprin
 
   Retouche du 23/10/2026 (décision du mainteneur, constat C1 de la revue finale) : « comme la pente intra-colonne » devient « comme la pente relative », nom de la ligne M1 en vigueur (`CONTEXT.md`, « Pente relative (M1) »).
 
+  Note du 03/11/2026 (#409, `2c138c5`, formulation d'`actuary` retenue par le mainteneur le 03/11/2026) : le `H1` ci-dessus est l'état de D1-Fj, conservé tel quel. Le moteur porte depuis `2c138c5` : `les trois estimateurs visent des valeurs differentes (esperance de C(i,j+1) non proportionnelle a C(i,j), ou facteur non commun aux annees et associe a C(i,j))` (`R/engine.R`, `mw_tests()`), la lettre de l'hypothèse (iii) étant distinguée de la lecture de l'outil (facteur f_j commun aux années).
+
 **T-5a (option (a), si elle est retenue)** : `type = "diagnostic"`, même `detail` précédé de :
 > `Diagnostic sans verdict (ADR 0001), par decision du mainteneur (#307) : A mesure l'enjeu du choix de ponderation ; la p-value Monte-Carlo est restituee pour information. `
 
