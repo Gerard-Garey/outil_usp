@@ -7080,8 +7080,8 @@ Valide à $T = 8$ sous $H_0$ seule, non sous le modèle réglementaire~; rejet p
 dispersion liée au volume ou tendance commune (réserve d'échangeabilité) \\
 
 Pitman (pente)~: p de Student unilatérale restituée (issue~\#423) & Loi de permutation de $t_b$,
-approchée par la loi $t(T-2)$ & Celle d'un théorème central limite combinatoire
-(\emph{hypothèse}) & Convergence en loi (hypothèse, aucune référence citée) & Non établie & Conditions sur les
+approchée par la loi $t(T-2)$ & $\mathcal{N}(0,1)$, limite de $t(T-2)$ et, par un théorème
+central limite combinatoire (\emph{hypothèse}), de la loi de permutation de $t_b$ & Convergence en loi (hypothèse, aucune référence citée) & Non établie & Conditions sur les
 $x_t$ et les $y_t$ (non établies) &
 Approximation non établie à $T = 8$ et mauvaise en queue~: sur le jeu à $\hat\delta$ intérieur,
 $2{,}95\cdot 10^{-6}$, sous la plus petite p de permutation atteignable $1/8! = 2{,}48\cdot
@@ -9691,10 +9691,15 @@ auxiliaire, ni sous le modèle réglementaire ni sous l'hypothèse nulle seule, 
 fondement d'exactitude de l'ADR~0002 ne la couvre pas (condition~(c),
 fiche~\ref{fiche:student-pente}, rubrique~4)~; aucune p-value de Monte-Carlo n'existe,
 l'hypothèse $b = 0$ étant disjointe de la famille réglementaire, à laquelle appartient le modèle
-simulé~; elle n'est pas asymptotique, $t(T-2)$ étant une loi à $T$ fini. La permutation
+simulé~; elle n'est pas asymptotique sous le modèle auxiliaire, $t(T-2)$ y étant une loi à $T$
+fini. La permutation
 n'apporterait rien~: $|t_b|$ étant une fonction croissante de $|r|$, sa p-value de permutation
 serait la p-value de permutation bilatérale de la pente, que la ligne Pitman restitue déjà pour
-information. \emph{Égalité avec la ligne de Fisher}~: $F = t_b^2$ suit $\mathcal{F}(1, T-2)$ sous
+information. Rapportée à cette p de permutation bilatérale, la p de Student bilatérale n'en est,
+comme la p unilatérale de la ligne Pitman, qu'une approximation asymptotique non établie à
+$T = 8$ (fiche~\ref{fiche:student-pente}, rubrique~4)~: mesuré, $0{,}2134$ contre
+$8\,515/40\,320 = 0{,}2112$ sur le jeu de contrôle, $5{,}9\cdot 10^{-6}$ contre
+$1/8! = 2{,}48\cdot 10^{-5}$ sur le jeu à $\hat\delta$ intérieur. \emph{Égalité avec la ligne de Fisher}~: $F = t_b^2$ suit $\mathcal{F}(1, T-2)$ sous
 le même modèle, et la p de Fisher est mathématiquement égale à cette p de Student
 bilatérale~; numériquement, elles sont égales à l'arrondi près (mesuré~: écart absolu
 $3{,}1\cdot 10^{-16}$ sur le jeu de contrôle, $1{,}1\cdot 10^{-20}$ sur le jeu à $\hat\delta$
@@ -15148,7 +15153,11 @@ indépendantes, de variance proportionnelle à $C(i,j)$, conditionnellement aux 
 \emph{nominal}, et la couverture n'est pas établie à $T = 8$ sous le modèle réglementaire
 (l'intervalle est le dual d'une p non simulée de la famille~(iii) de la
 section~\ref{sec:nature}). La couverture est
-\emph{marginale}, colonne par colonne, et non simultanée sur les colonnes. Cette coloration
+\emph{marginale}, colonne par colonne, et non simultanée sur les colonnes. Elle ne vaut pas non
+plus pour la colonne de plus petite p, désignée après examen des données~: si toutes les
+ordonnées à l'origine sont nulles, l'intervalle de cette colonne contient~$0$ si et seulement si
+aucune colonne n'a $p_j < \alpha$, événement de probabilité au plus $1 - \alpha$ sous le modèle
+auxiliaire, et en général moindre. Cette coloration
 colonne par colonne est une aide de lecture, sans verdict~: elle ne tient pas compte de la
 multiplicité des colonnes, et le verdict est celui de la ligne «~\code{Nullite de l'ordonnee a
 l'origine, colonne par colonne}~» (fiche~\ref{mw:m1a}), qui combine les p des colonnes par la
