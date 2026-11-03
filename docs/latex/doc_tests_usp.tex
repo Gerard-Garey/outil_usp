@@ -19190,10 +19190,10 @@ retirés par l'issue~\#164, faute de script qui les reproduise.
 \label{sec:calibration-mc}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 52 lignes de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 53 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
-p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 34 dernières n'ayant
-aucune p-value retenue (33 diagnostics et 1 ligne non applicable)~;
+p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 35 dernières n'ayant
+aucune p-value retenue (34 diagnostics et 1 ligne non applicable)~;
 parmi ces diagnostics, cinq sont les lignes de lecture conjointe ajoutées par l'issue~\#297
 (une par famille de plusieurs tests et une ligne globale, fiches~\ref{fiche:p-famille}
 et~\ref{fiche:p-globale})~;
@@ -21697,7 +21697,7 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
         $\succ$ p non simulée} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
-        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 52
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 53
         lignes de la table auditable, 5 retiennent une p-value exacte, et 4 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter quatre p-values exactes au profit
@@ -21798,10 +21798,11 @@ l'issue~\#59 (commit \code{5f5459b}), pertes du jeu de contrôle et volumes $100
 alternés~: \code{test\_lm\_complet()} levait l'erreur R «~\code{subscript out of bounds}~» à
 $\varepsilon = 10^{-12}$ et $10^{-9}$. Des volumes constants ne sont pas un motif de refus des
 données (section~\ref{sec:controles})~: le calcul aboutit, $\delta$ n'est pas identifié
-(fiche~\ref{fiche:position-delta}), et treize lignes d'\code{usp\_tests()} sont restituées
+(fiche~\ref{fiche:position-delta}), et quatorze lignes d'\code{usp\_tests()} sont restituées
 «~non applicable~», sans verdict, avec un motif unique, \code{volumes x\_t constants a la tolerance
 relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots)~: regression / partition sur le
-volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman), Fisher, $R^2$, RESET,
+volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman et test de Student
+sous le modèle auxiliaire MCO), Fisher, $R^2$, RESET,
 Spearman ratio contre volume, Breusch--Pagan studentisé et original, White, Goldfeld--Quandt,
 Brown--Forsythe et Smirnov. Depuis l'issue~\#213 (décision du mainteneur du 17~octobre 2026),
 \code{engine\_valider\_donnees()} signale en outre ce régime par un avertissement, sans refus,
@@ -21962,8 +21963,8 @@ méthode lognormale depuis l'issue~\#304, dans la méthode Merz--Wüthrich depui
 Merz--Wüthrich seulement depuis l'issue~\#302), dans les deux méthodes \\
 \code{stat\_lilliefors()}, \code{lillie\_p()} & LN + MW & Lilliefors, dans les
 deux méthodes \\
-\code{test\_lm\_complet()} & LN & Fisher global,
-$R^2$~: \textbf{deux entrées issues d'un seul appel}, qui fournit aussi la
+\code{test\_lm\_complet()} & LN & Test de Student sur la pente (modèle auxiliaire MCO), Fisher global,
+$R^2$~: \textbf{trois entrées issues d'un seul appel}, qui fournit aussi la
 statistique $t$ de la ligne du test de Pitman sur la pente, dont la p-value
 vient de \code{usp\_permutation\_pente()}~; le $t$ de la
 constante vient de son propre ajustement, \code{test\_intercept()} \\
@@ -22128,12 +22129,13 @@ méthodes, non représentée.}
 \draw[fl] (r) -- (cs);
 \foreach \b in {mk,sp} \draw[fl] (r) |- (\b);
 \end{tikzpicture}
-\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{deux}
-entrées de la table des tests à partir d'un unique ajustement (Fisher global et $R^2$)
+\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{trois}
+entrées de la table des tests à partir d'un unique ajustement (test de Student sur la pente
+sous le modèle auxiliaire MCO, Fisher global et $R^2$)
 et fournit la statistique $t$ de la ligne du test de Pitman sur la pente, dont la
 p-value vient de \code{usp\_permutation\_pente()} (loi de permutation de Pitman, par
 énumération des $T!$ appariements à $T \le 9$ ou par permutations aléatoires au-delà,
-issue~\#169)~: une anomalie de cet ajustement fausserait à la fois Fisher, $R^2$ et la
+issue~\#169)~: une anomalie de cet ajustement fausserait à la fois Student, Fisher, $R^2$ et la
 statistique affichée de la pente, une anomalie de \code{usp\_permutation\_pente()} sa p-value. La nullité de la constante utilise les mêmes données,
 mais tire sa statistique $t$, ses p-values et, depuis l'issue~\#215, l'estimation $\hat a_w$
 affichée sur sa ligne de son propre ajustement, la régression pondérée de
@@ -22416,7 +22418,7 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 (\code{test\_lm\_}\allowbreak\code{complet()} + \code{usp\_permutation\_}\allowbreak\code{pente()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
-Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées)~;
+Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées)~;
 \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{.usp\_mco\_qr()} (régressions
