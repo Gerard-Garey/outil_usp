@@ -12716,7 +12716,8 @@ regression relationships over time}, \emph{Journal of the Royal Statistical Soci
 Série de résidus $z_t$, $\hat\sigma$ leur écart-type empirique. Hypothèses non testées~:
 indépendance et homoscédasticité sous $H_0$.
 \Hzero
-$H_0$ : constance des paramètres du modèle sur toute la période.
+$H_0$~: constance des paramètres du modèle sur toute la période, contre $H_1$~: niveau non
+constant (dérive ou rupture).
 \Stat
 \[
   S(j) = \frac{1}{\hat\sigma\sqrt{T}}\sum_{t=1}^{j}\big(z_t - \bar z\big),
@@ -13207,7 +13208,8 @@ Statistique de la fiche~\ref{fiche:ols-cusum} appliquée aux ratios centrés $u_
 « ratios bruts » (section~\ref{sec:base-residus})~; mêmes hypothèses non testées que la
 fiche~\ref{fiche:sup-f-ratios-bruts}.
 \Hzero
-$H_0$~: constance du niveau du ratio S/P, contre $H_1$~: dérive graduelle.
+$H_0$~: constance du niveau du ratio S/P, contre $H_1$~: niveau du ratio S/P non constant
+(dérive ou rupture).
 \Stat
 $\mathrm{CUSUM} = \max_{j}\big|\sum_{t \le j}(u_t - \bar u)\big| \big/ (s_u\sqrt{T})$
 (\code{stat\_cusum()}), invariante par translation et changement d'échelle.
