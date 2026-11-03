@@ -3810,7 +3810,8 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
            al <- mw_famille_alpha(res300$ajustement)
            att <- paste0(
              "alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; ",
-             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), les trois ",
+             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), lue avec un ",
+             "facteur f_j commun (interpretation de l'outil), les trois ",
              "estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur ",
              "la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). ",
              "f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par ",

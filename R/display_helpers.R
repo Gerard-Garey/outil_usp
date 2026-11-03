@@ -113,10 +113,12 @@ GROUPES <- list(
   # Meme principe de presentation que H1 a H4 : une famille par hypothese du
   # modele, afin que la lecture des deux methodes soit strictement parallele.
   "M1" = list(cle = "M1", titre = "M1 \u2014 Proportionnalit\u00e9 des cumul\u00e9s",
-              sous = "E[C(i,j+1) | C(i,j)] = f_j \u00b7 C(i,j)",
+              sous = paste("E[C(i,j+1) | C(i,j)] = f_j \u00b7 C(i,j), f_j commun aux",
+                           "ann\u00e9es (interpr\u00e9tation de l'outil, D(4)(c))"),
               ref  = "annexe XVII, D(2)(h)(iii)"),
   "M2" = list(cle = "M2", titre = "M2 \u2014 Variance proportionnelle au cumul",
-              sous = "Var[C(i,j+1) | C(i,j)] = sigma_j\u00b2 \u00b7 C(i,j)",
+              sous = paste("Var[C(i,j+1) | C(i,j)] = sigma_j\u00b2 \u00b7 C(i,j), sigma_j commun",
+                           "aux ann\u00e9es (interpr\u00e9tation de l'outil, D(5)(d)(ii))"),
               ref  = "annexe XVII, D(2)(h)(iv)"),
   "M3" = list(cle = "M3", titre = "M3 \u2014 Ind\u00e9pendance",
               sous = "ann\u00e9es de survenance et montants incr\u00e9mentaux ind\u00e9pendants",

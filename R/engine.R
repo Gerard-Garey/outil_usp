@@ -8702,10 +8702,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (!length(err)) {
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
-    # de developpement est PROPORTIONNELLE a celle de la precedente, et ne
-    # contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc rien des
-    # cumules decroissants. Un recul traduit un boni de liquidation ou un
-    # recouvrement, licite : on le signale sans refuser.
+    # de developpement est PROPORTIONNELLE au montant cumule de la precedente,
+    # et ne contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc
+    # rien des cumules decroissants. Un recul traduit un boni de liquidation
+    # ou un recouvrement, licite : on le signale sans refuser.
     for (i in 0:I) {
       d <- I - i
       if (d >= 1) {
@@ -9647,9 +9647,13 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
 # (ecart C(i,j+1)/C(i,j) - f_j calcule par .mw_ecart_facteur_stable(), #233)
-# Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
-# variance approximativement unitaire et mutuellement non correles. Ce sont eux
-# qui servent de support aux tests des sections H1, H2 et H4 adaptees.
+# Sous les hypotheses D(2)(h)(iii) et (iv), lues avec un facteur f_j et une
+# constante sigma_j^2 communs a toutes les annees d'accident (interpretation
+# de l'outil : D(4)(c) pour f_j, D(5)(d)(ii) pour sigma_j ; la lettre de (iii)
+# et (iv) n'impose qu'une proportionnalite dans chaque ligne ; #409), ces
+# residus sont centres, de variance approximativement unitaire et
+# mutuellement non correles. Ce sont eux qui servent de support aux tests des
+# sections H1, H2 et H4 adaptees.
 # Colonnes exclues (issue #33, avis d'actuary du 24/09/2026 ; issue #60,
 # decision du mainteneur du 05/10/2026, variante (b)) : une colonne j a au
 # moins deux facteurs est ecartee si sigma2_j n'est pas fini ou n'est pas
@@ -10056,8 +10060,13 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 # interpretation de l'outil, non la lettre du texte (reference de la ligne
 # "Homogeneite de f_j entre annees de survenance").
 # Les tests M1 en tirent deux exigences distinctes, testables separement :
-#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne (absence de
-#       constante exigee par la lettre, testee sous la lecture retenue) ;
+#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne. Exigee par
+#       la lettre, elle n'est testee que sous la lecture retenue : la
+#       regression de la colonne j, C(i,j+1) = a_j + b_j C(i,j), impose une
+#       pente b_j commune aux lignes (une seule observation par ligne et par
+#       colonne ne permet pas de tester l'absence de constante avec un
+#       coefficient propre a chaque ligne) ; un rejet de a_j = 0 peut donc
+#       aussi traduire une violation de (b).
 #   (b) un facteur f_j COMMUN a toutes les annees d'accident de la colonne
 #       (lecture retenue, non la lettre).
 # Une regression unique agregee sur l'ensemble du triangle ne teste ni l'une ni
@@ -10844,8 +10853,9 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 #   alpha = 0 : moyenne simple des facteurs individuels
 #   alpha = 1 : facteur chain-ladder du reglement
 #   alpha = 2 : ponderation par le carre du volume
-# Sous l'hypothese (iii), les trois estimateurs visent le MEME f_j, quelle que
-# soit la variance (tout facteur individuel est alors sans biais pour f_j :
+# Sous l'hypothese (iii) lue avec un facteur f_j commun (interpretation de
+# l'outil, #409), les trois estimateurs visent le MEME f_j, quelle que soit la
+# variance (tout facteur individuel est alors sans biais pour f_j :
 # Mack 1994, CAS Forum, chap. 3, p. 111) : une divergence marquee signale que
 # l'esperance n'est pas proportionnelle a C(i,j) (M1) ; une violation de
 # l'hypothese de variance (iv) seule laisse H0 vraie (specification Fj,
@@ -11848,7 +11858,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                            any(hf$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
-      "Annexe XVII, D(2)(h)(iii), lu avec D(4)(c) : facteur f_j commun (interpretation de l'outil)",
+      paste("Annexe XVII, D(2)(h)(iii), lu avec D(4)(c) : facteur f_j commun",
+            "(interpretation de l'outil) ; Venter (1998), PCAS 85, implication 4 ;",
+            "Spearman (1904) pour la correlation de rang"),
       H0 = "le facteur f_j est commun a toutes les annees de survenance",
       H1 = "les facteurs individuels derivent avec l'annee de survenance",
       stat_nom = "X de Fisher", stat = hf$stat,
@@ -11892,8 +11904,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                      "du reglement ; alpha = 2 : ponderation par le carre du volume.")
   if (is.finite(al$stat))
     detail_al <- sprintf(paste(detail_al,
-      "Sous l'hypothese (iii), les trois estimateurs sont sans biais pour f_j quelle que",
-      "soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur",
+      "Sous l'hypothese (iii), lue avec un facteur f_j commun (interpretation de l'outil),",
+      "les trois estimateurs sont sans biais pour f_j quelle que soit la variance :",
+      "la ligne porte sur la proportionnalite des cumules (M1), non sur",
       "l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre",
       "F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme",
       "ponderation : la ligne vise, comme la pente relative, une association du",
