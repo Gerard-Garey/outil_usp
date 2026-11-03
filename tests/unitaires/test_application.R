@@ -73,7 +73,12 @@
 #     reserve no 2, retour en premium) et S2 (relance de meme methode), les
 #     trois boutons de selection (Tout retirer, Tout conserver, Retablir la
 #     selection par defaut) et la personnalisation gardee a travers un calcul
-#     refuse.
+#     refuse ;
+#   - bandeau des avertissements de validation d'apres calcul (issue #412,
+#     Q-46-4 (a)) : avec shiny, vide avant calcul ; sur tri_deg (reserve no 2),
+#     entierement replie (<details class='com'> sans open), resume "4
+#     avertissements de validation du calcul", textes du moteur tels quels ;
+#     resume au singulier pour un seul avertissement.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -1149,6 +1154,60 @@ testServer(app, {
       sum(p1$garde) == sum(def$garde))
 })
 )---"
+  # Bandeau des avertissements de validation d'apres calcul, entierement replie
+  # (issue #412, decision Q-46-4 (a) ; test reporte de R30, Q-45-4) : triangle
+  # tri_deg (test_merz_wuthrich.R) importe puis cellules c_i_j relues, comme le
+  # navigateur ; reserve no 2, segment II-1, B = 99. Un cas a un seul
+  # avertissement (primes, 12 annees, segment II-1, mesure du 03/11/2026) pour
+  # le singulier du resume.
+  .bloc_412 <- r"---(
+## Bandeau d'apres calcul replie (issue #412)
+tri_deg <- matrix(NA_real_, 6, 6)
+tri_deg[1, ] <- c(1000, 1600, 1800, 1800, 1830, 1835)
+tri_deg[2, 1:5] <- c(1100, 1815, 2000, 2000, 2050)
+tri_deg[3, 1:4] <- c(900, 1395, 1580, 1580)
+tri_deg[4, 1:3] <- c(1200, 1980, 2210)
+tri_deg[5, 1:2] <- c(1050, 1638)
+tri_deg[6, 1]   <- 980
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  a("bandeau d'avertissements : vide avant tout calcul (#412)",
+    is.null(output$bandeau_avertissements))
+  session$setInputs(fichier_import = fichier_tri(tri_deg))
+  tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+  do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+  session$setInputs(go = 1)
+  av <- resultat()$validation$avertissements
+  h <- as.character(output$bandeau_avertissements$html)
+  balises <- regmatches(h, gregexpr("<details[^>]*>", h))[[1]]
+  a("tri_deg : calcul abouti, quatre avertissements du moteur (#412)",
+    isTRUE(resultat()$ok) && length(av) == 4L)
+  a("tri_deg : bandeau replie, une seule balise <details> sans attribut open, classe com (#412)",
+    length(balises) == 1L && !grepl("open", balises, fixed = TRUE) &&
+      identical(balises, "<details class=\"com\">") && grepl("<summary>", h, fixed = TRUE))
+  a("tri_deg : resume '4 avertissements de validation du calcul' (#412)",
+    grepl("<summary>4 avertissements de validation du calcul</summary>", h, fixed = TRUE))
+  a("tri_deg : les quatre textes du moteur, tels quels et dans l'ordre, dans le corps replie (#412)",
+    all(vapply(av, function(x) grepl(paste0("<li>", htmltools::htmlEscape(x), "</li>"), h, fixed = TRUE),
+               logical(1))) &&
+      all(diff(vapply(av, function(x) regexpr(htmltools::htmlEscape(x), h, fixed = TRUE)[1], numeric(1))) > 0) &&
+      regexpr("</summary>", h, fixed = TRUE) < regexpr(htmltools::htmlEscape(av[1]), h, fixed = TRUE))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(fichier_import = fichier(12)); grille(session, 12)
+  session$setInputs(profondeur = 12, go = 1)
+  av <- resultat()$validation$avertissements
+  h <- as.character(output$bandeau_avertissements$html)
+  a("primes, 12 annees : un seul avertissement, resume au singulier, replie (#412)",
+    isTRUE(resultat()$ok) && length(av) == 1L &&
+      grepl("<summary>1 avertissement de validation du calcul</summary>", h, fixed = TRUE) &&
+      !grepl("avertissements de validation", h, fixed = TRUE) &&
+      !grepl("<details[^>]* open", h) &&
+      grepl(paste0("<li>", htmltools::htmlEscape(av), "</li>"), h, fixed = TRUE))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1268,7 +1327,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380, .bloc_412), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1285,8 +1344,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 85 assertions rendues", length(.lignes) == 85L)
-  if (length(.lignes) != 85L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 91 assertions rendues", length(.lignes) == 91L)
+  if (length(.lignes) != 91L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

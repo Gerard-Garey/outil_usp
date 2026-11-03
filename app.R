@@ -1238,13 +1238,22 @@ server <- function(input, output, session) {
   # pose dans res$validation$avertissements, y compris apres l'ajustement
   # Merz-Wuthrich (mw_valider_ajustement()) ; la section 3 du rapport fige les
   # restitue de la meme source. Lecture seule, aucun texte ni regle ici.
+  # Bandeau entierement replie (#412, decision Q-46-4 (a)) : motif
+  # <details class='com'>/<summary> de la vue Detail (#178), un avertissement
+  # pouvant depasser 2 000 caracteres (tri_deg) ; le resume donne le nombre
+  # d'avertissements du dernier calcul (longueur du vecteur, accord au
+  # singulier), sans dedoublonnage avec l'apercu ni bandeau_T.
   output$bandeau_avertissements <- renderUI({
     r <- resultat()
     if (is.null(r) || !isTRUE(r$ok)) return(NULL)
     av <- r$validation$avertissements
     if (!length(av)) return(NULL)
-    div(class = "avert", tags$b("Avertissements de validation du calcul :"),
-        tags$ul(style = "margin:4px 0", lapply(av, tags$li)))
+    n <- length(av)
+    div(class = "avert",
+        tags$details(class = "com",
+                     tags$summary(sprintf("%d %s de validation du calcul", n,
+                                          if (n == 1L) "avertissement" else "avertissements")),
+                     tags$ul(style = "margin:4px 0", lapply(av, tags$li))))
   })
 
   # B minimal fonction d'alpha (#127) : avertissement avant le clic, texte
