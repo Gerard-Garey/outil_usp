@@ -231,6 +231,27 @@ verifier("Rapport : sans identite, les deux empreintes du code sont des tirets (
   grepl("Chargeur du moteur (R/charger_moteur.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE) &&
     grepl("Code du moteur (R/engine.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE)
 })
+# Identite d'un ancien format (sans md5_chargeur, sans md5_engine ni releve) :
+# les quatre empreintes passent par .ou_tiret(), une chaine de longueur 1 ;
+# aucune erreur de data.frame (4 et 3 lignes), un tiret a la place (#397).
+verifier("Rapport : identite sans md5_chargeur (ou sans md5_engine) : produit sans erreur, tiret a la place de l'empreinte absente (#397)", {
+  vers <- list(list(version = "2.0.0", md5_engine = "abc123", releve = "x"),
+               list(version = "2.0.0", md5_chargeur = "def456", releve = "x"),
+               list(version = "2.0.0"))
+  vapply(vers, function(id) {
+    f_id <- tempfile(fileext = ".html")
+    ok <- tryCatch({ rapport_html(res_ln, NULL, f_id, interactif = FALSE, identite = id); TRUE },
+                   error = function(e) FALSE)
+    h_id <- if (ok) lire(f_id) else ""; unlink(f_id)
+    ok &&
+      identical(grepl("Chargeur du moteur (R/charger_moteur.R)</td><td><code>\u2013</code>", h_id, fixed = TRUE),
+                is.null(id$md5_chargeur)) &&
+      identical(grepl("Code du moteur (R/engine.R)</td><td><code>\u2013</code>", h_id, fixed = TRUE),
+                is.null(id$md5_engine)) &&
+      (is.null(id$md5_chargeur) || grepl("<code>def456</code>", h_id, fixed = TRUE)) &&
+      (is.null(id$md5_engine) || grepl("<code>abc123</code>", h_id, fixed = TRUE))
+  }, logical(1)) |> all()
+})
 verifier("Rapport : horodatage du calcul et version DESCRIPTION restitues",
          grepl(format(res_ln$metadata$horodatage, "%Y-%m-%d %H:%M:%S"), h, fixed = TRUE) &&
          grepl(paste0("<td>", idt$version, "</td>"), h, fixed = TRUE))
@@ -677,18 +698,69 @@ verifier("note_influence(), annees non evaluables 2, 5 et 7 (injection) : 'Annee
            pd3$influence$non_evaluable[c(2, 7)] <- TRUE
            grepl("Ann&eacute;es 2, 5 et 7 non &eacute;valuables", note_influence(pd3), fixed = TRUE)
          })
-# ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini (sigma_USP
-# nul, par exemple) : le graphique est vide (jamais « need finite ylim ») et la
-# note rend la phrase fixe, une chaine.
-verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini : graphique vide au message fixe, note a phrase fixe en une chaine (#328)",
+# ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini et que
+# des annees restent evaluables (sigma_USP nul, par exemple) : le graphique est
+# vide (jamais « need finite ylim ») avec le message aligne sur le moteur
+# (ecart relatif non defini, #405), et non « Aucune annee evaluable » ; la
+# note rend cette phrase, une chaine, suivie de la phrase de l'annee 5 non
+# evaluable.
+MSG_405 <- "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"
+verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : graphique vide au message de sigma_USP nul, note a phrase alignee sur le moteur en une chaine (#328, #405)",
          {
            pdn <- pd328; pdn$influence$ecart_sigma[] <- NA_real_; pdn$influence$fort_ecart_sigma[] <- NA
            op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
            vn <- vide_328(pdn); grDevices::dev.off(); options(op)
            nn <- tryCatch(note_influence(pdn), error = function(e) e)
-           all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_328) &&
+           all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_405) &&
              is.character(nn) && length(nn) == 1L && !grepl("NA", nn, fixed = TRUE) &&
-             grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE)
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+                   nn, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE) &&
+             grepl("Ann&eacute;e 5 non &eacute;valuable", nn, fixed = TRUE)
+         })
+# Chemin reel de #405 : sigma_USP du calcul complet force a 0 (substitution de
+# usp_parametre() dans l'environnement du moteur, restauree en sortie) ; le
+# moteur pose ecart_sigma = Inf et non_evaluable FALSE partout. Second cas :
+# l'annee 3 est de plus non evaluable (usp_jackknife() substitue).
+sigma_nul405 <- function(annee3 = FALSE) {
+  e <- environment(run_engine)
+  par_o <- get("usp_parametre", envir = e); jk_o <- get("usp_jackknife", envir = e)
+  on.exit({ assign("usp_parametre", par_o, envir = e); assign("usp_jackknife", jk_o, envir = e) })
+  assign("usp_parametre", function(fit, ...) {
+    p <- par_o(fit, ...); if (fit$T == length(xt)) p$sigma_usp <- 0; p
+  }, envir = e)
+  if (annee3)
+    assign("usp_jackknife", function(...) { j <- jk_o(...); j$sigma_usp[3] <- NA; j }, envir = e)
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")
+}
+verifier("sigma_USP nul (chemin reel) : note et graphique alignes sur la ligne jackknife du moteur, pas de 'Aucune annee evaluable' (#405)",
+         {
+           r <- sigma_nul405()
+           pd <- r$plots_data
+           op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+           v <- vide_328(pd); grDevices::dev.off(); options(op)
+           n <- note_influence(pd)
+           tb <- engine_table_tests(r)
+           isTRUE(r$ok) && !any(pd$influence$non_evaluable) && all(is.infinite(pd$influence$ecart_sigma)) &&
+             any(grepl("sigma_USP nul ou non fini", tb$commentaire, fixed = TRUE)) &&
+             v$ok && identical(v$msg, MSG_405) &&
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+                   n, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE) &&
+             !grepl("valuable", n, fixed = TRUE)
+         })
+verifier("sigma_USP nul et annee 3 non evaluable (chemin reel) : la note cite sigma_USP nul puis l'annee 3, le graphique garde le message de sigma_USP nul (#405)",
+         {
+           r <- sigma_nul405(annee3 = TRUE)
+           pd <- r$plots_data
+           op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+           v <- vide_328(pd); grDevices::dev.off(); options(op)
+           n <- note_influence(pd)
+           isTRUE(r$ok) && identical(which(pd$influence$non_evaluable), 3L) &&
+             v$ok && identical(v$msg, MSG_405) &&
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
+                   n, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE)
          })
 # Le maximum ne cite jamais une annee ecartee : meme avec un ecart enorme a
 # l'annee non evaluable (injection), la note donne le maximum des autres annees.

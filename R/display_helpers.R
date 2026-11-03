@@ -1679,9 +1679,14 @@ plot_influence_sigma <- function(pd) {
   # tracer, message fixe en coherence avec le detail de la ligne jackknife.
   # Annee non evaluable seule : sa barre reste absente (hauteur NA), couleur
   # neutre (fort_ecart_sigma y vaut NA) ; lecture telle quelle, aucun calcul.
-  # Garde aussi sur ce que trace barplot : aucun ecart_sigma fini.
-  if (length(.jack_non_evaluables(d)) == length(d$t) || !any(is.finite(d$ecart_sigma)))
+  # Garde aussi sur ce que trace barplot : aucun ecart_sigma fini. Annees
+  # evaluables sans ecart fini (sigma_USP nul ou non fini, ligne jackknife du
+  # moteur : ecart relatif non defini, #405) : message distinct, aligne sur le
+  # moteur.
+  if (length(.jack_non_evaluables(d)) == length(d$t))
     return(.vide("Aucune annee evaluable : influence sur sigma_USP non mesuree"))
+  if (!any(is.finite(d$ecart_sigma)))
+    return(.vide("sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"))
   v <- 100 * d$ecart_sigma
   coul <- ifelse(d$fort_ecart_sigma %in% TRUE, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
@@ -2352,9 +2357,28 @@ note_influence <- function(pd) {
   # jamais une annee non evaluable. Sans ecart fini hors de ne, phrase fixe.
   e <- d$ecart_sigma; e[d$t %in% ne | !is.finite(e)] <- NA
   ip <- which(d$plus_influente %in% TRUE & is.finite(e))
-  jack <- if (!any(is.finite(e)))
+  # Phrase des annees non evaluables, posee apres la phrase d'influence ou, a
+  # defaut d'ecart fini, apres celle de sigma_USP nul ou non fini.
+  phrase_ne <- if (length(ne) == 1L)
+      sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
+                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",
+                    "influence non mesur&eacute;e."), ne)
+    else if (length(ne) > 1L)
+      sprintf(paste(" Ann&eacute;es %s et %d non &eacute;valuables (r&eacute;ajustements sans maximum de",
+                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;es du maximum,",
+                    "influence non mesur&eacute;e."),
+              paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L))
+    else ""
+  # Trois cas, lus sur les booleens du moteur (aucun calcul) : toutes les
+  # annees non evaluables ; aucun ecart fini alors que des annees sont
+  # evaluables (sigma_USP nul ou non fini, ligne jackknife du moteur : ecart
+  # relatif non defini, #405) ; cas general.
+  jack <- if (length(ne) == length(d$t))
     paste("Aucune ann&eacute;e &eacute;valuable (r&eacute;ajustements sans maximum de",
           "vraisemblance &eacute;tabli, ou en &eacute;chec) : l'influence sur sigma_USP n'est pas mesur&eacute;e.")
+  else if (!any(is.finite(e)))
+    paste0("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+           phrase_ne)
   else paste0(
     # Amplitude affichee arrondie a 0,0 (#396) : aucun signe imprime, le sens
     # de la variation n'etant pas discernable a la precision affichee
@@ -2398,15 +2422,7 @@ note_influence <- function(pd) {
                            utils::tail(v, 1L)))
     }
     else "Ann&eacute;e la plus influente non d&eacute;termin&eacute;e.",
-    if (length(ne) == 1L)
-      sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
-                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",
-                    "influence non mesur&eacute;e."), ne)
-    else if (length(ne) > 1L)
-      sprintf(paste(" Ann&eacute;es %s et %d non &eacute;valuables (r&eacute;ajustements sans maximum de",
-                    "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;es du maximum,",
-                    "influence non mesur&eacute;e."),
-              paste(utils::head(ne, -1L), collapse = ", "), utils::tail(ne, 1L)))
+    phrase_ne)
   sprintf(paste(
     "%s%s <b>%d</b>",
     "au-del&agrave; du rep&egrave;re de levier (2k/T = %s). %s Un levier &eacute;lev&eacute;",
@@ -2759,8 +2775,8 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     empreintes <- data.frame(
       a = c("Donn\u00e9es du calcul", "R\u00e9sultat du moteur", "Code du moteur (R/engine.R)",
             "Chargeur du moteur (R/charger_moteur.R)"),
-      b = paste0("<code>", c(.txt(empr$donnees), .txt(empr$resultat), .txt(idt$md5_engine),
-                             .txt(idt$md5_chargeur)),
+      b = paste0("<code>", c(.ou_tiret(empr$donnees), .ou_tiret(empr$resultat),
+                             .ou_tiret(idt$md5_engine), .ou_tiret(idt$md5_chargeur)),
                  "</code>"),
       c = c(paste("Texte canonique des donn\u00e9es du calcul (valeurs en %.17g, NA, fins de",
                   "ligne LF) ; ne d\u00e9pend que des valeurs. <code>engine_empreinte()</code>."),
@@ -2768,9 +2784,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                   "stable sur une m\u00eame machine, <b>d\u00e9pend de la plateforme</b> (ADR 0006) :",
                   "ne se compare pas d'une machine \u00e0 l'autre. <code>engine_empreinte()</code>."),
             paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
-                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application."),
+                  "relev\u00e9s le", .ou_tiret(idt$releve), "au chargement du moteur par l'application."),
             paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
-                  "relev\u00e9s le", .txt(idt$releve), "au chargement du moteur par l'application ;",
+                  "relev\u00e9s le", .ou_tiret(idt$releve), "au chargement du moteur par l'application ;",
                   "le chargeur fixe la cha\u00eene d'environnements du moteur (ADR 0016).")),
       stringsAsFactors = FALSE)
     names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
