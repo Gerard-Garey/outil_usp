@@ -3143,7 +3143,7 @@ T_MAX_ENUM_PERMUTATION <- 9L
 SENS_PITMAN_PENTE <- "unilateral"
 .pitman_unilateral <- function(sens = SENS_PITMAN_PENTE) {
   if (!identical(sens, "unilateral"))
-    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" (#169) : ", format(sens))
+    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" (#169) : ", format(sens, decimal.mark = "."))
   TRUE
 }
 .cache_permutations <- new.env(parent = emptyenv())
@@ -4406,13 +4406,13 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # (aucune ligne ne le produit depuis #304 et #300).
     if (!is.character(type) || length(type) != 1L || is.na(type) ||
         !type %in% c("test", "diagnostic", "non applicable"))
-      stop("add() : type de ligne inconnu : ", paste(format(type), collapse = " "),
+      stop("add() : type de ligne inconnu : ", paste(format(type, decimal.mark = "."), collapse = " "),
            " (", nom, ")", call. = FALSE)
     # Nature de la p non simulee (#120) : deux valeurs admises, toute autre
     # est une erreur de programmation.
     if (!is.character(nature_as) || length(nature_as) != 1L || is.na(nature_as) ||
         !nature_as %in% c("asymptotique", NATURE_APPROX_N_FINI))
-      stop("add() : nature_as inconnue : ", paste(format(nature_as), collapse = " "),
+      stop("add() : nature_as inconnue : ", paste(format(nature_as, decimal.mark = "."), collapse = " "),
            " (", nom, ")", call. = FALSE)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
