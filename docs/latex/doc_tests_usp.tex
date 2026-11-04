@@ -10103,9 +10103,35 @@ décision, issue~\#299, décision Q-D1-Fh-5 du mainteneur du 19~octobre 2026~; A
 la même alternative, une tendance monotone du ratio dans le temps, que la ligne de Mann--Kendall
 (fiche~\ref{fiche:mann-kendall}), sur la même série $r_t$, et un second verdict sur cette
 hypothèse compterait presque deux fois la même information~; les p-values ne sont pas écartées
-pour leur qualité. La corrélation des deux statistiques sur les $8!$ ordres possibles des $r_t$ a
-été calculée par une revue interne du 15~octobre 2026, dont le calcul n'est pas repris par un
-script de \code{tests/}~: elle n'est pas chiffrée ici. Le commentaire se termine par «~\code{Restituee en diagnostic par decision
+pour leur qualité. La corrélation des deux statistiques sous $H_0$ est connue exactement
+(issue~\#420)~: quand les $T!$ ordres des $r_t$ sont équiprobables et sans ex \ae quo, la
+statistique $S_{\mathrm{MK}} = \sum_{i<j}\operatorname{sign}(r_j - r_i)$ de Mann--Kendall et
+$\hat\rho_s$ de la variante «~ratio contre temps~» ont pour corrélation
+\[
+  \operatorname{corr}(S_{\mathrm{MK}}, \hat\rho_s) = \frac{2(T+1)}{\sqrt{2T(2T+5)}},
+  \qquad\text{soit } \frac{18}{\sqrt{336}} = 0{,}9819805 \text{ à } T = 8
+  \ \big(\operatorname{corr}^2 = 27/28\big)~;
+\]
+la statistique $S = \sum_t d_t^2$ de la ligne, fonction affine décroissante de $\hat\rho_s$, a
+avec $S_{\mathrm{MK}}$ la corrélation $-0{,}9819805$, de même valeur absolue. Résultat exact,
+établi de deux façons, toutes deux reprises par le test
+\code{tests/unitaires/}\allowbreak\code{test\_mk\_spearman.R}~: par l'énumération des
+$8! = 40\,320$ ordres équiprobables, avec un contrôle en nombres entiers,
+$28\operatorname{Cov}^2 = 27\operatorname{Var}(S_{\mathrm{MK}})\operatorname{Var}(D)$, et par la
+démonstration élémentaire suivante. Les rangs $R_1, \dots, R_T$ des $r_t$ forment sous $H_0$ une permutation
+uniforme de $\{1, \dots, T\}$~; $\hat\rho_s$ est une fonction affine croissante de
+$D = \sum_t t\,R_t$. Pour $t \notin \{i, j\}$, $\mathbb{E}[\operatorname{sign}(R_j - R_i)\,R_t] = 0$
+(l'échange de $R_i$ et $R_j$ change le signe sans changer la loi de $R_t$), et
+$\mathbb{E}[\operatorname{sign}(R_j - R_i)\,R_j] = -\mathbb{E}[\operatorname{sign}(R_j - R_i)\,R_i]
+= \mathbb{E}|R_j - R_i|/2 = (T+1)/6$~; d'où
+$\operatorname{Cov}(S_{\mathrm{MK}}, D) = \frac{T+1}{6}\sum_{i<j}(j - i) = \frac{T+1}{6}\cdot
+\frac{(T-1)T(T+1)}{6}$, avec $\operatorname{Var}(S_{\mathrm{MK}}) = T(T-1)(2T+5)/18$ et
+$\operatorname{Var}(D) = \big(T(T^2-1)/12\big)^2/(T-1)$, soit $126$, $65{,}33$ et $252$ à $T = 8$,
+dont le quotient donne la formule. Aucune référence bibliographique n'est invoquée pour cette
+formule~: elle repose sur l'énumération et sur la démonstration ci-dessus. Sa portée est celle de
+ses hypothèses~: $r_t$ échangeables et sans ex \ae quo, c'est-à-dire, sous le modèle ajusté,
+$\hat\pi_t$ constant~; à $\hat\pi_t$ variable ou avec ex \ae quo, la corrélation des deux
+statistiques n'est pas chiffrée. Le commentaire se termine par «~\code{Restituee en diagnostic par decision
 (issue \#299) : aucun verdict ni p-value retenue ; meme alternative (tendance monotone du ratio)
 que la ligne Mann-Kendall, dont le type et le verdict font foi.}~». La variante «~ratio contre
 volume~» reste un test.
@@ -10214,6 +10240,12 @@ par aucune source vérifiée, d'où la loi exacte retenue quand ses conditions s
 Surtout, le test suppose
 \emph{l'indépendance} des observations~: en présence d'autocorrélation positive il rejette
 beaucoup trop souvent, ce qui impose de le lire conjointement avec les tests de la section~\ref{sec:h4}.
+La variante «~ratio contre temps~» de la corrélation de Spearman vise la même alternative sur la
+même série $r_t$~; elle est restituée en diagnostic par décision (issue~\#299), et c'est la
+présente ligne qui porte le verdict. Sous $H_0$, $r_t$ échangeables et sans ex \ae quo, $S$ et
+$\hat\rho_s$ contre le temps ont pour corrélation exacte $2(T+1)/\sqrt{2T(2T+5)}$, soit
+$0{,}9819805$ à $T = 8$ (énumération des $8!$ ordres et démonstration, sans référence
+bibliographique~: fiche~\ref{fiche:spearman}, issue~\#420).
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de H1 (famille B.) et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est retenue~; son verdict n'en est pas modifié.
 \Pertinence
