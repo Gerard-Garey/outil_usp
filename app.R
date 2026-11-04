@@ -27,8 +27,9 @@ source("R/charger_moteur.R", local = FALSE)
 charger_moteur("R/engine.R", dans = globalenv())
 source("R/display_helpers.R", local = FALSE)
 
-# Identite du code (version DESCRIPTION, md5 de R/engine.R), relevee au
-# moment ou le moteur est charge ; reportee dans le rapport fige.
+# Identite du code (version DESCRIPTION, md5 de R/engine.R et de
+# R/charger_moteur.R), relevee au moment ou le moteur est charge ; reportee
+# dans le rapport fige.
 IDENTITE_CODE <- identite_code(".")
 
 # Sortie graphique polymorphe : plotly si le paquet est disponible, graphique
@@ -324,6 +325,11 @@ ui <- fluidPage(
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
     details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
+    /* Bandeau des avertissements d'apres calcul (#412) : le resume est un titre
+       complet, pas un debut tronque : ni repere [...] (suggere une troncature),
+       titre en gras. */
+    .avert details.com > summary { font-weight:700; }
+    .avert details.com:not([open]) > summary::after { content:none; }
     /* Grille de saisie du triangle : cellules larges, en-tetes figes. */
     table.triangle { border-collapse:separate; border-spacing:3px 2px; }
     table.triangle th { font-weight:600; color:#00468C; font-size:12px;
@@ -1237,13 +1243,22 @@ server <- function(input, output, session) {
   # pose dans res$validation$avertissements, y compris apres l'ajustement
   # Merz-Wuthrich (mw_valider_ajustement()) ; la section 3 du rapport fige les
   # restitue de la meme source. Lecture seule, aucun texte ni regle ici.
+  # Bandeau entierement replie (#412, decision Q-46-4 (a)) : motif
+  # <details class='com'>/<summary> de la vue Detail (#178), un avertissement
+  # pouvant depasser 2 000 caracteres (tri_deg) ; le resume donne le nombre
+  # d'avertissements du dernier calcul (longueur du vecteur, accord au
+  # singulier), sans dedoublonnage avec l'apercu ni bandeau_T.
   output$bandeau_avertissements <- renderUI({
     r <- resultat()
     if (is.null(r) || !isTRUE(r$ok)) return(NULL)
     av <- r$validation$avertissements
     if (!length(av)) return(NULL)
-    div(class = "avert", tags$b("Avertissements de validation du calcul :"),
-        tags$ul(style = "margin:4px 0", lapply(av, tags$li)))
+    n <- length(av)
+    div(class = "avert",
+        tags$details(class = "com",
+                     tags$summary(sprintf("%d %s de validation du calcul", n,
+                                          if (n == 1L) "avertissement" else "avertissements")),
+                     tags$ul(style = "margin:4px 0", lapply(av, tags$li))))
   })
 
   # B minimal fonction d'alpha (#127) : avertissement avant le clic, texte
@@ -1481,13 +1496,13 @@ server <- function(input, output, session) {
   output$mw_rcal <- rendu_graphique(plot_mw_residus_cal(R()$plots_data))
   output$mw_qq   <- rendu_graphique(plot_mw_qq(R()$plots_data))
   output$mw_reg   <- rendu_graphique(plot_mw_regressions(R()$plots_data))
-  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data, R()$metadata$alpha))
+  output$mw_orig  <- rendu_graphique(plot_mw_origine(R()$plots_data))
   output$mw_alpha <- rendu_graphique(plot_mw_alpha(R()$plots_data))
 
   # Note contextuelle du volet M1 : les valeurs proviennent du moteur.
   # Texte partage avec le rapport fige (note_m1, R/display_helpers.R).
   output$note_m1 <- renderUI({
-    n <- note_m1(R()$plots_data, R()$metadata$alpha)
+    n <- note_m1(R()$plots_data)
     if (is.null(n)) return(NULL)
     helpText(HTML(n))
   })
@@ -1499,8 +1514,10 @@ server <- function(input, output, session) {
   output$mw_dfb      <- rendu_graphique(plot_mw_dfbeta(R()$plots_data))
   output$mw_contrib  <- rendu_graphique(plot_mw_contributions(R()$plots_data))
 
-  # Notes contextuelles : les seuils et les comptages viennent du moteur ;
-  # textes partages avec le rapport fige (R/display_helpers.R).
+  # Notes contextuelles : les reperes de lecture et les booleens qui les
+  # franchissent viennent du moteur ; les notes lisent, mettent en forme et,
+  # au plus, decomptent ces booleens (mise en forme, CONTEXT.md) ; textes
+  # partages avec le rapport fige (R/display_helpers.R).
   output$note_influence_mw <- renderUI({
     n <- note_influence_mw(R()$plots_data)
     if (is.null(n)) return(NULL)
@@ -1531,8 +1548,13 @@ server <- function(input, output, session) {
     if (identical(R()$metadata$methode, "reserve2")) return(NULL)
     n <- note_surface(R()$plots_data)
     if (is.null(n)) return(NULL)
-    if (n$alerte) div(class = "avert", HTML(n$html))
-    else div(style = "color:#1E8449", HTML(n$html))
+    # Aide du profil en delta (#405) : bloc distinct, style neutre, sans la
+    # couleur de la note de la surface ; absente si le profil n'est pas trace.
+    tagList(
+      if (n$alerte) div(class = "avert", HTML(n$html))
+      else div(style = "color:#1E8449", HTML(n$html)),
+      if (!is.null(n$aide))
+        div(style = "margin-top:6px;color:#7F8C8D;font-size:12.5px", HTML(n$aide)))
   })
 
   # --- Calibration ----------------------------------------------------------

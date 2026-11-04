@@ -90,7 +90,7 @@
 #      p-values Monte-Carlo fictives (0,5) : type, estimation, statistique
 #      et inoperance (p_min, lois discretes) n'en dependent pas ; les
 #      verdicts des lignes "test" en dependent et ne sont pas exploites.
-#  Lignes hors perimetre, de deux sortes, absentes de T2 et declarees en T0
+#  Lignes hors perimetre, de trois sortes, absentes de T2 et declarees en T0
 #  et dans CONTEXTE (aucun repere n'y porte) :
 #    - LIGNES_HORS_PERIMETRE (issue #45) : la largeur de l'IC bootstrap a
 #      delta fixe et les deux rapports de vraisemblance aux bornes delta = 0
@@ -114,9 +114,23 @@
 #      res$tests que chacune est un diagnostic de verdict INFO sans p retenue,
 #      qu'elles forment un suffixe de la table, et qu'une ligne globale existe
 #      des que deux statistiques Monte-Carlo membres existent ; traiter()
-#      affirme que la reconstruction n'en produit aucune.
+#      affirme que la reconstruction n'en produit aucune ;
+#    - LIGNES_HORS_POPULATION (#423) : la ligne "Test de Student sur la pente
+#      (modele auxiliaire MCO)", reconstruite par traiter() (usp_tests() la
+#      pose), mais ajoutee apres les mesures versionnees sur 48 lignes et
+#      hors de leur population (decision Q-46-17 (a) du 02/11/2026, aucune
+#      mesure longue relancee). Raison (specification d'actuary, #423) : la
+#      ligne est un diagnostic par construction (de type diagnostic, ou non
+#      applicable sous le predicat de la ligne Pitman) ; son verdict est
+#      INFO, sans p retenue : elle ne porte jamais ECHEC ni ALERTE et n'entre
+#      dans aucun agregat de verdicts ; aucun repere n'y porte ; sa p est
+#      egale a celle de la ligne Fisher, deja dans la population. Exclue de
+#      T2 (compter()) et DES DEUX COTES du controle d'integrite (res$tests et
+#      reconstruction) ; le controle verifie qu'elle figure exactement une
+#      fois de chaque cote, avec un verdict INFO sans p retenue dans
+#      res$tests.
 #  Le controle d'integrite compare res$tests prive de ces lignes a la table
-#  reconstruite.
+#  reconstruite privee des LIGNES_HORS_POPULATION.
 #
 #  Alea : tout tirage passe par engine_sous_graine() avec une graine
 #  explicite. Les R jeux simules sont tires d'un seul flux (graine --graine),
@@ -470,6 +484,18 @@ fonction_ligne <- function(l) {
 }
 est_lecture_conjointe <- function(tt) vapply(tt, fonction_ligne, "") %in% FONCTION_LECTURE_CONJOINTE
 TXT_LECTURE_CONJOINTE <- "lignes de lecture conjointe pos\u00e9es par engine_p_famille() (\u00ab p de famille \u00bb, \u00ab p globale \u00bb ; #297)"
+# Lignes de usp_tests() RECONSTRUITES par traiter() mais hors de la
+# population des mesures versionnees sur 48 lignes (#423, Q-46-17 (a) ; voir
+# l'en-tete) : exclues de T2 et des deux cotes du controle d'integrite, a la
+# difference de LIGNES_HORS_PERIMETRE (non reconstruites). Libelles "test"
+# exacts du moteur ; raison ecrite de l'exclusion dans TXT_HORS_POPULATION.
+LIGNES_HORS_POPULATION <- "Test de Student sur la pente (modele auxiliaire MCO)"
+TXT_HORS_POPULATION <- paste(
+  "Ligne ajout\u00e9e par #423 (02/11/2026), apr\u00e8s les mesures versionn\u00e9es sur 48 lignes, et hors de leur",
+  "population (Q-46-17 (a), aucune mesure longue relanc\u00e9e). La ligne est un diagnostic par construction : de type",
+  "diagnostic, ou non applicable sous le pr\u00e9dicat de la ligne Pitman. Son verdict est INFO, sans p retenue : elle ne",
+  "porte jamais ECHEC ni ALERTE et n'entre dans aucun agr\u00e9gat de verdicts. Aucun rep\u00e8re n'y porte. Sa p est",
+  "\u00e9gale \u00e0 celle de la ligne Fisher, d\u00e9j\u00e0 dans la population.")
 REPERES <- list(
   list(cle = "cook", groupe = "diag", libelle = "Distance de Cook : au moins une observation au-dessus",
        seuil = "4/T", source = "usp_tests() (d\u00e9tail de la ligne)"),
@@ -502,7 +528,7 @@ LIBELLES_CONTEXTE <- c(
   plateforme = "Plateforme de calcul (R, syst\u00e8me, machine, BLAS, LAPACK)",
   empreintes = "Empreintes md5 du code ex\u00e9cut\u00e9",
   leviers = "Leviers (rep\u00e8re 2k/T, jeu observ\u00e9)",
-  hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45, #297)")
+  hors_perimetre = "Lignes de usp_tests() hors p\u00e9rim\u00e8tre (#45, #297, #423)")
 
 # --- Mode --combiner ---------------------------------------------------------------
 # Refus de la combinaison : message et code de sortie 1, aucun tableau.
@@ -594,6 +620,8 @@ tableaux <- function(cpt, R, lev) {
   c(L, "", "Inop\u00e9rant : ligne de type test dont p_min \u2265 \u03b1, restitu\u00e9e diagnostic INFO (r\u00e8gle R1, #44) ; compt\u00e9e aussi dans la colonne diagnostic.", "",
     paste0("Hors p\u00e9rim\u00e8tre, non reconstruites dans les r\u00e9plications et absentes de T2 (aucun rep\u00e8re n'y porte ; #45) : ",
            paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = ", "), "."),
+    paste0("Hors p\u00e9rim\u00e8tre (#423), reconstruite(s) mais absente(s) de T2 et du contr\u00f4le d'int\u00e9grit\u00e9 : ",
+           paste0("\"", LIGNES_HORS_POPULATION, "\"", collapse = ", "), ". ", TXT_HORS_POPULATION),
     paste0("Hors p\u00e9rim\u00e8tre (#297), absentes de T2 : ", TXT_LECTURE_CONJOINTE, ". Aucun rep\u00e8re n'y porte ; ",
            "leur type est constant par construction (diagnostic, ADR 0001), donc sans information ici ; leur p-value d\u00e9pend ",
            "de la loi jointe du bootstrap, que ce script ne reconstruit pas ; leur niveau est mesur\u00e9 par la campagne de #297 ",
@@ -974,7 +1002,9 @@ compter <- function(cpt, r) {
   repere("bord", r$regime$delta_au_bord)
   repere("bord0", r$fit$delta <= TOL_DELTA_BORD)
   repere("bord1", r$fit$delta >= 1 - TOL_DELTA_BORD)
+  # Lignes hors population (#423) : reconstruites, non comptees dans T2.
   for (l in r$tests) {
+    if (l$test %in% LIGNES_HORS_POPULATION) next
     ajoute(paste0("nl|", l$test), 1)
     ajoute(paste0("type|", l$test, "|", l$type), 1)
     if (!is.null(l$detail) && startsWith(l$detail, "TEST INOPERANT")) ajoute(paste0("inop|", l$test), 1)
@@ -1027,10 +1057,24 @@ n_globales_lc <- sum(vapply(res$tests[lc_res], function(l) identical(l$famille, 
 if (n_membres_lc >= 2L && n_globales_lc < 1L)
   integrite <- c(integrite, sprintf("res$tests : %d statistiques Monte-Carlo membres mais aucune ligne globale de lecture conjointe (engine_p_famille(), #297)",
                                     n_membres_lc))
-tests_res <- res$tests[!noms_res %in% LIGNES_HORS_PERIMETRE & !lc_res]
-if (length(obs$tests) != length(tests_res) ||
-    !identical(lapply(obs$tests, `[`, champs), lapply(tests_res, `[`, champs)))
-  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE et lignes de lecture conjointe)")
+# Lignes hors population (#423) : exactement une fois de chaque cote ; dans
+# res$tests, verdict INFO sans p retenue (diagnostic par construction).
+noms_obs <- vapply(obs$tests, `[[`, "", "test")
+for (nm in LIGNES_HORS_POPULATION) {
+  if (sum(noms_res == nm) != 1L || sum(noms_obs == nm) != 1L)
+    integrite <- c(integrite, sprintf("ligne hors population (#423) \"%s\" absente ou multiple dans res$tests ou dans la reconstruction", nm))
+  else {
+    l <- res$tests[[match(nm, noms_res)]]
+    if (!(l$type %in% c("diagnostic", "non applicable")) || !identical(l$verdict, "INFO") || !is.na(l$p_retenue))
+      integrite <- c(integrite, sprintf("res$tests : ligne hors population (#423) \"%s\" hors contrat : type %s, verdict %s, p_retenue %s (diagnostic ou non applicable, INFO, sans p retenue attendu)",
+                                        nm, format(l$type), format(l$verdict), format(l$p_retenue)))
+  }
+}
+tests_res <- res$tests[!noms_res %in% c(LIGNES_HORS_PERIMETRE, LIGNES_HORS_POPULATION) & !lc_res]
+tests_obs <- obs$tests[!noms_obs %in% LIGNES_HORS_POPULATION]
+if (length(tests_obs) != length(tests_res) ||
+    !identical(lapply(tests_obs, `[`, champs), lapply(tests_res, `[`, champs)))
+  integrite <- c(integrite, "usp_tests() reconstruit : lignes, types, statistiques ou estimations differents de res$tests (hors LIGNES_HORS_PERIMETRE, LIGNES_HORS_POPULATION des deux cotes et lignes de lecture conjointe)")
 # Ligne jackknife : detail (annees les plus influentes, annees non evaluables)
 # identique a celui de run_engine() (#346) ; NULL des deux cotes si la ligne
 # est absente.
@@ -1078,7 +1122,10 @@ CTX <- c(
   hors_perimetre = paste0(paste0("\"", LIGNES_HORS_PERIMETRE, "\"", collapse = " ; "),
                           " : exclues du contr\u00f4le d'int\u00e9grit\u00e9 et de T2, aucun rep\u00e8re n'y porte ; ",
                           TXT_LECTURE_CONJOINTE, " : hors p\u00e9rim\u00e8tre (#297), exclues par fonction == \"",
-                          FONCTION_LECTURE_CONJOINTE, "\", contr\u00f4l\u00e9es sur res$tests (diagnostic INFO sans p retenue, suffixe, ligne globale) et absentes de la reconstruction"))
+                          FONCTION_LECTURE_CONJOINTE, "\", contr\u00f4l\u00e9es sur res$tests (diagnostic INFO sans p retenue, suffixe, ligne globale) et absentes de la reconstruction ; ",
+                          paste0("\"", LIGNES_HORS_POPULATION, "\"", collapse = " ; "),
+                          " : hors p\u00e9rim\u00e8tre (#423), reconstruite(s), exclue(s) de T2 et des deux c\u00f4t\u00e9s du contr\u00f4le d'int\u00e9grit\u00e9 (une fois de chaque c\u00f4t\u00e9, INFO sans p retenue dans res$tests). ",
+                          TXT_HORS_POPULATION))
 stopifnot(identical(names(CTX), names(LIBELLES_CONTEXTE)))
 NV <- c(motifs_non_versionnable(CTX[["commit"]], EMPREINTES, "de l'ex\u00e9cution"), if (OPT_ESSAI) "essai (--essai)")
 N_REP <- FIN - DEBUT + 1L

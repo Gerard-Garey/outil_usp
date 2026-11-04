@@ -371,12 +371,15 @@ Le \emph{rapport figé}, produit par \code{rapport\_html()}, est un fichier HTML
 unique, sans ressource externe, qui fige l'objet renvoyé par \code{run\_engine()}
 tel qu'il est en mémoire, et jamais la saisie en cours~; il ne relance aucun
 calcul et refuse un résultat que le moteur a rejeté (\code{docs/exigences.md},
-§~5.6~; ADR~0009). Son en-tête porte trois empreintes md5~: celle des données du
-calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
+§~5.6~; ADR~0009). Son en-tête porte quatre empreintes md5, chacune sur sa ligne~: celle
+des données du calcul et celle de l'objet résultat, calculées par \code{engine\_empreinte()}
 (la seconde est stable sur une même machine et dépend de la plateforme,
-ADR~0006), et celle des octets de \code{R/engine.R}, relevée avec la version
-déclarée dans \code{DESCRIPTION} par \code{identite\_code()} au chargement du
-moteur par l'application~; il porte aussi le générateur et les graines fixes des simulations,
+ADR~0006), et celles des octets de \code{R/engine.R} et, depuis l'issue~\#397, de
+\code{R/charger\_moteur.R}, une par fichier, sans empreinte composite, le résultat dépendant
+aussi du chargeur, qui fixe la chaîne d'environnements du moteur (ADR~0016)~; ces deux
+dernières sont relevées avec la version déclarée dans \code{DESCRIPTION} par
+\code{identite\_code()}, hors de \code{run\_engine()}, au chargement du moteur par
+l'application, à une même heure de relevé (ADR~0009, annotation du 2~novembre 2026)~; il porte aussi le générateur et les graines fixes des simulations,
 lus dans \code{\$metadata} (\code{valeurs\_generateur()}, issue~\#37), dont la graine fixe de
 la loi nulle de Shapiro--Wilk (méthode de réserve n\textsuperscript{o}~2 seulement depuis
 l'issue~\#351, section~\ref{sec:graines}) et, depuis l'issue~\#240, la graine du flux complémentaire des p-values de Monte-Carlo
@@ -969,6 +972,16 @@ motif $\to$ phrase, dont la seule entrée porte sur \code{MOTIF\_MC\_ATOME\_HORS
 \code{add()}, par l'intermédiaire de \code{.prefixe\_motif\_mc()} depuis l'issue~\#358, et par les
 lignes du rapport de vraisemblance sur $\delta$ d'\code{usp\_tests()}
 (§\ref{sec:nature}, issue~\#126) \\
+\code{.engine\_motif\_}\newline\code{mc\_lu()},\newline \code{.engine\_stat\_}\newline\code{definie()}
+& objet bootstrap, nom de la statistique~; et statistique observée (lue par défaut dans
+\code{boot\$stats\_obs}) & motif d'indisponibilité de la p-value de Monte-Carlo de la statistique,
+lu dans \code{boot\$motif\_mc} (\code{NA} si la p-value est calculée, si le champ manque ou s'il
+ne nomme pas la statistique)~; booléen «~statistique observée définie~», vrai si elle est finie et
+si son motif n'est pas \code{MOTIF\_MC\_OBS\_NON\_FINIE} (priorité des motifs non applicables~: une
+ligne dont la statistique n'est pas définie garde son type \code{test}, et \code{add()} la rend
+non applicable)~; lecteur unique du motif, lu par \code{usp\_tests()}, par \code{mw\_tests()}
+(ligne des suites, qui passe la statistique qu'elle a calculée) et par
+\code{.mw\_phrase\_b\_effectif()} (issue~\#399) \\
 \code{engine\_registre\_}\newline\code{tests()} & \code{boot}, catalogue, \code{alpha},
 libellé de nature Monte-Carlo & fonction \code{add()} d'enregistrement d'une ligne de test
 (arguments \code{p\_mc\_ext} et \code{err\_mc\_ext}~: p-value de Monte-Carlo calculée hors du
@@ -1089,9 +1102,12 @@ $\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en éch
 \code{usp\_jack\_annees()} & $\sigma_{\mathrm{USP}}^{(-t)}$ (colonne \code{sigma\_usp}
 d'\code{usp\_jackknife()}), $\sigma_{\mathrm{USP}}$ & indices $t$ des années évaluables les plus
 influentes sur $\sigma_{\mathrm{USP}}$, à la tolérance $\tau$ près (issue~\#327), ou \code{NULL}
-si aucun écart n'est fini~; désignation unique du moteur, lue par \code{run\_engine()}
-(commentaire de la ligne jackknife) et par \code{engine\_influence()} (colonne
-\code{plus\_influente}), extraite telle quelle de \code{run\_engine()} par l'issue~\#396
+si aucun écart n'est fini et, depuis l'issue~\#405, si aucun écart relatif ne l'est
+($\sigma_{\mathrm{USP}}$ nul ou non fini), jamais \code{integer(0)}~; désignation unique du
+moteur, extraite telle quelle de \code{run\_engine()} par l'issue~\#396, calculée une fois par
+\code{run\_engine()} (élément \code{jack\_annees} de \code{robustesse}, non stocké), qui la lit pour le commentaire de la ligne
+jackknife et, depuis l'issue~\#405, la transmet à \code{engine\_influence()} par
+\code{engine\_plots\_data()} (argument \code{jack\_annees}, colonne \code{plus\_influente})
 (fiche~\ref{fiche:jackknife}) \\
 \code{usp\_profil()} & \code{fit}, \code{n} (41 points) & profils en $\delta$ et $\gamma$ (le
 rapport de vraisemblance aux bornes, calculé ici jusqu'à l'issue~\#45 contre une loi
@@ -1214,12 +1230,18 @@ la constante \code{.MW\_LIGNES\_COLONNES\_ECARTEES}, que lit l'avertissement des
 dégénérées de \code{mw\_valider\_ajustement()} (issues~\#352 et~\#363, §\ref{sec:controles}) \\
 \code{.MW\_LIGNES\_COLONNES\_}\newline\code{ECARTEES} & constante (liste nommée par famille) &
 noms des lignes de \code{mw\_tests()} qui écartent les colonnes dégénérées de leur calcul, par
-famille et dans l'ordre de \code{mw\_tests()}~: une ligne y figure si elle reçoit l'ensemble
+famille (dans l'ordre de \code{mw\_tests()} jusqu'à l'issue~\#405~; ordre décrit ci-dessous)~: une ligne y figure si elle reçoit l'ensemble
 figé des colonnes dégénérées, directement ou par \code{mw\_residus()}~; les lignes fondées sur les
 résidus de Mack (\code{.MW\_LIGNES\_RESIDUS}) en font donc partie. La famille~$\alpha$
 (fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année d'accident ne
 reçoivent pas cet ensemble et n'y figurent pas, non plus que les lignes de lecture conjointe
-(décision du mainteneur du 30~octobre 2026). Constante unique, lue par l'avertissement des
+(décision du mainteneur du 30~octobre 2026). Depuis l'issue~\#405, elle est construite par
+union, famille par famille, de \code{.MW\_LIGNES\_RESIDUS} et de la liste des seules lignes hors
+résidus (\code{.MW\_LIGNES\_COLONNES\_}\allowbreak\code{ECARTEES\_HORS\_RESIDUS}), de sorte qu'un
+nom de ligne fondée sur les résidus ne s'écrit qu'une fois~; familles dans l'ordre M1 à M5, et,
+dans chacune, lignes fondées sur les résidus puis lignes hors résidus, ce qui n'est plus l'ordre
+de \code{mw\_tests()} en M3 et en M4 (ordre sans lecteur~: l'avertissement lit les deux listes
+séparées). Constante unique, lue par l'avertissement des
 colonnes dégénérées de \code{mw\_valider\_ajustement()}, qui nomme celles de ses lignes qui ne
 reposent pas sur les résidus de Mack (issue~\#363, §\ref{sec:controles})~; un test unitaire vérifie
 qu'elle coïncide avec les lignes dont le contenu change quand on substitue l'ensemble figé,
@@ -1404,7 +1426,8 @@ colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme qua
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
-\code{.mw\_combinaisons()} & $n$ & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
+\code{.mw\_combinaisons()},\newline \code{.MW\_COMBN\_}\newline\code{CACHE\_APPEL} & $n$~; cache
+d'appel & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
 (\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
 calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
@@ -1413,7 +1436,13 @@ l'issue~\#293, seules les tables de $n \le$ \code{MW\_COMBN\_N\_MAX} $= 20$ y so
 plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à chaque appel et jamais
 gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
 l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
-même, cache vide ou rempli \\
+même, cache vide ou rempli. Depuis l'issue~\#405, la table d'un $n >$ \code{MW\_COMBN\_N\_MAX} est
+gardée dans le cache \code{.MW\_COMBN\_CACHE\_APPEL} le temps d'un appel de
+\code{mw\_bootstrap()} seulement, pour les seules valeurs de $n$ rencontrées, puis vidée à la
+sortie de l'appel, erreur comprise~: la mémoire reste bornée hors de l'appel, et la table n'est
+plus recalculée à chaque colonne et à chaque réplication~; hors d'un tel appel (statistique
+observée de \code{mw\_tests()}, appel direct), elle est recalculée à chaque appel, comme
+auparavant. Mêmes matrices que l'appel direct dans tous les cas \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1575,8 +1604,11 @@ dans le terme de variance de processus \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Sorties}}} \\
 \code{engine\_plots\_data()} & \code{fit}, \code{boot}, \code{profil},\newline
 \code{jackknife}, \code{sigma\_usp}, \code{lr\_delta},\newline \code{sigma\_usp\_boot}, \code{ic},
-\code{sigma\_standard},\newline \code{ic\_basic\_log} & toutes les quantités tracées (branche
-lognormale), sans aucun tirage depuis l'issue~\#47~; dont \code{plots\_data\$lr\_delta} (repères
+\code{sigma\_standard},\newline \code{ic\_basic\_log},\newline \code{jack\_annees} (par défaut
+\code{usp\_jack\_annees()} sur \code{jackknife} et \code{sigma\_usp}~; issue~\#405) & toutes les
+quantités tracées (branche
+lognormale), sans aucun tirage depuis l'issue~\#47~; désignation jackknife \code{jack\_annees}
+reçue de \code{run\_engine()} et passée telle quelle à \code{engine\_influence()} (issue~\#405)~; dont \code{plots\_data\$lr\_delta} (repères
 du profil, issue~\#45, et leur niveau \code{plots\_data\$lr\_delta\$niveau}, valeur de la
 constante \code{LR\_DELTA\_NIVEAU\_REPERES} $= 0{,}90$, issue~\#190), \code{plots\_data\$qq\_enveloppe} (description de l'enveloppe du QQ-plot),
 \code{plots\_data\$spread\_enveloppe} (enveloppe du graphique dispersion-niveau, issue~\#306),
@@ -1586,7 +1618,8 @@ bootstrap de $\sigma_{\mathrm{USP}}$, issue~\#305, fiche~\ref{fiche:ic-bootstrap
 et, seulement quand un résidu standardisé ou une distance de Cook n'est pas fini,
 \code{plots\_data\$influence\_motif} (motif des graphiques d'influence sans objet, issue~\#153,
 fiche~\ref{fiche:graph-influence-levier}) \\
-\code{engine\_enveloppe\_qq()},\newline \code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
+\code{engine\_enveloppe\_qq()},\newline \code{engine\_bande\_}\allowbreak\code{ponctuelle()},\newline
+\code{.engine\_motif\_}\allowbreak\code{enveloppe()},\newline
 \code{ENVELOPPE\_QQ\_NIVEAU},\newline
 \code{ENVELOPPE\_QQ\_PROBS},\newline \code{ENVELOPPE\_QQ\_TAUX\_MAX},\newline
 \code{ENVELOPPE\_QQ\_B\_MIN},\newline \code{ENVELOPPE\_QQ\_B\_MIN\_SIM} & \code{z\_boot}, $T$~;
@@ -1596,9 +1629,15 @@ simultanée à 90~\% de l'enveloppe du QQ-plot (colonnes \code{env\_bas}, \code{
 description (\code{source}, $B_{\text{eff}}$, niveaux, rang $k^{\star}$ de l'éq.~(4.17) de Davison
 et Hinkley (1997), calculé par \code{engine\_rang\_simultane\_dh()} depuis l'issue~\#385, taux
 \code{taux\_global\_ponctuel} (in-sample) et \code{taux\_global\_simultane} (taux de~(4.17)),
-seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; aucune bande sous 20
+seuil \code{B\_min\_simultane}, \code{regle\_rang}, \code{motif})~; bornes de la bande ponctuelle
+(quantiles de type~7 aux probabilités \code{ENVELOPPE\_QQ\_PROBS}, colonne par colonne) et taux
+\code{taux\_global\_ponctuel} (proportion des réplications dont au moins une valeur sort
+strictement de la bande) calculés une seule fois par \code{engine\_bande\_ponctuelle()}, commune au
+graphique dispersion-niveau (issue~\#399)~; aucune bande sous 20
 réplications, pas de bande simultanée sous 500 ni faute de rang $k$ admissible, chaque cas avec
-son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau
+son motif, chaîne de \code{.engine\_motif\_enveloppe()}, commune au graphique dispersion-niveau,
+qui porte en outre le cas \code{volumes\_constants}, propre à ce graphique («~\code{volumes
+constants : graphique dispersion-niveau sans objet}~», issue~\#399)
 (fiche~\ref{fiche:qqnorm}, issues~\#47 et~\#385) \\
 \code{engine\_enveloppe\_}\allowbreak\code{spread()},\newline
 \code{engine\_rang\_}\allowbreak\code{simultane\_dh()},\newline
@@ -1607,10 +1646,12 @@ $L$ des courbes simulées~; constantes ($2/3$~; 3) & enveloppe de simulation du 
 dispersion-niveau (\code{plots\_data\$spread\_enveloppe}), sans aucun tirage~: courbes
 \code{lowess()} des lignes finies de \code{z\_boot}, aux paramètres \code{SPREAD\_LOWESS\_F} et
 \code{SPREAD\_LOWESS\_ITER} de la courbe observée \code{plots\_data\$spread\_lisse}~; bande
-ponctuelle et bande simultanée à 90~\%, constantes et seuils de l'enveloppe du QQ-plot, rang
+ponctuelle (par \code{engine\_bande\_ponctuelle()} depuis l'issue~\#399) et bande simultanée à
+90~\%, constantes et seuils de l'enveloppe du QQ-plot, rang
 $k^{\star}$ de la bande simultanée selon l'éq.~(4.17) de Davison et Hinkley (1997), calculé par
-\code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence (fiche~\ref{fiche:spread-location},
-issue~\#306) \\
+\code{engine\_rang\_simultane\_dh()}~; motif de dégénérescence, chaîne de
+\code{.engine\_motif\_enveloppe()}, cas \code{volumes\_constants} compris depuis l'issue~\#399
+(fiche~\ref{fiche:spread-location}, issue~\#306) \\
 \code{usp\_ic\_basic\_log()} & \code{sigma\_boot}, $\hat\sigma$, $c$,
 $\sqrt{(T+1)/(T-1)}$, $\sigma_{\text{std}}$ & intervalle «~basic~» sur l'échelle logarithmique,
 $\hat\sigma^2/\hat q$ sur l'échelle de $\sigma$ (quantiles de type~7 de \code{sigma\_boot}), reporté
@@ -1630,7 +1671,13 @@ nominal de la constante, qui nomme ce niveau sans fixer les bornes~: les probabi
 \code{.run\_engine\_mw()} pour l'intervalle de percentile, et dans \code{usp\_ic\_basic\_log()} pour l'intervalle «~basic~» sur l'échelle logarithmique (fiche~\ref{fiche:ic-bootstrap}, issue~\#305) \\
 \code{engine\_surface\_objectif()}\newline \code{engine\_influence()}\newline
 \code{engine\_contours\_cook()} & \code{fit}~; \code{fit}, \code{jackknife},
-\code{sigma\_usp}~; $T$ & surface de l'objectif en $(\delta,\gamma)$~; leviers,
+\code{sigma\_usp}, \code{jack\_annees} (désignation reçue de \code{run\_engine()} par
+\code{engine\_plots\_data()} depuis l'issue~\#405, calculée par \code{usp\_jack\_annees()} en
+appel direct sans cet argument)~; $T$ & surface de l'objectif en $(\delta,\gamma)$, dont,
+depuis l'issue~\#404, en fin de liste, \code{objectif\_coupe}, coupe exacte de l'objectif à
+$\hat\gamma$ sur la grille des $\delta$, évaluée en $\gamma = \hat\gamma$ et non lue dans la
+colonne de la grille la plus proche, tracée telle quelle par \code{plot\_coupe\_delta()}
+(\code{amplitude\_delta} en est l'étendue, inchangée au bit près)~; leviers,
 distances de Cook (modèle ajusté après \code{.usp\_echelle\_exacte()}, issue~\#153), leurs
 repères de lecture \code{repere\_levier} $=$ \code{REPERE\_LEVIER} $\cdot\,k/T$ ($k$ nombre de
 coefficients du modèle ajusté, $k = 1$) et \code{repere\_cook} $=$ \code{REPERE\_COOK\_LN}$/T$
@@ -1639,7 +1686,11 @@ booléens de coloration \code{fort\_levier} et \code{influent}, écarts du
 jackknife et booléen de coloration \code{fort\_ecart\_sigma} (\code{NA} pour une année non
 évaluable, issue~\#224)~; depuis l'issue~\#396, en fin de table, colonne logique
 \code{plus\_influente}, \code{TRUE} pour les années désignées par \code{usp\_jack\_annees()},
-\code{FALSE} partout si aucun réajustement n'a abouti~;
+\code{FALSE} partout si aucun réajustement n'a abouti~; depuis l'issue~\#404, après elle,
+colonne logique \code{non\_evaluable}, \code{TRUE} pour une année dont
+$\sigma_{\mathrm{USP}}^{(-t)}$ n'est pas fini (réajustement refusé ou en échec, même critère que
+les années non évaluables du commentaire de la ligne jackknife, issue~\#224), lue par la note et
+le graphique d'influence sans test de finitude dans l'affichage~;
 courbes d'iso-Cook (appelées par \code{engine\_plots\_data()}) \\
 \code{.usp\_echelle\_exacte()},\newline \code{.usp\_ligne\_cook()} & vecteur $v$~; distances
 $D_t$, $T$ & $v / 2^{\lfloor \log_2 \max|v| \rfloor}$, rendu inchangé si ce maximum n'est pas fini
@@ -1647,7 +1698,9 @@ et strictement positif (division exacte~; distances de Cook et leviers identique
 calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la ligne de Cook, non applicable si une
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep},\newline
-\code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard} &
+\code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard},
+\code{alpha} (dernier argument, défaut $0{,}10$, passé par \code{.run\_engine\_mw()}~;
+issue~\#404) &
 toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
 logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
@@ -1663,7 +1716,22 @@ fin de liste~; depuis l'issue~\#305, en fin de liste, \code{sigma\_usp\_boot} et
 cellule de plus grand $|\mathrm{DFBETAS}|$ défini (la première dans l'ordre de
 \code{mw\_influence()} en cas d'égalité exacte, sans tolérance), \code{FALSE} partout si aucun
 DFBETAS n'est défini (fiche~\ref{mw:influence})~; la même issue retire la feuille
-\code{methode}, qui doublait \code{metadata\$methode} \\
+\code{methode}, qui doublait \code{metadata\$methode}~; depuis l'issue~\#404, la table
+\code{origine} (une ligne par colonne testée de l'ordonnée à l'origine) porte en fin de table six
+colonnes posées par \code{.mw\_origine\_intervalles()}~: \code{niveau}, \code{quantile\_t},
+\code{bas}, \code{haut}, \code{exclut\_zero} et \code{plus\_petite\_p} (sec.~\ref{sec:graph-mw}) \\
+\code{.mw\_origine\_}\newline\code{intervalles()} & table \code{detail} de
+\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (une ligne par colonne retenue~: $j$,
+$n_j$, $\hat a_j$, $\widehat{\mathrm{se}}(\hat a_j)$, $t_j$, p de Student de \code{summary.lm()},
+$\hat b_j$, $\hat f_j$), \code{alpha} & même table, complétée en fin de table, dans cet ordre,
+de \code{niveau} $= 1 - \alpha$, niveau nominal~; \code{quantile\_t} $= t_{1-\alpha/2,\,n_j-2}$
+(\code{qt()}), au nombre de degrés de liberté de la p de Student de la colonne~; \code{bas} et
+\code{haut} $= \hat a_j \mp$ \code{quantile\_t}$\,\widehat{\mathrm{se}}(\hat a_j)$, intervalle de
+Student de $a_j$, dual du test de Student de la colonne~; \code{exclut\_zero}, vrai si
+\code{bas} $> 0$ ou \code{haut} $< 0$, \code{NA} si \code{bas}, \code{haut} ou la p ne sont pas
+finis~; \code{plus\_petite\_p}, vrai sur la colonne de plus petite p (la première en cas
+d'égalité exacte, \code{FALSE} partout si aucune p n'est finie)~; table vide rendue telle quelle.
+Aucune correction de multiplicité, aucun verdict (issue~\#404, sec.~\ref{sec:graph-mw}) \\
 \code{.mw\_residus\_}\newline\code{par\_groupe()} & résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}), \code{cle} (\code{"i"} ou \code{"calendrier"}, sinon erreur) &
 \code{data.frame} à une ligne par valeur de la clé présente dans \code{res}, en ordre croissant~:
@@ -2657,9 +2725,14 @@ diagnostic, règle~R14, issue~\#298) & --- \\
 Pitman, pente & \ref{fiche:student-pente} & \code{test\_lm\_complet()} ($t_b$, restituée) &
 \code{usp\_permutation\_pente()} (p exacte par permutation à $T \le 9$, Monte-Carlo par
 permutations aléatoires au-delà~; champ \code{fonction} de la ligne)~; p de Student
-unilatérale restituée, non retenue~; puissance approchée a posteriori unilatérale
+unilatérale restituée, non retenue, approximation asymptotique de la p de permutation non
+établie à $T = 8$ (issue~\#423)~; puissance approchée a posteriori unilatérale
 d'\code{usp\_identifiabilite\_pente()}, phrase de contexte sans effet sur le type ni sur le
 verdict (règle~R4 retirée par D1-Fb, issues~\#218 et~\#230) & --- \\
+Student, pente (modèle auxiliaire MCO) & \ref{fiche:student-pente-modele-auxiliaire} &
+\code{test\_lm\_complet()} ($t_b$) & \code{test\_lm\_complet()} (p de Student bilatérale de
+\code{summary.lm()}, exacte sous le modèle auxiliaire MCO, restituée pour information, égale à
+celle de Fisher)~; diagnostic dans tous les régimes depuis son ajout par l'issue~\#423 & --- \\
 Fisher global & \ref{fiche:fisher-global} & \code{test\_lm\_complet()} &
 \code{test\_lm\_complet()} (p sous le modèle auxiliaire MCO, loi $F$, restituée pour
 information)~; diagnostic dans tous les régimes depuis l'issue~\#169 & --- \\
@@ -2767,7 +2840,9 @@ aucune (théorique seulement, Andrews 1993) & \code{supF} \\
 OLS-CUSUM & \ref{fiche:ols-cusum} & \code{stat\_cusum()} &
 formule de Kolmogorov, calculée en ligne dans \code{usp\_tests()} & \code{CUSUM} \\
 Grubbs & \ref{fiche:grubbs} & \code{test\_grubbs()} &
-\code{test\_grubbs()} (p non simulée, borne de Bonferroni) & \code{Grubbs} \\
+\code{test\_grubbs()} (p non simulée, borne de Bonferroni par \code{.grubbs\_p\_bonferroni()},
+seule définition de la formule, appelée aussi par \code{usp\_tests()} pour le champ \code{loi},
+dont la borne est mise en forme par \code{.format\_borne\_grubbs()}, issue~\#416) & \code{Grubbs} \\
 Rosner (ESD) & \ref{fiche:rosner-esd} & \code{test\_rosner()} &
 diagnostic par décision depuis l'issue~\#304 (procédure de décision auparavant), aucune p-value & --- \\
 Distance de Cook & \ref{fiche:cook} & \code{stats::cooks.distance()} (appel
@@ -3296,8 +3371,15 @@ Le modèle de chaîne d'échelle postule, pour tout $i$ et tout $j$~:
   \qquad
   \operatorname{Var}\big[C(i,j+1)\mid C(i,j)\big] = \sigma_j^2\,C(i,j),
 \]
-les années de survenance étant mutuellement indépendantes. \textbf{Aucune loi
-n'est spécifiée}~: seuls les deux premiers moments conditionnels le sont, ce qui
+les années de survenance étant mutuellement indépendantes, avec un facteur $f_j$ et une
+constante $\sigma_j^2$ communs à toutes les années de survenance (modèle de T.~Mack, 1993, et de
+Merz et Wüthrich, 2008, hypothèses~2.1, p.~547--548). La lettre de l'annexe~XVII, D(2)(h)(iii)
+et~(iv), énonce, pour chaque année d'accident, la proportionnalité au cumulé précédent de
+l'espérance (sans constante) et de la variance du cumulé suivant, sans exiger un facteur ni une
+constante communs aux années~: cette communauté est une interprétation de l'outil, appuyée sur
+D(4)(c) pour $f_j$ et sur D(5)(d)(ii) pour $\sigma_j^2$, qui n'estiment qu'un $\hat f_j$ et un
+$\hat\sigma_j^2$ par année de développement (sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
+\textbf{Aucune loi n'est spécifiée}~: seuls les deux premiers moments conditionnels le sont, ce qui
 constitue la différence de nature la plus importante avec les méthodes
 lognormales et commande l'ensemble des choix de p-values.
 
@@ -3425,7 +3507,7 @@ régime. Il relie la ligne à son entrée de \code{bootstrap\$granularite\_stat}
 l'affichage (colonne «~granularité MC~», section~\ref{sec:archi}), et, pour la p-value de famille
 (issue~\#297), à sa colonne de la matrice des réplications. Dernier champ de la ligne~; colonne \code{mc\_nom} de la table
 auditable, juste après \code{p\_min\_mc} (\code{NA} pour un objet résultat antérieur au champ).
-Mesuré sur les cas de référence~: champ renseigné 31 fois sur 52 dans chaque cas lognormal et
+Mesuré sur les cas de référence~: champ renseigné 31 fois sur 53 dans chaque cas lognormal et
 13 fois sur 25 pour \code{reserve2}, chaque nom n'y figurant qu'une fois, \code{NA} ailleurs. \\
 \bottomrule
 \end{longtable}
@@ -3469,12 +3551,14 @@ remplacerait aussi, à tort, le point des nombres qui ne sont pas des décimaux~
 d'article («~218.1~»), références et identifiants. Le présent document cite textuellement ces
 chaînes en \code{}, dans leur graphie~; une désignation en romain entre guillemets (nom d'une
 ligne, d'une nature de p-value) en donne le sens en français et n'en est pas la forme textuelle.
-Le point décimal souffre quatre exceptions, écrites en dur dans le moteur~: le motif
-d'enveloppe du QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec
-une virgule (fiche~\ref{fiche:qqnorm})~; le commentaire de la ligne de la variance unitaire des
-résidus de Mack («~\code{2,5e-03}~», fiche~\ref{mw:m2var})~; l'avertissement de validation
-d'une réserve faible devant son incertitude («~\code{0,22}~»)~; le message d'erreur
-d'\code{usp\_delta\_bord()} («~\code{0,5}~»).
+Le point décimal vaut sans exception depuis l'issue~\#413~: les quatre chaînes écrites en dur
+qui portaient jusque-là une virgule décimale écrivent le point --- le motif d'enveloppe du
+QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec un séparateur
+fixé, indépendant de l'option de R qui fixe le séparateur décimal (fiche~\ref{fiche:qqnorm})~; le
+commentaire de la ligne de la variance unitaire des résidus de Mack («~\code{2.5e-03}~»,
+fiche~\ref{mw:m2var})~; l'avertissement de validation d'une réserve faible devant son
+incertitude («~\code{0.22}~»)~; le message d'erreur d'\code{usp\_delta\_bord()}
+(«~\code{0.5}~»).
 
 \clearpage
 % =============================================================================
@@ -3933,7 +4017,8 @@ satisfasse la condition, dont le démarrage retenu est intérieur et un autre d�
 l'optimum sur une borne~; elle ne change ni $\sigma_{\mathrm{USP}}$ ni aucun verdict des cas de
 référence. Le refus a la forme d'un refus de
 données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, objet réduit aux
-champs \code{ok}, \code{validation} et \code{metadata} (horodatage seul), avertissements de
+champs \code{ok}, \code{validation} et \code{metadata} (horodatage et, depuis l'issue~\#405,
+méthode, comme le refus de la méthode Merz--Wüthrich), avertissements de
 \code{engine\_valider\_donnees()} conservés, aucun résultat partiel, et \textbf{sans}
 \code{validation\$erreur\_r}~: ce n'est pas un défaut de calcul intercepté, l'ajustement a
 abouti et ce sont les données qui ne déterminent pas l'estimateur dans le domaine de recherche.
@@ -5060,20 +5145,22 @@ Lilliefors y sont des diagnostics sans verdict, dont la p-value est restituée s
 \label{sec:modele-auxiliaire}
 % =============================================================================
 
-Les lignes de la constante, de l'équivalence (TOST), de la pente et de Fisher, ainsi que le
-diagnostic du $R^2$, reposent sur la régression de $y_t$ sur $x_t$ avec constante,
+Les lignes de la constante, de l'équivalence (TOST), de la pente, de Student sur la pente et de
+Fisher, ainsi que le diagnostic du $R^2$, reposent sur la régression de $y_t$ sur $x_t$ avec constante,
 \code{lm(y \textasciitilde\ x)}. Les lois de Student, de Fisher et bêta qui leur sont attachées
 sont exactes sous un modèle précis, le \emph{modèle auxiliaire des moindres carrés} (modèle
 auxiliaire MCO), qui n'est pas le modèle réglementaire. Depuis l'issue~\#169, la ligne de la
 pente n'en tire plus que sa statistique restituée, $t_b$~: sa p-value retenue est celle du test
 de permutation de Pitman, exacte sous sa propre hypothèse nulle et non sous ce modèle
-(fiche~\ref{fiche:student-pente})~; la ligne de Fisher est un diagnostic. Depuis l'issue~\#215,
+(fiche~\ref{fiche:student-pente})~; la ligne de Fisher est un diagnostic, comme, depuis
+l'issue~\#423, la ligne de Student sur la pente, qui restitue la p de Student bilatérale de $t_b$
+(fiche~\ref{fiche:student-pente-modele-auxiliaire}). Depuis l'issue~\#215,
 les lignes de la constante et du TOST reposent sur la régression \emph{pondérée}
 \code{lm(y \textasciitilde\ x, weights = w)}, aux poids des moindres carrés généralisés à
 $\hat\delta$~: le \emph{modèle auxiliaire pondéré}, défini à la
 sous-section~\ref{sec:modele-auxiliaire-spec}~; parmi les lignes qui relèvent de cette section,
-seules la constante et le TOST relèvent ainsi du modèle pondéré, la pente, Fisher et $R^2$ restant
-sur la régression non pondérée. Les écritures \code{lm(\dots)} de cette section désignent la
+seules la constante et le TOST relèvent ainsi du modèle pondéré, la pente, Student sur la pente,
+Fisher et $R^2$ restant sur la régression non pondérée. Les écritures \code{lm(\dots)} de cette section désignent la
 régression, non son moyen de calcul~: depuis l'issue~\#237, la régression pondérée de la constante
 et du TOST est calculée par \code{.usp\_lm\_pondere()}, qui décompose la matrice des régresseurs
 par \code{.usp\_mco\_qr()} --- décomposition QR de \code{qr()}, même routine (LINPACK) et même
@@ -5117,7 +5204,8 @@ Sous ces hypothèses, la théorie normale du modèle linéaire donne, pour tout 
   \item sous $a = 0$, $t_a = \hat a/\widehat{\mathrm{se}}(\hat a)$ suit la loi de Student
   $t(T-2)$~; sous $b = 0$, $t_b = \hat b/\widehat{\mathrm{se}}(\hat b)$ suit $t(T-2)$ et
   $F = t_b^2$ la loi de Fisher $\mathcal{F}(1, T-2)$ (fiches~\ref{fiche:student-constante},
-  \ref{fiche:student-pente} et~\ref{fiche:fisher-global})~;
+  \ref{fiche:student-pente}, \ref{fiche:student-pente-modele-auxiliaire}
+  et~\ref{fiche:fisher-global})~;
   \item hors de $b = 0$, $t_b$ suit la loi de Student décentrée à $T-2$ degrés de liberté et de
   paramètre de décentrage $b\sqrt{S_{xx}}/\sigma_\varepsilon$~: c'est la loi qu'approche la
   puissance approchée a posteriori $\hat\pi_b$ du commentaire de la ligne de la pente
@@ -5206,8 +5294,10 @@ exacte à $T$ fini sous cette seule hypothèse~: c'est le second fondement d'exa
 l'ADR~0002 (amendement du 6~octobre 2026), qui exclut expressément les lois de Student et de
 Fisher, exactes sous une forme auxiliaire seulement. La p-value de permutation est retenue~; la
 p-value de Student est restituée sans être retenue, sans repli possible sur elle
-(fiche~\ref{fiche:student-pente}). \emph{Fisher}~: la ligne est un diagnostic, sans p-value
-retenue~; sa p-value de Fisher est restituée pour information (fiche~\ref{fiche:fisher-global}).
+(fiche~\ref{fiche:student-pente}). \emph{Student sur la pente} (depuis l'issue~\#423) \emph{et
+Fisher}~: ces lignes sont des diagnostics, sans p-value retenue~; leur p-value, de Student
+bilatérale et de Fisher, égales, est restituée pour information
+(fiches~\ref{fiche:student-pente-modele-auxiliaire} et~\ref{fiche:fisher-global}).
 Pour la constante, la p-value de Student est seulement restituée. \emph{Ce que le lecteur ne doit
 pas conclure}~: un \code{OK} du test de Pitman établit une association positive entre volumes et
 pertes, non la proportionnalité exigée par l'hypothèse~H1, qui relève de la constante et du
@@ -5230,12 +5320,14 @@ jeux de la section~\ref{sec:verif} (méthode prime, $B = 999$, graine 20260831)~
 l'issue~\#169, seul le TOST retient une p-value sous un modèle auxiliaire (pondéré depuis
 l'issue~\#215), sur le jeu à $\hat\delta$ intérieur, et, jusqu'à l'issue~\#298, sur le jeu de
 contrôle, où il est depuis un diagnostic (règle~R14) et où aucune ligne n'en retient plus~; la pente retient sa p-value exacte par permutation ($0{,}1107$ sur le jeu de
-contrôle, $1/40\,320$ sur le jeu à $\hat\delta$ intérieur) et Fisher n'en retient aucune. Avant
+contrôle, $1/40\,320$ sur le jeu à $\hat\delta$ intérieur) et ni la ligne de Student sur la pente
+(issue~\#423) ni celle de Fisher n'en retiennent. Avant
 l'issue, le jeu de contrôle n'en retenait qu'une, celle du TOST, la pente et Fisher y étant des
 diagnostics par la règle~R4, et le jeu à $\hat\delta$ intérieur trois. La p-value de Fisher
 restituée égale le double de la p-value de Student unilatérale de la pente à l'arrondi près
 ($F = t_b^2$~; écart relatif mesuré de $1{,}4\cdot 10^{-15}$ et $1{,}9\cdot 10^{-15}$ sur ces deux
-jeux).
+jeux), et donc, au même écart près, la p-value de Student bilatérale de la ligne de Student sur la
+pente, qui est exactement ce double sur ces deux jeux (issue~\#423).
 
 \begin{center}
 \scriptsize
@@ -5282,7 +5374,8 @@ $x_t$ est écarté ou si la statistique n'est pas définie \\
 (champ \code{fonction}) (fiche~\ref{fiche:student-pente}) &
 $t_b$~; \code{loi de permutation de t (enumeration des T! appariements)}, ou \code{\dots{}
 (permutations aleatoires)} à $T \ge 10$ &
-\code{p\_asymptotique} (p-value de Student unilatérale, restituée)~; p-value de permutation dans
+\code{p\_asymptotique} (p-value de Student unilatérale, restituée, approximation asymptotique de
+la p-value de permutation non établie à $T = 8$, issue~\#423)~; p-value de permutation dans
 \code{p\_exacte} ($T \le 9$) ou \code{p\_monte\_carlo} ($T \ge 10$) &
 p-value de permutation si la ligne est un test~: \code{exacte par permutation (H0 : y
 independant de x, hors modele reglementaire)}, ou \code{Monte-Carlo (permutations aleatoires ;
@@ -5291,6 +5384,15 @@ H0 : y independant de x)} à $T \ge 10$~; la p-value de Student n'est jamais ret
 Test dès qu'elle est applicable, diagnostic par la seule règle~R1 (test inopérant)~; non
 applicable comme la constante~; jusqu'à D1-Fb, diagnostic si $\hat\pi_b < 1/2$ (règle~R4,
 retirée, issues~\#218 et~\#230) \\
+\code{Test de Student sur la pente (modele auxiliaire MCO)}~; \code{test\_lm\_complet()}
+(fiche~\ref{fiche:student-pente-modele-auxiliaire}, issue~\#423) &
+$t_b$~; \code{t(6) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales
+homoscedastiques)} &
+\code{p\_asymptotique} (p-value de Student bilatérale, restituée) &
+Aucune (\code{INFO})~: p-value de Student bilatérale restituée pour information, égale à celle de
+Fisher ($F = t_b^2$) &
+Diagnostic dans tous les régimes~; non applicable comme la ligne Pitman (volumes constants,
+pertes constantes, garde-fou~R12, $t_b$ non fini) \\
 \code{Test de Fisher (significativite globale)}~; \code{test\_lm\_complet()}
 (fiche~\ref{fiche:fisher-global}) &
 $F = t_b^2$~; \texttt{\small F(1,6) exacte sous le modele auxiliaire MCO} & % \texttt et non \code : "F(" serait lu comme un nom de fonction par tests/concordance_doc_moteur.R
@@ -5622,8 +5724,8 @@ perdu par aucune donnée~; c'est exactement la fausse assurance que la
 restitution en diagnostic vise à éviter. Le calcul et les mesures figurent aux
 fiches~\ref{fiche:centrage} et~\ref{fiche:variance-unitaire}. Ces lignes sont donc restituées comme
 \emph{diagnostics}, sans p-value retenue et avec le motif. Cette règle de
-sortie ne concerne ni la pente ni la ligne de Fisher~: leur statistique est
-librement observée. La ligne de la pente retient, depuis l'issue~\#169, la p-value
+sortie ne concerne ni la pente ni les lignes de Student sur la pente et de Fisher~: leur
+statistique est librement observée. La ligne de la pente retient, depuis l'issue~\#169, la p-value
 du test de permutation de Pitman, exacte sous sa propre hypothèse nulle
 (fiche~\ref{fiche:student-pente}), sauf lorsqu'elle est un test inopérant (règle~R1)~; jusqu'à
 D1-Fb, la règle~R4, retirée depuis, la restituait aussi en diagnostic quand la pente n'était pas
@@ -5631,7 +5733,8 @@ identifiable par les données (sous-section~\ref{sec:modele-auxiliaire-regles})~
 diagnostic, dont la p-value, exacte sous le seul modèle auxiliaire des moindres
 carrés (section~\ref{sec:modele-auxiliaire}), est restituée pour information
 parce qu'elle double celle de la pente, non parce qu'elle serait rivée par
-l'estimation (fiche~\ref{fiche:fisher-global}).
+l'estimation (fiche~\ref{fiche:fisher-global})~; il en va de même, depuis l'issue~\#423, de la
+ligne de Student sur la pente, de même p (fiche~\ref{fiche:student-pente-modele-auxiliaire}).
 \end{encadre}
 
 \emph{Autres sorties de la hiérarchie} (issue~\#44). La fonction d'enregistrement
@@ -6167,8 +6270,9 @@ celle du test de permutation de Pitman~: \code{exacte par permutation (H0 : y in
 hors modele reglementaire)} à $T \le 9$, \code{Monte-Carlo (permutations aleatoires ; H0 : y
 independant de x)} à $T \ge 10$, natures qui prennent le rang de leur préfixe dans la hiérarchie
 (fiche~\ref{fiche:student-pente})~; sa p-value de Student est restituée sans être retenue, sans
-repli possible sur elle. La ligne de Fisher est un diagnostic, sans p-value retenue
-(fiche~\ref{fiche:fisher-global}). Le TOST reste, quand il est un test, la \textbf{seule ligne
+repli possible sur elle. Les lignes de Student sur la pente (depuis l'issue~\#423) et de Fisher
+sont des diagnostics, sans p-value retenue (fiches~\ref{fiche:student-pente-modele-auxiliaire}
+et~\ref{fiche:fisher-global}). Le TOST reste, quand il est un test, la \textbf{seule ligne
 dont la p-value retenue est hors hiérarchie} (ADR~0002, point~3, à lire «~quand il est un test~»
 depuis l'annotation du 15~octobre 2026~; restitué en diagnostic par la règle~R14, il n'a aucune
 p-value retenue)~: sa p-value de Student, seule disponible, n'est qu'approchée sous le modèle
@@ -6350,9 +6454,10 @@ de l'ordre de la granularité.
   cette loi à $T$ fini. Depuis l'issue~\#169, aucune de ces deux p-values n'est
   retenue~: la pente retient la p-value exacte (à $T \le 9$) du test de permutation de
   Pitman, qui relève du second fondement de l'ADR~0002, la p-value de Student étant
-  restituée sans repli possible sur elle~; la ligne de Fisher est un diagnostic, sa
-  p-value de Fisher étant restituée pour information (fiches~\ref{fiche:student-pente}
-  et~\ref{fiche:fisher-global}). \textbf{Règle~R4, identifiabilité de la pente~: retirée par
+  restituée sans repli possible sur elle~; les lignes de Student sur la pente (depuis
+  l'issue~\#423) et de Fisher sont des diagnostics, leurs p-values, égales, étant restituées
+  pour information (fiches~\ref{fiche:student-pente},
+  \ref{fiche:student-pente-modele-auxiliaire} et~\ref{fiche:fisher-global}). \textbf{Règle~R4, identifiabilité de la pente~: retirée par
   D1-Fb} (issues~\#44, \#218 et~\#230)~: jusqu'au 15~octobre 2026, la ligne de la pente était
   restituée en diagnostic quand la puissance approchée du test unilatéral (issue~\#169),
   $\hat\pi_b = \mathbb{P}\big(t > t_{1-\alpha,\,T-2}\big)$ pour une loi de Student décentrée
@@ -6512,17 +6617,28 @@ Sans objet : aucune loi asymptotique employée & \textbf{Seul test fournissant u
 proportionnalité ; fixer $\Delta$ a priori. Sa capacité à conclure dépend du plan de volumes (levier pondéré de l'origine $\bar x_w^{\,2}/S_{xx,w}$) autant que de $T$~: nulle sur le jeu de contrôle, où la ligne est un diagnostic (règle~R14), $43{,}5~\%$ sur le jeu à $\hat\delta$ intérieur au seuil de 10~\% (puissance au point $a = 0$, constat~C3, fiche~\ref{fiche:tost-constante})~; taux de conclusion à tort à $a = +\Delta$~: $13{,}3~\%$ au seuil de 10~\% sur le jeu à $\hat\delta$ intérieur (dépassement mineur, constat~C5, issue~\#219) \\
 
 Pitman, pente (issue~\#169) & LN & $t_b$ (ordre de $r$) & \textbf{Oui} ($T \le 9$), par
-permutation, sous $H_0$ seule (voir texte) & --- & Pas de bootstrap~; permutations aléatoires
+permutation, sous $H_0$ seule (voir texte) & p de Student, approximation de la loi de
+permutation (hypothèse, issue~\#423) & Pas de bootstrap~; permutations aléatoires
 ($T \ge 10$) &
 \textbf{Exacte par permutation} ($T \le 9$, sous l'échangeabilité, hors modèle réglementaire~:
 second fondement, ADR~0002), \textbf{Monte-Carlo} par permutations aléatoires ($T \ge 10$)~; p de
 Student, exacte sous le modèle auxiliaire MCO seulement, restituée, non retenue~;
 \textbf{diagnostic} par la seule règle~R1 (test inopérant~; règle~R4 retirée par D1-Fb,
 issues~\#218 et~\#230) &
-Sans objet : aucune loi asymptotique employée & Test unilatéral (lien positif), sens verrouillé~;
+Sans objet : loi exacte de permutation employée~; la p de Student restituée n'en est qu'une
+approximation asymptotique (hypothèse d'un théorème central limite combinatoire, sans référence
+citée), \textbf{non établie à $T = 8$} et mauvaise en queue ($2{,}95\cdot 10^{-6}$ contre
+$p_{\min} = 1/8!$ sur le jeu à $\hat\delta$ intérieur~; issue~\#423) & Test unilatéral (lien positif), sens verrouillé~;
 un \code{OK} établit une association positive, non la proportionnalité~; réserve
 d'échangeabilité~; \code{ALERTE} sur le jeu de contrôle ($p = 0{,}1107$~; puissance approchée
 a posteriori $\hat\pi_b = 0{,}65$, contexte de lecture) \\
+
+Student, pente (modèle auxiliaire MCO, issue~\#423) & LN & $t_b$ & Sous le modèle auxiliaire MCO
+seulement (§\ref{sec:modele-auxiliaire}) & --- & Non (voir texte) &
+\textbf{Aucune}~: \textbf{diagnostic} dans tous les régimes, p de Student bilatérale restituée
+pour information, égale à celle de Fisher &
+Sans objet : aucune loi asymptotique employée & Redondant avec le test de Pitman, seul à tester
+la pente~; aucun verdict (fiche~\ref{fiche:student-pente-modele-auxiliaire}) \\
 
 Fisher global & LN & $F$ & Sous le modèle auxiliaire MCO seulement (§\ref{sec:modele-auxiliaire}) & --- & Non (voir texte) &
 \textbf{Aucune}~: \textbf{diagnostic} dans tous les régimes depuis l'issue~\#169, p de Fisher
@@ -6686,7 +6802,8 @@ Grubbs & LN & $G$ & Non & Borne de Bonferroni sur la loi de
 Student (famille~(iii)) & Oui & Monte-Carlo &
 \textbf{Sous conditions}, sans être retenue (borne restituée en colonne \code{p\_asymptotique},
 \code{p\_exacte} à \code{NA})~: à $\hat\pi_t$ constant, borne exacte sous i.i.d.
-normal pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$ (deux observations ne peuvent
+normal pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}240$ à $T = 8$ (borne calculée par le moteur
+pour le $T$ saisi, issue~\#416~; deux observations ne peuvent
 franchir ce seuil ensemble, argument de la fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant
 au-delà~; à $\hat\pi_t$ variable, ni exacte ni majorant garanti, $z_t$ n'étant pas i.i.d. &
 Bootstrap ; borne lisible comme majorant à $\hat\pi_t$ constant seulement \\
@@ -6944,7 +7061,8 @@ Student / Fisher & \emph{Aucune} : loi exacte à $T$ fini sous le modèle auxili
 Erreurs i.i.d. $\mathcal{N}(0,\sigma^2)$, régresseurs fixes (modèle auxiliaire, contredit par H2
 et H3) &
 Valide sous ce seul modèle~; pente~: p de Student non retenue (permutation, ligne suivante)~;
-Fisher~: diagnostic, p restituée pour information \\
+Student sur la pente (depuis l'issue~\#423) et Fisher~: diagnostics, p égales restituées pour
+information \\
 
 Student pondérée (constante, TOST) & \emph{Aucune} : loi $t(T-2)$ qui ne serait exacte qu'à poids
 connus (§\ref{sec:modele-auxiliaire}, issue~\#215) & --- & Approchée (poids estimés) & --- &
@@ -6960,6 +7078,14 @@ Pitman (pente) & \emph{Aucune} : loi de permutation exacte à $T$ fini ($T \le 9
 $H_0$ d'échangeabilité des $Y_t$, $x_t$ fixés~; aucune hypothèse de forme de loi &
 Valide à $T = 8$ sous $H_0$ seule, non sous le modèle réglementaire~; rejet possible par
 dispersion liée au volume ou tendance commune (réserve d'échangeabilité) \\
+
+Pitman (pente)~: p de Student unilatérale restituée (issue~\#423) & Loi de permutation de $t_b$,
+approchée par la loi $t(T-2)$ & $\mathcal{N}(0,1)$, limite de $t(T-2)$ et, par un théorème
+central limite combinatoire (\emph{hypothèse}), de la loi de permutation de $t_b$ & Convergence en loi (hypothèse, aucune référence citée) & Non établie & Conditions sur les
+$x_t$ et les $y_t$ (non établies) &
+Approximation non établie à $T = 8$ et mauvaise en queue~: sur le jeu à $\hat\delta$ intérieur,
+$2{,}95\cdot 10^{-6}$, sous la plus petite p de permutation atteignable $1/8! = 2{,}48\cdot
+10^{-5}$~; non retenue, la loi exacte étant énumérée (fiche~\ref{fiche:student-pente}, rubrique~4) \\
 
 Breusch--Pagan (Koenker), White & $\mathrm{LM} = TR^2_{\text{aux}}$ & $\chi^2(q)$ &
 Convergence en loi & Non établie dans la littérature consultée & Moments d'ordre 4 finis, indépendance &
@@ -7021,8 +7147,9 @@ liberté pour une observation fixée, exacte sous i.i.d. normal~; $\min\big(1, 2
 en est la borne de Bonferroni & --- & Borne, non convergence & Sans objet & Échantillon i.i.d.
 normal~: à $\hat\pi_t$ constant, $G(z_t)$ est le $G$ des log-ratios, i.i.d. normaux sous le modèle
 ajusté~; à $\hat\pi_t$ variable, aucun échantillon i.i.d. sous-jacent &
-À $\hat\pi_t$ constant, borne exacte pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}24$ à $T = 8$
-(fiche~\ref{fiche:rosner-esd}, rubrique~4), majorant au-delà~; à $\hat\pi_t$ variable, ni exacte
+À $\hat\pi_t$ constant, borne exacte pour $G \ge \sqrt{(T-1)/2}$, soit $p \le 0{,}240$ à $T = 8$
+(borne calculée par le moteur pour le $T$ saisi, issue~\#416~; fiche~\ref{fiche:rosner-esd},
+rubrique~4), majorant au-delà~; à $\hat\pi_t$ variable, ni exacte
 ni majorant garanti~; p non retenue, bootstrap retenu (fiche~\ref{fiche:grubbs}) \\
 
 ESD généralisé de Rosner (sur $z_t$, diagnostic) & $R_i$ de Rosner, comparés aux valeurs
@@ -9240,7 +9367,20 @@ peut aussi traduire une dispersion liee au volume ou une tendance commune a x et
 \emph{Loi de Student restituée.} Sous $b = 0$, $t_b$ suit $t(T-2)$ exactement sous le seul
 modèle auxiliaire des moindres carrés (section~\ref{sec:modele-auxiliaire-spec}~; erreurs i.i.d.
 normales homoscédastiques), que les hypothèses H2 et H3 contredisent~: cette loi ne fournit plus
-la p-value retenue.
+la p-value retenue. \emph{Rapportée à la loi de permutation}, loi de référence du test, la p de
+Student unilatérale n'en est qu'une \textbf{approximation asymptotique} (issue~\#423, décision
+Q-46-15 du mainteneur, ADR~0002 annoté le 2~novembre 2026), avec trois précisions.
+(i)~Son fondement serait un théorème central limite combinatoire, sous des conditions sur les
+$x_t$ et les $y_t$~: c'est une \textbf{hypothèse}, que le projet n'a pas établie sur les textes,
+aucune référence n'étant citée à ce jour. (ii)~L'approximation n'est pas établie à $T = 8$.
+(iii)~Elle est mauvaise dans la queue~: sur le jeu à $\hat\delta$ intérieur de la
+section~\ref{sec:verif}, la p de Student unilatérale vaut $2{,}95\cdot 10^{-6}$, en deçà de la
+plus petite p de permutation atteignable, $1/8! = 2{,}48\cdot 10^{-5}$ (champ \code{p\_min},
+rubrique~7). Les deux statuts ne se contredisent pas~: la p de Student est exacte sous le modèle
+auxiliaire, comme p d'un autre test sous une autre loi de référence, et n'est, rapportée au test
+de Pitman, qu'une approximation asymptotique, non établie à $T = 8$, de sa p-value. La p de
+Student \emph{bilatérale} de $t_b$ est restituée par une ligne distincte, diagnostic, depuis
+l'issue~\#423 (fiche~\ref{fiche:student-pente-modele-auxiliaire}).
 \Pval
 \emph{À $T \le$ \code{T\_MAX\_ENUM\_PERMUTATION} $= 9$} (même borne que celle jusqu'à laquelle
 \code{cor.test()} énumère la loi exacte de Spearman, fiche~\ref{fiche:spearman})~: énumération des $T!$
@@ -9275,12 +9415,21 @@ ne la porte~: elle n'est pas exacte au sens de l'ADR~0002, sa loi n'étant exact
 modèle auxiliaire (ni sous le modèle réglementaire, ni sous $H_0$ seule, condition~(c))~; elle
 n'est pas de Monte-Carlo, et aucune p-value de Monte-Carlo du catalogue n'existe pour cette
 ligne, puisque le bootstrap simule sous le modèle ajusté, qui appartient à $H_1$~; elle n'est pas
-asymptotique, $t(T-2)$ étant une loi à $T$ fini. Jusqu'à l'issue~\#169, elle était retenue hors
+asymptotique sous le modèle auxiliaire, $t(T-2)$ y étant une loi à $T$ fini, et, rapportée à la loi
+de permutation, elle n'en est qu'une approximation asymptotique non établie à $T = 8$ et mauvaise
+en queue (rubrique~4), dont la p-value exacte, qu'elle approcherait, est calculée et prime dans la
+hiérarchie. Jusqu'à l'issue~\#169, elle était retenue hors
 hiérarchie, sous la nature \code{sous le modele auxiliaire MCO : t(T-2) exacte (H0 non simulable
 : le modele ajuste appartient a H1)}~; c'est la reformulation de $H_0$ en indépendance, décidée
 par le mainteneur, qui ouvre la voie exacte par permutation. La p-value de Student unilatérale,
 $1 - F_{t,T-2}(t_b)$, reste calculée et rangée dans \code{p\_asymptotique}, emplacement et non
-qualification, \textbf{sans être retenue}, ce que le commentaire dit~; \textbf{aucun repli} sur
+qualification, \textbf{sans être retenue}, ce que le commentaire dit, depuis l'issue~\#423, avec
+sa qualification («~\code{p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO
+seulement : autre test, autre loi de reference) restituee dans p asymptotique, non retenue :
+approximation asymptotique de la p de permutation, par le theoreme central limite combinatoire
+sous des conditions sur x et y (hypothese, voir la fiche), non etablie a T = 8 et mauvaise en
+queue, ou elle peut etre inferieure a la plus petite p de permutation atteignable (champ
+p\_min).}~»~; la valeur restituée est inchangée)~; \textbf{aucun repli} sur
 elle n'est possible~: si la p-value de permutation manquait, ou n'avait pas le sens de
 \code{SENS\_PITMAN\_PENTE}, sur une ligne applicable, \code{usp\_tests()} s'arrêterait par une
 erreur, au lieu de retenir la p-value de Student sous le libellé de la permutation (ADR~0002
@@ -9331,7 +9480,8 @@ $\hat b = 0{,}688$, p-value exacte par permutation $4\,462/40\,320 = 0{,}1107$, 
 \code{ALERTE}~; p-value de Student unilatérale restituée $0{,}1067$~; p-value bilatérale de
 permutation $8\,515/40\,320 = 0{,}2112$, pour information~; $p_{\min} = 1/40\,320 = 2{,}48\cdot
 10^{-5}$~; phrase de contexte $\hat\pi_b = 0{,}65$, $\hat\lambda = 1{,}78$. Sur le jeu à $\hat\delta$ intérieur de la section~\ref{sec:verif}~: $t_b = 14{,}83$,
-p-value exacte $1/40\,320$, verdict \code{OK}~; $\hat\pi_b = 1{,}00$, $\hat\lambda = 17{,}28$. Avant l'issue~\#169, la ligne du jeu de contrôle
+p-value exacte $1/40\,320$, verdict \code{OK}~; p-value de Student unilatérale restituée
+$2{,}95\cdot 10^{-6}$, inférieure à $p_{\min}$ (rubrique~4)~; $\hat\pi_b = 1{,}00$, $\hat\lambda = 17{,}28$. Avant l'issue~\#169, la ligne du jeu de contrôle
 était un diagnostic (règle~R4 sur la puissance bilatérale, $0{,}47$), p-value de Student bilatérale
 $0{,}2134$, \code{INFO}~; le passage à \code{ALERTE} a été visé par le mainteneur.
 \Usage
@@ -9482,6 +9632,106 @@ négative) ou hors modèle réglementaire (hypothèses nulles faibles), interval
 Clopper--Pearson à $95~\%$, incertitude fonction de $R$, muette sur l'erreur en $T$.
 \end{fiche}
 
+\begin{fiche}{Test de Student sur la pente (modèle auxiliaire MCO)}
+\label{fiche:student-pente-modele-auxiliaire}%
+\refl{W.\,S. Gosset (« Student »), 1908, \emph{op.\ cit.} (fiche~\ref{fiche:student-constante})~;
+R.\,A. Fisher, \emph{The goodness of fit of regression formulae, and the distribution of regression
+coefficients}, \emph{Journal of the Royal Statistical Society}, 85(4), 1922, p.~597--612.}
+\Cadre
+Ligne «~\code{Test de Student sur la pente (modele auxiliaire MCO)}~» d'\code{usp\_tests()},
+ajoutée par l'issue~\#423 (décisions Q-46-13 et Q-46-18 du mainteneur du 2~novembre 2026~;
+ADR~0002, annotation du même jour) entre la ligne du test de Pitman
+(fiche~\ref{fiche:student-pente}) et celle de Fisher (fiche~\ref{fiche:fisher-global}), dans la
+même famille, et \textbf{diagnostic}, au même statut que la ligne de Fisher. Sa statistique est
+$t_b$, celle de la régression non pondérée $y_t = a + b\,x_t + \varepsilon_t$,
+\code{lm(y \textasciitilde\ x)}, calculée par \code{test\_lm\_complet()} (champ \code{fonction})
+et déjà restituée par la ligne Pitman (section~\ref{sec:modele-auxiliaire}). Ce n'est pas
+l'ancienne ligne «~\code{Test de Student sur la pente (lm(y\textasciitilde x))}~» d'avant
+l'issue~\#169, test unilatéral qui portait le verdict de la pente~: la ligne actuelle est
+bilatérale et ne porte aucun verdict. Elle suit le prédicat d'applicabilité de la ligne
+Pitman~: non applicable à volumes constants (section~\ref{sec:volumes-constants}), à pertes
+constantes (motif des pertes constantes, issue~\#189,
+sous-section~\ref{sec:modele-auxiliaire-regles}), sous le garde-fou~R12, avec les motifs de ces
+trois cas, et, si $t_b$ n'est pas fini hors de ces cas, avec le motif «~\code{statistique t non
+finie (erreur-type de la pente de la regression de y sur x nulle : ajustement exact, ou non
+calculable) : non applicable}~», sans le mot «~test~», la ligne n'étant pas un test (la ligne
+Pitman garde «~\code{\dots{} : test non applicable}~»). Mesuré (méthode prime, segment~1 de
+l'annexe~II, données brutes, $B = 99$)~: à volumes constants, puis à pertes constantes, ligne non
+applicable, \code{INFO}, p-value à \code{NA}, avec le motif de chaque cas.
+\Hzero
+$H_0 : b = 0$, contre $H_1 : b \neq 0$, lien de signe quelconque (hypothèses restituées par la
+ligne, «~\code{b = 0}~» et «~\code{b != 0}~»)~: la ligne est \textbf{bilatérale} (décision
+Q-46-13). C'est l'hypothèse sous laquelle la loi restituée est calculée~; la ligne, diagnostic,
+ne la rejette ni ne l'accepte. L'absence de lien pertes / volume n'est testée que par le test de
+Pitman, sous l'hypothèse nulle plus forte d'échangeabilité et dans le sens unilatéral verrouillé
+(fiche~\ref{fiche:student-pente}, rubrique~2).
+\Stat
+$t_b = \hat b/\widehat{\mathrm{se}}(\hat b)$, aux notations de la fiche~\ref{fiche:student-pente}
+(rubrique~3), restituée dans \code{stat} sous le nom \code{t}~; aucune estimation n'est restituée
+(\code{estim} à \code{NA}), $\hat b$ figurant sur la ligne Pitman. À un régresseur, $t_b^2 = F$,
+statistique de la ligne de Fisher.
+\Loi
+Sous $b = 0$, $t_b \sim t(T-2)$ \textbf{exactement} sous le seul modèle auxiliaire MCO
+(section~\ref{sec:modele-auxiliaire-spec}~: régresseurs fixés, erreurs indépendantes,
+homoscédastiques et normales), que les hypothèses H2 et H3 du modèle réglementaire contredisent~;
+aucun résultat asymptotique n'est employé. Champ \code{loi} de la ligne~:
+\code{t(6) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales homoscedastiques)} à
+$T = 8$, le nombre de degrés de liberté étant celui du $T$ saisi.
+\Pval
+p de Student bilatérale, $p = 2\big(1 - F_{t,T-2}(|t_b|)\big)$, valeur \texttt{\small Pr(>|t|)} de
+\code{summary.lm()}, sans calcul propre au moteur, rangée dans \code{p\_asymptotique}, emplacement
+conventionnel et non qualification~: ce n'est pas une loi limite, ce que dit le commentaire.
+Elle est restituée \textbf{pour information} et \textbf{non retenue}~: la ligne n'a ni p-value
+retenue ni nature (\code{p\_retenue} et \code{nature\_p} à \code{NA}), ni sens du test, et son
+verdict est \code{INFO}~; \code{p\_exacte}, \code{p\_monte\_carlo}, \code{p\_min} et
+\code{mc\_nom} sont à \code{NA}. \emph{Pourquoi aucune p-value n'est retenue.} Aucune des trois
+voies de la hiérarchie n'est ouverte, comme pour la ligne de Fisher
+(fiche~\ref{fiche:fisher-global}, rubrique~5)~: la loi de Student n'est exacte que sous le modèle
+auxiliaire, ni sous le modèle réglementaire ni sous l'hypothèse nulle seule, et le second
+fondement d'exactitude de l'ADR~0002 ne la couvre pas (condition~(c),
+fiche~\ref{fiche:student-pente}, rubrique~4)~; aucune p-value de Monte-Carlo n'existe,
+l'hypothèse $b = 0$ étant disjointe de la famille réglementaire, à laquelle appartient le modèle
+simulé~; elle n'est pas asymptotique sous le modèle auxiliaire, $t(T-2)$ y étant une loi à $T$
+fini. La permutation
+n'apporterait rien~: $|t_b|$ étant une fonction croissante de $|r|$, sa p-value de permutation
+serait la p-value de permutation bilatérale de la pente, que la ligne Pitman restitue déjà pour
+information. Rapportée à cette p de permutation bilatérale, la p de Student bilatérale n'en est,
+comme la p unilatérale de la ligne Pitman, qu'une approximation asymptotique non établie à
+$T = 8$ (fiche~\ref{fiche:student-pente}, rubrique~4)~: mesuré, $0{,}2134$ contre
+$8\,515/40\,320 = 0{,}2112$ sur le jeu de contrôle, $5{,}9\cdot 10^{-6}$ contre
+$1/8! = 2{,}48\cdot 10^{-5}$ sur le jeu à $\hat\delta$ intérieur. \emph{Égalité avec la ligne de Fisher}~: $F = t_b^2$ suit $\mathcal{F}(1, T-2)$ sous
+le même modèle, et la p de Fisher est mathématiquement égale à cette p de Student
+bilatérale~; numériquement, elles sont égales à l'arrondi près (mesuré~: écart absolu
+$3{,}1\cdot 10^{-16}$ sur le jeu de contrôle, $1{,}1\cdot 10^{-20}$ sur le jeu à $\hat\delta$
+intérieur). Le commentaire de l'une et l'autre ligne signale l'égalité~; celui de la ligne
+applicable est «~\code{Diagnostic, aucun verdict : la pente est testee par le seul test de
+Pitman. p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous le
+modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ; restituee dans p
+asymptotique pour information, non retenue. Egale a la p de la ligne "Test de Fisher
+(significativite globale)" (F = t\^{}2).}~». Mesuré (méthode prime, $B = 999$, graine
+20260831)~: sur le jeu de contrôle, $t_b = 1{,}392$ et p de Student bilatérale $0{,}2134$~; sur le
+jeu à $\hat\delta$ intérieur, $t_b = 14{,}83$ et $5{,}9\cdot 10^{-6}$~; \code{INFO} sur les deux.
+\Usage
+\emph{Pourquoi aucun verdict} (ADR~0001)~: comme la ligne de Fisher, la ligne est redondante avec
+le test de Pitman, seul à tester la pente~; un second verdict, bilatéral, sur $b = 0$ doublerait
+le verdict de la pente et contredirait le sens unilatéral qui y est verrouillé (un lien négatif
+fort y donnerait \code{OK}). Elle restitue la lecture usuelle de la sortie de \code{lm()}, où la
+p de Student de la pente est bilatérale, sans la confondre avec la p-value retenue de la pente~:
+sa p n'est exacte que sous le modèle auxiliaire et ne doit être lue ni comme un résultat sous le
+modèle réglementaire ni comme une seconde p-value de la pente. Elle se distingue de la p de
+Student \emph{unilatérale} restituée sur la ligne Pitman, dont elle est le double quand
+$t_b > 0$ (égalité exacte en double précision, mesurée sur les deux jeux) et qui n'est qu'une approximation asymptotique, non établie à $T = 8$, de la p de
+permutation (fiche~\ref{fiche:student-pente}, rubrique~4). À $T = 8$, elle a la même limite
+d'information que le test de la pente (fiche~\ref{fiche:student-pente}, rubrique~6). Elle n'est
+membre d'aucune lecture conjointe, réservée aux lignes de type test
+(fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}). Ajoutée après les mesures versionnées
+de la partie~IV (calibration des p-values de Monte-Carlo, taux de franchissement des repères,
+p-value conditionnelle au régime), elle est hors de leur population, sans mesure relancée
+(décision Q-46-17~(a))~: diagnostic par construction, \code{INFO}, sans p-value retenue, elle ne
+porte jamais \code{ALERTE} ni \code{ECHEC} et n'entre dans aucun agrégat de verdicts~; sa p est
+égale à celle de la ligne de Fisher, qui figure dans ces populations.
+\end{fiche}
+
 \begin{fiche}{Test de Fisher de significativité globale}
 \label{fiche:fisher-global}%
 \refl{R.\,A. Fisher, \emph{On the mathematical foundations of theoretical statistics},
@@ -9514,7 +9764,9 @@ loi restituée est calculée~; la ligne, diagnostic, ne la rejette ni ne l'accep
     \;=\; \frac{R^2/k}{(1-R^2)/(T-k-1)} .
 \]
 À un régresseur, $F = t_b^2$, où $t_b$ est la statistique restituée par la ligne du test de
-Pitman (fiche~\ref{fiche:student-pente})~: $F$ est une fonction croissante de $|r|$.
+Pitman (fiche~\ref{fiche:student-pente}) et, depuis l'issue~\#423, par la ligne de Student sur la
+pente (fiche~\ref{fiche:student-pente-modele-auxiliaire})~: $F$ est une fonction croissante de
+$|r|$.
 \Loi
 $F \sim \mathcal{F}(k,\,T-k-1)$, soit ici $\mathcal{F}(1, T-2)$, loi exacte sous le modèle
 auxiliaire des moindres carrés seulement (section~\ref{sec:modele-auxiliaire-spec}), que les
@@ -9527,7 +9779,8 @@ information}~: elle n'est \textbf{pas retenue}, la ligne n'a ni p-value retenue 
 (\code{p\_retenue} et \code{nature\_p} à \code{NA}), ni sens du test, et son verdict est
 \code{INFO}. Le commentaire est «~\code{Diagnostic, redondante avec le test de Pitman (F = t\^{}2) :
 aucun verdict. p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,
-non retenue.}~». \emph{Pourquoi aucune p-value n'est retenue.} Aucune des trois voies de la
+non retenue ; egale a la p de la ligne "Test de Student sur la pente (modele auxiliaire MCO)".}~»,
+la dernière phrase étant ajoutée par l'issue~\#423. \emph{Pourquoi aucune p-value n'est retenue.} Aucune des trois voies de la
 hiérarchie n'est ouverte pour la loi de Fisher~: elle n'est exacte que sous le modèle auxiliaire,
 non sous le modèle réglementaire, et le second fondement d'exactitude de l'ADR~0002, qui exige une
 loi exacte sous l'hypothèse nulle seule, ne la couvre pas (fiche~\ref{fiche:student-pente},
@@ -9542,7 +9795,9 @@ Jusqu'à l'issue~\#169, la ligne était un test, dont la p-value de Fisher étai
 hiérarchie sous la nature \code{sous le modele auxiliaire MCO : F(1,T-2) exacte (H0 non simulable
 : le modele ajuste appartient a H1)}, et la règle~R4 la restituait en diagnostic avec la pente.
 Mesuré (méthode prime, $B = 999$, graine 20260831)~: sur le jeu de contrôle, $F = 1{,}937$, p-value
-de Fisher $0{,}2134$, égale à la p-value de Student bilatérale de la pente, \code{INFO}~; sur le
+de Fisher $0{,}2134$, égale à la p-value de Student bilatérale de la pente, restituée depuis
+l'issue~\#423 par la ligne de Student sur la pente (fiche~\ref{fiche:student-pente-modele-auxiliaire},
+égalité à l'arrondi près), \code{INFO}~; sur le
 jeu à $\hat\delta$ intérieur, $F = 219{,}98$, p-value de Fisher $5{,}9\cdot 10^{-6}$, \code{INFO}.
 \Usage
 \emph{Pourquoi aucun verdict} (ADR~0001)~: la ligne est \textbf{redondante avec le test de
@@ -12695,7 +12950,8 @@ regression relationships over time}, \emph{Journal of the Royal Statistical Soci
 Série de résidus $z_t$, $\hat\sigma$ leur écart-type empirique. Hypothèses non testées~:
 indépendance et homoscédasticité sous $H_0$.
 \Hzero
-$H_0$ : constance des paramètres du modèle sur toute la période.
+$H_0$~: constance des paramètres du modèle sur toute la période, contre $H_1$~: niveau non
+constant (dérive ou rupture).
 \Stat
 \[
   S(j) = \frac{1}{\hat\sigma\sqrt{T}}\sum_{t=1}^{j}\big(z_t - \bar z\big),
@@ -12780,7 +13036,8 @@ borne est la loi exacte de $G$ pour toute valeur $p \le 0{,}240$, ce qui couvre 
 et un majorant au-delà. Ce résultat suppose un échantillon i.i.d. normal~: il vaut pour la ligne à
 $\hat\pi_t$ constant (rubrique~1), non à $\hat\pi_t$ variable.
 \Pval
-Borne de Bonferroni calculée par \code{test\_grubbs()}, tronquée à 1~:
+Borne de Bonferroni calculée par \code{test\_grubbs()} (formule de
+\code{.grubbs\_p\_bonferroni()}, issue~\#416), tronquée à 1~:
 \[
   p = \min\Big(1,\; 2T\big(1 - F_{t,T-2}(t^\star)\big)\Big),
 \]
@@ -12791,7 +13048,14 @@ retenue~; si elle manque, la ligne devient un diagnostic sans p-value retenue (i
 champ \code{loi} de la ligne dit le statut de la borne selon le régime (issue~\#182, décision
 D1-4~: un texte ne qualifie une loi d'exacte que dans le régime où elle l'est)~: à $\hat\pi_t$
 constant, «~\code{Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2)
-(p <= 0.24 a T = 8), majorant au-dela}~»~; à $\hat\pi_t$ variable, «~\code{Student + borne de
+(p <= 0.240 a T = 8), majorant au-dela}~», dont la parenthèse est calculée pour le $T$ saisi, par
+\code{.grubbs\_p\_bonferroni()} au seuil $G = \sqrt{(T-1)/2}$ (issue~\#416~: $0{,}557$ à $T = 5$,
+$0{,}240$ à $T = 8$, $0{,}133$ à $T = 10$, remesuré~; le texte fixe «~\code{0.24 a T = 8}~» qui la
+précédait n'était juste qu'à $T = 8$). Depuis l'issue~\#416, la borne s'y écrit avec trois
+décimales tant qu'elle vaut au moins $0{,}001$, et à trois chiffres significatifs en dessous
+(\code{.format\_borne\_grubbs()}, point décimal fixe), pour ne pas imprimer «~\code{0.000}~»~:
+«~\code{0.000841}~» à $T = 26$, premier $T$ concerné, «~\code{0.000437}~» à $T = 28$,
+«~\code{8.18e-06}~» à $T = 40$ (remesuré)~; à $\hat\pi_t$ variable, «~\code{Student + borne de
 Bonferroni, calibree pour un echantillon i.i.d. normal~; les residus z ne le sont pas dans ce
 regime (pi\_t variable)~: ni exacte ni majorant garanti}~», l'égalité comme l'inégalité de la
 rubrique~4 supposant l'échantillon i.i.d. normal. Mesuré sur les références~: $0{,}861$ en
@@ -13186,7 +13450,8 @@ Statistique de la fiche~\ref{fiche:ols-cusum} appliquée aux ratios centrés $u_
 « ratios bruts » (section~\ref{sec:base-residus})~; mêmes hypothèses non testées que la
 fiche~\ref{fiche:sup-f-ratios-bruts}.
 \Hzero
-$H_0$~: constance du niveau du ratio S/P, contre $H_1$~: dérive graduelle.
+$H_0$~: constance du niveau du ratio S/P, contre $H_1$~: niveau du ratio S/P non constant
+(dérive ou rupture).
 \Stat
 $\mathrm{CUSUM} = \max_{j}\big|\sum_{t \le j}(u_t - \bar u)\big| \big/ (s_u\sqrt{T})$
 (\code{stat\_cusum()}), invariante par translation et changement d'échelle.
@@ -13468,8 +13733,12 @@ $\min\mathcal{O} + \chi^2_{2\,\mathrm{niveau} - 1}(1)$, quantile au niveau \code
 mélange, puisque $\mathbb{P}\big(\tfrac12\chi^2(0) + \tfrac12\chi^2(1) \le c\big) = \tfrac12 +
 \tfrac12 F_{\chi^2_1}(c)$ pour $c \ge 0$ (d'où un niveau supérieur à $0{,}5$)~: à $0{,}90$, c'est
 $\chi^2_{0{,}80}(1) = 1{,}642$, au bit près (\code{qchisq(2 * 0.90 - 1, 1)} et
-\code{qchisq(0.80, 1)} sont \code{identical()}). Le champ des marques garde son nom,
-\code{q90\_bootstrap}, quel que soit le niveau. Ces repères ne produisent aucun verdict.
+\code{qchisq(0.80, 1)} sont \code{identical()}). La ligne et les marques sont portées par les
+champs \code{repere\_asymptotique} et \code{quantile\_bootstrap} de \code{plots\_data\$lr\_delta},
+noms donnés par l'issue~\#405 (décisions du mainteneur du 31~octobre 2026)~: le premier
+s'appelait \code{seuil\_asymptotique}, alors qu'il s'agit d'un repère de lecture et non d'un seuil
+de décision, et le second \code{q90\_bootstrap}, nom qui ne valait plus depuis que le niveau est
+porté par le moteur (issue~\#190). Ces repères ne produisent aucun verdict.
 \end{fiche}
 
 \begin{fiche}{Jackknife (sensibilité au retrait d'une année)}
@@ -13612,18 +13881,41 @@ $B = 99$, mêmes paramètres)~: l'échantillon complet est accepté ($\hat\gamma
 intérieur) et les huit réajustements sont refusés par \code{usp\_valider\_ajustement()}
 ($\hat\gamma^{(-t)} = -12$, borne de \code{BORNES\_GAMMA}, aucun démarrage qui satisfasse la
 condition de Kuhn et Tucker), \code{ok} vaut \code{TRUE} et la
-table \code{res\$jackknife} est entièrement à \code{NA}. Depuis l'issue~\#328, le graphique
-d'influence de l'application affiche alors un panneau vide au message fixe «~\code{Aucune annee
-evaluable : influence sur sigma\_USP non mesuree}~», et la note d'influence remplace la phrase de
-l'année la plus influente par une phrase fixe~; quand le jackknife n'est que partiellement
+table \code{res\$jackknife} est entièrement à \code{NA}. Second cas sans estimation, depuis
+l'issue~\#405 (avis d'\code{actuary}, option~(b))~: des réajustements ont abouti, mais
+$\sigma_{\mathrm{USP}}$ est nul ou non fini, de sorte qu'aucun écart relatif n'est défini~;
+\code{usp\_jack\_annees()} rend alors \code{NULL}, jamais un vecteur vide, qui se lirait comme
+un jackknife calculé, et la ligne est posée de même en diagnostic \code{INFO}, \code{estim} à
+\code{NA}, au commentaire fixe «~\code{sigma\_USP nul ou non fini : ecart relatif non defini,
+influence non mesuree.}~», suivi, le cas échéant, de la phrase des années non évaluables~;
+jusqu'à cette issue, la ligne était omise. Mesuré en forçant $\sigma_{\mathrm{USP}}$ à~$0$ puis
+à \code{NA} par substitution d'\code{usp\_parametre()} dans l'environnement du moteur (jeu de
+contrôle, $B = 99$, test unitaire de \code{tests/unitaires/test\_defauts\_connus.R})~: les huit
+réajustements aboutissent, la ligne porte ce seul commentaire. Dans le premier cas (aucune année
+évaluable), le graphique d'influence de l'application affiche, depuis l'issue~\#328, un panneau
+vide au message fixe «~\code{Aucune annee evaluable : influence sur sigma\_USP non mesuree}~»,
+et la note d'influence remplace la phrase de l'année la plus influente par une phrase fixe qui
+commence par «~Aucune année évaluable~». Ce message et cette phrase sont réservés à ce cas, où
+toutes les années sont non évaluables~: dans le second cas, depuis l'issue~\#405, le graphique
+affiche un panneau vide au message fixe «~\code{sigma\_USP nul ou non fini : ecart relatif non
+defini, influence non mesuree}~», et la note d'influence porte la phrase fixe «~sigma\_USP nul ou
+non fini~: écart relatif non défini, influence non mesurée.~», suivie, le cas échéant, de la
+phrase des années non évaluables, comme le commentaire de la ligne (\code{note\_influence()},
+\code{plot\_influence\_sigma()}, lecture des colonnes \code{non\_evaluable} et
+\code{ecart\_sigma} de la table d'influence, sans calcul)~; jusqu'à cette issue, l'affichage
+annonçait «~Aucune année évaluable~» dans les deux cas. Quand le jackknife n'est que partiellement
 \code{NA}, la note nomme les années non évaluables, qui n'entrent pas dans la désignation.
-L'affichage lit ces années dans la table d'influence, sans calcul. Depuis l'issue~\#396, la note
+L'affichage lit ces années dans la table d'influence, sans calcul~: depuis l'issue~\#404, dans
+sa colonne \code{non\_evaluable}, posée par \code{engine\_influence()} sur le critère des années
+non évaluables du commentaire ($\sigma_{\mathrm{USP}}^{(-t)}$ non fini), et non plus par un test de
+finitude de l'affichage. Depuis l'issue~\#396, la note
 ne calcule plus de maximum~: elle lit la colonne \code{plus\_influente} de
 \code{res\$plots\_data\$influence}, posée par \code{engine\_influence()} d'après
 \code{usp\_jack\_annees()}, soit la désignation même du commentaire de la ligne~; jusqu'à cette
 issue, elle refaisait le maximum de l'écart en valeur absolue, sans la tolérance $\tau$. Une
-seule année désignée~: «~Le retrait de l'année la plus influente déplace sigma\_USP de
-$-9{,}4$~\%.~» (cas de référence \code{premium}), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
+seule année désignée~: «~Le retrait de l'année la plus influente, 8, déplace sigma\_USP de
+$-9{,}4$~\%.~» (cas de référence \code{premium}~; la phrase nomme l'année depuis
+l'issue~\#404, comme la phrase plurielle et le commentaire de la ligne), ou, quand l'écart s'écrit $0{,}0$ à un chiffre
 après la virgule, «~\dots{} de moins de 0,05~\% en valeur absolue.~», sans signe. Plusieurs
 années désignées~: toutes sont citées, comme dans le commentaire, avec une seule amplitude,
 celle de la première année désignée qui ne s'écrit pas $0{,}0$, car leurs écarts relatifs en
@@ -14201,7 +14493,9 @@ la concentration sur les années récentes. \\
 \code{plot\_mw\_regressions()} & MW & M1 & Fiche dédiée. Petits multiples
 $C(i,j+1)$ contre $C(i,j)$, une vignette par année de développement. \\
 \code{plot\_mw\_origine()} & MW & M1 & Fiche dédiée. Ordonnée à l'origine
-estimée par colonne, avec son intervalle à 95~\%. \\
+estimée par colonne, avec son intervalle de Student de niveau nominal $1 - \alpha$, lu dans
+\code{plots\_data\$origine} (issue~\#404~; «~à 95~\%~», avec un quantile normal écrit en dur
+dans l'affichage, jusqu'à cette issue). \\
 \code{plot\_mw\_alpha()} & MW & M1 & Fiche dédiée. Facteur estimé selon
 $\alpha = 0$, 1 et 2. \\
 \code{plot\_mw\_residus\_C()} & MW & M1, M2 & Résidus de Mack contre $C(i,j)$~:
@@ -14271,13 +14565,23 @@ lecture~», et deux marques en $\delta = 0$ et $\delta = 1$ à $\min\mathcal{O}$
 quantile à 90~\% des $\mathrm{LR}^{*}$ simulés sous chaque borne (type~7)~; niveau
 \code{LR\_DELTA\_NIVEAU\_REPERES} du moteur (issue~\#190, fiche~\ref{fiche:rv-delta}). Sur le jeu de
 contrôle, les marques sont à $+0{,}40$ et $+0{,}39$, la ligne à $+1{,}64$~: l'écart visible est la
-mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Un point de grille dont
+mesure de l'inadéquation du mélange à $T = 8$. Aucun verdict. Depuis l'issue~\#405, une aide
+accompagne le graphique (\code{.note\_profil\_delta()}, en bloc neutre dans l'application et dans
+le rapport figé, absente sans repères ou si le profil n'est pas tracé, texte fixe sans nombre
+calculé)~: la ligne du repère asymptotique ne vaut qu'aux bornes $\delta = 0$ et $\delta = 1$, où
+la loi limite du rapport de vraisemblance est le mélange (fiche~\ref{fiche:rv-delta})~; pour
+$\delta$ intérieur, la loi limite serait $\chi^2(1)$, de quantile plus élevé au même niveau, de
+sorte que l'ensemble des $\delta$ situés sous la ligne \textbf{n'est pas} un intervalle de
+confiance à 90~\% pour $\delta$~; aucune de ces lois limites n'est établie à $T = 8$, et la
+lecture fondée est celle des marques, qui n'ont pas d'équivalent pour $\delta$ intérieur. Un point de grille dont
 l'optimisation échoue vaut \code{NA} (\code{usp\_profil()}, issue~\#161)~; si tous le valent,
 l'affichage remplace le graphique par un message qui renvoie au motif des lignes~G. \\
 \code{plot\_surface\_objectif()} & LN & --- & Surface $-2\ln L$ sur la grille
 $(\delta,\gamma)$~: montre si l'optimum au bord est un vrai minimum. \\
 \code{plot\_coupe\_delta()} & LN & --- & Coupe de la surface à $\hat\gamma$~:
-lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; sans les repères
+lecture bidimensionnelle de la même platitude, avec son amplitude chiffrée~; depuis
+l'issue~\#404, coupe exacte à $\hat\gamma$ lue dans \code{plots\_data\$surface\$objectif\_coupe},
+au lieu de la colonne de la grille la plus proche de $\hat\gamma$ choisie par l'affichage~; sans les repères
 du rapport de vraisemblance, qui ne portent que sur le profil (décision d'\code{actuary} après
 audit de l'issue~\#45). \\
 \code{plot\_boot\_sigma()} & LN + MW & --- & Distribution bootstrap de
@@ -14815,10 +15119,12 @@ compare les estimateurs pondérés par $C(i,j)^2$, par $C(i,j)$ et non pondéré
 \Cadre
 Trois représentations, rattachées à l'hypothèse M1. La première est un ensemble
 de petits multiples~: pour chaque année de développement $j$, le nuage des
-couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ --- celle
-qu'impose le règlement, passant par l'origine --- et la droite ajustée avec
-constante. La deuxième porte les ordonnées à l'origine estimées $\hat a_j$ avec
-leur intervalle à 95~\%. La troisième compare les estimateurs
+couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ et la droite ajustée avec
+constante. La droite passant par l'origine, sans constante, traduit la lettre de
+l'annexe~XVII, D(2)(h)(iii)~; qu'elle ait le même facteur $f_j$ pour toutes les années de
+survenance, estimé par $\hat f_j$ de D(4)(c), est la lecture de l'outil, non la lettre du texte
+(encadré de la section~\ref{sec:mwm1}). La deuxième porte les ordonnées à l'origine estimées
+$\hat a_j$ avec leur intervalle de Student de niveau nominal $1 - \alpha$ (rubrique~6). La troisième compare les estimateurs
 $\hat f_j^{(\alpha)}$ pour $\alpha = 0$, 1 et 2.
 \Hzero
 Sans objet. Les tests numériques correspondants sont les fiches~\ref{mw:m1a}
@@ -14839,12 +15145,36 @@ que les dernières colonnes ne reposent que sur deux ou trois points.
 
 \medskip
 Le graphique des ordonnées à l'origine résume les mêmes informations sous forme
-compacte, les colonnes significatives étant mises en évidence~: celles dont la p-value de
-Student par colonne est inférieure au seuil $\alpha$ du calcul (\code{res\$metadata\$alpha}),
-lu par \code{plot\_mw\_origine(pd, alpha)} et par la note \code{note\_m1(pd, alpha)} qui les
-compte, et non plus fixé à $0{,}10$ dans l'affichage (issue~\#4, piste~3). Cette coloration
-colonne par colonne est une aide de lecture~: elle ne tient pas compte de la multiplicité des
-colonnes, et le verdict est celui de la fiche~\ref{mw:m1a}. Ce graphique représente les
+compacte. Depuis l'issue~\#404, il ne calcule rien~: \code{plot\_mw\_origine(pd)} et la note
+\code{note\_m1(pd)}, sans argument \code{alpha}, lisent dans \code{plots\_data\$origine}, posée
+par \code{.mw\_origine\_intervalles()}, les bornes \code{bas} et \code{haut} de l'intervalle de
+Student de $a_j$, son niveau \code{niveau} $= 1 - \alpha$ (seuil du calcul,
+\code{res\$metadata\$alpha}) et la colonne de plus petite p (\code{plus\_petite\_p})~; la
+couleur de repère des colonnes dont l'intervalle exclut~$0$ est lue dans \code{exclut\_zero},
+dual de $p_j < \alpha$ pour la p de Student de la colonne. Avant cette issue, l'affichage
+calculait un intervalle «~à 95~\%~» avec le quantile normal $1{,}96$ écrit en dur, comparait les
+p au seuil (non plus fixé à $0{,}10$ depuis l'issue~\#4, piste~3) et la note comptait les
+colonnes dites significatives~; elle n'en compte plus et n'en qualifie plus aucune de
+significative. Mesuré sur le triangle de contrôle (\code{reserve2}, $\alpha = 0{,}10$)~: niveau
+$0{,}9$, \code{quantile\_t} $= t_{0{,}95,\,n_j-2}$ de $2{,}015$ ($n_j = 7$) à $6{,}314$
+($n_j = 3$)~; seule la colonne $j = 1$ ($p = 0{,}030$) a un intervalle qui exclut~$0$, et elle
+porte la plus petite p. \emph{Statut de l'intervalle} (avis d'\code{actuary})~: le pivot
+$(\hat a_j - a_j)/\widehat{\mathrm{se}}(\hat a_j)$ suit la loi $t(n_j - 2)$ \textbf{exactement},
+à $n_j$ fini, sous le seul modèle auxiliaire gaussien de la colonne (erreurs gaussiennes
+indépendantes, de variance proportionnelle à $C(i,j)$, conditionnellement aux $C(\cdot,j)$),
+\textbf{non sous l'annexe~XVII}, qui ne spécifie pas de loi~: le niveau $1 - \alpha$ est
+\emph{nominal}, et la couverture n'est pas établie à $T = 8$ sous le modèle réglementaire
+(l'intervalle est le dual d'une p non simulée de la famille~(iii) de la
+section~\ref{sec:nature}). La couverture est
+\emph{marginale}, colonne par colonne, et non simultanée sur les colonnes. Elle ne vaut pas non
+plus pour la colonne de plus petite p, désignée après examen des données~: si toutes les
+ordonnées à l'origine sont nulles, l'intervalle de cette colonne contient~$0$ si et seulement si
+aucune colonne n'a $p_j < \alpha$, événement de probabilité au plus $1 - \alpha$ sous le modèle
+auxiliaire, et en général moindre. Cette coloration
+colonne par colonne est une aide de lecture, sans verdict~: elle ne tient pas compte de la
+multiplicité des colonnes, et le verdict est celui de la ligne «~\code{Nullite de l'ordonnee a
+l'origine, colonne par colonne}~» (fiche~\ref{mw:m1a}), qui combine les p des colonnes par la
+méthode de Fisher. Ce graphique représente les
 colonnes testées par l'appel observé de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
 (élément \code{detail})~: une colonne exclue comme dégénérée ou non identifiable de l'ordonnée à
 l'origine (moins de deux valeurs distinctes de $C(i,j)$) n'y figure pas, et, depuis
@@ -15008,7 +15338,8 @@ triangle de contrôle ($1{,}527$ contre $1{,}498$ pour les deux plus grands). Su
 contrôle~: «~La cellule la plus influente est (i = 1, j = 4) (DFBETAS = +1,53), dont le retrait
 déplacerait f\_4 de -0,30~\%.~» Une cellule \code{dfbetas\_non\_borne}, sans DFBETAS restitué,
 n'entre pas dans la désignation~: la phrase commence alors par «~Parmi les cellules à DFBETAS
-borné, la plus influente est~».
+borné, la plus influente est~», et, depuis l'issue~\#404, elle suit la phrase qui nomme la ou les
+cellules à DFBETAS non borné, à laquelle elle renvoie (elle la précédait auparavant).
 
 \medskip
 \textbf{Source et portée du repère.} Le repère $2/\sqrt{n}$ du DFBETAS, dit ajusté à la taille,
@@ -15468,7 +15799,8 @@ $\mathbb{E}[C(i,j+1)\mid C(i,j)] = f_j\,C(i,j)$, $f_j$ commun aux années de sur
 (interprétation de l'outil, D(4)(c)) &
 H1 --- même forme de proportionnalité sans constante \\
 M2 & (iv) variance du cumulé proportionnelle au cumulé précédent~; formalisée
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ &
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, $\sigma_j^2$ commun aux années de
+survenance (interprétation de l'outil, D(5)(d)(ii)) &
 H2 --- mais puissance 1 imposée, sans mélange $\delta$ à estimer \\
 M3 & (i) et (ii) indépendance entre années de survenance et entre montants
 incrémentaux & H4 --- indépendance \\
@@ -15607,8 +15939,10 @@ complètent la régression agrégée initiale. Cinq éprouvent les hypothèses d
 (Fisher, ou moyenne pondérée pour la famille~$\alpha$)~: l'ordonnée à l'origine, l'homogénéité de
 $f_j$, l'absence de courbure et la famille~$\alpha$ (M1), l'exposant de variance (M2)~;
 D(2)(h)(iii) et~(iv) énoncent la proportionnalité de l'espérance et de la variance pour le passage
-«~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$ par
-année de développement. La sixième, l'homogénéité des résidus entre années de survenance (M3,
+«~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$,
+D(5)(d)(ii) une variance unique $\hat\sigma_j^2$, par année de développement (la communauté de $f_j$
+et de $\sigma_j^2$ entre années de survenance est une interprétation de l'outil,
+sections~\ref{sec:mwm1} et~\ref{sec:mwm2}). La sixième, l'homogénéité des résidus entre années de survenance (M3,
 fiche~\ref{mw:m3acc}), compare les lignes du triangle, ses résidus étant groupés par année de
 survenance toutes colonnes confondues~; le quantificateur «~pour toutes les années d'accident~»,
 qui figure aussi aux points (ii) et (iv), porte, lui, sur ces lignes. La tendance avec le cumulé,
@@ -15876,7 +16210,12 @@ l'hypothèse réglementaire. Hypothèses de validité non testées~: indépendan
 lignes, variance correctement pondérée, erreurs approximativement normales.
 \Hzero
 $H_0 : a_j = 0$ pour toute année de développement $j$, c'est-à-dire la
-proportionnalité stricte exigée par D(2)(h)(iii).
+proportionnalité stricte exigée par D(2)(h)(iii). Cette absence de constante, exigée par la lettre
+du texte, n'est testée que sous la lecture retenue par l'outil (facteur $f_j$ commun aux années de
+survenance, encadré de la section~\ref{sec:mwm1})~: la régression de la colonne~$j$ impose une
+pente $b_j$ commune aux années, une seule observation par année et par colonne ne permettant pas de
+tester l'absence de constante avec un coefficient propre à chaque année~; un rejet de $a_j = 0$
+peut donc aussi traduire un facteur non commun aux années (fiche~\ref{mw:m1b}).
 \Stat
 Statistique de Student $t_j = \hat a_j / \widehat{\mathrm{se}}(\hat a_j)$ dans
 chaque colonne, puis combinaison des $K$ p-values par la méthode de Fisher~:
@@ -16651,7 +16990,9 @@ On considère la famille d'estimateurs
 \]
 où $\alpha = 0$ donne la moyenne simple des facteurs individuels, $\alpha = 1$ le
 facteur chain-ladder du règlement, et $\alpha = 2$ une pondération par le carré
-du volume. \textbf{Sous l'hypothèse M1, les trois estiment la même quantité}~:
+du volume. \textbf{Sous l'hypothèse M1, les trois estiment la même quantité} (M1 formalisée
+avec un facteur $f_j$ commun aux années de survenance, interprétation de l'outil, encadré de la
+section~\ref{sec:mwm1})~:
 l'espérance conditionnelle étant proportionnelle à $C(i,j)$, tout jeu de poids
 positifs fournit un estimateur sans biais de $f_j$, \emph{quelle que soit la variance}, chaque
 facteur individuel étant lui-même sans biais (Mack, 1994, chapitre~3, p.~111). Le choix de $\alpha$
@@ -16662,9 +17003,13 @@ retient $\alpha = 1$, qui correspond à M2. Une pondération inadaptée à la va
 efficacité, non en biais. L'article ne compare pas les trois estimateurs et ne propose aucun test~:
 la statistique $A$ et sa p-value de Monte-Carlo sont une construction de l'outil.
 \Hzero
-$H_0$ : les trois estimateurs visent le même $f_j$ dans chaque colonne~; $H_1$, libellé de la
+$H_0$~: les trois estimateurs visent le même $f_j$ dans chaque colonne~; $H_1$, libellé de la
 ligne~: ils visent des valeurs différentes (espérance de $C(i,j+1)$ non proportionnelle à
-$C(i,j)$).
+$C(i,j)$, ou facteur non commun aux années et associé à $C(i,j)$). La seconde branche de $H_1$
+tient à la lecture de l'outil~: la lettre de D(2)(h)(iii) admet un facteur propre à chaque année
+de survenance~; s'il est associé à $C(i,j)$, les moyennes pondérées par $C(i,j)^{\alpha}$ visent
+des valeurs différentes selon $\alpha$, alors que l'espérance reste proportionnelle, sans
+constante, dans chaque année.
 \Stat
 Amplitude relative moyenne, pondérée par les effectifs~:
 \[
@@ -16682,7 +17027,8 @@ Test de l'hypothèse (iii) seule (M1), conservé comme test par décision du mai
 22~octobre 2026 (issue~\#307, décision Q-D1-Fj-5, option~(b$'$)~; ni passage en diagnostic, ni
 retrait). Les trois estimateurs étant sans biais sous (iii) quelle que soit la variance
 (rubrique~1), une violation de l'hypothèse de variance M2 seule laisse $H_0$ vraie~: une divergence
-marquée signale que l'espérance n'est pas proportionnelle à $C(i,j)$, non que la pondération est
+marquée signale que l'espérance n'est pas proportionnelle à $C(i,j)$, ou, sous la lettre de (iii),
+un facteur propre à chaque année et associé à $C(i,j)$ (rubrique~2), non que la pondération est
 inadaptée. Cette propriété porte sur l'hypothèse nulle, non sur le niveau~: la p-value de
 Monte-Carlo est calibrée sous l'hypothèse de variance de Mack (le bootstrap tire sous l'exposant~1),
 et son niveau n'est pas garanti si M2 est violée~; il n'est mesuré que contre les exposants~0 et~2
@@ -16944,8 +17290,13 @@ plans mesurés, sans transposer leurs taux.
 \textbf{Énoncé.} annexe~XVII, D(2)(h)(iv)~: « pour toutes les années
 d'accident, la variance du montant de sinistres cumulé d'une année de
 développement est proportionnelle au montant de sinistres cumulé de l'année de
-développement précédente », soit
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+développement précédente ». \textbf{Formalisation retenue par l'outil}~:
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, avec une constante $\sigma_j^2$
+commune à toutes les années de survenance, hypothèse du modèle de Merz et Wüthrich (2008,
+hypothèses~2.1, éq.~(2.7), p.~548)~; cette communauté est une interprétation de l'outil, appuyée
+sur D(5)(d)(ii), qui estime une variance unique $\hat\sigma_j^2$ par année de développement, et
+non la lettre de D(2)(h)(iv), qui énonce la proportionnalité de la variance au cumulé précédent
+pour chaque année d'accident sans exiger une constante commune aux années.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -17133,9 +17484,16 @@ colonne trop courte (sans cette garde, \code{cor.test()} rendait une corrélatio
 trace)~; les résidus sont ceux de \code{mw\_residus()}, colonnes dégénérées exclues selon
 l'ensemble figé (fiche~\ref{mw:m1a}).
 \Hzero
-$H_0$ : l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
+$H_0$~: l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
 l'intérieur d'une colonne, ce qui est la traduction directe de
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$.
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ avec un facteur $f_j$ et une
+constante $\sigma_j^2$ communs aux années (interprétation de l'outil, D(4)(c) et D(5)(d)(ii),
+encadrés des sections~\ref{sec:mwm1} et~\ref{sec:mwm2}, comme le dit le commentaire de la
+ligne)~; contre $H_1$~: l'exposant~1 imposé par le règlement est inadapté. Sous la lettre de
+D(2)(h)(iv), qui admet une constante propre à chaque année de survenance, un rejet peut aussi
+traduire une constante $\sigma_j^2$, ou un facteur $f_j$, non communs aux années et associés à
+$C(i,j)$ (fiche~\ref{mw:m1d}), sans que la proportionnalité de la variance au cumulé précédent
+soit en défaut dans chaque année.
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
 \code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
@@ -19190,10 +19548,10 @@ retirés par l'issue~\#164, faute de script qui les reproduise.
 \label{sec:calibration-mc}
 
 C'est le point le plus important, puisque ces p-values sont celles retenues pour la majorité des
-tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 52 lignes de
+tests --- mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$), 13 des 53 lignes de
 la table auditable retiennent une p-value de Monte-Carlo, contre 5 une p-value exacte, 0 une
-p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 34 dernières n'ayant
-aucune p-value retenue (33 diagnostics et 1 ligne non applicable)~;
+p-value sous le modèle auxiliaire pondéré et 0 une p-value asymptotique, les 35 dernières n'ayant
+aucune p-value retenue (34 diagnostics et 1 ligne non applicable)~;
 parmi ces diagnostics, cinq sont les lignes de lecture conjointe ajoutées par l'issue~\#297
 (une par famille de plusieurs tests et une ligne globale, fiches~\ref{fiche:p-famille}
 et~\ref{fiche:p-globale})~;
@@ -21325,7 +21683,11 @@ modèle et un mode d'inférence différents.
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
   publique de cet article (\code{ChainLadder::CDR}) qui fournit la valeur de
-  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}).
+  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}). Ses hypothèses~2.1
+  (éq.~(2.6), p.~547, et~(2.7), p.~548~: constantes $f_j$ et $\sigma_j$ communes à toutes les
+  années de survenance) sont citées pour la formalisation retenue par l'outil des points~(iii)
+  et~(iv) de D(2)(h), qui est une interprétation de l'outil et non la lettre du texte
+  (sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
 
   \item M.\,V. Wüthrich, M.~Merz, \emph{Stochastic Claims Reserving Methods in
   Insurance}, Wiley, 2008.
@@ -21697,7 +22059,7 @@ issue~\#89)~: protocole, taux et statuts à la fiche~\ref{mw:influence}.
         \code{nature\_p}. La hiérarchie appliquée est \emph{exacte $\succ$ Monte-Carlo
         $\succ$ p non simulée} (section~\ref{sec:nature})~: la p-value de Monte-Carlo n'est
         pas la première servie, elle vient \emph{après} la p-value exacte lorsque celle-ci
-        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 52
+        existe. Mesuré sur le jeu de contrôle (méthode prime, $T = 8$, $B = 999$)~: des 53
         lignes de la table auditable, 5 retiennent une p-value exacte, et 4 d'entre
         elles disposent pourtant d'une \code{p\_mc} qui n'est pas retenue~: lire
         systématiquement \code{p\_mc} reviendrait à écarter quatre p-values exactes au profit
@@ -21798,10 +22160,11 @@ l'issue~\#59 (commit \code{5f5459b}), pertes du jeu de contrôle et volumes $100
 alternés~: \code{test\_lm\_complet()} levait l'erreur R «~\code{subscript out of bounds}~» à
 $\varepsilon = 10^{-12}$ et $10^{-9}$. Des volumes constants ne sont pas un motif de refus des
 données (section~\ref{sec:controles})~: le calcul aboutit, $\delta$ n'est pas identifié
-(fiche~\ref{fiche:position-delta}), et treize lignes d'\code{usp\_tests()} sont restituées
+(fiche~\ref{fiche:position-delta}), et quatorze lignes d'\code{usp\_tests()} sont restituées
 «~non applicable~», sans verdict, avec un motif unique, \code{volumes x\_t constants a la tolerance
 relative TOL\_DELTA\_BORD = 1e-06 pres (etendue relative = \dots)~: regression / partition sur le
-volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman), Fisher, $R^2$, RESET,
+volume sans objet}~: nullité de la constante, TOST, pente (test de Pitman et test de Student
+sous le modèle auxiliaire MCO), Fisher, $R^2$, RESET,
 Spearman ratio contre volume, Breusch--Pagan studentisé et original, White, Goldfeld--Quandt,
 Brown--Forsythe et Smirnov. Depuis l'issue~\#213 (décision du mainteneur du 17~octobre 2026),
 \code{engine\_valider\_donnees()} signale en outre ce régime par un avertissement, sans refus,
@@ -21962,8 +22325,8 @@ méthode lognormale depuis l'issue~\#304, dans la méthode Merz--Wüthrich depui
 Merz--Wüthrich seulement depuis l'issue~\#302), dans les deux méthodes \\
 \code{stat\_lilliefors()}, \code{lillie\_p()} & LN + MW & Lilliefors, dans les
 deux méthodes \\
-\code{test\_lm\_complet()} & LN & Fisher global,
-$R^2$~: \textbf{deux entrées issues d'un seul appel}, qui fournit aussi la
+\code{test\_lm\_complet()} & LN & Test de Student sur la pente (modèle auxiliaire MCO), Fisher global,
+$R^2$~: \textbf{trois entrées issues d'un seul appel}, qui fournit aussi la
 statistique $t$ de la ligne du test de Pitman sur la pente, dont la p-value
 vient de \code{usp\_permutation\_pente()}~; le $t$ de la
 constante vient de son propre ajustement, \code{test\_intercept()} \\
@@ -22087,14 +22450,15 @@ méthodes, non représentée.}
 \node[ent] (xy) {volumes $x_t$\\ et pertes $y_t$};
 \node[mut, right=20mm of xy] (lm) {\code{test\_lm\_complet()}};
 \node[ded] (ti) at ([yshift=13.5mm]lm) {\code{test\_intercept()} \scriptsize (poids \code{usp\_poids\_gls()})};
-\node[ded, text width=46mm] (perm) at ([yshift=24mm]lm) {\code{usp\_permutation\_pente()}\\ \scriptsize via
+\node[ded, text width=46mm] (perm) at ([yshift=27mm]lm) {\code{usp\_permutation\_pente()}\\ \scriptsize via
   \code{.usp\_r\_permutations()} et \code{engine\_permutations()} ($T \le 9$)};
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Pitman pente (statistique $t$)};
-\node[sor, right=20mm of lm, yshift=-4.5mm]  (o3) {Fisher global};
-\node[sor, right=20mm of lm, yshift=-13.5mm] (o4) {$R^2$ (diagnostic)};
+\node[sor, right=20mm of lm, yshift=-4mm]    (o2s) {Student pente (diagnostic)};
+\node[sor, right=20mm of lm, yshift=-11mm]   (o3) {Fisher global};
+\node[sor, right=20mm of lm, yshift=-18mm]   (o4) {$R^2$ (diagnostic)};
 
-\node[ded, below=17mm of lm] (tost) {\code{test\_tost\_intercept()} \scriptsize (même poids)};
+\node[ded, below=22mm of lm] (tost) {\code{test\_tost\_intercept()} \scriptsize (même poids)};
 \node[sor, right=20mm of tost] (o5) {Équivalence (TOST)};
 \node[ded, below=6mm of tost] (reset) {\code{test\_reset()}};
 \node[sor, right=20mm of reset] (o6) {RESET};
@@ -22110,12 +22474,12 @@ méthodes, non représentée.}
 \node[ent] (r) at (xy |- cs) {ratios $r_t = y_t/x_t$};
 
 \draw[fl] (xy) -- (lm);
-% Les trois sorties issues du meme appel sont desservies par un tronc commun
+% Les sorties issues du meme appel sont desservies par un tronc commun
 % puis des coudes, plutot que par trois diagonales partant d'un meme point.
 % La constante a son propre ajustement (test_intercept(), #111).
 \coordinate (bus) at ([xshift=8mm]lm.east);
 \draw[li] (lm.east) -- (bus);
-\foreach \o in {o2,o3,o4} \draw[fl] (bus) |- (\o.west);
+\foreach \o in {o2,o2s,o3,o4} \draw[fl] (bus) |- (\o.west);
 \draw[fl] (xy) |- (ti);
 \draw[fl] (ti) -- (o1);
 % Test de Pitman (#169) : la p-value de la ligne de la pente vient de
@@ -22128,12 +22492,13 @@ méthodes, non représentée.}
 \draw[fl] (r) -- (cs);
 \foreach \b in {mk,sp} \draw[fl] (r) |- (\b);
 \end{tikzpicture}
-\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{deux}
-entrées de la table des tests à partir d'un unique ajustement (Fisher global et $R^2$)
+\caption{Hypothèse H1. \code{test\_lm\_complet()} alimente \textbf{trois}
+entrées de la table des tests à partir d'un unique ajustement (test de Student sur la pente
+sous le modèle auxiliaire MCO, Fisher global et $R^2$)
 et fournit la statistique $t$ de la ligne du test de Pitman sur la pente, dont la
 p-value vient de \code{usp\_permutation\_pente()} (loi de permutation de Pitman, par
 énumération des $T!$ appariements à $T \le 9$ ou par permutations aléatoires au-delà,
-issue~\#169)~: une anomalie de cet ajustement fausserait à la fois Fisher, $R^2$ et la
+issue~\#169)~: une anomalie de cet ajustement fausserait à la fois Student, Fisher, $R^2$ et la
 statistique affichée de la pente, une anomalie de \code{usp\_permutation\_pente()} sa p-value. La nullité de la constante utilise les mêmes données,
 mais tire sa statistique $t$, ses p-values et, depuis l'issue~\#215, l'estimation $\hat a_w$
 affichée sur sa ligne de son propre ajustement, la régression pondérée de
@@ -22416,7 +22781,7 @@ Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 (\code{test\_lm\_}\allowbreak\code{complet()} + \code{usp\_permutation\_}\allowbreak\code{pente()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\
-Une fonction, plusieurs tests & \code{test\_lm\_complet()} (2 entrées)~;
+Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées)~;
 \code{stat\_dw()}, \code{test\_runs()},
 \code{stat\_supF()}, \code{stat\_cusum()} et \code{test\_grubbs()} (2 entrées
 chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{.usp\_mco\_qr()} (régressions

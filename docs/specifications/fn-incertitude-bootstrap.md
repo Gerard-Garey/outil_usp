@@ -268,6 +268,8 @@ Exécuté **avant** la fixation du critère ; il n'a servi qu'au budget et au ch
 - `q90_bootstrap = quantile(·, niveau, type = 7)` ; nom du champ conservé (stabilité du chemin), documenté comme « quantile au niveau `niveau` ».
 - Test à 0,95 : seuil qchisq(0,9 ; 1) ≈ 2,706.
 
+*Note du 03/11/2026 (#405, branche Fr, `f322831`)* : les deux champs ci-dessus sont renommés `repere_asymptotique` (ex-`seuil_asymptotique`) et `quantile_bootstrap` (ex-`q90_bootstrap`) ; la spécification est conservée dans sa rédaction d'origine.
+
 ### 7.2 Chemins ajoutés par cas
 
 | Cas | #190 | #306 | #305 (et D2-Fn) |

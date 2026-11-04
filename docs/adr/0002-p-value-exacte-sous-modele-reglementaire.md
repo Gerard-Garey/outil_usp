@@ -115,3 +115,36 @@ Sur `reserve2`, les 27 résidus portent ainsi 12 contraintes (mesure d'`actuary`
 **Conséquences, puce « Documentation du sens ».** Hoenig et Heisey (2001) ne sont plus cités « sur la portée de R4 » mais, s'ils le sont, comme « limite connue de la puissance a posteriori » (données bibliographiques vérifiées, texte non relu) ; la doctrine ne repose pas sur eux.
 
 **Effets.** Ceux de l'ADR 0001, annotation du même jour : σ_USP inchangé ; `detail` de la pente (cinq cas, patch) ; TOST ECHEC → INFO sur les quatre cas à δ̂ = 1 (patch chirurgical, visa) ; aucune régénération. Issues : #218, #230, #298, #222 (point 5), #220 (mesures citées).
+
+## Annotation du 2 novembre 2026 — point 4 : ligne Student bilatérale rétablie en diagnostic ; p de Student de la ligne Pitman gardée et qualifiée (#423, branche Fr)
+
+**Origine.** Demande du mainteneur au quarante-sixième point d'étape (02/11/2026) ; spécification d'`actuary-approfondi` du même jour ; décisions Q-46-12 à Q-46-18 (`docs/feuille-de-route.md`, § 4, E-02/11 (46e point)), dont deux écarts aux recommandations d'`architect-approfondi` (Q-46-13, Q-46-15) ; issue #423 ; branche Fr, étape 9b (circuit 1).
+
+**Point 4, puce « Fisher conservée en diagnostic ».** Complétée. Une ligne « **Test de Student sur la pente (modele auxiliaire MCO)** » (Q-46-18) est rétablie, entre la ligne Pitman et la ligne Fisher, au **même statut** que Fisher :
+- `type = "diagnostic"`, INFO, sans verdict ni p retenue ;
+- H0 b = 0, H1 b ≠ 0 : **bilatérale** (Q-46-13) ;
+- t (`stat`) et p de Student t(T − 2) bilatérale **sous le modèle auxiliaire MCO** en `p_asymptotique` (emplacement non retenu) ;
+- soumise à R13, R12, à la garde « pertes constantes » (#189) et à la finitude de t, avec le même prédicat que la ligne Pitman.
+
+À un régresseur, F = t² : sa p est **égale** à celle de la ligne Fisher. Les deux lignes sont gardées, et le `detail` de chacune signale l'égalité. La nouvelle ligne ne relève pas du second fondement (sa loi exige M_aux, condition (c)) et ne porte aucun second verdict sur la pente, que le test de Pitman est seul à tester. Ce n'est pas l'ancienne ligne « Test de Student sur la pente » d'avant #169 (`9d88e23`), qui était un test unilatéral portant le verdict.
+
+**Point 4, p de Student de la ligne Pitman.** Le retrait d'abord demandé au même point d'étape n'est pas retenu (Q-46-15, retour du mainteneur). La ligne Pitman **garde** en `p_asymptotique` la p de Student **unilatérale**, de même sens que la p de permutation. Le `detail` de la ligne et le `.tex` la **qualifient** d'approximation asymptotique de la p de permutation, avec trois précisions :
+1. son fondement serait le théorème central limite combinatoire, sous des conditions sur x et y : c'est une **hypothèse** à établir sur les textes, aucune référence n'étant citée à ce jour ;
+2. l'approximation n'est pas établie à T = 8 ;
+3. elle est mauvaise dans la queue : sur J2, 2,95e-6, en deçà de la plus petite p de permutation atteignable, 1/8! = 2,48e-5 (mesure d'`actuary-approfondi` du 02/11/2026, reprise dans l'issue #423).
+
+Le motif écrit est « autre test, autre loi de référence, approximation non établie à T = 8 » (Q-46-14) : il qualifie la p, il ne la retire pas. La puce « Aucun repli sur la p de Student » reste entière : la p de Student n'est jamais retenue, ni sur la ligne Pitman ni sur la nouvelle ligne.
+
+**Portée.** Locale à la ligne Pitman (Q-46-15) : aucune règle générale n'est posée sur la colonne `p_asymptotique`, et aucune revue des autres lignes n'est demandée.
+
+**Ce que l'annotation ne change pas.** Le critère d'exactitude et son second fondement ; la p retenue, `p_min`, le type et le verdict de la ligne Pitman ; la ligne Fisher, hors de la mention d'égalité dans son `detail`. La puce « Rouvrir le présent amendement » n'est pas déclenchée : la nouvelle ligne ne relève pas du second fondement.
+
+**Effets attendus** (*hypothèse*, à confirmer par le tableau avant / après de #423, soumis au mainteneur parce que la liste des tests change) : σ_USP et verdicts existants inchangés ; une ligne INFO ajoutée dans les cinq cas lognormaux (régénération par la CI) ; `detail` des lignes Pitman et Fisher modifiés ; `reserve2` identique. Les mesures versionnées « sur 48 lignes » classent la nouvelle ligne hors de leur population, avec sa raison écrite, sans mesure relancée (Q-46-17). `CONTEXT.md`, « Modèle auxiliaire MCO » : décompte porté à six à la mise en œuvre. Issues : #423, #169.
+
+**Réalisation (03/11/2026).** Mise en œuvre par `967c093` (`moteur:`, commit unique code + `.rds` des cinq cas lognormaux, régénérés par la CI, M30) et `eef7916` (`docs:` minimal, écart de concordance, M32), sur la branche Fr :
+- ligne « Test de Student sur la pente (modele auxiliaire MCO) » posée par `usp_tests()` entre la ligne Pitman et la ligne Fisher, `fonction = "test_lm_complet"`, `type = "diagnostic"` (ou `"non applicable"` sous le prédicat de la ligne Pitman : R13, pertes constantes, R12, t non fini), verdict INFO, `p_retenue = NA` ; H0 b = 0, H1 b ≠ 0, **bilatérale** ; p de Student t(T − 2) bilatérale (`Pr(>|t|)` de `summary.lm`) en `p_asymptotique`, **égale** à la p de la ligne Fisher à l'arrondi près (commentaire du moteur : écart 3,1e-16 sur J1, 1,1e-20 sur J2) ; le `detail` des deux lignes signale l'égalité ;
+- ligne Pitman : `p_asymptotique` **inchangée** (p de Student unilatérale, même sens que la p de permutation), le `detail` la qualifiant d'approximation asymptotique de la p de permutation, non établie à T = 8 (Q-46-15) ; p retenue, `p_min`, type et verdict inchangés.
+
+Tableau avant / après (`docs/tableaux/20261103-issue423-*.md`) : 52 → 53 lignes par cas lognormal, une ligne ajoutée, aucune retirée ; seuls les `detail` de Pitman et de Fisher changent ; σ_USP et verdicts inchangés ; `reserve2` identique. Visa du mainteneur : approbation anticipée du 03/11/2026 (commentaire 6603003201 de la PR #425), conditions vérifiées dans le message de `967c093`. Les « Effets attendus » ci-dessus sont ainsi confirmés.
+
+Mesure de contrôle (*vérifiée*, moteur à `2214b7b`, `LC_ALL=C.UTF-8`, T = 8, B = 199, xt = 100, 110, …, 170, yt = 70, 76, 83, 95, 70, 72, 78, 117) : p de Student de la ligne Student = p de Fisher = 0,2002059 ; p de Student unilatérale de la ligne Pitman = 0,1001029 (t_b > 0) ; p retenue de Pitman = 0,102381 (permutation). Précision : les mesures versionnées citées « sur 48 lignes » au paragraphe précédent portent sur **47** lignes (`N_LIGNES` de `tests/calibration_mc_t8.R`, inchangé) ; la ligne Student, 48ᵉ ligne, est classée hors de leur population, avec sa raison écrite (`LIGNES_HORS_POPULATION`, Q-46-17 (a)). `CONTEXT.md`, « Modèle auxiliaire MCO », « Volumes constants » et « Non applicable », mis à jour (six lignes M_aux, quatorze lignes R13, invariant I5 à 48 lignes).

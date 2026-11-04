@@ -277,7 +277,7 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # au plus 1e-12 (chainage ci-dessous). Deux ratios distincts de saisies a au
 # plus cinq chiffres significatifs different d'au moins 1e-10 en relatif,
 # cent fois la tolerance : aucune fusion, quel que soit leur ordre de
-# grandeur (garantie ; mesure du 06/10/2026 : 99999/10000 et 99998/10000
+# grandeur (garantie ; mesure par engine_ex_aequo() : 99999/10000 et 99998/10000
 # restent distincts a r x 1e-30, 1 et 1e30). A six chiffres l'ecart relatif
 # minimal, 1e-12, coincide avec la tolerance, sans marge : deux ratios
 # distincts peuvent encore etre fusionnes (999999/999998 et 999998/999997,
@@ -289,11 +289,20 @@ TOLERANCE_CONFORME_SIGMA <- 1e-12
 # 2 ulp de max r pres, arrondi du centrage) ; a cinq chiffres,
 # |r_i - r_j| >= 1e-10 max(r_i, r_j), donc aucune fusion tant que
 # max(r_i, r_j) > 1e-2 max r (S/P des annees dans un facteur inferieur a
-# 100). Mesures du 06/10/2026 dans ce domaine : 0 fusion sur 100 000 paires
-# (actuary), 0 sur 54 837 paires tirees et 0 sur 22 103 paires voisines
-# (m+1)/m, (m+2)/(m+1) (coder). Pour z_t, aucune borne n'est etablie ; pour
-# les residus de Mack (plancher 1, #152) non plus (marge mesuree d'environ 15
-# sous la tolerance sur reserve2).
+# 100). Borne deduite de ces deux inegalites, non d'une mesure.
+# z_t (plancher 1) : a pi_t constant exactement (drapeau pi_constant_exact
+# d'usp_regime()), z_t = sqrt(pi) (ln r_t - moyenne des ln r), d'ou, pour deux
+# ratios distincts de saisies a au plus cinq chiffres significatifs,
+# |z_t - z_s| >= sqrt(pi) 1e-10 ; aucune fusion, a l'arrondi du calcul de z_t
+# pres, des que pi > 1e-4 et L < 100 (L = max_t |ln r_t - moyenne des ln r|),
+# borne deduite de ces inegalites. Aucune borne dans la bande TOL_DELTA_BORD
+# (drapeaux delta_dans_bande et volumes_dans_bande, ou la regle R7 attribue
+# pourtant les p-values exactes), ni a pi_t variable. Residus de Mack
+# (plancher 1, #152) : aucune borne ; une cellule de triangle_mw.csv
+# multipliee par 1 + 4 x 2^-52 (cellule (0,4)) deplace les residus d'au plus
+# 1,0e-13, soit une marge d'environ 10 sous la tolerance. Demonstrations,
+# exemples et mesures citees : docs/latex/doc_tests_usp.tex, section "Ex aequo
+# des tests de rang et de signe" (label sec:ex-aequo).
 # Aplatissement INTERNE aux tests de rang et de signe : chaque point d'entree
 # aplatit ses propres arguments ; ni les donnees, ni usp_noyau(), ni les
 # autres statistiques (AD, SW, DW, Grubbs, regressions auxiliaires...) ne
@@ -1478,7 +1487,7 @@ usp_gamma_bord <- function(gamma, tol = TOL_DELTA_BORD) {
 # depasse (jamais atteint : delta est estime dans [0, 1]).
 usp_delta_bord <- function(delta, tol = TOL_DELTA_BORD) {
   if (!(is.finite(tol) && tol >= 0 && tol < 0.5))
-    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0,5 (bandes de bord disjointes)")
+    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0.5 (bandes de bord disjointes)")
   if (is.na(delta)) NA_character_
   else if (delta <= tol) "basse"
   else if (delta >= 1 - tol) "haute"
@@ -2352,9 +2361,7 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # erreur une valeur eloignee de la limite rho -> 1 (0,5899175 a T = 8,
   # alpha = 0,10) : 0,5899253 a 1 - 1e-12, 0,5906 a 1 - 1e-13, 0,4755 a
   # 1 - 1e-15 (#170). Cote negatif, la borne est plus serree (1 - |rho| >=
-  # 1e-6, uniforme en T) : pres de rho = -1, Imhof rend sans erreur une
-  # valeur fausse (1, ou 1,1e-13 a T = 10) ou echoue (erreur d'integration),
-  # voir le domaine de validite plus bas (#339).
+  # 1e-6, uniforme en T) : voir le domaine de validite plus bas (#339).
   if (length(rho) != 1L || !is.numeric(rho) || !is.finite(rho) ||
       rho > 1 - 1e-10 || rho < -1 + 1e-6)
     stop("dw_puissance_ar1() : rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision numerique)")
@@ -2386,21 +2393,18 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
   # Domaine de validite (#339) : T entier, 4 <= T <= .Machine$integer.max ;
   # -1 + 1e-6 <= rho <= 1 - 1e-10 ; 0 < alpha < 1. Precision mesuree au
   # voisinage de rho = -1 pour T = 4 a 10, 12, 15, 20, 30, 50, 100 (alpha =
-  # 0,10) et T = 5, 8, 12, 20, 30 (alpha = 0,05) (mesure du 19/10/2026, non
-  # versionnee), et sur la grille de 88 points de #170 (T = 5, 8, 12, 20 ;
-  # rho de -0,99 a 0,99) ; hors de ces T, non mesuree. Pour rho < 0, le
-  # deficit 1 - puissance suit une loi reguliere en (1 - |rho|)^(1/2) (1,2e-3
-  # a 1 - |rho| = 1e-6, T = 8, alpha = 0,10) jusqu'a une rupture, qui depend
-  # de T : au-dela, Imhof rend 1 sans erreur alors que le deficit vrai reste
-  # de l'ordre de 1e-4 a T = 5 et 8 (T = 8 : des 1 - |rho| <= 10^-8,5, deficit
-  # 1,2e-4 a 1e-8 ; T = 5 (alpha = 0,10) : des 1e-9 ; T = 9, 12, 15 : des 1e-8 ; T = 20, 30 : des
-  # 10^-8,5 ; T = 50 : ~0 des 1e-9), ou echoue (T = 4 et 10 : erreur
-  # d'integration a 10^-7,5, valeur fausse 1,1e-13 a 1e-8 pour T = 10). La
-  # garde ne depend pas de T : 1e-6 laisse une decade et demie avant la
-  # rupture la plus precoce mesuree (10^-7,5). A T = 4 (alpha = 0,10) et
-  # T = 5 (alpha = 0,05), la puissance tend vers 0 quand rho -> -1, sans
-  # signature de defaillance (vecteur alterne centre de longueur courte ;
-  # hypothese non verifiee).
+  # 0,10) et T = 5, 8, 12, 20, 30 (alpha = 0,05) par une mesure non versionnee
+  # (19/10/2026), et sur la grille de 88 points de #170 (T = 5, 8, 12, 20 ;
+  # rho de -0,99 a 0,99) ; hors de ces T, non mesuree. Mesure versionnee, a
+  # T = 8 : le deficit 1 - puissance est proportionnel a (1 - |rho|)^(1/2) de
+  # 1 - |rho| = 1e-4 a 1e-6, garde comprise (tests/mesure_dw_rho_negatif_t8.R,
+  # docs/tableaux/20261031-issue164-dw-rho-negatif.md). Au-dela de la garde
+  # (1 - |rho| < 1e-6), le calcul n'est evalue par aucune mesure versionnee.
+  # A T = 4 (alpha = 0,10) et T = 5 (alpha = 0,05), la puissance tend vers 0
+  # quand rho -> -1, sans signature de defaillance (vecteur alterne centre de
+  # longueur courte ; hypothese non verifiee).
+  # Valeurs, reserves et tracabilite : docs/latex/doc_tests_usp.tex, fiche de
+  # dw_puissance_ar1() (domaine de validite, issue #339).
   h_de <- function(d) eigen(S12 %*% m$M %*% (m$A - d * diag(n)) %*% m$M %*% S12,
                             symmetric = TRUE, only.values = TRUE)$values
   h_bas <- h_de(d_bas); h_haut <- h_de(d_haut)
@@ -3536,11 +3540,11 @@ stat_cusum <- function(z) {
 }
 
 # Grubbs (1969), Technometrics 11, 1-21.
-test_grubbs <- function(v) {
-  n <- length(v); s <- stats::sd(v)
-  if (!is.finite(s) || s == 0 || n < 3)
-    return(list(stat = NA_real_, p = NA_real_, idx = NA))
-  G <- max(abs(v - mean(v))) / s
+# Borne de Bonferroni de la p-value de Grubbs pour la statistique G sur n
+# observations (Student + Bonferroni, bornee dans [0, 1] par .p_borne()).
+# Seule definition de la formule : test_grubbs() l'applique a G observe,
+# usp_tests() au seuil d'exactitude G = sqrt((n-1)/2) pour le champ loi (#416).
+.grubbs_p_bonferroni <- function(G, n) {
   # G est borne par (n-1)/sqrt(n) ; a cette borne le denominateur s'annule
   # (0/0 numerique). On borne alors la p-value a sa valeur limite 0.
   den <- (n - 1)^2 - n * G^2
@@ -3550,7 +3554,22 @@ test_grubbs <- function(v) {
     tt <- sqrt(n * (n - 2) * G^2 / den)
     p <- n * 2 * (1 - stats::pt(tt, n - 2))
   }
-  list(stat = G, p = .p_borne(p), idx = which.max(abs(v - mean(v))))
+  .p_borne(p)
+}
+# Borne de Bonferroni de Grubbs pour le champ loi (#416) : trois decimales
+# fixes tant que la borne est >= 0.001 (0.240 a T = 8), sinon trois chiffres
+# significatifs (a partir de T = 28, %.3f s'imprimerait 0.000). Texte ASCII,
+# point decimal fixe, independant de getOption("OutDec").
+.format_borne_grubbs <- function(p) {
+  if (is.finite(p) && p >= 0.001) sprintf("%.3f", p)
+  else formatC(p, digits = 3, format = "g", width = 1, decimal.mark = ".")
+}
+test_grubbs <- function(v) {
+  n <- length(v); s <- stats::sd(v)
+  if (!is.finite(s) || s == 0 || n < 3)
+    return(list(stat = NA_real_, p = NA_real_, idx = NA))
+  G <- max(abs(v - mean(v))) / s
+  list(stat = G, p = .grubbs_p_bonferroni(G, n), idx = which.max(abs(v - mean(v))))
 }
 
 # Rosner (1983), Technometrics 25, 165-172 : generalized ESD.
@@ -4030,6 +4049,21 @@ MOTIFS_MC_DEGENERES <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
                    .complement_motif_mc(motif)), collapse = " "))
   else paste0("Monte-Carlo indisponible : ", motif, ".")
 }
+# Motif d'indisponibilite Monte-Carlo de la statistique nm, lu au bootstrap
+# (boot$motif_mc, produit par .mc_p_values()) : NA si la p Monte-Carlo est
+# calculee, ou si l'objet bootstrap n'a pas le champ ou ne nomme pas nm.
+# Lecteur unique de usp_tests(), de mw_tests() et de .mw_phrase_b_effectif()
+# (#399).
+.engine_motif_mc_lu <- function(boot, nm)
+  if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
+    unname(boot$motif_mc[[nm]]) else NA_character_
+# Statistique observee definie (priorite des motifs non applicables) :
+# finie, et sans le motif MOTIF_MC_OBS_NON_FINIE de sa p Monte-Carlo. Par
+# defaut la statistique est lue dans boot$stats_obs (usp_tests()) ; mw_tests()
+# passe celle qu'elle a calculee (#399).
+.engine_stat_definie <- function(boot, nm, stat = boot$stats_obs[[nm]])
+  is.finite(stat) &&
+    !identical(.engine_motif_mc_lu(boot, nm), MOTIF_MC_OBS_NON_FINIE)
 # p_min_mc (#125 ; ADR 0003 annote le 12/10/2026, point 5 ; D1-7, D1-8) :
 # plancher Monte-Carlo d'une statistique discrete, plus petite valeur que
 # p_mc, calculee sur ces memes simulations, peut prendre quand la statistique
@@ -5365,9 +5399,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   pi_constant <- regime$pi_constant
   # Regle R13 (#59, invariants I4 et I5) : a volumes constants
   # (usp_volumes_constants(), tolerance TOL_DELTA_BORD, seule definition), les
-  # treize lignes qui regressent sur x ou partitionnent par x (constante,
-  # TOST, pente, Fisher, R2, RESET, Spearman ratio / volume, Breusch-Pagan
-  # Koenker et 1979, White, Goldfeld-Quandt, Brown-Forsythe, Smirnov) sont
+  # quatorze lignes qui regressent sur x ou partitionnent par x (constante,
+  # TOST, pente (Pitman et Student), Fisher, R2, RESET, Spearman ratio /
+  # volume, Breusch-Pagan Koenker et 1979, White, Goldfeld-Quandt,
+  # Brown-Forsythe, Smirnov) sont
   # restituees "non applicable" avec ce motif unique, au lieu d'etre
   # calculees sur le bruit d'arrondi, restituees en diagnostic par le motif
   # Monte-Carlo, ou absentes (Smirnov). Leurs fonctions rendent NA sous le
@@ -5493,14 +5528,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # (Breusch-Pagan 1979, White, Goldfeld-Quandt,
   # Brown-Forsythe, Smirnov, Spearman ratio / temps). Motif Monte-Carlo de
   # la statistique nm, lu au bootstrap (NA si la p Monte-Carlo est calculee).
-  motif_mc_lu <- function(nm)
-    if (!is.null(boot$motif_mc) && nm %in% names(boot$motif_mc))
-      unname(boot$motif_mc[[nm]]) else NA_character_
+  motif_mc_lu <- function(nm) .engine_motif_mc_lu(boot, nm)
   # Priorite des motifs non applicables : une ligne dont la statistique
   # observee n'est pas finie (MOTIF_MC_OBS_NON_FINIE) garde son type "test",
   # et add() la rend non applicable ; aucun diagnostic n'y est pose.
-  stat_definie <- function(nm) is.finite(boot$stats_obs[[nm]]) &&
-    !identical(motif_mc_lu(nm), MOTIF_MC_OBS_NON_FINIE)
+  stat_definie <- function(nm) .engine_stat_definie(boot, nm)
   # Enveloppe unique des diagnostics poses par usp_tests() (#358, qui
   # remplace type_decision(), detail_decision(), detail_decision_299(),
   # type_r15() et detail_r15()). regle : condition propre au diagnostic, TRUE
@@ -5773,9 +5805,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # positif, decision Q-A du mainteneur). p exacte par enumeration a
   # T <= T_MAX_ENUM_PERMUTATION ; au-dela, p Monte-Carlo de B permutations
   # aleatoires (p_mc_ext, hors USP_CATALOGUE_MC). La p de Student unilaterale
-  # (t(T-2), exacte sous le modele auxiliaire MCO seulement) est restituee
-  # dans p_asymptotique, non retenue (la hierarchie retient la p de
-  # permutation, toujours presente sur une ligne applicable).
+  # (t(T-2), exacte sous le modele auxiliaire MCO seulement : autre test,
+  # autre loi de reference) est restituee dans p_asymptotique, non retenue
+  # (la hierarchie retient la p de permutation, toujours presente sur une
+  # ligne applicable) : approximation asymptotique de la p de permutation,
+  # par le theoreme central limite combinatoire sous des conditions sur x
+  # et y (hypothese), non etablie a T = 8 et mauvaise en queue (#423,
+  # decisions Q-46-14 et Q-46-15 du 02/11/2026, ADR 0002 annote). La p de
+  # Student bilaterale a sa propre ligne diagnostic, apres celle-ci.
   # Regle R4 retiree par D1-Fb (#218, #230) : la ligne de la pente n'est plus
   # classee sur la puissance approchee (quantite estimee). Type "test" sur
   # une ligne applicable, "non applicable" sinon ; seule la regle R1 (dans
@@ -5822,7 +5859,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
   perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
   type_pente <- if (!pente_appl) "non applicable" else "test"
-  # p de Student du meme sens que la p de permutation (restituee, non retenue).
+  # p de Student du meme sens que la p de permutation (restituee, non
+  # retenue) : approximation asymptotique de la p de permutation, non
+  # etablie a T = 8 (#423, Q-46-15).
   p_student <- if (!is.finite(lmc$t_pente)) NA_real_
                else stats::pt(lmc$t_pente, T - 2, lower.tail = FALSE)
   txt_pitman <- paste(
@@ -5831,8 +5870,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     if (perm_alea) "B permutations aleatoires, p = (1 + k)/(B + 1) ;"
     else "enumeration des T! appariements, exacte sous H0 seule, hors modele reglementaire ;",
     "un rejet peut aussi traduire une dispersion liee au volume ou une tendance commune a x et y.",
-    "p de Student unilaterale (t(T-2) exacte sous le modele auxiliaire MCO seulement)",
-    "restituee dans p asymptotique, non retenue.",
+    "p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO seulement :",
+    "autre test, autre loi de reference) restituee dans p asymptotique, non retenue :",
+    "approximation asymptotique de la p de permutation, par le theoreme central limite",
+    "combinatoire sous des conditions sur x et y (hypothese, voir la fiche), non etablie",
+    "a T = 8 et mauvaise en queue, ou elle peut etre inferieure a la plus petite p de",
+    "permutation atteignable (champ p_min).",
     # p bilaterale de permutation, pour information (decision du mainteneur
     # du 06/10/2026, point 3) : imprimee a l'enumeration seulement (sans
     # alea) ; au-dela, nombre issu des tirages, non imprime (regle #76), lu
@@ -5854,15 +5897,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   pente_reste_test <- pente_appl && !(is.finite(perm$p_min) && perm$p_min >= alpha)
   txt_plancher_perm <- if (perm_alea && pente_reste_test && 1 / (perm$B + 1) >= alpha)
     sprintf("Plancher 1/(B + 1) >= alpha = %g : OK inatteignable.", alpha) else ""
-  # Motifs des lignes pente et Fisher non applicables a statistique non
-  # finie (somme des carres residuelle nulle, ajustement exact de y sur x :
-  # mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
+  # Motifs des lignes Pitman, Student et Fisher non applicables a statistique
+  # non finie (somme des carres residuelle nulle, ajustement exact de y sur
+  # x : mesure, x = 1:8, y = 2 x, t = F = Inf), hors R13, pertes constantes
   # (#189) et R12, qui gardent la priorite par detail_motif(). Libelles de
   # l'avis d'actuary du 07/10/2026 (regression MCO non ponderee, sans les
-  # poids de txt_stat_non_def).
-  txt_t_pente_non_def <- paste("statistique t non finie (erreur-type de la pente de la",
-                               "regression de y sur x nulle : ajustement exact, ou non",
-                               "calculable) : test non applicable")
+  # poids de txt_stat_non_def). Racine txt_t_non_fini commune a Pitman et a
+  # Student (#423) : la ligne Student, diagnostic, ne dit pas "test", comme
+  # txt_f_non_def ; la chaine de Pitman est inchangee.
+  txt_t_non_fini <- paste("statistique t non finie (erreur-type de la pente de la",
+                          "regression de y sur x nulle : ajustement exact, ou non",
+                          "calculable)")
+  txt_t_pente_non_def   <- paste(txt_t_non_fini, ": test non applicable")
+  txt_t_student_non_def <- paste(txt_t_non_fini, ": non applicable")
   txt_f_non_def <- paste("statistique F non finie (somme des carres residuelle de la",
                          "regression de y sur x nulle : ajustement exact, ou non",
                          "calculable) : non applicable")
@@ -5887,13 +5934,45 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_motif(lmc$x_ecarte,
                             if (!is.finite(lmc$t_pente)) txt_t_pente_non_def
                             else trimws(paste(txt_pitman, txt_puissance, txt_plancher_perm))))
+  # Ligne Student (#423, decisions Q-46-13 et Q-46-18 du 02/11/2026) :
+  # diagnostic, sans verdict ni p retenue ; t de lm(y ~ x) et sa p de
+  # Student t(T-2) bilaterale (Pr(>|t|) de summary.lm, test_lm_complet()),
+  # exacte sous le modele auxiliaire MCO seulement, restituee pour
+  # information dans p_asymptotique (emplacement non retenu ; nom de colonne
+  # conventionnel, la p n'etant pas une loi limite). Egale a la p de la
+  # ligne Fisher (F = t^2), a l'arrondi pres (mesure : ecart 3,1e-16 sur
+  # J1, 1,1e-20 sur J2). Meme predicat d'applicabilite que Pitman
+  # (pente_appl) ; motifs R13, pertes constantes et R12 par detail_motif(),
+  # motif txt_t_student_non_def a t non fini hors de ces cas.
+  txt_student <- paste(
+    "Diagnostic, aucun verdict : la pente est testee par le seul test de Pitman.",
+    "p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous",
+    "le modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ;",
+    "restituee dans p asymptotique pour information, non retenue. Egale a la p de la",
+    "ligne \"Test de Fisher (significativite globale)\" (F = t^2).")
+  add(fam, "Test de Student sur la pente (modele auxiliaire MCO)",
+      "Student (1908), Biometrika 6 ; Fisher (1922), JRSS 85",
+      fonction = "test_lm_complet",
+      type = if (pente_appl) "diagnostic" else "non applicable",
+      H0 = "b = 0", H1 = "b != 0",
+      stat_nom = "t", stat = lmc$t_pente,
+      loi = if (pente_appl)
+        sprintf("t(%d) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales homoscedastiques)",
+                T - 2)
+      else NA_character_,
+      p_as = if (pente_appl) lmc$p_pente else NA_real_,
+      detail = detail_motif(lmc$x_ecarte,
+                            if (!is.finite(lmc$t_pente)) txt_t_student_non_def
+                            else txt_student))
   # Ligne Fisher (#169, decision Q-B revisee du 06/10/2026) : diagnostic,
   # sans verdict ni p retenue ; F et la p de Fisher F(1,T-2) bilaterale sous
   # le modele auxiliaire MCO restitues pour information (p_asymptotique,
   # emplacement non retenu). Redondante avec le test de Pitman (F = t^2) :
-  # aucun second verdict sur b = 0. R13, pertes constantes et R12 gardent
-  # leurs motifs (detail_motif()) ; a F non fini hors de ces cas, motif
-  # txt_f_non_def. R1 ne la concerne pas.
+  # aucun second verdict sur b = 0. Sa p est egale a celle de la ligne
+  # Student (F = t^2), ce que dit le detail (#423, Q-46-13 : les deux lignes
+  # sont gardees). R13, pertes constantes et R12 gardent leurs motifs
+  # (detail_motif()) ; a F non fini hors de ces cas, motif txt_f_non_def. R1
+  # ne la concerne pas.
   add(fam, "Test de Fisher (significativite globale)", "Fisher (1922, 1925)",
       fonction = "test_lm_complet",
       # Volumes ou pertes constants : F NA (test_lm_complet(), #189), d'ou
@@ -5908,7 +5987,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = detail_motif(lmc$x_ecarte, if (!is.finite(lmc$F)) txt_f_non_def else paste(
         "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
         "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
-        "non retenue.")))
+        "non retenue ; egale a la p de la ligne \"Test de Student sur la pente (modele",
+        "auxiliaire MCO)\".")))
   add(fam, "Coefficient de determination R2", "lm(y ~ x)",
       fonction = "test_lm_complet",
       # Motif choisi par les drapeaux (volumes constants, puis pertes
@@ -6669,7 +6749,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Stabilite cumulee (OLS-CUSUM)", "Brown, Durbin & Evans (1975), JRSS B 37",
       fonction = "stat_cusum",
       base = "z",
-      H0 = "constance des parametres sur la periode", H1 = "derive graduelle",
+      H0 = "constance des parametres sur la periode", H1 = "niveau non constant (derive ou rupture)",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUM,
       loi = "sup |pont brownien| ; formule de Kolmogorov asymptotique",
       p_as = { cc <- boot$stats_obs$CUSUM
@@ -6693,8 +6773,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # Champ loi conditionne au regime (#182, D1-4 ; avis d'actuary, Fl) : la
       # borne de Bonferroni n'est exacte (G >= sqrt((T-1)/2)) que pour un
       # echantillon i.i.d. normal, ce que z est a pi_t constant seulement.
+      # La parenthese donne la borne au seuil d'exactitude pour le T saisi
+      # (#416), par la formule de test_grubbs() ; dans la bande de tolerance,
+      # texte sans txt_bande (Grubbs n'a pas de p exacte, regle de
+      # detail_r7()). loi_r7() n'est pas employee : son libelle a pi_t
+      # variable ("exacte a pi_t constant seulement") ne dit pas que la borne
+      # n'est plus un majorant garanti.
       loi = if (isTRUE(pi_constant))
-        "Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2) (p <= 0.24 a T = 8), majorant au-dela"
+        paste("Student + borne de Bonferroni, exacte sous i.i.d. normal pour G >= sqrt((T-1)/2)",
+              sprintf("(p <= %s a T = %d), majorant au-dela",
+                      .format_borne_grubbs(.grubbs_p_bonferroni(sqrt((T - 1) / 2), T)), T))
       else
         "Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ; les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni majorant garanti",
       p_as = gr$p, mc_nom = "Grubbs",
@@ -6954,7 +7042,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   add(fam, "Stabilite cumulee (OLS-CUSUM) sur ratios bruts",
       fonction = "stat_cusum",
       "Brown, Durbin & Evans (1975), JRSS B 37", base = "r",
-      H0 = "constance du niveau du ratio S/P", H1 = "derive graduelle",
+      H0 = "constance du niveau du ratio S/P", H1 = "niveau du ratio S/P non constant (derive ou rupture)",
       stat_nom = "CUSUM", stat = boot$stats_obs$CUSUMr,
       loi = "sup |pont brownien| -> Monte-Carlo", mc_nom = "CUSUMr",
       type = type_diag("CUSUMr", pi_constant),
@@ -7002,7 +7090,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Aucune annee evaluable (les T reajustements non evaluables, #329) :
   # fit$ecart_jackknife est alors NULL, mais la ligne jackknife est posee en
   # diagnostic sans estimation (estim NA, aucune p-value), pour que l'absence
-  # de mesure reste visible plutot que de disparaitre de la table.
+  # de mesure reste visible plutot que de disparaitre de la table. Meme
+  # ligne sans estimation, detail propre, quand des reajustements ont abouti
+  # mais que sigma_USP est nul ou non fini (usp_jack_annees() NULL, aucun
+  # ecart relatif fini ; #405, avis d'actuary, option b) : les annees non
+  # evaluables eventuelles y sont jointes comme ailleurs.
   rb <- robustesse
   ne <- as.integer(rb$jack_non_evaluables)
   txt_ne <- if (length(ne) == 1L)
@@ -7046,6 +7138,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail = paste0("Aucune annee evaluable (reajustements sans maximum de ",
                         "vraisemblance etabli, ou en echec) : ecart relatif max ",
                         "non calcule, influence non mesuree."))
+  else if (!is.null(rb))
+    add(fam, "Sensibilite au retrait d'une annee (jackknife)",
+        fonction = "run_engine",
+        "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
+        estim_nom = "ecart relatif max", estim = NA_real_,
+        detail = paste(c(paste0("sigma_USP nul ou non fini : ecart relatif non ",
+                                "defini, influence non mesuree."), txt_ne),
+                       collapse = " "))
   # Issue #305 (decisions du mainteneur du 27/10/2026, Q-D2-Fn-4 (A) ;
   # reference : Q-D2-Fn-4 bis, meme jour) : nom
   # de la ligne conserve ; detail et reference requalifies d'apres la mesure
@@ -7650,7 +7750,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     # avertissement, sans refus, place avant celui des pertes constantes
     # (ordre de priorite des motifs : R13 > pertes constantes). A x_t
     # constant, a_t = delta + (1 - delta) xbar / x_t = 1 : la vraisemblance
-    # ne depend pas de delta. Les lignes citees sont les treize lignes que
+    # ne depend pas de delta. Les lignes citees sont les quatorze lignes que
     # R13 rend non applicables dans usp_tests().
     if (usp_volumes_constants(xt))
       avt <- c(avt, sprintf(paste("Volumes x_t constants a la tolerance relative TOL_DELTA_BORD",
@@ -7825,23 +7925,29 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
   gg <- seq(fit$gamma - marge_gamma, fit$gamma + marge_gamma, length.out = n_gamma)
   M <- outer(gd, gg, Vectorize(function(d, g)
     usp_objectif(c(d, g), fit$x, fit$y, fit$xbar)))
+  # Coupe exacte de l'objectif a gamma optimal, sur la grille gd des delta
+  # (#404) : evaluee en gamma = fit$gamma lui-meme, et non lue dans la
+  # colonne de M la plus proche de gamma optimal ; plot_coupe_delta() la
+  # trace telle quelle, sans selection de colonne dans l'affichage.
+  coupe <- vapply(gd, function(d) usp_objectif(c(d, fit$gamma), fit$x, fit$y,
+                                               fit$xbar), numeric(1))
   list(delta = gd, gamma = gg, objectif = M,
        delta_opt = fit$delta, gamma_opt = fit$gamma, objectif_opt = fit$obj_min,
        au_bord = isTRUE(fit$delta_au_bord),
        # Amplitude relative de l'objectif le long de delta, a gamma optimal :
        # mesure quantitative de la platitude (identifiabilite de delta).
-       amplitude_delta = {
-         v <- vapply(gd, function(d) usp_objectif(c(d, fit$gamma), fit$x, fit$y,
-                                                  fit$xbar), numeric(1))
-         diff(range(v))
-       })
+       amplitude_delta = diff(range(coupe)),
+       # Coupe a gamma optimal (#404), en fin de liste : aucune feuille
+       # existante n'est deplacee.
+       objectif_coupe = coupe)
 }
 
 # Annees les plus influentes du jackknife (#327), designation unique du
-# moteur, lue par run_engine() (robustesse$jack_annees, detail de la ligne
-# jackknife de usp_tests()) et par engine_influence() (colonne plus_influente
-# de res$plots_data$influence, #396) : l'affichage la lit sans recalculer de
-# maximum.
+# moteur, calculee une fois par run_engine() (robustesse$jack_annees, detail
+# de la ligne jackknife de usp_tests()) et transmise telle quelle a
+# engine_influence() (colonne plus_influente de res$plots_data$influence,
+# #396, #405) ; engine_influence() ne l'appelle qu'en appel direct.
+# L'affichage la lit sans recalculer de maximum.
 #   sigma_usp_jack  sigma_USP sans l'annee t (usp_jackknife()$sigma_usp ; NA
 #                   pour une annee non evaluable, #224) ;
 #   sigma_usp       sigma_USP de l'echantillon complet.
@@ -7861,12 +7967,16 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
 # directe, sans tau. Limite [H] : la precision n'est certifiee que pour un
 # reajustement qui satisfait KKT ; un reajustement accepte sans KKT (gamma
 # interieur) n'a pas de precision garantie, tau y est une convention. Aucune
-# constante nouvelle. Code extrait tel quel de run_engine() (#396).
+# constante nouvelle. Code extrait de run_engine() (#396). NULL aussi
+# quand des sigma_USP^(-t) sont finis mais qu'aucun ecart relatif ne l'est
+# (sigma_USP nul ou non fini ; #405, point 2) : jamais integer(0), une
+# designation vide se lisant comme un jackknife calcule.
 usp_jack_annees <- function(sigma_usp_jack, sigma_usp) {
   d_jack <- sigma_usp_jack - sigma_usp
   if (!any(is.finite(d_jack))) return(NULL)
   d_rel <- abs(d_jack) / sigma_usp
   ev <- which(is.finite(d_rel))
+  if (!length(ev)) return(NULL)
   if (length(ev) == 1L) ev else {
     d12 <- sort(d_rel[ev], decreasing = TRUE)[1:2]
     tau <- 2 * REP_SIGMA_KKT * (2 + d12[1] + d12[2])
@@ -7892,7 +8002,14 @@ usp_jack_annees <- function(sigma_usp_jack, sigma_usp) {
 # lm.influence() levait une erreur R sur des entrees sous-normales (x et y
 # x 1e-320, 5e-324) et D_t etait non fini a petite echelle. Les colonnes x
 # et y du resultat restent les donnees brutes.
-engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
+# jack_annees (#405, point 4) : designation de l'annee ou des annees les
+# plus influentes sur sigma_USP, passee par run_engine() (robustesse$
+# jack_annees, via engine_plots_data()) : la colonne plus_influente est la
+# meme designation que le detail de la ligne jackknife par construction. En
+# appel direct sans cet argument, calculee ici par usp_jack_annees() sur les
+# memes entrees (evaluation paresseuse du defaut, seulement avec jackknife).
+engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL,
+                             jack_annees = usp_jack_annees(jackknife$sigma_usp, sigma_usp)) {
   x <- fit$x; y <- fit$y; T <- fit$T
   xe <- .usp_echelle_exacte(x); ye <- .usp_echelle_exacte(y)
   m <- stats::lm(ye ~ xe - 1)
@@ -7918,12 +8035,20 @@ engine_influence <- function(fit, jackknife = NULL, sigma_usp = NULL) {
     # calcule ici comme fort_levier (issue #33, constat C1 d'app-review).
     d$fort_ecart_sigma <- abs(d$ecart_sigma) > REPERE_INFLUENCE_SIGMA
     # Annee(s) la (les) plus influente(s) sur sigma_USP (#396) : designation
-    # de usp_jack_annees(), la meme que robustesse$jack_annees de run_engine()
-    # (detail de la ligne jackknife, #327) ; plusieurs annees TRUE si elles
-    # sont d'influence egale a la precision numerique pres ; FALSE partout si
-    # aucun reajustement n'a abouti. Colonne en fin de table ; note_influence()
-    # la lit sans recalculer de maximum.
-    d$plus_influente <- d$t %in% usp_jack_annees(jackknife$sigma_usp, sigma_usp)
+    # jack_annees, celle de robustesse$jack_annees de run_engine() (detail de
+    # la ligne jackknife, #327 ; recue telle quelle depuis #405) ; plusieurs
+    # annees TRUE si elles sont d'influence egale a la precision numerique
+    # pres ; FALSE partout si aucun reajustement n'a abouti (jack_annees
+    # NULL). Colonne en fin de table ; note_influence() la lit sans
+    # recalculer de maximum.
+    d$plus_influente <- d$t %in% jack_annees
+    # Annees non evaluables du jackknife (#404) : sigma_USP sans l'annee non
+    # fini (reajustement refuse par usp_valider_ajustement() ou en echec),
+    # meme critere que robustesse$jack_non_evaluables de run_engine() (#224).
+    # Colonne en fin de table, apres plus_influente ; note_influence() et
+    # plot_influence_sigma() la lisent sans tester la finitude de
+    # sigma_usp_sans_t ; leurs gardes de lecture sur ecart_sigma restent.
+    d$non_evaluable <- !is.finite(jackknife$sigma_usp)
   }
   d
 }
@@ -8035,7 +8160,8 @@ ENVELOPPE_QQ_B_MIN_SIM <- 500L
 # (engine_enveloppe_qq()) et au graphique dispersion-niveau
 # (engine_enveloppe_spread()) : B_eff < ENVELOPPE_QQ_B_MIN (aucune bande),
 # B_eff < ENVELOPPE_QQ_B_MIN_SIM (bande ponctuelle seule), aucun rang k
-# admissible pour l'eq. (4.17) (bande ponctuelle seule). Chaine ASCII
+# admissible pour l'eq. (4.17) (bande ponctuelle seule), et, pour le seul
+# graphique dispersion-niveau, volumes constants (#399). Chaine ASCII
 # restituee telle quelle par l'affichage (issue #385).
 .engine_motif_enveloppe <- function(cas) {
   switch(cas,
@@ -8046,8 +8172,24 @@ ENVELOPPE_QQ_B_MIN_SIM <- 500L
     aucun_k = sprintf(paste("aucun rang k admissible : taux de sortie (4.17) superieur a %s",
                             "au rang k = 1 ; bande simultanee non disponible"),
                       formatC(ENVELOPPE_QQ_TAUX_MAX, format = "f", digits = 2,
-                              decimal.mark = ",")),
+                              decimal.mark = ".")),
+    # Graphique dispersion-niveau seul (engine_enveloppe_spread()) : a volumes
+    # constants, aucune courbe n'est calculee (#399).
+    volumes_constants = "volumes constants : graphique dispersion-niveau sans objet",
     stop("motif d'enveloppe inconnu : ", cas))
+}
+# Bande ponctuelle d'une matrice M (B_eff x T, toutes valeurs finies), commune
+# au QQ-plot (engine_enveloppe_qq(), M = statistiques d'ordre triees) et au
+# graphique dispersion-niveau (engine_enveloppe_spread(), M = courbes lissees)
+# : bornes = quantiles ENVELOPPE_QQ_PROBS (type 7) de chaque colonne, taux =
+# proportion des lignes de M ayant au moins une valeur STRICTEMENT hors de la
+# bande [bas, haut] (taux in-sample, calcule une seule fois ici, #399).
+# Rend list(bas, haut, taux). Aucune p-value ni verdict.
+engine_bande_ponctuelle <- function(M) {
+  B_eff <- nrow(M)
+  q <- apply(M, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
+  taux <- mean(rowSums(M < rep(q[1L, ], each = B_eff) | M > rep(q[2L, ], each = B_eff)) > 0)
+  list(bas = q[1L, ], haut = q[2L, ], taux = taux)
 }
 engine_enveloppe_qq <- function(z_boot, T) {
   bandes <- matrix(NA_real_, T, 4L,
@@ -8068,10 +8210,9 @@ engine_enveloppe_qq <- function(z_boot, T) {
   S <- t(apply(z_boot[garde, , drop = FALSE], 1L, sort))
   # Bande ponctuelle : proportion des lignes de S ayant au moins une valeur
   # strictement hors de la bande [bas, haut] (bornes par colonne).
-  q <- apply(S, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
-  bandes[, "bas"] <- q[1L, ]; bandes[, "haut"] <- q[2L, ]
-  info$taux_global_ponctuel <-
-    mean(rowSums(S < rep(q[1L, ], each = B_eff) | S > rep(q[2L, ], each = B_eff)) > 0)
+  bp <- engine_bande_ponctuelle(S)
+  bandes[, "bas"] <- bp$bas; bandes[, "haut"] <- bp$haut
+  info$taux_global_ponctuel <- bp$taux
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
     info$motif <- .engine_motif_enveloppe("b_min_sim")
     return(list(bandes = bandes, info = info))
@@ -8181,7 +8322,7 @@ engine_enveloppe_spread <- function(z_boot, x) {
               B_min_simultane = ENVELOPPE_QQ_B_MIN_SIM,
               regle_rang = "DH1997_4.17", motif = NA_character_)
   if (usp_volumes_constants(x)) {
-    res$motif <- "volumes constants : graphique dispersion-niveau sans objet"
+    res$motif <- .engine_motif_enveloppe("volumes_constants")
     return(res)
   }
   L <- if (sum(garde) > 0L)
@@ -8194,10 +8335,9 @@ engine_enveloppe_spread <- function(z_boot, x) {
     res$motif <- .engine_motif_enveloppe("b_min")
     return(res)
   }
-  q <- apply(L, 2L, stats::quantile, probs = ENVELOPPE_QQ_PROBS, type = 7, names = FALSE)
-  res$bandes$bas <- q[1L, ]; res$bandes$haut <- q[2L, ]
-  res$taux_global_ponctuel <-
-    mean(rowSums(L < rep(q[1L, ], each = B_eff) | L > rep(q[2L, ], each = B_eff)) > 0)
+  bp <- engine_bande_ponctuelle(L)
+  res$bandes$bas <- bp$bas; res$bandes$haut <- bp$haut
+  res$taux_global_ponctuel <- bp$taux
   if (B_eff < ENVELOPPE_QQ_B_MIN_SIM) {
     res$motif <- .engine_motif_enveloppe("b_min_sim")
     return(res)
@@ -8222,7 +8362,7 @@ engine_enveloppe_spread <- function(z_boot, x) {
 # l'affichage tire ses libelles. A 0,90, 2 * 0,90 - 1 vaut 0,80 au bit pres
 # (identical(2 * 0.90 - 1, 0.80) et identical(qchisq(2 * 0.90 - 1, 1),
 # qchisq(0.80, 1)) rendent TRUE, mesure sous R 4.3.3 le 27/10/2026), ce qui
-# laisse seuil_asymptotique inchange.
+# laisse repere_asymptotique inchange.
 LR_DELTA_NIVEAU_REPERES <- 0.90
 
 # Niveau des bornes de l'intervalle bootstrap reportees sur le graphique de
@@ -8315,7 +8455,12 @@ usp_ic_basic_log <- function(sigma_boot, sigma_hat, cred, corr, sigma_standard) 
 engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                               sigma_usp = NULL, lr_delta = NULL,
                               sigma_usp_boot = NULL, ic = NULL,
-                              sigma_standard = NULL, ic_basic_log = NULL) {
+                              sigma_standard = NULL, ic_basic_log = NULL,
+                              jack_annees = usp_jack_annees(jackknife$sigma_usp, sigma_usp)) {
+  # jack_annees (#405, point 4) : designation jackknife de run_engine()
+  # (robustesse$jack_annees), transmise a engine_influence() ; en appel
+  # direct sans cet argument, calculee par usp_jack_annees() (defaut
+  # paresseux, evalue seulement par engine_influence() avec jackknife).
   T <- fit$T; x <- fit$x; z <- fit$z
   qq <- stats::qqnorm(z, plot.it = FALSE)
   # Droite de reference du QQ-plot (quartiles), comme stats::qqline
@@ -8358,7 +8503,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     profil_delta = data.frame(delta = profil$delta_grid, objectif = profil$delta_obj),
     profil_gamma = data.frame(gamma = profil$gamma_grid, objectif = profil$gamma_obj),
     surface = engine_surface_objectif(fit),
-    influence = engine_influence(fit, jackknife, sigma_usp),
+    influence = engine_influence(fit, jackknife, sigma_usp, jack_annees = jack_annees),
     contours_cook = engine_contours_cook(T),
     delta_estime = fit$delta, gamma_estime = fit$gamma,
     sigma_boot = boot$sigma_boot, delta_boot = boot$delta_boot
@@ -8385,17 +8530,22 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   # LR_DELTA_NIVEAU_REPERES (0,90) du melange 1/2 chi2(0) + 1/2 chi2(1) (aide
   # de lecture), et quantile au meme niveau (type 7) du LR simule sous chaque
   # borne par le bootstrap restreint (NA sans replication finie). Le niveau
-  # est porte en fin de liste (champ niveau, issue #190) ; le nom
-  # q90_bootstrap est conserve.
+  # est porte en fin de liste (champ niveau, issue #190). Noms des champs
+  # (#405, decisions du mainteneur du 31/10/2026) : repere_asymptotique (ex-
+  # seuil_asymptotique : un repere de lecture, pas un seuil de decision) et
+  # quantile_bootstrap (ex-q90_bootstrap : le niveau est parametrable depuis
+  # #190). Le repere asymptotique ne vaut qu'aux bornes delta = 0 et
+  # delta = 1 ; l'ensemble des delta sous sa ligne n'est pas un intervalle de
+  # confiance pour delta interieur (aide du graphique, display_helpers.R).
   if (!is.null(lr_delta)) {
     niveau <- LR_DELTA_NIVEAU_REPERES
-    q90 <- function(v) if (length(v))
+    quantile_lr <- function(v) if (length(v))
       unname(stats::quantile(v, niveau, type = 7)) else NA_real_
     pd$lr_delta <- list(
       obj_min = fit$obj_min,
-      seuil_asymptotique = fit$obj_min + stats::qchisq(2 * niveau - 1, 1),
-      q90_bootstrap = c(delta0 = fit$obj_min + q90(lr_delta$borne0$lr_boot),
-                        delta1 = fit$obj_min + q90(lr_delta$borne1$lr_boot)),
+      repere_asymptotique = fit$obj_min + stats::qchisq(2 * niveau - 1, 1),
+      quantile_bootstrap = c(delta0 = fit$obj_min + quantile_lr(lr_delta$borne0$lr_boot),
+                             delta1 = fit$obj_min + quantile_lr(lr_delta$borne1$lr_boot)),
       lr = c(delta0 = lr_delta$borne0$lr, delta1 = lr_delta$borne1$lr),
       niveau = niveau)
   }
@@ -8656,10 +8806,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (!length(err)) {
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
-    # de developpement est PROPORTIONNELLE a celle de la precedente, et ne
-    # contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc rien des
-    # cumules decroissants. Un recul traduit un boni de liquidation ou un
-    # recouvrement, licite : on le signale sans refuser.
+    # de developpement est PROPORTIONNELLE au montant cumule de la precedente,
+    # et ne contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc
+    # rien des cumules decroissants. Un recul traduit un boni de liquidation
+    # ou un recouvrement, licite : on le signale sans refuser.
     for (i in 0:I) {
       d <- I - i
       if (d >= 1) {
@@ -9239,54 +9389,52 @@ mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) 
 .MW_LIGNES_RESIDUS_TEXTE <- .mw_texte_lignes(.MW_LIGNES_RESIDUS)
 # Nom de la ligne M4 "cellule aberrante" (#300), calculee sur mw_influence()
 # et non sur mw_residus() : constante unique lue par add() dans mw_tests() et
-# par la constante .MW_LIGNES_COLONNES_ECARTEES ci-dessous, que lit
+# par la constante .MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS ci-dessous, que lit
 # l'avertissement des colonnes degenerees de mw_valider_ajustement() (#352,
 # #363).
 .MW_LIGNE_CELLULE_ABERRANTE <- "Cellule aberrante du triangle (residus studentises externes)"
 # Lignes de mw_tests() qui ecartent les colonnes degenerees (#363, decision
-# Q-44-3 (a) du 30/10/2026) : constante unique, lue par l'avertissement des
-# colonnes degenerees de mw_valider_ajustement(). Une ligne y figure si elle
-# recoit l'ensemble fige jd (figes$degeneres), directement ou par
-# mw_residus(aj, jd) ; les lignes fondees sur les residus de Mack
-# (.MW_LIGNES_RESIDUS) y figurent donc, et l'avertissement ne nomme a part que
-# les autres. La famille alpha (mw_famille_alpha()), l'extrapolation de sigma et
-# la part de la derniere annee ne recoivent pas jd et n'y figurent pas : la
-# famille alpha garde ces colonnes (amplitude nulle). Par famille, dans l'ordre
-# de mw_tests(). Les lignes de lecture conjointe (p de famille, p globale,
-# engine_p_famille()) sont hors du critere : elles combinent des membres, dont
-# Alpha qui garde ces colonnes, et ne recoivent pas jd. A tenir a jour si
-# mw_tests() change : test_merz_wuthrich.R mesure les lignes qui lisent jd par
-# substitution de figes$degeneres et exige l'egalite de la constante avec
-# l'ensemble mesure complete de .MW_LIGNES_RESIDUS (Rosner n'est pas mesure par
-# substitution : sa ligne ne restitue que le nombre et les rangs des cellules
-# declarees, aucune sur ce triangle).
-.MW_LIGNES_COLONNES_ECARTEES <- list(
-  M1 = c("Absence de tendance des facteurs avec le cumul, a colonne donnee",
-         "Nullite de l'ordonnee a l'origine, colonne par colonne",
+# Q-44-3 (a) du 30/10/2026), lues par l'avertissement des colonnes
+# degenerees de mw_valider_ajustement(). Une ligne y figure si elle recoit
+# l'ensemble fige jd (figes$degeneres), directement ou par mw_residus(aj,
+# jd) ; les lignes fondees sur les residus de Mack (.MW_LIGNES_RESIDUS) y
+# figurent donc, et l'avertissement ne nomme a part que les autres. La
+# famille alpha (mw_famille_alpha()), l'extrapolation de sigma et la part de
+# la derniere annee ne recoivent pas jd et n'y figurent pas : la famille
+# alpha garde ces colonnes (amplitude nulle). Les lignes de lecture conjointe
+# (p de famille, p globale, engine_p_famille()) sont hors du critere : elles
+# combinent des membres, dont Alpha qui garde ces colonnes, et ne recoivent
+# pas jd. A tenir a jour si mw_tests() change : test_merz_wuthrich.R mesure
+# les lignes qui lisent jd par substitution de figes$degeneres et exige
+# l'egalite de la liste complete avec l'ensemble mesure complete de
+# .MW_LIGNES_RESIDUS (Rosner n'est pas mesure par substitution : sa ligne ne
+# restitue que le nombre et les rangs des cellules declarees, aucune sur ce
+# triangle).
+# Seules les lignes HORS residus sont declarees ici (#405, point 3), par
+# famille, dans l'ordre de mw_tests() (familles vides omises) : celles que
+# l'avertissement nomme apres la liste .MW_LIGNES_RESIDUS_TEXTE. Un nom de
+# ligne fondee sur les residus ne s'ecrit donc qu'une fois, dans
+# .MW_LIGNES_RESIDUS.
+.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS <- list(
+  M1 = c("Nullite de l'ordonnee a l'origine, colonne par colonne",
          "Homogeneite de f_j entre annees de survenance",
          "Absence de courbure de la regression",
          "Identifiabilite intra-colonne (dispersion des cumuls par colonne)"),
-  M2 = c("Heteroscedasticite residuelle vs cumul",
-         "Adequation de l'exposant de variance, colonne par colonne",
-         "Variance unitaire des residus de Mack"),
   M3 = c("Effets d'annee calendaire (test de Mack)",
          "Effets d'annee calendaire par diagonale (repere de Mack 1997)",
-         "Homogeneite des residus entre annees de survenance",
-         "Correlation entre annees de developpement adjacentes",
-         "Autocorrelation des residus (Durbin-Watson)",
-         "Test des suites sur les residus de Mack"),
-  M4 = c(.MW_LIGNE_CELLULE_ABERRANTE,
-         "Cellules aberrantes multiples (ESD generalise)"),
-  M5 = c("Shapiro-Wilk sur les residus de Mack",
-         "Lilliefors sur les residus de Mack"))
-# Lignes de la constante qui ne reposent pas sur les residus de Mack, par
-# famille (familles vides omises) : celles que l'avertissement nomme apres la
-# liste .MW_LIGNES_RESIDUS_TEXTE.
-.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS <- local({
-  l <- lapply(names(.MW_LIGNES_COLONNES_ECARTEES), function(fm)
-    setdiff(.MW_LIGNES_COLONNES_ECARTEES[[fm]], .MW_LIGNES_RESIDUS[[fm]]))
-  names(l) <- names(.MW_LIGNES_COLONNES_ECARTEES)
-  l[lengths(l) > 0L]
+         "Correlation entre annees de developpement adjacentes"),
+  M4 = .MW_LIGNE_CELLULE_ABERRANTE)
+# Liste complete, construite par union (#405, point 3) : par famille, dans
+# l'ordre M1 a M5, les lignes de .MW_LIGNES_RESIDUS puis celles hors residus
+# (ordre interne sans lecteur : l'avertissement lit les deux listes
+# separees, test_merz_wuthrich.R compare des ensembles).
+.MW_LIGNES_COLONNES_ECARTEES <- local({
+  fams <- union(names(.MW_LIGNES_RESIDUS), names(.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS))
+  fams <- sort(fams)
+  l <- lapply(fams, function(fm)
+    union(.MW_LIGNES_RESIDUS[[fm]], .MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS[[fm]]))
+  names(l) <- fams
+  l
 })
 .MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS_TEXTE <-
   .mw_texte_lignes(.MW_LIGNES_COLONNES_ECARTEES_HORS_RESIDUS)
@@ -9469,7 +9617,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "Reserve chain-ladder positive mais faible devant son incertitude : sigma estime = ",
       "racine(MSEP) / R = %s >= 1 (R = %s%s). ",
       "Le parametre est defini (annexe XVII, D(4)) mais hors de toute plage ou le melange ",
-      "par credibilite a un sens (aucun sigma(res,s) des annexes II et XIV n'excede 0,22). ",
+      "par credibilite a un sens (aucun sigma(res,s) des annexes II et XIV n'excede 0.22). ",
       "Deux lectures : reserve residuelle d'un segment en run-off, ou triangle anormalement ",
       "volatil. Le repere 1 est un repere de lecture, sans fondement reglementaire ni ",
       "statistique ; le calcul n'est pas refuse."),
@@ -9601,9 +9749,13 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # --- Residus standardises de Mack --------------------------------------------
 # r(i,j) = sqrt(C(i,j)) * ( C(i,j+1)/C(i,j) - f_j ) / sigma_j
 # (ecart C(i,j+1)/C(i,j) - f_j calcule par .mw_ecart_facteur_stable(), #233)
-# Sous les hypotheses D(2)(h)(iii) et (iv), ces residus sont centres, de
-# variance approximativement unitaire et mutuellement non correles. Ce sont eux
-# qui servent de support aux tests des sections H1, H2 et H4 adaptees.
+# Sous les hypotheses D(2)(h)(iii) et (iv), lues avec un facteur f_j et une
+# constante sigma_j^2 communs a toutes les annees d'accident (interpretation
+# de l'outil : D(4)(c) pour f_j, D(5)(d)(ii) pour sigma_j ; la lettre de (iii)
+# et (iv) n'impose qu'une proportionnalite dans chaque ligne ; #409), ces
+# residus sont centres, de variance approximativement unitaire et
+# mutuellement non correles. Ce sont eux qui servent de support aux tests des
+# sections H1, H2 et H4 adaptees.
 # Colonnes exclues (issue #33, avis d'actuary du 24/09/2026 ; issue #60,
 # decision du mainteneur du 05/10/2026, variante (b)) : une colonne j a au
 # moins deux facteurs est ecartee si sigma2_j n'est pas fini ou n'est pas
@@ -9995,11 +10147,30 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 }
 
 # --- Tests specifiques de l'hypothese (iii) de l'annexe XVII, D(2)(h) --------
-# L'enonce reglementaire porte "pour TOUTES les annees d'accident" :
-#   E[C(i,j+1) | C(i,j)] = f_j C(i,j)
-# Il comporte donc DEUX exigences distinctes, testables separement :
-#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne ;
-#   (b) un facteur f_j COMMUN a toutes les annees d'accident de la colonne.
+# Lettre du texte : "pour toutes les annees d'accident, la valeur attendue du
+# montant de sinistres cumule d'une annee de developpement est proportionnelle
+# au montant de sinistres cumule de l'annee de developpement precedente". Elle
+# impose une proportionnalite SANS CONSTANTE, dans chaque ligne, par annee de
+# developpement ; elle ne dit pas que le coefficient est le meme d'une ligne a
+# l'autre.
+# Lecture retenue par l'outil (lecture B, celle du modele de Mack ; decision du
+# mainteneur du 31/10/2026, #409) : un facteur f_j COMMUN a toutes les annees
+# d'accident,
+#   E[C(i,j+1) | C(i,j)] = f_j C(i,j),
+# appuyee sur D(4)(c), qui estime un facteur unique f_j par annee de
+# developpement, et sur D(4)-D(5), qui n'emploient que ce facteur. C'est une
+# interpretation de l'outil, non la lettre du texte (reference de la ligne
+# "Homogeneite de f_j entre annees de survenance").
+# Les tests M1 en tirent deux exigences distinctes, testables separement :
+#   (a) une proportionnalite SANS CONSTANTE, colonne par colonne. Exigee par
+#       la lettre, elle n'est testee que sous la lecture retenue : la
+#       regression de la colonne j, C(i,j+1) = a_j + b_j C(i,j), impose une
+#       pente b_j commune aux lignes (une seule observation par ligne et par
+#       colonne ne permet pas de tester l'absence de constante avec un
+#       coefficient propre a chaque ligne) ; un rejet de a_j = 0 peut donc
+#       aussi traduire une violation de (b).
+#   (b) un facteur f_j COMMUN a toutes les annees d'accident de la colonne
+#       (lecture retenue, non la lettre).
 # Une regression unique agregee sur l'ensemble du triangle ne teste ni l'une ni
 # l'autre : elle melange des colonnes d'echelles tres differentes.
 #
@@ -10592,16 +10763,36 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # persiste d'un appel de run_engine() a l'autre jusqu'a la fin de la session R,
 # mais la table de n est la meme cache froid ou chaud. Il est borne a
 # n <= MW_COMBN_N_MAX (au plus 17 entrees, n = 4 a 20 ; la plus grosse tient
-# choose(20, 4) x 4 entiers) : au-dela, la table est recalculee a chaque appel
-# et jamais gardee.
+# choose(20, 4) x 4 entiers). Au-dela (#405, point 1), la table est gardee
+# dans .MW_COMBN_CACHE_APPEL le temps d'un appel de mw_bootstrap() seulement
+# (.mw_combn_appel_ouvrir() / .mw_combn_appel_fermer(), compteur de
+# profondeur), pour les seules valeurs de n rencontrees, puis videe a la
+# sortie de l'appel, erreur comprise (on.exit) : la memoire reste bornee hors
+# de l'appel, et combn(n, k) n'est plus recalcule a chaque colonne et a
+# chaque replication. Hors d'un appel de mw_bootstrap() (statistique
+# observee de mw_tests(), appel direct), la table de n > MW_COMBN_N_MAX est
+# recalculee a chaque appel et jamais gardee, comme avant #405. Memes
+# matrices que l'appel direct dans tous les cas.
 MW_COMBN_N_MAX <- 20L
 .MW_COMBN_CACHE <- new.env(parent = emptyenv())
+.MW_COMBN_CACHE_APPEL <- new.env(parent = emptyenv())
+.MW_COMBN_CACHE_APPEL$.profondeur <- 0L
+.mw_combn_appel_ouvrir <- function()
+  .MW_COMBN_CACHE_APPEL$.profondeur <- .MW_COMBN_CACHE_APPEL$.profondeur + 1L
+.mw_combn_appel_fermer <- function() {
+  p <- max(.MW_COMBN_CACHE_APPEL$.profondeur - 1L, 0L)
+  .MW_COMBN_CACHE_APPEL$.profondeur <- p
+  if (p == 0L) rm(list = ls(.MW_COMBN_CACHE_APPEL), envir = .MW_COMBN_CACHE_APPEL)
+  invisible(NULL)
+}
 .mw_combinaisons <- function(n) {
   cle <- as.character(n)
-  tab <- if (n <= MW_COMBN_N_MAX) .MW_COMBN_CACHE[[cle]]
+  env <- if (n <= MW_COMBN_N_MAX) .MW_COMBN_CACHE else
+    if (.MW_COMBN_CACHE_APPEL$.profondeur > 0L) .MW_COMBN_CACHE_APPEL
+  tab <- if (!is.null(env)) env[[cle]]
   if (is.null(tab)) {
     tab <- list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4))
-    if (n <= MW_COMBN_N_MAX) assign(cle, tab, envir = .MW_COMBN_CACHE)
+    if (!is.null(env)) assign(cle, tab, envir = env)
   }
   tab
 }
@@ -10784,10 +10975,12 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
 #   alpha = 0 : moyenne simple des facteurs individuels
 #   alpha = 1 : facteur chain-ladder du reglement
 #   alpha = 2 : ponderation par le carre du volume
-# Sous l'hypothese (iii), les trois estimateurs visent le MEME f_j, quelle que
-# soit la variance (tout facteur individuel est alors sans biais pour f_j :
+# Sous l'hypothese (iii) lue avec un facteur f_j commun (interpretation de
+# l'outil, #409), les trois estimateurs visent le MEME f_j, quelle que soit la
+# variance (tout facteur individuel est alors sans biais pour f_j :
 # Mack 1994, CAS Forum, chap. 3, p. 111) : une divergence marquee signale que
-# l'esperance n'est pas proportionnelle a C(i,j) (M1) ; une violation de
+# l'esperance n'est pas proportionnelle a C(i,j) (M1), ou, sous la lettre de
+# (iii), un facteur propre a chaque annee et associe a C(i,j) ; une violation de
 # l'hypothese de variance (iv) seule laisse H0 vraie (specification Fj,
 # par. 4.3 ; decision Q-D1-Fj-5, #307).
 # La statistique est l'amplitude relative moyenne, ponderee par les effectifs.
@@ -11296,6 +11489,10 @@ mw_residus_redresses <- function(aj, res)
 # conserve dans le retour : l'appelant passe le meme a mw_tests()
 # (precondition documentee en tete de mw_tests()).
 mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
+  # Cache des combinaisons de n > MW_COMBN_N_MAX local a l'appel (#405,
+  # point 1 ; .mw_combinaisons()) : vide a la sortie, erreur comprise.
+  .mw_combn_appel_ouvrir()
+  on.exit(.mw_combn_appel_fermer(), add = TRUE)
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
     # Ensembles de colonnes figes (.mw_ensembles_figes(), #278), determines
@@ -11607,8 +11804,7 @@ MW_CATALOGUE_MC <- list(
          mc_nom, call. = FALSE)
   B <- unname(B); be <- unname(be[[mc_nom]])
   p <- if (mc_nom %in% names(boot$p_mc)) unname(boot$p_mc[[mc_nom]]) else NA_real_
-  m <- if (!is.null(boot$motif_mc) && mc_nom %in% names(boot$motif_mc))
-    unname(boot$motif_mc[[mc_nom]]) else NA_character_
+  m <- .engine_motif_mc_lu(boot, mc_nom)
   if (is.finite(p) && be < B) {
     pl <- boot$plafond_cumuls
     if (!is.logical(pl) || length(pl) != 1L || is.na(pl))
@@ -11789,7 +11985,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                            any(hf$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Homogeneite de f_j entre annees de survenance",
       fonction = "mw_test_homogeneite_f",
-      "Annexe XVII, D(2)(h)(iii) : 'pour toutes les annees d'accident'",
+      paste("Annexe XVII, D(2)(h)(iii), lu avec D(4)(c) : facteur f_j commun",
+            "(interpretation de l'outil) ; Venter (1998), PCAS 85, implication 4 ;",
+            "Spearman (1904) pour la correlation de rang"),
       H0 = "le facteur f_j est commun a toutes les annees de survenance",
       H1 = "les facteurs individuels derivent avec l'annee de survenance",
       stat_nom = "X de Fisher", stat = hf$stat,
@@ -11833,8 +12031,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                      "du reglement ; alpha = 2 : ponderation par le carre du volume.")
   if (is.finite(al$stat))
     detail_al <- sprintf(paste(detail_al,
-      "Sous l'hypothese (iii), les trois estimateurs sont sans biais pour f_j quelle que",
-      "soit la variance : la ligne porte sur la proportionnalite des cumules (M1), non sur",
+      "Sous l'hypothese (iii), lue avec un facteur f_j commun (interpretation de l'outil),",
+      "les trois estimateurs sont sans biais pour f_j quelle que soit la variance :",
+      "la ligne porte sur la proportionnalite des cumules (M1), non sur",
       "l'exposant de variance (M2). f_j^(alpha+1) - f_j^(alpha) est la covariance entre",
       "F(i,j) et C(i,j), ponderee par C(i,j)^alpha, rapportee au cumul moyen de meme",
       "ponderation : la ligne vise, comme la pente relative, une association du",
@@ -11847,7 +12046,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124",
       H0 = "les estimateurs alpha = 0, 1 et 2 visent le meme f_j",
       H1 = paste("les trois estimateurs visent des valeurs differentes (esperance de",
-                 "C(i,j+1) non proportionnelle a C(i,j))"),
+                 "C(i,j+1) non proportionnelle a C(i,j), ou facteur non commun aux",
+                 "annees et associe a C(i,j))"),
       stat_nom = "amplitude relative", stat = al$stat,
       loi = "aucune loi analytique -> Monte-Carlo", mc_nom = "Alpha",
       detail = detail_al)
@@ -11927,8 +12127,10 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
       p_as = ev$p, mc_nom = "ExpVar",
       p_min = pm_ev$p_min, effectifs = pm_ev$effectifs,
-      detail = paste("Si la variance est bien proportionnelle a C(i,j), les residus",
-                     "standardises sont d'echelle constante a l'interieur de chaque colonne."))
+      detail = paste("Si la variance est proportionnelle a C(i,j), avec un facteur f_j et une",
+                     "constante sigma_j^2 communs aux annees (interpretation de l'outil,",
+                     "D(4)(c) et D(5)(d)(ii)), les residus standardises sont d'echelle",
+                     "constante a l'interieur de chaque colonne."))
   # La variance des residus de Mack est CONTRAINTE par construction, et sa
   # valeur de reference n'est pas 1. sigma2_j etant l'estimateur de Mack,
   #   somme_i r(i,j)^2 = somme_i C(i,j) (F(i,j) - f_j)^2 / sigma2_j = n_j - 1
@@ -11953,7 +12155,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                              "vaut N - k = %d - %d = %d et var(r) est contrainte par",
                              "construction. Cette ligne ne teste donc PAS la structure",
                              "de variance -- mesure : une variance en C^2 au lieu de",
-                             "C^1 laisse var(r) a 2,5e-03 de la reference, quand",
+                             "C^1 laisse var(r) a 2.5e-03 de la reference, quand",
                              "l'identite tient a 1e-15. L'ecart a la reference vaut",
                              "exactement N moyenne(r)^2/(N-1) : ce que cette ligne",
                              "donne a lire est le CENTRAGE des residus, ici %s, et la",
@@ -12069,20 +12271,18 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # (verdict INFO, ni p retenue, ni nature, ni sens ; p Monte-Carlo et p non
   # simulee conservees dans leurs colonnes ; inoperant FALSE ; la regle R1 ne
   # s'applique qu'aux lignes de type test, p_min_mc vaut donc NA). Cle Runs du
-  # catalogue conservee. Priorite des motifs non applicables (comme
-  # stat_definie() de usp_tests()) : statistique observee non finie, ou
-  # motif MOTIF_MC_OBS_NON_FINIE, -> type "test" laisse a add(), qui rend la
-  # ligne non applicable. Quand la p Monte-Carlo manque, add() met le motif
-  # en tete du detail (.prefixe_motif_mc(), #358 : motif de degenerescence ->
-  # "<motif> : aucune p-value retenue (ADR 0001)." et son complement ; autre
-  # motif -> "Monte-Carlo indisponible : <motif>."). Aucun nombre issu du
-  # bootstrap (regle #76) ; les phrases de #257 et #204 sont jointes par
-  # l'enveloppe add() de mw_tests(), comme sur toute ligne Monte-Carlo, apres
-  # le detail ci-dessous ; add() pose ensuite le prefixe, qui precede donc,
-  # dans le texte, le detail et ces phrases.
-  m_ru <- if (!is.null(boot$motif_mc) && "Runs" %in% names(boot$motif_mc))
-    unname(boot$motif_mc[["Runs"]]) else NA_character_
-  ru_definie <- is.finite(ru$stat) && !identical(m_ru, MOTIF_MC_OBS_NON_FINIE)
+  # catalogue conservee. Priorite des motifs non applicables (meme
+  # .engine_stat_definie() que stat_definie() de usp_tests()) : statistique
+  # observee non finie, ou motif MOTIF_MC_OBS_NON_FINIE, -> type "test"
+  # laisse a add(), qui rend la ligne non applicable. Quand la p Monte-Carlo
+  # manque, add() met le motif en tete du detail (.prefixe_motif_mc(), #358 :
+  # motif de degenerescence -> "<motif> : aucune p-value retenue (ADR 0001)."
+  # et son complement ; autre motif -> "Monte-Carlo indisponible : <motif>.").
+  # Aucun nombre issu du bootstrap (regle #76) ; les phrases de #257 et #204
+  # sont jointes par l'enveloppe add() de mw_tests(), comme sur toute ligne
+  # Monte-Carlo, apres le detail ci-dessous ; add() pose ensuite le prefixe,
+  # qui precede donc, dans le texte, le detail et ces phrases.
+  ru_definie <- .engine_stat_definie(boot, "Runs", ru$stat)
   txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
                        "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
                        "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
@@ -12722,7 +12922,8 @@ engine_motif_b_alpha <- function(B, alpha) {
                              sigma_standard = sigma_standard,
                              variation_relative = par$variation_relative),
       plots_data = mw_plots_data(aj, res, boot, msep, sigma_usp_boot = usp_b, ic = ic,
-                                 sigma_usp = par$sigma_usp, sigma_standard = sigma_standard),
+                                 sigma_usp = par$sigma_usp, sigma_standard = sigma_standard,
+                                 alpha = alpha),
       metadata = list(methode = "reserve2", segment = segment, annexe = annexe,
                       libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,
                       T = aj$I + 1L, I = aj$I, J = aj$J, B = B, alpha = alpha,
@@ -13018,6 +13219,59 @@ mw_contributions <- function(aj, msep) {
   out
 }
 
+# Intervalles de l'ordonnee a l'origine par colonne (#404 ; specification
+# d'actuary-approfondi, decision Q-46-19 du mainteneur du 02/11/2026).
+# det : table detail de mw_test_ordonnee_origine() (une ligne par colonne
+# retenue : j, n, a, se_a, t, p de Student de summary.lm(), b, f_cl) ;
+# alpha : seuil des verdicts. Colonnes ajoutees en fin de table, dans cet
+# ordre :
+#   niveau         1 - alpha, niveau nominal de l'intervalle ;
+#   quantile_t     qt(1 - alpha/2, n - 2) : quantile de Student au nombre de
+#                  degres de liberte residuels de la regression ponderee a
+#                  deux parametres de la colonne, celui de la p de Student de
+#                  la table (n >= 3 garanti par mw_test_ordonnee_origine(),
+#                  donc au moins 1 ddl) ;
+#   bas, haut      a -/+ quantile_t se_a : intervalle de Student de a_j, dual
+#                  du test de Student de la colonne (a_j = 0 hors de
+#                  l'intervalle si et seulement si p < alpha, en arithmetique
+#                  exacte ; en virgule flottante, ecart mesure seulement a
+#                  alpha egal a p au bit pres, ou l'intervalle peut exclure
+#                  0 alors que p < alpha est faux). Pivot
+#                  (a_hat - a_j) / se_a de loi t(n - 2) exacte a n_j fini
+#                  sous le seul modele auxiliaire gaussien (erreurs
+#                  gaussiennes independantes, de variance proportionnelle a
+#                  C(i,j), conditionnellement a C(., j)), non sous
+#                  l'annexe XVII : niveau nominal, couverture non etablie a
+#                  T = 8 sous le modele reglementaire (p non simulee,
+#                  famille (iii) de CONTEXT.md) ; couverture marginale par
+#                  colonne, non simultanee ;
+#   exclut_zero    bas > 0 ou haut < 0 ; NA quand bas, haut ou p n'est pas
+#                  fini (aucune lecture ; cas vise : a = se_a = 0, t = 0/0,
+#                  colonne d'ordinaire ecartee avant lm() par la garde des
+#                  colonnes degenerees) ;
+#   plus_petite_p  TRUE sur la colonne de plus petite p (premiere en cas
+#                  d'egalite exacte, p non finies ignorees ; FALSE partout si
+#                  aucune p n'est finie).
+# Lectures colonne par colonne, sans correction de multiplicite : le verdict
+# de M1 est celui de la ligne "Nullite de l'ordonnee a l'origine, colonne par
+# colonne" de mw_tests() (statistique de Fisher qui combine les p par
+# colonne). Table vide
+# (aucune colonne retenue) rendue telle quelle.
+.mw_origine_intervalles <- function(det, alpha) {
+  if (!nrow(det)) return(det)
+  q <- stats::qt(1 - alpha / 2, det$n - 2)
+  bas <- det$a - q * det$se_a
+  haut <- det$a + q * det$se_a
+  det$niveau <- rep(1 - alpha, nrow(det))
+  det$quantile_t <- q
+  det$bas <- bas
+  det$haut <- haut
+  det$exclut_zero <- ifelse(is.finite(bas) & is.finite(haut) & is.finite(det$p),
+                            bas > 0 | haut < 0, NA)
+  det$plus_petite_p <- seq_len(nrow(det)) %in% which.min(det$p)
+  det
+}
+
 # Quantites numeriques des graphiques de la methode Merz-Wuthrich.
 # QQ-plot (#311, Q-D1-Fm-4 et Q-D1-Fm-5, option (c), specification Fm,
 # par. 2.1) : qqnorm porte les residus redresses par le levier
@@ -13033,8 +13287,13 @@ mw_contributions <- function(aj, msep) {
 # sans qu'elle traduise un ecart au modele. Ni enveloppe ni tirage (option
 # (c)) ; les lignes M5 de
 # mw_tests() restent calculees sur les residus bruts.
+# alpha : seuil des verdicts du calcul (res$metadata$alpha), qui fixe le
+# niveau 1 - alpha des intervalles de l'ordonnee a l'origine (feuille origine,
+# .mw_origine_intervalles(), #404) ; en fin d'arguments, defaut 0,10 de
+# run_engine() et de mw_tests().
 mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
-                          ic = NULL, sigma_usp = NULL, sigma_standard = NULL) {
+                          ic = NULL, sigma_usp = NULL, sigma_standard = NULL,
+                          alpha = 0.10) {
   qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
   # Methode : lue dans res$metadata$methode, seul emplacement depuis #396
   # (doublon plots_data$methode retire).
@@ -13079,7 +13338,10 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
       out
     }),
     alpha = mw_famille_alpha(aj)$detail,
-    origine = mw_test_ordonnee_origine(aj)$detail,
+    # Table detail de mw_test_ordonnee_origine(), completee des intervalles
+    # de niveau 1 - alpha et des indicateurs lus par plot_mw_origine() et
+    # note_m1() (#404, .mw_origine_intervalles()).
+    origine = .mw_origine_intervalles(mw_test_ordonnee_origine(aj)$detail, alpha),
     # Cellule la plus influente (#396) : plus grand |DFBETAS| parmi les
     # seules cellules a DFBETAS defini (NA ignores : gardes de l'en-tete de
     # mw_influence() ; FALSE partout si aucun n'est defini). Les DFBETAS y
@@ -13170,7 +13432,8 @@ run_engine <- function(xt, yt,
   xt <- sr$xt; yt <- sr$yt; validation <- sr$validation
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
-                          metadata = list(horodatage = t0)), class = "usp_engine"))
+                          metadata = list(horodatage = t0, methode = methode)),
+                     class = "usp_engine"))
   T <- length(xt)
 
   # --- 2. Parametre standard et bareme de credibilite -----------------------
@@ -13213,7 +13476,8 @@ run_engine <- function(xt, yt,
       validation$ok <- FALSE
       validation$erreurs <- c(validation$erreurs, va$erreurs)
       return(structure(list(ok = FALSE, validation = validation,
-                            metadata = list(horodatage = t0)), class = "usp_engine"))
+                            metadata = list(horodatage = t0, methode = methode)),
+                       class = "usp_engine"))
     }
     # Controles numeriques de l'estimation (famille H, non bloquants, #22)
     controles <- c(controles, usp_controles_numeriques(fit))
@@ -13242,11 +13506,17 @@ run_engine <- function(xt, yt,
     ic_r <- if (length(usp_r) > 20)
       stats::quantile(usp_r, c(.025, .05, .5, .95, .975)) else NULL
 
-    # Jackknife entierement non calcule (tous les reajustements en echec ou
-    # refuses) : fit$ecart_jackknife NULL plutot qu'un max a -Inf ; usp_tests()
-    # pose alors une ligne jackknife en diagnostic sans estimation (#329).
+    # Jackknife non calcule : fit$ecart_jackknife NULL plutot qu'un max a
+    # -Inf ou a Inf. jack_calcule (#405, point 2) est lu sur la designation
+    # de usp_jack_annees(), NULL si aucun ecart relatif n'est fini, dans deux
+    # cas : aucun reajustement abouti (les T annees non evaluables), ou
+    # sigma_USP nul ou non fini. usp_tests() pose dans les deux cas une ligne
+    # jackknife en diagnostic sans estimation, au detail propre a chacun
+    # (#329 ; #405, option b d'actuary). jack_calcule est egal a
+    # any(is.finite(d_jack)) tant que sigma_USP est fini et > 0.
     d_jack <- jack$sigma_usp - param$sigma_usp
-    jack_calcule <- any(is.finite(d_jack))
+    jack_annees <- usp_jack_annees(jack$sigma_usp, param$sigma_usp)
+    jack_calcule <- !is.null(jack_annees)
     fit$ecart_jackknife <- if (jack_calcule)
       max(abs(jack$sigma_usp - param$sigma_usp), na.rm = TRUE) / param$sigma_usp else NULL
     fit$largeur_ic <- if (!is.null(ic)) unname((ic[4] - ic[2]) / param$sigma_usp) else NULL
@@ -13274,11 +13544,11 @@ run_engine <- function(xt, yt,
     # signes relatifs (seul le signe est imprime). jack_annee (argmax) reste
     # l'annee designee quand jack_annees n'en compte qu'une ; usp_tests() ne
     # le lit pas sinon.
-    # Calcul de jack_annees : usp_jack_annees(), lue aussi par
-    # engine_influence() pour la colonne plus_influente de
-    # res$plots_data$influence (#396) ; NULL si aucun reajustement n'a abouti.
+    # Calcul de jack_annees : usp_jack_annees(), plus haut, transmise telle
+    # quelle a engine_plots_data() puis engine_influence() pour la colonne
+    # plus_influente de res$plots_data$influence (#396, #405 point 4) ; NULL
+    # si aucun reajustement n'a abouti (ou sigma_USP nul ou non fini).
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
-    jack_annees <- usp_jack_annees(jack$sigma_usp, param$sigma_usp)
     robustesse <- list(
       jack_annee = i_jack,
       jack_usp   = if (jack_calcule) d_jack[i_jack] / param$sigma_usp else NULL,
@@ -13354,7 +13624,8 @@ run_engine <- function(xt, yt,
       parametre_final = param,
       plots_data = engine_plots_data(fit, boot, prof, jack, param$sigma_usp,
                                      lr_delta = lrd, sigma_usp_boot = usp_b, ic = ic,
-                                     sigma_standard = sigma_standard, ic_basic_log = ic_bl),
+                                     sigma_standard = sigma_standard, ic_basic_log = ic_bl,
+                                     jack_annees = robustesse$jack_annees),
       metadata = c(
         list(methode = methode, segment = segment, annexe = annexe,
              libelle_segment = if (!is.null(infos)) infos$libelle else NA_character_,

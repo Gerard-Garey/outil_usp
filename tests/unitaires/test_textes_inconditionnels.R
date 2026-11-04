@@ -14,7 +14,8 @@
 #    4. loi d'Anderson-Darling et de Cramer-von Mises (T < 8, p_mc absente) ;
 #    5. loi des six autres lignes de la regle R7 (DW, suites sur z, MK,
 #       Smirnov, SpearVol, SpearTps) ;
-#    6. detail de Smirnov a pi_t variable.
+#    6. detail de Smirnov a pi_t variable ;
+#    7. loi de Grubbs (#416 : borne au seuil d'exactitude pour le T saisi).
 #  U182-6 (premium_interieur patche sur les seuls champs listes, cinq autres
 #  cas identiques) et U182-7 (aucune p ni aucun verdict modifie) sont portes
 #  par tests/test_reproductibilite.R (references comparees par
@@ -193,6 +194,70 @@ verifier("U182-5 Smirnov, detail : inchange a pi_t constant, loi echangeable nom
              grepl(paste("p-value minimale atteignable sous la loi de reference echangeable = 0.0286,",
                          "atteinte seulement pour D = 1 (deux groupes totalement separes)"),
                    d2, fixed = TRUE)
+         })
+
+## --- #416 : loi de Grubbs, borne au seuil d'exactitude pour le T saisi ---------
+# A pi_t constant, la parenthese donne la borne de Bonferroni de test_grubbs()
+# au seuil G = sqrt((T-1)/2), pour le T de l'ajustement (0.557 a T = 5, 0.240
+# a T = 8, 0.133 a T = 10) ; dans la bande de tolerance, meme texte, sans
+# txt_bande ; a pi_t variable, texte inchange. Point decimal sous OutDec = ",".
+N_GR <- "Valeur aberrante isolee (Grubbs)"
+GR_CST <- function(b, T) paste0("Student + borne de Bonferroni, exacte sous i.i.d. normal pour ",
+                                "G >= sqrt((T-1)/2) (p <= ", b, " a T = ", T, "), majorant au-dela")
+GR_VAR <- paste("Student + borne de Bonferroni, calibree pour un echantillon i.i.d. normal ;",
+                "les residus z ne le sont pas dans ce regime (pi_t variable) : ni exacte ni",
+                "majorant garanti")
+# Volumes constants : pi_t exactement constant quel que soit delta.
+loi_gr_vc <- function(y) {
+  f <- usp_ajuster(rep(100, length(y)), y); b <- usp_bootstrap(f, B = 19L)
+  lig182(usp_tests(f, b, methode = "premium"), N_GR)$loi
+}
+verifier("#416 pi_t constant (J1, T = 8) : loi de Grubbs avec 0.240",
+         identical(lig182(J1$t, N_GR)$loi, GR_CST("0.240", 8)))
+verifier("#416 pi_t constant (volumes constants, T = 5) : loi de Grubbs avec 0.557",
+         identical(loi_gr_vc(c(60, 70, 65, 80, 72)), GR_CST("0.557", 5)))
+verifier("#416 pi_t constant (volumes constants, T = 10) : loi de Grubbs avec 0.133",
+         identical(loi_gr_vc(c(60, 70, 65, 80, 72, 68, 75, 62, 77, 71)), GR_CST("0.133", 10)))
+verifier("#416 bande de tolerance (delta = 1 - 1e-8) : loi de Grubbs inchangee, sans txt_bande",
+         {
+           f <- J1$f; f$delta <- 1 - 1e-8
+           r <- usp_regime(f$delta, f$x)
+           isTRUE(r$pi_constant) && !isTRUE(r$pi_constant_exact) &&
+             identical(lig182(usp_tests(f, J1$b, methode = "premium"), N_GR)$loi, GR_CST("0.240", 8))
+         })
+verifier("#416 pi_t variable (J2) : loi de Grubbs sans borne chiffree",
+         identical(lig182(J2$t, N_GR)$loi, GR_VAR))
+verifier("#416 OutDec = \",\" : point decimal conserve dans la loi de Grubbs",
+         {
+           od <- getOption("OutDec"); options(OutDec = ",")
+           l <- lig182(usp_tests(J1$f, J1$b, methode = "premium"), N_GR)$loi
+           options(OutDec = od)
+           identical(l, GR_CST("0.240", 8))
+         })
+
+# Format de la borne (.format_borne_grubbs()) : a T = 8 la chaine reste 0.240
+# (reference) ; a partir de T = 28, %.3f imprimerait 0.000 (4.37e-04 a T = 28,
+# 8.18e-06 a T = 40), la borne s'ecrit alors a trois chiffres significatifs.
+# ASCII, point decimal sous OutDec = ",".
+verifier("#416 format de la borne : 0.240 a T = 8 ; ni 0.000 ni virgule a T = 28 et T = 40, trois chiffres significatifs, ASCII",
+         {
+           b <- function(T) .format_borne_grubbs(.grubbs_p_bonferroni(sqrt((T - 1) / 2), T))
+           od <- getOption("OutDec"); options(OutDec = ",")
+           s8 <- b(8); s28 <- b(28); s40 <- b(40)
+           options(OutDec = od)
+           identical(s8, "0.240") && identical(s28, "0.000437") && identical(s40, "8.18e-06") &&
+             all(!grepl("^0\\.000$", c(s28, s40))) && !any(grepl(",", c(s8, s28, s40), fixed = TRUE)) &&
+             all(!grepl("[^ -~]", c(s8, s28, s40))) &&
+             identical(.format_borne_grubbs(0), "0") && identical(.format_borne_grubbs(0.001), "0.001") &&
+             identical(.format_borne_grubbs(0.00099), "0.00099")
+         })
+verifier("#416 champ loi a T = 28 et T = 40 (volumes constants) : borne sans 0.000",
+         {
+           y28 <- 60 + (seq_len(28) %% 7) * 3; y40 <- 60 + (seq_len(40) %% 9) * 2
+           l28 <- loi_gr_vc(y28); l40 <- loi_gr_vc(y40)
+           !grepl("p <= 0.000 ", l28, fixed = TRUE) && !grepl("p <= 0.000 ", l40, fixed = TRUE) &&
+             grepl("(p <= 0.000437 a T = 28)", l28, fixed = TRUE) &&
+             grepl("(p <= 8.18e-06 a T = 40)", l40, fixed = TRUE)
          })
 
 fin_fichier()

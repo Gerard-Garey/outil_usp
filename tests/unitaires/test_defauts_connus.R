@@ -913,18 +913,22 @@ jack_annees_relevees <- function(appel) {
   r <- tryCatch(appel(), finally = assign("usp_tests", orig, envir = e))
   list(res = r, jack_annees = ja)
 }
-verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (identical), annees 1, 2, 3, 4, 6, 7 et 8, derniere colonne logique",
+# Depuis #404, la colonne non_evaluable (annees non evaluables du jackknife)
+# suit plus_influente en fin de table.
+verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (identical), annees 1, 2, 3, 4, 6, 7 et 8, colonne logique suivie de non_evaluable (#404)",
          {
            rel <- jack_annees_relevees(function() run_engine(xt = x, yt = y_224, methode = "premium",
                                                               segment = 1, annexe = "II", B = 99,
                                                               nature_donnees = "brutes"))
            d <- rel$res$plots_data$influence
            is.logical(d$plus_influente) && !anyNA(d$plus_influente) &&
-             identical(utils::tail(names(d), 1L), "plus_influente") &&
+             identical(utils::tail(names(d), 2L), c("plus_influente", "non_evaluable")) &&
              identical(which(d$plus_influente), as.integer(rel$jack_annees)) &&
              identical(which(d$plus_influente), c(1L, 2L, 3L, 4L, 6L, 7L, 8L)) &&
              identical(d$plus_influente, d$t %in% usp_jack_annees(rel$res$jackknife$sigma_usp,
-                                                                 rel$res$parametre_final$sigma_usp))
+                                                                 rel$res$parametre_final$sigma_usp)) &&
+             is.logical(d$non_evaluable) && identical(which(d$non_evaluable), 5L) &&
+             identical(d$non_evaluable, !is.finite(rel$res$jackknife$sigma_usp))
          })
 verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau/2 -> 1 et 2 ; a 2 tau -> 1 seule ; NA ecartes ; aucun reajustement -> FALSE partout)",
          {
@@ -938,6 +942,33 @@ verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau
              identical(usp_jack_annees(rep(NA_real_, 8), 1), NULL) &&
              identical(engine_influence(fit, list(sigma_usp = rep(NA_real_, 8)), 1)$plus_influente,
                        rep(FALSE, 8))
+         })
+# #405 (avis d'actuary, option b) : sigma_USP nul ou non fini, force par
+# substitution de usp_parametre() dans l'environnement du moteur (ADR 0016) ;
+# les reajustements du jackknife aboutissent (aucune annee non evaluable),
+# mais aucun ecart relatif n'est fini : usp_jack_annees() NULL, ligne
+# jackknife posee en diagnostic sans estimation, detail propre.
+jk_sigma_usp_force <- function(v) {
+  e <- environment(run_engine); orig <- get("usp_parametre", envir = e)
+  assign("usp_parametre", function(...) { p <- orig(...); p$sigma_usp <- v; p }, envir = e)
+  tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                      B = 99, nature_donnees = "brutes"),
+           finally = assign("usp_parametre", orig, envir = e))
+}
+verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diagnostic sans estimation, detail 'sigma_USP nul ou non fini' ; usp_jack_annees(c(1, 2, NA), 0) NULL",
+         {
+           ok <- TRUE
+           for (v in c(0, NA_real_)) {
+             r <- jk_sigma_usp_force(v)
+             tb <- engine_table_tests(r); i <- which(tb$test == NOM_JK)
+             ok <- ok && isTRUE(r$ok) && length(i) == 1L && is.null(r$ajustement$ecart_jackknife) &&
+               all(is.finite(r$jackknife$sigma_usp)) &&
+               identical(tb$type[i], "diagnostic") && is.na(tb$estimation[i]) &&
+               identical(tb$verdict[i], "INFO") &&
+               identical(tb$commentaire[i],
+                         "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree.")
+           }
+           ok && identical(usp_jack_annees(c(1, 2, NA), 0), NULL)
          })
 verifier("#396 : premium et reserve1 (deux run_engine) : plus_influente = jack_annees releve ; engine_influence() appele directement sans jackknife : pas de colonne",
          {

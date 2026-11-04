@@ -701,9 +701,12 @@ verifier("Coherence TOST (#153, #168) : x ecarte par lm() (injection de summary(
 # ecrits en dur : TOST et R2 gardent leurs chaines d'avant #168.
 DETAIL_R12_168 <- "regression de y sur x : x ecarte par lm() pour colinearite, test non applicable"
 DETAIL_R2_R12_168 <- "x ecarte par lm() pour colinearite : R2 non defini"
+# Ligne Student (#423) : memes motifs R13, pertes constantes et R12 que la
+# ligne Fisher (detail_motif()).
 LIGNES_R12_168 <- c("Nullite de la constante (proportionnalite stricte)",
                     LIGNE_TOST153,
                     "Test de Pitman sur la pente (lien positif pertes / volume)",
+                    "Test de Student sur la pente (modele auxiliaire MCO)",
                     "Test de Fisher (significativite globale)")
 LIGNE_R2_168 <- "Coefficient de determination R2"
 FONCTIONS_R12_168 <- c("test_intercept", "test_lm_complet", "test_tost_intercept")
@@ -759,7 +762,7 @@ verifier("test_intercept() et test_lm_complet() : champ x_ecarte TRUE sur la seu
 # avec eux ; les comparaisons "autres lignes identiques" portent sur les
 # lignes hors lecture conjointe.
 sans_famille297 <- function(L) Filter(function(l) !identical(l$fonction, "engine_p_famille"), L)
-verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente, Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection, Spearman ratio / volume hors detail et sans renvoi (#168 ; #215)",
+verifier("usp_tests(), x ecarte par lm() hors volumes constants (injection de summary() dans les trois fonctions qui regressent y sur x) : constante, TOST, pente (Pitman et Student, #423), Fisher non applicables (INFO, p retenue NA) au detail du garde-fou R12, R2 au sien ; autres lignes et ordre identiques a l'appel sans injection, Spearman ratio / volume hors detail et sans renvoi (#168 ; #215)",
          {
            f1 <- usp_ajuster(x153, y153); b1 <- usp_bootstrap(f1, B = B_MIN_USAGE)
            t12 <- tryCatch(avec_r12_168(usp_tests(f1, b1, methode = "premium")), error = function(e) e)
@@ -813,7 +816,7 @@ verifier("usp_tests() a volumes constants, x_ecarte force a TRUE dans test_inter
              }, logical(1)))
          })
 # Jeu xp153 (y = x / 2, issue de lm() dependante de la plateforme, voir
-# ci-dessous) : le detail des quatre lignes porte le motif R12 si et
+# ci-dessous) : le detail des cinq lignes porte le motif R12 si et
 # seulement si lm(y ~ x) ecarte x sur cette machine (condition recalculee
 # sur les donnees ajustees, comme dans le moteur).
 verifier("usp_tests(), y exactement proportionnel a x : constante, TOST, pente et Fisher au detail du garde-fou R12 si et seulement si lm(y ~ x) ecarte x sur cette plateforme (#168)",
@@ -2355,10 +2358,11 @@ verifier("Lecture vecteur : lignes d'en-tetes textuelles, vides de bord et etiqu
 # Jeu de l'issue : x = (100, ..., 700), y = 70 x 8. Avant #189 : constante
 # stat Inf (INFO sans motif), TOST stat Inf, p = 1, ECHEC, pente et Fisher
 # NaN avec "Pente identifiable", R2 NaN au motif R12. Predicat unique
-# usp_pertes_constantes() (tolerance TOL_DELTA_BORD) ; les cinq lignes de
-# la regression de y sur x sont non applicables au motif propre ; les 46
-# autres lignes et sigma_USP sont inchanges (comparaison a l'execution ou
-# le predicat est neutralise). Libelles ecrits en dur (specification
+# usp_pertes_constantes() (tolerance TOL_DELTA_BORD) ; les six lignes de
+# la regression de y sur x (ligne Student comprise, #423) sont non
+# applicables au motif propre ; les 41 autres lignes hors lecture
+# conjointe et sigma_USP sont inchanges (comparaison a l'execution ou le
+# predicat est neutralise). Libelles ecrits en dur (specification
 # d'actuary).
 x189 <- c(100, 150, 200, 300, 400, 500, 600, 700)
 y189 <- rep(70, 8)
@@ -2381,7 +2385,7 @@ lancer189 <- function(xx, yy, methode = "premium") suppressWarnings(
   run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
              nature_donnees = if (methode == "premium") "brutes",
              B = B_MIN_USAGE, seed = 20260831))
-# Les cinq lignes au motif pertes constantes : non applicables, INFO, sans
+# Les six lignes au motif pertes constantes (ligne Student, #423) : non applicables, INFO, sans
 # p ni statistique ni estimation, inoperant FALSE, detail exact ; chaine
 # vide si conforme, sinon la liste des lignes fautives.
 lignes_pc189 <- function(tt, y) {
@@ -2417,7 +2421,7 @@ res189 <- list(premium = lancer189(x189, y189, "premium"),
 neutre189 <- avec_injection("usp_pertes_constantes", function(...) FALSE,
                             list(premium = lancer189(x189, y189, "premium"),
                                  reserve1 = lancer189(x189, y189, "reserve1")))
-verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente, Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 41 autres lignes (LB1r retiree, #303 ; trois lignes retirees, #302), parametre_final et sigma_USP identical a l'execution au predicat neutralise, Spearman ratio / volume identique hors detail et sans renvoi (#189, U2 ; #215)",
+verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constante, TOST, pente (Pitman et Student, #423), Fisher et R2 non applicables au motif pertes constantes (INFO, p, stat, estim NA, inoperant FALSE) ; 41 autres lignes (LB1r retiree, #303 ; trois lignes retirees, #302), parametre_final et sigma_USP identical a l'execution au predicat neutralise, Spearman ratio / volume identique hors detail et sans renvoi (#189, U2 ; #215)",
          {
            pb <- character(0)
            for (m in names(res189)) {
@@ -2439,9 +2443,9 @@ verifier("run_engine, jeu de l'issue (y = 70 x 8), premium et reserve1 : constan
 # Volumes et pertes constants : decision du mainteneur du 08/10/2026, #188 :
 # le refus "maximum de vraisemblance non atteint" l'emporte dans
 # run_engine() (ratios egaux, gamma sur la borne basse). La priorite R13 des
-# cinq lignes est verifiee par appel direct a usp_tests() ; l'avertissement
+# six lignes est verifiee par appel direct a usp_tests() ; l'avertissement
 # pertes constantes reste porte par le refus (U3 bis).
-verifier("Volumes et pertes constants, usp_tests() en appel direct : les cinq lignes portent le motif R13 (priorite volumes constants) (#189, U3 ; #188)",
+verifier("Volumes et pertes constants, usp_tests() en appel direct : les six lignes portent le motif R13 (priorite volumes constants) (#189, U3 ; #188)",
          {
            f <- usp_ajuster(rep(110, 8), y189)
            b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
@@ -2459,7 +2463,7 @@ verifier("Volumes et pertes constants, run_engine() : ok = FALSE au motif borne 
              identical(tail(r$validation$erreurs, 1), motif188("basse", "premium")) &&
              avt_pc189(y189) %in% r$validation$avertissements
          })
-verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant sous injection de summary() sans x -> TOST 'pertes constantes', cinq lignes au motif pertes constantes ; appel direct a marge invalide et y constant -> 'pertes constantes' (#189, U4)",
+verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant sous injection de summary() sans x -> TOST 'pertes constantes', six lignes au motif pertes constantes ; appel direct a marge invalide et y constant -> 'pertes constantes' (#189, U4)",
          {
            f <- usp_ajuster(x153, y189); b <- suppressWarnings(usp_bootstrap(f, B = B_MIN_USAGE))
            ref <- names(test_tost_intercept(x153, y153, pi153))
@@ -2476,7 +2480,7 @@ verifier("Priorite pertes constantes > marge et > x ecarte (R12) : y constant so
              identical(test_tost_intercept(x153, y153, pi153, theta = -1)$non_applicable, "marge") &&
              !exists("summary", envir = environment(run_engine), inherits = FALSE)
          })
-verifier("Bord de la tolerance : etendue relative 1e-7 -> cinq lignes au motif pertes constantes ; 2e-6 -> lignes calculees, constante et TOST de type test (#189, U5)",
+verifier("Bord de la tolerance : etendue relative 1e-7 -> six lignes au motif pertes constantes ; 2e-6 -> lignes calculees, constante et TOST de type test (#189, U5)",
          {
            y7 <- 70 * (1 + c(0, 1e-7, rep(0, 6))); y6 <- 70 * (1 + c(0, 2e-6, rep(0, 6)))
            r7 <- lancer189(x189, y7); r6 <- lancer189(x189, y6)
@@ -2528,7 +2532,8 @@ lancer188 <- function(xx, yy, methode) suppressWarnings(
              B = B_MIN_USAGE, seed = 20260831))
 refus188 <- function(r, borne, methode)
   identical(r$ok, FALSE) && identical(names(r), c("ok", "validation", "metadata")) &&
-    is.null(r$validation$erreur_r) && identical(names(r$metadata), "horodatage") &&
+    is.null(r$validation$erreur_r) && identical(names(r$metadata), c("horodatage", "methode")) &&
+    identical(r$metadata$methode, methode) &&
     is.null(r$metadata$permutation_pente) &&
     identical(tail(r$validation$erreurs, 1), motif188(borne, methode))
 jeux188 <- list(
@@ -2538,7 +2543,7 @@ jeux188 <- list(
   "x153, y = 0,7 x153"       = list(x153, 0.7 * x153, "basse"),
   "rep(100, 8) / rep(70, 8)" = list(rep(100, 8), rep(70, 8), "basse"),
   "x exp(3 w)"               = list(xs188, xs188 * exp(3 * w188), "haute"))
-verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata sans permutation_pente, motif exact (#188)",
+verifier("run_engine, premium et reserve1 : series proportionnelles, quasi proportionnelle, constantes (borne basse) et dispersion extreme (borne haute) -> ok = FALSE, sans erreur R ni erreur_r, names ok / validation / metadata, metadata = horodatage et methode (#405), sans permutation_pente, motif exact (#188)",
          {
            pb <- character(0)
            for (nm in names(jeux188)) for (m in c("premium", "reserve1")) {
@@ -2722,11 +2727,13 @@ x213 <- rep(100, 8)
 res213 <- list(premium = lancer189(x213, ys188, "premium"),
                reserve1 = lancer189(x213, ys188, "reserve1"))
 # Correspondance un a un des noms cites par l'avertissement et des lignes de
-# la regle R13 (Breusch-Pagan : deux lignes).
+# la regle R13 (Breusch-Pagan : deux lignes ; pente : Pitman et Student,
+# #423).
 CITES213 <- list(
   "constante" = "Nullite de la constante (proportionnalite stricte)",
   "TOST" = "Equivalence de la constante a zero (TOST)",
-  "pente" = "Test de Pitman sur la pente (lien positif pertes / volume)",
+  "pente" = c("Test de Pitman sur la pente (lien positif pertes / volume)",
+              "Test de Student sur la pente (modele auxiliaire MCO)"),
   "Fisher" = "Test de Fisher (significativite globale)",
   "R2" = "Coefficient de determination R2",
   "RESET" = "RESET (forme fonctionnelle)",
@@ -2749,19 +2756,19 @@ verifier("Critere (a) : x = 100 x 8, y de J1, premium et reserve1 : run_engine o
              all(vapply(res213, function(r) isTRUE(r$ok) &&
                           identical(r$validation$avertissements, v$avertissements), logical(1)))
          })
-verifier("Critere (b) : noms cites par l'avertissement = lignes non applicables au motif R13, un a un (13 lignes, Breusch-Pagan en compte deux), premium et reserve1 (#213)",
+verifier("Critere (b) : noms cites par l'avertissement = lignes non applicables au motif R13, un a un (14 lignes, Breusch-Pagan et pente en comptent deux, #423), premium et reserve1 (#213)",
          {
            a <- avt_vc213(x213)
            liste <- sub(" non applicables\\).*$", "", sub("^.*sur le volume sans objet \\(", "", a))
            # "Breusch-Pagan (Koenker et 1979)" contient " et " : decoupage
            # sur le seul " et " final, puis sur les virgules.
            cites <- strsplit(sub(" et Smirnov$", ", Smirnov", liste), ", ", fixed = TRUE)[[1]]
-           identical(cites, names(CITES213)) && length(unlist(CITES213)) == 13L &&
+           identical(cites, names(CITES213)) && length(unlist(CITES213)) == 14L &&
              all(vapply(res213, function(r) {
                na <- Filter(function(l) identical(l$type, "non applicable") &&
                               startsWith(l$detail, "volumes x_t constants"), r$tests)
                noms <- vapply(na, function(l) l$test, "")
-               length(na) == 13L && !anyDuplicated(noms) &&
+               length(na) == 14L && !anyDuplicated(noms) &&
                  setequal(noms, unlist(CITES213, use.names = FALSE))
              }, logical(1)))
          })

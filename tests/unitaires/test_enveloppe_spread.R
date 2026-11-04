@@ -272,7 +272,7 @@ verifier("Aucun k admissible a B_eff = 500 (60 lignes identiques de z_boot, a 10
              all(is.na(e$bandes$sim_bas)) && all(is.na(e$bandes$sim_haut)) &&
              identical(e$k, NA_integer_) && is.na(e$taux_global_simultane) &&
              taux_417(courbes(zb), 1) >= 60 / 500 &&
-             identical(e$motif, paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0,10",
+             identical(e$motif, paste("aucun rang k admissible : taux de sortie (4.17) superieur a 0.10",
                                       "au rang k = 1 ; bande simultanee non disponible"))
          })
 verifier("Lignes NA de z_boot ecartees du B effectif et des bandes",

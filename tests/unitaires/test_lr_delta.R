@@ -239,23 +239,23 @@ verifier("#331 delta estime = fl(1 - TOL_DELTA_BORD) : usp_lr_delta() juge la bo
              startsWith(tm[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
              !grepl("SOLUTION AU BORD", tm[[n - 1]]$detail, fixed = TRUE)
          })
-verifier("U8 plots_data$lr_delta : seuil obj_min + qchisq(0,80 ; 1), q90 du LR simule, LR, niveau 0,90 (#190)",
+verifier("U8 plots_data$lr_delta : repere asymptotique obj_min + qchisq(0,80 ; 1), quantile 0,90 du LR simule, LR, niveau 0,90 (#190)",
          {
            L <- r1$plots_data$lr_delta; om <- r1$ajustement$obj_min
            q <- function(v) unname(stats::quantile(v, 0.90, type = 7))
-           identical(names(L), c("obj_min", "seuil_asymptotique", "q90_bootstrap", "lr", "niveau")) &&
+           identical(names(L), c("obj_min", "repere_asymptotique", "quantile_bootstrap", "lr", "niveau")) &&
              identical(L$niveau, LR_DELTA_NIVEAU_REPERES) && LR_DELTA_NIVEAU_REPERES == 0.90 &&
-             L$obj_min == om && L$seuil_asymptotique == om + stats::qchisq(0.80, 1) &&
-             identical(names(L$q90_bootstrap), c("delta0", "delta1")) &&
-             isTRUE(proche(L$q90_bootstrap, c(om + q(r1$lr_delta$borne0$lr_boot),
-                                              om + q(r1$lr_delta$borne1$lr_boot)))) &&
+             L$obj_min == om && L$repere_asymptotique == om + stats::qchisq(0.80, 1) &&
+             identical(names(L$quantile_bootstrap), c("delta0", "delta1")) &&
+             isTRUE(proche(L$quantile_bootstrap, c(om + q(r1$lr_delta$borne0$lr_boot),
+                                                   om + q(r1$lr_delta$borne1$lr_boot)))) &&
              identical(unname(L$lr), c(r1$lr_delta$borne0$lr, r1$lr_delta$borne1$lr))
          })
 # Niveau des reperes porte par LR_DELTA_NIVEAU_REPERES (#190) : la constante
-# forcee a 0,95 deplace seuil et quantiles (seuil obj_min + qchisq(0,90 ; 1),
+# forcee a 0,95 deplace repere et quantiles (repere obj_min + qchisq(0,90 ; 1),
 # environ obj_min + 2,706 ; quantile 0,95 du LR simule) et le champ niveau ;
 # constante restauree en sortie.
-verifier("U8 plots_data$lr_delta, LR_DELTA_NIVEAU_REPERES force a 0,95 : seuil obj_min + qchisq(0,90 ; 1), quantile 0,95 du LR simule, niveau 0,95 (#190)",
+verifier("U8 plots_data$lr_delta, LR_DELTA_NIVEAU_REPERES force a 0,95 : repere asymptotique obj_min + qchisq(0,90 ; 1), quantile 0,95 du LR simule, niveau 0,95 (#190)",
          {
            env <- environment(engine_plots_data)
            ancien <- get("LR_DELTA_NIVEAU_REPERES", envir = env)
@@ -267,12 +267,12 @@ verifier("U8 plots_data$lr_delta, LR_DELTA_NIVEAU_REPERES force a 0,95 : seuil o
            q <- function(v) unname(stats::quantile(v, 0.95, type = 7))
            identical(get("LR_DELTA_NIVEAU_REPERES", envir = env), ancien) &&
              identical(L$niveau, 0.95) &&
-             isTRUE(proche(L$seuil_asymptotique, om + stats::qchisq(0.90, 1))) &&
-             abs(L$seuil_asymptotique - om - 2.706) < 1e-3 &&
-             isTRUE(proche(unname(L$q90_bootstrap), c(om + q(r1$lr_delta$borne0$lr_boot),
-                                                      om + q(r1$lr_delta$borne1$lr_boot))))
+             isTRUE(proche(L$repere_asymptotique, om + stats::qchisq(0.90, 1))) &&
+             abs(L$repere_asymptotique - om - 2.706) < 1e-3 &&
+             isTRUE(proche(unname(L$quantile_bootstrap), c(om + q(r1$lr_delta$borne0$lr_boot),
+                                                           om + q(r1$lr_delta$borne1$lr_boot))))
          })
-# Domaine de LR_DELTA_NIVEAU_REPERES (#190) : le seuil asymptotique
+# Domaine de LR_DELTA_NIVEAU_REPERES (#190) : le repere asymptotique
 # obj_min + qchisq(2 * niveau - 1 ; 1) n'est un quantile du melange
 # 1/2 chi2(0) + 1/2 chi2(1) que pour niveau >= 0,5 (qchisq rend NaN sous 0) ;
 # a 0,5 il se confond avec obj_min, a 1 il est infini (et le quantile du LR
@@ -372,14 +372,14 @@ for (d_cible in c(0, 1)) {
                identical(t$inoperant, FALSE) &&
                identical(lignes_lr(r_p)[[autre]], lignes_lr(r2_ref)[[autre]])
            })
-  verifier(sprintf("U11 borne delta = %d en echec : plots_data de meme forme, lr et q90 a NA pour cette borne seule (#161)", d_cible),
+  verifier(sprintf("U11 borne delta = %d en echec : plots_data de meme forme, lr et quantile_bootstrap a NA pour cette borne seule (#161)", d_cible),
            {
              L <- r_p$plots_data$lr_delta; L0 <- r2_ref$plots_data$lr_delta
              identical(names(r_p$plots_data), names(r2_ref$plots_data)) &&
-               identical(names(L), names(L0)) && is.na(L$lr[[k]]) && is.na(L$q90_bootstrap[[k]]) &&
+               identical(names(L), names(L0)) && is.na(L$lr[[k]]) && is.na(L$quantile_bootstrap[[k]]) &&
                identical(L$lr[[autre]], L0$lr[[autre]]) &&
-               identical(L$q90_bootstrap[[autre]], L0$q90_bootstrap[[autre]]) &&
-               identical(L$seuil_asymptotique, L0$seuil_asymptotique) &&
+               identical(L$quantile_bootstrap[[autre]], L0$quantile_bootstrap[[autre]]) &&
+               identical(L$repere_asymptotique, L0$repere_asymptotique) &&
                identical(r_p$plots_data[setdiff(names(r2_ref$plots_data), "lr_delta")],
                          r2_ref$plots_data[setdiff(names(r2_ref$plots_data), "lr_delta")])
            })

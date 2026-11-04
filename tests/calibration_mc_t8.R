@@ -189,8 +189,9 @@
 #  famille d'au moins deux tests (B. a G.) et une ligne globale (LC)
 #  (engine_p_famille()) ; leur presence depend des donnees (exception a
 #  l'invariant I5). Le script les traite a part :
-#    - LIGNES (T2, controle (c)) : les 47 lignes hors lecture conjointe, de
-#      memes libelles et dans le meme ordre a chaque replication ;
+#    - LIGNES (T2, controle (c)) : les 47 lignes hors lecture conjointe et
+#      hors LIGNES_HORS_POPULATION (ci-dessous), de memes libelles et dans le
+#      meme ordre a chaque replication ;
 #    - par replication et par cle de famille (B. a G., LC) : etat (1 : ligne
 #      et p ; 2 : ligne sans p, B effectif de famille < 50, texte T-3b ; 0 :
 #      pas de ligne, k <= 1 ; -1 : incoherence ; -2 : bootstrap$stats_boot
@@ -213,6 +214,19 @@
 #    - controle (t297) : texte du critere de Fk (par. 5.3) reporte SANS
 #      MODIFICATION dans TEXTE_CRITERE_FK et present dans la specification ;
 #    - T2 etendu aux lignes ajoutees (diagnostics, INFO).
+#
+#  Ligne hors population (#423) : LIGNES_HORS_POPULATION, la ligne "Test de
+#  Student sur la pente (modele auxiliaire MCO)", posee par usp_tests()
+#  depuis #423 (02/11/2026), apres les mesures versionnees sur 47 lignes
+#  et hors de leur population (decision Q-46-17 (a), aucune mesure longue
+#  relancee ; raison ecrite dans TXT_HORS_POPULATION, specification
+#  d'actuary, #423, comme dans tests/taux_franchissement_reperes.R et
+#  tests/p_conditionnelle_regime_t8.R). Exclue par son libelle de LIGNES, de
+#  T2 et des deux cotes du controle (c) (J1 observe et chaque replication) ;
+#  le controle (c) verifie qu'elle figure exactement une fois, de type
+#  diagnostic ou non applicable, de verdict INFO, sans p retenue, sur J1
+#  observe et a chaque replication. N_LIGNES (47) la laisse de cote. Texte
+#  en T0 et sous T2.
 #  --combiner ... --campagne 297 [--niveau Lk] [--journal JOURNAL.md] : J1 et
 #  J2 dans une meme combinaison (comptes et controles par jeu), puis
 #  <AAAAMMJJ>-issue297-calibration-famille-ln.md (provenance, critere de Fk,
@@ -429,6 +443,25 @@ T_ <- 8L
 # Ljung-Box (1) et de Box-Pierce (2) (entrees LB1 et BP2, #302).
 N_STATS <- 31L
 N_LIGNES <- 47L
+# Lignes de usp_tests() hors population (#423, Q-46-17 (a) ; voir l'en-tete),
+# reperees par leur libelle exact, et raison ecrite de l'exclusion.
+LIGNES_HORS_POPULATION <- "Test de Student sur la pente (modele auxiliaire MCO)"
+TXT_HORS_POPULATION <- paste(
+  "Ligne ajout\u00e9e par #423 (02/11/2026), apr\u00e8s les mesures versionn\u00e9es sur 47 lignes, et hors de leur",
+  "population (Q-46-17 (a), aucune mesure longue relanc\u00e9e). La ligne est un diagnostic par construction : de type",
+  "diagnostic, ou non applicable sous le pr\u00e9dicat de la ligne Pitman. Son verdict est INFO, sans p retenue : elle ne",
+  "porte jamais ECHEC ni ALERTE et n'entre dans aucun agr\u00e9gat de verdicts. Aucun rep\u00e8re n'y porte. Sa p est",
+  "\u00e9gale \u00e0 celle de la ligne Fisher, d\u00e9j\u00e0 dans la population.")
+LIB_HORS_POPULATION <- "Lignes de usp_tests() hors population (#423), exclues de T2 et du contr\u00f4le (c)"
+TXT_T0_HORS_POPULATION <- paste0(paste0("\u00ab ", LIGNES_HORS_POPULATION, " \u00bb", collapse = " ; "),
+                                 " : pr\u00e9sente une fois, INFO sans p retenue (contr\u00f4l\u00e9). ", TXT_HORS_POPULATION)
+# Ligne hors population conforme (une fois, diagnostic ou non applicable,
+# INFO, sans p retenue) dans une table engine_table_tests().
+hors_population_ok <- function(tab) all(vapply(LIGNES_HORS_POPULATION, function(nm) {
+  k <- which(tab$test == nm)
+  length(k) == 1L && tab$type[k] %in% c("diagnostic", "non applicable") &&
+    identical(tab$verdict[k], "INFO") && is.na(tab$p_retenue[k])
+}, logical(1)))
 SCRIPT_72 <- file.path("tests", "taux_franchissement_reperes.R")
 TABLEAUX_72 <- c(J1 = "docs/tableaux/20260930-issue122-J1.md",
                  J2 = "docs/tableaux/20260930-issue122-J2.md")
@@ -1176,7 +1209,8 @@ tableaux <- function(cpt, stats, lignes) {
   for (f in FAM_LN) L <- c(L, ligne_t2s(lib_ligne_fk(f), sprintf("f|%s", f)))
   L <- c(L, "", paste("Nature : champ nature_p de la ligne (exacte ; Monte-Carlo ; asymptotique, repli nomm\u00e9",
                       "compris ; autre : p sous le mod\u00e8le auxiliaire pond\u00e9r\u00e9 du TOST, exacte par permutation de Pitman sur la pente).",
-                      "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "")
+                      "Inop\u00e9rant : d\u00e9tail pr\u00e9fix\u00e9 \u00ab TEST INOPERANT \u00bb (r\u00e8gle R1), compt\u00e9 aussi en diagnostic."), "",
+         paste0("Hors population (#423), absente(s) de T2 et du contr\u00f4le (c) : ", TXT_T0_HORS_POPULATION), "")
   # --- T3
   L <- c(L, "### T3 -- r\u00e9gimes, r\u00e9plications \u00e9cart\u00e9es, motifs, contr\u00f4les de la famille H, rapport de vraisemblance, IC bootstrap", "",
          "R\u00e9gimes de \u03b4\u0302* :", "",
@@ -1701,6 +1735,7 @@ if (length(FICHIERS_COMB)) {
                 sprintf("Param\u00e8tres : %s", x$par), "",
                 "### T0 -- contexte (identique dans toutes les tranches, v\u00e9rifi\u00e9)", "",
                 entete_md(c("Grandeur", "Valeur")), t0_jeu(x),
+                ligne_md(LIB_HORS_POPULATION, TXT_T0_HORS_POPULATION),
                 ligne_md("Commit de la combinaison", COMMIT_COMB),
                 ligne_md("Empreintes md5 du combinateur", EMPREINTES_COMB),
                 ligne_md("Versionnable (--ecrire)", if (length(nv)) paste("non :", paste(nv, collapse = " ; ")) else "oui"),
@@ -2012,6 +2047,11 @@ controle(identical(unlist(RES_A$metadata[c("B", "alpha", "seed", "theta_equiv")]
 # part, cles f|<famille>).
 TAB_A <- engine_table_tests(RES_A)
 TAB_A <- TAB_A[!TAB_A$fonction %in% "engine_p_famille", , drop = FALSE]
+# Ligne hors population (#423) : controlee (presence unique, INFO, sans p
+# retenue), puis retiree de TAB_A et de LIGNES (indices de TAB_A et de
+# LIGNES alignes, lus par match() ci-dessous).
+HP_A_OK <- hors_population_ok(TAB_A)
+TAB_A <- TAB_A[!TAB_A$test %in% LIGNES_HORS_POPULATION, , drop = FALSE]
 LIGNES <- TAB_A$test
 FE_A <- fk_etats(RES_A$tests, RES_A$bootstrap, FAM_LN)
 controle(fk_etats_ok(FE_A) && !anyNA(match(names(FE_A$f), FAM_LN)),
@@ -2021,8 +2061,9 @@ STATS_Q <- vapply(USP_CATALOGUE_MC, `[[`, "", "queue")
 controle(length(USP_CATALOGUE_MC) == N_STATS && identical(names(RES_A$bootstrap$p_mc), names(USP_CATALOGUE_MC)),
          sprintf("(b) J1 observ\u00e9 : %d statistiques au catalogue (attendu %d), noms de bootstrap$p_mc = catalogue",
                  length(USP_CATALOGUE_MC), N_STATS))
-controle(length(LIGNES) == N_LIGNES && !anyDuplicated(LIGNES),
-         sprintf("(c) J1 observ\u00e9 : %d lignes (attendu %d), libell\u00e9s distincts", length(LIGNES), N_LIGNES))
+controle(length(LIGNES) == N_LIGNES && !anyDuplicated(LIGNES) && HP_A_OK,
+         sprintf("(c) J1 observ\u00e9 : %d lignes (attendu %d), libell\u00e9s distincts, hors %s (une fois, INFO sans p retenue, #423)",
+                 length(LIGNES), N_LIGNES, paste0("\u00ab ", LIGNES_HORS_POPULATION, " \u00bb", collapse = ", ")))
 controle(setequal(names(STAT_LIGNE), names(USP_CATALOGUE_MC)) && all(STAT_LIGNE %in% LIGNES) &&
            all(vapply(names(STAT_LIGNE), function(s)
              identical(TAB_A$p_monte_carlo[match(STAT_LIGNE[[s]], LIGNES)], unname(RES_A$bootstrap$p_mc[[s]])), logical(1))),
@@ -2120,6 +2161,11 @@ for (b in seq.int(DEBUT, FIN)) {
   # sans n ni p retenue (n compte ci-dessous, par l'etat de la ligne).
   tab <- engine_table_tests(res)
   lfk <- tab$fonction %in% "engine_p_famille"
+  # Ligne hors population (#423) : controlee puis retiree, comme sur J1
+  # observe (des deux cotes du controle (c)).
+  if (!hors_population_ok(tab[!lfk, , drop = FALSE])) echecs_b$c <- c(echecs_b$c, b)
+  khp <- tab$test %in% LIGNES_HORS_POPULATION & !lfk
+  tab <- tab[!khp, , drop = FALSE]; lfk <- lfk[!khp]
   if (!identical(tab$test[!lfk], LIGNES)) echecs_b$c <- c(echecs_b$c, b)
   for (k in seq_len(nrow(tab))) {
     li <- if (lfk[k]) sprintf("f|%s", substr(tab$famille[k], 1L, 2L)) else sprintf("l|%s", nettoyer_cle(tab$test[k]))
@@ -2226,7 +2272,7 @@ liste_b <- function(v) if (length(v)) paste0(" : r\u00e9plication(s) ", paste(ut
                                               if (length(unique(v)) > 20) ", ..." else "") else ""
 controle(!length(echecs_b$b), sprintf("(b) noms de bootstrap$p_mc et motif_mc = les %d du catalogue, p_mc absente avec motif, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
                                       N_STATS, liste_b(echecs_b$b)))
-controle(!length(echecs_b$c), sprintf("(c) %d lignes hors lecture conjointe, m\u00eames libell\u00e9s et m\u00eame ordre que J1 observ\u00e9, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
+controle(!length(echecs_b$c), sprintf("(c) %d lignes hors lecture conjointe et hors ligne Student (#423, pr\u00e9sente une fois, INFO sans p retenue), m\u00eames libell\u00e9s et m\u00eame ordre que J1 observ\u00e9, \u00e0 chaque r\u00e9plication trait\u00e9e%s",
                                       N_LIGNES, liste_b(echecs_b$c)))
 controle(!length(echecs_b$k),
          sprintf(paste("(k) lignes de lecture conjointe (#297, cl\u00e9s %s) : \u00e9tats 1 (ligne et p), 2 (ligne sans p, T-3b) ou 0 (pas de ligne, k \u2264 1)",
@@ -2284,6 +2330,7 @@ S <- c(sprintf("## Calibration des p-values Monte-Carlo \u00e0 T = 8, jeu %s (is
        "### T0 -- contexte", "",
        entete_md(c("Grandeur", "Valeur")),
        lignes_contexte(CTX),
+       ligne_md(LIB_HORS_POPULATION, TXT_T0_HORS_POPULATION),
        ligne_md("R\u00e9plications", sprintf("%d (trait\u00e9es ici : %d \u00e0 %d)", OPT_R, DEBUT, FIN)),
        ligne_md("Dur\u00e9e (s)", sprintf("contr\u00f4les %.1f ; r\u00e9plications %.1f (%.1f s par r\u00e9plication) ; total %.1f",
                                          t_controle, t_rep, t_rep / n_rep,

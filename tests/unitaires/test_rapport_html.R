@@ -210,6 +210,48 @@ verifier("Rapport : empreintes des donnees, du resultat et du code presentes",
          all(vapply(c(e1$donnees, e1$resultat, idt$md5_engine),
                     function(x) grepl(x, h, fixed = TRUE), logical(1))) &&
          identical(r_png$empreintes, e1[c("donnees", "resultat")]))
+# Deux empreintes du code (#397, ADR 0009 annote le 02/11/2026) : moteur et
+# chargeur, chacune egale au md5 des octets de son fichier, chacune sous un
+# libelle qui nomme le fichier ; l'identite reste hors de run_engine().
+verifier("Rapport : deux empreintes du code, md5 de R/engine.R et de R/charger_moteur.R (#397)",
+         identical(idt$md5_engine, unname(as.character(tools::md5sum(file.path(.racine, "R", "engine.R"))))) &&
+         identical(idt$md5_chargeur, unname(as.character(tools::md5sum(file.path(.racine, "R", "charger_moteur.R"))))) &&
+         !identical(idt$md5_engine, idt$md5_chargeur) &&
+         compte(h, paste0("<code>", idt$md5_engine, "</code>")) == 1 &&
+         compte(h, paste0("<code>", idt$md5_chargeur, "</code>")) == 1 &&
+         compte(h, "Code du moteur (R/engine.R)") == 1 &&
+         compte(h, "Chargeur du moteur (R/charger_moteur.R)") == 1)
+verifier("Rapport : chaque libelle est sur la ligne de son empreinte (#397)",
+         grepl(paste0("Code du moteur \\(R/engine.R\\)</td><td><code>", idt$md5_engine, "</code>"), h) &&
+         grepl(paste0("Chargeur du moteur \\(R/charger_moteur.R\\)</td><td><code>", idt$md5_chargeur, "</code>"), h))
+verifier("Rapport : sans identite, les deux empreintes du code sont des tirets (#397)", {
+  f_sans <- tempfile(fileext = ".html")
+  rapport_html(res_ln, NULL, f_sans, interactif = FALSE)
+  h_sans <- lire(f_sans)
+  grepl("Chargeur du moteur (R/charger_moteur.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE) &&
+    grepl("Code du moteur (R/engine.R)</td><td><code>\u2013</code>", h_sans, fixed = TRUE)
+})
+# Identite d'un ancien format (sans md5_chargeur, sans md5_engine ni releve) :
+# les quatre empreintes passent par .ou_tiret(), une chaine de longueur 1 ;
+# aucune erreur de data.frame (4 et 3 lignes), un tiret a la place (#397).
+verifier("Rapport : identite sans md5_chargeur (ou sans md5_engine) : produit sans erreur, tiret a la place de l'empreinte absente (#397)", {
+  vers <- list(list(version = "2.0.0", md5_engine = "abc123", releve = "x"),
+               list(version = "2.0.0", md5_chargeur = "def456", releve = "x"),
+               list(version = "2.0.0"))
+  vapply(vers, function(id) {
+    f_id <- tempfile(fileext = ".html")
+    ok <- tryCatch({ rapport_html(res_ln, NULL, f_id, interactif = FALSE, identite = id); TRUE },
+                   error = function(e) FALSE)
+    h_id <- if (ok) lire(f_id) else ""; unlink(f_id)
+    ok &&
+      identical(grepl("Chargeur du moteur (R/charger_moteur.R)</td><td><code>\u2013</code>", h_id, fixed = TRUE),
+                is.null(id$md5_chargeur)) &&
+      identical(grepl("Code du moteur (R/engine.R)</td><td><code>\u2013</code>", h_id, fixed = TRUE),
+                is.null(id$md5_engine)) &&
+      (is.null(id$md5_chargeur) || grepl("<code>def456</code>", h_id, fixed = TRUE)) &&
+      (is.null(id$md5_engine) || grepl("<code>abc123</code>", h_id, fixed = TRUE))
+  }, logical(1)) |> all()
+})
 verifier("Rapport : horodatage du calcul et version DESCRIPTION restitues",
          grepl(format(res_ln$metadata$horodatage, "%Y-%m-%d %H:%M:%S"), h, fixed = TRUE) &&
          grepl(paste0("<td>", idt$version, "</td>"), h, fixed = TRUE))
@@ -282,8 +324,8 @@ verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libel
 tb_vc <- engine_table_tests(run_engine(xt = rep(100, 8), yt = yt, methode = "premium",
                                        segment = 1, B = 99, nature_donnees = "brutes"))
 i_r13 <- which(tb_vc$type == "non applicable" & startsWith(tb_vc$commentaire, "volumes x_t constants"))
-verifier("Volumes constants (R13) : 13 lignes non applicables, type et motif restitues",
-         length(i_r13) == 13 &&
+verifier("Volumes constants (R13) : 14 lignes non applicables (ligne Student ajoutee, #423), type et motif restitues",
+         length(i_r13) == 14 &&
          all(table_detail_groupe(tb_vc)$Type[i_r13] == "non applicable") &&
          all(startsWith(table_detail_groupe(tb_vc)[["Motif / commentaire"]][i_r13], "volumes x_t constants")) &&
          all(grepl("non applicable</span>", table_synthese_groupe(tb_vc)$Verdict[i_r13], fixed = TRUE)))
@@ -610,6 +652,7 @@ verifier("Rapport fige, jackknife entierement NA (plots_data injecte) : produit 
            r328$plots_data$influence$sigma_usp_sans_t <- rep(NA_real_, length(xt))
            r328$plots_data$influence$ecart_sigma <- rep(NA_real_, length(xt))
            r328$plots_data$influence$fort_ecart_sigma <- rep(NA, length(xt))
+           r328$plots_data$influence$non_evaluable <- rep(TRUE, length(xt))
            f328 <- tempfile(fileext = ".html")
            ok328 <- tryCatch({
              rapport_html(r328, NULL, f328, interactif = FALSE, identite = idt); TRUE
@@ -634,6 +677,7 @@ nt328 <- tryCatch(note_influence(pd328), error = function(e) e)
 verifier("Jeu de #224 (annee 5 non evaluable) : barre de l'annee 5 absente, graphique base R sans erreur ; note qui cite l'annee 5, conserve la phrase de l'annee la plus influente, aucun 'NA' (#328)",
          !inherits(res328, "error") && isTRUE(res328$ok) &&
            identical(which(is.na(pd328$influence$ecart_sigma)), 5L) &&
+           identical(which(pd328$influence$non_evaluable), 5L) &&
            base328 && is.character(nt328) && length(nt328) == 1L &&
            grepl("Ann&eacute;e 5 non &eacute;valuable", nt328, fixed = TRUE) &&
            grepl("d&eacute;place sigma_USP de", nt328, fixed = TRUE) &&
@@ -641,6 +685,7 @@ verifier("Jeu de #224 (annee 5 non evaluable) : barre de l'annee 5 absente, grap
 verifier("note_influence(), annees non evaluables 2 et 5 (injection) : 'Annees 2 et 5 non evaluables' ; jeu sans annee non evaluable : aucune phrase (#328)",
          {
            pd2 <- pd328; pd2$influence$sigma_usp_sans_t[2] <- NA; pd2$influence$ecart_sigma[2] <- NA
+           pd2$influence$non_evaluable[2] <- TRUE
            n2 <- note_influence(pd2)
            n0 <- note_influence(res_ln$plots_data)
            grepl("Ann&eacute;es 2 et 5 non &eacute;valuables", n2, fixed = TRUE) &&
@@ -650,20 +695,72 @@ verifier("note_influence(), annees non evaluables 2, 5 et 7 (injection) : 'Annee
          {
            pd3 <- pd328
            pd3$influence$sigma_usp_sans_t[c(2, 7)] <- NA; pd3$influence$ecart_sigma[c(2, 7)] <- NA
+           pd3$influence$non_evaluable[c(2, 7)] <- TRUE
            grepl("Ann&eacute;es 2, 5 et 7 non &eacute;valuables", note_influence(pd3), fixed = TRUE)
          })
-# ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini (sigma_USP
-# nul, par exemple) : le graphique est vide (jamais « need finite ylim ») et la
-# note rend la phrase fixe, une chaine.
-verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini : graphique vide au message fixe, note a phrase fixe en une chaine (#328)",
+# ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini et que
+# des annees restent evaluables (sigma_USP nul, par exemple) : le graphique est
+# vide (jamais « need finite ylim ») avec le message aligne sur le moteur
+# (ecart relatif non defini, #405), et non « Aucune annee evaluable » ; la
+# note rend cette phrase, une chaine, suivie de la phrase de l'annee 5 non
+# evaluable.
+MSG_405 <- "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"
+verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : graphique vide au message de sigma_USP nul, note a phrase alignee sur le moteur en une chaine (#328, #405)",
          {
            pdn <- pd328; pdn$influence$ecart_sigma[] <- NA_real_; pdn$influence$fort_ecart_sigma[] <- NA
            op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
            vn <- vide_328(pdn); grDevices::dev.off(); options(op)
            nn <- tryCatch(note_influence(pdn), error = function(e) e)
-           all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_328) &&
+           all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_405) &&
              is.character(nn) && length(nn) == 1L && !grepl("NA", nn, fixed = TRUE) &&
-             grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE)
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+                   nn, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE) &&
+             grepl("Ann&eacute;e 5 non &eacute;valuable", nn, fixed = TRUE)
+         })
+# Chemin reel de #405 : sigma_USP du calcul complet force a 0 (substitution de
+# usp_parametre() dans l'environnement du moteur, restauree en sortie) ; le
+# moteur pose ecart_sigma = Inf et non_evaluable FALSE partout. Second cas :
+# l'annee 3 est de plus non evaluable (usp_jackknife() substitue).
+sigma_nul405 <- function(annee3 = FALSE) {
+  e <- environment(run_engine)
+  par_o <- get("usp_parametre", envir = e); jk_o <- get("usp_jackknife", envir = e)
+  on.exit({ assign("usp_parametre", par_o, envir = e); assign("usp_jackknife", jk_o, envir = e) })
+  assign("usp_parametre", function(fit, ...) {
+    p <- par_o(fit, ...); if (fit$T == length(xt)) p$sigma_usp <- 0; p
+  }, envir = e)
+  if (annee3)
+    assign("usp_jackknife", function(...) { j <- jk_o(...); j$sigma_usp[3] <- NA; j }, envir = e)
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")
+}
+verifier("sigma_USP nul (chemin reel) : note et graphique alignes sur la ligne jackknife du moteur, pas de 'Aucune annee evaluable' (#405)",
+         {
+           r <- sigma_nul405()
+           pd <- r$plots_data
+           op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+           v <- vide_328(pd); grDevices::dev.off(); options(op)
+           n <- note_influence(pd)
+           tb <- engine_table_tests(r)
+           isTRUE(r$ok) && !any(pd$influence$non_evaluable) && all(is.infinite(pd$influence$ecart_sigma)) &&
+             any(grepl("sigma_USP nul ou non fini", tb$commentaire, fixed = TRUE)) &&
+             v$ok && identical(v$msg, MSG_405) &&
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+                   n, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE) &&
+             !grepl("valuable", n, fixed = TRUE)
+         })
+verifier("sigma_USP nul et annee 3 non evaluable (chemin reel) : la note cite sigma_USP nul puis l'annee 3, le graphique garde le message de sigma_USP nul (#405)",
+         {
+           r <- sigma_nul405(annee3 = TRUE)
+           pd <- r$plots_data
+           op <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+           v <- vide_328(pd); grDevices::dev.off(); options(op)
+           n <- note_influence(pd)
+           isTRUE(r$ok) && identical(which(pd$influence$non_evaluable), 3L) &&
+             v$ok && identical(v$msg, MSG_405) &&
+             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
+                   n, fixed = TRUE) &&
+             !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE)
          })
 # Le maximum ne cite jamais une annee ecartee : meme avec un ecart enorme a
 # l'annee non evaluable (injection), la note donne le maximum des autres annees.
@@ -672,16 +769,26 @@ verifier("note_influence() : maximum calcule hors des annees non evaluables (eca
            pdm <- pd328; pdm$influence$ecart_sigma[5] <- 9
            grepl("sigma_USP de <b>+2,1 %</b>", note_influence(pdm), fixed = TRUE)
          })
-# Reperage par sigma_usp_sans_t (critere de jack_non_evaluables du moteur) et
-# non par ecart_sigma : annee non evaluable reperee meme si ecart_sigma y est
-# fini (injection), repli sur ecart_sigma sans sigma_usp_sans_t.
-verifier("note_influence(), repere par sigma_usp_sans_t non fini (ecart_sigma fini) ; repli sur ecart_sigma sans sigma_usp_sans_t (#328)",
+# Reperage par la colonne non_evaluable du moteur (engine_influence(), critere
+# de jack_non_evaluables, #224 ; #404), sans test de finitude dans
+# l'affichage : annee marquee non evaluable reperee meme si ses ecarts sont
+# finis (injection) ; sigma_usp_sans_t non fini sans la marque du moteur : non
+# reperee ; colonne absente (resultat anterieur a #404) : aucune annee reperee.
+verifier("note_influence(), annees non evaluables lues dans non_evaluable du moteur, sans test de finitude ; colonne absente -> aucune (#328, #404)",
          {
-           pdr <- pd328; pdr$influence$sigma_usp_sans_t[3] <- NA
-           pdq <- pd328; pdq$influence$sigma_usp_sans_t <- NULL
-           grepl("Ann&eacute;es 3 et 5 non &eacute;valuables", note_influence(pdr), fixed = TRUE) &&
-             grepl("Ann&eacute;e 5 non &eacute;valuable", note_influence(pdq), fixed = TRUE) &&
-             !grepl("non &eacute;valuables", note_influence(pdq), fixed = TRUE)
+           pdr <- pd328; pdr$influence$non_evaluable[3] <- TRUE
+           pds <- pd328; pds$influence$sigma_usp_sans_t[3] <- NA
+           pdq <- pd328; pdq$influence$non_evaluable <- NULL
+           identical(pd328$influence$non_evaluable, !is.finite(pd328$influence$sigma_usp_sans_t)) &&
+             grepl("Ann&eacute;es 3 et 5 non &eacute;valuables", note_influence(pdr), fixed = TRUE) &&
+             grepl("Ann&eacute;e 5 non &eacute;valuable", note_influence(pds), fixed = TRUE) &&
+             !grepl("non &eacute;valuables", note_influence(pds), fixed = TRUE) &&
+             !grepl("valuable", note_influence(pdq), fixed = TRUE)
+         })
+verifier("R/display_helpers.R, .jack_non_evaluables() : lecture de non_evaluable, aucun is.finite (#404)",
+         {
+           src <- paste(deparse(.jack_non_evaluables), collapse = "\n")
+           grepl("non_evaluable", src, fixed = TRUE) && !grepl("is.finite", src, fixed = TRUE)
          })
 ## --- Designations lues dans le moteur (issue #396) ----------------------------
 # note_influence() et note_influence_mw() lisent la colonne plus_influente
@@ -738,7 +845,7 @@ verifier("note_influence(), amplitude arrondie a 0,0 (injection : ecarts 0, 3e-6
            grepl(paste("Ann&eacute;es les plus influentes, d'influence &eacute;gale &agrave; la",
                        "pr&eacute;cision num&eacute;rique pr&egrave;s : 1, 2 et 3 ; le retrait de chacune",
                        "d&eacute;place sigma_USP de <b>moins de 0,05 %</b> en valeur absolue. "), nz, fixed = TRUE) &&
-             grepl(paste("Le retrait de l'ann&eacute;e la plus influente d&eacute;place sigma_USP de",
+             grepl(paste("Le retrait de l'ann&eacute;e la plus influente, 1, d&eacute;place sigma_USP de",
                          "<b>moins de 0,05 %</b> en valeur absolue. "), n1, fixed = TRUE) &&
              !any(grepl("[+-]0,0 %", c(nz, n1))) && !grepl("respectivement", nz, fixed = TRUE)
          })
@@ -813,6 +920,17 @@ verifier("note_influence_mw(), une cellule non bornee (injection) et la cellule 
              grepl("La cellule la plus influente est <b>(i = 1, j = 4)</b>", n0, fixed = TRUE) &&
              !grepl("born&eacute;, la plus", n0, fixed = TRUE)
          })
+verifier("note_influence_mw(), cellule non bornee (injection) : la phrase du DFBETAS non borne precede 'Parmi les cellules a DFBETAS borne' (#404)",
+         {
+           d <- res_mw$plots_data$influence
+           k <- which(!d$plus_influente)[1L]
+           pdb <- res_mw$plots_data
+           pdb$influence$dfbetas_non_borne[k] <- TRUE; pdb$influence$dfbetas[k] <- NA_real_
+           nb <- note_influence_mw(pdb)
+           i_nb <- regexpr("DFBETAS non born&eacute; :", nb, fixed = TRUE)
+           i_mx <- regexpr("Parmi les cellules &agrave; DFBETAS born&eacute;", nb, fixed = TRUE)
+           i_nb > 0 && i_mx > 0 && i_nb < i_mx
+         })
 verifier("R/display_helpers.R : aucun which.max (maximum de l'influence designe par le moteur, #396)",
          !any(grepl("which.max", readLines(file.path(.racine, "R", "display_helpers.R")), fixed = TRUE)))
 if (requireNamespace("plotly", quietly = TRUE)) {
@@ -831,7 +949,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 # Erreur injectee dans l'environnement du moteur : usp_ajuster_contraint() en
 # echec sur les donnees observees aux deux bornes (jeu a delta interieur) et
 # usp_objectif() en echec sous usp_profil(). Le moteur rend ok = TRUE avec
-# plots_data$lr_delta$lr, q90_bootstrap et les objectifs du profil a NA, de
+# plots_data$lr_delta$lr, quantile_bootstrap et les objectifs du profil a NA, de
 # meme forme ; l'affichage doit les restituer sans erreur R (trace du profil
 # en base R sur pdf(NULL), tableaux de l'onglet Tests, rapport fige).
 avec_injection161 <- function(nom, f, expr) {
@@ -856,9 +974,9 @@ res161 <- avec_injection161("usp_ajuster_contraint",
   }, run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
                 nature_donnees = "brutes")))
 tb161 <- engine_table_tests(res161)
-verifier("LR sur delta et profil en echec : ok = TRUE, lr, q90 et objectifs du profil a NA dans plots_data (#161)",
+verifier("LR sur delta et profil en echec : ok = TRUE, lr, quantile_bootstrap et objectifs du profil a NA dans plots_data (#161)",
          isTRUE(res161$ok) && all(is.na(res161$plots_data$lr_delta$lr)) &&
-           all(is.na(res161$plots_data$lr_delta$q90_bootstrap)) &&
+           all(is.na(res161$plots_data$lr_delta$quantile_bootstrap)) &&
            all(is.na(res161$plots_data$profil_delta$objectif)) &&
            sum(tb161$commentaire == MOTIF_LR_DELTA_ECHEC) == 2L)
 option161 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
@@ -889,6 +1007,40 @@ res161_ord <- run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 
 verifier("Profil entierement NA : plot_profil_delta() aiguille vers .vide() avec le message renvoyant aux lignes G ; profil ordinaire trace sans .vide() (#161)",
          identical(releve_vide161(res161$plots_data), MSG_PROFIL_NA) &&
            is.null(releve_vide161(res161_ord$plots_data)))
+# #405 : aide du profil en delta (.note_profil_delta()), portee par
+# note_surface() dans un champ distinct (aide) et non dans html ; niveau
+# porte par le moteur (0,90 : « a 90 % ») ou absent (aucun niveau imprime) ;
+# absente quand le profil n'est pas trace (res161, objectif entierement NA :
+# meme condition que plot_profil_delta()) ; rapport fige : bloc distinct de
+# classe gris (.graphiques_rapport(), champ note$aide).
+verifier("#405 : .note_profil_delta() dans note_surface()$aide (avec et sans niveau), hors de html, absente si le profil n'est pas calculable ; aide du rapport fige transmise a part",
+         {
+           pd <- res161_ord$plots_data
+           ns <- note_surface(pd); a <- .note_profil_delta(pd)
+           pd_sn <- pd; pd_sn$lr_delta$niveau <- NULL
+           a_sn <- note_surface(pd_sn)$aide
+           g <- .graphiques_rapport(res161_ord)
+           g_surf <- g[[which(vapply(g, function(o) identical(o$titre, "Surface objectif"), NA))]]
+           r <- list(
+             champ = is.character(a) && identical(ns$aide, a) && !grepl(a, ns$html, fixed = TRUE),
+             titre = startsWith(a, "Profil de vraisemblance en delta : "),
+             niveau = grepl("de quantile plus &eacute;lev&eacute; au m&ecirc;me niveau", a, fixed = TRUE) &&
+               grepl("intervalle de confiance &agrave; 90 % pour delta", a, fixed = TRUE) &&
+               grepl("quantiles &agrave; 90 % du rapport", a, fixed = TRUE) &&
+               grepl("sous chacune des deux bornes ; elles n'ont pas d'&eacute;quivalent pour delta int&eacute;rieur.",
+                     a, fixed = TRUE),
+             sans_niveau = is.character(a_sn) &&
+               grepl("intervalle de confiance pour delta", a_sn, fixed = TRUE) &&
+               grepl("quantiles du rapport", a_sn, fixed = TRUE) && !grepl("%", a_sn, fixed = TRUE),
+             non_calculable = all(is.na(res161$plots_data$profil_delta$objectif)) &&
+               is.null(.note_profil_delta(res161$plots_data)) &&
+               (is.null(res161$plots_data$surface) || is.null(note_surface(res161$plots_data)$aide)),
+             sans_reperes = { p0 <- pd; p0$lr_delta <- NULL; is.null(.note_profil_delta(p0)) },
+             rapport = identical(g_surf$note$aide, a) && identical(g_surf$note$html, ns$html))
+           ok <- vapply(r, isTRUE, NA)
+           if (!all(ok)) cat("  controles en echec :", names(r)[!ok], "\n")
+           all(ok)
+         })
 verifier("LR sur delta et profil en echec : tableaux de synthese et de detail sans erreur, lignes LR non applicables avec leur motif (#161)",
          {
            g <- tb161[tb161$commentaire %in% MOTIF_LR_DELTA_ECHEC, ]
@@ -977,7 +1129,7 @@ releve_base162 <- function(f, largeur = 560 / 72, hauteur = 250 / 72) {
   as.list(r)
 }
 rb162 <- releve_base162(function() plot_profil_delta(pd162))
-seuil162 <- pd162$lr_delta$seuil_asymptotique
+seuil162 <- pd162$lr_delta$repere_asymptotique
 # Libelles des reperes du profil de delta au niveau porte par le moteur
 # (.lr_libelles(), issue #190).
 LIB90 <- .lr_libelles(pd162$lr_delta$niveau)
@@ -1055,7 +1207,7 @@ verifier("QQ-plot base R, qq_enveloppe forge a 0,80 : legende des bandes a 80 % 
 if (requireNamespace("plotly", quietly = TRUE)) {
   # Libelle du repere : cale sur le bord du cote libre, s'etendant vers
   # l'interieur (xanchor du cote du bord), fond opaque, dernier des
-  # annotations ; annotation q90 du meme cote de l'autre cote de la ligne.
+  # annotations ; annotation de quantile du meme cote de l'autre cote de la ligne.
   plotly_lib162 <- function(pd) {
     b <- plotly::plotly_build(plot_profil_delta(pd))
     an <- b$x$layout$annotations
@@ -1073,7 +1225,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
       !identical(q[[1]]$yanchor, a$yanchor)
     if (ok) cote else NA_character_
   }
-  verifier("Profil de delta, plotly : libelle du repere du cote libre (J1 au bord et J2 : gauche ; delta estime 0,45 : droite), fond opaque, annotation q90 du meme cote de l'autre cote de la ligne, libelle long au survol (#162)",
+  verifier("Profil de delta, plotly : libelle du repere du cote libre (J1 au bord et J2 : gauche ; delta estime 0,45 : droite), fond opaque, annotation de quantile du meme cote de l'autre cote de la ligne, libelle long au survol (#162)",
            identical(plotly_lib162(pd162), "gauche") && identical(plotly_lib162(pd_j2), "gauche") &&
              identical(plotly_lib162(pd_j3f(0.45)), "droite"))
   verifier("QQ-plot plotly, qq_enveloppe forge a 0,80 : annotation et titre a 80 % (#162)",
@@ -1088,9 +1240,9 @@ if (requireNamespace("plotly", quietly = TRUE)) {
   cat("  note : plotly absent ; annotations plotly du profil de delta et du QQ-plot non exercees (#162).\n")
 }
 
-## --- Issue #195 : annotation q90 du bord oppose au cote libre (plotly) -------
-# Logique de placement lue sur .lr_annotations_q90(), qui construit les
-# annotations q90 sans plotly : elle tourne donc sans plotly. Bord oppose =
+## --- Issue #195 : annotation de quantile du bord oppose au cote libre (plotly) -------
+# Logique de placement lue sur .lr_annotations_quantile(), qui construit les
+# annotations des quantiles sans plotly : elle tourne donc sans plotly. Bord oppose =
 # l'autre que .lr_cote_libre(), du cote de delta estime. Pas traversee par le
 # repere asymptotique : la bande verticale du texte (yanchor, yshift) est du
 # cote de la marque oppose a la ligne. Pas traversee par la ligne en delta
@@ -1098,8 +1250,8 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 # 0,594, annotation de delta = 1) et J3 force a 0,45 (annotation de delta = 0).
 ann195 <- function(pd) {
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  list(libre = libre, s = pd$lr_delta$seuil_asymptotique, q = unname(pd$lr_delta$q90_bootstrap),
-       ann = .lr_annotations_q90(unname(pd$lr_delta$q90_bootstrap), pd$lr_delta$seuil_asymptotique, libre,
+  list(libre = libre, s = pd$lr_delta$repere_asymptotique, q = unname(pd$lr_delta$quantile_bootstrap),
+       ann = .lr_annotations_quantile(unname(pd$lr_delta$quantile_bootstrap), pd$lr_delta$repere_asymptotique, libre,
                                  LIB90$quantile_court))
 }
 # Annotation de l'indice k (1 : delta = 0, 2 : delta = 1), NULL si absente.
@@ -1118,36 +1270,36 @@ oppose_ok195 <- function(pd) {
     hors_repere195(x, a$q[k], a$s)
 }
 a_j2 <- ann195(pd_j2); a_j3 <- ann195(pd_j3f(0.45))
-verifier(sprintf("Profil de delta, plotly : annotation q90 du bord oppose, cas de l'issue (J2 delta estime %s, annotation de delta = 1 au-dessus de sa marque, sur le repere ; J3 force a 0,45, annotation de delta = 0 sous sa marque, sous le repere) : hors du repere asymptotique, fond opaque (#195)",
+verifier(sprintf("Profil de delta, plotly : annotation de quantile du bord oppose, cas de l'issue (J2 delta estime %s, annotation de delta = 1 au-dessus de sa marque, sur le repere ; J3 force a 0,45, annotation de delta = 0 sous sa marque, sous le repere) : hors du repere asymptotique, fond opaque (#195)",
                  format(round(pd_j2$delta_estime, 3), decimal.mark = ",")),
          a_j2$libre == 1L && a_j2$q[2] >= a_j2$s && oppose_ok195(pd_j2) &&
            identical(ann_k195(a_j2, 2)$yanchor, "bottom") &&
            a_j3$libre == 2L && a_j3$q[1] < a_j3$s && oppose_ok195(pd_j3f(0.45)) &&
            identical(ann_k195(a_j3, 1)$yanchor, "top"))
-verifier("Profil de delta, plotly : annotation q90 du bord oppose hors du repere et a fond opaque, delta estime proche de chaque bord et autour de 0,5 (0 ; 0,02 ; 0,45 ; 0,50 ; 0,55 ; 0,98 ; 1 ; NA) (#195)",
+verifier("Profil de delta, plotly : annotation de quantile du bord oppose hors du repere et a fond opaque, delta estime proche de chaque bord et autour de 0,5 (0 ; 0,02 ; 0,45 ; 0,50 ; 0,55 ; 0,98 ; 1 ; NA) (#195)",
          all(vapply(c(0, 0.02, 0.45, 0.50, 0.55, 0.98, 1, NA), function(d0) oppose_ok195(pd_j3f(d0)), TRUE)))
 # Toutes les positions de marque par rapport au repere, de chaque cote libre :
 # les deux annotations sont hors du repere ; seule celle du bord oppose a un
 # fond (celle du cote libre garde son rendu de #162) ; seuil non fini : les
 # deux au-dessus de leur marque, comme avant ; quantile non fini : pas
 # d'annotation ; textes inchanges.
-verifier("Placement des annotations q90 (.lr_annotations_q90()) : hors du repere asymptotique pour toute position des marques, fond opaque au seul bord oppose, seuil non fini ou quantile NA traites, textes LIB90$quantile_court (niveau 0,90 du moteur) inchanges (#195)",
+verifier("Placement des annotations des quantiles (.lr_annotations_quantile()) : hors du repere asymptotique pour toute position des marques, fond opaque au seul bord oppose, seuil non fini ou quantile NA traites, textes LIB90$quantile_court (niveau 0,90 du moteur) inchanges (#195)",
          all(vapply(list(c(1, 3), c(3, 1), c(1, 1), c(3, 3), c(2, 2)), function(q)
            all(vapply(1:2, function(libre) {
-             an <- .lr_annotations_q90(q, 2, libre, LIB90$quantile_court)
+             an <- .lr_annotations_quantile(q, 2, libre, LIB90$quantile_court)
              length(an) == 2L &&
                all(vapply(1:2, function(k) hors_repere195(an[[k]], q[k], 2) &&
                             identical(an[[k]]$text, LIB90$quantile_court[k]) &&
                             identical(an[[k]]$bgcolor, if (k == libre) NULL else COUL$fond), TRUE))
            }, TRUE)), TRUE)) &&
-           all(vapply(.lr_annotations_q90(c(1, 3), NA_real_, 1L, LIB90$quantile_court), function(x) identical(x$yanchor, "bottom"), TRUE)) &&
-           length(.lr_annotations_q90(c(NA, 3), 2, 1L, LIB90$quantile_court)) == 1L &&
-           identical(.lr_annotations_q90(c(NA, 3), 2, 1L, LIB90$quantile_court)[[1]]$text, LIB90$quantile_court[2]) &&
+           all(vapply(.lr_annotations_quantile(c(1, 3), NA_real_, 1L, LIB90$quantile_court), function(x) identical(x$yanchor, "bottom"), TRUE)) &&
+           length(.lr_annotations_quantile(c(NA, 3), 2, 1L, LIB90$quantile_court)) == 1L &&
+           identical(.lr_annotations_quantile(c(NA, 3), 2, 1L, LIB90$quantile_court)[[1]]$text, LIB90$quantile_court[2]) &&
            identical(LIB90$quantile_court, c("q90 % du LR simulé sous δ = 0", "q90 % du LR simulé sous δ = 1")))
 if (requireNamespace("plotly", quietly = TRUE)) {
-  # Objet plotly_build() : les annotations q90 sont celles de
-  # .lr_annotations_q90(), le libelle du repere en dernier.
-  verifier("Profil de delta, plotly_build() : annotations q90 = .lr_annotations_q90() (J2, J3 force a 0,45 et 0,98), libelle du repere en dernier (#195)",
+  # Objet plotly_build() : les annotations des quantiles sont celles de
+  # .lr_annotations_quantile(), le libelle du repere en dernier.
+  verifier("Profil de delta, plotly_build() : annotations des quantiles = .lr_annotations_quantile() (J2, J3 force a 0,45 et 0,98), libelle du repere en dernier (#195)",
            all(vapply(list(pd_j2, pd_j3f(0.45), pd_j3f(0.98)), function(pd) {
              an <- plotly::plotly_build(plot_profil_delta(pd))$x$layout$annotations
              attendu <- ann195(pd)$ann
@@ -1158,7 +1310,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB90$asympt_court)
            }, TRUE)))
 } else {
-  cat("  note : plotly absent ; annotations q90 de l'objet plotly_build() non exercees (#195).\n")
+  cat("  note : plotly absent ; annotations des quantiles de l'objet plotly_build() non exercees (#195).\n")
 }
 
 ## --- Issue #190 : niveau des reperes du profil de delta lu dans le moteur ---
@@ -1228,18 +1380,18 @@ verifier("display_helpers.R : aucun « 90 % » ni « 90% » litteral dans le cod
 # (par("usr") les contient), ligne en delta estime du trace plotly.
 etendue190 <- function(pd) {
   L <- pd$lr_delta
-  range(c(pd$profil_delta$objectif, L$seuil_asymptotique, L$q90_bootstrap), na.rm = TRUE)
+  range(c(pd$profil_delta$objectif, L$repere_asymptotique, L$quantile_bootstrap), na.rm = TRUE)
 }
 yl190 <- .lr_hauteurs(pd162, pd162$profil_delta$objectif)
 r190 <- etendue190(pd162)
-pd190bas <- pd162; pd190bas$lr_delta$q90_bootstrap[["delta1"]] <- pd162$lr_delta$obj_min
+pd190bas <- pd162; pd190bas$lr_delta$quantile_bootstrap[["delta1"]] <- pd162$lr_delta$obj_min
 yl190bas <- .lr_hauteurs(pd190bas, pd190bas$profil_delta$objectif)
 pd190sans <- pd162; pd190sans$lr_delta <- NULL
 verifier("Profil de delta, .lr_hauteurs() : marges basse de 15 % et haute de 30 % avec reperes, etendue de la courbe seule sans reperes, marque au bas a au moins 10,3 % du bas du cadre, bornes lues par le trace base R (#190)",
          isTRUE(all.equal(yl190, c(r190[1] - 0.15 * diff(r190), r190[2] + 0.30 * diff(r190)))) &&
            isTRUE(all.equal(.lr_hauteurs(pd190sans, pd162$profil_delta$objectif),
                             range(pd162$profil_delta$objectif, na.rm = TRUE))) &&
-           (min(pd190bas$lr_delta$q90_bootstrap) - yl190bas[1]) / diff(yl190bas) >= 0.15 / 1.45 - 1e-12 &&
+           (min(pd190bas$lr_delta$quantile_bootstrap) - yl190bas[1]) / diff(yl190bas) >= 0.15 / 1.45 - 1e-12 &&
            rb162$usr[3] <= yl190[1] && rb162$usr[4] >= yl190[2])
 if (requireNamespace("plotly", quietly = TRUE)) {
   verifier("Profil de delta, plotly : ligne en delta estime tracee de .lr_hauteurs()[1] a .lr_hauteurs()[2], marge basse comprise (#190)",
@@ -1729,11 +1881,11 @@ verifier("#285 : jeu de res_bmax rejoue a l'identique, un mc_nom releve par lign
            length(.m285$mc_nom) == 1L && length(.mc285) == nrow(.tb285) &&
            identical(get("engine_registre_tests", envir = environment(.erg285)), .erg285) &&
            !exists(".etat285", envir = environment(.erg285), inherits = FALSE))
-verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302, hors lignes de lecture conjointe de #297, en tiret)",
+verifier("#285 : granularite_lignes() = granularite_stat de la statistique de chaque ligne (31 lignes depuis les retraits de LB1r, #303, et de LB1 et BP2, #302), tiret sans statistique du bootstrap (16 depuis le retrait de Shapiro-Wilk a loi nulle simulee, #302 ; 17 depuis l'ajout de la ligne Student, #423 ; hors lignes de lecture conjointe de #297, en tiret)",
          identical(is.finite(.g285), is.finite(.vrai285)) &&
            identical(.g285[is.finite(.g285)], .vrai285[is.finite(.vrai285)]) &&
            sum(is.finite(.g285)) == 31L &&
-           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 16L &&
+           sum(!is.finite(.g285) & .tb285$fonction != "engine_p_famille") == 17L &&
            any(.tb285$fonction == "engine_p_famille") &&
            all(!is.finite(.g285[.tb285$fonction == "engine_p_famille"])) &&
            setequal(round(.g285[is.finite(.g285)] * 98), c(1, 2)))
@@ -1802,8 +1954,106 @@ verifier("#323 : fmt_p(), frontiere de 1e-4 sans saut et p = 0 rendu 0,0000 (rev
 # meme formateur que l'onglet Tests (revue finale de R16) ; le survol plotly
 # de plot_mw_origine() passe aussi par fmt_p() (non exerce sans plotly).
 verifier("#323 : note_m1(), p-value M1 par fmt_p(), sans 0,0000 (revue finale de R16)",
-         { nm <- note_m1(list(origine = data.frame(j = 1:3, p = c(0.3, 2.48e-5, 0.02))), 0.05)
+         { nm <- note_m1(list(origine = data.frame(j = 1:3, p = c(0.3, 2.48e-5, 0.02),
+                                                   plus_petite_p = c(FALSE, TRUE, FALSE))))
            grepl("<b>j = 2</b> (p = 2,48e-05)", nm, fixed = TRUE) && !grepl("0,0000", nm, fixed = TRUE) })
+## --- Calculs retires de l'affichage (issue #404) ------------------------------
+# plot_mw_origine(), note_m1() et plot_coupe_delta() lisent les champs poses
+# par le moteur (mw_plots_data()$origine : niveau, bas, haut, exclut_zero,
+# plus_petite_p ; engine_surface_objectif()$objectif_coupe) : aucun 1.96,
+# aucun which.min, aucune comparaison a alpha dans leur source ; plus
+# d'argument alpha.
+src404 <- function(f) paste(deparse(f), collapse = "\n")
+verifier("#404 : plot_mw_origine(), note_m1(), plot_coupe_delta() sans 1.96, which.min ni alpha dans leur source ; un seul argument pd",
+         all(vapply(list(plot_mw_origine, note_m1, plot_coupe_delta), function(f) {
+           sf <- src404(f)
+           identical(names(formals(f)), "pd") && !grepl("1.96", sf, fixed = TRUE) &&
+             !grepl("which.min", sf, fixed = TRUE) && !grepl("alpha", sf, fixed = TRUE)
+         }, logical(1))))
+verifier("#404 : plot_mw_origine() lit bas, haut, exclut_zero et niveau ; plot_coupe_delta() lit objectif_coupe",
+         {
+           so <- src404(plot_mw_origine); sc <- src404(plot_coupe_delta)
+           all(vapply(c("d$bas", "d$haut", "d$exclut_zero", "d$niveau"), grepl, logical(1),
+                      x = so, fixed = TRUE)) && grepl("S$objectif_coupe", sc, fixed = TRUE)
+         })
+verifier("#404 : note_m1() (reserve2, B = 99) sans 'significative', niveau 90 % lu, plus petite p en j = 1, multiplicite et renvoi a la ligne M1 ; lettre et lecture de l'outil distinguees",
+         {
+           n <- note_m1(res_mw$plots_data)
+           is.character(n) && length(n) == 1L && !grepl("significati", n, fixed = TRUE) &&
+             grepl("l'intervalle de Student de a_j, de niveau nominal 90 % (exact sous erreurs gaussiennes seulement)", n, fixed = TRUE) &&
+             grepl("marqu&eacute;es en rouge : simple rep&egrave;re de lecture, par colonne, sans verdict", n, fixed = TRUE) &&
+             grepl("peut signaler une composante fixe", n, fixed = TRUE) &&
+             grepl("<b>j = 1</b> (p = 0,0300)", n, fixed = TRUE) &&
+             grepl("ne sont pas corrig&eacute;es pour la multiplicit&eacute;", n, fixed = TRUE) &&
+             grepl("&laquo; Nullite de l'ordonnee a l'origine, colonne par colonne &raquo;", n, fixed = TRUE) &&
+             any(vapply(res_mw$tests, function(x) identical(x$test, "Nullite de l'ordonnee a l'origine, colonne par colonne"),
+                        logical(1))) &&
+             grepl("et non lettre du texte", n, fixed = TRUE) && !grepl("r&egrave;glement impose", n, fixed = TRUE)
+         })
+verifier("#404 : note_m1(), colonne designee lue dans plus_petite_p (injection sur une colonne qui n'est pas le minimum) ; colonnes absentes -> phrases du niveau et de la plus petite p omises",
+         {
+           pdi <- res_mw$plots_data; pdi$origine$plus_petite_p <- pdi$origine$j == 3L
+           pdo <- res_mw$plots_data; pdo$origine <- pdo$origine[, 1:8]
+           ni <- note_m1(pdi); no <- note_m1(pdo)
+           grepl(sprintf("<b>j = 3</b> (p = %s)", fmt_p(pdi$origine$p[pdi$origine$j == 3L])), ni, fixed = TRUE) &&
+             !grepl("Plus petite p-value", no, fixed = TRUE) && !grepl("intervalle de Student", no, fixed = TRUE) &&
+             grepl("multiplicit&eacute;", no, fixed = TRUE)
+         })
+op404 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
+vide404 <- list(
+  orig = tryCatch({ plot_mw_origine(res_mw$plots_data); TRUE }, error = function(e) FALSE),
+  coupe = tryCatch({ plot_coupe_delta(res_ln$plots_data); TRUE }, error = function(e) FALSE),
+  orig_ancien = { pdo <- res_mw$plots_data; pdo$origine <- pdo$origine[, 1:8]
+                  tryCatch({ plot_mw_origine(pdo); TRUE }, error = function(e) FALSE) },
+  coupe_ancien = { pdc <- res_ln$plots_data; pdc$surface$objectif_coupe <- NULL
+                   tryCatch({ plot_coupe_delta(pdc); TRUE }, error = function(e) FALSE) })
+grDevices::dev.off(); options(op404)
+verifier("#404 : plot_mw_origine() et plot_coupe_delta() (base R) sans erreur, y compris sur un resultat anterieur a #404 (champs absents)",
+         all(unlist(vide404)))
+if (requireNamespace("plotly", quietly = TRUE)) {
+  # Branche plotly (#404) : titre « intervalle de Student, niveau nominal 90 %
+  # (M1) » ; barres de l'intervalle bas -> haut tracees par segments, une
+  # trace par couleur, celle de exclut_zero (COUL$trait si l'intervalle exclut
+  # 0, COUL$pt sinon), comme les marqueurs.
+  verifier("#404 : plot_mw_origine() (plotly) : titre au niveau nominal lu, barres bas/haut colorees selon exclut_zero, sans erreur ; plot_coupe_delta() (plotly) sans erreur",
+           {
+             d <- res_mw$plots_data$origine
+             b <- plotly::plotly_build(plot_mw_origine(res_mw$plots_data))$x
+             segs <- Filter(function(tr) identical(tr$mode, "lines") && !identical(tr$line$color, COUL$ref), b$data)
+             seg_col <- function(cl) Filter(function(tr) identical(tr$line$color, cl), segs)
+             ok_seg <- function(cl, k) {
+               s1 <- seg_col(cl)
+               if (!any(k)) return(!length(s1))
+               y <- as.numeric(s1[[1]]$y)
+               length(s1) == 1L && identical(sort(y[!is.na(y)]), sort(c(d$bas[k], d$haut[k])))
+             }
+             mk <- Filter(function(tr) identical(tr$mode, "markers"), b$data)
+             identical(b$layout$title$text, "Ordonnee a l'origine par colonne, intervalle de Student, niveau nominal 90 % (M1)") &&
+               ok_seg(COUL$trait, d$exclut_zero %in% TRUE) && ok_seg(COUL$pt, !(d$exclut_zero %in% TRUE)) &&
+               length(mk) == 1L && identical(as.character(mk[[1]]$marker$color),
+                                             ifelse(d$exclut_zero %in% TRUE, COUL$trait, COUL$pt)) &&
+               !inherits(tryCatch(plotly::plotly_build(plot_coupe_delta(res_ln$plots_data)), error = function(e) e), "error")
+           })
+  # Injection (remarque de l'audit de #404) : exclut_zero NA partout (intervalle
+  # non evaluable ou degenere), bornes NA sur une colonne, bas = haut = 0 sur
+  # une autre. exclut_zero NA ne vaut pas TRUE (%in% TRUE) : toutes les barres
+  # et tous les marqueurs prennent COUL$pt, aucune trace COUL$trait, sans erreur.
+  verifier("#404 : plot_mw_origine() (plotly), exclut_zero NA, bornes NA sur une colonne et bas = haut = 0 sur une autre : sans erreur, tout en COUL$pt",
+           {
+             pdi <- res_mw$plots_data
+             stopifnot(nrow(pdi$origine) >= 2L)
+             pdi$origine$exclut_zero <- NA
+             pdi$origine$bas[1L] <- NA_real_; pdi$origine$haut[1L] <- NA_real_
+             pdi$origine$bas[2L] <- 0; pdi$origine$haut[2L] <- 0
+             b <- tryCatch(plotly::plotly_build(plot_mw_origine(pdi))$x, error = function(e) e)
+             if (inherits(b, "error")) return(paste("erreur :", conditionMessage(b)))
+             segs <- Filter(function(tr) identical(tr$mode, "lines") && !identical(tr$line$color, COUL$ref), b$data)
+             mk <- Filter(function(tr) identical(tr$mode, "markers"), b$data)
+             length(segs) == 1L && identical(segs[[1]]$line$color, COUL$pt) &&
+               length(mk) == 1L && all(as.character(mk[[1]]$marker$color) == COUL$pt) &&
+               length(mk[[1]]$marker$color) == nrow(pdi$origine)
+           })
+}
 verifier("#323 : premium_interieur, Pitman et Fisher sans 0,0000 (synthese et detail)",
          { tbp <- engine_table_tests(readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds")))
            i <- grep("^Test de Pitman sur la pente", tbp$test); j <- grep("^Test de Fisher", tbp$test)
@@ -1948,12 +2198,12 @@ verifier("note_influence_mw() (reference reserve2) : \"(DFBETAS = +1,53)\" et \"
            grepl("<b>(i = 1, j = 4)</b> (DFBETAS = +1,53)", n, fixed = TRUE) &&
              grepl("f_4 de <b>-0,30 %</b>", n, fixed = TRUE) && !grepl("[0-9]\\.[0-9]", n)
          })
-verifier("note_m1(), note_surface(), note_influence() (references) : virgule decimale, aucun point decimal (#236)",
+verifier("note_m1() (res_mw), note_surface(), note_influence() (references) : virgule decimale, aucun point decimal (#236)",
          {
-           n1 <- note_m1(res_mw_ref$plots_data, 0.10)
+           n1 <- note_m1(res_mw$plots_data)
            ns <- note_surface(res_ln_ref$plots_data)$html
            ni <- note_influence(res_ln_ref$plots_data)
-           grepl("au seuil alpha = 0,1, ", n1, fixed = TRUE) && grepl("(p = 0,0300)", n1, fixed = TRUE) &&
+           grepl("de niveau nominal 90 %", n1, fixed = TRUE) && grepl("(p = 0,0300)", n1, fixed = TRUE) &&
              grepl("<b>au bord</b> (1,0000)", ns, fixed = TRUE) && grepl("(4/T = 0,500)", ni, fixed = TRUE) &&
              !any(grepl("[0-9]\\.[0-9]", c(n1, ns, ni)))
          })

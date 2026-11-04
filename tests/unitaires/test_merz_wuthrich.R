@@ -3810,7 +3810,8 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
            al <- mw_famille_alpha(res300$ajustement)
            att <- paste0(
              "alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; ",
-             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), les trois ",
+             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), lue avec un ",
+             "facteur f_j commun (interpretation de l'outil), les trois ",
              "estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur ",
              "la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). ",
              "f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par ",
@@ -3825,7 +3826,8 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
              fonction = identical(x$fonction, "mw_famille_alpha"),
              H0 = identical(x$H0, "les estimateurs alpha = 0, 1 et 2 visent le meme f_j"),
              H1 = identical(x$H1, paste0("les trois estimateurs visent des valeurs differentes ",
-                                         "(esperance de C(i,j+1) non proportionnelle a C(i,j))")),
+                                         "(esperance de C(i,j+1) non proportionnelle a C(i,j), ",
+                                         "ou facteur non commun aux annees et associe a C(i,j))")),
              reference = identical(x$reference,
                "Mack (1994), CAS Forum (printemps), 101-182, chap. 3, p. 111, et chap. 5, p. 122-124"),
              detail = identical(x$detail, att) ||
@@ -3833,6 +3835,17 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
              ascii = !grepl("[^ -~]", x$detail))
            k <- !vapply(ok, isTRUE, logical(1))
            if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
+         })
+# Detail de l'exposant de variance (M2) : le facteur f_j et la constante sigma_j^2
+# communs aux annees sont donnes comme interpretation de l'outil, non comme la
+# lettre du texte (#409, regulatory). Phrase cle lue dans le detail du moteur,
+# sur le cas reserve2 ; le detail peut recevoir en fin la phrase de #244.
+verifier("Exposant de variance (M2, #409) : le detail donne f_j et sigma_j^2 communs aux annees comme interpretation de l'outil (D(4)(c) et D(5)(d)(ii))",
+         {
+           x <- lig300("Adequation de l'exposant de variance, colonne par colonne")
+           ph <- paste("avec un facteur f_j et une constante sigma_j^2 communs aux annees",
+                       "(interpretation de l'outil, D(4)(c) et D(5)(d)(ii))")
+           grepl(ph, x$detail, fixed = TRUE) && !grepl("[^ -~]", x$detail)
          })
 # Repli de T-5 (statistique NA) : branche inatteignable sur un triangle
 # valide (mw_famille_alpha() retient la colonne j = 0 des que I >= 3, et
@@ -3920,6 +3933,66 @@ local({
              identical(l("Shapiro-Wilk sur les residus de Mack")$stat, .shapiro_sur(r)$stat) &&
                identical(l("Lilliefors sur les residus de Mack")$stat, stat_lilliefors(r)) &&
                !identical(.shapiro_sur(r)$stat, .shapiro_sur(rt)$stat)
+           })
+})
+
+## --- Intervalles de l'ordonnee a l'origine par colonne (issue #404) ----------
+# Specification d'actuary-approfondi (decision Q-46-19 du 02/11/2026) :
+# mw_plots_data()$origine porte, par colonne, niveau = 1 - alpha, quantile_t
+# = qt(1 - alpha/2, n_j - 2), bas et haut = a -/+ quantile_t se_a,
+# exclut_zero (dual de p < alpha) et plus_petite_p ; colonnes ajoutees apres
+# celles de mw_test_ordonnee_origine(), sans en deplacer aucune.
+local({
+  COLS_404 <- c("j", "n", "a", "se_a", "t", "p", "b", "f_cl",
+                "niveau", "quantile_t", "bas", "haut", "exclut_zero", "plus_petite_p")
+  r10 <- run_mw(tri_ref)
+  r05 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1, annexe = "II",
+                    B = 99, alpha = 0.05)
+  for (r in list(r10, r05)) {
+    al <- r$metadata$alpha; d <- r$plots_data$origine
+    q <- stats::qt(1 - al / 2, d$n - 2)
+    verifier(sprintf("#404 (reserve2, alpha = %s) : colonnes de origine dans l'ordre, niveau = 1 - alpha, quantile_t = qt(1 - alpha/2, n_j - 2)", al),
+             identical(names(d), COLS_404) && nrow(d) == 5L &&
+               identical(d$niveau, rep(1 - al, nrow(d))) && isTRUE(proche(d$quantile_t, q, rel = 1e-12)))
+    verifier(sprintf("#404 (reserve2, alpha = %s) : bas et haut = a -/+ qt(1 - alpha/2, n_j - 2) se_a a 1e-12", al),
+             isTRUE(proche(d$bas, d$a - q * d$se_a, rel = 1e-12)) &&
+               isTRUE(proche(d$haut, d$a + q * d$se_a, rel = 1e-12)))
+    verifier(sprintf("#404 (reserve2, alpha = %s) : exclut_zero identique a p < alpha (dualite test / intervalle)", al),
+             is.logical(d$exclut_zero) && identical(d$exclut_zero, d$p < al))
+    verifier(sprintf("#404 (reserve2, alpha = %s) : plus_petite_p vrai sur la seule colonne de plus petite p", al),
+             is.logical(d$plus_petite_p) && sum(d$plus_petite_p) == 1L &&
+               d$p[d$plus_petite_p] == min(d$p))
+  }
+  verifier("#404 : colonnes de mw_test_ordonnee_origine() inchangees dans origine (memes valeurs au bit pres)",
+           identical(as.list(r10$plots_data$origine[, 1:8]),
+                     as.list(mw_test_ordonnee_origine(mw_ajuster(tri_ref))$detail)))
+  # Reserve2 : la colonne j = 1 (p = 0,030) est la seule dont l'intervalle a
+  # 90 % ou a 95 % exclut 0 ; aucune a 99 % (appel direct plus bas).
+  verifier("#404 (reserve2) : exclut_zero sur j = 1 seule a alpha = 0,10 et 0,05, aucune a alpha = 0,01 ; plus petite p en j = 1",
+           identical(r10$plots_data$origine$j[r10$plots_data$origine$exclut_zero], 1L) &&
+             identical(r05$plots_data$origine$j[r05$plots_data$origine$exclut_zero], 1L) &&
+             !any(.mw_origine_intervalles(r10$plots_data$origine[, 1:8], 0.01)$exclut_zero) &&
+             identical(r10$plots_data$origine$j[r10$plots_data$origine$plus_petite_p], 1L))
+  # Appels directs de .mw_origine_intervalles() : dualite sur plusieurs
+  # niveaux ; a = se_a = 0 (t = 0/0, injection) -> exclut_zero NA ; aucune
+  # p finie -> plus_petite_p FALSE partout ; table vide rendue telle quelle.
+  det <- mw_test_ordonnee_origine(mw_ajuster(tri_ref))$detail
+  verifier("#404 : .mw_origine_intervalles(), exclut_zero identique a p < alpha pour alpha = 0,01, 0,05, 0,10, 0,20, 0,50",
+           all(vapply(c(0.01, 0.05, 0.10, 0.20, 0.50), function(al)
+             identical(.mw_origine_intervalles(det, al)$exclut_zero, det$p < al), logical(1))))
+  verifier("#404 : .mw_origine_intervalles(), a = se_a = 0 (injection, t et p NaN) -> exclut_zero NA, colonne hors de plus_petite_p",
+           {
+             dz <- det; dz$a[2] <- 0; dz$se_a[2] <- 0; dz$t[2] <- NaN; dz$p[2] <- NaN
+             o <- .mw_origine_intervalles(dz, 0.10)
+             is.na(o$exclut_zero[2]) && !anyNA(o$exclut_zero[-2]) && !o$plus_petite_p[2] &&
+               sum(o$plus_petite_p) == 1L
+           })
+  verifier("#404 : .mw_origine_intervalles(), aucune p finie -> plus_petite_p FALSE partout ; table vide rendue telle quelle",
+           {
+             dn <- det; dn$p[] <- NA_real_
+             o <- .mw_origine_intervalles(dn, 0.10)
+             identical(o$plus_petite_p, rep(FALSE, nrow(dn))) &&
+               identical(.mw_origine_intervalles(data.frame(), 0.10), data.frame())
            })
 })
 

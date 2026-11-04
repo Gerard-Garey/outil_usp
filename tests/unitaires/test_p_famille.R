@@ -415,7 +415,7 @@ verifier("#297 engine_table_tests() : lignes de famille en INFO, fonction engine
 ## --- Six references versionnees (apres la regeneration de #297) ---------------------
 # Numerateurs du par. 6 de la specification (p = numerateur / 1000, B_eff de
 # famille 999), oracles du prototype d_proto.R (annexe C), dans l'ordre des
-# lignes ajoutees ; decomptes de lignes 52, 52 et 25.
+# lignes ajoutees ; decomptes de lignes 53, 53 et 25 (ligne Student, #423).
 ORACLES297 <- list(
   premium = c(B. = 950L, D. = 438L, E. = 316L, F. = 961L, LC = 131L),
   reserve1 = c(B. = 950L, D. = 438L, E. = 316L, F. = 961L, LC = 131L),
@@ -423,7 +423,7 @@ ORACLES297 <- list(
   premium_net = c(B. = 950L, D. = 438L, E. = 316L, F. = 961L, LC = 131L),
   premium_interieur = c(B. = 955L, D. = 579L, E. = 423L, F. = 290L, LC = 650L),
   reserve2 = c(M1 = 23L, M2 = 471L, M3 = 8L, LC = 24L))
-verifier("#297 references : lignes de famille aux numerateurs du par. 6 (sur 1000), recalcul independant, decomptes 52 / 25",
+verifier("#297 references : lignes de famille aux numerateurs du par. 6 (sur 1000), recalcul independant, decomptes 53 / 25 (ligne Student, #423)",
          {
            v <- vapply(names(ORACLES297), function(k) {
              f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
@@ -437,7 +437,7 @@ verifier("#297 references : lignes de famille aux numerateurs du par. 6 (sur 100
              if (!identical(substr(vapply(l, function(t) t$famille, ""), 1L, 2L), names(o)))
                return("familles")
              if (!identical(vapply(l, function(t) t$p_mc, 0), unname(o) / 1000)) return("numerateurs")
-             if (length(r$tests) != if (identical(k, "reserve2")) 25L else 52L) return("decompte")
+             if (length(r$tests) != if (identical(k, "reserve2")) 25L else 53L) return("decompte")
              "ok"
            }, "")
            if (all(v == "ok")) TRUE else paste(names(v)[v != "ok"], v[v != "ok"], collapse = " ; ")

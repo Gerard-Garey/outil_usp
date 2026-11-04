@@ -1,0 +1,769 @@
+# Tableau avant / après — référence `premium_net` (issue #423)
+
+- Date : 2026-11-03
+- Plateforme : R version 4.3.1 (2023-06-16), Linux
+- Commande : `Rscript tests/regenerer_et_rendre_compte.R premium --attendu '^tests\[\[3\]\]\$detail$' --attendu '^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]' reserve1 --attendu '^tests\[\[3\]\]\$detail$' --attendu '^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]' premium_ii6 --attendu '^tests\[\[3\]\]\$detail$' --attendu '^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]' premium_net --attendu '^tests\[\[3\]\]\$detail$' --attendu '^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]' premium_interieur --attendu '^tests\[\[3\]\]\$detail$' --at… (567 car.)`
+- Motifs attendus : `^tests\[\[3\]\]\$detail$`, `^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]`
+- Exécution à plusieurs cas (M33) : `premium`, `reserve1`, `premium_ii6`, `premium_net`, `premium_interieur`, chacun avec ses motifs ; tout ou rien ; batteries relancées une seule fois, après le dernier cas
+- Comparateur : `comparer_objets()` (tests/outils_tests.R), seuil 0 pour lister, seuil 1e-06 pour juger ; `INSTABLES` non neutralisé
+
+**Synthèse** : 56937 feuille(s) dans l'ancienne référence, 56964 dans le résultat recalculé ; 732 non strictement identique(s) (dont 731 en écart au seuil 1e-06, 27 ajoutée(s), 0 supprimée(s)), toutes désignées par les motifs attendus ; 56232 feuille(s) identique(s) au bit près ; écart numérique maximal 2.038e+02 (relatif, `tests[[9]]$stat`).
+
+**Avertissement** : motif `^tests\[\[([4-9]|[1-4][0-9]|5[0-3])\]\]` : 731 feuilles désignées (seuil d'avertissement 50) ; vérifier qu'il n'est pas trop large.
+
+Nœuds de structure modifiés (type ou attributs) : `tests[[10]]$stat`, `tests[[11]]$stat`, `tests[[34]]$estim`, `tests[[35]]$estim`, `tests[[41]]$estim`, `tests[[42]]$estim`, `tests[[53]]`, `tests[[53]]$famille`, `tests[[53]]$test`, `tests[[53]]$reference`, `tests[[53]]$type`, `tests[[53]]$base`, `tests[[53]]$variante`, `tests[[53]]$H0`, `tests[[53]]$H1`, `tests[[53]]$stat_nom`, `tests[[53]]$stat`, `tests[[53]]$loi`, `tests[[53]]$estim_nom`, `tests[[53]]$estim`, `tests[[53]]$p_exacte`, `tests[[53]]$p_asymptotique`, `tests[[53]]$p_mc`, `tests[[53]]$err_mc`, `tests[[53]]$p_retenue`, `tests[[53]]$nature_p`, `tests[[53]]$verdict`, `tests[[53]]$detail`, `tests[[53]]$sens`, `tests[[53]]$p_min`, `tests[[53]]$fonction`, `tests[[53]]$inoperant`, `tests[[53]]$p_min_mc`, `tests[[53]]$mc_nom`
+
+| Feuille | Avant | Après | Écart | Mesure |
+|---|---|---|---|---|
+| `tests[[53]]$famille` | (absente) | LC. Lecture conjointe de la batterie (toutes familles) |  | ajoutée (absente avant) |
+| `tests[[53]]$test` | (absente) | p globale (minP, lecture conjointe de la batterie) |  | ajoutée (absente avant) |
+| `tests[[53]]$reference` | (absente) | Westfall & Young (1993), minP en une etape ; Ge, Dudoit & S… (144 car.) |  | ajoutée (absente avant) |
+| `tests[[53]]$type` | (absente) | diagnostic |  | ajoutée (absente avant) |
+| `tests[[53]]$base` | (absente) | commun |  | ajoutée (absente avant) |
+| `tests[[53]]$variante` | (absente) | principale |  | ajoutée (absente avant) |
+| `tests[[53]]$H0` | (absente) | toutes les hypotheses nulles des tests de toutes les famill… (89 car.) |  | ajoutée (absente avant) |
+| `tests[[53]]$H1` | (absente) | au moins une est fausse |  | ajoutée (absente avant) |
+| `tests[[53]]$stat_nom` | (absente) | plus petite p Monte-Carlo de la batterie |  | ajoutée (absente avant) |
+| `tests[[53]]$stat` | (absente) | 0.018 |  | ajoutée (absente avant) |
+| `tests[[53]]$loi` | (absente) | minimum des p Monte-Carlo -> Monte-Carlo (memes replication… (83 car.) |  | ajoutée (absente avant) |
+| `tests[[53]]$estim_nom` | (absente) | nombre de tests |  | ajoutée (absente avant) |
+| `tests[[53]]$estim` | (absente) | 17 |  | ajoutée (absente avant) |
+| `tests[[53]]$p_exacte` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$p_asymptotique` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$p_mc` | (absente) | 0.131 |  | ajoutée (absente avant) |
+| `tests[[53]]$err_mc` | (absente) | 0.01067487484 |  | ajoutée (absente avant) |
+| `tests[[53]]$p_retenue` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$nature_p` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$verdict` | (absente) | INFO |  | ajoutée (absente avant) |
+| `tests[[53]]$detail` | (absente) | Lecture conjointe de la batterie (issue #297) : p minP en u… (696 car.) |  | ajoutée (absente avant) |
+| `tests[[53]]$sens` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$p_min` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$fonction` | (absente) | engine_p_famille |  | ajoutée (absente avant) |
+| `tests[[53]]$inoperant` | (absente) | FALSE |  | ajoutée (absente avant) |
+| `tests[[53]]$p_min_mc` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[53]]$mc_nom` | (absente) | \<NA\> |  | ajoutée (absente avant) |
+| `tests[[3]]$detail` | … unilaterale (t(T-2) exacte sous le modele auxiliaire MCO se… (805 car., 1re différence au car. 317) | … unilaterale (t(T-2), exacte sous le modele auxiliaire MCO s… (1130 car., 1re différence au car. 317) |  | non numerique |
+| `tests[[4]]$test` | Test de Fisher (significativite globale) | Test de Student sur la pente (modele auxiliaire MCO) |  | non numerique |
+| `tests[[4]]$reference` | Fisher (1922, 1925) | Student (1908), Biometrika 6 ; Fisher (1922), JRSS 85 |  | non numerique |
+| `tests[[4]]$stat_nom` | F | t |  | non numerique |
+| `tests[[4]]$stat` | 1.937072865 | 1.391787651 | 2.815e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[4]]$loi` | F(1,6) exacte sous le modele auxiliaire MCO | t(6) exacte sous le modele auxiliaire MCO (erreurs i.i.d. n… (84 car.) |  | non numerique |
+| `tests[[4]]$p_asymptotique` | 0.2133906175 | 0.2133906175 | 1.431e-15 | relatif, dérive ≤ 1e-06 |
+| `tests[[4]]$detail` | Diagnostic, redondante avec le test de Pitman (F = t^2) : a… (166 car.) | Diagnostic, aucun verdict : la pente est testee par le seul… (375 car.) |  | non numerique |
+| `tests[[5]]$test` | Coefficient de determination R2 | Test de Fisher (significativite globale) |  | non numerique |
+| `tests[[5]]$reference` | lm(y ~ x) | Fisher (1922, 1925) |  | non numerique |
+| `tests[[5]]$H0` | \<NA\> | b = 0 |  | non numerique |
+| `tests[[5]]$H1` | \<NA\> | b != 0 |  | non numerique |
+| `tests[[5]]$stat_nom` | \<NA\> | F |  | non numerique |
+| `tests[[5]]$stat` | \<NA\> | 1.937072865 |  | non fini |
+| `tests[[5]]$loi` | \<NA\> | F(1,6) exacte sous le modele auxiliaire MCO |  | non numerique |
+| `tests[[5]]$estim_nom` | R2 | \<NA\> |  | non numerique |
+| `tests[[5]]$estim` | 0.244053809 | \<NA\> |  | non fini |
+| `tests[[5]]$p_asymptotique` | \<NA\> | 0.2133906175 |  | non fini |
+| `tests[[5]]$detail` | R2 ajuste = 0.1181 ; sous H0 (b=0) E[R2] = 1/(T-1) = 0.143 … (128 car.) | Diagnostic, redondante avec le test de Pitman (F = t^2) : a… (248 car.) |  | non numerique |
+| `tests[[6]]$test` | RESET (forme fonctionnelle) | Coefficient de determination R2 |  | non numerique |
+| `tests[[6]]$reference` | Ramsey (1969), JRSS B 31 | lm(y ~ x) |  | non numerique |
+| `tests[[6]]$type` | test | diagnostic |  | non numerique |
+| `tests[[6]]$H0` | gamma2 = gamma3 = 0 (forme lineaire correcte) | \<NA\> |  | non numerique |
+| `tests[[6]]$H1` | forme fonctionnelle mal specifiee | \<NA\> |  | non numerique |
+| `tests[[6]]$stat_nom` | F | \<NA\> |  | non numerique |
+| `tests[[6]]$stat` | 0.005076878175 | \<NA\> |  | non fini |
+| `tests[[6]]$loi` | F(2,5) approx. | \<NA\> |  | non numerique |
+| `tests[[6]]$estim_nom` | \<NA\> | R2 |  | non numerique |
+| `tests[[6]]$estim` | \<NA\> | 0.244053809 |  | non fini |
+| `tests[[6]]$p_asymptotique` | 0.9949411093 | \<NA\> |  | non fini |
+| `tests[[6]]$p_mc` | 0.996 | \<NA\> |  | non fini |
+| `tests[[6]]$err_mc` | 0.001996994739 | \<NA\> |  | non fini |
+| `tests[[6]]$p_retenue` | 0.996 | \<NA\> |  | non fini |
+| `tests[[6]]$nature_p` | Monte-Carlo (bootstrap parametrique) | \<NA\> |  | non numerique |
+| `tests[[6]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[6]]$detail` | La loi F(2,T-3) n'est pas exacte sous le modele de l'annexe… (559 car.) | R2 ajuste = 0.1181 ; sous H0 (b=0) E[R2] = 1/(T-1) = 0.143 … (128 car.) |  | non numerique |
+| `tests[[6]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[6]]$fonction` | test_reset | test_lm_complet |  | non numerique |
+| `tests[[6]]$mc_nom` | RESET | \<NA\> |  | non numerique |
+| `tests[[7]]$test` | Independance ratio S/P vs volume | RESET (forme fonctionnelle) |  | non numerique |
+| `tests[[7]]$reference` | Spearman (1904) ; exact : Best & Roberts (1975), AS 89 | Ramsey (1969), JRSS B 31 |  | non numerique |
+| `tests[[7]]$H0` | independance (aucune association monotone) | gamma2 = gamma3 = 0 (forme lineaire correcte) |  | non numerique |
+| `tests[[7]]$H1` | association monotone | forme fonctionnelle mal specifiee |  | non numerique |
+| `tests[[7]]$stat_nom` | S | F |  | non numerique |
+| `tests[[7]]$stat` | 90 | 0.005076878175 | 9.999e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[7]]$loi` | permutation exacte (T <= 9, sans ex aequo) | F(2,5) approx. |  | non numerique |
+| `tests[[7]]$estim_nom` | rho_s | \<NA\> |  | non numerique |
+| `tests[[7]]$estim` | -0.07142857143 | \<NA\> |  | non fini |
+| `tests[[7]]$p_exacte` | 0.8819940476 | \<NA\> |  | non fini |
+| `tests[[7]]$p_asymptotique` | 0.8665262707 | 0.9949411093 | 1.482e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[7]]$p_mc` | 0.878 | 0.996 | 1.344e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[7]]$err_mc` | 0.03140226269 | 0.001996994739 | 9.364e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[7]]$p_retenue` | 0.8819940476 | 0.996 | 1.293e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[7]]$nature_p` | exacte | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[7]]$detail` | Une correlation signale un effet d'echelle non modelise ; p… (401 car.) | La loi F(2,T-3) n'est pas exacte sous le modele de l'annexe… (559 car.) |  | non numerique |
+| `tests[[7]]$p_min` | 4.96031746e-05 | \<NA\> |  | non fini |
+| `tests[[7]]$fonction` | usp_tests | test_reset |  | non numerique |
+| `tests[[7]]$mc_nom` | SpearVol | RESET |  | non numerique |
+| `tests[[8]]$test` | Correlation ratio S/P vs temps | Independance ratio S/P vs volume |  | non numerique |
+| `tests[[8]]$reference` | Spearman (1904) ; exact : Best & Roberts (1975) | Spearman (1904) ; exact : Best & Roberts (1975), AS 89 |  | non numerique |
+| `tests[[8]]$type` | diagnostic | test |  | non numerique |
+| `tests[[8]]$H0` | independance entre le ratio et le rang chronologique | independance (aucune association monotone) |  | non numerique |
+| `tests[[8]]$H1` | association monotone avec le temps | association monotone |  | non numerique |
+| `tests[[8]]$stat` | 76 | 90 | 1.842e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$estim` | 0.09523809524 | -0.07142857143 | 1.750e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$p_exacte` | 0.8401289683 | 0.8819940476 | 4.983e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$p_asymptotique` | 0.8225054302 | 0.8665262707 | 5.352e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$p_mc` | 0.872 | 0.878 | 6.881e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$err_mc` | 0.03137834605 | 0.03140226269 | 7.622e-04 | relatif, au-delà du seuil 1e-06 |
+| `tests[[8]]$p_retenue` | \<NA\> | 0.8819940476 |  | non fini |
+| `tests[[8]]$nature_p` | \<NA\> | exacte |  | non numerique |
+| `tests[[8]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[8]]$detail` | Restituee en diagnostic par decision (issue #299) : aucun v… (196 car.) | Une correlation signale un effet d'echelle non modelise ; p… (401 car.) |  | non numerique |
+| `tests[[8]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[8]]$mc_nom` | SpearTps | SpearVol |  | non numerique |
+| `tests[[9]]$test` | Tendance monotone du ratio S/P | Correlation ratio S/P vs temps |  | non numerique |
+| `tests[[9]]$reference` | Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5 | Spearman (1904) ; exact : Best & Roberts (1975) |  | non numerique |
+| `tests[[9]]$type` | test | diagnostic |  | non numerique |
+| `tests[[9]]$H0` | absence de tendance monotone (r_t i.i.d.) | independance entre le ratio et le rang chronologique |  | non numerique |
+| `tests[[9]]$H1` | tendance monotone | association monotone avec le temps |  | non numerique |
+| `tests[[9]]$stat_nom` | Z | S |  | non numerique |
+| `tests[[9]]$stat` | 0.3711537445 | 76 | 2.038e+02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$loi` | loi exacte de S (distribution mahonienne) | permutation exacte (T <= 9, sans ex aequo) |  | non numerique |
+| `tests[[9]]$estim_nom` | S de Kendall | rho_s |  | non numerique |
+| `tests[[9]]$estim` | 4 | 0.09523809524 | 9.762e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$p_exacte` | 0.7195436508 | 0.8401289683 | 1.676e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$p_asymptotique` | 0.7105230229 | 0.8225054302 | 1.576e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$p_mc` | 0.758 | 0.872 | 1.504e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$err_mc` | 0.030698182 | 0.03137834605 | 2.216e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[9]]$p_retenue` | 0.7195436508 | \<NA\> |  | non fini |
+| `tests[[9]]$nature_p` | exacte | \<NA\> |  | non numerique |
+| `tests[[9]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[9]]$detail` | Une derive du S/P contredit la constance de beta | Restituee en diagnostic par decision (issue #299) : aucun v… (196 car.) |  | non numerique |
+| `tests[[9]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[9]]$fonction` | test_mann_kendall | usp_tests |  | non numerique |
+| `tests[[9]]$mc_nom` | MK | SpearTps |  | non numerique |
+| `tests[[10]]$test` | Tendance par signes du ratio S/P | Tendance monotone du ratio S/P |  | non numerique |
+| `tests[[10]]$reference` | Cox & Stuart (1955), Biometrika 42 | Mann (1945) ; loi exacte : Kendall & Gibbons (1990), ch. 4-5 |  | non numerique |
+| `tests[[10]]$type` | diagnostic | test |  | non numerique |
+| `tests[[10]]$H0` | P(D_t > 0) = 1/2 (absence de tendance) | absence de tendance monotone (r_t i.i.d.) |  | non numerique |
+| `tests[[10]]$H1` | P(D_t > 0) != 1/2 | tendance monotone |  | non numerique |
+| `tests[[10]]$stat_nom` | K | Z |  | non numerique |
+| `tests[[10]]$stat` | 2 | 0.3711537445 |  | non numerique |
+| `tests[[10]]$loi` | Binomiale(m, 1/2) EXACTE, m differences non nulles ; p_mc p… (98 car.) | loi exacte de S (distribution mahonienne) |  | non numerique |
+| `tests[[10]]$estim_nom` | \<NA\> | S de Kendall |  | non numerique |
+| `tests[[10]]$estim` | \<NA\> | 4 |  | non fini |
+| `tests[[10]]$p_exacte` | 1 | 0.7195436508 | 2.805e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[10]]$p_asymptotique` | \<NA\> | 0.7105230229 |  | non fini |
+| `tests[[10]]$p_mc` | 1 | 0.758 | 2.420e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[10]]$err_mc` | 0 | 0.030698182 | 3.070e-02 | absolu, au-delà du seuil 1e-06 |
+| `tests[[10]]$p_retenue` | \<NA\> | 0.7195436508 |  | non fini |
+| `tests[[10]]$nature_p` | \<NA\> | exacte |  | non numerique |
+| `tests[[10]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[10]]$detail` | TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atte… (147 car.) | Une derive du S/P contredit la constance de beta |  | non numerique |
+| `tests[[10]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[10]]$p_min` | 0.125 | 4.96031746e-05 | 9.996e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[10]]$fonction` | test_cox_stuart | test_mann_kendall |  | non numerique |
+| `tests[[10]]$inoperant` | TRUE | FALSE |  | non numerique |
+| `tests[[10]]$mc_nom` | CoxStuart | MK |  | non numerique |
+| `tests[[11]]$famille` | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i… (61 car.) |  | non numerique |
+| `tests[[11]]$test` | Heteroscedasticite vs volume - Breusch-Pagan studentise (Ko… (65 car.) | Tendance par signes du ratio S/P |  | non numerique |
+| `tests[[11]]$reference` | Breusch & Pagan (1979) ; studentisation de Koenker (1981) | Cox & Stuart (1955), Biometrika 42 |  | non numerique |
+| `tests[[11]]$type` | test | diagnostic |  | non numerique |
+| `tests[[11]]$H0` | c1 = 0 : la variance des residus standardises ne depend pas… (69 car.) | P(D_t > 0) = 1/2 (absence de tendance) |  | non numerique |
+| `tests[[11]]$H1` | variance residuelle dependante du volume | P(D_t > 0) != 1/2 |  | non numerique |
+| `tests[[11]]$stat_nom` | LM | K |  | non numerique |
+| `tests[[11]]$stat` | 5.081571047 | 2 |  | non numerique |
+| `tests[[11]]$loi` | chi2(1) asymptotique | Binomiale(m, 1/2) EXACTE, m differences non nulles ; p_mc p… (98 car.) |  | non numerique |
+| `tests[[11]]$p_exacte` | \<NA\> | 1 |  | non fini |
+| `tests[[11]]$p_asymptotique` | 0.02418144923 | \<NA\> |  | non fini |
+| `tests[[11]]$p_mc` | 0.018 | 1 | 5.456e+01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[11]]$err_mc` | 0.00420638725 | 0 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[11]]$p_retenue` | 0.018 | \<NA\> |  | non fini |
+| `tests[[11]]$nature_p` | Monte-Carlo (bootstrap parametrique) | \<NA\> |  | non numerique |
+| `tests[[11]]$verdict` | ECHEC | INFO |  | non numerique |
+| `tests[[11]]$detail` | Doit etre non significatif si la ponderation pi_t est corre… (361 car.) | TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atte… (147 car.) |  | non numerique |
+| `tests[[11]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[11]]$p_min` | \<NA\> | 0.125 |  | non fini |
+| `tests[[11]]$fonction` | test_breusch_pagan | test_cox_stuart |  | non numerique |
+| `tests[[11]]$inoperant` | FALSE | TRUE |  | non numerique |
+| `tests[[11]]$mc_nom` | BP | CoxStuart |  | non numerique |
+| `tests[[12]]$test` | Heteroscedasticite vs volume - Breusch-Pagan original (non … (67 car.) | Heteroscedasticite vs volume - Breusch-Pagan studentise (Ko… (65 car.) |  | non numerique |
+| `tests[[12]]$reference` | Breusch & Pagan (1979), Econometrica 47 | Breusch & Pagan (1979) ; studentisation de Koenker (1981) |  | non numerique |
+| `tests[[12]]$type` | diagnostic | test |  | non numerique |
+| `tests[[12]]$variante` | secondaire | principale |  | non numerique |
+| `tests[[12]]$H0` | c1 = 0 ET erreurs normales : variance residuelle independan… (71 car.) | c1 = 0 : la variance des residus standardises ne depend pas… (69 car.) |  | non numerique |
+| `tests[[12]]$stat` | 2.135465246 | 5.081571047 | 1.380e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[12]]$loi` | chi2(1) asymptotique, SOUS NORMALITE | chi2(1) asymptotique |  | non numerique |
+| `tests[[12]]$p_asymptotique` | 0.1439267893 | 0.02418144923 | 8.320e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[12]]$p_mc` | 0.09 | 0.018 | 8.000e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[12]]$err_mc` | 0.009054390205 | 0.00420638725 | 5.354e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[12]]$p_retenue` | \<NA\> | 0.018 |  | non fini |
+| `tests[[12]]$nature_p` | \<NA\> | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[12]]$verdict` | INFO | ECHEC |  | non numerique |
+| `tests[[12]]$detail` | Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 s… (333 car.) | Doit etre non significatif si la ponderation pi_t est corre… (361 car.) |  | non numerique |
+| `tests[[12]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[12]]$fonction` | test_breusch_pagan_original | test_breusch_pagan |  | non numerique |
+| `tests[[12]]$mc_nom` | BP79 | BP |  | non numerique |
+| `tests[[13]]$test` | Heteroscedasticite (forme quadratique) | Heteroscedasticite vs volume - Breusch-Pagan original (non … (67 car.) |  | non numerique |
+| `tests[[13]]$reference` | White (1980), Econometrica 48 | Breusch & Pagan (1979), Econometrica 47 |  | non numerique |
+| `tests[[13]]$variante` | principale | secondaire |  | non numerique |
+| `tests[[13]]$H0` | c1 = c2 = 0 | c1 = 0 ET erreurs normales : variance residuelle independan… (71 car.) |  | non numerique |
+| `tests[[13]]$H1` | heteroscedasticite residuelle de forme quadratique | variance residuelle dependante du volume |  | non numerique |
+| `tests[[13]]$stat` | 5.091172731 | 2.135465246 | 5.806e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[13]]$loi` | chi2(2) asymptotique | chi2(1) asymptotique, SOUS NORMALITE |  | non numerique |
+| `tests[[13]]$p_asymptotique` | 0.07842705158 | 0.1439267893 | 8.352e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[13]]$p_mc` | 0.067 | 0.09 | 3.433e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[13]]$err_mc` | 0.007910345983 | 0.009054390205 | 1.446e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[13]]$detail` | Restituee en diagnostic par decision (issue #299) : aucun v… (203 car.) | Version publiee, avec le facteur 1/2 issu de Var(u^2) = 2 s… (333 car.) |  | non numerique |
+| `tests[[13]]$fonction` | test_white | test_breusch_pagan_original |  | non numerique |
+| `tests[[13]]$mc_nom` | White | BP79 |  | non numerique |
+| `tests[[14]]$test` | Egalite des variances petits vs gros volumes | Heteroscedasticite (forme quadratique) |  | non numerique |
+| `tests[[14]]$reference` | Goldfeld & Quandt (1965), JASA 60 | White (1980), Econometrica 48 |  | non numerique |
+| `tests[[14]]$H0` | sigma1^2 = sigma2^2 | c1 = c2 = 0 |  | non numerique |
+| `tests[[14]]$H1` | variances inegales entre les deux blocs | heteroscedasticite residuelle de forme quadratique |  | non numerique |
+| `tests[[14]]$stat_nom` | F | LM |  | non numerique |
+| `tests[[14]]$stat` | 4.06375496 | 5.091172731 | 2.528e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[14]]$loi` | F(4,4) approx. (residus issus d'un ajustement global) | chi2(2) asymptotique |  | non numerique |
+| `tests[[14]]$p_asymptotique` | 0.2031881574 | 0.07842705158 | 6.140e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[14]]$p_mc` | 0.19 | 0.067 | 6.474e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[14]]$err_mc` | 0.01855382021 | 0.007910345983 | 5.737e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[14]]$fonction` | test_goldfeld_quandt | test_white |  | non numerique |
+| `tests[[14]]$mc_nom` | GQ | White |  | non numerique |
+| `tests[[15]]$test` | Homogeneite des dispersions (mediane) | Egalite des variances petits vs gros volumes |  | non numerique |
+| `tests[[15]]$reference` | Brown & Forsythe (1974), JASA 69 | Goldfeld & Quandt (1965), JASA 60 |  | non numerique |
+| `tests[[15]]$H0` | egalite des dispersions entre les deux groupes | sigma1^2 = sigma2^2 |  | non numerique |
+| `tests[[15]]$H1` | dispersions inegales | variances inegales entre les deux blocs |  | non numerique |
+| `tests[[15]]$stat_nom` | W | F |  | non numerique |
+| `tests[[15]]$stat` | 4.035677807 | 4.06375496 | 6.957e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[15]]$loi` | F(1,6) approx. | F(4,4) approx. (residus issus d'un ajustement global) |  | non numerique |
+| `tests[[15]]$p_asymptotique` | 0.0912935866 | 0.2031881574 | 1.226e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[15]]$p_mc` | 0.104 | 0.19 | 8.269e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[15]]$err_mc` | 0.009658016219 | 0.01855382021 | 9.211e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[15]]$fonction` | test_brown_forsythe | test_goldfeld_quandt |  | non numerique |
+| `tests[[15]]$mc_nom` | BF | GQ |  | non numerique |
+| `tests[[16]]$test` | Egalite des lois petits vs gros volumes (2 ech.) | Homogeneite des dispersions (mediane) |  | non numerique |
+| `tests[[16]]$reference` | Smirnov (1939) | Brown & Forsythe (1974), JASA 69 |  | non numerique |
+| `tests[[16]]$H0` | F1 = F2 (memes lois) | egalite des dispersions entre les deux groupes |  | non numerique |
+| `tests[[16]]$H1` | lois differentes | dispersions inegales |  | non numerique |
+| `tests[[16]]$stat_nom` | D | W |  | non numerique |
+| `tests[[16]]$stat` | 0.5 | 4.035677807 | 7.071e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[16]]$loi` | exacte combinatoire (ks.test, sans ex aequo) | F(1,6) approx. |  | non numerique |
+| `tests[[16]]$p_exacte` | 0.7714285714 | \<NA\> |  | non fini |
+| `tests[[16]]$p_asymptotique` | \<NA\> | 0.0912935866 |  | non fini |
+| `tests[[16]]$p_mc` | 0.765 | 0.104 | 8.641e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[16]]$err_mc` | 0.01341472903 | 0.009658016219 | 2.800e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[16]]$detail` | Voir aussi le QQ-plot a deux echantillons ; p-value minimal… (414 car.) | Restituee en diagnostic par decision (issue #299) : aucun v… (203 car.) |  | non numerique |
+| `tests[[16]]$p_min` | 0.02857142857 | \<NA\> |  | non fini |
+| `tests[[16]]$fonction` | usp_tests | test_brown_forsythe |  | non numerique |
+| `tests[[16]]$mc_nom` | Smirnov | BF |  | non numerique |
+| `tests[[17]]$test` | Position de delta dans [0,1] | Egalite des lois petits vs gros volumes (2 ech.) |  | non numerique |
+| `tests[[17]]$reference` | Annexe XVII, section B, paragraphe 6 | Smirnov (1939) |  | non numerique |
+| `tests[[17]]$H0` | \<NA\> | F1 = F2 (memes lois) |  | non numerique |
+| `tests[[17]]$H1` | \<NA\> | lois differentes |  | non numerique |
+| `tests[[17]]$stat_nom` | \<NA\> | D |  | non numerique |
+| `tests[[17]]$stat` | \<NA\> | 0.5 |  | non fini |
+| `tests[[17]]$loi` | \<NA\> | exacte combinatoire (ks.test, sans ex aequo) |  | non numerique |
+| `tests[[17]]$estim_nom` | delta | \<NA\> |  | non numerique |
+| `tests[[17]]$estim` | 1 | \<NA\> |  | non fini |
+| `tests[[17]]$p_exacte` | \<NA\> | 0.7714285714 |  | non fini |
+| `tests[[17]]$p_mc` | \<NA\> | 0.765 |  | non fini |
+| `tests[[17]]$err_mc` | \<NA\> | 0.01341472903 |  | non fini |
+| `tests[[17]]$detail` | SOLUTION AU BORD : structure de variance non identifiee par… (71 car.) | Voir aussi le QQ-plot a deux echantillons ; p-value minimal… (414 car.) |  | non numerique |
+| `tests[[17]]$p_min` | \<NA\> | 0.02857142857 |  | non fini |
+| `tests[[17]]$fonction` | usp_ajuster | usp_tests |  | non numerique |
+| `tests[[17]]$mc_nom` | \<NA\> | Smirnov |  | non numerique |
+| `tests[[18]]$famille` | D. H3 - lognormalite (annexe XVII B(2)(g)(iii)) | C. H2 - structure de variance (annexe XVII B(2)(g)(ii)) |  | non numerique |
+| `tests[[18]]$test` | Shapiro-Wilk sur residus standardises | Position de delta dans [0,1] |  | non numerique |
+| `tests[[18]]$reference` | Shapiro & Wilk (1965), Biometrika 52 | Annexe XVII, section B, paragraphe 6 |  | non numerique |
+| `tests[[18]]$type` | test | diagnostic |  | non numerique |
+| `tests[[18]]$H0` | les residus standardises suivent une loi normale | \<NA\> |  | non numerique |
+| `tests[[18]]$H1` | loi non normale | \<NA\> |  | non numerique |
+| `tests[[18]]$stat_nom` | W | \<NA\> |  | non numerique |
+| `tests[[18]]$stat` | 0.9378601604 | \<NA\> |  | non fini |
+| `tests[[18]]$loi` | aucune forme fermee ; normalisation de Royston (1992) | \<NA\> |  | non numerique |
+| `tests[[18]]$estim_nom` | \<NA\> | delta |  | non numerique |
+| `tests[[18]]$estim` | \<NA\> | 1 |  | non fini |
+| `tests[[18]]$p_asymptotique` | 0.590156423 | \<NA\> |  | non fini |
+| `tests[[18]]$p_mc` | 0.62 | \<NA\> |  | non fini |
+| `tests[[18]]$err_mc` | 0.01535694748 | \<NA\> |  | non fini |
+| `tests[[18]]$p_retenue` | 0.62 | \<NA\> |  | non fini |
+| `tests[[18]]$nature_p` | Monte-Carlo (bootstrap parametrique) | \<NA\> |  | non numerique |
+| `tests[[18]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[18]]$detail` |  | SOLUTION AU BORD : structure de variance non identifiee par… (71 car.) |  | non numerique |
+| `tests[[18]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[18]]$fonction` | .shapiro_sur | usp_ajuster |  | non numerique |
+| `tests[[18]]$mc_nom` | SW | \<NA\> |  | non numerique |
+| `tests[[19]]$test` | Shapiro-Francia | Shapiro-Wilk sur residus standardises |  | non numerique |
+| `tests[[19]]$reference` | Shapiro & Francia (1972), JASA 67 ; p-value : Royston (1993… (75 car.) | Shapiro & Wilk (1965), Biometrika 52 |  | non numerique |
+| `tests[[19]]$stat_nom` | W' | W |  | non numerique |
+| `tests[[19]]$stat` | 0.9504949069 | 0.9378601604 | 1.329e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[19]]$loi` | aucune forme fermee ; normalisation de Royston (1993) | aucune forme fermee ; normalisation de Royston (1992) |  | non numerique |
+| `tests[[19]]$p_asymptotique` | 0.707645655 | 0.590156423 | 1.660e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[19]]$p_mc` | 0.686 | 0.62 | 9.621e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[19]]$err_mc` | 0.01468399195 | 0.01535694748 | 4.583e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[19]]$p_retenue` | 0.686 | 0.62 | 9.621e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[19]]$fonction` | test_shapiro_francia | .shapiro_sur |  | non numerique |
+| `tests[[19]]$mc_nom` | SF | SW |  | non numerique |
+| `tests[[20]]$test` | Anderson-Darling | Shapiro-Francia |  | non numerique |
+| `tests[[20]]$reference` | Anderson & Darling (1954), JASA 49 | Shapiro & Francia (1972), JASA 67 ; p-value : Royston (1993… (75 car.) |  | non numerique |
+| `tests[[20]]$stat_nom` | A2 | W' |  | non numerique |
+| `tests[[20]]$stat` | 0.3257904403 | 0.9504949069 | 1.918e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[20]]$loi` | loi AD, cas parametres estimes ; p non simulee : ajustement… (176 car.) | aucune forme fermee ; normalisation de Royston (1993) |  | non numerique |
+| `tests[[20]]$estim_nom` | A2 sur (z - zbar)/s_z | \<NA\> |  | non numerique |
+| `tests[[20]]$estim` | 0.2858759703 | \<NA\> |  | non fini |
+| `tests[[20]]$p_asymptotique` | 0.5272932844 | 0.707645655 | 3.420e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[20]]$p_mc` | 0.566 | 0.686 | 2.120e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[20]]$err_mc` | 0.01568087657 | 0.01468399195 | 6.357e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[20]]$p_retenue` | 0.566 | 0.686 | 2.120e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[20]]$detail` | Sensible aux queues. p non simulee : ajustement empirique d… (125 car.) |  |  | non numerique |
+| `tests[[20]]$fonction` | stat_ad | test_shapiro_francia |  | non numerique |
+| `tests[[20]]$mc_nom` | AD | SF |  | non numerique |
+| `tests[[21]]$test` | Cramer-von Mises | Anderson-Darling |  | non numerique |
+| `tests[[21]]$reference` | Cramer (1928) / von Mises (1928) ; Stephens (1974) | Anderson & Darling (1954), JASA 49 |  | non numerique |
+| `tests[[21]]$type` | diagnostic | test |  | non numerique |
+| `tests[[21]]$stat_nom` | W2 | A2 |  | non numerique |
+| `tests[[21]]$stat` | 0.05492236403 | 0.3257904403 | 4.932e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[21]]$loi` | loi CvM, cas parametres estimes ; p non simulee : ajustemen… (177 car.) | loi AD, cas parametres estimes ; p non simulee : ajustement… (176 car.) |  | non numerique |
+| `tests[[21]]$estim_nom` | W2 sur (z - zbar)/s_z | A2 sur (z - zbar)/s_z |  | non numerique |
+| `tests[[21]]$estim` | 0.04910009994 | 0.2858759703 | 4.822e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[21]]$p_asymptotique` | 0.4800226104 | 0.5272932844 | 9.848e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[21]]$p_mc` | 0.476 | 0.566 | 1.891e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[21]]$err_mc` | 0.01580106559 | 0.01568087657 | 7.606e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[21]]$p_retenue` | \<NA\> | 0.566 |  | non fini |
+| `tests[[21]]$nature_p` | \<NA\> | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[21]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[21]]$detail` | Restituee en diagnostic par decision (issue #302) : aucun v… (201 car.) | Sensible aux queues. p non simulee : ajustement empirique d… (125 car.) |  | non numerique |
+| `tests[[21]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[21]]$fonction` | stat_cvm | stat_ad |  | non numerique |
+| `tests[[21]]$mc_nom` | CvM | AD |  | non numerique |
+| `tests[[22]]$test` | Kolmogorov-Smirnov contre N(0,1) | Cramer-von Mises |  | non numerique |
+| `tests[[22]]$reference` | Kolmogorov (1933) ; Smirnov (1948) | Cramer (1928) / von Mises (1928) ; Stephens (1974) |  | non numerique |
+| `tests[[22]]$variante` | secondaire | principale |  | non numerique |
+| `tests[[22]]$stat_nom` | D | W2 |  | non numerique |
+| `tests[[22]]$stat` | 0.2348743508 | 0.05492236403 | 7.662e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[22]]$loi` | loi de Kolmogorov (valable a parametres CONNUS) | loi CvM, cas parametres estimes ; p non simulee : ajustemen… (177 car.) |  | non numerique |
+| `tests[[22]]$estim_nom` | \<NA\> | W2 sur (z - zbar)/s_z |  | non numerique |
+| `tests[[22]]$estim` | \<NA\> | 0.04910009994 |  | non fini |
+| `tests[[22]]$p_asymptotique` | 0.7695006929 | 0.4800226104 | 3.762e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[22]]$p_mc` | 0.267 | 0.476 | 7.828e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[22]]$err_mc` | 0.01399667485 | 0.01580106559 | 1.289e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[22]]$detail` | Les residus sont standardises par le MODELE, dont les param… (568 car.) | Restituee en diagnostic par decision (issue #302) : aucun v… (201 car.) |  | non numerique |
+| `tests[[22]]$fonction` | stat_ks | stat_cvm |  | non numerique |
+| `tests[[22]]$mc_nom` | KS | CvM |  | non numerique |
+| `tests[[23]]$test` | Lilliefors (KS a parametres estimes) | Kolmogorov-Smirnov contre N(0,1) |  | non numerique |
+| `tests[[23]]$reference` | Lilliefors (1967), JASA 62 ; p-value : Dallal & Wilkinson (… (64 car.) | Kolmogorov (1933) ; Smirnov (1948) |  | non numerique |
+| `tests[[23]]$type` | test | diagnostic |  | non numerique |
+| `tests[[23]]$variante` | principale | secondaire |  | non numerique |
+| `tests[[23]]$stat` | 0.2279432249 | 0.2348743508 | 3.041e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[23]]$loi` | loi de Lilliefors (moyenne et ecart-type estimes) | loi de Kolmogorov (valable a parametres CONNUS) |  | non numerique |
+| `tests[[23]]$p_asymptotique` | 0.2549189259 | 0.7695006929 | 2.019e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[23]]$p_mc` | 0.269 | 0.267 | 7.435e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[23]]$err_mc` | 0.01402981952 | 0.01399667485 | 2.362e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[23]]$p_retenue` | 0.269 | \<NA\> |  | non fini |
+| `tests[[23]]$nature_p` | Monte-Carlo (bootstrap parametrique) | \<NA\> |  | non numerique |
+| `tests[[23]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[23]]$detail` | Distinct du KS contre N(0,1) : la loi de reference tient co… (177 car.) | Les residus sont standardises par le MODELE, dont les param… (568 car.) |  | non numerique |
+| `tests[[23]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[23]]$fonction` | stat_lilliefors | stat_ks |  | non numerique |
+| `tests[[23]]$mc_nom` | Lillie | KS |  | non numerique |
+| `tests[[24]]$test` | Jarque-Bera | Lilliefors (KS a parametres estimes) |  | non numerique |
+| `tests[[24]]$reference` | Jarque & Bera (1980, 1987) | Lilliefors (1967), JASA 62 ; p-value : Dallal & Wilkinson (… (64 car.) |  | non numerique |
+| `tests[[24]]$H0` | asymetrie nulle ET aplatissement egal a 3 | les residus standardises suivent une loi normale |  | non numerique |
+| `tests[[24]]$H1` | asymetrie ou aplatissement non normaux | loi non normale |  | non numerique |
+| `tests[[24]]$stat_nom` | JB | D |  | non numerique |
+| `tests[[24]]$stat` | 0.5062988268 | 0.2279432249 | 5.498e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[24]]$loi` | chi2(2) asymptotique | loi de Lilliefors (moyenne et ecart-type estimes) |  | non numerique |
+| `tests[[24]]$p_asymptotique` | 0.7763518758 | 0.2549189259 | 6.716e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[24]]$p_mc` | 0.674 | 0.269 | 6.009e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[24]]$err_mc` | 0.0148305072 | 0.01402981952 | 5.399e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[24]]$p_retenue` | 0.674 | 0.269 | 6.009e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[24]]$detail` | asymetrie et aplatissement : estimations des lignes D'Agost… (127 car.) | Distinct du KS contre N(0,1) : la loi de reference tient co… (177 car.) |  | non numerique |
+| `tests[[24]]$fonction` | test_jarque_bera | stat_lilliefors |  | non numerique |
+| `tests[[24]]$mc_nom` | JB | Lillie |  | non numerique |
+| `tests[[25]]$test` | Asymetrie (D'Agostino, T >= 8) | Jarque-Bera |  | non numerique |
+| `tests[[25]]$reference` | D'Agostino (1970), Biometrika 57 | Jarque & Bera (1980, 1987) |  | non numerique |
+| `tests[[25]]$H0` | coefficient d'asymetrie de la population nul | asymetrie nulle ET aplatissement egal a 3 |  | non numerique |
+| `tests[[25]]$H1` | asymetrie non nulle | asymetrie ou aplatissement non normaux |  | non numerique |
+| `tests[[25]]$stat_nom` | Z | JB |  | non numerique |
+| `tests[[25]]$stat` | -0.351698785 | 0.5062988268 | 2.440e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[25]]$loi` | N(0,1) approx. (transformation de Johnson SU) | chi2(2) asymptotique |  | non numerique |
+| `tests[[25]]$estim_nom` | asymetrie | \<NA\> |  | non numerique |
+| `tests[[25]]$estim` | -0.2088042843 | \<NA\> |  | non fini |
+| `tests[[25]]$p_asymptotique` | 0.7250641719 | 0.7763518758 | 7.074e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[25]]$p_mc` | 0.708 | 0.674 | 4.802e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[25]]$err_mc` | 0.03025973648 | 0.0148305072 | 5.099e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[25]]$p_retenue` | 0.708 | 0.674 | 4.802e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[25]]$detail` |  | asymetrie et aplatissement : estimations des lignes D'Agost… (127 car.) |  | non numerique |
+| `tests[[25]]$fonction` | test_dagostino_skew | test_jarque_bera |  | non numerique |
+| `tests[[25]]$mc_nom` | DAgo | JB |  | non numerique |
+| `tests[[26]]$test` | Aplatissement (Anscombe-Glynn, T >= 20) | Asymetrie (D'Agostino, T >= 8) |  | non numerique |
+| `tests[[26]]$reference` | Anscombe & Glynn (1983), Biometrika 70 | D'Agostino (1970), Biometrika 57 |  | non numerique |
+| `tests[[26]]$type` | non applicable | test |  | non numerique |
+| `tests[[26]]$H0` | \<NA\> | coefficient d'asymetrie de la population nul |  | non numerique |
+| `tests[[26]]$H1` | \<NA\> | asymetrie non nulle |  | non numerique |
+| `tests[[26]]$stat_nom` | \<NA\> | Z |  | non numerique |
+| `tests[[26]]$stat` | \<NA\> | -0.351698785 |  | non fini |
+| `tests[[26]]$loi` | \<NA\> | N(0,1) approx. (transformation de Johnson SU) |  | non numerique |
+| `tests[[26]]$estim_nom` | aplatissement | asymetrie |  | non numerique |
+| `tests[[26]]$estim` | 1.840474423 | -0.2088042843 | 1.113e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[26]]$p_asymptotique` | \<NA\> | 0.7250641719 |  | non fini |
+| `tests[[26]]$p_mc` | \<NA\> | 0.708 |  | non fini |
+| `tests[[26]]$err_mc` | \<NA\> | 0.03025973648 |  | non fini |
+| `tests[[26]]$p_retenue` | \<NA\> | 0.708 |  | non fini |
+| `tests[[26]]$nature_p` | \<NA\> | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[26]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[26]]$detail` | T = 8 < 20 : test non defini |  |  | non numerique |
+| `tests[[26]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[26]]$fonction` | test_anscombe_kurt | test_dagostino_skew |  | non numerique |
+| `tests[[26]]$mc_nom` | \<NA\> | DAgo |  | non numerique |
+| `tests[[27]]$famille` | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) | D. H3 - lognormalite (annexe XVII B(2)(g)(iii)) |  | non numerique |
+| `tests[[27]]$test` | Autocorrelation d'ordre 1 (Durbin-Watson) | Aplatissement (Anscombe-Glynn, T >= 20) |  | non numerique |
+| `tests[[27]]$reference` | Durbin & Watson (1950, 1951) | Anscombe & Glynn (1983), Biometrika 70 |  | non numerique |
+| `tests[[27]]$type` | test | non applicable |  | non numerique |
+| `tests[[27]]$base` | z | commun |  | non numerique |
+| `tests[[27]]$H0` | rho = 0 (absence d'autocorrelation d'ordre 1) | \<NA\> |  | non numerique |
+| `tests[[27]]$H1` | rho != 0 | \<NA\> |  | non numerique |
+| `tests[[27]]$stat_nom` | DW | \<NA\> |  | non numerique |
+| `tests[[27]]$stat` | 1.618325494 | \<NA\> |  | non fini |
+| `tests[[27]]$loi` | forme quadratique en normales ; loi EXACTE par la methode d… (72 car.) | \<NA\> |  | non numerique |
+| `tests[[27]]$estim_nom` | \<NA\> | aplatissement |  | non numerique |
+| `tests[[27]]$estim` | \<NA\> | 1.840474423 |  | non fini |
+| `tests[[27]]$p_exacte` | 0.5648604153 | \<NA\> |  | non fini |
+| `tests[[27]]$p_mc` | 0.558 | \<NA\> |  | non fini |
+| `tests[[27]]$err_mc` | 0.02838030024 | \<NA\> |  | non fini |
+| `tests[[27]]$p_retenue` | 0.5648604153 | \<NA\> |  | non fini |
+| `tests[[27]]$nature_p` | exacte | \<NA\> |  | non numerique |
+| `tests[[27]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[27]]$detail` | Statistique calculee sur residus CENTRES. Les bornes d_L/d_… (177 car.) | T = 8 < 20 : test non defini |  | non numerique |
+| `tests[[27]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[27]]$fonction` | stat_dw | test_anscombe_kurt |  | non numerique |
+| `tests[[27]]$mc_nom` | DW | \<NA\> |  | non numerique |
+| `tests[[28]]$test` | Ljung-Box (retard 2) | Autocorrelation d'ordre 1 (Durbin-Watson) |  | non numerique |
+| `tests[[28]]$reference` | Ljung & Box (1978), Biometrika 65 | Durbin & Watson (1950, 1951) |  | non numerique |
+| `tests[[28]]$base` | commun | z |  | non numerique |
+| `tests[[28]]$H0` | rho_1 = rho_2 = 0 | rho = 0 (absence d'autocorrelation d'ordre 1) |  | non numerique |
+| `tests[[28]]$H1` | autocorrelation jusqu'au retard 2 | rho != 0 |  | non numerique |
+| `tests[[28]]$stat_nom` | Q | DW |  | non numerique |
+| `tests[[28]]$stat` | 3.393235281 | 1.618325494 | 5.231e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[28]]$loi` | chi2(2) asymptotique | forme quadratique en normales ; loi EXACTE par la methode d… (72 car.) |  | non numerique |
+| `tests[[28]]$p_exacte` | \<NA\> | 0.5648604153 |  | non fini |
+| `tests[[28]]$p_asymptotique` | 0.1833024715 | \<NA\> |  | non fini |
+| `tests[[28]]$p_mc` | 0.188 | 0.558 | 1.968e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[28]]$err_mc` | 0.01236158602 | 0.02838030024 | 1.296e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[28]]$p_retenue` | 0.188 | 0.5648604153 | 2.005e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[28]]$nature_p` | Monte-Carlo (bootstrap parametrique) | exacte |  | non numerique |
+| `tests[[28]]$detail` |  | Statistique calculee sur residus CENTRES. Les bornes d_L/d_… (177 car.) |  | non numerique |
+| `tests[[28]]$fonction` | usp_tests | stat_dw |  | non numerique |
+| `tests[[28]]$mc_nom` | LB2 | DW |  | non numerique |
+| `tests[[29]]$test` | Test des suites (aleatoire des signes) | Ljung-Box (retard 2) |  | non numerique |
+| `tests[[29]]$reference` | Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (19… (62 car.) | Ljung & Box (1978), Biometrika 65 |  | non numerique |
+| `tests[[29]]$base` | z | commun |  | non numerique |
+| `tests[[29]]$H0` | la suite des signes est un arrangement aleatoire | rho_1 = rho_2 = 0 |  | non numerique |
+| `tests[[29]]$H1` | arrangement non aleatoire (regroupement ou alternance) | autocorrelation jusqu'au retard 2 |  | non numerique |
+| `tests[[29]]$stat_nom` | Z | Q |  | non numerique |
+| `tests[[29]]$stat` | -0.7637626158 | 3.393235281 | 5.443e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[29]]$loi` | loi combinatoire EXACTE de R | chi2(2) asymptotique |  | non numerique |
+| `tests[[29]]$estim_nom` | nb de suites R | \<NA\> |  | non numerique |
+| `tests[[29]]$estim` | 4 | \<NA\> |  | non fini |
+| `tests[[29]]$p_exacte` | 0.7428571429 | \<NA\> |  | non fini |
+| `tests[[29]]$p_asymptotique` | 0.4450087187 | 0.1833024715 | 5.881e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[29]]$p_mc` | 0.762 | 0.188 | 7.533e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[29]]$err_mc` | 0.03072946957 | 0.01236158602 | 5.977e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[29]]$p_retenue` | 0.7428571429 | 0.188 | 7.469e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[29]]$nature_p` | exacte | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[29]]$detail` | ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05 (n1 … (71 car.) |  |  | non numerique |
+| `tests[[29]]$p_min` | 0.05714285714 | \<NA\> |  | non fini |
+| `tests[[29]]$fonction` | test_runs | usp_tests |  | non numerique |
+| `tests[[29]]$mc_nom` | Runs | LB2 |  | non numerique |
+| `tests[[30]]$test` | Centrage des residus standardises | Test des suites (aleatoire des signes) |  | non numerique |
+| `tests[[30]]$reference` | Diagnostic de centrage (ADR 0001) | Wald & Wolfowitz (1940) ; loi exacte : Swed & Eisenhart (19… (62 car.) |  | non numerique |
+| `tests[[30]]$type` | diagnostic | test |  | non numerique |
+| `tests[[30]]$base` | commun | z |  | non numerique |
+| `tests[[30]]$H0` | \<NA\> | la suite des signes est un arrangement aleatoire |  | non numerique |
+| `tests[[30]]$H1` | \<NA\> | arrangement non aleatoire (regroupement ou alternance) |  | non numerique |
+| `tests[[30]]$stat_nom` | \<NA\> | Z |  | non numerique |
+| `tests[[30]]$stat` | \<NA\> | -0.7637626158 |  | non fini |
+| `tests[[30]]$loi` | \<NA\> | loi combinatoire EXACTE de R |  | non numerique |
+| `tests[[30]]$estim_nom` | moyenne(z) | nb de suites R |  | non numerique |
+| `tests[[30]]$estim` | 1.526556659e-16 | 4 | 4.000e+00 | absolu, au-delà du seuil 1e-06 |
+| `tests[[30]]$p_exacte` | \<NA\> | 0.7428571429 |  | non fini |
+| `tests[[30]]$p_asymptotique` | \<NA\> | 0.4450087187 |  | non fini |
+| `tests[[30]]$p_mc` | \<NA\> | 0.762 |  | non fini |
+| `tests[[30]]$err_mc` | \<NA\> | 0.03072946957 |  | non fini |
+| `tests[[30]]$p_retenue` | \<NA\> | 0.7428571429 |  | non fini |
+| `tests[[30]]$nature_p` | \<NA\> | exacte |  | non numerique |
+| `tests[[30]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[30]]$detail` | Grandeur rivee par l'estimation : somme(sqrt(pi_t) z_t) = 0… (600 car.) | ECHEC inatteignable : p_min = 0.0571 >= alpha/2 = 0.05 (n1 … (71 car.) |  | non numerique |
+| `tests[[30]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[30]]$p_min` | \<NA\> | 0.05714285714 |  | non fini |
+| `tests[[30]]$fonction` | usp_tests | test_runs |  | non numerique |
+| `tests[[30]]$mc_nom` | \<NA\> | Runs |  | non numerique |
+| `tests[[31]]$test` | Variance unitaire des residus standardises | Centrage des residus standardises |  | non numerique |
+| `tests[[31]]$reference` | Diagnostic d'echelle (ADR 0001) | Diagnostic de centrage (ADR 0001) |  | non numerique |
+| `tests[[31]]$estim_nom` | var(z) | moyenne(z) |  | non numerique |
+| `tests[[31]]$estim` | 1.142857136 | 1.526556659e-16 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[31]]$detail` | Grandeur rivee par l'estimation : la condition du premier o… (719 car.) | Grandeur rivee par l'estimation : somme(sqrt(pi_t) z_t) = 0… (600 car.) |  | non numerique |
+| `tests[[32]]$famille` | F. Stabilite, ruptures et points aberrants | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) |  | non numerique |
+| `tests[[32]]$test` | Rupture de niveau (sup-F) | Variance unitaire des residus standardises |  | non numerique |
+| `tests[[32]]$reference` | Quandt (1960) / Chow (1960) ; Andrews (1993) | Diagnostic d'echelle (ADR 0001) |  | non numerique |
+| `tests[[32]]$type` | test | diagnostic |  | non numerique |
+| `tests[[32]]$base` | z | commun |  | non numerique |
+| `tests[[32]]$H0` | E[z_t] constant (absence de rupture) | \<NA\> |  | non numerique |
+| `tests[[32]]$H1` | rupture de niveau a une date inconnue | \<NA\> |  | non numerique |
+| `tests[[32]]$stat_nom` | supF | \<NA\> |  | non numerique |
+| `tests[[32]]$stat` | 0.8409913882 | \<NA\> |  | non fini |
+| `tests[[32]]$loi` | supremum de processus (Andrews) -> Monte-Carlo | \<NA\> |  | non numerique |
+| `tests[[32]]$estim_nom` | \<NA\> | var(z) |  | non numerique |
+| `tests[[32]]$estim` | \<NA\> | 1.142857136 |  | non fini |
+| `tests[[32]]$p_mc` | 0.84 | \<NA\> |  | non fini |
+| `tests[[32]]$err_mc` | 0.0115989023 | \<NA\> |  | non fini |
+| `tests[[32]]$p_retenue` | 0.84 | \<NA\> |  | non fini |
+| `tests[[32]]$nature_p` | Monte-Carlo (bootstrap parametrique) | \<NA\> |  | non numerique |
+| `tests[[32]]$verdict` | OK | INFO |  | non numerique |
+| `tests[[32]]$detail` | La loi de Fisher est inapplicable : le point de rupture est… (66 car.) | Grandeur rivee par l'estimation : la condition du premier o… (719 car.) |  | non numerique |
+| `tests[[32]]$sens` | ne pas rejeter | \<NA\> |  | non numerique |
+| `tests[[32]]$fonction` | stat_supF | usp_tests |  | non numerique |
+| `tests[[32]]$mc_nom` | supF | \<NA\> |  | non numerique |
+| `tests[[33]]$test` | Stabilite cumulee (OLS-CUSUM) | Rupture de niveau (sup-F) |  | non numerique |
+| `tests[[33]]$reference` | Brown, Durbin & Evans (1975), JRSS B 37 | Quandt (1960) / Chow (1960) ; Andrews (1993) |  | non numerique |
+| `tests[[33]]$H0` | constance des parametres sur la periode | E[z_t] constant (absence de rupture) |  | non numerique |
+| `tests[[33]]$H1` | niveau non constant (derive ou rupture) | rupture de niveau a une date inconnue |  | non numerique |
+| `tests[[33]]$stat_nom` | CUSUM | supF |  | non numerique |
+| `tests[[33]]$stat` | 0.4952563367 | 0.8409913882 | 6.981e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[33]]$loi` | sup \|pont brownien\| ; formule de Kolmogorov asymptotique | supremum de processus (Andrews) -> Monte-Carlo |  | non numerique |
+| `tests[[33]]$p_asymptotique` | 0.9668982664 | \<NA\> |  | non fini |
+| `tests[[33]]$p_mc` | 0.817 | 0.84 | 2.815e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[33]]$err_mc` | 0.0122335874 | 0.0115989023 | 5.188e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[33]]$p_retenue` | 0.817 | 0.84 | 2.815e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[33]]$detail` | La formule asymptotique n'a aucune validite a T = 8 ; p_mc … (135 car.) | La loi de Fisher est inapplicable : le point de rupture est… (66 car.) |  | non numerique |
+| `tests[[33]]$fonction` | stat_cusum | stat_supF |  | non numerique |
+| `tests[[33]]$mc_nom` | CUSUM | supF |  | non numerique |
+| `tests[[34]]$test` | Valeur aberrante isolee (Grubbs) | Stabilite cumulee (OLS-CUSUM) |  | non numerique |
+| `tests[[34]]$reference` | Grubbs (1950, 1969), Technometrics 11 | Brown, Durbin & Evans (1975), JRSS B 37 |  | non numerique |
+| `tests[[34]]$H0` | aucune valeur aberrante (echantillon normal homogene) | constance des parametres sur la periode |  | non numerique |
+| `tests[[34]]$H1` | exactement une valeur aberrante | niveau non constant (derive ou rupture) |  | non numerique |
+| `tests[[34]]$stat_nom` | G | CUSUM |  | non numerique |
+| `tests[[34]]$stat` | 1.428866544 | 0.4952563367 | 6.534e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[34]]$loi` | Student + borne de Bonferroni, exacte sous i.i.d. normal po… (119 car.) | sup \|pont brownien\| ; formule de Kolmogorov asymptotique |  | non numerique |
+| `tests[[34]]$estim_nom` | rang de l'obs. extreme | \<NA\> |  | non numerique |
+| `tests[[34]]$estim` | 6 | \<NA\> |  | non numerique |
+| `tests[[34]]$p_asymptotique` | 1 | 0.9668982664 | 3.310e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[34]]$p_mc` | 0.861 | 0.817 | 5.110e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[34]]$err_mc` | 0.01094526376 | 0.0122335874 | 1.177e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[34]]$p_retenue` | 0.861 | 0.817 | 5.110e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[34]]$detail` | G est borne par (T-1)/sqrt(T) = 2.475 | La formule asymptotique n'a aucune validite a T = 8 ; p_mc … (135 car.) |  | non numerique |
+| `tests[[34]]$fonction` | test_grubbs | stat_cusum |  | non numerique |
+| `tests[[34]]$mc_nom` | Grubbs | CUSUM |  | non numerique |
+| `tests[[35]]$test` | Valeurs aberrantes multiples (ESD generalise) | Valeur aberrante isolee (Grubbs) |  | non numerique |
+| `tests[[35]]$reference` | Rosner (1983), Technometrics 25 | Grubbs (1950, 1969), Technometrics 11 |  | non numerique |
+| `tests[[35]]$type` | diagnostic | test |  | non numerique |
+| `tests[[35]]$base` | commun | z |  | non numerique |
+| `tests[[35]]$H0` | aucune valeur aberrante | aucune valeur aberrante (echantillon normal homogene) |  | non numerique |
+| `tests[[35]]$H1` | il existe i <= k valeurs aberrantes | exactement une valeur aberrante |  | non numerique |
+| `tests[[35]]$stat_nom` | \<NA\> | G |  | non numerique |
+| `tests[[35]]$stat` | \<NA\> | 1.428866544 |  | non fini |
+| `tests[[35]]$loi` | \<NA\> | Student + borne de Bonferroni, exacte sous i.i.d. normal po… (119 car.) |  | non numerique |
+| `tests[[35]]$estim_nom` | nb de valeurs aberrantes | rang de l'obs. extreme |  | non numerique |
+| `tests[[35]]$estim` | 0 | 6 |  | non numerique |
+| `tests[[35]]$p_asymptotique` | \<NA\> | 1 |  | non fini |
+| `tests[[35]]$p_mc` | \<NA\> | 0.861 |  | non fini |
+| `tests[[35]]$err_mc` | \<NA\> | 0.01094526376 |  | non fini |
+| `tests[[35]]$p_retenue` | \<NA\> | 0.861 |  | non fini |
+| `tests[[35]]$nature_p` | \<NA\> | Monte-Carlo (bootstrap parametrique) |  | non numerique |
+| `tests[[35]]$verdict` | INFO | OK |  | non numerique |
+| `tests[[35]]$detail` | procedure ESD de Rosner (1983) a niveau nominal alpha = 0.1… (411 car.) | G est borne par (T-1)/sqrt(T) = 2.475 |  | non numerique |
+| `tests[[35]]$sens` | \<NA\> | ne pas rejeter |  | non numerique |
+| `tests[[35]]$fonction` | test_rosner | test_grubbs |  | non numerique |
+| `tests[[35]]$mc_nom` | \<NA\> | Grubbs |  | non numerique |
+| `tests[[36]]$test` | Points influents (distance de Cook) | Valeurs aberrantes multiples (ESD generalise) |  | non numerique |
+| `tests[[36]]$reference` | Cook (1977), Technometrics 19 | Rosner (1983), Technometrics 25 |  | non numerique |
+| `tests[[36]]$H0` | \<NA\> | aucune valeur aberrante |  | non numerique |
+| `tests[[36]]$H1` | \<NA\> | il existe i <= k valeurs aberrantes |  | non numerique |
+| `tests[[36]]$estim_nom` | max D_t | nb de valeurs aberrantes |  | non numerique |
+| `tests[[36]]$estim` | 0.5544958043 | 0 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[36]]$detail` | repere conventionnel 4/T = 0.500 ; 1 observation(s) au-dess… (71 car.) | procedure ESD de Rosner (1983) a niveau nominal alpha = 0.1… (411 car.) |  | non numerique |
+| `tests[[36]]$fonction` | usp_tests | test_rosner |  | non numerique |
+| `tests[[37]]$famille` | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) | F. Stabilite, ruptures et points aberrants |  | non numerique |
+| `tests[[37]]$test` | Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts | Points influents (distance de Cook) |  | non numerique |
+| `tests[[37]]$reference` | Durbin & Watson (1950, 1951) | Cook (1977), Technometrics 19 |  | non numerique |
+| `tests[[37]]$base` | r | commun |  | non numerique |
+| `tests[[37]]$H0` | absence d'autocorrelation d'ordre 1 du ratio S/P | \<NA\> |  | non numerique |
+| `tests[[37]]$H1` | autocorrelation du ratio S/P | \<NA\> |  | non numerique |
+| `tests[[37]]$stat_nom` | DW | \<NA\> |  | non numerique |
+| `tests[[37]]$stat` | 1.630331702 | \<NA\> |  | non fini |
+| `tests[[37]]$loi` | loi classique INDICATIVE (ratios heteroscedastiques) -> Mon… (67 car.) | \<NA\> |  | non numerique |
+| `tests[[37]]$estim_nom` | \<NA\> | max D_t |  | non numerique |
+| `tests[[37]]$estim` | \<NA\> | 0.5544958043 |  | non fini |
+| `tests[[37]]$p_mc` | 0.566 | \<NA\> |  | non fini |
+| `tests[[37]]$err_mc` | 0.02850362181 | \<NA\> |  | non fini |
+| `tests[[37]]$detail` | CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou … (453 car.) | repere conventionnel 4/T = 0.500 ; 1 observation(s) au-dess… (71 car.) |  | non numerique |
+| `tests[[37]]$fonction` | stat_dw | usp_tests |  | non numerique |
+| `tests[[37]]$mc_nom` | DWr | \<NA\> |  | non numerique |
+| `tests[[38]]$test` | Test des suites sur ratios bruts | Autocorrelation d'ordre 1 (Durbin-Watson) sur ratios bruts |  | non numerique |
+| `tests[[38]]$reference` | Wald & Wolfowitz (1940) | Durbin & Watson (1950, 1951) |  | non numerique |
+| `tests[[38]]$H0` | arrangement aleatoire des signes du ratio centre | absence d'autocorrelation d'ordre 1 du ratio S/P |  | non numerique |
+| `tests[[38]]$H1` | arrangement non aleatoire | autocorrelation du ratio S/P |  | non numerique |
+| `tests[[38]]$stat_nom` | Z | DW |  | non numerique |
+| `tests[[38]]$stat` | -0.7637626158 | 1.630331702 | 3.135e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[38]]$loi` | loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., s… (90 car.) | loi classique INDICATIVE (ratios heteroscedastiques) -> Mon… (67 car.) |  | non numerique |
+| `tests[[38]]$p_exacte` | 0.7428571429 | \<NA\> |  | non fini |
+| `tests[[38]]$p_mc` | 0.768 | 0.566 | 2.630e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[38]]$err_mc` | 0.03077536552 | 0.02850362181 | 7.382e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[38]]$detail` | …residus standardises : les signes de u_t - med(u) et de z_t … (948 car., 1re différence au car. 214) | …residus standardises, dont elle ne differe que par la transf… (453 car., 1re différence au car. 214) |  | non numerique |
+| `tests[[38]]$p_min` | 0.05714285714 | \<NA\> |  | non fini |
+| `tests[[38]]$fonction` | test_runs | stat_dw |  | non numerique |
+| `tests[[38]]$mc_nom` | Runsr | DWr |  | non numerique |
+| `tests[[39]]$famille` | F. Stabilite, ruptures et points aberrants | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) |  | non numerique |
+| `tests[[39]]$test` | Rupture de niveau (sup-F) sur ratios bruts | Test des suites sur ratios bruts |  | non numerique |
+| `tests[[39]]$reference` | Quandt (1960) / Chow (1960) ; Andrews (1993) | Wald & Wolfowitz (1940) |  | non numerique |
+| `tests[[39]]$H0` | niveau du ratio S/P constant | arrangement aleatoire des signes du ratio centre |  | non numerique |
+| `tests[[39]]$H1` | rupture de niveau du ratio S/P | arrangement non aleatoire |  | non numerique |
+| `tests[[39]]$stat_nom` | supF | Z |  | non numerique |
+| `tests[[39]]$stat` | 0.5593525834 | -0.7637626158 | 2.365e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[39]]$loi` | supremum de processus -> Monte-Carlo | loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., s… (90 car.) |  | non numerique |
+| `tests[[39]]$p_exacte` | \<NA\> | 0.7428571429 |  | non fini |
+| `tests[[39]]$p_mc` | 0.931 | 0.768 | 1.751e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[39]]$err_mc` | 0.00801893405 | 0.03077536552 | 2.838e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[39]]$detail` | Detecte un changement de regime du ratio, independamment du… (521 car.) | CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou … (948 car.) |  | non numerique |
+| `tests[[39]]$p_min` | \<NA\> | 0.05714285714 |  | non fini |
+| `tests[[39]]$fonction` | stat_supF | test_runs |  | non numerique |
+| `tests[[39]]$mc_nom` | supFr | Runsr |  | non numerique |
+| `tests[[40]]$test` | Stabilite cumulee (OLS-CUSUM) sur ratios bruts | Rupture de niveau (sup-F) sur ratios bruts |  | non numerique |
+| `tests[[40]]$reference` | Brown, Durbin & Evans (1975), JRSS B 37 | Quandt (1960) / Chow (1960) ; Andrews (1993) |  | non numerique |
+| `tests[[40]]$H0` | constance du niveau du ratio S/P | niveau du ratio S/P constant |  | non numerique |
+| `tests[[40]]$H1` | niveau du ratio S/P non constant (derive ou rupture) | rupture de niveau du ratio S/P |  | non numerique |
+| `tests[[40]]$stat_nom` | CUSUM | supF |  | non numerique |
+| `tests[[40]]$stat` | 0.5325170683 | 0.5593525834 | 5.039e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[40]]$loi` | sup \|pont brownien\| -> Monte-Carlo | supremum de processus -> Monte-Carlo |  | non numerique |
+| `tests[[40]]$p_mc` | 0.756 | 0.931 | 2.315e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[40]]$err_mc` | 0.01358854844 | 0.00801893405 | 4.099e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[40]]$detail` | CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou … (453 car.) | Detecte un changement de regime du ratio, independamment du… (521 car.) |  | non numerique |
+| `tests[[40]]$fonction` | stat_cusum | stat_supF |  | non numerique |
+| `tests[[40]]$mc_nom` | CUSUMr | supFr |  | non numerique |
+| `tests[[41]]$test` | Valeur aberrante isolee (Grubbs) sur ratios bruts | Stabilite cumulee (OLS-CUSUM) sur ratios bruts |  | non numerique |
+| `tests[[41]]$reference` | Grubbs (1950, 1969), Technometrics 11 | Brown, Durbin & Evans (1975), JRSS B 37 |  | non numerique |
+| `tests[[41]]$H0` | aucun ratio S/P aberrant | constance du niveau du ratio S/P |  | non numerique |
+| `tests[[41]]$H1` | exactement un ratio aberrant | niveau du ratio S/P non constant (derive ou rupture) |  | non numerique |
+| `tests[[41]]$stat_nom` | G | CUSUM |  | non numerique |
+| `tests[[41]]$stat` | 1.50618572 | 0.5325170683 | 6.464e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[41]]$loi` | loi classique INDICATIVE (ratios heteroscedastiques) -> Mon… (67 car.) | sup \|pont brownien\| -> Monte-Carlo |  | non numerique |
+| `tests[[41]]$estim_nom` | rang du ratio extreme | \<NA\> |  | non numerique |
+| `tests[[41]]$estim` | 8 | \<NA\> |  | non numerique |
+| `tests[[41]]$p_mc` | 0.777 | 0.756 | 2.703e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[41]]$err_mc` | 0.01316983084 | 0.01358854844 | 3.179e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[41]]$detail` | Identifie l'annee au boni/mali le plus atypique, sans passe… (529 car.) | CONTROLE SANS OBJET ICI : pi_t est constant (delta = 1, ou … (453 car.) |  | non numerique |
+| `tests[[41]]$fonction` | test_grubbs | stat_cusum |  | non numerique |
+| `tests[[41]]$mc_nom` | Grubbsr | CUSUMr |  | non numerique |
+| `tests[[42]]$test` | Leviers (hat values) | Valeur aberrante isolee (Grubbs) sur ratios bruts |  | non numerique |
+| `tests[[42]]$reference` | Hoaglin & Welsch (1978), Amer. Statist. 32 | Grubbs (1950, 1969), Technometrics 11 |  | non numerique |
+| `tests[[42]]$base` | commun | r |  | non numerique |
+| `tests[[42]]$H0` | \<NA\> | aucun ratio S/P aberrant |  | non numerique |
+| `tests[[42]]$H1` | \<NA\> | exactement un ratio aberrant |  | non numerique |
+| `tests[[42]]$stat_nom` | \<NA\> | G |  | non numerique |
+| `tests[[42]]$stat` | \<NA\> | 1.50618572 |  | non fini |
+| `tests[[42]]$loi` | \<NA\> | loi classique INDICATIVE (ratios heteroscedastiques) -> Mon… (67 car.) |  | non numerique |
+| `tests[[42]]$estim_nom` | max h_t | rang du ratio extreme |  | non numerique |
+| `tests[[42]]$estim` | 0.1595231783 | 8 |  | non numerique |
+| `tests[[42]]$p_mc` | \<NA\> | 0.777 |  | non fini |
+| `tests[[42]]$err_mc` | \<NA\> | 0.01316983084 |  | non fini |
+| `tests[[42]]$detail` | repere conventionnel 2k/T = 0.250 ; 0 observation(s) au-des… (62 car.) | Identifie l'annee au boni/mali le plus atypique, sans passe… (529 car.) |  | non numerique |
+| `tests[[42]]$fonction` | usp_tests | test_grubbs |  | non numerique |
+| `tests[[42]]$mc_nom` | \<NA\> | Grubbsr |  | non numerique |
+| `tests[[43]]$famille` | G. Robustesse de l'estimation | F. Stabilite, ruptures et points aberrants |  | non numerique |
+| `tests[[43]]$test` | Sensibilite au retrait d'une annee (jackknife) | Leviers (hat values) |  | non numerique |
+| `tests[[43]]$reference` | Quenouille (1949) / Tukey (1958) | Hoaglin & Welsch (1978), Amer. Statist. 32 |  | non numerique |
+| `tests[[43]]$estim_nom` | ecart relatif max | max h_t |  | non numerique |
+| `tests[[43]]$estim` | 0.1012103921 | 0.1595231783 | 5.762e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[43]]$detail` | Annee la plus influente : 8 (sigma_USP en baisse). | repere conventionnel 2k/T = 0.250 ; 0 observation(s) au-des… (62 car.) |  | non numerique |
+| `tests[[43]]$fonction` | run_engine | usp_tests |  | non numerique |
+| `tests[[44]]$test` | Largeur relative de l'IC bootstrap 90% | Sensibilite au retrait d'une annee (jackknife) |  | non numerique |
+| `tests[[44]]$reference` | Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), … (78 car.) | Quenouille (1949) / Tukey (1958) |  | non numerique |
+| `tests[[44]]$estim_nom` | largeur / sigma_USP | ecart relatif max |  | non numerique |
+| `tests[[44]]$estim` | 0.598115417 | 0.1012103921 | 8.308e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[44]]$detail` | Intervalle bootstrap de percentile du parametre retenu, niv… (302 car.) | Annee la plus influente : 8 (sigma_USP en baisse). |  | non numerique |
+| `tests[[45]]$test` | Largeur relative de l'IC bootstrap 90% (delta fixe a delta … (66 car.) | Largeur relative de l'IC bootstrap 90% |  | non numerique |
+| `tests[[45]]$reference` | Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometric… (63 car.) | Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), … (78 car.) |  | non numerique |
+| `tests[[45]]$estim` | 0.5995693763 | 0.598115417 | 2.425e-03 | relatif, au-delà du seuil 1e-06 |
+| `tests[[45]]$detail` | Bootstrap parametrique a delta fixe a sa valeur estimee (se… (703 car.) | Intervalle bootstrap de percentile du parametre retenu, niv… (302 car.) |  | non numerique |
+| `tests[[46]]$test` | Rapport de vraisemblance : delta = 0 (variance lineaire en … (66 car.) | Largeur relative de l'IC bootstrap 90% (delta fixe a delta … (66 car.) |  | non numerique |
+| `tests[[46]]$reference` | Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & … (82 car.) | Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometric… (63 car.) |  | non numerique |
+| `tests[[46]]$H0` | delta = 0 (variance proportionnelle au volume) | \<NA\> |  | non numerique |
+| `tests[[46]]$H1` | delta > 0 | \<NA\> |  | non numerique |
+| `tests[[46]]$stat_nom` | LR(0) | \<NA\> |  | non numerique |
+| `tests[[46]]$stat` | 0.5511529275 | \<NA\> |  | non fini |
+| `tests[[46]]$loi` | sous H0 : loi simulee par bootstrap parametrique restreint … (172 car.) | \<NA\> |  | non numerique |
+| `tests[[46]]$estim_nom` | sigma(delta0, gamma~) | largeur / sigma_USP |  | non numerique |
+| `tests[[46]]$estim` | 0.1087529529 | 0.5995693763 | 4.513e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[46]]$p_asymptotique` | 0.2289234955 | \<NA\> |  | non fini |
+| `tests[[46]]$p_mc` | 0.034 | \<NA\> |  | non fini |
+| `tests[[46]]$err_mc` | 0.00573383614 | \<NA\> |  | non fini |
+| `tests[[46]]$detail` | Aucun verdict (ADR 0001) : le LR mesure si les donnees dist… (420 car.) | Bootstrap parametrique a delta fixe a sa valeur estimee (se… (703 car.) |  | non numerique |
+| `tests[[46]]$fonction` | usp_lr_delta | run_engine |  | non numerique |
+| `tests[[47]]$test` | Rapport de vraisemblance : delta = 1 (variance quadratique … (69 car.) | Rapport de vraisemblance : delta = 0 (variance lineaire en … (66 car.) |  | non numerique |
+| `tests[[47]]$H0` | delta = 1 (variance proportionnelle au carre du volume) | delta = 0 (variance proportionnelle au volume) |  | non numerique |
+| `tests[[47]]$H1` | delta < 1 | delta > 0 |  | non numerique |
+| `tests[[47]]$stat_nom` | LR(1) | LR(0) |  | non numerique |
+| `tests[[47]]$stat` | 0 | 0.5511529275 | 5.512e-01 | absolu, au-delà du seuil 1e-06 |
+| `tests[[47]]$estim` | 0.1053104858 | 0.1087529529 | 3.269e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[47]]$p_asymptotique` | 1 | 0.2289234955 | 7.711e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[47]]$p_mc` | 1 | 0.034 | 9.660e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[47]]$err_mc` | 0 | 0.00573383614 | 5.734e-03 | absolu, au-delà du seuil 1e-06 |
+| `tests[[47]]$detail` | SOLUTION AU BORD delta = 1 : LR = 0 par construction. Aucun… (474 car.) | Aucun verdict (ADR 0001) : le LR mesure si les donnees dist… (420 car.) |  | non numerique |
+| `tests[[48]]$famille` | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i… (61 car.) | G. Robustesse de l'estimation |  | non numerique |
+| `tests[[48]]$test` | p de famille (minP, lecture conjointe) | Rapport de vraisemblance : delta = 1 (variance quadratique … (69 car.) |  | non numerique |
+| `tests[[48]]$reference` | Westfall & Young (1993), minP en une etape ; Ge, Dudoit & S… (144 car.) | Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & … (82 car.) |  | non numerique |
+| `tests[[48]]$H0` | toutes les hypotheses nulles des tests de la famille sont v… (80 car.) | delta = 1 (variance proportionnelle au carre du volume) |  | non numerique |
+| `tests[[48]]$H1` | au moins une est fausse | delta < 1 |  | non numerique |
+| `tests[[48]]$stat_nom` | plus petite p Monte-Carlo de la famille | LR(1) |  | non numerique |
+| `tests[[48]]$stat` | 0.758 | 0 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[48]]$loi` | minimum des p Monte-Carlo -> Monte-Carlo (memes replication… (83 car.) | sous H0 : loi simulee par bootstrap parametrique restreint … (172 car.) |  | non numerique |
+| `tests[[48]]$estim_nom` | nombre de tests de la famille | sigma(delta0, gamma~) |  | non numerique |
+| `tests[[48]]$estim` | 4 | 0.1053104858 | 9.737e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[48]]$p_asymptotique` | \<NA\> | 1 |  | non fini |
+| `tests[[48]]$p_mc` | 0.95 | 1 | 5.263e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[48]]$err_mc` | 0.006895472975 | 0 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[48]]$detail` | Lecture conjointe des tests de la famille (issue #297) : p … (1006 car.) | SOLUTION AU BORD delta = 1 : LR = 0 par construction. Aucun… (474 car.) |  | non numerique |
+| `tests[[48]]$fonction` | engine_p_famille | usp_lr_delta |  | non numerique |
+| `tests[[49]]$famille` | D. H3 - lognormalite (annexe XVII B(2)(g)(iii)) | B. H1 - linearite / proportionnalite (annexe XVII B(2)(g)(i… (61 car.) |  | non numerique |
+| `tests[[49]]$stat` | 0.269 | 0.758 | 1.818e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[49]]$estim` | 6 | 4 | 3.333e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[49]]$p_mc` | 0.438 | 0.95 | 1.169e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[49]]$err_mc` | 0.01569721002 | 0.006895472975 | 5.607e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[49]]$detail` | …n de restitution) : Shapiro-Wilk sur residus standardises [S… (1016 car., 1re différence au car. 464) | …n de restitution) : Nullite de la constante (proportionnalit… (1006 car., 1re différence au car. 464) |  | non numerique |
+| `tests[[50]]$famille` | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) | D. H3 - lognormalite (annexe XVII B(2)(g)(iii)) |  | non numerique |
+| `tests[[50]]$stat` | 0.188 | 0.269 | 4.309e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[50]]$estim` | 3 | 6 | 1.000e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[50]]$p_mc` | 0.316 | 0.438 | 3.861e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[50]]$err_mc` | 0.01470919306 | 0.01569721002 | 6.717e-02 | relatif, au-delà du seuil 1e-06 |
+| `tests[[50]]$detail` | …n de restitution) : Autocorrelation d'ordre 1 (Durbin-Watson… (946 car., 1re différence au car. 464) | …n de restitution) : Shapiro-Wilk sur residus standardises [S… (1016 car., 1re différence au car. 464) |  | non numerique |
+| `tests[[51]]$famille` | F. Stabilite, ruptures et points aberrants | E. H4 - independance et validite du MV (annexe XVII B(2)(g)… (64 car.) |  | non numerique |
+| `tests[[51]]$stat` | 0.817 | 0.188 | 7.699e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[51]]$p_mc` | 0.961 | 0.316 | 6.712e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[51]]$err_mc` | 0.006125072776 | 0.01470919306 | 1.401e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[51]]$detail` | …n de restitution) : Rupture de niveau (sup-F) [supF], Stabil… (939 car., 1re différence au car. 464) | …n de restitution) : Autocorrelation d'ordre 1 (Durbin-Watson… (946 car., 1re différence au car. 464) |  | non numerique |
+| `tests[[52]]$famille` | LC. Lecture conjointe de la batterie (toutes familles) | F. Stabilite, ruptures et points aberrants |  | non numerique |
+| `tests[[52]]$test` | p globale (minP, lecture conjointe de la batterie) | p de famille (minP, lecture conjointe) |  | non numerique |
+| `tests[[52]]$H0` | toutes les hypotheses nulles des tests de toutes les famill… (89 car.) | toutes les hypotheses nulles des tests de la famille sont v… (80 car.) |  | non numerique |
+| `tests[[52]]$stat_nom` | plus petite p Monte-Carlo de la batterie | plus petite p Monte-Carlo de la famille |  | non numerique |
+| `tests[[52]]$stat` | 0.018 | 0.817 | 4.439e+01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[52]]$estim_nom` | nombre de tests | nombre de tests de la famille |  | non numerique |
+| `tests[[52]]$estim` | 17 | 3 | 8.235e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[52]]$p_mc` | 0.131 | 0.961 | 6.336e+00 | relatif, au-delà du seuil 1e-06 |
+| `tests[[52]]$err_mc` | 0.01067487484 | 0.006125072776 | 4.262e-01 | relatif, au-delà du seuil 1e-06 |
+| `tests[[52]]$detail` | Lecture conjointe de la batterie (issue #297) : p minP en u… (696 car.) | Lecture conjointe des tests de la famille (issue #297) : p … (939 car.) |  | non numerique |
+
+## Batteries
+
+- `Rscript tests/test_reproductibilite.R` : code de sortie 0
+  - `premium     sigma_USP = 0.1114524114  (21 s)`
+  - `CONFORME : 56964 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `reserve1    sigma_USP = 0.1073524114  (19 s)`
+  - `CONFORME : 56963 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `reserve2    sigma_USP = 0.0497764613  (41 s)`
+  - `CONFORME : 18694 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `premium_ii6 sigma_USP = 0.1483524114  (19 s)`
+  - `CONFORME : 56964 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `premium_net sigma_USP = 0.1032524114  (18 s)`
+  - `CONFORME : 56964 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `premium_interieur sigma_USP = 0.0871308679  (34 s)`
+  - `CONFORME : 56964 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00`
+  - `OK : reproductibilite et non-regression verifiees pour 6 cas.`
+- `Rscript tests/test_unitaires.R` : code de sortie 0
+  - `TOTAL : 2823 assertions, 2823 ok, 0 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)`
+  - `OK`

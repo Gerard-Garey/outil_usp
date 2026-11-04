@@ -403,8 +403,8 @@ verifier("add() : motif_mc present mais NA pour une p_mc absente -> erreur ; p_m
 
 ## --- 4. usp_tests() : constante, TOST, pente, Fisher, AD, CvM ---------------
 tt <- usp_tests(fit, boot_fictif(fit), methode = "premium")
-verifier("usp_tests : 42 lignes sans jackknife, IC ni LR sur delta (47 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302) ; toute ligne non-test sort INFO (M7)",
-         length(tt) == 42L &&
+verifier("usp_tests : 43 lignes sans jackknife, IC ni LR sur delta (48 par run_engine() ; LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423) ; toute ligne non-test sort INFO (M7)",
+         length(tt) == 43L &&
          all(vapply(Filter(function(l) !identical(l$type, "test"), tt),
                     function(l) identical(l$verdict, "INFO") && is.na(l$sens), logical(1))))
 verifier("usp_tests : chaque ligne porte un champ p_min (NA pour une loi continue)",
@@ -564,6 +564,91 @@ verifier("Pente et Fisher (#169) : jeu J2, p = p_min = 1/40320, OK ; Fisher diag
              identical(f$type, "diagnostic") && grepl("^F\\(1,6\\)", f$loi) &&
              proche(f$p_asymptotique, stats::pf(f$stat, 1, 6, lower.tail = FALSE), rel = 1e-10)
          })
+## --- 4 ter. Ligne Student sur la pente (#423) ---------------------------------
+# Specification d'actuary (commentaire 6588872570 de #423), decisions Q-46-13
+# a Q-46-18 du mainteneur (02/11/2026) : ligne diagnostic entre Pitman et
+# Fisher, verdict INFO sans p retenue, p de Student t(T-2) bilaterale en
+# p_asymptotique, egale a la p de Fisher (F = t^2) ; la p de Student
+# unilaterale de la ligne Pitman est gardee, et qualifiee dans le detail.
+# Textes ecrits en dur.
+student <- "Test de Student sur la pente (modele auxiliaire MCO)"
+TXT_STUDENT423 <- paste(
+  "Diagnostic, aucun verdict : la pente est testee par le seul test de Pitman.",
+  "p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous",
+  "le modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ;",
+  "restituee dans p asymptotique pour information, non retenue. Egale a la p de la",
+  "ligne \"Test de Fisher (significativite globale)\" (F = t^2).")
+TXT_PITMAN_STUDENT423 <- paste(
+  "p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO seulement :",
+  "autre test, autre loi de reference) restituee dans p asymptotique, non retenue :",
+  "approximation asymptotique de la p de permutation, par le theoreme central limite",
+  "combinatoire sous des conditions sur x et y (hypothese, voir la fiche), non etablie",
+  "a T = 8 et mauvaise en queue, ou elle peut etre inferieure a la plus petite p de",
+  "permutation atteignable (champ p_min).")
+TXT_FISHER423 <- paste(
+  "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
+  "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
+  "non retenue ; egale a la p de la ligne \"Test de Student sur la pente (modele",
+  "auxiliaire MCO)\".")
+# Jeux applicables : J1, CV(x) = 3 % et 30 %, J2 (delta interieur), lien
+# negatif (t < 0).
+jeux423 <- list(J1 = list(t = tt, x = x, y = y), CV3 = list(t = t03, x = f03$x, y = f03$y),
+                CV30 = list(t = t30, x = f30$x, y = f30$y), J2 = list(t = t_i, x = xi, y = yi),
+                neg = list(t = t_neg, x = x_neg, y = y_neg))
+verifier("Student (#423) : J1, CV 3 %, CV 30 %, J2, lien negatif -> ligne entre Pitman et Fisher, diagnostic INFO, p_retenue NA, champs de la specification, detail exact",
+         {
+           pb <- character(0)
+           for (k in names(jeux423)) {
+             tk <- jeux423[[k]]$t; noms <- vapply(tk, function(l) l$test, "")
+             i <- match(pente, noms)
+             l <- ligne(tk, student); m <- ligne(tk, pente)
+             if (!(identical(noms[i + 1L], student) && identical(noms[i + 2L], fisher) &&
+                   sum(noms == student) == 1L &&
+                   identical(l$famille, m$famille) && identical(l$type, "diagnostic") &&
+                   identical(l$verdict, "INFO") && is.na(l$p_retenue) && is.na(l$nature_p) &&
+                   is.na(l$sens) && identical(l$inoperant, FALSE) &&
+                   identical(l$fonction, "test_lm_complet") &&
+                   identical(l$reference, "Student (1908), Biometrika 6 ; Fisher (1922), JRSS 85") &&
+                   identical(l$base, ligne(tk, fisher)$base) && identical(l$variante, ligne(tk, fisher)$variante) &&
+                   identical(l$H0, "b = 0") && identical(l$H1, "b != 0") &&
+                   identical(l$stat_nom, "t") && identical(l$stat, m$stat) &&
+                   identical(l$loi, "t(6) exacte sous le modele auxiliaire MCO (erreurs i.i.d. normales homoscedastiques)") &&
+                   is.na(l$estim_nom) && is.na(l$estim) &&
+                   is.na(l$p_exacte) && is.na(l$p_mc) && is.na(l$err_mc) &&
+                   is.na(l$p_min) && is.na(l$p_min_mc) && is.na(l$mc_nom) &&
+                   identical(l$detail, TXT_STUDENT423)))
+               pb <- c(pb, k)
+           }
+           if (length(pb)) paste("jeux :", paste(pb, collapse = ", ")) else TRUE
+         })
+verifier("Student (#423) : p = 2 pt(-|t|, T-2) = Pr(>|t|) de summary.lm et = p de Fisher a 1e-12 pres, sur les cinq jeux",
+         all(vapply(jeux423, function(j) {
+           l <- ligne(j$t, student); fi <- ligne(j$t, fisher)
+           xx <- j$x; yy <- j$y
+           pr <- summary(stats::lm(yy ~ xx))$coefficients["xx", "Pr(>|t|)"]
+           is.finite(l$p_asymptotique) &&
+             isTRUE(proche(l$p_asymptotique, 2 * stats::pt(-abs(l$stat), 6), rel = 0, abs = 1e-12)) &&
+             isTRUE(proche(l$p_asymptotique, fi$p_asymptotique, rel = 0, abs = 1e-12)) &&
+             identical(l$p_asymptotique, pr)
+         }, logical(1))))
+verifier("Pitman (#423) : p asymptotique inchangee = pt(t, T-2, lower.tail = FALSE) (meme expression qu'avant #423), moitie de la p de Student bilaterale a t > 0 ; p retenue, nature, p_min inchanges ; nouvelle phrase, ancienne absente",
+         all(vapply(jeux423, function(j) {
+           m <- ligne(j$t, pente); l <- ligne(j$t, student)
+           t0 <- test_lm_complet(j$x, j$y)$t_pente
+           demi <- if (m$stat > 0) l$p_asymptotique / 2 else 1 - l$p_asymptotique / 2
+           identical(m$p_asymptotique, stats::pt(t0, 6, lower.tail = FALSE)) &&
+             isTRUE(proche(m$p_asymptotique, demi, rel = 1e-10)) &&
+             identical(m$p_retenue, m$p_exacte) && identical(m$nature_p, NAT_PITMAN) &&
+             identical(m$p_min, 1 / 40320) &&
+             grepl(TXT_PITMAN_STUDENT423, m$detail, fixed = TRUE) &&
+             !grepl("(t(T-2) exacte sous le modele auxiliaire MCO seulement)", m$detail, fixed = TRUE)
+         }, logical(1))))
+verifier("Fisher (#423) : detail applicable = texte de la specification (egalite avec la ligne Student), type, loi et p inchanges",
+         all(vapply(jeux423, function(j) {
+           fi <- ligne(j$t, fisher)
+           identical(fi$detail, TXT_FISHER423) && identical(fi$type, "diagnostic") &&
+             identical(fi$verdict, "INFO") && identical(fi$loi, "F(1,6) exacte sous le modele auxiliaire MCO")
+         }, logical(1))))
 ## --- 4 bis. Test de Pitman : usp_permutation_pente() (#169) ------------------
 # Enumeration independante : boucle naive sur les T! appariements (stats::cor).
 naive_perm <- function(x, y, uni) {
@@ -777,6 +862,18 @@ verifier("Pente et Fisher : ajustement exact (x = 1:8, y = 2 x, t = F = Inf) -> 
              identical(fi$detail, paste("statistique F non finie (somme des carres residuelle de la",
                                         "regression de y sur x nulle : ajustement exact, ou non",
                                         "calculable) : non applicable"))
+         })
+verifier("Student (#423) : ajustement exact (x = 1:8, y = 2 x, t = Inf) -> non applicable, INFO, p_asymptotique NA, loi NA, motif 'statistique t non finie ... : non applicable' sans 'test'",
+         {
+           f_ex <- usp_ajuster(1:8, 2 * (1:8))
+           t_ex <- usp_tests(f_ex, boot_fictif(f_ex), methode = "premium")
+           l <- ligne(t_ex, student)
+           identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
+             !is.finite(l$stat) && is.na(l$p_asymptotique) && is.na(l$p_retenue) &&
+             identical(l$loi, NA_character_) && identical(l$fonction, "test_lm_complet") &&
+             identical(l$detail, paste("statistique t non finie (erreur-type de la pente de la",
+                                       "regression de y sur x nulle : ajustement exact, ou non",
+                                       "calculable) : non applicable"))
          })
 verifier("Pente T = 10, B = 9 (critere (e)) : mention 'OK inatteignable' sur la ligne a CV(x) = 3 %, desormais test (R4 retiree) ; aucune sous R1 (p_min = 0,1 >= alpha)",
          {
@@ -1394,9 +1491,9 @@ verifier("engine_table_tests : colonne p_min presente, une valeur par ligne",
 # ligne de largeur d'IC presente (48 lignes avant #45) ; sous 21 tirages, que
 # run_engine() n'admet plus, elle manquait (47 lignes). Depuis #45 : plus la
 # ligne de l'IC restreint (meme regle) et les deux lignes LR sur delta.
-verifier("run_engine : 47 lignes hors lecture conjointe sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302 ; lignes de famille de #297 en fin)",
-         sum(vapply(res_ln$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 47L &&
-           all(vapply(res_ln$tests[-(1:47)], function(l) identical(l$fonction, "engine_p_famille"), NA)) &&
+verifier("run_engine : 48 lignes hors lecture conjointe sur les donnees de test a B = B_MIN_USAGE (lignes de largeur d'IC et de LR sur delta comprises ; LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423 ; lignes de famille de #297 en fin)",
+         sum(vapply(res_ln$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 48L &&
+           all(vapply(res_ln$tests[-(1:48)], function(l) identical(l$fonction, "engine_p_famille"), NA)) &&
            !is.null(res_ln$ic_bootstrap) &&
            any(vapply(res_ln$tests, function(l) identical(l$test, "Largeur relative de l'IC bootstrap 90%"),
                       logical(1))))

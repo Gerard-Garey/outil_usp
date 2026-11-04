@@ -78,10 +78,13 @@
 #  liste de V1 dont p_mc, err_mc, B_effectif, granularite_stat et motif_mc
 #  sont ceux de la variante ; delta_equiv et robustesse absents (comme
 #  run_engine() a delta_equiv NULL). Lignes de T2 : les 44 lignes du
-#  perimetre (52 lignes de run_engine() sur J1 observe, moins les 5 lignes de
+#  perimetre (53 lignes de run_engine() sur J1 observe, moins les 5 lignes de
 #  lecture conjointe de #297 - p de famille et p globale, diagnostics sans p
-#  retenue, reperees par le champ fonction - soit 47, moins les deux lignes du
-#  rapport de vraisemblance sur delta et la largeur de l'IC a delta fixe, #45) ; les
+#  retenue, reperees par le champ fonction - soit 48, moins les deux lignes du
+#  rapport de vraisemblance sur delta et la largeur de l'IC a delta fixe, #45,
+#  et moins la ligne "Test de Student sur la pente (modele auxiliaire MCO)",
+#  #423, hors de la population des mesures versionnees sur 48 lignes ; raison
+#  ecrite dans TXT_HORS_POPULATION_423) ; les
 #  lignes du jackknife et de la largeur de l'IC bootstrap 90 %, que
 #  usp_tests() n'ecrit que si run_engine() a pose ces grandeurs dans fit,
 #  sont absentes de ce chemin (code "-") : diagnostics sans p retenue (aucune
@@ -111,9 +114,10 @@
 #         des p de chaque variante = catalogue, dans son ordre ; motifs
 #         d'absence connus (codes de CODES_MOTIF) ; p de V3a ou de V3b
 #         absente alors que celle de V1 existe (cellules comptees par C3) :
-#         motif ni o, ni c, ni x (motifs communs a V1) ; 47 lignes de usp_tests()
-#         sur J1 observe hors les 5 lignes de lecture conjointe de #297 (52 au
-#         total), libelles distincts, 44 lignes du perimetre de T2 ;
+#         motif ni o, ni c, ni x (motifs communs a V1) ; 48 lignes de usp_tests()
+#         sur J1 observe hors les 5 lignes de lecture conjointe de #297 (53 au
+#         total), libelles distincts, 44 lignes du perimetre de T2 (ligne
+#         Student de #423 exclue, presente une fois, INFO sans p retenue) ;
 #    (c)  jeux simules identiques (identical()) a l'expression YSIM de #72
 #         (tests/taux_franchissement_reperes.R, lue par parse(), liste
 #         blanche de noms, environnement isole ; J3 : FIT0_J3 synthetique) ;
@@ -847,10 +851,24 @@ LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 # anterieures (copie declaree de tests/taux_franchissement_reperes.R) :
 # recalculee pour la classe P de (t2) (r4_pente()).
 SEUIL_PUISSANCE_PENTE_R4 <- 0.5
-# Lignes de run_engine() hors du perimetre de T2 (#45) : rapport de
-# vraisemblance sur delta et largeur de l'IC a delta fixe.
+# Ligne ajoutee par #423, hors de la population des mesures versionnees sur
+# 48 lignes (decision Q-46-17 (a) du 02/11/2026, aucune mesure longue
+# relancee) ; raison ecrite (specification d'actuary, #423) dans
+# TXT_HORS_POPULATION_423, citee par le controle (b). Elle est posee par
+# usp_tests() dans les replications comme dans run_engine() ; reperee par
+# son libelle exact.
+LIGNE_STUDENT_423 <- "Test de Student sur la pente (modele auxiliaire MCO)"
+TXT_HORS_POPULATION_423 <- paste(
+  "Ligne ajout\u00e9e par #423 (02/11/2026), apr\u00e8s les mesures versionn\u00e9es sur 48 lignes, et hors de leur",
+  "population (Q-46-17 (a), aucune mesure longue relanc\u00e9e). La ligne est un diagnostic par construction : de type",
+  "diagnostic, ou non applicable sous le pr\u00e9dicat de la ligne Pitman. Son verdict est INFO, sans p retenue : elle ne",
+  "porte jamais ECHEC ni ALERTE et n'entre dans aucun agr\u00e9gat de verdicts. Aucun rep\u00e8re n'y porte. Sa p est",
+  "\u00e9gale \u00e0 celle de la ligne Fisher, d\u00e9j\u00e0 dans la population.")
+# Lignes de run_engine() hors du perimetre de T2 : rapport de vraisemblance
+# sur delta et largeur de l'IC a delta fixe (#45) ; ligne Student (#423).
 hors_t2 <- function(lignes) startsWith(lignes, "Rapport de vraisemblance") |
-  lignes == "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)"
+  lignes == "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)" |
+  lignes == LIGNE_STUDENT_423
 # Lignes de lecture conjointe ajoutees par usp_tests() depuis #297 (Fk) : une
 # p de famille (minP) par famille d'au moins deux tests, puis la p globale.
 # Diagnostics INFO sans p retenue, hors du perimetre de T2 et des valeurs
@@ -863,7 +881,8 @@ est_lecture_conjointe <- function(tests)
   vapply(tests, function(t) identical(t$fonction, "engine_p_famille") ||
            startsWith(as.character(t$famille), PREFIXE_LECTURE_CONJOINTE), logical(1))
 # Libelles du perimetre de T2 : lignes de usp_tests() hors rapport de
-# vraisemblance, largeur de l'IC a delta fixe (#45) et lecture conjointe (#297).
+# vraisemblance, largeur de l'IC a delta fixe (#45), ligne Student (#423) et
+# lecture conjointe (#297).
 lignes_perimetre_t2 <- function(tests) {
   l <- vapply(tests, `[[`, "", "test")
   l[!hors_t2(l) & !est_lecture_conjointe(tests)]
@@ -2920,18 +2939,24 @@ controle(cmp_a$conforme && identical(unlist(RES_A$metadata[c("B", "alpha", "seed
                                      c(B = as.numeric(B_BOOT), alpha = ALPHA, seed = GRAINE_BOOT, theta_equiv = THETA_EQUIV)),
          sprintf("(a) J1 observ\u00e9, run_engine(seed = %.0f), conforme \u00e0 tests/reference/premium.rds (comparer_objets(), tol\u00e9rance %g) et configuration (B, \u03b1, graine, theta_equiv) = celle du script : %s%s",
                  GRAINE_BOOT, TOLERANCE, TXT_A, if (cmp_a$conforme) "" else paste0(" : ", paste(resumer_comparaison(cmp_a, 5L), collapse = " ; "))))
-# 47 lignes depuis les retraits de Ljung-Box (1) sur ratios bruts (#303), de
+# 48 lignes depuis les retraits de Ljung-Box (1) sur ratios bruts (#303), de
 # Shapiro-Wilk a loi nulle simulee, Ljung-Box (1) et Box-Pierce (2) (#302),
-# hors les 5 lignes de lecture conjointe ajoutees par #297 (4 p de famille de
-# meme libelle, 1 p globale : 52 lignes de run_engine() sur J1 observe) ;
-# nom de variable conserve.
+# et l'ajout de la ligne Student (#423), hors les 5 lignes de lecture
+# conjointe ajoutees par #297 (4 p de famille de meme libelle, 1 p globale :
+# 53 lignes de run_engine() sur J1 observe) ; nom de variable conserve. La
+# ligne Student, hors du perimetre de T2 (hors_t2()), y figure une fois, de
+# verdict INFO sans p retenue (diagnostic par construction).
 LC_A <- est_lecture_conjointe(RES_A$tests)
 LIGNES_51 <- vapply(RES_A$tests[!LC_A], `[[`, "", "test")
 LIGNES_T2 <- lignes_perimetre_t2(RES_A$tests)
-controle(length(LIGNES_51) == 47L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 44L &&
-           sum(LC_A) == 5L && all(vapply(RES_A$tests[LC_A], `[[`, "", "type") == "diagnostic"),
-         sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9 (hors %d lignes de lecture conjointe, diagnostics sans p retenue, #297), libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45)",
-                 length(LIGNES_51), sum(LC_A), length(LIGNES_T2)))
+ST_A <- RES_A$tests[!LC_A][LIGNES_51 == LIGNE_STUDENT_423]
+controle(length(LIGNES_51) == 48L && !anyDuplicated(LIGNES_51) && length(LIGNES_T2) == 44L &&
+           sum(LC_A) == 5L && all(vapply(RES_A$tests[LC_A], `[[`, "", "type") == "diagnostic") &&
+           length(ST_A) == 1L && !(LIGNE_STUDENT_423 %in% LIGNES_T2) &&
+           ST_A[[1]]$type %in% c("diagnostic", "non applicable") && identical(ST_A[[1]]$verdict, "INFO") &&
+           is.na(ST_A[[1]]$p_retenue),
+         sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9 (hors %d lignes de lecture conjointe, diagnostics sans p retenue, #297), libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45 ; hors \u00ab %s \u00bb, pr\u00e9sente une fois, INFO sans p retenue, #423 : %s)",
+                 length(LIGNES_51), sum(LC_A), length(LIGNES_T2), LIGNE_STUDENT_423, TXT_HORS_POPULATION_423))
 # Regle R4 retiree par D1-Fb (#218, #230) ; SEUIL_PUISSANCE_PENTE_R4
 # (decision Q-D1-Fb-7) est defini en tete, lu depuis #274 par r4_pente()
 # (classe P de (t2)) ; la chaine T0 decrit la regle du moteur mesure.

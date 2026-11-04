@@ -7,7 +7,7 @@
 #      usp_regime() ;
 #    - fonctions de test : NA a volumes constants ou quasi constants, memes
 #      noms de champs que la branche calculee, aucune erreur R (R11, R12) ;
-#    - usp_tests() / run_engine() : treize lignes "non applicable" avec un
+#    - usp_tests() / run_engine() : quatorze lignes "non applicable" avec un
 #      motif unique (R13), aucune erreur R pour une etendue relative de 1e-12
 #      a 1e-6 (constat de l'issue : "subscript out of bounds" dans
 #      test_lm_complet()) ;
@@ -30,10 +30,11 @@ x <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 y <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 alt <- rep(c(1, -1), 4)
 
-# Les treize lignes de la regle R13.
+# Les quatorze lignes de la regle R13 (ligne Student ajoutee par #423).
 NOMS_R13 <- c("Nullite de la constante (proportionnalite stricte)",
               "Equivalence de la constante a zero (TOST)",
               "Test de Pitman sur la pente (lien positif pertes / volume)",
+              "Test de Student sur la pente (modele auxiliaire MCO)",
               "Test de Fisher (significativite globale)",
               "Coefficient de determination R2",
               "RESET (forme fonctionnelle)",
@@ -162,7 +163,7 @@ controle_r13 <- function(r) {
 }
 for (nm in names(dans_bande)) local({
   r <- res_bande[[nm]]
-  verifier(sprintf("run_engine(premium), %s : ok, memes lignes qu'a volumes variables, treize lignes non applicables au motif unique (#59)", nm),
+  verifier(sprintf("run_engine(premium), %s : ok, memes lignes qu'a volumes variables, quatorze lignes non applicables au motif unique (#59)", nm),
            controle_r13(r))
 })
 verifier("Volumes quasi constants : aucune erreur R interceptee par run_engine() (constat de l'issue #59)",
@@ -170,7 +171,7 @@ verifier("Volumes quasi constants : aucune erreur R interceptee par run_engine()
                     logical(1))))
 verifier("Motif R13 : etendue relative imprimee (0 a volumes exactement constants, 2e-08 a 1 +/- 1e-8)",
          {
-           d <- function(r) Filter(function(l) l$test == NOMS_R13[6], r$tests)[[1]]$detail
+           d <- function(r) Filter(function(l) l$test == NOMS_R13[7], r$tests)[[1]]$detail
            grepl("(etendue relative = 0)", d(res_bande[["x = rep(110, 8)"]]), fixed = TRUE) &&
              grepl("(etendue relative = 2e-08)", d(res_bande[["x = 100 (1 +/- 1e-8)"]]), fixed = TRUE)
          })
@@ -206,7 +207,7 @@ verifier("Volumes constants : bootstrap sans erreur, B_effectif = 0 et motif Mon
            all(b$B_effectif[nm] == 0) && all(b$motif_mc[nm] == MOTIF_MC_OBS_NON_FINIE)
          })
 # Valeurs mesurees (non-regression, #58 : mesure du 23/09/2026 reconfirmee
-# pour #59) : sigma_USP ne depend d'aucune des treize lignes.
+# pour #59) : sigma_USP ne depend d'aucune des quatorze lignes.
 verifier("Volumes exactement constants : sigma_USP = 0,1261524 (premium) et 0,1220524 (reserve1), inchange par #59",
          {
            r1 <- lancer(rep(110, 8), "reserve1")
@@ -238,30 +239,30 @@ ligne <- function(r, nom) Filter(function(l) l$test == nom, r$tests)[[1]]
 
 # Huit volumes distincts, etendue relative ~4 % : la forme standard est de
 # plein rang ; le moteur (base reduite) rend la meme statistique.
-verifier("x = 100 (1 + 0,01 scale(1:8)), hors bande, huit volumes distincts : treize lignes calculees, F RESET et LM White du moteur = forme standard (rel 1e-10)",
+verifier("x = 100 (1 + 0,01 scale(1:8)), hors bande, huit volumes distincts : quatorze lignes calculees, F RESET et LM White du moteur = forme standard (rel 1e-10)",
          {
            x8 <- 100 * (1 + 0.01 * as.numeric(scale(1:8)))
            r <- lancer(x8)
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
            ty <- vapply(L, `[[`, character(1), "type")
            f8 <- usp_ajuster(x8, y)
-           isTRUE(r$ok) && length(L) == 13L && all(ty %in% c("test", "diagnostic")) &&
+           isTRUE(r$ok) && length(L) == 14L && all(ty %in% c("test", "diagnostic")) &&
              identical(noms_hors297(r$tests), noms_ref) &&
              isTRUE(proche(test_reset(x8, y)$stat, reset_std(x8, y), rel = 1e-10)) &&
              isTRUE(proche(test_white(f8$z^2, x8)$stat, white_std(f8$z^2, x8), rel = 1e-10))
          })
 # Deux volumes distincts : regression auxiliaire de rang 2, RESET et White
-# non applicables au motif (a) (issue #110) ; les onze autres lignes de R13
+# non applicables au motif (a) (issue #110) ; les douze autres lignes de R13
 # sont calculees.
-verifier("x = 100 (1 +/- 1e-5), hors bande, k = 2 : onze lignes calculees, RESET et White non applicables au motif (a), INFO, p_retenue NA, motif Monte-Carlo observe non fini",
+verifier("x = 100 (1 +/- 1e-5), hors bande, k = 2 : douze lignes calculees, RESET et White non applicables au motif (a), INFO, p_retenue NA, motif Monte-Carlo observe non fini",
          {
            r <- lancer(100 * (1 + alt * 1e-5))
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
            ty <- stats::setNames(vapply(L, `[[`, character(1), "type"),
                                  vapply(L, `[[`, character(1), "test"))
-           na <- NOMS_R13[c(6, 10)]
+           na <- NOMS_R13[c(7, 11)]
            b <- r$bootstrap
-           isTRUE(r$ok) && length(L) == 13L &&
+           isTRUE(r$ok) && length(L) == 14L &&
              all(ty[setdiff(NOMS_R13, na)] %in% c("test", "diagnostic")) &&
              all(vapply(na, function(nm) {
                l <- ligne(r, nm)
@@ -276,16 +277,16 @@ verifier("x = 100 (1 +/- 1e-5), hors bande, k = 2 : onze lignes calculees, RESET
 # la partition par la mediane des volumes laisse 1 et 7 annees, Smirnov n'est
 # pas calculable (ligne presente, non applicable, motif de la partition et
 # non celui des volumes constants).
-verifier("x = 110 (1 + (0, 2e-6, 0...)), hors bande, k = 2 : dix lignes calculees, RESET et White au motif (a), Smirnov non applicable par la partition",
+verifier("x = 110 (1 + (0, 2e-6, 0...)), hors bande, k = 2 : onze lignes calculees, RESET et White au motif (a), Smirnov non applicable par la partition",
          {
            r <- lancer(110 * (1 + c(0, 2e-6, rep(0, 6))))
            L <- Filter(function(l) l$test %in% NOMS_R13, r$tests)
            ty <- stats::setNames(vapply(L, `[[`, character(1), "type"),
                                  vapply(L, `[[`, character(1), "test"))
-           sm <- ligne(r, NOMS_R13[13])
-           isTRUE(r$ok) && length(L) == 13L &&
-             all(ty[NOMS_R13[-c(6, 10, 13)]] %in% c("test", "diagnostic")) &&
-             all(vapply(NOMS_R13[c(6, 10)], function(nm) {
+           sm <- ligne(r, NOMS_R13[14])
+           isTRUE(r$ok) && length(L) == 14L &&
+             all(ty[NOMS_R13[-c(7, 11, 14)]] %in% c("test", "diagnostic")) &&
+             all(vapply(NOMS_R13[c(7, 11)], function(nm) {
                l <- ligne(r, nm); l$type == "non applicable" && startsWith(l$detail, MOTIF_A)
              }, logical(1))) &&
              sm$type == "non applicable" &&
@@ -450,7 +451,7 @@ verifier("Garde-fou R12 via usp_tests() (T = 200, reg ecarte) : lignes Koenker, 
            mm[is.na(s)] <- MOTIF_MC_OBS_NON_FINIE
            b <- list(stats_obs = as.list(s), p_mc = pm, err_mc = pm * 0 + 0.01, motif_mc = mm)
            tt <- usp_tests(fa, b, methode = "premium")
-           nm <- NOMS_R13[8:10]
+           nm <- NOMS_R13[9:11]
            L <- Filter(function(l) l$test %in% nm, tt)
            length(L) == 3L &&
              all(vapply(L, function(l) l$verdict != "OK" && !is.finite(l$p_retenue) &&
@@ -458,7 +459,7 @@ verifier("Garde-fou R12 via usp_tests() (T = 200, reg ecarte) : lignes Koenker, 
          })
 
 ## --- 5. Invariant I5 et invariant I2 ----------------------------------------------
-verifier("Invariant I5 : usp_tests() rend les memes 42 lignes (LB1r retiree, #303 ; trois lignes retirees, #302), dans le meme ordre, a volumes variables, quasi constants et constants",
+verifier("Invariant I5 : usp_tests() rend les memes 43 lignes (LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423), dans le meme ordre, a volumes variables, quasi constants et constants",
          {
            # Objet bootstrap fictif de test_inoperance.R (aucune simulation).
            bf <- function(f) {
@@ -471,7 +472,7 @@ verifier("Invariant I5 : usp_tests() rend les memes 42 lignes (LB1r retiree, #30
              f <- usp_ajuster(v, y)
              vapply(usp_tests(f, bf(f), methode = "premium"), `[[`, character(1), "test")
            })
-           length(nm[[1]]) == 42L && identical(nm[[1]], nm[[2]]) && identical(nm[[1]], nm[[3]])
+           length(nm[[1]]) == 43L && identical(nm[[1]], nm[[2]]) && identical(nm[[1]], nm[[3]])
          })
 verifier("Invariant I2 dans la bande : aucune nature 'asymptotique' sans motif",
          all(vapply(res_bande, function(r)

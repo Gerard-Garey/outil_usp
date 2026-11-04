@@ -324,4 +324,19 @@ verifier("usp_ajuster : erreur explicite si l'objectif n'est fini en aucun point
            is.character(e) && grepl("n'est fini en aucun point", e, fixed = TRUE)
          })
 
+# Coupe exacte de l'objectif a gamma optimal (#404) : objectif_coupe, en fin
+# de liste de engine_surface_objectif(), est l'objectif evalue en (delta,
+# gamma optimal) sur la grille des delta, recalcule ici independamment ;
+# amplitude_delta en est l'etendue (meme vecteur). plot_coupe_delta() la lit
+# au lieu de choisir la colonne de la grille la plus proche de gamma optimal.
+verifier("engine_surface_objectif() : objectif_coupe = objectif recalcule en (delta, gamma optimal), amplitude_delta = son etendue, champ en fin de liste (#404)",
+         {
+           f404 <- usp_ajuster(x, y); S <- engine_surface_objectif(f404)
+           v <- vapply(S$delta, function(d) usp_objectif(c(d, f404$gamma), f404$x, f404$y, f404$xbar),
+                       numeric(1))
+           identical(utils::tail(names(S), 2), c("amplitude_delta", "objectif_coupe")) &&
+             identical(S$objectif_coupe, v) && length(v) == length(S$delta) &&
+             identical(S$amplitude_delta, diff(range(v)))
+         })
+
 fin_fichier()
