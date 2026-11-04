@@ -1680,13 +1680,13 @@ plot_influence_sigma <- function(pd) {
   # Annee non evaluable seule : sa barre reste absente (hauteur NA), couleur
   # neutre (fort_ecart_sigma y vaut NA) ; lecture telle quelle, aucun calcul.
   # Garde aussi sur ce que trace barplot : aucun ecart_sigma fini. Annees
-  # evaluables sans ecart fini (sigma_USP nul ou non fini, ligne jackknife du
-  # moteur : ecart relatif non defini, #405) : message distinct, aligne sur le
+  # evaluables sans ecart fini (sigma_USP nul, non fini ou trop petit, ligne jackknife du
+  # moteur : ecart relatif non fini, #405) : message distinct, aligne sur le
   # moteur.
   if (length(.jack_non_evaluables(d)) == length(d$t))
     return(.vide("Aucune annee evaluable : influence sur sigma_USP non mesuree"))
   if (!any(is.finite(d$ecart_sigma)))
-    return(.vide("sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"))
+    return(.vide("sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree"))
   v <- 100 * d$ecart_sigma
   coul <- ifelse(d$fort_ecart_sigma %in% TRUE, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
@@ -2358,7 +2358,7 @@ note_influence <- function(pd) {
   e <- d$ecart_sigma; e[d$t %in% ne | !is.finite(e)] <- NA
   ip <- which(d$plus_influente %in% TRUE & is.finite(e))
   # Phrase des annees non evaluables, posee apres la phrase d'influence ou, a
-  # defaut d'ecart fini, apres celle de sigma_USP nul ou non fini.
+  # defaut d'ecart fini, apres celle de sigma_USP nul, non fini ou trop petit.
   phrase_ne <- if (length(ne) == 1L)
       sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
                     "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",
@@ -2371,13 +2371,13 @@ note_influence <- function(pd) {
     else ""
   # Trois cas, lus sur les booleens du moteur (aucun calcul) : toutes les
   # annees non evaluables ; aucun ecart fini alors que des annees sont
-  # evaluables (sigma_USP nul ou non fini, ligne jackknife du moteur : ecart
-  # relatif non defini, #405) ; cas general.
+  # evaluables (sigma_USP nul, non fini ou trop petit, ligne jackknife du moteur : ecart
+  # relatif non fini, #405) ; cas general.
   jack <- if (length(ne) == length(d$t))
     paste("Aucune ann&eacute;e &eacute;valuable (r&eacute;ajustements sans maximum de",
           "vraisemblance &eacute;tabli, ou en &eacute;chec) : l'influence sur sigma_USP n'est pas mesur&eacute;e.")
   else if (!any(is.finite(e)))
-    paste0("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+    paste0("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
            phrase_ne)
   else paste0(
     # Amplitude affichee arrondie a 0,0 (#396) : aucun signe imprime, le sens

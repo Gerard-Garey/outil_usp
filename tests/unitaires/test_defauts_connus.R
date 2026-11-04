@@ -943,7 +943,7 @@ verifier("#396 : plus_influente suit la tolerance tau de #327 (deux annees a tau
              identical(engine_influence(fit, list(sigma_usp = rep(NA_real_, 8)), 1)$plus_influente,
                        rep(FALSE, 8))
          })
-# #405 (avis d'actuary, option b) : sigma_USP nul ou non fini, force par
+# #405 (avis d'actuary, option b) : sigma_USP nul, non fini ou trop petit, force par
 # substitution de usp_parametre() dans l'environnement du moteur (ADR 0016) ;
 # les reajustements du jackknife aboutissent (aucune annee non evaluable),
 # mais aucun ecart relatif n'est fini : usp_jack_annees() NULL, ligne
@@ -955,7 +955,7 @@ jk_sigma_usp_force <- function(v) {
                       B = 99, nature_donnees = "brutes"),
            finally = assign("usp_parametre", orig, envir = e))
 }
-verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diagnostic sans estimation, detail 'sigma_USP nul ou non fini' ; usp_jack_annees(c(1, 2, NA), 0) NULL",
+verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diagnostic sans estimation, detail 'sigma_USP nul, non fini ou trop petit' ; usp_jack_annees(c(1, 2, NA), 0) NULL",
          {
            ok <- TRUE
            for (v in c(0, NA_real_)) {
@@ -966,9 +966,32 @@ verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diag
                identical(tb$type[i], "diagnostic") && is.na(tb$estimation[i]) &&
                identical(tb$verdict[i], "INFO") &&
                identical(tb$commentaire[i],
-                         "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree.")
+                         "sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree.")
            }
            ok && identical(usp_jack_annees(c(1, 2, NA), 0), NULL)
+         })
+# #430 : sigma_USP strictement positif mais sous-normal (1e-310) : l'ecart
+# relatif |d| / sigma_USP n'est pas fini, la chaine du detail le dit (« trop
+# petit »). Deux volets : usp_tests() appele directement (fit sans
+# ecart_jackknife, robustesse sans annee non evaluable) ne controle que la
+# chaine de la branche, sans faire intervenir sigma_USP = 1e-310 ; le chemin a
+# sigma_USP = 1e-310 est celui de run_engine() par la substitution de
+# usp_parametre() ci-dessus (usp_jack_annees() NULL, puis la meme chaine).
+# Branche inatteignable par run_engine() sans substitution.
+verifier("#430 : usp_jack_annees(., 1e-310) NULL ; usp_tests() direct : chaine de la branche ; run_engine() substitue a sigma_USP = 1e-310 (sous-normal, > 0) : meme detail 'sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree.'",
+         {
+           txt <- "sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree."
+           sj <- c(0.9, 1.1, 1, 1, 1, 1, 1, 1)
+           f <- fit; f$ecart_jackknife <- NULL
+           tb_d <- lignes_df(usp_tests(f, boot_fictif(), methode = "premium",
+                                       robustesse = list(jack_non_evaluables = integer(0))))
+           r <- jk_sigma_usp_force(1e-310)
+           tb <- engine_table_tests(r); i <- which(tb$test == NOM_JK)
+           identical(usp_jack_annees(sj, 1e-310), NULL) &&
+             identical(tb_d$commentaire[tb_d$test == NOM_JK], txt) &&
+             isTRUE(r$ok) && length(i) == 1L && identical(tb$commentaire[i], txt) &&
+             identical(tb$type[i], "diagnostic") && is.na(tb$estimation[i]) &&
+             identical(tb$verdict[i], "INFO")
          })
 verifier("#396 : premium et reserve1 (deux run_engine) : plus_influente = jack_annees releve ; engine_influence() appele directement sans jackknife : pas de colonne",
          {

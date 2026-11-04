@@ -7092,7 +7092,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # diagnostic sans estimation (estim NA, aucune p-value), pour que l'absence
   # de mesure reste visible plutot que de disparaitre de la table. Meme
   # ligne sans estimation, detail propre, quand des reajustements ont abouti
-  # mais que sigma_USP est nul ou non fini (usp_jack_annees() NULL, aucun
+  # mais que sigma_USP est nul, non fini ou trop petit (usp_jack_annees() NULL, aucun
   # ecart relatif fini ; #405, avis d'actuary, option b) : les annees non
   # evaluables eventuelles y sont jointes comme ailleurs.
   rb <- robustesse
@@ -7143,8 +7143,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
         estim_nom = "ecart relatif max", estim = NA_real_,
-        detail = paste(c(paste0("sigma_USP nul ou non fini : ecart relatif non ",
-                                "defini, influence non mesuree."), txt_ne),
+        detail = paste(c(paste0("sigma_USP nul, non fini ou trop petit : ecart relatif non ",
+                                "fini, influence non mesuree."), txt_ne),
                        collapse = " "))
   # Issue #305 (decisions du mainteneur du 27/10/2026, Q-D2-Fn-4 (A) ;
   # reference : Q-D2-Fn-4 bis, meme jour) : nom
@@ -7969,7 +7969,7 @@ engine_surface_objectif <- function(fit, n_delta = 45, n_gamma = 45,
 # interieur) n'a pas de precision garantie, tau y est une convention. Aucune
 # constante nouvelle. Code extrait de run_engine() (#396). NULL aussi
 # quand des sigma_USP^(-t) sont finis mais qu'aucun ecart relatif ne l'est
-# (sigma_USP nul ou non fini ; #405, point 2) : jamais integer(0), une
+# (sigma_USP nul, non fini ou trop petit ; #405, point 2) : jamais integer(0), une
 # designation vide se lisant comme un jackknife calcule.
 usp_jack_annees <- function(sigma_usp_jack, sigma_usp) {
   d_jack <- sigma_usp_jack - sigma_usp
@@ -13510,10 +13510,11 @@ run_engine <- function(xt, yt,
     # -Inf ou a Inf. jack_calcule (#405, point 2) est lu sur la designation
     # de usp_jack_annees(), NULL si aucun ecart relatif n'est fini, dans deux
     # cas : aucun reajustement abouti (les T annees non evaluables), ou
-    # sigma_USP nul ou non fini. usp_tests() pose dans les deux cas une ligne
+    # sigma_USP nul, non fini ou trop petit. usp_tests() pose dans les deux cas une ligne
     # jackknife en diagnostic sans estimation, au detail propre a chacun
     # (#329 ; #405, option b d'actuary). jack_calcule est egal a
-    # any(is.finite(d_jack)) tant que sigma_USP est fini et > 0.
+    # any(is.finite(d_jack)) tant que sigma_USP est fini et assez grand pour que
+    # les ecarts relatifs finis le restent.
     d_jack <- jack$sigma_usp - param$sigma_usp
     jack_annees <- usp_jack_annees(jack$sigma_usp, param$sigma_usp)
     jack_calcule <- !is.null(jack_annees)
@@ -13547,7 +13548,7 @@ run_engine <- function(xt, yt,
     # Calcul de jack_annees : usp_jack_annees(), plus haut, transmise telle
     # quelle a engine_plots_data() puis engine_influence() pour la colonne
     # plus_influente de res$plots_data$influence (#396, #405 point 4) ; NULL
-    # si aucun reajustement n'a abouti (ou sigma_USP nul ou non fini).
+    # si aucun reajustement n'a abouti (ou sigma_USP nul, non fini ou trop petit).
     i_jack <- if (jack_calcule) which.max(abs(d_jack)) else NULL
     robustesse <- list(
       jack_annee = i_jack,

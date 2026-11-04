@@ -701,10 +701,10 @@ verifier("note_influence(), annees non evaluables 2, 5 et 7 (injection) : 'Annee
 # ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini et que
 # des annees restent evaluables (sigma_USP nul, par exemple) : le graphique est
 # vide (jamais « need finite ylim ») avec le message aligne sur le moteur
-# (ecart relatif non defini, #405), et non « Aucune annee evaluable » ; la
+# (ecart relatif non fini, #405), et non « Aucune annee evaluable » ; la
 # note rend cette phrase, une chaine, suivie de la phrase de l'annee 5 non
 # evaluable.
-MSG_405 <- "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"
+MSG_405 <- "sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree"
 verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : graphique vide au message de sigma_USP nul, note a phrase alignee sur le moteur en une chaine (#328, #405)",
          {
            pdn <- pd328; pdn$influence$ecart_sigma[] <- NA_real_; pdn$influence$fort_ecart_sigma[] <- NA
@@ -713,7 +713,7 @@ verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : gr
            nn <- tryCatch(note_influence(pdn), error = function(e) e)
            all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_405) &&
              is.character(nn) && length(nn) == 1L && !grepl("NA", nn, fixed = TRUE) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
                    nn, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE) &&
              grepl("Ann&eacute;e 5 non &eacute;valuable", nn, fixed = TRUE)
@@ -742,9 +742,9 @@ verifier("sigma_USP nul (chemin reel) : note et graphique alignes sur la ligne j
            n <- note_influence(pd)
            tb <- engine_table_tests(r)
            isTRUE(r$ok) && !any(pd$influence$non_evaluable) && all(is.infinite(pd$influence$ecart_sigma)) &&
-             any(grepl("sigma_USP nul ou non fini", tb$commentaire, fixed = TRUE)) &&
+             any(grepl("sigma_USP nul, non fini ou trop petit", tb$commentaire, fixed = TRUE)) &&
              v$ok && identical(v$msg, MSG_405) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
                    n, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE) &&
              !grepl("valuable", n, fixed = TRUE)
@@ -758,7 +758,7 @@ verifier("sigma_USP nul et annee 3 non evaluable (chemin reel) : la note cite si
            n <- note_influence(pd)
            isTRUE(r$ok) && identical(which(pd$influence$non_evaluable), 3L) &&
              v$ok && identical(v$msg, MSG_405) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
                    n, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE)
          })
