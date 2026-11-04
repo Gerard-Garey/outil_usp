@@ -6001,7 +6001,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = if (is.finite(lmc$F))
         sprintf("F(%d,%d) exacte sous le modele auxiliaire MCO", lmc$ddl1, lmc$ddl2)
       else NA_character_,
-      p_as = lmc$p_F,
+      # Non applicable (F non fini) : aucune p-value restituee, meme predicat
+      # que le type (#427 ; a ajustement exact F = Inf et p_F = 0).
+      p_as = if (is.finite(lmc$F)) lmc$p_F else NA_real_,
       detail = detail_motif(lmc$x_ecarte, if (!is.finite(lmc$F)) txt_f_non_def else paste(
         "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
         "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
