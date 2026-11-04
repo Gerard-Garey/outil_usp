@@ -6959,9 +6959,12 @@ triangle de contrôle, mais sans puissance mesurable contre l'exposant sous ce p
 
 Exposant de variance par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
-\textbf{Déconseillée} : colonnes non indépendantes &
-Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet est une limite du modèle, pas
-un motif de changement de méthode ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90)~; aucune
+\textbf{Déconseillée} : colonnes non indépendantes~; $|r(i,j)|$ non échangeables sous $H_0$
+(effet de levier, issue~\#431) &
+Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet dû à l'exposant est une limite du
+modèle, pas un motif de changement de méthode, un rejet dû à une constante ou à un facteur
+propres à l'année met en cause la lecture de l'outil, et la ligne ne sépare pas ces causes
+(issue~\#431) ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90)~; aucune
 puissance décelable sous le plan du triangle de contrôle (issue~\#309) \\
 
 Variance unitaire des résidus de Mack & \textbf{MW} & --- & --- & --- & --- &
@@ -7428,7 +7431,9 @@ Convergence en loi & \textbf{Sans objet en toute rigueur} : la loi $\chi^2(2K)$
 suppose l'indépendance des $K$ p-values, mise en défaut car les colonnes $j$ et
 $j+1$ partagent $C(\cdot,j+1)$~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
 rang suivent en outre, depuis l'issue~\#90, une loi de permutation discrète à $n_j \le 9$, et
-$-2\ln p_j$ n'est pas $\chi^2(2)$ & Indépendance des colonnes~; $p_k$ de loi continue &
+$-2\ln p_j$ n'est pas $\chi^2(2)$~; pour l'exposant de variance, cette loi de permutation
+suppose les $|r(i,j)|$ échangeables, ce que l'effet de levier dément sous $H_0$
+(fiche~\ref{mw:m2b}) & Indépendance des colonnes~; $p_k$ de loi continue &
 p-value du $\chi^2$ indicative seulement ; bootstrap retenu \\
 
 Corrélation entre colonnes & $\hat\rho$ agrégé & \emph{aucune limite tabulable} &
@@ -17576,8 +17581,10 @@ la proportionnalité de la variance.
 % -----------------------------------------------------------------------------
 \begin{fiche}{M2 --- Adéquation de l'exposant de variance, colonne par colonne}
 \label{mw:m2b}
-\refl{Annexe XVII, D(2)(h)(iv) ; complément par colonne de la ligne d'hétéroscédasticité
-résiduelle de la fiche précédente (fiche~\ref{mw:m2bp}).}
+\refl{Annexe XVII, D(2)(h)(iv), lu avec D(4)(c) et D(5)(d)(ii)~: $\sigma_j^2$ et $f_j$ communs
+aux années (interprétation de l'outil)~; C.~Spearman (1904), \emph{op.\ cit.}
+(fiche~\ref{fiche:spearman}), pour la corrélation de rang~; complément par colonne de la ligne
+d'hétéroscédasticité résiduelle de la fiche précédente (fiche~\ref{mw:m2bp}).}
 \Cadre
 Dans chaque colonne $j$ comptant au moins quatre résidus, on mesure la
 corrélation de rang entre $|r(i,j)|$ et $C(i,j)$, après aplatissement des ex \ae quo à
@@ -17589,16 +17596,37 @@ colonne trop courte (sans cette garde, \code{cor.test()} rendait une corrélatio
 trace)~; les résidus sont ceux de \code{mw\_residus()}, colonnes dégénérées exclues selon
 l'ensemble figé (fiche~\ref{mw:m1a}).
 \Hzero
-$H_0$~: l'amplitude des résidus standardisés ne dépend pas de $C(i,j)$ à
-l'intérieur d'une colonne, ce qui est la traduction directe de
-$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$ avec un facteur $f_j$ et une
-constante $\sigma_j^2$ communs aux années (interprétation de l'outil, D(4)(c) et D(5)(d)(ii),
-encadrés des sections~\ref{sec:mwm1} et~\ref{sec:mwm2}, comme le dit le commentaire de la
-ligne)~; contre $H_1$~: l'exposant~1 imposé par le règlement est inadapté. Sous la lettre de
-D(2)(h)(iv), qui admet une constante propre à chaque année de survenance, un rejet peut aussi
-traduire une constante $\sigma_j^2$, ou un facteur $f_j$, non communs aux années et associés à
-$C(i,j)$ (fiche~\ref{mw:m1d}), sans que la proportionnalité de la variance au cumulé précédent
-soit en défaut dans chaque année.
+$H_0$ (libellé de la ligne)~: la variance est proportionnelle à $C(i,j)$,
+$\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, avec une constante $\sigma_j^2$
+et un facteur $f_j$ communs aux années (interprétation de l'outil, D(4)(c) et D(5)(d)(ii),
+encadrés des sections~\ref{sec:mwm1} et~\ref{sec:mwm2})~; l'amplitude $|r(i,j)|$ des résidus de
+Mack est alors sans lien avec $C(i,j)$ à l'intérieur de chaque colonne, \emph{hors effet de
+levier}. Ce n'est donc la traduction de $\operatorname{Var}[C(i,j+1)\mid C(i,j)] =
+\sigma_j^2\,C(i,j)$ qu'à l'effet de levier près~: à $\sigma_j$ connu, les résidus de Mack, non
+redressés, ont pour variance
+\[
+  \operatorname{Var} r(i,j) = 1 - h_{ij}, \qquad h_{ij} = \frac{C(i,j)}{S_j},
+  \qquad S_j = \sum_{i=0}^{I-j-1} C(i,j),
+\]
+$S_j$ étant le montant de D(5)(b), somme des cumuls de la colonne (fiche~\ref{mw:m2bp}), car
+$\hat f_j$ de D(4)(c) est la moyenne des $F(i,j)$ pondérée par les $C(i,j)$, d'où
+$\operatorname{Var}\big(F(i,j) - \hat f_j \mid C(\cdot,j)\big) = \sigma_j^2\big(1/C(i,j) -
+1/S_j\big)$ (résultat exact, sous la seule hypothèse de variance et l'indépendance des années).
+Cette variance décroît avec $C(i,j)$~: même quand le modèle est exact, $|r(i,j)|$ n'est pas
+échangeable à l'intérieur d'une colonne. La p-value de Monte-Carlo, simulée sous le modèle
+ajusté, intègre cet effet, que la loi $\chi^2(2K)$ et la plus petite p-value atteignable ignorent
+(rubriques~4 et~7).
+
+$H_1$ (libellé de la ligne)~: un lien entre $|r(i,j)|$ et $C(i,j)$ dans au moins une colonne,
+au-delà de ce qu'en produit le modèle ajusté, effet de levier compris. Le test ne sépare pas
+deux causes. La première est un exposant de variance différent de~1, contraire à la lettre de
+D(2)(h)(iv). La seconde est une constante de variance (point~(iv)) ou un facteur de
+développement (point~(iii)) propres à l'année de survenance et liés au niveau de $C(i,j)$ d'une
+année à l'autre~: compatible avec la lettre de D(2)(h)(iii) et (iv), qui énoncent la
+proportionnalité, de l'espérance et de la variance, pour chaque année d'accident sans exiger un
+facteur ni une constante communs aux années, elle contredit l'interprétation de l'outil
+($\sigma_j^2$ et $f_j$ communs aux années), sans que la proportionnalité de la variance au cumulé
+précédent soit en défaut dans chaque année (pour le facteur, fiche~\ref{mw:m1d}).
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
 \code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
@@ -17610,23 +17638,48 @@ $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw
 mesuré de l'issue~: fiche~\ref{mw:m1b}.
 \Loi
 $\chi^2(2K)$ approchée, sous les deux réserves de la fiche~\ref{mw:m1b}~: colonnes non
-indépendantes, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$. Constat sur le
+indépendantes, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$~; et sous une
+troisième, propre à cette ligne~: la loi de permutation de chaque colonne suppose les $|r(i,j)|$
+échangeables, ce qu'ils ne sont pas sous $H_0$, l'effet de levier liant leur échelle à $C(i,j)$
+(rubrique~2). Constat sur le
 triangle de contrôle ($B = 999$, graine 20260831)~: p-value $\chi^2(2K)$ $0{,}544$ ($0{,}387$
 avant l'issue~\#90), p-value de Monte-Carlo $0{,}428$. Loi de référence~: bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue (clé \code{ExpVar}, rejet en queue haute)~; les $p_j$ ne sont pas
-des p-values exactes au sens de l'ADR~0002 (fiche~\ref{mw:m1b}).
+des p-values exactes au sens de l'ADR~0002 (fiche~\ref{mw:m1b}). Les résidus de chaque réplication
+étant recalculés par \code{mw\_residus()} sur le triangle simulé réajusté
+(\code{.mw\_contexte\_mc()}, \code{mw\_bootstrap()}), la loi simulée de $X$ reproduit l'effet de
+levier de la rubrique~2. Depuis l'issue~\#431, le commentaire de la ligne commence par
+«~\code{Si la variance est} \code{proportionnelle a C(i,j), avec} \code{un facteur f\_j et}
+\code{une constante sigma\_j\^{}2 communs} \code{aux annees (interpretation de}
+\code{l'outil, D(4)(c) et D(5)(d)(ii)),} \code{les residus de Mack}
+\code{r(i,j), non redresses, ont} \code{a sigma\_j connu une} \code{variance 1 - h}
+\code{dans chaque colonne (h} \code{= C(i,j)/S\_j, levier de} \code{la cellule, S\_j somme}
+\code{des cumuls de la} \code{colonne) : leur echelle} \code{decroit avec C(i,j) par}
+\code{le seul effet de} \code{levier, et |r(i,j)| n'est} \code{pas echangeable a l'interieur}
+\code{d'une colonne sous H0.} \code{La p-value de Monte-Carlo} \code{(cle ExpVar) reproduit cet}
+\code{effet, les residus de} \code{chaque replication etant recalcules}
+\code{sur le triangle simule} \code{reajuste ; la p chi2(2K)} \code{et la plus}
+\code{petite p-value atteignable, fondees} \code{sur une loi echangeable,}
+\code{l'ignorent.}~»~; jusqu'à cette issue, il finissait par «~\code{les residus
+standardises sont d'echelle constante a l'interieur de chaque colonne.}~», ce que dément l'effet de
+levier.
 \Usage
 La ligne d'hétéroscédasticité de la fiche précédente agrège les colonnes en une pente commune,
-à colonne donnée~; ce test-ci localise. Un rejet signale que l'exposant~1 imposé par le règlement est
-inadapté --- l'alternative étant un exposant~0 (variance constante) ou~2
-(proportionnelle au carré). \textbf{Le règlement ne laissant pas ce choix
-ouvert}, un rejet doit être documenté comme une limite du modèle réglementaire
-et non comme un motif de changement de méthode.
+à colonne donnée~; ce test-ci localise. Un rejet signale un lien entre $|r(i,j)|$ et $C(i,j)$ que
+le modèle ajusté ne produit pas, sans en désigner la cause (rubrique~2). Si la cause est un
+exposant de variance différent de~1 --- par exemple~0 (variance constante) ou~2
+(proportionnelle au carré), les deux alternatives mesurées en rubrique~7 ---, \textbf{le
+règlement ne laissant pas ce choix ouvert}, le rejet doit être documenté comme une limite du
+modèle réglementaire et non comme un motif de changement de méthode. Si la cause est une
+constante de variance ou un facteur propres à l'année de survenance, le rejet met en cause la
+formalisation retenue par l'outil ($\sigma_j^2$ et $f_j$ communs aux années, appuyée sur D(4)(c)
+et D(5)(d)(ii)), non la lettre de D(2)(h)(iii) et (iv)~; la ligne ne permettant pas de trancher
+entre les deux, le dossier les présente toutes deux.
 
 \emph{Lecture conjointe} (issue~\#297)~: quand elle est de type test, la ligne est membre de la p de famille de M2 et de la p globale de la méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; son verdict n'en est pas modifié.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
+\textbf{p-value minimale à $T = 8$.} $\prod_j 2/n_j! = 1{,}53\cdot 10^{-9}$ sur le triangle de contrôle ($K = 4$ colonnes de $n_j = 7, 6, 5, 4$ résidus, \code{.mw\_fisher\_rangs\_p\_min()}, issue~\#115, étendue à cette ligne par décision du mainteneur du 6~octobre 2026), par le même argument qu'à la fiche~\ref{mw:m1b}~: $X$, discrète sous la loi de permutation de chaque colonne depuis l'issue~\#90, n'est maximale que si toutes les colonnes ont $|\hat\rho_{s,j}| = 1$. Valeur exacte sous cette loi de référence échangeable, qui n'est pas celle du modèle de Mack~: sous $H_0$, les $|r(i,j)|$ d'une colonne ne sont pas échangeables, l'effet de levier liant leur échelle à $C(i,j)$ (rubrique~2), et elle ne borne pas la p-value retenue. Avec un ex \ae quo des $|r(i,j)|$ ou des $C(i,j)$, attribuée depuis l'issue~\#207 sur la loi conditionnelle aux rangs moyens ($\prod_j m_j$, fiche~\ref{mw:m1b}), avec la même réserve~: les résidus des réplications n'ont en général pas d'ex \ae quo (en colonne~$0$, deux années de même cumul initial qui tirent le même résidu en ont un), les cumuls de la première colonne, conservée dans chaque réplication, gardant les leurs. Non attribuée (\code{NA}, motif dans le commentaire) si une colonne compte plus de neuf résidus. La règle~R1 s'y applique comme à la fiche~\ref{mw:m1b}. La p-value retenue est de Monte-Carlo (clé \code{ExpVar}, rejet en queue haute)~: son plancher, $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}), est le plancher arithmétique de la p-value retenue~; depuis l'issue~\#125, la règle~R1 lit le plancher Monte-Carlo $p_{\min}^{\mathrm{MC}}$, minimum exact de cette p-value sur les réplications tirées, aux extrémités du support observé (section~\ref{sec:nature}, point~(i)), égal à ce plancher sur \code{reserve2} ($0{,}001$).
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
