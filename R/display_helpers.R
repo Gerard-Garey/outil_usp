@@ -1158,7 +1158,7 @@ plot_boot_sigma <- function(pd) {
            else matrix(graphics::hist(v, breaks = br, plot = FALSE)$counts, ncol = 1L)
     eff <- matrix(eff, ncol = max(1L, length(niv_reg)))
     haut <- max(rowSums(eff))
-    xl <- range(c(br, rp$valeur))
+    xl <- range(c(br, rp$valeur), finite = TRUE)
     plot(xl, c(0, haut * if (is.null(leg)) 1.05 else 1.45), type = "n",
          xlab = xlab, ylab = "effectif", main = titre)
     if (length(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
@@ -1221,7 +1221,12 @@ plot_boot_sigma <- function(pd) {
   # Etendue des abscisses : histogramme et reperes, avec 5 % de marge de
   # chaque cote ; sans elle, un repere au-dela des classes (borne haute de
   # l'intervalle basic) tombait au bord du cadre et etait rogne (#392).
-  xl <- range(c(v, rp$valeur)); xl <- xl + c(-1, 1) * 0.05 * diff(xl)
+  # Valeurs finies seulement ; plage non posee (autorange de plotly) si elle
+  # est vide ou de largeur nulle (#392, revue app-review).
+  xf <- c(v, rp$valeur); xf <- xf[is.finite(xf)]
+  xl <- if (length(xf)) range(xf) else c(NA_real_, NA_real_)
+  xl <- xl + c(-1, 1) * 0.05 * diff(xl)
+  xl_ok <- all(is.finite(xl)) && diff(xl) > 0
   # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas
   # du conteneur (yref = "container", y = 0) : sa distance au titre d'axe ne
   # depend plus de la hauteur du cadre (ancree a y = -0,45 de la zone de
@@ -1229,7 +1234,7 @@ plot_boot_sigma <- function(pd) {
   # chevauchement du titre d'axe a 520 x 330, 800 x 330 (onglet M5, mw_boot),
   # 520 x 420 et 1000 x 420 px (g_boot), mesure sous Chromium.
   plotly::layout(p, barmode = "stack",
-                 xaxis = if (!is.null(rp) && nrow(rp)) list(range = xl),
+                 xaxis = if (!is.null(rp) && nrow(rp) && xl_ok) list(range = xl),
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
                  legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
