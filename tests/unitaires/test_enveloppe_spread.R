@@ -315,8 +315,12 @@ forge_niveau <- function(pd, np, ns) {
 # de l'ordre des traces (polygones, points, lignes).
 releve_base306 <- function(pd) {
   r <- new.env(); r$leg <- character(0); r$mt <- character(0); r$seq <- character(0)
+  r$titres <- list()
   ns <- asNamespace("graphics")
   suppressMessages({
+    # title() : titre et ligne de pose (NA : position par defaut), #392.
+    trace("title", tracer = bquote(assign("titres", c(get("titres", envir = .(r)),
+            list(list(main = main, line = line))), envir = .(r))), where = ns, print = FALSE)
     trace("legend", tracer = bquote(assign("leg", c(get("leg", envir = .(r)), legend), envir = .(r))),
           where = ns, print = FALSE)
     trace("mtext", tracer = bquote(assign("mt", c(get("mt", envir = .(r)), text), envir = .(r))),
@@ -325,7 +329,7 @@ releve_base306 <- function(pd) {
       trace(f, tracer = bquote(assign("seq", c(get("seq", envir = .(r)), .(f)), envir = .(r))),
             where = ns, print = FALSE)
   })
-  on.exit(suppressMessages(for (f in c("legend", "mtext", "polygon", "points.default", "lines.default"))
+  on.exit(suppressMessages(for (f in c("title", "legend", "mtext", "polygon", "points.default", "lines.default"))
     untrace(f, where = ns)))
   option <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
   on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
@@ -351,6 +355,14 @@ verifier("plot_spread(), base R, B = 199 : un seul aplat (ponctuel), legende pon
          sum(rb199$seq == "polygon") == 1L && identical(rb199$leg, LIB_PONCT90) &&
            identical(rb199$mt, c("bootstrap param\u00e9trique ; bande ponctuelle (199 r\u00e9plications)",
                                  "moins de 500 replications retenues : bande simultanee non calculee")))
+# Titre : a la position par defaut quand le sous-titre tient sur une ligne ;
+# pose a la ligne 2,2 quand un motif ajoute une seconde ligne au sous-titre,
+# pour ne pas toucher la premiere (rendu a 560 x 330 px, #392).
+verifier("plot_spread(), base R : titre « Dispersion-niveau » a la position par defaut avec un sous-titre d'une ligne (B = 999), pose par title(line = 2,2) avec un sous-titre de deux lignes (B = 199, motif)",
+         identical(vapply(rb999$titres, function(t) t$main, ""), "Dispersion-niveau") &&
+           is.na(rb999$titres[[1]]$line) &&
+           identical(vapply(rb199$titres, function(t) t$main, ""), c("", "Dispersion-niveau")) &&
+           identical(rb199$titres[[2]]$line, 2.2))
 verifier("plot_spread(), base R, sans spread_enveloppe (objet anterieur a #306) et a volumes constants : aucun aplat ni legende, sans erreur",
          {
            pd_ancien <- pd999; pd_ancien$spread_enveloppe <- NULL

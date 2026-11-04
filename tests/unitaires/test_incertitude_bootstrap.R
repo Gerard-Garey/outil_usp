@@ -234,21 +234,32 @@ source(file.path(.racine305, "R", "display_helpers.R"), local = TRUE)
 # Releve, en base R sur pdf(NULL), des libelles d'axes et du titre
 # (title(), appele par plot.default() ; une trace de plot.default() ne
 # survit pas a un premier untrace() dans la session, mesure), des libelles de legende, du sous-titre
-# (mtext) et des positions des reperes verticaux (abline).
+# (mtext) et des positions des reperes verticaux (segments : abscisse x0 et
+# sommet y1 ; un repere dans l'emprise de la legende s'arrete sous elle, #392).
 releve_base305 <- function(pd) {
   r <- new.env(); r$axes <- NULL; r$leg <- character(0); r$v <- numeric(0); r$sous <- character(0)
+  r$haut <- numeric(0); r$usr <- NULL; r$legende_tracee <- FALSE
   ns <- asNamespace("graphics")
   suppressMessages({
     trace("title", tracer = bquote(assign("axes", c(xlab = xlab, ylab = ylab, main = main),
                                           envir = .(r))), where = ns, print = FALSE)
-    trace("legend", tracer = bquote(assign("leg", c(get("leg", envir = .(r)), legend), envir = .(r))),
+    # legend() trace (plot = TRUE) seulement : l'appel plot = FALSE, qui mesure
+    # l'emprise de la legende avant les reperes, n'est pas un trace ; et la
+    # legende dessine ses propres segments, que le releve des reperes ignore
+    # (ils viennent apres les reperes : indicateur legende_tracee).
+    trace("legend", tracer = bquote(if (plot) {
+            assign("leg", c(get("leg", envir = .(r)), legend), envir = .(r))
+            assign("legende_tracee", TRUE, envir = .(r)) }),
           where = ns, print = FALSE)
-    trace("abline", tracer = bquote(assign("v", c(get("v", envir = .(r)), v), envir = .(r))),
+    trace("segments", tracer = bquote(if (!isTRUE(get("legende_tracee", envir = .(r)))) {
+            assign("v", c(get("v", envir = .(r)), x0), envir = .(r))
+            assign("haut", c(get("haut", envir = .(r)), y1), envir = .(r))
+            assign("usr", graphics::par("usr"), envir = .(r)) }),
           where = ns, print = FALSE)
     trace("mtext", tracer = bquote(assign("sous", c(get("sous", envir = .(r)), text), envir = .(r))),
           where = ns, print = FALSE)
   })
-  on.exit(suppressMessages(for (f in c("title", "legend", "abline", "mtext")) untrace(f, where = ns)))
+  on.exit(suppressMessages(for (f in c("title", "legend", "segments", "mtext")) untrace(f, where = ns)))
   option <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
   on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
   suppressWarnings(plot_boot_sigma(pd))
@@ -266,6 +277,13 @@ verifier("plot_boot_sigma(), base R, premium_interieur : axes 'sigma_USP simule'
              identical(rbi$leg, c(LIB_REG, LIB_REP)) &&
              identical(rbi$v, c(b$sigma_usp, b$ic_bas, b$ic_haut, b$basic_log_bas, b$basic_log_haut,
                                 b$moyenne, b$sigma_standard))
+         })
+verifier("plot_boot_sigma(), base R, premium_interieur : aucun repere ne traverse la legende (#392) ; un repere dans l'emprise de la legende (borne haute de l'intervalle basic) s'arrete sous le sommet du cadre, les autres vont jusqu'au sommet",
+         {
+           b <- pdi$boot_reperes
+           h <- rbi$haut[match(b$basic_log_haut, rbi$v)]
+           length(rbi$haut) == 7L && h < rbi$usr[4] &&
+             all(rbi$haut[rbi$v != b$basic_log_haut] == rbi$usr[4])
          })
 verifier("plot_boot_sigma(), base R, niveau forge a 0,95 : legendes 'nominal 95 %', aucun 90 %",
          {
@@ -308,6 +326,16 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(bp$layout$yaxis$title, "effectif") &&
                identical(bp$layout$title$text, "Distribution bootstrap de sigma_USP") &&
                identical(unique(vapply(bp$data[ty == "scatter"], function(t) t$name, "")), LIB_REP)
+           })
+  verifier("plot_boot_sigma(), plotly, premium_interieur : abscisses couvrant les sept reperes et l'histogramme (aucun repere rogne au bord, #392) ; legende ancree au bas du conteneur, hors de la hauteur du cadre",
+           {
+             b <- pdi$boot_reperes
+             xr <- as.numeric(bp$layout$xaxis$range)
+             rep7 <- c(b$sigma_usp, b$ic_bas, b$ic_haut, b$basic_log_bas, b$basic_log_haut, b$moyenne, b$sigma_standard)
+             length(xr) == 2L && all(rep7 > xr[1] & rep7 < xr[2]) &&
+               min(pdi$sigma_usp_boot) > xr[1] && max(pdi$sigma_usp_boot) < xr[2] &&
+               identical(bp$layout$legend$yref, "container") && identical(bp$layout$legend$y, 0) &&
+               identical(bp$layout$legend$yanchor, "bottom")
            })
   verifier("plot_boot_sigma(), plotly, regime_boot NULL avec motif (#305, App-review C2) : motif en sous-titre du titre, comme plot_spread() ; titre inchange sans motif",
            {

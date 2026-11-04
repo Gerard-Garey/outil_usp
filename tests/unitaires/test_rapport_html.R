@@ -1219,7 +1219,9 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     cote <- if (identical(a$x, 0) && identical(a$xanchor, "left") && a$xshift > 0) "gauche"
             else if (identical(a$x, 1) && identical(a$xanchor, "right") && a$xshift < 0) "droite"
             else "?"
-    q <- Filter(function(x) identical(x$text, LIB90$quantile_court[if (cote == "droite") 2 else 1]), an)
+    # Annotations des quantiles sur deux lignes (<br>, #392) : relues avec une espace.
+    q <- Filter(function(x) identical(gsub("<br>", " ", x$text, fixed = TRUE),
+                                      LIB90$quantile_court[if (cote == "droite") 2 else 1]), an)
     ok <- identical(a$xref, "x") && identical(a$bgcolor, COUL$fond) &&
       identical(a$font$color, COUL$ref_texte) && length(q) == 1L &&
       !identical(q[[1]]$yanchor, a$yanchor)
@@ -1305,8 +1307,12 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              attendu <- ann195(pd)$ann
              n <- length(attendu)
              length(an) == n + 1L &&
+               # Textes des quantiles sur deux lignes (<br> a la place de l'espace
+               # avant « sous », #392) ; tous les autres champs a l'identique.
                all(vapply(seq_len(n), function(i) all(vapply(names(attendu[[i]]), function(nm)
-                 isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])), TRUE)), TRUE)) &&
+                 isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])) ||
+                   (nm == "text" && identical(an[[i]]$text, sub(" sous ", "<br>sous ", attendu[[i]]$text, fixed = TRUE))),
+                 TRUE)), TRUE)) &&
                identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB90$asympt_court)
            }, TRUE)))
 } else {

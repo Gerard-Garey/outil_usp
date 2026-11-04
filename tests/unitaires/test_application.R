@@ -1226,7 +1226,7 @@ testServer(app, {
       !is.null(ns$aide) && nzchar(ns$aide))
   a("output$note_surface : contient la note de la surface puis l'aide du profil en delta, bloc neutre (#405)",
     grepl(ns$html, h, fixed = TRUE) && grepl(ns$aide, h, fixed = TRUE) &&
-      grepl("Profil de vraisemblance en delta : la ligne pointill", h, fixed = TRUE) &&
+      grepl("Profil de vraisemblance en delta : la ligne pointill[^ ]* horizontale \\(rep", h) &&
       grepl("<div style=\"margin-top:6px;color:#7F8C8D;font-size:12.5px\">", h, fixed = TRUE) &&
       regexpr(ns$html, h, fixed = TRUE) < regexpr(ns$aide, h, fixed = TRUE))
 })
