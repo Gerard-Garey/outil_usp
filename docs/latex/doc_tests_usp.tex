@@ -3544,7 +3544,14 @@ fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}~; les contrôles numériqu
 figurent pas, voir la section~\ref{sec:controles}) ou
 \emph{non applicable}. La fonction \code{add()} n'admet que ces trois valeurs et refuse toute
 autre par une erreur («~\code{add()~: type de ligne inconnu}~»)~; seule une ligne de type
-\code{test} porte un verdict. Un quatrième type, \emph{procédure de décision}, a existé jusqu'à
+\code{test} porte un verdict. Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
+p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
+\code{NA}), la statistique pouvant rester dans \code{stat}~: le moteur l'assure ligne par ligne,
+sans règle générale dans \code{add()}, et le test d'invariant
+\code{tests/unitaires/test\_non\_applicable.R} le vérifie sur les jeux à volumes constants, à
+pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées
+(issue~\#427~; jusque-là, la ligne de Fisher à ajustement exact gardait sa p-value calculée,
+fiche~\ref{fiche:fisher-global}). Un quatrième type, \emph{procédure de décision}, a existé jusqu'à
 l'issue~\#357 (28~octobre 2026, ADR~0001 annoté)~: la procédure ESD de Rosner, qui décide au
 niveau $\alpha$ sans produire de p-value, en était la seule ligne~; resté sans ligne depuis
 les issues~\#304 et~\#300, qui font de cette procédure un diagnostic par décision dans les deux
@@ -5340,8 +5347,9 @@ Fisher, exactes sous une forme auxiliaire seulement. La p-value de permutation e
 p-value de Student est restituée sans être retenue, sans repli possible sur elle
 (fiche~\ref{fiche:student-pente}). \emph{Student sur la pente} (depuis l'issue~\#423) \emph{et
 Fisher}~: ces lignes sont des diagnostics, sans p-value retenue~; leur p-value, de Student
-bilatérale et de Fisher, égales, est restituée pour information
-(fiches~\ref{fiche:student-pente-modele-auxiliaire} et~\ref{fiche:fisher-global}).
+bilatérale et de Fisher, égales, est restituée pour information, et aucune ne l'est quand elles
+sont non applicables (fiches~\ref{fiche:student-pente-modele-auxiliaire}
+et~\ref{fiche:fisher-global}, issue~\#427).
 Pour la constante, la p-value de Student est seulement restituée. \emph{Ce que le lecteur ne doit
 pas conclure}~: un \code{OK} du test de Pitman établit une association positive entre volumes et
 pertes, non la proportionnalité exigée par l'hypothèse~H1, qui relève de la constante et du
@@ -9797,7 +9805,10 @@ motif des pertes constantes, qui prime sur celui du garde-fou~R12 (issue~\#189,
 sous-section~\ref{sec:modele-auxiliaire-regles})~; de même si $F$ n'est pas fini, hors de ces
 cas, avec le motif «~\code{statistique F non finie (somme des carres residuelle de la regression
 de y sur x nulle : ajustement exact, ou non calculable) : non applicable}~», qui remplace alors
-le commentaire de diagnostic cité en rubrique~5 (mesuré~: $x = (1, \dots, 8)$, $y = 2x$).
+le commentaire de diagnostic cité en rubrique~5 (mesuré~: $x = (1, \dots, 8)$, $y = 2x$, par un
+appel direct d'\code{usp\_tests()}, comme dans \code{tests/unitaires/test\_non\_applicable.R}~;
+\code{run\_engine()} refuse ce jeu, aux ratios $y_t/x_t$ égaux, faute de maximum de
+vraisemblance). Dans tous ces cas, la ligne ne restitue aucune p-value (rubrique~5).
 \Hzero
 $H_0 : b = 0$ (plus généralement, nullité conjointe de tous les coefficients de pente), contre
 $H_1 : b \neq 0$ (hypothèses restituées par la ligne). C'est l'hypothèse sous laquelle la
@@ -9817,11 +9828,22 @@ auxiliaire des moindres carrés seulement (section~\ref{sec:modele-auxiliaire-sp
 hypothèses H2 et H3 du modèle réglementaire contredisent. Champ \code{loi} de la ligne~:
 \texttt{\small F(1,6) exacte sous le modele auxiliaire MCO} à $T = 8$.
 \Pval
-La p-value de Fisher, $p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, bilatérale en $t_b$, est calculée et
-rangée dans la colonne \code{p\_asymptotique}, emplacement et non qualification, \textbf{pour
+La p-value de Fisher sous le modèle auxiliaire, $p = 1 - F_{\mathcal{F},k,T-k-1}(F)$, bilatérale
+en $t_b$, est calculée et rangée dans la colonne \code{p\_asymptotique}, emplacement et non qualification, \textbf{pour
 information}~: elle n'est \textbf{pas retenue}, la ligne n'a ni p-value retenue ni nature
 (\code{p\_retenue} et \code{nature\_p} à \code{NA}), ni sens du test, et son verdict est
-\code{INFO}. Le commentaire est «~\code{Diagnostic, redondante avec le test de Pitman (F = t\^{}2) :
+\code{INFO}. Quand la ligne est non applicable (rubrique~1), elle ne restitue \textbf{aucune}
+p-value~: \code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} y sont à
+\code{NA}, la statistique $F$ restant dans \code{stat} (\code{NA} à volumes ou pertes constants
+et sous le garde-fou~R12, $+\infty$ à ajustement exact, mesuré sur les jeux du test cité
+ci-dessous)~; jusqu'à l'issue~\#427, la ligne non applicable à ajustement exact
+gardait dans \code{p\_asymptotique} la p-value de Fisher calculée, $0$, quand $F = +\infty$.
+Mesuré par un appel direct d'\code{usp\_tests()} ($x = (1, \dots, 8)$, $y = 2x$)~: $F = +\infty$
+et les quatre p-values à \code{NA}, comme sur la ligne de Student sur la pente
+(fiche~\ref{fiche:student-pente-modele-auxiliaire})~; le test d'invariant
+\code{tests/unitaires/test\_non\_applicable.R} le vérifie pour toutes les lignes non applicables
+d'\code{usp\_tests()}, sur les jeux à volumes constants, à pertes constantes, du garde-fou~R12 et
+à ajustement exact. Hors de ces cas, le commentaire est «~\code{Diagnostic, redondante avec le test de Pitman (F = t\^{}2) :
 aucun verdict. p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,
 non retenue ; egale a la p de la ligne "Test de Student sur la pente (modele auxiliaire MCO)".}~»,
 la dernière phrase étant ajoutée par l'issue~\#423. \emph{Pourquoi aucune p-value n'est retenue.} Aucune des trois voies de la
