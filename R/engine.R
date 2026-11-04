@@ -347,7 +347,7 @@ usp_credibilite <- function(T, bareme = c("court", "long")) {
   # de renvoyer NA.
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
     stop("Annexe XVII, section G : la duree T doit etre un nombre entier d'annees (T = ",
-         paste(format(T), collapse = ", "), ").")
+         paste(format(T, decimal.mark = "."), collapse = ", "), ").")
   if (T < 5) stop("Annexe XVII : au moins 5 annees consecutives sont exigees (T = ", T, ").")
   Tc <- min(T, max(as.integer(names(tab))))
   unname(tab[as.character(Tc)])
@@ -367,7 +367,7 @@ usp_credibilite <- function(T, bareme = c("court", "long")) {
 .annexe_verifiee <- function(annexe) {
   if (!is.character(annexe) || length(annexe) != 1L || is.na(annexe) ||
       !annexe %in% c("II", "XIV"))
-    stop("Annexe inconnue (", paste(format(annexe), collapse = ", "),
+    stop("Annexe inconnue (", paste(format(annexe, decimal.mark = "."), collapse = ", "),
          ") : valeurs admises \"II\" (non-vie) ou \"XIV\" (sante non-SLT).")
   annexe
 }
@@ -482,6 +482,24 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   ctl <- c("keepNA", "keepInteger", "niceNames", "showAttributes")
   if (!relue) ctl <- c(ctl, "digits17")
   paste(deparse(v, control = ctl), collapse = " ")
+}
+
+# Quantiles de type 7 nommes en point decimal (#428). stats::quantile() nomme
+# ses valeurs par format() de 100 * probs : sous options(OutDec = ","), le nom
+# "2.5%" devient "2,5%", et res$ic_bootstrap (ou les noms de ligne de
+# plots_data$qq2) changeraient avec l'option de session. Valeurs identiques a
+# stats::quantile(x, probs, type = 7) ; noms identiques a ceux de
+# stats::quantile() sous OutDec = ".".
+.engine_quantile <- function(x, probs) {
+  q <- stats::quantile(x, probs, type = 7, names = FALSE)
+  # Meme regle que stats:::format_perc : formatC() sous 100 probabilites,
+  # format() a partir de 100 (use.fC = length(x) < 100 dans stats).
+  # digits = 7, defaut de getOption("digits"), fixe pour ne pas en dependre.
+  p100 <- 100 * probs
+  names(q) <- paste0(if (length(probs) < 100)
+                       formatC(p100, format = "fg", width = 1, digits = 7, decimal.mark = ".")
+                     else format(p100, trim = TRUE, digits = 7, decimal.mark = "."), "%")
+  q
 }
 
 # Numero de segment (issue #105) : nombre scalaire fini entier, sans attribut
@@ -1859,7 +1877,7 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
                      "cette tolerance, au demarrage retenu et sur la borne (ratios ",
                      "y_t/x_t quasi egaux pres de la borne basse ; dispersion des ",
                      "ratios extreme pres de la borne haute)."),
-              sec, format(BORNES_GAMMA[1]), format(BORNES_GAMMA[2]), sec, sec),
+              sec, format(BORNES_GAMMA[1], decimal.mark = "."), format(BORNES_GAMMA[2], decimal.mark = "."), sec, sec),
       phrase_art220, phrase_res2,
       sprintf(paste0("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t ",
                      "par un coefficient fixe, ainsi que les unites, la correspondance ",
@@ -1874,8 +1892,8 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
                    "(BORNES_GAMMA, bornes de l'outil, non reglementaires) ; les valeurs ",
                    "delta et gamma qui minimisent le montant de %s(6), dont depend le ",
                    "parametre de %s(4), ne sont pas determinees dans ce domaine."),
-            sec, if (bas) "basse" else "haute", format(BORNES_GAMMA[1]),
-            format(BORNES_GAMMA[2]), sec, sec),
+            sec, if (bas) "basse" else "haute", format(BORNES_GAMMA[1], decimal.mark = "."),
+            format(BORNES_GAMMA[2], decimal.mark = "."), sec, sec),
     if (bas) "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
     else "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne.",
     phrase_art220, phrase_res2,
@@ -7407,9 +7425,30 @@ engine_lire_triangle <- function(df) {
   gsub(">", "&gt;", x, fixed = TRUE)
 }
 
+# Ecriture d'un nombre fini dans une cellule <v> du repli : point decimal et
+# pleine precision, independants de getOption("OutDec") et de digits (#428).
+# sprintf() n'a recours ni a l'un ni a l'autre. Ecriture a 15 chiffres
+# significatifs quand elle se relit en la meme valeur (0.1 reste 0.1, 2001
+# reste 2001), sinon a 17 chiffres, qui restituent tout double (meme regle
+# que .engine_saisie()). Un nombre non fini (Inf, -Inf) n'a pas de forme <v>
+# lisible par un tableur : cellule() l'ecrit comme chaine en ligne.
+.xlsx_nombre <- function(x) {
+  # Precondition : x fini. NA, NaN et +-Inf n'ont pas de forme <v> ; cellule()
+  # les filtre en amont (NA : cellule vide ; +-Inf : chaine en ligne).
+  stopifnot(length(x) == 1L, is.finite(x))
+  x <- as.double(x)
+  s <- sprintf("%.15g", x)
+  if (as.double(s) != x) s <- sprintf("%.17g", x)
+  s
+}
+
 # Ecrit un data.frame dans un classeur .xlsx a une feuille. Les colonnes
 # numeriques sont ecrites comme nombres, les autres comme chaines en ligne
 # (inlineStr), ce qui evite d'avoir a gerer une table de chaines partagees.
+# Un nombre non fini (+-Inf) est ecrit comme chaine en ligne : openxlsx relit
+# cette cellule en chaine ("Inf"), le lecteur interne de ce fichier en
+# numerique (la colonne dont toutes les cellules se convertissent l'est). Les
+# NA sont des cellules vides.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   if (requireNamespace("openxlsx", quietly = TRUE)) {
     openxlsx::write.xlsx(df, chemin, sheetName = feuille)
@@ -7420,8 +7459,9 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   cellule <- function(ligne, col, valeur) {
     ref <- paste0(.col_lettre(col), ligne)
     if (is.na(valeur)) return("")
-    if (is.numeric(valeur))
-      sprintf('<c r="%s"><v>%s</v></c>', ref, format(valeur, scientific = FALSE, trim = TRUE))
+    # +-Inf : chaine en ligne (voir l'en-tete de engine_ecrire_xlsx())
+    if (is.numeric(valeur) && is.finite(valeur))
+      sprintf('<c r="%s"><v>%s</v></c>', ref, .xlsx_nombre(valeur))
     else
       sprintf('<c r="%s" t="inlineStr"><is><t>%s</t></is></c>', ref, .xml_echap(as.character(valeur)))
   }
@@ -7811,12 +7851,12 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
                    .engine_saisie(T), source_T))
   if (T > n)
     return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
-                   format(T), n))
+                   format(T, decimal.mark = "."), n))
   if (T < T_min)
     return(if (T_min >= 5)
       sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %s).",
-              T_min, format(T))
-      else sprintf("Profondeur T = %s : T >= %d attendu.", format(T), T_min))
+              T_min, format(T, decimal.mark = "."))
+      else sprintf("Profondeur T = %s : T >= %d attendu.", format(T, decimal.mark = "."), T_min))
   character(0)
 }
 
@@ -8477,8 +8517,8 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     g <- x > stats::median(x)
     if (sum(g) >= 3 && sum(!g) >= 3) {
       nn <- min(sum(g), sum(!g)); pr <- stats::ppoints(nn)
-      qq2 <- data.frame(faible = stats::quantile(sort(z[!g]), pr, type = 7),
-                        fort   = stats::quantile(sort(z[g]),  pr, type = 7))
+      qq2 <- data.frame(faible = .engine_quantile(sort(z[!g]), pr),
+                        fort   = .engine_quantile(sort(z[g]),  pr))
     }
   }
   # Courbe lissee observee : parametres de lowess() ecrits en clair (#306),
@@ -8645,7 +8685,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       if (obs && is.na(v) && !is.nan(v))
         err <- c(err, sprintf("Cellule observee manquante en (i=%d, j=%d).", i, j))
       else if (obs && !is.finite(v))
-        err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v)))
+        err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v, decimal.mark = ".")))
       if (obs && is.finite(v) && v <= 0)
         err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
       # Domaine numerique (issue #185) : memes constantes et memes bornes
@@ -9115,7 +9155,7 @@ RAPPORT_MAX_ECART_MW <- 100
   if (!isTRUE(ex$applicable)) return(base)
   q <- if (is.na(ex$quotient))
     "non defini (sigma2_(J-3) = 0), sans effet : le minimum est atteint ailleurs"
-  else format(ex$quotient, digits = 6)
+  else format(ex$quotient, digits = 6, decimal.mark = ".")
   # base est du TEXTE LIBRE : il passe en argument %s, jamais dans la chaine de
   # format. L'interpoler dans le format ferait d'un simple "%" du libelle une
   # specification de conversion -- c'est exactement ce qui a produit un
@@ -9150,8 +9190,8 @@ RAPPORT_MAX_ECART_MW <- 100
   detail <- sprintf(paste0("%s. min(sigma2_(J-2) = %s ; sigma2_(J-3) = %s ; ",
                            "sigma2_(J-2)^2/sigma2_(J-3) = %s) = %s, minimum atteint par %s"),
                     base,
-                    format(ex$sigma2_Jm2, digits = 6), format(ex$sigma2_Jm3, digits = 6),
-                    q, format(ex$valeur, digits = 6), retenus)
+                    format(ex$sigma2_Jm2, digits = 6, decimal.mark = "."), format(ex$sigma2_Jm3, digits = 6, decimal.mark = "."),
+                    q, format(ex$valeur, digits = 6, decimal.mark = "."), retenus)
   # "numeriquement nul" et non "= 0" : la detection porte sur les facteurs
   # individuels a la tolerance relative 1e-12 de l'outil (predicat
   # .mw_colonne_degeneree(), deux volets), si bien qu'une colonne constante a
@@ -9196,20 +9236,20 @@ RAPPORT_MAX_ECART_MW <- 100
   }
   morceau <- function(nom, v)
     if (is.na(v)) sprintf("avec %s : non defini", nom)
-    else sprintf("avec %s : %s (%s)", nom, format(v, digits = 6), ecart(v))
+    else sprintf("avec %s : %s (%s)", nom, format(v, digits = 6, decimal.mark = "."), ecart(v))
   morceaux <- vapply(seq_along(noms), function(k)
     morceau(noms[k], sens$racine_msep_arguments[[k]]), character(1))
   phrase <- paste0("Sensibilite indicative, hors regle et sans effet sur sigma_USP, ",
-                   "de la racine de la MSEP (", format(r0, digits = 6),
+                   "de la racine de la MSEP (", format(r0, digits = 6, decimal.mark = "."),
                    " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
                    paste(morceaux, collapse = " ; "), ".")
   detail <- paste0(detail, ". ", phrase)
   if (!isTRUE(ex$degeneree) && isTRUE(sens$valeur_regle > 0) &&
-      !identical(format(sens$racine_msep_zero, digits = 6), format(r0, digits = 6)))
+      !identical(format(sens$racine_msep_zero, digits = 6, decimal.mark = "."), format(r0, digits = 6, decimal.mark = ".")))
     detail <- paste0(detail, " ", sprintf(paste0(
       "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
       "contrefactuel qui n'est pas un argument du minimum) : %s (%s)."),
-      format(sens$racine_msep_zero, digits = 6), ecart(sens$racine_msep_zero)))
+      format(sens$racine_msep_zero, digits = 6, decimal.mark = "."), ecart(sens$racine_msep_zero)))
   detail
 }
 
@@ -9444,13 +9484,13 @@ mw_valider_ajustement <- function(aj, msep) {
     err <- c(err, sprintf(paste0("Reserve chain-ladder totale non finie (R = %s) : ",
                                  "sigma(res,s,USP) est defini par D(4) comme racine(MSEP) / R ; ",
                                  "la methode du risque de reserve no 2 n'est pas applicable a ce triangle."),
-                          format(R)))
+                          format(R, decimal.mark = ".")))
   else if (R <= 0)
     err <- c(err, sprintf(paste0("Reserve chain-ladder totale negative ou nulle (R = %s) : ",
                                  "sigma(res,s,USP) est defini par D(4) comme racine(MSEP) / R et ",
                                  "n'a pas de sens pour R <= 0 ; la methode du risque de reserve no 2 ",
                                  "n'est pas applicable a ce triangle."),
-                          format(R, digits = 6)))
+                          format(R, digits = 6, decimal.mark = ".")))
   # Une MSEP negative est impossible sur un triangle valide (tous les termes de
   # mw_msep() sont positifs ou nuls), mais la fonction est publique : elle garde
   # le domaine de racine(MSEP) / R, donc elle refuse aussi ce cas plutot que de
@@ -9459,7 +9499,7 @@ mw_valider_ajustement <- function(aj, msep) {
     err <- c(err, sprintf(paste0("MSEP a un an non finie ou negative (MSEP = %s) : ",
                                  "sigma(res,s,USP) n'est pas calculable ; la methode du risque ",
                                  "de reserve no 2 n'est pas applicable a ce triangle."),
-                          format(msep)))
+                          format(msep, decimal.mark = ".")))
   # Refus (issue #192, decision du mainteneur du 05/10/2026, Q-E2r-192-1,
   # option A) : triangle totalement degenere, .mw_triangle_totalement_degenere().
   # Le refus ne repose PAS sur le 0/0 de D(5)(d)(ii) (doctrine #7 : le texte ne
@@ -9496,7 +9536,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "paragraphe 1, point d). L'outil n'applique donc pas a ce triangle la methode du ",
       "risque de reserve no 2 (article 220, paragraphe 1, point b)). Verifier qu'il ",
       "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."),
-      format(msep, digits = 3)))
+      format(msep, digits = 3, decimal.mark = ".")))
   # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
   # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
   # colonne J-2 est degeneree, facteurs individuels egaux a f_j a la tolerance
@@ -9525,14 +9565,14 @@ mw_valider_ajustement <- function(aj, msep) {
     facteurs <- et(vapply(cols, function(k) sprintf(paste0(
       "les %d facteurs individuels F(i,%d) valent f_%d = %s au sens de ce predicat ",
       "(ecart relatif maximal %.1e)"),
-      k$n, k$j, k$j, format(k$f, digits = 8), k$ecart), ""))
+      k$n, k$j, k$j, format(k$f, digits = 8, decimal.mark = "."), k$ecart), ""))
     nuls <- et(vapply(cols, function(k) sprintf("sigma2_(%s) = %s", k$nom,
-                                                 format(k$s2, digits = 3)), ""))
+                                                 format(k$s2, digits = 3, decimal.mark = ".")), ""))
     # L'absence de residus de Mack des colonnes degenerees n'est plus dite
     # ici mais dans l'avertissement general sur les colonnes exclues (ci-
     # dessous), qui couvre toute colonne, J-3 et J-2 comprises, sans doublon
     # (issue #33).
-    q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3)
+    q <- if (is.na(ex$quotient)) "non defini" else format(ex$quotient, digits = 3, decimal.mark = ".")
     # Enonce du predicat UNE FOIS par message, meme si J-3 et J-2 sont toutes
     # deux degenerees (issue #60, decision du mainteneur du 06/10/2026).
     msg <- sprintf(paste0(
@@ -9546,14 +9586,14 @@ mw_valider_ajustement <- function(aj, msep) {
       "cellules completees a la main)."),
       if (length(cols) > 1) "Colonnes de developpement" else "Colonne de developpement",
       entete, facteurs, nuls,
-      format(ex$sigma2_Jm2, digits = 3), format(ex$sigma2_Jm3, digits = 3), q,
-      format(ex$valeur, digits = 3))
+      format(ex$sigma2_Jm2, digits = 3, decimal.mark = "."), format(ex$sigma2_Jm3, digits = 3, decimal.mark = "."), q,
+      format(ex$valeur, digits = 3, decimal.mark = "."))
     if (!isTRUE(ex$developpement_acheve))
       msg <- paste(msg, sprintf(paste0(
         "Le developpement n'est pourtant PAS acheve (f_(J-2) = %s, f_(J-1) = %s : ",
         "au moins l'un des deux differe de 1) : la variance omise sur la derniere annee de developpement ",
         "n'est pas nulle en realite, et sigma(res,s,USP) s'en trouve sous-estime."),
-        format(ex$f_Jm2, digits = 8), format(ex$f_Jm1, digits = 8)))
+        format(ex$f_Jm2, digits = 8, decimal.mark = "."), format(ex$f_Jm1, digits = 8, decimal.mark = ".")))
     avt <- c(avt, msg)
   }
   # Avertissement (et non refus) : colonnes sans residu de Mack (issue #33,
@@ -9609,8 +9649,8 @@ mw_valider_ajustement <- function(aj, msep) {
   if (!length(err) && R > 0 && sqrt(msep) / R >= 1) {
     ult <- if (length(aj$ultime)) sum(aj$ultime) else NA_real_
     part <- if (is.finite(ult) && ult > 0)
-      sprintf(", soit %s %% de l'ultime total %s", format(100 * R / ult, digits = 3),
-              format(ult, digits = 6)) else ""
+      sprintf(", soit %s %% de l'ultime total %s", format(100 * R / ult, digits = 3, decimal.mark = "."),
+              format(ult, digits = 6, decimal.mark = ".")) else ""
     avt <- c(avt, sprintf(paste0(
       "Reserve chain-ladder positive mais faible devant son incertitude : sigma estime = ",
       "racine(MSEP) / R = %s >= 1 (R = %s%s). ",
@@ -9619,7 +9659,7 @@ mw_valider_ajustement <- function(aj, msep) {
       "Deux lectures : reserve residuelle d'un segment en run-off, ou triangle anormalement ",
       "volatil. Le repere 1 est un repere de lecture, sans fondement reglementaire ni ",
       "statistique ; le calcul n'est pas refuse."),
-      format(sqrt(msep) / R, digits = 4), format(R, digits = 6), part))
+      format(sqrt(msep) / R, digits = 4, decimal.mark = "."), format(R, digits = 6, decimal.mark = "."), part))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt,
        reserve = R, msep = msep)
@@ -11602,7 +11642,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     if (!ok)
       stop(appelant, " : element ", nm, " des ensembles figes invalide (vecteur ",
            "d'entiers sans NA attendu, dans ",
-           if (is.null(J)) "0, 1, 2, ..." else paste0("0..", format(J - 1)),
+           if (is.null(J)) "0, 1, 2, ..." else paste0("0..", format(J - 1, decimal.mark = ".")),
            " ; integer(0) si vide)", call. = FALSE)
   }
   invisible(figes)
@@ -12159,10 +12199,10 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                              "coherence interne de la standardisation. La structure de",
                              "variance est testee par la ligne Heteroscedasticite residuelle vs cumul",
                              "(n R^2 a effets fixes de colonne) et par l'exposant de variance par colonne."),
-                       format(var_attendue, digits = 6),
+                       format(var_attendue, digits = 6, decimal.mark = "."),
                        # k = 1 : (N - k)/(N - 1) = 1, "et NON 1" serait faux (#60, R5)
                        if (k_col == 1L) "" else ", et NON 1", n, k_col, n - k_col,
-                       format(mean(r), digits = 3)))
+                       format(mean(r), digits = 3, decimal.mark = ".")))
 
   ## --- M3 : independance des annees d'accident et de developpement ----------
   fam <- "M3. independance (annexe XVII D(2)(h)(i) et (ii))"
@@ -12197,10 +12237,10 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                   "%d etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs",
                   "F(i,j) (paiements de l'exercice i + j + 1) : "),
             .mw_n_min_repere_diagonale(REPERE_DIAGONALE_MACK_1997),
-            format(100 * REPERE_DIAGONALE_MACK_1997)),
+            format(100 * REPERE_DIAGONALE_MACK_1997, decimal.mark = ".")),
     paste(sprintf("k = %d : n = %d, L = %d, S = %d, Z = %d, P = %s%s",
                   cdg$k, cdg$n, cdg$L, cdg$S, cdg$Z,
-                  vapply(cdg$p_diag, function(p) format(p, digits = 6), character(1)),
+                  vapply(cdg$p_diag, function(p) format(p, digits = 6, decimal.mark = "."), character(1)),
                   ifelse(cdg$repere, " (repere)", "")), collapse = " ; "),
     ".")
   add(fam, "Effets d'annee calendaire par diagonale (repere de Mack 1997)",
@@ -12210,7 +12250,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       H0 = "repartition aleatoire des L et des S sur chaque diagonale",
       H1 = "diagonale a dominante L ou S",
       estim_nom = sprintf("diagonales sous le repere de %s %%",
-                          format(100 * REPERE_DIAGONALE_MACK_1997)),
+                          format(100 * REPERE_DIAGONALE_MACK_1997, decimal.mark = ".")),
       estim = if (nrow(cdg)) as.numeric(sum(cdg$repere)) else NA_real_,
       detail = detail_cdg)
   ka <- mw_test_homogeneite_accident(aj, jd, res)  # res : voir ExpVar (#291)
@@ -12634,7 +12674,7 @@ engine_motif_b_alpha <- function(B, alpha) {
                        "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
                        "la zone ALERTE des tests en sens rejeter disparait et le verdict",
                        "ne suit plus la regle documentee."),
-                 saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER)), call. = FALSE)
+                 saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")), call. = FALSE)
   # B minimal fonction d'alpha (#127) : apres les controles de B et d'alpha,
   # dont les messages restent inchanges pour une valeur invalide isolement.
   motif_b_alpha <- engine_motif_b_alpha(B, alpha)
@@ -12872,7 +12912,7 @@ engine_motif_b_alpha <- function(B, alpha) {
     # la distribution bootstrap de sigma_USP, quantiles identiques a l'IC).
     usp_b <- par$credibilite * boot$sigma_boot + (1 - par$credibilite) * sigma_standard
     ic <- if (length(boot$sigma_boot) > 20)
-      stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+      .engine_quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
 
     descriptif <- data.frame(
       grandeur = c("Annees d'accident (I+1)", "Annees de developpement (J+1)",
@@ -13492,7 +13532,7 @@ run_engine <- function(xt, yt,
     cred <- param$credibilite; corr <- param$correction_taille
     usp_b <- cred * boot$sigma_boot * corr + (1 - cred) * sigma_standard
     ic <- if (length(usp_b) > 20)
-      stats::quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
+      .engine_quantile(usp_b, c(.025, .05, .5, .95, .975)) else NULL
     # Intervalle "basic" sur l'echelle logarithmique, en regard de l'IC de
     # percentile (issue #305, Q-D2-Fn-2 (A), usp_ic_basic_log()) : memes
     # replications et meme condition d'existence que ic ; NULL sans ic.
@@ -13504,7 +13544,7 @@ run_engine <- function(xt, yt,
     # calcule aussi a delta interieur), meme regle que l'IC complet.
     usp_r <- cred * boot$sigma_boot_restreint * corr + (1 - cred) * sigma_standard
     ic_r <- if (length(usp_r) > 20)
-      stats::quantile(usp_r, c(.025, .05, .5, .95, .975)) else NULL
+      .engine_quantile(usp_r, c(.025, .05, .5, .95, .975)) else NULL
 
     # Jackknife non calcule : fit$ecart_jackknife NULL plutot qu'un max a
     # -Inf ou a Inf. jack_calcule (#405, point 2) est lu sur la designation
@@ -13885,7 +13925,7 @@ engine_derogations <- function(res) {
   # usp_credibilite() appelee dans .engine_trace_bareme().
   tp <- .engine_trace_profondeur(res, "engine_derogations()")
   tb <- .engine_trace_bareme(res, "engine_derogations()")
-  fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10)
+  fmt <- function(x) if (is.na(x)) NA_character_ else format(x, digits = 10, decimal.mark = ".")
   d <- data.frame(parametre = character(0), valeur_reglementaire = character(0),
                   valeur_retenue = character(0), conforme = logical(0),
                   libelle = character(0), stringsAsFactors = FALSE)
@@ -13911,7 +13951,7 @@ engine_derogations <- function(res) {
       saisi_contraire = sprintf(paste("bareme de credibilite saisi (%s), derogation au bareme",
                                       "de l'annexe XVII, section G : bareme reglementaire du",
                                       "segment %s de l'annexe %s : %s (%s)"),
-                                tb$retenu, format(res$metadata$segment), res$metadata$annexe,
+                                tb$retenu, format(res$metadata$segment, decimal.mark = "."), res$metadata$annexe,
                                 tb$reglementaire, tb$ref_reglementaire),
       saisi_sans_segment = sprintf(paste("bareme de credibilite saisi (%s), non determine par",
                                          "l'annexe XVII, section G : aucun segment designe",
