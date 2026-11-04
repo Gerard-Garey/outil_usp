@@ -1103,7 +1103,8 @@ $\hat\gamma^{(-t)}$~; ligne entièrement \code{NA} pour un réajustement en éch
 d'\code{usp\_jackknife()}), $\sigma_{\mathrm{USP}}$ & indices $t$ des années évaluables les plus
 influentes sur $\sigma_{\mathrm{USP}}$, à la tolérance $\tau$ près (issue~\#327), ou \code{NULL}
 si aucun écart n'est fini et, depuis l'issue~\#405, si aucun écart relatif ne l'est
-($\sigma_{\mathrm{USP}}$ nul ou non fini), jamais \code{integer(0)}~; désignation unique du
+($\sigma_{\mathrm{USP}}$ nul, non fini ou, depuis l'issue~\#430, assez petit pour que le quotient
+déborde, ainsi $10^{-310}$), jamais \code{integer(0)}~; désignation unique du
 moteur, extraite telle quelle de \code{run\_engine()} par l'issue~\#396, calculée une fois par
 \code{run\_engine()} (élément \code{jack\_annees} de \code{robustesse}, non stocké), qui la lit pour le commentaire de la ligne
 jackknife et, depuis l'issue~\#405, la transmet à \code{engine\_influence()} par
@@ -13888,13 +13889,18 @@ intérieur) et les huit réajustements sont refusés par \code{usp\_valider\_aju
 condition de Kuhn et Tucker), \code{ok} vaut \code{TRUE} et la
 table \code{res\$jackknife} est entièrement à \code{NA}. Second cas sans estimation, depuis
 l'issue~\#405 (avis d'\code{actuary}, option~(b))~: des réajustements ont abouti, mais
-$\sigma_{\mathrm{USP}}$ est nul ou non fini, de sorte qu'aucun écart relatif n'est défini~;
+$\sigma_{\mathrm{USP}}$ est nul, non fini ou, depuis l'issue~\#430, strictement positif mais si
+petit (nombre sous-normal, ainsi $10^{-310}$) que le quotient
+$|\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}|/\sigma_{\mathrm{USP}}$ déborde, de sorte
+qu'aucun écart relatif n'est fini~;
 \code{usp\_jack\_annees()} rend alors \code{NULL}, jamais un vecteur vide, qui se lirait comme
 un jackknife calculé, et la ligne est posée de même en diagnostic \code{INFO}, \code{estim} à
-\code{NA}, au commentaire fixe «~\code{sigma\_USP nul ou non fini : ecart relatif non defini,
-influence non mesuree.}~», suivi, le cas échéant, de la phrase des années non évaluables~;
-jusqu'à cette issue, la ligne était omise. Mesuré en forçant $\sigma_{\mathrm{USP}}$ à~$0$ puis
-à \code{NA} par substitution d'\code{usp\_parametre()} dans l'environnement du moteur (jeu de
+\code{NA}, au commentaire fixe «~\code{sigma\_USP nul, non fini ou trop petit : ecart relatif non
+fini, influence non mesuree.}~» (jusqu'à l'issue~\#430, «~\code{sigma\_USP nul ou non fini :
+ecart relatif non defini, influence non mesuree.}~», que le cas sous-normal démentait), suivi, le
+cas échéant, de la phrase des années non évaluables~;
+jusqu'à l'issue~\#405, la ligne était omise. Mesuré en forçant $\sigma_{\mathrm{USP}}$ à~$0$,
+à \code{NA} puis, depuis l'issue~\#430, à $10^{-310}$ par substitution d'\code{usp\_parametre()} dans l'environnement du moteur (jeu de
 contrôle, $B = 99$, test unitaire de \code{tests/unitaires/test\_defauts\_connus.R})~: les huit
 réajustements aboutissent, la ligne porte ce seul commentaire. Dans le premier cas (aucune année
 évaluable), le graphique d'influence de l'application affiche, depuis l'issue~\#328, un panneau
@@ -13902,9 +13908,10 @@ vide au message fixe «~\code{Aucune annee evaluable : influence sur sigma\_USP 
 et la note d'influence remplace la phrase de l'année la plus influente par une phrase fixe qui
 commence par «~Aucune année évaluable~». Ce message et cette phrase sont réservés à ce cas, où
 toutes les années sont non évaluables~: dans le second cas, depuis l'issue~\#405, le graphique
-affiche un panneau vide au message fixe «~\code{sigma\_USP nul ou non fini : ecart relatif non
-defini, influence non mesuree}~», et la note d'influence porte la phrase fixe «~sigma\_USP nul ou
-non fini~: écart relatif non défini, influence non mesurée.~», suivie, le cas échéant, de la
+affiche un panneau vide au message fixe «~\code{sigma\_USP nul, non fini ou trop petit : ecart
+relatif non fini, influence non mesuree}~», et la note d'influence porte la phrase fixe
+«~sigma\_USP nul, non fini ou trop petit~: écart relatif non fini, influence non mesurée.~»
+(libellés alignés sur celui de la ligne par l'issue~\#430), suivie, le cas échéant, de la
 phrase des années non évaluables, comme le commentaire de la ligne (\code{note\_influence()},
 \code{plot\_influence\_sigma()}, lecture des colonnes \code{non\_evaluable} et
 \code{ecart\_sigma} de la table d'influence, sans calcul)~; jusqu'à cette issue, l'affichage
@@ -13931,10 +13938,11 @@ la précision numérique près~: 1, 2, 3, 4, 6, 7 et 8~; le retrait de chacune d
 de $+2{,}1$~\%.~» Si les signes des années diffèrent, l'amplitude commune est écrite avec le
 signe de chaque année, suivie de «~respectivement~»~; si toutes s'écrivent $0{,}0$, la phrase
 finit par «~moins de 0,05~\% en valeur absolue~». Faute d'année désignée alors que des écarts
-sont finis, la note écrit «~Année la plus influente non déterminée.~», cas que la désignation du
-moteur ne produit pas pour un $\sigma_{\mathrm{USP}}$ fini et strictement positif,
-\code{usp\_jack\_annees()} désignant au moins une année dès qu'un écart est fini (branche
-défensive de l'affichage).
+relatifs sont finis, la note écrit «~Année la plus influente non déterminée.~», cas que la
+désignation du moteur ne produit pas, \code{usp\_jack\_annees()} désignant au moins une année
+dès qu'un écart relatif est fini, $\sigma_{\mathrm{USP}}$ sous-normal compris (issue~\#430~:
+les écarts y sont finis, les écarts relatifs non, et c'est le second cas sans estimation qui
+s'applique)~; branche défensive de l'affichage.
 \Loi
 Aucune loi de référence n'est utilisée pour $\Delta_{\max}$.
 \Pval
