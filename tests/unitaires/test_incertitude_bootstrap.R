@@ -337,6 +337,23 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(bp$layout$legend$yref, "container") && identical(bp$layout$legend$y, 0) &&
                identical(bp$layout$legend$yanchor, "bottom")
            })
+  verifier("plot_boot_sigma(), plotly, valeurs simulees non finies (NA, Inf, NaN) : plage des abscisses finie, calculee sur les seules valeurs finies, et couvrant les sept reperes (#392, correctif 4505ae3)",
+           {
+             pd <- pdi; pd$sigma_usp_boot[1:3] <- c(NA, Inf, NaN)
+             b <- pd$boot_reperes
+             rep7 <- c(b$sigma_usp, b$ic_bas, b$ic_haut, b$basic_log_bas, b$basic_log_haut, b$moyenne, b$sigma_standard)
+             xr <- as.numeric(plotly::plotly_build(plot_boot_sigma(pd))$x$layout$xaxis$range)
+             vf <- pd$sigma_usp_boot[is.finite(pd$sigma_usp_boot)]
+             length(xr) == 2L && all(is.finite(xr)) && xr[1] < xr[2] &&
+               all(rep7 > xr[1] & rep7 < xr[2]) && min(vf) > xr[1] && max(vf) < xr[2]
+           })
+  verifier("plot_boot_sigma(), plotly, valeurs simulees et reperes tous egaux (plage de largeur nulle) : plage des abscisses non posee, autorange de plotly (#392, correctif 4505ae3)",
+           {
+             pd <- pdi; pd$sigma_usp_boot[] <- 2
+             nb <- c("sigma_usp", "ic_bas", "ic_haut", "basic_log_bas", "basic_log_haut", "moyenne", "sigma_standard")
+             pd$boot_reperes[nb] <- 2
+             is.null(plotly::plotly_build(plot_boot_sigma(pd))$x$layout$xaxis$range)
+           })
   verifier("plot_boot_sigma(), plotly, regime_boot NULL avec motif (#305, App-review C2) : motif en sous-titre du titre, comme plot_spread() ; titre inchange sans motif",
            {
              pd <- pdi; pd["regime_boot"] <- list(NULL); pd$regime_boot_motif <- MOTIF_VC
