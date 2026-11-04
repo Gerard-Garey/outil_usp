@@ -1426,8 +1426,8 @@ colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme qua
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
-\code{.mw\_combinaisons()},\newline \code{.MW\_COMBN\_}\newline\code{CACHE\_APPEL} & $n$~; cache
-d'appel & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
+\code{.mw\_combinaisons()} & $n$~; table
+d'appel \code{combn} & parties à 2, 3 et 4 éléments de $\{1, \ldots, n\}$
 (\code{utils::combn()}) employées par \code{.mw\_courbure\_}\allowbreak\code{colonne()},
 calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} depuis
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
@@ -1437,12 +1437,17 @@ plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à ch
 gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
 l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
 même, cache vide ou rempli. Depuis l'issue~\#405, la table d'un $n >$ \code{MW\_COMBN\_N\_MAX} est
-gardée dans le cache \code{.MW\_COMBN\_CACHE\_APPEL} le temps d'un appel de
-\code{mw\_bootstrap()} seulement, pour les seules valeurs de $n$ rencontrées, puis vidée à la
-sortie de l'appel, erreur comprise~: la mémoire reste bornée hors de l'appel, et la table n'est
-plus recalculée à chaque colonne et à chaque réplication~; hors d'un tel appel (statistique
-observée de \code{mw\_tests()}, appel direct), elle est recalculée à chaque appel, comme
-auparavant. Mêmes matrices que l'appel direct dans tous les cas \\
+gardée le temps d'un appel de \code{mw\_bootstrap()} seulement, pour les seules valeurs de $n$
+rencontrées~; depuis l'issue~\#432, elle l'est dans une table d'appel locale, créée par
+\code{mw\_bootstrap()} à son entrée et passée en argument \code{combn}, par \code{.mw\_stats()},
+\code{.mw\_contexte\_mc()}, l'entrée \code{Courbure} de \code{MW\_CATALOGUE\_MC},
+\code{mw\_test\_courbure()} et \code{.mw\_courbure\_}\allowbreak\code{colonne()}, à la
+statistique observée et à chaque réplication. Cette table disparaît avec l'appel, erreur
+comprise, sans état global du moteur~: la mémoire reste bornée hors de l'appel, et la table
+n'est plus recalculée à chaque colonne et à chaque réplication~; sans table d'appel (argument
+\code{combn} absent~: statistique observée de \code{mw\_tests()}, appel direct), elle est
+recalculée à chaque appel, comme auparavant. Mêmes matrices que l'appel direct dans tous les
+cas \\
 \code{.mw\_me()},\newline \code{.mw\_somme\_me()} & réels~; mantisses et exposants &
 écriture à exposant séparé $v = m\,2^e$, $|m| \in [1, 2[$ (sous-normaux compris, $0$ et non
 finis laissés tels quels), et somme, colonne par colonne, de termes ainsi écrits, ramenés à
@@ -1699,8 +1704,8 @@ calcul brut sur le jeu de contrôle)~; type, \code{estim} et commentaire de la l
 distance n'est pas finie (fiche~\ref{fiche:cook}, issue~\#153) \\
 \code{mw\_plots\_data()} & \code{aj}, résidus, \code{boot}, \code{msep},\newline
 \code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard},
-\code{alpha} (dernier argument, défaut $0{,}10$, passé par \code{.run\_engine\_mw()}~;
-issue~\#404) &
+\code{alpha} (dernier argument, obligatoire depuis l'issue~\#432, sans valeur par défaut~;
+passé par \code{.run\_engine\_mw()}~; issue~\#404) &
 toutes les quantités tracées (branche Merz--Wüthrich), dont, depuis l'issue~\#310, la colonne
 logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
