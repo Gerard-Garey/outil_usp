@@ -920,7 +920,8 @@ d'un résultat de mauvaise forme)~; seule source du calcul observé, du calcul s
 p-value de Monte-Carlo (ADR~0003) \\
 \code{.usp\_contexte\_mc()},\newline \code{.mw\_contexte\_mc()} & $x$, $y$, $z$, \code{pi}~; \code{aj},
 \code{figes} (objet des ensembles figés de \code{.mw\_ensembles\_figes()}~; \code{NULL}~: construit
-sur \code{aj}~; issue~\#278) &
+sur \code{aj}~; issue~\#278), \code{combn} (table d'appel des combinaisons, passée par
+\code{mw\_bootstrap()} seule, \code{NULL} hors de cet appel~; issue~\#432) &
 contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés $u_t$, et, depuis
 l'issue~\#215, vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
@@ -934,7 +935,10 @@ colonnes non identifiables de l'ordonnée à l'origine, figé de même, lu par l
 ne sont plus transmis en arguments séparés~: le contexte porte l'objet unique des ensembles
 figés (élément \code{figes}), dont chaque fermeture de \code{MW\_CATALOGUE\_MC} passe l'élément
 voulu à la fonction de test, et dont la forme, liste aux noms exacts puis chaque élément, est
-contrôlée par \code{.mw\_verifier\_figes()} \\
+contrôlée par \code{.mw\_verifier\_figes()}~; depuis l'issue~\#432, table d'appel des
+combinaisons (élément \code{combn}, présent seulement quand \code{mw\_bootstrap()} la passe),
+transmise par l'entrée \code{Courbure} à \code{mw\_test\_courbure()} (voir, dans cet index,
+\code{.mw\_combinaisons()}) \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -1314,7 +1318,9 @@ résidus~; \code{aj}, \code{figes} (objet des ensembles figés à l'observé dep
 auparavant arguments \code{j\_degeneres} et, depuis l'issue~\#270, \code{j\_non\_identifiables}~;
 \code{NULL}~: construit sur \code{aj})~; pour \code{.mw\_stats()}, \code{replique} (\code{FALSE} par défaut,
 statistiques de l'observé~; \code{TRUE} dans la seule boucle de \code{mw\_bootstrap()}, où une
-cellule à influence non bornée reçoit $p_{ij} = 0$, issue~\#300, fiche~\ref{mw:m4gr}) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
+cellule à influence non bornée reçoit $p_{ij} = 0$, issue~\#300, fiche~\ref{mw:m4gr}) et
+\code{combn} (table d'appel des combinaisons, passée par \code{mw\_bootstrap()}, transmise à
+\code{.mw\_contexte\_mc()}~; \code{NULL} par défaut, issue~\#432) & triangle simulé, rendu depuis l'issue~\#257 dès le premier cumul simulé non
 strictement positif ou non fini (cellule \code{NA}, colonnes suivantes non tirées)~; depuis
 l'issue~\#278, le calcul est porté par \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()},
 qui rend aussi l'indicateur \code{complet} (\code{FALSE} si le triangle a été rendu au premier
@@ -1368,7 +1374,9 @@ vérifications colonne par colonne de M1 et, depuis l'issue~\#60, de
 \code{mw\_stat\_correlation\_}\allowbreak\code{dev()} (\code{NULL}~:
 ensemble calculé sur \code{aj})~; argument \code{j\_non\_identifiables} de
 \code{mw\_test\_courbure()} (ensemble figé des colonnes non identifiables, \code{NULL}~: calculé
-sur \code{aj}, issue~\#270) et, depuis l'issue~\#273, de
+sur \code{aj}, issue~\#270), argument \code{combn} de \code{mw\_test\_courbure()} (table
+d'appel des combinaisons, transmise à \code{.mw\_courbure\_}\allowbreak\code{colonne()}~;
+\code{NULL} hors d'un appel de \code{mw\_bootstrap()}, issue~\#432) et, depuis l'issue~\#273, de
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (ensemble figé des colonnes non
 identifiables de l'ordonnée, élément \code{origine\_non\_}\allowbreak\code{identifiables} de l'objet des ensembles
 figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
@@ -1423,7 +1431,8 @@ par colonne par \code{.mw\_centrage\_pondere()}, théorème de Frisch et Waugh),
 depuis l'issue~\#253~; algèbre figée sur la statistique candidate de la mesure de l'issue~\#309
 (fiche~\ref{mw:m1}) \\
 \code{.mw\_courbure\_}\newline\code{colonne()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
-colonne & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
+colonne~; table d'appel \code{combn} (\code{NULL} hors d'un appel de \code{mw\_bootstrap()},
+transmise à \code{.mw\_combinaisons()}, issue~\#432) & coefficient $\hat c_j$, $t_j$ et p bilatérale de Student du terme quadratique de la
 courbure, en forme close (formule de Cauchy--Binet et règle de Cramer), sans \code{lm()}~;
 \code{NULL} si la colonne compte moins de quatre observations ou moins de trois valeurs
 distinctes de $C(i,j)$ (issue~\#253, fiche~\ref{mw:m1c}) \\
@@ -1434,8 +1443,8 @@ calculées une fois par $n$ et gardées dans le cache \code{.MW\_COMBN\_CACHE} d
 l'issue~\#278, au lieu d'un recalcul à chaque colonne et à chaque réplication~; cache
 déterministe, sans aléa, hors des résultats~: mêmes matrices que l'appel direct. Depuis
 l'issue~\#293, seules les tables de $n \le$ \code{MW\_COMBN\_N\_MAX} $= 20$ y sont gardées (au
-plus 17 tables, pour $n = 4$ à $20$)~; au-delà, la table est recalculée à chaque appel et jamais
-gardée. Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
+plus 17 tables, pour $n = 4$ à $20$)~; au-delà, hors d'un appel de \code{mw\_bootstrap()}, la
+table est recalculée à chaque appel et jamais gardée (pendant cet appel, voir plus bas). Ce cache est un état du moteur qui persiste d'un appel de \code{run\_engine()} à
 l'autre jusqu'à la fin de la session R, sans effet sur les résultats~: la table de $n$ est la
 même, cache vide ou rempli. Depuis l'issue~\#405, la table d'un $n >$ \code{MW\_COMBN\_N\_MAX} est
 gardée le temps d'un appel de \code{mw\_bootstrap()} seulement, pour les seules valeurs de $n$
