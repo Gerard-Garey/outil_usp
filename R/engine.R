@@ -11108,9 +11108,18 @@ mw_identifiabilite_intra <- function(aj, j_degeneres = NULL) {
 }
 
 # (e) Adequation de l'exposant de variance (hypothese (iv), complement de M2).
-# Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), alors les residus standardises de
-# Mack sont d'echelle constante DANS CHAQUE COLONNE : |r(i,j)| ne doit pas
-# dependre de C(i,j). Correlation de rang colonne par colonne, combinee.
+# Si Var[C(i,j+1)|C(i,j)] = sigma_j^2 C(i,j), avec f_j et sigma_j^2 communs aux
+# annees (interpretation de l'outil), les residus de Mack r(i,j), non
+# redresses, ont a sigma_j connu une variance 1 - h DANS CHAQUE COLONNE
+# (h = C(i,j)/S_j, levier de la cellule, S_j somme des cumuls de la colonne) :
+# hors effet de levier, |r(i,j)| ne doit pas dependre de C(i,j), mais son
+# echelle decroit avec C(i,j) par ce seul effet, et |r(i,j)| n'est pas
+# echangeable dans la colonne sous H0. Correlation de rang colonne par
+# colonne, combinee par Fisher. La p de Monte-Carlo (cle ExpVar) reproduit
+# l'effet de levier (residus recalcules sur chaque triangle simule reajuste,
+# mw_bootstrap()) ; la p chi2(2K) et la plus petite p-value atteignable,
+# fondees sur la loi de permutation (echangeable) de chaque colonne,
+# l'ignorent.
 # res (#239) : residus de Mack deja calcules par mw_residus(aj, j_degeneres)
 # (contexte .mw_contexte_mc() du catalogue MW_CATALOGUE_MC) ; NULL : calcules
 # ici, avec j_degeneres (j_degeneres n'est lu que dans ce cas).
@@ -12158,9 +12167,16 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                            any(ev$detail$ex_aequo), n_max = 9, ex_aequo_enumere = TRUE)
   add(fam, "Adequation de l'exposant de variance, colonne par colonne",
       fonction = "mw_test_exposant_variance",
-      "Annexe XVII, D(2)(h)(iv) ; complement de la ligne Heteroscedasticite residuelle vs cumul",
-      H0 = "|r(i,j)| ne depend pas de C(i,j) dans chaque colonne",
-      H1 = "l'exposant 1 impose par le reglement est inadapte",
+      paste("Annexe XVII, D(2)(h)(iv), lu avec D(4)(c) et D(5)(d)(ii) : sigma_j^2 et f_j communs",
+            "(interpretation de l'outil) ; Spearman (1904) pour la correlation de rang ;",
+            "complement de la ligne Heteroscedasticite residuelle vs cumul"),
+      H0 = "variance proportionnelle a C(i,j), sigma_j^2 et f_j communs aux annees (interpretation de l'outil) : |r(i,j)| sans lien avec C(i,j) dans chaque colonne, hors effet de levier",
+      H1 = paste("lien entre |r(i,j)| et C(i,j) dans au moins une colonne, au-dela de ce qu'en",
+                 "produit le modele ajuste (effet de levier compris) ; causes que le test ne separe",
+                 "pas : exposant de variance different de 1, contraire a la lettre de D(2)(h)(iv) ;",
+                 "constante de variance (iv) ou facteur (iii) propres a l'annee de survenance et",
+                 "lies au niveau de C(i,j) d'une annee a l'autre, compatibles avec la lettre mais",
+                 "non avec l'interpretation de l'outil (sigma_j^2 et f_j communs aux annees)"),
       stat_nom = "X de Fisher", stat = ev$stat,
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
@@ -12168,8 +12184,15 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       p_min = pm_ev$p_min, effectifs = pm_ev$effectifs,
       detail = paste("Si la variance est proportionnelle a C(i,j), avec un facteur f_j et une",
                      "constante sigma_j^2 communs aux annees (interpretation de l'outil,",
-                     "D(4)(c) et D(5)(d)(ii)), les residus standardises sont d'echelle",
-                     "constante a l'interieur de chaque colonne."))
+                     "D(4)(c) et D(5)(d)(ii)), les residus de Mack r(i,j), non redresses, ont",
+                     "a sigma_j connu une variance 1 - h dans chaque colonne (h = C(i,j)/S_j,",
+                     "levier de la cellule, S_j somme des cumuls de la colonne) : leur echelle",
+                     "decroit avec C(i,j) par le seul effet de levier, et |r(i,j)| n'est pas",
+                     "echangeable a l'interieur d'une colonne sous H0. La p-value de",
+                     "Monte-Carlo (cle ExpVar) reproduit cet effet, les residus de",
+                     "chaque replication etant recalcules sur le triangle simule reajuste ;",
+                     "la p chi2(2K) et la plus petite p-value atteignable, fondees sur une",
+                     "loi echangeable, l'ignorent."))
   # La variance des residus de Mack est CONTRAINTE par construction, et sa
   # valeur de reference n'est pas 1. sigma2_j etant l'estimateur de Mack,
   #   somme_i r(i,j)^2 = somme_i C(i,j) (F(i,j) - f_j)^2 / sigma2_j = n_j - 1
