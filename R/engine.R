@@ -7124,28 +7124,26 @@ usp_tests <- function(fit, boot, alpha = 0.10,
             if (rb$jack_usp < 0) "en baisse" else if (rb$jack_usp > 0) "en hausse"
             else "inchange")
   else "Annee la plus influente non determinee."
-  if (!is.null(fit$ecart_jackknife))
-    add(fam, "Sensibilite au retrait d'une annee (jackknife)",
-        fonction = "run_engine",
-        "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
-        estim_nom = "ecart relatif max", estim = fit$ecart_jackknife,
-        detail = paste(c(txt_jk, txt_ne), collapse = " "))
+  # Une seule ligne, trois cas (#432, point 4) : ecart relatif calcule ;
+  # aucune annee evaluable ; sigma_USP nul, non fini ou trop petit. Seuls
+  # estim et detail different d'un cas a l'autre.
+  detail_jk <- if (!is.null(fit$ecart_jackknife))
+    paste(c(txt_jk, txt_ne), collapse = " ")
   else if (!is.null(rb) && length(ne) == fit$T)
-    add(fam, "Sensibilite au retrait d'une annee (jackknife)",
-        fonction = "run_engine",
-        "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
-        estim_nom = "ecart relatif max", estim = NA_real_,
-        detail = paste0("Aucune annee evaluable (reajustements sans maximum de ",
-                        "vraisemblance etabli, ou en echec) : ecart relatif max ",
-                        "non calcule, influence non mesuree."))
+    paste0("Aucune annee evaluable (reajustements sans maximum de ",
+           "vraisemblance etabli, ou en echec) : ecart relatif max ",
+           "non calcule, influence non mesuree.")
   else if (!is.null(rb))
+    paste(c(paste0("sigma_USP nul, non fini ou trop petit : ecart relatif non ",
+                   "fini, influence non mesuree."), txt_ne),
+          collapse = " ")
+  if (!is.null(detail_jk))
     add(fam, "Sensibilite au retrait d'une annee (jackknife)",
         fonction = "run_engine",
         "Quenouille (1949) / Tukey (1958)", type = "diagnostic",
-        estim_nom = "ecart relatif max", estim = NA_real_,
-        detail = paste(c(paste0("sigma_USP nul, non fini ou trop petit : ecart relatif non ",
-                                "fini, influence non mesuree."), txt_ne),
-                       collapse = " "))
+        estim_nom = "ecart relatif max",
+        estim = if (!is.null(fit$ecart_jackknife)) fit$ecart_jackknife else NA_real_,
+        detail = detail_jk)
   # Issue #305 (decisions du mainteneur du 27/10/2026, Q-D2-Fn-4 (A) ;
   # reference : Q-D2-Fn-4 bis, meme jour) : nom
   # de la ligne conserve ; detail et reference requalifies d'apres la mesure
@@ -10763,32 +10761,23 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
 # persiste d'un appel de run_engine() a l'autre jusqu'a la fin de la session R,
 # mais la table de n est la meme cache froid ou chaud. Il est borne a
 # n <= MW_COMBN_N_MAX (au plus 17 entrees, n = 4 a 20 ; la plus grosse tient
-# choose(20, 4) x 4 entiers). Au-dela (#405, point 1), la table est gardee
-# dans .MW_COMBN_CACHE_APPEL le temps d'un appel de mw_bootstrap() seulement
-# (.mw_combn_appel_ouvrir() / .mw_combn_appel_fermer(), compteur de
-# profondeur), pour les seules valeurs de n rencontrees, puis videe a la
-# sortie de l'appel, erreur comprise (on.exit) : la memoire reste bornee hors
-# de l'appel, et combn(n, k) n'est plus recalcule a chaque colonne et a
-# chaque replication. Hors d'un appel de mw_bootstrap() (statistique
-# observee de mw_tests(), appel direct), la table de n > MW_COMBN_N_MAX est
-# recalculee a chaque appel et jamais gardee, comme avant #405. Memes
-# matrices que l'appel direct dans tous les cas.
+# choose(20, 4) x 4 entiers). Au-dela (#405, point 1 ; #432, point 3), la
+# table est gardee dans une table d'appel (environnement) creee par
+# mw_bootstrap() et passee en argument (combn) jusqu'ici, par .mw_stats(),
+# .mw_contexte_mc() (element combn du contexte), l'entree Courbure du
+# catalogue, mw_test_courbure() et .mw_courbure_colonne() : elle vit le temps
+# d'un appel de mw_bootstrap(), pour les seules valeurs de n rencontrees, et
+# disparait avec lui, erreur comprise, sans etat global du moteur ; la
+# memoire reste bornee hors de l'appel, et combn(n, k) n'est plus recalcule a
+# chaque colonne et a chaque replication. Sans table d'appel (combn NULL :
+# statistique observee de mw_tests(), appel direct), la table de
+# n > MW_COMBN_N_MAX est recalculee a chaque appel et jamais gardee, comme
+# avant #405. Memes matrices que l'appel direct dans tous les cas.
 MW_COMBN_N_MAX <- 20L
 .MW_COMBN_CACHE <- new.env(parent = emptyenv())
-.MW_COMBN_CACHE_APPEL <- new.env(parent = emptyenv())
-.MW_COMBN_CACHE_APPEL$.profondeur <- 0L
-.mw_combn_appel_ouvrir <- function()
-  .MW_COMBN_CACHE_APPEL$.profondeur <- .MW_COMBN_CACHE_APPEL$.profondeur + 1L
-.mw_combn_appel_fermer <- function() {
-  p <- max(.MW_COMBN_CACHE_APPEL$.profondeur - 1L, 0L)
-  .MW_COMBN_CACHE_APPEL$.profondeur <- p
-  if (p == 0L) rm(list = ls(.MW_COMBN_CACHE_APPEL), envir = .MW_COMBN_CACHE_APPEL)
-  invisible(NULL)
-}
-.mw_combinaisons <- function(n) {
+.mw_combinaisons <- function(n, combn = NULL) {
   cle <- as.character(n)
-  env <- if (n <= MW_COMBN_N_MAX) .MW_COMBN_CACHE else
-    if (.MW_COMBN_CACHE_APPEL$.profondeur > 0L) .MW_COMBN_CACHE_APPEL
+  env <- if (n <= MW_COMBN_N_MAX) .MW_COMBN_CACHE else combn
   tab <- if (!is.null(env)) env[[cle]]
   if (is.null(tab)) {
     tab <- list(S2 = utils::combn(n, 2), S3 = utils::combn(n, 3), S4 = utils::combn(n, 4))
@@ -10796,7 +10785,7 @@ MW_COMBN_N_MAX <- 20L
   }
   tab
 }
-.mw_courbure_colonne <- function(C0, C1) {
+.mw_courbure_colonne <- function(C0, C1, combn = NULL) {
   n <- length(C0)
   if (n < 4 || length(unique(C0)) < 3) return(NULL)
   e <- C0 * .mw_ecart_facteur_stable(C0, C1)
@@ -10809,7 +10798,7 @@ MW_COMBN_N_MAX <- 20L
     i12 <- cbind(S[1, ], S[2, ]); i13 <- cbind(S[1, ], S[3, ]); i23 <- cbind(S[2, ], S[3, ])
     list(m = dx$m[i12] * dx$m[i13] * dx$m[i23], e = dx$e[i12] + dx$e[i13] + dx$e[i23])
   }
-  cmb <- .mw_combinaisons(n); S2 <- cmb$S2; S3 <- cmb$S3; S4 <- cmb$S4
+  cmb <- .mw_combinaisons(n, combn); S2 <- cmb$S2; S3 <- cmb$S3; S4 <- cmb$S4
   w3 <- list(m = w$m[S3[1, ]] * w$m[S3[2, ]] * w$m[S3[3, ]],
              e = w$e[S3[1, ]] + w$e[S3[2, ]] + w$e[S3[3, ]])
   v3 <- V(S3)
@@ -10897,7 +10886,10 @@ MW_COMBN_N_MAX <- 20L
 # nulle : E[C(i,j+1)|C(i,j)] ne serait alors pas proportionnelle a C(i,j).
 # j_non_identifiables : ensemble des colonnes non identifiables (#270), fige a
 # l'observe par mw_bootstrap() ; NULL : calcule sur aj (appel observe).
-mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
+# combn : table d'appel des combinaisons de n > MW_COMBN_N_MAX, posee par
+# mw_bootstrap() (.mw_combinaisons(), #432) ; NULL hors de cet appel.
+mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                             combn = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -10942,7 +10934,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL)
     # au lieu d'une statistique a une colonne de moins que l'observee. La garde
     # sd(C0) == 0 d'avant #270 est couverte par le predicat (une seule valeur
     # distincte).
-    r <- .mw_courbure_colonne(C0, C1)
+    r <- .mw_courbure_colonne(C0, C1, combn)
     if (is.null(r)) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(j = j, n = length(idx), c2 = r[["c2"]],
                                         t = r[["t"]], p = r[["p"]])
@@ -11489,10 +11481,10 @@ mw_residus_redresses <- function(aj, res)
 # conserve dans le retour : l'appelant passe le meme a mw_tests()
 # (precondition documentee en tete de mw_tests()).
 mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
-  # Cache des combinaisons de n > MW_COMBN_N_MAX local a l'appel (#405,
-  # point 1 ; .mw_combinaisons()) : vide a la sortie, erreur comprise.
-  .mw_combn_appel_ouvrir()
-  on.exit(.mw_combn_appel_fermer(), add = TRUE)
+  # Table d'appel des combinaisons de n > MW_COMBN_N_MAX (#405, point 1 ;
+  # #432, point 3 ; .mw_combinaisons()) : locale a l'appel, passee en
+  # argument a la statistique observee et a chaque replication.
+  combn <- new.env(parent = emptyenv())
   # Tirages sous graine locale (ADR 0004, #42) : etat de l'appelant restaure.
   engine_sous_graine(seed, {
     # Ensembles de colonnes figes (.mw_ensembles_figes(), #278), determines
@@ -11511,7 +11503,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, figes$degeneres)
     # Contexte observe conserve pour les conditions du catalogue (#44).
-    e_obs <- .mw_contexte_mc(aj, figes)
+    e_obs <- .mw_contexte_mc(aj, figes, combn)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
     noms <- names(obs)
     sim <- matrix(NA_real_, B, length(noms), dimnames = list(NULL, noms))
@@ -11530,7 +11522,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
       tb <- tir$tri
       ab <- try(mw_ajuster(tb), silent = TRUE)
       if (inherits(ab, "try-error")) next
-      sb <- try(.mw_stats(ab, figes, replique = TRUE), silent = TRUE)
+      sb <- try(.mw_stats(ab, figes, replique = TRUE, combn = combn), silent = TRUE)
       if (inherits(sb, "try-error")) next
       sim[b, ] <- sb[noms]
       mb <- try(mw_msep(ab), silent = TRUE)
@@ -11625,11 +11617,15 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
 # pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
 # refuse.
-.mw_contexte_mc <- function(aj, figes = NULL) {
+.mw_contexte_mc <- function(aj, figes = NULL, combn = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
   .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
   res <- mw_residus(aj, figes$degeneres)
-  list(aj = aj, res = res, r = res$residu, figes = figes)
+  e <- list(aj = aj, res = res, r = res$residu, figes = figes)
+  # Table d'appel des combinaisons (#432, point 3), posee par mw_bootstrap()
+  # seulement : absente du contexte sinon.
+  if (!is.null(combn)) e$combn <- combn
+  e
 }
 
 # Extremites du support des six statistiques discretes de Merz-Wuthrich, a
@@ -11740,7 +11736,8 @@ MW_CATALOGUE_MC <- list(
                           extremes = function(e)
                             .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres))),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
-                                                    e$figes$non_identifiables)$stat, "haut"),
+                                                    e$figes$non_identifiables,
+                                                    e[["combn"]])$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
@@ -11762,8 +11759,8 @@ MW_CATALOGUE_MC <- list(
 # replication, statistique non definie a l'observe ; #300, option (iii)).
 # Avec replique = FALSE, le contexte est celui de .mw_contexte_mc(), sans cet
 # element, comme le contexte observe de mw_bootstrap().
-.mw_stats <- function(aj, figes = NULL, replique = FALSE) {
-  e <- .mw_contexte_mc(aj, figes)
+.mw_stats <- function(aj, figes = NULL, replique = FALSE, combn = NULL) {
+  e <- .mw_contexte_mc(aj, figes, combn)
   if (replique) e$replique <- TRUE
   .mc_evaluer(MW_CATALOGUE_MC, e)
 }
@@ -13289,11 +13286,14 @@ mw_contributions <- function(aj, msep) {
 # mw_tests() restent calculees sur les residus bruts.
 # alpha : seuil des verdicts du calcul (res$metadata$alpha), qui fixe le
 # niveau 1 - alpha des intervalles de l'ordonnee a l'origine (feuille origine,
-# .mw_origine_intervalles(), #404) ; en fin d'arguments, defaut 0,10 de
-# run_engine() et de mw_tests().
+# .mw_origine_intervalles(), #404) ; en fin d'arguments, obligatoire (#432,
+# point 1) : un appel qui l'omettrait tracerait les intervalles a un niveau
+# par defaut, et non au seuil du calcul ; son absence leve une erreur des
+# l'entree (force()), avant tout calcul.
 mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
                           ic = NULL, sigma_usp = NULL, sigma_standard = NULL,
-                          alpha = 0.10) {
+                          alpha) {
+  force(alpha)
   qq <- stats::qqnorm(mw_residus_redresses(aj, res), plot.it = FALSE)
   # Methode : lue dans res$metadata$methode, seul emplacement depuis #396
   # (doublon plots_data$methode retire).

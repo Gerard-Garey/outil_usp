@@ -1914,8 +1914,10 @@ plot_mw_origine <- function(pd) {
                   if (nzchar(niv)) paste0(", niveau nominal", niv) else "", " (M1)")
   if (!.plotly_dispo()) {
     .cadre()
+    # Cadrage seul (#432, point 2) : les points a_j entrent dans les limites,
+    # pour qu'un point dont les bornes valent NA reste dans le cadre.
     plot(d$j, d$a, pch = 19, col = coul,
-         ylim = range(c(d$bas, d$haut, 0), finite = TRUE), xlab = "annee de developpement j",
+         ylim = range(c(d$a, d$bas, d$haut, 0), finite = TRUE), xlab = "annee de developpement j",
          ylab = "ordonnee a l'origine a_j", main = titre)
     graphics::arrows(d$j, d$bas, d$j, d$haut, angle = 90, code = 3, length = 0.04,
                      col = coul)
@@ -2270,7 +2272,9 @@ note_m1 <- function(pd) {
     if (nzchar(niv))
       sprintf(paste("<br>Le graphique de l'ordonn&eacute;e &agrave; l'origine porte, pour",
                     "chaque colonne, l'intervalle de Student de a_j, de niveau nominal%s",
-                    "(exact sous erreurs gaussiennes seulement)."), niv),
+                    "(exact sous le seul mod&egrave;le auxiliaire &agrave; erreurs gaussiennes ;",
+                    "couverture non &eacute;tablie &agrave; T = 8 sous le mod&egrave;le",
+                    "r&eacute;glementaire)."), niv),
     if (!is.null(d$exclut_zero))
       paste("Les colonnes dont l'intervalle exclut 0 sont marqu&eacute;es en rouge :",
             "simple rep&egrave;re de lecture, par colonne, sans verdict."),

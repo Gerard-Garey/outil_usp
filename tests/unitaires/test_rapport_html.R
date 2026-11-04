@@ -1976,11 +1976,11 @@ verifier("#404 : plot_mw_origine() lit bas, haut, exclut_zero et niveau ; plot_c
            all(vapply(c("d$bas", "d$haut", "d$exclut_zero", "d$niveau"), grepl, logical(1),
                       x = so, fixed = TRUE)) && grepl("S$objectif_coupe", sc, fixed = TRUE)
          })
-verifier("#404 : note_m1() (reserve2, B = 99) sans 'significative', niveau 90 % lu, plus petite p en j = 1, multiplicite et renvoi a la ligne M1 ; lettre et lecture de l'outil distinguees",
+verifier("#404, #432 (O2) : note_m1() (reserve2, B = 99) sans 'significative', niveau 90 % lu, parenthese du modele auxiliaire gaussien, plus petite p en j = 1, multiplicite et renvoi a la ligne M1 ; lettre et lecture de l'outil distinguees",
          {
            n <- note_m1(res_mw$plots_data)
            is.character(n) && length(n) == 1L && !grepl("significati", n, fixed = TRUE) &&
-             grepl("l'intervalle de Student de a_j, de niveau nominal 90 % (exact sous erreurs gaussiennes seulement)", n, fixed = TRUE) &&
+             grepl("l'intervalle de Student de a_j, de niveau nominal 90 % (exact sous le seul mod&egrave;le auxiliaire &agrave; erreurs gaussiennes ; couverture non &eacute;tablie &agrave; T = 8 sous le mod&egrave;le r&eacute;glementaire).", n, fixed = TRUE) &&
              grepl("marqu&eacute;es en rouge : simple rep&egrave;re de lecture, par colonne, sans verdict", n, fixed = TRUE) &&
              grepl("peut signaler une composante fixe", n, fixed = TRUE) &&
              grepl("<b>j = 1</b> (p = 0,0300)", n, fixed = TRUE) &&
