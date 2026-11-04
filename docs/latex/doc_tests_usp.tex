@@ -650,7 +650,10 @@ avec sa position, puis \code{mw\_valider\_triangle()} \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines}) \\
+supprimé à la sortie (§\ref{sec:graines})~; dans la voie de repli, chaque nombre fini est écrit
+par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres significatifs
+s'ils restituent la valeur, 17 sinon), $\pm\infty$ en chaîne de caractères et \code{NA} en
+cellule vide (issue~\#428) \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
 vecteur $\pi_t$ \\
@@ -1158,6 +1161,12 @@ dans le tableau de son annexe (\code{ANNEXE\_II} ou \code{ANNEXE\_XIV}), erreur 
 \code{.engine\_saisie()} & valeur reçue & texte qui cite la valeur refusée dans un message
 d'erreur d'usage~: \code{deparse()} à 15 chiffres significatifs, ou à 17 quand l'écriture à 15
 chiffres ne restitue pas le double reçu, sans rien évaluer (issue~\#133) \\
+\code{.engine\_quantile()} & vecteur, probabilités & quantiles de type~7, valeurs identiques à
+celles de \code{stats::quantile()}, nommés en point décimal quelle que soit l'option de session
+\code{getOption("OutDec")} (même règle de nommage que \code{stats::quantile()} sous l'option par
+défaut)~; noms de \code{res\$ic\_bootstrap}, de \code{res\$ic\_bootstrap\_restreint} et des
+lignes de \code{res\$plots\_data\$qq2ech} (issue~\#428~; section~\ref{sec:notations},
+«~Graphie des textes produits par le moteur~») \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -3551,9 +3560,29 @@ l'issue~\#169, n'a pas de sens du test).
 tests, avec ses motifs d'indisponibilité et son préfixe «~\code{TEST INOPERANT}~», champ
 \code{detail} des contrôles de qualité des données (section~\ref{sec:controles}), messages de
 validation, libellés des dérogations et des étapes de calibration, motifs des graphiques --- sont
-écrits en ASCII, sans accents, et leurs nombres avec le point décimal de R (\code{sprintf()}, ou
-\code{format()} sous l'option de R qui fixe le séparateur décimal, dont la valeur par défaut est
-le point et que le moteur ne modifie pas). L'interface et le
+écrits en ASCII, sans accents, et leurs nombres avec le point décimal de R, quelle que soit
+l'option de session qui fixe le séparateur décimal (\code{getOption("OutDec")}, dont la valeur
+par défaut est le point et que le moteur ne modifie pas~; l'interface et le rapport figé la posent
+à la virgule le temps d'un tracé de graphique en base~R, issue~\#236). \code{format()},
+\code{paste()}, \code{as.character()} et \code{sprintf("\%s")} suivent cette option, non les
+formats numériques de \code{sprintf()} (mesuré en R~4.3.3~: sous \code{options(OutDec = ",")},
+$0{,}25$ s'écrit «~\code{0,25}~» par les quatre premiers et «~\code{0.25}~» par
+\code{sprintf("\%.2f")})~; depuis l'issue~\#428, tous les appels de \code{format()} du moteur
+qui produisent du texte (notamment commentaires de \code{mw\_tests()}, refus et avertissements
+de \code{mw\_valider\_ajustement()}, libellés d'\code{engine\_derogations()}, messages d'usage)
+fixent le point décimal (argument \code{decimal.mark}), et les noms des quantiles bootstrap
+(\code{res\$ic\_bootstrap}, \code{res\$ic\_bootstrap\_restreint}, noms de ligne de
+\code{res\$plots\_data\$qq2ech}), que \code{stats::quantile()} forme par \code{format()}, sont
+posés par \code{.engine\_quantile()} en point décimal («~\code{2.5\%}~», «~\code{97.5\%}~»), sous
+les deux options. Mesuré sur le jeu de contrôle (méthode prime, segment~1 de l'annexe~II,
+$B = 99$)~: \code{run\_engine()} rend des objets identiques au bit près sous
+\code{options(OutDec = ",")} et sous l'option par défaut, horodatage, durée et version de R
+exceptés~; le test \code{tests/unitaires/test\_outdec.R} le vérifie aussi sur un triangle
+Merz--Wüthrich, sur les points d'entrée du moteur que l'application appelle directement et sur
+l'export xlsx de repli (\code{engine\_ecrire\_xlsx()} sans \code{openxlsx}), qui écrit depuis
+cette issue chaque nombre fini en point décimal et en pleine précision (\code{.xlsx\_nombre()}~:
+15~chiffres significatifs s'ils restituent la valeur, 17 sinon) et $\pm\infty$ en chaîne de
+caractères. Jusqu'à l'issue~\#428, ces textes et ces noms suivaient l'option. L'interface et le
 rapport figé écrivent au contraire avec une virgule décimale les nombres qu'ils mettent en forme
 eux-mêmes (issue~\#236), et restituent les textes du moteur tels quels~: dans une même ligne de
 la table des tests, la p-value retenue s'écrit donc avec une virgule et le commentaire avec un
