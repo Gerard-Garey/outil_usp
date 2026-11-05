@@ -67,9 +67,9 @@ jobs:
             echo "moteur=false" >> "$GITHUB_OUTPUT"
           fi
           # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI,
-          # et le contrôle ND de la documentation (issue #451), qui lit le .tex
-          # et le .aux de la compilation.
-          if grep -qE '^(docs/latex/|tests/controle_doc_nd\.R$|\.github/)' fichiers.txt; then
+          # et les contrôles ND de la documentation (issue #451), qui lisent le
+          # .tex, le .aux, le .log et le PDF de la compilation.
+          if grep -qE '^(docs/latex/|tests/(controle_doc_nd\.R|marques_remplissage\.tex|doc_remplissage\.tex)$|\.github/)' fichiers.txt; then
             echo "latex=true" >> "$GITHUB_OUTPUT"
           else
             echo "latex=false" >> "$GITHUB_OUTPUT"
@@ -244,17 +244,29 @@ jobs:
           # Artefact de lecture en cours de branche (ADR 0008 amendé) ; le
           # PDF versionné fait foi une fois le commit de fin de branche fait.
           retention-days: 30
-      # Branche ND, lot L0 (issue #451) : contrôles de la documentation
-      # (motifs de « vie du dépôt », plafond de pages des fiches), en
-      # AVERTISSEMENT : le script rend 0 sans --bloquant et l'étape ne fait
-      # jamais échouer le job (continue-on-error). Le décompte est publié dans
-      # le résumé du job. Placée après la compilation : le contrôle de pages
-      # lit docs/latex/doc_tests_usp.aux. Le lot L7 ajoutera --bloquant et
-      # retirera continue-on-error. R seul (aucun paquet) ; même version que
-      # le job des tests.
+      # Branche ND, lot L0 (issue #451) : contrôles de la documentation, en
+      # AVERTISSEMENT. Le script rend 0 sans --bloquant et aucune des étapes
+      # ci-dessous ne fait échouer le job (continue-on-error) ; le décompte est
+      # publié dans le résumé du job. Le lot L7 ajoutera --bloquant (motifs,
+      # plafond de pages, débordements \hbox) et retirera continue-on-error ; le
+      # remplissage des pages reste en avertissement.
+      # Remplissage : une seconde compilation, par l'enveloppe tests/doc_remplissage.tex
+      # qui charge tests/marques_remplissage.tex avant le document (aucun fichier de
+      # docs/latex/ n'est modifié) et écrit doc_remplissage.pdf et .remp dans tests/.
+      # Elle est placée après la compilation normale et l'artefact, dont le PDF sert de
+      # garde-fou (même texte page pour page). Coût : une compilation de plus.
+      - uses: xu-cheng/latex-action@e2f99d4b3685b0da93f97e1b86ad8fab81105098 # v3.3.0
+        continue-on-error: true
+        with:
+          root_file: doc_remplissage.tex
+          working_directory: tests
+          args: -pdf -interaction=nonstopmode -halt-on-error
+      # R seul (aucun paquet) ; même version que le job des tests.
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
         with:
           r-version: "4.3.1"
+      # Motifs de « vie du dépôt », plafond de pages des fiches (lit le .aux) et
+      # débordements (lit le .log) : sans option, les trois contrôles.
       - name: Contrôles ND de la documentation (avertissement)
         continue-on-error: true
         env:
@@ -268,6 +280,26 @@ jobs:
             echo
             echo '```'
             grep -v '^::warning' controle_doc_nd.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$statut"
+      # Remplissage des pages : lit le PDF et les marques de la seconde compilation.
+      # Sans eux (compilation en échec), le script le signale et rend 0.
+      - name: Remplissage des pages (avertissement)
+        continue-on-error: true
+        env:
+          LC_ALL: C.UTF-8
+        run: |
+          statut=0
+          Rscript tests/controle_doc_nd.R --remplissage \
+            --remp=tests/doc_remplissage.remp --pdf-mesure=tests/doc_remplissage.pdf \
+            > remplissage_doc_nd.txt 2>&1 || statut=$?
+          cat remplissage_doc_nd.txt
+          {
+            echo "### Remplissage des pages (avertissement)"
+            echo
+            echo '```'
+            grep -v '^::warning' remplissage_doc_nd.txt || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$statut"
