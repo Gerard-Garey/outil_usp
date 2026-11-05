@@ -6927,7 +6927,9 @@ D(2)(h) ne pose pas~; statut non établi hors de cette hypothèse &
 contrôle (§\ref{sec:calib-mc-mw}) \\
 
 Homogénéité de $f_j$ entre années de survenance & \textbf{MW} & $X$ de Fisher &
-Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo & Idem &
+Non & Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
+\textbf{Déconseillée} : indépendance entre colonnes non établie~; $p_j$ de rang sur une loi de
+permutation discrète à $n_j \le 9$, $-2\ln p_j$ non $\chi^2(2)$ (fiche~\ref{mw:m1b}) &
 Communauté de $f_j$ entre années de survenance~: interprétation de l'outil, appuyée sur
 D(4)(c) (un facteur estimé $\hat f_j$ par année de développement), non exigence littérale de
 D(2)(h)(iii)~; $p_j$ de colonne sur la
@@ -6935,7 +6937,11 @@ loi de permutation à $n_j \le 9$, jamais nulle (issue~\#90), conditionnelle aux
 avec ex \ae quo (issue~\#207) \\
 
 Absence de courbure & \textbf{MW} & $X$ de Fisher & Non & Oui, $\chi^2(2K)$ &
-Oui & Monte-Carlo & Idem &
+Oui & Monte-Carlo &
+\textbf{Déconseillée} : $t_j$ de Student et indépendants entre colonnes sous erreurs
+conditionnelles gaussiennes seulement (même raisonnement que pour l'ordonnée à l'origine, non
+publié, issue~\#424), hypothèse que D(2)(h) ne pose pas~; statut non établi hors de cette
+hypothèse &
 Puissance faible : 3 paramètres pour 4 à 7 observations à $T = 8$, soit 1 à 4 degrés de liberté
 résiduels~; colonne à 1 degré de liberté conservée (fiche~\ref{mw:m1c}) \\
 
@@ -6962,7 +6968,7 @@ triangle de contrôle, mais sans puissance mesurable contre l'exposant sous ce p
 
 Exposant de variance par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
-\textbf{Déconseillée} : colonnes non indépendantes~; $|r(i,j)|$ non échangeables sous $H_0$
+\textbf{Déconseillée} : indépendance des colonnes non établie~; $|r(i,j)|$ non échangeables sous $H_0$
 (effet de levier, issue~\#431) &
 Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet dû à l'exposant ne peut motiver
 une modification de l'exposant~; l'exposant différent de~1, établi, met en cause la cohérence des données avec
@@ -7437,13 +7443,14 @@ Combinaisons de Fisher (ordonnée à l'origine, homogénéité, courbure,
 exposant de variance) & $X = -2\sum\ln p_k$ & $\chi^2(2K)$ &
 Convergence en loi & \textbf{Sans objet en toute rigueur} : la loi $\chi^2(2K)$
 suppose l'indépendance des $K$ p-values, non établie en général, les colonnes $j$ et
-$j+1$ partageant $C(\cdot,j+1)$~; pour l'ordonnée à l'origine, loi exacte sous erreurs
-conditionnelles gaussiennes (raisonnement non publié, issue~\#424, fiche~\ref{mw:m1a}), statut non
-établi hors de cette hypothèse~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
+$j+1$ partageant $C(\cdot,j+1)$~; pour l'ordonnée à l'origine et la courbure, loi exacte sous
+erreurs conditionnelles gaussiennes (raisonnement non publié, issue~\#424,
+fiches~\ref{mw:m1a} et~\ref{mw:m1c}), statut non établi hors de cette hypothèse~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
 rang suivent en outre, depuis l'issue~\#90, une loi de permutation discrète à $n_j \le 9$, et
 $-2\ln p_j$ n'est pas $\chi^2(2)$~; pour l'exposant de variance, cette loi de permutation
 suppose les $|r(i,j)|$ échangeables, ce que l'effet de levier dément sous $H_0$
-(fiche~\ref{mw:m2b}) & Indépendance des colonnes~; $p_k$ de loi continue &
+(fiche~\ref{mw:m2b}) & Indépendance mutuelle des $p_k$, chacune uniforme (ordonnée à l'origine et
+courbure~: erreurs conditionnelles gaussiennes et années indépendantes, fiche~\ref{mw:m1a}) &
 p-value du $\chi^2$ indicative seulement ; bootstrap retenu \\
 
 Corrélation entre colonnes & $\hat\rho$ agrégé & \emph{aucune limite tabulable} &
@@ -16445,10 +16452,18 @@ $t_0, \dots, t_{j-1}$ étant fonctions de ces colonnes, $t_j$ en est indépendan
 l'indépendance mutuelle suit par récurrence (résultat exact sous ces hypothèses, établi par un
 raisonnement d'\code{actuary}, issue~\#424~; aucune publication énonçant ce résultat n'a été
 retrouvée). Réserve~: des erreurs conditionnelles gaussiennes de variance $\sigma_j^2\,C(i,j)$
-donnent un cumul négatif avec une probabilité non nulle, où la variance du pas suivant n'est plus
-définie~; le résultat vaut pour ce modèle idéalisé, et la portée de cette réserve n'est pas
-établie. Hors de l'hypothèse gaussienne, le partage du vecteur $C(\cdot,j+1)$ par les colonnes
-$j$ et $j+1$ laisse non établies l'indépendance des $t_j$ et l'uniformité de chaque $p_j$. La
+donnent un cumul négatif ou nul avec une probabilité non nulle, où cette variance et le poids
+$1/C(i,j)$ ne sont plus définis~: à la lettre, ce modèle n'est pas une loi sur le triangle. Le
+résultat vaut exactement pour le modèle où la variance conditionnelle est
+$\sigma_j^2\,|C(i,j)|$ et le poids $1/|C(i,j)|$, qui coïncide avec celui de l'outil tant que les
+cumuls restent strictement positifs~; pour tout modèle qui suit les lois conditionnelles
+gaussiennes de l'outil tant que les cumuls sont strictement positifs, l'écart entre la loi de $X$
+et la loi $\chi^2(2K)$ est donc au plus, pour tout événement, la probabilité qu'un cumul du
+triangle soit négatif ou nul (même raisonnement, non publié). Cette probabilité n'est pas mesurée
+par l'outil~; elle est d'autant plus faible que les rapports $f_j\sqrt{C(i,j)}/\sigma_j$ sont
+grands. Hors de l'hypothèse gaussienne, l'uniformité de chaque $p_j$ n'est plus garantie, et le
+partage du vecteur $C(\cdot,j+1)$ par les colonnes $j$ et $j+1$ laisse non établie
+l'indépendance des $t_j$. La
 p-value du khi-deux reste donc rapportée comme non simulée et \emph{indicative}~; la
 loi de référence retenue est celle du bootstrap de résidus.
 \Pval
@@ -16753,8 +16768,8 @@ isolément. Propriété élémentaire~: une p-value bilatérale par doublement e
 loi de référence ($\mathbb{P}(p_j \le u) \le u$), de sorte que $-2\ln p_j$ y est
 stochastiquement dominé par une loi $\chi^2(2)$, et la p-value $\chi^2(2K)$ serait conservatrice
 si les colonnes étaient indépendantes et la loi de permutation celle du modèle de Mack~; ni
-l'un ni l'autre n'est acquis (résidus d'une colonne non échangeables, colonnes adjacentes
-dépendantes). Constat sur le triangle de contrôle ($B = 999$, graine 20260831)~: p-value
+l'un ni l'autre n'est acquis (résidus d'une colonne non échangeables, indépendance des colonnes
+adjacentes non établie). Constat sur le triangle de contrôle ($B = 999$, graine 20260831)~: p-value
 $\chi^2(2K)$ $0{,}152$ (elle valait $0{,}085$ avec les p-values de Student, avant
 l'issue~\#90), p-value de Monte-Carlo $0{,}080$. Loi de référence~: bootstrap de résidus.
 \Pval
@@ -17043,7 +17058,14 @@ l'issue~\#289 (section~\ref{sec:calib-mc-mw}~: ensemble figé vide sur les 5\,00
 aucune colonne non identifiable dans les $149\,850$ réplications contrôlées, p-values de
 Monte-Carlo identiques à celles de la mesure).
 \Loi
-$\chi^2(2K)$ approchée. Loi de référence~: bootstrap de résidus.
+$\chi^2(2K)$ exacte sous les hypothèses de la fiche~\ref{mw:m1a} (rubrique Loi), dont des erreurs
+conditionnelles gaussiennes~: la régression de la colonne~$j$ sur $1$, $C(i,j)$ et $C(i,j)^2$, de
+poids $1/C(i,j)$, contient l'espérance $f_j\,C(i,j)$, de sorte que $t_j$ suit, sachant les
+colonnes $0, \dots, j$, la loi de Student à $n_j - 3$ degrés de liberté, qui n'en dépend pas, et
+le même raisonnement par récurrence s'applique (raisonnement d'\code{actuary}, issue~\#424~;
+aucune publication retrouvée~; même réserve sur les cumuls négatifs). Hors de l'hypothèse
+gaussienne, statut non établi. La p-value du khi-deux reste non simulée et indicative~; loi de
+référence~: bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue.
 \Usage
@@ -17698,8 +17720,8 @@ seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par F
 $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, fiche~\ref{mw:m1a}). Effet
 mesuré de l'issue~: fiche~\ref{mw:m1b}.
 \Loi
-$\chi^2(2K)$ approchée, sous les deux réserves de la fiche~\ref{mw:m1b}~: colonnes non
-indépendantes, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$~; et sous une
+$\chi^2(2K)$ approchée, sous les deux réserves de la fiche~\ref{mw:m1b}~: indépendance des
+colonnes non établie, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$~; et sous une
 troisième, propre à cette ligne~: la loi de permutation de chaque colonne suppose les $|r(i,j)|$
 échangeables, ce qu'ils ne sont pas sous $H_0$, l'effet de levier liant leur échelle à $C(i,j)$
 (rubrique~2). Constat sur le
