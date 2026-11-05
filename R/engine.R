@@ -12180,6 +12180,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       # (identite controlee par tests/unitaires/test_merz_wuthrich.R). Les
       # chiffres de la chaine ("0", "1", "D(2)") sont des constantes du texte,
       # non des nombres issus du bootstrap (regle #76).
+      # "et eloigne la ligne du rejet" retire (revue finale de Ft) : constat de simulation sous plan, non etabli pour la derive de f_j (tableau T2 de #309), et non propriete.
       H1 = paste("lien monotone entre |r(i,j)| et C(i,j) dans au moins une colonne (correlation",
                  "de rang), au-dela de ce qu'en produit le modele ajuste (effet de levier",
                  "compris) ; causes possibles, que le test ne separe pas et dont la liste n'est",
@@ -12195,8 +12196,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
                  "l'annee, independant de ses cumuls realises mais lie a son niveau d'une annee",
                  "a l'autre, compatible avec la lettre mais non avec f_j commun aux annees)",
                  "donne des residus des deux signes de part et d'autre d'un cumul",
-                 "pivot (identite sum_i sqrt(C(i,j)) r(i,j) = 0) et eloigne la ligne du rejet :",
-                 "il n'est pas vise ici, lignes de M1"),
+                 "pivot (identite sum_i sqrt(C(i,j)) r(i,j) = 0) : il n'est pas vise ici,",
+                 "lignes de M1"),
       stat_nom = "X de Fisher", stat = ev$stat,
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,

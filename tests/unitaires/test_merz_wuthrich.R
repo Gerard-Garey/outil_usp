@@ -3875,8 +3875,7 @@ verifier("Exposant de variance (M2, #436) : reserve2, somme_i sqrt(C(i,j)) r(i,j
              "a l'annee, independant de ses cumuls realises mais lie a son niveau d'une annee a ",
              "l'autre, compatible avec la lettre mais non avec f_j commun aux annees) donne des ",
              "residus des deux signes de part et d'autre d'un cumul pivot ",
-             "(identite sum_i sqrt(C(i,j)) r(i,j) = 0) et eloigne la ligne du rejet : il n'est pas ",
-             "vise ici, lignes de M1")
+             "(identite sum_i sqrt(C(i,j)) r(i,j) = 0) : il n'est pas vise ici, lignes de M1")
            ok <- list(
              colonnes = length(s) == 6L && nrow(attr(rs, "colonnes_exclues")) == 0L,
              absolu = all(abs(s) <= 1e-12),
