@@ -66,8 +66,10 @@ jobs:
           else
             echo "moteur=false" >> "$GITHUB_OUTPUT"
           fi
-          # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI.
-          if grep -qE '^(docs/latex/|\.github/)' fichiers.txt; then
+          # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI,
+          # et le contrôle ND de la documentation (issue #451), qui lit le .tex
+          # et le .aux de la compilation.
+          if grep -qE '^(docs/latex/|tests/controle_doc_nd\.R$|\.github/)' fichiers.txt; then
             echo "latex=true" >> "$GITHUB_OUTPUT"
           else
             echo "latex=false" >> "$GITHUB_OUTPUT"
@@ -242,6 +244,33 @@ jobs:
           # Artefact de lecture en cours de branche (ADR 0008 amendé) ; le
           # PDF versionné fait foi une fois le commit de fin de branche fait.
           retention-days: 30
+      # Branche ND, lot L0 (issue #451) : contrôles de la documentation
+      # (motifs de « vie du dépôt », plafond de pages des fiches), en
+      # AVERTISSEMENT : le script rend 0 sans --bloquant et l'étape ne fait
+      # jamais échouer le job (continue-on-error). Le décompte est publié dans
+      # le résumé du job. Placée après la compilation : le contrôle de pages
+      # lit docs/latex/doc_tests_usp.aux. Le lot L7 ajoutera --bloquant et
+      # retirera continue-on-error. R seul (aucun paquet) ; même version que
+      # le job des tests.
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          r-version: "4.3.1"
+      - name: Contrôles ND de la documentation (avertissement)
+        continue-on-error: true
+        env:
+          LC_ALL: C.UTF-8
+        run: |
+          statut=0
+          Rscript tests/controle_doc_nd.R --max-lignes=3 > controle_doc_nd.txt 2>&1 || statut=$?
+          cat controle_doc_nd.txt
+          {
+            echo "### Contrôles ND de la documentation (avertissement)"
+            echo
+            echo '```'
+            grep -v '^::warning' controle_doc_nd.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$statut"
 
   fiches-agents:
     name: Fiches d'agents
