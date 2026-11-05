@@ -13,7 +13,9 @@
 #  un "succes inattendu" (XPASS), signe que le defaut a ete corrige, la fait
 #  echouer afin que le test soit transforme en test ordinaire.
 #
-#  R base + stats uniquement. Duree : quelques secondes.
+#  R base + stats uniquement. Duree : 31 min 30 s en sequentiel et 8 min 39 s en
+#  parallele a 4 processus (conteneur a 4 coeurs partage, 05/11/2026) ; 32 min 02 s
+#  en sequentiel dans le job de la CI du 05/11/2026 (issue #444).
 #  Code de sortie 0 si tout passe, 1 sinon (utilise par l'integration continue).
 #
 #  Usage (depuis la racine du depot) :
