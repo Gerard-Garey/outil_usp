@@ -40,12 +40,16 @@
 #             calculee a la combinaison sur la statistique observee de la
 #             ligne REP). Explication d'un signal de K3 (#378, annotation du
 #             11/10/2026 de la specification, point 1), evaluee
-#             mecaniquement a la combinaison : (i) variance de l'oracle
-#             partage a (1 - a) (1/n + 1/N0), approximation normale puis
-#             Holm sur les 13 cles ; (ii) atome (valeur atteinte au moins
-#             deux fois dans l'oracle) a cheval sur le seuil, detecte par la
-#             queue de l'oracle realise avant et avec l'atome (valeur, masse,
-#             queues, decision de l'oracle, ecart tau_or - taille rapportes).
+#             mecaniquement a la combinaison par un test unique recentre sur
+#             la region de rejet REALISEE de l'oracle : m_r statistiques
+#             oracle finies de p de Monte-Carlo < a, K ~ beta-binomiale
+#             BB(n, m_r + t, N + 1 - m_r - t) (t = 1 ou 2 queues), p bilaterale
+#             par doublement, Holm sur 13 cles ; exact pour une statistique
+#             continue sans valeur non finie (m_r = c1, ou 2 c2 en bilateral),
+#             approche pour une statistique a atomes. Atomes a cheval sur le
+#             seuil (valeur atteinte au moins deux fois, detection alignee sur
+#             engine_p_mc) rapportes a titre descriptif (valeur, masse, queues,
+#             decision de l'oracle, credit lisse).
 #             Etat "K3 : signal explique par (i) ou (ii)" distinct de
 #             "temoin non explique" ; seul ce dernier met Pi0 et Phi0 en
 #             defaut. Lu sur l'echantillon oracle (S0 des sorties
@@ -1345,56 +1349,102 @@ tableau_t2 <- function(MC) {
 # Explication d'un signal de K3 (annotation du 11/10/2026 de la specification,
 # point 1 ; #378). Le test binomial de tau_or contre la taille lissee suppose
 # n triangles mesures confrontes a un oracle independant ; or ils le sont tous
-# au MEME echantillon oracle realise (N0 triangles). Deux lectures :
-#  (i)  statistique sans atome a cheval sur le seuil : meme ecart, lu avec la
-#       variance de l'oracle partage, a (1 - a) (1/n + 1/N0) (approximation
-#       normale bilaterale, centre = taille lissee, N0 = triangles oracle
-#       admis), puis Holm sur les 13 cles par (loi, a) ; un signal que cette
-#       variance fait disparaitre (p Holm >= NIVEAU_HOLM) est explique ;
-#  (ii) statistique dont un atome est a cheval sur le seuil : la queue de
-#       l'oracle realise, calculee avant l'atome et avec lui, encadre a
-#       (a / 2 par queue en bilateral). Un atome est une valeur atteinte au
-#       moins deux fois par les statistiques oracle finies (une valeur isolee
-#       d'une statistique continue franchit toujours le seuil, sans etre un
-#       atome) ; queues = effectif cumule / nombre de statistiques finies.
-#       La decision de l'oracle sur l'atome est deterministe (tout l'atome
-#       est rejete, ou aucune de ses valeurs) ; le signal est explique si
-#       |tau_or - taille| est au plus la masse de l'atome (somme des masses si
-#       un atome encadre chacune des deux queues).
+# au MEME echantillon oracle realise (N0 triangles). Test unique, recentre sur
+# la region de rejet REALISEE de l'oracle :
+#  - m_r = nombre de statistiques oracle finies v dont engine_p_mc(S0, v, sens)
+#    est < a (calcul vectorise par findInterval() sur S0 trie, comme
+#    taille_lissee()) ; N = nombre de statistiques oracle finies ; t = 1
+#    (unilateral) ou 2 (bilateral) ;
+#  - K | q ~ Bin(n, q), q | oracle ~ Beta(a, b), a = m_r + t, b = N + 1 - a :
+#    K suit la loi beta-binomiale BB(n, a, b) ; p bilaterale par doublement,
+#    min(1, 2 min(P(K <= k), P(K >= k))) ; garde : b <= 0 (ou m_r non fini) :
+#    p absente (le signal n'est alors pas explique) ;
+#  - Holm sur la famille de 13 cles par (loi, a), STRICTEMENT 13 (n =
+#    length(p), une p absente ne reduit pas le multiplicateur), comme pour le
+#    binomial.
+# Le test est exact pour une statistique continue sans valeur non finie
+# (m_r = c1 = ceil(a (N + 1)) - 2, ou 2 c2, c2 = ceil(a (N + 1) / 2) - 2, en
+# bilateral), approche pour une statistique a atomes. Un signal (binomial exact
+# contre la taille lissee, inchange) est explique si la p de Holm
+# beta-binomiale est >= NIVEAU_HOLM, non explique sinon ; seul "non explique"
+# met Pi0 et Phi0 en defaut. Colonne K3 : "(ii)" pour un signal explique dans
+# une cellule qui porte un atome a cheval, "(i)" pour un autre signal explique.
+# Atomes a cheval (descriptifs seulement, aucun seuil de masse) : valeur
+# atteinte au moins deux fois par les statistiques oracle finies ; avec avant
+# (effectif strictement en deca) et avec (jusqu'a l'atome compris), chevauchement
+# si (1 + avant) / (N + 1) < a_t <= (1 + avec) / (N + 1), a_t = a (a / 2 par
+# queue en bilateral), comme engine_p_mc() : une valeur juste avant l'atome
+# serait rejetee, l'atome ne l'est jamais. Rapportes : valeur exacte, masse,
+# queues avant / N et avec / N, decision de l'oracle et credit lisse =
+# masse x pbinom(c_t, N, avec / N), c_t comme dans taille_lissee() (contribution
+# de l'atome a la taille lissee).
 CLASSES_K3 <- c(i = "(i)", ii = "(ii)", non = "non expliqu\u00e9", aucun = "\u2014")
+# Nombre m_r de statistiques oracle finies dont la p de Monte-Carlo (engine_p_mc,
+# regle ">=") est < a : vectorise, la p de v s'obtient des effectifs #{S <= v}
+# et #{S >= v} sur S trie, avec les memes operations flottantes qu'engine_p_mc().
+m_rejet_oracle <- function(S0, queue, a) {
+  S <- sort(S0[is.finite(S0)]); N <- length(S)
+  if (!N || N < B_MIN_DEGENERESCENCE || diff(range(S)) <= TOL_DISPERSION_MC * max(1, abs(S[1]))) return(NA_real_)
+  v <- unique(S)
+  n_le <- findInterval(v, S)
+  n_ge <- N - findInterval(v, S, left.open = TRUE)
+  cnt <- n_le - c(0L, utils::head(n_le, -1L))
+  p_bas <- (1 + n_le) / (N + 1); p_haut <- (1 + n_ge) / (N + 1)
+  p <- pmin(switch(queue, haut = p_haut, bas = p_bas, deux = 2 * pmin(p_haut, p_bas)), 1)
+  sum(cnt[p < a])
+}
 atome_cheval <- function(S0, queue, a) {
   S <- S0[is.finite(S0)]; N <- length(S)
   vide <- data.frame(cote = character(0), valeur = numeric(0), masse = numeric(0), avant = numeric(0), avec = numeric(0),
-                     decision = character(0), stringsAsFactors = FALSE)
+                     decision = character(0), credit = numeric(0), stringsAsFactors = FALSE)
   if (!N) return(vide)
   # Valeurs distinctes EXACTES (jamais table() : ses niveaux passent par du texte
   # a 15 chiffres, qui fausserait la valeur de l'atome et la decision de
   # l'oracle, ou fusionnerait deux doubles voisins).
   v <- sort(unique(S)); cnt <- tabulate(match(S, v), length(v))
-  seuil <- round((if (queue == "deux") a / 2 else a) * N, 9)
+  seuil <- round((if (queue == "deux") a / 2 else a) * (N + 1), 9)
+  c_t <- ceiling(round((if (queue == "deux") a / 2 else a) * (N + 1), 9)) - 2
   cotes <- list(basse = cumsum(cnt), haute = N - cumsum(cnt) + cnt)
   cotes <- cotes[switch(queue, bas = "basse", haut = "haute", deux = c("basse", "haute"))]
   out <- lapply(names(cotes), function(ct) {
     avec <- cotes[[ct]]; avant <- avec - cnt
-    j <- which(cnt >= 2L & avant < seuil & seuil < avec)
+    j <- which(cnt >= 2L & 1 + avant < seuil & seuil <= 1 + avec)
     if (!length(j)) return(NULL)
     p <- engine_p_mc(S0, v[j[1]], queue)$p_mc
     data.frame(cote = ct, valeur = v[j[1]], masse = cnt[j[1]] / N, avant = avant[j[1]] / N, avec = avec[j[1]] / N,
-               decision = if (is.finite(p) && p < a) "rejet\u00e9 par l'oracle" else "non rejet\u00e9 par l'oracle", stringsAsFactors = FALSE)
+               decision = if (is.finite(p) && p < a) "rejet\u00e9 par l'oracle" else "non rejet\u00e9 par l'oracle",
+               credit = cnt[j[1]] / N * stats::pbinom(c_t, N, avec[j[1]] / N), stringsAsFactors = FALSE)
   })
   out <- Filter(Negate(is.null), out)
   if (length(out)) do.call(rbind, out) else vide
 }
 txt_atome <- function(at) if (!nrow(at)) "" else
-  paste(sprintf("atome %s %s (masse %s ; queue %s avant l'atome, %s avec ; %s)", at$cote, vapply(at$valeur, num, "", d = 4),
-                vapply(at$masse, num, "", d = 5), vapply(at$avant, num, "", d = 5), vapply(at$avec, num, "", d = 5), at$decision), collapse = " ; ")
+  paste(sprintf("atome %s %s (masse %s ; queue %s avant l'atome, %s avec ; %s ; cr\u00e9dit liss\u00e9 %s)", at$cote, vapply(at$valeur, num, "", d = 4),
+                vapply(at$masse, num, "", d = 5), vapply(at$avant, num, "", d = 5), vapply(at$avec, num, "", d = 5), at$decision,
+                vapply(at$credit, num, "", d = 5)), collapse = " ; ")
+# p bilaterale (doublement) de la loi beta-binomiale BB(n, a, b), en R base :
+# log-pmf par lchoose() et lbeta(), sommes par log-somme-exp (stable a n = 2000,
+# N0 = 20 000, ou la loi est tres piquee).
+p_betabinom <- function(k, n, a, b) {
+  x <- 0:n; lp <- lchoose(n, x) + lbeta(x + a, n - x + b) - lbeta(a, b)
+  lse <- function(z) { m <- max(z); m + log(sum(exp(z - m))) }
+  min(1, 2 * exp(min(lse(lp[seq_len(k + 1L)]), lse(lp[(k + 1L):(n + 1L)]))))
+}
+# Test de la cellule : k rejets sur n triangles, region de rejet realisee m_r de
+# l'oracle (N statistiques finies), t = 1 ou 2 queues.
+p_oracle_region <- function(k, n, m_r, N, t) {
+  if (!is.finite(m_r) || !is.finite(N)) return(NA_real_)
+  a <- m_r + t; b <- N + 1 - a
+  if (a <= 0 || b <= 0) return(NA_real_)
+  p_betabinom(k, n, a, b)
+}
 # Classe K3 d'une cellule (vectorisee). signal : p Holm du binomial < NIVEAU_HOLM.
-classer_k3 <- function(signal, p_holm_part, n_atomes, masse_atomes, ecart) {
+classer_k3 <- function(signal, p_holm_part, n_atomes) {
   vapply(seq_along(signal), function(i) {
     if (!isTRUE(signal[i])) return(CLASSES_K3[["aucun"]])
-    if (n_atomes[i] > 0L) {
-      if (is.finite(ecart[i]) && abs(ecart[i]) <= masse_atomes[i]) CLASSES_K3[["ii"]] else CLASSES_K3[["non"]]
-    } else if (is.finite(p_holm_part[i]) && p_holm_part[i] >= NIVEAU_HOLM) CLASSES_K3[["i"]] else CLASSES_K3[["non"]]
+    if (is.finite(p_holm_part[i]) && p_holm_part[i] >= NIVEAU_HOLM) {
+      if (n_atomes[i] > 0L) CLASSES_K3[["ii"]] else CLASSES_K3[["i"]]
+    } else CLASSES_K3[["non"]]
   }, "")
 }
 temoins <- function(DS, OR) {
@@ -1409,22 +1459,22 @@ temoins <- function(DS, OR) {
       k <- colSums(is.finite(P) & P < a); ab <- colSums(!is.finite(P))
       tl <- vapply(CLES, function(s) OR[[loi]][[s]]$taille_or[j], 1)
       p <- vapply(CLES, function(s) if (is.finite(tl[[s]])) stats::binom.test(k[[s]], n, tl[[s]])$p.value else NA_real_, 1)
-      p_holm <- stats::p.adjust(p, "holm")
-      # (i) variance de l'oracle partage
-      n0 <- vapply(CLES, function(s) OR[[loi]][[s]]$n_adm, 1)
-      sd_part <- n * sqrt(a * (1 - a) * (1 / n + 1 / n0))
-      p_part <- ifelse(is.finite(tl) & sd_part > 0, 2 * stats::pnorm(-abs((k - n * tl) / sd_part)), NA_real_)
-      p_holm_part <- stats::p.adjust(p_part, "holm")
-      # (ii) atomes a cheval sur le seuil
+      p_holm <- stats::p.adjust(p, "holm", n = length(p))
+      # test beta-binomial sur la region de rejet realisee de l'oracle, puis Holm (13 cles)
+      m_r <- vapply(CLES, function(s) m_rejet_oracle(OR[[loi]][[s]]$S0, QUEUE[[s]], a), 1)
+      n_f <- vapply(CLES, function(s) sum(is.finite(OR[[loi]][[s]]$S0)), 1)
+      tq <- ifelse(QUEUE[CLES] == "deux", 2, 1)
+      p_part <- vapply(seq_along(CLES), function(i) p_oracle_region(k[[i]], n, m_r[[i]], n_f[[i]], tq[[i]]), 1)
+      p_holm_part <- stats::p.adjust(p_part, "holm", n = length(p_part))
+      # atomes a cheval sur le seuil (descriptifs)
       at <- lapply(CLES, function(s) atome_cheval(OR[[loi]][[s]]$S0, QUEUE[[s]], a))
-      n_at <- vapply(at, nrow, 1L); m_at <- vapply(at, function(x) sum(x$masse), 1)
+      n_at <- vapply(at, nrow, 1L)
       ecart <- k / n - tl
       signal <- is.finite(p_holm) & p_holm < NIVEAU_HOLM
       out[[length(out) + 1L]] <- data.frame(loi = loi, ia = ia, s = CLES, n = n, absentes = ab, k = k, taille = tl, p = p,
-                                            p_holm = p_holm, p_part = p_part, p_holm_part = p_holm_part, ecart = ecart,
-                                            n_atomes = n_at, masse_atomes = m_at,
-                                            atome = vapply(at, txt_atome, ""),
-                                            classe = classer_k3(signal, p_holm_part, n_at, m_at, ecart), stringsAsFactors = FALSE)
+                                            p_holm = p_holm, m_r = m_r, N_or = n_f, p_part = p_part, p_holm_part = p_holm_part, ecart = ecart,
+                                            n_atomes = n_at, atome = vapply(at, txt_atome, ""),
+                                            classe = classer_k3(signal, p_holm_part, n_at), stringsAsFactors = FALSE)
     }
   }
   if (length(out)) do.call(rbind, out) else NULL
@@ -1439,10 +1489,9 @@ etat_k3 <- function(TM) {
 }
 # Cellule de K3 en texte, avec son explication.
 txt_cel_k3 <- function(x) {
-  vapply(seq_len(nrow(x)), function(i) with(x[i, ], sprintf("%s %s %s (k = %d / %d, taille %s, p Holm binomiale %s ; K3 %s%s)",
-    loi, s, lib_ia(ia), k, n, num(taille, 5), fmt_p(p_holm), classe,
-    if (classe == CLASSES_K3[["i"]]) sprintf(" : p Holm avec la variance de l'oracle partag\u00e9 %s", fmt_p(p_holm_part))
-    else if (n_atomes > 0L) sprintf(" : %s ; \u03c4_or \u2212 taille %s", atome, num(ecart, 5)) else "")), "")
+  vapply(seq_len(nrow(x)), function(i) with(x[i, ], sprintf("%s %s %s (k = %d / %d, taille %s, p Holm binomiale %s ; m_r = %s ; p Holm b\u00eata-binomiale (r\u00e9gion de rejet de l'oracle) %s ; K3 %s%s)",
+    loi, s, lib_ia(ia), k, n, num(taille, 5), fmt_p(p_holm), if (is.finite(m_r)) format(m_r) else "\u2014", fmt_p(p_holm_part), classe,
+    if (n_atomes > 0L) sprintf(" ; %s ; \u03c4_or \u2212 taille %s", atome, num(ecart, 5)) else "")), "")
 }
 tableau_t3 <- function(TM) {
   L <- c("### T3 \u2014 t\u00e9moins oracle (K3)", "",
@@ -1453,26 +1502,31 @@ tableau_t3 <- function(TM) {
                "les triangles mesur\u00e9s ; Var(\u03c4_or) vaut donc environ \u03b1(1 \u2212 \u03b1)(1/n + 1/N0), et non \u03b1(1 \u2212 \u03b1)/n. \u00c0 n = 2 000",
                "et N0 = 20 000, l'\u00e9cart-type est multipli\u00e9 par environ 1,05 et le binomial nominal \u00e0 5 % rejette environ 6 % du temps",
                "quand la mesure est correcte [calcul d'ordre de grandeur, non simul\u00e9]."), "",
-         paste("Explication d'un signal (annotation du 11/10/2026, point 1 ; #378), \u00e9valu\u00e9e m\u00e9caniquement :",
-               "**(i)** statistique sans atome \u00e0 cheval sur le seuil : m\u00eame \u00e9cart lu avec cette variance (approximation normale bilat\u00e9rale,",
-               "centr\u00e9e sur la taille liss\u00e9e, N0 = triangles oracle admis), Holm sur les 13 cl\u00e9s par (loi, \u03b1) ; le signal est expliqu\u00e9 si la p Holm",
-               "est au moins 0,05 ; **(ii)** statistique dont un atome (valeur atteinte au moins deux fois dans l'oracle) est \u00e0 cheval sur le seuil",
-               "(la queue de l'oracle r\u00e9alis\u00e9, avant l'atome et avec lui, encadre \u03b1, ou \u03b1/2 par queue en bilat\u00e9ral) : le signal est expliqu\u00e9",
-               "si |\u03c4_or \u2212 taille| est au plus la masse de l'atome. Colonne K3 : \u00ab (i) \u00bb, \u00ab (ii) \u00bb, \u00ab non expliqu\u00e9 \u00bb, ou \u00ab \u2014 \u00bb sans signal.",
-               "Seul un signal \u00ab non expliqu\u00e9 \u00bb met \u03a00 (et \u03a60) en d\u00e9faut."), "")
+         paste("Explication d'un signal (annotation du 11/10/2026, point 1 ; #378), test unique \u00e9valu\u00e9 m\u00e9caniquement et recentr\u00e9 sur la",
+               "r\u00e9gion de rejet r\u00e9alis\u00e9e de l'oracle : m_r = nombre de statistiques oracle finies dont la p de Monte-Carlo (engine_p_mc) est",
+               "< \u03b1 ; N = statistiques oracle finies ; t = 1 (unilat\u00e9ral) ou 2 (bilat\u00e9ral) ; K suit la loi b\u00eata-binomiale BB(n, a, b),",
+               "a = m_r + t, b = N + 1 \u2212 a ; p bilat\u00e9rale par doublement ; Holm sur la famille de 13 cl\u00e9s par (loi, \u03b1), strictement 13",
+               "(une p absente ne r\u00e9duit pas le multiplicateur). **Le test est exact pour une statistique continue sans valeur non finie",
+               "(m_r = c1 = \u2308\u03b1(N + 1)\u2309 \u2212 2, ou 2 c2, c2 = \u2308\u03b1(N + 1)/2\u2309 \u2212 2, en bilat\u00e9ral), approch\u00e9 pour une",
+               "statistique \u00e0 atomes.** Un signal (binomial exact contre la taille liss\u00e9e, inchang\u00e9) est expliqu\u00e9 si la p de Holm",
+               "b\u00eata-binomiale est au moins 0,05, non expliqu\u00e9 sinon. Colonne K3 : \u00ab (ii) \u00bb pour un signal expliqu\u00e9 dans une cellule qui",
+               "porte un atome \u00e0 cheval, \u00ab (i) \u00bb pour un autre signal expliqu\u00e9, \u00ab non expliqu\u00e9 \u00bb, ou \u00ab \u2014 \u00bb sans signal. Seul un signal",
+               "\u00ab non expliqu\u00e9 \u00bb met \u03a00 (et \u03a60) en d\u00e9faut. Atomes \u00e0 cheval (descriptifs, sans seuil de masse) : valeur atteinte au",
+               "moins deux fois dans l'oracle, avec (1 + avant)/(N + 1) < \u03b1 \u2264 (1 + avec)/(N + 1) (\u03b1/2 par queue en bilat\u00e9ral), comme",
+               "engine_p_mc() ; cr\u00e9dit liss\u00e9 = masse \u00d7 pbinom(c_t, N, queue avec l'atome), contribution de l'atome \u00e0 la taille liss\u00e9e."), "")
   if (is.null(TM)) return(c(L, "Oracle absent de cette sortie : t\u00e9moins non calcul\u00e9s.", ""))
   L <- c(L, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "n", "p_or absentes", "k", "\u03c4_or [IC]", "taille", "p binomiale", "p Holm", "significatif",
-                        "p Holm (oracle partag\u00e9)", "K3")))
+                        "m_r", "p Holm (b\u00eata-binomiale, r\u00e9gion de rejet de l'oracle)", "K3")))
   for (i in seq_len(nrow(TM))) {
     x <- TM[i, ]
     L <- c(L, ligne_md(x$loi, lib_ia(x$ia), lib_cle(x$s), x$n, x$absentes, x$k, sprintf("%s %s", num(x$k / x$n, D_IC), txt_ic(ic_cp(x$k, x$n))),
                        num(x$taille, 5), fmt_p(x$p), fmt_p(x$p_holm), if (isTRUE(x$p_holm < NIVEAU_HOLM)) "**oui**" else "non",
-                       fmt_p(x$p_holm_part), x$classe))
+                       format(x$m_r), fmt_p(x$p_holm_part), x$classe))
   }
   at <- TM[TM$n_atomes > 0L, , drop = FALSE]
-  L <- c(L, "", "**Atomes \u00e0 cheval sur le seuil (K3, cas (ii)), toutes cellules, signal ou non** :", "")
+  L <- c(L, "", "**Atomes \u00e0 cheval sur le seuil (K3, descriptif), toutes cellules, signal ou non** :", "")
   if (!nrow(at)) c(L, "aucun.", "") else
-    c(L, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "atome(s) : valeur, masse, queues, d\u00e9cision de l'oracle", "\u03c4_or \u2212 taille", "K3")),
+    c(L, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "atome(s) : valeur, masse, queues, d\u00e9cision de l'oracle, cr\u00e9dit liss\u00e9", "\u03c4_or \u2212 taille", "K3")),
       vapply(seq_len(nrow(at)), function(i) ligne_md(at$loi[i], lib_ia(at$ia[i]), lib_cle(at$s[i]), at$atome[i], num(at$ecart[i], 5), at$classe[i]), ""), "")
 }
 # T4 : verdicts, multiplicite, frequence de |p_mc - alpha| < 2 err_mc.

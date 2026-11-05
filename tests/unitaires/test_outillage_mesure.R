@@ -33,15 +33,17 @@
 #  (r)  eval_k0x() (K0-x) : test exact de Fisher bilateral, seuil 0,025 par
 #       cellule, sur comptes construits (175 / 500 : p = 0,0559, tenu).
 #  Constats de #378 (tests/calibration_mc_mw_t8.R, sans calcul de mesure) :
-#  (t)  K3, explication d'un signal (annotation du 11/10/2026, point 1) sur
-#       oracle et mesures construits : atome a cheval sur le seuil (valeur,
-#       masse, queues avant / avec, decision), test avec la variance de
-#       l'oracle partage puis Holm, classes (i), (ii), non explique ; seules
-#       les deux cellules du constat (HomogF 0,05 en (i), Runs 0,05 en (ii),
-#       construites ici sous la seule loi N) sont des signaux expliques, les
-#       autres cellules restent sans signal ; valeur exacte de l'atome (pas
-#       de passage par du texte a 15 chiffres) ; n du repere de T4 compte
-#       par pool (n_cles_verdict()).
+#  (t)  K3, explication d'un signal (annotation du 11/10/2026, point 1,
+#       amendee) sur oracle et mesures construits : test unique recentre sur
+#       la region de rejet realisee de l'oracle (m_r vectorise, controle contre
+#       engine_p_mc valeur par valeur ; K beta-binomiale BB(n, m_r + t,
+#       N + 1 - m_r - t), Holm strictement sur 13 cles), classes (i), (ii),
+#       non explique ; atomes a cheval descriptifs (valeur exacte, masse,
+#       queues, decision, credit lisse), detection alignee sur engine_p_mc ;
+#       seules les deux cellules du constat (HomogF 0,05 et Runs 0,05,
+#       construites ici sous la seule loi N) sont des signaux, les autres
+#       restent sans signal ; n du repere de T4 compte par pool
+#       (n_cles_verdict()).
 #  Les tests qui demandent bash (>= 4.3, wait -n) sont sautes, avec
 #  message, s'il manque.
 ###############################################################################
@@ -554,7 +556,7 @@ tryCatch({
   # basse 0,0077 avant l'atome et 0,02525 avec (seuil 0,025 par queue).
   E378 <- extraire_defs(SCRIPT_MW, c("NS", "CLES", "QUEUE", "LOIS", "IA", "SEUILS", "NIVEAU_HOLM", "D_IC", "CLASSES_K3", "num", "fmt_p",
                                      "lib_ia", "lib_cle", "ic_cp", "txt_ic", "ligne_md", "entete_md", "pop", "p_oracle", "atome_cheval",
-                                     "txt_atome", "classer_k3", "temoins", "etat_k3", "txt_cel_k3", "tableau_t3", "mat_p", "SEUIL_K4", "etat_k3_k4", "n_cles_verdict", "tableau_t4"))
+                                     "txt_atome", "classer_k3", "temoins", "etat_k3", "txt_cel_k3", "tableau_t3", "mat_p", "SEUIL_K4", "etat_k3_k4", "n_cles_verdict", "tableau_t4", "p_betabinom", "m_rejet_oracle", "p_oracle_region"))
   N0_378 <- 20000L; n_378 <- 2000L
   S_runs <- c(seq(-4, -3, length.out = 154), rep(-1.2010, 351), seq(-1, 3, length.out = N0_378 - 505L))
   at <- E378$atome_cheval(S_runs, "deux", 0.05)
@@ -587,20 +589,59 @@ tryCatch({
   verifier("(t) atome_cheval : valeur exacte (non representable en 15 chiffres), queue basse : valeur identique a l'atome, decision = celle d'engine_p_mc (p = 0,0701 : non rejete)",
            nrow(ae) == 1L && identical(ae$valeur, u378[4]) && proche(ae$masse, 0.04, rel = 1e-12) && proche(ae$avant, 0.03, rel = 1e-12) &&
              proche(ae$avec, 0.07, rel = 1e-12) && proche(engine_p_mc(S_exact, u378[4], "bas")$p_mc, 0.0701, rel = 1e-3) && grepl("^non rejet", ae$decision))
-  # Deux doubles distincts de meme ecriture a 15 chiffres ne sont pas fusionnes : atomes de 300 chacun,
-  # aucun n'encadre le seuil 500 (effectifs cumules 200 -> 500 -> 800 ; fusionnes : 600, a cheval).
+  # Deux doubles distincts de meme ecriture a 15 chiffres ne sont pas fusionnes : deux valeurs isolees
+  # (effectif 1 chacune, donc aucune n'est un atome) ; fusionnees (effectif 2), elles seraient un atome
+  # a cheval (499 valeurs avant, seuil (N + 1) a = 500,05).
   x1 <- 1 / 3; x2 <- x1 + 5.55e-17
-  verifier("(t) atome_cheval : deux doubles distincts de meme ecriture a 15 chiffres restent deux valeurs (pas de fusion en un atome a cheval)",
+  verifier("(t) atome_cheval : deux doubles distincts de meme ecriture a 15 chiffres restent deux valeurs isolees (pas de fusion en un atome a cheval)",
            x1 != x2 && as.character(x1) == as.character(x2) &&
-             nrow(E378$atome_cheval(c(rep(-1, 200), rep(x1, 300), rep(x2, 300), seq(5, 6, length.out = 9200)), "bas", 0.05)) == 0L)
+             nrow(E378$atome_cheval(c(rep(-1, 499), x1, x2, seq(5, 6, length.out = 9499)), "bas", 0.05)) == 0L)
+  # Detection alignee sur engine_p_mc() : p de la valeur juste avant l'atome (1 + avant) / (N + 1) < a_t
+  # <= (1 + avec) / (N + 1) = p de l'atome. N = 20 000, a = 0,05 (unilateral) : (N + 1) a = 1 000,05.
+  # avant = 998, atome de 2 : avec = 1 000, p = 1 001 / 20 001 >= 0,05 (non rejete), 999 / 20 001 < 0,05 : a cheval
+  # (l'ancien critere avant < a N < avec disait non, 1 000 < 1 000 est faux). avant = 999, atome de 2 : a cheval.
+  # avant = 1 000 : la valeur juste avant (p = 1 001 / 20 001 = 0,05005) n'est pas rejetee : pas a cheval.
+  ch <- function(avant, cnt = 2L) E378$atome_cheval(c(seq(-2, -1, length.out = avant), rep(0.5, cnt), seq(5, 6, length.out = 20000L - avant - cnt)), "bas", 0.05)
+  verifier("(t) atome_cheval : alignement sur engine_p_mc, N = 20 000 : avant = 998 (avec = 1 000) et 999 (avec = 1 001) a cheval ; avant = 1 000 et 997 (avec = 999) non",
+           nrow(ch(998L)) == 1L && nrow(ch(999L)) == 1L && nrow(ch(1000L)) == 0L && nrow(ch(997L)) == 0L &&
+             # p de l'atome et de la valeur juste avant, lues a engine_p_mc : de part et d'autre de 0,05
+             { S <- c(seq(-2, -1, length.out = 998), rep(0.5, 2), seq(5, 6, length.out = 19000L))
+               engine_p_mc(S, 0.5, "bas")$p_mc >= 0.05 && engine_p_mc(S, -1, "bas")$p_mc < 0.05 })
 
-  # Mesures construites : toutes les cles au taux de leur taille (aucun signal),
-  # sauf HomogF (k = 71, taille 0,04996, S continue) et Runs (k = 44, taille 0,03639,
-  # S_runs) ; rejet = observation hors de l'echantillon oracle d'un cote.
-  fabrique <- function(k05, taille05, loi = "N") {
+  # Credit lisse des atomes de l'oracle Runs a deux atomes (S_runs2, calquee sur l'oracle E reel :
+  # atome bas 351 valeurs, atome haut 672 valeurs, 432 valeurs isolees au-dessus) : masse x pbinom(c_t, N, avec).
+  S_runs2 <- c(seq(-4, -3, length.out = 154), rep(-1.2010, 351), seq(-1, 2, length.out = N0_378 - 505L - 672L - 432L),
+               rep(2.4019, 672), seq(3, 4, length.out = 432L))
+  a2 <- E378$atome_cheval(S_runs2, "deux", 0.05)
+  verifier("(t) atome_cheval : credit lisse = masse x pbinom(c2, N, queue avec l'atome) : atome bas ~ 0,0071, atome haut ~ 0",
+           nrow(a2) == 2L && identical(a2$cote, c("basse", "haute")) &&
+             proche(a2$credit[1], 0.01755 * stats::pbinom(499, N0_378, 0.02525), rel = 1e-9) && abs(a2$credit[1] - 0.0071) < 5e-4 && a2$credit[2] < 1e-9)
+  # m_r : region de rejet realisee de l'oracle, vectorise (findInterval).
+  S_cont <- seq(0, 1, length.out = N0_378)
+  c1 <- function(a, N = N0_378) ceiling(round(a * (N + 1), 9)) - 2; c2 <- function(a, N = N0_378) ceiling(round(a * (N + 1) / 2, 9)) - 2
+  verifier("(t) m_rejet_oracle : oracle continu : unilateral m_r = c1 (999 a 0,05, 1 999 a 0,10), bilateral m_r = 2 c2 (998 a 0,05, 1 998 a 0,10)",
+           all(vapply(c(0.05, 0.10), function(a) E378$m_rejet_oracle(S_cont, "haut", a) == c1(a) && E378$m_rejet_oracle(S_cont, "bas", a) == c1(a) &&
+                        E378$m_rejet_oracle(S_cont, "deux", a) == 2 * c2(a), TRUE)) &&
+             c1(0.05) == 999 && 2 * c2(0.05) == 998 && c1(0.10) == 1999 && 2 * c2(0.10) == 1998)
+  S_ex <- rep(c(-2, -1, 0, 1, 2), times = c(6, 30, 200, 40, 24))
+  verifier("(t) m_rejet_oracle : identique a engine_p_mc appele valeur par valeur sur un petit oracle a ex aequo (3 sens, 3 seuils)",
+           all(vapply(c("bas", "haut", "deux"), function(q) all(vapply(c(0.05, 0.10, 0.20), function(a)
+             E378$m_rejet_oracle(S_ex, q, a) == sum(vapply(S_ex, function(v) isTRUE(engine_p_mc(S_ex, v, q)$p_mc < a), TRUE)), TRUE)), TRUE)))
+  verifier("(t) m_rejet_oracle : oracle Runs construit : S_runs (queue haute continue) m_r = 154 + 499 = 653 ; S_runs2 (queue haute a atome, 432 valeurs isolees au-dessus) m_r = 154 + 432 = 586 ; valeurs non finies ecartees",
+           E378$m_rejet_oracle(S_runs, "deux", 0.05) == 154 + 499 && E378$m_rejet_oracle(S_runs2, "deux", 0.05) == 154 + 432 &&
+             E378$m_rejet_oracle(c(S_runs2, NA_real_, Inf), "deux", 0.05) == 586 && is.na(E378$m_rejet_oracle(rep(1, 100), "haut", 0.05)))
+  verifier("(t) p_betabinom : BB(2000, 1000, 19001), k = 71 : p bilaterale 0,003441249 a 1e-8 pres ; p_oracle_region (m_r = 999, N = 20 000, t = 1) donne la meme valeur ; garde b <= 0 : p absente",
+           abs(E378$p_betabinom(71L, 2000L, 1000, 19001) - 0.003441249) < 1e-8 && abs(E378$p_oracle_region(71L, 2000L, 999, N0_378, 1) - 0.003441249) < 1e-8 &&
+             is.na(E378$p_oracle_region(5L, 2000L, 20000, N0_378, 2)) && is.na(E378$p_oracle_region(5L, 2000L, NA_real_, N0_378, 1)) &&
+             all(vapply(c(0L, 2000L), function(k) { p <- E378$p_oracle_region(k, 2000L, 999, N0_378, 1); is.finite(p) && p >= 0 && p <= 1 }, TRUE)))
+
+  # Mesures construites : toutes les cles au taux attendu (aucun signal), sauf HomogF (k variable,
+  # taille 0,04996, S continue) et Runs (k = 44, taille 0,03639, S_runs2, m_r = 586) ; rejet =
+  # observation hors de l'echantillon oracle d'un cote. degenere : cle dont l'oracle est constant.
+  fabrique <- function(k05, taille05, loi = "N", degenere = character(0)) {
     OR <- list(); D <- data.frame(statut = rep("admis", n_378), brut = "non", stringsAsFactors = FALSE)
     for (s in E378$CLES) {
-      S0 <- if (s == "Runs") S_runs else seq(0, 1, length.out = N0_378)
+      S0 <- if (s %in% degenere) rep(1, N0_378) else if (s == "Runs") S_runs2 else seq(0, 1, length.out = N0_378)
       k <- if (s %in% names(k05)) k05[[s]] else 100L
       tl <- if (s %in% names(taille05)) taille05[[s]] else 0.05
       OR[[s]] <- list(n_adm = N0_378, S0 = S0, taille_or = c(k / n_378, tl))
@@ -612,31 +653,47 @@ tryCatch({
     }
     list(DS = list(tr = stats::setNames(list(D), loi)), OR = stats::setNames(list(OR), loi))
   }
-  m <- fabrique(c(HomogF = 71L, Runs = 44L), c(HomogF = 0.04996, Runs = 0.03639))
+  # HomogF k = 72 : (i) ; k = 71 (cellule du constat, N HomogF 0,05) : non expliquee.
+  m <- fabrique(c(HomogF = 72L, Runs = 44L), c(HomogF = 0.04996, Runs = 0.03639))
   TM <- E378$temoins(m$DS, m$OR)
-  sel <- function(s, ia) TM[TM$s == s & TM$ia == ia, ]
-  verifier("(t) temoins : N HomogF 0,05 : binomial significatif apres Holm, p Holm avec la variance de l'oracle partage ~ 0,06 (>= 0,05), classe (i)",
-           { x <- sel("HomogF", "a05"); x$p_holm < 0.05 && x$p_holm_part > 0.05 && x$p_holm_part < 0.07 && x$n_atomes == 0L && x$classe == "(i)" })
-  verifier("(t) temoins : N Runs 0,05 : atome a cheval, ecart -0,01439 au plus la masse 0,01755, classe (ii)",
-           { x <- sel("Runs", "a05"); x$p_holm < 0.05 && x$n_atomes == 1L && proche(x$ecart, 44 / n_378 - 0.03639, rel = 1e-9) &&
-               abs(x$ecart) <= x$masse_atomes && x$classe == "(ii)" && grepl("-1,2010", x$atome, fixed = TRUE) })
-  verifier("(t) temoins : aucune autre cellule ne change : les 24 autres (cle, seuil) sont sans signal ('tiret') ; 2 signaux au total",
+  sel <- function(s, ia, T = TM) T[T$s == s & T$ia == ia, ]
+  verifier("(t) temoins : HomogF k = 72 : binomial significatif apres Holm, p Holm beta-binomiale >= 0,05, sans atome, classe (i)",
+           { x <- sel("HomogF", "a05"); x$p_holm < 0.05 && x$p_holm_part >= 0.05 && x$m_r == 999 && x$n_atomes == 0L && x$classe == "(i)" })
+  m71 <- fabrique(c(HomogF = 71L, Runs = 44L), c(HomogF = 0.04996, Runs = 0.03639))
+  TM71 <- E378$temoins(m71$DS, m71$OR)
+  verifier("(t) temoins : N HomogF 0,05 (k = 71) : m_r = 999, p beta-binomiale 0,003441249, p Holm = 13 p = 0,04473624 < 0,05 : non expliquee",
+           { x <- sel("HomogF", "a05", TM71); x$p_holm < 0.05 && x$m_r == 999 && abs(x$p_part - 0.003441249) < 1e-8 &&
+               abs(x$p_holm_part - 13 * 0.003441249) < 1e-7 && x$n_atomes == 0L && x$classe == "non expliqu\u00e9" })
+  verifier("(t) temoins : N Runs 0,05 : m_r = 586, deux atomes a cheval, signal explique (p Holm beta-binomiale >= 0,05), classe (ii)",
+           { x <- sel("Runs", "a05"); x$p_holm < 0.05 && x$m_r == 586 && x$n_atomes == 2L && x$p_holm_part >= 0.05 && x$classe == "(ii)" &&
+               grepl("-1,2010", x$atome, fixed = TRUE) })
+  verifier("(t) temoins : aucune autre cellule ne change : les 24 autres (cle, seuil) sont sans signal (tiret) ; 2 signaux au total, expliques",
            sum(TM$classe == "\u2014") == 24L && sum(TM$classe %in% c("(i)", "(ii)")) == 2L && !any(TM$classe == "non expliqu\u00e9") &&
              nrow(E378$etat_k3(TM)$signaux) == 2L && nrow(E378$etat_k3(TM)$non_expliques) == 0L && nrow(E378$etat_k3(TM)$expliques) == 2L)
-  # Signaux que ni (i) ni (ii) n'expliquent.
+  # Signaux non expliques : tau_or loin de la region de rejet realisee.
   m2 <- fabrique(c(HomogF = 30L, Runs = 10L), c(HomogF = 0.04996, Runs = 0.03639))
   TM2 <- E378$temoins(m2$DS, m2$OR)
-  verifier("(t) temoins : HomogF k = 30 (variance partagee : toujours significatif) et Runs k = 10 (ecart 0,0314 > masse 0,01755) : non expliques",
+  verifier("(t) temoins : HomogF k = 30 et Runs k = 10 (loin de la region de rejet realisee) : non expliques",
            { e <- E378$etat_k3(TM2); nrow(e$non_expliques) >= 2L && all(c("HomogF", "Runs") %in% e$non_expliques$s[e$non_expliques$ia == "a05"]) &&
-               TM2$classe[TM2$s == "HomogF" & TM2$ia == "a05"] == "non expliqu\u00e9" && TM2$classe[TM2$s == "Runs" & TM2$ia == "a05"] == "non expliqu\u00e9" })
-  verifier("(t) classer_k3 : sans signal (tiret) ; (i) si p Holm partage >= 0,05 sans atome ; (ii) si ecart <= masse ; non explique sinon",
-           identical(E378$classer_k3(c(FALSE, TRUE, TRUE, TRUE, TRUE), c(0.01, 0.06, 0.04, 0.01, 0.01), c(0L, 0L, 0L, 1L, 1L),
-                                    c(0, 0, 0, 0.01755, 0.01755), c(0, 0, 0, -0.0144, -0.02)),
-                     c("\u2014", "(i)", "non expliqu\u00e9", "(ii)", "non expliqu\u00e9")))
+               sel("HomogF", "a05", TM2)$classe == "non expliqu\u00e9" && sel("Runs", "a05", TM2)$classe == "non expliqu\u00e9" })
+  # Ecart positif significatif : non explique (le test est bilateral sur la region realisee).
+  m3 <- fabrique(c(Runs = 110L), c(Runs = 0.03639))
+  TM3 <- E378$temoins(m3$DS, m3$OR)
+  verifier("(t) temoins : Runs k = 110 (tau_or 0,055 > taille 0,03639, ecart positif significatif) : non explique, meme avec atomes a cheval",
+           { x <- sel("Runs", "a05", TM3); x$p_holm < 0.05 && x$ecart > 0 && x$n_atomes == 2L && x$p_holm_part < 0.05 && x$classe == "non expliqu\u00e9" })
+  # Holm strictement sur 13 : une p absente (oracle constant, m_r absent) ne fait pas descendre le multiplicateur.
+  md <- fabrique(c(HomogF = 71L, Runs = 44L), c(HomogF = 0.04996, Runs = 0.03639), degenere = "ExpVar")
+  TMd <- E378$temoins(md$DS, md$OR)
+  verifier("(t) temoins : une cle a oracle constant (p beta-binomiale absente) : Holm reste sur 13, p Holm de HomogF = 13 p (et non 12 p)",
+           { x <- sel("HomogF", "a05", TMd); is.na(sel("ExpVar", "a05", TMd)$p_part) && abs(x$p_holm_part - 13 * x$p_part) < 1e-12 })
+  verifier("(t) classer_k3 : sans signal (tiret) ; signal expliqu\u00e9 (p Holm >= 0,05) : (i) sans atome, (ii) avec atome a cheval ; p Holm < 0,05 ou absente : non explique",
+           identical(E378$classer_k3(c(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE), c(0.01, 0.06, 0.04, 0.06, NA, 0.06), c(0L, 0L, 0L, 2L, 0L, 1L)),
+                     c("\u2014", "(i)", "non expliqu\u00e9", "(ii)", "non expliqu\u00e9", "(ii)")))
   t3 <- E378$tableau_t3(TM)
-  verifier("(t) tableau_t3 : colonne K3, ligne N Runs 0,05 en (ii), N HomogF 0,05 en (i), liste des atomes avec la valeur -1,2010 et sa masse",
-           any(grepl("^\\| N \\| 0,05 \\| Runs \\(deux\\) .*\\| \\(ii\\) \\|$", t3)) && any(grepl("^\\| N \\| 0,05 \\| HomogF \\(haut\\) .*\\| \\(i\\) \\|$", t3)) &&
-             any(grepl("atome basse -1,2010 (masse 0,01755", t3, fixed = TRUE)) && any(grepl("Atomes \u00e0 cheval sur le seuil", t3, fixed = TRUE)))
+  verifier("(t) tableau_t3 : colonnes m_r et K3, ligne N Runs 0,05 en (ii), N HomogF 0,05 en (i), liste descriptive des atomes avec valeur -1,2010, masse et credit lisse",
+           any(grepl("^\\| N \\| 0,05 \\| Runs \\(deux\\) .*\\| 586 \\| .*\\| \\(ii\\) \\|$", t3)) && any(grepl("^\\| N \\| 0,05 \\| HomogF \\(haut\\) .*\\| 999 \\| .*\\| \\(i\\) \\|$", t3)) &&
+             any(grepl("atome basse -1,2010 (masse 0,01755", t3, fixed = TRUE)) && any(grepl("cr\u00e9dit liss\u00e9 0,0071", t3, fixed = TRUE)) &&
+             any(grepl("Atomes \u00e0 cheval sur le seuil", t3, fixed = TRUE)))
   verifier("(t) etat_k3_k4 (Phi0) : signaux tous expliques : pas de defaut, K3 'signal explique par (i) ou (ii)' ; signaux non expliques : defaut",
            { a <- E378$etat_k3_k4(m$DS, TM); b <- E378$etat_k3_k4(m2$DS, TM2)
              !a$defaut && grepl("signal expliqu\u00e9 par (i) ou (ii)", a$txt, fixed = TRUE) &&
