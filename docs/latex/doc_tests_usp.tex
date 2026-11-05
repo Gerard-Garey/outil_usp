@@ -69,20 +69,57 @@
 % ------------------------------------------------------ titres de section ---
 % Le bandeau bleu pleine largeur avec le titre en vert marque le niveau
 % section, qui joue ici le role du chapitre de la note technique.
+% Mise en page : aucun point de coupure dans le bandeau. Les \nobreak suivent
+% le filet, la couleur du titre (noeud pose en mode vertical, qui ouvrirait
+% sinon un point de coupure devant le titre) et le titre ; ils n'occupent
+% aucune place.
 \newcommand{\titrebandeau}[1]{%
   \noindent{\color{financeblue}\rule{\linewidth}{2.5pt}}
-  \par\vspace{5mm}
-  {\color{greenline}\raggedright\fontsize{19}{23}\bfseries\selectfont #1\par}
+  \par\nobreak\vspace{5mm}
+  {\color{greenline}\nobreak\raggedright\fontsize{19}{23}\bfseries\selectfont #1\par}\nobreak
   \vspace{6mm}}
 
+\makeatletter
+% Bandeau de \section : titlesec compose sous le titre une ligne vide (etai)
+% precedee d'une crenure, point de coupure qui laisserait le bandeau seul en
+% bas de page ; \noindent ouvre cette ligne en mode horizontal, a hauteur
+% egale, et le bandeau reste lie au texte qui le suit.
+\newcommand{\usp@bandeausection}[1]{\titrebandeau{#1}\nobreak\noindent}
 \titleformat{\section}[display]
   {\normalfont}{}{0pt}
-  {\titrebandeau}
+  {\usp@bandeausection}
+\makeatother
 \titlespacing*{\section}{0pt}{0pt}{0pt}
 \titleformat{\subsection}
   {\color{financeblue}\normalfont\large\bfseries}{\thesubsection}{0.7em}{}
 \titleformat{\subsubsection}
   {\color{financeblue}\normalfont\normalsize\bfseries}{\thesubsubsection}{0.6em}{}
+
+% Mise en page : reserve avant un titre. Si la place restante en bas de page
+% est inferieure au titre, a trois lignes de texte et au haut d'un encadre, le
+% titre passe a la page suivante. Hauteurs mesurees, en interlignes de 14,69 pt :
+% bandeau de section 7,4 ; titre de sous-section 2,9 ; haut d'un encadre 0,9 ;
+% d'ou 12 lignes pour \section et 7 pour \subsection et \subsubsection. La
+% place restante est \pagegoal moins \pagetotal, apres une penalite infinie qui
+% met la page a jour sans ouvrir de point de coupure (le dernier ressort est
+% retire puis repose, pour que l'espace avant le titre reste le meme) ; le saut
+% n'est force que si la place manque. titlesec n'appelle \sectionbreak (et ses
+% analogues) que hors de la suite immediate d'un autre titre ; sans effet dans
+% une boite (\ifinner).
+\makeatletter
+\newcommand{\usp@reserve}[1]{\par\ifinner\else
+  \begingroup
+  \ifdim\lastskip=\z@ \penalty\@M
+  \else \skip@\lastskip \vskip-\skip@ \penalty\@M \vskip\skip@ \fi
+  \setlength{\dimen@}{#1}%
+  \dimen@ii\pagegoal \advance\dimen@ii-\pagetotal
+  \ifdim\pagegoal=\maxdimen\else\ifdim\dimen@>\dimen@ii
+    \vfil\penalty-\@M
+  \fi\fi\endgroup\fi}
+\newcommand{\sectionbreak}{\usp@reserve{12\baselineskip}\addpenalty{\@secpenalty}}
+\newcommand{\subsectionbreak}{\usp@reserve{7\baselineskip}\addpenalty{\@secpenalty}}
+\newcommand{\subsubsectionbreak}{\usp@reserve{7\baselineskip}\addpenalty{\@secpenalty}}
+\makeatother
 
 \renewcommand{\cftsecfont}{\bfseries\color{financeblue}}
 \renewcommand{\cftsecaftersnum}{\color{financeblue}}
@@ -93,7 +130,12 @@
 \setcounter{tocdepth}{2}
 
 \newcommand{\code}[1]{\texttt{\small #1}}
-\newcommand{\refl}[1]{{\small\textcolor{maincolor!70!black}{\textit{Référence.} #1}}\par\smallskip}
+% Mise en page : la Reference d'une fiche n'est jamais coupee (penalite entre
+% lignes infinie, posee dans un groupe qui laisse l'interligne inchange) ni
+% separee de la rubrique 1 (\nobreak).
+\makeatletter
+\newcommand{\refl}[1]{{\small\textcolor{maincolor!70!black}{\textit{Référence.} #1}}{\interlinepenalty\@M\par}\nobreak\smallskip}
+\makeatother
 
 % Encadre de citation reglementaire : filet vertical bleu en marge.
 \newcommand{\reglement}[2]{%
@@ -126,11 +168,26 @@
   \label{fiche:\theficheid-fin}% fin de fiche (mode vertical, sans effet sur la pagination), lue par le controle de plafond ; jamais cible d'un \ref
   \vspace{0.5em}%
 }
+% Mise en page des rubriques. Un titre de rubrique n'est jamais seul en bas de
+% page : il ouvre son premier paragraphe, dont les deux premieres coupures sont
+% interdites (\clubpenalties, valable pour tous les paragraphes de la fiche,
+% listes imbriquees comprises : aucun ne laisse moins de trois lignes en bas de
+% page), et une liste ne se separe pas de la ligne qui la precede
+% (\@beginparpenalty). Aucune coupure avant les rubriques 2 et 3, pour que le
+% titre de la fiche garde sous lui sa Reference et trois lignes au moins ; la
+% penalite reprend sa valeur normale apres l'\item, pour que les listes des
+% rubriques restent secables. Limite : un premier paragraphe de rubrique de
+% deux lignes, ou un titre de rubrique suivi d'une formule centree, peut finir
+% une page (deux lignes, jamais une seule).
+\makeatletter
 \newcommand{\Cadre}{%
   \begin{description}[leftmargin=0pt, style=unboxed, itemsep=3pt, topsep=3pt, parsep=2pt]%
+  \clubpenalties 3 10000 10000 0\relax \@beginparpenalty\@M
   \item[\textcolor{financeblue}{\textbf{1. Cadre, notations et hypothèses de validité (non testées).}}]}
-\newcommand{\Hzero}{\item[\textcolor{financeblue}{\textbf{2. Hypothèse nulle.}}]}
-\newcommand{\Stat}{\item[\textcolor{financeblue}{\textbf{3. Statistique de test.}}]}
+\newcommand{\usp@rubriqueliee}[1]{\@itempenalty\@M\item[#1]\@itempenalty-\@lowpenalty\relax}
+\newcommand{\Hzero}{\usp@rubriqueliee{\textcolor{financeblue}{\textbf{2. Hypothèse nulle.}}}}
+\newcommand{\Stat}{\usp@rubriqueliee{\textcolor{financeblue}{\textbf{3. Statistique de test.}}}}
+\makeatother
 \newcommand{\Loi}{\item[\textcolor{financeblue}{\textbf{4. Loi sous $H_0$.}}]}
 \newcommand{\Pval}{\item[\textcolor{financeblue}{\textbf{5. p-value.}}]}
 \newcommand{\Usage}{\item[\textcolor{financeblue}{\textbf{6. Usage et limites.}}]}
@@ -22121,12 +22178,12 @@ les fondements théoriques du bootstrap et des tests de Monte-Carlo.
 \label{sec:synthese}
 % =============================================================================
 
-\begin{center}
-\small
-\begin{tabular}{@{}p{2.1cm}p{13.2cm}@{}}
+{\small
+\begin{longtable}{@{}p{2.1cm}p{13.2cm}@{}}
 \toprule
 \textbf{Verdict} & \textbf{Signification} \\
 \midrule
+\endhead
 \code{OK} & p-value \emph{retenue} --- celle que désigne \code{nature\_p}, choisie dans l'ordre
 exacte $\succ$ Monte-Carlo $\succ$ p non simulée --- au-dessus du seuil d'alerte. Pour le TOST et le test de Pitman sur la pente (et, avant
 l'issue~\#169, pour le test de Fisher), la logique est inversée~: \code{OK} correspond à un $p$ \emph{faible} ($p < \alpha$),
@@ -22191,8 +22248,8 @@ concentration de la réserve (fiches~\ref{mw:m6sig} et~\ref{mw:m6conc})~: ils
 n'opposent aucune hypothèse nulle et n'ont pas de loi de référence, et le
 repère indicatif de 40~\% du second n'emporte aucun verdict (ADR~0001). \\
 \bottomrule
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avant les issues~\#276, \#301 et~\#300, qui ont changé trois des treize statistiques, et avant l'issue~\#312, qui a retiré son verdict à la ligne des suites)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité. Remesurée au commit \code{7ff4725} (issue~\#297, moteur postérieur aux issues~\#299, \#302 et~\#303, lois N et E), cette part vaut $62{,}45$ et $64{,}0~\%$ sur les lignes de Monte-Carlo à verdict, au nombre de douze, la ligne des suites étant un diagnostic~; sous les mêmes plans et ceux de la méthode lognormale, la p globale de lecture conjointe (fiche~\ref{fiche:p-globale}), diagnostic sans verdict, ne tombe sous $0{,}10$ que dans 7 à 11~\% des jeux ou triangles simulés. Les lignes de lecture conjointe sont restituées \code{INFO} comme tout diagnostic~; la vue Synthèse de l'application affiche leur p de famille comme valeur non retenue.
 
