@@ -11160,7 +11160,8 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
        p_min_col = p_mins)
 }
 
-# (f) Homogeneite des residus entre annees de survenance (hypothese (i)).
+# (f) Homogeneite des residus entre annees de survenance (hypotheses (i), (iii)-(iv)
+# sous la formalisation de l'outil ; issue #419).
 # Si les annees d'accident sont stochastiquement independantes et suivent le
 # meme modele, les residus de Mack ne doivent pas differer systematiquement
 # d'une ligne a l'autre. Test de Kruskal-Wallis (1952), non parametrique.
@@ -12299,7 +12300,13 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
         "(groupes de taille 1), quelle que soit la donnee ; ",
         "H ne mesure rien ici. ") else "",
-        "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)"))
+        # Texte arrete par actuary (#419, decision du mainteneur du
+        # 05/11/2026) : l'egalite des lois entre annees n'est pas
+        # l'independance de D(2)(h)(i).
+        paste("Homogeneite des residus entre annees de survenance sous la formalisation",
+              "de l'outil (f_j et sigma_j^2 communs) ; ne teste pas a elle seule",
+              "l'independance de D(2)(h)(i), reagit aussi a une annee atypique, a une",
+              "derive de f_j avec l'annee ou a une esperance non proportionnelle")))
   cor <- mw_stat_correlation_dev(aj, jd)
   pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))
