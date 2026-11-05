@@ -620,16 +620,17 @@ verifier("T293 : cache des combinaisons de M1 borne a n <= 20 ; reserve2 identiq
              t25 = identical(t25, direct(25L))))
          })
 
-# #405 (point 1 ; audit) : cache d'appel .MW_COMBN_CACHE_APPEL des tables de
-# n > MW_COMBN_N_MAX, ouvert par mw_bootstrap() et vide a sa sortie, erreur
-# comprise. Triangle synthetique 22 x 22 (colonne 1 a 21 lignes : n = 21 >
-# 20), B = 9. (a) Cache rempli pendant l'appel (releve a la fermeture,
-# .mw_combn_appel_fermer() enveloppee), vide et profondeur nulle apres ;
-# (b) resultat identical() avec et sans cache (.mw_combn_appel_ouvrir()
-# neutralisee : profondeur nulle, aucune table gardee) ; (c) erreur levee
-# apres l'ouverture, cache deja rempli : .mw_verifier_figes() substituee
-# (ADR 0016) remplit le cache (n = 21) puis leve une erreur ; cache vide et
-# profondeur nulle apres.
+# #405 (point 1) et #432 (point 3) : table d'appel des combinaisons de
+# n > MW_COMBN_N_MAX, creee par mw_bootstrap() et passee en argument jusqu'a
+# .mw_combinaisons() (plus aucun cache global d'appel). Triangle synthetique
+# 22 x 22 (colonnes a 22 et 21 lignes : n > 20), B = 9. .mw_combinaisons()
+# substituee (ADR 0016) pour relever, a chaque appel de n > 20, la table recue
+# et si la table de n y etait deja. (a) Une seule table par appel de
+# mw_bootstrap(), la meme pour l'observe et toutes les replications, distincte
+# d'un appel a l'autre ; chaque n > 20 calcule une fois par appel, relu
+# ensuite ; (b) resultat identical() avec et sans table (combn ignore) ;
+# (c) aucune table hors de mw_bootstrap() : contexte observe sans element
+# combn, aucun objet .MW_COMBN_CACHE_APPEL dans le moteur.
 tri405 <- local({
   n <- 22L; t <- matrix(NA_real_, n, n)
   f <- 1 + 0.6 * exp(-(1:(n - 1)) / 3)
@@ -639,37 +640,45 @@ tri405 <- local({
   }
   t
 })
-verifier("T405 : cache d'appel des combinaisons (n > 20) rempli pendant mw_bootstrap(), vide apres, erreur comprise ; resultat identical() avec et sans cache (triangle 22 x 22, B = 9)",
+verifier("T405 : table d'appel des combinaisons (n > 20) passee en argument dans mw_bootstrap(), une par appel, chaque n calcule une fois ; resultat identical() avec et sans table ; aucun etat global (triangle 22 x 22, B = 9 ; #405, #432)",
          {
            e <- environment(run_engine)
            aj <- mw_ajuster(tri405)
-           vide_apres <- function() !length(ls(.MW_COMBN_CACHE_APPEL)) &&
-             identical(.MW_COMBN_CACHE_APPEL$.profondeur, 0L)
-           fermer <- get(".mw_combn_appel_fermer", envir = e); vu <- NULL
-           assign(".mw_combn_appel_fermer", function() { vu <<- ls(.MW_COMBN_CACHE_APPEL); fermer() },
-                  envir = e)
-           b_avec <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
-                              finally = assign(".mw_combn_appel_fermer", fermer, envir = e))
-           vide_ok <- vide_apres()
-           ouvrir <- get(".mw_combn_appel_ouvrir", envir = e)
-           assign(".mw_combn_appel_ouvrir", function() invisible(NULL), envir = e)
+           orig <- get(".mw_combinaisons", envir = e)
+           tables <- list(); deja <- list()
+           espion <- function(n, combn = NULL) {
+             if (n > MW_COMBN_N_MAX) {
+               tables[[length(tables) + 1L]] <<- combn
+               deja[[length(deja) + 1L]] <<- c(n = n, deja = !is.null(combn) &&
+                                                 exists(as.character(n), envir = combn, inherits = FALSE))
+             }
+             orig(n, combn)
+           }
+           assign(".mw_combinaisons", espion, envir = e)
+           b1 <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
+                          finally = assign(".mw_combinaisons", orig, envir = e))
+           t1 <- tables; d1 <- do.call(rbind, deja); tables <- list(); deja <- list()
+           assign(".mw_combinaisons", espion, envir = e)
+           b2 <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
+                          finally = assign(".mw_combinaisons", orig, envir = e))
+           t2 <- tables
+           assign(".mw_combinaisons", function(n, combn = NULL) orig(n, NULL), envir = e)
            b_sans <- tryCatch(mw_bootstrap(aj, B = 9, seed = 1),
-                              finally = assign(".mw_combn_appel_ouvrir", ouvrir, envir = e))
-           figes <- get(".mw_verifier_figes", envir = e); vu_err <- NULL
-           assign(".mw_verifier_figes", function(...) {
-             .mw_combinaisons(21L); vu_err <<- ls(.MW_COMBN_CACHE_APPEL)
-             stop("erreur injectee (#405)")
-           }, envir = e)
-           err <- tryCatch(leve_erreur(mw_bootstrap(aj, B = 9, seed = 1)),
-                           finally = assign(".mw_verifier_figes", figes, envir = e))
+                              finally = assign(".mw_combinaisons", orig, envir = e))
+           une_table <- function(tt) length(tt) > 0L && is.environment(tt[[1L]]) &&
+             all(vapply(tt, identical, logical(1), tt[[1L]]))
+           ns <- sort(unique(d1[, "n"]))
            ok_liste(list(
-             rempli_pendant = identical(vu, "21"), vide_apres = vide_ok,
-             identique = identical(b_avec, b_sans),
-             erreur = err, rempli_avant_erreur = identical(vu_err, "21"),
-             vide_apres_erreur = vide_apres(),
-             restaures = identical(get(".mw_verifier_figes", envir = e), figes) &&
-               identical(get(".mw_combn_appel_ouvrir", envir = e), ouvrir) &&
-               identical(get(".mw_combn_appel_fermer", envir = e), fermer)))
+             n_sup_20 = length(ns) > 0L && all(ns > MW_COMBN_N_MAX),
+             une_table_appel1 = une_table(t1), une_table_appel2 = une_table(t2),
+             tables_distinctes = !identical(t1[[1L]], t2[[1L]]),
+             cles = identical(sort(as.integer(ls(t1[[1L]]))), as.integer(ns)),
+             calcul_unique = identical(as.integer(sum(!d1[, "deja"])), length(ns)),
+             identique_b = identical(b1, b2),
+             identique_sans_table = identical(b1, b_sans),
+             contexte_sans_table = !"combn" %in% names(.mw_contexte_mc(aj)),
+             aucun_global = !exists(".MW_COMBN_CACHE_APPEL", envir = e, inherits = FALSE),
+             restauree = identical(get(".mw_combinaisons", envir = e), orig)))
          })
 
 fin_fichier()

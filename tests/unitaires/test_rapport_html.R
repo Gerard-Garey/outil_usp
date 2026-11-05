@@ -701,10 +701,10 @@ verifier("note_influence(), annees non evaluables 2, 5 et 7 (injection) : 'Annee
 # ecart_sigma entierement non fini alors que sigma_usp_sans_t est fini et que
 # des annees restent evaluables (sigma_USP nul, par exemple) : le graphique est
 # vide (jamais « need finite ylim ») avec le message aligne sur le moteur
-# (ecart relatif non defini, #405), et non « Aucune annee evaluable » ; la
+# (ecart relatif non fini, #405), et non « Aucune annee evaluable » ; la
 # note rend cette phrase, une chaine, suivie de la phrase de l'annee 5 non
 # evaluable.
-MSG_405 <- "sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"
+MSG_405 <- "sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree"
 verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : graphique vide au message de sigma_USP nul, note a phrase alignee sur le moteur en une chaine (#328, #405)",
          {
            pdn <- pd328; pdn$influence$ecart_sigma[] <- NA_real_; pdn$influence$fort_ecart_sigma[] <- NA
@@ -713,7 +713,7 @@ verifier("ecart_sigma tout NA avec sigma_usp_sans_t fini, annees evaluables : gr
            nn <- tryCatch(note_influence(pdn), error = function(e) e)
            all(is.finite(pdn$influence$sigma_usp_sans_t[-5])) && vn$ok && identical(vn$msg, MSG_405) &&
              is.character(nn) && length(nn) == 1L && !grepl("NA", nn, fixed = TRUE) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
                    nn, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", nn, fixed = TRUE) &&
              grepl("Ann&eacute;e 5 non &eacute;valuable", nn, fixed = TRUE)
@@ -742,9 +742,9 @@ verifier("sigma_USP nul (chemin reel) : note et graphique alignes sur la ligne j
            n <- note_influence(pd)
            tb <- engine_table_tests(r)
            isTRUE(r$ok) && !any(pd$influence$non_evaluable) && all(is.infinite(pd$influence$ecart_sigma)) &&
-             any(grepl("sigma_USP nul ou non fini", tb$commentaire, fixed = TRUE)) &&
+             any(grepl("sigma_USP nul, non fini ou trop petit", tb$commentaire, fixed = TRUE)) &&
              v$ok && identical(v$msg, MSG_405) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
                    n, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE) &&
              !grepl("valuable", n, fixed = TRUE)
@@ -758,7 +758,7 @@ verifier("sigma_USP nul et annee 3 non evaluable (chemin reel) : la note cite si
            n <- note_influence(pd)
            isTRUE(r$ok) && identical(which(pd$influence$non_evaluable), 3L) &&
              v$ok && identical(v$msg, MSG_405) &&
-             grepl("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
+             grepl("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e. Ann&eacute;e 3 non &eacute;valuable",
                    n, fixed = TRUE) &&
              !grepl("Aucune ann&eacute;e &eacute;valuable", n, fixed = TRUE)
          })
@@ -1219,7 +1219,9 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     cote <- if (identical(a$x, 0) && identical(a$xanchor, "left") && a$xshift > 0) "gauche"
             else if (identical(a$x, 1) && identical(a$xanchor, "right") && a$xshift < 0) "droite"
             else "?"
-    q <- Filter(function(x) identical(x$text, LIB90$quantile_court[if (cote == "droite") 2 else 1]), an)
+    # Annotations des quantiles sur deux lignes (<br>, #392) : relues avec une espace.
+    q <- Filter(function(x) identical(gsub("<br>", " ", x$text, fixed = TRUE),
+                                      LIB90$quantile_court[if (cote == "droite") 2 else 1]), an)
     ok <- identical(a$xref, "x") && identical(a$bgcolor, COUL$fond) &&
       identical(a$font$color, COUL$ref_texte) && length(q) == 1L &&
       !identical(q[[1]]$yanchor, a$yanchor)
@@ -1305,8 +1307,12 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              attendu <- ann195(pd)$ann
              n <- length(attendu)
              length(an) == n + 1L &&
+               # Textes des quantiles sur deux lignes (<br> a la place de l'espace
+               # avant « sous », #392) ; tous les autres champs a l'identique.
                all(vapply(seq_len(n), function(i) all(vapply(names(attendu[[i]]), function(nm)
-                 isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])), TRUE)), TRUE)) &&
+                 isTRUE(all.equal(an[[i]][[nm]], attendu[[i]][[nm]])) ||
+                   (nm == "text" && identical(an[[i]]$text, sub(" sous ", "<br>sous ", attendu[[i]]$text, fixed = TRUE))),
+                 TRUE)), TRUE)) &&
                identical(gsub("<br>", " ", an[[n + 1L]]$text, fixed = TRUE), LIB90$asympt_court)
            }, TRUE)))
 } else {
@@ -1976,11 +1982,11 @@ verifier("#404 : plot_mw_origine() lit bas, haut, exclut_zero et niveau ; plot_c
            all(vapply(c("d$bas", "d$haut", "d$exclut_zero", "d$niveau"), grepl, logical(1),
                       x = so, fixed = TRUE)) && grepl("S$objectif_coupe", sc, fixed = TRUE)
          })
-verifier("#404 : note_m1() (reserve2, B = 99) sans 'significative', niveau 90 % lu, plus petite p en j = 1, multiplicite et renvoi a la ligne M1 ; lettre et lecture de l'outil distinguees",
+verifier("#404, #432 (O2) : note_m1() (reserve2, B = 99) sans 'significative', niveau 90 % lu, parenthese du modele auxiliaire gaussien, plus petite p en j = 1, multiplicite et renvoi a la ligne M1 ; lettre et lecture de l'outil distinguees",
          {
            n <- note_m1(res_mw$plots_data)
            is.character(n) && length(n) == 1L && !grepl("significati", n, fixed = TRUE) &&
-             grepl("l'intervalle de Student de a_j, de niveau nominal 90 % (exact sous erreurs gaussiennes seulement)", n, fixed = TRUE) &&
+             grepl("l'intervalle de Student de a_j, de niveau nominal 90 % (exact sous le seul mod&egrave;le auxiliaire &agrave; erreurs gaussiennes ; couverture non &eacute;tablie &agrave; T = 8 sous le mod&egrave;le r&eacute;glementaire).", n, fixed = TRUE) &&
              grepl("marqu&eacute;es en rouge : simple rep&egrave;re de lecture, par colonne, sans verdict", n, fixed = TRUE) &&
              grepl("peut signaler une composante fixe", n, fixed = TRUE) &&
              grepl("<b>j = 1</b> (p = 0,0300)", n, fixed = TRUE) &&

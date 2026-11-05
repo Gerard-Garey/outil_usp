@@ -3963,6 +3963,16 @@ local({
              is.logical(d$plus_petite_p) && sum(d$plus_petite_p) == 1L &&
                d$p[d$plus_petite_p] == min(d$p))
   }
+  # #432 (point 1) : alpha obligatoire dans mw_plots_data() ; au point
+  # d'entree, le niveau suit l'alpha de run_engine().
+  verifier("#432 : run_engine(reserve2, alpha = 0,05) -> plots_data$origine$niveau = 0,95 sur chaque colonne (0,90 au defaut) ; mw_plots_data() sans alpha -> erreur",
+           {
+             aj <- mw_ajuster(tri_ref)
+             identical(r05$metadata$alpha, 0.05) &&
+               identical(r05$plots_data$origine$niveau, rep(0.95, nrow(r05$plots_data$origine))) &&
+               identical(r10$plots_data$origine$niveau, rep(0.90, nrow(r10$plots_data$origine))) &&
+               leve_erreur(mw_plots_data(aj, r10$residus, r10$bootstrap, r10$msep))
+           })
   verifier("#404 : colonnes de mw_test_ordonnee_origine() inchangees dans origine (memes valeurs au bit pres)",
            identical(as.list(r10$plots_data$origine[, 1:8]),
                      as.list(mw_test_ordonnee_origine(mw_ajuster(tri_ref))$detail)))
