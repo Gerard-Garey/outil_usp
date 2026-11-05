@@ -2,21 +2,23 @@
 #  tests/controle_doc_nd.R  --  CONTROLES DE CI SUR LA DOCUMENTATION LATEX
 #  (branche ND, lot L0, issue #451)
 #
-#  Deux controles sur docs/latex/doc_tests_usp.tex, en AVERTISSEMENT par
-#  defaut (code de sortie 0, decompte publie) ; l'option --bloquant les rend
-#  bloquants (lot L7).
+#  Quatre controles sur docs/latex/doc_tests_usp.tex, en AVERTISSEMENT par
+#  defaut (code de sortie 0, decompte publie) ; l'option --bloquant rend
+#  bloquants (lot L7) les controles (a), (b) et les violations de (c). Le
+#  controle (d) ne l'est jamais.
 #
 #  (a) Motifs de "vie du depot". Le document decrit l'outil, pas le depot :
-#      la liste A (13 motifs PCRE, A1 a A13) est interdite ; la liste B
+#      la liste A (14 motifs PCRE, A1 a A14) est interdite ; la liste B
 #      (motifs a surveiller) est toujours comptee, jamais bloquante. Les
 #      motifs s'appliquent a toutes les lignes du .tex, commentaires %
 #      compris. Les exceptions nommees (liste EXCEPTIONS_MOTIFS : id, motifs
 #      exemptes, zone, parties, raison) sont appliquees ; une exception qui
 #      n'exempte plus rien est signalee PERIMEE.
 #        E3 : docs/suivi-documentation/ admis en partie IV seulement ;
-#        E7 : la chaine du moteur "Restituee en diagnostic par decision
-#             (issue \#299)", transitoire (drapeau E7_TRANSITOIRE, a lever
-#             au lot L1 apres retrait de la chaine du moteur).
+#        E7 : les chaines du moteur (R/engine.R) qui portent "issue #N", N dans
+#             E7_ISSUES, citees mot pour mot (zones lues dans le moteur, fenetre
+#             de trois lignes), transitoire (drapeau E7_TRANSITOIRE, a lever au
+#             lot L1 apres retrait des chaines du moteur).
 #      Les exceptions E1, E2, E4, E5, E6, E8 et E9 de la grille sont
 #      satisfaites par construction des motifs (rien a exempter) ; elles sont
 #      couvertes par les cas negatifs de tests/unitaires/test_controle_doc_nd.R.
@@ -37,18 +39,43 @@
 #      retombe sur les caracteres seuls ("a verifier (sans pages)"), en
 #      avertissement : jamais une violation.
 #
+#  (c) Debordements, lus dans le journal LaTeX docs/latex/doc_tests_usp.log :
+#      Overfull \hbox = violation ; Overfull \vbox = avertissement jusqu'a
+#      1,5 pt, violation au-dela. Modele : outils/controles/journal.R du depot
+#      docu_actu.
+#
+#  (d) Remplissage des pages, par une passe de mesure a part, jamais bloquante.
+#      Modele : outils/controles/remplissage.R du depot docu_actu, avec
+#      tests/marques_remplissage.tex (marques adaptees a mdframed). La passe
+#      recompose le document (une passe de pdfLaTeX, dans un dossier temporaire,
+#      avec les fichiers auxiliaires de la compilation normale) en chargeant les
+#      marques avant le document : le depot n'est pas touche. Garde-fou : le
+#      texte du PDF de la passe doit etre identique a celui du PDF compile,
+#      sinon rien n'est controle. Mesures : blanc de plus de 30 % de la hauteur
+#      utile en bas de page hors saut voulu ; encadre court coupe ou morceau de
+#      moins de 3 lignes ; titre (bandeau de section compris) suivi de moins de
+#      3 lignes, ou fiche dont le titre est separe de la rubrique 1 ; rubrique
+#      commencee par une seule ligne en bas de page. Pages en paysage non
+#      mesurees. Limites : voir les commentaires de nd_analyser_remplissage().
+#
 #  Usage (depuis la racine du depot) :
-#      Rscript tests/controle_doc_nd.R                  # deux controles, code 0
-#      Rscript tests/controle_doc_nd.R --bloquant       # code 1 si violation A ou (b)
+#      Rscript tests/controle_doc_nd.R                  # (a), (b) et (c), code 0
+#      Rscript tests/controle_doc_nd.R --bloquant       # code 1 si violation de (a), (b) ou (c)
 #      Rscript tests/controle_doc_nd.R --motifs-seuls   # controle (a) seul
 #      Rscript tests/controle_doc_nd.R --pages-seules   # controle (b) seul
-#      Rscript tests/controle_doc_nd.R --max-lignes=N   # lignes en cause par motif (defaut 5)
-#      --tex=CHEMIN, --aux=CHEMIN                       # autres fichiers (tests)
-#  Code 2 pour un argument inconnu ou un fichier introuvable.
+#      Rscript tests/controle_doc_nd.R --debordements   # controle (c) seul
+#      Rscript tests/controle_doc_nd.R --remplissage    # controle (d) seul (pdflatex requis)
+#      --max-lignes=N                                   # lignes en cause par motif (defaut 5)
+#      --tex=CHEMIN, --aux=CHEMIN, --log=CHEMIN, --pdf=CHEMIN, --moteur=CHEMIN   # autres fichiers (tests)
+#      --remp=CHEMIN --pdf-mesure=CHEMIN                # (d) sur les fichiers d'une passe deja
+#                                                       # faite (CI : tests/doc_remplissage.tex)
+#  Code 2 pour un argument inconnu, plusieurs options de controle a la fois, ou
+#  un fichier introuvable.
 #
-#  R base uniquement. Les motifs sont ecrits en sequences \u (independants de
-#  la locale du script) ; sous LC_ALL=C.UTF-8 les lignes en cause s'impriment
-#  lisiblement. Sous POSIX, elles s'impriment avec des <U+xxxx>.
+#  R base uniquement (pdflatex, pdftotext et pdfinfo pour le controle (d)). Les
+#  motifs sont ecrits en sequences \u (independants de la locale du script) ;
+#  sous LC_ALL=C.UTF-8 les lignes en cause s'impriment lisiblement. Sous POSIX,
+#  elles s'impriment avec des <U+xxxx>.
 ###############################################################################
 
 FICHIER_TEX_DEFAUT <- "docs/latex/doc_tests_usp.tex"
@@ -63,11 +90,14 @@ SEUIL_CARACTERES_PLAFOND <- 10500L   # source (caracteres) au-dela de laquelle c
 EXCEPTIONS_PLAFOND <- list()
 
 # --- Drapeau transitoire de l'exception E7 -------------------------------------
-# TRUE tant que le .tex cite mot pour mot la chaine du moteur ; a lever (FALSE)
-# par le commit du lot L1 qui retire la chaine du moteur. Numeros d'issue des
-# chaines admises (la grille valide #299 seul).
+# TRUE tant que le .tex cite mot pour mot des chaines du moteur qui portent un
+# numero d'issue ; a lever (FALSE) par le commit du lot L1 qui les retire du
+# moteur. E7_ISSUES : numeros d'issue des 17 chaines du moteur que traite L1
+# (decision du mainteneur du 06/11/2026) ; les zones exemptees sont lues dans
+# R/engine.R (nd_zones_moteur()), de sorte que l'exception se resorbe d'elle-meme
+# quand L1 retire les chaines.
 E7_TRANSITOIRE <- TRUE
-E7_ISSUES      <- 299L
+E7_ISSUES      <- c(29L, 55L, 114L, 297L, 299L, 302L, 304L, 312L)
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
 .mois <- paste0("(?:janvier|f\u00e9vrier|mars|avril|mai|juin|juillet|ao\u00fbt|",
@@ -117,7 +147,10 @@ MOTIFS_A <- list(
        regex = c("\\b(?:sp\u00e9cification|avis|r\u00e9serve|visa|validation)\\s+d'\\\\code\\{",
                  "\\bvis\u00e9e?s? par\\b",
                  "\\bd\u00e9cisions? du\\b",
-                 "\\bvalidation de l'issue"))
+                 "\\bvalidation de l'issue")),
+  list(id = "A14", desc = "identifiant d'execution de CI (execution NNNNNNNNNN)",
+       regex = c("\\bex\u00e9cutions?[~\\s]+(?:n\u00b0[~\\s]*)?[0-9]{8,}\\b",
+                 "\\bruns?[~\\s]+[0-9]{8,}\\b", "actions/runs/[0-9]+"))
 )
 
 # --- Liste B : motifs a surveiller (avertissement permanent, jamais bloquants) --
@@ -137,23 +170,45 @@ MOTIFS_B <- list(
 )
 
 # --- Exceptions nommees de la liste A --------------------------------------------
-# Une exception = id, motifs exemptes, zone (regex PCRE d'une zone de la ligne
-# dans laquelle une occurrence est exemptee), parties (NULL : toutes), raison,
-# actif. Une occurrence est exemptee si son motif est dans `motifs`, si sa
-# partie est admise et si elle est contenue dans une occurrence de `zone` sur la
-# meme ligne. Une zone coupee par un retour a la ligne n'est pas reconnue
-# (controle ligne a ligne).
-exceptions_motifs_defaut <- function(e7_actif = E7_TRANSITOIRE, e7_issues = E7_ISSUES) {
+# Une exception = id, motifs exemptes, zone (regex PCRE, une ou plusieurs, de la
+# zone dans laquelle une occurrence est exemptee), fenetre (nombre de lignes
+# regardees, la ligne de l'occurrence et les precedentes : une zone coupee par un
+# retour a la ligne est reconnue), parties (NULL : toutes), raison, actif. Une
+# occurrence est exemptee si son motif est dans `motifs`, si sa partie est admise
+# et si elle est contenue dans une zone.
+#
+# E7 : zones = fragments des chaines du moteur qui portent "issue #N" (N dans
+# E7_ISSUES), lus dans R/engine.R : jusqu'a quatre mots avant "issue", puis
+# "issue \#N" ; les espaces tolerent "~" et le retour a la ligne.
+nd_zones_moteur <- function(moteur, issues = E7_ISSUES) {
+  if (is.null(moteur) || !file.exists(moteur)) return(character(0))
+  l <- readLines(moteur, warn = FALSE, encoding = "UTF-8")
+  l <- l[!grepl("^\\s*#", l)]
+  rx <- sprintf("issue #(?:%s)\\b", paste(issues, collapse = "|"))
+  zones <- character(0)
+  for (ligne in l[grepl(rx, l, perl = TRUE)]) {
+    g <- gregexpr(rx, ligne, perl = TRUE)[[1L]]
+    lg <- attr(g, "match.length")
+    for (j in seq_along(g)) {
+      avant <- substr(ligne, 1L, g[j] - 1L)
+      avant <- sub("^.*[^\\\\]\"", "", avant)   # dans la chaine litterale : apres le dernier guillemet non echappe
+      jetons <- strsplit(trimws(paste0(avant, "issue")), "[[:space:]]+")[[1L]]
+      jetons <- c(tail(jetons[nzchar(jetons)], 5L), paste0("\\#", sub("^issue #", "", substr(ligne, g[j], g[j] + lg[j] - 1L))))
+      zones <- c(zones, paste(gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", jetons), collapse = "[~\\s]+"))
+    }
+  }
+  unique(zones)
+}
+
+exceptions_motifs_defaut <- function(e7_actif = E7_TRANSITOIRE, e7_issues = E7_ISSUES, moteur = NULL) {
   list(
-    list(id = "E3", motifs = "A4", zone = "docs/suivi-documentation/",
+    list(id = "E3", motifs = "A4", zone = "docs/suivi-documentation/", fenetre = 1L,
          parties = "Partie IV", actif = TRUE,
          raison = "dossier de suivi cite comme piece de tracabilite, en partie IV seulement"),
-    list(id = "E7", motifs = "A1",
-         zone = paste0("Restituee en diagnostic par decision \\(issue \\\\#(?:",
-                       paste(e7_issues, collapse = "|"), ")\\)"),
+    list(id = "E7", motifs = "A1", zone = nd_zones_moteur(moteur, e7_issues), fenetre = 3L,
          parties = NULL, actif = isTRUE(e7_actif),
-         raison = paste("TRANSITOIRE (a lever au lot L1) : chaine du moteur citee mot pour mot,",
-                        "retiree du moteur par L1"))
+         raison = paste("TRANSITOIRE (a lever au lot L1) : chaines du moteur citees mot pour mot",
+                        "(R/engine.R), retirees du moteur par L1"))
   )
 }
 EXCEPTIONS_MOTIFS <- exceptions_motifs_defaut()
@@ -240,11 +295,20 @@ nd_appliquer_exceptions <- function(occ, lignes, exceptions) {
     if (isTRUE(e$actif)) {
       cand <- which(is.na(occ$exception) & occ$motif %in% e$motifs &
                     (is.null(e$parties) | occ$partie %in% e$parties))
+      fen <- if (is.null(e$fenetre)) 1L else e$fenetre
       for (k in cand) {
-        z <- gregexpr(e$zone, lignes[occ$ligne[k]], perl = TRUE)[[1L]]
-        if (z[1L] > 0L) {
-          zd <- as.integer(z); zf <- zd + attr(z, "match.length") - 1L
-          if (any(zd <= occ$debut[k] & zf >= occ$fin[k])) { occ$exception[k] <- e$id; n <- n + 1L }
+        i <- occ$ligne[k]
+        debut_fen <- max(1L, i - fen + 1L)
+        texte <- paste(lignes[debut_fen:i], collapse = " ")
+        decalage <- nchar(texte) - nchar(lignes[i])
+        for (zone in e$zone) {
+          z <- gregexpr(zone, texte, perl = TRUE)[[1L]]
+          if (z[1L] > 0L) {
+            zd <- as.integer(z); zf <- zd + attr(z, "match.length") - 1L
+            if (any(zd <= occ$debut[k] + decalage & zf >= occ$fin[k] + decalage)) {
+              occ$exception[k] <- e$id; n <- n + 1L; break
+            }
+          }
         }
       }
     }
@@ -436,18 +500,373 @@ nd_imprimer_pages <- function(r) {
   invisible(nv)
 }
 
+# --- (c) Debordements (journal LaTeX) -------------------------------------------------------
+# Lecture du journal de la derniere passe (docs/latex/doc_tests_usp.log) :
+#   Overfull \hbox : violation (bloquante au lot L7) ;
+#   Overfull \vbox : avertissement jusqu'a OVERFULL_VBOX_TOLERE pt, violation au-dela.
+# Modele : outils/controles/journal.R du depot docu_actu.
+OVERFULL_VBOX_TOLERE <- 1.5
+
+nd_verdict_debordement <- function(type, taille, tolere = OVERFULL_VBOX_TOLERE) {
+  if (identical(type, "vbox") && !is.na(taille) && taille <= tolere) "avertissement" else "violation"
+}
+
+# Debordements d'un journal : data.frame (type, taille, ligne_journal, lieu,
+# ligne_tex, verdict), ou NULL si le fichier n'existe pas. `lieu` est la fin de
+# la ligne du journal ; ligne_tex, la premiere ligne source citee ("lines A--B"),
+# NA si le journal n'en cite pas.
+nd_lire_journal <- function(chemin) {
+  if (is.null(chemin) || !file.exists(chemin)) return(NULL)
+  x <- readLines(chemin, warn = FALSE)
+  x <- iconv(x, "UTF-8", "UTF-8", sub = "?")
+  x[is.na(x)] <- ""
+  k <- grep("^Overfull \\\\[hv]box \\([0-9.]+pt too (wide|high)\\)", x)
+  if (!length(k)) return(data.frame(type = character(0), taille = numeric(0), ligne_journal = integer(0),
+                                    lieu = character(0), ligne_tex = integer(0), verdict = character(0),
+                                    stringsAsFactors = FALSE))
+  m <- regmatches(x[k], regexec("^Overfull \\\\([hv])box \\(([0-9.]+)pt too (?:wide|high)\\)(.*)$", x[k], perl = TRUE))
+  type <- paste0(vapply(m, `[`, "", 2L), "box")
+  taille <- as.numeric(vapply(m, `[`, "", 3L))
+  lieu <- trimws(vapply(m, `[`, "", 4L))
+  lt <- regmatches(lieu, regexec("lines? ([0-9]+)", lieu))
+  ligne_tex <- vapply(lt, function(v) if (length(v) == 2L) as.integer(v[2L]) else NA_integer_, integer(1))
+  data.frame(type = type, taille = taille, ligne_journal = k, lieu = lieu, ligne_tex = ligne_tex,
+             verdict = vapply(seq_along(k), function(i) nd_verdict_debordement(type[i], taille[i]), character(1)),
+             stringsAsFactors = FALSE)
+}
+
+nd_controle_debordements <- function(journal) {
+  if (is.null(journal)) return(list(deb = NULL, avis = "aucun journal LaTeX (.log) : debordements non lus (avertissement)."))
+  list(deb = journal, avis = character(0))
+}
+
+nd_imprimer_debordements <- function(r) {
+  op <- options(width = 200); on.exit(options(op), add = TRUE)
+  cat("\n== (c) Debordements (journal LaTeX) ==\n")
+  for (a in r$avis) cat("AVERTISSEMENT :", a, "\n")
+  d <- r$deb
+  if (is.null(d)) return(invisible(0L))
+  cat(sprintf("Regle : Overfull \\hbox = violation ; Overfull \\vbox = avertissement jusqu'a %s pt, violation au-dela.\n",
+              OVERFULL_VBOX_TOLERE))
+  if (nrow(d)) {
+    t <- data.frame(type = d$type, taille_pt = round(d$taille, 2), ligne_tex = d$ligne_tex,
+                    ligne_journal = d$ligne_journal, verdict = d$verdict, stringsAsFactors = FALSE)
+    print(t, row.names = FALSE)
+  }
+  nh <- sum(d$type == "hbox"); nv <- sum(d$type == "vbox")
+  cat(sprintf("TOTAL (c) : %d \\hbox%s, %d \\vbox%s ; %d violation(s), %d avertissement(s).\n",
+              nh, if (nh) sprintf(" (de %.2f a %.2f pt)", min(d$taille[d$type == "hbox"]), max(d$taille[d$type == "hbox"])) else "",
+              nv, if (nv) sprintf(" (de %.2f a %.2f pt)", min(d$taille[d$type == "vbox"]), max(d$taille[d$type == "vbox"])) else "",
+              sum(d$verdict == "violation"), sum(d$verdict == "avertissement")))
+  invisible(sum(d$verdict == "violation"))
+}
+
+# --- (d) Remplissage des pages ----------------------------------------------------------------
+# Passe de mesure a part (marques_remplissage.tex), jamais bloquante. Mesure :
+#   (1) blanc de plus de SEUIL_BLANC_REMPLISSAGE de la hauteur utile en bas de
+#       page, hors saut voulu (\newpage, \clearpage, fin du document) ;
+#   (2) encadre court coupe (hauteur totale sous SEUIL_ENCADRE_COURT de la hauteur
+#       utile), ou dont un morceau compte moins de MORCEAU_MIN_LIGNES lignes ;
+#   (3) titre (\section, \subsection, \subsubsection) suivi de moins de
+#       TITRE_LIGNES lignes de texte sur sa page ;
+#   (4) rubrique de fiche (1. a 7.) dont l'intitule est suivi, sur sa page, de
+#       moins de RUBRIQUE_LIGNES lignes (intitule compris).
+# Garde-fou : le texte du PDF de la passe de mesure doit etre identique a celui
+# de la compilation normale, sinon rien n'est controle.
+SEUIL_BLANC_REMPLISSAGE <- 0.30
+SEUIL_ENCADRE_COURT     <- 0.50
+MORCEAU_MIN_LIGNES      <- 3L
+TITRE_LIGNES            <- 3L
+RUBRIQUE_LIGNES         <- 2L
+BP <- 72 / 72.27          # point TeX -> point PDF
+SP <- 65536               # sp par point TeX
+
+# Premiers mots de l'intitule de chaque rubrique de fiche (macros \Cadre ... \Pertinence).
+RUBRIQUES_FICHE <- c("1" = "Cadre,", "2" = "Hypoth\u00e8se", "3" = "Statistique", "4" = "Loi",
+                     "5" = "p-value.", "6" = "Usage", "7" = "Pertinence")
+
+nd_dim_bp <- function(s) as.numeric(sub("pt$", "", s)) * BP
+
+# Marques du fichier .remp : list(pages, encadres, titres, geometrie).
+nd_lire_marques <- function(chemin) {
+  x <- readLines(chemin, warn = FALSE, encoding = "UTF-8")
+  champs <- function(lettre) strsplit(x[startsWith(x, paste0(lettre, " "))], " ", fixed = TRUE)
+  col <- function(l, i) vapply(l, `[`, "", i)
+  p <- champs("P")
+  pages <- data.frame(page = as.integer(col(p, 2L)), volontaire = col(p, 4L) == "1", stringsAsFactors = FALSE)
+  pos <- function(l) data.frame(id = as.integer(col(l, 2L)), page = as.integer(col(l, 3L)),
+                                y = as.numeric(col(l, 4L)) / SP * BP, stringsAsFactors = FALSE)
+  encadres <- list(debut = pos(champs("B")), fin = pos(champs("F")),
+                   inmesurables = as.integer(col(champs("X"), 2L)))
+  t <- champs("T")
+  titres <- data.frame(niveau = col(t, 2L), page = as.integer(col(t, 3L)),
+                       y = as.numeric(col(t, 4L)) / SP * BP,
+                       texte = vapply(t, function(v) paste(v[-(1:4)], collapse = " "), ""),
+                       stringsAsFactors = FALSE)
+  titres <- titres[titres$niveau %in% c("section", "subsection", "subsubsection"), , drop = FALSE]
+  g <- champs("G")
+  if (!length(g)) return(NULL)
+  g <- g[[1L]]
+  list(pages = pages, encadres = encadres, titres = titres,
+       geometrie = list(feuille = nd_dim_bp(g[2L]), haut = nd_dim_bp(g[3L]),
+                        hauteur_utile = nd_dim_bp(g[4L]), interligne = nd_dim_bp(g[5L])))
+}
+
+# Mots d'un PDF (pdftotext -bbox) : data.frame (page, x0, y0, x1, y1, mot), y depuis le haut.
+nd_lire_mots <- function(pdf) {
+  f <- tempfile(fileext = ".html"); on.exit(unlink(f))
+  system2("pdftotext", c("-bbox", shQuote(pdf), shQuote(f)), stdout = FALSE, stderr = FALSE)
+  x <- readLines(f, warn = FALSE, encoding = "UTF-8")
+  page <- cumsum(grepl("^\\s*<page ", x))
+  w <- grep("^\\s*<word ", x)
+  m <- regmatches(x[w], regexec('xMin="([0-9.]+)" yMin="([0-9.]+)" xMax="([0-9.]+)" yMax="([0-9.]+)">(.*)</word>', x[w]))
+  ok <- lengths(m) == 6L
+  m <- m[ok]
+  mot <- vapply(m, `[`, "", 6L)
+  mot <- gsub("&lt;", "<", gsub("&gt;", ">", gsub("&quot;", "\"", gsub("&#39;", "'", gsub("&amp;", "&", mot)))))
+  Encoding(mot) <- "UTF-8"
+  r <- data.frame(page = page[w][ok], x0 = as.numeric(vapply(m, `[`, "", 2L)), y0 = as.numeric(vapply(m, `[`, "", 3L)),
+                  x1 = as.numeric(vapply(m, `[`, "", 4L)), y1 = as.numeric(vapply(m, `[`, "", 5L)),
+                  mot = mot, stringsAsFactors = FALSE)
+  # Pages en paysage (pdflscape) : pages portrait tournees de 90 degres (pdfinfo, "rot"),
+  # dont les coordonnees des mots sont celles de la page tournee.
+  inf <- suppressWarnings(system2("pdfinfo", c("-f", "1", "-l", as.character(max(page, 1L)), shQuote(pdf)),
+                                  stdout = TRUE, stderr = FALSE))
+  rot <- regmatches(inf, regexec("^Page +([0-9]+) rot: +([0-9]+)", inf))
+  rot <- Filter(length, rot)
+  attr(r, "paysage") <- as.integer(vapply(Filter(function(v) v[3L] %in% c("90", "270"), rot), `[`, "", 2L))
+  r
+}
+
+nd_texte_pdf <- function(pdf) {
+  f <- tempfile(fileext = ".txt"); on.exit(unlink(f))
+  system2("pdftotext", c("-layout", shQuote(pdf), shQuote(f)), stdout = FALSE, stderr = FALSE)
+  readLines(f, warn = FALSE, encoding = "UTF-8")
+}
+
+# Nombre de lignes distinctes parmi des ordonnees y0 de mots : une nouvelle ligne
+# commence au-dela de ECART_LIGNES pt (indices et exposants d'une formule restent
+# dans la ligne de leur base ; interligne du document : 14,7 pt).
+ECART_LIGNES <- 6
+nd_nb_lignes <- function(y) if (!length(y)) 0L else 1L + sum(diff(sort(y)) > ECART_LIGNES)
+
+# Debuts de rubriques de fiche lus dans le texte : data.frame (page, y0, rubrique).
+nd_rubriques <- function(mots, marge_gauche) {
+  if (!nrow(mots)) return(data.frame(page = integer(0), y0 = numeric(0), rubrique = character(0), stringsAsFactors = FALSE))
+  n <- nrow(mots)
+  suivant <- c(mots$mot[-1L], NA_character_)
+  meme <- c(mots$page[-1L] == mots$page[-n] & abs(mots$y0[-1L] - mots$y0[-n]) < 2, FALSE)
+  num <- sub("\\.$", "", mots$mot)
+  ok <- grepl("^[1-7]\\.$", mots$mot) & meme & mots$x0 < marge_gauche + 5 &
+        !is.na(suivant) & suivant == RUBRIQUES_FICHE[num]
+  k <- which(ok)
+  data.frame(page = mots$page[k], y0 = mots$y0[k], rubrique = num[k], stringsAsFactors = FALSE)
+}
+
+# Analyse : constats de remplissage a partir des marques et des mots du PDF de
+# mesure. Renvoie une liste (constats = data.frame(type, page, detail), resume,
+# blanc, avis). Fonction pure : testable sur des marques construites a la main.
+nd_analyser_remplissage <- function(marques, mots) {
+  g <- marques$geometrie
+  bas <- g$haut + g$hauteur_utile
+  nb_pages <- nrow(marques$pages)
+  if (nrow(mots) && max(mots$page) > nb_pages)
+    return(list(constats = NULL, avis = "nombre de pages du PDF et des marques differents : remplissage non mesure."))
+  paysage <- attr(mots, "paysage")
+  if (is.null(paysage)) paysage <- integer(0)
+  mots$h <- mots$y1 - mots$y0
+  centre <- (mots$y0 + mots$y1) / 2
+  corps <- mots[centre > g$haut & centre < bas & !(mots$page %in% paysage), , drop = FALSE]
+  constats <- list()
+  ajouter <- function(type, page, detail) constats[[length(constats) + 1L]] <<- data.frame(type = type, page = as.integer(page),
+                                                                                         detail = detail, stringsAsFactors = FALSE)
+  pct <- function(x) sprintf("%.0f %%", 100 * x)
+  nettoyer <- function(x) substr(gsub("[{}]", "", gsub("\\\\[a-zA-Z@]+ *", "", x)), 1L, 60L)
+
+  # (1) blanc en bas de page (pages en paysage non mesurees)
+  blanc <- numeric(nb_pages)
+  for (p in setdiff(seq_len(nb_pages), paysage)) {
+    c_p <- corps[corps$page == p, , drop = FALSE]
+    blanc[p] <- if (nrow(c_p) == 0L) 1 else max(0, (bas - max(c_p$y1)) / g$hauteur_utile)
+  }
+  pg <- marques$pages[order(marques$pages$page), , drop = FALSE]
+  for (p in which(!pg$volontaire & blanc > SEUIL_BLANC_REMPLISSAGE & !(pg$page %in% paysage)))
+    ajouter("blanc", p, sprintf("%s de la hauteur utile vide en bas de page, hors saut voulu", pct(blanc[p])))
+
+  # (2) encadres coupes
+  enc <- marques$encadres
+  ids <- setdiff(intersect(enc$debut$id, enc$fin$id), enc$inmesurables)
+  for (i in ids) {
+    b <- enc$debut[enc$debut$id == i, ][1L, ]; f <- enc$fin[enc$fin$id == i, ][1L, ]
+    if (f$page <= b$page || b$page %in% paysage || f$page %in% paysage) next
+    base_b <- g$feuille - b$y; base_f <- g$feuille - f$y   # ordonnees depuis le haut
+    n1 <- nd_nb_lignes(corps$y0[corps$page == b$page & corps$y1 > base_b - 2])
+    n2 <- nd_nb_lignes(corps$y0[corps$page == f$page & corps$y1 < base_f + 5])
+    total <- (bas - base_b) + 0.8 * g$interligne + (base_f - g$haut) + 0.3 * g$interligne +
+             (f$page - b$page - 1L) * g$hauteur_utile
+    court <- total < SEUIL_ENCADRE_COURT * g$hauteur_utile
+    if (court || min(n1, n2) < MORCEAU_MIN_LIGNES)
+      ajouter("encadre", b$page, sprintf("encadre n. %d coupe entre les pages %d et %d, morceaux de %d et %d ligne(s) (%s)",
+                                         i, b$page, f$page, n1, n2,
+                                         if (court) sprintf("court : %s de la hauteur utile en tout", pct(total / g$hauteur_utile))
+                                         else sprintf("morceau de moins de %d lignes", MORCEAU_MIN_LIGNES)))
+  }
+
+  # (3) titres suivis de moins de TITRE_LIGNES lignes. La marque d'un titre de
+  # niveau section (bandeau) est posee apres le saut de page quand le bandeau
+  # reste seul en bas de page : ces titres sont juges sur le bandeau lui-meme,
+  # reconnu a la hauteur de ses mots (calibree sur les bandeaux de la page de leur marque).
+  ti <- marques$titres
+  sec <- ti[ti$niveau == "section", , drop = FALSE]
+  hb <- NA_real_
+  if (nrow(sec) && nrow(mots)) {
+    h_ref <- stats::median(mots$h)
+    cand <- unlist(lapply(seq_len(nrow(sec)), function(k) {
+      td <- g$feuille - sec$y[k]
+      w <- mots[mots$page == sec$page[k] & mots$y0 > td - 80 & mots$y0 < td & mots$h > 1.4 * h_ref, , drop = FALSE]
+      round(w$h, 1)
+    }))
+    if (length(cand)) hb <- as.numeric(names(which.max(table(cand))))
+  }
+  for (k in seq_len(nrow(ti))) {
+    if (ti$page[k] %in% paysage || ti$page[k] >= nb_pages) next
+    y_titre <- g$feuille - ti$y[k]
+    page_t <- ti$page[k]; sous <- NULL
+    if (ti$niveau[k] == "section" && !is.na(hb)) {
+      ici <- mots[mots$page == page_t & abs(mots$h - hb) < 0.15 & mots$y0 > y_titre - 80 & mots$y0 < y_titre, , drop = FALSE]
+      if (!nrow(ici) && page_t > 1L && !(page_t - 1L) %in% paysage) {
+        prec <- mots[mots$page == page_t - 1L & abs(mots$h - hb) < 0.15, , drop = FALSE]
+        if (nrow(prec)) {
+          page_t <- page_t - 1L
+          y_b <- max(prec$y1)
+          sous <- nd_nb_lignes(corps$y0[corps$page == page_t & corps$y0 > y_b])
+        }
+      }
+    }
+    if (is.null(sous)) sous <- nd_nb_lignes(corps$y0[corps$page == page_t & (corps$y0 + corps$y1) / 2 > y_titre])
+    if (sous < TITRE_LIGNES)
+      ajouter("titre", page_t, sprintf("%d ligne(s) de texte sous le titre (moins de %d) : %s", sous, TITRE_LIGNES, nettoyer(ti$texte[k])))
+  }
+
+  # (4) rubriques de fiche : lues dans le texte (une marque posee apres leur
+  # intitule deplace un saut de page). Rubrique commencee par moins de
+  # RUBRIQUE_LIGNES lignes ; rubrique 1 sur une autre page que le titre de sa fiche.
+  ru <- nd_rubriques(corps, if (nrow(corps)) as.numeric(stats::quantile(corps$x0, 0.01)) else 0)
+  for (k in seq_len(nrow(ru))) {
+    n <- nd_nb_lignes(corps$y0[corps$page == ru$page[k] & corps$y0 > ru$y0[k] - 1])
+    if (n < RUBRIQUE_LIGNES && ru$page[k] < nb_pages)
+      ajouter("rubrique", ru$page[k], sprintf("rubrique %s commencee par %d ligne(s) en bas de page", ru$rubrique[k], n))
+  }
+  sub_t <- ti[ti$niveau == "subsection", , drop = FALSE]
+  sub_t$td <- g$feuille - sub_t$y
+  for (k in which(ru$rubrique == "1")) {
+    avant <- which(sub_t$page < ru$page[k] | (sub_t$page == ru$page[k] & sub_t$td < ru$y0[k]))
+    if (!length(avant)) next
+    t <- sub_t[avant[length(avant)], ]
+    if (t$page < ru$page[k])
+      ajouter("titre", t$page, sprintf("titre de fiche separe de la rubrique 1 (page %d) : %s", ru$page[k], nettoyer(t$texte)))
+  }
+  cons <- if (length(constats)) do.call(rbind, constats) else
+    data.frame(type = character(0), page = integer(0), detail = character(0), stringsAsFactors = FALSE)
+  cons <- unique(cons[order(cons$page, cons$type), , drop = FALSE])
+  libres <- blanc[!pg$volontaire & !(pg$page %in% paysage)]
+  list(constats = cons, avis = character(0),
+       resume = list(pages = nb_pages, paysage = length(paysage), encadres = length(unique(enc$debut$id)),
+                     titres = nrow(ti), rubriques = nrow(ru), blanc_max = if (length(libres)) max(libres) else 0))
+}
+
+# Passe de pdfLaTeX instrumentee, dans un repertoire temporaire, avec les fichiers
+# auxiliaires de la compilation normale (.aux, .toc, .out...) : le depot n'est pas
+# touche. Renvoie list(pdf, remp, tmp) ou list(erreur = message).
+nd_passe_mesure <- function(tex, marques_tex) {
+  if (!nzchar(Sys.which("pdflatex"))) return(list(erreur = "pdflatex absent : passe de mesure impossible."))
+  tex <- normalizePath(tex, mustWork = TRUE)
+  rep <- dirname(tex); nom <- sub("[.]tex$", "", basename(tex))
+  aux <- list.files(rep, pattern = paste0("^", nom, "[.](aux|toc|out|lof|lot)$"), full.names = TRUE)
+  if (!any(grepl("[.]aux$", aux))) return(list(erreur = sprintf("%s.aux absent : compiler le document avant la passe de mesure.", nom)))
+  tmp <- tempfile("nd_remplissage_"); dir.create(tmp)
+  file.copy(aux, tmp)
+  env <- c(sprintf("TEXINPUTS=%s:%s:%s:", rep, dirname(normalizePath(marques_tex)), tmp),
+           "max_print_line=10000", "error_line=254", "half_error_line=238")
+  ancien <- setwd(rep); on.exit(setwd(ancien))
+  code <- system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-jobname=", nom),
+                                paste0("-output-directory=", shQuote(tmp)),
+                                shQuote(sprintf("\\input{%s}\\input{%s.tex}", sub("[.]tex$", "", basename(marques_tex)), nom))),
+                  stdout = FALSE, stderr = FALSE, env = env)
+  remp <- file.path(tmp, paste0(nom, ".remp"))
+  if (!identical(code, 0L) || !file.exists(remp)) {
+    jr <- file.path(tmp, paste0(nom, ".log"))
+    err <- if (file.exists(jr)) grep("^! ", iconv(readLines(jr, warn = FALSE), "UTF-8", "UTF-8", sub = "?"), value = TRUE) else character(0)
+    unlink(tmp, recursive = TRUE)
+    return(list(erreur = sprintf("passe de mesure en echec (code %s ; premiere erreur : %s).", code,
+                                 if (length(err)) substr(err[1L], 1L, 120L) else "aucune")))
+  }
+  list(tmp = tmp, pdf = file.path(tmp, paste0(nom, ".pdf")), remp = remp)
+}
+
+# Controle (d) complet. `remp` et `pdf_mesure` : fichiers d'une passe deja faite
+# (CI : tests/doc_remplissage.tex) ; sinon la passe est faite ici.
+nd_controle_remplissage <- function(tex, pdf_normal, marques_tex, remp = NULL, pdf_mesure = NULL) {
+  if (is.null(pdf_normal) || !file.exists(pdf_normal))
+    return(list(constats = NULL, avis = "PDF de la compilation normale absent : remplissage non mesure."))
+  tmp <- NULL
+  if (is.null(remp) || is.null(pdf_mesure)) {
+    passe <- nd_passe_mesure(tex, marques_tex)
+    if (!is.null(passe$erreur)) return(list(constats = NULL, avis = passe$erreur))
+    tmp <- passe$tmp; remp <- passe$remp; pdf_mesure <- passe$pdf
+    on.exit(unlink(tmp, recursive = TRUE))
+  }
+  if (!file.exists(remp) || !file.exists(pdf_mesure))
+    return(list(constats = NULL, avis = "fichiers de la passe de mesure absents : remplissage non mesure."))
+  if (!identical(nd_texte_pdf(pdf_normal), nd_texte_pdf(pdf_mesure)))
+    return(list(constats = NULL, avis = paste("la passe de mesure ne compose pas le meme texte que le PDF compile",
+                                              "(PDF obsolete ou marques qui deplacent la composition) : remplissage non mesure.")))
+  marques <- nd_lire_marques(remp)
+  if (is.null(marques)) return(list(constats = NULL, avis = "marques incompletes (ligne G absente) : remplissage non mesure."))
+  nd_analyser_remplissage(marques, nd_lire_mots(pdf_normal))
+}
+
+nd_imprimer_remplissage <- function(r) {
+  op <- options(width = 200); on.exit(options(op), add = TRUE)
+  cat("\n== (d) Remplissage des pages (avertissement seulement) ==\n")
+  for (a in r$avis) cat("AVERTISSEMENT :", a, "\n")
+  if (is.null(r$constats)) return(invisible(0L))
+  cat(sprintf(paste("Seuils : blanc > %.0f %% de la hauteur utile hors saut voulu ; encadre coupe court (< %.0f %%) ou morceau < %d lignes ;",
+                    "titre suivi de < %d lignes ; rubrique commencee par < %d ligne.\n"),
+              100 * SEUIL_BLANC_REMPLISSAGE, 100 * SEUIL_ENCADRE_COURT, MORCEAU_MIN_LIGNES, TITRE_LIGNES, RUBRIQUE_LIGNES))
+  c_ <- r$constats
+  libelle <- c(blanc = "Blancs en bas de page", encadre = "Encadres courts coupes", titre = "Titres isoles en bas de page",
+               rubrique = "Rubriques commencees par une seule ligne")
+  for (ty in names(libelle)) {
+    z <- c_[c_$type == ty, , drop = FALSE]
+    cat(sprintf("\n-- %s : %d\n", libelle[[ty]], nrow(z)))
+    for (i in seq_len(nrow(z))) cat(sprintf("  p. %d : %s\n", z$page[i], z$detail[i]))
+  }
+  s <- r$resume
+  cat(sprintf(paste("\nTOTAL (d) : %d pages (%d en paysage, non mesurees), %d encadre(s), %d titre(s), %d rubrique(s) ;",
+                    "%d avertissement(s) (blanc maximal %.0f %% hors saut voulu).\n"),
+              s$pages, s$paysage, s$encadres, s$titres, s$rubriques, nrow(c_), 100 * s$blanc_max))
+  invisible(nrow(c_))
+}
+
 # --- Programme principal ------------------------------------------------------------------
+# Marques de la passe de mesure du controle (d), a cote du script.
+MARQUES_REMPLISSAGE_DEFAUT <- "marques_remplissage.tex"
+
 nd_main <- function(args) {
-  connus <- c("--bloquant", "--motifs-seuls", "--pages-seules")
-  inconnus <- args[!(args %in% connus | grepl("^--(max-lignes|tex|aux)=.+$", args))]
+  selecteurs <- c("--motifs-seuls", "--pages-seules", "--debordements", "--remplissage")
+  connus <- c("--bloquant", selecteurs)
+  inconnus <- args[!(args %in% connus | grepl("^--(max-lignes|tex|aux|log|pdf|remp|pdf-mesure|moteur)=.+$", args))]
   if (length(inconnus)) {
     cat("Argument(s) inconnu(s) :", paste(inconnus, collapse = " "),
-        "\nUsage : Rscript tests/controle_doc_nd.R [--bloquant] [--motifs-seuls | --pages-seules]",
-        "[--max-lignes=N] [--tex=CHEMIN] [--aux=CHEMIN]\n")
+        "\nUsage : Rscript tests/controle_doc_nd.R [--bloquant]",
+        "[--motifs-seuls | --pages-seules | --debordements | --remplissage]",
+        "[--max-lignes=N] [--tex=CHEMIN] [--aux=CHEMIN] [--log=CHEMIN] [--pdf=CHEMIN]",
+        "[--remp=CHEMIN --pdf-mesure=CHEMIN] [--moteur=CHEMIN]\n")
     return(2L)
   }
-  if (all(c("--motifs-seuls", "--pages-seules") %in% args)) {
-    cat("--motifs-seuls et --pages-seules s'excluent.\n"); return(2L)
+  if (sum(selecteurs %in% args) > 1L) {
+    cat(paste(selecteurs, collapse = ", "), ": au plus une de ces options.\n"); return(2L)
   }
   val <- function(nom, defaut) {
     a <- grep(paste0("^--", nom, "="), args, value = TRUE)
@@ -456,24 +875,42 @@ nd_main <- function(args) {
   max_lignes <- suppressWarnings(as.integer(val("max-lignes", "5")))
   if (is.na(max_lignes) || max_lignes < 0L) { cat("--max-lignes=N : entier >= 0 attendu.\n"); return(2L) }
   bloquant <- "--bloquant" %in% args
+  f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+  dossier_script <- if (length(f)) dirname(normalizePath(f[1L], mustWork = FALSE)) else "tests"
   tex <- val("tex", NULL)
-  if (is.null(tex)) {
-    f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-    racine <- if (length(f)) normalizePath(file.path(dirname(f[1L]), ".."), mustWork = FALSE) else "."
-    tex <- file.path(racine, FICHIER_TEX_DEFAUT)
-  }
+  if (is.null(tex)) tex <- file.path(dossier_script, "..", FICHIER_TEX_DEFAUT)
   if (!file.exists(tex)) { cat("Fichier introuvable :", tex, "\n"); return(2L) }
   aux <- val("aux", sub("[.]tex$", ".aux", tex))
+  journal <- val("log", sub("[.]tex$", ".log", tex))
+  pdf <- val("pdf", sub("[.]tex$", ".pdf", tex))
+  sel <- function(controle) {
+    aucun <- !any(selecteurs %in% args)
+    switch(controle, motifs = aucun || "--motifs-seuls" %in% args, pages = aucun || "--pages-seules" %in% args,
+           debordements = aucun || "--debordements" %in% args, remplissage = "--remplissage" %in% args)
+  }
   lignes <- nd_lire_lignes(tex)
   cat(sprintf("Controle ND de %s (%d lignes). Mode : %s.\n\n", tex, length(lignes),
               if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)"))
-  n_a <- 0L; n_b <- 0L
-  if (!"--pages-seules" %in% args) n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes), max_lignes)
-  if (!"--motifs-seuls" %in% args) n_b <- nd_imprimer_pages(nd_controle_pages(lignes, nd_lire_aux(aux)))
-  cat(sprintf("\nBILAN : %d occurrence(s) de la liste A, %d fiche(s) en violation du plafond.\n", n_a, n_b))
-  viol <- n_a > 0L || n_b > 0L
-  if (viol && Sys.getenv("GITHUB_ACTIONS") == "true")
-    cat(sprintf("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond de pages.\n", n_a, n_b))
+  n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L
+  if (sel("motifs")) {
+    moteur <- val("moteur", file.path(dossier_script, "..", "R", "engine.R"))
+    n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut(moteur = moteur)), max_lignes)
+  }
+  if (sel("pages")) n_b <- nd_imprimer_pages(nd_controle_pages(lignes, nd_lire_aux(aux)))
+  if (sel("debordements")) n_c <- nd_imprimer_debordements(nd_controle_debordements(nd_lire_journal(journal)))
+  if (sel("remplissage")) {
+    t0 <- Sys.time()
+    r <- nd_controle_remplissage(tex, pdf, file.path(dossier_script, MARQUES_REMPLISSAGE_DEFAUT),
+                                 remp = val("remp", NULL), pdf_mesure = val("pdf-mesure", NULL))
+    n_d <- nd_imprimer_remplissage(r)
+    cat(sprintf("Duree de la mesure du remplissage : %.1f s.\n", as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  }
+  cat(sprintf(paste("\nBILAN : %d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
+                    "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
+  viol <- n_a > 0L || n_b > 0L || n_c > 0L
+  if (Sys.getenv("GITHUB_ACTIONS") == "true" && (viol || n_d > 0L))
+    cat(sprintf(paste("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
+                      "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
   if (bloquant && viol) return(1L)
   0L
 }

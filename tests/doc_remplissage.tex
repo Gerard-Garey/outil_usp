@@ -1,0 +1,8 @@
+% Enveloppe de compilation du controle de remplissage des pages (CI, branche ND,
+% lot L0, issue #451) : charge les marques de tests/marques_remplissage.tex avant
+% le document, sans modifier docs/latex/. A compiler depuis tests/ :
+%     latexmk -pdf doc_remplissage.tex
+% ecrit doc_remplissage.pdf et doc_remplissage.remp, que lit
+%     Rscript tests/controle_doc_nd.R --remplissage --remp=tests/doc_remplissage.remp --pdf-mesure=tests/doc_remplissage.pdf
+\input{marques_remplissage}
+\input{../docs/latex/doc_tests_usp}

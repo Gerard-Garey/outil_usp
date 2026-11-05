@@ -15,6 +15,12 @@
 #    (b) plafond de pages : lecture d'un .aux synthetique, etendue, trois
 #        verdicts (violation, a verifier, conforme), bornes, exception au
 #        plafond (appliquee, perimee), repli sans labels -fin et sans .aux ;
+#    (c) debordements : journal synthetique (Overfull hbox/vbox, borne de 1,5 pt) ;
+#    (d) remplissage : marques et mots construits a la main (blanc, encadre
+#        court coupe, titre, bandeau de section seul en bas de page, rubrique,
+#        titre de fiche separe de la rubrique 1, pages en paysage), lecture d'un
+#        fichier .remp, et passe de mesure reelle sur un petit document (pdflatex,
+#        mdframed ; garde-fou du texte, dossier du document intact) ;
 #    options : code de sortie sans et avec --bloquant, arguments refuses.
 #  L'etat reel du .tex n'est pas juge ici : c'est l'etape de la CI qui le
 #  publie (avertissement jusqu'au lot L7).
@@ -65,6 +71,9 @@ verifier("A12 : jusqu'a cette issue", "A12" %in% motifs("jusqu'\u00e0 cette issu
 verifier("A12 : le moteur de l'issue~, sans numero", "A12" %in% motifs("avant l'issue, un nom"))
 verifier("A13 : visee par", "A13" %in% motifs("vis\u00e9e par"))
 verifier("A2 : commentaire 6021758543 (espace) et commentaire~6021758543", all(c("A2") %in% motifs("commentaire 6021758543")) && "A2" %in% motifs("commentaire~6021758543"))
+verifier("A14 : execution 39394706119, execution~39394706119, run 41886457559, actions/runs/41886457559",
+         all(vapply(c("par l'ex\u00e9cution 39394706119 du", "ex\u00e9cution~39394706119", "le run 41886457559", "actions/runs/41886457559"),
+                    function(x) "A14" %in% motifs(x), logical(1))))
 verifier("A4 : CONTEXT.md, .github/, feuille-de-route, docs/specifications/",
          all(vapply(c("CONTEXT.md", ".github/ci.yml", "feuille-de-route", "docs/specifications/x.md"),
                     function(x) "A4" %in% motifs(x), logical(1))))
@@ -79,7 +88,8 @@ negatifs <- c(
   "14 novembre 2024", "25.3.2015", "r\u00e8glement 2015/35", "EIOPA-BoS-14/178",
   "\\code{ND}", "\\code{annee,ND}", "L-BFGS-B", "AR(1)", "constat~C6", "J1 et J2",
   "\\annee", "Exercice 2026", "1961", "\u00e0 l'issue du calcul", "l'issue de la proc\u00e9dure",
-  "mod\u00e8le d'effacee", "0,99999899999999997124", "tests/reference/", "R/engine.R", "app.R")
+  "mod\u00e8le d'effacee", "$0{,}1138150042$", "ex\u00e9cution du calcul", "ex\u00e9cutions de 1000 r\u00e9plications", "1.0000000000000011",
+  "ex\u00e9cution~12", "6021758543", "run de 200 r\u00e9plications", "0,99999899999999997124", "tests/reference/", "R/engine.R", "app.R")
 for (x in negatifs)
   verifier(paste0("negatif : ", x), identical(motifs(x), character(0)))
 
@@ -113,7 +123,16 @@ verifier("nd_controle_motifs : decompte par motif et par partie",
          .t[.t$motif == "A2", "occurrences"] == 0L)
 
 # --- Exceptions : E3, E7, perimee ---------------------------------------------------------
-exc <- nd$exceptions_motifs_defaut(e7_actif = TRUE, e7_issues = 299L)
+# Moteur synthetique : les zones de E7 sont lues dans les chaines litterales qui portent "issue #N".
+dir_m <- tempfile("nd_moteur_"); dir.create(dir_m)
+f_moteur <- file.path(dir_m, "engine.R")
+writeLines(c('  txt <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict",',
+             '               "ni p-value")',
+             '  # commentaire du moteur sur la decision (issue #299) : ignore',
+             '  msg <- "calcule par simulation a T = 8 sur le jeu de controle (issue #114), non"',
+             '  ext <- "chaine hors liste (issue #321) : jamais admise"',
+             '  v <- "residus standardises (issue #29)." ; w <- "autre residus (issue #299) et ; issue #55)"'), f_moteur)
+exc <- nd$exceptions_motifs_defaut(e7_actif = TRUE, e7_issues = c(299L, 114L, 29L, 55L), moteur = f_moteur)
 verifier("E3 : docs/suivi-documentation/ exempte en partie IV",
          identical(motifs("docs/suivi-documentation/IV.md", exceptions = exc, partie_unique = "Partie IV"),
                    character(0)))
@@ -125,19 +144,38 @@ verifier("E3 : un autre chemin de docs/ reste refuse en partie IV",
 .chaine <- "Restituee en diagnostic par decision (issue \\#299) : aucun verdict"
 verifier("E7 : la chaine du moteur (issue \\#299) est admise",
          identical(motifs(.chaine, exceptions = exc), character(0)))
-verifier("E7 : une autre issue (\\#302) n'est pas admise (la grille valide #299 seul)",
-         "A1" %in% motifs(sub("299", "302", .chaine, fixed = TRUE), exceptions = exc))
+verifier("E7 : une autre chaine du moteur de la liste (issue \\#114) est admise, entouree de \\code{} et de guillemets",
+         identical(motifs("«~\\code{sur le jeu de controle (issue~\\#114)}~»", exceptions = exc), character(0)))
+verifier("E7 : le numero #55 (liste) hors d'une chaine du moteur, la meme formule avec un autre numero (#302) ou une autre chaine : refuses",
+         "A1" %in% motifs("Restituee en diagnostic par decision (issue \\#302) : aucun", exceptions = exc) &&
+         "A1" %in% motifs("autre residus standardises (issue \\#299)", exceptions = exc) &&
+         "A1" %in% motifs("chaine hors liste (issue \\#321) : jamais admise", exceptions = exc))
+verifier("E7 : un commentaire du moteur ne cree pas de zone",
+         "A1" %in% motifs("la decision (issue \\#299) : ignore", exceptions = exc))
+verifier("E7 : chaine coupee par un retour a la ligne dans le .tex, reconnue (fenetre de trois lignes)",
+         identical(motifs(c("pose par add() puis une phrase fixe «~\\code{Restituee en diagnostic par decision", "(issue \\#299) : aucun verdict ni p-value"),
+                          exceptions = exc), character(0)))
 verifier("E7 : un numero d'issue hors de la chaine, sur la meme ligne, reste refuse",
          identical(motifs(paste("voir issue~\\#5 ;", .chaine), exceptions = exc), "A1"))
-exc_levee <- nd$exceptions_motifs_defaut(e7_actif = FALSE)
+z <- nd$nd_zones_moteur(f_moteur, c(299L, 114L, 29L, 55L))
+verifier("zones du moteur : 5 chaines (les mots avant issue, puis \\#N), commentaire et numero hors liste ignores",
+         length(z) == 5L && all(endsWith(z, "\\\\#299") | endsWith(z, "\\\\#114") | endsWith(z, "\\\\#29") | endsWith(z, "\\\\#55")))
+verifier("zones du moteur reel : non vides, une par chaine distincte",
+         length(nd$nd_zones_moteur(file.path(.dossier, "..", "..", "R", "engine.R"))) >= 10L)
+verifier("zones du moteur : fichier absent ou NULL = aucune zone", length(nd$nd_zones_moteur(NULL)) == 0L &&
+         length(nd$nd_zones_moteur(file.path(dir_m, "absent.R"))) == 0L)
+exc_levee <- nd$exceptions_motifs_defaut(e7_actif = FALSE, moteur = f_moteur)
 verifier("E7 levee (drapeau FALSE) : la chaine redevient un motif",
          "A1" %in% motifs(.chaine, exceptions = exc_levee))
 verifier("drapeau E7_TRANSITOIRE du script : TRUE au depart (a lever au lot L1)",
-         isTRUE(nd$E7_TRANSITOIRE) && isTRUE(nd$exceptions_motifs_defaut()[[2L]]$actif))
+         isTRUE(nd$E7_TRANSITOIRE) && isTRUE(nd$exceptions_motifs_defaut()[[2L]]$actif) &&
+         identical(nd$E7_ISSUES, c(29L, 55L, 114L, 297L, 299L, 302L, 304L, 312L)))
 .bilan <- function(x, exceptions) {
   parties <- nd$nd_parties(x)
   nd$nd_appliquer_exceptions(nd$nd_chercher(x, parties, nd$MOTIFS_A), x, exceptions)$bilan
 }
+verifier("E7 sans moteur : aucune zone, exception perimee",
+         identical(.bilan(.chaine, nd$exceptions_motifs_defaut(e7_actif = TRUE))$statut, c("PERIMEE", "PERIMEE")))
 b <- .bilan(c("rien a signaler", "texte neutre"), exc)
 verifier("exception perimee : E3 et E7 n'exemptent rien sur un texte propre",
          identical(b$statut, c("PERIMEE", "PERIMEE")))
@@ -282,5 +320,169 @@ r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.
 verifier("sans .aux : le controle (b) le signale et retombe sur les caracteres, code 0",
          r$statut == 0L && any(grepl("AVERTISSEMENT : aucun fichier .aux", r$sortie, fixed = TRUE)))
 
-unlink(dir_b, recursive = TRUE)
+# --- (c) Debordements : journal LaTeX ---------------------------------------------------------------
+log_c <- c("This is pdfTeX", "Overfull \\hbox (0.68134pt too wide) in paragraph at lines 14605--14605",
+           " []\\T1/ntxtt/m/n/10 xxxx", "Overfull \\hbox (23.45457pt too wide) in paragraph at lines 23028--23040",
+           "Underfull \\hbox (badness 10000) in paragraph at lines 5--6",
+           "Overfull \\vbox (1.2pt too high) has occurred while \\output is active []",
+           "Overfull \\vbox (1.5pt too high) has occurred while \\output is active []",
+           "Overfull \\vbox (1.51pt too high) has occurred while \\output is active []",
+           "Overfull \\vbox (22.09131pt too high) has occurred while \\output is active []",
+           "Overfull \\hbox (3.0pt too wide) in alignment at lines 7--9")
+f_log <- file.path(dir_b, "complet.log"); writeLines(log_c, f_log)
+j <- nd$nd_lire_journal(f_log)
+verifier("journal : 8 debordements lus, Underfull ignore", nrow(j) == 7L && sum(j$type == "hbox") == 3L && sum(j$type == "vbox") == 4L)
+verifier("journal : tailles et lignes sources", identical(round(j$taille[1:2], 2), c(0.68, 23.45)) &&
+         identical(j$ligne_tex[1:2], c(14605L, 23028L)) && is.na(j$ligne_tex[4L]) && j$ligne_tex[7L] == 7L)
+verifier("journal : tout Overfull \\hbox est une violation, meme de 0,68 pt",
+         identical(j$verdict[j$type == "hbox"], rep("violation", 3L)))
+verifier("journal : Overfull \\vbox = avertissement jusqu'a 1,5 pt (borne incluse), violation au-dela",
+         identical(j$verdict[j$type == "vbox"], c("avertissement", "avertissement", "violation", "violation")))
+verifier("verdict de debordement : fonction", identical(nd$nd_verdict_debordement("vbox", 1.5), "avertissement") &&
+         identical(nd$nd_verdict_debordement("hbox", 0.01), "violation") && identical(nd$nd_verdict_debordement("vbox", NA_real_), "violation"))
+verifier("journal absent = NULL, avis", is.null(nd$nd_lire_journal(file.path(dir_b, "absent.log"))) &&
+         length(nd$nd_controle_debordements(NULL)$avis) == 1L)
+f_log0 <- file.path(dir_b, "vide.log"); writeLines("This is pdfTeX", f_log0)
+verifier("journal sans debordement : table vide", nrow(nd$nd_lire_journal(f_log0)) == 0L)
+f_log_v <- file.path(dir_b, "vbox_tolere.log")
+writeLines("Overfull \\vbox (1.0pt too high) has occurred while \\output is active []", f_log_v)
+r <- lancer(paste0("--tex=", f_propre), "--debordements", paste0("--log=", f_log))
+verifier("--debordements : code 0 sans --bloquant malgre les violations", r$statut == 0L && any(grepl("TOTAL [(]c[)]", r$sortie)) &&
+         any(grepl("5 violation", r$sortie)) && !any(grepl("Liste A", r$sortie)))
+r <- lancer(paste0("--tex=", f_propre), "--debordements", paste0("--log=", f_log), "--bloquant")
+verifier("--debordements --bloquant : code 1 (Overfull \\hbox)", r$statut == 1L)
+r <- lancer(paste0("--tex=", f_propre), "--debordements", paste0("--log=", f_log_v), "--bloquant")
+verifier("--debordements --bloquant : un \\vbox de 1,0 pt seul reste un avertissement, code 0", r$statut == 0L)
+r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", f_propre_aux), paste0("--log=", f_log), "--bloquant")
+verifier("sans selecteur : les debordements font partie des controles par defaut, code 1 avec --bloquant",
+         r$statut == 1L && any(grepl("[(]c[)] Debordements", r$sortie)))
+r <- lancer(paste0("--tex=", f_propre), "--debordements", paste0("--log=", file.path(dir_b, "absent.log")), "--bloquant")
+verifier("--debordements sans journal : avis, code 0", r$statut == 0L && any(grepl("AVERTISSEMENT : aucun journal", r$sortie)))
+r <- lancer("--debordements", "--remplissage")
+verifier("deux selecteurs s'excluent : code 2", r$statut == 2L)
+
+# --- (d) Remplissage : marques et analyse (geometrie construite a la main) -----------------------------
+g_ <- list(feuille = 842, haut = 71, hauteur_utile = 700, interligne = 14.7)   # bas = 771
+mot_ <- function(page, y0, txt = "texte", x0 = 71, h = 10) data.frame(page = page, x0 = x0, y0 = y0, x1 = x0 + 30, y1 = y0 + h,
+                                                                   mot = txt, stringsAsFactors = FALSE)
+lignes_ <- function(page, y_debut, n, pas = 14.7) do.call(rbind, lapply(seq_len(n), function(i) mot_(page, y_debut + (i - 1L) * pas)))
+mots_ <- function(...) { m <- do.call(rbind, list(...)); attr(m, "paysage") <- integer(0); m }
+marq_ <- function(nb_pages, voulues = integer(0), titres = NULL, debut = NULL, fin = NULL, inmes = integer(0)) {
+  list(pages = data.frame(page = seq_len(nb_pages), volontaire = seq_len(nb_pages) %in% voulues),
+       encadres = list(debut = if (is.null(debut)) data.frame(id = integer(0), page = integer(0), y = numeric(0)) else debut,
+                       fin = if (is.null(fin)) data.frame(id = integer(0), page = integer(0), y = numeric(0)) else fin,
+                       inmesurables = inmes),
+       titres = if (is.null(titres)) data.frame(niveau = character(0), page = integer(0), y = numeric(0), texte = character(0),
+                                                stringsAsFactors = FALSE) else titres,
+       geometrie = g_)
+}
+cons <- function(r, type) r$constats[r$constats$type == type, , drop = FALSE]
+
+# Blancs : page 2 finit a 300 (blanc de 67 %), page 3 aussi mais saut voulu, page 4 finit a 700 (10 %), page 5 a 570 (28 %).
+m_blanc <- mots_(lignes_(1, 71, 48), lignes_(2, 71, 16), lignes_(3, 71, 16), lignes_(4, 71, 43), lignes_(5, 71, 34), lignes_(6, 71, 10))
+r <- nd$nd_analyser_remplissage(marq_(6, voulues = 3L), m_blanc)
+verifier("blanc : page 2 signalee (> 30 %), page 3 exemptee (saut voulu), pages 4 et 5 sous le seuil",
+         identical(cons(r, "blanc")$page, c(2L, 6L)) && grepl("^6[0-9] %", cons(r, "blanc")$detail[1L]))
+verifier("blanc : une page sans aucun mot compte 100 %", identical(cons(nd$nd_analyser_remplissage(marq_(2), mots_(lignes_(1, 71, 40))), "blanc")$page, 2L))
+
+# Encadres : n.1 coupe a 2 lignes en bas (court), n.2 long coupe en deux gros morceaux, n.3 sur une page, n.4 inmesurable.
+yb <- function(td) 842 - td   # ordonnee depuis le bas de la feuille
+deb <- data.frame(id = 1:4, page = c(1L, 3L, 5L, 5L), y = c(yb(745), yb(500), yb(300), yb(300)))
+fin <- data.frame(id = 1:4, page = c(2L, 4L, 5L, 6L), y = c(yb(100), yb(600), yb(400), yb(100)))
+m_enc <- mots_(lignes_(1, 735, 3), lignes_(1, 71, 45), lignes_(2, 71, 8),
+               lignes_(3, 490, 20), lignes_(4, 71, 36), lignes_(5, 71, 40), lignes_(6, 71, 8))
+r <- nd$nd_analyser_remplissage(marq_(6, debut = deb, fin = fin, inmes = 4L), m_enc)
+e <- cons(r, "encadre")
+verifier("encadre court coupe en deux morceaux de 2 et 8 lignes signale; encadre long, encadre d'une page et encadre inmesurable non signales",
+         nrow(e) == 1L && e$page == 1L && grepl("encadre n. 1", e$detail) && grepl("court", e$detail))
+deb3 <- data.frame(id = 1L, page = 3L, y = yb(700)); fin3 <- data.frame(id = 1L, page = 5L, y = yb(300))
+r <- nd$nd_analyser_remplissage(marq_(6, debut = deb3, fin = fin3), mots_(lignes_(3, 695, 5), lignes_(4, 71, 48), lignes_(5, 71, 20),
+                                                                           lignes_(1, 71, 48), lignes_(2, 71, 48), lignes_(6, 71, 48)))
+verifier("encadre long coupe, premier morceau de 5 lignes : conforme", nrow(cons(r, "encadre")) == 0L)
+deb4 <- data.frame(id = 1L, page = 3L, y = yb(745)); fin4 <- data.frame(id = 1L, page = 5L, y = yb(300))
+r <- nd$nd_analyser_remplissage(marq_(6, debut = deb4, fin = fin4), mots_(lignes_(3, 735, 2), lignes_(4, 71, 48), lignes_(5, 71, 20),
+                                                                           lignes_(1, 71, 48), lignes_(2, 71, 48), lignes_(6, 71, 48)))
+verifier("encadre long (3 pages) dont le premier morceau n'a que 2 lignes : signale pour le morceau, non comme court",
+         nrow(cons(r, "encadre")) == 1L && grepl("moins de 3 lignes", cons(r, "encadre")$detail))
+
+# Titres : sous-section en bas de page (2 lignes dessous) / confortable (5 lignes) / sur la derniere page / en paysage.
+ti <- data.frame(niveau = rep("subsection", 4L), page = c(1L, 2L, 5L, 4L),
+                 y = c(yb(735), yb(300), yb(750), yb(740)), texte = c("Titre orphelin", "Titre confortable", "Titre de la fin", "Titre paysage"),
+                 stringsAsFactors = FALSE)
+m_t <- mots_(lignes_(1, 71, 45), lignes_(2, 71, 40), lignes_(3, 71, 10), lignes_(4, 71, 5), lignes_(5, 71, 5))
+m_t <- rbind(m_t, mot_(1, 740, "a"), mot_(1, 755, "b"))
+attr(m_t, "paysage") <- 4L
+r <- nd$nd_analyser_remplissage(marq_(5, titres = ti), m_t)
+verifier("titre : orphelin signale, confortable et titre de la derniere page non signales, page en paysage non mesuree",
+         identical(cons(r, "titre")$page, 1L) && grepl("Titre orphelin", cons(r, "titre")$detail) && r$resume$paysage == 1L)
+
+# Bandeau de section seul en bas de page : sa marque est posee en tete de la page suivante.
+hb_ <- 16.88
+bandeau_ <- function(page, y0) mot_(page, y0, "Bandeau", h = hb_)
+ti <- data.frame(niveau = "section", page = c(2L, 4L), y = c(yb(175), yb(86)), texte = c("Section normale", "Section au bandeau isole"),
+                 stringsAsFactors = FALSE)
+m_b <- mots_(lignes_(1, 71, 48), bandeau_(2, 122), lignes_(2, 180, 20), lignes_(3, 71, 40), bandeau_(3, 735), lignes_(4, 100, 20), lignes_(5, 71, 5))
+r <- nd$nd_analyser_remplissage(marq_(5, titres = ti), m_b)
+verifier("bandeau de section : seul en bas de la page 3 (marque en tete de la page 4) = signale; bandeau suivi de texte = non signale",
+         identical(cons(r, "titre")$page, 3L) && grepl("0 ligne", cons(r, "titre")$detail))
+
+# Rubriques lues dans le texte du PDF, titre de fiche separe de la rubrique 1.
+rub_ <- function(page, y0, n) rbind(mot_(page, y0, paste0(n, "."), x0 = 71), mot_(page, y0, nd$RUBRIQUES_FICHE[[as.character(n)]], x0 = 90))
+m_r <- mots_(lignes_(1, 71, 40), rub_(1, 650, 3), lignes_(1, 665, 6),            # rubrique 3 suivie de 7 lignes : conforme
+             rub_(1, 757, 5),                                                   # rubrique 5 : une seule ligne en bas de page
+             lignes_(2, 71, 40), rub_(3, 71, 1), lignes_(3, 90, 30), lignes_(4, 71, 10))
+ti <- data.frame(niveau = "subsection", page = 2L, y = yb(600), texte = "Test de la fiche", stringsAsFactors = FALSE)
+r <- nd$nd_analyser_remplissage(marq_(4, titres = ti), m_r)
+verifier("rubrique commencee par une seule ligne en bas de page signalee, rubrique suivie de lignes non signalee",
+         identical(cons(r, "rubrique")$page, 1L) && grepl("rubrique 5", cons(r, "rubrique")$detail) && r$resume$rubriques == 3L)
+verifier("titre de fiche en page 2, rubrique 1 en page 3 : signale a la page du titre",
+         identical(cons(r, "titre")$page, 2L) && grepl("separe de la rubrique 1 [(]page 3[)]", cons(r, "titre")$detail))
+r <- nd$nd_analyser_remplissage(marq_(2), mots_(lignes_(1, 71, 3), lignes_(2, 71, 3)))
+verifier("document sans constat : table vide, aucune erreur", is.data.frame(r$constats) && nrow(cons(r, "rubrique")) == 0L)
+verifier("pages du PDF en surplus des marques : avis, rien n'est mesure",
+         is.null(nd$nd_analyser_remplissage(marq_(1), mots_(lignes_(2, 71, 3)))$constats))
+
+# Lecture d'un fichier .remp (ordonnees en sp depuis le bas de la feuille).
+f_remp <- file.path(dir_b, "t.remp")
+writeLines(c("P 1 1 0 10000", "P 2 2 1 -10000", "B 1 1 3276800", "F 1 2 6553600", "X 2",
+             "T section 2 6553600 \\ifttl@toclabel Titre", "T paragraph 2 1 x",
+             "G 845.04684pt 71.13188pt 702.78308pt 14.68802pt"), f_remp)
+mq <- nd$nd_lire_marques(f_remp)
+verifier("marques : pages, volontaire, encadres (sp -> bp), inmesurables, titres, geometrie",
+         identical(mq$pages$volontaire, c(FALSE, TRUE)) && abs(mq$encadres$debut$y - 50 * 72 / 72.27) < 1e-9 &&
+         identical(mq$encadres$fin$page, 2L) && identical(mq$encadres$inmesurables, 2L) && nrow(mq$titres) == 1L &&
+         abs(mq$geometrie$hauteur_utile - 702.78308 * 72 / 72.27) < 1e-6)
+
+# --- (d) Remplissage : passe de mesure reelle sur un petit document (pdflatex, mdframed) ---------------
+tex_dispo <- nzchar(Sys.which("pdflatex")) && nzchar(Sys.which("pdftotext")) && nzchar(Sys.which("pdfinfo")) &&
+             nzchar(Sys.which("kpsewhich")) && nzchar(system2("kpsewhich", "mdframed.sty", stdout = TRUE, stderr = FALSE)[1L])
+if (tex_dispo) {
+  dir_t <- file.path(dir_b, "tex"); dir.create(dir_t)
+  doc <- c("\\documentclass[a4paper,11pt]{article}", "\\usepackage[utf8]{inputenc}", "\\usepackage{mdframed}",
+           "\\usepackage[margin=2.5cm]{geometry}", "\\usepackage{titlesec}",
+           "\\newmdenv[linecolor=blue,linewidth=0pt,leftline=true]{encadre}",
+           "\\begin{document}", "\\section{Un}", "Debut.\\par", "\\vspace*{\\dimexpr\\textheight-6\\baselineskip}",
+           "\\begin{encadre}", "Premiere ligne de l'encadre coupe", paste0("\\par Ligne ", 1:12, " de l'encadre."), "\\end{encadre}",
+           "Fin du document.", "\\end{document}")
+  f_doc <- file.path(dir_t, "mini.tex"); writeLines(doc, f_doc)
+  for (i in 1:2) system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-output-directory=", shQuote(dir_t)), shQuote(f_doc)),
+                         stdout = FALSE, stderr = FALSE)
+  marq_tex <- file.path(.dossier, "..", "marques_remplissage.tex")
+  rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "mini.pdf"), marq_tex)
+  verifier("passe de mesure reelle : texte identique (garde-fou), un encadre mesure", length(rr$avis) == 0L && !is.null(rr$constats) &&
+           rr$resume$encadres == 1L)
+  e <- rr$constats[rr$constats$type == "encadre", , drop = FALSE]
+  verifier("passe de mesure reelle : encadre coupe entre les pages 1 et 2 detecte, morceau court", nrow(e) == 1L &&
+           grepl("entre les pages 1 et 2", e$detail))
+  writeLines(sub("Fin du document.", "Fin du document, modifie.", doc, fixed = TRUE), f_doc)
+  rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "mini.pdf"), marq_tex)
+  verifier("garde-fou : PDF qui n'a pas le texte de la passe de mesure = avis, rien n'est mesure",
+           is.null(rr$constats) && grepl("meme texte", rr$avis))
+  verifier("la passe de mesure ne laisse rien dans le dossier du document (hors fichiers de la compilation normale)",
+           setequal(list.files(dir_t), c("mini.tex", "mini.pdf", "mini.aux", "mini.log")))
+  rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "absent.pdf"), marq_tex)
+  verifier("PDF normal absent : avis", is.null(rr$constats) && length(rr$avis) == 1L)
+} else cat("  (pdflatex, pdftotext ou mdframed absents : passe de mesure reelle non testee)\n")
+
+unlink(c(dir_b, dir_m), recursive = TRUE)
 fin_fichier()

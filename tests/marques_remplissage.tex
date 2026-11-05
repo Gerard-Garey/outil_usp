@@ -1,0 +1,100 @@
+% =============================================================================
+%  tests/marques_remplissage.tex  --  marques du controle de remplissage des
+%  pages (branche ND, lot L0, issue #451). Adapte de outils/controles/
+%  marques_remplissage.tex du depot docu_actu (environnement framed remplace
+%  par mdframed).
+%
+%  Charge AVANT le document par tests/controle_doc_nd.R (option --remplissage),
+%  dans une passe de pdfLaTeX de mesure faite dans un repertoire temporaire, ou
+%  par tests/doc_remplissage.tex dans la CI :
+%      pdflatex "\input{marques_remplissage}\input{doc_tests_usp.tex}"
+%  Ne modifie aucun fichier du depot ; ecrit <jobname>.remp, une ligne par marque :
+%    P <page> <numero imprime> <volontaire 0|1> <\outputpenalty>
+%        une ligne par page expediee ; volontaire = 1 si un \newpage ou un
+%        \clearpage (une \partie, la fin du document) a termine la page, ou si
+%        la page est une page de flottants que \clearpage expedie
+%        (\outputpenalty < -10000)
+%    B <n d'encadre> <page> <ordonnee en sp depuis le bas de la feuille>
+%    F <n d'encadre> <page> <ordonnee>
+%        debut (B) et fin (F) de l'environnement `encadre` (mdframed) : la
+%        ligne de base de la premiere et de la derniere ligne du contenu ;
+%        un encadre coupe a des pages de debut et de fin differentes.
+%    X <n d'encadre>
+%        encadre dont la fin n'est pas en mode horizontal (tableau, formule
+%        hors paragraphe) : fin non mesurable, l'encadre n'est pas juge.
+%    T <niveau> <page> <ordonnee> <titre>
+%        un titre de la table des matieres (section, subsection, subsubsection),
+%        depuis \addcontentsline{toc}
+%    G <hauteur de la feuille> <haut du corps de page> <hauteur utile> <interligne>
+%        geometrie, ecrite a la fin
+%  Les marques sont des \write et des \pdfsavepos : des noeuds sans largeur ni
+%  hauteur, qui ne changent pas la composition (le controle le verifie en
+%  comparant le texte de la passe de mesure a celui du PDF compile). Les
+%  rubriques de fiche ne sont pas marquees : une marque posee apres leur
+%  intitule a deplace un saut de page (mesure) ; le controle les lit dans le
+%  texte du PDF. Les marques
+%  s'installent a la fin du preambule (crochet begindocument/end, noyau
+%  LaTeX 2021 et suivants), apres les paquets du document.
+% =============================================================================
+\makeatletter
+\RequirePackage{atbegshi}
+\newcount\remp@phys      % pages expediees jusqu'ici
+\newcount\remp@enc       % encadres ouverts jusqu'ici
+\newif\ifremp@vol        % un \newpage a ete demande depuis la derniere page expediee
+\newif\ifremp@part       % on est dans \partie (son titre n'est pas un titre de section)
+\newwrite\remp@f
+\let\remp@premier\relax
+
+% Marque positionnee : \pdfsavepos puis une ligne ecrite a l'expedition de la
+% page (la page et l'ordonnee sont lues a ce moment-la).
+\def\remp@pos#1{\pdfsavepos
+  \edef\remp@t{\noexpand\write\remp@f{#1\space\noexpand\the\remp@phys
+    \space\noexpand\the\pdflastypos}}\remp@t}
+
+\def\remp@installer{%
+  \immediate\openout\remp@f=\jobname.remp\relax
+  \AtBeginShipout{\global\advance\remp@phys\@ne
+    \immediate\write\remp@f{P \the\remp@phys\space\the\c@page\space
+      \ifremp@vol 1\else\ifnum\outputpenalty<-10000 1\else 0\fi\fi
+      \space\the\outputpenalty}%
+    \global\remp@volfalse}%
+  \AtEndDocument{\immediate\write\remp@f{G \the\paperheight\space
+    \the\dimexpr1in+\voffset+\topmargin+\headheight+\headsep\relax\space
+    \the\textheight\space\the\baselineskip}}%
+  % Saut de page voulu : le drapeau tombe si aucune page n'est expediee par
+  % ce \newpage (page vide, la penalite est alors supprimee).
+  \let\remp@newpage\newpage
+  \def\newpage{\edef\remp@avant{\the\remp@phys}\global\remp@voltrue
+    \remp@newpage
+    \ifnum\remp@phys=\remp@avant\relax\global\remp@volfalse\fi}%
+  % Encadres (mdframed) : marque de debut a la premiere ligne du contenu
+  % (\everypar), marque de fin a la derniere ligne si l'environnement se
+  % termine en mode horizontal, marque X sinon.
+  \@ifundefined{encadre}{}{%
+    \let\remp@be\encadre \let\remp@ee\endencadre
+    \def\encadre{\global\advance\remp@enc\@ne\edef\remp@n{\the\remp@enc}%
+      \remp@be
+      \gdef\remp@premier{\remp@pos{B \remp@n}\global\let\remp@premier\relax}%
+      \everypar\expandafter{\the\everypar\remp@premier}}%
+    \def\endencadre{\ifhmode\ifnum\lastnodetype=-1 \immediate\write\remp@f{X \remp@n}%
+        \else\remp@pos{F \remp@n}\fi
+      \else\immediate\write\remp@f{X \remp@n}\fi
+      \remp@ee}}%
+  % Titres : \addcontentsline{toc}{<niveau>}{<texte>}, que titlesec appelle
+  % pour chaque \section, \subsection et \subsubsection. Le titre d'une \partie
+  % n'est pas un titre de section.
+  \@ifundefined{partie}{}{%
+    \let\remp@partie\partie
+    \def\partie##1##2{\remp@parttrue\remp@partie{##1}{##2}\remp@partfalse}}%
+  \let\remp@acl\addcontentsline
+  \def\addcontentsline##1##2##3{\remp@acl{##1}{##2}{##3}%
+    \def\remp@a{##1}\def\remp@b{toc}%
+    \ifx\remp@a\remp@b\ifremp@part\else
+      \pdfsavepos
+      \write\remp@f{T ##2\space\the\remp@phys\space\the\pdflastypos\space
+        \detokenize{##3}}%
+    \fi\fi}%
+}
+\@ifundefined{AddToHook}{\AtBeginDocument{\remp@installer}}%
+  {\AddToHook{begindocument/end}{\remp@installer}}
+\makeatother
