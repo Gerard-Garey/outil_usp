@@ -441,3 +441,78 @@ Les neuf clés hors des quatre changements gardent la p_mc du tableau du 11/10/2
 - **Lecture dans le script** : `tests/calibration_mc_mw_t8.R` (l. ~1211) la lit dans la référence, comme `NL_MAX` (l. 708), et non dans une liste écrite en dur.
 - **Sur `reserve2` à `1efa88b` [V]** : PenteIntra (0,090 ; |p − α| = 0,76 err_mc) et Origine (0,085 ; 1,70 err_mc). HomogF (0,080 ; 2,33 err_mc) est juste au-delà du critère, et BP (0,285) hors de l'ensemble.
 - La lecture de ces lignes avec leur τ (§ 5) est inchangée.
+
+---
+
+## Annotation du 05/11/2026 : règle du témoin K3 corrigée (#378), test bêta-binomial sur la région de rejet réalisée de l'oracle ; lecture de N HomogF 0,05
+
+> *Rédigé par l'agent actuary (IA), versionné par la session principale (correctif rapide R32, PR #443). Décisions du mainteneur du 05/11/2026. Mise en œuvre : `tests/calibration_mc_mw_t8.R`, commits `0c03e86`, `2f8c727` et `ee163dd`. Les sorties du 11/10/2026 et du 26/10/2026 ne sont ni modifiées ni régénérées. Rejeu ciblé du 05/11/2026, hors dépôt : oracles N et E régénérés au commit mesuré `7ff4725`, md5 des valeurs identiques à ceux du T0 du 26/10/2026 (N `9644d848…`, E `20d6491f…`) ; triangles mesurés lus dans `docs/tableaux/20261026-issue297-calibration-famille-mw-brut.tsv` (valeurs écrites sur 17 chiffres, relues à l'identique). Le critère du § 5, ρ et les annotations antérieures restent en vigueur, hors l'annotation du 11/10/2026, points 1 et 2, et le motif de sa décision D1 (a), que la présente annotation remplace.*
+
+**1. Loi du nombre de rejets du témoin : la loi bêta-binomiale remplace l'approximation normale du 11/10/2026.**
+- Les n triangles mesurés sont confrontés au même oracle réalisé, de N statistiques finies. Sachant cet oracle, le nombre k de rejets du témoin suit Bin(n, q), où q est la probabilité, sous F0, de la région de rejet de l'oracle réalisé.
+- Règle « ≥ » d'`engine_p_mc()`, en queue haute : une valeur v est rejetée si et seulement si #{S ≥ v} ≤ c1, avec c1 = ⌈α(N + 1)⌉ − 2, c'est-à-dire si v > S_(N − c1).
+  - Pour une statistique continue, q = 1 − F0(S_(N − c1)) suit Beta(c1 + 1, N − c1) (statistique d'ordre uniforme).
+  - En bilatéral, avec c2 = ⌈α(N + 1)/2⌉ − 2, q est la somme de deux espacements extrêmes et suit Beta(2(c2 + 1), N + 1 − 2(c2 + 1)) [V, résultat élémentaire sur les statistiques d'ordre uniformes].
+- k suit donc une loi bêta-binomiale. À n = 2 000, N = 20 000 et α = 0,05, sa variance vaut 104,49, contre n² α(1 − α)(1/n + 1/N0) = 104,5 : c'est, à l'arrondi près, la variance que déclarait l'annotation du 10/10/2026, point 2 (b) [V, calcul].
+- À k = 71, P(k ≤ 71) vaut 0,00172 en bêta-binomiale [V, calcul], contre 0,0023 en approximation normale (selon le centre, α ou la taille lissée).
+- La simulation d'`actuary` du 05/11/2026 (script hors dépôt) confirme cette loi exacte, qui ne dépend pas d'elle :
+  - en unilatéral, 200 000 oracles : P(k ≤ 71) = 0,00169 ± 0,00009 ;
+  - en bilatéral, 60 000 oracles : test KS de q contre la loi bêta, p = 0,78.
+- L'approximation normale du 11/10/2026 surestime la queue basse d'environ un tiers. Elle est retirée.
+
+**2. Règle corrigée (remplace l'annotation du 11/10/2026, point 1, (i) et (ii)).**
+- Notations :
+  - m_r : nombre de statistiques oracle finies que rejette l'oracle réalisé (p d'`engine_p_mc()` < α) ;
+  - N : nombre de statistiques oracle finies ;
+  - t = 1 en unilatéral, 2 en bilatéral.
+- Test : loi bêta-binomiale BB(n, m_r + t, N + 1 − m_r − t) ; p bilatérale par doublement de la plus petite queue.
+- Correction de Holm : sur les 13 clés par (loi, α), famille de 13 strictement. Une p absente ne réduit pas le multiplicateur. Le binomial exact du signal suit la même règle (sans effet sur les sorties du 26/10/2026, qui n'ont aucune p absente).
+- Classement d'un signal du binomial exact (inchangé : contre la taille lissée, p de Holm < 0,05) :
+  - **expliqué** si la p de Holm bêta-binomiale est au moins 0,05 ;
+  - **non expliqué** sinon, ou si la p bêta-binomiale est absente.
+- Seul un signal non expliqué met Π0 et Φ0 en défaut.
+- **Statistique continue sans valeur non finie** : m_r = c1 (2 c2 en bilatéral), et le test est exact.
+- **Statistique à atomes** : la loi est approchée.
+  - Un atome à cheval sur le seuil, au sens d'`engine_p_mc()`, n'est jamais rejeté par l'oracle réalisé. Condition : (1 + avant)/(N + 1) < α_t ≤ (1 + avec)/(N + 1), avec α_t = α, ou α/2 par queue en bilatéral.
+  - Le centre (m_r + t)/(N + 1) intègre donc la décision effective de l'oracle sur cet atome. La taille lissée, elle, lui accorde un crédit fractionnaire.
+- Le critère « |τ_or − taille| au plus de l'ordre de la masse » est retiré. Avec plusieurs atomes, il pouvait admettre n'importe quel τ_or inférieur à la taille : pour E Runs 0,05, la somme des masses des deux atomes à cheval vaut 0,05115, plus que la taille 0,03639.
+- Les atomes à cheval sont rapportés à titre descriptif, sans seuil de masse :
+  - valeur, masse, queues avant et avec, décision de l'oracle ;
+  - crédit lissé = (effectif de l'atome / N0) × `pbinom(c_t, N, avec/N)`, N0 triangles oracle admis : c'est la contribution de l'atome à la taille lissée (N0 = N dans toutes les cellules du 26/10/2026).
+- Colonne K3 :
+  - « (ii) » : signal expliqué dans une cellule qui porte un atome à cheval ;
+  - « (i) » : autre signal expliqué ;
+  - « non expliqué » ;
+  - « — » : pas de signal.
+
+**3. Rejeu des sorties du 26/10/2026.**
+- **E Runs 0,05** : k = 44 / 2 000, taille 0,03639, m_r/N = 586/20 000, p = 0,062 (Holm 0,744, rang 2 de la famille E 0,05). Signal expliqué, classe (ii).
+  - Atome bas −1,2010 : masse 0,01755, queues 0,0077 et 0,02525, crédit 0,0071.
+  - Atome haut 2,4019 : masse 0,0336, queues 0,0216 et 0,0552, crédit ≈ 0.
+  - Les deux atomes sont non rejetés par l'oracle. m_r/N + crédits = 0,0293 + 0,0071 ≈ 0,0364, soit la taille.
+- **N HomogF 0,05** : k = 71 / 2 000, taille 0,04996, m_r = 999 (= c1), p = 0,00344, Holm 0,0447 : **non expliqué**.
+  - Le motif « expliqué par (i), p ≈ 0,060 » de l'annotation du 11/10/2026, point 2, reposait sur l'approximation normale. Il est retiré.
+  - HomogF n'est pas continue : 10 898 valeurs distinctes sur 20 000 dans l'oracle N, et 1 399 des 2 000 valeurs mesurées sont égales à une valeur de l'oracle (rejeu). La loi y est approchée.
+  - **Sens de l'erreur, établi.**
+    - La région de rejet réalisée reste {v > S_(N − c1)} pour toute loi F0.
+    - Par le couplage S = F0⁻¹(U), F0(S_(N − c1)) ≥ U_(N − c1). Donc q ≤ 1 − U_(N − c1), de loi Beta(c1 + 1, N − c1), avec un écart au plus égal à la masse, sous F0, de la valeur S_(N − c1).
+    - Sans conditionnement sur m_r, k est donc stochastiquement plus petit que sous la loi bêta-binomiale. Pour un déficit de rejets, la p bêta-binomiale minore la p exacte.
+    - L'effet du conditionnement sur m_r = c1 n'est pas évalué [H : second ordre, le plus gros atome de l'oracle N pèse 0,00065].
+    - « Non expliqué » est donc la lecture prudente.
+  - **Ampleur, non mesurée.**
+    - Avec un décalage uniforme δ de q (modèle de sensibilité), la p de Holm vaut 0,0461 à δ = 0,00005 (une statistique sur 20 000), 0,0490 à δ = 0,00015 et 0,0505 à δ = 0,0002 [V, calcul].
+    - La masse de la valeur seuil S_(N − c1) n'a pas été relevée au rejeu. La discrétude d'HomogF peut absorber la marge du verdict.
+  - **Contrôle de sensibilité** par une autre approximation, le test exact de Fisher de k/n contre m_r/N [V, calcul]. Les deux classes sont inchangées :
+    - N HomogF : p = 0,0038, × 13 = 0,049 ;
+    - E Runs : p = 0,067, × 12 = 0,81.
+- Répartition des 52 cellules : 50 « — », 1 (ii), 1 non expliqué.
+
+**4. Lecture de N HomogF 0,05 et décision D1 (a) révisée** (décision du mainteneur du 05/11/2026 ; remplace le motif de D1 (a) de l'annotation du 11/10/2026, la décision Π0 levé étant maintenue).
+- Le signal est isolé parmi les 52 cellules (4 familles de Holm ; Holm sur 52 : 52 × 0,00344 ≈ 0,18).
+- Il n'a pas de contrepartie à α = 0,10 (k = 195, p binomiale 0,737).
+- Il va dans le sens conservateur : le témoin rejette moins que l'oracle.
+- Il est marginal : sa p de Holm, 0,0447, minore la p exacte (point 3).
+- Les mêmes triangles ont servi au 11/10 et au 26/10 : ce n'est pas une réplication.
+- HomogF E 0,05 va dans le même sens sans être significatif (k = 84, p 0,111).
+- Π0 reste levé par décision du mainteneur, avec ce motif corrigé : « signal non expliqué, jugé isolé et marginal ». L'état mécanique que produirait le script (Π0, Φ0) est consigné, sans patch des sorties.
+- Vérification préspécifiée : à la prochaine campagne sur des triangles indépendants, un signal d'HomogF à 0,05 (Holm binomiale < 0,05) ouvre une analyse de la discrétude d'HomogF et du traitement des ex æquo. Cette analyse relève la masse de la valeur seuil S_(N − c1) de l'oracle.
