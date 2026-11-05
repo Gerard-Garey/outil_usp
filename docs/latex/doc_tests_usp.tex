@@ -164,8 +164,12 @@
   \subsection{#1}%
   \label{fiche:\theficheid}%
 }{%
-  \end{description}%
-  \label{fiche:\theficheid-fin}% fin de fiche (mode vertical, sans effet sur la pagination), lue par le controle de plafond ; jamais cible d'un \ref
+  % Label de fin, lu par le controle de plafond, jamais cible d'un \ref : pose
+  % dans la derniere ligne de la fiche (mode horizontal), il prend la page de
+  % cette ligne ; a defaut (mode vertical), apres la liste des rubriques. Sans
+  % effet sur la pagination.
+  \ifhmode\unskip\label{fiche:\theficheid-fin}\end{description}%
+  \else\end{description}\label{fiche:\theficheid-fin}\fi
   \vspace{0.5em}%
 }
 % Mise en page des rubriques. Un titre de rubrique n'est jamais seul en bas de
