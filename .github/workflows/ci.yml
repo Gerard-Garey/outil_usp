@@ -68,8 +68,9 @@ jobs:
           fi
           # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI,
           # et les contrôles ND de la documentation (issue #451), qui lisent le
-          # .tex, le .aux, le .log et le PDF de la compilation.
-          if grep -qE '^(docs/latex/|tests/(controle_doc_nd\.R|marques_remplissage\.tex|doc_remplissage\.tex)$|\.github/)' fichiers.txt; then
+          # .tex, le .aux, le .log et le PDF de la compilation, et R/engine.R
+          # (zones de l'exception E7 du contrôle des motifs).
+          if grep -qE '^(docs/latex/|R/engine\.R$|tests/(controle_doc_nd\.R|marques_remplissage\.tex|doc_remplissage\.tex)$|\.github/)' fichiers.txt; then
             echo "latex=true" >> "$GITHUB_OUTPUT"
           else
             echo "latex=false" >> "$GITHUB_OUTPUT"
@@ -261,10 +262,17 @@ jobs:
           root_file: doc_remplissage.tex
           working_directory: tests
           args: -pdf -interaction=nonstopmode -halt-on-error
-      # R seul (aucun paquet) ; même version que le job des tests.
+      # R seul (aucun paquet) ; même version que le job des tests. Un échec de
+      # l'installation ne doit pas faire échouer le job (avertissement seulement).
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        continue-on-error: true
         with:
           r-version: "4.3.1"
+      # pdftotext et pdfinfo (poppler-utils), lus par le contrôle du remplissage :
+      # absents de l'image ubuntu-22.04 (journal de la CI sur ca7cd03).
+      - name: poppler-utils (pdftotext, pdfinfo)
+        continue-on-error: true
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils
       # Motifs de « vie du dépôt », plafond de pages des fiches (lit le .aux) et
       # débordements (lit le .log) : sans option, les trois contrôles.
       - name: Contrôles ND de la documentation (avertissement)
