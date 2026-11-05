@@ -3401,8 +3401,9 @@ Merz et Wüthrich, 2008, hypothèses~2.1, p.~547--548). La lettre de l'annexe~XV
 et~(iv), énonce, pour chaque année d'accident, la proportionnalité au cumulé précédent de
 l'espérance (sans constante) et de la variance du cumulé suivant, sans exiger un facteur ni une
 constante communs aux années~: cette communauté est une interprétation de l'outil, appuyée sur
-D(4)(c) pour $f_j$ et sur D(5)(d)(ii) pour $\sigma_j^2$, qui n'estiment qu'un $\hat f_j$ et un
-$\hat\sigma_j^2$ par année de développement (sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
+D(4)(c) pour $f_j$ et sur D(5)(d)(ii) pour $\sigma_j^2$, qui ne définissent qu'un $\hat f_j$ et un
+$\hat\sigma_j^2$ par année de développement ($\hat\sigma_{J-1}^2$ fixé par la règle de minimum,
+fiche~\ref{mw:m6sig}~; sections~\ref{sec:mwm1} et~\ref{sec:mwm2}).
 \textbf{Aucune loi n'est spécifiée}~: seuls les deux premiers moments conditionnels le sont, ce qui
 constitue la différence de nature la plus importante avec les méthodes
 lognormales et commande l'ensemble des choix de p-values.
@@ -16060,7 +16061,7 @@ complètent la régression agrégée initiale. Cinq éprouvent les hypothèses d
 $f_j$, l'absence de courbure et la famille~$\alpha$ (M1), l'exposant de variance (M2)~;
 D(2)(h)(iii) et~(iv) énoncent la proportionnalité de l'espérance et de la variance pour le passage
 «~d'une année de développement~» à la suivante, et D(4)(c) estime un facteur unique $\hat f_j$,
-D(5)(d)(ii) une variance unique $\hat\sigma_j^2$, par année de développement (la communauté de $f_j$
+D(5)(d)(ii) définit un montant unique $\hat\sigma_j^2$, par année de développement (la communauté de $f_j$
 et de $\sigma_j^2$ entre années de survenance est une interprétation de l'outil,
 sections~\ref{sec:mwm1} et~\ref{sec:mwm2}). La sixième, l'homogénéité des résidus entre années de survenance (M3,
 fiche~\ref{mw:m3acc}), compare les lignes du triangle, ses résidus étant groupés par année de
@@ -17432,7 +17433,8 @@ développement précédente ». \textbf{Formalisation retenue par l'outil}~:
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, avec une constante $\sigma_j^2$
 commune à toutes les années de survenance, conséquence des hypothèses~(3) (section~3, p.~217)
 et~(1) (section~2, p.~214) de T.~Mack (1993), qui conditionnent sur tout le passé
-$C(i,0),\dots,C(i,j)$ de l'année, et hypothèse du modèle de Merz et Wüthrich (2008,
+$C(i,0),\dots,C(i,j)$ de l'année, la seconde permettant de ne conditionner que sur $C(i,j)$, et
+hypothèse du modèle de Merz et Wüthrich (2008,
 hypothèses~2.1, éq.~(2.7), p.~548)~; cette communauté est une interprétation de l'outil, appuyée
 sur D(5)(d)(ii), qui définit un montant unique $\hat\sigma_j^2$ par année de développement (fixé
 par la règle de minimum de sa seconde ligne pour $j = J-1$, fiche~\ref{mw:m6sig}), et non la
