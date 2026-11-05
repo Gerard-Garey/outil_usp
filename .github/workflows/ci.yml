@@ -88,12 +88,19 @@ jobs:
     # la concordance (qui lit le moteur et le .tex) dans les deux cas.
     needs: changements
     if: needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true'
-    # Durée observée (branche Fs, 04/11/2026) : 38 min 47 s pour le job vert
-    # de 4505ae3, dont 33 min 44 s de tests unitaires, 2 min 30 s de
+    # Durées observées. Tests unitaires en séquentiel (job de 039ec76, 05/11/2026,
+    # exécution 41886457559) : 32 min 02 s, avec 2 min 25 s de reproductibilité
+    # et 30 s de concordance ; branche Fs, 04/11/2026 : 38 min 47 s pour le job
+    # vert de 4505ae3, dont 33 min 44 s de tests unitaires, 2 min 30 s de
     # reproductibilité (six cas) et 47 s de setup-r. Un setup-r lent du runner
-    # (14 min 36 s le même jour, 15 min le 23/10) suffisait à dépasser
-    # l'ancien délai de 40 min sans aucun échec de test. 60 min laissent la
-    # marge d'un setup-r lent.
+    # (14 min 36 s le même jour, 15 min le 23/10) suffisait à dépasser l'ancien
+    # délai de 40 min sans aucun échec de test. Depuis l'issue #444 les tests
+    # unitaires tournent en parallèle (4 processus, étape ci-dessous) : sur le
+    # conteneur de développement à 4 cœurs, partagé avec d'autres tâches, la
+    # batterie a pris 31 min 30 s en séquentiel et 8 min 39 s en parallèle
+    # (2 910 assertions dans les deux cas, shiny et plotly absents) ; ce ne
+    # sont pas des durées du runner, qui sont à relever sur la PR. Le délai de
+    # 60 min est conservé : il laisse la marge d'un setup-r lent.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -168,9 +175,17 @@ jobs:
       - name: BLAS et LAPACK de référence
         id: blas
         uses: ./.github/actions/blas-reference
+      # Issue #444 : un processus Rscript par fichier, 4 à la fois (mode
+      # --parallele de tests/test_unitaires.R, même bilan et même code de
+      # sortie que le mode séquentiel). nproc consigne le nombre de cœurs du
+      # runner dans le journal : les assertions de durée « < 1 s »
+      # (test_application.R, test_merz_wuthrich.R) subissent la charge des 4
+      # processus.
       - name: Tests unitaires
         if: needs.changements.outputs.moteur == 'true'
-        run: Rscript tests/test_unitaires.R
+        run: |
+          echo "Cœurs du runner : $(nproc)"
+          Rscript tests/test_unitaires.R --parallele
       - name: Reproductibilité et non-régression
         if: needs.changements.outputs.moteur == 'true'
         run: Rscript tests/test_reproductibilite.R

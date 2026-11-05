@@ -4,7 +4,9 @@
 #
 #  Teste les fonctions d'extraction de tests/concordance_doc_moteur.R sur des
 #  chaines LaTeX construites en memoire, sans lire le document ni executer le
-#  moteur (sauf le dernier bloc, qui lance le script) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
+#  moteur (sauf les blocs de copies mutantes du .tex, qui executent le moteur une fois
+#  pour toutes dans ce processus (#444), et ceux qui lancent le script en processus : copie du
+#  depot a moteur mutant, locale C, --B 98) : \code{} imbriques, noms coupes en deux \code{}, commentaires,
 #  desechappement, citations de fonction (qualifiees, internes, a joker,
 #  avec arguments), nombres en lettres, registre des decomptes (phrase
 #  verifiee, ecart, phrase introuvable, methode multiple), inventaire par
@@ -29,7 +31,8 @@
 #  identifiants en majuscules, definitions, champs poses, chemins de
 #  champs, mentions historiques exemptees ; copie mutante du .tex et copie
 #  du depot a moteur mutant), recapitulatif apres exemptions et
-#  mode --strict (script lance sur une copie modifiee du .tex). L'etat reel
+#  mode --strict (rapport juge sur une copie modifiee du .tex, dans ce
+#  processus ; script lance en processus sur une copie du depot). L'etat reel
 #  du depot n'est pas juge ici : c'est l'etape --strict de la CI qui le fait
 #  (decision (a) du mainteneur sur l'audit de #65).
 ###############################################################################
@@ -537,7 +540,7 @@ verifier("valider_B : valeurs non entieres refusees (abc, 25.5, vide)",
          all(grepl("entier attendu", c(.err(cc$valider_B("abc")), .err(cc$valider_B("25.5")),
                                        .err(cc$valider_B(""))), fixed = TRUE)))
 
-## --- Mode --strict sur le document (execute le moteur, ~10 s par appel) ----
+## --- Mode --strict sur des copies mutantes du .tex (rapport en processus, #444) ----
 .racine <- normalizePath(file.path(.dossier, "..", ".."))
 .lancer_concordance <- function(...) {
   ancien <- setwd(.racine); on.exit(setwd(ancien))
@@ -545,10 +548,35 @@ verifier("valider_B : valeurs non entieres refusees (abc, 25.5, vide)",
                                      c("tests/concordance_doc_moteur.R", ...), stdout = TRUE, stderr = TRUE))
   list(code = if (is.null(attr(sortie, "status"))) 0L else attr(sortie, "status"), sortie = sortie)
 }
+# Copies mutantes du .tex jugees DANS CE PROCESSUS (issue #444) : le rapport de
+# concordance (concordance_executer()) est appele avec un moteur et des
+# executions de run_engine() construits une seule fois (env_concordance(),
+# objets_moteur_concordance()), au lieu d'un Rscript --strict par copie
+# (~32 s chacun, dont plus de la moitie dans trois run_engine() a B = 99). Le
+# rapport est le meme que celui du processus fils (verifie a la creation de ce
+# bloc : sortie identique, octet pour octet, sur le .tex versionne et sur une
+# copie mutante, issue #444). Le
+# code de sortie du mode --strict est repris de n_ecarts (1 si au moins un
+# ecart) ; l'appel reel de quit(status = 1) du programme principal reste
+# couvert par la copie mutante du depot (#160, plus bas), lancee en
+# processus, et par l'etape --strict de la CI.
+.conc <- new.env()
+.juger_tex <- function(fichier_tex) {
+  if (is.null(.conc$objets)) {
+    .conc$env <- cc$env_concordance(.racine)
+    .conc$objets <- cc$objets_moteur_concordance(cc$B_MIN, .racine)
+  }
+  sortie <- character(0)
+  n <- NA_integer_
+  sortie <- utils::capture.output(
+    n <- suppressWarnings(cc$concordance_executer(strict = TRUE, B = cc$B_MIN, fichier_tex = fichier_tex,
+                                                  racine = .racine, env = .conc$env, objets = .conc$objets)))
+  list(code = if (!is.na(n) && n > 0L) 1L else 0L, sortie = sortie)
+}
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(c(readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8"),
              "Mutant : \\code{fonction\\_inventee\\_xyz()}."), .tex_mutant, useBytes = TRUE)
-r_mut <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+r_mut <- .juger_tex(.tex_mutant)
 unlink(.tex_mutant)
 verifier("--strict echoue (code 1) sur un nom invente dans une copie du .tex, signale comme ecart non exempte",
          r_mut$code == 1L && any(grepl("^    fonction_inventee_xyz\\(\\) ", r_mut$sortie)) &&
@@ -564,7 +592,7 @@ verifier("Recapitulatif de la section 1 sur la copie mutante : 1 nom INTROUVABLE
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(sub("& \\code{PenteIntra} \\\\", "& \\code{Intercept} \\\\[2pt]", .tex_91, fixed = TRUE),
            .tex_mutant, useBytes = TRUE)
-r_91 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+r_91 <- .juger_tex(.tex_mutant)
 unlink(.tex_mutant)
 verifier("Issue #91 : --strict echoue (code 1) sur la cle USP Intercept injectee a la ligne M1 (fin \\\\[2pt]) d'une copie du .tex",
          length(.k91) == 1L && r_91$code == 1L &&
@@ -587,7 +615,7 @@ writeLines(c(sub("Les quatre autres lignes de la base", "Les six autres lignes d
              "Mutant : on compte 51~lignes de tests pour la prime.",
              "Mutant : puis $6$ lignes et quatre-vingts lignes.",
              "Mutant : le lecteur refuse un tableau de deux lignes."), .tex_mutant, useBytes = TRUE)
-r_75 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+r_75 <- .juger_tex(.tex_mutant)
 unlink(.tex_mutant)
 verifier("Issue #75 : --strict echoue (code 1) sur un decompte faux injecte dans une phrase du registre (annonce 11, mesure 12)",
          length(.k75) == 1L && r_75$code == 1L &&
@@ -794,7 +822,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .m[.k_fi] <- sub("issue122-J2.md", "issue122-J3.md", .m[.k_fi], fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(.m, .tex_mutant, useBytes = TRUE)
-r_114 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+r_114 <- .juger_tex(.tex_mutant)
 unlink(.tex_mutant)
 .sortie_a <- function(ligne, label, rx) {
   lig <- gsub("?", "\\?", sprintf("%-5s", if (is.na(ligne)) "?" else ligne), fixed = TRUE)
@@ -1170,7 +1198,7 @@ writeLines(c(.tex_160,
              "Mutant : \\code{TOL\\_DELTA\\_}\\newline\\code{BORD} existe.",
              "Mutant : \\code{REP\\_PAS\\_KKT} cite comme existant.",
              "Mutant : \\code{COUL\\$trait} et \\code{CleInventeeMixte}."), .tex_mutant, useBytes = TRUE)
-r_160 <- .lancer_concordance("--strict", "--tex", .tex_mutant)
+r_160 <- .juger_tex(.tex_mutant)
 unlink(.tex_mutant)
 verifier("Issue #160 : --strict echoue (code 1) sur une copie du .tex citant CONSTANTE_INVENTEE_XYZ et metadata$champ_invente, nommes avec leur ligne",
          r_160$code == 1L &&

@@ -2015,33 +2015,143 @@ ecrire <- function(...) writeLines(vers_utf8(paste0(...)), sep = "", useBytes = 
 ordre_stable <- function(x) order(tolower(x), x, method = "radix")
 
 # ---------------------------------------------------------------------------
-#  Programme principal
+#  Rapport et programme principal
 # ---------------------------------------------------------------------------
 
-if (sys.nframe() == 0L) {
-  args <- commandArgs(trailingOnly = TRUE)
-  strict <- "--strict" %in% args
-  B <- B_MIN
-  k <- match("--B", args)
-  if (!is.na(k)) {
-    if (k == length(args)) stop("--B sans valeur")
-    B <- valider_B(args[k + 1L])
-  }
-  k <- match("--tex", args)
-  fichier_tex <- if (is.na(k)) NULL else {
-    if (k == length(args)) stop("--tex sans valeur")
-    args[k + 1L]
-  }
-  RACINE <- if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
-    stop("R/engine.R introuvable : lancer depuis la racine du depot.")
+# Executions du moteur des sections 2 et 5, separees du rapport pour pouvoir
+# etre calculees une fois et reutilisees (issue #444) : elles ne dependent
+# que du moteur, de B et des jeux de tests/donnees/, jamais du .tex. Chacune
+# prend `outils`, l'environnement ou tests/outils_tests.R est source
+# (outils_concordance()), et leve la meme erreur qu'avant en cas de resultat
+# inexploitable.
+outils_concordance <- function(racine) {
+  outils <- new.env(parent = globalenv())
+  sys.source(file.path(racine, "tests", "outils_tests.R"), envir = outils)
+  outils
+}
 
-  # Moteur charge par son chargeur (ADR 0016, #200) : liaisons copiees dans
-  # env, enclos des fonctions = environnement dedie du moteur ; le chargeur
-  # lui-meme est defini dans env, avec le moteur et l'affichage.
+executions_principales <- function(outils, B) {
+  # Acces explicites a `outils` (et non with(outils, ...) : eval() dans un
+  # environnement ne voit pas les variables locales B et j2 de la fonction).
+  ln <- outils$.ln
+  resultats <- list(
+    premium  = outils$run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II", B = B,
+                                 nature_donnees = "brutes"),
+    reserve1 = outils$run_engine(xt = ln$xt, yt = ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
+    reserve2 = outils$run_engine(methode = "reserve2", triangle = outils$.tri, segment = 1, annexe = "II", B = B))
+  n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))
+  if (any(n_finies <= 20L))
+    stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
+                        "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
+                 paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
+  resultats
+}
+
+# Executions supplementaires a volumes constants (issue #59) : leurs
+# grandeurs ne servent qu'aux phrases du registre qui les nomment
+# (premium_vc, reserve1_vc) ; elles n'entrent ni dans le recapitulatif des
+# familles, ni dans la section 3.
+executions_volumes_constants <- function(outils, B) {
+  ln <- outils$.ln
+  resultats_vc <- list(
+    premium_vc  = outils$run_engine(xt = rep(100, length(ln$yt)), yt = ln$yt, methode = "premium", segment = 1,
+                                    annexe = "II", B = B, nature_donnees = "brutes"),
+    reserve1_vc = outils$run_engine(xt = rep(100, length(ln$yt)), yt = ln$yt, methode = "reserve1", segment = 1,
+                                    annexe = "II", B = B))
+  if (!all(vapply(resultats_vc, function(r) isTRUE(r$ok), logical(1))))
+    stop("run_engine() a volumes constants : resultat ok = FALSE", call. = FALSE)
+  resultats_vc
+}
+
+# Executions supplementaires sur le jeu J2 (delta estime interieur, issue
+# #114) : elles ne servent qu'a la section 5 (registre de la rubrique 7),
+# la pente et Fisher n'etant de type test que sur ce jeu.
+executions_j2 <- function(outils, B, racine) {
+  j2 <- lire_jeu_j2(racine)
+  resultats_j2 <- list(
+    premium_j2  = outils$run_engine(xt = j2$x, yt = j2$y, methode = "premium", segment = 1, annexe = "II", B = B,
+                                    nature_donnees = "brutes"),
+    reserve1_j2 = outils$run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B))
+  if (!all(vapply(resultats_j2, function(r) isTRUE(r$ok), logical(1))))
+    stop("run_engine() sur le jeu J2 : resultat ok = FALSE", call. = FALSE)
+  resultats_j2
+}
+
+# Verification positive des declarations hors_jeux (issue #121) : methode
+# prime seule, sur un jeu synthetique par couple (t_positif, volumes
+# constants) du registre. Ces executions ne servent qu'a ce controle (ni
+# registre a T = 8, ni sections 2 et 3). Renvoie la table des lignes par jeu.
+executions_hors_jeux <- function(outils, B) {
+  # Un jeu par couple (t_positif, volumes_constants) du registre (#302).
+  jeux_pos <- unique(do.call(rbind, c(list(data.frame(T = integer(0), vc = logical(0))),
+    lapply(Filter(function(r) !is.null(r$t_positif), REGISTRE_RUBRIQUE7), function(r)
+      data.frame(T = as.integer(r$t_positif), vc = isTRUE(r$volumes_constants))))))
+  do.call(rbind, c(list(data.frame(T = integer(0), test = character(0), type = character(0),
+                                   volumes_constants = logical(0), stringsAsFactors = FALSE)),
+                   lapply(seq_len(nrow(jeux_pos)), function(i) {
+    Tn <- jeux_pos$T[i]; vc <- jeux_pos$vc[i]
+    j <- jeu_synthetique(Tn, volumes_constants = vc)
+    r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
+                           nature_donnees = "brutes")
+    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d%s : resultat ok = FALSE", Tn,
+                                    if (vc) " a volumes constants" else ""), call. = FALSE)
+    data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
+               type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1],
+                             character(1)), volumes_constants = vc, stringsAsFactors = FALSE)
+  })))
+}
+
+# Toutes les executions du moteur du rapport, calculees une fois (issue #444) :
+# a passer a concordance_executer(objets = ) pour juger plusieurs copies du
+# .tex sans relancer run_engine(). Valable pour le B donne et pour l'etat du
+# moteur charge par outils_concordance() ; `objets$B` en garde la trace.
+objets_moteur_concordance <- function(B = B_MIN, racine = NULL) {
+  if (is.null(racine)) racine <- racine_depot()
+  outils <- outils_concordance(racine)
+  list(B = B, resultats = executions_principales(outils, B),
+       resultats_vc = executions_volumes_constants(outils, B),
+       resultats_j2 = executions_j2(outils, B, racine),
+       hors_jeux = executions_hors_jeux(outils, B))
+}
+
+# Moteur charge par son chargeur (ADR 0016, #200) : liaisons copiees dans
+# env, enclos des fonctions = environnement dedie du moteur ; le chargeur
+# lui-meme est defini dans env, avec le moteur et l'affichage.
+env_concordance <- function(racine) {
   env <- new.env(parent = globalenv())
-  sys.source(file.path(RACINE, "R", "charger_moteur.R"), envir = env)
-  env$charger_moteur(file.path(RACINE, "R", "engine.R"), dans = env)
-  sys.source(file.path(RACINE, "R", "display_helpers.R"), envir = env)
+  sys.source(file.path(racine, "R", "charger_moteur.R"), envir = env)
+  env$charger_moteur(file.path(racine, "R", "engine.R"), dans = env)
+  sys.source(file.path(racine, "R", "display_helpers.R"), envir = env)
+  env
+}
+
+# Racine du depot, cherchee depuis le repertoire courant (comme B_MIN).
+racine_depot <- function() {
+  if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else
+    stop("R/engine.R introuvable : lancer depuis la racine du depot.")
+}
+
+# Rapport de concordance (corps du programme principal, issue #444 : sorti
+# de `if (sys.nframe() == 0L)` pour etre appele en processus). Ecrit le
+# rapport sur la sortie standard et renvoie, de facon invisible, le nombre
+# d'ecarts ; le code de sortie du mode --strict est fixe par l'appelant (le
+# programme principal : quit(status = 1)). Arguments :
+#   strict      : n'agit que sur la ligne BILAN (mention du mode) ;
+#   B           : replications bootstrap des executions du moteur ;
+#   fichier_tex : .tex juge (NULL : docs/latex/doc_tests_usp.tex) ;
+#   racine      : racine du depot (NULL : cherchee depuis le repertoire courant) ;
+#   env         : environnement du moteur et de l'affichage, de env_concordance()
+#                 (NULL : charge ici) ;
+#   objets      : resultat d'objets_moteur_concordance() (NULL : le moteur est
+#                 execute a l'endroit ou le rapport en a besoin, comme avant).
+# Le rapport est identique, octet pour octet, avec ou sans `env` et `objets`.
+concordance_executer <- function(strict = FALSE, B = B_MIN, fichier_tex = NULL, racine = NULL,
+                                 env = NULL, objets = NULL) {
+  RACINE <- if (is.null(racine)) racine_depot() else racine
+  if (!is.null(objets) && !identical(as.integer(objets$B), as.integer(B)))
+    stop(sprintf("objets du moteur calcules a B = %s, rapport demande a B = %s", objets$B, B), call. = FALSE)
+
+  if (is.null(env)) env <- env_concordance(RACINE)
   if (is.null(fichier_tex)) fichier_tex <- file.path(RACINE, "docs", "latex", "doc_tests_usp.tex")
   tex <- readLines(fichier_tex, warn = FALSE, encoding = "UTF-8")
   n_ecarts <- 0L
@@ -2093,39 +2203,10 @@ if (sys.nframe() == 0L) {
   }
 
   # 2. Decomptes
-  outils <- new.env(parent = globalenv())
-  sys.source(file.path(RACINE, "tests", "outils_tests.R"), envir = outils)
-  resultats <- with(outils, list(
-    premium  = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II", B = B,
-                          nature_donnees = "brutes"),
-    reserve1 = run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
-    reserve2 = run_engine(methode = "reserve2", triangle = .tri, segment = 1, annexe = "II", B = B)))
-  n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))
-  if (any(n_finies <= 20L))
-    stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
-                        "bootstrap que si length(usp_b) > 20 ; augmenter --B."),
-                 paste(sprintf("%s %d", names(n_finies), n_finies), collapse = ", ")), call. = FALSE)
-  # Executions supplementaires a volumes constants (issue #59) : leurs
-  # grandeurs ne servent qu'aux phrases du registre qui les nomment
-  # (premium_vc, reserve1_vc) ; elles n'entrent ni dans le recapitulatif des
-  # familles ci-dessous, ni dans la section 3.
-  resultats_vc <- with(outils, list(
-    premium_vc  = run_engine(xt = rep(100, length(.ln$yt)), yt = .ln$yt, methode = "premium", segment = 1,
-                             annexe = "II", B = B, nature_donnees = "brutes"),
-    reserve1_vc = run_engine(xt = rep(100, length(.ln$yt)), yt = .ln$yt, methode = "reserve1", segment = 1,
-                             annexe = "II", B = B)))
-  if (!all(vapply(resultats_vc, function(r) isTRUE(r$ok), logical(1))))
-    stop("run_engine() a volumes constants : resultat ok = FALSE", call. = FALSE)
-  # Executions supplementaires sur le jeu J2 (delta estime interieur, issue
-  # #114) : elles ne servent qu'a la section 5 (registre de la rubrique 7),
-  # la pente et Fisher n'etant de type test que sur ce jeu.
-  j2 <- lire_jeu_j2(RACINE)
-  resultats_j2 <- with(outils, list(
-    premium_j2  = run_engine(xt = j2$x, yt = j2$y, methode = "premium", segment = 1, annexe = "II", B = B,
-                             nature_donnees = "brutes"),
-    reserve1_j2 = run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B)))
-  if (!all(vapply(resultats_j2, function(r) isTRUE(r$ok), logical(1))))
-    stop("run_engine() sur le jeu J2 : resultat ok = FALSE", call. = FALSE)
+  outils <- if (is.null(objets)) outils_concordance(RACINE)
+  resultats <- if (is.null(objets)) executions_principales(outils, B) else objets$resultats
+  resultats_vc <- if (is.null(objets)) executions_volumes_constants(outils, B) else objets$resultats_vc
+  resultats_j2 <- if (is.null(objets)) executions_j2(outils, B, RACINE) else objets$resultats_j2
   appelants <- setNames(lapply(FONCTIONS_INDIRECTES, function(f) appelants_directs(env, f)), FONCTIONS_INDIRECTES)
   grandeurs <- c(lapply(resultats, function(r) grandeurs_moteur(r$tests, r$controles, appelants)),
                  lapply(resultats_vc, function(r) grandeurs_moteur(r$tests, r$controles)),
@@ -2252,28 +2333,10 @@ if (sys.nframe() == 0L) {
     for (i in seq_len(nrow(e_reg)))
       ecrire(sprintf("    %-34s %s : %s\n", ifelse(is.na(e_reg$label[i]), "-", e_reg$label[i]), e_reg$test[i], e_reg$motif[i]))
   }
-  # Verification positive des declarations hors_jeux (issue #121) : methode
-  # prime seule, sur un jeu synthetique par valeur de t_positif. Ces
-  # executions ne servent qu'a ce controle (ni registre a T = 8, ni sections
-  # 2 et 3).
+  # Verification positive des declarations hors_jeux (issue #121, voir
+  # executions_hors_jeux()).
   t_pos <- sort(unique(unlist(lapply(REGISTRE_RUBRIQUE7, `[[`, "t_positif"))))
-  # Un jeu par couple (t_positif, volumes_constants) du registre (#302).
-  jeux_pos <- unique(do.call(rbind, c(list(data.frame(T = integer(0), vc = logical(0))),
-    lapply(Filter(function(r) !is.null(r$t_positif), REGISTRE_RUBRIQUE7), function(r)
-      data.frame(T = as.integer(r$t_positif), vc = isTRUE(r$volumes_constants))))))
-  lsy <- do.call(rbind, c(list(data.frame(T = integer(0), test = character(0), type = character(0),
-                                          volumes_constants = logical(0), stringsAsFactors = FALSE)),
-                          lapply(seq_len(nrow(jeux_pos)), function(i) {
-    Tn <- jeux_pos$T[i]; vc <- jeux_pos$vc[i]
-    j <- jeu_synthetique(Tn, volumes_constants = vc)
-    r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
-                           nature_donnees = "brutes")
-    if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d%s : resultat ok = FALSE", Tn,
-                                    if (vc) " a volumes constants" else ""), call. = FALSE)
-    data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),
-               type = vapply(r$tests, function(t) if (is.null(t$type)) NA_character_ else as.character(t$type)[1],
-                             character(1)), volumes_constants = vc, stringsAsFactors = FALSE)
-  })))
+  lsy <- if (is.null(objets)) executions_hors_jeux(outils, B) else objets$hors_jeux
   e_hj <- verifier_hors_jeux_positifs(lsy)
   labels_hj <- vapply(Filter(function(r) !is.null(r$hors_jeux), REGISTRE_RUBRIQUE7), `[[`, character(1), "label")
   ecrire(sprintf("  Declarations hors_jeux verifiees positivement (prime, jeux synthetiques T = %s) : %d sur %d\n",
@@ -2400,5 +2463,27 @@ if (sys.nframe() == 0L) {
   ecrire(sprintf("\nBILAN : %d ecart(s)%s ; formulations de decompte : %d verifiee(s), %d exemptee(s), %d non classee(s)\n",
               n_ecarts, if (strict) " (mode strict)" else " (mode rapport : code de sortie 0)",
               sum(fo$statut == "verifiee"), sum(fo$statut == "exemptee"), sum(fo$statut == "NON CLASSEE")))
+  invisible(n_ecarts)
+}
+
+# ---------------------------------------------------------------------------
+#  Programme principal
+# ---------------------------------------------------------------------------
+
+if (sys.nframe() == 0L) {
+  args <- commandArgs(trailingOnly = TRUE)
+  strict <- "--strict" %in% args
+  B <- B_MIN
+  k <- match("--B", args)
+  if (!is.na(k)) {
+    if (k == length(args)) stop("--B sans valeur")
+    B <- valider_B(args[k + 1L])
+  }
+  k <- match("--tex", args)
+  fichier_tex <- if (is.na(k)) NULL else {
+    if (k == length(args)) stop("--tex sans valeur")
+    args[k + 1L]
+  }
+  n_ecarts <- concordance_executer(strict = strict, B = B, fichier_tex = fichier_tex)
   if (strict && n_ecarts) quit(status = 1)
 }
