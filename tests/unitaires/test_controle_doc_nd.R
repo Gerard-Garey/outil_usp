@@ -58,6 +58,19 @@ verifier("A8 : branche~ND", "A8" %in% motifs("branche~ND"))
 verifier("A8 : E2c isole", "A8" %in% motifs("la branche E2c"))
 verifier("A11 : fee9968", "A11" %in% motifs("commit fee9968"))
 verifier("A10 : 6~octobre 2026", "A10" %in% motifs("6~octobre 2026"))
+verifier("A10 : le 6 octobre 2026 (espace entre jour et mois)", "A10" %in% motifs("le 6 octobre 2026"))
+verifier("A10 : date en fin de ligne, annee 2026 a la ligne suivante", "A10" %in% motifs(c("la decision du 6 octobre", "2026 a ete prise")))
+verifier("A10 negatif : date en fin de ligne suivie de 2015 a la ligne suivante",
+         identical(motifs(c("publie le 17 janvier", "2015 au Journal officiel")), character(0)))
+verifier("A10 negatif : date de l'annee 2015 avec espace", identical(motifs("du 17 janvier 2015"), character(0)))
+verifier("A13 : decision du en fin de ligne, 9 octobre a la ligne suivante",
+         "A13" %in% motifs(c("(issue~\\#1, d\u00e9cision du", "9~octobre)")) && identical(motifs(c("la d\u00e9cision du", "t\u00e9moin y est")), character(0)))
+verifier("A13 : decision du 9 octobre (chiffre)", "A13" %in% motifs("d\u00e9cision du 9 octobre"))
+verifier("A4 : \\code{docs/}\\allowbreak\\code{references/}", "A4" %in% motifs("\\code{docs/}\\allowbreak\\code{references/x.md}"))
+verifier("A4 : docs/ suivi d'un retour a la ligne \\newline", "A4" %in% motifs("\\code{docs/}\\newline \\code{specifications/}"))
+verifier("A4 negatif : \\code{docs/}\\allowbreak\\code{tableaux/} reste admis", identical(motifs("\\code{docs/}\\allowbreak\\code{tableaux/x.md}"), character(0)))
+verifier("A8 negatif Unicode : Frequence, Frechet; positif Fk", identical(motifs("Fr\u00e9quence Fr\u00e9chet"), character(0)) && "A8" %in% motifs("branche Fk"))
+verifier("A9 negatif Unicode : Opuse; positif Opus", identical(motifs("Opus\u00e9"), character(0)) && "A9" %in% motifs("le modele Opus"))
 verifier("A10 : jour et mois sans annee", "A10" %in% motifs("le 6~octobre"))
 verifier("A10 : 1\\textsuperscript{er}~octobre", "A10" %in% motifs("1\\textsuperscript{er}~octobre"))
 verifier("A10 : 23/09/2026", "A10" %in% motifs("23/09/2026"))
@@ -89,6 +102,7 @@ negatifs <- c(
   "\\code{ND}", "\\code{annee,ND}", "L-BFGS-B", "AR(1)", "constat~C6", "J1 et J2",
   "\\annee", "Exercice 2026", "1961", "\u00e0 l'issue du calcul", "l'issue de la proc\u00e9dure",
   "mod\u00e8le d'effacee", "$0{,}1138150042$", "ex\u00e9cution du calcul", "ex\u00e9cutions de 1000 r\u00e9plications", "1.0000000000000011",
+  "Fr\u00e9quence", "Fr\u00e9chet", "Opus\u00e9", "la d\u00e9cision du t\u00e9moin", "d\u00e9cision du jeu de contr\u00f4le",
   "ex\u00e9cution~12", "6021758543", "run de 200 r\u00e9plications", "0,99999899999999997124", "tests/reference/", "R/engine.R", "app.R")
 for (x in negatifs)
   verifier(paste0("negatif : ", x), identical(motifs(x), character(0)))
@@ -131,6 +145,7 @@ writeLines(c('  txt <- paste("Restituee en diagnostic par decision (issue #299) 
              '  # commentaire du moteur sur la decision (issue #299) : ignore',
              '  msg <- "calcule par simulation a T = 8 sur le jeu de controle (issue #114), non"',
              '  ext <- "chaine hors liste (issue #321) : jamais admise"',
+             '  r <- "recevables (%s ; issue #55)."',
              '  v <- "residus standardises (issue #29)." ; w <- "autre residus (issue #299) et ; issue #55)"'), f_moteur)
 exc <- nd$exceptions_motifs_defaut(e7_actif = TRUE, e7_issues = c(299L, 114L, 29L, 55L), moteur = f_moteur)
 verifier("E3 : docs/suivi-documentation/ exempte en partie IV",
@@ -158,8 +173,10 @@ verifier("E7 : chaine coupee par un retour a la ligne dans le .tex, reconnue (fe
 verifier("E7 : un numero d'issue hors de la chaine, sur la meme ligne, reste refuse",
          identical(motifs(paste("voir issue~\\#5 ;", .chaine), exceptions = exc), "A1"))
 z <- nd$nd_zones_moteur(f_moteur, c(299L, 114L, 29L, 55L))
-verifier("zones du moteur : 5 chaines (les mots avant issue, puis \\#N), commentaire et numero hors liste ignores",
-         length(z) == 5L && all(endsWith(z, "\\\\#299") | endsWith(z, "\\\\#114") | endsWith(z, "\\\\#29") | endsWith(z, "\\\\#55")))
+verifier("E7 : %s du moteur = joker (la valeur citee dans le .tex)",
+         identical(motifs("recevables (0,5 ; issue~\\#55)", exceptions = exc), character(0)))
+verifier("zones du moteur : 6 chaines (les mots avant issue, puis \\#N), commentaire et numero hors liste ignores",
+         length(z) == 6L && all(endsWith(z, "\\\\#299") | endsWith(z, "\\\\#114") | endsWith(z, "\\\\#29") | endsWith(z, "\\\\#55")))
 verifier("zones du moteur reel : non vides, une par chaine distincte",
          length(nd$nd_zones_moteur(file.path(.dossier, "..", "..", "R", "engine.R"))) >= 10L)
 verifier("zones du moteur : fichier absent ou NULL = aucune zone", length(nd$nd_zones_moteur(NULL)) == 0L &&
@@ -175,15 +192,15 @@ verifier("drapeau E7_TRANSITOIRE du script : TRUE au depart (a lever au lot L1)"
   nd$nd_appliquer_exceptions(nd$nd_chercher(x, parties, nd$MOTIFS_A), x, exceptions)$bilan
 }
 verifier("E7 sans moteur : aucune zone, exception perimee",
-         identical(.bilan(.chaine, nd$exceptions_motifs_defaut(e7_actif = TRUE))$statut, c("PERIMEE", "PERIMEE")))
+         identical(.bilan(.chaine, nd$exceptions_motifs_defaut(e7_actif = TRUE))$statut, c("en attente", "PERIMEE")))
 b <- .bilan(c("rien a signaler", "texte neutre"), exc)
-verifier("exception perimee : E3 et E7 n'exemptent rien sur un texte propre",
-         identical(b$statut, c("PERIMEE", "PERIMEE")))
+verifier("E3 (regle permanente) en attente, E7 (transitoire) perimee quand rien n'est a exempter",
+         identical(b$statut, c("en attente", "PERIMEE")))
 b <- .bilan(c("\\partie{Partie IV}{D}", "docs/suivi-documentation/IV.md", .chaine), exc)
 verifier("exception appliquee : E3 et E7 comptent chacune une occurrence",
          identical(b$statut, c("appliquee", "appliquee")) && identical(b$n, c(1L, 1L)))
 b <- .bilan(.chaine, exc_levee)
-verifier("exception levee : statut 'levee', jamais perimee", identical(b$statut, c("PERIMEE", "levee")))
+verifier("exception levee : statut 'levee', jamais perimee", identical(b$statut, c("en attente", "levee")))
 b <- .bilan("issue~\\#9", list(list(id = "EX", motifs = "A1", zone = "ne correspond a rien",
                                     parties = NULL, actif = TRUE, raison = "test")))
 verifier("exception sur mesure qui n'exempte rien : perimee", identical(b$statut, "PERIMEE"))
@@ -483,6 +500,33 @@ if (tex_dispo) {
   rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "absent.pdf"), marq_tex)
   verifier("PDF normal absent : avis", is.null(rr$constats) && length(rr$avis) == 1L)
 } else cat("  (pdflatex, pdftotext ou mdframed absents : passe de mesure reelle non testee)\n")
+
+
+# --- Outils PDF absents (pdftotext, pdfinfo) : avis et pas d'erreur (C3) ---------------------------
+chemin_avant <- Sys.getenv("PATH")
+Sys.setenv(PATH = file.path(dir_b, "vide_de_binaires"))
+f_pdf_bidon <- file.path(dir_b, "bidon.pdf"); writeLines("%PDF-1.4", f_pdf_bidon)
+f_remp_bidon <- file.path(dir_b, "bidon.remp"); writeLines("G 1pt 1pt 1pt 1pt", f_remp_bidon)
+rr <- tryCatch(nd$nd_controle_remplissage(f_sale, f_pdf_bidon, file.path(.dossier, "..", "marques_remplissage.tex"),
+                                          remp = f_remp_bidon, pdf_mesure = f_pdf_bidon), error = function(e) e)
+mots_abs <- tryCatch(nd$nd_lire_mots(f_pdf_bidon), error = function(e) e)
+manq <- nd$nd_outils_pdf_manquants()
+Sys.setenv(PATH = chemin_avant)
+verifier("pdftotext et pdfinfo absents : avis, aucune erreur, rien n'est mesure",
+         !inherits(rr, "error") && is.null(rr$constats) && length(rr$avis) == 1L && grepl("pdftotext et pdfinfo absent", rr$avis) &&
+         setequal(manq, c("pdftotext", "pdfinfo")))
+verifier("nd_lire_mots sans pdftotext : NULL, aucune erreur", is.null(mots_abs))
+
+# --- Pages en chiffres romains dans le .aux : avis ------------------------------------------------------
+f_aux_rom <- file.path(dir_b, "romain.aux")
+writeLines(c("\\newlabel{fiche:2}{{4.1}{xiv}{T}{x}{}}", "\\newlabel{fiche:2-fin}{{4.1}{xv}{}{x}{}}",
+             "\\newlabel{fiche:3}{{4.2}{16}{T}{x}{}}", "\\newlabel{fiche:3-fin}{{4.2}{16}{}{x}{}}"), f_aux_rom)
+ar <- nd$nd_lire_aux(f_aux_rom)
+verifier("aux : page romaine lue NA", is.na(ar$page[ar$label == "fiche:2"]) && ar$page[ar$label == "fiche:3"] == 16L)
+res_r <- nd$nd_controle_pages(tex_b, ar, exceptions = list())
+verifier("aux : avis sur les pages non numeriques, fiches concernees sans etendue (caracteres seuls)",
+         any(grepl("non numerique", res_r$avis)) && is.na(res_r$fiches$etendue[1L]) && res_r$fiches$etendue[2L] == 1L &&
+         res_r$fiches$verdict[1L] == "a verifier (sans pages)")
 
 unlink(c(dir_b, dir_m), recursive = TRUE)
 fin_fichier()

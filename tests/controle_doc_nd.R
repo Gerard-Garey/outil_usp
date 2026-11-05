@@ -116,7 +116,8 @@ MOTIFS_A <- list(
   list(id = "A4", desc = "fichier ou chemin de processus (E3 : suivi en partie IV)",
        regex = paste0("CONTEXT\\.md|CLAUDE\\.md|AGENTS\\.md|README\\.md|\\.claude/|\\.codex/|",
                       "\\.github/|feuille-de-route|",
-                      "docs/(?!tableaux/|suivi-documentation/)[a-z]|docs/suivi-documentation/")),
+                      "docs/\\}?(?:\\\\allowbreak|\\\\newline)?\\s*(?:\\\\code\\{)?(?!tableaux/|suivi-documentation/)[a-z]|",
+                      "docs/suivi-documentation/")),
   list(id = "A5", desc = "identifiant de question / decision (Q-...)",
        regex = "\\bQ-[0-9A-Za-z]+(?:-[0-9A-Za-z]+)*-[0-9]+\\b"),
   list(id = "A6", desc = "decision D1-... / D2-...",
@@ -132,7 +133,8 @@ MOTIFS_A <- list(
                         "ChatGPT|GPT|Fable|Opus|Sonnet)\\b"),
                  "\\bcas d'audit~?[0-9]+")),
   list(id = "A10", desc = "date de la vie du depot (jour-mois sans annee ou annee >= 2026)",
-       regex = c(paste0("\\b[0-9]{1,2}(?:\\\\textsuperscript\\{er\\})?~?", .mois, "\\b", .annee_admise),
+       fenetre2 = 1L,   # le premier motif lit l'annee dans la ligne et la suivante
+       regex = c(paste0("\\b[0-9]{1,2}(?:\\\\textsuperscript\\{er\\})?[~\\s]?", .mois, "\\b", .annee_admise),
                  "\\b[0-9]{2}/[0-9]{2}/202[6-9]\\b",
                  "\\b202[6-9]-[0-9]{2}-[0-9]{2}\\b")),
   list(id = "A11", desc = "SHA de commit (7 a 40 hexadecimaux avec lettre et chiffre)",
@@ -144,9 +146,10 @@ MOTIFS_A <- list(
                  "\\bissues\\s+(?:ult\u00e9rieures|ant\u00e9rieures|pr\u00e9c\u00e9dentes|suivantes)\\b",
                  "jusqu'ici")),
   list(id = "A13", desc = "actes de processus (visa, decision du, avis d'...)",
+       fenetre2 = 3L,   # "decision du" en fin de ligne : le mot suivant est lu sur la ligne suivante
        regex = c("\\b(?:sp\u00e9cification|avis|r\u00e9serve|visa|validation)\\s+d'\\\\code\\{",
                  "\\bvis\u00e9e?s? par\\b",
-                 "\\bd\u00e9cisions? du\\b",
+                 "\\bd\u00e9cisions? du (?:mainteneur|[0-9])",
                  "\\bvalidation de l'issue")),
   list(id = "A14", desc = "identifiant d'execution de CI (execution NNNNNNNNNN)",
        regex = c("\\bex\u00e9cutions?[~\\s]+(?:n\u00b0[~\\s]*)?[0-9]{8,}\\b",
@@ -168,6 +171,14 @@ MOTIFS_B <- list(
   list(id = "B11", desc = "duree ... ~s",         regex = "\\bdur\u00e9e\\b.{0,20}~s\\b"),
   list(id = "B12", desc = "commit",               regex = "\\bcommit\\b")
 )
+
+# --- Motifs en Unicode ---------------------------------------------------------------
+# Avec perl = TRUE, \b est ASCII : "Frequence" (F + e accentue) declencherait A8 et
+# "Opuse" A9. Chaque motif des listes A et B est donc prefixe de (*UCP), verifie
+# sous R 4.3 (PCRE2) : \b et \w deviennent Unicode.
+.prefixer_ucp <- function(motifs) lapply(motifs, function(m) { m$regex <- paste0("(*UCP)", m$regex); m })
+MOTIFS_A <- .prefixer_ucp(MOTIFS_A)
+MOTIFS_B <- .prefixer_ucp(MOTIFS_B)
 
 # --- Exceptions nommees de la liste A --------------------------------------------
 # Une exception = id, motifs exemptes, zone (regex PCRE, une ou plusieurs, de la
@@ -194,7 +205,11 @@ nd_zones_moteur <- function(moteur, issues = E7_ISSUES) {
       avant <- sub("^.*[^\\\\]\"", "", avant)   # dans la chaine litterale : apres le dernier guillemet non echappe
       jetons <- strsplit(trimws(paste0(avant, "issue")), "[[:space:]]+")[[1L]]
       jetons <- c(tail(jetons[nzchar(jetons)], 5L), paste0("\\#", sub("^issue #", "", substr(ligne, g[j], g[j] + lg[j] - 1L))))
-      zones <- c(zones, paste(gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", jetons), collapse = "[~\\s]+"))
+      # Formats sprintf du moteur (%s, %d) : jokers (le .tex cite une valeur a leur place).
+      jetons <- gsub("%d", "\001D", gsub("%s", "\001S", jetons, fixed = TRUE), fixed = TRUE)
+      jetons <- gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", jetons)
+      jetons <- gsub("\001D", "[0-9]+", gsub("\001S", "\\S+", jetons, fixed = TRUE), fixed = TRUE)
+      zones <- c(zones, paste(jetons, collapse = "[~\\s]+"))
     }
   }
   unique(zones)
@@ -203,8 +218,8 @@ nd_zones_moteur <- function(moteur, issues = E7_ISSUES) {
 exceptions_motifs_defaut <- function(e7_actif = E7_TRANSITOIRE, e7_issues = E7_ISSUES, moteur = NULL) {
   list(
     list(id = "E3", motifs = "A4", zone = "docs/suivi-documentation/", fenetre = 1L,
-         parties = "Partie IV", actif = TRUE,
-         raison = "dossier de suivi cite comme piece de tracabilite, en partie IV seulement"),
+         parties = "Partie IV", actif = TRUE, permanente = TRUE,
+         raison = "regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement"),
     list(id = "E7", motifs = "A1", zone = nd_zones_moteur(moteur, e7_issues), fenetre = 3L,
          parties = NULL, actif = isTRUE(e7_actif),
          raison = paste("TRANSITOIRE (a lever au lot L1) : chaines du moteur citees mot pour mot",
@@ -245,15 +260,19 @@ nd_chercher <- function(lignes, parties, motifs) {
   res <- list()
   for (m in motifs) {
     pm <- list()
-    for (rx in m$regex) {
-      g <- gregexpr(rx, lignes, perl = TRUE)
+    for (r in seq_along(m$regex)) {
+      rx <- m$regex[r]
+      # Motif a fenetre de deux lignes : lu sur la ligne suivie de la suivante ; seules
+      # les occurrences qui commencent dans la ligne comptent.
+      texte <- if (r %in% m$fenetre2) paste(lignes, c(lignes[-1L], "")) else lignes
+      g <- gregexpr(rx, texte, perl = TRUE)
       for (i in which(vapply(g, function(x) x[1L] > 0L, logical(1)))) {
         deb <- as.integer(g[[i]])
         lon <- attr(g[[i]], "match.length")
-        k <- lon > 0L
+        k <- lon > 0L & deb <= nchar(lignes[i])
         if (any(k)) pm[[length(pm) + 1L]] <- data.frame(
-          ligne = i, debut = deb[k], fin = deb[k] + lon[k] - 1L,
-          texte = substring(lignes[i], deb[k], deb[k] + lon[k] - 1L),
+          ligne = i, debut = deb[k], fin = pmin(deb[k] + lon[k] - 1L, nchar(lignes[i])),
+          texte = substring(texte[i], deb[k], pmin(deb[k] + lon[k] - 1L, nchar(lignes[i]))),
           stringsAsFactors = FALSE)
       }
     }
@@ -285,7 +304,8 @@ nd_chercher <- function(lignes, parties, motifs) {
 
 # Applique les exceptions. Renvoie list(occ = occurrences non exemptees,
 # exemptees = occurrences exemptees (colonne exception), bilan = data.frame par
-# exception : id, statut ("appliquee", "PERIMEE", "levee"), n, raison).
+# exception : id, statut ("appliquee", "PERIMEE", "levee", "en attente" pour une regle
+# permanente qui n'exempte encore rien), n, raison).
 nd_appliquer_exceptions <- function(occ, lignes, exceptions) {
   occ$exception <- rep(NA_character_, nrow(occ))
   bilan <- data.frame(id = character(0), statut = character(0), n = integer(0),
@@ -312,7 +332,9 @@ nd_appliquer_exceptions <- function(occ, lignes, exceptions) {
         }
       }
     }
-    statut <- if (!isTRUE(e$actif)) "levee" else if (n == 0L) "PERIMEE" else "appliquee"
+    statut <- if (!isTRUE(e$actif)) "levee" else if (n == 0L) {
+      if (isTRUE(e$permanente)) "en attente" else "PERIMEE"
+    } else "appliquee"
     bilan[nrow(bilan) + 1L, ] <- list(e$id, statut, n, e$raison)
   }
   list(occ = occ[is.na(occ$exception), , drop = FALSE],
@@ -415,6 +437,9 @@ nd_controle_pages <- function(lignes, aux, exceptions = EXCEPTIONS_PLAFOND) {
   } else if (!any(grepl("-fin$", aux$label))) {
     avis <- "aucun label fiche:N-fin dans le .aux : controle (b) sur les caracteres seuls (avertissement)."
   }
+  if (any(is.na(aux$page)))
+    avis <- c(avis, sprintf("%d label(s) du .aux ont une page non numerique (chiffres romains ?) : etendue non calculee pour ces fiches.",
+                            sum(is.na(aux$page))))
   pg <- function(lab) aux$page[match(lab, aux$label)]
   f$debut <- pg(paste0("fiche:", f$id))
   f$fin <- pg(paste0("fiche:", f$id, "-fin"))
@@ -614,6 +639,7 @@ nd_lire_marques <- function(chemin) {
 
 # Mots d'un PDF (pdftotext -bbox) : data.frame (page, x0, y0, x1, y1, mot), y depuis le haut.
 nd_lire_mots <- function(pdf) {
+  if (length(nd_outils_pdf_manquants())) return(NULL)
   f <- tempfile(fileext = ".html"); on.exit(unlink(f))
   system2("pdftotext", c("-bbox", shQuote(pdf), shQuote(f)), stdout = FALSE, stderr = FALSE)
   x <- readLines(f, warn = FALSE, encoding = "UTF-8")
@@ -806,7 +832,12 @@ nd_passe_mesure <- function(tex, marques_tex) {
 
 # Controle (d) complet. `remp` et `pdf_mesure` : fichiers d'une passe deja faite
 # (CI : tests/doc_remplissage.tex) ; sinon la passe est faite ici.
+nd_outils_pdf_manquants <- function() c("pdftotext", "pdfinfo")[!nzchar(Sys.which(c("pdftotext", "pdfinfo")))]
+
 nd_controle_remplissage <- function(tex, pdf_normal, marques_tex, remp = NULL, pdf_mesure = NULL) {
+  manquants <- nd_outils_pdf_manquants()
+  if (length(manquants))
+    return(list(constats = NULL, avis = sprintf("%s absent (poppler-utils) : remplissage non mesure.", paste(manquants, collapse = " et "))))
   if (is.null(pdf_normal) || !file.exists(pdf_normal))
     return(list(constats = NULL, avis = "PDF de la compilation normale absent : remplissage non mesure."))
   tmp <- NULL
@@ -823,7 +854,9 @@ nd_controle_remplissage <- function(tex, pdf_normal, marques_tex, remp = NULL, p
                                               "(PDF obsolete ou marques qui deplacent la composition) : remplissage non mesure.")))
   marques <- nd_lire_marques(remp)
   if (is.null(marques)) return(list(constats = NULL, avis = "marques incompletes (ligne G absente) : remplissage non mesure."))
-  nd_analyser_remplissage(marques, nd_lire_mots(pdf_normal))
+  mots <- nd_lire_mots(pdf_normal)
+  if (is.null(mots)) return(list(constats = NULL, avis = "mots du PDF illisibles (poppler-utils absent) : remplissage non mesure."))
+  nd_analyser_remplissage(marques, mots)
 }
 
 nd_imprimer_remplissage <- function(r) {
