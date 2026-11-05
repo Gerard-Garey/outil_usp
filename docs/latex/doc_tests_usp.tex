@@ -6975,8 +6975,9 @@ une modification de l'exposant~; l'exposant différent de~1, établi, met en cau
 D(2)(h)(iv) (art.~219, par.~1, d)), dont l'entreprise apprécie la portée (art.~220)~; un rejet
 dû à une constante de variance propre à
 l'année met en cause la lecture de l'outil, un rejet dû à un écart concentré de l'espérance relève
-de M1, M3 ou M4~; causes non séparées, liste non fermée~; biaisée contre un écart régulier de
-l'espérance (issues~\#431, \#436) ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90)~; aucune
+de M1, M3 ou M4~; causes non séparées, liste non fermée~; taux de rejet mesuré sous le niveau
+contre une ordonnée à l'origine forte ou une première colonne dispersée (test biaisé, constat de
+simulation, issue~\#309)~; écart régulier de l'espérance non visé (issues~\#431, \#436) ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90)~; aucune
 puissance décelable sous le plan du triangle de contrôle (issue~\#309) \\
 
 Variance unitaire des résidus de Mack & \textbf{MW} & --- & --- & --- & --- &
@@ -17701,15 +17702,17 @@ résidus de chaque colonne retenue vérifient
 \]
 (résultat exact, identité algébrique vérifiée colonne par colonne sur le triangle de contrôle par
 la batterie de tests unitaires, section~\ref{sec:verif}). Sous un écart régulier, l'écart systématique de $F(i,j)$ à $\hat f_j$, monotone en $C(i,j)$, ne
-peut donc garder un signe constant~: les résidus, dont la part systématique a son signe, prennent
-les deux signes de part et d'autre d'un cumul pivot, et la part systématique de $|r(i,j)|$, nulle
-en ce pivot, dessine en $C(i,j)$ un profil en V (exactement pour une ordonnée à l'origine), que la
-corrélation de rang, qui mesure un lien monotone, saisit mal~: l'écart éloigne la ligne du rejet.
-Cet éloignement n'est mesuré que pour un écart fort ou une première colonne dispersée, où la ligne
-rejette moins que sous $H_0$ (ordonnée à l'origine $\delta = 0{,}20$ sous P1, P2 et P3~;
-$\delta = 0{,}10$ sous P2)~; sous le plan du triangle de contrôle, contre une ordonnée
-$\delta = 0{,}10$ ou une dérive de $f_j$ avec l'année, les taux de rejet restent proches du
-niveau sous $H_0$ (rubrique~7).
+peut donc garder un signe constant~: la part systématique des résidus, qui a son signe, prend les
+deux signes de part et d'autre d'un cumul pivot, et celle de $|r(i,j)|$, nulle en ce pivot,
+dessine en $C(i,j)$ un profil en V (exactement pour une ordonnée à l'origine), que la corrélation
+de rang, qui mesure un lien monotone, saisit mal~: l'écart tend à éloigner la ligne du rejet,
+constat de simulation et non propriété établie. Cet éloignement n'est mesuré que pour un écart
+fort ou une première colonne dispersée, où la ligne rejette moins que sous $H_0$ (ordonnée à
+l'origine $\delta = 0{,}20$ sous P1, P2 et P3~; $\delta = 0{,}10$ sous P2)~; contre une ordonnée
+$\delta = 0{,}10$ sous le plan du triangle de contrôle, et contre une dérive de $f_j$ avec l'année
+sous les trois plans ($0{,}074$, $0{,}084$ et $0{,}100$ sous P1, P2 et P3, pour des niveaux sous
+$H_0$ de $0{,}091$, $0{,}089$ et $0{,}082$~; tableau T2 de l'issue~\#309), les taux de rejet
+restent proches du niveau sous $H_0$ (rubrique~7).
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
 \code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
@@ -17732,7 +17735,8 @@ p-value de Monte-Carlo retenue (clé \code{ExpVar}, rejet en queue haute)~; les 
 des p-values exactes au sens de l'ADR~0002 (fiche~\ref{mw:m1b}). Les résidus de chaque réplication
 étant recalculés par \code{mw\_residus()} sur le triangle simulé réajusté
 (\code{.mw\_contexte\_mc()}, \code{mw\_bootstrap()}), la loi simulée de $X$ reproduit l'effet de
-levier de la rubrique~2. Depuis l'issue~\#431, le commentaire de la ligne commence par
+levier de la rubrique~2. Depuis l'issue~\#431, le commentaire rédigé pour la ligne dans
+\code{mw\_tests()} est
 «~\code{Si la variance est} \code{proportionnelle a C(i,j), avec} \code{un facteur f\_j et}
 \code{une constante sigma\_j\^{}2 communs} \code{aux annees (interpretation de}
 \code{l'outil, D(4)(c) et D(5)(d)(ii)),} \code{les residus de Mack}
@@ -17744,7 +17748,9 @@ levier de la rubrique~2. Depuis l'issue~\#431, le commentaire de la ligne commen
 \code{effet, les residus de} \code{chaque replication etant recalcules}
 \code{sur le triangle simule} \code{reajuste ; la p chi2(2K)} \code{et la plus}
 \code{petite p-value atteignable, fondees} \code{sur une loi echangeable,}
-\code{l'ignorent.}~»~; jusqu'à cette issue, il finissait par «~\code{les residus
+\code{l'ignorent.}~»~; le commentaire restitué peut porter en tête le texte de la règle~R1 ou
+le motif d'indisponibilité de la p-value de Monte-Carlo, et en fin les phrases des
+issues~\#257, \#204 et~\#244. Jusqu'à l'issue~\#431, il finissait par «~\code{les residus
 standardises sont d'echelle constante a l'interieur de chaque colonne.}~», ce que dément l'effet de
 levier.
 \Usage
@@ -17763,9 +17769,10 @@ paragraphe~2), choix que l'outil ne fait pas. Un rejet isolé à $T = 8$, non sp
 constante de variance propre à l'année de survenance, le rejet met en cause la formalisation
 retenue par l'outil ($\sigma_j^2$ commun aux années, appuyée sur D(5)(d)(ii)), non la lettre de
 D(2)(h)(iv). Si la cause est un écart de l'espérance concentré sur peu de cellules, il relève des
-lignes de M1, de M3 et de M4, qui le visent (rubrique~2). Un rejet n'indique en revanche ni une
-ordonnée à l'origine ni un facteur qui varie régulièrement, écarts que la ligne ne vise pas
-(rubrique~2). La ligne ne séparant pas ces causes, dont la liste n'est
+lignes de M1, de M3 et de M4, qui le visent (rubrique~2). Un rejet ne désigne en revanche ni une
+ordonnée à l'origine ni un facteur qui varie régulièrement, écarts que la ligne ne vise pas et
+contre lesquels elle n'a pas de puissance mesurée (rubriques~2 et~7)~; il ne les exclut pas pour
+autant, et les lignes de M1 les examinent. La ligne ne séparant pas ces causes, dont la liste n'est
 pas fermée, le dossier les présente toutes, avec les verdicts des lignes de M1, de M3 et de M4
 (rubrique~7, non-spécificité).
 
@@ -17775,7 +17782,7 @@ pas fermée, le dossier les présente toutes, avec les verdicts des lignes de M1
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. \emph{Puissance} contre un exposant de variance~0 ou~2 à variance moyenne conservée, moyenne inchangée (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%)~: sous P1, plan du triangle de contrôle, $0{,}092$ $[0{,}068~;~0{,}121]$ (exposant~0, 500 triangles) et $0{,}098$ $[0{,}080~;~0{,}118]$ (exposant~2, 1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}080$ $[0{,}058~;~0{,}107]$ et $0{,}091$ $[0{,}074~;~0{,}111]$, pour un niveau sous $H_0$ de $0{,}091$ (P1) et $0{,}089$ (P2) (tableau T1~bis)~: \textbf{aucune puissance décelable} à $T = 8$ sous ces plans. Un verdict \code{OK} de cette ligne n'établit donc pas l'exposant~1 imposé par le règlement (constat transmis à l'issue~\#308). Sous P2, dont la première colonne est plus dispersée, la ligne reste sans puissance mesurable~: une dispersion plus forte des cumuls ne rend pas, dans la plage mesurée, un verdict \code{OK} probant, à la différence de M1~; le rapport $R_j^{\,k-1}$ des variances des résidus entre les cellules extrêmes d'une colonne, que restitue la ligne «~Identifiabilité intra-colonne~» (fiche~\ref{mw:m1id}), en donne l'ordre de grandeur (fiche~\ref{mw:m2bp}, rubrique~7). Un \code{ECHEC} reste atteignable (plancher de la p-value de Monte-Carlo, $0{,}001$ à $B = 999$~; non-spécificité, ci-après). \emph{Non-spécificité} (issue~\#436). Sous P1 (même tableau T2, loi N, $B = 999$, seuil $0{,}10$), la ligne rejette au-delà de son niveau sous $H_0$ ($0{,}091$) contre deux écarts de l'espérance à exposant de variance~1~: un choc de $10~\%$ sur les incréments de la dernière diagonale ($0{,}160$ $[0{,}129~;~0{,}195]$, 500 triangles) et une cellule d'incrément multipliée par~4 ($0{,}142$ $[0{,}113~;~0{,}176]$, 500 triangles)~; un \code{ECHEC} n'établit donc pas un exposant différent de~1 (rubrique~2). Contre une ordonnée à l'origine, le taux reste au plus au niveau sous $H_0$ ($\delta = 0{,}20$~: $0{,}046$ $[0{,}034~;~0{,}061]$ sous P1, 1\,000 triangles, $0{,}001$ sous P2, $0{,}000$ sous P3~; $\delta = 0{,}10$~: $0{,}076$ sous P1, $0{,}014$ sous P2), conformément au mécanisme de la rubrique~2. Les autres écarts mesurés sous P1 (cellule déplacée de quatre ou de six écarts-types de bruit, année de survenance atypique, choc de $10~\%$ sur l'exercice $t = 4$, dérive calendaire, dérive de $f_j$ avec l'année) donnent de $0{,}044$ à $0{,}080$. Faible (moins d'un rejet sur six), cette sensibilité ne fait pas de la ligne un test de l'espérance, que portent les lignes de M1, M3 et M4. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}095$ (E), $0{,}098$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}046$, $0{,}0495$, $0{,}048$ ($\rho = 0{,}049$)~; compatible sous les trois lois et aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll \alpha/2$, aucune bascule par la règle~R1). Non applicable à $T = 5$~; $p_{\min}$ non attribuée dès $T = 11$. \emph{Puissance} contre un exposant de variance~0 ou~2 à variance moyenne conservée, moyenne inchangée (issue~\#309, section~\ref{sec:calib-mc-mw}, tableau T2 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N, $B = 999$~; taux au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%)~: sous P1, plan du triangle de contrôle, $0{,}092$ $[0{,}068~;~0{,}121]$ (exposant~0, 500 triangles) et $0{,}098$ $[0{,}080~;~0{,}118]$ (exposant~2, 1\,000 triangles)~; sous P2, première colonne plus dispersée, $0{,}080$ $[0{,}058~;~0{,}107]$ et $0{,}091$ $[0{,}074~;~0{,}111]$, pour un niveau sous $H_0$ de $0{,}091$ (P1) et $0{,}089$ (P2) (tableau T1~bis)~: \textbf{aucune puissance décelable} à $T = 8$ sous ces plans. Un verdict \code{OK} de cette ligne n'établit donc pas l'exposant~1 imposé par le règlement (constat transmis à l'issue~\#308). Sous P2, dont la première colonne est plus dispersée, la ligne reste sans puissance mesurable~: une dispersion plus forte des cumuls ne rend pas, dans la plage mesurée, un verdict \code{OK} probant, à la différence de M1~; le rapport $R_j^{\,k-1}$ des variances des résidus entre les cellules extrêmes d'une colonne, que restitue la ligne «~Identifiabilité intra-colonne~» (fiche~\ref{mw:m1id}), en donne l'ordre de grandeur (fiche~\ref{mw:m2bp}, rubrique~7). Un \code{ECHEC} reste atteignable (plancher de la p-value de Monte-Carlo, $0{,}001$ à $B = 999$~; non-spécificité, ci-après). \emph{Non-spécificité} (issue~\#436). Sous P1 (même tableau T2, loi N, $B = 999$, seuil $0{,}10$), la ligne rejette au-delà de son niveau sous $H_0$ ($0{,}091$) contre deux écarts de l'espérance à exposant de variance~1~: un choc de $10~\%$ sur les incréments de la dernière diagonale ($0{,}160$ $[0{,}129~;~0{,}195]$, 500 triangles) et une cellule d'incrément multipliée par~4 ($0{,}142$ $[0{,}113~;~0{,}176]$, 500 triangles)~; un \code{ECHEC} n'établit donc pas un exposant différent de~1 (rubrique~2). Contre une ordonnée à l'origine, le taux reste au plus au niveau sous $H_0$ ($\delta = 0{,}20$~: $0{,}046$ $[0{,}034~;~0{,}061]$ sous P1, 1\,000 triangles, $0{,}001$ sous P2, $0{,}000$ sous P3~; $\delta = 0{,}10$~: $0{,}076$ sous P1, $0{,}014$ sous P2), conformément au mécanisme de la rubrique~2. Les autres écarts mesurés sous P1 (cellule déplacée de quatre ou de six écarts-types de bruit, année de survenance atypique, choc de $10~\%$ sur l'exercice $t = 4$, dérive calendaire, dérive de $f_j$ avec l'année) donnent de $0{,}044$ à $0{,}080$. Parmi les écarts concentrés que la rubrique~2 donne pour causes possibles, seuls le choc sur la dernière diagonale et la cellule d'incrément multipliée par~4 portent donc le taux au-delà du niveau~; une année de survenance atypique et une cellule déplacée de quatre ou de six écarts-types de bruit ne le font pas sous P1, et le palier de $C(i,j)$ n'est pas mesuré~: ces causes restent possibles, sans effet mesuré sous ce plan. Faible (au plus $0{,}160$, bornes hautes des intervalles sous $0{,}20$), cette sensibilité ne fait pas de la ligne un test de l'espérance, que portent les lignes de M1, M3 et M4. Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, issue~\#206, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0955$ (N), $0{,}095$ (E), $0{,}098$ (A), pour $\rho = 0{,}099$~; à $0{,}05$, $0{,}046$, $0{,}0495$, $0{,}048$ ($\rho = 0{,}049$)~; compatible sous les trois lois et aux deux seuils.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable (conditionnelle aux rangs moyens avec ex \ae quo), non sous le modèle de Mack~; plancher~: valeur exacte, propriété arithmétique de l'estimateur de Monte-Carlo (\code{engine\_p\_mc()}), fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet sous $H_0$ et sous les alternatives~: constats de simulation sous un plan (modèle de Mack ajusté au triangle de contrôle, plans P1 à P3, scénarios et paramètres fixés, section~\ref{sec:calib-mc-mw}), qui ne se transposent ni à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
