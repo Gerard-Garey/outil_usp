@@ -185,7 +185,10 @@
 #         egale dans toutes les tranches et a la combinaison, et, avec
 #         --journal, egale a celle de la ligne "Empreinte sans
 #         commentaires" du JOURNAL (refus sinon) ; md5 du
-#         fichier entier cite ; md5 du moteur du T0 de #221 cite pour memoire ;
+#         fichier entier cite ; md5 du moteur du T0 de #221 cite pour memoire.
+#         Un moteur different de celui de la grille est un ECHEC, sauf ecart
+#         declare : --i3-grille-anterieure (#274, tranches --jeu) ou, depuis
+#         #429, --essai (voir "--essai" ci-dessous) ;
 #    (s1) sur l'echantillon de (i2) : V3b recalculee SANS P1 (31 statistiques
 #         a chaque tirage reajuste) ; p, tirages et B effectifs identiques ;
 #    (h1) premiere replication traitee de la tranche : sur tous ses tirages
@@ -328,6 +331,20 @@
 #  tranches --jeu seulement) : empreinte (#231) du moteur differente du (g5)
 #  de la grille admise comme ecart declare, non bloquant, ecrit en T0 (la
 #  grille reste lisible et aux parametres de la specification).
+#  --essai et controle (i3) (#429, option (a) confirmee par actuary, avis 0b
+#  (iii) de Fs, sous six reserves) : en --essai, une empreinte (#231) du
+#  moteur differente du (g5) de la grille n'est plus un ECHEC mais un ecart
+#  NON BLOQUANT, ecrit "ECART NON BLOQUANT (--essai : moteur different de
+#  celui de la grille)" dans la ligne CONTEXTE i3 et dans la sortie (controle
+#  (i3)) : code de sortie 0 si les autres controles sont OK. Seule l'egalite
+#  d'empreinte est relachee : le tableau de la grille doit rester lisible et
+#  aux parametres de la specification (sinon ECHEC, code 1). Sans --essai ni
+#  --i3-grille-anterieure, l'ecart reste un ECHEC (code 1). Avec
+#  --i3-grille-anterieure, "ECART DECLARE" l'emporte sur l'ecart d'essai.
+#  --combiner lit les deux libelles comme un ecart (i3) et pose la note de
+#  C5 et L15 (predictions de la grille relatives a un autre moteur) ; il
+#  continue de refuser --ecrire sur des tranches d'essai. Aucune mesure de la
+#  grille n'est touchee : l'ecart ne change que l'etat du controle (i3).
 #  --debit (levier P4) : trois replications de J2 du regime demande
 #  (interieur par defaut), premieres de la suite YSIM, traitees comme dans
 #  une tranche (sans les controles d'echantillon) ; duree par replication.
@@ -2186,9 +2203,13 @@ if (MODE_COMBINER) {
   }
   GR_C <- grille_combinaison(ctx1[["grille"]])
   charger_pred_c5(GR_C$chemin)
-  if (any(vapply(CTX, function(cx) grepl("\u00c9CART D\u00c9CLAR\u00c9", cx[["i3"]], fixed = TRUE), logical(1))))
-    NOTE_C5 <- paste("**Non lus** (#274, --i3-grille-anterieure) : C5 et L15 comparent la mesure \u00e0 des pr\u00e9dictions de la grille",
-                     "calcul\u00e9es avec un moteur ant\u00e9rieur au moteur mesur\u00e9 (empreintes du contr\u00f4le (i3) en T0) ; restitu\u00e9s sans lecture,",
+  i3_ant <- any(vapply(CTX, function(cx) grepl("\u00c9CART D\u00c9CLAR\u00c9", cx[["i3"]], fixed = TRUE), logical(1)))
+  i3_ess <- any(vapply(CTX, function(cx) grepl("\u00c9CART NON BLOQUANT (--essai", cx[["i3"]], fixed = TRUE), logical(1)))
+  if (i3_ant || i3_ess)
+    NOTE_C5 <- paste(sprintf("**Non lus** (%s) : C5 et L15 comparent la mesure \u00e0 des pr\u00e9dictions de la grille",
+                             if (i3_ant) "#274, --i3-grille-anterieure" else "#429, --essai"),
+                     sprintf("calcul\u00e9es avec un moteur %s (empreintes du contr\u00f4le (i3) en T0) ; restitu\u00e9s sans lecture,",
+                             if (i3_ant) "ant\u00e9rieur au moteur mesur\u00e9" else "diff\u00e9rent du moteur mesur\u00e9"),
                      "ils n'appuient aucune conclusion.")
   nv <- c(nv, GR_C$nv)
   if (OPT_ECRIRE && length(nv))
@@ -2924,11 +2945,19 @@ md5_t0_221 <- local({
 # le moteur de la grille, pas sur le moteur mesure.
 I3_EGAL <- isTRUE(GRILLE$ok && identical(GRILLE$g5, EMPREINTE_SC) && GRILLE$param_spec)
 I3_DECLARE <- !I3_EGAL && OPT_I3_ANT && isTRUE(GRILLE$ok && GRILLE$param_spec)
+# --essai (#429, option (a) d'actuary, six reserves) : en essai, seule
+# l'egalite d'empreinte est relachee (grille lisible et aux parametres de la
+# specification toujours exigees) ; "ECART DECLARE" l'emporte (reserve 5) ;
+# libelle distinct, reconnu par --combiner (NOTE_C5). Un essai n'est jamais
+# combinable par --ecrire (nv de --combiner), inchange.
+I3_ESSAI <- !I3_EGAL && !I3_DECLARE && OPT_ESSAI && isTRUE(GRILLE$ok && GRILLE$param_spec)
+LIB_I3_ESSAI <- "\u00c9CART NON BLOQUANT (--essai : moteur diff\u00e9rent de celui de la grille)"
 TXT_I3 <- sprintf("%s : empreinte sans commentaires de R/engine.R %s, (g5) de la grille %s ; md5 du fichier entier %s ; md5 du moteur du T0 de #221 (pour m\u00e9moire, lien par (i1) et (c)) %s",
                   if (I3_EGAL) "OK" else if (I3_DECLARE)
-                    "\u00c9CART D\u00c9CLAR\u00c9 (--i3-grille-anterieure : grille calcul\u00e9e avec un moteur ant\u00e9rieur, pr\u00e9dictions de C5 et L15 relatives \u00e0 ce moteur)" else "\u00c9CHEC",
+                    "\u00c9CART D\u00c9CLAR\u00c9 (--i3-grille-anterieure : grille calcul\u00e9e avec un moteur ant\u00e9rieur, pr\u00e9dictions de C5 et L15 relatives \u00e0 ce moteur)"
+                  else if (I3_ESSAI) LIB_I3_ESSAI else "\u00c9CHEC",
                   EMPREINTE_SC, GRILLE$g5, MD5_MOTEUR, md5_t0_221)
-controle(I3_EGAL || I3_DECLARE,
+controle(I3_EGAL || I3_DECLARE || I3_ESSAI,
          sprintf("(i3) %s ; tableau de la grille %s", TXT_I3, masquer_chemins(TXT_GRILLE)))
 # (a) J1 observe contre la reference premium ; lignes de T2
 RES_A <- executer_cas("premium")
