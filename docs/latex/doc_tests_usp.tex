@@ -122,8 +122,9 @@
   \subsection{#1}%
   \label{fiche:\theficheid}%
 }{%
-  \label{fiche:\theficheid-fin}% fin de fiche, lue par le controle de plafond ; jamais cible d'un \ref
-  \end{description}\vspace{0.5em}%
+  \end{description}%
+  \label{fiche:\theficheid-fin}% fin de fiche (mode vertical, sans effet sur la pagination), lue par le controle de plafond ; jamais cible d'un \ref
+  \vspace{0.5em}%
 }
 \newcommand{\Cadre}{%
   \begin{description}[leftmargin=0pt, style=unboxed, itemsep=3pt, topsep=3pt, parsep=2pt]%
