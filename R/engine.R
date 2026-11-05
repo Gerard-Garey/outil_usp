@@ -12180,7 +12180,9 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       # (identite controlee par tests/unitaires/test_merz_wuthrich.R). Les
       # chiffres de la chaine ("0", "1", "D(2)") sont des constantes du texte,
       # non des nombres issus du bootstrap (regle #76).
-      # "et eloigne la ligne du rejet" retire (revue finale de Ft) : constat de simulation sous plan, non etabli pour la derive de f_j (tableau T2 de #309), et non propriete.
+      # "et eloigne la ligne du rejet" retire (revue finale de Ft) : constat
+      # de simulation sous plan, non etabli pour la derive de f_j (tableau T2
+      # de #309), et non propriete.
       H1 = paste("lien monotone entre |r(i,j)| et C(i,j) dans au moins une colonne (correlation",
                  "de rang), au-dela de ce qu'en produit le modele ajuste (effet de levier",
                  "compris) ; causes possibles, que le test ne separe pas et dont la liste n'est",
