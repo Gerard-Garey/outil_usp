@@ -88,8 +88,13 @@ jobs:
     # la concordance (qui lit le moteur et le .tex) dans les deux cas.
     needs: changements
     if: needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true'
-    # Durée observée : 9 à 15 min (unitaires, reproductibilité des cinq cas).
-    timeout-minutes: 40
+    # Durée observée (branche Fs, 04/11/2026) : 38 min 47 s pour le job vert
+    # de 4505ae3, dont 33 min 44 s de tests unitaires, 2 min 30 s de
+    # reproductibilité (six cas) et 47 s de setup-r. Un setup-r lent du runner
+    # (14 min 36 s le même jour, 15 min le 23/10) suffisait à dépasser
+    # l'ancien délai de 40 min sans aucun échec de test. 60 min laissent la
+    # marge d'un setup-r lent.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
