@@ -16,10 +16,14 @@
 # ref : lignes de reference (gris moyen) ; ref_texte : texte qui les libelle,
 # gris fonce plus contraste sur fond blanc (#162). regle : point de sigma_(J-1)
 # fixe par la regle de minimum (plot_mw_facteurs(), #310), ambre distinct de
-# trait (reference f = 1 du meme graphique).
+# trait (reference f = 1 du meme graphique). noir : moyenne des sigma_USP
+# simules de plot_boot_sigma(), distincte du gris de sigma standard (ref) ;
+# ecart CIELAB simule d'au moins 40 avec trait, pt, regle et ref, en vision
+# normale, deuteranopie, protanopie et tritanopie (#392).
 COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
              ref = "#7F8C8D", vert = "#00B450", fond = "#FFFFFF",
-             env_sim = "#E8F0FC", ref_texte = "#4D5656", regle = "#B9770E")
+             env_sim = "#E8F0FC", ref_texte = "#4D5656", regle = "#B9770E",
+             noir = "#000000")
 
 # L'option usp.graphiques_base force les branches base R des plot_*() meme si
 # plotly est installe. Elle n'est posee que par rapport_html() (graphiques
@@ -723,8 +727,9 @@ plot_qq2ech <- function(pd) {
     if (length(e$motif) == 1L && !is.na(e$motif)) e$motif)
 }
 # Etendue de l'axe des ordonnees, commune aux branches base R et plotly :
-# nuage, courbe et bandes tracees, plus une marge haute de 30 % reservee a
-# la legende des bandes (mise en page seulement).
+# nuage, courbe et bandes tracees, plus, quand au moins une bande est tracee,
+# une marge haute egale a 30 % de cette etendue, reservee a la legende des
+# bandes (mise en page seulement).
 .spread_ylim <- function(pd, sim, ponct) {
   e <- pd$spread_enveloppe
   yl <- range(c(pd$spread$racine_abs_z, pd$spread_lisse$y,
@@ -741,10 +746,15 @@ plot_spread <- function(pd) {
   yl <- .spread_ylim(pd, sim, ponct)
   if (!.plotly_dispo()) {
     .cadre()
-    # Sous-titre sur deux lignes : marge haute agrandie, le titre au-dessus.
-    if (length(st) > 1L) graphics::par(mar = graphics::par("mar") + c(0, 0, 0.8, 0))
+    # Sous-titre sur deux lignes (motif du moteur) : marge haute agrandie et
+    # titre pose une ligne plus haut par title(line = ), comme plot_qqnorm() :
+    # a la position par defaut, le titre touchait la premiere ligne du
+    # sous-titre (rendu PNG a 560 x 330 px, #392).
+    deux <- length(st) > 1L
+    if (deux) graphics::par(mar = graphics::par("mar") + c(0, 0, 0.8, 0))
     plot(pd$spread$x, pd$spread$racine_abs_z, pch = 19, col = COUL$pt, ylim = yl,
-         xlab = "x_t", ylab = "sqrt(|z_t|)", main = "Dispersion-niveau")
+         xlab = "x_t", ylab = "sqrt(|z_t|)", main = if (deux) "" else "Dispersion-niveau")
+    if (deux) graphics::title(main = "Dispersion-niveau", line = 2.2)
     # Sous-titre : une ligne par element, la derniere au ras du cadre.
     if (length(st)) graphics::mtext(st, side = 3, line = 0.15 + 0.75 * (rev(seq_along(st)) - 1),
                                     cex = 0.7, col = COUL$ref)
@@ -956,28 +966,32 @@ plot_residus <- function(pd) {
           marker = list(size = 11, symbol = "triangle-up", color = COUL$trait),
           hovertemplate = "%{text}<extra></extra>")
   libre <- if (.lr_cote_libre(pd) == "gauche") 1L else 2L
-  ann <- .lr_annotations_quantile(q, s, libre, libs$quantile_court)
+  # Annotations des quantiles sur deux lignes (« q90 % du LR simule<br>sous
+  # delta = k », environ 105 px au lieu de 205) : sur une ligne, celles des
+  # deux marques se chevauchaient, ou l'une passait sous le libelle du repere,
+  # dans le cadre de l'application (environ 245 px de zone de trace, #392).
+  ann <- .lr_annotations_quantile(q, s, libre,
+           sub(" sous ", "<br>sous ", libs$quantile_court, fixed = TRUE))
   # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
   # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
   # a son annotation de quantile. La largeur du texte n'etant connue que du
   # navigateur, le libelle a un fond opaque et vient en dernier : dans un cadre
   # trop etroit, il masque la ligne en delta estime ou une annotation de
   # quantile au lieu d'etre traverse ou recouvert. Le libelle long reste au survol de la ligne (#162).
-  # Le libelle tient sur une ligne (environ 270 px) si le cadre libre fait au
+  # Le libelle tient sur deux lignes (environ 215 px) si le cadre libre fait au
   # moins 95 % de [0 ; 1] (delta estime au bord ou presque), sur trois
   # (environ 110 px) sinon : dans le cadre le plus etroit, celui de
-  # l'application (environ 320 px de large), il reste alors en deca de la ligne
-  # en delta estime et de l'annotation de quantile de l'autre bord (environ
-  # 150 px).
+  # l'application (environ 320 px de large, 245 px de zone de trace), il reste
+  # alors en deca de la ligne en delta estime et de l'annotation de quantile
+  # de l'autre bord (environ 105 px, sur deux lignes). Sur une seule ligne
+  # (environ 270 px), il depassait la zone de trace de ce cadre (#392).
   if (s_ok) {
     gauche <- libre == 1L
     dessous <- is.finite(q[libre]) && q[libre] >= s
     d0 <- pd$delta_estime
     part <- if (length(d0) != 1L || !is.finite(d0)) 1 else if (gauche) d0 else 1 - d0
-    lib <- libs$asympt_court
-    if (part < 0.95)
-      lib <- sub("asymptotique ", "asymptotique<br>",
-                 sub(", aide de lecture", ",<br>aide de lecture", lib, fixed = TRUE), fixed = TRUE)
+    lib <- sub(", aide de lecture", ",<br>aide de lecture", libs$asympt_court, fixed = TRUE)
+    if (part < 0.95) lib <- sub("asymptotique ", "asymptotique<br>", lib, fixed = TRUE)
     ann[[length(ann) + 1]] <- list(
       text = lib, x = if (gauche) 0 else 1, y = s,
       xref = "x", yref = "y", xanchor = if (gauche) "left" else "right",
@@ -1112,7 +1126,7 @@ plot_coupe_delta <- function(pd) {
     libelle = c("sigma_USP retenu", rep(paste0("percentile", niv), 2),
                 rep(paste0("basic (\u00e9chelle log)", niv), 2),
                 "moyenne des sigma_USP simul\u00e9s", "sigma standard"),
-    couleur = c(COUL$trait, COUL$pt, COUL$pt, COUL$regle, COUL$regle, COUL$ref_texte, COUL$ref),
+    couleur = c(COUL$trait, COUL$pt, COUL$pt, COUL$regle, COUL$regle, COUL$noir, COUL$ref),
     lty = c(1, 2, 2, 4, 4, 3, 5),
     dash = c("solid", "dash", "dash", "dashdot", "dashdot", "dot", "longdash"),
     stringsAsFactors = FALSE)
@@ -1144,7 +1158,7 @@ plot_boot_sigma <- function(pd) {
            else matrix(graphics::hist(v, breaks = br, plot = FALSE)$counts, ncol = 1L)
     eff <- matrix(eff, ncol = max(1L, length(niv_reg)))
     haut <- max(rowSums(eff))
-    xl <- range(c(br, rp$valeur))
+    xl <- range(c(br, rp$valeur), finite = TRUE)
     plot(xl, c(0, haut * if (is.null(leg)) 1.05 else 1.45), type = "n",
          xlab = xlab, ylab = "effectif", main = titre)
     if (length(st)) graphics::mtext(st, side = 3, line = 0.15, cex = 0.7, col = COUL$ref)
@@ -1154,16 +1168,28 @@ plot_boot_sigma <- function(pd) {
       graphics::rect(br[-length(br)], bas, br[-1L], bas + eff[, k], col = coul[k], border = "white")
       bas <- bas + eff[, k]
     }
-    if (!is.null(rp) && nrow(rp))
-      graphics::abline(v = rp$valeur, col = rp$couleur, lty = rp$lty, lwd = 2)
     lib <- c(if (length(niv_reg)) unname(.BOOT_REGIMES[niv_reg]), leg$libelle)
-    if (length(lib))
-      graphics::legend("topright", bty = "n", cex = 0.7, legend = lib,
-                       fill = c(if (length(niv_reg)) coul, rep(NA, NROW(leg))),
-                       border = c(if (length(niv_reg)) rep(COUL$ref, length(niv_reg)), rep(NA, NROW(leg))),
-                       col = c(rep(NA, length(niv_reg)), leg$couleur),
-                       lty = c(rep(NA, length(niv_reg)), leg$lty),
-                       lwd = c(rep(NA, length(niv_reg)), rep(2, NROW(leg))))
+    arg_leg <- list("topright", bty = "n", cex = 0.7, legend = lib,
+                    fill = c(if (length(niv_reg)) coul, rep(NA, NROW(leg))),
+                    border = c(if (length(niv_reg)) rep(COUL$ref, length(niv_reg)), rep(NA, NROW(leg))),
+                    col = c(rep(NA, length(niv_reg)), leg$couleur),
+                    lty = c(rep(NA, length(niv_reg)), leg$lty),
+                    lwd = c(rep(NA, length(niv_reg)), rep(2, NROW(leg))))
+    # Reperes : un repere dont l'abscisse tombe dans l'emprise de la legende
+    # (a un caractere pres) s'arrete sous elle au lieu de la traverser ; les
+    # autres vont de bas en haut du cadre (#392).
+    if (!is.null(rp) && nrow(rp)) {
+      u <- graphics::par("usr")
+      haut_rep <- rep(u[4], nrow(rp))
+      if (length(lib)) {
+        r <- do.call(graphics::legend, c(arg_leg, list(plot = FALSE)))$rect
+        m <- graphics::strwidth("m", cex = 0.7)
+        haut_rep[rp$valeur >= r$left - m & rp$valeur <= r$left + r$w + m] <- r$top - r$h
+      }
+      graphics::segments(rp$valeur, u[3], rp$valeur, haut_rep,
+                         col = rp$couleur, lty = rp$lty, lwd = 2)
+    }
+    if (length(lib)) do.call(graphics::legend, arg_leg)
     return(invisible())
   }
   p <- plotly::plot_ly()
@@ -1192,15 +1218,28 @@ plot_boot_sigma <- function(pd) {
             text = rp$libelle[i],
             hovertemplate = "%{text}<br>%{x:.4f}<extra></extra>")
   p <- .mep(p, paste0(titre, if (length(st)) paste0("<br><sup>", st, "</sup>")), xlab, "effectif")
-  # Legende horizontale sous le titre de l'axe des abscisses, ancree par le
-  # haut a y = -0,45 : sans chevauchement du titre d'axe a 520 x 330,
-  # 800 x 330 (onglet M5, mw_boot), 520 x 420 et 1000 x 420 px (g_boot),
-  # mesure sous Chromium.
+  # Etendue des abscisses : histogramme et reperes, avec 5 % de marge de
+  # chaque cote ; sans elle, un repere au-dela des classes (borne haute de
+  # l'intervalle basic) tombait au bord du cadre et etait rogne (#392).
+  # Valeurs finies seulement ; plage non posee (autorange de plotly) si elle
+  # est vide ou de largeur nulle (#392, revue app-review).
+  xf <- c(v, rp$valeur); xf <- xf[is.finite(xf)]
+  xl <- if (length(xf)) range(xf) else c(NA_real_, NA_real_)
+  xl <- xl + c(-1, 1) * 0.05 * diff(xl)
+  xl_ok <- all(is.finite(xl)) && diff(xl) > 0
+  # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas
+  # du conteneur (yref = "container", y = 0) : sa distance au titre d'axe ne
+  # depend plus de la hauteur du cadre (ancree a y = -0,45 de la zone de
+  # trace, elle laissait un vide sous elle a 420 px, #392) ; sans
+  # chevauchement du titre d'axe a 520 x 330, 800 x 330 (onglet M5, mw_boot),
+  # 520 x 420 et 1000 x 420 px (g_boot), mesure sous Chromium.
   plotly::layout(p, barmode = "stack",
+                 xaxis = if (!is.null(rp) && nrow(rp) && xl_ok) list(range = xl),
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
-                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.45, yanchor = "top", font = list(size = 10)),
-                 margin = list(t = if (length(st)) 60 else 45, b = 120))
+                 legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
+                               y = 0, yanchor = "bottom", font = list(size = 10)),
+                 margin = list(t = if (length(st)) 60 else 45, b = 110))
 }
 
 plot_calibration <- function(cand) {
@@ -1680,13 +1719,13 @@ plot_influence_sigma <- function(pd) {
   # Annee non evaluable seule : sa barre reste absente (hauteur NA), couleur
   # neutre (fort_ecart_sigma y vaut NA) ; lecture telle quelle, aucun calcul.
   # Garde aussi sur ce que trace barplot : aucun ecart_sigma fini. Annees
-  # evaluables sans ecart fini (sigma_USP nul ou non fini, ligne jackknife du
-  # moteur : ecart relatif non defini, #405) : message distinct, aligne sur le
+  # evaluables sans ecart fini (sigma_USP nul, non fini ou trop petit, ligne jackknife du
+  # moteur : ecart relatif non fini, #405) : message distinct, aligne sur le
   # moteur.
   if (length(.jack_non_evaluables(d)) == length(d$t))
     return(.vide("Aucune annee evaluable : influence sur sigma_USP non mesuree"))
   if (!any(is.finite(d$ecart_sigma)))
-    return(.vide("sigma_USP nul ou non fini : ecart relatif non defini, influence non mesuree"))
+    return(.vide("sigma_USP nul, non fini ou trop petit : ecart relatif non fini, influence non mesuree"))
   v <- 100 * d$ecart_sigma
   coul <- ifelse(d$fort_ecart_sigma %in% TRUE, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
@@ -1914,8 +1953,10 @@ plot_mw_origine <- function(pd) {
                   if (nzchar(niv)) paste0(", niveau nominal", niv) else "", " (M1)")
   if (!.plotly_dispo()) {
     .cadre()
+    # Cadrage seul (#432, point 2) : les points a_j entrent dans les limites,
+    # pour qu'un point dont les bornes valent NA reste dans le cadre.
     plot(d$j, d$a, pch = 19, col = coul,
-         ylim = range(c(d$bas, d$haut, 0), finite = TRUE), xlab = "annee de developpement j",
+         ylim = range(c(d$a, d$bas, d$haut, 0), finite = TRUE), xlab = "annee de developpement j",
          ylab = "ordonnee a l'origine a_j", main = titre)
     graphics::arrows(d$j, d$bas, d$j, d$haut, angle = 90, code = 3, length = 0.04,
                      col = coul)
@@ -2201,7 +2242,7 @@ table_robustesse <- function(tb) {
   n <- .qq_niveau_txt(L$niveau)
   a <- if (nzchar(n)) paste0(" &agrave;", n) else ""
   paste0(
-    "Profil de vraisemblance en delta : la ligne pointill&eacute;e (rep&egrave;re ",
+    "Profil de vraisemblance en delta : la ligne pointill&eacute;e horizontale (rep&egrave;re ",
     "asymptotique &frac12;&chi;&sup2;(0) + &frac12;&chi;&sup2;(1)) ne vaut qu'aux ",
     "bornes delta = 0 et delta = 1. Pour delta int&eacute;rieur, la loi limite du ",
     "rapport de vraisemblance serait &chi;&sup2;(1), de quantile plus ",
@@ -2270,7 +2311,9 @@ note_m1 <- function(pd) {
     if (nzchar(niv))
       sprintf(paste("<br>Le graphique de l'ordonn&eacute;e &agrave; l'origine porte, pour",
                     "chaque colonne, l'intervalle de Student de a_j, de niveau nominal%s",
-                    "(exact sous erreurs gaussiennes seulement)."), niv),
+                    "(exact sous le seul mod&egrave;le auxiliaire &agrave; erreurs gaussiennes ;",
+                    "couverture non &eacute;tablie &agrave; T = 8 sous le mod&egrave;le",
+                    "r&eacute;glementaire)."), niv),
     if (!is.null(d$exclut_zero))
       paste("Les colonnes dont l'intervalle exclut 0 sont marqu&eacute;es en rouge :",
             "simple rep&egrave;re de lecture, par colonne, sans verdict."),
@@ -2358,7 +2401,7 @@ note_influence <- function(pd) {
   e <- d$ecart_sigma; e[d$t %in% ne | !is.finite(e)] <- NA
   ip <- which(d$plus_influente %in% TRUE & is.finite(e))
   # Phrase des annees non evaluables, posee apres la phrase d'influence ou, a
-  # defaut d'ecart fini, apres celle de sigma_USP nul ou non fini.
+  # defaut d'ecart fini, apres celle de sigma_USP nul, non fini ou trop petit.
   phrase_ne <- if (length(ne) == 1L)
       sprintf(paste(" Ann&eacute;e %d non &eacute;valuable (r&eacute;ajustement sans maximum de",
                     "vraisemblance &eacute;tabli, ou en &eacute;chec) : &eacute;cart&eacute;e du maximum,",
@@ -2371,13 +2414,13 @@ note_influence <- function(pd) {
     else ""
   # Trois cas, lus sur les booleens du moteur (aucun calcul) : toutes les
   # annees non evaluables ; aucun ecart fini alors que des annees sont
-  # evaluables (sigma_USP nul ou non fini, ligne jackknife du moteur : ecart
-  # relatif non defini, #405) ; cas general.
+  # evaluables (sigma_USP nul, non fini ou trop petit, ligne jackknife du moteur : ecart
+  # relatif non fini, #405) ; cas general.
   jack <- if (length(ne) == length(d$t))
     paste("Aucune ann&eacute;e &eacute;valuable (r&eacute;ajustements sans maximum de",
           "vraisemblance &eacute;tabli, ou en &eacute;chec) : l'influence sur sigma_USP n'est pas mesur&eacute;e.")
   else if (!any(is.finite(e)))
-    paste0("sigma_USP nul ou non fini : &eacute;cart relatif non d&eacute;fini, influence non mesur&eacute;e.",
+    paste0("sigma_USP nul, non fini ou trop petit : &eacute;cart relatif non fini, influence non mesur&eacute;e.",
            phrase_ne)
   else paste0(
     # Amplitude affichee arrondie a 0,0 (#396) : aucun signe imprime, le sens
