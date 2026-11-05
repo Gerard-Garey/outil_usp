@@ -17678,14 +17678,16 @@ résidus de chaque colonne retenue vérifient
   = \frac{1}{\hat\sigma_j}\sum_i C(i,j)\big(F(i,j) - \hat f_j\big) = 0
 \]
 (résultat exact, identité algébrique vérifiée colonne par colonne sur le triangle de contrôle par
-la batterie de tests unitaires, section~\ref{sec:verif}). Sous un écart régulier, la part systématique des résidus, monotone en $C(i,j)$, ne peut donc
-garder un signe constant~: les résidus prennent les deux signes, de part et d'autre d'un cumul
-pivot, et $|r(i,j)|$ a un profil en V en $C(i,j)$, que la corrélation de rang, qui mesure un lien
-monotone, saisit mal~: l'écart éloigne la ligne du rejet. Cet éloignement n'est mesuré que pour
-une amplitude forte, où la ligne rejette moins que sous $H_0$ (ordonnée à l'origine
-$\delta = 0{,}20$)~; contre une
-ordonnée $\delta = 0{,}10$ ou une dérive de $f_j$ avec l'année, sous le plan du triangle de
-contrôle, les taux de rejet restent proches du niveau sous $H_0$ (rubrique~7).
+la batterie de tests unitaires, section~\ref{sec:verif}). Sous un écart régulier, l'écart systématique de $F(i,j)$ à $\hat f_j$, monotone en $C(i,j)$, ne
+peut donc garder un signe constant~: les résidus, dont la part systématique a son signe, prennent
+les deux signes de part et d'autre d'un cumul pivot, et la part systématique de $|r(i,j)|$, nulle
+en ce pivot, dessine en $C(i,j)$ un profil en V (exactement pour une ordonnée à l'origine), que la
+corrélation de rang, qui mesure un lien monotone, saisit mal~: l'écart éloigne la ligne du rejet.
+Cet éloignement n'est mesuré que pour un écart fort ou une première colonne dispersée, où la ligne
+rejette moins que sous $H_0$ (ordonnée à l'origine $\delta = 0{,}20$ sous P1, P2 et P3~;
+$\delta = 0{,}10$ sous P2)~; sous le plan du triangle de contrôle, contre une ordonnée
+$\delta = 0{,}10$ ou une dérive de $f_j$ avec l'année, les taux de rejet restent proches du
+niveau sous $H_0$ (rubrique~7).
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$, tirés d'un seul appel de
 \code{.mw\_spearman()} (issue~\#239~; sans appel à \code{cor.test()} sur le chemin énuméré avec
@@ -17740,8 +17742,8 @@ constante de variance propre à l'année de survenance, le rejet met en cause la
 retenue par l'outil ($\sigma_j^2$ commun aux années, appuyée sur D(5)(d)(ii)), non la lettre de
 D(2)(h)(iv). Si la cause est un écart de l'espérance concentré sur peu de cellules, il relève des
 lignes de M1, de M3 et de M4, qui le visent (rubrique~2). Un rejet n'indique en revanche ni une
-ordonnée à l'origine ni un facteur qui varie régulièrement, écarts que la ligne ne vise pas et
-qui l'éloignent du rejet (rubrique~2). La ligne ne séparant pas ces causes, dont la liste n'est
+ordonnée à l'origine ni un facteur qui varie régulièrement, écarts que la ligne ne vise pas
+(rubrique~2). La ligne ne séparant pas ces causes, dont la liste n'est
 pas fermée, le dossier les présente toutes, avec les verdicts des lignes de M1, de M3 et de M4
 (rubrique~7, non-spécificité).
 
