@@ -6919,7 +6919,9 @@ sous le plan du triangle de contrôle (écarts mineurs), critère K-307 formulé
 
 Ordonnée à l'origine par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
-\textbf{Déconseillée} : colonnes adjacentes non indépendantes &
+\textbf{Déconseillée} : $t_j$ de Student et indépendants entre colonnes sous erreurs
+conditionnelles gaussiennes seulement (raisonnement non publié, issue~\#424), hypothèse que
+D(2)(h) ne pose pas~; statut non établi hors de cette hypothèse &
 \textbf{Test central de M1} ; niveau réel de la p MC compatible sous le plan du triangle de
 contrôle (§\ref{sec:calib-mc-mw}) \\
 
@@ -7433,8 +7435,10 @@ Bootstrap seul recours~; niveau compatible sous le plan mesuré, non garanti si 
 Combinaisons de Fisher (ordonnée à l'origine, homogénéité, courbure,
 exposant de variance) & $X = -2\sum\ln p_k$ & $\chi^2(2K)$ &
 Convergence en loi & \textbf{Sans objet en toute rigueur} : la loi $\chi^2(2K)$
-suppose l'indépendance des $K$ p-values, mise en défaut car les colonnes $j$ et
-$j+1$ partagent $C(\cdot,j+1)$~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
+suppose l'indépendance des $K$ p-values, non établie en général, les colonnes $j$ et
+$j+1$ partageant $C(\cdot,j+1)$~; pour l'ordonnée à l'origine, loi exacte sous erreurs
+conditionnelles gaussiennes (raisonnement non publié, issue~\#424, fiche~\ref{mw:m1a}), statut non
+établi hors de cette hypothèse~; pour l'homogénéité et l'exposant de variance, les $p_j$ de
 rang suivent en outre, depuis l'issue~\#90, une loi de permutation discrète à $n_j \le 9$, et
 $-2\ln p_j$ n'est pas $\chi^2(2)$~; pour l'exposant de variance, cette loi de permutation
 suppose les $|r(i,j)|$ échangeables, ce que l'effet de levier dément sous $H_0$
@@ -16425,11 +16429,27 @@ l'origine indisponibles}~», alors qu'avant l'issue il représentait les autres 
 le triangle à $C(i,1) = 1\,050\,(1 + 10^{-8} i)$). Sur une colonne constante, membre de l'ensemble figé, le graphique
 représente les autres colonnes, comme avant.
 \Loi
-$X \sim \chi^2(2K)$ \emph{si les colonnes étaient indépendantes}. Elles ne le
-sont pas tout à fait~: les colonnes $j$ et $j+1$ partagent le vecteur
-$C(\cdot,j+1)$. La p-value du khi-deux est donc rapportée comme non simulée et
-\emph{indicative}~; la loi de référence retenue est celle du bootstrap de
-résidus.
+$X \sim \chi^2(2K)$ si les $K$ statistiques $t_j$ suivent chacune exactement la loi de Student à
+$n_j - 2$ degrés de liberté, de sorte que chaque $p_j$ est uniforme sur $[0~;~1]$, et sont
+mutuellement indépendantes. Ces conditions sont remplies exactement, sous $H_0$, lorsque les
+années de survenance sont indépendantes (D(2)(h)(i)), que l'espérance et la variance
+conditionnelles de Mack, sur tout le passé de l'année, valent $f_j\,C(i,j)$ et
+$\sigma_j^2\,C(i,j)$ avec $f_j$ et $\sigma_j^2$ communs aux années (encadrés des
+sections~\ref{sec:mwm1} et~\ref{sec:mwm2}), et que les erreurs conditionnelles sont gaussiennes,
+hypothèse de validité de la p-value du khi-deux (rubrique~1) que l'annexe~XVII, D(2)(h), ne pose
+pas. Argument~: la régression pondérée de la colonne~$j$ est alors, conditionnellement aux
+colonnes $0, \dots, j$, un modèle linéaire gaussien à poids connus, de sorte que la loi de $t_j$
+sachant ces colonnes est la loi de Student à $n_j - 2$ degrés de liberté, qui n'en dépend pas~;
+$t_0, \dots, t_{j-1}$ étant fonctions de ces colonnes, $t_j$ en est indépendant, et
+l'indépendance mutuelle suit par récurrence (résultat exact sous ces hypothèses, établi par un
+raisonnement d'\code{actuary}, issue~\#424~; aucune publication énonçant ce résultat n'a été
+retrouvée). Réserve~: des erreurs conditionnelles gaussiennes de variance $\sigma_j^2\,C(i,j)$
+donnent un cumul négatif avec une probabilité non nulle, où la variance du pas suivant n'est plus
+définie~; le résultat vaut pour ce modèle idéalisé, et la portée de cette réserve n'est pas
+établie. Hors de l'hypothèse gaussienne, le partage du vecteur $C(\cdot,j+1)$ par les colonnes
+$j$ et $j+1$ laisse non établies l'indépendance des $t_j$ et l'uniformité de chaque $p_j$. La
+p-value du khi-deux reste donc rapportée comme non simulée et \emph{indicative}~; la
+loi de référence retenue est celle du bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue. Son niveau réel, mesuré sous le plan du triangle de contrôle
 (issue~\#206, section~\ref{sec:calib-mc-mw}), est compatible avec la référence sous les trois
@@ -16723,8 +16743,10 @@ fiche~\ref{mw:m2b})~: sur ce triangle de deux colonnes combinées, une p-value d
 dans une réplication laissait une seule colonne, et la statistique de la réplication n'était
 pas définie.
 \Loi
-$\chi^2(2K)$ approchée, avec la même réserve d'indépendance que la fiche
-précédente, et une seconde, propre aux p-values de rang~: à $n_j \le 9$, $p_j$ suit une loi de
+$\chi^2(2K)$ approchée, avec la réserve d'indépendance entre colonnes de la fiche
+précédente (l'argument qui l'y lève sous erreurs conditionnelles gaussiennes, fondé sur une loi
+de Student de $t_j$ qui ne dépend pas des colonnes antérieures, n'est pas transposé aux
+corrélations de rang de la présente ligne), et une seconde, propre aux p-values de rang~: à $n_j \le 9$, $p_j$ suit une loi de
 permutation discrète, et $-2\ln p_j$ n'a pas la loi $\chi^2(2)$, même pour une colonne prise
 isolément. Propriété élémentaire~: une p-value bilatérale par doublement est sur-uniforme sous sa
 loi de référence ($\mathbb{P}(p_j \le u) \le u$), de sorte que $-2\ln p_j$ y est
