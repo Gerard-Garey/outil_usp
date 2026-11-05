@@ -11160,7 +11160,8 @@ mw_test_exposant_variance <- function(aj, j_degeneres = NULL, res = NULL) {
        p_min_col = p_mins)
 }
 
-# (f) Homogeneite des residus entre annees de survenance (hypothese (i)).
+# (f) Homogeneite des residus entre annees de survenance (hypotheses (i), (iii)-(iv)
+# sous la formalisation de l'outil ; issue #419).
 # Si les annees d'accident sont stochastiquement independantes et suivent le
 # meme modele, les residus de Mack ne doivent pas differer systematiquement
 # d'une ligne a l'autre. Test de Kruskal-Wallis (1952), non parametrique.
@@ -12171,12 +12172,34 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
             "(interpretation de l'outil) ; Spearman (1904) pour la correlation de rang ;",
             "complement de la ligne Heteroscedasticite residuelle vs cumul"),
       H0 = "variance proportionnelle a C(i,j), sigma_j^2 et f_j communs aux annees (interpretation de l'outil) : |r(i,j)| sans lien avec C(i,j) dans chaque colonne, hors effet de levier",
-      H1 = paste("lien entre |r(i,j)| et C(i,j) dans au moins une colonne, au-dela de ce qu'en",
-                 "produit le modele ajuste (effet de levier compris) ; causes que le test ne separe",
-                 "pas : exposant de variance different de 1, contraire a la lettre de D(2)(h)(iv) ;",
-                 "constante de variance (iv) ou facteur (iii) propres a l'annee de survenance et",
-                 "lies au niveau de C(i,j) d'une annee a l'autre, compatibles avec la lettre mais",
-                 "non avec l'interpretation de l'outil (sigma_j^2 et f_j communs aux annees)"),
+      # H1 : texte C de l'arbitrage du 05/11/2026, retenu complet par le
+      # mainteneur (#436, suite de #431). Un ecart regulier de l'esperance le
+      # long de la colonne n'y est plus une cause : r(i,j) = sqrt(C(i,j))
+      # (F(i,j) - f_j)/sigma_j, f_j moyenne des F(i,j) ponderee par C(i,j),
+      # donne somme_i sqrt(C(i,j)) r(i,j) = 0 dans chaque colonne retenue
+      # (identite controlee par tests/unitaires/test_merz_wuthrich.R). Les
+      # chiffres de la chaine ("0", "1", "D(2)") sont des constantes du texte,
+      # non des nombres issus du bootstrap (regle #76).
+      # "et eloigne la ligne du rejet" retire (revue finale de Ft) : constat
+      # de simulation sous plan, non etabli pour la derive de f_j (tableau T2
+      # de #309), et non propriete.
+      H1 = paste("lien monotone entre |r(i,j)| et C(i,j) dans au moins une colonne (correlation",
+                 "de rang), au-dela de ce qu'en produit le modele ajuste (effet de levier",
+                 "compris) ; causes possibles, que le test ne separe pas et dont la liste n'est",
+                 "pas fermee : exposant de variance different de 1, contraire a la lettre de",
+                 "D(2)(h)(iv) ; constante de variance propre a l'annee de survenance,",
+                 "independante de ses cumuls realises mais liee au niveau de C(i,j) d'une annee",
+                 "a l'autre, compatible avec la lettre mais non avec l'interpretation de l'outil",
+                 "(sigma_j^2 commun aux annees) ; ecart de l'esperance concentre sur peu de",
+                 "cellules a une extremite des cumuls de la colonne (palier de C(i,j), annee de",
+                 "survenance, cellule ou diagonale : lignes de M1, M3 et M4). Un ecart regulier",
+                 "de l'esperance le long de la colonne (ordonnee a l'origine ou facteur fonction",
+                 "reguliere de C(i,j), contraires a la lettre de D(2)(h)(iii) ; facteur propre a",
+                 "l'annee, independant de ses cumuls realises mais lie a son niveau d'une annee",
+                 "a l'autre, compatible avec la lettre mais non avec f_j commun aux annees)",
+                 "donne des residus des deux signes de part et d'autre d'un cumul",
+                 "pivot (identite sum_i sqrt(C(i,j)) r(i,j) = 0) : il n'est pas vise ici,",
+                 "lignes de M1"),
       stat_nom = "X de Fisher", stat = ev$stat,
       loi = "chi2(2K) approx. -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(ev$K)) NA_real_ else ev$K,
@@ -12299,7 +12322,13 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
         "(groupes de taille 1), quelle que soit la donnee ; ",
         "H ne mesure rien ici. ") else "",
-        "Traduction testable de l'independance des annees de survenance, D(2)(h)(i)"))
+        # Texte arrete par actuary (#419, decision du mainteneur du
+        # 05/11/2026) : l'egalite des lois entre annees n'est pas
+        # l'independance de D(2)(h)(i).
+        paste("Homogeneite des residus entre annees de survenance sous la formalisation",
+              "de l'outil (f_j et sigma_j^2 communs) ; ne teste pas a elle seule",
+              "l'independance de D(2)(h)(i), reagit aussi a une annee atypique, a une",
+              "derive de f_j avec l'annee ou a une esperance non proportionnelle")))
   cor <- mw_stat_correlation_dev(aj, jd)
   pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))

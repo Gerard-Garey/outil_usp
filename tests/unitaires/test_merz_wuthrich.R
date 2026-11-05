@@ -3847,6 +3847,44 @@ verifier("Exposant de variance (M2, #409) : le detail donne f_j et sigma_j^2 com
                        "(interpretation de l'outil, D(4)(c) et D(5)(d)(ii))")
            grepl(ph, x$detail, fixed = TRUE) && !grepl("[^ -~]", x$detail)
          })
+# H1 de l'exposant de variance (M2, #436, texte C de l'arbitrage du
+# 05/11/2026, suite de #431) : la chaine cite l'identite
+# somme_i sqrt(C(i,j)) r(i,j) = 0 pour ecarter un ecart regulier de
+# l'esperance ; l'identite est controlee ici sur les residus de mw_residus()
+# (memes colonnes que mw_tests()), dans chaque colonne retenue, en absolu
+# (1e-12) et rapportee a somme_i sqrt(C(i,j)) |r(i,j)| (1e-12).
+verifier("Exposant de variance (M2, #436) : reserve2, somme_i sqrt(C(i,j)) r(i,j) = 0 dans chaque colonne retenue, identite citee par H1 ; H1 = texte C a la lettre",
+         {
+           a <- res300$ajustement
+           rs <- mw_residus(a, .mw_colonnes_degenerees(a))
+           s <- tapply(sqrt(rs$C) * rs$residu, rs$j, sum)
+           e <- tapply(sqrt(rs$C) * abs(rs$residu), rs$j, sum)
+           x <- lig300("Adequation de l'exposant de variance, colonne par colonne")
+           h1 <- paste0(
+             "lien monotone entre |r(i,j)| et C(i,j) dans au moins une colonne (correlation de rang), ",
+             "au-dela de ce qu'en produit le modele ajuste (effet de levier compris) ; causes ",
+             "possibles, que le test ne separe pas et dont la liste n'est pas fermee : exposant de ",
+             "variance different de 1, contraire a la lettre de D(2)(h)(iv) ; constante de variance ",
+             "propre a l'annee de survenance, independante de ses cumuls realises mais liee au niveau ",
+             "de C(i,j) d'une annee a l'autre, compatible avec la lettre mais non avec ",
+             "l'interpretation de l'outil (sigma_j^2 commun aux annees) ; ecart de l'esperance ",
+             "concentre sur peu de cellules a une extremite des cumuls de la colonne (palier de ",
+             "C(i,j), annee de survenance, cellule ou diagonale : lignes de M1, M3 et M4). Un ecart ",
+             "regulier de l'esperance le long de la colonne (ordonnee a l'origine ou facteur ",
+             "fonction reguliere de C(i,j), contraires a la lettre de D(2)(h)(iii) ; facteur propre ",
+             "a l'annee, independant de ses cumuls realises mais lie a son niveau d'une annee a ",
+             "l'autre, compatible avec la lettre mais non avec f_j commun aux annees) donne des ",
+             "residus des deux signes de part et d'autre d'un cumul pivot ",
+             "(identite sum_i sqrt(C(i,j)) r(i,j) = 0) : il n'est pas vise ici, lignes de M1")
+           ok <- list(
+             colonnes = length(s) == 6L && nrow(attr(rs, "colonnes_exclues")) == 0L,
+             absolu = all(abs(s) <= 1e-12),
+             relatif = all(e > 0) && all(abs(s) / e <= 1e-12),
+             H1 = identical(x$H1, h1),
+             ascii = !grepl("[^ -~]", x$H1))
+           k <- !vapply(ok, isTRUE, logical(1))
+           if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
+         })
 # Repli de T-5 (statistique NA) : branche inatteignable sur un triangle
 # valide (mw_famille_alpha() retient la colonne j = 0 des que I >= 3, et
 # mw_valider_triangle() refuse un triangle de trois annees) ; exercee par
