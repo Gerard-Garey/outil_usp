@@ -6961,8 +6961,10 @@ Exposant de variance par colonne & \textbf{MW} & $X$ de Fisher & Non &
 Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
 \textbf{Déconseillée} : colonnes non indépendantes~; $|r(i,j)|$ non échangeables sous $H_0$
 (effet de levier, issue~\#431) &
-Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet dû à l'exposant est une limite du
-modèle, pas un motif de changement de méthode, un rejet dû à une constante de variance propre à
+Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet dû à l'exposant ne peut motiver
+une modification de l'exposant~; établi, il met en cause la cohérence des données avec
+D(2)(h)(iv) (art.~219, par.~1, d)), dont l'entreprise apprécie la portée (art.~220)~; un rejet
+dû à une constante de variance propre à
 l'année met en cause la lecture de l'outil, un rejet dû à un écart concentré de l'espérance relève
 de M1, M3 ou M4~; causes non séparées, liste non fermée~; biaisée contre un écart régulier de
 l'espérance (issues~\#431, \#436) ; $p_j$ comme pour l'homogénéité de $f_j$ (issue~\#90)~; aucune
@@ -17564,9 +17566,9 @@ Ce test porte spécifiquement sur \emph{l'exposant~1} de la structure de varianc
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, à colonne donnée. Un rejet suggère
 un exposant différent --- variance constante ($\alpha = 0$) ou proportionnelle au
 carré ($\alpha = 2$) --- alternatives discutées par Barnett \& Zehnwirth mais
-\emph{non prévues par l'annexe~XVII}, qui impose $\alpha = 1$. Le rejet doit donc
-être documenté comme une limite du modèle réglementaire, non comme un motif de
-changement de méthode. Il n'est pas non plus spécifique~: une cellule fortement aberrante, une année
+\emph{non prévues par l'annexe~XVII}, qui impose $\alpha = 1$. Le rejet ne peut donc
+motiver une modification de l'exposant~; s'il est établi, sa portée relève de la cohérence des
+données avec D(2)(h)(iv) (fiche~\ref{mw:m2b}, rubrique~6). Il n'est pas non plus spécifique~: une cellule fortement aberrante, une année
 atypique ou un effet calendaire font aussi rejeter la ligne (rubrique~7)~; à lire avec les
 lignes de M3 et de M4. À $T = 8$, sous un plan comme celui du triangle de contrôle, la ligne n'a
 pas de puissance mesurable contre l'exposant (rubrique~7)~: un verdict \code{OK} n'établit pas
@@ -17700,9 +17702,14 @@ La ligne d'hétéroscédasticité de la fiche précédente agrège les colonnes 
 à colonne donnée~; ce test-ci localise. Un rejet signale un lien entre $|r(i,j)|$ et $C(i,j)$ que
 le modèle ajusté ne produit pas, sans en désigner la cause (rubrique~2). Si la cause est un
 exposant de variance différent de~1 --- par exemple~0 (variance constante) ou~2
-(proportionnelle au carré), les deux alternatives mesurées en rubrique~7 ---, \textbf{le
-règlement ne laissant pas ce choix ouvert}, le rejet doit être documenté comme une limite du
-modèle réglementaire et non comme un motif de changement de méthode. Si la cause est une
+(proportionnelle au carré), les deux alternatives mesurées en rubrique~7 ---, \textbf{le rejet
+ne peut motiver une modification de l'exposant}, que le règlement ne laisse pas ouverte. Si un
+exposant différent de~1 est établi, il met en cause la cohérence des données avec D(2)(h)(iv),
+exigence de données (article~219, paragraphe~1, point~d)), dont l'entreprise apprécie la portée
+sur l'usage de la méthode de réserve n\textsuperscript{o}~2 et sur le choix entre les méthodes de
+réserve n\textsuperscript{o}~1 et n\textsuperscript{o}~2 (article~220, paragraphe~1, point~b), et
+paragraphe~2), choix que l'outil ne fait pas. Un rejet isolé à $T = 8$, non spécifique
+(rubrique~7), ne l'établit pas à lui seul. Si la cause est une
 constante de variance propre à l'année de survenance, le rejet met en cause la formalisation
 retenue par l'outil ($\sigma_j^2$ commun aux années, appuyée sur D(5)(d)(ii)), non la lettre de
 D(2)(h)(iv). Si la cause est un écart de l'espérance concentré sur peu de cellules, il relève des
