@@ -168,9 +168,17 @@ jobs:
       - name: BLAS et LAPACK de référence
         id: blas
         uses: ./.github/actions/blas-reference
+      # Issue #444 : un processus Rscript par fichier, 4 à la fois (mode
+      # --parallele de tests/test_unitaires.R, même bilan et même code de
+      # sortie que le mode séquentiel). nproc consigne le nombre de cœurs du
+      # runner dans le journal : les assertions de durée « < 1 s »
+      # (test_application.R, test_merz_wuthrich.R) subissent la charge des 4
+      # processus.
       - name: Tests unitaires
         if: needs.changements.outputs.moteur == 'true'
-        run: Rscript tests/test_unitaires.R
+        run: |
+          echo "Cœurs du runner : $(nproc)"
+          Rscript tests/test_unitaires.R --parallele
       - name: Reproductibilité et non-régression
         if: needs.changements.outputs.moteur == 'true'
         run: Rscript tests/test_reproductibilite.R
