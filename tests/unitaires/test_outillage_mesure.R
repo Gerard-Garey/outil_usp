@@ -690,6 +690,15 @@ tryCatch({
   TMd <- E378$temoins(md$DS, md$OR)
   verifier("(t) temoins : une cle a oracle constant (p beta-binomiale absente) : Holm reste sur 13, p Holm de HomogF = 13 p (et non 12 p)",
            { x <- sel("HomogF", "a05", TMd); is.na(sel("ExpVar", "a05", TMd)$p_part) && abs(x$p_holm_part - 13 * x$p_part) < 1e-12 })
+  # n_adm transmis a atome_cheval() par temoins() : oracle Runs de 20 200 triangles admis dont 200 statistiques non finies.
+  mn <- fabrique(c(HomogF = 72L, Runs = 44L), c(HomogF = 0.04996, Runs = 0.03639))
+  mn$OR$N$Runs$S0 <- c(S_runs2, rep(NA_real_, 200)); mn$OR$N$Runs$n_adm <- N0_378 + 200L
+  TMn <- E378$temoins(mn$DS, mn$OR)
+  cr_adm <- E378$num(351 / 20200 * stats::pbinom(499, N0_378, 0.02525), 5)
+  cr_fin <- E378$num(351 / N0_378 * stats::pbinom(499, N0_378, 0.02525), 5)
+  verifier("(t) temoins : n_adm de l'oracle transmis au credit lisse (Runs, 200 non finies, n_adm 20 200) : 351/20200 x pbinom(499, 20000, 0,02525), et non 351/N",
+           { at <- sel("Runs", "a05", TMn)$atome
+             cr_adm != cr_fin && grepl(sprintf("atome basse -1,2010 (masse 0,01755 ; queue 0,00770 avant l'atome, 0,02525 avec ; non rejet\u00e9 par l'oracle ; cr\u00e9dit liss\u00e9 %s)", cr_adm), at, fixed = TRUE) })
   verifier("(t) classer_k3 : sans signal (tiret) ; signal expliqu\u00e9 (p Holm >= 0,05) : (i) sans atome, (ii) avec atome a cheval ; p Holm < 0,05 ou absente : non explique",
            identical(E378$classer_k3(c(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE), c(0.01, 0.06, 0.04, 0.06, NA, 0.06), c(0L, 0L, 0L, 2L, 0L, 1L)),
                      c("\u2014", "(i)", "non expliqu\u00e9", "(ii)", "non expliqu\u00e9", "(ii)")))
