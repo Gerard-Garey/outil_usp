@@ -616,6 +616,10 @@ tryCatch({
   verifier("(t) atome_cheval : credit lisse = masse x pbinom(c2, N, queue avec l'atome) : atome bas ~ 0,0071, atome haut ~ 0",
            nrow(a2) == 2L && identical(a2$cote, c("basse", "haute")) &&
              proche(a2$credit[1], 0.01755 * stats::pbinom(499, N0_378, 0.02525), rel = 1e-9) && abs(a2$credit[1] - 0.0071) < 5e-4 && a2$credit[2] < 1e-9)
+  # Denominateur du credit : n_tot = triangles oracle admis (comme taille_lissee()), non N finies.
+  verifier("(t) atome_cheval : credit lisse divise par n_tot (triangles oracle admis, 20 200) et non par N (20 000 finies) : 351/20200 x pbinom(499, 20000, 0,02525)",
+           { ac <- E378$atome_cheval(c(S_runs2, rep(NA_real_, 200)), "deux", 0.05, n_tot = 20200)
+             proche(ac$credit[1], 351 / 20200 * stats::pbinom(499, 20000, 0.02525), rel = 1e-9) })
   # m_r : region de rejet realisee de l'oracle, vectorise (findInterval).
   S_cont <- seq(0, 1, length.out = N0_378)
   c1 <- function(a, N = N0_378) ceiling(round(a * (N + 1), 9)) - 2; c2 <- function(a, N = N0_378) ceiling(round(a * (N + 1) / 2, 9)) - 2
@@ -689,6 +693,8 @@ tryCatch({
   verifier("(t) classer_k3 : sans signal (tiret) ; signal expliqu\u00e9 (p Holm >= 0,05) : (i) sans atome, (ii) avec atome a cheval ; p Holm < 0,05 ou absente : non explique",
            identical(E378$classer_k3(c(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE), c(0.01, 0.06, 0.04, 0.06, NA, 0.06), c(0L, 0L, 0L, 2L, 0L, 1L)),
                      c("\u2014", "(i)", "non expliqu\u00e9", "(ii)", "non expliqu\u00e9", "(ii)")))
+  verifier("(t) tableau_t3 : cle a oracle constant (m_r non fini) : tiret dans la colonne m_r, jamais 'NA'",
+           !any(grepl("| NA |", E378$tableau_t3(TMd), fixed = TRUE)))
   t3 <- E378$tableau_t3(TM)
   verifier("(t) tableau_t3 : colonnes m_r et K3, ligne N Runs 0,05 en (ii), N HomogF 0,05 en (i), liste descriptive des atomes avec valeur -1,2010, masse et credit lisse",
            any(grepl("^\\| N \\| 0,05 \\| Runs \\(deux\\) .*\\| 586 \\| .*\\| \\(ii\\) \\|$", t3)) && any(grepl("^\\| N \\| 0,05 \\| HomogF \\(haut\\) .*\\| 999 \\| .*\\| \\(i\\) \\|$", t3)) &&

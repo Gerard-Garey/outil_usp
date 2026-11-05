@@ -1376,8 +1376,9 @@ tableau_t2 <- function(MC) {
 # queue en bilateral), comme engine_p_mc() : une valeur juste avant l'atome
 # serait rejetee, l'atome ne l'est jamais. Rapportes : valeur exacte, masse,
 # queues avant / N et avec / N, decision de l'oracle et credit lisse =
-# masse x pbinom(c_t, N, avec / N), c_t comme dans taille_lissee() (contribution
-# de l'atome a la taille lissee).
+# (effectif de l'atome / n_tot) x pbinom(c_t, N, avec / N), n_tot = triangles
+# oracle admis (denominateur de taille_lissee()) : contribution de l'atome a la
+# taille lissee ; c_t comme dans taille_lissee().
 CLASSES_K3 <- c(i = "(i)", ii = "(ii)", non = "non expliqu\u00e9", aucun = "\u2014")
 # Nombre m_r de statistiques oracle finies dont la p de Monte-Carlo (engine_p_mc,
 # regle ">=") est < a : vectorise, la p de v s'obtient des effectifs #{S <= v}
@@ -1393,7 +1394,7 @@ m_rejet_oracle <- function(S0, queue, a) {
   p <- pmin(switch(queue, haut = p_haut, bas = p_bas, deux = 2 * pmin(p_haut, p_bas)), 1)
   sum(cnt[p < a])
 }
-atome_cheval <- function(S0, queue, a) {
+atome_cheval <- function(S0, queue, a, n_tot = sum(is.finite(S0))) {
   S <- S0[is.finite(S0)]; N <- length(S)
   vide <- data.frame(cote = character(0), valeur = numeric(0), masse = numeric(0), avant = numeric(0), avec = numeric(0),
                      decision = character(0), credit = numeric(0), stringsAsFactors = FALSE)
@@ -1413,7 +1414,7 @@ atome_cheval <- function(S0, queue, a) {
     p <- engine_p_mc(S0, v[j[1]], queue)$p_mc
     data.frame(cote = ct, valeur = v[j[1]], masse = cnt[j[1]] / N, avant = avant[j[1]] / N, avec = avec[j[1]] / N,
                decision = if (is.finite(p) && p < a) "rejet\u00e9 par l'oracle" else "non rejet\u00e9 par l'oracle",
-               credit = cnt[j[1]] / N * stats::pbinom(c_t, N, avec[j[1]] / N), stringsAsFactors = FALSE)
+               credit = cnt[j[1]] / n_tot * stats::pbinom(c_t, N, avec[j[1]] / N), stringsAsFactors = FALSE)
   })
   out <- Filter(Negate(is.null), out)
   if (length(out)) do.call(rbind, out) else vide
@@ -1467,7 +1468,7 @@ temoins <- function(DS, OR) {
       p_part <- vapply(seq_along(CLES), function(i) p_oracle_region(k[[i]], n, m_r[[i]], n_f[[i]], tq[[i]]), 1)
       p_holm_part <- stats::p.adjust(p_part, "holm", n = length(p_part))
       # atomes a cheval sur le seuil (descriptifs)
-      at <- lapply(CLES, function(s) atome_cheval(OR[[loi]][[s]]$S0, QUEUE[[s]], a))
+      at <- lapply(CLES, function(s) atome_cheval(OR[[loi]][[s]]$S0, QUEUE[[s]], a, OR[[loi]][[s]]$n_adm))
       n_at <- vapply(at, nrow, 1L)
       ecart <- k / n - tl
       signal <- is.finite(p_holm) & p_holm < NIVEAU_HOLM
@@ -1513,7 +1514,7 @@ tableau_t3 <- function(TM) {
                "porte un atome \u00e0 cheval, \u00ab (i) \u00bb pour un autre signal expliqu\u00e9, \u00ab non expliqu\u00e9 \u00bb, ou \u00ab \u2014 \u00bb sans signal. Seul un signal",
                "\u00ab non expliqu\u00e9 \u00bb met \u03a00 (et \u03a60) en d\u00e9faut. Atomes \u00e0 cheval (descriptifs, sans seuil de masse) : valeur atteinte au",
                "moins deux fois dans l'oracle, avec (1 + avant)/(N + 1) < \u03b1 \u2264 (1 + avec)/(N + 1) (\u03b1/2 par queue en bilat\u00e9ral), comme",
-               "engine_p_mc() ; cr\u00e9dit liss\u00e9 = masse \u00d7 pbinom(c_t, N, queue avec l'atome), contribution de l'atome \u00e0 la taille liss\u00e9e."), "")
+               "engine_p_mc() ; cr\u00e9dit liss\u00e9 = (effectif de l'atome / triangles oracle admis) \u00d7 pbinom(c_t, N, queue avec l'atome), contribution de l'atome \u00e0 la taille liss\u00e9e."), "")
   if (is.null(TM)) return(c(L, "Oracle absent de cette sortie : t\u00e9moins non calcul\u00e9s.", ""))
   L <- c(L, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "n", "p_or absentes", "k", "\u03c4_or [IC]", "taille", "p binomiale", "p Holm", "significatif",
                         "m_r", "p Holm (b\u00eata-binomiale, r\u00e9gion de rejet de l'oracle)", "K3")))
@@ -1521,7 +1522,7 @@ tableau_t3 <- function(TM) {
     x <- TM[i, ]
     L <- c(L, ligne_md(x$loi, lib_ia(x$ia), lib_cle(x$s), x$n, x$absentes, x$k, sprintf("%s %s", num(x$k / x$n, D_IC), txt_ic(ic_cp(x$k, x$n))),
                        num(x$taille, 5), fmt_p(x$p), fmt_p(x$p_holm), if (isTRUE(x$p_holm < NIVEAU_HOLM)) "**oui**" else "non",
-                       format(x$m_r), fmt_p(x$p_holm_part), x$classe))
+                       if (is.finite(x$m_r)) format(x$m_r) else "\u2014", fmt_p(x$p_holm_part), x$classe))
   }
   at <- TM[TM$n_atomes > 0L, , drop = FALSE]
   L <- c(L, "", "**Atomes \u00e0 cheval sur le seuil (K3, descriptif), toutes cellules, signal ou non** :", "")
