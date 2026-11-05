@@ -17060,8 +17060,8 @@ aucune colonne non identifiable dans les $149\,850$ réplications contrôlées, 
 Monte-Carlo identiques à celles de la mesure).
 \Loi
 $\chi^2(2K)$ exacte sous les hypothèses de la fiche~\ref{mw:m1a} (rubrique Loi), dont des erreurs
-conditionnelles gaussiennes~: la régression de la colonne~$j$ sur $1$, $C(i,j)$ et $C(i,j)^2$, de
-poids $1/C(i,j)$, contient l'espérance $f_j\,C(i,j)$, de sorte que $t_j$ suit, sachant les
+conditionnelles gaussiennes~: la régression pondérée (poids $1/C(i,j)$) de $C(i,j+1)$ sur $1$,
+$C(i,j)$ et $C(i,j)^2$, ou, de façon équivalente pour $t_j$, de l'écart $e_i$ (rubrique~3), contient l'espérance $f_j\,C(i,j)$, de sorte que $t_j$ suit, sachant les
 colonnes $0, \dots, j$, la loi de Student à $n_j - 3$ degrés de liberté, qui n'en dépend pas, et
 le même raisonnement par récurrence s'applique (raisonnement d'\code{actuary}, issue~\#424~;
 aucune publication retrouvée~; même réserve sur les cumuls négatifs). Hors de l'hypothèse
