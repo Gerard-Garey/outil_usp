@@ -1161,6 +1161,32 @@ verifier("Audit de #160, C1 : aucun champ introuvable -- verifier_constantes_cha
          is.list(.v160c1) && !nrow(.v160c1$ex_champs$ecarts) && !nrow(.v160c1$ex_champs$exemptees))
 verifier("Audit de #160, C1 : aucun champ introuvable -- les exemptions de champ en deviennent perimees ($vieux_champ, $jamais)",
          is.list(.v160c1) && identical(.v160c1$ex_champs$perimees$nom, c("$vieux_champ", "$jamais")))
+# Listing des exemptions de constante et de champ dans le rapport (issue #458) :
+# aucune n'existe dans EXEMPTES_CODE (seules les exemptions de fonction), ce
+# mecanisme latent n'est atteint que par une exemption posee ici, dans une copie
+# du .tex et dans EXEMPTES_CODE de l'environnement cc (restaure aussitot).
+.exemptes_ini <- cc$EXEMPTES_CODE
+.tex_ex <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(.tex_ex,
+             "Mutant : \\code{VIEUX\\_REPERE\\_AUDIT} retir\u00e9 \u00e0 l'issue.",
+             "Mutant : \\code{res\\$vieux\\_champ\\_audit} supprim\u00e9."), .tex_mutant, useBytes = TRUE)
+cc$EXEMPTES_CODE <- c(.exemptes_ini,
+                      list(list(nom = "VIEUX_REPERE_AUDIT", objet = "constante", contexte = "retir\u00e9 \u00e0 l'issue",
+                                fenetre = 0L, motif = "motif constante audit"),
+                           list(nom = "$vieux_champ_audit", objet = "champ", contexte = "supprim\u00e9",
+                                fenetre = 0L, motif = "motif champ audit")))
+r_ex <- tryCatch(.juger_tex(.tex_mutant), finally = {cc$EXEMPTES_CODE <- .exemptes_ini; unlink(.tex_mutant)})
+verifier("Issue #458 : exemption de constante listee avec son nom, sa ligne et son motif, sans ecart",
+         any(grepl("^    Exemptees nommement \\(EXEMPTES_CODE, objet constante, 1 citation\\(s\\), pas des ecarts\\) :$", r_ex$sortie)) &&
+           any(grepl(sprintf("^      VIEUX_REPERE_AUDIT +ligne %-5d motif constante audit$", length(.tex_ex) + 1L), r_ex$sortie)) &&
+           !any(grepl("VIEUX_REPERE_AUDIT.*non exemptee|introuvable\\(s\\) non exemptee\\(s\\)", r_ex$sortie)))
+verifier("Issue #458 : exemption de champ listee avec son nom, sa ligne et son motif, sans ecart",
+         any(grepl("^    Exemptes nommement \\(EXEMPTES_CODE, objet champ, 1 citation\\(s\\), pas des ecarts\\) :$", r_ex$sortie)) &&
+           any(grepl(sprintf("^      \\$vieux_champ_audit +ligne %-5d motif champ audit$", length(.tex_ex) + 2L), r_ex$sortie)) &&
+           !any(grepl("introuvable\\(s\\) non exempte\\(s\\)", r_ex$sortie)))
+verifier("Issue #458 : EXEMPTES_CODE de l'environnement cc restaure apres la mesure",
+         identical(cc$EXEMPTES_CODE, .exemptes_ini))
 # Audit de #160, C4 : identifiants en casse mixte sans souligne.
 .cm_c4 <- cc$citations_majuscules(cc$extraire_codes(
   "\\code{CoxStuart}, \\code{Inf}, \\code{CleInventeeMixte}, \\code{B\\_effectif}, \\code{Rmd}."))

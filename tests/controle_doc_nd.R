@@ -45,7 +45,7 @@
 #
 #  (d) Remplissage des pages, par une passe de mesure a part, jamais bloquante.
 #      Modele : outils/controles/remplissage.R du depot docu_actu, avec
-#      tests/marques_remplissage.tex (marques adaptees a mdframed). La passe
+#      tests/marques_remplissage.tex (marques adaptees a l'environnement framed). La passe
 #      recompose le document (une passe de pdfLaTeX, dans un dossier temporaire,
 #      avec les fichiers auxiliaires de la compilation normale) en chargeant les
 #      marques avant le document : le depot n'est pas touche. Garde-fou : le

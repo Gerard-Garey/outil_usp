@@ -1,8 +1,8 @@
 % =============================================================================
 %  tests/marques_remplissage.tex  --  marques du controle de remplissage des
 %  pages (branche ND, lot L0, issue #451). Adapte de outils/controles/
-%  marques_remplissage.tex du depot docu_actu (environnement framed remplace
-%  par mdframed).
+%  marques_remplissage.tex du depot docu_actu (environnement `encadre` bati sur
+%  le paquet framed).
 %
 %  Charge AVANT le document par tests/controle_doc_nd.R (option --remplissage),
 %  dans une passe de pdfLaTeX de mesure faite dans un repertoire temporaire, ou
@@ -16,7 +16,7 @@
 %        (\outputpenalty < -10000)
 %    B <n d'encadre> <page> <ordonnee en sp depuis le bas de la feuille>
 %    F <n d'encadre> <page> <ordonnee>
-%        debut (B) et fin (F) de l'environnement `encadre` (mdframed) : la
+%        debut (B) et fin (F) de l'environnement `encadre` (framed) : la
 %        ligne de base de la premiere et de la derniere ligne du contenu ;
 %        un encadre coupe a des pages de debut et de fin differentes.
 %    X <n d'encadre>
@@ -67,9 +67,10 @@
   \def\newpage{\edef\remp@avant{\the\remp@phys}\global\remp@voltrue
     \remp@newpage
     \ifnum\remp@phys=\remp@avant\relax\global\remp@volfalse\fi}%
-  % Encadres (mdframed) : marque de debut a la premiere ligne du contenu
-  % (\everypar), marque de fin a la derniere ligne si l'environnement se
-  % termine en mode horizontal, marque X sinon.
+  % Encadres (framed) : marque de debut a la premiere ligne du contenu
+  % (\everypar, ajoute apres celui de \MakeFramed), marque de fin a la
+  % derniere ligne si l'environnement se termine en mode horizontal, marque X
+  % sinon.
   \@ifundefined{encadre}{}{%
     \let\remp@be\encadre \let\remp@ee\endencadre
     \def\encadre{\global\advance\remp@enc\@ne\edef\remp@n{\the\remp@enc}%

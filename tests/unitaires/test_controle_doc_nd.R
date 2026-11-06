@@ -20,7 +20,7 @@
 #        court coupe, titre, bandeau de section seul en bas de page, rubrique,
 #        titre de fiche separe de la rubrique 1, pages en paysage), lecture d'un
 #        fichier .remp, et passe de mesure reelle sur un petit document (pdflatex,
-#        mdframed ; garde-fou du texte, dossier du document intact) ;
+#        framed ; garde-fou du texte, dossier du document intact) ;
 #    options : code de sortie sans et avec --bloquant, arguments refuses.
 #  L'etat reel du .tex n'est pas juge ici : c'est l'etape de la CI qui le
 #  publie (avertissement jusqu'au lot L7).
@@ -486,16 +486,34 @@ verifier("marques : pages, volontaire, encadres (sp -> bp), inmesurables, titres
          identical(mq$encadres$fin$page, 2L) && identical(mq$encadres$inmesurables, 2L) && nrow(mq$titres) == 1L &&
          abs(mq$geometrie$hauteur_utile - 702.78308 * 72 / 72.27) < 1e-6)
 
-# --- (d) Remplissage : passe de mesure reelle sur un petit document (pdflatex, mdframed) ---------------
+# --- (d) Remplissage : passe de mesure reelle sur un petit document (pdflatex, framed) ---------------
+# L'environnement `encadre` du petit document est celui du preambule de
+# docs/latex/doc_tests_usp.tex (bloc lu tel quel, de "% Encadre generique" a
+# "% Fiches de test" : \MakeFramed, regle de coupe \usp@coupe), pour que la
+# passe de mesure juge l'interaction reelle des marques de
+# marques_remplissage.tex (\remp@premier ajoute a \everypar apres
+# \MakeFramed, qui pose le sien) avec cet environnement.
+tex_doc <- file.path(.dossier, "..", "..", "docs", "latex", "doc_tests_usp.tex")
+bloc_encadre <- if (file.exists(tex_doc)) {
+  l_doc <- readLines(tex_doc, warn = FALSE, encoding = "UTF-8")
+  i0 <- grep("^% Encadre generique", l_doc); i1 <- grep("^% Fiches de test", l_doc)
+  if (length(i0) == 1L && length(i1) == 1L && i1 > i0) l_doc[i0:(i1 - 1L)] else NULL
+} else NULL
+verifier("bloc de l'environnement encadre repere dans le preambule du document (definition lue, non recopiee)",
+         !is.null(bloc_encadre) && any(grepl("\\newenvironment{encadre}", bloc_encadre, fixed = TRUE)) &&
+           any(grepl("\\MakeFramed", bloc_encadre, fixed = TRUE)))
 tex_dispo <- nzchar(Sys.which("pdflatex")) && nzchar(Sys.which("pdftotext")) && nzchar(Sys.which("pdfinfo")) &&
-             nzchar(Sys.which("kpsewhich")) && nzchar(system2("kpsewhich", "mdframed.sty", stdout = TRUE, stderr = FALSE)[1L])
+             nzchar(Sys.which("kpsewhich")) && nzchar(system2("kpsewhich", "framed.sty", stdout = TRUE, stderr = FALSE)[1L]) &&
+             !is.null(bloc_encadre)
 if (tex_dispo) {
   dir_t <- file.path(dir_b, "tex"); dir.create(dir_t)
-  doc <- c("\\documentclass[a4paper,11pt]{article}", "\\usepackage[utf8]{inputenc}", "\\usepackage{mdframed}",
-           "\\usepackage[margin=2.5cm]{geometry}", "\\usepackage{titlesec}",
-           "\\newmdenv[linecolor=blue,linewidth=0pt,leftline=true]{encadre}",
-           "\\begin{document}", "\\section{Un}", "Debut.\\par", "\\vspace*{\\dimexpr\\textheight-6\\baselineskip}",
-           "\\begin{encadre}", "Premiere ligne de l'encadre coupe", paste0("\\par Ligne ", 1:12, " de l'encadre."), "\\end{encadre}",
+  # Encadre long (40 lignes, plus d'une demi-page) pose a 12 lignes du bas de la page 1 :
+  # la regle de coupe le coupe, premier morceau de plus de 3 lignes.
+  doc <- c("\\documentclass[a4paper,11pt]{article}", "\\usepackage[utf8]{inputenc}", "\\usepackage{framed}",
+           "\\usepackage{xcolor}", "\\usepackage[margin=2.5cm]{geometry}", "\\usepackage{titlesec}",
+           "\\definecolor{tablerow}{RGB}{245,245,245}", bloc_encadre,
+           "\\begin{document}", "\\section{Un}", "Debut.\\par", "\\vspace*{\\dimexpr\\textheight-12\\baselineskip}",
+           "\\begin{encadre}", "Premiere ligne de l'encadre coupe", paste0("\\par Ligne ", 1:40, " de l'encadre."), "\\end{encadre}",
            "Fin du document.", "\\end{document}")
   f_doc <- file.path(dir_t, "mini.tex"); writeLines(doc, f_doc)
   for (i in 1:2) system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-output-directory=", shQuote(dir_t)), shQuote(f_doc)),
@@ -504,9 +522,14 @@ if (tex_dispo) {
   rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "mini.pdf"), marq_tex)
   verifier("passe de mesure reelle : texte identique (garde-fou), un encadre mesure", length(rr$avis) == 0L && !is.null(rr$constats) &&
            rr$resume$encadres == 1L)
-  e <- rr$constats[rr$constats$type == "encadre", , drop = FALSE]
-  verifier("passe de mesure reelle : encadre coupe entre les pages 1 et 2 detecte, morceau court", nrow(e) == 1L &&
-           grepl("entre les pages 1 et 2", e$detail))
+  ps <- nd$nd_passe_mesure(f_doc, marq_tex)
+  mq_r <- if (is.null(ps$erreur)) nd$nd_lire_marques(ps$remp) else NULL
+  if (!is.null(ps$tmp)) unlink(ps$tmp, recursive = TRUE)
+  verifier("passe de mesure reelle : marque de debut (page 1) et de fin (page 2) de l'encadre coupe, aucun encadre inmesurable",
+           !is.null(mq_r) && identical(mq_r$encadres$debut$page, 1L) && identical(mq_r$encadres$fin$page, 2L) &&
+             length(mq_r$encadres$inmesurables) == 0L)
+  verifier("passe de mesure reelle : encadre long coupe par la regle de coupe, aucun constat d'encadre (morceaux d'au moins 3 lignes)",
+           nrow(rr$constats[rr$constats$type == "encadre", , drop = FALSE]) == 0L)
   writeLines(sub("Fin du document.", "Fin du document, modifie.", doc, fixed = TRUE), f_doc)
   rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "mini.pdf"), marq_tex)
   verifier("garde-fou : PDF qui n'a pas le texte de la passe de mesure = avis, rien n'est mesure",
@@ -515,7 +538,7 @@ if (tex_dispo) {
            setequal(list.files(dir_t), c("mini.tex", "mini.pdf", "mini.aux", "mini.log")))
   rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "absent.pdf"), marq_tex)
   verifier("PDF normal absent : avis", is.null(rr$constats) && length(rr$avis) == 1L)
-} else cat("  (pdflatex, pdftotext ou mdframed absents : passe de mesure reelle non testee)\n")
+} else cat("  (pdflatex, pdftotext, framed ou bloc encadre du document absents : passe de mesure reelle non testee)\n")
 
 
 # --- Outils PDF absents (pdftotext, pdfinfo) : avis et pas d'erreur (C3) ---------------------------
