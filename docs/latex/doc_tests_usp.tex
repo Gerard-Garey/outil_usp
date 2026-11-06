@@ -8410,8 +8410,9 @@ par les orientations EIOPA-BoS-25/249, adoptées le 25~juin 2025, applicables de
 publication de leurs traductions dans toutes les langues officielles de l'Union (page de
 publication de l'AEAPP)~; la conformité continue y devient
 l'orientation~5 (§§~13 à~15). À la date d'établissement du présent document (page de garde), la
-page de publication de l'AEAPP donne les orientations dans toutes les langues officielles sans
-dater la publication des traductions~: la date d'application n'est donc pas établie, et aucune
+page de publication de l'AEAPP donne les orientations dans toutes les langues officielles, en
+traductions présentées comme produites par intelligence artificielle et non datées, et indique
+toujours que les orientations de 2015 s'appliquent jusqu'à l'échéance~: la date d'application n'est donc pas établie, et aucune
 déclaration de conformité de l'ACPR à ces nouvelles orientations n'a été trouvée~; la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
 lors de la demande puis chaque année, avec leurs résultats dans le rapport ORSA, provient de la
 notice de l'ACPR (§~171), non des orientations~; elle incombe à l'entreprise, que l'outil sert
@@ -17634,7 +17635,7 @@ Monte-Carlo rejouée en V1 est faux sur tout jeu à $\hat\delta$ intérieur --- 
 \code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R} ---~; celui de
 \code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R} compare au moteur, à
 $\hat\delta^{*}$ intérieur, la p-value V3b rejouée, de sorte que les tirages de V1 dont
-$\hat\delta^{**}$ est au bord n'y sont plus confrontés au moteur~; et
+$\hat\delta^{**}$ est au bord n'y sont pas confrontés au moteur~; et
 \code{tests/calibration\_mc\_t8.R}, qui exécute \code{run\_engine()} complet, calcule V3h sur
 les réplications intérieures, de sorte que ses tableaux ne se reproduisent qu'à l'état du moteur
 de leurs fichiers. Le contrôle~S5 de \code{tests/comparer\_}\allowbreak\code{ajusteurs\_bootstrap.R}
@@ -17693,7 +17694,7 @@ qu'un réajustement à un seul démarrage depuis $(\hat\delta,\hat\gamma)$ réal
 $0{,}36~\%$ $[0{,}21~\%~;~0{,}57~\%]$ des réplications sur J1 et $0{,}68~\%$
 $[0{,}47~\%~;~0{,}95~\%]$ sur J2 ($4\,999$ réplications, graine 20260926, intervalles de
 Clopper--Pearson à 95~\%~; sur les 999 tirages de la référence du jeu de contrôle, aucun
-verdict changé~; variante sous le critère ci-dessous, écartée au profit des trois démarrages). Le
+verdict changé~; variante qui satisfait le critère ci-dessous, écartée néanmoins au profit des trois démarrages). Le
 script hors CI \code{tests/comparer\_ajusteurs\_bootstrap.R} rejoue, sous
 \code{engine\_sous\_graine()} et la graine du moteur, les réplications de
 \code{usp\_bootstrap()} (identité vérifiée par \code{identical()} avec le bootstrap du moteur) et
@@ -17836,7 +17837,7 @@ par différences centrées sur un chain-ladder élémentaire à un an, qui ne la
 (tableau ci-dessus~; sous $h \approx 2{,}5\times10^{-4}$, l'erreur d'arrondi, de l'ordre de la précision machine
 divisée par $h$, pèse autant que l'erreur de troncature et fausse le rapport des écarts, qui n'est donc pas mesuré à $h = 10^{-4}$). Sur
 les trois triangles, \code{msep\_matrice} s'écarte de $+49$, $+15$ et $+55~\%$ du libellé
-publié en 2015 et de $-27$, $-44$ et $-22~\%$ d'une transcription de D(5), version consolidée, qui
+publié en 2015 et de $-27$, $-44$ et $-22~\%$ d'une transcription fautive de la formule consolidée de D(5), qui
 omet les termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et le facteur~2, recalculés localement~: la vérification
 détecte ces deux erreurs. Ces trois voies sont des
 \emph{vérifications numériques} d'une même définition, la MSEP du texte consolidé~; aucune n'est
@@ -18029,9 +18030,11 @@ statistiques à la fois~; or, dans les valeurs brutes ($7\,000$ bootstraps, pool
 (triangle, statistique)), un seul couple a un $B$ effectif inférieur à 999 ($998$,
 \code{PenteIntra}, sous E, statistique de la mesure), les autres statistiques du même triangle
 étant à 999~: aucun cumul simulé invalide n'a été tiré, et \code{mw\_bootstrap()} consomme alors
-le même flux et rend les mêmes triangles. Le générateur
-\code{gen\_triangle\_h0()} et le contrôle~(s) du script appliquent le même retirage que le
-moteur. Les ensembles figés des colonnes non
+le même flux et rend les mêmes triangles. Le générateur \code{gen\_triangle\_h0()} des triangles simulés sous le modèle s'arrête,
+comme \code{mw\_simuler\_triangle()}, au premier cumul simulé non fini ou non strictement
+positif, et le triangle est alors refusé et compté avec son motif, sans retirage~; le
+contrôle~(s) régénère les triangles bootstrap par la fonction de retirage du moteur,
+\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, avec son plafond. Les ensembles figés des colonnes non
 identifiables de la courbure (fiche~\ref{mw:m1c}) et de l'ordonnée à l'origine
 (fiche~\ref{mw:m1a}) ne font pas partie du moteur de la mesure. Ils ne changent la statistique
 observée ou celle d'une réplication que si une colonne retenue compte moins de trois valeurs
@@ -18804,7 +18807,7 @@ soutient dans le présent document.
   \emph{Portée.} Référence exacte de la méthode évoquée dans la
   fiche Durbin--Watson pour le calcul de la loi exacte de la statistique. La
   formule~(3$\cdot$2), p.~422--423, et son signe ont été vérifiés sur une transcription de ces
-  pages, consignée dans la pièce de traçabilité du dossier (section~\ref{sec:verif})~; le $h_r$ d'Imhof y désigne les multiplicités et son
+  pages, dont l'emplacement est consigné dans la pièce de traçabilité du dossier (section~\ref{sec:verif})~; le $h_r$ d'Imhof y désigne les multiplicités et son
   $\lambda_r$ les coefficients de la forme quadratique (renvoi de notation dans la fiche). Texte en
   libre accès sur l'archive ouverte de l'Université de Genève (notice unige:101766).
 
@@ -18862,8 +18865,8 @@ soutient dans le présent document.
   commentaire, sans effet sur le type ni sur le verdict, et jamais pour lire un non-rejet comme
   une absence d'effet. Le texte
   intégral n'a pas été relu par le projet (données bibliographiques seules vérifiées)~; aucune
-  propriété de $\hat\pi_b$ à $T = 8$ n'en est tirée, et la règle~R4, retirée
-  (section~\ref{sec:modele-auxiliaire-regles}), ne reposait pas sur cet article.
+  propriété de $\hat\pi_b$ à $T = 8$ n'en est tirée, et le retrait de la règle~R4
+  (section~\ref{sec:modele-auxiliaire-regles}) ne repose pas sur cet article.
 
   \item R.\,J. Carroll, D.~Ruppert, \emph{Transformation and Weighting in Regression}, Chapman
   \& Hall, 1988.
@@ -18923,7 +18926,8 @@ partie~III).
   adoptées le 25~juin 2025, qui abrogent et remplacent EIOPA-BoS-14/178 (§~6). Page de l'AEAPP
   «~Final report on revised guidelines on undertaking-specific parameters~» (publiée le
   14/07/2025, consultée à la date d'établissement du présent document~; orientations données
-  dans toutes les langues officielles, traductions non datées).
+  dans toutes les langues officielles, traductions présentées comme produites par intelligence
+  artificielle, non datées~; page indiquant toujours l'application des orientations de 2015).
   \emph{Portée.} Conformité continue à l'orientation~5 (§§~13 à~15), sans tests statistiques ni
   périodicité~; orientations~2, 8 et~12 de 2015 supprimées. Applicables deux mois après la
   publication des traductions dans toutes les langues officielles~; jusque-là, les orientations
@@ -19433,7 +19437,7 @@ repère indicatif de 40~\% du second n'emporte aucun verdict. \\
 \end{longtable}
 }
 
-\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avec trois statistiques remplacées depuis et la ligne des suites à verdict)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité. Mesurée de nouveau sur un état ultérieur du moteur (fichier \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-mw.md}, état du moteur consigné en tête, lois N et E), cette part vaut $62{,}45$ et $64{,}0~\%$ sur les lignes de Monte-Carlo à verdict, au nombre de douze, la ligne des suites étant un diagnostic~; sous les mêmes plans et ceux de la méthode lognormale, la p globale de lecture conjointe (fiche~\ref{fiche:p-globale}), diagnostic sans verdict, ne tombe sous $0{,}10$ que dans 7 à 11~\% des jeux ou triangles simulés. Les lignes de lecture conjointe sont restituées \code{INFO} comme tout diagnostic~; la vue Synthèse de l'application affiche leur p de famille comme valeur non retenue.
+\noindent Sous le plan du triangle de contrôle de la méthode Merz--Wüthrich, un triangle conforme au modèle de Mack reçoit au moins une \code{ALERTE} ou un \code{ECHEC} sur les verdicts de ses 13 statistiques de Monte-Carlo dans $63{,}6$ à $65{,}5~\%$ des cas (section~\ref{sec:calib-mc-mw}, constat de simulation sous ce plan, mesuré avec trois statistiques modifiées depuis et la ligne des suites à verdict)~: le nombre de tels verdicts d'un triangle ne se lit pas sans cette multiplicité. Mesurée de nouveau sur un état ultérieur du moteur (fichier \code{docs/tableaux/}\allowbreak\code{20261026-}\allowbreak\code{issue297-}\allowbreak\code{calibration-}\allowbreak\code{famille-mw.md}, état du moteur consigné en tête, lois N et E), cette part vaut $62{,}45$ et $64{,}0~\%$ sur les lignes de Monte-Carlo à verdict, au nombre de douze, la ligne des suites étant un diagnostic~; sous les mêmes plans et ceux de la méthode lognormale, la p globale de lecture conjointe (fiche~\ref{fiche:p-globale}), diagnostic sans verdict, ne tombe sous $0{,}10$ que dans 7 à 11~\% des jeux ou triangles simulés. Les lignes de lecture conjointe sont restituées \code{INFO} comme tout diagnostic~; la vue Synthèse de l'application affiche leur p de famille comme valeur non retenue.
 
 \subsection*{Taux de franchissement des repères sous le modèle ajusté}
 \label{sec:taux-reperes}
@@ -19462,7 +19466,7 @@ jackknife au-dessus de 10~\%~: 1\,408, $70{,}4~\%$, et de 20~\%~: 363, $18{,}1~\
 l'intervalle bootstrap au-dessus de 50~\%~: 981, $49{,}0~\%$, et de 80~\%~: 0)~; la colonne J2 du
 tableau est celle de la première de ces deux mesures, J2 n'ayant pas été rejoué ensuite. La
 ligne de la règle~R4, règle retirée (section~\ref{sec:modele-auxiliaire-regles}), est reproduite par le script pour la
-comparabilité~; son compte sur J1 est identique dans les deux dernières mesures. Les lignes du
+comparabilité~; sa ligne du tableau vient des deux dernières mesures, dont les comptes sur J1 sont identiques. Les lignes du
 rapport de vraisemblance à chacune des deux bornes et de la largeur de l'intervalle restreint ne
 sont pas reconstruites~; aucun repère n'y porte. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
 les intervalles de Clopper--Pearson à 95~\% ne mesurent que l'incertitude de simulation sur le
