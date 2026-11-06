@@ -50,3 +50,12 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 
 | `\label` | Fichier | Titre courant | Partie |
 |---|---|---|---|
+| Préambule (entrée transversale) | `I.md` | Commentaires `%` de la charte | Préliminaires |
+| `sec:archi` | `I.md` | Architecture du moteur de calcul (Principe de séparation) | I |
+| `sec:inventaire` | `I.md` | Inventaire des fonctions | I |
+| `sec:segments` | `I.md` | Périmètres couverts et paramètres standard | I |
+| `sec:graines` | `I.md` | Reproductibilité et gestion des graines | I |
+| `sec:index-fonctions` | `I.md` | Index des fonctions de statistique et de p-value | I |
+| `sec:ex-aequo` | `I.md` | Ex æquo des tests de rang et de signe | I |
+| `sec:notations` | `I.md` | Notations générales (convention de restitution, graphie des textes) | I |
+| `sec:controles` | `I.md` | Contrôles de qualité des données | I |
