@@ -2083,8 +2083,8 @@ le rapport figé, sous l'intitulé «~Paramètre standard remplacé (art.~218, p
 barème de crédibilité (annexe~XVII, section~G)~».
 
 \smallskip
-\emph{Anomalies rédactionnelles du texte consolidé}, relevées à la lecture du texte consolidé,
-sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
+\emph{Anomalies rédactionnelles du texte consolidé}, relevées sur la version consolidée du
+14~novembre~2024, sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
 paragraphe~4 écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
 (article~220, paragraphe~1, point~b))~:
@@ -2282,17 +2282,17 @@ effet sur les résultats du moteur, qui tire toujours sous inversion.
 
 \emph{Ordre de grandeur de l'erreur de Monte-Carlo entre générateurs} (constat mesuré sur les
 cas de contrôle avec un moteur antérieur qui ne fixait pas \code{RNGkind()}, conservé pour cet
-ordre de grandeur). Sous un autre générateur chez l'appelant, $\sigma_{\mathrm{USP}}$ est
-identique (il ne dépend d'aucun tirage), aucun verdict ne change, et les p-values de Monte-Carlo
-s'écartent d'au plus $0{,}043$ (méthode de primes, 33 des 34, $B = 999$), $0{,}046$ et $0{,}062$
-(réserve n\textsuperscript{o}~2, 12 des 13). Pour une p-value unilatérale estimée par une
-proportion, l'écart-type de la différence entre deux estimations indépendantes
-d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$ à la correction $1/(B+1)$ près,
-soit $0{,}016$ pour $p = 0{,}84$~; pour une p-value bilatérale
-$2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
-l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$~: les écarts
-maximaux observés valent entre $1{,}3$ et $2{,}6$ fois ces écarts-types, ce qui est attendu pour
-le maximum sur 34 et 13 statistiques (§\ref{sec:deuxerreurs}).
+ordre de grandeur). Avec ce moteur, sous un autre générateur chez l'appelant,
+$\sigma_{\mathrm{USP}}$ était identique (il ne dépend d'aucun tirage), aucun verdict ne changeait,
+et les p-values de Monte-Carlo s'écartaient d'au plus $0{,}043$ (méthode de primes, 33 des 34,
+$B = 999$), $0{,}046$ et $0{,}062$ (réserve n\textsuperscript{o}~2, 12 des 13). Pour une
+p-value unilatérale estimée par une proportion, l'écart-type de la différence entre deux
+estimations indépendantes d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$ à la correction
+$1/(B+1)$ près, soit $0{,}016$ pour $p = 0{,}84$ (sup-F, écart maximal $0{,}043$)~; pour une
+p-value bilatérale $2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
+l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test des suites,
+écart maximal $0{,}046$)~: les écarts maximaux observés valent entre $1{,}3$ et $2{,}6$ fois ces
+écarts-types, ce qui est attendu pour le maximum sur 34 et 13 statistiques (§\ref{sec:deuxerreurs}).
 
 \emph{État laissé à l'appelant}~: les six sources restaurant l'état qu'elles ont trouvé,
 \code{run\_engine()} laisse l'état du générateur de l'appelant intact.
@@ -2391,7 +2391,8 @@ au plus $3{,}508\cdot 10^{-7}$ en relatif sur la branche lognormale (sur
 $\sigma_{\mathrm{USP}}$ lui-même est de l'ordre de $10^{-14}$ en relatif, très en deçà de la
 précision à laquelle le paramètre est lu. Sur la branche Merz--Wüthrich, l'écart atteint au plus
 $1{,}339\cdot 10^{-13}$ en relatif (8 valeurs sur 4\,211, statistique de la première ligne de la
-table des tests)~; il est nul entre ce poste et la plateforme de référence actuelle. La mesure ne
+table des tests), contre la CI alors sous OpenBLAS~; il est nul contre les références produites
+sous le BLAS de référence. La mesure ne
 se refait qu'en confrontant deux plateformes. Deux enseignements, constatés et non
 démontrés~: sur la branche lognormale, la dérive entre le poste et Linux ne
 dépend pas de la version mineure de R (même résultat sous R~4.3.3 et sous R~4.3.1), et le seuil
@@ -3126,9 +3127,8 @@ règle~R7 n'y attribue aucune p-value exacte aux lignes de rang sur $z_t$ (suite
 fusion n'y aurait que l'effet d'un ex \ae quo ordinaire sur la statistique observée et sur sa
 p-value de Monte-Carlo (fiche correspondante). Mesuré sur
 \code{tests/donnees/donnees\_ln\_interieur.csv} (\code{usp\_ajuster()}, $\hat\delta = 0{,}664$)~:
-plus petit écart entre deux $z_t$ $6{,}6\cdot 10^{-2}$. La tolérance n'est pas modifiée (même
-avis). Pour les résidus de Mack (plancher~1), aucune borne n'est établie non
-plus~: sur le triangle de contrôle
+plus petit écart entre deux $z_t$ $6{,}6\cdot 10^{-2}$. La tolérance n'est pas modifiée. Pour les résidus
+de Mack (plancher~1), aucune borne n'est établie non plus~: sur le triangle de contrôle
 \code{tests/donnees/triangle\_mw.csv}, multiplier une cellule observée par $1 + 4 \times 2^{-52}$
 (quatre fois la précision machine) déplace les résidus de Mack d'au plus $1{,}0\cdot 10^{-13}$
 (pire cellule, $(i, j) = (0, 4)$), soit une marge d'environ~10 seulement sous la tolérance (mesure
@@ -3700,7 +3700,7 @@ $B = 199$~; R~4.3.3, BLAS et LAPACK de référence, x86\_64), comparé à l'éch
 verdict ne change tant que $|e| \le 150$ environ~; des verdicts faux apparaissent avec
 \code{ok = TRUE} et sans alerte dès $e = 152$ (jeu intérieur) ou $154$ (jeu de contrôle), et,
 côté négatif, dès $e = -158$ sur le jeu intérieur~; un défaut de calcul intercepté apparaît à
-$e \le -163$. Le domaine est très
+$e = -163$, $-165$ et $-170$. Le domaine est très
 intérieur à cette zone, et un changement d'unité par une puissance de~2 y laisse le résultat
 identique au bit près (mesuré sur le jeu de contrôle multiplié par $2^{159}$ et par $2^{-172}$~:
 \code{\$parametre\_final}, p-values retenues et verdicts \code{identical()} à ceux de
@@ -3748,7 +3748,7 @@ déterminé par la section~G)~; le commentaire le nomme avec son point de la sec
 à partir de laquelle la crédibilité est pleine (\code{.engine\_credibilite\_appliquee()}). La
 ligne «~\code{Credibilite pleine atteinte}~» de la famille~A est \code{OK} si et seulement si
 $c = 1$, et \code{engine\_valider\_donnees()} émet un avertissement de crédibilité partielle si
-$c < 1$ (lecture retenue par l'outil). Mesuré par \code{usp\_controle\_donnees()} et
+$c < 1$ (lecture du barème appliqué retenue par l'outil). Mesuré par \code{usp\_controle\_donnees()} et
 \code{engine\_valider\_donnees()}~: segment II-1 à $T = 10$, \code{ECHEC} et $c = 74~\%$~;
 II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II-2 et XIV-1,
 \code{OK} à $T = 10$, \code{ECHEC} et $c = 92~\%$ à $T = 9$~; II-2 avec le barème long saisi
@@ -3854,8 +3854,8 @@ relève de~(ii), avec un minimiseur vers $\gamma \approx -37$ fixé par l'arrond
 section~\ref{sec:h4}, point~(3)).
 (ii)~\emph{Classe quasi proportionnelle (borne basse) et dispersion extrême (borne haute)}~: le
 minimiseur existe (encadré de la section~\ref{sec:h4}, point~(2)), mais n'est pas atteint dans
-le domaine de recherche~; le refus y est une \textbf{décision de l'outil}
-(règle de l'outil), fondée sur les hypothèses B(2)(g) (p.~273) et
+le domaine de recherche~; le refus y est une \textbf{décision de l'outil},
+fondée sur les hypothèses B(2)(g) (p.~273) et
 C(2)(e) (p.~274-275~; iii et iv p.~275), iii («~les pertes agrégées suivent une distribution
 log-normale~», B~; «~le montant visé au paragraphe 1, point a), suit une distribution
 log-normale~», C) et iv
@@ -4309,12 +4309,14 @@ refus, MSEP calculée $3{,}8\cdot 10^{-23}$ \\
 refus, MSEP $= 0$ \\
 \code{col0\_1e13}~: \code{total\_exact}, cumuls de la colonne~0 multipliés par
 $1 \pm 10^{-13}$ & refus, MSEP $1{,}6\cdot 10^{-19}$ \\
-\code{col0\_1e11}~: idem à $1 \pm 10^{-11}$ & accepté, $\sigma$ estimé $4{,}4\cdot 10^{-12}$ \\
+\code{col0\_1e11}~: idem à $1 \pm 10^{-11}$ & accepté, $\sigma_{\mathrm{USP}} = 0{,}0369000000$, $\sigma$ estimé
+$4{,}4\cdot 10^{-12}$ \\
 \code{sauf\_une}~: \code{total\_exact} dont les cumuls $C(i,1)$ reprennent ceux du triangle de
-contrôle (colonne~0 seule non dégénérée) & accepté \\
+contrôle (colonne~0 seule non dégénérée) & accepté, $\sigma_{\mathrm{USP}} = 0{,}0404017443$ \\
 \code{total\_arrondi}~: \code{total\_exact} arrondi au centime (écart relatif maximal des
 facteurs de $8{,}4\cdot 10^{-7}$ à $1{,}3\cdot 10^{-5}$ selon la colonne) &
-accepté, $\sigma$ estimé $5{,}3\cdot 10^{-6}$, sans avertissement de colonne \\
+accepté, $\sigma_{\mathrm{USP}} = 0{,}0369031172$, $\sigma$ estimé $5{,}3\cdot 10^{-6}$, sans
+avertissement de colonne \\
 \end{tabular}
 \end{center}
 
