@@ -221,12 +221,16 @@ jobs:
     # est contrôlé par pdf-invariant.yml, sur les PR non brouillon.
     # Épinglée par cohérence avec le job des tests (issue #67).
     runs-on: ubuntu-22.04
-    # Issue #123 : seulement si docs/latex/, la CI ou les fichiers des contrôles
-    # ND de la documentation (tests/controle_doc_nd.R, marques_remplissage.tex,
-    # doc_remplissage.tex) changent (tout sur main).
+    # Issue #123 : seulement si docs/latex/, .github/ (la CI comprise) ou les
+    # fichiers des contrôles ND de la documentation (tests/controle_doc_nd.R,
+    # tests/marques_remplissage.tex, tests/doc_remplissage.tex) changent, comme
+    # le filtre « latex » du job « changements » ; tout sur main, push ou lancement
+    # manuel. Les tests unitaires de ces contrôles (tests/unitaires/) relèvent du
+    # job des tests du moteur.
     needs: changements
     if: needs.changements.outputs.latex == 'true'
-    # Durée observée : 2 à 3 min (dont le téléchargement de l'image TeX Live).
+    # Durée observée : environ 3 min (3 min 09 s, exécution 42238419349 du
+    # 06/11/2026, avec la seconde compilation du remplissage et les contrôles).
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -246,12 +250,12 @@ jobs:
           # Artefact de lecture en cours de branche (ADR 0008 amendé) ; le
           # PDF versionné fait foi une fois le commit de fin de branche fait.
           retention-days: 30
-      # Branche ND, lot L0 (issue #451) : contrôles de la documentation, en
-      # AVERTISSEMENT. Le script rend 0 sans --bloquant et aucune des étapes
-      # ci-dessous ne fait échouer le job (continue-on-error) ; le décompte est
-      # publié dans le résumé du job. Le lot L7 ajoutera --bloquant (motifs,
-      # plafond de pages, débordements \hbox) et retirera continue-on-error ; le
-      # remplissage des pages reste en avertissement.
+      # Branche ND, lots L0 (issue #451) et L7 (issue #458) : contrôles de la
+      # documentation. Les motifs de la liste A, le plafond de pages des fiches et
+      # les débordements (\hbox, \vbox > 1,5 pt) sont BLOQUANTS (--bloquant, sans
+      # continue-on-error) ; le remplissage des pages reste en avertissement
+      # (aucune de ses étapes ne fait échouer le job). Le décompte de chaque étape
+      # est publié dans le résumé du job.
       # Remplissage : une seconde compilation, par l'enveloppe tests/doc_remplissage.tex
       # qui charge tests/marques_remplissage.tex avant le document (aucun fichier de
       # docs/latex/ n'est modifié) et écrit doc_remplissage.pdf et .remp dans tests/.
@@ -264,7 +268,8 @@ jobs:
           working_directory: tests
           args: -pdf -interaction=nonstopmode -halt-on-error
       # R seul (aucun paquet) ; même version que le job des tests. Un échec de
-      # l'installation ne doit pas faire échouer le job (avertissement seulement).
+      # l'installation ne fait pas échouer cette étape ; il fait échouer l'étape
+      # bloquante des contrôles ND (Rscript introuvable), jamais un faux succès.
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
         continue-on-error: true
         with:
@@ -275,17 +280,18 @@ jobs:
         continue-on-error: true
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends poppler-utils
       # Motifs de « vie du dépôt », plafond de pages des fiches (lit le .aux) et
-      # débordements (lit le .log) : sans option, les trois contrôles.
-      - name: Contrôles ND de la documentation (avertissement)
-        continue-on-error: true
+      # débordements (lit le .log) : sans sélecteur, les trois contrôles, bloquants.
+      # Code 1 si une occurrence de la liste A, une fiche au-delà du plafond ou un
+      # débordement en violation (tout Overfull \hbox, Overfull \vbox > 1,5 pt).
+      - name: Contrôles ND de la documentation (bloquant)
         env:
           LC_ALL: C.UTF-8
         run: |
           statut=0
-          Rscript tests/controle_doc_nd.R --max-lignes=3 > controle_doc_nd.txt 2>&1 || statut=$?
+          Rscript tests/controle_doc_nd.R --bloquant --max-lignes=3 > controle_doc_nd.txt 2>&1 || statut=$?
           cat controle_doc_nd.txt
           {
-            echo "### Contrôles ND de la documentation (avertissement)"
+            echo "### Contrôles ND de la documentation (bloquant)"
             echo
             echo '```'
             grep -v '^::warning' controle_doc_nd.txt || true
@@ -293,8 +299,10 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$statut"
       # Remplissage des pages : lit le PDF et les marques de la seconde compilation.
-      # Sans eux (compilation en échec), le script le signale et rend 0.
+      # Sans eux (compilation en échec), le script le signale et rend 0. Lancée
+      # même si l'étape bloquante ci-dessus a échoué, pour publier les deux bilans.
       - name: Remplissage des pages (avertissement)
+        if: ${{ !cancelled() }}
         continue-on-error: true
         env:
           LC_ALL: C.UTF-8
