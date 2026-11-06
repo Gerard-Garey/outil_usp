@@ -156,4 +156,13 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `mw:m3acc` | `III-M.md` | Homogénéité des résidus entre années de survenance | III |
 | `mw:m3cor` | `III-M.md` | Corrélation entre années de développement adjacentes | III |
 | `mw:m3runs` | `III-M.md` | Test des suites sur les résidus de Mack | III |
+| `mw:m4gr` | `III-M.md` | Cellule aberrante du triangle | III |
+| `mw:m4ros` | `III-M.md` | Cellules aberrantes multiples, ESD de Rosner | III |
+| `sec:mwm5` | `III-M.md` | Diagnostics M5, normalité (tête de section) | III |
+| `mw:m5sw` | `III-M.md` | Shapiro–Wilk sur les résidus de Mack | III |
+| `mw:m5li` | `III-M.md` | Lilliefors sur les résidus de Mack | III |
+| `mw:m6sig` | `III-M.md` | Extrapolation de σ̂²_{J−1} | III |
+| `sec:lecture-conjointe` | `III-M.md` | Lecture conjointe (tête de section) | III |
+| `fiche:p-famille` | `III-M.md` | p de famille (minP, lecture conjointe) | III |
+| `fiche:p-globale` | `III-M.md` | p globale (minP, lecture conjointe de la batterie) | III |
 | `sec:calib-mc-mw` | `IV.md` | Calibration des p-values de Monte-Carlo (Merz–Wüthrich) | IV |
