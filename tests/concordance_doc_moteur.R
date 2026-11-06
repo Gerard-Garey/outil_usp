@@ -2389,13 +2389,6 @@ concordance_executer <- function(strict = FALSE, B = B_MIN, fichier_tex = NULL, 
     n_f <- sort(cv$nom[cv$ou == f], method = "radix")
     ecrire(sprintf("    definies dans %s (%d) : %s\n", f, length(n_f), paste(n_f, collapse = " ")))
   }
-  if (nrow(cc6$ex_const$exemptees)) {
-    ecrire(sprintf("    Exemptees nommement (EXEMPTES_CODE, objet constante, %d citation(s), pas des ecarts) :\n",
-                   nrow(cc6$ex_const$exemptees)))
-    for (i in seq_len(nrow(cc6$ex_const$exemptees)))
-      ecrire(sprintf("      %-30s ligne %-5d %s\n", cc6$ex_const$exemptees$nom[i], cc6$ex_const$exemptees$ligne[i],
-                     cc6$ex_const$exemptees$motif[i]))
-  }
   ch6 <- cc6$champs
   ecrire(sprintf("  b) Chemins de champs ($) : %d segment(s) cite(s), %d champ(s) distinct(s)\n",
                  nrow(ch6), length(unique(ch6$segment))))
@@ -2410,13 +2403,6 @@ concordance_executer <- function(strict = FALSE, B = B_MIN, fichier_tex = NULL, 
   if (length(pz))
     ecrire(sprintf("    (information) absents des objets construits, admis par CHAMPS_HORS_OBJETS et poses par R/engine.R : %s\n",
                    paste(pz[ordre_stable(pz)], collapse = " ")))
-  if (nrow(cc6$ex_champs$exemptees)) {
-    ecrire(sprintf("    Exemptes nommement (EXEMPTES_CODE, objet champ, %d citation(s), pas des ecarts) :\n",
-                   nrow(cc6$ex_champs$exemptees)))
-    for (i in seq_len(nrow(cc6$ex_champs$exemptees)))
-      ecrire(sprintf("      %-30s ligne %-5d %s\n", cc6$ex_champs$exemptees$nom[i], cc6$ex_champs$exemptees$ligne[i],
-                     cc6$ex_champs$exemptees$motif[i]))
-  }
   n6 <- nrow(cc6$ex_const$ecarts) + nrow(cc6$ex_const$perimees) + nrow(cc6$ex_champs$ecarts) +
     nrow(cc6$ex_champs$perimees) + nrow(cc6$non_classes) + nrow(cc6$perimees_listes)
   n_ecarts <- n_ecarts + n6

@@ -366,6 +366,34 @@ verifier("--debordements sans journal : avis, code 0", r$statut == 0L && any(gre
 r <- lancer("--debordements", "--remplissage")
 verifier("deux selecteurs s'excluent : code 2", r$statut == 2L)
 
+# Appel de la CI (L7) : --bloquant sans selecteur, les trois controles actifs. Chacune des trois
+# causes (liste A, plafond de pages, debordement) fait seule le code 1 ; sans cause, le code 0
+# malgre la liste B, une fiche "a verifier", un \vbox toleré et un journal absent (avertissements).
+f_a_seul <- file.path(dir_b, "a_seul.tex")
+writeLines(c("\\partie{Partie III}{F}", "voir issue~\\#12", fiche_tex("a", 500)), f_a_seul)
+r <- lancer(paste0("--tex=", f_a_seul), paste0("--aux=", f_propre_aux), "--bloquant")
+verifier("--bloquant sans selecteur : la seule liste A fait le code 1",
+         r$statut == 1L && any(grepl("BILAN : 1 occurrence[(]s[)] de la liste A, 0 fiche[(]s[)] en violation du plafond, 0 debordement", r$sortie)))
+f_b_seul <- file.path(dir_b, "b_seul.tex"); f_b_seul_aux <- file.path(dir_b, "b_seul.aux")
+writeLines(c("\\partie{Partie III}{F}", fiche_tex("a", 12000)), f_b_seul)
+writeLines(c("\\newlabel{fiche:1}{{4.1}{10}{A}{x}{}}", "\\newlabel{fiche:1-fin}{{4.1}{12}{}{x}{}}"), f_b_seul_aux)
+r <- lancer(paste0("--tex=", f_b_seul), paste0("--aux=", f_b_seul_aux), "--bloquant")
+verifier("--bloquant sans selecteur : le seul plafond de pages fait le code 1",
+         r$statut == 1L && any(grepl("BILAN : 0 occurrence[(]s[)] de la liste A, 1 fiche[(]s[)] en violation du plafond, 0 debordement", r$sortie)))
+r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", f_propre_aux), paste0("--log=", f_log), "--bloquant")
+verifier("--bloquant sans selecteur : le seul debordement fait le code 1",
+         r$statut == 1L && any(grepl("BILAN : 0 occurrence[(]s[)] de la liste A, 0 fiche[(]s[)] en violation du plafond, 5 debordement", r$sortie)))
+f_tolere <- file.path(dir_b, "tolere.tex"); f_tolere_aux <- file.path(dir_b, "tolere.aux")
+writeLines(c("\\partie{Partie III}{F}", "il faut d\u00e9sormais compter.", fiche_tex("a", 5000)), f_tolere)
+writeLines(c("\\newlabel{fiche:1}{{4.1}{10}{A}{x}{}}", "\\newlabel{fiche:1-fin}{{4.1}{12}{}{x}{}}"), f_tolere_aux)
+r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_tolere_aux), paste0("--log=", f_log_v), "--bloquant")
+verifier("--bloquant sans selecteur : liste B, fiche a verifier (3 pages, source courte) et \\vbox de 1,0 pt, code 0",
+         r$statut == 0L && any(grepl("BILAN : 0 occurrence[(]s[)] de la liste A, 0 fiche[(]s[)] en violation du plafond, 0 debordement", r$sortie)) &&
+         any(grepl("TOTAL liste B : [1-9]", r$sortie)) && any(grepl("1 a verifier", r$sortie)))
+r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_tolere_aux), paste0("--log=", file.path(dir_b, "absent.log")), "--bloquant")
+verifier("--bloquant sans selecteur : journal absent, avertissement seul, code 0",
+         r$statut == 0L && any(grepl("AVERTISSEMENT : aucun journal", r$sortie)))
+
 # --- (d) Remplissage : marques et analyse (geometrie construite a la main) -----------------------------
 g_ <- list(feuille = 842, haut = 71, hauteur_utile = 700, interligne = 14.7)   # bas = 771
 mot_ <- function(page, y0, txt = "texte", x0 = 71, h = 10) data.frame(page = page, x0 = x0, y0 = y0, x1 = x0 + 30, y1 = y0 + h,
