@@ -918,15 +918,17 @@ local({
                            abs = 1e-5)) &&
              isTRUE(proche(ga$moyenne, c(-0.5047, -0.3665, -0.2242, 0.3175, 0.7853, 0.9015, 0.5111),
                            abs = 1e-4)))
-  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre.
+  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre,
+  # hors renvoi a l'issue, retire des chaines du moteur (#452).
   spec <- readLines(file.path(RACINE, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
                     encoding = "UTF-8")
   t1 <- sub("^> `(.*)`$", "\\1", spec[which(startsWith(spec, "**T-1 (#312"))[1] + 1L])
+  t1 <- sub(" (issue #312)", "", t1, fixed = TRUE)
   lr <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), r312$tests)
   verifier("#312 : test des suites, variante secondaire et diagnostic par decision (verdict INFO, inoperant FALSE, detail T-1 a la lettre)",
            length(lr) == 1L && {
              l <- lr[[1]]
-             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision (issue #312)") &&
+             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision : aucun verdict ni") &&
                identical(l$type, "diagnostic") && identical(l$variante, "secondaire") &&
                identical(l$verdict, "INFO") && identical(l$inoperant, FALSE) &&
                identical(l$detail, t1) && is.na(l$p_retenue) && is.na(l$nature_p) &&
@@ -2582,7 +2584,7 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Ca
              su$type == "diagnostic" && identical(su$verdict, "INFO") && !su$inoperant &&
              isTRUE(proche(su$p_min, 4 / 70, 1e-12)) && is.na(su$p_min_mc) &&
              isTRUE(proche(r5$bootstrap$p_min_mc[["Runs"]], 0.02, 1e-12)) &&
-             startsWith(su$commentaire, "Restituee en diagnostic par decision (issue #312)") &&
+             startsWith(su$commentaire, "Restituee en diagnostic par decision : aucun verdict ni") &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
@@ -3674,7 +3676,7 @@ verifier("M4 (#300) : ligne de mw_tests() = entree MinP4 du catalogue (statistiq
                "auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j) suit, conditionnellement aux",
                "cumuls de la colonne j, la loi de Student a n_j - 2 degres de liberte, et min(1, N_t M)",
                "borne la p-value de M (Bonferroni) ; cette borne est une p non simulee, jamais retenue a la",
-               "place de la p Monte-Carlo (#181).")) &&
+               "place de la p Monte-Carlo.")) &&
              grepl("N_t = 22 ; 3 cellule(s) des colonnes n_j = 3 non couverte(s)", x$detail, fixed = TRUE) &&
              grepl("Minimum en cellule (annee d'accident 0, developpement 2), n_j = 5.", x$detail, fixed = TRUE) &&
              !grepl(format(x$p_mc), x$detail, fixed = TRUE) && !grepl(format(x$err_mc), x$detail, fixed = TRUE)

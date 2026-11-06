@@ -856,12 +856,19 @@ CLASSES_T2 <- c(T = "classe T (#298, r\u00e8gle R14, f20c17c)", M = "classe M (#
 #   #303 (99ae529, regle R15, a pi chapeau constant) : DWr, Runsr, supFr,
 #     CUSUMr, Grubbsr.
 # Une autre ligne, ou une ligne sans son marqueur, reste non expliquee.
-MARQUEUR_DIAG_299 <- "Restituee en diagnostic par decision (issue #299)"
-MARQUEUR_DIAG_302 <- "Restituee en diagnostic par decision (issue #302)"
+# Depuis #452, la phrase fixe ne porte plus le numero d'issue : le prefixe est
+# commun a #299 et #302, et le marqueur de chaque ligne y ajoute le fragment
+# propre a sa phrase (le marqueur d'une autre ligne reste refuse).
+MARQUEUR_DIAG_299 <- "Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;"
+MARQUEUR_DIAG_302 <- MARQUEUR_DIAG_299
 MARQUEUR_DIAG_R15 <- "Restituee en diagnostic (regle R15)"
 LIGNES_DIAG_DECISION <- c(
-  stats::setNames(rep(MARQUEUR_DIAG_299, 6L), c("SpearTps", "BP79", "White", "GQ", "BF", "Smirnov")),
-  stats::setNames(rep(MARQUEUR_DIAG_302, 2L), c("CvM", "KS")),
+  SpearTps = paste(MARQUEUR_DIAG_299, "meme alternative (tendance monotone du"),
+  stats::setNames(rep(paste(MARQUEUR_DIAG_299, "la structure de variance releve de la ligne"), 4L),
+                  c("BP79", "White", "GQ", "BF")),
+  Smirnov = paste(MARQUEUR_DIAG_299, "compare la position de z entre petits et gros"),
+  CvM = paste(MARQUEUR_DIAG_302, "W2 etant tres correlee a A2"),
+  KS = paste(MARQUEUR_DIAG_302, "l'hypothese releve de la ligne Lilliefors"),
   stats::setNames(rep(MARQUEUR_DIAG_R15, 5L), c("DWr", "Runsr", "supFr", "CUSUMr", "Grubbsr")))
 LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 # Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures

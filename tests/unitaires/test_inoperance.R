@@ -1172,7 +1172,7 @@ verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B =
            is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
              identical(k$type, "diagnostic") && is.finite(k$p_exacte) && is.na(k$p_retenue) &&
-             grepl("standardises (issue #29). Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
+             grepl("standardises. Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
              !grepl(PHRASE_RENVOI_NATURE_P, k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)

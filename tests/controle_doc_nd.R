@@ -14,11 +14,9 @@
 #      compris. Les exceptions nommees (liste EXCEPTIONS_MOTIFS : id, motifs
 #      exemptes, zone, parties, raison) sont appliquees ; une exception qui
 #      n'exempte plus rien est signalee PERIMEE.
-#        E3 : docs/suivi-documentation/ admis en partie IV seulement ;
-#        E7 : les chaines du moteur (R/engine.R) qui portent "issue #N", N dans
-#             E7_ISSUES, citees mot pour mot (zones lues dans le moteur, fenetre
-#             de trois lignes), transitoire (drapeau E7_TRANSITOIRE, a lever au
-#             lot L1 apres retrait des chaines du moteur).
+#        E3 : docs/suivi-documentation/ admis en partie IV seulement.
+#      L'exception transitoire E7 (chaines du moteur qui portaient un numero
+#      d'issue) est retiree au lot L1 (#452), qui a retire ces numeros du moteur.
 #      Les exceptions E1, E2, E4, E5, E6, E8 et E9 de la grille sont
 #      satisfaites par construction des motifs (rien a exempter) ; elles sont
 #      couvertes par les cas negatifs de tests/unitaires/test_controle_doc_nd.R.
@@ -66,7 +64,7 @@
 #      Rscript tests/controle_doc_nd.R --debordements   # controle (c) seul
 #      Rscript tests/controle_doc_nd.R --remplissage    # controle (d) seul (pdflatex requis)
 #      --max-lignes=N                                   # lignes en cause par motif (defaut 5)
-#      --tex=CHEMIN, --aux=CHEMIN, --log=CHEMIN, --pdf=CHEMIN, --moteur=CHEMIN   # autres fichiers (tests)
+#      --tex=CHEMIN, --aux=CHEMIN, --log=CHEMIN, --pdf=CHEMIN   # autres fichiers (tests)
 #      --remp=CHEMIN --pdf-mesure=CHEMIN                # (d) sur les fichiers d'une passe deja
 #                                                       # faite (CI : tests/doc_remplissage.tex)
 #  Code 2 pour un argument inconnu, plusieurs options de controle a la fois, ou
@@ -88,16 +86,6 @@ SEUIL_CARACTERES_PLAFOND <- 10500L   # source (caracteres) au-dela de laquelle c
 # Vide au depart : chaque exception est tranchee au tri de son lot. Le label est
 # celui de la fiche (fiche:student-pente) ou son numero automatique (fiche:12).
 EXCEPTIONS_PLAFOND <- list()
-
-# --- Drapeau transitoire de l'exception E7 -------------------------------------
-# TRUE tant que le .tex cite mot pour mot des chaines du moteur qui portent un
-# numero d'issue ; a lever (FALSE) par le commit du lot L1 qui les retire du
-# moteur. E7_ISSUES : numeros d'issue des 17 chaines du moteur que traite L1
-# (decision du mainteneur du 06/11/2026) ; les zones exemptees sont lues dans
-# R/engine.R (nd_zones_moteur()), de sorte que l'exception se resorbe d'elle-meme
-# quand L1 retire les chaines.
-E7_TRANSITOIRE <- TRUE
-E7_ISSUES      <- c(29L, 55L, 114L, 297L, 299L, 302L, 304L, 312L)
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
 .mois <- paste0("(?:janvier|f\u00e9vrier|mars|avril|mai|juin|juillet|ao\u00fbt|",
@@ -187,43 +175,12 @@ MOTIFS_B <- .prefixer_ucp(MOTIFS_B)
 # retour a la ligne est reconnue), parties (NULL : toutes), raison, actif. Une
 # occurrence est exemptee si son motif est dans `motifs`, si sa partie est admise
 # et si elle est contenue dans une zone.
-#
-# E7 : zones = fragments des chaines du moteur qui portent "issue #N" (N dans
-# E7_ISSUES), lus dans R/engine.R : jusqu'a quatre mots avant "issue", puis
-# "issue \#N" ; les espaces tolerent "~" et le retour a la ligne.
-nd_zones_moteur <- function(moteur, issues = E7_ISSUES) {
-  if (is.null(moteur) || !file.exists(moteur)) return(character(0))
-  l <- readLines(moteur, warn = FALSE, encoding = "UTF-8")
-  l <- l[!grepl("^\\s*#", l)]
-  rx <- sprintf("issue #(?:%s)\\b", paste(issues, collapse = "|"))
-  zones <- character(0)
-  for (ligne in l[grepl(rx, l, perl = TRUE)]) {
-    g <- gregexpr(rx, ligne, perl = TRUE)[[1L]]
-    lg <- attr(g, "match.length")
-    for (j in seq_along(g)) {
-      avant <- substr(ligne, 1L, g[j] - 1L)
-      avant <- sub("^.*[^\\\\]\"", "", avant)   # dans la chaine litterale : apres le dernier guillemet non echappe
-      jetons <- strsplit(trimws(paste0(avant, "issue")), "[[:space:]]+")[[1L]]
-      jetons <- c(tail(jetons[nzchar(jetons)], 5L), paste0("\\#", sub("^issue #", "", substr(ligne, g[j], g[j] + lg[j] - 1L))))
-      # Formats sprintf du moteur (%s, %d) : jokers (le .tex cite une valeur a leur place).
-      jetons <- gsub("%d", "\001D", gsub("%s", "\001S", jetons, fixed = TRUE), fixed = TRUE)
-      jetons <- gsub("([][{}()+*^$|\\\\?.])", "\\\\\\1", jetons)
-      jetons <- gsub("\001D", "[0-9]+", gsub("\001S", "\\S+", jetons, fixed = TRUE), fixed = TRUE)
-      zones <- c(zones, paste(jetons, collapse = "[~\\s]+"))
-    }
-  }
-  unique(zones)
-}
 
-exceptions_motifs_defaut <- function(e7_actif = E7_TRANSITOIRE, e7_issues = E7_ISSUES, moteur = NULL) {
+exceptions_motifs_defaut <- function() {
   list(
     list(id = "E3", motifs = "A4", zone = "docs/suivi-documentation/", fenetre = 1L,
          parties = "Partie IV", actif = TRUE, permanente = TRUE,
-         raison = "regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement"),
-    list(id = "E7", motifs = "A1", zone = nd_zones_moteur(moteur, e7_issues), fenetre = 3L,
-         parties = NULL, actif = isTRUE(e7_actif),
-         raison = paste("TRANSITOIRE (a lever au lot L1) : chaines du moteur citees mot pour mot",
-                        "(R/engine.R), retirees du moteur par L1"))
+         raison = "regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement")
   )
 }
 EXCEPTIONS_MOTIFS <- exceptions_motifs_defaut()
@@ -889,13 +846,13 @@ MARQUES_REMPLISSAGE_DEFAUT <- "marques_remplissage.tex"
 nd_main <- function(args) {
   selecteurs <- c("--motifs-seuls", "--pages-seules", "--debordements", "--remplissage")
   connus <- c("--bloquant", selecteurs)
-  inconnus <- args[!(args %in% connus | grepl("^--(max-lignes|tex|aux|log|pdf|remp|pdf-mesure|moteur)=.+$", args))]
+  inconnus <- args[!(args %in% connus | grepl("^--(max-lignes|tex|aux|log|pdf|remp|pdf-mesure)=.+$", args))]
   if (length(inconnus)) {
     cat("Argument(s) inconnu(s) :", paste(inconnus, collapse = " "),
         "\nUsage : Rscript tests/controle_doc_nd.R [--bloquant]",
         "[--motifs-seuls | --pages-seules | --debordements | --remplissage]",
         "[--max-lignes=N] [--tex=CHEMIN] [--aux=CHEMIN] [--log=CHEMIN] [--pdf=CHEMIN]",
-        "[--remp=CHEMIN --pdf-mesure=CHEMIN] [--moteur=CHEMIN]\n")
+        "[--remp=CHEMIN --pdf-mesure=CHEMIN]\n")
     return(2L)
   }
   if (sum(selecteurs %in% args) > 1L) {
@@ -926,8 +883,7 @@ nd_main <- function(args) {
               if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)"))
   n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L
   if (sel("motifs")) {
-    moteur <- val("moteur", file.path(dossier_script, "..", "R", "engine.R"))
-    n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut(moteur = moteur)), max_lignes)
+    n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut()), max_lignes)
   }
   if (sel("pages")) n_b <- nd_imprimer_pages(nd_controle_pages(lignes, nd_lire_aux(aux)))
   if (sel("debordements")) n_c <- nd_imprimer_debordements(nd_controle_debordements(nd_lire_journal(journal)))

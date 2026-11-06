@@ -1593,9 +1593,9 @@ verifier("Credibilite pleine : detail du bareme applique (segment G(1) / G(2), c
              grepl("c = 100% ; bareme court du segment II-2 (annexe XVII, G(2))", d2, fixed = TRUE) &&
              grepl("court par convention, non determine par la section G", d0, fixed = TRUE) &&
              grepl(paste("bareme long saisi (valeurs de G(1)) : derogation au bareme de la section G",
-                         "(#93) ; bareme reglementaire du segment II-2 : court (G(2)), c = 100%"),
+                         "; bareme reglementaire du segment II-2 : court (G(2)), c = 100%"),
                    ds, fixed = TRUE) &&
-             grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme derogation (#93),",
+             grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme derogation,",
                          "egale au bareme reglementaire du segment II-1"),
                    d(segment = 1, bareme = "long"), fixed = TRUE) &&
              grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme derogation,",

@@ -440,9 +440,9 @@ usp_bareme_segment <- function(segment, annexe = "II") {
             if (is.null(seg))
               "saisie declaree comme derogation, bareme reglementaire non determine"
             else if (identical(regl, appl))
-              sprintf(paste("saisie declaree comme derogation (#93), egale au bareme",
+              sprintf(paste("saisie declaree comme derogation, egale au bareme",
                             "reglementaire du segment %s"), seg)
-            else sprintf(paste("derogation au bareme de la section G (#93) ; bareme",
+            else sprintf(paste("derogation au bareme de la section G ; bareme",
                                "reglementaire du segment %s : %s (%s), c = %.0f%%"),
                          seg, regl, point(regl), 100 * usp_credibilite(duree, regl)))
   } else if (!is.null(seg)) {
@@ -587,7 +587,7 @@ NATURES_DONNEES <- c("brutes", "nettes")
       "Nature des donnees non declaree : pour la methode du risque de primes, declarer",
       "des donnees \"brutes\" (non ajustees de la reassurance, annexe XVII, B(2)(c) :",
       "sigma brut de l'annexe) ou \"nettes\" (ajustees de la reassurance, B(2)(d) :",
-      "NP standard x sigma brut) ; aucune valeur par defaut (issue #55)."))
+      "NP standard x sigma brut) ; aucune valeur par defaut."))
   }
   # Robustesse (audit de la reprise de #55) : une methode non scalaire ou non
   # textuelle n'est pas une methode de reserve, sans erreur R "condition has
@@ -605,11 +605,11 @@ NATURES_DONNEES <- c("brutes", "nettes")
   if (identical(nature_donnees, "brutes"))
     return(sprintf(paste("Donnees declarees \"brutes\" refusees : la methode du risque de",
                          "reserve no %s exige des donnees nettes de reassurance (%s) ;",
-                         "declarer \"nettes\" ou ne rien declarer (issue #55)."),
+                         "declarer \"nettes\" ou ne rien declarer."),
                    if (identical(methode, "reserve1")) "1" else "2", exigence))
   sprintf(paste("Nature des donnees non reconnue (nature_donnees = %s) : pour la methode du",
                 "risque de reserve no %s, seules \"nettes\" ou l'absence de declaration sont",
-                "recevables (%s ; issue #55)."),
+                "recevables (%s)."),
           paste(deparse(nature_donnees), collapse = " "),
           if (identical(methode, "reserve1")) "1" else "2", exigence)
 }
@@ -3143,7 +3143,7 @@ T_MAX_ENUM_PERMUTATION <- 9L
 SENS_PITMAN_PENTE <- "unilateral"
 .pitman_unilateral <- function(sens = SENS_PITMAN_PENTE) {
   if (!identical(sens, "unilateral"))
-    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" (#169) : ", format(sens, decimal.mark = "."))
+    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" : ", format(sens, decimal.mark = "."))
   TRUE
 }
 .cache_permutations <- new.env(parent = emptyenv())
@@ -4738,7 +4738,7 @@ REFERENCE_P_FAMILLE <- paste(
 # chaque statistique, puis sa cle), dans l'ordre des lignes, separes par
 # ", ".
 DETAIL_P_FAMILLE <- paste(
-  "Lecture conjointe des tests de la famille (issue #297) : p minP en une etape,",
+  "Lecture conjointe des tests de la famille : p minP en une etape,",
   "proportion des replications, observe compris, dont la plus petite p Monte-Carlo",
   "des tests de la famille est au plus egale a l'observee ; rangs calcules sur les",
   "replications qui fondent les p Monte-Carlo des lignes, l'observe compris, et p",
@@ -4755,7 +4755,7 @@ DETAIL_P_FAMILLE <- paste(
 # Reprise du 25/10/2026 (point 5) : la clause sur les verdicts ALERTE ou
 # ECHEC, refutee (verdict fonde sur une p exacte), est remplacee.
 DETAIL_P_GLOBALE <- paste(
-  "Lecture conjointe de la batterie (issue #297) : p minP en une etape sur les %d",
+  "Lecture conjointe de la batterie : p minP en une etape sur les %d",
   "tests des familles (tous, quelle que soit la selection de restitution), meme",
   "construction que les lignes de famille. Elle situe la plus petite p Monte-Carlo",
   "observee dans sa loi sous le modele ajuste, compte tenu du nombre de tests et de",
@@ -6099,7 +6099,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # type test (texte de R1, plancher Monte-Carlo, phrase de #244) ne sont
   # pas repris ; le motif ex aequo (effectifs) est joint par
   # detail_diag().
-  txt_diag_spear_tps <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict",
+  txt_diag_spear_tps <- paste("Restituee en diagnostic par decision : aucun verdict",
                               "ni p-value retenue ; meme alternative (tendance monotone du",
                               "ratio) que la ligne Mann-Kendall, dont le type et le verdict",
                               "font foi.")
@@ -6179,10 +6179,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Brown-Forsythe et Smirnov (famille C. inchangee) sont des diagnostics par
   # decision dans tous les regimes (type_diag(), detail_diag()) :
   # meme mecanisme que #302 ; motifs non applicables prioritaires.
-  txt_diag_h2 <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+  txt_diag_h2 <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                        "p-value retenue ; la structure de variance releve de la ligne",
                        "Breusch-Pagan studentise (Koenker), dont le type et le verdict font foi.")
-  txt_diag_smirnov <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+  txt_diag_smirnov <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                             "p-value retenue ; compare la position de z entre petits et gros",
                             "volumes, alternative de H1 plutot que de H2 ; l'hypothese H1 releve",
                             "des lignes de la famille B., dont le type et le verdict font foi.")
@@ -6442,10 +6442,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # variable, la phrase de la section 5.3, puis la phrase fixe du diagnostic
   # (detail_diag() ; motif Monte-Carlo en tete, pose par add(), si la p
   # Monte-Carlo manque). Priorite des motifs non applicables (stat_definie()).
-  txt_diag_cvm <- paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+  txt_diag_cvm <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                         "p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de",
                         "la ligne Anderson-Darling, dont le type et le verdict font foi.")
-  txt_diag_ks <- paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+  txt_diag_ks <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                        "p-value retenue ; l'hypothese releve de la ligne Lilliefors (distance",
                        "de Kolmogorov sur residus re-standardises), dont le type et le",
                        "verdict font foi.")
@@ -6474,8 +6474,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "sont estimes, et non par la moyenne et l'ecart-type empiriques :",
         "la loi de Kolmogorov, etablie a parametres connus, rend le test",
         "conservateur ; l'ampleur (tres conservateur) n'est constatee que",
-        "par simulation a T = 8 sur le jeu de controle (issue #114), non",
-        "pour les donnees saisies."), p_ks), txt_diag_ks))
+        "par simulation a T = 8 sur le jeu de controle (constat C2,",
+        "tests/constats_puissance_t8.R), non pour les donnees saisies."), p_ks), txt_diag_ks))
   Dl <- stat_lilliefors(z)
   p_li <- lillie_p(Dl, T)
   add(fam, "Lilliefors (KS a parametres estimes)",
@@ -6829,7 +6829,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value%s.", alpha,
                 if (ro$nb_outliers > 0)
                   paste0(" ; rangs ", paste(ro$positions, collapse = ", ")) else ""),
-        "Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+        "Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;",
         "valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
         "a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
         "releve de la ligne Grubbs sur residus standardises, dont le type et le verdict",
@@ -6937,7 +6937,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                   "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
                 else paste("EXACTE est calculee (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
-                           "standardises (issue #29).",
+                           "standardises.",
                            # #214 : la phrase ne declare pas la p exacte retenue ;
                            # #303 (regle R15) : a pi_t constant, la ligne est un
                            # diagnostic sans p retenue, la proposition qui
@@ -6990,12 +6990,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     paste(debut,
       "l'identite des deux lignes n'est plus garantie (la statistique des suites",
       "peut coincider ou non) et la loi combinatoire de R n'est pas attribuee a",
-      "cette ligne (issue #29, seconde condition de la fonction usp_runsr_p_exacte).",
+      "cette ligne (seconde condition de la fonction usp_runsr_p_exacte).",
       if (mc_dispo("Runsr"))
         "La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.")
   } else if (isTRUE(pi_constant)) {
     paste(note_r, "La loi combinatoire de R n'est pas definie ici (un seul cote",
-          "de la mediane represente) : aucune p-value exacte (issue #29).")
+          "de la mediane represente) : aucune p-value exacte.")
   } else {
     paste("pi_t varie avec t : sous le modele ajuste, les r_t sont independants",
           "mais heteroscedastiques (echelle 1/sqrt(pi_t) et mediane propres a",
@@ -7010,7 +7010,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           else
             paste(txt_mc_indispo("La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,"), ";"),
           "la statistique differe en general de celle de la ligne des suites sur",
-          "residus standardises (issue #29).")
+          "residus standardises.")
   }
   add(fam_h4,
       fonction = "stat_dw",
@@ -12374,7 +12374,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # Monte-Carlo, apres le detail ci-dessous ; add() pose ensuite le prefixe,
   # qui precede donc, dans le texte, le detail et ces phrases.
   ru_definie <- .engine_stat_definie(boot, "Runs", ru$stat)
-  txt_diag_ru <- paste("Restituee en diagnostic par decision (issue #312) : aucun verdict ni",
+  txt_diag_ru <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                        "p-value retenue ; l'hypothese releve de la ligne Autocorrelation des",
                        "residus (Durbin-Watson), calculee sur les residus de Mack dans le meme",
                        "ordre de parcours, dont le type et le verdict font foi.")
@@ -12447,7 +12447,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
         "M petit. Sous le modele auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j)",
         "suit, conditionnellement aux cumuls de la colonne j, la loi de Student a n_j - 2",
         "degres de liberte, et min(1, N_t M) borne la p-value de M (Bonferroni) ; cette",
-        "borne est une p non simulee, jamais retenue a la place de la p Monte-Carlo (#181).",
+        "borne est une p non simulee, jamais retenue a la place de la p Monte-Carlo.",
         sprintf(paste("Cellules retenues : colonnes n_j >= %d hors colonnes degenerees,",
                       "N_t = %d ; %d cellule(s) des colonnes n_j = 3 non couverte(s),",
                       "celles des colonnes n_j <= 2 sans degre de liberte."),

@@ -419,7 +419,7 @@ NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
 detail_esd_attendu <- function(alpha, positions)
   paste0(sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value", alpha),
          if (length(positions)) paste0(" ; rangs ", paste(positions, collapse = ", ")) else "",
-         ". Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+         ". Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;",
          " valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
          " a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
          " releve de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi.")

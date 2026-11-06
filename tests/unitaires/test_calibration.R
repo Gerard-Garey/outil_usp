@@ -689,7 +689,7 @@ mentions_saisie <- function(r) {
            unlist(lapply(r$controles, function(l)
              if (identical(l$test, "Credibilite pleine atteinte")) l$detail)))
   length(txt) > 0 && all(grepl(paste("bareme long saisi (valeurs de G(1)) : saisie declaree comme",
-                                     "derogation (#93), egale au bareme reglementaire du segment II-1"),
+                                     "derogation, egale au bareme reglementaire du segment II-1"),
                                txt, fixed = TRUE))
 }
 verifier("Saisie EGALE au bareme du segment (II-1 \"long\" : premium, reserve1, reserve2) : resultat identical hors metadata et chaines de credibilite (#131), drapeau TRUE, origine \"saisi, egal\" (#93)",

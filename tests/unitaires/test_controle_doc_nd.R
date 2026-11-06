@@ -10,8 +10,8 @@
 #        (QQ-plot, regle R14, M6, graine 20260831, fichier docs/tableaux/,
 #        "valeurs issues du bootstrap", dates reglementaires 2015 et 2024,
 #        \code{ND}, L-BFGS-B) ; liste B ; recouvrement de deux motifs d'un
-#        meme id ; parties du document ; exceptions E3 (partie IV seulement)
-#        et E7 (chaine du moteur, drapeau transitoire) ; exception perimee ;
+#        meme id ; parties du document ; exception E3 (partie IV seulement) ;
+#        exception sur mesure (perimee, levee, fenetre de lignes) ;
 #    (b) plafond de pages : lecture d'un .aux synthetique, etendue, trois
 #        verdicts (violation, a verifier, conforme), bornes, exception au
 #        plafond (appliquee, perimee), repli sans labels -fin et sans .aux ;
@@ -136,18 +136,15 @@ verifier("nd_controle_motifs : decompte par motif et par partie",
          .t[.t$motif == "A1", "Partie IV"] == 1L && .t[.t$motif == "A3", "Partie IV"] == 1L &&
          .t[.t$motif == "A2", "occurrences"] == 0L)
 
-# --- Exceptions : E3, E7, perimee ---------------------------------------------------------
-# Moteur synthetique : les zones de E7 sont lues dans les chaines litterales qui portent "issue #N".
-dir_m <- tempfile("nd_moteur_"); dir.create(dir_m)
-f_moteur <- file.path(dir_m, "engine.R")
-writeLines(c('  txt <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict",',
-             '               "ni p-value")',
-             '  # commentaire du moteur sur la decision (issue #299) : ignore',
-             '  msg <- "calcule par simulation a T = 8 sur le jeu de controle (issue #114), non"',
-             '  ext <- "chaine hors liste (issue #321) : jamais admise"',
-             '  r <- "recevables (%s ; issue #55)."',
-             '  v <- "residus standardises (issue #29)." ; w <- "autre residus (issue #299) et ; issue #55)"'), f_moteur)
-exc <- nd$exceptions_motifs_defaut(e7_actif = TRUE, e7_issues = c(299L, 114L, 29L, 55L), moteur = f_moteur)
+# --- Exceptions : E3, perimee, levee, fenetre ----------------------------------------------
+# L'exception transitoire E7 est retiree au lot L1 (#452) : le moteur ne cite plus
+# aucun numero d'issue ; seule E3 reste dans la liste par defaut.
+exc <- nd$exceptions_motifs_defaut()
+verifier("liste par defaut : E3 seule (E7 retiree au lot L1)",
+         identical(vapply(exc, `[[`, character(1), "id"), "E3") &&
+         identical(vapply(nd$EXCEPTIONS_MOTIFS, `[[`, character(1), "id"), "E3") &&
+         !exists("E7_TRANSITOIRE", envir = nd, inherits = FALSE) &&
+         !exists("nd_zones_moteur", envir = nd, inherits = FALSE))
 verifier("E3 : docs/suivi-documentation/ exempte en partie IV",
          identical(motifs("docs/suivi-documentation/IV.md", exceptions = exc, partie_unique = "Partie IV"),
                    character(0)))
@@ -156,51 +153,29 @@ for (p in c("Partie I", "Partie II", "Partie III", "Annexe", "Preambule"))
            "A4" %in% motifs("docs/suivi-documentation/IV.md", exceptions = exc, partie_unique = p))
 verifier("E3 : un autre chemin de docs/ reste refuse en partie IV",
          "A4" %in% motifs("docs/specifications/x.md", exceptions = exc, partie_unique = "Partie IV"))
-.chaine <- "Restituee en diagnostic par decision (issue \\#299) : aucun verdict"
-verifier("E7 : la chaine du moteur (issue \\#299) est admise",
-         identical(motifs(.chaine, exceptions = exc), character(0)))
-verifier("E7 : une autre chaine du moteur de la liste (issue \\#114) est admise, entouree de \\code{} et de guillemets",
-         identical(motifs("«~\\code{sur le jeu de controle (issue~\\#114)}~»", exceptions = exc), character(0)))
-verifier("E7 : le numero #55 (liste) hors d'une chaine du moteur, la meme formule avec un autre numero (#302) ou une autre chaine : refuses",
-         "A1" %in% motifs("Restituee en diagnostic par decision (issue \\#302) : aucun", exceptions = exc) &&
-         "A1" %in% motifs("autre residus standardises (issue \\#299)", exceptions = exc) &&
-         "A1" %in% motifs("chaine hors liste (issue \\#321) : jamais admise", exceptions = exc))
-verifier("E7 : un commentaire du moteur ne cree pas de zone",
-         "A1" %in% motifs("la decision (issue \\#299) : ignore", exceptions = exc))
-verifier("E7 : chaine coupee par un retour a la ligne dans le .tex, reconnue (fenetre de trois lignes)",
-         identical(motifs(c("pose par add() puis une phrase fixe «~\\code{Restituee en diagnostic par decision", "(issue \\#299) : aucun verdict ni p-value"),
-                          exceptions = exc), character(0)))
-verifier("E7 : un numero d'issue hors de la chaine, sur la meme ligne, reste refuse",
-         identical(motifs(paste("voir issue~\\#5 ;", .chaine), exceptions = exc), "A1"))
-z <- nd$nd_zones_moteur(f_moteur, c(299L, 114L, 29L, 55L))
-verifier("E7 : %s du moteur = joker (la valeur citee dans le .tex)",
-         identical(motifs("recevables (0,5 ; issue~\\#55)", exceptions = exc), character(0)))
-verifier("zones du moteur : 6 chaines (les mots avant issue, puis \\#N), commentaire et numero hors liste ignores",
-         length(z) == 6L && all(endsWith(z, "\\\\#299") | endsWith(z, "\\\\#114") | endsWith(z, "\\\\#29") | endsWith(z, "\\\\#55")))
-verifier("zones du moteur reel : non vides, une par chaine distincte",
-         length(nd$nd_zones_moteur(file.path(.dossier, "..", "..", "R", "engine.R"))) >= 10L)
-verifier("zones du moteur : fichier absent ou NULL = aucune zone", length(nd$nd_zones_moteur(NULL)) == 0L &&
-         length(nd$nd_zones_moteur(file.path(dir_m, "absent.R"))) == 0L)
-exc_levee <- nd$exceptions_motifs_defaut(e7_actif = FALSE, moteur = f_moteur)
-verifier("E7 levee (drapeau FALSE) : la chaine redevient un motif",
-         "A1" %in% motifs(.chaine, exceptions = exc_levee))
-verifier("drapeau E7_TRANSITOIRE du script : TRUE au depart (a lever au lot L1)",
-         isTRUE(nd$E7_TRANSITOIRE) && isTRUE(nd$exceptions_motifs_defaut()[[2L]]$actif) &&
-         identical(nd$E7_ISSUES, c(29L, 55L, 114L, 297L, 299L, 302L, 304L, 312L)))
+verifier("ancienne chaine de E7 : un numero d'issue dans une phrase du moteur est refuse",
+         "A1" %in% motifs("Restituee en diagnostic par decision (issue \\#299) : aucun verdict", exceptions = exc))
 .bilan <- function(x, exceptions) {
   parties <- nd$nd_parties(x)
   nd$nd_appliquer_exceptions(nd$nd_chercher(x, parties, nd$MOTIFS_A), x, exceptions)$bilan
 }
-verifier("E7 sans moteur : aucune zone, exception perimee",
-         identical(.bilan(.chaine, nd$exceptions_motifs_defaut(e7_actif = TRUE))$statut, c("en attente", "PERIMEE")))
 b <- .bilan(c("rien a signaler", "texte neutre"), exc)
-verifier("E3 (regle permanente) en attente, E7 (transitoire) perimee quand rien n'est a exempter",
-         identical(b$statut, c("en attente", "PERIMEE")))
-b <- .bilan(c("\\partie{Partie IV}{D}", "docs/suivi-documentation/IV.md", .chaine), exc)
-verifier("exception appliquee : E3 et E7 comptent chacune une occurrence",
-         identical(b$statut, c("appliquee", "appliquee")) && identical(b$n, c(1L, 1L)))
-b <- .bilan(.chaine, exc_levee)
-verifier("exception levee : statut 'levee', jamais perimee", identical(b$statut, c("en attente", "levee")))
+verifier("E3 (regle permanente) en attente quand rien n'est a exempter", identical(b$statut, "en attente"))
+b <- .bilan(c("\\partie{Partie IV}{D}", "docs/suivi-documentation/IV.md"), exc)
+verifier("exception appliquee : E3 compte une occurrence",
+         identical(b$statut, "appliquee") && identical(b$n, 1L))
+.ex <- function(actif = TRUE, fenetre = 1L)
+  list(list(id = "EX", motifs = "A1", zone = "phrase[~\\s]+admise[~\\s]+\\(issue[~\\s]+\\\\#9\\)",
+            fenetre = fenetre, parties = NULL, actif = actif, raison = "test"))
+b <- .bilan("phrase admise (issue~\\#9)", .ex(actif = FALSE))
+verifier("exception levee : statut 'levee', jamais perimee", identical(b$statut, "levee"))
+verifier("exception levee : l'occurrence reste un motif",
+         "A1" %in% motifs("phrase admise (issue~\\#9)", exceptions = .ex(actif = FALSE)))
+verifier("exception a fenetre de deux lignes : zone coupee par un retour a la ligne, reconnue",
+         identical(motifs(c("phrase admise", "(issue~\\#9)"), exceptions = .ex(fenetre = 2L)), character(0)) &&
+         "A1" %in% motifs(c("phrase admise", "(issue~\\#9)"), exceptions = .ex(fenetre = 1L)))
+verifier("exception : un numero d'issue hors de la zone, sur la meme ligne, reste refuse",
+         identical(motifs("voir issue~\\#5 ; phrase admise (issue~\\#9)", exceptions = .ex()), "A1"))
 b <- .bilan("issue~\\#9", list(list(id = "EX", motifs = "A1", zone = "ne correspond a rien",
                                     parties = NULL, actif = TRUE, raison = "test")))
 verifier("exception sur mesure qui n'exempte rien : perimee", identical(b$statut, "PERIMEE"))
@@ -528,5 +503,5 @@ verifier("aux : avis sur les pages non numeriques, fiches concernees sans etendu
          any(grepl("non numerique", res_r$avis)) && is.na(res_r$fiches$etendue[1L]) && res_r$fiches$etendue[2L] == 1L &&
          res_r$fiches$verdict[1L] == "a verifier (sans pages)")
 
-unlink(c(dir_b, dir_m), recursive = TRUE)
+unlink(dir_b, recursive = TRUE)
 fin_fichier()
