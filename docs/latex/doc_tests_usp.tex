@@ -26,7 +26,7 @@
 \usepackage{longtable}
 \usepackage{pdflscape}
 \usepackage{enumitem}
-\usepackage{mdframed}
+\usepackage{framed}
 \usepackage{hyperref}
 \usetikzlibrary{arrows.meta, positioning, calc, shapes.geometric, fit, backgrounds}
 
@@ -151,10 +151,119 @@
   \end{minipage}
   \end{minipage}\par\vspace{3mm}}
 
-% L'encadre generique reprend le filet bleu de la charte.
-\newmdenv[linecolor=financeblue, linewidth=0pt, leftline=true,
-          innerleftmargin=6mm, innertopmargin=4pt, innerbottommargin=4pt,
-          backgroundcolor=tablerow, skipabove=3mm, skipbelow=3mm]{encadre}
+% Encadre generique : fond gris (tablerow), marge interieure 6 mm a gauche et
+% 10 pt a droite, 4 pt en haut et en bas, 3 mm avant (sauf apres un titre) et
+% apres ; premier paragraphe non indente. Secable entre pages (paquet
+% framed), selon la regle de coupe \usp@coupe ci-dessous. Le cadre garde la
+% profondeur de la boite d'essai de framed, pour que framed taille le premier
+% morceau a la place restante.
+\makeatletter
+\newenvironment{encadre}{%
+  \def\FrameCommand##1{{\setlength{\fboxsep}{\z@}%
+    \colorbox{tablerow}{\hspace*{6mm}%
+      \vbox{\vskip4pt\hbox{##1}\vskip4pt}\hspace*{10pt}}}}%
+  \@ifundefined{OuterFrameSep}{}{\setlength{\OuterFrameSep}{\z@}}%
+  \topsep\z@ \partopsep\z@ % framed anterieur a 0.96 : espacement via \topsep
+  % En tete de page, le cadre affleure le haut du corps de page (framed le
+  % baisserait de \topskip moins 6 pt).
+  \def\FrameHeightAdjust{\topskip}%
+  \par
+  \if@nobreak\usp@sanscoupure\else\vskip 3mm\fi
+  \nointerlineskip
+  \MakeFramed{\let\penalty\usp@penalite@ori
+    \advance\hsize-\width \FrameRestore
+    \everypar{{\setbox\z@\lastbox}\everypar{}}}}%
+  {\global\let\fb@put@frame\usp@coupe % hors du groupe de la boite
+   \global\usp@premiertrue
+   \endMakeFramed
+   \global\let\fb@put@frame\usp@putframe
+   \par
+   \vskip 3mm\prevdepth 4pt
+   \global\@nobreakfalse\global\@endpetrue}
+% Mise en page : coupe de l'encadre, decidee a chaque placement d'un morceau,
+% avant la coupe de framed. Premier placement : un encadre court (hauteur
+% totale au plus \usp@encadrecourt, une demi-page) qui ne tient pas dans la
+% place restante est pose entier, et TeX coupe la page au dernier point de
+% coupure qui le precede : juste avant lui, ou avant le titre qu'il suit
+% (aucun point de coupure entre un titre et l'encadre : \usp@sanscoupure).
+% Encadre long : coupe, chaque morceau gardant au moins trois lignes, a chaque
+% page (page suivante si la place restante en tient moins ; page ecourtee si
+% le reste en tiendrait moins). Exception : si des flottants attendent la page
+% suivante (\@deferlist) et que l'encadre court ne tient pas avec eux sur une
+% page, pose entier il deborderait ; il est alors coupe comme un encadre long.
+% De meme s'il commence en tete de page : il ne peut etre reporte, et la
+% page peut deja porter des flottants. Un encadre coupe trop court pour donner
+% deux morceaux de trois lignes (hauteur du contenu, cadre deduit, sous 5,5
+% interlignes : six lignes ou moins ; sept lignes se coupent en trois et
+% quatre) passe entier a la page suivante. Limites : tous les flottants en
+% attente sont comptes, meme ceux qui n'iront pas sur la page suivante (coupe
+% parfois inutile) ; sur une page qui porte un flottant en tete, la coupe de
+% framed peut deborder d'environ 1 pt (Overfull \vbox, tolere jusqu'a 1,5 pt).
+\newdimen\usp@encadrecourt \usp@encadrecourt=.5\textheight
+\newif\ifusp@premier
+\let\usp@putframe\fb@put@frame
+\let\usp@penalite@ori\penalty
+% Penalites 9999 de \MakeFramed (mise a jour de \pagetotal) rendues
+% insecables juste apres un titre ; \penalty est retabli dans la boite.
+\def\usp@sanscoupure{\def\penalty{\afterassignment\usp@penalite\count@}}
+\def\usp@penalite{\ifnum\count@=9999 \count@\@M\fi\usp@penalite@ori\count@}
+\def\usp@coupe#1#2{%
+  \let\usp@suite\usp@putframe
+  \ifinner\else\ifdim\pagegoal=\maxdimen\else
+    \fb@sizeofframe#1%
+    \dimen@\pagegoal \advance\dimen@-\pagetotal \advance\dimen@-\fb@frh
+    \advance\dimen@-\pageshrink \advance\dimen@-\pagedepth
+    \dimen@ii\ht\@tempboxa
+    \ifdim\dimen@ii>\dimen@
+      \advance\dimen@ii\fb@frh
+      \ifusp@premier\ifdim\dimen@ii>\usp@encadrecourt\else
+        \usp@flottants % hauteur des flottants en attente
+        \advance\dimen@ii\@tempdima
+        \@tempdimb\topskip \advance\@tempdimb\p@
+        \ifdim\pagetotal>\@tempdimb % la page porte deja du texte
+          \ifdim\dimen@ii>\textheight\else % tient avec eux : pose entier
+            \let\usp@suite\usp@entier
+          \fi
+        \fi % en tete de page (flottants deja places) : coupe
+        \advance\dimen@ii-\@tempdima
+      \fi\fi
+      \advance\dimen@ii-\fb@frh
+      \ifx\usp@suite\usp@entier\else
+        \ifdim\dimen@<3\baselineskip
+          \eject\fb@adjheight
+        \else
+          \@tempdimb\dimen@ii \advance\@tempdimb-\fb@frh
+          \advance\dimen@ii-\dimen@
+          \ifdim\dimen@ii<3\baselineskip
+            \ifdim\@tempdimb<5.5\baselineskip
+              % trop court pour deux morceaux de trois lignes : page suivante
+              \eject\fb@adjheight
+            \else
+              \advance\dimen@ii-3\baselineskip
+              \advance\dimen@ii-\fb@frh % marge : rembourrage du cadre
+              \advance\dimen@ii\pagegoal \pagegoal\dimen@ii % toujours global
+            \fi
+          \fi
+        \fi
+      \fi
+    \fi
+  \fi\fi
+  \global\usp@premierfalse
+  \usp@suite#1#2}
+% Hauteur (\@tempdima) des flottants qui attendent la page suivante
+% (\@deferlist), avec leurs espaces ; zero s'il n'y en a pas.
+\def\usp@flottants{\@tempdima\z@
+  \ifx\@deferlist\@empty\else
+    \begingroup
+      \def\@elt##1{\global\advance\@tempdima\ht##1%
+        \global\advance\@tempdima\dp##1\global\advance\@tempdima\floatsep}%
+      \@deferlist
+    \endgroup
+    \advance\@tempdima\textfloatsep \advance\@tempdima-\floatsep
+  \fi}
+% Encadre court pose entier : la page deborde et TeX la coupe avant lui.
+\def\usp@entier#1#2{\fb@putboxa#1\fb@afterframe}
+\makeatother
 
 % Fiches de test : six rubriques fixes, plus la rubrique 7 (\Pertinence)
 % pour les fiches de test.
@@ -6272,7 +6381,7 @@ nature \code{asymptotique}.
 \scriptsize
 \setlength{\tabcolsep}{5pt}
 \renewcommand{\arraystretch}{1.20}
-\begin{longtable}{@{}p{2.9cm}p{1.5cm}p{1.1cm}p{1.3cm}p{1.3cm}p{1.3cm}p{2.7cm}p{4.7cm}p{4.1cm}@{}}
+\begin{longtable}{@{}p{2.9cm}p{1.5cm}p{1.15cm}p{1.3cm}p{1.3cm}p{1.3cm}p{2.7cm}p{4.7cm}p{4.1cm}@{}}
 \toprule
 \textbf{Test} & \textbf{Méthode} & \textbf{Stat.} & \textbf{Exacte ?} & \textbf{Asympt. ?} &
 \textbf{MC ?} & \textbf{Voie retenue} &
@@ -10914,7 +11023,7 @@ $s_t = z_t^2 - 1 - z_t/\sqrt{\hat\pi_t}$~:
 \]
 À $\hat\pi_t$ constant ($\hat\delta = 1$ ou volumes constants), $\sum_t z_t = 0$ et
 $g_\gamma = w\,\big(\sum_t z_t^2 - T\big)$, avec $w = -\pi\,2ea/(1+ea)$ commun à toutes les
-années. Le gradient est projeté sur les bornes (\code{usp\_condition\_premier\_ordre()})~:
+années. Le gradient est projeté sur les bornes (\code{usp\_condition\_}\allowbreak\code{premier\_ordre()})~:
 $\delta \in [0,1]$ et $\gamma \in [-12, 3]$ (\code{BORNES\_GAMMA}, bornes numériques et non
 réglementaires, le règlement ne bornant que $\delta$, au dernier alinéa de B(6) et de C(6)), le bord
 étant jugé à \code{TOL\_DELTA\_BORD} $= 10^{-6}$ près par les prédicats uniques
@@ -12617,7 +12726,7 @@ autres sont d'interprétation directe et sont décrites dans le tableau.
 \begin{center}
 \small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.7cm}p{1.3cm}p{1.9cm}p{6.3cm}@{}}
+\begin{tabular}{@{}p{4.7cm}p{1.35cm}p{2.15cm}p{6.3cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Fonction}} &
 \textcolor{financeblue}{\textbf{Méthode}} &
@@ -12682,7 +12791,7 @@ Suite du recensement~: diagnostics d'influence, estimation et calibration.
 
 {\small
 \rowcolors{2}{tablerow}{white}
-\begin{longtable}{@{}p{4.7cm}p{1.3cm}p{1.9cm}p{6.3cm}@{}}
+\begin{longtable}{@{}p{4.7cm}p{1.35cm}p{2.15cm}p{6.3cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Fonction}} &
 \textcolor{financeblue}{\textbf{Méthode}} &
@@ -20054,9 +20163,9 @@ autres sont des diagnostics.}
 \label{fig:annexe-h2}
 \end{figure}
 
+\begin{landscape}
 \subsection{Méthode lognormale : hypothèses H3 et H4, stabilité}
 
-\begin{landscape}
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
@@ -20079,19 +20188,19 @@ autres sont des diagnostics.}
 
 % --- Colonne des fonctions ---------------------------------------------------
 \node[mut, right=13mm of z, yshift=30mm] (sw) {\code{.shapiro\_sur()}};
-\node[ded, below=5mm of sw] (sf) {\code{test\_shapiro\_}\\ \code{francia()}};
-\node[ded, below=4mm of sf] (ad) {\code{stat\_ad()}\\ + \code{ad\_p\_stephens()}};
-\node[ded, below=4mm of ad] (cv) {\code{stat\_cvm()}\\ + \code{cvm\_p\_stephens()}};
-\node[mut, below=4mm of cv] (li) {\code{stat\_lilliefors()}\\ + \code{lillie\_p()}};
-\node[ded, below=4mm of li] (ks) {\code{stat\_ks()}};
-\node[ded, below=4mm of ks] (jb) {\code{test\_jarque\_bera()}};
-\node[ded, below=4mm of jb] (da) {\code{test\_dagostino\_}\\ \code{skew()}};
-\node[ded, below=4mm of da] (ag) {\code{test\_anscombe\_kurt()}};
-\node[mut, below=6mm of ag] (dw) {\code{stat\_dw()}\\ + \code{dw\_p\_exacte()}};
-\node[ded, below=5mm of dw] (lb) {\code{stats::Box.test()}};
-\node[mut, below=4mm of lb] (ru) {\code{test\_runs()}\\ + \code{runs\_p\_exacte()}};
+\node[ded, below=2mm of sw] (sf) {\code{test\_shapiro\_}\\ \code{francia()}};
+\node[ded, below=2mm of sf] (ad) {\code{stat\_ad()}\\ + \code{ad\_p\_stephens()}};
+\node[ded, below=2mm of ad] (cv) {\code{stat\_cvm()}\\ + \code{cvm\_p\_stephens()}};
+\node[mut, below=2mm of cv] (li) {\code{stat\_lilliefors()}\\ + \code{lillie\_p()}};
+\node[ded, below=2mm of li] (ks) {\code{stat\_ks()}};
+\node[ded, below=2mm of ks] (jb) {\code{test\_jarque\_bera()}};
+\node[ded, below=2mm of jb] (da) {\code{test\_dagostino\_}\\ \code{skew()}};
+\node[ded, below=2mm of da] (ag) {\code{test\_anscombe\_kurt()}};
+\node[mut, below=4mm of ag] (dw) {\code{stat\_dw()}\\ + \code{dw\_p\_exacte()}};
+\node[ded, below=2mm of dw] (lb) {\code{stats::Box.test()}};
+\node[mut, below=2mm of lb] (ru) {\code{test\_runs()}\\ + \code{runs\_p\_exacte()}};
 \node[ded, below=6mm of ru] (sf2) {\code{stat\_supF()},\\ \code{stat\_cusum()}};
-\node[mut, below=4mm of sf2] (gr) {\code{test\_grubbs()},\\ \code{test\_rosner()}};
+\node[mut, below=2mm of sf2] (gr) {\code{test\_grubbs()},\\ \code{test\_rosner()}};
 
 % --- Colonne des fonctions internes (lois de reference) ----------------------
 \node[int, right=14mm of dw] (imh) {\code{.imhof\_p\_sup0()}};
@@ -20144,10 +20253,9 @@ fournissent des lois de référence.}
 \end{figure}
 \end{landscape}
 
-\newpage
+\begin{landscape}
 \subsection{Méthode Merz--Wüthrich : de l'ajustement aux tests M1 à M6}
 
-\begin{landscape}
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[
@@ -20181,20 +20289,20 @@ fournissent des lois de référence.}
 \node[mut, below=16mm of aj] (res) {\code{mw\_residus()}\\ \scriptsize résidus $r(i,j)$};
 
 % --- Colonne des fonctions de test ------------------------------------------
-\node[ded, right=16mm of res, yshift=34mm] (m1)
+\node[ded, right=12mm of res, yshift=34mm] (m1)
   {\code{.mw\_pente\_relative()},\\ \code{mw\_test\_ordonnee\_}\\ \code{origine()},
    \code{mw\_test\_}\\ \code{homogeneite\_f()}, \code{mw\_test\_courbure()},\\
    \code{mw\_famille\_alpha()},\\ \code{mw\_identifiabilite\_}\\ \code{intra()}};
-\node[ded, below=5mm of m1] (m2)
+\node[ded, below=2.5mm of m1] (m2)
   {\code{mw\_test\_}\\ \code{heteroscedasticite\_}\\ \code{intra()},
    \code{mw\_test\_}\\ \code{exposant\_variance()}};
-\node[ded, below=5mm of m2] (cal) {\code{mw\_test\_annees\_}\\ \code{calendaires()},
+\node[ded, below=2.5mm of m2] (cal) {\code{mw\_test\_annees\_}\\ \code{calendaires()},
    \code{mw\_calendrier\_}\\ \code{diagonales()}};
-\node[ded, below=5mm of cal] (cor) {\code{mw\_stat\_}\\ \code{correlation\_dev()},
+\node[ded, below=2.5mm of cal] (cor) {\code{mw\_stat\_}\\ \code{correlation\_dev()},
    \code{mw\_test\_}\\ \code{homogeneite\_accident()}};
-\node[mut, below=5mm of cor] (dw) {\code{stat\_dw()}, \code{test\_runs()}};
-\node[mut, below=5mm of dw] (gr) {\code{mw\_test\_cellule\_}\\ \code{aberrante()}, \code{test\_rosner()}};
-\node[mut, below=5mm of gr] (sw) {\code{.shapiro\_sur()}, \code{sw\_p\_loi\_nulle()},\\
+\node[mut, below=2.5mm of cor] (dw) {\code{stat\_dw()}, \code{test\_runs()}};
+\node[mut, below=2.5mm of dw] (gr) {\code{mw\_test\_cellule\_}\\ \code{aberrante()}, \code{test\_rosner()}};
+\node[mut, below=2.5mm of gr] (sw) {\code{.shapiro\_sur()}, \code{sw\_p\_loi\_nulle()},\\
    \code{stat\_lilliefors()}, \code{lillie\_p()}};
 
 % --- Fonctions internes : colonne intermediaire dediee -----------------------
@@ -20205,7 +20313,7 @@ fournissent des lois de référence.}
 \node[int] at ([xshift=48mm]cal) (mo) {\code{.mack\_moments\_Z()}};
 
 % --- Colonne des sorties : abscisse commune ---------------------------------
-\coordinate (cx) at ([xshift=16mm]fi.east);
+\coordinate (cx) at ([xshift=10mm]fi.east);
 \node[sor, anchor=west] at (cx |- m1)  (q1) {M1 (6 entrées)};
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
@@ -20214,12 +20322,12 @@ fournissent des lois de référence.}
 \node[sor, anchor=west] at (cx |- gr)  (q6) {M4 aberrants};
 \node[sor, anchor=west] at (cx |- sw)  (q7) {M5 normalité};
 
-\node[ded, below=7mm of res] (boot) {\code{mw\_bootstrap()}};
-\node[int, below=5mm of boot] (st)
-  {\code{mw\_simuler\_triangle()},\\ \code{.mw\_stats()}};
-\node[sor, below=5mm of st] (pmc) {p-values de Monte-Carlo};
-\node[mut, below=5mm of pmc] (fam) {\code{engine\_p\_famille()},\\ \code{.engine\_minp\_rangs()}};
-\node[sor, below=5mm of fam] (qlc) {M1, M2, M3~: p de famille~;\\ LC~: p globale (diagnostics)};
+\node[ded, below=4mm of res] (boot) {\code{mw\_bootstrap()}};
+\node[int, below=3mm of boot] (st)
+  {\code{mw\_simuler\_}\\ \code{triangle()},\\ \code{.mw\_stats()}};
+\node[sor, below=3mm of st] (pmc) {p-values de Monte-Carlo};
+\node[mut, below=3mm of pmc] (fam) {\code{engine\_p\_famille()},\\ \code{.engine\_minp\_rangs()}};
+\node[sor, below=3mm of fam] (qlc) {M1, M2, M3~: p de famille~;\\ LC~: p globale (diagnostics)};
 
 % --- Liaisons ----------------------------------------------------------------
 \draw[fl] (tri) -- (val); \draw[fl] (val) -- (aj);
@@ -20265,7 +20373,7 @@ de famille de M1 à M3 comptée au seul nœud «~p de famille~».}
 \begin{center}
 \small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.4cm}p{3.0cm}p{7.6cm}@{}}
+\begin{tabular}{@{}p{3.9cm}p{3.8cm}p{7.3cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Configuration}} &
 \textcolor{financeblue}{\textbf{Exemples}} &
