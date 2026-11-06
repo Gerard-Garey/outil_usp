@@ -895,7 +895,7 @@ EXEMPTES_DECOMPTES <- list(
   list(id = "multiplicite T2 bis : definition de la population (48, deux et 44 lignes)",
        contexte = paste0("Population : les 48 lignes d'usp_tests\\(\\) reconstruites par la mesure ",
                          "\\(hors les deux lignes du rapport de vraisemblance sur .delta et la largeur ",
-                         "de l'intervalle \u00e0 .delta fix\u00e9, issue .#45\\), moins le TOST, le test de ",
+                         "de l'intervalle \u00e0 .delta fix\u00e9\\), moins le TOST, le test de ",
                          "Pitman sur la pente, le test de \\w+ et la proc\u00e9dure ESD, soit 44 lignes"),
        motif = MOTIF_POPULATION_T2BIS),
   list(id = "multiplicite T2 bis : parts inchangees sur les 44 lignes",

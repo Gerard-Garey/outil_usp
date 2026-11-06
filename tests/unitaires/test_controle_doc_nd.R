@@ -138,11 +138,11 @@ verifier("nd_controle_motifs : decompte par motif et par partie",
 
 # --- Exceptions : E3, perimee, levee, fenetre ----------------------------------------------
 # L'exception transitoire E7 est retiree au lot L1 (#452) : le moteur ne cite plus
-# aucun numero d'issue ; seule E3 reste dans la liste par defaut.
+# aucun numero d'issue ; E3 et E10 (date figee, lot L7) forment la liste par defaut.
 exc <- nd$exceptions_motifs_defaut()
-verifier("liste par defaut : E3 seule (E7 retiree au lot L1)",
-         identical(vapply(exc, `[[`, character(1), "id"), "E3") &&
-         identical(vapply(nd$EXCEPTIONS_MOTIFS, `[[`, character(1), "id"), "E3") &&
+verifier("liste par defaut : E3 et E10 (E7 retiree au lot L1)",
+         identical(vapply(exc, `[[`, character(1), "id"), c("E3", "E10")) &&
+         identical(vapply(nd$EXCEPTIONS_MOTIFS, `[[`, character(1), "id"), c("E3", "E10")) &&
          !exists("E7_TRANSITOIRE", envir = nd, inherits = FALSE) &&
          !exists("nd_zones_moteur", envir = nd, inherits = FALSE))
 verifier("E3 : docs/suivi-documentation/ exempte en partie IV",
@@ -153,6 +153,14 @@ for (p in c("Partie I", "Partie II", "Partie III", "Annexe", "Preambule"))
            "A4" %in% motifs("docs/suivi-documentation/IV.md", exceptions = exc, partie_unique = p))
 verifier("E3 : un autre chemin de docs/ reste refuse en partie IV",
          "A4" %in% motifs("docs/specifications/x.md", exceptions = exc, partie_unique = "Partie IV"))
+verifier("E10 : ligne de definition de \\datedoc exemptee au preambule",
+         identical(motifs("\\newcommand{\\datedoc}{6~novembre 2026}", exceptions = exc, partie_unique = "Preambule"),
+                   character(0)))
+verifier("E10 : une date ecrite hors de la ligne de \\datedoc reste refusee au preambule",
+         "A10" %in% motifs("\\newcommand{\\autredate}{6~novembre 2026}", exceptions = exc, partie_unique = "Preambule"))
+for (p in c("Partie I", "Partie IV", "Annexe"))
+  verifier(paste0("E10 : la ligne de \\datedoc refusee en ", p),
+           "A10" %in% motifs("\\newcommand{\\datedoc}{6~novembre 2026}", exceptions = exc, partie_unique = p))
 verifier("ancienne chaine de E7 : un numero d'issue dans une phrase du moteur est refuse",
          "A1" %in% motifs("Restituee en diagnostic par decision (issue \\#299) : aucun verdict", exceptions = exc))
 .bilan <- function(x, exceptions) {
@@ -160,10 +168,10 @@ verifier("ancienne chaine de E7 : un numero d'issue dans une phrase du moteur es
   nd$nd_appliquer_exceptions(nd$nd_chercher(x, parties, nd$MOTIFS_A), x, exceptions)$bilan
 }
 b <- .bilan(c("rien a signaler", "texte neutre"), exc)
-verifier("E3 (regle permanente) en attente quand rien n'est a exempter", identical(b$statut, "en attente"))
+verifier("E3 et E10 (regles permanentes) en attente quand rien n'est a exempter", identical(b$statut, c("en attente", "en attente")))
 b <- .bilan(c("\\partie{Partie IV}{D}", "docs/suivi-documentation/IV.md"), exc)
 verifier("exception appliquee : E3 compte une occurrence",
-         identical(b$statut, "appliquee") && identical(b$n, 1L))
+         identical(b$statut[b$id == "E3"], "appliquee") && identical(b$n[b$id == "E3"], 1L))
 .ex <- function(actif = TRUE, fenetre = 1L)
   list(list(id = "EX", motifs = "A1", zone = "phrase[~\\s]+admise[~\\s]+\\(issue[~\\s]+\\\\#9\\)",
             fenetre = fenetre, parties = NULL, actif = actif, raison = "test"))

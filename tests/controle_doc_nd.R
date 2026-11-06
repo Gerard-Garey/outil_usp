@@ -15,6 +15,7 @@
 #      exemptes, zone, parties, raison) sont appliquees ; une exception qui
 #      n'exempte plus rien est signalee PERIMEE.
 #        E3 : docs/suivi-documentation/ admis en partie IV seulement.
+#        E10 : date figee, ligne de definition de \datedoc (preambule) seulement.
 #      L'exception transitoire E7 (chaines du moteur qui portaient un numero
 #      d'issue) est retiree au lot L1 (#452), qui a retire ces numeros du moteur.
 #      Les exceptions E1, E2, E4, E5, E6, E8 et E9 de la grille sont
@@ -208,7 +209,10 @@ exceptions_motifs_defaut <- function() {
   list(
     list(id = "E3", motifs = "A4", zone = "docs/suivi-documentation/", fenetre = 1L,
          parties = "Partie IV", actif = TRUE, permanente = TRUE,
-         raison = "regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement")
+         raison = "regle permanente : dossier de suivi cite comme piece de tracabilite, en partie IV seulement"),
+    list(id = "E10", motifs = "A10", zone = "\\\\newcommand\\{\\\\datedoc\\}\\{[^}]*\\}", fenetre = 1L,
+         parties = "Preambule", actif = TRUE, permanente = TRUE,
+         raison = "regle permanente : date d'etablissement figee, ligne de definition de \\datedoc")
   )
 }
 EXCEPTIONS_MOTIFS <- exceptions_motifs_defaut()
