@@ -32,7 +32,7 @@
 #                     1,2 page qui commence en bas de page compte 3 pages) ;
 #        conforme   : sinon.
 #      Liste EXCEPTIONS_PLAFOND (label, plafond accorde en pages, raison),
-#      vide au depart ; une exception dont la fiche est conforme sans elle
+#      tranchee lot par lot ; une exception dont la fiche est conforme sans elle
 #      est PERIMEE. Sans .aux, ou sans labels -fin, le controle le signale et
 #      retombe sur les caracteres seuls ("a verifier (sans pages)"), en
 #      avertissement : jamais une violation.
@@ -83,9 +83,19 @@ SEUIL_PAGES_PLAFOND      <- 3L       # etendue (pages) a partir de laquelle on e
 SEUIL_CARACTERES_PLAFOND <- 10500L   # source (caracteres) au-dela de laquelle c'est une violation
 
 # --- Exceptions au plafond de pages (label, plafond accorde en pages, raison) --
-# Vide au depart : chaque exception est tranchee au tri de son lot. Le label est
-# celui de la fiche (fiche:student-pente) ou son numero automatique (fiche:12).
-EXCEPTIONS_PLAFOND <- list()
+# Chaque exception est tranchee au tri de son lot, sur accord du mainteneur, et
+# inscrite aussi dans docs/latex/CONVENTIONS.md, section 1 (budget en caracteres).
+# Le label est celui de la fiche (fiche:student-pente) ou son numero automatique.
+EXCEPTIONS_PLAFOND <- list(
+  list(label = "fiche:student-pente", pages = 3L,
+       raison = "second fondement d'exactitude (loi de permutation exacte sous l'echangeabilite), reserve d'echangeabilite et constat C6 gardes integralement ; source au plus 13 000 caracteres"),
+  list(label = "fiche:foc", pages = 3L,
+       raison = "controle numerique qui fonde la validite de l'estimation : derivation, regle au moins un demarrage et sa reserve, identite FOC, lecture a T = 8, libelle courbure ; source au plus 15 000 caracteres"),
+  list(label = "fiche:rosner-esd", pages = 3L,
+       raison = "source valable pour n >= 25 seulement : lecture critique de l'article, niveau exact de la premiere etape et son domaine, constat C7, raisons de l'absence de verdict ; source au plus 13 000 caracteres"),
+  list(label = "fiche:ic-bootstrap", pages = 3L,
+       raison = "seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table ; source au plus 15 000 caracteres")
+)
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
 .mois <- paste0("(?:janvier|f\u00e9vrier|mars|avril|mai|juin|juillet|ao\u00fbt|",

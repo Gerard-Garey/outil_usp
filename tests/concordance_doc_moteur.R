@@ -413,16 +413,7 @@ EXEMPTES_CODE <- list(
   list(nom = "reactive", objet = "fonction", contexte = "Toute primitive Shiny", fenetre = 2L,
        motif = MOTIF_INTERDIT_SHINY),
   list(nom = "render*", objet = "fonction", contexte = "Toute primitive Shiny", fenetre = 2L,
-       motif = MOTIF_INTERDIT_SHINY),
-  list(nom = "REP_PAS_KKT", objet = "constante",
-       contexte = "qui remplace le rep\u00e8re REP_PAS_KKT de la d\u00e9cision M17", fenetre = 0L,
-       motif = "mention historique : repere de la decision M17 remplace par REP_SIGMA_KKT (issue #71)"),
-  list(nom = "$hessien_gamma", objet = "champ", contexte = "qui remplacent depuis l'issue", fenetre = 1L,
-       motif = "mention historique : champ de res$ajustement remplace depuis l'issue #71"),
-  list(nom = "$pas_newton_gamma", objet = "champ", contexte = "qui remplacent depuis l'issue", fenetre = 1L,
-       motif = "mention historique : champ de res$ajustement remplace depuis l'issue #71"),
-  list(nom = "$foc", objet = "champ", contexte = "champ .?foc de l'ajustement, supprim\u00e9", fenetre = 1L,
-       motif = "mention historique : champ de l'ajustement supprime (ligne de diagnostic retiree a l'issue #22)")
+       motif = MOTIF_INTERDIT_SHINY)
 )
 
 # Exemptions de EXEMPTES_CODE qui s'appliquent a un controle (objet :
@@ -682,10 +673,8 @@ DECOMPTES <- list(
   list(id = "prime : lignes du test des suites (meme p exacte)", methode = "premium",
        motif = paste0("les ", N_, " lignes portent la m\u00eame p-value exacte"),
        champs = "lignes du test des suites"),
-  list(id = "prime : lignes du test des suites (fiche des suites, rubrique 5)", methode = "premium",
+  list(id = "prime : lignes du test des suites (fiche des suites sur ratios bruts, rubrique 5)", methode = "premium",
        motif = paste0("0,743 sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
-  list(id = "prime : lignes du test des suites (fiche des suites sur u_t)", methode = "premium",
-       motif = paste0("0,743 retenue sur les ", N_, " lignes, p_mc"), champs = "lignes du test des suites"),
   list(id = "prime : grandeurs rivees par l'estimation", methode = "premium",
        motif = paste0("Ces ", N_, " lignes sont restitu\u00e9es comme diagnostics, sans p-value retenue"),
        champs = "grandeur rivee"),
