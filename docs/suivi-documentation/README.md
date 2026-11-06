@@ -136,3 +136,24 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `fiche:spread-location` | `III-H.md` | Graphique dispersion-niveau | III |
 | `sec:graph-mw` | `III-H.md` | Visualisation de la régression chain-ladder (Merz–Wüthrich) | III |
 | `mw:influence` | `III-H.md` | Influence et leviers du triangle (Merz–Wüthrich) | III |
+| Correspondance SHA (entrée transversale) | `III-M.md` | Correspondance SHA de la partie Merz–Wüthrich | III |
+| Règles communes de M1 (entrée transversale) | `III-M.md` | Colonnes dégénérées et ensembles figés (règles communes de M1, `sec:mwm1`) | III |
+| Phrases de B effectif (entrée transversale) | `III-M.md` | Phrases de B effectif et du retirage (`sec:boot-mw`) | III |
+| Règle R1 (entrée transversale) | `III-M.md` | Règle R1 sur le plancher Monte-Carlo (lignes de rang et de comptage de M1 à M3) | III |
+| `sec:mw` | `III-M.md` | Méthode Merz–Wüthrich, cadre et spécification | III |
+| `mw:m1` | `III-M.md` | Absence de tendance des facteurs avec le cumulé | III |
+| `mw:m1a` | `III-M.md` | Nullité de l'ordonnée à l'origine, colonne par colonne | III |
+| `mw:m1b` | `III-M.md` | Homogénéité de f_j entre années de survenance | III |
+| `mw:m1c` | `III-M.md` | Absence de courbure de la régression | III |
+| `mw:m1d` | `III-M.md` | Stabilité du facteur selon la pondération (famille α) | III |
+| `mw:m1id` | `III-M.md` | Identifiabilité intra-colonne | III |
+| `mw:m2bp` | `III-M.md` | Hétéroscédasticité résiduelle contre le cumulé | III |
+| `mw:m2b` | `III-M.md` | Adéquation de l'exposant de variance, colonne par colonne | III |
+| `mw:m2var` | `III-M.md` | Variance unitaire des résidus de Mack | III |
+| `sec:mwm3` | `III-M.md` | Hypothèse M3, indépendance (tête de section) | III |
+| `mw:m3cal` | `III-M.md` | Effets d'année calendaire (test de Mack) | III |
+| `mw:m3caldiag` | `III-M.md` | Effets d'année calendaire par diagonale | III |
+| `mw:m3acc` | `III-M.md` | Homogénéité des résidus entre années de survenance | III |
+| `mw:m3cor` | `III-M.md` | Corrélation entre années de développement adjacentes | III |
+| `mw:m3runs` | `III-M.md` | Test des suites sur les résidus de Mack | III |
+| `sec:calib-mc-mw` | `IV.md` | Calibration des p-values de Monte-Carlo (Merz–Wüthrich) | IV |
