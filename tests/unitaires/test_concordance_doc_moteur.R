@@ -1186,11 +1186,12 @@ verifier("Audit de #160, C5 : perimees -- nom hors controle et constante sans so
            identical(.ch_c5$statut, c("hors objets (liste fermee)", "objet run_engine()", "INTROUVABLE")))
 
 # --strict sur une copie mutante du .tex (un appel du script) : constante et
-# champ inventes signales ; nom existant coupe par \newline admis ; mention
-# historique exemptee (REP_PAS_KKT) cite hors de son contexte signalee, son
-# occurrence historique restant exemptee.
+# champ inventes signales ; nom existant coupe par \newline admis ; constante
+# retiree du moteur (REP_PAS_KKT) citee comme existante signalee, sans ligne
+# de mention historique puisque plus rien n'est exempte. Le mecanisme
+# d'exemption historique n'est plus exerce par le .tex reel : il l'est sur
+# entrees synthetiques (verifier_constantes_champs() et .ex160, plus haut).
 .tex_160 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
-.k160 <- grep("\\code{REP\\_PAS\\_KKT}", .tex_160, fixed = TRUE)
 .n160 <- length(.tex_160)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(c(.tex_160,
@@ -1204,10 +1205,9 @@ verifier("Issue #160 : --strict echoue (code 1) sur une copie du .tex citant CON
          r_160$code == 1L &&
            any(grepl(sprintf("^    CONSTANTE_INVENTEE_XYZ +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)) &&
            any(grepl(sprintf("^    \\$champ_invente +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)))
-verifier("Issue #160 : --strict -- REP_PAS_KKT hors de son contexte signale (seule ligne injectee), exempte a sa ligne historique ; TOL_DELTA_BORD coupe par \\newline admis",
-         length(.k160) == 1L &&
-           any(grepl(sprintf("^    REP_PAS_KKT +ligne\\(s\\) %d$", .n160 + 3L), r_160$sortie)) &&
-           any(grepl(sprintf("^      REP_PAS_KKT +ligne %d +mention historique", .k160), r_160$sortie)) &&
+verifier("Issue #160 : --strict -- REP_PAS_KKT, constante retiree du moteur, citee comme existante : signalee sur la seule ligne injectee, aucune mention historique exemptee ; TOL_DELTA_BORD coupe par \\newline admis",
+         any(grepl(sprintf("^    REP_PAS_KKT +ligne\\(s\\) %d$", .n160 + 3L), r_160$sortie)) &&
+           !any(grepl("mention historique|objet constante|objet champ", r_160$sortie)) &&
            !any(grepl("^    TOL_DELTA_(BORD)? +ligne\\(s\\)|non recolle", r_160$sortie)))
 verifier("Audit de #160, C3 et C4 : --strict -- COUL et CleInventeeMixte non classes, sans faux $trait introuvable",
          any(grepl(sprintf("^    l\\.%-5d COUL +identifiant sans souligne$", .n160 + 4L), r_160$sortie)) &&
