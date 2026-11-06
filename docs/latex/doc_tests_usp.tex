@@ -13454,8 +13454,8 @@ impose~: ce constat doit être porté au dossier tel quel. Un tel repli, non pre
 retenu~; il introduirait de plus une \emph{discontinuité}, deux triangles numériquement
 indiscernables au dernier bit des cumulés produisant deux lois simulées différentes. Constat sur
 un triangle construit (colonne $J-3$ dégénérée, hors des jeux de référence~; \code{run\_engine()},
-$B = 999$)~: le passage du repli à la règle littérale n'y a changé aucune p-value de Monte-Carlo ni
-aucun verdict~; raison~: $\hat\sigma_{J-1}^2$ n'entre pas dans les résidus de Mack qui portent les
+$B = 999$)~: la règle littérale et le repli y donnent les mêmes p-values de Monte-Carlo et les
+mêmes verdicts~; raison~: $\hat\sigma_{J-1}^2$ n'entre pas dans les résidus de Mack qui portent les
 statistiques simulées --- la dernière colonne de développement, qui ne compte qu'un facteur
 individuel, ne fournit aucun résidu ---, mais dans la MSEP et dans le diagnostic de
 la fiche~\ref{mw:m6sig}. Le triangle de contrôle n'est pas dégénéré.
@@ -16271,8 +16271,8 @@ matérielle du côté libéral à $0{,}05$), $0{,}256$ et $0{,}147$ sous la loi 
 matérielle du côté libéral aux deux seuils)~: elle n'est pas utilisable
 comme p-value. Si la p-value de Monte-Carlo manque alors
 que la statistique observée est définie (réplications finies en nombre insuffisant), la borne
-existe et la ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii))~; si la
-statistique observée n'est pas définie parce qu'une cellule a une influence non bornée, la borne
+existe mais n'est jamais retenue à la place de la p-value de Monte-Carlo prévue~: la ligne
+devient un diagnostic~; si la statistique observée n'est pas définie parce qu'une cellule a une influence non bornée, la borne
 ne l'est pas davantage et la ligne reste un test sans p-value retenue (rubrique~1). Sur le
 triangle de contrôle~: p-value de Monte-Carlo $0{,}898$, erreur de Monte-Carlo $0{,}0096$, borne
 de Bonferroni $1$, verdict \code{OK}.
@@ -16919,9 +16919,9 @@ douze pour la ligne globale de la méthode Merz--Wüthrich~; la part des p de fa
 plancher $1/(n+1)$ ne dépasse pas $0{,}002$. \emph{Voisinage des seuils} (tableau T-F4)~: une p
 de famille est à moins de deux erreurs de Monte-Carlo de $0{,}10$ dans $2{,}7$ à $4{,}45~\%$ des
 jeux ou triangles selon la ligne, de $0{,}05$ dans $2{,}1$ à $3{,}6~\%$~; l'erreur de Monte-Carlo
-d'une ligne vaut environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$. Le profil d'alerte que la mesure posait
-mécaniquement sur la méthode Merz--Wüthrich, par deux témoins oracle significatifs de la mesure de
-calibration, est levé, ces témoins étant expliqués à la section~\ref{sec:calib-mc-mw}~: constat documenté, sans modification du moteur, les lignes
+d'une ligne vaut environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$. Deux témoins
+oracle significatifs de la mesure de calibration posent mécaniquement un profil d'alerte sur la
+méthode Merz--Wüthrich~; la section~\ref{sec:calib-mc-mw} l'explique~: constat documenté, sans modification du moteur, les lignes
 restant des diagnostics. \emph{Statut}~: constats de simulation sous ces quatre plans~;
 l'incertitude de Clopper--Pearson (fonction de $R$) et l'erreur de Monte-Carlo de chaque p
 (fonction de $n$) sont distinctes de l'erreur d'approximation en $T$, que la mesure ne borne pas.
