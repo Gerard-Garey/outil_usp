@@ -14,7 +14,7 @@ Le document décrit l'outil ; ce dossier garde la trace de ce qui a été retir�
 | `II.md` | Partie II (`sec:mc`, `sec:modele-auxiliaire`, `sec:nature`) |
 | `III-H.md` | Partie III, introduction, hypothèses H1 à H4 et diagnostics de stabilité, de robustesse et graphiques (`sec:h1` à `sec:graphiques`) |
 | `III-M.md` | Partie III, méthode Merz-Wüthrich (`sec:mw`, `sec:mwm1` à `sec:mwm6`) et lecture conjointe (`sec:lecture-conjointe`) |
-| `IV.md` | Partie IV (`sec:verif`, `sec:biblio`, `sec:synthese`) |
+| `IV.md` | Partie IV (`sec:verif`, `sec:biblio` et `sec:tracabilite-code`, `sec:synthese`) |
 | `annexe.md` | Annexe (`sec:annexe-flux`) |
 
 ## Règles de rédaction
@@ -169,3 +169,9 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:calibration-mc` | `IV.md` | Calibration des p-values de Monte-Carlo | IV |
 | `sec:calib-asympt-mw` | `IV.md` | Calibration des p-values non simulées (Merz–Wüthrich) | IV |
 | `sec:calib-mc-mw` | `IV.md` | Calibration des p-values de Monte-Carlo (Merz–Wüthrich) | IV |
+| `sec:biblio` | `IV.md` | Compléments bibliographiques | IV |
+| `sec:tracabilite-code` | `IV.md` | Traçabilité entre la documentation et le code | IV |
+| `sec:synthese` | `IV.md` | Synthèse et lecture des verdicts | IV |
+| `sec:taux-reperes` | `IV.md` | Taux de franchissement des repères sous le modèle ajusté | IV |
+| `sec:volumes-constants` | `IV.md` | Lignes non applicables à volumes constants | IV |
+| `sec:annexe-flux` | `annexe.md` | Annexe, flux détaillés entre fonctions | Annexe |

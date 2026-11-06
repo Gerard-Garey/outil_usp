@@ -1,6 +1,6 @@
 # Suivi de la documentation — Partie IV
 
-Plage : Partie IV, « Validation, références et synthèse » : `sec:verif` (Vérification empirique de l'implémentation), `sec:biblio` (Compléments bibliographiques), `sec:synthese` (Synthèse et lecture des verdicts).
+Plage : Partie IV, « Validation, références et synthèse » : `sec:verif` (Vérification empirique de l'implémentation), `sec:biblio` (Compléments bibliographiques, dont `sec:tracabilite-code`), `sec:synthese` (Synthèse et lecture des verdicts).
 
 Entrées dans l'ordre du `.tex`, selon le gabarit et les règles de `README.md`.
 
@@ -120,3 +120,108 @@ Entrée qui couvre aussi les sous-sections sans `\label` « Recalcul indépendan
 - `7ff4725` = #297, mesure sur les lignes de lecture conjointe (`docs/tableaux/20261026-issue297-calibration-famille-mw.md`).
 
 **Renvois.** #46, #60, #90, #206, #243, #244, #245, #257, #270, #271, #273, #276, #289, #297, #300, #301, #307, #309, #312, #378.
+
+## `sec:biblio` — Compléments bibliographiques (partie IV, § Compléments bibliographiques)
+
+Entrée qui couvre les listes de références de la section ; la sous-section « Traçabilité entre la documentation et le code », placée entre deux de ces listes, a sa propre entrée (`sec:tracabilite-code`).
+
+**Historique.**
+- Berry–Esseen : la portée disait « Les fiches citaient jusqu'ici uniquement les auteurs des tests » et « Aucune référence antérieure du document ne supportait l'énoncé de la vitesse » : la référence a été ajoutée pour fonder la vitesse O(T^−1/2).
+- Kendall et Gibbons (1990) : « Le document citait Kendall (1975, 4e éd.) » ; l'édition de 1990 a été ajoutée, les deux éditions conservées.
+- Gibbons et Pratt : convention du doublement de `runs_p_exacte()` depuis #29. Best et Roberts : p-values de colonne de l'homogénéité de f_j et de l'exposant de variance par la loi exacte depuis #90. Pitman : référence de la fiche `fiche:student-pente` depuis #169. DiCiccio et Romano : citée à la fiche par #220. Thompson : titre, revue, volume et pages confrontés à la bibliographie de Rosner (1983, p. 172) le 20/10/2026.
+- Dwass et Hope : « Le document invoquait cette propriété [niveau exact du test de Monte-Carlo à B fini] en citant Efron (1979), qui ne la démontre pas. C'est une correction de référence, non un simple ajout. »
+- Atkinson ; Aldor-Noiman et al. : enveloppe du QQ-plot lue dans les résidus réajustés du bootstrap principal depuis #47 ; règle de rang de l'éq. (4.17) de Davison et Hinkley depuis #385 (à un rang près auparavant) ; enveloppe du graphique dispersion-niveau construite de même depuis #306.
+- Bradley : transposition à une taille de référence discrète, convention du protocole de #166, reprise par celui de #206. Holm : comparaisons appariées de la mesure de #229 (section `sec:calibration-mc`) et de la mesure de #206 (section `sec:calib-mc-mw`). Cox et Buehler : p-value conditionnelle au régime mesurée par #229, retenue par le moteur à δ̂ intérieur depuis #240.
+- Davies, Triggs et Newbold : « Le document affirmait que l'approximation χ² des tests portmanteau est mal calibrée en petit échantillon en citant Ljung & Box (1978). Davies, Triggs & Newbold est l'étude dédiée à cette question et constitue la référence appropriée. » (correction de référence).
+- Maddala : Ramsey (1969) était « seule référence citée jusqu'ici » pour RESET. « Les versions antérieures de ce document tiraient de cette entrée que, ces régresseurs dépendant de y, la statistique n'est plus exactement de loi de Fisher » ; argument écarté (Milliken et Graybill, 1970), ce que le `.tex` garde.
+- Imhof : le document mentionnait le nom de la méthode sans la référencer ; signe de la formule (3·2) rétabli par #33 (voir `III-H.md`, `fiche:durbin-watson`) ; formule et signe vérifiés sur une transcription des p. 422–423 consignée au commentaire 6238770854 de la PR #332.
+- Belsley, Kuh et Welsch : repère du DFBETAS de la fiche `mw:influence`, #89. Bollen et Jackman : repère 4/T de la fiche `fiche:cook`, #72. Bland et Altman : #169. Carroll et Ruppert : modèle auxiliaire pondéré, #215.
+- Hoenig et Heisey : « Jusqu'au retrait de la règle R4 (D1-Fb), elle était citée pour borner la portée de cette règle, qui classait la ligne en test ou en diagnostic sur π̂_b » ; le retrait de R4 reposait sur la cohérence avec la règle R1 et sur les mesures de #218 et #220 (voir `II.md`, entrée « Règle R4 », et `sec:modele-auxiliaire-regles`).
+- Lehmann et Romano : table des matières vérifiée le 19/10/2026 ; la dérivation de π_env était dite « celle de la spécification du projet ».
+- Textes réglementaires : phrase d'introduction de la partie III ajoutée par #334. Règlement d'exécution (UE) 2015/498 relu le 31/10/2026 (manifestation XHTML, CELEX 32015R0498 ; l'absence de consolidation et d'acte modificatif était un constat du 18/10/2026, voir `I.md`, préambule). Notice de l'ACPR relue le 31/10/2026. Page de l'AEAPP des orientations EIOPA-BoS-25/249 mise à jour le 08/09/2026, consultée le 31/10/2026 (voir aussi `III-H.md`, introduction de la partie III).
+- Mack (1994, *CAS Forum*) : test des effets calendaires en queue basse depuis #276. Mack (1997) : lecture de la p. D6.49 consignée à #201. Mack (1994, *IME*) : « les versions antérieures de ce document lui attribuaient » le test des effets calendaires et la famille d'estimateurs pondérés (#201) ; « ces renvois pointent désormais vers Mack (1994, CAS Forum) ». England et Verrall : redressement du vivier par le levier, #46. Venter : texte intégral lu le 31/10/2026 pour #317.
+- Points non tranchés : couverture des intervalles bootstrap mesurée par #305 ; mesure non faite pour la méthode Merz–Wüthrich, travail postérieur porté par #387 ; contre-implémentation de la MSEP par #50 ; constat C6 par #220 ; règle R4 retirée par D1-Fb ; constat C5 par #219 ; vivier redressé par #46 ; niveau Merz–Wüthrich mesuré par #206 ; calibration conditionnelle : variante retenue par le mainteneur (ADR 0014), implémentée par #240, constats de #175 et #229.
+
+**Renvois.** Relevés `docs/references/verifications-fk.md` (Ge, Dudoit et Speed, relevé sur pièce du 25/10/2026 ; Westfall et Young non relu au 26/10/2026) et `docs/references/verifications-fj.md`, § 2 (Mack, 1999) ; pages de Davison et Hinkley (1997) et d'Efron et Tibshirani (1993) lues dans l'aperçu Google Books, relevé du 27/10/2026 ; ADR 0002 amendé, point 4 (Bland et Altman) ; ADR 0014 ; #29, #33, #46, #47, #50, #72, #89, #90, #169, #201, #206, #215, #218, #219, #220, #229, #240, #276, #305, #306, #317, #334, #385, #387 ; PR #332.
+
+## `sec:tracabilite-code` — Traçabilité entre la documentation et le code (partie IV, § Compléments bibliographiques)
+
+`\label` posé au lot L7 (#458) : la sous-section n'en avait pas ; elle reste à sa place, entre les listes « Comportement en petit échantillon des tests employés » et « Méthode Merz–Wüthrich » de `sec:biblio`. Les numéros d'issue des cellules du tableau, simples renvois d'implémentation, ne sont pas repris ; seuls les états antérieurs que les cellules racontaient le sont.
+
+**Historique.**
+- Nature du TOST : « MCO » avant #215 (modèle auxiliaire pondéré depuis).
+- Argument `repli_asymptotique` d'`add()` retiré par #181 (Monte-Carlo indisponible : diagnostic).
+- Type « procédure de décision », qui portait aussi un verdict : refusé par `add()` depuis #357 (voir `sec:synthese`).
+- Puissance approchée de la pente : unilatérale depuis #169 ; constante 0,5 de la règle R4 retirée du moteur (D1-Fb ; voir `II.md`, entrée « Règle R4 »).
+- Base « ratios bruts » : type `diagnostic` à π̂_t constant depuis #303 (règle R15).
+- Tirages : `engine_plots_data()` ne tire plus depuis #47, `engine_ecrire_xlsx()` et `engine_lire_xlsx()` depuis #42 ; flux complémentaire de la p-value conditionnelle au régime depuis #240 ; retirage des triangles à cumul non strictement positif depuis #257 ; graine `SEED_LOI_NULLE_SW` consignée pour la méthode de réserve n° 2 seulement depuis #351.
+
+**Renvois.** #42, #47, #169, #181, #215, #240, #257, #303, #351, #357 ; D1-Fb.
+
+## `sec:synthese` — Synthèse et lecture des verdicts (partie IV, § Synthèse et lecture des verdicts)
+
+Entrée qui couvre aussi les sous-sections sans `\label` « Hiérarchie de lecture recommandée » et « Tests structurellement inopérants à faible T ».
+
+**Historique.**
+- Tableau des verdicts, ligne OK : la logique inversée valait aussi, avant #169, pour le test de Fisher.
+- Ligne INFO : repères du jackknife et de l'intervalle bootstrap énoncés dans leurs fiches seulement (M27, #76) ; condition du premier ordre et convergence multi-démarrages retirées de la table par #22 (contrôles de `res$controles`).
+- Procédure ESD de Rosner : jusqu'à #304 (méthode lognormale) et #300 (résidus de Mack), procédure de décision sans p-value, verdict OK sans valeur aberrante détectée au niveau α, ALERTE pour une, ECHEC pour deux ou plus ; diagnostic depuis, par décision du mainteneur ; le type « procédure de décision » est refusé par `add()` depuis #357.
+- Test des suites sur les résidus de Mack : diagnostic par décision depuis #312.
+- Test inopérant : règle R1 (#44) ; corrélation entre années adjacentes sur un triangle 5 × 5 (#115) ; TOST, règle R14 (#298) ; ligne de Fisher diagnostic dans tous les régimes depuis #169.
+- Paragraphe de multiplicité Merz–Wüthrich : mesure antérieure à #276, #301 et #300 (trois des treize statistiques changées) et à #312 (verdict retiré à la ligne des suites) ; mesurée de nouveau au commit `7ff4725` par #297, moteur postérieur à #299, #302 et #303.
+- Hiérarchie de lecture, point 6 : p-value conditionnelle au régime retenue depuis #240 ; Breusch–Pagan original, Goldfeld–Quandt et Brown–Forsythe diagnostics depuis #299 ; constats de #175 et #229.
+- Tests structurellement inopérants : la définition renvoyait à `CONTEXT.md` ; elle renvoie à `sec:nature`, point (i). Plancher Monte-Carlo lu par la règle R1 depuis #125 ; p_min calculée par le moteur depuis #44, pour la loi de permutation de la pente depuis #169 ; règle étendue à six vérifications Merz–Wüthrich par #115, cinq depuis #312 ; effet calendaire en queue basse depuis #276.
+- Encadré « Rappel final » : fréquences de 38,35 % (J1) et 42,7 % (J2) mesurées au commit `836b55d` par #274, moteur antérieur à #299, #302 et #303, p-value conditionnelle au régime à δ̂ intérieur retenue depuis #240 ; fréquences de 36,55 % et 40,95 % mesurées au commit `7ff4725` par #297.
+
+**Décisions.** Seule une ligne de type test porte un verdict : ADR 0001, amendement du 23/09/2026 (M7), annoté le 28/10/2026 ; repères sans verdict : M7 (#24) ; repères du jackknife et de l'intervalle bootstrap dans les fiches seulement : M27 (#76) ; ESD et suites diagnostics par décision du mainteneur (#304, #300, #312).
+
+**Mesures retirées du guide.**
+- Effet calendaire sous sa forme bilatérale, antérieure à #276, sur le sous-triangle 5 × 5 de contrôle : p_min 0,125 ; plancher Monte-Carlo 0,096 à B = 999 (test, ALERTE) ; inopérant à B = 99, plancher 0,10 (sans sortie versionnée ; voir aussi `CONTEXT.md`, « Test inopérant »).
+
+**Correspondance SHA.**
+- `836b55d` = #274 (`docs/tableaux/20261018-issue229-p-conditionnelle-regime.md`, tableau T2 bis).
+- `7ff4725` = #297 (`docs/tableaux/20261026-issue297-calibration-famille-ln.md`, `docs/tableaux/20261026-issue297-calibration-famille-mw.md`).
+
+**Renvois.** ADR 0001 ; #22, #24, #44, #76, #115, #125, #169, #175, #229, #240, #274, #276, #297, #298, #299, #300, #301, #302, #303, #304, #312, #357.
+
+## `sec:taux-reperes` — Taux de franchissement des repères sous le modèle ajusté (partie IV, § Synthèse et lecture des verdicts)
+
+**Historique.**
+- Repère sans verdict : ADR 0001, décision M7 (#24). Mesure : #72 ; DFBETAS de la méthode Merz–Wüthrich (option `--seulement mw`) : #89.
+- Mesure de référence : moteur du 30/09/2026 (#122), postérieur à #63, #109 et #112, quatre tranches de 500 réplications combinées.
+- Première exécution du 27/09/2026, antérieure à #63, #109 et #112 (réajustement des réplications à un seul démarrage, `factr = 1e7`) : sur les mêmes 2 000 jeux, comptes identiques pour tous les repères et toutes les lignes du tableau (ligne de la règle R4 unilatérale, postérieure, mise à part), sauf la largeur de l'intervalle bootstrap au-dessus de 50 % (980 et 84 réplications sur J1 et J2, contre 981 et 85 ; sans sortie versionnée).
+- Rejeu sur le moteur postérieur à #169 et #215 (#221) : comptes des repères et de la position de δ̂* identiques ; seule change la règle R4, devenue unilatérale. Rejeu sur J1 au moteur du 31/10/2026 (#316) : comptes identiques, R4 comprise ; J2 non rejoué, sa colonne reste celle de #221.
+- Lignes de #45 (rapport de vraisemblance à chacune des deux bornes, largeur de l'intervalle restreint) non reconstruites par le script.
+- Règle R4 retirée du moteur par D1-Fb, reproduite par le script pour la comparabilité (voir `II.md`, entrée « Règle R4 »).
+
+**Décisions.** M7 (#24) : repères de diagnostic sans verdict. La décision M7 s'appuyait sur une mesure à 60 réplications, qui situait ces taux entre 50 % et 80 % ; la mesure à 2 000 réplications en précise l'ordre de grandeur sans changer la conclusion.
+
+**Mesures retirées du guide.**
+- Ligne « avant #169 : pente et Fisher en diagnostic, puissance bilatérale » (règle R4 bilatérale) : J1 38,0 % [35,8 ; 40,1], J2 0,0 % [0,0 ; 0,2] (`docs/tableaux/20260930-issue122-J1.md`, `-J2.md`).
+- Première exécution du 27/09/2026 : 980 et 84 réplications (largeur de l'intervalle au-dessus de 50 %, J1 et J2), sans sortie versionnée.
+
+**Correspondance SHA.**
+- `b71c9a8` = première exécution du 27/09/2026 (sans sortie versionnée).
+- `6164237` = #122, mesure de référence (`docs/tableaux/20260930-issue122-J1.md`, `-J2.md`).
+- `26e7496` = #221, rejeu (`docs/tableaux/20261008-issue221-J1.md`, `-J2.md`).
+- `eb8286a` = #316, rejeu sur J1 (`docs/tableaux/20261031-issue316-J1.md`).
+
+**Renvois.** ADR 0001 ; D1-Fb ; #24, #45, #63, #72, #89, #109, #112, #122, #169, #215, #221, #316.
+
+## `sec:volumes-constants` — Lignes non applicables à volumes constants (partie IV, § Synthèse et lecture des verdicts)
+
+**Historique.**
+- Définition unique des volumes constants (`usp_volumes_constants()`) depuis #59.
+- Avertissement d'`engine_valider_donnees()` depuis #213 ; avant, seul le motif des lignes non applicables signalait le régime.
+- Ligne de Smirnov auparavant absente à volumes constants, présente à tout T ≥ 8 depuis.
+- Lignes de lecture conjointe, dont la présence dépend des données : #297.
+- Motif propre du garde-fou de colinéarité (règle R12) : #168 ; pertes constantes : #189 ; gardes propres de RESET et White depuis #110 (avant, calcul possible sur une régression auxiliaire de rang déficient).
+- Le texte renvoyait à `CONTEXT.md` pour la notion de test inopérant ; il renvoie à `sec:nature`.
+
+**Décisions.** Avertissement à volumes constants : #213, décision du mainteneur du 17/10/2026. Présence des lignes de lecture conjointe dépendante des données : #297, décision du mainteneur du 25/10/2026.
+
+**Règle retirée (garde `sd(x) == 0`).** Gardes exactes `sd(x) == 0` des fonctions de test sur le volume, remplacées par la tolérance `TOL_DELTA_BORD` de `usp_volumes_constants()` (#59). Motif : elles laissaient passer des volumes quasi constants, la régression de y_t sur x_t écartant x_t pour colinéarité ou étant calculée sur le bruit d'arrondi. Mesuré sur le moteur antérieur à #59 (commit `5f5459b`), pertes du jeu de contrôle et volumes 100 (1 ± ε) alternés : `test_lm_complet()` levait l'erreur R « subscript out of bounds » à ε = 1e-12 et 1e-9 (sans sortie versionnée).
+
+**Correspondance SHA.** `5f5459b` = moteur antérieur à #59 (mesure de la garde `sd(x) == 0`, sans sortie versionnée).
+
+**Renvois.** #59, #110, #168, #189, #213, #297.
