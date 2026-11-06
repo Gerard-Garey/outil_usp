@@ -7254,7 +7254,7 @@ Rapport de vraisemblance sur $\delta$ (suite) & (B) $\hat p_{\mathrm{MC}}$ du bo
 p-value sous le modèle contraint ajusté & Convergence en $B$ (Monte-Carlo) et en $T$ (validité du
 plug-in) & $\mathcal{O}(B^{-1/2})$ pour la première~; non établie pour la seconde &
 Quasi-pivotalité de $\mathrm{LR}$ en $(\gamma, \beta)$, non établie &
-Seule p-value calibrée, restituée sans être retenue (diagnostic par décision, §\ref{sec:nature}) \\
+Seule p-value calibrée, restituée sans être retenue (diagnostic, §\ref{sec:nature}) \\
 
 IC bootstrap de $\sigma_{\mathrm{USP}}$, complet et à $\delta$ fixé, et intervalle «~basic~» sur
 l'échelle logarithmique (diagnostics) & Quantiles
@@ -7795,7 +7795,7 @@ chaque année est contaminée dans un huitième des réplications, sans aléa su
 points, les quinze de la première mesure et les sept ajoutés avec les statistiques de stabilité, graine 20260930, nombres aléatoires communs à tous les
 points~; $\alpha = 0{,}10$ et $0{,}05$)~:
 p-values exactes des fonctions du moteur (\code{runs\_p\_exacte()}, \code{dw\_p\_exacte()},
-\code{mk\_p\_exacte()}, \code{stats::ks.test()} sur la partition $x_t > \mathrm{méd}(x)$)
+\code{mk\_p\_exacte()}, \code{stats::ks.test()} sur la partition $x_t > \operatorname{med}(x)$)
 appliquées aux log-ratios centrés, aux ratios centrés et aux ratios simulés, sans
 réajustement~; ces lois étant invariantes par transformation affine croissante, c'est la p-value
 que retiendrait le moteur à $\hat\pi^*_t$ constant, ce que contrôle la transcription contre
@@ -8371,7 +8371,8 @@ présentes dans l'export.
 \textcolor{financeblue}{\textbf{Motif du choix}} \\
 Breusch--Pagan studentisé (Koenker) & Breusch--Pagan original (1979) &
 La forme originale suppose la normalité des erreurs, hypothèse non acquise
-à $T = 8$~; elle sur-rejette fortement sur queues lourdes. \\
+à $T = 8$~; elle sur-rejette sur queues lourdes (ampleur non chiffrée,
+fiche~\ref{fiche:breusch-pagan-1979}). \\
 Lilliefors & Kolmogorov--Smirnov contre $\mathcal{N}(0,1)$ &
 La seconde applique une loi de référence valable à paramètres connus~; à
 paramètres estimés elle est vidée de sa puissance. \\
@@ -8402,14 +8403,19 @@ Les tests suivants figurent dans le dispositif mais leur interprétation doit
 être explicitement réservée à $T = 8$. Chacun est accompagné d'un complément
 méthodologique, indiqué en troisième colonne.
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{3.4cm}p{5.4cm}p{5.9cm}@{}}
+\begin{longtable}{@{}p{3.4cm}p{5.4cm}p{5.9cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Test}} &
 \textcolor{financeblue}{\textbf{Fragilité à $T = 8$}} &
 \textcolor{financeblue}{\textbf{Complément méthodologique}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Test}} &
+\textcolor{financeblue}{\textbf{Fragilité à $T = 8$}} &
+\textcolor{financeblue}{\textbf{Complément méthodologique}} \\
+\endhead
 \rowcolor{tableheader}
 \multicolumn{3}{@{}l@{}}{\textcolor{financeblue}{\textbf{Méthode lognormale}}} \\
 Cox--Stuart & $n_p = 4$ paires, donc au plus $m = 4$ différences non nulles
@@ -8439,8 +8445,8 @@ restituée comme contexte, sans effet sur le type (phrase de contexte,
 sous-section~\ref{sec:modele-auxiliaire-regles}) &
 Aucune p-value de Monte-Carlo par bootstrap possible (section~\ref{sec:t8})~; p-value retenue de
 la pente par permutation (exacte sous l'échangeabilité seule), Fisher en diagnostic \\
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \begin{center}
 \small
@@ -8710,7 +8716,8 @@ et $\Delta = \bar y$ refusés sur le jeu de contrôle).
 \textbf{Les rôles sont inversés par rapport au test précédent}~: c'est le \emph{rejet} de $H_0$
 qui établit la proportionnalité pratique, construction correcte pour prouver une absence d'effet.
 \Stat
-Décomposition en deux tests unilatéraux (procédure d'intersection-union)~:
+Décomposition en deux tests unilatéraux (intersection-union), calculée par
+\code{test\_tost\_intercept()}~:
 \[
   t_{\text{bas}} = \frac{\hat a + \Delta}{\widehat{\mathrm{se}}(\hat a)}
   \quad (H_0^{-} : a \le -\Delta),
@@ -8787,8 +8794,8 @@ données ne peuvent pas conclure.
 marge ne répond pas au besoin~: rejeter $H_0 : a \ge 0$ prouve $a < 0$, donc une preuve
 \emph{contre} la proportionnalité. Quant à l'union $H_0 : a \neq 0$, elle n'est pas testable~:
 la valeur $a = 0$ est adhérente à cet ensemble, la borne supérieure de la probabilité de rejet
-sur $H_0$ y vaut 1, et aucun test de niveau $\alpha < 1$ n'existe. L'introduction d'une marge
-$\Delta > 0$ strictement positive est ce qui rend le problème bien posé.
+sur $H_0$ y vaut 1, et aucun test de niveau $\alpha < 1$ n'existe. C'est la marge $\Delta > 0$
+qui rend le problème bien posé.
 \end{encadre}
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} Sans objet (loi continue, \code{p\_min} à \code{NA}~; aucune p-value de Monte-Carlo retenue). $p_{\text{plancher}}$ minore la p-value calculée aux $\widehat{\mathrm{se}}(\hat a)$ et $\Delta$ observés~; la règle~R14 le compare à $\alpha$.
@@ -8985,7 +8992,7 @@ restituée \textbf{pour information}, \textbf{non retenue} (\code{p\_retenue}, \
 sens, \code{p\_exacte}, \code{p\_monte\_carlo}, \code{p\_min} et \code{mc\_nom} à \code{NA},
 verdict \code{INFO}). \emph{Pourquoi aucune p-value n'est retenue.} Aucune des trois voies n'est
 ouverte, comme pour la ligne de Fisher~: la loi de Student n'est exacte que sous le modèle
-auxiliaire, et le second fondement (section~\ref{sec:nature}, condition~(c)) ne la couvre pas~;
+auxiliaire, et le second fondement (fiche~\ref{fiche:student-pente}, rubrique~4, condition~(c)) ne la couvre pas~;
 aucune p-value de Monte-Carlo n'existe, $b = 0$ étant disjoint de la famille réglementaire, à
 laquelle appartient le modèle simulé~; $t(T-2)$ est une loi à $T$ fini. La permutation
 n'apporterait rien~: sa p-value serait la p de permutation bilatérale que la ligne Pitman restitue
@@ -9061,7 +9068,7 @@ toutes les lignes non applicables d'\code{usp\_tests()}. Hors de ces cas, le com
 F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information, non retenue ; egale a la p de
 la ligne "Test de Student sur la pente (modele auxiliaire MCO)".}~». \emph{Pourquoi aucune
 p-value n'est retenue.} Aucune des trois voies n'est ouverte~: la loi de Fisher n'est exacte que
-sous le modèle auxiliaire, et le second fondement (section~\ref{sec:nature}, condition~(c)) ne la
+sous le modèle auxiliaire, et le second fondement (fiche~\ref{fiche:student-pente}, rubrique~4, condition~(c)) ne la
 couvre pas~; aucune p-value de Monte-Carlo n'existe, $b = 0$ étant disjoint de la famille
 réglementaire, à laquelle appartient le modèle simulé~; c'est une loi à $T$ fini, non
 asymptotique. La permutation ne donnerait rien de nouveau~: sa p-value serait la p de permutation
@@ -17074,7 +17081,8 @@ La ligne teste cette intersection et elle seule~: aucune p-value ajustée n'est 
 membre.
 \Stat
 $m_{\mathrm{obs}} = \min_j p^{\mathrm{MC}}_j$, la plus petite p-value de Monte-Carlo des $k$
-membres (champ \code{stat}, «~\code{plus petite p Monte-Carlo de la famille}~»)~; le nombre $k$
+membres (champ \code{stat}, «~\code{plus petite p Monte-Carlo de la famille}~», calculée par
+\code{engine\_p\_famille()})~; le nombre $k$
 de membres est dans \code{estim} («~\code{nombre de tests de la famille}~»), grandeur
 descriptive. Calculée par les rangs de la rubrique~4, $m_{\mathrm{obs}}$ est \emph{identique}, et
 non égale à une tolérance près, à la plus petite \code{p\_mc} affichée des membres quand leurs
@@ -17369,12 +17377,12 @@ $\hat\pi^{*}_t$ constant, et de la taille lissée de la p-value de Monte-Carlo, 
 ignore la sélection par le régime. \emph{Lecture en quatre états}~: \emph{compatible}, si la
 référence est dans l'intervalle, ce qui signifie «~aucune distorsion détectée à la précision
 de la mesure~», jamais «~exact~»~; \emph{écart mineur}, si la référence est hors de
-l'intervalle mais l'estimation dans la bande libérale de Bradley $[\mathrm{réf}/2~;~3\,
-\mathrm{réf}/2]$, soit $[0{,}05~;~0{,}15]$ à $0{,}10$ et $[0{,}025~;~0{,}075]$ à
+l'intervalle mais l'estimation dans la bande libérale de Bradley $[\text{réf}/2~;~3\,
+\text{réf}/2]$, soit $[0{,}05~;~0{,}15]$ à $0{,}10$ et $[0{,}025~;~0{,}075]$ à
 $0{,}05$~; \emph{écart non tranché}, si l'estimation est hors de la bande et l'intervalle la
 recoupe~; \emph{distorsion matérielle}, si l'intervalle est disjoint de la bande. La bande de Bradley (1978, section~\ref{sec:biblio}) est
 une convention de robustesse, non un théorème~; elle n'est pas appliquée quand la référence
-est inférieure à $2/n$ (Cox--Stuart), sa demi-largeur $\mathrm{réf}/2$ étant alors sous la
+est inférieure à $2/n$ (Cox--Stuart), sa demi-largeur $\text{réf}/2$ étant alors sous la
 résolution $1/n$ du taux~: la lecture est binaire, \emph{compatible} si la référence est dans
 l'intervalle, \emph{écart à examiner} sinon, avec le nombre $k$ de rejets et l'intervalle cités,
 sans échelle entre écart mineur et distorsion matérielle ni décision déclenchée (libellés de
