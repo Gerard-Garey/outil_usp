@@ -75,3 +75,64 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:base-residus` | `II.md` | Choix de la base de résidus | II |
 | `sec:variantes` | `II.md` | Variantes principales et secondaires | II |
 | `sec:tests-fragiles` | `II.md` | Tests dont l'usage reste fragile à T = 8 | II |
+| Introduction de la partie III (entrée transversale) | `III-H.md` | Fondement de la batterie de tests | III |
+| Correspondance SHA (entrée transversale) | `III-H.md` | Correspondance SHA de la partie III lognormale | III |
+| Blocs répétés (entrée transversale) | `III-H.md` | Blocs répétés des fiches de test | III |
+| `sec:h1` | `III-H.md` | Hypothèse H1, linéarité et proportionnalité | III |
+| `fiche:student-constante` | `III-H.md` | Test de Student sur la constante | III |
+| `fiche:tost-constante` | `III-H.md` | Équivalence de la constante à zéro (TOST) | III |
+| `fiche:student-pente` | `III-H.md` | Test de Pitman sur la pente (lien positif pertes / volume) | III |
+| `fiche:student-pente-modele-auxiliaire` | `III-H.md` | Test de Student sur la pente (modèle auxiliaire MCO) | III |
+| `fiche:fisher-global` | `III-H.md` | Test de Fisher de significativité globale | III |
+| `fiche:r2` | `III-H.md` | Coefficient de détermination R² | III |
+| `fiche:reset` | `III-H.md` | Test RESET de Ramsey | III |
+| `fiche:spearman` | `III-H.md` | Corrélation de rang de Spearman (ratio contre volume, ratio contre temps) | III |
+| `fiche:mann-kendall` | `III-H.md` | Test de tendance de Mann–Kendall | III |
+| `fiche:cox-stuart` | `III-H.md` | Test de tendance par signes de Cox–Stuart | III |
+| `sec:h2` | `III-H.md` | Hypothèse H2, structure de variance quadratique | III |
+| `fiche:breusch-pagan-koenker` | `III-H.md` | Test de Breusch–Pagan, version studentisée de Koenker | III |
+| `fiche:breusch-pagan-1979` | `III-H.md` | Test de Breusch–Pagan, version originale de 1979 | III |
+| `fiche:white` | `III-H.md` | Test de White | III |
+| `fiche:goldfeld-quandt` | `III-H.md` | Test de Goldfeld–Quandt | III |
+| `fiche:brown-forsythe` | `III-H.md` | Test de Brown–Forsythe | III |
+| `fiche:smirnov` | `III-H.md` | Test de Smirnov à deux échantillons | III |
+| `fiche:position-delta` | `III-H.md` | Position de δ̂ dans son domaine (diagnostic) | III |
+| `sec:h3` | `III-H.md` | Hypothèse H3, lognormalité de la variable modélisée | III |
+| `fiche:shapiro-wilk` | `III-H.md` | Test de Shapiro–Wilk | III |
+| `fiche:shapiro-francia` | `III-H.md` | Test de Shapiro–Francia | III |
+| `fiche:anderson-darling` | `III-H.md` | Test d'Anderson–Darling | III |
+| `fiche:cramer-von-mises` | `III-H.md` | Test de Cramér–von Mises | III |
+| `fiche:kolmogorov-smirnov` | `III-H.md` | Test de Kolmogorov–Smirnov contre N(0,1) | III |
+| `fiche:lilliefors` | `III-H.md` | Test de Lilliefors | III |
+| `fiche:jarque-bera` | `III-H.md` | Test de Jarque–Bera | III |
+| `fiche:dagostino-asymetrie` | `III-H.md` | Test d'asymétrie de D'Agostino | III |
+| `fiche:anscombe-glynn-aplatissement` | `III-H.md` | Test d'aplatissement d'Anscombe–Glynn | III |
+| `sec:h4` | `III-H.md` | Hypothèse H4, indépendance et validité du maximum de vraisemblance | III |
+| `fiche:durbin-watson` | `III-H.md` | Test de Durbin–Watson | III |
+| `fiche:ljung-box` | `III-H.md` | Test portemanteau de Ljung–Box (retard 2) | III |
+| `fiche:suites-wald-wolfowitz` | `III-H.md` | Test des suites de Wald–Wolfowitz | III |
+| `fiche:foc` | `III-H.md` | Condition du premier ordre (gradient projeté, KKT) | III |
+| `fiche:centrage` | `III-H.md` | Centrage des résidus standardisés (diagnostic) | III |
+| `fiche:variance-unitaire` | `III-H.md` | Variance unitaire des résidus standardisés (diagnostic) | III |
+| `fiche:durbin-watson-ratios-bruts` | `III-H.md` | Durbin–Watson sur ratios bruts | III |
+| `fiche:suites-ratios-bruts` | `III-H.md` | Test des suites sur ratios bruts | III |
+| `fiche:sup-f` | `III-H.md` | Test de rupture sup-F (Quandt / Chow / Andrews) | III |
+| `fiche:ols-cusum` | `III-H.md` | Test de stabilité OLS-CUSUM | III |
+| `fiche:grubbs` | `III-H.md` | Test de Grubbs | III |
+| `fiche:rosner-esd` | `III-H.md` | Procédure ESD généralisée de Rosner | III |
+| `fiche:cook` | `III-H.md` | Distance de Cook (diagnostic) | III |
+| `fiche:leviers` | `III-H.md` | Leviers (hat values, diagnostic) | III |
+| `fiche:sup-f-ratios-bruts` | `III-H.md` | Rupture sup-F sur ratios bruts | III |
+| `fiche:ols-cusum-ratios-bruts` | `III-H.md` | Stabilité OLS-CUSUM sur ratios bruts | III |
+| `fiche:grubbs-ratios-bruts` | `III-H.md` | Grubbs sur ratios bruts | III |
+| `fiche:rv-delta` | `III-H.md` | Rapport de vraisemblance sur les cas limites de δ | III |
+| `fiche:jackknife` | `III-H.md` | Jackknife (sensibilité au retrait d'une année) | III |
+| `fiche:ic-bootstrap` | `III-H.md` | Intervalle de confiance par bootstrap paramétrique | III |
+| `fiche:multi-demarrages` | `III-H.md` | Convergence multi-démarrages | III |
+| `sec:graphiques` | `III-H.md` | Diagnostics graphiques, couverture exhaustive | III |
+| `fiche:qqnorm` | `III-H.md` | QQ-plot normal | III |
+| `fiche:qqplot-deux-echantillons` | `III-H.md` | QQ-plot à deux échantillons | III |
+| `fiche:graph-influence-levier` | `III-H.md` | Graphiques d'influence et de levier | III |
+| `fiche:spread-location` | `III-H.md` | Graphique dispersion-niveau | III |
+| `sec:graph-mw` | `III-H.md` | Visualisation de la régression chain-ladder (Merz–Wüthrich) | III |
+| `mw:influence` | `III-H.md` | Influence et leviers du triangle (Merz–Wüthrich) | III |
