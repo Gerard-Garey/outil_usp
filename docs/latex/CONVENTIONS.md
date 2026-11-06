@@ -172,8 +172,8 @@ Tournures d'historique sans motif sûr, comptées par le contrôle pour que la c
 - **E4** — dates et numéros réglementaires (« 17~janvier 2015 », « 14~novembre 2024 », « 25.3.2015 », « 2015/35 », « 2019/981 », « 2015/498 », « EIOPA-BoS-14/178 », « EIOPA-BoS-25/249 ») : hors motifs par construction. Cas négatifs du jeu de tests.
 - **E5** — vocabulaire de méthode : hypothèses M1 à M6, règles R1 à R15 (« règle~R12 »), constats C1 à C7, tableaux T1 à T7, jeux J1 et J2, plans P1 à P3, lois N, E et A, variantes V1 et V3h, familles « B. » à « G. », « QQ-plot », « L-BFGS-B », « AR(1) » : non visés. Cas négatifs du jeu de tests : « QQ-plot », « règle~R14 », « M6 », « constat~C6 ».
 - **E6** — jetons de saisie `\code{ND}`, `\code{N.D}`, `\code{annee,ND}` (partie I, marqueurs de valeur manquante reconnus à la saisie) : A8 ne vise `ND` que précédé de « branche ».
-- **E7** — *transitoire* (motif A1) : chaînes de sortie du moteur citées mot pour mot, jusqu'au lot qui les nettoie. Chacune est admise tant que `R/engine.R` l'imprime : le contrôle lit les chaînes dans le moteur, et l'exception tombe pour une chaîne dès qu'elle ne porte plus de numéro, le `.tex` citant alors la nouvelle chaîne. La liste des numéros admis est tenue dans le contrôle, pas ici. Quand la liste A devient bloquante, E7 ne couvre plus aucune chaîne ; une chaîne numérotée encore imprimée par le moteur est alors un écart.
+- **E7** — *retirée* (motif A1). Elle admettait, à titre transitoire, les chaînes de sortie du moteur citées mot pour mot qui portaient un numéro d'issue. `R/engine.R` n'en imprime plus aucune et le contrôle `tests/controle_doc_nd.R` ne la porte plus : une chaîne du moteur citée mot pour mot relève d'A1 comme tout autre passage. L'identifiant n'est pas réattribué.
 - **E8** — macro `\annee` (page de garde, « Exercice 2026 ») : ce n'est pas un motif.
 - **E9** — bibliographie : années de publication (« 1961 », « 2017 ») sans jour ni mois, hors A10 par construction.
 
-Hors E7, transitoire, aucune exception de contenu (passage qui garderait un numéro d'issue) n'est accordée.
+Aucune exception de contenu (passage qui garderait un numéro d'issue) n'est accordée.
