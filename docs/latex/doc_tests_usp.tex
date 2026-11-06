@@ -8409,9 +8409,10 @@ dont l'orientation~6 (conformité continue), auxquelles l'ACPR s'est déclarée 
 par les orientations EIOPA-BoS-25/249, adoptées le 25~juin 2025, applicables deux mois après la
 publication de leurs traductions dans toutes les langues officielles de l'Union (page de
 publication de l'AEAPP)~; la conformité continue y devient
-l'orientation~5 (§§~13 à~15). À la date d'établissement du présent document (page de garde), ni
-la date de cette publication ni une déclaration de conformité de l'ACPR à ces nouvelles
-orientations n'ont été établies~; la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
+l'orientation~5 (§§~13 à~15). À la date d'établissement du présent document (page de garde), la
+page de publication de l'AEAPP donne les orientations dans toutes les langues officielles sans
+dater la publication des traductions~: la date d'application n'est donc pas établie, et aucune
+déclaration de conformité de l'ACPR à ces nouvelles orientations n'a été trouvée~; la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
 lors de la demande puis chaque année, avec leurs résultats dans le rapport ORSA, provient de la
 notice de l'ACPR (§~171), non des orientations~; elle incombe à l'entreprise, que l'outil sert
 sans la porter.
@@ -17256,8 +17257,7 @@ de la mesure~», jamais «~exact~»~; \emph{écart mineur}, si la référence es
 l'intervalle mais l'estimation dans la bande libérale de Bradley $[\mathrm{réf}/2~;~3\,
 \mathrm{réf}/2]$, soit $[0{,}05~;~0{,}15]$ à $0{,}10$ et $[0{,}025~;~0{,}075]$ à
 $0{,}05$~; \emph{écart non tranché}, si l'estimation est hors de la bande et l'intervalle la
-recoupe~; \emph{distorsion matérielle}, si l'intervalle est disjoint de la bande, seul état
-qui met en cause la p-value mesurée. La bande de Bradley (1978, section~\ref{sec:biblio}) est
+recoupe~; \emph{distorsion matérielle}, si l'intervalle est disjoint de la bande. La bande de Bradley (1978, section~\ref{sec:biblio}) est
 une convention de robustesse, non un théorème~; elle n'est pas appliquée quand la référence
 est inférieure à $2/n$ (Cox--Stuart), sa demi-largeur $\mathrm{réf}/2$ étant alors sous la
 résolution $1/n$ du taux~: la lecture est binaire, \emph{compatible} si la référence est dans
@@ -17631,8 +17631,10 @@ régime, et cette indépendance ne tient pas sur J3 pour Anderson--Darling, la c
 conditionnement. \emph{Scripts hors CI.} Les mesures de V1 ci-dessus ne se reproduisent qu'à l'état du moteur
 consigné en tête de leurs fichiers~: un contrôle d'intégrité qui compare au moteur une p-value de
 Monte-Carlo rejouée en V1 est faux sur tout jeu à $\hat\delta$ intérieur --- contrôle~(i2) de
-\code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R}, à rétablir, et de
-\code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R} ---, et
+\code{tests/conservatisme\_}\allowbreak\code{interieur\_t8.R} ---~; celui de
+\code{tests/p\_conditionnelle\_}\allowbreak\code{regime\_t8.R} compare au moteur, à
+$\hat\delta^{*}$ intérieur, la p-value V3b rejouée, de sorte que les tirages de V1 dont
+$\hat\delta^{**}$ est au bord n'y sont plus confrontés au moteur~; et
 \code{tests/calibration\_mc\_t8.R}, qui exécute \code{run\_engine()} complet, calcule V3h sur
 les réplications intérieures, de sorte que ses tableaux ne se reproduisent qu'à l'état du moteur
 de leurs fichiers. Le contrôle~S5 de \code{tests/comparer\_}\allowbreak\code{ajusteurs\_bootstrap.R}
@@ -17690,7 +17692,8 @@ départ alors que l'optimum est sur l'autre bord~: les trois démarrages répond
 qu'un réajustement à un seul démarrage depuis $(\hat\delta,\hat\gamma)$ réalisait dans
 $0{,}36~\%$ $[0{,}21~\%~;~0{,}57~\%]$ des réplications sur J1 et $0{,}68~\%$
 $[0{,}47~\%~;~0{,}95~\%]$ sur J2 ($4\,999$ réplications, graine 20260926, intervalles de
-Clopper--Pearson à 95~\%~; aucun verdict changé sur le jeu de contrôle~; variante écartée). Le
+Clopper--Pearson à 95~\%~; sur les 999 tirages de la référence du jeu de contrôle, aucun
+verdict changé~; variante sous le critère ci-dessous, écartée au profit des trois démarrages). Le
 script hors CI \code{tests/comparer\_ajusteurs\_bootstrap.R} rejoue, sous
 \code{engine\_sous\_graine()} et la graine du moteur, les réplications de
 \code{usp\_bootstrap()} (identité vérifiée par \code{identical()} avec le bootstrap du moteur) et
@@ -17833,8 +17836,8 @@ par différences centrées sur un chain-ladder élémentaire à un an, qui ne la
 (tableau ci-dessus~; sous $h \approx 2{,}5\times10^{-4}$, l'erreur d'arrondi, de l'ordre de la précision machine
 divisée par $h$, pèse autant que l'erreur de troncature et fausse le rapport des écarts, qui n'est donc pas mesuré à $h = 10^{-4}$). Sur
 les trois triangles, \code{msep\_matrice} s'écarte de $+49$, $+15$ et $+55~\%$ du libellé
-publié en 2015 et de $-27$, $-44$ et $-22~\%$ d'une transcription de D(5) qui omet les termes
-diagonaux $\hat C(i,J)^2\,\Delta_i$ et le facteur~2, recalculés localement~: la vérification
+publié en 2015 et de $-27$, $-44$ et $-22~\%$ d'une transcription de D(5), version consolidée, qui
+omet les termes diagonaux $\hat C(i,J)^2\,\Delta_i$ et le facteur~2, recalculés localement~: la vérification
 détecte ces deux erreurs. Ces trois voies sont des
 \emph{vérifications numériques} d'une même définition, la MSEP du texte consolidé~; aucune n'est
 une validation statistique de la MSEP à $T = 8$, approximation linéaire dont la qualité à
@@ -18026,9 +18029,9 @@ statistiques à la fois~; or, dans les valeurs brutes ($7\,000$ bootstraps, pool
 (triangle, statistique)), un seul couple a un $B$ effectif inférieur à 999 ($998$,
 \code{PenteIntra}, sous E, statistique de la mesure), les autres statistiques du même triangle
 étant à 999~: aucun cumul simulé invalide n'a été tiré, et \code{mw\_bootstrap()} consomme alors
-le même flux et rend les mêmes triangles. Avant toute relance, le générateur
-\code{gen\_triangle\_h0()} et le contrôle~(s) du script, qui ne retirent pas (\code{NaN} au
-premier cumul invalide), sont à aligner sur le moteur. Les ensembles figés des colonnes non
+le même flux et rend les mêmes triangles. Le générateur
+\code{gen\_triangle\_h0()} et le contrôle~(s) du script appliquent le même retirage que le
+moteur. Les ensembles figés des colonnes non
 identifiables de la courbure (fiche~\ref{mw:m1c}) et de l'ordonnée à l'origine
 (fiche~\ref{mw:m1a}) ne font pas partie du moteur de la mesure. Ils ne changent la statistique
 observée ou celle d'une réplication que si une colonne retenue compte moins de trois valeurs
@@ -18919,12 +18922,13 @@ partie~III).
   \item AEAPP, \emph{Orientations sur les paramètres propres à l'entreprise}, EIOPA-BoS-25/249,
   adoptées le 25~juin 2025, qui abrogent et remplacent EIOPA-BoS-14/178 (§~6). Page de l'AEAPP
   «~Final report on revised guidelines on undertaking-specific parameters~» (publiée le
-  14/07/2025, consultée avant la date d'établissement du présent document).
+  14/07/2025, consultée à la date d'établissement du présent document~; orientations données
+  dans toutes les langues officielles, traductions non datées).
   \emph{Portée.} Conformité continue à l'orientation~5 (§§~13 à~15), sans tests statistiques ni
   périodicité~; orientations~2, 8 et~12 de 2015 supprimées. Applicables deux mois après la
   publication des traductions dans toutes les langues officielles~; jusque-là, les orientations
-  de 2015 s'appliquent. Date de cette publication et déclaration de conformité de l'ACPR non
-  établies à la date d'établissement du présent document (page de garde). C'est le texte des
+  de 2015 s'appliquent. Date de cette publication non établie, et aucune déclaration de conformité de l'ACPR
+  trouvée, à la date d'établissement du présent document (page de garde). C'est le texte des
   orientations qui fait référence, non le rapport final, qui garde l'ancienne numérotation.
 
   \item Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II), cités en page de titre.
