@@ -2291,8 +2291,11 @@ estimations indépendantes d'une même p-value $p$ vaut $\sqrt{2p(1-p)/B}$ à la
 $1/(B+1)$ près, soit $0{,}016$ pour $p = 0{,}84$ (sup-F, écart maximal $0{,}043$)~; pour une
 p-value bilatérale $2\min(\hat p^{+},\hat p^{-})$, la queue retenue $q = p/2$ est doublée et
 l'écart-type devient $\sqrt{2p(2-p)/B}$, soit $0{,}035$ pour $p = 0{,}37$ (test des suites,
-écart maximal $0{,}046$)~: les écarts maximaux observés valent entre $1{,}3$ et $2{,}6$ fois ces
-écarts-types, ce qui est attendu pour le maximum sur 34 et 13 statistiques (§\ref{sec:deuxerreurs}).
+écart maximal $0{,}046$)~: les deux écarts rattachés valent $2{,}6$ et $1{,}3$ fois ces
+écarts-types, ce qui est attendu pour le maximum sur 34 et 13 statistiques (§\ref{sec:deuxerreurs})~;
+le troisième ($0{,}062$), dont la statistique n'a pas été consignée, ne se rattache à aucun
+écart-type~: il vaut près de $1{,}4$ fois le plus grand possible, $\sqrt{2/B} = 0{,}045$ (p-value
+bilatérale égale à~1).
 
 \emph{État laissé à l'appelant}~: les six sources restaurant l'état qu'elles ont trouvé,
 \code{run\_engine()} laisse l'état du générateur de l'appelant intact.
@@ -5235,7 +5238,7 @@ Diagnostic \\
   qu'une dégénérescence de la loi simulée ou qu'une statistique observée non finie, la ligne passe
   en diagnostic, son commentaire commençant
   par \code{Monte-Carlo indisponible :} suivi du motif et de \code{p de Student sous le modele
-  auxiliaire pondere non retenue (ADR 0001)} (\code{\dots{} sous le modele auxiliaire MCO non retenue \dots} jusqu'à l'issue~\#215)~;
+  auxiliaire pondere non retenue} (\code{\dots{} sous le modele auxiliaire MCO non retenue \dots} jusqu'à l'issue~\#215)~;
   depuis l'issue~\#181, toute ligne dans ce cas suit la même règle, avec le libellé par défaut
   \code{p non simulee (loi du champ loi)} (section~\ref{sec:nature}, point~(ii)), la constante
   gardant le sien.
@@ -5547,7 +5550,7 @@ homogénéité de $f_j$, exposant de variance, Kruskal--Wallis (\code{MW\_CATALO
 extrémités et leur calcul sont au tableau~\ref{tab:pmin}, note~(v). Lecture~: si
 $p_{\min}^{\mathrm{MC}} \ge \alpha$, la ligne est un test inopérant, commentaire préfixé
 «~\code{TEST INOPERANT au seuil alpha = \dots{}~: plus petite p-value Monte-Carlo atteignable sur
-ces replications >= alpha (\dots)~; aucun verdict (ADR 0001).}~», champ \code{inoperant} à
+ces replications >= alpha (\dots)~; aucun verdict.}~», champ \code{inoperant} à
 \code{TRUE}~; si $\alpha/2 \le p_{\min}^{\mathrm{MC}} < \alpha$ en sens «~ne pas rejeter~», la
 ligne reste un test et son commentaire se termine par «~\code{ECHEC inatteignable~: plus petite
 p-value Monte-Carlo atteignable sur ces replications >= alpha/2 = \dots}~»~; si
@@ -5718,7 +5721,7 @@ releve de la ligne homologue sur residus standardises, dont le type et le verdic
 la formule «~\code{dont le type et le verdict font foi}~» tient compte de ce que la ligne homologue
 peut n'avoir elle-même aucun verdict (diagnostic par la règle~R1, test sans p-value retenue).
 Sans p-value de Monte-Carlo, \code{add()} pose le motif en tête selon sa classe, par
-\code{.prefixe\_motif\_mc()}, comme pour un test~: «~\code{<motif> : aucune p-value retenue (ADR 0001).}~»
+\code{.prefixe\_motif\_mc()}, comme pour un test~: «~\code{<motif> : aucune p-value retenue.}~»
 suivi de son complément pour un motif de dégénérescence (liste \code{MOTIFS\_MC\_DEGENERES}),
 «~\code{Monte-Carlo indisponible : <motif>.}~» sinon~; elle le fait pour tout diagnostic posé par
 l'appelant dont la p-value de Monte-Carlo manque --- lignes de la règle~R15 et diagnostics par
@@ -5867,7 +5870,7 @@ décisions du mainteneur du 12~octobre 2026~; ADR~0003, annotation du 12~octobre
 si la ligne a une p non simulée, elle devient un \emph{diagnostic}, verdict \code{INFO},
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, \code{inoperant} à \code{FALSE}, la p non simulée
 restant affichée dans sa colonne, et son commentaire commence par «~\code{Monte-Carlo
-indisponible~:} \emph{motif} \code{; p non simulee (loi du champ loi) non retenue (ADR 0001).}~»,
+indisponible~:} \emph{motif} \code{; p non simulee (loi du champ loi) non retenue.}~»,
 le libellé renvoyant au champ \code{loi} de la ligne, qui décrit cette p (la nullité de la
 constante, point~(iii), garde son libellé \code{p de Student sous le modele auxiliaire
 pondere}). Jusqu'à cette issue, la p-value asymptotique était retenue sous une nature qui
@@ -5912,8 +5915,8 @@ aberrante de la méthode Merz--Wüthrich dont une cellule retenue a une influenc
 (fiche~\ref{mw:m4gr}) --- reste de type test, sans p-value retenue ni
 verdict (\code{INFO}, sens conservé), état décidé par le mainteneur le 27~septembre 2026~; depuis
 l'issue~\#128 (point~2$'$, restitution précisée le 1\textsuperscript{er}~octobre 2026), son
-commentaire commence par «~\code{aucune p-value disponible sur ces donnees~: aucun verdict (ADR
-0001).}~», précédé de «~\code{Monte-Carlo indisponible~:} \emph{motif}~\code{;}~» quand le motif
+commentaire commence par «~\code{aucune p-value disponible sur ces donnees~: aucun verdict.}~»,
+précédé de «~\code{Monte-Carlo indisponible~:} \emph{motif}~\code{;}~» quand le motif
 n'y figure pas déjà, et la phrase «~\code{ECHEC inatteignable}~» de la règle~R1 ne lui est plus
 ajoutée, parce qu'elle laissait croire \code{OK} ou \code{ALERTE} possibles alors qu'aucun verdict
 ne l'est~; son champ \code{inoperant} vaut \code{FALSE}. Mesuré par \code{usp\_tests()} sur le
@@ -8670,7 +8673,7 @@ pondérée~; aucun verdict n'a changé. Jusqu'à l'issue~\#44, la p-value de Stu
 sous la nature \code{exacte}. Si la p-value de Monte-Carlo manque, la p-value de Student n'est pas
 retenue à sa place~: la ligne passe en diagnostic et son commentaire commence par
 «~\code{Monte-Carlo indisponible :}~» suivi du motif et de «~\code{p de Student sous le modele
-auxiliaire pondere non retenue (ADR 0001)}~» (repli interdit, ADR~0001~;
+auxiliaire pondere non retenue}~» (repli interdit, ADR~0001~;
 section~\ref{sec:nature}).
 
 \emph{Seuil de rejet de la constante} (issue~\#314, décision Q-D1-Fb-6 du mainteneur du
@@ -8940,7 +8943,7 @@ inchangés, \code{p\_min} à \code{NA} et \code{inoperant} à \code{FALSE} (le c
 la règle~R1). Son commentaire est «~\code{EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES au seuil
 alpha =} \ldots~\code{: t(1-alpha, T-2) x se(a) / Delta =} \ldots~\code{>= 1, soit p >=
 p\_plancher =} \ldots~\code{>= alpha quelle que soit la constante estimee~: OK inatteignable}
-[\code{, et meme p >= 0.3~: ALERTE inatteignable}]~\code{; aucun verdict (ADR 0001). Delta =}
+[\code{, et meme p >= 0.3~: ALERTE inatteignable}]~\code{; aucun verdict. Delta =}
 \ldots~\code{(valeur~: estimation "marge Delta")~; p\_bas =} \ldots\code{, p\_haut =}
 \ldots~\code{; p du TOST (champ p asymptotique~: loi de Student sous le modele auxiliaire
 pondere, poids estimes) non retenue. L'equivalence ne peut pas etre conclue avec ces donnees
@@ -9736,7 +9739,7 @@ règle~R1 peut rendre inopérante, reprise ici par harmonisation~; l'ancienne ph
 («~\code{\dots{} est retenue.}~») était exacte sur cette ligne, qui n'a pas de $p_{\min}$ et que
 la règle~R1 ne peut donc pas rendre inopérante. Si elle n'existe pas, il dit
 «~\code{La p Monte-Carlo, simulee sous le modele ajuste, est indisponible sur ces donnees~: aucune
-p-value n'est retenue (ADR 0001).}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
+p-value n'est retenue.}~» (issue~\#182~; il renvoyait auparavant à \code{nature\_p},
 vide depuis l'issue~\#181)~: faute de réplications finies en nombre suffisant, aucune p-value n'est retenue et
 la ligne devient un diagnostic «~\code{Monte-Carlo indisponible}~», sa p-value non simulée restant
 affichée sans être retenue (issue~\#181, section~\ref{sec:nature}, point~(ii)~; mesuré avec
@@ -10070,7 +10073,7 @@ $p_{\min} = 0{,}0625$)~; à $\alpha = 0{,}05$, dès $T = 14$ ($m = 6$, $p_{\min}
 (valeurs de \code{cox\_stuart\_p\_min()}~; la rédaction antérieure, «~$\alpha > 0{,}25$ à
 $m = 3$, seul cas atteignable~», ne valait qu'à $T = 8$ et~9). Le commentaire commence alors par
 «~\code{Monte-Carlo indisponible~: statistique observee non definie~: ex aequo~; aucune p-value
-disponible sur ces donnees~: aucun verdict (ADR 0001).}~» et porte les deux motifs, sans la phrase
+disponible sur ces donnees~: aucun verdict.}~» et porte les deux motifs, sans la phrase
 «~\code{ECHEC inatteignable}~» de la règle~R1 (issue~\#128, point~2$'$~; section~\ref{sec:nature},
 point~(ii))~; mesuré par \code{run\_engine()} sur des jeux à $\hat\pi_t$ variable dont une paire
 a une différence nulle~: à $T = 8$ et $\alpha = 0{,}29$, et à $T = 12$ et $\alpha = 0{,}10$, ligne
@@ -12601,15 +12604,15 @@ hors de la double condition, il ne nomme la p-value de Monte-Carlo que si elle
 existe --- à $\hat\pi_t$ variable, «~\code{Seule la p-value Monte-Carlo, simulee sous le modele
 ajuste avec ses pi\_t, est calculee~; la p-value retenue, s'il en est une, est nommee par
 nature\_p~;}~» ---, et dit sinon, à $\hat\pi_t$ variable seulement, où la ligne reste de type
-test, qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue
-(ADR 0001)}~» (issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
+test, qu'elle «~\code{est indisponible sur ces donnees~: aucune p-value n'est retenue}~»
+(issue~\#182~; mesuré à $\hat\pi_t$ variable sur le jeu à $\hat\delta$ intérieur avec
 \code{usp\_bootstrap(B = 40)}~; il renvoyait auparavant à \code{nature\_p})~; à $\hat\pi_t$
 constant, hors de la double condition, voir ci-dessous. \emph{Aucune phrase de
 \code{usp\_tests()} ne déclare la p-value retenue} (issue~\#214, décision Q-F-5)~: jusqu'à cette issue, il disait
 «~\code{la p-value EXACTE est retenue}~» sous la double condition et «~\code{Seule la p-value
 Monte-Carlo [\dots] est retenue}~» à $\hat\pi_t$ variable, ce que contredit la règle~R1 quand elle
 bascule la ligne en test inopérant~: \code{add()} ne retient alors aucune p-value, et le
-commentaire commence par «~\code{TEST INOPERANT \dots{}~; aucun verdict (ADR 0001).}~». La
+commentaire commence par «~\code{TEST INOPERANT \dots{}~; aucun verdict.}~». La
 p-value retenue, s'il en est une, se lit dans \code{nature\_p} et \code{p\_retenue}. Mesuré
 (\code{run\_engine()}, méthode prime, $B = 999$, graine 20260831, $\alpha = 0{,}05$, moteur
 antérieur à l'issue pour «~avant~»)~: sur le jeu de contrôle (double condition, $p_{\min} = 4/70 =
@@ -12791,7 +12794,7 @@ la p-value retenue, s'il en est une, est nommee par nature\_p.}~» (jusqu'à cet
 peut rendre inopérante~; formule harmonisée avec celle du test des suites sur ratios bruts,
 fiche~\ref{fiche:suites-ratios-bruts})~; sinon, il dit qu'elle est
 indisponible~: «~\code{\dots{}~; p\_mc est indisponible sur ces donnees~: aucune p-value n'est
-retenue (ADR 0001)}~» (issues~\#128 et~\#182~; il renvoyait auparavant à \code{nature\_p})~: faute de réplications finies en
+retenue}~» (issues~\#128 et~\#182~; il renvoyait auparavant à \code{nature\_p})~: faute de réplications finies en
 nombre suffisant, la ligne devient, par la règle~(ii) de la section~\ref{sec:nature}, un
 diagnostic sans p-value retenue, la p-value asymptotique restant affichée (issue~\#181~; mesuré
 avec \code{usp\_bootstrap(B = 40)})~; jusqu'à cette issue, elle était retenue sous une nature qui
@@ -18393,7 +18396,7 @@ conservé, champ \code{inoperant} à \code{FALSE}~; \code{CONTEXT.md}, «~Test s
 retenue~», second cas), et non un diagnostic~: aucune p-value n'existe sur ces données. Le
 commentaire commence par «~\code{Monte-Carlo indisponible~: statistique observee non definie~:
 residu studentise non borne en cellule (i,j) (autres cellules de la colonne proportionnelles)~;
-aucune p-value disponible sur ces donnees~: aucun verdict (ADR 0001).}~», le motif étant posé
+aucune p-value disponible sur ces donnees~: aucun verdict.}~», le motif étant posé
 par le champ \code{non\_definie} de l'entrée \code{MinP4} de \code{MW\_CATALOGUE\_MC}
 (\code{.mw\_motif\_cellule\_non\_bornee()}). Dans une réplication, la même configuration donne
 $p_{ij} = 0$ (limite de $|t| \to \infty$) et la réplication reste dans $B$ effectif~; une colonne
@@ -18593,7 +18596,7 @@ ouverte}~: ni p-value exacte, faute de loi de $R_i$ sous le modèle de Mack~; ni
 asymptotique~; ni p-value de Monte-Carlo, la procédure n'ayant pas de statistique unique et des
 seuils calibrés par simulation constituant une méthode nouvelle, sans source, que l'issue~\#300
 n'a pas retenue. Le commentaire est la phrase fixe \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}~:
-«~\code{Diagnostic sans verdict (ADR 0001)~: procedure ESD generalisee de Rosner (1983) appliquee
+«~\code{Diagnostic sans verdict~: procedure ESD generalisee de Rosner (1983) appliquee
 aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation de Student-Bonferroni) et son
 domaine declare (n >= 25) valent pour un echantillon i.i.d. normal~; les residus de Mack, soumis a
 des contraintes exactes par colonne, n'en sont pas un, et le cadre de Rosner (1983) ne les couvre
@@ -19258,8 +19261,8 @@ possible. \emph{B effectif de famille} (Q-D1-Fk-5)~: $n$, au plus égal au plus 
 effectif des membres~; il vaut 999 sur chaque ligne des six cas de référence (remesuré). Sous
 \code{B\_MIN\_DEGENERESCENCE} $= 50$, aucune p-value n'est calculée (\code{p\_monte\_carlo} à
 \code{NA}) et le commentaire commence par le texte T-3b, «~\code{p de famille non calculee :
-replications completes insuffisantes (B\_effectif < B\_MIN\_DEGENERESCENCE = 50) ; aucune p-value
-(ADR 0001).}~»~; quand $n$ est inférieur au $B$ effectif d'au moins un membre, le texte T-3a est
+replications completes insuffisantes (B\_effectif < B\_MIN\_DEGENERESCENCE = 50) ; aucune p-value.}~»~;
+quand $n$ est inférieur au $B$ effectif d'au moins un membre, le texte T-3a est
 joint, «~\code{Calculee sur les seules replications ou les statistiques de tous les tests de la
 famille sont finies, moins nombreuses que celles d'au moins un test : la plus petite p peut alors
 differer de la plus petite p Monte-Carlo affichee.}~» Aucun des deux textes n'apparaît sur les
