@@ -168,7 +168,7 @@ verifier("#297 champs du par. 4.2 et textes T-1 et T-2 (membres dans l'ordre des
 # Textes a la lettre (reprise du 25/10/2026, points 5, 6, 8 et 9).
 verifier("#297 textes a la lettre : T-2, T-3a, phrase d'introduction des membres de T-1, reference",
          identical(DETAIL_P_GLOBALE, paste0(
-           "Lecture conjointe de la batterie (issue #297) : p minP en une etape sur les %d tests ",
+           "Lecture conjointe de la batterie : p minP en une etape sur les %d tests ",
            "des familles (tous, quelle que soit la selection de restitution), meme construction ",
            "que les lignes de famille. Elle situe la plus petite p Monte-Carlo observee dans sa loi ",
            "sous le modele ajuste, compte tenu du nombre de tests et de leur dependance. Elle porte ",

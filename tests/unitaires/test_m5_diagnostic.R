@@ -11,7 +11,7 @@
 #      p_exacte), identique a sw_p_loi_nulle(W, n) ;
 #    - T245-3 : Lilliefors, p_asymptotique = lillie_p(D, n) ;
 #    - T245-4 : detail des deux lignes = phrases fixes du point 4, sans aucun
-#      nombre (regle #76) hors des renvois "ADR 0001" et "D(2)(h)".
+#      nombre (regle #76) hors du renvoi "D(2)(h)".
 #  T245-5 : U120-1 reecrit (test_nature_p_non_simulee.R) ; T245-6 : mesure de
 #  .MW_LIGNES_RESIDUS (test_merz_wuthrich.R), inchangee ; T245-7 : registre
 #  de concordance (test_concordance_doc_moteur.R).
@@ -73,7 +73,7 @@ verifier("T245-3 Lilliefors : p_asymptotique = lillie_p(D, n) = 0,4569697 ; vari
          })
 
 DETAIL_SW <- paste(
-  "Diagnostic sans verdict (ADR 0001) : la normalite n'est pas une hypothese du modele",
+  "Diagnostic sans verdict : la normalite n'est pas une hypothese du modele",
   "(l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments). La loi nulle de W",
   "est celle d'un echantillon i.i.d. normal, que les residus de Mack ne sont pas (f_j et",
   "sigma_j estimes sur les memes facteurs) : sous erreurs gaussiennes, elle rejette plus",
@@ -81,11 +81,11 @@ DETAIL_SW <- paste(
   "restituee pour information ; elle n'est pertinente que si l'on souhaite exploiter la",
   "MSEP pour un quantile.")
 DETAIL_LI <- paste(
-  "Diagnostic sans verdict (ADR 0001) : approximation de Dallal et Wilkinson de la loi de D",
+  "Diagnostic sans verdict : approximation de Dallal et Wilkinson de la loi de D",
   "a n fini sous echantillon i.i.d. normal, que les residus de Mack ne sont pas ; sous",
   "erreurs gaussiennes, elle rejette plus souvent que le seuil nominal (constat de",
   "simulation sous un plan). La p-value est restituee pour information.")
-sans_renvois <- function(x) gsub("ADR 0001|D\\(2\\)\\(h\\)", "", x)
+sans_renvois <- function(x) gsub("D\\(2\\)\\(h\\)", "", x)
 verifier("T245-4 Shapiro-Wilk : detail = phrase fixe du point 4, ASCII, sans nombre hors renvois",
          identical(sw245[[1]]$detail, DETAIL_SW) && !grepl("[^ -~]", sw245[[1]]$detail) &&
            !grepl("[0-9]", sans_renvois(sw245[[1]]$detail)))

@@ -419,7 +419,7 @@ NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
 detail_esd_attendu <- function(alpha, positions)
   paste0(sprintf("procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value", alpha),
          if (length(positions)) paste0(" ; rangs ", paste(positions, collapse = ", ")) else "",
-         ". Restituee en diagnostic par decision (issue #304) : aucun verdict ni p-value retenue ;",
+         ". Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;",
          " valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;",
          " a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee",
          " releve de la ligne Grubbs sur residus standardises, dont le type et le verdict font foi.")
@@ -569,7 +569,7 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
                                   'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
            m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
 # Depuis #304 et #300, aucune ligne du moteur n'est de type "procedure de
@@ -593,7 +593,7 @@ verifier("add() (registre lognormal) refuse le type 'procedure de decision', ave
              all(grepl(NOM_ESD, c(m_sans, m_avec, m_autres), fixed = TRUE)) &&
              all(grepl("add() : type de ligne inconnu", m_autres, fixed = TRUE)) &&
              !length(reg$lignes()) &&
-             grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m2, fixed = TRUE) &&
+             grepl("un verdict n'est admis que pour type = 'test' : ", m2, fixed = TRUE) &&
              grepl(NOM_ESD, m2, fixed = TRUE)
          })
 

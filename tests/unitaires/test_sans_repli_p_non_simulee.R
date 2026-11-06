@@ -10,7 +10,7 @@
 #      degenere, sans p exacte finie, avec une p non simulee finie, devient un
 #      diagnostic (INFO, p non simulee conservee dans sa colonne, p_retenue et
 #      nature_p NA, inoperant FALSE), detail prefixe "Monte-Carlo indisponible :
-#      <motif> ; <libelle_p_as> non retenue (ADR 0001)." ;
+#      <motif> ; <libelle_p_as> non retenue." ;
 #    - plus aucun repli nomme "asymptotique (Monte-Carlo indisponible : ...)".
 #  U181-9 (six references identiques) est porte par tests/test_reproductibilite.R.
 ###############################################################################
@@ -26,7 +26,7 @@ debut_fichier("test_sans_repli_p_non_simulee.R")
 
 LIB181 <- "p non simulee (loi du champ loi)"
 pre181 <- function(motif, lib = LIB181)
-  paste0("Monte-Carlo indisponible : ", motif, " ; ", lib, " non retenue (ADR 0001).")
+  paste0("Monte-Carlo indisponible : ", motif, " ; ", lib, " non retenue.")
 
 # Registre fictif : une statistique Monte-Carlo "S", p_mc absente pour le
 # motif donne.
@@ -52,7 +52,7 @@ verifier("U181-1 add() : MOTIF_MC_REPLIC_INSUFFISANTES, p_as = 0,03 -> diagnosti
            est_diag181(l, MOTIF_MC_REPLIC_INSUFFISANTES, 0.03) &&
              startsWith(l$detail, paste("Monte-Carlo indisponible : replications finies insuffisantes",
                                         "(B_effectif < B_MIN_DEGENERESCENCE = 50) ; p non simulee",
-                                        "(loi du champ loi) non retenue (ADR 0001)."))
+                                        "(loi du champ loi) non retenue."))
          })
 verifier("U181-2 add() : MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REGIME_RARE, motif de non_definie -> meme diagnostic, detail conserve",
          all(vapply(c(MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REGIME_RARE,
@@ -85,7 +85,7 @@ verifier("U181-4 add() : p_as NA -> test sans p-value retenue, detail de #128 in
              identical(l$sens, "ne pas rejeter") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                         " ; aucune p-value disponible sur ces donnees : aucun verdict",
-                                        " (ADR 0001). d"))
+                                        ". d"))
          })
 
 ## --- U181-5 : motifs degeneres et observee non finie (regle R3 inchangee) ------
@@ -93,8 +93,8 @@ verifier("U181-5 add() : motifs degeneres -> diagnostic au prefixe du motif, san
          all(vapply(c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS, MOTIF_MC_CONDITION), function(m) {
            l <- ligne181(m, p_ex = 0.2, p_as = 0.03)
            identical(l$type, "diagnostic") && is.na(l$p_retenue) &&
-             startsWith(l$detail, paste0(m, " : aucune p-value retenue (ADR 0001).")) &&
-             !grepl("non retenue (ADR 0001)", l$detail, fixed = TRUE)
+             startsWith(l$detail, paste0(m, " : aucune p-value retenue.")) &&
+             !grepl("Monte-Carlo indisponible", l$detail, fixed = TRUE)
          }, logical(1))))
 verifier("U181-5 add() : statistique observee non finie, sans p exacte -> non applicable",
          {
@@ -107,14 +107,14 @@ verifier("U181-5 add() : statistique observee non finie, sans p exacte -> non ap
 # d'une ligne que l'appelant passe de type "diagnostic" (avant : chaque
 # appelant, detail_diagnostic() de usp_tests() et ligne Runs de mw_tests()),
 # sous la forme de .prefixe_motif_mc() : motif degenere -> "<motif> : aucune
-# p-value retenue (ADR 0001)." et son complement ; autre motif ->
+# p-value retenue." et son complement ; autre motif ->
 # "Monte-Carlo indisponible : <motif>." ; type inchange, jonction ". ".
 verifier("#358 add() : diagnostic pose par l'appelant, p Monte-Carlo absente -> prefixe .prefixe_motif_mc(), type et p conserves",
          all(vapply(c(MOTIFS_MC_DEGENERES, MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REPLIC_INSUFFISANTES,
                       MOTIF_MC_REGIME_RARE), function(m) {
            l <- ligne181(m, type = "diagnostic", p_as = 0.03, detail = "Phrase fixe.")
            pre <- if (m %in% MOTIFS_MC_DEGENERES)
-             trimws(paste(c(paste0(m, " : aucune p-value retenue (ADR 0001)."), .complement_motif_mc(m)),
+             trimws(paste(c(paste0(m, " : aucune p-value retenue."), .complement_motif_mc(m)),
                           collapse = " "))
            else paste0("Monte-Carlo indisponible : ", m, ".")
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&

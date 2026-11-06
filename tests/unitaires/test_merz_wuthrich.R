@@ -918,15 +918,17 @@ local({
                            abs = 1e-5)) &&
              isTRUE(proche(ga$moyenne, c(-0.5047, -0.3665, -0.2242, 0.3175, 0.7853, 0.9015, 0.5111),
                            abs = 1e-4)))
-  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre.
+  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre,
+  # hors renvoi a l'issue, retire des chaines du moteur (#452).
   spec <- readLines(file.path(RACINE, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
                     encoding = "UTF-8")
   t1 <- sub("^> `(.*)`$", "\\1", spec[which(startsWith(spec, "**T-1 (#312"))[1] + 1L])
+  t1 <- sub(" (issue #312)", "", t1, fixed = TRUE)
   lr <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), r312$tests)
   verifier("#312 : test des suites, variante secondaire et diagnostic par decision (verdict INFO, inoperant FALSE, detail T-1 a la lettre)",
            length(lr) == 1L && {
              l <- lr[[1]]
-             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision (issue #312)") &&
+             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision : aucun verdict ni") &&
                identical(l$type, "diagnostic") && identical(l$variante, "secondaire") &&
                identical(l$verdict, "INFO") && identical(l$inoperant, FALSE) &&
                identical(l$detail, t1) && is.na(l$p_retenue) && is.na(l$nature_p) &&
@@ -959,10 +961,10 @@ local({
                startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
                                            ". ", t1))
            })
-  verifier("#312 : motif de degenerescence -> '<motif> : aucune p-value retenue (ADR 0001).' et complement, puis T-1",
+  verifier("#312 : motif de degenerescence -> '<motif> : aucune p-value retenue.' et complement, puis T-1",
            {
              l <- ligne_runs(MOTIF_MC_DISPERSION_NULLE)
-             pre <- trimws(paste(c(paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001)."),
+             pre <- trimws(paste(c(paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue."),
                                    .complement_motif_mc(MOTIF_MC_DISPERSION_NULLE)), collapse = " "))
              identical(l$type, "diagnostic") && startsWith(l$detail, .engine_joindre(pre, t1))
            })
@@ -1330,14 +1332,14 @@ verifier("add() (mw_tests) refuse un verdict force sur un diagnostic (part de la
          {
            m <- erreur_mw(mw_tests_modifie('type = "diagnostic", estim_nom = "part"',
                                            'type = "diagnostic", verdict = "OK", estim_nom = "part"'))
-           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
              grepl("Part de la reserve portee par la derniere annee d'accident", m, fixed = TRUE)
          })
 verifier("add() (mw_tests) refuse un verdict force sur le diagnostic de Rosner (#300)",
          {
            m <- erreur_mw(mw_tests_modifie('estim_nom = "nb de cellules declarees (repere de Rosner)"',
                                            'verdict = "OK", estim_nom = "nb de cellules declarees (repere de Rosner)"'))
-           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
              grepl("Cellules aberrantes multiples (ESD generalise)", m, fixed = TRUE)
          })
 verifier("mw_tests : types en usage dans {test, diagnostic, non applicable} (#357)",
@@ -2582,7 +2584,7 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 : CorrDev inoperant sur p_min_mc, Ca
              su$type == "diagnostic" && identical(su$verdict, "INFO") && !su$inoperant &&
              isTRUE(proche(su$p_min, 4 / 70, 1e-12)) && is.na(su$p_min_mc) &&
              isTRUE(proche(r5$bootstrap$p_min_mc[["Runs"]], 0.02, 1e-12)) &&
-             startsWith(su$commentaire, "Restituee en diagnostic par decision (issue #312)") &&
+             startsWith(su$commentaire, "Restituee en diagnostic par decision : aucun verdict ni") &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
@@ -3246,7 +3248,7 @@ verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, det
 NOM308 <- "Identifiabilite intra-colonne (dispersion des cumuls par colonne)"
 ligne308 <- function(L) L[[which(vapply(L, `[[`, "", "test") == NOM308)]]
 TETE308 <- paste0(
-  "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee, dont ",
+  "Diagnostic sans verdict : dispersion des cumuls a colonne donnee, dont ",
   "depend la puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2 ",
   "(exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes degenerees) : ",
   "CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j) (sous un exposant de ",
@@ -3674,7 +3676,7 @@ verifier("M4 (#300) : ligne de mw_tests() = entree MinP4 du catalogue (statistiq
                "auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j) suit, conditionnellement aux",
                "cumuls de la colonne j, la loi de Student a n_j - 2 degres de liberte, et min(1, N_t M)",
                "borne la p-value de M (Bonferroni) ; cette borne est une p non simulee, jamais retenue a la",
-               "place de la p Monte-Carlo (#181).")) &&
+               "place de la p Monte-Carlo.")) &&
              grepl("N_t = 22 ; 3 cellule(s) des colonnes n_j = 3 non couverte(s)", x$detail, fixed = TRUE) &&
              grepl("Minimum en cellule (annee d'accident 0, developpement 2), n_j = 5.", x$detail, fixed = TRUE) &&
              !grepl(format(x$p_mc), x$detail, fixed = TRUE) && !grepl(format(x$err_mc), x$detail, fixed = TRUE)
@@ -3688,7 +3690,7 @@ verifier("M4 (#300) : reserve2, p_mc 0,898, Bonferroni 1, verdict OK ; B effecti
 verifier("Rosner (#300) : diagnostic par decision, verdict INFO, estim_nom impose, phrase fixe du premier complement puis le fragment alpha (k^ = 0 : aucun rang)",
          {
            x <- lig300("Cellules aberrantes multiples (ESD generalise)")
-           ph <- paste("Diagnostic sans verdict (ADR 0001) : procedure ESD generalisee de Rosner (1983)",
+           ph <- paste("Diagnostic sans verdict : procedure ESD generalisee de Rosner (1983)",
                        "appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation",
                        "de Student-Bonferroni) et son domaine declare (n >= 25) valent pour un",
                        "echantillon i.i.d. normal ; les residus de Mack, soumis a des contraintes",

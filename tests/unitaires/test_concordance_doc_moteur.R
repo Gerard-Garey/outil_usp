@@ -799,7 +799,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
 # (R2), deplacee avant \Usage (Durbin-Watson), doublee (Mann-Kendall) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
-# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
+# inexistant (issue221-J2.md -> issue221-J9.md sur la rangee de la pente ;
 # rangee Fisher retiree par #169). White et Goldfeld-Quandt, d'abord visees
 # ici, sont des diagnostics par decision depuis #299 (plus de \Pertinence) :
 # les injections portent sur Durbin-Watson et Mann-Kendall.
@@ -819,7 +819,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
 .k_fi <- grep("(\\ref{fiche:student-pente}) &", .tex_114, fixed = TRUE)
-.m[.k_fi] <- sub("issue122-J2.md", "issue122-J3.md", .m[.k_fi], fixed = TRUE)
+.m[.k_fi] <- sub("issue221-J2.md", "issue221-J9.md", .m[.k_fi], fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(.m, .tex_mutant, useBytes = TRUE)
 r_114 <- .juger_tex(.tex_mutant)
@@ -845,8 +845,8 @@ verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee m
            .sortie_a(NA, "fiche:lilliefors", "fiche a rubrique 7 sans rangee") &&
            .sortie_a(grep("(\\ref{fiche:reset}) &", .tex_114, fixed = TRUE), "fiche:reset", "rangee pour une fiche sans rubrique 7") &&
            .sortie_a(NA, "fiche:r2", "fiche a rubrique 7 sans rangee"))
-verifier("Issue #114 : --strict signale le fichier cite inexistant (issue122-J3.md), et lui seul",
-         any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20260930-issue122-J3\\.md$", .k_fi), r_114$sortie)) &&
+verifier("Issue #114 : --strict signale le fichier cite inexistant (issue221-J9.md), et lui seul",
+         any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20261008-issue221-J9\\.md$", .k_fi), r_114$sortie)) &&
            any(grepl("^  ECART -- 1 chemin\\(s\\) cite\\(s\\) inexistant\\(s\\)", r_114$sortie)))
 
 ## --- Issue #113 : "vingt et un" non compose, compositions invalides ---------
@@ -1161,6 +1161,32 @@ verifier("Audit de #160, C1 : aucun champ introuvable -- verifier_constantes_cha
          is.list(.v160c1) && !nrow(.v160c1$ex_champs$ecarts) && !nrow(.v160c1$ex_champs$exemptees))
 verifier("Audit de #160, C1 : aucun champ introuvable -- les exemptions de champ en deviennent perimees ($vieux_champ, $jamais)",
          is.list(.v160c1) && identical(.v160c1$ex_champs$perimees$nom, c("$vieux_champ", "$jamais")))
+# Listing des exemptions de constante et de champ dans le rapport (issue #458) :
+# aucune n'existe dans EXEMPTES_CODE (seules les exemptions de fonction), ce
+# mecanisme latent n'est atteint que par une exemption posee ici, dans une copie
+# du .tex et dans EXEMPTES_CODE de l'environnement cc (restaure aussitot).
+.exemptes_ini <- cc$EXEMPTES_CODE
+.tex_ex <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
+.tex_mutant <- tempfile(fileext = ".tex")
+writeLines(c(.tex_ex,
+             "Mutant : \\code{VIEUX\\_REPERE\\_AUDIT} retir\u00e9 \u00e0 l'issue.",
+             "Mutant : \\code{res\\$vieux\\_champ\\_audit} supprim\u00e9."), .tex_mutant, useBytes = TRUE)
+cc$EXEMPTES_CODE <- c(.exemptes_ini,
+                      list(list(nom = "VIEUX_REPERE_AUDIT", objet = "constante", contexte = "retir\u00e9 \u00e0 l'issue",
+                                fenetre = 0L, motif = "motif constante audit"),
+                           list(nom = "$vieux_champ_audit", objet = "champ", contexte = "supprim\u00e9",
+                                fenetre = 0L, motif = "motif champ audit")))
+r_ex <- tryCatch(.juger_tex(.tex_mutant), finally = {cc$EXEMPTES_CODE <- .exemptes_ini; unlink(.tex_mutant)})
+verifier("Issue #458 : exemption de constante listee avec son nom, sa ligne et son motif, sans ecart",
+         any(grepl("^    Exemptees nommement \\(EXEMPTES_CODE, objet constante, 1 citation\\(s\\), pas des ecarts\\) :$", r_ex$sortie)) &&
+           any(grepl(sprintf("^      VIEUX_REPERE_AUDIT +ligne %-5d motif constante audit$", length(.tex_ex) + 1L), r_ex$sortie)) &&
+           !any(grepl("VIEUX_REPERE_AUDIT.*non exemptee|introuvable\\(s\\) non exemptee\\(s\\)", r_ex$sortie)))
+verifier("Issue #458 : exemption de champ listee avec son nom, sa ligne et son motif, sans ecart",
+         any(grepl("^    Exemptes nommement \\(EXEMPTES_CODE, objet champ, 1 citation\\(s\\), pas des ecarts\\) :$", r_ex$sortie)) &&
+           any(grepl(sprintf("^      \\$vieux_champ_audit +ligne %-5d motif champ audit$", length(.tex_ex) + 2L), r_ex$sortie)) &&
+           !any(grepl("introuvable\\(s\\) non exempte\\(s\\)", r_ex$sortie)))
+verifier("Issue #458 : EXEMPTES_CODE de l'environnement cc restaure apres la mesure",
+         identical(cc$EXEMPTES_CODE, .exemptes_ini))
 # Audit de #160, C4 : identifiants en casse mixte sans souligne.
 .cm_c4 <- cc$citations_majuscules(cc$extraire_codes(
   "\\code{CoxStuart}, \\code{Inf}, \\code{CleInventeeMixte}, \\code{B\\_effectif}, \\code{Rmd}."))
@@ -1186,11 +1212,12 @@ verifier("Audit de #160, C5 : perimees -- nom hors controle et constante sans so
            identical(.ch_c5$statut, c("hors objets (liste fermee)", "objet run_engine()", "INTROUVABLE")))
 
 # --strict sur une copie mutante du .tex (un appel du script) : constante et
-# champ inventes signales ; nom existant coupe par \newline admis ; mention
-# historique exemptee (REP_PAS_KKT) cite hors de son contexte signalee, son
-# occurrence historique restant exemptee.
+# champ inventes signales ; nom existant coupe par \newline admis ; constante
+# retiree du moteur (REP_PAS_KKT) citee comme existante signalee, sans ligne
+# de mention historique puisque plus rien n'est exempte. Le mecanisme
+# d'exemption historique n'est plus exerce par le .tex reel : il l'est sur
+# entrees synthetiques (verifier_constantes_champs() et .ex160, plus haut).
 .tex_160 <- readLines(file.path(.racine, "docs", "latex", "doc_tests_usp.tex"), warn = FALSE, encoding = "UTF-8")
-.k160 <- grep("\\code{REP\\_PAS\\_KKT}", .tex_160, fixed = TRUE)
 .n160 <- length(.tex_160)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(c(.tex_160,
@@ -1204,10 +1231,9 @@ verifier("Issue #160 : --strict echoue (code 1) sur une copie du .tex citant CON
          r_160$code == 1L &&
            any(grepl(sprintf("^    CONSTANTE_INVENTEE_XYZ +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)) &&
            any(grepl(sprintf("^    \\$champ_invente +ligne\\(s\\) %d$", .n160 + 1L), r_160$sortie)))
-verifier("Issue #160 : --strict -- REP_PAS_KKT hors de son contexte signale (seule ligne injectee), exempte a sa ligne historique ; TOL_DELTA_BORD coupe par \\newline admis",
-         length(.k160) == 1L &&
-           any(grepl(sprintf("^    REP_PAS_KKT +ligne\\(s\\) %d$", .n160 + 3L), r_160$sortie)) &&
-           any(grepl(sprintf("^      REP_PAS_KKT +ligne %d +mention historique", .k160), r_160$sortie)) &&
+verifier("Issue #160 : --strict -- REP_PAS_KKT, constante retiree du moteur, citee comme existante : signalee sur la seule ligne injectee, aucune mention historique exemptee ; TOL_DELTA_BORD coupe par \\newline admis",
+         any(grepl(sprintf("^    REP_PAS_KKT +ligne\\(s\\) %d$", .n160 + 3L), r_160$sortie)) &&
+           !any(grepl("mention historique|objet constante|objet champ", r_160$sortie)) &&
            !any(grepl("^    TOL_DELTA_(BORD)? +ligne\\(s\\)|non recolle", r_160$sortie)))
 verifier("Audit de #160, C3 et C4 : --strict -- COUL et CleInventeeMixte non classes, sans faux $trait introuvable",
          any(grepl(sprintf("^    l\\.%-5d COUL +identifiant sans souligne$", .n160 + 4L), r_160$sortie)) &&

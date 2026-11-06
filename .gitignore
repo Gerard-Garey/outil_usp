@@ -51,6 +51,9 @@ sources/
 *.nav
 *.snm
 *.vrb
+# Compilation de mesure du remplissage des pages (tests/doc_remplissage.tex, CI).
+tests/doc_remplissage.pdf
+*.remp
 
 # --- Claude Code : reglages et instructions personnels (propres au poste) ----
 .claude/settings.local.json

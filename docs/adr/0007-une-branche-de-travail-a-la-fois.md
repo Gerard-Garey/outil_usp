@@ -305,3 +305,15 @@ Les plans, les circuits et les surfaces documentaires sont ceux des deux fiches 
 **Ce que l'annotation change.** Elle complète l'annotation du 30/09/2026 : la vérification à cinq minutes après la fusion reste le garde-fou contre une fermeture **manquée** ; la règle ci-dessus prévient une fermeture **non voulue**.
 
 **Ce que l'annotation ne change pas.** Le point 1 (corps de PR, une ligne dédiée par issue du périmètre) ; la vérification après fusion et la fermeture manuelle motivée (annotation du 30/09) ; la règle « aucune réécriture de commit ». Détail et horodatages : `docs/feuille-de-route.md`, quarante-cinquième point (§ 1, fiche Fq, § 6).
+
+---
+
+## Annotation du 6 novembre 2026 — dérogation au plafond de cinq numéros pour la branche ND (nettoyage et condensation de la documentation)
+
+**Fait.** Le mainteneur a décidé le 06/11/2026, par une séance de questions (Q-ND-1 à Q-ND-23, consignées dans `docs/feuille-de-route.md`, § 4, E-06/11 (ND)), d'intercaler avant la branche Fv et la relecture intégrale (JF) une branche **ND** (`claude/nettoyage-doc`, partie de `main` `a367a1b`). ND fait de `docs/latex/doc_tests_usp.tex` une photographie de l'outil : elle en sort la vie du dépôt (numéros d'issues, décisions, sigles de branches, noms d'agents, renvois aux ADR et à `CONTEXT.md`, SHA, dates, historique) vers `docs/suivi-documentation/`, et elle condense les détails excessifs, à plan fixe et à fond inchangés.
+
+**Dérogation.** ND porte **huit numéros**, un par lot (L0 : règles et outillage ; L1 : chaînes de sortie du moteur ; L2 à L7 : parties du document), au-delà du plafond indicatif de cinq du point 1. Motifs (Q-ND-7, Q-ND-16) : un lot par partie garde la traçabilité issue → commit `docs:` → partie du document, et chaque lot a sa validation ; découper ND en deux branches ferait relire deux fois les règles de L0 et laisserait sur `main` un document à moitié condensé, avec des contrôles de CI ni bloquants ni levés.
+
+**Bornes.** La dérogation vaut pour ND seule. Elle ne rouvre pas les branches de travail parallèles (annotation du 15/10/2026 au soir) et ne change ni la règle « une branche de travail à la fois », ni le point 1 (une ligne de fermeture dédiée par issue, vérification à cinq minutes, annotation du 30/09/2026), ni la règle Q-45-12 (annotation du 31/10/2026). Les dérogations précédentes au plafond (Fl, Fr, Fs : décisions expresses Q-45-1, Q-46-1, Q-47-1) avaient été consignées dans la feuille de route seule ; celle-ci est portée ici à la demande du mainteneur.
+
+**Dérogations voisines, consignées dans la fiche ND sans annotation de leur ADR.** Plusieurs passages de `docwriter` (un par lot) au lieu d'un seul (ADR 0010, règle 9) ; huit consultations Fable prévues au lieu du plafond de trois par branche (ADR 0013, `docs/agents/routage.md`, § 5.2). Toutes deux sont bornées à ND.

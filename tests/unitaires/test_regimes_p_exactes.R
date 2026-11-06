@@ -192,7 +192,7 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
 # retenue (#358).
 verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187, #303) ; absente -> 'indisponible' (3 : test sans p-value) ou motif et phrase de R15 seuls (2 : diagnostic R15, #358)",
          {
-           txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
+           txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
            nm <- "Test des suites sur ratios bruts"
            a3 <- ligne(t8, nm)
@@ -208,14 +208,14 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, 
                    a2$detail, fixed = TRUE) && !grepl(PHRASE_RENVOI_NATURE_P, a2$detail, fixed = TRUE) &&
              !grepl(" est retenue", a2$detail, fixed = TRUE) &&
              !grepl(txt_ind, b2$detail, fixed = TRUE) &&
-             grepl("(issue #29, seconde condition de la fonction usp_runsr_p_exacte). Restituee en diagnostic (regle R15)",
+             grepl("(seconde condition de la fonction usp_runsr_p_exacte). Restituee en diagnostic (regle R15)",
                    b2$detail, fixed = TRUE) &&
              !grepl(" est retenue", b2$detail, fixed = TRUE) &&
              identical(b3$type, "test") && identical(b3$verdict, "INFO") && is.na(b3$p_retenue) &&
              startsWith(b3$detail, "Monte-Carlo indisponible : aucune replication finie") &&
              identical(b2$type, "diagnostic") && identical(b2$verdict, "INFO") && is.na(b2$p_retenue) &&
              startsWith(b2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ".")) &&
-             !grepl(": aucune p-value retenue (ADR 0001)", b2$detail, fixed = TRUE) &&
+             !grepl(": aucune p-value retenue.", b2$detail, fixed = TRUE) &&
              endsWith(b2$detail, "dont le type et le verdict font foi.")
          })
 # #182 (Q1 d'audit, retenue) : txt_mc_indispo() n'a que des appelants sans p
@@ -232,7 +232,7 @@ verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-valu
                            methode = "premium")
            r <- ligne(ko, "RESET (forme fonctionnelle)"); k <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
            a2 <- ligne(tb, "Test des suites sur ratios bruts")
-           nouveau <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
+           nouveau <- "est indisponible sur ces donnees : aucune p-value n'est retenue"
            all(vapply(list(r, k), function(l)
              grepl(nouveau, l$detail, fixed = TRUE) && !grepl("s'il en est une", l$detail, fixed = TRUE) &&
                is.na(l$p_retenue) && is.na(l$p_exacte), logical(1))) &&
@@ -490,7 +490,7 @@ verifier("R15 (#303) : statistique observee non finie a pi_t constant, ligne non
          })
 # p Monte-Carlo absente a pi_t constant : diagnostic R15, le motif en tete du
 # detail, sous la forme de sa classe comme dans add() (degenerescence :
-# "<motif> : aucune p-value retenue (ADR 0001)." ; autre motif :
+# "<motif> : aucune p-value retenue." ; autre motif :
 # "Monte-Carlo indisponible : <motif>."), la phrase de R15 en fin.
 verifier("R15 (#303) : p Monte-Carlo absente a pi_t constant, diagnostic R15 avec le motif en tete",
          {
@@ -498,14 +498,14 @@ verifier("R15 (#303) : p Monte-Carlo absente a pi_t constant, diagnostic R15 ave
            t <- usp_tests(fit, b, methode = "premium")
            l <- ligne(t, NOM_R15[["CUSUMr"]]); r <- ligne(t, NOM_R15[["Runsr"]])
            identical(l$type, "diagnostic") && is.na(l$p_mc) && is.na(l$p_retenue) &&
-             startsWith(l$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(l$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(l$detail, TXT_R15) &&
              # Runsr, regime 1 sans p_mc : p exacte conservee, phrase de R15
              # jointe apres le point final (" ", jamais " ; ").
              identical(r$type, "diagnostic") && is.finite(r$p_exacte) && is.na(r$p_retenue) &&
              startsWith(r$detail, "Monte-Carlo indisponible : aucune replication finie (B_effectif = 0).") &&
-             !grepl(": aucune p-value retenue (ADR 0001)", r$detail, fixed = TRUE) &&
-             grepl(paste("(issue #29).", TXT_R15), r$detail, fixed = TRUE)
+             !grepl(": aucune p-value retenue.", r$detail, fixed = TRUE) &&
+             grepl(paste("residus standardises.", TXT_R15), r$detail, fixed = TRUE)
          })
 # La phrase de R15 renvoie au type et au verdict de la ligne homologue, qui
 # peut elle-meme etre sans verdict : T = 5 a volumes constants, suites sur z
@@ -551,11 +551,11 @@ NOM_RETIRES_302 <- c("Shapiro-Wilk (loi nulle simulee, sans normalisation de Roy
                      "Ljung-Box (retard 1)", "Box-Pierce (retard 2)")
 NOM_DIAG_302 <- c(KS = "Kolmogorov-Smirnov contre N(0,1)", CvM = "Cramer-von Mises")
 TXT_DIAG_302 <- c(
-  KS = paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+  KS = paste("Restituee en diagnostic par decision : aucun verdict ni",
              "p-value retenue ; l'hypothese releve de la ligne Lilliefors (distance",
              "de Kolmogorov sur residus re-standardises), dont le type et le",
              "verdict font foi."),
-  CvM = paste("Restituee en diagnostic par decision (issue #302) : aucun verdict ni",
+  CvM = paste("Restituee en diagnostic par decision : aucun verdict ni",
               "p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de",
               "la ligne Anderson-Darling, dont le type et le verdict font foi."))
 NOM_H3_302 <- c(SW = "Shapiro-Wilk sur residus standardises", SF = "Shapiro-Francia",
@@ -586,8 +586,8 @@ verifier("#302 : KS a pi_t constant, detail propre (sans renvoi a Lilliefors) su
                          "sont estimes, et non par la moyenne et l'ecart-type empiriques :",
                          "la loi de Kolmogorov, etablie a parametres connus, rend le test",
                          "conservateur ; l'ampleur (tres conservateur) n'est constatee que",
-                         "par simulation a T = 8 sur le jeu de controle (issue #114), non",
-                         "pour les donnees saisies.",
+                         "par simulation a T = 8 sur le jeu de controle (constat C2,",
+                         "tests/constats_puissance_t8.R), non pour les donnees saisies.",
                          TXT_DIAG_302[["KS"]])) &&
            identical(ligne(tt, NOM_DIAG_302[["CvM"]])$detail, TXT_DIAG_302[["CvM"]]))
 verifier("#302 : a pi_t variable (f8, J2), phrase H3 sur SW, SF, AD, Lilliefors, JB, D'Agostino (tests, p Monte-Carlo retenue) et avant la phrase fixe de KS et CvM",
@@ -617,12 +617,12 @@ verifier("#302 : KS et CvM sans p Monte-Carlo, motif en tete selon sa classe ; s
            b2 <- boot_fictif(fit, motif = c(KS = MOTIF_MC_OBS_NON_FINIE)); b2$stats_obs$KS <- NA_real_
            k2 <- ligne(usp_tests(fit, b2, methode = "premium"), NOM_DIAG_302[["KS"]])
            identical(k$type, "diagnostic") && is.na(k$p_mc) &&
-             startsWith(k$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(k$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(k$detail, TXT_DIAG_302[["KS"]]) &&
              identical(w$type, "diagnostic") && is.na(w$p_mc) &&
              identical(w$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ". ",
                                         TXT_DIAG_302[["CvM"]])) &&
-             identical(k2$type, "non applicable") && !grepl("issue #302", k2$detail, fixed = TRUE)
+             identical(k2$type, "non applicable") && !grepl("Restituee en diagnostic par decision", k2$detail, fixed = TRUE)
          })
 # Critere (d) de la specification Fh (section 5) : jeu J2 etendu a T = 20
 # (x et y de J2, puis 1,05 x et 0,95 x des huit et des quatre premieres
@@ -655,7 +655,7 @@ verifier("#302 : J2 (T = 8, pi_t variable), Anscombe-Glynn non applicable au mot
          identical(ligne(tj2, NOM_AG)$type, "non applicable") &&
            identical(ligne(tj2, NOM_AG)$detail, "T = 8 < 20 : test non defini"))
 # Diagnostic de #181 a pi_t variable (p Monte-Carlo absente, motif non
-# degenere) : la mention d'add() ("... non retenue (ADR 0001).") en tete,
+# degenere) : la mention d'add() ("... non retenue.") en tete,
 # puis la phrase de la section 5.3 (avis d'actuary du 19/10/2026 : phrase
 # maintenue sur un tel diagnostic).
 verifier("#302 : J2, p Monte-Carlo de SW absente (motif non degenere), mention d'add() puis phrase de la section 5.3",
@@ -664,7 +664,7 @@ verifier("#302 : J2, p Monte-Carlo de SW absente (motif non degenere), mention d
                                 methode = "premium"), NOM_H3_302[["SW"]])
            identical(l$type, "diagnostic") && is.na(l$p_retenue) && is.finite(l$p_asymptotique) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
+                                        " ; p non simulee (loi du champ loi) non retenue. ",
                                         TXT_H3_302))
          })
 verifier("#302 (critere (d)) : memes donnees a delta = 1 (pi_t constant), Anscombe-Glynn test, p d'approximation a n fini retenue",
@@ -748,16 +748,16 @@ NOM_DIAG_299 <- c(BP79 = "Heteroscedasticite vs volume - Breusch-Pagan original 
                   BF = "Homogeneite des dispersions (mediane)",
                   Smirnov = "Egalite des lois petits vs gros volumes (2 ech.)",
                   SpearTps = "Correlation ratio S/P vs temps")
-TXT_H2_299 <- paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+TXT_H2_299 <- paste("Restituee en diagnostic par decision : aucun verdict ni",
                     "p-value retenue ; la structure de variance releve de la ligne",
                     "Breusch-Pagan studentise (Koenker), dont le type et le verdict font foi.")
 TXT_DIAG_299 <- c(
   BP79 = TXT_H2_299, White = TXT_H2_299, GQ = TXT_H2_299, BF = TXT_H2_299,
-  Smirnov = paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+  Smirnov = paste("Restituee en diagnostic par decision : aucun verdict ni",
                   "p-value retenue ; compare la position de z entre petits et gros",
                   "volumes, alternative de H1 plutot que de H2 ; l'hypothese H1 releve",
                   "des lignes de la famille B., dont le type et le verdict font foi."),
-  SpearTps = paste("Restituee en diagnostic par decision (issue #299) : aucun verdict ni",
+  SpearTps = paste("Restituee en diagnostic par decision : aucun verdict ni",
                    "p-value retenue ; meme alternative (tendance monotone du ratio) que la",
                    "ligne Mann-Kendall, dont le type et le verdict font foi."))
 txt_penv <- function(xx, a = 0.10)
@@ -887,7 +887,8 @@ verifier("#299 : volumes constants, cinq lignes H2 et Breusch-Pagan Koenker non 
          isTRUE(usp_regime(fvc$delta, fvc$x)$volumes_constants) &&
            all(vapply(c(NOM_BP, NOM_DIAG_299[c("BP79", "White", "GQ", "BF", "Smirnov")]), function(n) {
              l <- ligne(tvc, n)
-             identical(l$type, "non applicable") && !grepl("issue #299", l$detail, fixed = TRUE) &&
+             identical(l$type, "non applicable") &&
+               !grepl("Restituee en diagnostic par decision", l$detail, fixed = TRUE) &&
                !grepl("Puissance maximale", l$detail, fixed = TRUE)
            }, logical(1))) &&
            est_ligne_299(ligne(tvc, NOM_DIAG_299[["SpearTps"]]), "SpearTps"))
@@ -895,7 +896,7 @@ verifier("#299 : White a moins de trois volumes distincts non applicable, sans p
          {
            w <- ligne(t2n, NOM_DIAG_299[["White"]])
            identical(w$type, "non applicable") && grepl("moins de trois volumes distincts", w$detail, fixed = TRUE) &&
-             !grepl("issue #299", w$detail, fixed = TRUE) &&
+             !grepl("Restituee en diagnostic par decision", w$detail, fixed = TRUE) &&
              all(vapply(c("BP79", "GQ", "BF", "Smirnov"), function(k)
                est_ligne_299(ligne(t2n, NOM_DIAG_299[[k]]), k), logical(1)))
          })
@@ -903,7 +904,7 @@ verifier("#299 : partition de Smirnov a moins de trois annees non applicable, sa
          {
            l <- ligne(tsm, NOM_DIAG_299[["Smirnov"]])
            identical(l$type, "non applicable") && grepl("moins de 3 dans un groupe", l$detail, fixed = TRUE) &&
-             !grepl("issue #299", l$detail, fixed = TRUE)
+             !grepl("Restituee en diagnostic par decision", l$detail, fixed = TRUE)
          })
 verifier("#299 : statistique observee non finie (BP79, GQ, BP) -> non applicable sans phrase ; p Monte-Carlo absente -> motif en tete, phrase en fin",
          {
@@ -913,12 +914,12 @@ verifier("#299 : statistique observee non finie (BP79, GQ, BP) -> non applicable
            t <- usp_tests(fit, b, methode = "premium")
            a <- ligne(t, NOM_DIAG_299[["BP79"]]); k <- ligne(t, NOM_BP)
            g <- ligne(t, NOM_DIAG_299[["GQ"]]); f <- ligne(t, NOM_DIAG_299[["BF"]])
-           identical(a$type, "non applicable") && !grepl("issue #299", a$detail, fixed = TRUE) &&
+           identical(a$type, "non applicable") && !grepl("Restituee en diagnostic par decision", a$detail, fixed = TRUE) &&
              !grepl("Puissance maximale", k$detail, fixed = TRUE) &&
              identical(g$type, "diagnostic") &&
              identical(g$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ". ", TXT_H2_299)) &&
              identical(f$type, "diagnostic") &&
-             startsWith(f$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(f$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(f$detail, TXT_H2_299)
          })
 
