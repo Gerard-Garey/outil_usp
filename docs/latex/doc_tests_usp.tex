@@ -4716,10 +4716,11 @@ erreur absolue maximale du vivier redressé et recentré de $7{,}76\cdot 10^{-13
 $5{,}93\cdot 10^{2}$ et $1{,}12\cdot 10^{2}$ par la différence directe $F(i,j) - \hat f_j$ (même
 script, même plan). Statut~: constat numérique sur des triangles construits, sans portée
 statistique. Sur le triangle de contrôle, les deux écritures ne diffèrent qu'à l'arrondi près, sous
-la tolérance des références (§\ref{sec:graines}). Sur des triangles construits dont une ligne est
-multipliée par au moins $10^{14}$ ou au plus $10^{-14}$, l'écriture change les statistiques fondées
-sur les résidus, donc des verdicts, $\sigma_{\mathrm{USP}}$ restant identique (constat sur des
-triangles construits, non un résultat réglementaire).
+la tolérance des références (§\ref{sec:graines}). Sur les triangles construits mesurés (une
+ligne multipliée par $10^{e}$ ou $10^{-e}$, $e = 12, \ldots, 17$~; \code{run\_engine()},
+$B = 999$, graine 20260831), des verdicts différaient entre les deux écritures, seulement pour
+$e \ge 14$, $\sigma_{\mathrm{USP}}$ restant identique~; décompte fait à l'introduction de
+l'écriture, non refait (constat sur des triangles construits, non un résultat réglementaire).
 
 \emph{Fragilité du bootstrap sur une ligne de poids négligeable.} Quand une ligne a un poids
 négligeable, l'écart-type $\sigma_j\sqrt{C(i,j)}$ du terme aléatoire de ses cumuls simulés domine
@@ -5274,19 +5275,24 @@ d'échantillon considérée, sans approximation (loi combinatoire, de permutatio
 binomiale, ou loi de Student/Fisher sous normalité exacte des erreurs). La
 p-value est alors valide à $T = 8$ comme à $T = 1000$, sous le modèle pour lequel
 la loi est exacte~: est dite \emph{exacte au sens de l'outil} la p-value dont la loi
-de la statistique sous $H_0$ est exacte à $T$ fini sous le modèle réglementaire ajusté
-pris pour vrai (premier fondement~; pour les lois de référence échangeables, à
-$\hat\pi_t$ constant seulement, règle~R7, section~\ref{sec:base-residus}) ou, pour une
-ligne dont l'hypothèse nulle est \emph{disjointe} de la famille réglementaire (le modèle
-ajusté appartient à $H_1$), sous cette seule hypothèse nulle, par énumération complète
-ou forme fermée, sans hypothèse auxiliaire de forme de loi (second fondement,
-strictement borné~: seule la ligne de la pente par permutation à $T \le 9$ en relève,
-point~(iv) ci-dessous). Ne sont pas exactes en ce sens~: une loi de Student ou de
-Fisher, exacte sous le seul modèle auxiliaire des moindres carrés, nommée comme telle
-(sections~\ref{sec:modele-auxiliaire} et~\ref{sec:t8})~; la loi $\mathcal{F}(2, T-3)$
-de RESET~; une loi limite~; une approximation à $n$ fini~; une p-value de Monte-Carlo,
-même à plancher connu sans approximation (point~(i))~; la p-value de permutation tirée
-au hasard à $T \ge 10$. C'est une définition de l'outil, non un résultat. \\
+de la statistique sous $H_0$ est exacte à $T$ fini sous le modèle réglementaire, c'est-à-dire
+pour toute loi de la famille réglementaire contenue dans $H_0$, et non sous le seul modèle
+ajusté, cadre de la p-value de Monte-Carlo (premier fondement~; pour les lois de référence
+échangeables, à $\hat\pi_t$ constant seulement, règle~R7, section~\ref{sec:base-residus})
+ou, pour une ligne dont l'hypothèse nulle est \emph{disjointe} de la famille réglementaire
+(le modèle ajusté appartient à $H_1$), sous cette seule hypothèse nulle, par énumération
+complète ou forme fermée, sans hypothèse auxiliaire de forme de loi, le conditionnement sur
+une statistique exhaustive sous $H_0$ étant admis (ici l'ensemble des valeurs observées
+de~$y$~; second fondement, strictement borné~: seule la ligne de la pente par permutation
+à $T \le 9$ en relève, point~(iv) ci-dessous). Pour toute ligne dont l'hypothèse nulle
+contient un modèle de la famille réglementaire, seul le premier fondement vaut. Ne sont pas
+exactes en ce sens~: une loi de Student ou de Fisher, exacte sous le seul modèle auxiliaire
+des moindres carrés, nommée comme telle (sections~\ref{sec:modele-auxiliaire}
+et~\ref{sec:t8})~; la loi de Student du TOST pondéré, exacte sous aucun modèle, ses poids
+étant estimés~; la loi $\mathcal{F}(2, T-3)$ de RESET~; une loi limite~; une approximation
+à $n$ fini~; une p-value de Monte-Carlo, même à plancher connu sans approximation
+(point~(i))~; la p-value de permutation tirée au hasard à $T \ge 10$. C'est une définition
+de l'outil, non un résultat. \\
 \textbf{Asymptotique} & La loi n'est connue qu'à la limite $T \to \infty$.
 L'existence du résultat limite ne dit \emph{rien} de la qualité de
 l'approximation à $T$ fini~: il faut disposer, séparément, d'un résultat sur la
@@ -5403,9 +5409,17 @@ p-value retenue. Un \emph{diagnostic} est une ligne restituée sans verdict (ver
 \code{INFO}, \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}), pour éclairer la
 lecture des tests ou de l'estimation~: ses p-values, quand elles existent, restent affichées mais
 ne fondent aucun verdict~; un seuil attaché à un diagnostic est un repère de lecture, non un seuil
-de rejet. Une ligne est un diagnostic \emph{par décision} quand le motif ne dépend pas des
-données, \emph{par règle} quand il en dépend (règles R1, R3, R14 et R15 ci-dessous)~; une ligne
-\emph{non applicable} est une ligne dont les données rendent la statistique sans objet~; un
+de rejet. Un diagnostic l'est à l'un de trois titres~: \emph{par nature}, quand la ligne est
+posée de type \code{diagnostic} dès sa création (leviers, distance de Cook, effets d'année
+calendaire par diagonale, p-values de famille de la lecture conjointe~: fiches~\ref{fiche:leviers},
+\ref{fiche:cook}, \ref{mw:m3caldiag} et~\ref{fiche:p-famille})~; \emph{par décision}, quand une
+vérification construite comme un test est restituée en diagnostic pour un motif qui ne dépend
+pas des données~; \emph{par règle}, quand le motif en dépend (règles R1, R3, R14 et R15
+ci-dessous). Une ligne \emph{non applicable} est une ligne dont la vérification est, sur ces
+données, sans objet ou non calculable (régression ou partition sans support, statistique non
+définie, calcul propre à la ligne en échec)~: elle sort sans verdict (\code{INFO}), son
+commentaire porte un motif obligatoire, et elle ne restitue aucune p-value, la statistique
+pouvant rester dans \code{stat}~; un
 \emph{test sans p-value retenue} est une ligne restée de type \code{test} dont aucune des trois
 p-values n'existe sur ces données (point~(ii)).
 
@@ -5772,9 +5786,11 @@ intervient, une loi de référence échangeable qui n'est pas celle du modèle~:
 en méthode lognormale (à $\hat\pi_t$ constant, la p-value exacte existe et est retenue), et sur les
 résidus de Mack, non échangeables, en Merz--Wüthrich (suites, effet calendaire). Mesuré à $T = 8$ sur deux
 jeux, à $B = 999$, l'écart entre la p non simulée et la p-value de Monte-Carlo changerait des
-verdicts dans les deux sens si la première était retenue (Breusch--Pagan 1979~: $0{,}144$ contre $0{,}090$~; Brown--Forsythe~: $0{,}091$
+verdicts dans les deux sens si les lignes citées ci-après étaient des tests et que la première
+était retenue
+(Breusch--Pagan 1979~: $0{,}144$ contre $0{,}090$~; Brown--Forsythe~: $0{,}091$
 contre $0{,}104$~; Goldfeld--Quandt sur le jeu à $\hat\delta$ intérieur~: $0{,}443$ contre
-$0{,}018$~; p non simulée contre p-value de Monte-Carlo retenue, lues dans les références
+$0{,}018$~; p non simulée contre p-value de Monte-Carlo restituée (diagnostics par décision), lues dans les références
 \code{premium} et \code{premium\_interieur} de \code{tests/reference/}). C'est la
 règle déjà appliquée à la grandeur rivée par l'estimation (repli sur la loi nominale interdit,
 encadré ci-dessus), à la constante (règle~R5) et à la p-value conditionnelle au régime, sans repli
@@ -8113,10 +8129,10 @@ sur la valeur elle-même, sans que le verdict en dépende à ce niveau de p-valu
 cinq lignes restent exactes~: leur statistique et leurs p-values calculées --- de
 Monte-Carlo, et, pour le test des suites, la p-value exacte dans ce régime --- sont justes, et
 elles gardent tout leur sens \emph{lorsque $\hat\pi_t$ varie}, cas pour lequel elles ont été
-prévues et où elles sont des tests. Ce qui était faux est la promesse formulée sans condition~:
-présentées comme des vérifications indépendantes, elles sont, à $\hat\pi_t$ constant, des
-\textbf{quasi-doublons} de leurs homologues sur $z_t$ --- et un doublon exact pour le test des
-suites. Des verdicts \code{OK} de la table auditable n'y apporteraient donc pas autant
+prévues et où elles sont des tests. Leur apport propre, distinct de celui de leurs homologues
+sur $z_t$, est en revanche soumis à une condition~: il n'existe qu'à $\hat\pi_t$ variable~; à
+$\hat\pi_t$ constant, ces lignes sont des \textbf{quasi-doublons} de leurs homologues --- et un doublon exact
+pour le test des suites. Des verdicts \code{OK} de la table auditable n'y apporteraient donc pas autant
 d'informations. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
 \code{detail} de chacune des cinq lignes contient « \code{CONTROLE SANS
 OBJET ICI} » --- en tête pour Durbin--Watson, le test des suites et
