@@ -165,4 +165,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:lecture-conjointe` | `III-M.md` | Lecture conjointe (tête de section) | III |
 | `fiche:p-famille` | `III-M.md` | p de famille (minP, lecture conjointe) | III |
 | `fiche:p-globale` | `III-M.md` | p globale (minP, lecture conjointe de la batterie) | III |
+| `sec:verif` | `IV.md` | Vérification empirique de l'implémentation | IV |
+| `sec:calibration-mc` | `IV.md` | Calibration des p-values de Monte-Carlo | IV |
+| `sec:calib-asympt-mw` | `IV.md` | Calibration des p-values non simulées (Merz–Wüthrich) | IV |
 | `sec:calib-mc-mw` | `IV.md` | Calibration des p-values de Monte-Carlo (Merz–Wüthrich) | IV |

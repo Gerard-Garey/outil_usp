@@ -9,7 +9,8 @@ Entrées dans l'ordre du `.tex`, selon le gabarit et les règles de `README.md`.
 ### Préambule — commentaires `%` de la charte
 
 **Historique.** Rubrique 7 (`\Pertinence`) ajoutée par #114 ; jusqu'à #357, elle valait aussi pour les fiches de procédure de décision : le type « procédure de décision », sans ligne depuis #304 et #300, a été retiré d'`add()` par #357. Le titre de partie (`\partie`) a été allégé par rapport à une première version qui doublait le bandeau chapitre (filet bleu, texte « Partie », grand titre vert, puis un second filet vert) ; le document source (`main.tex`) ne comportait aucun niveau au-dessus du chapitre. Le titre court du pied de page remplace la mention « Note technique Solvabilite II » du document source.
-**Renvois.** Commentaire de la rubrique 7 : la règle est celle de `docs/latex/CONVENTIONS.md`, § 1.
+**Décisions.** Date d'établissement figée (`\datedoc`, « 6~novembre 2026 », au lieu de `\today`), version 3.0 (`\versiondoc`, au lieu de 2.0), statut inchangé (`Projet`) : Q-ND-22, reprise de la charte docu_actu (date figée, jamais `\today`), décision du mainteneur du 06/11/2026. Les mentions « à la date d'établissement du présent document (page de garde) » du corps (introduction de la partie III ; bibliographie, entrées du règlement d'exécution (UE) 2015/498 et des orientations EIOPA-BoS-25/249) s'y ancrent, au lieu de « à la date de rédaction » et du « constat du 18/10/2026 » (décision du mainteneur du 06/11/2026, phrase C1 de regulatory). La ligne de définition de `\datedoc` est la seule occurrence admise d'une date de 2026 avec jour et mois (exception E10 de `docs/latex/CONVENTIONS.md`, § 5).
+**Renvois.** Commentaire de la rubrique 7 : la règle est celle de `docs/latex/CONVENTIONS.md`, § 1. Exception E10 : `docs/latex/CONVENTIONS.md`, § 5, et `tests/controle_doc_nd.R` ; #458.
 
 ## `sec:archi` — Architecture du moteur de calcul (partie I, § Principe de séparation)
 

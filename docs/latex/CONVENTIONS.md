@@ -191,5 +191,6 @@ Tournures d'historique sans motif sûr, comptées par le contrôle pour que la c
 - **E7** — *retirée* (motif A1). Elle admettait, à titre transitoire, les chaînes de sortie du moteur citées mot pour mot qui portaient un numéro d'issue. `R/engine.R` n'en imprime plus aucune et le contrôle `tests/controle_doc_nd.R` ne la porte plus : une chaîne du moteur citée mot pour mot relève d'A1 comme tout autre passage. L'identifiant n'est pas réattribué.
 - **E8** — macro `\annee` (page de garde, « Exercice 2026 ») : ce n'est pas un motif.
 - **E9** — bibliographie : années de publication (« 1961 », « 2017 ») sans jour ni mois, hors A10 par construction.
+- **E10** — *permanente* (motif A10) : la ligne de définition de `\datedoc` (préambule), date d'établissement figée du document, une seule occurrence ; la date n'est écrite nulle part ailleurs dans le `.tex` (les mentions du corps s'y ancrent par « à la date d'établissement du présent document (page de garde) »).
 
 Aucune exception de contenu (passage qui garderait un numéro d'issue) n'est accordée.
