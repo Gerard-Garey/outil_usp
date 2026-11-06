@@ -266,9 +266,10 @@ verifier("exception au plafond periee : fiche conforme sans elle, ou introuvable
          identical(res4$exceptions$statut,
                    c("appliquee", "PERIMEE (conforme sans exception)",
                      "PERIMEE (fiche introuvable en partie III)", "appliquee")))
-verifier("EXCEPTIONS_PLAFOND : quatre fiches de L4, 3 pages accordees, raison non vide",
+verifier("EXCEPTIONS_PLAFOND : quatre fiches de L4 et deux de L5, 3 pages accordees, raison non vide",
          identical(vapply(nd$EXCEPTIONS_PLAFOND, `[[`, "", "label"),
-                   c("fiche:student-pente", "fiche:foc", "fiche:rosner-esd", "fiche:ic-bootstrap")) &&
+                   c("fiche:student-pente", "fiche:foc", "fiche:rosner-esd", "fiche:ic-bootstrap",
+                     "mw:m1a", "mw:m3cal")) &&
            all(vapply(nd$EXCEPTIONS_PLAFOND, function(e) identical(e$pages, 3L), NA)) &&
            all(vapply(nd$EXCEPTIONS_PLAFOND, function(e) is.character(e$raison) && length(e$raison) == 1L && nzchar(e$raison), NA)))
 verifier("nd_fiches : fiches mal appariees refusees",

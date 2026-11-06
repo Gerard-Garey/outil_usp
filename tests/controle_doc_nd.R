@@ -94,7 +94,11 @@ EXCEPTIONS_PLAFOND <- list(
   list(label = "fiche:rosner-esd", pages = 3L,
        raison = "source valable pour n >= 25 seulement : lecture critique de l'article, niveau exact de la premiere etape et son domaine, constat C7, raisons de l'absence de verdict ; source au plus 13 000 caracteres"),
   list(label = "fiche:ic-bootstrap", pages = 3L,
-       raison = "seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table ; source au plus 15 000 caracteres")
+       raison = "seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table ; source au plus 15 000 caracteres"),
+  list(label = "mw:m1a", pages = 3L,
+       raison = "test central de M1 apres transfert des regles communes et des phrases de B effectif : argument de la loi chi2(2K) exacte sous erreurs gaussiennes et ses deux reserves, colonnes non identifiables propres a la ligne, p-value conditionnelle a la definition de la statistique et sa mesure, puissance et dispersion intra-colonne ; source au plus 15 000 caracteres"),
+  list(label = "mw:m3cal", pages = 3L,
+       raison = "procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5 ; source au plus 13 000 caracteres")
 )
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
