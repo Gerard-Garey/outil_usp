@@ -59,3 +59,19 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:ex-aequo` | `I.md` | Ex æquo des tests de rang et de signe | I |
 | `sec:notations` | `I.md` | Notations générales (convention de restitution, graphie des textes) | I |
 | `sec:controles` | `I.md` | Contrôles de qualité des données | I |
+| Règle R4 (entrée transversale) | `II.md` | Renvois à l'entrée de la règle retirée | II |
+| `fiche:procedure-mc` | `II.md` | Procédure générale de p-value de Monte-Carlo | II |
+| `sec:boot-mw` | `II.md` | Bootstrap semi-paramétrique de la méthode Merz–Wüthrich | II |
+| `sec:modele-auxiliaire` | `II.md` | Le modèle auxiliaire des moindres carrés (tête, `-spec`, `-ecart`, `-lignes`) | II |
+| `sec:modele-auxiliaire-regles` | `II.md` | Règles liées (règle retirée R4) | II |
+| `sec:modele-auxiliaire-autres` | `II.md` | Ce qui n'est pas le modèle auxiliaire MCO | II |
+| `sec:nature` | `II.md` | Nature des p-values et validité à T = 8 | II |
+| `sec:deuxerreurs` | `II.md` | Deux sources d'erreur distinctes | II |
+| `sec:t8` | `II.md` | Ce que l'on peut et ne peut pas affirmer à T = 8 | II |
+| `tab:nature` | `II.md` | Tableau 1 : disponibilité et choix des p-values | II |
+| `tab:conv` | `II.md` | Tableau 2 : nature et vitesse des convergences | II |
+| `tab:pmin` | `II.md` | Tableau des p-values minimales atteignables | II |
+| `tab:tracabilite-puissance` | `II.md` | Tableau de traçabilité de la rubrique 7 | II |
+| `sec:base-residus` | `II.md` | Choix de la base de résidus | II |
+| `sec:variantes` | `II.md` | Variantes principales et secondaires | II |
+| `sec:tests-fragiles` | `II.md` | Tests dont l'usage reste fragile à T = 8 | II |
