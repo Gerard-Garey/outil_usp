@@ -3,7 +3,10 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{newtxtext}
-\usepackage[left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry}
+% Mise en page : hauteur d'en-tete de 14 pt, au moins celle que demande l'en-tete
+% de fancyhdr (13,6 pt) ; geometry reporte l'ecart sur la marge au-dessus de
+% l'en-tete : position et hauteur du corps de page inchangees.
+\usepackage[left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm, headheight=14pt]{geometry}
 \usepackage[french]{babel}
 \usepackage{setspace}
 \usepackage{graphicx}
@@ -925,7 +928,8 @@ contre un AR(1) stationnaire gaussien de corrélation $\rho$~: points critiques 
 \code{stats::uniroot()}, puis intégrale d'Imhof sous l'AR(1)~; si l'intégration échoue à l'un
 des deux points critiques sur les valeurs propres normalisées, repli sur les valeurs propres non
 normalisées pour les deux points (si le repli échoue à l'un d'eux, chaque point garde la valeur
-finie disponible), puis erreur explicite si un point reste sans valeur finie. \emph{Domaine de
+finie disponible), puis erreur explicite si un point reste sans valeur finie \\
+\code{dw\_puissance\_ar1()} (suite) & idem & \emph{Domaine de
 validité}~: côté négatif, la garde $1 - |\rho| \ge 10^{-6}$, uniforme en $T$, lève
 l'erreur « rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision
 numerique) »~; précision mesurée au voisinage de $\rho = -1$ pour $T = 4$ à $10$, $12$, $15$,
@@ -938,7 +942,8 @@ $1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}1
 numérique, \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
 la garde, le comportement du calcul n'est pas évalué par une mesure versionnée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
 tend vers 0 quand $\rho \to -1$, sans signature de défaillance (hypothèse non vérifiée~:
-vecteur alterné centré de longueur courte). N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
+vecteur alterné centré de longueur courte) \\
+\code{dw\_puissance\_ar1()} (suite) & idem & N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
 dans la fiche~\ref{fiche:durbin-watson}, appelé par \code{tests/puissance\_t8.R}, et
 de la puissance de Durbin--Watson citée au motif du retrait de Ljung--Box au retard~1
 (fiches~\ref{fiche:ljung-box} et~\ref{fiche:durbin-watson-ratios-bruts}), appelé par
@@ -20337,8 +20342,11 @@ fournissent des lois de référence.}
 \foreach \b in {m1,m2,cal,cor,dw,gr,sw}
   \draw[fl] (res) -| ([xshift=-5mm]\b.west) -- (\b);
 % Les fonctions de M1 autres que .mw_pente_relative() lisent l'ajustement
-% (aj) sans passer par mw_residus().
-\draw[fl] (aj.east) -- node[flx,above,pos=0.22] {$\hat f_j$, $\hat\sigma^2_j$} (aj.east -| m1.west);
+% (aj) sans passer par mw_residus(). Libelle sur deux lignes, centre entre le
+% bord de mw_ajuster() et le tronc vertical (5 mm avant m1), qu'il ne touche pas.
+\draw[fl] (aj.east) -- (aj.east -| m1.west);
+\node[flx, above, align=center] at ($(aj.east)!0.5!([xshift=-5mm]aj.east -| m1.west)$)
+  {$\hat f_j$,\\ $\hat\sigma^2_j$};
 \foreach \a/\b in {cor/q4, dw/q5, gr/q6, sw/q7} \draw[fl] (\a) -- (\b);
 % Convergence puis divergence autour de .fisher_combine() : troncs communs et
 % coudes, pour eviter quatre diagonales issues d'un meme point.
