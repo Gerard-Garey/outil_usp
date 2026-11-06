@@ -799,7 +799,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 # rubrique 7 retiree d'une fiche de test (RESET), ajoutee a un diagnostic
 # (R2), deplacee avant \Usage (Durbin-Watson), doublee (Mann-Kendall) ; rangee
 # Lilliefors remplacee par un double de la rangee Jarque-Bera ; fichier cite
-# inexistant (issue122-J2.md -> issue122-J3.md sur la rangee de la pente ;
+# inexistant (issue221-J2.md -> issue221-J9.md sur la rangee de la pente ;
 # rangee Fisher retiree par #169). White et Goldfeld-Quandt, d'abord visees
 # ici, sont des diagnostics par decision depuis #299 (plus de \Pertinence) :
 # les injections portent sur Durbin-Watson et Mann-Kendall.
@@ -819,7 +819,7 @@ verifier("Issue #114 : jeu J2 lu dans test_controles_numeriques.R (T = 8)",
 .k_jb <- grep("(\\ref{fiche:jarque-bera}) &", .tex_114, fixed = TRUE)
 .m[.k_li] <- .tex_114[.k_jb]
 .k_fi <- grep("(\\ref{fiche:student-pente}) &", .tex_114, fixed = TRUE)
-.m[.k_fi] <- sub("issue122-J2.md", "issue122-J3.md", .m[.k_fi], fixed = TRUE)
+.m[.k_fi] <- sub("issue221-J2.md", "issue221-J9.md", .m[.k_fi], fixed = TRUE)
 .tex_mutant <- tempfile(fileext = ".tex")
 writeLines(.m, .tex_mutant, useBytes = TRUE)
 r_114 <- .juger_tex(.tex_mutant)
@@ -845,8 +845,8 @@ verifier("Issue #114 : --strict signale le tableau -- rangee en double, rangee m
            .sortie_a(NA, "fiche:lilliefors", "fiche a rubrique 7 sans rangee") &&
            .sortie_a(grep("(\\ref{fiche:reset}) &", .tex_114, fixed = TRUE), "fiche:reset", "rangee pour une fiche sans rubrique 7") &&
            .sortie_a(NA, "fiche:r2", "fiche a rubrique 7 sans rangee"))
-verifier("Issue #114 : --strict signale le fichier cite inexistant (issue122-J3.md), et lui seul",
-         any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20260930-issue122-J3\\.md$", .k_fi), r_114$sortie)) &&
+verifier("Issue #114 : --strict signale le fichier cite inexistant (issue221-J9.md), et lui seul",
+         any(grepl(sprintf("^    l\\.%-5d docs/tableaux/20261008-issue221-J9\\.md$", .k_fi), r_114$sortie)) &&
            any(grepl("^  ECART -- 1 chemin\\(s\\) cite\\(s\\) inexistant\\(s\\)", r_114$sortie)))
 
 ## --- Issue #113 : "vingt et un" non compose, compositions invalides ---------
