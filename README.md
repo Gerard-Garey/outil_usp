@@ -125,6 +125,13 @@ avec renvoi à l'issue :
 
     Rscript tests/test_unitaires.R
 
+Sous Linux ou macOS, `--parallele` (ou `--parallele=N`) exécute les fichiers
+en 4 (ou N) processus, avec le même bilan et le même code de sortie : environ
+9 min au lieu de 32 sur 4 cœurs ; sous Windows, la batterie se replie sur le
+mode séquentiel :
+
+    Rscript tests/test_unitaires.R --parallele
+
 Lorsqu'une modification change volontairement les résultats, lister les écarts
 (`Rscript tests/comparer_references.R`) et les expliquer. Les références ne sont
 plus régénérées hors de la CI, poste compris
