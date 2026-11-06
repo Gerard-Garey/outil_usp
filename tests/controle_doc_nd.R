@@ -110,7 +110,9 @@ EXCEPTIONS_PLAFOND <- list(
   list(label = "mw:m2b", pages = 3L,
        raison = "H0 ne traduit l'hypothese reglementaire qu'a l'effet de levier pres : variance exacte 1 - h, trois causes d'un rejet lues au regard de D(2)(h)(iv), mecanisme sous un ecart regulier, troisieme reserve de la loi chi2(2K), portee d'un rejet (art. 219 et 220), absence de puissance et non-specificite ; source au plus 14 500 caracteres"),
   list(label = "mw:m3cal", pages = 3L,
-       raison = "procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5 ; source au plus 13 000 caracteres")
+       raison = "procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5 ; source au plus 13 000 caracteres"),
+  list(label = "mw:m4gr", pages = 3L,
+       raison = "test central de M4, construction de l'outil : loi de Student conditionnelle et borne de Bonferroni mesuree non utilisable, cellule a influence non bornee et sa frontiere numerique, choix du minimum et exclusion des colonnes de trois facteurs, trois limites, remplacement de Grubbs ; source au plus 15 500 caracteres")
 )
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
