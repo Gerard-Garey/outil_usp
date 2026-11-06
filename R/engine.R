@@ -12011,7 +12011,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
       stat_nom = "X de Fisher", stat = oo$stat,
-      loi = "chi2(2K) approx. (colonnes non independantes) -> Monte-Carlo",
+      loi = "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(oo$K)) NA_real_ else oo$K,
       p_as = oo$p, mc_nom = "Origine",
       detail = .mw_avec_exclusion(.mw_avec_exclusion(paste(
@@ -12056,7 +12056,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       H0 = "le terme en C(i,j)^2 est nul dans chaque colonne",
       H1 = "la relation entre cumules successifs n'est pas lineaire",
       stat_nom = "X de Fisher", stat = cb$stat,
-      loi = "chi2(2K) approx. -> Monte-Carlo",
+      loi = "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(cb$K)) NA_real_ else cb$K,
       p_as = cb$p, mc_nom = "Courbure",
       detail = .mw_avec_exclusion(.mw_avec_exclusion(

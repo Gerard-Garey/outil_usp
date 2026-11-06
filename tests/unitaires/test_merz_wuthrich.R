@@ -4046,4 +4046,18 @@ local({
            })
 })
 
+## --- M1 : champ loi de l'ordonnee a l'origine et de la courbure (#447) -------
+# Decision du mainteneur du 06/11/2026 : meme texte, a l'octet pres, sur les
+# deux lignes ; la ligne de l'homogeneite de f_j garde le sien.
+local({
+  LOI_447 <- "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo"
+  L <- run_mw(tri_ref)$tests
+  lig <- function(nom) L[[which(vapply(L, `[[`, "", "test") == nom)]]
+  verifier("#447 (reserve2) : loi de l'ordonnee a l'origine et de la courbure = texte decide, homogeneite de f_j inchangee",
+           identical(lig("Nullite de l'ordonnee a l'origine, colonne par colonne")$loi, LOI_447) &&
+             identical(lig("Absence de courbure de la regression")$loi, LOI_447) &&
+             identical(lig("Homogeneite de f_j entre annees de survenance")$loi,
+                       "chi2(2K) approx. -> Monte-Carlo"))
+})
+
 fin_fichier()
