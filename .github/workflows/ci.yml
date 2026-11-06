@@ -68,9 +68,8 @@ jobs:
           fi
           # Documentation LaTeX (et concordance, qui lit le .tex) : docs/latex/, CI,
           # et les contrôles ND de la documentation (issue #451), qui lisent le
-          # .tex, le .aux, le .log et le PDF de la compilation, et R/engine.R
-          # (zones de l'exception E7 du contrôle des motifs).
-          if grep -qE '^(docs/latex/|R/engine\.R$|tests/(controle_doc_nd\.R|marques_remplissage\.tex|doc_remplissage\.tex)$|\.github/)' fichiers.txt; then
+          # .tex, le .aux, le .log et le PDF de la compilation.
+          if grep -qE '^(docs/latex/|tests/(controle_doc_nd\.R|marques_remplissage\.tex|doc_remplissage\.tex)$|\.github/)' fichiers.txt; then
             echo "latex=true" >> "$GITHUB_OUTPUT"
           else
             echo "latex=false" >> "$GITHUB_OUTPUT"
@@ -222,7 +221,9 @@ jobs:
     # est contrôlé par pdf-invariant.yml, sur les PR non brouillon.
     # Épinglée par cohérence avec le job des tests (issue #67).
     runs-on: ubuntu-22.04
-    # Issue #123 : seulement si docs/latex/ ou la CI change (tout sur main).
+    # Issue #123 : seulement si docs/latex/, la CI ou les fichiers des contrôles
+    # ND de la documentation (tests/controle_doc_nd.R, marques_remplissage.tex,
+    # doc_remplissage.tex) changent (tout sur main).
     needs: changements
     if: needs.changements.outputs.latex == 'true'
     # Durée observée : 2 à 3 min (dont le téléchargement de l'image TeX Live).
