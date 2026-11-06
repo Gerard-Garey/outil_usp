@@ -8697,8 +8697,8 @@ section~\ref{sec:h1}), un lien positif~; ni la proportionnalité
 (fiches~\ref{fiche:student-constante}, \ref{fiche:tost-constante} et~\ref{fiche:reset}), ni la
 linéarité, ni la stabilité de $\beta$ (fiches~\ref{fiche:spearman} et~\ref{fiche:mann-kendall}).
 Le texte réglementaire ne prescrit ni test, ni sens, ni niveau~: choix méthodologiques que l'outil
-rattache --- lecture extensive propre à l'outil, non exigence littérale du texte, qui vise la
-documentation des données --- à l'obligation de documenter «~le choix des méthodes actuarielles
+rattache --- lecture extensive propre à l'outil, non exigence littérale du texte, qui vise les
+méthodes d'élaboration et d'ajustement des données --- à l'obligation de documenter «~le choix des méthodes actuarielles
 et statistiques~» (article~219, paragraphe~1, point~e)~iii)). Non applicable dans les cas de la
 sous-section~\ref{sec:modele-auxiliaire-regles}, et à $t_b$ non fini (ajustement exact~: mesuré
 sur $x = (1, \dots, 8)$, $y = 2x$), motif «~\code{statistique t non finie} \ldots~\code{: test non
@@ -13453,7 +13453,7 @@ impose~: ce constat doit être porté au dossier tel quel. Un tel repli, non pre
 retenu~; il introduirait de plus une \emph{discontinuité}, deux triangles numériquement
 indiscernables au dernier bit des cumulés produisant deux lois simulées différentes. Constat sur
 un triangle construit (colonne $J-3$ dégénérée, hors des jeux de référence~; \code{run\_engine()},
-$B = 999$)~: le passage du repli à la règle littérale n'y change aucune p-value de Monte-Carlo ni
+$B = 999$)~: le passage du repli à la règle littérale n'y a changé aucune p-value de Monte-Carlo ni
 aucun verdict~; raison~: $\hat\sigma_{J-1}^2$ n'entre pas dans les résidus de Mack qui portent les
 statistiques simulées --- la dernière colonne de développement, qui ne compte qu'un facteur
 individuel, ne fournit aucun résidu ---, mais dans la MSEP et dans le diagnostic de
@@ -16208,17 +16208,17 @@ et reste un \textbf{test sans p-value retenue} au sens de la section~\ref{sec:na
 diagnostic~: aucune p-value n'existe sur ces données. Le commentaire porte le motif «~\code{residu studentise non borne en cellule (i,j)}~»
 (champ \code{non\_definie} de l'entrée \code{MinP4} de \code{MW\_CATALOGUE\_MC}). Dans une réplication, la même configuration
 donne $p_{ij} = 0$ (limite de $|t| \to \infty$) et la réplication reste dans $B$ effectif~; une
-colonne retenue dont le $t$ n'est pas défini pour une autre cause (colonne dégénérée) rend
+colonne retenue dont le $t$ n'est pas défini pour une autre cause (colonne devenue dégénérée dans la réplication) rend
 la statistique \code{NA}, et la réplication sort de $B$ effectif. \emph{Frontière numérique.} La
 cellule est déclarée non bornée quand la variance résiduelle $s^2_{(i)}$ de la colonne privée de
 cette cellule ne dépasse pas $100\,(n_j - 1)\,\varepsilon_{\text{machine}}\,s^2$, $s^2$ étant
 celle de la colonne entière et $\varepsilon_{\text{machine}} = 2{,}2\cdot 10^{-16}$
 (\code{mw\_influence()})~: la ligne passe sans transition d'un test sans p-value retenue
-(\code{INFO}) à un test de statistique extrêmement petite, dont la p-value de Monte-Carlo est à
-son plancher et le verdict \code{ECHEC}. Constat sur un triangle construit (triangle de six années
-des tests unitaires dont deux des quatre facteurs égaux de la colonne $j = 0$ sont multipliés par
-$1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée jusqu'à $\epsilon = 2\cdot 10^{-8}$,
-\code{ECHEC} dès $\epsilon = 3\cdot 10^{-8}$. Au voisinage immédiat de la tolérance, $s^2_{(i)}$
+(\code{INFO}) à un test de statistique extrêmement petite. Constat sur un triangle construit
+(triangle de six années des tests unitaires dont deux des quatre facteurs égaux de la colonne
+$j = 0$ sont multipliés par $1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée
+jusqu'à $\epsilon = 2\cdot 10^{-8}$~; dès $\epsilon = 3\cdot 10^{-8}$, p-value de Monte-Carlo à
+son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
 résulte d'une annulation, et le classement peut différer d'une plateforme à l'autre~; les six cas
 de référence en sont loin. Dans les deux régimes, le signal tient d'abord à la dispersion quasi
 nulle des autres cellules de la colonne, qui rend significatif n'importe quel écart de la cellule
@@ -16230,10 +16230,7 @@ $H_1$~: exactement un résidu aberrant (modèle de décalage de moyenne d'une ce
 statistique de test est le résidu studentisé externe, Cook et Weisberg, 1982, p.~21).
 \Stat
 $p_{ij} = 2\,F_{t(n_j - 2)}\big(-|t(i,j)|\big)$ pour chaque cellule retenue, et
-\[
-  M = \min_{(i,j)} p_{ij},
-\]
-rejet pour $M$ petit (\code{mw\_test\_cellule\_aberrante()}, même fonction pour la ligne et pour
+$M = \min_{(i,j)} p_{ij}$, rejet pour $M$ petit (\code{mw\_test\_cellule\_aberrante()}, même fonction pour la ligne et pour
 l'entrée \code{MinP4} du catalogue)~; statistique et p-value de Monte-Carlo identiques, au sens
 d'\code{identical()}, à celles du candidat MinP4 du script de mesure
 \code{tests/puissance\_mw\_t8.R} (mode \code{--controle-i2prime}, triangle de contrôle et 420
@@ -16268,11 +16265,12 @@ retenue. Aucune p-value exacte n'existe, $M$ n'ayant pas de loi exacte sous le m
 la borne de Bonferroni ne vaut que sous le modèle auxiliaire gaussien, et, sous le plan du
 triangle de contrôle (tableau~T6 du fichier de la rubrique~7), elle rejette sous $H_0$, aux
 seuils $0{,}10$ et $0{,}05$, dans $0{,}1065$ et $0{,}0595$ des cas sous erreurs gaussiennes
-(compatible), $0{,}1405$ et $0{,}090$ sous la loi E, $0{,}256$ et $0{,}147$ sous la loi A
-(distorsions libérales, matérielles sous A et sous E à $0{,}05$)~: elle n'est pas utilisable
+(compatible), $0{,}1405$ et $0{,}090$ sous la loi E (écart mineur à $0{,}10$, distorsion
+matérielle du côté libéral à $0{,}05$), $0{,}256$ et $0{,}147$ sous la loi A (distorsion
+matérielle du côté libéral aux deux seuils)~: elle n'est pas utilisable
 comme p-value. Si la p-value de Monte-Carlo manque alors
 que la statistique observée est définie (réplications finies en nombre insuffisant), la borne
-existe et la ligne devient un diagnostic (point~(ii) de la hiérarchie, rubrique~1)~; si la
+existe et la ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii))~; si la
 statistique observée n'est pas définie parce qu'une cellule a une influence non bornée, la borne
 ne l'est pas davantage et la ligne reste un test sans p-value retenue (rubrique~1). Sur le
 triangle de contrôle~: p-value de Monte-Carlo $0{,}898$, erreur de Monte-Carlo $0{,}0096$, borne
@@ -16293,7 +16291,8 @@ M3 et avec le graphique d'influence (rubrique~1). Membre, quand elle est de type
 \textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$~; test sans p-value
 retenue (\code{INFO}) quand une cellule retenue a une influence non bornée (rubrique~1).
 \emph{Puissance} (constat de simulation sous le plan du triangle de contrôle, loi N, $B = 999$,
-500 à 1\,000 triangles par scénario~; section~\ref{sec:calib-mc-mw}, tableau~T2 de
+1\,000 triangles par valeur de $\lambda$, 500 contre une cellule multipliée par~4 et contre
+une année atypique~; section~\ref{sec:calib-mc-mw}, tableau~T2 de
 \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; taux
 au seuil $0{,}10$ avec son intervalle de Clopper--Pearson à 95~\%, puis à $0{,}05$)~: contre une cellule déplacée de $\lambda$
 écarts-types de bruit, $0{,}183$ $[0{,}160~;~0{,}208]$ et $0{,}084$ à $\lambda = 4$, $0{,}426$
@@ -16324,7 +16323,8 @@ de sorte que seul un écart grossier y serait vu (raisonnement, non mesure). \em
 remplacée}~: Grubbs sur les 27 résidus de Mack pris comme un échantillon unique
 (fiche~\ref{fiche:grubbs})~; chaque $|r(i,j)|$ y est borné par $\sqrt{n_j - 1}$ (identité de la
 fiche~\ref{mw:m2var}), de sorte qu'une cellule très aberrante gonfle $s_r$ et se masque, et sa
-borne de Bonferroni ne rejetait jamais sous $H_0$ (section~\ref{sec:calib-asympt-mw}).
+borne de Bonferroni, extrêmement conservatrice, ne rejetait sur aucun des 5\,000 triangles
+simulés sous $H_0$, aux seuils $0{,}10$ et $0{,}05$ (section~\ref{sec:calib-asympt-mw}).
 
 \textbf{Statut des valeurs.} Plancher~: valeur exacte, fonction de $B$ et non de $T$ (section~\ref{sec:deuxerreurs}). Taux de rejet et parts de désignation~: constats de simulation sous le plan du triangle de contrôle, non transposables à une autre géométrie de triangle ni à un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles, non de $B$. Seuil $|t| > 159$~: calcul exact.
 \end{fiche}
@@ -16435,13 +16435,14 @@ exactement pour $n_j = 2$ (ces deux résidus ne portent qu'un signe) et $|\tilde
 \sqrt{n_j - 1}$ sinon. \emph{Courbure attendue sous $H_0$.} Même sous le modèle de Mack à erreurs
 gaussiennes, la courbe attendue n'est pas droite (constat de simulation~: modèle ajusté au
 triangle de contrôle, première colonne fixée, 999 triangles simulés hors moteur sous la graine
-20261023~; intervalles~: quantiles à $5~\%$ et $95~\%$ sur les triangles)~: la pente des moindres
+20261023~; intervalles~: quantiles à $5~\%$ et $95~\%$ de la distribution sur les triangles, non des
+intervalles de confiance)~: la pente des moindres
 carrés des statistiques d'ordre sur les quantiles normaux vaut $1{,}000$ $[0{,}981~;~1{,}014]$
 sur $\tilde r$ contre $0{,}884$ $[0{,}867~;~0{,}896]$ sur $r$~; sur $\tilde r$, les points
 extrêmes sont attendus en deçà de la droite d'environ $0{,}33$ en valeur absolue (effet de la
 borne $\sqrt{n_j - 1}$), et les rangs 7 et~21 au-delà d'environ $0{,}19$~: une forme en~S modérée
-n'est pas, à elle seule, un indice de queues légères, ce que rappelle la note fixe du graphique
-(\code{plot\_mw\_qq()}). \emph{Droite par quartiles écartée}~: sa pente attendue sous $H_0$ n'est pas~1
+n'est pas, à elle seule, un indice de queues légères, ce que rappelle la note fixe du graphique.
+\emph{Droite par quartiles écartée}~: sa pente attendue sous $H_0$ n'est pas~1
 ($1{,}03$ sur $r$, $1{,}23$ sur $\tilde r$), les marges des petites colonnes étant bornées, donc
 plus aplaties que la normale. \emph{Absence d'enveloppe.} Une enveloppe lue dans les
 réplications de \code{mw\_bootstrap()} décrirait la dispersion des statistiques d'ordre autour de
@@ -16911,15 +16912,15 @@ $0{,}10$)~: aucune distorsion libérale n'est observée, à la précision de la 
 \emph{Composition} (tableau T-F2)~: les lignes C., G. et M4 sont absentes de tous les jeux et
 triangles (au plus un membre)~; les autres lignes sont présentes dans tous, sans texte T-3b, avec
 un $B$ effectif de famille de 999 dans tous les triangles~; $k$ varie avec le régime du jeu simulé
-(B.~: quatre membres, cinq dans 63 jeux de J1 et 3 de J2~; E.~: trois ou cinq~; F.~: trois ou
-six~; ligne globale de J1 et J2~: 17, 22 ou 23 membres), et vaut 5, 2 et 4 pour M1, M2 et M3,
+(B.~: quatre membres, cinq dans 63 jeux de J1 et 3 de J2~; E.~: trois ou cinq et F.~: trois ou
+six selon que $\hat\pi_t$ est constant ou variable~; ligne globale de J1 et J2~: 17, 22 ou 23 membres), et vaut 5, 2 et 4 pour M1, M2 et M3,
 douze pour la ligne globale de la méthode Merz--Wüthrich~; la part des p de famille égales au
 plancher $1/(n+1)$ ne dépasse pas $0{,}002$. \emph{Voisinage des seuils} (tableau T-F4)~: une p
 de famille est à moins de deux erreurs de Monte-Carlo de $0{,}10$ dans $2{,}7$ à $4{,}45~\%$ des
 jeux ou triangles selon la ligne, de $0{,}05$ dans $2{,}1$ à $3{,}6~\%$~; l'erreur de Monte-Carlo
-d'une ligne vaut environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$. Le profil posé mécaniquement sur
-la méthode Merz--Wüthrich par deux témoins oracle de la mesure de calibration est expliqué à la
-section~\ref{sec:calib-mc-mw}~: constat documenté, sans modification du moteur, les lignes
+d'une ligne vaut environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$. Le profil d'alerte que la mesure posait
+mécaniquement sur la méthode Merz--Wüthrich, par deux témoins oracle significatifs de la mesure de
+calibration, est levé, ces témoins étant expliqués à la section~\ref{sec:calib-mc-mw}~: constat documenté, sans modification du moteur, les lignes
 restant des diagnostics. \emph{Statut}~: constats de simulation sous ces quatre plans~;
 l'incertitude de Clopper--Pearson (fonction de $R$) et l'erreur de Monte-Carlo de chaque p
 (fonction de $n$) sont distinctes de l'erreur d'approximation en $T$, que la mesure ne borne pas.
