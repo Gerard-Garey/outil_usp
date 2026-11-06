@@ -192,7 +192,7 @@ verifier("Bande : ligne Runsr sans phrase R7/R8 (regime #29 inchange : p exacte 
 # retenue (#358).
 verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, #187, #303) ; absente -> 'indisponible' (3 : test sans p-value) ou motif et phrase de R15 seuls (2 : diagnostic R15, #358)",
          {
-           txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
+           txt_ind <- "est indisponible sur ces donnees : aucune p-value n'est retenue"
            m <- c(Runsr = MOTIF_MC_AUCUNE_REPLIC)
            nm <- "Test des suites sur ratios bruts"
            a3 <- ligne(t8, nm)
@@ -215,7 +215,7 @@ verifier("Runsr, regimes 2 et 3 : p_mc presente -> 'est calculee' (3, #214 ; 2, 
              startsWith(b3$detail, "Monte-Carlo indisponible : aucune replication finie") &&
              identical(b2$type, "diagnostic") && identical(b2$verdict, "INFO") && is.na(b2$p_retenue) &&
              startsWith(b2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ".")) &&
-             !grepl(": aucune p-value retenue (ADR 0001)", b2$detail, fixed = TRUE) &&
+             !grepl(": aucune p-value retenue.", b2$detail, fixed = TRUE) &&
              endsWith(b2$detail, "dont le type et le verdict font foi.")
          })
 # #182 (Q1 d'audit, retenue) : txt_mc_indispo() n'a que des appelants sans p
@@ -232,7 +232,7 @@ verifier("txt_mc_indispo (#182) : RESET et OLS-CUSUM sans p_mc -> 'aucune p-valu
                            methode = "premium")
            r <- ligne(ko, "RESET (forme fonctionnelle)"); k <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
            a2 <- ligne(tb, "Test des suites sur ratios bruts")
-           nouveau <- "est indisponible sur ces donnees : aucune p-value n'est retenue (ADR 0001)"
+           nouveau <- "est indisponible sur ces donnees : aucune p-value n'est retenue"
            all(vapply(list(r, k), function(l)
              grepl(nouveau, l$detail, fixed = TRUE) && !grepl("s'il en est une", l$detail, fixed = TRUE) &&
                is.na(l$p_retenue) && is.na(l$p_exacte), logical(1))) &&
@@ -490,7 +490,7 @@ verifier("R15 (#303) : statistique observee non finie a pi_t constant, ligne non
          })
 # p Monte-Carlo absente a pi_t constant : diagnostic R15, le motif en tete du
 # detail, sous la forme de sa classe comme dans add() (degenerescence :
-# "<motif> : aucune p-value retenue (ADR 0001)." ; autre motif :
+# "<motif> : aucune p-value retenue." ; autre motif :
 # "Monte-Carlo indisponible : <motif>."), la phrase de R15 en fin.
 verifier("R15 (#303) : p Monte-Carlo absente a pi_t constant, diagnostic R15 avec le motif en tete",
          {
@@ -498,13 +498,13 @@ verifier("R15 (#303) : p Monte-Carlo absente a pi_t constant, diagnostic R15 ave
            t <- usp_tests(fit, b, methode = "premium")
            l <- ligne(t, NOM_R15[["CUSUMr"]]); r <- ligne(t, NOM_R15[["Runsr"]])
            identical(l$type, "diagnostic") && is.na(l$p_mc) && is.na(l$p_retenue) &&
-             startsWith(l$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(l$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(l$detail, TXT_R15) &&
              # Runsr, regime 1 sans p_mc : p exacte conservee, phrase de R15
              # jointe apres le point final (" ", jamais " ; ").
              identical(r$type, "diagnostic") && is.finite(r$p_exacte) && is.na(r$p_retenue) &&
              startsWith(r$detail, "Monte-Carlo indisponible : aucune replication finie (B_effectif = 0).") &&
-             !grepl(": aucune p-value retenue (ADR 0001)", r$detail, fixed = TRUE) &&
+             !grepl(": aucune p-value retenue.", r$detail, fixed = TRUE) &&
              grepl(paste("residus standardises.", TXT_R15), r$detail, fixed = TRUE)
          })
 # La phrase de R15 renvoie au type et au verdict de la ligne homologue, qui
@@ -617,7 +617,7 @@ verifier("#302 : KS et CvM sans p Monte-Carlo, motif en tete selon sa classe ; s
            b2 <- boot_fictif(fit, motif = c(KS = MOTIF_MC_OBS_NON_FINIE)); b2$stats_obs$KS <- NA_real_
            k2 <- ligne(usp_tests(fit, b2, methode = "premium"), NOM_DIAG_302[["KS"]])
            identical(k$type, "diagnostic") && is.na(k$p_mc) &&
-             startsWith(k$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(k$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(k$detail, TXT_DIAG_302[["KS"]]) &&
              identical(w$type, "diagnostic") && is.na(w$p_mc) &&
              identical(w$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ". ",
@@ -655,7 +655,7 @@ verifier("#302 : J2 (T = 8, pi_t variable), Anscombe-Glynn non applicable au mot
          identical(ligne(tj2, NOM_AG)$type, "non applicable") &&
            identical(ligne(tj2, NOM_AG)$detail, "T = 8 < 20 : test non defini"))
 # Diagnostic de #181 a pi_t variable (p Monte-Carlo absente, motif non
-# degenere) : la mention d'add() ("... non retenue (ADR 0001).") en tete,
+# degenere) : la mention d'add() ("... non retenue.") en tete,
 # puis la phrase de la section 5.3 (avis d'actuary du 19/10/2026 : phrase
 # maintenue sur un tel diagnostic).
 verifier("#302 : J2, p Monte-Carlo de SW absente (motif non degenere), mention d'add() puis phrase de la section 5.3",
@@ -664,7 +664,7 @@ verifier("#302 : J2, p Monte-Carlo de SW absente (motif non degenere), mention d
                                 methode = "premium"), NOM_H3_302[["SW"]])
            identical(l$type, "diagnostic") && is.na(l$p_retenue) && is.finite(l$p_asymptotique) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
+                                        " ; p non simulee (loi du champ loi) non retenue. ",
                                         TXT_H3_302))
          })
 verifier("#302 (critere (d)) : memes donnees a delta = 1 (pi_t constant), Anscombe-Glynn test, p d'approximation a n fini retenue",
@@ -919,7 +919,7 @@ verifier("#299 : statistique observee non finie (BP79, GQ, BP) -> non applicable
              identical(g$type, "diagnostic") &&
              identical(g$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC, ". ", TXT_H2_299)) &&
              identical(f$type, "diagnostic") &&
-             startsWith(f$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue (ADR 0001).")) &&
+             startsWith(f$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value retenue.")) &&
              endsWith(f$detail, TXT_H2_299)
          })
 

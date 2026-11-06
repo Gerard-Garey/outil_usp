@@ -70,7 +70,7 @@ verifier("U182-1 J2, p_mc de SW absente (motif pose) : ligne Shapiro-Wilk sur re
 ## --- U182-2 : rapport de vraisemblance sur delta ------------------------------
 N_LR <- c("Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
           "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)")
-TXT_LR_DEBUT <- paste("Aucun verdict (ADR 0001) : le LR mesure si les donnees distinguent cette",
+TXT_LR_DEBUT <- paste("Aucun verdict : le LR mesure si les donnees distinguent cette",
                       "borne de l'optimum, non l'adequation du modele. Lecture : LR = 0, borne",
                       "atteinte par l'estimation")
 TXT_LR_FIN <- paste("La p asymptotique (melange de Chernoff) est rapportee pour memoire et non",

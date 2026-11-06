@@ -569,7 +569,7 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
                                   'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
            m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m, fixed = TRUE) &&
+           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
              grepl("Leviers (hat values)", m, fixed = TRUE)
          })
 # Depuis #304 et #300, aucune ligne du moteur n'est de type "procedure de
@@ -593,7 +593,7 @@ verifier("add() (registre lognormal) refuse le type 'procedure de decision', ave
              all(grepl(NOM_ESD, c(m_sans, m_avec, m_autres), fixed = TRUE)) &&
              all(grepl("add() : type de ligne inconnu", m_autres, fixed = TRUE)) &&
              !length(reg$lignes()) &&
-             grepl("un verdict n'est admis que pour type = 'test' (ADR 0001)", m2, fixed = TRUE) &&
+             grepl("un verdict n'est admis que pour type = 'test' : ", m2, fixed = TRUE) &&
              grepl(NOM_ESD, m2, fixed = TRUE)
          })
 

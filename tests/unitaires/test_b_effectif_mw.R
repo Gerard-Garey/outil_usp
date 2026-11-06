@@ -155,7 +155,7 @@ verifier("T2 Origine, HomogF, Courbure : diagnostic de #181, detail fini par 'B 
              lengths(regmatches(l$detail, gregexpr("B effectif =", l$detail, fixed = TRUE))) == 1L &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                         " ; p non simulee (loi du champ loi) non retenue (ADR 0001)."))
+                                         " ; p non simulee (loi du champ loi) non retenue."))
          }, logical(1))))
 verifier("T2 MinP4 (#300) : 0 < B_eff < B_MIN_DEGENERESCENCE, diagnostic de #181 (borne de Bonferroni non retenue), detail fini par 'B effectif = <B_eff> sur B = <B>.'",
          {
@@ -165,7 +165,7 @@ verifier("T2 MinP4 (#300) : 0 < B_eff < B_MIN_DEGENERESCENCE, diagnostic de #181
              endsWith(l$detail, phrase_b(be, as.integer(bt60$B))) &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                         " ; borne de Bonferroni min(1, N_t M) non retenue (ADR 0001)."))
+                                         " ; borne de Bonferroni min(1, N_t M) non retenue."))
          })
 verifier("T2 les autres lignes ne contiennent pas 'B effectif ='",
          !any(vapply(Filter(function(l) !l$test %in% c(noms3, NOM_MINP4), tm60), a_beff, logical(1))))

@@ -157,7 +157,7 @@ verifier("add() : aucune p (exacte, Monte-Carlo, asymptotique), alpha/2 <= p_min
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
-             identical(l$detail, "aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).")
+             identical(l$detail, "aucune p-value disponible sur ces donnees : aucun verdict.")
          })
 verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous la loi de reference echangeable'",
          {
@@ -168,7 +168,7 @@ verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous
              identical(l$p_mc, 0.048) &&
              identical(l$detail, paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable",
                                        "sous la loi de reference echangeable = 0.1250 (m = 4) ; aucun",
-                                       "verdict (ADR 0001). d"))
+                                       "verdict. d"))
          })
 verifier("add() : p_min NA -> comportement inchange (verdict, detail)",
          {
@@ -250,10 +250,10 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
              identical(rs$type, "diagnostic") && identical(rs$verdict, "INFO") &&
              is.na(rs$p_retenue) && is.na(rs$nature_p) && is.finite(rs$p_asymptotique) &&
              startsWith(rs$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")) &&
+                                          " ; p non simulee (loi du champ loi) non retenue.")) &&
              identical(sf$type, "test") && identical(sf$verdict, "INFO") && is.na(sf$p_retenue) &&
              startsWith(sf$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                          " ; aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001)."))
+                                          " ; aucune p-value disponible sur ces donnees : aucun verdict."))
          })
 verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
          {
@@ -311,7 +311,7 @@ verifier("add() : loi simulee ponctuelle hors de l'atome -> diagnostic INFO, det
            r <- engine_registre_tests(mc_at, cat_at, 0.10, "Monte-Carlo")
            r$add("F", "t", "ref", fonction = "usp_tests", p_ex = 0.5, mc_nom = "S", detail = "detail appelant")
            l <- r$lignes()[[1]]
-           attendu <- paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value retenue (ADR 0001). ",
+           attendu <- paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value retenue. ",
                              DETAIL_MC_ATOME_HORS_OBS, " detail appelant")
            identical(mc_at$motif_mc[["S"]], MOTIF_MC_ATOME_HORS_OBS) &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
@@ -330,7 +330,7 @@ verifier("add() : dispersion nulle, condition du catalogue, ligne sans motif -> 
            ok <- vapply(c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_CONDITION), function(m) {
              r <- reg_motif(m); r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", detail = "d")
              identical(r$lignes()[[1]]$detail,
-                       paste0(m, " : aucune p-value retenue (ADR 0001). d"))
+                       paste0(m, " : aucune p-value retenue. d"))
            }, logical(1))
            r0 <- engine_registre_tests(list(p_mc = c(S = 0.4), err_mc = c(S = 0.01),
                                             motif_mc = c(S = NA_character_)),
@@ -357,7 +357,7 @@ verifier("add() : aucune replication finie avec p non simulee -> diagnostic, lib
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              is.na(l$nature_p) && identical(l$p_asymptotique, 0.3) && identical(l$inoperant, FALSE) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001). d."))
+                                        " ; p non simulee (loi du champ loi) non retenue. d."))
          })
 verifier("add() : libelle_p_as fourni, aucune replication finie -> diagnostic au libelle de l'appelant",
          {
@@ -979,7 +979,7 @@ verifier("add() : B_eff = 1 et 49, p non simulee -> diagnostic 'Monte-Carlo indi
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              is.na(l$nature_p) && is.na(l$p_mc) && identical(l$p_asymptotique, 0.3) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                        " ; p non simulee (loi du champ loi) non retenue (ADR 0001)."))
+                                        " ; p non simulee (loi du champ loi) non retenue."))
          }, logical(1))))
 verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inchanges, motif puis phrase 'aucune p-value disponible'",
          all(vapply(c(1, 49), function(b) {
@@ -989,7 +989,7 @@ verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inch
              is.na(l$nature_p) && identical(l$sens, "ne pas rejeter") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
                                         " ; aucune p-value disponible sur ces donnees : aucun verdict",
-                                        " (ADR 0001). d"))
+                                        ". d"))
          }, logical(1))))
 verifier("add() : B_eff = 50 -> p Monte-Carlo retenue, aucun motif ni phrase de #128",
          {
@@ -1004,7 +1004,7 @@ verifier("add() : B_eff = 0, aucune p -> motif 'aucune replication finie' dans l
            identical(l$type, "test") && identical(l$verdict, "INFO") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
                                         " ; aucune p-value disponible sur ces donnees : aucun verdict",
-                                        " (ADR 0001)."))
+                                        "."))
          })
 verifier("add() : aucune p, motif deja dans le detail -> motif non repete ; alpha/2 <= p_min < alpha -> sans 'ECHEC inatteignable'",
          {
@@ -1013,7 +1013,7 @@ verifier("add() : aucune p, motif deja dans le detail -> motif non repete ; alph
                  detail = "p_mc absente (statistique observee non definie : ex aequo)")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "INFO") &&
-             identical(l$detail, paste("aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).",
+             identical(l$detail, paste("aucune p-value disponible sur ces donnees : aucun verdict.",
                                        "p_mc absente (statistique observee non definie : ex aequo)")) &&
              !grepl("inatteignable", l$detail, fixed = TRUE)
          })
@@ -1134,7 +1134,7 @@ verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Mo
              identical(lr$p_min_mc, 4 / 60) &&
              startsWith(lr$detail, paste("TEST INOPERANT au seuil alpha = 0.06 : plus petite p-value Monte-Carlo",
                                          "atteignable sur ces replications >= alpha (n1 = 4, n2 = 4) ; aucun",
-                                         "verdict (ADR 0001)."))
+                                         "verdict."))
          })
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
 # calculee" (#214 ; "est retenue" avant) n'est ecrite que hors motif de
@@ -1152,7 +1152,7 @@ verifier("Runsr regime 1 : sans motif -> 'EXACTE est calculee' ; motif de degene
              !grepl("EXACTE est retenue", a$detail, fixed = TRUE) &&
              identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
              startsWith(b$detail, MOTIF_MC_DISPERSION_NULLE) &&
-             grepl("la p-value EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001).",
+             grepl("la p-value EXACTE est ecartee par le motif de degenerescence en tete.",
                    b$detail, fixed = TRUE) &&
              !grepl("EXACTE est retenue", b$detail, fixed = TRUE)
          })
@@ -1191,16 +1191,14 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi 
            endsWith(r1$detail, paste0("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ; ",
                                       PHRASE_RENVOI_NATURE_P, ".")) &&
              endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
-                                       "indisponible sur ces donnees : aucune p-value n'est retenue",
-                                       "(ADR 0001).")) &&
+                                       "indisponible sur ces donnees : aucune p-value n'est retenue.")) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
              identical(c1$detail, paste0("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
                                          "calculee ; ", PHRASE_RENVOI_NATURE_P, ".")) &&
              identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                         " ; p non simulee (loi du champ loi) non retenue (ADR 0001). ",
+                                         " ; p non simulee (loi du champ loi) non retenue. ",
                                          "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
-                                         "indisponible sur ces donnees : aucune p-value n'est retenue ",
-                                         "(ADR 0001)")) &&
+                                         "indisponible sur ces donnees : aucune p-value n'est retenue")) &&
              identical(c2$type, "diagnostic") && is.na(c2$nature_p) && identical(c2$verdict, "INFO")
          })
 # Cas du commentaire 5888798043 de #128 : T = 12, pi_t variable, une paire
@@ -1224,7 +1222,7 @@ verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-
              identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
              startsWith(l$detail, paste("Monte-Carlo indisponible : statistique observee non definie : ex aequo ;",
-                                        "aucune p-value disponible sur ces donnees : aucun verdict (ADR 0001).",
+                                        "aucune p-value disponible sur ces donnees : aucun verdict.",
                                         "p exacte non attribuee")) &&
              !grepl("inatteignable", l$detail, fixed = TRUE)
          })
@@ -1267,7 +1265,7 @@ r14 <- function(x, y, rho, pp, alerte, theta = 0.10, delta_abs = NULL, pi = fit$
   paste0(PREFIXE_R14, " au seuil alpha = ", format(alpha), " : t(1-alpha, T-2) x se(a) / Delta = ",
          rho, " >= 1, soit p >= p_plancher = ", pp, " >= alpha quelle que soit la constante",
          " estimee : OK inatteignable", if (alerte) ", et meme p >= 0.3 : ALERTE inatteignable",
-         " ; aucun verdict (ADR 0001). Delta = ",
+         " ; aucun verdict. Delta = ",
          if (is.null(delta_abs)) sprintf("%.0f %% de la moyenne de y", 100 * theta) else "marge fixee a priori",
          " (valeur : estimation \"marge Delta\") ; p_bas = ", sprintf("%.4f", t0$p_bas),
          ", p_haut = ", sprintf("%.4f", t0$p_haut), " ; p du TOST (champ p asymptotique : loi de",
@@ -1690,7 +1688,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
                       "la p asymptotique est retenu", "les p-values Monte-Carlo sont retenues",
                       "la p-value asymptotique retenue", "p_mc est retenue ; la p-value retenue, s'il en est une"),
                     affirme_retenue, logical(1))) &&
-           !any(vapply(c("aucune p-value n'est retenue (ADR 0001)", "Aucune p-value retenue : la grandeur",
+           !any(vapply(c("aucune p-value n'est retenue", "Aucune p-value retenue : la grandeur",
                        "Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ;",
                          "pour information, non retenue", "est rapportee pour memoire et non retenue",
                          paste0(PHRASE_RENVOI_NATURE_P, "."),

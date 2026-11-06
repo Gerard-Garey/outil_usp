@@ -200,7 +200,7 @@ verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte cal
            isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
              identical(t_cs$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 0.2500",
-               "(m = 3 differences non nulles) ; aucun verdict (ADR 0001).", detail_cs_85)) &&
+               "(m = 3 differences non nulles) ; aucun verdict.", detail_cs_85)) &&
              isTRUE(proche(t_cs$p_exacte, 1, rel = 1e-12)) &&
              is.na(t_cs$p_mc) && is.na(t_cs$err_mc) &&
              identical(t_cs$type, "diagnostic") && is.na(t_cs$nature_p) &&
@@ -223,7 +223,7 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
              identical(t_c0$type, "diagnostic") && identical(t_c0$p_min, 1) &&
              identical(t_c0$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 1.0000",
-               "(m = 0 differences non nulles) ; aucun verdict (ADR 0001).",
+               "(m = 0 differences non nulles) ; aucun verdict.",
                "aucune difference non nulle sur n_p = 4 paires :",
                "K non defini")) &&
              is.data.frame(tb_c0)

@@ -331,7 +331,7 @@ local({
   # (i) reecrit a #181 (ADR 0003 annote le 12/10/2026, point 2) : plus de
   # repli nomme sur la p non simulee ; la ligne est un diagnostic.
   pre_rare <- paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,
-                     " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")
+                     " ; p non simulee (loi du champ loi) non retenue.")
   diag_rare <- Filter(function(l) startsWith(l$detail, pre_rare), tt)
   verifier("U5 usp_tests() (i) : sans repli (#181), lignes a p non simulee en diagnostic INFO, p conservee, non inoperant (au moins une)",
            length(diag_rare) >= 1L &&
@@ -667,7 +667,7 @@ local({
            identical(l1$type, "diagnostic") && identical(l1$verdict, "INFO") && is.na(l1$p_retenue) &&
              is.na(l1$nature_p) && identical(l1$p_asymptotique, 0.2) && identical(l1$inoperant, FALSE) &&
              startsWith(l1$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,
-                                          " ; p non simulee (loi du champ loi) non retenue (ADR 0001).")))
+                                          " ; p non simulee (loi du champ loi) non retenue.")))
   verifier("U12 diagnostic au libelle de l'appelant (constante)",
            identical(l2$type, "diagnostic") && is.na(l2$p_retenue) &&
              startsWith(l2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REGIME_RARE,

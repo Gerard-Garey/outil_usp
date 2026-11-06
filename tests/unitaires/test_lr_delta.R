@@ -191,7 +191,7 @@ verifier("U8 lignes LR sur J1 : stat = LR, estim = sigma contraint, p_mc et err_
                identical(t$p_asymptotique, b$p_asymptotique) && is.na(t$p_exacte)
            }, logical(1))) &&
              startsWith(tt[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
-             startsWith(tt[[n - 1]]$detail, "Aucun verdict (ADR 0001)")
+             startsWith(tt[[n - 1]]$detail, "Aucun verdict : le LR")
          })
 verifier("U8 add() : p_mc_ext et mc_nom ensemble -> erreur",
          {
@@ -218,7 +218,7 @@ verifier("U8 ligne LR, loi simulee ponctuelle hors de l'atome : motif puis DETAI
            identical(mc0$motif, MOTIF_MC_ATOME_HORS_OBS) &&
              t0$verdict == "INFO" && is.na(t0$p_mc) && is.na(t0$p_retenue) &&
              startsWith(t0$detail, paste(paste0(MOTIF_MC_ATOME_HORS_OBS, " : aucune p-value Monte-Carlo."),
-                                         DETAIL_MC_ATOME_HORS_OBS, "Aucun verdict (ADR 0001)")) &&
+                                         DETAIL_MC_ATOME_HORS_OBS, "Aucun verdict : le LR")) &&
              !grepl(DETAIL_MC_ATOME_HORS_OBS, t1$detail, fixed = TRUE)
          })
 # Bord juge par usp_delta_bord() aux deux comparaisons a une borne donnee (#331) :

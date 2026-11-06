@@ -28,7 +28,7 @@ ligne125 <- function(tt, nom) Filter(function(l) identical(l$test, nom), tt)[[1]
 STAT_DISCRETES_USP <- c("Smirnov", "Runs", "MK", "SpearVol", "SpearTps", "CoxStuart", "Runsr")
 STAT_DISCRETES_MW <- c("Calendrier", "CorrDev", "Runs", "HomogF", "ExpVar", "KruskalAcc")
 PRE_MC <- paste("TEST INOPERANT au seuil alpha = %g : plus petite p-value Monte-Carlo",
-                "atteignable sur ces replications >= alpha%s ; aucun verdict (ADR 0001).")
+                "atteignable sur ces replications >= alpha%s ; aucun verdict.")
 SUF_MC <- paste("ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
                 "replications >= alpha/2 = %g%s")
 

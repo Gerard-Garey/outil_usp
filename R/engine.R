@@ -4056,14 +4056,14 @@ MOTIFS_MC_DEGENERES <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
 # Prefixe du detail d'une ligne dont la p Monte-Carlo manque (#358 ; forme
 # fixee par l'errata du 19/10/2026 de la specification Fh, section 4.2),
 # pose par add() seule : motif de degenerescence -> "<motif> : aucune p-value
-# retenue (ADR 0001)." suivi de son complement (#126) ; autre motif ->
+# retenue." suivi de son complement (#126) ; autre motif ->
 # "Monte-Carlo indisponible : <motif>." (forme des lignes de type
 # diagnostic ; une ligne de type test y ajoute, dans add(), le sort de sa p
 # non simulee). Finit toujours par un point : .engine_joindre() le joint par
 # une espace. Aucun nombre issu du bootstrap (regle #76).
 .prefixe_motif_mc <- function(motif) {
   if (motif %in% MOTIFS_MC_DEGENERES)
-    trimws(paste(c(paste0(motif, " : aucune p-value retenue (ADR 0001)."),
+    trimws(paste(c(paste0(motif, " : aucune p-value retenue."),
                    .complement_motif_mc(motif)), collapse = " "))
   else paste0("Monte-Carlo indisponible : ", motif, ".")
 }
@@ -4347,7 +4347,7 @@ PHRASE_RENVOI_NATURE_P <- paste(
 #     p_asymptotique) -> diagnostic (INFO), p non simulee conservee dans sa
 #     colonne, non retenue (p_retenue et nature_p NA, inoperant FALSE),
 #     detail prefixe "Monte-Carlo indisponible : <motif> ; <libelle_p_as>
-#     non retenue (ADR 0001)." (#181, option (B) generalisee, ADR 0003
+#     non retenue." (#181, option (B) generalisee, ADR 0003
 #     annote le 12/10/2026, point 2 : aucun repli sur une p non simulee) ;
 #     libelle_p_as par defaut "p non simulee (loi du champ loi)", la
 #     constante passe le sien ; sans p non simulee, la ligne reste un test
@@ -4465,7 +4465,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         # Monte-Carlo absente (ADR 0001), la ligne devient un diagnostic.
         type <- "diagnostic"
         detail <- trimws(paste0("Monte-Carlo indisponible : ", motif_boot, " ; ",
-                                libelle_p_as, " non retenue (ADR 0001). ", detail))
+                                libelle_p_as, " non retenue. ", detail))
       }
     }
     # Ligne sans aucune p-value (p exacte, Monte-Carlo et asymptotique toutes
@@ -4551,7 +4551,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
           inoperant <- TRUE
           detail <- trimws(paste0(sprintf(paste(
             "TEST INOPERANT au seuil alpha = %g : plus petite p-value Monte-Carlo",
-            "atteignable sur ces replications >= alpha%s ; aucun verdict (ADR 0001)."),
+            "atteignable sur ces replications >= alpha%s ; aucun verdict."),
             alpha, eff), " ", detail))
         } else if (identical(sens, "ne pas rejeter") && p_min_mc >= alpha / 2) {
           detail <- trimws(.engine_joindre(detail, sprintf(paste(
@@ -4563,7 +4563,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         inoperant <- TRUE
         lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
           "p-value minimale atteignable sous la loi de reference echangeable"
-        detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict (ADR 0001).",
+        detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict.",
                                         alpha, lib_pmin, p_min, eff),
                                 " ", detail))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
@@ -4598,7 +4598,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       pre_mc <- if (!is.na(motif_boot) && !grepl(motif_boot, detail, fixed = TRUE))
         paste0("Monte-Carlo indisponible : ", motif_boot, " ; ") else ""
       detail <- trimws(paste0(pre_mc, "aucune p-value disponible sur ces donnees :",
-                              " aucun verdict (ADR 0001). ", detail))
+                              " aucun verdict. ", detail))
     }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > p non simulee
     # (colonne p_asymptotique), dont la nature est nature_as (#120).
@@ -4676,7 +4676,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # contourne par un appel.
     porte_verdict <- type == "test"
     if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' (ADR 0001) : ", nom)
+      stop("add() : un verdict n'est admis que pour type = 'test' : ", nom)
     # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
     if (!porte_verdict) {
       sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
@@ -4777,7 +4777,7 @@ PHRASE_FAMILLE_B_EFF_REDUIT <- paste(
 # inferieur a B_MIN_DEGENERESCENCE : aucune p-value, liste des membres conservee.
 PHRASE_FAMILLE_B_EFF_INSUFFISANT <- sprintf(paste(
   "p de famille non calculee : replications completes insuffisantes",
-  "(B_effectif < B_MIN_DEGENERESCENCE = %d) ; aucune p-value (ADR 0001)."),
+  "(B_effectif < B_MIN_DEGENERESCENCE = %d) ; aucune p-value."),
   B_MIN_DEGENERESCENCE)
 
 # Rangs symetriques, observe compris, en arithmetique entiere (par. 2.1,
@@ -5538,7 +5538,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Appelants sans p exacte (RESET, OLS-CUSUM, Runsr non attribuee) : p_mc
   # absente, aucune p-value n'est retenue (#181).
   txt_mc_indispo <- function(debut) paste(debut, "est indisponible sur ces donnees :",
-                                          "aucune p-value n'est retenue (ADR 0001)")
+                                          "aucune p-value n'est retenue")
   # Diagnostics poses par usp_tests() (type = "diagnostic" passe a add(),
   # qui en pose le prefixe de motif Monte-Carlo, #358) : regle R15 (#303,
   # diagnostic par regle) et diagnostics par decision de #302
@@ -5793,7 +5793,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
             sprintf(paste("EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES au seuil alpha = %g :",
                           "t(1-alpha, T-2) x se(a) / Delta = %.2f >= 1, soit p >= p_plancher =",
                           "%.3f >= alpha quelle que soit la constante estimee : OK",
-                          "inatteignable%s ; aucun verdict (ADR 0001). Delta = %s (valeur :",
+                          "inatteignable%s ; aucun verdict. Delta = %s (valeur :",
                           "estimation \"marge Delta\") ; p_bas = %.4f, p_haut = %.4f ; p du",
                           "TOST (champ p asymptotique : loi de Student sous le modele",
                           "auxiliaire pondere, poids estimes) non retenue. L'equivalence ne",
@@ -5872,7 +5872,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   if (pente_appl && !(is.list(perm) && is.numeric(perm$p) && length(perm$p) == 1L &&
                       is.finite(perm$p)))
     stop("usp_tests() : p de permutation de la pente absente sur une ligne applicable ",
-         "(repli sur la p de Student interdit, ADR 0002)")
+         "(repli sur la p de Student interdit)")
   if (pente_appl && !identical(perm$unilateral, pitman_uni))
     stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
   perm_alea <- pente_appl && identical(perm$methode, "aleatoire")
@@ -6739,15 +6739,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         stop("contrainte() : grandeur inconnue : ", quoi))
   }
   sans_p <- paste("Aucune p-value retenue : la grandeur est rivee par",
-                  "l'estimation, elle est restituee comme diagnostic (ADR 0001).")
-  add(fam, "Centrage des residus standardises", "Diagnostic de centrage (ADR 0001)",
+                  "l'estimation, elle est restituee comme diagnostic.")
+  add(fam, "Centrage des residus standardises", "Diagnostic de centrage",
       fonction = "usp_tests",
       type = "diagnostic", estim_nom = "moyenne(z)", estim = mean(z),
       detail = paste("Grandeur rivee par l'estimation :",
                      "somme(sqrt(pi_t) z_t) = 0 par condition du premier ordre,",
                      "d'ou moyenne(z) = 0 lorsque pi_t est constant.",
                      contrainte("centrage"), sans_p))
-  add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle (ADR 0001)",
+  add(fam, "Variance unitaire des residus standardises", "Diagnostic d'echelle",
       fonction = "usp_tests",
       type = "diagnostic", estim_nom = "var(z)", estim = stats::var(z),
       detail = paste("Grandeur rivee par l'estimation : la condition du",
@@ -6934,7 +6934,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 "standardises. Les r_t etant i.i.d. sous le modele ajuste, la loi",
                 "combinatoire de R s'applique aussi aux ratios bruts : la p-value",
                 if (runsr_degenere)
-                  "EXACTE est ecartee par le motif de degenerescence en tete (ADR 0001)."
+                  "EXACTE est ecartee par le motif de degenerescence en tete."
                 else paste("EXACTE est calculee (convention bilaterale du doublement, celle du",
                            "bootstrap), la meme que sur la ligne des suites sur residus",
                            "standardises.",
@@ -7212,7 +7212,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # #182 : la lecture de p_mc n'est ecrite que si p_mc existe (borne par
     # borne, dans la boucle ci-dessous).
     txt_lr <- function(mc)
-      paste("Aucun verdict (ADR 0001) : le LR mesure si les donnees distinguent",
+      paste("Aucun verdict : le LR mesure si les donnees distinguent",
             "cette borne de l'optimum, non l'adequation du modele. Lecture : LR = 0,",
             if (mc)
               paste("borne atteinte par l'estimation ; p_mc elevee, borne aussi defendable",
@@ -7654,7 +7654,7 @@ engine_empreinte <- function(res) {
          donnees = paste("texte canonique des donnees du calcul (%.17g, NA, LF) ;",
                          "ne depend que des valeurs"),
          resultat = paste("saveRDS version 3 sans horodatage ni duree ; stable sur",
-                          "une meme machine, depend de la plateforme (ADR 0006)")))
+                          "une meme machine, depend de la plateforme")))
 }
 
 ## =============================================================================
@@ -11901,7 +11901,7 @@ PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
 # alpha = %.2f" et, si k^ > 0, des rangs ; aucun nombre issu du bootstrap
 # (#76).
 PHRASE_MW_ROSNER_DIAGNOSTIC <- paste(
-  "Diagnostic sans verdict (ADR 0001) : procedure ESD generalisee de Rosner (1983)",
+  "Diagnostic sans verdict : procedure ESD generalisee de Rosner (1983)",
   "appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation de",
   "Student-Bonferroni) et son domaine declare (n >= 25) valent pour un echantillon",
   "i.i.d. normal ; les residus de Mack, soumis a des contraintes exactes par colonne,",
@@ -12107,7 +12107,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # [1e-3 ; 1e6[ (.mw_format_echelle(), #364).
   ii <- mw_identifiabilite_intra(aj, jd)
   tete_ii <- paste(
-    "Diagnostic sans verdict (ADR 0001) : dispersion des cumuls a colonne donnee,",
+    "Diagnostic sans verdict : dispersion des cumuls a colonne donnee,",
     "dont depend la puissance des lignes M1 (ordonnee a l'origine, pente relative)",
     "et M2 (exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes",
     "degenerees) : CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j)",
@@ -12367,7 +12367,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # observee non finie, ou motif MOTIF_MC_OBS_NON_FINIE, -> type "test"
   # laisse a add(), qui rend la ligne non applicable. Quand la p Monte-Carlo
   # manque, add() met le motif en tete du detail (.prefixe_motif_mc(), #358 :
-  # motif de degenerescence -> "<motif> : aucune p-value retenue (ADR 0001)."
+  # motif de degenerescence -> "<motif> : aucune p-value retenue."
   # et son complement ; autre motif -> "Monte-Carlo indisponible : <motif>.").
   # Aucun nombre issu du bootstrap (regle #76) ; les phrases de #257 et #204
   # sont jointes par l'enveloppe add() de mw_tests(), comme sur toute ligne
@@ -12501,7 +12501,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       stat_nom = "W", stat = sw$stat,
       loi = "loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack",
       p_as = sw_p_loi_nulle(sw$stat, n),
-      detail = paste("Diagnostic sans verdict (ADR 0001) : la normalite n'est pas une hypothese",
+      detail = paste("Diagnostic sans verdict : la normalite n'est pas une hypothese",
                      "du modele (l'annexe XVII, D(2)(h), ne specifie que les deux premiers",
                      "moments). La loi nulle de W est celle d'un echantillon i.i.d. normal,",
                      "que les residus de Mack ne sont pas (f_j et sigma_j estimes sur les",
@@ -12520,7 +12520,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire
       # (#245) : sans effet sur une ligne sans verdict.
       p_as = lillie_p(D, n),
-      detail = paste("Diagnostic sans verdict (ADR 0001) : approximation de Dallal et",
+      detail = paste("Diagnostic sans verdict : approximation de Dallal et",
                      "Wilkinson de la loi de D a n fini sous echantillon i.i.d. normal, que",
                      "les residus de Mack ne sont pas ; sous erreurs gaussiennes, elle",
                      "rejette plus souvent que le seuil nominal (constat de simulation sous",
