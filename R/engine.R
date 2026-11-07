@@ -10034,7 +10034,12 @@ mw_calendrier_diagonales <- function(cal) {
 # (ii) (increments independants) n'est compatible avec (iii) que si f_j = 1.
 # On mesure la correlation de rang de Spearman entre colonnes adjacentes,
 # agregee sur le triangle. La loi sous H0 dependant de la geometrie du
-# triangle, la p-value est obtenue par permutation (voir mw_bootstrap).
+# triangle, la p-value retenue de la ligne de mw_tests() (mc_nom CorrDev,
+# bilatere) est la p-value Monte-Carlo du bootstrap de residus de
+# mw_bootstrap() (engine_p_mc(), MW_CATALOGUE_MC) ; la ligne n'a ni p
+# exacte ni p asymptotique. p_min vient de la formule fermee de
+# .mw_corr_p_min() (2 prod 1/n_k!), sans enumeration ni tirage de
+# permutations.
 # Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
 # mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
 # deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
