@@ -3651,7 +3651,9 @@ autres qu'un calcul abouti, à ne pas confondre~:
   réplications finies donnent une p-value de Monte-Carlo bilatérale minimale de
   $2/61 \approx 0{,}0328 \ge \alpha/2 = 0{,}025$, calculée sans motif ($60 \ge 50$), et le
   commentaire d'une ligne en sens «~ne pas rejeter~» qui la retient se termine par
-  «~\code{plancher Monte-Carlo >= alpha/2 = 0.025~: ECHEC inatteignable}~».
+  «~\code{plancher Monte-Carlo >= alpha/2 = 0.025~: ECHEC inatteignable}~», ou par cette mention
+  suivie de la phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC} quand la p-value est à moins de deux
+  erreurs de Monte-Carlo du seuil atteignable $\alpha$ (section~\ref{sec:nature}).
   Mesuré aussi~:
   $B = 99$ à $\alpha = 0{,}04$ et $B = 399$ à $\alpha = 0{,}01$ lèvent l'erreur, $B = 400$ à
   $\alpha = 0{,}01$ et $B = 99$ à $\alpha = 0{,}05$ sont admis~; \code{seed}, nombre
@@ -4939,7 +4941,10 @@ seconde partie, la sélection par statistique non finie, reste non démontrée, 
 \emph{Cas~B}, motif \code{MOTIF\_MC\_REPLIC\_INSUFFISANTES}~: «~\code{B effectif = \dots{} sur
 B = \dots.}~»~; la ligne est alors un diagnostic si elle porte une p non simulée, un test sans
 p-value retenue sinon (Alpha, CorrDev, DW) (section~\ref{sec:nature}, point~(ii)), dont le
-commentaire commence par «~\code{Monte-Carlo indisponible~: \dots}~» et finit par cette phrase.
+commentaire commence par «~\code{Monte-Carlo indisponible~: \dots}~» et finit par cette phrase~;
+sur la ligne de corrélation entre années adjacentes, le texte de la règle~R1 tient la tête si
+$p_{\min} \ge \alpha$ (test inopérant), et le motif de l'absence de $p_{\min}$ (ex \ae quo) suit
+cette phrase.
 Aucune phrase pour \code{MOTIF\_MC\_AUCUNE\_REPLIC} (le motif dit déjà $B_{\text{eff}} = 0$), pour un
 motif de dégénérescence, ni pour les lignes lognormales. Les nombres sont lus dans
 \code{bootstrap\$B\_effectif} et \code{bootstrap\$B}~; si l'un manque ou n'est pas fini,
@@ -5666,7 +5671,9 @@ $p_{\min}^{\mathrm{MC}} \ge \alpha$, la ligne est un test inopérant, commentair
 ces replications >= alpha (\dots)~; aucun verdict.}~», champ \code{inoperant} à
 \code{TRUE}~; si $\alpha/2 \le p_{\min}^{\mathrm{MC}} < \alpha$ en sens «~ne pas rejeter~», la
 ligne reste un test et son commentaire se termine par «~\code{ECHEC inatteignable~: plus petite
-p-value Monte-Carlo atteignable sur ces replications >= alpha/2 = \dots}~»~; si
+p-value Monte-Carlo atteignable sur ces replications >= alpha/2 = \dots}~», suivi, le cas échéant,
+de la phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC} (ci-après, «~Verdict sensible à l'aléa de
+simulation~»)~; si
 $p_{\min}^{\mathrm{MC}} < \alpha/2$, aucun texte de la règle. La mention du plancher (point~(ii))
 est omise dans cette branche, $p_{\min}^{\mathrm{MC}}$ étant au moins égal à la granularité et la
 règle disant déjà ce qu'il rend inatteignable~; le texte «~\code{ECHEC possible}~» de la lecture
@@ -8047,8 +8054,9 @@ bruts (fiche~\ref{fiche:suites-wald-wolfowitz})~: à $\hat\pi_t$ variable, la co
 ses $\hat\pi_t$, est retenue (sauf sur les diagnostics, Smirnov et Spearman ratio contre temps,
 qui n'en retiennent aucune), et le commentaire de la ligne commence par
 «~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
-epsilon non echangeable, r\_t non identiquement distribues).}~»%
-. Les lignes de rangs portent deux conditions de plus~:
+epsilon non echangeable, r\_t non identiquement distribues).}~», précédé, le cas échéant, du texte
+de la règle~R1 (Cox--Stuart sur le jeu à $\hat\delta$ intérieur, ci-dessous) ou du motif
+d'indisponibilité de la p-value de Monte-Carlo (section~\ref{sec:nature}). Les lignes de rangs portent deux conditions de plus~:
 pas d'ex \ae quo, au sens de la section~\ref{sec:ex-aequo} (Spearman, Mann--Kendall et
 Smirnov) et $T \le 9$ (Spearman,
 fiche~\ref{fiche:spearman}). À $T = 8$ et $\alpha = 0{,}10$, sur le jeu de contrôle
@@ -9265,7 +9273,8 @@ L'équiprobabilité des appariements suppose les $r_t$ échangeables, ce qu'ils 
 modèle ajusté, qu'à $\hat\pi_t$ constant, soit $\hat\delta = 1$ pour la variante volume~: la
 p-value n'est exacte au sens de l'outil que dans ce régime (section~\ref{sec:base-residus}). Le
 moteur ne l'attribue que sous trois conditions, toutes exigées~: (i)~$\hat\pi_t$ constant
-(règle~R7), sinon le commentaire commence par le motif de la règle~R7~; (ii)~aucun ex \ae quo
+(règle~R7), sinon le commentaire porte le motif de la règle~R7, après le préfixe éventuel
+d'\code{add()}~; (ii)~aucun ex \ae quo
 dans $r_t$ et, pour la variante volume, dans $x_t$, au sens de la section~\ref{sec:ex-aequo}
 (séries aplaties en tolérance relative avant \code{cor.test()}, à l'observé comme dans le
 catalogue Monte-Carlo)~: avec ex \ae quo, \code{cor.test(exact = TRUE)} rend la p-value
@@ -9959,7 +9968,8 @@ paramètres estimés~: $z \sim \mathcal{N}(0, P)$ sous le modèle ajusté
 (section~\ref{sec:base-residus}). La loi combinatoire suppose seulement les $z_t$ échangeables, la
 partition ne dépendant que des $x_t$~: exacte à $\hat\pi_t$ constant, soit $\hat\delta = 1$. À
 $\hat\pi_t$ variable, approximation non bornée~: le moteur n'attribue pas la p-value exacte
-(règle~R7), le commentaire commence par le motif de la règle~R7 et nomme la loi dont $2/70$ est le
+(règle~R7), le commentaire commence par le motif de la règle~R7 (précédé, le cas échéant, du motif
+d'indisponibilité de la p-value de Monte-Carlo) et nomme la loi dont $2/70$ est le
 minimum («~\code{p-value minimale atteignable sous la loi de reference echangeable = 0.0286}~»),
 et le champ \code{loi} ne dit pas la loi exacte. Le \emph{QQ-plot à deux échantillons}
 (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible. \textbf{Pourquoi aucun
@@ -10793,7 +10803,8 @@ Cette p-value est \emph{exacte} au sens de l'outil \textbf{à $\hat\pi_t$ consta
 ($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}), seul régime où le moteur
 l'attribue (règle~R7)~: à $\hat\pi_t$ variable, \code{p\_exacte} vaut \code{NA}, l'intégrale
 d'Imhof n'est pas évaluée, la p-value de Monte-Carlo (clé \code{DW}) est retenue, le commentaire
-commence par le motif de la règle~R7, et le champ \code{loi} dit «~\code{forme quadratique en
+commence par le motif de la règle~R7 (précédé, si la p-value de Monte-Carlo manque, du motif de son
+indisponibilité et de la mention d'absence de toute p-value, section~\ref{sec:nature}), et le champ \code{loi} dit «~\code{forme quadratique en
 normales ; loi par la methode d'Imhof (1961), exacte a pi\_t constant seulement (regle R7)}~», et
 non «~\code{loi EXACTE}~» (section~\ref{sec:base-residus}). Dans la bande de
 tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte qu'à un écart
@@ -15986,7 +15997,9 @@ Loi de référence~: bootstrap de résidus. \emph{Un résidu par année de surve
 colonne garde des résidus, par exemple après exclusion des colonnes dégénérées)~:
 tous les groupes sont de taille~1 et $H = N - 1$ par construction, quelle que soit la donnée~;
 la statistique est restituée, la p-value asymptotique ne l'est pas (\code{NA}), la loi est
-libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code{detail} le dit.
+libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code{detail}, réduit à la
+phrase de ce cas après le motif Monte-Carlo, le dit~: $H$ n'y mesure rien, et la ligne ne teste ni
+l'homogénéité des résidus entre années de survenance ni l'indépendance de D(2)(h)(i).
 Chaque réplication de même géométrie donnant la même valeur, la loi simulée est de dispersion
 nulle~: la ligne est un diagnostic \code{INFO}, sans p-value retenue (section~\ref{sec:nature}). Mesuré sur le
 triangle \code{col0\_1e11} de la section~\ref{sec:controles} ($N = 7$)~: $H = 6$, type
@@ -16019,7 +16032,7 @@ cause et sans établir à lui seul un défaut d'indépendance des années (rubri
 d'une année atypique, d'une dérive de $f_j$ avec l'année ou d'une espérance non proportionnelle,
 et la ligne réagit aussi à la dérive calendaire mesurée en rubrique~7 (non-spécificité), qui
 fait varier les facteurs individuels d'une colonne entre les années de survenance~; à lire avec les
-lignes de M1 (fiches~\ref{mw:m1a} et~\ref{mw:m1b}) et le test calendaire. Le commentaire rédigé pour la ligne dans \code{mw\_tests()} se termine par
+lignes de M1 (fiches~\ref{mw:m1a} et~\ref{mw:m1b}) et le test calendaire. Hors du cas d'un résidu par année, où il dit que $H$ ne mesure rien, le commentaire rédigé pour la ligne dans \code{mw\_tests()} se termine par
 «~\code{Homogeneite des residus} \code{entre annees de survenance} \code{sous la formalisation}
 \code{de l'outil (f\_j et} \code{sigma\_j\^{}2 communs) ;}
 \code{ne teste pas a elle} \code{seule l'independance de} \code{D(2)(h)(i), reagit aussi}

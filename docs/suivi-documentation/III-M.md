@@ -231,7 +231,7 @@ La tête reçoit, hors plafond, trois blocs communs à plusieurs fiches de M3, q
 
 ## `mw:m3acc` — Homogénéité des résidus entre années de survenance (partie III, § Hypothèse M3)
 
-**Historique.** Commentaire de la ligne réécrit par #419 ; il se terminait jusque-là par « `Traduction testable de l'independance des annees de survenance, D(2)(h)(i)` ». Non-spécificité mesurée : #419.
+**Historique.** Commentaire de la ligne réécrit par #419 ; il se terminait jusque-là par « `Traduction testable de l'independance des annees de survenance, D(2)(h)(i)` ». Non-spécificité mesurée : #419. Cas d'un résidu de Mack par année de survenance : jusqu'à #449, la phrase générale (« `Homogeneite des residus entre annees de survenance sous la formalisation de l'outil …` ») suivait la phrase du cas, qu'elle contredisait ; depuis #449, la phrase du cas la remplace (« `… H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus entre annees de survenance, ni l'independance de D(2)(h)(i)` »), après le préfixe du motif Monte-Carlo posé par `add()` ; texte arrêté par `actuary`, décision du mainteneur. Mesuré (`run_engine()`, `reserve2`, B = 99, triangle `col0_1e11` des tests unitaires) : type diagnostic, INFO, H = 6, commentaire « `loi simulee de dispersion nulle : aucune p-value retenue. Un residu de Mack par annee de survenance : …` » (sans script versionné).
 **Décisions.** `.mw_kruskal_p_min()` : #115, décision du mainteneur du 06/10/2026.
 
 ## `mw:m3cor` — Corrélation entre années de développement adjacentes (partie III, § Hypothèse M3)
