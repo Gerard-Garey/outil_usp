@@ -5134,7 +5134,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 # (celle de usp_ajuster()) (issue #109, correctif R3, decision du mainteneur
 # du 28/09/2026). Motif : demarre a chaud du seul (d0, g0), l'ajusteur
 # restait dans le bassin du bord de depart et manquait l'optimum de
-# usp_ajuster() (ecart d'objectif > 1e-6) dans 0,37 % (J1) et 0,68 % (J2)
+# usp_ajuster() (ecart d'objectif > 1e-6) dans 0,36 % (J1) et 0,68 % (J2)
 # des replications (mesure de #43, tests/comparer_ajusteurs_bootstrap.R).
 # Gradient analytique et factr = 1e4 (1e7 avant #63, divise par 1000 ;
 # decision du mainteneur du 28/09/2026, voir usp_ajuster()). Un demarrage
