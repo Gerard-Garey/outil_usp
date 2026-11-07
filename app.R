@@ -414,7 +414,7 @@ ui <- fluidPage(
                     "p non simul&eacute;e (<b style='color:#B9770E'>asymptotique</b> ou",
                     "<b style='color:#6E2C00'>approx. n fini</b>).",
                     "Quand la p Monte-Carlo manque, la p non simul&eacute;e n'est jamais retenue",
-                    "&agrave; sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
+                    "&agrave; sa place : sauf p exacte, la ligne ne porte aucune",
                     "p-value retenue.",
                     "La nature <b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                     "est une p non simul&eacute;e qui approche la loi de la statistique &agrave; n fini",
@@ -1671,7 +1671,7 @@ server <- function(input, output, session) {
     # (issue #240, metadata$seed_flux_regime) ; absente pour reserve2.
     if (!is.na(gen["seed_flux_regime"]))
       cat("Graine flux regime   :", gen[["seed_flux_regime"]],
-          "(flux complementaire des p-values Monte-Carlo, #240)\n")
+          "(flux complementaire des p-values Monte-Carlo)\n")
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", .num_fr_defaut(round(m$duree_sec, 2)), "\n")
     cat("Version R            :", m$version_R, "\n")
