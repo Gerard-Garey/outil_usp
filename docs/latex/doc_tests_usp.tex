@@ -14427,7 +14427,11 @@ colonnes $0, \dots, j$, un modèle linéaire gaussien à poids connus, de sorte 
 sachant ces colonnes est la loi de Student à $n_j - 2$ degrés de liberté, qui n'en dépend pas~;
 $t_0, \dots, t_{j-1}$ étant fonctions de ces colonnes, $t_j$ en est indépendant, et
 l'indépendance mutuelle suit par récurrence (résultat exact sous ces hypothèses, argument de
-l'outil~; aucune publication énonçant ce résultat n'a été retrouvée). Réserve~: des erreurs
+l'outil~; aucune publication énonçant ce résultat n'a été retrouvée). Une mesure sous le modèle
+de Mack gaussien ajusté au triangle de contrôle, plans P1 à P3 (rubrique~7~;
+\code{docs/tableaux/}\allowbreak\code{20261106-}\allowbreak\code{issue448-}\allowbreak\code{independance-tj.md}),
+ne le contredit pas, pour cette ligne et pour la courbure (constat de simulation, qui ne le
+démontre pas~; aucun cumul négatif ou nul tiré). Réserve~: des erreurs
 conditionnelles gaussiennes de variance $\sigma_j^2\,C(i,j)$ donnent un cumul négatif ou nul avec
 une probabilité non nulle, où cette variance et le poids $1/C(i,j)$ ne sont plus définis~: à la
 lettre, ce modèle n'est pas une loi sur le triangle. Le résultat vaut exactement pour le modèle où
