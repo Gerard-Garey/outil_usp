@@ -12316,19 +12316,22 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       p_as = ka$p, mc_nom = "KruskalAcc",
       p_min = pm_ka$p_min, effectifs = pm_ka$effectifs,
       # Un residu par annee de survenance (#60, decision du mainteneur du
-      # 06/10/2026) : la phrase precede le detail ; le motif R1 eventuel
-      # reste en tete, pose par add().
-      detail = paste0(if (isTRUE(ka$un_par_annee)) paste0(
+      # 06/10/2026) : la phrase A remplace la phrase generale (#449, texte
+      # arrete par actuary et decision du mainteneur : la phrase generale,
+      # qui dit que la ligne teste l'homogeneite des residus, contredit ce
+      # cas) ; le prefixe du motif Monte-Carlo eventuel reste en tete, pose par add().
+      # Texte de la phrase generale arrete par actuary (#419, decision du
+      # mainteneur du 05/11/2026) : l'egalite des lois entre annees n'est pas
+      # l'independance de D(2)(h)(i).
+      detail = if (isTRUE(ka$un_par_annee)) paste0(
         "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
         "(groupes de taille 1), quelle que soit la donnee ; ",
-        "H ne mesure rien ici. ") else "",
-        # Texte arrete par actuary (#419, decision du mainteneur du
-        # 05/11/2026) : l'egalite des lois entre annees n'est pas
-        # l'independance de D(2)(h)(i).
+        "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
+        "entre annees de survenance, ni l'independance de D(2)(h)(i)") else
         paste("Homogeneite des residus entre annees de survenance sous la formalisation",
               "de l'outil (f_j et sigma_j^2 communs) ; ne teste pas a elle seule",
               "l'independance de D(2)(h)(i), reagit aussi a une annee atypique, a une",
-              "derive de f_j avec l'annee ou a une esperance non proportionnelle")))
+              "derive de f_j avec l'annee ou a une esperance non proportionnelle"))
   cor <- mw_stat_correlation_dev(aj, jd)
   pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))

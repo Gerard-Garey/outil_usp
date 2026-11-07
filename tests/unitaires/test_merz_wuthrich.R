@@ -2310,6 +2310,23 @@ verifier("KruskalAcc : un residu par annee de survenance -> H = N - 1, p asympto
            # temoin : plusieurs residus par annee, p asymptotique definie
            local({ k <- mw_test_homogeneite_accident(mw_ajuster(tri_ref))
                    is.finite(k$p) && identical(k$un_par_annee, FALSE) }))
+# Detail complet de la ligne, un residu par annee de survenance (#449) : la
+# phrase generale (qui dit que la ligne teste l'homogeneite) est remplacee,
+# non precedee, par la phrase du cas ; le prefixe du motif Monte-Carlo (loi simulee de
+# dispersion nulle) reste en tete, pose par add(), sans phrase finale (B
+# effectif = B, aucun triangle simule retire).
+verifier("KruskalAcc : un residu par annee -> detail complet de la ligne = prefixe du motif Monte-Carlo + phrase du cas seule, phrase generale remplacee (#449)",
+         all(vapply(list(col0_192(1e-11), sauf_une), function(t) {
+           l <- Filter(function(l) identical(l$test, "Homogeneite des residus entre annees de survenance"),
+                       run_mw(t)$tests)
+           length(l) == 1L && identical(l[[1]]$detail, paste0(
+             "loi simulee de dispersion nulle : aucune p-value retenue. ",
+             "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
+             "(groupes de taille 1), quelle que soit la donnee ; ",
+             "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
+             "entre annees de survenance, ni l'independance de D(2)(h)(i)")) &&
+             !grepl("Homogeneite des residus entre annees de survenance sous", l[[1]]$detail, fixed = TRUE)
+         }, logical(1))))
 verifier("Variance unitaire : 'et NON 1' omis si une seule colonne garde des residus (k = 1) (#60, R5)",
          {
            com <- function(t) {
@@ -3853,14 +3870,23 @@ verifier("Exposant de variance (M2, #409) : le detail donne f_j et sigma_j^2 com
 # 05/11/2026, suite de #431) : la chaine cite l'identite
 # somme_i sqrt(C(i,j)) r(i,j) = 0 pour ecarter un ecart regulier de
 # l'esperance ; l'identite est controlee ici sur les residus de mw_residus()
-# (memes colonnes que mw_tests()), dans chaque colonne retenue, en absolu
-# (1e-12) et rapportee a somme_i sqrt(C(i,j)) |r(i,j)| (1e-12).
+# (memes colonnes que mw_tests()), dans chaque colonne retenue, rapportee a
+# somme_i sqrt(C(i,j)) |r(i,j)| (1e-12) ; rejouee sur le triangle multiplie par
+# 1e6 (#449 ; la forme absolue, non invariante d'echelle, est retiree).
 verifier("Exposant de variance (M2, #436) : reserve2, somme_i sqrt(C(i,j)) r(i,j) = 0 dans chaque colonne retenue, identite citee par H1 ; H1 = texte C a la lettre",
          {
            a <- res300$ajustement
            rs <- mw_residus(a, .mw_colonnes_degenerees(a))
            s <- tapply(sqrt(rs$C) * rs$residu, rs$j, sum)
            e <- tapply(sqrt(rs$C) * abs(rs$residu), rs$j, sum)
+           # Rejeu sur le meme triangle multiplie par 1e6 (#449) : seule la
+           # forme relative est invariante d'echelle ; la forme absolue
+           # (|somme| <= 1e-12) echoue des que le triangle est a l'echelle
+           # des montants reels, d'ou son retrait.
+           a6 <- mw_ajuster(a$tri * 1e6)
+           rs6 <- mw_residus(a6, .mw_colonnes_degenerees(a6))
+           s6 <- tapply(sqrt(rs6$C) * rs6$residu, rs6$j, sum)
+           e6 <- tapply(sqrt(rs6$C) * abs(rs6$residu), rs6$j, sum)
            x <- lig300("Adequation de l'exposant de variance, colonne par colonne")
            h1 <- paste0(
              "lien monotone entre |r(i,j)| et C(i,j) dans au moins une colonne (correlation de rang), ",
@@ -3880,8 +3906,8 @@ verifier("Exposant de variance (M2, #436) : reserve2, somme_i sqrt(C(i,j)) r(i,j
              "(identite sum_i sqrt(C(i,j)) r(i,j) = 0) : il n'est pas vise ici, lignes de M1")
            ok <- list(
              colonnes = length(s) == 6L && nrow(attr(rs, "colonnes_exclues")) == 0L,
-             absolu = all(abs(s) <= 1e-12),
              relatif = all(e > 0) && all(abs(s) / e <= 1e-12),
+             relatif_1e6 = length(s6) == 6L && all(e6 > 0) && all(abs(s6) / e6 <= 1e-12),
              H1 = identical(x$H1, h1),
              ascii = !grepl("[^ -~]", x$H1))
            k <- !vapply(ok, isTRUE, logical(1))
