@@ -8381,7 +8381,7 @@ Shapiro--Wilk sur les résidus de Mack & Lilliefors sur les résidus de Mack &
 Complément de recoupement, moins puissant (fiche~\ref{mw:m5li})~; l'une et l'autre sont des
 diagnostics. \\
 Durbin--Watson sur les résidus de Mack & Test des suites sur les résidus de Mack &
-Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) et~(ii))~; sous les plans
+Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) et~(ii), lecture retenue par l'outil)~; sous les plans
 mesurés, la p-value de Monte-Carlo de la seconde rejette vers $5~\%$ au seuil $0{,}10$, taux
 bruts que Durbin--Watson égale ou dépasse partout où l'une ou l'autre dépasse sa référence de
 niveau, à des niveaux effectifs différents (fiche~\ref{mw:m3runs}, rubrique~6). \\
@@ -13902,8 +13902,8 @@ relative)~: une pente non nulle contredit M1. \\
 Test des effets d'année calendaire & \textbf{nouveau} & Propre aux triangles~:
 les diagonales représentent les exercices comptables. Sans équivalent dans la
 méthode lognormale. \\
-Corrélation entre années de développement & \textbf{nouveau} & Teste M3(ii)
-entre colonnes adjacentes. \\
+Corrélation entre années de développement & \textbf{nouveau} & Teste M3(ii),
+dans la lecture retenue par l'outil (section~\ref{sec:mwm3}), entre colonnes adjacentes. \\
 Mann--Kendall, Cox--Stuart, Spearman, RESET, TOST, sup-F, CUSUM &
 sans objet & Ces tests portent sur une série chronologique de ratios, objet qui
 n'existe pas dans la géométrie du triangle. \\
@@ -15604,7 +15604,7 @@ colonnes.
 % =============================================================================
 
 \begin{encadre}
-\textbf{Énoncé.} annexe~XVII, D(2)(h)(i) et (ii)~: indépendance des années de survenance et des montants incrémentaux.
+\textbf{Énoncé.} annexe~XVII, D(2)(h)(i)~: «~les montants de sinistres cumulés des différentes années d'accident sont stochastiquement indépendants les uns des autres~»~; D(2)(h)(ii)~: «~pour toutes les années d'accident, les montants de sinistres incrémentiels implicites sont stochastiquement indépendants~». \textbf{Lecture de (ii) retenue par l'outil}~: absence de corrélation des facteurs de développement successifs d'une même année, conséquence de la seule espérance conditionnelle de Mack, prise sur tout le passé de l'année (T.~Mack, 1994, \emph{CAS Forum}, annexe~G, p.~155~; formalisation de D(2)(h)(iii), encadré de la section~\ref{sec:mwm1}), et non la lettre de~(ii)~: avec des incréments indépendants et $C(i,j)$ aléatoire, $\mathbb{E}[C(i,j+1)\mid C(i,j)] = C(i,j) + \mathbb{E}[C(i,j+1)-C(i,j)]$ n'est proportionnelle à $C(i,j)$, comme le veut D(2)(h)(iii), que si $f_j = 1$ et si l'incrément est d'espérance nulle.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -16065,9 +16065,7 @@ dégénérées. Le gel vaut aussi à l'observé, comme pour le test calendaire
 (fiche~\ref{mw:m3cal})~; une colonne hors de l'ensemble reste écartée par la garde
 $\mathrm{sd} = 0$ si elle est constante après aplatissement.
 \Hzero
-$H_0$ : les facteurs de développement successifs ne sont pas corrélés, ce qui
-est la traduction testable de D(2)(h)(ii), l'indépendance des montants
-incrémentaux à l'intérieur d'une année de survenance.
+$H_0$ : les facteurs de développement successifs d'une même année de survenance ne sont pas corrélés, conséquence de l'espérance conditionnelle de Mack (encadré de la section~\ref{sec:mwm3})~; lecture de D(2)(h)(ii) retenue par l'outil, non sa lettre.
 \Stat
 $\displaystyle \hat\rho = \frac{\sum_k (n_k-1)\,\hat\rho_{s,k}}{\sum_k (n_k-1)}$,
 moyenne pondérée des corrélations de rang par paire de colonnes.
@@ -16095,10 +16093,7 @@ $\alpha$ (fiche~\ref{mw:m1d}) et Durbin--Watson, aucune p-value non simulée n'e
 triangle de contrôle (référence \code{reserve2})~: $\hat\rho = 0{,}359$, p-value de Monte-Carlo
 $0{,}170$, \code{OK}.
 \Usage
-Un rejet signale que la cadence de liquidation d'une année de survenance est
-persistante~: une année qui se développe vite sur une colonne continue de le
-faire sur la suivante. Cela contredit l'indépendance des incréments et biaise la
-MSEP, qui suppose que les erreurs de projection ne se cumulent pas. Limite~: sur
+Un rejet signale une corrélation entre facteurs successifs d'une même année (positive~: cadence de liquidation persistante, une année qui se développe vite sur une colonne continuant de le faire sur la suivante). C'est un indice contre l'espérance conditionnelle de Mack sur tout le passé de l'année, dont l'absence de corrélation est une conséquence et sur laquelle repose le modèle de la MSEP (rubrique~2 et encadrés qu'elle cite)~; la ligne n'en chiffre pas l'effet sur la MSEP. Limite~: sur
 un triangle $8\times8$, seules quatre paires de colonnes comptent au moins
 trois facteurs (rubrique~7), ce qui rend le test très peu puissant.
 
@@ -16221,7 +16216,7 @@ l'alternance excessive des signes, dont la loi combinatoire n'est pas celle des 
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 
 \textbf{Pourquoi aucun verdict} (diagnostic par décision, section~\ref{sec:nature}).
-L'indépendance, D(2)(h)(i) et~(ii), est examinée dans l'ordre de parcours par la ligne
+L'indépendance, D(2)(h)(i) et~(ii) (lecture retenue par l'outil), est examinée dans l'ordre de parcours par la ligne
 Durbin--Watson (fiche~\ref{mw:m3dw}), calculée sur les mêmes résidus de Mack dans le même ordre~;
 la ligne des suites n'apporte pas de preuve propre à $T = 8$. Mesures (tableaux~T1~bis et T2 de
 \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md},
