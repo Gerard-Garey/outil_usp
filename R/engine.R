@@ -5134,7 +5134,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 # (celle de usp_ajuster()) (issue #109, correctif R3, decision du mainteneur
 # du 28/09/2026). Motif : demarre a chaud du seul (d0, g0), l'ajusteur
 # restait dans le bassin du bord de depart et manquait l'optimum de
-# usp_ajuster() (ecart d'objectif > 1e-6) dans 0,37 % (J1) et 0,68 % (J2)
+# usp_ajuster() (ecart d'objectif > 1e-6) dans 0,36 % (J1) et 0,68 % (J2)
 # des replications (mesure de #43, tests/comparer_ajusteurs_bootstrap.R).
 # Gradient analytique et factr = 1e4 (1e7 avant #63, divise par 1000 ;
 # decision du mainteneur du 28/09/2026, voir usp_ajuster()). Un demarrage
@@ -10034,7 +10034,12 @@ mw_calendrier_diagonales <- function(cal) {
 # (ii) (increments independants) n'est compatible avec (iii) que si f_j = 1.
 # On mesure la correlation de rang de Spearman entre colonnes adjacentes,
 # agregee sur le triangle. La loi sous H0 dependant de la geometrie du
-# triangle, la p-value est obtenue par permutation (voir mw_bootstrap).
+# triangle, la p-value retenue de la ligne de mw_tests() (mc_nom CorrDev,
+# bilatere) est la p-value Monte-Carlo du bootstrap de residus de
+# mw_bootstrap() (engine_p_mc(), MW_CATALOGUE_MC) ; la ligne n'a ni p
+# exacte ni p asymptotique. p_min vient de la formule fermee de
+# .mw_corr_p_min() (2 prod 1/n_k!), sans enumeration ni tirage de
+# permutations.
 # Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
 # mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
 # deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
