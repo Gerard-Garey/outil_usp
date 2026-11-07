@@ -363,21 +363,42 @@ table_synthese_groupe <- function(tb) {
 }
 
 # Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
-# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Au-dela
-# de `seuil` caracteres, le texte est coupe au dernier espace avant le seuil (a
-# defaut, au seuil) : le debut va dans le <summary> d'un <details>, la suite
-# dans son corps, deplie au clic. Aucun texte n'est retire : debut et suite,
-# rejoints par l'espace de coupure, rendent le commentaire entier (cet espace
-# est remplace par la frontiere entre le <summary> et le corps). Mise en forme
-# seule, chaque partie echappee ; NA : tiret, comme .txt().
+# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Texte
+# de `seuil` caracteres ou moins : affiche entier. Au-dela, regle de coupe de
+# #472 (marge `marge`, decision du mainteneur du 07/11/2026) : coupe a la
+# premiere fin de phrase dont le resume fait au moins `seuil` et au plus
+# `seuil + marge` caracteres. Fin de phrase : "." suivi d'un espace puis d'une
+# majuscule, ou ";" suivi d'un espace, a profondeur nulle de parentheses et de
+# crochets (comptee depuis le debut du texte jusqu'au signe : un ";" de
+# "[0 ; 1]" ou de "min(a = 1 ; b = 2)" n'est pas une fin de phrase ; une
+# parenthese jamais refermee ferme toute fin de phrase apres elle, la coupe a
+# defaut restant possible ; un fermant sans ouvrant ne descend pas sous 0). Un
+# "." n'est retenu que si le mot qui le precede (suite de lettres, chiffres et
+# "_" collee au point) n'est pas une seule lettre (initiale : "J. Econometrics",
+# "C. B") ni une abreviation de `.ABREV_FIN_PHRASE` ("et al. A", "p. E") ; un
+# signe de ponctuation devant le point (")", "]", "%") ou un nombre ("= 8.")
+# n'ecarte pas le point. La fin du texte en est une aussi (si elle est la
+# premiere fin de phrase de la fenetre, pas de repli). La coupe se fait a
+# l'espace qui suit le signe, le signe reste dans le resume. A defaut de fin de phrase dans la
+# fenetre, coupe de #178 : dernier espace avant le seuil, ou au seuil. Quelle
+# que soit la coupe, si la suite masquee ferait moins de `suite_min` (100)
+# caracteres, le texte reste entier (decision du mainteneur du 07/11/2026). Le debut
+# va dans le <summary> d'un <details>, la suite dans son corps, deplie au clic.
+# Aucun texte n'est retire : debut et suite, rejoints par l'espace de coupure,
+# rendent le commentaire entier (cet espace est remplace par la frontiere entre
+# le <summary> et le corps). Mise en forme seule, chaque partie echappee ; NA :
+# tiret, comme .txt(). Aussi appliquee a H0 et H1 de la vue Detail (#450).
 # Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
 # moteur, toujours chargee avec lui, dernier element du detail) : sortie du
 # repli (decision du mainteneur, version d'app-review) et affichee apres lui,
 # sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
 # cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
 # avant. Sans la phrase, rendu inchange.
-.commentaire_replie <- function(com, seuil = 200L) {
-  vapply(com, function(x) {
+.ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
+                       "sect", "fig", "eq", "approx", "resp")
+.commentaire_replie <- function(com, seuil = 200L, marge = 150L, suite_min = 100L) {
+  # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
+  vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
     sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
     if (sens) {
@@ -388,18 +409,57 @@ table_synthese_groupe <- function(tb) {
     corps <- if (!nzchar(x)) ""
       else if (nchar(x) <= seuil) .echap_html(x)
       else {
-        tete <- substr(x, 1L, seuil)
-        esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
-        k <- if (any(esp > 1L)) max(esp) else seuil + 1L
-        debut <- substr(x, 1L, k - 1L)
-        suite <- substr(x, if (k <= seuil) k + 1L else k, nchar(x))
-        paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
-               .echap_html(suite), "</details>")
+        # Fins de phrase : position du signe (resume = x[1..p]) ; la fin du
+        # texte en est une aussi, la derniere.
+        fin <- .fins_de_phrase(x)
+        fin <- c(fin, nchar(x))
+        fin <- fin[fin >= seuil & fin <= seuil + marge]
+        if (length(fin) && fin[1L] == nchar(x)) .echap_html(x)
+        else {
+          if (length(fin)) {
+            k <- fin[1L] + 1L                     # l'espace qui suit le signe
+            reprise <- k + 1L
+          } else {
+            tete <- substr(x, 1L, seuil)
+            esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
+            k <- if (any(esp > 1L)) max(esp) else seuil + 1L
+            reprise <- if (k <= seuil) k + 1L else k
+          }
+          debut <- substr(x, 1L, k - 1L)
+          suite <- substr(x, reprise, nchar(x))
+          # Suite masquee de moins de `suite_min` caracteres : pas de repli
+          # (decision du mainteneur du 07/11/2026), pour la coupe a une fin de
+          # phrase comme pour la coupe a defaut.
+          if (nchar(suite) < suite_min) .echap_html(x)
+          else paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
+                      .echap_html(suite), "</details>")
+        }
       }
     paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
   }, character(1), USE.NAMES = FALSE)
 }
 
+# Positions des fins de phrase de x pour .commentaire_replie() : signe "." suivi
+# d'un espace et d'une majuscule, ou ";" suivi d'un espace, a profondeur nulle
+# de parentheses et de crochets, "." precede d'un mot d'au moins deux caracteres
+# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Affichage seul.
+.fins_de_phrase <- function(x) {
+  cand <- gregexpr("(\\.(?= \\p{Lu})|;(?= ))", x, perl = TRUE)[[1]]
+  cand <- cand[cand > 0L]
+  if (!length(cand)) return(integer(0))
+  car <- strsplit(x, "", fixed = TRUE)[[1]]
+  delta <- (car %in% c("(", "[")) - (car %in% c(")", "]"))
+  prof <- integer(length(car)); p <- 0L        # profondeur AVANT chaque caractere
+  for (i in seq_along(car)) { prof[i] <- p; p <- max(0L, p + delta[i]) }
+  garde <- vapply(cand, function(i) {
+    if (prof[i] != 0L) return(FALSE)
+    if (car[i] == ";") return(TRUE)
+    mot <- regmatches(substr(x, 1L, i - 1L), regexpr("[\\p{L}\\p{N}_]+$", substr(x, 1L, i - 1L), perl = TRUE))
+    if (!length(mot)) return(TRUE)             # ponctuation devant le point : ")." "]." "%."
+    !(grepl("^\\p{L}$", mot, perl = TRUE) || tolower(mot) %in% .ABREV_FIN_PHRASE)
+  }, NA)
+  cand[garde]
+}
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
@@ -407,8 +467,10 @@ table_synthese_groupe <- function(tb) {
 # objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
 # replier = TRUE (vue Detail de l'onglet Tests, #178) : commentaire long replie
-# par .commentaire_replie() ; FALSE (defaut, rapport fige) : texte entier
-# affiche, le document fige ne dependant pas d'un clic pour etre lu ou imprime.
+# par .commentaire_replie() ; H0 et H1 le sont de meme (#450 : le H1 de
+# l'exposant de variance de M2 depasse 1 000 caracteres) ; FALSE (defaut,
+# rapport fige) : commentaire, H0 et H1 entiers, le document fige ne dependant
+# pas d'un clic pour etre lu ou imprime.
 # Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
 # provenance de la ligne ; colonne absente ou NA (objet anterieur) : tiret.
 # Colonne "granularite MC" (#285, option (i)) : granularite effective de la
@@ -423,7 +485,8 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                   .repere_renvoi(tb)),
     Type = .txt(type_ligne(tb)),
-    H0 = .txt(tb$H0), H1 = .txt(tb$H1),
+    H0 = if (replier) .commentaire_replie(tb$H0) else .txt(tb$H0),
+    H1 = if (replier) .commentaire_replie(tb$H1) else .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
     `p exacte` = fmt_p(tb$p_exacte),
     `p asympt.` = fmt_p(tb$p_asymptotique),
@@ -1076,7 +1139,7 @@ plot_coupe_delta <- function(pd) {
   if (is.null(pd$surface)) return(.vide())
   S <- pd$surface
   v <- S$objectif_coupe
-  if (is.null(v)) return(.vide("Coupe a gamma optimal indisponible (resultat anterieur a #404)"))
+  if (is.null(v)) return(.vide("Coupe a gamma optimal indisponible : resultat produit par une version anterieure du moteur (relancer les calculs)"))
   if (!.plotly_dispo()) {
     .cadre(); plot(S$delta, v, type = "l", lwd = 2, col = COUL$pt,
                    xlab = "delta", ylab = "objectif", main = "Coupe a gamma optimal")
@@ -1613,18 +1676,38 @@ plot_mw_reserve <- function(pd) {
 # Graphique vide, renvoye lorsqu'une quantite n'est pas disponible pour la
 # methode courante. Le type de trace est specifie explicitement : sans cela,
 # plotly tente de l'inferer et emet un avertissement a chaque rendu.
-.vide <- function(message = "Graphique non disponible pour cette methode") {
+# Message mis a la ligne (R33, constat C1 d'app-review) : sur une ligne, un
+# message de plus d'une centaine de caracteres deborde de la colonne plotly
+# (texte a 12 px sans retour) et du PNG de 560 px du rapport fige en base R
+# (debut et fin coupes). strwrap() a `largeur` caracteres, puis "<br>" pour
+# plotly et "\n" pour la base R. Un message que l'appelant a deja coupe
+# (saut "\n" ou "<br>", par ex. plot_mw_qq()) est rendu tel quel.
+# Entree non scalaire : longueur > 1 jointe par une espace (elements NA
+# ecartes) ; vide (character(0), NULL), NA seul ou chaine vide : message par
+# defaut de .vide(), jamais d'erreur.
+.VIDE_MESSAGE_DEFAUT <- "Graphique non disponible pour cette methode"
+.vide_message <- function(message, largeur = 48L, saut = "\n") {
+  message <- as.character(message)
+  message <- message[!is.na(message)]
+  message <- if (length(message)) paste(message, collapse = " ") else ""
+  if (!nzchar(message)) message <- .VIDE_MESSAGE_DEFAUT
+  if (grepl("\n", message, fixed = TRUE) || grepl("<br>", message, fixed = TRUE))
+    return(message)
+  paste(strwrap(message, width = largeur), collapse = saut)
+}
+.vide <- function(message = .VIDE_MESSAGE_DEFAUT) {
   if (.plotly_dispo()) {
     p <- plotly::plotly_empty(type = "scatter", mode = "markers")
     return(plotly::layout(p,
       xaxis = list(visible = FALSE), yaxis = list(visible = FALSE),
       paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-      annotations = list(list(text = message, showarrow = FALSE,
+      annotations = list(list(text = .vide_message(message, saut = "<br>"),
+                              showarrow = FALSE,
                               xref = "paper", yref = "paper", x = 0.5, y = 0.5,
                               font = list(size = 12, color = COUL$ref)))))
   }
   .cadre(); plot.new()
-  graphics::text(0.5, 0.5, message, col = COUL$ref, cex = 0.95)
+  graphics::text(0.5, 0.5, .vide_message(message), col = COUL$ref, cex = 0.95)
   invisible()
 }
 
@@ -1948,7 +2031,7 @@ plot_mw_origine <- function(pd) {
   d <- pd$origine
   if (is.null(d) || !nrow(d)) return(.vide("Ordonnees a l'origine indisponibles"))
   if (is.null(d$bas) || is.null(d$haut) || is.null(d$exclut_zero))
-    return(.vide("Intervalles de l'ordonnee a l'origine indisponibles (resultat anterieur a #404)"))
+    return(.vide("Intervalles de l'ordonnee a l'origine indisponibles : resultat produit par une version anterieure du moteur (relancer les calculs)"))
   coul <- ifelse(d$exclut_zero %in% TRUE, COUL$trait, COUL$pt)
   niv <- .qq_niveau_txt(d$niveau[1L])
   titre <- paste0("Ordonnee a l'origine par colonne, intervalle de Student",
@@ -2826,13 +2909,13 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       c = c(paste("Texte canonique des donn\u00e9es du calcul (valeurs en %.17g, NA, fins de",
                   "ligne LF) ; ne d\u00e9pend que des valeurs. <code>engine_empreinte()</code>."),
             paste("Objet s\u00e9rialis\u00e9 (saveRDS version 3, sans horodatage ni dur\u00e9e) ;",
-                  "stable sur une m\u00eame machine, <b>d\u00e9pend de la plateforme</b> (ADR 0006) :",
+                  "stable sur une m\u00eame machine, <b>d\u00e9pend de la plateforme</b> :",
                   "ne se compare pas d'une machine \u00e0 l'autre. <code>engine_empreinte()</code>."),
             paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
                   "relev\u00e9s le", .ou_tiret(idt$releve), "au chargement du moteur par l'application."),
             paste("Octets du fichier (fins de ligne LF impos\u00e9es par .gitattributes),",
                   "relev\u00e9s le", .ou_tiret(idt$releve), "au chargement du moteur par l'application ;",
-                  "le chargeur fixe la cha\u00eene d'environnements du moteur (ADR 0016).")),
+                  "le chargeur fixe la cha\u00eene d'environnements du moteur.")),
       stringsAsFactors = FALSE)
     names(empreintes) <- c("Objet", "Empreinte md5", "Statut")
     # Invariant de l'en-tete (#263) : une valeur par cle.
@@ -2966,7 +3049,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                 "&gt; p non simul\u00e9e (<b style='color:#B9770E'>asymptotique</b> ou",
                 "<b style='color:#6E2C00'>approx. n fini</b>).",
                 "Quand la p Monte-Carlo manque, la p non simul\u00e9e n'est jamais retenue",
-                "\u00e0 sa place (ADR 0001) : sauf p exacte, la ligne ne porte aucune",
+                "\u00e0 sa place : sauf p exacte, la ligne ne porte aucune",
                 "p-value retenue.",
                 "La nature <b style='color:#6E2C00'>approx. n fini</b> (Anscombe-Glynn, T &gt;= 20)",
                 "est une p non simul\u00e9e qui approche la loi de la statistique \u00e0 n fini",
