@@ -34,10 +34,13 @@
 #        conforme   : sinon.
 #      Liste EXCEPTIONS_PLAFOND (label, plafond accorde en pages, budget
 #      accorde en caracteres, raison), tranchee lot par lot ; le budget est celui
-#      de la liste des exceptions de docs/latex/CONVENTIONS.md, section 1 : une
-#      fiche sous exception dont la source depasse son budget est une violation,
-#      meme si son etendue tient dans le plafond (#465). Une exception dont la
-#      fiche est conforme sans elle est PERIMEE. Sans .aux, ou sans labels -fin,
+#      de la liste des exceptions de docs/latex/CONVENTIONS.md, section 1. Le
+#      verdict avec exception n'est jamais plus severe que sans elle (#465) : une
+#      fiche non conforme sans exception devient "conforme (exception)" si son
+#      etendue tient dans le plafond accorde ET sa source dans le budget, sinon
+#      garde son verdict sans exception (un budget depasse laisse donc une
+#      violation) ; une fiche conforme sans exception reste "conforme" et son
+#      exception est PERIMEE, budget compris. Sans .aux, ou sans labels -fin,
 #      le controle le signale et retombe sur les caracteres seuls ("a verifier
 #      (sans pages)"), en avertissement : jamais une violation pour les pages ;
 #      sous --bloquant, ce repli est refuse (code 2, voir plus bas). L'appariement
@@ -75,9 +78,11 @@
 #                                                       # faite (CI : tests/doc_remplissage.tex)
 #  Code 2 pour un argument inconnu, plusieurs options de controle a la fois, ou
 #  un fichier introuvable. Sous --bloquant, le code 2 vaut aussi pour un .aux
-#  absent ou sans label fiche:N-fin quand le controle (b) est lance, et pour un
-#  journal .log absent quand le controle (c) l'est : un controle bloquant qui
-#  n'a rien lu ne doit pas passer pour un controle vert (#465).
+#  absent ou sans label fiche:N-fin quand le controle (b) est lance (le .tex ayant
+#  des fiches), pour un nombre de fiches du .tex different du nombre de labels
+#  fiche:N du .aux, et pour un journal .log absent quand le controle (c) l'est :
+#  un controle bloquant qui n'a rien lu ne doit pas passer pour un controle vert
+#  (#465). Hors --bloquant, ces cas restent des avertissements.
 #
 #  R base uniquement (pdflatex, pdftotext et pdfinfo pour le controle (d)). Les
 #  motifs sont ecrits en sequences \u (independants de la locale du script) ;
@@ -134,19 +139,33 @@ EXCEPTIONS_PLAFOND <- list(
 # 2015, 14 novembre 2024), que l'annee suive par ~ ou par une espace.
 .annee_admise <- "(?![~\\s]*(?:19[0-9]{2}|20(?:0[0-9]|1[0-9]|2[0-5]))(?![0-9]))"
 
+# Mots de definition de macro ou d'environnement : sur une ligne ou un mot de definition
+# precede un #, ce # est un parametre de macro (#1 a #9, #10 = #1 suivi de 0), jamais un
+# numero d'issue. La liste est celle de CONVENTIONS.md, section 5.
+.def_macro <- "(?:[gex]?def|newcommand|renewcommand|providecommand|newenvironment|renewenvironment|NewDocumentCommand|RenewDocumentCommand|DeclareDocumentCommand)"
+.ligne_definition <- paste0("^(?=.*\\\\", .def_macro, "\\b.*#).*(*SKIP)(*FAIL)")
+.arg_url <- "\\\\(?:url|href)\\{[^}]*\\}"
+
 MOTIFS_A <- list(
-  # A1 : \# suivi d'un numero, avec espace, ~ ou \, entre les deux ; # non echappe
-  # suivi d'au moins deux chiffres (jamais un parametre de macro, #1 a #9), hors
-  # argument de \url ou \href (ancre d'URL : (*SKIP)(*FAIL) saute l'argument) ; # non
-  # echappe suivi de n'importe quel numero dans un commentaire %, sauf sur une ligne
-  # qui definit une macro (\newcommand, \renewcommand, \providecommand, \def : un
-  # parametre #1 y est un parametre) ; "issue" (casse indifferente) ou "PR" suivi d'un
-  # numero. Limites : l'ancre d'URL d'un commentaire % et un commentaire final d'une ligne
-  # de definition de macro ne sont pas lus.
+  # A1, quatre regex :
+  #  1. \# suivi d'un numero, avec espace, ~ ou \, entre les deux ;
+  #  2. # non echappe suivi d'au moins deux chiffres, hors ligne de definition de macro et
+  #     hors argument de \url ou \href (ancre d'URL) ;
+  #  3. # non echappe suivi d'un numero (un seul chiffre compris) dans un commentaire %, tous
+  #     les numeros du commentaire (\G reprend apres chaque numero). Le % ouvre un commentaire
+  #     s'il n'est pas precede d'un nombre impair de \ (fin\\% est un commentaire, \% non) et
+  #     s'il n'est pas dans un argument de \url ou \href. Rien n'est lu sur une ligne de
+  #     definition de macro, ni sur une ligne dont la partie avant le % contient un # (corps
+  #     de macro, ancre d'URL hors \url) ;
+  #  4. "issue" (casse indifferente) ou "PR" suivi d'un numero, lu sur deux lignes (fenetre2).
+  # Limites : (i) un # a un chiffre dans un commentaire est lu comme un numero d'issue (le
+  # commentaire "% le parametre #1 est le titre" est releve) ; (ii) le commentaire final d'une
+  # ligne de definition de macro ou d'une ligne dont la partie code contient un # n'est pas lu.
   list(id = "A1", desc = "numero d'issue ou de PR (\\#N, # N en commentaire, issue N, PR N)",
+       fenetre2 = 4L,
        regex = c("\\\\#(?:[~\\s]|\\\\[,;:!])*[0-9]+",
-                 "\\\\(?:url|href)\\{[^}]*\\}(*SKIP)(*FAIL)|(?<![\\\\#])#[0-9]{2,}",
-                 "^(?!.*\\\\(?:newcommand|renewcommand|providecommand|def)\\b).*?(?<!\\\\)%.*?\\K(?<![\\\\#])#[0-9]+",
+                 paste0(.ligne_definition, "|", .arg_url, "(*SKIP)(*FAIL)|(?<![\\\\#])#[0-9]{2,}"),
+                 paste0(.ligne_definition, "|(?:^(?:", .arg_url, "|[^\\\\%#]|\\\\.)*+%|(?!^)\\G).*?\\K(?<![\\\\#])#[0-9]+"),
                  "\\b(?:(?i:issues?)|PR)[~\\s]+[0-9]+")),
   list(id = "A2", desc = "identifiant de commentaire de PR",
        regex = "\\bcommentaires?[~\\s]+[0-9]{8,}\\b"),
@@ -181,7 +200,7 @@ MOTIFS_A <- list(
        regex = "\\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])[0-9a-f]{7,40}\\b"),
   list(id = "A12", desc = "l'issue comme objet du depot, sans numero",
        regex = c("\\b(?:cette|chaque|une|la m\u00eame)~?\\s*issue\\b",
-                 "\\bl'issue\\b(?!\\s+d[eu]\\b)(?![~\\s]*\\\\#[0-9])",
+                 "\\bl'issue\\b(?!\\s+d[eu]\\b)(?![~\\s]*(?:\\\\#(?:[~\\s]|\\\\[,;:!])*|#)?[0-9])",
                  "\\ben issue\\b",
                  "\\bissues\\s+(?:ult\u00e9rieures|ant\u00e9rieures|pr\u00e9c\u00e9dentes|suivantes)\\b",
                  "jusqu'ici")),
@@ -429,21 +448,30 @@ nd_lire_aux <- function(chemin) {
 }
 
 # Verdict d'une fiche. `plafond_accorde` : plafond d'une exception (pages), NA sinon ;
-# `budget_accorde` : budget d'une exception (caracteres), NA si non controle. Un
-# budget depasse est une violation, quelle que soit l'etendue (la source se lit
-# sans .aux) ; elle n'a de sens que pour une fiche sous exception.
+# `budget_accorde` : budget d'une exception (caracteres), NA si non controle.
+# Une exception est une derogation : elle ne rend jamais le verdict plus severe que sans
+# elle (#465). Le verdict sans exception est d'abord calcule ; avec une exception et des
+# pages connues, une fiche qui n'est pas conforme sans elle devient "conforme (exception)"
+# si son etendue tient dans le plafond accorde ET si sa source tient dans le budget, et
+# garde sinon son verdict sans exception. Une fiche deja conforme sans exception reste
+# "conforme" : l'exception est PERIMEE et n'a aucun effet, budget compris. Sans pages,
+# le verdict est celui des caracteres seuls (jamais une violation).
 nd_verdict_fiche <- function(etendue, caracteres, plafond_accorde = NA_integer_,
                              seuil_pages = SEUIL_PAGES_PLAFOND,
                              seuil_caracteres = SEUIL_CARACTERES_PLAFOND,
                              budget_accorde = NA_integer_) {
-  if (!is.na(plafond_accorde) && !is.na(budget_accorde) && caracteres > budget_accorde) return("violation")
   if (is.na(etendue))
     return(if (caracteres > seuil_caracteres) "a verifier (sans pages)" else "conforme (sans pages)")
-  if (!is.na(plafond_accorde) && etendue <= plafond_accorde) return("conforme (exception)")
-  if (etendue >= seuil_pages) {
+  sans <- if (etendue >= seuil_pages) {
     if (caracteres > seuil_caracteres) "violation" else "a verifier"
   } else "conforme"
+  if (is.na(plafond_accorde) || identical(sans, "conforme")) return(sans)
+  if (etendue <= plafond_accorde && (is.na(budget_accorde) || caracteres <= budget_accorde))
+    "conforme (exception)" else sans
 }
+
+nd_msg_decompte <- function(n_tex, n_aux)
+  sprintf("%d fiche(s) dans le .tex pour %d label(s) fiche:N dans le .aux : appariement douteux (fiche non reconnue ou .aux perime).", n_tex, n_aux)
 
 # Controle (b) : fiches de la partie III, avec etendue et verdict. `aux` : sortie
 # de nd_lire_aux() ou NULL. Renvoie list(fiches, exceptions, avis) ; `avis` :
@@ -460,25 +488,26 @@ nd_controle_pages <- function(lignes, aux, exceptions = EXCEPTIONS_PLAFOND) {
     avis <- "aucun label fiche:N-fin dans le .aux : controle (b) sur les caracteres seuls (avertissement)."
   }
   # Appariement : une fiche du .tex, un label fiche:N du .aux. Un decompte different
-  # decale tous les labels suivants (fiche non reconnue dans le .tex, .aux perime).
+  # decale tous les labels suivants (fiche non reconnue dans le .tex, .aux perime) :
+  # avertissement ici, code 2 sous --bloquant (nd_main, decision du 07/11/2026).
   n_labels_aux <- sum(grepl("^fiche:[0-9]+$", aux$label))
   if (n_labels_aux > 0L && n_labels_aux != n_fiches_tex)
-    avis <- c(avis, sprintf("%d fiche(s) dans le .tex pour %d label(s) fiche:N dans le .aux : appariement douteux (fiche non reconnue ou .aux perime).",
-                            n_fiches_tex, n_labels_aux))
+    avis <- c(avis, nd_msg_decompte(n_fiches_tex, n_labels_aux))
   if (any(is.na(aux$page)))
     avis <- c(avis, sprintf("%d label(s) du .aux ont une page non numerique (chiffres romains ?) : etendue non calculee pour ces fiches.",
                             sum(is.na(aux$page))))
   pg <- function(lab) aux$page[match(lab, aux$label)]
-  f$debut <- pg(paste0("fiche:", f$id))
-  f$fin <- pg(paste0("fiche:", f$id, "-fin"))
+  # sprintf et non paste0 : sans fiche en partie III, paste0("fiche:", integer(0)) vaut "fiche:" (#465).
+  f$debut <- pg(sprintf("fiche:%d", f$id))
+  f$fin <- pg(sprintf("fiche:%d-fin", f$id))
   f$etendue <- ifelse(is.na(f$debut) | is.na(f$fin), NA_integer_, f$fin - f$debut + 1L)
-  f$exception <- NA_character_
-  f$plafond_accorde <- NA_integer_
-  f$budget_accorde <- NA_integer_
+  f$exception <- rep(NA_character_, nrow(f))
+  f$plafond_accorde <- rep(NA_integer_, nrow(f))
+  f$budget_accorde <- rep(NA_integer_, nrow(f))
   bilan <- data.frame(label = character(0), pages = integer(0), caracteres = integer(0),
                       statut = character(0), raison = character(0), stringsAsFactors = FALSE)
   for (e in exceptions) {
-    k <- which(f$label %in% e$label | paste0("fiche:", f$id) %in% e$label)
+    k <- which(f$label %in% e$label | sprintf("fiche:%d", f$id) %in% e$label)
     budget <- if (is.null(e$caracteres)) NA_integer_ else as.integer(e$caracteres)
     if (length(k)) {
       f$exception[k] <- e$label; f$plafond_accorde[k] <- as.integer(e$pages); f$budget_accorde[k] <- budget
@@ -737,7 +766,9 @@ nd_rubriques <- function(mots, marge_gauche) {
 nd_analyser_remplissage <- function(marques, mots) {
   g <- marques$geometrie
   bas <- g$haut + g$hauteur_utile
-  nb_pages <- nrow(marques$pages)
+  # Nombre de pages : numero de page maximal des marques, non le nombre de lignes P (une ligne
+  # P dupliquee le gonflerait, une ligne manquante ferait echouer l'analyse, #465).
+  nb_pages <- if (nrow(marques$pages)) max(marques$pages$page) else 0L
   if (nrow(mots) && max(mots$page) > nb_pages)
     return(list(constats = NULL, avis = "nombre de pages du PDF et des marques differents : remplissage non mesure."))
   paysage <- attr(mots, "paysage")
@@ -966,14 +997,22 @@ nd_main <- function(args) {
            debordements = aucun || "--debordements" %in% args, remplissage = "--remplissage" %in% args)
   }
   aux_lu <- if (sel("pages")) nd_lire_aux(aux) else NULL
+  lignes <- nd_lire_lignes(tex)
   # Sous --bloquant, un controle qui n'a rien lu ne passe pas pour un controle vert (#465) :
-  # code 2 si le .aux (controle b) ou le journal (controle c) manque, ou si le .aux n'a
-  # aucun label fiche:N-fin (retouche du preambule qui desarmerait le plafond de pages).
+  # code 2 si le .aux (controle b) ou le journal (controle c) manque, si le .aux n'a aucun
+  # label fiche:N-fin alors que le .tex a des fiches (retouche du preambule qui desarmerait
+  # le plafond de pages), ou si le nombre de fiches du .tex differe du nombre de labels
+  # fiche:N du .aux (appariement decale, decision du 07/11/2026).
   if (bloquant) {
     manque <- character(0)
     if (sel("pages") && is.null(aux_lu)) manque <- c(manque, sprintf("fichier .aux introuvable (%s)", aux))
-    if (sel("pages") && !is.null(aux_lu) && !any(grepl("^fiche:[0-9]+-fin$", aux_lu$label)))
-      manque <- c(manque, sprintf("aucun label fiche:N-fin dans %s", aux))
+    if (sel("pages") && !is.null(aux_lu)) {
+      n_tex <- nrow(nd_fiches(lignes))
+      n_aux <- sum(grepl("^fiche:[0-9]+$", aux_lu$label))
+      if (n_tex > 0L && !any(grepl("^fiche:[0-9]+-fin$", aux_lu$label)))
+        manque <- c(manque, sprintf("aucun label fiche:N-fin dans %s", aux))
+      else if (n_aux != n_tex) manque <- c(manque, sub(" : appariement douteux.*$", "", nd_msg_decompte(n_tex, n_aux)))
+    }
     if (sel("debordements") && !file.exists(journal)) manque <- c(manque, sprintf("journal LaTeX .log introuvable (%s)", journal))
     if (length(manque)) {
       cat("--bloquant : controle impossible, ", paste(manque, collapse = " ; "),
@@ -981,7 +1020,6 @@ nd_main <- function(args) {
       return(2L)
     }
   }
-  lignes <- nd_lire_lignes(tex)
   cat(sprintf("Controle ND de %s (%d lignes). Mode : %s.\n\n", tex, length(lignes),
               if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)"))
   n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L

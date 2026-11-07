@@ -132,8 +132,55 @@ verifier("A10 : \"6~novembre 2026\" est une seule occurrence (chevauchement fusi
          identical(nd$nd_chercher("le 6 novembre 2026", "Partie I", nd$MOTIFS_A)$texte, "6 novembre 2026") &&
          identical(nd$nd_chercher("1\\textsuperscript{er}~novembre 2026", "Partie I", nd$MOTIFS_A)$texte,
                    "1\\textsuperscript{er}~novembre 2026"))
-verifier("A10 : deux dates distinctes sur une ligne restent deux occurrences, une date adjacente aussi",
+verifier("A10 : deux dates distinctes sur une ligne restent deux occurrences",
          nrow(nd$nd_chercher("du 6~novembre 2026 au 9~novembre 2026", "Partie I", nd$MOTIFS_A)) == 2L)
+verifier("recouvrement : deux occurrences qui se touchent sans se chevaucher restent deux (\\#12\\#13), une qui en contient une autre n'en fait qu'une",
+         identical(nd$nd_chercher("\\#12\\#13", "Partie I", nd$MOTIFS_A)$texte, c("\\#12", "\\#13")) &&
+         nrow(nd$nd_chercher("\\#12 \\#13", "Partie I", nd$MOTIFS_A)) == 2L &&
+         identical(nd$nd_chercher("issue~\\#12", "Partie I", nd$MOTIFS_A[1L])$texte, "\\#12"))
+
+# --- Seconde reprise de R36 (#465) : A1, A12 ----------------------------------------------------
+v <- nd$nd_verdict_fiche
+.def_ligne <- c("\\newcommand{\\pct}[1]{#10\\,\\%}", "\\renewcommand{\\z}[2]{#12}", "\\NewDocumentCommand{\\z}{m}{#10}",
+                "\\newenvironment{e}[1]{\\begin{x}#12}{}", "\\DeclareDocumentCommand{\\z}{m}{#10}", "\\gdef\\z#1{#12}")
+verifier("A1 negatif : ligne de definition de macro, #1 suivi d'un chiffre (#10), toutes les formes de definition",
+         all(vapply(.def_ligne, function(x) identical(motifs(x), character(0)), logical(1))))
+verifier("A1 : deux numeros dans un meme commentaire, les deux relevees (% voir #1 et #2)",
+         identical(nd$nd_chercher("% voir #1 et #2", "Partie I", nd$MOTIFS_A)$texte, c("#1", "#2")))
+verifier("A1 : commentaire ouvert apres \\\\ (fin\\\\% voir #7), non apres \\% (pourcent litteral)",
+         "A1" %in% motifs("fin\\\\% voir #7") && identical(motifs("remise de 5\\% voir #7"), character(0)))
+verifier("A1 : % voir #7 \\def releve (le mot de definition ne precede pas le #)",
+         "A1" %in% motifs("% voir #7 \\def") && "A1" %in% motifs("% voir #452 \\newcommand"))
+verifier("A1 negatif : commentaires d'une definition de macro (\\newenvironment{fiche}[1]{% #1 = titre, \\NewDocumentCommand ... % #1, suite de definition)",
+         all(vapply(c("\\newenvironment{fiche}[1]{% #1 = titre", "\\NewDocumentCommand{\\z}{m}{#1} % #1 est le titre",
+                      "  \\textbf{#1} % rappel : #2 est le corps"), function(x) identical(motifs(x), character(0)), logical(1))))
+verifier("A1 negatif : % encode dans un argument d'URL, hors commentaire (\\url{https://ex.org/a%20b#1})",
+         identical(motifs("\\url{https://ex.org/a%20b#1}"), character(0)) &&
+         identical(motifs("\\href{https://ex.org/a%20b#12}{texte}"), character(0)))
+verifier("A1 : commentaire apres un argument d'URL relu (\\url{https://ex.org/a%20b#1} % voir #452)",
+         identical(nd$nd_chercher("\\url{https://ex.org/a%20b#1} % voir #452", "Partie I", nd$MOTIFS_A)$texte, "#452"))
+verifier("A1 limite connue : un # a un chiffre en commentaire est lu comme un numero (% le parametre #1 est le titre)",
+         "A1" %in% motifs("% le parametre #1 est le titre"))
+verifier("A1 : issue / PR et son numero sur deux lignes (fenetre de deux lignes)",
+         "A1" %in% motifs(c("avant l'issue", "452 reste")) && "A1" %in% motifs(c("voir la PR", "459")))
+verifier("A12 : l'issue suivie d'un numero relevee par A1 seul (l'issue 452, l'issue~452, l'issue~\\#452, l'issue \\# 452)",
+         all(vapply(c("l'issue 452", "l'issue~452", "l'issue~\\#452", "l'issue \\# 452", "l'issue #452"),
+                    function(x) { m <- motifs(x); "A1" %in% m && !("A12" %in% m) }, logical(1))))
+verifier("A12 : l'issue sans numero reste relevee", "A12" %in% motifs("avant l'issue, un nom") && "A12" %in% motifs("l'issue~: voir"))
+
+# --- Verdict avec exception : jamais plus severe que sans exception (#465) ----------------------
+.rang <- function(x) if (grepl("^conforme", x)) 1L else if (grepl("^a verifier", x)) 2L else 3L
+.grille <- expand.grid(etendue = c(NA, 1:5), car = c(0L, 5000L, 10500L, 10501L, 11999L, 12000L, 12001L, 15004L, 25000L), stringsAsFactors = FALSE)
+verifier("verdict avec exception (plafond 3, budget 12 000) jamais plus severe que sans exception, sur toute la grille etendue x caracteres",
+         all(vapply(seq_len(nrow(.grille)), function(i) {
+           e <- as.integer(.grille$etendue[i]); k <- .grille$car[i]
+           .rang(v(e, k, 3L, budget_accorde = 12000L)) <= .rang(v(e, k))
+         }, NA)))
+verifier("verdict : fiche d'une page a 15 004 caracteres sous une exception de budget 14 990 = conforme (exception perimee, aucun effet); 3 pages = violation",
+         identical(v(1L, 15004L, 3L, budget_accorde = 14990L), "conforme") &&
+         identical(v(3L, 15004L, 3L, budget_accorde = 14990L), "violation") &&
+         identical(v(3L, 14990L, 3L, budget_accorde = 14990L), "conforme (exception)") &&
+         identical(v(NA_integer_, 15004L, 3L, budget_accorde = 14990L), "a verifier (sans pages)"))
 verifier("A7 : decision M171 (trois chiffres), M100", "A7" %in% motifs("decision M171") && "A7" %in% motifs("M100"))
 
 # --- (a) Cas negatifs : aucun motif de la liste A -----------------------------------------
@@ -254,12 +301,12 @@ verifier("verdict : 5 pages et source courte = a verifier", identical(v(5L, 4000
 verifier("verdict avec exception (plafond 3) : 3 pages conforme, 4 pages violation",
          identical(v(3L, 20000L, 3L), "conforme (exception)") && identical(v(4L, 20000L, 3L), "violation"))
 # Budget en caracteres d'une exception (#465) : fiche:foc etait a 14 990 pour 15 000.
-verifier("verdict avec exception et budget : dans le budget = conforme (exception); au-dela = violation, meme dans le plafond de pages",
+verifier("verdict avec exception et budget : dans le budget = conforme (exception); au-dela = violation (la fiche en etait une sans l'exception)",
          identical(v(3L, 14990L, 3L, budget_accorde = 15000L), "conforme (exception)") &&
          identical(v(3L, 15000L, 3L, budget_accorde = 15000L), "conforme (exception)") &&
          identical(v(3L, 15001L, 3L, budget_accorde = 15000L), "violation") &&
-         identical(v(2L, 15001L, 3L, budget_accorde = 15000L), "violation") &&
-         identical(v(NA_integer_, 15001L, 3L, budget_accorde = 15000L), "violation"))
+         identical(v(2L, 15001L, 3L, budget_accorde = 15000L), "conforme") &&
+         identical(v(NA_integer_, 15001L, 3L, budget_accorde = 15000L), "a verifier (sans pages)"))
 verifier("verdict : budget sans exception (plafond NA) ignore; exception sans budget (NA) : non controle",
          identical(v(3L, 20000L, budget_accorde = 15000L), "violation") &&
          identical(v(3L, 99999L, 3L), "conforme (exception)") &&
@@ -337,13 +384,23 @@ verifier("exception au plafond periee : fiche conforme sans elle, ou introuvable
                    c("appliquee", "PERIMEE (conforme sans exception)",
                      "PERIMEE (fiche introuvable en partie III)", "appliquee")))
 res_b <- nd$nd_controle_pages(tex_b, aux, exceptions = list(
-  list(label = "fiche:a", pages = 3L, caracteres = 12100L, raison = "test"),     # 12 004 caracteres : tient
-  list(label = "fiche:b", pages = 3L, caracteres = 8000L, raison = "test"),      # 9 004 caracteres : depasse
-  list(label = "fiche:d", pages = 3L, caracteres = 14990L, raison = "test")))   # 15 004 caracteres : depasse, 1 page
-verifier("exception au plafond : budget en caracteres tenu = conforme (exception); depasse = violation, meme en 1 page",
-         identical(res_b$fiches$verdict, c("conforme (exception)", "violation", "conforme", "violation")) &&
-         identical(res_b$exceptions$caracteres, c(12100L, 8000L, 14990L)) &&
-         identical(res_b$fiches$budget_accorde, c(12100L, 8000L, NA, 14990L)))
+  list(label = "fiche:a", pages = 3L, caracteres = 12000L, raison = "test"),     # 12 004 caracteres, 3 pages : depasse
+  list(label = "fiche:b", pages = 3L, caracteres = 12000L, raison = "test"),     # 9 004 caracteres, 3 pages : tient
+  list(label = "fiche:d", pages = 3L, caracteres = 14990L, raison = "test")))   # 15 004 caracteres, 1 page : exception perimee
+verifier("exception au plafond : budget tenu = conforme (exception); depasse = violation (fiche en violation sans l'exception)",
+         identical(res_b$fiches$verdict, c("violation", "conforme (exception)", "conforme", "conforme")) &&
+         identical(res_b$exceptions$caracteres, c(12000L, 12000L, 14990L)) &&
+         identical(res_b$fiches$budget_accorde, c(12000L, 12000L, NA, 14990L)))
+verifier("exception au plafond : fiche d'une page au budget depasse = exception PERIMEE ET verdict conforme (jamais l'une sans l'autre)",
+         identical(res_b$exceptions$statut, c("appliquee", "appliquee", "PERIMEE (conforme sans exception)")) &&
+         identical(res_b$fiches$verdict[4L], "conforme"))
+# Aucune fiche en partie III : pas de plantage (paste0("fiche:", integer(0)) valait "fiche:").
+res_0 <- tryCatch(nd$nd_controle_pages(c("\\partie{Partie II}{P}", fiche_tex("p", 50), "\\partie{Partie III}{F}", "texte"),
+                                       data.frame(label = c("fiche:1", "fiche:1-fin"), page = c(8L, 8L), stringsAsFactors = FALSE)),
+                  error = function(e) e)
+verifier("pages : aucune fiche en partie III (exceptions par defaut), aucun plantage, exceptions toutes introuvables",
+         !inherits(res_0, "error") && nrow(res_0$fiches) == 0L &&
+           all(grepl("^PERIMEE [(]fiche introuvable", res_0$exceptions$statut)) && nrow(res_0$exceptions) == length(nd$EXCEPTIONS_PLAFOND))
 verifier("exception au plafond sans champ caracteres : budget non controle (NA), comportement inchange",
          all(is.na(res4$exceptions$caracteres)) && identical(res4$fiches$verdict[1L], "conforme (exception)"))
 verifier("EXCEPTIONS_PLAFOND : chaque exception porte un budget entier en caracteres, egal au 'source au plus N caracteres' de sa raison",
@@ -536,6 +593,23 @@ writeLines("\\newlabel{fiche:1}{{4.1}{10}{A}{x}{}}", f_sans_fin_b)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_sans_fin_b), paste0("--log=", f_log_v), "--bloquant")
 verifier("--bloquant, .aux sans aucun label fiche:N-fin : code 2 (plafond desarme par le preambule, #465)",
          r$statut == 2L && any(grepl("aucun label fiche:N-fin", r$sortie, fixed = TRUE)))
+# Appariement des fiches du .tex et des labels du .aux : code 2 sous --bloquant (decision du 07/11/2026).
+f_desacc_aux <- file.path(dir_b, "desaccord.aux")
+writeLines(c("\\newlabel{fiche:1}{{4.1}{10}{A}{x}{}}", "\\newlabel{fiche:1-fin}{{4.1}{12}{}{x}{}}",
+             "\\newlabel{fiche:2}{{4.2}{12}{B}{x}{}}", "\\newlabel{fiche:2-fin}{{4.2}{13}{}{x}{}}"), f_desacc_aux)
+r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_desacc_aux), paste0("--log=", f_log_v), "--bloquant")
+verifier("--bloquant, 1 fiche dans le .tex pour 2 labels fiche:N dans le .aux : code 2, decompte cite",
+         r$statut == 2L && any(grepl("1 fiche[(]s[)] dans le .tex pour 2 label[(]s[)]", r$sortie)))
+r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_desacc_aux), paste0("--log=", f_log_v))
+verifier("sans --bloquant, decompte different : avis d'appariement, code 0",
+         r$statut == 0L && any(grepl("appariement douteux", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_desacc_aux), "--motifs-seuls", "--bloquant")
+verifier("--bloquant --motifs-seuls : le decompte du .aux n'est pas lu, code 0", r$statut == 0L)
+f_sans_fiche <- file.path(dir_b, "sans_fiche.tex"); f_sans_fiche_aux <- file.path(dir_b, "sans_fiche.aux")
+writeLines(c("\\partie{Partie III}{F}", "texte"), f_sans_fiche); writeLines("\\relax", f_sans_fiche_aux); journal_propre(f_sans_fiche)
+r <- lancer(paste0("--tex=", f_sans_fiche), paste0("--aux=", f_sans_fiche_aux), "--bloquant")
+verifier("document sans aucune fiche : aucun plantage, code 0 sous --bloquant (aucun label -fin n'est attendu)",
+         r$statut == 0L && any(grepl("0 fiche[(]s[)] en partie III", r$sortie)))
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", f_sans_fin_b), paste0("--log=", f_log_v))
 verifier("sans --bloquant, .aux sans label -fin : avertissement, code 0",
          r$statut == 0L && any(grepl("AVERTISSEMENT : aucun label fiche:N-fin", r$sortie, fixed = TRUE)))
@@ -644,6 +718,14 @@ mq_dup <- marq_(4); mq_dup$pages <- data.frame(page = c(1L, 2L, 2L, 3L), volonta
 r <- nd$nd_analyser_remplissage(mq_dup, m_dup)
 verifier("blanc : ligne P dupliquee, l'avertissement porte sur la page 3 (et non sur le rang 4, page sans mot)",
          identical(cons(r, "blanc")$page, 3L) && grepl("^6[0-9] %", cons(r, "blanc")$detail))
+
+# Nombre de pages : pages distinctes des marques, non le nombre de lignes P (#465).
+r <- nd$nd_analyser_remplissage(mq_dup, m_dup)
+verifier("remplissage : ligne P dupliquee, le resume compte 3 pages (et non 4)", r$resume$pages == 3L)
+mq_man <- marq_(2); mq_man$pages <- data.frame(page = c(1L, 3L), volontaire = FALSE)
+r <- nd$nd_analyser_remplissage(mq_man, mots_(lignes_(1, 71, 16), lignes_(3, 71, 16)))
+verifier("remplissage : ligne P de la page 2 manquante, pas d'avis ni d'echec, blancs signales aux pages 1 et 3",
+         !is.null(r$constats) && length(r$avis) == 0L && identical(cons(r, "blanc")$page, c(1L, 3L)) && r$resume$pages == 3L)
 
 # --- (d) Remplissage : passe de mesure reelle sur un petit document (pdflatex, framed) ---------------
 # L'environnement `encadre` du petit document est celui du preambule de
