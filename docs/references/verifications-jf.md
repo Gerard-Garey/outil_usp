@@ -251,3 +251,123 @@ Lignes renumérotées sur `d783fe4`. Les colonnes marquées « inchangé » gard
 4. **Observation Imhof (§ 2.3)** : à porter à `actuary`.
 
 #388 reste ouverte ; ses libellés ne sont pas modifiés.
+
+## Swed et Eisenhart (1943) et Hoaglin et Welsch (1978) : textes remis par le mainteneur (Refs #388)
+
+> *Rédigé par Claude (session principale de JF, agent de relevé), le 07/11/2026 ; pièces remises par le mainteneur, Q-52-7 (a) ; aucun fichier déposé dans le dépôt.* Les deux PDF ont été téléchargés par le mainteneur depuis son navigateur (Project Euclid ; MIT DSpace) et versés hors dépôt, dans le répertoire de travail de la session. Les numéros de ligne citent `docs/latex/doc_tests_usp.tex` et `R/engine.R` sur `main` `d783fe4`, identiques pour ces deux fichiers en tête de branche (`97628ab`, `git diff d783fe4 HEAD` vide). Statuts et méthode de la section précédente (#388) : formules lues sur le rendu graphique (`pdftoppm`, 120 dpi, zooms à 220-400 dpi), jamais par extraction de texte ; prose contrôlée sur l'image. Le PDF de Swed et Eisenhart n'a pas de couche texte (numérisation JSTOR) : tout y a été lu sur l'image.
+
+### Aucun écart [X]
+
+Aucune affirmation du `.tex` n'est fausse sur ces deux textes. Deux **précisions** sont proposées, non appliquées (§ 3.3 et § 4.4) : la loi du nombre de suites est donnée par Swed et Eisenhart d'après W. L. Stevens (1939) et Wald et Wolfowitz (1940) (leur note 1), puis tabulée ; la convention 2p/n est lue sur le document de travail du MIT de janvier 1977, non sur l'article publié.
+
+### Pièces
+
+| Source | Empreintes | Pages lues |
+|---|---|---|
+| F. S. Swed, C. Eisenhart, « Tables for Testing Randomness of Grouping in a Sequence of Alternatives », *Ann. Math. Statist.* 14(1), 1943, p. 66-87 (Project Euclid, DOI 10.1214/aoms/1177731494 ; numérisation JSTOR, pied « Institute of Mathematical Statistics is collaborating with JSTOR… ») ; PDF de 22 p. = p. imprimées 66-87, version publiée | SHA-256 `7d3f129cbf5c0a44ab6515de84d8cccf4c34491df2c04a0b769c7e520142bf32` ; md5 `839d3035f33342150ddcad30ee1e44a0` | p. 66-69 (texte entier, sur l'image) ; p. 70 (table I, bloc m = 4, sur l'image, zoom 220 dpi) ; p. 70-87 parcourues en vignettes (table I p. 70-82, table II p. 83-86, table III p. 87) |
+| D. C. Hoaglin, R. E. Welsch, « The Hat Matrix in Regression and ANOVA », document de travail, « WP 90?-77 », « January 1977 » (MIT DSpace, fichier `SWP-0901-02752210.pdf`) ; PDF de 42 p., pagination tapuscrite « -2- » à « -41- » (références p. -40- et -41-) ; **ce n'est pas la version publiée** (*Am. Stat.* 32(1), 1978, p. 17-22) | SHA-256 `a2cb497bebcbe5a4a95fe4957054778d4d3cf44ecaa3ceabaea65bf4e8001659` ; md5 `dc5c77c82c61a6aa1b9a5c1d137823bb` | page de titre (PDF p. 1, zoom 400 dpi) ; p. tapuscrites -5-, -6-, -12-, -19- (PDF p. 6, 7, 13, 20) sur l'image ; reste du texte en extraction (`pdftotext`), pour la recherche des occurrences de « 2p/n » |
+
+**Numéro du document de travail.** La page de titre porte « WP 90… -77 », dont le troisième chiffre est couvert d'une tache d'encre (zoom à 400 dpi) : illisible sur l'image. La couche texte du PDF lit « 904 » ; le nom de fichier de DSpace porte « 0901 ». Le numéro n'est donc **pas établi** : « Sloan WP 901-77 » reste présumé, non vérifié. La date, « January 1977 », et les affiliations (Harvard ; MIT et NBER) sont lisibles.
+
+### Tableau récapitulatif
+
+| # | Référence | Affirmation du `.tex` | Lieu (`d783fe4`) | Page, section, équation | Statut |
+|---|---|---|---|---|---|
+| 1 | Swed et Eisenhart (1943) | Notice *Ann. Math. Statist.* 14(1), 1943, p. 66-87 | `doc_tests_usp.tex:18600-18602` | page de titre p. 66 ; folios 66-87 | [V] |
+| 2 | Swed et Eisenhart (1943) | Loi combinatoire exacte du nombre de suites R, conditionnelle à (n₁, n₂) ; « Swed & Eisenhart fournit la distribution combinatoire exacte du nombre de suites, qui est celle implémentée dans le moteur » | `doc_tests_usp.tex:908`, `:7455`, `:10924-10926`, `:11526`, `:16279`, `:18603-18606` ; `R/engine.R:2530-2549` (`.runs_dens()`), `:2561-2570` (`runs_p_exacte()`), `:2586-2593` (`runs_p_min()`) | p. 66, éq. (1) et f_u (u pair, u impair) ; table I, p. 70-82 | [P] → **[V]** (précision proposée : la loi est reprise de Stevens (1939) et Wald et Wolfowitz (1940), note 1, p. 66) |
+| 3 | Swed et Eisenhart (1943) | p exacte « bilatérale par doublement » (l. 908) | `doc_tests_usp.tex:908` ; `R/engine.R:2551-2560` | p. 67-68 | sans objet pour la source : l'article ne traite que de probabilités unilatérales (queue basse p. 67, queue haute p. 68) ; le doublement est attribué par le moteur à Gibbons et Pratt (1975), non à Swed et Eisenhart ; le `.tex` ne le leur attribue pas |
+| 4 | Hoaglin et Welsch (1978) | Notice *Am. Stat.* 32(1), 1978, p. 17-22 | `doc_tests_usp.tex:12024-12025`, `:13060-13061` | Crossref (section #388, § 1) | [V] (notice, inchangé) |
+| 5 | Hoaglin et Welsch (1978) | Repère 2k/T (2p/n), deux fois le levier moyen k/T, « règle empirique » ; `REPERE_LEVIER` = 2, inégalité stricte | `doc_tests_usp.tex:6641`, `:12058-12061`, `:13341`, `:13414`, `:19623`, `:19655` ; `R/engine.R:7936-7943`, `:7956`, `:8066-8069`, `:13157`, `:13172` | document de travail de janvier 1977, p. -5- (éq. 2.7 et règle), -6- (droite par l'origine, p = 1), -12- et -19- (applications) | [P] → **[P+]** : [V] sur le document de travail ; version publiée non lue |
+
+---
+
+### 1. Swed et Eisenhart (1943)
+
+#### 1.1 Loi du nombre de groupes (p. 66) [V]
+
+Notation de l'article : m objets d'une sorte, n de l'autre, « no loss of generality if we assume that m ≤ n » ; u, « the number of distinct groups of like objects in any one arrangement » (le R du `.tex`) ; C^a_b désigne le coefficient binomial (a sur b), comme le confirme l'exemple C^{10}_5 = 252. Lu sur l'image, p. 66 :
+
+> « the proportion of arrangements yielding u′ or less groups is¹
+> (1) P{u ≤ u′} = (1 / C^{m+n}_m) Σ_{u=2}^{u′} f_u ,
+> where f_u = 2 C^{m−1}_{k−1} · C^{n−1}_{k−1}, when u = 2k, i.e. u is even,
+> and f_u = C^{m−1}_{k−1} · C^{n−1}_{k−2} + C^{m−1}_{k−2} · C^{n−1}_{k−1}, when u = 2k − 1, i.e. u is odd, for k = 1, 2, …, m + 1. »
+
+suivi de l'exemple m = n = 5 : P{u = 2} = 2{C⁴₀ · C⁴₀}/C^{10}_5 = 1/126 et P{u = 3} = (C⁴₁ · C⁴₀ + C⁴₀ · C⁴₁)/C^{10}_5 = 8/252, puis « In a random arrangement (1) is the probability of u ≤ u′ ». La note 1 renvoie à « W. L. Stevens, “Distribution of Groups in a Sequence of Alternatives” (*Annals of Eugenics*, Vol. IX, Part I (1939) pp. 10-17) » et à « A. Wald and J. Wolfowitz, “On a Test Whether Two Samples are from the Same Population” (*Annals of Math. Stat.*, Vol. XI, No. 2, June (1940) pp. 147-162) ».
+
+**Confrontation au moteur.** `.runs_dens()` (`R/engine.R:2530-2549`) code P(R = 2k) = 2 C(n₁−1, k−1) C(n₂−1, k−1) / C(n, n₁) et P(R = 2k+1) = [C(n₁−1, k) C(n₂−1, k−1) + C(n₁−1, k−1) C(n₂−1, k)] / C(n, n₁). Le cas pair est celui de l'article ; le cas impair en est la réécriture par le changement d'indice k → k + 1 (l'article indexe u = 2k − 1, le moteur R = 2k + 1). Les deux formes sont symétriques en (m, n) : l'hypothèse m ≤ n de l'article est sans effet sur le code, qui prend n₁ = nombre de signes positifs, n₂ = nombre de négatifs. **La formule codée est celle de l'article.**
+
+**Contrôle numérique** (session, `charger_moteur()`, `.runs_dens()` ; R 4.3 de la session cloud), confronté aux valeurs lues sur l'image :
+
+| Cas (article) | Article | Moteur |
+|---|---|---|
+| m = n = 5, P{u = 2}, P{u = 3} (p. 66) | 1/126 ; 8/252 | 1/126 ; 8/252 |
+| m = 5, n = 20, P{u ≤ 5} (p. 67) | .018,3512 | 0,0183512 |
+| m = n = 20, P{u ≤ 15} (p. 68) | .038 | 0,0379982 |
+| m = 5, n = 11, P{u ≤ 10} (p. 68) | .942,3077 | 0,9423077 |
+| m = 6, n = 10, P{u ≤ 12} (p. 68) | .989,5105 | 0,9895105 |
+| m = n = 8, P{u ≤ 4} (p. 69) | .008,8578 | 0,0088578 |
+| table I, p. 70, m = 4, n ∈ {4, 5, 20}, u′ = 2 à 8 (21 cellules) | p. ex. n = 4 : .028,5714 ; .114,2857 ; .371,4286 ; .628,5714 ; .885,7143 ; .971,4286 ; 1. | 21 cellules identiques à 7 décimales |
+
+La ligne m = n = 4 est celle de T = 8 sans ex æquo : 2 × 0,0285714 = 4/70 = 0,0571, le p_min des suites que donnent `runs_p_min()` et le commentaire de `R/engine.R:2579-2580`. Le moteur recalcule la loi ; l'article en fonde la formule et en fournit un contrôle tabulé indépendant.
+
+#### 1.2 Objet et portée des tables (p. 66-67) [V]
+
+> « Table I gives P{u ≤ u′} to 7 decimal places for m ≤ n ≤ 20 with a range of m from 2 to 20 inclusive whereas Table II gives correct values for u_ε for ε = .005, .01, .025, .05, .95, .975, .99 and .995, where u_ε is the *largest* integer, u′, for which P{u ≤ u′} ≤ ε when ε < .50, and is the *smallest* integer, u′, for which P{u ≤ u′} ≥ ε when ε > .50. » (p. 66)
+
+> « Table III gives values of u_ε for m = n from 10 to 100. These values of u_ε were obtained by using the normal approximation given on page 151 of the Wald-Wolfowitz paper together with a correction for continuity not given in their article […] It appears that the approximation will be adequate in general for m = n ≥ 20. » (p. 67)
+
+Tables I et II : loi exacte ; table III : approximation normale avec correction de continuité. Le `.tex` (l. 18605-18606 : « l'approximation normale n'étant conservée qu'à titre indicatif ») est cohérent avec l'article, qui ne juge l'approximation adéquate « in general » qu'à m = n ≥ 20, loin de T = 8.
+
+#### 1.3 Unilatéral, bilatéral (p. 67-69)
+
+L'article ne définit **aucune** p-value bilatérale. Il traite la queue basse (« expect too few groups », p. 67 : « the probability of u ≤ u′ ») et la queue haute (p. 68 : « In such a case the critical region would be u ≥ u′ and the appropriate probability would be P = 1 − P{u ≤ u′ − 1} »). La note 4, p. 68, rappelle que dans l'emploi à deux échantillons « A. Wald and J. Wolfowitz (ibid) have pointed out that exceptionally small values of u′ are to be regarded as evidence for rejecting this null hypothesis ». Le doublement (`runs_p_exacte()`, `R/engine.R:2551-2560`) relève de Gibbons et Pratt (1975), cité par le moteur ; le `.tex` (l. 908 : « p-value exacte (Swed & Eisenhart), bilatérale par doublement ») attribue la loi à Swed et Eisenhart et le doublement à la fiche des suites, sans le leur prêter : pas d'écart.
+
+Deux remarques sans effet : l'application aux suites au-dessus et au-dessous de la médiane est mentionnée p. 67 (exemple de Shewhart, cartes de contrôle) ; sur les ex æquo, p. 69 : « such duplications in general may be more bothersome, since they may yield different values of u′ depending on the order in which they are considered. In such instances both possible orders should be considered » — le moteur procède autrement (aplatissement à la tolérance et retrait des valeurs égales à la médiane, `engine_aplatir_ex_aequo()`), ce que l'article ne traite pas.
+
+#### 1.4 Précision proposée, non appliquée (passage de `docwriter` de JF)
+
+Notice, l. 18603-18606 : « *Portée.* Wald \& Wolfowitz (1940), déjà cité, établit le test~; Swed \& Eisenhart donne la distribution combinatoire exacte du nombre de suites (éq.~(1), p.~66, d'après W.\,L. Stevens (1939) et Wald \& Wolfowitz (1940)) et la tabule (table~I, $m \le n \le 20$)~; c'est celle implémentée dans le moteur, l'approximation normale n'étant conservée qu'à titre indicatif. » La notice de Stevens (1939) n'est pas proposée : elle n'a pas été relue. Les l. 908, 7455, 10924-10926, 11526 et 16279 restent exactes.
+
+### 2. Hoaglin et Welsch (1978)
+
+#### 2.1 Pièce
+
+Document de travail tapuscrit, janvier 1977, même titre et mêmes auteurs que l'article de *The American Statistician* (1978). Le texte publié n'a pas été lu : rien n'est dit ici de ce qu'il contient, ni de ce qu'il ajoute ou retire par rapport au document de travail.
+
+#### 2.2 La convention 2p/n et sa motivation (p. -5-) [V sur le document de travail]
+
+Lu sur l'image, p. -5- : après « rank(H) = rank(X) = p , and hence trace(H) = p , that is, Σ_{i=1}^{n} h_i = p (2.7) » :
+
+> « The average size of a diagonal element of the hat matrix, then, is p/n . Experience suggests that a reasonable rule of thumb for "large" h_i is h_i > 2p/n . Thus we determine high-leverage points by looking at the diagonal elements of H and paying particular attention to any x-point for which h_i > 2p/n . »
+
+La motivation est donc double et seulement celle-ci : le levier moyen vaut p/n (trace de H), et le facteur 2 vient de l'expérience (« Experience suggests »). Aucune loi de référence, aucun niveau, aucune condition sur n ou p ne l'accompagne dans le document de travail. Les auteurs l'appellent plus loin « our rough rule of thumb » (p. -12-, exemple à n = 10, p = 3 : « h₄ […] just exceeds the level (2p/n = 6/10) set by our rough rule of thumb ») et l'appliquent p. -19- (« Since 2p/n = .2 here, we identify Ireland (21), Japan (23), the United States (44), and Libya (49) as high-leverage points »). Les occurrences de « 2p/n » dans le document se limitent à ces trois pages (recherche dans la couche texte, contrôlée sur l'image) ; « 3p/n » n'y figure pas.
+
+P. -6-, § 3 : « For a straight line through the origin, X = (x₁, …, x_n)ᵀ, and we can immediately calculate X(XᵀX)⁻¹Xᵀ to obtain h_ij = x_i x_j / Σ_{k=1}^{n} x_k² . Again Σ h_i = p = 1 . » C'est le modèle de la fiche des leviers (l. 12036-12038 : h_t = x_t² / Σ x_i², Σ h_t = k, k = 1 ; formule l. 12037).
+
+#### 2.3 Confrontation au `.tex` et au moteur
+
+- **Attribution** (l. 6641, 12058-12061, 13414, 19623, 19655) : « deux fois le levier moyen », « règle empirique » proposée par Hoaglin et Welsch : **exacte** sur le document de travail (« Experience suggests », « rough rule of thumb »). La qualification de « règle de lecture » sans loi de référence ni verdict est conforme au texte, qui n'en donne aucune.
+- **Inégalité stricte** : « h_i > 2p/n » ; le moteur compare `d$levier > d$repere_levier` (`R/engine.R:8069`) et `out$levier > out$repere_levier` (`:13172`) ; le `.tex` dit « dépasse strictement » (l. 13413) : conforme.
+- **Numérateur** : 2, soit `REPERE_LEVIER <- 2` (`R/engine.R:7956`) ; pas de variante 3p/n dans le document.
+- **p et n** : branche lognormale, p = k = 1, n = T (`REPERE_LEVIER * k / T`, `:8066`) : application directe du cas « straight line through the origin » de la p. -6-. Branche Merz–Wüthrich, repère 2/n_j sur le levier pondéré h(i,j) = C(i,j)/S_j de chaque colonne (`:13157`) : transposition à une régression pondérée par l'origine, que le document de travail ne traite pas ; le `.tex` la présente comme telle (l. 13342 : « pour les notions de levier et d'influence transposées ici »). Pas d'écart.
+- **Petits échantillons** : le document de travail ne dit rien de la pertinence du facteur 2 à n petit (n = 8 ou n_j de 2 à 7) ; ses exemples ont n = 10 et n = 50. Le `.tex` ne lui prête rien de tel.
+
+#### 2.4 Statut et précision proposée, non appliquée
+
+[V] pour la convention, sa motivation et son caractère empirique, **sur le document de travail** ; **[P+]** pour la notice citée par le `.tex` (*Am. Stat.* 32(1), 1978, p. 17-22), dont le texte n'a pas été lu. Proposition pour le passage de `docwriter` de JF, fiche des leviers (l. 12024-12025) ou bibliographie : ajouter après la notice « (convention $h_i > 2p/n$ lue sur le document de travail de même titre, janvier 1977, p.~5~; texte publié non relu) », le numéro du document de travail n'étant pas lisible sur la page de titre. Aucune autre ligne à changer.
+
+### 3. Section A de `docs/references/inventaire-non-relu.md` : texte de remplacement proposé (non appliqué)
+
+Sur le texte proposé au § 4 de la section #388 ci-dessus (lui-même non encore reporté dans l'inventaire), les deux lignes deviennent :
+
+| Référence (notice du `.tex`) | Statut (meilleur, date) | Reste non lu | Raison | Lieux du `.tex` | Effet | Voie possible |
+|---|---|---|---|---|---|---|
+| F. Swed, C. Eisenhart, *Tables for testing randomness of grouping in a sequence of alternatives*, *Ann. Math. Statist.*, 14(1), 1943, p. 66-87 | **[V]** (07/11/2026, version publiée, Project Euclid, PDF remis par le mainteneur, Q-52-7 (a), SHA-256 `7d3f129c…` ; éq. (1) p. 66, tables p. 66-67 ; 28 valeurs de l’article et de la table I (7 + 21) recalculées par `.runs_dens()` à l'identique ; `verifications-jf.md`, section « Swed et Eisenhart (1943) et Hoaglin et Welsch (1978) ») | — | — | *sort de l'inventaire* (liste « Références vérifiées […] [V] (hors inventaire) ») ; notice l. 18600-18606 ; l. 908, 7455, 10924-10926, 11526, 16279 ; `R/engine.R:2530-2593` | — (précision proposée sur la notice : loi reprise de Stevens (1939) et Wald et Wolfowitz (1940), note 1) | — |
+| D. C. Hoaglin, R. E. Welsch, *The hat matrix in regression and ANOVA*, *Am. Stat.*, 32(1), 1978, p. 17-22 | **[P+]** (notice Crossref, 07/11 ; convention h_i > 2p/n, levier moyen p/n et « rule of thumb » [V] sur le document de travail du MIT de janvier 1977, p. 5, 6, 12, 19, PDF remis par le mainteneur, Q-52-7 (a), SHA-256 `a2cb497b…`, 07/11/2026) | texte publié (*Am. Stat.*), p. 17-22 | document de travail lu à la place ; numéro « WP 90?-77 » illisible sur la page de titre (couche texte « 904 », fichier « 0901 ») ; Taylor & Francis HTTP 403 (07/11) | notices l. 12024-12025, 13060-13061 ; l. 6641, 12058-12061, 13341, 13414, 19623, 19655 | **A** : constante `REPERE_LEVIER` = 2 (`repere_levier`, `fort_levier`, #209) ; attribution exacte sur le document de travail | compte JSTOR personnel ou Taylor & Francis (texte publié) |
+
+**Bilan chiffré proposé**, à partir de celui du § 4 de la section #388 (classe A : 18 notices, [P+] 1, [P] 15, [NV] 2 ; total 112, [P+] 2, [P] 48, [NV] 62) : Swed et Eisenhart sort de l'inventaire ([V]) ; Hoaglin et Welsch passe de [P] à [P+]. Après : **17 notices** en classe A, [P+] 2 (Westfall et Young ; Hoaglin et Welsch), [P] 13, [NV] 2. Total de l'inventaire : 111 notices ([P+] 3, [P] 46, [NV] 62). Le point 3 de la liste « Effet » de l'inventaire (Swed et Eisenhart, l. 144 de `inventaire-non-relu.md`) serait alors à retirer ou à marquer vérifié.
+
+### 4. Questions pour `actuary`
+
+1. **Doublement et tables de Swed et Eisenhart.** L'article ne fonde que des p-values unilatérales ; la convention bilatérale du moteur (doublement, M8) repose sur Gibbons et Pratt (1975). Aucune question de conformité, mais la phrase « p-value exacte (Swed \& Eisenhart), bilatérale par doublement » (l. 908) gagnerait à nommer Gibbons et Pratt pour le doublement, si `actuary` le juge utile.
+2. **Facteur 2 à T = 8.** Le document de travail ne motive le facteur 2 que par l'expérience, sur des exemples à n = 10 et n = 50, sans condition sur n ou p. Le `.tex` le présente déjà comme une règle empirique sans loi ni niveau, et en mesure le franchissement (l. 19623-19625, 19655). Rien n'est à corriger ; à `actuary` de dire si la mention « règle empirique » suffit à T = 8 et à n_j ≤ 7, où le repère 2/n_j n'est franchissable que pour n_j ≥ 3 (l. 13416).
