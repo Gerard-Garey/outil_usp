@@ -413,10 +413,14 @@ incapables de rejeter au seuil usuel de 5~\%. Le sommaire détaille les
 sous-sections afin de permettre l'accès direct à chaque test.
 
 \vspace{8mm}
-\reglement{Article 218 du règlement délégué (UE) 2015/35}{Les entreprises
-d'assurance et de réassurance peuvent remplacer un sous-ensemble des paramètres
-standard du module « souscription non-vie », du module « souscription santé » et
-du module « souscription vie » par des paramètres propres à l'entreprise.}
+\reglement{Article 104, paragraphe 7, de la directive 2009/138/CE (version consolidée du
+17~janvier 2025)}{«~Sous réserve de l'accord des autorités de contrôle, les entreprises
+d'assurance et de réassurance peuvent, lorsqu'elles calculent les modules «risque de
+souscription en vie», «risque de souscription en non-vie» et «risque de souscription en santé»,
+remplacer, dans la conception de la formule standard, un sous-ensemble de ses paramètres par des
+paramètres qui sont propres à l'entreprise concernée. Ces paramètres sont calibrés sur la base
+des données internes de l'entreprise concernée ou de données directement pertinentes pour les
+opérations de cette entreprise, sur la base de méthodes standardisées. [\dots]~»}
 
 \vspace{6mm}
 \noindent
@@ -3071,14 +3075,21 @@ Pour un segment donné et une profondeur $T$~:
   \item $\bar x = T^{-1}\sum_t x_t$.
 \end{itemize}
 
-Le modèle de l'annexe~XVII postule $Y_t \mid x_t \sim \mathcal{LN}(\mu_t,\psi_t)$ avec
+L'annexe~XVII ne pose pas de modèle de $Y_t$~: elle énonce des hypothèses sur les données,
+B(2)(g)(i) à~(iv) et C(2)(e)(i) à~(iv) (sections~\ref{sec:h1} à~\ref{sec:h4}), et donne en
+B(5)-(6) et C(5)-(6) la fonction d'écart-type $\hat\sigma(\hat\delta,\hat\gamma)$, la fonction
+$\pi_t$ et le montant à minimiser, sans écrire l'espérance ni la variance de $Y_t$. L'outil lit
+ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_t \sim
+\mathcal{LN}(\mu_t,\psi_t)$ avec
 \[
   \mathbb{E}[Y_t] = \beta x_t,
   \qquad
   \operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
   \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma}.
 \]
-On en déduit la précision logarithmique et l'estimateur du niveau~:
+Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t)/\mathbb{E}[Y_t]^2\big) = 1/\pi_t$
+et $\hat\sigma(\hat\delta,\hat\gamma) = \hat\beta\,e^{\hat\gamma}$, ce qui redonne les formules
+de B(5) et C(5)~; d'où la précision logarithmique et l'estimateur du niveau~:
 \[
   \pi_t(\delta,\gamma) = \Big[\ln\!\big(1 + e^{2\gamma}(\delta + (1-\delta)\bar x / x_t)\big)\Big]^{-1},
   \qquad
@@ -8390,7 +8401,7 @@ Shapiro--Wilk sur les résidus de Mack & Lilliefors sur les résidus de Mack &
 Complément de recoupement, moins puissant (fiche~\ref{mw:m5li})~; l'une et l'autre sont des
 diagnostics. \\
 Durbin--Watson sur les résidus de Mack & Test des suites sur les résidus de Mack &
-Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) et~(ii), celle-ci dans la lecture retenue par l'outil)~; sous les plans
+Mêmes résidus, même ordre de parcours, même hypothèse réglementaire (D(2)(h)(i) sous la formalisation de l'outil, non~(ii)~: deux résidus voisins n'appartiennent jamais à la même année de survenance)~; sous les plans
 mesurés, la p-value de Monte-Carlo de la seconde rejette vers $5~\%$ au seuil $0{,}10$, taux
 bruts que Durbin--Watson égale ou dépasse partout où l'une ou l'autre dépasse sa référence de
 niveau, à des niveaux effectifs différents (fiche~\ref{mw:m3runs}, rubrique~6). \\
@@ -15639,10 +15650,10 @@ $\hat f_k = \sum_i w_{ik}\,C_{i,k+1} / \sum_i w_{ik}\,C_{ik}$ avec $w_{ik} = 0{,
 analogously~», sans être données (p.~D6.49), et ce choix «~will not cause any essential
 disadvantage as we only change weights and do not discard anything entirely~» (p.~D6.50)~; le corps
 du texte (p.~D6.15--D6.23) ne motive pas autrement le changement (affirmation non relue sur le texte
-intégral~: ces pages ne figurent pas dans la transcription consultée). Or l'annexe~XVII, section~D,
-point~(4)(c), définit $\hat f_j = \sum_{i=0}^{I-j-1} C(i,j+1) \big/ \sum_{i=0}^{I-j-1} C(i,j)$ sans
-autre poids que les cumuls $C(i,j)$, et la MSEP du point~(5) est calculée avec ce $\hat f_j$
-(section~\ref{sec:mw})~: repondérer les facteurs modifierait le paramètre réglementaire, ce qu'un
+intégral~: ces pages ne figurent pas dans la transcription consultée). Or l'annexe~XVII,
+D(4)(c), définit $\hat f_j = \sum_{i=0}^{I-j-1} C(i,j+1) \big/ \sum_{i=0}^{I-j-1} C(i,j)$ sans
+autre poids que les cumuls $C(i,j)$, et la MSEP de D(5) est calculée avec ce $\hat f_j$
+(D(5)(a) et D(5)(d)(i) renvoient à D(4)(c)~; section~\ref{sec:mw})~: repondérer les facteurs modifierait le paramètre réglementaire, ce qu'un
 test de l'outil ne peut pas faire. \emph{(ii)~La détection par diagonale ne maîtrise pas la
 multiplicité et voit peu de diagonales à $T = 8$.} Chaque diagonale est testée à $10~\%$ sans
 correction, ce que la version de 1994 écartait expressément («~It is not advisable to test each
@@ -15879,7 +15890,7 @@ diagonale~$k$ regroupe les facteurs $F(i,j)$ qui portent au numérateur les paie
 l'exercice comptable $i + j + 1$. La version révisée de l'annexe~H (Mack, 1997) lit chaque
 diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$ (p.~D6.49)~;
 l'outil n'en retient que ce repère de lecture, sans la repondération des facteurs qui
-l'accompagne, contraire à l'annexe~XVII, section~D, point~(4)(c) (tête de la section~\ref{sec:mwm3}). Le
+l'accompagne, contraire à l'annexe~XVII, D(4)(c) (tête de la section~\ref{sec:mwm3}). Le
 repère vaut \code{REPERE\_DIAGONALE\_MACK\_1997} $= 0{,}10$, constante fixe, indépendante du seuil
 $\alpha$ du calcul (règle de l'outil)~: c'est le repère de Mack, non
 un seuil de l'outil. Hypothèses non testées~: celles du test (continuité des facteurs,
@@ -16135,7 +16146,11 @@ inchangé.
 \refl{J.~Durbin, G.\,S. Watson (1950, 1951), \emph{op.\ cit.}}
 \Cadre
 Résidus de Mack ordonnés selon leur parcours du triangle (colonne par colonne,
-années de survenance croissantes). Hypothèses non testées~: résidus
+années de survenance croissantes). Deux résidus voisins appartiennent toujours à deux années de
+survenance distinctes, consécutives hors des passages d'une colonne à la suivante~: la ligne
+examine une conséquence de D(2)(h)(i) sous la formalisation de l'outil, l'absence de corrélation
+entre résidus d'années consécutives d'une même colonne, sans tester (i) à elle seule~; elle ne
+porte pas sur D(2)(h)(ii). Hypothèses non testées~: résidus
 homoscédastiques et de moyenne nulle sous le modèle.
 \Hzero
 $H_0$ : absence d'autocorrélation d'ordre~1 des résidus de Mack.
@@ -16152,7 +16167,7 @@ p-value de Monte-Carlo exclusivement (clé \code{DW}, bilatérale). Sur le trian
 (référence \code{reserve2})~: $\mathrm{DW} = 1{,}6195$, p-value de Monte-Carlo $0{,}032$,
 \code{ECHEC}.
 \Usage
-Complément aux deux tests précédents~: l'ordre de parcours étant conventionnel,
+Complément aux deux tests précédents (fiches~\ref{mw:m3acc} et~\ref{mw:m3cor}, celle-ci seule ligne qui examine D(2)(h)(ii) dans la lecture de l'outil)~: l'ordre de parcours étant conventionnel,
 un rejet est plus difficile à interpréter que pour une série chronologique. Il
 faut alors se reporter aux graphiques des résidus par année de survenance, de
 développement et calendaire, qui localisent la structure. Sur un triangle construit (triangle de
@@ -16162,7 +16177,7 @@ précision de Monte-Carlo (section~\ref{sec:boot-mw}).
 
 \emph{Lecture conjointe avec les effets d'année calendaire} (détail, mesures et statut en tête de la section~\ref{sec:mwm3}). Durbin--Watson ne localise rien~: dans l'ordre colonne par
 colonne, il réagit à toute structure qui rapproche les résidus d'années de survenance consécutives
---- tendance entre années de survenance, tendance calendaire lisse, dérive de $f_j$ ---, et voit
+--- dépendance entre années voisines, contraire à D(2)(h)(i), tendance entre années de survenance, tendance calendaire lisse, dérive de $f_j$ ---, et voit
 peu un choc sur une seule diagonale. Ses p-values et celles du test calendaire sont pratiquement
 indépendantes sous le modèle ajusté~: deux \code{ECHEC} simultanés sont deux signaux distincts, ni
 un même effet compté deux fois, ni un constat renforcé par redondance~; sur le triangle de contrôle,
@@ -16235,7 +16250,7 @@ l'alternance excessive des signes, dont la loi combinatoire n'est pas celle des 
 Durbin--Watson, du caractère conventionnel de l'ordre de parcours.
 
 \textbf{Pourquoi aucun verdict} (diagnostic par décision, section~\ref{sec:nature}).
-L'indépendance, D(2)(h)(i) et~(ii), celle-ci dans la lecture retenue par l'outil, est examinée dans l'ordre de parcours par la ligne
+Une conséquence de l'indépendance entre années de survenance, D(2)(h)(i), sous la formalisation de l'outil, est examinée dans l'ordre de parcours par la ligne
 Durbin--Watson (fiche~\ref{mw:m3dw}), calculée sur les mêmes résidus de Mack dans le même ordre~;
 la ligne des suites n'apporte pas de preuve propre à $T = 8$. Mesures (tableaux~T1~bis et T2 de
 \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md},
