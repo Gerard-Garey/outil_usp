@@ -857,18 +857,18 @@ CLASSES_T2 <- c(T = "classe T (#298, r\u00e8gle R14, f20c17c)", M = "classe M (#
 #     CUSUMr, Grubbsr.
 # Une autre ligne, ou une ligne sans son marqueur, reste non expliquee.
 # Depuis #452, la phrase fixe ne porte plus le numero d'issue : le prefixe est
-# commun a #299 et #302, et le marqueur de chaque ligne y ajoute le fragment
-# propre a sa phrase (le marqueur d'une autre ligne reste refuse).
-MARQUEUR_DIAG_299 <- "Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;"
-MARQUEUR_DIAG_302 <- MARQUEUR_DIAG_299
+# commun a #299 et #302 (un seul marqueur, MARQUEUR_DIAG_DECISION, #465), et le
+# marqueur de chaque ligne y ajoute le fragment propre a sa phrase (le marqueur
+# d'une autre ligne reste refuse).
+MARQUEUR_DIAG_DECISION <- "Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;"
 MARQUEUR_DIAG_R15 <- "Restituee en diagnostic (regle R15)"
 LIGNES_DIAG_DECISION <- c(
-  SpearTps = paste(MARQUEUR_DIAG_299, "meme alternative (tendance monotone du"),
-  stats::setNames(rep(paste(MARQUEUR_DIAG_299, "la structure de variance releve de la ligne"), 4L),
+  SpearTps = paste(MARQUEUR_DIAG_DECISION, "meme alternative (tendance monotone du"),
+  stats::setNames(rep(paste(MARQUEUR_DIAG_DECISION, "la structure de variance releve de la ligne"), 4L),
                   c("BP79", "White", "GQ", "BF")),
-  Smirnov = paste(MARQUEUR_DIAG_299, "compare la position de z entre petits et gros"),
-  CvM = paste(MARQUEUR_DIAG_302, "W2 etant tres correlee a A2"),
-  KS = paste(MARQUEUR_DIAG_302, "l'hypothese releve de la ligne Lilliefors"),
+  Smirnov = paste(MARQUEUR_DIAG_DECISION, "compare la position de z entre petits et gros"),
+  CvM = paste(MARQUEUR_DIAG_DECISION, "W2 etant tres correlee a A2"),
+  KS = paste(MARQUEUR_DIAG_DECISION, "l'hypothese releve de la ligne Lilliefors"),
   stats::setNames(rep(MARQUEUR_DIAG_R15, 5L), c("DWr", "Runsr", "supFr", "CUSUMr", "Grubbsr")))
 LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 # Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
