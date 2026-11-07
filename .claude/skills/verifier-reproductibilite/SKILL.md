@@ -15,6 +15,7 @@ Commandes depuis la racine du dépôt. `Rscript` est dans le PATH grâce au hook
    - Code de sortie 0 → terminé : rapporte « reproductibilité et non-régression vérifiées » avec les σ_USP affichés.
    - Échec « deux appels à graine identique diffèrent » → **défaut bloquant** : une source d'aléa sans graine ou un état global a été introduit. Le trouver et le corriger ; ne jamais régénérer les références dans ce cas.
    - Échec « écart à la référence » → étape 2.
+   - Batterie unitaire, à relancer avec la reproductibilité : `Rscript tests/test_unitaires.R --parallele` (4 processus, ~9 min au lieu de ~32 en séquentiel ; même bilan et même code de sortie ; repli séquentiel sous Windows ; #444). En session Linux, sous `LC_ALL=C.UTF-8`.
 
 2. **Produire le tableau avant / après** : `Rscript tests/comparer_references.R [cas]`. Il applique le critère de non-régression (`comparer_objets()`, `tests/outils_tests.R` : 1e-6 par valeur, en relatif, ou en absolu pour une référence quasi nulle ; ADR 0006, second amendement). Il liste chaque grandeur **en écart au seuil**, avec sa valeur de référence, sa nouvelle valeur et l'écart, et affiche une ligne de synthèse par fichier (nombre de feuilles non strictement identiques, écart maximal et feuille qui l'atteint). La dérive de plateforme sous le seuil n'est pas listée ; `--seuil 0` liste toutes les feuilles non strictement identiques, par exemple pour documenter un changement plus fin que 1e-6.
 

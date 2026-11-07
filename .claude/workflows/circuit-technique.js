@@ -89,10 +89,13 @@ const LISTE_NON_SUIVIS = 'git status --porcelain -z --untracked-files=all | tr "
 // Les trois batteries attendues a chaque verification (principe 7). La
 // concordance est lancee en --strict (decision M32) ; son echec par ecart
 // n'est PAS une batterie rouge (le .tex peut etre en retard sur le code,
-// M21) : il est rapporte comme ecart de concordance (voir plus bas)
+// M21) : il est rapporte comme ecart de concordance (voir plus bas).
+// Batterie unitaire en mode parallele (#444, R34 ; Q-49-3) : 4 processus,
+// meme bilan et meme code de sortie que le mode sequentiel ; repli
+// sequentiel automatique sous Windows
 const CONCORDANCE = 'tests/concordance_doc_moteur.R'
 const BATTERIES = [
-  'tests/test_unitaires.R',
+  'tests/test_unitaires.R --parallele',
   'tests/test_reproductibilite.R',
   CONCORDANCE + ' --strict'
 ]

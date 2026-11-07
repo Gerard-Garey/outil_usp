@@ -10027,11 +10027,14 @@ mw_calendrier_diagonales <- function(cal) {
 # Mack (1994), CAS Forum, printemps 1994, annexe G (statistique T, moyenne
 # des correlations de Spearman ponderee), reprise dans le Claims Reserving
 # Manual, section D6 (1997), annexe G ; Mack (1993), ASTIN Bulletin 23(2), ne
-# contient pas ce test (issue #201). L'hypothese D(2)(h)(ii)
-# suppose les facteurs de developpement successifs non correles. On mesure la
-# correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
-# triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
-# est obtenue par permutation (voir mw_bootstrap).
+# contient pas ce test (issue #201). Lecture de D(2)(h)(ii) retenue par
+# l'outil (#441), non sa lettre : facteurs de developpement successifs non
+# correles, consequence de l'esperance conditionnelle de Mack sur tout le
+# passe de l'annee (Mack 1994, annexe G, proposition, p. 155) ; la lettre de
+# (ii) (increments independants) n'est compatible avec (iii) que si f_j = 1.
+# On mesure la correlation de rang de Spearman entre colonnes adjacentes,
+# agregee sur le triangle. La loi sous H0 dependant de la geometrie du
+# triangle, la p-value est obtenue par permutation (voir mw_bootstrap).
 # Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
 # mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
 # deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
@@ -12011,7 +12014,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       H0 = "a_j = 0 pour toute annee de developpement j",
       H1 = "au moins une colonne presente une composante fixe",
       stat_nom = "X de Fisher", stat = oo$stat,
-      loi = "chi2(2K) approx. (colonnes non independantes) -> Monte-Carlo",
+      loi = "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(oo$K)) NA_real_ else oo$K,
       p_as = oo$p, mc_nom = "Origine",
       detail = .mw_avec_exclusion(.mw_avec_exclusion(paste(
@@ -12056,7 +12059,7 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       H0 = "le terme en C(i,j)^2 est nul dans chaque colonne",
       H1 = "la relation entre cumules successifs n'est pas lineaire",
       stat_nom = "X de Fisher", stat = cb$stat,
-      loi = "chi2(2K) approx. -> Monte-Carlo",
+      loi = "chi2(2K) approx. (t_j de Student independants sous erreurs gaussiennes seulement) -> Monte-Carlo",
       estim_nom = "colonnes testees", estim = if (is.null(cb$K)) NA_real_ else cb$K,
       p_as = cb$p, mc_nom = "Courbure",
       detail = .mw_avec_exclusion(.mw_avec_exclusion(
@@ -12316,19 +12319,22 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       p_as = ka$p, mc_nom = "KruskalAcc",
       p_min = pm_ka$p_min, effectifs = pm_ka$effectifs,
       # Un residu par annee de survenance (#60, decision du mainteneur du
-      # 06/10/2026) : la phrase precede le detail ; le motif R1 eventuel
-      # reste en tete, pose par add().
-      detail = paste0(if (isTRUE(ka$un_par_annee)) paste0(
+      # 06/10/2026) : la phrase A remplace la phrase generale (#449, texte
+      # arrete par actuary et decision du mainteneur : la phrase generale,
+      # qui dit que la ligne teste l'homogeneite des residus, contredit ce
+      # cas) ; le prefixe du motif Monte-Carlo eventuel reste en tete, pose par add().
+      # Texte de la phrase generale arrete par actuary (#419, decision du
+      # mainteneur du 05/11/2026) : l'egalite des lois entre annees n'est pas
+      # l'independance de D(2)(h)(i).
+      detail = if (isTRUE(ka$un_par_annee)) paste0(
         "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
         "(groupes de taille 1), quelle que soit la donnee ; ",
-        "H ne mesure rien ici. ") else "",
-        # Texte arrete par actuary (#419, decision du mainteneur du
-        # 05/11/2026) : l'egalite des lois entre annees n'est pas
-        # l'independance de D(2)(h)(i).
+        "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
+        "entre annees de survenance, ni l'independance de D(2)(h)(i)") else
         paste("Homogeneite des residus entre annees de survenance sous la formalisation",
               "de l'outil (f_j et sigma_j^2 communs) ; ne teste pas a elle seule",
               "l'independance de D(2)(h)(i), reagit aussi a une annee atypique, a une",
-              "derive de f_j avec l'annee ou a une esperance non proportionnelle")))
+              "derive de f_j avec l'annee ou a une esperance non proportionnelle"))
   cor <- mw_stat_correlation_dev(aj, jd)
   pm_cor <- .mw_p_min_ligne(is.finite(cor$stat), cor$poids + 1, "paires de colonnes n_k",
                             .mw_corr_p_min, isTRUE(cor$ex_aequo))
