@@ -10027,11 +10027,14 @@ mw_calendrier_diagonales <- function(cal) {
 # Mack (1994), CAS Forum, printemps 1994, annexe G (statistique T, moyenne
 # des correlations de Spearman ponderee), reprise dans le Claims Reserving
 # Manual, section D6 (1997), annexe G ; Mack (1993), ASTIN Bulletin 23(2), ne
-# contient pas ce test (issue #201). L'hypothese D(2)(h)(ii)
-# suppose les facteurs de developpement successifs non correles. On mesure la
-# correlation de rang de Spearman entre colonnes adjacentes, agregee sur le
-# triangle. La loi sous H0 dependant de la geometrie du triangle, la p-value
-# est obtenue par permutation (voir mw_bootstrap).
+# contient pas ce test (issue #201). Lecture de D(2)(h)(ii) retenue par
+# l'outil (#441), non sa lettre : facteurs de developpement successifs non
+# correles, consequence de l'esperance conditionnelle de Mack sur tout le
+# passe de l'annee (Mack 1994, annexe G, proposition, p. 155) ; la lettre de
+# (ii) (increments independants) n'est compatible avec (iii) que si f_j = 1.
+# On mesure la correlation de rang de Spearman entre colonnes adjacentes,
+# agregee sur le triangle. La loi sous H0 dependant de la geometrie du
+# triangle, la p-value est obtenue par permutation (voir mw_bootstrap).
 # Colonnes degenerees (#60, extension de la decision Q-E2r-60-1 (b) du
 # mainteneur, 06/10/2026) : la paire (k - 1, k) est exclue si l'une de ses
 # deux colonnes de facteurs appartient a l'ensemble j_degeneres (fige a
