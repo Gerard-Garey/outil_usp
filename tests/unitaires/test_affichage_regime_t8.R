@@ -51,7 +51,7 @@ CONST_229 <- c("SCRIPT", "R_SPEC", "RP_SPEC", "CODES_SCEN", "METHODE", "ALPHA", 
                "LIB_LOI", "DISCRETES", "STAT_LIGNE", "LIGNE_TOST", "STATS", "NS", "F_R", "QUEUE", "CODES_MOTIF",
                "LIB_MOTIF", "TEXTE_CRITERE_229", "PROFILS_D", "COLS_FIXES", "CHAMPS_STAT", "REPCOLS", "COLS_NUM",
                "CLASSES", "ETAT", "PRED_C5", "PRED_C5_TXT", "NOTE_C5", "LIGNES_HORS_ECHEC", "MARQUEUR_R14",
-               "CLASSES_T2", "LIGNE_PITMAN", "PREFIXE_MC_INDISPO", "MARQUEUR_DIAG_299", "MARQUEUR_DIAG_302",
+               "CLASSES_T2", "LIGNE_PITMAN", "PREFIXE_MC_INDISPO", "MARQUEUR_DIAG_DECISION",
                "MARQUEUR_DIAG_R15", "LIGNES_DIAG_DECISION")
 EXPRS_229 <- parse(SCRIPT_229, keep.source = FALSE, encoding = "UTF-8")
 E <- new.env(parent = globalenv())
@@ -342,7 +342,7 @@ verifier("#366 classe_t2() D : treize lignes (6 de #299, 2 de #302, 5 de #303) ;
 verifier("#366 classe_t2() D : refusee sans marqueur, avec le marqueur d'une autre ligne, hors liste, ligne inoperante, de type test ou de verdict autre",
          { k <- "SpearTps"; lb <- E$STAT_LIGNE[[k]]; mk <- E$LIGNES_DIAG_DECISION[[k]]
            identical(E$classe_t2(diag_na(test = lb, detail = "autre motif")), "-") &&
-             identical(E$classe_t2(diag_na(test = lb, detail = E$MARQUEUR_DIAG_302)), "-") &&
+             identical(E$classe_t2(diag_na(test = lb, detail = E$MARQUEUR_DIAG_DECISION)), "-") &&
              identical(E$classe_t2(diag_na(test = "Ligne X", detail = mk)), "-") &&
              identical(E$classe_t2(diag_na(test = lb, detail = mk, inoperant = TRUE)), "-") &&
              identical(E$classe_t2(ligne_t(test = lb, detail = mk)), "-") &&
@@ -435,7 +435,7 @@ verifier("#366 code_diag() D : ligne de LIGNES_DIAG_DECISION avec son marqueur -
          { k <- "SpearTps"; lb <- E$STAT_LIGNE[[k]]; mk <- E$LIGNES_DIAG_DECISION[[k]]
            identical(E$code_diag(diag_na(test = lb, detail = mk)), "D") &&
              identical(E$code_diag(diag_na(test = lb, detail = "autre motif")), ".") &&
-             identical(E$code_diag(diag_na(test = lb, detail = E$MARQUEUR_DIAG_302)), ".") &&
+             identical(E$code_diag(diag_na(test = lb, detail = E$MARQUEUR_DIAG_DECISION)), ".") &&
              identical(E$code_diag(diag_na(test = "Ligne X", detail = mk)), ".") &&
              !identical(E$code_diag(diag_na(test = lb, detail = mk, inoperant = TRUE)), "D") &&
              identical(E$code_diag(diag_na(test = lb, detail = paste0(E$PREFIXE_MC_INDISPO, mk))), "M") })
