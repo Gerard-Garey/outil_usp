@@ -368,9 +368,18 @@ table_synthese_groupe <- function(tb) {
 # #472 (marge `marge`, decision du mainteneur du 07/11/2026) : coupe a la
 # premiere fin de phrase dont le resume fait au moins `seuil` et au plus
 # `seuil + marge` caracteres. Fin de phrase : "." suivi d'un espace puis d'une
-# majuscule, ou ";" suivi d'un espace ; la fin du texte en est une (si elle
-# tombe dans la fenetre, pas de repli). La coupe se fait a l'espace qui suit le
-# signe, le signe reste dans le resume. A defaut de fin de phrase dans la
+# majuscule, ou ";" suivi d'un espace, a profondeur nulle de parentheses et de
+# crochets (comptee depuis le debut du texte jusqu'au signe : un ";" de
+# "[0 ; 1]" ou de "min(a = 1 ; b = 2)" n'est pas une fin de phrase ; une
+# parenthese jamais refermee ferme toute fin de phrase apres elle, la coupe a
+# defaut restant possible ; un fermant sans ouvrant ne descend pas sous 0). Un
+# "." n'est retenu que si le mot qui le precede (suite de lettres, chiffres et
+# "_" collee au point) n'est pas une seule lettre (initiale : "J. Econometrics",
+# "C. B") ni une abreviation de `.ABREV_FIN_PHRASE` ("et al. A", "p. E") ; un
+# signe de ponctuation devant le point (")", "]", "%") ou un nombre ("= 8.")
+# n'ecarte pas le point. La fin du texte en est une aussi (si elle est la
+# premiere fin de phrase de la fenetre, pas de repli). La coupe se fait a
+# l'espace qui suit le signe, le signe reste dans le resume. A defaut de fin de phrase dans la
 # fenetre, coupe de #178 : dernier espace avant le seuil, ou au seuil. Quelle
 # que soit la coupe, si la suite masquee ferait moins de `suite_min` (100)
 # caracteres, le texte reste entier (decision du mainteneur du 07/11/2026). Le debut
@@ -385,8 +394,11 @@ table_synthese_groupe <- function(tb) {
 # sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
 # cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
 # avant. Sans la phrase, rendu inchange.
+.ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
+                       "sect", "fig", "eq", "approx", "resp")
 .commentaire_replie <- function(com, seuil = 200L, marge = 150L, suite_min = 100L) {
-  vapply(com, function(x) {
+  # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
+  vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
     sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
     if (sens) {
@@ -399,8 +411,8 @@ table_synthese_groupe <- function(tb) {
       else {
         # Fins de phrase : position du signe (resume = x[1..p]) ; la fin du
         # texte en est une aussi, la derniere.
-        fin <- gregexpr("(\\.(?= \\p{Lu})|;(?= ))", x, perl = TRUE)[[1]]
-        fin <- c(fin[fin > 0L], nchar(x))
+        fin <- .fins_de_phrase(x)
+        fin <- c(fin, nchar(x))
         fin <- fin[fin >= seuil & fin <= seuil + marge]
         if (length(fin) && fin[1L] == nchar(x)) .echap_html(x)
         else {
@@ -427,6 +439,27 @@ table_synthese_groupe <- function(tb) {
   }, character(1), USE.NAMES = FALSE)
 }
 
+# Positions des fins de phrase de x pour .commentaire_replie() : signe "." suivi
+# d'un espace et d'une majuscule, ou ";" suivi d'un espace, a profondeur nulle
+# de parentheses et de crochets, "." precede d'un mot d'au moins deux caracteres
+# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Affichage seul.
+.fins_de_phrase <- function(x) {
+  cand <- gregexpr("(\\.(?= \\p{Lu})|;(?= ))", x, perl = TRUE)[[1]]
+  cand <- cand[cand > 0L]
+  if (!length(cand)) return(integer(0))
+  car <- strsplit(x, "", fixed = TRUE)[[1]]
+  delta <- (car %in% c("(", "[")) - (car %in% c(")", "]"))
+  prof <- integer(length(car)); p <- 0L        # profondeur AVANT chaque caractere
+  for (i in seq_along(car)) { prof[i] <- p; p <- max(0L, p + delta[i]) }
+  garde <- vapply(cand, function(i) {
+    if (prof[i] != 0L) return(FALSE)
+    if (car[i] == ";") return(TRUE)
+    mot <- regmatches(substr(x, 1L, i - 1L), regexpr("[\\p{L}\\p{N}_]+$", substr(x, 1L, i - 1L), perl = TRUE))
+    if (!length(mot)) return(TRUE)             # ponctuation devant le point : ")." "]." "%."
+    !(grepl("^\\p{L}$", mot, perl = TRUE) || tolower(mot) %in% .ABREV_FIN_PHRASE)
+  }, NA)
+  cand[garde]
+}
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
@@ -1649,12 +1682,20 @@ plot_mw_reserve <- function(pd) {
 # (debut et fin coupes). strwrap() a `largeur` caracteres, puis "<br>" pour
 # plotly et "\n" pour la base R. Un message que l'appelant a deja coupe
 # (saut "\n" ou "<br>", par ex. plot_mw_qq()) est rendu tel quel.
+# Entree non scalaire : longueur > 1 jointe par une espace (elements NA
+# ecartes) ; vide (character(0), NULL), NA seul ou chaine vide : message par
+# defaut de .vide(), jamais d'erreur.
+.VIDE_MESSAGE_DEFAUT <- "Graphique non disponible pour cette methode"
 .vide_message <- function(message, largeur = 48L, saut = "\n") {
+  message <- as.character(message)
+  message <- message[!is.na(message)]
+  message <- if (length(message)) paste(message, collapse = " ") else ""
+  if (!nzchar(message)) message <- .VIDE_MESSAGE_DEFAUT
   if (grepl("\n", message, fixed = TRUE) || grepl("<br>", message, fixed = TRUE))
     return(message)
   paste(strwrap(message, width = largeur), collapse = saut)
 }
-.vide <- function(message = "Graphique non disponible pour cette methode") {
+.vide <- function(message = .VIDE_MESSAGE_DEFAUT) {
   if (.plotly_dispo()) {
     p <- plotly::plotly_empty(type = "scatter", mode = "markers")
     return(plotly::layout(p,
