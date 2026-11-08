@@ -9338,9 +9338,9 @@ Sous $H_0$, la loi exacte de $S$ est la loi de permutation~: les $T!$ appariemen
 équiprobables. Approximation usuelle~: $t = \hat\rho_s\sqrt{(T-2)/(1-\hat\rho_s^2)} \sim t(T-2)$.
 \Pval
 p-value exacte de la loi de permutation, retenue quand elle est attribuée
-(\code{stats::cor.test()}, \code{exact = TRUE})~: algorithme de D.\,J. Best, D.\,E. Roberts, \emph{Algorithm
-AS~89~: the upper tail probabilities of Spearman's rho}, \emph{Applied Statistics}, 24(3), 1975,
-p.~377--379~; à $T = 8$, sans ex \ae quo, elle coïncide avec l'énumération des $8!$ permutations,
+(\code{stats::cor.test()}, \code{exact = TRUE})~: énumération de \code{prho.c} ($n \le 9$), extension
+par R de l'algorithme AS~89 de Best et Roberts (1975), exact pour $n \le 6$ seulement~; à
+$T = 8$, sans ex \ae quo, elle coïncide avec l'énumération des $8!$ permutations,
 doublement bilatéral compris (écart nul sur 50 séries tirées au hasard, mesure). L'approximation
 de Student (\code{exact = FALSE}) est restituée sans être retenue. $p_{\min} = 2/T!$
 (\code{mk\_p\_min()}), $5{,}0\cdot 10^{-5}$ à $T = 8$~: la règle~R1 ne s'applique en pratique
@@ -10895,17 +10895,19 @@ dont le $h_r$ désigne les multiplicités, ici toutes égales à~1, avec $\delta
 $2\min\big(\mathbb{P}(\mathrm{DW} \le d),\, \mathbb{P}(\mathrm{DW} \ge d)\big)$.
 Le centrage retirant une dimension, l'intégration porte sur les $T-1$ valeurs propres non nulles
 de $A$ projetée sur l'orthogonal du vecteur constant, soit $MAM$ (\code{dw\_p\_exacte()}).
+L'intégrale est évaluée par quadrature numérique (\code{stats::integrate()}, tolérance relative
+$10^{-10}$)~: Imhof (1961, p.~423) borne l'erreur de troncature, non celle de la quadrature~;
+contre l'algorithme de Pan, indépendant (\code{lmtest::dwtest()}), l'écart relatif mesuré sur
+trois séries à $T = 8$ ne dépasse pas $3\cdot 10^{-10}$~: erreur numérique, distincte de l'erreur
+d'approximation en $T$.
 Cette p-value est \emph{exacte} au sens de l'outil \textbf{à $\hat\pi_t$ constant seulement}
 ($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}), seul régime où le moteur
 l'attribue (règle~R7)~: à $\hat\pi_t$ variable, \code{p\_exacte} vaut \code{NA}, l'intégrale
-d'Imhof n'est pas évaluée, la p-value de Monte-Carlo (clé \code{DW}) est retenue, le commentaire
-commence par le motif de la règle~R7 (précédé, si la p-value de Monte-Carlo manque, du motif de son
-indisponibilité et de la mention d'absence de toute p-value, section~\ref{sec:nature}), et le champ \code{loi} dit «~\code{forme quadratique en
-normales ; loi par la methode d'Imhof (1961), exacte a pi\_t constant seulement (regle R7)}~», et
-non «~\code{loi EXACTE}~» (section~\ref{sec:base-residus}). Dans la bande de
-tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte qu'à un écart
-d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près
-(section~\ref{sec:base-residus}).
+d'Imhof n'est pas évaluée, la p-value de Monte-Carlo (clé \code{DW}) est retenue, le
+commentaire commence par le motif de la règle~R7 et le champ \code{loi} y renvoie
+(section~\ref{sec:base-residus})~;
+dans la bande de tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte
+qu'à un écart d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près.
 \Usage
 Deux points d'implémentation méritent d'être signalés. \emph{Le centrage}~: la statistique est
 calculée sur des résidus centrés, car la définition classique porte sur des résidus de moindres
@@ -12126,7 +12128,7 @@ taux ne se transposent pas à d'autres volumes.
 \begin{fiche}{Leviers (\emph{hat values}, diagnostic)}
 \label{fiche:leviers}%
 \refl{D.\,C. Hoaglin, R.\,E. Welsch, \emph{The hat matrix in regression and ANOVA},
-\emph{The American Statistician}, 32(1), 1978, p.~17--22.}
+\emph{The American Statistician}, 32(1), 1978, p.~17--22 (règle $h_i > 2p/n$ lue sur le document de travail de même titre, janvier 1977, p.~5~; texte publié non relu).}
 \Cadre
 Matrice de projection $H = X(X'X)^{-1}X'$ de la régression contrainte (section~\ref{sec:modele-auxiliaire-autres}). \textbf{Diagnostic, non
 test.} Les $h_t$ sont lus dans le modèle de la fiche~\ref{fiche:cook}, ajusté après mise à
@@ -14865,9 +14867,9 @@ conditionnelles gaussiennes~: la régression pondérée (poids $1/C(i,j)$) de $C
 $C(i,j)$ et $C(i,j)^2$, ou, de façon équivalente pour $t_j$, de l'écart $e_i$ (rubrique~3),
 contient l'espérance $f_j\,C(i,j)$, de sorte que $t_j$ suit, sachant les colonnes
 $0, \dots, j$, la loi de Student à $n_j - 3$ degrés de liberté, qui n'en dépend pas, et le même
-raisonnement par récurrence s'applique (même argument, sans publication retrouvée~; même réserve
-sur les cumuls négatifs). Hors de l'hypothèse gaussienne, statut non établi. La p-value du
-khi-deux reste non simulée et indicative~; loi de référence~: bootstrap de résidus.
+raisonnement par récurrence s'applique (même argument, sans publication retrouvée~; même constat de simulation, qui ne le démontre pas~; même réserve
+sur les cumuls négatifs). Hors de l'hypothèse gaussienne, statut non établi~; loi de
+référence~: bootstrap de résidus.
 \Pval
 p-value de Monte-Carlo retenue (clé \code{Courbure}, rejet en queue haute)~; p $\chi^2(2K)$
 restituée, non retenue. Sur le triangle de contrôle (référence \code{reserve2})~: p-value de
@@ -18745,9 +18747,10 @@ soutient dans le présent document.
   probabilities of Spearman's $\rho$}, \emph{Journal of the Royal Statistical
   Society, Series C (Applied Statistics)}, 24(3), 1975, p.~377--379.
   \emph{Portée.} La référence Spearman (1904) établit le
-  coefficient. Best \& Roberts documente le calcul des probabilités exactes en
-  petit échantillon, qui est ce que \code{cor.test(..., exact = TRUE)} met en
-  \oe uvre et que le moteur retient à $T = 8$. Le même calcul fournit aussi la
+  coefficient. L'algorithme AS~89 évalue la loi exacte par énumération jusqu'à $n = 6$ et par un
+  développement d'Edgeworth au-delà~; R (\code{prho.c}) porte l'énumération à $n \le 9$, ce que
+  \code{cor.test(..., exact = TRUE)} met en \oe uvre et que le moteur retient à $T = 8$. Le même
+  calcul (énumération de R) fournit aussi la
   p-value de chaque colonne de l'homogénéité de $f_j$ et de l'exposant de variance à
   $n_j \le 9$ (fiche~\ref{mw:m1b})~; ces p-values ne sont pas retenues, elles entrent dans la
   statistique de Fisher dont la p-value retenue est de Monte-Carlo.
@@ -19068,10 +19071,11 @@ soutient dans le présent document.
   normal variables}, \emph{Biometrika}, 48(3/4), 1961, p.~419--426.
   \emph{Portée.} Référence exacte de la méthode évoquée dans la
   fiche Durbin--Watson pour le calcul de la loi exacte de la statistique. La
-  formule~(3$\cdot$2), p.~422--423, et son signe ont été vérifiés sur une transcription de ces
-  pages, dont l'emplacement est consigné dans la pièce de traçabilité du dossier (section~\ref{sec:verif})~; le $h_r$ d'Imhof y désigne les multiplicités et son
-  $\lambda_r$ les coefficients de la forme quadratique (renvoi de notation dans la fiche). Texte en
-  libre accès sur l'archive ouverte de l'Université de Genève (notice unige:101766).
+  formule~(3$\cdot$2), p.~422--423, et son signe ont été vérifiés sur la version publiée, en libre
+  accès sur l'archive ouverte de l'Université de Genève (notice unige:101766)~; le $h_r$ d'Imhof y
+  désigne les multiplicités et son $\lambda_r$ les coefficients de la forme quadratique (renvoi de
+  notation dans la fiche). Imhof (p.~423) borne l'erreur de troncature, non celle de la quadrature
+  numérique (fiche~\ref{fiche:durbin-watson}).
 
   \item D.\,A. Belsley, E.~Kuh, R.\,E. Welsch, \emph{Regression Diagnostics: Identifying
   Influential Data and Sources of Collinearity}, Wiley, New York, 1980.
@@ -19519,7 +19523,9 @@ modèle et un mode d'inférence différents.
   \item G.\,C. Taylor, F.\,R. Ashe, \emph{Second moments of estimates of
   outstanding claims}, \emph{Journal of Econometrics}, 23(1), 1983, p.~37--61.
   \emph{Portée.} Source du triangle de dix années de survenance utilisé comme jeu
-  de contrôle. Son statut de référence partagée par la littérature est ce qui
+  de contrôle, tel que le reproduit T.~Mack (1993, section~4, table~1, p.~221), qui l'attribue à
+  Taylor et Ashe~; le triangle tel que publié par les auteurs n'a pas été relu. Son statut de
+  référence partagée par la littérature est ce qui
   rend la validation reproductible par un tiers.
 
   \item G.\,G. Venter, \emph{Testing the assumptions of age-to-age factors}, \emph{Proceedings of
