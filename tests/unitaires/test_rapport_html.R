@@ -1319,6 +1319,67 @@ if (requireNamespace("plotly", quietly = TRUE)) {
   cat("  note : plotly absent ; annotations des quantiles de l'objet plotly_build() non exercees (#195).\n")
 }
 
+## --- Issue #481 : barre d'outils plotly sur les titres, profil de delta etroit ---
+# La barre d'outils (2 a 22 px du haut, a droite) recouvrait les titres : titre
+# ancre en haut du conteneur et decale par title.pad.t, marge haute augmentee
+# d'autant. Annotation de quantile du bord de delta estime : de l'autre cote de
+# sa marque quand la courbe du profil s'y trouve et pas de l'autre ; libelle du
+# repere sur deux, trois ou quatre lignes selon la place. Les positions
+# (aucun chevauchement avec la barre, annotations dans la figure) sont mesurees
+# sous Chromium par la session qui a corrige, pas par cette batterie.
+verifier(".titre_plotly() / .marge_haute() : titre ancre en haut du conteneur, pad.t = .BARRE_PLOTLY_PX + 3 sur une ligne et + 13 sur plusieurs (mesure sous plotly.js 2.25.2), police et couleur conservees ; marge haute augmentee de .BARRE_PLOTLY_PX - 10 (#481)",
+         {
+           t1 <- .titre_plotly("Titre"); t2 <- .titre_plotly("Titre<br><sup>sous</sup>", taille = 12, couleur = "#123456")
+           identical(t1$yref, "container") && identical(t1$yanchor, "top") && identical(t1$y, 1) &&
+             identical(t1$pad$t, .BARRE_PLOTLY_PX + 3) && identical(t2$pad$t, .BARRE_PLOTLY_PX + 13) &&
+             identical(t1$font, list(size = 14, color = COUL$pt)) &&
+             identical(t2$font, list(size = 12, color = "#123456")) &&
+             identical(.marge_haute(45), 45 + .BARRE_PLOTLY_PX - 10)
+         })
+co481 <- data.frame(delta = c(0, 0.5, 1), objectif = c(-22.5, -22.8, -23.0))
+et481 <- c(-23.3, -20.9)
+verifier("Annotations des quantiles avec la courbe du profil : delta = 1 (courbe sous la marque) passe au-dessus de sa marque, delta = 0 (courbe des deux cotes) garde son cote ; repere asymptotique dans la bande de l'autre cote : cote d'origine ; sans courbe ni etendue : placement de #162 et #195 inchange (#481)",
+         {
+           q <- c(-22.6, -22.65)
+           sans <- .lr_annotations_quantile(q, -21.4, 1L, LIB90$quantile_court)
+           avec <- .lr_annotations_quantile(q, -21.4, 1L, LIB90$quantile_court, courbe = co481, etendue = et481)
+           rep_ <- .lr_annotations_quantile(q, -22.0, 1L, LIB90$quantile_court, courbe = co481, etendue = et481)
+           identical(vapply(sans, `[[`, "", "yanchor"), c("top", "top")) &&
+             identical(vapply(avec, `[[`, "", "yanchor"), c("top", "bottom")) &&
+             identical(vapply(avec, `[[`, 0, "yshift"), c(-8, 8)) &&
+             identical(vapply(rep_, `[[`, "", "yanchor"), c("top", "top")) &&
+             identical(.lr_annotations_quantile(q, -21.4, 1L, LIB90$quantile_court, courbe = co481),
+                       sans)
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Profil de delta, plotly, J1 (delta estime 1) : annotation de delta = 1 au-dessus de sa marque (courbe visible jusqu'au bord), libelle du repere sur deux lignes ; J2 : libelle sur quatre lignes (annotation de delta = 1 a sa hauteur) ; titre sur deux lignes (#481)",
+           {
+             an1 <- plotly::plotly_build(plot_profil_delta(pd162))$x$layout
+             an2 <- plotly::plotly_build(plot_profil_delta(pd_j2))$x$layout
+             k2 <- Filter(function(a) identical(gsub("<br>", " ", a$text, fixed = TRUE), LIB90$quantile_court[2]), an1$annotations)
+             nbr <- function(l) lengths(regmatches(l$annotations[[length(l$annotations)]]$text,
+                                                   gregexpr("<br>", l$annotations[[length(l$annotations)]]$text, fixed = TRUE)))
+             length(k2) == 1L && identical(k2[[1]]$yanchor, "bottom") &&
+               nbr(an1) == 1L && nbr(an2) == 3L &&
+               grepl("^Profil de vraisemblance en delta<br><sup>\\(estime = ", an1$title$text) &&
+               identical(an1$margin$t, .marge_haute(60))
+           })
+  verifier("Figures plotly de l'application : tout titre est ancre en haut du conteneur sous la barre d'outils (title.yref conteneur, pad.t >= .BARRE_PLOTLY_PX), marge haute au moins .marge_haute(45) (#481)",
+           {
+             fig <- unlist(lapply(.graphiques_rapport(res_ln), function(b) lapply(b$g, function(g) g$f())), recursive = FALSE)
+             ok <- vapply(fig, function(p) {
+               if (!inherits(p, "htmlwidget")) return(NA)
+               l <- plotly::plotly_build(p)$x$layout
+               if (is.null(l$title)) return(NA)
+               identical(l$title$yref, "container") && identical(l$title$yanchor, "top") &&
+                 l$title$pad$t >= .BARRE_PLOTLY_PX && l$margin$t >= .marge_haute(45)
+             }, NA)
+             length(fig) >= 8L && sum(!is.na(ok)) >= 7L && all(ok[!is.na(ok)])
+           })
+} else {
+  cat("  note : plotly absent ; titres et annotations plotly de #481 non exerces.\n")
+}
+
 ## --- Issue #190 : niveau des reperes du profil de delta lu dans le moteur ---
 # Le niveau est porte par plots_data$lr_delta$niveau
 # (LR_DELTA_NIVEAU_REPERES) ; les cinq libelles (repere asymptotique long et
