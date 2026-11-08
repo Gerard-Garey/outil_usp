@@ -11818,7 +11818,7 @@ et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; verdict inchangé.
 \newpage
 \clearpage
 % =============================================================================
-\section{Diagnostics de stabilité, ruptures et points aberrants}
+\section{Stabilité, ruptures et points aberrants}
 \label{sec:stabilite}
 % =============================================================================
 
@@ -13478,7 +13478,7 @@ compare les estimateurs pondérés par $C(i,j)^2$, par $C(i,j)$ et non pondéré
 \Cadre
 Trois représentations, rattachées à l'hypothèse M1. La première est un ensemble
 de petits multiples~: pour chaque année de développement $j$, le nuage des
-couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ et la droite ajustée avec
+couples $\big(C(i,j),\,C(i,j+1)\big)$, la droite $y = \hat f_j x$ et, à partir de trois points, la droite ajustée avec
 constante. La droite passant par l'origine, sans constante, traduit la lettre de
 l'annexe~XVII, D(2)(h)(iii)~; qu'elle ait le même facteur $f_j$ pour toutes les années de
 survenance, estimé par $\hat f_j$ de D(4)(c), est la lecture de l'outil, non la lettre du texte
@@ -13736,20 +13736,22 @@ version consolidée en vigueur de l'annexe~XVII (version consolidée au
 14~novembre 2024). Les paragraphes~1 à~4 de la section~D sont identiques dans
 la version d'origine et dans la version consolidée~: le texte consolidé
 (format xhtml) ne marque aucune modification dans la section~D, et la comparaison de
-leurs formules, faite en rendu graphique, ne relève aucune différence. Seul le paragraphe~5, le dernier de la section, diffère~: le
+leurs formules, faite en rendu graphique, ne relève aucune différence. Seule la formule de la MSEP, en tête du paragraphe~5, le dernier de la section, diffère (les points~(a) à~(d) de ce paragraphe sont identiques dans les deux versions)~: le
 libellé publié en 2015 n'est pas celui en vigueur, et c'est ce dernier qui est
 reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
-cette correction n'est pas identifié à ce jour~; l'hypothèse d'un rectificatif
-refondu sans marqueur de modification, la seule que suggèrent les pièces
-consultées, est signalée comme une hypothèse et non comme un fait établi. La
+cette correction n'est pas identifié à ce jour~: le texte consolidé ne porte aucun marqueur dans
+la section~D, et aucun des cinq rectificatifs qu'il énumère (C1 à C5) ne porte sur cette
+section. La
 pagination au \emph{Journal officiel} (L~12 du 17 janvier 2015) a été vérifiée
 à l'image~: la section~D occupe les p.~276--278 et le
 paragraphe~5 les p.~277--278. Cette pagination est celle de la \emph{version
-d'origine}, dont le paragraphe~5 imprime le libellé de 2015 et non la formule
+d'origine}, dont le paragraphe~5 imprime en p.~277 la formule de la MSEP de 2015 et non celle
 reproduite ci-dessous~; la version consolidée, qu'applique \code{mw\_msep()},
-n'est pas une publication paginée du \emph{Journal officiel}. Les formules du
-paragraphe~5 ne sont donc pas une transcription des p.~277--278~: un relecteur
-qui s'y reporterait y lirait une autre formule.
+n'est pas une publication paginée du \emph{Journal officiel}. La formule de la MSEP
+reproduite ci-dessous n'est donc pas une transcription de la p.~277~: un relecteur
+qui s'y reporterait y lirait une autre formule~; les définitions de $S_j$, $S'_j$, $\hat Q_j$ et
+$\hat\sigma_j^2$, règle de minimum comprise (points~(b) à~(d), p.~277--278), y sont en revanche
+identiques à celles reproduites ci-dessous.
 
 \paragraph{Facteurs de développement.}
 \[
@@ -13775,11 +13777,12 @@ de dégénérescence~: ni la section~D, ni aucune autre section de l'annexe~XVII
 ni les articles~218 à~220 ne traitent ce cas. Ce silence contraste avec la
 rédaction retenue ailleurs dans le même règlement pour une difficulté de même
 nature, où la valeur de repli est écrite explicitement --- les notations $d_1$,
-$SS$ et $SC$ ci-dessous sont celles de l'annexe~XVIII et n'ont pas d'équivalent
+$S_S$ et $S_C$ ci-dessous sont celles de l'annexe~XVIII et n'ont pas d'équivalent
 dans la section~D.
 
-\reglement{Annexe XVIII du règlement délégué (UE) 2015/35}{[\dots] $d_1$ est
-égal à 1 lorsque $SS$ ou $SC$ est égal à zéro.}
+\reglement{Annexe XVIII, D(2)(d), du règlement délégué (UE) 2015/35}{$d_1$ est
+égal à 1 lorsque $S_S$ ou $S_C$ est égal à zéro, et égal à zéro lorsque $S_S$ et $S_C$ sont
+différents de zéro.}
 
 \noindent
 Le minimum reste pourtant \textbf{déterminé}, et c'est un \emph{fait
@@ -13857,8 +13860,8 @@ d'accident (M6) ne reçoivent pas cet ensemble et ne sont pas nommées~: la fami
 ces colonnes. Les lignes de lecture conjointe (fiches~\ref{fiche:p-famille}
 et~\ref{fiche:p-globale}), qui ne le reçoivent pas non plus, sont hors de la constante. Le nom
 de la ligne de la cellule aberrante est porté par la constante
-\code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par \code{mw\_tests()} pour la ligne et par
-\code{.MW\_LIGNES\_COLONNES\_ECARTEES\_HORS\_RESIDUS}. Lorsque $\hat f_{J-2}$ ou
+\code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par \code{mw\_tests()} pour la ligne, par
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES\_HORS\_RESIDUS} et par \code{mw\_valider\_ajustement()} pour la précision sur la statistique de cette ligne. Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
@@ -13955,8 +13958,8 @@ interpréter.
 
 \emph{(ii) $\hat R < 0$~: interprétation, déclarée comme telle.} L'expression
 arithmétique du paragraphe~4 est ici \textbf{parfaitement définie et rend un
-nombre}~: sur un triangle à cumulés décroissants de réserve totale
-$\hat R = -372{,}397$, elle rend $0{,}034877$. Le refus n'est donc
+nombre}~: sur le triangle à cumulés décroissants de cinq années des tests unitaires (segment~1
+de l'annexe~II, crédibilité $0{,}34$), de réserve totale $\hat R = -27{,}5666$, elle rend $0{,}0162$. Le refus n'est donc
 \textbf{pas} imposé par l'arithmétique~: c'est une interprétation du texte,
 retenue par l'outil, fondée sur deux appuis et confortée par une orientation du
 règlement.
@@ -13993,7 +13996,9 @@ règlement.
 \end{itemize}
 
 Un quatrième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
-explicitement qu'un risque de réserve soit porté par un volume négatif.
+explicitement qu'un risque de réserve soit porté par un volume négatif, pour les segments de
+l'annexe~II (article~116, paragraphe~6, ci-dessous) comme pour ceux de l'annexe~XIV
+(article~147, paragraphe~6, qui se termine par la même phrase).
 
 \reglement{Article 116, paragraphe 6, du règlement délégué (UE) 2015/35}{Pour
 tous les segments visés à l'annexe~II, la mesure de volume pour le risque de
@@ -14002,7 +14007,7 @@ pour sinistres à payer [\dots]. La mesure de volume n'est pas un montant
 négatif.}
 
 \noindent
-Les deux grandeurs ne se confondent pas~: la mesure de volume de l'article~116
+Les deux grandeurs ne se confondent pas~: la mesure de volume de l'article~116 (ou~147)
 est la meilleure estimation des provisions pour sinistres à payer, tandis que
 $\hat R$ est l'estimation que la chaîne d'échelle produit sur le triangle fourni.
 Mais l'écart-type que la section~D calibre est précisément celui que la formule
@@ -14072,7 +14077,8 @@ $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, $\sigma_j^2$ com
 survenance (interprétation de l'outil, D(5)(d)(ii)) &
 H2 --- mais puissance 1 imposée, sans mélange $\delta$ à estimer \\
 M3 & (i) et (ii) indépendance entre années de survenance et entre montants
-incrémentaux & H4 --- indépendance \\
+incrémentaux~; (ii) lu comme l'absence de corrélation des facteurs de développement successifs
+d'une même année (interprétation de l'outil, section~\ref{sec:mwm3}) & H4 --- indépendance \\
 M5 & \emph{aucune} & H3 --- \textbf{sans équivalent}~: la lognormalité n'est
 pas requise \\
 \end{tabular}
@@ -14080,7 +14086,7 @@ pas requise \\
 
 La colonne centrale donne la teneur de chaque point de D(2)(h), puis la formalisation retenue
 par l'outil, celle de T.~Mack (1993)~; le texte cité mot pour mot figure en tête des
-sections~\ref{sec:mwm1} et~\ref{sec:mwm2}.
+sections~\ref{sec:mwm1}, \ref{sec:mwm2} et~\ref{sec:mwm3}.
 
 Le support des tests est le résidu standardisé de Mack
 \[
@@ -14095,7 +14101,7 @@ valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
 
 \begin{encadre}
 \textbf{La normalité n'est pas une hypothèse de la méthode.} D(2)(h)
-ne spécifie que les deux premiers moments conditionnels. Les tests de normalité
+ne spécifie, outre l'indépendance de ses points~(i) et~(ii), que les deux premiers moments conditionnels, sans loi. Les tests de normalité
 figurent donc dans la famille M5 comme \emph{diagnostics}, et non comme
 vérifications d'une hypothèse réglementaire. Ils ne deviennent pertinents que si
 l'on souhaite exploiter la MSEP pour construire un quantile, usage qui excède la
@@ -14208,7 +14214,7 @@ et de $\sigma_j^2$ entre années de survenance est une interprétation de l'outi
 sections~\ref{sec:mwm1} et~\ref{sec:mwm2}). La sixième, l'homogénéité des résidus entre années de survenance (M3,
 fiche~\ref{mw:m3acc}), compare les lignes du triangle, ses résidus étant groupés par année de
 survenance toutes colonnes confondues~; le quantificateur «~pour toutes les années d'accident~»,
-qui figure aussi aux points (ii) et (iv), porte, lui, sur ces lignes. La tendance avec le cumulé,
+qui ouvre les points (ii), (iii) et (iv), porte, lui, sur ces lignes. La tendance avec le cumulé,
 conservée en tête, estime une pente commune à toutes les colonnes (fiche~\ref{mw:m1}) et ne les
 vérifie pas une à une.
 
@@ -14793,8 +14799,8 @@ triangles).
 Ce test porte sur la communauté de $f_j$ entre années de survenance, interprétation de l'outil
 appuyée sur D(4)(c), qui estime un facteur unique $\hat f_j$ par année de développement~; ce
 n'est pas une seconde exigence de D(2)(h)(iii), dont le quantificateur «~pour toutes les années
-d'accident~», qui figure aussi aux points (ii) et (iv), ne crée pas d'exigence propre au
-point~(iii). Un facteur qui dériverait d'une année de survenance à l'autre resterait compatible
+d'accident~», qui ouvre aussi les points (ii) et (iv), étend la proportionnalité à chaque année
+d'accident sans dire que son coefficient est commun aux années. Un facteur qui dériverait d'une année de survenance à l'autre resterait compatible
 avec la lettre de D(2)(h)(iii), chaque année restant proportionnelle à son cumulé précédent, mais
 contredirait la formalisation retenue par l'outil (encadré de la section~\ref{sec:mwm1}), qui est
 aussi celle du modèle sous lequel M.~Merz et M.\,V. Wüthrich (2008, section~\ref{sec:biblio},
@@ -14832,7 +14838,7 @@ point~(i)), égal à ce plancher sur \code{reserve2}.
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
 \textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min} \ll
-\alpha/2$~; $p_{\min}^{\mathrm{MC}} = 0{,}001$ sur \code{reserve2}, aucune bascule par la
+\alpha/2$, aucune bascule par la
 règle~R1). Aucune bascule sur le triangle de
 contrôle ni sur ses versions arrondies à la dizaine et à la centaine ($p_{\min}$ de
 $3{,}06\cdot 10^{-9}$ et $7{,}35\cdot 10^{-8}$). Non applicable à $T = 5$ (une seule colonne de
@@ -15793,17 +15799,21 @@ La contrainte change ce que ce diagnostic peut apporter, et il faut l'énoncer
 nettement~: \textbf{il ne détecte pas une mauvaise spécification de
 $\sigma_j$}. L'identité valant quelle que soit la structure de variance des
 données, $\operatorname{Var}(r)$ reste collée à $(N-k)/(N-1)$ même lorsque
-l'exposant~1 imposé par le règlement est faux. Constat de simulation~: sur des
-triangles $8\times8$ engendrés avec une variance en $C(i,j)^0$ puis en
-$C(i,j)^2$ --- les deux alternatives que nomme la fiche~\ref{mw:m2b} ---, l'écart
-à $(N-k)/(N-1)$ reste inférieur à $10^{-3}$ en valeur absolue, alors que
-l'hypothèse M2 est fausse par construction. Ce sont les tests des
+l'exposant~1 imposé par le règlement est faux. Constat de simulation (modèle de Mack à erreurs
+gaussiennes ajusté au triangle de contrôle, variance de $C(i,j+1)$ en $C(i,j)^0$, $C(i,j)^1$ puis
+$C(i,j)^2$, égale à celle du modèle au cumul moyen de la colonne~; 2\,000 triangles $8\times8$ par
+exposant)~: l'écart à $(N-k)/(N-1)$ a sensiblement la même loi sous les trois exposants, dont les
+deux alternatives que nomme la fiche~\ref{mw:m2b}~; au plus $3{,}3$, $3{,}7$ et $5{,}6\cdot 10^{-4}$
+en valeur absolue sous le plan~P1 (section~\ref{sec:calib-mc-mw}), au-delà de $10^{-3}$ dans
+$10$ à $11~\%$ des triangles sous le plan~P2, à première colonne plus dispersée. Son ordre de
+grandeur suit la dispersion des cumuls dans les colonnes, non l'exposant, alors que l'hypothèse M2
+est fausse par construction sous les exposants~0 et~2. Ce sont les tests des
 fiches~\ref{mw:m2bp} et~\ref{mw:m2b} qui portent cette détection, non celui-ci --- sans puissance
 mesurable à $T = 8$ sous le plan du triangle de contrôle (rubriques~7 de ces fiches).
 
 Ce que la grandeur apporte encore est d'un autre ordre, et utile au dossier.
 D'une part elle contrôle la cohérence interne de la standardisation~: un écart
-appréciable à $(N-k)/(N-1)$ signalerait que les résidus ne sont pas divisés par
+à $(N-k)/(N-1)$ différent de $N\bar r^{\,2}/(N-1)$ signalerait que les résidus ne sont pas divisés par
 l'écart type de Mack de leur propre colonne --- donc une anomalie de calcul, non
 une propriété des données. D'autre part l'écart vaut exactement
 $N\bar r^{\,2}/(N-1)$ et donne à lire le \emph{centrage} des résidus, qui n'est
@@ -16524,7 +16534,7 @@ $B$~; $p_{\min}$ et plancher, valeurs exactes.
 % -----------------------------------------------------------------------------
 \clearpage
 % =============================================================================
-\section{Diagnostics M4 --- points aberrants du triangle}
+\section{M4 --- points aberrants du triangle}
 \label{sec:mwm4}
 % =============================================================================
 
@@ -16581,10 +16591,10 @@ cette cellule ne dépasse pas $100\,(n_j - 1)\,\varepsilon_{\text{machine}}\,s^2
 celle de la colonne entière et $\varepsilon_{\text{machine}} = 2{,}2\cdot 10^{-16}$
 (\code{mw\_influence()})~: la ligne passe sans transition d'un test sans p-value retenue
 (\code{INFO}) à un test de statistique extrêmement petite. Constat sur un triangle construit
-(triangle de six années des tests unitaires dont deux des quatre facteurs égaux de la colonne
-$j = 0$ sont multipliés par $1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée
+(triangle de six années des tests unitaires dont les facteurs égaux des années $i = 1$ et $i = 3$
+de la colonne $j = 0$ sont multipliés par $1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée
 jusqu'à $\epsilon = 2\cdot 10^{-8}$~; dès $\epsilon = 3\cdot 10^{-8}$, p-value de Monte-Carlo à
-son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
+son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$)~; la frontière dépend des cellules perturbées (années $i = 0$ et~1~: encore non bornée à $3\cdot 10^{-8}$, bornée à $5\cdot 10^{-8}$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
 résulte d'une annulation, et le classement peut différer d'une plateforme à l'autre~; les six cas
 de référence en sont loin. Dans les deux régimes, le signal tient d'abord à la dispersion quasi
 nulle des autres cellules de la colonne, qui rend significatif n'importe quel écart de la cellule
@@ -16650,7 +16660,7 @@ survenance atypique ou un effet calendaire fait aussi rejeter la ligne (rubrique
 M3 et avec le graphique d'influence (rubrique~1). Membre, quand elle est de type test, de la p globale
 (fiche~\ref{fiche:p-globale})~; seul membre de M4, elle n'a pas de ligne de famille.
 \Pertinence
-\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $M$, continue (\code{p\_min} à \code{NA}, statistique hors des treize statistiques discrètes). Plancher de la p-value retenue, de Monte-Carlo~: $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}).
+\textbf{p-value minimale à $T = 8$.} Sans objet pour la loi de $M$, continue. Plancher de la p-value retenue, de Monte-Carlo~: $1/(B+1)$, soit $0{,}001$ à $B = 999$ (\code{engine\_p\_mc()}).
 
 \textbf{Table.} Sans objet (loi continue).
 
@@ -16773,7 +16783,7 @@ plan, intervalles de Clopper--Pearson fonction du nombre de triangles simulés.
 % =============================================================================
 
 \begin{encadre}
-\textbf{Énoncé.} \textbf{hors annexe~XVII}~: la normalité n'est pas une hypothèse du modèle, qui ne spécifie que les deux premiers moments conditionnels.
+\textbf{Énoncé.} \textbf{hors annexe~XVII}~: la normalité n'est pas une hypothèse du modèle, qui ne spécifie, outre l'indépendance de D(2)(h)(i) et~(ii), que les deux premiers moments conditionnels, sans loi.
 \end{encadre}
 
 Les fiches ci-dessous suivent la structure en six rubriques employée pour les
@@ -16833,7 +16843,7 @@ des taux fonction du nombre de triangles).
 par simulation directe.}
 \Cadre
 Résidus de Mack. \textbf{La normalité n'est pas une hypothèse du modèle}~:
-D(2)(h) ne spécifie que les deux premiers moments conditionnels. Cette
+D(2)(h) ne spécifie, outre l'indépendance de ses points~(i) et~(ii), que les deux premiers moments conditionnels, sans loi. Cette
 ligne est donc un \emph{diagnostic}, sans verdict (section~\ref{sec:nature}), et non la
 vérification d'une exigence réglementaire.
 \Hzero
@@ -20551,7 +20561,7 @@ autres sont des diagnostics.}
   \draw[-{Latex[length=1.6mm]}, draw=orange!80!black, line width=0.5pt]
     (u) -| ([xshift=-8mm, yshift=-1.5mm]\b.west) -- ([yshift=-1.5mm]\b.west);
 \end{tikzpicture}
-\caption{Hypothèses H3 et H4 et diagnostics de stabilité. Tous les tests
+\caption{Hypothèses H3 et H4, stabilité, ruptures et points aberrants. Tous les tests
 partent des résidus $z_t$ (une erreur dans \code{usp\_noyau()} affecterait tout ce graphe)~;
 cinq sont aussi calculés sur $u_t$ (liaisons orangées), diagnostics à $\hat\pi_t$ constant (R15). Les blocs gris
 fournissent des lois de référence.}

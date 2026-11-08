@@ -12,7 +12,7 @@ Le document décrit l'outil ; ce dossier garde la trace de ce qui a été retir�
 |---|---|
 | `I.md` | Préambule, page de garde, « Objet du document » et partie I (`sec:archi`, `sec:notations`, `sec:controles`) |
 | `II.md` | Partie II (`sec:mc`, `sec:modele-auxiliaire`, `sec:nature`) |
-| `III-H.md` | Partie III, introduction, hypothèses H1 à H4 et diagnostics de stabilité, de robustesse et graphiques (`sec:h1` à `sec:graphiques`) |
+| `III-H.md` | Partie III, introduction, hypothèses H1 à H4, stabilité, ruptures et points aberrants, diagnostics de robustesse et graphiques (`sec:h1` à `sec:graphiques`) |
 | `III-M.md` | Partie III, méthode Merz-Wüthrich (`sec:mw`, `sec:mwm1` à `sec:mwm6`) et lecture conjointe (`sec:lecture-conjointe`) |
 | `IV.md` | Partie IV (`sec:verif`, `sec:biblio` et `sec:tracabilite-code`, `sec:synthese`) |
 | `annexe.md` | Annexe (`sec:annexe-flux`) |

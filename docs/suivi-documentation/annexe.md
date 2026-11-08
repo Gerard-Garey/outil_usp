@@ -24,6 +24,13 @@ Tête relue : `55ea997`. Appelants et appelés mesurés le 08/11/2026 sur le mot
 
 **Renvois.** Aucune issue ouverte pour après la remise ne touche une affirmation de l'annexe (#379, #386, #387, #420, #421, #439, #445, #469 à #471, #475, #482 à #494, #497 à #502 examinées).
 
+### Corrections après validation de la relecture III-M (étape 8 de JF, 08/11/2026)
+
+Correction induite par le retitrage de `sec:stabilite` (reste R2 de la validation d'`actuary-approfondi` de `55ea997`, retenu par la session ; détail dans `III-H.md`, bloc « Corrections après validation de la relecture III-H »).
+
+**Historique.**
+- Graphe H3 et H4, légende de `fig:annexe-h3h4` : « Hypothèses H3 et H4 et diagnostics de stabilité. Tous les tests » devient « Hypothèses H3 et H4, stabilité, ruptures et points aberrants. Tous les tests », pour suivre le titre de `sec:stabilite` (la section porte des lignes de type test : sup-F, OLS-CUSUM, Grubbs). Rien n'est retiré.
+
 ## `sec:annexe-flux` — Annexe, flux détaillés entre fonctions (annexe, § Annexe — flux détaillés entre fonctions)
 
 Entrée qui couvre toute l'annexe (sous-sections sans `\label` « Convention graphique », graphes chapeau, H1, H2, H3 et H4, Merz–Wüthrich, « Lecture en termes de revue de code »), légendes et commentaires `%` des figures TikZ compris.
