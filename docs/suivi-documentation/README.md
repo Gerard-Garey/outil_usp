@@ -79,6 +79,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Introduction de la partie III (entrée transversale) | `III-H.md` | Fondement de la batterie de tests | III |
 | Correspondance SHA (entrée transversale) | `III-H.md` | Correspondance SHA de la partie III lognormale | III |
 | Blocs répétés (entrée transversale) | `III-H.md` | Blocs répétés des fiches de test | III |
+| Relecture de la partie III-H (entrée transversale) | `III-H.md` | Relecture de la partie III-H (étape 8 de JF) | III |
 | `sec:h1` | `III-H.md` | Hypothèse H1, linéarité et proportionnalité | III |
 | `fiche:student-constante` | `III-H.md` | Test de Student sur la constante | III |
 | `fiche:tost-constante` | `III-H.md` | Équivalence de la constante à zéro (TOST) | III |
@@ -141,6 +142,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Règles communes de M1 (entrée transversale) | `III-M.md` | Colonnes dégénérées et ensembles figés (règles communes de M1, `sec:mwm1`) | III |
 | Phrases de B effectif (entrée transversale) | `III-M.md` | Phrases de B effectif et du retirage (`sec:boot-mw`) | III |
 | Règle R1 (entrée transversale) | `III-M.md` | Règle R1 sur le plancher Monte-Carlo (lignes de rang et de comptage de M1 à M3) | III |
+| Relecture de la partie III-M (entrée transversale) | `III-M.md` | Relecture de la partie III-M (étape 8 de JF) | III |
 | `sec:mw` | `III-M.md` | Méthode Merz–Wüthrich, cadre et spécification | III |
 | `mw:m1` | `III-M.md` | Absence de tendance des facteurs avec le cumulé | III |
 | `mw:m1a` | `III-M.md` | Nullité de l'ordonnée à l'origine, colonne par colonne | III |

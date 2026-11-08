@@ -13495,7 +13495,8 @@ l'ordonnée à l'origine~: \textbf{l'écart entre les deux droites \emph{est} le
 test}. Ils permettent en outre trois lectures qu'aucun test ne fournit~:
 identifier la colonne responsable d'un rejet, repérer le point qui l'entraîne, et
 constater le rétrécissement du nuage à mesure que $n_j$ décroît, rappel visuel
-que les dernières colonnes ne reposent que sur deux ou trois points.
+que les dernières colonnes ne reposent que sur trois puis deux points (la dernière colonne de
+facteurs, qui n'en compte qu'un, n'a pas de panneau).
 
 \medskip
 Le graphique des ordonnées à l'origine résume les mêmes informations sous forme
@@ -13842,17 +13843,17 @@ de chaque colonne (fiche~\ref{mw:m4gr}), et non sur ces résidus. Ces lignes re�
 figé des colonnes dégénérées sans lire \code{mw\_residus()}~: elles ne sont pas comptées parmi les
 lignes fondées sur les résidus, mais le lecteur de l'avertissement sait ainsi qu'elles
 n'examinent pas ces colonnes (sur le triangle cité ci-dessous, la ligne d'identifiabilité
-intra-colonne omet $j = 0$ de ses valeurs). Les deux listes sont tirées d'une constante unique,
-\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, qui nomme par famille toutes les lignes de
-\code{mw\_tests()} recevant cet ensemble, directement ou par \code{mw\_residus()}~;
-l'avertissement en énumère celles qui ne figurent pas dans \code{.MW\_LIGNES\_RESIDUS}. La
+intra-colonne omet $j = 0$ de ses valeurs). La seconde liste est tirée de la constante
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES\_HORS\_RESIDUS}~; sa réunion avec \code{.MW\_LIGNES\_RESIDUS},
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES}, nomme par famille toutes les lignes de
+\code{mw\_tests()} recevant cet ensemble, directement ou par \code{mw\_residus()}. La
 famille~$\alpha$ (fiche~\ref{mw:m1d}), l'extrapolation de $\sigma$ et la part de la dernière année
 d'accident (M6) ne reçoivent pas cet ensemble et ne sont pas nommées~: la famille~$\alpha$ garde
 ces colonnes. Les lignes de lecture conjointe (fiches~\ref{fiche:p-famille}
 et~\ref{fiche:p-globale}), qui ne le reçoivent pas non plus, sont hors de la constante. Le nom
 de la ligne de la cellule aberrante est porté par la constante
 \code{.MW\_LIGNE\_CELLULE\_ABERRANTE}, lue par \code{mw\_tests()} pour la ligne et par
-\code{.MW\_LIGNES\_COLONNES\_ECARTEES}. Lorsque $\hat f_{J-2}$ ou
+\code{.MW\_LIGNES\_COLONNES\_ECARTEES\_HORS\_RESIDUS}. Lorsque $\hat f_{J-2}$ ou
 $\hat f_{J-1}$ diffère de~1, l'avertissement relatif aux colonnes dégénérées ajoute que le
 développement n'est pas achevé,
 que la variance omise n'est donc pas nulle en réalité et que
@@ -14464,8 +14465,8 @@ ligne devient un diagnostic (section~\ref{sec:nature}, point~(ii)). Sur le trian
 ($|0{,}090 - 0{,}10| < 2 \times 0{,}0131$)~; p de Student $0{,}0985$, restituée, non retenue.
 \Usage
 Pendant \emph{agrégé} du test d'ordonnée à l'origine par colonne. Une ordonnée à l'origine $a_j$ donne dans la colonne~$j$ une pente relative égale à
-$-a_j/(f_j \bar C_j)$ multipliée par la pente pondérée de $1/(1 + x)$ sur $x$, qui vaut $-1$ au
-premier ordre, le terme suivant dépendant de l'asymétrie de $x$ (algèbre élémentaire)~;
+$a_j/(f_j \bar C_j)$ multipliée par la pente pondérée de $1/(1 + x)$ sur $x$, qui vaut $-1$ au
+premier ordre (pente voisine de $-a_j/(f_j \bar C_j)$), le terme suivant dépendant de l'asymétrie de $x$ (algèbre élémentaire)~;
 l'approximation est d'autant meilleure que les cumuls de la colonne sont
 peu dispersés, et sa qualité n'est pas mesurée à $T = 8$. Chaque colonne pèse selon la dispersion
 relative de ses cumuls et la précision de ses facteurs, non selon l'échelle de $C(i,j)$ (parts de
@@ -14660,8 +14661,7 @@ définition de la statistique quand une colonne retenue est juste au-dessus de l
 dégénérescence (réserve commune, rubrique~3)~: sur le triangle de Taylor \& Ashe dont
 la colonne $j = 4$ est rendue constante puis perturbée de $\pm 9\cdot 10^{-13}$ en relatif (écart
 observé $1{,}02\cdot 10^{-12}$, colonne retenue), \code{B\_effectif} de \code{Origine},
-\code{Courbure} et \code{HomogF} vaut $649$ ($B = 999$, graine 20260831~; mesure faite après
-l'introduction du second volet du prédicat, non refaite depuis). Quand $B_{\text{eff}} < B$,
+\code{Courbure} et \code{HomogF} vaut $649$ ($B = 999$, graine 20260831). Quand $B_{\text{eff}} < B$,
 \code{mw\_tests()} le dit par les phrases fixes de la section~\ref{sec:boot-mw}~; sur
 \code{reserve2}, $B_{\text{eff}} = B$ pour les treize statistiques et aucune ligne ne les porte.
 Sur le triangle de contrôle (référence \code{reserve2})~: p-value de Monte-Carlo $0{,}085$,
@@ -15474,9 +15474,9 @@ simulation sous un plan.
 \Usage
 Ce test porte spécifiquement sur \emph{l'exposant~1} de la structure de variance
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, à colonne donnée. Un rejet suggère
-un exposant différent --- variance constante ($\alpha = 0$) ou proportionnelle au
-carré ($\alpha = 2$) --- alternatives discutées par Barnett \& Zehnwirth mais
-\emph{non prévues par l'annexe~XVII}, qui impose $\alpha = 1$. Le rejet ne peut donc
+un exposant $k$ différent --- variance constante ($k = 0$) ou proportionnelle au
+carré ($k = 2$) --- alternatives discutées par Barnett \& Zehnwirth (2000) mais
+\emph{non prévues par l'annexe~XVII}, qui impose $k = 1$. Le rejet ne peut donc
 motiver une modification de l'exposant~; s'il est établi, sa portée relève de la cohérence des
 données avec D(2)(h)(iv) (fiche~\ref{mw:m2b}, rubrique~6). Il n'est pas non plus spécifique~: une cellule fortement aberrante, une année
 atypique ou un effet calendaire font aussi rejeter la ligne (rubrique~7)~; à lire avec les
@@ -16088,7 +16088,7 @@ lit les étiquettes de \code{mw\_test\_annees\_}\allowbreak\code{calendaires()},
 ni médiane ni étiquette~: mêmes colonnes dégénérées figées, étiquettes «~*~» écartées, seules les
 diagonales de $n_k \ge 2$ étiquettes étant retenues, comme pour la statistique globale. Les
 diagonales sont repérées par l'indice $k = i + j$, celui du graphique des résidus par année
-calendaire (fiche~\ref{sec:graph-mw}), et non par les noms de ligne du triangle~; la
+calendaire (section~\ref{sec:graphiques}), et non par les noms de ligne du triangle~; la
 diagonale~$k$ regroupe les facteurs $F(i,j)$ qui portent au numérateur les paiements de
 l'exercice comptable $i + j + 1$. La version révisée de l'annexe~H (Mack, 1997) lit chaque
 diagonale séparément, sur la loi de $Z_k$ tabulée selon $n_k$, au seuil de $10~\%$ (p.~D6.49)~;
@@ -16341,7 +16341,7 @@ inchangé.
 
 \textbf{Table.} Tableau~\ref{tab:pmin}, partie Merz--Wüthrich.
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle (une paire de trois facteurs, $p_{\min} = 1/3$, $p_{\min}^{\mathrm{MC}} = 0{,}33$ par \code{run\_engine()}, $B = 999$)~: ligne restituée en diagnostic, sans verdict (règle~R1 sur le plancher Monte-Carlo, même section). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, sans être repris ici (mesure de puissance dont aucun scénario ne vise la dépendance que teste la ligne). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, \code{docs/tableaux/}\allowbreak\code{20261011-}\allowbreak\code{issue206-calibration-mw.md}, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ ($p_{\min}^{\mathrm{MC}} = 0{,}002$ sur \code{reserve2}). Test inopérant au seuil $\alpha = 0{,}10$ sur le sous-triangle $5 \times 5$ du triangle de contrôle (une paire de trois facteurs, $p_{\min} = 1/3$, $p_{\min}^{\mathrm{MC}} = 0{,}33$ par \code{run\_engine()}, $B = 999$)~: ligne restituée en diagnostic, sans verdict (règle~R1 sur le plancher Monte-Carlo, même section). Puissance non étudiée à $T = 8$ contre les écarts que vise la ligne~; des taux de rejet sous des alternatives d'une autre famille figurent au fichier \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}, sans être repris ici (mesure de puissance dont aucun scénario ne vise la dépendance que teste la ligne~; cette mesure est un travail postérieur à la remise). Niveau réel de la p-value de Monte-Carlo, mesuré sous le plan du triangle de contrôle ($B = 999$, \code{docs/tableaux/}\allowbreak\code{20261011-}\allowbreak\code{issue206-calibration-mw.md}, section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}0965$ (N), $0{,}0995$ (E), $0{,}088$ (A), pour $\rho = 0{,}098$~; à $0{,}05$, $0{,}0515$, $0{,}052$, $0{,}044$ ($\rho = 0{,}048$)~; compatible sous les trois lois et aux deux seuils.
 
 \textbf{Statut des valeurs.} $p_{\min}$~: exacte sous la loi de référence échangeable, non sous le modèle de Mack~; plancher~: exact, fonction de $B$. Taux de rejet sous $H_0$~: constat de simulation sous un plan (section~\ref{sec:calib-mc-mw}), intervalles de Clopper--Pearson fonction du nombre de triangles simulés, distincts de l'erreur de Monte-Carlo en $B$.
 \end{fiche}
@@ -17095,8 +17095,8 @@ numériquement nulle --- ne modifient pas
 ce statut~: ils sont portés par l'avertissement unique de
 \code{mw\_valider\_ajustement()}, qui énonce le prédicat une fois
 même si les deux colonnes sont dégénérées, non par un
-verdict, et le calcul n'est refusé que si le triangle est totalement dégénéré (section des
-contrôles, rubrique~1). Sur un tel triangle, et si le
+verdict, et le calcul n'est refusé que si le triangle est totalement dégénéré
+(section~\ref{sec:controles}). Sur un tel triangle, et si le
 développement n'est pas achevé, la MSEP ne porte aucune variance sur la dernière
 année de développement et $\sigma_{(\text{res},s,\mathrm{USP})}$ est sous-estimé,
 que la colonne dégénérée soit $J-3$, $J-2$ ou les deux (§\ref{sec:mw}).
@@ -17119,7 +17119,7 @@ Sans objet.
 La part elle-même. Le moteur la restitue accompagnée d'un \emph{repère
 indicatif} de 40~\%, dont le champ \code{detail} de la ligne nomme le statut~:
 ce repère est sans fondement réglementaire ni statistique et n'emporte aucun
-verdict. Sur le triangle de contrôle du dépôt, la part vaut $36{,}0~\%$.
+verdict. Sur le triangle de contrôle, la part vaut $36{,}0~\%$.
 Fonction nommée~: \code{mw\_tests()}.
 \Loi
 Sans objet.
@@ -17409,7 +17409,7 @@ globale mesurées sous quatre plans, tous les taux sont compatibles ou en écart
 mineur, aux deux seuils, et \emph{tous} les écarts mineurs sont du côté conservateur~; une p de
 famille se lit avec son \code{erreur\_MC} (environ $0{,}0095$ à $p = 0{,}10$ et $n = 999$), et la
 ligne ne porte pas la phrase du verdict proche d'un seuil qui le rappelle sur les lignes de type
-test. \emph{Puissance}~: non mesurée à $T = 8$~; \textbf{une p de famille élevée n'atteste pas
+test. \emph{Puissance}~: non mesurée à $T = 8$ (travail postérieur à la remise)~; \textbf{une p de famille élevée n'atteste pas
 l'adéquation des hypothèses de la famille}. \emph{Statut}~: constats de simulation sous ces quatre
 plans, qui ne se transposent ni à un autre jeu, ni à une autre géométrie de triangle, ni à une
 autre profondeur~; aucun théorème ne couvre la p de famille à $T = 8$, et la littérature citée ne
@@ -17485,7 +17485,7 @@ au moins un membre a une p-value de Monte-Carlo sous $0{,}10$, de 55 à 64~\%, s
 dont la p globale est sous $0{,}10$, de 7 à 11~\%. Le détail des verdicts sous le
 modèle, sur tous les tests et sur les seuls tests de sens «~ne pas rejeter~», est aux
 sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. \emph{Puissance}~: non mesurée à
-$T = 8$~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
+$T = 8$ (travail postérieur à la remise)~; une p globale élevée n'atteste pas l'adéquation du modèle. \emph{Statut}~:
 constats de simulation sous les plans J1, J2, N et E ($R = 2\,000$, $B = 999$, fichiers de la
 tête de section)~; aucun résultat général.
 \end{fiche}
