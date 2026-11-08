@@ -440,7 +440,7 @@ p.~8), art.~1\textsuperscript{er}, 2 et~3 \\
 Orientations et notice & Orientations de l'AEAPP EIOPA-BoS-14/178 (orientation~6) et
 EIOPA-BoS-25/249 (orientation~5)~; notice de l'ACPR, §§~2, 170 et~171 (introduction de la
 partie~III) et §~159 (section~\ref{sec:synthese}) \\
-Transposition & Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II) \\
+Transposition & Code des assurances, art.~R.~352-5 (V) \\
 Moteur de calcul & \code{R/engine.R} (R base et \code{stats} uniquement) \\
 Chargement du moteur & \code{R/charger\_moteur.R} (aucun calcul~; environnement dédié
 \code{usp\_moteur}) \\
@@ -658,7 +658,7 @@ fonction.
 \node[fonc, below=4mm of kmw] (cmw) {\code{mw\_parametre()}\\[1pt]
   \scriptsize $\times$ \code{usp\_credibilite()}};
 \node[fonc, below=4mm of cmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
-  \scriptsize \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}};
+  \scriptsize \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, \code{.mw\_stats()}};
 \node[fonc, below=4mm of bmw] (tmw) {\code{mw\_tests()}\\[1pt]
   \scriptsize M1 à M6};
 \node[fonc, below=4mm of tmw] (pmw) {\code{mw\_plots\_data()}};
@@ -1954,16 +1954,36 @@ ensembles figés (\code{.mw\_ensembles\_figes()}) et le passe à \code{mw\_boots
 L'outil couvre les deux segmentations pour lesquelles l'annexe~XVII autorise des
 paramètres propres au titre du risque de primes et de réserve~: l'annexe~II
 (engagements non-vie) et l'annexe~XIV (engagements de santé non similaires à la
-vie, dits « non-SLT »). Les écarts-types standard ci-dessous sont ceux du
-règlement délégué (UE)~2015/35 dans sa \emph{version consolidée du
-14~novembre 2024}, qui fait foi pour l'outil. Les annexes~II et~XIV y portent le
-marqueur $\blacktriangledown$\,M6~: elles ont été remplacées par le règlement délégué (UE)~2019/981
-de la Commission du 8~mars 2019, \emph{Journal officiel de l'Union européenne},
-L~161 du 18~juin 2019, p.~1. Ils sont codés dans les tables
+vie, dits « non-SLT »).
+
+\noindent
+\emph{Version du règlement retenue par l'outil.} L'outil lit le règlement délégué (UE)~2015/35
+dans sa \emph{version consolidée du 14~novembre 2024}, qu'il retient comme référence de lecture.
+Ce texte n'a pas d'effet juridique propre~: l'avertissement qui l'ouvre précise qu'il
+«~constitue seulement un outil de documentation et n'a aucun effet juridique~», les versions
+qui font foi étant celles publiées au \emph{Journal officiel de l'Union européenne}. Chaque
+modification qu'il signale par un marqueur renvoie à un acte publié au \emph{Journal officiel},
+dont il donne la référence~; ainsi des annexes~II et~XIV, ci-dessous. La formule de la MSEP, en
+tête de l'annexe~XVII, section~D, paragraphe~5, diffère en revanche de celle publiée en 2015 sans
+aucun marqueur, et l'acte correcteur n'est pas identifié~: aucun des cinq rectificatifs
+qu'énumère le texte consolidé ne porte sur la section~D. L'outil applique ce libellé consolidé
+(§\ref{sec:mw}), identiquement égal à l'erreur de prédiction à un an de Merz--Wüthrich
+(2008)~; l'égalité est vérifiée numériquement (section~\ref{sec:verif}).
+
+\noindent
+Les écarts-types standard ci-dessous sont ceux de cette version consolidée. Les annexes~II
+et~XIV y portent le marqueur $\blacktriangledown$\,M6~: elles ont été remplacées par le règlement
+délégué (UE)~2019/981 de la Commission du 8~mars 2019, \emph{Journal officiel de l'Union
+européenne}, L~161 du 18~juin 2019, p.~1 (article~1\textsuperscript{er}, points~66) et~74),
+p.~39~; annexes~I et~IX de l'acte, p.~41 et~64), ces deux points étant applicables à partir du
+1\textsuperscript{er}~janvier 2020 (article~2, p.~40). Les trente-deux écarts-types de la version
+consolidée sont ceux de cette publication, et le seul rectificatif de cet acte (\emph{Journal
+officiel}, L~168 du 25.6.2019, p.~16) porte sur un autre article. Ces écarts-types sont codés dans les tables
 \code{ANNEXE\_II} et \code{ANNEXE\_XIV} de \code{R/engine.R}, qui ne conservent
 pas les valeurs antérieures. \textbf{Limite de périmètre}~: l'outil ne vaut que
-pour un calcul dont la date de référence est postérieure ou égale à la date
-d'application du règlement délégué (UE)~2019/981, l'écart-type standard qui
+pour un calcul dont la date de référence est postérieure ou égale au
+1\textsuperscript{er}~janvier 2020, date d'application des annexes~II et~XIV remplacées par le
+règlement délégué (UE)~2019/981, l'écart-type standard qui
 entre dans le mélange de l'annexe~XVII étant celui en vigueur à la date de
 référence du calcul~; il ne permet pas de reproduire un calcul selon les valeurs
 de la version d'origine (\emph{Journal officiel de l'Union européenne}, L~12 du
@@ -4052,8 +4072,8 @@ réserve, le refus ne procède pas d'un choix entre méthodes au sens de ce para
 que la méthode n\textsuperscript{o}~1 ne fournit pas de paramètre sur ces données~; le choix
 éventuel avec la méthode n\textsuperscript{o}~2 relève de l'entreprise et n'est pas fait par
 l'outil.
-Ces passages sont ceux du texte d'origine, que la version consolidée du 14~novembre 2024, qui
-fait foi, reprend sans modification.
+Ces passages sont ceux du texte d'origine, que la version consolidée du 14~novembre 2024,
+référence de lecture de l'outil (section~\ref{sec:segments}), reprend sans modification.
 \emph{Deux lectures de B(2)(g)(iv) et C(2)(e)(iv).} Lecture~(a), \textbf{retenue par l'outil}~: une exigence sur les données, rattachée à l'article~219, paragraphe~1,
 point~d), ci-dessus, malgré son rattachement au chapeau de B(2) (C(2)). Lecture~(b)~: un
 postulat de la méthode, que l'entreprise n'aurait pas à
@@ -4445,7 +4465,8 @@ qu'elles «~sont cohérentes avec les hypothèses suivantes concernant la nature
 montants de sinistres cumulés~» (D(2)(h)), ni qu'elles «~sont représentatives du risque de
 réserve auquel l'entreprise d'assurance ou de réassurance est exposée pour les douze mois à
 venir~» (D(2)(a))~; ce sont des exigences de données, que l'article~219, paragraphe~1, point~d)
-rend obligatoires (citations de la version consolidée du 14~novembre 2024, qui fait foi). Le refus
+rend obligatoires (citations de la version consolidée du 14~novembre 2024, référence de lecture
+de l'outil, section~\ref{sec:segments}). Le refus
 est une \textbf{décision de l'outil}, qui retient la
 lecture~L2~: il applique une exigence de données existante, il n'ajoute pas de condition
 mathématique, et il n'affirme pas que le calcul est interdit par le texte. Il a la même structure
@@ -6256,8 +6277,8 @@ Avec $B = 999$ et $\hat p \approx 0{,}10$, l'erreur de Monte-Carlo vaut environ
 $0{,}009$ pour une p-value unilatérale et $0{,}014$ pour une p-value bilatérale. Il serait erroné d'en conclure que la p-value est « précise à
 $\pm 0{,}01$ »~: cette précision porte sur l'estimation de la p-value
 \emph{bootstrap}, pas sur son écart à la vraie p-value sous $H_0$. La granularité
-de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$
-(Dwass, 1957 ; Hope, 1968 ; voir la bibliographie complémentaire, section~\ref{sec:biblio}),
+de $\hat p_{\text{MC}}$ est en outre bornée inférieurement par $1/(B+1)$, conséquence de l'ajout
+de~1 au numérateur et au dénominateur,
 et par $2/(B+1)$ au bilatéral (champ \code{granularite\_stat}, fiche~\ref{fiche:procedure-mc}).
 
 \emph{Formule de l'erreur de Monte-Carlo} (\code{engine\_p\_mc()}). Sous le modèle
@@ -8507,7 +8528,7 @@ sur laquelle les p-values exactes et asymptotiques sont valides (à l'exception
 de la p-value exacte des suites sur $u_t$, calculée seulement lorsque
 $\hat\pi_t$ est constant, où la ligne n'apporte rien de plus que son homologue
 sur $z_t$ et ne la retient pas), et c'est elle
-qui teste les hypothèses dans le modèle de l'annexe~XVII, dont elle reprend la pondération
+qui teste les hypothèses dans le modèle réglementaire, dont elle reprend la pondération
 $\hat\pi_t$ (B(5)(d), C(5)(d)). La base $u_t$ est
 un \emph{contrôle de cohérence de la pondération}, \textbf{sous la condition
 que cette pondération existe}~: elle vérifie que les conclusions
@@ -8677,8 +8698,8 @@ p.~8), qui fixe la procédure d'approbation des paramètres propres à l'entrepr
 fondement. Son article~2, «~Exactitude des résultats~», dispose~: «~Lorsqu'elle démontre l'exactitude
 des résultats, l'entreprise d'assurance ou de réassurance évalue si la méthode standardisée est
 appropriée pour ses données, si ses hypothèses se vérifient et si les données sont pertinentes par
-rapport à son profil de risque.~» Son article~1\textsuperscript{er}, paragraphe~3, énumère les
-éléments que contient la demande écrite d'approbation, dont, pour chaque segment, la méthode
+rapport à son profil de risque.~» Son article~1\textsuperscript{er}, paragraphe~3, énumère le
+contenu de la demande écrite d'approbation, dont, pour chaque segment, la méthode
 standardisée utilisée et la valeur du paramètre obtenue (point~d), le calcul sous-jacent et les
 informations montrant que ce calcul est approprié (point~e), «~des éléments prouvant que les
 données utilisées pour le calcul des paramètres propres à l'entreprise sont exhaustives, exactes
@@ -8690,8 +8711,8 @@ directive 2009/138/CE~» (point~g)~; son article~3, paragraphe~2, dispose que l'
 contrôle, pour évaluer les justifications du choix de la méthode standardisée, «~examine si les
 hypothèses relatives aux méthodes standardisées se vérifient et si les données sont pertinentes
 par rapport au profil de risque de l'entreprise~». Le règlement d'exécution ne parle ni de tests
-statistiques ni de périodicité. Texte lu sur la manifestation XHTML de l'Office des publications
-et, pour le point~f), sur EUR-Lex (HTML et PDF du \emph{Journal officiel}~; CELEX 32015R0498).
+statistiques ni de périodicité. Texte lu sur EUR-Lex (CELEX 32015R0498)~: manifestation XHTML de
+l'Office des publications et, pour le point~f), HTML et PDF du \emph{Journal officiel}.
 
 \medskip\noindent
 La notice de l'ACPR «~Modalités de calcul des ratios prudentiels pour les entreprises et groupes
@@ -8709,8 +8730,8 @@ par les orientations EIOPA-BoS-25/249, adoptées le 25~juin 2025, applicables de
 publication de leurs traductions dans toutes les langues officielles de l'Union (page de
 publication de l'AEAPP)~; la conformité continue y devient
 l'orientation~5 (§§~13 à~15). À la date d'établissement du présent document (page de garde), la
-page de publication de l'AEAPP donne les orientations dans toutes les langues officielles, en
-traductions présentées comme produites par intelligence artificielle et non datées, et indique
+même page donne ces traductions, présentées comme produites par intelligence artificielle et non
+datées, et indique
 toujours que les orientations de 2015 s'appliquent jusqu'à l'échéance~: la date d'application n'est donc pas établie, et aucune
 déclaration de conformité de l'ACPR à ces nouvelles orientations n'a été trouvée~; la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
 lors de la demande puis chaque année, avec leurs résultats dans le rapport ORSA, provient de la
@@ -9076,7 +9097,7 @@ $p = \#\{r^* \ge r_{\text{obs}} - \texttt{TOL\_EX\_AEQUO}\}/T!$, l'appariement o
 (tolérance absolue, section~\ref{sec:ex-aequo})~; rangée dans \code{p\_exacte} et retenue sous la
 nature \code{exacte par permutation (H0 : y independant de x, hors modele reglementaire)}.
 \emph{À $T \ge 10$}~: $B$ permutations tirées sous \code{engine\_sous\_graine()} (graine
-\code{seed}, section~\ref{sec:graines}), $p = (1 + k)/(B + 1)$ (M.~Dwass, 1957), restituée par
+\code{seed}, section~\ref{sec:graines}), $p = (1 + k)/(B + 1)$ (échantillon aléatoire de permutations~: M.~Dwass, 1957), restituée par
 \code{p\_mc\_ext} hors de \code{USP\_CATALOGUE\_MC}, non exacte (sur un jeu synthétique à $T = 10$,
 $B = 199$~: $0{,}020$)~; si $1/(B+1) \ge \alpha$, le commentaire dit l'\code{OK} inatteignable.
 \emph{La p de Student n'est pas retenue}~: non exacte au sens de l'outil (condition~(c))~; aucune
@@ -10408,6 +10429,7 @@ $H_0$ : les $z_t$ sont issus d'une loi normale.
 $W' = \operatorname{corr}\big(z_{(i)}, \tilde m_i\big)^2 = \big(\sum_i \tilde m_i z_{(i)}\big)^2 \big/
 \big[\big(\sum_i \tilde m_i^2\big)\big(\sum_t (z_t-\bar z)^2\big)\big]$, carré exact du coefficient
 de corrélation du QQ-plot normal.
+Fonction nommée~: \code{test\_shapiro\_francia()}.
 \Loi
 Pas de forme fermée. Royston (1993, \emph{Statistics in Medicine})~: avec $u = \ln T$, $v = \ln u$,
 $\ln(1-W') \approx \mathcal{N}(\mu, \sigma^2)$, $\mu = -1{,}2725 + 1{,}0521\,(v-u)$,
@@ -13733,16 +13755,17 @@ les sinistres cumulés.
 \medskip
 \noindent
 \emph{Version du texte et pagination.} Les formules ont été relevées sur la
-version consolidée en vigueur de l'annexe~XVII (version consolidée au
-14~novembre 2024). Les paragraphes~1 à~4 de la section~D sont identiques dans
+version consolidée de l'annexe~XVII au 14~novembre 2024, référence de lecture de l'outil
+(section~\ref{sec:segments}). Les paragraphes~1 à~4 de la section~D sont identiques dans
 la version d'origine et dans la version consolidée~: le texte consolidé
 (format xhtml) ne marque aucune modification dans la section~D, et la comparaison de
 leurs formules, faite en rendu graphique, ne relève aucune différence. Seule la formule de la MSEP, en tête du paragraphe~5, le dernier de la section, diffère (les points~(a) à~(d) de ce paragraphe sont identiques dans les deux versions)~: le
-libellé publié en 2015 n'est pas celui en vigueur, et c'est ce dernier qui est
+libellé publié en 2015 n'est pas celui du texte consolidé, et c'est ce dernier qui est
 reproduit ci-dessous et qu'implémente \code{mw\_msep()}. L'acte qui a opéré
 cette correction n'est pas identifié à ce jour~: le texte consolidé ne porte aucun marqueur dans
-la section~D, et aucun des cinq rectificatifs qu'il énumère (C1 à C5) ne porte sur cette
-section. La
+la section~D, et aucun des cinq rectificatifs qu'il énumère (C1 à C5), lus à l'image sur leur
+publication au \emph{Journal officiel}, ne porte sur cette section~; deux seulement visent
+l'annexe~XVII, en ses sections~C et~F. La
 pagination au \emph{Journal officiel} (L~12 du 17 janvier 2015) a été vérifiée
 à l'image~: la section~D occupe les p.~276--278 et le
 paragraphe~5 les p.~277--278. Cette pagination est celle de la \emph{version
@@ -17873,8 +17896,9 @@ n'est pas tabulé (les 75 réplications intérieures sont au tableau~T1~bis, des
 J3, V3h est tabulée dans tous les régimes. Les fiches de la partie~III citent ce tableau sans
 redire ces conditions. La puissance est mesurée sous six alternatives au modèle ajusté de J2,
 $R = 1\,000$ jeux chacune~: hétéroscédasticité hors de la famille réglementaire
-($\operatorname{Var}(Y_t) \propto x_t^k$, $k = 0$ et $k = 3$, la famille réglementaire
-correspondant à $1 \le k \le 2$), contamination d'une année tirée au hasard ($\ln y_t$ augmenté de
+($\operatorname{Var}(Y_t) \propto x_t^k$, $k = 0$ et $k = 3$, la famille réglementaire,
+$\operatorname{Var}(Y_t) \propto (1-\delta)\,\bar x\,x_t + \delta\,x_t^2$, allant de $k = 1$
+($\delta = 0$) à $k = 2$ ($\delta = 1$)), contamination d'une année tirée au hasard ($\ln y_t$ augmenté de
 $\lambda$ fois son écart-type, $\lambda = 3$ et $4$) et asymétrie des erreurs (loi du $\chi^2$ à $\nu = 4$
 et $\nu = 2$ degrés de liberté, centrée et réduite). Les décisions appariées sont comparées par le
 test de McNemar exact, avec la correction de Holm (1979, section~\ref{sec:biblio}) au niveau
@@ -18200,7 +18224,7 @@ tests unitaires du dépôt.
 \begin{encadre}
 \textbf{Sur quoi repose la vérification de la MSEP à un an.} Elle repose sur trois
 voies distinctes~: d'abord la confrontation du moteur à une transcription
-littérale de D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
+littérale de D(5) dans sa version consolidée (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires (\code{msep\_reglement})~; ensuite une comparaison
 \emph{externe} avec \code{ChainLadder::CDR} (paquet R \code{ChainLadder}
 0.2.18), implémentation publique de Merz--Wüthrich (2008), reproduite à
@@ -19322,8 +19346,8 @@ partie~III).
   \item Règlement délégué (UE)~2015/35 de la Commission du 10~octobre 2014 complétant la
   directive 2009/138/CE du Parlement européen et du Conseil sur l'accès aux activités de
   l'assurance et de la réassurance et leur exercice (solvabilité~II), \emph{Journal officiel de
-  l'Union européenne}, L~12 du 17.1.2015, p.~1 (version consolidée du 14~novembre 2024, qui fait
-  foi pour l'outil~: section~\ref{sec:segments}).
+  l'Union européenne}, L~12 du 17.1.2015, p.~1 (version consolidée du 14~novembre 2024, sans
+  effet juridique propre, retenue par l'outil comme référence de lecture~: section~\ref{sec:segments}).
   \emph{Portée.} Articles~218 à~220 (paramètres remplaçables, critères relatifs aux données,
   méthodes standardisées, dont, à l'article~220, paragraphe~2, le choix de la méthode la plus
   précise, à défaut la plus prudente)~; annexes~II et~XIV (paramètres standard) et annexe~XVII
@@ -19380,10 +19404,27 @@ partie~III).
   trouvée, à la date d'établissement du présent document (page de garde). C'est le texte des
   orientations qui fait référence, non le rapport final, qui garde l'ancienne numérotation.
 
-  \item Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II), cités en page d'objet.
-  \emph{Portée.} Ligne «~Transposition~» du tableau de la page d'objet. \textbf{Non relus} sur la
-  source (Légifrance) à la date d'établissement du présent document (page de garde)~: ni leur
-  contenu ni ce qu'ils transposent ne sont établis par le présent document.
+  \item Code des assurances, partie réglementaire, livre~III, titre~V~: article~R.~352-5, créé
+  par le décret n\textsuperscript{o}~2015-513 du 7~mai 2015 (article~4), en vigueur depuis le
+  1\textsuperscript{er}~janvier 2016~; article~R.~356-19, modifié par le décret
+  n\textsuperscript{o}~2017-1765 du 26~décembre 2017 (article~1\textsuperscript{er}), en vigueur
+  dans cette rédaction depuis le 31~décembre 2017. Versions en vigueur à la date d'établissement
+  du présent document (page de garde).
+  \emph{Portée.} Article~R.~352-5 (V), cité en page d'objet (ligne «~Transposition~»)~: ses trois
+  premiers alinéas reprennent les trois alinéas de l'article~104, paragraphe~7, de la directive
+  2009/138/CE cités en page d'objet, à deux adaptations près~: l'Autorité de contrôle prudentiel
+  et de résolution y tient lieu des autorités de contrôle, et le sous-ensemble remplaçable y est
+  «~un sous-ensemble des paramètres précisés à l'article~218~» du règlement délégué (UE)~2015/35~;
+  le quatrième porte~: «~Les modalités d'application du V sont précisées aux articles~218 à~220 du
+  règlement délégué~[\dots]~», que l'outil met en œuvre. Article~R.~356-19 (II), neuvième
+  alinéa~: en application de la formule standard et sous réserve de l'accord de l'Autorité de
+  contrôle prudentiel et de résolution en tant que contrôleur de groupe (article~356 du règlement
+  délégué), le capital de solvabilité requis au niveau du groupe peut être calculé en se fondant
+  sur des paramètres spécifiques au groupe, conformément à l'article~338 du règlement délégué, qui
+  renvoie, pour les données, à l'article~104, paragraphe~7, de la directive et à l'article~219 et,
+  pour les méthodes standardisées, à l'article~220~; ces paramètres sont distincts des paramètres
+  propres à l'entreprise, objet du présent document, qui ne les traite pas. Relus sur Légifrance
+  (LEGIARTI000030564441 et LEGIARTI000036332133).
 \end{itemize}
 
 \subsection{Traçabilité entre la documentation et le code}
