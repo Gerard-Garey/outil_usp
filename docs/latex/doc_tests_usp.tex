@@ -947,8 +947,8 @@ $20$, $30$, $50$, $100$ ($\alpha = 0{,}10$) et $T = 5$, $8$, $12$, $20$, $30$ ($
 grille de 88 points de \code{tests/puissance\_t8.R}
 ($T \in \{5, 8, 12, 20\}$, $\rho$ de $-0{,}99$ à $0{,}99$)~; hors de ces $T$, non mesurée. Dans
 le domaine gardé, à $T = 8$, le déficit (un moins la puissance) est proportionnel à
-$(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$, de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
-$1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (quantité
+$(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$ (constat numérique sur les points $10^{-4}$, $10^{-5}$ et $10^{-6}$ de la grille), de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
+$1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (déficit~: quantité
 exacte évaluée par quadrature numérique, intégrale d'Imhof~;
 \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
 la garde, le comportement du calcul n'est pas évalué par une mesure versionnée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
@@ -3086,7 +3086,7 @@ point~a)~», «~paragraphe~(1), point~(a)~»).
 
 Pour un segment donné et une profondeur $T$~:
 \begin{itemize}[itemsep=1pt]
-  \item $x_1,\dots,x_T$ : primes acquises par année de survenance (méthode risque de prime) ou
+  \item $x_1,\dots,x_T$ : primes acquises par année de survenance (méthode risque de primes) ou
         meilleure estimation de la provision en début d'exercice (méthode risque de réserve~1) ;
   \item $y_1,\dots,y_T$ : pertes agrégées (méthode prime) ou paiements de l'exercice augmentés de
         la meilleure estimation de clôture sur les mêmes sinistres (méthode réserve~1) ;
@@ -4526,8 +4526,9 @@ propre à l'entreprise est susceptible d'influer sur la prise de décision ou le
 utilisateurs de cette information, y compris les autorités de contrôle~» (dernier alinéa de
 D(2)). L'outil n'applique aucun facteur de queue~: l'estimation $\hat C(i,J)$ de D(4)(c) est prise
 pour charge ultime, ce que suppose D(2)(d). La consécutivité des années de B/C(2)(b) n'est
-vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années (paragraphe «~Lecture des
-fichiers~» ci-dessus)~;
+vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années, chacun des deux fichiers
+lus par \code{usp\_charger()} étant alors contrôlé séparément, sans comparaison de leurs années
+(paragraphe «~Lecture des fichiers~» ci-dessus)~;
 les hypothèses B(2)(g), C(2)(e) et D(2)(h) sont éprouvées par les tests de la partie~III, qui ne
 les établissent pas.
 
@@ -4764,10 +4765,12 @@ car elle est souvent surestimée. Deux situations doivent être distinguées.
 permutation et de randomisation --- les $B$ valeurs simulées et la valeur observée sont
 échangeables sous $H_0$. Si la loi de $S$ est continue, le rang de $S_{\text{obs}}$ est alors
 uniforme sur $\{1,\dots,B+1\}$, et le rejet pour $\hat p_{\text{MC}} \le \alpha$ est
-\textbf{exactement} de niveau $\alpha$ dès que $\alpha(B+1)$ est entier (Dwass, 1957~; Hope,
-1968)~; avec des ex \ae quo comptés contre l'observé, le niveau est au plus $\alpha$. La règle
-des verdicts, stricte ($p < \alpha$), donne le niveau $(\alpha(B+1) - 1)/(B+1)$, soit $0{,}099$ à
-$B = 999$ et $\alpha = 0{,}10$.
+\textbf{exactement} de niveau $\alpha$, pour une p-value unilatérale dès que $\alpha(B+1)$ est
+entier (Dwass, 1957~; Hope, 1968), pour la p-value bilatérale, double de la plus petite des deux
+p-values unilatérales, dès que $\alpha(B+1)/2$ est entier~; avec des ex \ae quo comptés contre
+l'observé, le niveau est au plus $\alpha$. La règle des verdicts, stricte ($p < \alpha$), donne
+le niveau $(\alpha(B+1) - 1)/(B+1)$ pour une p-value unilatérale et $(\alpha(B+1) - 2)/(B+1)$
+pour la p-value bilatérale, soit $0{,}099$ et $0{,}098$ à $B = 999$ et $\alpha = 0{,}10$.
 
 \emph{Dans le cas présent}, la loi de référence n'est pas connue~: elle est celle du
 \emph{modèle estimé} $\widehat{M}$. Les $S^{(b)}$ sont tirés sous $\widehat{M}$ et non sous le vrai
@@ -6966,7 +6969,10 @@ Lorsque les deux coexistent, ils sont documentés sur deux lignes distinctes. Le
 blocs (A), (B) et (D) concernent la méthode lognormale~; le bloc (C) est propre à
 la méthode Merz--Wüthrich, où la profondeur pertinente n'est plus $T$ mais le
 nombre $n_j = I - j$ de facteurs individuels observés dans chaque colonne du triangle, qui décroît
-jusqu'à 2 ou 3 sur les dernières années de développement.
+de $I$ (colonne~0) à~1 (colonne~$J-1$, le triangle étant carré)~: $\hat f_{J-1}$ repose sur un
+seul facteur, et les dernières variances estimées, $\hat\sigma^2_{J-3}$ et $\hat\sigma^2_{J-2}$,
+sur 2 et 1 degrés de liberté, $\hat\sigma^2_{J-1}$ étant fixée par la règle de minimum de
+D(5)(d)(ii).
 
 \begin{landscape}
 \begin{center}
@@ -7254,8 +7260,8 @@ $10~\%$ (fiche~\ref{mw:m3caldiag}) \\
 
 Facteurs $\hat f_j$ & Estimateur des moindres carrés pondérés &
 $f_j$ & Convergence en probabilité ; sans biais sous M1 &
-$\mathcal{O}_P(n_j^{-1/2})$ avec $n_j = I-j$ observations &
-M1 et M3 & Les colonnes de droite ne reposent que sur 2 ou 3 observations \\
+$\mathcal{O}_P(n_j^{-1/2})$ avec $n_j = I-j$ facteurs individuels &
+M1 et M3 & Les colonnes de droite ne reposent que sur 3, 2 puis 1 facteurs ($n_{J-1} = 1$) \\
 
 Variances $\hat\sigma_j^2$ & Estimateur pondéré de la variance &
 $\sigma_j^2$ & Convergence en probabilité &
@@ -7829,7 +7835,7 @@ décisions des $2\,000$ premiers jeux de C7.b sont identiques à celles de la me
 (C7.d). Le fichier lit son verdict selon la correspondance \code{ALERTE}
 si $\hat k = 1$, \code{ECHEC} si $\hat k = 2$~: ses fréquences se lisent comme celles de
 $\hat k \ge 1$ et de $\hat k = 2$, $\hat k$ étant fonction déterministe de
-la sortie de \code{test\_rosner()}. Statut~: résultat exact, démontré par le document et
+la sortie de \code{test\_rosner()}, inchangée. Statut~: résultat exact, démontré par le document et
 non par Rosner (1983), pour le niveau de la première étape sous
 i.i.d. normal à $\alpha < 0{,}240$, condition remplie aux deux seuils mesurés
 (fiche~\ref{fiche:rosner-esd}), dont C7.a est le contrôle~; \emph{constat de
@@ -7918,8 +7924,9 @@ générateur du moteur~; sorties
 \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} pour le volet~B à l'état du
 moteur à p-value marginale~; volet~B à p-value conditionnelle au régime, à l'état du moteur
 consigné en tête des fichiers, où Smirnov (diagnostic par décision dans le moteur) et les lignes
-sur ratios bruts à $\hat\pi_t$ constant (diagnostics, règle~R15) sont de type test, et où
-figurent Ljung--Box au retard~1 et Box--Pierce, que le moteur ne calcule pas, sorties \code{docs/tableaux/}\newline
+sur ratios bruts à $\hat\pi_t$ constant (diagnostics, règle~R15) sont de type test, et qui
+calcule aussi Ljung--Box au retard~1 et Box--Pierce, absents du volet~B et que le moteur ne
+calcule pas, sorties \code{docs/tableaux/}\newline
 \code{20261018-issue116-chaine-J1.md} et \code{docs/tableaux/}\newline
 \code{20261018-issue116-chaine-J2.md}~; extension du volet~A aux statistiques de stabilité,
 sorties\newline \code{docs/tableaux/}\allowbreak\code{20261017-issue116-exact-J1.md}, dont les lignes des quinze points communs sont identiques à
@@ -18015,8 +18022,9 @@ comme pour la ligne de la table auditable, qui la retient dans toutes les répli
 $0{,}1085$ $[0{,}095~;~0{,}123]$ à $0{,}10$ et $0{,}0575$ $[0{,}048~;~0{,}069]$ à $0{,}05$~; J2,
 $0{,}0975$ $[0{,}085~;~0{,}111]$ et $0{,}0535$ $[0{,}044~;~0{,}064]$. Comparée, sur les mêmes jeux
 simulés et avec les mêmes graines, à la statistique non pondérée (fichiers
-\code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md} et \code{-J2.md}),
-elle ne montre aucun changement de niveau détectable (test de McNemar exact, test binomial
+\code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md} et \code{-J2.md}, à
+l'état du moteur consigné en tête de ces fichiers, où la statistique de la constante n'est pas
+pondérée), elle ne montre aucun changement de niveau détectable (test de McNemar exact, test binomial
 bilatéral de paramètre $1/2$ sur les décisions discordantes~: p-values de $0{,}21$ à $0{,}74$),
 alors que, sur J2, dont les volumes sont dispersés (coefficient de variation $0{,}64$), les deux
 statistiques diffèrent nettement d'une réplication à l'autre (corrélation linéaire des p-values
