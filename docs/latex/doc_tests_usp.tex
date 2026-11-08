@@ -3842,7 +3842,7 @@ Plausibilité du ratio & $r_t \in [0{,}1\,;5[$ (\code{RATIO\_PLAUSIBLE\_MIN},
 ~: signale une erreur d'unité ou de saisie probable. Non bloquant~; un
 \code{ECHEC} de la ligne~A est un signal à examiner, non le constat d'une norme. \\
 Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Convention de l'outil, sans source
-réglementaire~: signale une rupture de périmètre probable. Non bloquant. \\
+réglementaire~: signale une rupture de périmètre possible. Non bloquant. \\
 Crédibilité pleine & $c(T, \text{barème appliqué}) = 1$, durée $T$ retenue (G(3)(a) ou~(b))~:
 $T \ge 15$ au barème long G(1), $T \ge 10$ au barème court G(2) & Informatif, non bloquant,
 annexe~XVII, section~G~; barème appliqué et avertissements sous le tableau. \\
@@ -4610,8 +4610,10 @@ l'estimation~; convention minimale, sans référence. Non bloquant. \\
 \label{sec:mc}
 % =============================================================================
 
-La profondeur exigée par l'annexe~XVII (cinq années au minimum) rend inutilisables, en toute
-rigueur, les lois asymptotiques de la majorité des tests documentés ci-après. Le script
+L'annexe~XVII admet des historiques courts --- cinq années d'accident ou cinq exercices
+consécutifs au moins (B(2)(b), C(2)(b), D(2)(b) et~(c)) --- et l'outil vise $T = 8$~: à ces
+profondeurs, les lois asymptotiques de la majorité des tests documentés ci-après sont
+inutilisables en toute rigueur. Le script
 recalcule donc, pour les statistiques les plus sensibles, une p-value de Monte-Carlo par
 bootstrap paramétrique.
 
@@ -4760,27 +4762,34 @@ car elle est souvent surestimée. Deux situations doivent être distinguées.
 
 \emph{Lorsque la loi de $S$ sous $H_0$ est exactement simulable} --- cas des tests de
 permutation et de randomisation --- les $B$ valeurs simulées et la valeur observée sont
-échangeables sous $H_0$. Le rang de $S_{\text{obs}}$ est alors uniforme sur $\{1,\dots,B+1\}$ et
-la règle ci-dessus fournit un test \textbf{exactement} de niveau $\alpha$ dès que $\alpha(B+1)$
-est entier (Dwass, 1957~; Hope, 1968). Vérification numérique sur 200\,000
-réplications avec $B = 99$~: la fréquence de rejet vaut $0{,}0506$ pour $\alpha = 0{,}05$ et
-$0{,}1003$ pour $\alpha = 0{,}10$.
+échangeables sous $H_0$. Si la loi de $S$ est continue, le rang de $S_{\text{obs}}$ est alors
+uniforme sur $\{1,\dots,B+1\}$, et le rejet pour $\hat p_{\text{MC}} \le \alpha$ est
+\textbf{exactement} de niveau $\alpha$ dès que $\alpha(B+1)$ est entier (Dwass, 1957~; Hope,
+1968)~; avec des ex \ae quo comptés contre l'observé, le niveau est au plus $\alpha$. La règle
+des verdicts, stricte ($p < \alpha$), donne le niveau $(\alpha(B+1) - 1)/(B+1)$, soit $0{,}099$ à
+$B = 999$ et $\alpha = 0{,}10$.
 
 \emph{Dans le cas présent}, la loi de référence n'est pas connue~: elle est celle du
 \emph{modèle estimé} $\widehat{M}$. Les $S^{(b)}$ sont tirés sous $\widehat{M}$ et non sous le vrai
 modèle, de sorte que l'échangeabilité avec $S_{\text{obs}}$ n'est pas acquise. Le résultat
 d'exactitude ci-dessus \textbf{ne se transporte donc pas} au bootstrap paramétrique. L'ajout
 de~1 corrige la seule discrétisation liée à un $B$ fini~; il ne corrige pas l'écart entre la loi
-sous $\widehat{M}$ et la loi sous le vrai modèle, dont la disparition est un résultat
-\emph{asymptotique en $T$} (Bickel \& Freedman, 1981~; Singh, 1981~; Hall, 1992). La validité du
+sous $\widehat{M}$ et la loi sous le vrai modèle, dont la disparition, quand $T \to \infty$,
+n'est établie que dans des cadres réguliers (Bickel \& Freedman, 1981~; Singh, 1981, pour le
+bootstrap non paramétrique d'échantillons i.i.d.~; Hall, 1992, ouvrage non relu), dont la
+transposition au présent modèle, à volumes fixés et à $\hat\delta$ souvent au bord, n'est pas
+démontrée. La validité du
 dispositif reste par conséquent asymptotique, et l'étude de simulation de la
 section~\ref{sec:calibration-mc} en constitue la seule mesure disponible à $T = 8$.
 \Usage
-Hors des p-values exactes des lois discrètes, calibrées par construction, le niveau d'une p-value
-n'est connu à $T = 8$ que par la mesure~; celui de la p-value de Monte-Carlo a été mesuré sur la
-chaîne complète du moteur aux tailles d'échantillon du régime USP~: sous le
-modèle ajusté à deux jeux à $T = 8$, il est compatible avec le niveau nominal ou inférieur à
-lui, jamais supérieur en taux inconditionnel (section~\ref{sec:calibration-mc})~; aucune
+Hors des p-values exactes, de niveau au plus $\alpha$ par construction sous le modèle de leur loi
+de référence (égal à $\alpha$ pour une loi continue, à la taille atteignable pour une loi
+discrète), le niveau d'une p-value n'est connu à $T = 8$ que par la mesure~; celui de la p-value
+de Monte-Carlo a été mesuré sur la chaîne complète du moteur (\code{run\_engine()}, p-value
+marginale V1), et celui de la p-value conditionnelle au régime par le script de la
+section~\ref{sec:calibration-mc}~: sous le modèle ajusté à deux jeux à $T = 8$, il est
+compatible avec le niveau nominal ou inférieur à lui, sans dépassement significatif en taux
+inconditionnel (section~\ref{sec:calibration-mc})~; aucune
 p-value asymptotique n'y a de justification. Conditionnellement au régime $\hat\delta$
 intérieur, ce niveau est nettement inférieur au nominal pour Breusch--Pagan (deux formes),
 Goldfeld--Quandt et Brown--Forsythe sur les trois jeux mesurés, et pour Grubbs, D'Agostino
@@ -4893,9 +4902,11 @@ triangles.
 
 \emph{Valeurs sur le triangle de contrôle} ($B = 999$, graine 20260831, référence
 \code{tests/reference/}\allowbreak\code{reserve2.rds}). $\sigma_{\mathrm{USP}} = 0{,}0497764613$ ne dépend pas du
-redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot} vaut
-$0{,}01845$ et les quantiles à $2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap}
-$[0{,}04435~;~0{,}05398]$. La couverture à $T = 8$ de cet intervalle n'est pas mesurée pour la
+redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot},
+écart type estimé avant le mélange de crédibilité de D(4), vaut $0{,}01845$ (valeur observée
+$0{,}02182$), et les quantiles à $2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap}, qui portent
+sur $\sigma_{\mathrm{USP}}$ après ce mélange ($c = 0{,}59$, section~G~; $\sigma_{(\text{res},s)} =
+0{,}09$), $[0{,}04435~;~0{,}05398]$. La couverture à $T = 8$ de cet intervalle n'est pas mesurée pour la
 méthode Merz--Wüthrich (travail postérieur à la remise~; fiche~\ref{fiche:ic-bootstrap}, rubrique~6).
 
 \emph{Écart au facteur sous forme stable.} Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
@@ -5550,7 +5561,8 @@ la loi est exacte~: est dite \emph{exacte au sens de l'outil} la p-value dont la
 de la statistique sous $H_0$ est exacte à $T$ fini sous le modèle réglementaire, c'est-à-dire
 pour toute loi de la famille réglementaire contenue dans $H_0$, et non sous le seul modèle
 ajusté, cadre de la p-value de Monte-Carlo (premier fondement~; pour les lois de référence
-échangeables, à $\hat\pi_t$ constant seulement, règle~R7, section~\ref{sec:base-residus})
+échangeables, exactes sous les seules lois de la famille à $\pi_t$ constant et attribuées à
+$\hat\pi_t$ constant seulement, règle~R7, section~\ref{sec:base-residus})
 ou, pour une ligne dont l'hypothèse nulle est \emph{disjointe} de la famille réglementaire
 (le modèle ajusté appartient à $H_1$), sous cette seule hypothèse nulle, par énumération
 complète ou forme fermée, sans hypothèse auxiliaire de forme de loi, le conditionnement sur
@@ -5628,9 +5640,11 @@ n'est pas calculée (Anderson--Darling et Cramér--von Mises à $T < 8$), faute 
 elle affirmerait une valeur qui n'existe pas. Mesuré par \code{run\_engine()} ($B = 999$)~:
 présente sur chacune d'elles dans \code{premium\_interieur}, absente dans \code{premium}. La ligne
 d'Anscombe--Glynn, qui n'a pas de p-value de Monte-Carlo, est non applicable dans ce régime
-(fiche~\ref{fiche:anscombe-glynn-aplatissement}~; règle~R9~: à $\hat\pi_t$ variable, une ligne
-sans p-value de Monte-Carlo prévue, dont la seule p-value est une approximation établie pour un
-échantillon i.i.d. normal, est non applicable, cette p-value n'étant ni restituée ni retenue).
+à $T \ge 20$ (fiche~\ref{fiche:anscombe-glynn-aplatissement}~; règle~R9~: à $\hat\pi_t$ variable,
+une ligne sans p-value de Monte-Carlo prévue, dont la seule p-value est une approximation établie
+pour un échantillon i.i.d. normal, est non applicable, cette p-value n'étant ni restituée ni
+retenue~; à $T < 20$, donc à $T = 8$, elle l'est dans tous les régimes, le motif $T < 20$
+primant).
 Règle~R6~: l'ajustement de Stephens (cas~3) suppose les observations standardisées par leur
 moyenne et leur écart-type empiriques~; $z_t$ étant standardisé par le modèle, la p non simulée
 d'Anderson--Darling et de Cramér--von Mises est calculée sur la statistique re-standardisée
@@ -6251,8 +6265,8 @@ est la p-value bootstrap que donnerait un $B$ infini. En queue haute (symétriqu
 basse), $\operatorname{Var}(\hat p) = B_{\text{eff}}\,q^{+}(1-q^{+})/(B_{\text{eff}}+1)^2$~: la
 formule du moteur, $\sqrt{\hat p(1-\hat p)/B_{\text{eff}}}$, en est l'écart-type au facteur
 $B_{\text{eff}}/(B_{\text{eff}}+1)$ près et au remplacement de $q^{+}$ par son estimateur
-$\hat p$ près~; c'est une approximation numérique d'un écart-type exact, sans lien avec $T$. Au
-bilatéral, $\hat p = 2\min(\hat p^{+}, \hat p^{-})$~: tant que le minimum ne change pas de côté
+$\hat p$ près~; c'est une estimation approchée, par substitution de $\hat p$, d'un écart-type
+exact, sans lien avec $T$. Au bilatéral, $\hat p = 2\min(\hat p^{+}, \hat p^{-})$~: tant que le minimum ne change pas de côté
 d'une réalisation à l'autre, $\hat p$ est le double d'une proportion de queue d'espérance
 $q = p/2$, de variance $4q(1-q)/B = p(2-p)/B$, et le moteur retient
 $\sqrt{\hat p(2-\hat p)/B_{\text{eff}}}$, $\hat p$ étant pris après la borne à~1. L'énumération
@@ -6307,13 +6321,16 @@ de l'ordre de la granularité.
   \item \textbf{Résultats exacts disponibles à $T = 8$.} Loi binomiale
   (Cox--Stuart), loi de permutation de Spearman, loi mahonienne du $S$ de
   Kendall, loi combinatoire du nombre de suites, loi exacte de Smirnov à deux
-  échantillons. Ces p-values sont valides sans réserve de taille d'échantillon, sous le
-  modèle ajusté et à $\hat\pi_t$ constant seulement~: le moteur ne les attribue que dans ce
-  régime (règle~R7, section~\ref{sec:base-residus}). Cette exactitude vaut sous le modèle
-  ajusté pris pour vrai, et non conditionnellement au régime de $\hat\delta$, lui-même estimé sur
-  les mêmes données~: même quand le modèle générateur a $\pi_t$ constant, les fréquences de rejet
-  conditionnelles à $\hat\pi_t$ constant s'écartent du niveau nominal (effet de sélection par le
-  régime, constat de simulation de la section~\ref{sec:base-residus}, non quantifié au-delà).
+  échantillons, loi de Durbin--Watson (forme quadratique en normales, intégrale d'Imhof). Ces
+  lois sont exactes à $T$ fini pour toute loi de la famille réglementaire à $\pi_t$ constant
+  ($\delta = 1$ ou volumes constants), quels que soient $\beta$ et $\gamma$, et non sous le seul
+  modèle ajusté (section~\ref{sec:nature})~; le moteur ne les attribue qu'à $\hat\pi_t$ constant
+  (règle~R7, section~\ref{sec:base-residus}). Ce régime étant estimé sur les mêmes données,
+  l'exactitude ne vaut pas conditionnellement à lui~: quand le modèle générateur a $\pi_t$
+  constant, les fréquences de rejet conditionnelles à $\hat\pi_t$ constant s'écartent du niveau
+  nominal~; quand il a $\pi_t$ variable, un $\hat\delta$ estimé au bord~1 fait attribuer une loi
+  qui n'est alors qu'approchée (constats de simulation de la section~\ref{sec:base-residus}, non
+  quantifiés au-delà).
   L'utilisateur dont le jeu conduit à $\hat\delta = 1$ lit donc une p-value exacte dont le niveau
   conditionnel à ce classement n'est pas garanti égal à $\alpha$~; la p-value de Monte-Carlo, marginale à
   $\hat\delta$ au bord (variante V3h) et simulée sous le même modèle ajusté, ne corrige pas cet effet (alinéa suivant). La loi de permutation de
@@ -6396,9 +6413,9 @@ de l'ordre de la granularité.
   partitions sur le volume et Smirnov sont des diagnostics par décision. Sa capacité de détection
   est bornée par la \emph{puissance enveloppe} $\pi_{\text{env}}$, puissance du meilleur test
   invariant contre l'écart le plus grand de la famille réglementaire ($\delta = 1$ contre
-  $\delta = 0$), fonction des seuls volumes et de $\alpha$ (quantité exacte dans la limite des faibles
-  coefficients de variation, hypothèse non vérifiée, évaluée par quadrature numérique et recherche
-  de racine~;
+  $\delta = 0$), fonction des seuls volumes et de $\alpha$ (puissance exacte d'un modèle limite,
+  celui des faibles coefficients de variation, dont l'adéquation à $T = 8$ n'est pas vérifiée~;
+  évaluée par quadrature numérique et recherche de racine, sans tirage~;
   fiche~\ref{fiche:breusch-pagan-koenker})~: $0{,}13$ sur le jeu de contrôle et $0{,}34$ sur le jeu
   à $\hat\delta$ intérieur à $\alpha = 0{,}10$. Un \code{OK} n'y démontre donc pas la structure de
   variance~; un rejet calibré garde sa valeur. Ce que les données distinguent entre les deux bornes
@@ -6435,7 +6452,7 @@ mécaniquement~: elle distingue l'existence théorique d'une loi limite de la
 qualité de son approximation à $T = 8$.
 
 La colonne « Méthode » indique le périmètre d'emploi~: \textbf{LN} pour les
-méthodes lognormales (risque de prime, section~B, et risque de réserve
+méthodes lognormales (risque de primes, section~B, et risque de réserve
 n\textsuperscript{o}~1, section~C), \textbf{MW} pour la méthode du risque de
 réserve n\textsuperscript{o}~2 (Merz--Wüthrich, section~D), et
 \textbf{Les deux} lorsque le test est employé dans les deux dispositifs. Dans ce
@@ -6569,7 +6586,7 @@ Inutile : l'exacte est calculable & Même alternative que Mann--Kendall, qui por
 
 Mann--Kendall & LN & $Z$ / $S$ & Oui (loi mahonienne) & Oui & Oui & \textbf{Exacte} si
 $\hat\pi_t$ constant et sans ex \ae quo, Monte-Carlo sinon &
-\textbf{Déconseillée} : approx. normale usuellement requise à $T\ge 10$ &
+\textbf{Déconseillée} : approx. normale réservée à $T\ge 10$ (recommandation d'usage) &
 Distribution exacte à privilégier \\
 
 Cox--Stuart & LN & $K$ & Oui (binomiale) & --- & Oui sans ex \ae quo, \code{NA} sinon
@@ -6579,7 +6596,7 @@ Sans objet & Exacte ; mais $p_{\min} \ge 0{,}125$ à $T=8$ : test inopérant, re
 diagnostic (règle~R1) \\
 
 Breusch--Pagan studentisé (Koenker) & LN & LM & Non & Oui & Oui & Monte-Carlo &
-\textbf{Déconseillée} : convergence $\chi^2$ lente, aucune borne à $T=8$ &
+\textbf{Déconseillée} : vitesse de convergence non établie dans la littérature consultée, aucune borne à $T=8$ &
 Bootstrap recommandé ; seule ligne de type test pour~H2, commentaire portant la puissance enveloppe $\pi_{\text{env}}$ \\
 
 Breusch--Pagan original (1979) & LN & LM & Non & Oui, \emph{sous normalité} & Oui & \textbf{Diagnostic} par décision~: Monte-Carlo
@@ -6644,8 +6661,8 @@ Monte-Carlo, p de Dallal--Wilkinson en complément & \textbf{Sous conditions} : 
 Version correcte du KS à paramètres estimés \\
 
 Jarque--Bera & LN & JB & Non & Oui & Oui & Monte-Carlo &
-\textbf{Déconseillée} : convergence $\chi^2_2$ très lente ; $b_2$ borné par
-$\sim T$ & Bootstrap ; test peu informatif à $T=8$ \\
+\textbf{Déconseillée} : convergence $\chi^2_2$ lente selon Bowman et Shenton (1975, texte non
+relu), non chiffrée à $T = 8$ ; $b_2$ borné par $\sim T$ & Bootstrap ; test peu informatif à $T=8$ \\
 
 D'Agostino (asym.) & LN & $Z$ & Non & Oui (transf. $S_U$) & Oui & Monte-Carlo &
 \textbf{Sous conditions} : défini dès $T\ge 8$, à la limite du domaine &
@@ -6665,7 +6682,7 @@ Bootstrap recommandé \\
 
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
 (doublement) si $\hat\pi_t$ constant, Monte-Carlo sinon &
-\textbf{Déconseillée} : approx. normale requiert $n_1,n_2\ge 10$ &
+\textbf{Déconseillée} : approx. normale réservée à $n_1,n_2\ge 10$ (recommandation d'usage) &
 Distribution exacte à privilégier~; $p_{\min} = 0{,}057$ à $T = 8$ : \code{ECHEC}
 inatteignable à $\alpha = 0{,}10$ à $\hat\pi_t$ constant \\
 
@@ -6821,7 +6838,9 @@ Oui, $\chi^2(2K)$ & Oui & Monte-Carlo &
 (effet de levier) &
 Localise ce que la ligne d'hétéroscédasticité agrège ; un rejet dû à l'exposant ne peut motiver
 une modification de l'exposant~; l'exposant différent de~1, établi, met en cause la cohérence des données avec
-D(2)(h)(iv) (art.~219, par.~1, d)), dont l'entreprise apprécie la portée (art.~220)~; un rejet
+D(2)(h)(iv) (art.~219, par.~1, d)), dont l'entreprise apprécie la portée sur le choix entre les
+méthodes de réserve n\textsuperscript{o}~1 et n\textsuperscript{o}~2 (art.~220, par.~1, b), et
+par.~2), choix que l'outil ne fait pas (fiche~\ref{mw:m2b})~; un rejet
 dû à une constante de variance propre à
 l'année met en cause la lecture de l'outil, un rejet dû à un écart concentré de l'espérance relève
 de M1, M3 ou M4~; causes non séparées, liste non fermée~; taux de rejet mesuré sous le niveau
@@ -6946,7 +6965,7 @@ loi de la statistique, et la convergence en $B$ de l'estimateur de la p-value.
 Lorsque les deux coexistent, ils sont documentés sur deux lignes distinctes. Les
 blocs (A), (B) et (D) concernent la méthode lognormale~; le bloc (C) est propre à
 la méthode Merz--Wüthrich, où la profondeur pertinente n'est plus $T$ mais le
-nombre d'observations $n_j = I - j$ de chaque colonne du triangle, qui décroît
+nombre $n_j = I - j$ de facteurs individuels observés dans chaque colonne du triangle, qui décroît
 jusqu'à 2 ou 3 sur les dernières années de développement.
 
 \begin{landscape}
@@ -7022,8 +7041,8 @@ des précédentes & Non exploitable ; sur-rejet si queues lourdes \\
 Goldfeld--Quandt (diagnostic) & $F$, rapport des variances de deux blocs de volume & \emph{Aucune} en $T$~: $\mathcal{F}(h, h)$, exacte sous normalité pour deux régressions séparées & Approchée (résidus d'un ajustement global) & Sans objet &
 Normalité, indépendance, régressions séparées (non remplie) & p de Fisher restituée~; p-value de Monte-Carlo calculée, aucune retenue (fiche~\ref{fiche:goldfeld-quandt}) \\
 
-Brown--Forsythe (diagnostic) & $W$, analyse de variance des écarts absolus à la médiane du groupe & \emph{Aucune} en $T$~: $\mathcal{F}(1, T-2)$, approchée & Approximation à $T$ fini, aucune loi limite employée & Sans objet (approximation à $T$ fini, non suite en $T$)~; qualité à $T = 8$ non établie dans la littérature consultée &
-Indépendance~; groupes de 4 années à $T = 8$ & p de Fisher restituée~; p-value de Monte-Carlo calculée, aucune retenue (fiche~\ref{fiche:brown-forsythe}) \\
+Brown--Forsythe (diagnostic) & $W$, analyse de variance des écarts absolus à la médiane du groupe & \emph{Aucune} en $T$~: $\mathcal{F}(1, T-2)$, loi de l'analyse de la variance sous normalité, appliquée aux écarts absolus $d_{gi}$, exacte sous aucun modèle & Approximation à $T$ fini (famille~(iii) de l'encadré de la section~\ref{sec:nature}), non asymptotique & Sans objet (aucune suite en $T$ employée)~; qualité à $T = 8$ non établie dans la littérature consultée &
+Indépendance~; groupes de 4 années à $T = 8$~; $d_{gi}$ non normaux et liés par la médiane du groupe (à effectif pair, les deux écarts centraux sont égaux) & p de Fisher restituée~; p-value de Monte-Carlo calculée, aucune retenue (fiche~\ref{fiche:brown-forsythe}) \\
 
 Ljung--Box (retard~2) & $Q$ & $\chi^2(h)$ & Convergence en loi &
 Non établie dans la littérature consultée &
@@ -7670,15 +7689,15 @@ et aucune référence de la littérature n'a été vérifiée pour la puissance 
 sortie \code{docs/tableaux/}\newline \code{20260927-issue114-constats-puissance.md}, graine 20260927, générateur
 du moteur). \emph{C1, puissance contre un AR(1)}~: 20\,000 séries gaussiennes de longueur~8 par
 valeur de $\rho$, AR(1) stationnaire ($u_1 = e_1/\sqrt{1-\rho^2}$, $u_t = \rho u_{t-1} + e_t$,
-innovations communes à tous les $\rho$) --- la première mesure de C1 ne consignant pas
-l'initialisation, la variante stationnaire est retenue comme hypothèse de reproduction parce
-qu'elle seule reproduit ses huit valeurs ($|z| \le 1{,}62$), la variante à départ nul
-étant incompatible sur six valeurs sur huit (même fichier) ---~; test des suites par \code{runs\_p\_exacte()} et
+innovations communes à tous les $\rho$) --- l'initialisation stationnaire est une hypothèse de
+reproduction, seule variante compatible avec les huit valeurs de C1 ($|z| \le 1{,}62$), la
+variante à départ nul étant incompatible sur six sur huit (même fichier) ---~; test des suites par \code{runs\_p\_exacte()} et
 Durbin--Watson exact par \code{dw\_p\_exacte()} sur la série centrée~; rejet si $p < \alpha =
 0{,}10$. À $\hat\pi_t$ constant, $z_t$ est une transformation affine croissante des log-ratios et
 les deux p-values y sont invariantes (contrôle d'intégrité du script)~: la mesure vaut pour les
 lignes de ce régime. Statut~: \emph{constat de simulation, hors modèle réglementaire} ---
-l'annexe~XVII suppose des années indépendantes, l'AR(1) est une alternative choisie pour mesurer
+le critère de B(6) et C(6), somme de contributions par année, suppose des années indépendantes
+(lecture de l'outil, section~\ref{sec:h4}), l'AR(1) est une alternative choisie pour mesurer
 la puissance. Une variante secondaire à départ nul ($u_1 = e_1$), non stationnaire, donne des
 puissances plus faibles ou égales (même fichier). \emph{C2, niveau de la formule de
 Kolmogorov}~: 3\,000 échantillons de taille~8, rejet si la p-value de Kolmogorov de la ligne est
@@ -7807,12 +7826,10 @@ de $\hat k$ sur toutes les réplications~; invariance affine~; estimation et ver
 \code{run\_engine()} sur J1 et J2 observés et sur le premier jeu simulé de chacun~; premier
 jeu de chaque flux identique à un tirage isolé~; état du générateur de l'appelant restauré. Les
 décisions des $2\,000$ premiers jeux de C7.b sont identiques à celles de la mesure de calibration
-(C7.d), et une mesure antérieure recalculée (C7.c) ne s'écarte pas
-de C7.a au niveau de 5~\% après correction de Bonferroni sur trois comparaisons. Le fichier, antérieur à
-la restitution de la ligne en diagnostic, lit son verdict selon la correspondance \code{ALERTE}
+(C7.d). Le fichier lit son verdict selon la correspondance \code{ALERTE}
 si $\hat k = 1$, \code{ECHEC} si $\hat k = 2$~: ses fréquences se lisent comme celles de
 $\hat k \ge 1$ et de $\hat k = 2$, $\hat k$ étant fonction déterministe de
-la sortie de \code{test\_rosner()}, inchangée. Statut~: résultat exact, démontré par le document et
+la sortie de \code{test\_rosner()}. Statut~: résultat exact, démontré par le document et
 non par Rosner (1983), pour le niveau de la première étape sous
 i.i.d. normal à $\alpha < 0{,}240$, condition remplie aux deux seuils mesurés
 (fiche~\ref{fiche:rosner-esd}), dont C7.a est le contrôle~; \emph{constat de
@@ -7822,14 +7839,11 @@ du nombre de réplications, muette sur l'erreur en $T$.
 \noindent\emph{Calibration des p-values de Monte-Carlo} (script
 \code{tests/calibration\_mc\_t8.R}~; sorties
 \code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J1.md} et
-\code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md}~; une mesure antérieure,
-sorties \code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J1.md} et
-\code{docs/tableaux/}\newline \code{20260930-issue166-calibration-J2.md}, est citée en «~avant~»
-pour les lignes dont la statistique ou la p-value retenue a changé entre les deux). Niveau réel,
+\code{docs/tableaux/}\newline \code{20261008-issue166-calibration-J2.md}). Niveau réel,
 sous le modèle ajusté à J1 et à J2, de la chaîne complète du dossier (\code{run\_engine()},
 $B = 999$, $R = 2\,000$ jeux simulés par jeu) à l'état du moteur consigné en tête des fichiers, où
 la p-value de Monte-Carlo est marginale (V1) dans tous les régimes et où le catalogue compte 34
-statistiques~; le moteur actuel en compte 31 (catalogues des statistiques Monte-Carlo,
+statistiques~; le moteur en compte 31 (catalogues des statistiques Monte-Carlo,
 §\ref{sec:inventaire}) et retient à $\hat\delta^{*}$ intérieur la p-value conditionnelle au
 régime, dont les niveaux sont ceux de la mesure «~p-value conditionnelle au régime~» ci-dessous~;
 pour chacune des 34 statistiques d'\code{USP\_CATALOGUE\_MC} de cet état et pour chaque ligne de la table auditable~; protocole, références, lecture en quatre états et
@@ -7888,24 +7902,24 @@ rubrique~7 cite la puissance du volet~A (paragraphe suivant) et renvoie encore �
 les autres alternatives. Statut~:
 \emph{constat de simulation}, sans portée générale~; des variantes
 conditionnelles mesurées, seule la variante hybride V3h est implémentée dans le moteur
-(V3b à $\hat\delta$ intérieur, V1 au bord), V3a et V3b autonomes étant écartées~; ces mesures ont
-été faites avant l'implémentation, les variantes étant recalculées par le script, et ne se
-reproduisent qu'à l'état du moteur consigné en tête des fichiers (section~\ref{sec:calibration-mc}).
-La partie régime a été rejouée sur un moteur ultérieur (sortie
+(V3b à $\hat\delta$ intérieur, V1 au bord), V3a et V3b autonomes étant écartées~; les variantes
+sont recalculées par le script, et ces mesures ne se reproduisent qu'à l'état du moteur consigné
+en tête des fichiers (section~\ref{sec:calibration-mc}).
+La partie régime a été rejouée à un autre état du moteur, consigné en tête de sa sortie (sortie
 \code{docs/tableaux/}\newline \code{20261018-issue229-p-conditionnelle-regime.md}, valeurs brutes
 \code{docs/tableaux/}\newline \code{20261018-issue229-p-conditionnelle-regime-brut.tsv} et journal
 \code{docs/tableaux/}\newline \code{20261018-issue274-journal-mesure.md}) avec des résultats
-identiques~; la partie puissance n'a pas été rejouée.
+identiques~; la partie puissance ne l'a pas été.
 
 \noindent\emph{Puissance sous le modèle ajusté} (script \code{tests/puissance\_t8.R},
 générateur du moteur~; sorties
 \code{docs/tableaux/}\newline \code{20260930-issue116-exact-J1.md} pour le volet~A,
 \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J1.md} et
 \code{docs/tableaux/}\newline \code{20260930-issue116-chaine-J2.md} pour le volet~B à l'état du
-moteur à p-value marginale~; remesure du volet~B sur le moteur à p-value conditionnelle au régime,
-à l'état consigné en tête des fichiers, antérieur à la restitution en diagnostic de Smirnov
-(diagnostic par décision) et des lignes sur ratios bruts à $\hat\pi_t$ constant (règle~R15), et
-au retrait de Ljung--Box au retard~1 et de Box--Pierce, sorties \code{docs/tableaux/}\newline
+moteur à p-value marginale~; volet~B à p-value conditionnelle au régime, à l'état du moteur
+consigné en tête des fichiers, où Smirnov (diagnostic par décision dans le moteur) et les lignes
+sur ratios bruts à $\hat\pi_t$ constant (diagnostics, règle~R15) sont de type test, et où
+figurent Ljung--Box au retard~1 et Box--Pierce, que le moteur ne calcule pas, sorties \code{docs/tableaux/}\newline
 \code{20261018-issue116-chaine-J1.md} et \code{docs/tableaux/}\newline
 \code{20261018-issue116-chaine-J2.md}~; extension du volet~A aux statistiques de stabilité,
 sorties\newline \code{docs/tableaux/}\allowbreak\code{20261017-issue116-exact-J1.md}, dont les lignes des quinze points communs sont identiques à
@@ -8020,7 +8034,7 @@ coefficients diffèrent de moins de $10^{-3}$ en relatif ($1{,}218795$ contre $1
 $\alpha = 0{,}10$, $1{,}815254$ contre $1{,}814512$ à $0{,}05$). 21 contrôles, aucun en échec.
 Variante à départ nul non calculée. \emph{Statut}~: les puissances et les niveaux
 des volets~A et~B sont des \emph{constats de simulation sous des alternatives choisies, hors modèle
-réglementaire} (l'annexe~XVII suppose des années indépendantes)~; le niveau du volet~A sous le
+réglementaire} (le critère de B(6) et C(6) suppose des années indépendantes, lecture de l'outil, section~\ref{sec:h4})~; le niveau du volet~A sous le
 point nul est le contrôle d'un niveau exact connu~; la puissance de Durbin--Watson par Imhof est
 une quantité exacte évaluée par quadrature numérique (intégrale d'Imhof), et non une approximation
 numérique au sens du tableau des quatre statuts (formule d'ajustement), à distinguer des
@@ -8272,10 +8286,13 @@ $\pi_t$ est constant dans le modèle générateur, les huit fréquences sont com
 probabilité exacte. Dans le scénario~B à $\hat\pi_t$ variable, Durbin--Watson et Shapiro--Wilk
 rejettent \emph{moins} que le niveau nominal (0,090 et 0,089 au seuil de 10~\%)~: l'approximation
 y est conservatrice, sans que rien permette d'étendre ce sens à d'autres volumes ou à d'autres
-$\delta$. Enfin, des écarts apparaissent aussi \emph{à $\hat\pi_t$ constant} (scénario~A,
-Shapiro--Wilk à 0,111)~: l'exactitude énoncée plus haut vaut sous le modèle ajusté pris pour
-vrai, et non conditionnellement au régime, qui est lui-même estimé sur les mêmes données~; cet
-effet de sélection n'est pas quantifié au-delà de ce constat. Les mesures
+$\delta$. Enfin, des écarts apparaissent aussi \emph{à $\hat\pi_t$ constant}. Dans le
+scénario~A (Shapiro--Wilk à 0,111, suites à 0,050, Smirnov à 0,024), où le modèle générateur a
+$\pi_t$ constant, l'exactitude énoncée plus haut, qui vaut pour toute loi de la famille
+réglementaire à $\pi_t$ constant, ne vaut pas conditionnellement au régime, lui-même estimé sur
+les mêmes données~; dans le scénario~B (Smirnov à 0,037), le modèle générateur a $\pi_t$
+variable, et la loi attribuée à $\hat\pi_t$ constant n'y est qu'approchée. Ces effets de
+sélection ne sont pas quantifiés au-delà de ces constats. Les mesures
 des fiches qui ne précisent pas le régime de $\hat\delta$ se lisent comme telles
 (fiche~\ref{fiche:durbin-watson}).
 
@@ -8483,7 +8500,8 @@ sur laquelle les p-values exactes et asymptotiques sont valides (à l'exception
 de la p-value exacte des suites sur $u_t$, calculée seulement lorsque
 $\hat\pi_t$ est constant, où la ligne n'apporte rien de plus que son homologue
 sur $z_t$ et ne la retient pas), et c'est elle
-qui teste les hypothèses telles que l'annexe~XVII les formule. La base $u_t$ est
+qui teste les hypothèses dans le modèle de l'annexe~XVII, dont elle reprend la pondération
+$\hat\pi_t$ (B(5)(d), C(5)(d)). La base $u_t$ est
 un \emph{contrôle de cohérence de la pondération}, \textbf{sous la condition
 que cette pondération existe}~: elle vérifie que les conclusions
 d'indépendance et de stabilité ne sont pas un artefact des poids $\hat\pi_t$.
@@ -8571,7 +8589,8 @@ Cox--Stuart & $n_p = 4$ paires, donc au plus $m = 4$ différences non nulles
 $\Rightarrow$ $p_{\min} = 2\cdot 2^{-m} \ge 0{,}125$~: le rejet est \emph{impossible} à tout
 seuil usuel & Restitué en diagnostic, sans verdict~: test inopérant, $p_{\min} \ge \alpha$
 (règle~R1)~; la détection de tendance repose sur Mann--Kendall \\
-Jarque--Bera & $b_2$ borné par $\sim T$~; convergence $\chi^2_2$ très lente &
+Jarque--Bera & $b_2$ borné par $\sim T$~; convergence $\chi^2_2$ lente selon Bowman et Shenton
+(1975, texte non relu), non chiffrée à $T = 8$ &
 p-value de Monte-Carlo ajoutée~; test à lire comme purement indicatif \\
 White & 3 coefficients auxiliaires estimés sur 8 points & p-value de
 Monte-Carlo ajoutée~; Breusch--Pagan à privilégier \\

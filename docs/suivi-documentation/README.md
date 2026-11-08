@@ -51,6 +51,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `\label` | Fichier | Titre courant | Partie |
 |---|---|---|---|
 | Préambule (entrée transversale) | `I.md` | Commentaires `%` de la charte | Préliminaires |
+| Page d'objet (entrée transversale) | `I.md` | Objet du document (tableau des références, encadré art. 104(7)) | Préliminaires |
 | `sec:archi` | `I.md` | Architecture du moteur de calcul (Principe de séparation) | I |
 | `sec:inventaire` | `I.md` | Inventaire des fonctions | I |
 | `sec:segments` | `I.md` | Périmètres couverts et paramètres standard | I |
