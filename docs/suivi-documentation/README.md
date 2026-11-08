@@ -12,7 +12,7 @@ Le document décrit l'outil ; ce dossier garde la trace de ce qui a été retir�
 |---|---|
 | `I.md` | Préambule, page de garde, « Objet du document » et partie I (`sec:archi`, `sec:notations`, `sec:controles`) |
 | `II.md` | Partie II (`sec:mc`, `sec:modele-auxiliaire`, `sec:nature`) |
-| `III-H.md` | Partie III, introduction, hypothèses H1 à H4 et diagnostics de stabilité, de robustesse et graphiques (`sec:h1` à `sec:graphiques`) |
+| `III-H.md` | Partie III, introduction, hypothèses H1 à H4, stabilité, ruptures et points aberrants, diagnostics de robustesse et graphiques (`sec:h1` à `sec:graphiques`) |
 | `III-M.md` | Partie III, méthode Merz-Wüthrich (`sec:mw`, `sec:mwm1` à `sec:mwm6`) et lecture conjointe (`sec:lecture-conjointe`) |
 | `IV.md` | Partie IV (`sec:verif`, `sec:biblio` et `sec:tracabilite-code`, `sec:synthese`) |
 | `annexe.md` | Annexe (`sec:annexe-flux`) |
@@ -51,6 +51,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `\label` | Fichier | Titre courant | Partie |
 |---|---|---|---|
 | Préambule (entrée transversale) | `I.md` | Commentaires `%` de la charte | Préliminaires |
+| Page d'objet (entrée transversale) | `I.md` | Objet du document (tableau des références, encadré art. 104(7)) | Préliminaires |
 | `sec:archi` | `I.md` | Architecture du moteur de calcul (Principe de séparation) | I |
 | `sec:inventaire` | `I.md` | Inventaire des fonctions | I |
 | `sec:segments` | `I.md` | Périmètres couverts et paramètres standard | I |
@@ -78,6 +79,8 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Introduction de la partie III (entrée transversale) | `III-H.md` | Fondement de la batterie de tests | III |
 | Correspondance SHA (entrée transversale) | `III-H.md` | Correspondance SHA de la partie III lognormale | III |
 | Blocs répétés (entrée transversale) | `III-H.md` | Blocs répétés des fiches de test | III |
+| Relecture de la partie III-H (entrée transversale) | `III-H.md` | Relecture de la partie III-H (étape 8 de JF) | III |
+| Corrections après validation de III-H (entrée transversale) | `III-H.md` | Corrections après validation de la relecture III-H (étape 8 de JF) | III |
 | `sec:h1` | `III-H.md` | Hypothèse H1, linéarité et proportionnalité | III |
 | `fiche:student-constante` | `III-H.md` | Test de Student sur la constante | III |
 | `fiche:tost-constante` | `III-H.md` | Équivalence de la constante à zéro (TOST) | III |
@@ -140,6 +143,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Règles communes de M1 (entrée transversale) | `III-M.md` | Colonnes dégénérées et ensembles figés (règles communes de M1, `sec:mwm1`) | III |
 | Phrases de B effectif (entrée transversale) | `III-M.md` | Phrases de B effectif et du retirage (`sec:boot-mw`) | III |
 | Règle R1 (entrée transversale) | `III-M.md` | Règle R1 sur le plancher Monte-Carlo (lignes de rang et de comptage de M1 à M3) | III |
+| Relecture de la partie III-M (entrée transversale) | `III-M.md` | Relecture de la partie III-M (étape 8 de JF) | III |
 | `sec:mw` | `III-M.md` | Méthode Merz–Wüthrich, cadre et spécification | III |
 | `mw:m1` | `III-M.md` | Absence de tendance des facteurs avec le cumulé | III |
 | `mw:m1a` | `III-M.md` | Nullité de l'ordonnée à l'origine, colonne par colonne | III |
@@ -165,6 +169,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:lecture-conjointe` | `III-M.md` | Lecture conjointe (tête de section) | III |
 | `fiche:p-famille` | `III-M.md` | p de famille (minP, lecture conjointe) | III |
 | `fiche:p-globale` | `III-M.md` | p globale (minP, lecture conjointe de la batterie) | III |
+| Relecture de la partie IV (entrée transversale) | `IV.md` | Relecture de la partie IV (étape 8 de JF) | IV |
 | `sec:verif` | `IV.md` | Vérification empirique de l'implémentation | IV |
 | `sec:calibration-mc` | `IV.md` | Calibration des p-values de Monte-Carlo | IV |
 | `sec:calib-asympt-mw` | `IV.md` | Calibration des p-values non simulées (Merz–Wüthrich) | IV |
@@ -174,4 +179,5 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:synthese` | `IV.md` | Synthèse et lecture des verdicts | IV |
 | `sec:taux-reperes` | `IV.md` | Taux de franchissement des repères sous le modèle ajusté | IV |
 | `sec:volumes-constants` | `IV.md` | Lignes non applicables à volumes constants | IV |
+| Relecture de l'annexe (entrée transversale) | `annexe.md` | Relecture de l'annexe (étape 8 de JF) | Annexe |
 | `sec:annexe-flux` | `annexe.md` | Annexe, flux détaillés entre fonctions | Annexe |
