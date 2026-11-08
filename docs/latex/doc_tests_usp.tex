@@ -438,14 +438,14 @@ Base réglementaire & Directive 2009/138/CE, art.~104(7) ; règlement délégué
 Procédure d'approbation & Règlement d'exécution (UE) 2015/498 (JO~L~79 du 25.3.2015,
 p.~8), art.~1\textsuperscript{er}, 2 et~3 \\
 Orientations et notice & Orientations de l'AEAPP EIOPA-BoS-14/178 (orientation~6) et
-EIOPA-BoS-25/249 (orientation~5)~; notice de l'ACPR, §§~2, 159, 170 et~171 (introduction de la
-partie~III) \\
+EIOPA-BoS-25/249 (orientation~5)~; notice de l'ACPR, §§~2, 170 et~171 (introduction de la
+partie~III) et §~159 (section~\ref{sec:synthese}) \\
 Transposition & Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II) \\
 Moteur de calcul & \code{R/engine.R} (R base et \code{stats} uniquement) \\
 Chargement du moteur & \code{R/charger\_moteur.R} (aucun calcul~; environnement dédié
 \code{usp\_moteur}) \\
 Interface & \code{app.R}, \code{R/display\_helpers.R} (aucun calcul) \\
-Profondeur d'intérêt & $T = 8$ années de survenance \\
+Profondeur d'intérêt & $T = 8$ années (de survenance ou d'exercice) \\
 \end{tabular}
 \end{center}
 
@@ -948,8 +948,9 @@ grille de 88 points de \code{tests/puissance\_t8.R}
 ($T \in \{5, 8, 12, 20\}$, $\rho$ de $-0{,}99$ à $0{,}99$)~; hors de ces $T$, non mesurée. Dans
 le domaine gardé, à $T = 8$, le déficit (un moins la puissance) est proportionnel à
 $(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$, de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
-$1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (approximation
-numérique, \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
+$1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}10$ (quantité
+exacte évaluée par quadrature numérique, intégrale d'Imhof~;
+\code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
 la garde, le comportement du calcul n'est pas évalué par une mesure versionnée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
 tend vers 0 quand $\rho \to -1$, sans signature de défaillance (hypothèse non vérifiée~:
 vecteur alterné centré de longueur courte~; établir la puissance limite est un travail
@@ -2573,11 +2574,13 @@ donne que la définition. Le commentaire du contrôle
 de convergence multi-démarrages dit seulement si au moins un démarrage à l'optimum rend le
 code~0 («~oui~» ou «~non~»)~; le décompte, conservé dans \code{res\$ajustement},
 est exclu par conception de la comparaison (ci-dessus). Un seul motif ne suffit pas à détecter
-un décompte de démarrages qui bascule~: le décompte ne change que pour certains couples de
-motifs, qui dépendent de la plateforme, d'où les huit couples du test. Sur le jeu de contrôle, le
+un libellé qui imprimerait ce décompte~: le décompte ne change que pour certains couples de
+motifs, qui peuvent différer d'une plateforme à l'autre, d'où les huit couples du test, qui ne
+détecte un tel libellé que si l'un au moins d'entre eux fait changer le décompte sur la machine
+qui l'exécute. Sur le jeu de contrôle, le
 décompte de démarrages au code~0 change pour 26 des 49 couples de motifs de Walsh--Hadamard, dont
 trois des huit couples du test, le couple des signes alternés compris (mesure sous Linux,
-R~4.3.3, BLAS et LAPACK de référence~; valeurs par couple à la
+R~4.3.3, BLAS et LAPACK de référence~; répartition des décomptes à la
 fiche~\ref{fiche:multi-demarrages}). Pour la même raison, le
 commentaire n'imprime pas le code de retour du démarrage retenu, qui ne décide pas du verdict et
 reste dans \code{res\$ajustement\$convergence},
@@ -2608,7 +2611,7 @@ chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~
 l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est). \emph{Exception bornée}
 (règle de l'outil)~: les
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
-Monte-Carlo (fiche~\ref{mw:m1a}, rubrique~5), trois gabarits (cas~A hors
+Monte-Carlo (section~\ref{sec:boot-mw}, «~Phrases jointes par \code{mw\_tests()}~»), trois gabarits (cas~A hors
 plafond, cas~A au plafond du retirage, cas~B), impriment des entiers de comptage issus
 du bootstrap~; elles seules, et \code{add()} reste soumise entière à la règle. Les deux phrases
 fixes du retirage (\code{PHRASE\_MW\_CUMULS\_RETIRES}, \code{PHRASE\_MW\_PLAFOND\_CUMULS}),
@@ -3021,8 +3024,8 @@ de Monte-Carlo n'est tirée du catalogue de la méthode pour ce test~: soit parc
 nulle n'appartient pas au modèle simulé (test de Pitman sur la pente, dont la p-value vient de la
 loi de permutation, TOST, Student sur la pente sous le modèle auxiliaire MCO, Fisher,
 section~\ref{sec:modele-auxiliaire-ecart})~; soit parce
-que le test n'est pas de nature à produire de p-value (diagnostics, procédure ESD de Rosner
-comprise)~; soit parce qu'aucune p-value de Monte-Carlo n'est prévue (Anscombe--Glynn,
+que le test n'est pas de nature à produire de p-value (grandeurs descriptives et diagnostics
+sans p-value, procédure ESD de Rosner comprise)~; soit parce qu'aucune p-value de Monte-Carlo n'est prévue (Anscombe--Glynn,
 fiche~\ref{fiche:anscombe-glynn-aplatissement})~; soit parce que la p-value de Monte-Carlo est
 calculée hors du bootstrap principal (rapport de vraisemblance sur $\delta$, par bootstrap
 paramétrique restreint, fiche~\ref{fiche:rv-delta}~; permutations aléatoires du test de Pitman à
@@ -3092,11 +3095,11 @@ Pour un segment donné et une profondeur $T$~:
 \end{itemize}
 
 L'annexe~XVII n'écrit pas de modèle paramétrique de $Y_t$~: elle énonce des hypothèses sur les
-données, B(2)(g)(i) à~(iv) et C(2)(e)(i) à~(iv) --- relation linéaire proportionnelle avec le
+données, B(2)(g)(i) à~(iv) et C(2)(e)(i) à~(iv) --- espérance en relation linéaire proportionnelle avec le
 volume, variance en relation quadratique avec le volume, loi lognormale, adéquation de
 l'estimation du maximum de vraisemblance (sections~\ref{sec:h1} à~\ref{sec:h4}) ---, et donne en
 B(5)-(6) et C(5)-(6) la fonction d'écart-type $\hat\sigma(\hat\delta,\hat\gamma)$, la fonction
-$\pi_t$ et le montant à minimiser, sans écrire l'espérance ni la variance de $Y_t$. L'outil lit
+$\pi_t$ et le montant à minimiser, sans écrire la forme de l'espérance ni de la variance de $Y_t$. L'outil lit
 ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_t \sim
 \mathcal{LN}(\mu_t,\psi_t)$ avec
 \[
@@ -3330,7 +3333,8 @@ paragraphe~3~:
   \item $C(i,j)$ : sinistres cumulés de l'année de survenance $i$ à l'année de
         développement $j$, observés pour $i + j \le I$ ;
   \item $F(i,j) = C(i,j+1)/C(i,j)$ : facteur de développement individuel ;
-  \item $n_j = I - j$ : nombre d'observations disponibles dans la colonne $j$.
+  \item $n_j = I - j$ : nombre de facteurs individuels $F(i,j)$ observés dans la colonne $j$
+        ($i = 0,\dots,I-j-1$), la colonne comptant $I - j + 1$ cumulés observés.
 \end{itemize}
 
 \noindent
@@ -3342,7 +3346,10 @@ Le modèle de chaîne d'échelle postule, pour tout $i$ et tout $j$~:
 \]
 les années de survenance étant mutuellement indépendantes, avec un facteur $f_j$ et une
 constante $\sigma_j^2$ communs à toutes les années de survenance (modèle de T.~Mack, 1993, et de
-Merz et Wüthrich, 2008, hypothèses~2.1, p.~547--548). La lettre de l'annexe~XVII, D(2)(h)(iii)
+Merz et Wüthrich, 2008, hypothèses~2.1, p.~547--548~; chez Mack, hypothèse~(1), p.~214,
+l'espérance est conditionnelle à tout le passé $C(i,0),\dots,C(i,j)$ de l'année, et c'est sur ce
+conditionnement que reposent la lecture de D(2)(h)(ii) et les lois exactes de M1,
+sections~\ref{sec:mwm3} et~\ref{sec:mwm1}). La lettre de l'annexe~XVII, D(2)(h)(iii)
 et~(iv), énonce, pour chaque année d'accident, la proportionnalité au cumulé précédent de
 l'espérance (sans constante) et de la variance du cumulé suivant, sans exiger un facteur ni une
 constante communs aux années~: cette communauté est une interprétation de l'outil, appuyée sur
@@ -3558,8 +3565,9 @@ incertitude («~\code{0.22}~»)~; le message d'erreur d'\code{usp\_delta\_bord()
 Les contrôles de recevabilité ne sont \textbf{pas} des tests statistiques~: ils ne
 comportent ni hypothèse nulle, ni statistique, ni loi de référence. Ce sont des
 vérifications déterministes au titre des articles~19 et~219 du règlement délégué
-et des exigences de données propres à chaque méthode --- à une exception près,
-signalée plus bas. Hors cette exception, ils contribuent, sans l'épuiser, à la preuve que la
+et des exigences de données propres à chaque méthode, ou des conventions et restrictions de
+l'outil, sans source réglementaire, signalées comme telles dans les tableaux ci-dessous --- à une
+exception près, signalée plus bas. Hors cette exception, ils contribuent, sans l'épuiser, à la preuve que la
 demande écrite d'approbation doit apporter selon l'article~1\textsuperscript{er}, paragraphe~3,
 point~f), du règlement d'exécution (UE)~2015/498~: que les données sont exhaustives, exactes et
 appropriées et satisfont aux critères de l'article~219 (texte cité~: introduction de la
@@ -3616,8 +3624,9 @@ d'\code{engine\_valider\_donnees()} sans segment, $c = 74~\%$ avec le segment II
 
 \textbf{Le fondement du refus $\hat R \le 0$ n'est pas le même que celui des autres
 contrôles}, et c'est
-l'exception annoncée ci-dessus. Tous les autres relèvent des exigences de données
-des articles~19 et~219 --- exhaustivité, exactitude, caractère approprié. Une
+l'exception annoncée ci-dessus. Les autres relèvent des exigences de données
+des articles~19 et~219 --- exhaustivité, exactitude, caractère approprié --- ou sont des
+conventions et restrictions de l'outil signalées comme telles dans les tableaux. Une
 réserve chain-ladder totale $\hat R \le 0$ n'est pas un défaut de données~: le
 triangle peut satisfaire intégralement le paragraphe~2 de la section~D, et c'est
 l'\emph{estimation} qui place le paramètre hors de ce que la méthode peut
@@ -3678,8 +3687,10 @@ autres qu'un calcul abouti, à ne pas confondre~:
   est atteint avant $B$ tirages retenus (fiche~\ref{fiche:procedure-mc})~: la
   garantie ne s'étend pas à $B_{\text{eff}}$ (limite de l'outil), la mention de plancher décrite ci-après s'appliquant seule. Le champ
   \code{p\_min} n'est renseigné que pour un test à loi de référence discrète (règle~R1,
-  section~\ref{sec:nature}), jamais à partir du plancher de Monte-Carlo, qui ne fait donc ni
-  basculer une ligne ni poser un motif~; le commentaire d'une
+  section~\ref{sec:nature}), jamais à partir du plancher de granularité $2/(B_{\text{eff}}+1)$
+  de la p-value de Monte-Carlo, qui ne fait donc ni basculer une ligne ni poser un motif (la
+  branche Monte-Carlo de la règle~R1 lit, elle, le champ \code{p\_min\_mc}, tiré du support de la
+  statistique discrète, section~\ref{sec:notations})~; le commentaire d'une
   ligne dont la p-value retenue est de Monte-Carlo mentionne toutefois le plancher quand il rend
   un verdict inatteignable (section~\ref{sec:nature}, point~(ii)), et, sous
   \code{B\_MIN\_DEGENERESCENCE} réplications finies, \code{p\_mc} n'est pas calculée
@@ -3791,14 +3802,19 @@ reste au moteur (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triang
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
-\begin{center}
-\small
+{\small
 \rowcolors{2}{tablerow}{white}
-\begin{tabular}{@{}p{4.4cm}p{5.0cm}p{5.4cm}@{}}
+\begin{longtable}{@{}p{4.4cm}p{5.0cm}p{5.4cm}@{}}
 \rowcolor{tableheader}
 \textcolor{financeblue}{\textbf{Contrôle}} &
 \textcolor{financeblue}{\textbf{Critère}} &
 \textcolor{financeblue}{\textbf{Justification}} \\
+\endfirsthead
+\rowcolor{tableheader}
+\textcolor{financeblue}{\textbf{Contrôle}} &
+\textcolor{financeblue}{\textbf{Critère}} &
+\textcolor{financeblue}{\textbf{Justification}} \\
+\endhead
 Profondeur minimale & $T \ge 5$~; $T$ demandé~: \code{NULL} (toute la série) ou entier
 scalaire fini, $5 \le T \le n$ ($n$ années fournies) & Annexe XVII, B/C(2)(b). Bloquant.
 Le $T$ demandé est contrôlé par \code{engine\_valider\_profondeur()} \emph{avant} toute
@@ -3810,12 +3826,13 @@ sous le tableau). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
-Valeurs manquantes & aucun \code{NA} & Art.~219, §~1, a), renvoyant à l'art.~19, §~1~: exhaustivité. Bloquant. \\
-Valeurs finies & aucune valeur infinie & Art.~219, §~1, a), renvoyant à l'art.~19, §~2~: exactitude~; refus explicite au lieu
+Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité. Bloquant. \\
+Valeurs finies & aucune valeur infinie & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~2~: exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul. Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
 Positivité de $y_t$ & $\min_t y_t > 0$ & Support de la loi lognormale. Bloquant. \\
-Doublons & aucun couple $(x_t,y_t)$ répété & Signale une duplication de ligne. \\
+Doublons & aucun couple $(x_t,y_t)$ répété & Convention de l'outil, sans source
+réglementaire~: signale une duplication de ligne probable. Non bloquant. \\
 Domaine numérique & chaque $x_t$ et chaque $y_t$ de la série retenue dans $[10^{-50}\,;10^{50}]$,
 bornes incluses (\code{DOMAINE\_NUMERIQUE\_MIN}, \code{DOMAINE\_NUMERIQUE\_MAX}) & Convention de
 l'outil, sans source réglementaire~: protège le calcul contre les échelles
@@ -3824,7 +3841,8 @@ Plausibilité du ratio & $r_t \in [0{,}1\,;5[$ (\code{RATIO\_PLAUSIBLE\_MIN},
 \code{RATIO\_PLAUSIBLE\_MAX}) & Convention de l'outil, sans source réglementaire
 ~: signale une erreur d'unité ou de saisie probable. Non bloquant~; un
 \code{ECHEC} de la ligne~A est un signal à examiner, non le constat d'une norme. \\
-Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Rupture de périmètre probable. \\
+Amplitude du volume & $\max_t x_t/\min_t x_t < 10$ & Convention de l'outil, sans source
+réglementaire~: signale une rupture de périmètre probable. Non bloquant. \\
 Crédibilité pleine & $c(T, \text{barème appliqué}) = 1$, durée $T$ retenue (G(3)(a) ou~(b))~:
 $T \ge 15$ au barème long G(1), $T \ge 10$ au barème court G(2) & Informatif, non bloquant,
 annexe~XVII, section~G~; barème appliqué et avertissements sous le tableau. \\
@@ -3832,8 +3850,8 @@ Marge du test d'équivalence & $0 < \theta < 1$~; si $\Delta$ est fourni,
 $0 < \Delta < \bar y$, $\theta$ étant alors ignoré & Paramètre du TOST, non une donnée
 (fiche~\ref{fiche:tost-constante})~; contrôlé par \code{engine\_valider\_donnees()} seul.
 Bloquant. \\
-\end{tabular}
-\end{center}
+\end{longtable}
+}
 
 \emph{Années contrôlées.} Les contrôles du tableau qui suivent la profondeur, la marge du TOST et
 les avertissements portent sur les seules $T$ années retenues
@@ -4489,6 +4507,30 @@ l'entreprise d'aucun droit~: comme pour une réserve négative
 (§\ref{sec:mw}), l'article~220, paragraphe~1, point~b) laisse ouverte la méthode du risque de
 réserve n\textsuperscript{o}~1.
 
+\emph{Exigences de données non vérifiables par l'outil.} Plusieurs exigences de l'annexe~XVII
+portent sur l'origine ou l'élaboration des données, non sur leurs valeurs, et ne peuvent pas être
+contrôlées sur les séries ou le triangle fournis~; leur respect est à établir par l'entreprise,
+dans le dossier (article~219, paragraphe~1, points~a), d) et~e)). Ce sont, pour la méthode du
+risque de primes, B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
+B(2)(d) (pertes et primes non ajustées ou ajustées de la réassurance selon le paramètre remplacé,
+ce que la nature déclarée atteste, §\ref{sec:segments}), B(2)(e) (pertes agrégées ajustées des
+sinistres catastrophiques dans la mesure où ce risque est pris en considération dans les
+sous-modules «~risque de catastrophe en non-vie~» ou «~risque de catastrophe en santé~») et
+B(2)(f) (dépenses de gestion incluses)~; pour la méthode du risque de réserve n\textsuperscript{o}~1,
+C(2)(a), C(2)(c) et C(2)(d)~; pour la méthode du risque de réserve n\textsuperscript{o}~2, D(2)(a),
+D(2)(f), D(2)(g) et D(2)(d)~: «~pour la première année d'accident, le montant de paiements cumulé
+de la dernière année de développement pour laquelle des données sont disponibles inclut tous les
+paiements de l'année d'accident à quelque différence non significative près~», un montant de
+paiement étant «~considéré comme important si le fait de l'omettre dans le calcul du paramètre
+propre à l'entreprise est susceptible d'influer sur la prise de décision ou le jugement des
+utilisateurs de cette information, y compris les autorités de contrôle~» (dernier alinéa de
+D(2)). L'outil n'applique aucun facteur de queue~: l'estimation $\hat C(i,J)$ de D(4)(c) est prise
+pour charge ultime, ce que suppose D(2)(d). La consécutivité des années de B/C(2)(b) n'est
+vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années (paragraphe «~Lecture des
+fichiers~» ci-dessus)~;
+les hypothèses B(2)(g), C(2)(e) et D(2)(h) sont éprouvées par les tests de la partie~III, qui ne
+les établissent pas.
+
 \medskip
 \begin{encadre}
 \textbf{Différence de nature.} Les contrôles lognormaux portent sur la
@@ -4514,10 +4556,12 @@ n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi 
 à ne pas pouvoir être anticipé à la saisie.
 Cohérence interne~: la règle appliquée à l'estimation ponctuelle est celle que la
 distribution bootstrap de $\sigma$ (\code{sigma\_boot}, d'où l'intervalle bootstrap) applique à
-chacune de ses réplications~: \code{mw\_bootstrap()} en écarte, sans les compter, les
+chacune de ses réplications~: \code{mw\_bootstrap()} en écarte, sans en restituer le nombre, les
 réplications dont la réserve simulée n'est pas strictement positive ou dont la MSEP simulée n'est
-pas finie ou est négative. Ces réplications restent dans le calcul des statistiques de test
-simulées et des p-values de Monte-Carlo, que la condition ne vise pas.
+pas finie ou est négative. L'intervalle bootstrap est donc conditionnel à ce domaine, et la part
+des réplications écartées, qui n'est pas affichée, peut ne pas être négligeable. Ces réplications
+restent dans le calcul des statistiques de test simulées et des p-values de Monte-Carlo, que la
+condition ne vise pas.
 \end{encadre}
 
 \subsection*{Contrôles numériques de l'estimation (méthodes lognormales, famille H)}
