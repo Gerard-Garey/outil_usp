@@ -412,17 +412,20 @@ $T = 8$, à laquelle plusieurs des tests présentés sont structurellement
 incapables de rejeter au seuil usuel de 5~\%. Le sommaire détaille les
 sous-sections afin de permettre l'accès direct à chaque test.
 
-\vspace{8mm}
+\vspace{3mm}
 \reglement{Article 104, paragraphe 7, de la directive 2009/138/CE (version consolidée du
 17~janvier 2025)}{«~Sous réserve de l'accord des autorités de contrôle, les entreprises
 d'assurance et de réassurance peuvent, lorsqu'elles calculent les modules «risque de
 souscription en vie», «risque de souscription en non-vie» et «risque de souscription en santé»,
 remplacer, dans la conception de la formule standard, un sous-ensemble de ses paramètres par des
-paramètres qui sont propres à l'entreprise concernée. Ces paramètres sont calibrés sur la base
-des données internes de l'entreprise concernée ou de données directement pertinentes pour les
-opérations de cette entreprise, sur la base de méthodes standardisées. [\dots]~»}
+paramètres qui sont propres à l'entreprise concernée.\par
+Ces paramètres sont calibrés sur la base des données internes de l'entreprise concernée ou de
+données directement pertinentes pour les opérations de cette entreprise, sur la base de méthodes
+standardisées.\par
+Avant de donner leur accord, les autorités de contrôle vérifient l'exhaustivité, l'exactitude et
+le caractère approprié des données utilisées.~»}
 
-\vspace{6mm}
+\vspace{2mm}
 \noindent
 \begin{center}
 \small
@@ -3075,8 +3078,10 @@ Pour un segment donné et une profondeur $T$~:
   \item $\bar x = T^{-1}\sum_t x_t$.
 \end{itemize}
 
-L'annexe~XVII ne pose pas de modèle de $Y_t$~: elle énonce des hypothèses sur les données,
-B(2)(g)(i) à~(iv) et C(2)(e)(i) à~(iv) (sections~\ref{sec:h1} à~\ref{sec:h4}), et donne en
+L'annexe~XVII n'écrit pas de modèle paramétrique de $Y_t$~: elle énonce des hypothèses sur les
+données, B(2)(g)(i) à~(iv) et C(2)(e)(i) à~(iv) --- relation linéaire proportionnelle avec le
+volume, variance en relation quadratique avec le volume, loi lognormale, adéquation de
+l'estimation du maximum de vraisemblance (sections~\ref{sec:h1} à~\ref{sec:h4}) ---, et donne en
 B(5)-(6) et C(5)-(6) la fonction d'écart-type $\hat\sigma(\hat\delta,\hat\gamma)$, la fonction
 $\pi_t$ et le montant à minimiser, sans écrire l'espérance ni la variance de $Y_t$. L'outil lit
 ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_t \sim
@@ -3537,7 +3542,12 @@ Les contrôles de recevabilité ne sont \textbf{pas} des tests statistiques~: il
 comportent ni hypothèse nulle, ni statistique, ni loi de référence. Ce sont des
 vérifications déterministes au titre des articles~19 et~219 du règlement délégué
 et des exigences de données propres à chaque méthode --- à une exception près,
-signalée plus bas. Chaque méthode a ses
+signalée plus bas. Hors cette exception, ils contribuent, sans l'épuiser, à la preuve que la
+demande écrite d'approbation doit apporter selon l'article~1\textsuperscript{er}, paragraphe~3,
+point~f), du règlement d'exécution (UE)~2015/498~: que les données sont exhaustives, exactes et
+appropriées et satisfont aux critères de l'article~219 (texte cité~: introduction de la
+partie~III)~; la documentation des données et de leur élaboration, qu'exige l'article~219,
+paragraphe~1, point~e), incombe à l'entreprise. Chaque méthode a ses
 fonctions de contrôle dans le moteur, exécutables indépendamment de l'interface~:
 \code{engine\_valider\_donnees()} et \code{usp\_controle\_donnees()} pour les
 méthodes lognormales, complétées \emph{après} l'ajustement par
@@ -5140,7 +5150,8 @@ auxiliaire MCO.
 \subsection{Écart au modèle réglementaire}
 \label{sec:modele-auxiliaire-ecart}
 
-Sous le modèle réglementaire (section~\ref{sec:notations}), les pertes sont lognormales,
+Sous le modèle réglementaire, lecture de l'annexe~XVII retenue par l'outil
+(section~\ref{sec:notations}), les pertes sont lognormales,
 d'espérance $\mathbb{E}[Y_t] = \beta x_t$ et de variance
 $\sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big]$. Deux hypothèses du modèle
 auxiliaire en sont contredites. (a)~\emph{H2}~: la variance de $Y_t - \beta x_t$ dépend de $x_t$
@@ -8524,7 +8535,10 @@ appropriée pour ses données, si ses hypothèses se vérifient et si les donné
 rapport à son profil de risque.~» Son article~1\textsuperscript{er}, paragraphe~3, énumère les
 éléments que contient la demande écrite d'approbation, dont, pour chaque segment, la méthode
 standardisée utilisée et la valeur du paramètre obtenue (point~d), le calcul sous-jacent et les
-informations montrant que ce calcul est approprié (point~e), et «~des justifications montrant
+informations montrant que ce calcul est approprié (point~e), «~des éléments prouvant que les
+données utilisées pour le calcul des paramètres propres à l'entreprise sont exhaustives, exactes
+et appropriées et satisfont aux critères de qualité des données définis à l'article~219 du
+règlement délégué (UE)~2015/35~» (point~f), et «~des justifications montrant
 pourquoi chaque méthode standardisée de calcul du paramètre propre à l'entreprise pour un segment
 donne le résultat le plus exact aux fins du respect des exigences énoncées à l'article~101 de la
 directive 2009/138/CE~» (point~g)~; son article~3, paragraphe~2, dispose que l'autorité de
@@ -9214,7 +9228,7 @@ $F \sim \mathcal{F}(2, T-3)$ \emph{exactement} sous des erreurs additives indép
 homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire-autres})~:
 des régresseurs qui ne sont aléatoires que par l'estimateur des moindres carrés du modèle
 contraint laissent la loi $F$ exacte (Milliken et Graybill, 1970, section~\ref{sec:biblio}).
-Cette loi n'est \textbf{pas exacte sous le modèle de l'annexe~XVII}~: $Y_t$ y est lognormale, de
+Cette loi n'est \textbf{pas exacte sous le modèle réglementaire}~: $Y_t$ y est lognormale, de
 variance $\beta^2 x_t^2 (e^{1/\pi_t} - 1)$ (erreur multiplicative, asymétrique, hétéroscédastique
 dès que les volumes varient). Constat de simulation (\code{usp\_simuler()} sous le modèle ajusté
 du jeu de contrôle, $\hat\delta = 1$, 4\,000 réplications, graine 20260929)~: la p-value
@@ -17876,7 +17890,7 @@ d'\code{usp\_tests()} sur J1, \code{identical()} avec \code{usp\_bootstrap()} et
 \medskip
 \begin{encadre}
 \textbf{Réserve.} Cette validation est conditionnelle au modèle et aux deux jeux mesurés~: elle
-établit que, \emph{si} les données sont engendrées par le modèle de l'annexe~XVII ajusté à J1 ou
+établit que, \emph{si} les données sont engendrées par le modèle ajusté à J1 ou
 à J2, les p-values de Monte-Carlo ont, à la précision de la mesure et en taux inconditionnel, un
 niveau compatible avec leur référence ou inférieur à elle --- compatible pour la plupart des
 statistiques, inférieur (écart mineur) pour quelques statistiques d'hétéroscédasticité, de forme
@@ -18776,7 +18790,7 @@ soutient dans le présent document.
   la fiche~\ref{fiche:ic-bootstrap}. Son tableau~13.3 (p.~175~: $\theta = e^{\mu}$, échantillon
   normal de taille 10, intervalle à 95~\%) montre une sous-couverture du percentile non
   paramétrique dans un autre problème~; aucune page lue ne chiffre la couverture à $n = 8$, ni pour
-  le modèle de l'annexe~XVII. Pages lues dans l'aperçu Google Books de l'ouvrage~:
+  le modèle réglementaire. Pages lues dans l'aperçu Google Books de l'ouvrage~:
   chap.~10, p.~124--125~; chap.~13, p.~168--177~; chap.~14, p.~185--186~; chap.~22, p.~321
   et 323--326~; les autres pages n'ont pas été relues.
 
@@ -18937,7 +18951,7 @@ soutient dans le présent document.
   dans le modèle sans constante à un régresseur de l'outil, ils engendrent de
   toute façon l'espace fixe $\{x, x^2, x^3\}$. Ce qui rend la loi $F$ non exacte
   ici, et motive le recours au bootstrap, est l'erreur lognormale,
-  multiplicative et hétéroscédastique, du modèle de l'annexe~XVII
+  multiplicative et hétéroscédastique, du modèle réglementaire
   (fiche~\ref{fiche:reset}).
 
   \item G.\,A. Milliken, F.\,A. Graybill, \emph{Extensions of the general
@@ -19046,11 +19060,25 @@ de vérifier les hypothèses de l'annexe~XVII, que la batterie de tests sert (in
 partie~III).
 
 \begin{itemize}[itemsep=4pt]
+  \item Directive 2009/138/CE du Parlement européen et du Conseil du 25~novembre 2009 sur l'accès
+  aux activités de l'assurance et de la réassurance et leur exercice (solvabilité~II) (refonte),
+  \emph{Journal officiel de l'Union européenne}, L~335 du 17.12.2009, p.~1 (version consolidée
+  du 17~janvier 2025).
+  \emph{Portée.} Article~104, paragraphe~7, cité en page d'objet (remplacement, sous réserve de
+  l'accord des autorités de contrôle, d'un sous-ensemble des paramètres de la formule standard
+  par des paramètres propres à l'entreprise, calibrés sur des données internes ou directement
+  pertinentes sur la base de méthodes standardisées~; vérification par les autorités de contrôle
+  de l'exhaustivité, de l'exactitude et du caractère approprié des données)~; article~101, auquel
+  renvoie l'article~1\textsuperscript{er}, paragraphe~3, point~g), du règlement d'exécution
+  (UE)~2015/498. Relue sur EUR-Lex (CELEX 02009L0138-20250117).
+
   \item Règlement d'exécution (UE)~2015/498 de la Commission, \emph{Journal officiel de l'Union
   européenne}, L~79 du 25.3.2015, p.~8 (ni version consolidée ni acte modificatif selon l'Office
   des publications, à la date d'établissement du présent document).
-  \emph{Portée.} Article~1\textsuperscript{er}, paragraphe~3, points~d), e) et~g) (éléments de la
-  demande écrite d'approbation, dont, au point~g), la justification du résultat le plus exact aux
+  \emph{Portée.} Article~1\textsuperscript{er}, paragraphe~3, points~d) à~g) (éléments de la
+  demande écrite d'approbation, dont, au point~f), les éléments prouvant que les données sont
+  exhaustives, exactes et appropriées et satisfont aux critères de l'article~219 du règlement
+  délégué (UE)~2015/35, et, au point~g), la justification du résultat le plus exact aux
   fins de l'article~101 de la directive 2009/138/CE), article~2 (exactitude des résultats~: méthode standardisée
   appropriée pour les données, hypothèses vérifiées, données pertinentes au regard du profil de
   risque) et article~3, paragraphe~2 (examen des hypothèses par l'autorité de contrôle).

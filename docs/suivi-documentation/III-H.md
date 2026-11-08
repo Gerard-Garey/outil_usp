@@ -8,7 +8,7 @@ Entrées dans l'ordre du `.tex`, selon le gabarit et les règles de `README.md`.
 
 ### Introduction de la partie III (fondement de la batterie de tests, bloc sans `\label`)
 
-**Historique.** Bloc ajouté par #334. Règlement d'exécution (UE) 2015/498 relu le 31/10/2026 sur la manifestation XHTML du *Journal officiel* diffusée par l'Office des publications (CELEX 32015R0498), EUR-Lex étant inaccessible ce jour-là. Page de publication de l'AEAPP (orientations EIOPA-BoS-25/249) consultée le 31/10/2026.
+**Historique.** Bloc ajouté par #334. Règlement d'exécution (UE) 2015/498 relu le 31/10/2026 sur la manifestation XHTML du *Journal officiel* diffusée par l'Office des publications (CELEX 32015R0498), EUR-Lex étant inaccessible ce jour-là. Page de publication de l'AEAPP (orientations EIOPA-BoS-25/249) consultée le 31/10/2026. Point f) de l'art. 1er, § 3, du règlement d'exécution (UE) 2015/498 cité par l'étape 0a de JF (#461, `regulatory`, 08/11/2026) : texte relu le 08/11/2026 sur EUR-Lex (HTML et PDF du JO, p. L 79/9, lu en rendu graphique) ; notice EUR-Lex « In force, No end date », aucun acte modificatif, aucune version consolidée. Le même jour, page de l'AEAPP des orientations EIOPA-BoS-25/249 relue, inchangée (mise à jour du 08/09/2026, « Until then, the Guidelines issued in 2015 are applicable » toujours présent ; 24 PDF listés, non datés) ; aucun avis de conformité de l'ACPR à EIOPA-BoS-25/249 trouvé (recherche web). Les phrases du `.tex` sur la date d'application restent exactes ; lecture à refaire le jour où `\datedoc` est figé pour la remise (veille de #463).
 
 ### Correspondance SHA de la partie III lognormale
 
