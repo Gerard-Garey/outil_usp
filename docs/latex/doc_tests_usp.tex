@@ -4888,11 +4888,11 @@ la colonne, et une correction globale $\sqrt{N/(N-k)}$, qui ne corrige ni l'hét
 colonnes ni celle des leviers. Le redressement retenu est une \emph{interprétation de l'outil}
 --- le redressement par le levier des modèles linéaires pondérés, appliqué à la régression de
 Mack ---, non une formule du règlement, qui ne prescrit pas de bootstrap~; aucune référence
-bibliographique n'est citée à son appui, aucune n'ayant été vérifiée dans le texte. Ce redressement s'apparente aux résidus
+bibliographique n'en fonde l'application au modèle de Mack. Ce redressement transpose les résidus
 «~modifiés~» par le levier du bootstrap de résidus en régression linéaire de A.\,C. Davison et D.\,V. Hinkley (1997,
-chap.~6, section~\ref{sec:biblio})~; ce rapprochement n'a
-pas été vérifié dans l'ouvrage, faute d'accès à son texte~: aucune page ni aucune équation n'en
-est citée, et le redressement reste une interprétation de l'outil. Les résidus
+§~6.2.1, éq.~(6.9), p.~259, et algorithme~6.1, p.~262, section~\ref{sec:biblio})~: résidus divisés
+par $(1 - h_j)^{1/2}$ ($h_j$ levier de l'observation~$j$, notation de l'ouvrage), puis recentrés avant tirage~; l'ouvrage, dans les pages lues, ne traite pas
+le modèle de Mack, et le redressement reste une interprétation de l'outil. Les résidus
 redressés ont, à $\sigma_j$ connu, la variance unitaire du modèle, mais ne sont ni indépendants ni échangeables (contrainte de
 colonne, leviers inégaux)~: l'échangeabilité que suppose le rééchantillonnage reste une
 approximation, qu'aucun théorème ne couvre pour ce test bootstrap. Le niveau réel des p-values
@@ -19003,8 +19003,11 @@ soutient dans le présent document.
   dispersion-niveau (fiches~\ref{fiche:qqnorm} et~\ref{fiche:spread-location}), et son
   chapitre~5 (§ 5.2.1, éq.~(5.6) et~(5.10), p.~193--195~; exemple~5.1, p.~197--198~; § 5.3,
   éq.~(5.18), p.~202--203~; § 5.4.1, p.~211--214) les intervalles «~basic~» et de percentile
-  de la fiche~\ref{fiche:ic-bootstrap}. Pages lues dans l'aperçu Google Books de l'ouvrage~:
-  les autres pages de l'ouvrage n'ont pas été relues. Les ordres de
+  de la fiche~\ref{fiche:ic-bootstrap}. Son chapitre~6 (§ 6.2.1, éq.~(6.9), p.~259~; algorithme~6.1,
+  p.~262) définit, en régression linéaire, les résidus modifiés par le levier et leur
+  rééchantillonnage recentré, que transpose le redressement du bootstrap Merz--Wüthrich
+  (section~\ref{sec:boot-mw}). Pages lues dans l'aperçu Google Books de l'ouvrage~: celles que
+  cite la présente notice et, au chapitre~6, p.~258--263~; les autres pages de l'ouvrage n'ont pas été relues. Les ordres de
   précision qu'il donne (premier ordre pour les limites «~basic~» et de percentile, p.~213~;
   second ordre pour la limite studentisée, p.~212) sont asymptotiques~;
   ses seuls chiffres de couverture à petite taille (§ 5.7, tableau~5.8, p.~230--231~: bootstrap
