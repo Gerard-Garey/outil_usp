@@ -80,6 +80,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Correspondance SHA (entrée transversale) | `III-H.md` | Correspondance SHA de la partie III lognormale | III |
 | Blocs répétés (entrée transversale) | `III-H.md` | Blocs répétés des fiches de test | III |
 | Relecture de la partie III-H (entrée transversale) | `III-H.md` | Relecture de la partie III-H (étape 8 de JF) | III |
+| Corrections après validation de III-H (entrée transversale) | `III-H.md` | Corrections après validation de la relecture III-H (étape 8 de JF) | III |
 | `sec:h1` | `III-H.md` | Hypothèse H1, linéarité et proportionnalité | III |
 | `fiche:student-constante` | `III-H.md` | Test de Student sur la constante | III |
 | `fiche:tost-constante` | `III-H.md` | Équivalence de la constante à zéro (TOST) | III |
