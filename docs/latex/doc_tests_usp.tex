@@ -6680,7 +6680,7 @@ exacte à $\hat\pi_t$ constant &
 Distribution exacte à privilégier ; statistique calculée sur résidus centrés \\
 
 Ljung--Box (retard~2) & LN & $Q$ & Non & Oui & Oui & Monte-Carlo &
-\textbf{Déconseillée} : approx. $\chi^2$ mal calibrée en petit échantillon &
+\textbf{Déconseillée} : approx. $\chi^2$ non chiffrée à $T = 8$ par une source vérifiée &
 Bootstrap recommandé \\
 
 Suites (W.--W.) & LN & $Z$ / $R$ & Oui (combinatoire) & Oui & Oui & \textbf{Exacte}
@@ -8643,7 +8643,8 @@ cellule sur ce seul fondement (fiche~\ref{mw:m4gr}) \\
 Hétéroscédasticité résiduelle et exposant de variance (M2) & Aucune puissance mesurable contre
 les exposants~0 et~2 sous les plans P1 et P2 (\code{docs/tableaux/}\allowbreak\code{20261021-issue309-}\allowbreak\code{puissance-mw.md}), y compris à dispersion
 intra-colonne plus forte (P2)~; trois à sept résidus par colonne & Un verdict \code{OK}
-n'établit pas l'exposant~1 (convention de l'outil)~; un \code{ECHEC}, non spécifique, n'établit
+n'établit pas l'exposant~1, que fixe la lettre de D(2)(h)(iv) (forme conditionnelle et $\sigma_j^2$
+commun aux années~: lectures de l'outil, section~\ref{sec:mwm2})~; un \code{ECHEC}, non spécifique, n'établit
 pas à lui seul un exposant différent de~1~; ordre de grandeur de l'écart visible par
 $R_j^{\,k-1}$ (fiche~\ref{mw:m1id})~; fiches~\ref{mw:m2bp} et~\ref{mw:m2b}, rubrique~7 \\
 Rosner (ESD) sur résidus de Mack & Valeurs critiques et domaine déclaré ($n \ge 25$) établis
@@ -16594,7 +16595,7 @@ celle de la colonne entière et $\varepsilon_{\text{machine}} = 2{,}2\cdot 10^{-
 (triangle de six années des tests unitaires dont les facteurs égaux des années $i = 1$ et $i = 3$
 de la colonne $j = 0$ sont multipliés par $1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée
 jusqu'à $\epsilon = 2\cdot 10^{-8}$~; dès $\epsilon = 3\cdot 10^{-8}$, p-value de Monte-Carlo à
-son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$)~; la frontière dépend des cellules perturbées (années $i = 0$ et~1~: encore non bornée à $3\cdot 10^{-8}$, bornée à $5\cdot 10^{-8}$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
+son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$)~; la frontière dépend des cellules perturbées (années $i = 0$ et~1~: encore non bornée à $3\cdot 10^{-8}$, bornée dès $4\cdot 10^{-8}$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
 résulte d'une annulation, et le classement peut différer d'une plateforme à l'autre~; les six cas
 de référence en sont loin. Dans les deux régimes, le signal tient d'abord à la dispersion quasi
 nulle des autres cellules de la colonne, qui rend significatif n'importe quel écart de la cellule
@@ -17515,7 +17516,8 @@ tête de section)~; aucun résultat général.
 % =============================================================================
 
 L'implémentation est vérifiée par trois voies~: recalcul indépendant des statistiques, mesure
-par simulation du niveau et de la puissance à $T = 8$ et, pour la méthode Merz--Wüthrich,
+du niveau et, quand elle est étudiée, de la puissance à $T = 8$ (par simulation, ou par calcul
+numérique d'une quantité exacte) et, pour la méthode Merz--Wüthrich,
 confrontation au texte réglementaire, à une implémentation externe et à des valeurs publiées.
 
 Les mesures de cette partie sont rattachées à l'état du moteur consigné en tête de leurs fichiers
@@ -17872,7 +17874,7 @@ J3, V3h est tabulée dans tous les régimes. Les fiches de la partie~III citent 
 redire ces conditions. La puissance est mesurée sous six alternatives au modèle ajusté de J2,
 $R = 1\,000$ jeux chacune~: hétéroscédasticité hors de la famille réglementaire
 ($\operatorname{Var}(Y_t) \propto x_t^k$, $k = 0$ et $k = 3$, la famille réglementaire
-correspondant, à petit $\sigma$, à $1 \le k \le 2$), contamination d'une année tirée au hasard ($\ln y_t$ augmenté de
+correspondant à $1 \le k \le 2$), contamination d'une année tirée au hasard ($\ln y_t$ augmenté de
 $\lambda$ fois son écart-type, $\lambda = 3$ et $4$) et asymétrie des erreurs (loi du $\chi^2$ à $\nu = 4$
 et $\nu = 2$ degrés de liberté, centrée et réduite). Les décisions appariées sont comparées par le
 test de McNemar exact, avec la correction de Holm (1979, section~\ref{sec:biblio}) au niveau
@@ -18186,7 +18188,7 @@ vérifiée numériquement (fiche~\ref{mw:m1id}) \\
 \end{center}
 
 \noindent
-La conformité de l'erreur type ultime de Mack à sa valeur publiée valide
+La conformité de l'erreur type ultime de Mack à sa valeur publiée contrôle
 simultanément $\hat f_j$, $\hat\sigma_j^2$ et la règle de minimum qui fixe
 $\hat\sigma_{J-1}^2$, qui sont les entrées de la MSEP à un an. Ce triangle
 n'étant pas dégénéré, le contrôle ne porte que sur le cas
@@ -18196,7 +18198,7 @@ tests unitaires du dépôt.
 
 \medskip
 \begin{encadre}
-\textbf{Sur quoi repose la validation de la MSEP à un an.} Elle repose sur trois
+\textbf{Sur quoi repose la vérification de la MSEP à un an.} Elle repose sur trois
 voies distinctes~: d'abord la confrontation du moteur à une transcription
 littérale de D(5) dans sa version consolidée en vigueur (§\ref{sec:mw}), réécrite depuis le texte et implémentée
 séparément dans la batterie de tests unitaires (\code{msep\_reglement})~; ensuite une comparaison
@@ -18926,7 +18928,7 @@ soutient dans le présent document.
   p.~181--187 ; A.\,C.\,A. Hope, \emph{A simplified Monte Carlo significance
   test procedure}, \emph{Journal of the Royal Statistical Society, Series B},
   30(3), 1968, p.~582--598.
-  \emph{Portée.} Ce sont les références qui établissent que, lorsque la loi nulle de la
+  \emph{Portée.} Ce sont les références usuelles du résultat selon lequel, lorsque la loi nulle de la
   statistique est exactement simulable (répliques échangeables avec l'observé sous $H_0$) et
   continue, le test de Monte-Carlo qui rejette pour $\hat p \le \alpha$, avec
   $\hat p = (1 + \#\{S^{(b)} \ge S_{\text{obs}}\})/(B+1)$, est de niveau \emph{exact} pour $B$
@@ -18936,8 +18938,10 @@ soutient dans le présent document.
   conséquences, et la limite de la propriété (elle ne se transporte pas au bootstrap
   paramétrique, dont les répliques sont tirées sous le modèle estimé), sont établies à la
   fiche~\ref{fiche:procedure-mc}. Dwass (p.~181--182, lues) traite des tests de randomisation
-  fondés sur un échantillon aléatoire de permutations~; le texte de Hope n'a pas été relu par le
-  projet. Efron (1979), référence fondatrice du bootstrap citée par les fiches, ne démontre pas
+  fondés sur un échantillon aléatoire de permutations, de taille~$\alpha$ sous leur forme originale
+  comme sous leur forme modifiée~; la forme de $\hat p$ et la condition sur $\alpha(B+1)$ n'y sont
+  pas relevées, et le texte de Hope n'a pas été relu par le projet. Efron (1979), référence
+  fondatrice du bootstrap citée par les fiches, ne démontre pas
   cette propriété.
 
   \item P.\,H. Jöckel, \emph{Finite sample properties and asymptotic efficiency
@@ -19122,12 +19126,11 @@ soutient dans le présent document.
   \item Q.~McNemar, \emph{Note on the sampling error of the difference between correlated
   proportions or percentages}, \emph{Psychometrika}, 12(2), 1947, p.~153--157.
   \emph{Portée.} Comparaison de deux proportions mesurées sur les mêmes unités, fondée sur les
-  seules paires discordantes~; l'article en donne une forme normale et signale son équivalent
-  $\chi^2$. Les comparaisons appariées des sections~\ref{sec:calibration-mc}
+  seules paires discordantes. Les comparaisons appariées des sections~\ref{sec:calibration-mc}
   et~\ref{sec:calib-mc-mw} en emploient la version exacte, test binomial bilatéral de
-  paramètre $1/2$ sur le nombre de paires discordantes, que l'article ne développe pas. Elle ne
-  dit rien du niveau des tests du moteur. Notice vérifiée~; texte non relu par le projet~: ce qui
-  est dit ici de son contenu n'est pas relevé sur le texte.
+  paramètre $1/2$ sur le nombre de paires discordantes. Elle ne dit rien du niveau des tests du
+  moteur. Notice vérifiée~; texte non relu par le projet, dont aucune forme de la statistique
+  n'est tirée.
 
   \item D.\,R. Cox, \emph{Some problems connected with statistical inference},
   \emph{The Annals of Mathematical Statistics}, 29(2), 1958, p.~357--372~;
@@ -19150,10 +19153,11 @@ soutient dans le présent document.
   \item N.~Davies, C.\,M. Triggs, P.~Newbold, \emph{Significance levels of the
   Box-Pierce portmanteau statistic in finite samples}, \emph{Biometrika}, 64(3),
   1977, p.~517--522.
-  \emph{Portée.} Étude dédiée à la calibration en petit échantillon de
-  l'approximation $\chi^2$ des tests portmanteau~: elle fonde l'affirmation du document
-  selon laquelle cette approximation est mal calibrée en petit échantillon~; Ljung \& Box (1978) reste cité pour la statistique elle-même.
-  Texte non relu par le projet~: aucun chiffre n'en est tiré.
+  \emph{Portée.} Étude, d'après son titre et sa notice, des niveaux réels de la statistique de
+  Box--Pierce à $n$ fini~; Ljung \& Box (1978) reste cité pour la statistique de Ljung--Box, seule
+  restituée. Texte non relu par le projet~: aucun résultat n'en est tiré, et la qualité de
+  l'approximation $\chi^2$ de Ljung--Box à $T = 8$ n'est chiffrée par aucune source vérifiée
+  (fiche~\ref{fiche:ljung-box}), sa p-value asymptotique n'étant pas retenue.
 
   \item K.\,O. Bowman, L.\,R. Shenton, \emph{Omnibus test contours for
   departures from normality based on $\sqrt{b_1}$ and $b_2$},
@@ -19312,13 +19316,31 @@ partie~III).
   renvoie l'article~1\textsuperscript{er}, paragraphe~3, point~g), du règlement d'exécution
   (UE)~2015/498. Relue sur EUR-Lex (CELEX 02009L0138-20250117).
 
+  \item Règlement délégué (UE)~2015/35 de la Commission du 10~octobre 2014 complétant la
+  directive 2009/138/CE du Parlement européen et du Conseil sur l'accès aux activités de
+  l'assurance et de la réassurance et leur exercice (solvabilité~II), \emph{Journal officiel de
+  l'Union européenne}, L~12 du 17.1.2015, p.~1 (version consolidée du 14~novembre 2024, qui fait
+  foi pour l'outil~: section~\ref{sec:segments}).
+  \emph{Portée.} Articles~218 à~220 (paramètres remplaçables, critères relatifs aux données,
+  méthodes standardisées, dont, à l'article~220, paragraphe~2, le choix de la méthode la plus
+  précise, à défaut la plus prudente)~; annexes~II et~XIV (paramètres standard) et annexe~XVII
+  (méthodes standardisées), dont les exigences relatives aux données propres à chaque méthode
+  comprennent la conformité des données aux hypothèses de B(2)(g) et de C(2)(e) et leur cohérence
+  avec celles de D(2)(h)~; article~219, paragraphe~1, point~d) (exigences supplémentaires en
+  matière de données nécessaires à l'utilisation de chaque méthode standard), lu par l'outil
+  comme renvoyant à ces exigences~; c'est aux critères de l'article~219 que renvoie
+  l'article~1\textsuperscript{er}, paragraphe~3, point~f), du règlement d'exécution
+  (UE)~2015/498. Relu sur la version consolidée et sur la version d'origine du \emph{Journal
+  officiel}, formules en rendu graphique.
+
   \item Règlement d'exécution (UE)~2015/498 de la Commission, \emph{Journal officiel de l'Union
   européenne}, L~79 du 25.3.2015, p.~8 (ni version consolidée ni acte modificatif selon l'Office
   des publications, à la date d'établissement du présent document).
   \emph{Portée.} Article~1\textsuperscript{er}, paragraphe~3, points~d) à~g) (éléments de la
-  demande écrite d'approbation, dont, au point~f), les éléments prouvant que les données sont
-  exhaustives, exactes et appropriées et satisfont aux critères de l'article~219 du règlement
-  délégué (UE)~2015/35, et, au point~g), la justification du résultat le plus exact aux
+  demande écrite d'approbation, dont, au point~f), «~des éléments prouvant que les données
+  utilisées pour le calcul des paramètres propres à l'entreprise sont exhaustives, exactes et
+  appropriées et satisfont aux critères de qualité des données définis à l'article~219 du
+  règlement délégué (UE)~2015/35~», et, au point~g), la justification du résultat le plus exact aux
   fins de l'article~101 de la directive 2009/138/CE), article~2 (exactitude des résultats~: méthode standardisée
   appropriée pour les données, hypothèses vérifiées, données pertinentes au regard du profil de
   risque) et article~3, paragraphe~2 (examen des hypothèses par l'autorité de contrôle).
@@ -19355,9 +19377,10 @@ partie~III).
   trouvée, à la date d'établissement du présent document (page de garde). C'est le texte des
   orientations qui fait référence, non le rapport final, qui garde l'ancienne numérotation.
 
-  \item Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II), cités en page de titre.
-  \emph{Portée.} Ligne «~Transposition~» de la page de titre. \textbf{Non relus} par le projet (Légifrance non
-  consulté)~: renvoi à vérifier avant la remise du dossier.
+  \item Code des assurances, art.~R.~352-5 (V) et R.~356-19 (II), cités en page d'objet.
+  \emph{Portée.} Ligne «~Transposition~» du tableau de la page d'objet. \textbf{Non relus} sur la
+  source (Légifrance) à la date d'établissement du présent document (page de garde)~: ni leur
+  contenu ni ce qu'ils transposent ne sont établis par le présent document.
 \end{itemize}
 
 \subsection{Traçabilité entre la documentation et le code}
@@ -19569,8 +19592,10 @@ modèle et un mode d'inférence différents.
   p.~213--225.
   \emph{Portée.} Article fondateur du modèle de chaîne d'échelle stochastique~:
   il établit les estimateurs $\hat f_j$ et $\hat\sigma_j^2$, l'erreur type
-  \emph{ultime}, et surtout l'énoncé des trois hypothèses reprises en
-  D(2)(h) du règlement. C'est la valeur publiée de l'erreur ultime sur
+  \emph{ultime}, et surtout l'énoncé des trois hypothèses sous lesquelles l'outil lit les
+  points~i, iii et~iv de D(2)(h) du règlement, le point~ii étant lu comme une conséquence de
+  l'espérance conditionnelle (lecture de l'outil, non la lettre du texte~: sections~\ref{sec:mwm1}
+  et~\ref{sec:mwm3}). C'est la valeur publiée de l'erreur ultime sur
   le triangle de Taylor \& Ashe qui a servi à valider notre implémentation de
   $\hat f_j$, $\hat\sigma_j^2$ et de la règle de minimum qui fixe $\hat\sigma^2_{J-1}$.
 
@@ -19632,8 +19657,11 @@ modèle et un mode d'inférence différents.
   \item M.~Merz, M.\,V. Wüthrich, \emph{Modelling the claims development result
   for solvency purposes}, \emph{Casualty Actuarial Society E-Forum}, automne
   2008, p.~542--568.
-  \emph{Portée.} Article dont dérive la formule d'erreur de prédiction \emph{à un
-  an} de D(5). La distinction entre erreur à un an et erreur ultime
+  \emph{Portée.} Article dont la formule d'erreur de prédiction \emph{à un
+  an} est égale à la MSEP de D(5) dans sa version consolidée, que le règlement nomme erreur
+  quadratique moyenne de prédiction sans la qualifier d'erreur à un an (égalité vérifiée
+  numériquement à la précision machine, section~\ref{sec:verif}~; le libellé publié en 2015 en
+  diffère). La distinction entre erreur à un an et erreur ultime
   est le fondement même de la méthode~n\textsuperscript{o}~2, et l'ordre
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
@@ -19686,8 +19714,11 @@ modèle et un mode d'inférence différents.
   \emph{Portée.} Discussion des exposants alternatifs de la structure de
   variance (exposant $k = 0$, $1$ ou $2$ de $C(i,j)$ dans
   $\operatorname{Var}[C(i,j+1)\mid C(i,j)]$). Citée dans la fiche~\ref{mw:m2bp} pour situer
-  l'exposant~1 imposé par le règlement parmi les choix possibles, et non pour
-  recommander une alternative --- l'annexe~XVII ne laissant pas ce choix ouvert. Texte non relu
+  l'exposant~1 que fixe la lettre de D(2)(h)(iv) (variance du montant de sinistres cumulé
+  proportionnelle au montant cumulé de l'année de développement précédente) parmi les choix
+  possibles, et non pour recommander une alternative --- l'annexe~XVII ne laissant pas ce choix
+  ouvert~; l'écriture conditionnelle $\operatorname{Var}[C(i,j+1)\mid C(i,j)]$ est la
+  formalisation retenue par l'outil. Texte non relu
   par le projet.
 \end{itemize}
 
@@ -20038,7 +20069,7 @@ Monte-Carlo, à cinq vérifications de la méthode Merz--Wüthrich dont la p-val
 Monte-Carlo (le test des suites, diagnostic, n'en relève pas)~; aucune n'est inopérante
 sur le triangle $8 \times 8$ de contrôle. Les valeurs de $p_{\min}$ de $T = 5$ à $T = 12$ et les seuils
 de bascule à $\alpha = 0{,}10$ sont au tableau~\ref{tab:pmin}~; la rubrique~7 de chaque fiche de
-test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou d'une
+test en donne la lecture propre au test. Les autres entrées du tableau relèvent d'une approximation mal calibrée ou non chiffrée, ou d'une
 définition impossible à faible $T$, non de l'inopérance.
 
 {\small
@@ -20702,8 +20733,8 @@ Jarque--Bera, corrélation entre colonnes & Revue circonscrite~: une anomalie
 n'affecte que ce test. \\
 Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
 \code{mk\_p\_exacte()} + deux internes de la loi exacte, \code{.mk\_loi\_exacte()} et
-\code{.poly\_mult()}), Durbin--Watson (\code{stat\_dw()} + \code{dw\_p\_exacte()} + deux
-internes de la loi exacte, \code{.dw\_valeurs\_}\allowbreak\code{propres()} et \code{.imhof\_p\_sup0()}), Pitman
+\code{.poly\_mult()}), Durbin--Watson (\code{stat\_dw()} + \code{dw\_p\_exacte()} + trois
+internes de la loi exacte, \code{.dw\_valeurs\_}\allowbreak\code{propres()}, \code{.dw\_matrices()} et \code{.imhof\_p\_sup0()}), Pitman
 (\code{test\_lm\_}\allowbreak\code{complet()} + \code{usp\_permutation\_}\allowbreak\code{pente()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\

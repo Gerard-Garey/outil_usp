@@ -107,6 +107,13 @@ Corrections demandées par la validation d'`actuary-approfondi` (C1 à C6 ; C1 m
 
 **Renvois.** Le `detail` de la ligne « Variance unitaire des residus de Mack » imprime un écart (« 2.5e-03 ») mesuré sur un seul triangle, sans plan ni script : suivi par #503 ; le `.tex` n'en reprend pas le chiffre.
 
+### Corrections après validation de la relecture IV (étape 8 de JF, 08/11/2026)
+
+Reprise demandée par la session (validation d'`actuary` sur `c050385`, point facultatif retenu).
+
+**Historique.**
+- `mw:m4gr`, rubrique 1 : « bornée à $5\cdot 10^{-8}$ » (années $i = 0$ et 1) devient « bornée dès $4\cdot 10^{-8}$ ». Motif : la mesure C3 (bloc précédent) trouvait déjà la cellule bornée à 4·10⁻⁸ ; le `.tex` citait le second point mesuré. Remesure du 08/11/2026 (`charger_moteur()`, R 4.3.3, `LC_ALL=C.UTF-8`, triangle `tri_nb300` de `tests/unitaires/test_merz_wuthrich.R`, facteurs des années 0 et 1 de la colonne 0 multipliés par 1 + ε et 1 − ε, `run_engine(methode = "reserve2", segment = 1, annexe = "II", B = 99)`, graine par défaut) : ε = 3·10⁻⁸, non bornée (`mw_test_cellule_aberrante()`, champ `non_borne`), INFO ; ε = 4·10⁻⁸ et 5·10⁻⁸, bornée, p-value de Monte-Carlo 0,01, ECHEC. Plafond : 13 944 caractères, pages 348--350, « conforme (exception) » (`tests/controle_doc_nd.R`).
+
 ## `sec:mw` — Méthode Merz–Wüthrich, cadre et spécification (partie III, § Méthode Merz–Wüthrich)
 
 **Historique.**
