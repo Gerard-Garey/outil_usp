@@ -223,6 +223,7 @@ Entrée qui couvre les listes de références de la section ; la sous-section «
 - Puissance approchée de la pente : unilatérale depuis #169 ; constante 0,5 de la règle R4 retirée du moteur (D1-Fb ; voir `II.md`, entrée « Règle R4 »).
 - Base « ratios bruts » : type `diagnostic` à π̂_t constant depuis #303 (règle R15).
 - Tirages : `engine_plots_data()` ne tire plus depuis #47, `engine_ecrire_xlsx()` et `engine_lire_xlsx()` depuis #42 ; flux complémentaire de la p-value conditionnelle au régime depuis #240 ; retirage des triangles à cumul non strictement positif depuis #257 ; graine `SEED_LOI_NULLE_SW` consignée pour la méthode de réserve n° 2 seulement depuis #351.
+- Ligne `mw_bootstrap()` du tableau des sources d'aléa : « tirages de \code{mw\_simuler\_triangle()}, retirage compris » devient « tirages de \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, retirage compris » (correction après la revue, règle 10, de `5d6d7bf` par `actuary` et `regulatory`, 08/11/2026, JF, `docwriter`). Motif : `mw_bootstrap()` n'appelle pas `mw_simuler_triangle()`, enveloppe appelée par les seuls tests ; chaque réplication passe par `.mw_tirer_triangle_valide()` (`R/engine.R`, l. 11578 à la tête `1a8f4f2`), qui appelle `.mw_simuler_triangle_etat()`. Les autres mentions de `mw_simuler_triangle()` du `.tex` relèvent de la convention de nommage posée en `sec:inventaire`.
 
 **Renvois.** #42, #47, #169, #181, #215, #240, #257, #303, #351, #357 ; D1-Fb.
 
