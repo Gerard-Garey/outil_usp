@@ -132,6 +132,16 @@ mode séquentiel :
 
     Rscript tests/test_unitaires.R --parallele
 
+`--lot=k/n` (seul ou avec `--parallele`) ne lance que le lot `k` sur `n` des
+fichiers de tests : la répartition, déterministe, équilibre les durées lues dans
+`tests/durees_unitaires.tsv` (une ligne par fichier, nom et durée en secondes,
+mesurées en CI ; un fichier absent de la table prend 60 s). La CI s'en sert pour
+répartir la batterie sur trois jobs ; la même table ordonne `--parallele`
+(fichiers les plus longs d'abord). La réunion des `n` lots est la batterie
+complète :
+
+    Rscript tests/test_unitaires.R --parallele --lot=2/3
+
 Sous Windows, quelques assertions de la batterie échouent pour des raisons
 propres à la plateforme, sans effet sur σ_USP, sur une p-value du moteur ni sur
 un verdict : lancement des processus fils (#477), langue des sorties de

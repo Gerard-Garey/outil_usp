@@ -35,17 +35,46 @@
 #  sous Windows il se replie, avec un message, sur le mode sequentiel. Les
 #  assertions de duree ("en moins d'une seconde") y subissent la charge de N
 #  processus : ne pas depasser le nombre de coeurs.
+#
+#  Selection d'un lot de fichiers (issue #512) : --lot=k/n ne lance que le lot
+#  k sur n (1 <= k <= n), seul ou avec --parallele, pour repartir la batterie
+#  sur plusieurs jobs de la CI (matrice de ci.yml).
+#      Rscript tests/test_unitaires.R --parallele --lot=2/3
+#  Repartition deterministe, calculee sur les fichiers presents sur le disque :
+#  chaque fichier est dans un lot et un seul, la reunion des n lots est la
+#  batterie complete. Algorithme LPT (plus longs d'abord, chacun dans le lot le
+#  moins charge) sur la table des durees tests/durees_unitaires.tsv (une ligne
+#  par fichier : nom, tabulation, duree en secondes ; lignes # ignorees). Un
+#  fichier absent de la table prend DUREE_DEFAUT_S ; une ligne de la table sans
+#  fichier sur le disque est ignoree. Les fichiers qui exigent shiny ou plotly
+#  (requireNamespace("shiny"|"plotly") ou shiny:: / plotly:: dans leur texte)
+#  forment un groupe indivisible place dans le lot 1, pour l'ordonnancement ;
+#  la CI installe shiny et plotly dans chaque lot. La meme table ordonne
+#  --parallele (plus longs d'abord), avec ou sans --lot.
 ###############################################################################
 
-# Arguments : --parallele[=N] (ou TU_PARALLELE=N). Tout autre argument est
-# refuse, pour qu'une faute de frappe ne lance pas le mode sequentiel en silence.
+# Arguments : --parallele[=N] (ou TU_PARALLELE=N) et --lot=k/n. Tout autre
+# argument est refuse, pour qu'une faute de frappe ne lance pas le mode
+# sequentiel ou la batterie entiere en silence.
 N_PARALLELE_DEFAUT <- 4L
 .arguments <- commandArgs(trailingOnly = TRUE)
 .option <- grep("^--parallele(=.*)?$", .arguments, value = TRUE)
-if (length(setdiff(.arguments, .option))) {
-  cat("Argument(s) inconnu(s) :", paste(setdiff(.arguments, .option), collapse = " "),
-      "\nUsage : Rscript tests/test_unitaires.R [--parallele[=N]]\n")
+.option_lot <- grep("^--lot=", .arguments, value = TRUE)
+if (length(setdiff(.arguments, c(.option, .option_lot))) || length(.option_lot) > 1L) {
+  cat("Argument(s) inconnu(s) ou repete(s) :",
+      paste(c(setdiff(.arguments, c(.option, .option_lot)), if (length(.option_lot) > 1L) .option_lot), collapse = " "),
+      "\nUsage : Rscript tests/test_unitaires.R [--parallele[=N]] [--lot=k/n]\n")
   quit(status = 1)
+}
+LOT <- NULL   # NULL : batterie complete ; sinon c(k = , n = )
+if (length(.option_lot)) {
+  .m <- regmatches(.option_lot, regexec("^--lot=([0-9]+)/([0-9]+)$", .option_lot))[[1L]]
+  .k <- suppressWarnings(as.integer(.m[2L])); .n <- suppressWarnings(as.integer(.m[3L]))
+  if (length(.m) != 3L || is.na(.k) || is.na(.n) || .k < 1L || .k > .n) {
+    cat("Lot invalide :", .option_lot, "(--lot=k/n avec 1 <= k <= n, entiers)\n")
+    quit(status = 1)
+  }
+  LOT <- c(k = .k, n = .n)
 }
 .valeur <- if (length(.option)) sub("^--parallele=?", "", .option[1L]) else ""
 if (!nzchar(.valeur)) .valeur <- Sys.getenv("TU_PARALLELE", unset = "")
@@ -69,6 +98,79 @@ if (!dir.exists(DOSSIER_UNITAIRES)) {
   quit(status = 1)
 }
 FICHIERS_UNITAIRES <- sort(list.files(DOSSIER_UNITAIRES, pattern = "^test_.*[.]R$", full.names = TRUE))
+
+# Table des durees (issue #512) : tests/durees_unitaires.tsv, une ligne par
+# fichier (nom avec .R, tabulation, duree en secondes, mesurees en CI sous 4
+# processus) ; lignes vides et lignes # ignorees. Une table illisible est une
+# erreur (jamais un repli silencieux sur la duree par defaut).
+FICHIER_DUREES <- file.path(dirname(DOSSIER_UNITAIRES), "durees_unitaires.tsv")
+DUREE_DEFAUT_S <- 60   # fichier absent de la table : duree moyenne d'un fichier (~58 s en CI)
+
+lire_durees <- function(chemin = FICHIER_DUREES) {
+  vide <- setNames(numeric(0), character(0))
+  if (!file.exists(chemin)) return(vide)
+  l <- readLines(chemin, warn = FALSE)
+  l <- l[nzchar(trimws(l)) & !grepl("^#", l)]
+  if (!length(l)) return(vide)
+  champs <- strsplit(l, "\t", fixed = TRUE)
+  d <- suppressWarnings(vapply(champs, function(x) if (length(x) == 2L) as.numeric(x[2L]) else NA_real_, numeric(1)))
+  nom <- vapply(champs, function(x) x[1L], character(1))
+  if (anyNA(d) || any(d <= 0) || anyDuplicated(nom)) {
+    cat("Table des durees illisible :", chemin, "\n",
+        "  attendu : nom<TAB>duree > 0, un nom par ligne ; ligne fautive : ",
+        if (anyNA(d) || any(d <= 0)) l[which(is.na(d) | d <= 0)[1L]] else nom[anyDuplicated(nom)], "\n")
+    quit(status = 1)
+  }
+  setNames(d, nom)
+}
+DUREES_UNITAIRES <- lire_durees()
+
+duree_estimee <- function(fichiers, durees = DUREES_UNITAIRES) {
+  d <- unname(durees[basename(fichiers)])
+  d[is.na(d)] <- DUREE_DEFAUT_S
+  d
+}
+
+# Fichiers qui exigent shiny ou plotly : sans ces paquets, leurs blocs sautent
+# en silence et le nombre d'assertions baisse. Regroupes dans le lot 1 pour
+# l'ordonnancement seulement (la CI installe ces paquets dans chaque lot).
+# Lecture en octets : les fichiers sont en UTF-8 et la locale du lanceur peut
+# etre POSIX.
+MOTIF_APPLICATION <- "requireNamespace[(][\"](shiny|plotly)[\"]|(shiny|plotly)::"
+exige_application <- function(f)
+  any(grepl(MOTIF_APPLICATION, readLines(f, warn = FALSE), useBytes = TRUE))
+
+# Repartition en n lots (liste : lot = entier par fichier, charge = duree
+# estimee par lot, application = fichiers du groupe shiny / plotly). Groupe
+# application indivisible dans le lot 1, puis LPT sur les autres fichiers ;
+# egalites departagees par le nom, donc repartition deterministe.
+repartir_lots <- function(fichiers, n, durees = DUREES_UNITAIRES) {
+  d <- duree_estimee(fichiers, durees)
+  app <- vapply(fichiers, exige_application, logical(1), USE.NAMES = FALSE)
+  lot <- integer(length(fichiers)); lot[app] <- 1L
+  charge <- numeric(n); charge[1L] <- sum(d[app])
+  reste <- which(!app)
+  for (i in reste[order(-d[reste], basename(fichiers[reste]), method = "radix")]) {
+    k <- which.min(charge); lot[i] <- k; charge[k] <- charge[k] + d[i]
+  }
+  list(lot = lot, charge = charge, application = fichiers[app])
+}
+
+if (!is.null(LOT)) {
+  .rep <- repartir_lots(FICHIERS_UNITAIRES, LOT[["n"]])
+  .choisis <- FICHIERS_UNITAIRES[.rep$lot == LOT[["k"]]]
+  cat(sprintf("Lot %d/%d : %d fichiers sur %d, duree estimee %.0f s (lots : %s s ; %d fichier(s) hors de %s, a %d s).\n",
+              LOT[["k"]], LOT[["n"]], length(.choisis), length(FICHIERS_UNITAIRES), .rep$charge[LOT[["k"]]],
+              paste(round(.rep$charge), collapse = " / "),
+              sum(is.na(DUREES_UNITAIRES[basename(FICHIERS_UNITAIRES)])), basename(FICHIER_DUREES), DUREE_DEFAUT_S))
+  cat(sprintf("Fichiers exigeant shiny ou plotly (groupe du lot 1) : %s\n",
+              paste(basename(.rep$application), collapse = ", ")))
+  if (!length(.choisis)) {
+    cat("Lot vide : moins de fichiers que de lots.\n")
+    quit(status = 1)
+  }
+  FICHIERS_UNITAIRES <- .choisis
+}
 
 # Garde (#284) : un fichier unitaire doit finir par fin_fichier(), seul appel
 # qui rend un code de sortie non nul en lancement autonome
@@ -117,9 +219,10 @@ executer_fichier_externe <- function(f) {
 
 lancer_parallele <- function(fichiers, n) {
   n <- min(n, length(fichiers))
-  # Les plus gros fichiers d'abord (taille en octets, indicateur grossier de
-  # la duree) : un fichier long lance en dernier prolongerait la fin du lot.
-  attente <- fichiers[order(-file.size(fichiers), fichiers)]
+  # Les plus longs d'abord (table des durees mesurees, DUREE_DEFAUT_S hors
+  # table ; issue #512, A5) : un fichier long lance en dernier prolongerait la
+  # fin du lot.
+  attente <- fichiers[order(-duree_estimee(fichiers), fichiers, method = "radix")]
   en_cours <- list()
   comptes <- list()
   t0 <- Sys.time()
@@ -190,6 +293,7 @@ lancer_parallele <- function(fichiers, n) {
 # Bilan global : meme format et meme code de sortie que terminer() de
 # outils_unitaires.R (1 si au moins un echec ou un succes inattendu).
 terminer_parallele <- function(d) {
+  if (!is.null(LOT)) cat(sprintf("\nBilan du lot %d/%d (%d fichiers) :", LOT[["k"]], LOT[["n"]], nrow(d)))
   cat(sprintf("\nTOTAL : %d assertions, %d ok, %d echec(s), %d echec(s) attendu(s) (defauts connus), %d succes inattendu(s)\n",
               sum(d$n), sum(d$ok), sum(d$echec), sum(d$attendu), sum(d$inattendu)))
   ko <- d$fichier[d$echec + d$inattendu > 0L]
@@ -228,5 +332,6 @@ if (N_PARALLELE > 0L) {
     }
   }
   cat(sprintf("\nDuree totale : %.1f s\n", as.numeric(difftime(Sys.time(), t0, units = "secs"))))
+  if (!is.null(LOT)) cat(sprintf("\nBilan du lot %d/%d (%d fichiers) :", LOT[["k"]], LOT[["n"]], length(FICHIERS_UNITAIRES)))
   terminer()
 }
