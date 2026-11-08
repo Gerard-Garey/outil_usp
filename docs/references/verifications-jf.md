@@ -423,3 +423,14 @@ Emplacement : partie réglementaire, livre III, titre V (« Régime prudentiel a
 ### Hors périmètre, non vérifié
 
 La page d'objet cite la directive en « version consolidée du 17 janvier 2025 ». La directive (UE) 2025/2 modifie la directive 2009/138/CE ; il n'a pas été établi si elle touche l'art. 104, § 7, ni si la consolidation citée l'intègre (sans effet sur R. 352-5, V, en vigueur le 08/11/2026). À relire sur EUR-Lex lors de la revue de conformité avant remise.
+
+### Directive (UE) 2025/2 et art. 104, § 7 : vérifié le 08/11/2026
+
+> *Relevé de l'agent regulatory (IA), revue de `5d6d7bf` (règle 10, fin de branche JF), consigné par la session principale. EUR-Lex refusé ce jour-là (HTTP 202 vide) : lecture sur les manifestations de l'Office des publications (`publications.europa.eu/resource/celex/…`).*
+
+- La directive (UE) 2025/2 **ne modifie pas l'art. 104** : à son art. 1er, le point 46) porte sur l'art. 96, le point 47) sur l'art. 105 et le point 48) insère l'art. 105 bis ; l'art. 104 n'y est cité qu'en incise (art. 308 ter, § 12). La directive (UE) 2025/1 ne cite pas l'art. 104.
+- La consolidation `02009L0138-20250117`, citée en page d'objet, **n'intègre pas** 2025/2 (marqueurs M1 à M12 : M11 = directive 2022/2556, applicable au 17/01/2025 ; M12 = directive 2023/2864) ; son art. 104, § 7, est identique à la lettre à la citation de la page d'objet.
+- La consolidation `02009L0138-20270130` intègre 2025/2 (M13) ; l'art. 104, § 7, y est inchangé.
+- Conclusion : la citation de la page d'objet est exacte, avant comme après le 30/01/2027. Le paragraphe « Hors périmètre, non vérifié » ci-dessus est levé.
+
+Observation pour la veille (#463, #504) : la consolidation `02015R0035-20270130` intègre le règlement délégué (UE) 2026/269 (M13, applicable au 30/01/2027) ; aucun marqueur M13 dans les art. 218 à 220 ni dans les annexes II, XIV et XVII. La consolidation du 14.11.2024 reste la dernière applicable à la date d'établissement du document.
