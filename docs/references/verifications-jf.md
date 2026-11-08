@@ -371,3 +371,11 @@ Sur le texte proposé au § 4 de la section #388 ci-dessus (lui-même non encore
 
 1. **Doublement et tables de Swed et Eisenhart.** L'article ne fonde que des p-values unilatérales ; la convention bilatérale du moteur (doublement, M8) repose sur Gibbons et Pratt (1975). Aucune question de conformité, mais la phrase « p-value exacte (Swed \& Eisenhart), bilatérale par doublement » (l. 908) gagnerait à nommer Gibbons et Pratt pour le doublement, si `actuary` le juge utile.
 2. **Facteur 2 à T = 8.** Le document de travail ne motive le facteur 2 que par l'expérience, sur des exemples à n = 10 et n = 50, sans condition sur n ou p. Le `.tex` le présente déjà comme une règle empirique sans loi ni niveau, et en mesure le franchissement (l. 19623-19625, 19655). Rien n'est à corriger ; à `actuary` de dire si la mention « règle empirique » suffit à T = 8 et à n_j ≤ 7, où le repère 2/n_j n'est franchissable que pour n_j ≥ 3 (l. 13416).
+
+## Merz et Wüthrich (2008), hypothèses 2.1 (validation de l'étape 10 de JF, #422)
+
+> *Relevé fait par `actuary` le 08/11/2026, lors de la validation de la mise à jour de `docs/references/inventaire-non-relu.md` (étape 10 de JF, PR #480) ; consigné par la session principale.*
+
+- **Pièce** : M. Merz, M. V. Wüthrich (2008), notice telle que citée par `sec:biblio` du `.tex` ; fichier de la CAS, 27 p., SHA-256 `cc0fda92c8e94333b1d4dfcd9501bafaad3eda97a595f9216ecd29961551e8aa` ; hors dépôt.
+- **Lecture en rendu graphique**, page imprimée 547 : « Model Assumptions 2.1 […] there exist constants f_j > 0, σ_j > 0 such that for all 1 ≤ j ≤ J and 0 ≤ i ≤ I we have E[C_{i,j} | C_{i,j−1}] = f_{j−1} C_{i,j−1}, (2.6) » ; page imprimée 548 : Var(C_{i,j} | C_{i,j−1}) = σ²_{j−1} C_{i,j−1}, (2.7).
+- **Statut** : [V] pour l'affirmation citée par le `.tex` à `490ab21` (l. 3349, 14235, 14808, 15383-15384, 19669-19673). La vérification du 31/10/2026 (Fl) n'était attestée que par le corps de #422.
