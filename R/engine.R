@@ -7323,7 +7323,106 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    Sinon le fichier est refuse : aucun tri ni comblement silencieux. Les
 #    tests de la famille H3 supposent des annees equidistantes ;
 #  - sans colonne t, l'ordre du fichier est repute chronologique et la
-#    consecutivite n'est pas verifiable.
+#    consecutivite n'est pas verifiable, sauf une ligne entierement vide
+#    hors fin de tableau, refusee comme annee manquante presumee par
+#    .retirer_lignes_colonnes_vides() (#483), avec ou sans colonne t.
+# Regle des lignes et colonnes vides, commune a la lecture des series
+# (engine_lire_donnees_csv()) et a celle du triangle (engine_lire_triangle()),
+# quel que soit le chemin de lecture du fichier : engine_lire_xlsx(), avec
+# openxlsx ou par le lecteur interne, ou data.frame lu d'un CSV en gardant
+# ses lignes vides. Une cellule est vide si elle vaut NA ou si c'est une
+# chaine vide ou faite de blancs (issue #483, decisions du mainteneur du
+# 08/11/2026, Q-55-3 (i) et suite). Lignes (toutes colonnes confondues) :
+#  - les lignes entierement vides de fin de tableau sont retirees sans refus
+#    (fin de fichier, lignes mises en forme sans valeur) ;
+#  - une ligne entierement vide intercalee, ou en tete (sous l'en-tete), est
+#    refusee comme annee manquante presumee, avec un motif distinct pour
+#    chacun des deux cas, au lieu d'etre lue sur T - 1 annees presentees comme
+#    consecutives (series : annexe XVII, B(2)(b) et C(2)(b) ; triangle :
+#    D(2)(b)). Positions citees en lignes de donnees (premiere ligne sous
+#    l'en-tete = 1), cinq au plus.
+# Colonnes (cellules des lignes gardees ; colonne "i" du triangle hors regle,
+# elle est ignoree par engine_lire_triangle()) :
+#  - une colonne entierement vide et sans en-tete (.entete_absent()) en bord,
+#    avant la premiere ou apres la derniere colonne qui porte une valeur, est
+#    retiree sans refus (mise en forme, tableau decale) ;
+#  - triangle : une colonne entierement vide intercalee, ou portant un
+#    en-tete, est refusee comme annee de developpement manquante presumee
+#    (sans renvoi reglementaire) ;
+#  - series : une colonne entierement vide sans en-tete est retiree ou
+#    qu'elle soit (xt, yt et t sont lus par leur nom) ; une colonne vide qui
+#    porte un en-tete est laissee aux controles par nom (xt, yt ou t vides
+#    refuses, autre colonne ignoree comme toute colonne en surnombre).
+# Le motif ne depend pas du chemin de lecture.
+# objet : "series" ou "triangle".
+# Renvoie list(df, erreurs) : df sans ses lignes de fin ni ses colonnes vides
+# retirees, erreurs vide ou les motifs de refus.
+.entete_absent <- function(noms) {
+  # En-tete vide sous ses formes generees : "" ou NA ; "X<col>" (openxlsx) ;
+  # "V<col>" (lecteur interne d'engine_lire_xlsx()) ; "X", "X.1"...
+  # (utils::read.csv, check.names = TRUE).
+  is.na(noms) | !nzchar(noms) | grepl("^[XV][0-9]+$|^X(\\.[0-9]+)?$", noms)
+}
+
+.retirer_lignes_colonnes_vides <- function(df, objet = c("series", "triangle")) {
+  objet <- match.arg(objet)
+  if (!nrow(df) || !ncol(df)) return(list(df = df, erreurs = character(0)))
+  vide <- vapply(df, function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    if (is.character(v)) is.na(v) | !nzchar(.nettoyer_cellules(v)) else is.na(v)
+  }, logical(nrow(df)))
+  vide <- matrix(vide, nrow = nrow(df))
+  liste <- function(k) paste0(paste(utils::head(k, 5), collapse = ", "),
+                              if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+  serie <- objet == "series"
+  quoi <- if (serie) "annee" else "annee d'accident"
+  texte <- if (serie) "l'annexe XVII, B(2)(b) et C(2)(b), exige des annees consecutives"
+           else "l'annexe XVII, D(2)(b), exige des annees d'accident consecutives"
+  dans <- if (serie) "" else " dans le triangle"
+  err <- character(0)
+  # --- Lignes
+  pleine <- which(rowSums(!vide) > 0)
+  if (!length(pleine))
+    return(list(df = df[0, , drop = FALSE], erreurs = character(0)))
+  garde <- seq_len(max(pleine))
+  tete <- seq_len(min(pleine) - 1L)
+  milieu <- setdiff(which(rowSums(!vide[garde, , drop = FALSE]) == 0), tete)
+  if (length(tete))
+    err <- c(err, sprintf(paste("Ligne(s) vide(s) en tete%s, sous l'en-tete (ligne(s) de donnees %s) :",
+                                "une ligne vide est refusee comme %s manquante presumee ; %s.",
+                                "Renseigner l'%s manquante ou retirer la ligne vide."),
+                          dans, liste(tete), quoi, texte, quoi))
+  if (length(milieu))
+    err <- c(err, sprintf(paste("Ligne(s) vide(s) intercalee(s)%s (ligne(s) de donnees %s) :",
+                                "une ligne vide est refusee comme %s manquante presumee ; %s.",
+                                "Renseigner l'%s manquante ou retirer la ligne vide."),
+                          dans, liste(milieu), quoi, texte, quoi))
+  df <- df[garde, , drop = FALSE]
+  vide <- vide[garde, , drop = FALSE]
+  # --- Colonnes
+  regle <- if (serie) rep(TRUE, ncol(df)) else names(df) != "i"
+  col_vide <- colSums(!vide) == 0 & regle
+  sans_ent <- .entete_absent(names(df))
+  avec_val <- which(!col_vide & regle)
+  bord <- if (length(avec_val)) seq_len(ncol(df)) < min(avec_val) | seq_len(ncol(df)) > max(avec_val)
+          else rep(TRUE, ncol(df))
+  retirer <- col_vide & sans_ent & (bord | serie)
+  if (!serie) {
+    inter <- which(col_vide & !bord)
+    ent_bord <- which(col_vide & bord & !sans_ent)
+    if (length(inter))
+      err <- c(err, sprintf(paste("Colonne(s) vide(s) intercalee(s) dans le triangle (colonne(s) %s) :",
+                                  "annee de developpement manquante presumee ; la renseigner ou",
+                                  "retirer la colonne vide."), liste(inter)))
+    if (length(ent_bord))
+      err <- c(err, sprintf(paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) %s :",
+                                  "%s) : annee de developpement sans valeur ; la renseigner ou",
+                                  "retirer la colonne."), liste(ent_bord),
+                            paste(utils::head(names(df)[ent_bord], 5), collapse = ", ")))
+  }
+  list(df = df[, !retirer, drop = FALSE], erreurs = err)
+}
+
 .en_numerique <- function(v) {
   if (is.factor(v)) v <- as.character(v)
   # Cellule non UTF-8 en locale UTF-8 : non numerique, sans erreur R (#99).
@@ -7349,6 +7448,15 @@ engine_lire_donnees_csv <- function(df) {
                   paste(manquantes, collapse = ", "), paste(noms, collapse = ", ")),
                 xt = NULL, yt = NULL, n = 0L))
   }
+  # Lignes et colonnes vides (#483), avant toute autre interpretation des
+  # cellules : voir .retirer_lignes_colonnes_vides().
+  lv <- .retirer_lignes_colonnes_vides(df, "series")
+  if (length(lv$erreurs))
+    return(list(ok = FALSE, erreurs = lv$erreurs, xt = NULL, yt = NULL, n = 0L))
+  df <- lv$df
+  if (!nrow(df))
+    return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
+                xt = NULL, yt = NULL, n = 0L))
   xt <- .en_numerique(df$xt)
   yt <- .en_numerique(df$yt)
   # Cellule non numerique (texte, hexadecimal, cellule vide) : position citee,
@@ -7401,7 +7509,15 @@ engine_lire_triangle <- function(df) {
   # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne "i" n'etait
   # plus reconnue et le triangle etait refuse avec un motif trompeur (#96).
   names(df)[1] <- .nom_sans_bom(names(df)[1])
-  df <- df[, setdiff(names(df), "i"), drop = FALSE]
+  # Lignes vides (colonne "i" comprise) et colonnes vides (colonne "i" hors
+  # regle) : voir .retirer_lignes_colonnes_vides() (#483).
+  lv <- .retirer_lignes_colonnes_vides(df, "triangle")
+  if (length(lv$erreurs)) return(refus(lv$erreurs))
+  df <- lv$df
+  if (!nrow(df)) return(refus("Fichier vide ou illisible comme tableau."))
+  # Selection par position : setdiff() sur les noms perdait les colonnes de
+  # nom duplique.
+  df <- df[, names(df) != "i", drop = FALSE]
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {
     if (is.factor(v)) v <- as.character(v)
@@ -7550,10 +7666,23 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 
 # Lit la premiere feuille d'un classeur .xlsx et renvoie un data.frame, la
 # premiere ligne etant traitee comme l'en-tete. Les colonnes entierement
-# numeriques sont converties en numerique.
+# numeriques sont converties en numerique. Aucune ligne ni colonne vide n'est
+# retiree ici sans message : openxlsx est appele avec skipEmptyRows et
+# skipEmptyCols a FALSE (son reglage par defaut les retirait), et avec
+# na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
+# comme dans le lecteur interne. La regle des lignes et colonnes vides est
+# posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
+# (#483), identique pour les deux chemins. Les deux chemins different encore
+# par endroits sans effet sur cette regle : nom d'une colonne sans en-tete
+# ("X<col>" pour openxlsx, "V<col>" ici), lignes au-dessus de l'en-tete
+# (sautees par openxlsx, lues ici comme en-tete) ; lignes et colonnes mises
+# en forme sans valeur (cellules <c .../> sans <v>) gardees ici, ignorees par
+# openxlsx.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete))
+    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
+                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
+                               na.strings = character(0)))
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
   # aucun sharedStrings.xml residuel d'une lecture anterieure.
   d <- tempfile("unx_")

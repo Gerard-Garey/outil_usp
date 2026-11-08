@@ -1520,6 +1520,208 @@ verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle(
              !engine_lire_triangle(data.frame())$ok && !engine_lire_triangle(list(a = 1))$ok
          })
 
+## --- Lignes et colonnes vides des fichiers lus (#483) -------------------------
+# Regle commune aux series et au triangle, posee par
+# .retirer_lignes_colonnes_vides() : lignes vides de fin retirees ; ligne vide
+# intercalee ou en tete refusee (motifs distincts) ; colonne vide sans en-tete
+# en bord retiree ; triangle : colonne vide intercalee ou portant un en-tete
+# refusee ; meme motif quel que soit le chemin (openxlsx, lecteur interne,
+# data.frame d'un CSV lu en texte avec ses lignes vides).
+xt483 <- 100:108; yt483 <- 60 + (0:8)
+ser483 <- data.frame(xt = xt483, yt = yt483)
+avec_vide <- function(d, k) d[append(seq_len(nrow(d)), NA, after = k - 1), , drop = FALSE]
+# Forme d'un CSV lu en texte (colClasses = "character", blank.lines.skip = FALSE)
+en_texte <- function(d) { d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v))); d }
+# Colonne vide de nom nom inseree apres la colonne k
+col_vide <- function(d, k, nom) {
+  d2 <- cbind(d[, seq_len(k), drop = FALSE], NA, d[, setdiff(seq_len(ncol(d)), seq_len(k)), drop = FALSE])
+  names(d2)[k + 1] <- nom; d2
+}
+MOTIF483 <- "Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4) : une ligne vide est refusee comme annee manquante presumee"
+verifier("Lignes vides (#483) : ligne vide intercalee dans des series sans t refusee, motif citant B(2)(b) et C(2)(b)",
+         {
+           r <- engine_lire_donnees_csv(avec_vide(ser483, 4))
+           !r$ok && length(r$erreurs) == 1 && contient(r$erreurs, MOTIF483) &&
+             contient(r$erreurs, "B(2)(b) et C(2)(b)") && is.null(r$xt)
+         })
+verifier("Lignes vides (#483) : meme motif pour un data.frame de chaines (CSV lu en texte, cellules vides ou blanches)",
+         {
+           d <- en_texte(avec_vide(ser483, 4)); d$yt[4] <- "  "
+           identical(engine_lire_donnees_csv(d)$erreurs,
+                     engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)
+         })
+verifier("Lignes vides (#483) : ligne vide en tete (sous l'en-tete) refusee par un motif distinct (\"en tete\")",
+         {
+           e <- engine_lire_donnees_csv(avec_vide(ser483, 1))$erreurs
+           length(e) == 1 && contient(e, "Ligne(s) vide(s) en tete, sous l'en-tete (ligne(s) de donnees 1)") &&
+             !contient(e, "intercalee")
+         })
+verifier("Lignes vides (#483) : lignes vides de fin retirees sans refus, series identiques",
+         {
+           r0 <- engine_lire_donnees_csv(ser483)
+           d <- rbind(ser483, NA, NA)
+           identical(engine_lire_donnees_csv(d), r0) &&
+             identical(engine_lire_donnees_csv(en_texte(d)), r0)
+         })
+verifier("Lignes vides (#483) : fichier avec colonne t sans ligne vide inchange (tri, trou d'annee refuse)",
+         {
+           d <- data.frame(t = c(2003, 2001, 2002, 2004:2009), xt = xt483, yt = yt483)
+           r <- engine_lire_donnees_csv(d)
+           b <- engine_lire_donnees_csv(data.frame(t = c(2001:2003, 2005:2010), xt = xt483, yt = yt483))
+           isTRUE(r$ok) && identical(r$xt, c(101, 102, 100, 103:108)) &&
+             !b$ok && contient(b$erreurs, "non consecutives")
+         })
+verifier("Lignes vides (#483) : fichier avec colonne t a ligne vide intercalee refuse par le meme motif",
+         {
+           d <- avec_vide(data.frame(t = 2001:2009, xt = xt483, yt = yt483), 4)
+           identical(engine_lire_donnees_csv(d)$erreurs,
+                     engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)
+         })
+verifier("Lignes vides (#483) : tableau fait de lignes vides seules refuse comme vide",
+         contient(engine_lire_donnees_csv(ser483[1:2, ][NA_integer_, ])$erreurs, "Fichier vide"))
+verifier("Colonnes vides (#483) : series, colonne vide sans en-tete retiree (bord ou intercalee), series identiques",
+         {
+           r0 <- engine_lire_donnees_csv(ser483)
+           all(vapply(list(col_vide(ser483, 0, "X1"), col_vide(ser483, 1, "X2"), col_vide(ser483, 2, "V3"),
+                           en_texte(col_vide(ser483, 1, "X"))),
+                      function(d) identical(engine_lire_donnees_csv(d), r0), logical(1)))
+         })
+tri483 <- fichier_tri(triangle(6))
+verifier("Lignes vides (#483) : triangle a ligne vide intercalee refuse (colonne i comprise), D(2)(b) cite, CSV texte compris",
+         {
+           r <- engine_lire_triangle(avec_vide(tri483, 4))
+           r2 <- engine_lire_triangle(en_texte(avec_vide(tri483, 4)))
+           !r$ok && is.null(r$triangle) &&
+             contient(r$erreurs, "Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 4)") &&
+             contient(r$erreurs, "D(2)(b)") && identical(r2$erreurs, r$erreurs)
+         })
+verifier("Lignes vides (#483) : triangle a ligne vide en tete refuse par le motif \"en tete\"",
+         contient(engine_lire_triangle(avec_vide(tri483, 1))$erreurs,
+                  "Ligne(s) vide(s) en tete dans le triangle, sous l'en-tete (ligne(s) de donnees 1)"))
+verifier("Lignes vides (#483) : triangle a lignes vides de fin lu comme sans elles",
+         {
+           r0 <- engine_lire_triangle(tri483)
+           isTRUE(r0$ok) && identical(engine_lire_triangle(rbind(tri483, NA, NA)), r0) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(rbind(tri483, NA)))$triangle, r0$triangle,
+                              tolerance = 1e-15))
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide sans en-tete en bord (gauche, entre i et j0, droite) retiree",
+         {
+           r0 <- engine_lire_triangle(tri483)
+           # forme texte : valeurs ecrites par as.character() (15 chiffres), d'ou all.equal()
+           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X9")),
+                      function(d) identical(engine_lire_triangle(d), r0), logical(1))) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, "X.1"))), r0,
+                              tolerance = 1e-15))
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
+         {
+           a <- engine_lire_triangle(col_vide(tri483, 3, "X4"))
+           b <- engine_lire_triangle(col_vide(tri483, 3, "j9"))
+           !a$ok && contient(a$erreurs, "Colonne(s) vide(s) intercalee(s) dans le triangle (colonne(s) 4)") &&
+             contient(a$erreurs, "annee de developpement manquante presumee") && identical(b$erreurs, a$erreurs)
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide en bord portant un en-tete refusee, en-tete cite",
+         {
+           r <- engine_lire_triangle(col_vide(tri483, 7, "j6"))
+           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : j6)")
+         })
+verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
+         {
+           d <- fichier_tri(t5); names(d) <- c("i", rep("j", 5))
+           r <- engine_lire_triangle(d)
+           isTRUE(r$ok) && identical(r$triangle, t5)
+         })
+# Les deux chemins de engine_lire_xlsx() : openxlsx s'il est installe, et le
+# lecteur interne force (requireNamespace simule dans l'environnement du
+# moteur). Classeurs ecrits par l'ecrivain interne (commande zip), puis
+# retouches dans leur XML (decalage de colonnes, cellules mises en forme sans
+# valeur <c r=... s=.../>).
+if (nzchar(Sys.which("zip"))) {
+  env483 <- environment(run_engine)
+  sans_openxlsx483 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env483)
+    on.exit(rm("requireNamespace", envir = env483), add = TRUE)
+    force(expr)
+  }
+  avec_openxlsx483 <- requireNamespace("openxlsx", quietly = TRUE)
+  if (!avec_openxlsx483) cat("  [saute] lignes vides (#483), chemin openxlsx : paquet non installe\n")
+  # retouche : fonction appliquee au XML de la feuille (une chaine)
+  xlsx483 <- function(d, retouche = identity) {
+    f <- tempfile(fileext = ".xlsx")
+    sans_openxlsx483(engine_ecrire_xlsx(d, f))
+    x <- tempfile("x483_"); on.exit(unlink(x, recursive = TRUE), add = TRUE)
+    utils::unzip(f, exdir = x)
+    fs <- file.path(x, "xl", "worksheets", "sheet1.xml")
+    writeLines(retouche(paste(readLines(fs, warn = FALSE), collapse = "")), fs, useBytes = TRUE)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # Decale d'une colonne vers la droite les cellules de colonne >= de
+  # (lettres A a Y).
+  decaler <- function(de = "A") function(s) {
+    m <- gregexpr('r="[A-Z][0-9]+"', s)[[1]]
+    regmatches(s, list(m)) <- list(vapply(regmatches(s, list(m))[[1]], function(r) {
+      l <- substr(r, 4, 4)
+      if (l >= de) sub(l, LETTERS[match(l, LETTERS) + 1L], r, fixed = TRUE) else r
+    }, character(1)))
+    s
+  }
+  # Cellules mises en forme sans valeur (<c r=... s="0"/>) : une colonne de fin
+  # col sur chaque ligne, et deux lignes de fin apres la ligne nl.
+  formes_fin <- function(col, nl) function(s) {
+    s <- gsub('(<row r="([0-9]+)">.*?)</row>', paste0('\\1<c r="', col, '\\2" s="0"/></row>'), s, perl = TRUE)
+    lignes <- paste0(vapply(nl + 1:2, function(i) sprintf('<row r="%d"><c r="A%d" s="0"/><c r="%s%d" s="0"/></row>',
+                                                          i, i, col, i), character(1)), collapse = "")
+    sub("</sheetData>", paste0(lignes, "</sheetData>"), s, fixed = TRUE)
+  }
+  chemins483 <- function(f, lire) {
+    out <- list(interne = lire(sans_openxlsx483(engine_lire_xlsx(f))))
+    if (avec_openxlsx483) out$openxlsx <- lire(engine_lire_xlsx(f))
+    unlink(f)
+    out
+  }
+  tous <- function(rs, test) all(vapply(rs, test, logical(1)))
+  ref_ser <- engine_lire_donnees_csv(ser483); ref_tri <- engine_lire_triangle(tri483)
+  r7 <- chemins483(xlsx483(avec_vide(ser483, 4)), engine_lire_donnees_csv)
+  r8 <- chemins483(xlsx483(rbind(ser483, NA, NA)), engine_lire_donnees_csv)
+  rt <- chemins483(xlsx483(data.frame(t = c(2003, 2001, 2002, 2004:2009), xt = xt483, yt = yt483)),
+                   engine_lire_donnees_csv)
+  rforme <- chemins483(xlsx483(ser483, formes_fin("D", 10)), engine_lire_donnees_csv)
+  rsdec <- chemins483(xlsx483(ser483, decaler("A")), engine_lire_donnees_csv)
+  rv <- chemins483(xlsx483(avec_vide(tri483, 4)), engine_lire_triangle)
+  rf <- chemins483(xlsx483(rbind(tri483, NA)), engine_lire_triangle)
+  rtdec <- chemins483(xlsx483(tri483, decaler("A")), engine_lire_triangle)
+  rtforme <- chemins483(xlsx483(tri483, formes_fin("J", 7)), engine_lire_triangle)
+  rtinter <- chemins483(xlsx483(tri483, decaler("D")), engine_lire_triangle)
+  rna <- chemins483(xlsx483(within(tri483, { j5 <- as.character(j5); j5[2] <- "NA" })), engine_lire_triangle)
+  verifier("Lignes vides (#483) : xlsx sans t a ligne vide intercalee (cas t7) refuse, meme motif sur chaque chemin",
+           tous(r7, function(r) !r$ok && identical(r$erreurs,
+                engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)))
+  verifier("Lignes vides (#483) : xlsx a lignes vides de fin accepte, series identiques sur chaque chemin",
+           tous(r8, function(r) identical(r, ref_ser)))
+  verifier("Lignes vides (#483) : xlsx avec colonne t lu et trie a l'identique sur chaque chemin",
+           tous(rt, function(r) isTRUE(r$ok) && identical(r$xt, c(101, 102, 100, 103:108))))
+  verifier("Lignes et colonnes vides (#483) : xlsx de series a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
+           tous(rforme, function(r) identical(r, ref_ser)))
+  verifier("Colonnes vides (#483) : xlsx de series decale en colonne B, accepte sur chaque chemin",
+           tous(rsdec, function(r) identical(r, ref_ser)))
+  verifier("Lignes vides (#483) : xlsx de triangle a ligne vide intercalee refuse, meme motif sur chaque chemin ; lignes vides de fin retirees",
+           tous(rv, function(r) !r$ok && identical(r$erreurs,
+                engine_lire_triangle(avec_vide(tri483, 4))$erreurs)) &&
+             tous(rf, function(r) identical(r, ref_tri)))
+  verifier("Colonnes vides (#483) : xlsx de triangle decale en colonne B, accepte a l'identique sur chaque chemin",
+           tous(rtdec, function(r) identical(r, ref_tri)))
+  verifier("Lignes et colonnes vides (#483) : xlsx de triangle a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
+           tous(rtforme, function(r) identical(r, ref_tri)))
+  verifier("Colonnes vides (#483) : xlsx de triangle a colonne vide intercalee refuse, meme motif sur chaque chemin",
+           tous(rtinter, function(r) !r$ok &&
+                identical(r$erreurs, engine_lire_triangle(col_vide(tri483, 3, "X4"))$erreurs)))
+  verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
+           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
+} else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
+
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
          {
