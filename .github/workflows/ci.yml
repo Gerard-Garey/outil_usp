@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 # Lecture seule : aucune étape n'écrit dans le dépôt (checkout en lecture ;
-# upload-artifact passe par le jeton d'exécution d'Actions, pas par
-# GITHUB_TOKEN ; le résumé du job est un fichier du runner).
+# upload-artifact et actions/cache passent par le jeton d'exécution d'Actions,
+# pas par GITHUB_TOKEN ; le résumé du job est un fichier du runner).
 permissions:
   contents: read
 
@@ -76,34 +76,70 @@ jobs:
           fi
           cat "$GITHUB_OUTPUT"
 
-  tests-moteur:
-    name: Tests du moteur (unitaires, reproductibilité)
-    # Image épinglée (issue #67, Q-O4) : la même que celle du workflow de
-    # production des références (references.yml), pour que les références
-    # soient testées sur la plateforme qui les produit. ubuntu-latest
-    # changerait d'image sans commit. Le BLAS est fixé à part (action
-    # blas-reference ci-dessous) : l'épinglage de l'image ne l'empêchait
-    # pas de varier avec le processeur du runner (OpenBLAS).
+  # Issue #512 (branche K1) : le job unique « Tests du moteur » (992 s au
+  # run 1152 de 9f7290f, chemin critique de la CI) est réparti en quatre
+  # jobs, qui ne retirent aucun contrôle :
+  #   - tests-unitaires : les tests unitaires en matrice de 3 lots ;
+  #   - reproductibilite : reproductibilité, tableau des écarts aux références
+  #     (#66) et concordance --strict, en parallèle des lots ;
+  #   - ecarts-references : le tableau des écarts après un échec d'un lot ;
+  #   - tests-moteur : agrégat, qui garde le NOM de l'ancien job, requis par
+  #     les rulesets « Protection main » et « Protection main-GPT » (ADR 0012) :
+  #     sans lui, la vérification requise ne serait jamais rapportée.
+  # Image épinglée (issue #67, Q-O4) : la même que celle du workflow de
+  # production des références (references.yml), pour que les références
+  # soient testées sur la plateforme qui les produit. ubuntu-latest
+  # changerait d'image sans commit. Le BLAS est fixé à part (action
+  # blas-reference) : l'épinglage de l'image ne l'empêchait pas de varier
+  # avec le processeur du runner (OpenBLAS).
+  #
+  # Répartition en lots (issue #512, docs/revues/20261108-duree-ci/mesures/
+  # sharding.R, durées du run 1152, test_merz_wuthrich coupé en deux fichiers
+  # d'environ même durée, simulation) : chemin critique estimé, préparation
+  # comprise (setup-r 39 s, BLAS 5 s, paquets de l'application 7 s avec le
+  # cache), 417 s à 2 lots, 296 s à 3 lots, 246 s à 4 lots (au lieu de 992 s
+  # en un job). Trois lots : le 4e ne gagne qu'une cinquantaine de secondes,
+  # borné par test_application (195 s en CI) et par la préparation, pour une
+  # minute et demie de runner de plus et un setup-r lent de plus à courir
+  # (14 min 36 s le 04/11/2026). La répartition (LPT sur
+  # tests/durees_unitaires.tsv) est celle de tests/test_unitaires.R --lot=k/n :
+  # chaque fichier est dans un lot et un seul, la réunion des lots est la
+  # batterie complète. Le lot 1 contient seul les fichiers qui exigent shiny
+  # ou plotly (test_application, test_rapport_html, test_enveloppe_qq,
+  # test_enveloppe_spread, test_incertitude_bootstrap), regroupés pour
+  # l'ordonnancement ; shiny et plotly sont néanmoins installés dans les trois
+  # lots (cache commun, quelques secondes sur un hit), pour qu'un fichier qui
+  # les exigerait sans que la détection du lanceur (motif sur son texte) le voie
+  # ne saute pas ses blocs en silence dans un lot sans eux.
+  tests-unitaires:
+    name: Tests unitaires (lot ${{ matrix.lot }}/${{ matrix.total }})
     runs-on: ubuntu-22.04
-    # Issue #123 : le job s'exécute si le moteur ou le .tex change ; les
-    # tests unitaires et de reproductibilité seulement si le moteur change,
-    # la concordance (qui lit le moteur et le .tex) dans les deux cas.
+    # Issue #123 : seulement si le moteur change (le .tex seul ne les lance pas).
     needs: changements
-    if: needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true'
-    # Durées observées. Tests unitaires en séquentiel (job de 039ec76, 05/11/2026,
-    # exécution 41886457559) : 32 min 02 s, avec 2 min 25 s de reproductibilité
-    # et 30 s de concordance ; branche Fs, 04/11/2026 : 38 min 47 s pour le job
-    # vert de 4505ae3, dont 33 min 44 s de tests unitaires, 2 min 30 s de
-    # reproductibilité (six cas) et 47 s de setup-r. Un setup-r lent du runner
-    # (14 min 36 s le même jour, 15 min le 23/10) suffisait à dépasser l'ancien
-    # délai de 40 min sans aucun échec de test. Depuis l'issue #444 les tests
-    # unitaires tournent en parallèle (4 processus, étape ci-dessous) : sur le
-    # conteneur de développement à 4 cœurs, partagé avec d'autres tâches, la
-    # batterie a pris 31 min 30 s en séquentiel et 8 min 39 s en parallèle
-    # (2 910 assertions dans les deux cas, shiny et plotly absents) ; ce ne
-    # sont pas des durées du runner, qui sont à relever sur la PR. Le délai de
-    # 60 min est conservé : il laisse la marge d'un setup-r lent.
-    timeout-minutes: 60
+    if: needs.changements.outputs.moteur == 'true'
+    # Durées de l'ancien job unique (avant l'issue #512) : tests unitaires en
+    # séquentiel (job de 039ec76, 05/11/2026, exécution 41886457559) : 32 min
+    # 02 s ; branche Fs, 04/11/2026 : 38 min 47 s pour le job vert de 4505ae3,
+    # dont 33 min 44 s de tests unitaires et 47 s de setup-r. Un setup-r lent
+    # du runner (14 min 36 s le même jour, 15 min le 23/10) avait suffi à
+    # dépasser l'ancien délai de 40 min sans aucun échec de test. Un lot dure
+    # environ 4 à 5 min (simulation) : le délai de 30 min laisse la marge d'un
+    # setup-r lent de 15 min.
+    timeout-minutes: 30
+    strategy:
+      # Un lot en échec n'annule pas les autres : tous les échecs sont visibles.
+      fail-fast: false
+      matrix:
+        lot: [1, 2, 3]
+        # Nombre de lots, en un seul endroit (nom du job et option --lot).
+        total: [3]
+    env:
+      VERSION_R: "4.3.1"
+      # Instantané Posit Package Manager (CRAN au 15/02/2024) et versions
+      # attendues des paquets de l'application : voir l'étape d'installation.
+      DATE_INSTANTANE: "2024-02-15"
+      VERSION_SHINY: "1.8.0"
+      VERSION_PLOTLY: "4.10.4"
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -112,12 +148,13 @@ jobs:
         id: installer_r
         with:
           # Même version que le poste de développement.
-          r-version: "4.3.1"
+          r-version: ${{ env.VERSION_R }}
       # Issue #391 (R27) : shiny et plotly, pour que tests/unitaires/
       # test_application.R (bloc testServer) et les tests plotly de
-      # test_rapport_html.R, test_enveloppe_spread.R et
+      # test_rapport_html.R, test_enveloppe_qq.R, test_enveloppe_spread.R et
       # test_incertitude_bootstrap.R s'exécutent en CI au lieu de sauter
-      # (requireNamespace() faux). Versions épinglées par un instantané daté
+      # (requireNamespace() faux). Issue #512 : dans chaque lot de la matrice.
+      # Versions épinglées par un instantané daté
       # de Posit Package Manager (binaires Ubuntu 22.04 : CRAN au 15/02/2024,
       # soit shiny 1.8.0 et plotly 4.10.4, les versions du poste de
       # développement, avec toutes leurs dépendances ; l'instantané ne change
@@ -125,27 +162,54 @@ jobs:
       # aucun paquet système (OpenBLAS compris) n'est installé ici ; le
       # contrôle bloquant du BLAS vient après, à l'étape suivante, et valide
       # l'état final. La version de R reste celle de l'étape précédente.
-      - name: Paquets R de l'application (shiny, plotly), versions épinglées
-        # Comme les tests unitaires : le moteur seul suffit à la concordance.
-        if: needs.changements.outputs.moteur == 'true'
-        env:
-          INSTANTANE_CRAN: "https://packagemanager.posit.co/cran/__linux__/jammy/2024-02-15"
-          VERSION_SHINY: "1.8.0"
-          VERSION_PLOTLY: "4.10.4"
+      #
+      # Issue #512 (A4) : les paquets sont mis en cache (actions/cache,
+      # épinglée par SHA). Clé : système, version de R, date de l'instantané
+      # et versions de shiny et plotly, donc un instantané ou une version de R
+      # différents ne servent jamais le cache d'un autre. Le cache ne contient
+      # que ce qu'install.packages() a posé dans la bibliothèque d'installation
+      # ; il est écrit à la fin du job si celui-ci réussit, et le contrôle
+      # bloquant ci-dessous valide les versions chargées avec ou sans cache. Si
+      # l'image du runner change de bibliothèques système au point de casser un
+      # binaire en cache, ce contrôle échoue : changer la clé (DATE_INSTANTANE
+      # ou une mention dans la clé) pour repartir d'un cache vide. La clé est
+      # commune aux trois lots : au premier run (miss), chacun installe et le
+      # premier à finir écrit le cache, les autres signalent seulement qu'il
+      # existe déjà ; ensuite les trois lots le relisent.
+      # Bibliothèque d'installation : la première du chemin d'un processus
+      # R neuf (celle que verront les Rscript des étapes suivantes) si elle
+      # est inscriptible ; sinon R_LIBS_USER, créée ici et lue au démarrage
+      # des processus suivants parce qu'elle existe alors.
+      - name: Bibliothèque des paquets R de l'application
+        id: biblio
         run: |
           set -euo pipefail
+          bib="$(Rscript -e '
+            bib <- .libPaths()[1L]
+            if (file.access(bib, 2L) != 0L) {
+              bib <- Sys.getenv("R_LIBS_USER")
+              if (!nzchar(bib)) stop("aucune bibliothèque inscriptible et R_LIBS_USER vide.")
+              dir.create(bib, recursive = TRUE, showWarnings = FALSE)
+            }
+            cat(bib)')"
+          echo "Bibliothèque d'installation : $bib"
+          echo "chemin=$bib" >> "$GITHUB_OUTPUT"
+      - name: Cache des paquets R de l'application
+        id: cache_paquets
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.biblio.outputs.chemin }}
+          key: paquets-app-${{ runner.os }}-${{ runner.arch }}-R${{ env.VERSION_R }}-ppm${{ env.DATE_INSTANTANE }}-shiny${{ env.VERSION_SHINY }}-plotly${{ env.VERSION_PLOTLY }}
+      - name: Paquets R de l'application (shiny, plotly), versions épinglées
+        if: steps.cache_paquets.outputs.cache-hit != 'true'
+        env:
+          BIBLIOTHEQUE: ${{ steps.biblio.outputs.chemin }}
+        run: |
+          set -euo pipefail
+          export INSTANTANE_CRAN="https://packagemanager.posit.co/cran/__linux__/jammy/${DATE_INSTANTANE}"
           Rscript - <<'EOF'
-          # Bibliothèque d'installation : la première du chemin d'un processus
-          # R neuf (celle que verront les Rscript des étapes suivantes) si elle
-          # est inscriptible ; sinon R_LIBS_USER, créée ici et lue au démarrage
-          # des processus suivants parce qu'elle existe alors.
-          bib <- .libPaths()[1L]
-          if (file.access(bib, 2L) != 0L) {
-            bib <- Sys.getenv("R_LIBS_USER")
-            if (!nzchar(bib)) stop("aucune bibliothèque inscriptible et R_LIBS_USER vide.")
-            dir.create(bib, recursive = TRUE, showWarnings = FALSE)
-            .libPaths(c(bib, .libPaths()))
-          }
+          bib <- Sys.getenv("BIBLIOTHEQUE")
+          .libPaths(c(bib, .libPaths()))
           cat("Bibliothèque d'installation :", bib, "\n")
           # Agent utilisateur déclaré : Posit Package Manager sert alors des
           # binaires (sans lui, des sources à compiler).
@@ -157,10 +221,13 @@ jobs:
           cat(sprintf("%d paquets installés dans %s :\n", nrow(ip), bib))
           write.table(ip[order(ip[, "Package"]), ], row.names = FALSE, quote = FALSE)
           EOF
-          # Contrôle bloquant dans un processus R NEUF, sans .libPaths() : il voit
-          # exactement ce que verront les Rscript des étapes suivantes. Un
-          # écart (version, chargement, bibliothèque non lue) échoue ici ; sans
-          # lui, test_application.R sauterait son bloc shiny en silence.
+      # Contrôle bloquant dans un processus R NEUF, sans .libPaths() : il voit
+      # exactement ce que verront les Rscript des étapes suivantes. Un
+      # écart (version, chargement, bibliothèque non lue) échoue ici ; sans
+      # lui, test_application.R sauterait son bloc shiny en silence. Il s'exécute
+      # aussi quand les paquets viennent du cache.
+      - name: Contrôle des paquets R de l'application
+        run: |
           Rscript -e '
             attendu <- c(shiny = Sys.getenv("VERSION_SHINY"), plotly = Sys.getenv("VERSION_PLOTLY"))
             for (p in names(attendu)) {
@@ -179,37 +246,130 @@ jobs:
         uses: ./.github/actions/blas-reference
       # Issue #444 : un processus Rscript par fichier, 4 à la fois (mode
       # --parallele de tests/test_unitaires.R, même bilan et même code de
-      # sortie que le mode séquentiel). nproc consigne le nombre de cœurs du
-      # runner dans le journal : les assertions de durée « < 1 s »
-      # (test_application.R, test_merz_wuthrich.R) subissent la charge des 4
-      # processus.
-      - name: Tests unitaires
-        if: needs.changements.outputs.moteur == 'true'
+      # sortie que le mode séquentiel), restreint au lot du job (issue #512).
+      # nproc consigne le nombre de cœurs du runner dans le journal : les
+      # assertions de durée « < 1 s » (test_application.R,
+      # test_merz_wuthrich.R) subissent la charge des 4 processus. Le journal
+      # est aussi écrit dans un fichier du runner, d'où le résumé du job ;
+      # pipefail garde le code de sortie du lanceur.
+      - name: Tests unitaires (lot ${{ matrix.lot }}/${{ matrix.total }})
+        id: unitaires
         run: |
+          set -o pipefail
           echo "Cœurs du runner : $(nproc)"
-          Rscript tests/test_unitaires.R --parallele
+          Rscript tests/test_unitaires.R --parallele --lot=${{ matrix.lot }}/${{ matrix.total }} 2>&1 | tee "$RUNNER_TEMP/tests_unitaires.log"
+      # Bilan du lot (assertions et échecs) dans le résumé du job, visible
+      # depuis la PR. Le total des assertions de la CI est la somme des lots.
+      - name: Bilan du lot (résumé du job)
+        if: ${{ !cancelled() && steps.unitaires.outcome != 'skipped' }}
+        run: |
+          {
+            echo "### Tests unitaires, lot ${{ matrix.lot }}/${{ matrix.total }}"
+            echo
+            echo '```'
+            grep -E '^(Lot |Bilan du lot|TOTAL :|Duree totale|Fichiers en echec)' "$RUNNER_TEMP/tests_unitaires.log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  reproductibilite:
+    name: Reproductibilité et concordance
+    # Même image et même BLAS que les lots (références testées sur la
+    # plateforme qui les produit). Issue #123 : le job s'exécute si le moteur
+    # ou le .tex change ; la reproductibilité seulement si le moteur change,
+    # la concordance (qui lit le moteur et le .tex) dans les deux cas.
+    runs-on: ubuntu-22.04
+    needs: changements
+    if: needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true'
+    # Durées du run 1152 : setup-r 39 s, BLAS 5 s, reproductibilité 128 s,
+    # concordance 26 s, soit environ 200 s. Délai de 30 min : marge d'un
+    # setup-r lent (voir les lots).
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        id: installer_r
+        with:
+          r-version: "4.3.1"
+      - name: BLAS et LAPACK de référence
+        id: blas
+        uses: ./.github/actions/blas-reference
       - name: Reproductibilité et non-régression
         if: needs.changements.outputs.moteur == 'true'
         run: Rscript tests/test_reproductibilite.R
-      # Issue #66 : si une étape précédente du job a échoué (tests unitaires
-      # ou reproductibilité ; l'étape de reproductibilité est alors sautée
-      # quand ce sont les tests unitaires qui échouent), publie le tableau des
-      # écarts aux références dans le résumé du job, visible depuis la PR.
+      # Issue #66 : si l'étape de reproductibilité a échoué, publie le tableau
+      # des écarts aux références dans le résumé du job, visible depuis la PR.
       # Ne s'exécute pas quand tout est vert (coût nul) ; R doit avoir été
       # installé, sous le BLAS de référence (un tableau calculé sous un autre
       # BLAS mêlerait la dérive de plateforme aux écarts). Rapport seulement :
-      # un job en échec le reste.
+      # un job en échec le reste. Un échec des tests unitaires (autres jobs)
+      # déclenche le même tableau dans le job « ecarts-references ».
       - name: Tableau des écarts aux références (après un échec)
         if: failure() && steps.installer_r.outcome == 'success' && steps.blas.outcome == 'success'
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
       # Issue #65 (décision Q-O3) : concordance documentation ↔ moteur en mode
       # strict, bloquante. Le script exécute le moteur : l'étape est dans ce
       # job, où R est installé. Placée après le tableau des écarts pour que
-      # son propre échec ne le déclenche pas ; lancée même si les tests
-      # précédents ont échoué, pour que tous les écarts soient visibles.
+      # son propre échec ne le déclenche pas ; lancée même si la
+      # reproductibilité a échoué, pour que tous les écarts soient visibles.
       - name: Concordance documentation ↔ moteur (--strict)
         if: ${{ !cancelled() && steps.installer_r.outcome == 'success' }}
         run: Rscript tests/concordance_doc_moteur.R --strict
+
+  # Issue #66 et #512 : avant la répartition, le tableau des écarts aux
+  # références était publié après un échec des tests unitaires comme après un
+  # échec de la reproductibilité. Les tests unitaires étant dans d'autres
+  # jobs, ce job reproduit le premier cas : il ne s'exécute que si un lot a
+  # échoué (coût nul sinon), avec le même R et le même BLAS. Rapport seulement :
+  # le job reste vert, l'échec est porté par le lot et par l'agrégat.
+  ecarts-references:
+    name: Écarts aux références (après un échec des tests unitaires)
+    runs-on: ubuntu-22.04
+    needs: tests-unitaires
+    if: ${{ always() && needs.tests-unitaires.result == 'failure' }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        with:
+          r-version: "4.3.1"
+      - name: BLAS et LAPACK de référence
+        uses: ./.github/actions/blas-reference
+      - name: Tableau des écarts aux références
+        run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
+
+  # Agrégat portant le nom de l'ancien job unique, vérification requise des
+  # rulesets (voir plus haut). Réussit si et seulement si les jobs attendus
+  # ont réussi : les lots et la reproductibilité quand le moteur change, la
+  # reproductibilité (concordance) seule quand seul le .tex change. Sauté, comme
+  # l'ancien job, quand ni le moteur ni le .tex ne changent. « always() » et non
+  # « !cancelled() » : un lot ou la reproductibilité annulé doit faire échouer
+  # l'agrégat (« cancelled » n'est pas « success »), sinon la vérification
+  # requise resterait « Skipped », donc passante, après une annulation.
+  tests-moteur:
+    name: Tests du moteur (unitaires, reproductibilité)
+    runs-on: ubuntu-22.04
+    needs: [changements, tests-unitaires, reproductibilite]
+    if: ${{ always() && (needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true') }}
+    timeout-minutes: 5
+    env:
+      MOTEUR: ${{ needs.changements.outputs.moteur }}
+      UNITAIRES: ${{ needs.tests-unitaires.result }}
+      REPRODUCTIBILITE: ${{ needs.reproductibilite.result }}
+    steps:
+      - name: Résultat des jobs de tests
+        run: |
+          attendu_unitaires=skipped
+          if [ "$MOTEUR" = "true" ]; then attendu_unitaires=success; fi
+          echo "Tests unitaires : $UNITAIRES (attendu : $attendu_unitaires)"
+          echo "Reproductibilité et concordance : $REPRODUCTIBILITE (attendu : success)"
+          if [ "$UNITAIRES" != "$attendu_unitaires" ] || [ "$REPRODUCTIBILITE" != "success" ]; then
+            echo "::error title=Tests du moteur::au moins un job de tests n'a pas réussi."
+            exit 1
+          fi
 
   documentation:
     name: Compilation de la documentation LaTeX
