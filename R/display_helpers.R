@@ -559,13 +559,29 @@ html_table <- function(d, classe = "table table-condensed data") {
 # infobulles (hovertemplate "%{y:.3f}", "%{y:,.0f}") et les graduations ;
 # attribut layout.separators de plotly.js ("decimale" puis "milliers").
 .SEPARATEURS_PLOTLY <- ",\u00a0"
+# Barre d'outils plotly (#481). Au survol, elle occupe le haut de la figure (de
+# 2 a 22 px, a droite) et recouvrait le titre, centre par defaut dans la marge
+# haute (haut du titre a 10 px sur une ligne, 17 px sur plusieurs). Le titre est
+# ancre en haut du conteneur et son haut est ramene a .BARRE_PLOTLY_PX par
+# title.pad.t : plotly.js place le haut d'un titre d'une ligne a pad.t - 3 px et
+# celui d'un titre a plusieurs lignes (<br>) a pad.t - 13 px (mesures sous
+# plotly.js 2.25.2 : 330 x 250 px, 1 a 4 lignes). Chaque marge haute des figures
+# titrees est augmentee de .BARRE_PLOTLY_PX - 10 par .marge_haute(), ce qui
+# conserve l'ecart entre le titre d'une ligne et la zone de trace. Le decalage
+# ne depend ni de la largeur ni de la hauteur de la figure.
+.BARRE_PLOTLY_PX <- 24
+.titre_plotly <- function(texte, taille = 14, couleur = COUL$pt)
+  list(text = texte, font = list(size = taille, color = couleur),
+       yref = "container", y = 1, yanchor = "top",
+       pad = list(t = .BARRE_PLOTLY_PX + if (grepl("<br>", texte, fixed = TRUE)) 13 else 3))
+.marge_haute <- function(t) t + .BARRE_PLOTLY_PX - 10
 .mep <- function(p, titre, xlab, ylab) {
-  plotly::layout(p, title = list(text = titre, font = list(size = 14, color = COUL$pt)),
+  plotly::layout(p, title = .titre_plotly(titre),
                  separators = .SEPARATEURS_PLOTLY,
                  xaxis = list(title = xlab, zeroline = FALSE, gridcolor = "#EEEEEE"),
                  yaxis = list(title = ylab, zeroline = FALSE, gridcolor = "#EEEEEE"),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-                 margin = list(t = 45), showlegend = FALSE)
+                 margin = list(t = .marge_haute(45)), showlegend = FALSE)
 }
 .cadre <- function() graphics::par(mar = c(4.2, 4.2, 3, 1), bg = COUL$fond,
                                    cex.main = 1, font.main = 1, col.main = COUL$pt)
@@ -738,7 +754,7 @@ plot_qqnorm <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = if (length(st) > 1L) 80 else 60))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
   p
 }
 
@@ -860,7 +876,7 @@ plot_spread <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = if (length(st) > 1L) 80 else 60))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
   p
 }
 
@@ -999,11 +1015,39 @@ plot_residus <- function(pd) {
 # traversee (#195). q : quantiles en delta = 0 et 1 ; s : seuil du repere ;
 # libre : 1 (delta = 0, gauche) ou 2 (delta = 1, droite) ; lib : les deux
 # textes (.lr_libelles()$quantile_court, #190).
-.lr_annotations_quantile <- function(q, s, libre, lib) {
+.lr_annotations_quantile <- function(q, s, libre, lib, courbe = NULL, etendue = NULL) {
   s_ok <- length(s) == 1L && is.finite(s)
+  # Courbe du profil sous le texte (#481). Mesure sous Chromium, plotly.js
+  # 2.25.2 : une annotation fait 27 px de haut (deux lignes de police 10), plus
+  # 8 px de decalage, et 93 px (Arial) a 103 px (DejaVu Sans) de large. Dans la
+  # zone de trace d'une figure de 330 x 250 px (136 px de haut, 220 px entre
+  # delta = 0 et 1), cela fait au plus 26 % de l'etendue verticale et 47 % de
+  # [0 ; 1] : les bandes ci-dessous prennent 30 % et 45 %. Quand delta estime
+  # est au bord, la courbe finit juste sous la marque de ce bord, du cote ou
+  # l'annotation (fond opaque, #195) se posait et la masquait. Le texte passe
+  # alors de l'autre cote de la marque si ni la courbe ni le repere asymptotique
+  # n'y sont (la regle de #162 reste vraie) ; sinon il garde son cote d'origine.
+  # Sans courbe ni etendue : placement de #162 et #195, inchange.
+  bande <- function(k, haut) {
+    zone <- 0.30 * diff(etendue)
+    if (haut) c(q[k], q[k] + zone) else c(q[k] - zone, q[k])
+  }
+  courbe_dans <- function(k, haut) {
+    if (is.null(courbe) || is.null(etendue)) return(FALSE)
+    x <- courbe$delta; y <- courbe$objectif
+    dans <- is.finite(x) & is.finite(y) & if (k == 1) x <= 0.45 else x >= 0.55
+    b <- bande(k, haut)
+    any(y[dans] >= b[1] & y[dans] <= b[2])
+  }
+  repere_dans <- function(k, haut) {
+    if (is.null(etendue) || !s_ok) return(FALSE)
+    b <- bande(k, haut)
+    s >= b[1] && s <= b[2]
+  }
   ann <- list()
   for (k in which(is.finite(q))) {
     haut <- !(s_ok && q[k] < s)
+    if (courbe_dans(k, haut) && !courbe_dans(k, !haut) && !repere_dans(k, !haut)) haut <- !haut
     a <- list(
       text = lib[k], x = c(0, 1)[k], y = q[k], xref = "x", yref = "y",
       showarrow = FALSE, yanchor = if (haut) "bottom" else "top",
@@ -1015,7 +1059,7 @@ plot_residus <- function(pd) {
   }
   ann
 }
-.lr_reperes_plotly <- function(p, pd, xlim) {
+.lr_reperes_plotly <- function(p, pd, xlim, courbe = NULL, etendue = NULL) {
   L <- pd$lr_delta
   if (is.null(L)) return(p)
   s <- L$repere_asymptotique
@@ -1036,31 +1080,54 @@ plot_residus <- function(pd) {
   # deux marques se chevauchaient, ou l'une passait sous le libelle du repere,
   # dans le cadre de l'application (environ 245 px de zone de trace, #392).
   ann <- .lr_annotations_quantile(q, s, libre,
-           sub(" sous ", "<br>sous ", libs$quantile_court, fixed = TRUE))
-  # Libelle court du cote libre (.lr_cote_libre()), cale contre la marque du
-  # bord (decalage de 10 px) ; du cote de la ligne oppose a cette marque, donc
-  # a son annotation de quantile. La largeur du texte n'etant connue que du
+           sub(" sous ", "<br>sous ", libs$quantile_court, fixed = TRUE),
+           courbe = courbe, etendue = etendue)
+  # Libelle court du cote libre (.lr_cote_libre()), du cote de la ligne oppose
+  # a la marque du bord, donc a son annotation de quantile, avec un decalage
+  # de 3 px seulement (la marque est de l'autre cote de la ligne). La largeur du texte n'etant connue que du
   # navigateur, le libelle a un fond opaque et vient en dernier : dans un cadre
   # trop etroit, il masque la ligne en delta estime ou une annotation de
   # quantile au lieu d'etre traverse ou recouvert. Le libelle long reste au survol de la ligne (#162).
-  # Le libelle tient sur deux lignes (environ 215 px) si le cadre libre fait au
-  # moins 95 % de [0 ; 1] (delta estime au bord ou presque), sur trois
-  # (environ 110 px) sinon : dans le cadre le plus etroit, celui de
-  # l'application (environ 320 px de large, 245 px de zone de trace), il reste
-  # alors en deca de la ligne en delta estime et de l'annotation de quantile
-  # de l'autre bord (environ 105 px, sur deux lignes). Sur une seule ligne
-  # (environ 270 px), il depassait la zone de trace de ce cadre (#392).
+  # Le libelle tient sur deux lignes si le cadre libre fait au moins 95 % de
+  # [0 ; 1] (delta estime au bord ou presque), sur trois sinon, sur quatre
+  # quand l'annotation de quantile de l'autre bord est dans sa bande verticale
+  # (la bande du libelle : du repere sur 30 % de l'etendue, du cote qu'il
+  # occupe ; celle de l'annotation : de sa marque sur 30 %, de son cote) : les
+  # deux sont alors a la meme hauteur et se partagent la largeur du cadre
+  # (#481). Largeurs mesurees sous Chromium, plotly.js 2.25.2, figure de 330 px
+  # (zone de trace de 260 px), en police DejaVu Sans, de largeur proche de
+  # Verdana, police de repli de plotly.js sous Windows : quatre lignes 108 px,
+  # contre 126 px pour trois lignes, qui chevauchaient l'annotation de quantile
+  # de l'autre bord (103 px) a delta estime de 0,66 ; deux lignes coupees apres
+  # la formule 193 px, contre 234 px coupees avant "a 90 %", qui sortaient de
+  # la zone de trace. Sur une seule ligne (environ 270 px en Arial), il
+  # depassait la zone de trace de ce cadre (#392).
   if (s_ok) {
     gauche <- libre == 1L
     dessous <- is.finite(q[libre]) && q[libre] >= s
     d0 <- pd$delta_estime
     part <- if (length(d0) != 1L || !is.finite(d0)) 1 else if (gauche) d0 else 1 - d0
-    lib <- sub(", aide de lecture", ",<br>aide de lecture", libs$asympt_court, fixed = TRUE)
-    if (part < 0.95) lib <- sub("asymptotique ", "asymptotique<br>", lib, fixed = TRUE)
+    conflit <- FALSE
+    if (!is.null(etendue)) {
+      zone <- 0.30 * diff(etendue)
+      bande_lib <- if (dessous) c(s - zone, s) else c(s, s + zone)
+      for (a in ann) if (!identical(a$x, c(0, 1)[libre])) {
+        bande_a <- if (identical(a$yanchor, "bottom")) c(a$y, a$y + zone) else c(a$y - zone, a$y)
+        if (max(bande_lib[1], bande_a[1]) <= min(bande_lib[2], bande_a[2])) conflit <- TRUE
+      }
+    }
+    lib <- libs$asympt_court
+    coupe_aide <- function(x) sub(", aide de lecture", ",<br>aide de lecture", x, fixed = TRUE)
+    coupe_niveau <- function(x) sub(" \u00e0 ", "<br>\u00e0 ", x, fixed = TRUE)
+    coupe_repere <- function(x) sub("asymptotique ", "asymptotique<br>", x, fixed = TRUE)
+    lib <- if (conflit) coupe_repere(coupe_niveau(coupe_aide(lib)))
+           else if (part < 0.95) coupe_repere(coupe_aide(lib))
+           else if (grepl(" \u00e0 ", lib, fixed = TRUE)) coupe_niveau(lib)
+           else coupe_aide(lib)
     ann[[length(ann) + 1]] <- list(
       text = lib, x = if (gauche) 0 else 1, y = s,
       xref = "x", yref = "y", xanchor = if (gauche) "left" else "right",
-      align = if (gauche) "left" else "right", xshift = if (gauche) 10 else -10,
+      align = if (gauche) "left" else "right", xshift = if (gauche) 3 else -3,
       yanchor = if (dessous) "top" else "bottom", showarrow = FALSE,
       bgcolor = COUL$fond, font = list(size = 10, color = COUL$ref_texte))
   }
@@ -1088,9 +1155,13 @@ plot_profil_delta <- function(pd) {
         hovertemplate = "delta = %{x:.3f}<br>objectif = %{y:.4f}<extra></extra>")
   p <- plotly::add_lines(p, x = rep(pd$delta_estime, 2), y = yl,
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
-  p <- .lr_reperes_plotly(p, pd, range(d$delta))
-  .mep(p, sprintf("Profil de vraisemblance en delta (estime = %s)", .num_fr(pd$delta_estime, "%.4f")),
-       "delta", "objectif profile")
+  p <- .lr_reperes_plotly(p, pd, range(d$delta), courbe = d, etendue = yl)
+  # Titre sur deux lignes : sur une ligne, il debordait des deux cotes de la
+  # figure a 330 px de large (#481).
+  p <- .mep(p, sprintf("Profil de vraisemblance en delta<br><sup>(estime = %s)</sup>",
+                       .num_fr(pd$delta_estime, "%.4f")),
+            "delta", "objectif profile")
+  plotly::layout(p, margin = list(t = .marge_haute(60)))
 }
 
 # --- Surface de la fonction objectif (delta, gamma) --------------------------
@@ -1122,13 +1193,11 @@ plot_surface_objectif <- function(pd) {
         marker = list(size = 6, color = COUL$trait),
         hovertemplate = "optimum<br>delta = %{y:.4f}<br>gamma = %{x:.4f}<extra></extra>")
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-    title = list(text = titre,
-                 font = list(size = 14,
-                             color = if (isTRUE(S$au_bord)) COUL$trait else COUL$pt)),
+    title = .titre_plotly(titre, couleur = if (isTRUE(S$au_bord)) COUL$trait else COUL$pt),
     scene = list(xaxis = list(title = "gamma"), yaxis = list(title = "delta"),
                  zaxis = list(title = "objectif"),
                  camera = list(eye = list(x = 1.6, y = -1.5, z = 0.9))),
-    margin = list(t = 45), showlegend = FALSE)
+    margin = list(t = .marge_haute(45)), showlegend = FALSE)
 }
 
 # --- Coupe de la surface a gamma optimal (lecture 2D de la platitude) --------
@@ -1304,7 +1373,7 @@ plot_boot_sigma <- function(pd) {
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
                  legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
                                y = 0, yanchor = "bottom", font = list(size = 10)),
-                 margin = list(t = if (length(st)) 60 else 45, b = 110))
+                 margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 110))
 }
 
 plot_calibration <- function(cand) {
@@ -1335,14 +1404,13 @@ plot_calibration <- function(cand) {
         cliponaxis = FALSE,
         hovertemplate = "%{x}<br>sigma = %{y:.5f}<extra></extra>")
   p <- plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-        title = list(text = "Valeurs candidates et parametre retenu",
-                     font = list(size = 14, color = COUL$pt)),
+        title = .titre_plotly("Valeurs candidates et parametre retenu"),
         xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE"),
         yaxis = list(title = "ecart-type", range = c(0, ymax),
                      zeroline = TRUE, gridcolor = "#EEEEEE"),
         uniformtext = list(minsize = 11, mode = "show"),
         paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-        margin = list(t = 55), showlegend = FALSE)
+        margin = list(t = .marge_haute(55)), showlegend = FALSE)
   p
 }
 
@@ -1441,7 +1509,7 @@ plot_mw_residus_dev <- function(pd) {
   plotly::layout(p, showlegend = TRUE,
                  legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.25,
                                yanchor = "top", font = list(size = 10)),
-                 margin = list(t = 45, b = 80))
+                 margin = list(t = .marge_haute(45), b = 80))
 }
 # Groupes lus dans une table de plots_data (colonne de cle, n, moyenne) ;
 # NULL si la table est absente.
@@ -1535,7 +1603,7 @@ plot_mw_qq <- function(pd) {
   titre <- paste0(paste(.TITRE_MW_QQ_LIGNES, collapse = "<br>"), "<br><sup>",
                   paste(note, collapse = "<br>"), "</sup>")
   p <- .mep(p, titre, .AXE_X_MW_QQ, .AXE_Y_MW_QQ)
-  plotly::layout(p, margin = list(t = 115))
+  plotly::layout(p, margin = list(t = .marge_haute(115)))
 }
 
 # Facteurs f_j (panneau du haut) et ecarts-types sigma_j de Mack (panneau du
@@ -1634,12 +1702,12 @@ plot_mw_facteurs <- function(pd) {
   p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
                        margin = 0.03)
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-                 title = list(text = titre, font = list(size = 14, color = COUL$pt)),
+                 title = .titre_plotly(titre),
                  showlegend = TRUE,
                  legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-                 margin = list(t = 45, b = 80))
+                 margin = list(t = .marge_haute(45), b = 80))
 }
 
 plot_mw_reserve <- function(pd) {
@@ -1942,12 +2010,11 @@ plot_mw_contributions <- function(pd) {
         name = "terme de variance", marker = list(color = COUL$trait),
         hovertemplate = "annee %{x}<br>variance : %{y:.1f} %<extra></extra>")
   p <- plotly::layout(p, barmode = "group", showlegend = TRUE, separators = .SEPARATEURS_PLOTLY,
-        title = list(text = "Contribution de chaque annee de survenance",
-                     font = list(size = 14, color = COUL$pt)),
+        title = .titre_plotly("Contribution de chaque annee de survenance"),
         xaxis = list(title = "annee de survenance i", gridcolor = "#EEEEEE"),
         yaxis = list(title = "part (%)", gridcolor = "#EEEEEE"),
         paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-        margin = list(t = 45))
+        margin = list(t = .marge_haute(45)))
   p
 }
 
@@ -2012,11 +2079,11 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
   })
   p <- plotly::subplot(ps, nrows = ceiling(length(ps) / 3), margin = 0.045,
                        titleX = FALSE, titleY = FALSE)
-  plotly::layout(p, separators = .SEPARATEURS_PLOTLY, title = list(
-      text = "Regressions par annee de developpement : trait plein = f_j (sans constante), pointille = avec constante",
-      font = list(size = 12, color = COUL$pt)),
+  plotly::layout(p, separators = .SEPARATEURS_PLOTLY, title = .titre_plotly(
+      "Regressions par annee de developpement : trait plein = f_j (sans constante), pointille = avec constante",
+      taille = 12),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-    margin = list(t = 55), showlegend = FALSE)
+    margin = list(t = .marge_haute(55)), showlegend = FALSE)
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
@@ -2091,12 +2158,11 @@ plot_mw_alpha <- function(pd) {
           hovertemplate = paste0(nm, "<br>j = %{x}<br>f = %{y:.5f}<extra></extra>"))
   }
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-    title = list(text = "Facteur estime selon la ponderation (famille alpha)",
-      font = list(size = 14, color = COUL$pt)),
+    title = .titre_plotly("Facteur estime selon la ponderation (famille alpha)"),
     xaxis = list(title = "annee de developpement j", gridcolor = "#EEEEEE"),
     yaxis = list(title = "facteur estime", gridcolor = "#EEEEEE"),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-    margin = list(t = 45), showlegend = TRUE)
+    margin = list(t = .marge_haute(45)), showlegend = TRUE)
 }
 
 # =============================================================================
