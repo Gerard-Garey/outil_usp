@@ -6940,6 +6940,10 @@ Approximation non établie à $T = 8$ et mauvaise en queue~: sur le jeu à $\hat
 $2{,}95\cdot 10^{-6}$, sous la plus petite p de permutation atteignable $1/8! = 2{,}48\cdot
 10^{-5}$~; non retenue, la loi exacte étant énumérée (fiche~\ref{fiche:student-pente}, rubrique~4) \\
 
+RESET & $F$ de Ramsey & \emph{Aucune} en $T$~: $\mathcal{F}(2, T-3)$ exacte à $T$ fini sous le modèle auxiliaire gaussien & --- & Sans objet &
+Erreurs additives indépendantes, normales, homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$ (Milliken et Graybill, 1970), contredites par l'erreur lognormale de l'annexe~XVII &
+p de Fisher restituée, non retenue~; p-value de Monte-Carlo retenue, niveau mesuré sous deux modèles ajustés (constat de simulation, fiche~\ref{fiche:reset}) \\
+
 Breusch--Pagan (Koenker), White & $\mathrm{LM} = TR^2_{\text{aux}}$ & $\chi^2(q)$ &
 Convergence en loi & Non établie dans la littérature consultée & Moments d'ordre 4 finis, indépendance &
 Non exploitable ; bootstrap requis \\
@@ -6948,6 +6952,12 @@ Breusch--Pagan (1979) & $\mathrm{LM} = \tfrac12\,\mathrm{SCE}$ & $\chi^2(q)$ &
 Convergence en loi & Idem, \emph{mais} la limite n'est atteinte que si
 $\operatorname{Var}(u^2)=2\sigma^4$ & \textbf{Normalité des erreurs}, en sus
 des précédentes & Non exploitable ; sur-rejet si queues lourdes \\
+
+Goldfeld--Quandt (diagnostic) & $F$, rapport des variances de deux blocs de volume & \emph{Aucune} en $T$~: $\mathcal{F}(h, h)$, exacte sous normalité pour deux régressions séparées & Approchée (résidus d'un ajustement global) & Sans objet &
+Normalité, indépendance, régressions séparées (non remplie) & p de Fisher restituée~; p-value de Monte-Carlo calculée, aucune retenue (fiche~\ref{fiche:goldfeld-quandt}) \\
+
+Brown--Forsythe (diagnostic) & $W$, analyse de variance des écarts absolus à la médiane du groupe & $\mathcal{F}(1, T-2)$, approchée & Approximation à $T$ fini, aucune loi limite employée & Non établie dans la littérature consultée &
+Indépendance~; groupes de 4 années à $T = 8$ & p de Fisher restituée~; p-value de Monte-Carlo calculée, aucune retenue (fiche~\ref{fiche:brown-forsythe}) \\
 
 Ljung--Box (retard~2) & $Q$ & $\chi^2(h)$ & Convergence en loi &
 Non établie dans la littérature consultée &
@@ -6965,14 +6975,25 @@ Variance de la projection non nulle, moment d'ordre 3 &
 Aucune borne chiffrée à $T = 8$~: le facteur $8^{-1/2} \approx 0{,}35$ n'est pas la borne, la
 constante et le rapport de moments n'étant pas évalués. Loi exacte employée à $\hat\pi_t$ constant sans ex \ae quo~; Monte-Carlo sinon \\
 
+Cox--Stuart & $K$, nombre de différences positives & \emph{Aucune}~: $\mathcal{B}(m, 1/2)$ exacte à $T$ fini & --- & Sans objet &
+$D_t$ symétriques autour de~0 ($r_t$ i.i.d., $\hat\pi_t$ constant)~; sans ex \ae quo pour la p-value de Monte-Carlo &
+Exacte à $\hat\pi_t$ constant, mais $p_{\min} \ge 0{,}125$ à $T = 8$~: test inopérant (règle~R1)~; Monte-Carlo à $\hat\pi_t$ variable (fiche~\ref{fiche:cox-stuart}) \\
+
 Wald--Wolfowitz & $R$ & $\mathcal{N}(0,1)$ & Convergence en loi &
 Vitesse non documentée dans la littérature consultée~; loi exacte employée, la
 question est sans objet~; recommandation d'usage $n_1,n_2\ge 10$ &
 Continuité, indépendance & Loi exacte employée à $\hat\pi_t$ constant~; Monte-Carlo sinon \\
 
+Durbin--Watson (sur $z_t$) & DW & \emph{Aucune}~: loi exacte à $T$ fini d'un rapport de formes quadratiques en normales i.i.d. ($\hat\pi_t$ constant), évaluée par l'intégrale d'Imhof & --- &
+Sans objet en $T$~; erreur de quadrature non bornée a priori (Imhof, 1961, p.~423), contrôlée par recoupement (fiche~\ref{fiche:durbin-watson}) &
+$z \propto M\varepsilon$, soit $\hat\pi_t$ constant~; sinon approximation sans borne d'erreur connue & p-value exacte retenue à $\hat\pi_t$ constant~; Monte-Carlo à $\hat\pi_t$ variable \\
+
 Spearman & $\hat\rho_s$ & $\mathcal{N}$ / $t(T-2)$ & Convergence en loi &
 Non établie dans la littérature consultée & Indépendance, absence d'ex \ae quo &
 Loi de permutation exacte employée à $\hat\pi_t$ constant, $T \le 9$, sans ex \ae quo~; Monte-Carlo sinon \\
+
+Smirnov (diagnostic) & $D$ & \emph{Aucune} employée~: loi combinatoire exacte à $T$ fini (\code{ks.test()}, sans ex \ae quo)~; loi limite de Kolmogorov de $\lambda D$ non calculée & --- & Sans objet &
+$z$ échangeable ($\hat\pi_t$ constant), partition fixée par les $x_t$ & Exacte à $\hat\pi_t$ constant, $p_{\min} = 2/70$~; aucune p-value retenue (diagnostic par décision, fiche~\ref{fiche:smirnov}) \\
 
 D'Agostino & $\sqrt{b_1}$ transformé par la loi $S_U$ de Johnson, ajustée sur les moments exacts
 de $\sqrt{b_1}$ à $T$ fini (fiche~\ref{fiche:dagostino-asymetrie}) & $\mathcal{N}(0,1)$ approchée &
@@ -7040,6 +7061,10 @@ $\hat\pi_t$ constant une p-value qui ne dépend plus des données du tout : $1$
 pour le $t$ de Student et $0{,}6651878$ pour le $\chi^2$, à $T = 8$. Restitués
 sans verdict \\
 
+Diagnostics descriptifs~: $R^2$, distance de Cook, leviers & $R^2$, $\max_t D_t$, $\max_t h_t$ & \emph{Aucune} & --- & Sans objet &
+$R^2$~: loi bêta exacte sous $b = 0$ et erreurs normales (modèle auxiliaire MCO), non employée~; $h_t$ fonction des seuls volumes &
+Rien ne converge~; repères $0{,}5$ (convention de l'outil), $4/T$ (sans source primaire relue) et $2k/T$ (règle empirique de Hoaglin et Welsch, 1978), sans p-value ni verdict (fiches~\ref{fiche:r2}, \ref{fiche:cook} et~\ref{fiche:leviers}) \\
+
 \midrule
 \multicolumn{7}{@{}l@{}}{\textbf{(B) Convergence en $B$ de l'estimateur
 Monte-Carlo --- entièrement contrôlable}} \\
@@ -7055,7 +7080,7 @@ $B=999 \Rightarrow \pm 0{,}009$ à $p=0{,}10$ ($\pm 0{,}014$ au bilatéral). \te
 
 Idem & Loi bootstrap $p^{*}$ & Vraie p-value sous $H_0$ &
 Convergence bootstrap en $T$ & Consistance établie asymptotiquement ;
-raffinement d'ordre supérieur pour statistiques pivotales &
+raffinement d'ordre supérieur pour une statistique asymptotiquement pivotale (Hall, 1992, ouvrage non relu)~; aucun ordre chiffré à $T$ fini &
 Modèle correctement spécifié, estimateur consistant &
 \textbf{Non quantifiable à $T=8$} par la théorie~; niveau réel mesuré sous deux modèles
 ajustés (constat de simulation, section~\ref{sec:calibration-mc}). C'est ici, et non dans le choix de $B$, que
@@ -7209,6 +7234,10 @@ satisfont pas &
 Aucune p-value (aucune des trois voies ouverte)~; 0 déclaration sur 1\,000 triangles sous $H_0$
 (\code{docs/tableaux/}\allowbreak\code{20261021-issue309-}\allowbreak\code{puissance-mw.md})~; repère sans verdict (fiche~\ref{mw:m4ros}) \\
 
+Shapiro--Wilk sur résidus de Mack (diagnostic) & p lue sur la loi nulle de $W$ simulée pour un échantillon i.i.d. normal ($B_{\text{null}} = 20\,000$) & Loi de $W$ à $n$ fini sous i.i.d. normal &
+Convergence en $B_{\text{null}}$ (erreur de Monte-Carlo de la loi nulle)~; aucune convergence en $T$ & $\mathcal{O}(B_{\text{null}}^{-1/2})$~; plancher $1/20\,001$ &
+Échantillon i.i.d. normal, que les résidus de Mack ne vérifient pas (contraintes de colonne) & p restituée, non retenue~; $0{,}221$ de rejets à $0{,}10$ sous erreurs gaussiennes (constat de simulation sous un plan, fiche~\ref{mw:m5sw}) \\
+
 Pente relative intra-colonne & $t$ de la pente commune à effets fixes de
 colonne & Student$(N - G - 1)$ & Approximation, non convergence établie & Non établie~; $N = 27$
 cellules, $G = 6$ colonnes, 20 degrés de liberté sur un triangle $8\times 8$ & Normalité,
@@ -7276,10 +7305,16 @@ empirique des résidus~; niveau réel mesuré à $T = 8$ sous le plan du triangl
 
 $(\hat\delta,\hat\gamma)$ (MV) & Estimateur du maximum de vraisemblance &
 $(\delta_0,\gamma_0)$ & Convergence en probabilité ; normalité asymptotique &
-$\mathcal{O}_P(T^{-1/2})$ sous conditions de régularité &
+Non établie dans la littérature consultée pour ce modèle (observations indépendantes non identiquement distribuées, volumes fixés)~; l'ordre $T^{-1/2}$ du cadre régulier n'est pas sourcé ici &
 Modèle correct, identifiabilité, intérieur du domaine &
 $\hat\delta$ souvent \textbf{au bord} : régularité en défaut, normalité
 asymptotique non applicable \\
+
+Position de $\hat\delta$ (diagnostic) & $\hat\delta$ et drapeau de bord & \emph{Aucune} & --- & Sans objet & Tolérance \code{TOL\_DELTA\_BORD} (résolution numérique) &
+Rien ne converge~; au bord, la normalité asymptotique de la ligne précédente ne s'applique pas (fiche~\ref{fiche:position-delta}) \\
+
+Jackknife (diagnostic) & $\Delta_{\max}$, écart relatif maximal de $\sigma_{\mathrm{USP}}$ au retrait d'une année & \emph{Aucune} & --- & Sans objet & --- &
+Rien ne converge~; repères $10~\%$ et $20~\%$, convention de l'outil, sans source, sans p-value ni verdict (fiche~\ref{fiche:jackknife}) \\
 
 Rapport de vraisemblance sur $\delta$ (diagnostic) & (A) loi de $\mathrm{LR}$ en $T$ &
 $\tfrac12\chi^2(0)+\tfrac12\chi^2(1)$ & Convergence en loi &
