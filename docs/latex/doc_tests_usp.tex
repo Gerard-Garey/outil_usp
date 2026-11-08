@@ -8673,6 +8673,7 @@ $\hat\delta = 1$}~: $w_t \propto 1/x_t^2$, et la régression pondérée est la r
 pondérée du ratio, $r_t = b + a/x_t + \varepsilon_t/x_t$~: $t_a$ est le $t$ du coefficient de
 $1/x_t$ dans \code{lm(r \textasciitilde\ I(1/x))} (égalité vérifiée sur le jeu de contrôle), ce qui
 relie ce test à la ligne Spearman ratio contre volume (rubrique~6).
+Fonction nommée~: \code{test\_intercept()}.
 \Loi
 $t_a \sim t(T-2)$ ne serait exacte, sous $a = 0$, que sous un modèle auxiliaire pondéré à poids
 \emph{connus} et erreurs normales (section~\ref{sec:modele-auxiliaire-spec}). Les poids étant
@@ -9025,6 +9026,7 @@ forte d'échangeabilité et dans le sens unilatéral verrouillé.
 $t_b = \hat b/\widehat{\mathrm{se}}(\hat b)$ (fiche~\ref{fiche:student-pente}, rubrique~3),
 restituée dans \code{stat} sous le nom \code{t}~; \code{estim} à \code{NA}, $\hat b$ figurant sur
 la ligne Pitman. À un régresseur, $t_b^2 = F$, statistique de la ligne de Fisher.
+Fonction nommée~: \code{test\_lm\_complet()}.
 \Loi
 Sous $b = 0$, $t_b \sim t(T-2)$ \textbf{exactement} sous le seul modèle auxiliaire MCO
 (section~\ref{sec:modele-auxiliaire-spec}~: régresseurs fixés, erreurs indépendantes,
@@ -9097,6 +9099,7 @@ calculée~; la ligne, diagnostic, ne la rejette ni ne l'accepte.
 À un régresseur, $F = t_b^2$, où $t_b$ est la statistique restituée par la ligne du test de
 Pitman (fiche~\ref{fiche:student-pente}) et par la ligne de Student sur la pente
 (fiche~\ref{fiche:student-pente-modele-auxiliaire})~: $F$ est une fonction croissante de $|r|$.
+Fonction nommée~: \code{test\_lm\_complet()}.
 \Loi
 $F \sim \mathcal{F}(k,\,T-k-1)$, soit $\mathcal{F}(1, T-2)$, loi exacte sous le modèle auxiliaire
 des moindres carrés seulement (section~\ref{sec:modele-auxiliaire-spec}), que H2 et H3
@@ -9162,6 +9165,7 @@ sous une hypothèse nulle d'échangeabilité.
   \qquad
   R^2_{\text{aj}} = 1 - (1-R^2)\frac{T-1}{T-k-1}.
 \]
+Fonction nommée~: \code{test\_lm\_complet()}.
 \Loi
 Sous $H_0 : b = 0$ et normalité des erreurs,
 $R^2 \sim \mathcal{B}\!\left(\tfrac{k}{2},\ \tfrac{T-k-1}{2}\right)$ (loi bêta), d'espérance
@@ -9235,6 +9239,7 @@ augmenté, $q = 2$ restrictions et $k = 1$ paramètre contraint~:
 \[
   F \;=\; \frac{(\mathrm{SCR}_0 - \mathrm{SCR}_1)/q}{\mathrm{SCR}_1/(T-k-q)} .
 \]
+Fonction nommée~: \code{test\_reset()}.
 \Loi
 $F \sim \mathcal{F}(2, T-3)$ \emph{exactement} sous des erreurs additives indépendantes, normales et
 homoscédastiques dans $y_t = \beta x_t + \varepsilon_t$ (section~\ref{sec:modele-auxiliaire-autres})~:
@@ -9291,8 +9296,8 @@ ou pas d'ex \ae quo). À volumes constants, la variante « ratio contre volume �
 \Hzero
 $H_0$ : indépendance des deux séries, donc absence de toute association monotone.
 \Stat
-Sans ex \ae quo, $\hat\rho_s = 1 - 6\sum_t d_t^2/\big(T(T^2-1)\big)$, le script rapportant
-$S = \sum_t d_t^2$~; avec ex \ae quo, $\hat\rho_s$ est le coefficient de Pearson des rangs.
+Sans ex \ae quo, $\hat\rho_s = 1 - 6\sum_t d_t^2/\big(T(T^2-1)\big)$, \code{usp\_tests()}
+restituant $S = \sum_t d_t^2$~; avec ex \ae quo, $\hat\rho_s$ est le coefficient de Pearson des rangs.
 \Loi
 Sous $H_0$, la loi exacte de $S$ est la loi de permutation~: les $T!$ appariements de rangs sont
 équiprobables. Approximation usuelle~: $t = \hat\rho_s\sqrt{(T-2)/(1-\hat\rho_s^2)} \sim t(T-2)$.
@@ -9321,8 +9326,8 @@ dit le commentaire~; (iii)~$T \le 9$, \code{cor.test()} rendant au-delà un dév
 d'Edgeworth, non exact. Sinon, la p-value de Monte-Carlo est retenue. \textbf{Variante «~ratio
 contre temps~»~: aucune p-value retenue}~: diagnostic par décision (section~\ref{sec:nature}),
 verdict \code{INFO}~; ses p-values restent restituées ($0{,}840$ exacte et $0{,}872$ de Monte-Carlo
-sur le jeu de contrôle), $p_{\min}$ aussi, sans règle~R1~; avec ex \ae quo, \code{usp\_tests()}
-joint au commentaire le motif porté par les effectifs.
+sur le jeu de contrôle), $p_{\min}$ aussi, sans règle~R1~; avec ex \ae quo, le commentaire
+joint le motif porté par les effectifs.
 \Usage
 Test non paramétrique robuste aux valeurs extrêmes et à la non-normalité. Deux limites~: (i) il ne
 détecte que les associations \emph{monotones} (une relation en U passe inaperçue)~; (ii) la
@@ -9422,6 +9427,7 @@ puis la statistique standardisée avec correction de continuité
     (S+1)/\sqrt{\operatorname{Var}(S)} & \text{si } S < 0.
   \end{cases}
 \]
+Fonction nommée~: \code{test\_mann\_kendall()}.
 \Loi
 Sous $H_0$, $S$ suit une loi exacte tabulée, symétrique autour de~0 ; asymptotiquement
 $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
@@ -9479,6 +9485,7 @@ $n_p$. Hypothèses non testées~: indépendance des observations, continuité.
 $H_0$ : absence de tendance, formalisée par $\mathbb{P}(D_t > 0) = 1/2$ pour toute paire.
 \Stat
 $K = \#\{t : D_t > 0\}$, nombre de différences positives parmi les $m$ paires non nulles.
+Fonction nommée~: \code{test\_cox\_stuart()}.
 \Loi
 $K \sim \mathcal{B}(m,\,1/2)$, loi binomiale \emph{exacte}, pourvu que chaque $D_t$ soit de loi
 symétrique autour de~0~: c'est le cas si les $r_t$ sont i.i.d., donc sous le modèle ajusté à
@@ -9632,6 +9639,7 @@ $H_0 : c_1 = 0$ : la variance des résidus standardisés ne dépend pas du volum
 réglementaire $\pi_t$ est correctement spécifiée.
 \Stat
 $\mathrm{LM} = T \cdot R^2_{\text{aux}}$.
+Fonction nommée~: \code{test\_breusch\_pagan()}.
 \Loi
 $\mathrm{LM} \xrightarrow{\ \mathcal{L}\ } \chi^2(q)$, $q = 1$ régresseur auxiliaire hors
 constante~; vitesse de convergence non établie à $T = 8$ (tableau~\ref{tab:conv}).
@@ -9739,6 +9747,7 @@ $H_0 : c_1 = 0$, la variance des résidus standardisés ne dépend pas du volume
 Avec $g_t = z_t^2 / \hat\sigma^2$, $\hat\sigma^2 = T^{-1}\sum_t z_t^2$, on régresse $g$ sur $x$
 et l'on retient la moitié de la somme des carrés expliqués~:
 $\mathrm{LM} = \tfrac{1}{2}\sum_t\big(\hat g_t - \bar g\big)^2$.
+Fonction nommée~: \code{test\_breusch\_pagan\_original()}.
 \Loi
 $\mathrm{LM} \xrightarrow{\ \mathcal{L}\ } \chi^2(1)$ sous $H_0$ \emph{et} normalité des erreurs.
 \Pval
@@ -9809,6 +9818,7 @@ finie ($z_t^2$ identiquement nul, $R^2 = 0/0$).
 $H_0 : c_1 = c_2 = 0$.
 \Stat
 $\mathrm{LM} = T \cdot R^2_{\text{aux}}$, avec le $R^2$ de la régression enrichie.
+Fonction nommée~: \code{test\_white()}.
 \Loi
 $\mathrm{LM} \xrightarrow{\ \mathcal{L}\ } \chi^2(q)$ avec $q = 2$.
 \Pval
@@ -9858,6 +9868,7 @@ celui des forts volumes.
 \Stat
 $F = \big(\frac{1}{h}\sum_{\text{groupe haut}} z_t^2\big)\big/\big(\frac{1}{h}\sum_{\text{groupe
 bas}} z_t^2\big)$.
+Fonction nommée~: \code{test\_goldfeld\_}\allowbreak\code{quandt()}.
 \Loi
 $F \sim \mathcal{F}(h, h)$ sous $H_0$ et normalité. \emph{Approximation}~: les $z_t$ provenant
 d'un ajustement global et non de deux régressions séparées, les degrés de liberté sont légèrement
@@ -9930,6 +9941,7 @@ $H_0$ : égalité des dispersions entre les deux groupes.
   W \;=\; \frac{(N-k)\sum_{g=1}^{k} n_g\,(\bar d_g - \bar d)^2}
                 {(k-1)\sum_{g=1}^{k}\sum_{i=1}^{n_g} (d_{gi} - \bar d_g)^2}.
 \]
+Fonction nommée~: \code{test\_brown\_forsythe()}.
 \Loi
 $W \sim \mathcal{F}(k-1,\,N-k)$ approximativement, soit ici $\mathcal{F}(1, T-2)$.
 \Pval
@@ -9978,6 +9990,7 @@ $H_0 : F_1 = F_2$, égalité complète des lois -- hypothèse plus forte que la 
 variances.
 \Stat
 $D_{n_1,n_2} = \sup_{u} \big| \hat F_1(u) - \hat F_2(u) \big|$.
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Sous $H_0$, pour $z$ échangeable, la loi exacte de $D$ est combinatoire, calculée par
 \code{ks.test} sans ex \ae quo~; les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant
@@ -10068,6 +10081,7 @@ $\delta_0$ du rapport de vraisemblance (fiche~\ref{fiche:rv-delta})~: une seule 
 double le plus proche de $1 - 10^{-6}$ ($0{,}99999899999999997124$) étant au bord haut~; hors de
 $[0,1]$ ou pour un $\delta$ non fini, cas jamais atteints sous les bornes de \code{L-BFGS-B}, les
 comparaisons suivent aussi le prédicat.
+Fonction nommée~: \code{usp\_ajuster()}.
 \Loi
 Sans objet.
 \Pval
@@ -10194,6 +10208,7 @@ spécifiés.
   a' = \frac{m' V^{-1}}{\sqrt{m' V^{-1} V^{-1} m}} .
 \]
 $W \in\, ]0,1]$, une valeur proche de 1 étant favorable à la normalité.
+Fonction nommée~: \code{.shapiro\_sur()}.
 \Loi
 Aucune forme analytique fermée. Royston (1992) fournit une transformation normalisante~: pour
 $12 \le T \le 5000$, $\ln(1-W)$ est approximativement $\mathcal{N}(\mu_W, \sigma_W^2)$, où $\mu_W$
@@ -10314,6 +10329,7 @@ $H_0$ : les $z_t$ suivent la loi $\mathcal{N}(0,1)$ de référence.
 forme discrète de
 $A^2 = T\int \frac{(\hat F(u)-F_0(u))^2}{F_0(u)(1-F_0(u))}\,dF_0(u)$~: la pondération
 $[F_0(1-F_0)]^{-1}$ amplifie les écarts dans les \emph{queues}.
+Fonction nommée~: \code{stat\_ad()}.
 \Loi
 Sous $H_0$ à paramètres connus, $A^2$ converge vers une loi limite tabulée indépendante de $F_0$.
 Lorsque les paramètres sont estimés, on utilise la statistique modifiée
@@ -10375,6 +10391,7 @@ $H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
   W^2 \;=\; \frac{1}{12T} + \sum_{i=1}^{T}\left(p_{(i)} - \frac{2i-1}{2T}\right)^{2}
   \;=\; T\int \big(\hat F - F_0\big)^2\, dF_0 .
 \]
+Fonction nommée~: \code{stat\_cvm()}.
 \Loi
 Loi limite de Cramér--von Mises sous $H_0$ à paramètres connus ; statistique modifiée
 $W^{*2} = W^2(1 + 0{,}5/T)$ lorsque les paramètres sont estimés.
@@ -10431,6 +10448,7 @@ $H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
   D \;=\; \sup_{u} \big|\hat F(u) - \Phi(u)\big|
     \;=\; \max_{1\le i\le T} \max\!\left(\frac{i}{T} - p_{(i)},\; p_{(i)} - \frac{i-1}{T}\right).
 \]
+Fonction nommée~: \code{stat\_ks()}.
 \Loi
 À paramètres connus, $\sqrt{T}\,D$ converge vers la loi de Kolmogorov~:
 \[
@@ -10502,6 +10520,7 @@ $H_0$ : les $z_t$ sont issus d'une loi normale de moyenne et de variance quelcon
   D_{\mathrm{L}} = \sup_u \left| \hat F(u) - \Phi\!\left(\frac{u - \bar z}{s_z}\right) \right|,
 \]
 soit la statistique de Kolmogorov--Smirnov calculée après standardisation empirique.
+Fonction nommée~: \code{stat\_lilliefors()}.
 \Loi
 Loi de Lilliefors, \emph{stochastiquement plus concentrée} que celle de Kolmogorov puisque
 l'ajustement des paramètres rapproche mécaniquement $\hat F$ de la loi de référence. Elle n'a pas
@@ -10552,6 +10571,7 @@ et $\mathbb{E}[b_2] = 3$ conjointement.
   \qquad
   \sqrt{b_1} = \frac{m_3}{m_2^{3/2}},\quad b_2 = \frac{m_4}{m_2^{2}} .
 \]
+Fonction nommée~: \code{test\_jarque\_bera()}.
 \Loi
 $\mathrm{JB} \xrightarrow{\ \mathcal{L}\ } \chi^2(2)$, comme somme des carrés de deux
 statistiques asymptotiquement normales et indépendantes~: loi \emph{asymptotique}. Aucune loi
@@ -10625,6 +10645,7 @@ En posant $\sqrt{b_1} = m_3/m_2^{3/2}$~:
   Z \;=\; \varsigma \,\ln\!\left(\frac{Y}{\alpha} + \sqrt{\left(\frac{Y}{\alpha}\right)^2 + 1}\right)
     \;=\; \varsigma\,\operatorname{arcsinh}\!\left(\frac{Y}{\alpha}\right).
 \]
+Fonction nommée~: \code{test\_dagostino\_skew()}.
 \Loi
 $Z \sim \mathcal{N}(0,1)$ approximativement sous $H_0$, la transformation de Johnson $S_U$
 ci-dessus corrigeant l'asymétrie de la loi exacte de $\sqrt{b_1}$ à $T$ fini.
@@ -10677,6 +10698,7 @@ Avec $b_2 = m_4/m_2^2$,
   Z \;=\; \frac{\Big(1 - \dfrac{2}{9A}\Big) - \left(\dfrac{1 - 2/A}{1 + x\sqrt{2/(A-4)}}\right)^{1/3}}
                 {\sqrt{2/(9A)}} .
 \]
+Fonction nommée~: \code{test\_anscombe\_kurt()}.
 \Loi
 $Z \sim \mathcal{N}(0,1)$ approximativement (transformation de Wilson--Hilferty).
 \Pval
@@ -10805,6 +10827,7 @@ d'ordre~1.
 \]
 $\mathrm{DW} \in [0,4]$~: proche de 2 sous $H_0$, proche de 0 en autocorrélation positive forte,
 proche de 4 en autocorrélation négative forte.
+Fonction nommée~: \code{stat\_dw()}.
 \Loi
 Sous $H_0$ et sous le modèle ajusté pris pour vrai, les résidus standardisés suivent
 $\mathcal{N}(0, P)$ et \textbf{non} $\mathcal{N}(0, I_T)$, $P$ étant le projecteur de rang $T-1$
@@ -10896,6 +10919,7 @@ $H_0 : \rho_1 = \dots = \rho_h = 0$, absence d'autocorrélation jusqu'au retard 
 La pondération $(T+2)/(T-k)$ de Ljung--Box corrige le biais de $Q_{\mathrm{BP}}$ à $T$ fini.
 Seule $Q_{\mathrm{LB}}$ à $h = 2$ est restituée (\code{stats::Box.test()}, appel direct, clé
 \code{LB2})~; $Q_{\mathrm{BP}}$ est rappelée pour la définition.
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 $Q \xrightarrow{\ \mathcal{L}\ } \chi^2(h)$ sous $H_0$ (et $\chi^2(h-p-q)$ si les résidus
 proviennent d'un ARMA$(p,q)$ ajusté, ce qui n'est pas le cas ici).
@@ -10955,6 +10979,7 @@ $H_0$ : la suite des signes est un arrangement aléatoire, les $\binom{n}{n_1}$ 
 \Stat
 $\mathbb{E}[R] = 2n_1n_2/n + 1$, $\operatorname{Var}(R) = 2n_1n_2(2n_1n_2 - n)/\big(n^2(n-1)\big)$,
 $Z = (R - \mathbb{E}[R])/\sqrt{\operatorname{Var}(R)}$.
+Fonction nommée~: \code{test\_runs()}.
 \Loi
 Loi exacte combinatoire pour $R$ (dénombrement des compositions)~; asymptotiquement
 $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
@@ -11292,6 +11317,7 @@ $\bar z$ est déterminé par l'estimation, non librement observé.
 \Stat
 Aucune statistique de test. La grandeur restituée est l'\emph{estimation} $\bar z$ (champ
 \code{estim})~; \code{stat} et \code{loi} sont vides.
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Sans objet, pour deux raisons. \emph{Loi nominale.} La loi $t(T-1)$ de $\bar z\sqrt{T}/s_z$ est
 optimiste (trois paramètres estimés, contrainte linéaire)~: argument exact mais faible.
@@ -11418,6 +11444,7 @@ valeur imposée par les conditions du premier ordre est $T/(T-1)$.
 \Stat
 Aucune statistique de test~; la grandeur restituée est l'\emph{estimation} $\operatorname{Var}(z)$
 (champ \code{estim}).
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Sans objet. La loi $\chi^2(T-1)$ de $C = (T-1)\,s_z^2$ est nominale et ignore l'estimation~; comme
 au centrage, l'argument décisif est qu'à $\hat\pi_t$ constant elle produit une p-value
@@ -11690,6 +11717,7 @@ avant et après~:
   F(k) = \frac{\mathrm{SCT} - \mathrm{SCR}(k)}{\mathrm{SCR}(k)/(T-2)},
 \]
 puis $\displaystyle \sup F = \max_{k\in\mathcal{K}} F(k)$.
+Fonction nommée~: \code{stat\_supF()}.
 \Loi
 \textbf{Pas} $\mathcal{F}(1,T-2)$~: le point de rupture étant \emph{estimé} et non fixé a priori,
 la loi de $\sup F$ est celle d'un supremum de processus, tabulée par Andrews (1993) et dépendant
@@ -11738,6 +11766,7 @@ constant (dérive ou rupture).
   \qquad
   \mathrm{CUSUM} = \max_{1\le j\le T}\big|S(j)\big| .
 \]
+Fonction nommée~: \code{stat\_cusum()}.
 \Loi
 Sous $H_0$, $S(\lfloor uT \rfloor) \Rightarrow B^{\circ}(u)$, pont brownien standard sur $[0,1]$.
 La statistique converge donc vers $\sup_{u\in[0,1]}|B^\circ(u)|$, de loi de Kolmogorov.
@@ -11792,6 +11821,7 @@ L'alternative est la présence d'\emph{exactement une} valeur aberrante.
 \[
   G \;=\; \frac{\max_{t}\big|z_t - \bar z\big|}{s_z}.
 \]
+Fonction nommée~: \code{test\_grubbs()}.
 \Loi
 Sous $H_0$, la loi exacte de $G$ se déduit de celle de Student~: en posant
 \[
@@ -11880,6 +11910,7 @@ déjà écartées~:
 \[
   R_i = \frac{\max_{z\in\mathcal{S}_i}\big|z - \bar z_{\mathcal{S}_i}\big|}{s_{\mathcal{S}_i}} .
 \]
+Fonction nommée~: \code{test\_rosner()}.
 \Loi
 Valeurs critiques de Rosner (1983, éq.~(2.5)), calculées en forme close par \code{test\_rosner()},
 avec $n_i = T-i+1$ et
@@ -12007,6 +12038,7 @@ Sans objet.
   \;=\; \frac{\sum_{i}\big(\hat y_i - \hat y_{i(-t)}\big)^2}{k\,\hat s^2},
 \]
 où $\hat y_{i(-t)}$ est la prévision obtenue en retirant l'observation $t$.
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Aucune loi exacte. On rapproche parfois $D_t$ des quantiles de $\mathcal{F}(k, T-k)$, mais il
 s'agit d'une heuristique sans fondement rigoureux.
@@ -12073,6 +12105,7 @@ Sans objet.
 $h_t = H_{tt}$, soit ici, en régression simple sans constante,
 $\displaystyle h_t = \frac{x_t^2}{\sum_{i=1}^{T} x_i^2}$, avec $\sum_t h_t = k$ et
 $0 \le h_t \le 1$.
+Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Aucune.
 \Pval
@@ -12266,6 +12299,7 @@ aussi aux réplications (plus petites valeurs simulées non
 nulles sur le jeu de contrôle~: $2{,}0\cdot 10^{-5}$ sous $\delta_0 = 0$, $1{,}4\cdot 10^{-6}$ sous
 $\delta_0 = 1$, au-dessus du seuil). \code{estim}~: $\tilde\sigma(\delta_0) = \tilde\beta_0 e^{\tilde\gamma_0}$, le $\hat\sigma$
 estimé sous cette borne. Champs~: \code{res\$lr\_delta}, par borne.
+Fonction nommée~: \code{usp\_lr\_delta()}.
 \Loi
 \emph{Asymptotique.} Sous les conditions de Wilks, $\mathrm{LR} \to \chi^2(1)$ en loi.
 \textbf{Mais $\delta_0 = 0$ et $\delta_0 = 1$ sont sur la frontière de $[0,1]$}~: la régularité
@@ -12394,7 +12428,7 @@ $\Delta_{\max} = \max_{t \in \mathcal{E}} \big|\sigma_{\mathrm{USP}}^{(-t)} -
 \emph{évaluables}, dont le réajustement a abouti sans être refusé ($\mathcal{E} = \{1, \dots, T\}$
 sur les cas de référence). Le biais jackknife,
 $(T-1)\big(\overline{\sigma^{(-\cdot)}} - \hat\sigma\big)$, se calcule sur la table si toutes les
-années sont évaluables.
+années sont évaluables. Fonction nommée~: \code{run\_engine()}.
 
 \emph{Part estimée et part standard.} La \emph{part estimée} de $\sigma_{\mathrm{USP}}$ est
 $c\sqrt{(T+1)/(T-1)}\,\hat\sigma$~; la \emph{part standard}, $(1-c)\,\sigma_{\text{std}}$, ne
@@ -12540,6 +12574,7 @@ L_{\text{est}}$, où $L_{\text{est}}$, largeur relative des quantiles de $\hat\s
 $\hat\sigma$ (part estimée, fiche~\ref{fiche:jackknife}), ne dépend ni de la table de l'annexe ni
 du barème~; elle n'est ni imprimée ni stockée, et se recalcule par
 \code{res\$bootstrap\$sigma\_boot} et le champ \code{sigma} de \code{res\$ajustement}.
+Fonction nommée~: \code{run\_engine()}.
 
 \emph{«~Basic~» logarithmique} (\code{usp\_ic\_basic\_log()}, noté I4 à la rubrique~4).
 L'intervalle «~basic~» (Davison et Hinkley, 1997, éq.~(5.6), p.~194) estime les quantiles de
@@ -14580,12 +14615,13 @@ $H_0$ : le facteur $f_j$ est \emph{commun à toutes les années de survenance}~;
 les facteurs individuels ne présentent aucune tendance en $i$.
 \Stat
 $\hat\rho_{s,j}$ par colonne, de p-value bilatérale $p_j$ (\code{.mw\_spearman()}), selon la
-règle commune des corrélations de rang par colonne (section~\ref{sec:mwm1}, règle~(6))~: loi de
+règle commune des corrélations de rang par colonne (règle~(6))~: loi de
 permutation énumérée à $n_j \le 9$, conditionnelle aux rangs moyens observés avec ex \ae quo,
 doublement de la plus petite queue, $p_j \in [2/n_j!, 1]$, jamais nulle. Une colonne de $n_j = 4$
 facteurs à $|\hat\rho_{s,j}| = 1$ reste ainsi combinée, avec $p_j = 2/4! = 1/12$ (sur le triangle
 de Taylor \& Ashe dont la colonne $j = 4$ est rendue dégénérée, $K = 5$). Les $K$ p-values sont
 combinées par la méthode de Fisher, $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}).
+Fonction nommée~: \code{mw\_test\_homogeneite\_f()}.
 \Loi
 $\chi^2(2K)$ approchée, avec la réserve d'indépendance entre colonnes de la fiche
 précédente (l'argument qui l'y lève sous erreurs conditionnelles gaussiennes, fondé sur une loi
@@ -14603,8 +14639,8 @@ p-value de Monte-Carlo retenue (clé \code{HomogF}, rejet en queue haute). Les $
 des ingrédients de la statistique~: calculées sur la loi de permutation d'une colonne prise
 isolément, qui n'est pas celle des facteurs sous le modèle de Mack, elles ne sont pas des
 p-values exactes au sens de l'outil (section~\ref{sec:nature}), et la p-value $\chi^2(2K)$ qui
-les combine reste un complément non simulé. Sur le triangle de contrôle (référence
-\code{reserve2})~: p-value de Monte-Carlo $0{,}080$, \code{ALERTE}~; p $\chi^2(2K)$ $0{,}152$,
+les combine reste un complément non simulé. Sur le triangle de contrôle~:
+p-value de Monte-Carlo $0{,}080$, \code{ALERTE}~; p $\chi^2(2K)$ $0{,}152$,
 restituée, non retenue. Le verdict est \code{ALERTE} sur chacune des vingt graines 20260831 à
 20260850 ($B = 999$, p-value de Monte-Carlo de $0{,}062$ à $0{,}093$). \emph{Effet de la loi
 conditionnelle aux rangs moyens}~: nul sur le triangle de contrôle, qui n'a aucun ex \ae quo~; de
@@ -14915,6 +14951,7 @@ Amplitude relative moyenne, pondérée par les effectifs~:
       \big(\max_\alpha \hat f_j^{(\alpha)} - \min_\alpha \hat f_j^{(\alpha)}\big)
       \big/ \hat f_j^{(1)}}{\sum_j n_j}.
 \]
+Fonction nommée~: \code{mw\_famille\_alpha()}.
 \Loi
 \textbf{Aucune loi analytique}~: la statistique agrège trois estimateurs
 fortement corrélés sur des colonnes de tailles décroissantes.
@@ -15097,6 +15134,7 @@ multiplicateurs et les effets minimaux détectables de la rubrique~6~:
 Les trois dernières colonnes ne sont pas restituées par le moteur (rubrique~6)~; la dernière
 est l'effet minimal détectable obtenu en remplaçant $e_{a,j}$ par l'erreur type observée de
 $\hat a_j$ (celle de \code{lm()}, à $n_j - 2$ degrés de liberté) rapportée à $\bar C_{j+1}$.
+Fonction nommée~: \code{mw\_identifiabilite\_intra()}.
 \Loi
 Sans objet~: aucune statistique de test. Statut des grandeurs. $\mathrm{CV}_j$ et $R_j$ sont des
 valeurs exactes, descriptives, de l'observé~; $S_j/D_j$ est une identité algébrique exacte
@@ -15435,6 +15473,7 @@ règle commune des corrélations de rang par colonne (section~\ref{sec:mwm1}, r�
 \ae quo à $n_j \le 9$, loi conditionnelle aux rangs moyens des deux variables~; les cumuls, déjà
 aplatis, le sont une seconde fois au plancher~0, sans effet), puis combinaison des $K$ p-values par
 Fisher, $X = -2\sum_j \ln p_j$ (\code{.fisher\_combine()}, sans exclusion, règle~(4)).
+Fonction nommée~: \code{mw\_test\_exposant\_variance()}.
 \Loi
 $\chi^2(2K)$ approchée, sous les deux réserves de la fiche~\ref{mw:m1b}~: indépendance des
 colonnes non établie, et loi de permutation discrète de chaque $p_j$ à $n_j \le 9$~; et sous une
@@ -15593,6 +15632,7 @@ $2{,}4\times10^{-4}$, est exactement $N\bar r^{\,2}/(N-1)$. Le moteur recalcule
 cette valeur de référence et la restitue dans le champ \code{detail} de la
 ligne, avec $N$, $k$ et la somme des carrés attendue $N - k$, de sorte que le
 relecteur puisse la refaire.
+Fonction nommée~: \code{mw\_tests()}.
 \Loi
 Sans objet.
 \Pval
@@ -15797,6 +15837,7 @@ testée en queue basse. Des diagonales plus équilibrées que le hasard
 Sur la diagonale $k$ comportant $n_k$ étiquettes dont $L_k$ « grandes »~:
 $Z_k = \min(L_k,\,n_k - L_k)$, puis $Z = \sum_k Z_k$ et
 $Z^\star = (Z - \mathbb{E}[Z])/\sqrt{\operatorname{Var}[Z]}$.
+Fonction nommée~: \code{mw\_test\_annees\_calendaires()}.
 \Loi
 Sous $H_0$, $L_k \sim \mathcal{B}(n_k, 1/2)$, d'où les moments \textbf{exacts},
 avec $m_k = \lfloor (n_k-1)/2 \rfloor$~:
@@ -15936,6 +15977,7 @@ l'absence de contrôle de multiplicité et de verdict, une entrée par diagonale
 l'ordre de $k$~: $n$, $L$, $S$, $Z$ et $P$, suivie de «~\code{(repere)}~» quand $P \le 0{,}10$.
 La plus petite des probabilités n'est placée dans aucune colonne de p-value, où elle serait lue
 comme la p-value d'un test.
+Fonction nommée~: \code{mw\_calendrier\_diagonales()}.
 \Loi
 Sous la loi binomiale indépendante de Mack (fiche~\ref{mw:m3cal}, rubrique~4), $L_k \sim
 \mathcal{B}(n_k, 1/2)$ et
@@ -16032,6 +16074,7 @@ comporte différemment.
 \Stat
 $H$ de Kruskal--Wallis, sur $k-1$ degrés de liberté où $k$ est le nombre
 d'années de survenance comportant au moins un résidu.
+Fonction nommée~: \code{mw\_test\_homogeneite\_accident()}.
 \Loi
 $\chi^2(k-1)$ asymptotique, approximation médiocre lorsque les groupes comptent
 une ou deux observations --- ce qui est le cas des dernières lignes du triangle.
@@ -16125,6 +16168,7 @@ $H_0$ : les facteurs de développement successifs d'une même année de survenan
 \Stat
 $\displaystyle \hat\rho = \frac{\sum_k (n_k-1)\,\hat\rho_{s,k}}{\sum_k (n_k-1)}$,
 moyenne pondérée des corrélations de rang par paire de colonnes.
+Fonction nommée~: \code{mw\_stat\_correlation\_dev()}.
 \Loi
 \textbf{Aucune loi analytique}~: la géométrie du triangle fait que les paires de
 colonnes se recouvrent partiellement et reposent sur des effectifs décroissants.
@@ -16183,6 +16227,7 @@ $H_0$ : absence d'autocorrélation d'ordre~1 des résidus de Mack.
 \Stat
 $\mathrm{DW} = \sum_{t=2}^{n}(z_t - z_{t-1})^2 / \sum_{t=1}^{n} z_t^2$, calculée
 sur les résidus centrés.
+Fonction nommée~: \code{stat\_dw()}.
 \Loi
 \textbf{Contrairement à la méthode lognormale, la loi exacte d'Imhof n'est pas
 applicable ici}~: les résidus de Mack ne forment pas un vecteur gaussien de
@@ -16255,6 +16300,7 @@ $Z = \big(R - \mathbb{E}[R]\big)/\sqrt{\operatorname{Var}[R]}$, avec
 $\mathbb{E}[R] = 2n_1n_2/n + 1$ et
 $\operatorname{Var}[R] = 2n_1n_2(2n_1n_2-n)/\big(n^2(n-1)\big)$. Sur le triangle de contrôle,
 $Z = -0{,}400$.
+Fonction nommée~: \code{test\_runs()}.
 \Loi
 La loi combinatoire exacte du nombre de suites suppose l'échangeabilité des
 signes, mise en défaut ici par la dépendance intra-colonne~: elle n'est donc pas
@@ -16654,6 +16700,7 @@ $H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidu
 forment un échantillon i.i.d. de loi normale.
 \Stat
 $W$, statistique de Shapiro--Wilk.
+Fonction nommée~: \code{.shapiro\_sur()}.
 \Loi
 $W$ étant invariante par translation et changement d'échelle, sa loi pour un échantillon
 \emph{i.i.d.} normal ne dépend que de l'effectif~: elle est évaluée numériquement par simulation
@@ -16728,6 +16775,7 @@ $H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidu
 forment un échantillon i.i.d. de loi normale, de moyenne et de variance quelconques.
 \Stat
 $D_{\mathrm{L}} = \sup_u \big|\hat F(u) - \Phi((u - \bar r)/s_r)\big|$.
+Fonction nommée~: \code{stat\_lilliefors()}.
 \Loi
 Loi de Lilliefors, tenant compte de l'estimation de la moyenne et de
 l'écart-type sur l'échantillon, pour un échantillon \emph{i.i.d.} normal~: loi sous un modèle
@@ -16936,6 +16984,7 @@ La part elle-même. Le moteur la restitue accompagnée d'un \emph{repère
 indicatif} de 40~\%, dont le champ \code{detail} de la ligne nomme le statut~:
 ce repère est sans fondement réglementaire ni statistique et n'emporte aucun
 verdict. Sur le triangle de contrôle du dépôt, la part vaut $36{,}0~\%$.
+Fonction nommée~: \code{mw\_tests()}.
 \Loi
 Sans objet.
 \Pval
@@ -17254,6 +17303,7 @@ vraies (modele ajuste)}~»)~; $H_1$~: au moins une est fausse.
 $m_{\mathrm{obs}}$, la plus petite p-value de Monte-Carlo des membres de la batterie (\code{stat},
 «~\code{plus petite p Monte-Carlo de la batterie}~»)~; $k$, nombre de membres, dans \code{estim}
 («~\code{nombre de tests}~»).
+Fonction nommée~: \code{engine\_p\_famille()}.
 \Loi
 Celle de la fiche~\ref{fiche:p-famille}, sur les colonnes de tous les membres~: loi empirique des
 plus petites p-values par rang symétrique, l'observé compris, sur les réplications qui fondent les
