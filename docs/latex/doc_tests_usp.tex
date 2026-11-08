@@ -5566,7 +5566,15 @@ n'est pas calculée (Anderson--Darling et Cramér--von Mises à $T < 8$), faute 
 elle affirmerait une valeur qui n'existe pas. Mesuré par \code{run\_engine()} ($B = 999$)~:
 présente sur chacune d'elles dans \code{premium\_interieur}, absente dans \code{premium}. La ligne
 d'Anscombe--Glynn, qui n'a pas de p-value de Monte-Carlo, est non applicable dans ce régime
-(fiche~\ref{fiche:anscombe-glynn-aplatissement}). Aucune des quatre familles n'a de
+(fiche~\ref{fiche:anscombe-glynn-aplatissement}~; règle~R9~: à $\hat\pi_t$ variable, une ligne
+sans p-value de Monte-Carlo prévue, dont la seule p-value est une approximation établie pour un
+échantillon i.i.d. normal, est non applicable, cette p-value n'étant ni restituée ni retenue).
+Règle~R6~: l'ajustement de Stephens (cas~3) suppose les observations standardisées par leur
+moyenne et leur écart-type empiriques~; $z_t$ étant standardisé par le modèle, la p non simulée
+d'Anderson--Darling et de Cramér--von Mises est calculée sur la statistique re-standardisée
+$(z_t - \bar z)/s_z$, rangée dans \code{estim}, \code{stat} restant la statistique de la p-value
+de Monte-Carlo~; elle n'est pas calculée à $T < 8$, hors de la plage de l'implémentation de
+référence. Aucune des quatre familles n'a de
 validité établie à $T = 8$ sous le modèle réglementaire.
 
 \medskip
@@ -8093,6 +8101,10 @@ autres retiennent leur p-value de Monte-Carlo.
 Dans la bande de tolérance de \code{usp\_regime()}, $\hat\pi_t$ n'est
 constant qu'à un écart d'ordre $1 - \hat\delta$ près, et l'exactitude ne vaut qu'à cet ordre
 près~; le commentaire des seules lignes dont la p-value exacte est attribuée le dit.
+Règle~R8~: le commentaire de ces lignes suit le régime --- préfixe
+«~\code{p exacte non attribuee} \dots~» à $\hat\pi_t$ variable, mention de l'écart d'ordre
+$1 - \hat\delta$ dans la bande de tolérance, texte inchangé à $\hat\pi_t$ exactement constant~;
+le champ \code{loi}, lui, suit la règle~R7 (paragraphe suivant).
 
 \emph{Libellés selon le régime.} Un
 texte de la ligne ne nomme une p-value que si elle existe, et ne qualifie une loi d'exacte que
