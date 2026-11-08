@@ -379,3 +379,47 @@ Sur le texte proposé au § 4 de la section #388 ci-dessus (lui-même non encore
 - **Pièce** : M. Merz, M. V. Wüthrich (2008), notice telle que citée par `sec:biblio` du `.tex` ; fichier de la CAS, 27 p., SHA-256 `cc0fda92c8e94333b1d4dfcd9501bafaad3eda97a595f9216ecd29961551e8aa` ; hors dépôt.
 - **Lecture en rendu graphique**, page imprimée 547 : « Model Assumptions 2.1 […] there exist constants f_j > 0, σ_j > 0 such that for all 1 ≤ j ≤ J and 0 ≤ i ≤ I we have E[C_{i,j} | C_{i,j−1}] = f_{j−1} C_{i,j−1}, (2.6) » ; page imprimée 548 : Var(C_{i,j} | C_{i,j−1}) = σ²_{j−1} C_{i,j−1}, (2.7).
 - **Statut** : [V] pour l'affirmation citée par le `.tex` à `490ab21` (l. 3349, 14235, 14808, 15383-15384, 19669-19673). La vérification du 31/10/2026 (Fl) n'était attestée que par le corps de #422.
+
+## Code des assurances, art. R. 352-5 (V) et R. 356-19 (II) : pages Légifrance remises par le mainteneur (Refs #495)
+
+> *Rédigé par l'agent regulatory (IA) le 08/11/2026, sur commande de la session principale de JF (`claude/relecture-integrale`, PR #480) ; pièces téléchargées par le mainteneur sur Légifrance depuis son poste le 08/11/2026 à 15:01 (Légifrance est refusé en session cloud) et remises hors dépôt ; aucun fichier déposé dans le dépôt.* Les numéros de ligne citent `docs/latex/doc_tests_usp.tex` à `b55f08f`. Lecture en rendu graphique des PDF ; articles 218, 338 et 356 du règlement délégué (UE) 2015/35 lus sur la version consolidée du 14.11.2024 versionnée à la racine (prose, sans formule).
+
+### Pièces
+
+| Article | Fichier remis | SHA-256 | Identifiant, URL | Version | Pages |
+|---|---|---|---|---|---|
+| R. 352-5 | `d4922c10-R352-5.pdf` | `136baff22904e7e532073eb36a3e6cbb8f2a657c119848862a8ec4a9970cc9ea` | LEGIARTI000030564441, `https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000030564441` | « EN VIGUEUR AU 08/11/2026 » ; « EN VIGUEUR DEPUIS LE 01 JANV. 2016 » ; « Création DÉCRET n°2015-513 du 7 mai 2015 - art. 4 » | 2 (lues en entier) |
+| R. 356-19 | `5f48f027-R352-19.pdf` (**nom trompeur** : le contenu est l'article R356-19) | `85c115af4f5899cf2fa8c8912ac23c808fdfad9f62f1431c2ee5edf139a38e67` | LEGIARTI000036332133, `https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000036332133` | « EN VIGUEUR AU 08/11/2026 » ; « EN VIGUEUR DEPUIS LE 31 DÉC. 2017 » ; « Modifié par Décret n°2017-1765 du 26 décembre 2017 - art. 1 » | 3 (lues en entier) |
+
+Emplacement : partie réglementaire, livre III, titre V (« Régime prudentiel applicable aux entreprises relevant du régime dit " Solvabilité II " ») ; R. 352-5 au chapitre II, section 1 (« Capital de solvabilité requis »), sous-section 2 (« Formule standard ») ; R. 356-19 au chapitre VI (« Exigences spécifiques aux groupes »), section 3 (« Exigence de capital réglementaire des groupes »). Les deux rédactions, en vigueur depuis 2016 et 2017, l'étaient à la date d'établissement du `.tex` (`\datedoc`, 06/11/2026).
+
+### Citations à la lettre
+
+**R. 352-5, V** (p. 2) :
+1. « Sous réserve de l'accord de l'Autorité de contrôle prudentiel et de résolution, les entreprises d'assurance et de réassurance peuvent, lorsqu'elles calculent les modules " risque de souscription en vie ", " risque de souscription en non-vie " et " risque de souscription en santé " remplacer, dans la conception de la formule standard, un sous-ensemble des paramètres précisés à l'article 218 du règlement délégué (UE) n° 2015/35 de la Commission du 10 octobre 2014 par des paramètres qui sont propres à l'entreprise concernée. »
+2. « Ces paramètres sont calibrés sur la base des données internes de l'entreprise concernée ou de données directement pertinentes pour les opérations de cette entreprise, sur la base de méthodes standardisées. »
+3. « Avant de donner son accord, l'Autorité de contrôle prudentiel et de résolution vérifie l'exhaustivité, l'exactitude et le caractère approprié des données utilisées. »
+4. « Les modalités d'application du V sont précisées aux articles 218 à 220 du règlement délégué (UE) n° 2015/35 de la Commission du 10 octobre 2014. »
+
+**R. 356-19, II**, 1er alinéa (p. 2) : « Le capital de solvabilité requis au niveau du groupe sur la base de données consolidées est calculé selon la formule standard ou selon un modèle interne approuvé, en conformité avec les principes généraux énoncés respectivement aux articles L. 352-1, L. 352-2, R. 352-2 à R. 352-12-1 pour la formule standard, et aux articles L. 352-1, L. 352-2, R. 352-2 à R. 352-3 et R. 352-13 à R. 352-25 pour un modèle interne. »
+
+**R. 356-19, II**, 9e alinéa sur 12 (p. 3) : « En application de la formule standard et sous réserve de l'accord de l'Autorité de contrôle prudentiel et de résolution en tant que contrôleur de groupe tel que prévu à l'article 356 du même règlement, le capital de solvabilité requis au niveau du groupe peut être calculé en se fondant sur des paramètres spécifiques au groupe concerné conformément à l'article 338 de ce règlement. »
+
+**Règlement délégué, art. 338** (version consolidée) : § 1, remplacement d'« un sous-ensemble de paramètres standard établis à l'article 218 par des paramètres spécifiques au groupe », sous réserve de l'approbation du contrôleur du groupe ; § 2, données conformes aux critères de « l'article 104, paragraphe 7, de la directive 2009/138/CE et à l'article 219 » ; § 3, méthodes standardisées « établies à l'article 220 » ; § 4, lecture des art. 218 à 220 mutatis mutandis. **Art. 356** : demande au contrôleur du groupe, consultation du collège.
+
+### Confrontation
+
+- R. 352-5, V, al. 1 à 3, reprend l'art. 104, § 7 de la directive tel que cité en page d'objet (l. 416-426). Le 2e alinéa est identique. Le 1er et le 3e reprennent le texte avec deux adaptations : l'ACPR pour « les autorités de contrôle » ; « un sous-ensemble des paramètres précisés à l'article 218 du règlement délégué » pour « un sous-ensemble de ses paramètres ». L'al. 4 renvoie aux art. 218 à 220. La virgule avant « remplacer », absente sur Légifrance, est typographique. Aucun tableau de concordance officiel consulté : la qualification de transposition repose sur la reprise à la lettre.
+- R. 356-19, II ne reprend pas l'art. 104, § 7. Il porte sur le capital de solvabilité requis du groupe ; son 9e alinéa ouvre les paramètres spécifiques au groupe (art. 338), objet distinct des paramètres propres à l'entreprise (art. 218 à 220) que met en œuvre l'outil. Le `.tex` ne traite nulle part du groupe, de l'art. 338 ni de l'art. 356.
+
+### Statuts
+
+| Affirmation | Lieu (`b55f08f`) | Statut |
+|---|---|---|
+| « Transposition : Code des assurances, art. R. 352-5 (V) » | `doc_tests_usp.tex:443` | **[V]** |
+| « Transposition : […] et R. 356-19 (II) » | `doc_tests_usp.tex:443` | **[X]** (attribution) : article relu, objet distinct (paramètres spécifiques au groupe) ; retiré de la page d'objet et décrit dans la notice (variante A, décision du mainteneur du 08/11/2026) |
+| Notice « Non relus sur la source (Légifrance) » | `doc_tests_usp.tex:19383-19386` | caduque ; remplacée |
+
+### Hors périmètre, non vérifié
+
+La page d'objet cite la directive en « version consolidée du 17 janvier 2025 ». La directive (UE) 2025/2 modifie la directive 2009/138/CE ; il n'a pas été établi si elle touche l'art. 104, § 7, ni si la consolidation citée l'intègre (sans effet sur R. 352-5, V, en vigueur le 08/11/2026). À relire sur EUR-Lex lors de la revue de conformité avant remise.
