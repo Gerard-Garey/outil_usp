@@ -7880,7 +7880,13 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
                                          segment = NULL, annexe = "II") {
   n <- length(xt)
   err_T <- engine_valider_profondeur(T, n)
-  if (!is.null(T) && !length(err_T)) {
+  # Series de longueurs differentes (issue #482) : aucune troncature. Coupees
+  # sur les indices de xt, elles finissaient de meme longueur, passaient la
+  # validation et appariaient chaque xt a la mauvaise annee de yt (yt plus
+  # long), ou etaient refusees pour "Valeurs manquantes" (yt plus court).
+  # Non tronquees, elles sont refusees par le motif de longueur de
+  # engine_valider_donnees(), comme sans T.
+  if (!is.null(T) && !length(err_T) && length(yt) == n) {
     idx <- (n - T + 1):n; xt <- xt[idx]; yt <- yt[idx]
   }
   # Bareme saisi transmis tel quel (NULL sinon), avec le segment et l'annexe :

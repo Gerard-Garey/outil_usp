@@ -1664,6 +1664,32 @@ verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engi
            identical(sr$validation, r$validation) && !sr$validation$ok &&
              length(sr$xt) == 16 && !length(sr$validation$avertissements)
          }, logical(1))))
+# Series de longueurs differentes avec T (issue #482) : la troncature a T
+# coupait les deux series sur les indices de xt ; yt plus long passait la
+# validation (yt mal apparie, valeurs recentes ecartees), yt plus court etait
+# refuse pour "Valeurs manquantes". Contrat : aucune troncature, refus par le
+# motif de longueur, meme validation avec ou sans T, dans
+# engine_valider_serie_retenue() (apercu de l'application) et run_engine().
+verifier("#482 : xt et yt de longueurs differentes avec T valide : refus par le motif de longueur, meme validation que sans T, serie non tronquee, moteur et run_engine()",
+         all(vapply(list(c(10L, 12L), c(10L, 9L), c(12L, 10L)), function(nn) {
+           xt <- xc[seq_len(nn[1])]; yt <- yc[seq_len(nn[2])]
+           motif <- sprintf("xt (%d valeurs) et yt (%d valeurs) doivent avoir la meme longueur.",
+                            nn[1], nn[2])
+           s8 <- engine_valider_serie_retenue(xt, yt, T = 8, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           s0 <- engine_valider_serie_retenue(xt, yt, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           r8 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
+                            T = 8, B = 99, nature_donnees = "brutes")
+           r0 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
+                            B = 99, nature_donnees = "brutes")
+           !s8$validation$ok && identical(s8$validation, s0$validation) &&
+             identical(s8$xt, xt) && identical(s8$yt, yt) &&
+             identical(s8$validation$erreurs, motif) &&
+             !isTRUE(r8$ok) && !isTRUE(r0$ok) &&
+             identical(r8$validation, s8$validation) &&
+             identical(r0$validation, s0$validation)
+         }, logical(1))))
 
 ## --- Validation des seules annees retenues (non-regression de #154) ---------
 # Reproduction de l'issue #154 (resolue en code par #131, fcbef03 et
