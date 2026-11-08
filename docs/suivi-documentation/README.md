@@ -169,6 +169,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:lecture-conjointe` | `III-M.md` | Lecture conjointe (tête de section) | III |
 | `fiche:p-famille` | `III-M.md` | p de famille (minP, lecture conjointe) | III |
 | `fiche:p-globale` | `III-M.md` | p globale (minP, lecture conjointe de la batterie) | III |
+| Relecture de la partie IV (entrée transversale) | `IV.md` | Relecture de la partie IV (étape 8 de JF) | IV |
 | `sec:verif` | `IV.md` | Vérification empirique de l'implémentation | IV |
 | `sec:calibration-mc` | `IV.md` | Calibration des p-values de Monte-Carlo | IV |
 | `sec:calib-asympt-mw` | `IV.md` | Calibration des p-values non simulées (Merz–Wüthrich) | IV |
@@ -178,4 +179,5 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:synthese` | `IV.md` | Synthèse et lecture des verdicts | IV |
 | `sec:taux-reperes` | `IV.md` | Taux de franchissement des repères sous le modèle ajusté | IV |
 | `sec:volumes-constants` | `IV.md` | Lignes non applicables à volumes constants | IV |
+| Relecture de l'annexe (entrée transversale) | `annexe.md` | Relecture de l'annexe (étape 8 de JF) | Annexe |
 | `sec:annexe-flux` | `annexe.md` | Annexe, flux détaillés entre fonctions | Annexe |

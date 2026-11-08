@@ -17504,7 +17504,9 @@ tête de section)~; aucun résultat général.
 \label{sec:verif}
 % =============================================================================
 
-L'implémentation a été validée par trois voies indépendantes.
+L'implémentation est vérifiée par trois voies~: recalcul indépendant des statistiques, mesure
+par simulation du niveau et de la puissance à $T = 8$ et, pour la méthode Merz--Wüthrich,
+confrontation au texte réglementaire, à une implémentation externe et à des valeurs publiées.
 
 Les mesures de cette partie sont rattachées à l'état du moteur consigné en tête de leurs fichiers
 de résultats (\code{docs/tableaux/}), qui portent aussi la plateforme et le générateur~; ce qui a
@@ -17516,7 +17518,7 @@ chaque section) est consigné, sous le même intitulé de section, dans
 
 Chaque statistique a été confrontée à un recalcul direct ou à une identité connue~: égalité
 $F = t_b^2$ et égalité des p-values de Fisher et de Student bilatérale en régression simple
-(la p-value de Student restituée sur la ligne de la pente étant unilatérale, la p-value de
+(la p-value de Student restituée sur la ligne du test de Pitman étant unilatérale, la p-value de
 Fisher en est le double quand $t_b > 0$~: écart relatif $1{,}4\cdot 10^{-15}$
 sur le jeu de contrôle)~; loi de permutation du test de Pitman confrontée à une boucle
 indépendante sur les $T!$ appariements, calculant $r$ par \code{stats::cor()} (tests unitaires,
@@ -17532,7 +17534,8 @@ Le gradient analytique de l'objectif profilé (\code{usp\_gradient()}, fiche~\re
 été confronté à la différence centrée de l'objectif, de pas $10^{-5}$, en 16 couples
 $(\delta,\gamma)$ sur chacun de deux jeux (le jeu de contrôle et un jeu à $\hat\delta$
 intérieur)~: l'écart maximal, rapporté à $\max(1, |\text{dérivée numérique}|)$, vaut
-$2{,}8\cdot 10^{-9}$ (mesure).
+$2{,}8\cdot 10^{-9}$ (calcul de \code{tests/unitaires/}\allowbreak\code{test\_controles\_numeriques.R},
+dont le critère est un écart inférieur à $10^{-6}$).
 
 \emph{Invariance par changement d'échelle.} $\sigma_{\mathrm{USP}}$ et les tests sont
 invariants par un changement d'unité commun à $x_t$ et $y_t$~; le script hors CI
@@ -17606,8 +17609,9 @@ $p_{\mathrm{mc}} < 0{,}05$, avec son intervalle de Clopper--Pearson à 95~\%
 (section~\ref{sec:biblio})~; pour chaque ligne de la table auditable, la fréquence d'une
 p-value retenue inférieure à $\alpha$ (verdict \code{ALERTE} ou \code{ECHEC}) et à $\alpha/2$
 (\code{ECHEC}), hiérarchie des p-values et règles de restitution comprises (dont les
-règles~R1 et~R7, et la règle~R4 du moteur de la mesure, règle retirée~:
-section~\ref{sec:modele-auxiliaire-regles}). La \emph{référence} est le seuil pour une statistique continue --- sous
+règles~R1 et~R7, et la règle~R4 du moteur de la mesure, qui restituait la pente en diagnostic
+quand sa puissance approchée $\hat\pi_b$ était inférieure à $1/2$, règle retirée du moteur
+courant~: fiche~\ref{fiche:student-pente}, rubrique~6). La \emph{référence} est le seuil pour une statistique continue --- sous
 échangeabilité, $P(p_{\mathrm{mc}} < \alpha)$ vaut en fait $0{,}099$ et $0{,}049$ en queue
 simple, $0{,}098$ et $0{,}048$ au bilatéral à $B = 999$, écart négligeable devant
 l'intervalle --- et, pour les sept statistiques à loi de référence discrète (suites, sur $z_t$
@@ -18815,7 +18819,7 @@ soutient dans le présent document.
   i.i.d. Elles fondent la p-value du mélange restituée pour mémoire à la
   fiche~\ref{fiche:rv-delta}~; elles ne donnent aucune vitesse de convergence, et
   leurs hypothèses (i.i.d., $T \to \infty$) ne sont pas celles du modèle à
-  $T = 8$, où la mesure contredit le mélange.
+  $T = 8$, où la mesure contredit le mélange. Textes non relus par le projet.
 \end{itemize}
 
 \subsection*{Lois exactes employées à la place des approximations normales}
@@ -18828,15 +18832,18 @@ soutient dans le présent document.
   la référence courante pour la distribution exacte de $S$ et ses tables. Les
   deux éditions sont conservées~: la 4\textsuperscript{e} pour l'antériorité de
   la méthode, la 5\textsuperscript{e} pour le résultat exact effectivement
-  implémenté.
+  implémenté. Ouvrages non relus par le projet~: le renvoi aux chapitres~4 et~5 de la
+  5\textsuperscript{e} édition (fiche~\ref{fiche:mann-kendall}) n'est pas contrôlé sur le texte,
+  et la loi exacte de $S$ est recalculée par \code{mk\_p\_exacte()}.
 
   \item F.~Swed, C.~Eisenhart, \emph{Tables for testing randomness of grouping
   in a sequence of alternatives}, \emph{The Annals of Mathematical Statistics},
   14(1), 1943, p.~66--87.
   \emph{Portée.} Wald \& Wolfowitz (1940), déjà cité, établit le
-  test~; Swed \& Eisenhart fournit la distribution combinatoire exacte du
-  nombre de suites, qui est celle implémentée dans le moteur, l'approximation
-  normale n'étant conservée qu'à titre indicatif.
+  test~; Swed \& Eisenhart donne la distribution combinatoire exacte du nombre de suites
+  (éq.~(1), p.~66, d'après W.\,L. Stevens (1939) et Wald \& Wolfowitz (1940)) et la tabule
+  (table~I, $m \le n \le 20$)~; c'est celle implémentée dans le moteur, l'approximation
+  normale n'étant conservée qu'à titre indicatif. Pages~66 à~70 lues sur la version publiée.
 
   \item J.\,D. Gibbons, J.\,W. Pratt, \emph{P-values: interpretation and
   methodology}, \emph{The American Statistician}, 29(1), 1975, p.~20--25.
@@ -18846,7 +18853,7 @@ soutient dans le présent document.
   (fiche~\ref{fiche:suites-wald-wolfowitz}). Elle n'est invoquée que pour
   établir que le doublement est une convention~; le choix du moteur est motivé
   dans la fiche par la cohérence avec la p-value de Monte-Carlo et avec
-  Durbin--Watson, non par une recommandation de cet article.
+  Durbin--Watson, non par une recommandation de cet article. Texte non relu par le projet.
 
   \item D.\,J. Best, D.\,E. Roberts, \emph{Algorithm AS 89: The upper tail
   probabilities of Spearman's $\rho$}, \emph{Journal of the Royal Statistical
@@ -18858,7 +18865,8 @@ soutient dans le présent document.
   calcul (énumération de R) fournit aussi la
   p-value de chaque colonne de l'homogénéité de $f_j$ et de l'exposant de variance à
   $n_j \le 9$ (fiche~\ref{mw:m1b})~; ces p-values ne sont pas retenues, elles entrent dans la
-  statistique de Fisher dont la p-value retenue est de Monte-Carlo.
+  statistique de Fisher dont la p-value retenue est de Monte-Carlo. Listing de l'algorithme
+  (StatLib) et source \code{prho.c} de R lus~; texte de l'article non relu par le projet.
 
   \item E.\,J.\,G. Pitman, \emph{Significance tests which may be applied to samples from any
   populations. II. The correlation coefficient test}, \emph{Supplement to the Journal of the
@@ -18908,10 +18916,18 @@ soutient dans le présent document.
   p.~181--187 ; A.\,C.\,A. Hope, \emph{A simplified Monte Carlo significance
   test procedure}, \emph{Journal of the Royal Statistical Society, Series B},
   30(3), 1968, p.~582--598.
-  \emph{Portée.} Ce sont les références qui établissent que le test
-  de Monte-Carlo fondé sur $\hat p = (1 + \#\{S^{(b)} \ge S_{\text{obs}}\})/(B+1)$
-  est de niveau \emph{exact} pour $B$ fini lorsque $\alpha(B+1)$ est entier. Efron
-  (1979), référence fondatrice du bootstrap citée par les fiches, ne démontre pas
+  \emph{Portée.} Ce sont les références qui établissent que, lorsque la loi nulle de la
+  statistique est exactement simulable (répliques échangeables avec l'observé sous $H_0$) et
+  continue, le test de Monte-Carlo qui rejette pour $\hat p \le \alpha$, avec
+  $\hat p = (1 + \#\{S^{(b)} \ge S_{\text{obs}}\})/(B+1)$, est de niveau \emph{exact} pour $B$
+  fini lorsque $\alpha(B+1)$ est entier. La p-value bilatérale, double de la plus petite des deux
+  p-values unilatérales, l'est quand $\alpha(B+1)/2$ est entier, et la règle stricte des verdicts
+  ($p < \alpha$) donne les niveaux $(\alpha(B+1) - 1)/(B+1)$ et $(\alpha(B+1) - 2)/(B+1)$~: ces
+  conséquences, et la limite de la propriété (elle ne se transporte pas au bootstrap
+  paramétrique, dont les répliques sont tirées sous le modèle estimé), sont établies à la
+  fiche~\ref{fiche:procedure-mc}. Dwass (p.~181--182, lues) traite des tests de randomisation
+  fondés sur un échantillon aléatoire de permutations~; le texte de Hope n'a pas été relu par le
+  projet. Efron (1979), référence fondatrice du bootstrap citée par les fiches, ne démontre pas
   cette propriété.
 
   \item P.\,H. Jöckel, \emph{Finite sample properties and asymptotic efficiency
@@ -18921,7 +18937,7 @@ soutient dans le présent document.
   28(1), 1979, p.~75--77.
   \emph{Portée.} Ces travaux quantifient la perte de puissance
   induite par un $B$ fini, et fondent le choix d'un $B$ de l'ordre du millier.
-  Ils justifient la ligne (B) du tableau~\ref{tab:conv}.
+  Ils justifient la ligne (B) du tableau~\ref{tab:conv}. Textes non relus par le projet.
 
   \item Y.~Ge, S.~Dudoit, T.\,P. Speed, \emph{Resampling-based multiple testing for microarray
   data analysis}, rapport technique~633, Department of Statistics, University of California,
@@ -18957,15 +18973,15 @@ soutient dans le présent document.
   articles sont ceux qui démontrent la validité asymptotique, et donc ce qui
   fonde --- et ce qui limite --- l'emploi du bootstrap ici~: la garantie est
   \emph{asymptotique en $T$}, ce qui est précisément le point à signaler à
-  $T = 8$.
+  $T = 8$. Textes non relus par le projet (notices vérifiées sur les pages de l'éditeur).
 
   \item P.~Hall, \emph{The Bootstrap and Edgeworth Expansion}, Springer, 1992 ;
   A.\,C. Davison, D.\,V. Hinkley, \emph{Bootstrap Methods and their
   Application}, Cambridge University Press, 1997.
   \emph{Portée.} Hall (1992) est l'ouvrage de référence sur les
   raffinements d'ordre supérieur obtenus pour les statistiques pivotales, qui
-  explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte.
-  Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
+  explique pourquoi le bootstrap améliore l'approximation sans la rendre exacte~; ouvrage non relu
+  par le projet, dont aucun résultat ni aucune page n'est tiré. Davison \& Hinkley (1997) traite spécifiquement du bootstrap paramétrique et
   des tests de Monte-Carlo tels qu'employés ici~; son chapitre~4 (tests par
   bootstrap paramétrique sous le modèle nul ajusté, § 4.2.3, éq.~(4.13), p.~148) fonde le
   bootstrap restreint du rapport de vraisemblance sur $\delta$ (fiche~\ref{fiche:rv-delta}),
@@ -19026,10 +19042,10 @@ soutient dans le présent document.
   vraisemblance pour un composant de variance testé à sa borne dans un modèle
   linéaire mixte, simulées à partir de leur représentation spectrale~; elles
   s'écartent du mélange $\tfrac12\chi^2(0) + \tfrac12\chi^2(1)$. Le modèle
-  n'est pas celui de l'annexe~XVII~: la référence soutient la démarche --- employer
+  n'est pas le modèle réglementaire~: la référence soutient la démarche --- employer
   la loi simulée plutôt que le mélange --- et non les valeurs mesurées à la
   fiche~\ref{fiche:rv-delta}, qui sont des constats de simulation propres à deux
-  jeux.
+  jeux. Texte non relu par le projet.
 
   \item A.\,C. Atkinson, \emph{Two graphical displays for outlying and
   influential observations in regression}, \emph{Biometrika}, 68(1), 1981,
@@ -19055,7 +19071,8 @@ soutient dans le présent document.
   d'un modèle à trois paramètres estimés sur $T = 8$ observations, ni le niveau
   réel de l'enveloppe globale à $B$ fini~: les proportions de sortie de bande et
   les niveaux réels cités dans la fiche sont des constats de simulation propres
-  au jeu de contrôle, et, pour le graphique dispersion-niveau, à deux jeux.
+  au jeu de contrôle, et, pour le graphique dispersion-niveau, à deux jeux. Textes non relus par
+  le projet.
 
   \item C.\,J. Clopper, E.\,S. Pearson, \emph{The use of confidence or fiducial
   limits illustrated in the case of the binomial}, \emph{Biometrika}, 26(4),
@@ -19067,7 +19084,8 @@ soutient dans le présent document.
   (0 sur 200 jeux simulés), borne qui ne vaut que pour le générateur de
   simulation employé, à $\hat\delta$ intérieur et sur la plateforme de mesure.
   Elle fournit aussi les intervalles des taux de rejet des
-  sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}.
+  sections~\ref{sec:calibration-mc} et~\ref{sec:calib-mc-mw}. Notice vérifiée~; texte non relu
+  par le projet, la borne citée se vérifiant par le calcul.
 
   \item J.\,V. Bradley, \emph{Robustness?}, \emph{British Journal of
   Mathematical and Statistical Psychology}, 31(2), 1978, p.~144--152.
@@ -19078,6 +19096,7 @@ soutient dans le présent document.
   distinguer un écart mineur d'une distorsion matérielle, et sa transposition à une taille de
   référence discrète est une convention des protocoles des sections~\ref{sec:calibration-mc}
   et~\ref{sec:calib-mc-mw}, non de l'article. Elle ne dit rien du niveau des tests du moteur à $T = 8$.
+  Texte non relu par le projet~: les bornes de la bande sont lues dans des sources secondaires.
 
   \item S.~Holm, \emph{A simple sequentially rejective multiple test procedure},
   \emph{Scandinavian Journal of Statistics}, 6(2), 1979, p.~65--70.
@@ -19087,6 +19106,8 @@ soutient dans le présent document.
   la multiplicité des comparaisons appariées (McNemar) de la mesure de
   la p-value conditionnelle au régime, et, à la section~\ref{sec:calib-mc-mw}, celle des
   comparaisons appariées et des témoins de la mesure du niveau. Elle ne dit rien du niveau des tests du moteur.
+  Notice vérifiée~; texte non relu par le projet, la propriété citée étant la propriété classique
+  de la procédure.
 
   \item Q.~McNemar, \emph{Note on the sampling error of the difference between correlated
   proportions or percentages}, \emph{Psychometrika}, 12(2), 1947, p.~153--157.
@@ -19095,7 +19116,8 @@ soutient dans le présent document.
   $\chi^2$. Les comparaisons appariées des sections~\ref{sec:calibration-mc}
   et~\ref{sec:calib-mc-mw} en emploient la version exacte, test binomial bilatéral de
   paramètre $1/2$ sur le nombre de paires discordantes, que l'article ne développe pas. Elle ne
-  dit rien du niveau des tests du moteur.
+  dit rien du niveau des tests du moteur. Notice vérifiée~; texte non relu par le projet~: ce qui
+  est dit ici de son contenu n'est pas relevé sur le texte.
 
   \item D.\,R. Cox, \emph{Some problems connected with statistical inference},
   \emph{The Annals of Mathematical Statistics}, 29(2), 1958, p.~357--372~;
@@ -19109,7 +19131,7 @@ soutient dans le présent document.
   $\hat\delta$ mesurée à la section~\ref{sec:calibration-mc} et retenue par le
   moteur à $\hat\delta$ intérieur, dont
   le régime n'est pas une statistique ancillaire, et ne sont citées que pour
-  situer la question.
+  situer la question. Textes non relus par le projet.
 \end{itemize}
 
 \subsection*{Comportement en petit échantillon des tests employés}
@@ -19121,6 +19143,7 @@ soutient dans le présent document.
   \emph{Portée.} Étude dédiée à la calibration en petit échantillon de
   l'approximation $\chi^2$ des tests portmanteau~: elle fonde l'affirmation du document
   selon laquelle cette approximation est mal calibrée en petit échantillon~; Ljung \& Box (1978) reste cité pour la statistique elle-même.
+  Texte non relu par le projet~: aucun chiffre n'en est tiré.
 
   \item K.\,O. Bowman, L.\,R. Shenton, \emph{Omnibus test contours for
   departures from normality based on $\sqrt{b_1}$ and $b_2$},
@@ -19132,7 +19155,7 @@ soutient dans le présent document.
   limite, ce qui est le fondement de la mise en garde du
   tableau~\ref{tab:nature} sur Jarque--Bera. L'article de 1987 est la version
   complète du test, la note de 1980 dans \emph{Economics Letters} en étant la
-  forme abrégée~: les deux sont conservées.
+  forme abrégée~: les deux sont conservées. Textes non relus par le projet.
 
   \item S.\,S. Shapiro, M.\,B. Wilk, H.\,J. Chen, \emph{A comparative study of
   various tests for normality}, \emph{Journal of the American Statistical
@@ -19140,7 +19163,7 @@ soutient dans le présent document.
   \emph{Portée.} Étude de puissance de référence pour les tests de
   normalité, qui documente leur faiblesse en très petit échantillon. Elle
   soutient l'affirmation, présente dans les fiches, selon laquelle une p-value
-  élevée n'apporte quasiment aucune information à $T$ faible.
+  élevée n'apporte quasiment aucune information à $T$ faible. Texte non relu par le projet.
 
   \item G.\,S. Maddala, \emph{Introduction to Econometrics}, 3\textsuperscript{e}
   éd., Wiley, 2001, pour la présentation du test RESET dans sa forme usuelle.
@@ -19157,7 +19180,7 @@ soutient dans le présent document.
   toute façon l'espace fixe $\{x, x^2, x^3\}$. Ce qui rend la loi $F$ non exacte
   ici, et motive le recours au bootstrap, est l'erreur lognormale,
   multiplicative et hétéroscédastique, du modèle réglementaire
-  (fiche~\ref{fiche:reset}).
+  (fiche~\ref{fiche:reset}). Ouvrage non relu par le projet.
 
   \item G.\,A. Milliken, F.\,A. Graybill, \emph{Extensions of the general
   linear hypothesis model}, \emph{Journal of the American Statistical
@@ -19169,8 +19192,8 @@ soutient dans le présent document.
   puissances des valeurs ajustées du test RESET. Elle soutient la rubrique~4 de
   la fiche~\ref{fiche:reset}~: la loi $\mathcal{F}(2, T-3)$ serait exacte sous
   des erreurs additives normales homoscédastiques~; elle ne dit rien de la loi
-  sous l'erreur lognormale de l'annexe~XVII, qui n'entre pas dans ses
-  hypothèses.
+  sous l'erreur lognormale du modèle réglementaire, qui n'entre pas dans ses
+  hypothèses. Texte non relu par le projet~; le résultat est confirmé par une source secondaire.
 
   \item J.\,P. Imhof, \emph{Computing the distribution of quadratic forms in
   normal variables}, \emph{Biometrika}, 48(3/4), 1961, p.~419--426.
@@ -19237,7 +19260,7 @@ soutient dans le présent document.
   une absence d'effet. Le texte
   intégral n'a pas été relu par le projet (données bibliographiques seules vérifiées)~; aucune
   propriété de $\hat\pi_b$ à $T = 8$ n'en est tirée, et le retrait de la règle~R4
-  (section~\ref{sec:modele-auxiliaire-regles}) ne repose pas sur cet article.
+  (fiche~\ref{fiche:student-pente}, rubrique~6) ne repose pas sur cet article.
 
   \item R.\,J. Carroll, D.~Ruppert, \emph{Transformation and Weighting in Regression}, Chapman
   \& Hall, 1988.
@@ -19254,7 +19277,8 @@ soutient dans le présent document.
   \emph{Portée.} Cadre des tests les plus puissants invariants (lemme de Neyman--Pearson appliqué
   à l'invariant maximal) dans lequel s'inscrit la puissance enveloppe $\pi_{\text{env}}$ de~H2
   (fiche~\ref{fiche:breusch-pagan-koenker}, rubrique~6). \textbf{Non relue}~: seule la table des
-  matières a été vérifiée~; la dérivation de $\pi_{\text{env}}$ est
+  matières a été vérifiée, et sa relecture est un travail postérieur à la remise~; la dérivation
+  de $\pi_{\text{env}}$ est
   propre au présent document, et aucun théorème ni aucune page n'est tiré de l'ouvrage.
   La référence ne dit rien de la valeur de $\pi_{\text{env}}$ à $T = 8$, calculée par l'outil.
 \end{itemize}
@@ -19288,7 +19312,8 @@ partie~III).
   fins de l'article~101 de la directive 2009/138/CE), article~2 (exactitude des résultats~: méthode standardisée
   appropriée pour les données, hypothèses vérifiées, données pertinentes au regard du profil de
   risque) et article~3, paragraphe~2 (examen des hypothèses par l'autorité de contrôle).
-  Relu sur la manifestation XHTML de l'Office des publications (CELEX 32015R0498).
+  Relu sur la manifestation XHTML de l'Office des publications et, pour le point~f), sur EUR-Lex
+  (HTML et PDF du \emph{Journal officiel}~; CELEX 32015R0498).
 
   \item Autorité de contrôle prudentiel et de résolution, \emph{Modalités de calcul des ratios
   prudentiels pour les entreprises et groupes d'assurance soumis à la Directive Solvabilité~2},
@@ -19614,7 +19639,7 @@ modèle et un mode d'inférence différents.
   \emph{Portée.} Ouvrage de référence rassemblant le cadre théorique complet
   (modèle de Mack, résultat de développement des sinistres, erreurs de
   prédiction). Il est cité pour le cadre général, l'article de 2008 l'étant pour
-  la formule précise.
+  la formule précise. Ouvrage non relu par le projet.
 
   \item P.\,D. England, R.\,J. Verrall, \emph{Stochastic claims reserving in
   general insurance}, \emph{British Actuarial Journal}, 8(3), 2002, p.~443--518.
@@ -19623,7 +19648,7 @@ modèle et un mode d'inférence différents.
   nature \emph{semi-paramétrique} des p-values de Monte-Carlo de cette méthode,
   et donc la réserve exposée en section~\ref{sec:boot-mw}. Le redressement du vivier par le
   levier ne lui est pas attribué~: c'est une interprétation de l'outil, présentée
-  comme telle dans cette section.
+  comme telle dans cette section. Texte non relu par le projet (notice vérifiée).
 
   \item G.\,C. Taylor, F.\,R. Ashe, \emph{Second moments of estimates of
   outstanding claims}, \emph{Journal of Econometrics}, 23(1), 1983, p.~37--61.
@@ -19649,9 +19674,11 @@ modèle et un mode d'inférence différents.
   \item G.~Barnett, B.~Zehnwirth, \emph{Best estimates for reserves},
   \emph{Proceedings of the Casualty Actuarial Society}, 87, 2000, p.~245--321.
   \emph{Portée.} Discussion des exposants alternatifs de la structure de
-  variance ($\alpha = 0$, $1$ ou $2$). Citée dans la fiche~\ref{mw:m2bp} pour situer
+  variance (exposant $k = 0$, $1$ ou $2$ de $C(i,j)$ dans
+  $\operatorname{Var}[C(i,j+1)\mid C(i,j)]$). Citée dans la fiche~\ref{mw:m2bp} pour situer
   l'exposant~1 imposé par le règlement parmi les choix possibles, et non pour
-  recommander une alternative --- l'annexe~XVII ne laissant pas ce choix ouvert.
+  recommander une alternative --- l'annexe~XVII ne laissant pas ce choix ouvert. Texte non relu
+  par le projet.
 \end{itemize}
 
 \subsection*{Points sur lesquels la littérature ne permet pas de conclure}
@@ -19680,7 +19707,7 @@ littérature consultée.
   modèles, de taille 10 au plus petit. Elle est mesurée par une simulation propre au dépôt, sous
   deux plans de la méthode lognormale à $T = 8$ (fiche~\ref{fiche:ic-bootstrap})~:
   constat de simulation, qui ne vaut ni pour un autre $T$ ni pour d'autres données, et qui n'est
-  pas fait pour la méthode Merz--Wüthrich. La quasi-pivotalité de
+  pas fait pour la méthode Merz--Wüthrich (travail postérieur à la remise). La quasi-pivotalité de
   $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
   hypothèse, étayée sur ces deux plans seulement.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
@@ -19712,8 +19739,7 @@ littérature consultée.
   fiche~\ref{fiche:student-pente} sont des constats de simulation (constat~C6,
   script versionné), valables pour deux plans de volumes, et la seule
   grandeur calculée par le moteur est l'approximation $\hat\pi_b$, restituée comme contexte dans
-  le commentaire de la ligne (règle~R4 retirée,
-  section~\ref{sec:modele-auxiliaire-regles}).
+  le commentaire de la ligne (règle~R4 retirée, même fiche, rubrique~6).
   C.\,J. DiCiccio et J.\,P. Romano (2017) décrivent le défaut de niveau du test de
   permutation de la corrélation sous la seule hypothèse de corrélation nulle, dans un
   cadre asymptotique, sans résultat à $T = 8$.
@@ -19852,7 +19878,7 @@ l'autre (sur J1, Cook~: 954 jeux sur 2\,000, soit $47{,}7~\%$~; $R^2 < 0{,}5$~: 
 jackknife au-dessus de 10~\%~: 1\,408, $70{,}4~\%$, et de 20~\%~: 363, $18{,}1~\%$~; largeur de
 l'intervalle bootstrap au-dessus de 50~\%~: 981, $49{,}0~\%$, et de 80~\%~: 0)~; la colonne J2 du
 tableau est celle de la première de ces deux mesures, J2 n'ayant pas été rejoué ensuite. La
-ligne de la règle~R4, règle retirée (section~\ref{sec:modele-auxiliaire-regles}), est reproduite par le script pour la
+ligne de la règle~R4, règle retirée (fiche~\ref{fiche:student-pente}, rubrique~6), est reproduite par le script pour la
 comparabilité~; sa ligne du tableau vient des deux dernières mesures, dont les comptes sur J1 sont identiques. Les lignes du
 rapport de vraisemblance à chacune des deux bornes et de la largeur de l'intervalle restreint ne
 sont pas reconstruites~; aucun repère n'y porte. \emph{Statut}~: constat de simulation sous le modèle ajusté à chaque jeu, à $T = 8$~;
@@ -19981,7 +20007,8 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         p de famille et la p globale situent la plus petite p-value de Monte-Carlo d'une famille,
         ou de la batterie, dans sa loi sous le modèle ajusté, compte tenu du nombre de tests et de
         leur dépendance. Elles ne modifient aucun verdict, se lisent avec leur erreur de
-        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance non mesurée).
+        Monte-Carlo, et une valeur élevée n'atteste pas l'adéquation (puissance non mesurée~; sa
+        mesure est un travail postérieur à la remise).
 \end{enumerate}
 
 \subsection*{Tests structurellement inopérants à faible $T$}
@@ -20074,8 +20101,8 @@ celui des pertes constantes, dans l'ordre de priorité des motifs des lignes non
 (volumes constants, puis pertes constantes). Mesuré (méthode prime, segment~1 de l'annexe~II, données brutes, $B = 99$)~:
 $x_t = 100$ et pertes du jeu de contrôle, \code{ok = TRUE}, avertissement émis en tête, et ces
 lignes non applicables avec le motif ci-dessus~; volumes du jeu de contrôle (étendue relative
-$0{,}258$), aucun avertissement~; étendue relative $10^{-7}$, avertissement émis, $2\cdot
-10^{-6}$, aucun (\code{engine\_valider\_donnees()} appelée directement). La liste des lignes de
+$0{,}258$), pas cet avertissement~; étendue relative $10^{-7}$, avertissement émis, $2\cdot
+10^{-6}$, pas cet avertissement (\code{engine\_valider\_donnees()} appelée directement). La liste des lignes de
 la table ne dépend pas du régime~: la ligne de
 Smirnov est présente à tout $T \ge 8$. Seules font exception
 les lignes de lecture conjointe, dont la
@@ -20168,7 +20195,7 @@ fonction du moteur et jamais directement par \code{usp\_tests()} ou
 \code{mw\_tests()}~:\newline
 \code{sw\_loi\_nulle()}, \code{.imhof\_p\_sup0()}, \code{.runs\_dens()},\newline
 \code{.fisher\_combine()}, \code{.mw\_spearman()}, \code{.mack\_moments\_Z()},\newline
-\code{mw\_simuler\_triangle()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
+\code{.mw\_tirer\_triangle\_valide()}, \code{.mw\_stats()}, \code{.mw\_pool\_residus()}.\newline
 Le préfixe d'un point ne définit pas cette catégorie~: \code{.shapiro\_sur()},
 \code{.mw\_pente\_relative()} et \code{.mw\_detail\_extrapolation()}, préfixées d'un
 point, sont appelées directement par \code{usp\_tests()} ou \code{mw\_tests()}
@@ -20310,7 +20337,8 @@ statistique, dont six sont mutualisées (en orangé), puis se rejoignent sur
 \code{usp\_credibilite()}. Une anomalie dans un bloc orangé affecterait
 \emph{les deux} méthodes. \code{usp\_tests()} et \code{mw\_tests()} se
 terminent par le même appel à \code{engine\_p\_famille()}, qui ajoute les lignes de lecture
-conjointe (familles et ligne globale, préfixe LC) à partir des réplications du bootstrap de la
+conjointe (une ligne par famille de plusieurs tests, sous le préfixe de sa famille, et une ligne
+globale, préfixe LC) à partir des réplications du bootstrap de la
 méthode (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale})~: fonction commune aux deux
 méthodes, non représentée.}
 \label{fig:annexe-chapeau}
@@ -20343,7 +20371,7 @@ méthodes, non représentée.}
 \node[sor, right=20mm of lm, yshift=13.5mm]  (o1) {Student constante};
 \node[sor, right=20mm of lm, yshift=4.5mm]   (o2) {Pitman pente (statistique $t$)};
 \node[sor, right=20mm of lm, yshift=-4mm]    (o2s) {Student pente (diagnostic)};
-\node[sor, right=20mm of lm, yshift=-11mm]   (o3) {Fisher global};
+\node[sor, right=20mm of lm, yshift=-11mm]   (o3) {Fisher global (diagnostic)};
 \node[sor, right=20mm of lm, yshift=-18mm]   (o4) {$R^2$ (diagnostic)};
 
 \node[ded, below=22mm of lm] (tost) {\code{test\_tost\_intercept()} \scriptsize (même poids)};
@@ -20356,7 +20384,7 @@ méthodes, non représentée.}
 \node[ded, below=7mm of mk] (cs) {\code{test\_cox\_stuart()}};
 \node[sor, right=20mm of cs] (o8) {Cox--Stuart};
 \node[ded, below=6mm of cs] (sp) {\code{stats::cor.test()}};
-\node[sor, right=20mm of sp] (o9) {Spearman ($\times2$)};
+\node[sor, right=20mm of sp] (o9) {Spearman ($\times2$~; temps~: diagnostic)};
 % Les quatre fonctions de regression lisent (x_t, y_t) ; Mann-Kendall,
 % Cox-Stuart et Spearman lisent les ratios r_t.
 \node[ent] (r) at (xy |- cs) {ratios $r_t = y_t/x_t$};
@@ -20483,7 +20511,7 @@ autres sont des diagnostics.}
 % --- Colonne des fonctions internes (lois de reference) ----------------------
 \node[int, right=14mm of dw] (imh) {\code{.imhof\_p\_sup0()}};
 \node[int, right=14mm of ru] (rd)  {\code{.runs\_dens()}};
-\node[int, below=2mm of rd] (rr) {\code{usp\_runsr\_p\_exacte()}\\ \scriptsize ratios bruts, $\hat\pi_t$ constant};
+\node[ded, below=2mm of rd] (rr) {\code{usp\_runsr\_p\_exacte()}\\ \scriptsize ratios bruts, $\hat\pi_t$ constant};
 
 % --- Seconde entree : ratios centres u_t (base « ratios bruts », cinq lignes) --
 \node[ent, below=52mm of z] (u) {ratios centrés $u_t$};
@@ -20596,13 +20624,13 @@ fournissent des lois de référence.}
 \node[sor, anchor=west] at (cx |- m2)  (q2) {M2 (3 entrées)};
 \node[sor, anchor=west] at (cx |- cal) (q3) {M3 année calendaire (test et diagnostic)};
 \node[sor, anchor=west] at (cx |- cor) (q4) {M3 (2 entrées)};
-\node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW, suites (diagnostic)};
+\node[sor, anchor=west] at (cx |- dw)  (q5) {M3 DW~; suites (diagnostic)};
 \node[sor, anchor=west] at (cx |- gr)  (q6) {M4 aberrants};
 \node[sor, anchor=west] at (cx |- sw)  (q7) {M5 normalité};
 
 \node[ded, below=4mm of res] (boot) {\code{mw\_bootstrap()}};
 \node[int, below=3mm of boot] (st)
-  {\code{mw\_simuler\_}\\ \code{triangle()},\\ \code{.mw\_stats()}};
+  {\code{.mw\_tirer\_}\\ \code{triangle\_valide()},\\ \code{.mw\_stats()}};
 \node[sor, below=3mm of st] (pmc) {p-values de Monte-Carlo};
 \node[mut, below=3mm of pmc] (fam) {\code{engine\_p\_famille()},\\ \code{.engine\_minp\_rangs()}};
 \node[sor, below=3mm of fam] (qlc) {M1, M2, M3~: p de famille~;\\ LC~: p globale (diagnostics)};
@@ -20663,8 +20691,9 @@ Un test, une fonction dédiée & Goldfeld--Quandt,
 Jarque--Bera, corrélation entre colonnes & Revue circonscrite~: une anomalie
 n'affecte que ce test. \\
 Un test, plusieurs fonctions & Mann--Kendall (\code{test\_mann\_kendall()} +
-\code{mk\_p\_exacte()} + deux internes), Durbin--Watson (\code{stat\_dw()} +
-\code{dw\_p\_exacte()} + trois internes), Pitman
+\code{mk\_p\_exacte()} + deux internes de la loi exacte, \code{.mk\_loi\_exacte()} et
+\code{.poly\_mult()}), Durbin--Watson (\code{stat\_dw()} + \code{dw\_p\_exacte()} + deux
+internes de la loi exacte, \code{.dw\_valeurs\_}\allowbreak\code{propres()} et \code{.imhof\_p\_sup0()}), Pitman
 (\code{test\_lm\_}\allowbreak\code{complet()} + \code{usp\_permutation\_}\allowbreak\code{pente()}) & La statistique et la loi de
 référence sont séparées~: il faut vérifier les deux, et leur cohérence
 d'appariement. \\

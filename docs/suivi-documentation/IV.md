@@ -6,7 +6,40 @@ Entrées dans l'ordre du `.tex`, selon le gabarit et les règles de `README.md`.
 
 ## Entrées transversales
 
-Aucune entrée.
+### Relecture de la partie IV (étape 8 de JF, 08/11/2026)
+
+Tête relue : `55ea997`. Texte retiré cité, par `\label`, dans l'ordre du `.tex`. Mesures du 08/11/2026 : `charger_moteur()`, R 4.3.3, Ubuntu 24.04, BLAS et LAPACK de référence 3.12.0.
+
+**Historique.**
+- `sec:verif`, phrase d'ouverture : « L'implémentation a été validée par trois voies indépendantes. » ; les trois voies n'étaient pas nommées, et « validée » contredisait l'encadré de la MSEP de la même section (« vérifications numériques d'une même définition ; aucune n'est une validation statistique »). Remplacé par les trois voies nommées (recalcul, simulation, confrontation Merz–Wüthrich), au verbe « vérifiée ».
+- `sec:verif`, recalcul : « la p-value de Student restituée sur la ligne de la pente » → « sur la ligne du test de Pitman » (deux lignes de pente : celle de Student sous le modèle auxiliaire MCO restitue la p bilatérale, égale à celle de Fisher). Mesure : jeu de contrôle, p de Fisher 0,2133906 ; p de Student de la ligne de Pitman 0,1066953 ; écart relatif de Fisher au double 1,43·10⁻¹⁵ ; 4 462 appariements au moins aussi extrêmes sur 40 320 (p = 0,1106647 × 40 320).
+- `sec:verif`, gradient : « (mesure) » → source nommée, `tests/unitaires/test_controles_numeriques.R` (critère < 10⁻⁶) ; écart maximal recalculé par la boucle de ce test : 2,779·10⁻⁹.
+- `sec:calibration-mc`, protocole : « et la règle R4 du moteur de la mesure, règle retirée : section~\ref{sec:modele-auxiliaire-regles} » ; `sec:modele-auxiliaire-regles` ne décrit plus R4 (voir `II.md`, « Règle R4 (renvois) »). R4 est définie en une incise (pente en diagnostic quand π̂_b < 1/2) et renvoyée à `fiche:student-pente`, rubrique 6 (« Pourquoi la règle R4 n'est pas appliquée »), seule section du `.tex` qui la nomme.
+- `sec:biblio` :
+  - Chernoff ; Self et Liang : ajout « Textes non relus par le projet » (inventaire : Self et Liang [P], Chernoff [NV]).
+  - Kendall et Gibbons (1990) ; Kendall (1975) : ajout « Ouvrages non relus par le projet » et du statut du renvoi « ch. 4–5 » de `fiche:mann-kendall`, non contrôlé (`verifications-jf.md`, #388, ligne 6 : [NV]).
+  - Swed et Eisenhart (1943), portée : « Swed \& Eisenhart fournit la distribution combinatoire exacte du nombre de suites, qui est celle implémentée dans le moteur, l'approximation normale n'étant conservée qu'à titre indicatif. » ; remplacée par la précision proposée par `verifications-jf.md` (section « Swed et Eisenhart (1943) et Hoaglin et Welsch (1978) », § 1.4 : éq. (1), p. 66, d'après Stevens (1939) et Wald et Wolfowitz (1940), table I) ; statut [V] (p. 66–70 lues sur la version publiée). La notice de Stevens (1939) n'est pas ajoutée (non relue).
+  - Gibbons et Pratt : ajout « Texte non relu par le projet » ([NV]).
+  - Best et Roberts : ajout du statut (listing AS 89 et `prho.c` lus, article non relu ; [P], #388).
+  - Dwass ; Hope, portée : « Ce sont les références qui établissent que le test de Monte-Carlo fondé sur p̂ = (1 + #{S^(b) ≥ S_obs})/(B+1) est de niveau exact pour B fini lorsque α(B+1) est entier. » ; précisée (loi nulle exactement simulable et continue, rejet pour p̂ ≤ α ; condition bilatérale α(B+1)/2 entier ; niveaux de la règle stricte ; renvoi à `fiche:procedure-mc` corrigée par `cefa3b8`) ; statuts : Dwass [V] p. 181–182 (tests de randomisation), Hope [P] non lu (`verifications-fi.md` § 6.7).
+  - Jöckel ; Marriott : « Textes non relus » ([NV]). Bickel et Freedman ; Singh : « Textes non relus (notices vérifiées sur les pages de l'éditeur) » ([P]). Hall (1992) : « ouvrage non relu, dont aucun résultat ni aucune page n'est tiré » ([NV] ; la partie II disait déjà « ouvrage non relu »).
+  - Crainiceanu et Ruppert : « Le modèle n'est pas celui de l'annexe~XVII » → « n'est pas le modèle réglementaire » (forme écartée de `CONTEXT.md`, « Modèle réglementaire ») ; « Texte non relu » ([NV]).
+  - Atkinson (1981) ; Aldor-Noiman et al. : « Textes non relus » ([NV]). Clopper et Pearson : notice vérifiée, texte non relu. Bradley : texte non relu, bornes de seconde main ([P]). Holm : notice vérifiée, texte non relu, propriété classique ([P], `verifications-fi.md` § 6.7). McNemar : notice vérifiée, texte non relu, contenu décrit non relevé sur le texte. Cox ; Buehler : « Textes non relus » ([P]).
+  - Davies, Triggs et Newbold : « Texte non relu ; aucun chiffre n'en est tiré » ([NV], #422). Bowman et Shenton ; Jarque et Bera : « Textes non relus » ([NV]). Shapiro, Wilk et Chen : « Texte non relu » ([P], existence). Maddala : « Ouvrage non relu » ([NV]).
+  - Milliken et Graybill : « sous l'erreur lognormale de l'annexe~XVII » → « du modèle réglementaire » ; « Texte non relu ; le résultat est confirmé par une source secondaire » ([P]).
+  - Lehmann et Romano : ajout « sa relecture est un travail postérieur à la remise » (même forme que `fiche:breusch-pagan-koenker`, `III-H.md`, C5).
+  - Règlement d'exécution (UE) 2015/498 : « Relu sur la manifestation XHTML de l'Office des publications (CELEX 32015R0498). » → ajout de la lecture du point f) sur EUR-Lex (HTML et PDF du JO), comme l'introduction de la partie III (`9834935`).
+  - Wüthrich et Merz (2008, ouvrage) : « Ouvrage non relu » ([NV]). England et Verrall : « Texte non relu (notice vérifiée) » ([P]).
+  - Barnett et Zehnwirth (2000) : « variance ($\alpha = 0$, $1$ ou $2$) » ; exposant noté k, comme `mw:m2bp` (`9e6f489`) ; « Texte non relu » ([NV]).
+- `sec:biblio`, « Points sur lesquels la littérature ne permet pas de conclure », point 3 : ajout « (travail postérieur à la remise) » après « n'est pas fait pour la méthode Merz–Wüthrich ».
+- `sec:biblio`, point 7 : « (règle~R4 retirée, section~\ref{sec:modele-auxiliaire-regles}) » → « (règle R4 retirée, même fiche, rubrique 6) » ; même motif que ci-dessus. Notice de Hoenig et Heisey : même renvoi corrigé.
+- `sec:synthese`, hiérarchie de lecture, point 7 : « (puissance non mesurée) » → ajout « sa mesure est un travail postérieur à la remise ».
+- `sec:taux-reperes` : « ligne de la règle~R4, règle retirée (section~\ref{sec:modele-auxiliaire-regles}) » → renvoi à `fiche:student-pente`, rubrique 6.
+- `sec:volumes-constants` : « volumes du jeu de contrôle (étendue relative 0,258), aucun avertissement ; […] 2·10⁻⁶, aucun » → « pas cet avertissement » (deux fois) : à T = 8, `run_engine()` émet toujours deux autres avertissements (crédibilité partielle, lois asymptotiques), mesurés sur le jeu de contrôle ; seul l'avertissement des volumes constants est absent. Mesure : `x_t = 100`, 15 lignes non applicables (les 14 du motif et Anscombe–Glynn), avertissement en tête, table de 52 lignes (trois lignes de famille au lieu de quatre) ; étendues 10⁻⁷ (avertissement) et 2·10⁻⁶ (sans) par `engine_valider_donnees()` ; ε = 0, 10⁻¹², 10⁻⁹, 10⁻⁸, 10⁻⁷ : 15 lignes non applicables.
+
+**Mesures retirées du guide.** Aucune.
+
+**Renvois.** Phrases « travail postérieur à la remise » ajoutées (Q-47-6, Q-ND-25), sans numéro dans le `.tex` : point 3 des « Points non tranchés », couverture Merz–Wüthrich (#387) ; hiérarchie, point 7, puissance de la lecture conjointe (#379) ; Lehmann et Romano (#501). Issues examinées sans phrase : #484 (C3 : le `.tex` dit qu'`add()` refuse un verdict pour un autre type que `test`, ce que fait `R/engine.R`, l. 4677-4679 à la tête `55ea997` ; concordant) ; #493 (commentaires périmés d'`engine_sous_graine()` : le tableau de `sec:tracabilite-code` liste toutes les sources d'aléa) ; #485 (le `.tex` dit Anscombe–Glynn « non défini en-deçà » de T = 20 sans rien affirmer au-delà) ; #469, #486, #491, #492 et #386 (aucune affirmation de la partie IV) ; #420, #421, #439, #445, #470, #471, #475, #482, #483, #487 à #490, #494, #497 à #500 et #502 (aucune affirmation de la partie IV). #495 (Code des assurances, non relu ; corps « traitement après la remise » et « Bloquant pour la remise ») : la notice garde « renvoi à vérifier avant la remise du dossier », non modifiée (hors liste du brief ; signalé). Statuts des références : `docs/references/verifications-fi.md`, `-jf.md`, `inventaire-non-relu.md` (#388, #422).
 
 ## `sec:verif` — Vérification empirique de l'implémentation (partie IV, § Vérification empirique de l'implémentation)
 
