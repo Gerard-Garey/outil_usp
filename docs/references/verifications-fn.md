@@ -135,7 +135,7 @@ Achat des chapitres 4, 5 et 6 sur Cambridge Core, accès institutionnel, ou prê
 
 | Source | URL essayée | Résultat |
 |---|---|---|
-| Google Books, Davison et Hinkley (1997), identifiant `4aCDbm_t8jUC` | `https://books.google.com/books?id=4aCDbm_t8jUC&pg=PA<n>` | HTTP 200 ; **aperçu limité autorisé par l'éditeur** (« Pages displayed by permission of Cambridge University Press ») ; pages lues : 148-149, 151-156, 193-196, 202-203, 211-215, 258-263 ; p. 197-198 absentes de l'aperçu (la visionneuse saute de 196 à 199) |
+| Google Books, Davison et Hinkley (1997), identifiant `4aCDbm_t8jUC` | `https://books.google.com/books?id=4aCDbm_t8jUC&pg=PA<n>` | HTTP 200 ; **aperçu limité autorisé par l'éditeur** (« Pages displayed by permission of Cambridge University Press ») ; pages lues : 148-149, 151-156, 193-196, 202-203, 211-215, 258-263 ; p. 197-198 absentes de l'aperçu (la visionneuse saute de 196 à 199) *[annotation du 08/11/2026 : dépassé par D1/D2 ci-dessous, p. 197-198 lues ensuite]* |
 | Google Books, Efron et Tibshirani (1993), identifiant `gLlpIUxRntoC` | `https://books.google.com/books?id=gLlpIUxRntoC&pg=PA<n>` | HTTP 200 ; aperçu limité ; pages lues : 167-177, 180, 183-186 |
 | Google Books, recherche dans le livre | `https://books.google.com/books?id=4aCDbm_t8jUC&q=percentile+method` | redirection vers `https://www.google.com/sorry/…` (CAPTCHA anti-robot) : **non contournée** ; navigation par numéro de page seulement, à faible cadence |
 | API Google Books | `https://www.googleapis.com/books/v1/volumes?q=…` | HTTP 429 (quota) |
@@ -236,7 +236,7 @@ Notice lue sur Google Books et Internet Archive (Chapman & Hall, New York, 1993,
 
 ## R27.6 Ce qui reste non vérifié
 
-- Davison et Hinkley : pages hors des plages ci-dessus, dont p. 197-198 (absentes de l'aperçu), § 2.4 et § 2.6.1 (renvoyés p. 194 et 211), § 5.7 (comparaisons empiriques), exemple 8.9 ; le § 4.2.4 n'a pas été lu à partir de son début (p. 150 non capturée), mais (4.15)-(4.17) et les exemples 4.6-4.8 l'ont été.
+- Davison et Hinkley : pages hors des plages ci-dessus, dont p. 197-198 (absentes de l'aperçu ; *annotation du 08/11/2026 : dépassé par D1/D2 ci-dessous, p. 197-198 lues ensuite*), § 2.4 et § 2.6.1 (renvoyés p. 194 et 211), § 5.7 (comparaisons empiriques), exemple 8.9 ; le § 4.2.4 n'a pas été lu à partir de son début (p. 150 non capturée), mais (4.15)-(4.17) et les exemples 4.6-4.8 l'ont été.
 - Efron et Tibshirani : chap. 10 (biais), 12 (bootstrap-t), 22 (« Further topics in bootstrap confidence intervals », où le tableau 13.3 et p. 174 renvoient) : non lus [NV].
 - Aucune des pages lues ne chiffre la couverture des intervalles « basic » ou de percentile à n = 8, ni pour le modèle lognormal du dépôt : tout chiffre à T = 8 devra venir d'une simulation propre au dépôt, présentée comme telle.
 
