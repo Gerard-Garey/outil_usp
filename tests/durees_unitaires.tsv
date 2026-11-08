@@ -4,22 +4,20 @@
 # vides et les lignes commencant par # sont ignorees. Un fichier absent de cette
 # table prend 60 s ; une ligne sans fichier sur le disque est ignoree.
 # Source : journal de l'execution CI 1152 (commit 9f7290f, 4 processus a la fois,
-# docs/revues/20261108-duree-ci/mesures/durees_ci_1152.tsv). Trois valeurs sont des
-# estimations de l'issue #512, a remplacer par les durees des journaux des lots de
-# la CI : test_merz_wuthrich (185 s) et test_merz_wuthrich_suite (192 s) : 390,3 s
-# avant la coupe en deux fichiers, moins environ 13 s de refonte du test
-# calendaire a B = 99 (dans la suite), repartis selon les durees locales des deux
-# fichiers (la suite est la plus longue) ; test_enveloppe_spread (123,8 s, moins
-# 5 s : B = 599 au lieu de 999).
+# docs/revues/20261108-duree-ci/mesures/durees_ci_1152.tsv), sauf trois valeurs
+# lues dans les journaux des lots de l'execution CI de 13950aa (issue #512, run
+# 42522519087, 4 processus par lot) : test_merz_wuthrich, test_merz_wuthrich_suite
+# (fichier coupe en deux, test calendaire a B = 99) et test_enveloppe_spread
+# (B = 599).
 test_p_mc_regime.R	195.9
 test_application.R	195.2
 test_controles_entree.R	193.6
-test_merz_wuthrich.R	185
+test_merz_wuthrich.R	122.7
 test_concordance_doc_moteur.R	189.9
-test_merz_wuthrich_suite.R	192
+test_merz_wuthrich_suite.R	143.3
 test_defauts_connus.R	168.8
 test_incertitude_bootstrap.R	125.4
-test_enveloppe_spread.R	119
+test_enveloppe_spread.R	94.3
 test_rapport_html.R	100.5
 test_outillage_mesure.R	100
 test_forme_close_m1.R	89.6
