@@ -132,6 +132,12 @@ mode séquentiel :
 
     Rscript tests/test_unitaires.R --parallele
 
+Sous Windows, quelques assertions de la batterie échouent pour des raisons
+propres à la plateforme, sans effet sur σ_USP, sur une p-value du moteur ni sur
+un verdict : lancement des processus fils (#477), langue des sorties de
+`summary.lm()` (#478) et affichage de `fmt_p()` sous la bibliothèque C de
+Windows (#479). La batterie de référence est celle de la CI, sous Linux.
+
 Lorsqu'une modification change volontairement les résultats, lister les écarts
 (`Rscript tests/comparer_references.R`) et les expliquer. Les références ne sont
 plus régénérées hors de la CI, poste compris
