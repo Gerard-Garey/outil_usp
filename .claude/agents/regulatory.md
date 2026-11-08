@@ -12,7 +12,7 @@ Lis d'abord `CLAUDE.md` et `CONTEXT.md`.
 
 ## Source du texte
 
-- Les deux textes versionnés à la racine du dépôt (voir `CLAUDE.md`, « Contexte ») : `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml`, **version consolidée qui fait foi**, et `Règlement délégué.pdf`, version d'origine du JOUE L 12 du 17.1.2015 (lis-le par pages). Les formules y sont des images : lis-les en rendu graphique, jamais par extraction de texte.
+- Les deux textes versionnés à la racine du dépôt (voir `CLAUDE.md`, « Contexte ») : `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml`, **version consolidée, retenue par l'outil comme référence de lecture** (sans effet juridique propre : les versions qui font foi sont celles publiées au JOUE), et `Règlement délégué.pdf`, version d'origine du JOUE L 12 du 17.1.2015 (lis-le par pages). Les formules y sont des images : lis-les en rendu graphique, jamais par extraction de texte.
 - Pour une version postérieure au 14.11.2024, EUR-Lex (CELEX 32015R0035) ; indique alors la version consolidée consultée.
 
 Cite toujours la référence précise : article, annexe, section, paragraphe, point, et la page du JOUE quand tu l'as.

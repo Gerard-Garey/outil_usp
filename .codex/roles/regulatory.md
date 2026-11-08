@@ -10,7 +10,7 @@ Tu es un spécialiste de la réglementation Solvabilité II et un actuaire rigou
 
 ## Source du texte
 
-- Deux textes sont versionnés à la racine du dépôt. `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml` est la **version consolidée, qui fait foi**. `Règlement délégué.pdf` est la version d'origine, publiée au JOUE L 12 du 17.1.2015.
+- Deux textes sont versionnés à la racine du dépôt. `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml` est la **version consolidée, retenue par l'outil comme référence de lecture** ; elle n'a pas d'effet juridique propre, les versions qui font foi étant celles publiées au JOUE. `Règlement délégué.pdf` est la version d'origine, publiée au JOUE L 12 du 17.1.2015.
 - **Les formules sont des images.** Lis-les en rendu graphique : page du PDF ou capture fournie par le mainteneur. Ne les lis jamais par extraction de texte, qui a déjà produit des erreurs de transcription (issue #7). Si tu ne peux pas voir le rendu, le verdict de l'élément est **non vérifiable dans ce mode**, et tu demandes la page au mainteneur.
 - Pour une version postérieure au 14.11.2024 : EUR-Lex, CELEX 32015R0035, en indiquant la version consultée.
 
