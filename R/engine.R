@@ -968,12 +968,30 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # as.numeric(), qui leverait une erreur (issue #99) ; hors locale UTF-8, les
 # memes cellules valaient deja NA (mesure du 28/09/2026, R 4.3.1, locale C :
 # "1<A0>", "<A0>1", "1<85>"). Les autres cellules passent par as.numeric()
-# comme auparavant.
+# comme auparavant, sauf trois formes qu'as.numeric() lit comme des nombres
+# sans qu'elles aient l'allure d'un nombre decimal ecrit par un humain, et
+# qui valent NA (non numerique, issue #490) :
+#  - un point quand dec != "." : "1.500" avec dec = "," lu 1,5 donnait un
+#    facteur 1 000 sans refus (le point y est un separateur de milliers) ;
+#  - l'hexadecimal, signe et blancs de tete admis ("0x10", "-0X1F", "0x1p3") :
+#    lu 16, 31, 8 ;
+#  - l'exposant incomplet ("1E", "1e+") : lu 1.
+# Les exposants complets ("1e3", "1E-3"), le signe "+", ".5", "5." et les
+# valeurs non finies ("Inf", "NaN"), refusees plus loin comme non numeriques
+# ou non finies, restent lus comme as.numeric() les lit. Le motif d'hexadecimal
+# et celui de l'exposant sont ecrits sur des blancs ASCII (as.numeric() admet
+# en tete les blancs de isspace(), dont \v et \f).
 .cellules_en_nombre <- function(v, dec = ".") {
   out <- rep(NA_real_, length(v))
   ok <- !.octets_non_utf8(v)
   w <- v[ok]
-  if (dec != ".") w <- gsub(dec, ".", w, fixed = TRUE)
+  forme_refusee <- grepl("^[ \t\n\v\f\r]*[+-]?0[xX]", w, useBytes = TRUE) |
+    grepl("[eE][+-]?[ \t\n\v\f\r]*$", w, useBytes = TRUE)
+  if (dec != ".") {
+    forme_refusee <- forme_refusee | grepl(".", w, fixed = TRUE, useBytes = TRUE)
+    w <- gsub(dec, ".", w, fixed = TRUE)
+  }
+  w[forme_refusee] <- NA_character_
   out[ok] <- suppressWarnings(as.numeric(w))
   out
 }
@@ -7333,8 +7351,18 @@ engine_lire_donnees_csv <- function(df) {
   }
   xt <- .en_numerique(df$xt)
   yt <- .en_numerique(df$yt)
-  if (anyNA(xt) || anyNA(yt))
-    err <- c(err, "Certaines valeurs de xt ou yt ne sont pas numeriques.")
+  # Cellule non numerique (texte, hexadecimal, cellule vide) : position citee,
+  # numero de ligne du tableau (comme la colonne t plus bas), cinq au plus.
+  if (anyNA(xt) || anyNA(yt)) {
+    pos <- function(nom, v) {
+      k <- which(is.na(v))
+      if (!length(k)) return(character(0))
+      sprintf("%s : ligne(s) %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
+              if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+    }
+    err <- c(err, sprintf("Certaines valeurs de xt ou yt ne sont pas numeriques (%s).",
+                          paste(c(pos("xt", xt), pos("yt", yt)), collapse = " ; ")))
+  }
   if ("t" %in% noms) {
     to <- .en_numerique(df$t)
     if (anyNA(to))

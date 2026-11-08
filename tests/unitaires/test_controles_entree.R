@@ -2163,6 +2163,78 @@ verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-
            })
            identical(r, "locale UTF-8 indisponible") || isTRUE(r)
          })
+# Issue #490 (audit entrees-sorties, constats C6 et C11) : .cellules_en_nombre()
+# refuse le point quand dec != ".", l'hexadecimal et l'exposant incomplet, que
+# as.numeric() lit comme des nombres ("1.500" avec dec = "," valait 1,5 : facteur
+# 1 000 sans refus ; "0x10" valait 16).
+verifier(".cellules_en_nombre() : decimales ordinaires inchangees (dec = \".\" et dec = \",\", exposant complet, signe +, .5, 5.) (#490)",
+         {
+           ord <- c("1.5", "+1", "-2", "1e3", "1E-3", "1e+3", ".5", "5.", "0", "00012", "1.e3", " 7", "7 ")
+           virg <- c("1,5", "980,5", "-0,25", "1e3", ",5", "5,", "42")
+           identical(.cellules_en_nombre(ord), suppressWarnings(as.numeric(ord))) &&
+             !anyNA(.cellules_en_nombre(ord)) &&
+             identical(.cellules_en_nombre(virg, ","), c(1.5, 980.5, -0.25, 1000, 0.5, 5, 42)) &&
+             identical(.cellules_en_nombre(c(NA, "x", ""), ","), rep(NA_real_, 3)) &&
+             identical(.cellules_en_nombre(character(0), ","), numeric(0))
+         })
+verifier(".cellules_en_nombre() : point refuse quand dec != \".\", y compris avec exposant ; accepte quand dec = \".\" (#490)",
+         {
+           pts <- c("1.500", "980.5", "2.5e3", ".5", "5.")
+           all(is.na(.cellules_en_nombre(pts, ","))) && !anyNA(.cellules_en_nombre(pts, ".")) &&
+             identical(.cellules_en_nombre(c("1.500", "2,5"), ","), c(NA, 2.5))
+         })
+verifier(".cellules_en_nombre() : hexadecimal (signe, blancs de tete, exposant binaire) et exposant incomplet refuses ; Inf et NaN gardes (#490)",
+         {
+           hexa <- c("0x10", "0X1F", "-0x10", "+0x10", " 0x10", "\t0x1", "0x1p3", "0x.8", "0x", "0x1e3")
+           incomplet <- c("1E", "1e+", "1e-", "1e ", "2.5e")
+           all(is.na(.cellules_en_nombre(hexa))) && all(is.na(.cellules_en_nombre(hexa, ","))) &&
+             all(is.na(.cellules_en_nombre(incomplet))) &&
+             identical(.cellules_en_nombre(c("Inf", "-Inf", "NaN")), c(Inf, -Inf, NaN)) &&
+             # 0 seul, "x0", "10x" : non concernes par le motif d'hexadecimal
+             identical(.cellules_en_nombre(c("0", "0.5", "x0", "10x")), c(0, 0.5, NA, NA))
+         })
+verifier("Lecture vecteur : \"1.500;2.100;980,5\" avec dec = \",\" refuse (cellule citee), \"1500;2100;980,5\" lu ; point en milieu de serie refuse avec sa position (#490, C6)",
+         {
+           lit <- function(l, sep = ",", dec = ".") {
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE)
+             tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+           }
+           a <- lit("1.500;2.100;980,5", ";", ",")
+           b <- lit(c("x", "1,5", "2.100", "3"), ";", ",")
+           c <- lit(c("1.500", "2.100", "980,5"), ";", ",")
+           identical(lit("1500;2100;980,5", ";", ","), c(1500, 2100, 980.5)) &&
+             identical(lit(c("x", "1.5", "2.100", "3")), c(1.5, 2.1, 3)) &&
+             is.character(a) && contient(a, "\"1.500\"") && contient(a, "separateur decimal attendu : \",\"") &&
+             is.character(b) && contient(b, "position 2") && contient(b, "\"2.100\"") &&
+             is.character(c) && contient(c, "\"1.500\"")
+         })
+verifier("Lecture vecteur : hexadecimal refuse dans toutes les formes (colonne, ligne, ligne avec en-tetes), avec la cellule citee (#490, C11)",
+         {
+           lit <- function(l, sep = ",", dec = ".") {
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE)
+             tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+           }
+           col <- lit(c("x", "10", "0x10", "30"))
+           tete <- lit(c("0x10", "11", "12"))
+           lig <- lit("10,0x10,30")
+           ent <- lit(c("a2017,a2018,a2019", "10,0x10,30"))
+           is.character(col) && contient(col, "position 2") && contient(col, "\"0x10\"") &&
+             is.character(tete) && contient(tete, "\"0x10\"") && contient(tete, "en position d'en-tete") &&
+             is.character(lig) && contient(lig, "\"0x10\"") &&
+             is.character(ent) && contient(ent, "position 2") && contient(ent, "\"0x10\"")
+         })
+verifier("Lecture t, xt, yt et triangle : hexadecimal refuse avec la position de la cellule, decimale ordinaire inchangee (#490, C11)",
+         {
+           d <- engine_lire_donnees_csv(data.frame(t = 1:5, xt = c("1", "0x10", "3", "4", "5"),
+                                                   yt = c("1", "2", "3", "4", "0X1"), stringsAsFactors = FALSE))
+           ok <- engine_lire_donnees_csv(data.frame(t = 1:5, xt = c("1.5", "1e2", "3", "4", "5"),
+                                                    yt = 1:5, stringsAsFactors = FALSE))
+           tri <- fichier_tri(t5); tri$j1 <- as.character(tri$j1); tri$j1[3] <- "0x10"
+           r <- engine_lire_triangle(tri)
+           !d$ok && contient(d$erreurs, "xt : ligne(s) 2") && contient(d$erreurs, "yt : ligne(s) 5") &&
+             isTRUE(ok$ok) && identical(ok$xt, c(1.5, 100, 3, 4, 5)) &&
+             !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
+         })
 verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
          {
            x <- c(" a ", "\t\r\nb\n", "", NA, paste0(" ", intToUtf8(233), " "),
