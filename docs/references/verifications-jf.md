@@ -434,3 +434,37 @@ La page d'objet cite la directive en « version consolidée du 17 janvier 2025 �
 - Conclusion : la citation de la page d'objet est exacte, avant comme après le 30/01/2027. Le paragraphe « Hors périmètre, non vérifié » ci-dessus est levé.
 
 Observation pour la veille (#463, #504) : la consolidation `02015R0035-20270130` intègre le règlement délégué (UE) 2026/269 (M13, applicable au 30/01/2027) ; aucun marqueur M13 dans les art. 218 à 220 ni dans les annexes II, XIV et XVII. La consolidation du 14.11.2024 reste la dernière applicable à la date d'établissement du document.
+
+## Orientations de l'AEAPP EIOPA-BoS-14/178 (orientation 6) : version anglaise du site de l'AEAPP (décision Q-54-3)
+
+> *Rédigé par l'agent regulatory (IA) le 08/11/2026, sur commande de la session principale (décision Q-54-3 du mainteneur, 08/11/2026, avant la remise du dossier) ; lecture seule, pièces téléchargées hors dépôt ; citation recontrôlée par la session principale sur le rendu graphique de la p. 4.* Les numéros de ligne citent `docs/latex/doc_tests_usp.tex` à `169c49b`. Lecture en rendu graphique (p. 1 et 4) et sur la couche texte native (fichier Word 2010) pour les autres pages.
+
+### Pièces
+
+| Pièce | URL | HTTP, heure (UTC) | SHA-256 |
+|---|---|---|---|
+| Page « Guidelines on undertaking-specific parameters » (« Publication date 2 February 2015 ») | `https://www.eiopa.europa.eu/publications/guidelines-undertaking-specific-parameters_en` | 200, 16:12:45 | `c01de39728d2fe553d0c3ea35860f5c710408dc8cd3bba88d5c05533f62b4b00` |
+| PDF EN « EIOPA-BoS-14/178 EN », 7 p., créé le 30/01/2015 | `https://www.eiopa.europa.eu/document/download/07874316-7c29-4e90-a816-0900f5cfdb20_en?filename=Guidelines%20on%20undertaking-specific%20parameters.pdf` | 200, 16:12:56 | `e80a427620bda3ef65d9ba57f8f687b712fb024f1d8660e975f4961632c9468e` |
+| PDF FR (suffixe `_fr`) | même URL, `_fr` | 429 (« Too Many Requests ») ×4, 16:12:56-16:14:56 | — |
+| Page « Orientations EIOPA » de l'ACPR (seconde source pour le FR) | `https://acpr.banque-france.fr/fr/reglementation/orientations-eiopa` | 404, 16:15:04 | — |
+
+### Citation à la lettre (EN, p. 4)
+
+« Guideline 6 – Continuous compliance. 1.19. Undertakings should monitor their compliance with the requirements for the use of undertaking-specific parameters as part of the own-risk and solvency assessment. 1.20. As part of the own-risk and solvency assessment supervisory report, undertakings should inform the supervisory authorities whether there have been any material changes to the information included in the application and should provide relevant details of any material changes. 1.21. Where the use of new data produces material changes to the information included in the application, undertakings should provide at the request of supervisory authorities all details about the calculation of undertaking-specific parameters performed using the new set of data and the necessary information to support that the calculation is adequate. 1.22. If undertakings become aware that another standardised method provides a more accurate result for the purpose of fulfilling the calibration requirements included in Article 101(3) of Solvency II, they should submit a new application for the use of this alternative standardised method. »
+
+Contexte : § 1.11, p. 3 (« The Guidelines shall apply from 1 April 2015 ») ; § 1.3, p. 2 (destinataires : autorités de contrôle). L'orientation 6 ne prévoit ni tests statistiques, ni périodicité annuelle, ni exigence au stade de la demande.
+
+### Statuts
+
+| Affirmation | Lieu (`169c49b`) | Statut |
+|---|---|---|
+| « EIOPA-BoS-14/178 (orientation~6) » | `doc_tests_usp.tex:440` | **[V]** |
+| « EIOPA-BoS-14/178 (2015), dont l'orientation~6 (conformité continue) » | `doc_tests_usp.tex:8726-8727` | **[V]** |
+| Tests statistiques, annuels, résultats dans le rapport ORSA : « provient de la notice de l'ACPR (§~171), non des orientations » | `doc_tests_usp.tex:8736-8739` | **[V]** (l'orientation 6 place le suivi de la conformité dans l'ORSA, §§ 1.19-1.20, sans tests) |
+| Notice : code, année, « Orientation~6 (conformité continue) » | `doc_tests_usp.tex:19389-19392` | **[V]** |
+| Notice : titre français « Orientations sur les paramètres propres à l'entreprise » | `doc_tests_usp.tex:19390` | **[NV]** (version FR refusée, HTTP 429) |
+| Renvoi du § 171 de la notice de l'ACPR à l'orientation 6 | `doc_tests_usp.tex:19386, 19391` | **[V]** côté orientations ; § 171 relu le 06/11/2026 (`IV.md`), non relu ici |
+
+### Reste à faire
+
+Version française : à télécharger par le mainteneur depuis son poste (URL ci-dessus, suffixe `_fr`) pour vérifier le titre français. Notice du `.tex` sans URL ni mention de lecture : textes facultatifs proposés au mainteneur (bibliographie, l. 19390-19392 ; précision l. 8737-8738), non appliqués, le `.tex` restant inchangé avant la remise faute d'écart.
