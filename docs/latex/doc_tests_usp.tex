@@ -501,10 +501,11 @@ de paramètre \\
 \end{center}
 
 \medskip
-Cette séparation a été vérifiée automatiquement~: aucune primitive Shiny n'est
-présente dans le moteur, et aucun appel de fonction de calcul
-(\code{optim}, \code{lm}, \code{*.test}, \code{rnorm}, \code{quantile},
-\code{sd}, \code{var}, \code{mean}) ne subsiste dans la couche d'affichage.
+Cette séparation se vérifie par une recherche dans le code (mesure)~: aucune primitive Shiny
+n'est présente dans le moteur, et la couche d'affichage (\code{app.R},
+\code{R/display\_helpers.R}) n'appelle aucune fonction de calcul (\code{optim}, \code{lm},
+\code{*.test}, \code{rnorm}, \code{quantile}, \code{sd}, \code{var}), \code{mean} n'y servant
+qu'une fois, à placer un libellé au milieu d'une zone de graphique.
 Le moteur s'exécute seul~:
 
 \begin{encadre}
@@ -638,12 +639,13 @@ fonction.
   \scriptsize refus~: \code{usp\_valider\_ajustement()}};
 \node[fonc, below=4mm of fit] (bln) {\code{usp\_bootstrap()}\\[1pt]
   \scriptsize \code{.stats\_bootstrapables()}};
-\node[fonc, below=4mm of bln] (tln) {\code{usp\_tests()}\\[1pt]
-  \scriptsize H1 à H4, stabilité, robustesse};
-\node[fonc, below=4mm of tln] (rln) {\code{usp\_jackknife()}, \code{usp\_profil()}};
-\node[fonc, below=4mm of rln] (cln) {\code{usp\_parametre()}\\[1pt]
+\node[fonc, below=4mm of bln] (cln) {\code{usp\_parametre()}\\[1pt]
   \scriptsize $\times$ \code{usp\_credibilite()}};
-\node[fonc, below=4mm of cln] (pln) {\code{engine\_plots\_data()}};
+\node[fonc, below=4mm of cln] (rln) {\code{usp\_jackknife()}, \code{usp\_profil()}\\[1pt]
+  \scriptsize \code{usp\_lr\_delta()}};
+\node[fonc, below=4mm of rln] (tln) {\code{usp\_tests()}\\[1pt]
+  \scriptsize H1 à H4, stabilité, robustesse};
+\node[fonc, below=4mm of tln] (pln) {\code{engine\_plots\_data()}};
 
 % ---------------- branche Merz--Wüthrich (droite) --------------------------
 \node[fonc, below right=7mm and 14mm of aig] (vmw) {\code{mw\_valider\_triangle()}};
@@ -653,13 +655,13 @@ fonction.
   \scriptsize erreur de prédiction à un an};
 \node[fonc, below=4mm of mmw] (kmw) {\code{mw\_valider\_ajustement()}\\[1pt]
   \scriptsize $\hat R > 0$, MSEP finie $\ge 0$~; refus (§\ref{sec:controles})};
-\node[fonc, below=4mm of kmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
+\node[fonc, below=4mm of kmw] (cmw) {\code{mw\_parametre()}\\[1pt]
+  \scriptsize $\times$ \code{usp\_credibilite()}};
+\node[fonc, below=4mm of cmw] (bmw) {\code{mw\_bootstrap()}\\[1pt]
   \scriptsize \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}};
 \node[fonc, below=4mm of bmw] (tmw) {\code{mw\_tests()}\\[1pt]
   \scriptsize M1 à M6};
-\node[fonc, below=4mm of tmw] (cmw) {\code{mw\_parametre()}\\[1pt]
-  \scriptsize $\times$ \code{usp\_credibilite()}};
-\node[fonc, below=4mm of cmw] (pmw) {\code{mw\_plots\_data()}};
+\node[fonc, below=4mm of tmw] (pmw) {\code{mw\_plots\_data()}};
 
 % ---------------- sorties ---------------------------------------------------
 % La branche Merz--Wüthrich compte un noeud de plus que la branche
@@ -680,9 +682,9 @@ fonction.
 \draw[fl] (orch) -- (aig);
 \draw[fl] (aig) -| node[flx, above left] {non} (vln);
 \draw[fl] (aig) -| node[flx, above right] {oui} (vmw);
-\foreach \a/\b in {vln/fit, fit/bln, bln/tln, tln/rln, rln/cln, cln/pln,
-                   vmw/amw, amw/mmw, mmw/kmw, kmw/bmw, bmw/tmw, tmw/cmw,
-                   cmw/pmw}
+\foreach \a/\b in {vln/fit, fit/bln, bln/cln, cln/rln, rln/tln, tln/pln,
+                   vmw/amw, amw/mmw, mmw/kmw, kmw/cmw, cmw/bmw, bmw/tmw,
+                   tmw/pmw}
   \draw[fl] (\a) -- (\b);
 \draw[li] (pln) |- (jonc);
 \draw[li] (pmw) |- (jonc);
@@ -941,7 +943,8 @@ validité}~: côté négatif, la garde $1 - |\rho| \ge 10^{-6}$, uniforme en $T$
 l'erreur « rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision
 numerique) »~; précision mesurée au voisinage de $\rho = -1$ pour $T = 4$ à $10$, $12$, $15$,
 $20$, $30$, $50$, $100$ ($\alpha = 0{,}10$) et $T = 5$, $8$, $12$, $20$, $30$ ($\alpha = 0{,}05$)
-(mesure non versionnée), et sur la grille de 88 points de \code{tests/puissance\_t8.R}
+(mesure non versionnée~; son versionnement est un travail postérieur à la remise), et sur la
+grille de 88 points de \code{tests/puissance\_t8.R}
 ($T \in \{5, 8, 12, 20\}$, $\rho$ de $-0{,}99$ à $0{,}99$)~; hors de ces $T$, non mesurée. Dans
 le domaine gardé, à $T = 8$, le déficit (un moins la puissance) est proportionnel à
 $(1-|\rho|)^{1/2}$ de $10^{-4}$ à $10^{-6}$, de coefficient $1{,}219$ ($\alpha = 0{,}10$) et
@@ -949,7 +952,8 @@ $1{,}815$ ($0{,}05$), soit $1{,}2\cdot 10^{-3}$ à la garde pour $\alpha = 0{,}1
 numérique, \code{tests/mesure\_dw\_rho\_negatif\_t8.R}, tableau~1~bis de sa sortie)~; au-delà de
 la garde, le comportement du calcul n'est pas évalué par une mesure versionnée. À $T = 4$ ($\alpha = 0{,}10$) et $T = 5$ ($\alpha = 0{,}05$), la puissance
 tend vers 0 quand $\rho \to -1$, sans signature de défaillance (hypothèse non vérifiée~:
-vecteur alterné centré de longueur courte) \\
+vecteur alterné centré de longueur courte~; établir la puissance limite est un travail
+postérieur à la remise) \\
 \code{dw\_puissance\_ar1()} (suite) & idem & N'est pas appelée par \code{run\_engine()}~: outil de mesure de la puissance citée
 dans la fiche~\ref{fiche:durbin-watson}, appelé par \code{tests/puissance\_t8.R}, et
 de la puissance de Durbin--Watson citée au motif du retrait de Ljung--Box au retard~1
@@ -1025,8 +1029,8 @@ finit par un point, de «~\code{~; }~» sinon, puis de $b$, sans \code{trimws()}
 sorte que $b$ non vide est un suffixe littéral du résultat~; employée par \code{add()} (règle~R1,
 effectifs, plancher, phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}, motif Monte-Carlo en tête d'un diagnostic posé par
 l'appelant), par \code{mw\_tests()} (phrases fixes du retirage, \code{PHRASE\_MW\_CUMULS\_RETIRES} et
-\code{PHRASE\_MW\_PLAFOND\_CUMULS}, et phrase «~B effectif~»), par \code{usp\_tests()} et par \code{.usp\_poser\_renvois()}, qui
-remplace sept copies de la règle~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
+\code{PHRASE\_MW\_PLAFOND\_CUMULS}, et phrase «~B effectif~»), par \code{usp\_tests()} et par
+\code{.usp\_poser\_renvois()}~; \code{.mw\_avec\_exclusion()} (phrases des colonnes écartées
 de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon \\
 \code{usp\_identifiabilite\_}\newline\code{pente()} & $x$, $\hat\beta$, $\hat\sigma$, $\alpha$,
 \code{unilateral} (\code{FALSE}) & indice $\hat\lambda$ et puissance
@@ -1079,8 +1083,8 @@ du catalogue \code{USP\_CATALOGUE\_MC} \\
 Monte-Carlo (31 et 13 entrées)~: fonction de calcul, sens du rejet (\code{haut}, \code{bas},
 \code{deux}), condition de dégénérescence \code{degenere} (\code{NULL} pour toutes les entrées~;
 évaluée sur le contexte observé par \code{.mc\_p\_values()}) et motif
-\code{non\_definie} d'une statistique non définie sur ces données (seule entrée qui le renseigne~:
-\code{CoxStuart}, ex \ae quo), et champ \code{extremes},
+\code{non\_definie} d'une statistique non définie sur ces données (entrées qui le renseignent~:
+\code{CoxStuart}, ex \ae quo, et \code{MinP4}, cellule à influence non bornée), et champ \code{extremes},
 fonction du contexte observé rendant les extrémités \code{c(bas, haut)} du support de la
 statistique à la configuration observée, renseigné pour les treize statistiques discrètes à
 $p_{\min}$ (\code{NULL} ailleurs~; refus par une erreur d'une valeur qui n'est pas une fonction, ou
@@ -1631,11 +1635,11 @@ données et sans erreur R (§\ref{sec:controles}) \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel de \code{.mw\_spearman()}, qui appelle \code{cor.test()} au plus une fois~: sur le
-chemin énuméré avec ex \ae quo ($n \le 9$, sans valeur manquante), où seule l'estimation de
-\code{cor.test()} était lue, $\hat\rho_s$ est calculé par la même formule,
-\code{cor(rank(a), rank(b))}, sans appel à \code{cor.test()}, qui reste appelée en présence d'une
-valeur manquante (paires incomplètes retirées)~; \code{.mw\_spearman\_p()}, qui en rend la seule p-value,
-n'est appelée que par les tests unitaires), celle-ci
+chemin énuméré avec ex \ae quo ($n \le 9$, sans valeur manquante), $\hat\rho_s$ est calculé
+par la formule de l'estimation de \code{cor.test()}, \code{cor(rank(a), rank(b))}, sans appel à
+\code{cor.test()}, qui reste appelée en présence d'une valeur manquante (paires incomplètes
+retirées)~; la p-value (\code{.mw\_spearman\_p()}, qui la rend seule, n'est appelée que par les
+tests unitaires) est
 dans $[2/n!, 1]$ (loi de permutation à $n \le 9$, énumérée par \code{cor.test()} sans ex \ae quo
 et conditionnelle aux rangs moyens avec ex \ae quo~; approximation de Student
 relevée à $2/n!$ à $n > 9$~; \code{NA} si l'une des deux variables est constante après
@@ -2568,11 +2572,13 @@ dans le champ \code{estim} de la ligne (fiche~\ref{fiche:tost-constante}), et le
 donne que la définition. Le commentaire du contrôle
 de convergence multi-démarrages dit seulement si au moins un démarrage à l'optimum rend le
 code~0 («~oui~» ou «~non~»)~; le décompte, conservé dans \code{res\$ajustement},
-est exclu par conception de la comparaison (ci-dessus). Le motif alterné seul ne détecte pas un
-décompte de démarrages qui bascule~: sur le jeu de contrôle, le décompte de démarrages au code~0
-ne change que pour 13 des 49 couples de motifs de Walsh--Hadamard (mesure sous Linux, R~4.3.3),
-d'où les huit couples du test, dont cinq le font changer sur la machine
-de mesure (sur une autre plateforme, ce peuvent être d'autres couples). Pour la même raison, le
+est exclu par conception de la comparaison (ci-dessus). Un seul motif ne suffit pas à détecter
+un décompte de démarrages qui bascule~: le décompte ne change que pour certains couples de
+motifs, qui dépendent de la plateforme, d'où les huit couples du test. Sur le jeu de contrôle, le
+décompte de démarrages au code~0 change pour 26 des 49 couples de motifs de Walsh--Hadamard, dont
+trois des huit couples du test, le couple des signes alternés compris (mesure sous Linux,
+R~4.3.3, BLAS et LAPACK de référence~; valeurs par couple à la
+fiche~\ref{fiche:multi-demarrages}). Pour la même raison, le
 commentaire n'imprime pas le code de retour du démarrage retenu, qui ne décide pas du verdict et
 reste dans \code{res\$ajustement\$convergence},
 exclu lui aussi de la comparaison (fiche~\ref{fiche:multi-demarrages}).
@@ -2670,9 +2676,9 @@ calculée.
 
 Dans la branche lognormale, les p-values exactes de Durbin--Watson, des suites (sur $z_t$ et
 sur $u_t$), de Smirnov, de Spearman, de Mann--Kendall et de
-Cox--Stuart ne sont attribuées qu'à $\hat\pi_t$ constant (règle~R7 d'\code{usp\_tests()}, section~\ref{sec:base-residus})~: à $\hat\pi_t$ variable, la p-value de la colonne
-« p-value non simulée » n'est pas attribuée, et ni l'intégrale d'Imhof ni les énumérations des
-lois de permutation n'y sont évaluées.
+Cox--Stuart ne sont attribuées qu'à $\hat\pi_t$ constant (règle~R7 d'\code{usp\_tests()}, section~\ref{sec:base-residus})~: à $\hat\pi_t$ variable, la p-value exacte
+qu'indique la colonne « p-value exacte ou non simulée » n'est pas attribuée, et ni l'intégrale
+d'Imhof ni les énumérations des lois de permutation n'y sont évaluées.
 
 Certains tests s'appuient sur un appel direct à une fonction de \code{stats}
 plutôt que sur une fonction dédiée du moteur~: cela est indiqué explicitement,
@@ -2687,12 +2693,12 @@ auditable du code de \code{usp\_tests()}.
 \begin{longtable}{@{}p{4.4cm}p{0.9cm}p{5.7cm}p{7.8cm}p{2.1cm}@{}}
 \toprule
 \textbf{Test (fiche)} & \textbf{Réf.} & \textbf{Fonction(s) --- statistique} &
-\textbf{Fonction(s) / méthode --- p-value non simulée} & \textbf{Clé MC} \\
+\textbf{Fonction(s) / méthode --- p-value exacte ou non simulée} & \textbf{Clé MC} \\
 \midrule
 \endfirsthead
 \toprule
 \textbf{Test (fiche)} & \textbf{Réf.} & \textbf{Fonction(s) --- statistique} &
-\textbf{Fonction(s) / méthode --- p-value non simulée} & \textbf{Clé MC} \\
+\textbf{Fonction(s) / méthode --- p-value exacte ou non simulée} & \textbf{Clé MC} \\
 \midrule
 \endhead
 \multicolumn{5}{@{}l@{}}{\textit{Suite page suivante}} \\
@@ -2989,7 +2995,9 @@ membres de toutes les familles & idem & --- (colonnes des membres) \\
 \textbf{Fonctions internes de support.} Six fonctions préfixées d'un point ne
 sont jamais appelées directement par \code{usp\_tests()} mais seulement par les
 fonctions de p-value ci-dessus, directement ou l'une par l'intermédiaire de
-l'autre, et, pour les trois premières, par \code{dw\_puissance\_ar1()}~:
+l'autre, et, pour les trois premières, par \code{dw\_puissance\_ar1()}, la première l'étant aussi
+par \code{.usp\_puissance\_}\allowbreak\code{enveloppe\_h2\_calcul()} (puissance enveloppe de~H2,
+phrase du commentaire de Breusch--Pagan studentisé)~:
 \code{.imhof\_p\_sup0()} (intégrale d'Imhof), \code{.dw\_matrices()} et
 \code{.dw\_valeurs\_propres()} (matrices $A$ et $M$ et valeurs propres non nulles de $MAM$,
 construites une seule fois), utilisées par \code{dw\_p\_exacte()},
@@ -3009,11 +3017,16 @@ repose sur la même loi nulle que \code{dw\_p\_exacte()}.
 
 \begin{encadre}
 \textbf{Lecture de la colonne « Clé MC ».} Un tiret signifie qu'aucune p-value
-de Monte-Carlo n'est calculée pour ce test~: soit parce que l'hypothèse nulle
-n'appartient pas au modèle simulé (test de Pitman sur la pente, dont la p-value vient de la loi de
-permutation, Fisher, section~\ref{sec:modele-auxiliaire-ecart})~; soit parce
-que le test n'est pas de nature à produire de p-value (diagnostics, procédures
-de décision)~; soit, troisième motif, parce que la
+de Monte-Carlo n'est tirée du catalogue de la méthode pour ce test~: soit parce que l'hypothèse
+nulle n'appartient pas au modèle simulé (test de Pitman sur la pente, dont la p-value vient de la
+loi de permutation, TOST, Student sur la pente sous le modèle auxiliaire MCO, Fisher,
+section~\ref{sec:modele-auxiliaire-ecart})~; soit parce
+que le test n'est pas de nature à produire de p-value (diagnostics, procédure ESD de Rosner
+comprise)~; soit parce qu'aucune p-value de Monte-Carlo n'est prévue (Anscombe--Glynn,
+fiche~\ref{fiche:anscombe-glynn-aplatissement})~; soit parce que la p-value de Monte-Carlo est
+calculée hors du bootstrap principal (rapport de vraisemblance sur $\delta$, par bootstrap
+paramétrique restreint, fiche~\ref{fiche:rv-delta}~; permutations aléatoires du test de Pitman à
+$T \ge 10$)~; soit parce que la
 grandeur est \emph{rivée par l'estimation}~: contrainte par une condition du
 premier ordre, sa dispersion sous le modèle est gouvernée par celle des poids
 $\hat\pi_t$, non par les données, de sorte qu'elle ne peut pas contredire le
@@ -3403,8 +3416,11 @@ est \code{p\_retenue}, choisie dans l'ordre exacte, Monte-Carlo, p non simulée 
 \code{add()} d'\code{engine\_registre\_tests()}, commune aux deux méthodes~; \code{nature\_p}
 dit laquelle. \\
 \code{p\_min} & \textbf{p-value minimale atteignable}~: plus petite p-value que
-la loi de référence discrète peut produire aux effectifs observés (suites, Cox--Stuart, Smirnov,
-Mann--Kendall, Spearman)~; \code{NA} pour une loi continue. Elle fonde la règle d'inopérance
+la loi de référence discrète peut produire aux effectifs observés (méthodes lognormales~:
+suites, Cox--Stuart, Smirnov, Mann--Kendall, Spearman, loi de permutation du test de Pitman~;
+méthode Merz--Wüthrich~: effets calendaires, corrélation entre années adjacentes, homogénéité de
+$f_j$, exposant de variance, Kruskal--Wallis, suites sur les résidus de Mack)~; \code{NA} pour une
+loi continue. Elle fonde la règle d'inopérance
 (section~\ref{sec:nature}) quand la p-value exacte est retenue~; quand la p-value de Monte-Carlo
 l'est, la règle lit le champ \code{p\_min\_mc}, et \code{p\_min} reste
 restituée. Champ placé en fin de ligne, avant \code{fonction}, \code{inoperant},
@@ -3445,9 +3461,10 @@ branche (en particulier quand la p-value exacte est retenue, et pour toute stati
 Exact pour les réplications tirées, fonction de $B$ et de la graine~; jamais imprimé dans le
 commentaire (§\ref{sec:graines}, règle des libellés). Champ placé après \code{inoperant}, avant \code{mc\_nom}~; colonne \code{p\_min\_mc} de la table
 auditable, après \code{p\_min} (\code{NA} pour un objet résultat antérieur au champ). Mesuré sur
-les cas de référence~: champ fini sur les vérifications à $p_{\min}$ de type test de
-\code{premium\_interieur} (cinq) et de \code{reserve2} (cinq),
-\code{NA} sur les quatre cas à $\hat\delta = 1$. \\
+les cas de référence~: champ fini sur cinq vérifications à $p_{\min}$ de
+\code{premium\_interieur} (quatre de type test, et Cox--Stuart, que la règle~R1 restitue en
+diagnostic) et sur cinq de \code{reserve2}, toutes de type test, \code{NA} sur les quatre cas à
+$\hat\delta = 1$. \\
 \code{mc\_nom} & \textbf{Nom de la statistique de Monte-Carlo de la ligne}~:
 argument \code{mc\_nom} d'\code{add()}, recopié tel quel, nom d'une entrée
 d'\code{USP\_CATALOGUE\_MC} ou de \code{MW\_CATALOGUE\_MC} déjà contrôlé par \code{add()} (un nom
@@ -4194,7 +4211,7 @@ la ligne d'en-têtes. Les cellules non vides de la ligne d'en-têtes sous (H1) s
 même prédicat, exception des étiquettes d'exercice comprise~: la première qui en relève fait
 refuser le fichier, avec sa colonne. Sous (H2), les cellules hors la cellule d'angle sont des
 années, et la cellule d'angle est soumise au prédicat comme décrit plus haut. La règle (H1)
-seule ne suffisait pas~: «~non numérique~» y signifie seulement qu'\code{as.numeric()} ne
+seule ne suffirait pas~: «~non numérique~» y signifie seulement qu'\code{as.numeric()} ne
 convertit aucune cellule de la ligne, ce qui n'exclut pas une ligne de valeurs mal formées. Une
 première ligne de nombres écrits avec un séparateur de milliers, une lettre \code{O} pour un
 zéro ou un séparateur décimal autre que celui déclaré, ou faite de marqueurs de valeur
@@ -4495,10 +4512,12 @@ parfaitement recevable au titre du paragraphe~2 peut conduire à $\hat R \le 0$
 la formule du paragraphe~4 produit --- quand elle produit quelque chose ---
 n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi pourquoi il est le seul
 à ne pas pouvoir être anticipé à la saisie.
-Cohérence interne~: \code{mw\_bootstrap()} écarte depuis l'origine toute
-réplication dont la réserve simulée est $\le 0$~; la règle appliquée à l'estimation ponctuelle ne
-pouvait pas rester plus permissive que celle appliquée à chacune de ses
-réplications.
+Cohérence interne~: la règle appliquée à l'estimation ponctuelle est celle que la
+distribution bootstrap de $\sigma$ (\code{sigma\_boot}, d'où l'intervalle bootstrap) applique à
+chacune de ses réplications~: \code{mw\_bootstrap()} en écarte, sans les compter, les
+réplications dont la réserve simulée n'est pas strictement positive ou dont la MSEP simulée n'est
+pas finie ou est négative. Ces réplications restent dans le calcul des statistiques de test
+simulées et des p-values de Monte-Carlo, que la condition ne vise pas.
 \end{encadre}
 
 \subsection*{Contrôles numériques de l'estimation (méthodes lognormales, famille H)}
