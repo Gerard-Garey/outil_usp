@@ -47,7 +47,7 @@
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
 \newcommand{\datedoc}{8~novembre 2026}
-\newcommand{\versiondoc}{3.0}
+\newcommand{\versiondoc}{3.1}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -3833,7 +3833,10 @@ Profondeur minimale & $T \ge 5$~; $T$ demandé~: \code{NULL} (toute la série) o
 scalaire fini, $5 \le T \le n$ ($n$ années fournies) & Annexe XVII, B/C(2)(b). Bloquant.
 Le $T$ demandé est contrôlé par \code{engine\_valider\_profondeur()} \emph{avant} toute
 troncature~: une valeur non entière, manquante, infinie, multiple, textuelle ou vide est
-refusée sans tronquer la série. Pour $T < n$, les $n - T$ années les plus anciennes sont écartées~: $n$ est
+refusée sans tronquer la série. Pour $T < n$, les $n - T$ années les plus anciennes sont écartées, si
+$x_t$ et $y_t$ ont la même longueur~: des séries de longueurs différentes ne sont pas tronquées et
+sont refusées par le motif de longueur d'\code{engine\_valider\_donnees()}, comme sans $T$, car
+tronquées sur les indices de $x_t$ elles apparieraient chaque $x_t$ à une autre année de $y_t$~; $n$ est
 consigné dans \code{\$metadata\$n\_fournies}, la troncature restituée par
 \code{engine\_derogations()}, et la durée de crédibilité vaut $T$ (§\ref{sec:segments})~; les autres contrôles portent sur les seules $T$ années retenues (texte
 sous le tableau). \\
