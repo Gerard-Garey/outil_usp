@@ -1896,6 +1896,12 @@ if (nzchar(Sys.which("zip"))) {
     sub("</sheetData>", paste0(lignes, "</sheetData>"), s, fixed = TRUE)
   }
   chemins483 <- function(f, lire) {
+    # f (appel de xlsx483(), qui pose et retire lui-meme la substitution) est
+    # evalue ici, hors de sans_openxlsx483() : evaluee a l'interieur, la
+    # promesse retirait la substitution exterieure avant son on.exit(rm())
+    # (avertissement "object 'requireNamespace' not found", constat 5 de
+    # la revue finale de K1).
+    force(f)
     out <- list(interne = lire(sans_openxlsx483(engine_lire_xlsx(f))))
     if (avec_openxlsx483) out$openxlsx <- lire(engine_lire_xlsx(f))
     unlink(f)

@@ -1485,13 +1485,13 @@ SPAN244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
                   .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
 PIED244 <- paste0("<br>", SPAN244)
 # Parametres de la regle de repli, lus dans la signature (aucune borne ecrite
-# en dur dans les tests : seuil 200, marge 150, suite_min 100 aujourd'hui).
+# en dur dans les tests : seuil 400, marge 150, suite_min 100 aujourd'hui).
 FM_REPLI <- formals(.commentaire_replie)
 SEUIL_R <- eval(FM_REPLI$seuil); MARGE_R <- eval(FM_REPLI$marge); SUITE_R <- eval(FM_REPLI$suite_min)
 # Le separateur entre le resume et la suite n'est pas dans le HTML : la coupe a
 # une fin de phrase ou a un espace le remplace par la frontiere du <details>, la
 # coupe au seuil sans espace n'en perd aucun. Un resume de SEUIL_R caracteres
-# sans espace peut donc se lire des deux manieres ("g" x 199 + ";" suivi d'un
+# sans espace peut donc se lire des deux manieres ("g" x (SEUIL_R - 1) + ";" suivi d'un
 # espace, ou coupe au seuil d'un texte sans espace). `ref` (texte attendu, de meme
 # longueur que `cel`) leve l'ambiguite : parmi les deux lectures (avec / sans
 # espace), c'est celle qui vaut le texte attendu qui est rendue ; sinon la
