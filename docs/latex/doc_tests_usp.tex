@@ -1063,7 +1063,7 @@ de M1) suit une autre règle, une espace après un point, «~\code{. }~» sinon 
 \code{unilateral} (\code{FALSE}) & indice $\hat\lambda$ et puissance
 approchée a posteriori $\hat\pi_b$ du test de la pente, unilatérale si \code{unilateral = TRUE}, forme que lit
 \code{usp\_tests()}, bilatérale sinon (\code{NA} à volumes
-constants)~; lus par \code{usp\_tests()} pour la seule phrase de contexte du commentaire de la
+constants)~; lus par \code{usp\_tests()} pour la seule parenthèse de contexte du commentaire de la
 ligne de la pente, sans effet sur son type ni sur son verdict
 (§\ref{sec:modele-auxiliaire-regles}) \\
 \code{usp\_puissance\_}\newline\code{enveloppe\_h2()} & $x$ (au moins trois volumes finis
@@ -1290,7 +1290,8 @@ d'\code{engine\_registre\_tests()}~; \code{robustesse}, calculé par
 \code{run\_engine()} et non stocké, alimente le seul commentaire de la ligne jackknife (année
 d'écart maximal et sens de l'écart sur $\sigma_{\mathrm{USP}}$, ou années
 d'influence égale à la précision numérique près, et années
-non évaluables~; fiche~\ref{fiche:jackknife})~;
+non évaluables, citées jusqu'à \code{JACK\_ANNEES\_CITEES\_MAX} $= 3$, leur nombre seul au-delà~;
+fiche~\ref{fiche:jackknife})~;
 celui de la ligne de l'intervalle bootstrap n'en dépend pas (fiche~\ref{fiche:ic-bootstrap})~;
 lignes de lecture conjointe d'\code{engine\_p\_famille()} posées après
 toutes les autres et avant le repère de renvoi, qu'elles ne reçoivent pas \\
@@ -1477,9 +1478,9 @@ $\hat\sigma^2_{J-1}$~: liste qui donne l'applicabilité, la valeur de la règle 
 sa $\sqrt{\mathrm{MSEP}}$, les trois arguments du minimum et les $\sqrt{\mathrm{MSEP}}$ obtenues
 en rappelant \code{mw\_msep()} avec $\hat\sigma^2_{J-1}$ et $\hat Q_{J-1}$ remplacés par
 chacun d'eux (\code{NA} pour un quotient non défini), enfin la $\sqrt{\mathrm{MSEP}}$ du
-contrefactuel $\sigma^2_{J-1} = 0$~; lue par
-\code{.mw\_detail\_extrapolation()}, sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$
-(fiche~\ref{mw:m6sig}) \\
+contrefactuel $\sigma^2_{J-1} = 0$~; voie de recalcul, que \code{run\_engine()} n'appelle pas, la
+sensibilité ne figurant pas dans le commentaire de la ligne, sans effet sur
+$\sigma_{(\text{res},s,\mathrm{USP})}$ (fiche~\ref{mw:m6sig}) \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
 $r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}, écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()} \\
@@ -1763,14 +1764,13 @@ gabarit unique des phrases de colonnes écartées de M1, partagé par
 \code{.mw\_phrase\_exclusion()} (colonnes dégénérées),
 \code{.mw\_phrase\_non\_}\allowbreak\code{identifiable()} et
 \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}~: «~\code{<sujet>~: j = \dots{}
-(\dots{} facteurs), \dots~; <quoi>, colonne hors de la combinaison de Fisher~; K = \dots{}
-colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve <preuve>.}~»
-(«~\code{colonnes hors}~» et sujet au pluriel pour plusieurs colonnes), $K$ et
+(\dots{} facteurs), \dots, <quoi>, colonne hors de la combinaison de Fisher, K = \dots{}
+colonne(s) testee(s) sur \dots{} eligible(s), exclusion qui ne vaut pas preuve <preuve>.}~», en
+une phrase (\code{colonnes hors} et sujet au pluriel pour plusieurs colonnes), $K$ et
 le nombre d'éligibles lus dans le résultat de l'appel observé ($K$ absent compté~0), aucun
-nombre issu du bootstrap~; la clause «~\code{~; K = \dots{} eligible(s)}~»
+nombre issu du bootstrap~; la clause «~\code{, K = \dots{} eligible(s)}~»
 est omise quand $K$ vaut \code{NA} (statistique observée non définie, décompte des éligibles
-arrêté à la colonne en cause), la phrase finissant alors par «~\code{hors de la combinaison de
-Fisher.}~»~; chaîne vide sans colonne écartée \\
+arrêté à la colonne en cause)~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \code{mw\_influence()} & \code{aj} & levier, son repère de lecture
@@ -2651,15 +2651,17 @@ fiches (\ref{fiche:foc}, \ref{fiche:multi-demarrages}, \ref{fiche:jackknife}
 et~\ref{fiche:ic-bootstrap}), les valeurs dans \code{res\$ajustement}, les champs
 \code{stat} et \code{estim} et \code{res\$ic\_bootstrap}~; les grandeurs rapportées à la part
 estimée se recalculent à partir de \code{res\$jackknife} et \code{res\$bootstrap\$sigma\_boot}.
-Le commentaire de l'intervalle bootstrap nomme l'intervalle de percentile, son niveau nominal,
-dit que sa couverture à $T = 8$ est inférieure à ce niveau sous les modèles simulés, en renvoyant
-à la documentation, et renvoie à l'intervalle «~basic~» sur l'échelle logarithmique~; celui de
-l'intervalle restreint ajoute le même constat de couverture et la portée du résultat d'Andrews
-(2000). Ils n'impriment que les libellés fixes «~90~\%~» et «~$T = 8$~», aucun nombre issu du
+Le commentaire de l'intervalle bootstrap nomme l'intervalle de percentile et son niveau nominal,
+dit que sa couverture à $T = 8$ est inférieure à ce niveau en simulation, et nomme les champs
+\code{res\$ic\_bootstrap} et, pour l'intervalle «~basic~» sur l'échelle logarithmique,
+\code{res\$ic\_bootstrap\_basic\_log}~; celui de l'intervalle restreint
+(\code{res\$ic\_bootstrap\_restreint}) ajoute le même constat de couverture et la portée du résultat
+d'Andrews (2000). Ils n'impriment que les libellés fixes «~90~\%~» et «~$T = 8$~», aucun nombre issu du
 bootstrap (textes à la fiche~\ref{fiche:ic-bootstrap}). Reste aussi imprimée, hors du cas de contrôle ($\hat\delta = 1$), la valeur de
-$1 - \hat\delta$ que les commentaires des lignes de centrage et de variance donnent à deux
-chiffres significatifs dans la bande de tolérance (fiche~\ref{fiche:centrage})~: issue de
-l'optimiseur et non stockée en tant que telle ($\hat\delta$ l'est). \emph{Exception bornée}
+$1 - \hat\delta$ que la mention de régime de la bande de tolérance donne à deux chiffres
+significatifs sur les lignes de la règle~R7 dont la p-value exacte est attribuée
+(section~\ref{sec:base-residus})~: issue de l'optimiseur et non stockée en tant que telle
+($\hat\delta$ l'est)~; les lignes de centrage et de variance ne l'impriment pas. \emph{Exception bornée}
 (règle de l'outil)~: les
 phrases «~\code{B effectif = \dots{} sur B = \dots}~» que \code{mw\_tests()} pose sur ses lignes de
 Monte-Carlo (section~\ref{sec:boot-mw}, «~Phrases jointes par \code{mw\_tests()}~»), trois gabarits (cas~A hors
@@ -2774,7 +2776,7 @@ Pitman, pente & \ref{fiche:student-pente} & \code{test\_lm\_complet()} ($t_b$, r
 permutations aléatoires au-delà~; champ \code{fonction} de la ligne)~; p de Student
 unilatérale restituée, non retenue, approximation asymptotique de la p de permutation non
 établie à $T = 8$~; puissance approchée a posteriori unilatérale
-d'\code{usp\_identifiabilite\_pente()}, phrase de contexte sans effet sur le type ni sur le
+d'\code{usp\_identifiabilite\_pente()}, parenthèse de contexte sans effet sur le type ni sur le
 verdict (§\ref{sec:modele-auxiliaire-regles}) & --- \\
 Student, pente (modèle auxiliaire MCO) & \ref{fiche:student-pente-modele-auxiliaire} &
 \code{test\_lm\_complet()} ($t_b$) & \code{test\_lm\_complet()} (p de Student bilatérale de
@@ -3001,7 +3003,7 @@ Lilliefors sur résidus de Mack & \ref{mw:m5li} & \code{stat\_lilliefors()} &
 Extrapolation de $\hat\sigma^2_{J-1}$ & \ref{mw:m6sig} &
 \code{mw\_ajuster()} (champ \code{\$sigma2})~; restitution des trois arguments du
 minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()}~;
-sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ par
+sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors commentaire, par
 \code{mw\_sensibilite\_}\allowbreak\code{sigma2\_dernier()} &
 diagnostic, aucune p-value & --- \\
 Concentration de la réserve & \ref{mw:m6conc} &
@@ -3556,6 +3558,25 @@ pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture co
 La procédure ESD de Rosner, qui décide au niveau $\alpha$ sans produire de p-value, est un
 diagnostic par décision dans les deux méthodes (fiches~\ref{fiche:rosner-esd}
 et~\ref{mw:m4ros}).
+Le champ \code{detail}, commentaire de la ligne, suit un gabarit fixe. Son \emph{texte propre}
+compte au plus deux phrases et 400~caractères~: la première dit l'usage de la ligne --- ce qu'un
+\code{ECHEC} ou une \code{ALERTE} signale et ce qu'un \code{OK} n'établit pas, ou, pour un
+diagnostic, ce que la grandeur donne à lire ---, la seconde nomme par leur libellé exact les lignes
+liées (même hypothèse, alternative voisine, ligne homologue sur l'autre base, ligne qui fait foi).
+La construction de la statistique, sa loi et les valeurs de détail (rangs, valeurs par colonne ou
+par diagonale) n'y figurent pas~: elles sont dans la fiche de la ligne et se recalculent par sa
+fonction nommée, que la fiche désigne. S'y ajoutent, hors de ce compte, des \emph{mentions
+conditionnelles}, posées seulement quand leur condition est remplie~: préfixes et suffixes
+d'\code{add()} (règle~R1, motif Monte-Carlo, effectifs, plancher, et en dernier la phrase
+\code{PHRASE\_VERDICT\_SENSIBLE\_MC}, section~\ref{sec:nature}), phrases de \code{mw\_tests()}
+(colonnes écartées de M1, section~\ref{sec:mwm1}~; retirage et $B$ effectif,
+section~\ref{sec:boot-mw}) et \emph{mentions de régime}, une phrase chacune, posées par
+\code{usp\_tests()} en tête du texte quand la nature de la p-value change pour une raison propre
+aux données ($\hat\pi_t$ variable, constant à la tolérance près, constant parce que
+$\hat\delta = 1$ ou parce que les volumes sont constants, section~\ref{sec:base-residus}~; $T > 9$
+pour Spearman et pour le test de Pitman, fiches~\ref{fiche:spearman}
+et~\ref{fiche:student-pente}). Le gabarit est vérifié sur les six cas de référence et sur les
+branches rares par \code{tests/unitaires/test\_detail\_deux\_phrases.R}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
 verdict du script est inversé en conséquence (la ligne de Fisher, diagnostic, n'a pas de sens du test).
@@ -3599,11 +3620,10 @@ remplacerait aussi, à tort, le point des nombres qui ne sont pas des décimaux~
 d'article («~218.1~»), références et identifiants. Le présent document cite textuellement ces
 chaînes en \code{}, dans leur graphie~; une désignation en romain entre guillemets (nom d'une
 ligne, d'une nature de p-value) en donne le sens en français et n'en est pas la forme textuelle.
-Le point décimal vaut sans exception, y compris dans les quatre chaînes écrites en dur --- le motif d'enveloppe du
+Le point décimal vaut sans exception, y compris dans les trois chaînes écrites en dur --- le motif d'enveloppe du
 QQ-plot sans rang $k$ admissible, qui écrit \code{ENVELOPPE\_QQ\_TAUX\_MAX} avec un séparateur
-fixé, indépendant de l'option de R qui fixe le séparateur décimal (fiche~\ref{fiche:qqnorm})~; le
-commentaire de la ligne de la variance unitaire des résidus de Mack («~\code{2.5e-03}~»,
-fiche~\ref{mw:m2var})~; l'avertissement de validation d'une réserve faible devant son
+fixé, indépendant de l'option de R qui fixe le séparateur décimal (fiche~\ref{fiche:qqnorm})~;
+l'avertissement de validation d'une réserve faible devant son
 incertitude («~\code{0.22}~»)~; le message d'erreur d'\code{usp\_delta\_bord()}
 («~\code{0.5}~»).
 
@@ -5311,7 +5331,7 @@ Sous ces hypothèses, la théorie normale du modèle linéaire donne, pour tout 
   \item hors de $b = 0$, $t_b$ suit la loi de Student décentrée à $T-2$ degrés de liberté et de
   paramètre de décentrage $b\sqrt{S_{xx}}/\sigma_\varepsilon$~: c'est la loi qu'approche la
   puissance approchée a posteriori $\hat\pi_b$ du commentaire de la ligne de la pente
-  (sous-section~\ref{sec:modele-auxiliaire-regles}, phrase de contexte de la ligne de la pente)~;
+  (sous-section~\ref{sec:modele-auxiliaire-regles}, parenthèse de contexte de la ligne de la pente)~;
   \item pour le TOST, $t_{\text{bas}} = (\hat a + \Delta)/\widehat{\mathrm{se}}(\hat a)$ et
   $t_{\text{haut}} = (\hat a - \Delta)/\widehat{\mathrm{se}}(\hat a)$ suivent chacune exactement
   $t(T-2)$ à la frontière correspondante de $H_0$ ($a = -\Delta$ ou $a = +\Delta$) \textbf{si
@@ -5510,7 +5530,7 @@ Diagnostic \\
 \label{sec:modele-auxiliaire-regles}
 
 \begin{itemize}[itemsep=1pt]
-  \item \emph{Phrase de contexte de la ligne de la pente (puissance approchée a posteriori).} La
+  \item \emph{Parenthèse de contexte de la ligne de la pente (puissance approchée a posteriori).} La
   ligne de la pente est de type test dès qu'elle est applicable, et seule la règle~R1 peut la
   restituer en diagnostic (test inopérant)~; aucune puissance estimée n'entre dans son classement
   (principe ci-dessous). La puissance
@@ -5524,16 +5544,14 @@ Diagnostic \\
   approchée du test \emph{unilatéral}, $\mathbb{P}(t > t_{1-\alpha,\,T-2})$ sous
   $t(T-2, \hat\lambda)$ (argument \code{unilateral = TRUE}, lu par \code{usp\_tests()}~; la
   forme bilatérale, défaut de la fonction, n'est pas employée par la table des tests). Si
-  $\hat\pi_b$ est finie et $t_b > 0$ (même signe que $r$), le commentaire de la ligne porte
-  «~\code{Puissance approchee a posteriori du test unilateral sous le modele ajuste (au point
-  estime~; approximation au premier ordre, loi de Student decentree) =} \ldots\code{, indice lambda
-  = sqrt(T-1) CV(x) beta / sigma =} \ldots~\code{: contexte de lecture, sans effet sur le type ni
-  sur le verdict.}~», sans repère ni comparaison ($0{,}65$ et $1{,}78$ sur le jeu de contrôle,
-  $1{,}00$ et $17{,}28$ sur le jeu à $\hat\delta$ intérieur)~; si $t_b \le 0$, la phrase fixe
-  «~\code{Lien observe nul ou negatif (r <= 0), de signe contraire au modele (beta > 0)~:
-  puissance approchee sous le modele ajuste non restituee (calculee sous beta > 0, sans objet
-  ici).}~»~; si $\hat\pi_b$ n'est pas calculable ($T < 3$, $\hat\beta$ ou $\hat\sigma$ non fini,
-  $\hat\sigma \le 0$, volumes constants), aucune phrase. $\hat\pi_b$, approximation de la
+  $\hat\pi_b$ est finie et $t_b > 0$ (même signe que $r$), la première phrase du commentaire de
+  la ligne porte la parenthèse «~\code{(puissance approchee a posteriori =} \ldots\code{)}~», contexte
+  de lecture sans effet sur le type ni sur le verdict, sans repère ni comparaison ($0{,}65$ sur le
+  jeu de contrôle, $1{,}00$ sur le jeu à $\hat\delta$ intérieur~; $\hat\lambda$, qui n'est pas
+  imprimé, y vaut $1{,}78$ et $17{,}28$, recalculables par \code{usp\_identifiabilite\_pente()})~;
+  si $t_b \le 0$ (lien observé nul ou négatif, de signe contraire au modèle, $\beta > 0$, sous
+  lequel la puissance est calculée) ou si $\hat\pi_b$ n'est pas calculable ($T < 3$, $\hat\beta$
+  ou $\hat\sigma$ non fini, $\hat\sigma \le 0$, volumes constants), aucune parenthèse. $\hat\pi_b$, approximation de la
   puissance du test de Student, est restituée pour
   la ligne du test de Pitman~: sous le modèle ajusté au jeu de contrôle, elle est voisine des
   puissances simulées du test de Student et du test de permutation ($\hat\pi_b = 0{,}6461$,
@@ -5614,10 +5632,11 @@ Diagnostic \\
   $\widehat{\mathrm{se}}(\hat a) < \Delta/t_{1-\alpha,\,T-2}$~; le levier pondéré de l'origine
   $\bar x_w^{\,2}/S_{xx,w}$ ($\bar x^{\,2}/S_{xx}$ à poids constants) peut
   rendre la conclusion inaccessible (fiche~\ref{fiche:tost-constante},
-  rubriques~6 et~7)~; le commentaire de la ligne restitue cette condition,
-  $\rho = t_{1-\alpha,\,T-2}\,\widehat{\mathrm{se}}(\hat a)/\Delta$, et
-  la ligne est restituée en diagnostic quand cette condition n'est pas remplie (règle~R14,
-  section~\ref{sec:nature}~; fiche~\ref{fiche:tost-constante}, rubrique~6).
+  rubriques~6 et~7)~; la ligne est restituée en diagnostic quand cette condition, de façon
+  équivalente $\rho = t_{1-\alpha,\,T-2}\,\widehat{\mathrm{se}}(\hat a)/\Delta < 1$, n'est pas
+  remplie (règle~R14, section~\ref{sec:nature}~; fiche~\ref{fiche:tost-constante}, rubrique~6), son
+  commentaire donnant alors $p_{\text{plancher}}$~; $\rho$ n'est pas imprimé et se recalcule à
+  partir de $\widehat{\mathrm{se}}(\hat a)$ et de $\Delta$ (\code{test\_tost\_intercept()}).
 \end{itemize}
 
 \subsection{Ce qui n'est pas le modèle auxiliaire MCO}
@@ -5761,10 +5780,11 @@ l'approximation est construite, sans affirmer qu'elle tient~: les résidus $z_t$
 variable et les résidus de Mack ne sont pas i.i.d. normaux. À $\hat\pi_t$ variable, le
 commentaire des lignes de~H3 dont la p non simulée est finie --- Shapiro--Wilk, Shapiro--Francia,
 Anderson--Darling, Lilliefors, Jarque--Bera, D'Agostino, et les diagnostics Kolmogorov--Smirnov
-et Cramér--von Mises --- le dit par la phrase fixe «~\code{p non simulee etablie pour un
-echantillon i.i.d. normal, que z = P epsilon ne verifie pas a pi\_t variable : restituee pour
-information, jamais retenue.}~», sans changement de type~: la p-value de Monte-Carlo, simulée
-sous le modèle ajusté, reste seule retenue. La phrase n'est pas jointe quand la p non simulée
+et Cramér--von Mises --- le dit par la mention de régime \code{MENTION\_H3\_PI\_VARIABLE}, posée en
+tête, «~\code{pi\_t variable : les residus z ne forment pas un echantillon i.i.d. normal, et la p
+non simulee (colonne p asymptotique), etablie pour un tel echantillon, n'est donnee que pour
+information.}~», sans changement de type~: la p-value de Monte-Carlo, simulée
+sous le modèle ajusté, reste seule retenue. La mention n'est pas posée quand la p non simulée
 n'est pas calculée (Anderson--Darling et Cramér--von Mises à $T < 8$), faute de quoi
 elle affirmerait une valeur qui n'existe pas. Mesuré par \code{run\_engine()} ($B = 999$)~:
 présente sur chacune d'elles dans \code{premium\_interieur}, absente dans \code{premium}. La ligne
@@ -5904,7 +5924,7 @@ homogénéité de $f_j$, exposant de variance, Kruskal--Wallis (\code{MW\_CATALO
 extrémités et leur calcul sont au tableau~\ref{tab:pmin}, note~(v). Lecture~: si
 $p_{\min}^{\mathrm{MC}} \ge \alpha$, la ligne est un test inopérant, commentaire préfixé
 «~\code{TEST INOPERANT au seuil alpha = \dots{}~: plus petite p-value Monte-Carlo atteignable sur
-ces replications >= alpha (\dots)~; aucun verdict.}~», champ \code{inoperant} à
+ces replications >= alpha (\dots), aucun verdict.}~», champ \code{inoperant} à
 \code{TRUE}~; si $\alpha/2 \le p_{\min}^{\mathrm{MC}} < \alpha$ en sens «~ne pas rejeter~», la
 ligne reste un test et son commentaire se termine par «~\code{ECHEC inatteignable~: plus petite
 p-value Monte-Carlo atteignable sur ces replications >= alpha/2 = \dots}~», suivi, le cas échéant,
@@ -6024,8 +6044,7 @@ contrôle, $p_{\text{plancher}} = 0{,}440$, diagnostic à $\alpha = 0{,}10$. Le 
 (\code{SEUIL\_ECHEC\_SENS\_REJETER}), qui ne basculerait que les lignes où l'\code{ALERTE} aussi
 est inatteignable, n'est pas retenu~: il laisserait en test, avec un \code{ECHEC} ou une
 \code{ALERTE} pour seules issues possibles, des lignes où l'équivalence ne peut pas être conclue, ce que la
-règle~R1 refuse pour toute autre ligne~; il ne sert qu'à compléter le commentaire
-(«~\code{, et meme p >= 0.3~: ALERTE inatteignable}~»). La règle vaut pour la marge relative
+règle~R1 refuse pour toute autre ligne, et le commentaire ne le mentionne pas. La règle vaut pour la marge relative
 comme pour la marge fixée a priori (\code{delta\_equiv})~; les branches non applicables du TOST
 gardent la priorité.
 \emph{Règle décidée hors d'\code{add()}~: contrôle sans objet de la base des ratios bruts}
@@ -6051,10 +6070,10 @@ verdict~; aucune p-value n'est donc retenue, et aucune autre voie n'est substitu
 diagnostic \emph{par règle}, et non par décision, le classement dépendant des données par le
 régime estimé de $\hat\delta$ (comme pour les règles~R1, R3 et~R14). Le commentaire garde le
 motif propre à la ligne («~\code{CONTROLE SANS OBJET ICI} \ldots~»), puis se termine par la phrase
-fixe «~\code{Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ; l'hypothese
-releve de la ligne homologue sur residus standardises, dont le type et le verdict font foi.}~»~:
-la formule «~\code{dont le type et le verdict font foi}~» tient compte de ce que la ligne homologue
-peut n'avoir elle-même aucun verdict (diagnostic par la règle~R1, test sans p-value retenue).
+«~\code{Diagnostic (regle R15), sans verdict ni p-value retenue : la ligne "\dots" fait foi.}~»,
+qui nomme par son libellé la ligne homologue sur résidus standardisés~: «~\code{fait foi}~»
+s'entend du type et du verdict de cette ligne, qui peut n'avoir elle-même aucun verdict
+(diagnostic par la règle~R1, test sans p-value retenue).
 Sans p-value de Monte-Carlo, \code{add()} pose le motif en tête selon sa classe, par
 \code{.prefixe\_motif\_mc()}, comme pour un test~: «~\code{<motif> : aucune p-value retenue.}~»
 suivi de son complément pour un motif de dégénérescence (liste \code{MOTIFS\_MC\_DEGENERES}),
@@ -6062,9 +6081,7 @@ suivi de son complément pour un motif de dégénérescence (liste \code{MOTIFS\
 l'appelant dont la p-value de Monte-Carlo manque --- lignes de la règle~R15 et diagnostics par
 décision de la méthode lognormale, ligne des suites sur les résidus de Mack
 (fiche~\ref{mw:m3runs}) ---, et le type reste celui que l'appelant a passé. Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
-règle~R1 et effectifs, mention du plancher, phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}) ne sont pas ajoutés, et la
-proposition «~\code{la p-value retenue, s'il en est une, est nommee par nature\_p}~» n'est pas
-jointe au commentaire de la ligne des suites à $\hat\pi_t$ constant. \emph{Priorité}~: une ligne non
+règle~R1 et effectifs, mention du plancher, phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}) ne sont pas ajoutés. \emph{Priorité}~: une ligne non
 applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane), sans la
 phrase de la règle. À $\hat\pi_t$ variable, rien ne change~: ces lignes sont des tests qui
 retiennent leur p-value de Monte-Carlo. Comme pour la règle~R14, la décision est prise dans
@@ -6097,9 +6114,9 @@ p-values calculées restent dans leurs colonnes~; le champ \code{inoperant} vaut
 règle~R1 ne s'applique pas, faute de type test~; les motifs non applicables priment (une ligne
 dont la statistique observée n'est pas définie garde le type test, et \code{add()} la rend non
 applicable)~; le commentaire porte, le cas échéant, le motif Monte-Carlo en tête selon sa classe,
-posé par \code{add()}, puis le texte propre à la ligne, puis une phrase fixe «~\code{Restituee en diagnostic par decision
-: aucun verdict ni p-value retenue ; \ldots{} dont le type et le verdict font foi.}~»,
-qui nomme la ligne dont relève l'hypothèse~; le champ \code{variante}, qui ne règle que l'affichage
+posé par \code{add()}, puis le texte propre à la ligne, puis la phrase «~\code{Diagnostic par
+decision, sans verdict ni p-value retenue :} \ldots{} \code{fait foi.}~», qui nomme par son libellé
+la ligne dont relève l'hypothèse (pour Smirnov, les lignes de la famille~B, «~\code{font foi}~»)~; le champ \code{variante}, qui ne règle que l'affichage
 par défaut, est inchangé. Les p-values ne sont pas écartées pour leur qualité --- la p-value de
 Monte-Carlo de ces lignes a le niveau mesuré à la section~\ref{sec:calibration-mc} ---~: c'est la
 domination, la désignation d'une seule ligne ou le rattachement qui retire le verdict, et aucune
@@ -6194,7 +6211,7 @@ définie d'après le catalogue ---, sans p-value exacte, \textbf{aucune p non si
 si la ligne a une p non simulée, elle devient un \emph{diagnostic}, verdict \code{INFO},
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, \code{inoperant} à \code{FALSE}, la p non simulée
 restant affichée dans sa colonne, et son commentaire commence par «~\code{Monte-Carlo
-indisponible~:} \emph{motif} \code{; p non simulee (loi du champ loi) non retenue.}~»,
+indisponible~:} \emph{motif}\code{, p non simulee (loi du champ loi) non retenue.}~»,
 le libellé renvoyant au champ \code{loi} de la ligne, qui décrit cette p (la nullité de la
 constante, point~(iii), garde son libellé \code{p de Student sous le modele auxiliaire
 pondere}). Aucune des trois voies de la hiérarchie n'est ouverte
@@ -6239,7 +6256,7 @@ aberrante de la méthode Merz--Wüthrich dont une cellule retenue a une influenc
 (fiche~\ref{mw:m4gr}) --- reste de type test, sans p-value retenue ni
 verdict (\code{INFO}, sens conservé) (convention de l'outil)~; son
 commentaire commence par «~\code{aucune p-value disponible sur ces donnees~: aucun verdict.}~»,
-précédé de «~\code{Monte-Carlo indisponible~:} \emph{motif}~\code{;}~» quand le motif
+précédé de «~\code{Monte-Carlo indisponible~:} \emph{motif}\code{,}~» quand le motif
 n'y figure pas déjà, et la phrase «~\code{ECHEC inatteignable}~» de la règle~R1 ne lui est pas
 ajoutée, parce qu'elle laisserait croire \code{OK} ou \code{ALERTE} possibles alors qu'aucun verdict
 ne l'est~; son champ \code{inoperant} vaut \code{FALSE}. Mesuré par \code{usp\_tests()} sur le
@@ -8334,11 +8351,16 @@ l'ampleur de l'écart. Le moteur n'attribue donc ces p-values exactes qu'à $\ha
 bruts (fiche~\ref{fiche:suites-wald-wolfowitz})~: à $\hat\pi_t$ variable, la colonne
 \code{p\_exacte} vaut \code{NA}, la p-value de Monte-Carlo, simulée sous le modèle ajusté avec
 ses $\hat\pi_t$, est retenue (sauf sur les diagnostics, Smirnov et Spearman ratio contre temps,
-qui n'en retiennent aucune), et le commentaire de la ligne commence par
-«~\code{p exacte non attribuee~: loi de reference exacte seulement a pi\_t constant (z = P
-epsilon non echangeable, r\_t non identiquement distribues).}~», précédé, le cas échéant, du texte
-de la règle~R1 (Cox--Stuart sur le jeu à $\hat\delta$ intérieur, ci-dessous) ou du motif
-d'indisponibilité de la p-value de Monte-Carlo (section~\ref{sec:nature}). Les lignes de rangs portent deux conditions de plus~:
+qui n'en retiennent aucune), et le commentaire de la ligne commence par la mention de régime
+\code{MENTION\_PI\_VARIABLE\_TEST}, «~\code{pi\_t variable (delta < 1, volumes non constants) : les
+residus z ne sont pas echangeables ni les ratios r\_t identiquement distribues, la loi exacte de la
+statistique ne s'applique donc pas et la p-value de Monte-Carlo, simulee sous le modele ajuste, en
+tient lieu.}~», privée de sa dernière proposition (\code{MENTION\_PI\_VARIABLE\_TEST\_SANS\_MC})
+quand la p-value de Monte-Carlo de la ligne manque, et, sur les deux diagnostics, Smirnov et
+Spearman ratio contre temps, par \code{MENTION\_PI\_VARIABLE\_DIAG}, qui finit par «~\code{(p exacte
+non attribuee)}~»~; la mention est précédée, le cas échéant, du texte de la règle~R1 (Cox--Stuart
+sur le jeu à $\hat\delta$ intérieur, ci-dessous) ou du motif d'indisponibilité de la p-value de
+Monte-Carlo (section~\ref{sec:nature}). Les lignes de rangs portent deux conditions de plus~:
 pas d'ex \ae quo, au sens de la section~\ref{sec:ex-aequo} (Spearman, Mann--Kendall et
 Smirnov) et $T \le 9$ (Spearman,
 fiche~\ref{fiche:spearman}). À $T = 8$ et $\alpha = 0{,}10$, sur le jeu de contrôle
@@ -8353,11 +8375,31 @@ Dans la bande de tolérance de \code{usp\_regime()} ($\hat\delta \ge 1 - 10^{-6}
 à~1, ou volumes égaux à $10^{-6}$ près en relatif sans l'être exactement), $\hat\pi_t$ n'est
 constant qu'à un écart d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près, et
 l'exactitude ne vaut qu'à cet ordre près~; le commentaire des seules lignes dont la p-value exacte
-est attribuée le dit. Règle~R8~: le commentaire des lignes de la règle~R7 suit le régime ---
-préfixe «~\code{p exacte non attribuee} \dots~» à $\hat\pi_t$ variable, mention, dans la bande
-de tolérance, d'une loi de référence exacte «~\code{a un ecart d'ordre (1 - delta), ou de
-l'etendue relative des volumes, pres}~», avec la valeur de l'écart, texte inchangé à $\hat\pi_t$ exactement constant~;
-le champ \code{loi}, lui, suit la règle~R7 (paragraphe suivant).
+est attribuée le dit. Règle~R8~: le commentaire des lignes de la règle~R7 suit le régime, par une
+mention de régime d'une phrase posée en tête du texte, hors du compte des deux phrases
+(section~\ref{sec:notations}, convention de restitution) --- à $\hat\pi_t$ variable, la mention
+ci-dessus~; dans la bande de tolérance, sur les lignes dont la p-value exacte est attribuée, quel
+que soit leur type, \code{FORMAT\_MENTION\_BANDE}, «~\code{pi\_t n'est constant qu'a la tolerance
+TOL\_DELTA\_BORD = 1e-06 pres (\dots) : la loi exacte, etablie pour pi\_t exactement constant, ne
+vaut ici qu'a un ecart de cet ordre pres.}~», la parenthèse donnant l'écart à deux chiffres
+significatifs («~\code{1 - delta =} \dots~», «~\code{etendue relative des volumes =} \dots~»)~; à
+$\hat\pi_t$ exactement constant, sur les lignes de type test dont la p-value exacte est attribuée,
+\code{MENTION\_DELTA\_BORNE\_1} quand $\hat\pi_t$ est constant parce que $\hat\delta = 1$,
+«~\code{delta estime a la borne 1 : pi\_t constant rend les residus echangeables et la loi exacte
+s'applique, sous le modele restreint delta = 1 retenu par l'outil et non sous le modele
+complet.}~», et \code{MENTION\_VOLUMES\_CONSTANTS} quand il l'est parce que les volumes sont
+constants, «~\code{volumes constants : pi\_t est constant quel que soit delta, ce qui rend les
+residus echangeables et la loi exacte applicable.}~» (mesuré~: sur \code{premium}, mention de
+$\hat\delta = 1$ sur Spearman ratio contre volume, Mann--Kendall, Cox--Stuart, Durbin--Watson et
+suites~; volumes du jeu de contrôle remplacés par $100$, mention des volumes constants sur
+Mann--Kendall, Cox--Stuart, Durbin--Watson et suites~; volumes $100\,(1 \pm 2\cdot 10^{-7})$,
+mention de la bande, «~\code{etendue relative des volumes = 4e-07}~», sur Spearman ratio contre
+temps, Mann--Kendall, Cox--Stuart, Durbin--Watson et suites~; méthode prime, segment~1,
+$B = 99$). Aucune mention à $\hat\pi_t$ constant sans p-value
+exacte (ex \ae quo, $T > 9$), ni sur les lignes de la règle~R15, dont le texte dit déjà le
+doublon~; les mentions ne dépendent que du régime, du type posé, de la p-value exacte et de~$T$,
+jamais de la bascule de la règle~R1, faite ensuite par \code{add()}. Le champ \code{loi}, lui,
+suit la règle~R7 (paragraphe suivant).
 
 \emph{Libellés selon le régime.} Un
 texte de la ligne ne nomme une p-value que si elle existe, et ne qualifie une loi d'exacte que
@@ -8371,9 +8413,8 @@ loi par la methode d'Imhof (1961), \dots}~», «~\code{loi combinatoire de R, \d
 S (distribution mahonienne), \dots}~», «~\code{loi combinatoire (ks.test, sans ex aequo),
 \dots}~», «~\code{loi de permutation (T <= 9, sans ex aequo), \dots}~» pour Spearman contre volume et
 contre temps, et «~Binomiale(m, 1/2), \code{m differences non nulles, \dots}~» pour Cox--Stuart
-(fiche~\ref{fiche:cox-stuart}). Le commentaire de Smirnov à $\hat\pi_t$ variable dit de quelle loi
-est le minimum qu'il cite, «~\code{p-value minimale atteignable sous la loi de reference
-echangeable = 0.0286}~», cette valeur ne bornant pas la p-value de Monte-Carlo retenue
+(fiche~\ref{fiche:cox-stuart}). Le commentaire de Smirnov à $\hat\pi_t$ variable ne cite pas
+$p_{\min}$, minimum de la loi de référence échangeable, qui ne borne pas la p-value de Monte-Carlo
 (fiche~\ref{fiche:smirnov}). Mesuré sur les références \code{premium} ($\hat\pi_t$ constant) et
 \code{premium\_interieur} ($\hat\pi_t$ variable).
 
@@ -8617,8 +8658,7 @@ $\hat\pi_t$ constant, ces lignes sont des \textbf{quasi-doublons} de leurs homol
 pour le test des suites. Des verdicts \code{OK} de la table auditable n'y apporteraient donc rien de plus
 que ceux de leurs homologues. Le moteur porte lui-même cette réserve~: dans ce cas, le champ
 \code{detail} de chacune des cinq lignes contient « \code{CONTROLE SANS
-OBJET ICI} » --- en tête pour Durbin--Watson, le test des suites et
-OLS-CUSUM, après une phrase propre à la ligne pour la rupture sup-F et Grubbs ---
+OBJET ICI} », en tête, après le seul motif Monte-Carlo s'il y en a un,
 et indique que la ligne est un quasi-doublon de son homologue sur
 résidus standardisés~; il en tire la conséquence et restitue ces lignes en
 diagnostic, sans verdict (règle~R15, section~\ref{sec:nature}). La situation n'a rien d'exceptionnel~: sur les $999$
@@ -8742,7 +8782,7 @@ conjointement avec la distance de Cook \\
 Pitman (pente), Fisher & Loi de Student ou de Fisher exacte sous le seul modèle auxiliaire des
 moindres carrés (§\ref{sec:modele-auxiliaire}~; erreurs i.i.d. normales homoscédastiques), que H2
 et H3 contredisent~; puissance approchée unilatérale $\hat\pi_b = 0{,}65$ sur le jeu de contrôle,
-restituée comme contexte, sans effet sur le type (phrase de contexte,
+restituée comme contexte, sans effet sur le type (parenthèse de contexte,
 sous-section~\ref{sec:modele-auxiliaire-regles}) &
 Aucune p-value de Monte-Carlo par bootstrap possible (section~\ref{sec:t8})~; p-value retenue de
 la pente par permutation (exacte sous l'échangeabilité seule), Fisher en diagnostic \\
@@ -8952,9 +8992,9 @@ Monte-Carlo $0{,}964$ retenue, \code{OK}. Si la p-value de Monte-Carlo manque, l
 diagnostic dont le commentaire commence par le préfixe «~Monte-Carlo indisponible~» et dit la
 p de Student non retenue (règle~(a) de la procédure générale~; repli interdit).
 
-\emph{Seuil de rejet de la constante.} Le commentaire porte la phrase «~\code{Seuil de rejet de
-la constante au seuil alpha =} \ldots~\code{: |a| >= t(1-alpha/2, T-2) x se(a) =}
-\ldots~\code{\% de la moyenne de y}~\ldots~»~: $c_\alpha = t_{1-\alpha/2,\,T-2}\,\widehat{\mathrm{se}}(\hat
+\emph{Seuil de rejet de la constante.} La première phrase du commentaire porte la parenthèse
+«~\code{(constante detectee seulement si |a| >=} \ldots~\code{\% de la moyenne de y, seuil de Student
+approche)}~»~: $c_\alpha = t_{1-\alpha/2,\,T-2}\,\widehat{\mathrm{se}}(\hat
 a_w)$, rapporté à $\bar y$ et arrondi à l'unité, plus petite valeur de $|\hat a_w|$ pour laquelle
 la p-value de Student, restituée et non retenue, passe sous $\alpha$~; absente quand la ligne est non applicable ou diagnostic. \emph{Statut}~: approximation sous une loi
 elle-même approchée (rubrique~4)~; ni le seuil exact de la p-value retenue, de Monte-Carlo, ni
@@ -9184,8 +9224,8 @@ d'échangeabilité}~: l'exactitude vaut sous $H_0$ telle qu'énoncée (loi joint
 permutation), non sous l'hypothèse nulle faible «~$\mathbb{E}[Y_t]$ ne dépend pas de $x_t$~»~;
 une dispersion liée au volume (le $\delta$ du modèle) ou une tendance commune aux volumes et aux
 pertes rompent l'échangeabilité sans lien de moyenne, et un rejet peut traduire l'une ou l'autre,
-ce que dit le commentaire («~\code{un rejet peut aussi traduire une dispersion liee au volume ou
-une tendance commune a x et y}~»).
+ce que dit le commentaire («~\code{qui peut aussi venir d'une dispersion liee au volume ou d'une
+tendance commune}~»).
 
 \emph{Loi de Student restituée.} $t_b \sim t(T-2)$ sous $b = 0$ exactement sous le seul modèle
 auxiliaire (section~\ref{sec:modele-auxiliaire-spec}), que H2 et H3 contredisent. Rapportée à la
@@ -9204,21 +9244,22 @@ nature \code{exacte par permutation (H0 : y independant de x, hors modele reglem
 \emph{À $T \ge 10$}~: $B$ permutations tirées sous \code{engine\_sous\_graine()} (graine
 \code{seed}, section~\ref{sec:graines}), $p = (1 + k)/(B + 1)$ (échantillon aléatoire de permutations~: M.~Dwass, 1957), restituée par
 \code{p\_mc\_ext} hors de \code{USP\_CATALOGUE\_MC}, non exacte (sur un jeu synthétique à $T = 10$,
-$B = 199$~: $0{,}020$)~; si $1/(B+1) \ge \alpha$, le commentaire dit l'\code{OK} inatteignable.
+$B = 199$~: $0{,}020$)~; le commentaire commence alors par la mention de régime
+\code{MENTION\_PERMUTATIONS\_ALEATOIRES} («~\code{T > 9 :} \ldots~\code{et non une p
+exacte.}~») et dit l'\code{OK} inatteignable si $1/(B+1) \ge \alpha$.
 \emph{La p de Student n'est pas retenue}~: non exacte au sens de l'outil (condition~(c))~; aucune
 p-value de Monte-Carlo du catalogue, le bootstrap simulant sous le modèle ajusté, qui appartient à
 $H_1$~; approximation de la p-value exacte, qui prime. Rangée dans \code{p\_asymptotique},
-emplacement et non qualification, elle est qualifiée par le commentaire («~\code{autre test,
-autre loi de reference}~», «~\code{non etablie a T = 8 et mauvaise en queue}~»)~; \textbf{aucun
+emplacement et non qualification, elle n'est pas citée par le commentaire~; \textbf{aucun
 repli}~: sans p-value de permutation sur une ligne applicable, \code{usp\_tests()} s'arrête par une
-erreur. La p bilatérale de permutation, sur $|r|$, est restituée pour information
-(\code{res\$metadata\$permutation\_pente}, et commentaire à l'énumération seulement).
+erreur. La p bilatérale de permutation, sur $|r|$, est restituée pour information dans
+\code{res\$metadata\$permutation\_pente\$p\_bilateral}.
 \code{p\_min}~: appariements atteignant le maximum de $r$, sur $T!$~; $1/T!$ sans ex \ae quo~;
 au-delà de $T = 170$, en échelle logarithmique (\code{lfactorial()}), évaluation en virgule flottante
 (écart relatif de $10^{-14}$ à $10^{-13}$, mesuré à $T = 200$), où une égalité $p_{\min} = \alpha$
 peut manquer la règle~R1~; avec de nombreux ex \ae quo, ligne inopérante possible (mesuré~:
-$x = (10, \dots, 50)$, $y = (1, 1, 1, 1, 2)$, $p_{\min} = 0{,}2$). Phrase de contexte $\hat\pi_b$,
-ou phrase du lien négatif si $t_b \le 0$ (sous-section~\ref{sec:modele-auxiliaire-regles}), sans
+$x = (10, \dots, 50)$, $y = (1, 1, 1, 1, 2)$, $p_{\min} = 0{,}2$). Parenthèse de contexte
+$\hat\pi_b$, omise si $t_b \le 0$ (sous-section~\ref{sec:modele-auxiliaire-regles}), sans
 effet sur le type ni le verdict. Sur le jeu de contrôle~: $t_b = 1{,}392$, $\hat b = 0{,}688$,
 p exacte $4\,462/40\,320 = 0{,}1107$ retenue, \code{ALERTE}~; p de Student $0{,}1067$
 restituée~; p bilatérale $0{,}2112$ pour information.
@@ -9250,7 +9291,7 @@ D.\,M. Heisey, 2001, section~\ref{sec:biblio}, texte intégral non relu~; la rè
 cet article). Coût mesuré~: \code{ECHEC} dans $10{,}9~\%$ des jeux au lieu de $9{,}1~\%$ avec un
 classement par $\hat\pi_b < 1/2$ (constat~C6), non-rejets d'un test de puissance voisine de
 $0{,}64$~; aucun sur le jeu à $\hat\delta$ intérieur. Sous un lien négatif, $\hat\pi_b$, calculée
-sous $\beta > 0$, n'a pas de sens~: le commentaire la remplace, et la ligne reste un test.
+sous $\beta > 0$, n'a pas de sens~: le commentaire ne la donne pas, et la ligne reste un test.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $1/8! = 2{,}48\cdot 10^{-5}$ sans ex \ae quo (\code{usp\_permutation\_pente()}, \code{p\_min})~: exacte, minimum de la loi de permutation qui fournit la p-value retenue~; jamais inopérante à $T = 8$ sans ex \ae quo. À $T \ge 10$, plancher de la p-value retenue $1/(B+1)$.
 
@@ -9310,9 +9351,10 @@ non établie à $T = 8$~: $0{,}2134$ contre $8\,515/40\,320 = 0{,}2112$ sur le j
 $5{,}9\cdot 10^{-6}$ contre $1/8! = 2{,}48\cdot 10^{-5}$ sur le jeu à $\hat\delta$ intérieur.
 \emph{Égalité avec la ligne de Fisher}~: $F = t_b^2$ suit $\mathcal{F}(1, T-2)$ sous le même modèle,
 et les deux p sont mathématiquement égales, numériquement égales à l'arrondi près. Le commentaire
-de la ligne applicable commence par «~\code{Diagnostic, aucun verdict : la pente est testee par le
-seul test de Pitman.}~» et se termine par «~\code{Egale a la p de la ligne "Test de Fisher
-(significativite globale)" (F = t\^{}2).}~». Sur le jeu de contrôle~: $t_b = 1{,}392$, p de
+de la ligne applicable est «~\code{Signe et intensite du lien pertes / volume sous le modele
+auxiliaire MCO (non reglementaire), pour information. Diagnostic sans verdict : la ligne "Test de
+Pitman sur la pente (lien positif pertes / volume)" fait foi, "Test de Fisher (significativite
+globale)" porte la meme p (F = t\^{}2).}~». Sur le jeu de contrôle~: $t_b = 1{,}392$, p de
 Student bilatérale $0{,}2134$ restituée, \code{INFO}.
 \Usage
 \emph{Pourquoi aucun verdict} (règle de sortie, section~\ref{sec:nature})~: comme la ligne de
@@ -9374,9 +9416,10 @@ information}~: elle n'est \textbf{pas retenue} (\code{p\_retenue}, \code{nature\
 \code{p\_mc} et \code{p\_retenue} à \code{NA}, $F$ restant dans \code{stat} (\code{NA}, ou
 $+\infty$ à ajustement exact)~; \code{tests/unitaires/test\_non\_applicable.R} le vérifie pour
 toutes les lignes non applicables d'\code{usp\_tests()}. Hors de ces cas, le commentaire est
-«~\code{Diagnostic, redondante avec le test de Pitman (F = t\^{}2) : aucun verdict. p de Fisher
-F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information, non retenue ; egale a la p de
-la ligne "Test de Student sur la pente (modele auxiliaire MCO)".}~». \emph{Pourquoi aucune
+«~\code{Significativite globale de la regression de y sur x sous le modele auxiliaire MCO, pour
+information. Diagnostic sans verdict : la ligne "Test de Pitman sur la pente (lien positif pertes /
+volume)" fait foi, "Test de Student sur la pente (modele auxiliaire MCO)" porte la meme p (F =
+t\^{}2).}~». \emph{Pourquoi aucune
 p-value n'est retenue.} Aucune des trois voies n'est ouverte~: la loi de Fisher n'est exacte que
 sous le modèle auxiliaire, et le second fondement (fiche~\ref{fiche:student-pente}, rubrique~4, condition~(c)) ne la
 couvre pas~; aucune p-value de Monte-Carlo n'existe, $b = 0$ étant disjoint de la famille
@@ -9443,7 +9486,7 @@ n'est associé à aucune loi de référence ni à aucun niveau, et ne produit au
 \Usage
 La loi bêta donne la clé de lecture essentielle~: sous $H_0$, l'espérance de $R^2$ vaut
 $k/(T-1)$, soit $14~\%$ à $T = 8$ ($1/7$, valeur que rappelle le commentaire de la ligne,
-«~\code{sous H0 (b=0) E[R2] = 1/(T-1) = 0.143}~») et $11~\%$ à $T = 10$. Autrement dit, un $R^2$ apparemment « correct » est
+«~\code{(E[R2] = 0.143 sous b = 0)}~») et $11~\%$ à $T = 10$. Autrement dit, un $R^2$ apparemment « correct » est
 mécaniquement facile à atteindre sur un petit échantillon et ne doit jamais être lu comme une
 validation du modèle. Le script signale $R^2 < 0{,}5$ comme point d'attention, par le seul
 commentaire, et il convient de
@@ -9575,14 +9618,15 @@ L'équiprobabilité des appariements suppose les $r_t$ échangeables, ce qu'ils 
 modèle ajusté, qu'à $\hat\pi_t$ constant, soit $\hat\delta = 1$ pour la variante volume~: la
 p-value n'est exacte au sens de l'outil que dans ce régime (section~\ref{sec:base-residus}). Le
 moteur ne l'attribue que sous trois conditions, toutes exigées~: (i)~$\hat\pi_t$ constant
-(règle~R7), sinon le commentaire porte le motif de la règle~R7, après le préfixe éventuel
-d'\code{add()}~; (ii)~aucun ex \ae quo
+(règle~R7), sinon le commentaire porte la mention de régime de la règle~R8, après le
+préfixe éventuel d'\code{add()}~; (ii)~aucun ex \ae quo
 dans $r_t$ et, pour la variante volume, dans $x_t$, au sens de la section~\ref{sec:ex-aequo}
 (séries aplaties en tolérance relative avant \code{cor.test()}, à l'observé comme dans le
 catalogue Monte-Carlo)~: avec ex \ae quo, \code{cor.test(exact = TRUE)} rend la p-value
 asymptotique et non la loi conditionnelle, et ni p exacte ni $p_{\min}$ ne sont attribuées, ce que
 dit le commentaire~; (iii)~$T \le 9$, \code{cor.test()} rendant au-delà un développement
-d'Edgeworth, non exact. Sinon, la p-value de Monte-Carlo est retenue. \textbf{Variante «~ratio
+d'Edgeworth, non exact, ce que dit la mention de régime \code{MENTION\_EDGEWORTH} en tête du
+commentaire. Sinon, la p-value de Monte-Carlo est retenue. \textbf{Variante «~ratio
 contre temps~»~: aucune p-value retenue}~: diagnostic par décision (section~\ref{sec:nature}),
 verdict \code{INFO}~; ses p-values restent restituées ($0{,}840$ exacte et $0{,}872$ de Monte-Carlo
 sur le jeu de contrôle), $p_{\min}$ aussi, sans règle~R1~; avec ex \ae quo, le commentaire
@@ -9615,9 +9659,9 @@ d'où $\operatorname{Cov}(S_{\mathrm{MK}}, D) = (T+1)^2(T-1)T/36$, avec
 $\operatorname{Var}(S_{\mathrm{MK}}) = T(T-1)(2T+5)/18$ et $\operatorname{Var}(D) =
 \big(T(T^2-1)/12\big)^2/(T-1)$ ($126$, $65{,}33$ et $252$ à $T = 8$). Aucune référence
 bibliographique n'est invoquée. Portée~: $r_t$ échangeables et sans ex \ae quo, soit
-$\hat\pi_t$ constant~; ailleurs, la corrélation n'est pas chiffrée. Le commentaire se termine par
-«~\code{Restituee en diagnostic par decision : aucun verdict ni p-value retenue ; meme alternative
-(tendance monotone du ratio) que la ligne Mann-Kendall, dont le type et le verdict font foi.}~».
+$\hat\pi_t$ constant~; ailleurs, la corrélation n'est pas chiffrée. Le commentaire désigne la
+ligne de Mann--Kendall, «~\code{Tendance monotone du ratio S/P}~», comme celle qui fait foi
+(phrase du diagnostic par décision, section~\ref{sec:nature}).
 La variante volume reste un test.
 
 \emph{Pertes constantes.} À pertes constantes et volumes non constants, la variante volume reste
@@ -9626,11 +9670,10 @@ calculée, à la différence des lignes de la régression de $y_t$ sur $x_t$, no
 $\hat\rho_s = -1$. Le rejet n'est pas un artefact~: des pertes constantes sous des volumes
 variables contredisent $\mathbb{E}[Y_t] = \beta x_t$, ce que disent cette ligne et RESET, seules
 lignes de~H1 sur le volume calculées dans ce régime~; type et verdict sont conservés. Pour qu'on ne
-le prenne pas pour un effet de la saisie dégénérée, le commentaire reçoit en seconde phrase le
-texte fixe «~\code{Pertes y\_t constantes a la tolerance relative
-TOL\_DELTA\_BORD pres (voir l'avertissement sur les donnees) : le ratio y\_t/x\_t varie alors en
-sens inverse du volume ; un rejet traduit des pertes non proportionnelles au volume, ce que teste
-la ligne.}~», sans nombre (mesuré sur les volumes du jeu de contrôle et $y_t = 80$, $B = 99$~:
+le prenne pas pour un effet de la saisie dégénérée, le commentaire a pour première phrase le
+texte fixe «~\code{Pertes y\_t constantes (voir l'avertissement sur les donnees) : le ratio varie en
+sens inverse du volume, et un ECHEC ou une ALERTE traduit des pertes non proportionnelles au
+volume.}~», sans nombre (mesuré sur les volumes du jeu de contrôle et $y_t = 80$, $B = 99$~:
 $\hat\rho_s = -1$, p exacte $2/8!$, \code{ECHEC}, phrase présente~; RESET y est \code{ECHEC} à son
 plancher et les lignes de la régression non applicables).
 
@@ -9638,8 +9681,9 @@ plancher et les lignes de la régression non applicables).
 rubrique~6). Sous $y_t = a + b\,x_t$, $\mathbb{E}[r_t] = b + a/x_t$~: une constante non nulle est
 l'une des alternatives de la variante volume, sans lui être spécifique et sans qu'elle l'estime~;
 quand cette variante est un test à p-value exacte ($\hat\delta = 1$), cette p-value vaut sous le
-modèle restreint $\delta = 1$ seulement, ce que dit le texte \code{USP\_TXT\_RENVOI\_SV} en fin de
-commentaire.
+modèle restreint $\delta = 1$ seulement, ce que dit la mention
+\code{MENTION\_DELTA\_BORNE\_1} en tête du commentaire~; le renvoi \code{USP\_TXT\_RENVOI\_SV} le
+clôt.
 
 La variante volume est membre, quand elle est de type test, de la p de famille de H1 (famille B.)
 et de la p globale (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de
@@ -9701,8 +9745,8 @@ $T = 8$. L'équiprobabilité des ordres suppose les $r_t$ identiquement distribu
 sont, sous le modèle ajusté, qu'à $\hat\pi_t$ constant~: la p-value n'est exacte au sens de
 l'outil que dans ce régime (section~\ref{sec:base-residus}), et le moteur ne l'attribue qu'à
 $\hat\pi_t$ constant et sans ex \ae quo (règle~R7)~; sinon la p-value de Monte-Carlo est
-retenue, et le commentaire nomme la raison (motif de la règle~R7, ou ex \ae quo, qui prive aussi
-la ligne de $p_{\min}$).
+retenue, et le commentaire nomme la raison (mention de régime de la règle~R8, ou motif d'ex
+\ae quo, qui prive aussi la ligne de $p_{\min}$).
 \Usage
 Test de référence pour détecter une dérive progressive du ratio S/P (dérive tarifaire, inflation
 des sinistres, évolution de la politique de provisionnement), ce qui contredirait directement la
@@ -9777,7 +9821,7 @@ $\alpha < 0{,}30$, la ligne reste de type test, sans p-value retenue ni verdict 
 condition remplie, à $T = 8$ et~9, à $m = 3$ et $0{,}25 < \alpha < 0{,}30$~; à $T = 10$ et~11, à
 $m = 4$ dès $\alpha > 0{,}125$~; à $\alpha = 0{,}10$, dès $T = 12$ ($m = 5$)~; à $\alpha = 0{,}05$,
 dès $T = 14$ ($m = 6$) (\code{cox\_stuart\_p\_min()}). Le commentaire commence alors par
-«~\code{Monte-Carlo indisponible : statistique observee non definie : ex aequo ; aucune p-value
+«~\code{Monte-Carlo indisponible : statistique observee non definie : ex aequo, aucune p-value
 disponible sur ces donnees : aucun verdict.}~», sans l'«~\code{ECHEC inatteignable}~» de la
 règle~R1 (section~\ref{sec:nature}, point~(ii)~; mesuré par \code{run\_engine()} à $T = 8$,
 $\alpha = 0{,}29$ et à $T = 12$, $\alpha = 0{,}10$~: test, \code{INFO}, \code{p\_retenue}
@@ -9872,9 +9916,8 @@ Goldfeld--Quandt et Brown--Forsythe ne sont pas écartées pour leur qualité, e
 restitution ne retire pas le verdict d'un test calibré au seul motif de sa faible puissance
 (section~\ref{sec:nature}, «~Ce que la règle ne fait pas~»)~: c'est la désignation d'une seule
 ligne qui le retire, chaque fiche donnant son motif propre. Le commentaire de chacune de ces lignes se
-termine par «~\code{Restituee en diagnostic par decision : aucun verdict ni p-value retenue ; la
-structure de variance releve de la ligne Breusch-Pagan studentise (Koenker), dont le type et le
-verdict font foi.}~». Leurs p-values de Monte-Carlo sont toujours calculées et restituées,
+termine par «~\code{Diagnostic par decision, sans verdict ni p-value retenue : la ligne
+"Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)" fait foi.}~». Leurs p-values de Monte-Carlo sont toujours calculées et restituées,
 conditionnelles au régime de $\hat\delta$ à $\hat\delta$ intérieur (fiche~\ref{fiche:procedure-mc})~;
 pour Breusch--Pagan original, Goldfeld--Quandt et Brown--Forsythe, la p-value marginale a à ce
 régime un niveau inférieur au nominal, que la p-value conditionnelle ramène au niveau
@@ -9907,15 +9950,15 @@ p-value asymptotique $1 - F_{\chi^2_1}(\mathrm{LM})$ restituée sans être reten
 retenue est de Monte-Carlo, en queue haute (clé \code{BP}), simulée sous le modèle ajusté. Sur le
 jeu de contrôle~: $\mathrm{LM} = 5{,}082$, p asymptotique $0{,}0242$ restituée, p-value de
 Monte-Carlo $0{,}018$ retenue (erreur $0{,}0042$), \code{ECHEC}~; sur le jeu à $\hat\delta$
-intérieur, $0{,}377$, \code{OK}. Le commentaire porte, après sa première phrase, la puissance
-enveloppe $\pi_{\text{env}}$ (rubrique~6), calculée à l'$\alpha$ du calcul («~\code{Puissance
-maximale, au seuil alpha =} \ldots~\code{: 0.13 avec ces volumes ; un OK ne demontre pas la
-structure de variance.}~» sur le jeu de contrôle~; $0{,}34$ sur le jeu à $\hat\delta$ intérieur),
+intérieur, $0{,}377$, \code{OK}. La première phrase du commentaire porte la puissance
+enveloppe $\pi_{\text{env}}$ (rubrique~6), calculée à l'$\alpha$ du calcul («~\code{un OK ne la
+demontre pas (puissance maximale 0.13 avec ces volumes au seuil alpha = 0.1)}~» sur le jeu de
+contrôle~; $0{,}34$ sur le jeu à $\hat\delta$ intérieur),
 nombre déterministe, fonction des seuls volumes et de $\alpha$, non issu du bootstrap
 (§\ref{sec:graines}). Le calcul n'est tenté qu'à volumes non constants et à statistique observée
-définie~; s'il n'aboutit pas (\code{NA}), un motif fixe sans nombre («~\ldots~\code{non calculee
-avec ces volumes : echec numerique de l'integration d'Imhof ou de la recherche de racine}
-\ldots~») garde la mise en garde, la ligne restant de type test.
+définie~; s'il n'aboutit pas (\code{NA}), une parenthèse fixe sans nombre («~\code{(puissance
+maximale non calculee : echec numerique)}~», échec de l'intégration d'Imhof ou de la recherche de
+racine) garde la mise en garde, la ligne restant de type test.
 \Usage
 On souhaite \emph{ne pas} rejeter. Faute de vitesse de convergence établie à $T = 8$, la
 p-value de Monte-Carlo est retenue. La forme testée est
@@ -10255,8 +10298,8 @@ Sous $H_0$, pour $z$ échangeable, la loi exacte de $D$ est combinatoire, calcul
 \code{ks.test()}, à l'observé comme dans le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}).
 Avec ex \ae quo, \code{ks.test()} rendrait une p-value exacte \emph{conditionnelle}, dont
 $2/\binom{n_1+n_2}{n_1}$ n'est pas le minimum~: ni p-value exacte ni $p_{\min}$ ne sont alors
-attribuées, le motif (\code{ex aequo dans z : loi conditionnelle non attribuee}), porté par les
-effectifs, ne cite pas de p-value minimale. Asymptotiquement, avec $\lambda = \sqrt{n_1
+attribuées, le motif («~\code{n1 =} \ldots\code{, n2 =} \ldots\code{, ex aequo dans z : p\_min et
+p exacte non attribuees}~»), porté par les effectifs, ne cite pas de p-value minimale. Asymptotiquement, avec $\lambda = \sqrt{n_1
 n_2/(n_1+n_2)}$, $\mathbb{P}(\lambda D \le u) \to K(u) = 1 - 2\sum_{j \ge 1} (-1)^{j-1} e^{-2 j^2
 u^2}$.
 \Pval
@@ -10277,20 +10320,22 @@ paramètres estimés~: $z \sim \mathcal{N}(0, P)$ sous le modèle ajusté
 (section~\ref{sec:base-residus}). La loi combinatoire suppose seulement les $z_t$ échangeables, la
 partition ne dépendant que des $x_t$~: exacte à $\hat\pi_t$ constant, soit $\hat\delta = 1$. À
 $\hat\pi_t$ variable, approximation non bornée~: le moteur n'attribue pas la p-value exacte
-(règle~R7), le commentaire commence par le motif de la règle~R7 (précédé, le cas échéant, du motif
-d'indisponibilité de la p-value de Monte-Carlo) et nomme la loi dont $2/70$ est le
-minimum («~\code{p-value minimale atteignable sous la loi de reference echangeable = 0.0286}~»),
-et le champ \code{loi} ne dit pas la loi exacte. Le \emph{QQ-plot à deux échantillons}
+(règle~R7), le commentaire commence par la mention de régime \code{MENTION\_PI\_VARIABLE\_DIAG}
+(section~\ref{sec:base-residus}~; précédée, le cas échéant, du motif d'indisponibilité de la
+p-value de Monte-Carlo), et le champ \code{loi} ne dit pas la loi exacte~; la valeur $2/70$, minimum
+de la loi de référence échangeable, n'est pas imprimée dans le commentaire~; elle se lit dans le
+champ \code{p\_min} et ne borne pas la p-value de Monte-Carlo. Le \emph{QQ-plot à deux échantillons}
 (section~\ref{sec:graphiques}) reste le diagnostic le plus lisible. \textbf{Pourquoi aucun
 verdict} (diagnostic par décision)~: rangée en~H2, la ligne compare en fait la \emph{position} de
 $z$ entre petits et gros volumes, alternative de~H1 plutôt que de~H2 --- à $\hat\pi_t$ constant,
 le rejet exige $D = 1$, dont la probabilité tend, quand le facteur multiplicatif de l'écart-type
 des gros volumes croît sans borne, vers celle que les quatre résidus du groupe à fort volume soient
 du même signe, $2 \times (1/2)^4 = 0{,}125$ (calcul exact de la limite) ---, et~H1 relève des
-lignes de la famille~\code{B.}~; la ligne reste dans la famille~\code{C.}. Le commentaire se
-termine par «~\code{Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;
-compare la position de z entre petits et gros volumes, alternative de H1 plutot que de H2 ;
-l'hypothese H1 releve des lignes de la famille B., dont le type et le verdict font foi.}~». Les
+lignes de la famille~\code{B.}~; la ligne reste dans la famille~\code{C.}. Le commentaire est
+«~\code{Compare les lois des residus entre petits et gros volumes, ce qui vise surtout une
+difference de position (alternative de H1 plutot que de H2), pour information. Diagnostic par
+decision, sans verdict ni p-value retenue : les lignes de la famille B (H1), dont "Independance
+ratio S/P vs volume", font foi.}~», précédé, le cas échéant, de la mention de régime. Les
 p-values ne sont pas écartées pour leur qualité~: à $\hat\pi_t$ constant, la p-value exacte reste
 exacte au sens de l'outil.
 \emph{Mesures des p-values exacte et de Monte-Carlo restituées} (verdict aux états du moteur des
@@ -10476,7 +10521,7 @@ $p = 1 - \Phi\!\left(\dfrac{\ln(1-W) - \mu_W}{\sigma_W}\right)$ pour $T \ge 12$,
 transformation adaptée pour $T \le 11$~: p-value de Royston, approximation à $n$ fini sous i.i.d.
 normal, restituée dans \code{p\_asymptotique} sans être retenue. La p-value retenue est celle de
 Monte-Carlo, en queue basse (clé \code{SW}), simulée sous le modèle ajusté ($0{,}620$ sur le jeu de
-contrôle, \code{OK}). À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values
+contrôle, \code{OK}). À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values
 non simulées de~H3 (section~\ref{sec:nature}).
 \Usage
 Test de référence pour les petits échantillons et généralement le plus puissant contre un large
@@ -10548,7 +10593,7 @@ niveau exact n'est connu.
 $p = 1 - \Phi\big((\ln(1-W') - \mu)/\sigma\big)$, restituée dans \code{p\_asymptotique}, jamais
 retenue~: la p-value retenue est de Monte-Carlo (clé \code{SF}, queue basse)~; si elle manque, la
 ligne devient un diagnostic sans p-value retenue (règle~(a), fiche~\ref{fiche:procedure-mc}). À
-$\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3
+$\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non simulées de~H3
 (section~\ref{sec:nature}).
 \Usage
 Simplification de Shapiro--Wilk ($V^{-1}$ remplacée par l'identité), souvent présentée, dans la
@@ -10604,8 +10649,9 @@ donc calculée sur la statistique \emph{re-standardisée}, $A^2$ de $(z - \bar z
 dans le champ \code{estim}~; le champ \code{stat} garde $A^2$ calculée sur $z$, statistique du
 catalogue sur laquelle porte la p-value de Monte-Carlo. La p-value non simulée n'est pas calculée
 pour $T < 8$, hors de la plage de l'implémentation de référence \code{nortest::ad.test} ($n > 7$),
-et le commentaire comme le champ \code{loi} le disent («~\code{p non simulee non calculee (T < 8,
-hors de la plage de l'implementation de reference)}~», mesuré à $T = 7$)~; le champ \code{loi} ne
+et le champ \code{loi} le dit («~\code{p non simulee non calculee (T < 8,
+hors de la plage de l'implementation de reference)}~», mesuré à $T = 7$), le commentaire ne le
+répétant pas~; le champ \code{loi} ne
 décrit la p-value de Monte-Carlo que si elle existe~; la plage de la table de D'Agostino \& Stephens elle-même n'a pas été
 vérifiée sur l'ouvrage. Ce sont des ajustements empiriques et non un résultat exact~; sur
 20\,000 échantillons i.i.d. $\mathcal{N}(0,1)$ de taille $T = 8$ re-standardisés (graine~1,
@@ -10615,7 +10661,7 @@ successivement, huit valeurs chacun, sous \code{engine\_sous\_graine(1, \ldots)}
 \code{ENGINE\_RNG\_KIND}), re-standardisés par leur moyenne et leur écart-type empiriques
 (\code{sd()}, dénominateur $T - 1$), et la p-value est celle de \code{ad\_p\_stephens()} appliquée
 à \code{stat\_ad()} de l'échantillon re-standardisé, avec $n = 8$. Sur le jeu de contrôle~: $0{,}527$ ($0{,}566$ en Monte-Carlo, retenue, \code{OK}). La seconde est la p-value de Monte-Carlo, qui reste celle retenue pour le verdict
-car elle tient compte du modèle effectivement ajusté. À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3 (section~\ref{sec:nature}).
+car elle tient compte du modèle effectivement ajusté. À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non simulées de~H3 (section~\ref{sec:nature}).
 \Usage
 Test le plus pertinent pour un usage actuariel~: la pondération en queue le rend sensible
 précisément là où se joue le capital réglementaire. Limite propre à ce contexte~: cette
@@ -10665,7 +10711,7 @@ La p-value de Monte-Carlo (clé \code{CvM}, queue haute) est calculée elle auss
 n'est retenue}~: la ligne est un diagnostic par décision
 (section~\ref{sec:nature}), verdict \code{INFO}~; les deux p-values restent dans
 \code{p\_asymptotique} et \code{p\_mc} ($0{,}476$ sur le jeu de contrôle). À
-$\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3
+$\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non simulées de~H3
 (section~\ref{sec:nature}) avant celle du diagnostic.
 \Usage
 Version non pondérée d'Anderson--Darling~: elle accorde le même poids à toute la distribution, et
@@ -10676,9 +10722,9 @@ vers un problème localisé en queue plutôt que vers une non-normalité d'ensem
 même fonction de répartition empirique à la même loi de référence, sur les mêmes $z_t$, $A^2$ y
 ajoutant la pondération des queues que demande l'usage prudentiel~; la ligne d'Anderson--Darling
 porte donc l'hypothèse, et un second verdict compterait presque deux fois la même information. Le
-commentaire se termine par «~\code{Restituee en diagnostic par decision : aucun
-verdict ni p-value retenue ; W2 etant tres correlee a A2, l'hypothese releve de la ligne
-Anderson-Darling, dont le type et le verdict font foi.}~». La corrélation des deux statistiques
+commentaire est «~\code{Distance de Cramer-von Mises a la loi normale, tres correlee a celle
+d'Anderson-Darling, pour information. Diagnostic par decision, sans verdict ni p-value retenue :
+la ligne "Anderson-Darling" fait foi.}~». La corrélation des deux statistiques
 qu'invoque ce libellé n'est chiffrée par aucun script versionné~: elle n'est pas chiffrée ici~; la
 chiffrer est un travail postérieur à la remise. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
@@ -10720,7 +10766,7 @@ $p \approx 2\sum_{j\ge1}(-1)^{j-1}\exp(-2j^2 T D^2)$, formule de Kolmogorov, rap
 p-value non simulée~; la p-value de Monte-Carlo (clé \code{KS}, queue haute) est calculée aussi.
 \textbf{Aucune n'est retenue}~: diagnostic par décision (section~\ref{sec:nature}), verdict
 \code{INFO}, les deux p-values restant dans \code{p\_asymptotique} et \code{p\_mc} ($0{,}267$ sur le
-jeu de contrôle). À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non
+jeu de contrôle). À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non
 simulées de~H3 avant celle du diagnostic.
 \Usage
 Test historiquement dominant mais \emph{le moins puissant} de cette section (tableau~P1 de
@@ -10753,9 +10799,8 @@ les alternatives de non-normalité au modèle ajusté de J2 ($R = 1\,000$, p-val
 marginale V1, $\alpha = 0{,}10$), Lilliefors rejette plus souvent que cette ligne ($0{,}315$ contre
 $0{,}225$ en contamination $\lambda = 4$, seul écart net, intervalles de Clopper--Pearson
 disjoints~; $0{,}189$ contre $0{,}161$ à $\lambda = 3$, dans l'incertitude de Monte-Carlo), à
-niveaux voisins sous le modèle ajusté. Le commentaire se termine par «~\code{Restituee en
-diagnostic par decision : aucun verdict ni p-value retenue ; l'hypothese releve de la ligne
-Lilliefors (distance de Kolmogorov sur residus re-standardises), dont le type et le verdict font
+niveaux voisins sous le modèle ajusté. Le commentaire se termine par «~\code{Diagnostic par
+decision, sans verdict ni p-value retenue : la ligne "Lilliefors (KS a parametres estimes)" fait
 foi.}~». \code{stat\_lilliefors()} calcule $D$ sur $(z - \bar z)/s_z$ et \code{stat\_ks()} sur
 $z$~: elles ne calculent pas la même statistique.
 \end{fiche}
@@ -10791,7 +10836,7 @@ Approximation analytique de Dallal \& Wilkinson (1986), valable pour $p < 0{,}10
   - 0{,}122119 + \tfrac{0{,}974598}{\sqrt{T}} + \tfrac{1{,}67997}{T}\Big),
 \]
 prolongée au-delà par les polynômes de Stephens. Il s'agit d'une p-value \textbf{non simulée},
-disponible dès $T \ge 5$. Une p-value de Monte-Carlo est calculée en parallèle. À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3 (section~\ref{sec:nature}).
+disponible dès $T \ge 5$. Une p-value de Monte-Carlo est calculée en parallèle. À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non simulées de~H3 (section~\ref{sec:nature}).
 \Usage
 C'est la version correcte du test de Kolmogorov--Smirnov lorsque les paramètres sont estimés~:
 sa loi de référence tient compte de l'estimation, que la loi de Kolmogorov ignore (constat~C2,
@@ -10854,7 +10899,7 @@ $b_2$~: il renvoie aux champs \code{estim} des lignes de D'Agostino et d'Anscomb
 (fiches~\ref{fiche:dagostino-asymetrie} et~\ref{fiche:anscombe-glynn-aplatissement}), qui les
 portent même lorsque le test d'Anscombe--Glynn n'est pas défini ($T < 20$), et rappelle que
 l'aplatissement est borné mécaniquement par une quantité de l'ordre de $T$ (§\ref{sec:graines},
-règle des libellés). À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non
+règle des libellés). À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non
 simulées de~H3 (section~\ref{sec:nature}).
 \Usage
 \textbf{À manier avec une grande prudence en régime USP.} La convergence vers $\chi^2(2)$ est
@@ -10909,7 +10954,7 @@ Fonction nommée~: \code{test\_dagostino\_skew()}.
 $Z \sim \mathcal{N}(0,1)$ approximativement sous $H_0$, la transformation de Johnson $S_U$
 ci-dessus corrigeant l'asymétrie de la loi exacte de $\sqrt{b_1}$ à $T$ fini.
 \Pval
-$p = 2\big(1 - \Phi(|Z|)\big)$, restituée dans \code{p\_asymptotique} sans être retenue~; la p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale), simulée sous le modèle ajusté. À $\hat\pi_t$ variable, le commentaire porte la phrase fixe des p-values non simulées de~H3 (section~\ref{sec:nature}).
+$p = 2\big(1 - \Phi(|Z|)\big)$, restituée dans \code{p\_asymptotique} sans être retenue~; la p-value retenue est de Monte-Carlo (clé \code{DAgo}, bilatérale), simulée sous le modèle ajusté. À $\hat\pi_t$ variable, le commentaire porte en tête la mention de régime des p-values non simulées de~H3 (section~\ref{sec:nature}).
 \Usage
 Utile pour \emph{localiser} la cause d'un rejet global de normalité~: une asymétrie significative
 oriente vers un mélange de sinistres graves et attritionnels mal séparés, diagnostic actionnable
@@ -11129,10 +11174,12 @@ Cette p-value est \emph{exacte} au sens de l'outil \textbf{à $\hat\pi_t$ consta
 ($\hat\delta = 1$ ou volumes constants, au sens de \code{usp\_regime()}), seul régime où le moteur
 l'attribue (règle~R7)~: à $\hat\pi_t$ variable, \code{p\_exacte} vaut \code{NA}, l'intégrale
 d'Imhof n'est pas évaluée, la p-value de Monte-Carlo (clé \code{DW}) est retenue, le
-commentaire commence par le motif de la règle~R7 et le champ \code{loi} y renvoie
-(section~\ref{sec:base-residus})~;
-dans la bande de tolérance de \code{usp\_regime()}, le commentaire ajoute que la loi n'est exacte
-qu'à un écart d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près.
+commentaire commence par la mention de régime de la règle~R8 et le champ \code{loi} renvoie à la
+règle~R7 (section~\ref{sec:base-residus})~;
+dans la bande de tolérance de \code{usp\_regime()}, la mention dit que la loi n'est exacte
+qu'à un écart d'ordre $1 - \hat\delta$, ou de l'étendue relative des volumes, près, et, à
+$\hat\pi_t$ exactement constant, qu'elle s'applique, sous le modèle restreint $\delta = 1$ quand
+$\hat\delta = 1$.
 \Usage
 Deux points d'implémentation méritent d'être signalés. \emph{Le centrage}~: la statistique est
 calculée sur des résidus centrés, car la définition classique porte sur des résidus de moindres
@@ -11572,7 +11619,8 @@ l'étendue relative des volumes, près~: écart qui suit la position de $\hat\de
 \textbf{pas} sur la convergence en $\gamma$ (jeu de contrôle~: $\bar z = 3{,}575\cdot 10^{-3}\,(1 -
 \delta)$ pour $1 - \delta$ de $10^{-9}$ à $10^{-6}$, contre $-2{,}0\cdot 10^{-16}$ à $\delta = 1$~;
 seul l'ordre $(1 - \delta)$ est général, le coefficient dépend des données). Le \code{detail} le
-dit, avec $1 - \hat\delta$ ou l'étendue relative~; à constance exacte, il énonce l'identité.
+dit, sans imprimer l'écart ($\hat\delta$ est dans \code{res\$ajustement}, l'étendue relative se
+recalcule sur les $x_t$)~; à constance exacte, il dit $\bar z$ nul par construction.
 \Hzero
 Sans objet. L'hypothèse $\mathbb{E}[z_t] = 0$ ne peut pas être mise en défaut par les données~:
 $\bar z$ est déterminé par l'estimation, non librement observé.
@@ -11698,8 +11746,9 @@ l'optimiseur, et un écart d'ordre $(1 - \hat\delta)$, ou de l'étendue relative
 jeu de contrôle~: la tolérance d'arrêt laisse $\sum_t z_t^2 - T = -5{,}4\cdot 10^{-6}$ sur
 l'ajustement~; à $\gamma$ annulant la dérivée à $10^{-14}$ près (\code{uniroot}), $-1{,}8\cdot
 10^{-15}$ à $\delta = 1$ mais $2{,}74\cdot 10^{-3}\,(1 - \delta)$ pour $1 - \delta$ de $10^{-8}$ à
-$10^{-6}$ (constat numérique, coefficient propre aux données)~; le \code{detail} énonce ces deux
-réserves.
+$10^{-6}$ (constat numérique, coefficient propre aux données)~; le \code{detail} renvoie à la
+première (convergence imparfaite en $\gamma$, ou $\gamma$ bloqué sur une borne de son domaine) et,
+dans la bande de tolérance, à la seconde, sans imprimer d'écart.
 \Hzero
 Sans objet. $\operatorname{Var}(z_t) = 1$ n'est pas l'hypothèse que l'estimation laisse libre~: la
 valeur imposée par les conditions du premier ordre est $T/(T-1)$.
@@ -11879,34 +11928,37 @@ $z_t - \operatorname{med}(z)$ identiques terme à terme ---, p-value exacte de
 retenue}~: la ligne y est un diagnostic de la règle~R15 (section~\ref{sec:nature}), les deux
 p-values restant dans \code{p\_exacte} et \code{p\_mc}~; à $\hat\pi_t$ variable, la ligne est un
 test et retient sa p-value de Monte-Carlo. Le commentaire suit ces régimes~: sous la double
-condition, il dit la p-value exacte calculée (mots-clés «~\code{la p-value EXACTE est calculee}
-\ldots~\code{la meme que sur la ligne des suites sur residus standardises}~»), sauf motif de
-dégénérescence de \code{Runsr}, qui l'écarte (section~\ref{sec:nature}, point~(ii))~; hors de la
-double condition, il ne nomme la p-value de Monte-Carlo que si elle existe
-(mention de régime \code{MENTION\_PI\_VARIABLE\_TEST}, à $\hat\pi_t$ variable) et dit sinon, à $\hat\pi_t$ variable
-seulement, qu'elle est indisponible et qu'aucune p-value n'est retenue (mesuré avec
-\code{usp\_bootstrap(B = 40)}). \emph{Aucune phrase d'\code{usp\_tests()} ne déclare la p-value
+condition, il dit la statistique et la p-value exacte identiques à celles de la ligne sur $z_t$
+(«~\code{statistique et p exacte identiques a celles de la ligne homologue sur residus
+standardises (doublon exact)}~»), sauf motif de dégénérescence de \code{Runsr}, qui écarte la
+p-value exacte et que le commentaire nomme (section~\ref{sec:nature}, point~(ii))~; à $\hat\pi_t$
+constant hors de la double condition, il dit pourquoi la p-value exacte manque, sans nommer la
+p-value de Monte-Carlo (ci-dessous)~; à $\hat\pi_t$ variable, la mention de régime
+\code{MENTION\_PI\_VARIABLE\_TEST} dit que la p-value de Monte-Carlo tient lieu de loi exacte, et,
+quand cette p-value manque, sa variante \code{MENTION\_PI\_VARIABLE\_TEST\_SANS\_MC} s'en tient à
+l'absence de loi exacte, le motif Monte-Carlo en tête disant l'indisponibilité, la ligne étant
+alors un test sans p-value retenue (vérifié par
+\code{tests/unitaires/test\_regimes\_p\_exactes.R}). \emph{Aucune phrase d'\code{usp\_tests()} ne déclare la p-value
 retenue}~: la règle~R1 peut basculer la ligne en test inopérant, où \code{add()} ne retient aucune
 p-value~; la p-value retenue, s'il en est une, se lit dans \code{nature\_p} et \code{p\_retenue}.
 Mesuré à $\alpha = 0{,}05$~: sur le jeu de contrôle, diagnostic de la règle~R15 (\code{inoperant}
 à \code{FALSE}, \code{INFO})~; sur le jeu à $\hat\delta$ intérieur, test inopérant
 ($p_{\min}^{\mathrm{MC}} = 0{,}062 \ge \alpha$). Quand $\hat\pi_t$ est constant mais qu'un signe
-diffère entre $u_t$ et $z_t$, le commentaire distingue deux sous-cas~: $\hat\pi_t$
-\emph{exactement} constant, où l'écart est attribué au traitement numérique (centrage de $u$ par la
+diffère entre $u_t$ et $z_t$, le commentaire le dit («~\code{\dots{} mais un signe au moins differe
+entre u et z, d'ou ni identite garantie ni p exacte.}~»), sans nommer la cause de l'inversion~:
+traitement numérique à $\hat\pi_t$ \emph{exactement} constant (centrage de $u$ par la
 moyenne, aplatissement des ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue
-sous~1 sur $z$, section~\ref{sec:ex-aequo})~; $\hat\pi_t$ constant à \code{TOL\_DELTA\_BORD} près
-seulement, où la variation résiduelle de $\hat\pi_t$ est nommée. Dans les deux, sa partie propre se
-termine par «~\code{La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.}~» quand
-cette p-value existe, sans la dire retenue~; quand elle manque, le motif Monte-Carlo en tête du
-commentaire et la phrase fixe de la règle~R15 disent seuls l'absence de p-value retenue (mesuré par
-\code{usp\_tests()} sur un cas construit, $\delta$ fixé à $1 - 5\cdot 10^{-7}$ et un ratio rapproché
-de son voisin à $10^{-10}$ près, scénario de \code{tests/unitaires/test\_regimes\_p\_exactes.R}~:
-«~\code{Monte-Carlo indisponible : aucune replication finie (B\_effectif = 0). CONTROLE SANS OBJET
-ICI} \ldots{} \code{(seconde condition de la fonction usp\_runsr\_p\_exacte). Restituee en
-diagnostic (regle R15)} \ldots~», diagnostic \code{INFO}). Sous la double condition, la p-value de
+sous~1 sur $z$, section~\ref{sec:ex-aequo}), variation résiduelle de $\hat\pi_t$ quand il n'est
+constant qu'à \code{TOL\_DELTA\_BORD} près~; quand un seul côté de la médiane est représenté, il
+dit «~\code{sans p exacte (un seul cote de la mediane represente)}~». Il ne cite pas la p-value de
+Monte-Carlo~; quand elle manque, le motif Monte-Carlo en tête du commentaire et la phrase de la
+règle~R15 disent seuls l'absence de p-value retenue (cas construit, $\delta$ fixé à
+$1 - 5\cdot 10^{-7}$ et un ratio rapproché de son voisin à $10^{-10}$ près~: commentaire ouvert
+par «~\code{Monte-Carlo indisponible : aucune replication finie (B\_effectif = 0).}~» et fermé par
+la phrase de la règle~R15, diagnostic \code{INFO}, vérifié par
+\code{tests/unitaires/test\_regimes\_p\_exactes.R}). Sous la double condition, la p-value de
 Monte-Carlo, quand elle existe, estime la même quantité que la p-value exacte, à l'erreur de
-Monte-Carlo près~; le commentaire ne la cite que si elle existe (mesuré sur le jeu de contrôle avec
-\code{usp\_bootstrap(B = 40)}, \code{p\_mc} manquante, et $B = 999$, \code{p\_mc} $= 0{,}768$). La
+Monte-Carlo près ($B = 999$, \code{p\_mc} $= 0{,}768$ sur le jeu de contrôle). La
 condition, ses deux motifs et les deux limites (bande de tolérance, régime estimé) sont détaillés à
 la fiche~\ref{fiche:suites-wald-wolfowitz}, rubrique~5. Sur le jeu de contrôle ($\hat\delta = 1$)~:
 $Z = -0{,}764$ sur $u_t$ comme sur $z_t$, p-value exacte $52/70 = 0{,}743$ sur les deux lignes, \code{p\_mc}
@@ -12138,7 +12190,7 @@ inchangé.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. $G \le (T-1)/\sqrt{T} = 2{,}475$ à $T = 8$ (borne algébrique, citée dans le commentaire), sans plancher propre. Puissance à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 ($R = 1\,000$ jeux par scénario, \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-puissance.md}, section~\ref{sec:calibration-mc}), p-value marginale V1 (retenue au bord)~/ conditionnelle V3h (retenue à $\hat\delta$ intérieur), sur l'ensemble des jeux et au régime intérieur~: contamination $\lambda = 3$, $0{,}334$ et $0{,}105$~/ $0{,}365$ et $0{,}322$~; $\lambda = 4$, $0{,}576$ et $0{,}194$~/ $0{,}613$ et $0{,}537$. \emph{Puissance contre une année contaminée} (volet~A, J1, $\hat\pi_t$ constant, $20\,000$ séries par point~; protocole et fichier au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, sans réajustement, à $B$ infini~: référence idéalisée, non puissance de la p-value retenue~: 3~; 4~; 5 écarts-types, $0{,}362$~; $0{,}613$~; $0{,}828$ vers le haut, même loi vers le bas par parité~; niveau $0{,}100$~; sous les autres alternatives, au plus au niveau (rupture, AR(1), tendance), sauf l'hétéroscédasticité liée au volume ($0{,}171$~; $0{,}243$ pour un écart-type multiplié par 2~; 3)~; effet de $B = 999$ au plus $0{,}0043$. Ces taux ne se comparent pas directement à ceux du fichier de puissance cités plus haut (J1 contre J2, sans réajustement, référence idéalisée). \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$, \code{docs/tableaux/}\allowbreak\code{20261018-}\allowbreak\code{issue116-chaine-J1.md} et \code{-J2.md}, à l'état du moteur consigné en tête du fichier~; aucun test inopérant, 0 sur 500 par point, $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 au bord, V3b à $\hat\delta^*$ intérieur)~: niveau $0{,}106$~/ $0{,}128$, contrôle de compatibilité seulement~; AR(1), tendance et rupture au plus au niveau. Constats hors modèle réglementaire. Niveau de la p-value de Monte-Carlo sous le modèle ajusté ($R = 2\,000$, $B = 999$)~: J1, $0{,}0995$ à $0{,}10$ et $0{,}047$ à $0{,}05$~; J2, $0{,}0835$ et $0{,}0415$, écart mineur conservateur à $0{,}10$ sur J2, la p-value marginale ne rejetant presque pas au régime intérieur ($0{,}022$ des 464 réplications de J2). Niveau de la p-value conditionnelle au régime de $\hat\delta$ (V3h, tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-regime.md}~; conditions du tableau et cas de J1 à la section~\ref{sec:calibration-mc})~: J2, $0{,}1000$ $[0{,}0872~;~0{,}1140]$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$, compatible.
+\textbf{Pertinence à $T = 8$.} Ligne de type test dans tous les régimes. $G \le (T-1)/\sqrt{T} = 2{,}475$ à $T = 8$ (borne algébrique), sans plancher propre. Puissance à $\alpha = 0{,}10$ sous des alternatives au modèle ajusté de J2 ($R = 1\,000$ jeux par scénario, \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-puissance.md}, section~\ref{sec:calibration-mc}), p-value marginale V1 (retenue au bord)~/ conditionnelle V3h (retenue à $\hat\delta$ intérieur), sur l'ensemble des jeux et au régime intérieur~: contamination $\lambda = 3$, $0{,}334$ et $0{,}105$~/ $0{,}365$ et $0{,}322$~; $\lambda = 4$, $0{,}576$ et $0{,}194$~/ $0{,}613$ et $0{,}537$. \emph{Puissance contre une année contaminée} (volet~A, J1, $\hat\pi_t$ constant, $20\,000$ séries par point~; protocole et fichier au tableau~\ref{tab:tracabilite-puissance}), test à $\delta = 1$ imposé, sans réajustement, à $B$ infini~: référence idéalisée, non puissance de la p-value retenue~: 3~; 4~; 5 écarts-types, $0{,}362$~; $0{,}613$~; $0{,}828$ vers le haut, même loi vers le bas par parité~; niveau $0{,}100$~; sous les autres alternatives, au plus au niveau (rupture, AR(1), tendance), sauf l'hétéroscédasticité liée au volume ($0{,}171$~; $0{,}243$ pour un écart-type multiplié par 2~; 3)~; effet de $B = 999$ au plus $0{,}0043$. Ces taux ne se comparent pas directement à ceux du fichier de puissance cités plus haut (J1 contre J2, sans réajustement, référence idéalisée). \emph{P-value retenue après réajustement} (volet~B, J1~/ J2, 500 réplications par point, $B = 999$, \code{docs/tableaux/}\allowbreak\code{20261018-}\allowbreak\code{issue116-chaine-J1.md} et \code{-J2.md}, à l'état du moteur consigné en tête du fichier~; aucun test inopérant, 0 sur 500 par point, $[0~;~0{,}007]$~; p-value de Monte-Carlo retenue dans toutes les réplications, V1 au bord, V3b à $\hat\delta^*$ intérieur)~: niveau $0{,}106$~/ $0{,}128$, contrôle de compatibilité seulement~; AR(1), tendance et rupture au plus au niveau. Constats hors modèle réglementaire. Niveau de la p-value de Monte-Carlo sous le modèle ajusté ($R = 2\,000$, $B = 999$)~: J1, $0{,}0995$ à $0{,}10$ et $0{,}047$ à $0{,}05$~; J2, $0{,}0835$ et $0{,}0415$, écart mineur conservateur à $0{,}10$ sur J2, la p-value marginale ne rejetant presque pas au régime intérieur ($0{,}022$ des 464 réplications de J2). Niveau de la p-value conditionnelle au régime de $\hat\delta$ (V3h, tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261010-}\allowbreak\code{issue229-p-conditionnelle-regime.md}~; conditions du tableau et cas de J1 à la section~\ref{sec:calibration-mc})~: J2, $0{,}1000$ $[0{,}0872~;~0{,}1140]$ et $0{,}0515$ $[0{,}0422~;~0{,}0621]$, compatible.
 
 \textbf{Statut des valeurs.} Plancher, borne de $G$~: exacts. Puissances (fichier de puissance, volets~A et~B) et niveau~: constats de simulation, hors modèle réglementaire ou sous le modèle ajusté~; volet~A~: référence idéalisée, effet de $B$ calculé exactement conditionnellement à la loi nulle simulée.
 \end{fiche}
@@ -12208,14 +12260,14 @@ la procédure entière n'a pas le niveau $\alpha$ (C7.a, rubrique~6).
 \Pval
 \textbf{Aucune p-value}~: l'article n'en définit aucune. Le nombre retenu de valeurs aberrantes est
 $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun dépassement~; il est restitué dans
-\code{estim}, les rangs des années déclarées dans le commentaire. La ligne est un \emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~:
-verdict \code{INFO}, \code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}. Le commentaire,
-précédé des rangs quand $\hat k \ge 1$ ($\hat k = 0$ sur le jeu de contrôle), est la phrase fixe
-«~\code{procedure ESD de Rosner (1983) a niveau nominal alpha = 0.1, sans
-p-value. Restituee en diagnostic par decision : aucun verdict ni p-value retenue ; valeurs
-critiques approchees, jugees adequates par l'auteur a partir de n = 25 ; a T = 8, niveau superieur
-a alpha (voir la fiche) ; une valeur aberrante isolee releve de la ligne Grubbs sur residus
-standardises, dont le type et le verdict font foi.}~».
+\code{estim}~; les rangs des années déclarées ne sont pas restitués et se recalculent par
+\code{test\_rosner()} sur les $z_t$ (colonne \code{z} de \code{res\$plots\_data\$influence}) au même
+$\alpha$. La ligne est un \emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~:
+verdict \code{INFO}, \code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}. Le commentaire
+est «~\code{Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = 0.1, nombre en
+estimation), a niveau superieur a alpha a T = 8 (valeurs critiques adequates a partir de n = 25
+selon l'auteur). Diagnostic par decision, sans verdict ni p-value retenue : la ligne "Valeur
+aberrante isolee (Grubbs)" fait foi.}~».
 \Usage
 Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, p.~171)~; face à l'ESD
 d'origine, l'auteur revendique le contrôle du niveau sous les $H_l$ (p.~171). \emph{Domaine de la source}~: les
@@ -12304,9 +12356,10 @@ s'agit d'une heuristique sans fondement rigoureux.
 \Pval
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t D_t$. Le commentaire donne
-le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$), le nombre d'observations au-dessus et leurs
-rangs (cas de référence \code{premium}~: «~\code{repere conventionnel 4/T = 0.500 ; 1
-observation(s) au-dessus (rangs 8)}~»)~; le numérateur~4 est lu par \code{.usp\_ligne\_cook()}
+le repère conventionnel $4/T$ ($0{,}500$ à $T = 8$) et le nombre d'années au-dessus (cas de
+référence \code{premium}~: «~\code{Repere conventionnel 4/T = 0.500, 1 annee(s) au-dessus}~»)~; les
+années elles-mêmes ne sont pas citées et se lisent dans \code{res\$plots\_data\$influence}
+(colonnes \code{t}, \code{cook} et \code{influent}~: année~8 sur \code{premium})~; le numérateur~4 est lu par \code{.usp\_ligne\_cook()}
 dans la constante \code{REPERE\_COOK\_LN}, qui fixe aussi la colonne \code{repere\_cook} et le
 booléen \code{influent} d'\code{engine\_influence()}~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit aucun
 verdict. \emph{Ligne non applicable} (\code{.usp\_ligne\_cook()})~: si une distance $D_t$ n'est
@@ -12371,8 +12424,9 @@ Aucune.
 Aucune. La ligne est restituée \code{INFO}, sans verdict ni sens du test
 (\code{sens\_du\_test} à \code{NA})~; le champ \code{estim} porte $\max_t h_t$. Le commentaire donne
 le repère conventionnel $2k/T$ ($2/T = 0{,}250$ à $T = 8$, $k = 1$) et le nombre d'observations
-au-dessus (cas de référence \code{premium}~: «~\code{repere conventionnel 2k/T = 0.250 ; 0
-observation(s) au-dessus}~»)~; le numérateur~2 est lu dans la constante \code{REPERE\_LEVIER}, et
+au-dessus (cas de référence \code{premium}~: «~\code{Repere conventionnel 2k/T = 0.250, 0
+annee(s) au-dessus}~»~; les années se lisent dans les colonnes \code{levier} et
+\code{fort\_levier} de \code{res\$plots\_data\$influence})~; le numérateur~2 est lu dans la constante \code{REPERE\_LEVIER}, et
 $k$ est le nombre de coefficients du modèle ajusté (\code{length(coef())}, $k = 1$ pour
 $y = \beta x$), défini comme dans \code{engine\_influence()}, dont la colonne
 \code{repere\_levier} et le booléen \code{fort\_levier} portent le même repère~; ce repère n'est associé à aucune loi de référence ni à aucun niveau, et ne produit
@@ -12652,9 +12706,9 @@ identifié, paramètre final reposant sur une convention plutôt que sur l'histo
 $\hat\sigma$ dans \code{estim}). Sur le jeu de contrôle,
 $\delta_0 = 0$ donne $\mathrm{LR} = 0{,}551$, \code{p\_mc} $= 0{,}034$ et $\tilde\sigma(0)$
 supérieur de $3{,}3~\%$ à $\hat\sigma$, sans
-verdict. Préfixes du commentaire~:
-\code{SOLUTION AU BORD}, \code{VOLUMES CONSTANTS} ou motif d'absence de \code{p\_mc}~; aucun
-nombre issu du bootstrap (§\ref{sec:graines}).
+verdict. Le commentaire porte en tête le motif d'absence de \code{p\_mc} éventuel, et
+\code{SOLUTION AU BORD} ou \code{VOLUMES CONSTANTS} (LR nul par construction)~; aucun nombre issu
+du bootstrap.
 
 \emph{Repères du profil en $\delta$} (\code{plot\_profil\_delta()}, section~\ref{sec:graphiques})~:
 quantile du mélange, $\chi^2_{0{,}80}(1) = 1{,}642$ au niveau \code{LR\_DELTA\_NIVEAU\_REPERES}
@@ -12717,10 +12771,11 @@ coefficient au plus $\sigma_{\mathrm{USP}}/\hat\sigma$~; une erreur relative au 
 fiche~\ref{fiche:foc}) donne $|\mathrm{d}\Delta_t| \le (1 +
 \Delta_t)(\varepsilon_t + \varepsilon_0)$~: deux années dont les écarts diffèrent de moins de
 $\tau$ ne sont pas discernables, et \code{which.max} les départagerait au gré du bruit de
-l'optimiseur, qui varie d'une plateforme à l'autre. Phrases fixes du commentaire~: «~\code{Annee la
-plus influente : \dots}~» et «~\code{Annees les plus influentes, d'influence egale a la precision
-numerique pres : \dots}~», suivies du sens, commun ou selon l'année~; seuls des entiers et un sens
-sont imprimés. \emph{Réserve}~:
+l'optimiseur, qui varie d'une plateforme à l'autre. Le commentaire nomme l'année la plus
+influente, ou les années à égalité numérique, avec le sens de l'écart~; au-delà de
+\code{JACK\_ANNEES\_CITEES\_MAX} $= 3$ années, il n'en donne que le nombre, les années restant
+dans la colonne \code{plus\_influente} de \code{res\$plots\_data\$influence}~; seuls des entiers
+et un sens sont imprimés. \emph{Réserve}~:
 $\tau$ n'est certifiée que pour des réajustements qui satisfont la condition du premier ordre~;
 si l'un est retenu sans la satisfaire ($\gamma$ intérieur), les années citées restent
 indiscernables, mais la liste peut être incomplète. Sur les cinq cas lognormaux de référence~: une
@@ -12729,26 +12784,25 @@ $9{,}7\cdot 10^{-2}$, contre $\tau$ de $4{,}2\cdot 10^{-6}$ à $4{,}5\cdot 10^{-
 
 \emph{Années non évaluables.} Une année dont le réajustement échoue ou est refusé n'a de valeur
 sur aucune échelle et ne peut être désignée (ligne de \code{res\$jackknife} à \code{NA}). Un réajustement à $\gamma$ intérieur sans démarrage qui satisfasse la condition reste
-retenu (contrôle non bloquant, fiche~\ref{fiche:foc}). Le commentaire les nomme par la phrase fixe
-«~\code{Annee 5 non evaluable (\dots) : ecartee du maximum, influence non mesuree.}~», qui ne
-distingue pas le refus de l'échec~; une telle année n'est pas dite sans influence~: son influence
+retenu (contrôle non bloquant, fiche~\ref{fiche:foc}). Le commentaire les nomme de même (colonne
+\code{non\_evaluable}), sans distinguer le refus de l'échec~; une telle année n'est pas dite sans influence~: son influence
 n'est pas mesurable.
 Mesuré (méthode prime, segment~1, données brutes, volumes du jeu de contrôle, $y_t = 0{,}7\,x_t$
 sauf $y_5 = 0{,}8\,x_5$, $B = 99$)~: sans l'année~5, $\hat\gamma = -12$ et aucun démarrage ne
 satisfait la condition~: réajustement refusé, $\Delta_{\max} = 0{,}0206$ sur les sept années évaluables, dont les écarts sont égaux à
 $2\cdot 10^{-10}$ près (écart des deux plus grands $3{,}7\cdot 10^{-12}$, contre
-$\tau = 4{,}08\cdot 10^{-6}$)~: le commentaire les cite toutes, suivi de la phrase de l'année~5
-non évaluable.
+$\tau = 4{,}08\cdot 10^{-6}$)~: le commentaire en donne le nombre, sept, puis l'année~5 non
+évaluable.
 
 \emph{Aucune année évaluable.} La ligne reste dans la table, \code{INFO}, \code{estim} à
-\code{NA}, au commentaire fixe «~\code{Aucune annee evaluable (\dots) : ecart relatif max non
-calcule, influence non mesuree.}~». Mesuré (mêmes paramètres, $y_t = 0{,}7\,x_t\exp(a\,s_t)$, $s = (+1, -1, \dots)$,
+\code{NA}, au commentaire fixe «~\code{Aucune annee evaluable} \ldots~\code{: influence des annees}
+\code{non mesuree.}~». Mesuré (mêmes paramètres, $y_t = 0{,}7\,x_t\exp(a\,s_t)$, $s = (+1, -1, \dots)$,
 $a = e^{-11{,}9925}$)~: échantillon complet accepté ($\hat\gamma = -11{,}9925$), huit réajustements
 refusés ($\hat\gamma^{(-t)} = -12$), \code{ok} à \code{TRUE}. \emph{$\sigma_{\mathrm{USP}}$ nul, non fini ou sous-normal} (ainsi $10^{-310}$, où le
 quotient déborde)~: aucun écart relatif n'est fini, \code{usp\_jack\_annees()} rend \code{NULL}
 (un vecteur vide se lirait comme un jackknife calculé), et la ligne est posée de même,
-au commentaire fixe «~\code{sigma\_USP nul, non fini ou trop petit : ecart relatif non fini,
-influence non mesuree.}~», suivi le cas échéant de la phrase des années non évaluables (mesuré en
+au commentaire fixe «~\code{sigma\_USP nul, non} \code{fini ou trop petit} \code{: influence des annees} \code{non
+mesuree}~», suivi le cas échéant de la proposition des années non évaluables (mesuré en
 forçant $\sigma_{\mathrm{USP}}$ à $0$, \code{NA} et $10^{-310}$,
 \code{tests/unitaires/test\_defauts\_connus.R}~: la ligne porte ce seul commentaire).
 
@@ -14746,9 +14800,9 @@ l'observé (règle commune~; élément \code{origine\_non\_identifiables},
 argument \code{j\_non\_identifiables}, entrée \code{Origine} de \code{MW\_CATALOGUE\_MC}). Une
 colonne de l'ensemble est comptée parmi les éligibles, hors de~$K$, et nommée par
 \code{.mw\_phrase\_origine\_}\allowbreak\code{non\_identifiable()}, après la phrase des colonnes
-dégénérées~: «~\code{Colonne a moins de deux valeurs distinctes de C(i,j)~: j = \dots{}
-(\dots{} facteurs)~; ordonnee a l'origine non identifiable, colonne hors de la combinaison de
-Fisher~; K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve
+dégénérées~: «~\code{Colonne a moins de} \code{deux valeurs distinctes} \code{de C(i,j)~: j = \dots{}}
+\code{(\dots{} facteurs),} \code{ordonnee a l'origine} \code{non identifiable, colonne} \code{hors de la combinaison} \code{de
+Fisher,} \code{K = \dots{} colonne(s) testee(s)} \code{sur \dots{} eligible(s),} \code{exclusion qui ne vaut} \code{pas preuve
 de proportionnalite.}~» (au pluriel pour plusieurs colonnes~; $j$, $n_j$, $K$ et le nombre
 d'éligibles de l'appel observé, §\ref{sec:graines}). Une colonne retenue dont la régression
 échoue ou rend moins de deux coefficients --- $C(i,j)$ constant dans une réplication, ou, à
@@ -14758,10 +14812,10 @@ rend la statistique \code{NA}, avec $K$ \code{NA}~: la réplication sort de $B$ 
 l'observé, la ligne est non applicable (motif «~\code{statistique observee non finie}~»,
 \code{INFO})~; le prédicat ne lit pas le rang numérique de la régression, et aucune colonne n'est
 écartée sans trace. Sur le triangle de contrôle dont $C(i,1)$ vaut $1\,050$ pour $i = 0$ à~$5$, la
-phrase nomme «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 4 colonne(s) testee(s) sur 5
+phrase nomme «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 4 colonne(s) testee(s)} \code{sur 5
 eligible(s)}~»~; avec six valeurs distinctes de $C(i,1)$ que ce critère de rang écarte, la ligne est non
-applicable, et la phrase des colonnes non identifiables, si elle est posée, s'arrête à
-«~\code{hors de la combinaison de Fisher.}~». \emph{Conséquence sur le graphique}~: les ordonnées
+applicable, et la phrase des colonnes non identifiables, si elle est posée, omet la clause
+«~\code{, K = \dots{} eligible(s)}~». \emph{Conséquence sur le graphique}~: les ordonnées
 à l'origine représentées (section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel
 observé~; quand la statistique observée n'est pas définie, ce détail est vide et le graphique
 affiche «~\code{Ordonnees a l'origine indisponibles}~»~; sur une colonne constante de l'ensemble
@@ -15078,8 +15132,8 @@ dégénérée. \code{mw\_tests()} la nomme dans le commentaire de
 la ligne par \code{.mw\_phrase\_}\allowbreak\code{non\_identifiable()}, phrase fixe dont les seuls
 nombres sont $j$, $n_j$, $K$ et le nombre de colonnes éligibles de l'appel observé
 (§\ref{sec:graines})~: «~\code{Colonne a moins de trois valeurs distinctes de C(i,j)~: j = \dots{}
-(\dots{} facteurs)~; terme quadratique non identifiable, colonne hors de la combinaison de
-Fisher~; K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve
+(\dots{} facteurs), terme quadratique non identifiable, colonne hors de la combinaison de
+Fisher, K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s), exclusion qui ne vaut pas preuve
 de linearite.}~», au pluriel quand il y en a plusieurs. Elle suit la phrase des
 colonnes dégénérées quand les deux sont posées, avec la même clause «~\code{K = \dots{} sur
 \dots{} eligible(s)}~» (omise des deux phrases quand la statistique observée n'est pas définie et
@@ -15257,7 +15311,8 @@ $\sigma_j$. La ligne vise donc la même famille d'alternatives que la pente rela
 profils de rejet mesurés sont distincts (rubrique~7). Son intérêt propre est de chiffrer
 l'enjeu~: si $A$ est faible, le choix de pondération imposé par le règlement est sans conséquence
 matérielle sur le paramètre final, où seul $\hat f_j^{(1)}$ entre. Le commentaire de la ligne
-restitue l'écart relatif maximal entre les trois estimateurs et sa colonne, grandeur de l'observé~:
+restitue l'écart relatif maximal entre les trois estimateurs, grandeur de l'observé, sans sa
+colonne, que donne la table \code{detail} de \code{mw\_famille\_alpha()}~:
 sur le triangle de contrôle, $0{,}17~\%$ (colonne $j = 1$), pour $A = 0{,}00111$ et une p-value de
 Monte-Carlo de $0{,}005$ (\code{ECHEC}, référence \code{reserve2})~: rejet statistiquement fondé
 sous l'hypothèse de variance de Mack, le niveau de la ligne étant compatible sous N, E et A au
@@ -15385,11 +15440,13 @@ $\sigma_j$ (rubrique~4)~; la ligne ne la teste pas.
 \Stat
 Aucune statistique de test (\code{stat} à \code{NA}). L'estimation restituée est la moyenne des
 $\mathrm{CV}_j$ des colonnes retenues («~\code{CV moyen des colonnes retenues}~», \code{NA} sans
-colonne retenue)~; le commentaire donne, pour chaque colonne retenue, $j$, $n_j$, $\mathrm{CV}_j$,
-$R_j$ et $e_{a,j}$ («~\code{e\_a non definie (C(i,j) constant)}~» si $D_j = 0$), ou
-«~\code{Aucune colonne retenue (n\_j >= 3).}~». Toutes ces grandeurs sont calculées sur le
-triangle observé~; aucune n'est issue du bootstrap (§\ref{sec:graines}). Les valeurs de \code{\$detail} ne
-sont pas arrondies. Sur le triangle de contrôle
+colonne retenue)~; le commentaire dit l'usage du diagnostic et nomme les lignes dont il borne la
+puissance, sans valeur par colonne, ou constate qu'aucune colonne n'est retenue. La table par colonne, $j$, $n_j$, $\mathrm{CV}_j$, $R_j$ et
+$e_{a,j}$ (\code{NA} si $D_j = 0$), est l'élément \code{detail} de
+\code{mw\_identifiabilite\_}\allowbreak\code{intra()}, appelée sur \code{res\$ajustement} et
+l'ensemble des colonnes dégénérées (\code{.mw\_colonnes\_degenerees()}). Toutes ces grandeurs
+sont calculées sur le triangle observé~; aucune n'est issue du bootstrap (§\ref{sec:graines}), et
+elles ne sont pas arrondies. Sur le triangle de contrôle
 (\code{run\_engine()}, méthode \code{reserve2})~: estimation $0{,}0730$, et, par colonne, avec les
 multiplicateurs et les effets minimaux détectables de la rubrique~6~:
 \begin{center}
@@ -15765,10 +15822,10 @@ des p-values exactes au sens de l'outil (même section). Sur le triangle de cont
 $0{,}544$, restituée, non retenue. Les résidus de chaque réplication
 étant recalculés par \code{mw\_residus()} sur le triangle simulé réajusté
 (\code{.mw\_contexte\_mc()}, \code{mw\_bootstrap()}), la loi simulée de $X$ reproduit l'effet de
-levier de la rubrique~2. Le commentaire de la ligne, rédigé par \code{mw\_tests()}, énonce cet
-effet de levier, sous l'interprétation de l'outil ($f_j$ et $\sigma_j^2$ communs aux années), et
-sa reproduction par la p-value de Monte-Carlo, que la p $\chi^2(2K)$ et la plus petite p-value
-atteignable, fondées sur une loi échangeable, ignorent.
+levier de la rubrique~2, sous l'interprétation de l'outil ($f_j$ et $\sigma_j^2$ communs aux
+années), ce que la p $\chi^2(2K)$ et la plus petite p-value atteignable, fondées sur une loi
+échangeable, ignorent~; le commentaire de la ligne dit seulement que le lien est lu au-delà de
+l'effet de levier.
 \Usage
 La ligne d'hétéroscédasticité de la fiche précédente agrège les colonnes en une pente commune,
 à colonne donnée~; ce test-ci localise. Un rejet signale un lien entre $|r(i,j)|$ et $C(i,j)$ que
@@ -15908,8 +15965,9 @@ avec égalité si et seulement si $\bar r = 0$. Sur le triangle de contrôle,
 $(N-k)/(N-1) = 21/26 = 0{,}8077$ et la valeur observée vaut $0{,}8075$~: l'écart,
 $2{,}4\times10^{-4}$, est exactement $N\bar r^{\,2}/(N-1)$. Le moteur recalcule
 cette valeur de référence et la restitue dans le champ \code{detail} de la
-ligne, avec $N$, $k$ et la somme des carrés attendue $N - k$, de sorte que le
-relecteur puisse la refaire.
+ligne, avec la moyenne $\bar r$ des résidus («~\code{ici}~\dots~»)~; $N$ et $k$ se lisent dans
+\code{res\$residus} (nombre de lignes et nombre de colonnes $j$ distinctes), de sorte que le
+relecteur puisse refaire $(N-k)/(N-1)$.
 Fonction nommée~: \code{mw\_tests()}.
 \Loi
 Sans objet.
@@ -16254,9 +16312,13 @@ Aucune statistique de test~: la ligne est un diagnostic (champ \code{type}), san
 p-value. Sa grandeur descriptive (\code{estim}, «~\code{diagonales sous le repere de 10 \%}~») est
 le nombre de diagonales retenues dont $\mathbb{P}(Z_k \le z_k) \le 0{,}10$~; elle vaut \code{NA}
 si aucune diagonale n'est retenue, le commentaire étant alors «~\code{aucune diagonale retenue
-(n\_k >= 2)}~». Sinon, le commentaire (\code{detail}) donne, après un texte fixe qui rappelle
-l'absence de contrôle de multiplicité et de verdict, une entrée par diagonale retenue, dans
-l'ordre de $k$~: $n$, $L$, $S$, $Z$ et $P$, suivie de «~\code{(repere)}~» quand $P \le 0{,}10$.
+(n\_k >= 2)}~». Sinon, le commentaire (\code{detail}) dit l'usage du repère, sans verdict ni contrôle
+de multiplicité, le nombre minimal d'étiquettes d'une diagonale qui peut l'atteindre (cinq au
+repère de $10~\%$), et désigne le test qui fait foi, sans valeur par diagonale. Les valeurs par
+diagonale retenue, dans l'ordre de $k$ --- $n$, $L$, $S$, $Z$, $P$ et l'indicateur \code{repere},
+vrai quand $P \le 0{,}10$ --- sont la table que rend \code{mw\_calendrier\_diagonales()} appliquée
+à \code{mw\_test\_annees\_}\allowbreak\code{calendaires()} sur \code{res\$ajustement} et l'ensemble
+des colonnes dégénérées.
 La plus petite des probabilités n'est placée dans aucune colonne de p-value, où elle serait lue
 comme la p-value d'un test.
 Fonction nommée~: \code{mw\_calendrier\_diagonales()}.
@@ -16327,7 +16389,7 @@ et \code{estim} vaut~1, le test rendant \code{ECHEC}~; sur son sous-triangle $5 
 ($B = 99$), les deux diagonales retenues ont $n_k = 3$ et $P = 0{,}25$, et \code{estim} vaut~0~;
 sur un triangle $5 \times 5$ construit, dont les deux premières colonnes de facteurs sont
 dégénérées, aucune diagonale n'est retenue, \code{estim} vaut \code{NA} et le commentaire est
-celui de la rubrique~3. Les probabilités du commentaire sont des calculs exacts sous la loi
+celui de la rubrique~3. Les probabilités de la table sont des calculs exacts sous la loi
 binomiale~: aucun nombre issu du bootstrap n'y figure (§\ref{sec:graines}). Une diagonale
 repérée se lit avec le verdict du test, jamais à sa place.
 \end{fiche}
@@ -16365,8 +16427,8 @@ colonne garde des résidus, par exemple après exclusion des colonnes dégénér
 tous les groupes sont de taille~1 et $H = N - 1$ par construction, quelle que soit la donnée~;
 la statistique est restituée, la p-value asymptotique ne l'est pas (\code{NA}), la loi est
 libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code{detail}, réduit à la
-phrase de ce cas après le motif Monte-Carlo (suivie, le cas échéant, des phrases du retirage des
-triangles simulés), le dit~: $H$ n'y mesure rien, et la ligne ne teste ni
+phrase de ce cas et aux lignes liées, après le motif Monte-Carlo (suivis, le cas échéant, des
+phrases du retirage des triangles simulés), le dit~: $H$ n'y mesure rien, et la ligne ne teste ni
 l'homogénéité des résidus entre années de survenance ni l'indépendance de D(2)(h)(i).
 Chaque réplication de même géométrie donnant la même valeur, la loi simulée est de dispersion
 nulle~: la ligne est un diagnostic \code{INFO}, sans p-value retenue (section~\ref{sec:nature}). Mesuré sur le
@@ -16400,12 +16462,10 @@ cause et sans établir à lui seul un défaut d'indépendance des années (rubri
 d'une année atypique, d'une dérive de $f_j$ avec l'année ou d'une espérance non proportionnelle,
 et la ligne réagit aussi à la dérive calendaire mesurée en rubrique~7 (non-spécificité), qui
 fait varier les facteurs individuels d'une colonne entre les années de survenance~; à lire avec les
-lignes de M1 (fiches~\ref{mw:m1a} et~\ref{mw:m1b}) et le test calendaire. Hors du cas d'un résidu par année, où il dit que $H$ ne mesure rien, le commentaire rédigé pour la ligne dans \code{mw\_tests()} se termine par
-«~\code{Homogeneite des residus} \code{entre annees de survenance} \code{sous la formalisation}
-\code{de l'outil (f\_j et} \code{sigma\_j\^{}2 communs) ;}
-\code{ne teste pas a elle} \code{seule l'independance de} \code{D(2)(h)(i), reagit aussi}
-\code{a une annee atypique,} \code{a une derive de f\_j} \code{avec l'annee ou a une}
-\code{esperance non proportionnelle}~»~; selon les données, le commentaire restitué porte en outre
+lignes de M1 (fiches~\ref{mw:m1a} et~\ref{mw:m1b}) et le test calendaire. Hors du cas d'un résidu par année, où il dit que $H$ ne mesure rien, le commentaire rédigé pour la ligne dans \code{mw\_tests()} a pour première phrase
+«~\code{Un ECHEC ou une ALERTE signale une annee de survenance dont les residus se distinguent
+(annee atypique, derive de f\_j ou esperance non proportionnelle), sans tester a elle seule
+l'independance de D(2)(h)(i).}~», suivie des lignes liées~; selon les données, le commentaire restitué porte en outre
 le texte de la règle~R1 ou le motif d'indisponibilité de la p-value de Monte-Carlo, le motif de
 l'absence de $p_{\min}$ (ex \ae quo) et les phrases fixes de \code{mw\_tests()} et d'\code{add()}
 (sections~\ref{sec:boot-mw} et~\ref{sec:nature}). Limite structurelle~: les groupes
@@ -16627,10 +16687,10 @@ preuve propre. Aucune des trois voies n'est retenue~: la loi exacte suppose l'é
 signes, en défaut (rubrique~4)~; l'approximation normale sur-rejette (rubrique~5)~; la p-value de
 Monte-Carlo, de niveau compatible sous le plan mesuré (ci-dessous), n'est pas écartée pour son
 niveau, mais parce que l'hypothèse relève de la ligne Durbin--Watson, et aucune autre voie ne
-lui est substituée. Le commentaire est «~\code{Restituee en diagnostic par decision
-: aucun verdict ni p-value retenue ; l'hypothese releve de la ligne Autocorrelation des residus
-(Durbin-Watson), calculee sur les residus de Mack dans le meme ordre de parcours, dont le type et
-le verdict font foi.}~», précédé du motif Monte-Carlo, posé par \code{add()}, quand la p-value de Monte-Carlo manque, puis, quand
+lui est substituée. Le commentaire est «~\code{Detecte un regroupement ou une alternance des
+signes des residus de Mack, pour information. Diagnostic par decision, sans verdict ni p-value
+retenue : la ligne "Autocorrelation des residus (Durbin-Watson)", memes residus dans le meme ordre,
+fait foi.}~», précédé du motif Monte-Carlo, posé par \code{add()}, quand la p-value de Monte-Carlo manque, puis, quand
 $p_{\min}$ n'est pas attribuée, du motif qui l'explique (chaîne \code{effectifs} de
 \code{.mw\_p\_min\_ligne()}, que \code{add()} ne restitue qu'aux lignes de type test et que
 \code{mw\_tests()} joint ici~; ce n'est pas le cas sur le
@@ -16742,8 +16802,9 @@ l'entrée \code{MinP4} du catalogue)~; statistique et p-value de Monte-Carlo ide
 d'\code{identical()}, à celles du candidat MinP4 du script de mesure
 \code{tests/puissance\_mw\_t8.R} (mode \code{--controle-i2prime}, triangle de contrôle et 420
 triangles contrôlés)~: les niveaux et puissances mesurés pour ce candidat (rubrique~7) sont ceux
-de la ligne. L'estimation restituée est le $t(i,j)$ de la cellule du minimum, que le commentaire
-nomme (année d'accident, développement, $n_j$)~; aucun nombre issu du bootstrap n'y figure.
+de la ligne. L'estimation restituée est le $t(i,j)$ de la cellule du minimum, que désignent les
+champs \code{i}, \code{j} et \code{n\_j} de \code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}~;
+aucun nombre issu du bootstrap n'y figure.
 \emph{Le minimum des p-values plutôt que le maximum des $|t(i,j)|$}~: les degrés de liberté vont
 de 2 à 5 selon la colonne retenue, et une même valeur de $|t|$ n'a pas le même sens d'une colonne
 à l'autre~; le maximum brut, mesuré comme candidat, ne rejette que dans $0{,}037$ des triangles à
@@ -16865,8 +16926,9 @@ statistiques sont toutes calculées, puis la procédure déclare $\hat k = \max\
 celles de l'éq.~(2.5) de l'article (p.~166), approximation de Student--Bonferroni, calculées en
 forme close par \code{test\_rosner()} au niveau $\alpha$ de l'exécution~; la table~3 de l'article
 est elle-même calculée par cette équation (p.~167). L'estimation restituée est $\hat k$
-(«~\code{nb de cellules declarees (repere de Rosner)}~»), et, si $\hat k > 0$, le commentaire
-donne les rangs des résidus déclarés dans la liste des résidus de Mack, par ordre de retrait.
+(«~\code{nb de cellules declarees (repere de Rosner)}~»)~; les rangs des résidus déclarés, par
+ordre de retrait, ne sont pas dans le commentaire et se recalculent par \code{test\_rosner()} sur
+la colonne \code{residu} de \code{res\$residus}, au même $\alpha$ (élément \code{positions}).
 Sur le triangle de contrôle, $\hat k = 0$ à $\alpha = 0{,}10$.
 \Loi
 Sans objet. Les valeurs critiques de l'éq.~(2.5) et le domaine que l'article déclare ($n \ge 25$,
@@ -16878,14 +16940,14 @@ p-value~; sur des résidus de Mack, \textbf{aucune des trois voies de la hiérar
 ouverte}~: ni p-value exacte, faute de loi de $R_i$ sous le modèle de Mack~; ni p-value
 asymptotique~; ni p-value de Monte-Carlo, la procédure n'ayant pas de statistique unique et des
 seuils calibrés par simulation constituant une méthode nouvelle, sans source, non retenue. Le commentaire est la phrase fixe \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}~:
-«~\code{Diagnostic sans verdict~:} \code{procedure ESD generalisee de Rosner (1983) appliquee
-aux residus de Mack.} \code{Ses valeurs critiques (eq.} \code{(2.5),} \code{approximation de Student-Bonferroni) et son
-domaine declare (n >= 25) valent pour un echantillon i.i.d. normal~;} \code{les residus de Mack,} \code{soumis a
-des contraintes exactes par colonne,} \code{n'en sont pas un,} \code{et le cadre de Rosner (1983) ne les couvre
-pas.} \code{La procedure n'est donc pas un test de la ligne~:} \code{le nombre de cellules declarees se lit
-comme un repere,} \code{sans p-value.}~», suivie de «~\code{Valeurs critiques calculees a alpha =
-0.10}~» (au seuil de l'exécution) et, si $\hat k > 0$, des rangs~; aucun nombre issu du
-bootstrap.
+«~\code{Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.10, nombre en
+estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas les residus de Mack,
+contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
+studentises externes)" fait foi.}~», au seuil de l'exécution~; aucun nombre issu du
+bootstrap. La raison qu'il résume est développée ici~: valeurs critiques de l'éq.~(2.5),
+approximation de Student--Bonferroni, et domaine déclaré, valables pour un échantillon i.i.d.
+normal (rubrique~4), que les résidus de Mack, soumis à des contraintes exactes par colonne, ne
+sont pas.
 \Usage
 Diagnostic sans verdict (section~\ref{sec:nature})~: la ligne est restituée \code{INFO}, et
 $\hat k$ se lit comme un repère, non comme une décision, sans rubrique~7.
@@ -17139,18 +17201,20 @@ n'est pas compté comme argument distinct~; colonnes $J-3$ et $J-2$ toutes deux
 dégénérées, il nomme les deux variances ex aequo~; dans les autres cas, il
 nomme tous les arguments égaux au minimum à $10^{-12}$ près en relatif, ex
 aequo s'ils sont plusieurs. Le champ \code{detail} s'ouvre par
-«~\code{Valeur fixee par la regle de minimum de l'annexe XVII,} \code{D(5)(d)(ii),} \code{seconde ligne,} \code{et non
-estimee~:} \code{la regle ne lit que les deux dernieres variances estimees}~».
+«~\code{Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), non estimee :}~»,
+suivi du minimum et de ses trois arguments à six chiffres significatifs, de la cause et, si une
+colonne $J-3$ ou $J-2$ est dégénérée, du renvoi à l'avertissement sur les données~; quand la règle
+n'est pas applicable, de «~\code{la regle ne lit que les deux dernieres variances estimees.}~».
 
-\emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$.} Le champ \code{detail} se termine par la
-sensibilité de $\sqrt{\mathrm{MSEP}}$ à la valeur de $\hat\sigma^2_{J-1}$, calculée par
-\code{mw\_sensibilite\_sigma2\_dernier()} et transmise à \code{.mw\_detail\_extrapolation()}~:
+\emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$.} La sensibilité de $\sqrt{\mathrm{MSEP}}$ à
+la valeur de $\hat\sigma^2_{J-1}$ ne figure pas dans le champ \code{detail}~; elle est rendue par
+\code{mw\_sensibilite\_sigma2\_dernier()}, appelée sur \code{res\$ajustement}~:
 \code{mw\_msep()} est rappelée en remplaçant $\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} =
 \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit \code{mw\_msep()}, successivement par chacun des trois
-arguments du minimum, dans l'ordre du texte, puis par~$0$. Chaque valeur est imprimée à six
-chiffres significatifs, avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$ de la règle, en
-pourcentage à une décimale~; un écart relatif très grand signale seulement que la règle de
-minimum est contraignante, le quotient
+arguments du minimum, dans l'ordre du texte, puis par~$0$ (éléments \code{racine\_msep\_regle},
+\code{racine\_msep\_arguments}, \code{NA} pour un quotient non défini, et
+\code{racine\_msep\_zero})~; un écart relatif très grand à la $\sqrt{\mathrm{MSEP}}$ de la règle
+signale seulement que la règle de minimum est contraignante, le quotient
 $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
 petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
 et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
@@ -17158,20 +17222,12 @@ retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (so
 auxiliaire d'erreurs gaussiennes, que le modèle de Mack ne fait pas,
 $2\hat\sigma^2_{J-3}/\sigma^2_{J-3}$ suit exactement une loi $\chi^2(2)$, dont les quantiles à
 $5~\%$ et $95~\%$ sont dans un rapport de~58~: une petite valeur de $\hat\sigma^2_{J-3}$ n'a rien
-d'exceptionnel). L'argument $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini}~»
-quand $\hat\sigma^2_{J-3} = 0$, exactement ou à la tolérance relative $10^{-12}$ de l'outil
-(colonne $J-3$ dégénérée, champ \code{\$degeneree\_Jm3} de \code{mw\_extrapolation\_sigma2()})~:
-le quotient d'une variance nulle à la tolérance près n'a pas de valeur interprétable. La
-valeur~$0$ est nommée «~\code{contrefactuel qui n'est pas un argument du minimum}~», dans une
-phrase séparée, \textbf{omise quand la règle donne déjà~$0$}, exactement ou à la tolérance
-relative $10^{-12}$ (colonne $J-3$ ou $J-2$ dégénérée, champ \code{\$degeneree} de
-\code{mw\_extrapolation\_sigma2()}), et omise aussi, colonne dégénérée ou non, quand la
-$\sqrt{\mathrm{MSEP}}$ du contrefactuel, imprimée à six chiffres significatifs, est celle de la
-règle~: elle répéterait, à la précision imprimée, la valeur de la règle. La sensibilité n'est pas
-écrite si la règle n'est pas applicable ou si la $\sqrt{\mathrm{MSEP}}$ de la règle n'est pas
-finie et strictement positive, les écarts relatifs n'ayant alors pas de sens. Les racines de MSEP
-sont déterministes~: le \code{detail} n'imprime aucun nombre issu du bootstrap. Aucun écart type
-estimé ni aucun $\sigma_{(\text{res},s,\mathrm{USP})}$ n'est recalculé avec ces valeurs, et
+d'exceptionnel). Dans le champ \code{detail}, le quotient
+$\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ est dit «~\code{non defini (sigma2\_(J-3) = 0)}~» quand
+$\hat\sigma^2_{J-3} = 0$~: le quotient d'une variance nulle n'a pas de valeur interprétable. La
+valeur~$0$ de la sensibilité est un contrefactuel, qui n'est pas un argument du minimum. Les
+racines de MSEP sont déterministes, sans aucun nombre issu du bootstrap. Aucun écart type estimé
+ni aucun $\sigma_{(\text{res},s,\mathrm{USP})}$ n'est recalculé avec ces valeurs, et
 $\sigma_{(\text{res},s,\mathrm{USP})}$ n'en dépend pas.
 \Loi
 Sans objet~: la quantité n'est pas estimée mais \emph{fixée par la règle de minimum} de
@@ -17192,8 +17248,9 @@ contenant un terme positif en $\hat Q_{J-1}$~; sur le triangle de contrôle, dou
 augmente chacun des sept crochets). Elle doit
 être mentionnée explicitement.
 
-\emph{Sensibilité sur le triangle de contrôle} (valeurs imprimées dans le \code{detail} de la
-ligne de la référence \code{reserve2}, retrouvées hors moteur par le script \code{m\_fm\_d.R} de
+\emph{Sensibilité sur le triangle de contrôle} (valeurs rendues par
+\code{mw\_sensibilite\_sigma2\_dernier()} sur la référence \code{reserve2}, retrouvées hors moteur
+par le script \code{m\_fm\_d.R} de
 \code{docs/tableaux/}\allowbreak\code{20261023-}\allowbreak\code{fm-mesures.md}). La règle retient
 $\hat\sigma^2_{J-3}$~:
 
@@ -17356,31 +17413,19 @@ globale~; \code{base} \code{commun}, variante principale, champ \code{reference}
 \& Speed (2003),} \code{rapport technique 633,} \code{UC Berkeley,} \code{eq. (10)~;} \code{Dwass (1957),} \code{Hope (1968)}~»).
 
 \emph{Textes du commentaire} (\code{engine\_p\_famille()}~; aucun nombre issu du bootstrap~;
-les fiches les désignent par leur nom). Texte T-1, ligne de famille (\code{DETAIL\_P\_FAMILLE})~:
-«~\code{Lecture conjointe des} \code{tests de la} \code{famille~:} \code{p minP en} \code{une etape,}
-\code{proportion des replications,} \code{observe compris,} \code{dont la plus} \code{petite p}
-\code{Monte-Carlo des} \code{tests de} \code{la famille} \code{est au plus} \code{egale a} \code{l'observee~;}
-\code{rangs calcules} \code{sur les} \code{replications qui fondent} \code{les p} \code{Monte-Carlo des lignes,}
-\code{l'observe compris,} \code{et p Monte-Carlo} \code{utilisee aussi} \code{pour les} \code{tests dont}
-\code{la p exacte} \code{est retenue.} \code{Tests de la} \code{famille (tous,} \code{quelle que}
-\code{soit la} \code{selection de} \code{restitution)~:} \code{[liste des membres,} \code{«~nom du}
-\code{test [cle]~»].} \code{Hors famille~:} \code{lignes de} \code{sens rejeter,} \code{variantes secondaires,}
-\code{diagnostics et lignes} \code{sans p} \code{Monte-Carlo du} \code{bootstrap principal.}
-\code{Controle du taux} \code{d'erreur de} \code{la famille} \code{au sens} \code{faible (toutes}
-\code{ses hypotheses vraies),} \code{sous le} \code{modele ajuste~:} \code{p plug-in,} \code{non exacte,}
-\code{comme les p Monte-Carlo} \code{des lignes.} \code{Diagnostic sans} \code{verdict~:} \code{aucun verdict}
-\code{de ligne} \code{n'est modifie.}~» Texte T-2, ligne globale (\code{DETAIL\_P\_GLOBALE})~:
-«~\code{Lecture conjointe} \code{de la} \code{batterie~:} \code{p minP en} \code{une etape sur}
-\code{les [k]} \code{tests des} \code{familles (tous,} \code{quelle que} \code{soit la} \code{selection de restitution),}
-\code{meme construction que} \code{les lignes} \code{de famille.} \code{Elle situe} \code{la plus}
-\code{petite p Monte-Carlo} \code{observee dans} \code{sa loi} \code{sous le} \code{modele ajuste,}
-\code{compte tenu} \code{du nombre de} \code{tests et de} \code{leur dependance.} \code{Elle porte}
-\code{sur les p} \code{Monte-Carlo des tests,} \code{pas sur} \code{leurs p} \code{retenues~:}
-\code{un verdict} \code{fonde sur une} \code{p exacte} \code{peut ne pas} \code{s'y retrouver,}
-\code{et les} \code{lignes de} \code{sens rejeter,} \code{hors batterie,} \code{n'y entrent pas.}
-\code{Controle du taux} \code{d'erreur de} \code{la batterie} \code{au sens} \code{faible, sous le}
-\code{modele ajuste~:} \code{p plug-in,} \code{non exacte.} \code{Diagnostic sans} \code{verdict~:}
-\code{aucun verdict} \code{de ligne} \code{n'est modifie.}~», où [k] est le nombre de membres.
+les fiches les désignent par leur nom~; la construction, la composition et la portée qu'ils
+résument sont décrites ci-dessus et dans les deux fiches). Texte T-1, ligne de famille
+(\code{DETAIL\_P\_FAMILLE})~: «~\code{Diagnostic sans verdict} \code{: une p de famille} \code{faible signale
+qu'au} \code{moins une hypothese} \code{de la famille est mise} \code{en cause sous le modele} \code{ajuste (p plug-in non}
+\code{exacte), aucun verdict} \code{de ligne n'etant modifie.} \code{Tests de la famille} \code{(cles mc\_nom) : [}\ldots\code{],
+voir aussi "p globale} \code{(minP, lecture conjointe} \code{de la batterie)".}~», la liste donnant les clés
+\code{mc\_nom} des membres dans l'ordre des lignes (sur \code{premium}, famille~B.~:
+\code{Intercept}, \code{RESET}, \code{SpearVol}, \code{MK}). Texte T-2, ligne globale
+(\code{DETAIL\_P\_GLOBALE})~: «~\code{Diagnostic sans verdict} \code{: une p globale faible} \code{signale qu'au
+moins} \code{une hypothese de la} \code{batterie est mise en} \code{cause sous le modele} \code{ajuste, compte tenu} \code{des [k]
+tests et de} \code{leur dependance (p} \code{plug-in non exacte,} \code{sur les p Monte-Carlo} \code{et non les p retenues).} \code{A
+lire avec les lignes} \code{"p de famille (minP,} \code{lecture conjointe)"} \code{de chaque famille.}~», où [k] est le
+nombre de membres.
 Texte T-3a (\code{PHRASE\_FAMILLE\_B\_EFF\_REDUIT}), joint à T-1 ou T-2 quand le $B$ effectif
 de famille est inférieur au $B$ effectif d'au moins un membre~: «~\code{Calculee sur} \code{les seules}
 \code{replications ou les} \code{statistiques de} \code{tous les} \code{tests de la} \code{famille sont finies,}
@@ -17389,7 +17434,7 @@ de famille est inférieur au $B$ effectif d'au moins un membre~: «~\code{Calcul
 Texte T-3b (\code{PHRASE\_FAMILLE\_B\_EFF\_INSUFFISANT}), en tête du commentaire quand le $B$
 effectif de famille est inférieur à \code{B\_MIN\_DEGENERESCENCE} $= 50$, aucune p-value n'étant
 alors calculée~: «~\code{p de famille non} \code{calculee~:} \code{replications completes} \code{insuffisantes (B\_effectif}
-\code{< B\_MIN\_DEGENERESCENCE} \code{= 50)~;} \code{aucune p-value.}~» Ni T-3a ni T-3b n'apparaît
+\code{< B\_MIN\_DEGENERESCENCE} \code{= 50),} \code{aucune p-value.}~» Ni T-3a ni T-3b n'apparaît
 sur les cas de référence. Le commentaire ne porte ni la phrase du verdict proche d'un seuil,
 réservée aux lignes de type test, ni les phrases de $B$ effectif de \code{mw\_tests()} (section~\ref{sec:boot-mw}).
 
@@ -19591,7 +19636,7 @@ auxiliaire pondéré~» du TOST (§\ref{sec:nature} et~\ref{sec:modele-auxiliair
 commentaire par \code{.prefixe\_motif\_mc()}, liste \code{MOTIFS\_MC\_DEGENERES}~;
 complément du commentaire par
 \code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}) \\
-Puissance approchée a posteriori de la pente, phrase de contexte du commentaire
+Puissance approchée a posteriori de la pente, parenthèse de contexte du commentaire
 (§\ref{sec:modele-auxiliaire-regles}) &
 \code{usp\_identifiabilite\_pente()}, lue par \code{usp\_tests()} (puissance unilatérale) \\
 Test de Pitman sur la pente, sens unilatéral verrouillé (fiche~\ref{fiche:student-pente}) &
@@ -19615,8 +19660,8 @@ par \code{stats::qt()}, $\widehat{\mathrm{se}}(\hat a_w)$ lue sur la régression
 \code{.usp\_lm\_pondere()}, rapporté à $\bar y$ et arrondi à l'unité~; phrase absente sur les branches
 non applicables, à $t_a$ non fini et sans p-value de Monte-Carlo finie de la constante) \\
 Équivalence non démontrable, règle~R14 (§\ref{sec:nature}, fiche~\ref{fiche:tost-constante}) & \code{usp\_tests()} (plancher et $\rho$ calculés une fois sur l'erreur-type et la
-marge de \code{test\_tost\_intercept()}, type \code{diagnostic} passé à \code{add()}),
-constante \code{SEUIL\_ECHEC\_SENS\_REJETER} (complément du commentaire) \\
+marge de \code{test\_tost\_intercept()}, type \code{diagnostic} passé à \code{add()}~;
+$p_{\text{plancher}}$ imprimé dans le commentaire, $\rho$ non imprimé) \\
 Volumes constants et lignes non applicables (§\ref{sec:volumes-constants}) &
 \code{usp\_volumes\_constants()}, lue par \code{usp\_regime()}, par les fonctions de test sur le
 volume, par le catalogue Monte-Carlo et par \code{engine\_plots\_data()}~; motif unique et
@@ -19647,7 +19692,8 @@ Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
 \code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6~;\newline
-\code{mw\_sensibilite\_sigma2\_dernier()}~: sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ \\
+\code{mw\_sensibilite\_sigma2\_dernier()}~: sensibilité indicative de $\sqrt{\mathrm{MSEP}}$,
+recalculée hors commentaire \\
 Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 \code{mw\_msep()} \\
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
@@ -20893,7 +20939,7 @@ Une fonction, plusieurs tests & \code{test\_lm\_complet()} (3 entrées)~;
 chacune, sur $z_t$ et sur les ratios bruts $u_t$)~; \code{.usp\_mco\_qr()} (régressions
 de H1 et H2, index des fonctions) & Une anomalie se propage à toutes les
 entrées issues de l'appel~; de même, sans calculer de statistique, pour
-\code{usp\_identifiabilite\_pente()} (phrase de contexte de la ligne de la pente),
+\code{usp\_identifiabilite\_pente()} (parenthèse de contexte de la ligne de la pente),
 \code{usp\_volumes\_constants()} (régime de $\hat\pi_t$, lignes non applicables),
 \code{usp\_delta\_bord()} (bord de $\delta$~: drapeaux d'\code{usp\_regime()},
 projection du gradient, rapport de vraisemblance aux bornes) et
