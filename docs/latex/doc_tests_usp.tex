@@ -816,15 +816,28 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
-du premier nom de colonne~; conversion numérique d'un facteur par ses valeurs \\
+du premier nom de colonne, lignes et colonnes vides selon
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
+position en lignes de données~; conversion numérique d'un facteur par ses valeurs \\
+\code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
+\code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()} & tableau lu, objet
+(\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
+tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs de refus d'une
+ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
+en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X}$k$ ou
+\code{V}$k$ à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
+inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$triangle},
-\code{\$I}, \code{\$J}~; BOM retiré du premier nom de colonne, cellule non numérique refusée
-avec sa position, puis \code{mw\_valider\_triangle()} \\
+\code{\$I}, \code{\$J}~; BOM retiré du premier nom de colonne, lignes et colonnes vides selon
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
+sa position, puis \code{mw\_valider\_triangle()} \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines})~; à la lecture, dans la voie de repli, une colonne n'est
+supprimé à la sortie (§\ref{sec:graines})~; \code{openxlsx}, s'il est installé, est appelé sans
+retrait des lignes et colonnes vides et sans conversion de la cellule texte «~\code{NA}~»~; à la
+lecture, dans la voie de repli, une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
@@ -3630,8 +3643,14 @@ tableau Merz--Wüthrich). Elle émet en outre, sans refuser le calcul, trois ave
 le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux (justifié au
 §\ref{sec:mw}), colonnes sans résidu de Mack, réserve faible devant son incertitude.
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
-vaut « non observée », une cellule non vide et non numérique est refusée avec sa position,
-jamais lue comme manquante~; elle appelle ensuite \code{mw\_valider\_triangle()}.
+vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
+le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
+refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
+vides sans en-tête placées en bord sont retirées, une ligne vide intercalée ou en tête est refusée
+comme année d'accident manquante présumée (D(2)(b)), une colonne vide intercalée ou portant un
+en-tête comme année de développement manquante présumée (convention de l'outil, sans renvoi
+réglementaire), selon la règle commune décrite au paragraphe «~Lecture des fichiers~»~; elle
+appelle ensuite \code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
 d'\code{engine\_valider\_donnees()} appelée sans segment~; l'avertissement qui vaut pour le
@@ -3814,10 +3833,16 @@ $(B, \alpha)$ saisi ne satisfait pas $B + 1 > 4/\alpha$, un bandeau d'avertissem
 avant le clic, avec le texte d'\code{engine\_motif\_b\_alpha()}, sans règle dans l'interface~; le
 bouton «~Relancer les calculs~» reste actif et le clic produit l'erreur d'usage de même texte. La notification «~Calculs terminés~» n'est émise qu'après un calcul
 abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un message de R~: un
-fichier CSV ou xlsx illisible (binaire, vide, lignes plus longues que l'en-tête, classeur
-corrompu ou tronqué) est signalé par un message fixe selon le format (\code{lire\_tableau()} de
-\code{app.R}), le message de R étant écrit dans le journal~; l'interprétation d'un tableau lu
-reste au moteur (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()}).
+fichier que R ne lit pas comme tableau (CSV vide ou dont une ligne compte plus de valeurs que
+l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est signalé par un
+message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
+dans le journal~; l'interprétation d'un tableau lu reste au moteur
+(\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
+sans conversion des cellules, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
+comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
+moteur seul, avec les mêmes motifs qu'un classeur xlsx, et qu'un fichier binaire que cette
+lecture accepte est refusé par le moteur (mesuré sur vingt fichiers de 2\,000 octets aléatoires~:
+six que R ne lit pas, quatorze refusés par \code{engine\_lire\_donnees\_csv()}).
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
@@ -4172,7 +4197,26 @@ refuse de telles données en amont~; ils concernent un appel direct de
 si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
 (annexe~XVII, B(2)(b) et C(2)(b)), puis range les lignes par $t$ croissant~; à défaut, le
 fichier est refusé, sans tri ni comblement. Sans colonne $t$, l'ordre du fichier est réputé
-chronologique et la consécutivité n'est pas vérifiable. Une cellule de \code{xt} ou de
+chronologique et la consécutivité n'est pas vérifiable, à une exception près~: une ligne
+entièrement vide n'est retirée qu'en fin de tableau~; intercalée ou en tête (sous l'en-tête), elle
+est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B(2)(b) et C(2)(b)), par
+un motif qui cite sa position en lignes de données, faute de quoi la série serait lue sur une
+année de moins présentée comme consécutive (mesuré~: une ligne vide en troisième ligne de
+données, sans colonne~$t$, est refusée par «~\code{Ligne(s) vide(s) intercalee(s) (ligne(s) de
+donnees 3)}~\dots~»). Une colonne entièrement vide sans en-tête est retirée~; une colonne vide qui
+porte un en-tête est laissée aux contrôles par nom (\code{xt}, \code{yt} ou~$t$ vides refusés,
+toute autre colonne ignorée). Une cellule est vide si elle vaut \code{NA} ou est une chaîne vide
+ou faite de blancs~; un en-tête est absent s'il est vide ou \code{NA}, ou s'il a la forme que
+produit la lecture d'un classeur pour une colonne sans en-tête, \code{X}$k$ (\code{openxlsx}) ou
+\code{V}$k$ (voie de repli), $k$ étant la position de la colonne (\code{.entete\_absent()})~;
+hors de cette position, ces formes sont des en-têtes réels. Cette règle
+(\code{.retirer\_lignes\_colonnes\_vides()}), commune aux séries et au triangle, est la même quel
+que soit le chemin de lecture~: classeur lu par \code{openxlsx}, appelé sans retrait des lignes et
+colonnes vides et sans conversion de la cellule texte «~\code{NA}~», classeur lu par la voie de
+repli, ou tableau lu d'un CSV en gardant ses lignes vides. Une cellule texte «~\code{NA}~» est
+refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
+valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
+«~\code{xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
 \code{yt} non numérique est refusée avec sa position, comptée en lignes de données (première
 ligne sous l'en-tête~: ligne~1), cinq positions au plus par colonne, comme les positions de la
 colonne~$t$. \code{usp\_lire\_vecteur()} refuse une
@@ -4306,7 +4350,8 @@ tabulation, retour chariot, saut de ligne) sont donc retirés octet par octet (\
 résultat coïncide avec celui de \code{trimws()} sur une cellule valide)~; en locale UTF-8, une
 cellule non UTF-8 d'encodage non déclaré est déclarée Latin-1, sans que ses octets changent,
 de sorte que les messages qui la citent restent de l'UTF-8 valide, et elle est tenue pour non
-numérique sans appel à \code{as.numeric()} (\code{.cellules\_en\_nombre()}~; le prédicat
+numérique sans appel à \code{as.numeric()}~; les en-têtes de colonne, qu'une lecture du CSV en
+texte garde tels quels, sont déclarés de même (\code{.declarer\_latin1()}) (\code{.cellules\_en\_nombre()}~; le prédicat
 commun \code{.octets\_non\_utf8()} est faux hors locale UTF-8, où rien ne change). Le fichier
 est ainsi lu, ou refusé avec le même motif, sous une locale UTF-8 comme hors d'elle, où ces
 cellules valaient déjà \code{NA}~; l'espace insécable Windows-1252 (octet A0 isolé) est
@@ -19581,7 +19626,8 @@ Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees
 par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
-\code{engine\_lire\_triangle()} \\
+\code{engine\_lire\_triangle()}, lignes et colonnes vides par
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()} \\
 Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
 fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}) & \code{usp\_controles\_numeriques()},
 qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_engine()}~;
