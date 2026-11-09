@@ -1549,12 +1549,6 @@ $\mathrm{CV}_j$ des colonnes retenues (\code{NA} sans colonne retenue), et \code
 colonne retenue ($n_j \ge 3$, hors des colonnes exclues), vide sinon~; $e_{a,j}$ \code{NA} si
 $C(\cdot,j)$ est constant~; lit le triangle et les $\hat\sigma_j^2$, non \code{mw\_residus()}
 (fiche~\ref{mw:m1id}) \\
-\code{.mw\_format\_}\newline\code{echelle()} & valeurs, \code{decimales} & chaînes de
-caractères~: écriture fixe à \code{decimales} décimales quand sa valeur relue est dans
-$[10^{-3}~;~10^{6}[$ en valeur absolue, \code{\%.3e} sinon et pour toute valeur non finie~;
-vectorisée, \code{sprintf()} seul, aucun calcul~; appelée par \code{mw\_tests()} pour écrire
-$R_j$ (3 décimales) et $e_{a,j}$ (4) dans le commentaire de l'identifiabilité intra-colonne
-(fiche~\ref{mw:m1id}) \\
 \code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
 \code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
 (\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
@@ -9413,10 +9407,8 @@ La p-value non simulée, loi $F$ sous le modèle auxiliaire gaussien (famille~(i
 section~\ref{sec:nature}), est restituée («~F(2,5) approx.~») sans être retenue. La p-value
 retenue est de Monte-Carlo, simulée sous le modèle ajusté (clé \code{RESET}, rejet en queue
 haute), les volumes $x_t$ étant fixés. Sur le jeu de contrôle~: $F = 0{,}005077$, p-value non
-simulée $0{,}995$, p-value de Monte-Carlo $0{,}996$ retenue, \code{OK}. Le commentaire nomme la
-p-value de Monte-Carlo si elle existe, sans la déclarer retenue (phrase
-\code{PHRASE\_RENVOI\_NATURE\_P}, commune à la ligne des suites sur ratios bruts,
-fiche~\ref{fiche:suites-ratios-bruts})~; si elle manque, aucune p-value n'est retenue et la ligne
+simulée $0{,}995$, p-value de Monte-Carlo $0{,}996$ retenue, \code{OK}. Le commentaire ne déclare
+aucune p-value retenue~; si la p-value de Monte-Carlo manque, aucune p-value n'est retenue et la ligne
 devient un diagnostic «~Monte-Carlo indisponible~» (règle~(a), fiche~\ref{fiche:procedure-mc}~;
 mesuré avec \code{usp\_bootstrap(B = 40)}), sa p-value non simulée restant affichée.
 \Usage
@@ -11780,7 +11772,7 @@ condition, il dit la p-value exacte calculée (mots-clés «~\code{la p-value EX
 \ldots~\code{la meme que sur la ligne des suites sur residus standardises}~»), sauf motif de
 dégénérescence de \code{Runsr}, qui l'écarte (section~\ref{sec:nature}, point~(ii))~; hors de la
 double condition, il ne nomme la p-value de Monte-Carlo que si elle existe
-(\code{PHRASE\_RENVOI\_NATURE\_P}, à $\hat\pi_t$ variable) et dit sinon, à $\hat\pi_t$ variable
+(mention de régime \code{MENTION\_PI\_VARIABLE\_TEST}, à $\hat\pi_t$ variable) et dit sinon, à $\hat\pi_t$ variable
 seulement, qu'elle est indisponible et qu'aucune p-value n'est retenue (mesuré avec
 \code{usp\_bootstrap(B = 40)}). \emph{Aucune phrase d'\code{usp\_tests()} ne déclare la p-value
 retenue}~: la règle~R1 peut basculer la ligne en test inopérant, où \code{add()} ne retient aucune
@@ -11934,9 +11926,7 @@ La statistique converge donc vers $\sup_{u\in[0,1]}|B^\circ(u)|$, de loi de Kolm
 Asymptotiquement
 $p = 2\sum_{j=1}^{\infty}(-1)^{j-1}\exp\!\big(-2j^2\,\mathrm{CUSUM}^2\big)$.
 Le script retient la p-value de Monte-Carlo, l'approximation brownienne étant inutilisable à
-$T \le 15$. Le commentaire ne nomme \code{p\_mc} que si elle existe («~\code{La formule
-asymptotique n'a aucune validite a T = 8 ; p\_mc est calculee}~», suivi de
-\code{PHRASE\_RENVOI\_NATURE\_P})~; sinon, il la dit indisponible et aucune p-value n'est
+$T \le 15$. Si \code{p\_mc} manque, le commentaire la dit indisponible et aucune p-value n'est
 retenue~: la ligne devient un diagnostic (règle~(a), fiche~\ref{fiche:procedure-mc}~; mesuré avec
 \code{usp\_bootstrap(B = 40)}), la p-value asymptotique restant affichée sans être retenue.
 \Usage
@@ -15280,8 +15270,7 @@ $\mathrm{CV}_j$ des colonnes retenues («~\code{CV moyen des colonnes retenues}~
 colonne retenue)~; le commentaire donne, pour chaque colonne retenue, $j$, $n_j$, $\mathrm{CV}_j$,
 $R_j$ et $e_{a,j}$ («~\code{e\_a non definie (C(i,j) constant)}~» si $D_j = 0$), ou
 «~\code{Aucune colonne retenue (n\_j >= 3).}~». Toutes ces grandeurs sont calculées sur le
-triangle observé~; aucune n'est issue du bootstrap (§\ref{sec:graines}). \code{mw\_tests()} les écrit par \code{.mw\_format\_echelle()}, en virgule
-fixe dans $[10^{-3}~;~10^{6}[$, en notation scientifique sinon~; les valeurs de \code{\$detail} ne
+triangle observé~; aucune n'est issue du bootstrap (§\ref{sec:graines}). Les valeurs de \code{\$detail} ne
 sont pas arrondies. Sur le triangle de contrôle
 (\code{run\_engine()}, méthode \code{reserve2})~: estimation $0{,}0730$, et, par colonne, avec les
 multiplicateurs et les effets minimaux détectables de la rubrique~6~:
@@ -17042,11 +17031,8 @@ sensibilité de $\sqrt{\mathrm{MSEP}}$ à la valeur de $\hat\sigma^2_{J-1}$, cal
 \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit \code{mw\_msep()}, successivement par chacun des trois
 arguments du minimum, dans l'ordre du texte, puis par~$0$. Chaque valeur est imprimée à six
 chiffres significatifs, avec son écart relatif à la $\sqrt{\mathrm{MSEP}}$ de la règle, en
-pourcentage à une décimale~; au-delà d'un rapport de \code{RAPPORT\_MAX\_ECART\_MW} $= 100$ entre
-la $\sqrt{\mathrm{MSEP}}$ obtenue et celle de la règle (seuil strict), c'est ce rapport qui est
-imprimé à la place du pourcentage, précédé de «~\code{x}~», à trois chiffres significatifs. C'est
-une règle de présentation, non un garde-fou~: un pourcentage de douze chiffres ne se lit pas, et
-un rapport aussi grand signale seulement que la règle de minimum est contraignante, le quotient
+pourcentage à une décimale~; un écart relatif très grand signale seulement que la règle de
+minimum est contraignante, le quotient
 $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
 petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
 et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
