@@ -9092,23 +9092,26 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
     # Cellules renseignees sous la diagonale (issue #491, decision du
-    # mainteneur du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I non NA
-    # est signalee par un avertissement non bloquant, quelle que soit sa
-    # valeur (une valeur negative, nulle ou non finie n'y est pas refusee :
+    # mainteneur du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I
+    # renseignee (non NA, NaN compris : is.na(NaN) vaut TRUE) est signalee par
+    # un avertissement non bloquant, quelle que soit sa valeur (une valeur
+    # negative, nulle ou non finie n'y est pas refusee :
     # les controles de cellule ci-dessus ne lisent que i + j <= I). Elle peut
     # trahir des projections saisies dans la partie non observee.
     # .run_engine_mw() la met a NA avant le calcul (triangle restitue et
     # decompte des cellules observees restreints a i + j <= I). Un seul motif
     # par triangle, qui cite au plus 5 positions (ordre i puis j), comme les
     # motifs de cellules de engine_lire_triangle().
-    sous <- which(!is.na(tri) & (row(tri) + col(tri) - 2L > I), arr.ind = TRUE)
+    sous <- which((!is.na(tri) | is.nan(tri)) & (row(tri) + col(tri) - 2L > I),
+                  arr.ind = TRUE)
     if (nrow(sous)) {
       sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
       k <- utils::head(sous, 5)
       avt <- c(avt, sprintf(paste(
         "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
         "de la partie observee du triangle, ces cellules ne sont ni lues par le",
-        "calcul, ni restituees, ni comptees parmi les cellules observees ;",
+        "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
+        "observees ;",
         "verifier qu'il ne s'agit pas de valeurs projetees."),
         paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
         if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else ""))

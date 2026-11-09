@@ -1536,6 +1536,25 @@ verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas
              isTRUE(l$ok) && contient(l$avertissements, "(i=4, j=5), (i=7, j=1)") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
+verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
+         {
+           m <- tri491; m[8, 3] <- NaN
+           v <- mw_valider_triangle(m)
+           r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i=7, j=2) :") &&
+             isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
+         })
+verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \"et 1 autre(s)\" (#491)",
+         {
+           m5 <- tri491; m5[8, 2:6] <- 1
+           m6 <- tri491; m6[8, 2:7] <- 1
+           a5 <- mw_valider_triangle(m5)$avertissements
+           a6 <- mw_valider_triangle(m6)$avertissements
+           contient(a5, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) : hors") &&
+             !contient(a5, "autre(s)") &&
+             contient(a6, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) et 1 autre(s) : hors")
+         })
 
 ## --- engine_lire_donnees_csv --------------------------------------------------
 df <- data.frame(t = c(2003, 2001, 2002, 2004, 2005), xt = c(3, 1, 2, 4, 5) * 100,
