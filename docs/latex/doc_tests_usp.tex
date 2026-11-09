@@ -1936,10 +1936,12 @@ années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné 
 complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul intercepté, erreur
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
-\code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe} & erreur R explicite, citant la valeur reçue, pour un
+\code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe}, \code{methode}, noms des
+arguments fournis, \code{plus\_recent\_}\allowbreak\code{en\_dernier} & erreur R explicite, citant la valeur reçue, pour un
 argument d'appel invalide (erreur d'usage, dont $B <$ \code{B\_MIN\_USAGE} $= 99$ et, à $B$ et
-$\alpha$ valides isolément, $B + 1 \le 4/\alpha$), appelée par les deux branches avant tout calcul
-(§\ref{sec:controles}) \\
+$\alpha$ valides isolément, $B + 1 \le 4/\alpha$), pour un argument fourni sans effet pour la
+méthode et pour un \code{plus\_recent\_en\_dernier} qui n'est pas un logique scalaire non
+\code{NA}, appelée par les deux branches avant tout calcul (§\ref{sec:controles}) \\
 \code{engine\_motif\_b\_alpha()} & \code{B}, \code{alpha} & \code{NULL} si
 $2/(B+1) < \alpha/2$, ou hors du domaine de la règle ($B$ ou $\alpha$ invalide isolément,
 $B <$ \code{B\_MIN\_USAGE})~; sinon le message de l'erreur d'usage, seule source du texte, levé
@@ -3692,10 +3694,20 @@ autres qu'un calcul abouti, à ne pas confondre~:
   l'ajustement lognormal par \code{usp\_valider\_ajustement()}, au même format~;
 \item l'\textbf{erreur d'usage}~: un argument d'appel est invalide, et la faute est dans l'appel,
   non dans les données~; \code{run\_engine()} lève avant tout calcul une erreur R explicite et ne
-  rend aucun objet. En relèvent \code{methode} ou \code{annexe} hors de leur liste, \code{xt}
+  rend aucun objet. En relèvent \code{methode} ou \code{annexe} qui n'est pas exactement l'une des
+  valeurs de sa liste (\code{"premium"}, \code{"reserve1"}, \code{"reserve2"}~; \code{"II"},
+  \code{"XIV"}), aucune abréviation n'étant complétée --- \code{annexe = "X"} serait sinon lue
+  \code{"XIV"}, avec un autre $\sigma$ standard --- et \code{NULL} explicite étant refusé, l'argument
+  omis prenant son défaut (\code{"premium"}, annexe~II)~; \code{xt}
   manquant, la méthode du risque de réserve n\textsuperscript{o}~2 sans triangle, et les
   arguments contrôlés par \code{.engine\_verifier\_usage()}, appelée par les deux branches avant
-  toute validation des données, donc quelles que soient celles-ci~: \code{segment} (avec
+  toute validation des données, donc quelles que soient celles-ci~: d'abord tout argument fourni,
+  non \code{NULL}, sans effet pour la méthode --- \code{xt}, \code{yt}, \code{T},
+  \code{theta\_equiv}, \code{delta\_equiv} et \code{plus\_recent\_en\_dernier} pour la méthode
+  du risque de réserve n\textsuperscript{o}~2, \code{triangle} pour les méthodes lognormales ---, qui
+  serait sinon ignoré sans message (une valeur par défaut n'est pas un argument fourni)~;
+  \code{plus\_recent\_en\_dernier}, pour les méthodes lognormales, logique scalaire non \code{NA}
+  sans attribut (\code{1} ou \code{0} refusés)~; \code{segment} (avec
   \code{annexe}), nombre scalaire fini entier sans attribut (\code{.segment\_verifie()}), le texte (\code{"1"}) étant refusé sans conversion~: une
   conversion silencieuse masquerait l'erreur de l'appelant, un segment inconnu de l'annexe ou
   l'absence à la fois de \code{segment} et de \code{sigma\_standard} étant refusés~;
@@ -3758,7 +3770,11 @@ autres qu'un calcul abouti, à ne pas confondre~:
   (noms, dimensions) porté par \code{B}, \code{seed}, \code{bareme}, \code{alpha} ou
   \code{sigma\_standard} est refusé plutôt que normalisé~: il
   se propageait tel quel dans \code{\$metadata} et dans $\sigma_{\mathrm{USP}}$. Le message, écrit
-  par le moteur, cite la valeur reçue (mesuré~: $\alpha = 0{,}30$, \code{seed = NULL},
+  par le moteur, cite la valeur reçue (mesuré~: \code{methode = "p"}, \code{annexe = "X"},
+  \code{methode = NULL}, \code{T = 5} avec la méthode de réserve n\textsuperscript{o}~2,
+  \code{triangle} avec la méthode de primes et \code{plus\_recent\_en\_dernier = 1} lèvent chacun
+  l'erreur qui nomme l'argument, \code{xt = NULL} avec la méthode de réserve n\textsuperscript{o}~2 est
+  admis~; $\alpha = 0{,}30$, \code{seed = NULL},
   \code{seed = 1.5}, \code{bareme = "co"} et \code{sigma\_standard = 0} lèvent chacun
   l'erreur correspondante, $\alpha = 0{,}2999$ est calculé)~; un double y est cité à
   15 chiffres significatifs, ou à 17 quand l'écriture à 15 chiffres ne le restitue pas
@@ -3773,8 +3789,8 @@ autres qu'un calcul abouti, à ne pas confondre~:
   (\code{.segment\_ligne()}), et la graine non scalaire, non
   finie, non entière ou de valeur absolue supérieure à \code{.Machine\$integer.max} refusée par
   \code{usp\_bootstrap()}, avant tout tirage (\code{usp\_graine\_flux\_regime()}~; mesuré~:
-  \code{seed = 1.5} lève l'erreur)~; \code{theta\_equiv} n'en relève pas~: hors domaine, c'est un
-  refus de données~;
+  \code{seed = 1.5} lève l'erreur)~; \code{theta\_equiv} n'en relève pas~: hors domaine, avec une
+  méthode lognormale, c'est un refus de données~;
 \item le \textbf{défaut de calcul intercepté}~: une erreur R survient dans le calcul qui suit une
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
   \code{mw\_valider\_triangle()} dans la branche Merz--Wüthrich)~; \code{.engine\_calcul\_protege()}
@@ -4361,7 +4377,9 @@ reconnue par \code{.allure\_manquante\_ou\_nombre()} sous toute locale. La règl
 \code{tests/unitaires/test\_controles\_entree.R} sur des fichiers écrits octet par octet et
 lus dans la locale courante, sous la locale \code{C} et sous une locale UTF-8. Les fonctions réglementaires refusent explicitement une entrée hors
 domaine au lieu de la traiter en silence~: \code{usp\_credibilite()} une durée non entière,
-\code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"}, l'une et l'autre par une erreur d'usage (ci-dessus).
+\code{.annexe\_verifiee()} une annexe autre que \code{"II"} ou \code{"XIV"}, l'une et l'autre par une
+erreur d'usage (ci-dessus)~; \code{run\_engine()} applique la même exactitude à \code{annexe} et à
+\code{methode}.
 
 \subsection*{Méthode Merz--Wüthrich (annexe XVII, section D, paragraphes 2, 4 et 5)}
 
