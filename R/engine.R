@@ -7728,9 +7728,10 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
 # cellules a valeur sont des cellules nombre est rendue en numerique ; une
 # colonne qui porte une cellule texte est rendue en caractere, nombres
-# compris (#490). Aucune ligne ni colonne vide n'est
-# retiree ici sans message : openxlsx est appele avec skipEmptyRows et
-# skipEmptyCols a FALSE (son reglage par defaut les retirait), et avec
+# compris, une cellule booleenne en "TRUE"/"FALSE" (#490). Aucune ligne ni
+# colonne vide n'est retiree ici sans message : openxlsx est appele avec
+# skipEmptyRows et skipEmptyCols a FALSE (son reglage par defaut les
+# retirait), et avec
 # na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
 # comme dans le lecteur interne. La regle des lignes et colonnes vides est
 # posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
@@ -7739,7 +7740,9 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # ("X<col>" pour openxlsx, "V<col>" ici), lignes au-dessus de l'en-tete
 # (sautees par openxlsx, lues ici comme en-tete) ; lignes et colonnes mises
 # en forme sans valeur (cellules <c .../> sans <v>) gardees ici, ignorees par
-# openxlsx.
+# openxlsx ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
+# <v>0x10</v>, cellule forgee) : lue 16 par openxlsx, colonne
+# laissee en caractere ici et cellule refusee en aval.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   if (requireNamespace("openxlsx", quietly = TRUE))
     return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
@@ -7780,6 +7783,10 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     regmatches(cells[isx], regexpr("<t[^>]*>.*?</t>", cells[isx])))
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[as.integer(val[s]) + 1L]
+  # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE", comme
+  # openxlsx : sa valeur brute "1"/"0" passerait pour un nombre en aval.
+  b <- typ == "b" & !is.na(val)
+  if (any(b)) val[b] <- ifelse(val[b] == "1", "TRUE", ifelse(val[b] == "0", "FALSE", val[b]))
   m <- matrix(NA_character_, max(lig), max(col))
   m[cbind(lig, col)] <- val
   if (entete) {
@@ -7789,18 +7796,22 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   df <- as.data.frame(corps, stringsAsFactors = FALSE)
   names(df) <- make.unique(nm)
   # Conversion en numerique d'une colonne dont toutes les cellules a valeur
-  # sont des cellules nombre (sans attribut t, ou t="n") ; une
-  # colonne qui porte une cellule texte (t="s", "inlineStr", "str"), booleenne
-  # ou d'erreur reste en caractere, et ses cellules sont interpretees en aval
-  # par .cellules_en_nombre() (as.numeric() lisait "0x10" ecrit en texte
-  # comme 16, #490).
+  # sont des cellules nombre (sans attribut t, ou t="n") qui se lisent par
+  # .cellules_en_nombre() (point decimal, exposant complet "1e-05", "1.5E+20"
+  # admis ; hexadecimal "0x10" et exposant incomplet refuses, #490). Une
+  # colonne qui porte une cellule texte (t="s", "inlineStr", "str"),
+  # booleenne ou d'erreur, ou une cellule nombre de forme refusee, reste en
+  # caractere : ses cellules sont interpretees en aval par
+  # .cellules_en_nombre(), qui refuse la cellule fautive avec sa position
+  # (as.numeric() lisait "0x10" comme 16, en cellule texte comme en
+  # cellule nombre forgee).
   tm <- matrix(NA_character_, max(lig), max(col))
   tm[cbind(lig, col)] <- ifelse(is.na(val), NA_character_, typ)
   if (entete) tm <- tm[-1, , drop = FALSE]
   for (j in seq_along(df)) {
     tj <- tm[, j]
     if (!all(is.na(tj) | tj == "n")) next
-    num <- suppressWarnings(as.numeric(df[[j]]))
+    num <- .cellules_en_nombre(df[[j]])
     if (all(is.na(num) == is.na(df[[j]]))) df[[j]] <- num
   }
   df

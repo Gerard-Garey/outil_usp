@@ -1834,6 +1834,27 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx, lecteur interne (#490) : +-Inf ecrits en chaine gardent leur colonne en caractere, nombres de la colonne en chaine",
            identical(dinf490$interne$xt, c("100", "Inf", "102")) &&
              identical(dinf490$interne$yt, c("60", "61", "-Inf")))
+  # Cellule booleenne t="b" : rendue "TRUE"/"FALSE" (valeur brute 1/0 lue
+  # comme un nombre auparavant), refusee en aval sur chaque chemin.
+  bool490 <- function(s) sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="b"><v>1</v></c>', s, fixed = TRUE)
+  dbool490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), bool490), identity)
+  verifier("xlsx, lecteur interne (#490) : cellule booleenne t=\"b\" rendue \"TRUE\", colonne en caractere, refusee sur chaque chemin",
+           identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
+             tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
+                  "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).")))
+  # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
+  # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
+  # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.
+  hex490 <- function(s) {
+    s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3"><v>0x10</v></c>', s, fixed = TRUE)
+    s <- sub('<c r="B2"><v>60</v></c>', '<c r="B2"><v>6E+1</v></c>', s, fixed = TRUE)
+    sub('<c r="B3"><v>61</v></c>', '<c r="B3"><v>6.1e1</v></c>', s, fixed = TRUE)
+  }
+  dhex490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), hex490), identity)
+  verifier("xlsx, lecteur interne (#490) : cellule nombre forgee \"0x10\" garde sa colonne en caractere, refusee avec sa position ; exposants complets lus en nombre",
+           identical(dhex490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
+             identical(dhex490$interne$yt, as.numeric(60:64)) &&
+             identical(engine_lire_donnees_csv(dhex490$interne)$erreurs, motif490))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
