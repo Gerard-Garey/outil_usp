@@ -939,6 +939,21 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   !is.na(x) & !validUTF8(x)
 }
 
+# En locale UTF-8, declare Latin-1 les chaines non UTF-8 d'encodage
+# "unknown", sans changer leurs octets ni aucun autre caractere : les
+# messages qui les citent restent de l'UTF-8 valide (#99). Utilisee par
+# .nettoyer_cellules() pour les cellules, et par engine_lire_donnees_csv()
+# et engine_lire_triangle() pour les en-tetes : un CSV lu en texte avec
+# check.names = FALSE (application, #483) garde un en-tete Windows-1252
+# ("ann<E9>e") ou les octets d'un fichier binaire tels quels, que les motifs
+# "Colonnes presentes" et "Colonne(s) vide(s) portant un en-tete" citent
+# (mesure du 08/11/2026, R 4.3.3, C.UTF-8 : motif non UTF-8 sans elle).
+.declarer_latin1 <- function(x) {
+  inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
+  if (any(inv)) Encoding(x)[inv] <- "latin1"
+  x
+}
+
 # Retire les blancs ASCII (espace, tabulation, retour chariot, saut de ligne)
 # en tete et en fin de chaque cellule, comme trimws() avec son jeu de blancs
 # par defaut, mais octet par octet (useBytes, motifs ASCII) : aucune erreur
@@ -954,8 +969,7 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # etant inchanges, .allure_manquante_ou_nombre() reconnait l'espace
 # insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme ailleurs.
 .nettoyer_cellules <- function(x) {
-  inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
-  if (any(inv)) Encoding(x)[inv] <- "latin1"
+  x <- .declarer_latin1(x)
   y <- sub("[ \t\r\n]+$", "", sub("^[ \t\r\n]+", "", x, useBytes = TRUE), useBytes = TRUE)
   # Encoding<- refuse une valeur de longueur nulle : entree vide rendue telle
   # que sub() la rend (attributs, dont dim, conserves).
@@ -7311,8 +7325,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # La LECTURE du fichier (acces disque) reste du ressort de la couche Shiny ;
 # cette fonction ne fait que l'interpretation structurelle du tableau une fois
 # charge, ce qui la rend testable independamment de toute interface :
-#     df  <- utils::read.csv("usp_donnees.csv")
+#     df  <- utils::read.csv("usp_donnees.csv", colClasses = "character",
+#                            blank.lines.skip = FALSE, check.names = FALSE,
+#                            na.strings = character(0))
 #     res <- engine_lire_donnees_csv(df)
+# (lecture en texte de l'application, lire_tableau() : les cellules, les
+# lignes vides et les en-tetes vides sont interpretes ici seulement, #483).
 # Regles (issue #33, avis d'actuary du 24/09/2026) :
 #  - une colonne facteur est convertie par ses VALEURS (texte), jamais par ses
 #    codes internes ;
@@ -7358,10 +7376,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # Renvoie list(df, erreurs) : df sans ses lignes de fin ni ses colonnes vides
 # retirees, erreurs vide ou les motifs de refus.
 .entete_absent <- function(noms) {
-  # En-tete vide sous ses formes generees : "" ou NA ; "X<col>" (openxlsx) ;
-  # "V<col>" (lecteur interne d'engine_lire_xlsx()) ; "X", "X.1"...
-  # (utils::read.csv, check.names = TRUE).
-  is.na(noms) | !nzchar(noms) | grepl("^[XV][0-9]+$|^X(\\.[0-9]+)?$", noms)
+  # En-tete vide sous ses formes generees : "" ou NA (CSV lu avec
+  # check.names = FALSE, comme par l'application) ; "X<k>" (openxlsx) ou
+  # "V<k>" (lecteur interne d'engine_lire_xlsx()), k etant la position de la
+  # colonne dans le tableau lu (mesure, openxlsx 4.2.9 et lecteur interne,
+  # tableau en colonne A ou decale en colonne B). Un "X<n>" ou "V<n>" hors de
+  # sa position est un en-tete reel : un en-tete "8" lu "X8" par read.csv
+  # (check.names = TRUE) en 10e colonne n'est pas pris pour absent, comme en
+  # xlsx ou il reste "8" (reserve de la revue de #483). Les formes "X",
+  # "X.1"... de read.csv avec check.names = TRUE ne sont pas reconnues :
+  # ni l'application (CSV lu avec check.names = FALSE) ni engine_lire_xlsx()
+  # ne les produisent ; un tel en-tete est traite comme reel. Un appelant
+  # direct qui lit le CSV par read.csv avec ses reglages par defaut obtient
+  # ces formes (README, "Usage sans Shiny").
+  k <- seq_along(noms)
+  is.na(noms) | !nzchar(noms) | noms == paste0("X", k) | noms == paste0("V", k)
 }
 
 .retirer_lignes_colonnes_vides <- function(df, objet = c("series", "triangle")) {
@@ -7423,6 +7452,17 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   list(df = df[, !retirer, drop = FALSE], erreurs = err)
 }
 
+# Vrai pour une cellule texte qui vaut exactement "NA" apres retrait des
+# blancs de bord : lue en chaine par les deux lectures de fichiers
+# (na.strings = character(0) en xlsx et dans lire_tableau() de
+# l'application, #483), elle est refusee comme non numerique ; le motif le
+# dit (phrases fixes d'engine_lire_donnees_csv() et engine_lire_triangle()).
+.cellule_texte_na <- function(v) {
+  if (is.factor(v)) v <- as.character(v)
+  if (!is.character(v)) return(rep(FALSE, length(v)))
+  !is.na(v) & .nettoyer_cellules(v) == "NA"
+}
+
 .en_numerique <- function(v) {
   if (is.factor(v)) v <- as.character(v)
   # Cellule non UTF-8 en locale UTF-8 : non numerique, sans erreur R (#99).
@@ -7439,6 +7479,8 @@ engine_lire_donnees_csv <- function(df) {
   # (premiere colonne) n'etait plus reconnue et le controle des annees ne
   # s'appliquait pas, sans message (issue #96).
   if (ncol(df)) names(df)[1] <- .nom_sans_bom(names(df)[1])
+  # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
+  names(df) <- .declarer_latin1(names(df))
   noms <- names(df)
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(manquantes)) {
@@ -7468,8 +7510,13 @@ engine_lire_donnees_csv <- function(df) {
       sprintf("%s : ligne(s) %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
               if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
     }
-    err <- c(err, sprintf("Certaines valeurs de xt ou yt ne sont pas numeriques (%s).",
-                          paste(c(pos("xt", xt), pos("yt", yt)), collapse = " ; ")))
+    err <- c(err, paste0(sprintf("Certaines valeurs de xt ou yt ne sont pas numeriques (%s).",
+                                 paste(c(pos("xt", xt), pos("yt", yt)), collapse = " ; ")),
+                         # Cellule "NA" (texte) : phrase fixe, sans nombre (#483).
+                         if (any(.cellule_texte_na(df$xt) & is.na(xt)) ||
+                             any(.cellule_texte_na(df$yt) & is.na(yt)))
+                           paste(" Une cellule \"NA\" est lue comme du texte, non comme une valeur",
+                                 "manquante : renseigner la valeur.")))
   }
   if ("t" %in% noms) {
     to <- .en_numerique(df$t)
@@ -7509,6 +7556,8 @@ engine_lire_triangle <- function(df) {
   # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne "i" n'etait
   # plus reconnue et le triangle etait refuse avec un motif trompeur (#96).
   names(df)[1] <- .nom_sans_bom(names(df)[1])
+  # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
+  names(df) <- .declarer_latin1(names(df))
   # Lignes vides (colonne "i" comprise) et colonnes vides (colonne "i" hors
   # regle) : voir .retirer_lignes_colonnes_vides() (#483).
   lv <- .retirer_lignes_colonnes_vides(df, "triangle")
@@ -7526,14 +7575,23 @@ engine_lire_triangle <- function(df) {
   })
   num <- lapply(brut, .en_numerique)
   vide <- lapply(brut, function(v) is.na(v) | (is.character(v) & !nzchar(v)))
-  illisible <- which(!do.call(base::cbind, vide) & is.na(do.call(base::cbind, num)), arr.ind = TRUE)
+  # Listes sans noms : cbind() ne traduit pas les en-tetes declares Latin-1
+  # (avertissement "unable to translate" pour un octet sans caractere en
+  # Windows-1252, fichier binaire lu en texte, #483) ; seuls les indices
+  # servent.
+  illisible <- which(!do.call(base::cbind, unname(vide)) & is.na(do.call(base::cbind, unname(num))),
+                     arr.ind = TRUE)
   if (length(illisible)) {
     k <- utils::head(illisible, 5)
-    return(refus(sprintf("Cellule(s) non numerique(s) en %s%s.",
-                         paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
-                         if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else "")))
+    # Cellule "NA" (texte, toujours non numerique) : phrase fixe (#483).
+    na_txt <- any(vapply(brut, function(v) any(.cellule_texte_na(v)), logical(1)))
+    return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s%s.",
+                                paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+                                if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else ""),
+                        if (na_txt) paste(" Une cellule non observee doit etre laissee vide (pas \"NA\",",
+                                          "lu comme du texte)."))))
   }
-  m <- unname(do.call(base::cbind, num))
+  m <- do.call(base::cbind, unname(num))
   storage.mode(m) <- "double"
   v <- mw_valider_triangle(m)
   list(ok = v$ok, erreurs = v$erreurs, avertissements = v$avertissements,

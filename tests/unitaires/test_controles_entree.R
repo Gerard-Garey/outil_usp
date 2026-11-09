@@ -1583,7 +1583,7 @@ verifier("Colonnes vides (#483) : series, colonne vide sans en-tete retiree (bor
          {
            r0 <- engine_lire_donnees_csv(ser483)
            all(vapply(list(col_vide(ser483, 0, "X1"), col_vide(ser483, 1, "X2"), col_vide(ser483, 2, "V3"),
-                           en_texte(col_vide(ser483, 1, "X"))),
+                           en_texte(col_vide(ser483, 1, ""))),
                       function(d) identical(engine_lire_donnees_csv(d), r0), logical(1)))
          })
 tri483 <- fichier_tri(triangle(6))
@@ -1609,9 +1609,9 @@ verifier("Colonnes vides (#483) : triangle, colonne vide sans en-tete en bord (g
          {
            r0 <- engine_lire_triangle(tri483)
            # forme texte : valeurs ecrites par as.character() (15 chiffres), d'ou all.equal()
-           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X9")),
+           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X8")),
                       function(d) identical(engine_lire_triangle(d), r0), logical(1))) &&
-             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, "X.1"))), r0,
+             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, ""))), r0,
                               tolerance = 1e-15))
          })
 verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
@@ -1625,6 +1625,91 @@ verifier("Colonnes vides (#483) : triangle, colonne vide en bord portant un en-t
          {
            r <- engine_lire_triangle(col_vide(tri483, 7, "j6"))
            !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : j6)")
+         })
+# Reserve de la revue de #483 : "X<n>" / "V<n>" n'est un en-tete genere qu'a
+# sa position n. Un triangle CSV a en-tetes "0" a "6", colonne "6" vide, lu
+# par read.csv avec check.names = TRUE ("X6" en 8e colonne), etait retire sans
+# message alors que le meme tableau en xlsx (en-tete "6") etait refuse.
+verifier("Colonnes vides (#483) : en-tete \"X<n>\" hors de sa position (en-tete \"6\" lu \"X6\" par read.csv) refuse comme en-tete reel, comme en xlsx",
+         {
+           d <- col_vide(tri483, 7, "6"); names(d) <- c("i", 0:5, "6")
+           f <- tempfile(fileext = ".csv")
+           utils::write.csv(d, f, row.names = FALSE, na = "")
+           a <- utils::read.csv(f, stringsAsFactors = FALSE)          # check.names = TRUE
+           b <- utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                check.names = FALSE, na.strings = character(0))
+           unlink(f)
+           ra <- engine_lire_triangle(a); rb <- engine_lire_triangle(b); rd <- engine_lire_triangle(d)
+           identical(names(a)[8], "X6") && identical(names(b)[8], "6") &&
+             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : X6)") &&
+             !rb$ok && identical(rb$erreurs, rd$erreurs) &&
+             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : 6)") &&
+             identical(.entete_absent(c("X1", "V2", "X2", "V1", "X", "X.1", "", NA)),
+                       c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE))
+         })
+# En-tetes non UTF-8 (#483, avec #99) : un CSV lu en texte avec
+# check.names = FALSE (application) garde un en-tete Windows-1252 ou les
+# octets d'un fichier binaire ; les motifs qui le citent restent de l'UTF-8
+# valide en locale UTF-8 (en-tete declare Latin-1, octets inchanges), sans
+# avertissement R. Hors locale UTF-8, comportement inchange (non verifie ici).
+if (isTRUE(l10n_info()[["UTF-8"]])) {
+  e1252_483 <- rawToChar(c(charToRaw("ann"), as.raw(0xe9), charToRaw("e")))
+  sans_car_483 <- rawToChar(as.raw(c(0x61, 0x81, 0x62)))
+  avert483 <- function(expr) {
+    w <- character(0)
+    v <- withCallingHandlers(expr, warning = function(x) {
+      w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+    list(v = v, w = w)
+  }
+  verifier("En-tetes non UTF-8 (#483, #99) : motifs \"Colonnes presentes\" et \"portant un en-tete\" en UTF-8 valide, en-tete Windows-1252 cite \"annee\" accentue, sans avertissement",
+           {
+             d <- data.frame(a = c("1", "2"), b = c("3", "4"), stringsAsFactors = FALSE)
+             names(d) <- c(e1252_483, "primes")
+             s1 <- avert483(engine_lire_donnees_csv(d))
+             tri <- en_texte(col_vide(tri483, 7, sans_car_483)); names(tri)[8] <- e1252_483
+             s2 <- avert483(engine_lire_triangle(tri))
+             tri[2, 8] <- "x"; names(tri)[8] <- sans_car_483
+             s3 <- avert483(engine_lire_triangle(tri))
+             !s1$v$ok && validUTF8(s1$v$erreurs) &&
+               contient(s1$v$erreurs, "Colonnes presentes : année, primes.") &&
+               !s2$v$ok && validUTF8(s2$v$erreurs) &&
+               contient(s2$v$erreurs, "(colonne(s) 8 : année)") &&
+               !s3$v$ok && validUTF8(s3$v$erreurs) && contient(s3$v$erreurs, "Cellule(s) non numerique(s)") &&
+               !length(c(s1$w, s2$w, s3$w))
+           })
+  verifier("En-tetes non UTF-8 (#483) : triangle accepte a en-tete de developpement \"a<81>b\", lu comme l'application, sans avertissement et identique au triangle a en-tetes ASCII",
+           {
+             f <- tempfile(fileext = ".csv")
+             d <- tri483; names(d)[4] <- "ZZ"
+             utils::write.csv(d, f, row.names = FALSE, na = "")
+             l <- readLines(f); l[1] <- sub("\"ZZ\"", sans_car_483, l[1], fixed = TRUE, useBytes = TRUE)
+             writeLines(l, f, useBytes = TRUE)
+             lu <- utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                   check.names = FALSE, na.strings = character(0))
+             unlink(f)
+             s4 <- avert483(engine_lire_triangle(lu))
+             !validUTF8(names(lu)[4]) && isTRUE(s4$v$ok) && !length(s4$w) &&
+               isTRUE(all.equal(s4$v$triangle, engine_lire_triangle(tri483)$triangle, tolerance = 1e-15))
+           })
+}
+# Cellule texte "NA" (#483, decision par defaut de la session, soumise au
+# mainteneur) : toujours refusee (alignee sur xlsx, na.strings =
+# character(0)), le motif le dit par une phrase fixe ; absente sans "NA".
+verifier("Cellule texte \"NA\" (#483) : refus motive par une phrase fixe, series et triangle ; phrase absente pour une autre cellule non numerique",
+         {
+           s_na <- engine_lire_donnees_csv(data.frame(xt = c("100", " NA ", "102", "103", "104"),
+                                                      yt = c("60", "61", "62", "63", "64"), stringsAsFactors = FALSE))
+           s_x <- engine_lire_donnees_csv(data.frame(xt = c("100", "x", "102", "103", "104"),
+                                                     yt = c("60", "61", "62", "63", "64"), stringsAsFactors = FALSE))
+           t_txt <- en_texte(tri483); t_txt$j2[2] <- "NA"
+           t_x <- en_texte(tri483); t_x$j2[2] <- "x"
+           r_na <- engine_lire_triangle(t_txt); r_x <- engine_lire_triangle(t_x)
+           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).",
+                                         "Une cellule \"NA\" est lue comme du texte, non comme une valeur manquante : renseigner la valeur.")) &&
+             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).") &&
+             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=2).",
+                                           "Une cellule non observee doit etre laissee vide (pas \"NA\", lu comme du texte).")) &&
+             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i=1, j=2).")
          })
 verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
          {
@@ -1696,6 +1781,8 @@ if (nzchar(Sys.which("zip"))) {
   rtforme <- chemins483(xlsx483(tri483, formes_fin("J", 7)), engine_lire_triangle)
   rtinter <- chemins483(xlsx483(tri483, decaler("D")), engine_lire_triangle)
   rna <- chemins483(xlsx483(within(tri483, { j5 <- as.character(j5); j5[2] <- "NA" })), engine_lire_triangle)
+  d6_483 <- col_vide(tri483, 7, "6"); names(d6_483) <- c("i", 0:5, "6")
+  r6 <- chemins483(xlsx483(d6_483), engine_lire_triangle)
   verifier("Lignes vides (#483) : xlsx sans t a ligne vide intercalee (cas t7) refuse, meme motif sur chaque chemin",
            tous(r7, function(r) !r$ok && identical(r$erreurs,
                 engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)))
@@ -1718,6 +1805,8 @@ if (nzchar(Sys.which("zip"))) {
   verifier("Colonnes vides (#483) : xlsx de triangle a colonne vide intercalee refuse, meme motif sur chaque chemin",
            tous(rtinter, function(r) !r$ok &&
                 identical(r$erreurs, engine_lire_triangle(col_vide(tri483, 3, "X4"))$erreurs)))
+  verifier("Colonnes vides (#483) : xlsx de triangle a colonne de fin vide d'en-tete \"6\" refuse sur chaque chemin, meme motif que le CSV lu en texte",
+           tous(r6, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(d6_483)$erreurs)))
   verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
            tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
