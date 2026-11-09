@@ -824,8 +824,8 @@ position en lignes de données~; conversion numérique d'un facteur par ses vale
 (\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
 tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs de refus d'une
 ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
-en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X}$k$ ou
-\code{V}$k$ à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
+en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
+\code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$triangle},
@@ -4256,13 +4256,13 @@ entièrement vide n'est retirée qu'en fin de tableau~; intercalée ou en tête 
 est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B(2)(b) et C(2)(b)), par
 un motif qui cite sa position en lignes de données, faute de quoi la série serait lue sur une
 année de moins présentée comme consécutive (mesuré~: une ligne vide en troisième ligne de
-données, sans colonne~$t$, est refusée par «~\code{Ligne(s) vide(s) intercalee(s) (ligne(s) de
-donnees 3)}~\dots~»). Une colonne entièrement vide sans en-tête est retirée~; une colonne vide qui
+données, sans colonne~$t$, est refusée par le motif des lignes vides intercalées, qui la situe
+«~\code{(ligne(s) de donnees 3)}~»). Une colonne entièrement vide sans en-tête est retirée~; une colonne vide qui
 porte un en-tête est laissée aux contrôles par nom (\code{xt}, \code{yt} ou~$t$ vides refusés,
 toute autre colonne ignorée). Une cellule est vide si elle vaut \code{NA} ou est une chaîne vide
 ou faite de blancs~; un en-tête est absent s'il est vide ou \code{NA}, ou s'il a la forme que
-produit la lecture d'un classeur pour une colonne sans en-tête, \code{X}$k$ (\code{openxlsx}) ou
-\code{V}$k$ (voie de repli), $k$ étant la position de la colonne (\code{.entete\_absent()})~;
+produit la lecture d'un classeur pour une colonne sans en-tête, \code{X<k>} (\code{openxlsx}) ou
+\code{V<k>} (voie de repli), $k$ étant la position de la colonne (\code{.entete\_absent()})~;
 hors de cette position, ces formes sont des en-têtes réels. Cette règle
 (\code{.retirer\_lignes\_colonnes\_vides()}), commune aux séries et au triangle, est la même quel
 que soit le chemin de lecture~: classeur lu par \code{openxlsx}, appelé sans retrait des lignes et
