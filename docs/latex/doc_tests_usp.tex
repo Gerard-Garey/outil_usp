@@ -780,8 +780,8 @@ hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
 de ligne déclaré d'encodage \code{"bytes"}, par un motif propre, un par ligne, qui ne cite pas le
 nom, ce nom étant exclu des contrôles de nom manquant et de doublon, ses caractères n'étant pas
-déterminés~; avertissement de
-crédibilité partielle sur $c(I + 1, \text{barème appliqué}) < 1$ \\
+déterminés~; avertissement des cellules $i + j > I$ renseignées, non lues par le calcul~;
+avertissement de crédibilité partielle sur $c(I + 1, \text{barème appliqué}) < 1$ \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
@@ -3630,7 +3630,8 @@ La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux mome
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
 l'ajustement et ne lit aucune grandeur estimée~: elle porte sur les données fournies
 (dimensions, complétude de la partie observée, positivité des cumulés, domaine numérique des
-cellules observées, noms de ligne), puis sur le barème, le
+cellules observées, noms de ligne, cellules renseignées sous la diagonale, signalées sans refus),
+puis sur le barème, le
 segment et l'annexe transmis, dont une valeur invalide est une erreur bloquante, sans erreur~R. Ce second contrôle vient après celui des cellules, qu'il ne masque pas~: les
 erreurs s'additionnent, comme dans \code{engine\_valider\_donnees()} (mesuré sur le triangle de
 contrôle muni d'une cellule observée manquante, d'un cumul négatif et du segment~99~: trois erreurs
@@ -4408,6 +4409,12 @@ $\hat\sigma^2_j$ au-delà de $j = J-1$). Bloquant. \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
+Cellules sous la diagonale & aucune cellule $i + j > I$ renseignée (\code{NaN} compris), quelle que
+soit sa valeur & \textbf{Avertissement}, non bloquant, convention de l'outil sans source
+réglementaire~: une telle cellule peut trahir des valeurs projetées saisies dans la partie non
+observée~; elle n'est ni lue par le calcul, ni restituée dans \code{res\$triangle}, ni comptée
+parmi les cellules observées (\code{.run\_engine\_mw()} la met à \code{NA} après la validation).
+Un seul avertissement par triangle, cinq positions au plus. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Domaine numérique & chaque cellule observée ($i + j \le I$) dans $[10^{-50}\,;10^{50}]$, bornes
