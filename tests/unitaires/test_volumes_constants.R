@@ -478,4 +478,11 @@ verifier("Invariant I2 dans la bande : aucune nature 'asymptotique' sans motif",
          all(vapply(res_bande, function(r)
            sum(engine_table_tests(r)$nature_p == "asymptotique", na.rm = TRUE) == 0L, logical(1))))
 
+# #514 (A3, S1 et S3) : texte propre en deux phrases au plus et 400
+# caracteres au plus, volumes constants et bande de tolerance.
+verifier_detail(res_var, "volumes variables (jeu de reference)")
+for (nm514 in names(res_bande))
+  if (inherits(res_bande[[nm514]], "usp_engine"))
+    verifier_detail(res_bande[[nm514]], paste("bande :", nm514))
+
 fin_fichier()

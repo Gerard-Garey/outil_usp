@@ -109,15 +109,19 @@ rejeu_t4 <- rejeu273(t4_273)
 # Ligne de l'ordonnee de mw_tests()
 ligne_origine <- function(aj, boot)
   Filter(function(r) grepl("ordonnee a l'origine", r$test), mw_tests(aj, boot))[[1]]
+# Textes de #514 (specification finale d'actuary, par. 4 et M14) : texte
+# propre de la ligne (usage, lignes liees), puis la mention d'exclusion.
 base273 <- paste(
-  "La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
-  "estimateur exactement f_j (identite de Mack, verifiee a 1e-16).",
-  "Ajouter une constante fournit donc le test naturel de la",
-  "proportionnalite, colonne par colonne.")
+  "Un ECHEC ou une ALERTE signale une composante fixe (ordonnee a l'origine)",
+  "dans au moins une colonne, contraire a la proportionnalite des cumules. A",
+  "lire avec \"Absence de tendance des facteurs avec le cumul, a colonne",
+  "donnee\" et \"Identifiabilite intra-colonne (dispersion des cumuls par",
+  "colonne)\", qui borne sa puissance.")
 phrase273_t4 <- paste(
-  "Colonne a moins de deux valeurs distinctes de C(i,j) : j = 1 (6 facteurs) ;",
-  "ordonnee a l'origine non identifiable, colonne hors de la combinaison de Fisher ;",
-  "K = 4 colonne(s) testee(s) sur 5 eligible(s). L'exclusion ne vaut pas preuve de proportionnalite.")
+  "Colonne a moins de deux valeurs distinctes de C(i,j) : j = 1 (6 facteurs),",
+  "ordonnee a l'origine non identifiable, colonne hors de la combinaison de Fisher,",
+  "K = 4 colonne(s) testee(s) sur 5 eligible(s), exclusion qui ne vaut pas preuve de",
+  "proportionnalite.")
 # Commentaire sans la phrase de #244 finale, si elle est posee
 sans244 <- function(x) {
   s <- paste0(" ", PHRASE_VERDICT_SENSIBLE_MC)
@@ -222,9 +226,9 @@ verifier("T273-6 : detail : T4, phrase fixe apres le libelle de base, estimation
              deg_t4d = identical(.mw_ensembles_figes(ad)$degeneres, c(2L, 6L)) &&
                identical(.mw_ensembles_figes(ad)$origine_non_identifiables, 1L),
              deux = p_deg > 0 && p_ni > 0, ordre = p_deg < p_ni,
-             ni = grepl("j = 1 (6 facteurs) ; ordonnee a l'origine non identifiable", cm, fixed = TRUE),
+             ni = grepl("j = 1 (6 facteurs), ordonnee a l'origine non identifiable", cm, fixed = TRUE),
              clause = lengths(regmatches(cm, gregexpr(
-               "K = 3 colonne(s) testee(s) sur 5 eligible(s).", cm, fixed = TRUE))) == 2L,
+               "K = 3 colonne(s) testee(s) sur 5 eligible(s), exclusion", cm, fixed = TRUE))) == 2L,
              estim_d = identical(as.numeric(ld$estim), 3)))
          })
 verifier("T273-7 : colonne quasi constante (1e-8, six valeurs distinctes, lm() a un coefficient) : hors de l'ensemble (option (A)), statistique observee NA, ligne non applicable par le motif d'indisponibilite, aucun stop() (#273)",
@@ -271,9 +275,9 @@ verifier("Reprise C2 : T4q, statistique observee NA et ensemble fige {1} : phras
            o <- mw_test_ordonnee_origine(aq)
            ph <- .mw_phrase_origine_non_identifiable(o)
            att <- paste(
-             "Colonne a moins de deux valeurs distinctes de C(i,j) : j = 1 (6 facteurs) ;",
-             "ordonnee a l'origine non identifiable, colonne hors de la combinaison de Fisher.",
-             "L'exclusion ne vaut pas preuve de proportionnalite.")
+             "Colonne a moins de deux valeurs distinctes de C(i,j) : j = 1 (6 facteurs),",
+             "ordonnee a l'origine non identifiable, colonne hors de la combinaison de Fisher,",
+             "exclusion qui ne vaut pas preuve de proportionnalite.")
            l <- ligne_origine(aq, mw_bootstrap(aq, B = 99, seed = 20260831))
            ok_liste(list(
              cinq = length(unique(t4q_273[1:5, 3])) == 5L,
@@ -284,5 +288,14 @@ verifier("Reprise C2 : T4q, statistique observee NA et ensemble fige {1} : phras
              sans_K = !grepl("K = ", ph, fixed = TRUE) && !grepl("eligible(s)", ph, fixed = TRUE),
              ligne = grepl(att, l$detail, fixed = TRUE) && !grepl("K = NA", l$detail, fixed = TRUE)))
          })
+
+# #514 (A3, S17) : texte propre en deux phrases au plus et 400 caracteres au
+# plus, phrases d'exclusion de colonnes hors compte (M14).
+verifier_detail(mw_tests(boot_t4$aj, boot_t4$boot), "Merz-Wuthrich, colonne non identifiable (T4)")
+local({
+  ad <- mw_ajuster(t4d_273)
+  verifier_detail(mw_tests(ad, mw_bootstrap(ad, B = 99, seed = 20260831)),
+                  "Merz-Wuthrich, colonnes degeneree et non identifiable (T4d)")
+})
 
 fin_fichier()

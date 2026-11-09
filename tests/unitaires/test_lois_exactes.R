@@ -395,32 +395,43 @@ cas_runsr <- list(f29 = f29, f29_0 = f29_0, f29_bande = f29_bande,
                   f29_t5 = f29_t5, f29_ea = f29_ea)
 # Critere sur p_exacte (et non sur nature_p) : un test inoperant (#44) garde
 # sa p exacte calculee mais n'a plus de p retenue ni de nature.
-verifier("Runsr (#29) : loi et detail contiennent EXACTE si et seulement si une p exacte est attribuee",
+# Depuis #514 (specification finale d'actuary, Runsr), le detail de la
+# branche 1 dit "statistique et p exacte identiques" au lieu de "EXACTE".
+txt_r15_514 <- function(h) paste0("Diagnostic (regle R15), sans verdict ni p-value retenue : la ligne \"",
+                                  h, "\" fait foi.")
+TXT_RUNSR_B1 <- paste("statistique et p exacte identiques a celles de la ligne homologue sur",
+                      "residus standardises (doublon exact).")
+verifier("Runsr (#29) : loi contient EXACTE et detail 'p exacte identiques' si et seulement si une p exacte est attribuee",
          {
            ok <- vapply(cas_runsr, function(f) {
              b <- ligne29(f, "Test des suites sur ratios bruts")
              ex <- is.finite(b$p_exacte)
              ex == grepl("EXACTE", b$loi, fixed = TRUE) &&
-               ex == grepl("EXACTE", b$detail, fixed = TRUE)
+               ex == grepl(TXT_RUNSR_B1, b$detail, fixed = TRUE)
            }, logical(1))
            if (all(ok)) TRUE else paste("cas en defaut :", paste(names(ok)[!ok], collapse = ", "))
          })
 verifier("Runsr (#29) : detail du regime 1 a pi_t exactement constant, sans variante de tolerance",
          {
            d <- ligne29(f29, "Test des suites sur ratios bruts")$detail
-           grepl("IDENTIQUE", d, fixed = TRUE) && grepl("doublement", d, fixed = TRUE) &&
-             !grepl("n'est constant qu'a la tolerance", d, fixed = TRUE)
+           identical(d, paste(paste("CONTROLE SANS OBJET ICI : pi_t constant,", TXT_RUNSR_B1),
+                              txt_r15_514("Test des suites (aleatoire des signes)"))) &&
+             !grepl("TOL_DELTA_BORD", d, fixed = TRUE)
          })
-verifier("Runsr (#29) : bande de tolerance a signes differents, identite 'n'est plus garantie', pas d'IDENTIQUE",
+# Depuis #514 (specification finale d'actuary, Runsr, branches 1 et 2), les
+# lignes R15 ne portent aucune mention de regime : la tolerance n'est plus
+# dite (elle reste dans la fiche et dans res$metadata).
+verifier("Runsr (#29) : bande de tolerance a signes differents, 'ni identite garantie', pas d'egalite affirmee",
          {
            d <- ligne29(f29_bande, "Test des suites sur ratios bruts")$detail
-           grepl("n'est plus garantie", d, fixed = TRUE) && !grepl("IDENTIQUE", d, fixed = TRUE) &&
-             grepl("TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)", d, fixed = TRUE)
+           grepl("ni identite garantie", d, fixed = TRUE) && !grepl("identiques a celles", d, fixed = TRUE) &&
+             !grepl("TOL_DELTA_BORD", d, fixed = TRUE)
          })
-verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), detail 'heteroscedastiques'",
+verifier("Runsr (#29) : pi_t variable (T = 5, delta = 0), detail 'non equiprobables'",
          {
            d <- ligne29(f29_0, "Test des suites sur ratios bruts")$detail
-           grepl("heteroscedastiques", d, fixed = TRUE) && !grepl("SANS OBJET", d, fixed = TRUE)
+           grepl(MENTION_PI_VARIABLE_TEST, d, fixed = TRUE) &&
+             !grepl("SANS OBJET", d, fixed = TRUE)
          })
 verifier("Runsr (#29) : variante 1b, pi_t constant a la tolerance pres avec signes identiques",
          {
@@ -433,8 +444,7 @@ verifier("Runsr (#29) : variante 1b, pi_t constant a la tolerance pres avec sign
            })
            b <- ligne29(f, "Test des suites sur ratios bruts")
            signes_egaux(f) && is.finite(b$p_exacte) && identical(b$type, "diagnostic") &&
-             grepl("exacte a cet ordre pres", b$detail, fixed = TRUE) &&
-             grepl("TOL_DELTA_BORD = 1e-06 pres (1 - delta = 5e-07)", b$detail, fixed = TRUE)
+             grepl(TXT_RUNSR_B1, b$detail, fixed = TRUE) && !grepl("TOL_DELTA_BORD", b$detail, fixed = TRUE)
          })
 verifier("Base r (#29) : les quatre autres detail ne disent plus 'statistique est meme identique'",
          {
@@ -446,7 +456,7 @@ verifier("Base r (#29) : les quatre autres detail ne disent plus 'statistique es
              vapply(nn, function(n) ligne29(f, n)$detail, character(1))))
            dc <- vapply(nn, function(n) ligne29(f29, n)$detail, character(1))
            !any(grepl("statistique est meme identique", dd, fixed = TRUE)) &&
-             all(grepl("transformation logarithmique.", dc, fixed = TRUE))
+             all(grepl("quasi-doublon de la ligne homologue sur residus standardises.", dc, fixed = TRUE))
          })
 # Depuis #303 : a pi_t constant (f29, f29_bande), les quatre lignes sont des
 # diagnostics de la regle R15 (p Monte-Carlo conservee, non retenue) ; a pi_t

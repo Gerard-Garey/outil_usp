@@ -88,6 +88,25 @@ Les textes produits par le moteur (`detail` et motifs des tests, détail des con
     res$parametre_final$sigma_usp
     engine_table_tests(res)
 
+    # lecture d'un fichier CSV, comme le fait l'application (#483)
+    lire_csv <- function(f, ...) utils::read.csv(f, colClasses = "character",
+                          blank.lines.skip = FALSE, check.names = FALSE,
+                          na.strings = character(0), ...)
+    lu <- engine_lire_donnees_csv(lire_csv("usp_donnees_LN.csv"))
+    lu_tri <- engine_lire_triangle(lire_csv("usp_donnees_MW.csv", row.names = NULL))
+
+`engine_lire_donnees_csv()` et `engine_lire_triangle()` attendent un tableau lu
+comme le fait l'application (ci-dessus) ou par `engine_lire_xlsx()` : lignes
+vides gardées, en-têtes tels quels, cellule « NA » gardée comme chaîne, et, pour
+un CSV, cellules en texte (`engine_lire_xlsx()` rend en nombres une colonne
+dont toutes les cellules sont des nombres, en texte une colonne qui porte une
+cellule texte). Avec les réglages par défaut de `read.csv`, les nombres sont convertis
+avant le moteur, les lignes vides sont retirées sans message et une colonne vide
+sans en-tête est nommée par `read.csv` (« X », « X.1 »…) : elle est alors prise
+pour une colonne qui porte un en-tête et refusée dans un triangle ; à l'inverse,
+un en-tête numérique « k » devient « Xk » et, placé en k-ième colonne, est pris
+pour un en-tête absent.
+
 `charger_moteur()` (`R/charger_moteur.R`, ADR 0016) charge le moteur dans un
 environnement dédié dont la chaîne de résolution ne voit que le moteur, les
 exports de `stats` et `base` : un objet de l'environnement global (une
@@ -131,6 +150,16 @@ en 4 (ou N) processus, avec le même bilan et le même code de sortie : environ
 mode séquentiel :
 
     Rscript tests/test_unitaires.R --parallele
+
+`--lot=k/n` (seul ou avec `--parallele`) ne lance que le lot `k` sur `n` des
+fichiers de tests : la répartition, déterministe, équilibre les durées lues dans
+`tests/durees_unitaires.tsv` (une ligne par fichier, nom et durée en secondes,
+mesurées en CI ; un fichier absent de la table prend 60 s). La CI s'en sert pour
+répartir la batterie sur trois jobs ; la même table ordonne `--parallele`
+(fichiers les plus longs d'abord). La réunion des `n` lots est la batterie
+complète :
+
+    Rscript tests/test_unitaires.R --parallele --lot=2/3
 
 Sous Windows, quelques assertions de la batterie échouent pour des raisons
 propres à la plateforme, sans effet sur σ_USP, sur une p-value du moteur ni sur

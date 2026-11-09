@@ -78,7 +78,15 @@
 #     Q-46-4 (a)) : avec shiny, vide avant calcul ; sur tri_deg (reserve no 2),
 #     entierement replie (<details class='com'> sans open), resume "4
 #     avertissements de validation du calcul", textes du moteur tels quels ;
-#     resume au singulier pour un seul avertissement.
+#     resume au singulier pour un seul avertissement ;
+#   - lecture CSV en texte (issue #483, partie application, et #490 sur ce
+#     chemin) : lire_tableau() rend des cellules non converties, lignes
+#     vides et en-tetes vides gardes, "NA" en chaine ; ligne vide intercalee,
+#     "0x10" et cellule "NA" d'un triangle refuses par le moteur avec le meme
+#     motif qu'en xlsx ; fichiers d'exemple de tests/donnees lus a
+#     l'identique ; demarrage refuse sur une ligne vide intercalee ; avec
+#     shiny, memes refus a l'import (CSV et xlsx), series courantes gardees,
+#     import valide inchange.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -385,6 +393,88 @@ verifier("charger_ln(), fichiers de 41 et 60 annees au demarrage : refuses avec 
 verifier("charger_ln(), fichier de 40 annees au demarrage : charge (#286)",
          isTRUE(.cl$statut$ok) && nrow(.cl$valeur) == 40L)
 unlink(.dir286, recursive = TRUE); rm("FICHIER_LN", envir = .env)
+
+## --- Lecture CSV en texte, interpretation par le moteur (issue #483, #490) ---
+# lire_tableau() lit le CSV en texte (colClasses = "character",
+# blank.lines.skip = FALSE, check.names = FALSE, na.strings = character(0)) ;
+# nombres, lignes et colonnes vides sont juges par engine_lire_donnees_csv()
+# et engine_lire_triangle() seuls, avec le meme motif qu'en xlsx. Avant
+# #483 (mesure du 08/11/2026, branche K1, e3b18e7) : ligne vide intercalee
+# retiree par read.csv (ok TRUE, 8 annees sur 9), "0x10" lu 16 par
+# type.convert() (ok TRUE), cellule "NA" d'un triangle lue comme vide.
+.csv483 <- function(lignes) { f <- tempfile(fileext = ".csv"); writeLines(lignes, f); f }
+.lire483 <- function(lignes, ...) {
+  f <- .csv483(lignes); on.exit(unlink(f))
+  .env$lire_tableau(f, FALSE, ...)$df
+}
+# Meme tableau en xlsx (ecrivain du moteur), lu par lire_tableau() :
+# NULL si aucun ecrivain xlsx n'est disponible (ni openxlsx ni commande zip).
+.xlsx483 <- function(d) {
+  if (!requireNamespace("openxlsx", quietly = TRUE) && !nzchar(Sys.which("zip"))) return(NULL)
+  f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+  engine_ecrire_xlsx(d, f)
+  .env$lire_tableau(f, TRUE)$df
+}
+.ser483 <- c("xt,yt", paste(100:102, 60:62, sep = ","), "", paste(103:107, 63:67, sep = ","))
+.d483 <- .lire483(c("xt,yt,", "100,60,", "NA,0x10,", ",,"))
+verifier("lire_tableau() : CSV lu en texte, cellules non converties, ligne vide gardee, en-tete vide \"\", cellule \"NA\" gardee en chaine (#483)",
+         identical(names(.d483), c("xt", "yt", "")) &&
+           all(vapply(.d483, is.character, logical(1))) && nrow(.d483) == 3L &&
+           identical(.d483$xt, c("100", "NA", "")) && identical(.d483$yt, c("60", "0x10", "")))
+.r483 <- engine_lire_donnees_csv(.lire483(.ser483))
+.x483 <- .xlsx483(data.frame(xt = c(100:102, NA, 103:107), yt = c(60:62, NA, 63:67)))
+verifier("Import CSV de series sans t a ligne vide intercalee : refuse par le moteur (ligne de donnees 4), meme motif que le xlsx (#483)",
+         !.r483$ok && identical(.r483$erreurs, engine_lire_donnees_csv(
+           data.frame(xt = c(100:102, NA, 103:107), yt = c(60:62, NA, 63:67)))$erreurs) &&
+           grepl("Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4)", .r483$erreurs, fixed = TRUE) &&
+           (is.null(.x483) || identical(engine_lire_donnees_csv(.x483)$erreurs, .r483$erreurs)))
+.r490 <- engine_lire_donnees_csv(.lire483(c("xt,yt", "100,60", "0x10,61", paste(102:104, 62:64, sep = ","))))
+.x490 <- .xlsx483(data.frame(xt = c("100", "0x10", "102", "103", "104"), yt = 60:64,
+                             stringsAsFactors = FALSE))
+verifier("Import CSV : \"0x10\" refuse comme valeur non numerique avec sa position, meme motif que le xlsx (#490)",
+         !.r490$ok && identical(.r490$erreurs,
+                                "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
+           (is.null(.x490) || identical(engine_lire_donnees_csv(.x490)$erreurs, .r490$erreurs)))
+.tri483 <- c("i,j0,j1,j2,j3,j4", "0,300,960,1560,2020,2290", "1,310,980,1590,NA,",
+             "2,320,1000,1600,,", "3,330,1010,,,", "4,340,,,,")
+.rt483 <- engine_lire_triangle(.lire483(.tri483, row.names = NULL))
+verifier("Import CSV : cellule \"NA\" d'un triangle refusee avec sa position, comme en xlsx (na.strings = character(0)) (#483)",
+         !.rt483$ok && length(.rt483$erreurs) == 1L &&
+           identical(.rt483$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=3).",
+                                           "Une cellule \"NA\" est lue comme du texte : renseigner la valeur,",
+                                           "ou laisser vide une cellule non observee.")))
+# Lecture des fichiers d'exemple avant #483 : read.csv par defaut, comme
+# lire_tableau() (row.names = NULL pour le triangle, comme charger_mw()).
+.ex483 <- file.path(.racine, "tests", "donnees", c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"))
+verifier("Fichiers d'exemple (tests/donnees) : series et triangle lus par lire_tableau() identiques a la lecture d'avant #483",
+         identical(engine_lire_donnees_csv(.env$lire_tableau(.ex483[1], FALSE)$df),
+                   engine_lire_donnees_csv(utils::read.csv(.ex483[1], stringsAsFactors = FALSE))) &&
+           identical(engine_lire_donnees_csv(.env$lire_tableau(.ex483[2], FALSE)$df),
+                     engine_lire_donnees_csv(utils::read.csv(.ex483[2], stringsAsFactors = FALSE))) &&
+           identical(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE, row.names = NULL)$df),
+                     engine_lire_triangle(utils::read.csv(.ex483[3], stringsAsFactors = FALSE,
+                                                          row.names = NULL))) &&
+           isTRUE(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE, row.names = NULL)$df)$ok))
+verifier("Import CSV : colonne de fin sans en-tete (virgule finale) retiree, series et triangle identiques (#483)",
+         identical(engine_lire_donnees_csv(.lire483(paste0(.ser483[-5], ","))),
+                   engine_lire_donnees_csv(.lire483(.ser483[-5]))) &&
+           identical(engine_lire_triangle(.lire483(paste0(sub("NA", "2050", .tri483), ","), row.names = NULL)),
+                     engine_lire_triangle(.lire483(sub("NA", "2050", .tri483), row.names = NULL))) &&
+           isTRUE(engine_lire_triangle(.lire483(sub("NA", "2050", .tri483), row.names = NULL))$ok))
+# Demarrage : charger_ln() et charger_mw() lisent par lire_tableau() ; un
+# fichier a ligne vide intercalee est refuse avec le motif du moteur.
+.dir483 <- tempfile("demarrage483_"); dir.create(.dir483)
+.env$FICHIER_LN <- file.path(.dir483, "usp_donnees_LN.csv"); writeLines(.ser483, .env$FICHIER_LN)
+.env$FICHIER_MW <- file.path(.dir483, "usp_donnees_MW.csv")
+writeLines(append(sub("NA", "2050", .tri483), "", after = 3), .env$FICHIER_MW)
+.cl483 <- .env$charger_ln(); .cm483 <- .env$charger_mw()
+verifier("Demarrage : fichiers CSV de series et de triangle a ligne vide intercalee refuses avec le motif du moteur, grilles vides (#483)",
+         identical(.cl483$statut$ok, FALSE) && grepl(.r483$erreurs, .cl483$statut$msg, fixed = TRUE) &&
+           identical(.cl483$valeur, .env$grille_vide_ln(8L)) &&
+           identical(.cm483$statut$ok, FALSE) &&
+           grepl("Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 3)", .cm483$statut$msg,
+                 fixed = TRUE) && identical(.cm483$valeur, .env$triangle_vide(8)))
+unlink(.dir483, recursive = TRUE); rm("FICHIER_LN", "FICHIER_MW", envir = .env)
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -1231,6 +1321,43 @@ testServer(app, {
       regexpr(ns$html, h, fixed = TRUE) < regexpr(ns$aide, h, fixed = TRUE))
 })
 )---"
+  # Import d'un CSV lu en texte (issue #483, #490) : meme motif dans
+  # l'application pour le CSV et le xlsx ; donnees courantes gardees.
+  .bloc_483 <- r"---(
+## Import CSV lu en texte, interpretation par le moteur (issue #483, #490)
+depot <- function(lignes = NULL, d = NULL) {
+  f <- tempfile(fileext = if (is.null(d)) ".csv" else ".xlsx")
+  if (is.null(d)) writeLines(lignes, f) else engine_ecrire_xlsx(d, f)
+  data.frame(name = basename(f), size = file.size(f), type = "", datapath = f,
+             stringsAsFactors = FALSE)
+}
+xlsx_dispo <- requireNamespace("openxlsx", quietly = TRUE) || nzchar(Sys.which("zip"))
+ser_vide <- c("xt,yt", paste(100:102, 60:62, sep = ","), "", paste(103:107, 63:67, sep = ","))
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  d0 <- donnees()
+  session$setInputs(fichier_import = depot(ser_vide))
+  m_csv <- statut_import()
+  a("import CSV de series a ligne vide intercalee : refuse, motif du moteur, series courantes gardees (#483)",
+    identical(m_csv$ok, FALSE) && identical(donnees(), d0) &&
+      grepl("Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4)", m_csv$msg, fixed = TRUE))
+  if (xlsx_dispo) {
+    session$setInputs(fichier_import = depot(d = data.frame(xt = c(100:102, NA, 103:107),
+                                                            yt = c(60:62, NA, 63:67))))
+    a("import xlsx du meme tableau : meme motif que le CSV (#483)",
+      identical(statut_import(), m_csv) && identical(donnees(), d0))
+  } else a("import xlsx du meme tableau : saute (aucun ecrivain xlsx)", TRUE)
+  session$setInputs(fichier_import = depot(c("xt,yt", "100,60", "0x10,61", paste(102:104, 62:64, sep = ","))))
+  a("import CSV avec \"0x10\" : refuse comme valeur non numerique (xt : ligne de donnees 2), series courantes gardees (#490)",
+    identical(statut_import()$ok, FALSE) && identical(donnees(), d0) &&
+      grepl("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).", statut_import()$msg,
+            fixed = TRUE))
+  session$setInputs(fichier_import = depot(c("t,xt,yt,", paste0(1:6, ",", 100:105, ",", 60:65, ","))))
+  a("import CSV de series valide (colonne de fin sans en-tete) : 6 annees importees, valeurs lues par le moteur (#483)",
+    isTRUE(statut_import()$ok) && identical(donnees(), data.frame(t = 1:6, xt = as.numeric(100:105),
+                                                                  yt = as.numeric(60:65))))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1261,8 +1388,13 @@ testServer(app, {
     '    identical(r$donnees$xt, xt[3:10]) && identical(r$donnees$yt, yt[3:10]))',
     '  session$setInputs(vue_tests = "detail")',
     '  dt <- as.character(output$tests_par_hypothese$html)',
-    '  a("vue Detail : commentaire long replie et colonne Fonction (#178)",',
-    '    grepl("<details class=\'com\'><summary>", dt, fixed = TRUE) &&',
+    '  tb_dt <- engine_table_tests(r)',
+    '  # Seuil du repli porte a 400 par #514 (plafond du texte propre) : le rendu',
+    '  # replie si et seulement si .commentaire_replie() replie un texte de la vue.',
+    '  attendu_repli <- any(startsWith(.commentaire_replie(c(tb_dt$commentaire, tb_dt$H0, tb_dt$H1)),',
+    '                                  "<details class=\'com\'>"))',
+    '  a("vue Detail : commentaire long replie si la regle de repli le replie, et colonne Fonction (#178, #514)",',
+    '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
     '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
     '    grepl("<th>granularit\u00e9 MC</th>", dt, fixed = TRUE) &&',
@@ -1350,7 +1482,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380, .bloc_412), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1367,8 +1499,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 93 assertions rendues", length(.lignes) == 93L)
-  if (length(.lignes) != 93L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 97 assertions rendues", length(.lignes) == 97L)
+  if (length(.lignes) != 97L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

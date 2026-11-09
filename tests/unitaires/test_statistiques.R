@@ -189,8 +189,14 @@ verifier("Cox-Stuart Monte-Carlo : sans ex aequo, statistique inchangee |K - n_p
 # conservee mais non retenue, detail prefixe ; le motif d'indisponibilite
 # Monte-Carlo est celui du catalogue ("statistique observee non definie :
 # ex aequo"), et non le motif generique de statistique non finie.
-detail_cs_85 <- paste("m = 3 differences non nulles sur n_p = 4 paires ;",
-                      "p_mc non calculee (replications sans ex aequo)")
+# Texte de #514 (specification finale d'actuary, U11), precede de la mention
+# de regime M21 (volumes constants, p exacte finie).
+cs_514 <- function(eff) sprintf(paste(
+  "Un ECHEC ou une ALERTE signale une tendance du ratio S/P, par le signe des",
+  "differences entre premiere et seconde moitie de la periode (%s). A lire avec",
+  "\"Tendance monotone du ratio S/P\", meme alternative."), eff)
+detail_cs_85 <- paste(MENTION_VOLUMES_CONSTANTS,
+                      cs_514("m = 3 differences non nulles sur n_p = 4 paires, p_mc non calculee"))
 verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte calculee, p_mc NA avec motif, inoperant (#85, #44)",
          {
            res_cs <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 72, 78, 117),
@@ -200,7 +206,7 @@ verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte cal
            isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
              identical(t_cs$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 0.2500",
-               "(m = 3 differences non nulles) ; aucun verdict.", detail_cs_85)) &&
+               "(m = 3 differences non nulles), aucun verdict.", detail_cs_85)) &&
              isTRUE(proche(t_cs$p_exacte, 1, rel = 1e-12)) &&
              is.na(t_cs$p_mc) && is.na(t_cs$err_mc) &&
              identical(t_cs$type, "diagnostic") && is.na(t_cs$nature_p) &&
@@ -223,9 +229,8 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
              identical(t_c0$type, "diagnostic") && identical(t_c0$p_min, 1) &&
              identical(t_c0$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 1.0000",
-               "(m = 0 differences non nulles) ; aucun verdict.",
-               "aucune difference non nulle sur n_p = 4 paires :",
-               "K non defini")) &&
+               "(m = 0 differences non nulles), aucun verdict.",
+               cs_514("aucune difference non nulle : K non defini"))) &&
              is.data.frame(tb_c0)
          })
 

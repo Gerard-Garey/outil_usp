@@ -72,19 +72,22 @@ verifier("T245-3 Lilliefors : p_asymptotique = lillie_p(D, n) = 0,4569697 ; vari
                                     "non sous le modele de Mack"))
          })
 
+# Textes de #514 (specification finale d'actuary, M5 : usage, lignes liees),
+# portee du constat de simulation retablie en fin de branche K1 (constat C4
+# d'actuary).
 DETAIL_SW <- paste(
-  "Diagnostic sans verdict : la normalite n'est pas une hypothese du modele",
-  "(l'annexe XVII, D(2)(h), ne specifie que les deux premiers moments). La loi nulle de W",
-  "est celle d'un echantillon i.i.d. normal, que les residus de Mack ne sont pas (f_j et",
-  "sigma_j estimes sur les memes facteurs) : sous erreurs gaussiennes, elle rejette plus",
-  "souvent que le seuil nominal (constat de simulation sous un plan). La p-value est",
-  "restituee pour information ; elle n'est pertinente que si l'on souhaite exploiter la",
-  "MSEP pour un quantile.")
+  "Diagnostic sans verdict : la normalite n'est pas exigee par le modele",
+  "(D(2)(h) : deux premiers moments), et la loi de W, celle d'un",
+  "echantillon i.i.d. normal, rejette plus souvent que le seuil nominal",
+  "sur des residus de Mack a erreurs gaussiennes (simulation sous un",
+  "plan), p-value utile seulement pour un quantile de la MSEP. A lire",
+  "avec \"Lilliefors sur les residus de Mack\".")
 DETAIL_LI <- paste(
-  "Diagnostic sans verdict : approximation de Dallal et Wilkinson de la loi de D",
-  "a n fini sous echantillon i.i.d. normal, que les residus de Mack ne sont pas ; sous",
-  "erreurs gaussiennes, elle rejette plus souvent que le seuil nominal (constat de",
-  "simulation sous un plan). La p-value est restituee pour information.")
+  "Diagnostic sans verdict : approximation de Dallal et Wilkinson etablie",
+  "pour un echantillon i.i.d. normal, qui rejette plus souvent que le",
+  "seuil nominal sur des residus de Mack a erreurs gaussiennes (simulation",
+  "sous un plan), p-value pour information. A lire avec",
+  "\"Shapiro-Wilk sur les residus de Mack\".")
 sans_renvois <- function(x) gsub("D\\(2\\)\\(h\\)", "", x)
 verifier("T245-4 Shapiro-Wilk : detail = phrase fixe du point 4, ASCII, sans nombre hors renvois",
          identical(sw245[[1]]$detail, DETAIL_SW) && !grepl("[^ -~]", sw245[[1]]$detail) &&
@@ -92,5 +95,7 @@ verifier("T245-4 Shapiro-Wilk : detail = phrase fixe du point 4, ASCII, sans nom
 verifier("T245-4 Lilliefors : detail = phrase fixe du point 4, ASCII, sans nombre hors renvois",
          identical(li245[[1]]$detail, DETAIL_LI) && !grepl("[^ -~]", li245[[1]]$detail) &&
            !grepl("[0-9]", sans_renvois(li245[[1]]$detail)))
+# #514 (A3) : texte propre en deux phrases au plus et 400 caracteres au plus.
+verifier_detail(res245, "reserve2 a B = B_MIN_USAGE (lignes M5)")
 
 fin_fichier()

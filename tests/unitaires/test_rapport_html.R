@@ -292,7 +292,7 @@ verifier("table_detail_groupe() : colonnes Type et Motif / commentaire, motif ec
          all(c("Type", "Motif / commentaire") %in% names(det_all)) &&
          !is.na(i_fis) && identical(tb$type[i_fis], "diagnostic") &&
          identical(det_all$Type[i_fis], "diagnostic") &&
-         grepl("redondante avec le test de Pitman (F = t^2)", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE))
+         grepl("porte la meme p (F = t^2)", det_all[["Motif / commentaire"]][i_fis], fixed = TRUE))
 verifier("table_detail_groupe() : toute ligne INFO a un motif (aucun tiret)",
          all(det_all[["Motif / commentaire"]][tb$verdict == "INFO"] != "\u2013"))
 verifier("Type : test inoperant (R1) distingue du diagnostic, en detail et sous le badge de synthese",
@@ -312,7 +312,7 @@ verifier("Type : test inoperant lu dans tb$inoperant, non dans le prefixe TEST I
          })
 verifier("Rapport : motif de la ligne Fisher restitue dans la section des tests retenus",
          retenu[i_fis] &&
-         grepl("redondante avec le test de Pitman (F = t^2)",
+         grepl("porte la meme p (F = t^2)",
                paste(ligne_de(principal, tb$test[i_fis]), collapse = ""), fixed = TRUE))
 verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libelle sous le badge",
          {
@@ -1485,13 +1485,13 @@ SPAN244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
                   .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
 PIED244 <- paste0("<br>", SPAN244)
 # Parametres de la regle de repli, lus dans la signature (aucune borne ecrite
-# en dur dans les tests : seuil 200, marge 150, suite_min 100 aujourd'hui).
+# en dur dans les tests : seuil 400, marge 150, suite_min 100 aujourd'hui).
 FM_REPLI <- formals(.commentaire_replie)
 SEUIL_R <- eval(FM_REPLI$seuil); MARGE_R <- eval(FM_REPLI$marge); SUITE_R <- eval(FM_REPLI$suite_min)
 # Le separateur entre le resume et la suite n'est pas dans le HTML : la coupe a
 # une fin de phrase ou a un espace le remplace par la frontiere du <details>, la
 # coupe au seuil sans espace n'en perd aucun. Un resume de SEUIL_R caracteres
-# sans espace peut donc se lire des deux manieres ("g" x 199 + ";" suivi d'un
+# sans espace peut donc se lire des deux manieres ("g" x (SEUIL_R - 1) + ";" suivi d'un
 # espace, ou coupe au seuil d'un texte sans espace). `ref` (texte attendu, de meme
 # longueur que `cel`) leve l'ambiguite : parmi les deux lectures (avec / sans
 # espace), c'est celle qui vaut le texte attendu qui est rendue ; sinon la
@@ -1541,7 +1541,9 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
   resume <- vapply(rep_m, function(m) desechap(m[2]), "")
   suite_m <- vapply(rep_m, function(m) nchar(desechap(m[3])), 1L)
   verifier(sprintf("Vue Detail (%s) : commentaire long replie (<details>) selon la regle de #472, court en clair, aucun texte retire (#178, #472)", cas$nom),
-           any(long) && any(repli) && all(long[repli]) &&
+           # Seuil de 400 (#514) : sur les references, la plupart des
+           # commentaires sont sous le seuil ; aucun repli n'est exige.
+           all(long[repli]) &&
            all(repli[!is.na(sans244) & nchar(sans244) > SEUIL_R + MARGE_R + SUITE_R]) &&
            all(suite_m >= SUITE_R) &&
            !any(grepl("<details", cel[!long], fixed = TRUE)) &&
@@ -1559,16 +1561,17 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
 }
 verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au seuil sans espace, echappement par partie (#178)",
          {
-           x1 <- paste(c(rep("mot", 60), "a < b"), collapse = " ")   # 245 caracteres
+           n1 <- (SEUIL_R + MARGE_R %/% 3L) %/% 4L                  # 445 caracteres au seuil 400
+           x1 <- paste(c(rep("mot", n1), "a < b"), collapse = " ")
            x2 <- strrep("x", SEUIL_R + MARGE_R + SUITE_R + 100L)    # sans espace ni fin de phrase
            x3 <- strrep("y", SEUIL_R)
-           x4 <- paste(c(rep("mot", 100), "a < b"), collapse = " ")  # 405 caracteres, sans fin de phrase
+           x4 <- paste(c(rep("mot", (SEUIL_R + MARGE_R) %/% 4L + 15L), "a < b"), collapse = " ")  # sans fin de phrase
            cr <- .commentaire_replie(c(x1, x2, x3, NA, x4))
-           # x1 (245) : sa fin tombe dans la fenetre [seuil, seuil + marge] -> texte entier.
+           # x1 : sa fin tombe dans la fenetre [seuil, seuil + marge] -> texte entier.
            nchar(x1) >= SEUIL_R && nchar(x1) <= SEUIL_R + MARGE_R &&
              nchar(x4) > SEUIL_R + MARGE_R &&
              identical(relire_com(cr[c(2, 3, 5)], c(x2, x3, x4)), c(x2, x3, x4)) && identical(cr[3], x3) &&
-             identical(cr[4], "\u2013") && identical(cr[1], paste0(strrep("mot ", 60), "a &lt; b")) &&
+             identical(cr[4], "\u2013") && identical(cr[1], paste0(strrep("mot ", n1), "a &lt; b")) &&
              grepl("a &lt; b</details>$", cr[5]) &&
              identical(cr[2], paste0("<details class='com'><summary>", strrep("x", SEUIL_R),
                                      "</summary>", strrep("x", nchar(x2) - SEUIL_R), "</details>"))
@@ -1579,13 +1582,13 @@ verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au s
 # signe reste dans le resume ; a defaut, coupe de #178.
 verifier(".commentaire_replie() : coupe a la premiere fin de phrase de la fenetre [seuil, seuil + 150], fin du texte comptee, repli a defaut, aucun texte retire (#472)",
          {
-           # Fin de phrase a 213 caracteres (point + espace + majuscule), puis
-           # une seconde fin de phrase a 320 : la premiere de la fenetre gagne.
-           a <- strrep("a", 100); b <- strrep("b", 111)         # 100 + 1 + 111 + "." = 213
+           # Fin de phrase a seuil + 13 caracteres (point + espace + majuscule),
+           # puis une seconde fin de phrase plus loin : la premiere de la fenetre gagne.
+           a <- strrep("a", SEUIL_R %/% 2L); b <- strrep("b", SEUIL_R - SEUIL_R %/% 2L + 11L)
            ph1 <- paste0(a, " ", b, ".")
            x_ph <- paste0(ph1, " Suite du texte ", strrep("c", 80), ". Fin ", strrep("d", 60), " fin de texte.")
-           # Un point avant le seuil (fin de phrase a 61 < 200) est ignore.
-           x_tot <- paste0(strrep("e", 59), ". Debut ", strrep("f", 280))                      # 347 caracteres, fin dans la fenetre
+           # Un point avant le seuil (fin de phrase a 61 < seuil) est ignore.
+           x_tot <- paste0(strrep("e", 59), ". Debut ", strrep("f", SEUIL_R + 80L - 67L))     # seuil + 80 caracteres, fin dans la fenetre
            # Point suivi d'une minuscule : pas une fin de phrase ; a defaut, coupe de #178.
            x_min <- paste(c(rep("mot", 40), "fin. suite", rep("mot", 40), "fin. suite", rep("mot", 80)), collapse = " ")
            # Point-virgule : fin de phrase (espace suffit).
@@ -1627,16 +1630,16 @@ verifier(".commentaire_replie() : suite masquee de moins de suite_min caracteres
              startsWith(.commentaire_replie(x99, suite_min = 0L), "<details class='com'>") &&
              identical(.commentaire_replie(x100, suite_min = SUITE_R + 1L), x100)
          })
-# Detail Kruskal a un residu par annee (#449, 309 caracteres) : sa fin tombe
-# dans la fenetre [seuil, seuil + marge] sans fin de phrase avant elle -> affiche entier.
-verifier(".commentaire_replie() : detail Kruskal a un residu par annee (309 caracteres) affiche entier (#472)",
+# Detail Kruskal a un residu par annee (#449, 309 caracteres, texte d'avant
+# #514) : sous le seuil de 400 depuis #514 -> affiche entier.
+verifier(".commentaire_replie() : detail Kruskal a un residu par annee (309 caracteres) affiche entier (#472, #514)",
          {
            k <- paste0("loi simulee de dispersion nulle : aucune p-value retenue. ",
                        "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
                        "(groupes de taille 1), quelle que soit la donnee ; ",
                        "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
                        "entre annees de survenance, ni l'independance de D(2)(h)(i)")
-           nchar(k) == 309L && nchar(k) >= SEUIL_R && nchar(k) <= SEUIL_R + MARGE_R &&
+           nchar(k) == 309L && nchar(k) <= SEUIL_R + MARGE_R &&
              identical(.commentaire_replie(k), .echap_html(k))
          })
 # H0 et H1 de la vue Detail (#450) : meme repli, seulement avec replier = TRUE ;
@@ -1651,7 +1654,10 @@ verifier("Vue Detail : H1 (et H0) replies avec replier = TRUE selon la regle de 
                                                   dd_r$H1, perl = TRUE))[[1]]
            nchar(tbm$H1[i]) > 2L * (SEUIL_R + MARGE_R) &&
              startsWith(dd_r$H1, "<details class='com'><summary>") &&
-             nchar(desechap(res_h1[2])) <= SEUIL_R + MARGE_R && grepl("[.;]$", desechap(res_h1[2])) &&
+             nchar(desechap(res_h1[2])) <= SEUIL_R + MARGE_R &&
+             # Au seuil de 400 (#514), pas de fin de phrase dans la fenetre de
+             # ce H1 : coupe a defaut (resume d'au plus seuil caracteres).
+             (grepl("[.;]$", desechap(res_h1[2])) || nchar(desechap(res_h1[2])) <= SEUIL_R) &&
              identical(relire_com(dd_r$H1, tbm$H1[i]), tbm$H1[i]) &&
              identical(dd_p$H1, .txt(tbm$H1[i])) && !grepl("<details", dd_p$H1, fixed = TRUE) &&
              identical(table_detail_groupe(tbm, replier = TRUE)$H0, .commentaire_replie(tbm$H0)) &&
@@ -1688,8 +1694,9 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
              !grepl("<details", cr[1], fixed = TRUE) &&
              endsWith(cr[1], PIED244) &&
              !grepl("alea de simulation", sub(PIED244, "", cr[1], fixed = TRUE), fixed = TRUE) &&
-             identical(cr[2], paste0(.echap_html(sub(paste0(" ; ", PHRASE_VERDICT_SENSIBLE_MC), "",
-                                                     x_court, fixed = TRUE)), PIED244)) &&
+             # Jonction " " (texte de #514 termine par un point) ou " ; ".
+             identical(cr[2], paste0(.echap_html(sub("[ ;]+$", "", substr(x_court, 1L,
+                                       nchar(x_court) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))), PIED244)) &&
              !grepl("<details", cr[2], fixed = TRUE) &&
              identical(cr[3], SPAN244) && !grepl("<br>", cr[3], fixed = TRUE) &&
              startsWith(cr[4], "<details class='com'><summary>") &&

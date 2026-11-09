@@ -52,6 +52,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 |---|---|---|---|
 | Préambule (entrée transversale) | `I.md` | Commentaires `%` de la charte | Préliminaires |
 | Page d'objet (entrée transversale) | `I.md` | Objet du document (tableau des références, encadré art. 104(7)) | Préliminaires |
+| Commentaires en deux phrases (entrée transversale) | `I.md` | Commentaires des lignes de test en deux phrases (#514) | I |
 | `sec:archi` | `I.md` | Architecture du moteur de calcul (Principe de séparation) | I |
 | `sec:inventaire` | `I.md` | Inventaire des fonctions | I |
 | `sec:segments` | `I.md` | Périmètres couverts et paramètres standard | I |
@@ -61,6 +62,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | `sec:notations` | `I.md` | Notations générales (convention de restitution, graphie des textes) | I |
 | `sec:controles` | `I.md` | Contrôles de qualité des données | I |
 | Règle R4 (entrée transversale) | `II.md` | Renvois à l'entrée de la règle retirée | II |
+| Commentaires en deux phrases (entrée transversale) | `II.md` | Commentaires des lignes de test en deux phrases (#514) | II |
 | `fiche:procedure-mc` | `II.md` | Procédure générale de p-value de Monte-Carlo | II |
 | `sec:boot-mw` | `II.md` | Bootstrap semi-paramétrique de la méthode Merz–Wüthrich | II |
 | `sec:modele-auxiliaire` | `II.md` | Le modèle auxiliaire des moindres carrés (tête, `-spec`, `-ecart`, `-lignes`) | II |
@@ -81,6 +83,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Blocs répétés (entrée transversale) | `III-H.md` | Blocs répétés des fiches de test | III |
 | Relecture de la partie III-H (entrée transversale) | `III-H.md` | Relecture de la partie III-H (étape 8 de JF) | III |
 | Corrections après validation de III-H (entrée transversale) | `III-H.md` | Corrections après validation de la relecture III-H (étape 8 de JF) | III |
+| Commentaires en deux phrases (entrée transversale) | `III-H.md` | Commentaires des lignes de test en deux phrases (#514) | III |
 | `sec:h1` | `III-H.md` | Hypothèse H1, linéarité et proportionnalité | III |
 | `fiche:student-constante` | `III-H.md` | Test de Student sur la constante | III |
 | `fiche:tost-constante` | `III-H.md` | Équivalence de la constante à zéro (TOST) | III |
@@ -144,6 +147,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Phrases de B effectif (entrée transversale) | `III-M.md` | Phrases de B effectif et du retirage (`sec:boot-mw`) | III |
 | Règle R1 (entrée transversale) | `III-M.md` | Règle R1 sur le plancher Monte-Carlo (lignes de rang et de comptage de M1 à M3) | III |
 | Relecture de la partie III-M (entrée transversale) | `III-M.md` | Relecture de la partie III-M (étape 8 de JF) | III |
+| Commentaires en deux phrases (entrée transversale) | `III-M.md` | Commentaires des lignes de test en deux phrases (#514) | III |
 | `sec:mw` | `III-M.md` | Méthode Merz–Wüthrich, cadre et spécification | III |
 | `mw:m1` | `III-M.md` | Absence de tendance des facteurs avec le cumulé | III |
 | `mw:m1a` | `III-M.md` | Nullité de l'ordonnée à l'origine, colonne par colonne | III |

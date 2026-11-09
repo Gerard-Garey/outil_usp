@@ -26,7 +26,7 @@ debut_fichier("test_sans_repli_p_non_simulee.R")
 
 LIB181 <- "p non simulee (loi du champ loi)"
 pre181 <- function(motif, lib = LIB181)
-  paste0("Monte-Carlo indisponible : ", motif, " ; ", lib, " non retenue.")
+  paste0("Monte-Carlo indisponible : ", motif, ", ", lib, " non retenue.")
 
 # Registre fictif : une statistique Monte-Carlo "S", p_mc absente pour le
 # motif donne.
@@ -51,7 +51,7 @@ verifier("U181-1 add() : MOTIF_MC_REPLIC_INSUFFISANTES, p_as = 0,03 -> diagnosti
            l <- ligne181(MOTIF_MC_REPLIC_INSUFFISANTES, p_as = 0.03)
            est_diag181(l, MOTIF_MC_REPLIC_INSUFFISANTES, 0.03) &&
              startsWith(l$detail, paste("Monte-Carlo indisponible : replications finies insuffisantes",
-                                        "(B_effectif < B_MIN_DEGENERESCENCE = 50) ; p non simulee",
+                                        "(B_effectif < B_MIN_DEGENERESCENCE = 50), p non simulee",
                                         "(loi du champ loi) non retenue."))
          })
 verifier("U181-2 add() : MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REGIME_RARE, motif de non_definie -> meme diagnostic, detail conserve",
@@ -84,7 +84,7 @@ verifier("U181-4 add() : p_as NA -> test sans p-value retenue, detail de #128 in
            identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                        " ; aucune p-value disponible sur ces donnees : aucun verdict",
+                                        ", aucune p-value disponible sur ces donnees : aucun verdict",
                                         ". d"))
          })
 
@@ -242,5 +242,11 @@ verifier("U181-8 R/engine.R : plus de repli_asymptotique, de motif_non_mc ni de 
              !"repli_asymptotique" %in% names(formals(engine_registre_tests(
                list(p_mc = numeric(0), err_mc = numeric(0)), list(), 0.10, "MC")$add))
          })
+
+# #514 (A3, S12) : texte propre en deux phrases au plus et 400 caracteres au
+# plus, p Monte-Carlo indisponibles (prefixe de #181 hors compte).
+verifier_detail(tj$J1, "J1 a B = 40 (p Monte-Carlo indisponibles)")
+verifier_detail(tj$J2, "J2 a B = 40 (p Monte-Carlo indisponibles)")
+verifier_detail(tm181, "Merz-Wuthrich a B = 60 (p Monte-Carlo indisponibles)")
 
 fin_fichier()

@@ -145,56 +145,64 @@ verifier("Matrice jouet : taux_global_ponctuel = proportion des lignes ayant une
            identical(e_jouet$taux_global_ponctuel, mean(hors))
          })
 
-# --- Cas reel, B = 999 : champ plots_data$spread_enveloppe -------------------
-r999 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                   B = 999, seed = GRAINE, nature_donnees = "brutes")
-e999 <- r999$plots_data$spread_enveloppe
-L999 <- courbes(r999$bootstrap$z_boot)
+# --- Cas reel, B = 599 : champ plots_data$spread_enveloppe -------------------
+# B = 599 (et non 999) : ces assertions recalculent les bandes en clair sur les
+# courbes obtenues (quantiles de type 7, k* par (4.17), boot::envelope,
+# emboitement) et ne figent aucune valeur propre au tirage ; elles exigent
+# seulement B_eff >= ENVELOPPE_QQ_B_MIN_SIM = 500 pour que la bande simultanee
+# existe, avec une marge de 99 lignes au-dessus du seuil. Les assertions qui
+# dependent de B = 999 par construction (comparaison aux references .rds)
+# restent au bloc des cinq cas lognormaux de reference plus bas.
+B_SPREAD <- 599L
+rB <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                   B = B_SPREAD, seed = GRAINE, nature_donnees = "brutes")
+eB <- rB$plots_data$spread_enveloppe
+LB <- courbes(rB$bootstrap$z_boot)
 verifier("plots_data$spread_enveloppe : suivi des trois champs de #305 en fin de plots_data, champs dans l'ordre du par. 1.5, constantes du QQ-plot, regle DH1997_4.17, motif NA",
-         identical(tail(names(r999$plots_data), 5), c("qq_enveloppe", "spread_enveloppe", "sigma_usp_boot",
+         identical(tail(names(rB$plots_data), 5), c("qq_enveloppe", "spread_enveloppe", "sigma_usp_boot",
                                                        "regime_boot", "boot_reperes")) &&
-           identical(names(e999), c("bandes", "source", "B_eff", "niveau_ponctuel", "niveau_simultane",
+           identical(names(eB), c("bandes", "source", "B_eff", "niveau_ponctuel", "niveau_simultane",
                                     "k", "taux_global_ponctuel", "taux_global_simultane",
                                     "B_min_simultane", "regle_rang", "motif")) &&
-           is.data.frame(e999$bandes) &&
-           identical(names(e999$bandes), c("x", "bas", "haut", "sim_bas", "sim_haut")) &&
-           identical(e999$source, "bootstrap") &&
-           identical(e999$niveau_ponctuel, ENVELOPPE_QQ_NIVEAU) &&
-           identical(e999$niveau_simultane, ENVELOPPE_QQ_NIVEAU) &&
-           identical(e999$B_min_simultane, ENVELOPPE_QQ_B_MIN_SIM) &&
-           identical(e999$regle_rang, "DH1997_4.17") && identical(e999$motif, NA_character_))
-verifier("B = 999 : x des bandes identical() a spread_lisse$x ; B_eff = lignes finies de z_boot",
-         identical(e999$bandes$x, r999$plots_data$spread_lisse$x) &&
-           identical(e999$B_eff, nrow(L999)) && nrow(L999) == 999L)
-verifier("B = 999 : bornes ponctuelles = quantiles de type 7 recalcules en clair sur les courbes simulees",
-         isTRUE(proche(e999$bandes$bas, apply(L999, 2, q7, p = 0.05), rel = 1e-12)) &&
-           isTRUE(proche(e999$bandes$haut, apply(L999, 2, q7, p = 0.95), rel = 1e-12)))
-verifier(sprintf("B = 999 : k* (%s) = plus grand k de taux (4.17) <= 0,10, recalcule par les rangs ; taux a k* + 1 > 0,10 ; bornes Sc[k*, ] et Sc[B + 1 - k*, ]",
-                 e999$k),
+           is.data.frame(eB$bandes) &&
+           identical(names(eB$bandes), c("x", "bas", "haut", "sim_bas", "sim_haut")) &&
+           identical(eB$source, "bootstrap") &&
+           identical(eB$niveau_ponctuel, ENVELOPPE_QQ_NIVEAU) &&
+           identical(eB$niveau_simultane, ENVELOPPE_QQ_NIVEAU) &&
+           identical(eB$B_min_simultane, ENVELOPPE_QQ_B_MIN_SIM) &&
+           identical(eB$regle_rang, "DH1997_4.17") && identical(eB$motif, NA_character_))
+verifier("B = 599 : x des bandes identical() a spread_lisse$x ; B_eff = lignes finies de z_boot",
+         identical(eB$bandes$x, rB$plots_data$spread_lisse$x) &&
+           identical(eB$B_eff, nrow(LB)) && nrow(LB) == B_SPREAD)
+verifier("B = 599 : bornes ponctuelles = quantiles de type 7 recalcules en clair sur les courbes simulees",
+         isTRUE(proche(eB$bandes$bas, apply(LB, 2, q7, p = 0.05), rel = 1e-12)) &&
+           isTRUE(proche(eB$bandes$haut, apply(LB, 2, q7, p = 0.95), rel = 1e-12)))
+verifier(sprintf("B = 599 : k* (%s) = plus grand k de taux (4.17) <= 0,10, recalcule par les rangs ; taux a k* + 1 > 0,10 ; bornes Sc[k*, ] et Sc[B + 1 - k*, ]",
+                 eB$k),
          {
-           k <- e999$k; Sc <- apply(L999, 2, sort); B <- nrow(L999)
-           is.integer(k) && identical(k, as.integer(k_etoile_417(L999))) &&
-             identical(e999$taux_global_simultane, taux_417(L999, k)) &&
-             taux_417(L999, k + 1L) > 0.10 &&
-             identical(e999$bandes$sim_bas, Sc[k, ]) && identical(e999$bandes$sim_haut, Sc[B + 1L - k, ])
+           k <- eB$k; Sc <- apply(LB, 2, sort); B <- nrow(LB)
+           is.integer(k) && identical(k, as.integer(k_etoile_417(LB))) &&
+             identical(eB$taux_global_simultane, taux_417(LB, k)) &&
+             taux_417(LB, k + 1L) > 0.10 &&
+             identical(eB$bandes$sim_bas, Sc[k, ]) && identical(eB$bandes$sim_haut, Sc[B + 1L - k, ])
          })
 if (requireNamespace("boot", quietly = TRUE)) {
-  verifier("B = 999 : bornes simultanees identical() a celles de boot::envelope(level = c(0,90 ; 0,90)) (meme k*)",
+  verifier("B = 599 : bornes simultanees identical() a celles de boot::envelope(level = c(0,90 ; 0,90)) (meme k*)",
            {
-             ev <- boot::envelope(mat = L999, level = c(0.90, 0.90))
-             identical(as.integer(ev$k.ov[1]), e999$k) &&
-               identical(unname(ev$overall[2, ]), e999$bandes$sim_bas) &&
-               identical(unname(ev$overall[1, ]), e999$bandes$sim_haut)
+             ev <- boot::envelope(mat = LB, level = c(0.90, 0.90))
+             identical(as.integer(ev$k.ov[1]), eB$k) &&
+               identical(unname(ev$overall[2, ]), eB$bandes$sim_bas) &&
+               identical(unname(ev$overall[1, ]), eB$bandes$sim_haut)
            })
 } else cat("  note : paquet boot absent ; comparaison a boot::envelope() non exercee.\n")
-verifier("B = 999 : emboitement sim_bas <= bas <= haut <= sim_haut",
-         with(e999$bandes, all(sim_bas <= bas) && all(bas <= haut) && all(haut <= sim_haut)))
-verifier("Niveau fixe : alpha = 0,05 ne change pas spread_enveloppe (B = 199)",
+verifier("B = 599 : emboitement sim_bas <= bas <= haut <= sim_haut",
+         with(eB$bandes, all(sim_bas <= bas) && all(bas <= haut) && all(haut <= sim_haut)))
+verifier("Niveau fixe : alpha = 0,05 ne change pas spread_enveloppe (B = 99)",
          {
            ra <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 199, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05)
+                            B = 99, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05)
            rb <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 199, seed = GRAINE, nature_donnees = "brutes")
+                            B = 99, seed = GRAINE, nature_donnees = "brutes")
            identical(ra$plots_data$spread_enveloppe, rb$plots_data$spread_enveloppe)
          })
 
@@ -226,7 +234,7 @@ verifier(sprintf("Cinq cas lognormaux : spread_lisse et qq_enveloppe conformes a
 verifier("engine_enveloppe_spread() et engine_plots_data() laissent .Random.seed intact et n'appellent pas engine_sous_graine()",
          {
            set.seed(7); avant <- .Random.seed
-           engine_enveloppe_spread(r999$bootstrap$z_boot, x)
+           engine_enveloppe_spread(rB$bootstrap$z_boot, x)
            engine_plots_data(f1, b199, prof1)
            identical(.Random.seed, avant) &&
              !any(grepl("engine_sous_graine", deparse(body(engine_enveloppe_spread)), fixed = TRUE)) &&
@@ -252,9 +260,9 @@ verifier("B = 199 (20 <= B_eff < 500) : bande ponctuelle finie, simultanee NA, k
              identical(e$k, NA_integer_) && is.finite(e$taux_global_ponctuel) &&
              identical(e$motif, "moins de 500 replications retenues : bande simultanee non calculee")
          })
-verifier("Seuils sur les lignes de z_boot a B = 999 : B_eff = 19 -> tout NA ; 20 -> ponctuelle ; 499 -> ponctuelle seule ; 500 -> simultanee, k entier, motif NA",
+verifier("Seuils sur les lignes de z_boot a B = 599 : B_eff = 19 -> tout NA ; 20 -> ponctuelle ; 499 -> ponctuelle seule ; 500 -> simultanee, k entier, motif NA",
          {
-           zb <- r999$bootstrap$z_boot
+           zb <- rB$bootstrap$z_boot
            e19 <- engine_enveloppe_spread(zb[1:19, ], x); e20 <- engine_enveloppe_spread(zb[1:20, ], x)
            e499 <- engine_enveloppe_spread(zb[1:499, ], x); e500 <- engine_enveloppe_spread(zb[1:500, ], x)
            all(is.na(e19$bandes$bas)) && all(is.finite(e20$bandes$bas)) &&
@@ -266,7 +274,7 @@ verifier("Seuils sur les lignes de z_boot a B = 999 : B_eff = 19 -> tout NA ; 20
          })
 verifier("Aucun k admissible a B_eff = 500 (60 lignes identiques de z_boot, a 1000 partout, ex aequo au maximum de chaque colonne : taux >= 60/500 a k = 1, lignes du minimum en plus) : bande ponctuelle seule, k NA, motif",
          {
-           zb <- r999$bootstrap$z_boot[1:500, ]; zb[1:60, ] <- 1000
+           zb <- rB$bootstrap$z_boot[1:500, ]; zb[1:60, ] <- 1000
            e <- engine_enveloppe_spread(zb, x)
            identical(e$B_eff, 500L) && all(is.finite(e$bandes$bas)) &&
              all(is.na(e$bandes$sim_bas)) && all(is.na(e$bandes$sim_haut)) &&
@@ -277,9 +285,9 @@ verifier("Aucun k admissible a B_eff = 500 (60 lignes identiques de z_boot, a 10
          })
 verifier("Lignes NA de z_boot ecartees du B effectif et des bandes",
          {
-           zb <- r999$bootstrap$z_boot; zb[c(3, 50, 120), ] <- NA
+           zb <- rB$bootstrap$z_boot; zb[c(3, 50, 120), ] <- NA
            e <- engine_enveloppe_spread(zb, x); L <- courbes(zb)
-           identical(e$B_eff, 996L) &&
+           identical(e$B_eff, B_SPREAD - 3L) &&
              isTRUE(proche(e$bandes$bas, apply(L, 2, q7, p = 0.05), rel = 1e-12)) &&
              identical(e$k, as.integer(k_etoile_417(L)))
          })
@@ -292,7 +300,7 @@ verifier("z_boot absent : B_eff = 0, bornes NA, motif du seuil de 20",
 verifier("Volumes constants (usp_volumes_constants()) : bornes NA, k NA, B_eff = 0 (aucune courbe calculee), motif 'volumes constants : graphique dispersion-niveau sans objet' ; run_engine() a x constant pose le meme motif",
          {
            xc <- rep(100, T1)
-           e <- engine_enveloppe_spread(r999$bootstrap$z_boot, xc)
+           e <- engine_enveloppe_spread(rB$bootstrap$z_boot, xc)
            rc <- run_engine(xt = xc, yt = y, methode = "premium", segment = 1, annexe = "II",
                             B = 99, seed = GRAINE, nature_donnees = "brutes")
            motif <- "volumes constants : graphique dispersion-niveau sans objet"
@@ -307,7 +315,7 @@ verifier("Volumes constants (usp_volumes_constants()) : bornes NA, k NA, B_eff =
 .racine306 <- if (exists("RACINE", inherits = TRUE)) RACINE else
               if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else "../.."
 source(file.path(.racine306, "R", "display_helpers.R"), local = TRUE)
-pd999 <- r999$plots_data
+pdB <- rB$plots_data
 forge_niveau <- function(pd, np, ns) {
   pd$spread_enveloppe$niveau_ponctuel <- np; pd$spread_enveloppe$niveau_simultane <- ns; pd
 }
@@ -338,14 +346,14 @@ releve_base306 <- function(pd) {
 }
 LIB_SIM90 <- "bande simultan\u00e9e 90 % (tous les points \u00e0 la fois)"
 LIB_PONCT90 <- "bande ponctuelle 90 % (point par point)"
-rb999 <- releve_base306(pd999)
-verifier("plot_spread(), base R, B = 999 : deux aplats (simultane puis ponctuel) traces avant le nuage et la courbe ; legende au niveau du moteur (90 %)",
-         identical(rb999$seq[1:2], c("polygon", "polygon")) &&
-           max(which(rb999$seq == "polygon")) < min(which(rb999$seq %in% c("points.default", "lines.default"))) &&
-           identical(rb999$leg, c(LIB_SIM90, LIB_PONCT90)) &&
-           identical(rb999$mt, sprintf("bootstrap param\u00e9trique ; bandes ponctuelle et simultan\u00e9e (k = %s sur 999 r\u00e9plications)",
-                                       pd999$spread_enveloppe$k)))
-rb_95 <- releve_base306(forge_niveau(pd999, 0.80, 0.95))
+rbB <- releve_base306(pdB)
+verifier("plot_spread(), base R, B = 599 : deux aplats (simultane puis ponctuel) traces avant le nuage et la courbe ; legende au niveau du moteur (90 %)",
+         identical(rbB$seq[1:2], c("polygon", "polygon")) &&
+           max(which(rbB$seq == "polygon")) < min(which(rbB$seq %in% c("points.default", "lines.default"))) &&
+           identical(rbB$leg, c(LIB_SIM90, LIB_PONCT90)) &&
+           identical(rbB$mt, sprintf("bootstrap param\u00e9trique ; bandes ponctuelle et simultan\u00e9e (k = %s sur %d r\u00e9plications)",
+                                       pdB$spread_enveloppe$k, B_SPREAD)))
+rb_95 <- releve_base306(forge_niveau(pdB, 0.80, 0.95))
 verifier("plot_spread(), base R, niveaux forges (0,80 ponctuel ; 0,95 simultane) : legende lue dans niveau_*, aucun 90 %",
          identical(rb_95$leg, c("bande simultan\u00e9e 95 % (tous les points \u00e0 la fois)",
                                 "bande ponctuelle 80 % (point par point)")) &&
@@ -358,15 +366,15 @@ verifier("plot_spread(), base R, B = 199 : un seul aplat (ponctuel), legende pon
 # Titre : a la position par defaut quand le sous-titre tient sur une ligne ;
 # pose a la ligne 2,2 quand un motif ajoute une seconde ligne au sous-titre,
 # pour ne pas toucher la premiere (rendu a 560 x 330 px, #392).
-verifier("plot_spread(), base R : titre « Dispersion-niveau » a la position par defaut avec un sous-titre d'une ligne (B = 999), pose par title(line = 2,2) avec un sous-titre de deux lignes (B = 199, motif)",
-         identical(vapply(rb999$titres, function(t) t$main, ""), "Dispersion-niveau") &&
-           is.na(rb999$titres[[1]]$line) &&
+verifier("plot_spread(), base R : titre « Dispersion-niveau » a la position par defaut avec un sous-titre d'une ligne (B = 599), pose par title(line = 2,2) avec un sous-titre de deux lignes (B = 199, motif)",
+         identical(vapply(rbB$titres, function(t) t$main, ""), "Dispersion-niveau") &&
+           is.na(rbB$titres[[1]]$line) &&
            identical(vapply(rb199$titres, function(t) t$main, ""), c("", "Dispersion-niveau")) &&
            identical(rb199$titres[[2]]$line, 2.2))
 verifier("plot_spread(), base R, sans spread_enveloppe (objet anterieur a #306) et a volumes constants : aucun aplat ni legende, sans erreur",
          {
-           pd_ancien <- pd999; pd_ancien$spread_enveloppe <- NULL
-           pd_vc <- pd999; pd_vc$spread_enveloppe <- engine_enveloppe_spread(r999$bootstrap$z_boot, rep(100, T1))
+           pd_ancien <- pdB; pd_ancien$spread_enveloppe <- NULL
+           pd_vc <- pdB; pd_vc$spread_enveloppe <- engine_enveloppe_spread(rB$bootstrap$z_boot, rep(100, T1))
            ra <- releve_base306(pd_ancien); rv <- releve_base306(pd_vc)
            !any(ra$seq == "polygon") && !length(ra$leg) && !length(ra$mt) &&
              !any(rv$seq == "polygon") && !length(rv$leg) &&
@@ -378,31 +386,31 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     plotly::plotly_build(plot_spread(pd))$x
   }
   textes_ann <- function(b) vapply(b$layout$annotations, function(a) a$text, character(1))
-  verifier("plot_spread(), plotly, B = 999 : aplats (traces remplies) avant la courbe et le nuage, annotations au niveau du moteur, sous-titre au titre",
+  verifier("plot_spread(), plotly, B = 599 : aplats (traces remplies) avant la courbe et le nuage, annotations au niveau du moteur, sous-titre au titre",
            {
-             b <- construit306(pd999)
+             b <- construit306(pdB)
              remplie <- vapply(b$data, function(d) identical(d$fill, "tonexty"), logical(1))
              mode <- vapply(b$data, function(d) if (is.null(d$mode)) "" else d$mode, character(1))
              sum(remplie) == 2L && max(which(remplie)) < min(which(mode %in% c("lines", "markers") & !remplie &
                                                                  vapply(b$data, function(d) !identical(d$line$width, 0), logical(1)))) &&
                identical(textes_ann(b), c(LIB_SIM90, LIB_PONCT90)) &&
                endsWith(b$layout$title$text,
-                        sprintf("<br><sup>bootstrap param\u00e9trique ; bandes ponctuelle et simultan\u00e9e (k = %s sur 999 r\u00e9plications)</sup>",
-                                pd999$spread_enveloppe$k)) &&
+                        sprintf("<br><sup>bootstrap param\u00e9trique ; bandes ponctuelle et simultan\u00e9e (k = %s sur %d r\u00e9plications)</sup>",
+                                pdB$spread_enveloppe$k, B_SPREAD)) &&
                # Marge haute pour la legende : meme etendue des ordonnees qu'en base R.
-               identical(as.numeric(b$layout$yaxis$range), .spread_ylim(pd999, TRUE, TRUE)) &&
-               b$layout$yaxis$range[2] > max(pd999$spread_enveloppe$bandes$sim_haut)
+               identical(as.numeric(b$layout$yaxis$range), .spread_ylim(pdB, TRUE, TRUE)) &&
+               b$layout$yaxis$range[2] > max(pdB$spread_enveloppe$bandes$sim_haut)
            })
   verifier("plot_spread(), plotly, niveaux forges (0,80 ; 0,95) : annotations lues dans niveau_*, aucun 90 %",
            {
-             tx <- textes_ann(construit306(forge_niveau(pd999, 0.80, 0.95)))
+             tx <- textes_ann(construit306(forge_niveau(pdB, 0.80, 0.95)))
              identical(tx, c("bande simultan\u00e9e 95 % (tous les points \u00e0 la fois)",
                              "bande ponctuelle 80 % (point par point)")) &&
                !any(grepl("90 %", tx, fixed = TRUE))
            })
   verifier("plot_spread(), plotly, B = 199 et objet sans spread_enveloppe : une bande puis aucune, sans erreur",
            {
-             pd_ancien <- pd999; pd_ancien$spread_enveloppe <- NULL
+             pd_ancien <- pdB; pd_ancien$spread_enveloppe <- NULL
              b1 <- construit306(pd199); b0 <- construit306(pd_ancien)
              sum(vapply(b1$data, function(d) identical(d$fill, "tonexty"), logical(1))) == 1L &&
                identical(textes_ann(b1), LIB_PONCT90) &&

@@ -454,8 +454,9 @@ verifier(".usp_ligne_cook() : distance non finie (NaN, NA, Inf) -> non applicabl
                                                   "y = beta x tous nuls) : diagnostic non applicable")),
                       logical(1))) &&
              identical(ok$type, "diagnostic") && identical(ok$estim, 0.7) &&
-             identical(ok$detail, "repere conventionnel 4/T = 0.500 ; 2 observation(s) au-dessus (rangs 2, 4)") &&
-             identical(ok0$detail, "repere conventionnel 4/T = 0.500 ; 0 observation(s) au-dessus")
+             # #514 (Q-3) : rangs retires du detail, separateur ", ".
+             startsWith(ok$detail, "Repere conventionnel 4/T = 0.500, 2 annee(s) au-dessus :") &&
+             startsWith(ok0$detail, "Repere conventionnel 4/T = 0.500, 0 annee(s) au-dessus :")
          })
 # Issue des regressions sur donnees degenerees : dependante de la
 # plateforme. Sur y exactement proportionnel a x (x = 2^(0:7), y = x / 2)
@@ -1332,17 +1333,85 @@ verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attribu
            erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
            erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
            erreur_usage("sigma_standard", list(c(a = 0.1), matrix(0.1)), "sans attribut"))
-verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), ignore en reserve2",
+# Avant #489, theta_equiv etait ignore en reserve2 (r2$ok TRUE) : il y est
+# desormais une erreur d'usage, argument sans effet pour la methode.
+verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), erreur d'usage nommant theta_equiv en reserve2 (#489)",
          {
            r1 <- usage_premium(theta_equiv = NA)
            r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
                             theta_equiv = NA)
-           r2 <- usage_mw(theta_equiv = NA)
+           r2 <- tryCatch(usage_mw(theta_equiv = NA), error = function(e) e)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
              contient(r1$validation$erreurs, "theta_equiv = NA") &&
              identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
-             contient(r3$validation$erreurs, "theta_equiv = NA") && isTRUE(r2$ok)
+             contient(r3$validation$erreurs, "theta_equiv = NA") &&
+             inherits(r2, "error") &&
+             startsWith(conditionMessage(r2), "theta_equiv : argument sans effet pour la methode \"reserve2\"")
          })
+
+# Issue #489 (constats C5 et C7 de l'audit entrees-sorties ; decision du
+# mainteneur du 08/11/2026, Q-55-3 (iii)). C5 : methode et annexe sont
+# controlees exactement avant match.arg(), qui completait une abreviation
+# (annexe = "X" lue "XIV", "I" lue "II", methode = "p" lue "premium").
+# C7 : un argument sans effet pour la methode choisie est une erreur d'usage
+# qui le nomme ; plus_recent_en_dernier = NA levait une erreur R qui ne le
+# nommait pas.
+message_489 <- function(expr) {
+  e <- tryCatch({ force(expr); NULL }, error = function(e) e)
+  if (inherits(e, "error")) conditionMessage(e) else NA_character_
+}
+verifier("run_engine : annexe = \"X\", \"I\", \"xiv\", NA, NULL, c(\"II\", \"XIV\") -> erreur d'usage nommant annexe (premium, reserve2 ; #489)",
+         all(vapply(list("X", "I", "xiv", NA, NULL, c("II", "XIV")), function(a) {
+           m1 <- message_489(usage_premium(annexe = a))
+           m2 <- message_489(usage_mw(annexe = a))
+           all(!is.na(c(m1, m2))) &&
+             all(startsWith(c(m1, m2), paste0("annexe = ", .engine_saisie(a), " : "))) &&
+             all(grepl("\"II\" ou \"XIV\" exactement est attendu (aucune abreviation)",
+                       c(m1, m2), fixed = TRUE))
+         }, logical(1))))
+verifier("run_engine : methode = \"p\", \"reserve\", NA, NULL, c(\"premium\", \"reserve1\", \"reserve2\") -> erreur d'usage nommant methode (#489)",
+         all(vapply(list("p", "reserve", NA, NULL, c("premium", "reserve1", "reserve2")), function(m) {
+           msg <- message_489(usage_premium(methode = m))
+           !is.na(msg) && startsWith(msg, paste0("methode = ", .engine_saisie(m), " : ")) &&
+             grepl("\"premium\", \"reserve1\" ou \"reserve2\" exactement est attendu",
+                   msg, fixed = TRUE)
+         }, logical(1))))
+verifier("run_engine : methode omise -> premium, annexe omise -> II (defauts inchanges, #489)",
+         {
+           r <- run_engine(xt = x, yt = y, segment = 1, B = B_MIN_USAGE, nature_donnees = "brutes")
+           isTRUE(r$ok) && identical(r$metadata$methode, "premium") &&
+             identical(r$metadata$annexe, "II")
+         })
+verifier("run_engine, reserve2 : xt, yt, T = 5, theta_equiv, delta_equiv, plus_recent_en_dernier fournis -> erreur d'usage nommant l'argument (#489)",
+         {
+           cas <- list(xt = x, yt = y, T = 5, theta_equiv = 0.10, delta_equiv = 1,
+                       plus_recent_en_dernier = TRUE)
+           all(vapply(names(cas), function(n) {
+             msg <- message_489(do.call(usage_mw, cas[n]))
+             !is.na(msg) &&
+               startsWith(msg, paste0(n, " : argument sans effet pour la methode \"reserve2\""))
+           }, logical(1))) &&
+             startsWith(message_489(usage_mw(T = 5, theta_equiv = 0.1)),
+                        "T, theta_equiv : arguments sans effet pour la methode \"reserve2\"")
+         })
+verifier("run_engine, reserve2 : xt et yt NULL, valeurs par defaut de theta_equiv et plus_recent_en_dernier non passees -> accepte (#489)",
+         isTRUE(usage_mw(xt = NULL, yt = NULL, T = NULL, delta_equiv = NULL)$ok))
+verifier("run_engine, premium et reserve1 : triangle fourni -> erreur d'usage nommant triangle ; triangle NULL accepte (#489)",
+         {
+           m1 <- message_489(usage_premium(triangle = tri_usage))
+           m3 <- message_489(run_engine(xt = x, yt = y, methode = "reserve1", segment = 1,
+                                        B = B_MIN_USAGE, triangle = tri_usage))
+           !is.na(m1) && startsWith(m1, "triangle : argument sans effet pour la methode \"premium\"") &&
+             !is.na(m3) && startsWith(m3, "triangle : argument sans effet pour la methode \"reserve1\"") &&
+             isTRUE(usage_premium(triangle = NULL)$ok)
+         })
+verifier("run_engine, premium : plus_recent_en_dernier NA, NULL, \"a\", 1, c(TRUE, FALSE), c(a = TRUE) -> erreur d'usage nommant l'argument ; FALSE accepte (#489)",
+         all(vapply(list(NA, NULL, "a", 1, c(TRUE, FALSE), c(a = TRUE)), function(v) {
+           msg <- message_489(usage_premium(plus_recent_en_dernier = v))
+           !is.na(msg) && startsWith(msg, paste0("plus_recent_en_dernier = ", .engine_saisie(v), " : ")) &&
+             grepl("TRUE ou FALSE (logique scalaire non NA, sans attribut) est attendu", msg, fixed = TRUE)
+         }, logical(1))) &&
+           isTRUE(usage_premium(plus_recent_en_dernier = FALSE)$ok))
 verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
          {
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
@@ -1422,6 +1491,71 @@ verifier("Triangle : cumul decroissant accepte avec avertissement",
            r <- mw_valider_triangle(m)
            isTRUE(r$ok) && contient(r$avertissements, "cumul decroissant")
          })
+# Issue #491 (decision du mainteneur du 08/11/2026, Q-55-3 (ii)) : toute
+# cellule i + j > I non NA est signalee par un avertissement non bloquant,
+# quelle que soit sa valeur ; .run_engine_mw() la met a NA avant le calcul
+# (triangle restitue et decompte des cellules observees restreints).
+tri491 <- local({
+  m <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+  m <- m[, colnames(m) != "i", drop = FALSE]
+  storage.mode(m) <- "double"
+  unname(m)
+})
+cel491 <- function(r) with(r$statistiques_descriptives, valeur[grandeur == "Cellules observees"])
+verifier("Triangle de reference : aucune cellule sous la diagonale signalee, 36 cellules observees (#491)",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(r$ok) && !contient(r$validation$avertissements, "sous la diagonale") &&
+             cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees")
+         })
+verifier("Rectangle 8 x 8 complete par C_chapeau : avertissement, 36 cellules, triangle restitue restreint, sigma_USP inchange (#491)",
+         {
+           rect <- mw_ajuster(tri491)$C_chapeau
+           r0 <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
+                            annexe = "II", B = B_MIN_USAGE)
+           r <- run_engine(methode = "reserve2", triangle = rect, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           av <- r$validation$avertissements
+           isTRUE(r$ok) && !anyNA(rect) &&
+             sum(grepl("sous la diagonale", av, fixed = TRUE)) == 1L &&
+             contient(av, "(i=1, j=7), (i=2, j=6), (i=2, j=7), (i=3, j=5), (i=3, j=6) et 23 autre(s)") &&
+             cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees") &&
+             identical(r$triangle, tri491) &&
+             identical(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp) &&
+             abs(r$parametre_final$sigma_usp - 0.04977646) < 5e-9
+         })
+verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas de refus, 36 cellules (#491)",
+         {
+           m <- tri491; m[8, 2] <- -3; m[5, 6] <- 1000
+           v <- mw_valider_triangle(m)
+           l <- engine_lire_triangle(as.data.frame(m))
+           r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(v$ok) && !length(v$erreurs) &&
+             contient(v$avertissements, "sous la diagonale (i + j > I) en (i=4, j=5), (i=7, j=1) :") &&
+             isTRUE(l$ok) && contient(l$avertissements, "(i=4, j=5), (i=7, j=1)") &&
+             isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
+         })
+verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
+         {
+           m <- tri491; m[8, 3] <- NaN
+           v <- mw_valider_triangle(m)
+           r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i=7, j=2) :") &&
+             isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
+         })
+verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \"et 1 autre(s)\" (#491)",
+         {
+           m5 <- tri491; m5[8, 2:6] <- 1
+           m6 <- tri491; m6[8, 2:7] <- 1
+           a5 <- mw_valider_triangle(m5)$avertissements
+           a6 <- mw_valider_triangle(m6)$avertissements
+           contient(a5, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) : hors") &&
+             !contient(a5, "autre(s)") &&
+             contient(a6, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) et 1 autre(s) : hors")
+         })
 
 ## --- engine_lire_donnees_csv --------------------------------------------------
 df <- data.frame(t = c(2003, 2001, 2002, 2004, 2005), xt = c(3, 1, 2, 4, 5) * 100,
@@ -1470,7 +1604,7 @@ verifier("Lecture : colonne t incomplete ou non numerique refusee (tri non effec
            a <- engine_lire_donnees_csv(data.frame(t = c(3, 1, NA, 2, 5), xt = 1:5, yt = 1:5))
            b <- engine_lire_donnees_csv(data.frame(t = c("2001", "2002", "x", "2004", "2005"),
                                                    xt = 1:5, yt = 1:5, stringsAsFactors = FALSE))
-           !a$ok && contient(a$erreurs, "ligne(s) 3") && !b$ok
+           !a$ok && contient(a$erreurs, "(ligne(s) de donnees 3)") && !b$ok
          })
 verifier("Lecture : t consecutive dans le desordre -> triee en croissant",
          {
@@ -1519,6 +1653,349 @@ verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle(
            !r1$ok && contient(r1$erreurs, "(i=1, j=2)") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
              !engine_lire_triangle(data.frame())$ok && !engine_lire_triangle(list(a = 1))$ok
          })
+
+## --- Lignes et colonnes vides des fichiers lus (#483) -------------------------
+# Regle commune aux series et au triangle, posee par
+# .retirer_lignes_colonnes_vides() : lignes vides de fin retirees ; ligne vide
+# intercalee ou en tete refusee (motifs distincts) ; colonne vide sans en-tete
+# en bord retiree ; triangle : colonne vide intercalee ou portant un en-tete
+# refusee ; meme motif quel que soit le chemin (openxlsx, lecteur interne,
+# data.frame d'un CSV lu en texte avec ses lignes vides).
+xt483 <- 100:108; yt483 <- 60 + (0:8)
+ser483 <- data.frame(xt = xt483, yt = yt483)
+avec_vide <- function(d, k) d[append(seq_len(nrow(d)), NA, after = k - 1), , drop = FALSE]
+# Forme d'un CSV lu en texte (colClasses = "character", blank.lines.skip = FALSE)
+en_texte <- function(d) { d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v))); d }
+# Colonne vide de nom nom inseree apres la colonne k
+col_vide <- function(d, k, nom) {
+  d2 <- cbind(d[, seq_len(k), drop = FALSE], NA, d[, setdiff(seq_len(ncol(d)), seq_len(k)), drop = FALSE])
+  names(d2)[k + 1] <- nom; d2
+}
+MOTIF483 <- "Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4) : une ligne vide est refusee comme annee manquante presumee"
+verifier("Lignes vides (#483) : ligne vide intercalee dans des series sans t refusee, motif citant B(2)(b) et C(2)(b)",
+         {
+           r <- engine_lire_donnees_csv(avec_vide(ser483, 4))
+           !r$ok && length(r$erreurs) == 1 && contient(r$erreurs, MOTIF483) &&
+             contient(r$erreurs, "B(2)(b) et C(2)(b)") && is.null(r$xt)
+         })
+verifier("Lignes vides (#483) : meme motif pour un data.frame de chaines (CSV lu en texte, cellules vides ou blanches)",
+         {
+           d <- en_texte(avec_vide(ser483, 4)); d$yt[4] <- "  "
+           identical(engine_lire_donnees_csv(d)$erreurs,
+                     engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)
+         })
+verifier("Lignes vides (#483) : ligne vide en tete (sous l'en-tete) refusee par un motif distinct (\"en tete\")",
+         {
+           e <- engine_lire_donnees_csv(avec_vide(ser483, 1))$erreurs
+           length(e) == 1 && contient(e, "Ligne(s) vide(s) en tete, sous l'en-tete (ligne(s) de donnees 1)") &&
+             !contient(e, "intercalee")
+         })
+verifier("Lignes vides (#483) : lignes vides de fin retirees sans refus, series identiques",
+         {
+           r0 <- engine_lire_donnees_csv(ser483)
+           d <- rbind(ser483, NA, NA)
+           identical(engine_lire_donnees_csv(d), r0) &&
+             identical(engine_lire_donnees_csv(en_texte(d)), r0)
+         })
+verifier("Lignes vides (#483) : fichier avec colonne t sans ligne vide inchange (tri, trou d'annee refuse)",
+         {
+           d <- data.frame(t = c(2003, 2001, 2002, 2004:2009), xt = xt483, yt = yt483)
+           r <- engine_lire_donnees_csv(d)
+           b <- engine_lire_donnees_csv(data.frame(t = c(2001:2003, 2005:2010), xt = xt483, yt = yt483))
+           isTRUE(r$ok) && identical(r$xt, c(101, 102, 100, 103:108)) &&
+             !b$ok && contient(b$erreurs, "non consecutives")
+         })
+verifier("Lignes vides (#483) : fichier avec colonne t a ligne vide intercalee refuse par le meme motif",
+         {
+           d <- avec_vide(data.frame(t = 2001:2009, xt = xt483, yt = yt483), 4)
+           identical(engine_lire_donnees_csv(d)$erreurs,
+                     engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)
+         })
+verifier("Lignes vides (#483) : tableau fait de lignes vides seules refuse comme vide",
+         contient(engine_lire_donnees_csv(ser483[1:2, ][NA_integer_, ])$erreurs, "Fichier vide"))
+verifier("Colonnes vides (#483) : series, colonne vide sans en-tete retiree (bord ou intercalee), series identiques",
+         {
+           r0 <- engine_lire_donnees_csv(ser483)
+           all(vapply(list(col_vide(ser483, 0, "X1"), col_vide(ser483, 1, "X2"), col_vide(ser483, 2, "V3"),
+                           en_texte(col_vide(ser483, 1, ""))),
+                      function(d) identical(engine_lire_donnees_csv(d), r0), logical(1)))
+         })
+tri483 <- fichier_tri(triangle(6))
+verifier("Lignes vides (#483) : triangle a ligne vide intercalee refuse (colonne i comprise), D(2)(b) cite, CSV texte compris",
+         {
+           r <- engine_lire_triangle(avec_vide(tri483, 4))
+           r2 <- engine_lire_triangle(en_texte(avec_vide(tri483, 4)))
+           !r$ok && is.null(r$triangle) &&
+             contient(r$erreurs, "Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 4)") &&
+             contient(r$erreurs, "D(2)(b)") && identical(r2$erreurs, r$erreurs)
+         })
+verifier("Lignes vides (#483) : triangle a ligne vide en tete refuse par le motif \"en tete\"",
+         contient(engine_lire_triangle(avec_vide(tri483, 1))$erreurs,
+                  "Ligne(s) vide(s) en tete dans le triangle, sous l'en-tete (ligne(s) de donnees 1)"))
+verifier("Lignes vides (#483) : triangle a lignes vides de fin lu comme sans elles",
+         {
+           r0 <- engine_lire_triangle(tri483)
+           isTRUE(r0$ok) && identical(engine_lire_triangle(rbind(tri483, NA, NA)), r0) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(rbind(tri483, NA)))$triangle, r0$triangle,
+                              tolerance = 1e-15))
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide sans en-tete en bord (gauche, entre i et j0, droite) retiree",
+         {
+           r0 <- engine_lire_triangle(tri483)
+           # forme texte : valeurs ecrites par as.character() (15 chiffres), d'ou all.equal()
+           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X8")),
+                      function(d) identical(engine_lire_triangle(d), r0), logical(1))) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, ""))), r0,
+                              tolerance = 1e-15))
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
+         {
+           a <- engine_lire_triangle(col_vide(tri483, 3, "X4"))
+           b <- engine_lire_triangle(col_vide(tri483, 3, "j9"))
+           !a$ok && contient(a$erreurs, "Colonne(s) vide(s) intercalee(s) dans le triangle (colonne(s) 4)") &&
+             contient(a$erreurs, "annee de developpement manquante presumee") && identical(b$erreurs, a$erreurs)
+         })
+verifier("Colonnes vides (#483) : triangle, colonne vide en bord portant un en-tete refusee, en-tete cite",
+         {
+           r <- engine_lire_triangle(col_vide(tri483, 7, "j6"))
+           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : j6)")
+         })
+# Reserve de la revue de #483 : "X<n>" / "V<n>" n'est un en-tete genere qu'a
+# sa position n. Un triangle CSV a en-tetes "0" a "6", colonne "6" vide, lu
+# par read.csv avec check.names = TRUE ("X6" en 8e colonne), etait retire sans
+# message alors que le meme tableau en xlsx (en-tete "6") etait refuse.
+verifier("Colonnes vides (#483) : en-tete \"X<n>\" hors de sa position (en-tete \"6\" lu \"X6\" par read.csv) refuse comme en-tete reel, comme en xlsx",
+         {
+           d <- col_vide(tri483, 7, "6"); names(d) <- c("i", 0:5, "6")
+           f <- tempfile(fileext = ".csv")
+           utils::write.csv(d, f, row.names = FALSE, na = "")
+           a <- utils::read.csv(f, stringsAsFactors = FALSE)          # check.names = TRUE
+           b <- utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                check.names = FALSE, na.strings = character(0))
+           unlink(f)
+           ra <- engine_lire_triangle(a); rb <- engine_lire_triangle(b); rd <- engine_lire_triangle(d)
+           identical(names(a)[8], "X6") && identical(names(b)[8], "6") &&
+             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : X6)") &&
+             !rb$ok && identical(rb$erreurs, rd$erreurs) &&
+             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : 6)") &&
+             identical(.entete_absent(c("X1", "V2", "X2", "V1", "X", "X.1", "", NA)),
+                       c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE))
+         })
+# En-tetes non UTF-8 (#483, avec #99) : un CSV lu en texte avec
+# check.names = FALSE (application) garde un en-tete Windows-1252 ou les
+# octets d'un fichier binaire ; les motifs qui le citent restent de l'UTF-8
+# valide en locale UTF-8 (en-tete declare Latin-1, octets inchanges), sans
+# avertissement R. Hors locale UTF-8, comportement inchange (non verifie ici).
+if (isTRUE(l10n_info()[["UTF-8"]])) {
+  e1252_483 <- rawToChar(c(charToRaw("ann"), as.raw(0xe9), charToRaw("e")))
+  sans_car_483 <- rawToChar(as.raw(c(0x61, 0x81, 0x62)))
+  avert483 <- function(expr) {
+    w <- character(0)
+    v <- withCallingHandlers(expr, warning = function(x) {
+      w <<- c(w, conditionMessage(x)); invokeRestart("muffleWarning") })
+    list(v = v, w = w)
+  }
+  verifier("En-tetes non UTF-8 (#483, #99) : motifs \"Colonnes presentes\" et \"portant un en-tete\" en UTF-8 valide, en-tete Windows-1252 cite \"annee\" accentue, sans avertissement",
+           {
+             d <- data.frame(a = c("1", "2"), b = c("3", "4"), stringsAsFactors = FALSE)
+             names(d) <- c(e1252_483, "primes")
+             s1 <- avert483(engine_lire_donnees_csv(d))
+             tri <- en_texte(col_vide(tri483, 7, sans_car_483)); names(tri)[8] <- e1252_483
+             s2 <- avert483(engine_lire_triangle(tri))
+             tri[2, 8] <- "x"; names(tri)[8] <- sans_car_483
+             s3 <- avert483(engine_lire_triangle(tri))
+             !s1$v$ok && validUTF8(s1$v$erreurs) &&
+               contient(s1$v$erreurs, "Colonnes presentes : année, primes.") &&
+               !s2$v$ok && validUTF8(s2$v$erreurs) &&
+               contient(s2$v$erreurs, "(colonne(s) 8 : année)") &&
+               !s3$v$ok && validUTF8(s3$v$erreurs) && contient(s3$v$erreurs, "Cellule(s) non numerique(s)") &&
+               !length(c(s1$w, s2$w, s3$w))
+           })
+  verifier("En-tetes non UTF-8 (#483) : triangle accepte a en-tete de developpement \"a<81>b\", lu comme l'application, sans avertissement et identique au triangle a en-tetes ASCII",
+           {
+             f <- tempfile(fileext = ".csv")
+             d <- tri483; names(d)[4] <- "ZZ"
+             utils::write.csv(d, f, row.names = FALSE, na = "")
+             l <- readLines(f); l[1] <- sub("\"ZZ\"", sans_car_483, l[1], fixed = TRUE, useBytes = TRUE)
+             writeLines(l, f, useBytes = TRUE)
+             lu <- utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                   check.names = FALSE, na.strings = character(0))
+             unlink(f)
+             s4 <- avert483(engine_lire_triangle(lu))
+             !validUTF8(names(lu)[4]) && isTRUE(s4$v$ok) && !length(s4$w) &&
+               isTRUE(all.equal(s4$v$triangle, engine_lire_triangle(tri483)$triangle, tolerance = 1e-15))
+           })
+}
+# Cellule texte "NA" (#483, decision par defaut de la session, soumise au
+# mainteneur) : toujours refusee (alignee sur xlsx, na.strings =
+# character(0)), le motif le dit par une phrase fixe ; absente sans "NA".
+verifier("Cellule texte \"NA\" (#483) : refus motive par une phrase fixe, series et triangle ; phrase absente pour une autre cellule non numerique",
+         {
+           s_na <- engine_lire_donnees_csv(data.frame(xt = c("100", " NA ", "102", "103", "104"),
+                                                      yt = c("60", "61", "62", "63", "64"), stringsAsFactors = FALSE))
+           s_x <- engine_lire_donnees_csv(data.frame(xt = c("100", "x", "102", "103", "104"),
+                                                     yt = c("60", "61", "62", "63", "64"), stringsAsFactors = FALSE))
+           t_txt <- en_texte(tri483); t_txt$j2[2] <- "NA"
+           t_x <- en_texte(tri483); t_x$j2[2] <- "x"
+           r_na <- engine_lire_triangle(t_txt); r_x <- engine_lire_triangle(t_x)
+           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).",
+                                         "Une cellule \"NA\" est lue comme du texte, non comme une valeur manquante : renseigner la valeur.")) &&
+             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
+             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=2).",
+                                           "Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou laisser vide une cellule non observee.")) &&
+             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i=1, j=2).")
+         })
+verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
+         {
+           d <- fichier_tri(t5); names(d) <- c("i", rep("j", 5))
+           r <- engine_lire_triangle(d)
+           isTRUE(r$ok) && identical(r$triangle, t5)
+         })
+# Les deux chemins de engine_lire_xlsx() : openxlsx s'il est installe, et le
+# lecteur interne force (requireNamespace simule dans l'environnement du
+# moteur). Classeurs ecrits par l'ecrivain interne (commande zip), puis
+# retouches dans leur XML (decalage de colonnes, cellules mises en forme sans
+# valeur <c r=... s=.../>).
+if (nzchar(Sys.which("zip"))) {
+  env483 <- environment(run_engine)
+  sans_openxlsx483 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env483)
+    on.exit(rm("requireNamespace", envir = env483), add = TRUE)
+    force(expr)
+  }
+  avec_openxlsx483 <- requireNamespace("openxlsx", quietly = TRUE)
+  if (!avec_openxlsx483) cat("  [saute] lignes vides (#483), chemin openxlsx : paquet non installe\n")
+  # retouche : fonction appliquee au XML de la feuille (une chaine)
+  xlsx483 <- function(d, retouche = identity) {
+    f <- tempfile(fileext = ".xlsx")
+    sans_openxlsx483(engine_ecrire_xlsx(d, f))
+    x <- tempfile("x483_"); on.exit(unlink(x, recursive = TRUE), add = TRUE)
+    utils::unzip(f, exdir = x)
+    fs <- file.path(x, "xl", "worksheets", "sheet1.xml")
+    writeLines(retouche(paste(readLines(fs, warn = FALSE), collapse = "")), fs, useBytes = TRUE)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # Decale d'une colonne vers la droite les cellules de colonne >= de
+  # (lettres A a Y).
+  decaler <- function(de = "A") function(s) {
+    m <- gregexpr('r="[A-Z][0-9]+"', s)[[1]]
+    regmatches(s, list(m)) <- list(vapply(regmatches(s, list(m))[[1]], function(r) {
+      l <- substr(r, 4, 4)
+      if (l >= de) sub(l, LETTERS[match(l, LETTERS) + 1L], r, fixed = TRUE) else r
+    }, character(1)))
+    s
+  }
+  # Cellules mises en forme sans valeur (<c r=... s="0"/>) : une colonne de fin
+  # col sur chaque ligne, et deux lignes de fin apres la ligne nl.
+  formes_fin <- function(col, nl) function(s) {
+    s <- gsub('(<row r="([0-9]+)">.*?)</row>', paste0('\\1<c r="', col, '\\2" s="0"/></row>'), s, perl = TRUE)
+    lignes <- paste0(vapply(nl + 1:2, function(i) sprintf('<row r="%d"><c r="A%d" s="0"/><c r="%s%d" s="0"/></row>',
+                                                          i, i, col, i), character(1)), collapse = "")
+    sub("</sheetData>", paste0(lignes, "</sheetData>"), s, fixed = TRUE)
+  }
+  chemins483 <- function(f, lire) {
+    # f (appel de xlsx483(), qui pose et retire lui-meme la substitution) est
+    # evalue ici, hors de sans_openxlsx483() : evaluee a l'interieur, la
+    # promesse retirait la substitution exterieure avant son on.exit(rm())
+    # (avertissement "object 'requireNamespace' not found", constat 5 de
+    # la revue finale de K1).
+    force(f)
+    out <- list(interne = lire(sans_openxlsx483(engine_lire_xlsx(f))))
+    if (avec_openxlsx483) out$openxlsx <- lire(engine_lire_xlsx(f))
+    unlink(f)
+    out
+  }
+  tous <- function(rs, test) all(vapply(rs, test, logical(1)))
+  ref_ser <- engine_lire_donnees_csv(ser483); ref_tri <- engine_lire_triangle(tri483)
+  r7 <- chemins483(xlsx483(avec_vide(ser483, 4)), engine_lire_donnees_csv)
+  r8 <- chemins483(xlsx483(rbind(ser483, NA, NA)), engine_lire_donnees_csv)
+  rt <- chemins483(xlsx483(data.frame(t = c(2003, 2001, 2002, 2004:2009), xt = xt483, yt = yt483)),
+                   engine_lire_donnees_csv)
+  rforme <- chemins483(xlsx483(ser483, formes_fin("D", 10)), engine_lire_donnees_csv)
+  rsdec <- chemins483(xlsx483(ser483, decaler("A")), engine_lire_donnees_csv)
+  rv <- chemins483(xlsx483(avec_vide(tri483, 4)), engine_lire_triangle)
+  rf <- chemins483(xlsx483(rbind(tri483, NA)), engine_lire_triangle)
+  rtdec <- chemins483(xlsx483(tri483, decaler("A")), engine_lire_triangle)
+  rtforme <- chemins483(xlsx483(tri483, formes_fin("J", 7)), engine_lire_triangle)
+  rtinter <- chemins483(xlsx483(tri483, decaler("D")), engine_lire_triangle)
+  rna <- chemins483(xlsx483(within(tri483, { j5 <- as.character(j5); j5[2] <- "NA" })), engine_lire_triangle)
+  d6_483 <- col_vide(tri483, 7, "6"); names(d6_483) <- c("i", 0:5, "6")
+  r6 <- chemins483(xlsx483(d6_483), engine_lire_triangle)
+  verifier("Lignes vides (#483) : xlsx sans t a ligne vide intercalee (cas t7) refuse, meme motif sur chaque chemin",
+           tous(r7, function(r) !r$ok && identical(r$erreurs,
+                engine_lire_donnees_csv(avec_vide(ser483, 4))$erreurs)))
+  verifier("Lignes vides (#483) : xlsx a lignes vides de fin accepte, series identiques sur chaque chemin",
+           tous(r8, function(r) identical(r, ref_ser)))
+  verifier("Lignes vides (#483) : xlsx avec colonne t lu et trie a l'identique sur chaque chemin",
+           tous(rt, function(r) isTRUE(r$ok) && identical(r$xt, c(101, 102, 100, 103:108))))
+  verifier("Lignes et colonnes vides (#483) : xlsx de series a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
+           tous(rforme, function(r) identical(r, ref_ser)))
+  verifier("Colonnes vides (#483) : xlsx de series decale en colonne B, accepte sur chaque chemin",
+           tous(rsdec, function(r) identical(r, ref_ser)))
+  verifier("Lignes vides (#483) : xlsx de triangle a ligne vide intercalee refuse, meme motif sur chaque chemin ; lignes vides de fin retirees",
+           tous(rv, function(r) !r$ok && identical(r$erreurs,
+                engine_lire_triangle(avec_vide(tri483, 4))$erreurs)) &&
+             tous(rf, function(r) identical(r, ref_tri)))
+  verifier("Colonnes vides (#483) : xlsx de triangle decale en colonne B, accepte a l'identique sur chaque chemin",
+           tous(rtdec, function(r) identical(r, ref_tri)))
+  verifier("Lignes et colonnes vides (#483) : xlsx de triangle a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
+           tous(rtforme, function(r) identical(r, ref_tri)))
+  verifier("Colonnes vides (#483) : xlsx de triangle a colonne vide intercalee refuse, meme motif sur chaque chemin",
+           tous(rtinter, function(r) !r$ok &&
+                identical(r$erreurs, engine_lire_triangle(col_vide(tri483, 3, "X4"))$erreurs)))
+  verifier("Colonnes vides (#483) : xlsx de triangle a colonne de fin vide d'en-tete \"6\" refuse sur chaque chemin, meme motif que le CSV lu en texte",
+           tous(r6, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(d6_483)$erreurs)))
+  verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
+           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
+  # Lecteur interne (#490) : seule une colonne de cellules nombre est rendue en
+  # numerique ; une cellule texte (inlineStr ecrit par l'ecrivain interne, ou
+  # t="str" pose par retouche) garde la colonne en caractere, et "0x10" est
+  # refuse en aval par .cellules_en_nombre() avec sa position.
+  ser490 <- data.frame(xt = c("100", "0x10", "102", "103", "104"), yt = 60:64, stringsAsFactors = FALSE)
+  motif490 <- "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2)."
+  d490 <- chemins483(xlsx483(ser490), identity)
+  str490 <- function(s) {
+    s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="str"><v>0x10</v></c>', s, fixed = TRUE)
+    sub('<c r="B2"><v>60</v></c>', '<c r="B2" t="n"><v>60</v></c>', s, fixed = TRUE)
+  }
+  dstr490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), str490), identity)
+  dinf490 <- chemins483(xlsx483(data.frame(xt = c(100, Inf, 102), yt = c(60, 61, -Inf))), identity)
+  verifier("xlsx, lecteur interne (#490) : colonne a cellule texte \"0x10\" rendue en caractere, colonne de nombres en numerique",
+           identical(d490$interne$xt, ser490$xt) && identical(d490$interne$yt, as.numeric(60:64)))
+  verifier("xlsx (#490) : \"0x10\" en cellule texte refuse avec sa position sur chaque chemin, meme motif que le CSV lu en texte",
+           tous(d490, function(d) identical(engine_lire_donnees_csv(d)$erreurs, motif490)) &&
+             identical(engine_lire_donnees_csv(ser490)$erreurs, motif490))
+  verifier("xlsx, lecteur interne (#490) : cellule t=\"str\" \"0x10\" garde sa colonne en caractere, refusee ; cellule t=\"n\" lue en nombre",
+           identical(dstr490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
+             identical(dstr490$interne$yt, as.numeric(60:64)) &&
+             identical(engine_lire_donnees_csv(dstr490$interne)$erreurs, motif490))
+  verifier("xlsx, lecteur interne (#490) : +-Inf ecrits en chaine gardent leur colonne en caractere, nombres de la colonne en chaine",
+           identical(dinf490$interne$xt, c("100", "Inf", "102")) &&
+             identical(dinf490$interne$yt, c("60", "61", "-Inf")))
+  # Cellule booleenne t="b" : rendue "TRUE"/"FALSE" (valeur brute 1/0 lue
+  # comme un nombre auparavant), refusee en aval sur chaque chemin.
+  bool490 <- function(s) sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="b"><v>1</v></c>', s, fixed = TRUE)
+  dbool490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), bool490), identity)
+  verifier("xlsx, lecteur interne (#490) : cellule booleenne t=\"b\" rendue \"TRUE\", colonne en caractere, refusee sur chaque chemin",
+           identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
+             tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
+                  "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).")))
+  # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
+  # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
+  # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.
+  hex490 <- function(s) {
+    s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3"><v>0x10</v></c>', s, fixed = TRUE)
+    s <- sub('<c r="B2"><v>60</v></c>', '<c r="B2"><v>6E+1</v></c>', s, fixed = TRUE)
+    sub('<c r="B3"><v>61</v></c>', '<c r="B3"><v>6.1e1</v></c>', s, fixed = TRUE)
+  }
+  dhex490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), hex490), identity)
+  verifier("xlsx, lecteur interne (#490) : cellule nombre forgee \"0x10\" garde sa colonne en caractere, refusee avec sa position ; exposants complets lus en nombre",
+           identical(dhex490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
+             identical(dhex490$interne$yt, as.numeric(60:64)) &&
+             identical(engine_lire_donnees_csv(dhex490$interne)$erreurs, motif490))
+} else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
@@ -1663,6 +2140,32 @@ verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engi
                            T = Tr, B = 99, nature_donnees = "brutes")
            identical(sr$validation, r$validation) && !sr$validation$ok &&
              length(sr$xt) == 16 && !length(sr$validation$avertissements)
+         }, logical(1))))
+# Series de longueurs differentes avec T (issue #482) : la troncature a T
+# coupait les deux series sur les indices de xt ; yt plus long passait la
+# validation (yt mal apparie, valeurs recentes ecartees), yt plus court etait
+# refuse pour "Valeurs manquantes". Contrat : aucune troncature, refus par le
+# motif de longueur, meme validation avec ou sans T, dans
+# engine_valider_serie_retenue() (apercu de l'application) et run_engine().
+verifier("#482 : xt et yt de longueurs differentes avec T valide : refus par le motif de longueur, meme validation que sans T, serie non tronquee, moteur et run_engine()",
+         all(vapply(list(c(10L, 12L), c(10L, 9L), c(12L, 10L)), function(nn) {
+           xt <- xc[seq_len(nn[1])]; yt <- yc[seq_len(nn[2])]
+           motif <- sprintf("xt (%d valeurs) et yt (%d valeurs) doivent avoir la meme longueur.",
+                            nn[1], nn[2])
+           s8 <- engine_valider_serie_retenue(xt, yt, T = 8, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           s0 <- engine_valider_serie_retenue(xt, yt, methode = "premium",
+                                              nature_donnees = "brutes", segment = 1)
+           r8 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
+                            T = 8, B = 99, nature_donnees = "brutes")
+           r0 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
+                            B = 99, nature_donnees = "brutes")
+           !s8$validation$ok && identical(s8$validation, s0$validation) &&
+             identical(s8$xt, xt) && identical(s8$yt, yt) &&
+             identical(s8$validation$erreurs, motif) &&
+             !isTRUE(r8$ok) && !isTRUE(r0$ok) &&
+             identical(r8$validation, s8$validation) &&
+             identical(r0$validation, s0$validation)
          }, logical(1))))
 
 ## --- Validation des seules annees retenues (non-regression de #154) ---------
@@ -2136,6 +2639,78 @@ verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-
                is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i=0, j=0)")
            })
            identical(r, "locale UTF-8 indisponible") || isTRUE(r)
+         })
+# Issue #490 (audit entrees-sorties, constats C6 et C11) : .cellules_en_nombre()
+# refuse le point quand dec != ".", l'hexadecimal et l'exposant incomplet, que
+# as.numeric() lit comme des nombres ("1.500" avec dec = "," valait 1,5 : facteur
+# 1 000 sans refus ; "0x10" valait 16).
+verifier(".cellules_en_nombre() : decimales ordinaires inchangees (dec = \".\" et dec = \",\", exposant complet, signe +, .5, 5.) (#490)",
+         {
+           ord <- c("1.5", "+1", "-2", "1e3", "1E-3", "1e+3", ".5", "5.", "0", "00012", "1.e3", " 7", "7 ")
+           virg <- c("1,5", "980,5", "-0,25", "1e3", ",5", "5,", "42")
+           identical(.cellules_en_nombre(ord), suppressWarnings(as.numeric(ord))) &&
+             !anyNA(.cellules_en_nombre(ord)) &&
+             identical(.cellules_en_nombre(virg, ","), c(1.5, 980.5, -0.25, 1000, 0.5, 5, 42)) &&
+             identical(.cellules_en_nombre(c(NA, "x", ""), ","), rep(NA_real_, 3)) &&
+             identical(.cellules_en_nombre(character(0), ","), numeric(0))
+         })
+verifier(".cellules_en_nombre() : point refuse quand dec != \".\", y compris avec exposant ; accepte quand dec = \".\" (#490)",
+         {
+           pts <- c("1.500", "980.5", "2.5e3", ".5", "5.")
+           all(is.na(.cellules_en_nombre(pts, ","))) && !anyNA(.cellules_en_nombre(pts, ".")) &&
+             identical(.cellules_en_nombre(c("1.500", "2,5"), ","), c(NA, 2.5))
+         })
+verifier(".cellules_en_nombre() : hexadecimal (signe, blancs de tete, exposant binaire) et exposant incomplet refuses ; Inf et NaN gardes (#490)",
+         {
+           hexa <- c("0x10", "0X1F", "-0x10", "+0x10", " 0x10", "\t0x1", "0x1p3", "0x.8", "0x", "0x1e3")
+           incomplet <- c("1E", "1e+", "1e-", "1e ", "2.5e")
+           all(is.na(.cellules_en_nombre(hexa))) && all(is.na(.cellules_en_nombre(hexa, ","))) &&
+             all(is.na(.cellules_en_nombre(incomplet))) &&
+             identical(.cellules_en_nombre(c("Inf", "-Inf", "NaN")), c(Inf, -Inf, NaN)) &&
+             # 0 seul, "x0", "10x" : non concernes par le motif d'hexadecimal
+             identical(.cellules_en_nombre(c("0", "0.5", "x0", "10x")), c(0, 0.5, NA, NA))
+         })
+verifier("Lecture vecteur : \"1.500;2.100;980,5\" avec dec = \",\" refuse (cellule citee), \"1500;2100;980,5\" lu ; point en milieu de serie refuse avec sa position (#490, C6)",
+         {
+           lit <- function(l, sep = ",", dec = ".") {
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE)
+             tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+           }
+           a <- lit("1.500;2.100;980,5", ";", ",")
+           b <- lit(c("x", "1,5", "2.100", "3"), ";", ",")
+           c <- lit(c("1.500", "2.100", "980,5"), ";", ",")
+           identical(lit("1500;2100;980,5", ";", ","), c(1500, 2100, 980.5)) &&
+             identical(lit(c("x", "1.5", "2.100", "3")), c(1.5, 2.1, 3)) &&
+             is.character(a) && contient(a, "\"1.500\"") && contient(a, "separateur decimal attendu : \",\"") &&
+             is.character(b) && contient(b, "position 2") && contient(b, "\"2.100\"") &&
+             is.character(c) && contient(c, "\"1.500\"")
+         })
+verifier("Lecture vecteur : hexadecimal refuse dans toutes les formes (colonne, ligne, ligne avec en-tetes), avec la cellule citee (#490, C11)",
+         {
+           lit <- function(l, sep = ",", dec = ".") {
+             f <- tempfile(); writeLines(l, f, useBytes = TRUE)
+             tryCatch(usp_lire_vecteur(f, sep, dec), error = function(e) conditionMessage(e))
+           }
+           col <- lit(c("x", "10", "0x10", "30"))
+           tete <- lit(c("0x10", "11", "12"))
+           lig <- lit("10,0x10,30")
+           ent <- lit(c("a2017,a2018,a2019", "10,0x10,30"))
+           is.character(col) && contient(col, "position 2") && contient(col, "\"0x10\"") &&
+             is.character(tete) && contient(tete, "\"0x10\"") && contient(tete, "en position d'en-tete") &&
+             is.character(lig) && contient(lig, "\"0x10\"") &&
+             is.character(ent) && contient(ent, "position 2") && contient(ent, "\"0x10\"")
+         })
+verifier("Lecture t, xt, yt et triangle : hexadecimal refuse avec la position de la cellule, decimale ordinaire inchangee (#490, C11)",
+         {
+           d <- engine_lire_donnees_csv(data.frame(t = 1:5, xt = c("1", "0x10", "3", "4", "5"),
+                                                   yt = c("1", "2", "3", "4", "0X1"), stringsAsFactors = FALSE))
+           ok <- engine_lire_donnees_csv(data.frame(t = 1:5, xt = c("1.5", "1e2", "3", "4", "5"),
+                                                    yt = 1:5, stringsAsFactors = FALSE))
+           tri <- fichier_tri(t5); tri$j1 <- as.character(tri$j1); tri$j1[3] <- "0x10"
+           r <- engine_lire_triangle(tri)
+           !d$ok && contient(d$erreurs, "xt : ligne(s) de donnees 2") && contient(d$erreurs, "yt : ligne(s) de donnees 5") &&
+             isTRUE(ok$ok) && identical(ok$xt, c(1.5, 100, 3, 4, 5)) &&
+             !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
          })
 verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
          {
@@ -2718,11 +3293,12 @@ avt_vc213 <- function(x) sprintf(paste(
   "Brown-Forsythe et Smirnov non applicables) ; verifier la saisie."),
   TOL_DELTA_BORD, diff(range(x)) / mean(x))
 a_vc213 <- function(avt) any(startsWith(avt, "Volumes x_t constants"))
+# Texte de #514 (specification d'actuary, U8) : il remplace la base de la
+# ligne, sans point final (detail_r7() le pose).
 PHRASE_SV213 <- paste(
-  "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir",
-  "l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens",
-  "inverse du volume ; un rejet traduit des pertes non proportionnelles au",
-  "volume, ce que teste la ligne.")
+  "Pertes y_t constantes (voir l'avertissement sur les donnees) : le ratio varie en",
+  "sens inverse du volume, et un ECHEC ou une ALERTE traduit des pertes non",
+  "proportionnelles au volume.")
 x213 <- rep(100, 8)
 res213 <- list(premium = lancer189(x213, ys188, "premium"),
                reserve1 = lancer189(x213, ys188, "reserve1"))
@@ -2805,15 +3381,16 @@ verifier("Ordre : volumes et pertes constants (x = 110 x 8, y = 70 x 8) -> avert
            i <- match(avt_vc213(rep(110, 8)), a); j <- match(avt_pc189(y189), a)
            is.finite(i) && is.finite(j) && j == i + 1L
          })
-verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : presente une fois a pertes constantes (y = 70 x 8, premium et reserve1), type et verdict inchanges au predicat neutralise, detail = phrase de base suivie de la phrase (sans renvoi #215, la constante etant non applicable) ; absente sur J1 et a volumes constants (ligne non applicable)",
+verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : presente une fois a pertes constantes (y = 70 x 8, premium et reserve1), type et verdict inchanges au predicat neutralise, detail = la phrase, qui remplace la base depuis #514 (sans renvoi #215, la constante etant non applicable) ; absente sur J1 et a volumes constants (ligne non applicable)",
          {
-           base <- "Une correlation signale un effet d'echelle non modelise"
            ok_pc <- all(vapply(names(res189), function(m) {
              l <- ligne153(res189[[m]]$tests, NOM_SV215); l0 <- ligne153(neutre189[[m]]$tests, NOM_SV215)
              identical(l$type, "test") && identical(l$type, l0$type) && identical(l$verdict, l0$verdict) &&
                lengths(regmatches(l$detail, gregexpr(PHRASE_SV213, l$detail, fixed = TRUE))) == 1L &&
                !grepl(PHRASE_SV213, l0$detail, fixed = TRUE) &&
-               identical(l$detail, paste0(base, ". ", PHRASE_SV213))
+               # Texte propre de #514 : la phrase seule, precedee de la mention
+               # de regime (delta a la borne 1 sur ce jeu).
+               endsWith(l$detail, PHRASE_SV213)
            }, logical(1)))
            rj <- lancer189(xs188, ys188)
            ok_pc && !grepl(PHRASE_SV213, ligne153(rj$tests, NOM_SV215)$detail, fixed = TRUE) &&

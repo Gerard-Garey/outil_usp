@@ -128,8 +128,10 @@ L297 <- list(
   ligne297("C. famille C", "d"),                                  # famille d'un seul test
   ligne297("D. famille D", "c"), ligne297("D. famille D", "e"), ligne297("D. famille D", "c"))
 fp297 <- engine_p_famille(L297, boot297, cat297)
-# Liste T-1 attendue : "<test> [<mc_nom>]", test de la premiere ligne membre.
-etiq297 <- function(fam, mcs) paste(sprintf("%s %s [%s]", fam, mcs, mcs), collapse = ", ")
+# Liste T-1 attendue : cles mc_nom des membres, dans l'ordre des lignes,
+# separees par ", " (#514 ; avant : "<test> [<mc_nom>]"). fam, nom de la
+# famille, n'entre plus dans la liste.
+etiq297 <- function(fam, mcs) paste(mcs, collapse = ", ")
 
 verifier("#297 appartenance : B. = {a, b} ; C. sans ligne (un seul test) ; D. = {c, e} dedoublonnee ; globale = {a, b, d, c, e}",
          length(fp297) == 3L &&
@@ -167,22 +169,20 @@ verifier("#297 champs du par. 4.2 et textes T-1 et T-2 (membres dans l'ordre des
          })
 # Textes a la lettre (reprise du 25/10/2026, points 5, 6, 8 et 9).
 verifier("#297 textes a la lettre : T-2, T-3a, phrase d'introduction des membres de T-1, reference",
+         # Textes de #514 (specification finale d'actuary, par. 4 : usage puis
+         # lignes liees ; membres cites par leurs cles mc_nom, Q-7).
          identical(DETAIL_P_GLOBALE, paste0(
-           "Lecture conjointe de la batterie : p minP en une etape sur les %d tests ",
-           "des familles (tous, quelle que soit la selection de restitution), meme construction ",
-           "que les lignes de famille. Elle situe la plus petite p Monte-Carlo observee dans sa loi ",
-           "sous le modele ajuste, compte tenu du nombre de tests et de leur dependance. Elle porte ",
-           "sur les p Monte-Carlo des tests, pas sur leurs p retenues : un verdict fonde sur une p ",
-           "exacte peut ne pas s'y retrouver, et les lignes de sens rejeter, hors batterie, n'y ",
-           "entrent pas. Controle du taux d'erreur de la batterie au sens faible, sous le modele ",
-           "ajuste : p plug-in, non exacte. Diagnostic sans verdict : aucun verdict de ligne n'est ",
-           "modifie.")) &&
+           "Diagnostic sans verdict : une p globale faible signale qu'au moins une hypothese ",
+           "de la batterie est mise en cause sous le modele ajuste, compte tenu des %d tests ",
+           "et de leur dependance (p plug-in non exacte, sur les p Monte-Carlo et non les p ",
+           "retenues). A lire avec les lignes \"p de famille (minP, lecture conjointe)\" de ",
+           "chaque famille.")) &&
            identical(PHRASE_FAMILLE_B_EFF_REDUIT, paste0(
              "Calculee sur les seules replications ou les statistiques de tous les tests de la ",
              "famille sont finies, moins nombreuses que celles d'au moins un test : la plus petite p ",
              "peut alors differer de la plus petite p Monte-Carlo affichee.")) &&
-           grepl(" Tests de la famille (tous, quelle que soit la selection de restitution) : %s. Hors famille : ",
-                 DETAIL_P_FAMILLE, fixed = TRUE) &&
+           startsWith(DETAIL_P_FAMILLE, "Diagnostic sans verdict : une p de famille faible signale") &&
+           grepl("Tests de la famille (cles mc_nom) : [%s], voir aussi", DETAIL_P_FAMILLE, fixed = TRUE) &&
            identical(REFERENCE_P_FAMILLE, paste0(
              "Westfall & Young (1993), minP en une etape ; Ge, Dudoit & Speed (2003), rapport ",
              "technique 633, UC Berkeley, eq. (10) ; Dwass (1957), Hope (1968)")))
@@ -313,13 +313,11 @@ inv297 <- function(res, catalogue) {
                    identical(l$sens, "ne pas rejeter") && !is.na(l$mc_nom) && is.finite(l$p_mc), NA)
   pref <- substr(vapply(ex, function(l) l$famille, ""), 1L, 2L)
   mc <- vapply(ex, function(l) l$mc_nom, "")
-  tst <- vapply(ex, function(l) l$test, "")
   attendu <- list()
   # familles dans l'ordre des prefixes (reprise du 25/10/2026, point 2)
   for (g in sort(unique(pref[memb]), method = "radix")) {
     sel <- memb & pref == g; cols <- unique(mc[sel])
-    etiq <- paste(vapply(cols, function(c) sprintf("%s [%s]", tst[sel & mc == c][1L], c), ""),
-                  collapse = ", ")
+    etiq <- paste(cols, collapse = ", ")
     if (length(cols) >= 2L)
       attendu[[length(attendu) + 1L]] <- list(g = g, cols = cols, glob = FALSE, etiq = etiq)
   }
@@ -373,11 +371,13 @@ verifier("#297 / #76 : champs test des membres et textes des lignes de famille i
              identical(vapply(ma, `[[`, "", "test"), vapply(mb, `[[`, "", "test")) &&
                !identical(vapply(ma, `[[`, 0, "p_mc"), vapply(mb, `[[`, 0, "p_mc")) &&
                identical(vapply(fam(a), `[[`, "", "detail"), vapply(fam(b), `[[`, "", "detail")) &&
-               # chaque membre d'une famille qui a sa ligne figure dans T-1
+               # chaque membre d'une famille qui a sa ligne figure dans T-1 (cle
+               # mc_nom dans la liste entre crochets, #514)
                all(vapply(ma, function(l) {
                  f <- Filter(function(x) identical(substr(x$famille, 1L, 2L), substr(l$famille, 1L, 2L)),
                              fam(a))
-                 !length(f) || grepl(paste0(l$test, " [", l$mc_nom, "]"), f[[1]]$detail, fixed = TRUE)
+                 !length(f) || l$mc_nom %in% strsplit(sub("^[^[]*\\[([^]]*)\\].*$", "\\1",
+                                                          f[[1]]$detail), ", ", fixed = TRUE)[[1]]
                }, NA))
            }
            un(res297_p, res297_p2) && un(res297_r2, res297_r22)
@@ -442,5 +442,10 @@ verifier("#297 references : lignes de famille aux numerateurs du par. 6 (sur 100
            }, "")
            if (all(v == "ok")) TRUE else paste(names(v)[v != "ok"], v[v != "ok"], collapse = " ; ")
          })
+
+# #514 (A3, S16) : texte propre en deux phrases au plus et 400 caracteres au
+# plus (lignes de famille comprises).
+verifier_detail(res297_p, "premium a B = 99 (lignes de famille)")
+verifier_detail(res297_r2, "reserve2 a B = 99 (lignes de famille)")
 
 fin_fichier()

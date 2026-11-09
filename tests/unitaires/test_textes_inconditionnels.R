@@ -70,21 +70,25 @@ verifier("U182-1 J2, p_mc de SW absente (motif pose) : ligne Shapiro-Wilk sur re
 ## --- U182-2 : rapport de vraisemblance sur delta ------------------------------
 N_LR <- c("Rapport de vraisemblance : delta = 0 (variance lineaire en volume)",
           "Rapport de vraisemblance : delta = 1 (variance quadratique en volume)")
-TXT_LR_DEBUT <- paste("Aucun verdict : le LR mesure si les donnees distinguent cette",
-                      "borne de l'optimum, non l'adequation du modele. Lecture : LR = 0, borne",
-                      "atteinte par l'estimation")
-TXT_LR_FIN <- paste("La p asymptotique (melange de Chernoff) est rapportee pour memoire et non",
-                    "retenue : ecart a la loi simulee mesure a T = 8 (fiche du .tex).")
-TXT_LR_MC <- paste("; p_mc elevee, borne aussi defendable que delta estime ; p_mc faible,",
-                   "borne moins compatible avec les donnees.")
+# Textes de #514 (specification finale d'actuary, G4 et G5) : la lecture est
+# entre parentheses dans la premiere phrase, suivie, le cas echeant, de la
+# mention du bord ou des volumes constants ; phrase 2, lignes liees.
+TXT_LR_DEBUT <- paste("Aucun verdict : le LR dit si les donnees distinguent la borne de",
+                      "l'optimum (")
+TXT_LR_FIN <- paste("non si le modele est adequat. A lire avec \"Position de delta dans",
+                    "[0,1]\" et \"Heteroscedasticite vs volume - Breusch-Pagan studentise",
+                    "(Koenker)\".")
+TXT_LR_MC <- paste("p_mc elevee : borne aussi defendable que delta estime, p_mc faible :",
+                   "moins compatible")
 verifier("U182-2 LR a p_mc finie (B = 199) : lecture de p_mc conservee",
          {
            lr <- usp_lr_delta(J1$f, B = B182)
            t <- usp_tests(J1$f, J1$b, methode = "premium", lr_delta = lr)
            all(c(is.finite(lr$borne0$p_mc), is.finite(lr$borne1$p_mc))) &&
-             all(vapply(N_LR, function(n) endsWith(lig182(t, n)$detail,
-                                                   paste(TXT_LR_DEBUT, TXT_LR_MC, TXT_LR_FIN)),
-                        logical(1)))
+             all(vapply(N_LR, function(n) {
+             d <- lig182(t, n)$detail
+             grepl(paste0(TXT_LR_DEBUT, TXT_LR_MC), d, fixed = TRUE) && endsWith(d, TXT_LR_FIN)
+           }, logical(1)))
          })
 verifier("U182-2 LR a p_mc absente (B = 40, replications insuffisantes) : aucune lecture de p_mc",
          {
@@ -93,7 +97,8 @@ verifier("U182-2 LR a p_mc absente (B = 40, replications insuffisantes) : aucune
            all(c(is.na(lr$borne0$p_mc), is.na(lr$borne1$p_mc))) &&
              all(vapply(N_LR, function(n) {
                d <- lig182(t, n)$detail
-               endsWith(d, paste0(TXT_LR_DEBUT, ". ", TXT_LR_FIN)) && !grepl("p_mc", d, fixed = TRUE)
+               grepl(paste0(TXT_LR_DEBUT, "LR = 0 : borne atteinte par l'estimation"), d, fixed = TRUE) &&
+                 endsWith(d, TXT_LR_FIN) && !grepl("p_mc", d, fixed = TRUE)
              }, logical(1)))
          })
 
@@ -186,14 +191,15 @@ verifier("U182-5 pi_t variable (J2) : loi des six lignes 'exacte a pi_t constant
              !grepl("EXACTE", l$loi, fixed = TRUE)
          }, logical(1))))
 N_SM <- "Egalite des lois petits vs gros volumes (2 ech.)"
-verifier("U182-5 Smirnov, detail : inchange a pi_t constant, loi echangeable nommee a pi_t variable",
+# #514 (specification d'actuary, U15) : la p minimale atteignable n'est plus
+# imprimee dans le detail (champ p_min) ; le detail ne la nomme dans aucun
+# regime.
+verifier("U182-5 Smirnov, detail : p minimale atteignable retiree (#514), p_min dans son champ dans les deux regimes",
          {
-           d1 <- lig182(J1$t, N_SM)$detail; d2 <- lig182(J2$t, N_SM)$detail
-           grepl("p-value minimale atteignable = 0.0286, atteinte seulement pour D = 1", d1, fixed = TRUE) &&
-             !grepl("echangeable", d1, fixed = TRUE) &&
-             grepl(paste("p-value minimale atteignable sous la loi de reference echangeable = 0.0286,",
-                         "atteinte seulement pour D = 1 (deux groupes totalement separes)"),
-                   d2, fixed = TRUE)
+           l1 <- lig182(J1$t, N_SM); l2 <- lig182(J2$t, N_SM)
+           !grepl("minimale", l1$detail, fixed = TRUE) && !grepl("minimale", l2$detail, fixed = TRUE) &&
+             !grepl("echangeable", l1$detail, fixed = TRUE) &&
+             isTRUE(proche(l1$p_min, 0.0286, abs = 5e-5)) && isTRUE(proche(l2$p_min, 0.0286, abs = 5e-5))
          })
 
 ## --- #416 : loi de Grubbs, borne au seuil d'exactitude pour le T saisi ---------

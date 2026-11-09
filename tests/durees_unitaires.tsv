@@ -1,0 +1,65 @@
+# Durees des fichiers de tests/unitaires/ (secondes), lues par tests/test_unitaires.R
+# pour repartir les fichiers en lots (--lot=k/n, LPT) et pour ordonner --parallele
+# (plus longs d'abord). Format : nom du fichier, tabulation, duree ; les lignes
+# vides et les lignes commencant par # sont ignorees. Un fichier absent de cette
+# table prend 60 s ; une ligne sans fichier sur le disque est ignoree.
+# Source : journal de l'execution CI 1152 (commit 9f7290f, 4 processus a la fois,
+# docs/revues/20261108-duree-ci/mesures/durees_ci_1152.tsv), sauf trois valeurs
+# lues dans les journaux des lots de l'execution CI de 13950aa (issue #512, run
+# 42522519087, 4 processus par lot) : test_merz_wuthrich, test_merz_wuthrich_suite
+# (fichier coupe en deux, test calendaire a B = 99) et test_enveloppe_spread
+# (B = 599). test_detail_deux_phrases : duree mesuree en local (#514, fichier
+# lance seul, 65,6 s).
+test_p_mc_regime.R	195.9
+test_application.R	195.2
+test_controles_entree.R	193.6
+test_merz_wuthrich.R	122.7
+test_concordance_doc_moteur.R	189.9
+test_merz_wuthrich_suite.R	143.3
+test_defauts_connus.R	168.8
+test_incertitude_bootstrap.R	125.4
+test_enveloppe_spread.R	94.3
+test_rapport_html.R	100.5
+test_outillage_mesure.R	100
+test_forme_close_m1.R	89.6
+test_origine_non_identifiable.R	88.3
+test_retirage_mw.R	85.1
+test_plancher_mc.R	83.5
+test_calibration.R	76.4
+test_detail_deux_phrases.R	65.6
+test_garde_ecrasement.R	56.8
+test_ex_aequo.R	52.6
+test_anti_bruit.R	52.1
+test_constante_ponderee.R	51
+test_lr_delta.R	48.8
+test_inoperance.R	46.4
+test_enveloppe_qq.R	37
+test_outdec.R	35.2
+test_empreinte_moteur.R	26.9
+test_p_famille.R	25.7
+test_volumes_constants.R	25.7
+test_controle_doc_nd.R	23.7
+test_b_effectif_mw.R	22
+test_textes_inconditionnels.R	20.5
+test_tables_mw.R	19
+test_verdict_sensible_mc.R	15.4
+test_regressions_qr.R	15.2
+test_nature_p_non_simulee.R	14
+test_chargement_moteur.R	13
+test_statistiques.R	12
+test_ordonnee_wls.R	12.0
+test_sans_repli_p_non_simulee.R	11.7
+test_regimes_p_exactes.R	11.1
+test_mc_nom.R	10.6
+test_lois_exactes.R	9.5
+test_controles_numeriques.R	7.9
+test_m5_diagnostic.R	7.6
+test_modele_lognormal.R	4.7
+test_mk_spearman.R	3.3
+test_non_applicable.R	3.1
+test_affichage_regime_t8.R	2.9
+test_regenerer_et_rendre_compte.R	2.4
+test_comparer_references.R	2
+test_comparateur.R	1.9
+test_patcher_reference.R	1.1
+test_jonction_detail.R	0.6

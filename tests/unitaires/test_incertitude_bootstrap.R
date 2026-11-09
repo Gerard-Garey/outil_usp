@@ -30,21 +30,22 @@ PROBS <- c(.025, .05, .5, .95, .975)
 NOM_IC <- "Largeur relative de l'IC bootstrap 90%"
 NOM_IC_R <- "Largeur relative de l'IC bootstrap 90% (delta fixe a delta estime)"
 # Textes de Q-D2-Fn-4 (A), Q-D2-Fn-4 bis, Q-D2-Fn-5 (A) et Q-D2-Fn-5 bis, a la lettre.
-DETAIL_IC <- paste0("Intervalle bootstrap de percentile du parametre retenu, niveau nominal 90 % : ",
-                    "res$ic_bootstrap. A T = 8, couverture inferieure au niveau nominal sous les ",
-                    "modeles simules (constat de simulation, voir la documentation). Intervalle ",
-                    "basic sur l'echelle logarithmique en regard : res$ic_bootstrap_basic_log.")
+# Textes de #514 (specification d'actuary, U30 et U31 ; deux phrases).
+DETAIL_IC <- paste0("Incertitude d'estimation du parametre retenu (percentile a 90 %, ",
+                    "res$ic_bootstrap, basic log en regard, res$ic_bootstrap_basic_log), a couverture ",
+                    "inferieure au niveau nominal a T = 8 en simulation. A lire avec \"Largeur ",
+                    "relative de l'IC bootstrap 90% (delta fixe a delta estime)\" et \"Sensibilite ",
+                    "au retrait d'une annee (jackknife)\".")
 REF_IC <- "Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), sections 5.2 et 5.3"
-DETAIL_IC_R <- paste0("Bootstrap parametrique a delta fixe a sa valeur estimee (seul gamma ",
-                      "reajuste), memes replications que l'IC complet ; une replication dont le ",
-                      "reajustement contraint echoue est ecartee du seul bootstrap restreint ",
-                      "(res$bootstrap$n_echec_restreint). Incertitude conditionnelle a la ",
-                      "structure de variance retenue. Couverture inferieure au niveau nominal a ",
-                      "T = 8 sous les modeles simules, comme l'intervalle complet (voir la ",
-                      "documentation). Andrews (2000) montre que le bootstrap n'est pas convergent ",
-                      "quand le parametre est au bord, dans un modele de moyenne contrainte ; sa ",
-                      "transposition a l'estimateur de delta n'est pas demontree, et l'effet sur ",
-                      "sigma n'est pas etabli. Bornes : res$ic_bootstrap_restreint.")
+# Texte de l'IC restreint corrige en fin de branche K1 (constat C2 d'actuary,
+# decision du mainteneur du 09/11/2026 : Andrews garde, portee de
+# Q-D2-Fn-5 bis).
+DETAIL_IC_R <- paste0("Incertitude conditionnelle a delta fixe a delta estime ",
+                      "(res$ic_bootstrap_restreint), a couverture inferieure au niveau nominal a ",
+                      "T = 8 en simulation, bootstrap au bord non convergent pour une moyenne ",
+                      "contrainte (Andrews, 2000), sans transposition demontree a delta ni effet ",
+                      "etabli sur sigma. A lire avec \"Largeur relative de l'IC bootstrap 90%\" et ",
+                      "\"Position de delta dans [0,1]\".")
 # Quantile de type 7 en clair : h = 1 + (n - 1) p, interpolation entre les
 # statistiques d'ordre floor(h) et floor(h) + 1.
 q7 <- function(v, p) {
@@ -203,7 +204,8 @@ verifier("Cinq cas lognormaux : ligne de l'IC restreint, detail a la lettre (Q-D
          }, logical(1))))
 verifier("Regle #76 : aucun nombre dans les deux detail hors des libelles fixes (niveau nominal 90 %, T = 8, Andrews 2000)",
          {
-           sans <- gsub("90 %|T = 8|2000", "", c(DETAIL_IC, DETAIL_IC_R))
+           # Libelles fixes, et libelles de lignes cites (#514).
+           sans <- gsub("90 %|90%|T = 8|2000|\\[0,1\\]", "", c(DETAIL_IC, DETAIL_IC_R))
            !any(grepl("[0-9]", sans))
          })
 verifier("Estimation de la ligne de l'IC inchangee : (ic[4] - ic[2]) / sigma_USP (Q-D2-Fn-7 (A))",
