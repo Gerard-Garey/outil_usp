@@ -342,10 +342,13 @@ jobs:
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
 
   # Agrégat portant le nom de l'ancien job unique, vérification requise des
-  # rulesets (voir plus haut). Réussit si et seulement si les jobs attendus
-  # ont réussi : les lots et la reproductibilité quand le moteur change, la
-  # reproductibilité (concordance) seule quand seul le .tex change. Sauté, comme
-  # l'ancien job, quand ni le moteur ni le .tex ne changent. « always() » et non
+  # rulesets (voir plus haut). Réussit si et seulement si le job
+  # « changements » et les jobs attendus ont réussi : les lots et la
+  # reproductibilité quand le moteur change, la reproductibilité (concordance)
+  # seule quand seul le .tex change. Sauté, comme l'ancien job, quand
+  # « changements » a réussi et que ni le moteur ni le .tex ne changent ; un
+  # échec ou une annulation de « changements » le fait exécuter et échouer
+  # (sinon il serait sauté, donc passant, revue finale de K1). « always() » et non
   # « !cancelled() » : un lot ou la reproductibilité annulé doit faire échouer
   # l'agrégat (« cancelled » n'est pas « success »), sinon la vérification
   # requise resterait « Skipped », donc passante, après une annulation.
@@ -353,15 +356,21 @@ jobs:
     name: Tests du moteur (unitaires, reproductibilité)
     runs-on: ubuntu-22.04
     needs: [changements, tests-unitaires, reproductibilite]
-    if: ${{ always() && (needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true') }}
+    if: ${{ always() && (needs.changements.result != 'success' || needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true') }}
     timeout-minutes: 5
     env:
+      CHANGEMENTS: ${{ needs.changements.result }}
       MOTEUR: ${{ needs.changements.outputs.moteur }}
       UNITAIRES: ${{ needs.tests-unitaires.result }}
       REPRODUCTIBILITE: ${{ needs.reproductibilite.result }}
     steps:
       - name: Résultat des jobs de tests
         run: |
+          echo "Fichiers modifiés : $CHANGEMENTS (attendu : success)"
+          if [ "$CHANGEMENTS" != "success" ]; then
+            echo "::error title=Tests du moteur::le job « changements » n'a pas réussi."
+            exit 1
+          fi
           attendu_unitaires=skipped
           if [ "$MOTEUR" = "true" ]; then attendu_unitaires=success; fi
           echo "Tests unitaires : $UNITAIRES (attendu : $attendu_unitaires)"
