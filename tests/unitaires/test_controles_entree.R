@@ -1490,6 +1490,52 @@ verifier("Triangle : cumul decroissant accepte avec avertissement",
            r <- mw_valider_triangle(m)
            isTRUE(r$ok) && contient(r$avertissements, "cumul decroissant")
          })
+# Issue #491 (decision du mainteneur du 08/11/2026, Q-55-3 (ii)) : toute
+# cellule i + j > I non NA est signalee par un avertissement non bloquant,
+# quelle que soit sa valeur ; .run_engine_mw() la met a NA avant le calcul
+# (triangle restitue et decompte des cellules observees restreints).
+tri491 <- local({
+  m <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
+  m <- m[, colnames(m) != "i", drop = FALSE]
+  storage.mode(m) <- "double"
+  unname(m)
+})
+cel491 <- function(r) with(r$statistiques_descriptives, valeur[grandeur == "Cellules observees"])
+verifier("Triangle de reference : aucune cellule sous la diagonale signalee, 36 cellules observees (#491)",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(r$ok) && !contient(r$validation$avertissements, "sous la diagonale") &&
+             cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees")
+         })
+verifier("Rectangle 8 x 8 complete par C_chapeau : avertissement, 36 cellules, triangle restitue restreint, sigma_USP inchange (#491)",
+         {
+           rect <- mw_ajuster(tri491)$C_chapeau
+           r0 <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
+                            annexe = "II", B = B_MIN_USAGE)
+           r <- run_engine(methode = "reserve2", triangle = rect, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           av <- r$validation$avertissements
+           isTRUE(r$ok) && !anyNA(rect) &&
+             sum(grepl("sous la diagonale", av, fixed = TRUE)) == 1L &&
+             contient(av, "(i=1, j=7), (i=2, j=6), (i=2, j=7), (i=3, j=5), (i=3, j=6) et 23 autre(s)") &&
+             cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees") &&
+             identical(r$triangle, tri491) &&
+             identical(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp) &&
+             abs(r$parametre_final$sigma_usp - 0.04977646) < 5e-9
+         })
+verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas de refus, 36 cellules (#491)",
+         {
+           m <- tri491; m[8, 2] <- -3; m[5, 6] <- 1000
+           v <- mw_valider_triangle(m)
+           l <- engine_lire_triangle(as.data.frame(m))
+           r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
+                           annexe = "II", B = B_MIN_USAGE)
+           isTRUE(v$ok) && !length(v$erreurs) &&
+             contient(v$avertissements, "sous la diagonale (i + j > I) en (i=4, j=5), (i=7, j=1) :") &&
+             isTRUE(l$ok) && contient(l$avertissements, "(i=4, j=5), (i=7, j=1)") &&
+             isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
+         })
 
 ## --- engine_lire_donnees_csv --------------------------------------------------
 df <- data.frame(t = c(2003, 2001, 2002, 2004, 2005), xt = c(3, 1, 2, 4, 5) * 100,
