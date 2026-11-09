@@ -247,8 +247,10 @@ ATTENDU244 <- list(
 for (cas in c("premium_ii6", "premium_net", "reserve1")) ATTENDU244[cas] <- list(ATTENDU244$premium)
 DIAG299_244 <- c("Heteroscedasticite vs volume - Breusch-Pagan original (non robuste)",
                  "Homogeneite des dispersions (mediane)")
-FIN299_244 <- paste("la structure de variance releve de la ligne Breusch-Pagan studentise",
-                    "(Koenker), dont le type et le verdict font foi.")
+# Fin de la phrase fixe de #299 depuis #514 (lue dans les references : vraie
+# apres leur patch).
+FIN299_244 <- paste("Diagnostic par decision, sans verdict ni p-value retenue : la ligne",
+                    "\"Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)\" fait foi.")
 # Regle recalculee, alignee sur add() (U244-9 et #125) : seuils atteignables
 # seulement, plancher p_min_mc de la ligne s'il est fini, sinon g_mc lu dans
 # bootstrap$granularite_stat. La ligne ne porte pas son mc_nom : la
@@ -316,5 +318,9 @@ for (cas in names(ATTENDU244)) local({
 # marquee depuis #307.
 verifier("U244-7 six cas : 10 lignes de la specification (11 moins la ligne M2 de reserve2, #301), marquees ou diagnostics de #299 (2 + 8), plus la ligne de pente de reserve2 (#307) : 3 + 8",
          n244 == 3L && n_diag299 == 8L)
+
+# #514 (A3) : texte propre en deux phrases au plus et 400 caracteres au
+# plus (phrase de #244 hors compte).
+verifier_detail(r215, "premium, y + 100 (phrase de #244 et renvoi de #215)")
 
 fin_fichier()

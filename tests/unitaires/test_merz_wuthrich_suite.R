@@ -421,12 +421,14 @@ verifier("KruskalAcc : un residu par annee -> detail complet de la ligne = prefi
          all(vapply(list(col0_192(1e-11), sauf_une), function(t) {
            l <- Filter(function(l) identical(l$test, "Homogeneite des residus entre annees de survenance"),
                        run_mw(t)$tests)
-           length(l) == 1L && identical(l[[1]]$detail, paste0(
-             "loi simulee de dispersion nulle : aucune p-value retenue. ",
-             "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
-             "(groupes de taille 1), quelle que soit la donnee ; ",
-             "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
-             "entre annees de survenance, ni l'independance de D(2)(h)(i)")) &&
+           # Texte de #514 (specification finale d'actuary) : phrase du cas, puis
+           # lignes liees.
+           length(l) == 1L && identical(l[[1]]$detail, paste(
+             "loi simulee de dispersion nulle : aucune p-value retenue.",
+             "Un residu de Mack par annee de survenance : H = N - 1 par construction, la",
+             "ligne ne mesure rien ici (ni homogeneite entre annees, ni independance de",
+             "D(2)(h)(i)). A lire avec \"Homogeneite de f_j entre annees de survenance\" et",
+             "\"Effets d'annee calendaire (test de Mack)\".")) &&
              !grepl("Homogeneite des residus entre annees de survenance sous", l[[1]]$detail, fixed = TRUE)
          }, logical(1))))
 verifier("Variance unitaire : 'et NON 1' omis si une seule colonne garde des residus (k = 1) (#60, R5)",
@@ -437,10 +439,11 @@ verifier("Variance unitaire : 'et NON 1' omis si une seule colonne garde des res
            }
            c1 <- vapply(list(col0_192(1e-11), sauf_une), com, character(1))
            cr <- com(tri_ref)
-           all(startsWith(c1, "Valeur de reference 1 : sigma2_j etant")) &&
-             all(grepl("N - k = 7 - 1 = 6", c1, fixed = TRUE)) &&
+           # Libelle de #514 (specification finale d'actuary) ; N - k est dans la
+           # fiche.
+           all(startsWith(c1, "Grandeur contrainte par construction (reference 1), qui ne")) &&
              !any(grepl("NON 1", c1, fixed = TRUE)) &&
-             grepl("^Valeur de reference [0-9.]+, et NON 1 : ", cr)
+             grepl("^Grandeur contrainte par construction \\(reference [0-9.]+, et NON 1\\), qui ne", cr)
          })
 
 # Messages M6 dans la fenetre C1 (#60, decision du mainteneur du 06/10/2026,
@@ -471,7 +474,7 @@ verifier("Messages M6 en fenetre C1 : predicat enonce une fois, plus de 'tous eg
              lengths(regmatches(av, gregexpr(.MW_PREDICAT_DEGENERE_TEXTE, av,
                                              fixed = TRUE))) == 1L &&
              grepl("au sens de ce predicat (ecart relatif maximal", av, fixed = TRUE) &&
-             grepl("Colonnes J-3 et J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil",
+             grepl(", colonnes J-3 et J-2 degenerees : voir l'avertissement sur les donnees.",
                    l, fixed = TRUE) &&
              !any(grepl("tous egaux", hors(c(r$validation$avertissements, l)), fixed = TRUE))
          })
@@ -646,7 +649,7 @@ verifier("p_min non finie : NA et motif explicite dans effectifs (#115, C2)",
            is.na(s0$p_min) && grepl("hors de la precision de la machine (N = 300) : p_min non calculable",
                                     s0$effectifs, fixed = TRUE) &&
              is.na(s1$p_min) && identical(s1$effectifs,
-               "t = 3, 2 ; p_min non calculable sur ces effectifs, p_min non attribuee")
+               "t = 3, 2, p_min non calculable sur ces effectifs, p_min non attribuee")
          })
 verifier("reserve2 : p_min des six lignes discretes, les 19 autres NA (#115, critere 1 ; 21 lignes depuis #308, 25 avec les quatre lignes de lecture conjointe de #297)",
          {
@@ -709,7 +712,8 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 (Calendaire ECHEC atteignable a alph
              su$type == "diagnostic" && identical(su$verdict, "INFO") && !su$inoperant &&
              isTRUE(proche(su$p_min, 4 / 70, 1e-12)) && is.na(su$p_min_mc) &&
              isTRUE(proche(r5$bootstrap$p_min_mc[["Runs"]], 0.02, 1e-12)) &&
-             startsWith(su$commentaire, "Restituee en diagnostic par decision : aucun verdict ni") &&
+             startsWith(su$commentaire, "Detecte un regroupement ou une alternance des signes") &&
+             grepl("Diagnostic par decision, sans verdict ni p-value retenue", su$commentaire, fixed = TRUE) &&
              !grepl("ECHEC", su$commentaire, fixed = TRUE) && !grepl("p_min", su$commentaire, fixed = TRUE)
          })
 # Queue basse du test calendaire (#276, decisions Q-Fd-1 et Q-Fd-3 ; reprise
@@ -897,7 +901,7 @@ verifier(".mw_p_min_ligne : ex aequo enumeres, p_min attribuee et motif dans eff
            s10 <- .mw_p_min_ligne(TRUE, c(10, 4), "colonnes n_j", function(n) 0.5, TRUE,
                                   n_max = 9, ex_aequo_enumere = TRUE)
            isTRUE(proche(s$p_min, 1 / 360, 1e-12)) &&
-             identical(s$effectifs, paste("colonnes n_j = 5, 4 ; ex aequo : loi de permutation",
+             identical(s$effectifs, paste("colonnes n_j = 5, 4, ex aequo : loi de permutation",
                                           "conditionnelle aux rangs moyens, enumeree")) &&
              is.na(s10$p_min) && grepl("colonne de plus de 9 facteurs", s10$effectifs, fixed = TRUE)
          })
@@ -1344,9 +1348,11 @@ verifier("reserve2 (#275) : une seule diagonale reperee, k = 5, n = 6, Z = 0, P 
              all(is.na(c(x$stat, x$p_exacte, x$p_asymptotique, x$p_mc, x$err_mc, x$p_retenue,
                          x$p_min, x$p_min_mc))) && is.na(x$nature_p) && is.na(x$sens) &&
              !x$inoperant &&
-             grepl("k = 5 : n = 6, L = 6, S = 0, Z = 0, P = 0.03125 (repere) ; k = 6 :", x$detail, fixed = TRUE) &&
-             grepl("le test est la ligne precedente", x$detail, fixed = TRUE) &&
-             lengths(regmatches(x$detail, gregexpr("(repere)", x$detail, fixed = TRUE))) == 1L &&
+             # #514 (Q-3) : valeurs par diagonale retirees du detail (rendues
+             # par mw_calendrier_diagonales(), verifiees ci-dessus).
+             !grepl("k = 5 : n = 6", x$detail, fixed = TRUE) &&
+             grepl("Le test est \"Effets d'annee calendaire (test de Mack)\", qui fait foi.", x$detail, fixed = TRUE) &&
+             grepl("(nombre sous le repere de 10 % en estimation", x$detail, fixed = TRUE) &&
              !grepl("[^ -~]", x$detail)
          })
 verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, detail \"aucune diagonale retenue (n_k >= 2)\"",
@@ -1372,17 +1378,20 @@ verifier("Diagnostic par diagonale sans diagonale retenue (#275) : estim NA, det
 # weights = 1/C0), lu dans summary()$cov.unscaled.
 NOM308 <- "Identifiabilite intra-colonne (dispersion des cumuls par colonne)"
 ligne308 <- function(L) L[[which(vapply(L, `[[`, "", "test") == NOM308)]]
-TETE308 <- paste0(
-  "Diagnostic sans verdict : dispersion des cumuls a colonne donnee, dont ",
-  "depend la puissance des lignes M1 (ordonnee a l'origine, pente relative) et M2 ",
-  "(exposant de variance). Par colonne retenue (n_j >= 3, hors colonnes degenerees) : ",
-  "CV = ecart-type sur moyenne de C(i,j) ; R = max/min de C(i,j) (sous un exposant de ",
-  "variance k, a f_j et sigma_j connus, le rapport des variances des residus de Mack ",
-  "entre les deux cellules extremes vaut R^(k - 1)) ; e_a = erreur type de l'ordonnee a ",
-  "l'origine a_j sous H0, sigma_j de Mack, rapportee a la moyenne de C(i,j+1) (une ",
-  "ordonnee a l'origine de l'ordre de e_a n'est pas detectable dans sa colonne ; sa ",
-  "detection fiable en exige plusieurs fois e_a, d'autant plus que n_j est petit : ",
-  "multiplicateurs dans la documentation).")
+# Textes de #514 (specification d'actuary, W6 ; Q-3) : les valeurs par
+# colonne (CV, R, e_a) ne sont plus restituees dans le detail, qui ne depend
+# plus que de l'existence d'une colonne retenue ; elles sont rendues par
+# mw_identifiabilite_intra(), verifiee directement ci-dessous.
+# Textes de #514 (specification finale d'actuary) : phrase d'usage, puis
+# lignes liees ; valeurs par colonne rendues par mw_identifiabilite_intra().
+LIE308 <- paste("Lignes liees : \"Nullite de l'ordonnee a l'origine, colonne par colonne\", \"Absence",
+                "de tendance des facteurs avec le cumul, a colonne donnee\" et \"Adequation de",
+                "l'exposant de variance, colonne par colonne\".")
+TXT308 <- paste("Diagnostic sans verdict : moins les cumuls d'une colonne sont disperses (CV",
+                "moyen en estimation, detail par mw_identifiabilite_intra()), moins les lignes",
+                "liees sont puissantes.", LIE308)
+TXT308_VIDE <- paste("Diagnostic sans verdict : aucune colonne retenue (n_j >= 3 hors colonnes",
+                     "degenerees).", LIE308)
 oracle308 <- function(t) {
   a <- mw_ajuster(t); ii <- mw_identifiabilite_intra(a)
   vapply(seq_len(nrow(ii$detail)), function(k) {
@@ -1410,11 +1419,6 @@ verifier("Identifiabilite intra-colonne (#308) : reserve2, ligne de diagnostic j
          {
            r <- run_mw(tri_ref); noms <- vapply(r$tests, `[[`, "", "test")
            k <- match(NOM308, noms); x <- r$tests[[k]]
-           fin <- paste("Valeurs : j = 0 : n_j = 7, CV = 0.0739, R = 1.229, e_a = 0.0800 ;",
-                        "j = 1 : n_j = 6, CV = 0.0763, R = 1.211, e_a = 0.0930 ;",
-                        "j = 2 : n_j = 5, CV = 0.0796, R = 1.206, e_a = 0.0973 ;",
-                        "j = 3 : n_j = 4, CV = 0.0751, R = 1.182, e_a = 0.0812 ;",
-                        "j = 4 : n_j = 3, CV = 0.0599, R = 1.126, e_a = 0.0685.")
            identical(noms[k - 1L], "Stabilite du facteur selon la ponderation (famille alpha)") &&
              identical(x$famille, r$tests[[k - 1L]]$famille) && startsWith(x$famille, "M1") &&
              !startsWith(r$tests[[k + 1L]]$famille, "M1") &&
@@ -1429,7 +1433,7 @@ verifier("Identifiabilite intra-colonne (#308) : reserve2, ligne de diagnostic j
                "Construction de l'outil : dispersion de C(i,j) a colonne donnee et erreur type de",
                "l'ordonnee a l'origine de la regression ponderee C(.,j+1) ~ a_j + b_j C(.,j), poids",
                "1/C(.,j) (Mack 1994, CAS Forum, chap. 5, p. 121-123), sous H0, sigma_j de Mack (1993)")) &&
-             identical(x$detail, paste(TETE308, fin)) && !grepl("[^ -~]", x$detail)
+             identical(x$detail, TXT308) && !grepl("[^ -~]", x$detail)
          })
 verifier("Identifiabilite intra-colonne (#308) : colonne C(i,j) constante (D_j = 0) -> e_a NA, CV = 0, R = 1, texte \"e_a non definie (C(i,j) constant)\"",
          {
@@ -1439,9 +1443,9 @@ verifier("Identifiabilite intra-colonne (#308) : colonne C(i,j) constante (D_j =
            d <- mw_identifiabilite_intra(mw_ajuster(t))$detail; x <- ligne308(run_mw(t)$tests)
            identical(d$j, 0:1) && is.na(d$e_a[1]) && identical(d$cv[1], 0) && identical(d$R[1], 1) &&
              is.finite(d$e_a[2]) &&
-             identical(x$detail, paste(TETE308, "Valeurs :",
-               "j = 0 : n_j = 4, CV = 0.0000, R = 1.000, e_a non definie (C(i,j) constant) ;",
-               "j = 1 : n_j = 3, CV = 0.0625, R = 1.133, e_a = 0.3398."))
+             isTRUE(proche(d$cv[2], 0.0625, 0, 5e-5)) && isTRUE(proche(d$R[2], 1.133, 0, 5e-4)) &&
+             isTRUE(proche(d$e_a[2], 0.3398, 0, 5e-5)) &&
+             identical(x$detail, TXT308)
          })
 verifier("Identifiabilite intra-colonne (#308) : colonne degeneree exclue (triangle td de M4, j = 0) ; retenue si j_degeneres = integer(0), les autres colonnes inchangees",
          {
@@ -1458,7 +1462,7 @@ verifier("Identifiabilite intra-colonne (#308) : colonne degeneree exclue (trian
            0L %in% .mw_ensembles_figes(ad)$degeneres &&
              identical(d0$j, 1:2) && identical(d1$j, 0:2) &&
              identical(as.list(d1[d1$j != 0L, ]), as.list(d0)) &&
-             !grepl("j = 0 :", x$detail, fixed = TRUE) && grepl("Valeurs : j = 1 :", x$detail, fixed = TRUE)
+             identical(x$detail, TXT308)
          })
 verifier("Identifiabilite intra-colonne (#308) : aucune colonne retenue (j = 0 et 1 degenerees) -> estim NA, texte \"Aucune colonne retenue (n_j >= 3).\"",
          {
@@ -1467,60 +1471,46 @@ verifier("Identifiabilite intra-colonne (#308) : aucune colonne retenue (j = 0 e
            t[1:2, 4] <- t[1:2, 3] * c(1.1, 1.08); t[1, 5] <- t[1, 4] * 1.05
            ii <- mw_identifiabilite_intra(mw_ajuster(t)); x <- ligne308(run_mw(t)$tests)
            is.na(ii$estim) && !nrow(ii$detail) && is.na(x$estim) && identical(x$verdict, "INFO") &&
-             identical(x$detail, paste(TETE308, "Aucune colonne retenue (n_j >= 3)."))
+             identical(x$detail, TXT308_VIDE)
          })
 # Format de R et de e_a hors de [1e-3 ; 1e6[ (#364, decision Q-44-4 (b) du
-# mainteneur du 30/10/2026) : virgule fixe (3 decimales pour R, 4 pour e_a) dans
-# la plage, "%.3e" au-dela, en dessous et pour toute valeur non finie. Les
-# valeurs ci-dessous sont celles de la mesure de l'issue : triangle_mw.csv dont
-# la ligne 0 est multipliee par 1e-14 (R de l'ordre de 1e14, e_a de 1e-9) ou
-# par 1e15 (e_a de 1e-17), qui s'imprimaient "R = 122857142857143.000, e_a =
-# 0.0000" et "R = 984909342734827.500, e_a = 0.0000".
-verifier("Identifiabilite intra-colonne (#364) : .mw_format_echelle() - frontieres 1e-3 inclus, 1e6 exclu, 0, negatif, non fini",
-         {
-           v <- c(1e-3, 9.4e-4, 999999.5, 1e6, 0, -2.5e-5, -0.5, Inf, NaN, NA)
-           identical(.mw_format_echelle(v, 4L),
-                     c("0.0010", "9.400e-04", "999999.5000", "1.000e+06", "0.000e+00",
-                       "-2.500e-05", "-0.5000", "Inf", "NaN", "NA")) &&
-             identical(.mw_format_echelle(v, 3L)[c(1, 3, 7)], c("0.001", "999999.500", "-0.500")) &&
-             identical(.mw_format_echelle(numeric(0), 3L), character(0)) &&
-             # Plage jugee sur la valeur arrondie aux decimales imprimees (C2 de
-             # l'audit) : l'ecriture fixe reste dans [1e-3 ; 1e6[, jamais
-             # "1000000.000" ni "1.000e-03".
-             identical(.mw_format_echelle(999999.99996, 3L), "1.000e+06") &&
-             identical(.mw_format_echelle(-999999.99996, 3L), "-1.000e+06") &&
-             identical(.mw_format_echelle(999999.9994, 3L), "999999.999") &&
-             identical(.mw_format_echelle(0.00099995, 4L), "0.0010") &&
-             identical(.mw_format_echelle(0.00095, 4L), "9.500e-04") &&
-             identical(.mw_format_echelle(-0.00095, 4L), "-9.500e-04") &&
-             identical(.mw_format_echelle(0.00099995, 3L), "0.001") &&
-             identical(.mw_format_echelle(9.4e-4, 4L), "9.400e-04") &&
-             identical(.mw_format_echelle(4e-4, 3L), "4.000e-04")
-         })
+# mainteneur du 30/10/2026) : depuis #514 (Q-3), les valeurs par colonne ne
+# sont plus imprimees dans le detail et .mw_format_echelle() est retiree ;
+# les valeurs de la mesure de l'issue (triangle_mw.csv dont la ligne 0 est
+# multipliee par 1e-14 ou par 1e15) sont verifiees sur
+# mw_identifiabilite_intra(), formatees ici par sprintf().
 local({
   d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
   m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
   m <- unname(m)
   ligne0 <- function(fact) { t <- m; t[1, ] <- t[1, ] * fact; t }
-  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e-14 -> R en 1.229e+14, e_a non nul en notation scientifique (texte a la lettre)",
+  # Valeurs de la mesure de l'issue, sur mw_identifiabilite_intra() (#514).
+  valeurs364 <- function(fact) {
+    d <- mw_identifiabilite_intra(mw_ajuster(ligne0(fact)))$detail
+    sprintf("j = %d : n_j = %d, CV = %.4f, R = %s, e_a = %s", d$j, d$n, d$cv,
+            sprintf("%.3e", d$R), sprintf("%.3e", d$e_a))
+  }
+  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e-14 -> R en 1.229e+14, e_a non nul en notation scientifique (valeurs de mw_identifiabilite_intra(), detail sans valeurs, #514)",
            {
              x <- ligne308(run_mw(ligne0(1e-14))$tests)
-             identical(x$detail, paste(TETE308, "Valeurs :",
-               "j = 0 : n_j = 7, CV = 0.4460, R = 1.229e+14, e_a = 1.577e-09 ;",
-               "j = 1 : n_j = 6, CV = 0.4957, R = 1.211e+14, e_a = 1.559e-09 ;",
-               "j = 2 : n_j = 5, CV = 0.5650, R = 1.206e+14, e_a = 1.074e-09 ;",
-               "j = 3 : n_j = 4, CV = 0.6709, R = 1.182e+14, e_a = 6.009e-10 ;",
-               "j = 4 : n_j = 3, CV = 0.8677, R = 1.126e+14, e_a = 8.186e-10."))
+             identical(valeurs364(1e-14), c(
+               "j = 0 : n_j = 7, CV = 0.4460, R = 1.229e+14, e_a = 1.577e-09",
+               "j = 1 : n_j = 6, CV = 0.4957, R = 1.211e+14, e_a = 1.559e-09",
+               "j = 2 : n_j = 5, CV = 0.5650, R = 1.206e+14, e_a = 1.074e-09",
+               "j = 3 : n_j = 4, CV = 0.6709, R = 1.182e+14, e_a = 6.009e-10",
+               "j = 4 : n_j = 3, CV = 0.8677, R = 1.126e+14, e_a = 8.186e-10")) &&
+               identical(x$detail, TXT308)
            })
-  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e15 -> R en 9.633e+14 ..., e_a de l'ordre de 1e-17 non nul (texte a la lettre)",
+  verifier("Identifiabilite intra-colonne (#364) : ligne 0 x 1e15 -> R en 9.633e+14 ..., e_a de l'ordre de 1e-17 non nul (valeurs de mw_identifiabilite_intra(), detail sans valeurs, #514)",
            {
              x <- ligne308(run_mw(ligne0(1e15))$tests)
-             identical(x$detail, paste(TETE308, "Valeurs :",
-               "j = 0 : n_j = 7, CV = 2.6458, R = 9.633e+14, e_a = 4.685e-17 ;",
-               "j = 1 : n_j = 6, CV = 2.4495, R = 9.809e+14, e_a = 7.109e-17 ;",
-               "j = 2 : n_j = 5, CV = 2.2361, R = 9.849e+14, e_a = 8.381e-17 ;",
-               "j = 3 : n_j = 4, CV = 2.0000, R = 9.714e+14, e_a = 5.057e-17 ;",
-               "j = 4 : n_j = 3, CV = 1.7321, R = 9.535e+14, e_a = 1.321e-17."))
+             identical(valeurs364(1e15), c(
+               "j = 0 : n_j = 7, CV = 2.6458, R = 9.633e+14, e_a = 4.685e-17",
+               "j = 1 : n_j = 6, CV = 2.4495, R = 9.809e+14, e_a = 7.109e-17",
+               "j = 2 : n_j = 5, CV = 2.2361, R = 9.849e+14, e_a = 8.381e-17",
+               "j = 3 : n_j = 4, CV = 2.0000, R = 9.714e+14, e_a = 5.057e-17",
+               "j = 4 : n_j = 3, CV = 1.7321, R = 9.535e+14, e_a = 1.321e-17")) &&
+               identical(x$detail, TXT308)
            })
 })
 
@@ -1595,9 +1585,13 @@ verifier("M2 (#301) : ligne de mw_tests() = entree BP du catalogue (statistique 
              identical(x$H0, "a colonne donnee, l'echelle des residus de Mack redresses ne depend pas de C(i,j)") &&
              identical(x$loi, "chi2(1) asymptotique (effets fixes de colonne) -> Monte-Carlo") &&
              identical(x$p_retenue, x$p_mc) && identical(x$nature_p, "Monte-Carlo (bootstrap de residus)") &&
-             grepl("effets fixes d'annee de developpement", x$detail, fixed = TRUE) &&
-             grepl("Colonnes n_j >= 3 seulement", x$detail, fixed = TRUE) &&
-             grepl(": 25 cellules dans 5 colonnes.", x$detail, fixed = TRUE) &&
+             # Texte de #514 (specification finale d'actuary) ; la construction
+             # (Frisch-Waugh, colonnes n_j >= 3) est dans la fiche.
+             identical(x$detail, paste(
+               "Un ECHEC ou une ALERTE signale une variance des residus de Mack liee au cumul a",
+               "colonne donnee, contraire a une variance proportionnelle a C(i,j). A lire avec",
+               "\"Adequation de l'exposant de variance, colonne par colonne\", meme hypothese, et",
+               "\"Variance unitaire des residus de Mack\".")) &&
              !grepl(format(x$p_mc), x$detail, fixed = TRUE)
          })
 
@@ -1686,7 +1680,7 @@ verifier("M4 (#300) option (iii) : mw_bootstrap() -> stats_obs MinP4 NA, motif p
            motif <- .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(a))
            is.na(b$stats_obs[["MinP4"]]) && identical(unname(b$motif_mc[["MinP4"]]), motif) &&
              is.na(x$p_mc) && is.na(x$p_asymptotique) && is.na(x$p_retenue) && identical(x$verdict, "INFO") &&
-             startsWith(x$detail, paste0("Monte-Carlo indisponible : ", motif, " ; aucune p-value disponible")) &&
+             startsWith(x$detail, paste0("Monte-Carlo indisponible : ", motif, ", aucune p-value disponible")) &&
              is.na(x$estim)
          })
 verifier("M4 (#300) : .mw_stats() evalue comme observe par defaut (MinP4 NA sur tri_nb300), en replication avec replique = TRUE (MinP4 = 0)",
@@ -1794,16 +1788,14 @@ verifier("M4 (#300) : ligne de mw_tests() = entree MinP4 du catalogue (statistiq
                "construction de l'outil : minimum des p de Student entre colonnes de degres de liberte",
                "differents, colonnes n_j >= 4, p-value Monte-Carlo sur le modele de Mack")) &&
              identical(x$loi, "Student(n_j - 2) par cellule sous le modele auxiliaire gaussien, borne de Bonferroni -> Monte-Carlo") &&
+             # Texte de #514 (specification finale d'actuary ; Q-3 : cellule du
+             # minimum retiree du detail, t de la cellule en estim).
              startsWith(x$detail, paste(
-               "t(i,j) : residu studentise externe de la cellule (i,j) dans la regression ponderee",
-               "C(.,j+1) ~ 0 + C(.,j), poids 1/C(.,j), cellule retiree de l'estimation de f_j et de sigma_j ;",
-               "p_ij = 2 F_Student(n_j - 2)(-|t(i,j)|) ; M = min p_ij, rejet pour M petit. Sous le modele",
-               "auxiliaire de Mack a erreurs gaussiennes seulement, t(i,j) suit, conditionnellement aux",
-               "cumuls de la colonne j, la loi de Student a n_j - 2 degres de liberte, et min(1, N_t M)",
-               "borne la p-value de M (Bonferroni) ; cette borne est une p non simulee, jamais retenue a la",
-               "place de la p Monte-Carlo.")) &&
-             grepl("N_t = 22 ; 3 cellule(s) des colonnes n_j = 3 non couverte(s)", x$detail, fixed = TRUE) &&
-             grepl("Minimum en cellule (annee d'accident 0, developpement 2), n_j = 5.", x$detail, fixed = TRUE) &&
+               "Un ECHEC ou une ALERTE signale une cellule aberrante du triangle (plus petit",
+               "residu studentise externe) parmi les N_t = 22 cellules des colonnes n_j >= 4, 3",
+               "cellule(s) des colonnes n_j = 3 non couverte(s). A lire avec \"Cellules",
+               "aberrantes multiples (ESD generalise)\".")) &&
+             !grepl("Minimum en cellule", x$detail, fixed = TRUE) &&
              !grepl(format(x$p_mc), x$detail, fixed = TRUE) && !grepl(format(x$err_mc), x$detail, fixed = TRUE)
          })
 verifier("M4 (#300) : reserve2, p_mc 0,898, Bonferroni 1, verdict OK ; B effectif = B",
@@ -1812,31 +1804,30 @@ verifier("M4 (#300) : reserve2, p_mc 0,898, Bonferroni 1, verdict OK ; B effecti
            isTRUE(round(x$p_mc, 3) == 0.898) && identical(x$p_asymptotique, 1) && identical(x$verdict, "OK") &&
              identical(unname(res300$bootstrap$B_effectif[["MinP4"]]), 999)
          })
-verifier("Rosner (#300) : diagnostic par decision, verdict INFO, estim_nom impose, phrase fixe du premier complement puis le fragment alpha (k^ = 0 : aucun rang)",
+# Texte de #514 (specification finale d'actuary ; Q-3 : rangs des residus
+# declares retires), qui remplace la phrase fixe du premier complement de la
+# specification Fi (Q-D1-Fi-7).
+verifier("Rosner (#300, #514) : diagnostic par decision, verdict INFO, estim_nom impose, phrase de #514 avec alpha (k^ = 0)",
          {
            x <- lig300("Cellules aberrantes multiples (ESD generalise)")
-           ph <- paste("Diagnostic sans verdict : procedure ESD generalisee de Rosner (1983)",
-                       "appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation",
-                       "de Student-Bonferroni) et son domaine declare (n >= 25) valent pour un",
-                       "echantillon i.i.d. normal ; les residus de Mack, soumis a des contraintes",
-                       "exactes par colonne, n'en sont pas un, et le cadre de Rosner (1983) ne les",
-                       "couvre pas. La procedure n'est donc pas un test de la ligne : le nombre de",
-                       "cellules declarees se lit comme un repere, sans p-value.")
+           ph <- paste("Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.10, nombre",
+                       "en estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas",
+                       "les residus de Mack, contraints par colonne. Diagnostic sans verdict : la ligne",
+                       "\"Cellule aberrante du triangle (residus studentises externes)\" fait foi.")
            identical(x$type, "diagnostic") && identical(x$verdict, "INFO") && identical(x$sens, NA_character_) &&
              identical(x$estim_nom, "nb de cellules declarees (repere de Rosner)") && identical(x$estim, 0) &&
              identical(x$fonction, "test_rosner") &&
-             identical(x$detail, paste0(ph, " Valeurs critiques calculees a alpha = 0.10."))
+             identical(x$detail, ph) && identical(x$detail, sprintf(PHRASE_MW_ROSNER_DIAGNOSTIC, 0.10))
          })
-verifier("Rosner (#300) : k^ > 0 -> rangs restitues apres le fragment alpha, verdict INFO (k^ injecte)",
+verifier("Rosner (#300, #514) : k^ > 0 -> rangs non restitues (Q-3), meme phrase, verdict INFO (k^ injecte)",
          {
            f <- mw_tests_modifie("ro <- test_rosner(r, alpha = alpha)",
                                  "ro <- list(nb_outliers = 2, positions = c(3L, 14L))")
            L <- f(at, boot_mw_fictif)
            x <- Filter(function(l) identical(l$test, "Cellules aberrantes multiples (ESD generalise)"), L)[[1]]
            identical(x$verdict, "INFO") && identical(x$estim, 2) &&
-             endsWith(x$detail, paste0(PHRASE_MW_ROSNER_DIAGNOSTIC,
-                                       " Valeurs critiques calculees a alpha = 0.10 ; residus declares",
-                                       " (rang dans la liste des residus de Mack, par ordre de retrait) : 3, 14."))
+             identical(x$detail, sprintf(PHRASE_MW_ROSNER_DIAGNOSTIC, 0.10)) &&
+             !grepl("3, 14", x$detail, fixed = TRUE)
          })
 # Depuis #307 (pente relative, decision Q-D1-Fj-3 ; visa de principe
 # Q-D1-Fj-10) : la ligne "Absence de tendance des facteurs avec le cumul, a
@@ -1864,15 +1855,17 @@ verifier("Decomptes reserve2 (#300, #308, #307, #312, #297) : 25 lignes (12 test
 # alpha, option (b')) du 22/10/2026. Lignes lues par leur nom dans res300
 # (reserve2, B = 999, graine par defaut).
 NOM307 <- "Absence de tendance des facteurs avec le cumul, a colonne donnee"
-DETAIL307 <- paste0(
-  "Regression ponderee de F(i,j)/f_j sur (C(i,j) - Cbar_j)/Cbar_j (Cbar_j : moyenne simple ",
-  "des cumuls de la colonne j qui portent un facteur), poids C(i,j) f_j^2/sigma_j^2, avec ",
-  "effets fixes d'annee de developpement ; t de la pente commune b. En unites relatives, une ",
-  "ordonnee a l'origine a_j donne dans la colonne j une pente voisine de -a_j/(f_j Cbar_j), au ",
-  "premier ordre en (C(i,j) - Cbar_j)/Cbar_j (approximation d'autant meilleure que les cumuls ",
-  "de la colonne sont peu disperses), et chaque colonne pese selon la dispersion relative de ",
-  "ses cumuls et la precision de ses facteurs, non selon l'echelle de C(i,j). b se lit comme ",
-  "une elasticite du facteur au volume au point (Cbar_j, f_j), a colonne donnee.")
+# Texte de #514 (specification d'actuary, W1 ; une phrase), qui remplace le
+# texte T-4 de la specification Fj.
+# Texte de #514 (specification finale d'actuary) ; la construction de la
+# pente relative est dans la fiche.
+DETAIL307 <- paste(
+  "Un ECHEC ou une ALERTE signale un facteur de developpement qui varie",
+  "avec le niveau du cumul a colonne donnee, contraire a la",
+  "proportionnalite des cumules. A lire avec \"Nullite de l'ordonnee a",
+  "l'origine, colonne par colonne\", dont une constante produit une telle",
+  "pente, et \"Stabilite du facteur selon la ponderation (famille",
+  "alpha)\".")
 verifier("Pente relative (#307) : reserve2, ligne M1 = entree PenteIntra du catalogue (stat = bootstrap$stats_obs$PenteIntra), estim = b, p de Student en p non simulee non retenue, p Monte-Carlo retenue ; champs T-4 a la lettre",
          {
            x <- lig300(NOM307)
@@ -1931,21 +1924,18 @@ verifier("Pente relative (#307) : gardes de .mw_pente_relative() -> b, se, t, p 
              identical(.mw_pente_relative(d3), na4) &&
              identical(.mw_pente_relative(d4), na4)
          })
-verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,00111, p_mc 0,005) ; champs T-5 a la lettre, \"0.17 % (colonne j = 1)\"",
+verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,00111, p_mc 0,005) ; champs T-5 a la lettre, \"0.17 %\" (#514)",
          {
            x <- lig300("Stabilite du facteur selon la ponderation (famille alpha)")
            al <- mw_famille_alpha(res300$ajustement)
+           # Texte de #514 (specification finale d'actuary) ; la colonne de
+           # l'ecart maximal est rendue par mw_famille_alpha().
            att <- paste0(
-             "alpha = 0 : moyenne simple des facteurs ; alpha = 1 : chain-ladder du reglement ; ",
-             "alpha = 2 : ponderation par le carre du volume. Sous l'hypothese (iii), lue avec un ",
-             "facteur f_j commun (interpretation de l'outil), les trois ",
-             "estimateurs sont sans biais pour f_j quelle que soit la variance : la ligne porte sur ",
-             "la proportionnalite des cumules (M1), non sur l'exposant de variance (M2). ",
-             "f_j^(alpha+1) - f_j^(alpha) est la covariance entre F(i,j) et C(i,j), ponderee par ",
-             "C(i,j)^alpha, rapportee au cumul moyen de meme ponderation : la ligne vise, comme la ",
-             "pente relative, une association du facteur au volume, mais colonne par colonne et ",
-             "sans compensation de signe entre colonnes. Ecart relatif maximal entre les trois ",
-             "estimateurs : 0.17 % (colonne j = 1) ; seul f_j^(alpha = 1) entre dans sigma_USP.")
+             "Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents,",
+             " donc une esperance non proportionnelle au cumul (M1), non un defaut de variance",
+             " (ecart relatif maximal 0.17 %, seul alpha = 1 entre dans sigma_USP). A lire avec",
+             " \"Absence de tendance des facteurs avec le cumul, a colonne donnee\", meme",
+             " association du facteur au volume, mais commune aux colonnes.")
            ok <- list(
              verdict = identical(x$verdict, "ECHEC") && identical(x$type, "test"),
              stat = identical(x$stat, al$stat) && isTRUE(proche(x$stat, 0.00111, rel = 0, abs = 5e-6)),
@@ -1963,16 +1953,20 @@ verifier("Famille alpha (#307, option (b')) : reserve2, ECHEC inchange (stat 0,0
            k <- !vapply(ok, isTRUE, logical(1))
            if (!any(k)) TRUE else paste("ecart :", paste(names(ok)[k], collapse = ", "))
          })
-# Detail de l'exposant de variance (M2) : le facteur f_j et la constante sigma_j^2
+# Exposant de variance (M2) : le facteur f_j et la constante sigma_j^2
 # communs aux annees sont donnes comme interpretation de l'outil, non comme la
-# lettre du texte (#409, regulatory). Phrase cle lue dans le detail du moteur,
-# sur le cas reserve2 ; le detail peut recevoir en fin la phrase de #244.
-verifier("Exposant de variance (M2, #409) : le detail donne f_j et sigma_j^2 communs aux annees comme interpretation de l'outil (D(4)(c) et D(5)(d)(ii))",
+# lettre du texte (#409, regulatory). Depuis #514 (specification d'actuary,
+# W8, deux phrases), le detail ne le repete plus : H0 et la reference de la
+# ligne le portent (lus ici, sur le cas reserve2).
+verifier("Exposant de variance (M2, #409) : H0 et reference donnent f_j et sigma_j^2 communs aux annees comme interpretation de l'outil (D(4)(c) et D(5)(d)(ii)) ; detail de #514",
          {
            x <- lig300("Adequation de l'exposant de variance, colonne par colonne")
-           ph <- paste("avec un facteur f_j et une constante sigma_j^2 communs aux annees",
-                       "(interpretation de l'outil, D(4)(c) et D(5)(d)(ii))")
-           grepl(ph, x$detail, fixed = TRUE) && !grepl("[^ -~]", x$detail)
+           grepl("sigma_j^2 et f_j communs aux annees (interpretation de l'outil)", x$H0, fixed = TRUE) &&
+             grepl(paste("lu avec D(4)(c) et D(5)(d)(ii) : sigma_j^2 et f_j communs",
+                         "(interpretation de l'outil)"), x$reference, fixed = TRUE) &&
+             startsWith(x$detail, paste("Un ECHEC ou une ALERTE signale un lien entre |r(i,j)| et",
+                                        "C(i,j) dans au moins une colonne, au-dela de l'effet de levier")) &&
+             !grepl("[^ -~]", x$detail)
          })
 # H1 de l'exposant de variance (M2, #436, texte C de l'arbitrage du
 # 05/11/2026, suite de #431) : la chaine cite l'identite
@@ -2034,10 +2028,12 @@ verifier("Famille alpha (#307) : statistique NA (aucune colonne n_j >= 3, triang
            x <- Filter(function(l) identical(l$test, "Stabilite du facteur selon la ponderation (famille alpha)"),
                        mw_tests(a, mw_bootstrap(a, B = 19)))
            is.na(al$stat) && length(x) == 1L && identical(x[[1]]$type, "non applicable") &&
-             identical(x[[1]]$detail, paste(
-               "statistique observee non finie : test non applicable. alpha = 0 : moyenne simple",
-               "des facteurs ; alpha = 1 : chain-ladder du reglement ; alpha = 2 : ponderation",
-               "par le carre du volume."))
+             identical(x[[1]]$detail, paste0(
+               "statistique observee non finie : test non applicable. ",
+               "Un ECHEC ou une ALERTE signale des estimateurs alpha = 0, 1 et 2 de f_j divergents,",
+               " donc une esperance non proportionnelle au cumul (M1), non un defaut de variance",
+               ". A lire avec \"Absence de tendance des facteurs avec le cumul, a colonne donnee\",",
+               " meme association du facteur au volume, mais commune aux colonnes."))
          })
 
 ## --- QQ-plot des residus de Mack redresses par le levier (#311) -------------

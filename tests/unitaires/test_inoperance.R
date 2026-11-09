@@ -20,6 +20,9 @@ if (!exists("verifier", mode = "function")) {
   source(file.path(if (length(.f)) dirname(.f) else "tests/unitaires", "outils_unitaires.R"))
 }
 debut_fichier("test_inoperance.R")
+# Ancien renvoi generique a nature_p (#214, #292), retire des detail et du
+# moteur par #514 : garde ici comme texte, pour les controles d'absence.
+RENVOI_NATURE_P_514 <- "la p-value retenue, s'il en est une, est nommee par nature_p"
 
 x <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 y <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
@@ -117,7 +120,7 @@ verifier("add() : p_ex NA, p_min = 0,0571, p_mc = 0,048 -> ECHEC, detail 'ECHEC 
            identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$p_retenue, 0.048) &&
              !grepl("ECHEC inatteignable", l$detail, fixed = TRUE) &&
              identical(l$detail, paste("d. p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05",
-                                       "(n1 = 4, n2 = 4) ; la p-value Monte-Carlo retenue, simulee sous le",
+                                       "(n1 = 4, n2 = 4), mais la p-value Monte-Carlo retenue, simulee sous le",
                                        "modele ajuste, peut lui etre inferieure (erreur Monte-Carlo,",
                                        "non-echangeabilite) : ECHEC possible ;",
                                        # p = 0,048 a moins de 2 err_mc = 0,02 de alpha/2 (#244)
@@ -128,7 +131,7 @@ verifier("add() : p_ex NA, alpha/2 <= p_min < alpha, p_mc = 0,5 -> test OK, meme
            r <- reg_fictif(); r$add("F", "t", "ref", fonction = "usp_tests", p_min = 4 / 70, mc_nom = "A")
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "OK") &&
-             startsWith(l$detail, "p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05 ;") &&
+             startsWith(l$detail, "p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.05, mais") &&
              endsWith(l$detail, ": ECHEC possible") && !grepl("inatteignable", l$detail, fixed = TRUE)
          })
 # Branche "p-value asymptotique retenue" de R1 retiree (#181) : p_min
@@ -167,7 +170,7 @@ verifier("add() : p_ex NA, p_min >= alpha -> TEST INOPERANT en tete, p_min 'sous
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$p_mc, 0.048) &&
              identical(l$detail, paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable",
-                                       "sous la loi de reference echangeable = 0.1250 (m = 4) ; aucun",
+                                       "sous la loi de reference echangeable = 0.1250 (m = 4), aucun",
                                        "verdict. d"))
          })
 verifier("add() : p_min NA -> comportement inchange (verdict, detail)",
@@ -250,10 +253,10 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
              identical(rs$type, "diagnostic") && identical(rs$verdict, "INFO") &&
              is.na(rs$p_retenue) && is.na(rs$nature_p) && is.finite(rs$p_asymptotique) &&
              startsWith(rs$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                          " ; p non simulee (loi du champ loi) non retenue.")) &&
+                                          ", p non simulee (loi du champ loi) non retenue.")) &&
              identical(sf$type, "test") && identical(sf$verdict, "INFO") && is.na(sf$p_retenue) &&
              startsWith(sf$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                          " ; aucune p-value disponible sur ces donnees : aucun verdict."))
+                                          ", aucune p-value disponible sur ces donnees : aucun verdict."))
          })
 verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
          {
@@ -357,7 +360,7 @@ verifier("add() : aucune replication finie avec p non simulee -> diagnostic, lib
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              is.na(l$nature_p) && identical(l$p_asymptotique, 0.3) && identical(l$inoperant, FALSE) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                        " ; p non simulee (loi du champ loi) non retenue. d."))
+                                        ", p non simulee (loi du champ loi) non retenue. d."))
          })
 verifier("add() : libelle_p_as fourni, aucune replication finie -> diagnostic au libelle de l'appelant",
          {
@@ -368,7 +371,7 @@ verifier("add() : libelle_p_as fourni, aucune replication finie -> diagnostic au
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$p_asymptotique, 0.3) &&
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                         " ; p de Student sous le modele auxiliaire MCO non retenue"))
+                                         ", p de Student sous le modele auxiliaire MCO non retenue"))
          })
 verifier("add() : motif present et p exacte finie (hors degenerescence) -> p exacte retenue",
          {
@@ -488,17 +491,17 @@ verifier("usp_identifiabilite_pente(unilateral = TRUE) : puissance = P(t > t(1-a
 # Regle R4 retiree par D1-Fb (#218, #230) : la ligne de la pente est un test
 # des qu'elle est applicable (seule R1 la bascule) ; la puissance approchee a
 # posteriori n'est plus qu'une phrase de contexte, sans repere.
-PHRASE_PUISSANCE <- paste0("Puissance approchee a posteriori du test unilateral sous le modele ajuste ",
-                           "\\(au point estime ; approximation au premier ordre, loi de Student decentree\\) ",
-                           "= ([0-9]+\\.[0-9]{2}), indice lambda = sqrt\\(T-1\\) CV\\(x\\) beta / sigma ",
-                           "= ([0-9]+\\.[0-9]{2}) : contexte de lecture, sans effet sur le type ni sur le verdict\\.")
-PHRASE_LIEN_NEGATIF <- paste("Lien observe nul ou negatif (r <= 0), de signe contraire au modele",
-                             "(beta > 0) : puissance approchee sous le modele ajuste non restituee",
-                             "(calculee sous beta > 0, sans objet ici).")
-# Valeurs imprimees (puissance, lambda) de la phrase de contexte ; NULL si absente.
+# Depuis #514 (specification finale d'actuary, U3) : la puissance est une
+# parenthese de la phrase d'usage, lambda et sa definition sont dans la fiche ;
+# a lien observe nul ou negatif, aucune parenthese.
+PHRASE_PUISSANCE <- "\\(puissance approchee a posteriori = ([0-9]+\\.[0-9]{2})\\)"
+FIN_PITMAN_514 <- paste("une ALERTE ou un ECHEC un lien non demontre. A lire avec \"Test de",
+                        "Student sur la pente (modele auxiliaire MCO)\" et \"Coefficient de",
+                        "determination R2\".")
+# Valeur imprimee de la puissance ; NULL si absente.
 puissance_imprimee <- function(d) {
   m <- regmatches(d, regexec(PHRASE_PUISSANCE, d))[[1]]
-  if (length(m) == 3L) as.numeric(m[2:3]) else NULL
+  if (length(m) == 2L) as.numeric(m[2]) else NULL
 }
 sans_repere_r4 <- function(d)
   !grepl("IDENTIFIABLE", d, ignore.case = TRUE) && !grepl("repere conventionnel", d, fixed = TRUE) &&
@@ -511,7 +514,7 @@ verifier("Pente (R4 retiree, #218) et Fisher : CV(x) = 3 %, CV(x) = 30 % et J1 -
                identical(ligne(t, fisher)$type, "diagnostic") &&
                  identical(ligne(t, fisher)$verdict, "INFO") && is.na(ligne(t, fisher)$p_retenue) &&
                  is.na(ligne(t, fisher)$nature_p) && is.finite(ligne(t, fisher)$p_asymptotique) &&
-                 grepl("redondante avec le test de Pitman (F = t^2)", ligne(t, fisher)$detail, fixed = TRUE),
+                 grepl("porte la meme p (F = t^2)", ligne(t, fisher)$detail, fixed = TRUE),
                logical(1)))
          })
 verifier("Pente CV(x) = 3 % (D1-Fb, critere (b)) : type test, phrase de contexte avec puissance approchee < 0,5 imprimee, aucun repere",
@@ -519,10 +522,10 @@ verifier("Pente CV(x) = 3 % (D1-Fb, critere (b)) : type test, phrase de contexte
            d <- ligne(t03, pente); v <- puissance_imprimee(d$detail)
            ip <- usp_identifiabilite_pente(f03$x, f03$beta, f03$sigma, 0.10, unilateral = TRUE)
            identical(d$type, "test") && identical(d$inoperant, FALSE) && !is.null(v) && v[1] < 0.5 &&
-             identical(v, round(c(ip$puissance, ip$lambda), 2)) && sans_repere_r4(d$detail) &&
-             !grepl("Lien observe nul ou negatif", d$detail, fixed = TRUE)
+             identical(v, round(ip$puissance, 2)) && sans_repere_r4(d$detail) &&
+             !grepl("lambda", d$detail, fixed = TRUE)
          })
-verifier("Pente (J1, critere (c)) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, phrase de contexte 0.65 / 1.78 (#169, #218)",
+verifier("Pente (J1, critere (c)) : p exacte 4462/40320, nature de la permutation, p de Student unilaterale restituee non retenue, ALERTE, parenthese de contexte 0.65 (#169, #218, #514)",
          {
            l <- ligne(tt, pente)
            identical(l$p_exacte, 4462 / 40320) && identical(l$p_retenue, l$p_exacte) &&
@@ -530,8 +533,8 @@ verifier("Pente (J1, critere (c)) : p exacte 4462/40320, nature de la permutatio
              identical(l$type, "test") &&
              identical(l$fonction, "usp_permutation_pente") && identical(l$p_min, 1 / 40320) &&
              proche(l$p_asymptotique, stats::pt(l$stat, 6, lower.tail = FALSE), rel = 1e-12) &&
-             identical(puissance_imprimee(l$detail), c(0.65, 1.78)) &&
-             grepl("= 0.65", l$detail, fixed = TRUE) && grepl("= 1.78", l$detail, fixed = TRUE) &&
+             identical(puissance_imprimee(l$detail), 0.65) &&
+             grepl("= 0.65", l$detail, fixed = TRUE) && !grepl("lambda", l$detail, fixed = TRUE) &&
              sans_repere_r4(l$detail)
          })
 # Lien negatif (#230, critere (a)) : y positifs decroissants en x, r = -0,87 ;
@@ -541,15 +544,17 @@ x_neg <- c(100, 150, 200, 300, 400, 500, 600, 700)
 y_neg <- c(95, 110, 80, 90, 75, 70, 60, 65)
 f_neg <- usp_ajuster(x_neg, y_neg)
 t_neg <- usp_tests(f_neg, boot_fictif(f_neg), methode = "premium")
-verifier("Pente a r < 0 (#230, critere (a)) : usp_ajuster() converge, ligne test, ECHEC, phrase 'Lien observe nul ou negatif', ni IDENTIFIABLE ni puissance a posteriori",
+verifier("Pente a r < 0 (#230, critere (a)) : usp_ajuster() converge, ligne test, ECHEC, sans parenthese de puissance (#514), ni IDENTIFIABLE ni puissance a posteriori",
          {
            l <- ligne(t_neg, pente)
            identical(f_neg$convergence, 0L) && stats::cor(x_neg, y_neg) < 0 && l$stat < 0 &&
              identical(l$type, "test") && identical(l$verdict, "ECHEC") && identical(l$inoperant, FALSE) &&
              identical(l$p_retenue, l$p_exacte) &&
-             grepl(PHRASE_LIEN_NEGATIF, l$detail, fixed = TRUE) &&
+             endsWith(l$detail, paste0("lien positif pertes / volume, qui peut aussi venir d'une ",
+                                       "dispersion liee au volume ou d'une tendance commune, ",
+                                       FIN_PITMAN_514)) &&
              !grepl("IDENTIFIABLE", l$detail, ignore.case = TRUE) &&
-             !grepl("Puissance approchee a posteriori", l$detail, fixed = TRUE)
+             !grepl("puissance approchee a posteriori", l$detail, fixed = TRUE)
          })
 # Jeu (xi, yi) de test_controles_numeriques.R (J2, delta interieur).
 xi <- c(50, 80, 120, 200, 300, 150, 90, 60)
@@ -572,24 +577,20 @@ verifier("Pente et Fisher (#169) : jeu J2, p = p_min = 1/40320, OK ; Fisher diag
 # unilaterale de la ligne Pitman est gardee, et qualifiee dans le detail.
 # Textes ecrits en dur.
 student <- "Test de Student sur la pente (modele auxiliaire MCO)"
+# Textes de #514 (specification finale d'actuary, U3 a U5 : usage, lignes
+# liees) ; la justification de la p de Student unilaterale de Pitman
+# (theoreme central limite combinatoire, queue sous p_min) est dans la fiche.
 TXT_STUDENT423 <- paste(
-  "Diagnostic, aucun verdict : la pente est testee par le seul test de Pitman.",
-  "p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous",
-  "le modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ;",
-  "restituee dans p asymptotique pour information, non retenue. Egale a la p de la",
-  "ligne \"Test de Fisher (significativite globale)\" (F = t^2).")
-TXT_PITMAN_STUDENT423 <- paste(
-  "p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO seulement :",
-  "autre test, autre loi de reference) restituee dans p asymptotique, non retenue :",
-  "approximation asymptotique de la p de permutation, par le theoreme central limite",
-  "combinatoire sous des conditions sur x et y (hypothese, voir la fiche), non etablie",
-  "a T = 8 et mauvaise en queue, ou elle peut etre inferieure a la plus petite p de",
-  "permutation atteignable (champ p_min).")
+  "Signe et intensite du lien pertes / volume sous le modele auxiliaire MCO (non",
+  "reglementaire), pour information. Diagnostic sans verdict : la ligne \"Test de",
+  "Pitman sur la pente (lien positif pertes / volume)\" fait foi, \"Test de Fisher",
+  "(significativite globale)\" porte la meme p (F = t^2).")
+TXT_PITMAN_STUDENT423 <- "A lire avec \"Test de Student sur la pente (modele auxiliaire MCO)\""
 TXT_FISHER423 <- paste(
-  "Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.",
-  "p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,",
-  "non retenue ; egale a la p de la ligne \"Test de Student sur la pente (modele",
-  "auxiliaire MCO)\".")
+  "Significativite globale de la regression de y sur x sous le modele auxiliaire",
+  "MCO, pour information. Diagnostic sans verdict : la ligne \"Test de Pitman sur",
+  "la pente (lien positif pertes / volume)\" fait foi, \"Test de Student sur la",
+  "pente (modele auxiliaire MCO)\" porte la meme p (F = t^2).")
 # Jeux applicables : J1, CV(x) = 3 % et 30 %, J2 (delta interieur), lien
 # negatif (t < 0).
 jeux423 <- list(J1 = list(t = tt, x = x, y = y), CV3 = list(t = t03, x = f03$x, y = f03$y),
@@ -763,7 +764,7 @@ verifier("Garde-fou de sens : permutation_pente bilaterale passee a usp_tests() 
 # "unilateral" (decision du mainteneur du 06/10/2026) ; p bilaterale de
 # permutation restituee pour information dans le detail (libelle neutre :
 # la p unilaterale n'est pas toujours retenue, R1).
-verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p bilaterale J1 8515/40320 = 0,2112 dans le detail, libelle neutre, p de Student unilaterale",
+verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p bilaterale J1 8515/40320 = 0,2112 hors du detail (#514), p de Student unilaterale",
          {
            e <- tryCatch(.pitman_unilateral("bilateral"), error = function(e) conditionMessage(e))
            l <- ligne(tt, pente); pp <- usp_permutation_pente(x, y)
@@ -772,10 +773,10 @@ verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p
              !"SENS_PITMAN_PENTE" %in% names(formals(run_engine)) &&
              identical(pp$p_bilateral, 8515 / 40320) &&
              identical(usp_permutation_pente(x, y, unilateral = FALSE)$p, pp$p_bilateral) &&
-             grepl(paste("p de permutation unilaterale (sens du test) ; p bilaterale de permutation (|r|),",
-                         "pour information, non retenue = 0.2112."), l$detail, fixed = TRUE) &&
-             !grepl("unilaterale retenue", l$detail, fixed = TRUE) &&
-             grepl("p de Student unilaterale (t(T-2)", l$detail, fixed = TRUE)
+             # #514 (specification finale d'actuary, U3) : la p bilaterale n'est
+             # plus imprimee (metadata$permutation_pente$p_bilateral).
+             !grepl("0.2112", l$detail, fixed = TRUE) && !grepl("bilaterale", l$detail, fixed = TRUE) &&
+             !grepl("unilaterale retenue", l$detail, fixed = TRUE)
          })
 # run_engine() a T = 10 (#169, constat C1 d'audit) : la ligne recoit la
 # permutation calculee avec le B et la graine de l'execution. Donnees choisies
@@ -793,7 +794,7 @@ verifier("run_engine(T = 10, B = 199, seed = 11) : p_mc de la pente = usp_permut
              identical(l$err_mc, pp$err_mc) && is.na(l$p_exacte) &&
              !identical(pp$p, usp_permutation_pente(x10p, y10p)$p) &&
              identical(m, list(methode = "aleatoire", B = 199, p_bilateral = pp$p_bilateral)) &&
-             grepl("pour information, non retenue : non imprimee (tirages aleatoires).", l$detail, fixed = TRUE)
+             startsWith(l$detail, MENTION_PERMUTATIONS_ALEATOIRES)
          })
 verifier("run_engine(T = 8) : metadata$permutation_pente = enumeration, B NA, p_bilateral = celle du detail ; volumes constants -> non calcule",
          {
@@ -887,8 +888,9 @@ verifier("Pente T = 10, B = 9 (critere (e)) : mention 'OK inatteignable' sur la 
            l1 <- ligne(usp_tests(f1, boot_fictif(f1), methode = "premium",
                                  permutation_pente = usp_permutation_pente(x1, y1, B = 9)), pente)
            identical(l4$type, "test") && identical(l4$inoperant, FALSE) &&
-             grepl("Plancher 1/(B + 1) >= alpha = 0.1 : OK inatteignable.", l4$detail, fixed = TRUE) &&
-             !is.null(puissance_imprimee(l4$detail)) && puissance_imprimee(l4$detail)[1] < 0.5 &&
+             # #514 (U3) : la parenthese du plancher remplace celle de la puissance.
+             grepl("(plancher 1/(B + 1) >= alpha : OK inatteignable)", l4$detail, fixed = TRUE) &&
+             is.null(puissance_imprimee(l4$detail)) &&
              sans_repere_r4(l4$detail) &&
              identical(l1$type, "diagnostic") && isTRUE(l1$inoperant) &&
              startsWith(l1$detail, "TEST INOPERANT") &&
@@ -933,13 +935,13 @@ verifier("AD, CvM (R6) : a pi_t constant, (z - zbar)/s_z = sqrt((T-1)/T) z a 1e-
            zs <- (fit$z - mean(fit$z)) / stats::sd(fit$z)
            isTRUE(proche(zs, sqrt(7 / 8) * fit$z, rel = 1e-6, abs = 1e-9))
          })
-verifier("AD, CvM (R6) : p_asymptotique NA pour T = 5..7, motif 'hors de la plage' dans le detail",
+verifier("AD, CvM (R6) : p_asymptotique NA pour T = 5..7, motif 'hors de la plage' dans la loi (#514)",
          all(vapply(5:7, function(T) {
            f <- usp_ajuster(x[1:T], y[1:T]); t <- usp_tests(f, boot_fictif(f), methode = "premium")
            a <- ligne(t, "Anderson-Darling"); w <- ligne(t, "Cramer-von Mises")
            is.na(a$p_asymptotique) && is.na(w$p_asymptotique) && is.finite(a$estim) &&
-             grepl("hors de la plage", a$detail, fixed = TRUE) &&
-             grepl("hors de la plage", w$detail, fixed = TRUE)
+             grepl("hors de la plage", a$loi, fixed = TRUE) &&
+             grepl("hors de la plage", w$loi, fixed = TRUE)
          }, logical(1))))
 verifier("Cox-Stuart, suites, Smirnov, Mann-Kendall, Spearman : p_min renseignee ; Cox-Stuart inoperant a T = 8",
          {
@@ -979,7 +981,7 @@ verifier("add() : B_eff = 1 et 49, p non simulee -> diagnostic 'Monte-Carlo indi
            identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              is.na(l$nature_p) && is.na(l$p_mc) && identical(l$p_asymptotique, 0.3) &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                        " ; p non simulee (loi du champ loi) non retenue."))
+                                        ", p non simulee (loi du champ loi) non retenue."))
          }, logical(1))))
 verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inchanges, motif puis phrase 'aucune p-value disponible'",
          all(vapply(c(1, 49), function(b) {
@@ -988,7 +990,7 @@ verifier("add() : B_eff = 1 et 49, aucune p -> test INFO, sens et p_retenue inch
            identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              is.na(l$nature_p) && identical(l$sens, "ne pas rejeter") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                        " ; aucune p-value disponible sur ces donnees : aucun verdict",
+                                        ", aucune p-value disponible sur ces donnees : aucun verdict",
                                         ". d"))
          }, logical(1))))
 verifier("add() : B_eff = 50 -> p Monte-Carlo retenue, aucun motif ni phrase de #128",
@@ -1003,7 +1005,7 @@ verifier("add() : B_eff = 0, aucune p -> motif 'aucune replication finie' dans l
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$verdict, "INFO") &&
              identical(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                        " ; aucune p-value disponible sur ces donnees : aucun verdict",
+                                        ", aucune p-value disponible sur ces donnees : aucun verdict",
                                         "."))
          })
 verifier("add() : aucune p, motif deja dans le detail -> motif non repete ; alpha/2 <= p_min < alpha -> sans 'ECHEC inatteignable'",
@@ -1096,7 +1098,7 @@ verifier("add() : R1 sans p exacte, g >= alpha/2 -> 'ECHEC possible' omis, planc
                            "(n1 = 4, n2 = 4) ; plancher Monte-Carlo >= alpha/2 = 0.03 : ECHEC inatteignable")) &&
              identical(r2$lignes()[[1]]$detail,
                        paste("p_min de la loi de reference echangeable = 0.0571 >= alpha/2 = 0.03",
-                             "(n1 = 4, n2 = 4) ; la p-value Monte-Carlo retenue, simulee sous le modele",
+                             "(n1 = 4, n2 = 4), mais la p-value Monte-Carlo retenue, simulee sous le modele",
                              "ajuste, peut lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) :",
                              "ECHEC possible"))
          })
@@ -1133,7 +1135,7 @@ verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Mo
              identical(lr$type, "diagnostic") && isTRUE(lr$inoperant) && identical(lr$verdict, "INFO") &&
              identical(lr$p_min_mc, 4 / 60) &&
              startsWith(lr$detail, paste("TEST INOPERANT au seuil alpha = 0.06 : plus petite p-value Monte-Carlo",
-                                         "atteignable sur ces replications >= alpha (n1 = 4, n2 = 4) ; aucun",
+                                         "atteignable sur ces replications >= alpha (n1 = 4, n2 = 4), aucun",
                                          "verdict."))
          })
 # Runsr, regime 1 (pi_t constant, p exacte) : la phrase "p-value EXACTE est
@@ -1141,46 +1143,48 @@ verifier("f8, B = 59, alpha = 0,06 : suites sur residus 'ECHEC inatteignable' Mo
 # degenerescence de Runsr (#128). Depuis #303 (regle R15), la ligne est un
 # diagnostic dans les deux cas, la p exacte restant calculee ; le motif de
 # degenerescence est pose en tete par usp_tests().
-verifier("Runsr regime 1 : sans motif -> 'EXACTE est calculee' ; motif de degenerescence -> diagnostic, 'EXACTE est ecartee'",
+# Textes de #514 (specification finale d'actuary, Runsr, branche 1).
+verifier("Runsr regime 1 : sans motif -> 'statistique et p exacte identiques' ; motif de degenerescence -> diagnostic, 'p exacte ecartee'",
          {
            nm <- "Test des suites sur ratios bruts"
            a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
            b <- ligne(usp_tests(fit, boot_fictif(fit, motif = c(Runsr = MOTIF_MC_DISPERSION_NULLE)),
                                 methode = "premium"), nm)
            is.finite(a$p_exacte) && identical(a$type, "diagnostic") && is.na(a$nature_p) &&
-             grepl("la p-value EXACTE est calculee (convention bilaterale", a$detail, fixed = TRUE) &&
-             !grepl("EXACTE est retenue", a$detail, fixed = TRUE) &&
+             grepl(paste("statistique et p exacte identiques a celles de la ligne homologue sur",
+                         "residus standardises (doublon exact)."), a$detail, fixed = TRUE) &&
+             !grepl("p exacte est retenue|EXACTE est retenue", a$detail) &&
              identical(b$type, "diagnostic") && is.na(b$p_retenue) &&
              startsWith(b$detail, MOTIF_MC_DISPERSION_NULLE) &&
-             grepl("la p-value EXACTE est ecartee par le motif de degenerescence en tete.",
+             grepl(paste("statistique identique a celle de la ligne homologue sur residus",
+                         "standardises, p exacte ecartee par le motif de degenerescence en tete."),
                    b$detail, fixed = TRUE) &&
-             !grepl("EXACTE est retenue", b$detail, fixed = TRUE)
+             !grepl("p exacte identiques", b$detail, fixed = TRUE)
          })
 # Runsr, regime 1 : la phrase "La p-value Monte-Carlo de la colonne p_mc
-# estime la meme quantite" n'est ecrite que si p_mc existe (#128, point c,
-# reserve R1 d'actuary : jeu de controle avec usp_bootstrap(B = 40), sous le
-# seuil de 50 replications, p_mc NA).
-# Depuis #303 (regle R15) : p exacte calculee mais non retenue (diagnostic),
-# proposition de renvoi a nature_p retiree.
-verifier("Runsr regime 1 : p_mc finie -> phrase sur p_mc presente ; p_mc NA (B = 40) -> absente, p exacte calculee, diagnostic R15",
+# estime la meme quantite" (#128, point c) est retiree par #514 (U29) : le
+# detail ne nomme la p Monte-Carlo ni quand elle existe ni quand elle manque
+# (jeu de controle avec usp_bootstrap(B = 40), sous le seuil de 50
+# replications, p_mc NA). Depuis #303 (regle R15) : p exacte calculee mais
+# non retenue (diagnostic), proposition de renvoi a nature_p retiree.
+verifier("Runsr regime 1 : p_mc finie ou NA (B = 40) -> detail sans phrase sur p_mc, p exacte calculee, diagnostic R15",
          {
            nm <- "Test des suites sur ratios bruts"
-           phr <- "La p-value Monte-Carlo de la colonne p_mc estime la meme quantite, a l'erreur Monte-Carlo pres."
            b40 <- usp_bootstrap(fit, B = 40, seed = 20260831)
            a <- ligne(usp_tests(fit, boot_fictif(fit), methode = "premium"), nm)
            k <- ligne(usp_tests(fit, b40, methode = "premium"), nm)
-           is.finite(a$p_mc) && grepl(phr, a$detail, fixed = TRUE) &&
+           is.finite(a$p_mc) && !grepl("estime la meme quantite", a$detail, fixed = TRUE) &&
              is.na(b40$p_mc[["Runsr"]]) && is.na(k$p_mc) &&
              identical(k$type, "diagnostic") && is.finite(k$p_exacte) && is.na(k$p_retenue) &&
-             grepl("standardises. Restituee en diagnostic (regle R15)", k$detail, fixed = TRUE) &&
-             !grepl(PHRASE_RENVOI_NATURE_P, k$detail, fixed = TRUE) &&
+             grepl("(doublon exact). Diagnostic (regle R15)", k$detail, fixed = TRUE) &&
+             !grepl(RENVOI_NATURE_P_514, k$detail, fixed = TRUE) &&
              !grepl("p_mc", k$detail, fixed = TRUE) &&
              !grepl("estime la meme quantite", k$detail, fixed = TRUE)
          })
 # Phrases du detail qui nomment la p Monte-Carlo (#128, point c) :
 # conditionnelles a la presence de p_mc. Depuis #214, p_mc presente, elles la
 # disent calculee et renvoient a nature_p (la regle R1 peut l'ecarter).
-verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi a nature_p ; absente -> 'indisponible', diagnostic sans p retenue (#181)",
+verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> texte seul, sans renvoi a nature_p (#514) ; absente -> prefixe 'indisponible', diagnostic sans p retenue (#181)",
          {
            ok <- usp_tests(fit, boot_fictif(fit), methode = "premium")
            ko <- usp_tests(fit, boot_fictif(fit, motif = c(RESET = MOTIF_MC_AUCUNE_REPLIC,
@@ -1188,17 +1192,25 @@ verifier("usp_tests() : RESET et OLS-CUSUM, p_mc presente -> 'calculee', renvoi 
                            methode = "premium")
            r1 <- ligne(ok, "RESET (forme fonctionnelle)"); r2 <- ligne(ko, "RESET (forme fonctionnelle)")
            c1 <- ligne(ok, "Stabilite cumulee (OLS-CUSUM)"); c2 <- ligne(ko, "Stabilite cumulee (OLS-CUSUM)")
-           endsWith(r1$detail, paste0("1970). La p Monte-Carlo, simulee sous le modele ajuste, est calculee ; ",
-                                      PHRASE_RENVOI_NATURE_P, ".")) &&
-             endsWith(r2$detail, paste("1970). La p Monte-Carlo, simulee sous le modele ajuste, est",
-                                       "indisponible sur ces donnees : aucune p-value n'est retenue.")) &&
+           # Textes de #514 (specification finale d'actuary, U7 et CUSUM) : la
+           # phrase sur la p Monte-Carlo et le renvoi a nature_p sont retires ;
+           # p_mc absente, seul le prefixe d'add() (regle R3) le dit.
+           TXT_RESET <- paste("Un ECHEC ou une ALERTE signale une forme non lineaire de E[Y_t] en x_t, un",
+                              "OK ne demontre pas la linearite. A lire avec \"Nullite de la constante",
+                              "(proportionnalite stricte)\" et \"Independance ratio S/P vs volume\",",
+                              "autres alternatives a la proportionnalite.")
+           TXT_CUSUM <- paste("Un ECHEC ou une ALERTE signale un niveau non constant des residus",
+                              "standardises (derive ou rupture). A lire avec \"Rupture de niveau",
+                              "(sup-F)\" et la ligne homologue \"Stabilite cumulee (OLS-CUSUM) sur",
+                              "ratios bruts\".")
+           pre_ko <- paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
+                            ", p non simulee (loi du champ loi) non retenue. ")
+           identical(r1$detail, TXT_RESET) &&
+             identical(r2$detail, paste0(pre_ko, TXT_RESET)) &&
              identical(r2$type, "diagnostic") && is.na(r2$nature_p) && is.na(r2$p_retenue) &&
-             identical(c1$detail, paste0("La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
-                                         "calculee ; ", PHRASE_RENVOI_NATURE_P, ".")) &&
-             identical(c2$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_AUCUNE_REPLIC,
-                                         " ; p non simulee (loi du champ loi) non retenue. ",
-                                         "La formule asymptotique n'a aucune validite a T = 8 ; p_mc est ",
-                                         "indisponible sur ces donnees : aucune p-value n'est retenue")) &&
+             identical(c1$detail, TXT_CUSUM) &&
+             identical(c2$detail, paste0(pre_ko, TXT_CUSUM)) &&
+             !any(grepl(RENVOI_NATURE_P_514, c(r1$detail, c1$detail), fixed = TRUE)) &&
              identical(c2$type, "diagnostic") && is.na(c2$nature_p) && identical(c2$verdict, "INFO")
          })
 # Cas du commentaire 5888798043 de #128 : T = 12, pi_t variable, une paire
@@ -1221,9 +1233,9 @@ verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-
            cx$m == 5L && cx$n_p == 6L && proche(l$p_min, 0.0625) &&
              identical(l$type, "test") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              identical(l$sens, "ne pas rejeter") &&
-             startsWith(l$detail, paste("Monte-Carlo indisponible : statistique observee non definie : ex aequo ;",
+             startsWith(l$detail, paste("Monte-Carlo indisponible : statistique observee non definie : ex aequo,",
                                         "aucune p-value disponible sur ces donnees : aucun verdict.",
-                                        "p exacte non attribuee")) &&
+                                        MENTION_PI_VARIABLE_TEST_SANS_MC)) &&
              !grepl("inatteignable", l$detail, fixed = TRUE)
          })
 verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT inchange",
@@ -1248,30 +1260,28 @@ verifier("Cox-Stuart T = 10, m = 4 sur n_p = 5, alpha = 0,10 : TEST INOPERANT in
 # la plateforme.
 NOM_TOST165 <- "Equivalence de la constante a zero (TOST)"
 PREFIXE_R14 <- "EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES"
-# Texte de la branche test (#165, inchange par #298), recalcule depuis
-# test_tost_intercept(). pi : pi_t de l'ajustement de (x, y) (#215).
-avant165 <- function(x, y, theta = 0.10, delta_abs = NULL, pi = fit$pi) {
-  t0 <- test_tost_intercept(x, y, pi, theta = theta, delta_abs = delta_abs)
-  sprintf(paste("Rejeter H0 fournit une preuve POSITIVE de proportionnalite.",
-                "Delta = %s (valeur : estimation \"marge Delta\") ;",
-                "p_bas = %.4f, p_haut = %.4f."),
-          if (is.null(delta_abs)) sprintf("%.0f %% de la moyenne de y", 100 * theta)
-          else "marge fixee a priori", t0$p_bas, t0$p_haut)
+# Texte de la branche test (#165 ; depuis #514, specification finale
+# d'actuary, U2 : phrase 1, lecture ; phrase 2, ligne liee). rho, p_bas et
+# p_haut ne sont plus imprimes (fiche du .tex ; recalculables par
+# test_tost_intercept()) : l'argument rho est garde pour la lisibilite des
+# appels, sans effet sur le texte. pi garde pour la meme raison.
+avant165 <- function(x, y, theta = 0.10, delta_abs = NULL, pi = fit$pi, rho = NULL) {
+  txt_delta <- if (is.null(delta_abs)) sprintf("%.0f %% de la moyenne de y", 100 * theta)
+               else "marge fixee a priori"
+  sprintf(paste("Un OK (rejet de H0) prouve la proportionnalite pratique, |a| < Delta",
+                "(Delta = %s), une ALERTE ou un ECHEC n'etablit ni l'equivalence ni",
+                "un ecart a la proportionnalite. A lire avec \"Nullite de la",
+                "constante (proportionnalite stricte)\"."), txt_delta)
 }
-# Phrase de la regle R14 (specification Fb, section 3.4), recalculee
-# independamment de usp_tests() ; rho et p_plancher passes en chaines.
+# Phrase de la regle R14 (specification Fb, section 3.4, reecrite par #514,
+# U2), recalculee independamment de usp_tests() ; p_plancher passe en chaine
+# (%.3f). rho et alerte ne sont plus imprimes (la mention "ALERTE
+# inatteignable" est retiree par #514) : arguments gardes, sans effet.
 r14 <- function(x, y, rho, pp, alerte, theta = 0.10, delta_abs = NULL, pi = fit$pi, alpha = 0.10) {
-  t0 <- test_tost_intercept(x, y, pi, theta = theta, delta_abs = delta_abs)
-  paste0(PREFIXE_R14, " au seuil alpha = ", format(alpha), " : t(1-alpha, T-2) x se(a) / Delta = ",
-         rho, " >= 1, soit p >= p_plancher = ", pp, " >= alpha quelle que soit la constante",
-         " estimee : OK inatteignable", if (alerte) ", et meme p >= 0.3 : ALERTE inatteignable",
-         " ; aucun verdict. Delta = ",
-         if (is.null(delta_abs)) sprintf("%.0f %% de la moyenne de y", 100 * theta) else "marge fixee a priori",
-         " (valeur : estimation \"marge Delta\") ; p_bas = ", sprintf("%.4f", t0$p_bas),
-         ", p_haut = ", sprintf("%.4f", t0$p_haut), " ; p du TOST (champ p asymptotique : loi de",
-         " Student sous le modele auxiliaire pondere, poids estimes) non retenue. L'equivalence",
-         " ne peut pas etre conclue avec ces donnees (plan de volumes, dispersion residuelle) et",
-         " cette marge : absence de preuve, non ecart a la proportionnalite.")
+  paste0(PREFIXE_R14, " au seuil alpha = ", format(alpha), ", aucun verdict : avec ces volumes",
+         " et cette dispersion, aucune constante estimee ne donnerait p < alpha (p_plancher = ",
+         pp, "), absence de preuve et non ecart a la proportionnalite. La proportionnalite",
+         " releve de \"Nullite de la constante (proportionnalite stricte)\".")
 }
 # Champs d'une ligne restituee par la regle R14 (section 3.3 de la
 # specification) ; p : p de test_tost_intercept() attendue en p_asymptotique.
@@ -1281,19 +1291,18 @@ champs_r14 <- function(l, p)
     identical(l$sens, NA_character_) && identical(l$p_asymptotique, p) &&
     is.na(l$p_exacte) && is.na(l$p_mc) && is.na(l$p_min) && identical(l$inoperant, FALSE) &&
     startsWith(l$detail, PREFIXE_R14) && !grepl("TEST INOPERANT", l$detail, fixed = TRUE) &&
-    !grepl("Condition necessaire de conclusion", l$detail, fixed = TRUE)
+    !grepl("condition necessaire remplie", l$detail, fixed = TRUE)
 tost165 <- function(f, ...) ligne(usp_tests(f, boot_fictif(f), methode = "premium", ...), NOM_TOST165)
-verifier("TOST (#298, critere (a)), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : diagnostic R14, INFO, p retenue / nature / sens NA, p_asymptotique = test_tost_intercept()$p, inoperant FALSE ; detail '... alpha = 0.1 : ... = 9.10 >= 1 ... p_plancher = 0.440 ... ALERTE inatteignable', sans 'TEST INOPERANT'",
+verifier("TOST (#298, critere (a)), donnees des quatre cas lognormaux (alpha = 0,10, theta = 0,10), premium et reserve1 : diagnostic R14, INFO, p retenue / nature / sens NA, p_asymptotique = test_tost_intercept()$p, inoperant FALSE ; detail '... alpha = 0.1, ... (p_plancher = 0.440) ...', sans 'TEST INOPERANT' ni 'ALERTE inatteignable' (#514)",
          {
            t0 <- test_tost_intercept(x, y, fit$pi)
            att <- r14(x, y, "9.10", "0.440", TRUE)
            ok <- vapply(c("premium", "reserve1"), function(m) {
              l <- ligne(usp_tests(fit, boot_fictif(fit), methode = m), NOM_TOST165)
              champs_r14(l, t0$p) && identical(l$detail, att) &&
-               startsWith(l$detail, "EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES au seuil alpha = 0.1 : ") &&
-               grepl("= 9.10 >= 1", l$detail, fixed = TRUE) &&
-               grepl("p_plancher = 0.440", l$detail, fixed = TRUE) &&
-               grepl("ALERTE inatteignable", l$detail, fixed = TRUE) &&
+               startsWith(l$detail, "EQUIVALENCE NON DEMONTRABLE AVEC CES DONNEES au seuil alpha = 0.1, aucun verdict : ") &&
+               grepl("(p_plancher = 0.440)", l$detail, fixed = TRUE) &&
+               !grepl("ALERTE inatteignable", l$detail, fixed = TRUE) &&
                identical(l$stat, t0$stat) && identical(l$estim, t0$delta)
            }, logical(1))
            if (all(ok)) TRUE else paste("en defaut :", paste(names(ok)[!ok], collapse = ", "))
@@ -1301,17 +1310,13 @@ verifier("TOST (#298, critere (a)), donnees des quatre cas lognormaux (alpha = 0
 verifier("TOST (#165), marge fixee a priori delta_equiv = 150 (rho = 0.52 < 1) : texte d'avant + 'remplie', verdict OK",
          {
            l <- tost165(fit, delta_equiv = 150)
-           identical(l$detail, paste(avant165(x, y, delta_abs = 150),
-                                     paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.52 < 1."))) &&
+           identical(l$detail, avant165(x, y, delta_abs = 150, rho = "0.52")) &&
              identical(l$verdict, "OK") && identical(l$type, "test")
          })
 verifier("TOST (#165), marge estimee theta_equiv = 1,5 (rho = 0.61 < 1) : 'remplie', verdict OK",
          {
            l <- tost165(fit, theta_equiv = 1.5)
-           identical(l$detail, paste(avant165(x, y, theta = 1.5),
-                                     paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.61 < 1."))) &&
+           identical(l$detail, avant165(x, y, theta = 1.5, rho = "0.61")) &&
              identical(l$verdict, "OK") && identical(l$type, "test")
          })
 verifier("TOST (#298), marge fixee a priori delta_equiv = 50 (alpha <= p_plancher < 0,30, rho = 1.55) : diagnostic R14 sans 'ALERTE inatteignable' (ALERTE avant #298)",
@@ -1339,9 +1344,7 @@ verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha
          {
            l <- ligne(usp_tests(fit, boot_fictif(fit), alpha = 0.25, methode = "premium",
                                 delta_equiv = 50), NOM_TOST165)
-           identical(l$detail, paste(avant165(x, y, delta_abs = 50),
-                                     paste("Condition necessaire de conclusion remplie :",
-                                           "t(1-alpha, T-2) x se(a) / Delta = 0.77 < 1."))) &&
+           identical(l$detail, avant165(x, y, delta_abs = 50, rho = "0.77")) &&
              identical(l$verdict, "OK") && identical(l$type, "test")
          })
 # Cas construits a la frontiere (reprise de l'audit de #165 ; critere (c) de
@@ -1358,7 +1361,7 @@ verifier("TOST (#165), alpha de la regle des verdicts : delta_equiv = 50 a alpha
 # 1e-3 : sans rapport avec la derive de plateforme ; les cas k = 1/1,005
 # distinguent T - 2 de T - 1 ddl. rho n'est pas compare : l'arrondi %.2f y
 # montre 1.00 (limite admise, commentaire 5927254443 de #165).
-verifier("TOST (#165, #298 critere (c)), cas a la frontiere (marge 0,5 % autour de t(0,90 ; 6) et t(0,70 ; 6), delta_equiv, alpha = 0,10) : type decide par p_plancher a T - 2 ddl contre alpha, 'ALERTE inatteignable' contre SEUIL_ECHEC_SENS_REJETER",
+verifier("TOST (#165, #298 critere (c)), cas a la frontiere (marge 0,5 % autour de t(0,90 ; 6) et t(0,70 ; 6), delta_equiv, alpha = 0,10) : type decide par p_plancher a T - 2 ddl contre alpha ; plus de mention 'ALERTE inatteignable' (#514)",
          {
            se0 <- test_tost_intercept(x, y, fit$pi)$se
            cas <- list(list(q = 0.90, k = 1.005,     br = "remplie"),
@@ -1371,10 +1374,10 @@ verifier("TOST (#165, #298 critere (c)), cas a la frontiere (marge 0,5 % autour 
              p0 <- test_tost_intercept(x, y, fit$pi, delta_abs = d)$p
              if (cc$br == "remplie")
                identical(l$type, "test") && identical(l$verdict, "ALERTE") &&
-                 grepl("conclusion remplie", l$detail, fixed = TRUE) &&
-                 startsWith(l$detail, avant165(x, y, delta_abs = d))
-             else champs_r14(l, p0) &&
-               grepl("ALERTE inatteignable", l$detail, fixed = TRUE) == (cc$br == "r14_alerte")
+                 identical(l$detail, avant165(x, y, delta_abs = d))
+             # Depuis #514, plus de mention "ALERTE inatteignable" : les deux
+             # branches R14 ont le meme texte (p_plancher seul differe).
+             else champs_r14(l, p0) && !grepl("ALERTE inatteignable", l$detail, fixed = TRUE)
            }, logical(1))
            if (all(ok)) TRUE else paste("cas en defaut :", paste(which(!ok), collapse = ", "))
          })
@@ -1389,7 +1392,7 @@ verifier("TOST (#298, critere (d)) : J2 (delta interieur, p_plancher = 0,079) te
            pp > 0.05 && pp < 0.10 && identical(l10$type, "test") &&
              identical(l10$p_retenue, t0$p) &&
              champs_r14(l05, t0$p) &&
-             startsWith(l05$detail, paste0(PREFIXE_R14, " au seuil alpha = 0.05 : ")) &&
+             startsWith(l05$detail, paste0(PREFIXE_R14, " au seuil alpha = 0.05, aucun verdict : ")) &&
              !grepl("ALERTE inatteignable", l05$detail, fixed = TRUE)
          })
 # Critere (b) de #298 : sur J2 a alpha = 0,10, la ligne est celle d'avant
@@ -1407,9 +1410,7 @@ verifier("TOST (#298, critere (b)) : J2 a alpha = 0,10, ligne inchangee (test, A
              identical(l$nature_p, paste("sous le modele auxiliaire pondere : loi de Student",
                                          "(poids estimes), marge estimee sur les donnees")) &&
              identical(l$sens, "rejeter") && identical(l$inoperant, FALSE) &&
-             identical(l$detail, paste(avant165(xi, yi, pi = fi$pi),
-                                       sprintf(paste("Condition necessaire de conclusion remplie :",
-                                                     "t(1-alpha, T-2) x se(a) / Delta = %.2f < 1."), rho)))
+             identical(l$detail, avant165(xi, yi, pi = fi$pi, rho = sprintf("%.2f", rho)))
          })
 verifier("TOST (#165, #298 critere (f)), branches non calculees inchangees : marge invalide et volumes constants non applicables, sans phrase de condition ni de la regle R14",
          {
@@ -1418,7 +1419,7 @@ verifier("TOST (#165, #298 critere (f)), branches non calculees inchangees : mar
            c0 <- tost165(usp_ajuster(x, rep(70, 8)))
            all(vapply(list(a, b, c0), function(l)
              identical(l$type, "non applicable") && identical(l$verdict, "INFO") &&
-               !grepl("Condition necessaire", l$detail, fixed = TRUE) &&
+               !grepl("condition necessaire", l$detail, fixed = TRUE) &&
                !grepl(PREFIXE_R14, l$detail, fixed = TRUE), logical(1)))
          })
 # Propriete (graine explicite, engine_sous_graine()) : 30 series simulees,
@@ -1426,7 +1427,7 @@ verifier("TOST (#165, #298 critere (f)), branches non calculees inchangees : mar
 # tire dans {0,05 ; 0,10 ; 0,20}. Critere (e) de #298 : diagnostic si et
 # seulement si p_plancher >= alpha ; jamais un test dont le detail dit "OK
 # inatteignable" ; chaque branche est rencontree.
-verifier("TOST (#165, #298 critere (e)), propriete sur 30 series simulees (graine 165) : diagnostic R14 si et seulement si p_plancher >= alpha, 'ALERTE inatteignable' si et seulement si p_plancher >= SEUIL_ECHEC_SENS_REJETER, jamais un test avec 'OK inatteignable' ; les trois branches rencontrees",
+verifier("TOST (#165, #298 critere (e)), propriete sur 30 series simulees (graine 165) : diagnostic R14 si et seulement si p_plancher >= alpha, jamais 'ALERTE inatteignable' (#514), jamais un test avec 'OK inatteignable' ; les trois branches (test, R14 sous et au-dessus de SEUIL_ECHEC_SENS_REJETER) rencontrees",
          {
            sim <- engine_sous_graine(165L, lapply(1:30, function(i) {
              xs <- 100 * exp(cumsum(stats::rnorm(8, 0.03, 0.08)))
@@ -1445,16 +1446,16 @@ verifier("TOST (#165, #298 critere (e)), propriete sur 30 series simulees (grain
              pp <- stats::pt(d / t0$se, 6, lower.tail = FALSE)
              p0 <- test_tost_intercept(s$x, s$y, f$pi, delta_abs = d)$p
              diag <- identical(l$type, "diagnostic")
-             rem <- grepl("conclusion remplie", l$detail, fixed = TRUE)
+             rem <- grepl("Un OK (rejet de H0) prouve", l$detail, fixed = TRUE)
              alerte <- grepl("ALERTE inatteignable", l$detail, fixed = TRUE)
              if (rem) vu["remplie"] <- vu["remplie"] + 1L
-             else if (alerte) vu["r14_alerte"] <- vu["r14_alerte"] + 1L
+             else if (diag && pp >= SEUIL_ECHEC_SENS_REJETER) vu["r14_alerte"] <- vu["r14_alerte"] + 1L
              else if (diag) vu["r14"] <- vu["r14"] + 1L
              if (diag != (pp >= s$alpha) || diag == rem ||
                  (identical(l$type, "test") && grepl("OK inatteignable", l$detail, fixed = TRUE)) ||
                  (diag && !champs_r14(l, p0)) ||
-                 alerte != (pp >= SEUIL_ECHEC_SENS_REJETER) ||
-                 (rem && !startsWith(l$detail, avant165(s$x, s$y, delta_abs = d, pi = f$pi))))
+                 alerte ||
+                 (rem && !endsWith(l$detail, avant165(s$x, s$y, delta_abs = d, pi = f$pi))))
                pb <- c(pb, sprintf("serie %d (type %s, verdict %s)", i, l$type, l$verdict))
            }
            if (length(pb)) paste(pb, collapse = " ; ")
@@ -1611,24 +1612,32 @@ MOTIFS_RETENUE_214 <- c(
   "\\bp(-values?|_mc)?\\b[^.;:]{0,80}(?<!ne )\\bsont retenue?s\\b",
   paste0("\\b", NOM_P_214, " retenue?s?\\b"))
 # "ni p-value retenue" : phrase fixe de la regle R15 (#303), negative.
-# "tests dont la p exacte est retenue" : texte T-1 des lignes de famille
-# (#297, DETAIL_P_FAMILLE, specification D1-Fk, par. 4.4), qui parle des
-# lignes membres et non de la ligne de famille (diagnostic sans p retenue) ;
-# sa presence dans le texte du moteur est verifiee ci-dessous.
+# "p exacte retenue ou non" : texte T-1 des lignes de famille (#297,
+# DETAIL_P_FAMILLE, reecrit par #514), qui parle des lignes membres et non de
+# la ligne de famille (diagnostic sans p retenue) ; sa presence dans le texte
+# du moteur est verifiee ci-dessous. "la p Monte-Carlo retenue n'a pas
+# exactement" : seuil de la constante (#314, texte de #514), ecrit seulement
+# quand la p Monte-Carlo de la constante est calculee, ligne sans p_min (R1
+# sans objet) : c'est alors la p retenue.
 EXCLUS_RETENUE_214 <- c("Aucune p-value retenue", "aucune p-value retenue", "ni p-value retenue",
                         "p-value retenue, s'il en est une",
                         "la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
-                        "tests dont la p exacte est retenue")
+                        "p exacte retenue ou non",
+                        "la p Monte-Carlo retenue n'a pas exactement")
 affirme_retenue <- function(d) {
   if (is.na(d)) return(FALSE)
   for (e in EXCLUS_RETENUE_214) d <- gsub(e, "", d, fixed = TRUE)
   any(vapply(MOTIFS_RETENUE_214, grepl, logical(1), x = d, perl = TRUE))
 }
 verifier("#214 : la phrase admise de add() (R1, p Monte-Carlo retenue hors bascule) figure dans R/engine.R",
-         any(grepl(EXCLUS_RETENUE_214[4], readLines(file.path(RACINE, "R", "engine.R"), warn = FALSE),
+         any(grepl(EXCLUS_RETENUE_214[5], readLines(file.path(RACINE, "R", "engine.R"), warn = FALSE),
                    fixed = TRUE)))
-verifier("#214 / #297 : l'exclusion du texte T-1 des lignes de famille figure dans DETAIL_P_FAMILLE",
-         grepl(EXCLUS_RETENUE_214[6], gsub("\\s+", " ", DETAIL_P_FAMILLE), fixed = TRUE))
+# Depuis #514 (specification finale d'actuary), les textes T-1 et T-2 ne
+# parlent plus de la p retenue des lignes membres : ils ne doivent affirmer
+# aucune p-value retenue, sans exclusion propre.
+verifier("#214 / #297 : DETAIL_P_FAMILLE et DETAIL_P_GLOBALE n'affirment aucune p-value retenue (#514)",
+         !affirme_retenue(gsub("\\s+", " ", DETAIL_P_FAMILLE)) &&
+           !affirme_retenue(gsub("\\s+", " ", DETAIL_P_GLOBALE)))
 ln214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
 li214 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
 tri214 <- local({
@@ -1651,16 +1660,17 @@ NM_RUNSR <- "Test des suites sur ratios bruts"
 # diagnostic pose par usp_tests() : R1 ne s'y applique plus (inoperant
 # FALSE), et la proposition de renvoi a nature_p est retiree ; le regime 3
 # (pi_t variable) reste un test inoperant par R1.
-verifier("#214 jeux : alpha = 0,05, Runsr regime 1 en diagnostic R15 (p exacte calculee), regime 3 inoperant (Monte-Carlo) avec renvoi a nature_p",
+verifier("#214 jeux : alpha = 0,05, Runsr regime 1 en diagnostic R15 (p exacte calculee), regime 3 inoperant (Monte-Carlo) avec mention M17a, sans renvoi a nature_p (#514)",
          {
            a <- ligne(cas214$j214_regime1$tests, NM_RUNSR); b <- ligne(cas214$j214_regime3$tests, NM_RUNSR)
            isFALSE(a$inoperant) && identical(a$type, "diagnostic") && is.na(a$p_retenue) &&
              identical(a$verdict, "INFO") && grepl("regle R15", a$detail, fixed = TRUE) &&
-             !grepl(PHRASE_RENVOI_NATURE_P, a$detail, fixed = TRUE) &&
-             is.finite(a$p_exacte) && grepl("EXACTE est calculee", a$detail, fixed = TRUE) &&
+             !grepl(RENVOI_NATURE_P_514, a$detail, fixed = TRUE) &&
+             is.finite(a$p_exacte) && grepl("p exacte identiques a celles", a$detail, fixed = TRUE) &&
              isTRUE(b$inoperant) && is.na(b$p_retenue) && identical(b$verdict, "INFO") &&
              startsWith(b$detail, "TEST INOPERANT au seuil alpha = 0.05") &&
-             grepl(PHRASE_RENVOI_NATURE_P, b$detail, fixed = TRUE) &&
+             grepl(MENTION_PI_VARIABLE_TEST, b$detail, fixed = TRUE) &&
+             !grepl(RENVOI_NATURE_P_514, b$detail, fixed = TRUE) &&
              !is.finite(b$p_exacte) && is.finite(b$p_mc)
          })
 verifier("#214 : aucune ligne inoperante (six cas, deux jeux de #214) ne declare une p-value retenue",
@@ -1691,7 +1701,7 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
            !any(vapply(c("aucune p-value n'est retenue", "Aucune p-value retenue : la grandeur",
                        "Restituee en diagnostic (regle R15) : aucun verdict ni p-value retenue ;",
                          "pour information, non retenue", "est rapportee pour memoire et non retenue",
-                         paste0(PHRASE_RENVOI_NATURE_P, "."),
+                         paste0(RENVOI_NATURE_P_514, "."),
                          paste("la p-value Monte-Carlo retenue, simulee sous le modele ajuste, peut",
                                "lui etre inferieure (erreur Monte-Carlo, non-echangeabilite) : ECHEC possible"),
                          "la p non simulee (loi du champ loi) non retenue",
@@ -1701,5 +1711,12 @@ verifier("#214 : motif d'affirmation, temoins positifs (anciennes phrases) et ne
                          "conditionnelle a la structure de variance retenue",
                          "les p-values ne sont retenues que si"),
                        affirme_retenue, logical(1))))
+
+# #514 (A3, S10 et S11) : texte propre en deux phrases au plus et 400
+# caracteres au plus (regle R1 dans ses deux branches, ECHEC possible, TOST,
+# pente, T = 10 et T = 12).
+for (nm514 in names(cas214)) verifier_detail(cas214[[nm514]], paste("cas #214", nm514))
+for (nm514 in c("tt", "t03", "t30", "t_neg", "t_i", "res12", "res10", "res10p"))
+  if (exists(nm514, inherits = FALSE)) verifier_detail(get(nm514), paste("objet", nm514))
 
 fin_fichier()

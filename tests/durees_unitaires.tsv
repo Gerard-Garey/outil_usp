@@ -8,7 +8,8 @@
 # lues dans les journaux des lots de l'execution CI de 13950aa (issue #512, run
 # 42522519087, 4 processus par lot) : test_merz_wuthrich, test_merz_wuthrich_suite
 # (fichier coupe en deux, test calendaire a B = 99) et test_enveloppe_spread
-# (B = 599).
+# (B = 599). test_detail_deux_phrases : duree mesuree en local (#514, fichier
+# lance seul, 65,6 s).
 test_p_mc_regime.R	195.9
 test_application.R	195.2
 test_controles_entree.R	193.6
@@ -25,6 +26,7 @@ test_origine_non_identifiable.R	88.3
 test_retirage_mw.R	85.1
 test_plancher_mc.R	83.5
 test_calibration.R	76.4
+test_detail_deux_phrases.R	65.6
 test_garde_ecrasement.R	56.8
 test_ex_aequo.R	52.6
 test_anti_bruit.R	52.1

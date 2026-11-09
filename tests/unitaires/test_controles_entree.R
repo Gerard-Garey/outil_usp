@@ -454,8 +454,9 @@ verifier(".usp_ligne_cook() : distance non finie (NaN, NA, Inf) -> non applicabl
                                                   "y = beta x tous nuls) : diagnostic non applicable")),
                       logical(1))) &&
              identical(ok$type, "diagnostic") && identical(ok$estim, 0.7) &&
-             identical(ok$detail, "repere conventionnel 4/T = 0.500 ; 2 observation(s) au-dessus (rangs 2, 4)") &&
-             identical(ok0$detail, "repere conventionnel 4/T = 0.500 ; 0 observation(s) au-dessus")
+             # #514 (Q-3) : rangs retires du detail, separateur ", ".
+             startsWith(ok$detail, "Repere conventionnel 4/T = 0.500, 2 annee(s) au-dessus :") &&
+             startsWith(ok0$detail, "Repere conventionnel 4/T = 0.500, 0 annee(s) au-dessus :")
          })
 # Issue des regressions sur donnees degenerees : dependante de la
 # plateforme. Sur y exactement proportionnel a x (x = 2^(0:7), y = x / 2)
@@ -3286,11 +3287,12 @@ avt_vc213 <- function(x) sprintf(paste(
   "Brown-Forsythe et Smirnov non applicables) ; verifier la saisie."),
   TOL_DELTA_BORD, diff(range(x)) / mean(x))
 a_vc213 <- function(avt) any(startsWith(avt, "Volumes x_t constants"))
+# Texte de #514 (specification d'actuary, U8) : il remplace la base de la
+# ligne, sans point final (detail_r7() le pose).
 PHRASE_SV213 <- paste(
-  "Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir",
-  "l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens",
-  "inverse du volume ; un rejet traduit des pertes non proportionnelles au",
-  "volume, ce que teste la ligne.")
+  "Pertes y_t constantes (voir l'avertissement sur les donnees) : le ratio varie en",
+  "sens inverse du volume, et un ECHEC ou une ALERTE traduit des pertes non",
+  "proportionnelles au volume.")
 x213 <- rep(100, 8)
 res213 <- list(premium = lancer189(x213, ys188, "premium"),
                reserve1 = lancer189(x213, ys188, "reserve1"))
@@ -3373,15 +3375,16 @@ verifier("Ordre : volumes et pertes constants (x = 110 x 8, y = 70 x 8) -> avert
            i <- match(avt_vc213(rep(110, 8)), a); j <- match(avt_pc189(y189), a)
            is.finite(i) && is.finite(j) && j == i + 1L
          })
-verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : presente une fois a pertes constantes (y = 70 x 8, premium et reserve1), type et verdict inchanges au predicat neutralise, detail = phrase de base suivie de la phrase (sans renvoi #215, la constante etant non applicable) ; absente sur J1 et a volumes constants (ligne non applicable)",
+verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : presente une fois a pertes constantes (y = 70 x 8, premium et reserve1), type et verdict inchanges au predicat neutralise, detail = la phrase, qui remplace la base depuis #514 (sans renvoi #215, la constante etant non applicable) ; absente sur J1 et a volumes constants (ligne non applicable)",
          {
-           base <- "Une correlation signale un effet d'echelle non modelise"
            ok_pc <- all(vapply(names(res189), function(m) {
              l <- ligne153(res189[[m]]$tests, NOM_SV215); l0 <- ligne153(neutre189[[m]]$tests, NOM_SV215)
              identical(l$type, "test") && identical(l$type, l0$type) && identical(l$verdict, l0$verdict) &&
                lengths(regmatches(l$detail, gregexpr(PHRASE_SV213, l$detail, fixed = TRUE))) == 1L &&
                !grepl(PHRASE_SV213, l0$detail, fixed = TRUE) &&
-               identical(l$detail, paste0(base, ". ", PHRASE_SV213))
+               # Texte propre de #514 : la phrase seule, precedee de la mention
+               # de regime (delta a la borne 1 sur ce jeu).
+               endsWith(l$detail, PHRASE_SV213)
            }, logical(1)))
            rj <- lancer189(xs188, ys188)
            ok_pc && !grepl(PHRASE_SV213, ligne153(rj$tests, NOM_SV215)$detail, fixed = TRUE) &&

@@ -217,8 +217,8 @@ verifier("Diagnostic M6 : les trois arguments du minimum et celui qui est retenu
            l <- d$commentaire[grepl("Extrapolation de sigma", d$test)]
            length(l) == 1 &&
              grepl("sigma2_(J-2) = 0.0657895", l, fixed = TRUE) &&
-             grepl("sigma2_(J-3) = 0 ;", l, fixed = TRUE) &&
-             grepl("minimum atteint par sigma2_(J-3)", l, fixed = TRUE)
+             grepl("sigma2_(J-3) = 0,", l, fixed = TRUE) &&
+             grepl("atteint par sigma2_(J-3)", l, fixed = TRUE)
          })
 # Cas symetrique : sigma2_(J-2) = 0 avec sigma2_(J-3) > 0. Le quotient vaut
 # alors 0 et le minimum litteral donne 0 sans aucune garde. La colonne J-2
@@ -278,8 +278,8 @@ verifier("sigma2_(J-2) = 0 avec sigma2_(J-3) > 0 : sigma2_(J-1) = 0, avertisseme
              grepl("AUCUNE variance", av, fixed = TRUE) &&
              grepl("n'est pourtant PAS acheve", av, fixed = TRUE) &&
              !grepl("sigma2_(J-3) = 0", av, fixed = TRUE) &&
-             grepl("Colonne J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil", detail_m6(r), fixed = TRUE) &&
-             grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
+             grepl(", colonne J-2 degeneree : voir l'avertissement sur les donnees.", detail_m6(r), fixed = TRUE) &&
+             grepl("(colonne J-2 degeneree, quotient non compte)", detail_m6(r), fixed = TRUE) &&
              # Depuis #33, l'absence de residus est dite par l'avertissement
              # general sur les colonnes exclues, et non plus par celui-ci.
              !grepl("sont exclus des residus de Mack", av, fixed = TRUE) &&
@@ -312,9 +312,9 @@ verifier("Colonnes J-3 et J-2 degenerees (tri_2) : un seul avertissement, ex aeq
              grepl("sigma2_(J-2) = 0", av, fixed = TRUE) &&
              grepl("n'est pourtant PAS acheve", av, fixed = TRUE) &&
              length(l) == 1 &&
-             grepl("minimum atteint par sigma2_(J-2) et sigma2_(J-3) (ex aequo)", l,
+             grepl("atteint par sigma2_(J-2) et sigma2_(J-3) (ex aequo)", l,
                    fixed = TRUE) &&
-             grepl("Colonnes J-3 et J-2 a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil", l,
+             grepl(", colonnes J-3 et J-2 degenerees : voir l'avertissement sur les donnees.", l,
                    fixed = TRUE) &&
              # enonce du predicat une seule fois, J-3 et J-2 degenerees (#60)
              lengths(regmatches(av, gregexpr(.MW_PREDICAT_DEGENERE_TEXTE, av,
@@ -363,7 +363,7 @@ verifier("Colonne J-2 constante a 1e-14 pres : argmin litteral = quotient, cause
            av <- av_extrap(r)
            isTRUE(ex$degeneree_Jm2) &&
              identical(ex$retenu, "sigma2_(J-2)^2/sigma2_(J-3)") &&
-             grepl("nul par voie de consequence", detail_m6(r), fixed = TRUE) &&
+             grepl("(colonne J-2 degeneree, quotient non compte)", detail_m6(r), fixed = TRUE) &&
              length(av) == 1 && grepl("j = J-2 = 3", av, fixed = TRUE)
          })
 # Colonne J-2 detectee (facteurs egaux a l'arrondi pres) mais sigma2_(J-2) > 0
@@ -580,31 +580,34 @@ verifier("Lignes citees comme ecartant les colonnes degenerees = lignes de mw_te
                       "| mesurees non citees :", paste(setdiff(mesure, cite), collapse = " ; "))
          })
 # Triangle de non-regression (tests/donnees/triangle_mw.csv) : aucune des
-# deux colonnes n'est degeneree, et le detail M6 (sensibilite de #310
-# comprise) est celui de la reference versionnee au caractere pres.
-verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detail M6 = reserve2.rds",
+# deux colonnes n'est degeneree. Detail M6 de #514 (specification finale
+# d'actuary, M6-1 : phrase 1, regle et arguments ; phrase 2, ligne liee ;
+# Q-3 : sensibilite de #310 retiree du detail), a la lettre.
+LIE_M6 <- "A lire avec \"Part de la reserve portee par la derniere annee d'accident\"."
+T514_M6 <- paste0(
+  "Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), ",
+  "non estimee : min(sigma2_(J-2) = 0.189674, sigma2_(J-3) = 0.0973248, ",
+  "quotient = 0.36965) = 0.0973248, atteint par sigma2_(J-3). ", LIE_M6)
+verifier("Triangle de non-regression : colonnes J-3 et J-2 non degenerees, detail M6 = texte de #514",
          {
            d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
            m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
            a <- mw_ajuster(unname(m))
            ex <- mw_extrapolation_sigma2(a)
-           ref <- readRDS(file.path(RACINE, "tests", "reference", "reserve2.rds"))
-           k <- which(vapply(ref$tests, function(x) identical(
-             x$test, "Extrapolation de sigma pour la derniere annee de developpement"),
-             logical(1)))
            ex$ecart_relatif > 1e-3 && ex$ecart_relatif_Jm2 > 1e-3 &&
              identical(ex$degeneree_Jm3, FALSE) && identical(ex$degeneree_Jm2, FALSE) &&
-             identical(ex$degeneree, FALSE) && length(k) == 1 &&
-             identical(.mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex)),
-                       ref$tests[[k]]$detail)
+             identical(ex$degeneree, FALSE) &&
+             identical(.mw_detail_extrapolation(ex), T514_M6)
          })
 
 ## --- Sensibilite de racine(MSEP) a sigma2_(J-1) (#310) -----------------------
-# Specification Fm, § 3 et texte T-4 (decisions Q-D1-Fm-6 a Q-D1-Fm-9). Les
-# racines de MSEP de reference sont celles de la mesure m_fm_d de la
-# specification (docs/tableaux/20261023-fm-mesures.md), recalculees ici par un
-# remplacement reecrit hors de la fonction (meme methode que
-# mw_sensibilite_sigma2_dernier() : sigma2[J] et Q[J] remplaces, mw_msep()).
+# Specification Fm, § 3 (decisions Q-D1-Fm-6 a Q-D1-Fm-9). Les racines de
+# MSEP de reference sont celles de la mesure m_fm_d de la specification
+# (docs/tableaux/20261023-fm-mesures.md), recalculees ici par un remplacement
+# reecrit hors de la fonction (meme methode que mw_sensibilite_sigma2_dernier()
+# : sigma2[J] et Q[J] remplaces, mw_msep()). Depuis #514 (Q-3), la
+# sensibilite n'est plus restituee dans le detail M6 ; la fonction reste, et
+# ses valeurs sont verifiees ici.
 local({
   d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
   m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
@@ -629,23 +632,11 @@ local({
                            vapply(c(ex$sigma2_Jm2, ex$sigma2_Jm3, ex$quotient),
                                   function(v) sqrt(msep_avec(v)$msep), numeric(1)), rel = 1e-15)) &&
              identical(names(s$racine_msep_arguments), c("sigma2_Jm2", "sigma2_Jm3", "quotient")))
-  # Texte T-4 de la specification, a la lettre (BASE R1, min(...), SENS, CONTRE).
-  t4 <- paste0(
-    "Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), seconde ligne, ",
-    "et non estimee : la regle ne lit que les deux dernieres variances estimees. ",
-    "min(sigma2_(J-2) = 0.189674 ; sigma2_(J-3) = 0.0973248 ; ",
-    "sigma2_(J-2)^2/sigma2_(J-3) = 0.36965) = 0.0973248, minimum atteint par sigma2_(J-3). ",
-    "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-    "(199.494 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-    "avec sigma2_(J-2) : 226.413 (+13.5 %) ; avec sigma2_(J-3) : 199.494 (+0.0 %) ; ",
-    "avec sigma2_(J-2)^2/sigma2_(J-3) : 271.305 (+36.0 %). ",
-    "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
-    "contrefactuel qui n'est pas un argument du minimum) : 166.48 (-16.5 %).")
-  verifier("#310 : detail M6 de reserve2 = texte T-4 a la lettre (mw_tests())",
-           identical(detail_m6(run_mw(t_ref)), t4) &&
-             identical(.mw_detail_extrapolation(ex, s), t4))
+  verifier("#514 : detail M6 de reserve2 = texte de #514 a la lettre (mw_tests()), sans sensibilite",
+           identical(detail_m6(run_mw(t_ref)), T514_M6) &&
+             !grepl("Sensibilite|contrefactuel", detail_m6(run_mw(t_ref))))
   verifier("#310 : vocabulaire R1, ni 'extrapolee' ni 'imposee' dans le detail M6",
-           !grepl("extrapol|impose", t4) &&
+           !grepl("extrapol|impose", T514_M6) &&
              !grepl("extrapol|impose", .mw_detail_extrapolation(ex)))
   verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, en fin, un seul TRUE en j = J - 1",
            {
@@ -656,42 +647,39 @@ local({
                identical(f$sigma, sqrt(a$sigma2))
            })
 })
-verifier("#310 : quotient non defini (sigma2_(J-3) = 0) -> 'non defini', sans phrase contrefactuelle",
+verifier("#310 / #514 : quotient non defini (sigma2_(J-3) = 0) -> 'non defini' dans min(...), colonne J-3 degeneree nommee, sans sensibilite",
          {
            a <- mw_ajuster(tri_deg); ex <- mw_extrapolation_sigma2(a)
            s <- mw_sensibilite_sigma2_dernier(a, ex)
            l <- detail_m6(run_mw(tri_deg))
            is.na(s$racine_msep_arguments[["quotient"]]) && a$sigma2[a$J] == 0 &&
-             identical(l, .mw_detail_extrapolation(ex, s)) &&
-             endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
-             grepl("Sensibilite indicative, hors regle et sans effet sur sigma_USP", l, fixed = TRUE) &&
-             !grepl("contrefactuel", l, fixed = TRUE) &&
-             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+             identical(l, .mw_detail_extrapolation(ex)) &&
+             grepl("quotient = non defini (sigma2_(J-3) = 0)", l, fixed = TRUE) &&
+             endsWith(l, paste(", colonne J-3 degeneree : voir l'avertissement sur les donnees.",
+                               LIE_M6)) &&
+             !grepl("Sensibilite|contrefactuel", l)
          })
-# Contrefactuel omis quand la regle donne 0 a la tolerance de l'outil
-# (colonne degeneree), meme si la valeur de la regle est > 0 en virgule
-# flottante : colonne J-2 de tri_sym constante a 1e-14 pres (valeur de la
-# regle de l'ordre de 1e-50). SENS reste ecrit.
-verifier("#310 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle a la tolerance) : SENS ecrit, sans contrefactuel",
+# Colonne J-2 de tri_sym constante a 1e-14 pres (valeur de la regle de l'ordre
+# de 1e-50) : degeneree a la tolerance de l'outil, nommee dans la seconde
+# phrase ; sensibilite absente du detail (#514).
+verifier("#310 / #514 : colonne J-2 constante a 1e-14 pres (regle > 0 mais nulle a la tolerance) : cause nommee, sans sensibilite",
          {
            t4 <- tri_sym
            t4[2, 5] <- 2193 * (1 + 1e-14)
            a <- mw_ajuster(t4); ex <- mw_extrapolation_sigma2(a)
            l <- detail_m6(run_mw(t4))
            a$sigma2[a$J] > 0 && isTRUE(ex$degeneree) &&
-             identical(l, .mw_detail_extrapolation(ex, mw_sensibilite_sigma2_dernier(a, ex))) &&
-             grepl("Sensibilite indicative", l, fixed = TRUE) &&
-             !grepl("contrefactuel", l, fixed = TRUE) &&
-             !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+             identical(l, .mw_detail_extrapolation(ex)) &&
+             grepl(", colonne J-2 degeneree : voir l'avertissement sur les donnees.", l, fixed = TRUE) &&
+             !grepl("Sensibilite|contrefactuel", l)
          })
 # Constat C1 de la revue finale (erratum (2) du 24/10/2026 de la specification
 # Fm, T-4) : colonne J-3 constante a 1e-14 pres, F(i, J-3) = 1,1 (1 + 1e-14
 # (i mod 2)), colonnes suivantes reechelonnees. sigma2_(J-3) ~ 1e-25 n'est pas
-# nul, le quotient vaut ~ 1e23 et la racine de la MSEP correspondante ~ 1e14 :
-# la sensibilite l'ecrit "non defini" (meme condition, degeneree_Jm3, que
-# l'omission du contrefactuel). arguments["quotient"] garde sa valeur
-# calculee ; la partie min(...) du detail est inchangee. Le cas exactement
-# constant (eps = 0, quotient deja NA) donne le meme detail qu'avant.
+# nul, le quotient vaut ~ 1e23 : mw_sensibilite_sigma2_dernier() rend la
+# racine de la MSEP du quotient NA (meme condition, degeneree_Jm3, que
+# l'omission du contrefactuel) ; arguments["quotient"] garde sa valeur
+# calculee.
 local({
   d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
   m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"
@@ -706,156 +694,61 @@ local({
     }
     tri
   }
-  sens_phrase <- function(l) sub("^.*(Sensibilite indicative)", "\\1", l)
-  verifier("#310 (C1) : colonne J-3 constante a 1e-14 pres -> quotient de la sensibilite 'non defini', sans 'e+', sans contrefactuel",
+  verifier("#310 (C1) : colonne J-3 constante a 1e-14 pres -> racine du quotient NA dans mw_sensibilite_sigma2_dernier() ; detail M6 sans sensibilite, colonne J-3 nommee",
            {
              t1 <- degen_Jm3(m, 1e-14)
              a <- mw_ajuster(t1); ex <- mw_extrapolation_sigma2(a)
              s <- mw_sensibilite_sigma2_dernier(a, ex)
              l <- detail_m6(run_mw(t1))
-             ph <- sens_phrase(l)
              isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] > 0 &&
                is.finite(ex$quotient) && ex$quotient > 1e20 &&
                identical(s$arguments[["quotient"]], ex$quotient) &&
                is.na(s$racine_msep_arguments[["quotient"]]) &&
                all(is.finite(s$racine_msep_arguments[c("sigma2_Jm2", "sigma2_Jm3")])) &&
-               identical(l, .mw_detail_extrapolation(ex, s)) &&
-               startsWith(ph, "Sensibilite indicative") &&
-               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
-               !grepl("e+", ph, fixed = TRUE) &&
-               !grepl("contrefactuel", l, fixed = TRUE) &&
-               !grepl("Sans variance sur la derniere annee", l, fixed = TRUE)
+               identical(l, .mw_detail_extrapolation(ex)) &&
+               grepl(", colonne J-3 degeneree : voir l'avertissement", l, fixed = TRUE) &&
+               !grepl("Sensibilite|contrefactuel", l)
            })
-  verifier("#310 (C1) : colonne J-3 exactement constante -> quotient NA, 'non defini', sans contrefactuel (inchange)",
+  verifier("#310 (C1) : colonne J-3 exactement constante -> quotient NA, 'non defini' (inchange)",
            {
              t0 <- degen_Jm3(m, 0)
              a <- mw_ajuster(t0); ex <- mw_extrapolation_sigma2(a)
              s <- mw_sensibilite_sigma2_dernier(a, ex)
-             l <- .mw_detail_extrapolation(ex, s)
+             l <- .mw_detail_extrapolation(ex)
              isTRUE(ex$degeneree_Jm3) && a$sigma2[a$J] == 0 && is.na(ex$quotient) &&
                is.na(s$arguments[["quotient"]]) &&
                is.na(s$racine_msep_arguments[["quotient"]]) &&
-               endsWith(l, "; avec sigma2_(J-2)^2/sigma2_(J-3) : non defini.") &&
-               !grepl("e+", sens_phrase(l), fixed = TRUE) &&
-               !grepl("contrefactuel", l, fixed = TRUE)
+               grepl("quotient = non defini (sigma2_(J-3) = 0)", l, fixed = TRUE)
            })
-  # #372 (1), decision du mainteneur du 30/10/2026 : au-dela d'un rapport v / r0
-  # de 100 (RAPPORT_MAX_ECART_MW), le rapport est imprime a 3 chiffres
-  # significatifs ("x 2.67e+09") a la place de l'ecart en pourcentage ; le
-  # contrefactuel est omis quand sa valeur imprimee est celle de la regle. Mesure
-  # de l'issue : triangle_mw.csv, colonne J-3 presque constante (degen_Jm3).
-  # Texte a la lettre a partir de "Sensibilite indicative" ; la racine du
-  # quotient, 6 chiffres, est lue dans s. Pour eps = 5e-12, sigma2_(J-3), de
-  # l'ordre de 1e-20, a une erreur relative mesuree de 1e-5 par arithmetique
-  # exacte sur les cumuls stockes (actuary, fin de branche Fq ; l'ordre 1e-3
-  # du commentaire 6525801408 de #372 etait une majoration, selon actuary) :
-  # le rapport est calcule sur la machine et seule la forme "(x 2.67e+09)"
-  # est figee, pas ses chiffres.
-  phrase_372 <- function(tri) {
-    a <- mw_ajuster(tri); ex <- mw_extrapolation_sigma2(a)
-    s <- mw_sensibilite_sigma2_dernier(a, ex)
-    l <- detail_m6(run_mw(tri))
-    list(l = l, s = s, a = a, ex = ex, ph = sens_phrase(l),
-         id = identical(l, .mw_detail_extrapolation(ex, s)))
-  }
-  verifier("#372 (1) : eps = 5e-12 (colonne J-3 non degeneree, rapport 2.67e+09) -> '(x 2.67e+09)', contrefactuel omis (egal a la regle a la precision imprimee)",
+  # #372 (1) : les racines de MSEP de la mesure de l'issue (triangle_mw.csv,
+  # colonne J-3 presque constante) restent celles de
+  # mw_sensibilite_sigma2_dernier() (valeurs a 6 chiffres significatifs, telles
+  # que l'ancien detail les imprimait) ; depuis #514, aucune n'est imprimee
+  # dans le detail M6.
+  verifier("#372 (1) / #514 : eps = 5e-12, 1e-4, 1e-3 -> racines de MSEP de mw_sensibilite_sigma2_dernier() inchangees, detail M6 sans sensibilite",
            {
-             z <- phrase_372(degen_Jm3(m, 5e-12))
-             q <- z$s$racine_msep_arguments[["quotient"]]
-             !isTRUE(z$ex$degeneree) && z$id && isTRUE(q / z$s$racine_msep_regle > 1e9) &&
-               identical(format(z$s$racine_msep_zero, digits = 6),
-                         format(z$s$racine_msep_regle, digits = 6)) &&
-               identical(z$ph, paste0(
-                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-                 "(160.926 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-                 "avec sigma2_(J-2) : 222.538 (+38.3 %) ; avec sigma2_(J-3) : 160.926 (+0.0 %) ; ",
-                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", format(q, digits = 6),
-                 " (", sprintf("x %.3g", q / z$s$racine_msep_regle), ").")) &&
-               grepl("\\(x [0-9]\\.[0-9]{2}e\\+09\\)\\.$", z$ph) &&
-               !grepl("contrefactuel", z$l, fixed = TRUE) && !grepl(" %).", z$ph, fixed = TRUE) &&
-               !grepl("+266", z$ph, fixed = TRUE)
-           })
-  verifier("#372 (1) : eps = 1e-4 (rapport 133 > 100) -> '(x 133)' ; contrefactuel imprime different de la regle (160.931 contre 160.935) -> conserve",
-           {
-             z <- phrase_372(degen_Jm3(m, 1e-4))
-             q <- z$s$racine_msep_arguments[["quotient"]]
-             z$id &&
-               identical(z$ph, paste0(
-                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-                 "(160.935 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-                 "avec sigma2_(J-2) : 222.55 (+38.3 %) ; avec sigma2_(J-3) : 160.935 (+0.0 %) ; ",
-                 "avec sigma2_(J-2)^2/sigma2_(J-3) : 21457.6 (x 133). ",
-                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
-                 "contrefactuel qui n'est pas un argument du minimum) : 160.931 (-0.0 %)."))
-           })
-  verifier("#372 (1) : eps = 1e-3 (rapport 13.3 < 100) -> pourcentage conserve, contrefactuel conserve",
-           {
-             z <- phrase_372(degen_Jm3(m, 1e-3))
-             z$id &&
-               identical(z$ph, paste0(
-                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-                 "(161.413 avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-                 "avec sigma2_(J-2) : 222.704 (+38.0 %) ; avec sigma2_(J-3) : 161.413 (+0.0 %) ; ",
-                 "avec sigma2_(J-2)^2/sigma2_(J-3) : 2153.77 (+1234.3 %). ",
-                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
-                 "contrefactuel qui n'est pas un argument du minimum) : 161.036 (-0.2 %)."))
-           })
-  # Frontieres de la regle, sur des racines de MSEP posees dans s (ex de
-  # reserve2) : racine de la regle 128 = 2^7, de sorte que racine = 128 x rapport
-  # et rapport = racine / 128 sont exacts par construction (la mise a l'echelle
-  # par une puissance de 2 est sans arrondi) ; rapport 100 exactement ->
-  # pourcentage ; 100.0001 et 101 -> rapport (3 chiffres significatifs) ;
-  # contrefactuel egal a 6 chiffres (1 + 1e-9) -> omis ; different (1 - 1e-3) ->
-  # conserve, ecart relatif.
-  verifier("#372 (1) : frontieres - rapport 100 : '+9900.0 %', 100.0001 et 101 : 'x 100' / 'x 101' ; contrefactuel omis a (1 + 1e-9), conserve a (1 - 1e-3)",
-           {
-             a <- mw_ajuster(m); ex <- mw_extrapolation_sigma2(a)
-             s <- mw_sensibilite_sigma2_dernier(a, ex); r0 <- 128
-             avec <- function(rapports, zero) {
-               s2 <- s; s2$racine_msep_regle <- r0
-               s2$racine_msep_arguments[] <- r0 * rapports; s2$racine_msep_zero <- r0 * zero
-               sens_phrase(.mw_detail_extrapolation(ex, s2))
-             }
              f6 <- function(x) format(x, digits = 6)
-             p1 <- avec(c(100, 100.0001, 101), 1 + 1e-9)
-             p2 <- avec(c(2, 0.5, 99.99), 1 - 1e-3)
-             identical(RAPPORT_MAX_ECART_MW, 100) && isTRUE(s$applicable) && s$valeur_regle > 0 &&
-               identical(p1, paste0(
-                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-                 "(", f6(r0), " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-                 "avec sigma2_(J-2) : ", f6(r0 * 100), " (+9900.0 %) ; ",
-                 "avec sigma2_(J-3) : ", f6(r0 * 100.0001), " (x 100) ; ",
-                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", f6(r0 * 101), " (x 101).")) &&
-               identical(p2, paste0(
-                 "Sensibilite indicative, hors regle et sans effet sur sigma_USP, de la racine de la MSEP ",
-                 "(", f6(r0), " avec la valeur fixee par la regle) a la valeur de sigma2_(J-1) : ",
-                 "avec sigma2_(J-2) : ", f6(r0 * 2), " (+100.0 %) ; ",
-                 "avec sigma2_(J-3) : ", f6(r0 * 0.5), " (-50.0 %) ; ",
-                 "avec sigma2_(J-2)^2/sigma2_(J-3) : ", f6(r0 * 99.99), " (+9899.0 %). ",
-                 "Sans variance sur la derniere annee de developpement (sigma2_(J-1) = 0, ",
-                 "contrefactuel qui n'est pas un argument du minimum) : ", f6(r0 * (1 - 1e-3)),
-                 " (-0.1 %)."))
-           })
-  # Contrefactuel non fini (racine_msep_zero NA ou NaN) : chemin que
-  # run_engine() n'atteint pas aujourd'hui (MSEP a sigma2_(J-1) = 0 finie) ;
-  # garde defensive isTRUE() de ecart(). Avant elle : erreur "missing value
-  # where TRUE/FALSE needed" (mesure) ; avec elle, le detail rend la chaine et
-  # la valeur s'imprime "NA (NA %)" ou "NaN (NaN %)" (mesure).
-  verifier("#372 (1) : contrefactuel racine_msep_zero = NA ou NaN -> pas d'erreur, chaine rendue, 'NA (NA %)' / 'NaN (NaN %)'",
-           {
-             a <- mw_ajuster(m); ex <- mw_extrapolation_sigma2(a)
-             s <- mw_sensibilite_sigma2_dernier(a, ex)
-             fin <- function(v) {
-               s$racine_msep_zero <- v
-               l <- tryCatch(.mw_detail_extrapolation(ex, s), error = function(e) NULL)
-               if (is.character(l) && length(l) == 1L) sub("^.*contrefactuel[^:]*: ", "", l)
-             }
-             identical(fin(NA_real_), "NA (NA %).") && identical(fin(NaN), "NaN (NaN %).")
+             z <- lapply(c(5e-12, 1e-4, 1e-3), function(eps) {
+               t <- degen_Jm3(m, eps); a <- mw_ajuster(t); ex <- mw_extrapolation_sigma2(a)
+               list(s = mw_sensibilite_sigma2_dernier(a, ex), l = detail_m6(run_mw(t)),
+                    ex = ex)
+             })
+             r <- function(k) vapply(c(z[[k]]$s$racine_msep_regle,
+                                       z[[k]]$s$racine_msep_arguments[1:2],
+                                       z[[k]]$s$racine_msep_zero), f6, "")
+             identical(unname(r(1)), c("160.926", "222.538", "160.926", "160.926")) &&
+               z[[1]]$s$racine_msep_arguments[["quotient"]] / z[[1]]$s$racine_msep_regle > 1e9 &&
+               identical(unname(r(2)), c("160.935", "222.55", "160.935", "160.931")) &&
+               identical(f6(z[[2]]$s$racine_msep_arguments[["quotient"]]), "21457.6") &&
+               identical(unname(r(3)), c("161.413", "222.704", "161.413", "161.036")) &&
+               identical(f6(z[[3]]$s$racine_msep_arguments[["quotient"]]), "2153.77") &&
+               all(vapply(z, function(x) identical(x$l, .mw_detail_extrapolation(x$ex)) &&
+                            !grepl("Sensibilite|contrefactuel", x$l), logical(1)))
            })
 })
 # Racine de la MSEP nulle avec la valeur de la regle (facteurs constants par
 # colonne, 8 x 8 : tous les sigma2_j nuls, MSEP = 0) : ecarts relatifs non
-# definis, la sensibilite n'est pas applicable (plus de "NaN %").
+# definis, la sensibilite n'est pas applicable.
 verifier("#310 : racine(MSEP) de la regle nulle (facteurs constants par colonne) -> sensibilite non applicable, aucun NaN",
          {
            fc <- c(2, 1.5, 1.2, 1.1, 1.05, 1.02, 1.01)
@@ -864,19 +757,21 @@ verifier("#310 : racine(MSEP) de la regle nulle (facteurs constants par colonne)
              if (i <= 7) for (j in 2:(9 - i)) tc[i, j] <- tc[i, j - 1] * fc[j - 1] }
            a <- mw_ajuster(tc); ex <- mw_extrapolation_sigma2(a)
            s <- mw_sensibilite_sigma2_dernier(a, ex)
-           l <- .mw_detail_extrapolation(ex, s)
+           l <- .mw_detail_extrapolation(ex)
            isTRUE(ex$applicable) && mw_msep(a)$msep == 0 &&
              identical(s$applicable, FALSE) && is.na(s$racine_msep_regle) &&
              all(is.na(s$racine_msep_arguments)) && is.na(s$racine_msep_zero) &&
              !grepl("NaN", l, fixed = TRUE) && !grepl("Sensibilite", l, fixed = TRUE)
          })
-verifier("#310 : sensibilite non applicable (objet d'ajustement reduit) : aucune valeur, detail sans sensibilite",
+verifier("#310 : sensibilite non applicable (objet d'ajustement reduit) : aucune valeur ; detail M6 de la branche non applicable (texte de #514)",
          {
            ex0 <- mw_extrapolation_sigma2(list(I = 4L, reserve = 10))
            s0 <- mw_sensibilite_sigma2_dernier(list(I = 4L, reserve = 10), ex0)
            identical(s0$applicable, FALSE) && is.na(s0$racine_msep_regle) &&
-             identical(.mw_detail_extrapolation(ex0, s0), .mw_detail_extrapolation(ex0)) &&
-             !grepl("Sensibilite", .mw_detail_extrapolation(ex0, s0), fixed = TRUE)
+             identical(.mw_detail_extrapolation(ex0),
+                       paste("Valeur fixee par la regle de minimum de l'annexe XVII, D(5)(d)(ii), non",
+                             "estimee : la regle ne lit que les deux dernieres variances estimees.",
+                             LIE_M6))
          })
 
 ## --- Test des suites en diagnostic secondaire, moyennes par groupe (#312) ----
@@ -922,17 +817,19 @@ local({
                            abs = 1e-5)) &&
              isTRUE(proche(ga$moyenne, c(-0.5047, -0.3665, -0.2242, 0.3175, 0.7853, 0.9015, 0.5111),
                            abs = 1e-4)))
-  # Ligne du test des suites : texte T-1 lu dans la specification, a la lettre,
-  # hors renvoi a l'issue, retire des chaines du moteur (#452).
-  spec <- readLines(file.path(RACINE, "docs", "specifications", "fm-merz-wuthrich-restitution.md"),
-                    encoding = "UTF-8")
-  t1 <- sub("^> `(.*)`$", "\\1", spec[which(startsWith(spec, "**T-1 (#312"))[1] + 1L])
-  t1 <- sub(" (issue #312)", "", t1, fixed = TRUE)
+  # Ligne du test des suites : texte de #514 (specification finale d'actuary),
+  # qui remplace le texte T-1 de la specification Fm : phrase d'usage puis
+  # phrase fixe des diagnostics par decision ; le motif d'effectifs n'y est
+  # plus joint quand p_min n'est pas attribuee (p_min NA dans son champ).
+  t1 <- paste("Detecte un regroupement ou une alternance des signes des residus de Mack, pour",
+              "information. Diagnostic par decision, sans verdict ni p-value retenue : la ligne",
+              "\"Autocorrelation des residus (Durbin-Watson)\", memes residus dans le meme",
+              "ordre, fait foi.")
   lr <- Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"), r312$tests)
   verifier("#312 : test des suites, variante secondaire et diagnostic par decision (verdict INFO, inoperant FALSE, detail T-1 a la lettre)",
            length(lr) == 1L && {
              l <- lr[[1]]
-             nzchar(t1) && startsWith(t1, "Restituee en diagnostic par decision : aucun verdict ni") &&
+             nzchar(t1) &&
                identical(l$type, "diagnostic") && identical(l$variante, "secondaire") &&
                identical(l$verdict, "INFO") && identical(l$inoperant, FALSE) &&
                identical(l$detail, t1) && is.na(l$p_retenue) && is.na(l$nature_p) &&
@@ -992,29 +889,34 @@ local({
     assign(".mw_p_min_ligne", function(...) {
       o <- orig(...)
       list(p_min = NA_real_,
-           effectifs = paste(o$effectifs, "; p_min non calculable sur ces effectifs, p_min non attribuee"))
+           effectifs = paste(o$effectifs, ", p_min non calculable sur ces effectifs, p_min non attribuee",
+                             sep = ""))
     }, envir = e)
     Filter(function(l) identical(l$test, "Test des suites sur les residus de Mack"),
            mw_tests(r312$ajustement, b, 0.10))[[1]]
   }
   eff_ru <- .runs_effectifs(mw_residus(r312$ajustement)$residu)
   eff_txt <- paste0(paste(sprintf("%s = %d", names(eff_ru), as.integer(eff_ru)), collapse = ", "),
-                    " ; p_min non calculable sur ces effectifs, p_min non attribuee.")
-  verifier("#312 : p_min non attribuee -> effectifs joints au detail du diagnostic, avant T-1, point final ajoute",
+                    ", p_min non calculable sur ces effectifs, p_min non attribuee")
+  # Mention M8 (correction d'actuary sur #514) : effectifs joints apres le
+  # texte propre, point final.
+  t1_eff <- paste(t1, paste0(eff_txt, "."))
+  verifier("#312 / #514 : p_min non attribuee -> texte fixe du diagnostic puis effectifs en mention M8",
            {
              f0 <- .mw_p_min_ligne
              l <- ligne_runs_pmin_na()
              identical(l$type, "diagnostic") && is.na(l$p_min) &&
-               identical(l$detail, paste(eff_txt, t1)) && identical(.mw_p_min_ligne, f0)
+               identical(l$detail, t1_eff) &&
+               identical(.mw_p_min_ligne, f0)
            })
-  verifier("#312 : p_min non attribuee et p Monte-Carlo absente -> motif Monte-Carlo, effectifs, T-1",
+  verifier("#312 : p_min non attribuee et p Monte-Carlo absente -> motif Monte-Carlo, texte fixe, effectifs (M8, #514)",
            {
              b <- r312$bootstrap
              b$p_mc[["Runs"]] <- NA_real_; b$motif_mc[["Runs"]] <- MOTIF_MC_REPLIC_INSUFFISANTES
              l <- ligne_runs_pmin_na(b)
              identical(l$type, "diagnostic") &&
                startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                           ". ", eff_txt, " ", t1))
+                                           ". ", t1_eff))
            })
 })
 verifier("#312 : colonne degeneree (tri_deg, j = 2) exclue des groupes comme dans mw_residus()",
@@ -1561,10 +1463,12 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
            l <- d[grepl("ordonnee a l'origine", d$test), ]
            dr <- engine_table_tests(run_engine(methode = "reserve2", triangle = tri_ref,
                                                segment = 1, annexe = "II", B = 99))
-           base_oo <- paste("La regression ponderee SANS constante et de poids 1/C(i,j) a pour",
-                            "estimateur exactement f_j (identite de Mack, verifiee a 1e-16).",
-                            "Ajouter une constante fournit donc le test naturel de la",
-                            "proportionnalite, colonne par colonne.")
+           # Textes de #514 (specification finale d'actuary, M1).
+           base_oo <- paste("Un ECHEC ou une ALERTE signale une composante fixe (ordonnee a l'origine)",
+                            "dans au moins une colonne, contraire a la proportionnalite des cumules. A",
+                            "lire avec \"Absence de tendance des facteurs avec le cumul, a colonne",
+                            "donnee\" et \"Identifiabilite intra-colonne (dispersion des cumuls par",
+                            "colonne)\", qui borne sa puissance.")
            nrow(l) == 1 && l$estimation == 2 &&
              grepl("Colonne degeneree", l$commentaire, fixed = TRUE) &&
              grepl("j = 2 (3 facteurs)", l$commentaire, fixed = TRUE) &&
@@ -1574,10 +1478,14 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
              identical(dr$commentaire[grepl("ordonnee a l'origine", dr$test)],
                        paste(base_oo, PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("Homogeneite de f_j", dr$test)],
-                       paste("Correlation de rang entre F(i,j) et i, colonne par colonne, combinee par Fisher ;",
-                             PHRASE_VERDICT_SENSIBLE_MC)) &&
+                       paste("Un ECHEC ou une ALERTE signale des facteurs individuels qui derivent avec",
+                             "l'annee de survenance, contraire a un f_j commun. A lire avec \"Effets",
+                             "d'annee calendaire (test de Mack)\" et \"Homogeneite des residus entre",
+                             "annees de survenance\".", PHRASE_VERDICT_SENSIBLE_MC)) &&
              identical(dr$commentaire[grepl("courbure", dr$test)],
-                       paste("Une courbure invalide la linearite meme si la constante est nulle ;",
+                       paste("Un ECHEC ou une ALERTE signale une relation non lineaire entre cumuls",
+                             "successifs, qui invalide la proportionnalite meme si la constante est nulle.",
+                             "A lire avec \"Nullite de l'ordonnee a l'origine, colonne par colonne\".",
                              PHRASE_VERDICT_SENSIBLE_MC))
          })
 

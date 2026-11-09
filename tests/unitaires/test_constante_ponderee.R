@@ -32,9 +32,11 @@ f1 <- usp_ajuster(x1, y1); f2 <- usp_ajuster(x2, y2)
 NOM_CST <- "Nullite de la constante (proportionnalite stricte)"
 NOM_TOST <- "Equivalence de la constante a zero (TOST)"
 NOM_SV <- "Independance ratio S/P vs volume"
-# Debuts des deux textes de renvoi (libelle d'actuary, #215).
-TXT_RENVOI_CST <- "pi_t constant (delta estime a 1) : sous y_t = a + b x_t, E[r_t] = b + a / x_t"
-TXT_RENVOI_SV <- "pi_t constant (delta estime a 1) : une constante a non nulle dans"
+# Debuts des deux textes de renvoi (libelle d'actuary, #215 ; une phrase
+# chacun depuis #514).
+# Textes de #514 (specification finale d'actuary, U1 et U8 ; Q-7 (b)).
+TXT_RENVOI_CST <- "Voir aussi \"Independance ratio S/P vs volume\", qui a une constante non nulle"
+TXT_RENVOI_SV <- "A lire avec \"Nullite de la constante (proportionnalite stricte)\", dont une"
 
 boot_fictif <- function(f, p = 0.5, motif = NULL) {
   s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
@@ -364,13 +366,16 @@ verifier("Regression ponderee partagee (#222) : usp_tests() appelle .usp_lm_pond
 # J1 (tests/donnees/donnees_ln.csv) et J2 (donnees_ln_interieur.csv) ;
 # critere (b) : phrase absente sur les branches non applicables et a t non
 # fini.
-TXT_SEUIL_CST <- "Seuil de rejet de la constante au seuil alpha"
-TXT_NON_REJET <- "Le NON-rejet ne prouve pas la proportionnalite : voir le test d'equivalence ci-dessous."
-phrase_seuil <- function(alpha, pct) sprintf(paste(
-  "Seuil de rejet de la constante au seuil alpha = %g : |a| >= t(1-alpha/2, T-2)",
-  "x se(a) = %s %% de la moyenne de y (loi de Student du modele auxiliaire",
-  "pondere, approchee ; la p retenue, de Monte-Carlo, n'a pas exactement ce",
-  "seuil)."), alpha, pct)
+# Depuis #514 (specification finale d'actuary, U1) : le seuil est une
+# parenthese de la phrase d'usage, alpha n'y est plus imprime (il reste dans
+# la formule et dans res$metadata) ; sans seuil, la parenthese est omise.
+TXT_SEUIL_CST <- "constante detectee seulement si |a| >="
+TXT_NON_REJET <- "un OK ne la prouve pas : la preuve positive"
+phrase_seuil <- function(pct) sprintf(paste0(
+  "Un ECHEC ou une ALERTE met en cause la proportionnalite stricte (constante",
+  " non nulle), un OK ne la prouve pas (constante detectee seulement si |a| >= %s %%",
+  " de la moyenne de y, seuil de Student approche) : la preuve positive",
+  " est un OK de \"Equivalence de la constante a zero (TOST)\"."), pct)
 lire_jeu <- function(f) utils::read.csv(file.path(RACINE, "tests", "donnees", f))
 seuil_lm <- function(d, alpha) {
   f <- usp_ajuster(d$xt, d$yt)
@@ -382,10 +387,10 @@ seuil_ok <- function(fichier, alpha, attendu) {
   det <- ligne(usp_tests(f, boot_fictif(f), alpha = alpha, methode = "premium"), NOM_CST)$detail
   c_lm <- seuil_lm(d, alpha)
   ok <- identical(sprintf("%.0f", c_lm), attendu) &&
-    startsWith(det, paste(TXT_NON_REJET, phrase_seuil(alpha, attendu)))
+    startsWith(det, phrase_seuil(attendu))
   if (isTRUE(ok)) TRUE else sprintf("seuil lm = %.4f ; detail = %s", c_lm, det)
 }
-verifier("Seuil de rejet de la constante (#314, critere (a)), alpha = 0,10 : 123 % sur J1, 12 % sur J2, recalcule par lm(y ~ x, weights = usp_poids_gls(x, fit$pi)) ; phrase juste apres celle du TOST",
+verifier("Seuil de rejet de la constante (#314, critere (a)), alpha = 0,10 : 123 % sur J1, 12 % sur J2, recalcule par lm(y ~ x, weights = usp_poids_gls(x, fit$pi)) ; meme phrase que le non-rejet (#514)",
          isTRUE(seuil_ok("donnees_ln.csv", 0.10, "123")) &&
            isTRUE(seuil_ok("donnees_ln_interieur.csv", 0.10, "12")))
 verifier("Seuil de rejet de la constante (#314), alpha = 0,05 : 155 % sur J1, 15 % sur J2",
@@ -396,7 +401,7 @@ verifier("Seuil de rejet de la constante (#314) : sur J1, phrase avant le renvoi
            d1 <- ligne(tests_de(x1, y1), NOM_CST)$detail
            d2 <- ligne(tt2, NOM_CST)$detail
            p1 <- regexpr(TXT_SEUIL_CST, d1, fixed = TRUE); r1p <- regexpr(TXT_RENVOI_CST, d1, fixed = TRUE)
-           p1 > 0 && r1p > p1 && endsWith(d2, "n'a pas exactement ce seuil).")
+           p1 > 0 && r1p > p1 && endsWith(d2, "zero (TOST)\".")
          })
 verifier("Seuil de rejet de la constante (#314, critere (b)) : absent a volumes constants, a pertes constantes, a t non fini (pi injecte non fini) et a x ecarte (R12)",
          {

@@ -122,12 +122,14 @@ verifier("T1 HomogF et Courbure finissent par la phrase A ; Origine par la phras
            endsWith(ligne(tm99, noms3[["Courbure"]])$detail, pa99("Courbure")) &&
            endsWith(ligne(tm99, noms3[["Origine"]])$detail,
                     paste(pa99("Origine"), PHRASE_VERDICT_SENSIBLE_MC)))
-verifier("T1 jonction exacte (regle de jonction d'add()) : ' ' apres un point (Origine), ' ; ' sinon (HomogF, Courbure)",
+# Depuis #514, les trois textes finissent par un point (phrase des lignes
+# liees) : jonction par ' ' dans les trois cas.
+verifier("T1 jonction exacte (regle de jonction d'add()) : ' ' apres le point final du texte (Origine, HomogF, Courbure, #514)",
          endsWith(sans_244(ligne(tm99, noms3[["Origine"]])$detail),
-                  paste0("colonne par colonne. ", pa99("Origine"))) &&
-           grepl(paste0("Fisher ; ", pa99("HomogF")), ligne(tm99, noms3[["HomogF"]])$detail,
+                  paste0("qui borne sa puissance. ", pa99("Origine"))) &&
+           grepl(paste0("annees de survenance\". ", pa99("HomogF")), ligne(tm99, noms3[["HomogF"]])$detail,
                  fixed = TRUE) &&
-           grepl(paste0("est nulle ; ", pa99("Courbure")), ligne(tm99, noms3[["Courbure"]])$detail,
+           grepl(paste0("colonne par colonne\". ", pa99("Courbure")), ligne(tm99, noms3[["Courbure"]])$detail,
                  fixed = TRUE))
 verifier("T1 les autres lignes (dix lignes Monte-Carlo comprises) ne contiennent pas 'B effectif ='",
          {
@@ -155,7 +157,7 @@ verifier("T2 Origine, HomogF, Courbure : diagnostic de #181, detail fini par 'B 
              lengths(regmatches(l$detail, gregexpr("B effectif =", l$detail, fixed = TRUE))) == 1L &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                         " ; p non simulee (loi du champ loi) non retenue."))
+                                         ", p non simulee (loi du champ loi) non retenue."))
          }, logical(1))))
 verifier("T2 MinP4 (#300) : 0 < B_eff < B_MIN_DEGENERESCENCE, diagnostic de #181 (borne de Bonferroni non retenue), detail fini par 'B effectif = <B_eff> sur B = <B>.'",
          {
@@ -165,10 +167,14 @@ verifier("T2 MinP4 (#300) : 0 < B_eff < B_MIN_DEGENERESCENCE, diagnostic de #181
              endsWith(l$detail, phrase_b(be, as.integer(bt60$B))) &&
              identical(l$type, "diagnostic") && identical(l$verdict, "INFO") && is.na(l$p_retenue) &&
              startsWith(l$detail, paste0("Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES,
-                                         " ; borne de Bonferroni min(1, N_t M) non retenue."))
+                                         ", borne de Bonferroni min(1, N_t M) non retenue."))
          })
 verifier("T2 les autres lignes ne contiennent pas 'B effectif ='",
          !any(vapply(Filter(function(l) !l$test %in% c(noms3, NOM_MINP4), tm60), a_beff, logical(1))))
+# #514 (A3, S18) : texte propre en deux phrases au plus et 400 caracteres au
+# plus, phrases de #204 hors compte.
+verifier_detail(tm99, "Merz-Wuthrich, B effectif < B (B = 99)")
+verifier_detail(tm60, "Merz-Wuthrich, replications insuffisantes (B = 60)")
 
 ## --- T3 : reserve2 (reference versionnee) ---------------------------------------
 # Lecture de tests/reference/reserve2.rds au lieu d'un run_engine() a B = 999

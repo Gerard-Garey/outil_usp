@@ -122,14 +122,18 @@ verifier("Spearman x2 et Mann-Kendall : p exacte et p_min NA, motif ex aequo, Mo
              l <- lig_ea(n)
              is.na(l$p_exacte) && is.na(l$p_min) && is.finite(l$p_mc) &&
                identical(l$p_retenue, l$p_mc) &&
-               grepl("ex aequo dans r : loi de permutation conditionnelle non tabulee",
+               grepl("ex aequo dans r : loi conditionnelle non tabulee",
                      l$detail, fixed = TRUE)
            }, logical(1))) &&
              identical(st$type, "diagnostic") && is.na(st$p_exacte) && is.na(st$p_min) &&
              is.finite(st$p_mc) && is.na(st$p_retenue) &&
-             grepl("ex aequo dans r : loi de permutation conditionnelle non tabulee", st$detail, fixed = TRUE) &&
-             grepl("Restituee en diagnostic par decision : aucun verdict ni p-value retenue ; meme alternative",
-                   st$detail, fixed = TRUE)
+             # #514 (specification finale d'actuary, U9) : texte fixe, puis le
+             # motif ex aequo en mention M8, point final (correction d'actuary).
+             identical(st$detail, paste(
+               "Mesure une tendance monotone du ratio S/P dans le temps, pour information.",
+               "Diagnostic par decision, sans verdict ni p-value retenue : la ligne \"Tendance",
+               "monotone du ratio S/P\", meme alternative, fait foi.",
+               "T = 8, ex aequo dans r : loi conditionnelle non tabulee, p_min et p exacte non attribuees."))
          })
 verifier("Cox-Stuart : m = 3 sur n_p = 4 affiche, p_mc non calculee (motif ex aequo)",
          {
@@ -142,9 +146,13 @@ verifier("Smirnov (option (i)) : p exacte et p_min NA, Monte-Carlo calculee ; di
            l <- lig_ea("Egalite des lois petits vs gros volumes (2 ech.)")
            identical(l$type, "diagnostic") && is.na(l$p_exacte) && is.na(l$p_min) &&
              is.finite(l$stat) && is.finite(l$p_mc) && is.na(l$p_retenue) &&
-             grepl("ex aequo dans z : loi conditionnelle non attribuee", l$detail, fixed = TRUE) &&
-             grepl("Restituee en diagnostic par decision : aucun verdict ni p-value retenue ; compare la position",
+             # #514 (specification finale d'actuary, U15) : texte fixe, le motif
+             # ex aequo n'y est plus (p exacte et p_min NA dans leurs champs).
+             grepl(paste("Diagnostic par decision, sans verdict ni p-value retenue : les lignes de",
+                         "la famille B (H1), dont \"Independance ratio S/P vs volume\", font foi."),
                    l$detail, fixed = TRUE) &&
+             # Mention M8 (correction d'actuary) : motif ex aequo en fin, point final.
+             endsWith(l$detail, "n1 = 4, n2 = 4, ex aequo dans z : p_min et p exacte non attribuees.") &&
              !grepl("minimale atteignable = 0.0286", l$detail, fixed = TRUE)
          })
 # Depuis #303 (regle R15), la ligne Runsr a pi_t constant est un diagnostic :
@@ -387,9 +395,11 @@ verifier("#187 : Runsr a pi_t exactement constant et signes differents (d = 1e-1
            a <- runsr187(1e-13); cm <- a$runsr$commentaire
            isTRUE(a$ok) && isTRUE(a$pi_exact) && length(cm) == 1L &&
              !identical(a$runs$statistique, a$runsr$statistique) &&
-             grepl("pi_t est exactement constant", cm, fixed = TRUE) &&
-             grepl("relative a max|r| sur u, absolue sous 1 sur z", cm, fixed = TRUE) &&
-             grepl("seconde condition de la fonction usp_runsr_p_exacte", cm, fixed = TRUE) &&
+             # #514 (specification finale d'actuary, Runsr, branche 2) : texte
+             # court ; le detail du traitement numerique est dans la fiche.
+             grepl(paste("pi_t constant, quasi-doublon de la ligne homologue sur residus",
+                         "standardises, mais un signe au moins differe entre u et z, d'ou ni",
+                         "identite garantie ni p exacte."), cm, fixed = TRUE) &&
              !grepl("TOL_DELTA_BORD", cm, fixed = TRUE) &&
              !grepl("()", cm, fixed = TRUE) &&
              !grepl("Monte-Carlo, simulee sous le modele ajuste, est retenue", cm, fixed = TRUE)
@@ -406,7 +416,11 @@ verifier("#187 : d = 1e-14, Runs et Runsr coherents (tous deux INFO, meme statis
              identical(a$runs$verdict, "INFO") && identical(a$runsr$verdict, "INFO") &&
              identical(a$runs$statistique, a$runsr$statistique) &&
              is.finite(a$runsr$statistique) &&
-             !grepl("Toutefois au moins un signe differe", cm, fixed = TRUE)
+             !grepl("un signe au moins differe", cm, fixed = TRUE)
          })
+
+# #514 (A3, S8) : texte propre en deux phrases au plus et 400 caracteres au
+# plus, motifs ex aequo compris.
+verifier_detail(res_ea, "ex aequo (jeu de #112)")
 
 fin_fichier()

@@ -321,4 +321,9 @@ verifier(".mw_phrases_retirage() : booleen absent, NA ou non logique refuse (jam
                     function(b) inherits(try(.mw_phrases_retirage(b), silent = TRUE), "try-error"),
                     logical(1))))
 
+# #514 (A3, S18) : texte propre en deux phrases au plus et 400 caracteres au
+# plus, phrases du retirage (#257) et de #204 hors compte.
+verifier_detail(tm3, "Merz-Wuthrich, cumuls retires (ligne 0 x 1e-15)")
+verifier_detail(tm4, "Merz-Wuthrich, plafond de retirage (ligne 0 x 1e-17)")
+
 fin_fichier()

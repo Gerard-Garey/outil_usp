@@ -128,7 +128,9 @@ verifier("U7 volumes constants : lignes LR INFO, detail = motif puis VOLUMES CON
            length(tt) == 2L && all(vapply(tt, function(t)
              t$verdict == "INFO" && is.na(t$p_mc) &&
                startsWith(t$detail, paste0(MOTIF_MC_DISPERSION_NULLE, " : aucune p-value Monte-Carlo.")) &&
-               grepl("VOLUMES CONSTANTS : delta non identifie", t$detail, fixed = TRUE) &&
+               # #514 : mention des volumes constants entre parentheses.
+               grepl("ici VOLUMES CONSTANTS : LR nul par construction, delta non identifie",
+                     t$detail, fixed = TRUE) &&
                !grepl("SOLUTION AU BORD", t$detail, fixed = TRUE), logical(1)))
          })
 
@@ -190,8 +192,12 @@ verifier("U8 lignes LR sur J1 : stat = LR, estim = sigma contraint, p_mc et err_
                is.finite(t$p_mc) && identical(t$p_mc, b$p_mc) && identical(t$err_mc, b$err_mc) &&
                identical(t$p_asymptotique, b$p_asymptotique) && is.na(t$p_exacte)
            }, logical(1))) &&
-             startsWith(tt[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
-             startsWith(tt[[n - 1]]$detail, "Aucun verdict : le LR")
+             # #514 : mention du bord entre parentheses dans la premiere phrase.
+             startsWith(tt[[n]]$detail, "Aucun verdict : le LR") &&
+             grepl("ici SOLUTION AU BORD delta = 1 : LR = 0 par construction)", tt[[n]]$detail,
+                   fixed = TRUE) &&
+             startsWith(tt[[n - 1]]$detail, "Aucun verdict : le LR") &&
+             !grepl("SOLUTION AU BORD", tt[[n - 1]]$detail, fixed = TRUE)
          })
 verifier("U8 add() : p_mc_ext et mc_nom ensemble -> erreur",
          {
@@ -236,7 +242,8 @@ verifier("#331 delta estime = fl(1 - TOL_DELTA_BORD) : usp_lr_delta() juge la bo
            identical(lm$borne1$gamma_contraint, fm$gamma) && identical(lm$borne1$sigma_contraint, fm$sigma) &&
              lm$borne1$lr == 0 && lm$borne1$n_refit_pire == 0L &&
              !identical(lm$borne0$gamma_contraint, fm$gamma) && lm$borne0$lr > 0 &&
-             startsWith(tm[[n]]$detail, "SOLUTION AU BORD delta = 1 : LR = 0 par construction.") &&
+             grepl("ici SOLUTION AU BORD delta = 1 : LR = 0 par construction)", tm[[n]]$detail,
+                   fixed = TRUE) &&
              !grepl("SOLUTION AU BORD", tm[[n - 1]]$detail, fixed = TRUE)
          })
 verifier("U8 plots_data$lr_delta : repere asymptotique obj_min + qchisq(0,80 ; 1), quantile 0,90 du LR simule, LR, niveau 0,90 (#190)",
@@ -422,7 +429,7 @@ verifier("U11 volumes constants, borne delta = 1 en echec sur l'observe : ligne 
                        paste("VOLUMES CONSTANTS : delta non identifie, LR nul par construction attendu",
                              "a cette borne mais non calcule.", MOTIF_LR_DELTA_ECHEC)) &&
              l[[1]]$type == "diagnostic" &&
-             grepl("VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.",
+             grepl("ici VOLUMES CONSTANTS : LR nul par construction, delta non identifie",
                    l[[1]]$detail, fixed = TRUE)
          })
 
@@ -498,5 +505,11 @@ verifier("U11 (m3) usp_bootstrap, reajustement contraint en echec : n_echec_rest
              identical(bt$sigma_boot, bt0$sigma_boot) && identical(bt$p_mc, bt0$p_mc) &&
              identical(r_m3$parametre_final$sigma_usp, r2_ref$parametre_final$sigma_usp)
          })
+
+# #514 (A3, S14) : texte propre en deux phrases au plus et 400 caracteres au
+# plus (lignes du rapport de vraisemblance comprises).
+verifier_detail(rc, "rapport de vraisemblance, volumes constants")
+verifier_detail(r1, "rapport de vraisemblance, J1")
+verifier_detail(r_cst, "rapport de vraisemblance, borne en echec")
 
 fin_fichier()

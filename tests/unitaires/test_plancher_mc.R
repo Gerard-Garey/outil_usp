@@ -28,7 +28,7 @@ ligne125 <- function(tt, nom) Filter(function(l) identical(l$test, nom), tt)[[1]
 STAT_DISCRETES_USP <- c("Smirnov", "Runs", "MK", "SpearVol", "SpearTps", "CoxStuart", "Runsr")
 STAT_DISCRETES_MW <- c("Calendrier", "CorrDev", "Runs", "HomogF", "ExpVar", "KruskalAcc")
 PRE_MC <- paste("TEST INOPERANT au seuil alpha = %g : plus petite p-value Monte-Carlo",
-                "atteignable sur ces replications >= alpha%s ; aucun verdict.")
+                "atteignable sur ces replications >= alpha%s, aucun verdict.")
 SUF_MC <- paste("ECHEC inatteignable : plus petite p-value Monte-Carlo atteignable sur ces",
                 "replications >= alpha/2 = %g%s")
 
@@ -548,7 +548,7 @@ verifier("U125-5 HomogF et ExpVar avec ex aequo : p_min_mc >= p_min ; bascule en
              l2$p_min < a_inop && isTRUE(l2$inoperant) && identical(l2$type, "diagnostic") &&
              identical(l2$p_min_mc, a_inop) &&
              startsWith(l2$detail, sprintf(PRE_MC, a_inop, paste(
-               " (colonnes n_j = 7, 6, 5, 4 ; ex aequo : loi de permutation conditionnelle",
+               " (colonnes n_j = 7, 6, 5, 4, ex aequo : loi de permutation conditionnelle",
                "aux rangs moyens, enumeree)")))
          })
 
@@ -591,5 +591,11 @@ verifier("#278 objet des ensembles figes : element NULL, NA, caractere, logique,
              !leve_erreur(.mw_verifier_figes(avec("degeneres", a125$J - 1L), "x", a125$J)) &&
              identical(.mw_stats(a125, dbl), .mw_stats(a125, f0))
          })
+
+# #514 (A3, S10) : texte propre en deux phrases au plus et 400 caracteres au
+# plus (branche Monte-Carlo de la regle R1 comprise).
+verifier_detail(res_pi, "premium_interieur (R1, branche Monte-Carlo)")
+verifier_detail(mw_tests(a125, b125, alpha = unname(b125$p_min_mc[["HomogF"]])),
+                "Merz-Wuthrich, HomogF inoperant (ex aequo enumeres)")
 
 fin_fichier()
