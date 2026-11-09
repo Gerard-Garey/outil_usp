@@ -179,13 +179,14 @@ if (nzchar(Sys.which("zip"))) {
            identical(as.numeric(lu_pt$v), df$v) && identical(as.numeric(lu_pt$n), df$n) &&
              identical(as.numeric(lu_pt$f), df$f) && identical(as.integer(lu_pt$t), df$t) &&
              identical(as.character(lu_pt$lib), df$lib))
-  # +-Inf : chaine en ligne dans le classeur. Le lecteur interne les relit en
-  # numerique ; openxlsx, s'il est installe, les relit en chaine.
-  verifier("xlsx de repli : +-Inf relus en numerique par le lecteur interne, en chaine par openxlsx",
+  # +-Inf : chaine en ligne dans le classeur. Le lecteur interne et openxlsx,
+  # s'il est installe, les relisent en chaine : la colonne porte une cellule
+  # texte et reste en caractere dans le lecteur interne (#490).
+  verifier("xlsx de repli : +-Inf relus en chaine par le lecteur interne (colonne en caractere) et par openxlsx",
            {
              f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f), add = TRUE)
              sans_openxlsx(engine_ecrire_xlsx(df, f))
-             interne <- is.numeric(lu_pt$f) && identical(lu_pt$f[1:2], c(Inf, -Inf))
+             interne <- is.character(lu_pt$f) && identical(lu_pt$f[1:2], c("Inf", "-Inf"))
              externe <- if (base::requireNamespace("openxlsx", quietly = TRUE))
                identical(as.character(openxlsx::read.xlsx(f)$f[1:2]), c("Inf", "-Inf")) else TRUE
              interne && externe

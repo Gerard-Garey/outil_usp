@@ -1470,7 +1470,7 @@ verifier("Lecture : colonne t incomplete ou non numerique refusee (tri non effec
            a <- engine_lire_donnees_csv(data.frame(t = c(3, 1, NA, 2, 5), xt = 1:5, yt = 1:5))
            b <- engine_lire_donnees_csv(data.frame(t = c("2001", "2002", "x", "2004", "2005"),
                                                    xt = 1:5, yt = 1:5, stringsAsFactors = FALSE))
-           !a$ok && contient(a$erreurs, "ligne(s) 3") && !b$ok
+           !a$ok && contient(a$erreurs, "(ligne(s) de donnees 3)") && !b$ok
          })
 verifier("Lecture : t consecutive dans le desordre -> triee en croissant",
          {
@@ -1704,11 +1704,11 @@ verifier("Cellule texte \"NA\" (#483) : refus motive par une phrase fixe, series
            t_txt <- en_texte(tri483); t_txt$j2[2] <- "NA"
            t_x <- en_texte(tri483); t_x$j2[2] <- "x"
            r_na <- engine_lire_triangle(t_txt); r_x <- engine_lire_triangle(t_x)
-           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).",
+           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).",
                                          "Une cellule \"NA\" est lue comme du texte, non comme une valeur manquante : renseigner la valeur.")) &&
-             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).") &&
+             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
              identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=2).",
-                                           "Une cellule non observee doit etre laissee vide (pas \"NA\", lu comme du texte).")) &&
+                                           "Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou laisser vide une cellule non observee.")) &&
              identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i=1, j=2).")
          })
 verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
@@ -1809,6 +1809,31 @@ if (nzchar(Sys.which("zip"))) {
            tous(r6, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(d6_483)$erreurs)))
   verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
            tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
+  # Lecteur interne (#490) : seule une colonne de cellules nombre est rendue en
+  # numerique ; une cellule texte (inlineStr ecrit par l'ecrivain interne, ou
+  # t="str" pose par retouche) garde la colonne en caractere, et "0x10" est
+  # refuse en aval par .cellules_en_nombre() avec sa position.
+  ser490 <- data.frame(xt = c("100", "0x10", "102", "103", "104"), yt = 60:64, stringsAsFactors = FALSE)
+  motif490 <- "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2)."
+  d490 <- chemins483(xlsx483(ser490), identity)
+  str490 <- function(s) {
+    s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="str"><v>0x10</v></c>', s, fixed = TRUE)
+    sub('<c r="B2"><v>60</v></c>', '<c r="B2" t="n"><v>60</v></c>', s, fixed = TRUE)
+  }
+  dstr490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), str490), identity)
+  dinf490 <- chemins483(xlsx483(data.frame(xt = c(100, Inf, 102), yt = c(60, 61, -Inf))), identity)
+  verifier("xlsx, lecteur interne (#490) : colonne a cellule texte \"0x10\" rendue en caractere, colonne de nombres en numerique",
+           identical(d490$interne$xt, ser490$xt) && identical(d490$interne$yt, as.numeric(60:64)))
+  verifier("xlsx (#490) : \"0x10\" en cellule texte refuse avec sa position sur chaque chemin, meme motif que le CSV lu en texte",
+           tous(d490, function(d) identical(engine_lire_donnees_csv(d)$erreurs, motif490)) &&
+             identical(engine_lire_donnees_csv(ser490)$erreurs, motif490))
+  verifier("xlsx, lecteur interne (#490) : cellule t=\"str\" \"0x10\" garde sa colonne en caractere, refusee ; cellule t=\"n\" lue en nombre",
+           identical(dstr490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
+             identical(dstr490$interne$yt, as.numeric(60:64)) &&
+             identical(engine_lire_donnees_csv(dstr490$interne)$erreurs, motif490))
+  verifier("xlsx, lecteur interne (#490) : +-Inf ecrits en chaine gardent leur colonne en caractere, nombres de la colonne en chaine",
+           identical(dinf490$interne$xt, c("100", "Inf", "102")) &&
+             identical(dinf490$interne$yt, c("60", "61", "-Inf")))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
@@ -2522,7 +2547,7 @@ verifier("Lecture t, xt, yt et triangle : hexadecimal refuse avec la position de
                                                     yt = 1:5, stringsAsFactors = FALSE))
            tri <- fichier_tri(t5); tri$j1 <- as.character(tri$j1); tri$j1[3] <- "0x10"
            r <- engine_lire_triangle(tri)
-           !d$ok && contient(d$erreurs, "xt : ligne(s) 2") && contient(d$erreurs, "yt : ligne(s) 5") &&
+           !d$ok && contient(d$erreurs, "xt : ligne(s) de donnees 2") && contient(d$erreurs, "yt : ligne(s) de donnees 5") &&
              isTRUE(ok$ok) && identical(ok$xt, c(1.5, 100, 3, 4, 5)) &&
              !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
          })

@@ -7502,12 +7502,13 @@ engine_lire_donnees_csv <- function(df) {
   xt <- .en_numerique(df$xt)
   yt <- .en_numerique(df$yt)
   # Cellule non numerique (texte, hexadecimal, cellule vide) : position citee,
-  # numero de ligne du tableau (comme la colonne t plus bas), cinq au plus.
+  # en ligne de donnees (rang sous l'en-tete, comme la colonne t plus bas et
+  # les motifs de .retirer_lignes_colonnes_vides()), cinq au plus.
   if (anyNA(xt) || anyNA(yt)) {
     pos <- function(nom, v) {
       k <- which(is.na(v))
       if (!length(k)) return(character(0))
-      sprintf("%s : ligne(s) %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
+      sprintf("%s : ligne(s) de donnees %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
               if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
     }
     err <- c(err, paste0(sprintf("Certaines valeurs de xt ou yt ne sont pas numeriques (%s).",
@@ -7521,7 +7522,7 @@ engine_lire_donnees_csv <- function(df) {
   if ("t" %in% noms) {
     to <- .en_numerique(df$t)
     if (anyNA(to))
-      err <- c(err, sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) %s) :",
+      err <- c(err, sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) de donnees %s) :",
                                   "chaque ligne doit porter son annee."),
                             paste(which(is.na(to)), collapse = ", ")))
     else if (any(!is.finite(to) | to != round(to)))
@@ -7588,8 +7589,8 @@ engine_lire_triangle <- function(df) {
     return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s%s.",
                                 paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
                                 if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else ""),
-                        if (na_txt) paste(" Une cellule non observee doit etre laissee vide (pas \"NA\",",
-                                          "lu comme du texte)."))))
+                        if (na_txt) paste(" Une cellule \"NA\" est lue comme du texte : renseigner",
+                                          "la valeur, ou laisser vide une cellule non observee."))))
   }
   m <- do.call(base::cbind, unname(num))
   storage.mode(m) <- "double"
@@ -7650,8 +7651,9 @@ engine_lire_triangle <- function(df) {
 # numeriques sont ecrites comme nombres, les autres comme chaines en ligne
 # (inlineStr), ce qui evite d'avoir a gerer une table de chaines partagees.
 # Un nombre non fini (+-Inf) est ecrit comme chaine en ligne : openxlsx relit
-# cette cellule en chaine ("Inf"), le lecteur interne de ce fichier en
-# numerique (la colonne dont toutes les cellules se convertissent l'est). Les
+# cette cellule en chaine ("Inf") ; le lecteur interne d'engine_lire_xlsx()
+# rend sa colonne en caractere (cellule texte, #490), les autres nombres de
+# la colonne en chaine ; l'interpretation revient a .cellules_en_nombre(). Les
 # NA sont des cellules vides.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   if (requireNamespace("openxlsx", quietly = TRUE)) {
@@ -7723,8 +7725,10 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 }
 
 # Lit la premiere feuille d'un classeur .xlsx et renvoie un data.frame, la
-# premiere ligne etant traitee comme l'en-tete. Les colonnes entierement
-# numeriques sont converties en numerique. Aucune ligne ni colonne vide n'est
+# premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
+# cellules a valeur sont des cellules nombre est rendue en numerique ; une
+# colonne qui porte une cellule texte est rendue en caractere, nombres
+# compris (#490). Aucune ligne ni colonne vide n'est
 # retiree ici sans message : openxlsx est appele avec skipEmptyRows et
 # skipEmptyCols a FALSE (son reglage par defaut les retirait), et avec
 # na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
@@ -7784,7 +7788,18 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   } else { nm <- paste0("V", seq_len(ncol(m))); corps <- m }
   df <- as.data.frame(corps, stringsAsFactors = FALSE)
   names(df) <- make.unique(nm)
+  # Conversion en numerique d'une colonne dont toutes les cellules a valeur
+  # sont des cellules nombre (sans attribut t, ou t="n") ; une
+  # colonne qui porte une cellule texte (t="s", "inlineStr", "str"), booleenne
+  # ou d'erreur reste en caractere, et ses cellules sont interpretees en aval
+  # par .cellules_en_nombre() (as.numeric() lisait "0x10" ecrit en texte
+  # comme 16, #490).
+  tm <- matrix(NA_character_, max(lig), max(col))
+  tm[cbind(lig, col)] <- ifelse(is.na(val), NA_character_, typ)
+  if (entete) tm <- tm[-1, , drop = FALSE]
   for (j in seq_along(df)) {
+    tj <- tm[, j]
+    if (!all(is.na(tj) | tj == "n")) next
     num <- suppressWarnings(as.numeric(df[[j]]))
     if (all(is.na(num) == is.na(df[[j]]))) df[[j]] <- num
   }

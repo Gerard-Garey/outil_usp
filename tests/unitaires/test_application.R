@@ -433,14 +433,16 @@ verifier("Import CSV de series sans t a ligne vide intercalee : refuse par le mo
                              stringsAsFactors = FALSE))
 verifier("Import CSV : \"0x10\" refuse comme valeur non numerique avec sa position, meme motif que le xlsx (#490)",
          !.r490$ok && identical(.r490$erreurs,
-                                "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).") &&
+                                "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
            (is.null(.x490) || identical(engine_lire_donnees_csv(.x490)$erreurs, .r490$erreurs)))
 .tri483 <- c("i,j0,j1,j2,j3,j4", "0,300,960,1560,2020,2290", "1,310,980,1590,NA,",
              "2,320,1000,1600,,", "3,330,1010,,,", "4,340,,,,")
 .rt483 <- engine_lire_triangle(.lire483(.tri483, row.names = NULL))
 verifier("Import CSV : cellule \"NA\" d'un triangle refusee avec sa position, comme en xlsx (na.strings = character(0)) (#483)",
          !.rt483$ok && length(.rt483$erreurs) == 1L &&
-           startsWith(.rt483$erreurs, "Cellule(s) non numerique(s) en (i=1, j=3)."))
+           identical(.rt483$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=3).",
+                                           "Une cellule \"NA\" est lue comme du texte : renseigner la valeur,",
+                                           "ou laisser vide une cellule non observee.")))
 # Lecture des fichiers d'exemple avant #483 : read.csv par defaut, comme
 # lire_tableau() (row.names = NULL pour le triangle, comme charger_mw()).
 .ex483 <- file.path(.racine, "tests", "donnees", c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"))
@@ -1346,9 +1348,9 @@ testServer(app, {
       identical(statut_import(), m_csv) && identical(donnees(), d0))
   } else a("import xlsx du meme tableau : saute (aucun ecrivain xlsx)", TRUE)
   session$setInputs(fichier_import = depot(c("xt,yt", "100,60", "0x10,61", paste(102:104, 62:64, sep = ","))))
-  a("import CSV avec \"0x10\" : refuse comme valeur non numerique (xt : ligne 2), series courantes gardees (#490)",
+  a("import CSV avec \"0x10\" : refuse comme valeur non numerique (xt : ligne de donnees 2), series courantes gardees (#490)",
     identical(statut_import()$ok, FALSE) && identical(donnees(), d0) &&
-      grepl("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) 2).", statut_import()$msg,
+      grepl("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).", statut_import()$msg,
             fixed = TRUE))
   session$setInputs(fichier_import = depot(c("t,xt,yt,", paste0(1:6, ",", 100:105, ",", 60:65, ","))))
   a("import CSV de series valide (colonne de fin sans en-tete) : 6 annees importees, valeurs lues par le moteur (#483)",
