@@ -811,7 +811,8 @@ consécutives entre 1900 et 2100, cause du refus sinon (§\ref{sec:controles}) \
 prédicat «~octets non UTF-8 lus en locale UTF-8~» (faux hors locale UTF-8)~; cellules sans
 blancs ASCII de bord, retirés octet par octet, une cellule non UTF-8 étant déclarée Latin-1 en
 locale UTF-8~; conversion numérique, une cellule non UTF-8 en locale UTF-8 valant \code{NA}
-sans erreur de R (§\ref{sec:controles}) \\
+sans erreur de R, de même qu'une cellule hexadécimale, à exposant incomplet ou, sous un séparateur
+décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles}) \\
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
@@ -823,7 +824,11 @@ avec sa position, puis \code{mw\_valider\_triangle()} \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines})~; dans la voie de repli, chaque nombre fini est écrit
+supprimé à la sortie (§\ref{sec:graines})~; à la lecture, dans la voie de repli, une colonne n'est
+rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
+\code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
+«~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
+caractères, interprétée en aval (§\ref{sec:controles})~; à l'écriture, dans la voie de repli, chaque nombre fini est écrit
 par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres significatifs
 s'ils restituent la valeur, 17 sinon), $\pm\infty$ en chaîne de caractères et \code{NA} en
 cellule vide \\
@@ -4167,10 +4172,25 @@ refuse de telles données en amont~; ils concernent un appel direct de
 si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
 (annexe~XVII, B(2)(b) et C(2)(b)), puis range les lignes par $t$ croissant~; à défaut, le
 fichier est refusé, sans tri ni comblement. Sans colonne $t$, l'ordre du fichier est réputé
-chronologique et la consécutivité n'est pas vérifiable. \code{usp\_lire\_vecteur()} refuse une
+chronologique et la consécutivité n'est pas vérifiable. Une cellule de \code{xt} ou de
+\code{yt} non numérique est refusée avec sa position, comptée en lignes de données (première
+ligne sous l'en-tête~: ligne~1), cinq positions au plus par colonne, comme les positions de la
+colonne~$t$. \code{usp\_lire\_vecteur()} refuse une
 cellule vide, non numérique ou non finie (\code{Inf}, \code{-Inf}, \code{NaN}, refusées dès la
 lecture) au milieu de la série, en donnant sa position, parce que la
-retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$~; elle lit une série en
+retirer décalerait les années suivantes et désalignerait $x_t$ et $y_t$. Est non numérique, dans
+les trois lecteurs (\code{.cellules\_en\_nombre()}), outre ce qu'\code{as.numeric()} ne convertit
+pas, une cellule qu'\code{as.numeric()} lirait comme un nombre sans qu'elle ait l'allure d'un
+nombre décimal~: écriture hexadécimale (\code{0x10}, lue~16), exposant incomplet (\code{1E},
+\code{1e+}, lus~1) et, sous un séparateur décimal autre que le point, cellule portant un point
+(\code{1.500} avec \code{dec = ","}, qui serait lue $1{,}5$ au lieu de $1\,500$, le point y étant
+un séparateur de milliers)~; les exposants complets (\code{1e3}), le signe \code{+}, \code{.5} et
+\code{5.} restent lus (mesuré~: \code{1.500} en deuxième position sous \code{dec = ","},
+\code{0x10} et \code{1E} en deuxième et quatrième positions sont refusés par
+\code{usp\_lire\_vecteur()} avec leur position~; \code{1e3}, \code{+5} et \code{.5} sont lus
+$1\,000$, $5$ et $0{,}5$). Une cellule texte d'un classeur xlsx relève de la même règle par l'une
+et l'autre voie de lecture (mesuré sur la voie de repli~: \code{0x10} écrit en texte en deuxième
+ligne de \code{xt} est refusé en «~\code{ligne(s) de donnees 2}~»). \code{usp\_lire\_vecteur()} lit une série en
 colonne ou en ligne, avec ou sans en-tête, y compris une série en ligne précédée immédiatement
 d'une ligne d'en-têtes, qui est écartée. Quand le fichier compte, après retrait des lignes et
 colonnes vides de bord, plusieurs colonnes, une première et une seconde ligne et aucune autre,
@@ -4246,8 +4266,9 @@ la ligne d'en-têtes. Les cellules non vides de la ligne d'en-têtes sous (H1) s
 même prédicat, exception des étiquettes d'exercice comprise~: la première qui en relève fait
 refuser le fichier, avec sa colonne. Sous (H2), les cellules hors la cellule d'angle sont des
 années, et la cellule d'angle est soumise au prédicat comme décrit plus haut. La règle (H1)
-seule ne suffirait pas~: «~non numérique~» y signifie seulement qu'\code{as.numeric()} ne
-convertit aucune cellule de la ligne, ce qui n'exclut pas une ligne de valeurs mal formées. Une
+seule ne suffirait pas~: «~non numérique~» y signifie seulement que la conversion numérique
+(\code{.cellules\_en\_nombre()}) ne convertit aucune cellule de la ligne, ce qui n'exclut pas une
+ligne de valeurs mal formées. Une
 première ligne de nombres écrits avec un séparateur de milliers, une lettre \code{O} pour un
 zéro ou un séparateur décimal autre que celui déclaré, ou faite de marqueurs de valeur
 manquante, alors que la même ligne, lue seule, serait refusée cellule par cellule, fait refuser
