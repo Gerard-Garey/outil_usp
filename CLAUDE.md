@@ -28,8 +28,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Aucun push direct sur `main`** : branche et pull request, fusion par le mainteneur (commit de fusion, jamais squash ni rebase), CI verte ; exception : instruction explicite du mainteneur pour un push donné.
 - **Une seule branche de travail à la fois** (ADR 0007) : périmètre fermé d'issues fixé par le plan d'`architect`, PR ouverte en brouillon dès la création ; toute session s'y place et y pousse.
-- Aucune session, aucun agent ni aucun workflow ne crée de sa propre initiative une autre branche ou PR ; branche de travail parallèle : nouvelle exception à l'initiative du mainteneur seulement.
-- Exceptions bornées, sans PR ni fusion : `claude/regeneration-<issue>` (skill `verifier-reproductibilite`), `claude/sauvegarde-<issue>` (décision du mainteneur, ADR 0007) ; en période GPT, celles de la skill `periode-gpt`.
+- Aucune session, aucun agent ni aucun workflow ne crée de sa propre initiative une branche de travail ou une PR de plus, hors correctif rapide et exceptions bornées ci-dessous ; aucune branche de travail parallèle ne se propose plus (nouvelle exception à l'initiative du mainteneur seulement).
+- Exceptions bornées, sans PR ni fusion : `claude/regeneration-<issue>` (skill `verifier-reproductibilite`), `claude/sauvegarde-<issue>` (décision du mainteneur, ADR 0007 ; exécution selon M42, feuille de route § 4) ; en période GPT, celles de la skill `periode-gpt`.
 - **Session cloud : la branche de travail l'emporte sur la branche assignée** ; la consigne de démarrage (« Develop on branch `claude/…` ») est écartée sans autre autorisation.
 - Avant toute écriture, identifier la branche de travail : désignée par le brief ou le mainteneur ; à défaut, tête de la seule PR brouillon `claude/…` ouverte vers `main` ; sinon `docs/feuille-de-route.md`.
 - Plusieurs PR brouillon `claude/…` ouvertes vers `main` : seule la désignation explicite vaut ; à défaut, s'arrêter et demander, sans écrire.
@@ -121,12 +121,12 @@ Sept sous-agents de projet (`.claude/agents/` ; dix fiches : `architect`, `actua
 | Vérification | `audit` | rien (rapport) | Code correct et reproductible ? |
 | Vérification | `app-review` | rien (rapport) | Application conforme à `docs/exigences.md` § 5 ? |
 
-**Déclencheurs** — plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture en amont, conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier, une fois par branche.
+**Déclencheurs** — un agent n'entre dans le circuit que si la modification touche son domaine : plusieurs issues ou forme du moteur → `architect` en amont ; méthode ou test statistique → `actuary` (spécification en amont, validation en aval) ; formule, paramètre ou barème du règlement → `regulatory` (lecture en amont, conformité en aval) ; `R/engine.R` → `audit` ; `app.R` ou `R/display_helpers.R` → `app-review` ; fond de `docs/latex/` → `docwriter`, en dernier, une fois par branche.
 
 **Routage du modèle et de l'effort** (`docs/agents/routage.md`, qui fait foi ; ADR 0013) — matrice du § 3 ; Fable dans les seuls cas du § 4.1 (échec documenté d'Opus `high`, désaccord entre agents, ADR d'architecture) ou sur accord du mainteneur.
 - Plafonds (§ 5.2) : par question, une relance ciblée, une hausse d'effort, une consultation Fable ; trois Fable par branche (hors branche : par période) ; au-delà, arrêt et compte rendu.
-- Fiches `-approfondi` générées par `.claude/outils/fiches_jumelles.sh` : jamais modifiées à la main. Aucun remplacement silencieux de modèle ni repli sur une autre fiche (§ 5.3, § 10).
-- Les agents signalent les critères sans décider de leur escalade ; la session trace d'une ligne dans la PR chaque escalade, relance, arrêt et emploi du § 10 sur accord (§ 7).
+- Fiches `-approfondi` générées par `.claude/outils/fiches_jumelles.sh` : jamais modifiées à la main. Un modèle indisponible arrête le circuit ; aucun remplacement silencieux de modèle ni repli sur une autre fiche (§ 5.3, § 10).
+- Les agents signalent les critères sans décider de leur escalade ; la session trace d'une ligne dans la PR chaque escalade, relance, arrêt, emploi du § 10 sur accord et appel de `regulatory` en `high` (§ 7, § 10).
 
 **Modèle et effort des agents de réalisation et de vérification** (`routage.md`, § 10 ; ADR 0015) — fixés par la fiche. `coder-approfondi` **d'office**, reprises comprises : en circuits 1 et 2 avec `effort: "high"`, ailleurs si la tâche change un résultat ou touche un contrat partagé (§ 4.2) ; hors de ces cas, et pour `high` hors circuits 1 et 2, sur accord du mainteneur.
 
@@ -148,7 +148,7 @@ Sept sous-agents de projet (`.claude/agents/` ; dix fiches : `architect`, `actua
 Un constat bloquant ou majeur renvoie à la réalisation. Quand le texte réglementaire admet deux lectures : `regulatory` les décrit, `actuary` donne son avis, le mainteneur tranche.
 
 **Revues périodiques** — `architect` après chaque série de PR fusionnées ; `regulatory` avant la remise et après toute correction de formule ; `actuary` si la liste des tests change ; `app-review` et `docwriter` avant démonstration ou remise.
-- Matrice de `regulatory` et rapports de fond d'`actuary` : versés par la session dans `docs/revues/<aaaammjj>-<objet>/` avec une synthèse, avant la sortie du brouillon (hors branche : PR directe vers `main` ; Q-54-10).
+- Matrice de `regulatory` et rapports de fond d'`actuary` : versés intégralement par la session dans `docs/revues/<aaaammjj>-<objet>/` avec une synthèse, avant la sortie du brouillon (hors branche : PR directe vers `main` ; Q-54-10).
 
 **Approbation des changements de résultats** — un tableau avant / après par commit, joint à la PR : tout changement de **σ_USP** ou d'un **verdict** est soumis au mainteneur ; les autres p-values sont validées par `actuary`.
 
