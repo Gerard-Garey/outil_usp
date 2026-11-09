@@ -22,6 +22,7 @@ Mesure de départ, sur les références : 29 lignes sur 49 en premium et 16 sur 
 | Objet du texte (précision du 09/11) | « Décrire de façon concise comment utiliser le test ainsi que les tests potentiellement liés. » D'où le gabarit : phrase 1, usage et lecture de la ligne ; phrase 2, lignes liées, nommées par leur libellé affiché. La construction (formules, lois, dérivations) va dans la fiche du `.tex`. Les textes cibles de la spécification sont révisés par `actuary` selon ce gabarit. |
 | Q-6, régime de la p-value | « Lorsque la nature de la p-value est différente pour une raison particulière (delta au bord par exemple), cela vaut le coup de garder (formulation plus pédagogique) et de dépasser 400 caractères. » Les fragments de régime restent donc, réécrits en une phrase pédagogique, et passent en mention conditionnelle hors compte (ni phrases, ni caractères). Le renvoi générique à `nature_p` sort. |
 | Q-7, forme | Membres de famille minP cités par leurs clés `mc_nom`. Phrase « tests liés » de la constante et de Spearman ratio / volume portée par le renvoi de #215 (π_t constant seulement). Les deux limites sont acceptées. |
+| Q-8, régime intérieur de δ | Pas de mention M23 : la p Monte-Carlo conditionnelle au régime intérieur de δ (#240) est déjà nommée dans la colonne de nature de la p-value. |
 | Périmètre (précision du 09/11) | La revue vaut aussi pour les commentaires du tableau « Robustesse du calibrage » (`table_robustesse()`, onglet Calibration et section 4 du rapport figé). Ce tableau affiche le `detail` des lignes des familles G (lognormale) et M6 (Merz-Wüthrich) : toutes suivent le gabarit, y compris la position de δ et le jackknife. |
 
 ## Effet attendu
@@ -33,7 +34,7 @@ Mesure de départ, sur les références : 29 lignes sur 49 en premium et 16 sur 
 
 ## Circuit
 
-1. `actuary-approfondi` spécifie (fait).
+1. `actuary-approfondi` spécifie (fait : version finale avec mentions de régime M17 à M22, remplaçant les deux versions précédentes).
 2. `coder-approfondi` implémente (contrat partagé : objet `usp_engine`).
 3. `audit` et `app-review` vérifient.
 4. Patch des références.
