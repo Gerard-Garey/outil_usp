@@ -183,8 +183,15 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # elle est remplacee par un message fixe selon le format, et le message R est
 # consigne dans le journal. Les avertissements de lecture ne sont pas
 # modifies. L'interpretation du tableau lu reste au moteur
-# (engine_lire_donnees_csv(), engine_lire_triangle()). Retourne list(df,
-# erreur) : erreur vaut NULL si la lecture a abouti, le message fixe sinon.
+# (engine_lire_donnees_csv(), engine_lire_triangle()) : le CSV est lu en
+# texte, sans conversion des cellules (colClasses = "character"), lignes
+# vides gardees (blank.lines.skip = FALSE), en-tetes tels quels
+# (check.names = FALSE : un en-tete vide reste "") et cellule "NA" gardee
+# comme chaine (na.strings = character(0), comme la lecture xlsx du moteur).
+# Nombres, cellules vides, lignes et colonnes vides sont ainsi juges par le
+# moteur seul, avec les memes motifs qu'en xlsx (#483, #490). Separateur et
+# encodage : ceux de read.csv, inchanges. Retourne list(df, erreur) : erreur
+# vaut NULL si la lecture a abouti, le message fixe sinon.
 MESSAGE_ILLISIBLE <- c(
   xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
                ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
@@ -193,7 +200,9 @@ MESSAGE_ILLISIBLE <- c(
                "ligne a autant de valeurs que la ligne d'en-tete."))
 lire_tableau <- function(chemin, xlsx, nom = basename(chemin), ...) {
   df <- tryCatch(if (xlsx) engine_lire_xlsx(chemin)
-                 else utils::read.csv(chemin, stringsAsFactors = FALSE, ...),
+                 else utils::read.csv(chemin, colClasses = "character",
+                                      blank.lines.skip = FALSE, check.names = FALSE,
+                                      na.strings = character(0), ...),
                  error = function(e) e)
   if (!inherits(df, "error")) return(list(df = df, erreur = NULL))
   journaliser(sprintf("Lecture du fichier %s impossible", nom), conditionMessage(df))
