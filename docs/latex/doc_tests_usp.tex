@@ -3690,8 +3690,10 @@ le motif demandant alors de renseigner la valeur ou de laisser vide une cellule 
 refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
 vides sans en-tête placées en bord sont retirées, une ligne vide intercalée ou en tête est refusée
 comme année d'accident manquante présumée (D(2)(b)), une colonne vide intercalée ou portant un
-en-tête comme année de développement manquante présumée (convention de l'outil, sans renvoi
-réglementaire), selon la règle commune décrite au paragraphe «~Lecture des fichiers~»~; elle
+en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
+indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
+la plus récente de la première année d'accident~; la présomption est une lecture retenue par
+l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~»~; elle
 appelle ensuite \code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
@@ -4406,9 +4408,10 @@ tabulation, retour chariot, saut de ligne) sont donc retirés octet par octet (\
 résultat coïncide avec celui de \code{trimws()} sur une cellule valide)~; en locale UTF-8, une
 cellule non UTF-8 d'encodage non déclaré est déclarée Latin-1, sans que ses octets changent,
 de sorte que les messages qui la citent restent de l'UTF-8 valide, et elle est tenue pour non
-numérique sans appel à \code{as.numeric()}~; les en-têtes de colonne, qu'une lecture du CSV en
-texte garde tels quels, sont déclarés de même (\code{.declarer\_latin1()}) (\code{.cellules\_en\_nombre()}~; le prédicat
-commun \code{.octets\_non\_utf8()} est faux hors locale UTF-8, où rien ne change). Le fichier
+numérique sans appel à \code{as.numeric()} (\code{.cellules\_en\_nombre()}~; le prédicat
+commun \code{.octets\_non\_utf8()} est faux hors locale UTF-8, où rien ne change)~; les en-têtes
+de colonne, qu'une lecture du CSV en texte garde tels quels, sont déclarés de même
+(\code{.declarer\_latin1()}). Le fichier
 est ainsi lu, ou refusé avec le même motif, sous une locale UTF-8 comme hors d'elle, où ces
 cellules valaient déjà \code{NA}~; l'espace insécable Windows-1252 (octet A0 isolé) est
 reconnue par \code{.allure\_manquante\_ou\_nombre()} sous toute locale. La règle s'applique à
