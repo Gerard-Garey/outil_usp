@@ -1359,8 +1359,8 @@ message_489 <- function(expr) {
   e <- tryCatch({ force(expr); NULL }, error = function(e) e)
   if (inherits(e, "error")) conditionMessage(e) else NA_character_
 }
-verifier("run_engine : annexe = \"X\", \"I\", \"xiv\", NA, c(\"II\", \"XIV\") -> erreur d'usage nommant annexe (premium, reserve2 ; #489)",
-         all(vapply(list("X", "I", "xiv", NA, c("II", "XIV")), function(a) {
+verifier("run_engine : annexe = \"X\", \"I\", \"xiv\", NA, NULL, c(\"II\", \"XIV\") -> erreur d'usage nommant annexe (premium, reserve2 ; #489)",
+         all(vapply(list("X", "I", "xiv", NA, NULL, c("II", "XIV")), function(a) {
            m1 <- message_489(usage_premium(annexe = a))
            m2 <- message_489(usage_mw(annexe = a))
            all(!is.na(c(m1, m2))) &&
@@ -1368,8 +1368,8 @@ verifier("run_engine : annexe = \"X\", \"I\", \"xiv\", NA, c(\"II\", \"XIV\") ->
              all(grepl("\"II\" ou \"XIV\" exactement est attendu (aucune abreviation)",
                        c(m1, m2), fixed = TRUE))
          }, logical(1))))
-verifier("run_engine : methode = \"p\", \"reserve\", NA, c(\"premium\", \"reserve1\", \"reserve2\") -> erreur d'usage nommant methode (#489)",
-         all(vapply(list("p", "reserve", NA, c("premium", "reserve1", "reserve2")), function(m) {
+verifier("run_engine : methode = \"p\", \"reserve\", NA, NULL, c(\"premium\", \"reserve1\", \"reserve2\") -> erreur d'usage nommant methode (#489)",
+         all(vapply(list("p", "reserve", NA, NULL, c("premium", "reserve1", "reserve2")), function(m) {
            msg <- message_489(usage_premium(methode = m))
            !is.na(msg) && startsWith(msg, paste0("methode = ", .engine_saisie(m), " : ")) &&
              grepl("\"premium\", \"reserve1\" ou \"reserve2\" exactement est attendu",

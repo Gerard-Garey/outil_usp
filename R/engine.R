@@ -13799,7 +13799,9 @@ run_engine <- function(xt, yt,
   # (annexe = "X" lue "XIV", sigma standard 0,05 au lieu de 0,10 ; "I" lue
   # "II" ; methode = "p" lue "premium"), alors que .annexe_verifiee() refuse
   # toute valeur inexacte (#33), comme le bareme (#88). Argument omis :
-  # defaut inchange (premium, annexe II), par match.arg().
+  # defaut inchange (premium, annexe II), par match.arg(). NULL explicite
+  # refuse (avant : defaut silencieux, match.arg(NULL) rendant premium et
+  # l'annexe II, mesure sur la tete 3657bfe).
   choix_exact <- function(v, nom, admis) {
     if (!(is.character(v) && length(v) == 1L && !is.na(v) && v %in% admis))
       stop(sprintf("%s = %s : %s ou %s exactement est attendu (aucune abreviation).",
