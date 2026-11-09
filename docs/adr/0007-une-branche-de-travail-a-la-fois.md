@@ -265,6 +265,7 @@ Les plans, les circuits et les surfaces documentaires sont ceux des deux fiches 
     2. Le `.tex`, au passage unique de `docwriter` de chaque branche.
     3. `CONTEXT.md`, par `architect`.
     4. `CLAUDE.md` (« 13 statistiques discrètes »), par la session principale sur instruction du mainteneur, si #304 (option (b)) ou #300 ajoute une statistique discrète.
+       *Annotation du 9 novembre 2026 (ADR 0017) : le décompte est désormais dans `.claude/rules/moteur.md`, à mettre à jour de la même façon.*
     5. `docs/specifications/`, pour D1-Fh et D1-Fi.
 
     Un besoin hors de ces exceptions **arrête la branche** et remonte au mainteneur.
