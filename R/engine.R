@@ -12958,12 +12958,53 @@ engine_motif_b_alpha <- function(B, alpha) {
 # est acceptee par set.seed(). theta_equiv n'est pas controle ici : dans la
 # branche lognormale (premium et reserve1), il l'est par
 # engine_valider_donnees() (refus ok = FALSE, issue #33), qui l'ignore quand
-# delta_equiv est fourni ; seule la branche Merz-Wuthrich (reserve2) ne le lit
-# pas.
+# delta_equiv est fourni ; la branche Merz-Wuthrich (reserve2) ne le lit pas
+# et le refuse s'il est fourni (ci-dessous, #489).
+# Arguments sans effet pour la methode (#489, decision du mainteneur du
+# 08/11/2026, Q-55-3 (iii)) : fournis est le vecteur des noms d'arguments
+# passes par l'appelant de run_engine() et non NULL (missing() lu dans
+# run_engine(), pour ne pas confondre une valeur par defaut avec une valeur
+# fournie). En reserve2, xt, yt, T, theta_equiv, delta_equiv et
+# plus_recent_en_dernier ne sont lus par aucune fonction (.run_engine_mw() ne
+# les recoit pas) ; en premium et reserve1, triangle n'est pas lu. Ils
+# etaient ignores sans message (T = 5 en reserve2 : ok = TRUE, metadata$T =
+# 8, constat C7 de l'audit entrees-sorties). Un tel argument est une erreur
+# d'usage qui le nomme, pas un refus de donnees (ok = FALSE). Controle fait
+# en premier : les messages des autres arguments supposent la bonne branche.
+# plus_recent_en_dernier (#489) : logique scalaire non NA sans attribut ;
+# mesure sur la tete 3657bfe, NA et "a" levaient une erreur de R qui ne
+# nommait pas l'argument ("missing value where TRUE/FALSE needed", "invalid
+# argument type"), et 1 ou 0 etaient acceptes, lus par `!` comme TRUE ou
+# FALSE.
 .engine_verifier_usage <- function(B, seed, bareme, alpha = 0.10,
                                    sigma_standard = NULL, segment = NULL,
-                                   annexe = "II") {
+                                   annexe = "II", methode = NULL,
+                                   fournis = character(0),
+                                   plus_recent_en_dernier = TRUE) {
   saisie <- .engine_saisie
+  if (!is.null(methode)) {
+    sans_effet <- if (identical(methode, "reserve2"))
+      c("xt", "yt", "T", "theta_equiv", "delta_equiv", "plus_recent_en_dernier")
+    else "triangle"
+    refuses <- intersect(sans_effet, fournis)
+    if (length(refuses))
+      stop(sprintf(paste("%s : argument%s sans effet pour la methode \"%s\" (%s),",
+                         "a ne pas fournir. Methode du risque de reserve no 2 : triangle",
+                         "seul ; methodes lognormales (premium, reserve1) : xt, yt, T,",
+                         "theta_equiv, delta_equiv, plus_recent_en_dernier, sans triangle."),
+                   paste(refuses, collapse = ", "), if (length(refuses) > 1L) "s" else "",
+                   methode, if (identical(methode, "reserve2"))
+                     "methode Merz-Wuthrich, triangle de paiements cumules"
+                   else "methode lognormale, vecteurs xt et yt"), call. = FALSE)
+  }
+  # Controle de forme en branche lognormale seulement : en reserve2, une
+  # valeur fournie non NULL est refusee ci-dessus, et NULL n'y est pas lu.
+  if (!identical(methode, "reserve2") &&
+      !(is.logical(plus_recent_en_dernier) && length(plus_recent_en_dernier) == 1L &&
+        !is.na(plus_recent_en_dernier) && is.null(attributes(plus_recent_en_dernier))))
+    stop(sprintf(paste("plus_recent_en_dernier = %s : TRUE ou FALSE (logique scalaire",
+                       "non NA, sans attribut) est attendu."),
+                 saisie(plus_recent_en_dernier)), call. = FALSE)
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
@@ -13753,14 +13794,42 @@ run_engine <- function(xt, yt,
                        plus_recent_en_dernier = TRUE,
                        nature_donnees = NULL) {
   t0 <- Sys.time()
+  # Controle exact de methode et d'annexe avant match.arg() (#489, constat
+  # C5 de l'audit entrees-sorties) : match.arg() completait une abreviation
+  # (annexe = "X" lue "XIV", sigma standard 0,05 au lieu de 0,10 ; "I" lue
+  # "II" ; methode = "p" lue "premium"), alors que .annexe_verifiee() refuse
+  # toute valeur inexacte (#33), comme le bareme (#88). Argument omis :
+  # defaut inchange (premium, annexe II), par match.arg().
+  choix_exact <- function(v, nom, admis) {
+    if (!(is.character(v) && length(v) == 1L && !is.na(v) && v %in% admis))
+      stop(sprintf("%s = %s : %s ou %s exactement est attendu (aucune abreviation).",
+                   nom, .engine_saisie(v),
+                   paste0("\"", admis[-length(admis)], "\"", collapse = ", "),
+                   paste0("\"", admis[length(admis)], "\"")), call. = FALSE)
+  }
+  if (!missing(methode)) choix_exact(methode, "methode", c("premium", "reserve1", "reserve2"))
+  if (!missing(annexe))  choix_exact(annexe, "annexe", c("II", "XIV"))
   methode <- match.arg(methode)
   annexe  <- match.arg(annexe)
+  # Arguments fournis par l'appelant et non NULL (#489), lus par missing()
+  # avant toute affectation : une valeur par defaut (theta_equiv = 0.10,
+  # plus_recent_en_dernier = TRUE) n'est pas une valeur fournie.
+  fournis <- c(xt = !missing(xt) && !is.null(xt),
+               yt = !missing(yt) && !is.null(yt),
+               T = !missing(T) && !is.null(T),
+               theta_equiv = !missing(theta_equiv) && !is.null(theta_equiv),
+               delta_equiv = !missing(delta_equiv) && !is.null(delta_equiv),
+               plus_recent_en_dernier = !missing(plus_recent_en_dernier) &&
+                 !is.null(plus_recent_en_dernier),
+               triangle = !missing(triangle) && !is.null(triangle))
   # Arguments d'usage resolus AVANT le calcul protege (issue #88) : une
   # valeur invalide reste une erreur R explicite, jamais un defaut de calcul
   # intercepte.
   .engine_verifier_usage(B, seed, bareme, alpha = alpha,
                          sigma_standard = sigma_standard, segment = segment,
-                         annexe = annexe)
+                         annexe = annexe, methode = methode,
+                         fournis = names(fournis)[fournis],
+                         plus_recent_en_dernier = plus_recent_en_dernier)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de

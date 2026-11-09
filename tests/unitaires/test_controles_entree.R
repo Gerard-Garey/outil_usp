@@ -1332,17 +1332,85 @@ verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attribu
            erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
            erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
            erreur_usage("sigma_standard", list(c(a = 0.1), matrix(0.1)), "sans attribut"))
-verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), ignore en reserve2",
+# Avant #489, theta_equiv etait ignore en reserve2 (r2$ok TRUE) : il y est
+# desormais une erreur d'usage, argument sans effet pour la methode.
+verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et reserve1 (#33), erreur d'usage nommant theta_equiv en reserve2 (#489)",
          {
            r1 <- usage_premium(theta_equiv = NA)
            r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
                             theta_equiv = NA)
-           r2 <- usage_mw(theta_equiv = NA)
+           r2 <- tryCatch(usage_mw(theta_equiv = NA), error = function(e) e)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
              contient(r1$validation$erreurs, "theta_equiv = NA") &&
              identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
-             contient(r3$validation$erreurs, "theta_equiv = NA") && isTRUE(r2$ok)
+             contient(r3$validation$erreurs, "theta_equiv = NA") &&
+             inherits(r2, "error") &&
+             startsWith(conditionMessage(r2), "theta_equiv : argument sans effet pour la methode \"reserve2\"")
          })
+
+# Issue #489 (constats C5 et C7 de l'audit entrees-sorties ; decision du
+# mainteneur du 08/11/2026, Q-55-3 (iii)). C5 : methode et annexe sont
+# controlees exactement avant match.arg(), qui completait une abreviation
+# (annexe = "X" lue "XIV", "I" lue "II", methode = "p" lue "premium").
+# C7 : un argument sans effet pour la methode choisie est une erreur d'usage
+# qui le nomme ; plus_recent_en_dernier = NA levait une erreur R qui ne le
+# nommait pas.
+message_489 <- function(expr) {
+  e <- tryCatch({ force(expr); NULL }, error = function(e) e)
+  if (inherits(e, "error")) conditionMessage(e) else NA_character_
+}
+verifier("run_engine : annexe = \"X\", \"I\", \"xiv\", NA, c(\"II\", \"XIV\") -> erreur d'usage nommant annexe (premium, reserve2 ; #489)",
+         all(vapply(list("X", "I", "xiv", NA, c("II", "XIV")), function(a) {
+           m1 <- message_489(usage_premium(annexe = a))
+           m2 <- message_489(usage_mw(annexe = a))
+           all(!is.na(c(m1, m2))) &&
+             all(startsWith(c(m1, m2), paste0("annexe = ", .engine_saisie(a), " : "))) &&
+             all(grepl("\"II\" ou \"XIV\" exactement est attendu (aucune abreviation)",
+                       c(m1, m2), fixed = TRUE))
+         }, logical(1))))
+verifier("run_engine : methode = \"p\", \"reserve\", NA, c(\"premium\", \"reserve1\", \"reserve2\") -> erreur d'usage nommant methode (#489)",
+         all(vapply(list("p", "reserve", NA, c("premium", "reserve1", "reserve2")), function(m) {
+           msg <- message_489(usage_premium(methode = m))
+           !is.na(msg) && startsWith(msg, paste0("methode = ", .engine_saisie(m), " : ")) &&
+             grepl("\"premium\", \"reserve1\" ou \"reserve2\" exactement est attendu",
+                   msg, fixed = TRUE)
+         }, logical(1))))
+verifier("run_engine : methode omise -> premium, annexe omise -> II (defauts inchanges, #489)",
+         {
+           r <- run_engine(xt = x, yt = y, segment = 1, B = B_MIN_USAGE, nature_donnees = "brutes")
+           isTRUE(r$ok) && identical(r$metadata$methode, "premium") &&
+             identical(r$metadata$annexe, "II")
+         })
+verifier("run_engine, reserve2 : xt, yt, T = 5, theta_equiv, delta_equiv, plus_recent_en_dernier fournis -> erreur d'usage nommant l'argument (#489)",
+         {
+           cas <- list(xt = x, yt = y, T = 5, theta_equiv = 0.10, delta_equiv = 1,
+                       plus_recent_en_dernier = TRUE)
+           all(vapply(names(cas), function(n) {
+             msg <- message_489(do.call(usage_mw, cas[n]))
+             !is.na(msg) &&
+               startsWith(msg, paste0(n, " : argument sans effet pour la methode \"reserve2\""))
+           }, logical(1))) &&
+             startsWith(message_489(usage_mw(T = 5, theta_equiv = 0.1)),
+                        "T, theta_equiv : arguments sans effet pour la methode \"reserve2\"")
+         })
+verifier("run_engine, reserve2 : xt et yt NULL, valeurs par defaut de theta_equiv et plus_recent_en_dernier non passees -> accepte (#489)",
+         isTRUE(usage_mw(xt = NULL, yt = NULL, T = NULL, delta_equiv = NULL)$ok))
+verifier("run_engine, premium et reserve1 : triangle fourni -> erreur d'usage nommant triangle ; triangle NULL accepte (#489)",
+         {
+           m1 <- message_489(usage_premium(triangle = tri_usage))
+           m3 <- message_489(run_engine(xt = x, yt = y, methode = "reserve1", segment = 1,
+                                        B = B_MIN_USAGE, triangle = tri_usage))
+           !is.na(m1) && startsWith(m1, "triangle : argument sans effet pour la methode \"premium\"") &&
+             !is.na(m3) && startsWith(m3, "triangle : argument sans effet pour la methode \"reserve1\"") &&
+             isTRUE(usage_premium(triangle = NULL)$ok)
+         })
+verifier("run_engine, premium : plus_recent_en_dernier NA, NULL, \"a\", 1, c(TRUE, FALSE), c(a = TRUE) -> erreur d'usage nommant l'argument ; FALSE accepte (#489)",
+         all(vapply(list(NA, NULL, "a", 1, c(TRUE, FALSE), c(a = TRUE)), function(v) {
+           msg <- message_489(usage_premium(plus_recent_en_dernier = v))
+           !is.na(msg) && startsWith(msg, paste0("plus_recent_en_dernier = ", .engine_saisie(v), " : ")) &&
+             grepl("TRUE ou FALSE (logique scalaire non NA, sans attribut) est attendu", msg, fixed = TRUE)
+         }, logical(1))) &&
+           isTRUE(usage_premium(plus_recent_en_dernier = FALSE)$ok))
 verifier("run_engine : filet transparent sans erreur (identique avec et sans interception, hors horodatage et duree)",
          {
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
