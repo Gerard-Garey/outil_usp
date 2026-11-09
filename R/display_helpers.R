@@ -364,7 +364,11 @@ table_synthese_groupe <- function(tb) {
 
 # Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
 # 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Texte
-# de `seuil` caracteres ou moins : affiche entier. Au-dela, regle de coupe de
+# de `seuil` caracteres ou moins : affiche entier. Seuil par defaut 400,
+# aligne sur le plafond du texte propre des commentaires de #514 (deux
+# phrases au plus, 400 caracteres ; decision du mainteneur du 09/11/2026) :
+# a 200, le repli masquait surtout la phrase des lignes liees (#472 avait
+# fixe 200). Au-dela, regle de coupe de
 # #472 (marge `marge`, decision du mainteneur du 07/11/2026) : coupe a la
 # premiere fin de phrase dont le resume fait au moins `seuil` et au plus
 # `seuil + marge` caracteres. Fin de phrase : "." suivi d'un espace puis d'une
@@ -396,7 +400,7 @@ table_synthese_groupe <- function(tb) {
 # avant. Sans la phrase, rendu inchange.
 .ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
                        "sect", "fig", "eq", "approx", "resp")
-.commentaire_replie <- function(com, seuil = 200L, marge = 150L, suite_min = 100L) {
+.commentaire_replie <- function(com, seuil = 400L, marge = 150L, suite_min = 100L) {
   # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
   vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
