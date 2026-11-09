@@ -89,15 +89,18 @@ Les textes produits par le moteur (`detail` et motifs des tests, détail des con
     engine_table_tests(res)
 
     # lecture d'un fichier CSV, comme le fait l'application (#483)
-    df <- utils::read.csv("usp_donnees_LN.csv", colClasses = "character",
+    lire_csv <- function(f, ...) utils::read.csv(f, colClasses = "character",
                           blank.lines.skip = FALSE, check.names = FALSE,
-                          na.strings = character(0))
-    lu <- engine_lire_donnees_csv(df)   # ou engine_lire_triangle(df)
+                          na.strings = character(0), ...)
+    lu <- engine_lire_donnees_csv(lire_csv("usp_donnees_LN.csv"))
+    lu_tri <- engine_lire_triangle(lire_csv("usp_donnees_MW.csv", row.names = NULL))
 
 `engine_lire_donnees_csv()` et `engine_lire_triangle()` attendent un tableau lu
-comme le fait l'application (ci-dessus) ou par `engine_lire_xlsx()` : cellules
-en texte, lignes vides gardées, en-têtes tels quels, cellule « NA » gardée comme
-chaîne. Avec les réglages par défaut de `read.csv`, les nombres sont convertis
+comme le fait l'application (ci-dessus) ou par `engine_lire_xlsx()` : lignes
+vides gardées, en-têtes tels quels, cellule « NA » gardée comme chaîne, et, pour
+un CSV, cellules en texte (`engine_lire_xlsx()` rend en nombres une colonne
+dont toutes les cellules sont des nombres, en texte une colonne qui porte une
+cellule texte). Avec les réglages par défaut de `read.csv`, les nombres sont convertis
 avant le moteur, les lignes vides sont retirées sans message et une colonne vide
 sans en-tête est nommée par `read.csv` (« X », « X.1 »…) : elle est alors prise
 pour une colonne qui porte un en-tête et refusée dans un triangle ; à l'inverse,
