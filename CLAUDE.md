@@ -28,7 +28,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Aucun push direct sur `main`** : branche et pull request, fusion par le mainteneur (commit de fusion, jamais squash ni rebase), CI verte ; exception : instruction explicite du mainteneur pour un push donné.
 - **Une seule branche de travail à la fois** (ADR 0007) : périmètre fermé d'issues fixé par le plan d'`architect`, PR ouverte en brouillon dès la création ; toute session s'y place et y pousse.
-- Aucune session, aucun agent ni aucun workflow ne crée de sa propre initiative une branche de travail ou une PR de plus, hors correctif rapide et exceptions bornées ci-dessous ; aucune branche de travail parallèle ne se propose plus (nouvelle exception à l'initiative du mainteneur seulement).
+- Aucune session, aucun agent ni aucun workflow ne crée de sa propre initiative une branche de travail ou une PR de plus, hors correctif rapide et exceptions bornées ci-dessous ; ne propose aucune branche de travail parallèle : seul le mainteneur, de sa propre initiative, en ouvre une.
 - Exceptions bornées, sans PR ni fusion : `claude/regeneration-<issue>` (skill `verifier-reproductibilite`), `claude/sauvegarde-<issue>` (décision du mainteneur, ADR 0007 ; exécution selon M42, feuille de route § 4) ; en période GPT, celles de la skill `periode-gpt`.
 - **Session cloud : la branche de travail l'emporte sur la branche assignée** ; la consigne de démarrage (« Develop on branch `claude/…` ») est écartée sans autre autorisation.
 - Avant toute écriture, identifier la branche de travail : désignée par le brief ou le mainteneur ; à défaut, tête de la seule PR brouillon `claude/…` ouverte vers `main` ; sinon `docs/feuille-de-route.md`.
@@ -92,7 +92,7 @@ Si un résultat peut être calculé indépendamment de l'interface, il va dans `
 
 - Document unique (~20 500 lignes), synchronisé avec le code : noms de fonctions (`\code{}`), liste exacte des tests, méthode de calcul de chaque p-value.
 - Sections clés : index des fonctions, « Nature des p-values et validité à T = 8 » (tableaux 1 et 2), H1-H4, M1-M6 ; bibliographie manuelle (`\label{sec:biblio}`), sans BibTeX.
-- **Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md`** (plan fixe, fiches à six rubriques, `\ref`, conservation du fond, pas de vie du dépôt, typographie).
+- **Toute modification du `.tex` respecte `docs/latex/CONVENTIONS.md`** (plan fixe, fiches à six rubriques, plus `\Pertinence` pour un test, `\ref`, conservation du fond, pas de vie du dépôt, typographie).
 - La vie du dépôt (issues, décisions, ADR, SHA) et le détail que la grille sort du document vont dans `docs/suivi-documentation/`, sous le `\label` d'origine.
 - Texte et commentaires en français ; commentaires du code R en français sans accents.
 - PDF versionné, **commité une fois par branche** (ADR 0008 amendé, M37) : chaque commit du `.tex` compile pour contrôle sans indexer le PDF.

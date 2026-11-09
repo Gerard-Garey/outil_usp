@@ -35,4 +35,4 @@ Pour chaque écart : emplacement `fichier:ligne` (ou sortie Shiny) et la command
 
 ## Fin de mission
 
-Rends, pour chaque point de contrôle : conforme ou écart, avec l'emplacement (fichier, ligne ou sortie Shiny) et un scénario reproductible. S'il y a des écarts, rédige dans ton rapport l'issue proposée (titre, libellés `bug` ou `enhancement` et `needs-triage`, corps commençant par `> *Rédigé par l'agent app-review (IA).*`), en renvoyant aux issues existantes (notamment #4, piste 4) plutôt que de les dupliquer ; création selon `CLAUDE.md`, « Git et GitHub ». Tu as terminé quand chaque point de contrôle a été appliqué.
+Rends, pour chaque point de contrôle : conforme ou écart, avec l'emplacement (fichier, ligne ou sortie Shiny) et un scénario reproductible. S'il y a des écarts, rédige dans ton rapport l'issue proposée (titre, libellés `bug` ou `enhancement` et `needs-triage`, corps commençant par `> *Rédigé par l'agent app-review (IA).*`), en renvoyant aux issues existantes plutôt que de les dupliquer ; création selon `CLAUDE.md`, « Git et GitHub ». Tu as terminé quand chaque point de contrôle a été appliqué.
