@@ -4451,11 +4451,16 @@ $\hat\sigma^2_j$ au-delà de $j = J-1$). Bloquant. \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
-Cellules sous la diagonale & aucune cellule $i + j > I$ renseignée (\code{NaN} compris), quelle que
-soit sa valeur & \textbf{Avertissement}, non bloquant, convention de l'outil sans source
+Cellules sous la diagonale & aucune cellule $i + j > I$ renseignée d'une valeur numérique,
+quelle qu'elle soit (\code{NaN} et \code{Inf} compris)~; une cellule non numérique d'un fichier
+(texte, «~\code{NA}~» et «~\code{NaN}~» compris) y est refusée avant ce contrôle par
+\code{engine\_lire\_triangle()} & \textbf{Avertissement}, non bloquant, convention de l'outil sans source
 réglementaire~: une telle cellule peut trahir des valeurs projetées saisies dans la partie non
 observée~; elle n'est ni lue par le calcul, ni restituée dans \code{res\$triangle}, ni comptée
 parmi les cellules observées (\code{.run\_engine\_mw()} la met à \code{NA} après la validation).
+Ne pas la lire découle de D(4)(c) et D(5), dont les formules ne portent que sur des cellules
+$i + j \le I$ (sommes sur $i \le I - j - 1$ ou $i \le I - j$, cumuls $C(i, I-i)$ de la
+diagonale)~; seul l'avertissement est une convention de l'outil.
 Un seul avertissement par triangle, cinq positions au plus. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
