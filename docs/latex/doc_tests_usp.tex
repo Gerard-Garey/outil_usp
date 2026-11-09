@@ -850,8 +850,11 @@ cellule vide \\
 vecteur $\pi_t$ \\
 \code{usp\_noyau()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
 $\pi_t$, $\ln\hat\beta$, $\hat\beta$, $v_t$, $z_t$, $\sigma$, objectif \\
-\code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
-$-2\ln L$ profilée en $\ln\beta$ (à une constante près) \\
+\code{usp\_objectif()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar}, \code{noyau}
+(\code{NULL}) &
+$-2\ln L$ profilée en $\ln\beta$ (à une constante près)~; \code{noyau}, fonction qui rend
+\code{usp\_noyau()} au point \code{par}, mémoïsée par \code{usp\_ajuster\_rapide()} (même
+valeur au bit près) \\
 \code{usp\_ajuster()} & $x$, $y$, \code{n\_starts\_delta} (9),
 \code{verbose}, \code{controle} (paramètres d'\code{optim()}, par défaut
 \code{factr = 1e2}, \code{maxit = 500}~; gradient analytique \code{usp\_gradient\_optim()}
@@ -862,11 +865,14 @@ convergence multi-démarrages (démarrages à l'optimum à
 (\code{\$kkt\_au\_moins\_un}, avant-dernier champ) et, sur le même ensemble, présence d'au moins
 un démarrage de $\gamma$ sur une borne (\code{\$gamma\_bord\_au\_moins\_un}, dernier champ,
 \code{usp\_gamma\_bord()}) \\
-\code{usp\_gradient()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} &
+\code{usp\_gradient()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar}, \code{k} (sortie
+d'\code{usp\_noyau()} au même point, calculée par défaut) &
 gradient analytique $(g_\delta, g_\gamma)$ de l'objectif profilé \\
-\code{usp\_gradient\_optim()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar} &
+\code{usp\_gradient\_optim()} & \code{par} $=(\delta,\gamma)$, $x$, $y$, \code{xbar},
+\code{noyau} (\code{NULL}) &
 \code{usp\_gradient()} sous la forme attendue par l'argument \code{gr} d'\code{optim()}~;
-gradient nul là où l'objectif rend sa pénalité $10^{12}$ \\
+gradient nul là où l'objectif rend sa pénalité $10^{12}$~; \code{noyau} comme pour
+\code{usp\_objectif()} \\
 \code{usp\_grad\_ln\_sigma()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar} & gradient
 analytique de $\ln\sigma$ en $(\delta, \gamma)$, $\ln\beta$ en forme fermée \\
 \code{usp\_hessienne()} & $\delta$, $\gamma$, $x$, $y$, \code{xbar}, \code{h} ($10^{-4}$) &
@@ -905,7 +911,9 @@ seul prédicat «~$\delta$ sur une borne~» du moteur, lu par
 \code{usp\_ajuster\_rapide()} & $x$, $y$, point de départ $(\delta_0,\gamma_0)$ &
 réajustement à trois démarrages, $(\delta_0,\gamma_0)$, $(0,\gamma_0)$ et $(1,\gamma_0)$,
 objectif minimal retenu, gradient analytique, \code{factr = 1e4}, employé par
-\code{usp\_bootstrap()} \\
+\code{usp\_bootstrap()}~; dernier \code{usp\_noyau()} gardé et transmis à
+\code{usp\_objectif()} et \code{usp\_gradient\_optim()}, qu'\code{optim()} évalue au même
+point (fonction déterministe, valeurs identiques au bit près à un recalcul) \\
 \code{usp\_volumes\_}\newline\code{constants()} & $x$, \code{tol}
 (\code{TOL\_DELTA\_BORD}) & booléen~: étendue des $x_t$ au plus \code{tol} fois leur moyenne~;
 seule définition des volumes constants (section~\ref{sec:volumes-constants}), lue
@@ -1582,10 +1590,19 @@ $= \mathbb{P}(Z_k \le z_k)$ sous $\mathcal{B}(n_k, 1/2)$, calcul exact, et \code
 repère de Mack (1997), indépendant de $\alpha$)~;
 aucune ligne si aucune diagonale n'est retenue~; ne recalcule ni médiane ni étiquette
 (fiche~\ref{mw:m3caldiag}) \\
+\code{.mw\_coefs\_origine()} & cumuls $C(i,j)$ et $C(i,j+1)$ d'une colonne & table des
+coefficients (estimation, erreur type, $t$, p de Student bilatérale) de la régression pondérée
+$C(i,j+1) = a_j + b_j C(i,j)$, poids $1/C(i,j)$~: lignes à cumul manquant écartées, ajustement par
+\code{stats::lm.wfit()}, la fonction qu'appelle \code{lm()} avec poids, puis lignes de
+\code{summary.lm()} qui forment la table, transcrites (valeurs identiques au bit près à
+\code{summary(lm(C1 \textasciitilde\ C0, weights = 1/C0))}, test différentiel
+\code{tests/}\allowbreak\code{unitaires/}\allowbreak\code{test\_ordonnee\_wls.R})~; table vide au rang inférieur à deux~; aucun
+avertissement~; employée par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
+(fiche~\ref{mw:m1a}) \\
 \code{.mw\_summary\_lm()} & ajustement \code{lm()} & \code{summary()} de l'ajustement, appelé tel
 quel, sans le seul avertissement «~\code{essentially perfect fit}~» de \code{summary.lm()}, tout
-autre avertissement remontant~; employé par \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}
-(fiche~\ref{mw:m1a}) \\
+autre avertissement remontant~; sans appelant dans le moteur, gardée pour les scripts de
+\code{tests/} qui reproduisent l'ordonnée à l'origine par \code{lm()} \\
 \code{.mw\_pente\_relative()} & résidus de Mack \code{res} (\code{mw\_residus()}~: colonnes $j$,
 $C$, $F$, $\hat f_j$, $\hat\sigma_j$) & vecteur nommé ($\hat b$, $\widehat{\mathrm{se}}(\hat b)$, $t$,
 p de Student) de la régression pondérée de $F(i,j)/\hat f_j$ sur $(C(i,j) - \bar C_j)/\bar C_j$ à
@@ -1887,8 +1904,8 @@ colonnes posées par \code{.mw\_origine\_intervalles()}~: \code{niveau}, \code{q
 \code{bas}, \code{haut}, \code{exclut\_zero} et \code{plus\_petite\_p} (sec.~\ref{sec:graph-mw}) \\
 \code{.mw\_origine\_}\newline\code{intervalles()} & table \code{detail} de
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (une ligne par colonne retenue~: $j$,
-$n_j$, $\hat a_j$, $\widehat{\mathrm{se}}(\hat a_j)$, $t_j$, p de Student de \code{summary.lm()},
-$\hat b_j$, $\hat f_j$), \code{alpha} & même table, complétée en fin de table, dans cet ordre,
+$n_j$, $\hat a_j$, $\widehat{\mathrm{se}}(\hat a_j)$, $t_j$, p de Student de
+\code{.mw\_coefs\_origine()}, $\hat b_j$, $\hat f_j$), \code{alpha} & même table, complétée en fin de table, dans cet ordre,
 de \code{niveau} $= 1 - \alpha$, niveau nominal~; \code{quantile\_t} $= t_{1-\alpha/2,\,n_j-2}$
 (\code{qt()}), au nombre de degrés de liberté de la p de Student de la colonne~; \code{bas} et
 \code{haut} $= \hat a_j \mp$ \code{quantile\_t}$\,\widehat{\mathrm{se}}(\hat a_j)$, intervalle de
@@ -14425,22 +14442,28 @@ réplication sort de \code{B\_effectif}. $K$ est ainsi le nombre de p-values tra
 que si la fonction de la ligne écarte elle-même une colonne (colonne trop courte, garde
 $\mathrm{sd} = 0$ de l'exposant de variance, ensembles figés de la règle~(2)).
 
-\emph{(5) Interception de l'avertissement d'ajustement parfait.} Seule l'ordonnée à l'origine passe
-par \code{summary.lm()}, via \code{.mw\_summary\_lm()}, qui n'étouffe que l'avertissement
-«~\code{essentially perfect fit: summary may be unreliable}~», dans son libellé anglais ou traduit,
-et laisse remonter tout autre avertissement~: cet avertissement ne signale pas un défaut du calcul,
-son critère (variance résiduelle \emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle
-des valeurs ajustées) dépendant de l'unité des cumulés par la pondération $1/C(i,j)$. L'interception
-est préférée à un recalcul sans \code{summary.lm()}, dont l'égalité des valeurs n'aurait été établie
-que par mesure. La pente relative (fiche~\ref{mw:m1}), la courbure (fiche~\ref{mw:m1c}) et la ligne
+\emph{(5) Aucun avertissement d'ajustement parfait.} L'ordonnée à l'origine est estimée
+par \code{.mw\_coefs\_}\allowbreak\code{origine()}~: ajustement par \code{stats::lm.wfit()}, la fonction qu'appelle
+\code{lm()} avec poids, sur la même matrice, puis transcription des lignes de \code{summary.lm()}
+qui forment la table des coefficients (somme pondérée des carrés des résidus, variance résiduelle,
+erreurs types par le facteur~$R$ de la décomposition QR, $t$ et p de Student bilatérale)~; ses
+valeurs sont identiques au bit près à celles de \code{summary(lm(C1 \textasciitilde\ C0,
+weights = 1/C0))} (test différentiel \code{tests/unitaires/test\_ordonnee\_wls.R}, cas limites et
+triangles simulés compris). Le test d'ajustement parfait de \code{summary.lm()} et son
+avertissement «~\code{essentially perfect fit: summary may be unreliable}~» ne sont pas
+transcrits~: cet avertissement ne signale pas un défaut du calcul, son critère (variance
+résiduelle \emph{pondérée} inférieure à $10^{-30}$ fois le carré de l'échelle des valeurs ajustées)
+dépendant de l'unité des cumulés par la pondération $1/C(i,j)$. La pente relative (fiche~\ref{mw:m1}), la courbure (fiche~\ref{mw:m1c}) et la ligne
 d'hétéroscédasticité (fiche~\ref{mw:m2bp}), calculées sans \code{lm()}, n'appellent pas
 \code{summary.lm()}~; leur critère est invariant par changement d'unité des cumulés (facteurs et
 régresseur relatif sans dimension, poids $C(i,j)\hat f_j^{\,2}/\hat\sigma_j^2$ pour la pente
 relative, $\hat\sigma_j^2$ étant proportionnel à l'unité des cumulés, $\tilde r^2$ sans dimension
 pour la ligne d'hétéroscédasticité). Limite acceptée~: une colonne dont l'écart relatif dépasse à
-peine $10^{-12}$ reste soumise à \code{lm()}, dont le critère d'ajustement parfait n'est pas un
-écart relatif des facteurs et peut encore se déclencher jusqu'à un écart relatif de l'ordre de
-$10^{-11}$ sur le triangle où il a été mesuré (constat sur ce triangle, non un seuil).
+peine $10^{-12}$ reste soumise à la régression de l'ordonnée à l'origine, et le critère
+d'ajustement parfait de \code{summary.lm()}, qui n'est pas un écart relatif des facteurs, s'y
+déclencherait encore jusqu'à un écart relatif de l'ordre de $10^{-11}$ sur le triangle où il a été
+mesuré (constat sur ce triangle, non un seuil)~: la statistique d'une telle colonne est calculée
+sans signal de quasi-ajustement parfait.
 
 \emph{(6) Corrélations de rang par colonne} (homogénéité de $f_j$, fiche~\ref{mw:m1b}~; exposant de
 variance, fiche~\ref{mw:m2b}). $\hat\rho_{s,j}$ et sa p-value bilatérale $p_j$ sont tirés d'un seul
@@ -14709,9 +14732,9 @@ Statistique de Student $t_j = \hat a_j / \widehat{\mathrm{se}}(\hat a_j)$ dans
 chaque colonne (\code{mw\_test\_ordonnee\_}\allowbreak\code{origine()}), puis combinaison des $K$
 p-values par la méthode de Fisher~: $X = -2\sum_{k} \ln p_k$. Les règles communes aux
 vérifications colonne par colonne s'appliquent (section~\ref{sec:mwm1})~: colonnes dégénérées
-exclues selon l'ensemble figé, combinaison sans exclusion par \code{.fisher\_combine()}, seule
-ligne qui passe encore par \code{summary.lm()}, dont l'avertissement d'ajustement parfait est
-intercepté. Sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs égaux), la
+exclues selon l'ensemble figé, combinaison sans exclusion par \code{.fisher\_combine()},
+régression de chaque colonne par \code{.mw\_coefs\_origine()}, sans avertissement d'ajustement
+parfait (règle~(5)). Sur le triangle de contrôle rendu dégénéré en $j = 4$ (trois facteurs égaux), la
 colonne est exclue de cette seule ligne, où elle est éligible ($K = 4$ colonnes testées sur
 5 éligibles), sans avertissement~R.
 
@@ -14727,15 +14750,16 @@ dégénérées~: «~\code{Colonne a moins de deux valeurs distinctes de C(i,j)~:
 (\dots{} facteurs)~; ordonnee a l'origine non identifiable, colonne hors de la combinaison de
 Fisher~; K = \dots{} colonne(s) testee(s) sur \dots{} eligible(s). L'exclusion ne vaut pas preuve
 de proportionnalite.}~» (au pluriel pour plusieurs colonnes~; $j$, $n_j$, $K$ et le nombre
-d'éligibles de l'appel observé, §\ref{sec:graines}). Une colonne retenue dont \code{lm()} échoue
-ou rend moins de deux coefficients --- $C(i,j)$ constant dans une réplication, ou, à l'observé,
-colonne à plusieurs valeurs distinctes que le critère de rang numérique de \code{lm()} écarte ---
+d'éligibles de l'appel observé, §\ref{sec:graines}). Une colonne retenue dont la régression
+échoue ou rend moins de deux coefficients --- $C(i,j)$ constant dans une réplication, ou, à
+l'observé, colonne à plusieurs valeurs distinctes que le critère de rang numérique de
+\code{lm.wfit()}, celui de \code{lm()}, écarte ---
 rend la statistique \code{NA}, avec $K$ \code{NA}~: la réplication sort de $B$ effectif et, à
 l'observé, la ligne est non applicable (motif «~\code{statistique observee non finie}~»,
-\code{INFO})~; le prédicat ne lit pas le rang numérique de \code{lm()}, et aucune colonne n'est
+\code{INFO})~; le prédicat ne lit pas le rang numérique de la régression, et aucune colonne n'est
 écartée sans trace. Sur le triangle de contrôle dont $C(i,1)$ vaut $1\,050$ pour $i = 0$ à~$5$, la
 phrase nomme «~\code{j = 1 (6 facteurs)}~» avec «~\code{K = 4 colonne(s) testee(s) sur 5
-eligible(s)}~»~; avec six valeurs distinctes de $C(i,1)$ que \code{lm()} écarte, la ligne est non
+eligible(s)}~»~; avec six valeurs distinctes de $C(i,1)$ que ce critère de rang écarte, la ligne est non
 applicable, et la phrase des colonnes non identifiables, si elle est posée, s'arrête à
 «~\code{hors de la combinaison de Fisher.}~». \emph{Conséquence sur le graphique}~: les ordonnées
 à l'origine représentées (section~\ref{sec:graph-mw}) sont le détail par colonne de l'appel
