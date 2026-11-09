@@ -1474,10 +1474,12 @@ courbure et de l'ordonnée à l'origine \\
 \code{\$terme\_estimation} \\
 \code{mw\_sensibilite\_}\newline\code{sigma2\_dernier()} & \code{aj}, \code{ex} (sortie de
 \code{mw\_extrapolation\_}\allowbreak\code{sigma2()}) & sensibilité indicative de $\sqrt{\mathrm{MSEP}}$ à
-$\hat\sigma^2_{J-1}$~: liste qui donne l'applicabilité, la valeur de la règle et
-sa $\sqrt{\mathrm{MSEP}}$, les trois arguments du minimum et les $\sqrt{\mathrm{MSEP}}$ obtenues
+$\hat\sigma^2_{J-1}$~: liste qui donne l'applicabilité (fausse, valeurs \code{NA}, si la règle
+n'est pas applicable ou si sa $\sqrt{\mathrm{MSEP}}$ n'est pas finie et strictement positive),
+la valeur de la règle et sa $\sqrt{\mathrm{MSEP}}$, les trois arguments du minimum et les $\sqrt{\mathrm{MSEP}}$ obtenues
 en rappelant \code{mw\_msep()} avec $\hat\sigma^2_{J-1}$ et $\hat Q_{J-1}$ remplacés par
-chacun d'eux (\code{NA} pour un quotient non défini), enfin la $\sqrt{\mathrm{MSEP}}$ du
+chacun d'eux (\code{NA} pour un quotient non défini, $\hat\sigma^2_{J-3}$ nul ou colonne $J-3$
+dégénérée à la tolérance relative $10^{-12}$), enfin la $\sqrt{\mathrm{MSEP}}$ du
 contrefactuel $\sigma^2_{J-1} = 0$~; voie de recalcul, que \code{run\_engine()} n'appelle pas, la
 sensibilité ne figurant pas dans le commentaire de la ligne, sans effet sur
 $\sigma_{(\text{res},s,\mathrm{USP})}$ (fiche~\ref{mw:m6sig}) \\
@@ -7417,7 +7419,8 @@ Extrapolation de $\hat\sigma^2_{J-1}$ (diagnostic) & \emph{Aucune}~: valeur fix�
 minimum de D(5)(d)(ii), seconde ligne, et non estimée & --- & --- & --- &
 $\hat\sigma^2_{J-2}$ et $\hat\sigma^2_{J-3}$, estimées à 1 et 2 degrés de liberté sur un triangle
 $8\times 8$ &
-Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors règle, restituée par la ligne
+Rien ne converge en $T$~; sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors règle, rendue par
+\code{mw\_sensibilite\_}\allowbreak\code{sigma2\_dernier()} et non restituée par la ligne
 (triangle de contrôle~: $+13{,}5~\%$ et $+36{,}0~\%$ avec les deux autres arguments du minimum,
 $-16{,}5~\%$ pour le contrefactuel $\sigma^2_{J-1} = 0$, qui n'est pas un argument du minimum~; fiche~\ref{mw:m6sig}), sans effet sur
 $\sigma_{(\text{res},s,\mathrm{USP})}$ \\
@@ -12265,8 +12268,8 @@ $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun dépassement~; il est re
 $\alpha$. La ligne est un \emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~:
 verdict \code{INFO}, \code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}. Le commentaire
 est «~\code{Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = 0.1, nombre en
-estimation), a niveau superieur a alpha a T = 8 (valeurs critiques adequates a partir de n = 25
-selon l'auteur). Diagnostic par decision, sans verdict ni p-value retenue : la ligne "Valeur
+estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques adequates a
+partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni p-value retenue : la ligne "Valeur
 aberrante isolee (Grubbs)" fait foi.}~».
 \Usage
 Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, p.~171)~; face à l'ESD
@@ -16944,10 +16947,7 @@ seuils calibrés par simulation constituant une méthode nouvelle, sans source, 
 estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas les residus de Mack,
 contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
 studentises externes)" fait foi.}~», au seuil de l'exécution~; aucun nombre issu du
-bootstrap. La raison qu'il résume est développée ici~: valeurs critiques de l'éq.~(2.5),
-approximation de Student--Bonferroni, et domaine déclaré, valables pour un échantillon i.i.d.
-normal (rubrique~4), que les résidus de Mack, soumis à des contraintes exactes par colonne, ne
-sont pas.
+bootstrap. La raison qu'il résume est développée au Cadre et à la rubrique~4.
 \Usage
 Diagnostic sans verdict (section~\ref{sec:nature})~: la ligne est restituée \code{INFO}, et
 $\hat k$ se lit comme un repère, non comme une décision, sans rubrique~7.
@@ -17212,8 +17212,11 @@ la valeur de $\hat\sigma^2_{J-1}$ ne figure pas dans le champ \code{detail}~; el
 \code{mw\_msep()} est rappelée en remplaçant $\hat\sigma^2_{J-1}$ \emph{et} $\hat Q_{J-1} =
 \hat\sigma^2_{J-1}/\hat f^2_{J-1}$, que lit \code{mw\_msep()}, successivement par chacun des trois
 arguments du minimum, dans l'ordre du texte, puis par~$0$ (éléments \code{racine\_msep\_regle},
-\code{racine\_msep\_arguments}, \code{NA} pour un quotient non défini, et
-\code{racine\_msep\_zero})~; un écart relatif très grand à la $\sqrt{\mathrm{MSEP}}$ de la règle
+\code{racine\_msep\_arguments}, \code{NA} pour un quotient non défini, $\hat\sigma^2_{J-3}$ nul
+ou colonne $J-3$ dégénérée à la tolérance relative $10^{-12}$, et \code{racine\_msep\_zero}). La
+fonction rend \code{applicable} faux et des valeurs \code{NA} si la règle n'est pas applicable ou
+si la $\sqrt{\mathrm{MSEP}}$ de la règle n'est pas finie et strictement positive, les écarts
+relatifs n'ayant alors pas de sens. Un écart relatif très grand à la $\sqrt{\mathrm{MSEP}}$ de la règle
 signale seulement que la règle de minimum est contraignante, le quotient
 $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
 petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
