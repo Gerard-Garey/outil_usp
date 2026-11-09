@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-09
 ---
 
@@ -110,3 +110,5 @@ Les autres mentions historiques retirées sont portées par l'ADR 0007 et ses an
 ## Renvois
 
 Issue #515 ; PR #516 (branche K5) ; décisions Q-56-3, Q-56-4, Q-56-12 (feuille de route, § 5) ; avis Fable du 09/11/2026 (`docs/revues/20261109-plan-k5.md`) ; tableau et structure cible : `docs/revues/20261109-revue-claude-md/`. Voir ADR 0007 (règles Git), 0010 (workflows, règles 9 et 10), 0012 (flux GPT), 0013 et 0015 (routage).
+
+*Annotation du 9 novembre 2026, acceptation (décisions du mainteneur Q-R1 à Q-R8, `docs/revues/20261109-revue-claude-md.md`) : statut passé de `proposed` à `accepted`. Réserves du corps levées : point 1, `R/display_helpers.R` ajouté au champ `paths:` (Q-R3 (a)) ; point 3, règles du PDF dans « Documentation LaTeX » (Q-R5) ; point 6, volume d'environ 19 000 octets accepté au lieu de 16 000 (Q-R1 (a)), unité `wc -c` (Q-R6), `/doctor prompt-audit` lancé par le mainteneur sur le poste (Q-R7) ; point 7, consigne de lecture ajoutée à `regulatory.md` (Q-R4) ; point 8, skill `periode-gpt` (Q-R2 (a)) et ligne d'`AGENTS.md` insérée après la l. 18 (Q-R8). Mise en œuvre : `cf7ab2b` (`claude:`), `e94b2d1` (`docs:`) et `ab72921` (`claude:`, corrections de l'étape 1c), avec le présent commit `docs:` (retour arrière du § 10 de `docs/agents/routage.md`). Volumes mesurés sur les fichiers commités (`wc -l -c`) : `CLAUDE.md` 169 lignes, 19 357 octets (42 502 à `d5cdb51`) ; `.claude/rules/moteur.md` 30 lignes, 9 128 octets ; skill `periode-gpt` 23 lignes, 5 577 octets. Annexe A, lignes « Modèle et effort… », « Règle 9 » et « Règle 10 » : la procédure de retour arrière du § 10 de `docs/agents/routage.md` nomme aussi les efforts et modèles à l'appel portés par « Règle 9 » et « Règle 10 » (corrigé à l'étape 1c). La mesure du chargement de la règle à chemins (essais E1 à E5, `structure-cible.md` § 7) reste à faire dans une session neuve ; un échec rend son texte au socle (point 6), par une nouvelle annotation.*

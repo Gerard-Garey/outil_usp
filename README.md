@@ -43,7 +43,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     docs/exigences.md           cahier des charges
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
-    .claude/                    Claude Code : sous-agents, skills, workflows, hooks, outils
+    .claude/                    Claude Code : sous-agents, règles, skills, workflows, hooks, outils
     AGENTS.md                   consignes de ChatGPT (Codex), contributeur épisodique
     .codex/                     Codex : fiches de rôle, procédures, script de setup (R, TeX Live)
     .github/                    intégration continue, modèles d'issues et de PR
