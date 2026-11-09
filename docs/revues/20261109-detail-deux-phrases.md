@@ -20,6 +20,7 @@ Mesure de départ, sur les références : 29 lignes sur 49 en premium et 16 sur 
 | Q-4, plafond | Plafond dur de **400 caractères** sur le texte propre. Le pire cas mesuré des textes cibles est de 392. |
 | Q-5, jackknife | Les années sont citées jusqu'à 3 ; au-delà, seul leur nombre est donné. Elles restent dans `res$plots_data$influence`. |
 | Objet du texte (précision du 09/11) | « Décrire de façon concise comment utiliser le test ainsi que les tests potentiellement liés. » D'où le gabarit : phrase 1, usage et lecture de la ligne ; phrase 2, lignes liées, nommées par leur libellé affiché. La construction (formules, lois, dérivations) va dans la fiche du `.tex`. Les textes cibles de la spécification sont révisés par `actuary` selon ce gabarit. |
+| Périmètre (précision du 09/11) | La revue vaut aussi pour les commentaires du tableau « Robustesse du calibrage » (`table_robustesse()`, onglet Calibration et section 4 du rapport figé). Ce tableau affiche le `detail` des lignes des familles G (lognormale) et M6 (Merz-Wüthrich) : toutes suivent le gabarit, y compris la position de δ et le jackknife. |
 
 ## Effet attendu
 
