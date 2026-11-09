@@ -26,5 +26,3 @@ Chaque test est enregistré dans `usp_tests()` / `mw_tests()` via la fonction `a
 ## Références externes des tests
 
 `tests/unitaires/generer_valeurs_externes.R`, hors CI, recalcule les références externes écrites en dur avec lmtest, tseries, car et ChainLadder.
-
-Repère de chargement de cette règle : usp-k5-ed32521da4f9.
