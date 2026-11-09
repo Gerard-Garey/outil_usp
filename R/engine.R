@@ -1318,10 +1318,14 @@ usp_noyau <- function(delta, gamma, x, y, xbar = mean(x)) {
   )
 }
 
-usp_objectif <- function(par, x, y, xbar) {
+# noyau : NULL (defaut, usp_noyau() calcule ici) ou fonction par -> resultat
+# de usp_noyau() au point par, memoisee dans usp_ajuster_rapide() (#513) ;
+# meme appel usp_noyau(par[1], par[2], x, y, xbar), donc meme objectif au
+# bit pres.
+usp_objectif <- function(par, x, y, xbar, noyau = NULL) {
   d <- par[1]; g <- par[2]
   if (!is.finite(d) || !is.finite(g) || d < 0 || d > 1) return(1e12)
-  o <- usp_noyau(d, g, x, y, xbar)$obj
+  o <- (if (is.null(noyau)) usp_noyau(d, g, x, y, xbar) else noyau(par))$obj
   if (!is.finite(o)) 1e12 else o
 }
 
@@ -1340,8 +1344,10 @@ usp_objectif <- function(par, x, y, xbar) {
 # constants, g_delta = 0 (delta non identifie). Verifie contre la
 # difference centree de usp_noyau()$obj (tests/unitaires/
 # test_controles_numeriques.R).
-usp_gradient <- function(delta, gamma, x, y, xbar = mean(x)) {
-  k <- usp_noyau(delta, gamma, x, y, xbar)
+# k : resultat de usp_noyau(delta, gamma, x, y, xbar), calcule par defaut ;
+# fourni par usp_gradient_optim() quand l'appelant memoise le noyau (#513).
+usp_gradient <- function(delta, gamma, x, y, xbar = mean(x),
+                         k = usp_noyau(delta, gamma, x, y, xbar)) {
   e <- exp(2 * gamma)
   a <- delta + (1 - delta) * xbar / x
   s <- k$z^2 - 1 - k$z / sqrt(k$pi)
@@ -1359,10 +1365,12 @@ usp_gradient <- function(delta, gamma, x, y, xbar = mean(x)) {
 # celui de cette penalite : le chemin de l'issue #33 (erreur explicite de
 # usp_ajuster() quand l'objectif n'est fini en aucun point visite) est
 # conserve. Un gradient non fini a objectif fini fait echouer optim()
-# (erreur interceptee par try() dans les deux appelants).
-usp_gradient_optim <- function(par, x, y, xbar) {
-  g <- usp_gradient(par[1], par[2], x, y, xbar)
-  if (all(is.finite(g)) || !identical(usp_objectif(par, x, y, xbar), 1e12)) g
+# (erreur interceptee par try() dans les deux appelants). noyau : comme pour
+# usp_objectif() (NULL, ou noyau memoise de usp_ajuster_rapide(), #513).
+usp_gradient_optim <- function(par, x, y, xbar, noyau = NULL) {
+  g <- if (is.null(noyau)) usp_gradient(par[1], par[2], x, y, xbar)
+       else usp_gradient(par[1], par[2], x, y, xbar, k = noyau(par))
+  if (all(is.finite(g)) || !identical(usp_objectif(par, x, y, xbar, noyau), 1e12)) g
   else c(delta = 0, gamma = 0)
 }
 
@@ -5172,12 +5180,33 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
 # decision du mainteneur du 28/09/2026, voir usp_ajuster()). Un demarrage
 # en erreur ou a objectif non fini est ecarte ; erreur si aucun n'aboutit
 # (replication ecartee par usp_bootstrap()).
+# Memoisation du dernier usp_noyau() (#513) : optim(method = "L-BFGS-B")
+# evalue fn puis gr au meme point, et usp_objectif() et usp_gradient_optim()
+# recalculaient chacun le noyau (mesure : 3 150 appels de usp_noyau() sur
+# 50 reajustements avant, 1 535 apres). noyau() garde le dernier point
+# (identical() sur par, attributs compris) et son noyau, recalcule par le
+# meme appel usp_noyau(par[1], par[2], x, y, xbar) a tout autre point :
+# fonction deterministe, sans tirage, donc valeurs identiques au bit pres a
+# celles d'un recalcul. noyau() est definie ici et non par une fonction de
+# fabrique : trop courte, celle-ci n'est pas compilee par le JIT de R, et la
+# fonction qu'elle rendrait, interpretee, couterait autant que l'appel
+# epargne (mesure #513) ; definie dans usp_ajuster_rapide(), elle est
+# compilee avec elle des que le JIT a compile usp_ajuster_rapide() (mesure :
+# des le deuxieme appel).
 usp_ajuster_rapide <- function(x, y, d0, g0) {
   xbar <- mean(x)
+  dern_par <- NULL; dern_k <- NULL
+  noyau <- function(par) {
+    if (is.null(dern_par) || !identical(par, dern_par)) {
+      dern_k <<- usp_noyau(par[1], par[2], x, y, xbar)
+      dern_par <<- par
+    }
+    dern_k
+  }
   best <- NULL
   for (d_dep in c(d0, 0, 1)) {
     f <- try(stats::optim(c(d_dep, g0), usp_objectif, gr = usp_gradient_optim,
-                          x = x, y = y, xbar = xbar,
+                          x = x, y = y, xbar = xbar, noyau = noyau,
                           method = "L-BFGS-B",
                           lower = c(0, BORNES_GAMMA[1]), upper = c(1, BORNES_GAMMA[2]),
                           control = list(factr = 1e4, maxit = 200)), silent = TRUE)
@@ -10704,14 +10733,15 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 # donnees reelles : ces cas sont des garde-fous numeriques. Le moteur detecte
 # la degenerescence lui-meme avant tout appel a lm() : une colonne degeneree
 # n'est jamais soumise a lm() ni a summary.lm().
-# Une colonne a peine au-dessus du seuil reste soumise a lm() (ordonnee a
-# l'origine ; la courbure est calculee sans lm() depuis #253), dont le critere
-# "essentially perfect fit" de summary.lm() n'est pas relatif (variance
-# residuelle ponderee, rss/ddl, comparee a 1e-30 fois le carre des valeurs
-# ajustees non ponderees) : avec la ponderation 1/C(i,j) de l'ordonnee a
-# l'origine, il depend de l'unite des cumules. Cet
-# avertissement, et lui seul, est intercepte par .mw_summary_lm() (#203,
-# ci-dessous) ; le calcul est inchange. Les colonnes exclues
+# Une colonne a peine au-dessus du seuil reste soumise a la regression
+# ponderee de l'ordonnee a l'origine (la courbure est calculee sans lm()
+# depuis #253). Le critere "essentially perfect fit" de summary.lm() n'y est
+# pas relatif (variance residuelle ponderee, rss/ddl, comparee a 1e-30 fois
+# le carre des valeurs ajustees non ponderees) : avec la ponderation 1/C(i,j)
+# de l'ordonnee a l'origine, il depend de l'unite des cumules. Cet
+# avertissement, et lui seul, etait intercepte par .mw_summary_lm() (#203,
+# ci-dessous) ; depuis #513, .mw_coefs_origine() ne transcrit pas ce
+# critere et n'emet aucun avertissement, valeurs inchangees. Les colonnes exclues
 # sont rendues a part (element "exclues", data.frame j, n_facteurs ; element
 # "eligibles", nombre de colonnes eligibles), sans ligne ni colonne nouvelle
 # dans le tableau "detail" ; mw_tests() les restitue dans le libelle de la
@@ -10739,6 +10769,13 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 # remonte (tests/unitaires/test_merz_wuthrich.R).
 # L'ajustement m est force avant l'installation du gestionnaire : les
 # avertissements de lm() ne transitent pas par lui.
+# Depuis #513, le moteur ne l'appelle plus : mw_test_ordonnee_origine() lit
+# la table des coefficients de .mw_coefs_origine() (lm.wfit() et transcription
+# de summary.lm(), valeurs identiques au bit pres, mesure #513). Conservee
+# pour les scripts de tests qui rejouent le calcul d'avant #273 ou #289
+# (tests/unitaires/test_origine_non_identifiable.R,
+# tests/calibration_mc_mw_t8.R) et pour son test (#203,
+# tests/unitaires/test_merz_wuthrich.R).
 .mw_summary_lm <- function(m) {
   force(m)
   msg <- "essentially perfect fit: summary may be unreliable"
@@ -10749,8 +10786,14 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
       invokeRestart("muffleWarning")
   })
 }
+# data.frame(j, n_facteurs) vide, construit une fois au chargement (#513) et
+# rendu par .mw_exclues_vide() et .mw_table_non_identifiables() a chaque
+# replication du bootstrap : meme objet que data.frame(j = integer(0),
+# n_facteurs = integer(0)) (identical()) ; R copie a l'ecriture
+# (.mw_exclure()), la constante n'est jamais modifiee.
+.MW_DF_VIDE_J_N <- data.frame(j = integer(0), n_facteurs = integer(0))
 .mw_exclues_vide <- function()
-  list(colonnes = data.frame(j = integer(0), n_facteurs = integer(0)), eligibles = 0L)
+  list(colonnes = .MW_DF_VIDE_J_N, eligibles = 0L)
 .mw_exclure <- function(ex, j, n) {
   ex$colonnes[nrow(ex$colonnes) + 1L, ] <- list(as.integer(j), as.integer(n))
   ex$eligibles <- ex$eligibles + 1L
@@ -10874,7 +10917,53 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
   if (length(jn))
     structure(list(j = as.integer(jn), n_facteurs = as.integer(I - jn)),
               row.names = seq_along(jn), class = "data.frame") else
-    data.frame(j = integer(0), n_facteurs = integer(0))
+    .MW_DF_VIDE_J_N
+}
+
+# Table des coefficients (Estimate, Std. Error, t value, Pr(>|t|)) de la
+# regression ponderee C1 = a + b C0, poids 1/C0, de mw_test_ordonnee_origine()
+# (#513). Remplace summary(lm(C1 ~ C0, weights = 1 / C0)) (par
+# .mw_summary_lm(), #203), dont la surcharge (model.frame(), terms, objets)
+# faisait environ un quart de la duree d'une replication du bootstrap de
+# reserve2 (profilage Rprof de #513). Memes calculs, dans le meme ordre :
+#   - lignes a C0 ou C1 manquant (NA, NaN) ecartees, comme na.omit() dans
+#     lm() (une ligne a poids 1/C0 manquant a C0 manquant) ;
+#   - stats::lm.wfit(), la fonction qu'appelle lm() avec poids, sur la meme
+#     matrice cbind(1, C0) que model.matrix(), avec ses tolerance et
+#     controles (poids negatifs, entrees non finies, aucune ligne : erreur) ;
+#   - lignes de summary.lm() qui forment la table : rss = somme(w r^2) sur
+#     les poids et residus de lm.wfit(), variance residuelle rss / ddl,
+#     erreurs-types par chol2inv() du facteur R, coefficients lus dans
+#     l'ordre du pivot, t et p de Student bilaterale.
+# Rang < 2 (C0 constant, ou colinearite numerique) : table a moins de deux
+# lignes (summary.lm() la rend d'une ligne au rang 1 et vide au rang 0 ;
+# l'appelant ne lit que nrow() < 2, ici une table vide dans les deux cas).
+# Non transcrit : le test "essentially perfect fit" de summary.lm(), dont
+# l'avertissement etait de toute facon intercepte par .mw_summary_lm()
+# (#203), et les grandeurs non lues (R^2, F, residus ponderes). Resultat :
+# valeurs identiques au bit pres a celles de summary.lm() (mesure #513,
+# tests/unitaires/test_ordonnee_wls.R, contre l'ancienne implementation par
+# lm()), aucun avertissement emis, erreurs dans les memes cas (texte et
+# appel de l'erreur seuls differents, interceptes par try() dans
+# l'appelant).
+.mw_coefs_origine <- function(C0, C1) {
+  ok <- !is.na(C0) & !is.na(C1)
+  if (!all(ok)) { C0 <- C0[ok]; C1 <- C1[ok] }
+  w <- 1 / C0
+  z <- stats::lm.wfit(cbind(`(Intercept)` = 1, C0 = C0), C1, w)
+  p <- z$rank
+  if (p < 2L) return(matrix(0, 0L, 4L))
+  rdf <- z$df.residual
+  rss <- sum(z$weights * z$residuals^2)
+  resvar <- rss / rdf
+  p1 <- 1L:p
+  Qr <- z$qr
+  R <- chol2inv(Qr$qr[p1, p1, drop = FALSE])
+  se <- sqrt(diag(R) * resvar)
+  est <- z$coefficients[Qr$pivot[p1]]
+  tval <- est / se
+  cbind(Estimate = est, `Std. Error` = se, `t value` = tval,
+        `Pr(>|t|)` = 2 * stats::pt(abs(tval), rdf, lower.tail = FALSE))
 }
 
 # (a) Nullite de l'ordonnee a l'origine, colonne par colonne.
@@ -10903,7 +10992,8 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
     if (length(idx) < 3) next                    # 2 parametres + 1 ddl minimum
     # Colonne degeneree (issue #56) : t_j = a_j / se(a_j) vaut 0/0, statistique
     # non definie ; colonne de l'ensemble fige exclue, colonne retenue mais
-    # degeneree -> statistique NA, AVANT tout appel a lm().
+    # degeneree -> statistique NA, AVANT toute regression
+    # (.mw_coefs_origine(), lm() avant #513).
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
     # Colonne non identifiable de l'ensemble fige (#273) : ecartee, comptee
@@ -10913,16 +11003,17 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
     if (j %in% jni) next
     if (.mw_colonne_degeneree(aj, j)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
-    m <- try(.mw_summary_lm(stats::lm(C1 ~ C0, weights = 1 / C0)), silent = TRUE)
+    m <- try(.mw_coefs_origine(C0, C1), silent = TRUE)
     # Plus aucune exclusion silencieuse (#273, second volet de #56) : une
-    # colonne retenue dont lm() echoue ou rend moins de deux coefficients
+    # colonne retenue dont la regression (.mw_coefs_origine(), lm() avant
+    # #513) echoue ou rend moins de deux coefficients
     # (C(i,j) constant dans une replication, ou rang numerique deficient a
     # l'observe, option (A)) rend la statistique NA, K = NA ; la replication
     # sort de B effectif, au lieu d'une statistique a une colonne de moins.
-    if (inherits(m, "try-error") || nrow(m$coefficients) < 2) return(na_stat())
+    if (inherits(m, "try-error") || nrow(m) < 2) return(na_stat())
     blocs[[length(blocs) + 1L]] <- list(
-      j = j, n = length(idx), a = m$coefficients[1, 1], se_a = m$coefficients[1, 2],
-      t = m$coefficients[1, 3], p = m$coefficients[1, 4], b = m$coefficients[2, 1],
+      j = j, n = length(idx), a = m[1, 1], se_a = m[1, 2],
+      t = m[1, 3], p = m[1, 4], b = m[2, 1],
       f_cl = aj$f[j + 1])
   }
   det <- .mw_empiler(blocs)
@@ -13546,6 +13637,10 @@ mw_influence <- function(aj) {
 # n_j, t, p, non_borne des cellules retenues ; NULL si la statistique n'est
 # pas calculee).
 MW_NJ_MIN_CELLULE <- 4L
+# data.frame(i, j) vide de l'element non_borne, construit une fois au
+# chargement (#513) : meme objet que data.frame(i = integer(0), j =
+# integer(0)) (identical()).
+.MW_DF_VIDE_I_J <- data.frame(i = integer(0), j = integer(0))
 mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) {
   jd <- .mw_j_exclues(aj, j_degeneres)
   inf <- mw_influence(aj)
@@ -13556,9 +13651,8 @@ mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) 
   }
   nj <- stats::ave(inf$j, inf$j, FUN = length)
   k <- nj >= MW_NJ_MIN_CELLULE & !(inf$j %in% jd)
-  vide_nb <- data.frame(i = integer(0), j = integer(0))
   na <- list(stat = NA_real_, p = NA_real_, N_t = sum(k), i = NA_integer_, j = NA_integer_,
-             n_j = NA_integer_, t = NA_real_, non_borne = vide_nb, cellules = NULL)
+             n_j = NA_integer_, t = NA_real_, non_borne = .MW_DF_VIDE_I_J, cellules = NULL)
   if (!any(k)) return(na)
   nb <- inf$dfbetas_non_borne[k]
   tk <- t[k]; njk <- nj[k]; ik <- inf$i[k]; jk <- inf$j[k]

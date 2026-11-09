@@ -45,6 +45,7 @@ test_regressions_qr.R	15.2
 test_nature_p_non_simulee.R	14
 test_chargement_moteur.R	13
 test_statistiques.R	12
+test_ordonnee_wls.R	12.0
 test_sans_repli_p_non_simulee.R	11.7
 test_regimes_p_exactes.R	11.1
 test_mc_nom.R	10.6
