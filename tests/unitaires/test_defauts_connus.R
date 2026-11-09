@@ -331,8 +331,11 @@ verifier("Revue PR #57 (issue #31) : delta = 1 - tau/2, centrage et variance nom
            else if (!grepl("a pi_t constant a TOL_DELTA_BORD pres seulement", dc, fixed = TRUE) ||
                     !grepl("sans information sur la convergence", dc, fixed = TRUE))
              paste("centrage, tolerance non nommee :", dc)
-           else if (!grepl("pi_t n'etant constant qu'a TOL_DELTA_BORD pres", dv, fixed = TRUE) ||
-                    !grepl("a un ecart d'ordre (1 - delta) pres", dv, fixed = TRUE))
+           # Constat C1 d'actuary (fin de branche K1) : ordre (1 - delta), ou
+           # de l'etendue relative des volumes.
+           else if (!grepl("a pi_t constant a TOL_DELTA_BORD pres seulement", dv, fixed = TRUE) ||
+                    !grepl("a un ecart d'ordre (1 - delta), ou de l'etendue relative des volumes, pres",
+                           dv, fixed = TRUE))
              paste("variance :", dv)
            else TRUE
          })
@@ -426,8 +429,8 @@ verifier("usp_tests : toute ligne type != 'test' sort INFO, sens, p_retenue et n
 NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
 detail_esd_attendu <- function(alpha, positions)
   sprintf(paste("Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = %g, nombre en",
-                "estimation), a niveau superieur a alpha a T = 8 (valeurs critiques adequates a",
-                "partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
+                "estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques",
+                "adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
                 "p-value retenue : la ligne \"Valeur aberrante isolee (Grubbs)\" fait foi."), alpha)
 y_esd <- y; y_esd[c(3, 6)] <- y_esd[c(3, 6)] * 2.5
 fit_esd <- usp_ajuster(x, y_esd)

@@ -286,6 +286,25 @@ verifier_detail(ut514(force514(x514, y514, 1 - 5e-7)),
 xb514 <- x514[1] * (1 + c(0, 1, 2, 3, 2, 1, 0, 1) * 1e-7)
 verifier_detail(ut514(force514(xb514, y514, 0.4)),
                 "S3 bande de tolerance (etendue relative des volumes)")
+# Constat C1 d'actuary (fin de branche K1) : dans la bande due aux volumes,
+# a delta = 0, l'ecart de la variance unitaire est de l'ordre de l'etendue
+# relative des volumes, non de (1 - delta) = 1 ; le texte nomme les deux.
+xv514 <- 100 * (1 + c(-2, 2, -2, 2, -2, 2, -2, 2) * 1e-7)
+t_bv <- ut514(force514(xv514, y514, 0))
+verifier_detail(t_bv, "S3 bande de tolerance (volumes 100 (1 +- 2e-7), delta = 0)")
+verifier("A4 C1 : variance unitaire dans la bande (volumes, delta = 0 ; 1 - delta) : ordre (1 - delta) ou etendue relative des volumes ; texte sans la reserve a pi_t exactement constant",
+         {
+           var514 <- "Variance unitaire des residus standardises"
+           reserve <- "a un ecart d'ordre (1 - delta), ou de l'etendue relative des volumes, pres."
+           dv <- function(tt) Filter(function(l) identical(l$test, var514), tt)[[1]]$detail
+           rg <- usp_regime(0, xv514)
+           isTRUE(rg$pi_constant) && !isTRUE(rg$pi_constant_exact) &&
+             grepl("a pi_t constant a TOL_DELTA_BORD pres seulement", dv(t_bv), fixed = TRUE) &&
+             grepl(reserve, dv(t_bv), fixed = TRUE) &&
+             grepl(reserve, dv(ut514(force514(x514, y514, 1 - 5e-7))), fixed = TRUE) &&
+             !grepl("etendue relative", dv(ut514(f_d1)), fixed = TRUE) &&
+             !grepl("TOL_DELTA_BORD", dv(ut514(f_d1)), fixed = TRUE)
+         })
 verifier_detail(ut514(force514(x514, y514, 0.4)), "S4 delta interieur, pi_t variable")
 verifier_detail(ut514(force514(x514, y514, 0)), "S5 delta au bord, pi_t variable")
 verifier_detail(ut514(force514(rep(110, 8), y514, 0)), "S1 volumes constants")

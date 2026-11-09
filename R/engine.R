@@ -4336,10 +4336,13 @@ MENTION_VOLUMES_CONSTANTS <- paste(
 MENTION_EDGEWORTH <- paste(
   "T > 9 : cor.test() ne fournit plus la loi exacte de permutation (developpement",
   "d'Edgeworth), la p exacte n'est donc pas attribuee.")
-# M22 : test de Pitman, permutations aleatoires (T > T_MAX_ENUM_PERMUTATION).
-MENTION_PERMUTATIONS_ALEATOIRES <- paste(
-  "T > 9 : les T! appariements ne sont plus enumeres, la p-value est celle de B",
-  "permutations aleatoires (Monte-Carlo, p = (1 + k)/(B + 1)) et non une p exacte.")
+# M22 : test de Pitman, permutations aleatoires (T > T_MAX_ENUM_PERMUTATION) ;
+# seuil construit depuis la constante, que la branche qui pose la mention
+# teste (revue finale de K1, constat 3 d'audit).
+MENTION_PERMUTATIONS_ALEATOIRES <- sprintf(paste(
+  "T > %d : les T! appariements ne sont plus enumeres, la p-value est celle de B",
+  "permutations aleatoires (Monte-Carlo, p = (1 + k)/(B + 1)) et non une p exacte."),
+  T_MAX_ENUM_PERMUTATION)
 
 # Jonction de deux textes de detail (#264) : fonction unique, appelee par
 # add() (regle R1, restitution d'effectifs, plancher Monte-Carlo, phrase de
@@ -5648,10 +5651,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     if (isTRUE(pi_constant)) cst
     else paste0(variable, ", exacte a pi_t constant seulement (regle R7)")
 
-  # Disponibilite de la p Monte-Carlo de la statistique nm. Depuis #514, le
-  # detail ne nomme plus la p retenue (le renvoi a nature_p sort, Q-6) ni
-  # l'indisponibilite de la p Monte-Carlo (dite par le prefixe d'add()).
-  mc_dispo <- function(nm) is.finite(boot$p_mc[[nm]])
+  # Disponibilite de la p Monte-Carlo : mc_dispo(), definie plus haut (une
+  # seule definition, gardee contre une cle absente de boot$p_mc ; revue de
+  # code de fin de branche K1). Depuis #514, le detail ne nomme plus la p
+  # retenue (le renvoi a nature_p sort, Q-6) ni l'indisponibilite de la p
+  # Monte-Carlo (dite par le prefixe d'add()).
   # Diagnostics poses par usp_tests() (type = "diagnostic" passe a add(),
   # qui en pose le prefixe de motif Monte-Carlo, #358) : regle R15 (#303,
   # diagnostic par regle) et diagnostics par decision de #302
@@ -6313,8 +6317,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # Koenker ci-dessus." est retiree (avis d'actuary du 20/10/2026) : la
       # ligne Koenker porte seule le verdict de H2.
       detail = detail_vol(detail_diag("BP79", paste(
-        "Version publiee du test de Breusch-Pagan, non robuste (sur-rejette si les",
-        "erreurs ne sont pas normales), pour comparaison."), raison_h2)))
+        "Version publiee du test de Breusch-Pagan, non robuste (sur-rejette sous des",
+        "erreurs a queues plus lourdes que la normale), pour comparaison."), raison_h2)))
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
@@ -6792,12 +6796,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                 "qu'a un ecart de cet ordre pres, sans information sur la convergence.")
         else paste("a pi_t constant, moyenne(z) = 0 par construction et la valeur affichee",
                    "n'est que du bruit d'arrondi, sans information sur l'ajustement."),
-        variance = sprintf(paste(
+        # Dans la bande, la reserve nomme les deux origines de la quasi-
+        # constance de pi_t : delta proche de 1, ou volumes d'etendue relative
+        # faible (constat C1 d'actuary, fin de branche K1 : la bande est
+        # atteinte a delta = 0 par des volumes 100 (1 +- 2e-7), ou "ordre
+        # (1 - delta)" seul vaudrait 1).
+        variance = if (bande)
+          sprintf(paste(
+            "a pi_t constant a TOL_DELTA_BORD pres seulement, un ecart de var(z) a T/(T-1)",
+            "signale une convergence imparfaite en gamma, ou gamma bloque sur une borne de",
+            "son domaine %s, a un ecart d'ordre (1 - delta), ou de l'etendue relative des",
+            "volumes, pres."), dom_gamma)
+        else sprintf(paste(
           "a pi_t constant, un ecart de var(z) a T/(T-1) signale une convergence",
-          "imparfaite en gamma, ou gamma bloque sur une borne de son domaine %s%s."),
-          dom_gamma,
-          if (bande) paste(" (a un ecart d'ordre (1 - delta) pres, pi_t n'etant constant",
-                           "qu'a TOL_DELTA_BORD pres)") else ""),
+          "imparfaite en gamma, ou gamma bloque sur une borne de son domaine %s."),
+          dom_gamma),
         stop("contrainte() : grandeur inconnue : ", quoi))
     else
       switch(quoi,
@@ -6897,8 +6910,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "nb de valeurs aberrantes", estim = ro$nb_outliers,
       detail = sprintf(paste(
         "Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = %g, nombre en",
-        "estimation), a niveau superieur a alpha a T = 8 (valeurs critiques adequates a",
-        "partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
+        "estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques",
+        "adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
         "p-value retenue : la ligne \"Valeur aberrante isolee (Grubbs)\" fait foi."), alpha))
   # Distance de Cook et leviers de y = beta x (#153) : x et y mis a l'echelle
   # exacte (.usp_echelle_exacte()), D_t et h_t etant invariants par x -> a x,
@@ -7234,13 +7247,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68",
         type = "diagnostic",
         estim_nom = "largeur / sigma_USP", estim = fit$largeur_ic_restreint,
-        # Texte de #514 (specification finale d'actuary, G3) ;
-        # n_echec_restreint et le cadre d'Andrews (moyenne contrainte) sont
-        # dans la fiche.
-        detail = paste("Incertitude conditionnelle a la structure de variance retenue (delta",
-                       "fixe a delta estime, res$ic_bootstrap_restreint), a couverture",
-                       "inferieure au niveau nominal a T = 8, bootstrap au bord non justifie",
-                       "pour delta (Andrews, 2000). A lire avec \"Largeur relative de l'IC",
+        # Texte de #514 (specification finale d'actuary, G3), corrige en fin
+        # de branche K1 (constat C2 d'actuary, decision du mainteneur du
+        # 09/11/2026 : Andrews garde, portee de Q-D2-Fn-5 bis) ;
+        # n_echec_restreint est dans la fiche.
+        detail = paste("Incertitude conditionnelle a delta fixe a delta estime",
+                       "(res$ic_bootstrap_restreint), a couverture inferieure au niveau",
+                       "nominal a T = 8 en simulation, bootstrap au bord non convergent pour",
+                       "une moyenne contrainte (Andrews, 2000), sans transposition demontree a",
+                       "delta ni effet etabli sur sigma. A lire avec \"Largeur relative de l'IC",
                        "bootstrap 90%\" et \"Position de delta dans [0,1]\"."))
   if (!is.null(lr_delta)) {
     # #182 : la lecture de p_mc n'est ecrite que si p_mc existe (borne par
@@ -12745,12 +12760,14 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       stat_nom = "W", stat = sw$stat,
       loi = "loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack",
       p_as = sw_p_loi_nulle(sw$stat, n),
-      # Texte de #514 (specification finale d'actuary).
+      # Texte de #514 (specification finale d'actuary), portee du constat
+      # de simulation retablie en fin de branche K1 (constat C4 d'actuary).
       detail = paste("Diagnostic sans verdict : la normalite n'est pas exigee par le modele",
                      "(D(2)(h) : deux premiers moments), et la loi de W, celle d'un",
-                     "echantillon i.i.d. normal, rejette trop souvent sur des residus de Mack",
-                     "(simulation), p-value utile seulement pour un quantile de la MSEP. A",
-                     "lire avec \"Lilliefors sur les residus de Mack\"."))
+                     "echantillon i.i.d. normal, rejette plus souvent que le seuil nominal",
+                     "sur des residus de Mack a erreurs gaussiennes (simulation sous un",
+                     "plan), p-value utile seulement pour un quantile de la MSEP. A lire",
+                     "avec \"Lilliefors sur les residus de Mack\"."))
   D <- stat_lilliefors(r)
   add(fam, "Lilliefors sur les residus de Mack",
       fonction = "stat_lilliefors",
@@ -12762,10 +12779,12 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire
       # (#245) : sans effet sur une ligne sans verdict.
       p_as = lillie_p(D, n),
-      # Texte de #514 (specification finale d'actuary).
+      # Texte de #514 (specification finale d'actuary), portee du constat
+      # de simulation retablie en fin de branche K1 (constat C4 d'actuary).
       detail = paste("Diagnostic sans verdict : approximation de Dallal et Wilkinson etablie",
-                     "pour un echantillon i.i.d. normal, qui rejette trop souvent sur des",
-                     "residus de Mack (simulation), p-value pour information. A lire avec",
+                     "pour un echantillon i.i.d. normal, qui rejette plus souvent que le",
+                     "seuil nominal sur des residus de Mack a erreurs gaussiennes (simulation",
+                     "sous un plan), p-value pour information. A lire avec",
                      "\"Shapiro-Wilk sur les residus de Mack\"."))
 
   ## --- M6 : robustesse de l'estimation --------------------------------------

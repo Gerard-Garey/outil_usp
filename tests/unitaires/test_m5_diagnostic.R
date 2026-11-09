@@ -72,17 +72,21 @@ verifier("T245-3 Lilliefors : p_asymptotique = lillie_p(D, n) = 0,4569697 ; vari
                                     "non sous le modele de Mack"))
          })
 
-# Textes de #514 (specification finale d'actuary, M5 : usage, lignes liees).
+# Textes de #514 (specification finale d'actuary, M5 : usage, lignes liees),
+# portee du constat de simulation retablie en fin de branche K1 (constat C4
+# d'actuary).
 DETAIL_SW <- paste(
   "Diagnostic sans verdict : la normalite n'est pas exigee par le modele",
   "(D(2)(h) : deux premiers moments), et la loi de W, celle d'un",
-  "echantillon i.i.d. normal, rejette trop souvent sur des residus de Mack",
-  "(simulation), p-value utile seulement pour un quantile de la MSEP. A",
-  "lire avec \"Lilliefors sur les residus de Mack\".")
+  "echantillon i.i.d. normal, rejette plus souvent que le seuil nominal",
+  "sur des residus de Mack a erreurs gaussiennes (simulation sous un",
+  "plan), p-value utile seulement pour un quantile de la MSEP. A lire",
+  "avec \"Lilliefors sur les residus de Mack\".")
 DETAIL_LI <- paste(
   "Diagnostic sans verdict : approximation de Dallal et Wilkinson etablie",
-  "pour un echantillon i.i.d. normal, qui rejette trop souvent sur des",
-  "residus de Mack (simulation), p-value pour information. A lire avec",
+  "pour un echantillon i.i.d. normal, qui rejette plus souvent que le",
+  "seuil nominal sur des residus de Mack a erreurs gaussiennes (simulation",
+  "sous un plan), p-value pour information. A lire avec",
   "\"Shapiro-Wilk sur les residus de Mack\".")
 sans_renvois <- function(x) gsub("D\\(2\\)\\(h\\)", "", x)
 verifier("T245-4 Shapiro-Wilk : detail = phrase fixe du point 4, ASCII, sans nombre hors renvois",

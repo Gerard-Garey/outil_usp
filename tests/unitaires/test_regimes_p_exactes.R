@@ -800,8 +800,8 @@ verifier("#299 : details propres conserves avant la phrase fixe (BP79, Smirnov, 
            sm <- ligne(tt, NOM_DIAG_299[["Smirnov"]])$detail
            st8 <- ligne(t8, NOM_DIAG_299[["SpearTps"]])$detail
            stb <- ligne(tb, NOM_DIAG_299[["SpearTps"]])$detail
-           identical(b79, paste("Version publiee du test de Breusch-Pagan, non robuste (sur-rejette si",
-                                "les erreurs ne sont pas normales), pour comparaison.",
+           identical(b79, paste("Version publiee du test de Breusch-Pagan, non robuste (sur-rejette sous",
+                                "des erreurs a queues plus lourdes que la normale), pour comparaison.",
                                 TXT_H2_299)) &&
              identical(sm, paste(BASE_299[["Smirnov"]], TXT_DIAG_299[["Smirnov"]])) &&
              identical(st8, paste(MENTION_PI_VARIABLE_DIAG, BASE_299[["SpearTps"]], TXT_DIAG_299[["SpearTps"]])) &&

@@ -37,11 +37,15 @@ DETAIL_IC <- paste0("Incertitude d'estimation du parametre retenu (percentile a 
                     "relative de l'IC bootstrap 90% (delta fixe a delta estime)\" et \"Sensibilite ",
                     "au retrait d'une annee (jackknife)\".")
 REF_IC <- "Efron (1979), Ann. Statist. 7 ; Davison et Hinkley (1997), sections 5.2 et 5.3"
-DETAIL_IC_R <- paste0("Incertitude conditionnelle a la structure de variance retenue (delta fixe a ",
-                      "delta estime, res$ic_bootstrap_restreint), a couverture inferieure au niveau ",
-                      "nominal a T = 8, bootstrap au bord non justifie pour delta (Andrews, 2000). A ",
-                      "lire avec \"Largeur relative de l'IC bootstrap 90%\" et \"Position de delta ",
-                      "dans [0,1]\".")
+# Texte de l'IC restreint corrige en fin de branche K1 (constat C2 d'actuary,
+# decision du mainteneur du 09/11/2026 : Andrews garde, portee de
+# Q-D2-Fn-5 bis).
+DETAIL_IC_R <- paste0("Incertitude conditionnelle a delta fixe a delta estime ",
+                      "(res$ic_bootstrap_restreint), a couverture inferieure au niveau nominal a ",
+                      "T = 8 en simulation, bootstrap au bord non convergent pour une moyenne ",
+                      "contrainte (Andrews, 2000), sans transposition demontree a delta ni effet ",
+                      "etabli sur sigma. A lire avec \"Largeur relative de l'IC bootstrap 90%\" et ",
+                      "\"Position de delta dans [0,1]\".")
 # Quantile de type 7 en clair : h = 1 + (n - 1) p, interpolation entre les
 # statistiques d'ordre floor(h) et floor(h) + 1.
 q7 <- function(v, p) {
