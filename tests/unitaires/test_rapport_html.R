@@ -407,13 +407,16 @@ if (png_ok)
 res_r1 <- run_engine(xt = xt, yt = yt, methode = "reserve1", segment = 1, annexe = "II",
                      B = 99)
 diag_c <- "diagnostics compl\u00e9mentaires"
+# F. et M4 : hors hypotheses de l'annexe XVII, sans le mot "diagnostic"
+# (texte fixe par actuary, issue #509).
+hors_h <- "hors hypoth\u00e8ses de l'annexe XVII"
 ref_attendue <- function(pt) c(
   H1 = paste0("annexe XVII, ", pt, "(i)"),   H2 = paste0("annexe XVII, ", pt, "(ii)"),
   H3 = paste0("annexe XVII, ", pt, "(iii)"), H4 = paste0("annexe XVII, ", pt, "(iv)"),
-  STAB = diag_c, ROB = diag_c, LC = diag_c)
+  STAB = hors_h, ROB = diag_c, LC = diag_c)
 # LC : ligne globale de lecture conjointe (#297), groupe place en dernier.
 ref_mw <- c(M1 = "annexe XVII, D(2)(h)(iii)", M2 = "annexe XVII, D(2)(h)(iv)",
-            M3 = "annexe XVII, D(2)(h)(i) et (ii)", M4 = diag_c,
+            M3 = "annexe XVII, D(2)(h)(i) et (ii)", M4 = hors_h,
             M5 = "hors annexe XVII, D(2)(h)", M6 = diag_c, LC = diag_c)
 # Reference affichee par groupe, dans l'ordre de cles_groupes() (premiere
 # famille du groupe, comme app.R et rapport_html()).
@@ -447,6 +450,10 @@ verifier("Citation affichee, Merz-Wuthrich : M1 a M6 inchanges (egaux a GROUPES$
          identical(refs_groupes(res_mw), ref_mw) &&
            identical(unname(ref_mw), unname(vapply(GROUPES[c(paste0("M", 1:6), "LC")],
                                                    function(g) g$ref, character(1)))))
+verifier("GROUPES : ref de F. et de M4 = hors hypotheses de l'annexe XVII, sans le mot diagnostic (#509)",
+         identical(GROUPES[["F."]]$ref, hors_h) && identical(GROUPES[["M4"]]$ref, hors_h) &&
+           !any(grepl("diagnostic", c(GROUPES[["F."]]$ref, GROUPES[["M4"]]$ref),
+                      ignore.case = TRUE)))
 verifier("Rapport fige : citations de la methode appliquee seulement (premium B(2)(g), reserve1 C(2)(e))",
          {
            rp <- refs_rapport(res_ln); rr <- refs_rapport(res_r1)

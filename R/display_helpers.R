@@ -107,7 +107,7 @@ GROUPES <- list(
               ref  = "annexe XVII, B(2)(g)(iv) ; C(2)(e)(iv)"),
   "F." = list(cle = "STAB", titre = "Stabilit\u00e9, ruptures et points aberrants",
               sous = "hors hypoth\u00e8ses r\u00e9glementaires, mais conditionne leur lecture",
-              ref  = "diagnostics compl\u00e9mentaires"),
+              ref  = "hors hypoth\u00e8ses de l'annexe XVII"),
   # Les controles numeriques (condition du premier ordre, multi-demarrages)
   # ne sont plus dans la table des tests mais dans res$controles (#22).
   "G." = list(cle = "ROB", titre = "Robustesse de l'estimation",
@@ -131,7 +131,7 @@ GROUPES <- list(
               ref  = "annexe XVII, D(2)(h)(i) et (ii)"),
   "M4" = list(cle = "M4", titre = "M4 \u2014 Points aberrants et stabilit\u00e9",
               sous = "cellules atypiques du triangle",
-              ref  = "diagnostics compl\u00e9mentaires"),
+              ref  = "hors hypoth\u00e8ses de l'annexe XVII"),
   "M5" = list(cle = "M5", titre = "M5 \u2014 Normalit\u00e9 des r\u00e9sidus",
               sous = "diagnostic seulement : le mod\u00e8le ne sp\u00e9cifie que les deux premiers moments",
               ref  = "hors annexe XVII, D(2)(h)"),
@@ -159,7 +159,8 @@ citation_de <- function(famille) {
 }
 
 # Groupe d'affichage d'une famille. ref : citation lue dans la famille si elle
-# y figure (citation_de()), sinon GROUPES$ref (repli : F., G., M4 a M6).
+# y figure (citation_de()), sinon GROUPES$ref (repli : F., G., M4 a M6 et LC ;
+# F. et M4 : "hors hypotheses de l'annexe XVII", #509).
 groupe_de <- function(famille) {
   g <- GROUPES[[substr(famille, 1, 2)]]
   if (is.null(g)) g <- list(cle = "AUTRE", titre = famille, sous = "", ref = "")
