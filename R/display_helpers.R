@@ -360,7 +360,44 @@ table_synthese_groupe <- function(tb) {
         paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),
     Nature = unname(vapply(tb$nature_p, badge_nature, character(1))),
+    # Sens du test (#498) : champ sens_du_test d'engine_table_tests() (pose par
+    # add()), que la regle des verdicts de html_regle_verdicts() invoque ("le
+    # sens du test indique sur sa ligne") ; NA (ligne INFO) : tiret. Meme
+    # colonne que la vue Detail.
+    Sens = .txt(tb$sens_du_test),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
+}
+
+# Regle des verdicts de l'onglet Tests et du rapport fige (#498, exigences
+# 5.3 : seuil de decision de chaque test). Les quatre phrases sont celles
+# d'engine_regle_verdicts() (moteur, texte seul), au seuil alpha du RESULTAT
+# AFFICHE (res$metadata$alpha), jamais au champ alpha du panneau : le panneau
+# peut avoir change depuis le dernier calcul. Aucun calcul ni aucune regle
+# ici, mise en forme seule (phrases echappees : elles contiennent "<" et ">").
+# NULL, donc rien d'affiche ni d'erreur : resultat absent ou refuse
+# (ok = FALSE), ou alpha absent de metadata (objet anterieur ou relu, #263).
+# Un alpha present hors du domaine du moteur leve l'erreur du moteur.
+html_regle_verdicts <- function(res) {
+  if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
+  a <- res$metadata$alpha
+  if (!(is.numeric(a) && length(a) == 1L && is.finite(a))) return(NULL)
+  ph <- .echap_html(engine_regle_verdicts(a))
+  paste0("<div class='bloc regle-verdicts'>",
+         "<div style='font-weight:600'>", ph[1], "</div>",
+         "<ul style='margin:4px 0 0 0;padding-left:20px'>",
+         paste0("<li>", ph[-1], "</li>", collapse = ""), "</ul></div>")
+}
+
+# Signal du bloc Etat (#498) : l'alpha du panneau differe de celui du dernier
+# calcul, dont dependent les verdicts affiches ; le texte invite a relancer
+# les calculs, sans rien recalculer. NULL : alpha identique, ou l'un des deux
+# n'est pas un nombre fini (champ du panneau vide ou en cours de saisie,
+# resultat sans alpha) : aucune valeur du panneau a comparer.
+texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
+  nombre <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x)
+  if (!nombre(alpha_resultat) || !nombre(alpha_panneau) || alpha_panneau == alpha_resultat)
+    return(NULL)
+  "\u03b1 du panneau diff\u00e9rent de celui du dernier calcul : relancer les calculs"
 }
 
 # Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
@@ -3107,8 +3144,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # doublerait en &amp;lt;).
     te <- tb
     te$cle <- vapply(te$famille, function(f) groupe_de(f)$cle, character(1))
+    # Regle des verdicts en tete de la section (#498), jamais dans la section 3
+    # des controles ; NULL (aucune ligne) si alpha est absent de metadata.
     ajout("<h2 id='tests-retenus'>5. Tests retenus</h2>",
           "<section id='section-tests-retenus'>",
+          html_regle_verdicts(res),
           sprintf(paste(
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
             "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",

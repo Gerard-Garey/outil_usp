@@ -1298,6 +1298,12 @@ server <- function(input, output, session) {
     lig_mc <- texte_p_mc_regime(r)
     tagList(
       div(HTML(sprintf("<b>T</b> = %d &nbsp; <b>B</b> = %d", m$T, m$B))),
+      # Seuil des verdicts du resultat affiche (#498), lu dans res$metadata,
+      # jamais dans le panneau ; signal, sans recalcul, si le champ alpha du
+      # panneau a change depuis (texte_alpha_divergent(), display_helpers.R).
+      div(HTML(sprintf("<b>alpha</b> = %s", .ou_tiret(m$alpha, .num_fr_defaut)))),
+      if (!is.null(div_alpha <- texte_alpha_divergent(m$alpha, input$alpha)))
+        div(class = "avert", style = "font-size:12px", div_alpha),
       if (!is.null(lig_mc))
         div(style = "font-size:12px", tags$b("P-values Monte-Carlo"), paste(":", lig_mc)),
       div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
@@ -1440,7 +1446,11 @@ server <- function(input, output, session) {
                 "<span style='color:#5D6D7E;font-size:11px'>INFO</span>", nb[["INFO"]])))),
           HTML(html_table(d)))
     })
-    do.call(tagList, Filter(Negate(is.null), blocs))
+    # Regle des verdicts en tete des tests (#498), au alpha du resultat
+    # affiche (html_regle_verdicts(), display_helpers.R) ; NULL si absent.
+    regle <- html_regle_verdicts(R())
+    do.call(tagList, c(if (!is.null(regle)) list(HTML(regle)),
+                       Filter(Negate(is.null), blocs)))
   })
 
   # Les onglets graphiques different selon la methode : la geometrie des

@@ -30,7 +30,10 @@
 #  pour une p-value non nulle, p = 0 rendu "0,0000", frontiere de 1e-4 sans
 #  saut (fmt_p(), #323) ; tiret pour une marge theta_equiv ou delta_equiv absente ;
 #  virgule decimale des nombres affiches (.num_fr(), fmt_*(), notes, rapport
-#  fige ; issue #236).
+#  fige ; issue #236) ; regle des verdicts (html_regle_verdicts(), alpha du
+#  resultat) en tete de la section des tests du rapport, absente de la
+#  section des controles, colonne Sens des tableaux de synthese et de detail,
+#  texte_alpha_divergent() (issue #498).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -2961,5 +2964,71 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 } else {
   cat("  note : plotly absent ; rendu plotly du QQ-plot Merz-Wuthrich non exerce (#311).\n")
 }
+
+## --- Regle des verdicts et colonne Sens (issue #498) --------------------------
+# html_regle_verdicts() met en forme les quatre phrases d'engine_regle_verdicts()
+# au alpha du RESULTAT (res$metadata$alpha) ; le rapport fige les place en tete
+# de la section des tests, jamais dans la section 3 (controles) ; la colonne
+# Sens (champ sens_du_test) figure en Synthese comme en Detail. Aucune regle
+# n'est ecrite ici : les phrases sont relues dans le moteur.
+ph498 <- engine_regle_verdicts(res_ln$metadata$alpha)
+rg498 <- html_regle_verdicts(res_ln)
+verifier("html_regle_verdicts() : les quatre phrases d'engine_regle_verdicts(alpha du resultat), echappees, dans l'ordre",
+         is.character(rg498) && length(rg498) == 1L && identical(res_ln$metadata$alpha, 0.1) &&
+         all(vapply(ph498, function(x) grepl(.echap_html(x), rg498, fixed = TRUE), logical(1))) &&
+         all(diff(vapply(ph498, function(x) regexpr(.echap_html(x), rg498, fixed = TRUE)[1], numeric(1))) > 0) &&
+         grepl("p &lt; 0,1 ;", rg498, fixed = TRUE) && !grepl("p < 0,1", rg498, fixed = TRUE))
+res_a05 <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, alpha = 0.05,
+                      nature_donnees = "brutes")
+verifier("html_regle_verdicts() : alpha lu dans le resultat (0,05), non dans la valeur par defaut",
+         identical(res_a05$metadata$alpha, 0.05) &&
+         grepl(.echap_html(engine_regle_verdicts(0.05)[1]), html_regle_verdicts(res_a05), fixed = TRUE) &&
+         grepl("α = 0,05", html_regle_verdicts(res_a05), fixed = TRUE) &&
+         !grepl("α = 0,1,", html_regle_verdicts(res_a05), fixed = TRUE))
+res_sans_alpha <- res_ln; res_sans_alpha$metadata$alpha <- NULL
+verifier("html_regle_verdicts() : NULL, sans erreur, pour NULL, un resultat refuse (ok = FALSE) et un alpha absent",
+         is.null(tryCatch(html_regle_verdicts(NULL), error = function(e) "erreur")) &&
+         is.null(tryCatch(html_regle_verdicts(res_refus), error = function(e) "erreur")) &&
+         is.null(tryCatch(html_regle_verdicts(res_sans_alpha), error = function(e) "erreur")))
+sec3_498 <- entre(h, "id='controles'", "id='parametre'")
+sec5_498 <- entre(h, "id='tests-retenus'", "id='annexe-exclus'")
+verifier("Rapport : la regle (quatre phrases) ouvre la section 5, avant la note de personnalisation et le premier groupe de tests",
+         nzchar(sec5_498) && compte(h, .echap_html(ph498[1])) == 1L &&
+         all(vapply(ph498, function(x) grepl(.echap_html(x), sec5_498, fixed = TRUE), logical(1))) &&
+         regexpr("regle-verdicts", sec5_498, fixed = TRUE) > 0 &&
+         regexpr("regle-verdicts", sec5_498, fixed = TRUE) < regexpr("class='gel'", sec5_498, fixed = TRUE) &&
+         regexpr("regle-verdicts", sec5_498, fixed = TRUE) < regexpr("class='entete-groupe'", sec5_498, fixed = TRUE))
+verifier("Rapport : aucune phrase de la regle dans la section 3 (controles et validation)",
+         nzchar(sec3_498) && !grepl("regle-verdicts", sec3_498, fixed = TRUE) &&
+         !any(vapply(ph498, function(x) grepl(.echap_html(x), sec3_498, fixed = TRUE), logical(1))))
+verifier("Rapport MW : la regle, au alpha du resultat, ouvre la section 5, absente de la section 3",
+         { s5 <- entre(hm, "id='tests-retenus'", "id='annexe-exclus'")
+           s3 <- entre(hm, "id='controles'", "id='parametre'")
+           ph <- engine_regle_verdicts(res_mw$metadata$alpha)
+           nzchar(s5) && nzchar(s3) &&
+             all(vapply(ph, function(x) grepl(.echap_html(x), s5, fixed = TRUE), logical(1))) &&
+             !any(vapply(ph, function(x) grepl(.echap_html(x), s3, fixed = TRUE), logical(1))) })
+sy498 <- table_synthese_groupe(tb); de498 <- table_detail_groupe(tb)
+i_pit <- grep("^Test de Pitman", tb$test)[1]
+verifier("table_synthese_groupe() : colonne Sens lue dans sens_du_test (echappee, tiret pour une ligne INFO), comme la vue Detail",
+         "Sens" %in% names(sy498) && identical(sy498$Sens, .txt(tb$sens_du_test)) &&
+         identical(sy498$Sens, de498$Sens) &&
+         all(sy498$Sens[tb$verdict == "INFO"] == "–") &&
+         all(sy498$Sens[tb$verdict != "INFO"] %in% c("rejeter", "ne pas rejeter")) &&
+         grepl("<th>Sens</th>", html_table(sy498), fixed = TRUE))
+verifier("Jeu par defaut : ligne Pitman en ALERTE, p retenue 0,1107 > alpha 0,1, sens rejeter affiche en Synthese et en Detail, zone ALERTE de la regle [0,1 ; 0,3[",
+         !is.na(i_pit) && identical(tb$verdict[i_pit], "ALERTE") && identical(fmt_p(tb$p_retenue[i_pit]), "0,1107") &&
+         identical(sy498$Sens[i_pit], "rejeter") && identical(de498$Sens[i_pit], "rejeter") &&
+         grepl("ALERTE si 0,1 \u2264 p < 0,3", ph498[2], fixed = TRUE))
+verifier("Rapport : la colonne Sens figure dans chaque tableau de synthese et de detail (deux fois par groupe)",
+         compte(h, "class='entete-groupe'") > 0 &&
+         compte(h, "<th>Sens</th>") == 2L * compte(h, "class='entete-groupe'"))
+verifier("texte_alpha_divergent() : texte fixe si les deux alpha sont des nombres finis differents, NULL sinon",
+         identical(texte_alpha_divergent(0.1, 0.2),
+                   "α du panneau différent de celui du dernier calcul : relancer les calculs") &&
+         is.null(texte_alpha_divergent(0.1, 0.1)) && is.null(texte_alpha_divergent(0.1, 0.10)) &&
+         is.null(texte_alpha_divergent(0.1, NA)) && is.null(texte_alpha_divergent(0.1, NULL)) &&
+         is.null(texte_alpha_divergent(NULL, 0.2)) && is.null(texte_alpha_divergent(0.1, Inf)) &&
+         is.null(texte_alpha_divergent(0.1, "0,2")))
 
 fin_fichier()

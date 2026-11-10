@@ -22,6 +22,11 @@
 #     appelee avec replier = TRUE, regle CSS du repli presente et, avec
 #     shiny, commentaire long replie et colonne Fonction dans le rendu de la
 #     vue Detail, absents de la vue Synthese ;
+#   - regle des verdicts (issue #498) : avec shiny, les quatre phrases
+#     d'engine_regle_verdicts() au alpha du resultat ouvrent le tableau des
+#     tests (Synthese et Detail), absentes du tableau des controles ; colonne
+#     Sens ; bloc Etat : alpha du resultat et signal d'un alpha du panneau
+#     different, sans recalcul ;
 #   - dimension du triangle et reinitialisation (issue #155, decision
 #     Q-R7-2 (A)) : profondeur_reinitialisation(), jeu_reinitialise(),
 #     message_reinitialisation() hors Shiny ; aucun observateur du champ T
@@ -916,6 +921,65 @@ testServer(app, {
           jo, fixed = TRUE) && identical(resultat()$metadata$seed_loi_nulle_sw, 20260901))
 })
 )---"
+  # Regle des verdicts, alpha du resultat et du panneau (issue #498) : la regle
+  # (quatre phrases d'engine_regle_verdicts(), alpha du RESULTAT) ouvre le
+  # tableau des tests, jamais celui des controles ; la colonne Sens figure en
+  # Synthese et en Detail ; le bloc Etat donne l'alpha du resultat et signale,
+  # sans recalcul, un alpha du panneau different (texte_alpha_divergent()).
+  .bloc_498 <- r"---(
+## Regle des verdicts, alpha du resultat et du panneau (issue #498)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  avant <- tryCatch(as.character(output$tests_par_hypothese$html), error = function(e) e)
+  a("avant tout calcul : onglet Tests sans regle, ni erreur autre que l'annulation du rendu (#498)",
+    inherits(avant, "shiny.silent.error"))
+  session$setInputs(go = 1)
+  ph <- engine_regle_verdicts(resultat()$metadata$alpha)
+  h <- as.character(output$tests_par_hypothese$html)
+  et <- as.character(output$etat$html)
+  a("calcul abouti au jeu par defaut, alpha 0,1 du resultat (#498)",
+    isTRUE(resultat()$ok) && identical(resultat()$metadata$alpha, 0.1))
+  pos <- vapply(ph, function(x) regexpr(.echap_html(x), h, fixed = TRUE)[1], numeric(1))
+  a("onglet Tests : les quatre phrases d'engine_regle_verdicts(alpha du resultat), dans l'ordre, avant le premier groupe (#498)",
+    all(pos > 0) && all(diff(pos) > 0) && pos[1] < regexpr("<h4", h, fixed = TRUE)[1])
+  a("onglet Tests : la regle ouvre le tableau, aucun autre element avant elle (#498)",
+    startsWith(h, "<div class='bloc regle-verdicts'>"))
+  ctr <- as.character(output$tab_controles)
+  a("tableau des controles : aucune phrase de la regle (#498)",
+    is.character(ctr) && grepl("<table", ctr, fixed = TRUE) && !grepl("regle-verdicts", ctr, fixed = TRUE) &&
+      !any(vapply(ph, function(x) grepl(.echap_html(x), ctr, fixed = TRUE), logical(1))))
+  lig_pit <- grep("Test de Pitman", regmatches(h, gregexpr("<tr>.*?</tr>", h, perl = TRUE))[[1]],
+                  fixed = TRUE, value = TRUE)
+  a("vue Synthese : colonne Sens, ligne Pitman en ALERTE (p = 0,1107) avec le sens rejeter (#498)",
+    grepl("<th>Sens</th>", h, fixed = TRUE) && length(lig_pit) == 1L &&
+      grepl("ALERTE", lig_pit, fixed = TRUE) && grepl("<td>0,1107</td>", lig_pit, fixed = TRUE) &&
+      endsWith(lig_pit, "<td>rejeter</td></tr>"))
+  session$setInputs(vue_tests = "detail")
+  hd <- as.character(output$tests_par_hypothese$html)
+  a("vue Detail : la regle en tete et la colonne Sens (#498)",
+    startsWith(hd, "<div class='bloc regle-verdicts'>") && grepl("<th>Sens</th>", hd, fixed = TRUE) &&
+      all(vapply(ph, function(x) grepl(.echap_html(x), hd, fixed = TRUE), logical(1))))
+  a("bloc Etat : alpha du resultat (0,1), aucun signal tant que le panneau est a 0,1 (#498)",
+    grepl("<b>alpha</b> = 0,1</div>", et, fixed = TRUE) && !grepl("du panneau", et, fixed = TRUE))
+  session$setInputs(alpha = 0.2)
+  et2 <- as.character(output$etat$html)
+  h2 <- as.character(output$tests_par_hypothese$html)
+  a("alpha du panneau a 0,2 : signal dans l'Etat, alpha du resultat toujours 0,1, aucun recalcul (#498)",
+    grepl("α du panneau différent de celui du dernier calcul : relancer les calculs", et2, fixed = TRUE) &&
+      grepl("<b>alpha</b> = 0,1</div>", et2, fixed = TRUE) && !grepl("<b>alpha</b> = 0,2", et2, fixed = TRUE) &&
+      identical(resultat()$metadata$alpha, 0.1))
+  a("alpha du panneau a 0,2 : la regle de l'onglet Tests reste celle du resultat (alpha 0,1), inchangee (#498)",
+    identical(h2, hd) && grepl(.echap_html(ph[1]), h2, fixed = TRUE) && !grepl("α = 0,2", h2, fixed = TRUE))
+  session$setInputs(alpha = NA_real_)
+  et3 <- as.character(output$etat$html)
+  a("champ alpha vide (NA) : ni signal ni erreur, alpha du resultat affiche (#498)",
+    grepl("<b>alpha</b> = 0,1</div>", et3, fixed = TRUE) && !grepl("du panneau", et3, fixed = TRUE))
+  session$setInputs(alpha = 0.10)
+  a("alpha du panneau revenu a 0,1 : le signal disparait (#498)",
+    !grepl("du panneau", as.character(output$etat$html), fixed = TRUE))
+})
+)---"
   # Notifications de refus (issue #226) : texte fixe d'interface, motif
   # complet dans le bandeau. showNotification() est remplace, dans
   # l'environnement d'app.R, par un releve du texte notifie : la session
@@ -1482,7 +1546,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1499,8 +1563,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 97 assertions rendues", length(.lignes) == 97L)
-  if (length(.lignes) != 97L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 109 assertions rendues", length(.lignes) == 109L)
+  if (length(.lignes) != 109L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
