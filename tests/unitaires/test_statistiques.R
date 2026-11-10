@@ -327,6 +327,30 @@ verifier("Suites (#486) : Merz-Wuthrich a deux residus de Mack -> stat NA, motif
                                       "R = 2 pour tout arrangement, loi de R degeneree (variance nulle).")) &&
              !any(is.nan(engine_table_tests(r)$statistique))
          })
+# Ligne non applicable : aucune p-value restituee (#486, ecart releve par
+# docwriter). A pi_t constant (volumes constants), runs_p_exacte() et
+# runs_p_min() rendraient 1 a n1 = n2 = 1 (loi ponctuelle R = 2) : p_exacte
+# et p_min a NA, comme a n1 = 0 ou n2 = 0, sur la ligne z et sur Runsr.
+verifier("Suites (#486) : n1 = n2 = 1 a pi_t constant -> p_exacte et p_min NA (ligne z et Runsr), comme un seul cote",
+         {
+           xc <- rep(100, 5); champs <- c("type", "p_exacte", "p_min", "p_retenue", "verdict", "inoperant")
+           f <- usp_ajuster(xc, xc * c(.62, .7, .66, .75, .85))
+           f1 <- f; f1$z <- c(-1, 0, 0, 0, 1); f0 <- f; f0$z <- c(1, 1, 1, 1, 2)
+           lz1 <- ligne_486(suppressWarnings(usp_tests(f1, boot_fictif_485(f1), methode = "premium")),
+                            NOM_RUNS_486)
+           lz0 <- ligne_486(suppressWarnings(usp_tests(f0, boot_fictif_485(f0), methode = "premium")),
+                            NOM_RUNS_486)
+           rr <- function(m) ligne_486(run_engine(xt = xc, yt = xc * m, methode = "premium", segment = 1,
+                                                  annexe = "II", nature_donnees = "brutes",
+                                                  B = 199, seed = 20260831)$tests, NOM_RUNSR_486)
+           lr1 <- rr(c(.6, .7, .7, .7, .85)); lr0 <- rr(c(.7, .7, .7, .7, .8))
+           isTRUE(usp_regime(f$delta, f$x)$pi_constant) &&
+             identical(runs_p_exacte(f1$z), 1) && identical(runs_p_min(1, 1), 1) &&
+             identical(lz1$type, "non applicable") && identical(lz1$p_exacte, NA_real_) &&
+             identical(lz1$p_min, NA_real_) && identical(lz1[champs], lz0[champs]) &&
+             identical(lr1$type, "non applicable") && identical(lr1$p_exacte, NA_real_) &&
+             identical(lr1$p_min, NA_real_) && identical(lr1[c(champs, "loi")], lr0[c(champs, "loi")])
+         })
 
 ## --- Durbin-Watson, Cox-Stuart -----------------------------------------------
 # DW = z'MAMz / z'Mz, A = D'D (D matrice des differences premieres), M

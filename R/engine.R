@@ -6815,8 +6815,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # un seul cote de la mediane represente, ou n1 = n2 = 1 (variance de R
   # nulle, #486) : statistique non definie, ligne non applicable (et non
   # INFO muet), motif de la cause rendue par test_runs().
+  # Statistique non definie (#486) : ni p exacte ni p_min, comme a n1 = 0 ou
+  # n2 = 0 ; a n1 = n2 = 1, runs_p_exacte() et runs_p_min() rendraient 1
+  # (loi ponctuelle R = 2), garde posee ici et non dans ces fonctions.
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
-  p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
+  p_ru <- if (is.finite(ru$stat)) p_ex_si_pi_constant(runs_p_exacte(z)) else NA_real_
   add(fam, "Test des suites (aleatoire des signes)",
       fonction = "test_runs",
       base = "z",
@@ -6828,7 +6831,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = loi_r7("loi combinatoire EXACTE de R", "loi combinatoire de R"),
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = p_ru, p_as = ru$p, mc_nom = "Runs",
-      p_min = runs_p_min(eff_z[["n1"]], eff_z[["n2"]]),
+      p_min = if (is.finite(ru$stat)) runs_p_min(eff_z[["n1"]], eff_z[["n2"]]) else NA_real_,
       effectifs = sprintf("n1 = %d, n2 = %d", eff_z[["n1"]], eff_z[["n2"]]),
       detail = if (is.finite(ru$stat)) detail_r7(paste(
         "Un ECHEC ou une ALERTE signale un regroupement ou une alternance des signes des",
@@ -7122,7 +7125,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #   3  : pi_t variable.
   # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
   plancher_u <- .usp_plancher_u(r)
-  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
+  # Statistique Runsr non definie (#486) : ni p exacte ni p_min, comme a
+  # n1 = 0 ou n2 = 0 sur u (a n1 = n2 = 1, la loi ponctuelle R = 2 rendrait 1).
+  p_ex_r <- if (is.finite(boot$stats_obs$Runsr))
+    usp_runsr_p_exacte(z, u, pi_constant, plancher_u) else NA_real_
   # #128 : la mention "statistique et p exacte (doublement) egales" du
   # regime 1 n'est ecrite que hors motif de degenerescence de la
   # statistique Runsr, qui ecarte aussi la p exacte dans add()
@@ -7198,7 +7204,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_ex_r, mc_nom = "Runsr",
       # Regle R15 (#303) a pi_t constant ; non applicable prioritaire.
       type = if (is.finite(boot$stats_obs$Runsr)) type_diag("Runsr", pi_constant) else "non applicable",
-      p_min = runs_p_min(eff_u[["n1"]], eff_u[["n2"]]),
+      p_min = if (is.finite(boot$stats_obs$Runsr)) runs_p_min(eff_u[["n1"]], eff_u[["n2"]]) else NA_real_,
       effectifs = sprintf("n1 = %d, n2 = %d", eff_u[["n1"]], eff_u[["n2"]]),
       detail = if (is.finite(boot$stats_obs$Runsr))
         detail_diag("Runsr", detail_runsr, phrase = txt_r15("Test des suites (aleatoire des signes)"),
