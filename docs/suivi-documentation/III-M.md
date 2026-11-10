@@ -316,7 +316,7 @@ La tête reçoit, hors plafond, trois blocs communs à plusieurs fiches de M3, q
 
 ## `mw:m3runs` — Test des suites sur les résidus de Mack (partie III, § Hypothèse M3)
 
-**Historique.** Test jusqu'à #312, p-value de Monte-Carlo retenue jusque-là ; diagnostic par décision, variante secondaire, depuis #312. Motif Monte-Carlo en tête du commentaire posé par `mw_tests()` jusqu'à #358, par `add()` depuis. Plancher d'ex æquo : #112. Motif d'absence de p_min joint par `mw_tests()`, comme sur les lignes de #299. Champ `p_min` : #115.
+**Historique.** Test jusqu'à #312, p-value de Monte-Carlo retenue jusque-là ; diagnostic par décision, variante secondaire, depuis #312. Motif Monte-Carlo en tête du commentaire posé par `mw_tests()` jusqu'à #358, par `add()` depuis. Plancher d'ex æquo : #112. Motif d'absence de p_min joint par `mw_tests()`, comme sur les lignes de #299. Champ `p_min` : #115. Statistique non définie : jusqu'à #486, le commentaire propre à la ligne était vide ; depuis #486, il porte la phrase de la cause rendue par `test_runs()` (avis amont d'`actuary` sur K3, section 4). Atteignabilité sur un triangle non mesurée.
 **Décisions.** Diagnostic par décision : Q-D1-Fm-1 du mainteneur du 23/10/2026, option (B) ; ADR 0001.
 **Mesures retirées du guide.** Cellules (iii) non reprises (choc sur l'exercice médian 0,122 contre 0,046 ; année atypique 0,050 contre 0,020 ; cellule × 4 0,026 contre 0,004 ; dernier exercice 0,046 contre 0,068 ; P3 sans rejet) et intervalles des taux sous les alternatives : `20261021-issue309-puissance-mw.md`, T2.
 

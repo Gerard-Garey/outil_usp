@@ -47,7 +47,7 @@
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
 \newcommand{\datedoc}{10~novembre 2026}
-\newcommand{\versiondoc}{3.2}
+\newcommand{\versiondoc}{3.3}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -6170,7 +6170,8 @@ l'appelant dont la p-value de Monte-Carlo manque --- lignes de la règle~R15 et 
 décision de la méthode lognormale, ligne des suites sur les résidus de Mack
 (fiche~\ref{mw:m3runs}) ---, et le type reste celui que l'appelant a passé. Les suffixes qu'\code{add()} ne pose qu'aux lignes de type test (texte de la
 règle~R1 et effectifs, mention du plancher, phrase \code{PHRASE\_VERDICT\_SENSIBLE\_MC}) ne sont pas ajoutés. \emph{Priorité}~: une ligne non
-applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane), sans la
+applicable le reste (statistique observée non finie, suites d'un seul côté de la médiane ou à
+$n_1 = n_2 = 1$), sans la
 phrase de la règle. À $\hat\pi_t$ variable, rien ne change~: ces lignes sont des tests qui
 retiennent leur p-value de Monte-Carlo. Comme pour la règle~R14, la décision est prise dans
 \code{usp\_tests()}~: \code{add()} reçoit le type sans en décider, et ne touche au commentaire
@@ -11438,7 +11439,8 @@ modale de $R$.
 \emph{Valeurs atteignables.} À $T = 8$ sans ex \ae quo, $n_1 = n_2 = 4$,
 $70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et $p \in \{1~(R = 5)~;~52/70 = 0{,}743~(R \in
 \{4, 6\})~;~16/70 = 0{,}229~(R \in \{3, 7\})~;~4/70 = 0{,}057~(R \in \{2, 8\})\}$. Le test est donc
-\emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si un seul côté de la médiane est représenté, la ligne est non applicable. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
+\emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$ ($R \equiv 2$,
+$\operatorname{Var}(R) = 0$), $Z$ n'est pas définie~: \code{stat} à \code{NA}, ligne non applicable, motif selon le cas. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
 qu'avec des ex \ae quo sur la médiane~; la loi de $R$ est alors asymétrique (à $n_1 = 3$, $n_2 = 4$,
 $35\,P(R = 2, \dots, 7) = (2, 5, 12, 9, 6, 1)$) et le doublement n'y est qu'une convention parmi
 d'autres.
@@ -12036,6 +12038,9 @@ aléatoire (regroupement ou alternance).
 $R$ et sa forme centrée réduite $Z$ (\code{test\_runs()} appliquée à $u_t$), définis à la
 fiche~\ref{fiche:suites-wald-wolfowitz}. Seuls les signes par rapport à la médiane
 interviennent~: la statistique est invariante par toute transformation croissante des $r_t$.
+Elle n'est pas définie dans les deux mêmes cas que sur $z_t$ ($n_1 = 0$ ou $n_2 = 0$~;
+$n_1 = n_2 = 1$), évalués sur $u_t$ au plancher d'ex \ae quo de la clé \code{Runsr}~: la ligne est
+alors non applicable, avec le motif de la cause, comme sur $z_t$.
 \Loi
 Loi combinatoire exacte de $R$ à $(n_1, n_2)$ fixés si les $\binom{n}{n_1}$ arrangements sont
 équiprobables, ce qui suppose les $r_t$ i.i.d.~: c'est le cas sous le modèle ajusté à
@@ -16760,7 +16765,11 @@ manque~; la règle~R1 ne s'applique pas, faute de type test, et le champ \code{p
 (forme des diagnostics par décision de la méthode lognormale, section~\ref{sec:nature}). Les
 motifs non applicables priment~: si la statistique observée n'est pas finie, ou si la p-value de
 Monte-Carlo manque pour ce motif, la ligne garde le type test et \code{add()} la rend non
-applicable. Mesuré sur le triangle de contrôle et sur son sous-triangle $5\times 5$
+applicable~; quand la statistique n'est pas définie (un seul côté de la médiane, ou
+$n_1 = n_2 = 1$, mêmes cas que pour la méthode lognormale), le commentaire porte en outre la cause rendue par
+\code{test\_runs()}, en phrase («~\code{Un seul cote de la mediane represente : loi de R non
+definie.}~» ou «~\code{Une seule valeur de chaque cote de la mediane (n1 = n2 = 1) : R = 2 pour tout
+arrangement, loi de R degeneree (variance nulle).}~»). Mesuré sur le triangle de contrôle et sur son sous-triangle $5\times 5$
 (\code{run\_engine()}, $B = 999$ et $B = 99$, graine 20260831)~: type diagnostic, variante
 secondaire, verdict \code{INFO}.
 \Hzero
