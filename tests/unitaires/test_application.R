@@ -1469,6 +1469,92 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
   })
 }
 )---"
+  # Conservation de la saisie de la grille au changement de methode (issue
+  # #497). Mesure avant correction (testServer, 10/11/2026) : x_1 = 999 puis
+  # "reserve2" puis "premium" : x_1 = 104,2 ; c_0_0 = 12345 puis "reserve1"
+  # puis "reserve2" : c_0_0 = 300. Le navigateur rend la grille apres un
+  # import ou une reinitialisation et renvoie ses champs : grille() et
+  # tri_champs() le reproduisent.
+  .bloc_497 <- r"---(
+## Saisie de la grille conservee au changement de methode (issue #497)
+d497 <- ea$DONNEES_DEFAUT; t497 <- ea$triangle_defaut(8)
+tri_champs <- function(tr) { k <- which(!is.na(tr), arr.ind = TRUE)
+  setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)) }
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(x_1 = 999, y_2 = 555)
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("series : x_1 = 999 et y_2 = 555 conserves apres premium, reserve2, premium (#497)",
+    identical(donnees()$xt[1], 999) && identical(donnees()$yt[2], 555) &&
+      identical(donnees()$xt[-1], d497$xt[-1]) && identical(donnees()$yt[-2], d497$yt[-2]) &&
+      a_val(grille_html(output), "x_1", "999") && a_val(grille_html(output), "y_2", "555"))
+  session$setInputs(methode = "reserve1")
+  a("series : x_1 = 999 conserve de premium a reserve1, sans changement de famille (#497)",
+    identical(donnees()$xt[1], 999) && a_val(grille_html(output), "x_1", "999"))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(c_0_0 = 12345)
+  session$setInputs(methode = "reserve1")
+  session$setInputs(methode = "reserve2")
+  tr <- triangle(); att <- t497; att[1, 1] <- 12345
+  a("triangle : c_0_0 = 12345 conserve apres reserve2, reserve1, reserve2, autres cellules intactes (#497)",
+    identical(tr, att) && a_val(grille_html(output), "c_0_0", "12345"))
+})
+# Champ non rendu (entree absente) : le triangle, jamais affiche dans cette
+# session, n'est pas vide au retour des series.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  t0 <- triangle()
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("triangle sans champ rendu : valeurs stockees gardees au retour aux series (#497)",
+    identical(triangle(), t0) && identical(donnees(), d497))
+})
+# Import et reinitialisation remplacent toujours la saisie : la recopie ne
+# s'execute qu'au changement de methode et relit les champs rendus apres eux.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(x_1 = 999)
+  session$setInputs(fichier_import = fichier(6)); grille(session, 6)
+  imp <- read.csv(fichier(6)$datapath)
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("series : import apres la saisie, la serie importee remplace x_1 = 999 et survit a l'aller-retour (#497)",
+    nrow(donnees()) == 6L && identical(donnees()$xt, imp$xt) && identical(donnees()$yt, imp$yt) &&
+      !a_val(grille_html(output), "x_1", "999"))
+  session$setInputs(x_1 = 888)
+  session$setInputs(reinit = 2)
+  do.call(session$setInputs, c(setNames(as.list(d497$xt), paste0("x_", 1:8)),
+                               setNames(as.list(d497$yt), paste0("y_", 1:8))))
+  session$setInputs(methode = "reserve1")
+  session$setInputs(methode = "premium")
+  a("series : Reinitialiser apres la saisie, le jeu par defaut remplace x_1 = 888 et survit a l'aller-retour (#497)",
+    identical(donnees(), d497) && a_val(grille_html(output), "x_1", "104.2"))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(c_0_0 = 12345)
+  session$setInputs(fichier_import = fichier_tri(tri10))
+  do.call(session$setInputs, tri_champs(tri10))
+  session$setInputs(methode = "premium")
+  session$setInputs(methode = "reserve2")
+  a("triangle : import apres la saisie, le triangle importe remplace c_0_0 = 12345 et survit a l'aller-retour (#497)",
+    meme_tri(triangle(), tri10) && !a_val(grille_html(output), "c_0_0", "12345"))
+  session$setInputs(c_0_0 = 777)
+  session$setInputs(reinit = 3)   # T saisi = 8 : triangle par defaut 8 x 8
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(methode = "premium")
+  session$setInputs(methode = "reserve2")
+  a("triangle : Reinitialiser apres la saisie, le triangle par defaut remplace c_0_0 = 777 et survit a l'aller-retour (#497)",
+    meme_tri(triangle(), t497) && a_val(grille_html(output), "c_0_0", "300"))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1602,7 +1688,7 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1619,8 +1705,8 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 116 assertions rendues", length(.lignes) == 116L)
-  if (length(.lignes) != 116L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 124 assertions rendues", length(.lignes) == 124L)
+  if (length(.lignes) != 124L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

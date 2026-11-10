@@ -979,6 +979,45 @@ server <- function(input, output, session) {
     m
   }
 
+  # Conservation de la saisie au changement de methode (issue #497). La grille
+  # se redessine a chaque changement de methode (le rendu depend de est_mw(),
+  # une reactive : "premium" a "reserve1" la redessine aussi) en repartant de
+  # donnees() ou de triangle(), qui ne contiennent pas les valeurs tapees : sans recopie,
+  # revenir a la methode precedente restituait les donnees d'origine, sans
+  # message, et un calcul relance portait sur elles (mesure par testServer
+  # avant correction : x_1 = 999, "reserve2" puis "premium" : x_1 = 104,2 ;
+  # c_0_0 = 12345, "reserve1" puis "reserve2" : c_0_0 = 300 ; meme perte de
+  # "premium" a "reserve1", ou est_mw() ne change pas). Au changement,
+  # les champs de la grille quittee sont recopies dans donnees() ou
+  # triangle(), comme le font deja "Ajouter une annee" et "Retirer la derniere
+  # ligne" (saisie_courante()). Recopie sans calcul. Un champ jamais rendu
+  # (entree absente) garde la valeur stockee, au lieu d'etre vide. Import et
+  # reinitialisation ecrivent donnees() ou triangle() puis redessinent la
+  # grille : ils remplacent toujours la saisie, la recopie ne s'executant
+  # qu'au changement de methode.
+  methode_grille <- reactiveVal(NULL)   # methode dont la grille est affichee
+  observeEvent(input$methode, {
+    prec <- methode_grille()
+    methode_grille(input$methode)
+    if (is.null(prec)) return()
+    if (identical(prec, "reserve2")) {
+      tri <- triangle(); T <- nrow(tri)
+      for (i in 0:(T - 1)) for (j in 0:(T - 1)) if (i + j <= T - 1) {
+        v <- input[[paste0("c_", i, "_", j)]]
+        if (!is.null(v)) tri[i + 1, j + 1] <- as.numeric(v)
+      }
+      triangle(tri)
+    } else {
+      d <- donnees()
+      for (i in seq_len(nrow(d))) {
+        vx <- input[[paste0("x_", i)]]; vy <- input[[paste0("y_", i)]]
+        if (!is.null(vx)) d$xt[i] <- as.numeric(vx)
+        if (!is.null(vy)) d$yt[i] <- as.numeric(vy)
+      }
+      donnees(d)
+    }
+  }, priority = 100)
+
   # Validation en direct : l'appel est fait au moteur, pas reimplemente ici.
   # Segment et annexe transmis comme au clic (issue #131) : l'avertissement
   # de credibilite partielle lit le bareme du segment. Segment non encore
