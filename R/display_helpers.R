@@ -435,8 +435,8 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
 # Regle de repli, STRUCTURELLE : elle ne lit que la ponctuation, jamais le sens
 # du texte (l'affichage lit les champs, jamais le detail, #129). Le texte est
 # decoupe en phrases par .fins_de_phrase() ; la PREMIERE et la DERNIERE phrase
-# ne sont jamais masquees (la mention de la regle R1 et la phrase de #244 sont
-# en fin de detail). Resume : les premieres phrases, jusqu'a la premiere fin de
+# ne sont jamais masquees (la mention de la regle R1 est en fin de detail).
+# Resume : les premieres phrases, jusqu'a la premiere fin de
 # phrase dont le resume fait au moins `seuil` caracteres (aucune borne
 # superieure : la coupe tombe toujours a une fin de phrase, jamais au milieu
 # d'une phrase ni a une longueur fixe). Suite masquee : les phrases entre ce
@@ -446,6 +446,13 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
 # moins une phrase apres le resume et avant la derniere (moins de trois phrases,
 # ou resume atteignant la derniere phrase), ou suite masquee de moins de
 # `suite_min` (100) caracteres (decision du mainteneur du 07/11/2026).
+# garder_derniere = FALSE (H0 et H1 de la vue Detail, #450 ; m1 d'app-review,
+# decision du mainteneur du 10/11/2026) : la derniere phrase n'est pas reservee
+# (la regle R1 ne concerne que le detail) ; la suite masquee va jusqu'a la fin
+# du texte (resume jusqu'a la premiere fin de phrase a `seuil` caracteres ou
+# plus, tout le reste dans le <details>, sans <br> final), sous la meme
+# condition de suite minimale ; texte entier si aucune fin de phrase n'atteint
+# `seuil` ou si la suite fait moins de `suite_min` caracteres.
 # Fin de phrase (.fins_de_phrase()) : "." suivi d'un espace puis d'une
 # majuscule, ou ";" suivi d'un espace, a profondeur nulle de parentheses et de
 # crochets (comptee depuis le debut du texte jusqu'au signe : un ";" de
@@ -466,25 +473,47 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
 # <summary>, du corps du <details> et du <br>), rendent le commentaire entier.
 # Mise en forme seule, chaque partie echappee ; NA : tiret, comme .txt(). Aussi
 # appliquee a H0 et H1 de la vue Detail (#450).
-# Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
-# moteur, toujours chargee avec lui, dernier element du detail) : sortie du
-# repli (decision du mainteneur, version d'app-review) et affichee apres lui,
-# sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
-# cellule) ; sa jonction (" " ou " ; ") est retiree, la regle ci-dessus
-# s'applique au reste, dont la derniere phrase reste donc visible avant elle.
-# Sans la phrase, rendu inchange.
+# Deux suffixes du moteur, poses apres tout le reste du detail, sortent du
+# repli et sont affiches apres lui, chacun sur sa propre ligne (<br> devant
+# lui, sauf s'il est seul dans la cellule) ; la regle ci-dessus s'applique au
+# reste, dont la derniere phrase (mention de la regle R1) reste donc visible
+# avant eux. Reconnaissance par endsWith sur la constante du moteur, jamais par
+# lecture du sens, dans l'ordre inverse de pose : (1) la phrase de sensibilite
+# du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC), toujours le dernier element ;
+# (2) le renvoi croise de #215 (USP_TXT_RENVOI_CST ou USP_TXT_RENVOI_SV, pose
+# par .usp_poser_renvois() avant la phrase de #244), en texte simple. Chaque
+# jonction (" " apres un point, " ; " sinon, .engine_joindre()) est retiree avec
+# le suffixe (.retirer_suffixe_detail()). Sans suffixe, rendu inchange.
 .ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
                        "sect", "fig", "eq", "approx", "resp", "ex")
-.commentaire_replie <- function(com, seuil = 400L, suite_min = 100L) {
+# x sans le suffixe `suf` (x finit par suf, verifie par l'appelant) et sans sa
+# jonction : " ; " si elle est presente, sinon l'espace d'apres un point.
+.retirer_suffixe_detail <- function(x, suf) {
+  d <- substr(x, 1L, nchar(x) - nchar(suf))
+  if (endsWith(d, " ; ")) substr(d, 1L, nchar(d) - 3L)
+  else if (endsWith(d, " ")) substr(d, 1L, nchar(d) - 1L)
+  else d
+}
+.commentaire_replie <- function(com, seuil = 400L, suite_min = 100L,
+                                garder_derniere = TRUE) {
   # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
   vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
-    sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
-    if (sens) {
-      x <- sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
-      pied <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
-                     .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
-    } else pied <- ""
+    # Suffixes du moteur, du dernier au premier pose ; pieds en HTML dans
+    # l'ordre d'affichage (renvoi de #215, puis phrase de #244).
+    pied244 <- renvoi <- ""
+    if (endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)) {
+      x <- .retirer_suffixe_detail(x, PHRASE_VERDICT_SENSIBLE_MC)
+      pied244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
+                        .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
+    }
+    for (rv in c(USP_TXT_RENVOI_CST, USP_TXT_RENVOI_SV)) {
+      if (endsWith(x, rv)) {
+        x <- .retirer_suffixe_detail(x, rv)
+        renvoi <- .echap_html(rv)
+        break
+      }
+    }
     corps <- if (!nzchar(x)) ""
       else if (nchar(x) <= seuil) .echap_html(x)
       else {
@@ -494,17 +523,24 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
         fin <- fin[fin < nchar(sub("[[:space:]]+$", "", x))]
         j <- which(fin >= seuil)[1L]          # fin de la derniere phrase du resume
         n <- length(fin)                      # la derniere phrase suit fin[n]
-        if (is.na(j) || j >= n) .echap_html(x)
+        if (is.na(j) || (garder_derniere && j >= n)) .echap_html(x)
         else {
           debut <- substr(x, 1L, fin[j])
-          suite <- substr(x, fin[j] + 2L, fin[n])
-          dern <- substr(x, fin[n] + 2L, nchar(x))
+          if (garder_derniere) {
+            suite <- substr(x, fin[j] + 2L, fin[n])
+            dern <- substr(x, fin[n] + 2L, nchar(x))
+          } else {
+            suite <- substr(x, fin[j] + 2L, nchar(x))
+            dern <- NULL
+          }
           if (nchar(suite) < suite_min) .echap_html(x)
           else paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
-                      .echap_html(suite), "</details><br>", .echap_html(dern))
+                      .echap_html(suite), "</details>",
+                      if (garder_derniere) paste0("<br>", .echap_html(dern)))
         }
       }
-    paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
+    elements <- c(corps, renvoi, pied244)
+    paste(elements[nzchar(elements)], collapse = "<br>")
   }, character(1), USE.NAMES = FALSE)
 }
 
@@ -542,8 +578,9 @@ LARGEURS_DETAIL <- c("Motif / commentaire" = 360L)
 # objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
 # replier = TRUE (vue Detail de l'onglet Tests, #178) : commentaire long replie
-# par .commentaire_replie() ; H0 et H1 le sont de meme (#450 : le H1 de
-# l'exposant de variance de M2 depasse 1 000 caracteres) ; FALSE (defaut,
+# par .commentaire_replie() ; H0 et H1 le sont de meme, sans reserver la
+# derniere phrase (garder_derniere = FALSE : #450, le H1 de l'exposant de
+# variance de M2 depasse 1 000 caracteres ; m1 d'app-review) ; FALSE (defaut,
 # rapport fige) : commentaire, H0 et H1 entiers, le document fige ne dependant
 # pas d'un clic pour etre lu ou imprime.
 # Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
@@ -560,8 +597,8 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                   .repere_renvoi(tb)),
     Type = .txt(type_ligne(tb)),
-    H0 = if (replier) .commentaire_replie(tb$H0) else .txt(tb$H0),
-    H1 = if (replier) .commentaire_replie(tb$H1) else .txt(tb$H1),
+    H0 = if (replier) .commentaire_replie(tb$H0, garder_derniere = FALSE) else .txt(tb$H0),
+    H1 = if (replier) .commentaire_replie(tb$H1, garder_derniere = FALSE) else .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
     `p exacte` = fmt_p(tb$p_exacte),
     `p asympt.` = fmt_p(tb$p_asymptotique),
@@ -3393,6 +3430,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       ajout("</div>")
     }
     ajout(sprintf(paste("<hr><div class='gris'>Rapport g\u00e9n\u00e9r\u00e9 le %s par",
+                      # Sens du test (#498, m3), apres Nature comme dans la
+                      # section 5 ; sans coupure de ligne (#500).
+                      .sans_coupure(.txt(ex$sens_du_test)),
                         "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
                   genere, switch(mode,
                     plotly = "interactifs (plotly, biblioth\u00e8ques int\u00e9gr\u00e9es au document)",

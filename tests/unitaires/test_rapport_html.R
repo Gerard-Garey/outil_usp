@@ -1538,16 +1538,35 @@ SEUIL_R <- eval(FM_REPLI$seuil); SUITE_R <- eval(FM_REPLI$suite_min)
 # chaque fin de phrase, remplace par la frontiere du HTML : texte relu =
 # debut + " " + suite + " " + derniere phrase.
 RE_REPLI <- "^<details class='com'><summary>(.*)</summary>(.*)</details><br>(.*)$"
-relire_com <- function(cel) {
+# Cellule replie sans derniere phrase reservee (H0 et H1, garder_derniere = FALSE) :
+# <details><summary>debut</summary>suite</details>, texte relu = debut + " " + suite.
+RE_REPLI_SD <- "^<details class='com'><summary>(.*)</summary>(.*)</details>$"
+# Renvoi de #215 : suffixe du moteur sorti du repli, en texte simple echappe,
+# sur sa propre ligne (<br> devant lui sauf s'il est seul dans la cellule),
+# avant la phrase de #244 ; relu avec la meme jonction que celle du moteur.
+RENVOIS_215 <- c(USP_TXT_RENVOI_CST, USP_TXT_RENVOI_SV)
+joindre_relu <- function(b, suf) paste0(b, if (grepl("\\.$", b)) " " else " ; ", suf)
+relire_com <- function(cel, garder_derniere = TRUE) {
   vapply(seq_along(cel), function(i) {
     x <- cel[i]
     if (identical(x, "\u2013")) return(NA_character_)
     if (identical(x, SPAN244)) return(PHRASE_VERDICT_SENSIBLE_MC)
     if (endsWith(x, PIED244)) {
-      b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)))
-      return(paste0(b, if (grepl("\\.$", b)) " " else " ; ", PHRASE_VERDICT_SENSIBLE_MC))
+      b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)), garder_derniere)
+      return(joindre_relu(b, PHRASE_VERDICT_SENSIBLE_MC))
+    }
+    for (rv in RENVOIS_215) {
+      if (identical(x, .echap_html(rv))) return(rv)
+      pied <- paste0("<br>", .echap_html(rv))
+      if (endsWith(x, pied))
+        return(joindre_relu(relire_com(substr(x, 1L, nchar(x) - nchar(pied)), garder_derniere), rv))
     }
     if (!nzchar(x)) return("")
+    if (!garder_derniere) {
+      m <- regmatches(x, regexec(RE_REPLI_SD, x))[[1]]
+      if (!length(m)) return(desechap(x))
+      return(paste(desechap(m[2]), desechap(m[3])))
+    }
     m <- regmatches(x, regexec(RE_REPLI, x))[[1]]
     if (!length(m)) return(desechap(x))
     paste(desechap(m[2]), desechap(m[3]), desechap(m[4]))
@@ -1671,24 +1690,25 @@ verifier(".commentaire_replie() : detail Kruskal a un residu par annee (309 cara
 # H0 et H1 de la vue Detail (#450) : meme repli, seulement avec replier = TRUE ;
 # le rapport fige garde H0 et H1 entiers. H1 de l'adequation de l'exposant de
 # variance de M2 : 1 216 caracteres dans reserve2, cinq phrases.
-verifier("Vue Detail : H1 (et H0) replies avec replier = TRUE selon la regle de #517, entiers dans le rapport fige (#450)",
+verifier("Vue Detail : H1 (et H0) replies avec replier = TRUE selon la regle de #517 sans derniere phrase reservee (suite masquee jusqu'a la fin du texte), entiers dans le rapport fige (#450, m1)",
          local({
            i <- which.max(nchar(tbm$H1))
            dd_r <- table_detail_groupe(tbm[i, , drop = FALSE], replier = TRUE)
            dd_p <- table_detail_groupe(tbm[i, , drop = FALSE])
-           m <- coupe_cel(dd_r$H1)
+           m <- regmatches(dd_r$H1, regexec(RE_REPLI_SD, dd_r$H1))[[1]]
            f <- .fins_de_phrase(tbm$H1[i])
            nchar(tbm$H1[i]) > 2L * SEUIL_R &&
-             length(m) == 4L &&
+             length(m) == 3L && endsWith(dd_r$H1, "</details>") &&
              # Resume : jusqu'a la premiere fin de phrase a SEUIL_R caracteres ou plus ;
-             # derniere phrase : apres la derniere fin de phrase.
+             # suite masquee : tout le reste du texte (derniere phrase comprise).
              identical(desechap(m[2]), substr(tbm$H1[i], 1L, f[f >= SEUIL_R][1L])) &&
-             identical(desechap(m[4]), substr(tbm$H1[i], max(f) + 2L, nchar(tbm$H1[i]))) &&
-             identical(relire_com(dd_r$H1), unname(tbm$H1[i])) &&
+             identical(desechap(m[3]), substr(tbm$H1[i], f[f >= SEUIL_R][1L] + 2L, nchar(tbm$H1[i]))) &&
+             nchar(desechap(m[2])) < nchar(tbm$H1[i]) / 2 &&
+             identical(relire_com(dd_r$H1, garder_derniere = FALSE), unname(tbm$H1[i])) &&
              identical(dd_p$H1, .txt(tbm$H1[i])) && !grepl("<details", dd_p$H1, fixed = TRUE) &&
-             identical(table_detail_groupe(tbm, replier = TRUE)$H0, .commentaire_replie(tbm$H0)) &&
+             identical(table_detail_groupe(tbm, replier = TRUE)$H0, .commentaire_replie(tbm$H0, garder_derniere = FALSE)) &&
              identical(table_detail_groupe(tbm)$H0, .txt(tbm$H0)) &&
-             identical(table_detail_groupe(tb, replier = TRUE)$H1, .commentaire_replie(tb$H1))
+             identical(table_detail_groupe(tb, replier = TRUE)$H1, .commentaire_replie(tb$H1, garder_derniere = FALSE))
          }))
 # Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
 # de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
@@ -1730,6 +1750,88 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
              endsWith(cr[4], paste0("</details><br>", ph[4], PIED244)) &&
              !grepl("alea de simulation", sub(PIED244, "", cr[4], fixed = TRUE), fixed = TRUE) &&
              identical(relire_com(c(cr)), c(x_long, x_court, x_seul, x_rep))
+         }))
+# Renvoi croise de #215 (USP_TXT_RENVOI_CST, USP_TXT_RENVOI_SV du moteur), pose
+# par .usp_poser_renvois() apres la mention de la regle R1 (derniere phrase du
+# detail) : sorti du repli comme la phrase de #244, affiche apres lui sur sa
+# ligne, la mention R1 restant visible (#517, constat de /code-review).
+verifier(".commentaire_replie() : renvoi de #215 apres une mention R1 en fin de texte long : mention R1 visible hors du <details>, renvoi visible sur sa ligne, aucun texte perdu (#517, #215)",
+         local({
+           h <- SEUIL_R %/% 2L
+           r1 <- "ECHEC inatteignable : p_min = 0,5 >= alpha."
+           r1b <- "ECHEC inatteignable : p_min = 0,5 >= alpha"          # sans point : jonction " ; "
+           res <- TRUE
+           for (rv in RENVOIS_215) for (fin in c(r1, r1b)) {
+             base <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R + 50L, "Trois"), if (identical(fin, r1)) fin else paste("Quatre.", fin))
+             x <- joindre_relu(base, rv)
+             cr <- .commentaire_replie(x)
+             pr <- paste0("<br>", .echap_html(rv))
+             m <- coupe_cel(substr(cr, 1L, nchar(cr) - nchar(pr)))
+             res <- res && startsWith(cr, "<details class='com'><summary>") &&
+               endsWith(cr, paste0("</details><br>", .echap_html(fin), "<br>", .echap_html(rv))) &&
+               # la mention R1 est hors du <details> ; le renvoi aussi
+               !grepl("inatteignable", sub("</details>.*$", "", cr)) &&
+               length(m) == 4L && identical(desechap(m[4]), fin) &&
+               identical(relire_com(cr), x)
+           }
+           res
+         }))
+verifier(".commentaire_replie() : renvoi de #215 suivi de la phrase de #244 : renvoi avant elle, phrase en dernier, texte relu entier ; renvoi seul, renvoi et phrase seuls, renvoi apres un texte court (#517, #215, #244)",
+         local({
+           h <- SEUIL_R %/% 2L
+           res <- TRUE
+           for (rv in RENVOIS_215) {
+             base <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R + 50L, "Trois"), "Quatre sans point final")
+             x <- joindre_relu(joindre_relu(base, rv), PHRASE_VERDICT_SENSIBLE_MC)
+             cr <- .commentaire_replie(x)
+             # Texte court (rest <= seuil) suivi du renvoi : texte entier, renvoi sur sa ligne.
+             court <- phr(SEUIL_R - 80L, "Court")
+             xc <- joindre_relu(court, rv)
+             res <- res && nchar(xc) > SEUIL_R &&
+               startsWith(cr, "<details class='com'><summary>") &&
+               endsWith(cr, paste0("</details><br>Quatre sans point final<br>", .echap_html(rv), PIED244)) &&
+               identical(relire_com(cr), x) &&
+               identical(.commentaire_replie(rv), .echap_html(rv)) &&
+               identical(.commentaire_replie(joindre_relu(rv, PHRASE_VERDICT_SENSIBLE_MC)),
+                         paste0(.echap_html(rv), PIED244)) &&
+               identical(.commentaire_replie(xc), paste0(.echap_html(court), "<br>", .echap_html(rv))) &&
+               identical(relire_com(.commentaire_replie(xc)), xc)
+           }
+           res
+         }))
+verifier(".commentaire_replie(garder_derniere = FALSE) : suite masquee jusqu'a la fin du texte, sans <br> final, meme condition de suite minimale, texte relu entier (H0 et H1, m1 d'app-review)",
+         local({
+           h <- SEUIL_R %/% 2L
+           p1 <- phr(h, "Un"); p2 <- phr(h, "Deux"); p3 <- phr(SUITE_R + 50L, "Trois"); p4 <- phr(SUITE_R, "Quatre")
+           x <- paste(p1, p2, p3, p4)
+           cr <- .commentaire_replie(x, garder_derniere = FALSE)
+           m <- regmatches(cr, regexec(RE_REPLI_SD, cr))[[1]]
+           # Deux phrases : la derniere n'est pas reservee, le repli devient possible.
+           q1 <- phr(SEUIL_R + 10L, "Un"); q2 <- phr(SUITE_R + 20L, "Deux")
+           d2 <- paste(q1, q2)
+           # Suite de moins de suite_min caracteres : texte entier ; suite_min exactement : replie.
+           c99 <- paste(phr(SEUIL_R + 10L, "Un"), phr(SUITE_R - 1L, "Deux"))
+           c100 <- paste(phr(SEUIL_R + 10L, "Un"), phr(SUITE_R, "Deux"))
+           # Aucune fin de phrase a seuil caracteres ou plus : texte entier.
+           sans <- paste(phr(100L, "Un"), phr(100L, "Deux"), phr(100L, "Trois"), phr(SEUIL_R + 200L, "Quatre"))
+           # Suffixes du moteur : sortis du repli comme avec garder_derniere = TRUE.
+           xs <- joindre_relu(joindre_relu(x, USP_TXT_RENVOI_CST), PHRASE_VERDICT_SENSIBLE_MC)
+           cs <- .commentaire_replie(xs, garder_derniere = FALSE)
+           identical(formals(.commentaire_replie)$garder_derniere, TRUE) &&
+             identical(.commentaire_replie(x), .commentaire_replie(x, garder_derniere = TRUE)) &&
+             length(m) == 3L && !grepl("<br>", cr, fixed = TRUE) && endsWith(cr, "</details>") &&
+             identical(m[2:3], c(paste(p1, p2), paste(p3, p4))) &&
+             identical(relire_com(cr, garder_derniere = FALSE), x) &&
+             identical(.commentaire_replie(d2, garder_derniere = FALSE),
+                       paste0("<details class='com'><summary>", q1, "</summary>", q2, "</details>")) &&
+             identical(.commentaire_replie(d2), d2) &&
+             identical(.commentaire_replie(c99, garder_derniere = FALSE), c99) &&
+             startsWith(.commentaire_replie(c100, garder_derniere = FALSE), "<details class='com'>") &&
+             identical(relire_com(.commentaire_replie(c100, garder_derniere = FALSE), garder_derniere = FALSE), c100) &&
+             identical(.commentaire_replie(sans, garder_derniere = FALSE), sans) &&
+             startsWith(cs, "<details class='com'><summary>") &&
+             endsWith(cs, paste0("</details><br>", .echap_html(USP_TXT_RENVOI_CST), PIED244)) &&
+             identical(relire_com(cs, garder_derniere = FALSE), xs)
          }))
 # --- Reprise de R33 (#472, #450) : robustesse, profondeur, initiales ---------
 # Resume (texte relu) d'une cellule de .commentaire_replie(), NA si non replie.
@@ -1826,28 +1928,43 @@ verifier("Six references : premiere et derniere phrase de chaque detail replie v
                brut <- tbr[[col[2]]]; cel <- dd[[col[1]]]
                for (i in which(!is.na(brut) & nzchar(trimws(brut)))) {
                  x <- brut[i]
-                 # Texte sans la phrase de #244 (affichee en pied, hors repli).
-                 x0 <- if (endsWith(x, PHRASE_VERDICT_SENSIBLE_MC))
-                         sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC))) else x
-                 corps <- if (identical(cel[i], SPAN244)) ""
-                          else if (endsWith(cel[i], PIED244)) substr(cel[i], 1L, nchar(cel[i]) - nchar(PIED244))
-                          else cel[i]
-                 ok <- ok && identical(relire_com(cel[i]), x)                       # texte complet
+                 gd <- identical(col[2], "commentaire")   # derniere phrase reservee : detail seul
+                 # Texte sans la phrase de #244 ni le renvoi de #215 (affiches en
+                 # pied, hors repli), jonctions comprises.
+                 x0 <- x; corps <- cel[i]
+                 if (endsWith(x0, PHRASE_VERDICT_SENSIBLE_MC)) {
+                   x0 <- sub("[ ;]+$", "", substr(x0, 1L, nchar(x0) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
+                   corps <- if (identical(corps, SPAN244)) "" else substr(corps, 1L, nchar(corps) - nchar(PIED244))
+                 }
+                 for (rv in RENVOIS_215) if (endsWith(x0, rv)) {
+                   x0 <- sub("[ ;]+$", "", substr(x0, 1L, nchar(x0) - nchar(rv)))
+                   pr <- paste0("<br>", .echap_html(rv))
+                   corps <- if (identical(corps, .echap_html(rv))) "" else substr(corps, 1L, nchar(corps) - nchar(pr))
+                 }
+                 ok <- ok && identical(relire_com(cel[i], garder_derniere = gd), x)  # texte complet
                  if (nchar(x0) <= SEUIL_R) { ok <- ok && !grepl("<details", cel[i], fixed = TRUE); next }
                  f <- .fins_de_phrase(x0)
                  if (!startsWith(corps, "<details class='com'>")) next              # long mais entier : rien de masque
-                 m <- regmatches(corps, regexec(RE_REPLI, corps))[[1]]
-                 resume <- desechap(m[2]); suite <- desechap(m[3]); dern <- desechap(m[4])
-                 premiere <- substr(x0, 1L, f[1]); derniere <- substr(x0, max(f) + 2L, nchar(x0))
                  n_repli <- n_repli + 1L; nom_repli <- c(nom_repli, paste(cas, col[2], i))
+                 premiere <- substr(x0, 1L, f[1])
+                 if (gd) {
+                   m <- regmatches(corps, regexec(RE_REPLI, corps))[[1]]
+                   resume <- desechap(m[2]); suite <- desechap(m[3]); dern <- desechap(m[4])
+                   derniere <- substr(x0, max(f) + 2L, nchar(x0))
+                   ok <- ok &&
+                     identical(dern, derniere) && nzchar(dern) &&                   # derniere phrase hors du <details>
+                     !endsWith(suite, derniere) &&
+                     identical(paste(resume, suite, dern), x0)
+                 } else {
+                   m <- regmatches(corps, regexec(RE_REPLI_SD, corps))[[1]]
+                   resume <- desechap(m[2]); suite <- desechap(m[3])
+                   ok <- ok && identical(paste(resume, suite), x0)                  # suite jusqu'a la fin du texte
+                 }
                  ok <- ok &&
                    startsWith(resume, premiere) &&                                  # premiere phrase dans le resume
-                   identical(dern, derniere) && nzchar(dern) &&                     # derniere phrase hors du <details>
-                   !endsWith(suite, derniere) &&
                    nchar(resume) >= SEUIL_R && (nchar(resume) %in% f) &&            # coupe a une fin de phrase...
                    grepl("[.;]$", resume) &&
-                   substr(x0, nchar(resume) + 1L, nchar(resume) + 1L) == " " &&     # ... suivie d'un espace
-                   identical(paste(resume, suite, dern), x0)
+                   substr(x0, nchar(resume) + 1L, nchar(resume) + 1L) == " "        # ... suivie d'un espace
                }
              }
            }
