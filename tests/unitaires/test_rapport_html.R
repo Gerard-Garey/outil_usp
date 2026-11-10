@@ -3449,4 +3449,14 @@ verifier("table_robustesse() : estimation entiere d'un nom de NOMS_ENTIERS sans 
                      paste0(r$nom_estimation, " = ", fmt_nb(r$estimation, 6)))
          }, NA)))
 
+# Pied de page du rapport fige : une seule occurrence, intact ("le <date> par
+# <code>rapport_html()</code>"), en lognormale et en Merz-Wuthrich (revue legere
+# de 946d69d : une insertion parasite dans le paste() du pied de page le
+# repetait une fois par test exclu, ou le supprimait sans test exclu).
+verifier("Rapport : pied de page unique et intact (lognormale et Merz-Wuthrich)",
+         all(vapply(list(h, hm), function(x)
+           compte(x, "Rapport g\u00e9n\u00e9r\u00e9 le") == 1L &&
+             grepl("par <code>rapport_html()</code> (R/display_helpers.R) ; graphiques :", x, fixed = TRUE),
+           NA)))
+
 fin_fichier()

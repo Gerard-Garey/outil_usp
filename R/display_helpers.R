@@ -3430,9 +3430,6 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       ajout("</div>")
     }
     ajout(sprintf(paste("<hr><div class='gris'>Rapport g\u00e9n\u00e9r\u00e9 le %s par",
-                      # Sens du test (#498, m3), apres Nature comme dans la
-                      # section 5 ; sans coupure de ligne (#500).
-                      .sans_coupure(.txt(ex$sens_du_test)),
                         "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
                   genere, switch(mode,
                     plotly = "interactifs (plotly, biblioth\u00e8ques int\u00e9gr\u00e9es au document)",
