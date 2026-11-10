@@ -7566,9 +7566,17 @@ engine_lire_donnees_csv <- function(df) {
 # cellule vide vaut NA (partie non observee) ; une cellule non vide et non
 # numerique est refusee, jamais lue comme NA. Les colonnes facteur sont
 # converties par leurs valeurs.
-# Renvoie list(ok, erreurs, avertissements, triangle, I, J).
+# Renvoie list(ok, erreurs, avertissements, avertissements_lecture, triangle,
+# I, J). avertissements : ceux de mw_valider_triangle(), appele sans segment
+# ni annexe (credibilite au bareme court par convention, repere I + 1 < 10) ;
+# a ne pas restituer comme ceux du segment choisi. avertissements_lecture
+# (issue #518) : sous-ensemble propre au fichier lu, que la validation d'une
+# saisie restreinte a i + j <= I ne peut pas voir, soit le seul motif des
+# cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
+# character(0) pour un refus ou un triangle sans telle cellule.
 engine_lire_triangle <- function(df) {
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
+                            avertissements_lecture = character(0),
                             triangle = NULL, I = NA, J = NA)
   if (is.matrix(df)) df <- as.data.frame(df, stringsAsFactors = FALSE)
   if (!is.data.frame(df) || !nrow(df) || !ncol(df))
@@ -7615,6 +7623,7 @@ engine_lire_triangle <- function(df) {
   storage.mode(m) <- "double"
   v <- mw_valider_triangle(m)
   list(ok = v$ok, erreurs = v$erreurs, avertissements = v$avertissements,
+       avertissements_lecture = if (v$ok) .mw_avert_sous_diagonale(m) else character(0),
        triangle = if (v$ok) m else NULL, I = v$I, J = v$J)
 }
 
@@ -8910,6 +8919,36 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     explicitement plutot que traite par convention implicite.
 ## =============================================================================
 
+# Cellules renseignees sous la diagonale (issue #491, decision du mainteneur
+# du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I renseignee (non NA,
+# NaN compris : is.na(NaN) vaut TRUE) est signalee par un avertissement non
+# bloquant, quelle que soit sa valeur (une valeur negative, nulle ou non
+# finie n'y est pas refusee : les controles de cellule de
+# mw_valider_triangle() ne lisent que i + j <= I). Elle peut trahir des
+# projections saisies dans la partie non observee. .run_engine_mw() la met a
+# NA avant le calcul (triangle restitue et decompte des cellules observees
+# restreints a i + j <= I). Un seul motif par triangle, qui cite au plus 5
+# positions (ordre i puis j), comme les motifs de cellules de
+# engine_lire_triangle(). Partage par mw_valider_triangle(), qui l'appelle
+# sur un triangle recevable, et par engine_lire_triangle() (issue #518) :
+# un meme texte dans les deux champs. Renvoie character(0) ou le motif.
+.mw_avert_sous_diagonale <- function(tri) {
+  I <- nrow(tri) - 1L
+  sous <- which((!is.na(tri) | is.nan(tri)) & (row(tri) + col(tri) - 2L > I),
+                arr.ind = TRUE)
+  if (!nrow(sous)) return(character(0))
+  sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
+  k <- utils::head(sous, 5)
+  sprintf(paste(
+    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
+    "de la partie observee du triangle, ces cellules ne sont ni lues par le",
+    "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
+    "observees ;",
+    "verifier qu'il ne s'agit pas de valeurs projetees."),
+    paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+    if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else "")
+}
+
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
 # bareme / segment / annexe (issue #131) : bareme de credibilite applique,
 # resolu comme dans run_engine() (.engine_credibilite_appliquee()) ; une
@@ -9112,31 +9151,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                   error = function(e) conditionMessage(e))
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
-    # Cellules renseignees sous la diagonale (issue #491, decision du
-    # mainteneur du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I
-    # renseignee (non NA, NaN compris : is.na(NaN) vaut TRUE) est signalee par
-    # un avertissement non bloquant, quelle que soit sa valeur (une valeur
-    # negative, nulle ou non finie n'y est pas refusee :
-    # les controles de cellule ci-dessus ne lisent que i + j <= I). Elle peut
-    # trahir des projections saisies dans la partie non observee.
-    # .run_engine_mw() la met a NA avant le calcul (triangle restitue et
-    # decompte des cellules observees restreints a i + j <= I). Un seul motif
-    # par triangle, qui cite au plus 5 positions (ordre i puis j), comme les
-    # motifs de cellules de engine_lire_triangle().
-    sous <- which((!is.na(tri) | is.nan(tri)) & (row(tri) + col(tri) - 2L > I),
-                  arr.ind = TRUE)
-    if (nrow(sous)) {
-      sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
-      k <- utils::head(sous, 5)
-      avt <- c(avt, sprintf(paste(
-        "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
-        "de la partie observee du triangle, ces cellules ne sont ni lues par le",
-        "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
-        "observees ;",
-        "verifier qu'il ne s'agit pas de valeurs projetees."),
-        paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
-        if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else ""))
-    }
+    # Cellules renseignees sous la diagonale (issue #491) : avertissement de
+    # .mw_avert_sous_diagonale(), seul avertissement propre au fichier lu,
+    # repris par engine_lire_triangle() (champ avertissements_lecture, #518).
+    avt <- c(avt, .mw_avert_sous_diagonale(tri))
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
     # de developpement est PROPORTIONNELLE au montant cumule de la precedente,

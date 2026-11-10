@@ -1653,6 +1653,40 @@ verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle(
            !r1$ok && contient(r1$erreurs, "(i=1, j=2)") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
              !engine_lire_triangle(data.frame())$ok && !engine_lire_triangle(list(a = 1))$ok
          })
+# Issue #518 : avertissements_lecture, sous-ensemble des avertissements propre
+# au fichier lu (cellules renseignees sous la diagonale, #491), seul restitue
+# par l'application au statut de demarrage et d'import ; le champ
+# avertissements, calcule sans segment, reste inchange.
+sous518 <- function(m) { m[nrow(m), 2] <- 1000; m[nrow(m) - 1L, 3:4] <- c(-3, NaN); m }
+verifier("engine_lire_triangle : avertissements_lecture vide sans cellule sous la diagonale (8 x 8 et 10 x 10), avertissements inchanges (#518)",
+         {
+           r8 <- engine_lire_triangle(fichier_tri(triangle(8)))
+           r10 <- engine_lire_triangle(fichier_tri(triangle(10)))
+           isTRUE(r8$ok) && identical(r8$avertissements_lecture, character(0)) &&
+             identical(r8$avertissements, mw_valider_triangle(triangle(8))$avertissements) &&
+             length(r8$avertissements) == 2L && contient(r8$avertissements, "credibilite partielle") &&
+             isTRUE(r10$ok) && identical(r10$avertissements_lecture, character(0)) &&
+             identical(r10$avertissements, mw_valider_triangle(triangle(10))$avertissements)
+         })
+verifier("engine_lire_triangle : avertissements_lecture = le seul motif des cellules sous la diagonale (8 x 8 et 10 x 10), meme texte que mw_valider_triangle() avec ou sans segment (#518)",
+         all(vapply(c(8L, 10L), function(n) {
+           m <- sous518(triangle(n))
+           r <- engine_lire_triangle(fichier_tri(m))
+           av_seg <- mw_valider_triangle(m, segment = 1)$avertissements
+           sd <- grep("sous la diagonale", r$avertissements, fixed = TRUE, value = TRUE)
+           isTRUE(r$ok) && length(r$avertissements_lecture) == 1L && identical(r$avertissements_lecture, sd) &&
+             identical(r$avertissements_lecture, grep("sous la diagonale", av_seg, fixed = TRUE, value = TRUE)) &&
+             contient(r$avertissements_lecture, sprintf("(i=%d, j=2), (i=%d, j=3), (i=%d, j=1) :", n - 2L, n - 2L, n - 1L)) &&
+             !contient(r$avertissements_lecture, "credibilite") && !contient(r$avertissements_lecture, "bruites") &&
+             identical(r$avertissements, mw_valider_triangle(m)$avertissements)
+         }, logical(1))))
+verifier("engine_lire_triangle : avertissements_lecture vide sur un refus, meme a cellules sous la diagonale (#518)",
+         {
+           d <- fichier_tri(sous518(triangle(8))); d$j2[2] <- NA
+           r <- engine_lire_triangle(d)
+           !r$ok && identical(r$avertissements_lecture, character(0)) &&
+             identical(engine_lire_triangle(data.frame())$avertissements_lecture, character(0))
+         })
 
 ## --- Lignes et colonnes vides des fichiers lus (#483) -------------------------
 # Regle commune aux series et au triangle, posee par
