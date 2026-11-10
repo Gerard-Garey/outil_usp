@@ -5961,7 +5961,11 @@ quatre règles, chacune en un seul endroit et chacune dite dans le commentaire d
 six vérifications de la méthode Merz--Wüthrich, tableau~\ref{tab:pmin}~;
 \code{NA} pour une loi continue)~; si $p_{\min} \ge \alpha$, aucune valeur
 observée ne peut donner $p < \alpha$, et la ligne est restituée en diagnostic, sans verdict, ses
-p-values restant affichées, son commentaire préfixé «~\code{TEST INOPERANT}~» et son champ
+p-values restant affichées, son commentaire préfixé «~\code{TEST INOPERANT}~» (sans p-value
+exacte, si la p-value de Monte-Carlo manque, le motif lu au bootstrap suit cette phrase sous la
+forme «~\code{Monte-Carlo indisponible : <motif>.}~» du point~(ii), que la ligne aurait portée
+hors de la règle, de sorte que la restitution d'une même absence ne dépend pas de la bascule~;
+avec une p-value exacte, retenue, aucun motif n'est joint) et son champ
 \code{inoperant} à \code{TRUE}, seul repère lu par l'affichage et par les tests, à
 \code{FALSE} sur toute autre ligne, ligne~R3 et ligne sans aucune p-value comprises~; si $\alpha/2 \le p_{\min} < \alpha$ pour un test en sens « ne pas
 rejeter », la ligne reste un test et son commentaire dit que l'\code{ECHEC} est inatteignable.
@@ -9914,7 +9918,9 @@ $\alpha = 0{,}29$ et à $T = 12$, $\alpha = 0{,}10$~: test, \code{INFO}, \code{p
 manquante, \code{inoperant} faux). Si $p_{\min} \ge \alpha$, la règle~R1 la classe inopérante
 avant (au seuil par défaut, toujours pour $T \le 11$), le commentaire affichant $m$ et $n_p$ (jeu
 de contrôle modifié pour que $r_5 = r_1$~: $m = 3$, $K = 1$, p exacte~1, \code{p\_mc} \code{NA}
-avec ce motif). Sur le jeu de contrôle ($n_p = 4$), $K = 2$, au centre~: p-value exacte et p-value
+avec ce motif, non imprimé, la p-value exacte étant retenue)~; sans p-value exacte ($\hat\pi_t$
+variable, ou $m = 0$, où $K$ n'est pas défini), le motif suit la phrase «~\code{TEST INOPERANT}~»
+(point~(i) de la même section~; mesuré à $m = 0$, volumes constants, \code{run\_engine()}). Sur le jeu de contrôle ($n_p = 4$), $K = 2$, au centre~: p-value exacte et p-value
 de Monte-Carlo valent~1, l'erreur de Monte-Carlo affichée nulle signifiant une erreur inférieure à
 la granularité, non une absence d'erreur (section~\ref{sec:deuxerreurs}).
 \Usage
@@ -16514,7 +16520,9 @@ des lois entre lignes ne l'implique pas, et une seule réalisation par cellule n
 tester directement. La ligne réagit à une année atypique, et aussi à une dérive de $f_j$ avec
 l'année (fiche~\ref{mw:m1b}, rubrique~6), compatible avec la lettre de D(2)(h)(iii) mais non avec
 la formalisation de l'outil. $H_1$ (libellé de la ligne)~: au moins une année de survenance se
-comporte différemment.
+comporte différemment. Avec un seul résidu par année (rubrique~4), aucune hypothèse n'est testée~:
+$H_0$ est libellée «~\code{sans objet : un residu de Mack par annee de survenance, H = N - 1 par
+construction}~» et $H_1$ «~\code{sans objet}~».
 \Stat
 $H$ de Kruskal--Wallis, sur $k-1$ degrés de liberté où $k$ est le nombre
 d'années de survenance comportant au moins un résidu.
@@ -16530,10 +16538,12 @@ libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code
 phrase de ce cas et aux lignes liées, après le motif Monte-Carlo (suivis, le cas échéant, des
 phrases du retirage des triangles simulés), le dit~: $H$ n'y mesure rien, et la ligne ne teste ni
 l'homogénéité des résidus entre années de survenance ni l'indépendance de D(2)(h)(i).
-Chaque réplication de même géométrie donnant la même valeur, la loi simulée est de dispersion
-nulle~: la ligne est un diagnostic \code{INFO}, sans p-value retenue (section~\ref{sec:nature}). Mesuré sur le
+La ligne est donc posée en diagnostic par \code{mw\_tests()}, sans p-value retenue ni verdict
+(\code{INFO}), parce que $H$ y est une identité et non une statistique~; chaque réplication de même
+géométrie donnant en outre la même valeur, la loi simulée est de dispersion nulle, motif qui ouvre
+le commentaire (section~\ref{sec:nature}). Mesuré par \code{run\_engine()} sur le
 triangle \code{col0\_1e11} de la section~\ref{sec:controles} ($N = 7$)~: $H = 6$, type
-diagnostic, \code{INFO}.
+diagnostic, \code{INFO}, $H_0$ et $H_1$ «~sans objet~».
 
 \emph{Loi de référence combinatoire et p-value minimale.} Sous les affectations
 équiprobables des rangs $1, \ldots, N$ aux $k$ groupes de tailles $n_i$ (loi de référence de
