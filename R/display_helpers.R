@@ -102,11 +102,13 @@ NOMS_ENTIERS <- c("S", "K", "S de Kendall", "Z observe", "nb de suites", "nb de 
                   "nb de cellules declarees (repere de Rosner)", "nb de valeurs aberrantes",
                   "rang de l'obs. extreme", "rang du ratio extreme",
                   "nombre de tests", "nombre de tests de la famille")
-# v : vecteur ; nom : vecteur de meme longueur que v, ou de longueur 1 (recycle).
-fmt_grandeur <- function(v, nom)
+# v : vecteur ; nom : vecteur de meme longueur que v, ou de longueur 1 (recycle) ;
+# d : decimales des valeurs non entieres ou hors liste (4 en Synthese et en
+# Detail, 6 au tableau de robustesse).
+fmt_grandeur <- function(v, nom, d = 4)
   ifelse(rep_len(nom %in% NOMS_ENTIERS, length(v)) & is.finite(v) &
            abs(v - round(v)) <= 1e-9 * pmax(1, abs(v)),
-         .num_fr(round(v), "%.0f"), fmt_nb(v))
+         .num_fr(round(v), "%.0f"), fmt_nb(v, d))
 # Cellule qui ne se coupe pas en fin de ligne (#500) : "ne pas rejeter" tenait
 # sur deux lignes dans la colonne Sens des vues Synthese.
 .sans_coupure <- function(x) paste0("<span style='white-space:nowrap'>", x, "</span>")
@@ -568,7 +570,7 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     # Granularite effective (#285) : meme format que les deux colonnes
     # precedentes.
     "granularit\u00e9 MC" = ifelse(is.finite(gr), .num_fr(gr, "%.3g"), "\u2013"),
-    Sens = .txt(tb$sens_du_test),
+    Sens = .sans_coupure(.txt(tb$sens_du_test)),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
     Fonction = ifelse(is.na(fon), "\u2013", paste0("<code>", .txt(fon), "</code>")),
@@ -2524,7 +2526,7 @@ table_robustesse <- function(tb) {
     return(data.frame(Diagnostic = "Aucun diagnostic de robustesse disponible.",
                       stringsAsFactors = FALSE))
   data.frame(Diagnostic = tb$test,
-             Estimation = paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation, 6)),
+             Estimation = paste0(tb$nom_estimation, " = ", fmt_grandeur(tb$estimation, tb$nom_estimation, 6)),
              Verdict = tb$verdict, Commentaire = tb$commentaire,
              stringsAsFactors = FALSE, row.names = NULL)
 }

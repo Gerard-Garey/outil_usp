@@ -3045,18 +3045,18 @@ verifier("Rapport MW : la regle, au alpha du resultat, ouvre la section 5, absen
 sy498 <- table_synthese_groupe(tb); de498 <- table_detail_groupe(tb)
 i_pit <- grep("^Test de Pitman", tb$test)[1]
 # Colonne Sens de la Synthese sans coupure de ligne (#500) : le texte est celui
-# de la vue Detail, dans une balise white-space:nowrap.
+# de la vue Detail, dans la meme balise white-space:nowrap (Synthese et Detail).
 sans_balise <- function(x) gsub("<[^>]*>", "", x)
-verifier("table_synthese_groupe() : colonne Sens lue dans sens_du_test (echappee, tiret pour une ligne INFO), comme la vue Detail, sans coupure de ligne (#500)",
+verifier("table_synthese_groupe() et table_detail_groupe() : colonne Sens lue dans sens_du_test (echappee, tiret pour une ligne INFO), identique dans les deux vues, sans coupure de ligne (#500)",
          "Sens" %in% names(sy498) && identical(sy498$Sens, .sans_coupure(.txt(tb$sens_du_test))) &&
-         identical(sans_balise(sy498$Sens), de498$Sens) &&
-         all(sy498$Sens == paste0("<span style='white-space:nowrap'>", de498$Sens, "</span>")) &&
+         identical(de498$Sens, .sans_coupure(.txt(tb$sens_du_test))) &&
+         identical(sy498$Sens, de498$Sens) &&
          all(sans_balise(sy498$Sens)[tb$verdict == "INFO"] == "–") &&
          all(sans_balise(sy498$Sens)[tb$verdict != "INFO"] %in% c("rejeter", "ne pas rejeter")) &&
          grepl("<th>Sens</th>", html_table(sy498), fixed = TRUE))
 verifier("Jeu par defaut : ligne Pitman en ALERTE, p retenue 0,1107 > alpha 0,1, sens rejeter affiche en Synthese et en Detail, zone ALERTE de la regle [0,1 ; 0,3[",
          !is.na(i_pit) && identical(tb$verdict[i_pit], "ALERTE") && identical(fmt_p(tb$p_retenue[i_pit]), "0,1107") &&
-         identical(sans_balise(sy498$Sens[i_pit]), "rejeter") && identical(de498$Sens[i_pit], "rejeter") &&
+         identical(sans_balise(sy498$Sens[i_pit]), "rejeter") && identical(sans_balise(de498$Sens[i_pit]), "rejeter") &&
          grepl("ALERTE si 0,1 \u2264 p < 0,3", ph498[2], fixed = TRUE))
 verifier("Rapport : la colonne Sens figure dans chaque tableau de synthese et de detail (deux fois par groupe)",
          compte(h, "class='entete-groupe'") > 0 &&
@@ -3227,12 +3227,27 @@ verifier(".coupe_mots() : replie aux espaces en lignes d'au plus max_car caracte
              identical(strsplit(.coupe_mots("un deux trois : quatre cinq", 12L), "<br>", fixed = TRUE)[[1L]],
                        c("un deux", "trois :", "quatre cinq"))
          })
-verifier("Colonne Sens des tableaux de synthese (application et rapport) : valeur dans une balise white-space:nowrap, jamais coupee sur deux lignes (#500)",
+verifier("Colonne Sens des tableaux de synthese et de detail (application et rapport) : valeur dans une balise white-space:nowrap, jamais coupee sur deux lignes (#500)",
          {
-           sy <- table_synthese_groupe(tb500[[1]])
-           h <- html_table(sy)
-           all(grepl("^<span style='white-space:nowrap'>.*</span>$", sy$Sens)) &&
-             any(grepl("<td><span style='white-space:nowrap'>ne pas rejeter</span></td>", h, fixed = TRUE))
+           sy <- table_synthese_groupe(tb500[[1]]); de <- table_detail_groupe(tb500[[1]])
+           all(grepl("^<span style='white-space:nowrap'>.*</span>$", c(sy$Sens, de$Sens))) &&
+             all(vapply(list(sy, de), function(x)
+               any(grepl("<td><span style='white-space:nowrap'>ne pas rejeter</span></td>",
+                         html_table(x), fixed = TRUE)), NA))
          })
+# Tableau de robustesse (#500) : les grandeurs entieres de NOMS_ENTIERS sans
+# decimales, les autres a six decimales (convention du tableau). Aucune ligne
+# des groupes ROB / M6 des references n'en porte aujourd'hui : table fabriquee.
+tr500 <- tb500[[3]][vapply(tb500[[3]]$famille, function(f) groupe_de(f)$cle, "") == "ROB", ][1:3, ]
+tr500$nom_estimation <- c("nb de valeurs aberrantes", "nb de valeurs aberrantes", "part")
+tr500$estimation <- c(0, 2.5, 0.360380123)
+verifier("table_robustesse() : estimation entiere d'un nom de NOMS_ENTIERS sans decimale (\"nb de valeurs aberrantes = 0\"), non entiere ou hors liste a six decimales ; tableau des references inchange (six decimales)",
+         identical(table_robustesse(tr500)$Estimation,
+                   c("nb de valeurs aberrantes = 0", "nb de valeurs aberrantes = 2,500000", "part = 0,360380")) &&
+         all(vapply(tb500[-1:-2], function(t) {
+           r <- t[vapply(t$famille, function(f) groupe_de(f)$cle, "") %in% c("ROB", "M6"), ]
+           identical(table_robustesse(t)$Estimation,
+                     paste0(r$nom_estimation, " = ", fmt_nb(r$estimation, 6)))
+         }, NA)))
 
 fin_fichier()
