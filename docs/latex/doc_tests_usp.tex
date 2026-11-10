@@ -3173,7 +3173,8 @@ ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_
   \operatorname{Var}(Y_t \mid x_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
   \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma},
 \]
-les $Y_t$ étant indépendants conditionnellement aux $x_t$.
+les $Y_t$ étant indépendants conditionnellement aux $x_t$ (hypothèse que l'annexe~XVII n'énonce
+pas, et que suppose la forme additive en~$t$ du montant à minimiser de B(6) et C(6)).
 Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t \mid x_t)/\mathbb{E}[Y_t \mid x_t]^2\big) = 1/\pi_t$,
 le paramètre de position est $\mu_t = \ln(\beta x_t) - \psi_t/2$
 et $\hat\sigma(\hat\delta,\hat\gamma) = \hat\beta\,e^{\hat\gamma}$, ce qui redonne les formules
@@ -3194,9 +3195,11 @@ $\psi_t = 1/\pi_t$. La translation inverse donne la réciproque.~$\square$
 \noindent
 Sachant $x_t$, le ratio $Y_t/x_t$ a donc pour espérance $\beta$ et pour variance
 $\beta^2\big(e^{1/\pi_t} - 1\big) = \sigma^2\big[\delta + (1-\delta)\,\bar x/x_t\big]$~; ses
-paramètres ne dépendent de $t$ que par $x_t$. Les ratios sont indépendants et de même
-espérance~$\beta$, mais ne sont identiquement distribués que si $\pi_t$ est constant, soit
-$\delta = 1$, soit des $x_t$ tous égaux~: une loi commune des $\ln r_t$ n'est pas une hypothèse du
+paramètres ne dépendent de $t$ que par $x_t$. Sachant les $x_t$, les ratios sont indépendants et
+de même espérance~$\beta$, mais ne sont identiquement distribués que si $\pi_t$ est constant, soit
+$\delta = 1$, soit des $x_t$ tous égaux (condition sur les paramètres vrais~; son pendant estimé
+est le régime $\hat\pi_t$ constant, $\hat\delta$ au bord~1 ou volumes constants au sens de
+\code{usp\_volumes\_constants()}, section~\ref{sec:base-residus})~: une loi commune des $\ln r_t$ n'est pas une hypothèse du
 modèle, et H3 ne se teste pas sur les $\ln r_t$ mis en commun (sections~\ref{sec:base-residus}
 et~\ref{sec:h3}).
 
@@ -3207,8 +3210,12 @@ Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph
   z_t \;=\; \sqrt{\hat\pi_t}\;\Big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\Big),
   \qquad t = 1,\dots,T ,
 \]
-qui, si le modèle est correctement spécifié, sont \emph{approximativement} indépendants et de loi
-$\mathcal{N}(0,1)$. On note $z_{(1)} \le \dots \le z_{(T)}$ la statistique d'ordre associée,
+qui, si le modèle est correctement spécifié et les $\hat\pi_t$ tenus pour connus, suivent la loi
+$\mathcal{N}(0, P)$, $P$ projecteur de rang $T-1$ (section~\ref{sec:base-residus}), et non
+$\mathcal{N}(0, I_T)$~: ils sont centrés, de variances $1 - \hat\pi_t/\sum_s \hat\pi_s$ et
+corrélés négativement deux à deux~; à $\hat\pi_t$ constant et $T = 8$, chaque variance vaut
+$7/8$ et chaque corrélation $-1/7$. Ce calcul ne rend pas compte de ce que $\hat\delta$ et
+$\hat\gamma$ sont estimés sur les mêmes données. On note $z_{(1)} \le \dots \le z_{(T)}$ la statistique d'ordre associée,
 $\bar z$ la moyenne empirique, $s_z^2 = (T-1)^{-1}\sum_t (z_t - \bar z)^2$ la variance empirique
 corrigée, et $p_{(i)} = \Phi(z_{(i)})$.
 
@@ -10507,15 +10514,23 @@ l'exercice et des paiements effectués durant l'exercice, l'une et les autres po
 qui étaient à payer en début d'exercice (méthode du risque de réserve
 n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Le texte pose que cette
 variable suit une distribution log-normale. \emph{Traduction dans le modèle
-réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: l'hypothèse s'énonce sous
-deux formes équivalentes à $x_t$ connu, $y_t$ lognormal de paramètres $(\mu_t, \psi_t)$, ou
-$\ln r_t$ normal d'espérance $\ln\beta - 1/(2\pi_t)$ et de variance $1/\pi_t$, propres à l'année.
-Avec l'espérance et la variance du modèle et l'indépendance des années, elle équivaut à
-$\varepsilon_t = \sqrt{\pi_t}\,\big(\ln r_t - \ln\beta + 1/(2\pi_t)\big)$ i.i.d.
-$\mathcal{N}(0,1)$ aux paramètres vrais~; cette équivalence est exacte pour les $\varepsilon_t$,
-non observés. L'outil teste la normalité des résidus standardisés $z_t$, qui les remplacent aux
-paramètres estimés (section~\ref{sec:base-residus})~: un rejet sur les $z_t$ peut aussi venir
-d'un écart à H1 ou à H2, qui déforme les $z_t$ même quand la loi de $y_t$ est lognormale.
+réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: les hypothèses~i. et~ii. sont
+posées «~pour un segment et une année d'accident particuliers~» (B(2)(g)) et «~pour un segment
+et un exercice particuliers~» (C(2)(e)), et le montant à minimiser de B(6) et C(6) est, à une
+constante près, moins deux fois la log-vraisemblance gaussienne des $\ln r_t$, de paramètres
+propres à l'année, profilée en $\ln\beta$ (section~\ref{sec:h4})~; l'hypothèse s'entend donc année par année, sachant le
+volume. À $x_t$ connu, elle s'énonce sous deux formes équivalentes, $Y_t$ lognormal sachant
+$x_t$ ou $\ln(Y_t/x_t)$ normal~: l'une se déduit de l'autre par la translation de $\ln Y_t$
+par $\ln x_t$. Avec l'espérance et la variance du modèle (H1 et H2), les paramètres sont
+$(\mu_t, \psi_t)$ pour $Y_t$, soit, pour $\ln(Y_t/x_t)$, l'espérance $\ln\beta - 1/(2\pi_t)$ et
+la variance $1/\pi_t$, propres à l'année. Avec de plus l'indépendance des années (que
+l'annexe~XVII n'énonce pas, mais que suppose la forme additive en~$t$ du montant à minimiser de
+B(6) et C(6)), l'ensemble équivaut à $\varepsilon_t = \sqrt{\pi_t}\,\big(\ln r_t - \ln\beta +
+1/(2\pi_t)\big)$ i.i.d. $\mathcal{N}(0,1)$ aux paramètres vrais~; cette équivalence est exacte
+pour les $\varepsilon_t$, non observés. L'outil teste la normalité des résidus standardisés
+$z_t$, qui les remplacent aux paramètres estimés (section~\ref{sec:base-residus}). Un rejet sur
+les $z_t$ peut donc aussi venir d'un écart à H1, à H2 ou à l'indépendance des années~: un tel
+écart déforme la loi des $z_t$ même quand chaque $Y_t$ sachant $x_t$ suit une loi lognormale.
 \end{encadre}
 
 \begin{encadre}
