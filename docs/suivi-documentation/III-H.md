@@ -414,6 +414,9 @@ Texte retiré cité, par `\label`, dans l'ordre du `.tex` (même passage que l'e
 ## `fiche:anscombe-glynn-aplatissement` — Test d'aplatissement d'Anscombe–Glynn (partie III, § Hypothèse H3)
 
 **Historique.** Non applicable à π̂_t variable depuis #302 (extension de la règle R9 amendée) ; aucun cas de référence n'en est touché, tous étant à T = 8. Nature `approximation a n fini sous i.i.d. normal` : #120.
+Statistique non définie : jusqu'à #485, `test_anscombe_kurt()` rendait NaN pour b2 non défini (résidus constants) ou pour 1 + x√(2/(A−4)) ≤ 0, et `usp_tests()` restituait la ligne non applicable sous le motif « T = %d < 20 : test non defini », même à T ≥ 20 ; depuis #485, `stat` et `p` à NA, champs `b2_non_defini` et `z_non_definie`, motif choisi par sa cause (T < 20, π̂_t variable, b2 non défini, Z non définie), une seule branche π̂_t variable (Z finie ou non). Aucun verdict changé (ligne non applicable dans tous les cas).
+**Décisions.** Décision QA1 (a) du mainteneur du 10/11/2026 (#485) : statistique non définie, racine cubique réelle signée écartée (elle inverse le signe de Z), option (c) « Z = −∞, p = 0 » non retenue faute de source ; textes des motifs d'`actuary` (avis amont sur K3, section 3, et réponses du 10/11/2026). Texte d'Anscombe et Glynn (1983) non lu (`academic.oup.com`, JSTOR injoignables) : voir `docs/revues/20261110-avis-amont-k3/qa1-recherche-acces-complet.md`.
+**Implémentation.** Mesures qui fondent la rubrique 3 de la fiche (sans script versionné) : dénominateur à b2 = 1 strictement positif pour 20 ≤ T ≤ 34 (0,005 à T = 34), négatif dès T = 35 (−0,0028) ; racine signée : Z = +35,90 à T = 40, b2 = 1 (A = 19,358), Z = +33,13 à T = 100, b2 = 1,2 ; `test_anscombe_kurt(rep(c(-1, 1), 20))` → `z_non_definie`, `test_anscombe_kurt(rep(3, 25))` → `b2_non_defini` (`Rscript`, `charger_moteur()`, 10/11/2026).
 
 ## `sec:h4` — Hypothèse H4, indépendance et validité du maximum de vraisemblance (partie III, § Hypothèse H4)
 
