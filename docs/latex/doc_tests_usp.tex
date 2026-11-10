@@ -1202,7 +1202,7 @@ posé sur chaque ligne~; argument \code{mc\_nom} conservé dans le champ du mêm
 dernier de la ligne, \code{NA} sans clé~; argument \code{nature\_as}, nature d'une p non simulée
 retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, toute autre valeur
 refusée~; refus d'un \code{sens} inconnu, d'une p-value de forme invalide ou finie hors de
-$[0, 1]$ et d'une \code{nature\_forcee} incompatible avec le rang de la p-value retenue,
+$[0, 1]$ à \code{TOL\_P\_BORNE} près et d'une \code{nature\_forcee} incompatible avec le rang de la p-value retenue,
 section~\ref{sec:convention-restitution}),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
@@ -3601,7 +3601,8 @@ entrée qui fausserait en silence la hiérarchie ou le verdict~: un sens du test
 que «~\code{rejeter}~» ou «~\code{ne pas rejeter}~»~; une p-value (\code{p\_ex}, \code{p\_as},
 \code{p\_mc\_ext}, \code{p\_min}, et \code{p\_mc} et \code{p\_min\_mc} lues par \code{mc\_nom})
 qui n'est pas un nombre unique ou une valeur manquante unique, ou qui est finie hors de l'intervalle
-fermé $[0, 1]$, une valeur non finie restant lue comme absente~; un libellé \code{nature\_forcee}
+fermé $[0, 1]$ à une tolérance d'arrondi près (\code{TOL\_P\_BORNE} $= 10^{-12}$~; une valeur
+admise dans cette tolérance est gardée telle quelle, sans troncature), une valeur non finie restant lue comme absente~; un libellé \code{nature\_forcee}
 qui n'est ni \code{NA} ni une chaîne non vide, ou dont le préfixe ne dit pas le rang de la
 p-value retenue (section~\ref{sec:modele-auxiliaire-regles}, «~Nature forcée~»). Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
 p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
