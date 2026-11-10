@@ -1969,6 +1969,12 @@ par \code{.engine\_verifier\_usage()} et affiché par l'application avant le cli
 \code{engine\_b\_minimal()} & \code{alpha} & plus petit entier $B \ge 1$ tel que
 $2/(B+1) < \alpha/2$, cité dans le message d'\code{engine\_motif\_b\_alpha()}~; erreur R si
 $4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
+\code{engine\_regle\_}\newline\code{verdicts()} & \code{alpha} & texte de la règle des verdicts
+d'\code{add()} au seuil $\alpha$, en quatre phrases (règle générale, sens «~rejeter~», sens «~ne
+pas rejeter~», lignes \code{INFO}), valeurs en virgule décimale, seuil d'\code{ECHEC} lu dans
+\code{SEUIL\_ECHEC\_SENS\_REJETER}~; hors de \code{run\_engine()}, sans champ de l'objet
+\code{usp\_engine} ni calcul de verdict~; erreur R hors de
+$0 < \alpha <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} (§\ref{sec:nature}) \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
@@ -5859,7 +5865,9 @@ seuil~$\alpha$, \code{OK}, \code{ALERTE} ou \code{ECHEC}, porté par une ligne d
 \code{ECHEC} si $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, \code{OK} sinon~; en
 sens «~rejeter~», \code{OK} si $p < \alpha$, \code{ALERTE} si
 $\alpha \le p <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, \code{ECHEC} sinon~; $p$ est la
-p-value retenue. Un \emph{diagnostic} est une ligne restituée sans verdict (verdict affiché
+p-value retenue. Le texte de cette règle, au seuil $\alpha$ du résultat, est rendu par
+\code{engine\_regle\_verdicts()} et affiché en tête du tableau des tests de l'onglet Tests et de
+la section~5 du rapport figé («~Tests retenus~»). Un \emph{diagnostic} est une ligne restituée sans verdict (verdict affiché
 \code{INFO}, \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}), pour éclairer la
 lecture des tests ou de l'estimation~: ses p-values, quand elles existent, restent affichées mais
 ne fondent aucun verdict~; un seuil attaché à un diagnostic est un repère de lecture, non un seuil
