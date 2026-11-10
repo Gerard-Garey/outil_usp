@@ -4043,7 +4043,9 @@ II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II
 \code{OK} à $T = 10$, \code{ECHEC} et $c = 92~\%$ à $T = 9$~; II-2 avec le barème long saisi
 à $T = 10$, \code{ECHEC} et $c = 74~\%$, le commentaire citant la dérogation et le barème
 réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
-repère statistique distinct, non réglementaire (convention de l'outil, sans source).
+repère statistique distinct, non réglementaire (convention de l'outil, sans source)~; son texte
+conseille de privilégier les p-values exactes ou de Monte-Carlo et rappelle qu'une p-value élevée
+ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
@@ -4534,7 +4536,8 @@ $I + 1 \ge 15$ au barème long G(1), $I + 1 \ge 10$ au barème court G(2) & \tex
 de crédibilité partielle de \code{mw\_valider\_triangle()} si $c < 1$, non bloquant (annexe~XVII,
 section~G~; barème appliqué résolu comme pour les méthodes lognormales). Distinct de ce contrôle, un repère
 statistique non réglementaire~: à $I + 1 < 10$, un second avertissement signale que
-$\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
+$\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle et rappelle qu'une
+p-value élevée ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter. \\
 \end{longtable}
 }
 
