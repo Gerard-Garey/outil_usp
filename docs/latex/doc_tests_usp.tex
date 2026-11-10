@@ -5856,7 +5856,7 @@ famille~(ii) une approximation numérique, la famille~(iii) exacte ou approchée
 modèle que le modèle réglementaire, et la famille~(iv) une approximation d'une loi discrète
 fondée sur un théorème limite. Une p non simulée retenue porte la nature \code{asymptotique}, ou, pour la famille~(ii), la nature
 \code{approximation a n fini sous i.i.d. normal}, posée par l'argument \code{nature\_as}
-d'\code{add()} (badge «~approx.\ n fini~» de \code{badge\_nature()} dans l'application)~; les deux
+d'\code{add()} (badge «~approx.\ n fini~» de \code{badge\_nature()} dans l'application)~; seule exception, la p-value de Student du TOST, rangée dans \code{p\_asymptotique} (famille~(iii)), est retenue, quand la ligne est un test, sous une nature qui nomme le modèle auxiliaire pondéré, posée par \code{nature\_forcee}~: hors hiérarchie par son statut, aucune des trois voies ne la portant, elle occupe dans \code{add()} le rang de la p non simulée, le seul que son préfixe puisse respecter (point~(iv) ci-dessous)~; les deux
 ont le même rang, le dernier, dans la hiérarchie. Le libellé nomme l'hypothèse sous laquelle
 l'approximation est construite, sans affirmer qu'elle tient~: les résidus $z_t$ à $\hat\pi_t$
 variable et les résidus de Mack ne sont pas i.i.d. normaux. À $\hat\pi_t$ variable, le
@@ -5943,7 +5943,7 @@ calendaire par diagonale, p-values de famille de la lecture conjointe~: fiches~\
 \ref{fiche:cook}, \ref{mw:m3caldiag} et~\ref{fiche:p-famille})~; \emph{par décision}, quand une
 vérification construite comme un test est restituée en diagnostic pour un motif qui ne dépend
 pas des données~; \emph{par règle}, quand le motif en dépend (règles R1, R3, R14 et R15
-ci-dessous). Une ligne \emph{non applicable} est une ligne dont la vérification est, sur ces
+ci-dessous, et ligne de Kruskal--Wallis à un seul résidu par année de survenance, fiche~\ref{mw:m3acc}). Une ligne \emph{non applicable} est une ligne dont la vérification est, sur ces
 données, sans objet ou non calculable (régression ou partition sans support, statistique non
 définie, calcul propre à la ligne en échec)~: elle sort sans verdict (\code{INFO}), son
 commentaire porte un motif obligatoire, et elle ne restitue aucune p-value, la statistique
@@ -6196,7 +6196,7 @@ fiche~\ref{fiche:ljung-box}). \emph{(b)~Diagnostic}, quand sa
 statistique est distincte mais dominée par une ligne conservée, ou écartée au profit d'une seule
 ligne désignée pour l'hypothèse (Breusch--Pagan 1979, ci-dessous), ou mal rattachée à l'hypothèse
 qu'elle vise~: \emph{par décision} quand le motif ne dépend pas des données, \emph{par règle} quand
-il en dépend (règles~R1, R3, R14 et~R15). Un diagnostic par décision prend la forme de la
+il en dépend (règles~R1, R3, R14 et~R15, et ligne de Kruskal--Wallis à un résidu par année, fiche~\ref{mw:m3acc}). Un diagnostic par décision prend la forme de la
 règle~R15~: \code{usp\_tests()} passe \code{type = "diagnostic"} à \code{add()}, qui pose
 le verdict \code{INFO} et \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}~; les
 p-values calculées restent dans leurs colonnes~; le champ \code{inoperant} vaut \code{FALSE} et la
@@ -11120,7 +11120,7 @@ strictement positif pour $20 \le T \le 34$ et devient négatif dès $T = 35$ (ca
 ci-dessus)~; le cas exige donc $T \ge 35$ et un aplatissement très inférieur à~3. La racine cubique
 réelle signée, qui prolongerait $Z$, est écartée~: elle en inverse le signe ($Z = +35{,}9$ à
 $T = 40$ et $b_2 = 1$, valeur de $b_2$ la plus éloignée de~3 vers le bas). Le texte d'Anscombe et
-Glynn (1983) n'a pas été lu sur ce point~; le document n'affirme rien de ce qu'il prescrirait.
+Glynn (1983) n'a pas été relu (texte intégral non relu)~; le document n'affirme rien de ce qu'il prescrirait dans ce cas.
 \Loi
 $Z \sim \mathcal{N}(0,1)$ approximativement (transformation de Wilson--Hilferty).
 \Pval
@@ -11415,7 +11415,7 @@ $\mathbb{E}[R] = 2n_1n_2/n + 1$, $\operatorname{Var}(R) = 2n_1n_2(2n_1n_2 - n)/\
 $Z = (R - \mathbb{E}[R])/\sqrt{\operatorname{Var}(R)}$.
 Fonction nommée~: \code{test\_runs()}.
 \Loi
-Loi exacte combinatoire pour $R$ (dénombrement des compositions)~; asymptotiquement
+Loi exacte combinatoire pour $R$~; asymptotiquement
 $Z \xrightarrow{\ \mathcal{L}\ } \mathcal{N}(0,1)$.
 \Pval
 p-value exacte, retenue, calculée par \code{runs\_p\_exacte()} sur la loi exacte de $R$
@@ -11424,23 +11424,22 @@ l'approximation normale $2\big(1 - \Phi(|Z|)\big)$ est restituée sans être ret
 L'équiprobabilité des arrangements suppose les $z_t$ échangeables, ce qu'ils ne sont qu'à
 $\hat\pi_t$ constant ($z \sim \mathcal{N}(0, P)$, section~\ref{sec:base-residus})~: la p-value
 n'est exacte au sens de l'outil que dans ce régime, seul où le moteur l'attribue sur $z_t$
-(règle~R7)~; à $\hat\pi_t$ variable, la p-value de Monte-Carlo est retenue et le commentaire le
-dit.
+(règle~R7)~; à $\hat\pi_t$ variable, la p-value de Monte-Carlo est retenue.
 
 \emph{Convention bilatérale.} Doublement, $p = \min\{1,\; 2\min(P(R \le R_{\text{obs}}), P(R \ge
 R_{\text{obs}}))\}$~: $H_1$ couvre le regroupement comme l'alternance, comme pour
 Durbin--Watson, et c'est la convention de la p-value de Monte-Carlo de la ligne~: \code{p\_exacte}
 et \code{p\_mc} estiment la même quantité.
-C'est l'une des définitions de la p-value bilatérale discutées par J.\,D. Gibbons et J.\,W. Pratt
+C'est l'une des définitions discutées par J.\,D. Gibbons et J.\,W. Pratt
 (1975, section~\ref{sec:biblio}). La sommation des probabilités des issues au plus aussi probables
-que celle observée, autre définition, n'est pas retenue~: elle donne $p = 1$ pour toute valeur
+que celle observée n'est pas retenue~: elle donne $p = 1$ pour toute valeur
 modale de $R$.
 
 \emph{Valeurs atteignables.} À $T = 8$ sans ex \ae quo, $n_1 = n_2 = 4$,
 $70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et $p \in \{1~(R = 5)~;~52/70 = 0{,}743~(R \in
 \{4, 6\})~;~16/70 = 0{,}229~(R \in \{3, 7\})~;~4/70 = 0{,}057~(R \in \{2, 8\})\}$. Le test est donc
-\emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$ ($R \equiv 2$,
-$\operatorname{Var}(R) = 0$), $Z$ n'est pas définie~: \code{stat} à \code{NA}, ligne non applicable, motif selon le cas. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
+\emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$ ($R \equiv 2$),
+$\operatorname{Var}(R) = 0$ et $Z$ n'est pas définie~: ligne non applicable, motif selon le cas, \code{stat} et les p-values, \code{p\_exacte} comprise, à \code{NA}~; à $n_1 = n_2 = 1$, la loi exacte, ponctuelle en~2, donnerait $p = p_{\min} = 1$~: test sans objet à tout $\alpha$. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
 qu'avec des ex \ae quo sur la médiane~; la loi de $R$ est alors asymétrique (à $n_1 = 3$, $n_2 = 4$,
 $35\,P(R = 2, \dots, 7) = (2, 5, 12, 9, 6, 1)$) et le doublement n'y est qu'une convention parmi
 d'autres.
@@ -11454,10 +11453,9 @@ $z_t - \operatorname{med}(z)$ identiques terme à terme, garantie exacte. À $\h
 constant, (ii) découle de (i), $z_t$ étant une transformation croissante de $r_t$~; dans la bande
 de tolérance, la variation résiduelle de $\hat\pi_t$ peut inverser un signe. Les signes sont
 comparés après aplatissement à la tolérance d'ex \ae quo (\code{.signes\_mediane\_egaux()}),
-$u_t$ au plancher $\max_t|r_t|$ et $z_t$ au plancher~1 (section~\ref{sec:ex-aequo})~: même à
+$u_t$ au plancher $\max_t|r_t|$ et $z_t$ au plancher~1~: même à
 $\hat\pi_t$ exactement constant, ces deux traitements peuvent séparer un signe de $u$ de celui de
-$z$ (\code{tests/unitaires/test\_ex\_aequo.R}~: deux ratios centraux distants de $2\cdot 10^{-13}$,
-ex \ae quo sur $u_t$ seulement). Loi de $R$ non définie~: aucune p-value exacte. Hors des deux conditions, seule
+$z$ (cas construit de \code{tests/unitaires/test\_ex\_aequo.R}). Hors des deux conditions, seule
 la p-value de Monte-Carlo est calculée~; la ligne est à $\hat\pi_t$ constant un diagnostic de la
 règle~R15 (fiche~\ref{fiche:suites-ratios-bruts}). Sur le jeu de contrôle ($\hat\delta = 1$)~:
 p-value exacte $52/70 = 0{,}743$ retenue sur $z_t$, \code{OK} (\code{p\_mc} $= 0{,}762$). Deux
@@ -11489,9 +11487,9 @@ $\mathbb{P}(R^* = 2)$ a été mesurée de $0{,}032$ à $0{,}016$, et jusqu'à $0
 grille de 36 modèles, $B = 5\,000$ par modèle, sans script versionné)~: c'est ce qui fonde la
 lecture de la règle~R1 sur la loi bootstrap. Remède~: près du seuil, relancer avec $B = 9\,999$,
 qui ne réduit que la première cause. Membre, quand elle est de type test, de la p de
-famille de H4 (famille E.) et de la p globale (fiches~\ref{fiche:p-famille}
-et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même lorsque la p-value exacte est
-retenue~; verdict inchangé.
+famille de H4 et de la p globale (fiches~\ref{fiche:p-famille}
+et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo, même si la p-value exacte est
+retenue.
 \Pertinence
 \textbf{p-value minimale à $T = 8$.} $4/70 = 0{,}0571$ ($n_1 = n_2 = 4$, \code{runs\_p\_min()}), exacte à $\hat\pi_t$ constant, où la p exacte est retenue~; à $\hat\pi_t$ variable, la p-value retenue est de Monte-Carlo (clé \code{Runs}, bilatérale, plancher $2/(B+1)$), que $0{,}0571$ ne borne pas (plancher $p_{\min}^{\mathrm{MC}}$, rubrique~6).
 
@@ -12038,7 +12036,7 @@ aléatoire (regroupement ou alternance).
 $R$ et sa forme centrée réduite $Z$ (\code{test\_runs()} appliquée à $u_t$), définis à la
 fiche~\ref{fiche:suites-wald-wolfowitz}. Seuls les signes par rapport à la médiane
 interviennent~: la statistique est invariante par toute transformation croissante des $r_t$.
-Elle n'est pas définie dans les deux mêmes cas que sur $z_t$ ($n_1 = 0$ ou $n_2 = 0$~;
+$Z$ n'est pas définie dans les deux mêmes cas que sur $z_t$ ($n_1 = 0$ ou $n_2 = 0$~;
 $n_1 = n_2 = 1$), évalués sur $u_t$ au plancher d'ex \ae quo de la clé \code{Runsr}~: la ligne est
 alors non applicable, avec le motif de la cause, comme sur $z_t$.
 \Loi
@@ -16561,7 +16559,7 @@ libellée «~\code{degeneree : H = N - 1 par construction}~», et le champ \code
 phrase de ce cas et aux lignes liées, après le motif Monte-Carlo (suivis, le cas échéant, des
 phrases du retirage des triangles simulés), le dit~: $H$ n'y mesure rien, et la ligne ne teste ni
 l'homogénéité des résidus entre années de survenance ni l'indépendance de D(2)(h)(i).
-La ligne est donc posée en diagnostic par \code{mw\_tests()}, sans p-value retenue ni verdict
+La ligne est donc posée en diagnostic par \code{mw\_tests()} (diagnostic \emph{par règle} au sens de la section~\ref{sec:nature}~: le cas dépend des données, par la géométrie du triangle après exclusion des colonnes dégénérées), sans p-value retenue ni verdict
 (\code{INFO}), parce que $H$ y est une identité et non une statistique~; chaque réplication de même
 géométrie donnant en outre la même valeur, la loi simulée est de dispersion nulle, motif qui ouvre
 le commentaire (section~\ref{sec:nature}). Mesuré par \code{run\_engine()} sur le
