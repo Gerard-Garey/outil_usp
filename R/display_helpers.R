@@ -126,7 +126,7 @@ GROUPES <- list(
               sous = "Var(Y_t) = sigma\u00b2 [(1-delta) \u00b7 xbar \u00b7 x_t + delta \u00b7 x_t\u00b2]",
               ref  = "annexe XVII, B(2)(g)(ii) ; C(2)(e)(ii)"),
   "D." = list(cle = "H3", titre = "H3 \u2014 Lognormalit\u00e9 de la variable mod\u00e9lis\u00e9e",
-              sous = "test\u00e9e comme la normalit\u00e9 des r\u00e9sidus normalis\u00e9s z_t",
+              sous = "test\u00e9e comme la normalit\u00e9 des r\u00e9sidus standardis\u00e9s z_t",
               ref  = "annexe XVII, B(2)(g)(iii) ; C(2)(e)(iii)"),
   "E." = list(cle = "H4", titre = "H4 \u2014 Ind\u00e9pendance et validit\u00e9 du maximum de vraisemblance",
               sous = "absence d'autocorr\u00e9lation des Y_t conditionnellement aux x_t",
@@ -3330,7 +3330,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
 
     # --- 6. Annexe : tests exclus ---------------------------------------------
     ex <- te[!retenu, , drop = FALSE]; sx <- selection[!retenu, , drop = FALSE]
-    nom_base <- c(z = "r\u00e9sidus normalis\u00e9s z_t", r = "ratios bruts", commun = "base unique")
+    nom_base <- c(z = "r\u00e9sidus standardis\u00e9s z_t", r = "ratios bruts", commun = "base unique")
     motif <- ifelse(!sx$garde,
       ifelse(ex$variante == "secondaire",
              "variante secondaire non conserv\u00e9e dans la s\u00e9lection",
