@@ -1201,7 +1201,9 @@ désigne pas une fonction de l'environnement du moteur~; champ \code{inoperant}
 posé sur chaque ligne~; argument \code{mc\_nom} conservé dans le champ du même nom,
 dernier de la ligne, \code{NA} sans clé~; argument \code{nature\_as}, nature d'une p non simulée
 retenue, \code{asymptotique} par défaut ou \code{NATURE\_APPROX\_N\_FINI}, toute autre valeur
-refusée),
+refusée~; refus d'un \code{sens} inconnu, d'une p-value de forme invalide ou finie hors de
+$[0, 1]$ et d'une \code{nature\_forcee} incompatible avec le rang de la p-value retenue,
+section~\ref{sec:convention-restitution}),
 unique et partagée par \code{usp\_tests()} et \code{mw\_tests()}~: hiérarchie des p-values,
 règles de sortie (test inopérant par \code{p\_min}, motif Monte-Carlo lu dans
 \code{motif\_mc}, diagnostic sans p-value retenue quand la p-value de Monte-Carlo manque pour un
@@ -3492,6 +3494,7 @@ résidus est une \emph{hypothèse à tester} (H3)~; pour la méthode Merz--Wüth
 elle n'est qu'un \emph{diagnostic facultatif} (M5).
 
 \subsection*{Convention de restitution : statistique, estimation, p-value}
+\label{sec:convention-restitution}
 
 Les sorties du script distinguent explicitement trois grandeurs, qui ne doivent jamais être
 confondues et figurent dans des champs séparés~:
@@ -3592,7 +3595,15 @@ fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}~; les contrôles numériqu
 figurent pas, voir la section~\ref{sec:controles}) ou
 \emph{non applicable}. La fonction \code{add()} n'admet que ces trois valeurs et refuse toute
 autre par une erreur («~\code{add()~: type de ligne inconnu}~»)~; seule une ligne de type
-\code{test} porte un verdict. Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
+\code{test} porte un verdict, qui suit de la seule p-value retenue (aucun argument
+d'\code{add()} ne permet de le fournir). \code{add()} refuse de même, par une erreur, toute
+entrée qui fausserait en silence la hiérarchie ou le verdict~: un sens du test autre
+que «~\code{rejeter}~» ou «~\code{ne pas rejeter}~»~; une p-value (\code{p\_ex}, \code{p\_as},
+\code{p\_mc\_ext}, \code{p\_min}, et \code{p\_mc} et \code{p\_min\_mc} lues par \code{mc\_nom})
+qui n'est pas un nombre unique ou une valeur manquante unique, ou qui est finie hors de l'intervalle
+fermé $[0, 1]$, une valeur non finie restant lue comme absente~; un libellé \code{nature\_forcee}
+qui n'est ni \code{NA} ni une chaîne non vide, ou dont le préfixe ne dit pas le rang de la
+p-value retenue (section~\ref{sec:modele-auxiliaire-regles}, «~Nature forcée~»). Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
 p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
 \code{NA}), la statistique pouvant rester dans \code{stat}~: le moteur l'assure ligne par ligne,
 sans règle générale dans \code{add()}, et le test d'invariant
@@ -5645,11 +5656,17 @@ Diagnostic \\
   \item \emph{Nature forcée}~: les deux natures «~sous le modèle auxiliaire pondéré~» du TOST et les
   deux natures de la pente (\code{exacte par permutation \dots} et \code{Monte-Carlo
   (permutations aleatoires ; \dots)}) sont posées par l'argument \code{nature\_forcee}
-  d'\code{add()}, appliqué \emph{après} la hiérarchie et seulement si la p-value retenue est
-  finie~; il renomme la nature, ne crée aucune p-value, et reste sans effet sur une ligne qui n'est
-  pas un test (diagnostic ou non applicable~: ni p-value retenue ni nature). Les deux natures de la
-  pente prennent dans la hiérarchie le rang de leur préfixe («~exacte~», «~Monte-Carlo~»)~; seules
-  celles du TOST sont hors hiérarchie. Le moteur ne pose aucune nature «~MCO~»~; l'application
+  d'\code{add()}, appliqué \emph{après} la hiérarchie et seulement sur une ligne qui porte un
+  verdict (type \code{test} après toutes les bascules) et dont la p-value retenue est finie~; il
+  renomme la nature, ne crée aucune p-value, et reste sans effet sur une ligne qui n'est pas un
+  test (diagnostic ou non applicable~: ni p-value retenue ni nature). Son préfixe doit dire le rang
+  de la p-value retenue, sinon \code{add()} refuse l'appel par une erreur~: «~\code{exacte}~» si
+  c'est la p-value exacte, «~\code{Monte-Carlo}~» si c'est une p-value de Monte-Carlo, ni l'un ni
+  l'autre si c'est une p non simulée~; un libellé ne peut donc jamais présenter une p-value sous un
+  autre rang que le sien. Les deux natures de la pente prennent dans la hiérarchie le rang de
+  leur préfixe («~exacte~», «~Monte-Carlo~»)~; seules celles du TOST sont hors hiérarchie (aucune
+  des trois voies ne porte sa p-value, point~(iv) de la section~\ref{sec:nature}) et occupent dans
+  \code{add()} la place de la p non simulée, que leur préfixe respecte. Le moteur ne pose aucune nature «~MCO~»~; l'application
   reconnaît les natures du TOST à leur préfixe \code{sous le modele auxiliaire pondere} (badge
   «~modèle pondéré~», \code{badge\_nature()}) et garde un badge «~modèle MCO~» pour relire un
   objet antérieur.
@@ -6353,7 +6370,7 @@ section~\ref{sec:boot-mw}), et ils se lisent dans
 forgé passé à \code{add()} (statistique bilatérale \code{DW}, $\alpha = 0{,}05$)~: la mention
 «~\code{ECHEC inatteignable}~» apparaît à $B_{\text{eff}} = 79$ ($2/80 = \alpha/2$) et disparaît à
 $B_{\text{eff}} = 80$. \emph{Verdict sensible à l'aléa de simulation.} Quand la p-value
-retenue d'une ligne de type test, sans verdict fourni, est une p-value de Monte-Carlo (du bootstrap
+retenue d'une ligne de type test est une p-value de Monte-Carlo (du bootstrap
 ou calculée hors du catalogue, comme les permutations aléatoires de la pente), d'erreur
 \code{err\_mc} finie et non nulle, et qu'elle est à moins de deux fois \code{err\_mc} d'un seuil $s$
 de la règle des verdicts de la ligne ($|p - s| < 2\,\text{err}_{\text{mc}}$, inégalité stricte~;
@@ -19709,7 +19726,8 @@ d'\code{engine\_registre\_tests()}, unique et partagée par \code{usp\_tests()} 
 Sortie de la hiérarchie (grandeur rivée par l'estimation) & branche finale de \code{add()}~:
 \code{p\_retenue} et \code{nature\_p} à \code{NA}, verdict \code{INFO}, seul admis
 hors du type \code{test} (\code{add()} n'admet que les types \code{test}, \code{diagnostic} et
-\code{non applicable}, et refuse un verdict fourni pour tout autre type que \code{test}) \\
+\code{non applicable}~; le verdict suit de la seule p-value retenue, aucun argument ne
+permettant de le fournir) \\
 Test inopérant, Monte-Carlo indisponible (diagnostic) ou dégénéré, nature «~sous le modèle
 auxiliaire pondéré~» du TOST (§\ref{sec:nature} et~\ref{sec:modele-auxiliaire}) & \code{add()}~: arguments \code{p\_min},
 \code{effectifs}, \code{libelle\_p\_as}, \code{nature\_forcee}~; \code{runs\_p\_min()},
