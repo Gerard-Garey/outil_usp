@@ -85,7 +85,31 @@ STAT_NOMS_PROBABILITE <- c("M = min p_ij", "plus petite p Monte-Carlo de la fami
 # probabilite, fmt_nb() sinon. nom : vecteur de meme longueur que v, ou de
 # longueur 1 (recycle).
 fmt_stat <- function(v, nom) ifelse(rep_len(nom %in% STAT_NOMS_PROBABILITE, length(v)),
-                                    fmt_p(v), fmt_nb(v))
+                                    fmt_p(v), fmt_grandeur(v, nom))
+# Grandeurs a valeurs entieres (#500) : comptes et rangs, ecrits sans decimales
+# en vue Synthese ("S = 90", "nombre de tests de la famille = 4", et non
+# "90,0000", "4,0000"). Noms (champs nom_statistique et nom_estimation de
+# engine_table_tests(), stat_nom et estim_nom du moteur), seul recensement a la
+# main ; un test le confronte au moteur sur les quatre methodes. Ne figurent
+# pas ici les grandeurs continues qui peuvent valoir un entier au bord
+# ("delta" = 1, "LR(1)" = 0) : leurs quatre decimales disent la precision.
+# Mise en forme seule : une valeur non entiere sous l'un de ces noms garde
+# l'ecriture a quatre decimales ; "entiere" s'entend a 1e-9 pres en relatif,
+# le moteur rendant S = 69,999999999999986 (rang de Spearman, premium_interieur)
+# au bruit de calcul flottant pres.
+NOMS_ENTIERS <- c("S", "K", "S de Kendall", "Z observe", "nb de suites", "nb de suites R",
+                  "colonnes testees", "diagonales sous le repere de 10 %",
+                  "nb de cellules declarees (repere de Rosner)", "nb de valeurs aberrantes",
+                  "rang de l'obs. extreme", "rang du ratio extreme",
+                  "nombre de tests", "nombre de tests de la famille")
+# v : vecteur ; nom : vecteur de meme longueur que v, ou de longueur 1 (recycle).
+fmt_grandeur <- function(v, nom)
+  ifelse(rep_len(nom %in% NOMS_ENTIERS, length(v)) & is.finite(v) &
+           abs(v - round(v)) <= 1e-9 * pmax(1, abs(v)),
+         .num_fr(round(v), "%.0f"), fmt_nb(v))
+# Cellule qui ne se coupe pas en fin de ligne (#500) : "ne pas rejeter" tenait
+# sur deux lignes dans la colonne Sens des vues Synthese.
+.sans_coupure <- function(x) paste0("<span style='white-space:nowrap'>", x, "</span>")
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
@@ -349,14 +373,16 @@ table_synthese_groupe <- function(tb) {
                fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
         .sous_stat_famille(tb)),
     Estimation = ifelse(is.finite(tb$estimation),
-        paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
+        paste0(.txt(tb$nom_estimation), " = ", fmt_grandeur(tb$estimation, tb$nom_estimation)),
+        "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),
     Nature = unname(vapply(tb$nature_p, badge_nature, character(1))),
     # Sens du test (#498) : champ sens_du_test d'engine_table_tests() (pose par
     # add()), que la regle des verdicts de html_regle_verdicts() invoque ("le
     # sens du test indique sur sa ligne") ; NA (ligne INFO) : tiret. Meme
-    # colonne que la vue Detail.
-    Sens = .txt(tb$sens_du_test),
+    # colonne que la vue Detail. Sans coupure de ligne (#500) : "ne pas
+    # rejeter" se repliait sur deux lignes.
+    Sens = .sans_coupure(.txt(tb$sens_du_test)),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
@@ -609,6 +635,51 @@ html_table <- function(d, classe = "table table-condensed data") {
        yref = "container", y = 1, yanchor = "top",
        pad = list(t = .BARRE_PLOTLY_PX + if (grepl("<br>", texte, fixed = TRUE)) 13 else 3))
 .marge_haute <- function(t) t + .BARRE_PLOTLY_PX - 10
+# Titres longs a 330 px (#500). Un titre ou un sous-titre plotly ne se replie
+# pas : au-dela de la largeur de la figure, il sort des deux cotes (largeurs
+# mesurees sous Chromium, plotly.js 2.25.2, figure de 330 px, police par defaut :
+# 14 px de titre, environ 6,7 px par caractere ; <sup>, environ 4,4 px par
+# caractere). .coupe_mots() replie un texte aux espaces en lignes d'au plus
+# max_car caracteres, reparties de facon egale (pas de mot isole sur la
+# derniere ligne), jointes par `saut` ("<br>" en plotly, "\n" en base R) ; un
+# texte qui tient, ou une valeur NA, est rendu tel quel. Mise en forme seule :
+# aucun mot n'est retire ni change.
+.coupe_mots <- function(x, max_car = 66L, saut = "<br>") {
+  un <- function(t) {
+    if (is.na(t) || nchar(t) <= max_car) return(t)
+    mots <- strsplit(t, " ", fixed = TRUE)[[1L]]
+    n <- ceiling(nchar(t) / max_car)
+    lim <- ceiling(nchar(t) / n)
+    repeat {
+      lignes <- character(0); cour <- ""
+      for (m in mots) {
+        # Un ":" ou un ";" isole (" : " du moteur) reste sur la ligne du mot
+        # qui le precede.
+        if (m %in% c(":", ";") && nzchar(cour)) {
+          cour <- paste(cour, m)
+        } else if (nzchar(cour) && nchar(cour) + 1L + nchar(m) > lim) {
+          lignes <- c(lignes, cour); cour <- m
+        } else cour <- if (nzchar(cour)) paste(cour, m) else m
+      }
+      lignes <- c(lignes, cour)
+      if (length(lignes) <= n || lim >= max_car) break
+      lim <- lim + 1L
+    }
+    paste(lignes, collapse = saut)
+  }
+  vapply(x, un, "", USE.NAMES = FALSE)
+}
+# Titre en deux lignes : ligne principale a la taille du titre, complement en
+# <sup> (meme convention que le profil de delta, #481). Le complement se coupe
+# lui-meme par .coupe_mots() s'il depasse max_car caracteres.
+.titre_sup <- function(principal, complement, max_car = 66L)
+  paste0(principal, "<br><sup>", .coupe_mots(complement, max_car), "</sup>")
+# Marge haute d'un titre suivi de nb_sup lignes de <sup> (nb_sup >= 1) : 60 pour
+# une ligne, 80 pour deux (valeurs de plot_qqnorm() et plot_spread() avant
+# #500), 20 de plus par ligne au-dela.
+.marge_sous_titre <- function(nb_sup) .marge_haute(60 + 20 * (max(nb_sup, 1L) - 1L))
+# Nombre de lignes d'un ensemble de textes qui peuvent contenir "<br>".
+.nb_lignes <- function(x) sum(lengths(regmatches(x, gregexpr("<br>", x, fixed = TRUE))) + 1L)
 .mep <- function(p, titre, xlab, ylab) {
   plotly::layout(p, title = .titre_plotly(titre),
                  separators = .SEPARATEURS_PLOTLY,
@@ -639,18 +710,35 @@ plot_ajustement <- function(pd) {
 plot_ratio <- function(pd) {
   if (is.null(pd$ratio)) return(.vide())
   d <- pd$ratio
+  # Legende de la ligne pointillee (#500) : son niveau est le beta estime
+  # (pd$ratio$niveau, ratio y/x attendu sous E[Y] = beta x), lu tel quel.
+  lib <- sprintf("beta estime = %s (ratio attendu)", .num_fr(d$niveau[1], "%.4f"))
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$t, d$ratio, type = "b", pch = 19, col = COUL$pt,
+    # Cadrage : marge haute de 15 % de l'etendue, reservee a la legende (cadrage
+    # seul, comme plot_calibration()), pour qu'elle ne recouvre aucun point.
+    yl <- range(c(d$ratio, d$niveau[1]), finite = TRUE)
+    yl[2] <- yl[2] + 0.15 * diff(yl)
+    .cadre(); plot(d$t, d$ratio, type = "b", pch = 19, col = COUL$pt, ylim = yl,
                    xlab = "annee t", ylab = "y/x", main = "Ratio observe dans le temps")
-    graphics::abline(h = d$niveau[1], col = COUL$trait, lty = 2); return(invisible())
+    graphics::abline(h = d$niveau[1], col = COUL$trait, lty = 2)
+    graphics::legend("topright", bty = "n", cex = 0.75, legend = lib, lty = 2, col = COUL$trait)
+    return(invisible())
   }
   p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$niveau[1], 2),
+  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$niveau[1], 2), name = lib,
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
   p <- plotly::add_trace(p, x = d$t, y = d$ratio, type = "scatter", mode = "lines+markers",
+        showlegend = FALSE,
         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
         hovertemplate = "t = %{x}<br>y/x = %{y:.4f}<extra></extra>")
-  .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
+  p <- .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
+  # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas du
+  # conteneur (comme plot_boot_sigma()) : sa distance au titre d'axe ne depend
+  # pas de la hauteur de la figure.
+  plotly::layout(p, showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
+                               y = 0, yanchor = "bottom", font = list(size = 10)),
+                 margin = list(t = .marge_haute(45), b = 90))
 }
 
 # Enveloppe du QQ-plot (issue #47) : bande simultanee (exterieure, plus
@@ -775,8 +863,13 @@ plot_qqnorm <- function(pd) {
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  titre <- paste0(ti, if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+  # Sous-titre replie par .coupe_mots() et titre a 12 px : a 14 px, le titre
+  # fait 336 px et le sous-titre jusqu'a 510 px, au-dela d'une figure de 330 px
+  # (#500).
+  st_p <- .coupe_mots(st)
+  titre <- paste0(ti, if (length(st_p)) paste0("<br><sup>", st_p, "</sup>", collapse = ""))
   p <- .mep(p, titre, "quantiles theoriques N(0,1)", "residus standardises")
+  p <- plotly::layout(p, title = .titre_plotly(titre, taille = 12))
   # Legende en annotations fixes (.mep() masque la legende plotly).
   ann <- list()
   if (sim) ann[[length(ann) + 1]] <- list(
@@ -788,7 +881,7 @@ plot_qqnorm <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_sous_titre(.nb_lignes(st_p))))
   p
 }
 
@@ -894,8 +987,11 @@ plot_spread <- function(pd) {
   p <- plotly::add_markers(p, x = pd$spread$x, y = pd$spread$racine_abs_z,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "x = %{x:.1f}<br>sqrt|z| = %{y:.3f}<extra></extra>")
+  # Sous-titre replie par .coupe_mots() : jusqu'a 368 px sur une ligne, au-dela
+  # d'une figure de 330 px (#500).
+  st_p <- .coupe_mots(st)
   titre <- paste0("Dispersion-niveau (H2) \u2014 lissage local",
-                  if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+                  if (length(st_p)) paste0("<br><sup>", st_p, "</sup>", collapse = ""))
   p <- .mep(p, titre, "x_t", "sqrt(|z_t|)")
   # Meme etendue des ordonnees qu'en base R (marge haute pour la legende).
   if (sim || ponct) p <- plotly::layout(p, yaxis = list(range = yl))
@@ -910,7 +1006,7 @@ plot_spread <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_sous_titre(.nb_lignes(st_p))))
   p
 }
 
@@ -1410,8 +1506,14 @@ plot_boot_sigma <- function(pd) {
                  margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 110))
 }
 
+# Barres libellees par cand$variante, dans l'ordre des lignes de cand (celui du
+# tableau des valeurs candidates, #500) : le libelle suit la variante, jamais
+# sa position. En plotly, les categories d'un axe sont rangees par ordre
+# alphabetique sauf indication : categoryarray fixe l'ordre de cand. Libelles
+# replies par .coupe_mots() (ticktext en plotly, saut de ligne en base R), les
+# variantes du moteur faisant jusqu'a 36 caracteres pour trois barres.
 plot_calibration <- function(cand) {
-  etiq <- c("standard", "estime seul", "USP retenu")
+  etiq <- cand$variante
   lab  <- .num_fr(cand$valeur, "%.4f")
   # Les trois valeurs sont proches : on cadre l'axe avec une marge haute
   # suffisante pour que les etiquettes placees au-dessus des barres restent
@@ -1420,7 +1522,8 @@ plot_calibration <- function(cand) {
   coul <- ifelse(cand$retenu, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
     .cadre()
-    h <- graphics::barplot(cand$valeur, names.arg = etiq, col = coul, border = NA,
+    h <- graphics::barplot(cand$valeur, names.arg = .coupe_mots(etiq, 18L, "\n"), col = coul,
+                           border = NA, cex.names = 0.8,
                            ylab = "ecart-type", ylim = c(0, ymax),
                            main = "Valeurs candidates")
     graphics::text(h, cand$valeur, labels = lab, pos = 3, cex = 0.95,
@@ -1439,7 +1542,10 @@ plot_calibration <- function(cand) {
         hovertemplate = "%{x}<br>sigma = %{y:.5f}<extra></extra>")
   p <- plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
         title = .titre_plotly("Valeurs candidates et parametre retenu"),
-        xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE"),
+        xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE",
+                     categoryorder = "array", categoryarray = etiq,
+                     tickmode = "array", tickvals = etiq,
+                     ticktext = .coupe_mots(etiq, 18L), tickfont = list(size = 10)),
         yaxis = list(title = "ecart-type", range = c(0, ymax),
                      zeroline = TRUE, gridcolor = "#EEEEEE"),
         uniformtext = list(minsize = 11, mode = "show"),
@@ -1667,6 +1773,9 @@ plot_mw_facteurs <- function(pd) {
   marque <- any(regle)
   nom_sigma <- if (marque) "sigma_j estime" else "sigma_j"
   titre <- "Facteurs chain-ladder f_j et ecarts-types sigma_j (M6)"
+  # Titre plotly sur deux lignes : sur une ligne, il debordait de la figure a
+  # 330 px de large (#500).
+  titre_plotly <- .titre_sup("Facteurs chain-ladder f_j", "et ecarts-types sigma_j (M6)")
   xlab <- "annee de developpement j"
   smax <- suppressWarnings(max(d$sigma, na.rm = TRUE))
   if (!is.finite(smax) || smax <= 0) smax <- 1
@@ -1736,12 +1845,12 @@ plot_mw_facteurs <- function(pd) {
   p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
                        margin = 0.03)
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-                 title = .titre_plotly(titre),
+                 title = .titre_plotly(titre_plotly),
                  showlegend = TRUE,
                  legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-                 margin = list(t = .marge_haute(45), b = 80))
+                 margin = list(t = .marge_sous_titre(1L), b = 80))
 }
 
 plot_mw_reserve <- function(pd) {
@@ -1858,8 +1967,10 @@ plot_influence_levier <- function(pd) {
         hovertemplate = paste0("%{text}<br>levier = %{x:.4f}",
                                "<br>residu std = %{y:.3f}<extra></extra>"))
   p <- plotly::layout(p, yaxis = list(range = lim))
-  .mep(p, "Residus standardises vs levier (iso-distances de Cook)",
-       "levier h_t", "residu standardise")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Residus standardises vs levier", "(iso-distances de Cook)"),
+            "levier h_t", "residu standardise")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Methode lognormale : distance de Cook par annee ------------------------
@@ -1930,8 +2041,10 @@ plot_influence_sigma <- function(pd) {
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
         line = list(color = COUL$pt), hoverinfo = "skip")
-  .mep(p, "Influence du retrait d'une annee sur sigma_USP (jackknife)",
-       "annee retiree", "ecart relatif (%)")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Influence du retrait d'une annee", "sur sigma_USP (jackknife)"),
+            "annee retiree", "ecart relatif (%)")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Merz-Wuthrich : levier des cellules du triangle -----------------------
@@ -2017,8 +2130,11 @@ plot_mw_dfbeta <- function(pd) {
         connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
   p <- plotly::add_lines(p, x = xr, y = -rr, line = list(color = COUL$ref, dash = "dash"),
         connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
-  .mep(p, sprintf("Influence de chaque cellule sur son facteur f_j (DFBETAS, reperes +/- %s)", lib),
-       "cellule du triangle", "DFBETAS")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Influence de chaque cellule",
+                          sprintf("sur son facteur f_j (DFBETAS, reperes +/- %s)", lib)),
+            "cellule du triangle", "DFBETAS")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Merz-Wuthrich : contribution des annees de survenance -----------------
@@ -2113,11 +2229,14 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
   })
   p <- plotly::subplot(ps, nrows = ceiling(length(ps) / 3), margin = 0.045,
                        titleX = FALSE, titleY = FALSE)
+  # Titre sur deux lignes, le complement en <sup> : sur une ligne, il debordait
+  # des deux cotes a 330 px de large (#500).
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY, title = .titre_plotly(
-      "Regressions par annee de developpement : trait plein = f_j (sans constante), pointille = avec constante",
+      .titre_sup("Regressions par annee de developpement",
+                 "trait plein = f_j (sans constante), pointille = avec constante", max_car = 70L),
       taille = 12),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-    margin = list(t = .marge_haute(55)), showlegend = FALSE)
+    margin = list(t = .marge_sous_titre(1L)), showlegend = FALSE)
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
@@ -2163,7 +2282,13 @@ plot_mw_origine <- function(pd) {
         marker = list(size = 10, color = coul),
         text = paste0("p = ", fmt_p(d$p)),
         hovertemplate = "j = %{x}<br>a = %{y:,.0f}<br>%{text}<extra></extra>")
-  .mep(p, titre, "annee de developpement j", "ordonnee a l'origine a_j")
+  # Titre sur deux lignes : sur une ligne, il debordait des deux cotes a 330 px
+  # de large (#500) ; meme texte qu'en base R, coupe apres "colonne".
+  p <- .mep(p, .titre_sup("Ordonnee a l'origine par colonne",
+                          paste0("intervalle de Student",
+                                 if (nzchar(niv)) paste0(", niveau nominal", niv) else "", " (M1)")),
+            "annee de developpement j", "ordonnee a l'origine a_j")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Famille alpha : sensibilite du facteur a la ponderation -----------------

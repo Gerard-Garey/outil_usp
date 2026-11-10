@@ -954,7 +954,7 @@ testServer(app, {
   a("vue Synthese : colonne Sens, ligne Pitman en ALERTE (p = 0,1107) avec le sens rejeter (#498)",
     grepl("<th>Sens</th>", h, fixed = TRUE) && length(lig_pit) == 1L &&
       grepl("ALERTE", lig_pit, fixed = TRUE) && grepl("<td>0,1107</td>", lig_pit, fixed = TRUE) &&
-      endsWith(lig_pit, "<td>rejeter</td></tr>"))
+      endsWith(lig_pit, "<td><span style='white-space:nowrap'>rejeter</span></td></tr>"))
   session$setInputs(vue_tests = "detail")
   hd <- as.character(output$tests_par_hypothese$html)
   a("vue Detail : la regle en tete et la colonne Sens (#498)",

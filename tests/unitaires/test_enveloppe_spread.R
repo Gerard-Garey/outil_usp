@@ -395,7 +395,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                                                                  vapply(b$data, function(d) !identical(d$line$width, 0), logical(1)))) &&
                identical(textes_ann(b), c(LIB_SIM90, LIB_PONCT90)) &&
                endsWith(b$layout$title$text,
-                        sprintf("<br><sup>bootstrap param\u00e9trique ; bandes ponctuelle et simultan\u00e9e (k = %s sur %d r\u00e9plications)</sup>",
+                        sprintf("<br><sup>bootstrap param\u00e9trique ; bandes ponctuelle<br>et simultan\u00e9e (k = %s sur %d r\u00e9plications)</sup>",
                                 pdB$spread_enveloppe$k, B_SPREAD)) &&
                # Marge haute pour la legende : meme etendue des ordonnees qu'en base R.
                identical(as.numeric(b$layout$yaxis$range), .spread_ylim(pdB, TRUE, TRUE)) &&

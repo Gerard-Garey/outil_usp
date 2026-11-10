@@ -2374,7 +2374,8 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                length(s1) == 1L && identical(sort(y[!is.na(y)]), sort(c(d$bas[k], d$haut[k])))
              }
              mk <- Filter(function(tr) identical(tr$mode, "markers"), b$data)
-             identical(b$layout$title$text, "Ordonnee a l'origine par colonne, intervalle de Student, niveau nominal 90 % (M1)") &&
+             identical(b$layout$title$text, paste0("Ordonnee a l'origine par colonne<br><sup>",
+                                                   "intervalle de Student, niveau nominal 90 % (M1)</sup>")) &&
                ok_seg(COUL$trait, d$exclut_zero %in% TRUE) && ok_seg(COUL$pt, !(d$exclut_zero %in% TRUE)) &&
                length(mk) == 1L && identical(as.character(mk[[1]]$marker$color),
                                              ifelse(d$exclut_zero %in% TRUE, COUL$trait, COUL$pt)) &&
@@ -3043,15 +3044,19 @@ verifier("Rapport MW : la regle, au alpha du resultat, ouvre la section 5, absen
              !any(vapply(ph, function(x) grepl(.echap_html(x), s3, fixed = TRUE), logical(1))) })
 sy498 <- table_synthese_groupe(tb); de498 <- table_detail_groupe(tb)
 i_pit <- grep("^Test de Pitman", tb$test)[1]
-verifier("table_synthese_groupe() : colonne Sens lue dans sens_du_test (echappee, tiret pour une ligne INFO), comme la vue Detail",
-         "Sens" %in% names(sy498) && identical(sy498$Sens, .txt(tb$sens_du_test)) &&
-         identical(sy498$Sens, de498$Sens) &&
-         all(sy498$Sens[tb$verdict == "INFO"] == "–") &&
-         all(sy498$Sens[tb$verdict != "INFO"] %in% c("rejeter", "ne pas rejeter")) &&
+# Colonne Sens de la Synthese sans coupure de ligne (#500) : le texte est celui
+# de la vue Detail, dans une balise white-space:nowrap.
+sans_balise <- function(x) gsub("<[^>]*>", "", x)
+verifier("table_synthese_groupe() : colonne Sens lue dans sens_du_test (echappee, tiret pour une ligne INFO), comme la vue Detail, sans coupure de ligne (#500)",
+         "Sens" %in% names(sy498) && identical(sy498$Sens, .sans_coupure(.txt(tb$sens_du_test))) &&
+         identical(sans_balise(sy498$Sens), de498$Sens) &&
+         all(sy498$Sens == paste0("<span style='white-space:nowrap'>", de498$Sens, "</span>")) &&
+         all(sans_balise(sy498$Sens)[tb$verdict == "INFO"] == "–") &&
+         all(sans_balise(sy498$Sens)[tb$verdict != "INFO"] %in% c("rejeter", "ne pas rejeter")) &&
          grepl("<th>Sens</th>", html_table(sy498), fixed = TRUE))
 verifier("Jeu par defaut : ligne Pitman en ALERTE, p retenue 0,1107 > alpha 0,1, sens rejeter affiche en Synthese et en Detail, zone ALERTE de la regle [0,1 ; 0,3[",
          !is.na(i_pit) && identical(tb$verdict[i_pit], "ALERTE") && identical(fmt_p(tb$p_retenue[i_pit]), "0,1107") &&
-         identical(sy498$Sens[i_pit], "rejeter") && identical(de498$Sens[i_pit], "rejeter") &&
+         identical(sans_balise(sy498$Sens[i_pit]), "rejeter") && identical(de498$Sens[i_pit], "rejeter") &&
          grepl("ALERTE si 0,1 \u2264 p < 0,3", ph498[2], fixed = TRUE))
 verifier("Rapport : la colonne Sens figure dans chaque tableau de synthese et de detail (deux fois par groupe)",
          compte(h, "class='entete-groupe'") > 0 &&
@@ -3063,5 +3068,171 @@ verifier("texte_alpha_divergent() : texte fixe si les deux alpha sont des nombre
          is.null(texte_alpha_divergent(0.1, NA)) && is.null(texte_alpha_divergent(0.1, NULL)) &&
          is.null(texte_alpha_divergent(NULL, 0.2)) && is.null(texte_alpha_divergent(0.1, Inf)) &&
          is.null(texte_alpha_divergent(0.1, "0,2")))
+
+## --- Issue #500 : lisibilite des graphiques et des tableaux ---------------------
+# Entiers sans decimales en Synthese (NOMS_ENTIERS, fmt_grandeur()) ; barres de
+# plot_calibration() libellees par cand$variante, dans l'ordre de cand, testees
+# sur une permutation ; legende de la ligne de plot_ratio() ; huit titres longs
+# replies a 330 px de large (.coupe_mots(), .titre_sup()). Largeurs de titres
+# mesurees sous Chromium par la session qui a corrige (plotly R 4.12.1, plotly.js
+# 2.25.2, figure de 330 px), pas par cette batterie : elle verifie la structure
+# (nombre de caracteres par ligne, borne estimee en pixels), jamais un rendu.
+verifier("fmt_grandeur() : un nom de NOMS_ENTIERS a valeur entiere s'ecrit sans decimale, toute autre grandeur a quatre decimales (delta = 1 au bord, LR(1) = 0 compris) ; valeur non entiere, NA et infini inchangees",
+         identical(fmt_grandeur(90, "S"), "90") && identical(fmt_grandeur(4, "nombre de tests de la famille"), "4") &&
+         identical(fmt_grandeur(2, "K"), "2") && identical(fmt_grandeur(0, "nb de valeurs aberrantes"), "0") &&
+         identical(fmt_grandeur(69.999999999999986, "S"), "70") &&
+         identical(fmt_grandeur(1, "delta"), "1,0000") && identical(fmt_grandeur(0, "LR(1)"), "0,0000") &&
+         identical(fmt_grandeur(2.5, "S"), "2,5000") && identical(fmt_grandeur(NA_real_, "S"), "\u2013") &&
+         identical(fmt_grandeur(Inf, "S"), "\u2013") &&
+         identical(fmt_grandeur(c(4, 2.5, 1), c("K", "K", "delta")), c("4", "2,5000", "1,0000")) &&
+         identical(fmt_grandeur(c(4, 2), "S"), c("4", "2")) &&
+         identical(fmt_stat(90, "S"), "90") && identical(fmt_stat(0.5, "M = min p_ij"), fmt_p(0.5)))
+tb500 <- c(list(engine_table_tests(res_ln), engine_table_tests(res_mw)),
+           lapply(c("premium", "premium_ii6", "premium_interieur", "premium_net", "reserve1", "reserve2"),
+                  function(k) engine_table_tests(readRDS(file.path(.racine, "tests", "reference", paste0(k, ".rds"))))))
+noms_val <- function(tb) rbind(
+  data.frame(nom = tb$nom_statistique, v = tb$statistique, stringsAsFactors = FALSE),
+  data.frame(nom = tb$nom_estimation, v = tb$estimation, stringsAsFactors = FALSE))
+nv500 <- do.call(rbind, lapply(tb500, noms_val)); nv500 <- nv500[is.finite(nv500$v), ]
+ent500 <- abs(nv500$v - round(nv500$v)) <= 1e-9 * pmax(1, abs(nv500$v))
+verifier("NOMS_ENTIERS confrontee au moteur (premium, reserve2, six references) : chaque nom de la liste vaut un entier sur toutes ses lignes finies et figure dans au moins une ; seules grandeurs a valeur entiere hors liste : delta et LR(1) (continues, au bord), Z (nulle sur certaines donnees), moyenne(z) (bruit de 1e-16)",
+         all(ent500[nv500$nom %in% NOMS_ENTIERS]) && all(NOMS_ENTIERS %in% nv500$nom) &&
+         all(unique(nv500$nom[ent500 & !(nv500$nom %in% NOMS_ENTIERS)]) %in% c("delta", "LR(1)", "Z", "moyenne(z)")))
+sy500 <- table_synthese_groupe(tb500[[1]]); tbp500 <- tb500[[1]]
+i_s <- which(tbp500$nom_statistique %in% "S" & is.finite(tbp500$statistique))
+i_k <- which(tbp500$nom_statistique %in% "K" & is.finite(tbp500$statistique))
+sy_mw500 <- table_synthese_groupe(tb500[[2]]); tbm500 <- tb500[[2]]
+i_nf <- which(tbm500$nom_estimation %in% "nombre de tests de la famille" & is.finite(tbm500$estimation))
+verifier("Synthese : S, K et le nombre de tests de la famille sans decimales (\"S = 90\", \"K = 2\", \"nombre de tests de la famille = 4\"), delta a quatre decimales",
+         length(i_s) >= 1L && length(i_k) == 1L && length(i_nf) >= 1L &&
+         all(grepl("<code>S</code> = [0-9]+$", sy500$Statistique[i_s])) &&
+         grepl("<code>K</code> = 2$", sy500$Statistique[i_k]) &&
+         all(grepl(" = [0-9]+$", sy_mw500$Estimation[i_nf])) &&
+         !any(grepl("[0-9],0000$", sy_mw500$Estimation[i_nf])) &&
+         any(grepl("^delta = [0-9],[0-9]{4}$", sy500$Estimation)))
+
+# Barres de plot_calibration() : le libelle suit la variante, pas la position.
+if (requireNamespace("plotly", quietly = TRUE)) {
+  cand500 <- res_ln$candidats
+  perm500 <- cand500[c(3L, 1L, 2L), ]
+  barres500 <- function(cd) {
+    op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
+    b <- plotly::plotly_build(plot_calibration(cd))$x
+    list(x = as.character(b$data[[1]]$x), y = as.numeric(b$data[[1]]$y), text = as.character(b$data[[1]]$text),
+         col = as.character(b$data[[1]]$marker$color), xaxis = b$layout$xaxis)
+  }
+  verifier("plot_calibration() : barres libellees par cand$variante, valeur, texte et couleur de la barre lus sur la meme ligne ; ordre de l'axe = ordre de cand (sans tri alphabetique)",
+           {
+             b <- barres500(cand500)
+             j <- match(b$x, cand500$variante)
+             identical(b$x, cand500$variante) && !anyNA(j) && isTRUE(all.equal(b$y, cand500$valeur[j])) &&
+               identical(b$text, .num_fr(cand500$valeur[j], "%.4f")) &&
+               identical(b$col, ifelse(cand500$retenu[j], COUL$trait, COUL$env)) &&
+               identical(as.character(b$xaxis$categoryorder), "array") &&
+               identical(as.character(unlist(b$xaxis$categoryarray)), cand500$variante) &&
+               !identical(cand500$variante, sort(cand500$variante))
+           })
+  verifier("plot_calibration() sur une PERMUTATION de res$candidats : le libelle suit la variante (la barre \"USP retenu\" garde la couleur et la valeur du sigma_USP), l'ordre de l'axe suit la permutation",
+           {
+             b <- barres500(perm500)
+             j <- match(b$x, cand500$variante)
+             k_ret <- which(cand500$retenu)
+             identical(b$x, perm500$variante) && identical(b$x, cand500$variante[c(3L, 1L, 2L)]) &&
+               isTRUE(all.equal(b$y, cand500$valeur[j])) && isTRUE(all.equal(b$y, perm500$valeur)) &&
+               identical(b$text, .num_fr(cand500$valeur[j], "%.4f")) &&
+               identical(b$col, ifelse(cand500$retenu[j], COUL$trait, COUL$env)) &&
+               identical(b$col[b$x == cand500$variante[k_ret]], COUL$trait) &&
+               isTRUE(all.equal(b$y[b$x == cand500$variante[k_ret]], res_ln$parametre$sigma_usp)) &&
+               identical(as.character(unlist(b$xaxis$categoryarray)), perm500$variante) &&
+               identical(as.character(unlist(b$xaxis$tickvals)), perm500$variante) &&
+               identical(gsub("<br>", " ", as.character(unlist(b$xaxis$ticktext))), perm500$variante)
+           })
+  verifier("plot_calibration() : etiquettes d'axe repliees en deux lignes au plus de 18 caracteres (330 px), libelle complet a l'infobulle",
+           {
+             tt <- as.character(unlist(barres500(cand500)$xaxis$ticktext))
+             all(vapply(strsplit(tt, "<br>", fixed = TRUE), function(l) all(nchar(l) <= 18L) && length(l) <= 2L, NA))
+           })
+  # Legende de la ligne pointillee de plot_ratio() (niveau = beta estime).
+  verifier("plot_ratio() plotly : la ligne pointillee porte une legende (beta estime lu dans plots_data$ratio$niveau), la courbe observee aucune ; legende ancree au bas du conteneur",
+           {
+             op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
+             b <- plotly::plotly_build(plot_ratio(res_ln$plots_data))$x
+             lib <- sprintf("beta estime = %s (ratio attendu)", .num_fr(res_ln$plots_data$ratio$niveau[1], "%.4f"))
+             tr <- b$data
+             ligne <- Filter(function(d) identical(d$line$dash, "dash"), tr)
+             courbe <- Filter(function(d) identical(d$mode, "lines+markers"), tr)
+             length(ligne) == 1L && length(courbe) == 1L &&
+               identical(ligne[[1]]$name, lib) && !identical(ligne[[1]]$showlegend, FALSE) &&
+               identical(courbe[[1]]$showlegend, FALSE) &&
+               isTRUE(b$layout$showlegend) && identical(b$layout$legend$yref, "container") &&
+               grepl("^beta estime = [0-9]+,[0-9]{4} \\(ratio attendu\\)$", lib)
+           })
+  # Huit titres longs : aucune ligne de titre ne depasse la figure de 330 px.
+  # Borne estimee en pixels (0,48 em par caractere de titre : 336 px pour les 50
+  # caracteres de "QQ-plot normal (H3) \u2014 enveloppe de simulation 90 %" a 14 px ;
+  # <sup> a 70 % de la taille du titre, 0,45 em par caractere : 388 px pour 88
+  # caracteres), au plus 300 px par ligne.
+  titre500 <- function(p) {
+    op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
+    ti <- plotly::plotly_build(p)$x$layout$title
+    list(texte = ti$text, taille = if (is.null(ti$font$size)) 14 else ti$font$size, marge = plotly::plotly_build(p)$x$layout$margin$t)
+  }
+  px500 <- function(texte, taille) {
+    l <- strsplit(texte, "<br>", fixed = TRUE)[[1L]]
+    sup <- grepl("^<sup>", l)
+    nchar(gsub("<[^>]*>", "", l)) * taille * ifelse(sup, 0.7 * 0.45, 0.48)
+  }
+  pd_ln <- res_ln$plots_data; pd_mw <- res_mw$plots_data
+  huit <- list(
+    mw_dfbeta = plot_mw_dfbeta(pd_mw), mw_facteurs = plot_mw_facteurs(pd_mw),
+    mw_origine = plot_mw_origine(pd_mw), mw_regressions = plot_mw_regressions(pd_mw),
+    influence_levier = plot_influence_levier(pd_ln), influence_sigma = plot_influence_sigma(pd_ln),
+    qqnorm = plot_qqnorm(pd_ln), spread = plot_spread(pd_ln))
+  verifier("Huit titres longs (#500) : chaque ligne de titre et de <sup> tient dans 300 px a 330 px de large (borne estimee), le titre suit sa marge haute (deux lignes : au moins .marge_haute(60))",
+           {
+             t <- lapply(huit, titre500)
+             all(vapply(t, function(x) all(px500(x$texte, x$taille) <= 300), NA)) &&
+               all(vapply(t, function(x) grepl("<br>", x$texte, fixed = TRUE), NA)) &&
+               all(vapply(t, function(x) x$marge >= .marge_haute(60), NA))
+           })
+  verifier("Huit titres longs (#500) : rien n'est retire du texte (titre et complement relus sans <br> ni balise, avant : meme mots)",
+           {
+             t <- lapply(huit, function(p) gsub("<[^>]*>", " ", titre500(p)$texte))
+             mots <- function(x) strsplit(trimws(gsub("[[:space:]]+", " ", x)), " ", fixed = TRUE)[[1L]]
+             all(grepl("DFBETAS", t$mw_dfbeta)) && all(grepl("f_j", t$mw_dfbeta)) &&
+               grepl("Facteurs chain-ladder f_j et ecarts-types sigma_j \\(M6\\)", paste(mots(t$mw_facteurs), collapse = " ")) &&
+               grepl("Ordonnee a l'origine par colonne intervalle de Student, niveau nominal 90 % \\(M1\\)",
+                     paste(mots(t$mw_origine), collapse = " ")) &&
+               grepl("Regressions par annee de developpement trait plein = f_j \\(sans constante\\), pointille = avec constante",
+                     paste(mots(t$mw_regressions), collapse = " ")) &&
+               grepl("Residus standardises vs levier \\(iso-distances de Cook\\)", paste(mots(t$influence_levier), collapse = " ")) &&
+               grepl("Influence du retrait d'une annee sur sigma_USP \\(jackknife\\)", paste(mots(t$influence_sigma), collapse = " ")) &&
+               grepl("^QQ-plot normal \\(H3\\) \u2014 enveloppe de simulation", t$qqnorm) &&
+               grepl("^Dispersion-niveau \\(H2\\) \u2014 lissage local", t$spread)
+           })
+}
+verifier(".coupe_mots() : replie aux espaces en lignes d'au plus max_car caracteres, aucun mot retire ni change, lignes reparties (pas de mot isole a la fin), \":\" isole garde la ligne du mot precedent, texte court ou NA inchange",
+         {
+           long1 <- "bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9, bande ponctuelle et bande simultan\u00e9e (rang k = 7 sur 999 r\u00e9plications)"
+           long2 <- "aucun rang k admissible : taux de sortie (4.17) superieur a 0.10 au rang k = 1 ; bande simultanee non disponible"
+           cp <- function(x, m = 66L) strsplit(.coupe_mots(x, m), "<br>", fixed = TRUE)[[1L]]
+           identical(.coupe_mots("court"), "court") && identical(.coupe_mots(NA_character_), NA_character_) &&
+             identical(.coupe_mots(c("a b", "x"), 1L), c("a<br>b", "x")) &&
+             identical(.coupe_mots("a b", 1L, "\n"), "a\nb") &&
+             all(vapply(c(long1, long2), function(x) identical(paste(cp(x), collapse = " "), x) &&
+                          all(nchar(cp(x)) <= 66L) && length(cp(x)) == 2L && min(nchar(cp(x))) >= 30L, NA)) &&
+             !any(startsWith(cp(long2), ":")) &&
+             identical(.coupe_mots("moins de 500 replications retenues : bande simultanee non calculee"),
+                       "moins de 500 replications retenues : bande simultanee non calculee") &&
+             identical(strsplit(.coupe_mots("un deux trois : quatre cinq", 12L), "<br>", fixed = TRUE)[[1L]],
+                       c("un deux", "trois :", "quatre cinq"))
+         })
+verifier("Colonne Sens des tableaux de synthese (application et rapport) : valeur dans une balise white-space:nowrap, jamais coupee sur deux lignes (#500)",
+         {
+           sy <- table_synthese_groupe(tb500[[1]])
+           h <- html_table(sy)
+           all(grepl("^<span style='white-space:nowrap'>.*</span>$", sy$Sens)) &&
+             any(grepl("<td><span style='white-space:nowrap'>ne pas rejeter</span></td>", h, fixed = TRUE))
+         })
 
 fin_fichier()
