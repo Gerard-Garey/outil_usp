@@ -1528,35 +1528,29 @@ SPAN244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
                   .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
 PIED244 <- paste0("<br>", SPAN244)
 # Parametres de la regle de repli, lus dans la signature (aucune borne ecrite
-# en dur dans les tests : seuil 400, marge 150, suite_min 100 aujourd'hui).
+# en dur dans les tests : seuil 400 et suite_min 100 aujourd'hui ; la marge de
+# #472 est retiree par #517 : la coupe tombe a une fin de phrase, sans borne
+# superieure).
 FM_REPLI <- formals(.commentaire_replie)
-SEUIL_R <- eval(FM_REPLI$seuil); MARGE_R <- eval(FM_REPLI$marge); SUITE_R <- eval(FM_REPLI$suite_min)
-# Le separateur entre le resume et la suite n'est pas dans le HTML : la coupe a
-# une fin de phrase ou a un espace le remplace par la frontiere du <details>, la
-# coupe au seuil sans espace n'en perd aucun. Un resume de SEUIL_R caracteres
-# sans espace peut donc se lire des deux manieres ("g" x (SEUIL_R - 1) + ";" suivi d'un
-# espace, ou coupe au seuil d'un texte sans espace). `ref` (texte attendu, de meme
-# longueur que `cel`) leve l'ambiguite : parmi les deux lectures (avec / sans
-# espace), c'est celle qui vaut le texte attendu qui est rendue ; sinon la
-# lecture avec espace (l'egalite echoue alors). Sans `ref`, lecture avec espace.
-relire_com <- function(cel, ref = NULL) {
-  if (!is.null(ref) && length(ref) != length(cel)) stop("relire_com : ref de longueur differente")
+SEUIL_R <- eval(FM_REPLI$seuil); SUITE_R <- eval(FM_REPLI$suite_min)
+# Cellule replie : <details><summary>debut</summary>suite</details><br>derniere.
+# Les trois parties sont separees dans le texte d'origine par l'espace qui suit
+# chaque fin de phrase, remplace par la frontiere du HTML : texte relu =
+# debut + " " + suite + " " + derniere phrase.
+RE_REPLI <- "^<details class='com'><summary>(.*)</summary>(.*)</details><br>(.*)$"
+relire_com <- function(cel) {
   vapply(seq_along(cel), function(i) {
-    x <- cel[i]; r0 <- if (is.null(ref)) NULL else ref[i]
+    x <- cel[i]
     if (identical(x, "\u2013")) return(NA_character_)
     if (identical(x, SPAN244)) return(PHRASE_VERDICT_SENSIBLE_MC)
     if (endsWith(x, PIED244)) {
-      rc <- if (is.null(r0) || is.na(r0)) NULL else
-        sub("[ ;]+$", "", substr(r0, 1L, nchar(r0) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
-      b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)), rc)
+      b <- relire_com(substr(x, 1L, nchar(x) - nchar(PIED244)))
       return(paste0(b, if (grepl("\\.$", b)) " " else " ; ", PHRASE_VERDICT_SENSIBLE_MC))
     }
     if (!nzchar(x)) return("")
-    m <- regmatches(x, regexec("^<details class='com'><summary>(.*)</summary>(.*)</details>$", x))[[1]]
+    m <- regmatches(x, regexec(RE_REPLI, x))[[1]]
     if (!length(m)) return(desechap(x))
-    d <- desechap(m[2]); r <- desechap(m[3])
-    if (!is.null(r0) && !is.na(r0) && identical(paste0(d, r), r0)) return(paste0(d, r))
-    paste(d, r)
+    paste(desechap(m[2]), desechap(m[3]), desechap(m[4]))
   }, character(1))
 }
 
@@ -1570,29 +1564,23 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
                     sub("[ ;]+$", "", substr(com1, 1L, nchar(com1) - nchar(PHRASE_VERDICT_SENSIBLE_MC))),
                     com1)
   long <- !is.na(com1) & nchar(sans244) > SEUIL_R
-  # Regle de repli de #472 (seuil, marge et suite_min lus dans la signature de
-  # .commentaire_replie()) : au-dela de seuil + marge + suite_min caracteres le
-  # repli est certain (la suite masquee fait au moins suite_min caracteres,
-  # quelle que soit la coupe) ; en deca, le texte reste entier si sa fin est la
-  # premiere fin de phrase de la fenetre ou si la suite masquee ferait moins de
-  # suite_min caracteres. Resume : au plus seuil + marge caracteres, termine par
-  # une fin de phrase (". " + majuscule, "; ") sauf au repli a defaut (au plus
-  # seuil caracteres, dernier espace avant le seuil). Suite masquee : au moins
-  # suite_min caracteres.
+  # Regle de repli de #517 (seuil et suite_min lus dans la signature de
+  # .commentaire_replie()) : un commentaire replie est plus long que le seuil ;
+  # son resume (debut du <summary>) fait au moins seuil caracteres et se termine
+  # a une fin de phrase (". " + majuscule, "; ") ; sa suite masquee fait au
+  # moins suite_min caracteres ; sa derniere phrase suit le </details>.
   repli <- startsWith(cel, "<details class='com'><summary>")
-  rep_m <- regmatches(cel[repli], regexec("<summary>(.*?)</summary>(.*)</details>", cel[repli], perl = TRUE))
+  rep_m <- regmatches(cel[repli], regexec("<summary>(.*?)</summary>(.*?)</details><br>(.*)$", cel[repli], perl = TRUE))
   resume <- vapply(rep_m, function(m) desechap(m[2]), "")
   suite_m <- vapply(rep_m, function(m) nchar(desechap(m[3])), 1L)
-  verifier(sprintf("Vue Detail (%s) : commentaire long replie (<details>) selon la regle de #472, court en clair, aucun texte retire (#178, #472)", cas$nom),
-           # Seuil de 400 (#514) : sur les references, la plupart des
-           # commentaires sont sous le seuil ; aucun repli n'est exige.
+  verifier(sprintf("Vue Detail (%s) : commentaire replie (<details>) selon la regle de #517, court en clair, aucun texte retire (#178, #517)", cas$nom),
+           # Au seuil de 400 (#514), la plupart des commentaires des references
+           # sont sous le seuil ou sans phrase masquable ; aucun repli n'est exige.
            all(long[repli]) &&
-           all(repli[!is.na(sans244) & nchar(sans244) > SEUIL_R + MARGE_R + SUITE_R]) &&
            all(suite_m >= SUITE_R) &&
            !any(grepl("<details", cel[!long], fixed = TRUE)) &&
-           identical(relire_com(cel, com1), unname(com1)) &&
-           all(nchar(resume) <= SEUIL_R + MARGE_R) &&
-           all(nchar(resume) <= SEUIL_R | grepl("[.;]$", resume)))
+           identical(relire_com(cel), unname(com1)) &&
+           all(nchar(resume) >= SEUIL_R) && all(grepl("[.;]$", resume)))
   verifier(sprintf("Vue Detail (%s) : replier = FALSE (rapport fige) rend le texte entier, sans <details> (#178)", cas$nom),
            identical(dp[["Motif / commentaire"]], unname(.txt(com1))) &&
            identical(dp[!names(dp) %in% c("Motif / commentaire", "H0", "H1")],
@@ -1602,111 +1590,106 @@ for (cas in list(list(nom = "lognormale", tb = tb), list(nom = "MW", tb = tbm)))
            identical(names(dr)[ncol(dr)], "Fonction") && !anyNA(t1$fonction) &&
            identical(dr$Fonction, paste0("<code>", t1$fonction, "</code>")))
 }
-verifier(".commentaire_replie() : coupure au dernier espace avant le seuil, au seuil sans espace, echappement par partie (#178)",
-         {
-           n1 <- (SEUIL_R + MARGE_R %/% 3L) %/% 4L                  # 445 caracteres au seuil 400
-           x1 <- paste(c(rep("mot", n1), "a < b"), collapse = " ")
-           x2 <- strrep("x", SEUIL_R + MARGE_R + SUITE_R + 100L)    # sans espace ni fin de phrase
-           x3 <- strrep("y", SEUIL_R)
-           x4 <- paste(c(rep("mot", (SEUIL_R + MARGE_R) %/% 4L + 15L), "a < b"), collapse = " ")  # sans fin de phrase
-           cr <- .commentaire_replie(c(x1, x2, x3, NA, x4))
-           # x1 : sa fin tombe dans la fenetre [seuil, seuil + marge] -> texte entier.
-           nchar(x1) >= SEUIL_R && nchar(x1) <= SEUIL_R + MARGE_R &&
-             nchar(x4) > SEUIL_R + MARGE_R &&
-             identical(relire_com(cr[c(2, 3, 5)], c(x2, x3, x4)), c(x2, x3, x4)) && identical(cr[3], x3) &&
-             identical(cr[4], "\u2013") && identical(cr[1], paste0(strrep("mot ", n1), "a &lt; b")) &&
-             grepl("a &lt; b</details>$", cr[5]) &&
-             identical(cr[2], paste0("<details class='com'><summary>", strrep("x", SEUIL_R),
-                                     "</summary>", strrep("x", nchar(x2) - SEUIL_R), "</details>"))
-         })
-# Regle de repli de #472 : premiere fin de phrase dont le resume fait de
-# `seuil` a `seuil + 150` caracteres ; fin du texte comptee ; fin de phrase =
-# ". " + majuscule ou "; " ; la coupe se fait a l'espace qui suit le signe, le
-# signe reste dans le resume ; a defaut, coupe de #178.
-verifier(".commentaire_replie() : coupe a la premiere fin de phrase de la fenetre [seuil, seuil + 150], fin du texte comptee, repli a defaut, aucun texte retire (#472)",
-         {
-           # Fin de phrase a seuil + 13 caracteres (point + espace + majuscule),
-           # puis une seconde fin de phrase plus loin : la premiere de la fenetre gagne.
-           a <- strrep("a", SEUIL_R %/% 2L); b <- strrep("b", SEUIL_R - SEUIL_R %/% 2L + 11L)
-           ph1 <- paste0(a, " ", b, ".")
-           x_ph <- paste0(ph1, " Suite du texte ", strrep("c", 80), ". Fin ", strrep("d", 60), " fin de texte.")
-           # Un point avant le seuil (fin de phrase a 61 < seuil) est ignore.
-           x_tot <- paste0(strrep("e", 59), ". Debut ", strrep("f", SEUIL_R + 80L - 67L))     # seuil + 80 caracteres, fin dans la fenetre
-           # Point suivi d'une minuscule : pas une fin de phrase ; a defaut, coupe de #178.
-           x_min <- paste(c(rep("mot", 40), "fin. suite", rep("mot", 40), "fin. suite", rep("mot", 80)), collapse = " ")
-           # Point-virgule : fin de phrase (espace suffit).
-           x_pv <- paste0(strrep("g", SEUIL_R + 10L), "; ", strrep("h", 3L * SUITE_R))
-           cr <- .commentaire_replie(c(x_ph, x_tot, x_min, x_pv))
-           m <- lapply(cr, function(z) regmatches(z, regexec("^<details class='com'><summary>(.*)</summary>(.*)</details>$", z))[[1]])
-           nchar(ph1) >= SEUIL_R && nchar(ph1) <= SEUIL_R + MARGE_R && nchar(x_tot) <= SEUIL_R + MARGE_R &&
-             identical(relire_com(cr, c(x_ph, x_tot, x_min, x_pv)), c(x_ph, x_tot, x_min, x_pv)) &&
-             identical(m[[1]][2], ph1) && startsWith(m[[1]][3], "Suite du texte") &&
-             identical(cr[2], x_tot) &&
-             length(m[[3]]) == 3L && nchar(m[[3]][2]) <= SEUIL_R && !grepl("[.;]$", m[[3]][2]) &&
-             identical(m[[4]][2], paste0(strrep("g", SEUIL_R + 10L), ";")) &&
-             identical(m[[4]][3], strrep("h", 3L * SUITE_R))
-         })
-# Longueur minimale de la suite masquee (decision du mainteneur du 07/11/2026) :
-# moins de `suite_min` caracteres masques, texte entier, pour la coupe a une fin
-# de phrase ; exactement suite_min, replie. La coupe a defaut (resume d'au plus
-# `seuil` caracteres, texte de plus de seuil + marge) laisse toujours une suite
-# d'au moins `marge` caracteres : elle ne peut passer sous le minimum que si
-# marge < suite_min, ce qui n'est pas le cas des valeurs par defaut.
-verifier(".commentaire_replie() : suite masquee de moins de suite_min caracteres -> texte entier, suite_min -> replie, parametre suite_min (#472)",
-         {
-           # Fin de phrase a mi-fenetre (150 a + espace + 148 b + point = 300 avec les valeurs par defaut).
-           n_fin <- SEUIL_R + MARGE_R %/% 2L
-           fin300 <- paste0(strrep("a", n_fin %/% 2L), " ", strrep("b", n_fin - n_fin %/% 2L - 2L), ".")
-           # La fin du texte est hors fenetre : suite = " Suite " + c... ; suite_min - 1 / suite_min caracteres masques.
-           x99 <- paste0(fin300, " Suite ", strrep("c", SUITE_R - 1L - 6L))
-           x100 <- paste0(fin300, " Suite ", strrep("c", SUITE_R - 6L))
-           x340 <- paste0(strrep("a", SEUIL_R + MARGE_R - 10L), ". Ok.")          # fin de texte dans la fenetre
-           cr <- .commentaire_replie(c(x99, x100, x340))
-           suite100 <- substr(x100, nchar(fin300) + 2L, nchar(x100))
-           nchar(fin300) == n_fin && nchar(x99) - nchar(fin300) - 1L == SUITE_R - 1L &&
-             nchar(x100) > SEUIL_R + MARGE_R &&
-             identical(cr[1], x99) && identical(cr[2],
-               paste0("<details class='com'><summary>", fin300, "</summary>", suite100, "</details>")) &&
-             identical(nchar(suite100), SUITE_R) &&
-             identical(cr[3], x340) &&
-             # Parametre : suite_min = 0 restitue le repli, suite_min = suite_min + 1 l'ecarte.
+# Phrases synthetiques de n caracteres, terminees par un point (premiere lettre
+# majuscule : la fin de phrase exige ". " + majuscule).
+phr <- function(n, deb = "Phrase") paste0(deb, " ", strrep("a", n - nchar(deb) - 2L), ".")
+coupe_cel <- function(x) regmatches(x, regexec(RE_REPLI, x))[[1]]
+# Regle de repli de #517 : resume = premieres phrases jusqu'a la premiere fin de
+# phrase a au moins `seuil` caracteres, suite masquee = phrases jusqu'a l'avant-
+# derniere, derniere phrase hors du <details> ; texte entier si cette suite
+# n'existe pas ou fait moins de suite_min caracteres.
+verifier(".commentaire_replie() : resume jusqu'a la premiere fin de phrase a seuil caracteres ou plus, suite masquee, derniere phrase visible hors du <details>, aucun texte retire (#517)",
+         local({
+           h <- SEUIL_R %/% 2L
+           p1 <- phr(h, "Un"); p2 <- phr(h, "Deux"); p3 <- phr(SUITE_R + 50L, "Trois"); p4 <- phr(SUITE_R, "Quatre")
+           x <- paste(p1, p2, p3, p4)
+           # Premiere phrase seule au-dela du seuil et de toute fenetre : resume entier, coupe a sa fin.
+           q1 <- phr(SEUIL_R + 300L, "Un")
+           y <- paste(q1, p3, p4)
+           cr <- .commentaire_replie(c(x, y))
+           m1 <- coupe_cel(cr[1]); m2 <- coupe_cel(cr[2])
+           nchar(p1) + nchar(p2) + 1L >= SEUIL_R && nchar(p1) < SEUIL_R &&
+             # x : p1 seule fait moins que le seuil, p1 + p2 le depasse -> resume p1 p2.
+             identical(m1[2:4], c(paste(p1, p2), p3, p4)) &&
+             # y : resume = la premiere phrase, de plus de seuil + marge de 150 d'avant #517, coupee a sa fin.
+             identical(m2[2:4], c(q1, p3, p4)) &&
+             identical(relire_com(cr), c(x, y))
+         }))
+verifier(".commentaire_replie() : texte entier sans suite masquable : moins de trois phrases, resume atteignant la derniere phrase, aucune fin de phrase a seuil caracteres ou plus, aucune fin de phrase (#517)",
+         local({
+           h <- SEUIL_R %/% 2L
+           deux <- paste(phr(SEUIL_R + 100L, "Un"), phr(SEUIL_R + 100L, "Deux"))          # deux phrases
+           atteint <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SEUIL_R, "Trois"))            # fin de "Deux" >= seuil = avant-derniere
+           courtes <- paste(phr(100L, "Un"), phr(100L, "Deux"), phr(100L, "Trois"), phr(SEUIL_R + 200L, "Quatre"))  # fins avant le seuil
+           sans_fin <- strrep("x", SEUIL_R + 300L)
+           mots <- paste(rep("mot", SEUIL_R), collapse = " ")
+           minus <- paste(c(rep("mot", 40), "fin. suite", rep("mot", 100)), collapse = " ")  # point + minuscule
+           x <- c(deux, atteint, courtes, sans_fin, mots, minus)
+           all(nchar(x) > SEUIL_R) &&
+             identical(.commentaire_replie(x), .echap_html(x))
+         }))
+verifier(".commentaire_replie() : suite masquee de moins de suite_min caracteres -> texte entier, suite_min -> replie, parametre suite_min (#517)",
+         local({
+           h <- SEUIL_R %/% 2L
+           # Suite masquee = la phrase du milieu, de SUITE_R - 1 puis SUITE_R caracteres.
+           x99 <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R - 1L, "Trois"), phr(60L, "Quatre"))
+           x100 <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R, "Trois"), phr(60L, "Quatre"))
+           cr <- .commentaire_replie(c(x99, x100))
+           m <- coupe_cel(cr[2])
+           identical(cr[1], x99) && nchar(m[3]) == SUITE_R &&
+             identical(relire_com(cr[2]), x100) &&
+             # Parametre : suite_min = 0 restitue le repli, suite_min + 1 l'ecarte.
              startsWith(.commentaire_replie(x99, suite_min = 0L), "<details class='com'>") &&
              identical(.commentaire_replie(x100, suite_min = SUITE_R + 1L), x100)
-         })
+         }))
+verifier(".commentaire_replie() : \";\" suivi d'une espace est une fin de phrase, derniere phrase sans point final visible, signe final isole sans phrase vide, echappement par partie (#517)",
+         local({
+           h <- SEUIL_R %/% 2L
+           pv1 <- paste0("A < b ", strrep("g", SEUIL_R + 10L), " ;")          # resume a "; " : fin de phrase
+           x <- paste(pv1, paste0("Suite & ", strrep("h", 3L * SUITE_R), " ;"), "Fin > fin")
+           # Texte terminant par un ";" suivi d'un espace : pas de phrase vide apres le dernier signe.
+           y <- paste(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R + 20L, "Trois"), "Fin ; ")
+           cr <- .commentaire_replie(c(x, y))
+           m <- coupe_cel(cr[1])
+           identical(m[2:4], c(.echap_html(pv1), .echap_html(paste0("Suite & ", strrep("h", 3L * SUITE_R), " ;")), "Fin &gt; fin")) &&
+             grepl("a &lt; b|A &lt; b", m[2]) &&
+             identical(relire_com(cr), c(x, y)) &&
+             !endsWith(cr[2], "<br>") && identical(coupe_cel(cr[2])[4], "Fin ; ")
+         }))
 # Detail Kruskal a un residu par annee (#449, 309 caracteres, texte d'avant
 # #514) : sous le seuil de 400 depuis #514 -> affiche entier.
 verifier(".commentaire_replie() : detail Kruskal a un residu par annee (309 caracteres) affiche entier (#472, #514)",
-         {
+         local({
            k <- paste0("loi simulee de dispersion nulle : aucune p-value retenue. ",
                        "Un residu de Mack par annee de survenance : H = N - 1 par construction ",
                        "(groupes de taille 1), quelle que soit la donnee ; ",
                        "H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus ",
                        "entre annees de survenance, ni l'independance de D(2)(h)(i)")
-           nchar(k) == 309L && nchar(k) <= SEUIL_R + MARGE_R &&
+           nchar(k) == 309L && nchar(k) <= SEUIL_R &&
              identical(.commentaire_replie(k), .echap_html(k))
-         })
+         }))
 # H0 et H1 de la vue Detail (#450) : meme repli, seulement avec replier = TRUE ;
 # le rapport fige garde H0 et H1 entiers. H1 de l'adequation de l'exposant de
-# variance de M2 : 1 216 caracteres dans reserve2.
-verifier("Vue Detail : H1 (et H0) replies avec replier = TRUE selon la regle de #472, entiers dans le rapport fige (#450)",
-         {
+# variance de M2 : 1 216 caracteres dans reserve2, cinq phrases.
+verifier("Vue Detail : H1 (et H0) replies avec replier = TRUE selon la regle de #517, entiers dans le rapport fige (#450)",
+         local({
            i <- which.max(nchar(tbm$H1))
            dd_r <- table_detail_groupe(tbm[i, , drop = FALSE], replier = TRUE)
            dd_p <- table_detail_groupe(tbm[i, , drop = FALSE])
-           res_h1 <- regmatches(dd_r$H1, regexec("^<details class='com'><summary>(.*?)</summary>(.*)</details>$",
-                                                  dd_r$H1, perl = TRUE))[[1]]
-           nchar(tbm$H1[i]) > 2L * (SEUIL_R + MARGE_R) &&
-             startsWith(dd_r$H1, "<details class='com'><summary>") &&
-             nchar(desechap(res_h1[2])) <= SEUIL_R + MARGE_R &&
-             # Au seuil de 400 (#514), pas de fin de phrase dans la fenetre de
-             # ce H1 : coupe a defaut (resume d'au plus seuil caracteres).
-             (grepl("[.;]$", desechap(res_h1[2])) || nchar(desechap(res_h1[2])) <= SEUIL_R) &&
-             identical(relire_com(dd_r$H1, tbm$H1[i]), tbm$H1[i]) &&
+           m <- coupe_cel(dd_r$H1)
+           f <- .fins_de_phrase(tbm$H1[i])
+           nchar(tbm$H1[i]) > 2L * SEUIL_R &&
+             length(m) == 4L &&
+             # Resume : jusqu'a la premiere fin de phrase a SEUIL_R caracteres ou plus ;
+             # derniere phrase : apres la derniere fin de phrase.
+             identical(desechap(m[2]), substr(tbm$H1[i], 1L, f[f >= SEUIL_R][1L])) &&
+             identical(desechap(m[4]), substr(tbm$H1[i], max(f) + 2L, nchar(tbm$H1[i]))) &&
+             identical(relire_com(dd_r$H1), unname(tbm$H1[i])) &&
              identical(dd_p$H1, .txt(tbm$H1[i])) && !grepl("<details", dd_p$H1, fixed = TRUE) &&
              identical(table_detail_groupe(tbm, replier = TRUE)$H0, .commentaire_replie(tbm$H0)) &&
              identical(table_detail_groupe(tbm)$H0, .txt(tbm$H0)) &&
              identical(table_detail_groupe(tb, replier = TRUE)$H1, .commentaire_replie(tb$H1))
-         })
+         }))
 # Phrase de #244 (decision du mainteneur : sortie du repli) : cas long, Origine
 # de reserve2 (314 caracteres, phrase au-dela du seuil de 200) ; cas court,
 # Grubbs de premium_interieur (128 caracteres) ; phrase seule : detail
@@ -1723,15 +1706,16 @@ ref244 <- function(cas, nom) {
   if (length(l) != 1L) stop("ref244 : ", length(l), " ligne(s) '", nom, "' dans ", cas)
   l[[1]]$detail
 }
-verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, texte relu entier (#244, #178, #472)",
-         {
+verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, texte relu entier, derniere phrase du reste visible avant elle (#244, #178, #517)",
+         local({
            x_long <- ref244("reserve2", "Nullite de l'ordonnee a l'origine, colonne par colonne")
            x_court <- ref244("premium_interieur", "Valeur aberrante isolee (Grubbs)")
            x_seul <- PHRASE_VERDICT_SENSIBLE_MC
-           # Texte de l'Origine sans la phrase : 225 caracteres, sa fin tombe dans
-           # la fenetre de #472 -> entier (avant #472 : replie). Cas replie : texte
-           # synthetique de 450 caracteres sans fin de phrase, jointure " ; ".
-           x_rep <- paste0(strrep("x", SEUIL_R + MARGE_R + SUITE_R + 100L), " ; ", PHRASE_VERDICT_SENSIBLE_MC)
+           # Cas replie : quatre phrases synthetiques, la derniere sans point final
+           # (jonction " ; " avec la phrase de #244).
+           h <- SEUIL_R %/% 2L
+           ph <- c(phr(h, "Un"), phr(h, "Deux"), phr(SUITE_R + 50L, "Trois"), "Quatre sans point final")
+           x_rep <- paste0(paste(ph, collapse = " "), " ; ", PHRASE_VERDICT_SENSIBLE_MC)
            cr <- .commentaire_replie(c(x_long, x_court, x_seul, x_rep))
            nchar(x_long) > 200L && endsWith(x_long, PHRASE_VERDICT_SENSIBLE_MC) &&
              !grepl("<details", cr[1], fixed = TRUE) &&
@@ -1743,18 +1727,18 @@ verifier(".commentaire_replie() : phrase de #244 hors du <details>, en pied, tex
              !grepl("<details", cr[2], fixed = TRUE) &&
              identical(cr[3], SPAN244) && !grepl("<br>", cr[3], fixed = TRUE) &&
              startsWith(cr[4], "<details class='com'><summary>") &&
-             endsWith(cr[4], paste0("</details>", PIED244)) &&
+             endsWith(cr[4], paste0("</details><br>", ph[4], PIED244)) &&
              !grepl("alea de simulation", sub(PIED244, "", cr[4], fixed = TRUE), fixed = TRUE) &&
-             identical(relire_com(cr, c(x_long, x_court, x_seul, x_rep)), c(x_long, x_court, x_seul, x_rep))
-         })
+             identical(relire_com(c(cr)), c(x_long, x_court, x_seul, x_rep))
+         }))
 # --- Reprise de R33 (#472, #450) : robustesse, profondeur, initiales ---------
 # Resume (texte relu) d'une cellule de .commentaire_replie(), NA si non replie.
 resume_de <- function(x) {
-  m <- regmatches(x, regexec("^<details class='com'><summary>(.*?)</summary>(.*)</details>$", x, perl = TRUE))[[1]]
+  m <- regmatches(x, regexec(RE_REPLI, x, perl = TRUE))[[1]]
   if (length(m)) desechap(m[2]) else NA_character_
 }
 verifier(".commentaire_replie() : entree non caractere (numerique, facteur, entier) convertie comme .txt(), sans erreur (R33)",
-         {
+         local({
            ok <- function(expr) tryCatch(expr, error = function(e) FALSE)
            ok(identical(.commentaire_replie(3), "3")) &&
              ok(identical(.commentaire_replie(factor("a")), "a")) &&
@@ -1762,40 +1746,37 @@ verifier(".commentaire_replie() : entree non caractere (numerique, facteur, enti
              ok(identical(.commentaire_replie(factor(c("a < b", NA))), c("a &lt; b", "–"))) &&
              ok(identical(.commentaire_replie(character(0)), character(0))) &&
              ok(identical(.commentaire_replie(factor(strrep("x ", 300))), .commentaire_replie(strrep("x ", 300))))
-         })
-verifier(".commentaire_replie() : \" ; \" ou \". \" dans une parenthese ou un crochet n'est pas une fin de phrase (profondeur nulle seulement) (R33)",
-         {
-           # Le signe tombe a la limite basse de la fenetre, a l'interieur de [0 ; 1] ou (0 ; 1) : refuse, coupe a defaut.
-           dans <- vapply(list(c("[", "]"), c("(", ")")), function(ouv) {
-             x <- paste0(strrep("a", SEUIL_R - 5L), " ", ouv[1], "0 ; 1", ouv[2], " ", strrep("b", 3L * SUITE_R),
-                         ". Fin ", strrep("c", 2L * SUITE_R))
-             r <- resume_de(.commentaire_replie(x))
-             !is.na(r) && !grepl(";$", r) && nchar(r) <= SEUIL_R
-           }, NA)
-           # Le meme signe a profondeur nulle (parenthese fermee avant) est une fin de phrase.
-           n2 <- SEUIL_R - 8L
-           x2 <- paste0("(a ; b) ", strrep("a", n2), " ; ", strrep("b", 3L * SUITE_R))
-           r2 <- resume_de(.commentaire_replie(x2))
-           # Parenthese non fermee : la profondeur ne revient jamais a 0, aucun signe
-           # apres elle n'est une fin de phrase ; la coupe a defaut reste possible.
-           x3 <- paste0("(ouverte ", strrep("a", SEUIL_R - 5L), " ; ", strrep("b", 3L * SUITE_R))
-           r3 <- resume_de(.commentaire_replie(x3))
-           # Un signe a profondeur nulle AVANT la parenthese non fermee reste une fin de phrase.
-           ph <- paste0(strrep("a", SEUIL_R - 3L), " bb.")
-           x4 <- paste0(ph, " Suite (ouverte ", strrep("b", 3L * SUITE_R), " ; ", strrep("c", 2L * SUITE_R))
-           r4 <- resume_de(.commentaire_replie(x4))
+         }))
+verifier(".fins_de_phrase() : \" ; \" ou \". \" dans une parenthese ou un crochet n'est pas une fin de phrase (profondeur nulle seulement) (R33, #517)",
+         local({
+           # Dans [0 ; 1] ou (0 ; 1), a l'interieur d'une parenthese jamais fermee : refuse.
+           dans <- vapply(list(c("[", "]"), c("(", ")")), function(ouv)
+             length(.fins_de_phrase(paste0("a ", ouv[1], "0 ; 1", ouv[2], " b"))) == 0L, NA)
+           # A profondeur nulle (parenthese fermee avant) : fin de phrase, et la position est celle du signe.
+           x2 <- "(a ; b) cc ; dd"
+           # Parenthese non fermee : aucun signe apres elle n'est une fin de phrase ; un signe avant l'est.
+           x3 <- "(ouverte aa ; bb"
+           x4 <- "Debut bb. Suite (ouverte cc ; dd"
            # Fermant sans ouvrant : la profondeur ne descend pas sous 0.
-           n5 <- SEUIL_R - 8L
-           x5 <- paste0("fin 1] ", strrep("a", n5), " ; ", strrep("b", 3L * SUITE_R))
-           r5 <- resume_de(.commentaire_replie(x5))
+           x5 <- "fin 1] aa ; bb"
            all(dans) &&
-             identical(r2, paste0("(a ; b) ", strrep("a", n2), " ;")) &&
-             !is.na(r3) && nchar(r3) <= SEUIL_R && !grepl(";$", r3) &&
-             identical(r4, ph) &&
-             identical(r5, paste0("fin 1] ", strrep("a", n5), " ;"))
-         })
+             identical(.fins_de_phrase(x2), 12L) &&
+             length(.fins_de_phrase(x3)) == 0L &&
+             identical(.fins_de_phrase(x4), 9L) &&
+             identical(.fins_de_phrase(x5), 11L)
+         }))
+verifier(".commentaire_replie() : un \" ; \" entre crochets ou parentheses n'est pas la coupe du resume (R33, #517)",
+         local({
+           # Le signe tombe dans le resume au seuil, a l'interieur de [0 ; 1] : la coupe est a la fin de phrase suivante.
+           all(vapply(list(c("[", "]"), c("(", ")")), function(ouv) {
+             x <- paste(paste0(strrep("a", SEUIL_R - 5L), " ", ouv[1], "0 ; 1", ouv[2], " bb."),
+                        phr(SUITE_R + 20L, "Deux"), "Trois.", "Fin.")
+             r <- resume_de(.commentaire_replie(x))
+             !is.na(r) && !grepl(";$", r) && grepl("\\.$", r)
+           }, NA))
+         }))
 verifier("Cas reels : le \" ; \" de \"approchee ;\" (Nullite de la constante, premium) et celui de \"min(sigma2_(J-2) = ... ;\" (Extrapolation de sigma, reserve2) ne sont pas des fins de phrase (R33)",
-         {
+         local({
            lignes <- function(cas, nom) Filter(function(l) identical(l$test, nom),
              readRDS(file.path(.racine, "tests", "reference", paste0(cas, ".rds")))$tests)
            cnt <- function(ch, r) lengths(regmatches(r, gregexpr(ch, r, fixed = TRUE)))
@@ -1807,43 +1788,111 @@ verifier("Cas reels : le \" ; \" de \"approchee ;\" (Nullite de la constante, pr
                n <- n + 1L
                cel <- .commentaire_replie(l$detail)
                r <- resume_de(cel)
-               ok <- ok && identical(relire_com(cel, l$detail), l$detail) &&
+               ok <- ok && identical(relire_com(cel), l$detail) &&
                  (is.na(r) || (!endsWith(r, a[[3]]) && (!grepl("[.;]$", r) || eq(r))))
              }
            }
            n >= 2L && ok
-         })
-verifier(".commentaire_replie() : initiale ou abreviation suivie d'une majuscule n'est pas une fin de phrase, mot de deux lettres ou plus et fin de formule le sont (R33)",
-         {
-           # Le point tombe juste apres le seuil (dans la fenetre) ; la suite fait plus de suite_min.
-           coupe <- function(motif) {
-             x <- paste0(strrep("a", SEUIL_R + 5L), " ", motif, " ", strrep("b", 3L * SUITE_R))
-             resume_de(.commentaire_replie(x))
-           }
-           nu <- function(m) { r <- coupe(m); !is.na(r) && !endsWith(r, ".") && nchar(r) <= SEUIL_R }
-           oui <- function(m) { r <- coupe(m); !is.na(r) && endsWith(r, ".") }
+         }))
+verifier(".fins_de_phrase() : initiale ou abreviation suivie d'une majuscule n'est pas une fin de phrase, mot de deux lettres ou plus et fin de formule le sont (R33, #517)",
+         local({
+           pos <- function(motif) .fins_de_phrase(paste0("aaa ", motif, " bbb"))
            # Refus : initiales, abreviations de la liste, y compris en majuscules.
            refus <- c("J. Econometrics", "C. B", "et al. A", "p. E", "pp. E", "vol. A", "no. A", "ed. A", "eds. A",
-                      "ch. A", "sect. A", "fig. A", "eq. A", "approx. A", "resp. A", "cf. A", "Al. A", "x J. Econometrics")
+                      "ch. A", "sect. A", "fig. A", "eq. A", "approx. A", "resp. A", "cf. A", "Al. A", "x J. Econometrics", "p. ex. A")
            # Acceptation : mot de deux lettres ou plus hors liste, fin de parenthese, de formule, de nombre.
            accept <- c("Econometrics. Suite", "en 2008. Suite", "sigma_j. Suite", "(T = 8). Suite", "[0, 1]. Suite",
-                       "T = 8. Suite", "ok. Suite")
-           all(vapply(refus, nu, NA)) && all(vapply(accept, oui, NA)) &&
-             # chiffre apres l'abreviation : deja ecarte (pas une majuscule).
-             !oui("vol. 2")
-         })
-verifier(".commentaire_replie() : resume de SEUIL caracteres sans espace termine par \";\", puis espace : relu sans ambiguite (R33)",
-         {
-           x <- paste0(strrep("g", SEUIL_R - 1L), "; ", strrep("h", 2L * SUITE_R))
-           x_def <- paste0(strrep("g", SEUIL_R - 1L), ";", strrep("h", 3L * SUITE_R))   # sans espace : coupe au seuil
-           cr <- .commentaire_replie(c(x, x_def))
-           identical(resume_de(cr[1]), paste0(strrep("g", SEUIL_R - 1L), ";")) &&
-             identical(resume_de(cr[2]), substr(x_def, 1L, SEUIL_R)) &&
-             identical(relire_com(cr, c(x, x_def)), c(x, x_def)) &&
-             # Sans le texte attendu, lecture avec espace : la lecture sans espace du
-             # second est donc distinguee de celle du premier par `ref`.
-             identical(relire_com(cr[1]), x) && !identical(relire_com(cr[2]), x_def)
-         })
+                       "T = 8. Suite", "ok. Suite", "alpha = 0,05. Suite")
+           all(vapply(refus, function(m) length(pos(m)) == 0L, NA)) &&
+             all(vapply(accept, function(m) length(pos(m)) == 1L, NA)) &&
+             # chiffre apres l'abreviation : deja ecarte (pas une majuscule) ; decimale "0,05." en fin de phrase sans majuscule.
+             length(pos("vol. 2")) == 0L && length(.fins_de_phrase("seuil 0,05. au plus Bb")) == 0L
+         }))
+# Six references (#517, criteres C1 a C3 de la revue finale de K1) : pour chaque
+# detail (colonne commentaire), H0 et H1 de la vue Detail, replies ou non, la
+# premiere et la derniere phrase sont visibles hors de la partie masquee, la
+# coupe tombe en fin de phrase, le texte complet (visible + masque) est celui du
+# moteur. Phrase de #244 : sortie du repli, retiree du texte avant le decoupage.
+verifier("Six references : premiere et derniere phrase de chaque detail replie visibles hors du <details>, coupe en fin de phrase, texte complet identique au moteur (#517, C1 a C3)",
+         local({
+           n_repli <- 0L; ok <- TRUE; nom_repli <- character(0)
+           for (cas in c("premium", "premium_ii6", "premium_interieur", "premium_net", "reserve1", "reserve2")) {
+             res <- readRDS(file.path(.racine, "tests", "reference", paste0(cas, ".rds")))
+             tbr <- engine_table_tests(res)
+             # Le commentaire de la table est le detail du moteur.
+             ok <- ok && identical(unname(tbr$commentaire), unname(vapply(res$tests, function(l) l$detail, "")))
+             dd <- table_detail_groupe(tbr, replier = TRUE)
+             for (col in list(c("Motif / commentaire", "commentaire"), c("H0", "H0"), c("H1", "H1"))) {
+               brut <- tbr[[col[2]]]; cel <- dd[[col[1]]]
+               for (i in which(!is.na(brut) & nzchar(trimws(brut)))) {
+                 x <- brut[i]
+                 # Texte sans la phrase de #244 (affichee en pied, hors repli).
+                 x0 <- if (endsWith(x, PHRASE_VERDICT_SENSIBLE_MC))
+                         sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC))) else x
+                 corps <- if (identical(cel[i], SPAN244)) ""
+                          else if (endsWith(cel[i], PIED244)) substr(cel[i], 1L, nchar(cel[i]) - nchar(PIED244))
+                          else cel[i]
+                 ok <- ok && identical(relire_com(cel[i]), x)                       # texte complet
+                 if (nchar(x0) <= SEUIL_R) { ok <- ok && !grepl("<details", cel[i], fixed = TRUE); next }
+                 f <- .fins_de_phrase(x0)
+                 if (!startsWith(corps, "<details class='com'>")) next              # long mais entier : rien de masque
+                 m <- regmatches(corps, regexec(RE_REPLI, corps))[[1]]
+                 resume <- desechap(m[2]); suite <- desechap(m[3]); dern <- desechap(m[4])
+                 premiere <- substr(x0, 1L, f[1]); derniere <- substr(x0, max(f) + 2L, nchar(x0))
+                 n_repli <- n_repli + 1L; nom_repli <- c(nom_repli, paste(cas, col[2], i))
+                 ok <- ok &&
+                   startsWith(resume, premiere) &&                                  # premiere phrase dans le resume
+                   identical(dern, derniere) && nzchar(dern) &&                     # derniere phrase hors du <details>
+                   !endsWith(suite, derniere) &&
+                   nchar(resume) >= SEUIL_R && (nchar(resume) %in% f) &&            # coupe a une fin de phrase...
+                   grepl("[.;]$", resume) &&
+                   substr(x0, nchar(resume) + 1L, nchar(resume) + 1L) == " " &&     # ... suivie d'un espace
+                   identical(paste(resume, suite, dern), x0)
+               }
+             }
+           }
+           # Non vacuite : la ligne des signes de premium_interieur (C1) et le H1 de M2 (reserve2).
+           cat(sprintf("  note : %d cellule(s) repliee(s) sur les six references : %s\n", n_repli,
+                       paste(nom_repli, collapse = ", ")))
+           ok && n_repli >= 2L
+         }))
+# C1 : la ligne des signes de premium_interieur, cas du rapport de revue (637
+# caracteres) : resume = les deux premieres propositions de la phrase de tete
+# (TEST INOPERANT + regime), derniere phrase (renvoi a la ligne homologue) visible.
+# C2 : les lignes "Test des suites" (630 et 649 caracteres) ne sont plus
+# repliees : la phrase "ECHEC inatteignable", derniere du detail, n'est jamais
+# masquee. C1 : "Autocorrelation d'ordre 1 (Durbin-Watson)" (551 caracteres) n'est
+# plus coupee en milieu de phrase.
+verifier("premium_interieur : signes replie a une fin de phrase, derniere phrase visible ; Durbin-Watson (551) et suites (630, 649) entiers (#517, C1, C2)",
+         local({
+           res <- readRDS(file.path(.racine, "tests", "reference", "premium_interieur.rds"))
+           tbr <- engine_table_tests(res)
+           cel <- function(nom) .commentaire_replie(tbr$commentaire[tbr$test == nom])
+           s <- cel("Tendance par signes du ratio S/P")
+           m <- coupe_cel(s)
+           dw <- cel("Autocorrelation d'ordre 1 (Durbin-Watson)")
+           su <- cel("Test des suites (aleatoire des signes)")
+           sb <- cel("Test des suites sur ratios bruts")
+           length(m) == 4L && grepl("tendance du ratio S/P", m[3], fixed = TRUE) &&
+             grepl("^A lire avec ", m[4]) && grepl("\\.$", desechap(m[2])) &&
+             !grepl("<details", dw, fixed = TRUE) && !grepl("<details", su, fixed = TRUE) &&
+             !grepl("<details", sb, fixed = TRUE) &&
+             grepl("ECHEC inatteignable", su, fixed = TRUE) && grepl("ECHEC inatteignable", sb, fixed = TRUE)
+         }))
+# Largeur minimale de la colonne "Motif / commentaire" de la vue Detail (#517) :
+# html_table(largeurs = ) pose un min-width sur l'en-tete nomme seulement ;
+# sans largeurs, en-tetes inchanges ; le rapport fige n'en porte pas.
+verifier("html_table(largeurs = ) : min-width sur l'en-tete de la colonne nommee seulement, en-tetes inchanges sans largeurs ; LARGEURS_DETAIL nomme la colonne Motif / commentaire (#517)",
+         local({
+           d <- table_detail_groupe(tb[1:2, , drop = FALSE], replier = TRUE)
+           t0 <- html_table(d); t1 <- html_table(d, largeurs = LARGEURS_DETAIL)
+           w <- LARGEURS_DETAIL[["Motif / commentaire"]]
+           identical(names(LARGEURS_DETAIL), "Motif / commentaire") && is.finite(w) && w >= 300L &&
+             identical(t0, html_table(d, largeurs = NULL)) && !grepl("min-width", t0, fixed = TRUE) &&
+             grepl(sprintf("<th style='min-width:%dpx'>Motif / commentaire</th>", w), t1, fixed = TRUE) &&
+             compte(t1, "min-width") == 1L && grepl("<th>Test</th>", t1, fixed = TRUE) &&
+             !grepl("min-width", html_table(table_detail_groupe(tb[1:2, , drop = FALSE])), fixed = TRUE)
+         }))
 verifier("Garde : table sans colonne fonction -> tiret dans la colonne Fonction (#178)",
          { tbf <- tb; tbf$fonction <- NULL; all(table_detail_groupe(tbf)$Fonction == "–") })
 # Colonne "p min MC" de la vue Detail (plancher Monte-Carlo p_min_mc, #125,

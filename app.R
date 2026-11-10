@@ -1439,7 +1439,13 @@ server <- function(input, output, session) {
                 badge_verdict("ALERTE"), nb[["ALERTE"]], "&nbsp;&nbsp;",
                 badge_verdict("ECHEC"), nb[["ECHEC"]], "&nbsp;&nbsp;",
                 "<span style='color:#5D6D7E;font-size:11px'>INFO</span>", nb[["INFO"]])))),
-          HTML(html_table(d)))
+          # Tableau de la vue Detail (16 colonnes, colonne Motif a largeur
+          # minimale, #517) plus large que son cadre : defilement horizontal
+          # dans le cadre, sinon la partie qui depasse passe sous le panneau
+          # des parametres. Meme conteneur pour la Synthese (aucune regle de
+          # largeur, comportement inchange tant que le tableau tient).
+          div(style = "overflow-x:auto",
+              HTML(html_table(d, largeurs = if (identical(input$vue_tests, "detail")) LARGEURS_DETAIL))))
     })
     # Regle des verdicts en tete des tests (#498), au alpha du resultat
     # affiche (html_regle_verdicts(), display_helpers.R) ; NULL si absent.

@@ -1499,13 +1499,21 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
     '    identical(r$donnees$xt, xt[3:10]) && identical(r$donnees$yt, yt[3:10]))',
     '  session$setInputs(vue_tests = "detail")',
     '  dt <- as.character(output$tests_par_hypothese$html)',
-    '  tb_dt <- engine_table_tests(r)',
-    '  # Seuil du repli porte a 400 par #514 (plafond du texte propre) : le rendu',
-    '  # replie si et seulement si .commentaire_replie() replie un texte de la vue.',
-    '  attendu_repli <- any(startsWith(.commentaire_replie(c(tb_dt$commentaire, tb_dt$H0, tb_dt$H1)),',
-    '                                  "<details class=\'com\'>"))',
-    '  a("vue Detail : commentaire long replie si la regle de repli le replie, et colonne Fonction (#178, #514)",',
-    '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli) &&',
+    '  # Regle de repli de #517 : le rendu replie si et seulement si',
+    '  # .commentaire_replie() replie un texte de la vue, et chaque cellule',
+    '  # (Motif / commentaire, H0, H1) est rendue telle que la regle la produit :',
+    '  # un repli absent ou mal place change la cellule et fait echouer le test.',
+    '  # Lignes affichees : selection courante de l\'onglet (filtrer_selection).',
+    '  tb_aff <- TB(); tb_aff <- tb_aff[filtrer_selection(tb_aff, sel_courante()), , drop = FALSE]',
+    '  cel_att <- unlist(table_detail_groupe(tb_aff, replier = TRUE)[c("Motif / commentaire", "H0", "H1")])',
+    '  attendu_repli <- any(startsWith(cel_att, "<details class=\'com\'>"))',
+    '  a("vue Detail : repli present si et seulement si la regle de repli replie un texte de la vue (#178, #517)",',
+    '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli))',
+    '  a("vue Detail : chaque cellule de commentaire, H0 et H1 des lignes affichees rendue comme la regle de repli la produit (#517)",',
+    '    length(cel_att) > 0L && all(vapply(unname(cel_att), grepl, NA, x = dt, fixed = TRUE)))',
+    '  a("vue Detail : tableau dans un conteneur overflow-x:auto (aucune colonne sous le panneau), largeur minimale de la colonne Motif / commentaire, colonne Fonction (#517, #178)",',
+    '    grepl("<div style=\\"overflow-x:auto\\"><table class=\'table table-condensed data\'>", dt, fixed = TRUE) &&',
+    '    grepl(paste0("<th style=\'min-width:", LARGEURS_DETAIL[["Motif / commentaire"]], "px\'>Motif / commentaire</th>"), dt, fixed = TRUE) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
     '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
     '    grepl("<th>granularit\u00e9 MC</th>", dt, fixed = TRUE) &&',
@@ -1514,6 +1522,7 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
     '  sy <- as.character(output$tests_par_hypothese$html)',
     '  a("vue Synthese : ni repli ni colonne Fonction ni granularite MC (#178, #285)",',
     '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE) &&',
+    '      !grepl("min-width", sy, fixed = TRUE) &&',
     '      !grepl("granularit\u00e9 MC", sy, fixed = TRUE))',
     '  lib <- libelle_derogation(r, "profondeur")',
     '  a("ligne profondeur restituee, 2 annees ecartees", length(lib) == 1L &&',
@@ -1610,8 +1619,8 @@ for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = F
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 114 assertions rendues", length(.lignes) == 114L)
-  if (length(.lignes) != 114L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 116 assertions rendues", length(.lignes) == 116L)
+  if (length(.lignes) != 116L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

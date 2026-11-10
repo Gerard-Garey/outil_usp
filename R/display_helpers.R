@@ -420,45 +420,56 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
   "\u03b1 du panneau diff\u00e9rent de celui du dernier calcul : relancer les calculs"
 }
 
-# Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
-# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Texte
-# de `seuil` caracteres ou moins : affiche entier. Seuil par defaut 400,
-# aligne sur le plafond du texte propre des commentaires de #514 (deux
-# phrases au plus, 400 caracteres ; decision du mainteneur du 09/11/2026) :
-# a 200, le repli masquait surtout la phrase des lignes liees (#472 avait
-# fixe 200). Au-dela, regle de coupe de
-# #472 (marge `marge`, decision du mainteneur du 07/11/2026) : coupe a la
-# premiere fin de phrase dont le resume fait au moins `seuil` et au plus
-# `seuil + marge` caracteres. Fin de phrase : "." suivi d'un espace puis d'une
+# Commentaire du moteur replie (#178, point 1 ; regle structurelle de #517) :
+# les commentaires longs (600 a 842 caracteres) donnaient des cellules tres
+# hautes dans la vue Detail. Texte de `seuil` caracteres ou moins : affiche
+# entier. Seuil par defaut 400, aligne sur le plafond du texte propre des
+# commentaires de #514 (deux phrases au plus, 400 caracteres ; decision du
+# mainteneur du 09/11/2026) ; #472 l'avait fixe a 200.
+# Regle de repli, STRUCTURELLE : elle ne lit que la ponctuation, jamais le sens
+# du texte (l'affichage lit les champs, jamais le detail, #129). Le texte est
+# decoupe en phrases par .fins_de_phrase() ; la PREMIERE et la DERNIERE phrase
+# ne sont jamais masquees (la mention de la regle R1 et la phrase de #244 sont
+# en fin de detail). Resume : les premieres phrases, jusqu'a la premiere fin de
+# phrase dont le resume fait au moins `seuil` caracteres (aucune borne
+# superieure : la coupe tombe toujours a une fin de phrase, jamais au milieu
+# d'une phrase ni a une longueur fixe). Suite masquee : les phrases entre ce
+# resume et la derniere phrase, dans un <details> deplie au clic ; la derniere
+# phrase est affichee apres lui, sur sa propre ligne (<br>). Texte entier,
+# sans repli : aucune fin de phrase a `seuil` caracteres ou plus qui laisse au
+# moins une phrase apres le resume et avant la derniere (moins de trois phrases,
+# ou resume atteignant la derniere phrase), ou suite masquee de moins de
+# `suite_min` (100) caracteres (decision du mainteneur du 07/11/2026).
+# Fin de phrase (.fins_de_phrase()) : "." suivi d'un espace puis d'une
 # majuscule, ou ";" suivi d'un espace, a profondeur nulle de parentheses et de
 # crochets (comptee depuis le debut du texte jusqu'au signe : un ";" de
 # "[0 ; 1]" ou de "min(a = 1 ; b = 2)" n'est pas une fin de phrase ; une
-# parenthese jamais refermee ferme toute fin de phrase apres elle, la coupe a
-# defaut restant possible ; un fermant sans ouvrant ne descend pas sous 0). Un
-# "." n'est retenu que si le mot qui le precede (suite de lettres, chiffres et
-# "_" collee au point) n'est pas une seule lettre (initiale : "J. Econometrics",
-# "C. B") ni une abreviation de `.ABREV_FIN_PHRASE` ("et al. A", "p. E") ; un
-# signe de ponctuation devant le point (")", "]", "%") ou un nombre ("= 8.")
-# n'ecarte pas le point. La fin du texte en est une aussi (si elle est la
-# premiere fin de phrase de la fenetre, pas de repli). La coupe se fait a
-# l'espace qui suit le signe, le signe reste dans le resume. A defaut de fin de phrase dans la
-# fenetre, coupe de #178 : dernier espace avant le seuil, ou au seuil. Quelle
-# que soit la coupe, si la suite masquee ferait moins de `suite_min` (100)
-# caracteres, le texte reste entier (decision du mainteneur du 07/11/2026). Le debut
-# va dans le <summary> d'un <details>, la suite dans son corps, deplie au clic.
-# Aucun texte n'est retire : debut et suite, rejoints par l'espace de coupure,
-# rendent le commentaire entier (cet espace est remplace par la frontiere entre
-# le <summary> et le corps). Mise en forme seule, chaque partie echappee ; NA :
-# tiret, comme .txt(). Aussi appliquee a H0 et H1 de la vue Detail (#450).
+# parenthese jamais refermee ferme toute fin de phrase apres elle ; un fermant
+# sans ouvrant ne descend pas sous 0). Un "." n'est retenu que si le mot qui le
+# precede (suite de lettres, chiffres et "_" collee au point) n'est pas une
+# seule lettre (initiale : "J. Econometrics", "C. B") ni une abreviation de
+# `.ABREV_FIN_PHRASE` ("et al. A", "p. ex. A") ; un signe de ponctuation devant le
+# point (")", "]", "%") ou un nombre ("= 8.") n'ecarte pas le point. Limites :
+# un "." suivi d'une minuscule ("verdict. pi_t") ou d'un chiffre ne coupe pas ;
+# une abreviation absente de la liste suivie d'une majuscule coupe a tort (la
+# coupe reste alors a un espace, sans texte perdu) ; un ";" de liste est une
+# fin de phrase ; un texte sans fin de phrase, ou dont les fins sont toutes
+# avant `seuil`, reste entier.
+# Aucun texte n'est retire : debut, suite et derniere phrase, rejoints par
+# l'espace qui suit chaque fin de phrase (remplace par la frontiere du
+# <summary>, du corps du <details> et du <br>), rendent le commentaire entier.
+# Mise en forme seule, chaque partie echappee ; NA : tiret, comme .txt(). Aussi
+# appliquee a H0 et H1 de la vue Detail (#450).
 # Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
 # moteur, toujours chargee avec lui, dernier element du detail) : sortie du
 # repli (decision du mainteneur, version d'app-review) et affichee apres lui,
 # sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
-# cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
-# avant. Sans la phrase, rendu inchange.
+# cellule) ; sa jonction (" " ou " ; ") est retiree, la regle ci-dessus
+# s'applique au reste, dont la derniere phrase reste donc visible avant elle.
+# Sans la phrase, rendu inchange.
 .ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
-                       "sect", "fig", "eq", "approx", "resp")
-.commentaire_replie <- function(com, seuil = 400L, marge = 150L, suite_min = 100L) {
+                       "sect", "fig", "eq", "approx", "resp", "ex")
+.commentaire_replie <- function(com, seuil = 400L, suite_min = 100L) {
   # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
   vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
@@ -471,30 +482,20 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
     corps <- if (!nzchar(x)) ""
       else if (nchar(x) <= seuil) .echap_html(x)
       else {
-        # Fins de phrase : position du signe (resume = x[1..p]) ; la fin du
-        # texte en est une aussi, la derniere.
+        # Fins de phrase (position du signe) ; un signe en dernier caractere
+        # utile n'ouvre pas de phrase vide : il n'est pas retenu.
         fin <- .fins_de_phrase(x)
-        fin <- c(fin, nchar(x))
-        fin <- fin[fin >= seuil & fin <= seuil + marge]
-        if (length(fin) && fin[1L] == nchar(x)) .echap_html(x)
+        fin <- fin[fin < nchar(sub("[[:space:]]+$", "", x))]
+        j <- which(fin >= seuil)[1L]          # fin de la derniere phrase du resume
+        n <- length(fin)                      # la derniere phrase suit fin[n]
+        if (is.na(j) || j >= n) .echap_html(x)
         else {
-          if (length(fin)) {
-            k <- fin[1L] + 1L                     # l'espace qui suit le signe
-            reprise <- k + 1L
-          } else {
-            tete <- substr(x, 1L, seuil)
-            esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
-            k <- if (any(esp > 1L)) max(esp) else seuil + 1L
-            reprise <- if (k <= seuil) k + 1L else k
-          }
-          debut <- substr(x, 1L, k - 1L)
-          suite <- substr(x, reprise, nchar(x))
-          # Suite masquee de moins de `suite_min` caracteres : pas de repli
-          # (decision du mainteneur du 07/11/2026), pour la coupe a une fin de
-          # phrase comme pour la coupe a defaut.
+          debut <- substr(x, 1L, fin[j])
+          suite <- substr(x, fin[j] + 2L, fin[n])
+          dern <- substr(x, fin[n] + 2L, nchar(x))
           if (nchar(suite) < suite_min) .echap_html(x)
           else paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
-                      .echap_html(suite), "</details>")
+                      .echap_html(suite), "</details><br>", .echap_html(dern))
         }
       }
     paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
@@ -504,7 +505,8 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
 # Positions des fins de phrase de x pour .commentaire_replie() : signe "." suivi
 # d'un espace et d'une majuscule, ou ";" suivi d'un espace, a profondeur nulle
 # de parentheses et de crochets, "." precede d'un mot d'au moins deux caracteres
-# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Affichage seul.
+# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Le signe est toujours
+# suivi d'un espace (propriete lue par le repli). Affichage seul.
 .fins_de_phrase <- function(x) {
   cand <- gregexpr("(\\.(?= \\p{Lu})|;(?= ))", x, perl = TRUE)[[1]]
   cand <- cand[cand > 0L]
@@ -522,6 +524,11 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
   }, NA)
   cand[garde]
 }
+# Largeur minimale de la colonne "Motif / commentaire" de la vue Detail (#517) :
+# colonne etroite dans un tableau de 16 colonnes (constat de la revue finale de
+# K1, Q-56-7 (6)) ; largeur minimale posee sur l'en-tete.
+# Passee a html_table(largeurs = ) par app.R.
+LARGEURS_DETAIL <- c("Motif / commentaire" = 360L)
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
@@ -604,9 +611,14 @@ granularite_lignes <- function(tb, boot) {
   out
 }
 
-html_table <- function(d, classe = "table table-condensed data") {
+# `largeurs` (#517) : vecteur nomme de largeurs minimales en pixels, par nom de
+# colonne ; une colonne nommee recoit un style min-width sur son en-tete, les
+# autres restent sans attribut. NULL (defaut) : en-tetes inchanges.
+html_table <- function(d, classe = "table table-condensed data", largeurs = NULL) {
+  th <- ifelse(names(d) %in% names(largeurs),
+               paste0("<th style='min-width:", unname(largeurs[names(d)]), "px'>"), "<th>")
   paste0("<table class='", classe, "'><thead><tr>",
-         paste0("<th>", names(d), "</th>", collapse = ""), "</tr></thead><tbody>",
+         paste0(th, names(d), "</th>", collapse = ""), "</tr></thead><tbody>",
          paste(apply(d, 1, function(l)
            paste0("<tr><td>", paste(l, collapse = "</td><td>"), "</td></tr>")), collapse = ""),
          "</tbody></table>")
