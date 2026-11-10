@@ -263,14 +263,6 @@ badge_nature <- function(n) {
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
 
-avertissement_T <- function(T) {
-  if (T >= 15) return(NULL)
-  sprintf(paste("Profondeur T = %d. Les lois asymptotiques ne sont pas fiables \u00e0 cette",
-                "taille : les p-values exactes, lorsqu'elles existent, et les p-values de",
-                "Monte-Carlo priment. Une p-value \u00e9lev\u00e9e ne d\u00e9montre pas la validit\u00e9 de",
-                "l'hypoth\u00e8se : elle ne permet pas de la rejeter."), T)
-}
-
 # --- Type et motif d'une ligne (#124) ----------------------------------------
 # Libelle court du type de la ligne, lu dans tb$type (engine_table_tests()).
 # Un test inoperant (regle R1, #44) est repere par la colonne logique
@@ -3252,8 +3244,6 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       for (gr in o$g) B[[length(B) + 1L]] <- .graphique(gr, mode)
       ajout("</div>")
     }
-    at <- avertissement_T(m$T)
-    if (!is.null(at)) ajout(.bandeau_html(at))
     ajout(sprintf(paste("<hr><div class='gris'>Rapport g\u00e9n\u00e9r\u00e9 le %s par",
                         "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
                   genere, switch(mode,

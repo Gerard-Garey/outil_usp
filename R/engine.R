@@ -8082,7 +8082,9 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     # Repere statistique, non reglementaire, seuil inchange (T < 10).
     if (length(xt) < 10)
       avt <- c(avt, sprintf(paste("T = %d : lois asymptotiques peu fiables.",
-                                  "Privilegier les p-values exactes ou Monte-Carlo."),
+                                  "Privilegier les p-values exactes ou Monte-Carlo.",
+                                  "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                  "elle ne permet pas de la rejeter."),
                             length(xt)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
@@ -9161,7 +9163,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     }
     # Repere statistique, non reglementaire, seuil inchange (I + 1 < 10).
     if (nrow(tri) < 10)
-      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
+      avt <- c(avt, sprintf(paste("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
+                                  "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                  "elle ne permet pas de la rejeter."),
                             nrow(tri)))
   }
   list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J)

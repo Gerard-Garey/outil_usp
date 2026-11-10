@@ -1422,6 +1422,53 @@ testServer(app, {
                                                                   yt = as.numeric(60:65))))
 })
 )---"
+  # Repere de profondeur (issue #499) : texte et seuil poses par le moteur
+  # seul (T < 10, I + 1 < 10), restitues une seule fois a l'ecran apres
+  # calcul, par bandeau_avertissements ; l'ancien bandeau_T (seuil T >= 15
+  # propre a l'affichage, phrase "Profondeur suffisante...") est retire.
+  .bloc_499 <- r"---(
+## Repere de profondeur du moteur, affichage unique (issue #499)
+non_rejet <- "Une p-value elevee ne demontre pas la validite de l'hypothese : elle ne permet pas de la rejeter."
+repere <- function(av) av[grepl("lois asymptotiques peu fiables|estimateurs de variance tres bruites", av)]
+sans_bandeau_T <- function(output) inherits(tryCatch(output$bandeau_T, error = function(e) e), "error")
+verif_499 <- function(lib, attendu, output, r) {
+  av <- r$validation$avertissements; rp <- repere(av)
+  h <- if (length(av)) as.character(output$bandeau_avertissements$html) else ""
+  occ <- lengths(regmatches(h, gregexpr("lois asymptotiques peu fiables|estimateurs de variance tres bruites", h)))
+  a(sprintf("%s : repere du moteur %s, une seule fois au plus a l'ecran, texte du moteur tel quel, sans bandeau_T (#499)",
+            lib, if (attendu) "present (phrase de non-rejet)" else "absent"),
+    isTRUE(r$ok) && length(rp) == as.integer(attendu) && occ == as.integer(attendu) &&
+      (!attendu || (endsWith(rp, non_rejet) &&
+                      grepl(paste0("<li>", htmltools::htmlEscape(rp), "</li>"), h, fixed = TRUE))) &&
+      sans_bandeau_T(output) && !grepl("Profondeur suffisante", h, fixed = TRUE))
+}
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  for (n in c(8L, 12L, 15L)) {
+    session$setInputs(fichier_import = fichier(n)); grille(session, n)
+    session$setInputs(profondeur = n, go = n)
+    verif_499(sprintf("primes, T = %d", n), n < 10L, output, resultat())
+  }
+})
+tri6 <- matrix(NA_real_, 6, 6)
+tri6[1, ] <- c(1000, 1600, 1800, 1800, 1830, 1835)
+tri6[2, 1:5] <- c(1100, 1815, 2000, 2000, 2050)
+tri6[3, 1:4] <- c(900, 1395, 1580, 1580)
+tri6[4, 1:3] <- c(1200, 1980, 2210)
+tri6[5, 1:2] <- c(1050, 1638)
+tri6[6, 1]   <- 980
+for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = FALSE))) {
+  testServer(app, {
+    do.call(session$setInputs, c(base, list(reinit = 1)))
+    session$setInputs(methode = "reserve2", reinit = 2)
+    session$setInputs(fichier_import = fichier_tri(cas$tri))
+    tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+    do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+    session$setInputs(go = 1)
+    verif_499(sprintf("reserve no 2, I + 1 = %d", nrow(cas$tri)), cas$attendu, output, resultat())
+  })
+}
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1546,7 +1593,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1563,8 +1610,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 109 assertions rendues", length(.lignes) == 109L)
-  if (length(.lignes) != 109L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 114 assertions rendues", length(.lignes) == 114L)
+  if (length(.lignes) != 114L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

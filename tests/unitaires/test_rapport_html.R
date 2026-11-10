@@ -264,8 +264,18 @@ verifier("Rapport : donnees lues dans res (x_t et y_t du calcul), virgule decima
 verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl("sqrt((T+1)/(T-1))", texte_formule(res_ln), fixed = TRUE) &&
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
-verifier("Rapport : avertissement T = 8 en fin de document",
-         grepl(avertissement_T(8), h, fixed = TRUE))
+# Repere de profondeur (issue #499) : texte et seuil poses par le moteur seul,
+# restitues une seule fois, en section 3 (res$validation$avertissements) ;
+# l'ancien bandeau de fin de document (avertissement_T(), seuil T >= 15 propre
+# a l'affichage) est retire. T = 8 (res_ln) : present ; T = 12 (res_12_12,
+# memes 12 annees que res_12 ci-dessous) : absent.
+rep_499 <- "lois asymptotiques peu fiables"
+av_499 <- res_ln$validation$avertissements[grepl(rep_499, res_ln$validation$avertissements, fixed = TRUE)]
+verifier("Rapport, T = 8 : repere de profondeur du moteur une seule fois, en section 3, texte du moteur avec la phrase de non-rejet ; plus d'avertissement_T() (#499)",
+         length(av_499) == 1L && compte(h, rep_499) == 1L &&
+           grepl("elle ne permet pas de la rejeter.", av_499, fixed = TRUE) &&
+           grepl(.txt(av_499), entre(h, "<h2 id='controles'>", "<h2 id='parametre'>"), fixed = TRUE) &&
+           !exists("avertissement_T") && !grepl("Profondeur suffisante", h, fixed = TRUE))
 # Echappement HTML des colonnes textuelles du moteur : fait une seule fois,
 # dans table_detail_groupe() / table_synthese_groupe(), source commune de
 # l'onglet Tests et du rapport (H1 du TOST = "|a| < Delta ...").
@@ -364,6 +374,16 @@ f_mw <- tempfile(fileext = ".html")
 r_mw <- rapport_html(res_mw, NULL, f_mw, interactif = FALSE, identite = idt)
 hm <- lire(f_mw)
 tbm <- engine_table_tests(res_mw); rm <- filtrer_selection(tbm, selection_defaut(tbm))
+# Repere de profondeur Merz-Wuthrich (issue #499) : I + 1 = 8 < 10, texte du
+# moteur une seule fois, en section 3, avec la phrase de non-rejet.
+avm_499 <- res_mw$validation$avertissements[grepl("estimateurs de variance tres bruites",
+                                                  res_mw$validation$avertissements, fixed = TRUE)]
+verifier("Rapport MW, I + 1 = 8 : repere de profondeur du moteur une seule fois, en section 3, phrase de non-rejet (#499)",
+         nrow(tri) == 8L && length(avm_499) == 1L &&
+           compte(hm, "estimateurs de variance tres bruites") == 1L &&
+           grepl("elle ne permet pas de la rejeter.", avm_499, fixed = TRUE) &&
+           grepl(.txt(avm_499), entre(hm, "<h2 id='controles'>", "<h2 id='parametre'>"), fixed = TRUE) &&
+           compte(hm, "Profondeur T = 8") == 0L)
 verifier("Rapport MW : triangle du calcul restitue (virgule decimale, #236), cellules non observees en tiret",
          grepl("<td>2766,61</td>", hm, fixed = TRUE) && grepl("<td>\u2013</td>", hm, fixed = TRUE))
 verifier("Rapport MW : exclus par defaut en annexe avec leur verdict",
@@ -513,6 +533,19 @@ lib12 <- .echap_html(engine_derogations(res_12)$libelle)
 verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris deux fois (en-tete, bandeau) ; absent pour n = T (#104)",
          length(lib12) == 1L && compte(h12, lib12) == 2L &&
            !grepl("annees fournies", h, fixed = TRUE))
+# Repere de profondeur (issue #499), T = 12 sur les memes 12 annees : absent
+# du moteur comme du rapport (l'ancien bandeau d'affichage avertissait
+# jusqu'a T = 14).
+res_12_12 <- run_engine(xt = c(95.10, 97.80, 99.40, 101.05, xt),
+                        yt = c(71.30, 64.20, 80.15, 69.90, yt), methode = "premium",
+                        segment = 1, B = 99, nature_donnees = "brutes", T = 12)
+f_12_12 <- tempfile(fileext = ".html")
+rapport_html(res_12_12, NULL, f_12_12, interactif = FALSE, identite = idt)
+h12_12 <- lire(f_12_12)
+verifier("Rapport, T = 12 : aucun repere de profondeur, ni dans le moteur ni dans le rapport (#499)",
+         isTRUE(res_12_12$ok) && identical(as.integer(res_12_12$metadata$T), 12L) &&
+           !any(grepl(rep_499, res_12_12$validation$avertissements, fixed = TRUE)) &&
+           compte(h12_12, rep_499) == 0L && compte(h12_12, "Profondeur T = 12") == 0L)
 
 ## --- Graphiques d'influence a distances de Cook non finies (issue #153) -------
 # Residus de y = beta x tous nuls : residu_std et D_t = NaN sur les 8

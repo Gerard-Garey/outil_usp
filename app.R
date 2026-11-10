@@ -357,7 +357,6 @@ ui <- fluidPage(
       h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
       uiOutput("bandeau_refus"),
       uiOutput("bandeau_avertissements"),
-      div(class = "avert", uiOutput("bandeau_T")),
       tabsetPanel(
         id = "onglets", type = "tabs",
 
@@ -1256,7 +1255,10 @@ server <- function(input, output, session) {
   # <details class='com'>/<summary> de la vue Detail (#178), un avertissement
   # pouvant depasser 2 000 caracteres (tri_deg) ; le resume donne le nombre
   # d'avertissements du dernier calcul (longueur du vecteur, accord au
-  # singulier), sans dedoublonnage avec l'apercu ni bandeau_T.
+  # singulier), sans dedoublonnage avec l'apercu. Seul affichage du resultat du
+  # calcul pour le repere de profondeur pose par le moteur (texte et seuil ;
+  # l'apercu validation_live le montre pour la saisie en cours) : l'ancien bandeau_T,
+  # a seuil propre a l'affichage, est retire (#499).
   output$bandeau_avertissements <- renderUI({
     r <- resultat()
     if (is.null(r) || !isTRUE(r$ok)) return(NULL)
@@ -1277,13 +1279,6 @@ server <- function(input, output, session) {
     msg <- engine_motif_b_alpha(input$B, input$alpha)
     if (is.null(msg)) return(NULL)
     div(class = "avert", msg)
-  })
-
-  output$bandeau_T <- renderUI({
-    r <- resultat()
-    if (is.null(r)) return(HTML("Renseignez les donnees puis cliquez sur <b>Relancer les calculs</b>."))
-    msg <- avertissement_T(r$metadata$T)
-    if (is.null(msg)) HTML("Profondeur suffisante pour une lecture standard des tests.") else HTML(msg)
   })
 
   output$etat <- renderUI({
