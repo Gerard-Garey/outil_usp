@@ -380,6 +380,77 @@ verifier("add() : motif present et p exacte finie (hors degenerescence) -> p exa
            l <- r$lignes()[[1]]
            identical(l$type, "test") && identical(l$nature_p, "exacte") && identical(l$p_retenue, 0.5)
          })
+# #469 (avis amont d'actuary sur K3, section 2, point 1) : test inoperant par
+# R1 (p_min >= alpha) sans p exacte ni p non simulee, p Monte-Carlo absente
+# avec un motif non degenere : le motif suit la phrase "TEST INOPERANT", une
+# fois ; avec une p exacte finie (cas (a)), aucun motif.
+verifier("add() : inoperant par R1 sans p exacte ni p non simulee, motif non degenere -> motif apres TEST INOPERANT, une fois (#469)",
+         {
+           ok <- vapply(c(MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REPLIC_INSUFFISANTES, MOTIF_MC_REGIME_RARE),
+                        function(m) {
+             r <- reg_motif(m)
+             r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_min = 0.125,
+                   effectifs = "m = 4", detail = "d.")
+             r$add("F", "t2", "ref", fonction = "usp_tests", mc_nom = "S", p_min = 0.125,
+                   detail = paste0("deja : ", m, "."))
+             l <- r$lignes()
+             identical(l[[1]]$type, "diagnostic") && identical(l[[1]]$verdict, "INFO") &&
+               identical(l[[1]]$inoperant, TRUE) && is.na(l[[1]]$p_retenue) &&
+               identical(l[[1]]$detail, paste0(
+                 "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 0.1250",
+                 " (m = 4), aucun verdict. Monte-Carlo indisponible : ", m, ". d.")) &&
+               identical(l[[2]]$detail, paste0(
+                 "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 0.1250,",
+                 " aucun verdict. deja : ", m, "."))
+           }, logical(1))
+           all(ok)
+         })
+verifier("add() : inoperant par R1 avec p exacte finie et motif non degenere -> aucun motif (#469, cas (a))",
+         {
+           r <- reg_motif(MOTIF_MC_REPLIC_INSUFFISANTES)
+           r$add("F", "t", "ref", fonction = "usp_tests", mc_nom = "S", p_ex = 1, p_min = 0.125,
+                 detail = "d.")
+           l <- r$lignes()[[1]]
+           identical(l$type, "diagnostic") && identical(l$inoperant, TRUE) &&
+             identical(l$detail, paste("TEST INOPERANT au seuil alpha = 0.1 : p-value minimale",
+                                       "atteignable = 0.1250, aucun verdict. d.")) &&
+             !grepl("Monte-Carlo indisponible", l$detail, fixed = TRUE)
+         })
+# Fixture du cas (b) par usp_tests() et mw_tests() (appel direct, B = 20 <
+# B_MIN_DEGENERESCENCE : motif MOTIF_MC_REPLIC_INSUFFISANTES) : Cox-Stuart sur
+# donnees_ln_interieur.csv (pi_t variable, pas de p exacte ; p_min = 0,125 a
+# m = 4) et correlation entre colonnes adjacentes sur un triangle 5 x 5
+# (p_min = 1/3). Temoin du cas (a) : Cox-Stuart sur donnees_ln.csv (delta a la
+# borne 1, p exacte finie).
+verifier("usp_tests() et mw_tests(), B = 20 : Cox-Stuart (pi_t variable) et CorrDev inoperants avec le motif ; Cox-Stuart a p exacte sans motif (#469)",
+         {
+           ph <- function(pm, eff) paste0(
+             "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = ", pm, " (",
+             eff, "), aucun verdict. Monte-Carlo indisponible : ", MOTIF_MC_REPLIC_INSUFFISANTES, ". ")
+           cs <- function(f) {
+             b <- usp_bootstrap(f, B = 20, seed = 20260831)
+             ligne(usp_tests(f, b, 0.10, methode = "premium"), "Tendance par signes du ratio S/P")
+           }
+           j2 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
+           j1 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+           l2 <- cs(usp_ajuster(j2$xt, j2$yt)); l1 <- cs(usp_ajuster(j1$xt, j1$yt))
+           t5 <- matrix(NA_real_, 5, 5)
+           t5[1, ] <- c(100, 150, 180, 190, 195); t5[2, 1:4] <- c(110, 160, 190, 200)
+           t5[3, 1:3] <- c(120, 185, 220); t5[4, 1:2] <- c(130, 200); t5[5, 1] <- 140
+           a5 <- mw_ajuster(t5)
+           lc <- ligne(mw_tests(a5, mw_bootstrap(a5, B = 20, seed = 20260831), 0.10),
+                       "Correlation entre annees de developpement adjacentes")
+           un <- function(l) lengths(regmatches(l$detail, gregexpr(MOTIF_MC_REPLIC_INSUFFISANTES,
+                                                                    l$detail, fixed = TRUE))) == 1L
+           !is.finite(l2$p_exacte) && !is.finite(l2$p_asymptotique) && identical(l2$inoperant, TRUE) &&
+             identical(l2$verdict, "INFO") &&
+             startsWith(l2$detail, ph("0.1250", "m = 4 differences non nulles")) && un(l2) &&
+             !is.finite(lc$p_exacte) && !is.finite(lc$p_asymptotique) && identical(lc$inoperant, TRUE) &&
+             startsWith(lc$detail, ph("0.3333", "paires de colonnes n_k = 3")) && un(lc) &&
+             is.finite(l1$p_exacte) && identical(l1$inoperant, TRUE) &&
+             startsWith(l1$detail, "TEST INOPERANT") &&
+             !grepl("Monte-Carlo indisponible", l1$detail, fixed = TRUE)
+         })
 # #181 (avis d'actuary, option c) : une p Monte-Carlo absente sans motif lu
 # est refusee, le motif n'etant jamais devine ; une p Monte-Carlo presente
 # reste lue sans motif_mc.

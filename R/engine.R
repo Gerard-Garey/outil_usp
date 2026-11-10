@@ -4700,9 +4700,22 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         inoperant <- TRUE
         lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
           "p-value minimale atteignable sous la loi de reference echangeable"
-        detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s, aucun verdict.",
-                                        alpha, lib_pmin, p_min, eff),
-                                " ", detail))
+        # Motif de l'absence de p Monte-Carlo (#469, avis amont d'actuary sur
+        # K3, section 2, point 1) : sans p exacte finie, une ligne a motif lu
+        # au bootstrap arrivee ici (ni p exacte, ni p non simulee : motif non
+        # degenere autre que MOTIF_MC_OBS_NON_FINIE, les autres cas ayant
+        # change de type plus haut) perdrait le motif que le bloc aucune_p
+        # ci-dessous aurait pose, la bascule la sortant du type test. Il est
+        # joint juste apres la phrase "TEST INOPERANT", qui reste en tete
+        # (#129), sous la forme de .prefixe_motif_mc(), sauf s'il figure deja
+        # dans le detail (meme garde que le bloc aucune_p). Avec une p exacte
+        # finie, retenue, aucun motif (comme hors R1).
+        pre_mc <- if (!is.finite(p_ex) && !is.na(motif_boot) &&
+                      !grepl(motif_boot, detail, fixed = TRUE))
+          .prefixe_motif_mc(motif_boot) else character(0)
+        detail <- trimws(paste(c(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s, aucun verdict.",
+                                         alpha, lib_pmin, p_min, eff),
+                                 pre_mc, detail), collapse = " "))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
         # Sans p exacte, la suite du texte suit la p Monte-Carlo retenue par
         # la hierarchie ci-dessous. Branche "p-value asymptotique retenue"
@@ -12674,8 +12687,17 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   add(fam, "Homogeneite des residus entre annees de survenance",
       fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
-      H0 = "les residus de Mack ont la meme distribution dans toutes les lignes",
-      H1 = "au moins une annee de survenance se comporte differemment",
+      # Un residu par annee de survenance (#469, avis amont d'actuary sur K3,
+      # section 2, point 2 ; decision du mainteneur) : H = N - 1 est une
+      # identite, aucune hypothese n'est testee ; la ligne est posee en
+      # diagnostic, nom inchange, H0 et H1 "sans objet". Textes inchanges
+      # dans les autres cas.
+      type = if (isTRUE(ka$un_par_annee)) "diagnostic" else "test",
+      H0 = if (isTRUE(ka$un_par_annee))
+        "sans objet : un residu de Mack par annee de survenance, H = N - 1 par construction" else
+        "les residus de Mack ont la meme distribution dans toutes les lignes",
+      H1 = if (isTRUE(ka$un_par_annee)) "sans objet" else
+        "au moins une annee de survenance se comporte differemment",
       stat_nom = "H", stat = ka$stat,
       loi = if (isTRUE(ka$un_par_annee)) "degeneree : H = N - 1 par construction" else
         sprintf("chi2(%s) approx. -> Monte-Carlo",

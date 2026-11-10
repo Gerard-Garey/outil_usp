@@ -227,9 +227,13 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
              is.na(t_c0$stat) && is.na(t_c0$p_exacte) && is.na(t_c0$p_mc) &&
              is.na(t_c0$p_retenue) && is.na(t_c0$nature_p) && identical(t_c0$verdict, "INFO") &&
              identical(t_c0$type, "diagnostic") && identical(t_c0$p_min, 1) &&
+             # #469 (option (i) d'actuary) : le motif d'indisponibilite de la p
+             # Monte-Carlo (non_definie du catalogue) suit la phrase TEST
+             # INOPERANT, comme le bloc aucune_p l'imprime hors R1.
              identical(t_c0$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 1.0000",
                "(m = 0 differences non nulles), aucun verdict.",
+               "Monte-Carlo indisponible : statistique observee non definie : ex aequo.",
                cs_514("aucune difference non nulle : K non defini"))) &&
              is.data.frame(tb_c0)
          })
