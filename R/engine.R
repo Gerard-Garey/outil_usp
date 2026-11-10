@@ -1306,15 +1306,15 @@ usp_noyau <- function(delta, gamma, x, y, xbar = mean(x)) {
   # sections B et C, paragraphe 5 (beta n'est pas nomme par le texte ;
   # estimateur MV du niveau)
   ln_beta <- (T / 2 + sum(p * r)) / sum(p)
-  v <- r + 1 / (2 * p) - ln_beta            # residus bruts (loi normale, var = 1/pi_t)
+  v <- r + 1 / (2 * p) - ln_beta            # residus bruts (normaux a pi_t tenus pour connus, var = (1 - pi_t / somme(pi)) / pi_t, lies par ln_beta)
   list(
     pi      = p,
     ln_beta = ln_beta,
     beta    = exp(ln_beta),                 # ratio S/P moyen implicite
     v       = v,
-    z       = v * sqrt(p),                  # residus standardises ~ N(0,1)
+    z       = v * sqrt(p),                  # residus standardises : a pi_t tenus pour connus, z ~ N(0, P), P projecteur de rang T - 1, et non N(0, I_T) (doc, sec:base-residus)
     sigma   = exp(gamma + ln_beta),         # fonction d'ecart-type sigma(delta, gamma)
-    obj     = sum(p * v^2) - sum(log(p))    # -2 log-vraisemblance (a une constante pres)
+    obj     = sum(p * v^2) - sum(log(p))    # -2 log-vraisemblance (a une constante pres), profilee en ln(beta)
   )
 }
 
