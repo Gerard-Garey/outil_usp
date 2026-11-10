@@ -147,7 +147,8 @@ jobs:
       - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
         id: installer_r
         with:
-          # Même version que le poste de développement.
+          # Version de R de la CI (le poste de développement avait R 4.3.3
+          # au relevé du 07/11/2026, issue #435 ; issue #505).
           r-version: ${{ env.VERSION_R }}
       # Issue #391 (R27) : shiny et plotly, pour que tests/unitaires/
       # test_application.R (bloc testServer) et les tests plotly de
@@ -156,10 +157,13 @@ jobs:
       # (requireNamespace() faux). Issue #512 : dans chaque lot de la matrice.
       # Versions épinglées par un instantané daté
       # de Posit Package Manager (binaires Ubuntu 22.04 : CRAN au 15/02/2024,
-      # soit shiny 1.8.0 et plotly 4.10.4, les versions du poste de
-      # développement, avec toutes leurs dépendances ; l'instantané ne change
-      # jamais, contrairement à « latest »). R pur : aucun appel à apt, donc
-      # aucun paquet système (OpenBLAS compris) n'est installé ici ; le
+      # soit shiny 1.8.0 et plotly 4.10.4, avec toutes leurs dépendances ;
+      # l'instantané ne change jamais, contrairement à « latest »). Ces versions
+      # sont celles de la CI seule : le poste de développement a d'autres
+      # versions (shiny 1.12.1 et plotly 4.12.0 relevés le 07/11/2026, issue
+      # #435), qui ne servent pas de référence (issue #505). R pur : aucun
+      # appel à apt, donc aucun paquet système (OpenBLAS compris) n'est
+      # installé ici ; le
       # contrôle bloquant du BLAS vient après, à l'étape suivante, et valide
       # l'état final. La version de R reste celle de l'étape précédente.
       #
