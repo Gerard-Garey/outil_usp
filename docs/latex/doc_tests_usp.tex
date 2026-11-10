@@ -3936,9 +3936,11 @@ dans le journal~; l'interprétation d'un tableau lu reste au moteur
 sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
 moteur seul, avec les mêmes motifs qu'un classeur xlsx, et qu'un fichier binaire que cette
-lecture accepte est refusé par le moteur~: un fichier binaire est ainsi arrêté soit à la lecture,
-par R ou par le contrôle de structure de \code{lire\_tableau()}, qui refuse avant lecture toute
-ligne comptant plus de valeurs que l'en-tête, soit par le moteur.
+lecture accepte passe par les mêmes contrôles du moteur que tout tableau (colonnes attendues,
+cellules numériques), sans détection propre aux fichiers binaires~: un fichier binaire est ainsi
+arrêté soit à la lecture, par R ou par le contrôle de structure de \code{lire\_tableau()}, qui
+refuse avant lecture toute ligne comptant plus de valeurs que l'en-tête, soit par ces contrôles
+du moteur.
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
