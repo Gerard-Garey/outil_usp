@@ -2311,19 +2311,35 @@ test_dagostino_skew <- function(z) {
 }
 
 # Anscombe & Glynn (1983), Biometrika 70, 227-234 (aplatissement).
+# Statistique Z non definie (#485 ; avis amont d'actuary, decision QA1 (a)
+# du mainteneur du 10/11/2026) : des que 1 + x sqrt(2/(A - 4)) <= 0 (b2 tres
+# inferieur a 3 ; des T = 35 pres de b2 = 1 selon l'avis), la racine cubique
+# porterait sur une base negative ou infinie : stat et p a NA, et le champ
+# logique z_non_definie le signale a usp_tests() (motif de la ligne). La
+# racine cubique reelle signee est ecartee (elle inverse le signe de Z) ;
+# le texte d'Anscombe et Glynn (1983) n'a pas ete lu sur ce point.
+# En amont, b2 non defini (moment centre d'ordre 2 nul : residus constants,
+# 0/0) : stat et p a NA, champ logique b2_non_defini (reponse d'actuary du
+# 10/11/2026 a la question 1 du compte rendu de #485).
 test_anscombe_kurt <- function(z) {
   n <- length(z)
-  if (n < 20) return(list(stat = NA_real_, p = NA_real_))
+  if (n < 20) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = FALSE,
+                          z_non_definie = FALSE))
   m <- mean(z); b2 <- mean((z - m)^4) / mean((z - m)^2)^2
+  if (!is.finite(b2)) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = TRUE,
+                                  z_non_definie = FALSE))
   Eb2 <- 3 * (n - 1) / (n + 1)
   vb2 <- 24 * n * (n - 2) * (n - 3) / ((n + 1)^2 * (n + 3) * (n + 5))
   xx <- (b2 - Eb2) / sqrt(vb2)
   sb1 <- 6 * (n^2 - 5 * n + 2) / ((n + 7) * (n + 9)) *
          sqrt(6 * (n + 3) * (n + 5) / (n * (n - 2) * (n - 3)))
   A <- 6 + 8 / sb1 * (2 / sb1 + sqrt(1 + 4 / sb1^2))
-  Z <- ((1 - 2 / (9 * A)) -
-        ((1 - 2 / A) / (1 + xx * sqrt(2 / (A - 4))))^(1/3)) / sqrt(2 / (9 * A))
-  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))))
+  den <- 1 + xx * sqrt(2 / (A - 4))
+  if (isTRUE(den <= 0)) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = FALSE,
+                                    z_non_definie = TRUE))
+  Z <- ((1 - 2 / (9 * A)) - ((1 - 2 / A) / den)^(1/3)) / sqrt(2 / (9 * A))
+  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), b2_non_defini = FALSE,
+       z_non_definie = FALSE)
 }
 
 # --- Indépendance / structure temporelle -------------------------------------
@@ -6690,6 +6706,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = "non applicable", estim_nom = "asymetrie", estim = jb$skew,
         detail = sprintf("T = %d < 8 : transformation normalisante non definie", T))
   ak <- test_anscombe_kurt(z)
+  motif_ak_pi <- paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                       "p-value de Monte-Carlo prevue : test non applicable")
   if (is.finite(ak$stat) && isTRUE(pi_constant))
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
@@ -6701,28 +6720,41 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         nature_as = NATURE_APPROX_N_FINI,
         detail = paste("Un ECHEC ou une ALERTE signale un aplatissement different de celui",
                        "de la loi normale. A lire avec \"Jarque-Bera\"."))
-  else if (is.finite(ak$stat))
+  else if (T >= 20 && !isTRUE(pi_constant))
     # Extension de la regle R9 amendee (#302, Q-D1-Fh-4, specification Fh,
     # section 5.3) : a pi_t variable, z = P epsilon n'est pas i.i.d. ; la
     # ligne n'a pas de p Monte-Carlo, et sa p d'approximation sous i.i.d.
     # normal serait retenue sans justification : la ligne est non applicable,
     # comme l'etait Shapiro-Wilk a loi nulle simulee dans ce regime. La p
     # n'est ni rappelee ni retenue (Z reste dans stat, l'aplatissement dans
-    # estim). Le motif T < 20 prime (branche suivante).
+    # estim). Le motif T < 20 prime (branche suivante). Une seule branche
+    # pi_t variable, Z finie ou non definie (stat = ak$stat, NA dans le
+    # second cas ; reponse d'actuary du 10/11/2026, question 2 de #485).
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
         type = "non applicable",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
         stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
         estim_nom = "aplatissement", estim = jb$kurt,
-        detail = paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
-                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
-                       "p-value de Monte-Carlo prevue : test non applicable"))
+        detail = motif_ak_pi)
   else
+    # Motif choisi par sa cause (#485) : T < 20, puis pi_t variable (branche
+    # precedente), puis b2 non defini, puis statistique Z non definie
+    # (champs b2_non_defini et z_non_definie de test_anscombe_kurt()).
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
         type = "non applicable", estim_nom = "aplatissement", estim = jb$kurt,
-        detail = sprintf("T = %d < 20 : test non defini", T))
+        detail = if (T < 20) sprintf("T = %d < 20 : test non defini", T)
+                 else if (isTRUE(ak$b2_non_defini))
+                   paste("aplatissement b2 non defini (moment centre d'ordre 2 des residus nul :",
+                         "residus constants) ; aucune p-value de Monte-Carlo prevue : test",
+                         "non applicable")
+                 else if (isTRUE(ak$z_non_definie))
+                   paste("statistique Z non definie : 1 + x sqrt(2/(A - 4)) <= 0 (aplatissement",
+                         "b2 tres inferieur a 3, hors du domaine de la transformation de",
+                         "Wilson-Hilferty) ; aucune p-value de Monte-Carlo prevue : test",
+                         "non applicable")
+                 else sprintf("T = %d < 20 : test non defini", T))
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
   fam <- fam_h4

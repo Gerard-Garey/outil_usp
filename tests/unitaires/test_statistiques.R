@@ -123,6 +123,112 @@ verifier("D'Agostino : Z change de signe avec z -> -z ; NA pour T < 8",
          is.na(test_dagostino_skew(za[1:7])$stat))
 verifier("Anscombe-Glynn : non defini pour T < 20", is.na(test_anscombe_kurt(za)$stat))
 
+## --- Anscombe-Glynn : statistique Z non definie (#485) ----------------------
+# Decision QA1 (a) du mainteneur du 10/11/2026 : des que 1 + x sqrt(2/(A - 4))
+# <= 0 (b2 = 1, T = 40), stat et p a NA, z_non_definie a TRUE ; la ligne
+# d'usp_tests() reste non applicable sous un motif propre, jamais "T < 20".
+NOM_AG_485 <- "Aplatissement (Anscombe-Glynn, T >= 20)"
+MOTIF_AG_Z_485 <- paste("statistique Z non definie : 1 + x sqrt(2/(A - 4)) <= 0 (aplatissement",
+                        "b2 tres inferieur a 3, hors du domaine de la transformation de",
+                        "Wilson-Hilferty) ; aucune p-value de Monte-Carlo prevue : test",
+                        "non applicable")
+ligne_ag_485 <- function(x, y) {
+  r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                  nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+  list(ok = r$ok, l = Filter(function(e) identical(e$test, NOM_AG_485), r$tests)[[1]],
+       z = r$ajustement$z)
+}
+verifier("Anscombe-Glynn (#485) : b2 = 1 a T = 40 -> Z non definie (stat et p NA, z_non_definie) ; T = 20, 30 : Z finie",
+         {
+           a40 <- test_anscombe_kurt(rep(c(-1, 1), 20))
+           a20 <- test_anscombe_kurt(rep(c(-1, 1), 10))
+           a30 <- test_anscombe_kurt(rep(c(-1, 1), 15))
+           identical(a40$stat, NA_real_) && identical(a40$p, NA_real_) &&
+             isTRUE(a40$z_non_definie) &&
+             is.finite(a20$stat) && identical(a20$z_non_definie, FALSE) &&
+             is.finite(a30$stat) && identical(a30$z_non_definie, FALSE) &&
+             identical(test_anscombe_kurt(za)$z_non_definie, FALSE) &&
+             identical(a40$b2_non_defini, FALSE) && identical(a30$b2_non_defini, FALSE)
+         })
+verifier("Anscombe-Glynn (#485) : z constant a T = 40 -> b2 non defini (stat et p NA, b2_non_defini), avant Z",
+         {
+           a0 <- test_anscombe_kurt(rep(0, 40))
+           identical(a0$stat, NA_real_) && identical(a0$p, NA_real_) &&
+             isTRUE(a0$b2_non_defini) && identical(a0$z_non_definie, FALSE)
+         })
+# Jeu de l'issue : T = 40, volumes constants (pi_t constant), log(y/x) =
+# -0,4 +/- 0,1 permutes plus un bruit de 0,005 (b2 mesure 1,0086).
+set.seed(485)
+x_485 <- rep(100, 40)
+y_485 <- x_485 * exp(-0.4 + sample(rep(c(-0.1, 0.1), 20)) + stats::rnorm(40, 0, 0.005))
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 40, b2 ~ 1 -> non applicable, stat NA, motif Z non definie, sans \"T < 20\"",
+         {
+           g <- ligne_ag_485(x_485, y_485)
+           isTRUE(g$ok) && identical(g$l$type, "non applicable") &&
+             identical(g$l$stat, NA_real_) && isTRUE(g$l$estim < 1.1) &&
+             is.na(g$l$p_retenue) && is.na(g$l$p_asymptotique) &&
+             identical(g$l$detail, MOTIF_AG_Z_485) && !grepl("< 20", g$l$detail, fixed = TRUE)
+         })
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 10 -> motif T < 20 inchange",
+         {
+           g <- ligne_ag_485(x_485[1:10], y_485[1:10])
+           isTRUE(g$ok) && identical(g$l$type, "non applicable") &&
+             identical(g$l$detail, "T = 10 < 20 : test non defini")
+         })
+# Appels directs d'usp_tests() (reponses d'actuary du 10/11/2026) : residus
+# z substitues dans l'ajustement, objet bootstrap fictif (aucune simulation).
+boot_fictif_485 <- function(f) {
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
+  pm <- stats::setNames(rep(0.5, length(s)), names(s)); pm[!is.finite(s)] <- NA_real_
+  mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
+  mm[!is.finite(s)] <- MOTIF_MC_OBS_NON_FINIE
+  list(stats_obs = as.list(s), p_mc = pm, err_mc = pm * 0 + 0.01, motif_mc = mm)
+}
+ligne_ag_direct_485 <- function(f)
+  Filter(function(e) identical(e$test, NOM_AG_485),
+         suppressWarnings(usp_tests(f, boot_fictif_485(f), methode = "premium")))[[1]]
+verifier("Anscombe-Glynn (#485) : usp_tests(), z constant a T = 40, pi_t constant -> non applicable, motif b2 non defini",
+         {
+           f0 <- usp_ajuster(x_485, y_485); f0$z <- rep(0, 40)
+           l <- ligne_ag_direct_485(f0)
+           isTRUE(usp_regime(f0$delta, f0$x)$pi_constant) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             is.na(l$p_retenue) && identical(l$verdict, "INFO") &&
+             identical(l$detail, paste("aplatissement b2 non defini (moment centre d'ordre 2 des residus nul :",
+                                       "residus constants) ; aucune p-value de Monte-Carlo prevue : test",
+                                       "non applicable"))
+         })
+verifier("Anscombe-Glynn (#485) : usp_tests(), pi_t variable et Z non definie -> motif pi_t, H0, H1, stat_nom et loi presents, stat NA",
+         {
+           xv <- seq(50, 400, length.out = 40); yv <- 0.6 * xv
+           g <- usp_ajuster(x_485, y_485)$gamma
+           fv <- c(usp_noyau(0.5, g, xv, yv),
+                   list(delta = 0.5, gamma = g, T = 40L, x = xv, y = yv, xbar = mean(xv),
+                        convergence = 0L, part_starts_convergents = 1,
+                        delta_au_bord = usp_regime(0.5, xv)$delta_au_bord))
+           fv$z <- rep(c(-1, 1), 20)
+           l <- ligne_ag_direct_485(fv)
+           !isTRUE(usp_regime(0.5, xv)$pi_constant) && isTRUE(test_anscombe_kurt(fv$z)$z_non_definie) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$stat_nom, "Z") && identical(l$H0, "aplatissement de la population egal a 3") &&
+             identical(l$H1, "aplatissement different de 3") &&
+             identical(l$loi, "N(0,1) approx. (Wilson-Hilferty)") && isTRUE(proche(l$estim, 1, abs = 1e-12)) &&
+             is.na(l$p_retenue) &&
+             identical(l$detail, paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                                       "p-value de Monte-Carlo prevue : test non applicable"))
+         })
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 30, cas regulier -> test, p d'approximation a n fini retenue",
+         {
+           set.seed(4850)
+           x30 <- rep(100, 30); y30 <- x30 * exp(-0.4 + stats::rnorm(30, 0, 0.1))
+           g <- ligne_ag_485(x30, y30)
+           ak <- test_anscombe_kurt(g$z)
+           isTRUE(g$ok) && identical(g$l$type, "test") && is.finite(g$l$stat) &&
+             identical(g$l$stat, ak$stat) && identical(g$l$p_retenue, ak$p) &&
+             identical(g$l$nature_p, NATURE_APPROX_N_FINI)
+         })
+
 ## --- Durbin-Watson, Cox-Stuart -----------------------------------------------
 # DW = z'MAMz / z'Mz, A = D'D (D matrice des differences premieres), M
 # projecteur de centrage : forme matricielle independante du code.
