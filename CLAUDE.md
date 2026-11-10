@@ -141,9 +141,9 @@ Sept sous-agents de projet (`.claude/agents/` ; dix fiches : `architect`, `actua
 - La session vérifie `git status` et `git log` après chaque workflow, et porte à `actuary`, avant tout commit, toute question « termine avec questions ».
 
 **Règle 9** — `docwriter` passe une fois, en fin de branche, après le dernier commit de code (`high` en circuits 1 et 2) : un commit `docs:` par issue ; `coder` ne touche pas le `.tex` et liste la surface d'impact documentaire ; `actuary` valide le diff du `.tex` une fois (ADR 0010).
-- Exceptions : commits préparatoires, document qui précède le code (circuit 2, amendement d'ADR), écart de `concordance_doc_moteur.R --strict` corrigé avant push par un commit `docs:` minimal (M32).
+- Exceptions : commits préparatoires, document qui précède le code (circuit 2, lecture réglementaire, amendement d'ADR), écart de `concordance_doc_moteur.R --strict` corrigé avant push par un commit `docs:` minimal (M32).
 
-**Règle 10** — audit léger sur le diff en cours ; avant la sortie du brouillon, revue finale complète de `git diff main...HEAD` (`audit` en `high`, `app-review` en `model: "opus"` si l'interface est touchée, `/code-review`) ; toute correction postérieure revue sur son diff ; relecture intégrale hors diff : à la remise.
+**Règle 10** — audit léger sur le diff en cours ; avant la sortie du brouillon, revue finale complète de `git diff main...HEAD` par les vérificateurs que désignent les déclencheurs (`audit` en `high`, `app-review` en `model: "opus"` si l'interface est touchée), plus `/code-review` ; toute correction postérieure revue sur son diff ; relecture intégrale hors diff : à la remise.
 
 Un constat bloquant ou majeur renvoie à la réalisation. Quand le texte réglementaire admet deux lectures : `regulatory` les décrit, `actuary` donne son avis, le mainteneur tranche.
 

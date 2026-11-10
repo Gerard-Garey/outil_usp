@@ -5,7 +5,7 @@ description: Actes de Claude pendant une période GPT, sur ordre du mainteneur s
 
 # Période GPT : actes de Claude
 
-Texte repris de `CLAUDE.md` à `d5cdb51` (sous-section « ChatGPT (Codex) et la branche `main-GPT` » et branches de période de « Git et GitHub »), à l'identique hors renvois internes adaptés ; déplacé par l'ADR 0017 ; `CLAUDE.md` en garde le résumé.
+Texte repris de `CLAUDE.md` à `d5cdb51` (sous-section « ChatGPT (Codex) et la branche `main-GPT` » et branches de période de « Git et GitHub »), à l'identique hors renvois internes adaptés et mention caduque « à reporter dans l'ADR » corrigée (GIT-10h) ; déplacé par l'ADR 0017 ; `CLAUDE.md` en garde le résumé.
 
 ## Branches de Claude propres à la période
 
