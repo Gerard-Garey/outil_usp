@@ -944,6 +944,35 @@ verifier("#299 : statistique observee non finie (BP79, GQ, BP) -> non applicable
              endsWith(f$detail, TXT_H2_299)
          })
 
+## --- 14. #521 : mention M20b lue dans usp_regime() --------------------------
+# mention_r7() ne recalcule plus diff(range(x)) == 0 : M20b si volumes_constants
+# et pas volumes_dans_bande (volumes exactement constants), sinon M20a a
+# delta = 1. Refactor a sortie identique : les attendus sont ceux d'avant
+# (mesure du 10/11/2026 sur HEAD, 20 combinaisons de volumes et de delta,
+# listes de lignes de usp_tests() identiques au sens de identical()). Ligne
+# Durbin-Watson : test, p exacte finie, hors diagnostic, donc branche R7
+# atteinte quand pi_t est constant.
+alt521 <- rep(c(1, -1), 4)
+mention_dw521 <- function(xx, d) {
+  f <- fit_force(xx, y, d)
+  l <- ligne(usp_tests(f, boot_fictif(f), methode = "premium"), NOM[["DW"]])
+  c(detail = l$detail, p_exacte = is.finite(l$p_exacte))
+}
+dw_cst_1 <- mention_dw521(rep(110, 8), 1)
+dw_cst_i <- mention_dw521(rep(110, 8), 0.37)
+dw_bd_1 <- mention_dw521(100 * (1 + alt521 * 4e-7), 1)
+dw_bd_i <- mention_dw521(100 * (1 + alt521 * 4e-7), 0.37)
+verifier("#521 volumes exactement constants (delta = 1 et delta interieur) : p exacte finie, mention M20b en tete de la ligne Durbin-Watson",
+         identical(dw_cst_1[["p_exacte"]], "TRUE") && identical(dw_cst_i[["p_exacte"]], "TRUE") &&
+           startsWith(dw_cst_1[["detail"]], MENTION_VOLUMES_CONSTANTS) &&
+           startsWith(dw_cst_i[["detail"]], MENTION_VOLUMES_CONSTANTS))
+verifier("#521 volumes dans la bande de tolerance (x = 100 (1 +/- 4e-7)) : delta = 1 -> M20a (pas M20b) ; delta interieur -> mention de bande M18",
+         identical(dw_bd_1[["p_exacte"]], "TRUE") &&
+           startsWith(dw_bd_1[["detail"]], MENTION_DELTA_BORNE_1) &&
+           !startsWith(dw_bd_1[["detail"]], MENTION_VOLUMES_CONSTANTS) &&
+           grepl(TXT_BANDE, dw_bd_i[["detail"]], fixed = TRUE) &&
+           !grepl(MENTION_VOLUMES_CONSTANTS, dw_bd_i[["detail"]], fixed = TRUE))
+
 # #514 (A3, S1 a S8) : texte propre en deux phrases au plus et 400
 # caracteres au plus sur les objets de ce fichier (regimes de pi_t, T = 5,
 # T = 10, ex aequo, volumes constants, bande de tolerance).

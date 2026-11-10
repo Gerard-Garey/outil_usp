@@ -5741,7 +5741,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     else if (!is.finite(p_ex)) ""
     else if (nzchar(mention_bande)) mention_bande
     else if (diag) ""
-    else if (diff(range(x)) == 0) MENTION_VOLUMES_CONSTANTS
+    # Volumes exactement constants : lus dans regime, sans recalculer leur
+    # etendue (#521).
+    else if (isTRUE(regime$volumes_constants) && !isTRUE(regime$volumes_dans_bande))
+      MENTION_VOLUMES_CONSTANTS
     else MENTION_DELTA_BORNE_1
   }
   # Texte d'une ligne R7, precede de sa mention de regime.
