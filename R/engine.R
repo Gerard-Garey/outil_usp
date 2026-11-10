@@ -2511,14 +2511,28 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
 # rapport a x.
 # Meme argument, meme sens, dans test_cox_stuart(), mk_p_exacte(),
 # runs_p_exacte(), .runs_effectifs() et test_mann_kendall().
+# Statistique non definie (#486, avis amont d'actuary, section 4) : stat et
+# p a NA (jamais NaN), et champ cause, racine du motif lue par les lignes
+# d'usp_tests() et de mw_tests() (NA_character_ si Z est definie) :
+#   n1 = 0 ou n2 = 0 : un seul cote de la mediane, loi de R non definie ;
+#   n1 = n2 = 1 : V = 2 n1 n2 (2 n1 n2 - n) / (n^2 (n - 1)) = 0 (R = 2 pour
+#   les deux arrangements), garde posee avant .runs_z(), qui rendrait 0/0.
+# Le catalogue Monte-Carlo (Runs, Runsr) ne lit que $stat.
 test_runs <- function(z, plancher = 1) {
   z <- engine_aplatir_ex_aequo(z, plancher = plancher)
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n1 <- sum(s > 0); n2 <- sum(s < 0)
-  if (n1 == 0 || n2 == 0) return(list(stat = NA_real_, p = NA_real_, runs = NA))
+  if (n1 == 0 || n2 == 0)
+    return(list(stat = NA_real_, p = NA_real_, runs = NA,
+                cause = "un seul cote de la mediane represente : loi de R non definie"))
   R <- 1 + sum(diff(s) != 0)
+  if (n1 == 1 && n2 == 1)
+    return(list(stat = NA_real_, p = NA_real_, runs = R,
+                cause = paste("une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                              "R = 2 pour tout arrangement, loi de R degeneree (variance nulle)")))
   Z <- .runs_z(R, n1, n2)
-  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R)
+  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R,
+       cause = NA_character_)
 }
 # Z centre reduit du nombre de suites R aux effectifs (n1, n2), moments de
 # Wald & Wolfowitz ; partage par test_runs() et .runs_extremes() (#125), pour
@@ -6795,8 +6809,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # Ljung-Box (retard 2), seule ligne portmanteau au retard 2 conservee.
   }
   # p_min (#44, regle R1) sur la loi de R aux effectifs (n1, n2) observes ;
-  # un seul cote de la mediane represente : loi non definie, ligne non
-  # applicable (et non INFO muet).
+  # un seul cote de la mediane represente, ou n1 = n2 = 1 (variance de R
+  # nulle, #486) : statistique non definie, ligne non applicable (et non
+  # INFO muet), motif de la cause rendue par test_runs().
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
   p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
   add(fam, "Test des suites (aleatoire des signes)",
@@ -6817,7 +6832,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "residus standardises, contraire a l'independance. A lire avec \"Autocorrelation",
         "d'ordre 1 (Durbin-Watson)\" et la ligne homologue \"Test des suites sur ratios",
         "bruts\"."), p_ru, mc = "Runs") else
-        "un seul cote de la mediane represente : loi de R non definie, test non applicable")
+        # Motif choisi par la cause rendue par test_runs() (#486).
+        paste0(ru$cause, ", test non applicable"))
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
   # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 (identite) et rive la
@@ -7184,8 +7200,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       detail = if (is.finite(boot$stats_obs$Runsr))
         detail_diag("Runsr", detail_runsr, phrase = txt_r15("Test des suites (aleatoire des signes)"),
                     regle = pi_constant) else
-        paste("un seul cote de la mediane represente : loi de R non definie,",
-              "test non applicable"))
+        # Motif choisi par la cause rendue par test_runs() sur u, au
+        # plancher de Runsr au catalogue (#486).
+        paste0(test_runs(u, plancher = plancher_u)$cause, ", test non applicable"))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       fonction = "stat_supF",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
@@ -12814,7 +12831,13 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
     e <- trimws(pm_ru$effectifs)
     if (endsWith(e, ".")) e else paste0(e, ".")
   } else ""
-  detail_ru <- if (!ru_definie) "" else
+  # Statistique non definie (#486) : phrase de la cause rendue par
+  # test_runs() (avis amont d'actuary, section 4) ; "" si la ligne n'est
+  # non definie que par le motif Monte-Carlo.
+  detail_ru <- if (!ru_definie) {
+    if (is.na(ru$cause)) "" else
+      paste0(toupper(substr(ru$cause, 1, 1)), substring(ru$cause, 2), ".")
+  } else
     .engine_joindre(paste(
       "Detecte un regroupement ou une alternance des signes des residus de Mack, pour",
       "information. Diagnostic par decision, sans verdict ni p-value retenue : la ligne",

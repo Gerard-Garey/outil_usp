@@ -229,6 +229,105 @@ verifier("Anscombe-Glynn (#485) : run_engine() a T = 30, cas regulier -> test, p
              identical(g$l$nature_p, NATURE_APPROX_N_FINI)
          })
 
+## --- Test des suites : statistique non definie (#486) -------------------------
+# Avis amont d'actuary (section 4) : stat et p a NA (jamais NaN) et cause
+# rendue par test_runs() ; n1 = n2 = 1 : variance de R nulle, garde avant
+# .runs_z() ; motif des lignes choisi par la cause.
+CAUSE_RUNS_UN_COTE_486 <- "un seul cote de la mediane represente : loi de R non definie"
+CAUSE_RUNS_N11_486 <- paste("une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                            "R = 2 pour tout arrangement, loi de R degeneree (variance nulle)")
+verifier("Suites (#486) : n1 = n2 = 1 -> stat et p NA (et non NaN), R = 2, cause n1 = n2 = 1",
+         {
+           a <- test_runs(c(1, 2, 2, 2, 3)); b <- test_runs(c(3, 2, 2, 2, 1))
+           identical(a$stat, NA_real_) && identical(a$p, NA_real_) && identical(a$runs, 2) &&
+             identical(a$cause, CAUSE_RUNS_N11_486) && identical(b$stat, NA_real_) &&
+             identical(b$cause, CAUSE_RUNS_N11_486) &&
+             identical(unname(.runs_effectifs(c(1, 2, 2, 2, 3))), c(1L, 1L))
+         })
+verifier("Suites (#486) : un seul cote de la mediane (n1 = 0 ou n2 = 0) -> stat NA, cause un seul cote",
+         {
+           a <- test_runs(c(1, 1, 1, 1, 2)); b <- test_runs(c(2, 2, 2, 2, 1))
+           identical(a$stat, NA_real_) && identical(a$p, NA_real_) &&
+             identical(a$cause, CAUSE_RUNS_UN_COTE_486) && identical(b$cause, CAUSE_RUNS_UN_COTE_486)
+         })
+verifier("Suites (#486) : cas regulier inchange (stat, p et R de .runs_z()), cause NA",
+         all(vapply(list(c(1, 8, 2, 7, 3, 6, 4, 5), 1:5, c(0.3, -1.2, 0.8, 2.1, -0.4, 0.05, -2, 1.1)),
+                    function(v) {
+                      a <- test_runs(v); ne <- .runs_effectifs(v)
+                      s <- sign(v - stats::median(v)); s <- s[s != 0]
+                      R <- 1 + sum(diff(s) != 0); Z <- .runs_z(R, ne[["n1"]], ne[["n2"]])
+                      identical(a, list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))),
+                                        runs = R, cause = NA_character_))
+                    }, logical(1))))
+# Scenario lognormal de l'issue : T = 5, trois ratios S/P egaux a la mediane.
+x_486 <- c(100, 130, 90, 160, 120)
+ligne_486 <- function(t, nom) Filter(function(e) identical(e$test, nom), t)[[1]]
+NOM_RUNSR_486 <- "Test des suites sur ratios bruts"
+NOM_RUNS_486 <- "Test des suites (aleatoire des signes)"
+verifier("Suites (#486) : run_engine() lognormal T = 5, n1 = n2 = 1 sur u -> Runsr non applicable, stat NA, motif n1 = n2 = 1, aucun NaN dans la table",
+         {
+           r <- run_engine(xt = x_486, yt = x_486 * c(.6, .7, .7, .7, .85), methode = "premium",
+                           segment = 1, annexe = "II", nature_donnees = "brutes",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, NOM_RUNSR_486); st <- engine_table_tests(r)$statistique
+           isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(r$bootstrap$stats_obs$Runsr, NA_real_) && identical(l$verdict, "INFO") &&
+             identical(l$inoperant, FALSE) &&
+             identical(l$detail, paste0(CAUSE_RUNS_N11_486, ", test non applicable")) &&
+             !any(is.nan(st))
+         })
+verifier("Suites (#486) : run_engine() lognormal T = 5, un seul cote sur u -> Runsr, motif un seul cote inchange",
+         {
+           r <- run_engine(xt = x_486, yt = x_486 * c(.7, .7, .7, .7, .8), methode = "premium",
+                           segment = 1, annexe = "II", nature_donnees = "brutes",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, NOM_RUNSR_486)
+           isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$detail, paste("un seul cote de la mediane represente : loi de R non definie,",
+                                       "test non applicable")) &&
+             !any(is.nan(engine_table_tests(r)$statistique))
+         })
+# Ligne sur z : residus substitues dans l'ajustement, objet bootstrap fictif
+# de #485 (aucune simulation).
+verifier("Suites (#486) : usp_tests(), ligne sur z -> motif choisi par la cause (n1 = n2 = 1 ; un seul cote)",
+         {
+           f <- usp_ajuster(x_486, x_486 * c(.62, .7, .66, .75, .85))
+           f1 <- f; f1$z <- c(1, 2, 2, 2, 3)
+           f0 <- f; f0$z <- c(1, 1, 1, 1, 2)
+           l1 <- ligne_486(suppressWarnings(usp_tests(f1, boot_fictif_485(f1), methode = "premium")),
+                           NOM_RUNS_486)
+           l0 <- ligne_486(suppressWarnings(usp_tests(f0, boot_fictif_485(f0), methode = "premium")),
+                           NOM_RUNS_486)
+           identical(l1$type, "non applicable") && identical(l1$stat, NA_real_) &&
+             identical(l1$detail, paste0(CAUSE_RUNS_N11_486, ", test non applicable")) &&
+             identical(l0$type, "non applicable") && identical(l0$stat, NA_real_) &&
+             identical(l0$detail, paste("un seul cote de la mediane represente : loi de R non",
+                                        "definie, test non applicable"))
+         })
+# Scenario Merz-Wuthrich de l'issue : I = 8, colonnes 0-4 et 6 degenerees
+# (facteurs individuels egaux par colonne), colonne 5 a deux facteurs
+# distincts : deux residus de Mack, de signes opposes.
+tri_486 <- local({
+  f <- c(1.5, 1.2, 1.1, 1.05, 1.02, NA, 1.01)
+  t <- matrix(NA_real_, 8, 8); t[, 1] <- c(1000, 1100, 900, 1200, 1050, 980, 1010, 1150)
+  for (i in 1:8) for (j in seq_len(8 - i) + 1)
+    t[i, j] <- t[i, j - 1] * (if (j == 7) (if (i == 1) 1.03 else 1.05) else f[j - 1])
+  t
+})
+verifier("Suites (#486) : Merz-Wuthrich a deux residus de Mack -> stat NA, motif n1 = n2 = 1, aucun NaN dans la table",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_486, segment = 2, annexe = "II",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, "Test des suites sur les residus de Mack")
+           isTRUE(r$ok) && nrow(mw_residus(r$ajustement)) == 2L &&
+             identical(r$bootstrap$stats_obs$Runs, NA_real_) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$estim, 2) && identical(l$verdict, "INFO") &&
+             endsWith(l$detail, paste("Une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                                      "R = 2 pour tout arrangement, loi de R degeneree (variance nulle).")) &&
+             !any(is.nan(engine_table_tests(r)$statistique))
+         })
+
 ## --- Durbin-Watson, Cox-Stuart -----------------------------------------------
 # DW = z'MAMz / z'Mz, A = D'D (D matrice des differences premieres), M
 # projecteur de centrage : forme matricielle independante du code.
