@@ -101,3 +101,5 @@ Réponses du mainteneur à la session principale, le 18/10/2026, sur les points 
 Suites demandées par le mainteneur le même jour, rédigées par `architect` et créées par la session sur son accord : (a) l'issue Gerard-Garey/Modele_vibe_code#6, pour y reporter le durcissement de `lireArgs` (écart (f)) ; (b) l'issue #338, sur ce dépôt, pour réexaminer le mécanisme des deux fiches d'`architect` et d'`actuary` (ADR 0013, décision 1), l'effort pouvant être passé à l'appel.
 
 Issues : aucune dans le périmètre ; suites #338 et Gerard-Garey/Modele_vibe_code#6 (branche `claude/modele-agents-execution`, PR #337, ouverte sur instruction du mainteneur hors branche de travail).
+
+*Annotation du 9 novembre 2026 (ADR 0017, #515) : les paragraphes de `CLAUDE.md` nommés par le présent ADR et par le § 10 de `docs/agents/routage.md` gardent leur intitulé en tête de ligne dans « Sous-agents » ; le principe 8 n'est plus recopié dans `CLAUDE.md` (ADR 0010 et point 8 du présent ADR) ; correspondance : ADR 0017, annexe A.*

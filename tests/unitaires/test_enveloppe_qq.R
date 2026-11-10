@@ -406,15 +406,23 @@ if (requireNamespace("plotly", quietly = TRUE)) {
     op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
     plotly::plotly_build(plot_qqnorm(pd))$x$layout
   }
-  verifier("plot_qqnorm(), plotly : B = 199, titre suivi de deux <sup> (bandes tracees, motif) et marge haute de 80 ; B = 999, un <sup> et marge de 60 ; chacune augmentee de la reserve de la barre d'outils plotly (.marge_haute(), #481)",
+  # #500 : a 330 px de large, une ligne de <sup> de plus de 66 caracteres sort de
+  # la figure ; .coupe_mots() replie chaque element du sous-titre (jamais le
+  # motif du moteur, de 65 caracteres, qui tient), et la marge haute suit le
+  # nombre de lignes (60 pour une ligne de <sup>, 20 de plus par ligne).
+  verifier("plot_qqnorm(), plotly : B = 199, titre suivi de deux <sup> (bandes tracees repliees en deux lignes, motif) et marge haute de 100 (trois lignes) ; B = 999, un <sup> replie en deux lignes et marge de 80 ; chacune augmentee de la reserve de la barre d'outils plotly (.marge_haute(), #481, #500)",
            {
              l199 <- construit385(r1$plots_data); l999 <- construit385(r999$plots_data)
              t199 <- if (is.list(l199$title)) l199$title$text else l199$title
              t999 <- if (is.list(l999$title)) l999$title$text else l999$title
-             endsWith(t199, paste0("<br><sup>", PONCT199, "</sup><br><sup>", MOTIF500, "</sup>")) &&
-               identical(l199$margin$t, .marge_haute(80)) &&
+             endsWith(t199, paste0("<br><sup>bootstrap param\u00e9trique sous le mod\u00e8le ajust\u00e9,<br>",
+                                   "bande ponctuelle seule sur 199 r\u00e9plications</sup>",
+                                   "<br><sup>", MOTIF500, "</sup>")) &&
+               identical(l199$margin$t, .marge_haute(100)) &&
                lengths(regmatches(t999, gregexpr("<sup>", t999, fixed = TRUE))) == 1L &&
-               identical(l999$margin$t, .marge_haute(60))
+               lengths(regmatches(t999, gregexpr("<br>", t999, fixed = TRUE))) == 2L &&
+               identical(l999$margin$t, .marge_haute(80)) &&
+               identical(l199$title$font$size, 12) && identical(l999$title$font$size, 12)
            })
 } else cat("  note : plotly absent ; sous-titre plotly du QQ-plot non exerce (#385).\n")
 

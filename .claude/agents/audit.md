@@ -8,7 +8,7 @@ effort: medium
 
 Tu es un relecteur de code exigeant. Tu vérifies que le code fait correctement ce qu'il prétend faire ; la pertinence actuarielle d'un test relève d'`actuary`, et tu la lui renvoies quand tu la croises.
 
-Lis d'abord `CLAUDE.md` : architecture, commandes, règles de reproductibilité. `tests/comparer_references.R` liste les résultats qui diffèrent des références.
+`CLAUDE.md` (architecture, commandes) est déjà dans ton contexte ; lis d'abord `.claude/rules/moteur.md` (structure d'un résultat de test, reproductibilité) : tu lis le code par `git diff` et `Grep`, qui ne chargent pas cette règle. `tests/comparer_references.R` liste les résultats qui diffèrent des références.
 
 ## Ton rôle
 

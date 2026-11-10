@@ -22,6 +22,11 @@
 #     appelee avec replier = TRUE, regle CSS du repli presente et, avec
 #     shiny, commentaire long replie et colonne Fonction dans le rendu de la
 #     vue Detail, absents de la vue Synthese ;
+#   - regle des verdicts (issue #498) : avec shiny, les quatre phrases
+#     d'engine_regle_verdicts() au alpha du resultat ouvrent le tableau des
+#     tests (Synthese et Detail), absentes du tableau des controles ; colonne
+#     Sens ; bloc Etat : alpha du resultat et signal d'un alpha du panneau
+#     different, sans recalcul ;
 #   - dimension du triangle et reinitialisation (issue #155, decision
 #     Q-R7-2 (A)) : profondeur_reinitialisation(), jeu_reinitialise(),
 #     message_reinitialisation() hors Shiny ; aucun observateur du champ T
@@ -87,6 +92,15 @@
 #     l'identique ; demarrage refuse sur une ligne vide intercalee ; avec
 #     shiny, memes refus a l'import (CSV et xlsx), series courantes gardees,
 #     import valide inchange.
+#   - lecture sans nom de ligne, avertissements du moteur restitues (issue
+#     #518) : CSV dont une ligne compte plus de champs que l'en-tete refuse par
+#     lire_tableau() (MESSAGE_ILLISIBLE$csv), colonne en surnombre nommee
+#     ignoree par nom, aucune lecture de app.R sans row.names = NULL ;
+#     avertissement des cellules sous la diagonale (#491) restitue au
+#     demarrage (statut) et a l'import d'un triangle (statut, rendu,
+#     notification warning), seul : champ avertissements_lecture du moteur,
+#     jamais les avertissements calcules sans segment (credibilite, repere
+#     I + 1 < 10), absents du statut.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -403,9 +417,9 @@ unlink(.dir286, recursive = TRUE); rm("FICHIER_LN", envir = .env)
 # retiree par read.csv (ok TRUE, 8 annees sur 9), "0x10" lu 16 par
 # type.convert() (ok TRUE), cellule "NA" d'un triangle lue comme vide.
 .csv483 <- function(lignes) { f <- tempfile(fileext = ".csv"); writeLines(lignes, f); f }
-.lire483 <- function(lignes, ...) {
+.lire483 <- function(lignes) {
   f <- .csv483(lignes); on.exit(unlink(f))
-  .env$lire_tableau(f, FALSE, ...)$df
+  .env$lire_tableau(f, FALSE)$df
 }
 # Meme tableau en xlsx (ecrivain du moteur), lu par lire_tableau() :
 # NULL si aucun ecrivain xlsx n'est disponible (ni openxlsx ni commande zip).
@@ -437,30 +451,30 @@ verifier("Import CSV : \"0x10\" refuse comme valeur non numerique avec sa positi
            (is.null(.x490) || identical(engine_lire_donnees_csv(.x490)$erreurs, .r490$erreurs)))
 .tri483 <- c("i,j0,j1,j2,j3,j4", "0,300,960,1560,2020,2290", "1,310,980,1590,NA,",
              "2,320,1000,1600,,", "3,330,1010,,,", "4,340,,,,")
-.rt483 <- engine_lire_triangle(.lire483(.tri483, row.names = NULL))
+.rt483 <- engine_lire_triangle(.lire483(.tri483))
 verifier("Import CSV : cellule \"NA\" d'un triangle refusee avec sa position, comme en xlsx (na.strings = character(0)) (#483)",
          !.rt483$ok && length(.rt483$erreurs) == 1L &&
            identical(.rt483$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=3).",
                                            "Une cellule \"NA\" est lue comme du texte : renseigner la valeur,",
                                            "ou laisser vide une cellule non observee.")))
 # Lecture des fichiers d'exemple avant #483 : read.csv par defaut, comme
-# lire_tableau() (row.names = NULL pour le triangle, comme charger_mw()).
+# lire_tableau() (row.names = NULL a toute lecture depuis #518).
 .ex483 <- file.path(.racine, "tests", "donnees", c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"))
 verifier("Fichiers d'exemple (tests/donnees) : series et triangle lus par lire_tableau() identiques a la lecture d'avant #483",
          identical(engine_lire_donnees_csv(.env$lire_tableau(.ex483[1], FALSE)$df),
                    engine_lire_donnees_csv(utils::read.csv(.ex483[1], stringsAsFactors = FALSE))) &&
            identical(engine_lire_donnees_csv(.env$lire_tableau(.ex483[2], FALSE)$df),
                      engine_lire_donnees_csv(utils::read.csv(.ex483[2], stringsAsFactors = FALSE))) &&
-           identical(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE, row.names = NULL)$df),
+           identical(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE)$df),
                      engine_lire_triangle(utils::read.csv(.ex483[3], stringsAsFactors = FALSE,
                                                           row.names = NULL))) &&
-           isTRUE(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE, row.names = NULL)$df)$ok))
+           isTRUE(engine_lire_triangle(.env$lire_tableau(.ex483[3], FALSE)$df)$ok))
 verifier("Import CSV : colonne de fin sans en-tete (virgule finale) retiree, series et triangle identiques (#483)",
          identical(engine_lire_donnees_csv(.lire483(paste0(.ser483[-5], ","))),
                    engine_lire_donnees_csv(.lire483(.ser483[-5]))) &&
-           identical(engine_lire_triangle(.lire483(paste0(sub("NA", "2050", .tri483), ","), row.names = NULL)),
-                     engine_lire_triangle(.lire483(sub("NA", "2050", .tri483), row.names = NULL))) &&
-           isTRUE(engine_lire_triangle(.lire483(sub("NA", "2050", .tri483), row.names = NULL))$ok))
+           identical(engine_lire_triangle(.lire483(paste0(sub("NA", "2050", .tri483), ","))),
+                     engine_lire_triangle(.lire483(sub("NA", "2050", .tri483)))) &&
+           isTRUE(engine_lire_triangle(.lire483(sub("NA", "2050", .tri483)))$ok))
 # Demarrage : charger_ln() et charger_mw() lisent par lire_tableau() ; un
 # fichier a ligne vide intercalee est refuse avec le motif du moteur.
 .dir483 <- tempfile("demarrage483_"); dir.create(.dir483)
@@ -475,6 +489,72 @@ verifier("Demarrage : fichiers CSV de series et de triangle a ligne vide interca
            grepl("Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 3)", .cm483$statut$msg,
                  fixed = TRUE) && identical(.cm483$valeur, .env$triangle_vide(8)))
 unlink(.dir483, recursive = TRUE); rm("FICHIER_LN", "FICHIER_MW", envir = .env)
+
+## --- Lecture sans nom de ligne, avertissements restitues (issue #518) ---------
+# Mesure avant correction (09/11/2026, branche K5, 3286ab6) : "xt,yt" avec
+# lignes "annee,xt,yt" lu sans row.names = NULL, colonne d'annees prise pour
+# des noms de lignes et ignoree sans message ; en-tete "j0,j1,j2" de trois
+# champs sur des lignes de quatre dont la premiere colonne se repete :
+# erreur "duplicate 'row.names' are not allowed".
+.lire518 <- function(lignes) {
+  f <- .csv483(lignes); on.exit(unlink(f))
+  .env$lire_tableau(f, FALSE)
+}
+.ser518 <- c("xt,yt", paste(2015:2022, 100:107, 60:67, sep = ","))
+.dup518 <- c("j0,j1,j2", "1,300,960,1560", "1,310,980,", "1,320,,")
+.l518 <- suppressMessages(.lire518(.ser518)); .d518 <- suppressMessages(.lire518(.dup518))
+.jr518 <- tryCatch(.lire518(.ser518), message = function(m) conditionMessage(m))
+.nomme518 <- .lire518(c("xt,yt,annee", paste(100:107, 60:67, 2015:2022, sep = ",")))
+.ref518 <- .lire518(c("xt,yt", paste(100:107, 60:67, sep = ",")))
+.court518 <- .lire518(c("t,xt,yt", "1,100,60", "2,101"))
+verifier("lire_tableau() : CSV dont les lignes comptent plus de champs que l'en-tete refuse (series et triangle), message fixe MESSAGE_ILLISIBLE$csv, motif precis au journal, aucun tableau (#518)",
+         is.null(.l518$df) && identical(.l518$erreur, .env$MESSAGE_ILLISIBLE[["csv"]]) &&
+           is.null(.d518$df) && identical(.d518$erreur, .env$MESSAGE_ILLISIBLE[["csv"]]) &&
+           grepl("en-tete de 2 champ(s), ligne 2 du fichier de 3 champs", .jr518, fixed = TRUE))
+verifier("lire_tableau() : colonne en surnombre NOMMEE (en-tete aussi long que les lignes) lue puis ignoree par nom par le moteur, series identiques a celles du fichier sans elle ; ligne plus courte que l'en-tete acceptee (#518)",
+         is.null(.nomme518$erreur) && identical(names(.nomme518$df), c("xt", "yt", "annee")) &&
+           isTRUE(engine_lire_donnees_csv(.nomme518$df)$ok) &&
+           identical(engine_lire_donnees_csv(.nomme518$df), engine_lire_donnees_csv(.ref518$df)) &&
+           is.null(.court518$erreur) && nrow(.court518$df) == 2L)
+.lectures_app <- function(e) {
+  if (is.call(e)) {
+    f <- paste(deparse(e[[1]]), collapse = "")
+    ici <- if (grepl("(^|::)(read\\.csv2?|read\\.table|read\\.delim2?)$", f)) list(e) else list()
+    c(ici, unlist(lapply(as.list(e)[-1], .lectures_app), recursive = FALSE))
+  } else if (is.expression(e) || is.list(e)) unlist(lapply(e, .lectures_app), recursive = FALSE)
+  else list()
+}
+.lectures518 <- .lectures_app(parse(.app, keep.source = FALSE))
+verifier("app.R : toute lecture de tableau (read.csv...) passe row.names = NULL, une seule lecture (lire_tableau) (#518)",
+         length(.lectures518) == 1L && all(vapply(.lectures518, function(e) "row.names" %in% names(e) &&
+                                                    is.null(e[["row.names"]]), logical(1))))
+# Demarrage : triangle 8 x 8 a cellules renseignees sous la diagonale (#491).
+# Le statut ne porte que engine_lire_triangle()$avertissements_lecture : les
+# avertissements calcules sans segment (credibilite au bareme court par
+# convention, repere I + 1 < 10) n'y figurent pas (N1 et N2 d'app-review :
+# avant correction, "c = 81 %" au statut pour le segment II-1, quand l'apercu
+# et le calcul donnent 59 %).
+.dir518 <- tempfile("demarrage518_"); dir.create(.dir518)
+.env$FICHIER_MW <- file.path(.dir518, "usp_donnees_MW.csv")
+.t518 <- .env$triangle_defaut(8); .t518[row(.t518) + col(.t518) - 2L > 7L] <- 1000
+utils::write.csv(data.frame(i = 0:7, setNames(as.data.frame(.t518), paste0("j", 0:7))),
+                 .env$FICHIER_MW, row.names = FALSE, na = "")
+.cm518 <- .env$charger_mw()
+.lu518 <- engine_lire_triangle(.env$lire_tableau(.env$FICHIER_MW, FALSE)$df)
+verifier("Demarrage : triangle 8 x 8 a cellules sous la diagonale charge, statut au seul avertissement de #491 (avertissements_lecture du moteur), tel quel, sans credibilite ni pourcentage (#518)",
+         isTRUE(.cm518$statut$ok) && length(.cm518$statut$avertissements) == 1L &&
+           identical(.cm518$statut$avertissements, .lu518$avertissements_lecture) &&
+           grepl("sous la diagonale", .cm518$statut$avertissements, fixed = TRUE) &&
+           length(.lu518$avertissements) > 1L &&
+           !any(grepl("%|credibilite|bruites", c(.cm518$statut$msg, .cm518$statut$avertissements))))
+invisible(file.copy(file.path(.racine, "tests", "donnees", "triangle_mw.csv"), .env$FICHIER_MW, overwrite = TRUE))
+.cm518b <- .env$charger_mw()
+.lu518b <- engine_lire_triangle(.env$lire_tableau(.env$FICHIER_MW, FALSE)$df)
+verifier("Demarrage : tests/donnees/triangle_mw.csv (8 x 8, sans cellule sous la diagonale) charge, statut sans avertissement ni pourcentage de credibilite, quand le moteur en rend deux sans segment (#518)",
+         isTRUE(.cm518b$statut$ok) && identical(.cm518b$statut$avertissements, character(0)) &&
+           length(.lu518b$avertissements) == 2L &&
+           !any(grepl("%|credibilite", .cm518b$statut$msg)))
+unlink(.dir518, recursive = TRUE); rm("FICHIER_MW", envir = .env)
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -914,6 +994,73 @@ testServer(app, {
     grepl(paste0("Graine loi nulle SW  : ",
                  format(resultat()$metadata$seed_loi_nulle_sw, scientific = FALSE), " "),
           jo, fixed = TRUE) && identical(resultat()$metadata$seed_loi_nulle_sw, 20260901))
+})
+)---"
+  # Regle des verdicts, alpha du resultat et du panneau (issue #498) : la regle
+  # (quatre phrases d'engine_regle_verdicts(), alpha du RESULTAT) ouvre le
+  # tableau des tests, jamais celui des controles ; la colonne Sens figure en
+  # Synthese et en Detail ; le bloc Etat donne l'alpha du resultat et signale,
+  # sans recalcul, un alpha du panneau different (texte_alpha_divergent()).
+  .bloc_498 <- r"---(
+## Regle des verdicts, alpha du resultat et du panneau (issue #498)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie199)
+  avant <- tryCatch(as.character(output$tests_par_hypothese$html), error = function(e) e)
+  a("avant tout calcul : onglet Tests sans regle, ni erreur autre que l'annulation du rendu (#498)",
+    inherits(avant, "shiny.silent.error"))
+  session$setInputs(go = 1)
+  ph <- engine_regle_verdicts(resultat()$metadata$alpha)
+  h <- as.character(output$tests_par_hypothese$html)
+  et <- as.character(output$etat$html)
+  a("calcul abouti au jeu par defaut, alpha 0,1 du resultat (#498)",
+    isTRUE(resultat()$ok) && identical(resultat()$metadata$alpha, 0.1))
+  pos <- vapply(ph, function(x) regexpr(.echap_html(x), h, fixed = TRUE)[1], numeric(1))
+  a("onglet Tests : les quatre phrases d'engine_regle_verdicts(alpha du resultat), dans l'ordre, avant le premier groupe (#498)",
+    all(pos > 0) && all(diff(pos) > 0) && pos[1] < regexpr("<h4", h, fixed = TRUE)[1])
+  a("onglet Tests : la regle ouvre le tableau, aucun autre element avant elle (#498)",
+    startsWith(h, "<div class='bloc regle-verdicts'>"))
+  # Repere de profondeur (#499) : champ du moteur, non replie, sous la regle.
+  rp499 <- resultat()$validation$repere_profondeur
+  bloc499 <- paste0("<div class='avert repere-profondeur'>", .echap_html(rp499), "</div>")
+  a("onglet Tests : repere de profondeur du moteur (T = 8) non replie, juste sous la regle, avant le premier groupe (#499)",
+    length(rp499) == 1L && startsWith(rp499, "T = 8 :") &&
+      lengths(regmatches(h, gregexpr(bloc499, h, fixed = TRUE))) == 1L &&
+      regexpr(paste0("</ul></div>\n", bloc499), h, fixed = TRUE)[1] == regexpr("</ul></div>", h, fixed = TRUE)[1] &&
+      regexpr(bloc499, h, fixed = TRUE)[1] < regexpr("<h4", h, fixed = TRUE)[1])
+  ctr <- as.character(output$tab_controles)
+  a("tableau des controles : aucune phrase de la regle (#498)",
+    is.character(ctr) && grepl("<table", ctr, fixed = TRUE) && !grepl("regle-verdicts", ctr, fixed = TRUE) &&
+      !any(vapply(ph, function(x) grepl(.echap_html(x), ctr, fixed = TRUE), logical(1))))
+  lig_pit <- grep("Test de Pitman", regmatches(h, gregexpr("<tr>.*?</tr>", h, perl = TRUE))[[1]],
+                  fixed = TRUE, value = TRUE)
+  a("vue Synthese : colonne Sens, ligne Pitman en ALERTE (p = 0,1107) avec le sens rejeter (#498)",
+    grepl("<th>Sens</th>", h, fixed = TRUE) && length(lig_pit) == 1L &&
+      grepl("ALERTE", lig_pit, fixed = TRUE) && grepl("<td>0,1107</td>", lig_pit, fixed = TRUE) &&
+      endsWith(lig_pit, "<td><span style='white-space:nowrap'>rejeter</span></td></tr>"))
+  session$setInputs(vue_tests = "detail")
+  hd <- as.character(output$tests_par_hypothese$html)
+  a("vue Detail : la regle en tete et la colonne Sens (#498)",
+    startsWith(hd, "<div class='bloc regle-verdicts'>") && grepl("<th>Sens</th>", hd, fixed = TRUE) &&
+      all(vapply(ph, function(x) grepl(.echap_html(x), hd, fixed = TRUE), logical(1))))
+  a("bloc Etat : alpha du resultat (0,1), aucun signal tant que le panneau est a 0,1 (#498)",
+    grepl("<b>alpha</b> = 0,1</div>", et, fixed = TRUE) && !grepl("du panneau", et, fixed = TRUE))
+  session$setInputs(alpha = 0.2)
+  et2 <- as.character(output$etat$html)
+  h2 <- as.character(output$tests_par_hypothese$html)
+  a("alpha du panneau a 0,2 : signal dans l'Etat, alpha du resultat toujours 0,1, aucun recalcul (#498)",
+    grepl("α du panneau différent de celui du dernier calcul : relancer les calculs", et2, fixed = TRUE) &&
+      grepl("<b>alpha</b> = 0,1</div>", et2, fixed = TRUE) && !grepl("<b>alpha</b> = 0,2", et2, fixed = TRUE) &&
+      identical(resultat()$metadata$alpha, 0.1))
+  a("alpha du panneau a 0,2 : la regle de l'onglet Tests reste celle du resultat (alpha 0,1), inchangee (#498)",
+    identical(h2, hd) && grepl(.echap_html(ph[1]), h2, fixed = TRUE) && !grepl("α = 0,2", h2, fixed = TRUE))
+  session$setInputs(alpha = NA_real_)
+  et3 <- as.character(output$etat$html)
+  a("champ alpha vide (NA) : ni signal ni erreur, alpha du resultat affiche (#498)",
+    grepl("<b>alpha</b> = 0,1</div>", et3, fixed = TRUE) && !grepl("du panneau", et3, fixed = TRUE))
+  session$setInputs(alpha = 0.10)
+  a("alpha du panneau revenu a 0,1 : le signal disparait (#498)",
+    !grepl("du panneau", as.character(output$etat$html), fixed = TRUE))
 })
 )---"
   # Notifications de refus (issue #226) : texte fixe d'interface, motif
@@ -1358,6 +1505,218 @@ testServer(app, {
                                                                   yt = as.numeric(60:65))))
 })
 )---"
+  # Avertissements de lecture du moteur restitues a l'import d'un triangle
+  # (issue #518, R1 d'app-review) : cellules renseignees sous la diagonale
+  # (#491), que la grille (i + j <= I) ne montre pas ; CSV dont une ligne
+  # compte plus de champs que l'en-tete refuse (C4).
+  .bloc_518 <- r"---(
+## Avertissements de lecture restitues a l'import, lecture sans nom de ligne (issue #518)
+notifs518 <- list()
+assign("showNotification", function(ui, ..., type = "default") {
+  notifs518[[length(notifs518) + 1L]] <<- list(texte = paste(as.character(ui), collapse = ""), type = type)
+  invisible("id")
+}, envir = ea)
+types518 <- function() vapply(notifs518, `[[`, "", "type")
+tri_sous <- ea$triangle_defaut(8); tri_sous[row(tri_sous) + col(tri_sous) - 2L > 7L] <- 1000
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  notifs518 <<- list()
+  session$setInputs(fichier_import = fichier_tri(tri_sous))
+  lu <- engine_lire_triangle(tri_sous)
+  h <- as.character(output$import_statut$html)
+  a("import d'un triangle 8 x 8 a cellules sous la diagonale : importe, statut au seul avertissement de #491 (avertissements_lecture du moteur), tel quel (#518)",
+    isTRUE(statut_import()$ok) && length(statut_import()$avertissements) == 1L &&
+      identical(statut_import()$avertissements, lu$avertissements_lecture) &&
+      grepl("sous la diagonale", statut_import()$avertissements, fixed = TRUE) &&
+      length(lu$avertissements) > 1L && identical(dim(triangle()), c(8L, 8L)))
+  a("import du triangle sous la diagonale : avertissement visible a l'ecran sous le titre Avertissements, sans le vert du succes, sans credibilite ni pourcentage ; notification warning unique (#518)",
+    grepl("Avertissements :", h, fixed = TRUE) &&
+      grepl(paste0("<li>", htmltools::htmlEscape(lu$avertissements_lecture), "</li>"), h, fixed = TRUE) &&
+      !grepl("1E8449", h, fixed = TRUE) && !grepl("%|credibilite|bruites", h) &&
+      identical(types518(), "warning") &&
+      identical(notifs518[[1]]$texte, "Triangle importe, avec des avertissements : voir le statut d'import."))
+  notifs518 <<- list()
+  session$setInputs(fichier_import = fichier_tri(ea$triangle_defaut(8)))
+  h2 <- as.character(output$import_statut$html)
+  a("import d'un triangle 8 x 8 sans cellule sous la diagonale : statut sans avertissement, en vert, sans pourcentage de credibilite, aucune notification warning (N2) (#518)",
+    isTRUE(statut_import()$ok) && identical(statut_import()$avertissements, character(0)) &&
+      length(engine_lire_triangle(ea$triangle_defaut(8))$avertissements) == 2L &&
+      !grepl("Avertissements", h2, fixed = TRUE) && grepl("1E8449", h2, fixed = TRUE) &&
+      !grepl("%|credibilite", h2) && !("warning" %in% types518()))
+  a("statut_ui() : succes sans avertissement en vert, sans titre Avertissements ; avec avertissement, titre et liste, sans vert (#518)",
+    {
+      v0 <- as.character(ea$statut_ui(list(ok = TRUE, msg = "ok")))
+      v1 <- as.character(ea$statut_ui(list(ok = TRUE, msg = "ok", avertissements = "a < b")))
+      grepl("1E8449", v0, fixed = TRUE) && !grepl("Avertissements", v0, fixed = TRUE) &&
+        !grepl("1E8449", v1, fixed = TRUE) && grepl("<li>a &lt; b</li>", v1, fixed = TRUE)
+    })
+  t1 <- triangle()
+  session$setInputs(fichier_import = depot(c("j0,j1,j2", "1,300,960,1560", "1,310,980,", "1,320,,")))
+  a("import d'un triangle dont les lignes ont plus de champs que l'en-tete : refuse, message fixe du CSV (plus de 'duplicate row.names'), triangle courant garde (#518)",
+    identical(statut_import()$ok, FALSE) && identical(triangle(), t1) &&
+      grepl(ea$MESSAGE_ILLISIBLE[["csv"]], statut_import()$msg, fixed = TRUE) &&
+      !grepl("duplicate", statut_import()$msg, fixed = TRUE))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  d0 <- donnees()
+  session$setInputs(fichier_import = depot(c("xt,yt", paste(2015:2022, 100:107, 60:67, sep = ","))))
+  a("import de series 'xt,yt' dont les lignes portent une colonne d'annees de plus : refuse, message fixe du CSV, series courantes gardees, aucune colonne ignoree en silence (#518)",
+    identical(statut_import()$ok, FALSE) && identical(donnees(), d0) &&
+      grepl(ea$MESSAGE_ILLISIBLE[["csv"]], statut_import()$msg, fixed = TRUE))
+  session$setInputs(fichier_import = depot(c("xt,yt,annee", paste(100:107, 60:67, 2015:2022, sep = ","))))
+  a("import de series avec une colonne en surnombre NOMMEE : importee, colonne ignoree par nom (convention du moteur), 8 annees (#518)",
+    isTRUE(statut_import()$ok) && identical(donnees(), data.frame(t = 1:8, xt = as.numeric(100:107),
+                                                                  yt = as.numeric(60:67))))
+})
+rm("showNotification", envir = ea)
+)---"
+  # Repere de profondeur (issue #499) : texte et seuil poses par le moteur
+  # seul (T < 10, I + 1 < 10), restitues apres calcul une fois dans la liste
+  # repliee de bandeau_avertissements et une fois, non replie, en tete de
+  # l'onglet Tests (champ validation$repere_profondeur, decision du
+  # mainteneur du 10/11/2026) ; l'ancien bandeau_T (seuil T >= 15 propre a
+  # l'affichage, phrase "Profondeur suffisante...") est retire.
+  .bloc_499 <- r"---(
+## Repere de profondeur du moteur : bandeau replie et onglet Tests (issue #499)
+non_rejet <- "Une p-value elevee ne demontre pas la validite de l'hypothese : elle ne permet pas de la rejeter."
+repere <- function(av) av[grepl("lois asymptotiques peu fiables|estimateurs de variance tres bruites", av)]
+sans_bandeau_T <- function(output) inherits(tryCatch(output$bandeau_T, error = function(e) e), "error")
+verif_499 <- function(lib, attendu, output, r) {
+  av <- r$validation$avertissements; rp <- repere(av)
+  h <- if (length(av)) as.character(output$bandeau_avertissements$html) else ""
+  occ <- lengths(regmatches(h, gregexpr("lois asymptotiques peu fiables|estimateurs de variance tres bruites", h)))
+  a(sprintf("%s : repere du moteur %s, une seule fois au plus dans le bandeau replie, texte du moteur tel quel, sans bandeau_T (#499)",
+            lib, if (attendu) "present (phrase de non-rejet)" else "absent"),
+    isTRUE(r$ok) && length(rp) == as.integer(attendu) && occ == as.integer(attendu) &&
+      (!attendu || (endsWith(rp, non_rejet) &&
+                      grepl(paste0("<li>", htmltools::htmlEscape(rp), "</li>"), h, fixed = TRUE))) &&
+      sans_bandeau_T(output) && !grepl("Profondeur suffisante", h, fixed = TRUE))
+  # Onglet Tests : le champ du moteur, egal au repere des avertissements,
+  # une fois et non replie (aucun <details>), ou rien s'il est vide.
+  ht <- as.character(output$tests_par_hypothese$html)
+  occ_t <- lengths(regmatches(ht, gregexpr("repere-profondeur", ht, fixed = TRUE)))
+  a(sprintf("%s : onglet Tests, champ repere_profondeur %s (#499)",
+            lib, if (attendu) "affiche une fois, non replie, egal au repere des avertissements" else "vide, aucun bandeau"),
+    identical(r$validation$repere_profondeur, rp) && occ_t == as.integer(attendu) &&
+      (!attendu || grepl(paste0("<div class='avert repere-profondeur'>", htmltools::htmlEscape(rp), "</div>"),
+                         ht, fixed = TRUE)) &&
+      !grepl("<details[^>]*>[^<]*<summary[^>]*>[^<]*</summary>[^<]*<div class='avert repere-profondeur'>", ht))
+}
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  for (n in c(8L, 12L, 15L)) {
+    session$setInputs(fichier_import = fichier(n)); grille(session, n)
+    session$setInputs(profondeur = n, go = n)
+    verif_499(sprintf("primes, T = %d", n), n < 10L, output, resultat())
+  }
+})
+tri6 <- matrix(NA_real_, 6, 6)
+tri6[1, ] <- c(1000, 1600, 1800, 1800, 1830, 1835)
+tri6[2, 1:5] <- c(1100, 1815, 2000, 2000, 2050)
+tri6[3, 1:4] <- c(900, 1395, 1580, 1580)
+tri6[4, 1:3] <- c(1200, 1980, 2210)
+tri6[5, 1:2] <- c(1050, 1638)
+tri6[6, 1]   <- 980
+for (cas in list(list(tri = tri6, attendu = TRUE), list(tri = tri10, attendu = FALSE))) {
+  testServer(app, {
+    do.call(session$setInputs, c(base, list(reinit = 1)))
+    session$setInputs(methode = "reserve2", reinit = 2)
+    session$setInputs(fichier_import = fichier_tri(cas$tri))
+    tr <- triangle(); k <- which(!is.na(tr), arr.ind = TRUE)
+    do.call(session$setInputs, setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)))
+    session$setInputs(go = 1)
+    verif_499(sprintf("reserve no 2, I + 1 = %d", nrow(cas$tri)), cas$attendu, output, resultat())
+  })
+}
+)---"
+  # Conservation de la saisie de la grille au changement de methode (issue
+  # #497). Mesure avant correction (testServer, 10/11/2026) : x_1 = 999 puis
+  # "reserve2" puis "premium" : x_1 = 104,2 ; c_0_0 = 12345 puis "reserve1"
+  # puis "reserve2" : c_0_0 = 300. Le navigateur rend la grille apres un
+  # import ou une reinitialisation et renvoie ses champs : grille() et
+  # tri_champs() le reproduisent.
+  .bloc_497 <- r"---(
+## Saisie de la grille conservee au changement de methode (issue #497)
+d497 <- ea$DONNEES_DEFAUT; t497 <- ea$triangle_defaut(8)
+tri_champs <- function(tr) { k <- which(!is.na(tr), arr.ind = TRUE)
+  setNames(as.list(tr[k]), sprintf("c_%d_%d", k[, 1] - 1L, k[, 2] - 1L)) }
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(x_1 = 999, y_2 = 555)
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("series : x_1 = 999 et y_2 = 555 conserves apres premium, reserve2, premium (#497)",
+    identical(donnees()$xt[1], 999) && identical(donnees()$yt[2], 555) &&
+      identical(donnees()$xt[-1], d497$xt[-1]) && identical(donnees()$yt[-2], d497$yt[-2]) &&
+      a_val(grille_html(output), "x_1", "999") && a_val(grille_html(output), "y_2", "555"))
+  session$setInputs(methode = "reserve1")
+  a("series : x_1 = 999 conserve de premium a reserve1, sans changement de famille (#497)",
+    identical(donnees()$xt[1], 999) && a_val(grille_html(output), "x_1", "999"))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(c_0_0 = 12345)
+  session$setInputs(methode = "reserve1")
+  session$setInputs(methode = "reserve2")
+  tr <- triangle(); att <- t497; att[1, 1] <- 12345
+  a("triangle : c_0_0 = 12345 conserve apres reserve2, reserve1, reserve2, autres cellules intactes (#497)",
+    identical(tr, att) && a_val(grille_html(output), "c_0_0", "12345"))
+})
+# Champ non rendu (entree absente) : le triangle, jamais affiche dans cette
+# session, n'est pas vide au retour des series.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  t0 <- triangle()
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("triangle sans champ rendu : valeurs stockees gardees au retour aux series (#497)",
+    identical(triangle(), t0) && identical(donnees(), d497))
+})
+# Import et reinitialisation remplacent toujours la saisie : la recopie ne
+# s'execute qu'au changement de methode et relit les champs rendus apres eux.
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(x_1 = 999)
+  session$setInputs(fichier_import = fichier(6)); grille(session, 6)
+  imp <- read.csv(fichier(6)$datapath)
+  session$setInputs(methode = "reserve2")
+  session$setInputs(methode = "premium")
+  a("series : import apres la saisie, la serie importee remplace x_1 = 999 et survit a l'aller-retour (#497)",
+    nrow(donnees()) == 6L && identical(donnees()$xt, imp$xt) && identical(donnees()$yt, imp$yt) &&
+      !a_val(grille_html(output), "x_1", "999"))
+  session$setInputs(x_1 = 888)
+  session$setInputs(reinit = 2)
+  do.call(session$setInputs, c(setNames(as.list(d497$xt), paste0("x_", 1:8)),
+                               setNames(as.list(d497$yt), paste0("y_", 1:8))))
+  session$setInputs(methode = "reserve1")
+  session$setInputs(methode = "premium")
+  a("series : Reinitialiser apres la saisie, le jeu par defaut remplace x_1 = 888 et survit a l'aller-retour (#497)",
+    identical(donnees(), d497) && a_val(grille_html(output), "x_1", "104.2"))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(c_0_0 = 12345)
+  session$setInputs(fichier_import = fichier_tri(tri10))
+  do.call(session$setInputs, tri_champs(tri10))
+  session$setInputs(methode = "premium")
+  session$setInputs(methode = "reserve2")
+  a("triangle : import apres la saisie, le triangle importe remplace c_0_0 = 12345 et survit a l'aller-retour (#497)",
+    meme_tri(triangle(), tri10) && !a_val(grille_html(output), "c_0_0", "12345"))
+  session$setInputs(c_0_0 = 777)
+  session$setInputs(reinit = 3)   # T saisi = 8 : triangle par defaut 8 x 8
+  do.call(session$setInputs, tri_champs(t497))
+  session$setInputs(methode = "premium")
+  session$setInputs(methode = "reserve2")
+  a("triangle : Reinitialiser apres la saisie, le triangle par defaut remplace c_0_0 = 777 et survit a l'aller-retour (#497)",
+    meme_tri(triangle(), t497) && a_val(grille_html(output), "c_0_0", "300"))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1388,13 +1747,21 @@ testServer(app, {
     '    identical(r$donnees$xt, xt[3:10]) && identical(r$donnees$yt, yt[3:10]))',
     '  session$setInputs(vue_tests = "detail")',
     '  dt <- as.character(output$tests_par_hypothese$html)',
-    '  tb_dt <- engine_table_tests(r)',
-    '  # Seuil du repli porte a 400 par #514 (plafond du texte propre) : le rendu',
-    '  # replie si et seulement si .commentaire_replie() replie un texte de la vue.',
-    '  attendu_repli <- any(startsWith(.commentaire_replie(c(tb_dt$commentaire, tb_dt$H0, tb_dt$H1)),',
-    '                                  "<details class=\'com\'>"))',
-    '  a("vue Detail : commentaire long replie si la regle de repli le replie, et colonne Fonction (#178, #514)",',
-    '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli) &&',
+    '  # Regle de repli de #517 : le rendu replie si et seulement si',
+    '  # .commentaire_replie() replie un texte de la vue, et chaque cellule',
+    '  # (Motif / commentaire, H0, H1) est rendue telle que la regle la produit :',
+    '  # un repli absent ou mal place change la cellule et fait echouer le test.',
+    '  # Lignes affichees : selection courante de l\'onglet (filtrer_selection).',
+    '  tb_aff <- TB(); tb_aff <- tb_aff[filtrer_selection(tb_aff, sel_courante()), , drop = FALSE]',
+    '  cel_att <- unlist(table_detail_groupe(tb_aff, replier = TRUE)[c("Motif / commentaire", "H0", "H1")])',
+    '  attendu_repli <- any(startsWith(cel_att, "<details class=\'com\'>"))',
+    '  a("vue Detail : repli present si et seulement si la regle de repli replie un texte de la vue (#178, #517)",',
+    '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli))',
+    '  a("vue Detail : chaque cellule de commentaire, H0 et H1 des lignes affichees rendue comme la regle de repli la produit (#517)",',
+    '    length(cel_att) > 0L && all(vapply(unname(cel_att), grepl, NA, x = dt, fixed = TRUE)))',
+    '  a("vue Detail : tableau dans un conteneur overflow-x:auto (aucune colonne sous le panneau), largeur minimale de la colonne Motif / commentaire, colonne Fonction (#517, #178)",',
+    '    grepl("<div style=\\"overflow-x:auto\\"><table class=\'table table-condensed data\'>", dt, fixed = TRUE) &&',
+    '    grepl(paste0("<th style=\'min-width:", LARGEURS_DETAIL[["Motif / commentaire"]], "px\'>Motif / commentaire</th>"), dt, fixed = TRUE) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
     '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
     '    grepl("<th>granularit\u00e9 MC</th>", dt, fixed = TRUE) &&',
@@ -1403,6 +1770,7 @@ testServer(app, {
     '  sy <- as.character(output$tests_par_hypothese$html)',
     '  a("vue Synthese : ni repli ni colonne Fonction ni granularite MC (#178, #285)",',
     '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE) &&',
+    '      !grepl("min-width", sy, fixed = TRUE) &&',
     '      !grepl("granularit\u00e9 MC", sy, fixed = TRUE))',
     '  lib <- libelle_derogation(r, "profondeur")',
     '  a("ligne profondeur restituee, 2 annees ecartees", length(lib) == 1L &&',
@@ -1482,7 +1850,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1499,8 +1867,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 97 assertions rendues", length(.lignes) == 97L)
-  if (length(.lignes) != 97L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 137 assertions rendues", length(.lignes) == 137L)
+  if (length(.lignes) != 137L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

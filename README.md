@@ -43,7 +43,7 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
     docs/exigences.md           cahier des charges
     docs/latex/                 documentation de l'outil (.tex et PDF compilé)
     docs/agents/                configuration des agents (issues, libellés, domaine)
-    .claude/                    Claude Code : sous-agents, skills, workflows, hooks, outils
+    .claude/                    Claude Code : sous-agents, règles, skills, workflows, hooks, outils
     AGENTS.md                   consignes de ChatGPT (Codex), contributeur épisodique
     .codex/                     Codex : fiches de rôle, procédures, script de setup (R, TeX Live)
     .github/                    intégration continue, modèles d'issues et de PR
@@ -88,12 +88,19 @@ Les textes produits par le moteur (`detail` et motifs des tests, détail des con
     res$parametre_final$sigma_usp
     engine_table_tests(res)
 
-    # lecture d'un fichier CSV, comme le fait l'application (#483)
-    lire_csv <- function(f, ...) utils::read.csv(f, colClasses = "character",
-                          blank.lines.skip = FALSE, check.names = FALSE,
-                          na.strings = character(0), ...)
+    # lecture d'un fichier CSV, comme le fait l'application (#483, #518) :
+    # refus d'une ligne plus longue que l'en-tete, aucun nom de ligne
+    lire_csv <- function(f) {
+      nc <- utils::count.fields(f, sep = ",", quote = "\"",
+                                comment.char = "", blank.lines.skip = FALSE)
+      if (any(nc > nc[!is.na(nc)][1L], na.rm = TRUE))
+        stop("une ligne compte plus de valeurs que l'en-tete")
+      utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                      check.names = FALSE, na.strings = character(0),
+                      row.names = NULL)
+    }
     lu <- engine_lire_donnees_csv(lire_csv("usp_donnees_LN.csv"))
-    lu_tri <- engine_lire_triangle(lire_csv("usp_donnees_MW.csv", row.names = NULL))
+    lu_tri <- engine_lire_triangle(lire_csv("usp_donnees_MW.csv"))
 
 `engine_lire_donnees_csv()` et `engine_lire_triangle()` attendent un tableau lu
 comme le fait l'application (ci-dessus) ou par `engine_lire_xlsx()` : lignes

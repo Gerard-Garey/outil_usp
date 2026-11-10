@@ -1306,15 +1306,15 @@ usp_noyau <- function(delta, gamma, x, y, xbar = mean(x)) {
   # sections B et C, paragraphe 5 (beta n'est pas nomme par le texte ;
   # estimateur MV du niveau)
   ln_beta <- (T / 2 + sum(p * r)) / sum(p)
-  v <- r + 1 / (2 * p) - ln_beta            # residus bruts (loi normale, var = 1/pi_t)
+  v <- r + 1 / (2 * p) - ln_beta            # residus bruts (normaux a pi_t tenus pour connus, var = (1 - pi_t / somme(pi)) / pi_t, lies par ln_beta)
   list(
     pi      = p,
     ln_beta = ln_beta,
     beta    = exp(ln_beta),                 # ratio S/P moyen implicite
     v       = v,
-    z       = v * sqrt(p),                  # residus standardises ~ N(0,1)
+    z       = v * sqrt(p),                  # residus standardises : a pi_t tenus pour connus, z ~ N(0, P), P projecteur de rang T - 1, et non N(0, I_T) (doc, sec:base-residus)
     sigma   = exp(gamma + ln_beta),         # fonction d'ecart-type sigma(delta, gamma)
-    obj     = sum(p * v^2) - sum(log(p))    # -2 log-vraisemblance (a une constante pres)
+    obj     = sum(p * v^2) - sum(log(p))    # -2 log-vraisemblance (a une constante pres), profilee en ln(beta)
   )
 }
 
@@ -7566,9 +7566,17 @@ engine_lire_donnees_csv <- function(df) {
 # cellule vide vaut NA (partie non observee) ; une cellule non vide et non
 # numerique est refusee, jamais lue comme NA. Les colonnes facteur sont
 # converties par leurs valeurs.
-# Renvoie list(ok, erreurs, avertissements, triangle, I, J).
+# Renvoie list(ok, erreurs, avertissements, avertissements_lecture, triangle,
+# I, J). avertissements : ceux de mw_valider_triangle(), appele sans segment
+# ni annexe (credibilite au bareme court par convention, repere I + 1 < 10) ;
+# a ne pas restituer comme ceux du segment choisi. avertissements_lecture
+# (issue #518) : sous-ensemble propre au fichier lu, que la validation d'une
+# saisie restreinte a i + j <= I ne peut pas voir, soit le seul motif des
+# cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
+# character(0) pour un refus ou un triangle sans telle cellule.
 engine_lire_triangle <- function(df) {
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
+                            avertissements_lecture = character(0),
                             triangle = NULL, I = NA, J = NA)
   if (is.matrix(df)) df <- as.data.frame(df, stringsAsFactors = FALSE)
   if (!is.data.frame(df) || !nrow(df) || !ncol(df))
@@ -7615,6 +7623,7 @@ engine_lire_triangle <- function(df) {
   storage.mode(m) <- "double"
   v <- mw_valider_triangle(m)
   list(ok = v$ok, erreurs = v$erreurs, avertissements = v$avertissements,
+       avertissements_lecture = if (v$ok) .mw_avert_sous_diagonale(m) else character(0),
        triangle = if (v$ok) m else NULL, I = v$I, J = v$J)
 }
 
@@ -7959,6 +7968,9 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    nature_donnees = NULL, bareme = NULL,
                                    segment = NULL, annexe = "II") {
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
+  # Repere de profondeur (issue #499) : character(0) sauf T < 10 sur une
+  # serie recevable, comme erreurs et avertissements quand ils sont vides.
+  rep_prof <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
   if (length(xt) != length(yt))
@@ -8080,12 +8092,20 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                               length(xt), 100 * cr$c, cr$libelle, cr$pleine_a))
     }
     # Repere statistique, non reglementaire, seuil inchange (T < 10).
-    if (length(xt) < 10)
-      avt <- c(avt, sprintf(paste("T = %d : lois asymptotiques peu fiables.",
-                                  "Privilegier les p-values exactes ou Monte-Carlo."),
-                            length(xt)))
+    # Champ repere_profondeur (issue #499) : la meme chaine, construite une
+    # fois, aussi dans les avertissements ; lue par l'affichage, qui ne la
+    # repere ni par son texte ni par un seuil propre (#129).
+    if (length(xt) < 10) {
+      rep_prof <- sprintf(paste("T = %d : lois asymptotiques peu fiables.",
+                                "Privilegier les p-values exactes ou Monte-Carlo.",
+                                "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                "elle ne permet pas de la rejeter."),
+                          length(xt))
+      avt <- c(avt, rep_prof)
+    }
   }
-  list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
+  list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt),
+       repere_profondeur = rep_prof)
 }
 
 # Profondeur T demandee (issue #87) : les T annees les plus recentes d'une
@@ -8162,6 +8182,7 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
     validation$ok <- FALSE
     validation$erreurs <- c(err_T, validation$erreurs)
     validation$avertissements <- character(0)
+    validation$repere_profondeur <- character(0)
     validation$T <- NA_integer_
   }
   list(xt = xt, yt = yt, validation = validation)
@@ -8908,6 +8929,36 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     explicitement plutot que traite par convention implicite.
 ## =============================================================================
 
+# Cellules renseignees sous la diagonale (issue #491, decision du mainteneur
+# du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I renseignee (non NA,
+# NaN compris : is.na(NaN) vaut TRUE) est signalee par un avertissement non
+# bloquant, quelle que soit sa valeur (une valeur negative, nulle ou non
+# finie n'y est pas refusee : les controles de cellule de
+# mw_valider_triangle() ne lisent que i + j <= I). Elle peut trahir des
+# projections saisies dans la partie non observee. .run_engine_mw() la met a
+# NA avant le calcul (triangle restitue et decompte des cellules observees
+# restreints a i + j <= I). Un seul motif par triangle, qui cite au plus 5
+# positions (ordre i puis j), comme les motifs de cellules de
+# engine_lire_triangle(). Partage par mw_valider_triangle(), qui l'appelle
+# sur un triangle recevable, et par engine_lire_triangle() (issue #518) :
+# un meme texte dans les deux champs. Renvoie character(0) ou le motif.
+.mw_avert_sous_diagonale <- function(tri) {
+  I <- nrow(tri) - 1L
+  sous <- which((!is.na(tri) | is.nan(tri)) & (row(tri) + col(tri) - 2L > I),
+                arr.ind = TRUE)
+  if (!nrow(sous)) return(character(0))
+  sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
+  k <- utils::head(sous, 5)
+  sprintf(paste(
+    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
+    "de la partie observee du triangle, ces cellules ne sont ni lues par le",
+    "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
+    "observees ;",
+    "verifier qu'il ne s'agit pas de valeurs projetees."),
+    paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+    if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else "")
+}
+
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
 # bareme / segment / annexe (issue #131) : bareme de credibilite applique,
 # resolu comme dans run_engine() (.engine_credibilite_appliquee()) ; une
@@ -8925,9 +8976,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
   err <- character(0); avt <- character(0)
+  # Repere de profondeur (issue #499) : character(0) sauf I + 1 < 10 sur un
+  # triangle recevable, comme dans engine_valider_donnees().
+  rep_prof <- character(0)
   if (!is.matrix(tri) || !is.numeric(tri))
     return(list(ok = FALSE, erreurs = "Le triangle doit etre une matrice numerique.",
-                I = NA, J = NA))
+                I = NA, J = NA, repere_profondeur = rep_prof))
   I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
   if (nrow(tri) < T_min)
     err <- c(err, sprintf("D(2)(b) : au moins %d annees d'accident consecutives (%d fournies).",
@@ -9110,31 +9164,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                   error = function(e) conditionMessage(e))
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
-    # Cellules renseignees sous la diagonale (issue #491, decision du
-    # mainteneur du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I
-    # renseignee (non NA, NaN compris : is.na(NaN) vaut TRUE) est signalee par
-    # un avertissement non bloquant, quelle que soit sa valeur (une valeur
-    # negative, nulle ou non finie n'y est pas refusee :
-    # les controles de cellule ci-dessus ne lisent que i + j <= I). Elle peut
-    # trahir des projections saisies dans la partie non observee.
-    # .run_engine_mw() la met a NA avant le calcul (triangle restitue et
-    # decompte des cellules observees restreints a i + j <= I). Un seul motif
-    # par triangle, qui cite au plus 5 positions (ordre i puis j), comme les
-    # motifs de cellules de engine_lire_triangle().
-    sous <- which((!is.na(tri) | is.nan(tri)) & (row(tri) + col(tri) - 2L > I),
-                  arr.ind = TRUE)
-    if (nrow(sous)) {
-      sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
-      k <- utils::head(sous, 5)
-      avt <- c(avt, sprintf(paste(
-        "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
-        "de la partie observee du triangle, ces cellules ne sont ni lues par le",
-        "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
-        "observees ;",
-        "verifier qu'il ne s'agit pas de valeurs projetees."),
-        paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
-        if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else ""))
-    }
+    # Cellules renseignees sous la diagonale (issue #491) : avertissement de
+    # .mw_avert_sous_diagonale(), seul avertissement propre au fichier lu,
+    # repris par engine_lire_triangle() (champ avertissements_lecture, #518).
+    avt <- c(avt, .mw_avert_sous_diagonale(tri))
     # Avertissement de nature ACTUARIELLE, sans fondement reglementaire : le
     # paragraphe 2(h)(iii) pose seulement que l'esperance du cumule d'une annee
     # de developpement est PROPORTIONNELLE au montant cumule de la precedente,
@@ -9160,11 +9193,18 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                               nrow(tri), 100 * cr$c, cr$libelle, cr$pleine_a))
     }
     # Repere statistique, non reglementaire, seuil inchange (I + 1 < 10).
-    if (nrow(tri) < 10)
-      avt <- c(avt, sprintf("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
-                            nrow(tri)))
+    # Champ repere_profondeur (issue #499) : la meme chaine, construite une
+    # fois, aussi dans les avertissements.
+    if (nrow(tri) < 10) {
+      rep_prof <- sprintf(paste("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
+                                "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                "elle ne permet pas de la rejeter."),
+                          nrow(tri))
+      avt <- c(avt, rep_prof)
+    }
   }
-  list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J)
+  list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J,
+       repere_profondeur = rep_prof)
 }
 
 # --- Facteurs de developpement et variances : paragraphes 4 et 5 -------------
@@ -12911,6 +12951,51 @@ engine_motif_b_alpha <- function(B, alpha) {
                 "inatteignable (regle des verdicts d'engine_registre_tests())."),
           saisie(B), saisie(alpha), seuil_b, B_MIN_USAGE,
           2 * (1 / (B + 1)), alpha / 2)
+}
+
+# Regle des verdicts au seuil alpha, en quatre phrases pour l'affichage (#498).
+# Texte seul, hors run_engine() : aucun champ de l'objet usp_engine, aucun
+# calcul de verdict (add() de engine_registre_tests() reste la seule source de
+# la regle ; le test unitaire tests/unitaires/test_regle_verdicts.R confronte
+# chaque zone enoncee ici au verdict produit par add(), dans les deux sens).
+# Sens "rejeter" : OK si p < alpha, ALERTE si alpha <= p < SEUIL_ECHEC_SENS_REJETER,
+# ECHEC au-dela. Sens "ne pas rejeter" : ECHEC si p < alpha/2, ALERTE si
+# alpha/2 <= p < alpha, OK si p >= alpha (alpha/2 calcule par alpha / 2, comme
+# add()). INFO : lignes de diagnostic (tests inoperants compris), non
+# applicables, sans p retenue. Rend character(4) ; le seuil d'ECHEC est lu dans
+# SEUIL_ECHEC_SENS_REJETER, jamais ecrit en dur.
+# Domaine et libelle d'erreur de alpha : ceux de .engine_verifier_usage()
+# (nombre scalaire fini sans attribut, 0 < alpha < SEUIL_ECHEC_SENS_REJETER).
+# Valeurs citees par .engine_saisie() (15 chiffres, 17 si l'ecriture a 15
+# chiffres ne restitue pas la valeur, #133), puis virgule decimale francaise.
+# Accents en echappements \u, le source du moteur etant ASCII.
+engine_regle_verdicts <- function(alpha) {
+  if (!(is.numeric(alpha) && length(alpha) == 1L && is.finite(alpha) &&
+        is.null(attributes(alpha)) &&
+        alpha > 0 && alpha < SEUIL_ECHEC_SENS_REJETER))
+    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
+                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
+                       "ne suit plus la regle documentee."),
+                 .engine_saisie(alpha),
+                 format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")), call. = FALSE)
+  fr <- function(v) sub(".", ",", .engine_saisie(as.double(v)), fixed = TRUE)
+  a <- fr(alpha); a2 <- fr(alpha / 2); s <- fr(SEUIL_ECHEC_SENS_REJETER)
+  c(sprintf(paste0("R\u00e8gle des verdicts au seuil \u03b1 = %s, appliqu\u00e9e \u00e0 la",
+                   " p-value retenue p de chaque test, selon le sens du test indiqu\u00e9",
+                   " sur sa ligne."), a),
+    sprintf(paste0("Sens \u00ab rejeter \u00bb (le rejet de H0 est le r\u00e9sultat recherch\u00e9) :",
+                   " OK si p < %s ; ALERTE si %s \u2264 p < %s ; ECHEC si p \u2265 %s."),
+            a, a, s, s),
+    sprintf(paste0("Sens \u00ab ne pas rejeter \u00bb (le non-rejet de H0 est le r\u00e9sultat",
+                   " recherch\u00e9) : ECHEC si p < %s (\u03b1/2) ; ALERTE si %s \u2264 p < %s ;",
+                   " OK si p \u2265 %s."), a2, a2, a, a),
+    paste0("Portent le verdict INFO, qui n'est pas un verdict : les lignes de diagnostic,",
+           " dont les tests inop\u00e9rants (plus petite p-value atteignable \u2265 \u03b1 :",
+           " aucun verdict possible), les lignes non applicables et les tests sans p-value",
+           " retenue. Le verdict ne d\u00e9pend que de p, de \u03b1 et du sens ; les mentions",
+           " du commentaire (ECHEC inatteignable, verdict sensible \u00e0 l'al\u00e9a de",
+           " simulation) ne le modifient pas."))
 }
 
 # Arguments d'usage de run_engine() resolus avant le calcul protege (issue

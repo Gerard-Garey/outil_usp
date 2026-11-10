@@ -85,7 +85,33 @@ STAT_NOMS_PROBABILITE <- c("M = min p_ij", "plus petite p Monte-Carlo de la fami
 # probabilite, fmt_nb() sinon. nom : vecteur de meme longueur que v, ou de
 # longueur 1 (recycle).
 fmt_stat <- function(v, nom) ifelse(rep_len(nom %in% STAT_NOMS_PROBABILITE, length(v)),
-                                    fmt_p(v), fmt_nb(v))
+                                    fmt_p(v), fmt_grandeur(v, nom))
+# Grandeurs a valeurs entieres (#500) : comptes et rangs, ecrits sans decimales
+# en vue Synthese ("S = 90", "nombre de tests de la famille = 4", et non
+# "90,0000", "4,0000"). Noms (champs nom_statistique et nom_estimation de
+# engine_table_tests(), stat_nom et estim_nom du moteur), seul recensement a la
+# main ; un test le confronte au moteur sur les quatre methodes. Ne figurent
+# pas ici les grandeurs continues qui peuvent valoir un entier au bord
+# ("delta" = 1, "LR(1)" = 0) : leurs quatre decimales disent la precision.
+# Mise en forme seule : une valeur non entiere sous l'un de ces noms garde
+# l'ecriture a quatre decimales ; "entiere" s'entend a 1e-9 pres en relatif,
+# le moteur rendant S = 69,999999999999986 (rang de Spearman, premium_interieur)
+# au bruit de calcul flottant pres.
+NOMS_ENTIERS <- c("S", "K", "S de Kendall", "Z observe", "nb de suites", "nb de suites R",
+                  "colonnes testees", "diagonales sous le repere de 10 %",
+                  "nb de cellules declarees (repere de Rosner)", "nb de valeurs aberrantes",
+                  "rang de l'obs. extreme", "rang du ratio extreme",
+                  "nombre de tests", "nombre de tests de la famille")
+# v : vecteur ; nom : vecteur de meme longueur que v, ou de longueur 1 (recycle) ;
+# d : decimales des valeurs non entieres ou hors liste (4 en Synthese et en
+# Detail, 6 au tableau de robustesse).
+fmt_grandeur <- function(v, nom, d = 4)
+  ifelse(rep_len(nom %in% NOMS_ENTIERS, length(v)) & is.finite(v) &
+           abs(v - round(v)) <= 1e-9 * pmax(1, abs(v)),
+         .num_fr(round(v), "%.0f"), fmt_nb(v, d))
+# Cellule qui ne se coupe pas en fin de ligne (#500) : "ne pas rejeter" tenait
+# sur deux lignes dans la colonne Sens des vues Synthese.
+.sans_coupure <- function(x) paste0("<span style='white-space:nowrap'>", x, "</span>")
 fmt_pc <- function(v, d = 1) ifelse(is.finite(v),
                                     paste0(.num_fr(100 * v, paste0("%.", d, "f")), " %"), "\u2013")
 
@@ -100,14 +126,14 @@ GROUPES <- list(
               sous = "Var(Y_t) = sigma\u00b2 [(1-delta) \u00b7 xbar \u00b7 x_t + delta \u00b7 x_t\u00b2]",
               ref  = "annexe XVII, B(2)(g)(ii) ; C(2)(e)(ii)"),
   "D." = list(cle = "H3", titre = "H3 \u2014 Lognormalit\u00e9 de la variable mod\u00e9lis\u00e9e",
-              sous = "test\u00e9e comme la normalit\u00e9 des r\u00e9sidus normalis\u00e9s z_t",
+              sous = "test\u00e9e comme la normalit\u00e9 des r\u00e9sidus standardis\u00e9s z_t",
               ref  = "annexe XVII, B(2)(g)(iii) ; C(2)(e)(iii)"),
   "E." = list(cle = "H4", titre = "H4 \u2014 Ind\u00e9pendance et validit\u00e9 du maximum de vraisemblance",
               sous = "absence d'autocorr\u00e9lation des Y_t conditionnellement aux x_t",
               ref  = "annexe XVII, B(2)(g)(iv) ; C(2)(e)(iv)"),
   "F." = list(cle = "STAB", titre = "Stabilit\u00e9, ruptures et points aberrants",
               sous = "hors hypoth\u00e8ses r\u00e9glementaires, mais conditionne leur lecture",
-              ref  = "diagnostics compl\u00e9mentaires"),
+              ref  = "hors hypoth\u00e8ses de l'annexe XVII"),
   # Les controles numeriques (condition du premier ordre, multi-demarrages)
   # ne sont plus dans la table des tests mais dans res$controles (#22).
   "G." = list(cle = "ROB", titre = "Robustesse de l'estimation",
@@ -131,7 +157,7 @@ GROUPES <- list(
               ref  = "annexe XVII, D(2)(h)(i) et (ii)"),
   "M4" = list(cle = "M4", titre = "M4 \u2014 Points aberrants et stabilit\u00e9",
               sous = "cellules atypiques du triangle",
-              ref  = "diagnostics compl\u00e9mentaires"),
+              ref  = "hors hypoth\u00e8ses de l'annexe XVII"),
   "M5" = list(cle = "M5", titre = "M5 \u2014 Normalit\u00e9 des r\u00e9sidus",
               sous = "diagnostic seulement : le mod\u00e8le ne sp\u00e9cifie que les deux premiers moments",
               ref  = "hors annexe XVII, D(2)(h)"),
@@ -159,7 +185,8 @@ citation_de <- function(famille) {
 }
 
 # Groupe d'affichage d'une famille. ref : citation lue dans la famille si elle
-# y figure (citation_de()), sinon GROUPES$ref (repli : F., G., M4 a M6).
+# y figure (citation_de()), sinon GROUPES$ref (repli : F., G., M4 a M6 et LC ;
+# F. et M4 : "hors hypotheses de l'annexe XVII", #509).
 groupe_de <- function(famille) {
   g <- GROUPES[[substr(famille, 1, 2)]]
   if (is.null(g)) g <- list(cle = "AUTRE", titre = famille, sous = "", ref = "")
@@ -262,14 +289,6 @@ badge_nature <- function(n) {
   "<span style='color:#B9770E;font-weight:600'>asymptotique</span>"
 }
 
-avertissement_T <- function(T) {
-  if (T >= 15) return(NULL)
-  sprintf(paste("Profondeur T = %d. Les lois asymptotiques ne sont pas fiables \u00e0 cette",
-                "taille : les p-values exactes, lorsqu'elles existent, et les p-values de",
-                "Monte-Carlo priment. Une p-value \u00e9lev\u00e9e ne d\u00e9montre pas la validit\u00e9 de",
-                "l'hypoth\u00e8se : elle ne permet pas de la rejeter."), T)
-}
-
 # --- Type et motif d'une ligne (#124) ----------------------------------------
 # Libelle court du type de la ligne, lu dans tb$type (engine_table_tests()).
 # Un test inoperant (regle R1, #44) est repere par la colonne logique
@@ -356,97 +375,199 @@ table_synthese_groupe <- function(tb) {
                fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
         .sous_stat_famille(tb)),
     Estimation = ifelse(is.finite(tb$estimation),
-        paste0(.txt(tb$nom_estimation), " = ", fmt_nb(tb$estimation)), "\u2013"),
+        paste0(.txt(tb$nom_estimation), " = ", fmt_grandeur(tb$estimation, tb$nom_estimation)),
+        "\u2013"),
     `p retenue` = fmt_p(tb$p_retenue),
     Nature = unname(vapply(tb$nature_p, badge_nature, character(1))),
+    # Sens du test (#498) : champ sens_du_test d'engine_table_tests() (pose par
+    # add()), que la regle des verdicts de html_regle_verdicts() invoque ("le
+    # sens du test indique sur sa ligne") ; NA (ligne INFO) : tiret. Meme
+    # colonne que la vue Detail. Sans coupure de ligne (#500) : "ne pas
+    # rejeter" se repliait sur deux lignes.
+    Sens = .sans_coupure(.txt(tb$sens_du_test)),
     check.names = FALSE, stringsAsFactors = FALSE, row.names = NULL)
 }
 
-# Commentaire du moteur replie (#178, point 1) : les commentaires longs (600 a
-# 842 caracteres) donnaient des cellules tres hautes dans la vue Detail. Texte
-# de `seuil` caracteres ou moins : affiche entier. Seuil par defaut 400,
-# aligne sur le plafond du texte propre des commentaires de #514 (deux
-# phrases au plus, 400 caracteres ; decision du mainteneur du 09/11/2026) :
-# a 200, le repli masquait surtout la phrase des lignes liees (#472 avait
-# fixe 200). Au-dela, regle de coupe de
-# #472 (marge `marge`, decision du mainteneur du 07/11/2026) : coupe a la
-# premiere fin de phrase dont le resume fait au moins `seuil` et au plus
-# `seuil + marge` caracteres. Fin de phrase : "." suivi d'un espace puis d'une
+# Regle des verdicts de l'onglet Tests et du rapport fige (#498, exigences
+# 5.3 : seuil de decision de chaque test). Les quatre phrases sont celles
+# d'engine_regle_verdicts() (moteur, texte seul), au seuil alpha du RESULTAT
+# AFFICHE (res$metadata$alpha), jamais au champ alpha du panneau : le panneau
+# peut avoir change depuis le dernier calcul. Aucun calcul ni aucune regle
+# ici, mise en forme seule (phrases echappees : elles contiennent "<" et ">").
+# NULL, donc rien d'affiche ni d'erreur : resultat absent ou refuse
+# (ok = FALSE), alpha absent de metadata (objet anterieur ou relu, #263), ou
+# alpha present hors du domaine du moteur (engine_regle_verdicts() leve alors
+# une erreur, attrapee ici : message() au journal, rien d'affiche, #498 m4).
+html_regle_verdicts <- function(res) {
+  if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
+  a <- res$metadata$alpha
+  if (!(is.numeric(a) && length(a) == 1L && is.finite(a))) return(NULL)
+  ph <- tryCatch(.echap_html(engine_regle_verdicts(a)), error = function(e) {
+    message("html_regle_verdicts() : r\u00e8gle des verdicts non affich\u00e9e (",
+            conditionMessage(e), ")")
+    NULL
+  })
+  if (is.null(ph)) return(NULL)
+  paste0("<div class='bloc regle-verdicts'>",
+         "<div style='font-weight:600'>", ph[1], "</div>",
+         "<ul style='margin:4px 0 0 0;padding-left:20px'>",
+         paste0("<li>", ph[-1], "</li>", collapse = ""), "</ul></div>")
+}
+
+# Repere de profondeur en tete de l'onglet Tests et de la section 5 du rapport
+# fige (#499), sous la regle des verdicts : texte du champ
+# res$validation$repere_profondeur pose par le moteur
+# (engine_valider_donnees(), mw_valider_triangle()), tel quel, en bandeau
+# d'avertissement non replie (dans l'application, la liste des avertissements
+# est repliee, Q-46-4 (a)). Dans le rapport, la section 3 restitue aussi le
+# repere, en clair, parmi les avertissements : le texte y figure donc deux
+# fois (liste de la section 3, bandeau de la section 5). Lecture du champ
+# seule : ni seuil sur T ni reconnaissance du texte (#129). NULL, donc rien
+# d'affiche : resultat absent ou refuse (ok = FALSE), champ absent (objet
+# anterieur ou relu, #263) ou vide (character(0)).
+html_repere_profondeur <- function(res) {
+  if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
+  rp <- res$validation$repere_profondeur
+  if (!is.character(rp) || !length(rp)) return(NULL)
+  paste0("<div class='avert repere-profondeur'>",
+         paste(.echap_html(rp), collapse = "<br>"), "</div>")
+}
+
+# Signal du bloc Etat (#498) : l'alpha du panneau differe de celui du dernier
+# calcul, dont dependent les verdicts affiches ; le texte invite a relancer
+# les calculs, sans rien recalculer. NULL : alpha identique, ou l'un des deux
+# n'est pas un nombre fini (champ du panneau vide ou en cours de saisie,
+# resultat sans alpha) : aucune valeur du panneau a comparer.
+texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
+  nombre <- function(x) is.numeric(x) && length(x) == 1L && is.finite(x)
+  if (!nombre(alpha_resultat) || !nombre(alpha_panneau) || alpha_panneau == alpha_resultat)
+    return(NULL)
+  "\u03b1 du panneau diff\u00e9rent de celui du dernier calcul : relancer les calculs"
+}
+
+# Commentaire du moteur replie (#178, point 1 ; regle structurelle de #517) :
+# les commentaires longs (600 a 842 caracteres) donnaient des cellules tres
+# hautes dans la vue Detail. Texte de `seuil` caracteres ou moins : affiche
+# entier. Seuil par defaut 400, aligne sur le plafond du texte propre des
+# commentaires de #514 (deux phrases au plus, 400 caracteres ; decision du
+# mainteneur du 09/11/2026) ; #472 l'avait fixe a 200.
+# Regle de repli, STRUCTURELLE : elle ne lit que la ponctuation, jamais le sens
+# du texte (l'affichage lit les champs, jamais le detail, #129). Le texte est
+# decoupe en phrases par .fins_de_phrase() ; la PREMIERE et la DERNIERE phrase
+# ne sont jamais masquees (la mention de la regle R1 est en fin de detail).
+# Resume : les premieres phrases, jusqu'a la premiere fin de
+# phrase dont le resume fait au moins `seuil` caracteres (aucune borne
+# superieure : la coupe tombe toujours a une fin de phrase, jamais au milieu
+# d'une phrase ni a une longueur fixe). Suite masquee : les phrases entre ce
+# resume et la derniere phrase, dans un <details> deplie au clic ; la derniere
+# phrase est affichee apres lui, sur sa propre ligne (<br>). Texte entier,
+# sans repli : aucune fin de phrase a `seuil` caracteres ou plus qui laisse au
+# moins une phrase apres le resume et avant la derniere (moins de trois phrases,
+# ou resume atteignant la derniere phrase), ou suite masquee de moins de
+# `suite_min` (100) caracteres (decision du mainteneur du 07/11/2026).
+# garder_derniere = FALSE (H0 et H1 de la vue Detail, #450 ; m1 d'app-review,
+# decision du mainteneur du 10/11/2026) : la derniere phrase n'est pas reservee
+# (la regle R1 ne concerne que le detail) ; la suite masquee va jusqu'a la fin
+# du texte (resume jusqu'a la premiere fin de phrase a `seuil` caracteres ou
+# plus, tout le reste dans le <details>, sans <br> final), sous la meme
+# condition de suite minimale ; texte entier si aucune fin de phrase n'atteint
+# `seuil` ou si la suite fait moins de `suite_min` caracteres.
+# Fin de phrase (.fins_de_phrase()) : "." suivi d'un espace puis d'une
 # majuscule, ou ";" suivi d'un espace, a profondeur nulle de parentheses et de
 # crochets (comptee depuis le debut du texte jusqu'au signe : un ";" de
 # "[0 ; 1]" ou de "min(a = 1 ; b = 2)" n'est pas une fin de phrase ; une
-# parenthese jamais refermee ferme toute fin de phrase apres elle, la coupe a
-# defaut restant possible ; un fermant sans ouvrant ne descend pas sous 0). Un
-# "." n'est retenu que si le mot qui le precede (suite de lettres, chiffres et
-# "_" collee au point) n'est pas une seule lettre (initiale : "J. Econometrics",
-# "C. B") ni une abreviation de `.ABREV_FIN_PHRASE` ("et al. A", "p. E") ; un
-# signe de ponctuation devant le point (")", "]", "%") ou un nombre ("= 8.")
-# n'ecarte pas le point. La fin du texte en est une aussi (si elle est la
-# premiere fin de phrase de la fenetre, pas de repli). La coupe se fait a
-# l'espace qui suit le signe, le signe reste dans le resume. A defaut de fin de phrase dans la
-# fenetre, coupe de #178 : dernier espace avant le seuil, ou au seuil. Quelle
-# que soit la coupe, si la suite masquee ferait moins de `suite_min` (100)
-# caracteres, le texte reste entier (decision du mainteneur du 07/11/2026). Le debut
-# va dans le <summary> d'un <details>, la suite dans son corps, deplie au clic.
-# Aucun texte n'est retire : debut et suite, rejoints par l'espace de coupure,
-# rendent le commentaire entier (cet espace est remplace par la frontiere entre
-# le <summary> et le corps). Mise en forme seule, chaque partie echappee ; NA :
-# tiret, comme .txt(). Aussi appliquee a H0 et H1 de la vue Detail (#450).
-# Phrase de sensibilite du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC du
-# moteur, toujours chargee avec lui, dernier element du detail) : sortie du
-# repli (decision du mainteneur, version d'app-review) et affichee apres lui,
-# sur sa propre ligne (<br> devant elle, sauf si elle est seule dans la
-# cellule) ; sa jonction (" " ou " ; ") est retiree, le reste est replie comme
-# avant. Sans la phrase, rendu inchange.
+# parenthese jamais refermee ferme toute fin de phrase apres elle ; un fermant
+# sans ouvrant ne descend pas sous 0). Un "." n'est retenu que si le mot qui le
+# precede (suite de lettres, chiffres et "_" collee au point) n'est pas une
+# seule lettre (initiale : "J. Econometrics", "C. B") ni une abreviation de
+# `.ABREV_FIN_PHRASE` ("et al. A", "p. ex. A") ; un signe de ponctuation devant le
+# point (")", "]", "%") ou un nombre ("= 8.") n'ecarte pas le point. Limites :
+# un "." suivi d'une minuscule ("verdict. pi_t") ou d'un chiffre ne coupe pas ;
+# une abreviation absente de la liste suivie d'une majuscule coupe a tort (la
+# coupe reste alors a un espace, sans texte perdu) ; un ";" de liste est une
+# fin de phrase ; un texte sans fin de phrase, ou dont les fins sont toutes
+# avant `seuil`, reste entier.
+# Aucun texte n'est retire : debut, suite et derniere phrase, rejoints par
+# l'espace qui suit chaque fin de phrase (remplace par la frontiere du
+# <summary>, du corps du <details> et du <br>), rendent le commentaire entier.
+# Mise en forme seule, chaque partie echappee ; NA : tiret, comme .txt(). Aussi
+# appliquee a H0 et H1 de la vue Detail (#450).
+# Deux suffixes du moteur, poses apres tout le reste du detail, sortent du
+# repli et sont affiches apres lui, chacun sur sa propre ligne (<br> devant
+# lui, sauf s'il est seul dans la cellule) ; la regle ci-dessus s'applique au
+# reste, dont la derniere phrase (mention de la regle R1) reste donc visible
+# avant eux. Reconnaissance par endsWith sur la constante du moteur, jamais par
+# lecture du sens, dans l'ordre inverse de pose : (1) la phrase de sensibilite
+# du verdict (#244, PHRASE_VERDICT_SENSIBLE_MC), toujours le dernier element ;
+# (2) le renvoi croise de #215 (USP_TXT_RENVOI_CST ou USP_TXT_RENVOI_SV, pose
+# par .usp_poser_renvois() avant la phrase de #244), en texte simple. Chaque
+# jonction (" " apres un point, " ; " sinon, .engine_joindre()) est retiree avec
+# le suffixe (.retirer_suffixe_detail()). Sans suffixe, rendu inchange.
 .ABREV_FIN_PHRASE <- c("al", "cf", "p", "pp", "vol", "no", "ed", "eds", "ch",
-                       "sect", "fig", "eq", "approx", "resp")
-.commentaire_replie <- function(com, seuil = 400L, marge = 150L, suite_min = 100L) {
+                       "sect", "fig", "eq", "approx", "resp", "ex")
+# x sans le suffixe `suf` (x finit par suf, verifie par l'appelant) et sans sa
+# jonction : " ; " si elle est presente, sinon l'espace d'apres un point.
+.retirer_suffixe_detail <- function(x, suf) {
+  d <- substr(x, 1L, nchar(x) - nchar(suf))
+  if (endsWith(d, " ; ")) substr(d, 1L, nchar(d) - 3L)
+  else if (endsWith(d, " ")) substr(d, 1L, nchar(d) - 1L)
+  else d
+}
+.commentaire_replie <- function(com, seuil = 400L, suite_min = 100L,
+                                garder_derniere = TRUE) {
   # as.character() comme .txt() : colonne facteur ou numerique sans erreur.
   vapply(as.character(com), function(x) {
     if (is.na(x)) return("\u2013")
-    sens <- endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)
-    if (sens) {
-      x <- sub("[ ;]+$", "", substr(x, 1L, nchar(x) - nchar(PHRASE_VERDICT_SENSIBLE_MC)))
-      pied <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
-                     .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
-    } else pied <- ""
+    # Suffixes du moteur, du dernier au premier pose ; pieds en HTML dans
+    # l'ordre d'affichage (renvoi de #215, puis phrase de #244).
+    pied244 <- renvoi <- ""
+    if (endsWith(x, PHRASE_VERDICT_SENSIBLE_MC)) {
+      x <- .retirer_suffixe_detail(x, PHRASE_VERDICT_SENSIBLE_MC)
+      pied244 <- paste0("<span style='color:#B9770E;font-weight:600;font-size:11px'>",
+                        .echap_html(PHRASE_VERDICT_SENSIBLE_MC), "</span>")
+    }
+    for (rv in c(USP_TXT_RENVOI_CST, USP_TXT_RENVOI_SV)) {
+      if (endsWith(x, rv)) {
+        x <- .retirer_suffixe_detail(x, rv)
+        renvoi <- .echap_html(rv)
+        break
+      }
+    }
     corps <- if (!nzchar(x)) ""
       else if (nchar(x) <= seuil) .echap_html(x)
       else {
-        # Fins de phrase : position du signe (resume = x[1..p]) ; la fin du
-        # texte en est une aussi, la derniere.
+        # Fins de phrase (position du signe) ; un signe en dernier caractere
+        # utile n'ouvre pas de phrase vide : il n'est pas retenu.
         fin <- .fins_de_phrase(x)
-        fin <- c(fin, nchar(x))
-        fin <- fin[fin >= seuil & fin <= seuil + marge]
-        if (length(fin) && fin[1L] == nchar(x)) .echap_html(x)
+        fin <- fin[fin < nchar(sub("[[:space:]]+$", "", x))]
+        j <- which(fin >= seuil)[1L]          # fin de la derniere phrase du resume
+        n <- length(fin)                      # la derniere phrase suit fin[n]
+        if (is.na(j) || (garder_derniere && j >= n)) .echap_html(x)
         else {
-          if (length(fin)) {
-            k <- fin[1L] + 1L                     # l'espace qui suit le signe
-            reprise <- k + 1L
+          debut <- substr(x, 1L, fin[j])
+          if (garder_derniere) {
+            suite <- substr(x, fin[j] + 2L, fin[n])
+            dern <- substr(x, fin[n] + 2L, nchar(x))
           } else {
-            tete <- substr(x, 1L, seuil)
-            esp <- gregexpr(" ", tete, fixed = TRUE)[[1]]
-            k <- if (any(esp > 1L)) max(esp) else seuil + 1L
-            reprise <- if (k <= seuil) k + 1L else k
+            suite <- substr(x, fin[j] + 2L, nchar(x))
+            dern <- NULL
           }
-          debut <- substr(x, 1L, k - 1L)
-          suite <- substr(x, reprise, nchar(x))
-          # Suite masquee de moins de `suite_min` caracteres : pas de repli
-          # (decision du mainteneur du 07/11/2026), pour la coupe a une fin de
-          # phrase comme pour la coupe a defaut.
           if (nchar(suite) < suite_min) .echap_html(x)
           else paste0("<details class='com'><summary>", .echap_html(debut), "</summary>",
-                      .echap_html(suite), "</details>")
+                      .echap_html(suite), "</details>",
+                      if (garder_derniere) paste0("<br>", .echap_html(dern)))
         }
       }
-    paste0(corps, if (nzchar(corps) && nzchar(pied)) "<br>", pied)
+    elements <- c(corps, renvoi, pied244)
+    paste(elements[nzchar(elements)], collapse = "<br>")
   }, character(1), USE.NAMES = FALSE)
 }
 
 # Positions des fins de phrase de x pour .commentaire_replie() : signe "." suivi
 # d'un espace et d'une majuscule, ou ";" suivi d'un espace, a profondeur nulle
 # de parentheses et de crochets, "." precede d'un mot d'au moins deux caracteres
-# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Affichage seul.
+# hors `.ABREV_FIN_PHRASE` (voir .commentaire_replie()). Le signe est toujours
+# suivi d'un espace (propriete lue par le repli). Affichage seul.
 .fins_de_phrase <- function(x) {
   cand <- gregexpr("(\\.(?= \\p{Lu})|;(?= ))", x, perl = TRUE)[[1]]
   cand <- cand[cand > 0L]
@@ -464,6 +585,11 @@ table_synthese_groupe <- function(tb) {
   }, NA)
   cand[garde]
 }
+# Largeur minimale de la colonne "Motif / commentaire" de la vue Detail (#517) :
+# colonne etroite dans un tableau de 16 colonnes (constat de la revue finale de
+# K1, Q-56-7 (6)) ; largeur minimale posee sur l'en-tete.
+# Passee a html_table(largeurs = ) par app.R.
+LARGEURS_DETAIL <- c("Motif / commentaire" = 360L)
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
@@ -471,8 +597,9 @@ table_synthese_groupe <- function(tb) {
 # objet, loi de reference non exacte). Vide :
 # tiret. Colonne commentaire absente (objet anterieur) : tiret.
 # replier = TRUE (vue Detail de l'onglet Tests, #178) : commentaire long replie
-# par .commentaire_replie() ; H0 et H1 le sont de meme (#450 : le H1 de
-# l'exposant de variance de M2 depasse 1 000 caracteres) ; FALSE (defaut,
+# par .commentaire_replie() ; H0 et H1 le sont de meme, sans reserver la
+# derniere phrase (garder_derniere = FALSE : #450, le H1 de l'exposant de
+# variance de M2 depasse 1 000 caracteres ; m1 d'app-review) ; FALSE (defaut,
 # rapport fige) : commentaire, H0 et H1 entiers, le document fige ne dependant
 # pas d'un clic pour etre lu ou imprime.
 # Colonne Fonction (#178, point 3) : champ fonction pose par add() (#111),
@@ -489,8 +616,8 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                   .repere_renvoi(tb)),
     Type = .txt(type_ligne(tb)),
-    H0 = if (replier) .commentaire_replie(tb$H0) else .txt(tb$H0),
-    H1 = if (replier) .commentaire_replie(tb$H1) else .txt(tb$H1),
+    H0 = if (replier) .commentaire_replie(tb$H0, garder_derniere = FALSE) else .txt(tb$H0),
+    H1 = if (replier) .commentaire_replie(tb$H1, garder_derniere = FALSE) else .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
     `p exacte` = fmt_p(tb$p_exacte),
     `p asympt.` = fmt_p(tb$p_asymptotique),
@@ -512,7 +639,7 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
     # Granularite effective (#285) : meme format que les deux colonnes
     # precedentes.
     "granularit\u00e9 MC" = ifelse(is.finite(gr), .num_fr(gr, "%.3g"), "\u2013"),
-    Sens = .txt(tb$sens_du_test),
+    Sens = .sans_coupure(.txt(tb$sens_du_test)),
     `Motif / commentaire` = if (replier) .commentaire_replie(com) else .txt(com),
     Reference = .txt(tb$reference),
     Fonction = ifelse(is.na(fon), "\u2013", paste0("<code>", .txt(fon), "</code>")),
@@ -546,9 +673,14 @@ granularite_lignes <- function(tb, boot) {
   out
 }
 
-html_table <- function(d, classe = "table table-condensed data") {
+# `largeurs` (#517) : vecteur nomme de largeurs minimales en pixels, par nom de
+# colonne ; une colonne nommee recoit un style min-width sur son en-tete, les
+# autres restent sans attribut. NULL (defaut) : en-tetes inchanges.
+html_table <- function(d, classe = "table table-condensed data", largeurs = NULL) {
+  th <- ifelse(names(d) %in% names(largeurs),
+               paste0("<th style='min-width:", unname(largeurs[names(d)]), "px'>"), "<th>")
   paste0("<table class='", classe, "'><thead><tr>",
-         paste0("<th>", names(d), "</th>", collapse = ""), "</tr></thead><tbody>",
+         paste0(th, names(d), "</th>", collapse = ""), "</tr></thead><tbody>",
          paste(apply(d, 1, function(l)
            paste0("<tr><td>", paste(l, collapse = "</td><td>"), "</td></tr>")), collapse = ""),
          "</tbody></table>")
@@ -579,6 +711,51 @@ html_table <- function(d, classe = "table table-condensed data") {
        yref = "container", y = 1, yanchor = "top",
        pad = list(t = .BARRE_PLOTLY_PX + if (grepl("<br>", texte, fixed = TRUE)) 13 else 3))
 .marge_haute <- function(t) t + .BARRE_PLOTLY_PX - 10
+# Titres longs a 330 px (#500). Un titre ou un sous-titre plotly ne se replie
+# pas : au-dela de la largeur de la figure, il sort des deux cotes (largeurs
+# mesurees sous Chromium, plotly.js 2.25.2, figure de 330 px, police par defaut :
+# 14 px de titre, environ 6,7 px par caractere ; <sup>, environ 4,4 px par
+# caractere). .coupe_mots() replie un texte aux espaces en lignes d'au plus
+# max_car caracteres, reparties de facon egale (pas de mot isole sur la
+# derniere ligne), jointes par `saut` ("<br>" en plotly, "\n" en base R) ; un
+# texte qui tient, ou une valeur NA, est rendu tel quel. Mise en forme seule :
+# aucun mot n'est retire ni change.
+.coupe_mots <- function(x, max_car = 66L, saut = "<br>") {
+  un <- function(t) {
+    if (is.na(t) || nchar(t) <= max_car) return(t)
+    mots <- strsplit(t, " ", fixed = TRUE)[[1L]]
+    n <- ceiling(nchar(t) / max_car)
+    lim <- ceiling(nchar(t) / n)
+    repeat {
+      lignes <- character(0); cour <- ""
+      for (m in mots) {
+        # Un ":" ou un ";" isole (" : " du moteur) reste sur la ligne du mot
+        # qui le precede.
+        if (m %in% c(":", ";") && nzchar(cour)) {
+          cour <- paste(cour, m)
+        } else if (nzchar(cour) && nchar(cour) + 1L + nchar(m) > lim) {
+          lignes <- c(lignes, cour); cour <- m
+        } else cour <- if (nzchar(cour)) paste(cour, m) else m
+      }
+      lignes <- c(lignes, cour)
+      if (length(lignes) <= n || lim >= max_car) break
+      lim <- lim + 1L
+    }
+    paste(lignes, collapse = saut)
+  }
+  vapply(x, un, "", USE.NAMES = FALSE)
+}
+# Titre en deux lignes : ligne principale a la taille du titre, complement en
+# <sup> (meme convention que le profil de delta, #481). Le complement se coupe
+# lui-meme par .coupe_mots() s'il depasse max_car caracteres.
+.titre_sup <- function(principal, complement, max_car = 66L)
+  paste0(principal, "<br><sup>", .coupe_mots(complement, max_car), "</sup>")
+# Marge haute d'un titre suivi de nb_sup lignes de <sup> (nb_sup >= 1) : 60 pour
+# une ligne, 80 pour deux (valeurs de plot_qqnorm() et plot_spread() avant
+# #500), 20 de plus par ligne au-dela.
+.marge_sous_titre <- function(nb_sup) .marge_haute(60 + 20 * (max(nb_sup, 1L) - 1L))
+# Nombre de lignes d'un ensemble de textes qui peuvent contenir "<br>".
+.nb_lignes <- function(x) sum(lengths(regmatches(x, gregexpr("<br>", x, fixed = TRUE))) + 1L)
 .mep <- function(p, titre, xlab, ylab) {
   plotly::layout(p, title = .titre_plotly(titre),
                  separators = .SEPARATEURS_PLOTLY,
@@ -609,18 +786,35 @@ plot_ajustement <- function(pd) {
 plot_ratio <- function(pd) {
   if (is.null(pd$ratio)) return(.vide())
   d <- pd$ratio
+  # Legende de la ligne pointillee (#500) : son niveau est le beta estime
+  # (pd$ratio$niveau, ratio y/x attendu sous E[Y] = beta x), lu tel quel.
+  lib <- sprintf("beta estime = %s (ratio attendu)", .num_fr(d$niveau[1], "%.4f"))
   if (!.plotly_dispo()) {
-    .cadre(); plot(d$t, d$ratio, type = "b", pch = 19, col = COUL$pt,
+    # Cadrage : marge haute de 15 % de l'etendue, reservee a la legende (cadrage
+    # seul, comme plot_calibration()), pour qu'elle ne recouvre aucun point.
+    yl <- range(c(d$ratio, d$niveau[1]), finite = TRUE)
+    yl[2] <- yl[2] + 0.15 * diff(yl)
+    .cadre(); plot(d$t, d$ratio, type = "b", pch = 19, col = COUL$pt, ylim = yl,
                    xlab = "annee t", ylab = "y/x", main = "Ratio observe dans le temps")
-    graphics::abline(h = d$niveau[1], col = COUL$trait, lty = 2); return(invisible())
+    graphics::abline(h = d$niveau[1], col = COUL$trait, lty = 2)
+    graphics::legend("topright", bty = "n", cex = 0.75, legend = lib, lty = 2, col = COUL$trait)
+    return(invisible())
   }
   p <- plotly::plot_ly()
-  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$niveau[1], 2),
+  p <- plotly::add_lines(p, x = range(d$t), y = rep(d$niveau[1], 2), name = lib,
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
   p <- plotly::add_trace(p, x = d$t, y = d$ratio, type = "scatter", mode = "lines+markers",
+        showlegend = FALSE,
         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
         hovertemplate = "t = %{x}<br>y/x = %{y:.4f}<extra></extra>")
-  .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
+  p <- .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
+  # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas du
+  # conteneur (comme plot_boot_sigma()) : sa distance au titre d'axe ne depend
+  # pas de la hauteur de la figure.
+  plotly::layout(p, showlegend = TRUE,
+                 legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
+                               y = 0, yanchor = "bottom", font = list(size = 10)),
+                 margin = list(t = .marge_haute(45), b = 90))
 }
 
 # Enveloppe du QQ-plot (issue #47) : bande simultanee (exterieure, plus
@@ -745,8 +939,13 @@ plot_qqnorm <- function(pd) {
   p <- plotly::add_markers(p, x = d$theorique, y = d$empirique,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "theorique = %{x:.3f}<br>observe = %{y:.3f}<extra></extra>")
-  titre <- paste0(ti, if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+  # Sous-titre replie par .coupe_mots() et titre a 12 px : a 14 px, le titre
+  # fait 336 px et le sous-titre jusqu'a 510 px, au-dela d'une figure de 330 px
+  # (#500).
+  st_p <- .coupe_mots(st)
+  titre <- paste0(ti, if (length(st_p)) paste0("<br><sup>", st_p, "</sup>", collapse = ""))
   p <- .mep(p, titre, "quantiles theoriques N(0,1)", "residus standardises")
+  p <- plotly::layout(p, title = .titre_plotly(titre, taille = 12))
   # Legende en annotations fixes (.mep() masque la legende plotly).
   ann <- list()
   if (sim) ann[[length(ann) + 1]] <- list(
@@ -758,7 +957,7 @@ plot_qqnorm <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_sous_titre(.nb_lignes(st_p))))
   p
 }
 
@@ -864,8 +1063,11 @@ plot_spread <- function(pd) {
   p <- plotly::add_markers(p, x = pd$spread$x, y = pd$spread$racine_abs_z,
         marker = list(size = 9, color = COUL$pt),
         hovertemplate = "x = %{x:.1f}<br>sqrt|z| = %{y:.3f}<extra></extra>")
+  # Sous-titre replie par .coupe_mots() : jusqu'a 368 px sur une ligne, au-dela
+  # d'une figure de 330 px (#500).
+  st_p <- .coupe_mots(st)
   titre <- paste0("Dispersion-niveau (H2) \u2014 lissage local",
-                  if (length(st)) paste0("<br><sup>", st, "</sup>", collapse = ""))
+                  if (length(st_p)) paste0("<br><sup>", st_p, "</sup>", collapse = ""))
   p <- .mep(p, titre, "x_t", "sqrt(|z_t|)")
   # Meme etendue des ordonnees qu'en base R (marge haute pour la legende).
   if (sim || ponct) p <- plotly::layout(p, yaxis = list(range = yl))
@@ -880,7 +1082,7 @@ plot_spread <- function(pd) {
     xanchor = "left", yanchor = "top", showarrow = FALSE, bgcolor = COUL$env,
     font = list(size = 10, color = COUL$pt))
   if (length(ann) || length(st))
-    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_haute(if (length(st) > 1L) 80 else 60)))
+    p <- plotly::layout(p, annotations = ann, margin = list(t = .marge_sous_titre(.nb_lignes(st_p))))
   p
 }
 
@@ -1380,8 +1582,14 @@ plot_boot_sigma <- function(pd) {
                  margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 110))
 }
 
+# Barres libellees par cand$variante, dans l'ordre des lignes de cand (celui du
+# tableau des valeurs candidates, #500) : le libelle suit la variante, jamais
+# sa position. En plotly, les categories d'un axe sont rangees par ordre
+# alphabetique sauf indication : categoryarray fixe l'ordre de cand. Libelles
+# replies par .coupe_mots() (ticktext en plotly, saut de ligne en base R), les
+# variantes du moteur faisant jusqu'a 36 caracteres pour trois barres.
 plot_calibration <- function(cand) {
-  etiq <- c("standard", "estime seul", "USP retenu")
+  etiq <- cand$variante
   lab  <- .num_fr(cand$valeur, "%.4f")
   # Les trois valeurs sont proches : on cadre l'axe avec une marge haute
   # suffisante pour que les etiquettes placees au-dessus des barres restent
@@ -1390,7 +1598,8 @@ plot_calibration <- function(cand) {
   coul <- ifelse(cand$retenu, COUL$trait, COUL$env)
   if (!.plotly_dispo()) {
     .cadre()
-    h <- graphics::barplot(cand$valeur, names.arg = etiq, col = coul, border = NA,
+    h <- graphics::barplot(cand$valeur, names.arg = .coupe_mots(etiq, 18L, "\n"), col = coul,
+                           border = NA, cex.names = 0.8,
                            ylab = "ecart-type", ylim = c(0, ymax),
                            main = "Valeurs candidates")
     graphics::text(h, cand$valeur, labels = lab, pos = 3, cex = 0.95,
@@ -1409,7 +1618,10 @@ plot_calibration <- function(cand) {
         hovertemplate = "%{x}<br>sigma = %{y:.5f}<extra></extra>")
   p <- plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
         title = .titre_plotly("Valeurs candidates et parametre retenu"),
-        xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE"),
+        xaxis = list(title = "", zeroline = FALSE, gridcolor = "#EEEEEE",
+                     categoryorder = "array", categoryarray = etiq,
+                     tickmode = "array", tickvals = etiq,
+                     ticktext = .coupe_mots(etiq, 18L), tickfont = list(size = 10)),
         yaxis = list(title = "ecart-type", range = c(0, ymax),
                      zeroline = TRUE, gridcolor = "#EEEEEE"),
         uniformtext = list(minsize = 11, mode = "show"),
@@ -1637,6 +1849,9 @@ plot_mw_facteurs <- function(pd) {
   marque <- any(regle)
   nom_sigma <- if (marque) "sigma_j estime" else "sigma_j"
   titre <- "Facteurs chain-ladder f_j et ecarts-types sigma_j (M6)"
+  # Titre plotly sur deux lignes : sur une ligne, il debordait de la figure a
+  # 330 px de large (#500).
+  titre_plotly <- .titre_sup("Facteurs chain-ladder f_j", "et ecarts-types sigma_j (M6)")
   xlab <- "annee de developpement j"
   smax <- suppressWarnings(max(d$sigma, na.rm = TRUE))
   if (!is.finite(smax) || smax <= 0) smax <- 1
@@ -1706,12 +1921,12 @@ plot_mw_facteurs <- function(pd) {
   p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
                        margin = 0.03)
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
-                 title = .titre_plotly(titre),
+                 title = .titre_plotly(titre_plotly),
                  showlegend = TRUE,
                  legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-                 margin = list(t = .marge_haute(45), b = 80))
+                 margin = list(t = .marge_sous_titre(1L), b = 80))
 }
 
 plot_mw_reserve <- function(pd) {
@@ -1828,8 +2043,10 @@ plot_influence_levier <- function(pd) {
         hovertemplate = paste0("%{text}<br>levier = %{x:.4f}",
                                "<br>residu std = %{y:.3f}<extra></extra>"))
   p <- plotly::layout(p, yaxis = list(range = lim))
-  .mep(p, "Residus standardises vs levier (iso-distances de Cook)",
-       "levier h_t", "residu standardise")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Residus standardises vs levier", "(iso-distances de Cook)"),
+            "levier h_t", "residu standardise")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Methode lognormale : distance de Cook par annee ------------------------
@@ -1900,8 +2117,10 @@ plot_influence_sigma <- function(pd) {
         hovertemplate = "sans l'annee %{x}<br>ecart = %{y:+.2f} %<extra></extra>")
   p <- plotly::add_lines(p, x = range(d$t), y = c(0, 0),
         line = list(color = COUL$pt), hoverinfo = "skip")
-  .mep(p, "Influence du retrait d'une annee sur sigma_USP (jackknife)",
-       "annee retiree", "ecart relatif (%)")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Influence du retrait d'une annee", "sur sigma_USP (jackknife)"),
+            "annee retiree", "ecart relatif (%)")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Merz-Wuthrich : levier des cellules du triangle -----------------------
@@ -1987,8 +2206,11 @@ plot_mw_dfbeta <- function(pd) {
         connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
   p <- plotly::add_lines(p, x = xr, y = -rr, line = list(color = COUL$ref, dash = "dash"),
         connectgaps = FALSE, hoverinfo = "skip", inherit = FALSE)
-  .mep(p, sprintf("Influence de chaque cellule sur son facteur f_j (DFBETAS, reperes +/- %s)", lib),
-       "cellule du triangle", "DFBETAS")
+  # Titre sur deux lignes : sur une ligne, il debordait a 330 px de large (#500).
+  p <- .mep(p, .titre_sup("Influence de chaque cellule",
+                          sprintf("sur son facteur f_j (DFBETAS, reperes +/- %s)", lib)),
+            "cellule du triangle", "DFBETAS")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Merz-Wuthrich : contribution des annees de survenance -----------------
@@ -2083,11 +2305,14 @@ plot_mw_regressions <- function(pd, max_panneaux = 9) {
   })
   p <- plotly::subplot(ps, nrows = ceiling(length(ps) / 3), margin = 0.045,
                        titleX = FALSE, titleY = FALSE)
+  # Titre sur deux lignes, le complement en <sup> : sur une ligne, il debordait
+  # des deux cotes a 330 px de large (#500).
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY, title = .titre_plotly(
-      "Regressions par annee de developpement : trait plein = f_j (sans constante), pointille = avec constante",
+      .titre_sup("Regressions par annee de developpement",
+                 "trait plein = f_j (sans constante), pointille = avec constante", max_car = 70L),
       taille = 12),
     paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
-    margin = list(t = .marge_haute(55)), showlegend = FALSE)
+    margin = list(t = .marge_sous_titre(1L)), showlegend = FALSE)
 }
 
 # --- Ordonnee a l'origine par colonne, avec son intervalle -------------------
@@ -2133,7 +2358,13 @@ plot_mw_origine <- function(pd) {
         marker = list(size = 10, color = coul),
         text = paste0("p = ", fmt_p(d$p)),
         hovertemplate = "j = %{x}<br>a = %{y:,.0f}<br>%{text}<extra></extra>")
-  .mep(p, titre, "annee de developpement j", "ordonnee a l'origine a_j")
+  # Titre sur deux lignes : sur une ligne, il debordait des deux cotes a 330 px
+  # de large (#500) ; meme texte qu'en base R, coupe apres "colonne".
+  p <- .mep(p, .titre_sup("Ordonnee a l'origine par colonne",
+                          paste0("intervalle de Student",
+                                 if (nzchar(niv)) paste0(", niveau nominal", niv) else "", " (M1)")),
+            "annee de developpement j", "ordonnee a l'origine a_j")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # --- Famille alpha : sensibilite du facteur a la ponderation -----------------
@@ -2369,7 +2600,7 @@ table_robustesse <- function(tb) {
     return(data.frame(Diagnostic = "Aucun diagnostic de robustesse disponible.",
                       stringsAsFactors = FALSE))
   data.frame(Diagnostic = tb$test,
-             Estimation = paste0(tb$nom_estimation, " = ", fmt_nb(tb$estimation, 6)),
+             Estimation = paste0(tb$nom_estimation, " = ", fmt_grandeur(tb$estimation, tb$nom_estimation, 6)),
              Verdict = tb$verdict, Commentaire = tb$commentaire,
              stringsAsFactors = FALSE, row.names = NULL)
 }
@@ -3106,8 +3337,14 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # doublerait en &amp;lt;).
     te <- tb
     te$cle <- vapply(te$famille, function(f) groupe_de(f)$cle, character(1))
+    # Regle des verdicts en tete de la section (#498), jamais dans la section 3
+    # des controles ; NULL (aucune ligne) si alpha est absent de metadata.
+    # Repere de profondeur (#499) juste dessous, NULL (rien) si le champ du
+    # moteur est vide ; le repere figure aussi, en clair, dans la liste de la section 3.
     ajout("<h2 id='tests-retenus'>5. Tests retenus</h2>",
           "<section id='section-tests-retenus'>",
+          html_regle_verdicts(res),
+          html_repere_profondeur(res),
           sprintf(paste(
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
             "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",
@@ -3158,7 +3395,7 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
 
     # --- 6. Annexe : tests exclus ---------------------------------------------
     ex <- te[!retenu, , drop = FALSE]; sx <- selection[!retenu, , drop = FALSE]
-    nom_base <- c(z = "r\u00e9sidus normalis\u00e9s z_t", r = "ratios bruts", commun = "base unique")
+    nom_base <- c(z = "r\u00e9sidus standardis\u00e9s z_t", r = "ratios bruts", commun = "base unique")
     motif <- ifelse(!sx$garde,
       ifelse(ex$variante == "secondaire",
              "variante secondaire non conserv\u00e9e dans la s\u00e9lection",
@@ -3175,9 +3412,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                       unname(vapply(ex$verdict, badge_verdict, character(1))),
                       fmt_p(ex$p_retenue),
                       unname(vapply(ex$nature_p, badge_nature, character(1))),
+                      # Sens du test (#498, m3), apres Nature comme dans la
+                      # section 5 ; sans coupure de ligne (#500).
+                      .sans_coupure(.txt(ex$sens_du_test)),
                       unname(motif), .txt(com_ex), stringsAsFactors = FALSE, row.names = NULL)
-      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif",
-                    "Commentaire du moteur")
+      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Sens",
+                    "Motif", "Commentaire du moteur")
       html_table(d, classe = "data")
     }
     ajout("<h2 id='annexe-exclus'>6. Annexe \u2014 tests exclus de la restitution</h2>",
@@ -3211,8 +3451,6 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       for (gr in o$g) B[[length(B) + 1L]] <- .graphique(gr, mode)
       ajout("</div>")
     }
-    at <- avertissement_T(m$T)
-    if (!is.null(at)) ajout(.bandeau_html(at))
     ajout(sprintf(paste("<hr><div class='gris'>Rapport g\u00e9n\u00e9r\u00e9 le %s par",
                         "<code>rapport_html()</code> (R/display_helpers.R) ; graphiques : %s.</div>"),
                   genere, switch(mode,

@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{9~novembre 2026}
-\newcommand{\versiondoc}{3.1}
+\newcommand{\datedoc}{10~novembre 2026}
+\newcommand{\versiondoc}{3.2}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -727,7 +727,9 @@ non vide, ou un \code{dans} qui n'est ni \code{NULL} ni un environnement~; aucun
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
 \code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
 \code{bareme}, \code{segment}, \code{annexe} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$repere\_profondeur} (texte
+du repère de profondeur à $T < 10$, aussi parmi les avertissements~; vide à $T \ge 10$ ou sur un
+refus)~; refus des valeurs infinies, d'une
 valeur hors du domaine numérique, d'une
 marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
 segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
@@ -774,7 +776,9 @@ a $\gamma$ sur une borne de \code{BORNES\_GAMMA} et si aucun démarrage à l'opt
 la condition de Kuhn et Tucker (§\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$repere\_profondeur} (texte
+du repère de profondeur à $I + 1 < 10$, aussi parmi les avertissements~; vide à $I + 1 \ge 10$ ou
+sur un refus), $I$, $J$~; refus d'une cellule observée
 hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
 (année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
@@ -828,10 +832,14 @@ en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
-survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$triangle},
-\code{\$I}, \code{\$J}~; BOM retiré du premier nom de colonne, lignes et colonnes vides selon
+survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
+\code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
+premier nom de colonne, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
-sa position, puis \code{mw\_valider\_triangle()} \\
+sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
+\code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
+cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
+dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
@@ -1969,6 +1977,12 @@ par \code{.engine\_verifier\_usage()} et affiché par l'application avant le cli
 \code{engine\_b\_minimal()} & \code{alpha} & plus petit entier $B \ge 1$ tel que
 $2/(B+1) < \alpha/2$, cité dans le message d'\code{engine\_motif\_b\_alpha()}~; erreur R si
 $4/\alpha$ n'est pas fini ou n'est pas inférieur à $2^{52}$ \\
+\code{engine\_regle\_}\newline\code{verdicts()} & \code{alpha} & texte de la règle des verdicts
+d'\code{add()} au seuil $\alpha$, en quatre phrases (règle générale, sens «~rejeter~», sens «~ne
+pas rejeter~», lignes \code{INFO}), valeurs en virgule décimale, seuil d'\code{ECHEC} lu dans
+\code{SEUIL\_ECHEC\_SENS\_REJETER}~; hors de \code{run\_engine()}, sans champ de l'objet
+\code{usp\_engine} ni calcul de verdict~; erreur R hors de
+$0 < \alpha <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} (§\ref{sec:nature}) \\
 \code{.engine\_calcul\_}\newline\code{protege()} & \code{methode}, horodatage,
 \code{validation}, calcul & résultat du calcul, ou objet \code{ok = FALSE} portant
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
@@ -3158,12 +3172,15 @@ $\pi_t$ et le montant à minimiser, sans écrire la forme de l'espérance ni de 
 ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_t \sim
 \mathcal{LN}(\mu_t,\psi_t)$ avec
 \[
-  \mathbb{E}[Y_t] = \beta x_t,
+  \mathbb{E}[Y_t \mid x_t] = \beta x_t,
   \qquad
-  \operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
-  \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma}.
+  \operatorname{Var}(Y_t \mid x_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
+  \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma},
 \]
-Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t)/\mathbb{E}[Y_t]^2\big) = 1/\pi_t$
+les $Y_t$ étant indépendants conditionnellement aux $x_t$ (hypothèse que l'annexe~XVII n'énonce
+pas, et que suppose la forme additive en~$t$ du montant à minimiser de B(6) et C(6)).
+Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t \mid x_t)/\mathbb{E}[Y_t \mid x_t]^2\big) = 1/\pi_t$,
+le paramètre de position est $\mu_t = \ln(\beta x_t) - \psi_t/2$
 et $\hat\sigma(\hat\delta,\hat\gamma) = \hat\beta\,e^{\hat\gamma}$, ce qui redonne les formules
 de B(5) et C(5)~; d'où la précision logarithmique et l'estimateur du niveau~:
 \[
@@ -3172,6 +3189,24 @@ de B(5) et C(5)~; d'où la précision logarithmique et l'estimateur du niveau~:
   \ln\hat\beta = \frac{\tfrac{T}{2} + \sum_t \pi_t \ln r_t}{\sum_t \pi_t}.
 \]
 
+\emph{Proposition (forme en ratio).} À $x_t$ connu, $Y_t \mid x_t \sim \mathcal{LN}(\mu_t,\psi_t)$
+si et seulement si $\ln(Y_t/x_t) \mid x_t \sim \mathcal{N}\big(\ln\beta - 1/(2\pi_t),\, 1/\pi_t\big)$.
+\emph{Preuve.} À $x_t$ connu, $\ln(Y_t/x_t) = \ln Y_t - \ln x_t$ est la translation de $\ln Y_t$
+par une constante~; une translation conserve la normalité et la variance, et décale l'espérance de
+$-\ln x_t$~: $\mu_t - \ln x_t = \ln\beta - \psi_t/2 = \ln\beta - 1/(2\pi_t)$ et
+$\psi_t = 1/\pi_t$. La translation inverse donne la réciproque.~$\square$
+
+\noindent
+Sachant $x_t$, le ratio $Y_t/x_t$ a donc pour espérance $\beta$ et pour variance
+$\beta^2\big(e^{1/\pi_t} - 1\big) = \sigma^2\big[\delta + (1-\delta)\,\bar x/x_t\big]$~; ses
+paramètres ne dépendent de $t$ que par $x_t$. Sachant les $x_t$, les ratios sont indépendants et
+de même espérance~$\beta$, mais ne sont identiquement distribués que si $\pi_t$ est constant, soit
+$\delta = 1$, soit des $x_t$ tous égaux (condition sur les paramètres vrais~; son pendant estimé
+est le régime $\hat\pi_t$ constant, $\hat\delta$ au bord~1 ou volumes constants au sens de
+\code{usp\_volumes\_constants()}, section~\ref{sec:base-residus})~: une loi commune des $\ln r_t$ n'est pas une hypothèse du
+modèle, et H3 ne se teste pas sur les $\ln r_t$ mis en commun (sections~\ref{sec:base-residus}
+et~\ref{sec:h3}).
+
 \subsection*{Résidus}
 
 Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph{résidus standardisés}
@@ -3179,8 +3214,12 @@ Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph
   z_t \;=\; \sqrt{\hat\pi_t}\;\Big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\Big),
   \qquad t = 1,\dots,T ,
 \]
-qui, si le modèle est correctement spécifié, sont \emph{approximativement} indépendants et de loi
-$\mathcal{N}(0,1)$. On note $z_{(1)} \le \dots \le z_{(T)}$ la statistique d'ordre associée,
+qui, si le modèle est correctement spécifié et les $\hat\pi_t$ tenus pour connus, suivent la loi
+$\mathcal{N}(0, P)$, $P$ projecteur de rang $T-1$ (section~\ref{sec:base-residus}), et non
+$\mathcal{N}(0, I_T)$~: ils sont centrés, de variances $1 - \hat\pi_t/\sum_s \hat\pi_s$ et
+corrélés négativement deux à deux~; à $\hat\pi_t$ constant et $T = 8$, chaque variance vaut
+$7/8$ et chaque corrélation $-1/7$. Ce calcul ne rend pas compte de ce que $\hat\delta$ et
+$\hat\gamma$ sont estimés sur les mêmes données. On note $z_{(1)} \le \dots \le z_{(T)}$ la statistique d'ordre associée,
 $\bar z$ la moyenne empirique, $s_z^2 = (T-1)^{-1}\sum_t (z_t - \bar z)^2$ la variance empirique
 corrigée, et $p_{(i)} = \Phi(z_{(i)})$.
 
@@ -3438,7 +3477,9 @@ Chaque méthode a son résidu de référence, support de ses tests~:
 \textcolor{financeblue}{\textbf{Résidu}} &
 \textcolor{financeblue}{\textbf{Loi sous le modèle}} \\
 Lognormale & $z_t = \sqrt{\hat\pi_t}\big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\big)$ &
-i.i.d. $\mathcal{N}(0,1)$~: la loi est entièrement spécifiée \\
+$\mathcal{N}(0, P)$, $z = P\varepsilon$ avec $\varepsilon_t$ i.i.d. $\mathcal{N}(0,1)$ aux
+paramètres vrais, $\hat\pi_t$ tenu pour connu (section~\ref{sec:base-residus})~: la loi est
+entièrement spécifiée \\
 Merz--Wüthrich & $r(i,j) = \dfrac{\sqrt{C(i,j)}}{\hat\sigma_j}\big(F(i,j) - \hat f_j\big)$ &
 centré, d'échelle approximativement unitaire, non corrélé~; \textbf{aucune loi
 n'est spécifiée} \\
@@ -3896,11 +3937,14 @@ l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
 dans le journal~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
-sans conversion des cellules, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
+sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
 moteur seul, avec les mêmes motifs qu'un classeur xlsx, et qu'un fichier binaire que cette
-lecture accepte est refusé par le moteur (mesuré sur vingt fichiers de 2\,000 octets aléatoires~:
-six que R ne lit pas, quatorze refusés par \code{engine\_lire\_donnees\_csv()}).
+lecture accepte passe par les mêmes contrôles du moteur que tout tableau (colonnes attendues,
+cellules numériques), sans détection propre aux fichiers binaires~: un fichier binaire est ainsi
+arrêté soit à la lecture, par R ou par le contrôle de structure de \code{lire\_tableau()}, qui
+refuse avant lecture toute ligne comptant plus de valeurs que l'en-tête, soit par ces contrôles
+du moteur.
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
@@ -4037,7 +4081,12 @@ II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II
 \code{OK} à $T = 10$, \code{ECHEC} et $c = 92~\%$ à $T = 9$~; II-2 avec le barème long saisi
 à $T = 10$, \code{ECHEC} et $c = 74~\%$, le commentaire citant la dérogation et le barème
 réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
-repère statistique distinct, non réglementaire (convention de l'outil, sans source).
+repère statistique distinct, non réglementaire (convention de l'outil, sans source)~; son texte
+conseille de privilégier les p-values exactes ou de Monte-Carlo et rappelle qu'une p-value élevée
+ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter. Le même texte est
+rendu dans \code{validation\$repere\_profondeur}, que l'application lit pour l'afficher non replié
+en tête de l'onglet Tests, sous la règle des verdicts~; le rapport figé le reproduit en tête de sa
+section~5 («~Tests retenus~»), sous la même règle.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
@@ -4461,7 +4510,9 @@ parmi les cellules observées (\code{.run\_engine\_mw()} la met à \code{NA} apr
 Ne pas la lire découle de D(4)(c) et D(5), dont les formules ne portent que sur des cellules
 $i + j \le I$ (sommes sur $i \le I - j - 1$ ou $i \le I - j$, cumuls $C(i, I-i)$ de la
 diagonale)~; seul l'avertissement est une convention de l'outil.
-Un seul avertissement par triangle, cinq positions au plus. \\
+Un seul avertissement par triangle, cinq positions au plus~; \code{engine\_lire\_triangle()} le
+rend aussi dans \code{\$avertissements\_lecture}, seul avertissement de la lecture d'un fichier
+que l'application restitue à l'import et au démarrage, les autres étant calculés sans segment ni annexe. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Domaine numérique & chaque cellule observée ($i + j \le I$) dans $[10^{-50}\,;10^{50}]$, bornes
@@ -4528,7 +4579,11 @@ $I + 1 \ge 15$ au barème long G(1), $I + 1 \ge 10$ au barème court G(2) & \tex
 de crédibilité partielle de \code{mw\_valider\_triangle()} si $c < 1$, non bloquant (annexe~XVII,
 section~G~; barème appliqué résolu comme pour les méthodes lognormales). Distinct de ce contrôle, un repère
 statistique non réglementaire~: à $I + 1 < 10$, un second avertissement signale que
-$\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle. \\
+$\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle et rappelle qu'une
+p-value élevée ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter~;
+le même texte est rendu dans \code{validation\$repere\_profondeur}, que l'application lit pour
+l'afficher non replié en tête de l'onglet Tests, sous la règle des verdicts~; le rapport figé le
+reproduit en tête de sa section~5, sous la même règle. \\
 \end{longtable}
 }
 
@@ -5859,7 +5914,9 @@ seuil~$\alpha$, \code{OK}, \code{ALERTE} ou \code{ECHEC}, porté par une ligne d
 \code{ECHEC} si $p < \alpha/2$, \code{ALERTE} si $\alpha/2 \le p < \alpha$, \code{OK} sinon~; en
 sens «~rejeter~», \code{OK} si $p < \alpha$, \code{ALERTE} si
 $\alpha \le p <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} $= 0{,}30$, \code{ECHEC} sinon~; $p$ est la
-p-value retenue. Un \emph{diagnostic} est une ligne restituée sans verdict (verdict affiché
+p-value retenue. Le texte de cette règle, au seuil $\alpha$ du résultat, est rendu par
+\code{engine\_regle\_verdicts()} et affiché en tête du tableau des tests de l'onglet Tests et de
+la section~5 du rapport figé («~Tests retenus~»). Un \emph{diagnostic} est une ligne restituée sans verdict (verdict affiché
 \code{INFO}, \code{p\_retenue}, \code{nature\_p} et \code{sens} à \code{NA}), pour éclairer la
 lecture des tests ou de l'estimation~: ses p-values, quand elles existent, restent affichées mais
 ne fondent aucun verdict~; un seuil attaché à un diagnostic est un repère de lecture, non un seuil
@@ -8521,8 +8578,9 @@ données si le modèle est correct. Sur $u_t$, on testerait l'hétéroscédastic
 \emph{brute}, dont la présence est précisément ce que le modèle postule~: le
 test serait attendu significatif et ne dirait rien de la qualité du calibrage. \\
 H3 --- lognormalité & \textbf{non} &
-Le modèle prédit que $z_t$ est normal, non que $r_t$ l'est ($r_t$ est
-approximativement lognormal). Tester la normalité de $u_t$ reviendrait à tester
+Le modèle prédit que $z_t$ est normal, non que $r_t$ l'est~: $r_t$ est lognormal
+sachant $x_t$, de paramètres propres à l'année (section~\ref{sec:notations}), et ni $r_t$ ni
+$u_t$ ne sont normaux. Tester la normalité de $u_t$ reviendrait à tester
 une hypothèse que le modèle ne formule pas. Sur $v_t$, la normalité est bien
 prédite mais la variance $1/\hat\pi_t$ n'est pas constante, ce qui invalide les
 tests de normalité usuels dès que $\hat\pi_t$ varie, c'est-à-dire dès que
@@ -10468,9 +10526,23 @@ l'exercice et des paiements effectués durant l'exercice, l'une et les autres po
 qui étaient à payer en début d'exercice (méthode du risque de réserve
 n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Le texte pose que cette
 variable suit une distribution log-normale. \emph{Traduction dans le modèle
-réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: cette hypothèse se teste de
-façon équivalente comme la normalité des résidus standardisés $z_t$ (aux effets d'estimation
-près, section~\ref{sec:notations}).
+réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: les hypothèses~i. et~ii. sont
+posées «~pour un segment et une année d'accident particuliers~» (B(2)(g)) et «~pour un segment
+et un exercice particuliers~» (C(2)(e)), et le montant à minimiser de B(6) et C(6) est, à une
+constante près, moins deux fois la log-vraisemblance gaussienne des $\ln r_t$, de paramètres
+propres à l'année, profilée en $\ln\beta$ (section~\ref{sec:h4})~; l'hypothèse s'entend donc année par année, sachant le
+volume. À $x_t$ connu, elle s'énonce sous deux formes équivalentes, $Y_t$ lognormal sachant
+$x_t$ ou $\ln(Y_t/x_t)$ normal~: l'une se déduit de l'autre par la translation de $\ln Y_t$
+par $\ln x_t$. Avec l'espérance et la variance du modèle (H1 et H2), les paramètres sont
+$(\mu_t, \psi_t)$ pour $Y_t$, soit, pour $\ln(Y_t/x_t)$, l'espérance $\ln\beta - 1/(2\pi_t)$ et
+la variance $1/\pi_t$, propres à l'année. Avec de plus l'indépendance des années (que
+l'annexe~XVII n'énonce pas, mais que suppose la forme additive en~$t$ du montant à minimiser de
+B(6) et C(6)), l'ensemble équivaut à $\varepsilon_t = \sqrt{\pi_t}\,\big(\ln r_t - \ln\beta +
+1/(2\pi_t)\big)$ i.i.d. $\mathcal{N}(0,1)$ aux paramètres vrais~; cette équivalence est exacte
+pour les $\varepsilon_t$, non observés. L'outil teste la normalité des résidus standardisés
+$z_t$, qui les remplacent aux paramètres estimés (section~\ref{sec:base-residus}). Un rejet sur
+les $z_t$ peut donc aussi venir d'un écart à H1, à H2 ou à l'indépendance des années~: un tel
+écart déforme la loi des $z_t$ même quand chaque $Y_t$ sachant $x_t$ suit une loi lognormale.
 \end{encadre}
 
 \begin{encadre}

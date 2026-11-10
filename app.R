@@ -168,8 +168,28 @@ triangle_defaut <- function(T = 8) {
 # Donnees ; le jeu par defaut n'est charge que si aucun fichier n'existe, ou
 # sur clic de "Reinitialiser les donnees". Chaque fonction renvoie
 # list(valeur, statut) ; statut vaut NULL si aucun fichier n'existe.
-statut_fichier <- function(ok, src, texte)
-  list(ok = ok, msg = sprintf("Fichier %s %s", src, texte))
+# avertissements : avertissements non bloquants du moteur propres au fichier
+# lu (triangle : engine_lire_triangle()$avertissements_lecture, #518, soit
+# les cellules renseignees sous la diagonale de #491, que la grille
+# i + j <= I ne montre pas), restitues sous le statut par statut_ui() ; vides
+# pour un refus et pour les series. Jamais le champ avertissements, calcule
+# sans segment ni annexe : la credibilite et le repere I + 1 < 10 sont
+# restitues par l'apercu validation_live, au segment choisi.
+statut_fichier <- function(ok, src, texte, avertissements = character(0))
+  list(ok = ok, msg = sprintf("Fichier %s %s", src, texte),
+       avertissements = as.character(avertissements))
+
+# Rendu d'un statut de fichier (demarrage ou import) : message, puis les
+# avertissements du moteur tels quels, en liste. Un succes sans avertissement
+# garde le vert ; un succes avec avertissement prend l'orange de la classe
+# "avert" (#518). Aucun calcul : le texte vient du moteur.
+statut_ui <- function(st) {
+  av <- st$avertissements
+  div(class = if (st$ok) "avert" else "err",
+      style = if (st$ok && !length(av)) "border-left-color:#1E8449;background:#EAFAF1" else NULL,
+      st$msg,
+      if (length(av)) tags$div(tags$b("Avertissements :"), tags$ul(lapply(av, tags$li))))
+}
 
 REFUS_DEMARRAGE <- paste("Aucune donnee n'a ete chargee a sa place : corriger le",
                          "fichier puis l'importer, ou cliquer sur \"Reinitialiser les",
@@ -190,19 +210,40 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # comme chaine (na.strings = character(0), comme la lecture xlsx du moteur).
 # Nombres, cellules vides, lignes et colonnes vides sont ainsi juges par le
 # moteur seul, avec les memes motifs qu'en xlsx (#483, #490). Separateur et
-# encodage : ceux de read.csv, inchanges. Retourne list(df, erreur) : erreur
-# vaut NULL si la lecture a abouti, le message fixe sinon.
+# encodage : ceux de read.csv, inchanges. row.names = NULL a toute lecture
+# (#518) : sans lui, read.csv prend la premiere colonne pour des noms de
+# lignes quand l'en-tete compte un champ de moins que les lignes (series :
+# colonne d'annees ignoree sans message ; triangle : refus "duplicate
+# 'row.names'"). Un CSV dont une ligne compte plus de champs que l'en-tete
+# est refuse avant lecture (utils::count.fields, memes separateur, guillemet
+# et caractere de commentaire que read.csv) : MESSAGE_ILLISIBLE$csv, motif
+# precis au journal. Une colonne en surnombre NOMMEE (en-tete aussi long que
+# les lignes) reste ignoree par nom, convention du moteur. Retourne
+# list(df, erreur) : erreur vaut NULL si la lecture a abouti, le message
+# fixe sinon.
 MESSAGE_ILLISIBLE <- c(
   xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
                ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
   csv  = paste("illisible comme tableau (fichier vide, binaire ou mal structure) :",
-               "verifier l'encodage, le separateur (virgule attendue) et que chaque",
-               "ligne a autant de valeurs que la ligne d'en-tete."))
-lire_tableau <- function(chemin, xlsx, nom = basename(chemin), ...) {
+               "verifier l'encodage, le separateur (virgule attendue) et qu'aucune",
+               "ligne n'a plus de valeurs que la ligne d'en-tete."))
+lire_tableau <- function(chemin, xlsx, nom = basename(chemin)) {
   df <- tryCatch(if (xlsx) engine_lire_xlsx(chemin)
-                 else utils::read.csv(chemin, colClasses = "character",
-                                      blank.lines.skip = FALSE, check.names = FALSE,
-                                      na.strings = character(0), ...),
+                 else {
+                   nc <- utils::count.fields(chemin, sep = ",", quote = "\"",
+                                             comment.char = "", blank.lines.skip = FALSE)
+                   # en-tete sur plusieurs lignes physiques (champ entre guillemets
+                   # contenant un saut de ligne) : count.fields rend NA sur ses
+                   # premieres lignes ; le compte de l'en-tete est le premier non NA
+                   n_ent <- nc[!is.na(nc)][1L]
+                   exces <- which(nc > n_ent)
+                   if (length(exces))
+                     stop(sprintf("en-tete de %d champ(s), ligne %d du fichier de %d champs",
+                                  n_ent, exces[1L], nc[exces[1L]]), call. = FALSE)
+                   utils::read.csv(chemin, colClasses = "character",
+                                   blank.lines.skip = FALSE, check.names = FALSE,
+                                   na.strings = character(0), row.names = NULL)
+                 },
                  error = function(e) e)
   if (!inherits(df, "error")) return(list(df = df, erreur = NULL))
   journaliser(sprintf("Lecture du fichier %s impossible", nom), conditionMessage(df))
@@ -249,7 +290,7 @@ charger_mw <- function() {
     statut = statut_fichier(FALSE, src, paste("present mais refuse au demarrage :",
                                               paste(motifs, collapse = " "),
                                               REFUS_DEMARRAGE)))
-  lu <- lire_tableau(src, grepl("xlsx$", src), row.names = NULL)
+  lu <- lire_tableau(src, grepl("xlsx$", src))
   if (!is.null(lu$erreur)) return(refus(lu$erreur))
   r <- engine_lire_triangle(lu$df)
   if (!r$ok) return(refus(r$erreurs))
@@ -259,7 +300,8 @@ charger_mw <- function() {
   if (length(rd)) return(refus(rd))
   list(valeur = r$triangle,
        statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
-                                                  nrow(r$triangle), ncol(r$triangle))))
+                                                  nrow(r$triangle), ncol(r$triangle)),
+                               r$avertissements_lecture))
 }
 
 # Bornes du champ T (numericInput "profondeur"), partagees avec la garde de
@@ -357,7 +399,6 @@ ui <- fluidPage(
       h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
       uiOutput("bandeau_refus"),
       uiOutput("bandeau_avertissements"),
-      div(class = "avert", uiOutput("bandeau_T")),
       tabsetPanel(
         id = "onglets", type = "tabs",
 
@@ -452,12 +493,12 @@ ui <- fluidPage(
                     "restitution. Pour les tests d'ind&eacute;pendance et de",
                     "stabilit&eacute; de la m&eacute;thode lognormale, la base de",
                     "r&eacute;sidus est &eacute;galement r&eacute;glable : sur les",
-                    "<i>r&eacute;sidus normalis&eacute;s</i> les p-values exactes et",
+                    "<i>r&eacute;sidus standardis&eacute;s</i> les p-values exactes et",
                     "asymptotiques sont valides ; sur les <i>ratios bruts</i> le test",
                     "ne d&eacute;pend d'aucun ajustement mais seule la p-value de",
                     "Monte-Carlo y est valide.",
                     "<br><b>Par d&eacute;faut</b> : variantes secondaires retir&eacute;es,",
-                    "r&eacute;sidus normalis&eacute;s."))),
+                    "r&eacute;sidus standardis&eacute;s."))),
                   fluidRow(
                     column(4, actionButton("sel_defaut", "Retablir la selection par defaut")),
                     column(4, actionButton("sel_tout", "Tout conserver")),
@@ -746,8 +787,7 @@ server <- function(input, output, session) {
   output$statut_demarrage <- renderUI({
     st <- statut_demarrage()[[if (est_mw()) "MW" else "LN"]]
     if (is.null(st)) return(NULL)
-    div(class = if (st$ok) "avert" else "err",
-        style = if (st$ok) "border-left-color:#1E8449;background:#EAFAF1" else NULL, st$msg)
+    statut_ui(st)
   })
   # Marge du test d'equivalence telle que transmise au moteur (au clic comme
   # dans la validation en direct) ; le controle de son domaine est fait par
@@ -980,6 +1020,45 @@ server <- function(input, output, session) {
     m
   }
 
+  # Conservation de la saisie au changement de methode (issue #497). La grille
+  # se redessine a chaque changement de methode (le rendu depend de est_mw(),
+  # une reactive : "premium" a "reserve1" la redessine aussi) en repartant de
+  # donnees() ou de triangle(), qui ne contiennent pas les valeurs tapees : sans recopie,
+  # revenir a la methode precedente restituait les donnees d'origine, sans
+  # message, et un calcul relance portait sur elles (mesure par testServer
+  # avant correction : x_1 = 999, "reserve2" puis "premium" : x_1 = 104,2 ;
+  # c_0_0 = 12345, "reserve1" puis "reserve2" : c_0_0 = 300 ; meme perte de
+  # "premium" a "reserve1", ou est_mw() ne change pas). Au changement,
+  # les champs de la grille quittee sont recopies dans donnees() ou
+  # triangle(), comme le font deja "Ajouter une annee" et "Retirer la derniere
+  # ligne" (saisie_courante()). Recopie sans calcul. Un champ jamais rendu
+  # (entree absente) garde la valeur stockee, au lieu d'etre vide. Import et
+  # reinitialisation ecrivent donnees() ou triangle() puis redessinent la
+  # grille : ils remplacent toujours la saisie, la recopie ne s'executant
+  # qu'au changement de methode.
+  methode_grille <- reactiveVal(NULL)   # methode dont la grille est affichee
+  observeEvent(input$methode, {
+    prec <- methode_grille()
+    methode_grille(input$methode)
+    if (is.null(prec)) return()
+    if (identical(prec, "reserve2")) {
+      tri <- triangle(); T <- nrow(tri)
+      for (i in 0:(T - 1)) for (j in 0:(T - 1)) if (i + j <= T - 1) {
+        v <- input[[paste0("c_", i, "_", j)]]
+        if (!is.null(v)) tri[i + 1, j + 1] <- as.numeric(v)
+      }
+      triangle(tri)
+    } else {
+      d <- donnees()
+      for (i in seq_len(nrow(d))) {
+        vx <- input[[paste0("x_", i)]]; vy <- input[[paste0("y_", i)]]
+        if (!is.null(vx)) d$xt[i] <- as.numeric(vx)
+        if (!is.null(vy)) d$yt[i] <- as.numeric(vy)
+      }
+      donnees(d)
+    }
+  }, priority = 100)
+
   # Validation en direct : l'appel est fait au moteur, pas reimplemente ici.
   # Segment et annexe transmis comme au clic (issue #131) : l'avertissement
   # de credibilite partielle lit le bareme du segment. Segment non encore
@@ -1107,8 +1186,18 @@ server <- function(input, output, session) {
       }
       triangle(m); version_grille(version_grille() + 1L)
       effacer_statut_demarrage()
+      # Avertissements du moteur propres au fichier (cellules renseignees
+      # sous la diagonale, #491 ; champ avertissements_lecture) : restitues
+      # sous le statut, tels quels, et seuls a declencher la notification
+      # (#518). Credibilite et repere I + 1 < 10 : apercu validation_live, au
+      # segment choisi.
       statut_import(list(ok = TRUE, msg = sprintf("Triangle %d x %d importe depuis %s (%s).",
-                                                  nrow(m), ncol(m), fi$name, toupper(ext))))
+                                                  nrow(m), ncol(m), fi$name, toupper(ext)),
+                         avertissements = v$avertissements_lecture))
+      if (length(v$avertissements_lecture)) {
+        showNotification("Triangle importe, avec des avertissements : voir le statut d'import.",
+                         type = "warning", duration = 8); return()
+      }
     } else {
       r <- engine_lire_donnees_csv(df)
       if (!r$ok) {
@@ -1159,8 +1248,7 @@ server <- function(input, output, session) {
 
   output$import_statut <- renderUI({
     st <- statut_import(); if (is.null(st)) return(NULL)
-    div(class = if (st$ok) "avert" else "err",
-        style = if (st$ok) "border-left-color:#1E8449;background:#EAFAF1" else NULL, st$msg)
+    statut_ui(st)
   })
 
   # --- Declenchement explicite des calculs ---------------------------------
@@ -1256,7 +1344,12 @@ server <- function(input, output, session) {
   # <details class='com'>/<summary> de la vue Detail (#178), un avertissement
   # pouvant depasser 2 000 caracteres (tri_deg) ; le resume donne le nombre
   # d'avertissements du dernier calcul (longueur du vecteur, accord au
-  # singulier), sans dedoublonnage avec l'apercu ni bandeau_T.
+  # singulier), sans dedoublonnage avec l'apercu. Le repere de profondeur pose
+  # par le moteur (texte et seuil) y figure parmi les avertissements, et il est
+  # aussi affiche non replie en tete de l'onglet Tests et de la section 5 du
+  # rapport fige, lu dans le champ res$validation$repere_profondeur
+  # (html_repere_profondeur(), #499) ;
+  # l'ancien bandeau_T, a seuil propre a l'affichage, est retire (#499).
   output$bandeau_avertissements <- renderUI({
     r <- resultat()
     if (is.null(r) || !isTRUE(r$ok)) return(NULL)
@@ -1279,13 +1372,6 @@ server <- function(input, output, session) {
     div(class = "avert", msg)
   })
 
-  output$bandeau_T <- renderUI({
-    r <- resultat()
-    if (is.null(r)) return(HTML("Renseignez les donnees puis cliquez sur <b>Relancer les calculs</b>."))
-    msg <- avertissement_T(r$metadata$T)
-    if (is.null(msg)) HTML("Profondeur suffisante pour une lecture standard des tests.") else HTML(msg)
-  })
-
   output$etat <- renderUI({
     r <- resultat()
     if (is.null(r)) return(div(style = "color:#7F8C8D", "Aucun calcul lance."))
@@ -1298,6 +1384,12 @@ server <- function(input, output, session) {
     lig_mc <- texte_p_mc_regime(r)
     tagList(
       div(HTML(sprintf("<b>T</b> = %d &nbsp; <b>B</b> = %d", m$T, m$B))),
+      # Seuil des verdicts du resultat affiche (#498), lu dans res$metadata,
+      # jamais dans le panneau ; signal, sans recalcul, si le champ alpha du
+      # panneau a change depuis (texte_alpha_divergent(), display_helpers.R).
+      div(HTML(sprintf("<b>alpha</b> = %s", .ou_tiret(m$alpha, .num_fr_defaut)))),
+      if (!is.null(div_alpha <- texte_alpha_divergent(m$alpha, input$alpha)))
+        div(class = "avert", style = "font-size:12px", div_alpha),
       if (!is.null(lig_mc))
         div(style = "font-size:12px", tags$b("P-values Monte-Carlo"), paste(":", lig_mc)),
       div(HTML(sprintf("<b>seed</b> = %s", format(m$seed, scientific = FALSE)))),
@@ -1438,9 +1530,23 @@ server <- function(input, output, session) {
                 badge_verdict("ALERTE"), nb[["ALERTE"]], "&nbsp;&nbsp;",
                 badge_verdict("ECHEC"), nb[["ECHEC"]], "&nbsp;&nbsp;",
                 "<span style='color:#5D6D7E;font-size:11px'>INFO</span>", nb[["INFO"]])))),
-          HTML(html_table(d)))
+          # Tableau de la vue Detail (16 colonnes, colonne Motif a largeur
+          # minimale, #517) plus large que son cadre : defilement horizontal
+          # dans le cadre, sinon la partie qui depasse passe sous le panneau
+          # des parametres. Meme conteneur pour la Synthese (aucune regle de
+          # largeur, comportement inchange tant que le tableau tient).
+          div(style = "overflow-x:auto",
+              HTML(html_table(d, largeurs = if (identical(input$vue_tests, "detail")) LARGEURS_DETAIL))))
     })
-    do.call(tagList, Filter(Negate(is.null), blocs))
+    # Regle des verdicts en tete des tests (#498), au alpha du resultat
+    # affiche (html_regle_verdicts(), display_helpers.R) ; NULL si absent.
+    regle <- html_regle_verdicts(R())
+    # Repere de profondeur du moteur sous la regle, non replie (#499) :
+    # champ res$validation$repere_profondeur, lu tel quel ; NULL si vide.
+    repere <- html_repere_profondeur(R())
+    do.call(tagList, c(if (!is.null(regle)) list(HTML(regle)),
+                       if (!is.null(repere)) list(HTML(repere)),
+                       Filter(Negate(is.null), blocs)))
   })
 
   # Les onglets graphiques different selon la methode : la geometrie des
