@@ -727,7 +727,9 @@ non vide, ou un \code{dans} qui n'est ni \code{NULL} ni un environnement~; aucun
 \code{engine\_valider\_donnees()} & \code{xt}, \code{yt}, \code{T\_min},
 \code{theta\_equiv}, \code{delta\_equiv}, \code{methode}, \code{nature\_donnees},
 \code{bareme}, \code{segment}, \code{annexe} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}~; refus des valeurs infinies, d'une
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$repere\_profondeur} (texte
+du repère de profondeur à $T < 10$, aussi parmi les avertissements~; vide à $T \ge 10$ ou sur un
+refus)~; refus des valeurs infinies, d'une
 valeur hors du domaine numérique, d'une
 marge du TOST hors domaine, d'une nature des données absente ou non recevable et d'un barème,
 segment ou annexe invalide (sans erreur R)~; avertissement de crédibilité partielle sur
@@ -774,7 +776,9 @@ a $\gamma$ sur une borne de \code{BORNES\_GAMMA} et si aucun démarrage à l'opt
 la condition de Kuhn et Tucker (§\ref{sec:controles}) \\
 \code{mw\_valider\_triangle()} & \code{tri}, \code{T\_min}, \code{bareme}, \code{segment},
 \code{annexe} &
-\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, $I$, $J$~; refus d'une cellule observée
+\code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$repere\_profondeur} (texte
+du repère de profondeur à $I + 1 < 10$, aussi parmi les avertissements~; vide à $I + 1 \ge 10$ ou
+sur un refus), $I$, $J$~; refus d'une cellule observée
 hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
 (année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
@@ -4079,7 +4083,9 @@ II-5 à $T = 14$, \code{ECHEC} et $c = 96~\%$~; II-6 à $T = 15$, \code{OK}~; II
 réglementaire du segment. L'avertissement «~lois asymptotiques peu fiables~» à $T < 10$ est un
 repère statistique distinct, non réglementaire (convention de l'outil, sans source)~; son texte
 conseille de privilégier les p-values exactes ou de Monte-Carlo et rappelle qu'une p-value élevée
-ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter.
+ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter. Le même texte est
+rendu dans \code{validation\$repere\_profondeur}, que l'application lit pour l'afficher non replié
+en tête de l'onglet Tests, sous la règle des verdicts.
 
 Des volumes constants, au sens de \code{usp\_volumes\_constants()}, ne sont pas un motif de refus~:
 le calcul aboutit, mais les vérifications qui régressent sur le volume ou partitionnent par lui
@@ -4573,7 +4579,9 @@ de crédibilité partielle de \code{mw\_valider\_triangle()} si $c < 1$, non blo
 section~G~; barème appliqué résolu comme pour les méthodes lognormales). Distinct de ce contrôle, un repère
 statistique non réglementaire~: à $I + 1 < 10$, un second avertissement signale que
 $\hat\sigma_j^2$ repose sur deux ou trois observations en fin de triangle et rappelle qu'une
-p-value élevée ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter. \\
+p-value élevée ne démontre pas la validité de l'hypothèse~: elle ne permet pas de la rejeter~;
+le même texte est rendu dans \code{validation\$repere\_profondeur}, que l'application lit pour
+l'afficher non replié en tête de l'onglet Tests, sous la règle des verdicts. \\
 \end{longtable}
 }
 
