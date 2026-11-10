@@ -4296,6 +4296,12 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
+# Tolerance du controle des p-values hors de [0, 1] dans add() (#484, revue
+# finale) : une p finie de [-TOL_P_BORNE, 1 + TOL_P_BORNE] est admise telle
+# quelle, sans troncature (artefact d'arrondi d'une somme ou d'un exp() en
+# echelle log, de l'ordre de l'ulp) ; au-dela, add() refuse par stop().
+TOL_P_BORNE <- 1e-12
+
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
 # annote le 12/10/2026, point 3 ; Q-E2b-5, D1-5), posee par add() seul en
 # dernier element du detail d'une ligne de type test, sans verdict fourni,
@@ -4561,9 +4567,11 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
          !nzchar(nature_forcee)))
       stop("add() : nature_forcee doit etre NA ou une chaine non vide : ",
            paste(format(nature_forcee), collapse = " "), " (", nom, ")", call. = FALSE)
-    # p-values hors de [0, 1] (#484) : une valeur finie hors de l'intervalle
-    # ferme est une erreur de programmation ; non finie, elle reste lue comme
-    # absente. err_mc_ext n'est pas une p-value et n'est pas controlee.
+    # p-values hors de [0, 1] (#484) : une valeur finie hors de
+    # [-TOL_P_BORNE, 1 + TOL_P_BORNE] est une erreur de programmation ; dans
+    # la tolerance, la valeur est gardee telle quelle (aucune troncature) ;
+    # non finie, elle reste lue comme absente. err_mc_ext n'est pas une
+    # p-value et n'est pas controlee.
     # Forme (#484, audit leger, m1) : numerique de longueur 1 ou NA logique
     # de longueur 1, sinon stop() (une chaine serait lue comme absente en
     # silence, TRUE retenue comme p = 1). p_mc et p_min_mc passent ici apres
@@ -4573,7 +4581,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
       if (!(length(val) == 1L && (is.numeric(val) || (is.logical(val) && is.na(val)))))
         stop("add() : p-value de forme invalide : ", arg, " (classe ", class(val)[1L],
              ", longueur ", length(val), ") (", nom, ")", call. = FALSE)
-      if (is.numeric(val) && is.finite(val) && (val < 0 || val > 1))
+      if (is.numeric(val) && is.finite(val) &&
+          (val < -TOL_P_BORNE || val > 1 + TOL_P_BORNE))
         stop("add() : p-value hors de [0, 1] : ", arg, " = ", format(val), " (", nom, ")",
              call. = FALSE)
     }
@@ -6771,7 +6780,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                          "b2 tres inferieur a 3, hors du domaine de la transformation de",
                          "Wilson-Hilferty) ; aucune p-value de Monte-Carlo prevue : test",
                          "non applicable")
-                 else sprintf("T = %d < 20 : test non defini", T))
+                 # T >= 20 sans cause connue : inatteignable (motif T < 20
+                 # ecarte, revue finale de #485), assertion de programmation.
+                 else stop("usp_tests() : Anscombe-Glynn non definie sans cause connue",
+                           call. = FALSE))
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
   fam <- fam_h4
@@ -6838,8 +6850,12 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "residus standardises, contraire a l'independance. A lire avec \"Autocorrelation",
         "d'ordre 1 (Durbin-Watson)\" et la ligne homologue \"Test des suites sur ratios",
         "bruts\"."), p_ru, mc = "Runs") else
-        # Motif choisi par la cause rendue par test_runs() (#486).
-        paste0(ru$cause, ", test non applicable"))
+        # Motif choisi par la cause rendue par test_runs() (#486) ; cause NA
+        # a statistique non finie : incoherence interne, inatteignable
+        # (assertion de programmation, revue finale de #486).
+        if (is.na(ru$cause))
+          stop("usp_tests() : test des suites non defini sur z, cause inconnue", call. = FALSE)
+        else paste0(ru$cause, ", test non applicable"))
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
   # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 (identite) et rive la
@@ -7210,8 +7226,20 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         detail_diag("Runsr", detail_runsr, phrase = txt_r15("Test des suites (aleatoire des signes)"),
                     regle = pi_constant) else
         # Motif choisi par la cause rendue par test_runs() sur u, au
-        # plancher de Runsr au catalogue (#486).
-        paste0(test_runs(u, plancher = plancher_u)$cause, ", test non applicable"))
+        # plancher de Runsr au catalogue (#486), un seul appel. Cause NA
+        # (boot$stats_obs$Runsr non finie, test_runs() definie : objet
+        # bootstrap incoherent, atteint seulement par un bootstrap fictif) :
+        # repli neutre sur le motif Monte-Carlo lu au bootstrap
+        # s'il vaut MOTIF_MC_OBS_NON_FINIE, au gabarit d'add() ; tout autre
+        # motif ou motif absent : assertion de programmation (revue finale de #486).
+        local({
+          cause_u <- test_runs(u, plancher = plancher_u)$cause
+          if (!is.na(cause_u)) return(paste0(cause_u, ", test non applicable"))
+          motif_u <- motif_mc_lu("Runsr")
+          if (!identical(motif_u, MOTIF_MC_OBS_NON_FINIE))
+            stop("usp_tests() : test des suites non defini sur u, cause inconnue", call. = FALSE)
+          paste0(motif_u, " : test non applicable")
+        }))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       fonction = "stat_supF",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",

@@ -79,6 +79,15 @@ verifier("C2 add() : 0 et 1 admis pour chaque argument",
              !leve_erreur(ligne484(mc_nom = "A", p_mc = 0.5, p_min_mc = 0)) &&
              !leve_erreur(ligne484(mc_nom = "A", p_mc = 0.5, p_min_mc = 1))
          })
+verifier("C2 add() : tolerance TOL_P_BORNE : 1 + 1e-15 et -1e-15 admis tels quels (sans troncature), 1 + 1e-9 refuse",
+         {
+           l_haut <- ligne484(p_ex = 1 + 1e-15); l_bas <- ligne484(p_ex = -1e-15)
+           identical(l_haut$p_retenue, 1 + 1e-15) && identical(l_bas$p_retenue, -1e-15) &&
+             !leve_erreur(ligne484(mc_nom = "A", p_mc = 1 + 1e-15)) &&
+             !leve_erreur(ligne484(p_ex = 0.5, p_min = 1 + 1e-15)) &&
+             grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = 1 + 1e-9))) &&
+             grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = -1e-9)))
+         })
 verifier("C2 add() : p non finies (NA, NaN, Inf, -Inf) lues comme absentes, sans erreur",
          {
            l <- ligne484(p_ex = NaN, p_as = Inf, p_min = -Inf)

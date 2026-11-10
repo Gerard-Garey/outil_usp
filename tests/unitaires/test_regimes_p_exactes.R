@@ -497,7 +497,10 @@ verifier("R15 (#303) : statistique observee non finie a pi_t constant, ligne non
            all(vapply(NOM_R15[c("DWr", "Runsr")], function(n) {
              l <- ligne(t, n)
              identical(l$type, "non applicable") && !grepl("regle R15", l$detail, fixed = TRUE)
-           }, logical(1))) && est_r15(ligne(t, NOM_R15[["supFr"]]))
+           }, logical(1))) && est_r15(ligne(t, NOM_R15[["supFr"]])) &&
+             # Repli neutre de la ligne Runsr (cause NA, revue finale de #486).
+             identical(ligne(t, NOM_R15[["Runsr"]])$detail,
+                       paste0(MOTIF_MC_OBS_NON_FINIE, " : test non applicable"))
          })
 # p Monte-Carlo absente a pi_t constant : diagnostic R15, le motif en tete du
 # detail, sous la forme de sa classe comme dans add() (degenerescence :

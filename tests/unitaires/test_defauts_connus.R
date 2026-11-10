@@ -593,11 +593,12 @@ verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, 
            grepl('verdict = "OK"', m, fixed = TRUE)
          })
 # Depuis #304 et #300, aucune ligne du moteur n'est de type "procedure de
-# decision" ; #357 retire ce type : add() le refuse, avec ou sans verdict,
-# comme tout type inconnu ou mal forme (appel direct au registre lognormal).
+# decision" ; #357 retire ce type : add() le refuse (deux appels, avec et
+# sans detail), comme tout type inconnu ou mal forme (appel direct au
+# registre lognormal).
 # Un verdict force sur la ligne ESD diagnostic est refuse (argument retire,
 # #484 : argument inutilise).
-verifier("add() (registre lognormal) refuse le type 'procedure de decision', avec ou sans verdict, et tout type inconnu ; usp_tests refuse un verdict force sur l'ESD diagnostic (#357, #304)",
+verifier("add() (registre lognormal) refuse le type 'procedure de decision' (deux appels) et tout type inconnu ; usp_tests refuse un verdict force sur l'ESD diagnostic (#357, #304)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
            appel <- function(...) message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
