@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{9~novembre 2026}
-\newcommand{\versiondoc}{3.1}
+\newcommand{\datedoc}{10~novembre 2026}
+\newcommand{\versiondoc}{3.2}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -3168,12 +3168,14 @@ $\pi_t$ et le montant à minimiser, sans écrire la forme de l'espérance ni de 
 ces textes comme le modèle suivant (lecture retenue par l'outil)~: $Y_t \mid x_t \sim
 \mathcal{LN}(\mu_t,\psi_t)$ avec
 \[
-  \mathbb{E}[Y_t] = \beta x_t,
+  \mathbb{E}[Y_t \mid x_t] = \beta x_t,
   \qquad
-  \operatorname{Var}(Y_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
-  \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma}.
+  \operatorname{Var}(Y_t \mid x_t) = \sigma^2\big[(1-\delta)\,\bar x\, x_t + \delta\, x_t^2\big],
+  \qquad \delta\in[0,1],\ \ \sigma = \beta e^{\gamma},
 \]
-Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t)/\mathbb{E}[Y_t]^2\big) = 1/\pi_t$
+les $Y_t$ étant indépendants conditionnellement aux $x_t$.
+Sous ce modèle, $\psi_t = \ln\big(1 + \operatorname{Var}(Y_t \mid x_t)/\mathbb{E}[Y_t \mid x_t]^2\big) = 1/\pi_t$,
+le paramètre de position est $\mu_t = \ln(\beta x_t) - \psi_t/2$
 et $\hat\sigma(\hat\delta,\hat\gamma) = \hat\beta\,e^{\hat\gamma}$, ce qui redonne les formules
 de B(5) et C(5)~; d'où la précision logarithmique et l'estimateur du niveau~:
 \[
@@ -3181,6 +3183,22 @@ de B(5) et C(5)~; d'où la précision logarithmique et l'estimateur du niveau~:
   \qquad
   \ln\hat\beta = \frac{\tfrac{T}{2} + \sum_t \pi_t \ln r_t}{\sum_t \pi_t}.
 \]
+
+\emph{Proposition (forme en ratio).} À $x_t$ connu, $Y_t \mid x_t \sim \mathcal{LN}(\mu_t,\psi_t)$
+si et seulement si $\ln(Y_t/x_t) \mid x_t \sim \mathcal{N}\big(\ln\beta - 1/(2\pi_t),\, 1/\pi_t\big)$.
+\emph{Preuve.} À $x_t$ connu, $\ln(Y_t/x_t) = \ln Y_t - \ln x_t$ est la translation de $\ln Y_t$
+par une constante~; une translation conserve la normalité et la variance, et décale l'espérance de
+$-\ln x_t$~: $\mu_t - \ln x_t = \ln\beta - \psi_t/2 = \ln\beta - 1/(2\pi_t)$ et
+$\psi_t = 1/\pi_t$. La translation inverse donne la réciproque.~$\square$
+
+\noindent
+Sachant $x_t$, le ratio $Y_t/x_t$ a donc pour espérance $\beta$ et pour variance
+$\beta^2\big(e^{1/\pi_t} - 1\big) = \sigma^2\big[\delta + (1-\delta)\,\bar x/x_t\big]$~; ses
+paramètres ne dépendent de $t$ que par $x_t$. Les ratios sont indépendants et de même
+espérance~$\beta$, mais ne sont identiquement distribués que si $\pi_t$ est constant, soit
+$\delta = 1$, soit des $x_t$ tous égaux~: une loi commune des $\ln r_t$ n'est pas une hypothèse du
+modèle, et H3 ne se teste pas sur les $\ln r_t$ mis en commun (sections~\ref{sec:base-residus}
+et~\ref{sec:h3}).
 
 \subsection*{Résidus}
 
@@ -3448,7 +3466,9 @@ Chaque méthode a son résidu de référence, support de ses tests~:
 \textcolor{financeblue}{\textbf{Résidu}} &
 \textcolor{financeblue}{\textbf{Loi sous le modèle}} \\
 Lognormale & $z_t = \sqrt{\hat\pi_t}\big(\ln r_t + \tfrac{1}{2\hat\pi_t} - \ln\hat\beta\big)$ &
-i.i.d. $\mathcal{N}(0,1)$~: la loi est entièrement spécifiée \\
+$\mathcal{N}(0, P)$, $z = P\varepsilon$ avec $\varepsilon_t$ i.i.d. $\mathcal{N}(0,1)$ aux
+paramètres vrais, $\hat\pi_t$ tenu pour connu (section~\ref{sec:base-residus})~: la loi est
+entièrement spécifiée \\
 Merz--Wüthrich & $r(i,j) = \dfrac{\sqrt{C(i,j)}}{\hat\sigma_j}\big(F(i,j) - \hat f_j\big)$ &
 centré, d'échelle approximativement unitaire, non corrélé~; \textbf{aucune loi
 n'est spécifiée} \\
@@ -8538,8 +8558,9 @@ données si le modèle est correct. Sur $u_t$, on testerait l'hétéroscédastic
 \emph{brute}, dont la présence est précisément ce que le modèle postule~: le
 test serait attendu significatif et ne dirait rien de la qualité du calibrage. \\
 H3 --- lognormalité & \textbf{non} &
-Le modèle prédit que $z_t$ est normal, non que $r_t$ l'est ($r_t$ est
-approximativement lognormal). Tester la normalité de $u_t$ reviendrait à tester
+Le modèle prédit que $z_t$ est normal, non que $r_t$ l'est~: $r_t$ est lognormal
+sachant $x_t$, de paramètres propres à l'année (section~\ref{sec:notations}), et ni $r_t$ ni
+$u_t$ ne sont normaux. Tester la normalité de $u_t$ reviendrait à tester
 une hypothèse que le modèle ne formule pas. Sur $v_t$, la normalité est bien
 prédite mais la variance $1/\hat\pi_t$ n'est pas constante, ce qui invalide les
 tests de normalité usuels dès que $\hat\pi_t$ varie, c'est-à-dire dès que
@@ -10485,9 +10506,15 @@ l'exercice et des paiements effectués durant l'exercice, l'une et les autres po
 qui étaient à payer en début d'exercice (méthode du risque de réserve
 n\textsuperscript{o}~1)~; le titre de la section vaut pour les deux. Le texte pose que cette
 variable suit une distribution log-normale. \emph{Traduction dans le modèle
-réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: cette hypothèse se teste de
-façon équivalente comme la normalité des résidus standardisés $z_t$ (aux effets d'estimation
-près, section~\ref{sec:notations}).
+réglementaire} (lecture de l'outil, section~\ref{sec:notations})~: l'hypothèse s'énonce sous
+deux formes équivalentes à $x_t$ connu, $y_t$ lognormal de paramètres $(\mu_t, \psi_t)$, ou
+$\ln r_t$ normal d'espérance $\ln\beta - 1/(2\pi_t)$ et de variance $1/\pi_t$, propres à l'année.
+Avec l'espérance et la variance du modèle et l'indépendance des années, elle équivaut à
+$\varepsilon_t = \sqrt{\pi_t}\,\big(\ln r_t - \ln\beta + 1/(2\pi_t)\big)$ i.i.d.
+$\mathcal{N}(0,1)$ aux paramètres vrais~; cette équivalence est exacte pour les $\varepsilon_t$,
+non observés. L'outil teste la normalité des résidus standardisés $z_t$, qui les remplacent aux
+paramètres estimés (section~\ref{sec:base-residus})~: un rejet sur les $z_t$ peut aussi venir
+d'un écart à H1 ou à H2, qui déforme les $z_t$ même quand la loi de $y_t$ est lognormale.
 \end{encadre}
 
 \begin{encadre}
