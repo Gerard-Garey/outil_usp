@@ -1225,7 +1225,9 @@ verifier("ESD Merz-Wuthrich (#300) : diagnostic sans verdict (INFO, sens NA)",
              identical(e[[1]]$verdict, "INFO") && identical(e[[1]]$sens, NA_character_)
          })
 # Gardes de add() (revue d'audit du commit #24), exercees en reinjectant par
-# texte (deparse) un appel fautif dans le corps de mw_tests().
+# texte (deparse) un appel fautif dans le corps de mw_tests(). Argument
+# verdict retire par #484 : refuse par R comme argument inutilise (message
+# localise, d'ou la recherche du seul texte de l'argument).
 mw_tests_modifie <- function(avant, apres) {
   txt <- paste(deparse(mw_tests), collapse = "\n")
   if (!grepl(avant, txt, fixed = TRUE)) stop("motif absent du corps de mw_tests : ", avant)
@@ -1238,15 +1240,13 @@ verifier("add() (mw_tests) refuse un verdict force sur un diagnostic (part de la
          {
            m <- erreur_mw(mw_tests_modifie('type = "diagnostic", estim_nom = "part"',
                                            'type = "diagnostic", verdict = "OK", estim_nom = "part"'))
-           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
-             grepl("Part de la reserve portee par la derniere annee d'accident", m, fixed = TRUE)
+           grepl('verdict = "OK"', m, fixed = TRUE)
          })
 verifier("add() (mw_tests) refuse un verdict force sur le diagnostic de Rosner (#300)",
          {
            m <- erreur_mw(mw_tests_modifie('estim_nom = "nb de cellules declarees (repere de Rosner)"',
                                            'verdict = "OK", estim_nom = "nb de cellules declarees (repere de Rosner)"'))
-           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
-             grepl("Cellules aberrantes multiples (ESD generalise)", m, fixed = TRUE)
+           grepl('verdict = "OK"', m, fixed = TRUE)
          })
 verifier("mw_tests : types en usage dans {test, diagnostic, non applicable} (#357)",
          {

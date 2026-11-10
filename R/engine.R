@@ -4422,6 +4422,19 @@ MENTION_PERMUTATIONS_ALEATOIRES <- sprintf(paste(
 #                 toute autre valeur est refusee (stop). Le rang dans la
 #                 hierarchie est inchange ; sans effet si une p exacte ou
 #                 Monte-Carlo est retenue.
+#   sens        : "ne pas rejeter" (defaut) ou "rejeter" ; toute autre valeur
+#                 est refusee (stop, #484).
+#   nature_forcee : libelle de nature_p substitue a celui de la hierarchie
+#                 (NA ou chaine non vide, sinon stop) ; applique seulement a
+#                 une ligne qui porte un verdict (type "test" apres toutes
+#                 les bascules) et dont la p retenue est finie, et refuse
+#                 (stop) si son prefixe ne correspond pas au rang de la p
+#                 retenue : "exacte" pour la p exacte, "Monte-Carlo" pour la
+#                 p Monte-Carlo (p_mc_ext comprise), ni l'un ni l'autre pour
+#                 la p non simulee (#484, avis amont d'actuary).
+# p-values (#484) : p_ex, p_as, p_mc_ext, p_min, et p_mc et p_min_mc lues par
+# mc_nom, finies hors de [0, 1] -> stop ; une valeur non finie reste lue
+# comme absente ; 0 et 1 sont admis (intervalle ferme, .p_borne()).
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -4471,7 +4484,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   loi = NA_character_,
                   estim_nom = NA_character_, estim = NA_real_,
                   p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
-                  detail = "", verdict = NULL, sens = "ne pas rejeter",
+                  detail = "", sens = "ne pas rejeter",
                   nature_forcee = NA_character_,
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
@@ -4505,6 +4518,37 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         !nature_as %in% c("asymptotique", NATURE_APPROX_N_FINI))
       stop("add() : nature_as inconnue : ", paste(format(nature_as, decimal.mark = "."), collapse = " "),
            " (", nom, ")", call. = FALSE)
+    # Sens du test (#484, avis amont d'actuary) : deux valeurs admises ; une
+    # autre valeur appliquerait en silence la regle "ne pas rejeter".
+    if (!is.character(sens) || length(sens) != 1L || is.na(sens) ||
+        !sens %in% c("rejeter", "ne pas rejeter"))
+      stop("add() : sens inconnu : ", paste(format(sens), collapse = " "), " (", nom, ")",
+           call. = FALSE)
+    # Forme de nature_forcee (#484) : NA ou chaine de longueur 1 non vide ;
+    # son rang est controle plus bas, sur une ligne qui porte un verdict.
+    if (!(length(nature_forcee) == 1L && is.na(nature_forcee)) &&
+        (!is.character(nature_forcee) || length(nature_forcee) != 1L ||
+         !nzchar(nature_forcee)))
+      stop("add() : nature_forcee doit etre NA ou une chaine non vide : ",
+           paste(format(nature_forcee), collapse = " "), " (", nom, ")", call. = FALSE)
+    # p-values hors de [0, 1] (#484) : une valeur finie hors de l'intervalle
+    # ferme est une erreur de programmation ; non finie, elle reste lue comme
+    # absente. err_mc_ext n'est pas une p-value et n'est pas controlee.
+    # Forme (#484, audit leger, m1) : numerique de longueur 1 ou NA logique
+    # de longueur 1, sinon stop() (une chaine serait lue comme absente en
+    # silence, TRUE retenue comme p = 1). p_mc et p_min_mc passent ici apres
+    # leur lecture, qui rend NA_real_ sans mc_nom ou sans entree (jamais
+    # NULL : le nom est controle dans boot$p_mc, et p_min_mc a un repli NA).
+    verifier_p <- function(arg, val) {
+      if (!(length(val) == 1L && (is.numeric(val) || (is.logical(val) && is.na(val)))))
+        stop("add() : p-value de forme invalide : ", arg, " (classe ", class(val)[1L],
+             ", longueur ", length(val), ") (", nom, ")", call. = FALSE)
+      if (is.numeric(val) && is.finite(val) && (val < 0 || val > 1))
+        stop("add() : p-value hors de [0, 1] : ", arg, " = ", format(val), " (", nom, ")",
+             call. = FALSE)
+    }
+    verifier_p("p_ex", p_ex); verifier_p("p_as", p_as)
+    verifier_p("p_mc_ext", p_mc_ext); verifier_p("p_min", p_min)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -4522,6 +4566,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (ext && !is.na(mc_nom))
       stop("add() : p_mc_ext et mc_nom ne peuvent etre fournis ensemble (", nom, ")")
     p_mc <- if (!is.na(mc_nom)) unname(pmc[[mc_nom]]) else NA_real_
+    verifier_p("p_mc", p_mc)
     e_mc <- if (!is.na(mc_nom)) unname(emc[[mc_nom]]) else NA_real_
     if (ext) { p_mc <- unname(p_mc_ext); e_mc <- unname(err_mc_ext) }
     # Regle R3 (#44) : motif d'indisponibilite lu au bootstrap.
@@ -4582,6 +4627,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # valeur lue par cette branche, NA hors de la branche.
     p_min_mc <- if (!is.na(mc_nom) && !ext && !is.null(pmm) && mc_nom %in% names(pmm))
       unname(pmm[[mc_nom]]) else NA_real_
+    verifier_p("p_min_mc", p_min_mc)
     branche_mc <- type == "test" && is.finite(p_min) && !is.finite(p_ex) &&
       is.finite(p_mc) && !ext && !is.na(mc_nom) && is.finite(p_min_mc)
     if (!branche_mc) p_min_mc <- NA_real_
@@ -4705,7 +4751,6 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     } else {
       p_ret <- NA_real_; nature <- NA_character_
     }
-    if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
     # Plancher Monte-Carlo relatif a alpha (#128, point d ; residu du constat
     # C1 de la revue finale d'E1) : quand la p Monte-Carlo du bootstrap est
     # retenue, sa plus petite valeur possible est g_mc (ci-dessus). Comparee dans
@@ -4720,7 +4765,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # un parametre, l'est.
     # Omise dans la branche Monte-Carlo de R1 (#125) : p_min_mc >= g_mc, et
     # R1 y dit deja ce que le plancher rend inatteignable.
-    if (type == "test" && is.null(verdict) && is.finite(g_mc) && !branche_mc) {
+    if (type == "test" && is.finite(g_mc) && !branche_mc) {
       txt_g <- if (identical(sens, "rejeter") && g_mc >= alpha)
         sprintf("plancher Monte-Carlo >= alpha = %g : OK inatteignable", alpha)
       else if (identical(sens, "ne pas rejeter") && g_mc >= alpha)
@@ -4734,7 +4779,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     }
     # Verdict Monte-Carlo proche d'un seuil (#244 ; ADR 0003 annote le
     # 12/10/2026, point 3 ; D1-5) : ligne de type test (ni diagnostic, test
-    # inoperant compris, ni non applicable), sans verdict fourni, p retenue
+    # inoperant compris, ni non applicable), p retenue
     # Monte-Carlo (pas de p exacte finie, p_mc finie, bootstrap ou p_mc_ext),
     # err_mc finie et > 0, |p - s| < 2 err_mc (inegalite stricte) pour un
     # seuil s atteignable de la regle des verdicts ci-dessous. err_mc tient deja compte
@@ -4742,7 +4787,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # engine_p_mc()) : aucun cas particulier ici. Phrase fixe en dernier element
     # du detail, apres la mention du plancher, meme regle de jonction ; aucun
     # nombre issu du bootstrap (regle #76). Ni p ni verdict ne changent.
-    if (type == "test" && is.null(verdict) && !is.finite(p_ex) && is.finite(p_mc) &&
+    if (type == "test" && !is.finite(p_ex) && is.finite(p_mc) &&
         is.finite(e_mc) && e_mc > 0) {
       seuils <- if (identical(sens, "rejeter")) c(alpha, SEUIL_ECHEC_SENS_REJETER)
                 else c(alpha / 2, alpha)
@@ -4762,18 +4807,34 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
     # porte un verdict (le type "procedure de decision", sans ligne depuis
     # #304 et #300, est retire, #357). Toute autre ligne sort INFO et son
-    # sens est NA ; un verdict fourni pour un autre type est une erreur de
-    # programmation, refusee ici pour que l'invariant ne puisse pas etre
-    # contourne par un appel.
+    # sens est NA. Le verdict n'est jamais fourni par l'appelant : il suit
+    # de la p retenue seule (argument verdict retire, #484).
     porte_verdict <- type == "test"
-    if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' : ", nom)
+    # nature_forcee (#484, avis amont d'actuary) : appliquee et controlee
+    # seulement sur une ligne qui porte un verdict et dont la p retenue est
+    # finie : le controle est conditionne au verdict par construction (une
+    # ligne sans verdict n'a ni p retenue ni nature). La ligne Pitman non
+    # applicable, qui passe nature_forcee, a de fait p_student NA (volumes
+    # constants, pertes constantes, x ecarte, t non fini : t_pente NA ou non
+    # fini, mesure sur run_engine()). Son prefixe doit dire le rang de la p
+    # retenue (exacte > Monte-Carlo > p non simulee, ADR 0001, ADR 0003).
+    if (porte_verdict && !is.na(nature_forcee) && is.finite(p_ret)) {
+      rang <- if (is.finite(p_ex)) "exacte" else if (is.finite(p_mc)) "Monte-Carlo"
+              else "p non simulee"
+      conforme <- switch(rang,
+        "exacte" = startsWith(nature_forcee, "exacte"),
+        "Monte-Carlo" = startsWith(nature_forcee, "Monte-Carlo"),
+        !startsWith(nature_forcee, "exacte") && !startsWith(nature_forcee, "Monte-Carlo"))
+      if (!conforme)
+        stop("add() : nature_forcee incompatible avec le rang de la p retenue (", rang, ") : ",
+             nature_forcee, " (", nom, ")", call. = FALSE)
+      nature <- nature_forcee
+    }
     # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
     if (!porte_verdict) {
       sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
     }
-    v <- if (!is.null(verdict)) verdict
-    else if (type != "test" || !is.finite(p_ret)) "INFO"
+    v <- if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
       if (p_ret < alpha) "OK" else if (p_ret < SEUIL_ECHEC_SENS_REJETER) "ALERTE" else "ECHEC"
     } else {
@@ -5959,7 +6020,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           else if (!is.null(permutation_pente)) permutation_pente
           else usp_permutation_pente(x, y, unilateral = pitman_uni)
   # Garde-fou (ADR 0002, point 4 de l'amendement du 06/10/2026) : add()
-  # applique nature_forcee a toute p retenue finie ; sans p de permutation,
+  # applique nature_forcee a toute p retenue finie d'une ligne a verdict (et
+  # refuse depuis #484 un libelle d'un autre rang) ; sans p de permutation,
   # une ligne applicable retiendrait la p de Student sous le libelle de la
   # permutation. Erreur de programmation, jamais de repli sur Student.
   if (pente_appl && !(is.list(perm) && is.numeric(perm$p) && length(perm$p) == 1L &&

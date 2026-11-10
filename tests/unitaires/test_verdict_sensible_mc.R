@@ -112,8 +112,8 @@ verifier("U244-5 test inoperant (p_min >= alpha, regle R1) -> pas de phrase",
            l <- ligne244(0.090, 0.0091, p_min = 0.2)
            identical(l$inoperant, TRUE) && !grepl(PH, l$detail, fixed = TRUE)
          })
-verifier("U244-5 verdict fourni -> pas de phrase",
-         !grepl(PH, ligne244(0.090, 0.0091, verdict = "OK")$detail, fixed = TRUE))
+verifier("U244-5 verdict fourni -> refuse (argument verdict retire, #484)",
+         leve_erreur(ligne244(0.090, 0.0091, verdict = "OK")))
 verifier("U244-5 err_mc = 0 ou NA -> pas de phrase",
          !grepl(PH, ligne244(0.090, 0)$detail, fixed = TRUE) &&
            !grepl(PH, ligne244(0.090, NA_real_)$detail, fixed = TRUE))
