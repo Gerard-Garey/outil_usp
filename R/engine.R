@@ -12913,6 +12913,51 @@ engine_motif_b_alpha <- function(B, alpha) {
           2 * (1 / (B + 1)), alpha / 2)
 }
 
+# Regle des verdicts au seuil alpha, en quatre phrases pour l'affichage (#498).
+# Texte seul, hors run_engine() : aucun champ de l'objet usp_engine, aucun
+# calcul de verdict (add() de engine_registre_tests() reste la seule source de
+# la regle ; le test unitaire tests/unitaires/test_regle_verdicts.R confronte
+# chaque zone enoncee ici au verdict produit par add(), dans les deux sens).
+# Sens "rejeter" : OK si p < alpha, ALERTE si alpha <= p < SEUIL_ECHEC_SENS_REJETER,
+# ECHEC au-dela. Sens "ne pas rejeter" : ECHEC si p < alpha/2, ALERTE si
+# alpha/2 <= p < alpha, OK si p >= alpha (alpha/2 calcule par alpha / 2, comme
+# add()). INFO : lignes de diagnostic (tests inoperants compris), non
+# applicables, sans p retenue. Rend character(4) ; le seuil d'ECHEC est lu dans
+# SEUIL_ECHEC_SENS_REJETER, jamais ecrit en dur.
+# Domaine et libelle d'erreur de alpha : ceux de .engine_verifier_usage()
+# (nombre scalaire fini sans attribut, 0 < alpha < SEUIL_ECHEC_SENS_REJETER).
+# Valeurs citees par .engine_saisie() (15 chiffres, 17 si l'ecriture a 15
+# chiffres ne restitue pas la valeur, #133), puis virgule decimale francaise.
+# Accents en echappements \u, le source du moteur etant ASCII.
+engine_regle_verdicts <- function(alpha) {
+  if (!(is.numeric(alpha) && length(alpha) == 1L && is.finite(alpha) &&
+        is.null(attributes(alpha)) &&
+        alpha > 0 && alpha < SEUIL_ECHEC_SENS_REJETER))
+    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
+                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
+                       "ne suit plus la regle documentee."),
+                 .engine_saisie(alpha),
+                 format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")), call. = FALSE)
+  fr <- function(v) sub(".", ",", .engine_saisie(as.double(v)), fixed = TRUE)
+  a <- fr(alpha); a2 <- fr(alpha / 2); s <- fr(SEUIL_ECHEC_SENS_REJETER)
+  c(sprintf(paste0("R\u00e8gle des verdicts au seuil \u03b1 = %s, appliqu\u00e9e \u00e0 la",
+                   " p-value retenue p de chaque test, selon le sens du test indiqu\u00e9",
+                   " sur sa ligne."), a),
+    sprintf(paste0("Sens \u00ab rejeter \u00bb (le rejet de H0 est le r\u00e9sultat recherch\u00e9) :",
+                   " OK si p < %s ; ALERTE si %s \u2264 p < %s ; ECHEC si p \u2265 %s."),
+            a, a, s, s),
+    sprintf(paste0("Sens \u00ab ne pas rejeter \u00bb (le non-rejet de H0 est le r\u00e9sultat",
+                   " recherch\u00e9) : ECHEC si p < %s (\u03b1/2) ; ALERTE si %s \u2264 p < %s ;",
+                   " OK si p \u2265 %s."), a2, a2, a, a),
+    paste0("Portent le verdict INFO, qui n'est pas un verdict : les lignes de diagnostic,",
+           " dont les tests inop\u00e9rants (plus petite p-value atteignable \u2265 \u03b1 :",
+           " aucun verdict possible), les lignes non applicables et les tests sans p-value",
+           " retenue. Le verdict ne d\u00e9pend que de p, de \u03b1 et du sens ; les mentions",
+           " du commentaire (ECHEC inatteignable, verdict sensible \u00e0 l'al\u00e9a de",
+           " simulation) ne le modifient pas."))
+}
+
 # Arguments d'usage de run_engine() resolus avant le calcul protege (issue
 # #88) : une valeur invalide leve une erreur R explicite, comme avant #88,
 # et n'est jamais rendue en defaut de calcul intercepte. Sont refusees les
