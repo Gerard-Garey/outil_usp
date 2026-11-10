@@ -828,10 +828,14 @@ en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
-survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$triangle},
-\code{\$I}, \code{\$J}~; BOM retiré du premier nom de colonne, lignes et colonnes vides selon
+survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
+\code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
+premier nom de colonne, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
-sa position, puis \code{mw\_valider\_triangle()} \\
+sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
+\code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
+cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
+dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
 \code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
 \code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
 lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
@@ -3902,7 +3906,7 @@ l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
 dans le journal~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
-sans conversion des cellules, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
+sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
 moteur seul, avec les mêmes motifs qu'un classeur xlsx, et qu'un fichier binaire que cette
 lecture accepte est refusé par le moteur (mesuré sur vingt fichiers de 2\,000 octets aléatoires~:
@@ -4469,7 +4473,9 @@ parmi les cellules observées (\code{.run\_engine\_mw()} la met à \code{NA} apr
 Ne pas la lire découle de D(4)(c) et D(5), dont les formules ne portent que sur des cellules
 $i + j \le I$ (sommes sur $i \le I - j - 1$ ou $i \le I - j$, cumuls $C(i, I-i)$ de la
 diagonale)~; seul l'avertissement est une convention de l'outil.
-Un seul avertissement par triangle, cinq positions au plus. \\
+Un seul avertissement par triangle, cinq positions au plus~; \code{engine\_lire\_triangle()} le
+rend aussi dans \code{\$avertissements\_lecture}, seul avertissement de la lecture d'un fichier
+que l'application restitue à l'import et au démarrage, les autres étant calculés sans segment ni annexe. \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Domaine numérique & chaque cellule observée ($i + j \le I$) dans $[10^{-50}\,;10^{50}]$, bornes
