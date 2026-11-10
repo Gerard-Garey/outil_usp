@@ -1688,6 +1688,69 @@ verifier("engine_lire_triangle : avertissements_lecture vide sur un refus, meme 
              identical(engine_lire_triangle(data.frame())$avertissements_lecture, character(0))
          })
 
+## --- Repere de profondeur : champ validation$repere_profondeur (#499) ---------
+# Champ lu par l'affichage (en tete de l'onglet Tests et de la section 5 du
+# rapport fige) : la chaine du repere non reglementaire (T < 10, I + 1 < 10),
+# la meme que dans les avertissements, character(0) sinon et sur un refus
+# sans avertissement.
+REPERE_T8 <- paste("T = 8 : lois asymptotiques peu fiables.",
+                   "Privilegier les p-values exactes ou Monte-Carlo.",
+                   "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                   "elle ne permet pas de la rejeter.")
+REPERE_I8 <- paste("I + 1 = 8 annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
+                   "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                   "elle ne permet pas de la rejeter.")
+tri499 <- local({
+  df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(m) <- "double"; unname(m)
+})
+x12 <- c(x, 133.5, 136.0, 140.2, 141.8); y12 <- c(y, 90.1, 84.3, 101.7, 95.2)
+verifier("repere_profondeur : premium T = 8 pose (texte exact, present une fois dans les avertissements), dans res$validation de run_engine() (#499)",
+         {
+           v <- engine_valider_donnees(x, y)
+           r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                           nature_donnees = "brutes", B = B_MIN_USAGE)
+           identical(v$repere_profondeur, REPERE_T8) && sum(v$avertissements == REPERE_T8) == 1L &&
+             isTRUE(r$ok) && identical(r$validation$repere_profondeur, REPERE_T8) &&
+             sum(r$validation$avertissements == REPERE_T8) == 1L
+         })
+verifier("repere_profondeur : T >= 10 vide (character(0)), y compris sur le bareme long a credibilite partielle (#499)",
+         {
+           v10 <- engine_valider_donnees(x12[1:10], y12[1:10], segment = 1)
+           v12 <- engine_valider_donnees(x12, y12)
+           isTRUE(v10$ok) && identical(v10$repere_profondeur, character(0)) &&
+             contient(v10$avertissements, "credibilite partielle") &&
+             isTRUE(v12$ok) && identical(v12$repere_profondeur, character(0)) &&
+             !contient(v12$avertissements, "lois asymptotiques")
+         })
+verifier("repere_profondeur : reserve2 I + 1 = 8 pose dans res$validation de run_engine(), I + 1 = 10 vide (#499)",
+         {
+           r <- suppressWarnings(run_engine(methode = "reserve2", triangle = tri499, segment = 1,
+                                            annexe = "II", B = B_MIN_USAGE))
+           v10 <- mw_valider_triangle(triangle(10))
+           identical(mw_valider_triangle(tri499)$repere_profondeur, REPERE_I8) &&
+             isTRUE(r$ok) && identical(r$validation$repere_profondeur, REPERE_I8) &&
+             sum(r$validation$avertissements == REPERE_I8) == 1L &&
+             isTRUE(v10$ok) && identical(v10$repere_profondeur, character(0))
+         })
+verifier("repere_profondeur : refus (ok = FALSE) -- champ present, character(0) sans avertissement (nature absente, T non entier, donnees refusees, triangle non numerique) ; refus de nature du triangle : garde, comme les avertissements (#499)",
+         {
+           rn <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE)
+           rt <- run_engine(xt = x12, yt = y12, methode = "premium", segment = 1, annexe = "II",
+                            nature_donnees = "brutes", T = 8.5, B = B_MIN_USAGE)
+           vd <- engine_valider_donnees(replace(x, 3, -1), y)
+           vs <- engine_valider_serie_retenue(x12, y12, T = 8.5)
+           rc <- run_engine(methode = "reserve2", triangle = matrix("a", 6, 6), segment = 1, annexe = "II")
+           rb <- run_engine(methode = "reserve2", triangle = tri499, segment = 1, annexe = "II",
+                            nature_donnees = "brutes", B = B_MIN_USAGE)
+           vide <- function(v) "repere_profondeur" %in% names(v) && identical(v$repere_profondeur, character(0))
+           !rn$ok && vide(rn$validation) && !rt$ok && vide(rt$validation) &&
+             !vd$ok && vide(vd) && !vs$validation$ok && vide(vs$validation) &&
+             !rc$ok && vide(rc$validation) && vide(mw_valider_triangle("a")) &&
+             !rb$ok && identical(rb$validation$repere_profondeur, REPERE_I8) &&
+             REPERE_I8 %in% rb$validation$avertissements
+         })
+
 ## --- Lignes et colonnes vides des fichiers lus (#483) -------------------------
 # Regle commune aux series et au triangle, posee par
 # .retirer_lignes_colonnes_vides() : lignes vides de fin retirees ; ligne vide

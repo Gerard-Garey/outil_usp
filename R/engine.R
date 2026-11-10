@@ -7968,6 +7968,9 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    nature_donnees = NULL, bareme = NULL,
                                    segment = NULL, annexe = "II") {
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
+  # Repere de profondeur (issue #499) : character(0) sauf T < 10 sur une
+  # serie recevable, comme erreurs et avertissements quand ils sont vides.
+  rep_prof <- character(0)
   if (!is.numeric(xt) || !is.numeric(yt))
     err <- c(err, "xt et yt doivent etre numeriques.")
   if (length(xt) != length(yt))
@@ -8089,14 +8092,20 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                               length(xt), 100 * cr$c, cr$libelle, cr$pleine_a))
     }
     # Repere statistique, non reglementaire, seuil inchange (T < 10).
-    if (length(xt) < 10)
-      avt <- c(avt, sprintf(paste("T = %d : lois asymptotiques peu fiables.",
-                                  "Privilegier les p-values exactes ou Monte-Carlo.",
-                                  "Une p-value elevee ne demontre pas la validite de l'hypothese :",
-                                  "elle ne permet pas de la rejeter."),
-                            length(xt)))
+    # Champ repere_profondeur (issue #499) : la meme chaine, construite une
+    # fois, aussi dans les avertissements ; lue par l'affichage, qui ne la
+    # repere ni par son texte ni par un seuil propre (#129).
+    if (length(xt) < 10) {
+      rep_prof <- sprintf(paste("T = %d : lois asymptotiques peu fiables.",
+                                "Privilegier les p-values exactes ou Monte-Carlo.",
+                                "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                "elle ne permet pas de la rejeter."),
+                          length(xt))
+      avt <- c(avt, rep_prof)
+    }
   }
-  list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt))
+  list(ok = length(err) == 0, erreurs = err, avertissements = avt, T = length(xt),
+       repere_profondeur = rep_prof)
 }
 
 # Profondeur T demandee (issue #87) : les T annees les plus recentes d'une
@@ -8173,6 +8182,7 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
     validation$ok <- FALSE
     validation$erreurs <- c(err_T, validation$erreurs)
     validation$avertissements <- character(0)
+    validation$repere_profondeur <- character(0)
     validation$T <- NA_integer_
   }
   list(xt = xt, yt = yt, validation = validation)
@@ -8966,9 +8976,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
   err <- character(0); avt <- character(0)
+  # Repere de profondeur (issue #499) : character(0) sauf I + 1 < 10 sur un
+  # triangle recevable, comme dans engine_valider_donnees().
+  rep_prof <- character(0)
   if (!is.matrix(tri) || !is.numeric(tri))
     return(list(ok = FALSE, erreurs = "Le triangle doit etre une matrice numerique.",
-                I = NA, J = NA))
+                I = NA, J = NA, repere_profondeur = rep_prof))
   I <- nrow(tri) - 1L; J <- ncol(tri) - 1L
   if (nrow(tri) < T_min)
     err <- c(err, sprintf("D(2)(b) : au moins %d annees d'accident consecutives (%d fournies).",
@@ -9180,13 +9193,18 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                               nrow(tri), 100 * cr$c, cr$libelle, cr$pleine_a))
     }
     # Repere statistique, non reglementaire, seuil inchange (I + 1 < 10).
-    if (nrow(tri) < 10)
-      avt <- c(avt, sprintf(paste("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
-                                  "Une p-value elevee ne demontre pas la validite de l'hypothese :",
-                                  "elle ne permet pas de la rejeter."),
-                            nrow(tri)))
+    # Champ repere_profondeur (issue #499) : la meme chaine, construite une
+    # fois, aussi dans les avertissements.
+    if (nrow(tri) < 10) {
+      rep_prof <- sprintf(paste("I + 1 = %d annees d'accident : estimateurs de variance tres bruites en fin de triangle.",
+                                "Une p-value elevee ne demontre pas la validite de l'hypothese :",
+                                "elle ne permet pas de la rejeter."),
+                          nrow(tri))
+      avt <- c(avt, rep_prof)
+    }
   }
-  list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J)
+  list(ok = length(err) == 0, erreurs = err, avertissements = avt, I = I, J = J,
+       repere_profondeur = rep_prof)
 }
 
 # --- Facteurs de developpement et variances : paragraphes 4 et 5 -------------

@@ -3459,4 +3459,26 @@ verifier("Rapport : pied de page unique et intact (lognormale et Merz-Wuthrich)"
              grepl("par <code>rapport_html()</code> (R/display_helpers.R) ; graphiques :", x, fixed = TRUE),
            NA)))
 
+## --- Repere de profondeur de l'onglet Tests (issue #499) ---------------------
+# html_repere_profondeur() restitue le champ res$validation$repere_profondeur
+# du moteur, tel quel et echappe, en bandeau d'avertissement non replie, en
+# tete de l'onglet Tests (app.R). Le rapport fige ne l'emploie pas : sa
+# section 3 restitue deja le repere en clair, une seule fois (assertions #499
+# plus haut). Aucun texte ni seuil ici : le texte est relu dans l'objet.
+rp499 <- res_ln$validation$repere_profondeur; rpm499 <- res_mw$validation$repere_profondeur
+verifier("html_repere_profondeur() : bandeau avert du champ du moteur, texte echappe, lognormale (T = 8) et Merz-Wuthrich (I + 1 = 8) (#499)",
+         length(rp499) == 1L && length(rpm499) == 1L &&
+         identical(rp499, grep("lois asymptotiques", res_ln$validation$avertissements, fixed = TRUE, value = TRUE)) &&
+         identical(html_repere_profondeur(res_ln),
+                   paste0("<div class='avert repere-profondeur'>", .echap_html(rp499), "</div>")) &&
+         identical(html_repere_profondeur(res_mw),
+                   paste0("<div class='avert repere-profondeur'>", .echap_html(rpm499), "</div>")))
+res_rp_vide <- res_ln; res_rp_vide$validation$repere_profondeur <- character(0)
+res_rp_absent <- res_ln; res_rp_absent$validation$repere_profondeur <- NULL
+verifier("html_repere_profondeur() : NULL, sans erreur, pour NULL, un refus, un champ vide (T >= 10) et un champ absent (objet anterieur) (#499)",
+         all(vapply(list(NULL, res_refus, res_rp_vide, res_rp_absent), function(r)
+           is.null(tryCatch(html_repere_profondeur(r), error = function(e) "erreur")), NA)))
+verifier("Rapport : aucun bandeau repere-profondeur (le repere reste une seule fois, dans la liste de la section 3), lognormale et Merz-Wuthrich (#499)",
+         !grepl("repere-profondeur", h, fixed = TRUE) && !grepl("repere-profondeur", hm, fixed = TRUE))
+
 fin_fichier()

@@ -414,6 +414,23 @@ html_regle_verdicts <- function(res) {
          paste0("<li>", ph[-1], "</li>", collapse = ""), "</ul></div>")
 }
 
+# Repere de profondeur en tete de l'onglet Tests (#499), sous la regle des
+# verdicts : texte du champ res$validation$repere_profondeur pose par le
+# moteur (engine_valider_donnees(), mw_valider_triangle()), tel quel, en
+# bandeau d'avertissement non replie (dans l'application, la liste des
+# avertissements est repliee, Q-46-4 (a)). Le rapport fige ne l'emploie pas :
+# sa section 3 restitue deja le repere en clair, une seule fois. Lecture du
+# champ seule : ni seuil sur T ni reconnaissance du texte (#129). NULL, donc
+# rien d'affiche : resultat absent ou refuse (ok = FALSE), champ absent
+# (objet anterieur ou relu, #263) ou vide (character(0)).
+html_repere_profondeur <- function(res) {
+  if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
+  rp <- res$validation$repere_profondeur
+  if (!is.character(rp) || !length(rp)) return(NULL)
+  paste0("<div class='avert repere-profondeur'>",
+         paste(.echap_html(rp), collapse = "<br>"), "</div>")
+}
+
 # Signal du bloc Etat (#498) : l'alpha du panneau differe de celui du dernier
 # calcul, dont dependent les verdicts affiches ; le texte invite a relancer
 # les calculs, sans rien recalculer. NULL : alpha identique, ou l'un des deux

@@ -1344,10 +1344,11 @@ server <- function(input, output, session) {
   # <details class='com'>/<summary> de la vue Detail (#178), un avertissement
   # pouvant depasser 2 000 caracteres (tri_deg) ; le resume donne le nombre
   # d'avertissements du dernier calcul (longueur du vecteur, accord au
-  # singulier), sans dedoublonnage avec l'apercu. Seul affichage du resultat du
-  # calcul pour le repere de profondeur pose par le moteur (texte et seuil ;
-  # l'apercu validation_live le montre pour la saisie en cours) : l'ancien bandeau_T,
-  # a seuil propre a l'affichage, est retire (#499).
+  # singulier), sans dedoublonnage avec l'apercu. Le repere de profondeur pose
+  # par le moteur (texte et seuil) y figure parmi les avertissements, et il est
+  # aussi affiche non replie en tete de l'onglet Tests, lu dans le champ
+  # res$validation$repere_profondeur (html_repere_profondeur(), #499) ;
+  # l'ancien bandeau_T, a seuil propre a l'affichage, est retire (#499).
   output$bandeau_avertissements <- renderUI({
     r <- resultat()
     if (is.null(r) || !isTRUE(r$ok)) return(NULL)
@@ -1539,7 +1540,11 @@ server <- function(input, output, session) {
     # Regle des verdicts en tete des tests (#498), au alpha du resultat
     # affiche (html_regle_verdicts(), display_helpers.R) ; NULL si absent.
     regle <- html_regle_verdicts(R())
+    # Repere de profondeur du moteur sous la regle, non replie (#499) :
+    # champ res$validation$repere_profondeur, lu tel quel ; NULL si vide.
+    repere <- html_repere_profondeur(R())
     do.call(tagList, c(if (!is.null(regle)) list(HTML(regle)),
+                       if (!is.null(repere)) list(HTML(repere)),
                        Filter(Negate(is.null), blocs)))
   })
 

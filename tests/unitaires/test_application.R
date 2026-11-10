@@ -1020,6 +1020,14 @@ testServer(app, {
     all(pos > 0) && all(diff(pos) > 0) && pos[1] < regexpr("<h4", h, fixed = TRUE)[1])
   a("onglet Tests : la regle ouvre le tableau, aucun autre element avant elle (#498)",
     startsWith(h, "<div class='bloc regle-verdicts'>"))
+  # Repere de profondeur (#499) : champ du moteur, non replie, sous la regle.
+  rp499 <- resultat()$validation$repere_profondeur
+  bloc499 <- paste0("<div class='avert repere-profondeur'>", .echap_html(rp499), "</div>")
+  a("onglet Tests : repere de profondeur du moteur (T = 8) non replie, juste sous la regle, avant le premier groupe (#499)",
+    length(rp499) == 1L && startsWith(rp499, "T = 8 :") &&
+      lengths(regmatches(h, gregexpr(bloc499, h, fixed = TRUE))) == 1L &&
+      regexpr(paste0("</ul></div>\n", bloc499), h, fixed = TRUE)[1] == regexpr("</ul></div>", h, fixed = TRUE)[1] &&
+      regexpr(bloc499, h, fixed = TRUE)[1] < regexpr("<h4", h, fixed = TRUE)[1])
   ctr <- as.character(output$tab_controles)
   a("tableau des controles : aucune phrase de la regle (#498)",
     is.character(ctr) && grepl("<table", ctr, fixed = TRUE) && !grepl("regle-verdicts", ctr, fixed = TRUE) &&
@@ -1565,11 +1573,13 @@ testServer(app, {
 rm("showNotification", envir = ea)
 )---"
   # Repere de profondeur (issue #499) : texte et seuil poses par le moteur
-  # seul (T < 10, I + 1 < 10), restitues une seule fois a l'ecran apres
-  # calcul, par bandeau_avertissements ; l'ancien bandeau_T (seuil T >= 15
-  # propre a l'affichage, phrase "Profondeur suffisante...") est retire.
+  # seul (T < 10, I + 1 < 10), restitues apres calcul une fois dans la liste
+  # repliee de bandeau_avertissements et une fois, non replie, en tete de
+  # l'onglet Tests (champ validation$repere_profondeur, decision du
+  # mainteneur du 10/11/2026) ; l'ancien bandeau_T (seuil T >= 15 propre a
+  # l'affichage, phrase "Profondeur suffisante...") est retire.
   .bloc_499 <- r"---(
-## Repere de profondeur du moteur, affichage unique (issue #499)
+## Repere de profondeur du moteur : bandeau replie et onglet Tests (issue #499)
 non_rejet <- "Une p-value elevee ne demontre pas la validite de l'hypothese : elle ne permet pas de la rejeter."
 repere <- function(av) av[grepl("lois asymptotiques peu fiables|estimateurs de variance tres bruites", av)]
 sans_bandeau_T <- function(output) inherits(tryCatch(output$bandeau_T, error = function(e) e), "error")
@@ -1577,12 +1587,22 @@ verif_499 <- function(lib, attendu, output, r) {
   av <- r$validation$avertissements; rp <- repere(av)
   h <- if (length(av)) as.character(output$bandeau_avertissements$html) else ""
   occ <- lengths(regmatches(h, gregexpr("lois asymptotiques peu fiables|estimateurs de variance tres bruites", h)))
-  a(sprintf("%s : repere du moteur %s, une seule fois au plus a l'ecran, texte du moteur tel quel, sans bandeau_T (#499)",
+  a(sprintf("%s : repere du moteur %s, une seule fois au plus dans le bandeau replie, texte du moteur tel quel, sans bandeau_T (#499)",
             lib, if (attendu) "present (phrase de non-rejet)" else "absent"),
     isTRUE(r$ok) && length(rp) == as.integer(attendu) && occ == as.integer(attendu) &&
       (!attendu || (endsWith(rp, non_rejet) &&
                       grepl(paste0("<li>", htmltools::htmlEscape(rp), "</li>"), h, fixed = TRUE))) &&
       sans_bandeau_T(output) && !grepl("Profondeur suffisante", h, fixed = TRUE))
+  # Onglet Tests : le champ du moteur, egal au repere des avertissements,
+  # une fois et non replie (aucun <details>), ou rien s'il est vide.
+  ht <- as.character(output$tests_par_hypothese$html)
+  occ_t <- lengths(regmatches(ht, gregexpr("repere-profondeur", ht, fixed = TRUE)))
+  a(sprintf("%s : onglet Tests, champ repere_profondeur %s (#499)",
+            lib, if (attendu) "affiche une fois, non replie, egal au repere des avertissements" else "vide, aucun bandeau"),
+    identical(r$validation$repere_profondeur, rp) && occ_t == as.integer(attendu) &&
+      (!attendu || grepl(paste0("<div class='avert repere-profondeur'>", htmltools::htmlEscape(rp), "</div>"),
+                         ht, fixed = TRUE)) &&
+      !grepl("<details[^>]*>[^<]*<summary[^>]*>[^<]*</summary>[^<]*<div class='avert repere-profondeur'>", ht))
 }
 testServer(app, {
   do.call(session$setInputs, c(base, list(reinit = 1)))
@@ -1847,8 +1867,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 131 assertions rendues", length(.lignes) == 131L)
-  if (length(.lignes) != 131L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 137 assertions rendues", length(.lignes) == 137L)
+  if (length(.lignes) != 137L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
