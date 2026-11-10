@@ -1711,6 +1711,7 @@ MOTIF_DEGENERESCENCE_MW <- paste("champ de la liste rendue par mw_extrapolation_
 CHAMPS_HORS_OBJETS <- c(
   angle = "champ de la liste rendue par .ligne_annees() (premiere ligne lue comme ligne d'annees), objet intermediaire du lecteur",
   cause = "champ de la liste rendue par .ligne_annees() (premiere ligne lue comme ligne d'annees), objet intermediaire du lecteur",
+  avertissements_lecture = "champ de la liste rendue par engine_lire_triangle() (avertissements propres au fichier lu), objet intermediaire du lecteur",
   volumes_constants = MOTIF_REGIME, pi_constant = MOTIF_REGIME, pi_constant_exact = MOTIF_REGIME,
   delta_dans_bande = MOTIF_REGIME, volumes_dans_bande = MOTIF_REGIME,
   colonne = MOTIF_DEGENERESCENCE_MW, nb_facteurs = MOTIF_DEGENERESCENCE_MW, ecart_relatif = MOTIF_DEGENERESCENCE_MW,

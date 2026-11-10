@@ -1121,8 +1121,8 @@ verifier("Audit de #160, C2 : champ absent des objets, pose dans R/engine.R mais
          identical(cc$classer_champs(.ch160, c("a", "x", "y"), c("b", "obj"), .oc160, .ra160, c(obj = "r"))$statut[3],
                    "INTROUVABLE") &&
            identical(cc$classer_champs(.ch160, c("a", "x", "y"), "b", .oc160, .ra160, .ho160)$statut[6], "INTROUVABLE"))
-verifier("Audit de #160, C2 : liste CHAMPS_HORS_OBJETS du script -- 19 champs, chacun avec sa raison ; erreur_sigma n'y est pas",
-         length(cc$CHAMPS_HORS_OBJETS) == 19L && all(nzchar(cc$CHAMPS_HORS_OBJETS)) && !anyDuplicated(names(cc$CHAMPS_HORS_OBJETS)) &&
+verifier("Audit de #160, C2 : liste CHAMPS_HORS_OBJETS du script -- 20 champs (avertissements_lecture, #518), chacun avec sa raison ; erreur_sigma n'y est pas",
+         length(cc$CHAMPS_HORS_OBJETS) == 20L && all(nzchar(cc$CHAMPS_HORS_OBJETS)) && !anyDuplicated(names(cc$CHAMPS_HORS_OBJETS)) &&
            !"erreur_sigma" %in% names(cc$CHAMPS_HORS_OBJETS))
 # Audit de #160, C3 : racine commencant par une majuscule et non constante
 # chargee -- segments non juges, la racine l'est par le controle a).
