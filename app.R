@@ -1346,8 +1346,9 @@ server <- function(input, output, session) {
   # d'avertissements du dernier calcul (longueur du vecteur, accord au
   # singulier), sans dedoublonnage avec l'apercu. Le repere de profondeur pose
   # par le moteur (texte et seuil) y figure parmi les avertissements, et il est
-  # aussi affiche non replie en tete de l'onglet Tests, lu dans le champ
-  # res$validation$repere_profondeur (html_repere_profondeur(), #499) ;
+  # aussi affiche non replie en tete de l'onglet Tests et de la section 5 du
+  # rapport fige, lu dans le champ res$validation$repere_profondeur
+  # (html_repere_profondeur(), #499) ;
   # l'ancien bandeau_T, a seuil propre a l'affichage, est retire (#499).
   output$bandeau_avertissements <- renderUI({
     r <- resultat()

@@ -265,14 +265,17 @@ verifier("Rapport lognormal : formule avec le facteur sqrt((T+1)/(T-1))",
          grepl("sqrt((T+1)/(T-1))", texte_formule(res_ln), fixed = TRUE) &&
          grepl(.echap_html(texte_formule(res_ln)), h, fixed = TRUE))
 # Repere de profondeur (issue #499) : texte et seuil poses par le moteur seul,
-# restitues une seule fois, en section 3 (res$validation$avertissements) ;
-# l'ancien bandeau de fin de document (avertissement_T(), seuil T >= 15 propre
+# restitues deux fois : une fois dans la liste de la section 3
+# (res$validation$avertissements), une fois dans le bandeau de la section 5
+# (champ repere_profondeur, html_repere_profondeur()) ; l'ancien bandeau de fin de document (avertissement_T(), seuil T >= 15 propre
 # a l'affichage) est retire. T = 8 (res_ln) : present ; T = 12 (res_12_12,
 # memes 12 annees que res_12 ci-dessous) : absent.
 rep_499 <- "lois asymptotiques peu fiables"
 av_499 <- res_ln$validation$avertissements[grepl(rep_499, res_ln$validation$avertissements, fixed = TRUE)]
-verifier("Rapport, T = 8 : repere de profondeur du moteur une seule fois, en section 3, texte du moteur avec la phrase de non-rejet ; plus d'avertissement_T() (#499)",
-         length(av_499) == 1L && compte(h, rep_499) == 1L &&
+verifier("Rapport, T = 8 : repere de profondeur du moteur deux fois (liste de la section 3, bandeau de la section 5), texte du moteur avec la phrase de non-rejet ; plus d'avertissement_T() (#499)",
+         length(av_499) == 1L && compte(h, rep_499) == 2L &&
+           compte(entre(h, "<h2 id='controles'>", "<h2 id='parametre'>"), rep_499) == 1L &&
+           compte(entre(h, "<h2 id='tests-retenus'>", "</section>"), rep_499) == 1L &&
            grepl("elle ne permet pas de la rejeter.", av_499, fixed = TRUE) &&
            grepl(.txt(av_499), entre(h, "<h2 id='controles'>", "<h2 id='parametre'>"), fixed = TRUE) &&
            !exists("avertissement_T") && !grepl("Profondeur suffisante", h, fixed = TRUE))
@@ -375,12 +378,15 @@ r_mw <- rapport_html(res_mw, NULL, f_mw, interactif = FALSE, identite = idt)
 hm <- lire(f_mw)
 tbm <- engine_table_tests(res_mw); rm <- filtrer_selection(tbm, selection_defaut(tbm))
 # Repere de profondeur Merz-Wuthrich (issue #499) : I + 1 = 8 < 10, texte du
-# moteur une seule fois, en section 3, avec la phrase de non-rejet.
+# moteur deux fois (liste de la section 3, bandeau de la section 5), avec la
+# phrase de non-rejet.
 avm_499 <- res_mw$validation$avertissements[grepl("estimateurs de variance tres bruites",
                                                   res_mw$validation$avertissements, fixed = TRUE)]
-verifier("Rapport MW, I + 1 = 8 : repere de profondeur du moteur une seule fois, en section 3, phrase de non-rejet (#499)",
+verifier("Rapport MW, I + 1 = 8 : repere de profondeur du moteur deux fois (liste de la section 3, bandeau de la section 5), phrase de non-rejet (#499)",
          nrow(tri) == 8L && length(avm_499) == 1L &&
-           compte(hm, "estimateurs de variance tres bruites") == 1L &&
+           compte(hm, "estimateurs de variance tres bruites") == 2L &&
+           compte(entre(hm, "<h2 id='controles'>", "<h2 id='parametre'>"), "estimateurs de variance tres bruites") == 1L &&
+           compte(entre(hm, "<h2 id='tests-retenus'>", "</section>"), "estimateurs de variance tres bruites") == 1L &&
            grepl("elle ne permet pas de la rejeter.", avm_499, fixed = TRUE) &&
            grepl(.txt(avm_499), entre(hm, "<h2 id='controles'>", "<h2 id='parametre'>"), fixed = TRUE) &&
            compte(hm, "Profondeur T = 8") == 0L)
@@ -3462,9 +3468,10 @@ verifier("Rapport : pied de page unique et intact (lognormale et Merz-Wuthrich)"
 ## --- Repere de profondeur de l'onglet Tests (issue #499) ---------------------
 # html_repere_profondeur() restitue le champ res$validation$repere_profondeur
 # du moteur, tel quel et echappe, en bandeau d'avertissement non replie, en
-# tete de l'onglet Tests (app.R). Le rapport fige ne l'emploie pas : sa
-# section 3 restitue deja le repere en clair, une seule fois (assertions #499
-# plus haut). Aucun texte ni seuil ici : le texte est relu dans l'objet.
+# tete de l'onglet Tests (app.R) et de la section 5 du rapport fige, sous la
+# regle des verdicts. La section 3 du rapport restitue aussi le repere, en
+# clair, dans sa liste : le texte figure deux fois (assertions #499 plus haut).
+# Aucun texte ni seuil ici : le texte est relu dans l'objet.
 rp499 <- res_ln$validation$repere_profondeur; rpm499 <- res_mw$validation$repere_profondeur
 verifier("html_repere_profondeur() : bandeau avert du champ du moteur, texte echappe, lognormale (T = 8) et Merz-Wuthrich (I + 1 = 8) (#499)",
          length(rp499) == 1L && length(rpm499) == 1L &&
@@ -3478,7 +3485,23 @@ res_rp_absent <- res_ln; res_rp_absent$validation$repere_profondeur <- NULL
 verifier("html_repere_profondeur() : NULL, sans erreur, pour NULL, un refus, un champ vide (T >= 10) et un champ absent (objet anterieur) (#499)",
          all(vapply(list(NULL, res_refus, res_rp_vide, res_rp_absent), function(r)
            is.null(tryCatch(html_repere_profondeur(r), error = function(e) "erreur")), NA)))
-verifier("Rapport : aucun bandeau repere-profondeur (le repere reste une seule fois, dans la liste de la section 3), lognormale et Merz-Wuthrich (#499)",
-         !grepl("repere-profondeur", h, fixed = TRUE) && !grepl("repere-profondeur", hm, fixed = TRUE))
+# Position du bandeau dans la section 5 : sous la regle des verdicts, avant le
+# premier tableau ; un seul bandeau par rapport. T = 12 (h12_12) : aucun.
+pos_bandeau <- function(x) {
+  sec <- entre(x, "<h2 id='tests-retenus'>", "</section>")
+  c(regle = regexpr("regle-verdicts", sec, fixed = TRUE)[[1]],
+    bandeau = regexpr("repere-profondeur", sec, fixed = TRUE)[[1]],
+    table = regexpr("<table", sec, fixed = TRUE)[[1]])
+}
+verifier("Rapport : un bandeau repere-profondeur en section 5, sous la regle des verdicts et avant le premier tableau, lognormale (T = 8) et Merz-Wuthrich (I + 1 = 8) (#499)",
+         all(vapply(list(h, hm), function(x) {
+           p <- pos_bandeau(x)
+           compte(x, "repere-profondeur") == 1L && all(p > 0) &&
+             p[["regle"]] < p[["bandeau"]] && p[["bandeau"]] < p[["table"]] &&
+             grepl(html_repere_profondeur(if (identical(x, h)) res_ln else res_mw), x, fixed = TRUE)
+         }, NA)))
+verifier("Rapport, T = 12 : aucun bandeau repere-profondeur, la regle des verdicts reste en section 5 (#499)",
+         compte(h12_12, "repere-profondeur") == 0L &&
+           pos_bandeau(h12_12)[["regle"]] > 0)
 
 fin_fichier()

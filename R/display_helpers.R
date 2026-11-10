@@ -414,15 +414,17 @@ html_regle_verdicts <- function(res) {
          paste0("<li>", ph[-1], "</li>", collapse = ""), "</ul></div>")
 }
 
-# Repere de profondeur en tete de l'onglet Tests (#499), sous la regle des
-# verdicts : texte du champ res$validation$repere_profondeur pose par le
-# moteur (engine_valider_donnees(), mw_valider_triangle()), tel quel, en
-# bandeau d'avertissement non replie (dans l'application, la liste des
-# avertissements est repliee, Q-46-4 (a)). Le rapport fige ne l'emploie pas :
-# sa section 3 restitue deja le repere en clair, une seule fois. Lecture du
-# champ seule : ni seuil sur T ni reconnaissance du texte (#129). NULL, donc
-# rien d'affiche : resultat absent ou refuse (ok = FALSE), champ absent
-# (objet anterieur ou relu, #263) ou vide (character(0)).
+# Repere de profondeur en tete de l'onglet Tests et de la section 5 du rapport
+# fige (#499), sous la regle des verdicts : texte du champ
+# res$validation$repere_profondeur pose par le moteur
+# (engine_valider_donnees(), mw_valider_triangle()), tel quel, en bandeau
+# d'avertissement non replie (dans l'application, la liste des avertissements
+# est repliee, Q-46-4 (a)). Dans le rapport, la section 3 restitue aussi le
+# repere, en clair, parmi les avertissements : le texte y figure donc deux
+# fois (liste de la section 3, bandeau de la section 5). Lecture du champ
+# seule : ni seuil sur T ni reconnaissance du texte (#129). NULL, donc rien
+# d'affiche : resultat absent ou refuse (ok = FALSE), champ absent (objet
+# anterieur ou relu, #263) ou vide (character(0)).
 html_repere_profondeur <- function(res) {
   if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
   rp <- res$validation$repere_profondeur
@@ -3337,9 +3339,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     te$cle <- vapply(te$famille, function(f) groupe_de(f)$cle, character(1))
     # Regle des verdicts en tete de la section (#498), jamais dans la section 3
     # des controles ; NULL (aucune ligne) si alpha est absent de metadata.
+    # Repere de profondeur (#499) juste dessous, NULL (rien) si le champ du
+    # moteur est vide ; le repere figure aussi, en clair, dans la liste de la section 3.
     ajout("<h2 id='tests-retenus'>5. Tests retenus</h2>",
           "<section id='section-tests-retenus'>",
           html_regle_verdicts(res),
+          html_repere_profondeur(res),
           sprintf(paste(
             "<div class='gel'><b>Personnalisation de la restitution, sans effet sur le calcul.</b>",
             "Le moteur a calcul\u00e9 %d lignes (tests et diagnostics) ; la s\u00e9lection de",
