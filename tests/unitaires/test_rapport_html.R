@@ -3107,9 +3107,42 @@ verifier("Jeu par defaut : ligne Pitman en ALERTE, p retenue 0,1107 > alpha 0,1,
          !is.na(i_pit) && identical(tb$verdict[i_pit], "ALERTE") && identical(fmt_p(tb$p_retenue[i_pit]), "0,1107") &&
          identical(sans_balise(sy498$Sens[i_pit]), "rejeter") && identical(sans_balise(de498$Sens[i_pit]), "rejeter") &&
          grepl("ALERTE si 0,1 \u2264 p < 0,3", ph498[2], fixed = TRUE))
-verifier("Rapport : la colonne Sens figure dans chaque tableau de synthese et de detail (deux fois par groupe)",
-         compte(h, "class='entete-groupe'") > 0 &&
-         compte(h, "<th>Sens</th>") == 2L * compte(h, "class='entete-groupe'"))
+verifier("Rapport : la colonne Sens figure dans chaque tableau de synthese et de detail de la section 5 (deux fois par groupe ; l'annexe 6 a la sienne, #498 m3)",
+         compte(sec5_498, "<th>Sens</th>") == 2L * compte(sec5_498, "class='entete-groupe'") &&
+         compte(sec5_498, "class='entete-groupe'") > 0)
+# Annexe 6 (tests exclus) : colonne Sens, apres Nature comme en section 5 (#498, m3).
+verifier("Rapport : annexe des tests exclus avec la colonne Sens (apres Nature, avant Motif), texte du champ sens_du_test sans coupure de ligne, pour la lognormale et Merz-Wuthrich (#498)",
+         local({
+           ax <- entre(hm, "<section id='section-annexe-exclus'>", "</section>")
+           ligne_ok <- function(a, t1, k)
+             grepl(paste0("<td>", .sans_coupure(.txt(t1$sens_du_test[k])), "</td>"),
+                   ligne_de(a, t1$test[k]), fixed = TRUE)
+           nzchar(ax) && any(!retenu) && any(!rm) &&
+             grepl("<th>Nature</th><th>Sens</th><th>Motif</th><th>Commentaire du moteur</th></tr>", annexe, fixed = TRUE) &&
+             grepl("<th>Nature</th><th>Sens</th><th>Motif</th><th>Commentaire du moteur</th></tr>", ax, fixed = TRUE) &&
+             all(vapply(which(!retenu), function(k) ligne_ok(annexe, tb, k), NA)) &&
+             all(vapply(which(!rm), function(k) ligne_ok(ax, tbm, k), NA))
+         }))
+# html_regle_verdicts() : un alpha present hors du domaine du moteur ne leve plus
+# l'erreur d'engine_regle_verdicts() (renderUI, rapport_html()) : NULL, message au journal (#498, m4).
+verifier("html_regle_verdicts() : alpha present hors du domaine du moteur (0,3 ; alpha nomme ; alpha vecteur ; alpha nul) -> NULL sans erreur, avec un message au journal ; alpha valide inchange",
+         local({
+           avec_alpha <- function(a) { r <- res_ln; r$metadata$alpha <- a; r }
+           essai <- function(a) {
+             msg <- character(0)
+             v <- tryCatch(withCallingHandlers(html_regle_verdicts(avec_alpha(a)),
+                    message = function(m) { msg <<- c(msg, conditionMessage(m)); invokeRestart("muffleMessage") }),
+                  error = function(e) "erreur")
+             list(v = v, msg = msg)
+           }
+           cas <- list(0.3, c(alpha = 0.05), 0, 0.5, c(0.05, 0.1))
+           r <- lapply(cas, essai)
+           # alpha = 0.3 : domaine du moteur (alpha < SEUIL_ECHEC_SENS_REJETER) ; le message cite l'erreur du moteur.
+           all(vapply(r, function(z) is.null(z$v), NA)) &&
+             all(vapply(r[1:4], function(z) length(z$msg) == 1L && grepl("html_regle_verdicts", z$msg), NA)) &&
+             grepl("alpha", r[[1]]$msg, fixed = TRUE) &&
+             identical(essai(0.05)$msg, character(0)) && is.character(essai(0.05)$v)
+         }))
 verifier("texte_alpha_divergent() : texte fixe si les deux alpha sont des nombres finis differents, NULL sinon",
          identical(texte_alpha_divergent(0.1, 0.2),
                    "α du panneau différent de celui du dernier calcul : relancer les calculs") &&

@@ -395,13 +395,19 @@ table_synthese_groupe <- function(tb) {
 # peut avoir change depuis le dernier calcul. Aucun calcul ni aucune regle
 # ici, mise en forme seule (phrases echappees : elles contiennent "<" et ">").
 # NULL, donc rien d'affiche ni d'erreur : resultat absent ou refuse
-# (ok = FALSE), ou alpha absent de metadata (objet anterieur ou relu, #263).
-# Un alpha present hors du domaine du moteur leve l'erreur du moteur.
+# (ok = FALSE), alpha absent de metadata (objet anterieur ou relu, #263), ou
+# alpha present hors du domaine du moteur (engine_regle_verdicts() leve alors
+# une erreur, attrapee ici : message() au journal, rien d'affiche, #498 m4).
 html_regle_verdicts <- function(res) {
   if (!inherits(res, "usp_engine") || !isTRUE(res$ok)) return(NULL)
   a <- res$metadata$alpha
   if (!(is.numeric(a) && length(a) == 1L && is.finite(a))) return(NULL)
-  ph <- .echap_html(engine_regle_verdicts(a))
+  ph <- tryCatch(.echap_html(engine_regle_verdicts(a)), error = function(e) {
+    message("html_regle_verdicts() : r\u00e8gle des verdicts non affich\u00e9e (",
+            conditionMessage(e), ")")
+    NULL
+  })
+  if (is.null(ph)) return(NULL)
   paste0("<div class='bloc regle-verdicts'>",
          "<div style='font-weight:600'>", ph[1], "</div>",
          "<ul style='margin:4px 0 0 0;padding-left:20px'>",
@@ -3347,9 +3353,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
                       unname(vapply(ex$verdict, badge_verdict, character(1))),
                       fmt_p(ex$p_retenue),
                       unname(vapply(ex$nature_p, badge_nature, character(1))),
+                      # Sens du test (#498, m3), apres Nature comme dans la
+                      # section 5 ; sans coupure de ligne (#500).
+                      .sans_coupure(.txt(ex$sens_du_test)),
                       unname(motif), .txt(com_ex), stringsAsFactors = FALSE, row.names = NULL)
-      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Motif",
-                    "Commentaire du moteur")
+      names(d) <- c("Groupe", "Test", "Base", "Variante", "Verdict", "p retenue", "Nature", "Sens",
+                    "Motif", "Commentaire du moteur")
       html_table(d, classe = "data")
     }
     ajout("<h2 id='annexe-exclus'>6. Annexe \u2014 tests exclus de la restitution</h2>",
