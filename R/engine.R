@@ -6565,7 +6565,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 
   ## --- D. H3 : lognormalite --------------------------------------------------
   fam <- paste("D. H3 - lognormalite", cite_hyp("iii"))
-  H0n <- "les residus standardises suivent une loi normale"
+  H0n <- "lognormalite (H3) : erreurs epsilon_t du modele reglementaire i.i.d. N(0,1), testee sur les residus standardises z"
   H1n <- "loi non normale"
   # p non simulees de H3 a pi_t variable (#302, Q-D1-Fh-4, specification Fh,
   # section 5.3) : elles sont etablies pour un echantillon i.i.d. normal, que
@@ -12972,7 +12972,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       fonction = ".shapiro_sur",
       "Shapiro & Wilk (1965) ; loi nulle evaluee par simulation directe",
       type = "diagnostic",
-      H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
+      H0 = "erreurs gaussiennes du modele de Mack, lues sur les residus de Mack (contraints par colonne, non i.i.d.)",
+      H1 = "loi non normale",
       stat_nom = "W", stat = sw$stat,
       loi = "loi de W sous echantillon i.i.d. normal (simulation directe), non sous le modele de Mack",
       p_as = sw_p_loi_nulle(sw$stat, n),
@@ -12989,7 +12990,8 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
       fonction = "stat_lilliefors",
       "Lilliefors (1967) ; p-value : Dallal & Wilkinson (1986)",
       type = "diagnostic", variante = "secondaire",
-      H0 = "les residus de Mack sont normaux", H1 = "loi non normale",
+      H0 = "erreurs gaussiennes du modele de Mack, lues sur les residus de Mack (contraints par colonne, non i.i.d.)",
+      H1 = "loi non normale",
       stat_nom = "D", stat = D,
       loi = "loi de Lilliefors sous echantillon i.i.d. normal (parametres estimes), non sous le modele de Mack",
       # Dallal-Wilkinson prolonge par Stephens (#120) ; nature_as retire

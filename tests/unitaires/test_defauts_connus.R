@@ -249,7 +249,8 @@ verifier("Issue #39 (3) : H0 de Breusch-Pagan (Koenker) et de normalite en resid
            if (any(grepl("normalises", h0, fixed = TRUE)))
              paste("H0 en 'normalises' :", paste(nm[grepl("normalises", h0, fixed = TRUE)], collapse = ", "))
            else identical(bp, "c1 = 0 : la variance des residus standardises ne depend pas du volume") &&
-             identical(sw, "les residus standardises suivent une loi normale")
+             identical(sw, paste("lognormalite (H3) : erreurs epsilon_t du modele reglementaire",
+                               "i.i.d. N(0,1), testee sur les residus standardises z"))
          })
 # Le verdict force (ALERTE a R2 < 0,5) a ete retire par #24 (ADR 0001,
 # amendement du 23/09/2026) : un diagnostic sort INFO, sens NA.
