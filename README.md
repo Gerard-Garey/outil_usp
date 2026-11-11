@@ -175,8 +175,9 @@ lancement des processus fils (#477), de la langue des sorties de `summary.lm()`
 Deux points connus demeurent :
 
 - `tests/test_reproductibilite.R` rend `premium_interieur` non conforme : deux
-  réplications de `bootstrap$stats_boot` s'écartent de la référence au-delà du
-  seuil 1e-6 (1,81e-6 au plus). C'est une dérive de plateforme entre le poste
+  valeurs de `bootstrap$stats_boot`, celles des statistiques `BP` et `BP79`
+  d'une même réplication, s'écartent de la référence au-delà du seuil 1e-6
+  (1,81e-6 au plus). C'est une dérive de plateforme entre le poste
   et la CI ; σ_USP des six cas est identique aux références, et l'absence
   d'effet sur les p-values retenues et les verdicts, attendue, reste à
   confirmer (#548).
