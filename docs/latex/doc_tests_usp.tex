@@ -6230,7 +6230,7 @@ joint au commentaire le motif porté par les effectifs, qu'\code{add()} ne resti
 type test. Breusch--Pagan studentisé reste un test, sans bascule~: son commentaire porte la
 puissance enveloppe de~H2, fonction des seuls volumes (fiche~\ref{fiche:breusch-pagan-koenker}),
 et aucune règle ne la compare à un seuil. La procédure ESD de Rosner de la méthode lognormale
-est de même un diagnostic par décision, pour tout $T$~: elle ne produit pas de p-value, son niveau réel dépasse $\alpha$ à $T = 8$, et
+est de même un diagnostic par décision, pour tout $T$~: elle ne produit pas de p-value, son niveau réel dépasse $\alpha$ à $T = 8$ sous i.i.d. normal (constat de simulation), et
 une valeur aberrante isolée relève de la ligne Grubbs sur résidus standardisés, dont le type et le
 verdict font foi (fiche~\ref{fiche:rosner-esd}). Dans la méthode Merz--Wüthrich, \code{mw\_tests()} restitue de
 même en diagnostic par décision la procédure ESD sur les résidus de Mack, dont le cadre i.i.d. normal ne couvre pas ces résidus, avec sa propre phrase fixe
@@ -6382,8 +6382,8 @@ ou calculée hors du catalogue, comme les permutations aléatoires de la pente),
 de la règle des verdicts de la ligne ($|p - s| < 2\,\text{err}_{\text{mc}}$, inégalité stricte~;
 $s \in \{\alpha/2, \alpha\}$ en sens «~ne pas rejeter~», $s \in \{\alpha,
 \text{\code{SEUIL\_ECHEC\_SENS\_REJETER}}\}$ en sens «~rejeter~»), \code{add()} ajoute en dernier
-élément du commentaire la phrase fixe «~\code{verdict sensible a l'alea de simulation (p a moins
-de 2 erreurs de Monte-Carlo du seuil)}~» (constante \code{PHRASE\_VERDICT\_SENSIBLE\_MC}), après la
+élément du commentaire la phrase fixe «~\code{Verdict sensible a l'alea de simulation (p a moins
+de 2 erreurs de Monte-Carlo du seuil).}~» (constante \code{PHRASE\_VERDICT\_SENSIBLE\_MC}), après la
 mention du plancher et, dans la branche lognormale, après le renvoi croisé que
 \code{.usp\_poser\_renvois()} insère avant elle. Seuls comptent les seuils
 \emph{atteignables}~: un seuil $s$ n'est retenu que si le plancher de la p-value est inférieur à
@@ -10843,11 +10843,14 @@ vers un problème localisé en queue plutôt que vers une non-normalité d'ensem
 même fonction de répartition empirique à la même loi de référence, sur les mêmes $z_t$, $A^2$ y
 ajoutant la pondération des queues que demande l'usage prudentiel~; la ligne d'Anderson--Darling
 porte donc l'hypothèse, et un second verdict compterait presque deux fois la même information. Le
-commentaire est «~\code{Distance de Cramer-von Mises a la loi normale, tres correlee a celle
-d'Anderson-Darling, pour information. Diagnostic par decision, sans verdict ni p-value retenue :
-la ligne "Anderson-Darling" fait foi.}~». La corrélation des deux statistiques
-qu'invoque ce libellé n'est chiffrée par aucun script versionné~: elle n'est pas chiffrée ici~; la
-chiffrer est un travail postérieur à la remise. Les p-values ne sont pas
+commentaire est «~\code{Distance de Cramer-von Mises a la loi normale, celle d'Anderson-Darling
+sans la ponderation des queues, pour information. Diagnostic par decision, sans verdict ni p-value
+retenue : la ligne "Anderson-Darling" fait foi.}~». La relation qu'énonce ce libellé est exacte
+par définition~: $A^2$ est $W^2$ pondérée par $[F_0(1-F_0)]^{-1}$ (formes intégrales, rubrique~3
+des deux fiches, que \code{stat\_ad()} et \code{stat\_cvm()} reproduisent, vérifié par quadrature
+numérique). La dépendance entre les deux statistiques, que suppose «~presque deux fois la même
+information~», n'est chiffrée par aucun script versionné ni ici~; la chiffrer est un travail
+postérieur à la remise. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
 seuil sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}~: J1, $0{,}0955$ à
 $\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; compatible aux deux seuils
@@ -12412,9 +12415,9 @@ $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun dépassement~; il est re
 $\alpha$. La ligne est un \emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~:
 verdict \code{INFO}, \code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}. Le commentaire
 est «~\code{Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = 0.1, nombre en
-estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques adequates a
-partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni p-value retenue : la ligne "Valeur
-aberrante isolee (Grubbs)" fait foi.}~».
+estimation), a niveau superieur a alpha a T = 8 en simulation sous i.i.d. normal (valeurs
+critiques adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni
+p-value retenue : la ligne "Valeur aberrante isolee (Grubbs)" fait foi.}~».
 \Usage
 Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, p.~171)~; face à l'ESD
 d'origine, l'auteur revendique le contrôle du niveau sous les $H_l$ (p.~171). \emph{Domaine de la source}~: les
@@ -12443,8 +12446,8 @@ construction de l'outil, que la source ne définit pas, demanderait de passer $\
 \code{usp\_bootstrap()}, hors du contrat actuel, et aurait pour plancher $P^{*}(\hat k^{*} = 2)$,
 environ $0{,}059$ sur J1 et $0{,}055$ sur J2 à $\alpha = 0{,}10$ (C7.b), au-dessus de $\alpha/2$~:
 elle ne pourrait rendre que \code{OK} ou \code{ALERTE}, redondants avec Grubbs. Le verdict de
-procédure de décision serait rendu à un niveau réel supérieur à $\alpha$ (C7.a~: $0{,}1506$ à
-$\alpha = 0{,}10$), sous des valeurs critiques que l'auteur écarte en deçà de $n = 25$~; une valeur
+procédure de décision serait rendu à un niveau réel supérieur à $\alpha$ (C7.a, sous i.i.d.
+normal~: $0{,}1506$ à $\alpha = 0{,}10$), sous des valeurs critiques que l'auteur écarte en deçà de $n = 25$~; une valeur
 aberrante isolée relève de la ligne Grubbs, de p-value de Monte-Carlo calibrée~; le gain de l'ESD
 contre le masquage, à $T = 8$, n'est ni mesuré ni établi par la source. Pour $T$ de 5 à 7
 ($k = 1$), $R_1$ est exactement la statistique $G$ de Grubbs (fiche~\ref{fiche:grubbs}), et
@@ -17095,9 +17098,9 @@ p-value~; sur des résidus de Mack, \textbf{aucune des trois voies de la hiérar
 ouverte}~: ni p-value exacte, faute de loi de $R_i$ sous le modèle de Mack~; ni p-value
 asymptotique~; ni p-value de Monte-Carlo, la procédure n'ayant pas de statistique unique et des
 seuils calibrés par simulation constituant une méthode nouvelle, sans source, non retenue. Le commentaire est la phrase fixe \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}~:
-«~\code{Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.10, nombre en
-estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas les residus de Mack,
-contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
+«~\code{Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.1, nombre en
+estimation), sans p-value : son cadre (echantillon i.i.d. normal) ne couvre pas les residus de
+Mack, contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
 studentises externes)" fait foi.}~», au seuil de l'exécution~; aucun nombre issu du
 bootstrap. La raison qu'il résume est développée au Cadre et à la rubrique~4.
 \Usage
