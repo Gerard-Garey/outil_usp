@@ -403,12 +403,27 @@ verifier("pages : aucune fiche en partie III (exceptions par defaut), aucun plan
            all(grepl("^PERIMEE [(]fiche introuvable", res_0$exceptions$statut)) && nrow(res_0$exceptions) == length(nd$EXCEPTIONS_PLAFOND))
 verifier("exception au plafond sans champ caracteres : budget non controle (NA), comportement inchange",
          all(is.na(res4$exceptions$caracteres)) && identical(res4$fiches$verdict[1L], "conforme (exception)"))
-verifier("EXCEPTIONS_PLAFOND : chaque exception porte un budget entier en caracteres, egal au 'source au plus N caracteres' de sa raison",
+# Budget ecrit une seule fois dans le script (#475) : champ `caracteres`, entier ; la raison
+# stockee ne le porte pas, le texte "source au plus N caracteres" est construit a l'impression.
+verifier("EXCEPTIONS_PLAFOND : chaque exception porte un budget entier en caracteres, et sa raison stockee ne porte pas le nombre",
+         all(vapply(nd$EXCEPTIONS_PLAFOND, function(e)
+           is.integer(e$caracteres) && length(e$caracteres) == 1L && !is.na(e$caracteres) && !grepl("source au plus", e$raison, fixed = TRUE),
+           NA)))
+verifier("nd_raison_imprimee : budget construit depuis `caracteres` (milliers separes par une espace), raison seule si budget non controle",
+         identical(nd$nd_raison_imprimee("motif", 13000L), "motif ; source au plus 13 000 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", 15500L), "motif ; source au plus 15 500 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", 900L), "motif ; source au plus 900 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", NA_integer_), "motif"))
+.imp_pages <- capture.output(nd$nd_imprimer_pages(res_0))
+verifier("nd_imprimer_pages : la raison imprimee de chaque exception finit par 'source au plus N caracteres', N lu dans `caracteres`",
          all(vapply(nd$EXCEPTIONS_PLAFOND, function(e) {
-           m <- regmatches(e$raison, regexec("source au plus ([0-9 ]+) caracteres", e$raison))[[1L]]
-           is.integer(e$caracteres) && length(e$caracteres) == 1L && length(m) == 2L &&
-             identical(e$caracteres, as.integer(gsub(" ", "", m[2L], fixed = TRUE)))
+           l <- grep(paste0("^  ", e$label, " : "), .imp_pages, value = TRUE, fixed = FALSE)
+           length(l) == 1L && endsWith(l, sprintf("; source au plus %s caracteres", format(e$caracteres, big.mark = " ", trim = TRUE)))
          }, NA)))
+verifier("regle imprimee du controle (b) : cite le critere du budget en caracteres des exceptions, avec les seuils lus dans les constantes",
+         any(grepl("budget accorde en caracteres", .imp_pages, fixed = TRUE)) &&
+         any(grepl(sprintf("source > %d caracteres", nd$SEUIL_CARACTERES_PLAFOND), .imp_pages, fixed = TRUE)) &&
+         identical(sum(startsWith(.imp_pages, "Regle :")), 1L) && identical(sub("\n$", "", nd$nd_texte_regle_pages()), grep("^Regle :", .imp_pages, value = TRUE)))
 # Le budget du controle est celui de la colonne Budget de CONVENTIONS.md (section 1) : lu, non recopie.
 conv <- file.path(.dossier, "..", "..", "docs", "latex", "CONVENTIONS.md")
 if (file.exists(conv)) {
@@ -620,6 +635,25 @@ r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absen
 verifier("sans --bloquant, .aux et .log absents : avertissements, code 0", r$statut == 0L)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--pages-seules", "--bloquant")
 verifier("--bloquant --pages-seules, .aux absent : code 2", r$statut == 2L)
+# Liste A imprimee avant le refus en code 2 (#475) : (a) n'a besoin ni du .aux ni du .log.
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
+i_a <- grep("Liste A (interdits)", r$sortie, fixed = TRUE); i_ref <- grep("controle impossible", r$sortie, fixed = TRUE)
+verifier("--bloquant, .aux absent : code 2 inchange, la liste A est controlee et imprimee AVANT le refus (rapport et ligne en cause d'A1)",
+         r$statut == 2L && length(i_a) == 1L && length(i_ref) == 1L && i_a < i_ref &&
+           any(grepl("Liste A controlee avant le refus : 1 occurrence", r$sortie, fixed = TRUE)) &&
+           any(grepl("^  l[.]4 \\[Partie II\\] ", r$sortie)) && !any(grepl("BILAN", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
+verifier("--bloquant, .aux absent, liste A propre : code 2 aussi (le refus ne depend pas du resultat de (a)), rapport de (a) imprime",
+         r$statut == 2L && any(grepl("Liste A controlee avant le refus : 0 occurrence", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant", "--pages-seules")
+verifier("--bloquant --pages-seules, .aux absent : le controle (a) n'est pas lance (aucune liste A), code 2",
+         r$statut == 2L && !any(grepl("Liste A", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_sale), "--debordements", paste0("--log=", file.path(dir_b, "absent.log")), "--bloquant")
+verifier("--bloquant --debordements, journal absent : le controle (a) n'est pas lance (aucune liste A), code 2",
+         r$statut == 2L && !any(grepl("Liste A", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", f_sale_aux), "--bloquant", "--pages-seules")
+verifier("regle imprimee par le script lance : cite le budget des exceptions en caracteres",
+         any(grepl("^Regle : .*budget accorde en caracteres", r$sortie)))
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--motifs-seuls", "--bloquant")
 verifier("--bloquant --motifs-seuls, .aux absent : code 0 (le controle (b) n'est pas lance)", r$statut == 0L)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--debordements", paste0("--log=", f_log_v), "--bloquant")
