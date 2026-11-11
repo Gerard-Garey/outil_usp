@@ -1425,8 +1425,12 @@ plot_coupe_delta <- function(pd) {
         hovertemplate = "delta = %{x:.3f}<br>objectif = %{y:.4f}<extra></extra>")
   p <- plotly::add_lines(p, x = rep(S$delta_opt, 2), y = range(v),
         line = list(color = COUL$trait, dash = "dash"), hoverinfo = "skip")
-  .mep(p, sprintf("Coupe a gamma optimal \u2014 amplitude = %s", .num_fr(S$amplitude_delta, "%.4f")),
-       "delta", "objectif")
+  # Titre sur deux lignes : sur une ligne, il etait tronque dans une fenetre
+  # de 960 px (#526) ; meme convention que les titres de #500.
+  p <- .mep(p, .titre_sup("Coupe a gamma optimal",
+                          sprintf("amplitude = %s", .num_fr(S$amplitude_delta, "%.4f"))),
+            "delta", "objectif")
+  plotly::layout(p, margin = list(t = .marge_sous_titre(1L)))
 }
 
 # Distribution bootstrap de sigma_USP (issue #305 ; specification
