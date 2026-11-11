@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{10~novembre 2026}
-\newcommand{\versiondoc}{3.3}
+\newcommand{\datedoc}{11~novembre 2026}
+\newcommand{\versiondoc}{3.4}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -1362,6 +1362,13 @@ dans le tableau de son annexe (\code{ANNEXE\_II} ou \code{ANNEXE\_XIV}), erreur 
 \code{.engine\_saisie()} & valeur reçue & texte qui cite la valeur refusée dans un message
 d'erreur d'usage~: \code{deparse()} à 15 chiffres significatifs, ou à 17 quand l'écriture à 15
 chiffres ne restitue pas le double reçu, sans rien évaluer \\
+\code{.engine\_saisie\_lisible()} & valeur reçue & enrobage de \code{.engine\_saisie()}, qui n'est pas
+modifiée~: une valeur manquante seule, sans attribut (\code{NA} hors \code{NaN}), est citée
+«~\code{NA (valeur manquante)}~», toute autre valeur comme par \code{.engine\_saisie()}~; employée
+par les seuls messages qui citent \code{B}, \code{seed}, \code{alpha} et \code{sigma\_standard}
+(\code{.engine\_verifier\_usage()}, et \code{engine\_regle\_verdicts()} pour \code{alpha}), les
+marges \code{delta\_equiv} et \code{theta\_equiv} (\code{engine\_valider\_donnees()}) et la
+profondeur $T$ (\code{engine\_valider\_profondeur()}) \\
 \code{.engine\_quantile()} & vecteur, probabilités & quantiles de type~7, valeurs identiques à
 celles de \code{stats::quantile()}, nommés en point décimal quelle que soit l'option de session
 \code{getOption("OutDec")} (même règle de nommage que \code{stats::quantile()} sous l'option par
@@ -3880,7 +3887,10 @@ autres qu'un calcul abouti, à ne pas confondre~:
   (\code{.engine\_saisie()}), afin qu'une valeur refusée ne soit pas affichée
   sous l'aspect d'une valeur valide (mesuré~: \code{segment = 1 + 1e-15} est cité \code{1.0000000000000011}~; \code{alpha = 0.03 + 4e-18} avec $B = 99$
   est cité \code{0.030000000000000002} par le message conjoint de $B$ et $\alpha$~;
-  \code{alpha = 0.3} reste cité \code{0.3}). Relèvent du même régime, en appel
+  \code{alpha = 0.3} reste cité \code{0.3})~; une valeur manquante seule (\code{NA}) y est citée
+  «~\code{NA (valeur manquante)}~» (\code{.engine\_saisie\_lisible()}~; mesuré~: \code{B = NA}
+  donne «~\code{B = NA (valeur manquante) :}~\dots~»), comme dans les motifs de refus de
+  \code{delta\_equiv}, de \code{theta\_equiv} et de la profondeur $T$. Relèvent du même régime, en appel
   direct, la durée non entière refusée par \code{usp\_credibilite()}, l'annexe refusée par
   \code{.annexe\_verifiee()} et le segment refusé par \code{.segment\_verifie()}, qu'appellent
   \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}, ainsi
@@ -3894,9 +3904,11 @@ autres qu'un calcul abouti, à ne pas confondre~:
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
   \code{mw\_valider\_triangle()} dans la branche Merz--Wüthrich)~; \code{.engine\_calcul\_protege()}
   l'intercepte et \code{run\_engine()} rend \code{ok = FALSE}, sans aucun résultat partiel, avec
-  dans \code{validation\$erreurs} le motif fixe «~Defaut de calcul intercepte (erreur R dans
-  $f$()) : aucun resultat n'est produit ; diagnostic dans validation\$erreur\_r~», où seul le nom
-  $f$ varie, et dans le champ distinct \code{validation\$erreur\_r} le diagnostic~: message de
+  dans \code{validation\$erreurs} le motif fixe «~Defaut de calcul intercepte dans la fonction
+  $f$() du moteur : aucun resultat n'est produit ; diagnostic technique dans le champ
+  validation\$erreur\_r du resultat.~», où seul le nom $f$ varie (sans fonction d'origine
+  identifiée, «~Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic technique
+  dans le champ validation\$erreur\_r du resultat.~»), et dans le champ distinct \code{validation\$erreur\_r} le diagnostic~: message de
   l'erreur, appel, pile des fonctions appelées depuis le calcul protégé et \code{origine},
   dernière fonction de cette pile définie dans le moteur. Les données étant valides et l'appel
   aussi, ce n'est ni un refus ni une erreur d'usage, mais un défaut du moteur ou une limite
@@ -4067,7 +4079,7 @@ l'échelle~1 à $2{,}9\cdot 10^{-15}$ près en relatif et aucun verdict différe
 LAPACK de référence, x86\_64). La plage plausible du ratio, $[0{,}1\,;5[$, est elle aussi une convention de
 l'outil sans source réglementaire~; elle signale une erreur d'unité probable et ne
 refuse jamais~: hors de la plage, \code{engine\_valider\_donnees()} émet l'avertissement
-«~\code{Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites.}~», et
+«~\code{Ratio y\_t/x\_t hors de la plage plausible [0.1 ; 5[ : verifier les unites.}~», et
 $\sigma_{\mathrm{USP}}$ est calculé. La ligne «~\code{Plausibilite du ratio y/x}~» de la
 famille~A lit les mêmes constantes~; les ratios du jeu de contrôle vont de $0{,}579$ à
 $0{,}894$. Mesuré par
@@ -4339,7 +4351,7 @@ colonnes vides et sans conversion de la cellule texte «~\code{NA}~», classeur 
 repli, ou tableau lu d'un CSV en gardant ses lignes vides. Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
-«~\code{xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
+«~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
 \code{yt} non numérique est refusée avec sa position, comptée en lignes de données (première
 ligne sous l'en-tête~: ligne~1), cinq positions au plus par colonne, comme les positions de la
 colonne~$t$. \code{usp\_lire\_vecteur()} refuse une
@@ -4357,7 +4369,7 @@ un séparateur de milliers)~; les exposants complets (\code{1e3}), le signe \cod
 \code{usp\_lire\_vecteur()} avec leur position~; \code{1e3}, \code{+5} et \code{.5} sont lus
 $1\,000$, $5$ et $0{,}5$). Une cellule texte d'un classeur xlsx relève de la même règle par l'une
 et l'autre voie de lecture (mesuré sur la voie de repli~: \code{0x10} écrit en texte en deuxième
-ligne de \code{xt} est refusé en «~\code{ligne(s) de donnees 2}~»). \code{usp\_lire\_vecteur()} lit une série en
+ligne de \code{xt} est refusé en «~\code{colonne xt : ligne(s) de donnees 2}~»). \code{usp\_lire\_vecteur()} lit une série en
 colonne ou en ligne, avec ou sans en-tête, y compris une série en ligne précédée immédiatement
 d'une ligne d'en-têtes, qui est écartée. Quand le fichier compte, après retrait des lignes et
 colonnes vides de bord, plusieurs colonnes, une première et une seconde ligne et aucune autre,
