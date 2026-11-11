@@ -170,18 +170,21 @@ verifier("#297 champs du par. 4.2 et textes T-1 et T-2 (membres dans l'ordre des
 # Textes a la lettre (reprise du 25/10/2026, points 5, 6, 8 et 9).
 verifier("#297 textes a la lettre : T-2, T-3a, phrase d'introduction des membres de T-1, reference",
          # Textes de #514 (specification finale d'actuary, par. 4 : usage puis
-         # lignes liees ; membres cites par leurs cles mc_nom, Q-7).
+         # lignes liees ; membres cites par leurs cles mc_nom, Q-7) ; portee
+         # d'une p elevee dans T-1 et T-2 : #506 (avis amont K4, par. 2).
          identical(DETAIL_P_GLOBALE, paste0(
            "Diagnostic sans verdict : une p globale faible signale qu'au moins une hypothese ",
            "de la batterie est mise en cause sous le modele ajuste, compte tenu des %d tests ",
            "et de leur dependance (p plug-in non exacte, sur les p Monte-Carlo et non les p ",
-           "retenues). A lire avec les lignes \"p de famille (minP, lecture conjointe)\" de ",
-           "chaque famille.")) &&
+           "retenues). Une p elevee n'atteste pas l'adequation du modele (puissance non ",
+           "mesuree a T = 8), voir les lignes \"p de famille (minP, lecture conjointe)\".")) &&
            identical(PHRASE_FAMILLE_B_EFF_REDUIT, paste0(
              "Calculee sur les seules replications ou les statistiques de tous les tests de la ",
              "famille sont finies, moins nombreuses que celles d'au moins un test : la plus petite p ",
              "peut alors differer de la plus petite p Monte-Carlo affichee.")) &&
            startsWith(DETAIL_P_FAMILLE, "Diagnostic sans verdict : une p de famille faible signale") &&
+           grepl("une p elevee n'atteste pas l'adequation (puissance non mesuree a T = 8). Tests",
+                 DETAIL_P_FAMILLE, fixed = TRUE) &&
            grepl("Tests de la famille (cles mc_nom) : [%s], voir aussi", DETAIL_P_FAMILLE, fixed = TRUE) &&
            identical(REFERENCE_P_FAMILLE, paste0(
              "Westfall & Young (1993), minP en une etape ; Ge, Dudoit & Speed (2003), rapport ",

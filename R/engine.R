@@ -4941,24 +4941,29 @@ REFERENCE_P_FAMILLE <- paste(
 # phrases par #514, specification d'actuary, U33/W20) : %s, liste des cles
 # mc_nom des membres, dans l'ordre des lignes, separees par ", " (chaque ligne
 # membre porte la sienne dans son champ mc_nom ; le nom du test n'est plus
-# repete).
+# repete). #506 (specification d'actuary, avis amont K4, par. 2) : la portee
+# d'une p elevee (puissance non mesuree) est fondue dans la premiere phrase,
+# en deux phrases toujours (regle #514).
 DETAIL_P_FAMILLE <- paste(
   "Diagnostic sans verdict : une p de famille faible signale qu'au moins une",
   "hypothese de la famille est mise en cause sous le modele ajuste (p plug-in non",
-  "exacte), aucun verdict de ligne n'etant modifie. Tests de la famille (cles",
-  "mc_nom) : [%s], voir aussi \"p globale (minP, lecture conjointe de la batterie)\".")
+  "exacte), une p elevee n'atteste pas l'adequation (puissance non mesuree a T = 8).",
+  "Tests de la famille (cles mc_nom) : [%s], voir aussi \"p globale (minP, lecture",
+  "conjointe de la batterie)\".")
 # Texte T-2 (par. 4.4) : %d, nombre de tests ; ne lit aucune valeur numerique
 # du bootstrap, mais peut dependre de la disponibilite d'une p Monte-Carlo
 # (un test n'est membre que si sa p_mc est finie).
 # Reprise du 25/10/2026 (point 5) : la clause sur les verdicts ALERTE ou
 # ECHEC, refutee (verdict fonde sur une p exacte), est remplacee. Reecrit en
-# deux phrases par #514 (specification d'actuary, U34).
+# deux phrases par #514 (specification d'actuary, U34). #506 (avis amont K4,
+# par. 2) : portee d'une p elevee (puissance non mesuree) dans la seconde
+# phrase ; gabarit de 393 caracteres, marge de 7 sous la regle #514.
 DETAIL_P_GLOBALE <- paste(
   "Diagnostic sans verdict : une p globale faible signale qu'au moins une hypothese",
   "de la batterie est mise en cause sous le modele ajuste, compte tenu des %d tests",
   "et de leur dependance (p plug-in non exacte, sur les p Monte-Carlo et non les p",
-  "retenues). A lire avec les lignes \"p de famille (minP, lecture conjointe)\" de",
-  "chaque famille.")
+  "retenues). Une p elevee n'atteste pas l'adequation du modele (puissance non",
+  "mesuree a T = 8), voir les lignes \"p de famille (minP, lecture conjointe)\".")
 # Texte T-3a (par. 4.4 ; reprise du 25/10/2026, points 1 et 9), joint a T-1
 # ou T-2 par .engine_joindre() quand le B effectif de famille est inferieur au
 # B effectif d'au moins un membre (nombre de replications finies de sa
