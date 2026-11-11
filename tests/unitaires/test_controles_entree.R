@@ -1212,8 +1212,9 @@ verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#
 # de chaque motif change, sur le gabarit du tableau du par. 7.2 de l'avis
 # amont d'actuary, declenche par run_engine() (refus ok = FALSE, motif dans
 # validation$erreurs, aucune erreur levee). Le motif sans origine d'AJ-04
-# est atteint par run_engine() quand une primitive du corps protege echoue
-# (pile vide, audit de K4) ; il est declenche ici directement par
+# est atteint par run_engine() quand la pile de l'erreur ne contient aucune
+# fonction du moteur (primitive du corps protege, fonction de R ou anonyme ;
+# revue finale de K4, Q2) ; il est declenche ici directement par
 # .engine_calcul_protege().
 refus_527 <- function(...) {
   a <- list(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
@@ -1291,6 +1292,41 @@ verifier(".engine_calcul_protege : AJ-04 sans fonction d'origine -> texte comple
              identical(r$validation$erreurs,
                        paste("Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic",
                              "technique dans le champ validation$erreur_r du resultat."))
+         })
+# Revue finale de K4, Q2 (avis d'actuary) : origine = derniere fonction du
+# moteur de la pile, NA si la pile n'en contient aucune (fonction de R ou
+# anonyme jamais dite du moteur), la pile restant dans erreur_r ; avant, repli
+# sur le dernier cadre ("dans la fonction data.frame() du moteur").
+# (1) .engine_calcul_protege() direct, erreur nee dans data.frame() ;
+# (2) run_engine() : usp_controle_donnees() remplacee par une fonction qui
+# restaure l'originale puis echoue dans data.frame() (au moment de l'erreur,
+# le cadre n'execute plus la fonction du moteur de ce nom) ; (3) une erreur
+# nee dans une fonction du moteur garde son nom dans le motif.
+verifier(".engine_calcul_protege et run_engine : AJ-04, erreur dans data.frame() sans fonction du moteur dans la pile -> origine NA, pile conservee, motif neutre ; usp_ajuster() garde son nom (revue finale K4, Q2)",
+         {
+           neutre <- paste("Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic",
+                           "technique dans le champ validation$erreur_r du resultat.")
+           r1 <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                        data.frame(a = 1:2, b = 1:3))
+           e <- environment(run_engine)
+           orig <- get("usp_controle_donnees", envir = e)
+           r2 <- avec_injection("usp_controle_donnees", function(...) {
+             assign("usp_controle_donnees", orig, envir = e)
+             data.frame(a = 1:2, b = 1:3)
+           }, calcul_extreme(x, y))
+           r3 <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                        usp_ajuster(c(1, 2, 3), "a"))
+           identical(r1$ok, FALSE) && identical(r1$validation$erreur_r$origine, NA_character_) &&
+             "data.frame" %in% r1$validation$erreur_r$pile &&
+             identical(r1$validation$erreurs, neutre) &&
+             identical(r2$ok, FALSE) && identical(r2$validation$erreur_r$origine, NA_character_) &&
+             identical(r2$validation$erreur_r$pile, c("usp_controle_donnees", "data.frame")) &&
+             identical(r2$validation$erreurs, neutre) &&
+             identical(r3$ok, FALSE) && identical(r3$validation$erreur_r$origine, "usp_ajuster") &&
+             identical(r3$validation$erreurs,
+                       paste("Defaut de calcul intercepte dans la fonction usp_ajuster() du moteur :",
+                             "aucun resultat n'est produit ; diagnostic technique dans le champ",
+                             "validation$erreur_r du resultat."))
          })
 
 # #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >

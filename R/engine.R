@@ -13433,8 +13433,10 @@ engine_regle_verdicts <- function(alpha) {
 #             tryCatch() et de signalement ;
 #   origine : derniere fonction de la pile DEFINIE DANS LE MOTEUR (son nom
 #             designe, dans l'environnement de run_engine(), la fonction
-#             meme qui s'executait dans ce cadre) ; a defaut, dernier
-#             element de la pile. Les fonctions de R et les fermetures
+#             meme qui s'executait dans ce cadre) ; aucune (NA) si la
+#             pile n'en contient pas, la pile restant dans erreur_r (revue
+#             finale K4, Q2 : une fonction de R ou anonyme n'est jamais
+#             dite du moteur). Les fonctions de R et les fermetures
 #             creees en cours de calcul (add() de engine_registre_tests())
 #             ne sont pas retenues : une erreur nee dans un argument
 #             evalue paresseusement (argument de sprintf() dans add()) ou
@@ -13484,8 +13486,9 @@ engine_regle_verdicts <- function(alpha) {
     }),
     error = function(e) {
       appel <- conditionCall(e)
-      origine <- if (any(du_moteur)) pile[max(which(du_moteur))]
-                 else if (length(pile)) pile[length(pile)] else NA_character_
+      # origine : derniere fonction du moteur de la pile ; aucune (NA) si la
+      # pile n'en contient pas, la pile restant dans erreur_r.
+      origine <- if (any(du_moteur)) pile[max(which(du_moteur))] else NA_character_
       # Texte de #527 : le nom de la fonction d'origine reste, il sert a
       # rapporter le defaut ; sans origine, le motif ne nomme rien.
       motif <- paste0("Defaut de calcul intercepte",
