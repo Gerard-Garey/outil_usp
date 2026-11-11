@@ -12,6 +12,8 @@
 #  Jeux : volumes constants, pertes constantes, R12 (T = 200, reg ecarte par
 #  lm()), ajustement exact (x = 1:8, y = 2x), et le jeu J1 (non degenere,
 #  non-regression).
+#  #533 (decisions Q-A, Q-A2, Q-C du 11/11/2026) : une ligne non applicable a
+#  aussi loi = NA_character_ (usp_tests() ligne par ligne, add() pour R3).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -94,6 +96,78 @@ verifier("J1 : Fisher et Student diagnostics, p_asymptotique finie et egale entr
            lf$type == "diagnostic" && ls$type == "diagnostic" &&
              is.finite(lf$p_asymptotique) && is.finite(ls$p_asymptotique) &&
              abs(lf$p_asymptotique - ls$p_asymptotique) < 1e-12
+         })
+
+## --- #533 (decisions Q-A, Q-A2, Q-C du 11/11/2026) : loi NA ------------------
+# Une ligne non applicable n'a aucune p-value, donc aucune loi de reference :
+# loi = NA_character_, posee ligne par ligne dans usp_tests() et, pour la
+# regle R3, dans add().
+lois_non_na <- function(tt) {
+  out <- character(0)
+  for (l in hors_famille(tt)) if (identical(l$type, "non applicable") &&
+                                  !identical(l$loi, NA_character_))
+    out <- c(out, sprintf("%s : loi = %s", l$test, format(l$loi)))
+  out
+}
+for (nm in names(jeux)) local({
+  nom <- nm; tt <- res[[nom]]
+  verifier(sprintf("#533 %s : toute ligne non applicable a loi NA", nom),
+           { pb <- lois_non_na(tt); if (length(pb)) paste(pb, collapse = " ; ") else TRUE })
+})
+
+# Entree minimale de #533 : T = 5, volumes constants, pi_t constant,
+# n1 = n2 = 1 sur z et sur u (17 lignes non applicables, mesure du 11/11/2026).
+res533 <- suppressWarnings(run_engine(xt = rep(100, 5), yt = c(60, 80, 80, 80, 110),
+                                      methode = "reserve1", segment = 1, annexe = "II", B = 99))
+verifier("#533 entree minimale : 17 lignes non applicables, toutes a loi NA",
+         {
+           na533 <- Filter(function(l) identical(l$type, "non applicable"), hors_famille(res533$tests))
+           pb <- lois_non_na(res533$tests)
+           if (length(pb)) paste(pb, collapse = " ; ") else length(na533) == 17L
+         })
+# Lignes de suites (Q-C) : loi NA ; detail inchange par #533 (texte releve
+# avant la modification, moteur de 49f4600).
+DETAIL_SUITES_533 <- paste("une seule valeur de chaque cote de la mediane (n1 = n2 = 1) : R = 2",
+                           "pour tout arrangement, loi de R degeneree (variance nulle), test non",
+                           "applicable")
+for (nm in c("Test des suites (aleatoire des signes)", "Test des suites sur ratios bruts")) local({
+  nom <- nm
+  verifier(sprintf("#533 entree minimale, %s : non applicable, loi NA, detail inchange", nom),
+           {
+             l <- ligne(res533$tests, nom)
+             identical(l$type, "non applicable") && identical(l$loi, NA_character_) &&
+               identical(l$detail, DETAIL_SUITES_533)
+           })
+})
+
+# Six references versionnees (une ligne non applicable par cas lognormal,
+# aucune en reserve2 ; leur egalite au moteur courant est controlee par
+# tests/test_reproductibilite.R).
+verifier("#533 references versionnees (6 cas) : toute ligne non applicable a loi NA",
+         {
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "premium_interieur")
+           v <- vapply(cas, function(k) {
+             f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
+             if (!file.exists(f)) return("reference absente")
+             pb <- lois_non_na(readRDS(f)$tests)
+             if (length(pb)) paste(pb, collapse = " ; ") else ""
+           }, character(1))
+           if (all(v == "")) TRUE else paste(cas[v != ""], v[v != ""], collapse = " ; ")
+         })
+
+# Regle R3 d'add() (registre fictif, comme test_inoperance.R) : statistique
+# observee non finie, sans p exacte -> non applicable ; le loi recu de
+# l'appelant est remplace par NA (#533, Q-A2).
+verifier("#533 add(), regle R3 : ligne rendue non applicable a loi NA malgre un loi fourni",
+         {
+           r <- engine_registre_tests(
+             list(p_mc = c(S = NA_real_), err_mc = c(S = NA_real_),
+                  motif_mc = c(S = MOTIF_MC_OBS_NON_FINIE)),
+             list(S = .mc_entree(function(e) 1, "haut")), 0.10, "Monte-Carlo")
+           r$add("F", "t", "ref", fonction = "usp_tests", loi = "chi2(1) asymptotique",
+                 p_as = 0.3, mc_nom = "S", detail = "d.")
+           l <- r$lignes()[[1]]
+           identical(l$type, "non applicable") && identical(l$loi, NA_character_)
          })
 
 fin_fichier()

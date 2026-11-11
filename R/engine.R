@@ -4632,6 +4632,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         detail <- trimws(paste(c(.prefixe_motif_mc(motif_boot), detail), collapse = " "))
       } else if (!is.finite(p_ex) && identical(motif_boot, MOTIF_MC_OBS_NON_FINIE)) {
         type <- "non applicable"
+        loi <- NA_character_  # ligne non applicable : aucune loi de reference (#533, Q-A2)
         detail <- trimws(paste0(motif_boot, " : test non applicable. ", detail))
       } else if (!is.finite(p_ex) && is.finite(p_as)) {
         # Aucun repli sur une p non simulee (#181, option (B) generalisee,
@@ -5922,16 +5923,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # p-value Monte-Carlo (statistique Intercept, simulee sous le modele de
   # l'annexe XVII, ou a = 0 est vrai) est retenue. Estimation : constante
   # ponderee (ti$a, #215, decision P1).
+  # Pertes constantes : t NA (test_intercept(), #189), d'ou non
+  # applicable par la seule finitude (#222, point 2).
+  type_cst <- si_vol_cst(if (!is.finite(ti$stat)) "non applicable" else "test")
   add(fam, "Nullite de la constante (proportionnalite stricte)",
       fonction = "test_intercept",
       "Student (1908), Biometrika 6",
-      # Pertes constantes : t NA (test_intercept(), #189), d'ou non
-      # applicable par la seule finitude (#222, point 2).
-      type = si_vol_cst(if (!is.finite(ti$stat)) "non applicable" else "test"),
+      type = type_cst,
       H0 = "a = 0 (proportionnalite stricte)", H1 = "a != 0",
       stat_nom = "t", stat = ti$stat,
-      loi = sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
-                          "loi approchee meme sous ce modele) ; non retenue"), T - 2),
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (type_cst == "non applicable") NA_character_
+            else sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
+                               "loi approchee meme sous ce modele) ; non retenue"), T - 2),
       estim_nom = "constante a",
       estim = if (is.finite(ti$stat)) unname(ti$a) else NA_real_,
       p_as = ti$p, mc_nom = "Intercept",
@@ -5978,7 +5982,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       # pondere, poids estimes : t(T-2) approchee dans les deux branches de
       # marge, p exacte NA, p rangee dans p_asymptotique et retenue hors
       # hierarchie par nature_forcee.
-      loi = if (isTRUE(tost$marge_a_priori))
+      # Ligne non applicable (p du TOST non finie) : aucune loi de reference (#533).
+      loi = if (!is.finite(tost$p)) NA_character_
+      else if (isTRUE(tost$marge_a_priori))
         sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
                       "loi approchee) ; marge fixee a priori"), T - 2)
       else sprintf(paste("t(%d) sous le modele auxiliaire pondere (poids estimes :",
@@ -6145,7 +6151,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "Y_1..Y_T independants de x (echangeables) : aucun lien pertes / volume",
       H1 = "lien positif pertes / volume (dont E[Y] = beta x, beta > 0)",
       stat_nom = "t", stat = lmc$t_pente,
-      loi = if (perm_alea) "loi de permutation de t (permutations aleatoires)"
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (!pente_appl) NA_character_
+            else if (perm_alea) "loi de permutation de t (permutations aleatoires)"
             else "loi de permutation de t (enumeration des T! appariements)",
       estim_nom = "pente b", estim = lmc$pente,
       p_ex = if (pente_appl && !perm_alea) perm$p else NA_real_,
@@ -6239,12 +6247,15 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # priorite volumes constants (R13, txt_vol_cst) > moins de trois volumes
   # distincts > rang deficient (motif rendu par test_reset()).
   tr <- test_reset(x, y)
+  reset_na <- vol_cst || !is.na(tr$non_applicable)
   add(fam, "RESET (forme fonctionnelle)", "Ramsey (1969), JRSS B 31",
       fonction = "test_reset",
-      type = if (vol_cst || !is.na(tr$non_applicable)) "non applicable" else "test",
+      type = if (reset_na) "non applicable" else "test",
       H0 = "gamma2 = gamma3 = 0 (forme lineaire correcte)",
       H1 = "forme fonctionnelle mal specifiee",
-      stat_nom = "F", stat = tr$stat, loi = sprintf("F(2,%d) approx.", T - 3),
+      stat_nom = "F", stat = tr$stat,
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (reset_na) NA_character_ else sprintf("F(2,%d) approx.", T - 3),
       p_as = tr$p, mc_nom = "RESET",
       detail = if (vol_cst) txt_vol_cst
       else if (!is.na(tr$non_applicable)) tr$non_applicable
@@ -6283,8 +6294,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = "non applicable",
         H0 = "independance (aucune association monotone)", H1 = "association monotone",
         stat_nom = "S",
-        loi = loi_r7("permutation exacte (T <= 9, sans ex aequo)",
-                     "loi de permutation (T <= 9, sans ex aequo)"),
+        # Ligne non applicable : aucune loi de reference (#533).
+        loi = NA_character_,
         estim_nom = "rho_s", mc_nom = "SpearVol", detail = txt_vol_cst)
   }
   ct <- suppressWarnings(stats::cor.test(r_ea, seq_along(r), method = "spearman", exact = FALSE))
@@ -6417,7 +6428,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = si_vol_cst("test"),
       H0 = "c1 = 0 : la variance des residus standardises ne depend pas du volume",
       H1 = "variance residuelle dependante du volume",
-      stat_nom = "LM", stat = bp$stat, loi = "chi2(1) asymptotique",
+      stat_nom = "LM", stat = bp$stat,
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (vol_cst) NA_character_ else "chi2(1) asymptotique",
       p_as = bp$p, mc_nom = "BP",
       # Texte de #514 (specification finale d'actuary, U12) ; puissance
       # pi_env (ou motif de son echec, #358) en parenthese.
@@ -6434,7 +6447,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       variante = "secondaire",
       H0 = "c1 = 0 ET erreurs normales : variance residuelle independante du volume",
       H1 = "variance residuelle dependante du volume",
-      stat_nom = "LM", stat = bp79$stat, loi = "chi2(1) asymptotique, SOUS NORMALITE",
+      stat_nom = "LM", stat = bp79$stat,
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (vol_cst) NA_character_ else "chi2(1) asymptotique, SOUS NORMALITE",
       p_as = bp79$p, mc_nom = "BP79",
       # #299 : la phrase "A confronter systematiquement a la version de
       # Koenker ci-dessus." est retiree (avis d'actuary du 20/10/2026) : la
@@ -6444,12 +6459,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         "erreurs a queues plus lourdes que la normale), pour comparaison."), raison_h2)))
   # Issue #110 : meme restitution que RESET (priorite R13 > (a) > (b)).
   wh <- test_white(z^2, x)
+  white_na <- vol_cst || !is.na(wh$non_applicable)
   add(fam, "Heteroscedasticite (forme quadratique)", "White (1980), Econometrica 48",
       fonction = "test_white",
-      type = if (vol_cst || !is.na(wh$non_applicable)) "non applicable"
-             else type_diag("White"),
+      type = if (white_na) "non applicable" else type_diag("White"),
       H0 = "c1 = c2 = 0", H1 = "heteroscedasticite residuelle de forme quadratique",
-      stat_nom = "LM", stat = wh$stat, loi = "chi2(2) asymptotique",
+      stat_nom = "LM", stat = wh$stat,
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (white_na) NA_character_ else "chi2(2) asymptotique",
       p_as = wh$p, mc_nom = "White",
       detail = if (vol_cst) txt_vol_cst
       else if (!is.na(wh$non_applicable)) wh$non_applicable
@@ -6462,8 +6479,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = if (vol_cst) "non applicable" else type_diag("GQ"),
       H0 = "sigma1^2 = sigma2^2", H1 = "variances inegales entre les deux blocs",
       stat_nom = "F", stat = gq$stat,
-      loi = sprintf("F(%d,%d) approx. (residus issus d'un ajustement global)",
-                    floor(T / 2), floor(T / 2)),
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (vol_cst) NA_character_
+            else sprintf("F(%d,%d) approx. (residus issus d'un ajustement global)",
+                         floor(T / 2), floor(T / 2)),
       p_as = gq$p, mc_nom = "GQ",
       detail = detail_vol(detail_diag("GQ", paste("Compare les variances des residus entre",
                                                   "petits et gros volumes, pour information."),
@@ -6475,7 +6494,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       type = if (vol_cst) "non applicable" else type_diag("BF"),
       H0 = "egalite des dispersions entre les deux groupes",
       H1 = "dispersions inegales",
-      stat_nom = "W", stat = bf$stat, loi = sprintf("F(1,%d) approx.", T - 2),
+      stat_nom = "W", stat = bf$stat,
+      # Ligne non applicable : aucune loi de reference (#533).
+      loi = if (vol_cst) NA_character_ else sprintf("F(1,%d) approx.", T - 2),
       p_as = bf$p, mc_nom = "BF",
       detail = detail_vol(detail_diag("BF", paste("Compare les dispersions, autour de la",
                                                   "mediane, des residus entre petits et gros",
@@ -6508,8 +6529,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = if (calculable) type_diag("Smirnov") else "non applicable",
         H0 = "F1 = F2 (memes lois)", H1 = "lois differentes",
         stat_nom = "D", stat = if (calculable) unname(ks2$statistic) else NA_real_,
-        loi = loi_r7("exacte combinatoire (ks.test, sans ex aequo)",
-                     "loi combinatoire (ks.test, sans ex aequo)"),
+        # Ligne non applicable : aucune loi de reference (#533).
+        loi = if (!calculable) NA_character_
+              else loi_r7("exacte combinatoire (ks.test, sans ex aequo)",
+                          "loi combinatoire (ks.test, sans ex aequo)"),
         p_ex = p_sm, mc_nom = "Smirnov",
         p_min = if (calculable && !ea_sm) smirnov_p_min(sum(grp), sum(!grp)) else NA_real_,
         effectifs = if (!calculable) NA_character_
@@ -6767,7 +6790,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         fonction = "test_anscombe_kurt",
         type = "non applicable",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
-        stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
+        # Ligne non applicable : aucune loi de reference (#533).
+        stat_nom = "Z", stat = ak$stat, loi = NA_character_,
         estim_nom = "aplatissement", estim = jb$kurt,
         detail = motif_ak_pi)
   else
@@ -6847,7 +6871,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       H0 = "la suite des signes est un arrangement aleatoire",
       H1 = "arrangement non aleatoire (regroupement ou alternance)",
       stat_nom = "Z", stat = ru$stat,
-      loi = loi_r7("loi combinatoire EXACTE de R", "loi combinatoire de R"),
+      # Ligne non applicable : aucune loi de reference (#533, Q-C).
+      loi = if (is.finite(ru$stat)) loi_r7("loi combinatoire EXACTE de R", "loi combinatoire de R")
+            else NA_character_,
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = p_ru, p_as = ru$p, mc_nom = "Runs",
       p_min = if (is.finite(ru$stat)) runs_p_min(eff_z[["n1"]], eff_z[["n2"]]) else NA_real_,
@@ -7217,7 +7243,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       base = "r", H0 = "arrangement aleatoire des signes du ratio centre",
       H1 = "arrangement non aleatoire",
       stat_nom = "Z", stat = boot$stats_obs$Runsr,
-      loi = if (is.finite(p_ex_r))
+      # Ligne non applicable : aucune loi de reference (#533, Q-C).
+      loi = if (!is.finite(boot$stats_obs$Runsr)) NA_character_
+      else if (is.finite(p_ex_r))
         "loi combinatoire EXACTE de R (pi_t constant : r_t i.i.d., signes identiques a ceux de z_t)"
       else loi_ind,
       # Issue #29 (M8) : p exacte seulement sous la double condition de
@@ -7461,7 +7489,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
             fonction = "usp_lr_delta",
             "Chernoff (1954) ; Self & Liang (1987), JASA 82 ; Davison & Hinkley (1997), chap. 4",
             type = "non applicable", H0 = li$H0, H1 = li$H1,
-            stat_nom = li$stat_nom, stat = NA_real_, loi = loi_lr,
+            # Ligne non applicable : aucune loi de reference (#533).
+            stat_nom = li$stat_nom, stat = NA_real_, loi = NA_character_,
             estim_nom = "sigma(delta0, gamma~)", estim = NA_real_,
             detail = if (isTRUE(regime$volumes_constants))
               paste("VOLUMES CONSTANTS : delta non identifie, LR nul par construction attendu",
