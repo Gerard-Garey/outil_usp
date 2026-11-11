@@ -347,6 +347,21 @@ verifier("#366 classe_t2() D : refusee sans marqueur, avec le marqueur d'une aut
              identical(E$classe_t2(diag_na(test = lb, detail = mk, inoperant = TRUE)), "-") &&
              identical(E$classe_t2(ligne_t(test = lb, detail = mk)), "-") &&
              identical(E$classe_t2(diag_na(test = lb, detail = mk, verdict = "OK")), "-") })
+# Controle (b2) (#541) : marqueurs_diag_absents() nomme les lignes dont le marqueur
+# ne se retrouve dans aucun detail ; ici sur des lignes synthetiques, puis sur
+# la reference premium.rds (J1 observe : tests/reference/ est verifiee egale au
+# moteur courant par test_reproductibilite.R), ou un marqueur perime est
+# detecte des la CI.
+verifier("#541 marqueurs_diag_absents() : aucun absent si chaque ligne porte son marqueur ; la ligne dont le marqueur manque est nommee ; ligne absente de la liste : nommee",
+         { ks <- names(E$LIGNES_DIAG_DECISION)
+           tous <- lapply(ks, function(k) diag_na(test = E$STAT_LIGNE[[k]], detail = paste("x", E$LIGNES_DIAG_DECISION[[k]], "y")))
+           sans_cvm <- tous; sans_cvm[[match("CvM", ks)]]$detail <- "W2 etant tres correlee a A2"
+           identical(E$marqueurs_diag_absents(tous), character(0)) &&
+             identical(E$marqueurs_diag_absents(sans_cvm), "CvM") &&
+             identical(E$marqueurs_diag_absents(tous[ks != "KS"]), "KS") })
+.ref_premium <- file.path(RACINE_229, "tests", "reference", "premium.rds")
+verifier("#541 marqueurs de LIGNES_DIAG_DECISION retrouves dans les detail de la reference premium.rds (moteur courant)",
+         file.exists(.ref_premium) && identical(E$marqueurs_diag_absents(readRDS(.ref_premium)$tests), character(0)))
 ## --- #274 : t2_classer() -------------------------------------------------------
 # LIGNES_T2 (calculee par le script a partir de run_engine()) posee ici :
 # pente de Pitman, ligne de BP, autre ligne.
