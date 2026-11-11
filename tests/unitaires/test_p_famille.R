@@ -177,13 +177,13 @@ verifier("#297 textes a la lettre : T-2, T-3a, phrase d'introduction des membres
            "de la batterie est mise en cause sous le modele ajuste, compte tenu des %d tests ",
            "et de leur dependance (p plug-in non exacte, sur les p Monte-Carlo et non les p ",
            "retenues). Une p elevee n'atteste pas l'adequation du modele (puissance non ",
-           "mesuree a T = 8), voir les lignes \"p de famille (minP, lecture conjointe)\".")) &&
+           "mesuree), voir les lignes \"p de famille (minP, lecture conjointe)\".")) &&
            identical(PHRASE_FAMILLE_B_EFF_REDUIT, paste0(
              "Calculee sur les seules replications ou les statistiques de tous les tests de la ",
              "famille sont finies, moins nombreuses que celles d'au moins un test : la plus petite p ",
              "peut alors differer de la plus petite p Monte-Carlo affichee.")) &&
            startsWith(DETAIL_P_FAMILLE, "Diagnostic sans verdict : une p de famille faible signale") &&
-           grepl("une p elevee n'atteste pas l'adequation (puissance non mesuree a T = 8). Tests",
+           grepl("une p elevee n'atteste pas l'adequation (puissance non mesuree). Tests",
                  DETAIL_P_FAMILLE, fixed = TRUE) &&
            grepl("Tests de la famille (cles mc_nom) : [%s], voir aussi", DETAIL_P_FAMILLE, fixed = TRUE) &&
            identical(REFERENCE_P_FAMILLE, paste0(
