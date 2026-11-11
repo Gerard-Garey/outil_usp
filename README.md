@@ -168,11 +168,23 @@ complète :
 
     Rscript tests/test_unitaires.R --parallele --lot=2/3
 
-Sous Windows, quelques assertions de la batterie échouent pour des raisons
-propres à la plateforme, sans effet sur σ_USP, sur une p-value du moteur ni sur
-un verdict : lancement des processus fils (#477), langue des sorties de
-`summary.lm()` (#478) et affichage de `fmt_p()` sous la bibliothèque C de
-Windows (#479). La batterie de référence est celle de la CI, sous Linux.
+Sous Windows, la batterie unitaire lancée sous PowerShell passe sans échec
+(poste du mainteneur, 11/11/2026, R 4.3.3 ucrt) depuis la correction du
+lancement des processus fils (#477), de la langue des sorties de `summary.lm()`
+(#478) et de l'affichage de `fmt_p()` sous la bibliothèque C de Windows (#479).
+Deux points connus demeurent :
+
+- `tests/test_reproductibilite.R` rend `premium_interieur` non conforme : deux
+  réplications de `bootstrap$stats_boot` s'écartent de la référence au-delà du
+  seuil 1e-6 (1,81e-6 au plus). C'est une dérive de plateforme entre le poste
+  et la CI ; σ_USP des six cas est identique aux références, et l'absence
+  d'effet sur les p-values retenues et les verdicts, attendue, reste à
+  confirmer (#548).
+- `tests/unitaires/test_controle_doc_nd.R` échoue au chargement si la batterie
+  est lancée depuis Git Bash, dont le `pdftotext` (xpdf) ne connaît pas
+  `-bbox` : la lancer sous PowerShell en attendant #549.
+
+La batterie de référence est celle de la CI, sous Linux.
 
 Lorsqu'une modification change volontairement les résultats, lister les écarts
 (`Rscript tests/comparer_references.R`) et les expliquer. Les références ne sont
