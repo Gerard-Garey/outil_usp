@@ -403,12 +403,27 @@ verifier("pages : aucune fiche en partie III (exceptions par defaut), aucun plan
            all(grepl("^PERIMEE [(]fiche introuvable", res_0$exceptions$statut)) && nrow(res_0$exceptions) == length(nd$EXCEPTIONS_PLAFOND))
 verifier("exception au plafond sans champ caracteres : budget non controle (NA), comportement inchange",
          all(is.na(res4$exceptions$caracteres)) && identical(res4$fiches$verdict[1L], "conforme (exception)"))
-verifier("EXCEPTIONS_PLAFOND : chaque exception porte un budget entier en caracteres, egal au 'source au plus N caracteres' de sa raison",
+# Budget ecrit une seule fois dans le script (#475) : champ `caracteres`, entier ; la raison
+# stockee ne le porte pas, le texte "source au plus N caracteres" est construit a l'impression.
+verifier("EXCEPTIONS_PLAFOND : chaque exception porte un budget entier en caracteres, et sa raison stockee ne porte pas le nombre",
+         all(vapply(nd$EXCEPTIONS_PLAFOND, function(e)
+           is.integer(e$caracteres) && length(e$caracteres) == 1L && !is.na(e$caracteres) && !grepl("source au plus", e$raison, fixed = TRUE),
+           NA)))
+verifier("nd_raison_imprimee : budget construit depuis `caracteres` (milliers separes par une espace), raison seule si budget non controle",
+         identical(nd$nd_raison_imprimee("motif", 13000L), "motif ; source au plus 13 000 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", 15500L), "motif ; source au plus 15 500 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", 900L), "motif ; source au plus 900 caracteres") &&
+         identical(nd$nd_raison_imprimee("motif", NA_integer_), "motif"))
+.imp_pages <- capture.output(nd$nd_imprimer_pages(res_0))
+verifier("nd_imprimer_pages : la raison imprimee de chaque exception finit par 'source au plus N caracteres', N lu dans `caracteres`",
          all(vapply(nd$EXCEPTIONS_PLAFOND, function(e) {
-           m <- regmatches(e$raison, regexec("source au plus ([0-9 ]+) caracteres", e$raison))[[1L]]
-           is.integer(e$caracteres) && length(e$caracteres) == 1L && length(m) == 2L &&
-             identical(e$caracteres, as.integer(gsub(" ", "", m[2L], fixed = TRUE)))
+           l <- grep(paste0("^  ", e$label, " : "), .imp_pages, value = TRUE, fixed = FALSE)
+           length(l) == 1L && endsWith(l, sprintf("; source au plus %s caracteres", format(e$caracteres, big.mark = " ", trim = TRUE)))
          }, NA)))
+verifier("regle imprimee du controle (b) : cite le critere du budget en caracteres des exceptions, avec les seuils lus dans les constantes",
+         any(grepl("budget accorde en caracteres", .imp_pages, fixed = TRUE)) &&
+         any(grepl(sprintf("source > %d caracteres", nd$SEUIL_CARACTERES_PLAFOND), .imp_pages, fixed = TRUE)) &&
+         identical(sum(startsWith(.imp_pages, "Regle :")), 1L) && identical(sub("\n$", "", nd$nd_texte_regle_pages()), grep("^Regle :", .imp_pages, value = TRUE)))
 # Le budget du controle est celui de la colonne Budget de CONVENTIONS.md (section 1) : lu, non recopie.
 conv <- file.path(.dossier, "..", "..", "docs", "latex", "CONVENTIONS.md")
 if (file.exists(conv)) {
@@ -453,9 +468,15 @@ verifier("nd_fiches : fiches mal appariees refusees",
          leve_erreur(nd$nd_fiches(c("\\begin{fiche}{A}", "\\begin{fiche}{B}", "\\end{fiche}"))))
 
 # --- Options et code de sortie (script lance en processus) ---------------------------------------
+# Variables du fils posees par Sys.setenv() le temps de l'appel (nd_avec_env), jamais par
+# l argument env de system2(), ignore ou en echec sous Windows (#477). LC_ALL=C.UTF-8 n'est posee que
+# hors Windows : cette locale n'y existe pas necessairement (le fils R pourrait ecrire
+# "Setting LC_... failed" sur stderr, capture et compare), et R y est en UTF-8 natif
+# depuis R 4.2 (choix prudent, non verifie sous Windows depuis cette session).
+env_fils <- if (identical(.Platform$OS.type, "windows")) character(0) else c(LC_ALL = "C.UTF-8")
 lancer <- function(...) {
-  s <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(.script, ...)),
-                                stdout = TRUE, stderr = TRUE, env = "LC_ALL=C.UTF-8"))
+  s <- nd$nd_avec_env(env_fils, suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(.script, ...)),
+                                                         stdout = TRUE, stderr = TRUE)))
   st <- attr(s, "status")
   list(sortie = as.character(s), statut = if (is.null(st)) 0L else as.integer(st))
 }
@@ -497,6 +518,36 @@ verifier("fichier .tex introuvable : code 2", r$statut == 2L)
 r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--pages-seules")
 verifier("sans .aux : le controle (b) le signale et retombe sur les caracteres, code 0",
          r$statut == 0L && any(grepl("AVERTISSEMENT : aucun fichier .aux", r$sortie, fixed = TRUE)))
+
+# --- Environnement de l'appelant restaure apres un lancement (#477) ------------------------------
+# nd_avec_env() : variable absente avant = absente apres, variable presente = valeur retrouvee,
+# variables visibles pendant l'appel, restauration aussi quand l'expression leve une erreur.
+.v_abs <- "USP_TEST_ND_ABSENTE"; .v_pre <- "USP_TEST_ND_PRESENTE"
+Sys.unsetenv(.v_abs); Sys.setenv(USP_TEST_ND_PRESENTE = "valeur_initiale")
+pendant <- nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "posee", USP_TEST_ND_PRESENTE = "ecrasee"),
+                          c(Sys.getenv(.v_abs), Sys.getenv(.v_pre)))
+verifier("nd_avec_env : variables posees pendant l'appel", identical(pendant, c("posee", "ecrasee")))
+verifier("nd_avec_env : variable absente avant, absente apres (pas posee a vide)",
+         is.na(Sys.getenv(.v_abs, unset = NA_character_)))
+verifier("nd_avec_env : variable presente avant, valeur initiale retrouvee", identical(Sys.getenv(.v_pre), "valeur_initiale"))
+verifier("nd_avec_env : la valeur de l'expression est rendue", identical(nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "x"), 42L), 42L))
+suppressWarnings(try(nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "posee", USP_TEST_ND_PRESENTE = "ecrasee"), stop("echec voulu")),
+                     silent = TRUE))
+verifier("nd_avec_env : etat restaure aussi apres une erreur dans l'expression",
+         is.na(Sys.getenv(.v_abs, unset = NA_character_)) && identical(Sys.getenv(.v_pre), "valeur_initiale"))
+verifier("nd_avec_env : vecteur vide = aucun effet (l'environnement entier n'est pas relu)",
+         identical(nd$nd_avec_env(character(0), 7L), 7L) && identical(Sys.getenv(.v_pre), "valeur_initiale"))
+Sys.unsetenv(c(.v_abs, .v_pre))
+# lancer() : LC_ALL (posee hors Windows) restituee comme avant l'appel, absente ou presente.
+.lc_avant <- Sys.getenv("LC_ALL", unset = NA_character_)
+Sys.unsetenv("LC_ALL")
+invisible(lancer("--inconnue"))
+verifier("lancer : LC_ALL absente avant, absente apres", is.na(Sys.getenv("LC_ALL", unset = NA_character_)))
+Sys.setenv(LC_ALL = "valeur_initiale")
+invisible(lancer("--inconnue"))
+verifier("lancer : LC_ALL presente avant, valeur initiale retrouvee apres", identical(Sys.getenv("LC_ALL"), "valeur_initiale"))
+if (is.na(.lc_avant)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = .lc_avant)
+verifier("lancer : environnement de la session de test remis en l'etat", identical(Sys.getenv("LC_ALL", unset = NA_character_), .lc_avant))
 
 # --- (c) Debordements : journal LaTeX ---------------------------------------------------------------
 log_c <- c("This is pdfTeX", "Overfull \\hbox (0.68134pt too wide) in paragraph at lines 14605--14605",
@@ -584,6 +635,45 @@ r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absen
 verifier("sans --bloquant, .aux et .log absents : avertissements, code 0", r$statut == 0L)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--pages-seules", "--bloquant")
 verifier("--bloquant --pages-seules, .aux absent : code 2", r$statut == 2L)
+# Liste A imprimee avant le refus en code 2 (#475) : (a) n'a besoin ni du .aux ni du .log.
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
+i_a <- grep("Liste A (interdits)", r$sortie, fixed = TRUE); i_ref <- grep("controle impossible", r$sortie, fixed = TRUE)
+verifier("--bloquant, .aux absent : code 2 inchange, la liste A est controlee et imprimee AVANT le refus (rapport et ligne en cause d'A1)",
+         r$statut == 2L && length(i_a) == 1L && length(i_ref) == 1L && i_a < i_ref &&
+           any(grepl("Liste A controlee avant le refus : 1 occurrence", r$sortie, fixed = TRUE)) &&
+           any(grepl("^  l[.]4 \\[Partie II\\] ", r$sortie)) && !any(grepl("BILAN", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
+verifier("--bloquant, .aux absent, liste A propre : code 2 aussi (le refus ne depend pas du resultat de (a)), rapport de (a) imprime",
+         r$statut == 2L && any(grepl("Liste A controlee avant le refus : 0 occurrence", r$sortie, fixed = TRUE)))
+# Annotation GitHub Actions du refus en code 2 (#475) : emise comme par le chemin normal, une
+# seule fois, pour les occurrences de la liste A ; GITHUB_ACTIONS est posee dans les deux sens
+# (l'environnement de la CI la fixe a "true") par nd_avec_env.
+.aux_abs <- paste0("--aux=", file.path(dir_b, "absent.aux"))
+.ga <- function(v, ...) nd$nd_avec_env(c(GITHUB_ACTIONS = v), lancer(...))
+.n_ann <- function(s) sum(startsWith(s, "::warning title=Controle ND::"))
+r <- .ga("true", paste0("--tex=", f_sale), .aux_abs, "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, .aux absent, .tex sale : code 2, une seule annotation (1 occurrence de la liste A), apres le refus",
+         r$statut == 2L && .n_ann(r$sortie) == 1L &&
+           any(grepl("^::warning title=Controle ND::1 occurrence[(]s[)] de la liste A", r$sortie)) &&
+           which(startsWith(r$sortie, "::warning")) > grep("controle impossible", r$sortie, fixed = TRUE))
+r <- .ga("", paste0("--tex=", f_sale), .aux_abs, "--bloquant")
+verifier("hors GITHUB_ACTIONS, --bloquant, .aux absent, .tex sale : code 2, aucune annotation",
+         r$statut == 2L && .n_ann(r$sortie) == 0L)
+r <- .ga("true", paste0("--tex=", f_propre), .aux_abs, "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, .aux absent, liste A propre : code 2, aucune annotation (rien a signaler)",
+         r$statut == 2L && .n_ann(r$sortie) == 0L)
+r <- .ga("true", paste0("--tex=", f_sale), paste0("--aux=", f_sale_aux), "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, fichiers presents, .tex sale : code 1, une seule annotation (chemin normal inchange)",
+         r$statut == 1L && .n_ann(r$sortie) == 1L)
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant", "--pages-seules")
+verifier("--bloquant --pages-seules, .aux absent : le controle (a) n'est pas lance (aucune liste A), code 2",
+         r$statut == 2L && !any(grepl("Liste A", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_sale), "--debordements", paste0("--log=", file.path(dir_b, "absent.log")), "--bloquant")
+verifier("--bloquant --debordements, journal absent : le controle (a) n'est pas lance (aucune liste A), code 2",
+         r$statut == 2L && !any(grepl("Liste A", r$sortie, fixed = TRUE)))
+r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", f_sale_aux), "--bloquant", "--pages-seules")
+verifier("regle imprimee par le script lance : cite le budget des exceptions en caracteres",
+         any(grepl("^Regle : .*budget accorde en caracteres", r$sortie)))
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--motifs-seuls", "--bloquant")
 verifier("--bloquant --motifs-seuls, .aux absent : code 0 (le controle (b) n'est pas lance)", r$statut == 0L)
 r <- lancer(paste0("--tex=", f_tolere), paste0("--aux=", file.path(dir_b, "absent.aux")), "--debordements", paste0("--log=", f_log_v), "--bloquant")

@@ -60,17 +60,42 @@ COUL <- list(trait = "#B03A2E", pt = "#00468C", env = "#C8DCFA",
 .num_fr_defaut <- function(x) .num_fr(x, digits = getOption("digits"))
 
 fmt_nb <- function(v, d = 4) ifelse(is.finite(v), .num_fr(v, paste0("%.", d, "f")), "\u2013")
-# p-value (#323) : quatre decimales a partir de 1e-4, trois chiffres
+# p-value (#323, #479) : quatre decimales a partir de 1e-4, trois chiffres
 # significatifs en deca (2,48e-05), pour qu'une p-value non nulle ne
 # s'affiche jamais "0,0000". Frontiere sans saut : p dans [9,995e-5 ; 1e-4)
-# s'arrondit a 1,00e-4 sous "%.3g", qui passe alors en notation fixe
-# (exposant -4) et ecrit "0,0001", comme "%.4f" a 1e-4. p = 0 exactement
-# s'affiche "0,0000", au format de la colonne ("%.3g" ecrirait "0"). Mise
-# en forme seule, aucun arrondi propre ; meme formateur pour l'onglet Tests
-# et le rapport fige.
-fmt_p  <- function(v) ifelse(is.finite(v),
-                             .num_fr(v, ifelse(is.finite(v) & (v >= 1e-4 | v == 0), "%.4f", "%.3g")),
-                             "\u2013")
+# s'arrondit a 1,00e-4 et s'ecrit "0,0001", comme "%.4f" a 1e-4. p = 0
+# exactement s'affiche "0,0000", au format de la colonne.
+# Independant de la bibliotheque C (#479) : "%.3g" laisse celle-ci choisir la
+# notation, et la glibc arrondit avant ce choix (9,995e-5 -> "0.0001") quand
+# Windows le fait avant l'arrondi ("1e-04"). Ici seuls "%.4f" et "%.2e", dont
+# le format est impose (notation forcee), sont employes ; pour 0 < |p| < 1e-4,
+# l'exposant lu dans "%.2e" est celui de la valeur arrondie a trois chiffres :
+# >= -4 (p arrondie a 1,00e-4) -> "%.4f", sinon mantisse et exposant de "%.2e",
+# zeros finaux de la mantisse supprimes et exposant a deux chiffres au moins
+# (regles de "%g" : "1e-05", "1,5e-05", "2,48e-05"), reconstruits ici pour ne
+# pas dependre de l'ecriture de l'exposant. Hors du domaine d'une probabilite,
+# un negatif d'au moins 1e-4 en valeur absolue garde "%.3g". Mise en forme
+# seule, aucun arrondi propre ; meme formateur pour l'onglet Tests et le
+# rapport fige.
+fmt_p  <- function(v) {
+  x <- as.double(v)
+  fin <- is.finite(x)
+  fixe <- fin & (x >= 1e-4 | x == 0)
+  petit <- fin & !fixe & abs(x) < 1e-4
+  out <- rep("\u2013", length(x))
+  out[fixe] <- .num_fr(x[fixe], "%.4f")
+  out[fin & !fixe & !petit] <- .num_fr(x[fin & !fixe & !petit], "%.3g")
+  if (any(petit)) {
+    xp <- x[petit]
+    s <- sprintf("%.2e", xp)
+    ex <- as.integer(sub("^.*e", "", s))
+    mant <- sub("\\.?0+$", "", sub("e.*$", "", s))
+    out[petit] <- ifelse(ex >= -4L, .num_fr(xp, "%.4f"),
+                         sub(".", ",", paste0(mant, "e", ifelse(ex < 0L, "-", "+"),
+                                              sprintf("%02d", abs(ex))), fixed = TRUE))
+  }
+  ifelse(is.finite(v), out, "\u2013")
+}
 # Statistiques de test qui sont elles-memes des probabilites (#353, decision
 # Q-D1-Fm-10) : leur valeur s'affiche par fmt_p() et non fmt_nb() (M = min p_ij
 # = 5,2e-09 s'ecrivait "0,0000"). Liste de noms (champ nom_statistique de

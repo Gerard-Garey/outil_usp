@@ -20,20 +20,29 @@
 #  Huit motifs de signes (revue finale d'audit, 24/09/2026). Un seul motif
 #  (signes alternes) ne detectait pas un libelle imprimant le nombre de
 #  demarrages a l'optimum au code 0 : ce nombre ne change que pour certains
-#  motifs (audit : 54 dans 29 cas, 53 dans 9, 52 dans 2 sur 40 motifs
-#  aleatoires ; mesure sur les 49 couples de motifs de Walsh ci-dessous,
-#  Linux, R 4.3.3 : 13 couples le font changer, pas le motif alterne ;
-#  54 pour 36 couples, 53 pour 11, 52 pour 2 ; remesure par docwriter et
-#  actuary, 24/09/2026).
+#  motifs. Mesure du 24/09/2026, avant #63 (factr), historique : audit, 54
+#  dans 29 cas, 53 dans 9, 52 dans 2 sur 40 motifs aleatoires ; sur les 49
+#  couples de motifs de Walsh ci-dessous, 13 couples le faisaient changer,
+#  pas le motif alterne ; 54 pour 36 couples, 53 pour 11, 52 pour 2. Le choix
+#  de MOTIFS (5 des 8 couples changeaient alors ce nombre) en decoule ; il
+#  n'est pas modifie.
+#  Mesure du 11/11/2026, Linux x86_64 (x86_64-pc-linux-gnu), R 4.3.3, BLAS et
+#  LAPACK de reference 3.12.0 : sans perturbation, n*_0
+#  (res$ajustement$n_starts_optimum_code0, demarrages a l'optimum au code 0)
+#  = 54, pour premium comme pour reserve1 (matrices des 49 couples identiques
+#  entre les deux methodes) ; sur les 49 couples de motifs de Walsh (kx, ky),
+#  26 le font changer (54 pour 23 couples, 53 pour 14, 52 pour 7, 51 pour 5) ;
+#  parmi les 8 couples de MOTIFS, 3 le changent : (1, 1) -> 51, (1, 3) -> 53,
+#  (2, 4) -> 51. Sur une autre plateforme, les couples qui le changent
+#  peuvent differer ; le controle, lui, reste valide. Une note non bloquante
+#  indique, par methode lognormale, les couples qui changent n*_0 sur la
+#  machine.
 #  Motifs de Walsh-Hadamard, s_i = (-1)^popcount((i - 1) & k), k = 1..7,
 #  construits sans generateur aleatoire : xt recoit le motif kx, yt le motif
 #  ky, le triangle (indice lineaire) le motif kx. Les couples retenus
 #  (MOTIFS) : le motif alterne historique (1, 1), puis une permutation de
-#  ky sur kx = 1..7 choisie sur la mesure ci-dessus pour que 5 des 8 couples
-#  changent ce nombre sur la plateforme de mesure (sur une autre plateforme,
-#  les couples qui le changent peuvent differer ; le controle, lui, reste
-#  valide). Mordant mesure hors depot : un moteur qui reimprime ce nombre
-#  dans le detail echoue ici.
+#  ky sur kx = 1..7. Mordant mesure hors depot : un moteur qui reimprime ce
+#  nombre dans le detail echoue ici.
 #
 #  Trois methodes sur tests/donnees/, parametres de test_reproductibilite.R
 #  sauf B = 99 (duree : huit motifs, 27 appels de run_engine()). Mordant
@@ -106,14 +115,18 @@ nom_motif <- function(m) sprintf("(kx = %d, ky = %d)", m[1], m[2])
 # bas) et TRUE ou la liste des motifs fautifs.
 controler_motifs <- function(a, calcul, champ) {
   pb <- character(0); premier <- NULL
+  # n*_0 de chaque motif (note non bloquante) ; NA pour reserve2 (champ absent)
+  n0 <- integer(0)
   for (m in MOTIFS) {
     b <- calcul(m)
+    n0 <- c(n0, if (is.null(b$ajustement$n_starts_optimum_code0)) NA_integer_
+                else as.integer(b$ajustement$n_starts_optimum_code0))
     if (is.null(premier)) premier <- b
     r <- if (identical(a[[champ]], b[[champ]])) paste("la perturbation n'atteint pas", champ)
          else controle_anti_bruit(a, b)
     if (!isTRUE(r)) pb <- c(pb, paste(nom_motif(m), ":", r))
   }
-  list(b = premier, verdict = if (length(pb)) paste(pb, collapse = " | ") else TRUE)
+  list(b = premier, n0 = n0, verdict = if (length(pb)) paste(pb, collapse = " | ") else TRUE)
 }
 res <- list()
 for (m in c("premium", "reserve1")) {
@@ -124,6 +137,22 @@ for (m in c("premium", "reserve1")) {
   verifier(sprintf(paste("%s : donnees perturbees de 1e-12 (%d motifs) -> perturbation visible",
                          "dans res$donnees, chaines identiques, nombres sous le seuil"),
                    m, length(MOTIFS)), cm$verdict)
+  # Note non bloquante (objets deja calcules, aucune assertion) : couples qui
+  # changent n*_0 sur cette machine, donc couples qui detecteraient un libelle
+  # imprimant ce nombre.
+  n0_ref <- as.integer(a$ajustement$n_starts_optimum_code0)
+  if (!length(n0_ref)) {
+    # champ absent (renomme ou retire) : la note le dit, sans rien asserter
+    cat(sprintf("  note : %s : n*_0 absent de res$ajustement (note non calculee)\n", m))
+    next
+  }
+  chg <- which(!is.na(cm$n0) & cm$n0 != n0_ref)
+  cat(sprintf("  note : %s : n*_0 (demarrages a l'optimum au code 0, res$ajustement) change sous %d des %d couples%s (non perturbe : %d) ; %s\n",
+              m, length(chg), length(MOTIFS),
+              if (length(chg)) paste0(" ", paste(vapply(MOTIFS[chg], nom_motif, ""), collapse = ", ")) else "",
+              n0_ref,
+              if (length(chg)) "le test detecte un libelle imprimant n*_0 sur cette machine"
+              else "AUCUN : le test ne detecte pas sur cette machine un libelle imprimant n*_0 (controle anti-bruit lui-meme valide)"))
 }
 a <- executer("reserve2", triangle = tri)
 cm <- controler_motifs(a, function(k) executer("reserve2", triangle = perturber(tri, k[1])),

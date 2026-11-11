@@ -2462,12 +2462,36 @@ verifier("#285 : rapport fige, colonne granularite MC dans le detail des tests r
 verifier("#323 : fmt_p(), %.4f a partir de 1e-4, %.3g en deca, tiret pour NA et Inf",
          identical(fmt_p(c(0.5, 1e-4, 9.99e-5, 1 / 40320, 2.95e-6, NA, Inf, 1)),
                    c("0,5000", "0,0001", "9,99e-05", "2,48e-05", "2,95e-06", "–", "–", "1,0000")))
-# Revue finale de R16 : frontiere de 1e-4 sans saut ("%.3g" ecrit "0,0001"
-# sur [9,995e-5 ; 1e-4), comme "%.4f" a 1e-4) et p = 0 exactement au format
-# de la colonne, "0,0000" (et non "0").
-verifier("#323 : fmt_p(), frontiere de 1e-4 sans saut et p = 0 rendu 0,0000 (revue finale de R16)",
-         identical(fmt_p(c(0, 9.9949e-5, 9.995e-5, 9.9995e-5, 1e-4, 1.00049e-4)),
-                   c("0,0000", "9,99e-05", "0,0001", "0,0001", "0,0001", "0,0001")))
+# Revue finale de R16 : frontiere de 1e-4 sans saut (la bande [9,995e-5 ; 1e-4),
+# arrondie a 1,00e-4, s'ecrit "0,0001" comme "%.4f" a 1e-4, sur toute
+# plateforme : fmt_p() ne laisse pas la bibliotheque C choisir la notation,
+# #479) et p = 0 exactement au format de la colonne, "0,0000" (et non "0").
+# Les valeurs sous la bande gardent trois chiffres significatifs, zeros finaux
+# supprimes ("1e-05", "1,5e-05", comme "%g").
+verifier("#323 : fmt_p(), frontiere de 1e-4 sans saut, bande [9,995e-5 ; 1e-4) rendue 0,0001 sur toute plateforme (#479), p = 0 rendu 0,0000 (revue finale de R16)",
+         { g <- c(0, 9.9949e-5, 9.9941e-5, 9.995e-5, 9.9951e-5, 9.9995e-5, 9.9999e-5,
+                  9.99999e-5, 1e-4, 1.00049e-4, 1e-5, 1.5e-5, 9.9996e-6)
+           att <- c("0,0000", "9,99e-05", "9,99e-05", "0,0001", "0,0001", "0,0001", "0,0001",
+                    "0,0001", "0,0001", "0,0001", "1e-05", "1,5e-05", "1e-05")
+           # Volet emule (#479) : sous Linux (glibc), l'ancien "%.3g" passait
+           # aussi. Sous Windows, la notation de "%.3g" est choisie AVANT
+           # l'arrondi, d'apres l'exposant de la valeur non arrondie
+           # (exposant < -4 : notation e, "1e-04" pour 9,995e-5 ; sinon f) ;
+           # les autres formats sont delegues a base::sprintf. fmt_p() est
+           # copiee dans un environnement enfant de celui du fichier, ou
+           # sprintf() et .num_fr() (qui appelle sprintf()) sont substitues.
+           ev <- new.env(parent = environment(fmt_p))
+           ev$sprintf <- function(fmt, x) {
+             s <- base::sprintf(fmt, x)
+             w <- rep_len(fmt, length(x)) == "%.3g" & is.finite(x) & x != 0 &
+               floor(log10(abs(x))) < -4
+             s[w] <- sub("\\.?0+e", "e", base::sprintf("%.2e", x[w]))
+             s }
+           ev$.num_fr <- .num_fr
+           environment(ev$.num_fr) <- ev
+           fmt_p_win <- fmt_p
+           environment(fmt_p_win) <- ev
+           identical(fmt_p(g), att) && identical(fmt_p_win(g), att) })
 # p-value M1 de la note du graphique de l'ordonnee a l'origine (note_m1()) :
 # meme formateur que l'onglet Tests (revue finale de R16) ; le survol plotly
 # de plot_mw_origine() passe aussi par fmt_p() (non exerce sans plotly).
