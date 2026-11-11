@@ -95,8 +95,8 @@ verifier("Marge : valeur refusee restituee par deparse() (texte entre guillemets
            e2 <- engine_valider_donnees(x, y, theta_equiv = c(0.1, 0.2))$erreurs
            e3 <- engine_valider_donnees(x, y, delta_equiv = "8")$erreurs
            e4 <- engine_valider_donnees(x, y, theta_equiv = NULL)$erreurs
-           contient(e1, "theta_equiv = \"0.1\"") && contient(e2, "theta_equiv = c(0.1, 0.2)") &&
-             contient(e3, "delta_equiv = \"8\"") && contient(e4, "theta_equiv = vide")
+           contient(e1, "(theta_equiv) = \"0.1\" :") && contient(e2, "(theta_equiv) = c(0.1, 0.2) :") &&
+             contient(e3, "(delta_equiv) = \"8\" :") && contient(e4, "(theta_equiv) = vide :")
          })
 # Issue #180 : la saisie() locale citait la marge refusee par deparse() a 15
 # chiffres (1 + 2^-52 cite 1, -(1 + 2^-52) cite -1) ; .engine_saisie() la
@@ -106,24 +106,24 @@ verifier("Marge : valeur refusee qui exige 17 chiffres citee a 17 chiffres (thet
          {
            e1 <- engine_valider_donnees(x, y, theta_equiv = 1 + 2^-52)$erreurs
            e2 <- engine_valider_donnees(x, y, delta_equiv = -(1 + 2^-52))$erreurs
-           contient(e1, "(theta_equiv = 1.0000000000000002)") &&
-             contient(e2, "(delta_equiv = -1.0000000000000002)")
+           contient(e1, "(theta_equiv) = 1.0000000000000002 :") &&
+             contient(e2, "(delta_equiv) = -1.0000000000000002 :")
          })
 verifier("Marge : vide, texte entre guillemets, vecteur en c(...) et valeurs a 15 chiffres conserves (#180)",
          {
            cite <- function(th = 0.10, de = NULL)
              engine_valider_donnees(x, y, theta_equiv = th, delta_equiv = de)$erreurs
-           contient(cite(th = NULL), "(theta_equiv = vide)") &&
-             contient(cite(th = numeric(0)), "(theta_equiv = vide)") &&
-             contient(cite(de = numeric(0)), "(delta_equiv = vide)") &&
-             contient(cite(th = "0.1"), "(theta_equiv = \"0.1\")") &&
-             contient(cite(th = c(0.1, 0.2)), "(theta_equiv = c(0.1, 0.2))") &&
-             contient(cite(de = c(1, 2)), "(delta_equiv = c(1, 2))") &&
-             contient(cite(th = 1.5), "(theta_equiv = 1.5)") &&
-             contient(cite(de = -0.3), "(delta_equiv = -0.3)") &&
-             contient(cite(th = 5L), "(theta_equiv = 5L)") &&
-             contient(cite(th = TRUE), "(theta_equiv = TRUE)") &&
-             contient(cite(th = NA_real_), "(theta_equiv = NA_real_)")
+           contient(cite(th = NULL), "(theta_equiv) = vide :") &&
+             contient(cite(th = numeric(0)), "(theta_equiv) = vide :") &&
+             contient(cite(de = numeric(0)), "(delta_equiv) = vide :") &&
+             contient(cite(th = "0.1"), "(theta_equiv) = \"0.1\" :") &&
+             contient(cite(th = c(0.1, 0.2)), "(theta_equiv) = c(0.1, 0.2) :") &&
+             contient(cite(de = c(1, 2)), "(delta_equiv) = c(1, 2) :") &&
+             contient(cite(th = 1.5), "(theta_equiv) = 1.5 :") &&
+             contient(cite(de = -0.3), "(delta_equiv) = -0.3 :") &&
+             contient(cite(th = 5L), "(theta_equiv) = 5L :") &&
+             contient(cite(th = TRUE), "(theta_equiv) = TRUE :") &&
+             contient(cite(th = NA_real_), "(theta_equiv) = NA (valeur manquante) :")
          })
 # Issue #198 : le refus Delta >= moyenne(yt) citait Delta par format()
 # (7 chiffres) et la moyenne par format(digits = 6) : Delta = moyenne =
@@ -142,11 +142,11 @@ verifier("Marge Delta >= moyenne(y) : Delta et moyenne cites par .engine_saisie(
            e4 <- cite(rep(80.999951, 8), 80.999951)
            e5 <- cite(y, 2 * mean(y))
            identical(mean(rep(81 + u, 8)), 81 + u) &&
-             contient(e1, "(delta_equiv = 81.000000000000028) superieure ou egale a la perte moyenne (81.000000000000014)") &&
-             contient(e2, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81.000000000000014)") &&
-             contient(e3, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81)") &&
-             contient(e4, "(delta_equiv = 80.999951) superieure ou egale a la perte moyenne (80.999951)") &&
-             contient(e5, "(delta_equiv = 170.01) superieure ou egale a la perte moyenne (85.005)")
+             contient(e1, "(delta_equiv) = 81.000000000000028, superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e2, "(delta_equiv) = 81.000000000000014, superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e3, "(delta_equiv) = 81.000000000000014, superieure ou egale a la perte moyenne (81)") &&
+             contient(e4, "(delta_equiv) = 80.999951, superieure ou egale a la perte moyenne (80.999951)") &&
+             contient(e5, "(delta_equiv) = 170.01, superieure ou egale a la perte moyenne (85.005)")
          })
 verifier("Marge Delta : NA, vide, multiple, Inf, 0, negative, >= moyenne(y) refuses",
          all(vapply(list(NA, numeric(0), c(1, 2), Inf, 0, -1, mean(y), 2 * mean(y)),
@@ -290,10 +290,10 @@ verifier("Domaine numerique : le motif cite la serie, la valeur fautive (17 chif
            e1 <- engine_valider_donnees(x * 1e-300, y)$erreurs
            e2 <- engine_valider_donnees(replace(x, 3, 2e60), y)$erreurs
            e3 <- engine_valider_donnees(replace(x, 1, 1e50 * (1 + .Machine$double.eps)), y)$erreurs
-           length(e1) == 1L && contient(e1, "xt = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
-             contient(e1, "delta_equiv") &&
-             length(e2) == 1L && contient(e2, "xt = 2e+60 (> 1e+50, borne superieure).") &&
-             contient(e3, "xt = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
+           length(e1) == 1L && contient(e1, "x_t = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
+             contient(e1, "(et a la marge Delta du test d'equivalence si elle est fournie)") &&
+             length(e2) == 1L && contient(e2, "x_t = 2e+60 (> 1e+50, borne superieure).") &&
+             contient(e3, "x_t = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
          })
 verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-dela (un ulp), sur xt comme sur yt (#145)",
          {
@@ -308,16 +308,16 @@ verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-del
              ok(replace(x, 1, 1.5e-50), replace(y, 1, 1e-50)) &&
              ok(replace(x, 1, 1e-50), replace(y, 1, 1e-50)) &&
              ok(replace(x, 1, 1e50), replace(y, 1, 1e50)) &&
-             refus(replace(x, 1, haut), replace(y, 1, 6e49), "xt") &&
-             refus(replace(x, 1, 1e50), replace(y, 1, haut), "yt") &&
-             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "yt") &&
-             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "xt")
+             refus(replace(x, 1, haut), replace(y, 1, 6e49), "x_t") &&
+             refus(replace(x, 1, 1e50), replace(y, 1, haut), "y_t") &&
+             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "y_t") &&
+             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "x_t")
          })
 verifier("Domaine numerique : seule la serie retenue est controlee (annee hors domaine ecartee par T acceptee, refusee sinon) (#145)",
          {
            s8 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y), T = 8)$validation
            s9 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y))$validation
-           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "xt = 1e-60 (< 1e-50, borne inferieure).")
+           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "x_t = 1e-60 (< 1e-50, borne inferieure).")
          })
 verifier("Domaine numerique : refus avec les autres refus, sans doublon pour une valeur nulle, negative, NA ou infinie (#145)",
          {
@@ -995,11 +995,11 @@ verifier("run_engine : origine reelle de l'erreur, fonction du moteur (piles inj
                                 calcul_extreme(x, y))$validation
            identical(b1$erreur_r$pile, c("usp_bootstrap", "engine_sous_graine", "usp_simuler")) &&
              identical(b1$erreur_r$origine, "usp_simuler") &&
-             contient(b1$erreurs, "(erreur R dans usp_simuler())") &&
+             contient(b1$erreurs, "Defaut de calcul intercepte dans la fonction usp_simuler() du moteur :") &&
              identical(b1$erreur_r$message, "panne simulee") &&
              identical(b2$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
              identical(b2$erreur_r$origine, "usp_tests") &&
-             contient(b2$erreurs, "(erreur R dans usp_tests())") &&
+             contient(b2$erreurs, "Defaut de calcul intercepte dans la fonction usp_tests() du moteur :") &&
              identical(b3$erreur_r$pile, c("usp_tests", "stats::lm.fit")) &&
              identical(b3$erreur_r$origine, "usp_tests")
          })
@@ -1040,7 +1040,7 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
                          finally = assign("mw_bootstrap", orig, envir = e))
            !inherits(r, "error") && identical(r$ok, FALSE) && !"methode" %in% names(r) &&
              identical(r$metadata$methode, "reserve2") &&
-             contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
+             contient(r$validation$erreurs, "Defaut de calcul intercepte dans la fonction mw_bootstrap() du moteur :") &&
              identical(r$validation$erreur_r$origine, "mw_bootstrap")
          })
 verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, 0 ou 98, seed NA, bareme 'x')",
@@ -1207,6 +1207,91 @@ verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#
                          "etre un nombre strictement positif ; pour retenir le parametre standard du",
                          "segment, ne pas le saisir (en appel direct : un nombre seul, sans attribut,",
                          "ou NULL).")))
+
+# Issue #527, groupe lognormale (LN-03 a LN-10, PR-01, AJ-04) : texte complet
+# de chaque motif change, sur le gabarit du tableau du par. 7.2 de l'avis
+# amont d'actuary, declenche par run_engine() (refus ok = FALSE, motif dans
+# validation$erreurs, aucune erreur levee). Le motif sans origine d'AJ-04
+# est atteint par run_engine() quand une primitive du corps protege echoue
+# (pile vide, audit de K4) ; il est declenche ici directement par
+# .engine_calcul_protege().
+refus_527 <- function(...) {
+  a <- list(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
+            nature_donnees = "brutes")
+  l <- list(...); for (n in names(l)) a[n] <- l[n]
+  r <- tryCatch(do.call(run_engine, a), error = function(e) e)
+  if (inherits(r, "usp_engine") && identical(r$ok, FALSE)) r$validation$erreurs else NA_character_
+}
+verifier("run_engine : LN-03, valeur infinie -> texte complet du motif (#527)",
+         identical(refus_527(yt = replace(y, 3, Inf)),
+                   "Valeurs infinies : x_t et y_t doivent etre des nombres finis."))
+verifier("run_engine : LN-04, x_t nul -> texte complet du motif (#527)",
+         identical(refus_527(xt = replace(x, 3, 0)),
+                   "Toutes les valeurs de x_t doivent etre strictement positives."))
+verifier("run_engine : LN-05, y_t negatif -> texte complet du motif (#527)",
+         identical(refus_527(yt = replace(y, 3, -1)),
+                   "Toutes les valeurs de y_t doivent etre strictement positives (loi lognormale)."))
+verifier("run_engine : LN-06, x_t et y_t x 1e-110 -> deux motifs complets, valeurs a 17 chiffres (#527)",
+         {
+           fin <- paste("sigma_USP et les tests sont invariants par un changement d'unite commun a",
+                        "x_t et y_t (et a la marge Delta du test d'equivalence si elle est fournie) :",
+                        "exprimer les montants dans une unite qui les ramene dans le domaine.")
+           identical(refus_527(xt = x * 1e-110, yt = y * 1e-110),
+                     c(paste("Valeur de x_t hors du domaine numerique [1e-50 ; 1e+50] : x_t =",
+                             "1.0420000000000001e-108 (< 1e-50, borne inferieure) ; 8 valeurs hors du",
+                             "domaine.", fin),
+                       paste("Valeur de y_t hors du domaine numerique [1e-50 ; 1e+50] : y_t =",
+                             "6.8970000000000006e-109 (< 1e-50, borne inferieure) ; 8 valeurs hors du",
+                             "domaine.", fin)))
+         })
+verifier("run_engine : LN-07, serie de 4 annees et T = 4 -> deux motifs distincts, profondeur puis serie (#527)",
+         identical(refus_527(xt = x[1:4], yt = y[1:4], T = 4),
+                   c(paste("Profondeur T = 4 inferieure a 5 : l'annexe XVII, B/C(2)(b), exige au moins",
+                           "5 annees consecutives."),
+                     paste("Annexe XVII, B/C(2)(b) : au moins 5 annees consecutives sont exigees, la",
+                           "serie en compte 4."))))
+verifier("run_engine : LN-07, serie de 4 annees sans T, et serie de 8 annees a T = 4 -> un motif chacun (#527)",
+         identical(refus_527(xt = x[1:4], yt = y[1:4]),
+                   paste("Annexe XVII, B/C(2)(b) : au moins 5 annees consecutives sont exigees, la",
+                         "serie en compte 4.")) &&
+           identical(refus_527(T = 4),
+                     paste("Profondeur T = 4 inferieure a 5 : l'annexe XVII, B/C(2)(b), exige au moins",
+                           "5 annees consecutives.")))
+verifier("run_engine : LN-08, marge Delta vide -> texte complet du motif (#527)",
+         identical(refus_527(delta_equiv = NA_real_),
+                   paste("Marge Delta du test d'equivalence (delta_equiv) = NA (valeur manquante) : un",
+                         "nombre fini strictement positif est attendu.")))
+verifier("run_engine : LN-09, marge Delta 500 >= perte moyenne -> texte complet du motif (#527)",
+         identical(refus_527(delta_equiv = 500),
+                   paste("Marge Delta du test d'equivalence (delta_equiv) = 500, superieure ou egale a",
+                         "la perte moyenne (85.005) : l'equivalence ne se lirait plus comme une",
+                         "proportionnalite ; 0 < Delta < moyenne des y_t est attendu.")))
+verifier("run_engine : LN-10, marge theta vide -> texte complet du motif (#527)",
+         identical(refus_527(theta_equiv = NA_real_),
+                   paste("Marge theta du test d'equivalence (theta_equiv) = NA (valeur manquante) : un",
+                         "nombre fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu.")))
+verifier("run_engine : PR-01, profondeur T vide -> texte complet du motif (#527)",
+         identical(refus_527(T = NA_real_),
+                   paste("Profondeur T = NA (valeur manquante) : un nombre entier d'annees est attendu",
+                         "(annexe XVII, B/C(2)(b)) ; la serie n'est pas tronquee.")))
+verifier("run_engine : AJ-04, defaut intercepte dans usp_controle_donnees() -> texte complet du motif (#527)",
+         {
+           r <- avec_injection("usp_controle_donnees", panne, calcul_extreme(x, y))
+           identical(r$ok, FALSE) && !is.null(r$validation$erreur_r) &&
+             identical(r$validation$erreurs,
+                       paste("Defaut de calcul intercepte dans la fonction usp_controle_donnees() du",
+                             "moteur : aucun resultat n'est produit ; diagnostic technique dans le champ",
+                             "validation$erreur_r du resultat."))
+         })
+verifier(".engine_calcul_protege : AJ-04 sans fonction d'origine -> texte complet du motif (#527)",
+         {
+           r <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                       stop("panne simulee"))
+           identical(r$ok, FALSE) && identical(r$validation$erreur_r$origine, NA_character_) &&
+             identical(r$validation$erreurs,
+                       paste("Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic",
+                             "technique dans le champ validation$erreur_r du resultat."))
+         })
 
 # #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >
 # 4/alpha, en plus de B_MIN_USAGE, pour que l'ECHEC bilateral d'une ligne a
@@ -1386,9 +1471,9 @@ verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et re
                             theta_equiv = NA)
            r2 <- tryCatch(usage_mw(theta_equiv = NA), error = function(e) e)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
-             contient(r1$validation$erreurs, "theta_equiv = NA") &&
+             contient(r1$validation$erreurs, "(theta_equiv) = NA (valeur manquante) :") &&
              identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
-             contient(r3$validation$erreurs, "theta_equiv = NA") &&
+             contient(r3$validation$erreurs, "(theta_equiv) = NA (valeur manquante) :") &&
              inherits(r2, "error") &&
              startsWith(conditionMessage(r2), "theta_equiv : argument sans effet pour la methode \"reserve2\"")
          })

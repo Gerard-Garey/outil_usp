@@ -496,8 +496,10 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 # ecriture qui se relit
 # exactement, gardes internes et appels directs). Employee par les seuls
 # messages de l'inventaire de #527 : erreurs d'usage de B, seed, alpha et
-# sigma_standard (.engine_verifier_usage()) et message jumeau de alpha
-# (engine_regle_verdicts()).
+# sigma_standard (.engine_verifier_usage()), message jumeau de alpha
+# (engine_regle_verdicts()), marges delta_equiv et theta_equiv du test
+# d'equivalence (engine_valider_donnees()) et profondeur T
+# (engine_valider_profondeur()).
 .engine_saisie_lisible <- function(v) {
   if (is.atomic(v) && length(v) == 1L && is.null(attributes(v)) &&
       is.na(v) && !is.nan(v)) return("NA (valeur manquante)")
@@ -8202,16 +8204,17 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   # Valeur infinie (issue #33) : anyNA(Inf) est FALSE et Inf > 0 ; sans ce
   # controle, run_engine() s'arretait sur une erreur R au lieu de refuser.
   if (is.numeric(xt) && is.numeric(yt) && any(is.infinite(c(xt, yt))))
-    err <- c(err, "Valeurs infinies : xt et yt doivent etre des nombres finis.")
+    err <- c(err, "Valeurs infinies : x_t et y_t doivent etre des nombres finis.")
   if (length(xt) && any(xt <= 0, na.rm = TRUE))
-    err <- c(err, "Toutes les valeurs de xt doivent etre strictement positives.")
+    err <- c(err, "Toutes les valeurs de x_t doivent etre strictement positives.")
   if (length(yt) && any(yt <= 0, na.rm = TRUE))
-    err <- c(err, "Toutes les valeurs de yt doivent etre strictement positives (loi lognormale).")
+    err <- c(err, "Toutes les valeurs de y_t doivent etre strictement positives (loi lognormale).")
   # Domaine numerique (issue #145) : valeurs finies strictement positives
   # hors de [DOMAINE_NUMERIQUE_MIN ; DOMAINE_NUMERIQUE_MAX], bornes incluses
   # (NA, infinies et non positives sont refusees ci-dessus, sans doublon).
   # Un motif par serie, qui cite la premiere valeur fautive
-  # (.engine_saisie(), 17 chiffres si necessaire) et la borne franchie.
+  # (.engine_saisie(), 17 chiffres si necessaire) et la borne franchie. La
+  # serie est nommee x_t ou y_t, notation du reglement (#527).
   for (nm in c("xt", "yt")) {
     v <- list(xt = xt, yt = yt)[[nm]]
     if (!is.numeric(v)) next
@@ -8222,16 +8225,21 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     borne <- if (v1 < DOMAINE_NUMERIQUE_MIN)
       sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
       else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
+    nom_serie <- c(xt = "x_t", yt = "y_t")[[nm]]
     err <- c(err, sprintf(paste(
       "Valeur de %s hors du domaine numerique [%g ; %g] : %s = %s (%s)%s.",
       "sigma_USP et les tests sont invariants par un changement d'unite commun",
-      "a xt et yt (et a delta_equiv s'il est fourni) : exprimer les montants",
-      "dans une unite qui les ramene dans le domaine."),
-      nm, DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, nm, .engine_saisie(unname(v1)),
+      "a x_t et y_t (et a la marge Delta du test d'equivalence si elle est fournie) :",
+      "exprimer les montants dans une unite qui les ramene dans le domaine."),
+      nom_serie, DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, nom_serie,
+      .engine_saisie(unname(v1)),
       borne, if (length(hors) > 1L) sprintf(" ; %d valeurs hors du domaine", length(hors)) else ""))
   }
+  # Longueur de la serie (#527) : texte distinct de celui de la profondeur T
+  # (engine_valider_profondeur()), chacun vrai sur son objet.
   if (length(xt) < T_min)
-    err <- c(err, sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %d).",
+    err <- c(err, sprintf(paste("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives sont",
+                                "exigees, la serie en compte %d."),
                           T_min, length(xt)))
   # Marge du TOST. Un scalaire numerique fini est exige avant toute
   # comparaison (NA, vide, vecteur, texte : refuses, sans erreur R).
@@ -8240,12 +8248,13 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
   # garde ses guillemets ("0.1"), un vecteur sa forme c(...), NULL ou vide
   # est cite "vide", et un double que 15 chiffres ne restituent pas est cite
   # a 17 chiffres (1 + 2^-52 etait cite 1 par l'ancienne saisie() locale,
-  # deparse() a 15 chiffres).
+  # deparse() a 15 chiffres). Valeur manquante (champ vide) citee
+  # "NA (valeur manquante)" par .engine_saisie_lisible() (#527).
   if (!is.null(delta_equiv)) {
     if (!scalaire_fini(delta_equiv) || delta_equiv <= 0)
-      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) : un nombre",
+      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv) = %s : un nombre",
                                   "fini strictement positif est attendu."),
-                            .engine_saisie(delta_equiv)))
+                            .engine_saisie_lisible(delta_equiv)))
     # Delta et la moyenne comparee (le meme double mean(yt)) sont cites
     # tous deux par .engine_saisie() (issue #198) : format() a 7 et 6
     # chiffres citait Delta = 80.999951 >= moyenne 80.999951 comme
@@ -8254,14 +8263,14 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     # textes est celui des deux valeurs, egalite comprise.
     else if (is.numeric(yt) && length(yt) && all(is.finite(yt)) &&
              delta_equiv >= (moy_yt <- mean(yt)))
-      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv = %s) superieure",
+      err <- c(err, sprintf(paste("Marge Delta du test d'equivalence (delta_equiv) = %s, superieure",
                                   "ou egale a la perte moyenne (%s) : l'equivalence ne se lirait plus",
-                                  "comme une proportionnalite ; 0 < Delta < moyenne(yt) est attendu."),
+                                  "comme une proportionnalite ; 0 < Delta < moyenne des y_t est attendu."),
                             .engine_saisie(delta_equiv), .engine_saisie(moy_yt)))
   } else if (!scalaire_fini(theta_equiv) || theta_equiv <= 0 || theta_equiv >= 1)
-    err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv = %s) : un nombre",
+    err <- c(err, sprintf(paste("Marge theta du test d'equivalence (theta_equiv) = %s : un nombre",
                                 "fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu."),
-                          .engine_saisie(theta_equiv)))
+                          .engine_saisie_lisible(theta_equiv)))
   # Bareme, segment et annexe (issue #131) : controles avant tout
   # avertissement ; une valeur invalide est refusee sans erreur R.
   msg <- tryCatch({ .engine_credibilite_appliquee(5, bareme, segment, annexe); NULL },
@@ -8348,17 +8357,21 @@ engine_valider_profondeur <- function(T, n, T_min = 5) {
   # pour un simple chargement (T_min = 1), les motifs sont neutres.
   source_T <- if (T_min >= 5) " (annexe XVII, B/C(2)(b))" else ""
   # T refuse cite par .engine_saisie() (issue #180) : deparse() a 15
-  # chiffres citait 8 + 1.8e-15, refuse comme non entier, "T = 8".
+  # chiffres citait 8 + 1.8e-15, refuse comme non entier, "T = 8". Champ
+  # vide cite "NA (valeur manquante)" par .engine_saisie_lisible() (#527).
   if (!is.numeric(T) || length(T) != 1L || !is.finite(T) || T != round(T))
     return(sprintf("Profondeur T = %s : un nombre entier d'annees est attendu%s ; la serie n'est pas tronquee.",
-                   .engine_saisie(T), source_T))
+                   .engine_saisie_lisible(T), source_T))
   if (T > n)
     return(sprintf("Profondeur T = %s superieure au nombre d'annees fournies (%d).",
                    format(T, decimal.mark = "."), n))
+  # T < 5 (#527) : texte distinct de celui de la longueur de la serie
+  # (engine_valider_donnees()), qui sortait a l'identique.
   if (T < T_min)
     return(if (T_min >= 5)
-      sprintf("Annexe XVII, B/C(2)(b) : au moins %d annees consecutives (T = %s).",
-              T_min, format(T, decimal.mark = "."))
+      sprintf(paste("Profondeur T = %s inferieure a %d : l'annexe XVII, B/C(2)(b), exige au",
+                    "moins %d annees consecutives."),
+              format(T, decimal.mark = "."), T_min, T_min)
       else sprintf("Profondeur T = %s : T >= %d attendu.", format(T, decimal.mark = "."), T_min))
   character(0)
 }
@@ -13459,9 +13472,12 @@ engine_regle_verdicts <- function(alpha) {
       appel <- conditionCall(e)
       origine <- if (any(du_moteur)) pile[max(which(du_moteur))]
                  else if (length(pile)) pile[length(pile)] else NA_character_
+      # Texte de #527 : le nom de la fonction d'origine reste, il sert a
+      # rapporter le defaut ; sans origine, le motif ne nomme rien.
       motif <- paste0("Defaut de calcul intercepte",
-                      if (!is.na(origine)) sprintf(" (erreur R dans %s())", origine) else " (erreur R)",
-                      " : aucun resultat n'est produit ; diagnostic dans validation$erreur_r.")
+                      if (!is.na(origine)) sprintf(" dans la fonction %s() du moteur", origine),
+                      " : aucun resultat n'est produit ; diagnostic technique dans le champ",
+                      " validation$erreur_r du resultat.")
       validation$ok <- FALSE
       validation$erreurs <- c(validation$erreurs, motif)
       validation$erreur_r <- list(
