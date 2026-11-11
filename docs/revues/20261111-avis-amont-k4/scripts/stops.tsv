@@ -1,0 +1,116 @@
+323	engine_aplatir_ex_aequo	  if (!all(is.finite(v))) stop("engine_aplatir_ex_aequo() : valeur non finie")
+349	usp_credibilite	    stop("Annexe XVII, section G : la duree T doit etre un nombre entier d'annees (T = ",
+351	usp_credibilite	  if (T < 5) stop("Annexe XVII : au moins 5 annees consecutives sont exigees (T = ", T, ").")
+370	.annexe_verifiee	    stop("Annexe inconnue (", paste(format(annexe, decimal.mark = "."), collapse = ", "),
+426	.engine_credibilite_appliquee	    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est attendu",
+519	.segment_verifie	    stop(sprintf(paste("segment = %s : un nombre scalaire fini entier, sans attribut,",
+534	.segment_ligne	  if (is.na(i)) stop(sprintf("Segment %s inconnu dans l'annexe %s.", segment, annexe),
+647	usp_parametre_standard	    stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
+651	usp_parametre_standard	  if (length(err_nature)) stop(err_nature)
+768	usp_lire_vecteur	  if (!file.exists(chemin)) stop("Fichier introuvable : ", chemin)
+804	usp_lire_vecteur	    stop(sprintf(paste("Lecture de %s : la cellule \"%s\" %s, a l'allure d'une valeur manquante",
+840	usp_lire_vecteur	        stop(sprintf(paste0("Serie en ligne de %s : la cellule \"%s\" (colonne %d) n'est pas numerique ",
+857	usp_lire_vecteur	    stop("Format non reconnu dans ", chemin, " : une serie sur une seule ligne ou ",
+878	usp_lire_vecteur	  if (!length(cel)) stop("Aucune valeur numerique exploitable dans ", chemin)
+882	usp_lire_vecteur	    stop(sprintf(paste("Cellule(s) vide(s) en position %s de la serie (comptee depuis la premiere valeur) de %
+891	usp_lire_vecteur	    stop(sprintf("Valeur(s) non numerique(s) en position %s de la serie (comptee depuis la premiere valeur) de
+904	usp_lire_vecteur	      stop(sprintf(paste("Serie en ligne de %s : en-tetes et valeurs non alignes (%s ; %d valeur(s)",
+1163	usp_charger	    stop("x (", length(x), ") et y (", length(y), ") n'ont pas la meme longueur.")
+1171	usp_charger	    if (length(err_T)) stop(err_T)
+1548	usp_delta_bord	    stop("usp_delta_bord() : tol doit verifier 0 <= tol < 0.5 (bandes de bord disjointes)")
+1665	usp_ajuster	  if (is.null(best)) stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6).")
+1700	usp_ajuster	    stop("Echec de l'optimisation (annexe XVII, sections B et C, paragraphe 6) : ",
+2205	usp_graine_flux_regime	    stop("usp_graine_flux_regime() : seed doit etre un nombre scalaire fini entier, |seed| <= ",
+2433	dw_puissance_ar1	    stop("dw_puissance_ar1() : T doit etre un entier >= 4 (et <= .Machine$integer.max)")
+2441	dw_puissance_ar1	    stop("dw_puissance_ar1() : rho doit verifier -1 + 1e-6 <= rho <= 1 - 1e-10 (domaine de precision numerique
+2443	dw_puissance_ar1	    stop("dw_puissance_ar1() : alpha doit etre dans ]0, 1[")
+2500	dw_puissance_ar1	  if (!is.finite(res)) stop("dw_puissance_ar1() : integration d'Imhof en echec")
+2799	.usp_mco_qr	  if (!all(is.finite(X))) stop("NA/NaN/Inf in 'x'")
+2800	.usp_mco_qr	  if (!all(is.finite(y))) stop("NA/NaN/Inf in 'y'")
+3057	usp_puissance_enveloppe_h2	    stop("usp_puissance_enveloppe_h2() : x doit etre un vecteur d'au moins 3 volumes finis strictement positif
+3059	usp_puissance_enveloppe_h2	    stop("usp_puissance_enveloppe_h2() : alpha doit etre dans ]0, 1[")
+3216	.pitman_unilateral	    stop("SENS_PITMAN_PENTE n'admet que \"unilateral\" : ", format(sens, decimal.mark = "."))
+3240	engine_permutations	    stop("engine_permutations() : la premiere ligne n'est pas l'identite")
+3777	.mc_entree	    stop("catalogue Monte-Carlo : sens de rejet inconnu : ", paste(queue, collapse = ", "))
+3779	.mc_entree	    stop("catalogue Monte-Carlo : degenere doit etre NULL ou une fonction du contexte")
+3781	.mc_entree	    stop("catalogue Monte-Carlo : non_definie doit etre NULL ou une fonction du contexte")
+3783	.mc_entree	    stop("catalogue Monte-Carlo : extremes doit etre NULL ou une fonction du contexte")
+4000	.mc_evaluer	      stop("statistique Monte-Carlo ", nm, " : valeur de longueur ", length(v),
+4175	engine_p_mc	    stop("engine_p_mc() : sens de rejet inconnu : ", paste(queue, collapse = ", "))
+4177	engine_p_mc	    stop("engine_p_mc() : extremes doit etre NULL ou un numerique de longueur 2 c(bas, haut)")
+4240	.mc_p_values	    stop("statistique(s) Monte-Carlo absente(s) du catalogue : ",
+4251	.mc_p_values	        stop("catalogue Monte-Carlo : extremes(", nm, ") doit rendre c(bas, haut), ",
+4261	.mc_p_values	        stop("catalogue Monte-Carlo : degenere(", nm, ") doit rendre TRUE ou FALSE")
+4269	.mc_p_values	        stop("catalogue Monte-Carlo : non_definie(", nm, ") doit rendre une chaine")
+4536	engine_registre_tests	      stop("add() : argument fonction absent (", nom, ")", call. = FALSE)
+4539	engine_registre_tests	      stop("add() : fonction doit etre une chaine non vide (", nom, ")", call. = FALSE)
+4542	engine_registre_tests	      stop("add() : fonction inconnue du moteur : ", fonction, " (", nom, ")", call. = FALSE)
+4549	engine_registre_tests	      stop("add() : type de ligne inconnu : ", paste(format(type, decimal.mark = "."), collapse = " "),
+4555	engine_registre_tests	      stop("add() : nature_as inconnue : ", paste(format(nature_as, decimal.mark = "."), collapse = " "),
+4561	engine_registre_tests	      stop("add() : sens inconnu : ", paste(format(sens), collapse = " "), " (", nom, ")",
+4568	engine_registre_tests	      stop("add() : nature_forcee doit etre NA ou une chaine non vide : ",
+4582	engine_registre_tests	        stop("add() : p-value de forme invalide : ", arg, " (classe ", class(val)[1L],
+4586	engine_registre_tests	        stop("add() : p-value hors de [0, 1] : ", arg, " = ", format(val), " (", nom, ")",
+4596	engine_registre_tests	        stop("add() : statistique Monte-Carlo inconnue du catalogue : ", mc_nom, " (", nom, ")")
+4598	engine_registre_tests	        stop("add() : statistique Monte-Carlo absente du bootstrap : ", mc_nom, " (", nom, ")")
+4606	engine_registre_tests	      stop("add() : p_mc_ext et mc_nom ne peuvent etre fournis ensemble (", nom, ")")
+4620	engine_registre_tests	      stop("add() : p Monte-Carlo absente sans motif d'indisponibilite dans le bootstrap : ",
+4711	engine_registre_tests	      stop("add() : p_min associee a une p non simulee seule (ni p exacte ni p Monte-Carlo) : ",
+4881	engine_registre_tests	        stop("add() : nature_forcee incompatible avec le rang de la p retenue (", rang, ") : ",
+4998	.engine_minp_rangs	    stop(".engine_minp_rangs() : obs et queues doivent avoir une valeur par colonne")
+5000	.engine_minp_rangs	    stop(".engine_minp_rangs() : sens de rejet inconnu : ",
+5004	.engine_minp_rangs	    stop(".engine_minp_rangs() : statistiques non finies (observe ou replications)")
+5063	engine_p_famille	      stop("engine_p_famille() : statistique(s) absente(s) de stats_boot ou du catalogue : ",
+5067	engine_p_famille	      stop("engine_p_famille() : statistique(s) absente(s) de stats_obs : ",
+5370	usp_ajuster_rapide	  if (is.null(best)) stop("Reajustement rapide : aucun demarrage abouti.")
+5394	usp_ajuster_contraint	    stop("Ajustement a delta fixe : objectif non fini.")
+5613	usp_tests	    stop("usp_tests() : l'argument methode (\"premium\" ou \"reserve1\") est obligatoire.")
+5616	usp_tests	    stop("usp_tests() : methode doit valoir \"premium\" ou \"reserve1\".")
+6036	usp_tests	        stop("usp_tests : motif TOST inconnu : ", tost$non_applicable)))
+6084	usp_tests	    stop("usp_tests() : p de permutation de la pente absente sur une ligne applicable ",
+6087	usp_tests	    stop("usp_tests() : sens de la p de permutation de la pente different de SENS_PITMAN_PENTE")
+6785	usp_tests	                 else stop("usp_tests() : Anscombe-Glynn non definie sans cause connue",
+6857	usp_tests	          stop("usp_tests() : test des suites non defini sur z, cause inconnue", call. = FALSE)
+6959	usp_tests	        stop("contrainte() : grandeur inconnue : ", quoi))
+6966	usp_tests	        stop("contrainte() : grandeur inconnue : ", quoi))
+7240	usp_tests	            stop("usp_tests() : test des suites non defini sur u, cause inconnue", call. = FALSE)
+7912	engine_ecrire_xlsx	  if (!identical(st, 0L)) stop("Echec de la creation du fichier .xlsx (commande zip indisponible ?).")
+7947	engine_lire_xlsx	  if (!length(f)) stop("Classeur illisible : aucune feuille trouvee.")
+8667	.engine_motif_enveloppe	    stop("motif d'enveloppe inconnu : ", cas))
+10126	mw_parametre	  if (!vc$ok) stop(paste(vc$erreurs, collapse = " "))
+10196	.mw_empiler	    stop(".mw_empiler() : colonnes de longueurs differentes dans un bloc")
+10824	.mw_spearman_comptes	    stop(".mw_spearman_comptes() : somme des comptes differente de n!")
+10831	.mw_spearman_loi_rangs	    stop(".mw_spearman_loi_rangs() : a et b de longueurs differentes")
+10833	.mw_spearman_loi_rangs	    stop(".mw_spearman_loi_rangs() : n doit etre compris entre 2 et 9")
+12140	.mw_verifier_figes	    stop(appelant, " : ensembles figes attendus sous la forme de .mw_ensembles_figes()")
+12146	.mw_verifier_figes	      stop(appelant, " : element ", nm, " des ensembles figes invalide (vecteur ",
+12340	.mw_phrase_b_effectif	    stop(".mw_phrase_b_effectif() : B absent ou non fini dans le bootstrap (", mc_nom, ")",
+12343	.mw_phrase_b_effectif	    stop(".mw_phrase_b_effectif() : B effectif absent ou non fini dans le bootstrap : ",
+12351	.mw_phrase_b_effectif	      stop(".mw_phrase_b_effectif() : plafond_cumuls absent ou non booleen dans le bootstrap (",
+12409	.mw_phrases_retirage	      stop(".mw_phrases_retirage() : ", ch, " absent ou non booleen dans le bootstrap",
+13081	engine_b_minimal	    stop("engine_b_minimal() : alpha doit etre un nombre scalaire fini > 0.", call. = FALSE)
+13084	engine_b_minimal	    stop(sprintf(paste("engine_b_minimal() : 4/alpha = %g, non fini ou >= 2^52 : B minimal",
+13092	engine_b_minimal	  stop(sprintf("engine_b_minimal() : B minimal introuvable pour alpha = %g.", alpha),
+13152	engine_regle_verdicts	    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+13256	.engine_verifier_usage	      stop(sprintf(paste("%s : argument%s sans effet pour la methode \"%s\" (%s),",
+13270	.engine_verifier_usage	    stop(sprintf(paste("plus_recent_en_dernier = %s : TRUE ou FALSE (logique scalaire",
+13277	.engine_verifier_usage	    stop(sprintf(paste("B = %s : un nombre scalaire fini entier de replications, B >=",
+13281	.engine_verifier_usage	    stop(sprintf(paste("seed = %s : un nombre scalaire fini entier, |seed| <= %d, sans",
+13287	.engine_verifier_usage	    stop(sprintf(paste("bareme = %s : NULL, \"court\" ou \"long\" (sans attribut) est",
+13291	.engine_verifier_usage	    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
+13299	.engine_verifier_usage	  if (!is.null(motif_b_alpha)) stop(motif_b_alpha, call. = FALSE)
+13301	.engine_verifier_usage	    stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
+13309	.engine_verifier_usage	    stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
+13451	.run_engine_mw	    stop("La methode du risque de reserve no 2 exige un triangle de paiements cumules.")
+13483	.run_engine_mw	    if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
+13873	.mw_residus_par_groupe	    stop(".mw_residus_par_groupe() : cle doit valoir \"i\" ou \"calendrier\"", call. = FALSE)
+14080	run_engine	      stop(sprintf("%s = %s : %s ou %s exactement est attendu (aucune abreviation).",
+14419	.engine_drapeau	    stop(sprintf("%s : drapeau metadata$%s absent ou invalide.", appelant, nom))
+14431	.engine_trace_sigma	    stop(sprintf("%s : sigma standard recalcule different de celui du resultat.", appelant))
+14447	.engine_trace_bareme	    stop(sprintf("%s : bareme du resultat absent ou invalide.", appelant))
+14449	.engine_trace_bareme	    stop(sprintf("%s : bareme recalcule different de celui du resultat.", appelant))
+14452	.engine_trace_bareme	    stop(sprintf("%s : facteur de credibilite recalcule different de celui du resultat.",
+14481	.engine_trace_profondeur	    stop(sprintf("%s : metadata$n_fournies absent ou invalide.", appelant))
+14483	.engine_trace_profondeur	    stop(sprintf("%s : metadata$T absent ou invalide.", appelant))
+14485	.engine_trace_profondeur	    stop(sprintf("%s : metadata$n_fournies inferieur a la profondeur T retenue.", appelant))
+14487	.engine_trace_profondeur	    stop(sprintf("%s : triangle tronque (n_fournies different de T), impossible en reserve no 2.",

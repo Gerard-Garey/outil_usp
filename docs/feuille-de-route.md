@@ -3439,7 +3439,7 @@ La fiche J « JF — Relecture intégrale avant remise » (plus bas) garde l'his
 - **Approbations** : textes de fond par `actuary` ; mainteneur : scission éventuelle de #527, et tout texte qui changerait la lecture d'un verdict.
 - **Durée** : moyenne à longue (sept numéros, sept à dix commits de code, un passage de `docwriter` sur six issues, une revue finale) ; fixée par l'inventaire de #527.
 
-- [x] Q-58-5 à Q-58-7 — [x] CI de `12872c3` verte — [ ] 0 (branche, commit `docs:` d'ouverture, push, PR brouillon, libellés) — [ ] 1 (rejeu, inventaire) — [ ] 2 (avis amont) — [ ] 3 (#528) — [ ] 4 (#506) — [ ] 5 (#519, Q-56-6) — [ ] 6 (#533) — [ ] 7 (#503) — [ ] 8 (#493) — [ ] 9 (#527) — [ ] 10 (`docwriter`, `actuary`) — [ ] 11 (revue finale) — [ ] 12 (PDF) — [ ] sortie du brouillon — [ ] fusion, fermetures vérifiées — *(rédigée le 11/11/2026, suite du cinquante-huitième point)*
+- [x] Q-58-5 à Q-58-7 — [x] CI de `12872c3` verte — [x] 0 (branche, commit `docs:` d'ouverture, push, PR brouillon) — [x] 1 (rejeu, inventaire ; `docs/revues/20261111-avis-amont-k4/` : 45 messages de #527, au-delà du seuil, question de scission au mainteneur) — [ ] 2 (avis amont) — [ ] 3 (#528) — [ ] 4 (#506) — [ ] 5 (#519, Q-56-6) — [ ] 6 (#533) — [ ] 7 (#503) — [ ] 8 (#493) — [ ] 9 (#527) — [ ] 10 (`docwriter`, `actuary`) — [ ] 11 (revue finale) — [ ] 12 (PDF) — [ ] sortie du brouillon — [ ] fusion, fermetures vérifiées — *(rédigée le 11/11/2026, suite du cinquante-huitième point)*
 
 ---
 

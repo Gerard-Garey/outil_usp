@@ -1,0 +1,11 @@
+source(file.path(Sys.getenv("S"), "pre.R"))
+f2 <- usp_valider_ajustement(list(gamma = -11.5, kkt_au_moins_un = FALSE, gamma_bord_au_moins_un = TRUE), "premium")
+cat("--- V3 forme 2 (retenu interieur), fit fictif | ok=", f2$ok, " nchar=", nchar(f2$erreurs), "\n", f2$erreurs, "\n")
+cat("--- reset profondeur (T_min = 1) :\n")
+for (T in list(NA_real_, 2.5, 0, -3)) cat("  T =", format(T), ":", engine_valider_profondeur(T, n = Inf, T_min = 1), "\n")
+cat("--- profondeur_reinitialisation (T vide) : texte app 'Profondeur T : champ vide.' (app.R, hors moteur)\n")
+cat("--- engine_motif_b_alpha(99, 0.01) == message U7 :", identical(engine_motif_b_alpha(99, 0.01), tryCatch(run_engine(xt=1:8+99, yt=(1:8+99)*0.7+c(1,-2,3,-1,2,-3,1,0), methode="reserve1", segment=1L, B=99, alpha=0.01), error=function(e) conditionMessage(e))), "\n")
+# engine_lire_xlsx : stop() internes et remplacement par message fixe dans l'app
+tmp <- tempfile(fileext = ".xlsx"); writeLines("pas un zip", tmp)
+r <- tryCatch(engine_lire_xlsx(tmp), error = function(e) conditionMessage(e)); cat("--- engine_lire_xlsx(fichier non zip) -> ", substr(paste(r, collapse=" "), 1, 200), "\n")
+cat("--- openxlsx installe :", requireNamespace("openxlsx", quietly = TRUE), "\n")

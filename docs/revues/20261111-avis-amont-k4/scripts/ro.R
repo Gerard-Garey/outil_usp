@@ -1,0 +1,5 @@
+source(file.path(Sys.getenv("S"), "pre.R"))
+r <- run_engine(methode = "reserve2", triangle = .tri, segment = 1, annexe = "II", B = 199, alpha = 0.025)
+cat(r$ok, "\n"); for (t in r$tests) if (grepl("Cellules aberrantes multiples", t$test)) cat(t$detail, "\n")
+r1 <- run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = 199, alpha = 0.025)
+for (t in r1$tests) if (grepl("ESD", t$test)) cat(t$detail, "\n")
