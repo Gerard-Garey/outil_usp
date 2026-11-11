@@ -31,10 +31,19 @@
 #        violation  : etendue >= 3 pages ET source > 10 500 caracteres ;
 #        a verifier : etendue >= 3 pages, source plus courte (une fiche de
 #                     1,2 page qui commence en bas de page compte 3 pages) ;
-#        conforme   : sinon.
+#        conforme   : sinon ;
+#        exception  : une fiche sous exception, non conforme sans elle, n'est
+#                     "conforme (exception)" que si son etendue tient dans le
+#                     plafond accorde ET sa source dans le budget en caracteres
+#                     accorde ; sinon elle garde son verdict sans exception.
+#                     Le rapport imprime cette regle complete
+#                     (nd_imprimer_pages()).
 #      Liste EXCEPTIONS_PLAFOND (label, plafond accorde en pages, budget
 #      accorde en caracteres, raison), tranchee lot par lot ; le budget est celui
-#      de la liste des exceptions de docs/latex/CONVENTIONS.md, section 1. Le
+#      de la liste des exceptions de docs/latex/CONVENTIONS.md, section 1, et n'est
+#      ecrit qu'une fois dans le script (champ `caracteres`) : le texte "source
+#      au plus N caracteres" de la raison imprimee en est construit a l'impression
+#      (nd_raison_imprimee()), la raison stockee ne porte pas le nombre. Le
 #      verdict avec exception n'est jamais plus severe que sans elle (#465) : une
 #      fiche non conforme sans exception devient "conforme (exception)" si son
 #      etendue tient dans le plafond accorde ET sa source dans le budget, sinon
@@ -82,7 +91,10 @@
 #  des fiches), pour un nombre de fiches du .tex different du nombre de labels
 #  fiche:N du .aux, et pour un journal .log absent quand le controle (c) l'est :
 #  un controle bloquant qui n'a rien lu ne doit pas passer pour un controle vert
-#  (#465). Hors --bloquant, ces cas restent des avertissements.
+#  (#465). Hors --bloquant, ces cas restent des avertissements. Le controle (a),
+#  qui ne lit ni le .aux ni le .log, est lance et imprime AVANT ce refus : le code
+#  de sortie reste 2, mais le rapport de (a) n'est pas masque (#475). Ce rapport
+#  comprend aussi la liste B (nd_imprimer_motifs()).
 #
 #  R base uniquement (pdflatex, pdftotext et pdfinfo pour le controle (d)). Les
 #  motifs sont ecrits en sequences \u (independants de la locale du script) ;
@@ -103,33 +115,35 @@ SEUIL_CARACTERES_PLAFOND <- 10500L   # source (caracteres) au-dela de laquelle c
 # `caracteres` : budget de la source (caracteres de \begin{fiche} a \end{fiche}),
 # le meme que la colonne Budget de CONVENTIONS.md ; au-dela, violation. Champ
 # facultatif (NULL ou NA : budget non controle, exception de repli sans budget).
+# La raison ne porte pas le budget : nd_raison_imprimee() y ajoute "source au plus N
+# caracteres" a l'impression, depuis `caracteres`.
 EXCEPTIONS_PLAFOND <- list(
   list(label = "fiche:student-pente", pages = 3L, caracteres = 13000L,
-       raison = "second fondement d'exactitude (loi de permutation exacte sous l'echangeabilite), reserve d'echangeabilite et constat C6 gardes integralement ; source au plus 13 000 caracteres"),
+       raison = "second fondement d'exactitude (loi de permutation exacte sous l'echangeabilite), reserve d'echangeabilite et constat C6 gardes integralement"),
   list(label = "fiche:foc", pages = 3L, caracteres = 15000L,
-       raison = "controle numerique qui fonde la validite de l'estimation : derivation, regle au moins un demarrage et sa reserve, identite FOC, lecture a T = 8, libelle courbure ; source au plus 15 000 caracteres"),
+       raison = "controle numerique qui fonde la validite de l'estimation : derivation, regle au moins un demarrage et sa reserve, identite FOC, lecture a T = 8, libelle courbure"),
   list(label = "fiche:rosner-esd", pages = 3L, caracteres = 13000L,
-       raison = "source valable pour n >= 25 seulement : lecture critique de l'article, niveau exact de la premiere etape et son domaine, constat C7, raisons de l'absence de verdict ; source au plus 13 000 caracteres"),
+       raison = "source valable pour n >= 25 seulement : lecture critique de l'article, niveau exact de la premiere etape et son domaine, constat C7, raisons de l'absence de verdict"),
   list(label = "fiche:ic-bootstrap", pages = 3L, caracteres = 15000L,
-       raison = "seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table ; source au plus 15 000 caracteres"),
+       raison = "seule mesure de la validite du bootstrap parametrique pour sigma_USP a T = 8 : couverture a cinq intervalles, biais, Andrews (2000), intervalle basic logarithmique, dependance de L a la table"),
   list(label = "mw:m1", pages = 3L, caracteres = 14000L,
-       raison = "seule ligne de M1 qui agrege les colonnes, construction de l'outil : pente relative a effets fixes et ponderation MCG avec la justification chiffree de l'effet fixe, forme close de Frisch et Waugh et sa verification, loi de Student approchee, critere de recevabilite a posteriori et sa reserve, puissance appariee, nature de l'alternative, non-specificite ; source au plus 14 000 caracteres"),
+       raison = "seule ligne de M1 qui agrege les colonnes, construction de l'outil : pente relative a effets fixes et ponderation MCG avec la justification chiffree de l'effet fixe, forme close de Frisch et Waugh et sa verification, loi de Student approchee, critere de recevabilite a posteriori et sa reserve, puissance appariee, nature de l'alternative, non-specificite"),
   list(label = "mw:m1a", pages = 3L, caracteres = 15000L,
-       raison = "test central de M1 apres transfert des regles communes et des phrases de B effectif : argument de la loi chi2(2K) exacte sous erreurs gaussiennes et ses deux reserves, colonnes non identifiables propres a la ligne, p-value conditionnelle a la definition de la statistique et sa mesure, puissance et dispersion intra-colonne ; source au plus 15 000 caracteres"),
+       raison = "test central de M1 apres transfert des regles communes et des phrases de B effectif : argument de la loi chi2(2K) exacte sous erreurs gaussiennes et ses deux reserves, colonnes non identifiables propres a la ligne, p-value conditionnelle a la definition de la statistique et sa mesure, puissance et dispersion intra-colonne"),
   list(label = "mw:m1c", pages = 3L, caracteres = 14000L,
-       raison = "statistique definie par sa forme close (Cauchy-Binet, Cramer, Schur) et verifiee en precision etendue, colonnes non identifiables et ensemble fige propres a la ligne, loi chi2(2K) exacte sous erreurs gaussiennes et sa reserve, cout de la forme close, arbitrage de la colonne a un degre de liberte ; source au plus 14 000 caracteres"),
+       raison = "statistique definie par sa forme close (Cauchy-Binet, Cramer, Schur) et verifiee en precision etendue, colonnes non identifiables et ensemble fige propres a la ligne, loi chi2(2K) exacte sous erreurs gaussiennes et sa reserve, cout de la forme close, arbitrage de la colonne a un degre de liberte"),
   list(label = "mw:m1d", pages = 3L, caracteres = 12000L,
-       raison = "construction de l'outil sans test publie : sources de la famille alpha (Mack 1994 et 1999), lecture des deux branches de H1 au regard de D(2)(h)(iii), absence de loi analytique, colonnes degenerees, puissance, exposants de variance sous H0 vraie, profils compares a la pente relative ; source au plus 12 000 caracteres"),
+       raison = "construction de l'outil sans test publie : sources de la famille alpha (Mack 1994 et 1999), lecture des deux branches de H1 au regard de D(2)(h)(iii), absence de loi analytique, colonnes degenerees, puissance, exposants de variance sous H0 vraie, profils compares a la pente relative"),
   list(label = "mw:m1id", pages = 3L, caracteres = 12000L,
-       raison = "diagnostic qui conditionne la lecture de la puissance de M1 et M2 : identite exacte de la variance de l'ordonnee, proprietes algebriques de e_a (Jensen, sigma2 gonfle sous H1), multiplicateurs de Student decentree et variante dementie par la mesure, lectures de R_j et CV_j ; source au plus 12 000 caracteres"),
+       raison = "diagnostic qui conditionne la lecture de la puissance de M1 et M2 : identite exacte de la variance de l'ordonnee, proprietes algebriques de e_a (Jensen, sigma2 gonfle sous H1), multiplicateurs de Student decentree et variante dementie par la mesure, lectures de R_j et CV_j"),
   list(label = "mw:m2bp", pages = 3L, caracteres = 12000L,
-       raison = "construction de l'outil (nR2 de Koenker partialise par Frisch et Waugh) : artefacts ecartes et justification, loi chi2(1) asymptotique non adossee, statistique sans effet de colonne non retenue, lecture de l'exposant 1, absence de puissance mesurable, non-specificite ; source au plus 12 000 caracteres"),
+       raison = "construction de l'outil (nR2 de Koenker partialise par Frisch et Waugh) : artefacts ecartes et justification, loi chi2(1) asymptotique non adossee, statistique sans effet de colonne non retenue, lecture de l'exposant 1, absence de puissance mesurable, non-specificite"),
   list(label = "mw:m2b", pages = 3L, caracteres = 14500L,
-       raison = "H0 ne traduit l'hypothese reglementaire qu'a l'effet de levier pres : variance exacte 1 - h, trois causes d'un rejet lues au regard de D(2)(h)(iv), mecanisme sous un ecart regulier, troisieme reserve de la loi chi2(2K), portee d'un rejet (art. 219 et 220), absence de puissance et non-specificite ; source au plus 14 500 caracteres"),
+       raison = "H0 ne traduit l'hypothese reglementaire qu'a l'effet de levier pres : variance exacte 1 - h, trois causes d'un rejet lues au regard de D(2)(h)(iv), mecanisme sous un ecart regulier, troisieme reserve de la loi chi2(2K), portee d'un rejet (art. 219 et 220), absence de puissance et non-specificite"),
   list(label = "mw:m3cal", pages = 3L, caracteres = 13000L,
-       raison = "procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5 ; source au plus 13 000 caracteres"),
+       raison = "procedure de l'annexe H de Mack et ses trois ecarts, moments exacts et exemple publie, regle de decision de Mack et niveau des p asymptotiques, puissance en queue basse contre bilaterale, sous-triangle 5x5"),
   list(label = "mw:m4gr", pages = 3L, caracteres = 15500L,
-       raison = "test central de M4, construction de l'outil : loi de Student conditionnelle et borne de Bonferroni mesuree non utilisable, cellule a influence non bornee et sa frontiere numerique, choix du minimum et exclusion des colonnes de trois facteurs, trois limites, remplacement de Grubbs ; source au plus 15 500 caracteres")
+       raison = "test central de M4, construction de l'outil : loi de Student conditionnelle et borne de Bonferroni mesuree non utilisable, cellule a influence non bornee et sa frontiere numerique, choix du minimum et exclusion des colonnes de trois facteurs, trois limites, remplacement de Grubbs")
 )
 
 # --- Liste A : motifs interdits (bloquants a L7) --------------------------------
@@ -562,13 +576,30 @@ nd_imprimer_motifs <- function(r, max_lignes) {
   invisible(nrow(r$a))
 }
 
+# Raison imprimee d'une exception : la raison stockee, suivie du budget en caracteres
+# construit depuis le champ `caracteres` (milliers separes par une espace), ou telle
+# quelle si le budget n'est pas controle (NA). Le budget n'est ecrit qu'a un endroit.
+nd_raison_imprimee <- function(raison, caracteres) {
+  if (is.na(caracteres)) return(raison)
+  sprintf("%s ; source au plus %s caracteres", raison,
+          format(as.integer(caracteres), big.mark = " ", scientific = FALSE, trim = TRUE))
+}
+
+# Regle du controle (b), imprimee en entier : le critere de pages et de caracteres de la
+# fiche, puis celui du budget en caracteres d'une exception, qui peut a lui seul donner une
+# violation (budget depasse : la fiche non conforme garde son verdict sans exception).
+nd_texte_regle_pages <- function()
+  sprintf(paste("Regle : violation si etendue >= %d pages ET source > %d caracteres ; a verifier si etendue >= %d pages, source plus courte ;",
+                "fiche sous exception, non conforme sans elle : conforme (exception) si etendue <= plafond accorde ET source <= budget accorde en caracteres,",
+                "sinon verdict sans exception.\n"),
+          SEUIL_PAGES_PLAFOND, SEUIL_CARACTERES_PLAFOND, SEUIL_PAGES_PLAFOND)
+
 nd_imprimer_pages <- function(r) {
   op <- options(width = 200); on.exit(options(op), add = TRUE)
   cat("\n== (b) Plafond de pages des fiches de la partie III ==\n")
   for (a in r$avis) cat("AVERTISSEMENT :", a, "\n")
   f <- r$fiches
-  cat(sprintf("Regle : violation si etendue >= %d pages ET source > %d caracteres ; a verifier si etendue >= %d pages, source plus courte.\n",
-              SEUIL_PAGES_PLAFOND, SEUIL_CARACTERES_PLAFOND, SEUIL_PAGES_PLAFOND))
+  cat(nd_texte_regle_pages())
   if (nrow(f)) {
     t <- data.frame(id = f$id, fiche = ifelse(is.na(f$label), substr(f$titre, 1L, 40L), f$label),
                     debut = f$debut, fin = f$fin, pages = f$etendue,
@@ -582,7 +613,7 @@ nd_imprimer_pages <- function(r) {
                   r$exceptions$statut[i], r$exceptions$pages[i],
                   if (is.na(r$exceptions$caracteres[i])) "budget non controle"
                   else sprintf("budget %d caracteres", r$exceptions$caracteres[i]),
-                  r$exceptions$raison[i]))
+                  nd_raison_imprimee(r$exceptions$raison[i], r$exceptions$caracteres[i])))
   } else cat("  aucune\n")
   nv <- sum(f$verdict == "violation"); nav <- sum(grepl("^a verifier", f$verdict))
   cat(sprintf("TOTAL (b) : %d fiche(s) en partie III, %d violation(s), %d a verifier, %d conforme(s).\n",
@@ -876,6 +907,26 @@ nd_analyser_remplissage <- function(marques, mots) {
                      titres = nrow(ti), rubriques = nrow(ru), blanc_max = if (length(libres)) max(libres) else 0))
 }
 
+# Evalue `expr` avec les variables d'environnement `vars` (vecteur nomme) posees par
+# Sys.setenv(), puis restaure l'etat exact d'avant (on.exit) : une variable absente
+# redevient absente (Sys.unsetenv), une variable presente retrouve sa valeur. Lancement
+# portable d'un processus fils : l argument env de system2() est ignore ou echoue sous Windows (#477).
+# `vars` vide : rien a poser (Sys.getenv(character(0)) renverrait tout l'environnement).
+nd_avec_env <- function(vars, expr) {
+  noms <- names(vars)
+  if (length(vars)) {
+    avant <- Sys.getenv(noms, unset = NA_character_)
+    on.exit({
+      for (i in seq_along(noms)) {
+        if (is.na(avant[[i]])) Sys.unsetenv(noms[i])
+        else do.call(Sys.setenv, stats::setNames(list(avant[[i]]), noms[i]))
+      }
+    })
+    do.call(Sys.setenv, as.list(vars))
+  }
+  expr
+}
+
 # Passe de pdfLaTeX instrumentee, dans un repertoire temporaire, avec les fichiers
 # auxiliaires de la compilation normale (.aux, .toc, .out...) : le depot n'est pas
 # touche. Renvoie list(pdf, remp, tmp) ou list(erreur = message).
@@ -887,13 +938,17 @@ nd_passe_mesure <- function(tex, marques_tex) {
   if (!any(grepl("[.]aux$", aux))) return(list(erreur = sprintf("%s.aux absent : compiler le document avant la passe de mesure.", nom)))
   tmp <- tempfile("nd_remplissage_"); dir.create(tmp)
   file.copy(aux, tmp)
-  env <- c(sprintf("TEXINPUTS=%s:%s:%s:", rep, dirname(normalizePath(marques_tex)), tmp),
-           "max_print_line=10000", "error_line=254", "half_error_line=238")
+  # Separateur de chemins de la plateforme (":" ou ";") ; le separateur final, qui designe
+  # les chemins par defaut pour kpathsea, suit la meme regle.
+  sep <- .Platform$path.sep
+  env <- c(TEXINPUTS = paste0(paste(rep, dirname(normalizePath(marques_tex)), tmp, sep = sep), sep),
+           max_print_line = "10000", error_line = "254", half_error_line = "238")
   ancien <- setwd(rep); on.exit(setwd(ancien))
-  code <- system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-jobname=", nom),
-                                paste0("-output-directory=", shQuote(tmp)),
-                                shQuote(sprintf("\\input{%s}\\input{%s.tex}", sub("[.]tex$", "", basename(marques_tex)), nom))),
-                  stdout = FALSE, stderr = FALSE, env = env)
+  code <- nd_avec_env(env,
+    system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-jobname=", nom),
+                          paste0("-output-directory=", shQuote(tmp)),
+                          shQuote(sprintf("\\input{%s}\\input{%s.tex}", sub("[.]tex$", "", basename(marques_tex)), nom))),
+            stdout = FALSE, stderr = FALSE))
   remp <- file.path(tmp, paste0(nom, ".remp"))
   if (!identical(code, 0L) || !file.exists(remp)) {
     jr <- file.path(tmp, paste0(nom, ".log"))
@@ -961,6 +1016,16 @@ nd_imprimer_remplissage <- function(r) {
 # Marques de la passe de mesure du controle (d), a cote du script.
 MARQUES_REMPLISSAGE_DEFAUT <- "marques_remplissage.tex"
 
+# Annotation GitHub Actions (sous GITHUB_ACTIONS=true, si une occurrence, une violation ou un
+# avertissement de remplissage existe), emise de la meme facon par le chemin normal et par le
+# refus en code 2 de --bloquant (#475) ; les compteurs des controles non lances valent 0.
+nd_annotation_ga <- function(n_a, n_b, n_c, n_d) {
+  if (Sys.getenv("GITHUB_ACTIONS") == "true" && (n_a > 0L || n_b > 0L || n_c > 0L || n_d > 0L))
+    cat(sprintf(paste("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
+                      "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
+  invisible(NULL)
+}
+
 nd_main <- function(args) {
   selecteurs <- c("--motifs-seuls", "--pages-seules", "--debordements", "--remplissage")
   connus <- c("--bloquant", selecteurs)
@@ -1003,8 +1068,10 @@ nd_main <- function(args) {
   # label fiche:N-fin alors que le .tex a des fiches (retouche du preambule qui desarmerait
   # le plafond de pages), ou si le nombre de fiches du .tex differe du nombre de labels
   # fiche:N du .aux (appariement decale, decision du 07/11/2026).
+  entete <- sprintf("Controle ND de %s (%d lignes). Mode : %s.\n\n", tex, length(lignes),
+                    if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)")
+  manque <- character(0)
   if (bloquant) {
-    manque <- character(0)
     if (sel("pages") && is.null(aux_lu)) manque <- c(manque, sprintf("fichier .aux introuvable (%s)", aux))
     if (sel("pages") && !is.null(aux_lu)) {
       n_tex <- nrow(nd_fiches(lignes))
@@ -1014,17 +1081,23 @@ nd_main <- function(args) {
       else if (n_aux != n_tex) manque <- c(manque, sub(" : appariement douteux.*$", "", nd_msg_decompte(n_tex, n_aux)))
     }
     if (sel("debordements") && !file.exists(journal)) manque <- c(manque, sprintf("journal LaTeX .log introuvable (%s)", journal))
-    if (length(manque)) {
-      cat("--bloquant : controle impossible, ", paste(manque, collapse = " ; "),
-          ".\nCompiler le document avant le controle, ou retirer --bloquant pour un simple avertissement.\n", sep = "")
-      return(2L)
-    }
   }
-  cat(sprintf("Controle ND de %s (%d lignes). Mode : %s.\n\n", tex, length(lignes),
-              if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)"))
+  # Le controle (a) n'a besoin ni du .aux ni du .log : il est lance et imprime une seule fois,
+  # avant le test du refus, pour que son rapport ne soit pas masque par le code 2 (#475).
+  # L'en-tete n'est imprime qu'avec (a) ou hors refus.
   n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L
+  if (sel("motifs") || !length(manque)) cat(entete)
   if (sel("motifs")) {
     n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut()), max_lignes)
+  }
+  if (length(manque)) {
+    # Le code de sortie reste 2, quel que soit le resultat de (a).
+    if (sel("motifs"))
+      cat(sprintf("\nListe A controlee avant le refus : %d occurrence(s) ; le code de sortie reste 2.\n\n", n_a))
+    cat("--bloquant : controle impossible, ", paste(manque, collapse = " ; "),
+        ".\nCompiler le document avant le controle, ou retirer --bloquant pour un simple avertissement.\n", sep = "")
+    nd_annotation_ga(n_a, n_b, n_c, n_d)
+    return(2L)
   }
   if (sel("pages")) n_b <- nd_imprimer_pages(nd_controle_pages(lignes, aux_lu))
   if (sel("debordements")) n_c <- nd_imprimer_debordements(nd_controle_debordements(nd_lire_journal(journal)))
@@ -1038,9 +1111,7 @@ nd_main <- function(args) {
   cat(sprintf(paste("\nBILAN : %d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
                     "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
   viol <- n_a > 0L || n_b > 0L || n_c > 0L
-  if (Sys.getenv("GITHUB_ACTIONS") == "true" && (viol || n_d > 0L))
-    cat(sprintf(paste("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
-                      "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
+  nd_annotation_ga(n_a, n_b, n_c, n_d)
   if (bloquant && viol) return(1L)
   0L
 }

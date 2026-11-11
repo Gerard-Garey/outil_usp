@@ -1648,13 +1648,19 @@ verifier(".mw_summary_lm() (#203) : resultat = summary() ; seul l'avertissement 
            m2 <- m; m2$df.residual <- m2$df.residual + 1L       # autre avertissement de summary.lm()
            .S3method("summary", "faux203", function(object, ...) {
              warning("essentially perfect fit: summary may be unreliable"); "faux" })
+           # formes attendues dans la langue de la session (gettext, domaine R-stats,
+           # comme .mw_summary_lm()) : anglais sous LANGUAGE=en, traduites sinon ;
+           # w4 reste l'anglais litteral pose par le faux summary, non intercepte
+           # (appel different de summary.lm()) quelle que soit la langue
+           msg0 <- gettext("essentially perfect fit: summary may be unreliable", domain = "R-stats")
+           msg2 <- gettext("residual degrees of freedom in object suggest this is not an \"lm\" fit", domain = "R-stats")
            w0 <- avert203(summary(m)); w1 <- avert203(s1 <- .mw_summary_lm(m))
            w2 <- avert203(.mw_summary_lm(m2))
            w3 <- avert203(.mw_summary_lm({ warning("autre 203"); m }))
            w4 <- avert203(.mw_summary_lm(structure(list(), class = "faux203")))
-           length(w0) == 1L && grepl("essentially perfect fit", w0) && length(w1) == 0L &&
+           length(w0) == 1L && identical(w0, msg0) && length(w1) == 0L &&
              identical(s1, suppressWarnings(summary(m))) &&
-             identical(w2, "residual degrees of freedom in object suggest this is not an \"lm\" fit") &&
+             identical(w2, msg2) &&
              identical(w3, "autre 203") &&
              identical(w4, "essentially perfect fit: summary may be unreliable")
          })
