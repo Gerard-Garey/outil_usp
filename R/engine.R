@@ -44,9 +44,12 @@
 # SOURCE DES ECARTS-TYPES STANDARD (annexes II et XIV, issue #19)
 # Version en vigueur : reglement delegue (UE) 2015/35 dans sa version
 # consolidee du 14.11.2024 (fichier "TEXTE consolide_ 32015R0035 - FR -
-# 14.11.2024.xhtml" a la racine du depot, qui fait foi). Les annexes II et XIV
-# y portent le marqueur M6 : elles ont ete remplacees par le reglement delegue
-# (UE) 2019/981 de la Commission du 8 mars 2019, JO L 161 du 18.6.2019, p. 1.
+# 14.11.2024.xhtml" a la racine du depot, retenue par l'outil comme
+# reference de lecture, sans effet juridique propre : font foi les textes
+# publies au Journal officiel de l'Union europeenne ; ADR 0005). Les annexes
+# II et XIV y portent le marqueur M6 : elles ont ete remplacees par le
+# reglement delegue (UE) 2019/981 de la Commission du 8 mars 2019, JO L 161
+# du 18.6.2019, p. 1.
 # Les valeurs de la version d'origine (JOUE L 12 du 17.1.2015, annexe II
 # p. 230, annexe XIV p. 269) ont ete remplacees ici et ne sont pas conservees :
 # neuf valeurs different (II-6, II-7, II-8 primes et reserve ; XIV-1 reserve,
@@ -2145,7 +2148,9 @@ lillie_p <- function(D, n) {
 
 # --- Execution sous graine locale (ADR 0004, issue #42) ----------------------
 # Fonction unique par laquelle passe toute simulation du moteur
-# (usp_bootstrap(), usp_lr_delta(), mw_bootstrap(), sw_loi_nulle()).
+# (usp_bootstrap(), y compris le flux complementaire de la p-value Monte-Carlo
+# conditionnelle au regime de delta, #240 ; usp_lr_delta() ;
+# usp_permutation_pente(), #169 ; mw_bootstrap() ; sw_loi_nulle()).
 # Sauvegarde .Random.seed de l'environnement global (ou note son absence),
 # pose la graine, evalue expr (evaluation differee : l'expression est evaluee
 # dans l'environnement de l'appelant, apres set.seed()), puis restaure l'etat
@@ -3699,10 +3704,11 @@ usp_simuler <- function(fit) {
   exp(stats::rnorm(fit$T, mu, sqrt(1 / fit$pi)))
 }
 
-# Toutes les statistiques dont la loi sous H0 "le modele de l'annexe XVII est
-# correct" peut etre simulee. IMPORTANT : le bootstrap parametrique simule sous
-# le MODELE AJUSTE. Sont donc exclues les statistiques dont l'hypothese nulle
-# n'est pas "le modele est correct" mais "beta = 0" (pente, Fisher global) :
+# Toutes les statistiques dont la loi sous H0 "le modele reglementaire (lecture
+# de l'outil) est correct" peut etre simulee. IMPORTANT : le bootstrap
+# parametrique simule sous le MODELE AJUSTE. Sont donc exclues les statistiques
+# dont l'hypothese nulle n'est pas "le modele est correct" mais "beta = 0"
+# (pente, Fisher global) :
 # pour celles-la, le modele ajuste appartient a H1 et une p-value de
 # Monte-Carlo n'aurait aucun sens. La pente recoit depuis #169 une p de
 # permutation (usp_permutation_pente(), test de Pitman), hors de ce catalogue.
@@ -11931,9 +11937,11 @@ mw_simuler_triangle <- function(aj, res_pool) .mw_simuler_triangle_etat(aj, res_
 FACTEUR_B_MAX_MW <- 25
 
 # Triangle simule valide pour une replication de mw_bootstrap() (#257, option
-# A1 de la specification, par. 3, point 2) : tire par mw_simuler_triangle()
-# jusqu'a un triangle sans NA dans sa partie superieure (tous ses cumuls
-# strictement positifs et finis), au plus `reste` triangles. Rend la liste
+# A1 de la specification, par. 3, point 2) : tire par
+# .mw_simuler_triangle_etat(), le calcul de mw_simuler_triangle() (memes
+# tirages, meme triangle, #278), jusqu'a un triangle sans NA dans sa partie
+# superieure (tous ses cumuls strictement positifs et finis), au plus `reste`
+# triangles. Rend la liste
 # (tri = triangle accepte, ou NULL si `reste` tirages n'en ont donne aucun ;
 # n = nombre de triangles tires, accepte compris ; rejets = nombre de
 # triangles retires). Acceptation-rejet : les triangles acceptes sont i.i.d.
@@ -13437,53 +13445,6 @@ engine_regle_verdicts <- function(alpha) {
     })
 }
 
-# run_engine() : lance toute la chaine de calcul a partir des donnees brutes et
-# des parametres utilisateur, et retourne un objet structure contenant
-# l'integralite des resultats necessaires a l'application.
-#
-# Arguments
-#   xt, yt         vecteurs numeriques de meme longueur (primes / pertes, ou
-#                  provision d'ouverture / montant de liquidation)
-#   methode        "premium" ou "reserve1"
-#   segment        segment de l'annexe II (1 a 12) ; sert a determiner
-#                  sigma_standard et le bareme de credibilite
-#   sigma_standard ecart-type standard ; s'il est fourni, il prime sur `segment`
-#                  (saisie libre : derogation au parametre reglementaire,
-#                  signalee par metadata$sigma_standard_saisi, issue #55) ;
-#                  nombre scalaire fini > 0
-#   nature_donnees "brutes" ou "nettes" (de reassurance) ; OBLIGATOIRE pour
-#                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
-#                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
-#                  "brutes" refuse (ok = FALSE, C(2)(c), D(2)(f))
-#   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
-#                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
-#                  toute autre valeur donne ok = FALSE, sans troncature
-#                  (engine_valider_profondeur(), issue #87) ; le nombre
-#                  d'annees fournies est restitue par metadata$n_fournies, et
-#                  une troncature (n_fournies > T) par une ligne "profondeur"
-#                  de engine_derogations() (issue #104)
-#   B              nombre de replications bootstrap / Monte-Carlo ; nombre
-#                  scalaire fini entier >= B_MIN_USAGE = 99
-#                  (.engine_verifier_usage())
-#   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
-#   seed           graine des simulations (reproductibilite) ; entier scalaire
-#                  fini, |seed| <= .Machine$integer.max (NULL refuse)
-#   bareme         "court" ou "long" exactement ; NULL = deduit du segment
-#                  (usp_bareme_segment() ; "court" par convention sans
-#                  segment, bareme non determine par la section G) ; saisie
-#                  libre : derogation au bareme de la section G, signalee
-#                  par metadata$bareme_saisi (issue #93), meme egale au
-#                  bareme du segment
-#
-# Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
-# Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
-# segment inconnu, ni segment ni sigma_standard, xt manquant, B, seed,
-# bareme, alpha, sigma_standard, reserve no 2 sans triangle ;
-# .engine_verifier_usage()) leve une erreur R explicite ; des
-# donnees refusees par la validation donnent ok = FALSE ; une erreur R levee
-# par le calcul qui suit une validation reussie est un DEFAUT DE CALCUL
-# INTERCEPTE (.engine_calcul_protege()) : ok = FALSE, motif neutre dans
-# validation$erreurs, diagnostic dans validation$erreur_r.
 # Orchestrateur de la methode du risque de reserve no 2. Retourne un objet de
 # meme classe et de meme forme generale que la branche lognormale, afin que la
 # couche d'affichage puisse le consommer sans traitement particulier.
@@ -14093,6 +14054,71 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
   pd
 }
 
+# run_engine() : lance toute la chaine de calcul a partir des donnees brutes et
+# des parametres utilisateur, et retourne un objet structure contenant
+# l'integralite des resultats necessaires a l'application.
+#
+# Arguments
+#   xt, yt         methodes lognormales : vecteurs numeriques de meme longueur
+#                  (primes / pertes, ou provision d'ouverture / montant de
+#                  liquidation) ; a ne pas fournir en reserve2 (#489)
+#   methode        "premium", "reserve1" ou "reserve2", exactement (aucune
+#                  abreviation, #489)
+#   segment        segment de l'annexe choisie (annexe II : 1 a 12 ; annexe
+#                  XIV : 1 a 4) ; sert a determiner sigma_standard et le
+#                  bareme de credibilite
+#   annexe         "II" ou "XIV", exactement (#489)
+#   triangle       reserve2 seulement : triangle de paiements cumules (une
+#                  ligne par annee d'accident, une colonne par annee de
+#                  developpement) ; a ne pas fournir pour premium et reserve1
+#   sigma_standard ecart-type standard ; s'il est fourni, il prime sur `segment`
+#                  (saisie libre : derogation au parametre reglementaire,
+#                  signalee par metadata$sigma_standard_saisi, issue #55) ;
+#                  nombre scalaire fini > 0
+#   nature_donnees "brutes" ou "nettes" (de reassurance) ; OBLIGATOIRE pour
+#                  "premium", sans defaut (issue #55, M13) : sans elle, ok =
+#                  FALSE ; methodes de reserve : NULL ou "nettes" acceptes,
+#                  "brutes" refuse (ok = FALSE, C(2)(c), D(2)(f))
+#   T              profondeur retenue (les T dernieres annees) ; NULL = tout ;
+#                  sinon entier scalaire fini, 5 <= T <= nombre d'annees, et
+#                  toute autre valeur donne ok = FALSE, sans troncature
+#                  (engine_valider_profondeur(), issue #87) ; le nombre
+#                  d'annees fournies est restitue par metadata$n_fournies, et
+#                  une troncature (n_fournies > T) par une ligne "profondeur"
+#                  de engine_derogations() (issue #104)
+#   B              nombre de replications bootstrap / Monte-Carlo ; nombre
+#                  scalaire fini entier >= B_MIN_USAGE = 99
+#                  (.engine_verifier_usage())
+#   alpha          seuil des verdicts, 0 < alpha < SEUIL_ECHEC_SENS_REJETER
+#   seed           graine des simulations (reproductibilite) ; entier scalaire
+#                  fini, |seed| <= .Machine$integer.max (NULL refuse)
+#   bareme         "court" ou "long" exactement ; NULL = deduit du segment
+#                  (usp_bareme_segment() ; "court" par convention sans
+#                  segment, bareme non determine par la section G) ; saisie
+#                  libre : derogation au bareme de la section G, signalee
+#                  par metadata$bareme_saisi (issue #93), meme egale au
+#                  bareme du segment
+#   theta_equiv    marge du test d'equivalence de la constante (TOST), en
+#                  fraction de la perte moyenne, 0 < theta < 1 ; ignoree si
+#                  delta_equiv est fourni ; methodes lognormales seulement
+#   delta_equiv    marge absolue Delta du TOST, fixee a priori, 0 < Delta <
+#                  moyenne(yt) ; NULL : marge theta_equiv ; methodes
+#                  lognormales seulement
+#   plus_recent_en_dernier TRUE si xt et yt sont dans l'ordre chronologique
+#                  (annee la plus recente en dernier), FALSE sinon (series
+#                  inversees avant tout calcul) ; logique scalaire non NA ;
+#                  methodes lognormales seulement
+#
+# Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
+# Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
+# segment inconnu, ni segment ni sigma_standard, xt manquant, B, seed,
+# bareme, alpha, sigma_standard, reserve no 2 sans triangle, argument sans
+# effet pour la methode ou plus_recent_en_dernier invalide (#489) ;
+# .engine_verifier_usage()) leve une erreur R explicite ; des
+# donnees refusees par la validation donnent ok = FALSE ; une erreur R levee
+# par le calcul qui suit une validation reussie est un DEFAUT DE CALCUL
+# INTERCEPTE (.engine_calcul_protege()) : ok = FALSE, motif neutre dans
+# validation$erreurs, diagnostic dans validation$erreur_r.
 run_engine <- function(xt, yt,
                        methode = c("premium", "reserve1", "reserve2"),
                        segment = NULL,

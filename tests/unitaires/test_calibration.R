@@ -7,7 +7,9 @@
 #  #61).
 #  Sources des valeurs :
 #  - annexes II et XIV : version consolidee du 14.11.2024 du reglement
-#    delegue (UE) 2015/35 (xhtml a la racine du depot, qui fait foi), tableaux
+#    delegue (UE) 2015/35 (xhtml a la racine du depot, retenue par l'outil
+#    comme reference de lecture, sans effet juridique propre : font foi les
+#    textes publies au Journal officiel de l'Union europeenne), tableaux
 #    sous le marqueur M6, soit le reglement delegue (UE) 2019/981 de la
 #    Commission du 8 mars 2019, JO L 161 du 18.6.2019, p. 1 (issue #19).
 #    Annexe II : lignes 36887 a 37140 environ du xhtml ; annexe XIV : lignes
