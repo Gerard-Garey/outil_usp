@@ -8282,12 +8282,12 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     # Plage plausible (issue #145) : conventions RATIO_PLAUSIBLE_MIN et
     # RATIO_PLAUSIBLE_MAX, communes a la ligne A de usp_controle_donnees().
     if (any(r < RATIO_PLAUSIBLE_MIN | r >= RATIO_PLAUSIBLE_MAX))
-      avt <- c(avt, sprintf("Ratio y/x hors de la plage plausible [%g ; %g[ : verifier les unites.",
+      avt <- c(avt, sprintf("Ratio y_t/x_t hors de la plage plausible [%g ; %g[ : verifier les unites.",
                             RATIO_PLAUSIBLE_MIN, RATIO_PLAUSIBLE_MAX))
     if (max(xt) / min(xt) >= 10)
       avt <- c(avt, "Amplitude des volumes >= 10 : rupture de perimetre possible.")
     if (anyDuplicated(data.frame(xt, yt)) > 0)
-      avt <- c(avt, "Couples (xt, yt) dupliques detectes.")
+      avt <- c(avt, "Couples (x_t, y_t) dupliques detectes.")
     # Volumes constants (#213) : predicat unique usp_volumes_constants()
     # (regle R13), sur la serie recue (serie retenue pour run_engine()) ;
     # avertissement, sans refus, place avant celui des pertes constantes
@@ -9184,13 +9184,16 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   if (!nrow(sous)) return(character(0))
   sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
   k <- utils::head(sous, 5)
+  # Coordonnees (i = ..., j = ...) suivies de leur sens, comme le motif des
+  # cellules non numeriques d'engine_lire_triangle() (#527).
   sprintf(paste(
-    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s : hors",
+    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s",
+    "(i : annee d'accident, j : annee de developpement) : hors",
     "de la partie observee du triangle, ces cellules ne sont ni lues par le",
     "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
     "observees ;",
     "verifier qu'il ne s'agit pas de valeurs projetees."),
-    paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+    paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")", collapse = ", "),
     if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else "")
 }
 

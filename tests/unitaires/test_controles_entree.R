@@ -54,7 +54,7 @@ verifier("Validation : vecteurs vides refuses", !engine_valider_donnees(numeric(
 verifier("Validation : avertissements ratio >= 5, amplitude >= 10, doublons",
          contient(engine_valider_donnees(x, replace(y, 1, 600))$avertissements, "Ratio") &&
          contient(engine_valider_donnees(replace(x, 1, 10), y)$avertissements, "Amplitude") &&
-         contient(engine_valider_donnees(c(x, x[1]), c(y, y[1]))$avertissements, "dupliques"))
+         contient(engine_valider_donnees(c(x, x[1]), c(y, y[1]))$avertissements, "Couples (x_t, y_t) dupliques detectes."))
 verifier("Validation : T_min parametrable",
          !engine_valider_donnees(x, y, T_min = 9)$ok &&
          isTRUE(engine_valider_donnees(x[1:3], y[1:3], T_min = 3)$ok))
@@ -355,7 +355,7 @@ verifier("Invariance d'unite : xt et yt x 2^k pres des bornes (k = 159 et -172) 
 verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 ; r = 0,1 sans avertissement (#145)",
          {
            avt <- function(xt, yt) engine_valider_donnees(xt, yt)$avertissements
-           motif <- "Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites."
+           motif <- "Ratio y_t/x_t hors de la plage plausible [0.1 ; 5[ : verifier les unites."
            contient(avt(x * 1e3, y), motif) && isTRUE(engine_valider_donnees(x * 1e3, y)$ok) &&
              contient(avt(x * 1e-1, y * 50), motif) &&
              !contient(avt(c(10, x[-1]), c(1, y[-1])), motif) &&
@@ -1691,7 +1691,7 @@ verifier("Rectangle 8 x 8 complete par C_chapeau : avertissement, 36 cellules, t
            av <- r$validation$avertissements
            isTRUE(r$ok) && !anyNA(rect) &&
              sum(grepl("sous la diagonale", av, fixed = TRUE)) == 1L &&
-             contient(av, "(i=1, j=7), (i=2, j=6), (i=2, j=7), (i=3, j=5), (i=3, j=6) et 23 autre(s)") &&
+             contient(av, "(i = 1, j = 7), (i = 2, j = 6), (i = 2, j = 7), (i = 3, j = 5), (i = 3, j = 6) et 23 autre(s) (i : annee d'accident, j : annee de developpement)") &&
              cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees") &&
              identical(r$triangle, tri491) &&
              identical(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp) &&
@@ -1705,8 +1705,8 @@ verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
                            annexe = "II", B = B_MIN_USAGE)
            isTRUE(v$ok) && !length(v$erreurs) &&
-             contient(v$avertissements, "sous la diagonale (i + j > I) en (i=4, j=5), (i=7, j=1) :") &&
-             isTRUE(l$ok) && contient(l$avertissements, "(i=4, j=5), (i=7, j=1)") &&
+             contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 4, j = 5), (i = 7, j = 1) (i : annee d'accident, j : annee de developpement) :") &&
+             isTRUE(l$ok) && contient(l$avertissements, "(i = 4, j = 5), (i = 7, j = 1)") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
 verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
@@ -1715,7 +1715,7 @@ verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
            v <- mw_valider_triangle(m)
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
                            annexe = "II", B = B_MIN_USAGE)
-           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i=7, j=2) :") &&
+           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 7, j = 2) (i : annee d'accident, j : annee de developpement) :") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
 verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \"et 1 autre(s)\" (#491)",
@@ -1724,9 +1724,9 @@ verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \
            m6 <- tri491; m6[8, 2:7] <- 1
            a5 <- mw_valider_triangle(m5)$avertissements
            a6 <- mw_valider_triangle(m6)$avertissements
-           contient(a5, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) : hors") &&
+           contient(a5, "(i = 7, j = 1), (i = 7, j = 2), (i = 7, j = 3), (i = 7, j = 4), (i = 7, j = 5) (i : annee d'accident, j : annee de developpement) : hors") &&
              !contient(a5, "autre(s)") &&
-             contient(a6, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) et 1 autre(s) : hors")
+             contient(a6, "(i = 7, j = 1), (i = 7, j = 2), (i = 7, j = 3), (i = 7, j = 4), (i = 7, j = 5) et 1 autre(s) (i : annee d'accident, j : annee de developpement) : hors")
          })
 
 ## --- engine_lire_donnees_csv --------------------------------------------------
@@ -1848,7 +1848,7 @@ verifier("engine_lire_triangle : avertissements_lecture = le seul motif des cell
            sd <- grep("sous la diagonale", r$avertissements, fixed = TRUE, value = TRUE)
            isTRUE(r$ok) && length(r$avertissements_lecture) == 1L && identical(r$avertissements_lecture, sd) &&
              identical(r$avertissements_lecture, grep("sous la diagonale", av_seg, fixed = TRUE, value = TRUE)) &&
-             contient(r$avertissements_lecture, sprintf("(i=%d, j=2), (i=%d, j=3), (i=%d, j=1) :", n - 2L, n - 2L, n - 1L)) &&
+             contient(r$avertissements_lecture, sprintf("(i = %d, j = 2), (i = %d, j = 3), (i = %d, j = 1) (i : annee d'accident, j : annee de developpement) :", n - 2L, n - 2L, n - 1L)) &&
              !contient(r$avertissements_lecture, "credibilite") && !contient(r$avertissements_lecture, "bruites") &&
              identical(r$avertissements, mw_valider_triangle(m)$avertissements)
          }, logical(1))))
@@ -2168,6 +2168,52 @@ verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une
                        paste("Cellule(s) non numerique(s) en (i = 2, j = 0), (i = 3, j = 1), (i = 5, j = 1),",
                              "(i = 4, j = 2), (i = 1, j = 3) et 2 autre(s) (i : annee d'accident, j : annee",
                              "de developpement).", PHRASE_NA_TRI_527))
+         })
+# Issue #527, avertissements (AV-01, AV-03, AV-08) : texte complet de chaque
+# avertissement change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, par run_engine() reel (ok = TRUE, avertissement non bloquant) ;
+# AV-08 aussi par engine_lire_triangle(), qui le rend dans
+# avertissements_lecture (meme texte, #518).
+avert_527 <- function(r, debut) grep(debut, r$validation$avertissements, fixed = TRUE, value = TRUE)
+ln_527 <- function(xx, yy) run_engine(xt = xx, yt = yy, methode = "premium", segment = 1,
+                                      B = B_MIN_USAGE, nature_donnees = "brutes")
+SUITE_AV08_527 <- paste("(i : annee d'accident, j : annee de developpement) : hors de la partie",
+                        "observee du triangle, ces cellules ne sont ni lues par le calcul, ni",
+                        "restituees dans son resultat, ni comptees parmi les cellules observees ;",
+                        "verifier qu'il ne s'agit pas de valeurs projetees.")
+verifier("run_engine : AV-01, ratio y_t/x_t hors de la plage plausible -> texte complet, calcul fait (#527)",
+         {
+           r <- ln_527(x, y * 1000)
+           isTRUE(r$ok) && identical(avert_527(r, "Ratio"),
+                                     "Ratio y_t/x_t hors de la plage plausible [0.1 ; 5[ : verifier les unites.")
+         })
+verifier("run_engine : AV-03, couples dupliques -> texte complet, calcul fait (#527)",
+         {
+           r <- ln_527(c(x, x[1]), c(y, y[1]))
+           isTRUE(r$ok) && identical(avert_527(r, "Couples"), "Couples (x_t, y_t) dupliques detectes.")
+         })
+verifier("run_engine reserve2 et engine_lire_triangle : AV-08, une cellule puis sept cellules sous la diagonale -> texte complet, meme texte sur les deux chemins (#527)",
+         {
+           t1 <- tri_usage; t1[8, 8] <- 5
+           t7 <- tri_usage
+           for (k in list(c(2, 8), c(3, 7), c(3, 8), c(4, 6), c(4, 7), c(5, 5), c(8, 2))) t7[k[1], k[2]] <- 5
+           a1 <- paste("Cellule(s) renseignee(s) sous la diagonale (i + j > I) en (i = 7, j = 7)",
+                       SUITE_AV08_527)
+           a7 <- paste("Cellule(s) renseignee(s) sous la diagonale (i + j > I) en (i = 1, j = 7),",
+                       "(i = 2, j = 6), (i = 2, j = 7), (i = 3, j = 5), (i = 3, j = 6) et 2 autre(s)",
+                       SUITE_AV08_527)
+           en_df <- function(t) {
+             d <- as.data.frame(t); names(d) <- as.character(0:7)
+             d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v)))
+             cbind(i = as.character(0:7), d, stringsAsFactors = FALSE)
+           }
+           r1 <- run_engine(methode = "reserve2", triangle = t1, segment = 1, B = B_MIN_USAGE)
+           r7 <- run_engine(methode = "reserve2", triangle = t7, segment = 1, B = B_MIN_USAGE)
+           isTRUE(r1$ok) && isTRUE(r7$ok) &&
+             identical(avert_527(r1, "sous la diagonale"), a1) &&
+             identical(avert_527(r7, "sous la diagonale"), a7) &&
+             identical(engine_lire_triangle(en_df(t1))$avertissements_lecture, a1) &&
+             identical(engine_lire_triangle(en_df(t7))$avertissements_lecture, a7)
          })
 verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
          {
@@ -2547,9 +2593,9 @@ verifier("#154 : avertissements calcules sur les T retenues (ratio et amplitude 
            xw <- c(1, 100, x); yw <- c(1e4, 50, y)
            an <- engine_valider_donnees(xw, yw)$avertissements
            at <- sr154(xw, yw)$validation$avertissements
-           contient(an, "Ratio y/x hors de la plage") && contient(an, "Amplitude des volumes") &&
+           contient(an, "Ratio y_t/x_t hors de la plage") && contient(an, "Amplitude des volumes") &&
              !contient(an, "T = 8") &&
-             !contient(at, "Ratio y/x hors de la plage") && !contient(at, "Amplitude des volumes") &&
+             !contient(at, "Ratio y_t/x_t hors de la plage") && !contient(at, "Amplitude des volumes") &&
              contient(at, "T = 8 : credibilite partielle") && contient(at, "T = 8 : lois asymptotiques") &&
              !contient(at, "T = 10")
          })
