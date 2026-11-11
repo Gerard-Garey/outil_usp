@@ -369,14 +369,14 @@ for (d_cible in c(0, 1)) {
              identical(r_p$profil, r2_ref$profil) &&
              identical(r_p$tests[-match(NOMS_45[k + 1L], vapply(r_p$tests, `[[`, "", "test"))],
                        r2_ref$tests[-match(NOMS_45[k + 1L], vapply(r2_ref$tests, `[[`, "", "test"))]))
-  verifier(sprintf("U11 borne delta = %d en echec : ligne non applicable, INFO, non inoperante, p_retenue NA, detail = MOTIF_LR_DELTA_ECHEC, fonction usp_lr_delta (#161)", d_cible),
+  verifier(sprintf("U11 borne delta = %d en echec : ligne non applicable, INFO, non inoperante, p_retenue NA, detail = MOTIF_LR_DELTA_ECHEC, fonction usp_lr_delta (#161), loi NA (#533)", d_cible),
            {
              t <- lignes_lr(r_p)[[k]]
              t$test == NOMS_45[k + 1L] && t$type == "non applicable" && t$verdict == "INFO" &&
                is.na(t$p_retenue) && is.na(t$stat) && is.na(t$estim) &&
                is.na(t$p_mc) && is.na(t$p_asymptotique) && is.na(t$sens) &&
                identical(t$detail, MOTIF_LR_DELTA_ECHEC) && t$fonction == "usp_lr_delta" &&
-               identical(t$inoperant, FALSE) &&
+               identical(t$inoperant, FALSE) && identical(t$loi, NA_character_) &&
                identical(lignes_lr(r_p)[[autre]], lignes_lr(r2_ref)[[autre]])
            })
   verifier(sprintf("U11 borne delta = %d en echec : plots_data de meme forme, lr et quantile_bootstrap a NA pour cette borne seule (#161)", d_cible),

@@ -54,7 +54,7 @@ verifier("Validation : vecteurs vides refuses", !engine_valider_donnees(numeric(
 verifier("Validation : avertissements ratio >= 5, amplitude >= 10, doublons",
          contient(engine_valider_donnees(x, replace(y, 1, 600))$avertissements, "Ratio") &&
          contient(engine_valider_donnees(replace(x, 1, 10), y)$avertissements, "Amplitude") &&
-         contient(engine_valider_donnees(c(x, x[1]), c(y, y[1]))$avertissements, "dupliques"))
+         contient(engine_valider_donnees(c(x, x[1]), c(y, y[1]))$avertissements, "Couples (x_t, y_t) dupliques detectes."))
 verifier("Validation : T_min parametrable",
          !engine_valider_donnees(x, y, T_min = 9)$ok &&
          isTRUE(engine_valider_donnees(x[1:3], y[1:3], T_min = 3)$ok))
@@ -95,8 +95,8 @@ verifier("Marge : valeur refusee restituee par deparse() (texte entre guillemets
            e2 <- engine_valider_donnees(x, y, theta_equiv = c(0.1, 0.2))$erreurs
            e3 <- engine_valider_donnees(x, y, delta_equiv = "8")$erreurs
            e4 <- engine_valider_donnees(x, y, theta_equiv = NULL)$erreurs
-           contient(e1, "theta_equiv = \"0.1\"") && contient(e2, "theta_equiv = c(0.1, 0.2)") &&
-             contient(e3, "delta_equiv = \"8\"") && contient(e4, "theta_equiv = vide")
+           contient(e1, "(theta_equiv) = \"0.1\" :") && contient(e2, "(theta_equiv) = c(0.1, 0.2) :") &&
+             contient(e3, "(delta_equiv) = \"8\" :") && contient(e4, "(theta_equiv) = vide :")
          })
 # Issue #180 : la saisie() locale citait la marge refusee par deparse() a 15
 # chiffres (1 + 2^-52 cite 1, -(1 + 2^-52) cite -1) ; .engine_saisie() la
@@ -106,24 +106,24 @@ verifier("Marge : valeur refusee qui exige 17 chiffres citee a 17 chiffres (thet
          {
            e1 <- engine_valider_donnees(x, y, theta_equiv = 1 + 2^-52)$erreurs
            e2 <- engine_valider_donnees(x, y, delta_equiv = -(1 + 2^-52))$erreurs
-           contient(e1, "(theta_equiv = 1.0000000000000002)") &&
-             contient(e2, "(delta_equiv = -1.0000000000000002)")
+           contient(e1, "(theta_equiv) = 1.0000000000000002 :") &&
+             contient(e2, "(delta_equiv) = -1.0000000000000002 :")
          })
 verifier("Marge : vide, texte entre guillemets, vecteur en c(...) et valeurs a 15 chiffres conserves (#180)",
          {
            cite <- function(th = 0.10, de = NULL)
              engine_valider_donnees(x, y, theta_equiv = th, delta_equiv = de)$erreurs
-           contient(cite(th = NULL), "(theta_equiv = vide)") &&
-             contient(cite(th = numeric(0)), "(theta_equiv = vide)") &&
-             contient(cite(de = numeric(0)), "(delta_equiv = vide)") &&
-             contient(cite(th = "0.1"), "(theta_equiv = \"0.1\")") &&
-             contient(cite(th = c(0.1, 0.2)), "(theta_equiv = c(0.1, 0.2))") &&
-             contient(cite(de = c(1, 2)), "(delta_equiv = c(1, 2))") &&
-             contient(cite(th = 1.5), "(theta_equiv = 1.5)") &&
-             contient(cite(de = -0.3), "(delta_equiv = -0.3)") &&
-             contient(cite(th = 5L), "(theta_equiv = 5L)") &&
-             contient(cite(th = TRUE), "(theta_equiv = TRUE)") &&
-             contient(cite(th = NA_real_), "(theta_equiv = NA_real_)")
+           contient(cite(th = NULL), "(theta_equiv) = vide :") &&
+             contient(cite(th = numeric(0)), "(theta_equiv) = vide :") &&
+             contient(cite(de = numeric(0)), "(delta_equiv) = vide :") &&
+             contient(cite(th = "0.1"), "(theta_equiv) = \"0.1\" :") &&
+             contient(cite(th = c(0.1, 0.2)), "(theta_equiv) = c(0.1, 0.2) :") &&
+             contient(cite(de = c(1, 2)), "(delta_equiv) = c(1, 2) :") &&
+             contient(cite(th = 1.5), "(theta_equiv) = 1.5 :") &&
+             contient(cite(de = -0.3), "(delta_equiv) = -0.3 :") &&
+             contient(cite(th = 5L), "(theta_equiv) = 5L :") &&
+             contient(cite(th = TRUE), "(theta_equiv) = TRUE :") &&
+             contient(cite(th = NA_real_), "(theta_equiv) = NA (valeur manquante) :")
          })
 # Issue #198 : le refus Delta >= moyenne(yt) citait Delta par format()
 # (7 chiffres) et la moyenne par format(digits = 6) : Delta = moyenne =
@@ -142,11 +142,11 @@ verifier("Marge Delta >= moyenne(y) : Delta et moyenne cites par .engine_saisie(
            e4 <- cite(rep(80.999951, 8), 80.999951)
            e5 <- cite(y, 2 * mean(y))
            identical(mean(rep(81 + u, 8)), 81 + u) &&
-             contient(e1, "(delta_equiv = 81.000000000000028) superieure ou egale a la perte moyenne (81.000000000000014)") &&
-             contient(e2, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81.000000000000014)") &&
-             contient(e3, "(delta_equiv = 81.000000000000014) superieure ou egale a la perte moyenne (81)") &&
-             contient(e4, "(delta_equiv = 80.999951) superieure ou egale a la perte moyenne (80.999951)") &&
-             contient(e5, "(delta_equiv = 170.01) superieure ou egale a la perte moyenne (85.005)")
+             contient(e1, "(delta_equiv) = 81.000000000000028, superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e2, "(delta_equiv) = 81.000000000000014, superieure ou egale a la perte moyenne (81.000000000000014)") &&
+             contient(e3, "(delta_equiv) = 81.000000000000014, superieure ou egale a la perte moyenne (81)") &&
+             contient(e4, "(delta_equiv) = 80.999951, superieure ou egale a la perte moyenne (80.999951)") &&
+             contient(e5, "(delta_equiv) = 170.01, superieure ou egale a la perte moyenne (85.005)")
          })
 verifier("Marge Delta : NA, vide, multiple, Inf, 0, negative, >= moyenne(y) refuses",
          all(vapply(list(NA, numeric(0), c(1, 2), Inf, 0, -1, mean(y), 2 * mean(y)),
@@ -290,10 +290,10 @@ verifier("Domaine numerique : le motif cite la serie, la valeur fautive (17 chif
            e1 <- engine_valider_donnees(x * 1e-300, y)$erreurs
            e2 <- engine_valider_donnees(replace(x, 3, 2e60), y)$erreurs
            e3 <- engine_valider_donnees(replace(x, 1, 1e50 * (1 + .Machine$double.eps)), y)$erreurs
-           length(e1) == 1L && contient(e1, "xt = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
-             contient(e1, "delta_equiv") &&
-             length(e2) == 1L && contient(e2, "xt = 2e+60 (> 1e+50, borne superieure).") &&
-             contient(e3, "xt = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
+           length(e1) == 1L && contient(e1, "x_t = 1.042e-298 (< 1e-50, borne inferieure) ; 8 valeurs hors du domaine") &&
+             contient(e1, "(et a la marge Delta du test d'equivalence si elle est fournie)") &&
+             length(e2) == 1L && contient(e2, "x_t = 2e+60 (> 1e+50, borne superieure).") &&
+             contient(e3, "x_t = 1.0000000000000003e+50 (> 1e+50, borne superieure)")
          })
 verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-dela (un ulp), sur xt comme sur yt (#145)",
          {
@@ -308,16 +308,16 @@ verifier("Domaine numerique : bornes 1e-50 et 1e50 acceptees, refus juste au-del
              ok(replace(x, 1, 1.5e-50), replace(y, 1, 1e-50)) &&
              ok(replace(x, 1, 1e-50), replace(y, 1, 1e-50)) &&
              ok(replace(x, 1, 1e50), replace(y, 1, 1e50)) &&
-             refus(replace(x, 1, haut), replace(y, 1, 6e49), "xt") &&
-             refus(replace(x, 1, 1e50), replace(y, 1, haut), "yt") &&
-             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "yt") &&
-             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "xt")
+             refus(replace(x, 1, haut), replace(y, 1, 6e49), "x_t") &&
+             refus(replace(x, 1, 1e50), replace(y, 1, haut), "y_t") &&
+             refus(replace(x, 1, 1.5e-50), replace(y, 1, bas), "y_t") &&
+             refus(replace(x, 1, bas), replace(y, 1, 1e-50), "x_t")
          })
 verifier("Domaine numerique : seule la serie retenue est controlee (annee hors domaine ecartee par T acceptee, refusee sinon) (#145)",
          {
            s8 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y), T = 8)$validation
            s9 <- engine_valider_serie_retenue(c(1e-60, x), c(1, y))$validation
-           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "xt = 1e-60 (< 1e-50, borne inferieure).")
+           isTRUE(s8$ok) && !s9$ok && contient(s9$erreurs, "x_t = 1e-60 (< 1e-50, borne inferieure).")
          })
 verifier("Domaine numerique : refus avec les autres refus, sans doublon pour une valeur nulle, negative, NA ou infinie (#145)",
          {
@@ -355,7 +355,7 @@ verifier("Invariance d'unite : xt et yt x 2^k pres des bornes (k = 159 et -172) 
 verifier("Ratio y/x : avertissement si r < 0,1 (xt x 1e3, ratio 7e-4) ou r >= 5 ; r = 0,1 sans avertissement (#145)",
          {
            avt <- function(xt, yt) engine_valider_donnees(xt, yt)$avertissements
-           motif <- "Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites."
+           motif <- "Ratio y_t/x_t hors de la plage plausible [0.1 ; 5[ : verifier les unites."
            contient(avt(x * 1e3, y), motif) && isTRUE(engine_valider_donnees(x * 1e3, y)$ok) &&
              contient(avt(x * 1e-1, y * 50), motif) &&
              !contient(avt(c(10, x[-1]), c(1, y[-1])), motif) &&
@@ -995,11 +995,11 @@ verifier("run_engine : origine reelle de l'erreur, fonction du moteur (piles inj
                                 calcul_extreme(x, y))$validation
            identical(b1$erreur_r$pile, c("usp_bootstrap", "engine_sous_graine", "usp_simuler")) &&
              identical(b1$erreur_r$origine, "usp_simuler") &&
-             contient(b1$erreurs, "(erreur R dans usp_simuler())") &&
+             contient(b1$erreurs, "Defaut de calcul intercepte dans la fonction usp_simuler() du moteur :") &&
              identical(b1$erreur_r$message, "panne simulee") &&
              identical(b2$erreur_r$pile, c("usp_tests", "add", "sprintf")) &&
              identical(b2$erreur_r$origine, "usp_tests") &&
-             contient(b2$erreurs, "(erreur R dans usp_tests())") &&
+             contient(b2$erreurs, "Defaut de calcul intercepte dans la fonction usp_tests() du moteur :") &&
              identical(b3$erreur_r$pile, c("usp_tests", "stats::lm.fit")) &&
              identical(b3$erreur_r$origine, "usp_tests")
          })
@@ -1040,7 +1040,7 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
                          finally = assign("mw_bootstrap", orig, envir = e))
            !inherits(r, "error") && identical(r$ok, FALSE) && !"methode" %in% names(r) &&
              identical(r$metadata$methode, "reserve2") &&
-             contient(r$validation$erreurs, "(erreur R dans mw_bootstrap())") &&
+             contient(r$validation$erreurs, "Defaut de calcul intercepte dans la fonction mw_bootstrap() du moteur :") &&
              identical(r$validation$erreur_r$origine, "mw_bootstrap")
          })
 verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, 0 ou 98, seed NA, bareme 'x')",
@@ -1104,7 +1104,7 @@ usage_accepte <- function(arg, valeurs) {
 verifier("run_engine : alpha NA, vide, texte, vecteur, logique, 0, 0,30, 0,5, 0,999, 1, 1.5, -0.1, Inf -> erreur d'usage (premium, reserve2)",
          erreur_usage("alpha", list(NA, NULL, "0.1", c(0.1, 0.2), TRUE, 0, 0.30, 0.5, 0.999,
                                     1, 1.5, -0.1, Inf),
-                      "0 < alpha < SEUIL_ECHEC_SENS_REJETER = 0.3, est attendu"))
+                      "doit etre un nombre strictement compris entre 0 et 0.3 (SEUIL_ECHEC_SENS_REJETER)"))
 verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
          {
            e <- tryCatch(usage_premium(alpha = 0.30), error = function(e) e)
@@ -1121,20 +1121,23 @@ verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests
          identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
 verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
          erreur_usage("sigma_standard", list(NA, NA_real_, "0.1", c(0.1, 0.2), TRUE, 0, -0.1, Inf),
-                      "sigma_standard > 0, est attendu"))
+                      "l'ecart-type standard saisi doit etre un nombre strictement positif"))
 verifier("run_engine : sigma_standard NULL, 0,10 et 2 acceptes (premium, reserve2)",
          usage_accepte("sigma_standard", list(NULL, 0.10, 2)))
 verifier("run_engine : seed NULL, NA, texte, vecteur, logique, 1.5, Inf, 3e9 -> erreur d'usage du moteur (premium, reserve2)",
          erreur_usage("seed", list(NULL, NA, NA_real_, "5", "a", c(1, 2), TRUE, 1.5, Inf, 3e9),
-                      "un nombre scalaire fini entier, |seed| <= 2147483647"))
+                      "la graine doit etre un nombre entier compris entre -2147483647 et 2147483647"))
 verifier("run_engine : seed NA et NULL -> message du moteur citant la valeur recue",
          {
            e1 <- tryCatch(usage_premium(seed = NA), error = function(e) e)
            e2 <- tryCatch(usage_mw(seed = NULL), error = function(e) e)
            inherits(e1, "error") && inherits(e2, "error") &&
-             startsWith(conditionMessage(e1), "seed = NA : un nombre scalaire fini entier") &&
+             startsWith(conditionMessage(e1),
+                        "seed = NA (valeur manquante) : la graine doit etre un nombre entier") &&
              startsWith(conditionMessage(e2), "seed = vide : ") &&
-             grepl("NULL refuse : calcul non reproductible", conditionMessage(e2), fixed = TRUE)
+             grepl("faute de quoi le calcul ne serait pas reproductible", conditionMessage(e2),
+                   fixed = TRUE) &&
+             grepl("NULL refuse).", conditionMessage(e2), fixed = TRUE)
          })
 verifier("run_engine : seed 20260831, -5, 5L, .Machine$integer.max et son oppose acceptes (premium, reserve2)",
          usage_accepte("seed", list(20260831, -5, 5L, .Machine$integer.max,
@@ -1158,13 +1161,173 @@ verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve
 verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erreur d'usage citant B_MIN_USAGE = 99 (premium, reserve2)",
          B_MIN_USAGE == 99 &&
            erreur_usage("B", list(0, 98, 98.9, 99.5, 999.5, -1, NA, NA_real_, "999", c(99, 999), Inf),
-                        "B >= B_MIN_USAGE = 99, sans attribut, est attendu") &&
+                        "doit etre un nombre entier au moins egal a 99 (B_MIN_USAGE)") &&
            {
              e <- tryCatch(usage_premium(B = 98), error = function(e) e)
              inherits(e, "error") && startsWith(conditionMessage(e), "B = 98 : ")
            })
 verifier("run_engine : B = B_MIN_USAGE = 99 accepte (premium, reserve2)",
          usage_accepte("B", list(99)))
+
+# Issue #527, groupe usage (US-01 a US-05) : texte complet de chaque message,
+# mot pour mot celui du tableau du par. 7.2 de l'avis amont d'actuary
+# (docs/revues/20261111-avis-amont-k4/actuary-avis-amont.md), declenche par
+# run_engine() avec une valeur manquante (US-04 : B = 99, alpha = 0,01).
+message_usage <- function(...) {
+  e <- tryCatch(usage_premium(...), error = function(e) e)
+  if (inherits(e, "error") && is.null(conditionCall(e))) conditionMessage(e) else NA_character_
+}
+verifier("run_engine : US-01, B vide -> texte complet du message (#527)",
+         identical(message_usage(B = NA_real_),
+                   paste("B = NA (valeur manquante) : le nombre de replications bootstrap doit etre",
+                         "un nombre entier au moins egal a 99 (B_MIN_USAGE) ; en appel direct, un",
+                         "nombre seul, sans attribut.")))
+verifier("run_engine : US-02, graine vide -> texte complet du message (#527)",
+         identical(message_usage(seed = NA_real_),
+                   paste("seed = NA (valeur manquante) : la graine doit etre un nombre entier compris",
+                         "entre -2147483647 et 2147483647 ; elle est obligatoire, faute de quoi le",
+                         "calcul ne serait pas reproductible (en appel direct : un nombre seul, sans",
+                         "attribut, NULL refuse).")))
+verifier("run_engine : US-03, alpha vide -> texte complet du message (#527)",
+         identical(message_usage(alpha = NA_real_),
+                   paste("alpha = NA (valeur manquante) : le seuil des verdicts doit etre un nombre",
+                         "strictement compris entre 0 et 0.3 (SEUIL_ECHEC_SENS_REJETER) ; au-dela, la",
+                         "zone ALERTE des tests en sens rejeter disparait et le verdict ne suit plus",
+                         "la regle documentee (en appel direct : un nombre seul, sans attribut).")))
+verifier("run_engine : US-04, B = 99 et alpha = 0,01 -> texte complet du message (#527)",
+         identical(message_usage(B = 99, alpha = 0.01),
+                   paste("B = 99 et alpha = 0.01 : B + 1 > 4/alpha est requis, soit B >= 400 a ce",
+                         "seuil (en plus du minimum B >= 99, B_MIN_USAGE). Le plancher bilateral de",
+                         "la p-value Monte-Carlo, 2/(B+1) = 0.02, n'est pas inferieur a alpha/2 =",
+                         "0.005 : l'ECHEC des tests dont la seule p-value est Monte-Carlo serait",
+                         "inatteignable (regle des verdicts).")))
+verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#527)",
+         identical(message_usage(sigma_standard = NA_real_),
+                   paste("sigma_standard = NA (valeur manquante) : l'ecart-type standard saisi doit",
+                         "etre un nombre strictement positif ; pour retenir le parametre standard du",
+                         "segment, ne pas le saisir (en appel direct : un nombre seul, sans attribut,",
+                         "ou NULL).")))
+
+# Issue #527, groupe lognormale (LN-03 a LN-10, PR-01, AJ-04) : texte complet
+# de chaque motif change, sur le gabarit du tableau du par. 7.2 de l'avis
+# amont d'actuary, declenche par run_engine() (refus ok = FALSE, motif dans
+# validation$erreurs, aucune erreur levee). Le motif sans origine d'AJ-04
+# est atteint par run_engine() quand la pile de l'erreur ne contient aucune
+# fonction du moteur (primitive du corps protege, fonction de R ou anonyme ;
+# revue finale de K4, Q2) ; il est declenche ici directement par
+# .engine_calcul_protege().
+refus_527 <- function(...) {
+  a <- list(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
+            nature_donnees = "brutes")
+  l <- list(...); for (n in names(l)) a[n] <- l[n]
+  r <- tryCatch(do.call(run_engine, a), error = function(e) e)
+  if (inherits(r, "usp_engine") && identical(r$ok, FALSE)) r$validation$erreurs else NA_character_
+}
+verifier("run_engine : LN-03, valeur infinie -> texte complet du motif (#527)",
+         identical(refus_527(yt = replace(y, 3, Inf)),
+                   "Valeurs infinies : x_t et y_t doivent etre des nombres finis."))
+verifier("run_engine : LN-04, x_t nul -> texte complet du motif (#527)",
+         identical(refus_527(xt = replace(x, 3, 0)),
+                   "Toutes les valeurs de x_t doivent etre strictement positives."))
+verifier("run_engine : LN-05, y_t negatif -> texte complet du motif (#527)",
+         identical(refus_527(yt = replace(y, 3, -1)),
+                   "Toutes les valeurs de y_t doivent etre strictement positives (loi lognormale)."))
+verifier("run_engine : LN-06, x_t et y_t x 1e-110 -> deux motifs complets, valeurs a 17 chiffres (#527)",
+         {
+           fin <- paste("sigma_USP et les tests sont invariants par un changement d'unite commun a",
+                        "x_t et y_t (et a la marge Delta du test d'equivalence si elle est fournie) :",
+                        "exprimer les montants dans une unite qui les ramene dans le domaine.")
+           identical(refus_527(xt = x * 1e-110, yt = y * 1e-110),
+                     c(paste("Valeur de x_t hors du domaine numerique [1e-50 ; 1e+50] : x_t =",
+                             "1.0420000000000001e-108 (< 1e-50, borne inferieure) ; 8 valeurs hors du",
+                             "domaine.", fin),
+                       paste("Valeur de y_t hors du domaine numerique [1e-50 ; 1e+50] : y_t =",
+                             "6.8970000000000006e-109 (< 1e-50, borne inferieure) ; 8 valeurs hors du",
+                             "domaine.", fin)))
+         })
+verifier("run_engine : LN-07, serie de 4 annees et T = 4 -> deux motifs distincts, profondeur puis serie (#527)",
+         identical(refus_527(xt = x[1:4], yt = y[1:4], T = 4),
+                   c(paste("Profondeur T = 4 inferieure a 5 : l'annexe XVII, B/C(2)(b), exige au moins",
+                           "5 annees consecutives."),
+                     paste("Annexe XVII, B/C(2)(b) : au moins 5 annees consecutives sont exigees, la",
+                           "serie en compte 4."))))
+verifier("run_engine : LN-07, serie de 4 annees sans T, et serie de 8 annees a T = 4 -> un motif chacun (#527)",
+         identical(refus_527(xt = x[1:4], yt = y[1:4]),
+                   paste("Annexe XVII, B/C(2)(b) : au moins 5 annees consecutives sont exigees, la",
+                         "serie en compte 4.")) &&
+           identical(refus_527(T = 4),
+                     paste("Profondeur T = 4 inferieure a 5 : l'annexe XVII, B/C(2)(b), exige au moins",
+                           "5 annees consecutives.")))
+verifier("run_engine : LN-08, marge Delta vide -> texte complet du motif (#527)",
+         identical(refus_527(delta_equiv = NA_real_),
+                   paste("Marge Delta du test d'equivalence (delta_equiv) = NA (valeur manquante) : un",
+                         "nombre fini strictement positif est attendu.")))
+verifier("run_engine : LN-09, marge Delta 500 >= perte moyenne -> texte complet du motif (#527)",
+         identical(refus_527(delta_equiv = 500),
+                   paste("Marge Delta du test d'equivalence (delta_equiv) = 500, superieure ou egale a",
+                         "la perte moyenne (85.005) : l'equivalence ne se lirait plus comme une",
+                         "proportionnalite ; 0 < Delta < moyenne des y_t est attendu.")))
+verifier("run_engine : LN-10, marge theta vide -> texte complet du motif (#527)",
+         identical(refus_527(theta_equiv = NA_real_),
+                   paste("Marge theta du test d'equivalence (theta_equiv) = NA (valeur manquante) : un",
+                         "nombre fini, 0 < theta < 1 (fraction de la perte moyenne), est attendu.")))
+verifier("run_engine : PR-01, profondeur T vide -> texte complet du motif (#527)",
+         identical(refus_527(T = NA_real_),
+                   paste("Profondeur T = NA (valeur manquante) : un nombre entier d'annees est attendu",
+                         "(annexe XVII, B/C(2)(b)) ; la serie n'est pas tronquee.")))
+verifier("run_engine : AJ-04, defaut intercepte dans usp_controle_donnees() -> texte complet du motif (#527)",
+         {
+           r <- avec_injection("usp_controle_donnees", panne, calcul_extreme(x, y))
+           identical(r$ok, FALSE) && !is.null(r$validation$erreur_r) &&
+             identical(r$validation$erreurs,
+                       paste("Defaut de calcul intercepte dans la fonction usp_controle_donnees() du",
+                             "moteur : aucun resultat n'est produit ; diagnostic technique dans le champ",
+                             "validation$erreur_r du resultat."))
+         })
+verifier(".engine_calcul_protege : AJ-04 sans fonction d'origine -> texte complet du motif (#527)",
+         {
+           r <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                       stop("panne simulee"))
+           identical(r$ok, FALSE) && identical(r$validation$erreur_r$origine, NA_character_) &&
+             identical(r$validation$erreurs,
+                       paste("Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic",
+                             "technique dans le champ validation$erreur_r du resultat."))
+         })
+# Revue finale de K4, Q2 (avis d'actuary) : origine = derniere fonction du
+# moteur de la pile, NA si la pile n'en contient aucune (fonction de R ou
+# anonyme jamais dite du moteur), la pile restant dans erreur_r ; avant, repli
+# sur le dernier cadre ("dans la fonction data.frame() du moteur").
+# (1) .engine_calcul_protege() direct, erreur nee dans data.frame() ;
+# (2) run_engine() : usp_controle_donnees() remplacee par une fonction qui
+# restaure l'originale puis echoue dans data.frame() (au moment de l'erreur,
+# le cadre n'execute plus la fonction du moteur de ce nom) ; (3) une erreur
+# nee dans une fonction du moteur garde son nom dans le motif.
+verifier(".engine_calcul_protege et run_engine : AJ-04, erreur dans data.frame() sans fonction du moteur dans la pile -> origine NA, pile conservee, motif neutre ; usp_ajuster() garde son nom (revue finale K4, Q2)",
+         {
+           neutre <- paste("Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic",
+                           "technique dans le champ validation$erreur_r du resultat.")
+           r1 <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                        data.frame(a = 1:2, b = 1:3))
+           e <- environment(run_engine)
+           orig <- get("usp_controle_donnees", envir = e)
+           r2 <- avec_injection("usp_controle_donnees", function(...) {
+             assign("usp_controle_donnees", orig, envir = e)
+             data.frame(a = 1:2, b = 1:3)
+           }, calcul_extreme(x, y))
+           r3 <- .engine_calcul_protege("premium", Sys.time(), list(ok = TRUE, erreurs = character(0)),
+                                        usp_ajuster(c(1, 2, 3), "a"))
+           identical(r1$ok, FALSE) && identical(r1$validation$erreur_r$origine, NA_character_) &&
+             "data.frame" %in% r1$validation$erreur_r$pile &&
+             identical(r1$validation$erreurs, neutre) &&
+             identical(r2$ok, FALSE) && identical(r2$validation$erreur_r$origine, NA_character_) &&
+             identical(r2$validation$erreur_r$pile, c("usp_controle_donnees", "data.frame")) &&
+             identical(r2$validation$erreurs, neutre) &&
+             identical(r3$ok, FALSE) && identical(r3$validation$erreur_r$origine, "usp_ajuster") &&
+             identical(r3$validation$erreurs,
+                       paste("Defaut de calcul intercepte dans la fonction usp_ajuster() du moteur :",
+                             "aucun resultat n'est produit ; diagnostic technique dans le champ",
+                             "validation$erreur_r du resultat."))
+         })
 
 # #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >
 # 4/alpha, en plus de B_MIN_USAGE, pour que l'ECHEC bilateral d'une ligne a
@@ -1208,7 +1371,8 @@ verifier(".engine_verifier_usage : (39 ; 0,10) et (40 ; 0,10) refuses par B_MIN_
          all(vapply(c(39, 40), function(b) {
            e <- verif_usage(b, 0.10)
            inherits(e, "error") &&
-             grepl("B >= B_MIN_USAGE = 99, sans attribut, est attendu", conditionMessage(e), fixed = TRUE) &&
+             grepl("doit etre un nombre entier au moins egal a 99 (B_MIN_USAGE)", conditionMessage(e),
+                   fixed = TRUE) &&
              !grepl("4/alpha", conditionMessage(e), fixed = TRUE)
          }, logical(1))) &&
            is.null(engine_motif_b_alpha(39, 0.10)) && is.null(engine_motif_b_alpha(98, 0.01)))
@@ -1328,7 +1492,8 @@ verifier("run_engine : sigma_standard seul accepte sans segment (premium, reserv
 # Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
 # attribut propage dans le resultat ; elle est refusee.
 verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",
-         erreur_usage("B", list(c(a = B_MIN_USAGE), matrix(B_MIN_USAGE)), "sans attribut, est attendu") &&
+         erreur_usage("B", list(c(a = B_MIN_USAGE), matrix(B_MIN_USAGE)),
+                      "en appel direct, un nombre seul, sans attribut.") &&
            erreur_usage("alpha", list(c(a = 0.1), matrix(0.1)), "sans attribut") &&
            erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
            erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
@@ -1342,9 +1507,9 @@ verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et re
                             theta_equiv = NA)
            r2 <- tryCatch(usage_mw(theta_equiv = NA), error = function(e) e)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
-             contient(r1$validation$erreurs, "theta_equiv = NA") &&
+             contient(r1$validation$erreurs, "(theta_equiv) = NA (valeur manquante) :") &&
              identical(r3$ok, FALSE) && is.null(r3$validation$erreur_r) &&
-             contient(r3$validation$erreurs, "theta_equiv = NA") &&
+             contient(r3$validation$erreurs, "(theta_equiv) = NA (valeur manquante) :") &&
              inherits(r2, "error") &&
              startsWith(conditionMessage(r2), "theta_equiv : argument sans effet pour la methode \"reserve2\"")
          })
@@ -1458,7 +1623,7 @@ verifier("Triangle : cellule observee manquante refusee",
          {
            m <- t5; m[2, 3] <- NA
            r <- mw_valider_triangle(m)
-           !r$ok && contient(r$erreurs, "(i=1, j=2)")
+           !r$ok && contient(r$erreurs, "Cellule observee manquante : annee d'accident i = 1, annee de developpement j = 2.")
          })
 verifier("Triangle : cumul nul ou negatif refuse",
          {
@@ -1476,11 +1641,54 @@ verifier("Triangle : Inf, -Inf, NaN signales 'valeur non finie' (pas 'manquante'
          {
            m <- t5; m[1, 2] <- Inf; m[2, 1] <- -Inf; m[3, 2] <- NaN; m[1, 4] <- NA
            e <- mw_valider_triangle(m)$erreurs
-           contient(e, "Valeur non finie en (i=0, j=1) : Inf") &&
-             contient(e, "Valeur non finie en (i=1, j=0) : -Inf") &&
-             contient(e, "Valeur non finie en (i=2, j=1) : NaN") &&
-             contient(e, "Cellule observee manquante en (i=0, j=3)") &&
-             !contient(e, "manquante en (i=0, j=1)") && length(e) == 4L
+           contient(e, "Valeur non finie en annee d'accident i = 0, annee de developpement j = 1 : Inf") &&
+             contient(e, "Valeur non finie en annee d'accident i = 1, annee de developpement j = 0 : -Inf") &&
+             contient(e, "Valeur non finie en annee d'accident i = 2, annee de developpement j = 1 : NaN") &&
+             contient(e, "Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 3.") &&
+             !contient(e, "manquante : annee d'accident i = 0, annee de developpement j = 1.") && length(e) == 4L
+         })
+# Issue #527, groupe Merz-Wuthrich (MW-04 a MW-08) : texte complet de chaque
+# motif change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, declenche par run_engine(methode = "reserve2") sur le triangle
+# de tests/donnees (refus ok = FALSE, motif dans validation$erreurs, aucune
+# erreur levee). Cellule designee par son annee d'accident i et son annee de
+# developpement j.
+refus_mw_527 <- function(t) {
+  r <- tryCatch(run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
+                           B = B_MIN_USAGE), error = function(e) e)
+  if (inherits(r, "usp_engine") && identical(r$ok, FALSE) && is.null(r$validation$erreur_r))
+    r$validation$erreurs else NA_character_
+}
+cellule_527 <- function(i, j, v) { t <- tri_usage; t[i + 1L, j + 1L] <- v; t }
+verifier("run_engine reserve2 : MW-04, triangle 8 x 6 -> texte complet du motif (#527)",
+         identical(refus_mw_527(tri_usage[, 1:6]),
+                   paste("Triangle non carre (8 annees d'accident, 6 annees de developpement) : cas",
+                         "non couvert par les formules des paragraphes 4 et 5 de la section D de",
+                         "l'annexe XVII.")))
+verifier("run_engine reserve2 : MW-05, cellule observee vide -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, NA)),
+                   paste("Cellule observee manquante : annee d'accident i = 0, annee de",
+                         "developpement j = 2.")))
+verifier("run_engine reserve2 : MW-06, cellule Inf -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, Inf)),
+                   paste("Valeur non finie en annee d'accident i = 0, annee de developpement j = 2 :",
+                         "Inf.")))
+verifier("run_engine reserve2 : MW-07, cumul negatif -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, -5)),
+                   paste("Cumul non strictement positif : annee d'accident i = 0, annee de",
+                         "developpement j = 2.")))
+verifier("run_engine reserve2 : MW-08, une cellule 1e120, puis tout le triangle x 1e-110 (17 chiffres, decompte) -> textes complets (#527)",
+         {
+           fin <- paste("sigma_USP et les tests sont invariants par un changement d'unite commun a",
+                        "toutes les cellules du triangle : exprimer les cumuls dans une unite qui les",
+                        "ramene dans le domaine.")
+           identical(refus_mw_527(cellule_527(0, 2, 1e120)),
+                     paste("Cumul hors du domaine numerique [1e-50 ; 1e+50] en annee d'accident i = 0,",
+                           "annee de developpement j = 2 : 1e+120 (> 1e+50, borne superieure).", fin)) &&
+             identical(refus_mw_527(tri_usage * 1e-110),
+                       paste("Cumul hors du domaine numerique [1e-50 ; 1e+50] en annee d'accident i = 0,",
+                             "annee de developpement j = 0 : 3.0000000000000003e-108 (< 1e-50, borne",
+                             "inferieure) ; 36 cellules observees hors du domaine.", fin))
          })
 verifier("Triangle : data.frame ou matrice de caracteres refuses",
          !mw_valider_triangle(as.data.frame(t5))$ok &&
@@ -1519,7 +1727,7 @@ verifier("Rectangle 8 x 8 complete par C_chapeau : avertissement, 36 cellules, t
            av <- r$validation$avertissements
            isTRUE(r$ok) && !anyNA(rect) &&
              sum(grepl("sous la diagonale", av, fixed = TRUE)) == 1L &&
-             contient(av, "(i=1, j=7), (i=2, j=6), (i=2, j=7), (i=3, j=5), (i=3, j=6) et 23 autre(s)") &&
+             contient(av, "(i = 1, j = 7), (i = 2, j = 6), (i = 2, j = 7), (i = 3, j = 5), (i = 3, j = 6) et 23 autre(s) (i : annee d'accident, j : annee de developpement)") &&
              cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees") &&
              identical(r$triangle, tri491) &&
              identical(r$parametre_final$sigma_usp, r0$parametre_final$sigma_usp) &&
@@ -1533,8 +1741,8 @@ verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
                            annexe = "II", B = B_MIN_USAGE)
            isTRUE(v$ok) && !length(v$erreurs) &&
-             contient(v$avertissements, "sous la diagonale (i + j > I) en (i=4, j=5), (i=7, j=1) :") &&
-             isTRUE(l$ok) && contient(l$avertissements, "(i=4, j=5), (i=7, j=1)") &&
+             contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 4, j = 5), (i = 7, j = 1) (i : annee d'accident, j : annee de developpement) :") &&
+             isTRUE(l$ok) && contient(l$avertissements, "(i = 4, j = 5), (i = 7, j = 1)") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
 verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
@@ -1543,7 +1751,7 @@ verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
            v <- mw_valider_triangle(m)
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
                            annexe = "II", B = B_MIN_USAGE)
-           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i=7, j=2) :") &&
+           isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 7, j = 2) (i : annee d'accident, j : annee de developpement) :") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
 verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \"et 1 autre(s)\" (#491)",
@@ -1552,9 +1760,9 @@ verifier("Cellules sous la diagonale : 5 positions citees sans suffixe, 6 avec \
            m6 <- tri491; m6[8, 2:7] <- 1
            a5 <- mw_valider_triangle(m5)$avertissements
            a6 <- mw_valider_triangle(m6)$avertissements
-           contient(a5, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) : hors") &&
+           contient(a5, "(i = 7, j = 1), (i = 7, j = 2), (i = 7, j = 3), (i = 7, j = 4), (i = 7, j = 5) (i : annee d'accident, j : annee de developpement) : hors") &&
              !contient(a5, "autre(s)") &&
-             contient(a6, "(i=7, j=1), (i=7, j=2), (i=7, j=3), (i=7, j=4), (i=7, j=5) et 1 autre(s) : hors")
+             contient(a6, "(i = 7, j = 1), (i = 7, j = 2), (i = 7, j = 3), (i = 7, j = 4), (i = 7, j = 5) et 1 autre(s) (i : annee d'accident, j : annee de developpement) : hors")
          })
 
 ## --- engine_lire_donnees_csv --------------------------------------------------
@@ -1636,13 +1844,13 @@ verifier("engine_lire_triangle : cellule non numerique refusee (pas lue comme NA
          {
            d <- fichier_tri(t5); d$j1 <- as.character(d$j1); d$j1[3] <- "abc"
            r <- engine_lire_triangle(d)
-           !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
+           !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 2, j = 1)") && is.null(r$triangle)
          })
 verifier("engine_lire_triangle : cellule texte \"Inf\" signalee 'valeur non finie', non 'manquante' (#33)",
          {
            d <- fichier_tri(t5); d$j1 <- as.character(d$j1); d$j1[1] <- "Inf"
            r <- engine_lire_triangle(d)
-           !r$ok && contient(r$erreurs, "Valeur non finie en (i=0, j=1)") &&
+           !r$ok && contient(r$erreurs, "Valeur non finie en annee d'accident i = 0, annee de developpement j = 1 : Inf.") &&
              !contient(r$erreurs, "manquante") && is.null(r$triangle)
          })
 verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle() restituees",
@@ -1650,7 +1858,7 @@ verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle(
            d <- fichier_tri(t5); d$j2[2] <- NA
            r1 <- engine_lire_triangle(d)
            r2 <- engine_lire_triangle(fichier_tri(triangle(4)))
-           !r1$ok && contient(r1$erreurs, "(i=1, j=2)") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
+           !r1$ok && contient(r1$erreurs, "Cellule observee manquante : annee d'accident i = 1, annee de developpement j = 2.") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
              !engine_lire_triangle(data.frame())$ok && !engine_lire_triangle(list(a = 1))$ok
          })
 # Issue #518 : avertissements_lecture, sous-ensemble des avertissements propre
@@ -1676,7 +1884,7 @@ verifier("engine_lire_triangle : avertissements_lecture = le seul motif des cell
            sd <- grep("sous la diagonale", r$avertissements, fixed = TRUE, value = TRUE)
            isTRUE(r$ok) && length(r$avertissements_lecture) == 1L && identical(r$avertissements_lecture, sd) &&
              identical(r$avertissements_lecture, grep("sous la diagonale", av_seg, fixed = TRUE, value = TRUE)) &&
-             contient(r$avertissements_lecture, sprintf("(i=%d, j=2), (i=%d, j=3), (i=%d, j=1) :", n - 2L, n - 2L, n - 1L)) &&
+             contient(r$avertissements_lecture, sprintf("(i = %d, j = 2), (i = %d, j = 3), (i = %d, j = 1) (i : annee d'accident, j : annee de developpement) :", n - 2L, n - 2L, n - 1L)) &&
              !contient(r$avertissements_lecture, "credibilite") && !contient(r$avertissements_lecture, "bruites") &&
              identical(r$avertissements, mw_valider_triangle(m)$avertissements)
          }, logical(1))))
@@ -1855,7 +2063,7 @@ verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (ann
 verifier("Colonnes vides (#483) : triangle, colonne vide en bord portant un en-tete refusee, en-tete cite",
          {
            r <- engine_lire_triangle(col_vide(tri483, 7, "j6"))
-           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : j6)")
+           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) j6)")
          })
 # Reserve de la revue de #483 : "X<n>" / "V<n>" n'est un en-tete genere qu'a
 # sa position n. Un triangle CSV a en-tetes "0" a "6", colonne "6" vide, lu
@@ -1872,9 +2080,9 @@ verifier("Colonnes vides (#483) : en-tete \"X<n>\" hors de sa position (en-tete 
            unlink(f)
            ra <- engine_lire_triangle(a); rb <- engine_lire_triangle(b); rd <- engine_lire_triangle(d)
            identical(names(a)[8], "X6") && identical(names(b)[8], "6") &&
-             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : X6)") &&
+             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) X6)") &&
              !rb$ok && identical(rb$erreurs, rd$erreurs) &&
-             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : 6)") &&
+             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) 6)") &&
              identical(.entete_absent(c("X1", "V2", "X2", "V1", "X", "X.1", "", NA)),
                        c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE))
          })
@@ -1904,7 +2112,7 @@ if (isTRUE(l10n_info()[["UTF-8"]])) {
              !s1$v$ok && validUTF8(s1$v$erreurs) &&
                contient(s1$v$erreurs, "Colonnes presentes : année, primes.") &&
                !s2$v$ok && validUTF8(s2$v$erreurs) &&
-               contient(s2$v$erreurs, "(colonne(s) 8 : année)") &&
+               contient(s2$v$erreurs, "(colonne(s) 8, d'en-tete(s) année)") &&
                !s3$v$ok && validUTF8(s3$v$erreurs) && contient(s3$v$erreurs, "Cellule(s) non numerique(s)") &&
                !length(c(s1$w, s2$w, s3$w))
            })
@@ -1935,12 +2143,113 @@ verifier("Cellule texte \"NA\" (#483) : refus motive par une phrase fixe, series
            t_txt <- en_texte(tri483); t_txt$j2[2] <- "NA"
            t_x <- en_texte(tri483); t_x$j2[2] <- "x"
            r_na <- engine_lire_triangle(t_txt); r_x <- engine_lire_triangle(t_x)
-           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).",
+           identical(s_na$erreurs, paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).",
                                          "Une cellule \"NA\" est lue comme du texte, non comme une valeur manquante : renseigner la valeur.")) &&
-             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
-             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=2).",
+             identical(s_x$erreurs, "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).") &&
+             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i = 1, j = 2) (i : annee d'accident, j : annee de developpement).",
                                            "Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou laisser vide une cellule non observee.")) &&
-             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i=1, j=2).")
+             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i = 1, j = 2) (i : annee d'accident, j : annee de developpement).")
+         })
+# Issue #527, groupe lecteurs (LE-06, LE-07, LE-13) : texte complet de chaque
+# motif change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, par appel reel du lecteur (engine_lire_donnees_csv(),
+# engine_lire_triangle()) sur un tableau lu en texte, comme a l'import.
+ser_527 <- data.frame(t = as.character(2015:2022),
+                      xt = as.character(c(100, 110, 125, 130, 145, 150, 165, 170)),
+                      yt = as.character(c(70, 80, 85, 95, 100, 102, 120, 118)),
+                      stringsAsFactors = FALSE)
+tri_527 <- local({
+  d <- as.data.frame(tri_usage); names(d) <- as.character(0:7)
+  d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v)))
+  cbind(i = as.character(0:7), d, stringsAsFactors = FALSE)
+})
+PHRASE_NA_SERIE_527 <- paste("Une cellule \"NA\" est lue comme du texte, non comme une valeur",
+                             "manquante : renseigner la valeur.")
+PHRASE_NA_TRI_527 <- paste("Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou",
+                           "laisser vide une cellule non observee.")
+verifier("engine_lire_triangle : LE-06, une puis deux colonnes vides a en-tete au bord -> textes complets (#527)",
+         {
+           d1 <- tri_527; d1[["7"]] <- ""
+           d2 <- tri_527; d2[["8"]] <- ""; d2[["9"]] <- ""
+           identical(engine_lire_triangle(d1)$erreurs,
+                     paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 9,",
+                           "d'en-tete(s) 7) : annee de developpement sans valeur ; la renseigner ou",
+                           "retirer la colonne.")) &&
+             identical(engine_lire_triangle(d2)$erreurs,
+                       paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 10, 11,",
+                             "d'en-tete(s) 8, 9) : annee de developpement sans valeur ; la renseigner ou",
+                             "retirer la colonne."))
+         })
+verifier("engine_lire_donnees_csv : LE-07, une colonne, puis deux colonnes a plus de cinq cellules et cellule \"NA\" -> textes complets (#527)",
+         {
+           s1 <- ser_527; s1$xt[3] <- "abc"
+           s2 <- ser_527; s2$xt[c(1, 2, 3, 5, 6, 7, 8)] <- "x"; s2$yt[4] <- "NA"
+           identical(engine_lire_donnees_csv(s1)$erreurs,
+                     paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                           "ligne(s) de donnees 3).")) &&
+             identical(engine_lire_donnees_csv(s2)$erreurs,
+                       paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                             "ligne(s) de donnees 1, 2, 3, 5, 6 et 2 autre(s) ; colonne yt : ligne(s) de",
+                             "donnees 4).", PHRASE_NA_SERIE_527))
+         })
+verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une \"NA\" -> textes complets (#527)",
+         {
+           d1 <- tri_527; d1[2, "3"] <- "xyz"
+           d2 <- tri_527; d2[2, "3"] <- "a"; d2[3, "0"] <- "b"; d2[1, "5"] <- "c"; d2[4, "1"] <- "d"
+           d2[5, "2"] <- "e"; d2[6, "1"] <- "f"; d2[3, "4"] <- "NA"
+           identical(engine_lire_triangle(d1)$erreurs,
+                     paste("Cellule(s) non numerique(s) en (i = 1, j = 3) (i : annee d'accident, j :",
+                           "annee de developpement).")) &&
+             identical(engine_lire_triangle(d2)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 2, j = 0), (i = 3, j = 1), (i = 5, j = 1),",
+                             "(i = 4, j = 2), (i = 1, j = 3) et 2 autre(s) (i : annee d'accident, j : annee",
+                             "de developpement).", PHRASE_NA_TRI_527))
+         })
+# Issue #527, avertissements (AV-01, AV-03, AV-08) : texte complet de chaque
+# avertissement change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, par run_engine() reel (ok = TRUE, avertissement non bloquant) ;
+# AV-08 aussi par engine_lire_triangle(), qui le rend dans
+# avertissements_lecture (meme texte, #518).
+avert_527 <- function(r, debut) grep(debut, r$validation$avertissements, fixed = TRUE, value = TRUE)
+ln_527 <- function(xx, yy) run_engine(xt = xx, yt = yy, methode = "premium", segment = 1,
+                                      B = B_MIN_USAGE, nature_donnees = "brutes")
+SUITE_AV08_527 <- paste("(i : annee d'accident, j : annee de developpement) : hors de la partie",
+                        "observee du triangle, ces cellules ne sont ni lues par le calcul, ni",
+                        "restituees dans son resultat, ni comptees parmi les cellules observees ;",
+                        "verifier qu'il ne s'agit pas de valeurs projetees.")
+verifier("run_engine : AV-01, ratio y_t/x_t hors de la plage plausible -> texte complet, calcul fait (#527)",
+         {
+           r <- ln_527(x, y * 1000)
+           isTRUE(r$ok) && identical(avert_527(r, "Ratio"),
+                                     "Ratio y_t/x_t hors de la plage plausible [0.1 ; 5[ : verifier les unites.")
+         })
+verifier("run_engine : AV-03, couples dupliques -> texte complet, calcul fait (#527)",
+         {
+           r <- ln_527(c(x, x[1]), c(y, y[1]))
+           isTRUE(r$ok) && identical(avert_527(r, "Couples"), "Couples (x_t, y_t) dupliques detectes.")
+         })
+verifier("run_engine reserve2 et engine_lire_triangle : AV-08, une cellule puis sept cellules sous la diagonale -> texte complet, meme texte sur les deux chemins (#527)",
+         {
+           t1 <- tri_usage; t1[8, 8] <- 5
+           t7 <- tri_usage
+           for (k in list(c(2, 8), c(3, 7), c(3, 8), c(4, 6), c(4, 7), c(5, 5), c(8, 2))) t7[k[1], k[2]] <- 5
+           a1 <- paste("Cellule(s) renseignee(s) sous la diagonale (i + j > I) en (i = 7, j = 7)",
+                       SUITE_AV08_527)
+           a7 <- paste("Cellule(s) renseignee(s) sous la diagonale (i + j > I) en (i = 1, j = 7),",
+                       "(i = 2, j = 6), (i = 2, j = 7), (i = 3, j = 5), (i = 3, j = 6) et 2 autre(s)",
+                       SUITE_AV08_527)
+           en_df <- function(t) {
+             d <- as.data.frame(t); names(d) <- as.character(0:7)
+             d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v)))
+             cbind(i = as.character(0:7), d, stringsAsFactors = FALSE)
+           }
+           r1 <- run_engine(methode = "reserve2", triangle = t1, segment = 1, B = B_MIN_USAGE)
+           r7 <- run_engine(methode = "reserve2", triangle = t7, segment = 1, B = B_MIN_USAGE)
+           isTRUE(r1$ok) && isTRUE(r7$ok) &&
+             identical(avert_527(r1, "sous la diagonale"), a1) &&
+             identical(avert_527(r7, "sous la diagonale"), a7) &&
+             identical(engine_lire_triangle(en_df(t1))$avertissements_lecture, a1) &&
+             identical(engine_lire_triangle(en_df(t7))$avertissements_lecture, a7)
          })
 verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
          {
@@ -2045,13 +2354,13 @@ if (nzchar(Sys.which("zip"))) {
   verifier("Colonnes vides (#483) : xlsx de triangle a colonne de fin vide d'en-tete \"6\" refuse sur chaque chemin, meme motif que le CSV lu en texte",
            tous(r6, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(d6_483)$erreurs)))
   verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
-           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
+           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 1, j = 5)")))
   # Lecteur interne (#490) : seule une colonne de cellules nombre est rendue en
   # numerique ; une cellule texte (inlineStr ecrit par l'ecrivain interne, ou
   # t="str" pose par retouche) garde la colonne en caractere, et "0x10" est
   # refuse en aval par .cellules_en_nombre() avec sa position.
   ser490 <- data.frame(xt = c("100", "0x10", "102", "103", "104"), yt = 60:64, stringsAsFactors = FALSE)
-  motif490 <- "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2)."
+  motif490 <- "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2)."
   d490 <- chemins483(xlsx483(ser490), identity)
   str490 <- function(s) {
     s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="str"><v>0x10</v></c>', s, fixed = TRUE)
@@ -2078,7 +2387,7 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx, lecteur interne (#490) : cellule booleenne t=\"b\" rendue \"TRUE\", colonne en caractere, refusee sur chaque chemin",
            identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
              tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
-                  "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).")))
+                  "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
   # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
   # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
   # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.
@@ -2215,7 +2524,7 @@ verifier("mw_valider_triangle : segment invalide ne masque pas une cellule manqu
            m <- triangle(6); m[1, 1] <- NA
            r <- mw_valider_triangle(m, segment = 99)
            !r$ok && length(r$erreurs) == 2L &&
-             contient(r$erreurs, "Cellule observee manquante en (i=0, j=0).") &&
+             contient(r$erreurs, "Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 0.") &&
              contient(r$erreurs, "Segment 99 inconnu dans l'annexe II.") &&
              !length(r$avertissements)
          })
@@ -2320,9 +2629,9 @@ verifier("#154 : avertissements calcules sur les T retenues (ratio et amplitude 
            xw <- c(1, 100, x); yw <- c(1e4, 50, y)
            an <- engine_valider_donnees(xw, yw)$avertissements
            at <- sr154(xw, yw)$validation$avertissements
-           contient(an, "Ratio y/x hors de la plage") && contient(an, "Amplitude des volumes") &&
+           contient(an, "Ratio y_t/x_t hors de la plage") && contient(an, "Amplitude des volumes") &&
              !contient(an, "T = 8") &&
-             !contient(at, "Ratio y/x hors de la plage") && !contient(at, "Amplitude des volumes") &&
+             !contient(at, "Ratio y_t/x_t hors de la plage") && !contient(at, "Amplitude des volumes") &&
              contient(at, "T = 8 : credibilite partielle") && contient(at, "T = 8 : lois asymptotiques") &&
              !contient(at, "T = 10")
          })
@@ -2733,7 +3042,7 @@ verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-
                                                              stringsAsFactors = FALSE)),
                              error = function(e) conditionMessage(e))
              is.list(d) && !d$ok && contient(d$erreurs, "ne sont pas numeriques") &&
-               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i=0, j=0)")
+               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i = 0, j = 0)")
            })
            identical(r, "locale UTF-8 indisponible") || isTRUE(r)
          })
@@ -2805,9 +3114,9 @@ verifier("Lecture t, xt, yt et triangle : hexadecimal refuse avec la position de
                                                     yt = 1:5, stringsAsFactors = FALSE))
            tri <- fichier_tri(t5); tri$j1 <- as.character(tri$j1); tri$j1[3] <- "0x10"
            r <- engine_lire_triangle(tri)
-           !d$ok && contient(d$erreurs, "xt : ligne(s) de donnees 2") && contient(d$erreurs, "yt : ligne(s) de donnees 5") &&
+           !d$ok && contient(d$erreurs, "colonne xt : ligne(s) de donnees 2") && contient(d$erreurs, "colonne yt : ligne(s) de donnees 5") &&
              isTRUE(ok$ok) && identical(ok$xt, c(1.5, 100, 3, 4, 5)) &&
-             !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
+             !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 2, j = 1)") && is.null(r$triangle)
          })
 verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
          {

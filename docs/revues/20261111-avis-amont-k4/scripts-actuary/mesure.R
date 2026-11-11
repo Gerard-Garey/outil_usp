@@ -1,0 +1,10 @@
+suppressMessages({source("R/charger_moteur.R"); m <- charger_moteur()})
+E <- environment(m$run_engine)
+env <- new.env(parent = E)
+ex <- parse("tests/unitaires/outils_unitaires.R", keep.source = FALSE)
+want <- c("PLAFOND_TEXTE_PROPRE","PHRASES_MAX","ABREV_FIN_PHRASE_514","compter_phrases","rx_fixe",".rx_motif",".rx_par",".rx_num",".rx_b_effectif","MENTIONS","texte_propre")
+for (e in ex) if (is.call(e) && identical(e[[1]], as.name("<-")) && as.character(e[[2]])[1] %in% want) eval(e, env)
+mes <- function(x) { tp <- env$texte_propre(x); c(phr = env$compter_phrases(tp), car = nchar(tp)) }
+cas <- c("premium","premium_ii6","premium_interieur","premium_net","reserve1","reserve2")
+refs <- lapply(setNames(cas, cas), function(n) readRDS(file.path("tests/reference", paste0(n, ".rds"))))
+src <- commandArgs(TRUE)[1]; source(src, local = TRUE)

@@ -198,7 +198,7 @@ verifier("Anscombe-Glynn (#485) : usp_tests(), z constant a T = 40, pi_t constan
                                        "residus constants) ; aucune p-value de Monte-Carlo prevue : test",
                                        "non applicable"))
          })
-verifier("Anscombe-Glynn (#485) : usp_tests(), pi_t variable et Z non definie -> motif pi_t, H0, H1, stat_nom et loi presents, stat NA",
+verifier("Anscombe-Glynn (#485) : usp_tests(), pi_t variable et Z non definie -> motif pi_t, H0, H1 et stat_nom presents, loi NA (#533), stat NA",
          {
            xv <- seq(50, 400, length.out = 40); yv <- 0.6 * xv
            g <- usp_ajuster(x_485, y_485)$gamma
@@ -212,7 +212,7 @@ verifier("Anscombe-Glynn (#485) : usp_tests(), pi_t variable et Z non definie ->
              identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
              identical(l$stat_nom, "Z") && identical(l$H0, "aplatissement de la population egal a 3") &&
              identical(l$H1, "aplatissement different de 3") &&
-             identical(l$loi, "N(0,1) approx. (Wilson-Hilferty)") && isTRUE(proche(l$estim, 1, abs = 1e-12)) &&
+             identical(l$loi, NA_character_) && isTRUE(proche(l$estim, 1, abs = 1e-12)) &&
              is.na(l$p_retenue) &&
              identical(l$detail, paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
                                        "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",

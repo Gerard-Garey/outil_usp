@@ -1548,7 +1548,7 @@ verifier("Domaine (#185) : triangle_mw x 10^e, e = -110, -60, -53, 47, 60, 101 -
              msg <- grep(motif185, v$erreurs, fixed = TRUE, value = TRUE)
              borne <- if (e < 0) "borne inferieure" else "borne superieure"
              isFALSE(v$ok) && length(v$erreurs) == 1L && length(msg) == 1L &&
-               grepl("en (i=0, j=", msg, fixed = TRUE) &&
+               grepl("en annee d'accident i = 0, annee de developpement j = ", msg, fixed = TRUE) &&
                grepl(borne, msg, fixed = TRUE) &&
                # |e| >= 60 : les 36 cellules observees sont hors du domaine ;
                # e = -53, 47 : une partie seulement (10 et 26 cellules)
@@ -1580,15 +1580,16 @@ verifier("Domaine (#185) : une seule cellule hors du domaine -> refus qui la cit
            v2 <- mw_valider_triangle(t2)
            l <- engine_lire_triangle(t1)
            isFALSE(v1$ok) && identical(v1$erreurs, sprintf(paste(
-             "Cumul hors du domaine numerique [%g ; %g] en (i=2, j=1) : 1e+51 (> %g, borne superieure).",
+             "Cumul hors du domaine numerique [%g ; %g] en annee d'accident i = 2,",
+             "annee de developpement j = 1 : 1e+51 (> %g, borne superieure).",
              "sigma_USP et les tests sont invariants par un changement d'unite commun",
              "a toutes les cellules du triangle : exprimer les cumuls dans une unite",
              "qui les ramene dans le domaine."),
              DOMAINE_NUMERIQUE_MIN, DOMAINE_NUMERIQUE_MAX, DOMAINE_NUMERIQUE_MAX)) &&
              isFALSE(v2$ok) && length(v2$erreurs) == 3L &&
-             any(grepl("Cellule observee manquante en (i=0, j=0)", v2$erreurs, fixed = TRUE)) &&
-             any(grepl("Cumul non strictement positif en (i=1, j=2)", v2$erreurs, fixed = TRUE)) &&
-             any(grepl("en (i=2, j=1) : 1e-51 (< 1e-50, borne inferieure).", v2$erreurs, fixed = TRUE)) &&
+             any(grepl("Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 0.", v2$erreurs, fixed = TRUE)) &&
+             any(grepl("Cumul non strictement positif : annee d'accident i = 1, annee de developpement j = 2.", v2$erreurs, fixed = TRUE)) &&
+             any(grepl("en annee d'accident i = 2, annee de developpement j = 1 : 1e-51 (< 1e-50, borne inferieure).", v2$erreurs, fixed = TRUE)) &&
              isFALSE(l$ok) && is.null(l$triangle) && identical(l$erreurs, v1$erreurs)
          })
 verifier("Domaine (#185) : run_engine reserve2, triangle_mw x 1e-110 et x 1e60 -> ok = FALSE, motif hors domaine, sans erreur R",

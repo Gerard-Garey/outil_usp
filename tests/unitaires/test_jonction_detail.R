@@ -125,9 +125,15 @@ mutantes264 <- list(
     if (!nzchar(b)) return(a)
     paste0(a, if (grepl("\\.$", a)) " " else " ; ", b)
   },
-  majuscule = function(a, b) {
+  # Casse de la premiere lettre de b inversee apres un point : la mutante
+  # reste detectee quelle que soit la casse de PHRASE_VERDICT_SENSIBLE_MC
+  # (majuscule initiale depuis #519 ; une mutante qui ne fait que mettre une
+  # majuscule ne modifierait plus ce texte).
+  casse_inversee = function(a, b) {
     if (!nzchar(b)) return(a); if (!nzchar(a)) return(b)
-    if (grepl("\\.$", a)) paste0(a, " ", toupper(substr(b, 1, 1)), substring(b, 2))
+    c1 <- substr(b, 1, 1)
+    c1 <- if (c1 == toupper(c1)) tolower(c1) else toupper(c1)
+    if (grepl("\\.$", a)) paste0(a, " ", c1, substring(b, 2))
     else paste0(a, " ; ", b)
   })
 verifier("J4 chaque mutation de la regle (4 mutantes) est detectee sur le detail d'add()",

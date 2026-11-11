@@ -249,7 +249,8 @@ verifier("Issue #39 (3) : H0 de Breusch-Pagan (Koenker) et de normalite en resid
            if (any(grepl("normalises", h0, fixed = TRUE)))
              paste("H0 en 'normalises' :", paste(nm[grepl("normalises", h0, fixed = TRUE)], collapse = ", "))
            else identical(bp, "c1 = 0 : la variance des residus standardises ne depend pas du volume") &&
-             identical(sw, "les residus standardises suivent une loi normale")
+             identical(sw, paste("lognormalite (H3) : erreurs epsilon_t du modele reglementaire",
+                               "i.i.d. N(0,1), testee sur les residus standardises z"))
          })
 # Le verdict force (ALERTE a R2 < 0,5) a ete retire par #24 (ADR 0001,
 # amendement du 23/09/2026) : un diagnostic sort INFO, sens NA.
@@ -429,9 +430,10 @@ verifier("usp_tests : toute ligne type != 'test' sort INFO, sens, p_retenue et n
 NOM_ESD <- "Valeurs aberrantes multiples (ESD generalise)"
 detail_esd_attendu <- function(alpha, positions)
   sprintf(paste("Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = %g, nombre en",
-                "estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques",
-                "adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
-                "p-value retenue : la ligne \"Valeur aberrante isolee (Grubbs)\" fait foi."), alpha)
+                "estimation), a niveau superieur a alpha a T = 8 en simulation sous i.i.d. normal",
+                "(valeurs critiques adequates a partir de n = 25 selon l'auteur). Diagnostic par",
+                "decision, sans verdict ni p-value retenue : la ligne \"Valeur aberrante isolee",
+                "(Grubbs)\" fait foi."), alpha)
 y_esd <- y; y_esd[c(3, 6)] <- y_esd[c(3, 6)] * 2.5
 fit_esd <- usp_ajuster(x, y_esd)
 s_esd <- .stats_bootstrapables(fit_esd$x, fit_esd$y, fit_esd$z, fit_esd$pi)

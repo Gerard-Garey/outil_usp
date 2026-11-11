@@ -263,7 +263,8 @@ verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
            e <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
                                     nature_donnees = "brutes", B = 2, seed = 20260831),
                          error = function(e) e)
-           inherits(e, "error") && grepl("B >= B_MIN_USAGE = 99", conditionMessage(e), fixed = TRUE)
+           inherits(e, "error") && startsWith(conditionMessage(e), "B = 2 : ") &&
+             grepl("au moins egal a 99 (B_MIN_USAGE)", conditionMessage(e), fixed = TRUE)
          })
 cat_synth <- list(
   A = .mc_entree(function(e) e$v, "haut", degenere = function(e) TRUE),

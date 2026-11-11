@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{10~novembre 2026}
-\newcommand{\versiondoc}{3.3}
+\newcommand{\datedoc}{11~novembre 2026}
+\newcommand{\versiondoc}{3.4}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -1362,6 +1362,13 @@ dans le tableau de son annexe (\code{ANNEXE\_II} ou \code{ANNEXE\_XIV}), erreur 
 \code{.engine\_saisie()} & valeur reçue & texte qui cite la valeur refusée dans un message
 d'erreur d'usage~: \code{deparse()} à 15 chiffres significatifs, ou à 17 quand l'écriture à 15
 chiffres ne restitue pas le double reçu, sans rien évaluer \\
+\code{.engine\_saisie\_lisible()} & valeur reçue & enrobage de \code{.engine\_saisie()}, qui n'est pas
+modifiée~: une valeur manquante seule, sans attribut (\code{NA} hors \code{NaN}), est citée
+«~\code{NA (valeur manquante)}~», toute autre valeur comme par \code{.engine\_saisie()}~; employée
+par les seuls messages qui citent \code{B}, \code{seed}, \code{alpha} et \code{sigma\_standard}
+(\code{.engine\_verifier\_usage()}, et \code{engine\_regle\_verdicts()} pour \code{alpha}), les
+marges \code{delta\_equiv} et \code{theta\_equiv} (\code{engine\_valider\_donnees()}) et la
+profondeur $T$ (\code{engine\_valider\_profondeur()}) \\
 \code{.engine\_quantile()} & vecteur, probabilités & quantiles de type~7, valeurs identiques à
 celles de \code{stats::quantile()}, nommés en point décimal quelle que soit l'option de session
 \code{getOption("OutDec")} (même règle de nommage que \code{stats::quantile()} sous l'option par
@@ -3504,7 +3511,8 @@ confondues et figurent dans des champs séparés~:
 \toprule
 \code{stat} & \textbf{Statistique de test}~: la quantité dont la loi sous $H_0$ est connue (ou
 simulée). C'est elle, et elle seule, qui est comparée à une loi de référence pour produire une
-p-value. Le champ \code{loi} rappelle cette loi. Quand une p-value de Monte-Carlo est calculée,
+p-value. Le champ \code{loi} rappelle cette loi~; il vaut \code{NA} sur une ligne non applicable,
+qui ne restitue aucune p-value. Quand une p-value de Monte-Carlo est calculée,
 la statistique affichée est celle que simule le catalogue de la méthode, à une transformation
 près qui conserve la région de rejet et que le champ \code{loi} énonce alors~; un seul cas,
 Cox--Stuart (fiche~\ref{fiche:cox-stuart}). \\
@@ -3606,10 +3614,13 @@ admise dans cette tolérance est gardée telle quelle, sans troncature), une val
 qui n'est ni \code{NA} ni une chaîne non vide, ou dont le préfixe ne dit pas le rang de la
 p-value retenue (section~\ref{sec:modele-auxiliaire-regles}, «~Nature forcée~»). Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
 p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
-\code{NA}), la statistique pouvant rester dans \code{stat}~: le moteur l'assure ligne par ligne,
-sans règle générale dans \code{add()}, et le test d'invariant
+\code{NA}) ni, par suite, aucune loi de référence (\code{loi} à \code{NA}), la statistique pouvant
+rester dans \code{stat}~: le moteur l'assure ligne par ligne, sans règle générale dans
+\code{add()}, hors la branche de la règle~R3 qui rend une ligne non applicable et y met aussi
+\code{loi} à \code{NA}, dans les deux méthodes. Le test d'invariant
 \code{tests/unitaires/test\_non\_applicable.R} le vérifie sur les jeux à volumes constants, à
-pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées.
+pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées,
+et, pour \code{loi}, aussi sur les six cas de référence.
 La procédure ESD de Rosner, qui décide au niveau $\alpha$ sans produire de p-value, est un
 diagnostic par décision dans les deux méthodes (fiches~\ref{fiche:rosner-esd}
 et~\ref{mw:m4ros}).
@@ -3876,7 +3887,10 @@ autres qu'un calcul abouti, à ne pas confondre~:
   (\code{.engine\_saisie()}), afin qu'une valeur refusée ne soit pas affichée
   sous l'aspect d'une valeur valide (mesuré~: \code{segment = 1 + 1e-15} est cité \code{1.0000000000000011}~; \code{alpha = 0.03 + 4e-18} avec $B = 99$
   est cité \code{0.030000000000000002} par le message conjoint de $B$ et $\alpha$~;
-  \code{alpha = 0.3} reste cité \code{0.3}). Relèvent du même régime, en appel
+  \code{alpha = 0.3} reste cité \code{0.3})~; une valeur manquante seule (\code{NA}) y est citée
+  «~\code{NA (valeur manquante)}~» (\code{.engine\_saisie\_lisible()}~; mesuré~: \code{B = NA}
+  donne «~\code{B = NA (valeur manquante) :}~\dots~»), comme dans les motifs de refus de
+  \code{delta\_equiv}, de \code{theta\_equiv} et de la profondeur $T$. Relèvent du même régime, en appel
   direct, la durée non entière refusée par \code{usp\_credibilite()}, l'annexe refusée par
   \code{.annexe\_verifiee()} et le segment refusé par \code{.segment\_verifie()}, qu'appellent
   \code{usp\_segment\_infos()} et, par elle, \code{usp\_parametre\_standard()}, ainsi
@@ -3890,9 +3904,11 @@ autres qu'un calcul abouti, à ne pas confondre~:
   validation réussie (après \code{engine\_valider\_donnees()} dans la branche lognormale, après
   \code{mw\_valider\_triangle()} dans la branche Merz--Wüthrich)~; \code{.engine\_calcul\_protege()}
   l'intercepte et \code{run\_engine()} rend \code{ok = FALSE}, sans aucun résultat partiel, avec
-  dans \code{validation\$erreurs} le motif fixe «~Defaut de calcul intercepte (erreur R dans
-  $f$()) : aucun resultat n'est produit ; diagnostic dans validation\$erreur\_r~», où seul le nom
-  $f$ varie, et dans le champ distinct \code{validation\$erreur\_r} le diagnostic~: message de
+  dans \code{validation\$erreurs} le motif fixe «~Defaut de calcul intercepte dans la fonction
+  $f$() du moteur : aucun resultat n'est produit ; diagnostic technique dans le champ
+  validation\$erreur\_r du resultat.~», où seul le nom $f$ varie (sans fonction d'origine
+  identifiée, «~Defaut de calcul intercepte : aucun resultat n'est produit ; diagnostic technique
+  dans le champ validation\$erreur\_r du resultat.~»), et dans le champ distinct \code{validation\$erreur\_r} le diagnostic~: message de
   l'erreur, appel, pile des fonctions appelées depuis le calcul protégé et \code{origine},
   dernière fonction de cette pile définie dans le moteur. Les données étant valides et l'appel
   aussi, ce n'est ni un refus ni une erreur d'usage, mais un défaut du moteur ou une limite
@@ -4063,7 +4079,7 @@ l'échelle~1 à $2{,}9\cdot 10^{-15}$ près en relatif et aucun verdict différe
 LAPACK de référence, x86\_64). La plage plausible du ratio, $[0{,}1\,;5[$, est elle aussi une convention de
 l'outil sans source réglementaire~; elle signale une erreur d'unité probable et ne
 refuse jamais~: hors de la plage, \code{engine\_valider\_donnees()} émet l'avertissement
-«~\code{Ratio y/x hors de la plage plausible [0.1 ; 5[ : verifier les unites.}~», et
+«~\code{Ratio y\_t/x\_t hors de la plage plausible [0.1 ; 5[ : verifier les unites.}~», et
 $\sigma_{\mathrm{USP}}$ est calculé. La ligne «~\code{Plausibilite du ratio y/x}~» de la
 famille~A lit les mêmes constantes~; les ratios du jeu de contrôle vont de $0{,}579$ à
 $0{,}894$. Mesuré par
@@ -4335,7 +4351,7 @@ colonnes vides et sans conversion de la cellule texte «~\code{NA}~», classeur 
 repli, ou tableau lu d'un CSV en gardant ses lignes vides. Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
-«~\code{xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
+«~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
 \code{yt} non numérique est refusée avec sa position, comptée en lignes de données (première
 ligne sous l'en-tête~: ligne~1), cinq positions au plus par colonne, comme les positions de la
 colonne~$t$. \code{usp\_lire\_vecteur()} refuse une
@@ -4353,7 +4369,7 @@ un séparateur de milliers)~; les exposants complets (\code{1e3}), le signe \cod
 \code{usp\_lire\_vecteur()} avec leur position~; \code{1e3}, \code{+5} et \code{.5} sont lus
 $1\,000$, $5$ et $0{,}5$). Une cellule texte d'un classeur xlsx relève de la même règle par l'une
 et l'autre voie de lecture (mesuré sur la voie de repli~: \code{0x10} écrit en texte en deuxième
-ligne de \code{xt} est refusé en «~\code{ligne(s) de donnees 2}~»). \code{usp\_lire\_vecteur()} lit une série en
+ligne de \code{xt} est refusé en «~\code{colonne xt : ligne(s) de donnees 2}~»). \code{usp\_lire\_vecteur()} lit une série en
 colonne ou en ligne, avec ou sans en-tête, y compris une série en ligne précédée immédiatement
 d'une ligne d'en-têtes, qui est écartée. Quand le fichier compte, après retrait des lignes et
 colonnes vides de bord, plusieurs colonnes, une première et une seconde ligne et aucune autre,
@@ -5947,8 +5963,8 @@ pas des données~; \emph{par règle}, quand le motif en dépend (règles R1, R3,
 ci-dessous, et ligne de Kruskal--Wallis à un seul résidu par année de survenance, fiche~\ref{mw:m3acc}). Une ligne \emph{non applicable} est une ligne dont la vérification est, sur ces
 données, sans objet ou non calculable (régression ou partition sans support, statistique non
 définie, calcul propre à la ligne en échec)~: elle sort sans verdict (\code{INFO}), son
-commentaire porte un motif obligatoire, et elle ne restitue aucune p-value, la statistique
-pouvant rester dans \code{stat}~; un
+commentaire porte un motif obligatoire, et elle ne restitue aucune p-value ni aucune loi de
+référence (\code{loi} à \code{NA}), la statistique pouvant rester dans \code{stat}~; un
 \emph{test sans p-value retenue} est une ligne restée de type \code{test} dont aucune des trois
 p-values n'existe sur ces données (point~(ii)).
 
@@ -6230,7 +6246,7 @@ joint au commentaire le motif porté par les effectifs, qu'\code{add()} ne resti
 type test. Breusch--Pagan studentisé reste un test, sans bascule~: son commentaire porte la
 puissance enveloppe de~H2, fonction des seuls volumes (fiche~\ref{fiche:breusch-pagan-koenker}),
 et aucune règle ne la compare à un seuil. La procédure ESD de Rosner de la méthode lognormale
-est de même un diagnostic par décision, pour tout $T$~: elle ne produit pas de p-value, son niveau réel dépasse $\alpha$ à $T = 8$, et
+est de même un diagnostic par décision, pour tout $T$~: elle ne produit pas de p-value, son niveau réel dépasse $\alpha$ à $T = 8$ sous i.i.d. normal (constat de simulation), et
 une valeur aberrante isolée relève de la ligne Grubbs sur résidus standardisés, dont le type et le
 verdict font foi (fiche~\ref{fiche:rosner-esd}). Dans la méthode Merz--Wüthrich, \code{mw\_tests()} restitue de
 même en diagnostic par décision la procédure ESD sur les résidus de Mack, dont le cadre i.i.d. normal ne couvre pas ces résidus, avec sa propre phrase fixe
@@ -6294,7 +6310,7 @@ celle de la dispersion nulle serait fausse~; les simulations étant reproductibl
 n'est pas un bruit d'arrondi de ce calcul, mais le signe que la statistique observée et les
 statistiques simulées ne sont pas calculées par le même chemin, défaut à examiner, et aucune
 mesure ne fonde une tolérance intermédiaire. Une statistique observée non finie, sans
-p-value exacte, rend la ligne non applicable. Dans les autres cas --- motif non dégénéré~: aucune
+p-value exacte, rend la ligne non applicable, \code{loi} à \code{NA}. Dans les autres cas --- motif non dégénéré~: aucune
 réplication finie, réplications finies insuffisantes, régime intérieur rare, statistique non
 définie d'après le catalogue ---, sans p-value exacte, \textbf{aucune p non simulée n'est retenue
 à la place de la p-value de Monte-Carlo manquante}~:
@@ -6382,8 +6398,8 @@ ou calculée hors du catalogue, comme les permutations aléatoires de la pente),
 de la règle des verdicts de la ligne ($|p - s| < 2\,\text{err}_{\text{mc}}$, inégalité stricte~;
 $s \in \{\alpha/2, \alpha\}$ en sens «~ne pas rejeter~», $s \in \{\alpha,
 \text{\code{SEUIL\_ECHEC\_SENS\_REJETER}}\}$ en sens «~rejeter~»), \code{add()} ajoute en dernier
-élément du commentaire la phrase fixe «~\code{verdict sensible a l'alea de simulation (p a moins
-de 2 erreurs de Monte-Carlo du seuil)}~» (constante \code{PHRASE\_VERDICT\_SENSIBLE\_MC}), après la
+élément du commentaire la phrase fixe «~\code{Verdict sensible a l'alea de simulation (p a moins
+de 2 erreurs de Monte-Carlo du seuil).}~» (constante \code{PHRASE\_VERDICT\_SENSIBLE\_MC}), après la
 mention du plancher et, dans la branche lognormale, après le renvoi croisé que
 \code{.usp\_poser\_renvois()} insère avant elle. Seuls comptent les seuils
 \emph{atteignables}~: un seuil $s$ n'est retenu que si le plancher de la p-value est inférieur à
@@ -8494,7 +8510,9 @@ suit la règle~R7 (paragraphe suivant).
 
 \emph{Libellés selon le régime.} Un
 texte de la ligne ne nomme une p-value que si elle existe, et ne qualifie une loi d'exacte que
-dans le régime où elle l'est. À $\hat\pi_t$ constant, le champ \code{loi} des sept vérifications de la
+dans le régime où elle l'est. Ces libellés valent pour une ligne applicable~: sur une ligne non applicable
+(ainsi à volumes constants, ou pour les suites à $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$), le champ \code{loi} vaut \code{NA}
+dans les deux régimes. À $\hat\pi_t$ constant, le champ \code{loi} des sept vérifications de la
 règle qui en portent un est inchangé et dit la loi exacte (Durbin--Watson~: «~\code{loi EXACTE par
 la methode d'Imhof (1961)}~»~; suites~: «~\code{loi combinatoire EXACTE de R}~»~; Mann--Kendall,
 Smirnov, Spearman contre volume et contre temps, Cox--Stuart). À $\hat\pi_t$ variable, où la
@@ -10605,12 +10623,18 @@ samples)}, \emph{Biometrika}, 52(3/4), 1965, p.~591--611 ; normalisation de J.\,
 \emph{Approximating the Shapiro-Wilk W-test for non-normality}, \emph{Statistics and Computing},
 2, 1992, p.~117--119.}
 \Cadre
-Échantillon $z_1,\dots,z_T$ supposé (hypothèse non testée) i.i.d., sans ex \ae quo. Valable pour
-$3 \le T \le 5000$. On note $m = (m_1,\dots,m_T)'$ le vecteur des espérances des statistiques
+Résidus standardisés $z_1,\dots,z_T$, sans ex \ae quo. L'échantillon i.i.d. que suppose la source
+est l'hypothèse de la p-value de Royston, non retenue~: $W$ étant invariante (rubrique~2), $W(z)$ a,
+sous le modèle ajusté, exactement sa loi sur un échantillon i.i.d. normal de taille~$T$ à
+$\hat\pi_t$ constant, et non à $\hat\pi_t$ variable (encadré en tête de section)~; la p-value de
+Monte-Carlo retenue ne la suppose pas. Valable pour $3 \le T \le 5000$. On note $m = (m_1,\dots,m_T)'$ le vecteur des espérances des statistiques
 d'ordre d'un échantillon normal centré réduit et $V$ leur matrice de covariance.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale $\mathcal{N}(\mu,\sigma^2)$, $\mu$ et $\sigma$ non
-spécifiés.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W$, invariante par translation et
+changement d'échelle positif, ne rapporte les $z_t$ qu'à la famille $\mathcal{N}(\mu,\sigma^2)$,
+$\mu$ et $\sigma$ non spécifiés.
 \Stat
 \[
   W \;=\; \frac{\Big(\sum_{i=1}^{T} a_i\, z_{(i)}\Big)^{2}}{\sum_{t=1}^{T} (z_t - \bar z)^2},
@@ -10680,7 +10704,10 @@ intégral. Le moteur calcule la p-value de Royston pour $5 \le T \le 5\,000$
 son niveau mesuré à $T = 8$ est en rubrique~7. Scores normaux approchés de Blom,
 $\tilde m_i = \Phi^{-1}\!\big((i - 3/8)/(T + 1/4)\big)$.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W'$, invariante de même, ne rapporte les $z_t$
+qu'à la famille normale.
 \Stat
 $W' = \operatorname{corr}\big(z_{(i)}, \tilde m_i\big)^2 = \big(\sum_i \tilde m_i z_{(i)}\big)^2 \big/
 \big[\big(\sum_i \tilde m_i^2\big)\big(\sum_t (z_t-\bar z)^2\big)\big]$, carré exact du coefficient
@@ -10729,10 +10756,19 @@ American Statistical Association}, 49(268), 1954, p.~765--769 ; approximations d
 R.\,B. D'Agostino, M.\,A. Stephens (dir.), \emph{Goodness-of-Fit Techniques}, Marcel Dekker,
 1986.}
 \Cadre
-Échantillon i.i.d. (hypothèse non testée), $p_{(i)} = \Phi(z_{(i)})$. Statistique de distance à la
-fonction de répartition empirique (famille EDF).
+Résidus standardisés $z_t$, $p_{(i)} = \Phi(z_{(i)})$. Statistique de distance à la fonction de
+répartition empirique (famille EDF). L'échantillon i.i.d. que supposent les sources est
+l'hypothèse des p-values non simulées, jamais retenues~: une statistique calculée sur les $z_t$
+n'a, sous le modèle ajusté, la loi qu'elle aurait sur un échantillon i.i.d. normal que si elle est
+invariante par translation et changement d'échelle positif, comme $A^2$ de $(z - \bar z)/s_z$
+(rubrique~5), et à $\hat\pi_t$ constant (encadré en tête de section)~; la p-value de Monte-Carlo ne
+la suppose pas.
 \Hzero
-$H_0$ : les $z_t$ suivent la loi $\mathcal{N}(0,1)$ de référence.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $A^2$ du champ \code{stat} rapporte les $z_t$
+à la loi $\mathcal{N}(0,1)$ des $\varepsilon_t$, que les $z_t$ ne suivent pas exactement sous
+$H_0$~; la p-value de Monte-Carlo, simulée sous le modèle ajusté, en tient compte.
 \Stat
 \[
   A^2 \;=\; -T - \frac{1}{T}\sum_{i=1}^{T} (2i-1)\Big[\ln p_{(i)} + \ln\big(1 - p_{(T+1-i)}\big)\Big],
@@ -10797,7 +10833,10 @@ of fit and some comparisons}, \emph{JASA}, 69(347), 1974, p.~730--737.}
 \Cadre
 Identique à Anderson--Darling.
 \Hzero
-$H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W^2$ du champ \code{stat} rapporte les
+$z_t$ à $\mathcal{N}(0,1)$, comme $A^2$ (fiche précédente).
 \Stat
 \[
   W^2 \;=\; \frac{1}{12T} + \sum_{i=1}^{T}\left(p_{(i)} - \frac{2i-1}{2T}\right)^{2}
@@ -10830,11 +10869,14 @@ vers un problème localisé en queue plutôt que vers une non-normalité d'ensem
 même fonction de répartition empirique à la même loi de référence, sur les mêmes $z_t$, $A^2$ y
 ajoutant la pondération des queues que demande l'usage prudentiel~; la ligne d'Anderson--Darling
 porte donc l'hypothèse, et un second verdict compterait presque deux fois la même information. Le
-commentaire est «~\code{Distance de Cramer-von Mises a la loi normale, tres correlee a celle
-d'Anderson-Darling, pour information. Diagnostic par decision, sans verdict ni p-value retenue :
-la ligne "Anderson-Darling" fait foi.}~». La corrélation des deux statistiques
-qu'invoque ce libellé n'est chiffrée par aucun script versionné~: elle n'est pas chiffrée ici~; la
-chiffrer est un travail postérieur à la remise. Les p-values ne sont pas
+commentaire est «~\code{Distance de Cramer-von Mises a la loi normale, celle d'Anderson-Darling
+sans la ponderation des queues, pour information. Diagnostic par decision, sans verdict ni p-value
+retenue : la ligne "Anderson-Darling" fait foi.}~». La relation qu'énonce ce libellé est exacte
+par définition~: $A^2$ est $W^2$ pondérée par $[F_0(1-F_0)]^{-1}$ (formes intégrales, rubrique~3
+des deux fiches, que \code{stat\_ad()} et \code{stat\_cvm()} reproduisent, vérifié par quadrature
+numérique). La dépendance entre les deux statistiques, que suppose «~presque deux fois la même
+information~», n'est chiffrée par aucun script versionné ni ici~; la chiffrer est un travail
+postérieur à la remise. Les p-values ne sont pas
 écartées pour leur qualité~: la p-value de Monte-Carlo, restituée, a un niveau compatible avec le
 seuil sous le modèle ajusté ($R = 2\,000$, $B = 999$, section~\ref{sec:calibration-mc}~: J1, $0{,}0955$ à
 $\alpha = 0{,}10$ et $0{,}0445$ à $0{,}05$~; J2, $0{,}097$ et $0{,}0465$~; compatible aux deux seuils
@@ -10855,7 +10897,10 @@ celle d'Anderson--Darling, jamais à sa place.
 \Cadre
 Identique aux deux fiches précédentes.
 \Hzero
-$H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $D$ rapporte les $z_t$ à $\mathcal{N}(0,1)$,
+loi des $\varepsilon_t$ et non des $z_t$.
 \Stat
 \[
   D \;=\; \sup_{u} \big|\hat F(u) - \Phi(u)\big|
@@ -10921,12 +10966,19 @@ p-value~: G.\,E. Dallal, L.~Wilkinson, \emph{An analytic approximation to the di
 Lilliefors' test statistic for normality}, \emph{The American Statistician}, 40(4), 1986,
 p.~294--296, prolongée au-delà de $0{,}10$ par les polynômes de Stephens (1974).}
 \Cadre
-Échantillon i.i.d. (hypothèse non testée). \textbf{Différence essentielle avec la fiche
+Résidus standardisés $z_t$. L'échantillon i.i.d. que supposent les sources est l'hypothèse de la
+p-value de Dallal et Wilkinson, non retenue~: $D_{\mathrm{L}}$, invariante par translation et
+changement d'échelle positif, n'a, sous le modèle ajusté, la loi qu'elle aurait sur un échantillon
+i.i.d. normal qu'à $\hat\pi_t$ constant (encadré en tête de section)~; la p-value de Monte-Carlo
+retenue ne la suppose pas. \textbf{Différence essentielle avec la fiche
 précédente}~: la moyenne et l'écart-type ne sont pas ceux du modèle mais sont \emph{estimés sur
 l'échantillon lui-même}, ce qui correspond à la situation réelle lorsque l'on teste la normalité
 sans connaître les paramètres.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale de moyenne et de variance quelconques.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $D_{\mathrm{L}}$ ne rapporte les $z_t$ qu'à la
+famille normale de moyenne et de variance quelconques (rubrique~3).
 \Stat
 \[
   D_{\mathrm{L}} = \sup_u \left| \hat F(u) - \Phi\!\left(\frac{u - \bar z}{s_z}\right) \right|,
@@ -11440,7 +11492,7 @@ modale de $R$.
 $70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et $p \in \{1~(R = 5)~;~52/70 = 0{,}743~(R \in
 \{4, 6\})~;~16/70 = 0{,}229~(R \in \{3, 7\})~;~4/70 = 0{,}057~(R \in \{2, 8\})\}$. Le test est donc
 \emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$ ($R \equiv 2$),
-$\operatorname{Var}(R) = 0$ et $Z$ n'est pas définie~: ligne non applicable, motif selon le cas, \code{stat} et les p-values, \code{p\_exacte} comprise, à \code{NA}~; à $n_1 = n_2 = 1$, la loi exacte, ponctuelle en~2, donnerait $p = p_{\min} = 1$~: test sans objet à tout $\alpha$. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
+$\operatorname{Var}(R) = 0$ et $Z$ n'est pas définie~: ligne non applicable, motif selon le cas, \code{stat}, \code{loi} et les p-values, \code{p\_exacte} comprise, à \code{NA}~; à $n_1 = n_2 = 1$, la loi exacte, ponctuelle en~2, donnerait $p = p_{\min} = 1$~: test sans objet à tout $\alpha$. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
 qu'avec des ex \ae quo sur la médiane~; la loi de $R$ est alors asymétrique (à $n_1 = 3$, $n_2 = 4$,
 $35\,P(R = 2, \dots, 7) = (2, 5, 12, 9, 6, 1)$) et le doublement n'y est qu'une convention parmi
 d'autres.
@@ -12393,9 +12445,9 @@ $\hat k = \max\{i : R_i > \lambda_i\}$, et $0$ si aucun dépassement~; il est re
 $\alpha$. La ligne est un \emph{diagnostic par décision}, pour tout $T$ (section~\ref{sec:nature})~:
 verdict \code{INFO}, \code{sens}, \code{p\_retenue} et \code{nature\_p} à \code{NA}. Le commentaire
 est «~\code{Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = 0.1, nombre en
-estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques adequates a
-partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni p-value retenue : la ligne "Valeur
-aberrante isolee (Grubbs)" fait foi.}~».
+estimation), a niveau superieur a alpha a T = 8 en simulation sous i.i.d. normal (valeurs
+critiques adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni
+p-value retenue : la ligne "Valeur aberrante isolee (Grubbs)" fait foi.}~».
 \Usage
 Atténue le masquage d'un test à une valeur aberrante (exemple de Rosner, p.~171)~; face à l'ESD
 d'origine, l'auteur revendique le contrôle du niveau sous les $H_l$ (p.~171). \emph{Domaine de la source}~: les
@@ -12424,8 +12476,8 @@ construction de l'outil, que la source ne définit pas, demanderait de passer $\
 \code{usp\_bootstrap()}, hors du contrat actuel, et aurait pour plancher $P^{*}(\hat k^{*} = 2)$,
 environ $0{,}059$ sur J1 et $0{,}055$ sur J2 à $\alpha = 0{,}10$ (C7.b), au-dessus de $\alpha/2$~:
 elle ne pourrait rendre que \code{OK} ou \code{ALERTE}, redondants avec Grubbs. Le verdict de
-procédure de décision serait rendu à un niveau réel supérieur à $\alpha$ (C7.a~: $0{,}1506$ à
-$\alpha = 0{,}10$), sous des valeurs critiques que l'auteur écarte en deçà de $n = 25$~; une valeur
+procédure de décision serait rendu à un niveau réel supérieur à $\alpha$ (C7.a, sous i.i.d.
+normal~: $0{,}1506$ à $\alpha = 0{,}10$), sous des valeurs critiques que l'auteur écarte en deçà de $n = 25$~; une valeur
 aberrante isolée relève de la ligne Grubbs, de p-value de Monte-Carlo calibrée~; le gain de l'ESD
 contre le masquage, à $T = 8$, n'est ni mesuré ni établi par la source. Pour $T$ de 5 à 7
 ($k = 1$), $R_1$ est exactement la statistique $G$ de Grubbs (fiche~\ref{fiche:grubbs}), et
@@ -16108,7 +16160,9 @@ tout triangle rééchantillonné de même géométrie vérifie la même identit�
 les mêmes $N$ et $k$. Constat de simulation à l'appui~: en rejouant hors moteur
 le bootstrap de résidus du triangle de contrôle (999 triangles produits par
 \code{mw\_simuler\_triangle()} sur le vivier de résidus redressés par le levier puis recentrés,
-section~\ref{sec:boot-mw}, graine 20260831) et en recalculant $\operatorname{Var}(r)$ sur chacun,
+section~\ref{sec:boot-mw}, graine 20260831, \code{tests/mesure\_m2var\_exposants\_mw.R}, tableau~T3
+de \code{docs/tableaux/}\allowbreak\code{20261111-}\allowbreak\code{issue503-m2var-exposants.md}) et
+en recalculant $\operatorname{Var}(r)$ sur chacun,
 la valeur reste comprise entre $0{,}80740$ et $0{,}80769$, soit une étendue de
 $2{,}9\times10^{-4}$ autour de la référence $0{,}80769$.
 \Usage
@@ -16119,11 +16173,19 @@ données, $\operatorname{Var}(r)$ reste collée à $(N-k)/(N-1)$ même lorsque
 l'exposant~1 imposé par le règlement est faux. Constat de simulation (modèle de Mack à erreurs
 gaussiennes ajusté au triangle de contrôle, variance de $C(i,j+1)$ en $C(i,j)^0$, $C(i,j)^1$ puis
 $C(i,j)^2$, égale à celle du modèle au cumul moyen de la colonne~; 2\,000 triangles $8\times8$ par
-exposant)~: l'écart à $(N-k)/(N-1)$ a sensiblement la même loi sous les trois exposants, dont les
-deux alternatives que nomme la fiche~\ref{mw:m2b}~; au plus $3{,}3$, $3{,}7$ et $5{,}6\cdot 10^{-4}$
-en valeur absolue sous le plan~P1 (section~\ref{sec:calib-mc-mw}), au-delà de $10^{-3}$ dans
-$10$ à $11~\%$ des triangles sous le plan~P2, à première colonne plus dispersée. Son ordre de
-grandeur suit la dispersion des cumuls dans les colonnes, non l'exposant, alors que l'hypothèse M2
+plan et par exposant, tirés sous les mêmes graines d'un exposant à l'autre,
+\code{tests/mesure\_m2var\_exposants\_mw.R}, tableaux~T1 et~T2b du fichier cité en rubrique~5)~:
+l'écart à $(N-k)/(N-1)$ a des lois voisines sous
+les trois exposants, dont les deux alternatives que nomme la fiche~\ref{mw:m2b}. Sous le plan~P1
+(section~\ref{sec:calib-mc-mw}), il vaut au plus $3{,}68$, $3{,}69$ et $3{,}69\cdot 10^{-4}$ en
+valeur absolue (exposants~0, 1 et~2) et ne dépasse $10^{-3}$ dans aucun triangle. Sous le plan~P2,
+à première colonne plus dispersée, il dépasse $10^{-3}$ dans $12{,}6$, $11{,}2$ et $9{,}8~\%$ des
+triangles~: décalage faible mais systématique, que les graines communes rendent détectable, et de
+sens opposé pour les deux alternatives, l'exposant~1 du règlement se trouvant entre elles --- un
+écart plus grand irait vers l'exposant~0, un écart plus petit vers l'exposant~2, de quelques points
+de pourcentage seulement. Son ordre de grandeur suit la dispersion des cumuls dans les colonnes,
+non l'exposant~: la médiane de sa valeur absolue est treize à quatorze fois plus grande sous~P2
+que sous~P1, et ne varie que d'environ $10~\%$ d'un exposant à l'autre, alors que l'hypothèse M2
 est fausse par construction sous les exposants~0 et~2. Ce sont les tests des
 fiches~\ref{mw:m2bp} et~\ref{mw:m2b} qui portent cette détection, non celui-ci --- sans puissance
 mesurable à $T = 8$ sous le plan du triangle de contrôle (rubriques~7 de ces fiches).
@@ -17076,9 +17138,9 @@ p-value~; sur des résidus de Mack, \textbf{aucune des trois voies de la hiérar
 ouverte}~: ni p-value exacte, faute de loi de $R_i$ sous le modèle de Mack~; ni p-value
 asymptotique~; ni p-value de Monte-Carlo, la procédure n'ayant pas de statistique unique et des
 seuils calibrés par simulation constituant une méthode nouvelle, sans source, non retenue. Le commentaire est la phrase fixe \code{PHRASE\_MW\_ROSNER\_DIAGNOSTIC}~:
-«~\code{Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.10, nombre en
-estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas les residus de Mack,
-contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
+«~\code{Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.1, nombre en
+estimation), sans p-value : son cadre (echantillon i.i.d. normal) ne couvre pas les residus de
+Mack, contraints par colonne. Diagnostic sans verdict : la ligne "Cellule aberrante du triangle (residus
 studentises externes)" fait foi.}~», au seuil de l'exécution~; aucun nombre issu du
 bootstrap. La raison qu'il résume est développée au Cadre et à la rubrique~4.
 \Usage
@@ -17173,8 +17235,10 @@ D(2)(h) ne spécifie, outre l'indépendance de ses points~(i) et~(ii), que les d
 ligne est donc un \emph{diagnostic}, sans verdict (section~\ref{sec:nature}), et non la
 vérification d'une exigence réglementaire.
 \Hzero
-$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack
-forment un échantillon i.i.d. de loi normale.
+$H_0$~: erreurs gaussiennes du modèle de Mack, lues sur les résidus de Mack, qui ne sont pas
+i.i.d. (deux contraintes exactes par colonne, rubrique~6)~; $H_1$~: loi non normale. La p-value
+restituée est calculée sous un modèle auxiliaire, où les résidus forment un échantillon i.i.d. de
+loi normale (rubrique~4)~: ce n'est pas cette $H_0$.
 \Stat
 $W$, statistique de Shapiro--Wilk.
 Fonction nommée~: \code{.shapiro\_sur()}.
@@ -17248,8 +17312,10 @@ L.~Wilkinson (1986), \emph{op.\ cit.}}
 Identique à la fiche précédente~: diagnostic sans verdict (section~\ref{sec:nature}). Variante
 \emph{secondaire}~: masquée par défaut dans l'application, conservée dans l'export.
 \Hzero
-$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack
-forment un échantillon i.i.d. de loi normale, de moyenne et de variance quelconques.
+$H_0$~: erreurs gaussiennes du modèle de Mack, lues sur les résidus de Mack, contraints par
+colonne et non i.i.d. (fiche précédente)~; $H_1$~: loi non normale. La p-value restituée est
+calculée sous un modèle auxiliaire, où les résidus forment un échantillon i.i.d. de loi normale,
+de moyenne et de variance quelconques (rubrique~4)~: ce n'est pas cette $H_0$.
 \Stat
 $D_{\mathrm{L}} = \sup_u \big|\hat F(u) - \Phi((u - \bar r)/s_r)\big|$.
 Fonction nommée~: \code{stat\_lilliefors()}.
@@ -17553,14 +17619,16 @@ les fiches les désignent par leur nom~; la construction, la composition et la p
 résument sont décrites ci-dessus et dans les deux fiches). Texte T-1, ligne de famille
 (\code{DETAIL\_P\_FAMILLE})~: «~\code{Diagnostic sans verdict} \code{: une p de famille} \code{faible signale
 qu'au} \code{moins une hypothese} \code{de la famille est mise} \code{en cause sous le modele} \code{ajuste (p plug-in non}
-\code{exacte), aucun verdict} \code{de ligne n'etant modifie.} \code{Tests de la famille} \code{(cles mc\_nom) : [}\ldots\code{],
+\code{exacte), une p} \code{elevee n'atteste} \code{pas l'adequation} \code{(puissance non}
+\code{mesuree).} \code{Tests de la famille} \code{(cles mc\_nom) : [}\ldots\code{],
 voir aussi "p globale} \code{(minP, lecture conjointe} \code{de la batterie)".}~», la liste donnant les clés
 \code{mc\_nom} des membres dans l'ordre des lignes (sur \code{premium}, famille~B.~:
 \code{Intercept}, \code{RESET}, \code{SpearVol}, \code{MK}). Texte T-2, ligne globale
 (\code{DETAIL\_P\_GLOBALE})~: «~\code{Diagnostic sans verdict} \code{: une p globale faible} \code{signale qu'au
 moins} \code{une hypothese de la} \code{batterie est mise en} \code{cause sous le modele} \code{ajuste, compte tenu} \code{des [k]
-tests et de} \code{leur dependance (p} \code{plug-in non exacte,} \code{sur les p Monte-Carlo} \code{et non les p retenues).} \code{A
-lire avec les lignes} \code{"p de famille (minP,} \code{lecture conjointe)"} \code{de chaque famille.}~», où [k] est le
+tests et de} \code{leur dependance (p} \code{plug-in non exacte,} \code{sur les p Monte-Carlo} \code{et non les p retenues).} \code{Une
+p elevee} \code{n'atteste pas} \code{l'adequation} \code{du modele} \code{(puissance non}
+\code{mesuree), voir} \code{les lignes} \code{"p de famille (minP,} \code{lecture conjointe)".}~», où [k] est le
 nombre de membres.
 Texte T-3a (\code{PHRASE\_FAMILLE\_B\_EFF\_REDUIT}), joint à T-1 ou T-2 quand le $B$ effectif
 de famille est inférieur au $B$ effectif d'au moins un membre~: «~\code{Calculee sur} \code{les seules}
@@ -17711,7 +17779,7 @@ petit $B$ effectif des membres~; il vaut 999 sur chaque ligne des six cas de ré
 \code{B\_MIN\_DEGENERESCENCE} $= 50$, aucune p-value n'est calculée (\code{p\_monte\_carlo} à
 \code{NA}) et le commentaire commence par le texte T-3b~; quand $n$ est inférieur au $B$
 effectif d'au moins un membre, le texte T-3a est joint (textes en tête de section). Le
-commentaire de la ligne est le texte T-1, qui liste les membres. Sur \code{reserve2}
+commentaire de la ligne est le texte T-1, qui rappelle la portée d'une p élevée et liste les membres. Sur \code{reserve2}
 ($B = 999$)~: M1 $0{,}023$, M2 $0{,}471$ et M3 $0{,}008$, verdict \code{INFO} sur chaque ligne.
 \Usage
 \emph{Lecture.} Une p de famille faible dit que la plus petite p-value de Monte-Carlo de la
@@ -17771,7 +17839,7 @@ p-values des membres~; plug-in, non exacte, aucune loi exacte ni asymptotique.
 \Pval
 Même calcul, mêmes champs et même absence de p-value retenue que la fiche précédente
 (rubrique~5), dont les raisons valent ici à l'identique~; textes T-3a et T-3b sur le $B$
-effectif de la batterie~; le commentaire est le texte T-2 (tête de section), qui imprime le
+effectif de la batterie~; le commentaire est le texte T-2 (tête de section), qui rappelle la portée d'une p élevée et imprime le
 nombre de membres, lequel ne lit aucune valeur numérique du bootstrap (fiche précédente,
 rubrique~3). L'événement «~au moins un membre a une p-value
 de Monte-Carlo inférieure à $\alpha$~» est exactement $\{m_{\mathrm{obs}} < \alpha\}$~; il ne se

@@ -572,8 +572,8 @@ TXT_DIAG_302 <- c(
              "residus standardises par le modele (tres conservatrice a T = 8 sur le jeu de",
              "controle, par simulation), pour information.", TXT_DIAG_DEC,
              ": la ligne \"Lilliefors (KS a parametres estimes)\" fait foi."),
-  CvM = paste("Distance de Cramer-von Mises a la loi normale, tres correlee a celle",
-              "d'Anderson-Darling, pour information.", TXT_DIAG_DEC,
+  CvM = paste("Distance de Cramer-von Mises a la loi normale, celle d'Anderson-Darling sans la",
+              "ponderation des queues, pour information.", TXT_DIAG_DEC,
               ": la ligne \"Anderson-Darling\" fait foi."))
 NOM_H3_302 <- c(SW = "Shapiro-Wilk sur residus standardises", SF = "Shapiro-Francia",
                 AD = "Anderson-Darling", Lillie = "Lilliefors (KS a parametres estimes)",

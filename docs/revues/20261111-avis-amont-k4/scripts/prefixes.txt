@@ -1,0 +1,40 @@
+L1|Nature des donnees non declaree
+L4|Valeurs manquantes : le calibrage
+L5|Valeurs infinies
+L6|Toutes les valeurs de xt
+L7|Toutes les valeurs de yt
+L8|hors du domaine numerique
+L9|au moins %d annees consecutives|au moins 5 annees consecutives
+L10|Marge Delta du test d'equivalence
+L12|Marge theta du test
+P1|un nombre entier d'annees est attendu
+P2|superieure au nombre d'annees fournies
+P4|T >= 
+V|Maximum de vraisemblance non
+D1|Defaut de calcul intercepte
+M2|au moins 5 annees d'accident|au moins %d annees d'accident
+M3|annees de developpement pour la premiere
+M4|ne peut etre inferieur
+M5|Triangle non carre
+M6|Cellule observee manquante
+M7|Valeur non finie
+M8|Cumul non strictement positif
+M9|Cumul hors du domaine
+MP1|Reserve chain-ladder totale negative
+MP2|Triangle totalement degenere
+C1|Fichier vide ou illisible
+C2|Colonne(s) manquante
+C3|vide(s) en tete
+C4|vide(s) intercalee
+C5|ne sont pas numeriques
+C6|Colonne t incomplete
+C7|les annees doivent etre des entiers
+C8|dupliquee
+C9|non consecutives
+T2|Aucune colonne d'annee
+T6|non numerique(s) en
+U3|un nombre scalaire fini entier de replications
+U4|un nombre scalaire fini entier, |seed|
+U6|0 < alpha < SEUIL_ECHEC
+U7|B + 1 > 4/alpha
+U8|sigma_standard > 0
