@@ -876,6 +876,26 @@ nd_analyser_remplissage <- function(marques, mots) {
                      titres = nrow(ti), rubriques = nrow(ru), blanc_max = if (length(libres)) max(libres) else 0))
 }
 
+# Evalue `expr` avec les variables d'environnement `vars` (vecteur nomme) posees par
+# Sys.setenv(), puis restaure l'etat exact d'avant (on.exit) : une variable absente
+# redevient absente (Sys.unsetenv), une variable presente retrouve sa valeur. Lancement
+# portable d'un processus fils : l argument env de system2() est ignore ou echoue sous Windows (#477).
+# `vars` vide : rien a poser (Sys.getenv(character(0)) renverrait tout l'environnement).
+nd_avec_env <- function(vars, expr) {
+  noms <- names(vars)
+  if (length(vars)) {
+    avant <- Sys.getenv(noms, unset = NA_character_)
+    on.exit({
+      for (i in seq_along(noms)) {
+        if (is.na(avant[[i]])) Sys.unsetenv(noms[i])
+        else do.call(Sys.setenv, stats::setNames(list(avant[[i]]), noms[i]))
+      }
+    })
+    do.call(Sys.setenv, as.list(vars))
+  }
+  expr
+}
+
 # Passe de pdfLaTeX instrumentee, dans un repertoire temporaire, avec les fichiers
 # auxiliaires de la compilation normale (.aux, .toc, .out...) : le depot n'est pas
 # touche. Renvoie list(pdf, remp, tmp) ou list(erreur = message).
@@ -887,13 +907,17 @@ nd_passe_mesure <- function(tex, marques_tex) {
   if (!any(grepl("[.]aux$", aux))) return(list(erreur = sprintf("%s.aux absent : compiler le document avant la passe de mesure.", nom)))
   tmp <- tempfile("nd_remplissage_"); dir.create(tmp)
   file.copy(aux, tmp)
-  env <- c(sprintf("TEXINPUTS=%s:%s:%s:", rep, dirname(normalizePath(marques_tex)), tmp),
-           "max_print_line=10000", "error_line=254", "half_error_line=238")
+  # Separateur de chemins de la plateforme (":" ou ";") ; le separateur final, qui designe
+  # les chemins par defaut pour kpathsea, suit la meme regle.
+  sep <- .Platform$path.sep
+  env <- c(TEXINPUTS = paste0(paste(rep, dirname(normalizePath(marques_tex)), tmp, sep = sep), sep),
+           max_print_line = "10000", error_line = "254", half_error_line = "238")
   ancien <- setwd(rep); on.exit(setwd(ancien))
-  code <- system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-jobname=", nom),
-                                paste0("-output-directory=", shQuote(tmp)),
-                                shQuote(sprintf("\\input{%s}\\input{%s.tex}", sub("[.]tex$", "", basename(marques_tex)), nom))),
-                  stdout = FALSE, stderr = FALSE, env = env)
+  code <- nd_avec_env(env,
+    system2("pdflatex", c("-interaction=nonstopmode", "-halt-on-error", paste0("-jobname=", nom),
+                          paste0("-output-directory=", shQuote(tmp)),
+                          shQuote(sprintf("\\input{%s}\\input{%s.tex}", sub("[.]tex$", "", basename(marques_tex)), nom))),
+            stdout = FALSE, stderr = FALSE))
   remp <- file.path(tmp, paste0(nom, ".remp"))
   if (!identical(code, 0L) || !file.exists(remp)) {
     jr <- file.path(tmp, paste0(nom, ".log"))

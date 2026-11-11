@@ -453,9 +453,15 @@ verifier("nd_fiches : fiches mal appariees refusees",
          leve_erreur(nd$nd_fiches(c("\\begin{fiche}{A}", "\\begin{fiche}{B}", "\\end{fiche}"))))
 
 # --- Options et code de sortie (script lance en processus) ---------------------------------------
+# Variables du fils posees par Sys.setenv() le temps de l'appel (nd_avec_env), jamais par
+# l argument env de system2(), ignore ou en echec sous Windows (#477). LC_ALL=C.UTF-8 n'est posee que
+# hors Windows : cette locale n'y existe pas necessairement (le fils R pourrait ecrire
+# "Setting LC_... failed" sur stderr, capture et compare), et R y est en UTF-8 natif
+# depuis R 4.2 (choix prudent, non verifie sous Windows depuis cette session).
+env_fils <- if (identical(.Platform$OS.type, "windows")) character(0) else c(LC_ALL = "C.UTF-8")
 lancer <- function(...) {
-  s <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(.script, ...)),
-                                stdout = TRUE, stderr = TRUE, env = "LC_ALL=C.UTF-8"))
+  s <- nd$nd_avec_env(env_fils, suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(.script, ...)),
+                                                         stdout = TRUE, stderr = TRUE)))
   st <- attr(s, "status")
   list(sortie = as.character(s), statut = if (is.null(st)) 0L else as.integer(st))
 }
@@ -497,6 +503,36 @@ verifier("fichier .tex introuvable : code 2", r$statut == 2L)
 r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--pages-seules")
 verifier("sans .aux : le controle (b) le signale et retombe sur les caracteres, code 0",
          r$statut == 0L && any(grepl("AVERTISSEMENT : aucun fichier .aux", r$sortie, fixed = TRUE)))
+
+# --- Environnement de l'appelant restaure apres un lancement (#477) ------------------------------
+# nd_avec_env() : variable absente avant = absente apres, variable presente = valeur retrouvee,
+# variables visibles pendant l'appel, restauration aussi quand l'expression leve une erreur.
+.v_abs <- "USP_TEST_ND_ABSENTE"; .v_pre <- "USP_TEST_ND_PRESENTE"
+Sys.unsetenv(.v_abs); Sys.setenv(USP_TEST_ND_PRESENTE = "valeur_initiale")
+pendant <- nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "posee", USP_TEST_ND_PRESENTE = "ecrasee"),
+                          c(Sys.getenv(.v_abs), Sys.getenv(.v_pre)))
+verifier("nd_avec_env : variables posees pendant l'appel", identical(pendant, c("posee", "ecrasee")))
+verifier("nd_avec_env : variable absente avant, absente apres (pas posee a vide)",
+         is.na(Sys.getenv(.v_abs, unset = NA_character_)))
+verifier("nd_avec_env : variable presente avant, valeur initiale retrouvee", identical(Sys.getenv(.v_pre), "valeur_initiale"))
+verifier("nd_avec_env : la valeur de l'expression est rendue", identical(nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "x"), 42L), 42L))
+suppressWarnings(try(nd$nd_avec_env(c(USP_TEST_ND_ABSENTE = "posee", USP_TEST_ND_PRESENTE = "ecrasee"), stop("echec voulu")),
+                     silent = TRUE))
+verifier("nd_avec_env : etat restaure aussi apres une erreur dans l'expression",
+         is.na(Sys.getenv(.v_abs, unset = NA_character_)) && identical(Sys.getenv(.v_pre), "valeur_initiale"))
+verifier("nd_avec_env : vecteur vide = aucun effet (l'environnement entier n'est pas relu)",
+         identical(nd$nd_avec_env(character(0), 7L), 7L) && identical(Sys.getenv(.v_pre), "valeur_initiale"))
+Sys.unsetenv(c(.v_abs, .v_pre))
+# lancer() : LC_ALL (posee hors Windows) restituee comme avant l'appel, absente ou presente.
+.lc_avant <- Sys.getenv("LC_ALL", unset = NA_character_)
+Sys.unsetenv("LC_ALL")
+invisible(lancer("--inconnue"))
+verifier("lancer : LC_ALL absente avant, absente apres", is.na(Sys.getenv("LC_ALL", unset = NA_character_)))
+Sys.setenv(LC_ALL = "valeur_initiale")
+invisible(lancer("--inconnue"))
+verifier("lancer : LC_ALL presente avant, valeur initiale retrouvee apres", identical(Sys.getenv("LC_ALL"), "valeur_initiale"))
+if (is.na(.lc_avant)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = .lc_avant)
+verifier("lancer : environnement de la session de test remis en l'etat", identical(Sys.getenv("LC_ALL", unset = NA_character_), .lc_avant))
 
 # --- (c) Debordements : journal LaTeX ---------------------------------------------------------------
 log_c <- c("This is pdfTeX", "Overfull \\hbox (0.68134pt too wide) in paragraph at lines 14605--14605",
