@@ -27,8 +27,11 @@
 #  Cadre (celui de dw_puissance_ar1()) : T = 8 ; z gaussien centre, i.i.d.
 #  N(0,1) sous H0, AR(1) STATIONNAIRE, Sigma = (rho^|i-j|), sous l'alternative ;
 #  SANS reajustement ; statistique calculee sur la serie centree (stat_dw()).
-#  Statut : approximation numerique d'Imhof (quadrature, uniroot()) d'une
-#  quantite EXACTE dans ce cadre : loi de DW sous H0 pour z i.i.d. N(0,1),
+#  Statut : quantite EXACTE dans ce cadre, evaluee par quadrature numerique
+#  (integrale d'Imhof, .imhof_p_sup0()) et uniroot() (points critiques), sans
+#  tirage ; l'erreur de quadrature et de uniroot() est une erreur numerique
+#  (ni statistique en T, ni Monte-Carlo), controlee par le recoupement de la
+#  section 2 ; cadre : loi de DW sous H0 pour z i.i.d. N(0,1),
 #  puissance sous un AR(1) stationnaire, alternative hors modele
 #  reglementaire (l'annexe XVII suppose des annees independantes ; l'AR(1)
 #  est une alternative choisie) ; z n'est pas le vecteur de residus
@@ -36,9 +39,9 @@
 #  recoupement par simulation (section 2) tire sous engine_sous_graine() avec
 #  la graine explicite SEED_SIM, consignee en T0 avec le generateur : le script
 #  n'est donc plus "sans graine" (avis d'actuary du 31/10/2026, reponse a la
-#  question 2 de la premiere remise). Statut de la sortie : approximation
-#  numerique d'Imhof d'une quantite exacte, recoupee par simulation a rho =
-#  -0,9 et -0,99 ; rho <= -0,999 non recoupes.
+#  question 2 de la premiere remise). Statut de la sortie : quantite
+#  exacte evaluee par quadrature (erreur numerique controlee par recoupement),
+#  recoupee par simulation a rho = -0,9 et -0,99 ; rho <= -0,999 non recoupes.
 #  Variante a depart nul (z_1 = e_1 a la place de la loi stationnaire) : NON
 #  calculee (abandonnee sans issue, avis d'actuary du 31/10/2026).
 #  dw_puissance_ar1() ne porte que l'AR(1) stationnaire (lecture du code).
@@ -390,7 +393,7 @@ ajouter("## Puissance du test de Durbin-Watson \u00e0 T = 8 contre un AR(1) \u00
                                 " = 0,10) ; l'ex\u00e9cution compl\u00e8te porte sur ", length(RHOS_COMPLET), " valeurs de \u03c1 et 2 seuils. Recoupement par simulation r\u00e9duit \u00e0 \u03c1 = \u22120,99, ", ALPHA,
                                 " = 0,10, N = ", format(N_SIM, scientific = FALSE), " (ex\u00e9cution compl\u00e8te : \u03c1 \u2208 {0 ; \u22120,9 ; \u22120,99}, 2 seuils, N = ",
                                 format(N_SIM_COMPLET, scientific = FALSE), ")."), ""),
-        paste0("Statut : approximation num\u00e9rique d'Imhof d'une quantit\u00e9 exacte, recoup\u00e9e par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 \u2264 \u22120,999 non recoup\u00e9s ; loi de DW sous H0 pour z i.i.d. N(0,1), puissance sous un AR(1) stationnaire, alternative hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie) ; z n'est pas le vecteur de r\u00e9sidus r\u00e9ajust\u00e9s du moteur. La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
+        paste0("Statut : quantit\u00e9 exacte \u00e9valu\u00e9e par quadrature num\u00e9rique (int\u00e9grale d'Imhof) et uniroot() (points critiques), sans tirage ; erreur num\u00e9rique de quadrature, contr\u00f4l\u00e9e par le recoupement par simulation \u00e0 ", if (OPT_ESSAI) "\u03c1 = \u22120,99 (essai)" else "\u03c1 = \u22120,9 et \u22120,99", " ; \u03c1 \u2264 \u22120,999 non recoup\u00e9s ; loi de DW sous H0 pour z i.i.d. N(0,1), puissance sous un AR(1) stationnaire, alternative hors mod\u00e8le r\u00e9glementaire (l'annexe XVII suppose des ann\u00e9es ind\u00e9pendantes ; l'AR(1) est une alternative choisie) ; z n'est pas le vecteur de r\u00e9sidus r\u00e9ajust\u00e9s du moteur. La grille d'Imhof est d\u00e9terministe ; seul le recoupement tire, sous une graine consign\u00e9e en T0."), "",
         "Cadre : T = 8 ; z gaussien centr\u00e9, i.i.d. N(0,1) sous H0, AR(1) stationnaire de matrice de covariance (\u03c1^|i\u2212j|) sous l'alternative ; sans r\u00e9ajustement ; statistique calcul\u00e9e sur la s\u00e9rie centr\u00e9e. Test bilat\u00e9ral exact de `dw_p_exacte()` (p = 2 min(P0(DW \u2264 d), P0(DW \u2265 d)), rejet si p < \u03b1), puissance par `dw_puissance_ar1(8, \u03c1, \u03b1)`. Variante \u00e0 d\u00e9part nul : non calcul\u00e9e (`dw_puissance_ar1()` ne porte que l'AR(1) stationnaire).", "",
         "### 1. Puissance de DW par \u03c1", "",
         entete_md(c(RHO, "1 \u2212 \\|\u03c1\\|", cols_a)),
