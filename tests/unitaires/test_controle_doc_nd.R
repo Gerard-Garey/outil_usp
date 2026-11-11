@@ -645,6 +645,26 @@ verifier("--bloquant, .aux absent : code 2 inchange, la liste A est controlee et
 r <- lancer(paste0("--tex=", f_propre), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant")
 verifier("--bloquant, .aux absent, liste A propre : code 2 aussi (le refus ne depend pas du resultat de (a)), rapport de (a) imprime",
          r$statut == 2L && any(grepl("Liste A controlee avant le refus : 0 occurrence", r$sortie, fixed = TRUE)))
+# Annotation GitHub Actions du refus en code 2 (#475) : emise comme par le chemin normal, une
+# seule fois, pour les occurrences de la liste A ; GITHUB_ACTIONS est posee dans les deux sens
+# (l'environnement de la CI la fixe a "true") par nd_avec_env.
+.aux_abs <- paste0("--aux=", file.path(dir_b, "absent.aux"))
+.ga <- function(v, ...) nd$nd_avec_env(c(GITHUB_ACTIONS = v), lancer(...))
+.n_ann <- function(s) sum(startsWith(s, "::warning title=Controle ND::"))
+r <- .ga("true", paste0("--tex=", f_sale), .aux_abs, "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, .aux absent, .tex sale : code 2, une seule annotation (1 occurrence de la liste A), apres le refus",
+         r$statut == 2L && .n_ann(r$sortie) == 1L &&
+           any(grepl("^::warning title=Controle ND::1 occurrence[(]s[)] de la liste A", r$sortie)) &&
+           which(startsWith(r$sortie, "::warning")) > grep("controle impossible", r$sortie, fixed = TRUE))
+r <- .ga("", paste0("--tex=", f_sale), .aux_abs, "--bloquant")
+verifier("hors GITHUB_ACTIONS, --bloquant, .aux absent, .tex sale : code 2, aucune annotation",
+         r$statut == 2L && .n_ann(r$sortie) == 0L)
+r <- .ga("true", paste0("--tex=", f_propre), .aux_abs, "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, .aux absent, liste A propre : code 2, aucune annotation (rien a signaler)",
+         r$statut == 2L && .n_ann(r$sortie) == 0L)
+r <- .ga("true", paste0("--tex=", f_sale), paste0("--aux=", f_sale_aux), "--bloquant")
+verifier("GITHUB_ACTIONS=true, --bloquant, fichiers presents, .tex sale : code 1, une seule annotation (chemin normal inchange)",
+         r$statut == 1L && .n_ann(r$sortie) == 1L)
 r <- lancer(paste0("--tex=", f_sale), paste0("--aux=", file.path(dir_b, "absent.aux")), "--bloquant", "--pages-seules")
 verifier("--bloquant --pages-seules, .aux absent : le controle (a) n'est pas lance (aucune liste A), code 2",
          r$statut == 2L && !any(grepl("Liste A", r$sortie, fixed = TRUE)))

@@ -1016,6 +1016,16 @@ nd_imprimer_remplissage <- function(r) {
 # Marques de la passe de mesure du controle (d), a cote du script.
 MARQUES_REMPLISSAGE_DEFAUT <- "marques_remplissage.tex"
 
+# Annotation GitHub Actions (sous GITHUB_ACTIONS=true, si une occurrence, une violation ou un
+# avertissement de remplissage existe), emise de la meme facon par le chemin normal et par le
+# refus en code 2 de --bloquant (#475) ; les compteurs des controles non lances valent 0.
+nd_annotation_ga <- function(n_a, n_b, n_c, n_d) {
+  if (Sys.getenv("GITHUB_ACTIONS") == "true" && (n_a > 0L || n_b > 0L || n_c > 0L || n_d > 0L))
+    cat(sprintf(paste("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
+                      "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
+  invisible(NULL)
+}
+
 nd_main <- function(args) {
   selecteurs <- c("--motifs-seuls", "--pages-seules", "--debordements", "--remplissage")
   connus <- c("--bloquant", selecteurs)
@@ -1060,8 +1070,8 @@ nd_main <- function(args) {
   # fiche:N du .aux (appariement decale, decision du 07/11/2026).
   entete <- sprintf("Controle ND de %s (%d lignes). Mode : %s.\n\n", tex, length(lignes),
                     if (bloquant) "BLOQUANT" else "avertissement (code de sortie 0)")
+  manque <- character(0)
   if (bloquant) {
-    manque <- character(0)
     if (sel("pages") && is.null(aux_lu)) manque <- c(manque, sprintf("fichier .aux introuvable (%s)", aux))
     if (sel("pages") && !is.null(aux_lu)) {
       n_tex <- nrow(nd_fiches(lignes))
@@ -1071,24 +1081,23 @@ nd_main <- function(args) {
       else if (n_aux != n_tex) manque <- c(manque, sub(" : appariement douteux.*$", "", nd_msg_decompte(n_tex, n_aux)))
     }
     if (sel("debordements") && !file.exists(journal)) manque <- c(manque, sprintf("journal LaTeX .log introuvable (%s)", journal))
-    if (length(manque)) {
-      # Le controle (a) n'a besoin ni du .aux ni du .log : il est lance et imprime avant le
-      # refus, pour que son rapport ne soit pas masque par le code 2 (#475). Le code de
-      # sortie reste 2, quel que soit le resultat de (a).
-      if (sel("motifs")) {
-        cat(entete)
-        n_a0 <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut()), max_lignes)
-        cat(sprintf("\nListe A controlee avant le refus : %d occurrence(s) ; le code de sortie reste 2.\n\n", n_a0))
-      }
-      cat("--bloquant : controle impossible, ", paste(manque, collapse = " ; "),
-          ".\nCompiler le document avant le controle, ou retirer --bloquant pour un simple avertissement.\n", sep = "")
-      return(2L)
-    }
   }
-  cat(entete)
+  # Le controle (a) n'a besoin ni du .aux ni du .log : il est lance et imprime une seule fois,
+  # avant le test du refus, pour que son rapport ne soit pas masque par le code 2 (#475).
+  # L'en-tete n'est imprime qu'avec (a) ou hors refus.
   n_a <- 0L; n_b <- 0L; n_c <- 0L; n_d <- 0L
+  if (sel("motifs") || !length(manque)) cat(entete)
   if (sel("motifs")) {
     n_a <- nd_imprimer_motifs(nd_controle_motifs(lignes, exceptions_motifs_defaut()), max_lignes)
+  }
+  if (length(manque)) {
+    # Le code de sortie reste 2, quel que soit le resultat de (a).
+    if (sel("motifs"))
+      cat(sprintf("\nListe A controlee avant le refus : %d occurrence(s) ; le code de sortie reste 2.\n\n", n_a))
+    cat("--bloquant : controle impossible, ", paste(manque, collapse = " ; "),
+        ".\nCompiler le document avant le controle, ou retirer --bloquant pour un simple avertissement.\n", sep = "")
+    nd_annotation_ga(n_a, n_b, n_c, n_d)
+    return(2L)
   }
   if (sel("pages")) n_b <- nd_imprimer_pages(nd_controle_pages(lignes, aux_lu))
   if (sel("debordements")) n_c <- nd_imprimer_debordements(nd_controle_debordements(nd_lire_journal(journal)))
@@ -1102,9 +1111,7 @@ nd_main <- function(args) {
   cat(sprintf(paste("\nBILAN : %d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
                     "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
   viol <- n_a > 0L || n_b > 0L || n_c > 0L
-  if (Sys.getenv("GITHUB_ACTIONS") == "true" && (viol || n_d > 0L))
-    cat(sprintf(paste("::warning title=Controle ND::%d occurrence(s) de la liste A, %d fiche(s) en violation du plafond,",
-                      "%d debordement(s) en violation, %d avertissement(s) de remplissage.\n"), n_a, n_b, n_c, n_d))
+  nd_annotation_ga(n_a, n_b, n_c, n_d)
   if (bloquant && viol) return(1L)
   0L
 }
