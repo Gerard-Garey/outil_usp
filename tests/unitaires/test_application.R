@@ -1044,20 +1044,20 @@ testServer(app, {
     startsWith(hd, "<div class='bloc regle-verdicts'>") && grepl("<th>Sens</th>", hd, fixed = TRUE) &&
       all(vapply(ph, function(x) grepl(.echap_html(x), hd, fixed = TRUE), logical(1))))
   a("bloc Etat : alpha du resultat (0,1), aucun signal tant que le panneau est a 0,1 (#498)",
-    grepl("<b>alpha</b> = 0,1</div>", et, fixed = TRUE) && !grepl("du panneau", et, fixed = TRUE))
+    grepl("<b>&alpha;</b> = 0,1</div>", et, fixed = TRUE) && !grepl("du panneau", et, fixed = TRUE))
   session$setInputs(alpha = 0.2)
   et2 <- as.character(output$etat$html)
   h2 <- as.character(output$tests_par_hypothese$html)
   a("alpha du panneau a 0,2 : signal dans l'Etat, alpha du resultat toujours 0,1, aucun recalcul (#498)",
     grepl("α du panneau différent de celui du dernier calcul : relancer les calculs", et2, fixed = TRUE) &&
-      grepl("<b>alpha</b> = 0,1</div>", et2, fixed = TRUE) && !grepl("<b>alpha</b> = 0,2", et2, fixed = TRUE) &&
+      grepl("<b>&alpha;</b> = 0,1</div>", et2, fixed = TRUE) && !grepl("<b>&alpha;</b> = 0,2", et2, fixed = TRUE) &&
       identical(resultat()$metadata$alpha, 0.1))
   a("alpha du panneau a 0,2 : la regle de l'onglet Tests reste celle du resultat (alpha 0,1), inchangee (#498)",
     identical(h2, hd) && grepl(.echap_html(ph[1]), h2, fixed = TRUE) && !grepl("α = 0,2", h2, fixed = TRUE))
   session$setInputs(alpha = NA_real_)
   et3 <- as.character(output$etat$html)
   a("champ alpha vide (NA) : ni signal ni erreur, alpha du resultat affiche (#498)",
-    grepl("<b>alpha</b> = 0,1</div>", et3, fixed = TRUE) && !grepl("du panneau", et3, fixed = TRUE))
+    grepl("<b>&alpha;</b> = 0,1</div>", et3, fixed = TRUE) && !grepl("du panneau", et3, fixed = TRUE))
   session$setInputs(alpha = 0.10)
   a("alpha du panneau revenu a 0,1 : le signal disparait (#498)",
     !grepl("du panneau", as.character(output$etat$html), fixed = TRUE))
@@ -1759,8 +1759,8 @@ testServer(app, {
     '    identical(grepl("<details class=\'com\'><summary>", dt, fixed = TRUE), attendu_repli))',
     '  a("vue Detail : chaque cellule de commentaire, H0 et H1 des lignes affichees rendue comme la regle de repli la produit (#517)",',
     '    length(cel_att) > 0L && all(vapply(unname(cel_att), grepl, NA, x = dt, fixed = TRUE)))',
-    '  a("vue Detail : tableau dans un conteneur overflow-x:auto (aucune colonne sous le panneau), largeur minimale de la colonne Motif / commentaire, colonne Fonction (#517, #178)",',
-    '    grepl("<div style=\\"overflow-x:auto\\"><table class=\'table table-condensed data\'>", dt, fixed = TRUE) &&',
+    '  a("vue Detail : tableau dans le cadre defilant defil-detail (hauteur bornee, defilement dans les deux sens, en-tete colle, #525), largeur minimale de la colonne Motif / commentaire, colonne Fonction (#517, #178)",',
+    '    grepl("<div class=\\"defil-detail\\"><table class=\'table table-condensed data\'>", dt, fixed = TRUE) &&',
     '    grepl(paste0("<th style=\'min-width:", LARGEURS_DETAIL[["Motif / commentaire"]], "px\'>Motif / commentaire</th>"), dt, fixed = TRUE) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
     '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
@@ -1770,7 +1770,8 @@ testServer(app, {
     '  sy <- as.character(output$tests_par_hypothese$html)',
     '  a("vue Synthese : ni repli ni colonne Fonction ni granularite MC (#178, #285)",',
     '    !grepl("<details", sy, fixed = TRUE) && !grepl("<th>Fonction</th>", sy, fixed = TRUE) &&',
-    '      !grepl("min-width", sy, fixed = TRUE) &&',
+    '      !grepl("min-width", sy, fixed = TRUE) && !grepl("defil-detail", sy, fixed = TRUE) &&',
+    '      grepl("<div style=\\"overflow-x:auto\\"><table class=\'table table-condensed data\'>", sy, fixed = TRUE) &&',
     '      !grepl("granularit\u00e9 MC", sy, fixed = TRUE))',
     '  lib <- libelle_derogation(r, "profondeur")',
     '  a("ligne profondeur restituee, 2 annees ecartees", length(lib) == 1L &&',

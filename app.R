@@ -373,6 +373,14 @@ ui <- fluidPage(
     .err { background:#FDEDEC; border-left:4px solid #922B21;
            padding:9px 12px; margin-bottom:10px; font-size:13px; }
     table.data { font-size:12.5px; }
+    /* Vue Detail (#525) : cadre defilant dans les deux sens, hauteur bornee
+       a 75 % de la fenetre, en-tete colle en haut du cadre (le trait sous
+       l'en-tete est une ombre interne : une bordure de cellule ne suit pas un
+       en-tete colle). */
+    .defil-detail { overflow:auto; max-height:75vh; }
+    .defil-detail table.data { margin-bottom:0; }
+    .defil-detail table.data > thead > tr > th { position:sticky; top:0; z-index:2;
+      background:#fff; border-bottom:0; box-shadow:inset 0 -2px 0 #ddd; }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
     details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
@@ -1387,7 +1395,7 @@ server <- function(input, output, session) {
       # Seuil des verdicts du resultat affiche (#498), lu dans res$metadata,
       # jamais dans le panneau ; signal, sans recalcul, si le champ alpha du
       # panneau a change depuis (texte_alpha_divergent(), display_helpers.R).
-      div(HTML(sprintf("<b>alpha</b> = %s", .ou_tiret(m$alpha, .num_fr_defaut)))),
+      div(HTML(sprintf("<b>&alpha;</b> = %s", .ou_tiret(m$alpha, .num_fr_defaut)))),
       if (!is.null(div_alpha <- texte_alpha_divergent(m$alpha, input$alpha)))
         div(class = "avert", style = "font-size:12px", div_alpha),
       if (!is.null(lig_mc))
@@ -1533,10 +1541,15 @@ server <- function(input, output, session) {
           # Tableau de la vue Detail (16 colonnes, colonne Motif a largeur
           # minimale, #517) plus large que son cadre : defilement horizontal
           # dans le cadre, sinon la partie qui depasse passe sous le panneau
-          # des parametres. Meme conteneur pour la Synthese (aucune regle de
-          # largeur, comportement inchange tant que le tableau tient).
-          div(style = "overflow-x:auto",
-              HTML(html_table(d, largeurs = if (identical(input$vue_tests, "detail")) LARGEURS_DETAIL))))
+          # des parametres. Vue Detail (#525) : cadre de hauteur bornee
+          # (classe defil-detail, regle CSS plus haut), defilant dans les deux
+          # sens, en-tete collant : la barre horizontale reste a l'ecran au
+          # lieu de se trouver au bas d'un tableau haut de 1500 a 2200 px, et
+          # les noms de colonnes restent visibles. Synthese : conteneur
+          # inchange (aucune regle de largeur, le tableau tient).
+          if (identical(input$vue_tests, "detail"))
+            div(class = "defil-detail", HTML(html_table(d, largeurs = LARGEURS_DETAIL)))
+          else div(style = "overflow-x:auto", HTML(html_table(d))))
     })
     # Regle des verdicts en tete des tests (#498), au alpha du resultat
     # affiche (html_regle_verdicts(), display_helpers.R) ; NULL si absent.

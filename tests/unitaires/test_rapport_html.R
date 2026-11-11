@@ -3415,6 +3415,17 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                grepl("^QQ-plot normal \\(H3\\) \u2014 enveloppe de simulation", t$qqnorm) &&
                grepl("^Dispersion-niveau \\(H2\\) \u2014 lissage local", t$spread)
            })
+  # Titre de la coupe a gamma optimal (#526) : tronque dans une fenetre de 960 px
+  # sur une ligne ; deux lignes (titre, <sup> pour l'amplitude lue dans la
+  # surface), meme borne estimee et meme marge que les huit titres de #500.
+  verifier("plot_coupe_delta() plotly (#526) : titre sur deux lignes (\"Coupe a gamma optimal\", amplitude en <sup>, valeur lue dans plots_data$surface$amplitude_delta), chaque ligne dans 300 px (borne estimee de #500), marge haute .marge_sous_titre(1), mots inchanges",
+           {
+             tc <- titre500(plot_coupe_delta(pd_ln))
+             amp <- .num_fr(pd_ln$surface$amplitude_delta, "%.4f")
+             identical(tc$texte, paste0("Coupe a gamma optimal<br><sup>amplitude = ", amp, "</sup>")) &&
+               all(px500(tc$texte, tc$taille) <= 300) && tc$marge >= .marge_sous_titre(1L) &&
+               identical(gsub("<[^>]*>", " ", tc$texte), paste0("Coupe a gamma optimal  amplitude = ", amp, " "))
+           })
 }
 verifier(".coupe_mots() : replie aux espaces en lignes d'au plus max_car caracteres, aucun mot retire ni change, lignes reparties (pas de mot isole a la fin), \":\" isole garde la ligne du mot precedent, texte court ou NA inchange",
          {
