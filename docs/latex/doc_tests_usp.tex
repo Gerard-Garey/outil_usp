@@ -16136,7 +16136,7 @@ tout triangle rééchantillonné de même géométrie vérifie la même identit�
 les mêmes $N$ et $k$. Constat de simulation à l'appui~: en rejouant hors moteur
 le bootstrap de résidus du triangle de contrôle (999 triangles produits par
 \code{mw\_simuler\_triangle()} sur le vivier de résidus redressés par le levier puis recentrés,
-section~\ref{sec:boot-mw}, graine 20260831) et en recalculant $\operatorname{Var}(r)$ sur chacun,
+section~\ref{sec:boot-mw}, graine 20260831, \code{tests/mesure\_m2var\_exposants\_mw.R}) et en recalculant $\operatorname{Var}(r)$ sur chacun,
 la valeur reste comprise entre $0{,}80740$ et $0{,}80769$, soit une étendue de
 $2{,}9\times10^{-4}$ autour de la référence $0{,}80769$.
 \Usage
@@ -16147,11 +16147,18 @@ données, $\operatorname{Var}(r)$ reste collée à $(N-k)/(N-1)$ même lorsque
 l'exposant~1 imposé par le règlement est faux. Constat de simulation (modèle de Mack à erreurs
 gaussiennes ajusté au triangle de contrôle, variance de $C(i,j+1)$ en $C(i,j)^0$, $C(i,j)^1$ puis
 $C(i,j)^2$, égale à celle du modèle au cumul moyen de la colonne~; 2\,000 triangles $8\times8$ par
-exposant)~: l'écart à $(N-k)/(N-1)$ a sensiblement la même loi sous les trois exposants, dont les
-deux alternatives que nomme la fiche~\ref{mw:m2b}~; au plus $3{,}3$, $3{,}7$ et $5{,}6\cdot 10^{-4}$
-en valeur absolue sous le plan~P1 (section~\ref{sec:calib-mc-mw}), au-delà de $10^{-3}$ dans
-$10$ à $11~\%$ des triangles sous le plan~P2, à première colonne plus dispersée. Son ordre de
-grandeur suit la dispersion des cumuls dans les colonnes, non l'exposant, alors que l'hypothèse M2
+plan et par exposant, tirés sous les mêmes graines d'un exposant à l'autre,
+\code{tests/mesure\_m2var\_exposants\_mw.R})~: l'écart à $(N-k)/(N-1)$ a des lois voisines sous
+les trois exposants, dont les deux alternatives que nomme la fiche~\ref{mw:m2b}. Sous le plan~P1
+(section~\ref{sec:calib-mc-mw}), il vaut au plus $3{,}68$, $3{,}69$ et $3{,}69\cdot 10^{-4}$ en
+valeur absolue (exposants~0, 1 et~2) et ne dépasse $10^{-3}$ dans aucun triangle. Sous le plan~P2,
+à première colonne plus dispersée, il dépasse $10^{-3}$ dans $12{,}6$, $11{,}2$ et $9{,}8~\%$ des
+triangles~: décalage faible mais systématique, que les graines communes rendent détectable, et de
+sens opposé pour les deux alternatives, l'exposant~1 du règlement se trouvant entre elles --- un
+écart plus grand irait vers l'exposant~0, un écart plus petit vers l'exposant~2, de quelques points
+de pourcentage seulement. Son ordre de grandeur suit la dispersion des cumuls dans les colonnes,
+non l'exposant~: la médiane de sa valeur absolue est treize à quatorze fois plus grande sous~P2
+que sous~P1, et ne varie que d'environ $10~\%$ d'un exposant à l'autre, alors que l'hypothèse M2
 est fausse par construction sous les exposants~0 et~2. Ce sont les tests des
 fiches~\ref{mw:m2bp} et~\ref{mw:m2b} qui portent cette détection, non celui-ci --- sans puissance
 mesurable à $T = 8$ sous le plan du triangle de contrôle (rubriques~7 de ces fiches).
