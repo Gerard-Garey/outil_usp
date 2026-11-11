@@ -12741,8 +12741,11 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   add(fam, "Variance unitaire des residus de Mack", "Diagnostic d'echelle",
       fonction = "mw_tests",
       type = "diagnostic", estim_nom = "var(residus)", estim = stats::var(r),
-      # Texte de #514 (specification finale d'actuary) ; N - k et la mesure
-      # ponctuelle (2.5e-03, 1e-15) sont dans la fiche.
+      # Texte de #514 (specification finale d'actuary). N - k, l'identite
+      # somme des r(i,j)^2 = N - k et la loi de l'ecart a la reference sous des
+      # variances en C^0, C^1 et C^2 (plans P1 et P2,
+      # tests/mesure_m2var_exposants_mw.R, tableau date sous docs/tableaux/) sont
+      # dans la fiche mw:m2var ; le detail n'imprime aucun nombre de simulation.
       detail = sprintf(paste("Grandeur contrainte par construction (reference %s%s), qui ne",
                              "teste PAS la structure de variance : son ecart a la reference",
                              "donne a lire le CENTRAGE des residus, ici %s. La structure de",
