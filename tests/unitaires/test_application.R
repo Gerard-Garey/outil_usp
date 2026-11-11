@@ -1107,7 +1107,7 @@ testServer(app, {
   a("Calcul non lance (reserve no 2) : notification au texte fixe (#226)",
     identical(notifs226, "Calcul non lance : aucun resultat n'est produit (voir le bandeau)."))
   a("Calcul non lance (reserve no 2) : motif du moteur dans le bandeau (#226)",
-    identical(mv, "Cellule observee manquante en (i=1, j=1).") &&
+    identical(mv, "Cellule observee manquante : annee d'accident i = 1, annee de developpement j = 1.") &&
       grepl(ea$TITRE_NON_LANCE, bd, fixed = TRUE) && grepl(htmltools::htmlEscape(mv), bd, fixed = TRUE))
 })
 # Plafond de six motifs leve, notification lognormale au texte fixe (issue

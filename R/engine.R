@@ -9226,7 +9226,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
   if (I != J)
-    err <- c(err, sprintf("Triangle non carre (I = %d, J = %d) : cas non couvert par les formules des paragraphes 4 et 5 (voir la note d'implementation).", I, J))
+    err <- c(err, sprintf(paste("Triangle non carre (%d annees d'accident, %d annees de developpement) :",
+                                "cas non couvert par les formules des paragraphes 4 et 5 de la section D",
+                                "de l'annexe XVII."), nrow(tri), ncol(tri)))
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
@@ -9237,13 +9239,17 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       v <- tri[i + 1, j + 1]
       # Manquante (NA) et non finie (Inf, -Inf lus depuis un texte ; NaN fourni
       # dans une matrice numerique) sont deux motifs distincts (issue #33) :
-      # "Inf" n'est pas une cellule vide.
+      # "Inf" n'est pas une cellule vide. Cellule designee par son annee
+      # d'accident i et son annee de developpement j (#527).
       if (obs && is.na(v) && !is.nan(v))
-        err <- c(err, sprintf("Cellule observee manquante en (i=%d, j=%d).", i, j))
+        err <- c(err, sprintf("Cellule observee manquante : annee d'accident i = %d, annee de developpement j = %d.",
+                              i, j))
       else if (obs && !is.finite(v))
-        err <- c(err, sprintf("Valeur non finie en (i=%d, j=%d) : %s.", i, j, format(v, decimal.mark = ".")))
+        err <- c(err, sprintf("Valeur non finie en annee d'accident i = %d, annee de developpement j = %d : %s.",
+                              i, j, format(v, decimal.mark = ".")))
       if (obs && is.finite(v) && v <= 0)
-        err <- c(err, sprintf("Cumul non strictement positif en (i=%d, j=%d).", i, j))
+        err <- c(err, sprintf("Cumul non strictement positif : annee d'accident i = %d, annee de developpement j = %d.",
+                              i, j))
       # Domaine numerique (issue #185) : memes constantes et memes bornes
       # incluses que engine_valider_donnees() (#145). NA, non finies et non
       # positives sont refusees ci-dessus, sans doublon.
@@ -9264,7 +9270,8 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
         sprintf("< %g, borne inferieure", DOMAINE_NUMERIQUE_MIN)
         else sprintf("> %g, borne superieure", DOMAINE_NUMERIQUE_MAX)
       err <- c(err, sprintf(paste(
-        "Cumul hors du domaine numerique [%g ; %g] en (i=%d, j=%d) : %s (%s)%s.",
+        "Cumul hors du domaine numerique [%g ; %g] en annee d'accident i = %d,",
+        "annee de developpement j = %d : %s (%s)%s.",
         "sigma_USP et les tests sont invariants par un changement d'unite commun",
         "a toutes les cellules du triangle : exprimer les cumuls dans une unite",
         "qui les ramene dans le domaine."),

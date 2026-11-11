@@ -1587,7 +1587,7 @@ verifier("Triangle : cellule observee manquante refusee",
          {
            m <- t5; m[2, 3] <- NA
            r <- mw_valider_triangle(m)
-           !r$ok && contient(r$erreurs, "(i=1, j=2)")
+           !r$ok && contient(r$erreurs, "Cellule observee manquante : annee d'accident i = 1, annee de developpement j = 2.")
          })
 verifier("Triangle : cumul nul ou negatif refuse",
          {
@@ -1605,11 +1605,54 @@ verifier("Triangle : Inf, -Inf, NaN signales 'valeur non finie' (pas 'manquante'
          {
            m <- t5; m[1, 2] <- Inf; m[2, 1] <- -Inf; m[3, 2] <- NaN; m[1, 4] <- NA
            e <- mw_valider_triangle(m)$erreurs
-           contient(e, "Valeur non finie en (i=0, j=1) : Inf") &&
-             contient(e, "Valeur non finie en (i=1, j=0) : -Inf") &&
-             contient(e, "Valeur non finie en (i=2, j=1) : NaN") &&
-             contient(e, "Cellule observee manquante en (i=0, j=3)") &&
-             !contient(e, "manquante en (i=0, j=1)") && length(e) == 4L
+           contient(e, "Valeur non finie en annee d'accident i = 0, annee de developpement j = 1 : Inf") &&
+             contient(e, "Valeur non finie en annee d'accident i = 1, annee de developpement j = 0 : -Inf") &&
+             contient(e, "Valeur non finie en annee d'accident i = 2, annee de developpement j = 1 : NaN") &&
+             contient(e, "Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 3.") &&
+             !contient(e, "manquante : annee d'accident i = 0, annee de developpement j = 1.") && length(e) == 4L
+         })
+# Issue #527, groupe Merz-Wuthrich (MW-04 a MW-08) : texte complet de chaque
+# motif change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, declenche par run_engine(methode = "reserve2") sur le triangle
+# de tests/donnees (refus ok = FALSE, motif dans validation$erreurs, aucune
+# erreur levee). Cellule designee par son annee d'accident i et son annee de
+# developpement j.
+refus_mw_527 <- function(t) {
+  r <- tryCatch(run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
+                           B = B_MIN_USAGE), error = function(e) e)
+  if (inherits(r, "usp_engine") && identical(r$ok, FALSE) && is.null(r$validation$erreur_r))
+    r$validation$erreurs else NA_character_
+}
+cellule_527 <- function(i, j, v) { t <- tri_usage; t[i + 1L, j + 1L] <- v; t }
+verifier("run_engine reserve2 : MW-04, triangle 8 x 6 -> texte complet du motif (#527)",
+         identical(refus_mw_527(tri_usage[, 1:6]),
+                   paste("Triangle non carre (8 annees d'accident, 6 annees de developpement) : cas",
+                         "non couvert par les formules des paragraphes 4 et 5 de la section D de",
+                         "l'annexe XVII.")))
+verifier("run_engine reserve2 : MW-05, cellule observee vide -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, NA)),
+                   paste("Cellule observee manquante : annee d'accident i = 0, annee de",
+                         "developpement j = 2.")))
+verifier("run_engine reserve2 : MW-06, cellule Inf -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, Inf)),
+                   paste("Valeur non finie en annee d'accident i = 0, annee de developpement j = 2 :",
+                         "Inf.")))
+verifier("run_engine reserve2 : MW-07, cumul negatif -> texte complet du motif (#527)",
+         identical(refus_mw_527(cellule_527(0, 2, -5)),
+                   paste("Cumul non strictement positif : annee d'accident i = 0, annee de",
+                         "developpement j = 2.")))
+verifier("run_engine reserve2 : MW-08, une cellule 1e120, puis tout le triangle x 1e-110 (17 chiffres, decompte) -> textes complets (#527)",
+         {
+           fin <- paste("sigma_USP et les tests sont invariants par un changement d'unite commun a",
+                        "toutes les cellules du triangle : exprimer les cumuls dans une unite qui les",
+                        "ramene dans le domaine.")
+           identical(refus_mw_527(cellule_527(0, 2, 1e120)),
+                     paste("Cumul hors du domaine numerique [1e-50 ; 1e+50] en annee d'accident i = 0,",
+                           "annee de developpement j = 2 : 1e+120 (> 1e+50, borne superieure).", fin)) &&
+             identical(refus_mw_527(tri_usage * 1e-110),
+                       paste("Cumul hors du domaine numerique [1e-50 ; 1e+50] en annee d'accident i = 0,",
+                             "annee de developpement j = 0 : 3.0000000000000003e-108 (< 1e-50, borne",
+                             "inferieure) ; 36 cellules observees hors du domaine.", fin))
          })
 verifier("Triangle : data.frame ou matrice de caracteres refuses",
          !mw_valider_triangle(as.data.frame(t5))$ok &&
@@ -1771,7 +1814,7 @@ verifier("engine_lire_triangle : cellule texte \"Inf\" signalee 'valeur non fini
          {
            d <- fichier_tri(t5); d$j1 <- as.character(d$j1); d$j1[1] <- "Inf"
            r <- engine_lire_triangle(d)
-           !r$ok && contient(r$erreurs, "Valeur non finie en (i=0, j=1)") &&
+           !r$ok && contient(r$erreurs, "Valeur non finie en annee d'accident i = 0, annee de developpement j = 1 : Inf.") &&
              !contient(r$erreurs, "manquante") && is.null(r$triangle)
          })
 verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle() restituees",
@@ -1779,7 +1822,7 @@ verifier("engine_lire_triangle : erreurs de recevabilite de mw_valider_triangle(
            d <- fichier_tri(t5); d$j2[2] <- NA
            r1 <- engine_lire_triangle(d)
            r2 <- engine_lire_triangle(fichier_tri(triangle(4)))
-           !r1$ok && contient(r1$erreurs, "(i=1, j=2)") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
+           !r1$ok && contient(r1$erreurs, "Cellule observee manquante : annee d'accident i = 1, annee de developpement j = 2.") && !r2$ok && contient(r2$erreurs, "D(2)(b)") &&
              !engine_lire_triangle(data.frame())$ok && !engine_lire_triangle(list(a = 1))$ok
          })
 # Issue #518 : avertissements_lecture, sous-ensemble des avertissements propre
@@ -2344,7 +2387,7 @@ verifier("mw_valider_triangle : segment invalide ne masque pas une cellule manqu
            m <- triangle(6); m[1, 1] <- NA
            r <- mw_valider_triangle(m, segment = 99)
            !r$ok && length(r$erreurs) == 2L &&
-             contient(r$erreurs, "Cellule observee manquante en (i=0, j=0).") &&
+             contient(r$erreurs, "Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 0.") &&
              contient(r$erreurs, "Segment 99 inconnu dans l'annexe II.") &&
              !length(r$avertissements)
          })
