@@ -50,9 +50,9 @@ porte <- function(l) endsWith(l$detail, PH)
 n_phrase <- function(l) lengths(regmatches(l$detail, gregexpr(PH, l$detail, fixed = TRUE)))
 
 ## --- U244-8 : la phrase -----------------------------------------------------------
-verifier("U244-8 PHRASE_VERDICT_SENSIBLE_MC = texte de l'issue ; seul nombre : la constante 2 (regle #76)",
-         identical(PH, paste("verdict sensible a l'alea de simulation",
-                             "(p a moins de 2 erreurs de Monte-Carlo du seuil)")) &&
+verifier("U244-8 PHRASE_VERDICT_SENSIBLE_MC = texte de #244, forme de #519 ; seul nombre : la constante 2 (regle #76)",
+         identical(PH, paste("Verdict sensible a l'alea de simulation",
+                             "(p a moins de 2 erreurs de Monte-Carlo du seuil).")) &&
            identical(gsub("[^0-9]", "", PH), "2"))
 verifier("U244-8 la phrase posee est identical() a la constante (detail vide)",
          identical(ligne244(0.090, 0.0091)$detail, PH))

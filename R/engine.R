@@ -4313,10 +4313,11 @@ TOL_P_BORNE <- 1e-12
 # #125, granularite g_mc sinon). Reste le dernier element du detail :
 # .usp_poser_renvois() insere le renvoi de #215 avant elle. Phrase fixe,
 # sans aucun nombre issu du bootstrap (regle #76 : "2" est une constante de
-# la regle) ; ni p, ni verdict, ni champ ne changent.
+# la regle) ; ni p, ni verdict, ni champ ne changent. Forme (majuscule
+# initiale, point final) fixee par #519 (avis amont de K4, reserve R2).
 PHRASE_VERDICT_SENSIBLE_MC <- paste(
-  "verdict sensible a l'alea de simulation",
-  "(p a moins de 2 erreurs de Monte-Carlo du seuil)")
+  "Verdict sensible a l'alea de simulation",
+  "(p a moins de 2 erreurs de Monte-Carlo du seuil).")
 
 # Mentions de regime M17 a M22 (#514, decision Q-6 du mainteneur du
 # 09/11/2026 ; specification finale d'actuary, par. 2) : phrases
@@ -6649,7 +6650,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # Q-D1-Fh-7, specification Fh, section 5.1 et ses errata), dans tous les
   # regimes : l'hypothese releve de la ligne Lilliefors (distance de
   # Kolmogorov sur (z - zbar)/s_z, quand stat_ks() la calcule sur z) et, W2
-  # etant tres correlee a A2, de la ligne Anderson-Darling ; c'est leur type
+  # etant la distance d'Anderson-Darling sans la ponderation des queues, de la
+  # ligne Anderson-Darling ; c'est leur type
   # et leur verdict qui font foi (elles peuvent n'en avoir aucun : diagnostic
   # #181, test sans p-value). type = "diagnostic" pose ici par type_diag()
   # (verdict INFO, ni p retenue, ni nature, ni sens ; p-values conservees
@@ -6671,8 +6673,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "W2 sur (z - zbar)/s_z", estim = w2_std,
       p_as = p_cvm, mc_nom = "CvM",
       detail = detail_h3(detail_diag("CvM", paste(
-        "Distance de Cramer-von Mises a la loi normale, tres correlee a celle",
-        "d'Anderson-Darling, pour information."), raison_cvm), p_cvm))
+        "Distance de Cramer-von Mises a la loi normale, celle d'Anderson-Darling sans la",
+        "ponderation des queues, pour information."), raison_cvm), p_cvm))
   p_ks <- { dd <- boot$stats_obs$KS
             if (is.finite(dd)) .p_borne(2 * sum((-1)^(0:99) *
               exp(-2 * (1:100)^2 * T * dd^2))) else NA_real_ }
@@ -7060,9 +7062,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       estim_nom = "nb de valeurs aberrantes", estim = ro$nb_outliers,
       detail = sprintf(paste(
         "Repere de valeurs aberrantes multiples (ESD de Rosner, alpha = %g, nombre en",
-        "estimation), a niveau superieur a alpha a T = 8 en simulation (valeurs critiques",
-        "adequates a partir de n = 25 selon l'auteur). Diagnostic par decision, sans verdict ni",
-        "p-value retenue : la ligne \"Valeur aberrante isolee (Grubbs)\" fait foi."), alpha))
+        "estimation), a niveau superieur a alpha a T = 8 en simulation sous i.i.d. normal",
+        "(valeurs critiques adequates a partir de n = 25 selon l'auteur). Diagnostic par",
+        "decision, sans verdict ni p-value retenue : la ligne \"Valeur aberrante isolee",
+        "(Grubbs)\" fait foi."), alpha))
   # Distance de Cook et leviers de y = beta x (#153) : x et y mis a l'echelle
   # exacte (.usp_echelle_exacte()), D_t et h_t etant invariants par x -> a x,
   # y -> b y. Sans elle, D_t devenait non fini a petite echelle (x et y x
@@ -12395,11 +12398,11 @@ PHRASE_MW_PLAFOND_CUMULS <- sprintf(paste(
 # docs/specifications/fi-merz-wuthrich-puissance.md ; ancrage #347, ecarts 1
 # et 2), remplace par #514 (specification d'actuary, W15 ; deux phrases, Q-3 :
 # les rangs des residus declares ne sont plus restitues, recalculables par
-# test_rosner(r, alpha)) : gabarit sprintf, %.2f = alpha ; aucun nombre issu
+# test_rosner(r, alpha)) : gabarit sprintf, %g = alpha ; aucun nombre issu
 # du bootstrap (#76).
 PHRASE_MW_ROSNER_DIAGNOSTIC <- paste(
-  "Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = %.2f, nombre en",
-  "estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas les",
+  "Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = %g, nombre en",
+  "estimation), sans p-value : son cadre (echantillon i.i.d. normal) ne couvre pas les",
   "residus de Mack, contraints par colonne. Diagnostic sans verdict : la ligne",
   "\"Cellule aberrante du triangle (residus studentises externes)\" fait foi.")
 # Phrases du retirage applicables au bootstrap boot, dans l'ordre (retirage,

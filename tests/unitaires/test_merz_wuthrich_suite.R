@@ -1831,8 +1831,8 @@ verifier("M4 (#300) : reserve2, p_mc 0,898, Bonferroni 1, verdict OK ; B effecti
 verifier("Rosner (#300, #514) : diagnostic par decision, verdict INFO, estim_nom impose, phrase de #514 avec alpha (k^ = 0)",
          {
            x <- lig300("Cellules aberrantes multiples (ESD generalise)")
-           ph <- paste("Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.10, nombre",
-                       "en estimation), sans p-value : son cadre i.i.d. normal (n >= 25) ne couvre pas",
+           ph <- paste("Repere du nombre de cellules aberrantes (ESD de Rosner a alpha = 0.1, nombre",
+                       "en estimation), sans p-value : son cadre (echantillon i.i.d. normal) ne couvre pas",
                        "les residus de Mack, contraints par colonne. Diagnostic sans verdict : la ligne",
                        "\"Cellule aberrante du triangle (residus studentises externes)\" fait foi.")
            identical(x$type, "diagnostic") && identical(x$verdict, "INFO") && identical(x$sens, NA_character_) &&
