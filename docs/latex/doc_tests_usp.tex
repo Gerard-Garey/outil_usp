@@ -10609,8 +10609,11 @@ samples)}, \emph{Biometrika}, 52(3/4), 1965, p.~591--611 ; normalisation de J.\,
 $3 \le T \le 5000$. On note $m = (m_1,\dots,m_T)'$ le vecteur des espérances des statistiques
 d'ordre d'un échantillon normal centré réduit et $V$ leur matrice de covariance.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale $\mathcal{N}(\mu,\sigma^2)$, $\mu$ et $\sigma$ non
-spécifiés.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W$, invariante par translation et
+changement d'échelle positif, ne rapporte les $z_t$ qu'à la famille $\mathcal{N}(\mu,\sigma^2)$,
+$\mu$ et $\sigma$ non spécifiés.
 \Stat
 \[
   W \;=\; \frac{\Big(\sum_{i=1}^{T} a_i\, z_{(i)}\Big)^{2}}{\sum_{t=1}^{T} (z_t - \bar z)^2},
@@ -10680,7 +10683,10 @@ intégral. Le moteur calcule la p-value de Royston pour $5 \le T \le 5\,000$
 son niveau mesuré à $T = 8$ est en rubrique~7. Scores normaux approchés de Blom,
 $\tilde m_i = \Phi^{-1}\!\big((i - 3/8)/(T + 1/4)\big)$.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W'$, invariante de même, ne rapporte les $z_t$
+qu'à la famille normale.
 \Stat
 $W' = \operatorname{corr}\big(z_{(i)}, \tilde m_i\big)^2 = \big(\sum_i \tilde m_i z_{(i)}\big)^2 \big/
 \big[\big(\sum_i \tilde m_i^2\big)\big(\sum_t (z_t-\bar z)^2\big)\big]$, carré exact du coefficient
@@ -10732,7 +10738,11 @@ R.\,B. D'Agostino, M.\,A. Stephens (dir.), \emph{Goodness-of-Fit Techniques}, Ma
 Échantillon i.i.d. (hypothèse non testée), $p_{(i)} = \Phi(z_{(i)})$. Statistique de distance à la
 fonction de répartition empirique (famille EDF).
 \Hzero
-$H_0$ : les $z_t$ suivent la loi $\mathcal{N}(0,1)$ de référence.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $A^2$ du champ \code{stat} rapporte les $z_t$
+à la loi $\mathcal{N}(0,1)$ des $\varepsilon_t$, que les $z_t$ ne suivent pas exactement sous
+$H_0$~; la p-value de Monte-Carlo, simulée sous le modèle ajusté, en tient compte.
 \Stat
 \[
   A^2 \;=\; -T - \frac{1}{T}\sum_{i=1}^{T} (2i-1)\Big[\ln p_{(i)} + \ln\big(1 - p_{(T+1-i)}\big)\Big],
@@ -10797,7 +10807,10 @@ of fit and some comparisons}, \emph{JASA}, 69(347), 1974, p.~730--737.}
 \Cadre
 Identique à Anderson--Darling.
 \Hzero
-$H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $W^2$ du champ \code{stat} rapporte les
+$z_t$ à $\mathcal{N}(0,1)$, comme $A^2$ (fiche précédente).
 \Stat
 \[
   W^2 \;=\; \frac{1}{12T} + \sum_{i=1}^{T}\left(p_{(i)} - \frac{2i-1}{2T}\right)^{2}
@@ -10855,7 +10868,10 @@ celle d'Anderson--Darling, jamais à sa place.
 \Cadre
 Identique aux deux fiches précédentes.
 \Hzero
-$H_0$ : les $z_t$ suivent $\mathcal{N}(0,1)$.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $D$ rapporte les $z_t$ à $\mathcal{N}(0,1)$,
+loi des $\varepsilon_t$ et non des $z_t$.
 \Stat
 \[
   D \;=\; \sup_{u} \big|\hat F(u) - \Phi(u)\big|
@@ -10926,7 +10942,10 @@ précédente}~: la moyenne et l'écart-type ne sont pas ceux du modèle mais son
 l'échantillon lui-même}, ce qui correspond à la situation réelle lorsque l'on teste la normalité
 sans connaître les paramètres.
 \Hzero
-$H_0$ : les $z_t$ sont issus d'une loi normale de moyenne et de variance quelconques.
+$H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
+$\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
+i.i.d. (section~\ref{sec:base-residus})~; $H_1$~: loi non normale. $D_{\mathrm{L}}$ ne rapporte les $z_t$ qu'à la
+famille normale de moyenne et de variance quelconques (rubrique~3).
 \Stat
 \[
   D_{\mathrm{L}} = \sup_u \left| \hat F(u) - \Phi\!\left(\frac{u - \bar z}{s_z}\right) \right|,
@@ -17173,8 +17192,10 @@ D(2)(h) ne spécifie, outre l'indépendance de ses points~(i) et~(ii), que les d
 ligne est donc un \emph{diagnostic}, sans verdict (section~\ref{sec:nature}), et non la
 vérification d'une exigence réglementaire.
 \Hzero
-$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack
-forment un échantillon i.i.d. de loi normale.
+$H_0$~: erreurs gaussiennes du modèle de Mack, lues sur les résidus de Mack, qui ne sont pas
+i.i.d. (deux contraintes exactes par colonne, rubrique~6)~; $H_1$~: loi non normale. La p-value
+restituée est calculée sous un modèle auxiliaire, où les résidus forment un échantillon i.i.d. de
+loi normale (rubrique~4)~: ce n'est pas cette $H_0$.
 \Stat
 $W$, statistique de Shapiro--Wilk.
 Fonction nommée~: \code{.shapiro\_sur()}.
@@ -17248,8 +17269,10 @@ L.~Wilkinson (1986), \emph{op.\ cit.}}
 Identique à la fiche précédente~: diagnostic sans verdict (section~\ref{sec:nature}). Variante
 \emph{secondaire}~: masquée par défaut dans l'application, conservée dans l'export.
 \Hzero
-$H_0$ (du modèle auxiliaire sous lequel la p-value est calculée)~: les résidus de Mack
-forment un échantillon i.i.d. de loi normale, de moyenne et de variance quelconques.
+$H_0$~: erreurs gaussiennes du modèle de Mack, lues sur les résidus de Mack, contraints par
+colonne et non i.i.d. (fiche précédente)~; $H_1$~: loi non normale. La p-value restituée est
+calculée sous un modèle auxiliaire, où les résidus forment un échantillon i.i.d. de loi normale,
+de moyenne et de variance quelconques (rubrique~4)~: ce n'est pas cette $H_0$.
 \Stat
 $D_{\mathrm{L}} = \sup_u \big|\hat F(u) - \Phi((u - \bar r)/s_r)\big|$.
 Fonction nommée~: \code{stat\_lilliefors()}.
