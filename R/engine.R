@@ -2311,19 +2311,35 @@ test_dagostino_skew <- function(z) {
 }
 
 # Anscombe & Glynn (1983), Biometrika 70, 227-234 (aplatissement).
+# Statistique Z non definie (#485 ; avis amont d'actuary, decision QA1 (a)
+# du mainteneur du 10/11/2026) : des que 1 + x sqrt(2/(A - 4)) <= 0 (b2 tres
+# inferieur a 3 ; des T = 35 pres de b2 = 1 selon l'avis), la racine cubique
+# porterait sur une base negative ou infinie : stat et p a NA, et le champ
+# logique z_non_definie le signale a usp_tests() (motif de la ligne). La
+# racine cubique reelle signee est ecartee (elle inverse le signe de Z) ;
+# le texte d'Anscombe et Glynn (1983) n'a pas ete lu sur ce point.
+# En amont, b2 non defini (moment centre d'ordre 2 nul : residus constants,
+# 0/0) : stat et p a NA, champ logique b2_non_defini (reponse d'actuary du
+# 10/11/2026 a la question 1 du compte rendu de #485).
 test_anscombe_kurt <- function(z) {
   n <- length(z)
-  if (n < 20) return(list(stat = NA_real_, p = NA_real_))
+  if (n < 20) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = FALSE,
+                          z_non_definie = FALSE))
   m <- mean(z); b2 <- mean((z - m)^4) / mean((z - m)^2)^2
+  if (!is.finite(b2)) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = TRUE,
+                                  z_non_definie = FALSE))
   Eb2 <- 3 * (n - 1) / (n + 1)
   vb2 <- 24 * n * (n - 2) * (n - 3) / ((n + 1)^2 * (n + 3) * (n + 5))
   xx <- (b2 - Eb2) / sqrt(vb2)
   sb1 <- 6 * (n^2 - 5 * n + 2) / ((n + 7) * (n + 9)) *
          sqrt(6 * (n + 3) * (n + 5) / (n * (n - 2) * (n - 3)))
   A <- 6 + 8 / sb1 * (2 / sb1 + sqrt(1 + 4 / sb1^2))
-  Z <- ((1 - 2 / (9 * A)) -
-        ((1 - 2 / A) / (1 + xx * sqrt(2 / (A - 4))))^(1/3)) / sqrt(2 / (9 * A))
-  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))))
+  den <- 1 + xx * sqrt(2 / (A - 4))
+  if (isTRUE(den <= 0)) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = FALSE,
+                                    z_non_definie = TRUE))
+  Z <- ((1 - 2 / (9 * A)) - ((1 - 2 / A) / den)^(1/3)) / sqrt(2 / (9 * A))
+  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), b2_non_defini = FALSE,
+       z_non_definie = FALSE)
 }
 
 # --- Indépendance / structure temporelle -------------------------------------
@@ -2495,14 +2511,28 @@ dw_puissance_ar1 <- function(T, rho, alpha) {
 # rapport a x.
 # Meme argument, meme sens, dans test_cox_stuart(), mk_p_exacte(),
 # runs_p_exacte(), .runs_effectifs() et test_mann_kendall().
+# Statistique non definie (#486, avis amont d'actuary, section 4) : stat et
+# p a NA (jamais NaN), et champ cause, racine du motif lue par les lignes
+# d'usp_tests() et de mw_tests() (NA_character_ si Z est definie) :
+#   n1 = 0 ou n2 = 0 : un seul cote de la mediane, loi de R non definie ;
+#   n1 = n2 = 1 : V = 2 n1 n2 (2 n1 n2 - n) / (n^2 (n - 1)) = 0 (R = 2 pour
+#   les deux arrangements), garde posee avant .runs_z(), qui rendrait 0/0.
+# Le catalogue Monte-Carlo (Runs, Runsr) ne lit que $stat.
 test_runs <- function(z, plancher = 1) {
   z <- engine_aplatir_ex_aequo(z, plancher = plancher)
   s <- sign(z - stats::median(z)); s <- s[s != 0]
   n1 <- sum(s > 0); n2 <- sum(s < 0)
-  if (n1 == 0 || n2 == 0) return(list(stat = NA_real_, p = NA_real_, runs = NA))
+  if (n1 == 0 || n2 == 0)
+    return(list(stat = NA_real_, p = NA_real_, runs = NA,
+                cause = "un seul cote de la mediane represente : loi de R non definie"))
   R <- 1 + sum(diff(s) != 0)
+  if (n1 == 1 && n2 == 1)
+    return(list(stat = NA_real_, p = NA_real_, runs = R,
+                cause = paste("une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                              "R = 2 pour tout arrangement, loi de R degeneree (variance nulle)")))
   Z <- .runs_z(R, n1, n2)
-  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R)
+  list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))), runs = R,
+       cause = NA_character_)
 }
 # Z centre reduit du nombre de suites R aux effectifs (n1, n2), moments de
 # Wald & Wolfowitz ; partage par test_runs() et .runs_extremes() (#125), pour
@@ -4266,6 +4296,12 @@ engine_p_mc <- function(sim, obs, queue, extremes = NULL) {
 # l'hypothese i.i.d. normale tient.
 NATURE_APPROX_N_FINI <- "approximation a n fini sous i.i.d. normal"
 
+# Tolerance du controle des p-values hors de [0, 1] dans add() (#484, revue
+# finale) : une p finie de [-TOL_P_BORNE, 1 + TOL_P_BORNE] est admise telle
+# quelle, sans troncature (artefact d'arrondi d'une somme ou d'un exp() en
+# echelle log, de l'ordre de l'ulp) ; au-dela, add() refuse par stop().
+TOL_P_BORNE <- 1e-12
+
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
 # annote le 12/10/2026, point 3 ; Q-E2b-5, D1-5), posee par add() seul en
 # dernier element du detail d'une ligne de type test, sans verdict fourni,
@@ -4422,6 +4458,19 @@ MENTION_PERMUTATIONS_ALEATOIRES <- sprintf(paste(
 #                 toute autre valeur est refusee (stop). Le rang dans la
 #                 hierarchie est inchange ; sans effet si une p exacte ou
 #                 Monte-Carlo est retenue.
+#   sens        : "ne pas rejeter" (defaut) ou "rejeter" ; toute autre valeur
+#                 est refusee (stop, #484).
+#   nature_forcee : libelle de nature_p substitue a celui de la hierarchie
+#                 (NA ou chaine non vide, sinon stop) ; applique seulement a
+#                 une ligne qui porte un verdict (type "test" apres toutes
+#                 les bascules) et dont la p retenue est finie, et refuse
+#                 (stop) si son prefixe ne correspond pas au rang de la p
+#                 retenue : "exacte" pour la p exacte, "Monte-Carlo" pour la
+#                 p Monte-Carlo (p_mc_ext comprise), ni l'un ni l'autre pour
+#                 la p non simulee (#484, avis amont d'actuary).
+# p-values (#484) : p_ex, p_as, p_mc_ext, p_min, et p_mc et p_min_mc lues par
+# mc_nom, finies hors de [0, 1] -> stop ; une valeur non finie reste lue
+# comme absente ; 0 et 1 sont admis (intervalle ferme, .p_borne()).
 # Motif d'indisponibilite Monte-Carlo (#44, regle R3) : si mc_nom est
 # renseigne et p_mc absente, le motif est lu dans boot$motif_mc (produit par
 # engine_p_mc() / .mc_p_values(), jamais devine) quand l'appelant n'en
@@ -4471,7 +4520,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
                   loi = NA_character_,
                   estim_nom = NA_character_, estim = NA_real_,
                   p_ex = NA_real_, p_as = NA_real_, mc_nom = NA_character_,
-                  detail = "", verdict = NULL, sens = "ne pas rejeter",
+                  detail = "", sens = "ne pas rejeter",
                   nature_forcee = NA_character_,
                   base = "commun", variante = "principale",
                   p_min = NA_real_, effectifs = NA_character_,
@@ -4505,6 +4554,40 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         !nature_as %in% c("asymptotique", NATURE_APPROX_N_FINI))
       stop("add() : nature_as inconnue : ", paste(format(nature_as, decimal.mark = "."), collapse = " "),
            " (", nom, ")", call. = FALSE)
+    # Sens du test (#484, avis amont d'actuary) : deux valeurs admises ; une
+    # autre valeur appliquerait en silence la regle "ne pas rejeter".
+    if (!is.character(sens) || length(sens) != 1L || is.na(sens) ||
+        !sens %in% c("rejeter", "ne pas rejeter"))
+      stop("add() : sens inconnu : ", paste(format(sens), collapse = " "), " (", nom, ")",
+           call. = FALSE)
+    # Forme de nature_forcee (#484) : NA ou chaine de longueur 1 non vide ;
+    # son rang est controle plus bas, sur une ligne qui porte un verdict.
+    if (!(length(nature_forcee) == 1L && is.na(nature_forcee)) &&
+        (!is.character(nature_forcee) || length(nature_forcee) != 1L ||
+         !nzchar(nature_forcee)))
+      stop("add() : nature_forcee doit etre NA ou une chaine non vide : ",
+           paste(format(nature_forcee), collapse = " "), " (", nom, ")", call. = FALSE)
+    # p-values hors de [0, 1] (#484) : une valeur finie hors de
+    # [-TOL_P_BORNE, 1 + TOL_P_BORNE] est une erreur de programmation ; dans
+    # la tolerance, la valeur est gardee telle quelle (aucune troncature) ;
+    # non finie, elle reste lue comme absente. err_mc_ext n'est pas une
+    # p-value et n'est pas controlee.
+    # Forme (#484, audit leger, m1) : numerique de longueur 1 ou NA logique
+    # de longueur 1, sinon stop() (une chaine serait lue comme absente en
+    # silence, TRUE retenue comme p = 1). p_mc et p_min_mc passent ici apres
+    # leur lecture, qui rend NA_real_ sans mc_nom ou sans entree (jamais
+    # NULL : le nom est controle dans boot$p_mc, et p_min_mc a un repli NA).
+    verifier_p <- function(arg, val) {
+      if (!(length(val) == 1L && (is.numeric(val) || (is.logical(val) && is.na(val)))))
+        stop("add() : p-value de forme invalide : ", arg, " (classe ", class(val)[1L],
+             ", longueur ", length(val), ") (", nom, ")", call. = FALSE)
+      if (is.numeric(val) && is.finite(val) &&
+          (val < -TOL_P_BORNE || val > 1 + TOL_P_BORNE))
+        stop("add() : p-value hors de [0, 1] : ", arg, " = ", format(val), " (", nom, ")",
+             call. = FALSE)
+    }
+    verifier_p("p_ex", p_ex); verifier_p("p_as", p_as)
+    verifier_p("p_mc_ext", p_mc_ext); verifier_p("p_min", p_min)
     # Refus explicite (ADR 0003, point 3) : une statistique Monte-Carlo
     # inconnue du catalogue, ou absente de l'objet bootstrap, est une erreur
     # de programmation ; le repli silencieux sur l'asymptotique est interdit.
@@ -4522,6 +4605,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     if (ext && !is.na(mc_nom))
       stop("add() : p_mc_ext et mc_nom ne peuvent etre fournis ensemble (", nom, ")")
     p_mc <- if (!is.na(mc_nom)) unname(pmc[[mc_nom]]) else NA_real_
+    verifier_p("p_mc", p_mc)
     e_mc <- if (!is.na(mc_nom)) unname(emc[[mc_nom]]) else NA_real_
     if (ext) { p_mc <- unname(p_mc_ext); e_mc <- unname(err_mc_ext) }
     # Regle R3 (#44) : motif d'indisponibilite lu au bootstrap.
@@ -4582,6 +4666,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # valeur lue par cette branche, NA hors de la branche.
     p_min_mc <- if (!is.na(mc_nom) && !ext && !is.null(pmm) && mc_nom %in% names(pmm))
       unname(pmm[[mc_nom]]) else NA_real_
+    verifier_p("p_min_mc", p_min_mc)
     branche_mc <- type == "test" && is.finite(p_min) && !is.finite(p_ex) &&
       is.finite(p_mc) && !ext && !is.na(mc_nom) && is.finite(p_min_mc)
     if (!branche_mc) p_min_mc <- NA_real_
@@ -4654,9 +4739,22 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         inoperant <- TRUE
         lib_pmin <- if (!sans_p_ex) "p-value minimale atteignable" else
           "p-value minimale atteignable sous la loi de reference echangeable"
-        detail <- trimws(paste0(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s, aucun verdict.",
-                                        alpha, lib_pmin, p_min, eff),
-                                " ", detail))
+        # Motif de l'absence de p Monte-Carlo (#469, avis amont d'actuary sur
+        # K3, section 2, point 1) : sans p exacte finie, une ligne a motif lu
+        # au bootstrap arrivee ici (ni p exacte, ni p non simulee : motif non
+        # degenere autre que MOTIF_MC_OBS_NON_FINIE, les autres cas ayant
+        # change de type plus haut) perdrait le motif que le bloc aucune_p
+        # ci-dessous aurait pose, la bascule la sortant du type test. Il est
+        # joint juste apres la phrase "TEST INOPERANT", qui reste en tete
+        # (#129), sous la forme de .prefixe_motif_mc(), sauf s'il figure deja
+        # dans le detail (meme garde que le bloc aucune_p). Avec une p exacte
+        # finie, retenue, aucun motif (comme hors R1).
+        pre_mc <- if (!is.finite(p_ex) && !is.na(motif_boot) &&
+                      !grepl(motif_boot, detail, fixed = TRUE))
+          .prefixe_motif_mc(motif_boot) else character(0)
+        detail <- trimws(paste(c(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s, aucun verdict.",
+                                         alpha, lib_pmin, p_min, eff),
+                                 pre_mc, detail), collapse = " "))
       } else if (identical(sens, "ne pas rejeter") && p_min >= alpha / 2 && !aucune_p) {
         # Sans p exacte, la suite du texte suit la p Monte-Carlo retenue par
         # la hierarchie ci-dessous. Branche "p-value asymptotique retenue"
@@ -4705,7 +4803,6 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     } else {
       p_ret <- NA_real_; nature <- NA_character_
     }
-    if (!is.na(nature_forcee) && is.finite(p_ret)) nature <- nature_forcee
     # Plancher Monte-Carlo relatif a alpha (#128, point d ; residu du constat
     # C1 de la revue finale d'E1) : quand la p Monte-Carlo du bootstrap est
     # retenue, sa plus petite valeur possible est g_mc (ci-dessus). Comparee dans
@@ -4720,7 +4817,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # un parametre, l'est.
     # Omise dans la branche Monte-Carlo de R1 (#125) : p_min_mc >= g_mc, et
     # R1 y dit deja ce que le plancher rend inatteignable.
-    if (type == "test" && is.null(verdict) && is.finite(g_mc) && !branche_mc) {
+    if (type == "test" && is.finite(g_mc) && !branche_mc) {
       txt_g <- if (identical(sens, "rejeter") && g_mc >= alpha)
         sprintf("plancher Monte-Carlo >= alpha = %g : OK inatteignable", alpha)
       else if (identical(sens, "ne pas rejeter") && g_mc >= alpha)
@@ -4734,7 +4831,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     }
     # Verdict Monte-Carlo proche d'un seuil (#244 ; ADR 0003 annote le
     # 12/10/2026, point 3 ; D1-5) : ligne de type test (ni diagnostic, test
-    # inoperant compris, ni non applicable), sans verdict fourni, p retenue
+    # inoperant compris, ni non applicable), p retenue
     # Monte-Carlo (pas de p exacte finie, p_mc finie, bootstrap ou p_mc_ext),
     # err_mc finie et > 0, |p - s| < 2 err_mc (inegalite stricte) pour un
     # seuil s atteignable de la regle des verdicts ci-dessous. err_mc tient deja compte
@@ -4742,7 +4839,7 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # engine_p_mc()) : aucun cas particulier ici. Phrase fixe en dernier element
     # du detail, apres la mention du plancher, meme regle de jonction ; aucun
     # nombre issu du bootstrap (regle #76). Ni p ni verdict ne changent.
-    if (type == "test" && is.null(verdict) && !is.finite(p_ex) && is.finite(p_mc) &&
+    if (type == "test" && !is.finite(p_ex) && is.finite(p_mc) &&
         is.finite(e_mc) && e_mc > 0) {
       seuils <- if (identical(sens, "rejeter")) c(alpha, SEUIL_ECHEC_SENS_REJETER)
                 else c(alpha / 2, alpha)
@@ -4762,18 +4859,34 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # ADR 0001 (amendement du 23/09/2026, M7) : seule une ligne de type "test"
     # porte un verdict (le type "procedure de decision", sans ligne depuis
     # #304 et #300, est retire, #357). Toute autre ligne sort INFO et son
-    # sens est NA ; un verdict fourni pour un autre type est une erreur de
-    # programmation, refusee ici pour que l'invariant ne puisse pas etre
-    # contourne par un appel.
+    # sens est NA. Le verdict n'est jamais fourni par l'appelant : il suit
+    # de la p retenue seule (argument verdict retire, #484).
     porte_verdict <- type == "test"
-    if (!is.null(verdict) && !porte_verdict)
-      stop("add() : un verdict n'est admis que pour type = 'test' : ", nom)
+    # nature_forcee (#484, avis amont d'actuary) : appliquee et controlee
+    # seulement sur une ligne qui porte un verdict et dont la p retenue est
+    # finie : le controle est conditionne au verdict par construction (une
+    # ligne sans verdict n'a ni p retenue ni nature). La ligne Pitman non
+    # applicable, qui passe nature_forcee, a de fait p_student NA (volumes
+    # constants, pertes constantes, x ecarte, t non fini : t_pente NA ou non
+    # fini, mesure sur run_engine()). Son prefixe doit dire le rang de la p
+    # retenue (exacte > Monte-Carlo > p non simulee, ADR 0001, ADR 0003).
+    if (porte_verdict && !is.na(nature_forcee) && is.finite(p_ret)) {
+      rang <- if (is.finite(p_ex)) "exacte" else if (is.finite(p_mc)) "Monte-Carlo"
+              else "p non simulee"
+      conforme <- switch(rang,
+        "exacte" = startsWith(nature_forcee, "exacte"),
+        "Monte-Carlo" = startsWith(nature_forcee, "Monte-Carlo"),
+        !startsWith(nature_forcee, "exacte") && !startsWith(nature_forcee, "Monte-Carlo"))
+      if (!conforme)
+        stop("add() : nature_forcee incompatible avec le rang de la p retenue (", rang, ") : ",
+             nature_forcee, " (", nom, ")", call. = FALSE)
+      nature <- nature_forcee
+    }
     # Sans verdict, ni sens ni p-value retenue (ADR 0001, CONTEXT.md).
     if (!porte_verdict) {
       sens <- NA_character_; p_ret <- NA_real_; nature <- NA_character_
     }
-    v <- if (!is.null(verdict)) verdict
-    else if (type != "test" || !is.finite(p_ret)) "INFO"
+    v <- if (type != "test" || !is.finite(p_ret)) "INFO"
     else if (sens == "rejeter") {
       if (p_ret < alpha) "OK" else if (p_ret < SEUIL_ECHEC_SENS_REJETER) "ALERTE" else "ECHEC"
     } else {
@@ -5637,7 +5750,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     else if (!is.finite(p_ex)) ""
     else if (nzchar(mention_bande)) mention_bande
     else if (diag) ""
-    else if (diff(range(x)) == 0) MENTION_VOLUMES_CONSTANTS
+    # Volumes exactement constants : lus dans regime, sans recalculer leur
+    # etendue (#521).
+    else if (isTRUE(regime$volumes_constants) && !isTRUE(regime$volumes_dans_bande))
+      MENTION_VOLUMES_CONSTANTS
     else MENTION_DELTA_BORNE_1
   }
   # Texte d'une ligne R7, precede de sa mention de regime.
@@ -5959,7 +6075,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           else if (!is.null(permutation_pente)) permutation_pente
           else usp_permutation_pente(x, y, unilateral = pitman_uni)
   # Garde-fou (ADR 0002, point 4 de l'amendement du 06/10/2026) : add()
-  # applique nature_forcee a toute p retenue finie ; sans p de permutation,
+  # applique nature_forcee a toute p retenue finie d'une ligne a verdict (et
+  # refuse depuis #484 un libelle d'un autre rang) ; sans p de permutation,
   # une ligne applicable retiendrait la p de Student sous le libelle de la
   # permutation. Erreur de programmation, jamais de repli sur Student.
   if (pente_appl && !(is.list(perm) && is.numeric(perm$p) && length(perm$p) == 1L &&
@@ -6615,6 +6732,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         type = "non applicable", estim_nom = "asymetrie", estim = jb$skew,
         detail = sprintf("T = %d < 8 : transformation normalisante non definie", T))
   ak <- test_anscombe_kurt(z)
+  motif_ak_pi <- paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                       "p-value de Monte-Carlo prevue : test non applicable")
   if (is.finite(ak$stat) && isTRUE(pi_constant))
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
@@ -6626,28 +6746,44 @@ usp_tests <- function(fit, boot, alpha = 0.10,
         nature_as = NATURE_APPROX_N_FINI,
         detail = paste("Un ECHEC ou une ALERTE signale un aplatissement different de celui",
                        "de la loi normale. A lire avec \"Jarque-Bera\"."))
-  else if (is.finite(ak$stat))
+  else if (T >= 20 && !isTRUE(pi_constant))
     # Extension de la regle R9 amendee (#302, Q-D1-Fh-4, specification Fh,
     # section 5.3) : a pi_t variable, z = P epsilon n'est pas i.i.d. ; la
     # ligne n'a pas de p Monte-Carlo, et sa p d'approximation sous i.i.d.
     # normal serait retenue sans justification : la ligne est non applicable,
     # comme l'etait Shapiro-Wilk a loi nulle simulee dans ce regime. La p
     # n'est ni rappelee ni retenue (Z reste dans stat, l'aplatissement dans
-    # estim). Le motif T < 20 prime (branche suivante).
+    # estim). Le motif T < 20 prime (branche suivante). Une seule branche
+    # pi_t variable, Z finie ou non definie (stat = ak$stat, NA dans le
+    # second cas ; reponse d'actuary du 10/11/2026, question 2 de #485).
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
         type = "non applicable",
         H0 = "aplatissement de la population egal a 3", H1 = "aplatissement different de 3",
         stat_nom = "Z", stat = ak$stat, loi = "N(0,1) approx. (Wilson-Hilferty)",
         estim_nom = "aplatissement", estim = jb$kurt,
-        detail = paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
-                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
-                       "p-value de Monte-Carlo prevue : test non applicable"))
+        detail = motif_ak_pi)
   else
+    # Motif choisi par sa cause (#485) : T < 20, puis pi_t variable (branche
+    # precedente), puis b2 non defini, puis statistique Z non definie
+    # (champs b2_non_defini et z_non_definie de test_anscombe_kurt()).
     add(fam, "Aplatissement (Anscombe-Glynn, T >= 20)", "Anscombe & Glynn (1983), Biometrika 70",
         fonction = "test_anscombe_kurt",
         type = "non applicable", estim_nom = "aplatissement", estim = jb$kurt,
-        detail = sprintf("T = %d < 20 : test non defini", T))
+        detail = if (T < 20) sprintf("T = %d < 20 : test non defini", T)
+                 else if (isTRUE(ak$b2_non_defini))
+                   paste("aplatissement b2 non defini (moment centre d'ordre 2 des residus nul :",
+                         "residus constants) ; aucune p-value de Monte-Carlo prevue : test",
+                         "non applicable")
+                 else if (isTRUE(ak$z_non_definie))
+                   paste("statistique Z non definie : 1 + x sqrt(2/(A - 4)) <= 0 (aplatissement",
+                         "b2 tres inferieur a 3, hors du domaine de la transformation de",
+                         "Wilson-Hilferty) ; aucune p-value de Monte-Carlo prevue : test",
+                         "non applicable")
+                 # T >= 20 sans cause connue : inatteignable (motif T < 20
+                 # ecarte, revue finale de #485), assertion de programmation.
+                 else stop("usp_tests() : Anscombe-Glynn non definie sans cause connue",
+                           call. = FALSE))
 
   ## --- E. H4 : independance / validite du MV ---------------------------------
   fam <- fam_h4
@@ -6688,10 +6824,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
     # Ljung-Box (retard 2), seule ligne portmanteau au retard 2 conservee.
   }
   # p_min (#44, regle R1) sur la loi de R aux effectifs (n1, n2) observes ;
-  # un seul cote de la mediane represente : loi non definie, ligne non
-  # applicable (et non INFO muet).
+  # un seul cote de la mediane represente, ou n1 = n2 = 1 (variance de R
+  # nulle, #486) : statistique non definie, ligne non applicable (et non
+  # INFO muet), motif de la cause rendue par test_runs().
+  # Statistique non definie (#486) : ni p exacte ni p_min, comme a n1 = 0 ou
+  # n2 = 0 ; a n1 = n2 = 1, runs_p_exacte() et runs_p_min() rendraient 1
+  # (loi ponctuelle R = 2), garde posee ici et non dans ces fonctions.
   ru <- test_runs(z); eff_z <- .runs_effectifs(z)
-  p_ru <- p_ex_si_pi_constant(runs_p_exacte(z))
+  p_ru <- if (is.finite(ru$stat)) p_ex_si_pi_constant(runs_p_exacte(z)) else NA_real_
   add(fam, "Test des suites (aleatoire des signes)",
       fonction = "test_runs",
       base = "z",
@@ -6703,14 +6843,19 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       loi = loi_r7("loi combinatoire EXACTE de R", "loi combinatoire de R"),
       estim_nom = "nb de suites R", estim = ru$runs,
       p_ex = p_ru, p_as = ru$p, mc_nom = "Runs",
-      p_min = runs_p_min(eff_z[["n1"]], eff_z[["n2"]]),
+      p_min = if (is.finite(ru$stat)) runs_p_min(eff_z[["n1"]], eff_z[["n2"]]) else NA_real_,
       effectifs = sprintf("n1 = %d, n2 = %d", eff_z[["n1"]], eff_z[["n2"]]),
       detail = if (is.finite(ru$stat)) detail_r7(paste(
         "Un ECHEC ou une ALERTE signale un regroupement ou une alternance des signes des",
         "residus standardises, contraire a l'independance. A lire avec \"Autocorrelation",
         "d'ordre 1 (Durbin-Watson)\" et la ligne homologue \"Test des suites sur ratios",
         "bruts\"."), p_ru, mc = "Runs") else
-        "un seul cote de la mediane represente : loi de R non definie, test non applicable")
+        # Motif choisi par la cause rendue par test_runs() (#486) ; cause NA
+        # a statistique non finie : incoherence interne, inatteignable
+        # (assertion de programmation, revue finale de #486).
+        if (is.na(ru$cause))
+          stop("usp_tests() : test des suites non defini sur z, cause inconnue", call. = FALSE)
+        else paste0(ru$cause, ", test non applicable"))
   # Centrage et variance unitaire : DIAGNOSTICS, sans verdict ni p-value
   # retenue (ADR 0001 ; issues #3 et #5). La condition du premier ordre en
   # ln(beta) impose TOUJOURS somme(sqrt(pi_t) z_t) = 0 (identite) et rive la
@@ -6996,7 +7141,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #   3  : pi_t variable.
   # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
   plancher_u <- .usp_plancher_u(r)
-  p_ex_r <- usp_runsr_p_exacte(z, u, pi_constant, plancher_u)
+  # Statistique Runsr non definie (#486) : ni p exacte ni p_min, comme a
+  # n1 = 0 ou n2 = 0 sur u (a n1 = n2 = 1, la loi ponctuelle R = 2 rendrait 1).
+  p_ex_r <- if (is.finite(boot$stats_obs$Runsr))
+    usp_runsr_p_exacte(z, u, pi_constant, plancher_u) else NA_real_
   # #128 : la mention "statistique et p exacte (doublement) egales" du
   # regime 1 n'est ecrite que hors motif de degenerescence de la
   # statistique Runsr, qui ecarte aussi la p exacte dans add()
@@ -7072,13 +7220,26 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       p_ex = p_ex_r, mc_nom = "Runsr",
       # Regle R15 (#303) a pi_t constant ; non applicable prioritaire.
       type = if (is.finite(boot$stats_obs$Runsr)) type_diag("Runsr", pi_constant) else "non applicable",
-      p_min = runs_p_min(eff_u[["n1"]], eff_u[["n2"]]),
+      p_min = if (is.finite(boot$stats_obs$Runsr)) runs_p_min(eff_u[["n1"]], eff_u[["n2"]]) else NA_real_,
       effectifs = sprintf("n1 = %d, n2 = %d", eff_u[["n1"]], eff_u[["n2"]]),
       detail = if (is.finite(boot$stats_obs$Runsr))
         detail_diag("Runsr", detail_runsr, phrase = txt_r15("Test des suites (aleatoire des signes)"),
                     regle = pi_constant) else
-        paste("un seul cote de la mediane represente : loi de R non definie,",
-              "test non applicable"))
+        # Motif choisi par la cause rendue par test_runs() sur u, au
+        # plancher de Runsr au catalogue (#486), un seul appel. Cause NA
+        # (boot$stats_obs$Runsr non finie, test_runs() definie : objet
+        # bootstrap incoherent, atteint seulement par un bootstrap fictif) :
+        # repli neutre sur le motif Monte-Carlo lu au bootstrap
+        # s'il vaut MOTIF_MC_OBS_NON_FINIE, au gabarit d'add() ; tout autre
+        # motif ou motif absent : assertion de programmation (revue finale de #486).
+        local({
+          cause_u <- test_runs(u, plancher = plancher_u)$cause
+          if (!is.na(cause_u)) return(paste0(cause_u, ", test non applicable"))
+          motif_u <- motif_mc_lu("Runsr")
+          if (!identical(motif_u, MOTIF_MC_OBS_NON_FINIE))
+            stop("usp_tests() : test des suites non defini sur u, cause inconnue", call. = FALSE)
+          paste0(motif_u, " : test non applicable")
+        }))
   add(fam, "Rupture de niveau (sup-F) sur ratios bruts",
       fonction = "stat_supF",
       "Quandt (1960) / Chow (1960) ; Andrews (1993)", base = "r",
@@ -12612,8 +12773,17 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   add(fam, "Homogeneite des residus entre annees de survenance",
       fonction = "mw_test_homogeneite_accident",
       "Kruskal & Wallis (1952), JASA 47, 583-621",
-      H0 = "les residus de Mack ont la meme distribution dans toutes les lignes",
-      H1 = "au moins une annee de survenance se comporte differemment",
+      # Un residu par annee de survenance (#469, avis amont d'actuary sur K3,
+      # section 2, point 2 ; decision du mainteneur) : H = N - 1 est une
+      # identite, aucune hypothese n'est testee ; la ligne est posee en
+      # diagnostic, nom inchange, H0 et H1 "sans objet". Textes inchanges
+      # dans les autres cas.
+      type = if (isTRUE(ka$un_par_annee)) "diagnostic" else "test",
+      H0 = if (isTRUE(ka$un_par_annee))
+        "sans objet : un residu de Mack par annee de survenance, H = N - 1 par construction" else
+        "les residus de Mack ont la meme distribution dans toutes les lignes",
+      H1 = if (isTRUE(ka$un_par_annee)) "sans objet" else
+        "au moins une annee de survenance se comporte differemment",
       stat_nom = "H", stat = ka$stat,
       loi = if (isTRUE(ka$un_par_annee)) "degeneree : H = N - 1 par construction" else
         sprintf("chi2(%s) approx. -> Monte-Carlo",
@@ -12698,7 +12868,13 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
     e <- trimws(pm_ru$effectifs)
     if (endsWith(e, ".")) e else paste0(e, ".")
   } else ""
-  detail_ru <- if (!ru_definie) "" else
+  # Statistique non definie (#486) : phrase de la cause rendue par
+  # test_runs() (avis amont d'actuary, section 4) ; "" si la ligne n'est
+  # non definie que par le motif Monte-Carlo.
+  detail_ru <- if (!ru_definie) {
+    if (is.na(ru$cause)) "" else
+      paste0(toupper(substr(ru$cause, 1, 1)), substring(ru$cause, 2), ".")
+  } else
     .engine_joindre(paste(
       "Detecte un regroupement ou une alternance des signes des residus de Mack, pour",
       "information. Diagnostic par decision, sans verdict ni p-value retenue : la ligne",

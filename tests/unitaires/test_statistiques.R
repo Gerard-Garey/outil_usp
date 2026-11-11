@@ -123,6 +123,235 @@ verifier("D'Agostino : Z change de signe avec z -> -z ; NA pour T < 8",
          is.na(test_dagostino_skew(za[1:7])$stat))
 verifier("Anscombe-Glynn : non defini pour T < 20", is.na(test_anscombe_kurt(za)$stat))
 
+## --- Anscombe-Glynn : statistique Z non definie (#485) ----------------------
+# Decision QA1 (a) du mainteneur du 10/11/2026 : des que 1 + x sqrt(2/(A - 4))
+# <= 0 (b2 = 1, T = 40), stat et p a NA, z_non_definie a TRUE ; la ligne
+# d'usp_tests() reste non applicable sous un motif propre, jamais "T < 20".
+NOM_AG_485 <- "Aplatissement (Anscombe-Glynn, T >= 20)"
+MOTIF_AG_Z_485 <- paste("statistique Z non definie : 1 + x sqrt(2/(A - 4)) <= 0 (aplatissement",
+                        "b2 tres inferieur a 3, hors du domaine de la transformation de",
+                        "Wilson-Hilferty) ; aucune p-value de Monte-Carlo prevue : test",
+                        "non applicable")
+ligne_ag_485 <- function(x, y) {
+  r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
+                  nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+  list(ok = r$ok, l = Filter(function(e) identical(e$test, NOM_AG_485), r$tests)[[1]],
+       z = r$ajustement$z)
+}
+verifier("Anscombe-Glynn (#485) : b2 = 1 a T = 40 -> Z non definie (stat et p NA, z_non_definie) ; T = 20, 30 : Z finie",
+         {
+           a40 <- test_anscombe_kurt(rep(c(-1, 1), 20))
+           a20 <- test_anscombe_kurt(rep(c(-1, 1), 10))
+           a30 <- test_anscombe_kurt(rep(c(-1, 1), 15))
+           identical(a40$stat, NA_real_) && identical(a40$p, NA_real_) &&
+             isTRUE(a40$z_non_definie) &&
+             is.finite(a20$stat) && identical(a20$z_non_definie, FALSE) &&
+             is.finite(a30$stat) && identical(a30$z_non_definie, FALSE) &&
+             identical(test_anscombe_kurt(za)$z_non_definie, FALSE) &&
+             identical(a40$b2_non_defini, FALSE) && identical(a30$b2_non_defini, FALSE)
+         })
+verifier("Anscombe-Glynn (#485) : z constant a T = 40 -> b2 non defini (stat et p NA, b2_non_defini), avant Z",
+         {
+           a0 <- test_anscombe_kurt(rep(0, 40))
+           identical(a0$stat, NA_real_) && identical(a0$p, NA_real_) &&
+             isTRUE(a0$b2_non_defini) && identical(a0$z_non_definie, FALSE)
+         })
+# Jeu de l'issue : T = 40, volumes constants (pi_t constant), log(y/x) =
+# -0,4 +/- 0,1 permutes plus un bruit de 0,005 (b2 mesure 1,0086).
+set.seed(485)
+x_485 <- rep(100, 40)
+y_485 <- x_485 * exp(-0.4 + sample(rep(c(-0.1, 0.1), 20)) + stats::rnorm(40, 0, 0.005))
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 40, b2 ~ 1 -> non applicable, stat NA, motif Z non definie, sans \"T < 20\"",
+         {
+           g <- ligne_ag_485(x_485, y_485)
+           isTRUE(g$ok) && identical(g$l$type, "non applicable") &&
+             identical(g$l$stat, NA_real_) && isTRUE(g$l$estim < 1.1) &&
+             is.na(g$l$p_retenue) && is.na(g$l$p_asymptotique) &&
+             identical(g$l$detail, MOTIF_AG_Z_485) && !grepl("< 20", g$l$detail, fixed = TRUE)
+         })
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 10 -> motif T < 20 inchange",
+         {
+           g <- ligne_ag_485(x_485[1:10], y_485[1:10])
+           isTRUE(g$ok) && identical(g$l$type, "non applicable") &&
+             identical(g$l$detail, "T = 10 < 20 : test non defini")
+         })
+# Appels directs d'usp_tests() (reponses d'actuary du 10/11/2026) : residus
+# z substitues dans l'ajustement, objet bootstrap fictif (aucune simulation).
+boot_fictif_485 <- function(f) {
+  s <- .stats_bootstrapables(f$x, f$y, f$z, f$pi)
+  pm <- stats::setNames(rep(0.5, length(s)), names(s)); pm[!is.finite(s)] <- NA_real_
+  mm <- stats::setNames(rep(NA_character_, length(s)), names(s))
+  mm[!is.finite(s)] <- MOTIF_MC_OBS_NON_FINIE
+  list(stats_obs = as.list(s), p_mc = pm, err_mc = pm * 0 + 0.01, motif_mc = mm)
+}
+ligne_ag_direct_485 <- function(f)
+  Filter(function(e) identical(e$test, NOM_AG_485),
+         suppressWarnings(usp_tests(f, boot_fictif_485(f), methode = "premium")))[[1]]
+verifier("Anscombe-Glynn (#485) : usp_tests(), z constant a T = 40, pi_t constant -> non applicable, motif b2 non defini",
+         {
+           f0 <- usp_ajuster(x_485, y_485); f0$z <- rep(0, 40)
+           l <- ligne_ag_direct_485(f0)
+           isTRUE(usp_regime(f0$delta, f0$x)$pi_constant) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             is.na(l$p_retenue) && identical(l$verdict, "INFO") &&
+             identical(l$detail, paste("aplatissement b2 non defini (moment centre d'ordre 2 des residus nul :",
+                                       "residus constants) ; aucune p-value de Monte-Carlo prevue : test",
+                                       "non applicable"))
+         })
+verifier("Anscombe-Glynn (#485) : usp_tests(), pi_t variable et Z non definie -> motif pi_t, H0, H1, stat_nom et loi presents, stat NA",
+         {
+           xv <- seq(50, 400, length.out = 40); yv <- 0.6 * xv
+           g <- usp_ajuster(x_485, y_485)$gamma
+           fv <- c(usp_noyau(0.5, g, xv, yv),
+                   list(delta = 0.5, gamma = g, T = 40L, x = xv, y = yv, xbar = mean(xv),
+                        convergence = 0L, part_starts_convergents = 1,
+                        delta_au_bord = usp_regime(0.5, xv)$delta_au_bord))
+           fv$z <- rep(c(-1, 1), 20)
+           l <- ligne_ag_direct_485(fv)
+           !isTRUE(usp_regime(0.5, xv)$pi_constant) && isTRUE(test_anscombe_kurt(fv$z)$z_non_definie) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$stat_nom, "Z") && identical(l$H0, "aplatissement de la population egal a 3") &&
+             identical(l$H1, "aplatissement different de 3") &&
+             identical(l$loi, "N(0,1) approx. (Wilson-Hilferty)") && isTRUE(proche(l$estim, 1, abs = 1e-12)) &&
+             is.na(l$p_retenue) &&
+             identical(l$detail, paste("approximation a n fini etablie pour un echantillon i.i.d. normal,",
+                                       "sans objet a pi_t variable (z = P epsilon non i.i.d.) ; aucune",
+                                       "p-value de Monte-Carlo prevue : test non applicable"))
+         })
+verifier("Anscombe-Glynn (#485) : run_engine() a T = 30, cas regulier -> test, p d'approximation a n fini retenue",
+         {
+           set.seed(4850)
+           x30 <- rep(100, 30); y30 <- x30 * exp(-0.4 + stats::rnorm(30, 0, 0.1))
+           g <- ligne_ag_485(x30, y30)
+           ak <- test_anscombe_kurt(g$z)
+           isTRUE(g$ok) && identical(g$l$type, "test") && is.finite(g$l$stat) &&
+             identical(g$l$stat, ak$stat) && identical(g$l$p_retenue, ak$p) &&
+             identical(g$l$nature_p, NATURE_APPROX_N_FINI)
+         })
+
+## --- Test des suites : statistique non definie (#486) -------------------------
+# Avis amont d'actuary (section 4) : stat et p a NA (jamais NaN) et cause
+# rendue par test_runs() ; n1 = n2 = 1 : variance de R nulle, garde avant
+# .runs_z() ; motif des lignes choisi par la cause.
+CAUSE_RUNS_UN_COTE_486 <- "un seul cote de la mediane represente : loi de R non definie"
+CAUSE_RUNS_N11_486 <- paste("une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                            "R = 2 pour tout arrangement, loi de R degeneree (variance nulle)")
+verifier("Suites (#486) : n1 = n2 = 1 -> stat et p NA (et non NaN), R = 2, cause n1 = n2 = 1",
+         {
+           a <- test_runs(c(1, 2, 2, 2, 3)); b <- test_runs(c(3, 2, 2, 2, 1))
+           identical(a$stat, NA_real_) && identical(a$p, NA_real_) && identical(a$runs, 2) &&
+             identical(a$cause, CAUSE_RUNS_N11_486) && identical(b$stat, NA_real_) &&
+             identical(b$cause, CAUSE_RUNS_N11_486) &&
+             identical(unname(.runs_effectifs(c(1, 2, 2, 2, 3))), c(1L, 1L))
+         })
+verifier("Suites (#486) : un seul cote de la mediane (n1 = 0 ou n2 = 0) -> stat NA, cause un seul cote",
+         {
+           a <- test_runs(c(1, 1, 1, 1, 2)); b <- test_runs(c(2, 2, 2, 2, 1))
+           identical(a$stat, NA_real_) && identical(a$p, NA_real_) &&
+             identical(a$cause, CAUSE_RUNS_UN_COTE_486) && identical(b$cause, CAUSE_RUNS_UN_COTE_486)
+         })
+verifier("Suites (#486) : cas regulier inchange (stat, p et R de .runs_z()), cause NA",
+         all(vapply(list(c(1, 8, 2, 7, 3, 6, 4, 5), 1:5, c(0.3, -1.2, 0.8, 2.1, -0.4, 0.05, -2, 1.1)),
+                    function(v) {
+                      a <- test_runs(v); ne <- .runs_effectifs(v)
+                      s <- sign(v - stats::median(v)); s <- s[s != 0]
+                      R <- 1 + sum(diff(s) != 0); Z <- .runs_z(R, ne[["n1"]], ne[["n2"]])
+                      identical(a, list(stat = Z, p = .p_borne(2 * (1 - stats::pnorm(abs(Z)))),
+                                        runs = R, cause = NA_character_))
+                    }, logical(1))))
+# Scenario lognormal de l'issue : T = 5, trois ratios S/P egaux a la mediane.
+x_486 <- c(100, 130, 90, 160, 120)
+ligne_486 <- function(t, nom) Filter(function(e) identical(e$test, nom), t)[[1]]
+NOM_RUNSR_486 <- "Test des suites sur ratios bruts"
+NOM_RUNS_486 <- "Test des suites (aleatoire des signes)"
+verifier("Suites (#486) : run_engine() lognormal T = 5, n1 = n2 = 1 sur u -> Runsr non applicable, stat NA, motif n1 = n2 = 1, aucun NaN dans la table",
+         {
+           r <- run_engine(xt = x_486, yt = x_486 * c(.6, .7, .7, .7, .85), methode = "premium",
+                           segment = 1, annexe = "II", nature_donnees = "brutes",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, NOM_RUNSR_486); st <- engine_table_tests(r)$statistique
+           isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(r$bootstrap$stats_obs$Runsr, NA_real_) && identical(l$verdict, "INFO") &&
+             identical(l$inoperant, FALSE) &&
+             identical(l$detail, paste0(CAUSE_RUNS_N11_486, ", test non applicable")) &&
+             !any(is.nan(st))
+         })
+verifier("Suites (#486) : run_engine() lognormal T = 5, un seul cote sur u -> Runsr, motif un seul cote inchange",
+         {
+           r <- run_engine(xt = x_486, yt = x_486 * c(.7, .7, .7, .7, .8), methode = "premium",
+                           segment = 1, annexe = "II", nature_donnees = "brutes",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, NOM_RUNSR_486)
+           isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$detail, paste("un seul cote de la mediane represente : loi de R non definie,",
+                                       "test non applicable")) &&
+             !any(is.nan(engine_table_tests(r)$statistique))
+         })
+# Ligne sur z : residus substitues dans l'ajustement, objet bootstrap fictif
+# de #485 (aucune simulation).
+verifier("Suites (#486) : usp_tests(), ligne sur z -> motif choisi par la cause (n1 = n2 = 1 ; un seul cote)",
+         {
+           f <- usp_ajuster(x_486, x_486 * c(.62, .7, .66, .75, .85))
+           f1 <- f; f1$z <- c(1, 2, 2, 2, 3)
+           f0 <- f; f0$z <- c(1, 1, 1, 1, 2)
+           l1 <- ligne_486(suppressWarnings(usp_tests(f1, boot_fictif_485(f1), methode = "premium")),
+                           NOM_RUNS_486)
+           l0 <- ligne_486(suppressWarnings(usp_tests(f0, boot_fictif_485(f0), methode = "premium")),
+                           NOM_RUNS_486)
+           identical(l1$type, "non applicable") && identical(l1$stat, NA_real_) &&
+             identical(l1$detail, paste0(CAUSE_RUNS_N11_486, ", test non applicable")) &&
+             identical(l0$type, "non applicable") && identical(l0$stat, NA_real_) &&
+             identical(l0$detail, paste("un seul cote de la mediane represente : loi de R non",
+                                        "definie, test non applicable"))
+         })
+# Scenario Merz-Wuthrich de l'issue : I = 8, colonnes 0-4 et 6 degenerees
+# (facteurs individuels egaux par colonne), colonne 5 a deux facteurs
+# distincts : deux residus de Mack, de signes opposes.
+tri_486 <- local({
+  f <- c(1.5, 1.2, 1.1, 1.05, 1.02, NA, 1.01)
+  t <- matrix(NA_real_, 8, 8); t[, 1] <- c(1000, 1100, 900, 1200, 1050, 980, 1010, 1150)
+  for (i in 1:8) for (j in seq_len(8 - i) + 1)
+    t[i, j] <- t[i, j - 1] * (if (j == 7) (if (i == 1) 1.03 else 1.05) else f[j - 1])
+  t
+})
+verifier("Suites (#486) : Merz-Wuthrich a deux residus de Mack -> stat NA, motif n1 = n2 = 1, aucun NaN dans la table",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_486, segment = 2, annexe = "II",
+                           B = 199, seed = 20260831)
+           l <- ligne_486(r$tests, "Test des suites sur les residus de Mack")
+           isTRUE(r$ok) && nrow(mw_residus(r$ajustement)) == 2L &&
+             identical(r$bootstrap$stats_obs$Runs, NA_real_) &&
+             identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
+             identical(l$estim, 2) && identical(l$verdict, "INFO") &&
+             endsWith(l$detail, paste("Une seule valeur de chaque cote de la mediane (n1 = n2 = 1) :",
+                                      "R = 2 pour tout arrangement, loi de R degeneree (variance nulle).")) &&
+             !any(is.nan(engine_table_tests(r)$statistique))
+         })
+# Ligne non applicable : aucune p-value restituee (#486, ecart releve par
+# docwriter). A pi_t constant (volumes constants), runs_p_exacte() et
+# runs_p_min() rendraient 1 a n1 = n2 = 1 (loi ponctuelle R = 2) : p_exacte
+# et p_min a NA, comme a n1 = 0 ou n2 = 0, sur la ligne z et sur Runsr.
+verifier("Suites (#486) : n1 = n2 = 1 a pi_t constant -> p_exacte et p_min NA (ligne z et Runsr), comme un seul cote",
+         {
+           xc <- rep(100, 5); champs <- c("type", "p_exacte", "p_min", "p_retenue", "verdict", "inoperant")
+           f <- usp_ajuster(xc, xc * c(.62, .7, .66, .75, .85))
+           f1 <- f; f1$z <- c(-1, 0, 0, 0, 1); f0 <- f; f0$z <- c(1, 1, 1, 1, 2)
+           lz1 <- ligne_486(suppressWarnings(usp_tests(f1, boot_fictif_485(f1), methode = "premium")),
+                            NOM_RUNS_486)
+           lz0 <- ligne_486(suppressWarnings(usp_tests(f0, boot_fictif_485(f0), methode = "premium")),
+                            NOM_RUNS_486)
+           rr <- function(m) ligne_486(run_engine(xt = xc, yt = xc * m, methode = "premium", segment = 1,
+                                                  annexe = "II", nature_donnees = "brutes",
+                                                  B = 199, seed = 20260831)$tests, NOM_RUNSR_486)
+           lr1 <- rr(c(.6, .7, .7, .7, .85)); lr0 <- rr(c(.7, .7, .7, .7, .8))
+           isTRUE(usp_regime(f$delta, f$x)$pi_constant) &&
+             identical(runs_p_exacte(f1$z), 1) && identical(runs_p_min(1, 1), 1) &&
+             identical(lz1$type, "non applicable") && identical(lz1$p_exacte, NA_real_) &&
+             identical(lz1$p_min, NA_real_) && identical(lz1[champs], lz0[champs]) &&
+             identical(lr1$type, "non applicable") && identical(lr1$p_exacte, NA_real_) &&
+             identical(lr1$p_min, NA_real_) && identical(lr1[c(champs, "loi")], lr0[c(champs, "loi")])
+         })
+
 ## --- Durbin-Watson, Cox-Stuart -----------------------------------------------
 # DW = z'MAMz / z'Mz, A = D'D (D matrice des differences premieres), M
 # projecteur de centrage : forme matricielle independante du code.
@@ -227,9 +456,13 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
              is.na(t_c0$stat) && is.na(t_c0$p_exacte) && is.na(t_c0$p_mc) &&
              is.na(t_c0$p_retenue) && is.na(t_c0$nature_p) && identical(t_c0$verdict, "INFO") &&
              identical(t_c0$type, "diagnostic") && identical(t_c0$p_min, 1) &&
+             # #469 (option (i) d'actuary) : le motif d'indisponibilite de la p
+             # Monte-Carlo (non_definie du catalogue) suit la phrase TEST
+             # INOPERANT, comme le bloc aucune_p l'imprime hors R1.
              identical(t_c0$detail, paste(
                "TEST INOPERANT au seuil alpha = 0.1 : p-value minimale atteignable = 1.0000",
                "(m = 0 differences non nulles), aucun verdict.",
+               "Monte-Carlo indisponible : statistique observee non definie : ex aequo.",
                cs_514("aucune difference non nulle : K non defini"))) &&
              is.data.frame(tb_c0)
          })

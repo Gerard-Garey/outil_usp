@@ -571,10 +571,11 @@ verifier("Jackknife et IC : part estimee = ecart sur sigma_USP (estim) * sigma_U
            ok
          })
 
-# Gardes de add() (revue d'audit du commit #24 ; #357) : un verdict force
-# sur un diagnostic, ou un type hors {test, diagnostic, non applicable}
-# ("procedure de decision" compris, retire par #357), sont des erreurs de
-# programmation. Le corps de usp_tests() est modifie ici par texte (deparse)
+# Gardes de add() (revue d'audit du commit #24 ; #357 ; #484) : un verdict
+# fourni (argument retire par #484 : refuse par R comme argument inutilise,
+# message localise, d'ou la recherche du seul texte de l'argument), ou un
+# type hors {test, diagnostic, non applicable} ("procedure de decision"
+# compris, retire par #357), sont des erreurs de programmation. Le corps de usp_tests() est modifie ici par texte (deparse)
 # pour reinjecter un tel appel, puis reevalue dans l'environnement du moteur.
 usp_tests_modifie <- function(avant, apres) {
   txt <- paste(deparse(usp_tests), collapse = "\n")
@@ -584,26 +585,27 @@ usp_tests_modifie <- function(avant, apres) {
   f
 }
 message_erreur <- function(expr) tryCatch({ expr; "" }, error = function(e) conditionMessage(e))
-verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, verdict = 'OK')",
+verifier("add() (usp_tests) refuse un verdict force sur un diagnostic (Leviers, verdict = 'OK' ; argument retire, #484)",
          {
            f <- usp_tests_modifie('type = "diagnostic", estim_nom = "max h_t"',
                                   'type = "diagnostic", verdict = "OK", estim_nom = "max h_t"')
            m <- message_erreur(f(fit, boot_fictif(), methode = "premium"))
-           grepl("un verdict n'est admis que pour type = 'test' : ", m, fixed = TRUE) &&
-             grepl("Leviers (hat values)", m, fixed = TRUE)
+           grepl('verdict = "OK"', m, fixed = TRUE)
          })
 # Depuis #304 et #300, aucune ligne du moteur n'est de type "procedure de
-# decision" ; #357 retire ce type : add() le refuse, avec ou sans verdict,
-# comme tout type inconnu ou mal forme (appel direct au registre lognormal).
-# Un verdict force sur la ligne ESD diagnostic est refuse.
-verifier("add() (registre lognormal) refuse le type 'procedure de decision', avec ou sans verdict, et tout type inconnu ; usp_tests refuse un verdict force sur l'ESD diagnostic (#357, #304)",
+# decision" ; #357 retire ce type : add() le refuse (deux appels, avec et
+# sans detail), comme tout type inconnu ou mal forme (appel direct au
+# registre lognormal).
+# Un verdict force sur la ligne ESD diagnostic est refuse (argument retire,
+# #484 : argument inutilise).
+verifier("add() (registre lognormal) refuse le type 'procedure de decision' (deux appels) et tout type inconnu ; usp_tests refuse un verdict force sur l'ESD diagnostic (#357, #304)",
          {
            reg <- engine_registre_tests(boot_fictif(), USP_CATALOGUE_MC, 0.10, "Monte-Carlo")
            appel <- function(...) message_erreur(reg$add("F. Stabilite, ruptures et points aberrants", NOM_ESD,
                                                          "Rosner (1983), Technometrics 25",
                                                          fonction = "test_rosner", ...))
            m_sans <- appel(type = "procedure de decision")
-           m_avec <- appel(type = "procedure de decision", verdict = "OK")
+           m_avec <- appel(type = "procedure de decision", detail = "x")
            m_autres <- c(appel(type = "Test"), appel(type = NA_character_),
                          appel(type = c("test", "diagnostic")), appel(type = 1))
            f <- usp_tests_modifie('type = "diagnostic", H0 = "aucune valeur aberrante"',
@@ -613,8 +615,7 @@ verifier("add() (registre lognormal) refuse le type 'procedure de decision', ave
              all(grepl(NOM_ESD, c(m_sans, m_avec, m_autres), fixed = TRUE)) &&
              all(grepl("add() : type de ligne inconnu", m_autres, fixed = TRUE)) &&
              !length(reg$lignes()) &&
-             grepl("un verdict n'est admis que pour type = 'test' : ", m2, fixed = TRUE) &&
-             grepl(NOM_ESD, m2, fixed = TRUE)
+             grepl('verdict = "OK"', m2, fixed = TRUE)
          })
 
 # Provenance des lignes (#111, regles A1, A2, A4) : add() exige fonction,

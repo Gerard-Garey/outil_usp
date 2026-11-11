@@ -36,7 +36,7 @@ Le paramètre `model` d'un appel `Agent` l'emporte sur le `model` de la fiche. L
 |---|---|---|---|---|---|---|
 | architect | Rattacher les nouvelles issues au point d'étape (lot) | aucun critère du § 4.2 | routine | tableau de couverture : chaque issue du lot → tâche → branche prévue, ou hors plan / doublon, avec la raison | un critère du § 4.2 → ligne « issue sensible » | toutes les issues du lot couvertes |
 | architect | Point d'étape après fusion | lot ≥ 8 issues, plusieurs branches touchées, ou fin de période GPT | routine ; jugement si l'un des signaux | SHA cités, dépendances ajoutées / retirées explicites, décisions M-n | seuil « macro » (§ 4.3) atteint → Fable **proposé** au mainteneur | feuille de route à jour |
-| architect | Plan de la branche suivante | — | jugement | trois à cinq issues, ordre des commits, agent et circuit par tâche, critères d'acceptation | § 4.1 | plan complet |
+| architect | Plan de la branche suivante | — | jugement | cinq issues au plus (ADR 0007, annotation du 10/11/2026), ordre des commits, agent et circuit par tâche, critères d'acceptation | § 4.1 | plan complet |
 | architect | Issue sensible : ADR, invariant de `CLAUDE.md` ou contrat partagé touché | § 4.2 | jugement | ADR et invariants cités, effet sur les contrats, branches touchées | § 4.1 ; sinon Fable **proposé** | avis rendu, ou décision du mainteneur |
 | architect | Relecture d'une PR ou d'un diff de processus | — | jugement | constats par fichier et passage, texte proposé, motif, gravité | § 4.1 | relecture complète |
 | architect | Rédaction d'un ADR **d'architecture** (couches, invariants, contrats) | — | **Fable** (routage initial) | contexte, options écartées, conséquences | décision du mainteneur | ADR proposé |

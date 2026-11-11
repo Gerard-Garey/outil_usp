@@ -431,6 +431,27 @@ verifier("KruskalAcc : un residu par annee -> detail complet de la ligne = prefi
              "\"Effets d'annee calendaire (test de Mack)\".")) &&
              !grepl("Homogeneite des residus entre annees de survenance sous", l[[1]]$detail, fixed = TRUE)
          }, logical(1))))
+# Type, H0 et H1 de la ligne (#469, avis amont d'actuary sur K3, section 2,
+# point 2 ; decision du mainteneur) : un residu par annee -> diagnostic pose
+# par mw_tests(), H0 et H1 "sans objet", nom inchange, verdict INFO, non
+# inoperant, p_min_mc NA ; temoin tri_ref : test, textes d'origine.
+verifier("KruskalAcc : un residu par annee -> diagnostic, H0 et H1 sans objet ; plusieurs residus -> test, textes d'origine (#469)",
+         {
+           kr <- function(t) Filter(function(l) identical(l$test,
+             "Homogeneite des residus entre annees de survenance"), run_mw(t)$tests)[[1]]
+           un <- vapply(list(col0_192(1e-11), sauf_une), function(t) {
+             l <- kr(t)
+             identical(l$type, "diagnostic") && identical(l$verdict, "INFO") &&
+               identical(l$H0, paste("sans objet : un residu de Mack par annee de survenance,",
+                                     "H = N - 1 par construction")) &&
+               identical(l$H1, "sans objet") && identical(l$inoperant, FALSE) &&
+               is.na(l$p_min_mc) && is.na(l$p_retenue)
+           }, logical(1))
+           l0 <- kr(tri_ref)
+           all(un) && identical(l0$type, "test") && l0$verdict %in% c("OK", "ALERTE", "ECHEC") &&
+             identical(l0$H0, "les residus de Mack ont la meme distribution dans toutes les lignes") &&
+             identical(l0$H1, "au moins une annee de survenance se comporte differemment")
+         })
 verifier("Variance unitaire : 'et NON 1' omis si une seule colonne garde des residus (k = 1) (#60, R5)",
          {
            com <- function(t) {

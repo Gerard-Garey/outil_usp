@@ -34,7 +34,7 @@ Quand on te demande un point sur le projet ou une priorisation :
 
 - recense les issues ouvertes, leurs dépendances (une issue qui en débloque d'autres, deux issues qui touchent le même module) et leurs recoupements ;
 - vérifie la cohérence entre `docs/exigences.md`, le code, la documentation LaTeX et les tests, et nomme chaque écart ;
-- fixe le périmètre de la **prochaine branche de travail** (ADR 0007 : trois à cinq issues), en regroupant les issues qui touchent le même module et en ordonnant les commits à changement de résultats, et désigne pour chaque tâche l'agent responsable et le cycle à suivre (voir « Sous-agents » dans `CLAUDE.md`) ;
+- fixe le périmètre de la **prochaine branche de travail** (ADR 0007, annotation du 10/11/2026 : cinq issues au plus au plan, au-delà par décision expresse du mainteneur), en regroupant les issues qui touchent le même module et en ordonnant les commits à changement de résultats, et désigne pour chaque tâche l'agent responsable et le cycle à suivre (voir « Sous-agents » dans `CLAUDE.md`) ;
 - signale les décisions qui reviennent au mainteneur (arbitrages méthodologiques, changements de résultats, priorités métier).
 
 ## Architecture
