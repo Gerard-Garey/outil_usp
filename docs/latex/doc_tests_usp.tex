@@ -10623,8 +10623,11 @@ samples)}, \emph{Biometrika}, 52(3/4), 1965, p.~591--611 ; normalisation de J.\,
 \emph{Approximating the Shapiro-Wilk W-test for non-normality}, \emph{Statistics and Computing},
 2, 1992, p.~117--119.}
 \Cadre
-Échantillon $z_1,\dots,z_T$ supposé (hypothèse non testée) i.i.d., sans ex \ae quo. Valable pour
-$3 \le T \le 5000$. On note $m = (m_1,\dots,m_T)'$ le vecteur des espérances des statistiques
+Résidus standardisés $z_1,\dots,z_T$, sans ex \ae quo. L'échantillon i.i.d. que suppose la source
+est l'hypothèse de la p-value de Royston, non retenue~: $W$ étant invariante (rubrique~2), $W(z)$ a,
+sous le modèle ajusté, exactement sa loi sur un échantillon i.i.d. normal de taille~$T$ à
+$\hat\pi_t$ constant, et non à $\hat\pi_t$ variable (encadré en tête de section)~; la p-value de
+Monte-Carlo retenue ne la suppose pas. Valable pour $3 \le T \le 5000$. On note $m = (m_1,\dots,m_T)'$ le vecteur des espérances des statistiques
 d'ordre d'un échantillon normal centré réduit et $V$ leur matrice de covariance.
 \Hzero
 $H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
@@ -10753,8 +10756,13 @@ American Statistical Association}, 49(268), 1954, p.~765--769 ; approximations d
 R.\,B. D'Agostino, M.\,A. Stephens (dir.), \emph{Goodness-of-Fit Techniques}, Marcel Dekker,
 1986.}
 \Cadre
-Échantillon i.i.d. (hypothèse non testée), $p_{(i)} = \Phi(z_{(i)})$. Statistique de distance à la
-fonction de répartition empirique (famille EDF).
+Résidus standardisés $z_t$, $p_{(i)} = \Phi(z_{(i)})$. Statistique de distance à la fonction de
+répartition empirique (famille EDF). L'échantillon i.i.d. que supposent les sources est
+l'hypothèse des p-values non simulées, jamais retenues~: une statistique calculée sur les $z_t$
+n'a, sous le modèle ajusté, la loi qu'elle aurait sur un échantillon i.i.d. normal que si elle est
+invariante par translation et changement d'échelle positif, comme $A^2$ de $(z - \bar z)/s_z$
+(rubrique~5), et à $\hat\pi_t$ constant (encadré en tête de section)~; la p-value de Monte-Carlo ne
+la suppose pas.
 \Hzero
 $H_0$~: lognormalité~(H3), soit les erreurs $\varepsilon_t$ du modèle réglementaire i.i.d.
 $\mathcal{N}(0,1)$, éprouvée sur les résidus standardisés $z_t$, qui n'en sont pas un échantillon
@@ -10958,7 +10966,11 @@ p-value~: G.\,E. Dallal, L.~Wilkinson, \emph{An analytic approximation to the di
 Lilliefors' test statistic for normality}, \emph{The American Statistician}, 40(4), 1986,
 p.~294--296, prolongée au-delà de $0{,}10$ par les polynômes de Stephens (1974).}
 \Cadre
-Échantillon i.i.d. (hypothèse non testée). \textbf{Différence essentielle avec la fiche
+Résidus standardisés $z_t$. L'échantillon i.i.d. que supposent les sources est l'hypothèse de la
+p-value de Dallal et Wilkinson, non retenue~: $D_{\mathrm{L}}$, invariante par translation et
+changement d'échelle positif, n'a, sous le modèle ajusté, la loi qu'elle aurait sur un échantillon
+i.i.d. normal qu'à $\hat\pi_t$ constant (encadré en tête de section)~; la p-value de Monte-Carlo
+retenue ne la suppose pas. \textbf{Différence essentielle avec la fiche
 précédente}~: la moyenne et l'écart-type ne sont pas ceux du modèle mais sont \emph{estimés sur
 l'échantillon lui-même}, ce qui correspond à la situation réelle lorsque l'on teste la normalité
 sans connaître les paramètres.
@@ -16148,7 +16160,9 @@ tout triangle rééchantillonné de même géométrie vérifie la même identit�
 les mêmes $N$ et $k$. Constat de simulation à l'appui~: en rejouant hors moteur
 le bootstrap de résidus du triangle de contrôle (999 triangles produits par
 \code{mw\_simuler\_triangle()} sur le vivier de résidus redressés par le levier puis recentrés,
-section~\ref{sec:boot-mw}, graine 20260831, \code{tests/mesure\_m2var\_exposants\_mw.R}) et en recalculant $\operatorname{Var}(r)$ sur chacun,
+section~\ref{sec:boot-mw}, graine 20260831, \code{tests/mesure\_m2var\_exposants\_mw.R}, tableau~T3
+de \code{docs/tableaux/}\allowbreak\code{20261111-}\allowbreak\code{issue503-m2var-exposants.md}) et
+en recalculant $\operatorname{Var}(r)$ sur chacun,
 la valeur reste comprise entre $0{,}80740$ et $0{,}80769$, soit une étendue de
 $2{,}9\times10^{-4}$ autour de la référence $0{,}80769$.
 \Usage
@@ -16160,7 +16174,8 @@ l'exposant~1 imposé par le règlement est faux. Constat de simulation (modèle 
 gaussiennes ajusté au triangle de contrôle, variance de $C(i,j+1)$ en $C(i,j)^0$, $C(i,j)^1$ puis
 $C(i,j)^2$, égale à celle du modèle au cumul moyen de la colonne~; 2\,000 triangles $8\times8$ par
 plan et par exposant, tirés sous les mêmes graines d'un exposant à l'autre,
-\code{tests/mesure\_m2var\_exposants\_mw.R})~: l'écart à $(N-k)/(N-1)$ a des lois voisines sous
+\code{tests/mesure\_m2var\_exposants\_mw.R}, tableaux~T1 et~T2b du fichier cité en rubrique~5)~:
+l'écart à $(N-k)/(N-1)$ a des lois voisines sous
 les trois exposants, dont les deux alternatives que nomme la fiche~\ref{mw:m2b}. Sous le plan~P1
 (section~\ref{sec:calib-mc-mw}), il vaut au plus $3{,}68$, $3{,}69$ et $3{,}69\cdot 10^{-4}$ en
 valeur absolue (exposants~0, 1 et~2) et ne dépasse $10^{-3}$ dans aucun triangle. Sous le plan~P2,
