@@ -3504,7 +3504,8 @@ confondues et figurent dans des champs séparés~:
 \toprule
 \code{stat} & \textbf{Statistique de test}~: la quantité dont la loi sous $H_0$ est connue (ou
 simulée). C'est elle, et elle seule, qui est comparée à une loi de référence pour produire une
-p-value. Le champ \code{loi} rappelle cette loi. Quand une p-value de Monte-Carlo est calculée,
+p-value. Le champ \code{loi} rappelle cette loi~; il vaut \code{NA} sur une ligne non applicable,
+qui ne restitue aucune p-value. Quand une p-value de Monte-Carlo est calculée,
 la statistique affichée est celle que simule le catalogue de la méthode, à une transformation
 près qui conserve la région de rejet et que le champ \code{loi} énonce alors~; un seul cas,
 Cox--Stuart (fiche~\ref{fiche:cox-stuart}). \\
@@ -3606,10 +3607,13 @@ admise dans cette tolérance est gardée telle quelle, sans troncature), une val
 qui n'est ni \code{NA} ni une chaîne non vide, ou dont le préfixe ne dit pas le rang de la
 p-value retenue (section~\ref{sec:modele-auxiliaire-regles}, «~Nature forcée~»). Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
 p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
-\code{NA}), la statistique pouvant rester dans \code{stat}~: le moteur l'assure ligne par ligne,
-sans règle générale dans \code{add()}, et le test d'invariant
+\code{NA}) ni, par suite, aucune loi de référence (\code{loi} à \code{NA}), la statistique pouvant
+rester dans \code{stat}~: le moteur l'assure ligne par ligne, sans règle générale dans
+\code{add()}, hors la branche de la règle~R3 qui rend une ligne non applicable et y met aussi
+\code{loi} à \code{NA}, dans les deux méthodes. Le test d'invariant
 \code{tests/unitaires/test\_non\_applicable.R} le vérifie sur les jeux à volumes constants, à
-pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées.
+pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées,
+et, pour \code{loi}, aussi sur les six cas de référence.
 La procédure ESD de Rosner, qui décide au niveau $\alpha$ sans produire de p-value, est un
 diagnostic par décision dans les deux méthodes (fiches~\ref{fiche:rosner-esd}
 et~\ref{mw:m4ros}).
@@ -5947,8 +5951,8 @@ pas des données~; \emph{par règle}, quand le motif en dépend (règles R1, R3,
 ci-dessous, et ligne de Kruskal--Wallis à un seul résidu par année de survenance, fiche~\ref{mw:m3acc}). Une ligne \emph{non applicable} est une ligne dont la vérification est, sur ces
 données, sans objet ou non calculable (régression ou partition sans support, statistique non
 définie, calcul propre à la ligne en échec)~: elle sort sans verdict (\code{INFO}), son
-commentaire porte un motif obligatoire, et elle ne restitue aucune p-value, la statistique
-pouvant rester dans \code{stat}~; un
+commentaire porte un motif obligatoire, et elle ne restitue aucune p-value ni aucune loi de
+référence (\code{loi} à \code{NA}), la statistique pouvant rester dans \code{stat}~; un
 \emph{test sans p-value retenue} est une ligne restée de type \code{test} dont aucune des trois
 p-values n'existe sur ces données (point~(ii)).
 
@@ -6294,7 +6298,7 @@ celle de la dispersion nulle serait fausse~; les simulations étant reproductibl
 n'est pas un bruit d'arrondi de ce calcul, mais le signe que la statistique observée et les
 statistiques simulées ne sont pas calculées par le même chemin, défaut à examiner, et aucune
 mesure ne fonde une tolérance intermédiaire. Une statistique observée non finie, sans
-p-value exacte, rend la ligne non applicable. Dans les autres cas --- motif non dégénéré~: aucune
+p-value exacte, rend la ligne non applicable, \code{loi} à \code{NA}. Dans les autres cas --- motif non dégénéré~: aucune
 réplication finie, réplications finies insuffisantes, régime intérieur rare, statistique non
 définie d'après le catalogue ---, sans p-value exacte, \textbf{aucune p non simulée n'est retenue
 à la place de la p-value de Monte-Carlo manquante}~:
@@ -8494,7 +8498,9 @@ suit la règle~R7 (paragraphe suivant).
 
 \emph{Libellés selon le régime.} Un
 texte de la ligne ne nomme une p-value que si elle existe, et ne qualifie une loi d'exacte que
-dans le régime où elle l'est. À $\hat\pi_t$ constant, le champ \code{loi} des sept vérifications de la
+dans le régime où elle l'est. Ces libellés valent pour une ligne applicable~: sur une ligne non applicable
+(ainsi à volumes constants, ou pour les suites à $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$), le champ \code{loi} vaut \code{NA}
+dans les deux régimes. À $\hat\pi_t$ constant, le champ \code{loi} des sept vérifications de la
 règle qui en portent un est inchangé et dit la loi exacte (Durbin--Watson~: «~\code{loi EXACTE par
 la methode d'Imhof (1961)}~»~; suites~: «~\code{loi combinatoire EXACTE de R}~»~; Mann--Kendall,
 Smirnov, Spearman contre volume et contre temps, Cox--Stuart). À $\hat\pi_t$ variable, où la
@@ -11462,7 +11468,7 @@ modale de $R$.
 $70\,P(R = 2, \dots, 8) = (2, 6, 18, 18, 18, 6, 2)$, et $p \in \{1~(R = 5)~;~52/70 = 0{,}743~(R \in
 \{4, 6\})~;~16/70 = 0{,}229~(R \in \{3, 7\})~;~4/70 = 0{,}057~(R \in \{2, 8\})\}$. Le test est donc
 \emph{inopérant} à tout $\alpha \le 4/70$ (règle~R1). Si $n_1 n_2 = 0$ ou $n_1 = n_2 = 1$ ($R \equiv 2$),
-$\operatorname{Var}(R) = 0$ et $Z$ n'est pas définie~: ligne non applicable, motif selon le cas, \code{stat} et les p-values, \code{p\_exacte} comprise, à \code{NA}~; à $n_1 = n_2 = 1$, la loi exacte, ponctuelle en~2, donnerait $p = p_{\min} = 1$~: test sans objet à tout $\alpha$. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
+$\operatorname{Var}(R) = 0$ et $Z$ n'est pas définie~: ligne non applicable, motif selon le cas, \code{stat}, \code{loi} et les p-values, \code{p\_exacte} comprise, à \code{NA}~; à $n_1 = n_2 = 1$, la loi exacte, ponctuelle en~2, donnerait $p = p_{\min} = 1$~: test sans objet à tout $\alpha$. \textbf{Réserve}~: $n_1 \ne n_2$ ne se produit
 qu'avec des ex \ae quo sur la médiane~; la loi de $R$ est alors asymétrique (à $n_1 = 3$, $n_2 = 4$,
 $35\,P(R = 2, \dots, 7) = (2, 5, 12, 9, 6, 1)$) et le doublement n'y est qu'une convention parmi
 d'autres.
