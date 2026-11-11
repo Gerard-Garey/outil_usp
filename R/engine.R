@@ -7979,7 +7979,137 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   invisible(cible)
 }
 
-# Lit la premiere feuille d'un classeur .xlsx et renvoie un data.frame, la
+# Texte d'un fichier XML du classeur, lu d'un bloc en UTF-8 : les sauts de
+# ligne d'une cellule texte sont conserves (readLines() puis paste(collapse =
+# "") les supprimait, "a<LF>b" devenait "ab").
+.xlsx_texte <- function(f) {
+  x <- readChar(f, file.info(f)$size, useBytes = TRUE)
+  Encoding(x) <- "UTF-8"
+  x
+}
+
+# Decode les references d'un texte XML, en une seule passe : les cinq entites
+# predefinies (&lt; &gt; &quot; &apos; &amp;) et les references numeriques
+# (&#NNN; &#xHH;). Une seule passe decode "&amp;lt;" en "&lt;" et non en "<"
+# (equivalent de "&amp; en dernier" d'un decodage par etapes). Une reference
+# numerique hors du domaine des caracteres (0, substituts, au-dela de
+# U+10FFFF) est laissee telle quelle.
+.xml_decoder <- function(x) {
+  une <- function(e) {
+    corps <- substr(e, 2L, nchar(e) - 1L)
+    if (!startsWith(corps, "#"))
+      return(switch(corps, lt = "<", gt = ">", quot = "\"", apos = "'", amp = "&"))
+    code <- if (startsWith(corps, "#x")) strtoi(substring(corps, 3L), 16L)
+            else strtoi(substring(corps, 2L), 10L)
+    if (is.na(code) || code < 1L || code > 1114111L || (code >= 55296L && code <= 57343L))
+      return(e)
+    intToUtf8(code)
+  }
+  ok <- !is.na(x) & grepl("&", x, fixed = TRUE)
+  if (!any(ok)) return(x)
+  y <- x[ok]
+  m <- gregexpr("&(#x[0-9A-Fa-f]+|#[0-9]+|lt|gt|quot|apos|amp);", y)
+  regmatches(y, m) <- lapply(regmatches(y, m), function(r) vapply(r, une, "", USE.NAMES = FALSE))
+  x[ok] <- y
+  x
+}
+
+# Texte d'un fragment XML (<si> d'une chaine partagee, <is> d'une chaine en
+# ligne) : tous les segments <t> concatenes, enrichis (<r><t>..</t></r>) ou non,
+# puis decodes.
+.xml_textes <- function(x) {
+  t <- regmatches(x, gregexpr("<t([ \t\r\n][^>]*)?>.*?</t>", x))[[1]]
+  .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
+}
+
+# Valeur d'un attribut (entre guillemets doubles) dans une balise ouvrante ;
+# NA s'il est absent. nom sans prefixe d'espace de noms : "id" lit aussi
+# "r:id", mais pas "sheetId".
+.xlsx_attribut <- function(balise, nom) {
+  m <- regmatches(balise, regexpr(paste0("[ \t\r\n:]", nom, "=\"[^\"]*\""), balise))
+  if (!length(m)) return(NA_character_)
+  .xml_decoder(sub("^[^=]*=\"(.*)\"$", "\\1", m))
+}
+
+# Fichier XML de la premiere feuille du classeur, dans l'ordre de
+# xl/workbook.xml (premiere balise <sheet>), par la cible que xl/_rels/
+# workbook.xml.rels donne a son r:id : le nom du fichier (sheet2.xml,
+# sheet10.xml...) ne dit rien de l'ordre des feuilles (#487). Refus si le
+# classeur ne permet pas de la resoudre.
+.xlsx_fichier_feuille <- function(d) {
+  refus <- function() stop("Classeur illisible : aucune feuille trouvee.")
+  lire <- function(rel) {
+    f <- file.path(d, rel)
+    if (utils::file_test("-f", f)) .xlsx_texte(f) else refus()
+  }
+  wb <- lire("xl/workbook.xml")
+  rels <- lire("xl/_rels/workbook.xml.rels")
+  feuilles <- regmatches(wb, gregexpr("<sheet[ \t\r\n][^>]*>", wb))[[1]]
+  if (!length(feuilles)) refus()
+  id <- .xlsx_attribut(feuilles[1L], "id")
+  liens <- regmatches(rels, gregexpr("<Relationship[ \t\r\n][^>]*>", rels))[[1]]
+  cible <- NA_character_
+  for (l in liens)
+    if (identical(.xlsx_attribut(l, "Id"), id)) { cible <- .xlsx_attribut(l, "Target"); break }
+  if (is.na(id) || is.na(cible)) refus()
+  # une cible qui sort du classeur n'est pas suivie : ".." avec l'un ou l'autre
+  # separateur, chemin de lecteur ou commencant par "\" ; puis, resolue, la
+  # cible doit rester sous d. Un dossier n'est pas une feuille (utils::file_test).
+  if (grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[\\\\]|^[A-Za-z]:", cible)) refus()
+  cible <- if (startsWith(cible, "/")) substring(cible, 2L) else file.path("xl", cible)
+  f <- file.path(d, cible)
+  if (!utils::file_test("-f", f)) refus()
+  racine <- normalizePath(d, winslash = "/", mustWork = FALSE)
+  if (!startsWith(normalizePath(f, winslash = "/", mustWork = FALSE), paste0(racine, "/"))) refus()
+  f
+}
+
+# Controle du XML de la feuille lue, commun aux deux chemins de lecture et
+# fait avant l'appel a openxlsx : une cellule <c> sans attribut r (reference
+# de position) est refusee. L'attribut est facultatif dans le schema, et
+# l'outil ne deduit pas la position d'une cellule de son rang dans la ligne ;
+# sans ce controle, openxlsx leve une erreur R brute ou perd la valeur sans
+# message, et le lecteur interne de meme (#487). L'attribut n'est reconnu que
+# sous la forme r="..." (guillemets doubles, sans blanc autour du signe =),
+# celle que les tableurs ecrivent, comme les autres attributs lus ici : r='A2'
+# ou r = "A2", XML legal, sont refuses avec le meme texte (refus, jamais une
+# position devinee). Une balise <c suivie de TAB, CR ou LF est refusee, avec
+# son propre texte, avant ce controle.
+.xlsx_controler_cellules <- function(xml) {
+  # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF) : XML legal,
+  # mais openxlsx 4.2.9 perd la cellule sans message (NA) ou rend NULL si
+  # toutes les cellules ont cette forme ; refusee avant lui (seule la balise c :
+  # <col, <cols, <cfRule... ne sont pas touchees). Faux refus possible si
+  # "<c" suivi d'un blanc figure dans une section CDATA ou un commentaire XML,
+  # jamais ecrits par un tableur dans une feuille (sens sur : refus, jamais
+  # une valeur fausse).
+  if (grepl("<c[\t\r\n]", xml))
+    stop("Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur.")
+  balises <- regmatches(xml, gregexpr("<c([ \t\r\n][^>]*)?/?>", xml))[[1]]
+  if (any(!grepl("[ \t\r\n]r=\"", balises)))
+    stop("Classeur illisible : cellule sans reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.")
+  invisible(NULL)
+}
+
+# Ligne d'en-tete d'un classeur lu par le lecteur interne : mise en forme des
+# blancs de openxlsx::read.xlsx(sep.names = " "), mesuree (openxlsx 4.2.9,
+# les 63 459 caracteres du plan multilingue de base valides en XML, en tete,
+# au milieu et en fin de nom, sous C.UTF-8 : aucun ecart) : blancs de bord
+# retires, suite de blancs interieurs ramenee a une espace. Les blancs sont
+# ceux de la classe [[:space:]] de la locale, comme pour openxlsx (sous
+# C.UTF-8 : U+0009 a U+000D, U+0020, U+1680, U+2000 a U+2006, U+2008 a U+200A,
+# U+2028, U+2029, U+205F, U+3000 ; l'espace insecable U+00A0, U+2007, U+202F
+# et U+0085 n'en sont pas ; sous la locale C, les seuls blancs ASCII). Le jeu
+# des blancs depend donc de la locale de la session, pour le lecteur interne
+# comme pour openxlsx ; la parite n'est mesuree que sous C.UTF-8 (et sur
+# 27 caracteres sous C), non sous Windows.
+.xlsx_blancs_entete <- function(nm) {
+  nm <- gsub("^[[:space:]]+|[[:space:]]+$", "", nm)
+  gsub("[[:space:]]+", " ", nm)
+}
+
+# Lit la premiere feuille (premiere du classeur, dans l'ordre de
+# xl/workbook.xml) d'un classeur .xlsx et renvoie un data.frame, la
 # premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
 # cellules a valeur sont des cellules nombre est rendue en numerique ; une
 # colonne qui porte une cellule texte est rendue en caractere, nombres
@@ -7990,40 +8120,71 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
 # comme dans le lecteur interne. La regle des lignes et colonnes vides est
 # posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
-# (#483), identique pour les deux chemins. Les deux chemins different encore
-# par endroits sans effet sur cette regle : nom d'une colonne sans en-tete
-# ("X<col>" pour openxlsx, "V<col>" ici), lignes au-dessus de l'en-tete
+# (#483), identique pour les deux chemins. Une cellule sans attribut r est
+# refusee avant la lecture, de la meme facon sur les deux chemins
+# (.xlsx_controler_cellules()). Les blancs de la ligne d'en-tete sont mis en
+# forme de la meme facon (sep.names = " " pour openxlsx, .xlsx_blancs_entete()
+# ici : "deux  mots" et " deux mots" sont lus "deux mots") ; un en-tete " xt"
+# est donc accepte en xlsx et refuse en CSV, ou l'application lit les noms tels
+# quels (divergence CSV - xlsx laissee en l'etat, decision D3 du mainteneur).
+# Les deux chemins different encore par endroits : nom d'une colonne sans
+# en-tete ("X<col>" pour openxlsx, "V<col>" ici), lignes au-dessus de l'en-tete
 # (sautees par openxlsx, lues ici comme en-tete) ; lignes et colonnes mises
 # en forme sans valeur (cellules <c .../> sans <v>) gardees ici, ignorees par
 # openxlsx ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
 # <v>0x10</v>, cellule forgee) : lue 16 par openxlsx, colonne
-# laissee en caractere ici et cellule refusee en aval.
+# laissee en caractere ici et cellule refusee en aval. Texte des cellules
+# (mesure, openxlsx 4.2.9) : le lecteur interne decode les entites nommees et
+# les references numeriques (&#233;, &#xE9;) des chaines partagees et des
+# chaines en ligne (.xml_decoder()) ; openxlsx decode les entites nommees des
+# chaines partagees seulement (en decodant deux fois "&amp;lt;", lu "<"), et
+# laisse telles quelles les references numeriques des chaines partagees et
+# toute entite d'une chaine en ligne ;
+# une chaine en ligne enrichie (<is><r><t>..) est lue entiere ici, rendue NA
+# par openxlsx ; un <t xml:space="preserve"> d'une chaine en ligne laisse
+# l'attribut dans le texte lu par openxlsx. Les entites d'une cellule
+# t="str" ne sont decodees par aucun des deux chemins. Un en-tete qui porte
+# "&", "<" ou ">" n'est donc relu identique par les deux chemins que s'il est
+# en chaine partagee. L'attribut r d'une cellule n'est lu que sous la forme
+# r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
+# reference. Une balise <c> suivie d'un blanc autre que l'espace (<c<TAB>r=..>,
+# XML legal) est refusee d'un texte propre, avant les deux chemins : openxlsx
+# 4.2.9 perd la cellule sans message (NA) ou rend NULL. Une cible de feuille
+# "./worksheets/sheet1.xml" est acceptee par le controle et lue par le lecteur
+# interne, mais lue par openxlsx 4.2.9 par une erreur R brute ("Length of
+# worksheet is 0"). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
+# parite mesuree sous C.UTF-8 seulement.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
-  if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
-                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
-                               na.strings = character(0)))
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
   # aucun sharedStrings.xml residuel d'une lecture anterieure.
   d <- tempfile("unx_")
   on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  # Extraction : aucune entree d'archive absolue ou remontant ("..", separateur
+  # / ou \) n'est ecrite (zip slip) ; une archive illisible est refusee comme
+  # un classeur sans feuille.
+  noms <- tryCatch(suppressWarnings(utils::unzip(chemin, list = TRUE)$Name),
+                   error = function(e) NULL)
+  if (is.null(noms)) stop("Classeur illisible : aucune feuille trouvee.")
+  if (any(grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[/\\\\]|^[A-Za-z]:", noms)))
+    stop("Classeur illisible : l'archive contient une entree dont le chemin sort du dossier de lecture (chemin absolu ou \"..\").")
   utils::unzip(chemin, exdir = d)
-  f <- list.files(file.path(d, "xl", "worksheets"), pattern = "\\.xml$", full.names = TRUE)
-  if (!length(f)) stop("Classeur illisible : aucune feuille trouvee.")
-  xml <- paste(readLines(f[1], warn = FALSE, encoding = "UTF-8"), collapse = "")
+  fichier <- .xlsx_fichier_feuille(d)
+  xml <- .xlsx_texte(fichier)
+  .xlsx_controler_cellules(xml)
+  if (requireNamespace("openxlsx", quietly = TRUE))
+    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
+                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
+                               na.strings = character(0), sep.names = " "))
   # table des chaines partagees, si presente
   fs <- file.path(d, "xl", "sharedStrings.xml")
   partagees <- character(0)
   if (file.exists(fs)) {
-    sx <- paste(readLines(fs, warn = FALSE, encoding = "UTF-8"), collapse = "")
+    sx <- .xlsx_texte(fs)
     si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
-    partagees <- vapply(si, function(x) {
-      t <- regmatches(x, gregexpr("<t[^>]*>.*?</t>", x))[[1]]
-      paste(gsub("<[^>]*>", "", t), collapse = "")
-    }, character(1))
+    partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
-  cells <- regmatches(xml, gregexpr('<c [^>]*?/>|<c [^>]*?>.*?</c>', xml))[[1]]
+  cells <- regmatches(xml, gregexpr('<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>', xml))[[1]]
   if (!length(cells)) return(data.frame())
   ref <- sub('.*r="([A-Z]+)([0-9]+)".*', "\\1|\\2", cells)
   col <- vapply(sub("\\|.*", "", ref), .lettre_col, numeric(1))
@@ -8034,8 +8195,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   ok <- grepl("<v>", cells)
   val[ok] <- gsub("<[^>]*>", "", vv)
   isx <- grepl("<is>", cells)
-  if (any(isx)) val[isx] <- gsub("<[^>]*>", "",
-    regmatches(cells[isx], regexpr("<t[^>]*>.*?</t>", cells[isx])))
+  if (any(isx)) val[isx] <- vapply(cells[isx], .xml_textes, character(1), USE.NAMES = FALSE)
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[as.integer(val[s]) + 1L]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE", comme
@@ -8045,7 +8205,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   m <- matrix(NA_character_, max(lig), max(col))
   m[cbind(lig, col)] <- val
   if (entete) {
-    nm <- m[1, ]; corps <- m[-1, , drop = FALSE]
+    nm <- .xlsx_blancs_entete(m[1, ]); corps <- m[-1, , drop = FALSE]
     nm[is.na(nm) | nm == ""] <- paste0("V", which(is.na(nm) | nm == ""))
   } else { nm <- paste0("V", seq_len(ncol(m))); corps <- m }
   df <- as.data.frame(corps, stringsAsFactors = FALSE)

@@ -2401,6 +2401,217 @@ if (nzchar(Sys.which("zip"))) {
            identical(dhex490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
              identical(dhex490$interne$yt, as.numeric(60:64)) &&
              identical(engine_lire_donnees_csv(dhex490$interne)$erreurs, motif490))
+
+  # --- #487 : feuille lue, entites XML, chaine enrichie, cellule sans r, blancs
+  # d'en-tete. Classeurs ecrits a la main (plusieurs feuilles, workbook.xml et
+  # rels), lus par les deux chemins ; les parites avec openxlsx ne tournent
+  # qu'avec le paquet installe (sautees sinon, comme celles de #483).
+  classeur487 <- function(feuilles, shared = NULL, avant = "") {
+    d <- tempfile("c487_"); dir.create(d)
+    on.exit(unlink(d, recursive = TRUE), add = TRUE)
+    ecrire <- function(rel, txt) {
+      p <- file.path(d, rel); dir.create(dirname(p), recursive = TRUE, showWarnings = FALSE)
+      writeLines(txt, p, useBytes = TRUE)
+    }
+    h <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    ns <- 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    rt <- 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    rid <- seq_along(feuilles) + 10L
+    ecrire("[Content_Types].xml", paste0(h, '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+      '<Default Extension="xml" ContentType="application/xml"/></Types>'))
+    ecrire("_rels/.rels", paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '<Relationship Id="rId1" Type="', rt, '/officeDocument" Target="xl/workbook.xml"/></Relationships>'))
+    ecrire("xl/workbook.xml", paste0(h, '<workbook ', ns, ' xmlns:r="', rt, '"><sheets>',
+      paste(sprintf('<sheet name="%s" sheetId="%d" r:id="rId%d"/>',
+                    vapply(feuilles, `[[`, "", "nom"), seq_along(feuilles), rid), collapse = ""),
+      '</sheets></workbook>'))
+    ecrire("xl/_rels/workbook.xml.rels", paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      paste(sprintf('<Relationship Id="rId%d" Type="%s/worksheet" Target="%s"/>',
+                    rid, rt, vapply(feuilles, function(fe)
+                      if (is.null(fe$cible)) paste0("worksheets/", fe$fichier) else fe$cible, "")), collapse = ""),
+      if (!is.null(shared)) paste0('<Relationship Id="rId99" Type="', rt, '/sharedStrings" Target="sharedStrings.xml"/>'),
+      '</Relationships>'))
+    for (fe in feuilles)
+      if (!isTRUE(fe$absente))
+        ecrire(file.path("xl", "worksheets", fe$fichier),
+               paste0(h, '<worksheet ', ns, '>', avant, '<sheetData>', fe$xml, '</sheetData></worksheet>'))
+    if (!is.null(shared)) ecrire("xl/sharedStrings.xml", paste0(h, '<sst ', ns, '>', shared, '</sst>'))
+    f <- tempfile(fileext = ".xlsx")
+    od <- setwd(d); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # tous() sur une liste complete : un chemin qui rend NULL (element supprime
+  # par l'affectation dans chemins483()) ne passe pas inapercu
+  tous487 <- function(r, test) length(r) == 1L + avec_openxlsx483 && tous(r, test)
+  ligne487 <- function(i, cellules) sprintf('<row r="%d">%s</row>', i, paste(cellules, collapse = ""))
+  nb487 <- function(ref, v) sprintf('<c r="%s"><v>%s</v></c>', ref, v)
+  en487 <- function(ref, t) sprintf('<c r="%s" t="inlineStr"><is>%s</is></c>', ref, t)
+  ps487 <- function(ref, k) sprintf('<c r="%s" t="s"><v>%d</v></c>', ref, k)   # chaine partagee k (base 0)
+  # feuille de series t, xt, yt dont xt vaut base + 1 et base + 3
+  donnees487 <- function(base) paste0(
+    ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+    ligne487(2, c(nb487("A2", 2001), nb487("B2", base + 1), nb487("C2", base + 2))),
+    ligne487(3, c(nb487("A3", 2002), nb487("B3", base + 3), nb487("C3", base + 4))))
+  # lecture qui rend le message du refus au lieu de lever l'erreur (la promesse
+  # est forcee dans tryCatch)
+  lire487 <- function(d) tryCatch(d, error = function(e) conditionMessage(e))
+  premier487 <- function(r) vapply(r, function(d) as.numeric(d$xt[1]), numeric(1))
+  base487 <- function(r, b) tous487(r, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt")) &&
+                                                  identical(as.numeric(d$xt), b + c(1, 3)))
+  CELLULE_SANS_R <- "Classeur illisible : cellule sans reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."
+  # Feuille : la premiere du classeur (xl/workbook.xml), non le premier fichier
+  rA <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet2.xml", xml = donnees487(200)),
+                                    list(nom = "Brouillon", fichier = "sheet1.xml", xml = donnees487(100)))), lire487)
+  rB <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet2.xml", xml = donnees487(200)),
+                                    list(nom = "Autre", fichier = "sheet10.xml", xml = donnees487(100)))), lire487)
+  rC <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet10.xml", xml = donnees487(200)),
+                                    list(nom = "Autre", fichier = "sheet2.xml", xml = donnees487(100)))), lire487)
+  rD <- chemins483(classeur487(lapply(11:1, function(k) list(nom = paste0("F", k), fichier = sprintf("sheet%d.xml", k),
+                                                            xml = donnees487(1000 * k)))), lire487)
+  verifier("xlsx (#487) : donnees en sheet2.xml, premiere feuille du classeur, devant sheet1.xml : feuille du classeur lue sur chaque chemin (xt = 201)",
+           base487(rA, 200))
+  verifier("xlsx (#487) : sheet2.xml premiere et sheet10.xml deuxieme, puis l'inverse : feuille du classeur lue sur chaque chemin",
+           base487(rB, 200) && base487(rC, 200))
+  verifier("xlsx (#487) : onze feuilles en ordre inverse : la premiere du classeur (sheet11.xml) est lue sur chaque chemin (xt = 11001)",
+           base487(rD, 11000))
+  rS <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE))), lire487)
+  verifier("xlsx (#487) : cible de la premiere feuille absente du classeur : refus \"aucune feuille trouvee\" sur chaque chemin",
+           tous487(rS, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Cellule sans attribut r (avec ou sans autres attributs) : refus commun, avant openxlsx
+  sans_r <- function(cellule, ...) {
+    chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+      ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+      ligne487(2, c(nb487("A2", 2001), cellule, nb487("C2", 6)))))), ...), lire487)
+  }
+  verifier("xlsx (#487) : cellule <c><v>5</v></c> sans aucun attribut : refus au texte fixe sur chaque chemin (valeur auparavant perdue sans message)",
+           tous487(sans_r("<c><v>5</v></c>"), function(d) identical(d, CELLULE_SANS_R)))
+  verifier("xlsx (#487) : cellule sans r mais avec d'autres attributs (<c s=\"0\">, <c t=\"n\">, <c s=\"1\"/>) : meme refus sur chaque chemin",
+           tous487(sans_r('<c s="0"><v>5</v></c>'), function(d) identical(d, CELLULE_SANS_R)) &&
+             tous487(sans_r('<c t="n"><v>5</v></c>'), function(d) identical(d, CELLULE_SANS_R)) &&
+             tous487(sans_r('<c s="1"/>'), function(d) identical(d, CELLULE_SANS_R)))
+  rcols <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0))),
+                                  avant = '<cols><col min="1" max="3" width="9" customWidth="1"/></cols>'), lire487)
+  verifier("xlsx (#487) : la balise <cols><col .../> d'une feuille n'est pas prise pour une cellule : lecture inchangee sur chaque chemin",
+           base487(rcols, 0))
+  # Cible de la premiere feuille : un dossier n'est pas une feuille, et une
+  # cible qui remonte (".." avec / ou \) n'est pas suivie ; meme refus sur
+  # chaque chemin.
+  rdos <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                           cible = "worksheets"))), lire487)
+  rrem <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                           cible = "..\\..\\x.xml"))), lire487)
+  rrem2 <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                            cible = "../../x.xml"))), lire487)
+  verifier("xlsx (#487) : cible de la premiere feuille qui est un dossier, ou qui remonte (\"..\\\\..\\\\x.xml\", \"../../x.xml\") : refus \"aucune feuille trouvee\" sur chaque chemin",
+           tous487(rdos, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             tous487(rrem, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             tous487(rrem2, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Entree d'archive "../evil487.txt" : utils::unzip() (R 4.3.3, mesure) l'ecrit
+  # hors du dossier d'extraction ; le lecteur la refuse avant toute extraction,
+  # sur chaque chemin, et rien n'est ecrit hors de son dossier temporaire.
+  evil487 <- file.path(tempdir(), "evil487.txt")
+  unlink(evil487)
+  zslip487 <- function() {
+    f <- classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0))))
+    w <- tempfile("w487_"); dir.create(file.path(w, "sub"), recursive = TRUE)
+    writeLines("x", file.path(w, "evil487.txt"))
+    od <- setwd(file.path(w, "sub")); on.exit({ setwd(od); unlink(w, recursive = TRUE) })
+    utils::zip(f, "../evil487.txt", flags = "-q")
+    f
+  }
+  rsl <- chemins483(zslip487(), lire487)
+  verifier("xlsx (#487) : classeur dont une entree d'archive remonte (\"../evil487.txt\") : refuse sur chaque chemin, aucun fichier ecrit hors du dossier de lecture",
+           tous487(rsl, function(d) is.character(d) && grepl("sort du dossier de lecture", d, fixed = TRUE)) &&
+             !file.exists(evil487))
+  unlink(evil487)
+  # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF) : refusee d'un
+  # texte propre sur chaque chemin, avant openxlsx (qui perd la cellule sans
+  # message, ou rend NULL si toutes ont cette forme) ; cas mixte compris.
+  BALISE_C <- "Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur."
+  rbl_c <- lapply(c(TAB = "\t", CR = "\r", LF = "\n"), function(bl) list(
+    toutes = chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+                                              xml = gsub("<c r=", paste0("<c", bl, "r="), donnees487(0), fixed = TRUE)))), lire487),
+    une = chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+                                           xml = sub('<c r="B2">', paste0("<c", bl, 'r="B2">'), donnees487(0), fixed = TRUE)))), lire487)))
+  verifier("xlsx (#487) : balise <c suivie de TAB, CR ou LF (toutes les cellules, ou une seule) : refus au texte fixe sur chaque chemin",
+           all(vapply(rbl_c, function(x) tous487(x$toutes, function(d) identical(d, BALISE_C)) &&
+                                          tous487(x$une, function(d) identical(d, BALISE_C)), logical(1))))
+  rapo <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = sub('<c r="B2">', "<c r='B2'>",
+                                                                                    donnees487(0), fixed = TRUE)))), lire487)
+  rbl <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = sub('<c r="B2">', '<c r = "B2">',
+                                                                                   donnees487(0), fixed = TRUE)))), lire487)
+  verifier("xlsx (#487) : attribut r sous la forme r='B2' ou r = \"B2\" (XML legal) refuse comme cellule sans reference, texte fixe, sur chaque chemin",
+           tous487(rapo, function(d) identical(d, CELLULE_SANS_R)) && tous487(rbl, function(d) identical(d, CELLULE_SANS_R)))
+  # Entites XML. Chaines partagees : entites nommees lues pareil par les deux
+  # chemins ; le reste (references numeriques, chaines en ligne, "&amp;lt;" que
+  # openxlsx decode deux fois) n'est lu juste que par le lecteur interne
+  # (divergences nommees dans l'en-tete d'engine_lire_xlsx()).
+  ent_ps <- c("a&amp;b", "s&lt;t&gt;", "q&quot;x&apos;y")
+  rE <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(ps487("A1", 0), ps487("B1", 1), ps487("C1", 2))),
+    ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3)))))),
+    shared = paste0("<si><t>", ent_ps, "</t></si>", collapse = "")), function(d) names(d))
+  verifier("xlsx (#487) : entites nommees des chaines partagees decodees, memes en-tetes sur chaque chemin",
+           tous487(rE, function(n) identical(n, c("a&b", "s<t>", "q\"x'y"))))
+  interne487 <- function(xml, shared = NULL)
+    lire487(sans_openxlsx483(engine_lire_xlsx(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
+                                                          shared = shared))))
+  nI <- names(interne487(paste0(
+    ligne487(1, c(en487("A1", "<t>a&amp;b</t>"), en487("B1", "<t>&#233;t&#xE9;</t>"),
+                  en487("C1", "<t>&lt;x&gt; &quot;q&quot; &apos;a&apos;</t>"), en487("D1", "<t>&amp;lt;|&#38;lt;|&#x41;</t>"),
+                  en487("E1", "<t>&#0;&#xD800;&#x110000;&#99999999999;</t>"))),
+    ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), nb487("D2", 4), nb487("E2", 5))))))
+  nS <- names(interne487(paste0(ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))),
+                         shared = "<si><t>&#233;t&#xE9;</t></si><si><t>&amp;lt;|&#38;lt;|&#x41;</t></si>"))
+  verifier("xlsx, lecteur interne (#487) : entites nommees et references numeriques decodees (chaines en ligne et partagees), en une seule passe",
+           identical(nI, c("a&b", "\u00e9t\u00e9", "<x> \"q\" 'a'", "&lt;|&lt;|A",
+                           "&#0;&#xD800;&#x110000;&#99999999999;")) &&
+             identical(nS, c("\u00e9t\u00e9", "&lt;|&lt;|A")))
+  # Chaine enrichie en ligne : segments concatenes par le lecteur interne
+  # (openxlsx la rend NA) ; en chaine partagee, les deux chemins concatenent.
+  enr <- '<r><t>x</t></r><r><rPr><b/></rPr><t>t</t></r>'
+  renr <- interne487(paste0(
+    ligne487(1, c(en487("A1", enr), en487("B1", "<r><t>y</t></r><r><t xml:space=\"preserve\"> t</t></r>"))),
+    ligne487(2, c(en487("A2", "<r><t>ab</t></r><r><t>cd</t></r>"), nb487("B2", 2)))))
+  verifier("xlsx, lecteur interne (#487) : chaine en ligne enrichie lue entiere (segments concatenes), en en-tete comme en corps",
+           identical(names(renr), c("xt", "y t")) && identical(renr$xt, "abcd"))
+  rP <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
+    shared = paste0("<si>", enr, "</si><si><r><t>y</t></r><r><t>t</t></r></si>")), function(d) names(d))
+  verifier("xlsx (#487) : chaine partagee enrichie lue entiere par chaque chemin",
+           tous487(rP, function(n) identical(n, c("xt", "yt"))))
+  # Blancs d'en-tete : blancs de bord retires, suite de blancs ramenee a une
+  # espace (regle mesuree sur openxlsx, sep.names = " ") ; l'espace insecable
+  # n'est pas un blanc. Noms rendus uniques par un prefixe.
+  nb <- intToUtf8(160L)   # espace insecable
+  grille487 <- c("u1 x", "u2\tx", "u3\nx", "u4  x", "u5 \t x", "u6\r\nx", " u7", "u8 ", "\t u9\n ", paste0("u10", nb, "x"),
+                 paste0(nb, "u11"), paste0("u12", nb), "u13 x y", " ")
+  attendu487 <- c("u1 x", "u2 x", "u3 x", "u4 x", "u5 x", "u6 x", "u7", "u8", "u9", paste0("u10", nb, "x"),
+                  paste0(nb, "u11"), paste0("u12", nb), "u13 x y", "V14")
+  col487 <- function(k) if (k <= 26) LETTERS[k] else paste0("A", LETTERS[k - 26])
+  rW <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, vapply(seq_along(grille487), function(k) ps487(paste0(col487(k), "1"), k - 1L), "")),
+    ligne487(2, vapply(seq_along(grille487), function(k) nb487(paste0(col487(k), "2"), k), ""))))),
+    shared = paste0('<si><t xml:space="preserve">', grille487, '</t></si>', collapse = "")), function(d) names(d))
+  verifier("xlsx, lecteur interne (#487) : blancs de bord retires et suite de blancs ramenee a une espace dans la ligne d'en-tete ; espace insecable gardee",
+           identical(rW$interne, attendu487))
+  if (avec_openxlsx483)
+    verifier("xlsx (#487) : blancs d'en-tete lus pareil par openxlsx (sep.names = \" \") et le lecteur interne, hors en-tete de blancs seuls (\"\" pour openxlsx, V<col> ici)",
+             identical(rW$interne[-14], rW$openxlsx[-14]) && identical(rW$openxlsx[-14], attendu487[-14]))
+  # En-tetes en chaine en ligne (classeur ecrit par l'ecrivain interne) : blancs mis en forme pareil sur chaque chemin
+  ent487 <- function(s) sub('<t>yt</t>', '<t>yt  </t>', sub('<t>xt</t>', '<t> x  t </t>', s, fixed = TRUE), fixed = TRUE)
+  rM <- chemins483(xlsx483(ser483, ent487), function(d) names(d))
+  verifier("xlsx (#487) : en-tetes \" x  t \" et \"yt  \" lus \"x t\" et \"yt\" sur chaque chemin",
+           tous487(rM, function(n) identical(n, c("x t", "yt"))))
+  # Acceptation : un en-tete " xt" ou "yt  " est accepte en xlsx sur chaque chemin
+  # (il est refuse en CSV : divergence CSV - xlsx nommee dans l'en-tete
+  # d'engine_lire_xlsx(), decision D3 du mainteneur)
+  rX <- chemins483(xlsx483(ser483, function(s) sub('<t>yt</t>', '<t>yt  </t>', sub('<t>xt</t>', '<t> xt</t>', s, fixed = TRUE), fixed = TRUE)),
+                   engine_lire_donnees_csv)
+  verifier("xlsx (#487) : en-tetes \" xt\" et \"yt  \" acceptes, series identiques, sur chaque chemin",
+           tous487(rX, function(r) identical(r, ref_ser)))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
