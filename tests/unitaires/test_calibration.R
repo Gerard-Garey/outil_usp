@@ -211,6 +211,34 @@ verifier("Message d'usage : -0, Inf, -Inf, NaN, NA_real_ cites tels quels, sans 
              warning = function(e) { w <<- TRUE; invokeRestart("muffleWarning") })
            !w && identical(v, c("0", "Inf", "-Inf", "NaN", "NA_real_", "c(NA, 1.0000000000000011)"))
          })
+# Issue #527, regle R-527.5 : l'enrobage .engine_saisie_lisible() cite
+# "NA (valeur manquante)" une valeur atomique de longueur 1, NA hors NaN,
+# sans attribut ; toute autre valeur (NaN, NA porteur d'attribut, vecteur a
+# NA, NULL, nombre a 17 chiffres, texte) est citee comme par .engine_saisie().
+verifier("Message d'usage : .engine_saisie_lisible() cite NA, NA_real_, NA_integer_, NA_character_ \"NA (valeur manquante)\", les autres valeurs (NaN compris) comme .engine_saisie() (#527)",
+         {
+           na <- list(NA, NA_real_, NA_integer_, NA_character_)
+           autres <- list(NaN, structure(NA_real_, a = 1), c(NA, 1), NULL, 1 + 1e-15, -0, Inf,
+                          "a", 0.3, 99L)
+           all(vapply(na, function(v) identical(.engine_saisie_lisible(v), "NA (valeur manquante)"),
+                      logical(1))) &&
+             all(vapply(autres, function(v) identical(.engine_saisie_lisible(v), .engine_saisie(v)),
+                        logical(1))) &&
+             identical(.engine_saisie_lisible(NaN), "NaN") &&
+             identical(.engine_saisie(NA_real_), "NA_real_")
+         })
+verifier("Message d'usage : B, seed, alpha, sigma_standard vides (NA_real_) cites \"NA (valeur manquante)\", NaN cite NaN (#527)",
+         motif_bareme(.engine_verifier_usage(B = NA_real_, seed = 1, bareme = NULL, segment = 1),
+                      "B = NA (valeur manquante) : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = NA_real_, bareme = NULL, segment = 1),
+                        "seed = NA (valeur manquante) : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL, alpha = NA_real_,
+                                               segment = 1), "alpha = NA (valeur manquante) : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL, alpha = NaN,
+                                               segment = 1), "alpha = NaN : ") &&
+           motif_bareme(.engine_verifier_usage(B = 999, seed = 1, bareme = NULL,
+                                               sigma_standard = NA_real_),
+                        "sigma_standard = NA (valeur manquante) : "))
 verifier("Message B et alpha (engine_motif_b_alpha) : alpha 0.03 + 4e-18 cite a 17 chiffres, 0.03 et 99L cites a 15 (#133, audit C2)",
          startsWith(engine_motif_b_alpha(99, 0.03 + 4e-18), "B = 99 et alpha = 0.030000000000000002 : ") &&
            startsWith(engine_motif_b_alpha(99L, 0.03), "B = 99 et alpha = 0.03 : "))

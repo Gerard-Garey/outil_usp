@@ -487,6 +487,23 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   paste(deparse(v, control = ctl), collapse = " ")
 }
 
+# Valeur refusee citee dans un message restitue par l'application (issue
+# #527, regle R-527.5 de l'avis amont d'actuary) : une valeur atomique de
+# longueur 1, NA hors NaN, sans attribut, est citee "NA (valeur manquante)"
+# (un champ numerique vide de l'application est transmis NA, #94, que
+# .engine_saisie() cite NA_real_, forme R). Toute autre valeur, NaN
+# compris, est citee par .engine_saisie(), inchangee (contrat de #133 :
+# ecriture qui se relit
+# exactement, gardes internes et appels directs). Employee par les seuls
+# messages de l'inventaire de #527 : erreurs d'usage de B, seed, alpha et
+# sigma_standard (.engine_verifier_usage()) et message jumeau de alpha
+# (engine_regle_verdicts()).
+.engine_saisie_lisible <- function(v) {
+  if (is.atomic(v) && length(v) == 1L && is.null(attributes(v)) &&
+      is.na(v) && !is.nan(v)) return("NA (valeur manquante)")
+  .engine_saisie(v)
+}
+
 # Quantiles de type 7 nommes en point decimal (#428). stats::quantile() nomme
 # ses valeurs par format() de 100 * probs : sous options(OutDec = ","), le nom
 # "2.5%" devient "2,5%", et res$ic_bootstrap (ou les noms de ligne de
@@ -13164,17 +13181,18 @@ engine_motif_b_alpha <- function(B, alpha) {
   b_min <- tryCatch(engine_b_minimal(alpha), error = function(e) NULL)
   seuil_b <- if (is.null(b_min)) "B trop petit pour ce seuil" else
     sprintf("soit B >= %.0f a ce seuil", b_min)
-  # Valeurs citees par .engine_saisie(), comme par saisie() de
-  # .engine_verifier_usage() (15 chiffres, 17 si l'ecriture a 15 chiffres ne
-  # restitue pas la valeur, #133), apres conversion en double : un entier
-  # (99L, forme possible d'une saisie numerique transmise par l'application)
-  # est cite 99, comme le double 99.
+  # Valeurs citees par .engine_saisie() (15 chiffres, 17 si l'ecriture a 15
+  # chiffres ne restitue pas la valeur, #133), apres conversion en double :
+  # un entier (99L, forme possible d'une saisie numerique transmise par
+  # l'application) est cite 99, comme le double 99. B et alpha sont ici
+  # finis : l'enrobage .engine_saisie_lisible() des autres erreurs d'usage
+  # (#527, valeur manquante) n'y changerait rien.
   saisie <- function(v) .engine_saisie(as.double(v))
   sprintf(paste("B = %s et alpha = %s : B + 1 > 4/alpha est requis, %s",
-                "(en plus de B >= B_MIN_USAGE = %.0f). Le plancher bilateral de la p-value",
+                "(en plus du minimum B >= %.0f, B_MIN_USAGE). Le plancher bilateral de la p-value",
                 "Monte-Carlo, 2/(B+1) = %.4g, n'est pas inferieur a alpha/2 = %.4g :",
                 "l'ECHEC des tests dont la seule p-value est Monte-Carlo serait",
-                "inatteignable (regle des verdicts d'engine_registre_tests())."),
+                "inatteignable (regle des verdicts)."),
           saisie(B), saisie(alpha), seuil_b, B_MIN_USAGE,
           2 * (1 / (B + 1)), alpha / 2)
 }
@@ -13192,18 +13210,20 @@ engine_motif_b_alpha <- function(B, alpha) {
 # SEUIL_ECHEC_SENS_REJETER, jamais ecrit en dur.
 # Domaine et libelle d'erreur de alpha : ceux de .engine_verifier_usage()
 # (nombre scalaire fini sans attribut, 0 < alpha < SEUIL_ECHEC_SENS_REJETER).
-# Valeurs citees par .engine_saisie() (15 chiffres, 17 si l'ecriture a 15
-# chiffres ne restitue pas la valeur, #133), puis virgule decimale francaise.
+# Message d'erreur identique a celui de .engine_verifier_usage() (alpha refuse
+# cite par .engine_saisie_lisible(), #527) ; valeurs des phrases citees par
+# .engine_saisie() (15 chiffres, 17 si l'ecriture a 15 chiffres ne restitue
+# pas la valeur, #133), puis virgule decimale francaise.
 # Accents en echappements \u, le source du moteur etant ASCII.
 engine_regle_verdicts <- function(alpha) {
   if (!(is.numeric(alpha) && length(alpha) == 1L && is.finite(alpha) &&
         is.null(attributes(alpha)) &&
         alpha > 0 && alpha < SEUIL_ECHEC_SENS_REJETER))
-    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
-                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
-                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
-                       "ne suit plus la regle documentee."),
-                 .engine_saisie(alpha),
+    stop(sprintf(paste("alpha = %s : le seuil des verdicts doit etre un nombre strictement",
+                       "compris entre 0 et %s (SEUIL_ECHEC_SENS_REJETER) ; au-dela, la zone",
+                       "ALERTE des tests en sens rejeter disparait et le verdict ne suit plus",
+                       "la regle documentee (en appel direct : un nombre seul, sans attribut)."),
+                 .engine_saisie_lisible(alpha),
                  format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")), call. = FALSE)
   fr <- function(v) sub(".", ",", .engine_saisie(as.double(v)), fixed = TRUE)
   a <- fr(alpha); a2 <- fr(alpha / 2); s <- fr(SEUIL_ECHEC_SENS_REJETER)
@@ -13323,14 +13343,21 @@ engine_regle_verdicts <- function(alpha) {
   sans_attribut <- function(v) is.null(attributes(v))
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v) &&
                                  sans_attribut(v)
+  # Messages de B, seed, alpha et sigma_standard restitues par l'application
+  # (#527) : valeur refusee citee par .engine_saisie_lisible() (champ vide :
+  # "NA (valeur manquante)"), sens de l'argument en mots, conditions propres
+  # a l'appel direct en fin de phrase.
+  lisible <- .engine_saisie_lisible
   if (!scalaire_fini(B) || B != round(B) || B < B_MIN_USAGE)
-    stop(sprintf(paste("B = %s : un nombre scalaire fini entier de replications, B >=",
-                       "B_MIN_USAGE = %d, sans attribut, est attendu."),
-                 saisie(B), B_MIN_USAGE), call. = FALSE)
+    stop(sprintf(paste("B = %s : le nombre de replications bootstrap doit etre un nombre entier",
+                       "au moins egal a %d (B_MIN_USAGE) ; en appel direct, un nombre seul,",
+                       "sans attribut."),
+                 lisible(B), B_MIN_USAGE), call. = FALSE)
   if (!scalaire_fini(seed) || seed != round(seed) || abs(seed) > .Machine$integer.max)
-    stop(sprintf(paste("seed = %s : un nombre scalaire fini entier, |seed| <= %d, sans",
-                       "attribut, est attendu (NULL refuse : calcul non reproductible)."),
-                 saisie(seed), .Machine$integer.max), call. = FALSE)
+    stop(sprintf(paste("seed = %s : la graine doit etre un nombre entier compris entre -%d et %d ;",
+                       "elle est obligatoire, faute de quoi le calcul ne serait pas reproductible",
+                       "(en appel direct : un nombre seul, sans attribut, NULL refuse)."),
+                 lisible(seed), .Machine$integer.max, .Machine$integer.max), call. = FALSE)
   if (!is.null(bareme) &&
       !(is.character(bareme) && length(bareme) == 1L && !is.na(bareme) &&
         sans_attribut(bareme) && bareme %in% c("court", "long")))
@@ -13338,19 +13365,22 @@ engine_regle_verdicts <- function(alpha) {
                        "attendu (bareme de credibilite de l'annexe XVII, section G)."),
                  saisie(bareme)), call. = FALSE)
   if (!scalaire_fini(alpha) || alpha <= 0 || alpha >= SEUIL_ECHEC_SENS_REJETER)
-    stop(sprintf(paste("alpha = %s : un nombre scalaire fini, sans attribut,",
-                       "0 < alpha < SEUIL_ECHEC_SENS_REJETER = %s, est attendu ; au-dela,",
-                       "la zone ALERTE des tests en sens rejeter disparait et le verdict",
-                       "ne suit plus la regle documentee."),
-                 saisie(alpha), format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")), call. = FALSE)
+    stop(sprintf(paste("alpha = %s : le seuil des verdicts doit etre un nombre strictement",
+                       "compris entre 0 et %s (SEUIL_ECHEC_SENS_REJETER) ; au-dela, la zone",
+                       "ALERTE des tests en sens rejeter disparait et le verdict ne suit plus",
+                       "la regle documentee (en appel direct : un nombre seul, sans attribut)."),
+                 lisible(alpha), format(SEUIL_ECHEC_SENS_REJETER, decimal.mark = ".")),
+         call. = FALSE)
   # B minimal fonction d'alpha (#127) : apres les controles de B et d'alpha,
   # dont les messages restent inchanges pour une valeur invalide isolement.
   motif_b_alpha <- engine_motif_b_alpha(B, alpha)
   if (!is.null(motif_b_alpha)) stop(motif_b_alpha, call. = FALSE)
   if (!is.null(sigma_standard) && (!scalaire_fini(sigma_standard) || sigma_standard <= 0))
-    stop(sprintf(paste("sigma_standard = %s : NULL ou un nombre scalaire fini,",
-                       "sans attribut, sigma_standard > 0, est attendu."),
-                 saisie(sigma_standard)), call. = FALSE)
+    stop(sprintf(paste("sigma_standard = %s : l'ecart-type standard saisi doit etre un nombre",
+                       "strictement positif ; pour retenir le parametre standard du segment,",
+                       "ne pas le saisir (en appel direct : un nombre seul, sans attribut,",
+                       "ou NULL)."),
+                 lisible(sigma_standard)), call. = FALSE)
   # Segment : usp_segment_infos() leve l'erreur d'usage de .segment_verifie()
   # (valeur non scalaire, vide, NA, non entiere ou non numerique, #105), puis
   # celle du segment inconnu de l'annexe (message inchange).

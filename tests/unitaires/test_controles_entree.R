@@ -1104,7 +1104,7 @@ usage_accepte <- function(arg, valeurs) {
 verifier("run_engine : alpha NA, vide, texte, vecteur, logique, 0, 0,30, 0,5, 0,999, 1, 1.5, -0.1, Inf -> erreur d'usage (premium, reserve2)",
          erreur_usage("alpha", list(NA, NULL, "0.1", c(0.1, 0.2), TRUE, 0, 0.30, 0.5, 0.999,
                                     1, 1.5, -0.1, Inf),
-                      "0 < alpha < SEUIL_ECHEC_SENS_REJETER = 0.3, est attendu"))
+                      "doit etre un nombre strictement compris entre 0 et 0.3 (SEUIL_ECHEC_SENS_REJETER)"))
 verifier("run_engine : alpha 0,30 refuse, message citant la zone ALERTE",
          {
            e <- tryCatch(usage_premium(alpha = 0.30), error = function(e) e)
@@ -1121,20 +1121,23 @@ verifier("run_engine : SEUIL_ECHEC_SENS_REJETER vaut 0,30 (seuil ECHEC des tests
          identical(SEUIL_ECHEC_SENS_REJETER, 0.30))
 verifier("run_engine : sigma_standard NA, texte, vecteur, logique, 0, negatif, Inf -> erreur d'usage (premium, reserve2)",
          erreur_usage("sigma_standard", list(NA, NA_real_, "0.1", c(0.1, 0.2), TRUE, 0, -0.1, Inf),
-                      "sigma_standard > 0, est attendu"))
+                      "l'ecart-type standard saisi doit etre un nombre strictement positif"))
 verifier("run_engine : sigma_standard NULL, 0,10 et 2 acceptes (premium, reserve2)",
          usage_accepte("sigma_standard", list(NULL, 0.10, 2)))
 verifier("run_engine : seed NULL, NA, texte, vecteur, logique, 1.5, Inf, 3e9 -> erreur d'usage du moteur (premium, reserve2)",
          erreur_usage("seed", list(NULL, NA, NA_real_, "5", "a", c(1, 2), TRUE, 1.5, Inf, 3e9),
-                      "un nombre scalaire fini entier, |seed| <= 2147483647"))
+                      "la graine doit etre un nombre entier compris entre -2147483647 et 2147483647"))
 verifier("run_engine : seed NA et NULL -> message du moteur citant la valeur recue",
          {
            e1 <- tryCatch(usage_premium(seed = NA), error = function(e) e)
            e2 <- tryCatch(usage_mw(seed = NULL), error = function(e) e)
            inherits(e1, "error") && inherits(e2, "error") &&
-             startsWith(conditionMessage(e1), "seed = NA : un nombre scalaire fini entier") &&
+             startsWith(conditionMessage(e1),
+                        "seed = NA (valeur manquante) : la graine doit etre un nombre entier") &&
              startsWith(conditionMessage(e2), "seed = vide : ") &&
-             grepl("NULL refuse : calcul non reproductible", conditionMessage(e2), fixed = TRUE)
+             grepl("faute de quoi le calcul ne serait pas reproductible", conditionMessage(e2),
+                   fixed = TRUE) &&
+             grepl("NULL refuse).", conditionMessage(e2), fixed = TRUE)
          })
 verifier("run_engine : seed 20260831, -5, 5L, .Machine$integer.max et son oppose acceptes (premium, reserve2)",
          usage_accepte("seed", list(20260831, -5, 5L, .Machine$integer.max,
@@ -1158,13 +1161,52 @@ verifier("run_engine : bareme NULL, 'court' et 'long' acceptes (premium, reserve
 verifier("run_engine : B 0, 98, 99.5, 999.5, -1, NA, texte, vecteur, Inf -> erreur d'usage citant B_MIN_USAGE = 99 (premium, reserve2)",
          B_MIN_USAGE == 99 &&
            erreur_usage("B", list(0, 98, 98.9, 99.5, 999.5, -1, NA, NA_real_, "999", c(99, 999), Inf),
-                        "B >= B_MIN_USAGE = 99, sans attribut, est attendu") &&
+                        "doit etre un nombre entier au moins egal a 99 (B_MIN_USAGE)") &&
            {
              e <- tryCatch(usage_premium(B = 98), error = function(e) e)
              inherits(e, "error") && startsWith(conditionMessage(e), "B = 98 : ")
            })
 verifier("run_engine : B = B_MIN_USAGE = 99 accepte (premium, reserve2)",
          usage_accepte("B", list(99)))
+
+# Issue #527, groupe usage (US-01 a US-05) : texte complet de chaque message,
+# mot pour mot celui du tableau du par. 7.2 de l'avis amont d'actuary
+# (docs/revues/20261111-avis-amont-k4/actuary-avis-amont.md), declenche par
+# run_engine() avec une valeur manquante (US-04 : B = 99, alpha = 0,01).
+message_usage <- function(...) {
+  e <- tryCatch(usage_premium(...), error = function(e) e)
+  if (inherits(e, "error") && is.null(conditionCall(e))) conditionMessage(e) else NA_character_
+}
+verifier("run_engine : US-01, B vide -> texte complet du message (#527)",
+         identical(message_usage(B = NA_real_),
+                   paste("B = NA (valeur manquante) : le nombre de replications bootstrap doit etre",
+                         "un nombre entier au moins egal a 99 (B_MIN_USAGE) ; en appel direct, un",
+                         "nombre seul, sans attribut.")))
+verifier("run_engine : US-02, graine vide -> texte complet du message (#527)",
+         identical(message_usage(seed = NA_real_),
+                   paste("seed = NA (valeur manquante) : la graine doit etre un nombre entier compris",
+                         "entre -2147483647 et 2147483647 ; elle est obligatoire, faute de quoi le",
+                         "calcul ne serait pas reproductible (en appel direct : un nombre seul, sans",
+                         "attribut, NULL refuse).")))
+verifier("run_engine : US-03, alpha vide -> texte complet du message (#527)",
+         identical(message_usage(alpha = NA_real_),
+                   paste("alpha = NA (valeur manquante) : le seuil des verdicts doit etre un nombre",
+                         "strictement compris entre 0 et 0.3 (SEUIL_ECHEC_SENS_REJETER) ; au-dela, la",
+                         "zone ALERTE des tests en sens rejeter disparait et le verdict ne suit plus",
+                         "la regle documentee (en appel direct : un nombre seul, sans attribut).")))
+verifier("run_engine : US-04, B = 99 et alpha = 0,01 -> texte complet du message (#527)",
+         identical(message_usage(B = 99, alpha = 0.01),
+                   paste("B = 99 et alpha = 0.01 : B + 1 > 4/alpha est requis, soit B >= 400 a ce",
+                         "seuil (en plus du minimum B >= 99, B_MIN_USAGE). Le plancher bilateral de",
+                         "la p-value Monte-Carlo, 2/(B+1) = 0.02, n'est pas inferieur a alpha/2 =",
+                         "0.005 : l'ECHEC des tests dont la seule p-value est Monte-Carlo serait",
+                         "inatteignable (regle des verdicts).")))
+verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#527)",
+         identical(message_usage(sigma_standard = NA_real_),
+                   paste("sigma_standard = NA (valeur manquante) : l'ecart-type standard saisi doit",
+                         "etre un nombre strictement positif ; pour retenir le parametre standard du",
+                         "segment, ne pas le saisir (en appel direct : un nombre seul, sans attribut,",
+                         "ou NULL).")))
 
 # #127 (note d'actuary et decisions du mainteneur du 28/09/2026) : B + 1 >
 # 4/alpha, en plus de B_MIN_USAGE, pour que l'ECHEC bilateral d'une ligne a
@@ -1208,7 +1250,8 @@ verifier(".engine_verifier_usage : (39 ; 0,10) et (40 ; 0,10) refuses par B_MIN_
          all(vapply(c(39, 40), function(b) {
            e <- verif_usage(b, 0.10)
            inherits(e, "error") &&
-             grepl("B >= B_MIN_USAGE = 99, sans attribut, est attendu", conditionMessage(e), fixed = TRUE) &&
+             grepl("doit etre un nombre entier au moins egal a 99 (B_MIN_USAGE)", conditionMessage(e),
+                   fixed = TRUE) &&
              !grepl("4/alpha", conditionMessage(e), fixed = TRUE)
          }, logical(1))) &&
            is.null(engine_motif_b_alpha(39, 0.10)) && is.null(engine_motif_b_alpha(98, 0.01)))
@@ -1328,7 +1371,8 @@ verifier("run_engine : sigma_standard seul accepte sans segment (premium, reserv
 # Reserve d'audit : une valeur porteuse d'attributs etait acceptee et son
 # attribut propage dans le resultat ; elle est refusee.
 verifier("run_engine : B, alpha, seed, bareme, sigma_standard porteurs d'attributs (noms, dim) -> erreur d'usage (premium, reserve2)",
-         erreur_usage("B", list(c(a = B_MIN_USAGE), matrix(B_MIN_USAGE)), "sans attribut, est attendu") &&
+         erreur_usage("B", list(c(a = B_MIN_USAGE), matrix(B_MIN_USAGE)),
+                      "en appel direct, un nombre seul, sans attribut.") &&
            erreur_usage("alpha", list(c(a = 0.1), matrix(0.1)), "sans attribut") &&
            erreur_usage("seed", list(c(a = 5), matrix(5)), "sans attribut") &&
            erreur_usage("bareme", list(c(a = "court"), matrix("court")), "(sans attribut)") &&
