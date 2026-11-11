@@ -7686,9 +7686,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
                                   "annee de developpement manquante presumee ; la renseigner ou",
                                   "retirer la colonne vide."), liste(inter)))
     if (length(ent_bord))
-      err <- c(err, sprintf(paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) %s :",
-                                  "%s) : annee de developpement sans valeur ; la renseigner ou",
-                                  "retirer la colonne."), liste(ent_bord),
+      err <- c(err, sprintf(paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) %s,",
+                                  "d'en-tete(s) %s) : annee de developpement sans valeur ; la renseigner",
+                                  "ou retirer la colonne."), liste(ent_bord),
                             paste(utils::head(names(df)[ent_bord], 5), collapse = ", ")))
   }
   list(df = df[, !retirer, drop = FALSE], erreurs = err)
@@ -7750,10 +7750,10 @@ engine_lire_donnees_csv <- function(df) {
     pos <- function(nom, v) {
       k <- which(is.na(v))
       if (!length(k)) return(character(0))
-      sprintf("%s : ligne(s) de donnees %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
+      sprintf("colonne %s : ligne(s) de donnees %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
               if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
     }
-    err <- c(err, paste0(sprintf("Certaines valeurs de xt ou yt ne sont pas numeriques (%s).",
+    err <- c(err, paste0(sprintf("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (%s).",
                                  paste(c(pos("xt", xt), pos("yt", yt)), collapse = " ; ")),
                          # Cellule "NA" (texte) : phrase fixe, sans nombre (#483).
                          if (any(.cellule_texte_na(df$xt) & is.na(xt)) ||
@@ -7836,8 +7836,9 @@ engine_lire_triangle <- function(df) {
     k <- utils::head(illisible, 5)
     # Cellule "NA" (texte, toujours non numerique) : phrase fixe (#483).
     na_txt <- any(vapply(brut, function(v) any(.cellule_texte_na(v)), logical(1)))
-    return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s%s.",
-                                paste0("(i=", k[, 1] - 1L, ", j=", k[, 2] - 1L, ")", collapse = ", "),
+    # Coordonnees (i = ..., j = ...) suivies de leur sens (#527).
+    return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s%s (i : annee d'accident, j : annee de developpement).",
+                                paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")", collapse = ", "),
                                 if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else ""),
                         if (na_txt) paste(" Une cellule \"NA\" est lue comme du texte : renseigner",
                                           "la valeur, ou laisser vide une cellule non observee."))))

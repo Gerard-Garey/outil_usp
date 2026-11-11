@@ -1808,7 +1808,7 @@ verifier("engine_lire_triangle : cellule non numerique refusee (pas lue comme NA
          {
            d <- fichier_tri(t5); d$j1 <- as.character(d$j1); d$j1[3] <- "abc"
            r <- engine_lire_triangle(d)
-           !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
+           !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 2, j = 1)") && is.null(r$triangle)
          })
 verifier("engine_lire_triangle : cellule texte \"Inf\" signalee 'valeur non finie', non 'manquante' (#33)",
          {
@@ -2027,7 +2027,7 @@ verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (ann
 verifier("Colonnes vides (#483) : triangle, colonne vide en bord portant un en-tete refusee, en-tete cite",
          {
            r <- engine_lire_triangle(col_vide(tri483, 7, "j6"))
-           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : j6)")
+           !r$ok && contient(r$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) j6)")
          })
 # Reserve de la revue de #483 : "X<n>" / "V<n>" n'est un en-tete genere qu'a
 # sa position n. Un triangle CSV a en-tetes "0" a "6", colonne "6" vide, lu
@@ -2044,9 +2044,9 @@ verifier("Colonnes vides (#483) : en-tete \"X<n>\" hors de sa position (en-tete 
            unlink(f)
            ra <- engine_lire_triangle(a); rb <- engine_lire_triangle(b); rd <- engine_lire_triangle(d)
            identical(names(a)[8], "X6") && identical(names(b)[8], "6") &&
-             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : X6)") &&
+             !ra$ok && contient(ra$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) X6)") &&
              !rb$ok && identical(rb$erreurs, rd$erreurs) &&
-             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8 : 6)") &&
+             contient(rd$erreurs, "Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 8, d'en-tete(s) 6)") &&
              identical(.entete_absent(c("X1", "V2", "X2", "V1", "X", "X.1", "", NA)),
                        c(TRUE, TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, TRUE))
          })
@@ -2076,7 +2076,7 @@ if (isTRUE(l10n_info()[["UTF-8"]])) {
              !s1$v$ok && validUTF8(s1$v$erreurs) &&
                contient(s1$v$erreurs, "Colonnes presentes : année, primes.") &&
                !s2$v$ok && validUTF8(s2$v$erreurs) &&
-               contient(s2$v$erreurs, "(colonne(s) 8 : année)") &&
+               contient(s2$v$erreurs, "(colonne(s) 8, d'en-tete(s) année)") &&
                !s3$v$ok && validUTF8(s3$v$erreurs) && contient(s3$v$erreurs, "Cellule(s) non numerique(s)") &&
                !length(c(s1$w, s2$w, s3$w))
            })
@@ -2107,12 +2107,67 @@ verifier("Cellule texte \"NA\" (#483) : refus motive par une phrase fixe, series
            t_txt <- en_texte(tri483); t_txt$j2[2] <- "NA"
            t_x <- en_texte(tri483); t_x$j2[2] <- "x"
            r_na <- engine_lire_triangle(t_txt); r_x <- engine_lire_triangle(t_x)
-           identical(s_na$erreurs, paste("Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).",
+           identical(s_na$erreurs, paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).",
                                          "Une cellule \"NA\" est lue comme du texte, non comme une valeur manquante : renseigner la valeur.")) &&
-             identical(s_x$erreurs, "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).") &&
-             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i=1, j=2).",
+             identical(s_x$erreurs, "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).") &&
+             identical(r_na$erreurs, paste("Cellule(s) non numerique(s) en (i = 1, j = 2) (i : annee d'accident, j : annee de developpement).",
                                            "Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou laisser vide une cellule non observee.")) &&
-             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i=1, j=2).")
+             identical(r_x$erreurs, "Cellule(s) non numerique(s) en (i = 1, j = 2) (i : annee d'accident, j : annee de developpement).")
+         })
+# Issue #527, groupe lecteurs (LE-06, LE-07, LE-13) : texte complet de chaque
+# motif change, sur le gabarit du tableau du par. 7.2 de l'avis amont
+# d'actuary, par appel reel du lecteur (engine_lire_donnees_csv(),
+# engine_lire_triangle()) sur un tableau lu en texte, comme a l'import.
+ser_527 <- data.frame(t = as.character(2015:2022),
+                      xt = as.character(c(100, 110, 125, 130, 145, 150, 165, 170)),
+                      yt = as.character(c(70, 80, 85, 95, 100, 102, 120, 118)),
+                      stringsAsFactors = FALSE)
+tri_527 <- local({
+  d <- as.data.frame(tri_usage); names(d) <- as.character(0:7)
+  d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v)))
+  cbind(i = as.character(0:7), d, stringsAsFactors = FALSE)
+})
+PHRASE_NA_SERIE_527 <- paste("Une cellule \"NA\" est lue comme du texte, non comme une valeur",
+                             "manquante : renseigner la valeur.")
+PHRASE_NA_TRI_527 <- paste("Une cellule \"NA\" est lue comme du texte : renseigner la valeur, ou",
+                           "laisser vide une cellule non observee.")
+verifier("engine_lire_triangle : LE-06, une puis deux colonnes vides a en-tete au bord -> textes complets (#527)",
+         {
+           d1 <- tri_527; d1[["7"]] <- ""
+           d2 <- tri_527; d2[["8"]] <- ""; d2[["9"]] <- ""
+           identical(engine_lire_triangle(d1)$erreurs,
+                     paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 9,",
+                           "d'en-tete(s) 7) : annee de developpement sans valeur ; la renseigner ou",
+                           "retirer la colonne.")) &&
+             identical(engine_lire_triangle(d2)$erreurs,
+                       paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 10, 11,",
+                             "d'en-tete(s) 8, 9) : annee de developpement sans valeur ; la renseigner ou",
+                             "retirer la colonne."))
+         })
+verifier("engine_lire_donnees_csv : LE-07, une colonne, puis deux colonnes a plus de cinq cellules et cellule \"NA\" -> textes complets (#527)",
+         {
+           s1 <- ser_527; s1$xt[3] <- "abc"
+           s2 <- ser_527; s2$xt[c(1, 2, 3, 5, 6, 7, 8)] <- "x"; s2$yt[4] <- "NA"
+           identical(engine_lire_donnees_csv(s1)$erreurs,
+                     paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                           "ligne(s) de donnees 3).")) &&
+             identical(engine_lire_donnees_csv(s2)$erreurs,
+                       paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                             "ligne(s) de donnees 1, 2, 3, 5, 6 et 2 autre(s) ; colonne yt : ligne(s) de",
+                             "donnees 4).", PHRASE_NA_SERIE_527))
+         })
+verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une \"NA\" -> textes complets (#527)",
+         {
+           d1 <- tri_527; d1[2, "3"] <- "xyz"
+           d2 <- tri_527; d2[2, "3"] <- "a"; d2[3, "0"] <- "b"; d2[1, "5"] <- "c"; d2[4, "1"] <- "d"
+           d2[5, "2"] <- "e"; d2[6, "1"] <- "f"; d2[3, "4"] <- "NA"
+           identical(engine_lire_triangle(d1)$erreurs,
+                     paste("Cellule(s) non numerique(s) en (i = 1, j = 3) (i : annee d'accident, j :",
+                           "annee de developpement).")) &&
+             identical(engine_lire_triangle(d2)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 2, j = 0), (i = 3, j = 1), (i = 5, j = 1),",
+                             "(i = 4, j = 2), (i = 1, j = 3) et 2 autre(s) (i : annee d'accident, j : annee",
+                             "de developpement).", PHRASE_NA_TRI_527))
          })
 verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (selection par position, #483)",
          {
@@ -2217,13 +2272,13 @@ if (nzchar(Sys.which("zip"))) {
   verifier("Colonnes vides (#483) : xlsx de triangle a colonne de fin vide d'en-tete \"6\" refuse sur chaque chemin, meme motif que le CSV lu en texte",
            tous(r6, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(d6_483)$erreurs)))
   verifier("xlsx (#483) : cellule texte \"NA\" lue en chaine sur chaque chemin, refusee avec sa position dans le triangle",
-           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i=1, j=5)")))
+           tous(rna, function(r) !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 1, j = 5)")))
   # Lecteur interne (#490) : seule une colonne de cellules nombre est rendue en
   # numerique ; une cellule texte (inlineStr ecrit par l'ecrivain interne, ou
   # t="str" pose par retouche) garde la colonne en caractere, et "0x10" est
   # refuse en aval par .cellules_en_nombre() avec sa position.
   ser490 <- data.frame(xt = c("100", "0x10", "102", "103", "104"), yt = 60:64, stringsAsFactors = FALSE)
-  motif490 <- "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2)."
+  motif490 <- "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2)."
   d490 <- chemins483(xlsx483(ser490), identity)
   str490 <- function(s) {
     s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3" t="str"><v>0x10</v></c>', s, fixed = TRUE)
@@ -2250,7 +2305,7 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx, lecteur interne (#490) : cellule booleenne t=\"b\" rendue \"TRUE\", colonne en caractere, refusee sur chaque chemin",
            identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
              tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
-                  "Certaines valeurs de xt ou yt ne sont pas numeriques (xt : ligne(s) de donnees 2).")))
+                  "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
   # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
   # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
   # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.
@@ -2905,7 +2960,7 @@ verifier("Lecture t, xt, yt et triangle : cellule non UTF-8 sous une locale UTF-
                                                              stringsAsFactors = FALSE)),
                              error = function(e) conditionMessage(e))
              is.list(d) && !d$ok && contient(d$erreurs, "ne sont pas numeriques") &&
-               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i=0, j=0)")
+               is.list(tri) && !tri$ok && contient(tri$erreurs, "Cellule(s) non numerique(s) en (i = 0, j = 0)")
            })
            identical(r, "locale UTF-8 indisponible") || isTRUE(r)
          })
@@ -2977,9 +3032,9 @@ verifier("Lecture t, xt, yt et triangle : hexadecimal refuse avec la position de
                                                     yt = 1:5, stringsAsFactors = FALSE))
            tri <- fichier_tri(t5); tri$j1 <- as.character(tri$j1); tri$j1[3] <- "0x10"
            r <- engine_lire_triangle(tri)
-           !d$ok && contient(d$erreurs, "xt : ligne(s) de donnees 2") && contient(d$erreurs, "yt : ligne(s) de donnees 5") &&
+           !d$ok && contient(d$erreurs, "colonne xt : ligne(s) de donnees 2") && contient(d$erreurs, "colonne yt : ligne(s) de donnees 5") &&
              isTRUE(ok$ok) && identical(ok$xt, c(1.5, 100, 3, 4, 5)) &&
-             !r$ok && contient(r$erreurs, "(i=2, j=1)") && is.null(r$triangle)
+             !r$ok && contient(r$erreurs, "Cellule(s) non numerique(s) en (i = 2, j = 1)") && is.null(r$triangle)
          })
 verifier(".nettoyer_cellules() : identique a trimws() sur des cellules valides (blancs ASCII, U+00A0 conserve, NA, matrice) ; octets et dim conserves sur une cellule non UTF-8 (#99)",
          {
