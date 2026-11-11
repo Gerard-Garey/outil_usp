@@ -4,15 +4,15 @@
 |---|---|
 | Date | 2026-11-11 |
 | Commande | `LC_ALL=C.UTF-8 Rscript tests/mesure_m2var_exposants_mw.R --coeurs 4 --sortie docs/tableaux/20261111-issue503-m2var-exposants.md` (depuis la racine du dépôt) |
-| Script | `tests/mesure_m2var_exposants_mw.R`, md5 `0053b7dff1f3201f1de04dc01c1b6cda` |
-| Moteur | `R/engine.R`, md5 `c5fa9141b295d2c0099391ec01552031` |
-| Commit de base | `d6bbd74fb40dc7ba7d2b86e675c98feca975126a` (arbre de travail modifié : script et moteur identifiés par leur md5) |
+| Script | `tests/mesure_m2var_exposants_mw.R`, md5 `c56ed7b51bfe76a0ef82443d305246ff` |
+| Moteur | `R/engine.R`, md5 `0f425e32cb6e76d8f47d6c817c04f827` |
+| Commit de base | `ba7ae063ffd1469b5e2873959e680783284e9e50` (arbre de travail modifié : script et moteur identifiés par leur md5) |
 | R, plateforme | R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) |
 | Générateur | Mersenne-Twister, Inversion, Rejection |
 | Graines | triangle b du plan p (P1 = 1, P2 = 2) : 20261111 + 10000 (p − 1) + b, commune aux trois exposants ; volet R : 20260831 |
 | Effectifs | 2000 triangles tirés par cellule (plan, exposant), soit 12000 tirages ; volet R : B = 999 |
 | Processus | 4 |
-| Durée | 25 s |
+| Durée | 27 s |
 
 Statut : constat de simulation sous un plan (modèle de Mack gaussien ajusté à `reserve2`, géométrie 8 × 8) ; aucun théorème.
 Les IC de Clopper–Pearson et les p de T2b ne mesurent que l'incertitude due au nombre fini de triangles tirés (2 000 par cellule) ; ils ne disent rien d'un autre plan ni d'une autre géométrie.
@@ -70,7 +70,7 @@ T2b : triangles appariés (mêmes graines). Test exact de McNemar : loi binomial
 D de KS : statistique descriptive entre les lois empiriques de |écart| de deux exposants (échantillons non indépendants : aucune p-value n'en est tirée).
 La dernière colonne est la lecture mécanique du critère de l'avis amont de K4 (§ 5.3) : « oui » si deux des trois IC de Clopper–Pearson de la part à |écart| > 1e-3 sont disjoints au sein du plan. Ce critère ignore l'appariement et est conservateur : « non » ne signifie pas l'absence de différence entre exposants ; la comparaison appariée est en T2b.
 
-## T3 — Volet R : bootstrap de résidus de `reserve2` (support de la rubrique 4 de `mw:m2var`)
+## T3 — Volet R : bootstrap de résidus de `reserve2` (support de la rubrique 5 de `mw:m2var`)
 
 999 triangles par `.mw_tirer_triangle_valide()` sur le vivier de `.mw_pool_residus()`, `engine_sous_graine(20260831, ...)` ; var(r) recalculée sur chacun, colonnes dégénérées figées à l'observé.
 

@@ -18,7 +18,7 @@
 #  Objet. La ligne M2 "Variance unitaire des residus de Mack" de mw_tests()
 #  rend var(r) et sa valeur de reference (N - k)/(N - 1) : l'ecart vaut
 #  exactement - N moyenne(r)^2 / (N - 1) (identite de la fiche mw:m2var). La
-#  fiche mw:m2var (rubriques 4 et 6) cite la loi de cet ecart sous une variance
+#  fiche mw:m2var (rubriques 5 et 6) cite la loi de cet ecart sous une variance
 #  de C(i,j+1) en C(i,j)^0, C(i,j)^1 ou C(i,j)^2, et l'etendue de var(r) sur le
 #  bootstrap de reserve2 ; ce script en est le support versionne (issue #503 ;
 #  les chiffres du 08/11/2026 venaient d'une graine non consignee).
@@ -71,7 +71,7 @@
 #    (flux)  volet R : le flux de triangles du volet R est celui de
 #            mw_bootstrap() (sigma_boot recalcule identique).
 #
-#  Volet R (support de la rubrique 4 de mw:m2var) : B = 999 triangles du
+#  Volet R (support de la rubrique 5 de mw:m2var) : B = 999 triangles du
 #  bootstrap de residus de reserve2, tires par .mw_tirer_triangle_valide() sur
 #  le vivier de .mw_pool_residus() sous engine_sous_graine(20260831, ...)
 #  (seed par defaut de mw_bootstrap()), var(r) recalculee sur chacun avec les
@@ -522,7 +522,7 @@ md <- c(md, "",
 if (!is.null(VR)) {
   rv <- range(VR$v, na.rm = TRUE)
   md <- c(md, "",
-    "## T3 \u2014 Volet R : bootstrap de r\u00e9sidus de `reserve2` (support de la rubrique 4 de `mw:m2var`)", "",
+    "## T3 \u2014 Volet R : bootstrap de r\u00e9sidus de `reserve2` (support de la rubrique 5 de `mw:m2var`)", "",
     sprintf("%d triangles par `.mw_tirer_triangle_valide()` sur le vivier de `.mw_pool_residus()`, `engine_sous_graine(%d, ...)` ; var(r) recalcul\u00e9e sur chacun, colonnes d\u00e9g\u00e9n\u00e9r\u00e9es fig\u00e9es \u00e0 l'observ\u00e9.",
             B_VOLET_R, GRAINE_VOLET_R),
     "",
