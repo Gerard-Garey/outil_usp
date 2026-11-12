@@ -2,7 +2,8 @@
 #  tests/unitaires/test_controles_entree.R  --  CONTROLES D'ENTREE
 #
 #  engine_valider_donnees(), mw_valider_triangle(), engine_lire_donnees_csv(),
-#  usp_controle_donnees(), usp_lire_vecteur() / usp_charger().
+#  usp_controle_donnees(), usp_lire_vecteur() / usp_charger() ; exports de
+#  donnees engine_ecrire_csv() et engine_ecrire_xlsx() relus au bit (#488).
 #  Cas valides, valeurs negatives ou nulles, NA, valeurs infinies, longueurs
 #  differentes, T < 5, triangle non carre.
 #  Reference : exigences de l'annexe XVII (B(2)(b) et D(2)(b), (c), (e) :
@@ -4278,5 +4279,147 @@ verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : pre
                identical(l$type, "non applicable") && !grepl(PHRASE_SV213, l$detail, fixed = TRUE)
              }, logical(1)))
          })
+
+
+## --- Exports de donnees relus au bit (#488) -----------------------------------
+# engine_ecrire_csv() (export CSV des donnees de l'application) et
+# engine_ecrire_xlsx() (ecrivain interne seul, avec ou sans openxlsx ;
+# compression par le paquet zip s'il est installe, sinon utils::zip()). Le CSV
+# est relu comme le fait lire_tableau() d'app.R (read.csv en texte, aucune
+# chaine NA), le classeur par chaque chemin d'engine_lire_xlsx() disponible,
+# puis par engine_lire_donnees_csv() / engine_lire_triangle().
+env488 <- environment(run_engine)
+# Paquets declares absents pour le moteur (substitution de requireNamespace
+# dans son environnement, ADR 0016), retiree en sortie.
+sans488 <- function(paquets, expr) {
+  assign("requireNamespace", function(package, ...)
+    if (package %in% paquets) FALSE else base::requireNamespace(package, ...), envir = env488)
+  on.exit(rm("requireNamespace", envir = env488), add = TRUE)
+  force(expr)
+}
+lire_csv488 <- function(f) utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                           check.names = FALSE, na.strings = character(0),
+                                           row.names = NULL)
+ecrire_csv488 <- function(d) { f <- tempfile(fileext = ".csv"); engine_ecrire_csv(d, f); f }
+grille488 <- c(0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1 + 0.2, 5e-324, NA)
+g488 <- data.frame(t = 1:8, xt = grille488, yt = c(7, rev(grille488[-8])))
+lu488 <- engine_lire_donnees_csv(lire_csv488(f488 <- ecrire_csv488(g488)))
+verifier("engine_ecrire_csv() : grille (0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1+0.2, 5e-324, NA) relue identical() par engine_lire_donnees_csv() (#488)",
+         identical(lu488$xt, g488$xt) && identical(lu488$yt, g488$yt))
+verifier("engine_ecrire_csv() : 15 chiffres si la relecture est exacte, sinon 17 ; 1.7976931348623157e308 ecrit en entier, NA en cellule vide (#488)",
+         identical(readLines(f488)[c(1:3, 6, 9)],
+                   c('"t","xt","yt"', "1,0.1,7", "2,0.33333333333333331,4.94065645841247e-324",
+                     "5,1.7976931348623157e+308,1e-300", "8,,0.1")))
+verifier("engine_ecrire_csv() : texte identique sous OutDec = \",\" (point decimal) (#488)",
+         { op <- options(OutDec = ","); on.exit(options(op), add = TRUE)
+           identical(readLines(ecrire_csv488(g488)), readLines(f488)) })
+inf488 <- data.frame(t = 1:3, xt = c(Inf, -Inf, NaN), yt = c(1, 2, 3))
+li488 <- engine_lire_donnees_csv(lire_csv488(fi488 <- ecrire_csv488(inf488)))
+verifier("engine_ecrire_csv() : +-Inf ecrits \"Inf\" / \"-Inf\" et relus +-Inf ; NaN ecrit vide et relu NA (#488)",
+         identical(readLines(fi488)[2:4], c("1,Inf,1", "2,-Inf,2", "3,,3")) &&
+           identical(li488$xt, c(Inf, -Inf, NA)))
+# Format de utils::write.csv(row.names = FALSE, na = "") garde : texte
+# identique sur les donnees des six cas (tests/donnees/) et sur un tableau a
+# chaines (guillemet interne, NA, facteur, logique, entier).
+donnees488 <- lapply(c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"),
+                     function(n) utils::read.csv(file.path(RACINE, "tests", "donnees", n)))
+chaines488 <- data.frame(a = c("x", 'di"t', NA), f = factor(c("u", NA, "v")), l = c(TRUE, NA, FALSE),
+                         n = c(1L, NA, 3L), check.names = FALSE, stringsAsFactors = FALSE)
+verifier("engine_ecrire_csv() : texte identique a celui de write.csv(row.names = FALSE, na = \"\") sur les donnees des six cas et un tableau a chaines (#488)",
+         all(vapply(c(donnees488, list(chaines488)), function(d) {
+           g <- tempfile(fileext = ".csv"); utils::write.csv(d, g, row.names = FALSE, na = "")
+           identical(readLines(ecrire_csv488(d)), readLines(g))
+         }, logical(1))))
+# Jeux relus : donnees des six cas, en double ; serie et triangle perturbes
+# (decimales a 17 chiffres, que write.csv ne restituait pas).
+tri488 <- unname(as.matrix(donnees488[[3]][, -1])); storage.mode(tri488) <- "double"
+export_tri488 <- function(m) { d <- data.frame(i = 0:(nrow(m) - 1L), m)
+                               names(d) <- c("i", paste0("j", 0:(ncol(m) - 1L))); d }
+serie488 <- function(d) data.frame(t = seq_len(nrow(d)), xt = as.double(d$xt), yt = as.double(d$yt))
+jeux488 <- list(ln = serie488(donnees488[[1]]), ln_interieur = serie488(donnees488[[2]]),
+                ln_pert = data.frame(t = 1:8, xt = as.double(donnees488[[1]]$xt) * pi / 3,
+                                     yt = as.double(donnees488[[1]]$yt) / 7),
+                tri = export_tri488(tri488), tri_pert = export_tri488(tri488 * pi / 3))
+relu488 <- function(df, d) if ("i" %in% names(d)) {
+  r <- engine_lire_triangle(df); m <- as.matrix(d[, -1]); dimnames(m) <- NULL
+  isTRUE(r$ok) && identical(r$triangle, m)
+} else { r <- engine_lire_donnees_csv(df); isTRUE(r$ok) && identical(r$xt, d$xt) && identical(r$yt, d$yt) }
+verifier("engine_ecrire_csv() : donnees des six cas et jeux perturbes relus identical() par engine_lire_donnees_csv() / engine_lire_triangle() (#488)",
+         all(vapply(jeux488, function(d) relu488(lire_csv488(ecrire_csv488(d)), d), logical(1))))
+# Voies d'ecriture xlsx : paquet zip (s'il est installe), utils::zip() (paquet
+# zip declare absent, commande zip requise) ; chemins de lecture : interne
+# (openxlsx declare absent), openxlsx (s'il est installe).
+voies488 <- list()
+if (base::requireNamespace("zip", quietly = TRUE)) voies488$paquet_zip <- character(0) else
+  cat("  [saute] export xlsx (#488), voie du paquet zip : paquet non installe\n")
+if (nzchar(Sys.which("zip"))) voies488$utils_zip <- "zip" else
+  cat("  [saute] export xlsx (#488), voie utils::zip() : commande zip indisponible\n")
+lecteurs488 <- list(interne = "openxlsx")
+if (base::requireNamespace("openxlsx", quietly = TRUE)) lecteurs488$openxlsx <- character(0) else
+  cat("  [saute] export xlsx (#488), lecture par openxlsx : paquet non installe\n")
+for (v488 in names(voies488)) {
+  ecrire_x488 <- function(d) { f <- tempfile(fileext = ".xlsx"); sans488(voies488[[v488]], engine_ecrire_xlsx(d, f)); f }
+  fg488 <- ecrire_x488(g488); fi488x <- ecrire_x488(inf488)
+  verifier(sprintf("engine_ecrire_xlsx(), voie %s : [Content_Types].xml en premiere entree de l'archive (#488)", v488),
+           identical(utils::unzip(fg488, list = TRUE)$Name[1], "[Content_Types].xml"))
+  for (l488 in names(lecteurs488)) {
+    lire_x488 <- function(f) { force(f); sans488(lecteurs488[[l488]], engine_lire_xlsx(f)) }
+    verifier(sprintf("engine_ecrire_xlsx(), voie %s, lecture %s : grille relue identical(), +-Inf relus +-Inf, NaN relu NA (#488)", v488, l488),
+             { r <- engine_lire_donnees_csv(lire_x488(fg488)); ri <- engine_lire_donnees_csv(lire_x488(fi488x))
+               identical(r$xt, g488$xt) && identical(r$yt, g488$yt) && identical(ri$xt, c(Inf, -Inf, NA)) })
+    verifier(sprintf("engine_ecrire_xlsx(), voie %s, lecture %s : donnees des six cas et jeux perturbes relus identical() (#488)", v488, l488),
+             all(vapply(jeux488, function(d) relu488(lire_x488(ecrire_x488(d)), d), logical(1))))
+  }
+}
+# Divergence documentee (en-tetes d'engine_ecrire_xlsx() et d'engine_lire_xlsx()) :
+# chaines en ligne portant &, <, > et colonne logique, relues differemment par
+# les deux chemins (mesure, openxlsx 4.2.9) ; la sortie d'openxlsx n'est pas
+# retouchee. Comportement fige sur la premiere voie d'ecriture disponible.
+if (length(voies488)) {
+  div488 <- data.frame(c("a<b&c", "x>y", "simple"), c(TRUE, FALSE, NA), c(1.5, 2, 3),
+                       stringsAsFactors = FALSE)
+  names(div488) <- c("l&b", "l", "n")
+  fd488 <- tempfile(fileext = ".xlsx")
+  sans488(voies488[[1]], engine_ecrire_xlsx(div488, fd488))
+  verifier("engine_ecrire_xlsx(), lecture interne : chaines et en-tete a &, <, > relus tels quels ; colonne logique relue en chaines \"TRUE\" / \"FALSE\" (#488)",
+           identical(sans488("openxlsx", engine_lire_xlsx(fd488)),
+                     data.frame(`l&b` = div488[[1]], l = c("TRUE", "FALSE", NA), n = div488$n,
+                                check.names = FALSE, stringsAsFactors = FALSE)))
+  if (base::requireNamespace("openxlsx", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx(), lecture openxlsx : chaines et en-tete a &, <, > relus echappes (a&lt;b&amp;c), colonne logique relue en logique, sortie non retouchee (#488)",
+             { o <- engine_lire_xlsx(fd488)
+               identical(names(o), c("l&amp;b", "l", "n")) &&
+                 identical(o[[1]], c("a&lt;b&amp;c", "x&gt;y", "simple")) &&
+                 identical(o$l, c(TRUE, FALSE, NA)) && identical(o$n, div488$n) })
+  } else cat("  [saute] divergence &, <, > et logique (#488), chemin openxlsx : paquet non installe\n")
+}
+verifier("engine_ecrire_xlsx() / engine_ecrire_csv() : requireNamespace() simule retire, moteur intact (#488)",
+         !exists("requireNamespace", envir = env488, inherits = FALSE))
+verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur R ordinaire (pas usp_refus_lecture), motif nomme, aucun fichier ecrit (#488)",
+         {
+           f <- tempfile(fileext = ".xlsx")
+           ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+           Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+           on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+           e <- tryCatch(sans488("zip", engine_ecrire_xlsx(g488, f)), error = function(e) e)
+           inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
+             grepl("ni le paquet R zip ni la commande zip du systeme ne sont disponibles",
+                   conditionMessage(e), fixed = TRUE)
+         })
+# Empreinte "donnees" du rapport fige (engine_empreinte()) egale apres
+# reimport de chaque export (serie perturbee, premium, B = 99).
+if (length(voies488)) {
+  d488 <- jeux488$ln_pert
+  calc488 <- function(xt, yt) run_engine(xt = xt, yt = yt, methode = "premium", segment = 1,
+                                         annexe = "II", nature_donnees = "brutes", B = 99)
+  e0_488 <- engine_empreinte(calc488(d488$xt, d488$yt))$donnees
+  rc488 <- engine_lire_donnees_csv(lire_csv488(ecrire_csv488(d488)))
+  fx488 <- tempfile(fileext = ".xlsx"); engine_ecrire_xlsx(d488, fx488)
+  rx488 <- engine_lire_donnees_csv(engine_lire_xlsx(fx488))
+  verifier("Empreinte \"donnees\" (engine_empreinte()) egale apres reimport de l'export CSV et de l'export xlsx (#488)",
+           is.character(e0_488) && !is.na(e0_488) &&
+             identical(engine_empreinte(calc488(rc488$xt, rc488$yt))$donnees, e0_488) &&
+             identical(engine_empreinte(calc488(rx488$xt, rx488$yt))$donnees, e0_488))
+} else cat("  [saute] empreinte apres reimport xlsx (#488) : aucune voie d'ecriture xlsx\n")
 
 fin_fichier()

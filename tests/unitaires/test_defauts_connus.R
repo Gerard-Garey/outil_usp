@@ -1636,9 +1636,10 @@ verifier("mw_influence() : residu identique a mw_residus() sur les cellules comm
          })
 # ADR 0004, point 4 : aucun alea hors calcul. Les dossiers temporaires de
 # engine_ecrire_xlsx() / engine_lire_xlsx() viennent de tempfile() et sont
-# supprimes en sortie. Le repli interne (sans openxlsx) a besoin de la
-# commande zip pour ecrire : test saute, et signale, sans openxlsx ni zip.
-if (requireNamespace("openxlsx", quietly = TRUE) || nzchar(Sys.which("zip"))) {
+# supprimes en sortie. L'ecrivain interne (seul depuis #488) compresse par le
+# paquet zip, sinon par la commande zip : test saute, et signale, sans l'un ni
+# l'autre.
+if (requireNamespace("zip", quietly = TRUE) || nzchar(Sys.which("zip"))) {
   verifier("engine_ecrire_xlsx() / engine_lire_xlsx() : aller-retour sans tirage ni dossier temporaire residuel",
            {
              residus <- function() list.files(tempdir(), pattern = "^(xlsx|unx)_")
@@ -1653,6 +1654,6 @@ if (requireNamespace("openxlsx", quietly = TRUE) || nzchar(Sys.which("zip"))) {
              identical(avant, .Random.seed) && identical(residus(), avant_d) &&
                identical(as.numeric(lu$x), df$x) && identical(as.character(lu$lib), df$lib)
            })
-} else cat("  [saute] engine_ecrire_xlsx() / engine_lire_xlsx() : ni openxlsx ni zip\n")
+} else cat("  [saute] engine_ecrire_xlsx() / engine_lire_xlsx() : ni paquet ni commande zip\n")
 
 fin_fichier()

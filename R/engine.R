@@ -7940,9 +7940,17 @@ engine_lire_triangle <- function(df) {
 ## rectangulaires de nombres et de chaines, qui est exactement le besoin ici
 ## (series x_t / y_t, ou triangle de cumules).
 ##
-## Si le paquet openxlsx est installe, il est utilise en priorite : son
-## implementation est plus complete et mieux eprouvee. Les fonctions ci-dessous
-## constituent un repli, non un remplacement.
+## Lecture : si le paquet openxlsx est installe, il est utilise en priorite
+## (implementation plus complete et mieux eprouvee) ; le lecteur ci-dessous
+## est un repli, non un remplacement.
+## Ecriture : l'ecrivain interne est seul employe, avec ou sans openxlsx
+## (#488) : openxlsx ecrit les nombres par as.character(), a 15 chiffres
+## significatifs, et l'aller-retour n'est pas identique au bit ;
+## .xlsx_nombre() ecrit chaque nombre de sorte qu'il se relise exactement.
+## L'archive est compressee par le paquet zip s'il est installe (importe par
+## openxlsx), sinon par utils::zip() et la commande zip du systeme.
+## Export CSV des donnees : engine_ecrire_csv(), meme regle d'ecriture des
+## nombres.
 ## =============================================================================
 
 .col_lettre <- function(i) {                       # 1 -> "A", 27 -> "AA"
@@ -7977,19 +7985,37 @@ engine_lire_triangle <- function(df) {
   s
 }
 
-# Ecrit un data.frame dans un classeur .xlsx a une feuille. Les colonnes
-# numeriques sont ecrites comme nombres, les autres comme chaines en ligne
-# (inlineStr), ce qui evite d'avoir a gerer une table de chaines partagees.
+# Ecrit un data.frame dans un classeur .xlsx a une feuille, par l'ecrivain
+# interne seul, avec ou sans openxlsx (#488 ; voir l'en-tete de la section).
+# Les colonnes numeriques sont ecrites comme nombres (.xlsx_nombre()), les
+# autres comme chaines en ligne (inlineStr), ce qui evite d'avoir a gerer une
+# table de chaines partagees.
 # Un nombre non fini (+-Inf) est ecrit comme chaine en ligne : openxlsx relit
 # cette cellule en chaine ("Inf") ; le lecteur interne d'engine_lire_xlsx()
 # rend sa colonne en caractere (cellule texte, #490), les autres nombres de
 # la colonne en chaine ; l'interpretation revient a .cellules_en_nombre(). Les
-# NA sont des cellules vides.
+# NA sont des cellules vides. Une colonne logique est ecrite en chaines en
+# ligne "TRUE" / "FALSE" (as.character(), aucune cellule booleenne t="b").
+# Divergence de relecture entre les deux chemins d'engine_lire_xlsx() (mesure,
+# openxlsx 4.2.9 ; voir la liste de son en-tete) : une chaine ou un en-tete
+# portant "&", "<" ou ">" (ecrits echappes &amp; &lt; &gt;) sont relus tels
+# quels par le lecteur interne, encore echappes par openxlsx ("a&lt;b&amp;c") ;
+# la colonne logique est relue en caractere ("TRUE") par le lecteur interne,
+# en logique par openxlsx. Aucune retouche de la sortie d'openxlsx. Les
+# exports de donnees de l'application n'y sont pas exposes : en-tetes fixes
+# (t, xt, yt ; i, j0, j1...) et cellules numeriques.
+# Compression : paquet zip s'il est installe (zip::zipr(), appel de meme forme
+# que celui d'openxlsx), sinon utils::zip() avec la commande designee par
+# R_ZIPCMD (defaut "zip"). Sans l'un ni l'autre : erreur R ordinaire, levee
+# avant toute ecriture (ce n'est pas un refus de lecture : la classe
+# usp_refus_lecture ne s'applique pas). Dans les deux voies,
+# [Content_Types].xml est la premiere entree de l'archive.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
-  if (requireNamespace("openxlsx", quietly = TRUE)) {
-    openxlsx::write.xlsx(df, chemin, sheetName = feuille)
-    return(invisible(chemin))
-  }
+  avec_paquet_zip <- requireNamespace("zip", quietly = TRUE)
+  if (!avec_paquet_zip && !nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))))
+    stop(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
+               "commande zip du systeme ne sont disponibles (installer le paquet",
+               "zip, ou openxlsx qui l'importe)."), call. = FALSE)
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nc <- ncol(df); nr <- nrow(df)
   cellule <- function(ligne, col, valeur) {
@@ -8049,9 +8075,64 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   wd <- setwd(d); on.exit(setwd(wd), add = TRUE, after = FALSE)
   cible <- if (grepl("^(/|[A-Za-z]:)", chemin)) chemin else file.path(wd, chemin)
   if (file.exists(cible)) unlink(cible)
-  st <- utils::zip(cible, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
-  if (!identical(st, 0L)) stop("Echec de la creation du fichier .xlsx (commande zip indisponible ?).")
+  entrees <- c("[Content_Types].xml", "_rels", "xl")
+  if (avec_paquet_zip) {
+    st <- tryCatch({
+      zip::zipr(cible, entrees, recurse = TRUE, compression_level = 9,
+                include_directories = FALSE)
+      0L
+    }, error = function(e) conditionMessage(e))
+  } else st <- utils::zip(cible, entrees, flags = "-r9Xq")
+  if (!identical(st, 0L))
+    stop(paste0("Echec de la creation du fichier .xlsx",
+                if (is.character(st)) paste0(" (paquet zip : ", st, ")")
+                else sprintf(" (commande zip, statut %s).", format(st))), call. = FALSE)
   invisible(cible)
+}
+
+# Ecrit un data.frame de donnees en CSV (#488) : export des donnees de
+# l'application, relu par lire_tableau() puis engine_lire_donnees_csv() ou
+# engine_lire_triangle(). Format de utils::write.csv(row.names = FALSE,
+# na = "") : separateur virgule, ligne d'en-tete, noms de colonnes et
+# chaines entre guillemets (guillemet interne double), nombres et logiques
+# sans guillemets, fin de ligne "\n" (connexion texte), texte en UTF-8.
+# Seule l'ecriture des nombres change : un double fini suit .xlsx_nombre()
+# (15 chiffres significatifs si la relecture est exacte, sinon 17 ; point
+# decimal quels que soient OutDec et digits), alors que write.csv() ecrit
+# 15 chiffres et ne se relit pas toujours a l'identique (1/3 ;
+# 1.7976931348623157e308 relu Inf). NA et NaN donnent une cellule vide (NaN
+# revient donc NA a la relecture) ; +-Inf s'ecrit "Inf" / "-Inf". Entiers en
+# "%d". Aucun calcul : seule la representation textuelle est produite.
+# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
+# n'est pas acceptee.
+engine_ecrire_csv <- function(df, chemin) {
+  df <- as.data.frame(df, stringsAsFactors = FALSE)
+  guillemets <- function(x) paste0('"', gsub('"', '""', enc2utf8(x), fixed = TRUE), '"')
+  colonne <- function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    out <- rep("", length(v))
+    ok <- !is.na(v)
+    if (is.double(v)) {
+      fini <- ok & is.finite(v)
+      out[fini] <- vapply(v[fini], .xlsx_nombre, character(1))
+      out[ok & v == Inf] <- "Inf"
+      out[ok & v == -Inf] <- "-Inf"
+    } else if (is.integer(v)) {
+      out[ok] <- sprintf("%d", v[ok])
+    } else if (is.logical(v)) {
+      out[ok] <- ifelse(v[ok], "TRUE", "FALSE")
+    } else {
+      out[ok] <- guillemets(as.character(v[ok]))
+    }
+    out
+  }
+  cols <- lapply(df, colonne)
+  lignes <- c(paste(guillemets(names(df)), collapse = ","),
+              if (nrow(df)) do.call(paste, c(unname(cols), sep = ",")))
+  con <- file(chemin, open = "w", encoding = "")
+  on.exit(close(con), add = TRUE)
+  writeLines(lignes, con, sep = "\n", useBytes = TRUE)
+  invisible(chemin)
 }
 
 # Refus motive de la lecture d'un classeur, destine a l'utilisateur : erreur
@@ -8279,7 +8360,14 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # l'attribut dans le texte lu par openxlsx. Les entites d'une cellule
 # t="str" ne sont decodees par aucun des deux chemins. Un en-tete qui porte
 # "&", "<" ou ">" n'est donc relu identique par les deux chemins que s'il est
-# en chaine partagee. L'attribut r d'une cellule n'est lu que sous la forme
+# en chaine partagee. Consequence pour engine_ecrire_xlsx(), qui n'ecrit que
+# des chaines en ligne (#488, mesure openxlsx 4.2.9) : un en-tete ou une
+# chaine ecrits "a<b&c" sont relus "a<b&c" ici et "a&lt;b&amp;c" par
+# openxlsx, dont la sortie n'est pas retouchee ; une colonne logique, ecrite
+# en chaines "TRUE"/"FALSE", est relue en caractere ici et en logique par
+# openxlsx. Les exports de donnees de l'application n'y sont pas exposes :
+# en-tetes fixes (t, xt, yt ; i, j0, j1...), cellules numeriques.
+# L'attribut r d'une cellule n'est lu que sous la forme
 # r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
 # reference. Une balise <c> suivie d'un blanc autre que l'espace (<c<TAB>r=..>,
 # XML legal) est refusee d'un texte propre, avant les deux chemins : openxlsx

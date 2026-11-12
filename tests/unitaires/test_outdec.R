@@ -9,7 +9,7 @@
 #       identical() sous options(OutDec = ",") et sous ".", donc des detail,
 #       avertissements et refus en point decimal (partie I du .tex, graphie
 #       des textes produits par le moteur ; ADR 0006) ;
-#    2. l'ecrivain xlsx de repli d'engine_ecrire_xlsx() ecrit les nombres en
+#    2. l'ecrivain xlsx interne d'engine_ecrire_xlsx() (seul depuis #488) ecrit les nombres en
 #       point decimal et pleine precision (15 chiffres quand ils suffisent,
 #       sinon 17) : aller-retour sans perte par le lecteur interne, sous les
 #       deux options. L'absence d'openxlsx est simulee en posant
@@ -153,7 +153,8 @@ for (pr in list(c(.025, .05, .5, .95, .975), ppoints(8), ppoints(99), ppoints(10
 ## --- 2. xlsx de repli : aller-retour a pleine precision ------------------------
 if (nzchar(Sys.which("zip"))) {
   env_moteur <- environment(run_engine)
-  # Simule l'absence d'openxlsx (ecrivain ET lecteur de repli) ; retire a la sortie
+  # Simule l'absence d'openxlsx et de zip (lecteur de repli ; ecrivain interne
+  # compresse par utils::zip(), #488) ; retire a la sortie
   sans_openxlsx <- function(expr) {
     assign("requireNamespace", function(package, ...) FALSE, envir = env_moteur)
     on.exit(rm("requireNamespace", envir = env_moteur), add = TRUE)
