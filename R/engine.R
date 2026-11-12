@@ -7291,9 +7291,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   #   1  : p exacte attribuee (pi_t constant, signes identiques), avec la
   #        variante 1b si pi_t n'est constant qu'a la tolerance pres ;
   #   2  : pi_t constant mais au moins un signe differe entre u et z ;
-  #   2b : pi_t constant, signes identiques, mais p exacte non definie (un
-  #        seul cote de la mediane represente) ;
   #   3  : pi_t variable.
+  # Le cas "pi_t constant, signes identiques, p exacte non definie" n'est
+  # pas un regime mais une assertion (#532) : Runsr finie implique n1, n2 >= 1
+  # et (n1, n2) != (1, 1), donc une p exacte finie a pi_t constant et signes
+  # identiques ; seul un objet bootstrap incoherent l'atteint.
   # u a plancher max|r| (#187, Q-187-1 b), comme Runsr au catalogue.
   plancher_u <- .usp_plancher_u(r)
   # Statistique Runsr non definie (#486) : ni p exacte ni p_min, comme a
@@ -7309,11 +7311,16 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   runsr_degenere <- motif_mc_lu("Runsr") %in% MOTIFS_MC_DEGENERES
   eff_u <- .runs_effectifs(u, plancher = plancher_u)
   # Textes en deux phrases au plus (#514, specification d'actuary, U29) ; a
-  # pi_t constant (branches 1, 2 et 2b, diagnostics de la regle R15), la
+  # pi_t constant (branches 1 et 2, diagnostics de la regle R15), la
   # phrase txt_r15 est jointe par detail_diag(). Le detail des r_t i.i.d.,
   # de l'estimation par p_mc et de l'aplatissement des ex aequo est dans la
   # fiche.
-  detail_runsr <- if (is.finite(p_ex_r)) {
+  detail_runsr <- if (!is.finite(boot$stats_obs$Runsr)) {
+    # Runsr non finie : ligne non applicable, detail_runsr n'est pas lu ; la
+    # garde precede l'assertion ci-dessous, qui ne vaut que pour Runsr finie
+    # (detail_runsr est evalue ici, avant le choix du type de la ligne, #532).
+    NA_character_
+  } else if (is.finite(p_ex_r)) {
     # Branche 1 (1b comprise : aucune mention de regime sur les lignes R15).
     paste("CONTROLE SANS OBJET ICI : pi_t constant,",
           if (runsr_degenere)
@@ -7328,9 +7335,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           "sur residus standardises, mais un signe au moins differe entre u et z, d'ou ni",
           "identite garantie ni p exacte.")
   } else if (isTRUE(pi_constant)) {
-    # Branche 2b.
-    paste("CONTROLE SANS OBJET ICI : pi_t constant, quasi-doublon de la ligne homologue",
-          "sur residus standardises, sans p exacte (un seul cote de la mediane represente).")
+    # Assertion de programmation (#532, avis amont d'actuary de K3b, section
+    # 4) : pi_t constant et signes identiques, donc p exacte finie des que
+    # Runsr est finie ; seul un objet bootstrap incoherent arrive ici.
+    stop("usp_tests() : p exacte de Runsr non definie a pi_t constant et signes identiques, ",
+         "statistique observee finie : objet bootstrap incoherent", call. = FALSE)
   } else {
     # Branche 3 : pi_t variable, mention M17a en tete (sans la proposition
     # sur la p Monte-Carlo si celle de Runsr manque).

@@ -304,6 +304,31 @@ verifier("Suites (#486) : usp_tests(), ligne sur z -> motif choisi par la cause 
              identical(l0$detail, paste("un seul cote de la mediane represente : loi de R non",
                                         "definie, test non applicable"))
          })
+# Ligne Runsr a pi_t constant et signes identiques (#532, avis amont d'actuary
+# de K3b, section 4) : Runsr finie implique une p exacte finie, la branche
+# "sans p exacte" du detail est retiree et remplacee par une assertion. Jeu
+# a ratios (0,8 x 7 ; 1,4), delta = 1 (pi_t constant), objet bootstrap fictif
+# dont la statistique observee de Runsr, non finie sur ce jeu (un seul cote de
+# la mediane), est forcee a 1.
+MSG_RUNSR_INCOHERENT_532 <- paste0("usp_tests() : p exacte de Runsr non definie a pi_t constant ",
+                                   "et signes identiques, statistique observee finie : ",
+                                   "objet bootstrap incoherent")
+verifier("Suites (#532) : pi_t constant, signes identiques, Runsr observee finie mais p exacte non definie -> assertion, message exact ; Runsr non finie -> non applicable",
+         {
+           x <- c(100, 130, 90, 160, 120, 110, 140, 150)
+           f <- usp_ajuster(x, x * c(rep(0.8, 7), 1.4))
+           b <- boot_fictif_485(f)
+           l_na <- ligne_486(suppressWarnings(usp_tests(f, b, methode = "premium")),
+                             NOM_RUNSR_486)
+           b$stats_obs$Runsr <- 1; b$p_mc[["Runsr"]] <- 0.5; b$motif_mc[["Runsr"]] <- NA_character_
+           e <- tryCatch(suppressWarnings(usp_tests(f, b, methode = "premium")),
+                         error = function(e) e)
+           isTRUE(usp_regime(f$delta, f$x)$pi_constant) &&
+             identical(l_na$type, "non applicable") &&
+             identical(l_na$detail, paste("un seul cote de la mediane represente : loi de R non",
+                                          "definie, test non applicable")) &&
+             inherits(e, "error") && identical(conditionMessage(e), MSG_RUNSR_INCOHERENT_532)
+         })
 # Scenario Merz-Wuthrich de l'issue : I = 8, colonnes 0-4 et 6 degenerees
 # (facteurs individuels egaux par colonne), colonne 5 a deux facteurs
 # distincts : deux residus de Mack, de signes opposes.
