@@ -1264,12 +1264,19 @@ observé & \code{engine\_p\_mc()} colonne par colonne, sens lu au catalogue, con
 \code{motif\_mc}~; champ \code{extremes} évalué une fois sur le contexte observé et vecteur
 \code{p\_min\_mc}, dernier élément rendu~; erreur si une statistique simulée est
 absente du catalogue \\
-\code{.prefixe\_motif\_mc()},\newline \code{MOTIFS\_MC\_}\newline\code{DEGENERES} & motif
-Monte-Carlo~; liste & préfixe du commentaire d'une ligne dont la p-value de Monte-Carlo manque~: le
+\code{.prefixe\_motif\_mc()},\newline \code{.motif\_mc\_}\newline\code{indisponible()},\newline
+\code{MOTIFS\_MC\_}\newline\code{DEGENERES} & motif
+Monte-Carlo~; motif, suite, commentaire~; liste & préfixe du commentaire d'une ligne dont la p-value de Monte-Carlo manque~: le
 motif suivi de la mention «~aucune p-value retenue~» (gabarit cité en §\ref{sec:nature}) et du
 complément de \code{.complement\_motif\_mc()} pour un motif de dégénérescence, «~\code{Monte-Carlo indisponible :
-<motif>.}~» pour tout autre motif~; appelée par \code{add()} seule, sur une ligne de type test au
-motif de dégénérescence et sur tout diagnostic posé par l'appelant (§\ref{sec:nature})~; liste
+<motif>.}~» pour tout autre motif, composé par \code{.motif\_mc\_indisponible()}~; appelée par \code{add()} seule, sur une ligne de type test au
+motif de dégénérescence, sur tout diagnostic posé par l'appelant et, sous la règle~R1, après la
+phrase du test inopérant d'une ligne sans p-value exacte (§\ref{sec:nature})~; texte
+«~\code{Monte-Carlo indisponible : <motif>}~» suivi d'un point, ou d'une virgule et de la suite
+fournie, et garde contre le doublon~: la suite seule, ou rien sans suite, si le commentaire porte
+déjà le motif (recherche littérale)~; aide unique, appelée par \code{.prefixe\_motif\_mc()} pour un
+motif non dégénéré et par \code{add()} (ligne de type test dont la p non simulée n'est pas
+retenue, ligne de type test sans aucune p-value, garde du motif sous la règle~R1)~; liste
 unique des trois motifs de dégénérescence (\code{MOTIF\_MC\_DISPERSION\_NULLE},
 \code{MOTIF\_MC\_ATOME\_HORS\_OBS}, \code{MOTIF\_MC\_CONDITION}), lue par \code{add()}, par
 \code{.prefixe\_motif\_mc()} et par la ligne des suites sur ratios bruts d'\code{usp\_tests()} \\
@@ -20040,7 +20047,7 @@ auxiliaire pondéré~» du TOST (§\ref{sec:nature} et~\ref{sec:modele-auxiliair
 \code{cox\_stuart\_p\_min()}, \code{smirnov\_p\_min()}, \code{mk\_p\_min()}~; motif
 \code{motif\_mc} d'\code{engine\_p\_mc()} et de \code{.mc\_p\_values()} (constantes
 \code{TOL\_DISPERSION\_MC}, \code{B\_MIN\_DEGENERESCENCE})~; préfixe du motif en tête du
-commentaire par \code{.prefixe\_motif\_mc()}, liste \code{MOTIFS\_MC\_DEGENERES}~;
+commentaire par \code{.prefixe\_motif\_mc()} et \code{.motif\_mc\_}\allowbreak\code{indisponible()}, liste \code{MOTIFS\_MC\_DEGENERES}~;
 complément du commentaire par
 \code{.complement\_motif\_mc()} (table \code{COMPLEMENTS\_MOTIF\_MC}) \\
 Puissance approchée a posteriori de la pente, parenthèse de contexte du commentaire
