@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{11~novembre 2026}
-\newcommand{\versiondoc}{3.4}
+\newcommand{\datedoc}{12~novembre 2026}
+\newcommand{\versiondoc}{3.5}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -1440,6 +1440,12 @@ celles de \code{stats::quantile()}, nommés en point décimal quelle que soit l'
 défaut)~; noms de \code{res\$ic\_bootstrap}, de \code{res\$ic\_bootstrap\_restreint} et des
 lignes de \code{res\$plots\_data\$qq2ech} (section~\ref{sec:notations},
 «~Graphie des textes produits par le moteur~») \\
+\code{.engine\_point\_}\newline\code{decimal()} & \code{envir} (cadre de l'appelant) & aucune
+valeur~; appelée en première instruction de chacun des seize points d'entrée que l'application
+appelle directement, pose \code{options(OutDec = ".")} et enregistre dans le cadre de l'appelant
+la restauration de l'option antérieure, exécutée à sa sortie, normale ou sur erreur~; erreur si
+elle est appelée au niveau global, où la restauration serait sans effet~; aucun calcul
+(section~\ref{sec:notations}, «~Graphie des textes produits par le moteur~») \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -3719,15 +3725,27 @@ tests, avec ses motifs d'indisponibilité et son préfixe «~\code{TEST INOPERAN
 validation, libellés des dérogations et des étapes de calibration, motifs des graphiques --- sont
 écrits en ASCII, sans accents, et leurs nombres avec le point décimal de R, quelle que soit
 l'option de session qui fixe le séparateur décimal (\code{getOption("OutDec")}, dont la valeur
-par défaut est le point et que le moteur ne modifie pas~; l'interface et le rapport figé la posent
-à la virgule le temps d'un tracé de graphique en base~R). \code{format()},
+par défaut est le point~; l'interface et le rapport figé la posent
+à la virgule le temps d'un tracé de graphique en base~R). La garantie est posée à la racine~:
+chacun des seize points d'entrée du moteur que l'application appelle directement
+(\code{run\_engine()}, les lecteurs \code{engine\_lire\_donnees\_csv()},
+\code{engine\_lire\_triangle()} et \code{engine\_lire\_xlsx()}, les écrivains
+\code{engine\_ecrire\_xlsx()} et \code{engine\_ecrire\_csv()}, les validateurs
+\code{engine\_valider\_donnees()}, \code{engine\_valider\_profondeur()},
+\code{engine\_valider\_serie\_retenue()} et \code{mw\_valider\_triangle()}, puis
+\code{engine\_motif\_b\_alpha()}, \code{engine\_table\_tests()}, \code{engine\_derogations()},
+\code{engine\_empreinte()}, \code{engine\_parametre\_standard()} et
+\code{engine\_regle\_verdicts()}) pose l'option au point en première instruction, par
+\code{.engine\_point\_decimal()}, et restaure en sortie celle de l'appelant, y compris sur
+erreur~; le moteur ne modifie donc pas l'option de l'appelant. \code{format()},
 \code{paste()}, \code{as.character()} et \code{sprintf("\%s")} suivent cette option, non les
 formats numériques de \code{sprintf()} (mesuré en R~4.3.3~: sous \code{options(OutDec = ",")},
 $0{,}25$ s'écrit «~\code{0,25}~» par les quatre premiers et «~\code{0.25}~» par
 \code{sprintf("\%.2f")})~; tous les appels de \code{format()} du moteur
 qui produisent du texte (notamment commentaires de \code{mw\_tests()}, refus et avertissements
 de \code{mw\_valider\_ajustement()}, libellés d'\code{engine\_derogations()}, messages d'usage)
-fixent le point décimal (argument \code{decimal.mark}), et les noms des quantiles bootstrap
+fixent en outre le point décimal (argument \code{decimal.mark}), ce qui protège aussi l'appel
+direct d'une fonction qui n'est pas un point d'entrée, et les noms des quantiles bootstrap
 (\code{res\$ic\_bootstrap}, \code{res\$ic\_bootstrap\_restreint}, noms de ligne de
 \code{res\$plots\_data\$qq2ech}), que \code{stats::quantile()} forme par \code{format()}, sont
 posés par \code{.engine\_quantile()} en point décimal («~\code{2.5\%}~», «~\code{97.5\%}~»), sous
@@ -3741,7 +3759,10 @@ sans \code{openxlsx}), qui écrit
 chaque nombre fini en point décimal et en pleine précision (\code{.xlsx\_nombre()}~:
 15~chiffres significatifs s'ils restituent la valeur, 17 sinon) et $\pm\infty$ en chaîne de
 caractères~; l'export CSV des données (\code{engine\_ecrire\_csv()}) écrit ses nombres par la
-même règle. L'interface et le
+même règle, et les mêmes octets sous les deux options. Le même test vérifie que toute fonction du
+moteur citée par \code{app.R} ou \code{R/display\_helpers.R} est un point d'entrée qui commence
+par \code{.engine\_point\_decimal()}, et que l'option de l'appelant est restaurée après une
+sortie normale comme après une erreur. L'interface et le
 rapport figé écrivent au contraire avec une virgule décimale les nombres qu'ils mettent en forme
 eux-mêmes, et restituent les textes du moteur tels quels~: dans une même ligne de
 la table des tests, la p-value retenue s'écrit donc avec une virgule et le commentaire avec un
