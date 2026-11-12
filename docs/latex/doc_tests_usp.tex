@@ -820,7 +820,8 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
-du premier nom de colonne, refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
+du premier nom de colonne, refus d'une ligne~1 sans valeur
+(\code{.ligne1\_sans\_valeur()}), refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
 est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
@@ -829,13 +830,14 @@ position en lignes de données~; conversion numérique d'un facteur par ses vale
 motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
 \code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
 contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$, autres caractères tels
-quels, chaque texte ramené d'abord en UTF-8~; entre guillemets doubles sous \code{guillemets =
+quels, chaque texte ramené d'abord en UTF-8 (octets 0x80 à 0x9F d'un texte déclaré Latin-1 lus selon Windows-1252, comme les cellules)~; entre guillemets doubles sous \code{guillemets =
 TRUE} (noms d'année d'accident de \code{mw\_valider\_triangle()}), sans guillemets sinon (colonnes
 présentes du motif d'\code{engine\_lire\_donnees\_csv()}, en-têtes des colonnes vides du motif de
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}) \\
 \code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
-\code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()} & tableau lu, objet
-(\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
+\code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()},\newline
+\code{.ligne1\_sans\_}\newline\code{valeur()} & tableau lu, objet
+(\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules~; tableau lu &
 tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs de refus d'une
 ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
 en-tête, ou d'une colonne vide sans en-tête placée avant la première colonne de développement
@@ -846,11 +848,14 @@ autre(s)}~» pour sept), et
 de même les en-têtes des colonnes vides qui en portent, échappés par
 \code{.echapper\_texte()}~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
-inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
+inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe~;
+vrai si tous les noms de colonne sont vides (\code{NA}, chaîne vide ou faite de blancs de la
+classe \code{[[:space:]]}, BOM retiré) et si au moins une cellule porte une valeur \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 \code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
-premier nom de colonne, lignes et colonnes vides selon
+premier nom de colonne, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
+lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
 sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
@@ -892,7 +897,8 @@ caractères, interprétée en aval (§\ref{sec:controles}) \\
 \code{.xlsx\_blancs\_}\newline\code{entete()}
 & fichier XML~; texte~; fragment XML~; balise, nom d'attribut, \code{local} (\code{TRUE})~; XML,
 nom d'élément~; chemins~; XML de la feuille~; dossier d'extraction~; XML de la
-feuille~; valeurs de \code{<v>}~; XML de la feuille~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
+feuille~; valeurs de \code{<v>}~; XML de la feuille, \code{partagees} (table des chaînes
+partagées)~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
@@ -913,7 +919,9 @@ d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et
 refusé~; refus de la cellule sans attribut \code{r} et de la balise de forme non
 reconnue~; indice (base~1) d'une chaîne partagée, \code{NA} si la valeur n'est pas un entier
 positif ou nul~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
-\code{<is>}), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
+\code{<is>}, hors cellule texte vide ou faite de blancs~: chaîne partagée résolue dans
+\code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée invalide
+compte comme une valeur), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
 \code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
 refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
 les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
@@ -4089,7 +4097,7 @@ dans le journal~; un refus motivé du lecteur de classeur (erreur de classe
 \code{usp\_refus\_lecture}~: ligne~1 sans aucune valeur, cellule sans attribut de position,
 balise de cellule de forme non reconnue, paragraphe «~Lecture des fichiers~» ci-dessous) est au
 contraire affiché tel que le moteur l'écrit, à l'import («~\code{Fichier <nom> (XLSX)
-refuse.}~» suivi de ce texte) comme au démarrage, et écrit de même dans le
+refuse.}~», \code{(XLSM)} pour un classeur \code{.xlsm}, suivi de ce texte) comme au démarrage, et écrit de même dans le
 journal~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
 sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
@@ -4498,14 +4506,24 @@ et ses relations, et des références de cellule en minuscules (\code{r="a1"}, l
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
 signalée par le message fixe de l'application~: les deux chemins divergent sur ce point
 (mesuré).
-L'en-tête du tableau est en ligne~1~: une ligne~1 sans aucune valeur (absente, ou faite de
-cellules mises en forme sans valeur) est refusée sur les deux chemins, par le motif
-«~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans
-ligne au-dessus ;}~» suivi de la conduite à tenir, parce que \code{openxlsx} saute les lignes
-vides de tête, même appelé sans retrait des lignes vides, et lirait le tableau décalé comme un
-tableau bien formé (mesuré), alors que la voie de repli prendrait la ligne vide pour l'en-tête~;
-une ligne~1 faite de chaînes vides ou de blancs n'est pas visée, et ses colonnes sont citées
-«~\code{(vide)}~» par le refus des colonnes manquantes. Ces trois refus sont des erreurs de classe
+L'en-tête du tableau est en ligne~1~: une ligne~1 dont aucune cellule ne porte de valeur est
+refusée, avec le texte «~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit
+etre en ligne 1, sans ligne au-dessus ;}~» suivi de la conduite à tenir
+(\code{MOTIF\_LIGNE1\_VIDE}). Sont sans valeur~: une cellule absente, une cellule mise en forme
+sans valeur, une chaîne vide ou une chaîne faite de blancs~; l'espace insécable n'est pas un
+blanc (classe \code{[[:space:]]}, mesuré sous la locale \code{C.UTF-8}), et un en-tête fait
+d'elle seule est un en-tête réel. La règle vaut pour un classeur, sur les deux chemins de
+lecture, comme pour un CSV dont la ligne~1 ne porte que des séparateurs, éventuellement entourés
+de blancs (noms de colonne lus tels quels, comme les lit l'application). Un fichier sans aucune
+valeur n'est pas visé et garde ses refus propres~: tableau vide pour un triangle, colonnes
+manquantes pour une série (mesuré). Pour un CSV, ce refus est un motif d'erreurs du lecteur
+(\code{.ligne1\_sans\_valeur()}, en tête d'\code{engine\_lire\_donnees\_csv()} et
+d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un classeur, c'est un
+refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
+\code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
+lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
+prendrait la ligne vide pour l'en-tête. Les trois refus du classeur (ligne~1 sans valeur,
+cellule sans attribut de position, balise de forme non reconnue) sont des erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
 feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
 ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
@@ -20095,8 +20113,9 @@ par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, lignes et colonnes vides par
-\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, \code{engine\_lire\_xlsx()}
-(feuille résolue par \code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, ligne~1 sans valeur d'un CSV par
+\code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
+\code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
 \code{.xlsx\_chemin\_sort()}, cellules lues par \code{.xlsx\_cellules()}~; contrôle des cellules et de la ligne d'en-tête du classeur par
 \code{.xlsx\_controler\_}\allowbreak\code{cellules()} et
 \code{.xlsx\_controler\_}\allowbreak\code{ligne\_entete()}, refus motivés par

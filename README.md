@@ -124,10 +124,16 @@ suffisent, sinon 17), comme l'export de l'application (#488) :
     engine_ecrire_csv(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.csv")
     engine_ecrire_xlsx(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.xlsx")
 
-L'en-tête du tableau est en ligne 1 : `engine_lire_xlsx()` refuse un classeur
-dont la ligne 1 ne porte aucune valeur, une cellule sans attribut de position
-`r` ou une balise de cellule de forme non reconnue (#487, #522). Ces refus
-motivés sont des erreurs de classe `usp_refus_lecture`
+L'en-tête du tableau est en ligne 1 : une ligne 1 qui ne porte que des
+séparateurs ou des blancs (cellules absentes, vides ou faites de blancs ;
+l'espace insécable n'est pas un blanc) est refusée, pour un CSV par un motif
+d'`erreurs` d'`engine_lire_donnees_csv()` et d'`engine_lire_triangle()`, pour
+un classeur par une erreur de classe `usp_refus_lecture` (#522). Avec les
+réglages par défaut de `read.csv`, une ligne 1 `,,` donne les noms « X »,
+« X.1 »… et n'est pas visée. `engine_lire_xlsx()` refuse aussi une cellule
+sans attribut de position `r` ou une balise de cellule de forme non reconnue
+(#487). Ces refus motivés du classeur sont des erreurs de classe
+`usp_refus_lecture`
 (`inherits(e, "usp_refus_lecture")`), dont le message s'adresse à
 l'utilisateur et que l'application affiche tel quel ; une archive illisible
 ou sans feuille lève une erreur ordinaire.
