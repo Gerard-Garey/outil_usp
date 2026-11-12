@@ -8,3 +8,8 @@
 4. **#534, b2 non calculable sur des résidus finis et non constants : assertion `stop()`** (recommandation d'`actuary`) ; résidus non finis : `stop()` ; résidus exactement constants (`all(z == z[1])`) : motif actuel inchangé. Interface de `test_anscombe_kurt()` inchangée.
 
 Pour information, sans décision du mainteneur (validation d'`actuary` suffisante, aucun σ_USP ni verdict touché) : #537, plus courte écriture qui se relit à l'identique (15 à 17 chiffres, point décimal) ; #532, option (ii), branche 2b retirée et assertion `stop()`. Critère Q-A2 corrigé : `tests/unitaires/test_non_applicable.R` (dont l. 158-171) vert à chaque commit d'`add()`.
+
+## Décisions complémentaires du 12/11/2026, après la lecture de `regulatory` (`regulatory-lecture-d2b-v5.md`)
+
+5. **Motif V5 : ancré sur D(1) et D(3)(a)-(b)** (recommandation de `regulatory`) : `Colonne i non consecutive (entre les lignes de donnees %s) : annee d'accident manquante presumee ; le triangle de l'annexe XVII, section D, porte les montants de chaque annee d'accident, numerotees par des nombres consecutifs de 0 a I (D(1), D(3)(a) et (b)). Renseigner l'annee d'accident manquante, ou corriger la colonne i.` D(2)(b) n'y est pas cité.
+6. **Motifs existants qui citent « (2)(b) … exige des annees consecutives »** (lignes vides du triangle et des séries, colonne `t`, commentaires, `.tex` l. 3879) : **corrigés dans K3b, avec #555**, au lieu d'une issue séparée. Textes à fixer par `actuary` avant l'étape 8, sur la lecture de `regulatory` (structure de la méthode, B/C/D(3)(a)-(b) et D(1) ; présomption qualifiée de lecture de l'outil) ; `regulatory` contrôle la conformité des textes en aval. Le motif « D(2)(b) : au moins %d annees d'accident consecutives (%d fournies) », fidèle, ne change pas.
