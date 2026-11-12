@@ -780,7 +780,7 @@ la condition de Kuhn et Tucker (§\ref{sec:controles}) \\
 du repère de profondeur à $I + 1 < 10$, aussi parmi les avertissements~; vide à $I + 1 \ge 10$ ou
 sur un refus), $I$, $J$~; refus d'une cellule observée
 hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
-(année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
+(année d'accident, désignée dans le motif par son indice «~\code{i =}~$N$~») manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
 de ligne déclaré d'encodage \code{"bytes"}, par un motif propre, un par ligne, qui ne cite pas le
 nom, ce nom étant exclu des contrôles de nom manquant et de doublon, ses caractères n'étant pas
@@ -831,7 +831,8 @@ motif, de façon indépendante de la locale~: caractères de contrôle ASCII éc
 contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$, autres caractères tels
 quels, chaque texte ramené d'abord en UTF-8~; entre guillemets doubles sous \code{guillemets =
 TRUE} (noms d'année d'accident de \code{mw\_valider\_triangle()}), sans guillemets sinon (colonnes
-présentes du motif d'\code{engine\_lire\_donnees\_csv()}) \\
+présentes du motif d'\code{engine\_lire\_donnees\_csv()}, en-têtes des colonnes vides du motif de
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}) \\
 \code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
 \code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()} & tableau lu, objet
 (\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
@@ -839,7 +840,11 @@ tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs 
 ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
 en-tête, ou d'une colonne vide sans en-tête placée avant la première colonne de développement
 renseignée (année de développement~0 manquante présumée), sauf si elle précède aussi une
-colonne \code{i} placée avant les données, auquel cas elle est retirée (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
+colonne \code{i} placée avant les données, auquel cas elle est retirée (§\ref{sec:controles})~;
+numéros de ligne ou de colonne cités cinq au plus, suivis du nombre des autres («~\code{et 2
+autre(s)}~» pour sept), et
+de même les en-têtes des colonnes vides qui en portent, échappés par
+\code{.echapper\_texte()}~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
@@ -4707,11 +4712,13 @@ restituées (\code{.mw\_noms\_lignes\_}\allowbreak\code{empilees()}). Un nom man
 échouer l'assemblage des tables nommées~; un doublon ferait perdre en silence le nom saisi au
 profit d'un numéro automatique.
 \code{mw\_valider\_triangle()} refuse, après les contrôles de cellules qu'il ne masque pas, un nom
-\code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom d'annee d'accident manquant ou vide en
-ligne} $k$ \code{(i=}$k-1$\code{).}~»), et un nom qui désigne deux fois la même année d'accident
-(motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des positions des
-lignes). Un nom déclaré d'encodage \code{"bytes"} reçoit son seul motif («~\code{Nom d'annee
-d'accident en ligne} $k$ \code{(i=}$k-1$\code{) declare d'encodage "bytes" :}~…~»), qui ne cite
+\code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom de l'annee d'accident i =}~$k-1$
+\code{manquant ou vide.}~» pour la ligne~$k$), et un nom qui désigne deux fois la même année
+d'accident (motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des indices
+«~\code{i =}~$\ldots$~» des années d'accident en cause). Chaque motif désigne l'année d'accident
+par son seul indice $i$, une seule notation par message. Un nom déclaré d'encodage
+\code{"bytes"} reçoit son seul motif («~\code{Nom de l'annee d'accident i =}~$k-1$ \code{declare
+d'encodage "bytes" :}~…~»), qui ne cite
 pas le nom, et n'entre pas dans les contrôles de nom manquant et de doublon~: ses caractères ne
 sont pas déterminés, et le lire serait deviner. Les autres noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
 l'UTF-8 valide étant lue en Latin-1, si bien que le contrôle ne lève aucune erreur R, quelle que
@@ -4720,17 +4727,17 @@ et \code{\textbackslash v} des expressions régulières Perl, dont l'espace ins�
 caractères de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF. Les doublons sont
 comparés après retrait des blancs initiaux et finaux, sans autre normalisation (ni casse, ni
 conversion numérique). Dans le motif, chaque forme saisie est citée entre guillemets et échappée
-(un blanc, un caractère de contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$),
-pour qu'un blanc invisible y reste lisible. Aucun nom par défaut n'est substitué~: un
+(\code{.echapper\_texte()}~: un blanc, un caractère de contrôle ou de format non ASCII écrit
+\code{\textbackslash u}$XXXX$), pour qu'un blanc invisible y reste lisible. Aucun nom par défaut n'est substitué~: un
 remplacement masquerait l'erreur de saisie et romprait la traçabilité entre la saisie et les
 tables restituées. Mesuré sur le triangle de contrôle \code{tests/donnees/triangle\_mw.csv}
 muni des noms 2015 à~2022 puis modifié~: un nom \code{NA} en troisième ligne donne
-«~\code{Nom d'annee d'accident manquant ou vide en ligne 3 (i=2).}~», et \code{run\_engine()}
+«~\code{Nom de l'annee d'accident i = 2 manquant ou vide.}~», et \code{run\_engine()}
 (méthode de réserve n\textsuperscript{o}~2, $B = 99$) rend \code{ok = FALSE} avec ce motif, sans
 \code{validation\$erreur\_r}~; un nom fait d'une espace, d'une espace insécable et de U+200B est
 refusé comme vide~; les noms «~2020~» en lignes~5 et~6 et «~2020~» entouré d'une espace et d'une
 espace insécable en ligne~7 donnent un seul motif, qui cite \code{"2020"} et
-\code{" 2020\textbackslash u00a0"} et les lignes 5, 6 et~7~; les mêmes motifs sont rendus en locale
+\code{" 2020\textbackslash u00a0"} et les années d'accident «~\code{i = 4, i = 5 et i = 6}~»~; les mêmes motifs sont rendus en locale
 \code{C}. Le triangle rendu par \code{engine\_lire\_triangle()}, par lequel l'application lit le
 fichier, ne porte pas de noms de ligne (mesuré sur le même fichier)~: le refus n'est atteint
 qu'en appel direct, avec une matrice nommée.
