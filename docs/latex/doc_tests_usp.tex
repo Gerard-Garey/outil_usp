@@ -47,7 +47,7 @@
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
 \newcommand{\datedoc}{12~novembre 2026}
-\newcommand{\versiondoc}{3.5}
+\newcommand{\versiondoc}{3.6}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -821,7 +821,9 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
 du premier nom de colonne, refus d'une ligne~1 sans valeur
-(\code{.ligne1\_sans\_valeur()}), refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
+(\code{.ligne1\_sans\_valeur()}), colonne~$t$ désignée par l'en-tête \code{t}, en minuscule ou en majuscule,
+blancs de bord ignorés (\code{.entete\_designe()}), refus d'un en-tête~$t$, \code{xt} ou
+\code{yt} présent plusieurs fois, cumulé avec le refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
 est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
@@ -851,12 +853,25 @@ de même les en-têtes des colonnes vides qui en portent, échappés par
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe~;
 vrai si tous les noms de colonne sont vides (\code{NA}, chaîne vide ou faite de blancs de la
 classe \code{[[:space:]]}, BOM retiré) et si au moins une cellule porte une valeur \\
+\code{.entete\_designe()},\newline \code{.liste\_positions()},\newline
+\code{.motifs\_colonne\_i()} & noms de colonne, lettre~; positions~; colonne \code{i} &
+prédicat «~en-tête qui désigne la colonne~» \code{i} du triangle ou~$t$ des séries~: la lettre en
+minuscule ou en majuscule une fois retirés les blancs de bord de la classe \code{[[:space:]]}, un
+nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées dans un motif de
+lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
+vides, des en-têtes en double et de la colonne \code{i}~; motifs de refus des valeurs de la
+colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières
+cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
+ordre (§\ref{sec:controles}) \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 \code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
 premier nom de colonne, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
+colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscule, blancs de bord ignorés
+(\code{.entete\_designe()}), refus d'un tel en-tête présent plusieurs fois,
 lignes et colonnes vides selon
-\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, valeurs de la colonne \code{i}
+contrôlées par \code{.motifs\_colonne\_i()}, puis colonne retirée, cellule non numérique refusée avec
 sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
@@ -877,7 +892,8 @@ aucune valeur (§\ref{sec:controles})~; ces trois refus sont des erreurs de clas
 feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
 texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
-(blancs de bord retirés, suite de blancs intérieurs ramenée à une espace)~; balises
+(blancs de bord retirés, suite de blancs intérieurs ramenée à une espace), aucun en-tête
+renommé pour lever un doublon~; balises
 \code{<sheet>} et \code{<Relationship>} préfixées et attributs entre apostrophes ou à blancs autour du signe \code{=} du
 classeur et de ses relations, ainsi que références de cellule en minuscules, lus par la voie de repli et non
 par \code{openxlsx}~4.2.9, qui s'arrête sur une erreur R (mesuré)~; dans la voie de
@@ -3885,7 +3901,7 @@ le motif demandant alors de renseigner la valeur ou de laisser vide une cellule 
 refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
 vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
 une ligne vide intercalée ou en tête est refusée
-comme année d'accident manquante présumée (D(2)(b)), une colonne vide intercalée ou portant un
+comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée ou portant un
 en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
 indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
 la plus récente de la première année d'accident~; la présomption est une lecture retenue par
@@ -3909,7 +3925,27 @@ en cause, les années de développement renseignées restant consécutives dans 
 lecture. Seule exception, une colonne vide placée avant la colonne \code{i}, quand celle-ci
 précède elle-même les données, est retirée sans message (tableau décalé, qui se reconnaît à sa
 colonne \code{i})~; une colonne vide placée entre la colonne \code{i} et les données, ou à gauche
-quand la colonne \code{i} suit les données, est refusée (mesuré). La fonction appelle ensuite
+quand la colonne \code{i} suit les données, est refusée (mesuré).
+La colonne \code{i}, facultative, n'est pas lue pour le calcul~: l'année d'accident de chaque
+ligne vient de l'ordre des lignes, la plus ancienne en premier. Un en-tête la désigne s'il vaut
+\code{i}, en minuscule ou en majuscule, une fois retirés le BOM et les blancs de bord (règle de la colonne~$t$ des
+séries, paragraphe «~Lecture des fichiers~»)~; plusieurs en-têtes qui la désignent sont refusés,
+après le refus d'une ligne~1 sans valeur et avant la règle des lignes et colonnes vides, par un
+motif rendu seul («~\code{En-tete de la colonne i present plusieurs fois}~», en-têtes cités tels
+que reçus)~; une colonne de nom \code{NA} (appel direct) est un en-tête absent, jamais la
+colonne \code{i}. Présente, la colonne doit porter, ligne après ligne, des entiers croissants de
+pas~1, sans vide, la valeur de départ étant libre (0, 1, année civile ou valeur négative)~: une
+colonne \code{i} qui contredit l'ordre des lignes signale un triangle qui n'est peut-être pas celui
+que l'utilisateur voulait fournir. \code{.motifs\_colonne\_i()} refuse, en lignes de données,
+les valeurs manquantes («~\code{Colonne i incomplete}~») et les valeurs non numériques, non
+entières ou non finies («~\code{Colonne i non entiere ou non numerique}~»), motifs cumulés~;
+à défaut, le premier qui s'applique de trois motifs exclusifs, dans cet ordre~: valeurs répétées
+(«~\code{Colonne i a valeurs repetees}~», qui cite toutes les lignes portant une valeur répétée,
+aucune occurrence ne pouvant être désignée comme fautive), ordre non croissant
+(«~\code{Colonne i non croissante}~», ligne citée~: celle dont la valeur est inférieure à celle
+de la ligne précédente) et écart supérieur à~1 («~\code{Colonne i non consecutive}~», qui cite
+les paires de lignes «~\code{k-1 et k}~»), refusé comme année d'accident manquante présumée
+(D(1), D(3)(a) et~(b), même lecture que pour une ligne vide). La fonction appelle ensuite
 \code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
@@ -4487,11 +4523,19 @@ refuse de telles données en amont~; ils concernent un appel direct de
 \emph{Lecture des fichiers.} \code{engine\_lire\_donnees\_csv()} (colonnes $t$, \code{xt},
 \code{yt}) convertit une colonne de type facteur par ses valeurs (\code{.en\_numerique()}) et,
 si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
-(annexe~XVII, B(2)(b) et C(2)(b)), puis range les lignes par $t$ croissant~; à défaut, le
-fichier est refusé, sans tri ni comblement. Sans colonne $t$, l'ordre du fichier est réputé
+(lecture retenue par l'outil~: annexe~XVII, B/C(3)(a) et~(b), années d'accident ou exercices représentés par des nombres consécutifs de~1 à~$T$), puis range les lignes par $t$ croissant~; à défaut, le
+fichier est refusé, sans tri ni comblement. Un en-tête désigne la colonne~$t$ s'il vaut \code{t},
+en minuscule ou en majuscule, une fois retirés le BOM et les blancs de bord de la classe \code{[[:space:]]}
+(\code{.entete\_designe()}, règle commune avec la colonne \code{i} du triangle)~; un en-tête
+\code{NA}, ou dont les octets ne forment pas de l'UTF-8 valide, ne la désigne jamais. Plusieurs
+en-têtes qui désignent~$t$, ou un en-tête \code{xt} ou \code{yt} présent plusieurs fois
+(comparaison exacte), sont refusés avant la lecture des cellules («~\code{En-tete de la
+colonne t present plusieurs fois}~», «~\code{En-tete xt present plusieurs fois}~»), motifs
+cumulés avec celui des colonnes manquantes, qui cite les en-têtes tels que reçus~: sans ce refus,
+la seconde colonne serait ignorée sans message. Sans colonne $t$, l'ordre du fichier est réputé
 chronologique et la consécutivité n'est pas vérifiable, à une exception près~: une ligne
 entièrement vide n'est retirée qu'en fin de tableau~; intercalée ou en tête (sous l'en-tête), elle
-est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B(2)(b) et C(2)(b)), par
+est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B/C(3)(a) et~(b), même lecture), par
 un motif qui cite sa position en lignes de données, faute de quoi la série serait lue sur une
 année de moins présentée comme consécutive (mesuré~: une ligne vide en troisième ligne de
 données, sans colonne~$t$, est refusée par le motif des lignes vides intercalées, qui la situe
@@ -4555,7 +4599,12 @@ suite de blancs intérieurs ramenée à une espace), les blancs étant ceux de l
 \code{[[:space:]]} de la locale (parité mesurée sous la locale \code{C.UTF-8} avec
 \code{openxlsx}~4.2.9, non sous Windows)~; ceux d'un CSV, lus tels quels, ne le sont
 pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
-(mesuré). Une cellule texte «~\code{NA}~» est
+(mesuré), les en-têtes de la colonne~$t$ et de la colonne \code{i}, reconnus blancs de bord
+retirés, étant seuls exceptés. Aucun en-tête n'est renommé pour lever un doublon, sur les
+deux chemins du classeur comme dans un CSV, de sorte qu'un en-tête présent plusieurs fois reçoit
+le même refus par les trois chemins (mesuré sur la voie de repli~; \code{openxlsx}~4.2.9, appelé
+sans \code{check.names}, garde aussi les doublons, mesure faite hors de la batterie de tests, qui
+n'installe pas ce paquet). Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
 «~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
@@ -4680,7 +4729,7 @@ perdue. \code{engine\_lire\_donnees\_csv()} et \code{engine\_lire\_triangle()} r
 le BOM du premier nom de colonne (\code{.nom\_sans\_bom()}, qui reconnaît aussi les formes que
 lui donne \code{read.csv()} hors locale UTF-8, dont \code{X...} sous la locale \code{C})~: sans ce retrait, hors
 locale UTF-8, la colonne $t$ ne serait pas reconnue, si bien que le contrôle des années ne
-s'appliquerait pas, et la colonne \code{i} d'un triangle ne serait pas écartée, d'où un refus au
+s'appliquerait pas, et la colonne \code{i} d'un triangle ne serait pas reconnue, d'où un refus au
 motif trompeur.
 \code{engine\_lire\_donnees\_csv()} ne refuse pas, elle, une valeur non finie de \code{xt} ou
 \code{yt}~: c'est \code{engine\_valider\_donnees()} qui la refuse (ligne «~Valeurs finies~» du
@@ -4973,7 +5022,7 @@ paiement étant «~considéré comme important si le fait de l'omettre dans le c
 propre à l'entreprise est susceptible d'influer sur la prise de décision ou le jugement des
 utilisateurs de cette information, y compris les autorités de contrôle~» (dernier alinéa de
 D(2)). L'outil n'applique aucun facteur de queue~: l'estimation $\hat C(i,J)$ de D(4)(c) est prise
-pour charge ultime, ce que suppose D(2)(d). La consécutivité des années de B/C(2)(b) n'est
+pour charge ultime, ce que suppose D(2)(d). La consécutivité des années (B/C(3)(a) et~(b), lecture retenue par l'outil~; B/C(2)(b) n'exige que cinq années d'accident (B) ou exercices (C) consécutifs au moins) n'est
 vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années, chacun des deux fichiers
 lus par \code{usp\_charger()} étant alors contrôlé séparément, sans comparaison de leurs années
 (paragraphe «~Lecture des fichiers~» ci-dessus)~;
@@ -20139,7 +20188,8 @@ Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees
 par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
-\code{engine\_lire\_triangle()}, lignes et colonnes vides par
+\code{engine\_lire\_triangle()}, en-têtes de la colonne~$t$ et de la colonne \code{i} par
+\code{.entete\_designe()}, valeurs de la colonne \code{i} par \code{.motifs\_colonne\_i()}, lignes et colonnes vides par
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, ligne~1 sans valeur d'un CSV par
 \code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
 \code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
