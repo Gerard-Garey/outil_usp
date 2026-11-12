@@ -7715,6 +7715,57 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   is.na(noms) | !nzchar(noms) | noms == paste0("X", k) | noms == paste0("V", k)
 }
 
+# Texte du refus d'une ligne 1 sans aucune valeur (#522), commun au classeur
+# (.xlsx_controler_ligne_entete(), refus de classe usp_refus_lecture) et au
+# tableau lu d'un CSV (.ligne1_sans_valeur(), motif "erreurs" des lecteurs,
+# extension aux CSV decidee par le mainteneur le 12/11/2026).
+MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en",
+                           "ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus",
+                           "de l'en-tete.")
+
+# Ligne 1 sans aucune valeur d'un tableau lu d'un CSV (#522, extension aux CSV
+# du 12/11/2026) : vrai si TOUS les noms de colonnes sont vides (NA, ou texte
+# qui vaut "" une fois retires les blancs [[:space:]] de .xlsx_blancs_entete(),
+# apres retrait du BOM et des marques de .nom_sans_bom() : un en-tete cite
+# " " que read.csv garde est vide, comme en classeur, decision du mainteneur
+# du 12/11/2026, option (b)) et si au moins une cellule du tableau porte une
+# valeur (cellule non vide au sens de .retirer_lignes_colonnes_vides()).
+# C'est ce que donne la lecture de
+# l'application (read.csv, check.names = FALSE, lire_tableau()) d'un CSV dont
+# la ligne 1 ne contient que des separateurs (",,,,,") : sans ce refus,
+# l'en-tete reel etait lu comme une ligne de donnees (motif de colonnes
+# manquantes pour les series, de cellules non numeriques ou de triangle non
+# carre pour le triangle), ou un triangle sans en-tete etait accepte. Meme
+# regle que le classeur : une ligne 1 sans valeur est refusee quoi que porte
+# la ligne suivante, et un tableau sans aucune valeur garde son refus
+# (tableau vide). Les noms generes "X<k>" (openxlsx) et "V<k>" (lecteur
+# interne, entete = FALSE, matrice convertie) ne sont pas vises : ils ne
+# disent pas que la ligne 1 du fichier est vide (classeur deja refuse en
+# amont par .xlsx_controler_ligne_entete() ; tableau sans ligne d'en-tete).
+# Une ligne 1 physiquement vide (aucun separateur) reste refusee avant
+# lecture par l'application (utils::count.fields), comme avant. Un classeur
+# dont la ligne 1 ne porte que des chaines vides ou de blancs est refuse en
+# amont, au meme texte, sur les deux chemins (.xlsx_controler_ligne_entete()).
+# L'espace insecable U+00A0 n'est pas un blanc de [[:space:]] sous C.UTF-8 :
+# un en-tete fait d'elle seule est un en-tete reel, ici comme en classeur.
+.ligne1_sans_valeur <- function(df) {
+  if (!is.data.frame(df) || !ncol(df) || !nrow(df)) return(FALSE)
+  noms <- names(df)
+  noms[1] <- .nom_sans_bom(noms[1])
+  # Nom vide : NA, ou texte UTF-8 valide (apres conversion d'un nom declare
+  # Latin-1) fait seulement de blancs ; un nom non UTF-8 porte des octets qui
+  # ne sont pas des blancs (et gsub() leverait une erreur sur lui).
+  u <- enc2utf8(noms)
+  vide <- is.na(noms)
+  lisible <- !vide & validUTF8(u)
+  vide[lisible] <- !nzchar(.xlsx_blancs_entete(u[lisible]))
+  if (!all(vide)) return(FALSE)
+  any(vapply(df, function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    if (is.character(v)) any(!is.na(v) & nzchar(.nettoyer_cellules(v))) else any(!is.na(v))
+  }, logical(1)))
+}
+
 .retirer_lignes_colonnes_vides <- function(df, objet = c("series", "triangle")) {
   objet <- match.arg(objet)
   if (!nrow(df) || !ncol(df)) return(list(df = df, erreurs = character(0)))
@@ -7821,6 +7872,10 @@ engine_lire_donnees_csv <- function(df) {
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
   noms <- names(df)
+  # Ligne 1 sans aucune valeur (CSV ",,,") : refusee avant les colonnes
+  # manquantes, comme en classeur (#522).
+  if (.ligne1_sans_valeur(df))
+    return(list(ok = FALSE, erreurs = MOTIF_LIGNE1_VIDE, xt = NULL, yt = NULL, n = 0L))
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(manquantes)) {
     # Noms cites echappes (caracteres de controle, blancs non ASCII :
@@ -7916,6 +7971,9 @@ engine_lire_triangle <- function(df) {
   names(df)[1] <- .nom_sans_bom(names(df)[1])
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
+  # Ligne 1 sans aucune valeur (CSV ",,,"), avant toute autre regle (#522) ;
+  # une matrice convertie porte les noms "V<k>", non vises.
+  if (.ligne1_sans_valeur(df)) return(refus(MOTIF_LIGNE1_VIDE))
   # Lignes vides (colonne "i" comprise) et colonnes vides (colonne "i" hors
   # regle) : voir .retirer_lignes_colonnes_vides() (#483).
   lv <- .retirer_lignes_colonnes_vides(df, "triangle")
@@ -8186,7 +8244,10 @@ engine_ecrire_csv <- function(df, chemin) {
 # #522). Sans dependance : structure() et stop() de base. Levee par les refus
 # d'engine_lire_xlsx() dont le texte dit a l'utilisateur quoi corriger :
 # ligne 1 sans aucune valeur (#522), cellule sans attribut r et balise <c de
-# forme non reconnue (#487). Les refus d'archive illisible ou dont une entree
+# forme non reconnue (#487). Le refus d'une ligne 1 sans valeur d'un CSV
+# (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
+# d'engine_lire_donnees_csv() et d'engine_lire_triangle(). Les refus
+# d'archive illisible ou dont une entree
 # sort du dossier de lecture, et de feuille introuvable ("Classeur illisible :
 # aucune feuille trouvee."), restent des erreurs ordinaires : ils signalent un
 # fichier qui n'est pas un classeur valide, ce que dit mieux le message fixe
@@ -8382,30 +8443,54 @@ engine_ecrire_csv <- function(df, chemin) {
 # vides de tete meme avec skipEmptyRows = FALSE, et lit alors le tableau
 # decale comme un tableau bien forme (mesure, openxlsx 4.2.9) ; le lecteur
 # interne, lui, prend la ligne vide pour l'en-tete. Une cellule a valeur est
-# une cellule <c> qui porte <v>...</v> ou <is> (la notion du lecteur interne) ;
-# une cellule mise en forme sans valeur (<c r="A1" s="1"/>), ou <v/>, n'en est
-# pas une. Mesure (openxlsx 4.2.9) : la regle concorde avec la sonde
-# openxlsx::read.xlsx(rows = 1, colNames = FALSE, skipEmptyRows = FALSE,
-# skipEmptyCols = FALSE) sur neuf des dix feuilles a valeur essayees (ligne 1
-# absente, mise en forme sans valeur, chaine vide, blancs, <v/>, <v></v>,
-# titre en A1, valeur en C1...) ; l'ecart est un <row> sans attribut r, dont la
-# sonde ne voit pas la cellule A1 que la lecture complete lit. La sonde n'est
-# donc pas appelee (elle avertit "No data found on worksheet" et depend de la
-# version d'openxlsx). Une feuille sans aucune cellule a valeur n'est pas
-# visee (elle garde ses refus : tableau vide) ; un titre seul en A1, ligne 1
+# une cellule <c> qui porte <v>...</v> ou <is> (la notion du lecteur interne),
+# sauf une cellule texte dont le texte vaut "" une fois retires les blancs
+# [[:space:]] de .xlsx_blancs_entete() (decision du mainteneur du 12/11/2026,
+# option (b), sur l'avis d'actuary : une ligne 1 de chaines vides ou de
+# blancs est sans valeur, comme en CSV, et openxlsx en lit les noms "").
+# Texte d'une cellule : chaine partagee (t="s", resolue dans partagees, la
+# table decodee comme par le lecteur interne), chaine en ligne (<is>,
+# .xml_textes()) ou chaine de formule (t="str", texte de <v> tel quel). Une
+# cellule nombre, booleenne ou d'erreur qui porte <v> reste une valeur ; une
+# cellule mise en forme sans valeur (<c r="A1" s="1"/>), <v/>, ou une
+# formule sans <v> n'en est pas une. Une reference de chaine partagee
+# illisible ou hors de la table reste une valeur (pas de refus sur une
+# cellule mal formee). La sonde openxlsx::read.xlsx(rows = 1, colNames =
+# FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE) n'est pas appelee :
+# elle avertit "No data found on worksheet", depend de la version
+# d'openxlsx et ne voit pas la cellule A1 d'un <row> sans attribut r que la
+# lecture complete lit (mesure, openxlsx 4.2.9, avant la regle des blancs).
+# Une feuille sans aucune cellule a valeur, chaines de blancs comprises,
+# n'est pas visee (elle garde ses refus : tableau vide) ; un titre seul en A1, ligne 1
 # qui porte une valeur, ne l'est pas non plus (refuse plus loin par les
 # controles de colonnes). La ligne d'une cellule est lue dans sa balise
-# ouvrante (r="A1", .xlsx_cellules()).
-.xlsx_controler_ligne_entete <- function(xml) {
+# ouvrante (r="A1", .xlsx_cellules()). Texte : MOTIF_LIGNE1_VIDE, commun avec
+# le refus du CSV dont la ligne 1 ne porte que des separateurs, pose par
+# engine_lire_donnees_csv() et engine_lire_triangle() (.ligne1_sans_valeur(),
+# motif "erreurs" des lecteurs et non erreur levee, extension aux CSV du
+# 12/11/2026).
+.xlsx_controler_ligne_entete <- function(xml, partagees = character(0)) {
   cc <- .xlsx_cellules(xml)
   if (!length(cc$cellules)) return(invisible(NULL))
-  avec_valeur <- grepl("<v>|<is>", cc$cellules)
+  cel <- cc$cellules
+  v <- grepl("<v>", cel, fixed = TRUE)
+  is <- grepl("<is>", cel, fixed = TRUE)
+  brut <- rep(NA_character_, length(cel))
+  mv <- regexpr("<v>.*?</v>", cel)
+  brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
+  texte <- rep(NA_character_, length(cel))
+  s <- v & cc$typ %in% "s"
+  if (any(s)) texte[s] <- partagees[suppressWarnings(as.integer(brut[s])) + 1L]
+  st <- v & cc$typ %in% "str"
+  texte[st] <- brut[st]
+  if (any(is)) texte[is] <- vapply(cel[is], .xml_textes, "", USE.NAMES = FALSE)
+  blanc <- !is.na(texte) & !nzchar(.xlsx_blancs_entete(texte))
+  avec_valeur <- (v | is) & !blanc
   if (!any(avec_valeur)) return(invisible(NULL))
   # Lettres de colonne en majuscules ou en minuscules (r="a1" : ligne 1,
   # reserve de l'audit ; .xlsx_cellules() met la reference en majuscules).
   ligne1 <- !is.na(cc$ref) & grepl("^[A-Z]+1$", cc$ref)
-  if (!any(avec_valeur & ligne1))
-    .refus_lecture("Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete.")
+  if (!any(avec_valeur & ligne1)) .refus_lecture(MOTIF_LIGNE1_VIDE)
   invisible(NULL)
 }
 
@@ -8518,14 +8603,8 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   feuille <- .xlsx_fichier_feuille(d)
   xml <- .xlsx_texte(feuille$fichier)
   .xlsx_controler_cellules(xml)
-  if (entete) .xlsx_controler_ligne_entete(xml)
-  # openxlsx lit la feuille resolue par son rang (feuilles de graphique
-  # placees avant passees, #487).
-  if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = feuille$rang, colNames = entete,
-                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
-                               na.strings = character(0), sep.names = " "))
-  # table des chaines partagees, si presente
+  # table des chaines partagees, si presente : lue par le controle de la
+  # ligne 1 (texte des cellules, #522) et par le lecteur interne
   fs <- file.path(d, "xl", "sharedStrings.xml")
   partagees <- character(0)
   if (file.exists(fs)) {
@@ -8533,6 +8612,13 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
     partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
+  if (entete) .xlsx_controler_ligne_entete(xml, partagees)
+  # openxlsx lit la feuille resolue par son rang (feuilles de graphique
+  # placees avant passees, #487).
+  if (requireNamespace("openxlsx", quietly = TRUE))
+    return(openxlsx::read.xlsx(chemin, sheet = feuille$rang, colNames = entete,
+                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
+                               na.strings = character(0), sep.names = " "))
   # r et t lus dans la seule balise ouvrante, reference en majuscules
   # (.xlsx_cellules(), regle commune avec .xlsx_controler_ligne_entete()).
   cc <- .xlsx_cellules(xml)

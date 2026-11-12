@@ -462,6 +462,18 @@ verifier("Import CSV : cellule \"NA\" d'un triangle refusee avec sa position, co
            identical(.rt483$erreurs, paste("Cellule(s) non numerique(s) en (i = 1, j = 3) (i : annee d'accident, j : annee de developpement).",
                                            "Une cellule \"NA\" est lue comme du texte : renseigner la valeur,",
                                            "ou laisser vide une cellule non observee.")))
+# CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV
+# du 12/11/2026) : lu par lire_tableau() sans erreur (en-tetes ""), refuse
+# par le moteur au texte du classeur, series et triangle ; une ligne 1
+# physiquement vide reste refusee avant lecture (MESSAGE_ILLISIBLE$csv).
+.l1_522 <- .lire483(c(",,", "t,xt,yt", paste(1:5, 10:14, 2:6, sep = ",")))
+.l1t_522 <- .lire483(c(",,,,,", .tri483))
+.f1v_522 <- .csv483(c("", "t,xt,yt", "1,2,3")); .l1v_522 <- suppressMessages(.env$lire_tableau(.f1v_522, FALSE)); unlink(.f1v_522)
+verifier("Import CSV : ligne 1 \",,,\" au-dessus de l'en-tete refusee par le moteur au texte du classeur (series et triangle) ; ligne 1 vide : MESSAGE_ILLISIBLE$csv avant lecture (#522)",
+         identical(names(.l1_522), c("", "", "")) &&
+           identical(engine_lire_donnees_csv(.l1_522)$erreurs, MOTIF_LIGNE1_VIDE) &&
+           identical(engine_lire_triangle(.l1t_522)$erreurs, MOTIF_LIGNE1_VIDE) &&
+           is.null(.l1v_522$df) && identical(.l1v_522$erreur, .env$MESSAGE_ILLISIBLE[["csv"]]))
 # Lecture des fichiers d'exemple avant #483 : read.csv par defaut, comme
 # lire_tableau() (row.names = NULL a toute lecture depuis #518).
 .ex483 <- file.path(.racine, "tests", "donnees", c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"))

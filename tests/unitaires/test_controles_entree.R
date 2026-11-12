@@ -2889,6 +2889,32 @@ if (nzchar(Sys.which("zip"))) {
   unlink(f522)
   verifier("xlsx (#522) : entete = FALSE : pas de refus de la ligne 1, un data.frame sur chaque chemin",
            tous487(e522, is.data.frame))
+  # Ligne 1 de chaines vides ou de blancs (decision du mainteneur du
+  # 12/11/2026, option (b)) : refusee au texte de #522 sur chaque chemin,
+  # chaines partagees comme chaines en ligne ; une cellule nombre ou
+  # booleenne reste une valeur ; une feuille faite seulement de blancs garde
+  # ses refus (tableau vide).
+  corps522b <- paste0(ligne487(2, c(nb487("A2", 1), nb487("B2", 2))), ligne487(3, c(nb487("A3", 3), nb487("B3", 4))))
+  bl522 <- function(ligne1, shared = NULL, corps = corps522b)
+    chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(ligne487(1, ligne1), corps))), shared = shared), lire522)
+  verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", \"&#32;\"), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522 sur chaque chemin",
+           refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">  </t></si>')) &&
+             refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = "<si><t>&#32;</t></si>")) &&
+             refus522(bl522(c(en487("A1", '<t xml:space="preserve"> </t>'), en487("B1", "<t>\t</t>")))) &&
+             refus522(bl522(c(en487("A1", "<t></t>"), en487("B1", "<t></t>")))))
+  verifier("xlsx (#522, option (b)) : ligne 1 portant un nombre 0 ou un booleen parmi des blancs : pas de refus de la ligne 1 sur chaque chemin",
+           tous487(bl522(c(nb487("A1", 0), en487("B1", "<t> </t>"))), is.data.frame) &&
+             tous487(bl522(c('<c r="A1" t="b"><v>0</v></c>', en487("B1", "<t> </t>"))), is.data.frame))
+  vide522b <- bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve"> </t></si>',
+                    corps = ligne487(2, c(ps487("A2", 0), ps487("B2", 0))))
+  verifier("xlsx (#522, option (b)) : feuille faite seulement de blancs : pas le refus de la ligne 1 ; triangle \"Fichier vide ou illisible comme tableau.\", series meme motif, sur chaque chemin",
+           tous487(vide522b, is.data.frame) &&
+             tous487(vide522b, function(d) identical(engine_lire_triangle(d)$erreurs, "Fichier vide ou illisible comme tableau.")) &&
+             length(unique(lapply(vide522b, function(d) engine_lire_donnees_csv(d)$erreurs))) == 1L &&
+             identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                            partagees = " "), error = conditionMessage), LIGNE1_522) &&
+             is.null(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                 partagees = "x")))
   # Classe de la condition : les refus motives (ligne 1 #522, cellule sans r et
   # balise <c de #487) sont de classe "usp_refus_lecture", lue par
   # l'application ; feuille introuvable : erreur ordinaire.
@@ -2923,6 +2949,53 @@ if (nzchar(Sys.which("zip"))) {
              identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
                                 error = function(e) "refus"), NULL))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
+
+## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)
+# Decision du mainteneur du 12/11/2026 : un CSV dont la ligne 1 ne contient
+# que des separateurs (",,,,,") est refuse avec le texte du classeur, motif
+# "erreurs" d'engine_lire_donnees_csv() et d'engine_lire_triangle()
+# (.ligne1_sans_valeur()). Lecture de l'application (lire_tableau()).
+lire_csv522 <- function(txt) {
+  f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+  writeBin(charToRaw(enc2utf8(txt)), f)
+  utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE, check.names = FALSE,
+                  na.strings = character(0), row.names = NULL)
+}
+MOTIF522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
+tri522 <- "i,j0,j1,j2,j3,j4\n0,100,150,170,180,185\n1,110,160,180,190,\n2,120,170,190,,\n3,130,180,,,\n4,140,,,,\n"
+ser522 <- "t,xt,yt\n1,10,2\n2,11,2\n3,12,3\n4,13,3\n5,14,4\n"
+num522 <- "100,150,170,180,185\n110,160,180,190,\n120,170,190,,\n130,180,,,\n140,,,,\n"
+refuse522 <- function(df) identical(engine_lire_donnees_csv(df)$erreurs, MOTIF522) &&
+  identical(engine_lire_triangle(df)$erreurs, MOTIF522) && !engine_lire_triangle(df)$ok
+verifier("CSV (#522) : ligne 1 \",,,\" au-dessus d'un en-tete texte (series t,xt,yt ; triangle i,j0..) : refus au texte du classeur, series et triangle",
+         refuse522(lire_csv522(paste0(",,\n", ser522))) && refuse522(lire_csv522(paste0(",,,,,\n", tri522))) &&
+           identical(MOTIF522, MOTIF_LIGNE1_VIDE))
+verifier("CSV (#522) : ligne 1 \",,,\" au-dessus d'un en-tete numerique (0,1,2,3,4) ou d'un triangle sans en-tete : refus (auparavant triangle non carre, ou triangle accepte)",
+         refuse522(lire_csv522(paste0(",,,,,\n0,1,2,3,4\n", num522))) && refuse522(lire_csv522(paste0(",,,,\n", num522))))
+verifier("CSV (#522) : ligne 1 \",,,\" avec BOM, de blancs \" , , \" ou de guillemets vides : meme refus",
+         refuse522(lire_csv522(paste0("﻿,,\n", ser522))) && refuse522(lire_csv522(paste0(" , , \n", ser522))) &&
+           refuse522(lire_csv522(paste0('"","",""\n', ser522))))
+verifier("CSV (#522, option (b)) : en-tetes cites faits seulement de blancs [[:space:]] (\" \", TAB) : meme refus ; en-tetes faits d'une espace insecable (hors [[:space:]] sous C.UTF-8) : en-tetes reels, pas ce refus",
+         refuse522(lire_csv522(paste0('" "," "," "\n', ser522))) &&
+           refuse522(lire_csv522(paste0('"\t","  ",""\n', ser522))) &&
+           !identical(engine_lire_triangle(lire_csv522(paste0('" "," "," "," "," "\n', num522)))$erreurs, MOTIF522))
+verifier("CSV (#522) : ligne 1 \",,,\" sans aucune valeur dessous : pas ce refus (tableau vide : \"Fichier vide ou illisible comme tableau.\")",
+         identical(engine_lire_donnees_csv(lire_csv522(",,\n"))$erreurs, "Fichier vide ou illisible comme tableau.") &&
+           identical(engine_lire_triangle(lire_csv522(",,\n,,\n"))$erreurs, "Fichier vide ou illisible comme tableau."))
+m522 <- as.matrix(utils::read.csv(text = tri522))[, -1]; dimnames(m522) <- NULL
+x522 <- as.data.frame(m522); names(x522) <- paste0("X", 1:5)
+verifier("CSV (#522) : pas de faux refus : series xt,yt sans t ; triangle i,j0.. ; en-tete \"i\" suivi d'en-tetes vides ; matrice sans noms et noms generes V<k> / X<k>",
+         isTRUE(engine_lire_donnees_csv(lire_csv522(sub("t,xt,yt", "xt,yt", gsub("\n[0-9],", "\n", ser522))))$ok) &&
+           isTRUE(engine_lire_triangle(lire_csv522(tri522))$ok) &&
+           isTRUE(engine_lire_triangle(lire_csv522(sub("i,j0,j1,j2,j3,j4", "i,,,,,", tri522)))$ok) &&
+           isTRUE(engine_lire_triangle(m522)$ok) && isTRUE(engine_lire_triangle(as.data.frame(m522))$ok) &&
+           isTRUE(engine_lire_triangle(x522)$ok))
+verifier("CSV (#522) : motifs LE-02, LE-03 et LE-13 inchanges (en-tete y, ligne vide sous l'en-tete, cellule non numerique)",
+         grepl("^Colonne\\(s\\) manquante\\(s\\) : yt\\.", engine_lire_donnees_csv(lire_csv522("t,xt,y\n1,2,3\n"))$erreurs) &&
+           grepl("^Ligne\\(s\\) vide\\(s\\) en tete, sous l'en-tete",
+                 engine_lire_donnees_csv(lire_csv522(paste0("t,xt,yt\n,,\n", sub("^[^\n]*\n", "", ser522))))$erreurs) &&
+           identical(engine_lire_triangle(lire_csv522(sub("185", "xyz", tri522)))$erreurs,
+                     "Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement)."))
 
 ## --- Colonnes presentes : caracteres echappes, noms absents cites "(vide)" (#522)
 # Liste des en-tetes de engine_lire_donnees_csv() ecrite par .echapper_texte() :
@@ -2960,11 +3033,12 @@ verifier("Colonnes presentes (#522) : controle C1 U+0089 en UTF-8 valide ecrit \
 verifier("Colonnes presentes (#522) : blancs, controles et caracteres de format non ASCII ecrits \\uXXXX (\\UXXXXXXXX au-dela de U+FFFF)",
          identical(cols522(c("a\u00a0b", "a\u200bb", "\u2028")), "a\\u00a0b, a\\u200bb, \\u2028") &&
            identical(cols522(c(intToUtf8(0xE0001), "\u00e9", "x")), "\\U000e0001, \u00e9, x"))
-verifier("Colonnes presentes (#522) : nom absent cite \"(vide)\" (\"\", NA, \"X<k>\" et \"V<k>\" a leur position), nom reel \"X5\" ou \"V1\" hors position garde",
+verifier("Colonnes presentes (#522) : nom absent cite \"(vide)\" (\"\", NA, \"X<k>\" et \"V<k>\" a leur position), nom reel \"X5\" ou \"V1\" hors position garde ; tous les noms \"\" : refus de la ligne 1 (extension aux CSV)",
          identical(cols522(c("Export ACME", "", NA)), "Export ACME, (vide), (vide)") &&
            identical(cols522(c("t", "X2", "V3")), "t, (vide), (vide)") &&
            identical(cols522(c("t", "X5", "V1")), "t, X5, V1") &&
-           identical(cols522(c("", "", "")), "(vide), (vide), (vide)"))
+           identical(cols522(c("", NA, "X3")), "(vide), (vide), (vide)") &&
+           identical(cols522(c("", "", "")), MOTIF_LIGNE1_VIDE))
 verifier("Colonnes presentes (#522) : en-tete a controle et nom absent dans la meme liste ; motif UTF-8 valide",
          {
            r <- engine_lire_donnees_csv(setNames(data.frame("1", "2", "3", stringsAsFactors = FALSE),

@@ -226,7 +226,7 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # motif R au journal (#94). Retourne list(df, erreur, refus_moteur) : erreur
 # vaut NULL si la lecture a abouti, sinon le message fixe ou le texte du
 # moteur ; refus_moteur dit lequel (TRUE pour le texte du moteur), pour la
-# phrase de l'import ("Fichier ... (XLSX) refuse : <texte>").
+# phrase de l'import ("Fichier ... (XLSX) refuse. <texte>").
 MESSAGE_ILLISIBLE <- c(
   xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
                ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
