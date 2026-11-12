@@ -3879,15 +3879,25 @@ indiqués pour chaque année de développement, années de développement consé
 la plus récente de la première année d'accident~; la présomption est une lecture retenue par
 l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
 une colonne vide sans en-tête placée avant la première colonne de développement renseignée, autre
-que la colonne \code{i}, est refusée de même comme année de développement~0 manquante présumée
-(motif «~\code{\ldots{} sans en-tete avant la premiere colonne renseignee du triangle}~»
-suivi de «~\code{annee de developpement 0 manquante presumee}~», qui la numérote par sa position dans le tableau lu, colonne \code{i} comprise), avec ou sans
-colonne \code{i}~: sans colonne \code{i}, un tableau décalé d'une colonne a les mêmes cellules
-qu'un triangle dont la colonne~0 est vide, et l'outil ne choisit pas entre les deux lectures. Seule
-exception, une colonne vide placée avant la colonne \code{i}, quand celle-ci précède elle-même les
-données, est retirée sans message (tableau décalé, qui se reconnaît à sa colonne \code{i})~; une
-colonne vide placée entre la colonne \code{i} et les données, ou à gauche quand la colonne
-\code{i} suit les données, est refusée (mesuré). La fonction appelle ensuite
+que la colonne \code{i}, est refusée, avec ou sans colonne \code{i}, comme année de
+développement~0 manquante présumée (motif «~\code{\ldots{} sans en-tete avant la premiere colonne
+renseignee du triangle}~» suivi de «~\code{annee de developpement 0 manquante presumee}~», qui la
+numérote par sa position dans le tableau lu, colonne \code{i} comprise). Ce refus est une
+précaution de l'outil, qui ne peut pas déterminer l'année de développement de chaque colonne~:
+sans colonne \code{i}, un tableau décalé d'une colonne a les mêmes cellules qu'un triangle dont la
+colonne~0 est vide, et l'outil ne choisit pas entre les deux lectures. Il se rattache à
+l'annexe~XVII, D(1), lu avec A(1)(b)~: l'année de développement d'un paiement étant «~la
+différence entre l'année de ce paiement et l'année de l'accident auquel il correspond~»
+(A(1)(b)), les paiements de l'année de l'accident relèvent de l'année de développement~0, et un
+triangle dont cette colonne est vide n'indique pas les montants que D(1) demande «~pour chaque
+année d'accident et chaque année de développement des paiements~». Un tableau décalé, dont la
+première colonne renseignée est l'année de développement~0, satisfait au contraire D(1) sur ce
+point~: son refus relève de la seule précaution (lecture retenue par l'outil). D(2)(c) n'est pas
+en cause, les années de développement renseignées restant consécutives dans l'une et l'autre
+lecture. Seule exception, une colonne vide placée avant la colonne \code{i}, quand celle-ci
+précède elle-même les données, est retirée sans message (tableau décalé, qui se reconnaît à sa
+colonne \code{i})~; une colonne vide placée entre la colonne \code{i} et les données, ou à gauche
+quand la colonne \code{i} suit les données, est refusée (mesuré). La fonction appelle ensuite
 \code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
