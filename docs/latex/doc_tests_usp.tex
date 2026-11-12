@@ -4528,8 +4528,9 @@ blanc (classe \code{[[:space:]]}, mesuré sous la locale \code{C.UTF-8}), et un 
 d'elle seule est un en-tête réel. La règle vaut pour un classeur, sur les deux chemins de
 lecture, comme pour un CSV dont la ligne~1 ne porte que des séparateurs, éventuellement entourés
 de blancs (noms de colonne lus tels quels, comme les lit l'application). Un fichier sans aucune
-valeur n'est pas visé et garde ses refus propres~: tableau vide pour un triangle, colonnes
-manquantes pour une série (mesuré). Pour un CSV, ce refus est un motif d'erreurs du lecteur
+valeur n'est pas visé et garde ses refus propres~: tableau vide pour un triangle~; pour une
+série, tableau vide, ou colonnes manquantes si le fichier porte des lignes de cellules vides
+(mesuré). Pour un CSV, ce refus est un motif d'erreurs du lecteur
 (\code{.ligne1\_sans\_valeur()}, en tête d'\code{engine\_lire\_donnees\_csv()} et
 d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un classeur, c'est un
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
