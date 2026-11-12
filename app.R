@@ -389,6 +389,14 @@ ui <- fluidPage(
     .defil-detail table.data { margin-bottom:0; }
     .defil-detail table.data > thead > tr > th { position:sticky; top:0; z-index:2;
       background:#fff; border-bottom:0; box-shadow:inset 0 -2px 0 #ddd; }
+    /* A l'impression, le cadre defilant tronquerait le tableau (hauteur bornee,
+       defilement invisible sur papier) : cadre deplie, en-tete non colle, trait
+       sous l'en-tete en bordure (une ombre interne n'est pas toujours imprimee). */
+    @media print {
+      .defil-detail { overflow:visible; max-height:none; }
+      .defil-detail table.data > thead > tr > th { position:static;
+        box-shadow:none; border-bottom:2px solid #ddd; }
+    }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
     details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
@@ -618,8 +626,16 @@ ui <- fluidPage(
           helpText("L'erreur de Monte-Carlo decroit en 1/sqrt(B) ; elle est",
                    "independante de la qualite de l'approximation liee a T.",
                    "B + 1 > 4/alpha requis pour que l'ECHEC bilateral reste atteignable."),
+          # Bornes du champ : celles du domaine du moteur, 0 < alpha <
+          # SEUIL_ECHEC_SENS_REJETER (.engine_verifier_usage(), #542), lues a la
+          # constante du moteur charge. Les bornes du champ sont inclusives : 0 et
+          # SEUIL_ECHEC_SENS_REJETER y restent saisissables, et c'est le moteur,
+          # seul controle metier, qui les refuse (bandeau d'erreur d'usage).
           numericInput("alpha", "Seuil alpha des verdicts", value = 0.10,
-                       min = 0.01, max = 0.20, step = 0.01),
+                       min = 0, max = SEUIL_ECHEC_SENS_REJETER, step = 0.01),
+          helpText(sprintf(paste("Seuil strictement compris entre 0 et %1$s : le moteur",
+                                 "refuse 0, %1$s et toute valeur au-dela."),
+                           .num_fr(SEUIL_ECHEC_SENS_REJETER, "%.2f"))),
           uiOutput("avert_b_alpha"),
           hr(),
           h5("Test d'equivalence de la constante"),
@@ -842,8 +858,11 @@ server <- function(input, output, session) {
       # Message de l'erreur d'usage : texte du moteur, qui nomme l'argument
       # rejete (.engine_verifier_usage(), issue #88).
       refuser(TITRE_ERREUR, c(conditionMessage(cond), AIDE_USAGE))
-      showNotification(paste("Erreur d'usage :", conditionMessage(cond)),
-                       type = "error", duration = 12)
+      # Le message du moteur n'est restitue qu'une fois, au bandeau (#543) ; la
+      # notification est un texte fixe qui renvoie au bandeau, comme pour les
+      # autres refus (#226).
+      showNotification("Erreur d'usage : aucun resultat n'est produit (voir le bandeau).",
+                       type = "error", duration = 15)
       return(FALSE)
     }
     if (isTRUE(res$ok)) {
