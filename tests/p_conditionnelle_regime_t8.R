@@ -118,6 +118,9 @@
 #         sur J1 observe hors les 5 lignes de lecture conjointe de #297 (53 au
 #         total), libelles distincts, 44 lignes du perimetre de T2 (ligne
 #         Student de #423 exclue, presente une fois, INFO sans p retenue) ;
+#    (b2) (#541) les 13 marqueurs de LIGNES_DIAG_DECISION (classe D de (t2), code
+#         D de diag_) se retrouvent dans les detail de usp_tests() sur J1
+#         observe (marqueurs_diag_absents()) ; un marqueur perime est un ECHEC ;
 #    (c)  jeux simules identiques (identical()) a l'expression YSIM de #72
 #         (tests/taux_franchissement_reperes.R, lue par parse(), liste
 #         blanche de noms, environnement isole ; J3 : FIT0_J3 synthetique) ;
@@ -856,19 +859,25 @@ CLASSES_T2 <- c(T = "classe T (#298, r\u00e8gle R14, f20c17c)", M = "classe M (#
 #   #303 (99ae529, regle R15, a pi chapeau constant) : DWr, Runsr, supFr,
 #     CUSUMr, Grubbsr.
 # Une autre ligne, ou une ligne sans son marqueur, reste non expliquee.
-# Depuis #452, la phrase fixe ne porte plus le numero d'issue : le prefixe est
-# commun a #299 et #302 (un seul marqueur, MARQUEUR_DIAG_DECISION, #465), et le
-# marqueur de chaque ligne y ajoute le fragment propre a sa phrase (le marqueur
-# d'une autre ligne reste refuse).
-MARQUEUR_DIAG_DECISION <- "Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;"
-MARQUEUR_DIAG_R15 <- "Restituee en diagnostic (regle R15)"
+# Depuis #452, la phrase fixe ne porte plus le numero d'issue ; depuis #514
+# (reecriture des detail), elle commence par "Diagnostic par decision, sans
+# verdict ni p-value retenue :" (decision) ou "Diagnostic (regle R15), sans
+# verdict ni p-value retenue :" (R15), puis nomme la ligne qui fait foi : le
+# prefixe est commun aux lignes par decision (un seul marqueur,
+# MARQUEUR_DIAG_DECISION, #465), et le marqueur de chaque ligne y ajoute le
+# fragment propre a sa raison (le marqueur d'une autre ligne reste refuse).
+# Textes alignes sur R/engine.R (detail_diag(), txt_r15(), raison_*) le
+# 11/11/2026 (#541) ; marqueurs_diag_absents() echoue si l'un d'eux ne se
+# retrouve plus dans un detail du moteur courant (controle (b2)).
+MARQUEUR_DIAG_DECISION <- "Diagnostic par decision, sans verdict ni p-value retenue :"
+MARQUEUR_DIAG_R15 <- "Diagnostic (regle R15), sans verdict ni p-value retenue :"
 LIGNES_DIAG_DECISION <- c(
-  SpearTps = paste(MARQUEUR_DIAG_DECISION, "meme alternative (tendance monotone du"),
-  stats::setNames(rep(paste(MARQUEUR_DIAG_DECISION, "la structure de variance releve de la ligne"), 4L),
+  SpearTps = paste(MARQUEUR_DIAG_DECISION, "la ligne \"Tendance monotone du ratio S/P\", meme alternative"),
+  stats::setNames(rep(paste(MARQUEUR_DIAG_DECISION, "la ligne \"Heteroscedasticite vs volume - Breusch-Pagan studentise (Koenker)\""), 4L),
                   c("BP79", "White", "GQ", "BF")),
-  Smirnov = paste(MARQUEUR_DIAG_DECISION, "compare la position de z entre petits et gros"),
-  CvM = paste(MARQUEUR_DIAG_DECISION, "W2 etant tres correlee a A2"),
-  KS = paste(MARQUEUR_DIAG_DECISION, "l'hypothese releve de la ligne Lilliefors"),
+  Smirnov = paste(MARQUEUR_DIAG_DECISION, "les lignes de la famille B (H1), dont"),
+  CvM = paste(MARQUEUR_DIAG_DECISION, "la ligne \"Anderson-Darling\" fait foi"),
+  KS = paste(MARQUEUR_DIAG_DECISION, "la ligne \"Lilliefors (KS a parametres estimes)\" fait foi"),
   stats::setNames(rep(MARQUEUR_DIAG_R15, 5L), c("DWr", "Runsr", "supFr", "CUSUMr", "Grubbsr")))
 LIGNE_PITMAN <- "Test de Pitman sur la pente (lien positif pertes / volume)"
 # Regle R4 retiree par D1-Fb (#218, #230) ; reproduit la regle des mesures
@@ -2495,6 +2504,20 @@ est_diag_decision <- function(t) {
   !is.na(k_d) && identical(t$verdict, "INFO") && !is.finite(t$p_retenue) && identical(t$type, "diagnostic") &&
     identical(t$inoperant, FALSE) && grepl(LIGNES_DIAG_DECISION[[k_d]], as.character(t$detail), fixed = TRUE)
 }
+# Controle (b2) (#541) : lignes de LIGNES_DIAG_DECISION dont le marqueur (prefixe
+# commun et fragment propre) ne se retrouve dans aucun detail de la ligne
+# correspondante parmi `tests` (liste de usp_tests() ou run_engine()). Un
+# marqueur perime rendrait est_diag_decision() faux sans bruit : classe D et
+# code diag_ jamais poses, discordances (t2) non expliquees a tort. Rend les
+# noms de statistique sans marqueur retrouve (character(0) : tous retrouves).
+marqueurs_diag_absents <- function(tests) {
+  lignes <- vapply(tests, function(t) as.character(t$test)[1L], "")
+  details <- vapply(tests, function(t) paste(as.character(t$detail), collapse = " "), "")
+  trouve <- vapply(names(LIGNES_DIAG_DECISION), function(nm)
+    any(details[lignes == STAT_LIGNE[[nm]]] != "" &
+          vapply(details[lignes == STAT_LIGNE[[nm]]], grepl, TRUE, pattern = LIGNES_DIAG_DECISION[[nm]], fixed = TRUE)), TRUE)
+  names(LIGNES_DIAG_DECISION)[!trouve]
+}
 # Classes fermees de discordances (t2) admises (#274, arbitrages d'actuary du
 # 17/10/2026 ; D ajoutee par R22, #366), liste fermee : (i1), T, M, P, R, D.
 # classe_t2() lit la nouvelle
@@ -2993,6 +3016,13 @@ controle(length(LIGNES_51) == 48L && !anyDuplicated(LIGNES_51) && length(LIGNES_
            is.na(ST_A[[1]]$p_retenue),
          sprintf("(b) %d lignes de usp_tests() sur J1 observ\u00e9 (hors %d lignes de lecture conjointe, diagnostics sans p retenue, #297), libell\u00e9s distincts ; %d lignes au p\u00e9rim\u00e8tre de T2 (hors rapport de vraisemblance sur \u03b4 et largeur de l'IC \u00e0 \u03b4 fixe, #45 ; hors \u00ab %s \u00bb, pr\u00e9sente une fois, INFO sans p retenue, #423 : %s)",
                  length(LIGNES_51), sum(LC_A), length(LIGNES_T2), LIGNE_STUDENT_423, TXT_HORS_POPULATION_423))
+# (b2) marqueurs de la classe D (LIGNES_DIAG_DECISION) retrouves dans les detail
+# de J1 observe (#541) : echec explicite si l'un d'eux a disparu du moteur.
+ABSENTS_DIAG <- marqueurs_diag_absents(RES_A$tests)
+controle(!length(ABSENTS_DIAG),
+         sprintf("(b2) les %d marqueurs de diagnostic de LIGNES_DIAG_DECISION (classe D de (t2), code D de diag_) se retrouvent dans les detail de usp_tests() sur J1 observ\u00e9%s",
+                 length(LIGNES_DIAG_DECISION),
+                 if (length(ABSENTS_DIAG)) paste0(" : marqueur absent du moteur courant pour ", paste(ABSENTS_DIAG, collapse = ", ")) else ""))
 # Regle R4 retiree par D1-Fb (#218, #230) ; SEUIL_PUISSANCE_PENTE_R4
 # (decision Q-D1-Fb-7) est defini en tete, lu depuis #274 par r4_pente()
 # (classe P de (t2)) ; la chaine T0 decrit la regle du moteur mesure.

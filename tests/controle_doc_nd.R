@@ -744,6 +744,9 @@ nd_lire_mots <- function(pdf) {
   if (length(nd_outils_pdf_manquants())) return(NULL)
   f <- tempfile(fileext = ".html"); on.exit(unlink(f))
   system2("pdftotext", c("-bbox", shQuote(pdf), shQuote(f)), stdout = FALSE, stderr = FALSE)
+  # pdftotext sans -bbox (xpdf) : aucun fichier produit ; NULL, non une erreur de
+  # connexion sur un fichier jamais ecrit (#549). L'appelant en tire un avis.
+  if (!file.exists(f)) return(NULL)
   x <- readLines(f, warn = FALSE, encoding = "UTF-8")
   page <- cumsum(grepl("^\\s*<page ", x))
   w <- grep("^\\s*<word ", x)
@@ -964,10 +967,21 @@ nd_passe_mesure <- function(tex, marques_tex) {
 # (CI : tests/doc_remplissage.tex) ; sinon la passe est faite ici.
 nd_outils_pdf_manquants <- function() c("pdftotext", "pdfinfo")[!nzchar(Sys.which(c("pdftotext", "pdfinfo")))]
 
+# Variante de pdftotext : -bbox n'existe que dans poppler (la banniere de -v le dit) ;
+# xpdf (Git for Windows, avant MiKTeX dans le PATH de Git Bash) ne le connait pas (#549).
+# Suppose pdftotext present (nd_outils_pdf_manquants() vide). Une banniere non reconnue
+# est traitee comme xpdf : avis, jamais une mesure faussee.
+nd_pdftotext_poppler <- function() {
+  v <- tryCatch(suppressWarnings(system2("pdftotext", "-v", stdout = TRUE, stderr = TRUE)), error = function(e) character(0))
+  any(grepl("poppler", v, ignore.case = TRUE))
+}
+ND_AVIS_SANS_BBOX <- "pdftotext sans -bbox : poppler requis (xpdf ?) : remplissage non mesure."
+
 nd_controle_remplissage <- function(tex, pdf_normal, marques_tex, remp = NULL, pdf_mesure = NULL) {
   manquants <- nd_outils_pdf_manquants()
   if (length(manquants))
     return(list(constats = NULL, avis = sprintf("%s absent (poppler-utils) : remplissage non mesure.", paste(manquants, collapse = " et "))))
+  if (!nd_pdftotext_poppler()) return(list(constats = NULL, avis = ND_AVIS_SANS_BBOX))
   if (is.null(pdf_normal) || !file.exists(pdf_normal))
     return(list(constats = NULL, avis = "PDF de la compilation normale absent : remplissage non mesure."))
   tmp <- NULL
@@ -984,9 +998,11 @@ nd_controle_remplissage <- function(tex, pdf_normal, marques_tex, remp = NULL, p
                                               "(PDF obsolete ou marques qui deplacent la composition) : remplissage non mesure.")))
   marques <- nd_lire_marques(remp)
   if (is.null(marques)) return(list(constats = NULL, avis = "marques incompletes (ligne G absente) : remplissage non mesure."))
-  # pdftotext et pdfinfo sont verifies une fois, en tete de la fonction : nd_lire_mots()
-  # ne rend donc pas NULL ici (la seconde verification, branche morte, est retiree, #465).
-  nd_analyser_remplissage(marques, nd_lire_mots(pdf_normal))
+  # pdftotext et pdfinfo sont verifies une fois, en tete de la fonction (#465) ; nd_lire_mots()
+  # ne rend NULL que si pdftotext, reconnu poppler, ne produit pas le fichier (#549).
+  mots <- nd_lire_mots(pdf_normal)
+  if (is.null(mots)) return(list(constats = NULL, avis = ND_AVIS_SANS_BBOX))
+  nd_analyser_remplissage(marques, mots)
 }
 
 nd_imprimer_remplissage <- function(r) {

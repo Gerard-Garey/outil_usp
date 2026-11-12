@@ -852,8 +852,10 @@ if (nzchar(Sys.which("kpsewhich")))
   verifier("garde kpsewhich : un fichier TeX inexistant est absent (FALSE), et non present par nzchar(NA)",
            isFALSE(fichier_tex_present("fichier_tex_inexistant_r36.sty")) &&
            identical(nzchar(suppressWarnings(system2("kpsewhich", "fichier_tex_inexistant_r36.sty", stdout = TRUE, stderr = FALSE))[1L]), TRUE))
+# pdftotext doit etre poppler (-bbox) : un xpdf en tete du PATH (Git Bash sous Windows) ferait
+# echouer la passe de mesure reelle ; garde alignee sur l'avis de nd_controle_remplissage() (#549).
 tex_dispo <- nzchar(Sys.which("pdflatex")) && nzchar(Sys.which("pdftotext")) && nzchar(Sys.which("pdfinfo")) &&
-             fichier_tex_present("framed.sty") && !is.null(bloc_encadre)
+             nd$nd_pdftotext_poppler() && fichier_tex_present("framed.sty") && !is.null(bloc_encadre)
 if (tex_dispo) {
   dir_t <- file.path(dir_b, "tex"); dir.create(dir_t)
   # Encadre long (40 lignes, plus d'une demi-page) pose a 12 lignes du bas de la page 1 :
@@ -887,7 +889,7 @@ if (tex_dispo) {
            setequal(list.files(dir_t), c("mini.tex", "mini.pdf", "mini.aux", "mini.log")))
   rr <- nd$nd_controle_remplissage(f_doc, file.path(dir_t, "absent.pdf"), marq_tex)
   verifier("PDF normal absent : avis", is.null(rr$constats) && length(rr$avis) == 1L)
-} else cat("  (pdflatex, pdftotext, framed ou bloc encadre du document absents : passe de mesure reelle non testee)\n")
+} else cat("  (pdflatex, pdftotext poppler, pdfinfo, framed ou bloc encadre du document absents : passe de mesure reelle non testee)\n")
 
 
 # --- Outils PDF absents (pdftotext, pdfinfo) : avis et pas d'erreur (C3) ---------------------------
@@ -904,6 +906,53 @@ verifier("pdftotext et pdfinfo absents : avis, aucune erreur, rien n'est mesure"
          !inherits(rr, "error") && is.null(rr$constats) && length(rr$avis) == 1L && grepl("pdftotext et pdfinfo absent", rr$avis) &&
          setequal(manq, c("pdftotext", "pdfinfo")))
 verifier("nd_lire_mots sans pdftotext : NULL, aucune erreur", is.null(mots_abs))
+
+# --- pdftotext sans -bbox (xpdf) : avis explicite, aucune erreur de connexion (#549) -----------------
+# Faux pdftotext et pdfinfo (scripts sh, systemes de type Unix) places en tete du PATH le temps du
+# test, PATH restaure ensuite : le premier imite xpdf 4.06 (banniere sans poppler, -bbox refuse,
+# aucun fichier ecrit), le second une banniere poppler dont -bbox n'ecrirait rien.
+if (.Platform$OS.type == "unix") {
+  faux_outils <- function(nom, banniere, ecrit_layout = FALSE) {
+    d <- file.path(dir_b, nom); dir.create(d)
+    # ecrit_layout : -layout ecrit le fichier de sortie (dernier argument), pour atteindre
+    # dans nd_controle_remplissage() le retour sur -bbox sans sortie
+    layout <- if (ecrit_layout) "-layout) for a; do der=$a; done; echo texte > \"$der\"; exit 0;;" else NULL
+    writeLines(c("#!/bin/sh", sprintf("if [ \"$1\" = \"-v\" ]; then echo \"%s\" >&2; exit 0; fi", banniere),
+                 "case \"$1\" in", layout, "-bbox) echo \"Error: Unknown option\" >&2; exit 99;;", "esac", "exit 0"),
+               file.path(d, "pdftotext"))
+    writeLines(c("#!/bin/sh", "exit 0"), file.path(d, "pdfinfo"))
+    Sys.chmod(file.path(d, c("pdftotext", "pdfinfo")), "755")
+    d
+  }
+  d_xpdf <- faux_outils("faux_xpdf", "pdftotext version 4.06 Copyright 1996-2025 Glyph & Cog, LLC")
+  d_pop <- faux_outils("faux_poppler", "pdftotext version 24.04.0 Copyright 2005-2024 The Poppler Developers",
+                       ecrit_layout = TRUE)
+  chemin_avant <- Sys.getenv("PATH")
+  # PATH restaure meme en cas d'erreur imprevue (le lanceur sequentiel partage le processus)
+  tryCatch({
+    Sys.setenv(PATH = paste(d_xpdf, chemin_avant, sep = .Platform$path.sep))
+    poppler_xpdf <- nd$nd_pdftotext_poppler()
+    rr_xpdf <- tryCatch(nd$nd_controle_remplissage(f_sale, f_pdf_bidon, file.path(.dossier, "..", "marques_remplissage.tex"),
+                                                   remp = f_remp_bidon, pdf_mesure = f_pdf_bidon), error = function(e) e)
+    mots_xpdf <- tryCatch(nd$nd_lire_mots(f_pdf_bidon), error = function(e) e)
+    Sys.setenv(PATH = paste(d_pop, chemin_avant, sep = .Platform$path.sep))
+    poppler_pop <- nd$nd_pdftotext_poppler()
+    mots_pop <- tryCatch(nd$nd_lire_mots(f_pdf_bidon), error = function(e) e)
+    rr_pop <- tryCatch(nd$nd_controle_remplissage(f_sale, f_pdf_bidon, file.path(.dossier, "..", "marques_remplissage.tex"),
+                                                  remp = f_remp_bidon, pdf_mesure = f_pdf_bidon), error = function(e) e)
+  }, finally = Sys.setenv(PATH = chemin_avant))
+  verifier("pdftotext xpdf (sans -bbox) : banniere non poppler, avis 'poppler requis', aucune erreur, rien n'est mesure",
+           isFALSE(poppler_xpdf) && !inherits(rr_xpdf, "error") && is.null(rr_xpdf$constats) && length(rr_xpdf$avis) == 1L &&
+             grepl("pdftotext sans -bbox : poppler requis", rr_xpdf$avis, fixed = TRUE))
+  verifier("pdftotext xpdf : nd_lire_mots rend NULL (aucun fichier produit), non une erreur de connexion",
+           is.null(mots_xpdf))
+  verifier("banniere poppler reconnue ; si -bbox n'ecrit aucun fichier, nd_lire_mots rend NULL sans erreur",
+           isTRUE(poppler_pop) && is.null(mots_pop))
+  verifier("banniere poppler sans sortie -bbox : nd_controle_remplissage rend l'avis 'poppler requis', aucune erreur",
+           !inherits(rr_pop, "error") && is.null(rr_pop$constats) && length(rr_pop$avis) == 1L &&
+             grepl("pdftotext sans -bbox : poppler requis", rr_pop$avis, fixed = TRUE))
+  verifier("PATH restaure apres les faux outils", identical(Sys.getenv("PATH"), chemin_avant))
+} else cat("  (systeme non Unix : faux pdftotext xpdf non teste)\n")
 
 # --- Pages en chiffres romains dans le .aux : avis ------------------------------------------------------
 f_aux_rom <- file.path(dir_b, "romain.aux")
