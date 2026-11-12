@@ -618,8 +618,16 @@ ui <- fluidPage(
           helpText("L'erreur de Monte-Carlo decroit en 1/sqrt(B) ; elle est",
                    "independante de la qualite de l'approximation liee a T.",
                    "B + 1 > 4/alpha requis pour que l'ECHEC bilateral reste atteignable."),
+          # Bornes du champ : celles du domaine du moteur, 0 < alpha <
+          # SEUIL_ECHEC_SENS_REJETER (.engine_verifier_usage(), #542), lues a la
+          # constante du moteur charge. Les bornes du champ sont inclusives : 0 et
+          # SEUIL_ECHEC_SENS_REJETER y restent saisissables, et c'est le moteur,
+          # seul controle metier, qui les refuse (bandeau d'erreur d'usage).
           numericInput("alpha", "Seuil alpha des verdicts", value = 0.10,
-                       min = 0.01, max = 0.20, step = 0.01),
+                       min = 0, max = SEUIL_ECHEC_SENS_REJETER, step = 0.01),
+          helpText(sprintf(paste("Seuil strictement compris entre 0 et %1$s : le moteur",
+                                 "refuse 0, %1$s et toute valeur au-dela."),
+                           .num_fr(SEUIL_ECHEC_SENS_REJETER, "%.2f"))),
           uiOutput("avert_b_alpha"),
           hr(),
           h5("Test d'equivalence de la constante"),
