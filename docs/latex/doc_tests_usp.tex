@@ -895,12 +895,29 @@ reconnue~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<
 \code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
 refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
 les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
-\code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} &
-chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines})~; dans la voie de repli, chaque nombre fini est écrit
-par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres significatifs
-s'ils restituent la valeur, 17 sinon), $\pm\infty$ en chaîne de caractères et \code{NA} en
-cellule vide \\
+\code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} (\code{"Donnees"}) &
+chemin du fichier écrit par l'écrivain interne, seul employé, avec ou sans \code{openxlsx}~;
+archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
+la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; sans
+tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
+fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
+significatifs s'ils restituent la valeur, 17 sinon), de sorte que la relecture rend les mêmes
+doubles (mesuré sur les deux chemins de lecture), $\pm\infty$ en chaîne de caractères,
+\code{NA} en cellule vide, une colonne logique en chaînes «~\code{TRUE}~» et «~\code{FALSE}~», les
+autres valeurs en chaînes en ligne~; relu par \code{openxlsx}, un en-tête ou une chaîne portant
+\code{\&}, \code{<} ou \code{>} reste échappé («~\code{a\&lt;b\&amp;c}~») et une colonne logique
+est rendue logique, alors que la voie de repli les relit tels qu'écrits et en caractères
+(mesuré, \code{openxlsx}~4.2.9)~; les exports de données de l'application, à en-têtes fixes et
+cellules numériques, n'y sont pas exposés \\
+\code{engine\_ecrire\_csv()} & \code{df}, \code{chemin} (fichier, non une connexion) & chemin
+du fichier écrit, au format de \code{write.csv()} sans noms de ligne et à cellule vide pour
+\code{NA} (séparateur virgule, ligne d'en-tête, noms et chaînes entre guillemets, nombres et
+logiques sans guillemets, texte en UTF-8), seule l'écriture des nombres différant~: double fini
+écrit par \code{.xlsx\_nombre()}, entier en \code{\%d}, \code{NA} et \code{NaN} en cellule vide,
+$\pm\infty$ en «~\code{Inf}~» et «~\code{-Inf}~»~; un double fini se relit à l'identique, alors
+que les 15~chiffres de \code{write.csv()} ne restituent ni $1/3$ ni le plus grand double fini
+(\code{.Machine\$double.xmax}), relu \code{Inf} (mesuré)~; export CSV des données de
+l'application \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
 vecteur $\pi_t$ \\
@@ -2502,9 +2519,9 @@ principal (\code{bootstrap\$stats\_boot}) et dans les statistiques observées~; 
 la graine \code{seed} par ces réplications seulement. Mesuré~: un appel direct
 d'\code{engine\_p\_famille()} sur les lignes et le bootstrap de la référence \code{premium} laisse
 \code{.Random.seed} identique.
-\code{engine\_lire\_xlsx()}, qui extrait le classeur dans un dossier temporaire avec ou sans le
-paquet \code{openxlsx}, et \code{engine\_ecrire\_xlsx()}, dans sa
-voie de repli sans ce paquet, ne tirent rien~: le dossier temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
+\code{engine\_lire\_xlsx()} et \code{engine\_ecrire\_xlsx()}, qui travaillent l'un et l'autre dans
+un dossier temporaire avec ou sans le paquet \code{openxlsx}, ne tirent rien~: le dossier
+temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
 (\code{on.exit(unlink(\dots, recursive = TRUE))}). Mesuré dans les deux voies, avec et sans
 \code{openxlsx}~: un aller-retour écriture puis lecture laisse \code{.Random.seed} identique et
 ne laisse aucun dossier dans \code{tempdir()}.
@@ -3719,10 +3736,12 @@ $B = 99$)~: \code{run\_engine()} rend des objets identiques au bit près sous
 \code{options(OutDec = ",")} et sous l'option par défaut, horodatage, durée et version de R
 exceptés~; le test \code{tests/unitaires/test\_outdec.R} le vérifie aussi sur un triangle
 Merz--Wüthrich, sur les points d'entrée du moteur que l'application appelle directement et sur
-l'export xlsx de repli (\code{engine\_ecrire\_xlsx()} sans \code{openxlsx}), qui écrit
+l'export xlsx (\code{engine\_ecrire\_xlsx()}, dont l'écrivain interne est seul employé, avec ou
+sans \code{openxlsx}), qui écrit
 chaque nombre fini en point décimal et en pleine précision (\code{.xlsx\_nombre()}~:
 15~chiffres significatifs s'ils restituent la valeur, 17 sinon) et $\pm\infty$ en chaîne de
-caractères. L'interface et le
+caractères~; l'export CSV des données (\code{engine\_ecrire\_csv()}) écrit ses nombres par la
+même règle. L'interface et le
 rapport figé écrivent au contraire avec une virgule décimale les nombres qu'ils mettent en forme
 eux-mêmes, et restituent les textes du moteur tels quels~: dans une même ligne de
 la table des tests, la p-value retenue s'écrit donc avec une virgule et le commentaire avec un

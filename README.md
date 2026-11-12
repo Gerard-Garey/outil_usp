@@ -26,8 +26,11 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
 
 - **R ≥ 4.3** (développé et testé avec R 4.3.1).
 - Moteur (`R/engine.R`) : R base + `stats` uniquement. `openxlsx` est utilisé
-  s'il est installé pour lire et écrire les fichiers Excel, avec repli sur une
-  implémentation interne ; les calculs n'en dépendent pas.
+  s'il est installé pour lire les fichiers Excel, avec repli sur une
+  implémentation interne ; l'écriture passe toujours par l'écrivain interne
+  du moteur, dont l'archive est compressée par le paquet `zip` s'il est
+  installé (importé par `openxlsx`), sinon par `utils::zip()` et la commande
+  `zip` du système (#488). Les calculs n'en dépendent pas.
 - Application : `shiny` ; `plotly` en option (repli automatique sur les
   graphiques de base R). Dépendances déclarées dans `DESCRIPTION` :
   `remotes::install_deps(dependencies = TRUE)` les installe.
@@ -113,6 +116,13 @@ sans en-tête est nommée par `read.csv` (« X », « X.1 »…) : elle est alor
 pour une colonne qui porte un en-tête et refusée dans un triangle ; à l'inverse,
 un en-tête numérique « k » devient « Xk » et, placé en k-ième colonne, est pris
 pour un en-tête absent.
+
+Pour écrire des données dans un fichier que ces lecteurs relisent à
+l'identique (nombres en point décimal, à 15 chiffres significatifs s'ils
+suffisent, sinon 17), comme l'export de l'application (#488) :
+
+    engine_ecrire_csv(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.csv")
+    engine_ecrire_xlsx(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.xlsx")
 
 L'en-tête du tableau est en ligne 1 : `engine_lire_xlsx()` refuse un classeur
 dont la ligne 1 ne porte aucune valeur, une cellule sans attribut de position
