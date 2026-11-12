@@ -396,6 +396,74 @@ ui <- fluidPage(
       .defil-detail { overflow:visible; max-height:none; }
       .defil-detail table.data > thead > tr > th { position:static;
         box-shadow:none; border-bottom:2px solid #ddd; }
+      /* Impression (#560) : tableau de 16 colonnes ramene a la largeur utile de
+         la page (A4 portrait comme paysage), sans mise a l'echelle (le
+         navigateur reduit la page entiere quand un tableau deborde, ce qui
+         rend le texte illisible) : largeurs de colonnes fixees en pourcentage
+         (table-layout:fixed, d'apres la ligne d'en-tete ; sans cela la colonne
+         Motif absorbe la largeur et ecrase les colonnes de texte), police et
+         marges de cellule reduites, retour a la ligne a tout caractere. La
+         largeur minimale de la colonne Motif (style en ligne de html_table())
+         est levee, d'ou !important (de meme pour la colonne Sens). Largeurs
+         dans l'ordre des colonnes de la vue Detail (portrait, puis paysage
+         dans le bloc orientation). */
+      @page { margin:10mm; }
+      .defil-detail table.data { width:100%; table-layout:fixed; font-size:6.5pt; }
+      .defil-detail table.data > thead > tr > th,
+      .defil-detail table.data > tbody > tr > td { padding:1px 2px;
+        white-space:normal; overflow-wrap:anywhere; min-width:0 !important; }
+      .defil-detail table.data > thead > tr > th { font-size:5.5pt; }
+      /* Colonne Sens : sa coupure interdite (style en ligne, ecran) deborderait. */
+      .defil-detail table.data td > span[style*='white-space:nowrap'] {
+        white-space:normal !important; }
+      .defil-detail table.data > thead > tr > th:nth-child(1) { width:7.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(2) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(3) { width:7%; }
+      .defil-detail table.data > thead > tr > th:nth-child(4) { width:7%; }
+      .defil-detail table.data > thead > tr > th:nth-child(5) { width:8.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(6) { width:6%; }
+      .defil-detail table.data > thead > tr > th:nth-child(7) { width:6%; }
+      .defil-detail table.data > thead > tr > th:nth-child(8) { width:6%; }
+      .defil-detail table.data > thead > tr > th:nth-child(9) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(10) { width:5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(11) { width:3.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(12) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(13) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(14) { width:10.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(15) { width:6.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(16) { width:5.5%; }
+      /* Paysage : police plus grande, commentaire plus large. */
+      @media (orientation:landscape) {
+        .defil-detail table.data { font-size:7.5pt; }
+        .defil-detail table.data > thead > tr > th { font-size:7pt; }
+        .defil-detail table.data > thead > tr > th:nth-child(1) { width:8%; }
+        .defil-detail table.data > thead > tr > th:nth-child(2) { width:5.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(3) { width:7.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(4) { width:7.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(5) { width:8.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(6) { width:4.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(7) { width:4.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(8) { width:4.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(9) { width:5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(10) { width:5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(11) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(12) { width:5.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(13) { width:5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(14) { width:14.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(15) { width:6%; }
+        .defil-detail table.data > thead > tr > th:nth-child(16) { width:5%; }
+      }
+      /* Titre de carte jamais isole en bas de page ; ligne de tableau jamais
+         coupee entre deux pages. */
+      .entete-carte { break-after:avoid; break-inside:avoid; }
+      .defil-detail table.data tr { break-inside:avoid; }
+      /* Les <span> a taille en ligne (11 px, display_helpers.R) depasseraient la
+         police d'impression de la cellule. */
+      .defil-detail table.data td span { font-size:inherit !important; }
+      /* Panneau Parametres (et bloc Etat) et notifications : hors impression,
+         sinon ils se superposent au tableau ; zone principale en pleine largeur. */
+      .hors-impression, #shiny-notification-panel { display:none !important; }
+      .zone-principale { width:100%; float:none; }
     }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
@@ -418,7 +486,7 @@ ui <- fluidPage(
   "))),
 
   fluidRow(
-    column(
+    tagAppendAttributes(class = "zone-principale", column(
       width = 9,
       h3("Parametres propres a l'entreprise — risque de prime et de reserve"),
       uiOutput("bandeau_refus"),
@@ -505,7 +573,10 @@ ui <- fluidPage(
                     "dans le sous-onglet <i>Personnalisation</i>."))),
                   radioButtons("vue_tests", "Niveau de detail", inline = TRUE,
                                choices = c("Synthese" = "synth", "Detail" = "detail"),
-                               selected = "synth")),
+                               selected = "synth"),
+                  helpText(class = "hors-impression",
+                           HTML(paste("Pour imprimer le tableau d&eacute;taill&eacute;, pr&eacute;f&eacute;rer",
+                                      "l'orientation paysage.")))),
               uiOutput("tests_par_hypothese")
             ),
             tabPanel(
@@ -572,10 +643,10 @@ ui <- fluidPage(
               uiOutput("bloc_export"))
         )
       )
-    ),
+    )),
 
     # ------------------------ PANNEAU DE PARAMETRES (DROITE) --------------
-    column(
+    tagAppendAttributes(class = "hors-impression", column(
       width = 3,
       div(class = "bloc",
           h4("Parametres de calcul"),
@@ -658,7 +729,7 @@ ui <- fluidPage(
       div(class = "bloc",
           h4("Etat"),
           uiOutput("etat"))
-    )
+    ))
   )
 )
 
@@ -1559,7 +1630,8 @@ server <- function(input, output, session) {
              table_detail_groupe(sub, replier = TRUE, boot = R()$bootstrap)
            else table_synthese_groupe(sub)
       div(class = "bloc",
-          div(style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:8px",
+          div(class = "entete-carte",
+              style = "border-left:4px solid #00468C;padding-left:10px;margin-bottom:8px",
               h4(style = "color:#00468C;margin:0", g$titre),
               div(style = "color:#555;font-size:12.5px", g$sous),
               div(style = "color:#7F8C8D;font-size:11.5px;font-style:italic", g$ref),
