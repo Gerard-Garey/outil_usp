@@ -114,6 +114,14 @@ pour une colonne qui porte un en-tête et refusée dans un triangle ; à l'inver
 un en-tête numérique « k » devient « Xk » et, placé en k-ième colonne, est pris
 pour un en-tête absent.
 
+L'en-tête du tableau est en ligne 1 : `engine_lire_xlsx()` refuse un classeur
+dont la ligne 1 ne porte aucune valeur, une cellule sans attribut de position
+`r` ou une balise de cellule de forme non reconnue (#487, #522). Ces refus
+motivés sont des erreurs de classe `usp_refus_lecture`
+(`inherits(e, "usp_refus_lecture")`), dont le message s'adresse à
+l'utilisateur et que l'application affiche tel quel ; une archive illisible
+ou sans feuille lève une erreur ordinaire.
+
 `charger_moteur()` (`R/charger_moteur.R`, ADR 0016) charge le moteur dans un
 environnement dédié dont la chaîne de résolution ne voit que le moteur, les
 exports de `stats` et `base` : un objet de l'environnement global (une

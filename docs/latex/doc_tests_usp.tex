@@ -820,9 +820,18 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
-du premier nom de colonne, lignes et colonnes vides selon
+du premier nom de colonne, refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
+colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
+est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
 position en lignes de données~; conversion numérique d'un facteur par ses valeurs \\
+\code{.echapper\_texte()} & textes, \code{guillemets} (\code{FALSE}) & textes cités dans un
+motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
+\code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
+contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$, autres caractères tels
+quels, chaque texte ramené d'abord en UTF-8~; entre guillemets doubles sous \code{guillemets =
+TRUE} (noms d'année d'accident de \code{mw\_valider\_triangle()}), sans guillemets sinon (colonnes
+présentes du motif d'\code{engine\_lire\_donnees\_csv()}) \\
 \code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
 \code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()} & tableau lu, objet
 (\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
@@ -847,7 +856,10 @@ extraite, avec ou sans \code{openxlsx}, dans un dossier temporaire supprimé à 
 tirage aléatoire (§\ref{sec:graines}), après refus d'une archive dont une entrée a un chemin
 absolu ou contenant «~\code{..}~»~; refus, avant l'appel à \code{openxlsx} et de même sur les deux
 chemins de lecture, d'une cellule sans attribut de position \code{r} et d'une balise de cellule
-\code{<c} suivie d'un blanc autre que l'espace (§\ref{sec:controles})~; \code{openxlsx}, s'il est
+\code{<c} suivie d'un blanc autre que l'espace, et, sous \code{entete = TRUE}, d'une ligne~1 sans
+aucune valeur (§\ref{sec:controles})~; ces trois refus sont des erreurs de classe
+\code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
+feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
 texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
 (blancs de bord retirés, suite de blancs intérieurs ramenée à une espace)~; dans la voie de
@@ -859,9 +871,11 @@ rendue numérique que si toutes ses cellules à valeur sont des cellules nombre,
 caractères, interprétée en aval (§\ref{sec:controles}) \\
 \code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
 \code{.xlsx\_attribut()},\newline \code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
-\code{.xlsx\_controler\_}\newline\code{cellules()},\newline \code{.xlsx\_blancs\_}\newline\code{entete()}
+\code{.xlsx\_controler\_}\newline\code{cellules()},\newline
+\code{.xlsx\_controler\_}\newline\code{ligne\_entete()},\newline \code{.refus\_lecture()},\newline
+\code{.xlsx\_blancs\_}\newline\code{entete()}
 & fichier XML~; texte~; fragment XML~; balise, nom d'attribut~; dossier d'extraction~; XML de la
-feuille~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
+feuille~; XML de la feuille~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
@@ -869,7 +883,10 @@ ou non, décodé~; valeur d'un attribut écrit entre guillemets doubles, \code{N
 absent~; fichier de la première feuille, erreur «~\code{Classeur illisible : aucune feuille
 trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
 d'extraction~; refus de la cellule sans attribut \code{r} et de la balise de forme non
-reconnue~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
+reconnue~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
+\code{<is>}), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
+\code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
+refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
 les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
 \code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} &
 chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
@@ -3988,7 +4005,12 @@ abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un mes
 fichier que R ne lit pas comme tableau (CSV vide ou dont une ligne compte plus de valeurs que
 l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est signalé par un
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
-dans le journal~; l'interprétation d'un tableau lu reste au moteur
+dans le journal~; un refus motivé du lecteur de classeur (erreur de classe
+\code{usp\_refus\_lecture}~: ligne~1 sans aucune valeur, cellule sans attribut de position,
+balise de cellule de forme non reconnue, paragraphe «~Lecture des fichiers~» ci-dessous) est au
+contraire affiché tel que le moteur l'écrit, à l'import («~\code{Fichier <nom> (XLSX)
+refuse.}~» suivi de ce texte) comme au démarrage, et écrit de même dans le
+journal~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
 sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
@@ -4382,7 +4404,18 @@ cellule sans attribut de position \code{r} (motif «~\code{Classeur illisible : 
 reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position.}~»,
 suivi de la conduite à tenir), l'outil ne déduisant pas la position d'une cellule de son rang dans
 la ligne, et une balise de cellule suivie d'un blanc autre que l'espace («~\code{balise de
-cellule de forme non reconnue}~»), que \code{openxlsx} ne lit pas. Les blancs de la ligne
+cellule de forme non reconnue}~»), dont \code{openxlsx} perd la valeur sans message (mesuré).
+L'en-tête du tableau est en ligne~1~: une ligne~1 sans aucune valeur (absente, ou faite de
+cellules mises en forme sans valeur) est refusée sur les deux chemins, par le motif
+«~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans
+ligne au-dessus ;}~» suivi de la conduite à tenir, parce que \code{openxlsx} saute les lignes
+vides de tête, même appelé sans retrait des lignes vides, et lirait le tableau décalé comme un
+tableau bien formé (mesuré), alors que la voie de repli prendrait la ligne vide pour l'en-tête~;
+une ligne~1 faite de chaînes vides ou de blancs n'est pas visée, et ses colonnes sont citées
+«~\code{(vide)}~» par le refus des colonnes manquantes. Ces trois refus sont des erreurs de classe
+\code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
+feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
+ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
 d'en-tête d'un classeur sont mis en forme de même par les deux chemins (blancs de bord retirés,
 suite de blancs intérieurs ramenée à une espace)~; ceux d'un CSV, lus tels quels, ne le sont
 pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
@@ -19966,7 +19999,10 @@ par \code{usp\_gamma\_bord()}),
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, lignes et colonnes vides par
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, \code{engine\_lire\_xlsx()}
-(contrôle des cellules du classeur par \code{.xlsx\_controler\_}\allowbreak\code{cellules()}) \\
+(contrôle des cellules et de la ligne d'en-tête du classeur par
+\code{.xlsx\_controler\_}\allowbreak\code{cellules()} et
+\code{.xlsx\_controler\_}\allowbreak\code{ligne\_entete()}, refus motivés par
+\code{.refus\_lecture()}) \\
 Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
 fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}) & \code{usp\_controles\_numeriques()},
 qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_engine()}~;
