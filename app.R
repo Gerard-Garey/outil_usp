@@ -389,6 +389,14 @@ ui <- fluidPage(
     .defil-detail table.data { margin-bottom:0; }
     .defil-detail table.data > thead > tr > th { position:sticky; top:0; z-index:2;
       background:#fff; border-bottom:0; box-shadow:inset 0 -2px 0 #ddd; }
+    /* A l'impression, le cadre defilant tronquerait le tableau (hauteur bornee,
+       defilement invisible sur papier) : cadre deplie, en-tete non colle, trait
+       sous l'en-tete en bordure (une ombre interne n'est pas toujours imprimee). */
+    @media print {
+      .defil-detail { overflow:visible; max-height:none; }
+      .defil-detail table.data > thead > tr > th { position:static;
+        box-shadow:none; border-bottom:2px solid #ddd; }
+    }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
     details.com:not([open]) > summary::after { content:' [\\2026]'; color:#00468C; }
