@@ -426,9 +426,10 @@ unlink(.dir286, recursive = TRUE); rm("FICHIER_LN", envir = .env)
   .env$lire_tableau(f, FALSE)$df
 }
 # Meme tableau en xlsx (ecrivain du moteur), lu par lire_tableau() :
-# NULL si aucun ecrivain xlsx n'est disponible (ni openxlsx ni commande zip).
+# NULL si aucun ecrivain xlsx n'est disponible (ni paquet zip ni commande
+# zip ; openxlsx n'ecrit plus depuis #488).
 .xlsx483 <- function(d) {
-  if (!requireNamespace("openxlsx", quietly = TRUE) && !nzchar(Sys.which("zip"))) return(NULL)
+  if (!requireNamespace("zip", quietly = TRUE) && !nzchar(Sys.which("zip"))) return(NULL)
   f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
   engine_ecrire_xlsx(d, f)
   .env$lire_tableau(f, TRUE)$df
@@ -563,8 +564,11 @@ unlink(.dir518, recursive = TRUE); rm("FICHIER_MW", envir = .env)
 # Un refus de classe "usp_refus_lecture" (engine_lire_xlsx() : ligne 1 sans
 # aucune valeur...) est rendu tel quel par lire_tableau(), journalise ; toute
 # autre erreur garde MESSAGE_ILLISIBLE. Classeur ecrit par l'ecrivain du
-# moteur, lignes descendues d'une ligne dans le XML (commande zip requise).
-if (nzchar(Sys.which("zip"))) {
+# moteur, lignes descendues d'une ligne dans le XML, recompresse par le
+# paquet zip s'il est installe, sinon par la commande zip (l'un ou l'autre
+# requis, comme pour l'ecrivain depuis #488).
+.zip522 <- requireNamespace("zip", quietly = TRUE)
+if (.zip522 || nzchar(Sys.which("zip"))) {
   .ligne1_522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
   .xlsx522 <- function(f) {
     engine_ecrire_xlsx(data.frame(xt = 100:107, yt = 60:67), f)
@@ -577,7 +581,8 @@ if (nzchar(Sys.which("zip"))) {
       sub('[0-9]+"$', paste0(as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t)) + 1L, '"'), t), "", USE.NAMES = FALSE))
     writeLines(s, fs, useBytes = TRUE)
     unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
-    utils::zip(f, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq")
+    if (.zip522) zip::zipr(f, list.files(".", all.files = TRUE, no.. = TRUE), include_directories = FALSE)
+    else utils::zip(f, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq")
     f
   }
   .f522 <- .xlsx522(tempfile(fileext = ".xlsx"))
@@ -602,7 +607,7 @@ if (nzchar(Sys.which("zip"))) {
                    .cl522$statut$msg, fixed = TRUE) &&
              identical(.cl522$valeur, .env$grille_vide_ln(8L)))
   unlink(c(.f522, .faux522)); unlink(.dir522, recursive = TRUE); rm("FICHIER_LN", envir = .env)
-} else cat("  [saute] refus motive du lecteur xlsx (#522) : commande zip indisponible\n")
+} else cat("  [saute] refus motive du lecteur xlsx (#522) : ni paquet zip ni commande zip\n")
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -923,8 +928,12 @@ testServer(app, {
   a("import de series de 40 annees : accepte, champ T pousse a 40 (#286)",
     nrow(donnees()) == 40L && identical(champ_T(), 40))
   # Refus motive du lecteur xlsx (#522) : classeur dont la ligne 1 est vide
-  # (lignes descendues d'une ligne dans le XML ; commande zip requise).
-  if (nzchar(Sys.which("zip"))) {
+  # (lignes descendues d'une ligne dans le XML ; paquet zip ou commande zip
+  # requis). Sans l'un ni l'autre : assertion sautee, signalee dans le
+  # libelle (meme nombre d'assertions, comme le bloc de #488).
+  nom522 <- "import d'un classeur a ligne 1 vide : statut \"Fichier ligne1.xlsx (XLSX) refuse. <texte du moteur>\", notification Import refuse, series gardees (#522)"
+  zip522 <- requireNamespace("zip", quietly = TRUE)
+  if (zip522 || nzchar(Sys.which("zip"))) {
     f522 <- tempfile(fileext = ".xlsx")
     get("engine_ecrire_xlsx", envir = ea)(data.frame(xt = 100:107, yt = 60:67), f522)
     x522 <- tempfile("x522_"); utils::unzip(f522, exdir = x522)
@@ -935,16 +944,18 @@ testServer(app, {
       sub('[0-9]+"$', paste0(as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t)) + 1L, '"'), t), "", USE.NAMES = FALSE))
     writeLines(s, fs, useBytes = TRUE)
     unlink(f522); od <- setwd(x522)
-    utils::zip(f522, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq"); setwd(od)
+    if (zip522) zip::zipr(f522, list.files(".", all.files = TRUE, no.. = TRUE), include_directories = FALSE)
+    else utils::zip(f522, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq")
+    setwd(od)
     d40 <- donnees(); notifs212 <<- character(0)
     suppressMessages(session$setInputs(fichier_import = list(name = "ligne1.xlsx", datapath = f522)))
-    a("import d'un classeur a ligne 1 vide : statut \"Fichier ligne1.xlsx (XLSX) refuse. <texte du moteur>\", notification Import refuse, series gardees (#522)",
+    a(nom522,
       identical(statut_import()$ok, FALSE) && identical(donnees(), d40) &&
         identical(statut_import()$msg, paste("Fichier ligne1.xlsx (XLSX) refuse.",
           "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete.")) &&
         identical(notifs212, "Import refuse."))
     unlink(c(f522, x522), recursive = TRUE)
-  }
+  } else a(paste0(nom522, " ; saute (ni paquet ni commande zip)"), TRUE)
 })
 rm("updateNumericInput", "showNotification", envir = ea)
 )---"
@@ -1582,7 +1593,7 @@ depot <- function(lignes = NULL, d = NULL) {
   data.frame(name = basename(f), size = file.size(f), type = "", datapath = f,
              stringsAsFactors = FALSE)
 }
-xlsx_dispo <- requireNamespace("openxlsx", quietly = TRUE) || nzchar(Sys.which("zip"))
+xlsx_dispo <- requireNamespace("zip", quietly = TRUE) || nzchar(Sys.which("zip"))
 ser_vide <- c("xt,yt", paste(100:102, 60:62, sep = ","), "", paste(103:107, 63:67, sep = ","))
 testServer(app, {
   do.call(session$setInputs, c(base, list(reinit = 1)))

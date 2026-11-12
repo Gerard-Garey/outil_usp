@@ -8037,7 +8037,11 @@ engine_lire_triangle <- function(df) {
 # que celui d'openxlsx), sinon utils::zip() avec la commande designee par
 # R_ZIPCMD (defaut "zip"). Sans l'un ni l'autre : erreur R ordinaire, levee
 # avant toute ecriture (ce n'est pas un refus de lecture : la classe
-# usp_refus_lecture ne s'applique pas). Dans les deux voies,
+# usp_refus_lecture ne s'applique pas). Si zip::zipr() echoue (par exemple un
+# paquet zip ancien, sans l'argument include_directories) et que la commande
+# existe, l'archive partielle est effacee et utils::zip() prend le relais ;
+# si ce repli echoue aussi, ou si la commande manque, erreur R ordinaire qui
+# nomme les deux echecs, archive partielle effacee. Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
@@ -8106,18 +8110,27 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   cible <- if (grepl("^(/|[A-Za-z]:)", chemin)) chemin else file.path(wd, chemin)
   if (file.exists(cible)) unlink(cible)
   entrees <- c("[Content_Types].xml", "_rels", "xl")
+  echec_paquet <- NULL
   if (avec_paquet_zip) {
-    st <- tryCatch({
+    echec_paquet <- tryCatch({
       zip::zipr(cible, entrees, recurse = TRUE, compression_level = 9,
                 include_directories = FALSE)
-      0L
+      NULL
     }, error = function(e) conditionMessage(e))
-  } else st <- utils::zip(cible, entrees, flags = "-r9Xq")
-  if (!identical(st, 0L))
-    stop(paste0("Echec de la creation du fichier .xlsx",
-                if (is.character(st)) paste0(" (paquet zip : ", st, ")")
-                else sprintf(" (commande zip, statut %s).", format(st))), call. = FALSE)
-  invisible(cible)
+    if (is.null(echec_paquet)) return(invisible(cible))
+    # archive partielle effacee : la commande zip completerait une archive
+    # existante au lieu de la remplacer
+    if (file.exists(cible)) unlink(cible)
+  }
+  commande <- nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip")))
+  st <- if (commande) utils::zip(cible, entrees, flags = "-r9Xq") else NA
+  if (identical(st, 0L)) return(invisible(cible))
+  if (file.exists(cible)) unlink(cible)
+  stop(paste0("Echec de la creation du fichier .xlsx (",
+              paste(c(if (!is.null(echec_paquet)) paste0("paquet zip : ", echec_paquet),
+                      if (commande) sprintf("commande zip, statut %s", format(st))
+                      else "commande zip indisponible"), collapse = " ; "),
+              ")."), call. = FALSE)
 }
 
 # Ecrit un data.frame de donnees en CSV (#488) : export des donnees de

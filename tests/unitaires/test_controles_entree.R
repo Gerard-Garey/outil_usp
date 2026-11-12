@@ -4506,6 +4506,41 @@ verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur R ordin
              grepl("ni le paquet R zip ni la commande zip du systeme ne sont disponibles",
                    conditionMessage(e), fixed = TRUE)
          })
+# Repli de compression (revue finale de K2) : zip::zipr() en echec (paquet
+# zip ancien, sans l'argument include_directories), simule par une
+# substitution de "::" dans l'environnement du moteur (ADR 0016), retiree en
+# sortie ; utils::zip() prend le relais si la commande existe, sinon l'erreur
+# nomme les deux echecs, sans fichier laisse.
+zipr_en_echec488 <- function(expr) {
+  assign("::", function(pkg, name) {
+    pkg <- as.character(substitute(pkg)); name <- as.character(substitute(name))
+    if (pkg == "zip" && name == "zipr") function(...) stop("unused argument (include_directories = FALSE)")
+    else getExportedValue(pkg, name)
+  }, envir = env488)
+  on.exit(rm("::", envir = env488), add = TRUE)
+  force(expr)
+}
+if (base::requireNamespace("zip", quietly = TRUE)) {
+  if (nzchar(Sys.which("zip"))) {
+    verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip presente -> repli sur utils::zip(), classeur relu identical() (#488)",
+             { f <- tempfile(fileext = ".xlsx"); zipr_en_echec488(engine_ecrire_xlsx(g488, f))
+               r <- engine_lire_donnees_csv(sans488("openxlsx", engine_lire_xlsx(f)))
+               identical(r$xt, g488$xt) && identical(r$yt, g488$yt) })
+  } else cat("  [saute] repli de zip::zipr() sur utils::zip() (#488) : commande zip indisponible\n")
+  verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip absente -> erreur R ordinaire nommant les deux echecs, aucun fichier ecrit (#488)",
+           {
+             f <- tempfile(fileext = ".xlsx")
+             ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+             Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+             on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+             e <- tryCatch(zipr_en_echec488(engine_ecrire_xlsx(g488, f)), error = function(e) e)
+             inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
+               identical(conditionMessage(e), paste("Echec de la creation du fichier .xlsx (paquet zip : unused argument",
+                                                    "(include_directories = FALSE) ; commande zip indisponible)."))
+           })
+  verifier("engine_ecrire_xlsx() : substitution de \"::\" retiree, moteur intact (#488)",
+           !exists("::", envir = env488, inherits = FALSE))
+} else cat("  [saute] repli de zip::zipr() (#488) : paquet zip non installe\n")
 # Empreinte "donnees" du rapport fige (engine_empreinte()) egale apres
 # reimport de chaque export (serie perturbee, premium, B = 99).
 if (length(voies488)) {
