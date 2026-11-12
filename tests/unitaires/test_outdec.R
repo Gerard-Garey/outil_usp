@@ -9,12 +9,19 @@
 #       identical() sous options(OutDec = ",") et sous ".", donc des detail,
 #       avertissements et refus en point decimal (partie I du .tex, graphie
 #       des textes produits par le moteur ; ADR 0006) ;
-#    2. l'ecrivain xlsx de repli d'engine_ecrire_xlsx() ecrit les nombres en
+#    2. l'ecrivain xlsx interne d'engine_ecrire_xlsx() (seul depuis #488) ecrit les nombres en
 #       point decimal et pleine precision (15 chiffres quand ils suffisent,
 #       sinon 17) : aller-retour sans perte par le lecteur interne, sous les
 #       deux options. L'absence d'openxlsx est simulee en posant
 #       requireNamespace() dans environment(run_engine), jamais dans
 #       l'environnement global (ADR 0016).
+#    3. garantie a la racine (#439) : chacun des 16 points d'entree que
+#       l'application appelle (app.R, R/display_helpers.R) pose
+#       options(OutDec = ".") par .engine_point_decimal() et restaure l'option
+#       de l'appelant en sortie, normale ou sur erreur (ADR 0004, par analogie).
+#       Les decimal.mark appel par appel (#428) restent : les sections 1 et 2
+#       les exercent encore, par des fonctions qui ne sont pas des points
+#       d'entree (.engine_quantile()).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -153,7 +160,8 @@ for (pr in list(c(.025, .05, .5, .95, .975), ppoints(8), ppoints(99), ppoints(10
 ## --- 2. xlsx de repli : aller-retour a pleine precision ------------------------
 if (nzchar(Sys.which("zip"))) {
   env_moteur <- environment(run_engine)
-  # Simule l'absence d'openxlsx (ecrivain ET lecteur de repli) ; retire a la sortie
+  # Simule l'absence d'openxlsx et de zip (lecteur de repli ; ecrivain interne
+  # compresse par utils::zip(), #488) ; retire a la sortie
   sans_openxlsx <- function(expr) {
     assign("requireNamespace", function(package, ...) FALSE, envir = env_moteur)
     on.exit(rm("requireNamespace", envir = env_moteur), add = TRUE)
@@ -206,5 +214,203 @@ if (nzchar(Sys.which("zip"))) {
                "0.123456789012" %in% v && "0.5" %in% v && "2001" %in% v
            })
 } else cat("  [saute] xlsx de repli : commande zip indisponible\n")
+
+## --- 3. Point d'entree : OutDec = "." local, option de l'appelant restituee (#439) ---
+env_moteur439 <- environment(run_engine)
+pe_moteur439 <- get(".engine_point_decimal", envir = env_moteur439)
+
+# Les 16 points d'entree : les fonctions du moteur que app.R et
+# R/display_helpers.R appellent directement (inventaire de l'etape 1 de K2,
+# 12 + 7 dont 3 communes, plus engine_ecrire_csv(), nee en K2, #488). Les appels
+# directs documentes de fonctions qui n'en sont pas (test_mann_kendall(),
+# dw_p_exacte()...) ne sont pas enveloppes : les decimal.mark y suffisent.
+PE439 <- c("run_engine", "engine_lire_xlsx", "engine_lire_donnees_csv",
+           "engine_lire_triangle", "engine_ecrire_xlsx", "engine_ecrire_csv",
+           "engine_valider_donnees", "engine_valider_serie_retenue",
+           "engine_valider_profondeur", "mw_valider_triangle",
+           "engine_motif_b_alpha", "engine_table_tests", "engine_derogations",
+           "engine_empreinte", "engine_parametre_standard", "engine_regle_verdicts")
+
+# 3a. Garde structurelle : toute fonction du moteur citee par l'application ou
+# par l'affichage est un point d'entree de la liste, et chacun commence par
+# .engine_point_decimal(). Une fonction ajoutee plus tard a l'application, sans
+# la pose, fait echouer ce test.
+fn_moteur439 <- Filter(function(n) is.function(get(n, envir = env_moteur439)),
+                       ls(env_moteur439, all.names = TRUE))
+citees439 <- intersect(unique(unlist(lapply(
+  file.path(RACINE, c("app.R", file.path("R", "display_helpers.R"))),
+  function(f) all.names(parse(f, keep.source = FALSE))))), fn_moteur439)
+verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 16 attendues",
+         setequal(citees439, PE439))
+for (nm in PE439) {
+  corps <- body(get(nm, envir = env_moteur439))
+  verifier(sprintf("point d'entree : %s() commence par .engine_point_decimal()", nm),
+           is.call(corps) && identical(corps[[1]], as.name("{")) &&
+             identical(corps[[2]], quote(.engine_point_decimal())))
+}
+
+# 3b. La fonction utilitaire : pose ".", restaure l'option de l'appelant (",") a la
+# sortie normale et sur erreur, et conserve les on.exit propres de l'appelant
+# (registre `reg` passe en argument : la sonde porte l'environnement du moteur).
+sonde439 <- function(reg, erreur = FALSE) {
+  .engine_point_decimal()
+  on.exit(reg$propre <- TRUE, add = TRUE)
+  reg$dedans <- getOption("OutDec")
+  if (erreur) stop("x")
+  invisible(NULL)
+}
+environment(sonde439) <- env_moteur439
+reg_ok <- new.env(); reg_err <- new.env()
+options(OutDec = ",")
+sonde439(reg_ok); apres_ok <- getOption("OutDec")
+try(sonde439(reg_err, erreur = TRUE), silent = TRUE); apres_err <- getOption("OutDec")
+options(OutDec = ".")
+verifier(".engine_point_decimal() : \".\" pose dans l'appelant, \",\" restituee a la sortie normale et sur erreur",
+         identical(reg_ok$dedans, ".") && identical(reg_err$dedans, ".") &&
+           identical(apres_ok, ",") && identical(apres_err, ","))
+verifier(".engine_point_decimal() : l'on.exit propre de l'appelant est conserve, a la sortie normale et sur erreur",
+         isTRUE(reg_ok$propre) && isTRUE(reg_err$propre))
+reg_pt <- new.env(); sonde439(reg_pt)
+verifier(".engine_point_decimal() : sous \".\", l'option reste \".\" dedans et a la sortie",
+         identical(reg_pt$dedans, ".") && identical(getOption("OutDec"), "."))
+
+# 3c. Restauration de l'option de l'appelant par chacun des 16 points d'entree :
+# (i) sortie normale, appel valide sous OutDec = "," ; (ii) sortie sur erreur,
+# appel sans argument (l'erreur d'argument manquant est levee dans le corps, donc
+# apres la pose : .engine_point_decimal() est la premiere instruction, 3a).
+d439 <- tempfile("k439_"); dir.create(d439)
+ft439 <- file.path(d439, "k439_entree.xlsx")
+peut_ecrire439 <- requireNamespace("zip", quietly = TRUE) ||
+  nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip")))
+df_xl439 <- data.frame(t = 2001:2004, v = c(0.5, 1/3, 1e-300, 123456789.123456789),
+                       lib = c("a", "b", "c", "d"), stringsAsFactors = FALSE)
+if (peut_ecrire439) sous_outdec(".", engine_ecrire_xlsx(df_xl439, ft439))
+df_ln439 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.csv"))
+df_tri439 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+valides439 <- list(
+  run_engine = function() run_engine(xt = x428, yt = y428, methode = "premium", segment = 1,
+                                     annexe = "II", nature_donnees = "brutes", B = 99),
+  engine_lire_xlsx = function() if (peut_ecrire439) engine_lire_xlsx(ft439) else NULL,
+  engine_lire_donnees_csv = function() engine_lire_donnees_csv(df_ln439),
+  engine_lire_triangle = function() engine_lire_triangle(df_tri439),
+  engine_ecrire_xlsx = function() if (peut_ecrire439)
+    engine_ecrire_xlsx(df_xl439, tempfile(tmpdir = d439, fileext = ".xlsx")) else NULL,
+  engine_ecrire_csv = function() engine_ecrire_csv(df_xl439, tempfile(tmpdir = d439, fileext = ".csv")),
+  engine_valider_donnees = function() engine_valider_donnees(x_bas, y428, theta_equiv = 0.37),
+  engine_valider_serie_retenue = function() engine_valider_serie_retenue(x428, y428, T = 5.5),
+  engine_valider_profondeur = function() engine_valider_profondeur(5.5, 8),
+  mw_valider_triangle = function() mw_valider_triangle(tri_bas),
+  engine_motif_b_alpha = function() engine_motif_b_alpha(99, 0.037),
+  engine_table_tests = function() engine_table_tests(ln_pt),
+  engine_derogations = function() engine_derogations(ln_sg),
+  engine_empreinte = function() engine_empreinte(ln_pt),
+  engine_parametre_standard = function() engine_parametre_standard(ln_pt),
+  engine_regle_verdicts = function() engine_regle_verdicts(0.037))
+verifier("point d'entree : un appel valide prepare pour chacun des 16",
+         identical(sort(names(valides439)), sort(PE439)))
+# La restitution seule serait vraie d'une fonction qui ne touche pas a l'option :
+# .engine_point_decimal() est donc remplace, dans l'environnement du moteur
+# (ADR 0016), par une sonde qui l'appelle puis consigne la valeur d'OutDec vue
+# par le point d'entree ; restitue en sortie.
+pose439 <- function(expr) {
+  reg <- new.env(); reg$vu <- character(0)
+  vrai <- get(".engine_point_decimal", envir = env_moteur439)
+  assign(".engine_point_decimal", function(envir = parent.frame()) {
+    vrai(envir); reg$vu <- c(reg$vu, getOption("OutDec")); invisible(NULL)
+  }, envir = env_moteur439)
+  on.exit(assign(".engine_point_decimal", vrai, envir = env_moteur439), add = TRUE)
+  force(expr)
+  reg$vu
+}
+for (nm in PE439) {
+  if (!peut_ecrire439 && nm %in% c("engine_lire_xlsx", "engine_ecrire_xlsx")) {
+    cat(sprintf("  [saute] %s : ni paquet zip ni commande zip\n", nm)); next
+  }
+  for (od in c(",", ".")) {
+    options(OutDec = od)
+    vu_ok <- pose439(suppressWarnings(valides439[[nm]]()))
+    apres <- getOption("OutDec")
+    erreur <- FALSE
+    vu_err <- pose439(erreur <- inherits(try(suppressWarnings(
+      do.call(nm, list(), envir = env_moteur439)), silent = TRUE), "try-error"))
+    apres_err <- getOption("OutDec")
+    options(OutDec = ".")
+    verifier(sprintf("point d'entree : %s() voit OutDec = \".\" et restitue \"%s\", sortie normale et sur erreur (%s)",
+                     nm, od, if (erreur) "erreur levee" else "AUCUNE ERREUR LEVEE"),
+             length(vu_ok) >= 1L && all(vu_ok == ".") && identical(apres, od) &&
+               erreur && length(vu_err) >= 1L && all(vu_err == ".") && identical(apres_err, od))
+  }
+}
+options(OutDec = ".")
+verifier("point d'entree : .engine_point_decimal() du moteur est restitue apres les sondes",
+         identical(get(".engine_point_decimal", envir = env_moteur439), pe_moteur439))
+
+# 3d. Resultats identiques sous "," et sous "." : textes, tableaux, detail. Les
+# objets run_engine() (tests, detail, validation, metadata, plots_data) sont
+# compares en entier plus haut (section 1) ; ici, les tableaux et les chaines.
+verifier("point d'entree : engine_table_tests() de reserve2 identique sous \",\" et \".\" (tableau)",
+         identical(sous_outdec(".", engine_table_tests(r2_pt)), sous_outdec(",", engine_table_tests(r2_vg))))
+verifier("point d'entree : toutes les chaines (detail, motifs, avertissements) de run_engine() identiques sous \",\" et \".\" (premium et reserve2)",
+         identical(chaines(r2_pt), chaines(r2_vg)) && length(chaines(r2_pt)) > 0L &&
+           identical(chaines(ln_pt), chaines(ln_vg)) && length(chaines(ln_pt)) > 0L)
+verifier("point d'entree : run_engine(reserve1) sous \",\" identique a celui sous \".\"",
+         {
+           a <- sous_outdec(".", sans_horloge(run_engine(xt = x428, yt = y428, methode = "reserve1",
+                                                         segment = 1, annexe = "II",
+                                                         nature_donnees = "nettes", B = 99)))
+           b <- sous_outdec(",", sans_horloge(run_engine(xt = x428, yt = y428, methode = "reserve1",
+                                                         segment = 1, annexe = "II",
+                                                         nature_donnees = "nettes", B = 99)))
+           isTRUE(a$ok) && identical(a, b)
+         })
+for (nm in c("engine_empreinte", "engine_parametre_standard", "engine_regle_verdicts",
+             "engine_lire_donnees_csv", "engine_lire_triangle", "engine_ecrire_csv")) {
+  if (nm == "engine_ecrire_csv") {
+    # Octets du fichier ecrit, sous chaque option
+    ecrit <- function(od) { f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+      sous_outdec(od, engine_ecrire_csv(df_xl439, f)); readBin(f, "raw", file.info(f)$size) }
+    # Relu par read.csv() (separateur virgule) : trois colonnes, nombres au bit
+    relu_vg <- { f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+      sous_outdec(",", engine_ecrire_csv(df_xl439, f)); utils::read.csv(f) }
+    verifier("point d'entree : engine_ecrire_csv() ecrit les memes octets sous \",\" et \".\" ; relu sous \",\", 3 colonnes et nombres au bit",
+             identical(ecrit(","), ecrit(".")) && ncol(relu_vg) == 3L &&
+               identical(relu_vg$v, df_xl439$v) && grepl(",0.5,", rawToChar(ecrit(",")), fixed = TRUE))
+    next
+  }
+  a <- sous_outdec(".", valides439[[nm]]()); b <- sous_outdec(",", valides439[[nm]]())
+  verifier(sprintf("point d'entree : %s() identique sous \",\" et \".\"", nm),
+           identical(a, b) && !is.null(a))
+}
+verifier("point d'entree : engine_lire_donnees_csv() et engine_lire_triangle() lisent les memes nombres sous \",\"",
+         isTRUE(sous_outdec(",", engine_lire_donnees_csv(df_ln439))$ok) &&
+           isTRUE(sous_outdec(",", engine_lire_triangle(df_tri439))$ok) &&
+           identical(sous_outdec(",", engine_lire_donnees_csv(df_ln439))$xt, x428))
+if (peut_ecrire439) {
+  # Ecrivain xlsx : XML de la feuille identique sous les deux options ; lecteur :
+  # data.frame identique, avec le lecteur de repli et, s'il est installe, openxlsx.
+  xml_ecrit <- function(od) {
+    f <- tempfile(fileext = ".xlsx"); d <- tempfile("k439_")
+    on.exit({ unlink(f); unlink(d, recursive = TRUE) })
+    sous_outdec(od, engine_ecrire_xlsx(df_xl439, f)); utils::unzip(f, exdir = d)
+    paste(readLines(file.path(d, "xl", "worksheets", "sheet1.xml"), warn = FALSE), collapse = "")
+  }
+  verifier("point d'entree : engine_ecrire_xlsx() ecrit la meme feuille sous \",\" et \".\"",
+           identical(xml_ecrit(","), xml_ecrit(".")) && grepl("<v>0.5</v>", xml_ecrit(","), fixed = TRUE))
+  sans_ox439 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env_moteur439)
+    on.exit(rm("requireNamespace", envir = env_moteur439), add = TRUE)
+    force(expr)
+  }
+  lu439 <- function(od, repli) sous_outdec(od, if (repli) sans_ox439(engine_lire_xlsx(ft439)) else
+    engine_lire_xlsx(ft439))
+  verifier("point d'entree : engine_lire_xlsx() (lecteur de repli) identique sous \",\" et \".\", valeurs relues a l'identique",
+           identical(lu439(",", TRUE), lu439(".", TRUE)) &&
+             identical(as.numeric(lu439(",", TRUE)$v), df_xl439$v))
+  if (base::requireNamespace("openxlsx", quietly = TRUE))
+    verifier("point d'entree : engine_lire_xlsx() (openxlsx) identique sous \",\" et \".\"",
+             identical(lu439(",", FALSE), lu439(".", FALSE)))
+  else cat("  [saute] engine_lire_xlsx() par openxlsx : paquet absent\n")
+}
+unlink(d439, recursive = TRUE)
 
 fin_fichier()

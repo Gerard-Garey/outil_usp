@@ -506,6 +506,33 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   .engine_saisie(v)
 }
 
+# Point decimal garanti a la racine (#439), en complement des decimal.mark
+# poses appel par appel (#428), qui restent. A appeler en premiere instruction
+# d'un point d'entree du moteur, c'est-a-dire d'une fonction que l'application
+# (app.R, R/display_helpers.R) appelle directement : pose options(OutDec = ".")
+# le temps de l'appel et restaure l'option de l'appelant en sortie, erreur
+# comprise (on.exit enregistre dans le cadre de l'appelant, add = TRUE : les
+# on.exit propres de celui-ci sont conserves ; meme principe que la restauration
+# du RNGkind et de .Random.seed par engine_sous_graine(), ADR 0004). Sans effet
+# quand OutDec vaut deja "." : l'option est reposee a l'identique. Aucune
+# fonction interne ne l'appelle ; les appels directs documentes d'une fonction
+# qui n'est pas un point d'entree (test_mann_kendall(), dw_p_exacte()...) restent
+# protegees par les seuls decimal.mark. Aucun calcul : seule la representation
+# textuelle des nombres est concernee. Ordre : la restauration est enregistree
+# la premiere ; un on.exit pose ensuite par le point d'entree (add = TRUE)
+# s'execute apres elle, donc sous l'option de l'appelant (seul after = FALSE le
+# fait tourner sous ".") : aucun on.exit des points d'entree ne met aujourd'hui
+# de nombre en forme. Refusee au niveau global, ou on.exit est sans effet et
+# l'option resterait posee pour la session.
+.engine_point_decimal <- function(envir = parent.frame()) {
+  if (identical(envir, globalenv()))
+    stop(".engine_point_decimal() s'appelle en premiere instruction d'un point d'entree, pas au niveau global.",
+         call. = FALSE)
+  ancien <- options(OutDec = ".")
+  do.call(on.exit, list(bquote(options(.(ancien))), add = TRUE), envir = envir)
+  invisible(NULL)
+}
+
 # Quantiles de type 7 nommes en point decimal (#428). stats::quantile() nomme
 # ses valeurs par format() de 100 * probs : sous options(OutDec = ","), le nom
 # "2.5%" devient "2,5%", et res$ic_bootstrap (ou les noms de ligne de
@@ -974,6 +1001,42 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   inv <- .octets_non_utf8(x) & Encoding(x) == "unknown"
   if (any(inv)) Encoding(x)[inv] <- "latin1"
   x
+}
+
+# Texte cite dans un motif, echappe de facon independante de la locale :
+# un caractere ASCII l'est par encodeString() (tabulation -> \t, controles
+# -> \001, \033, saut de ligne -> \n, barre oblique inverse doublee ; le
+# guillemet l'est aussi, \", quand les guillemets sont poses), un caractere
+# non ASCII blanc, de controle ou de format (classes perl \h, \v, \p{Z},
+# \p{C}) est ecrit \uXXXX (\UXXXXXXXX au-dela de U+FFFF), les autres non ASCII
+# ("e" accentue) restent tels quels. encodeString() seul ecrirait l'espace
+# insecable telle quelle en locale UTF-8 (invisible) et "\u00a0" en locale C.
+# Les noms sont d'abord ramenes en UTF-8 par enc2utf8() : un nom declare
+# Latin-1 y est lu comme Windows-1252 pour les octets 0x80 a 0x9F (0x89 donne
+# U+2030, caractere imprimable cite tel quel, et non le controle U+0089 ; 0x81
+# et 0x8D, sans caractere en Windows-1252, restent ecrits "<81>", "<8d>" par R ;
+# mesure, R 4.3.3, C.UTF-8), comme .nettoyer_cellules() (#99). En defense,
+# une chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee par
+# encodeString() seul. guillemets = TRUE : chaque texte est rendu entre
+# guillemets doubles (mw_valider_triangle(), noms d'annee d'accident) ; FALSE :
+# sans guillemets (liste des en-tetes de engine_lire_donnees_csv() et de
+# .retirer_lignes_colonnes_vides(), motif LE-06, #550). Partagee par ces
+# appelants.
+.echapper_texte <- function(x, guillemets = FALSE) {
+  q <- if (guillemets) "\"" else ""
+  vapply(enc2utf8(as.character(x)), function(s) {
+    cp <- utf8ToInt(s)
+    if (anyNA(cp)) return(encodeString(s, quote = q))
+    ch <- vapply(cp, function(c) {
+      if (c < 128L) {
+        e <- encodeString(intToUtf8(c), quote = q)
+        if (guillemets) substr(e, 2L, nchar(e) - 1L) else e
+      } else if (grepl("[\\h\\v\\p{Z}\\p{C}]", intToUtf8(c), perl = TRUE)) {
+        sprintf(if (c > 65535L) "\\U%08x" else "\\u%04x", c)
+      } else intToUtf8(c)
+    }, "")
+    if (guillemets) paste0("\"", paste(ch, collapse = ""), "\"") else paste(ch, collapse = "")
+  }, "", USE.NAMES = FALSE)
 }
 
 # Retire les blancs ASCII (espace, tabulation, retour chariot, saut de ligne)
@@ -7608,7 +7671,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # elle est ignoree par engine_lire_triangle()) :
 #  - une colonne entierement vide et sans en-tete (.entete_absent()) en bord,
 #    avant la premiere ou apres la derniere colonne qui porte une valeur, est
-#    retiree sans refus (mise en forme, tableau decale) ;
+#    retiree sans refus (mise en forme, tableau decale), sauf au bord gauche
+#    du triangle (point suivant) ;
+#  - triangle, bord gauche (#520, regle R-a, decision du mainteneur D1 du
+#    11/11/2026, precision (B) d'actuary) : une colonne entierement vide sans
+#    en-tete placee avant la premiere colonne de developpement renseignee est
+#    refusee comme annee de developpement 0 manquante presumee, avec ou sans
+#    colonne i, ou que soit i, sauf si elle est aussi avant la colonne i (sa
+#    premiere occurrence) et que i precede lui-meme les donnees : les
+#    cellules d'un triangle decale d'une colonne et celles d'un triangle dont
+#    la colonne 0 est vide sans en-tete sont les memes (mesure M1 de l'avis
+#    amont d'actuary sur K2), ce que le motif dit par son alternative. Ce
+#    motif precede mw_valider_triangle() et tient lieu du motif "Triangle
+#    non carre". Exception : une colonne vide sans en-tete placee avant une
+#    colonne i qui precede les donnees reste retiree sans refus (tableau
+#    decale) ;
 #  - triangle : une colonne entierement vide intercalee, ou portant un
 #    en-tete, est refusee comme annee de developpement manquante presumee
 #    (sans renvoi reglementaire) ;
@@ -7636,6 +7713,57 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # ces formes (README, "Usage sans Shiny").
   k <- seq_along(noms)
   is.na(noms) | !nzchar(noms) | noms == paste0("X", k) | noms == paste0("V", k)
+}
+
+# Texte du refus d'une ligne 1 sans aucune valeur (#522), commun au classeur
+# (.xlsx_controler_ligne_entete(), refus de classe usp_refus_lecture) et au
+# tableau lu d'un CSV (.ligne1_sans_valeur(), motif "erreurs" des lecteurs,
+# extension aux CSV decidee par le mainteneur le 12/11/2026).
+MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en",
+                           "ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus",
+                           "de l'en-tete.")
+
+# Ligne 1 sans aucune valeur d'un tableau lu d'un CSV (#522, extension aux CSV
+# du 12/11/2026) : vrai si TOUS les noms de colonnes sont vides (NA, ou texte
+# qui vaut "" une fois retires les blancs [[:space:]] de .xlsx_blancs_entete(),
+# apres retrait du BOM et des marques de .nom_sans_bom() : un en-tete cite
+# " " que read.csv garde est vide, comme en classeur, decision du mainteneur
+# du 12/11/2026, option (b)) et si au moins une cellule du tableau porte une
+# valeur (cellule non vide au sens de .retirer_lignes_colonnes_vides()).
+# C'est ce que donne la lecture de
+# l'application (read.csv, check.names = FALSE, lire_tableau()) d'un CSV dont
+# la ligne 1 ne contient que des separateurs (",,,,,") : sans ce refus,
+# l'en-tete reel etait lu comme une ligne de donnees (motif de colonnes
+# manquantes pour les series, de cellules non numeriques ou de triangle non
+# carre pour le triangle), ou un triangle sans en-tete etait accepte. Meme
+# regle que le classeur : une ligne 1 sans valeur est refusee quoi que porte
+# la ligne suivante, et un tableau sans aucune valeur garde son refus
+# (tableau vide). Les noms generes "X<k>" (openxlsx) et "V<k>" (lecteur
+# interne, entete = FALSE, matrice convertie) ne sont pas vises : ils ne
+# disent pas que la ligne 1 du fichier est vide (classeur deja refuse en
+# amont par .xlsx_controler_ligne_entete() ; tableau sans ligne d'en-tete).
+# Une ligne 1 physiquement vide (aucun separateur) reste refusee avant
+# lecture par l'application (utils::count.fields), comme avant. Un classeur
+# dont la ligne 1 ne porte que des chaines vides ou de blancs est refuse en
+# amont, au meme texte, sur les deux chemins (.xlsx_controler_ligne_entete()).
+# L'espace insecable U+00A0 n'est pas un blanc de [[:space:]] sous C.UTF-8 :
+# un en-tete fait d'elle seule est un en-tete reel, ici comme en classeur.
+.ligne1_sans_valeur <- function(df) {
+  if (!is.data.frame(df) || !ncol(df) || !nrow(df)) return(FALSE)
+  noms <- names(df)
+  noms[1] <- .nom_sans_bom(noms[1])
+  # Nom vide : NA, ou texte UTF-8 valide (apres conversion d'un nom declare
+  # Latin-1) fait seulement de blancs ; un nom non UTF-8 porte des octets qui
+  # ne sont pas des blancs (et gsub() leverait une erreur sur lui).
+  u <- enc2utf8(noms)
+  vide <- is.na(noms)
+  lisible <- !vide & validUTF8(u)
+  vide[lisible] <- !nzchar(.xlsx_blancs_entete(u[lisible]))
+  if (!all(vide)) return(FALSE)
+  any(vapply(df, function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    if (is.character(v)) any(!is.na(v) & nzchar(.nettoyer_cellules(v))) else any(!is.na(v))
+  }, logical(1)))
 }
 
 .retirer_lignes_colonnes_vides <- function(df, objet = c("series", "triangle")) {
@@ -7682,8 +7810,23 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           else rep(TRUE, ncol(df))
   retirer <- col_vide & sans_ent & (bord | serie)
   if (!serie) {
+    # Bord gauche (#520, regle R-a, decision du mainteneur D1 du 11/11/2026,
+    # precision (B) d'actuary) : colonne vide sans en-tete avant la premiere
+    # colonne de developpement renseignee, sauf si elle est aussi avant la
+    # colonne i (premiere occurrence) et que i precede les donnees.
+    pos <- seq_len(ncol(df))
+    ii <- which(names(df) == "i")
+    gauche <- if (length(avec_val)) {
+      avant_i <- if (length(ii) && min(ii) < min(avec_val)) pos < min(ii) else rep(FALSE, ncol(df))
+      which(col_vide & sans_ent & pos < min(avec_val) & !avant_i)
+    } else integer(0)
+    retirer[gauche] <- FALSE
     inter <- which(col_vide & !bord)
     ent_bord <- which(col_vide & bord & !sans_ent)
+    if (length(gauche))
+      err <- c(err, sprintf(paste("Colonne(s) vide(s) sans en-tete avant la premiere colonne renseignee du triangle (colonne(s) %s) :",
+                                  "annee de developpement 0 manquante presumee ; la renseigner, ou retirer la colonne vide",
+                                  "si le triangle commence bien a l'annee de developpement 0."), liste(gauche)))
     if (length(inter))
       err <- c(err, sprintf(paste("Colonne(s) vide(s) intercalee(s) dans le triangle (colonne(s) %s) :",
                                   "annee de developpement manquante presumee ; la renseigner ou",
@@ -7692,7 +7835,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       err <- c(err, sprintf(paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) %s,",
                                   "d'en-tete(s) %s) : annee de developpement sans valeur ; la renseigner",
                                   "ou retirer la colonne."), liste(ent_bord),
-                            paste(utils::head(names(df)[ent_bord], 5), collapse = ", ")))
+                            # en-tetes echappes, listes par liste() comme les numeros (#550)
+                            liste(.echapper_texte(names(df)[ent_bord]))))
   }
   list(df = df[, !retirer, drop = FALSE], erreurs = err)
 }
@@ -7716,6 +7860,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 }
 
 engine_lire_donnees_csv <- function(df) {
+  .engine_point_decimal()
   err <- character(0)
   if (!is.data.frame(df) || !nrow(df))
     return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
@@ -7727,12 +7872,25 @@ engine_lire_donnees_csv <- function(df) {
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
   noms <- names(df)
+  # Ligne 1 sans aucune valeur (CSV ",,,") : refusee avant les colonnes
+  # manquantes, comme en classeur (#522).
+  if (.ligne1_sans_valeur(df))
+    return(list(ok = FALSE, erreurs = MOTIF_LIGNE1_VIDE, xt = NULL, yt = NULL, n = 0L))
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(manquantes)) {
+    # Noms cites echappes (caracteres de controle, blancs non ASCII :
+    # .echapper_texte(), sans guillemets, #522) ; un nom que .entete_absent()
+    # juge absent (vide, NA, "X<k>" ou "V<k>" a sa position) est cite
+    # "(vide)" : le nom que lui donne openxlsx ("X<k>") ou le lecteur interne
+    # ("V<k>") ne dit rien du fichier.
+    absent <- .entete_absent(noms)
+    cites <- character(length(noms))
+    cites[absent] <- "(vide)"
+    cites[!absent] <- .echapper_texte(noms[!absent])
     return(list(ok = FALSE,
                 erreurs = sprintf(
                   "Colonne(s) manquante(s) : %s. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : %s.",
-                  paste(manquantes, collapse = ", "), paste(noms, collapse = ", ")),
+                  paste(manquantes, collapse = ", "), paste(cites, collapse = ", ")),
                 xt = NULL, yt = NULL, n = 0L))
   }
   # Lignes et colonnes vides (#483), avant toute autre interpretation des
@@ -7801,6 +7959,7 @@ engine_lire_donnees_csv <- function(df) {
 # cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
 # character(0) pour un refus ou un triangle sans telle cellule.
 engine_lire_triangle <- function(df) {
+  .engine_point_decimal()
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
                             avertissements_lecture = character(0),
                             triangle = NULL, I = NA, J = NA)
@@ -7812,6 +7971,9 @@ engine_lire_triangle <- function(df) {
   names(df)[1] <- .nom_sans_bom(names(df)[1])
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
+  # Ligne 1 sans aucune valeur (CSV ",,,"), avant toute autre regle (#522) ;
+  # une matrice convertie porte les noms "V<k>", non vises.
+  if (.ligne1_sans_valeur(df)) return(refus(MOTIF_LIGNE1_VIDE))
   # Lignes vides (colonne "i" comprise) et colonnes vides (colonne "i" hors
   # regle) : voir .retirer_lignes_colonnes_vides() (#483).
   lv <- .retirer_lignes_colonnes_vides(df, "triangle")
@@ -7865,9 +8027,17 @@ engine_lire_triangle <- function(df) {
 ## rectangulaires de nombres et de chaines, qui est exactement le besoin ici
 ## (series x_t / y_t, ou triangle de cumules).
 ##
-## Si le paquet openxlsx est installe, il est utilise en priorite : son
-## implementation est plus complete et mieux eprouvee. Les fonctions ci-dessous
-## constituent un repli, non un remplacement.
+## Lecture : si le paquet openxlsx est installe, il est utilise en priorite
+## (implementation plus complete et mieux eprouvee) ; le lecteur ci-dessous
+## est un repli, non un remplacement.
+## Ecriture : l'ecrivain interne est seul employe, avec ou sans openxlsx
+## (#488) : openxlsx ecrit les nombres par as.character(), a 15 chiffres
+## significatifs, et l'aller-retour n'est pas identique au bit ;
+## .xlsx_nombre() ecrit chaque nombre de sorte qu'il se relise exactement.
+## L'archive est compressee par le paquet zip s'il est installe (importe par
+## openxlsx), sinon par utils::zip() et la commande zip du systeme.
+## Export CSV des donnees : engine_ecrire_csv(), meme regle d'ecriture des
+## nombres.
 ## =============================================================================
 
 .col_lettre <- function(i) {                       # 1 -> "A", 27 -> "AA"
@@ -7902,19 +8072,42 @@ engine_lire_triangle <- function(df) {
   s
 }
 
-# Ecrit un data.frame dans un classeur .xlsx a une feuille. Les colonnes
-# numeriques sont ecrites comme nombres, les autres comme chaines en ligne
-# (inlineStr), ce qui evite d'avoir a gerer une table de chaines partagees.
+# Ecrit un data.frame dans un classeur .xlsx a une feuille, par l'ecrivain
+# interne seul, avec ou sans openxlsx (#488 ; voir l'en-tete de la section).
+# Les colonnes numeriques sont ecrites comme nombres (.xlsx_nombre()), les
+# autres comme chaines en ligne (inlineStr), ce qui evite d'avoir a gerer une
+# table de chaines partagees.
 # Un nombre non fini (+-Inf) est ecrit comme chaine en ligne : openxlsx relit
 # cette cellule en chaine ("Inf") ; le lecteur interne d'engine_lire_xlsx()
 # rend sa colonne en caractere (cellule texte, #490), les autres nombres de
 # la colonne en chaine ; l'interpretation revient a .cellules_en_nombre(). Les
-# NA sont des cellules vides.
+# NA sont des cellules vides. Une colonne logique est ecrite en chaines en
+# ligne "TRUE" / "FALSE" (as.character(), aucune cellule booleenne t="b").
+# Divergence de relecture entre les deux chemins d'engine_lire_xlsx() (mesure,
+# openxlsx 4.2.9 ; voir la liste de son en-tete) : une chaine ou un en-tete
+# portant "&", "<" ou ">" (ecrits echappes &amp; &lt; &gt;) sont relus tels
+# quels par le lecteur interne, encore echappes par openxlsx ("a&lt;b&amp;c") ;
+# la colonne logique est relue en caractere ("TRUE") par le lecteur interne,
+# en logique par openxlsx. Aucune retouche de la sortie d'openxlsx. Les
+# exports de donnees de l'application n'y sont pas exposes : en-tetes fixes
+# (t, xt, yt ; i, j0, j1...) et cellules numeriques.
+# Compression : paquet zip s'il est installe (zip::zipr(), appel de meme forme
+# que celui d'openxlsx), sinon utils::zip() avec la commande designee par
+# R_ZIPCMD (defaut "zip"). Sans l'un ni l'autre : erreur R ordinaire, levee
+# avant toute ecriture (ce n'est pas un refus de lecture : la classe
+# usp_refus_lecture ne s'applique pas). Si zip::zipr() echoue (par exemple un
+# paquet zip ancien, sans l'argument include_directories) et que la commande
+# existe, l'archive partielle est effacee et utils::zip() prend le relais ;
+# si ce repli echoue aussi, ou si la commande manque, erreur R ordinaire qui
+# nomme les deux echecs, archive partielle effacee. Dans les deux voies,
+# [Content_Types].xml est la premiere entree de l'archive.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
-  if (requireNamespace("openxlsx", quietly = TRUE)) {
-    openxlsx::write.xlsx(df, chemin, sheetName = feuille)
-    return(invisible(chemin))
-  }
+  .engine_point_decimal()
+  avec_paquet_zip <- requireNamespace("zip", quietly = TRUE)
+  if (!avec_paquet_zip && !nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))))
+    stop(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
+               "commande zip du systeme ne sont disponibles (installer le paquet",
+               "zip, ou openxlsx qui l'importe)."), call. = FALSE)
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nc <- ncol(df); nr <- nrow(df)
   cellule <- function(ligne, col, valeur) {
@@ -7974,12 +8167,363 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   wd <- setwd(d); on.exit(setwd(wd), add = TRUE, after = FALSE)
   cible <- if (grepl("^(/|[A-Za-z]:)", chemin)) chemin else file.path(wd, chemin)
   if (file.exists(cible)) unlink(cible)
-  st <- utils::zip(cible, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
-  if (!identical(st, 0L)) stop("Echec de la creation du fichier .xlsx (commande zip indisponible ?).")
-  invisible(cible)
+  entrees <- c("[Content_Types].xml", "_rels", "xl")
+  echec_paquet <- NULL
+  if (avec_paquet_zip) {
+    echec_paquet <- tryCatch({
+      zip::zipr(cible, entrees, recurse = TRUE, compression_level = 9,
+                include_directories = FALSE)
+      NULL
+    }, error = function(e) conditionMessage(e))
+    if (is.null(echec_paquet)) return(invisible(cible))
+    # archive partielle effacee : la commande zip completerait une archive
+    # existante au lieu de la remplacer
+    if (file.exists(cible)) unlink(cible)
+  }
+  commande <- nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip")))
+  st <- if (commande) utils::zip(cible, entrees, flags = "-r9Xq") else NA
+  if (identical(st, 0L)) return(invisible(cible))
+  if (file.exists(cible)) unlink(cible)
+  stop(paste0("Echec de la creation du fichier .xlsx (",
+              paste(c(if (!is.null(echec_paquet)) paste0("paquet zip : ", echec_paquet),
+                      if (commande) sprintf("commande zip, statut %s", format(st))
+                      else "commande zip indisponible"), collapse = " ; "),
+              ")."), call. = FALSE)
 }
 
-# Lit la premiere feuille d'un classeur .xlsx et renvoie un data.frame, la
+# Ecrit un data.frame de donnees en CSV (#488) : export des donnees de
+# l'application, relu par lire_tableau() puis engine_lire_donnees_csv() ou
+# engine_lire_triangle(). Format de utils::write.csv(row.names = FALSE,
+# na = "") : separateur virgule, ligne d'en-tete, noms de colonnes et
+# chaines entre guillemets (guillemet interne double), nombres et logiques
+# sans guillemets, fin de ligne "\n" (connexion texte), texte en UTF-8.
+# Seule l'ecriture des nombres change : un double fini suit .xlsx_nombre()
+# (15 chiffres significatifs si la relecture est exacte, sinon 17 ; point
+# decimal quels que soient OutDec et digits), alors que write.csv() ecrit
+# 15 chiffres et ne se relit pas toujours a l'identique (1/3 ;
+# 1.7976931348623157e308 relu Inf). NA et NaN donnent une cellule vide (NaN
+# revient donc NA a la relecture) ; +-Inf s'ecrit "Inf" / "-Inf". Entiers en
+# "%d". Aucun calcul : seule la representation textuelle est produite.
+# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
+# n'est pas acceptee.
+engine_ecrire_csv <- function(df, chemin) {
+  .engine_point_decimal()
+  df <- as.data.frame(df, stringsAsFactors = FALSE)
+  guillemets <- function(x) paste0('"', gsub('"', '""', enc2utf8(x), fixed = TRUE), '"')
+  colonne <- function(v) {
+    if (is.factor(v)) v <- as.character(v)
+    out <- rep("", length(v))
+    ok <- !is.na(v)
+    if (is.double(v)) {
+      fini <- ok & is.finite(v)
+      out[fini] <- vapply(v[fini], .xlsx_nombre, character(1))
+      out[ok & v == Inf] <- "Inf"
+      out[ok & v == -Inf] <- "-Inf"
+    } else if (is.integer(v)) {
+      out[ok] <- sprintf("%d", v[ok])
+    } else if (is.logical(v)) {
+      out[ok] <- ifelse(v[ok], "TRUE", "FALSE")
+    } else {
+      out[ok] <- guillemets(as.character(v[ok]))
+    }
+    out
+  }
+  cols <- lapply(df, colonne)
+  lignes <- c(paste(guillemets(names(df)), collapse = ","),
+              if (nrow(df)) do.call(paste, c(unname(cols), sep = ",")))
+  con <- file(chemin, open = "w", encoding = "")
+  on.exit(close(con), add = TRUE)
+  writeLines(lignes, con, sep = "\n", useBytes = TRUE)
+  invisible(chemin)
+}
+
+# Refus motive de la lecture d'un classeur, destine a l'utilisateur : erreur
+# de classe "usp_refus_lecture" (puis "error", "condition"), que l'appelant
+# distingue d'une erreur R quelconque par inherits() ; son conditionMessage()
+# est le texte fixe du refus (l'application l'affiche tel quel, lire_tableau(),
+# #522). Sans dependance : structure() et stop() de base. Levee par les refus
+# d'engine_lire_xlsx() dont le texte dit a l'utilisateur quoi corriger :
+# ligne 1 sans aucune valeur (#522), cellule sans attribut r et balise <c de
+# forme non reconnue (#487). Le refus d'une ligne 1 sans valeur d'un CSV
+# (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
+# d'engine_lire_donnees_csv() et d'engine_lire_triangle(). Les refus
+# d'archive illisible ou dont une entree
+# sort du dossier de lecture, et de feuille introuvable ("Classeur illisible :
+# aucune feuille trouvee."), restent des erreurs ordinaires : ils signalent un
+# fichier qui n'est pas un classeur valide, ce que dit mieux le message fixe
+# de l'application (MESSAGE_ILLISIBLE).
+.refus_lecture <- function(message)
+  stop(structure(class = c("usp_refus_lecture", "error", "condition"),
+                 list(message = message, call = NULL)))
+
+# Texte d'un fichier XML du classeur, lu d'un bloc en UTF-8 : les sauts de
+# ligne d'une cellule texte sont conserves (readLines() puis paste(collapse =
+# "") les supprimait, "a<LF>b" devenait "ab").
+.xlsx_texte <- function(f) {
+  x <- readChar(f, file.info(f)$size, useBytes = TRUE)
+  Encoding(x) <- "UTF-8"
+  x
+}
+
+# Decode les references d'un texte XML, en une seule passe : les cinq entites
+# predefinies (&lt; &gt; &quot; &apos; &amp;) et les references numeriques
+# (&#NNN; &#xHH;). Une seule passe decode "&amp;lt;" en "&lt;" et non en "<"
+# (equivalent de "&amp; en dernier" d'un decodage par etapes). Une reference
+# numerique hors du domaine des caracteres (0, substituts, au-dela de
+# U+10FFFF) est laissee telle quelle.
+.xml_decoder <- function(x) {
+  une <- function(e) {
+    corps <- substr(e, 2L, nchar(e) - 1L)
+    if (!startsWith(corps, "#"))
+      return(switch(corps, lt = "<", gt = ">", quot = "\"", apos = "'", amp = "&"))
+    code <- if (startsWith(corps, "#x")) strtoi(substring(corps, 3L), 16L)
+            else strtoi(substring(corps, 2L), 10L)
+    if (is.na(code) || code < 1L || code > 1114111L || (code >= 55296L && code <= 57343L))
+      return(e)
+    intToUtf8(code)
+  }
+  ok <- !is.na(x) & grepl("&", x, fixed = TRUE)
+  if (!any(ok)) return(x)
+  y <- x[ok]
+  m <- gregexpr("&(#x[0-9A-Fa-f]+|#[0-9]+|lt|gt|quot|apos|amp);", y)
+  regmatches(y, m) <- lapply(regmatches(y, m), function(r) vapply(r, une, "", USE.NAMES = FALSE))
+  x[ok] <- y
+  x
+}
+
+# Texte d'un fragment XML (<si> d'une chaine partagee, <is> d'une chaine en
+# ligne) : tous les segments <t> concatenes, enrichis (<r><t>..</t></r>) ou non,
+# puis decodes.
+.xml_textes <- function(x) {
+  t <- regmatches(x, gregexpr("<t([ \t\r\n][^>]*)?>.*?</t>", x))[[1]]
+  .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
+}
+
+# Valeur d'un attribut dans une balise ouvrante ; NA s'il est absent. La
+# balise est decoupee en attributs entiers, de gauche a droite : paires
+# nom="valeur" ou nom='valeur' (guillemets doubles ou apostrophes, blancs
+# admis autour du signe =, XML legal), et le nom de chaque attribut est
+# compare exactement a nom ; un texte "x id=" dans la valeur d'un autre
+# attribut (name="x id=") n'est pas pris pour un attribut (#487). local =
+# TRUE (classeur et relations) : nom local compare, prefixe d'espace de noms
+# retire, "id" lit "r:id" et "id", mais pas "sheetId" ; local = FALSE
+# (attributs r et t d'une cellule, .xlsx_cellules()) : nom entier compare,
+# x:r="Z9" n'est pas l'attribut r (revue de l'audit). Le nom de l'element
+# (<sheet, <x:sheet) n'est pas un attribut. Premiere occurrence retenue.
+# Valeur decodee (.xml_decoder()).
+.xlsx_attribut <- function(balise, nom, local = TRUE) {
+  paires <- regmatches(balise, gregexpr(
+    "[^[:space:]<>=\"'/]+[[:space:]]*=[[:space:]]*(\"[^\"]*\"|'[^']*')", balise))[[1]]
+  if (!length(paires)) return(NA_character_)
+  noms <- sub("[[:space:]]*=.*$", "", paires)
+  k <- which((if (local) sub("^.*:", "", noms) else noms) == nom)
+  if (!length(k)) return(NA_character_)
+  v <- sub("^[^=]*=[[:space:]]*", "", paires[k[1L]])
+  .xml_decoder(substr(v, 2L, nchar(v) - 1L))
+}
+
+# Balises ouvrantes d'un element, avec ou sans prefixe d'espace de noms
+# (<sheet ...> et <x:sheet ...>, forme ecrite par Open XML SDK ; #487) : le
+# nom de l'element doit etre suivi d'un blanc, ce qui ecarte <sheets> et
+# <Relationships>.
+.xlsx_balises <- function(xml, element)
+  regmatches(xml, gregexpr(paste0("<([A-Za-z_][A-Za-z0-9_.-]*:)?", element, "[ \t\r\n][^>]*>"), xml))[[1]]
+
+# Vrai pour un chemin qui sort du dossier de lecture : composant ".." (avec
+# l'un ou l'autre separateur), chemin absolu ("/" ou "\" initial) ou chemin
+# de lecteur ("C:"). Regle unique, appliquee aux entrees de l'archive avant
+# extraction (zip slip) et a la cible de la feuille lue (#487). La cible
+# "/xl/worksheets/sheet1.xml" d'une relation est un nom de partie absolu
+# dans le paquet OPC (forme ecrite par openpyxl 3.1.5, mesure ; lue par
+# openxlsx 4.2.9) : son seul "/" initial, qui designe la racine du paquet,
+# est retire avant la regle par .xlsx_fichier_feuille() ; "//xl/..." garde
+# alors un "/" initial et est refusee.
+.xlsx_chemin_sort <- function(x)
+  grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[/\\\\]|^[A-Za-z]:", x)
+
+# Cellules <c> du XML d'une feuille, regle unique du controle de la ligne
+# d'en-tete et du lecteur interne (#487, #522) : cellule vide (<c .../>) ou
+# avec contenu (<c ...>...</c>). Les attributs r et t sont lus dans la seule
+# balise ouvrante (.xlsx_attribut(), nom entier : un attribut prefixe x:r
+# n'est pas r), jamais dans le texte de la cellule (<is><t>x r="B9"</t></is>
+# ne deplace plus la valeur). La reference r est
+# mise en majuscules : r="a1" designe la cellule A1 (les references de
+# cellule ne distinguent pas la casse). Renvoie list(cellules, balise, ref,
+# typ) ; ref et typ valent NA pour un attribut absent.
+.xlsx_cellules <- function(xml) {
+  cellules <- regmatches(xml, gregexpr("<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>", xml))[[1]]
+  balise <- regmatches(cellules, regexpr("^<c[^>]*>", cellules))
+  list(cellules = cellules, balise = balise,
+       ref = toupper(vapply(balise, .xlsx_attribut, "", nom = "r", local = FALSE, USE.NAMES = FALSE)),
+       typ = vapply(balise, .xlsx_attribut, "", nom = "t", local = FALSE, USE.NAMES = FALSE))
+}
+
+# Fichier XML de la premiere feuille de calcul du classeur, dans l'ordre de
+# xl/workbook.xml (balises <sheet>, prefixees ou non), par la cible que
+# xl/_rels/workbook.xml.rels donne a son r:id : le nom du fichier
+# (sheet2.xml, sheet10.xml...) ne dit rien de l'ordre des feuilles (#487).
+# Feuille de calcul : relation dont l'attribut Type finit par "/worksheet"
+# (a defaut d'attribut Type, cible sous "worksheets/") ; une feuille de
+# graphique (chartsheet) placee avant est passee. Renvoie list(fichier,
+# rang) : rang est la position de la feuille parmi les balises <sheet>,
+# l'indice que openxlsx::read.xlsx(sheet =) attend (mesure, openxlsx 4.2.9 :
+# sheet = k lit la k-ieme balise <sheet>, feuilles de graphique comprises ;
+# sur une feuille de graphique il rend NULL). Refus si le classeur ne permet
+# pas de la resoudre.
+.xlsx_fichier_feuille <- function(d) {
+  refus <- function() stop("Classeur illisible : aucune feuille trouvee.")
+  lire <- function(rel) {
+    f <- file.path(d, rel)
+    if (utils::file_test("-f", f)) .xlsx_texte(f) else refus()
+  }
+  wb <- lire("xl/workbook.xml")
+  rels <- lire("xl/_rels/workbook.xml.rels")
+  feuilles <- .xlsx_balises(wb, "sheet")
+  if (!length(feuilles)) refus()
+  liens <- .xlsx_balises(rels, "Relationship")
+  ids_liens <- vapply(liens, .xlsx_attribut, "", nom = "Id", USE.NAMES = FALSE)
+  rang <- NA_integer_; cible <- NA_character_
+  for (k in seq_along(feuilles)) {
+    id <- .xlsx_attribut(feuilles[k], "id")
+    l <- if (is.na(id)) integer(0) else which(ids_liens == id)
+    if (!length(l)) next
+    type <- .xlsx_attribut(liens[l[1L]], "Type")
+    cb <- .xlsx_attribut(liens[l[1L]], "Target")
+    calcul <- if (is.na(type)) !is.na(cb) && grepl("(^|/)worksheets/", cb) else grepl("/worksheet$", type)
+    if (calcul) { rang <- k; cible <- cb; break }
+  }
+  if (is.na(rang) || is.na(cible)) refus()
+  # une cible qui sort du classeur n'est pas suivie (.xlsx_chemin_sort(), meme
+  # regle que pour les entrees de l'archive, apres retrait du seul "/" initial
+  # d'un nom de partie absolu) ; puis, resolue, la cible doit rester sous d.
+  # Un dossier n'est pas une feuille (utils::file_test).
+  absolue <- startsWith(cible, "/")
+  if (absolue) cible <- substring(cible, 2L)
+  if (.xlsx_chemin_sort(cible)) refus()
+  if (!absolue) cible <- file.path("xl", cible)
+  f <- file.path(d, cible)
+  if (!utils::file_test("-f", f)) refus()
+  racine <- normalizePath(d, winslash = "/", mustWork = FALSE)
+  if (!startsWith(normalizePath(f, winslash = "/", mustWork = FALSE), paste0(racine, "/"))) refus()
+  list(fichier = f, rang = rang)
+}
+
+# Controle du XML de la feuille lue, commun aux deux chemins de lecture et
+# fait avant l'appel a openxlsx : une cellule <c> sans attribut r (reference
+# de position) est refusee. L'attribut est facultatif dans le schema, et
+# l'outil ne deduit pas la position d'une cellule de son rang dans la ligne ;
+# sans ce controle, openxlsx leve une erreur R brute ou perd la valeur sans
+# message, et le lecteur interne de meme (#487). L'attribut n'est reconnu que
+# sous la forme r="..." (guillemets doubles, sans blanc autour du signe =),
+# celle que les tableurs ecrivent : r='A2' ou r = "A2", XML legal, sont
+# refuses avec le meme texte (refus, jamais une position devinee), alors que
+# .xlsx_attribut() lit ces formes dans xl/workbook.xml et ses relations
+# (#487). Une balise <c suivie de TAB, CR ou LF est refusee, avec
+# son propre texte, avant ce controle.
+.xlsx_controler_cellules <- function(xml) {
+  # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF) : XML legal,
+  # mais openxlsx 4.2.9 perd la cellule sans message (NA) ou rend NULL si
+  # toutes les cellules ont cette forme ; refusee avant lui (seule la balise c :
+  # <col, <cols, <cfRule... ne sont pas touchees). Faux refus possible si
+  # "<c" suivi d'un blanc figure dans une section CDATA ou un commentaire XML,
+  # jamais ecrits par un tableur dans une feuille (sens sur : refus, jamais
+  # une valeur fausse).
+  if (grepl("<c[\t\r\n]", xml))
+    .refus_lecture("Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur.")
+  balises <- regmatches(xml, gregexpr("<c([ \t\r\n][^>]*)?/?>", xml))[[1]]
+  if (any(!grepl("[ \t\r\n]r=\"", balises)))
+    .refus_lecture("Classeur illisible : cellule sans reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.")
+  invisible(NULL)
+}
+
+# Indice (base 1) d'une chaine partagee lu dans <v> d'une cellule t="s" ;
+# NA si la valeur n'est pas un entier positif ou nul (fichier forge : indice
+# negatif ou non numerique). Un indice au-dela de la table donne NA a
+# l'indexation. Sans ce garde, un indice negatif donnait l'index 0 et un
+# remplacement trop court (erreur R, ou textes recycles hors de leur cellule).
+.xlsx_indice_partage <- function(v) {
+  i <- suppressWarnings(as.integer(v)) + 1L
+  i[!is.na(i) & i < 1L] <- NA_integer_
+  i
+}
+
+# Controle de la ligne d'en-tete, commun aux deux chemins de lecture, fait sur
+# le XML de la feuille lue avant l'appel a openxlsx (#522) : l'en-tete du
+# tableau est en ligne 1, et une ligne 1 sans aucune valeur est refusee.
+# Une regle sur le data.frame lu est impossible : openxlsx saute les lignes
+# vides de tete meme avec skipEmptyRows = FALSE, et lit alors le tableau
+# decale comme un tableau bien forme (mesure, openxlsx 4.2.9) ; le lecteur
+# interne, lui, prend la ligne vide pour l'en-tete. Une cellule a valeur est
+# une cellule <c> qui porte <v>...</v> ou <is> (la notion du lecteur interne),
+# sauf une cellule texte dont le texte vaut "" une fois retires les blancs
+# [[:space:]] de .xlsx_blancs_entete() (decision du mainteneur du 12/11/2026,
+# option (b), sur l'avis d'actuary : une ligne 1 de chaines vides ou de
+# blancs est sans valeur, comme en CSV, et openxlsx en lit les noms "").
+# Texte d'une cellule : chaine partagee (t="s", resolue dans partagees, la
+# table decodee comme par le lecteur interne), chaine en ligne (<is>,
+# .xml_textes()) ou chaine de formule (t="str", texte de <v> tel quel). Une
+# cellule nombre, booleenne ou d'erreur qui porte <v> reste une valeur ; une
+# cellule mise en forme sans valeur (<c r="A1" s="1"/>), <v/>, ou une
+# formule sans <v> n'en est pas une. Une reference de chaine partagee
+# illisible ou hors de la table reste une valeur (pas de refus sur une
+# cellule mal formee). La sonde openxlsx::read.xlsx(rows = 1, colNames =
+# FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE) n'est pas appelee :
+# elle avertit "No data found on worksheet", depend de la version
+# d'openxlsx et ne voit pas la cellule A1 d'un <row> sans attribut r que la
+# lecture complete lit (mesure, openxlsx 4.2.9, avant la regle des blancs).
+# Une feuille sans aucune cellule a valeur, chaines de blancs comprises,
+# n'est pas visee (elle garde ses refus : tableau vide) ; un titre seul en A1, ligne 1
+# qui porte une valeur, ne l'est pas non plus (refuse plus loin par les
+# controles de colonnes). La ligne d'une cellule est lue dans sa balise
+# ouvrante (r="A1", .xlsx_cellules()). Texte : MOTIF_LIGNE1_VIDE, commun avec
+# le refus du CSV dont la ligne 1 ne porte que des separateurs, pose par
+# engine_lire_donnees_csv() et engine_lire_triangle() (.ligne1_sans_valeur(),
+# motif "erreurs" des lecteurs et non erreur levee, extension aux CSV du
+# 12/11/2026).
+.xlsx_controler_ligne_entete <- function(xml, partagees = character(0)) {
+  cc <- .xlsx_cellules(xml)
+  if (!length(cc$cellules)) return(invisible(NULL))
+  cel <- cc$cellules
+  v <- grepl("<v>", cel, fixed = TRUE)
+  is <- grepl("<is>", cel, fixed = TRUE)
+  brut <- rep(NA_character_, length(cel))
+  mv <- regexpr("<v>.*?</v>", cel)
+  brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
+  texte <- rep(NA_character_, length(cel))
+  s <- v & cc$typ %in% "s"
+  if (any(s)) texte[s] <- partagees[.xlsx_indice_partage(brut[s])]
+  st <- v & cc$typ %in% "str"
+  texte[st] <- brut[st]
+  if (any(is)) texte[is] <- vapply(cel[is], .xml_textes, "", USE.NAMES = FALSE)
+  blanc <- !is.na(texte) & !nzchar(.xlsx_blancs_entete(texte))
+  avec_valeur <- (v | is) & !blanc
+  if (!any(avec_valeur)) return(invisible(NULL))
+  # Lettres de colonne en majuscules ou en minuscules (r="a1" : ligne 1,
+  # reserve de l'audit ; .xlsx_cellules() met la reference en majuscules).
+  ligne1 <- !is.na(cc$ref) & grepl("^[A-Z]+1$", cc$ref)
+  if (!any(avec_valeur & ligne1)) .refus_lecture(MOTIF_LIGNE1_VIDE)
+  invisible(NULL)
+}
+
+# Ligne d'en-tete d'un classeur lu par le lecteur interne : mise en forme des
+# blancs de openxlsx::read.xlsx(sep.names = " "), mesuree (openxlsx 4.2.9,
+# les 63 459 caracteres du plan multilingue de base valides en XML, en tete,
+# au milieu et en fin de nom, sous C.UTF-8 : aucun ecart) : blancs de bord
+# retires, suite de blancs interieurs ramenee a une espace. Les blancs sont
+# ceux de la classe [[:space:]] de la locale, comme pour openxlsx (sous
+# C.UTF-8 : U+0009 a U+000D, U+0020, U+1680, U+2000 a U+2006, U+2008 a U+200A,
+# U+2028, U+2029, U+205F, U+3000 ; l'espace insecable U+00A0, U+2007, U+202F
+# et U+0085 n'en sont pas ; sous la locale C, les seuls blancs ASCII). Le jeu
+# des blancs depend donc de la locale de la session, pour le lecteur interne
+# comme pour openxlsx ; la parite n'est mesuree que sous C.UTF-8 (et sur
+# 27 caracteres sous C), non sous Windows.
+.xlsx_blancs_entete <- function(nm) {
+  nm <- gsub("^[[:space:]]+|[[:space:]]+$", "", nm)
+  gsub("[[:space:]]+", " ", nm)
+}
+
+# Lit la premiere feuille (premiere du classeur, dans l'ordre de
+# xl/workbook.xml) d'un classeur .xlsx et renvoie un data.frame, la
 # premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
 # cellules a valeur sont des cellules nombre est rendue en numerique ; une
 # colonne qui porte une cellule texte est rendue en caractere, nombres
@@ -7990,54 +8534,118 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
 # comme dans le lecteur interne. La regle des lignes et colonnes vides est
 # posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
-# (#483), identique pour les deux chemins. Les deux chemins different encore
-# par endroits sans effet sur cette regle : nom d'une colonne sans en-tete
-# ("X<col>" pour openxlsx, "V<col>" ici), lignes au-dessus de l'en-tete
-# (sautees par openxlsx, lues ici comme en-tete) ; lignes et colonnes mises
+# (#483), identique pour les deux chemins. Une cellule sans attribut r est
+# refusee avant la lecture, de la meme facon sur les deux chemins
+# (.xlsx_controler_cellules()), et une ligne 1 sans aucune valeur l'est de meme
+# (.xlsx_controler_ligne_entete(), #522) : l'en-tete du tableau est en ligne 1,
+# sans ligne vide au-dessus, que le chemin soit openxlsx (qui saute les lignes
+# vides de tete) ou le lecteur interne (qui prenait la ligne vide pour
+# l'en-tete). Ces deux refus et celui d'une balise <c de forme non reconnue
+# sont des erreurs de classe "usp_refus_lecture" (.refus_lecture()), dont
+# l'application affiche le texte ; les autres refus (archive, feuille) sont
+# des erreurs ordinaires. Les
+# blancs de la ligne d'en-tete sont mis en forme de la meme facon
+# (sep.names = " " pour openxlsx, .xlsx_blancs_entete()
+# ici : "deux  mots" et " deux mots" sont lus "deux mots") ; un en-tete " xt"
+# est donc accepte en xlsx et refuse en CSV, ou l'application lit les noms tels
+# quels (divergence CSV - xlsx laissee en l'etat, decision D3 du mainteneur).
+# Les deux chemins different encore par endroits : nom d'une colonne sans
+# en-tete ("X<col>" pour openxlsx, "V<col>" ici) ; lignes et colonnes mises
 # en forme sans valeur (cellules <c .../> sans <v>) gardees ici, ignorees par
 # openxlsx ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
 # <v>0x10</v>, cellule forgee) : lue 16 par openxlsx, colonne
-# laissee en caractere ici et cellule refusee en aval.
+# laissee en caractere ici et cellule refusee en aval. Texte des cellules
+# (mesure, openxlsx 4.2.9) : le lecteur interne decode les entites nommees et
+# les references numeriques (&#233;, &#xE9;) des chaines partagees et des
+# chaines en ligne (.xml_decoder()) ; openxlsx decode les entites nommees des
+# chaines partagees seulement (en decodant deux fois "&amp;lt;", lu "<"), et
+# laisse telles quelles les references numeriques des chaines partagees et
+# toute entite d'une chaine en ligne ;
+# une chaine en ligne enrichie (<is><r><t>..) est lue entiere ici, rendue NA
+# par openxlsx ; un <t xml:space="preserve"> d'une chaine en ligne laisse
+# l'attribut dans le texte lu par openxlsx. Les entites d'une cellule
+# t="str" ne sont decodees par aucun des deux chemins. Un en-tete qui porte
+# "&", "<" ou ">" n'est donc relu identique par les deux chemins que s'il est
+# en chaine partagee. Consequence pour engine_ecrire_xlsx(), qui n'ecrit que
+# des chaines en ligne (#488, mesure openxlsx 4.2.9) : un en-tete ou une
+# chaine ecrits "a<b&c" sont relus "a<b&c" ici et "a&lt;b&amp;c" par
+# openxlsx, dont la sortie n'est pas retouchee ; une colonne logique, ecrite
+# en chaines "TRUE"/"FALSE", est relue en caractere ici et en logique par
+# openxlsx. Les exports de donnees de l'application n'y sont pas exposes :
+# en-tetes fixes (t, xt, yt ; i, j0, j1...), cellules numeriques.
+# L'attribut r d'une cellule n'est lu que sous la forme
+# r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
+# reference. Une balise <c> suivie d'un blanc autre que l'espace (<c<TAB>r=..>,
+# XML legal) est refusee d'un texte propre, avant les deux chemins : openxlsx
+# 4.2.9 perd la cellule sans message (NA) ou rend NULL. Une cible de feuille
+# "./worksheets/sheet1.xml" est acceptee par le controle et lue par le lecteur
+# interne, mais lue par openxlsx 4.2.9 par une erreur R brute ("Length of
+# worksheet is 0"). Feuille lue : la premiere feuille de calcul, feuilles de
+# graphique placees avant passees, sur les deux chemins (openxlsx appele avec
+# son rang, .xlsx_fichier_feuille()). Balises <sheet> et <Relationship>
+# prefixees (<x:sheet>), attributs entre apostrophes ou a blancs autour du
+# signe = dans xl/workbook.xml et ses relations : lus par le lecteur interne,
+# mais pas par openxlsx 4.2.9 (mesure : "Workbook has no worksheets" ou
+# "Length of worksheet is 0", erreur R brute, message fixe de l'application) ;
+# une feuille dont les balises de cellule sont prefixees (<x:c>) n'est lue
+# par aucun des deux chemins comme un tableau. Une reference de cellule en
+# minuscules (r="a1") est lue par le lecteur interne (.xlsx_cellules()) ;
+# openxlsx 4.2.9 la lit par une erreur R brute ("missing value where
+# TRUE/FALSE needed"). Un attribut prefixe avant r (<c x:r="Z9" r="A2">)
+# n'est pas pris pour r par le lecteur interne (valeur en A2) ; openxlsx
+# 4.2.9 place la valeur en Z9 (mesure). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
+# parite mesuree sous C.UTF-8 seulement.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
-  if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
-                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
-                               na.strings = character(0)))
+  .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
   # aucun sharedStrings.xml residuel d'une lecture anterieure.
   d <- tempfile("unx_")
   on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  # Extraction : aucune entree d'archive absolue ou remontant ("..", separateur
+  # / ou \) n'est ecrite (zip slip) ; une archive illisible est refusee comme
+  # un classeur sans feuille.
+  noms <- tryCatch(suppressWarnings(utils::unzip(chemin, list = TRUE)$Name),
+                   error = function(e) NULL)
+  if (is.null(noms)) stop("Classeur illisible : aucune feuille trouvee.")
+  if (any(.xlsx_chemin_sort(noms)))
+    stop("Classeur illisible : l'archive contient une entree dont le chemin sort du dossier de lecture (chemin absolu ou \"..\").")
   utils::unzip(chemin, exdir = d)
-  f <- list.files(file.path(d, "xl", "worksheets"), pattern = "\\.xml$", full.names = TRUE)
-  if (!length(f)) stop("Classeur illisible : aucune feuille trouvee.")
-  xml <- paste(readLines(f[1], warn = FALSE, encoding = "UTF-8"), collapse = "")
-  # table des chaines partagees, si presente
+  feuille <- .xlsx_fichier_feuille(d)
+  xml <- .xlsx_texte(feuille$fichier)
+  .xlsx_controler_cellules(xml)
+  # table des chaines partagees, si presente : lue par le controle de la
+  # ligne 1 (texte des cellules, #522) et par le lecteur interne
   fs <- file.path(d, "xl", "sharedStrings.xml")
   partagees <- character(0)
   if (file.exists(fs)) {
-    sx <- paste(readLines(fs, warn = FALSE, encoding = "UTF-8"), collapse = "")
+    sx <- .xlsx_texte(fs)
     si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
-    partagees <- vapply(si, function(x) {
-      t <- regmatches(x, gregexpr("<t[^>]*>.*?</t>", x))[[1]]
-      paste(gsub("<[^>]*>", "", t), collapse = "")
-    }, character(1))
+    partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
-  cells <- regmatches(xml, gregexpr('<c [^>]*?/>|<c [^>]*?>.*?</c>', xml))[[1]]
+  if (entete) .xlsx_controler_ligne_entete(xml, partagees)
+  # openxlsx lit la feuille resolue par son rang (feuilles de graphique
+  # placees avant passees, #487).
+  if (requireNamespace("openxlsx", quietly = TRUE))
+    return(openxlsx::read.xlsx(chemin, sheet = feuille$rang, colNames = entete,
+                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
+                               na.strings = character(0), sep.names = " "))
+  # r et t lus dans la seule balise ouvrante, reference en majuscules
+  # (.xlsx_cellules(), regle commune avec .xlsx_controler_ligne_entete()).
+  cc <- .xlsx_cellules(xml)
+  cells <- cc$cellules
   if (!length(cells)) return(data.frame())
-  ref <- sub('.*r="([A-Z]+)([0-9]+)".*', "\\1|\\2", cells)
-  col <- vapply(sub("\\|.*", "", ref), .lettre_col, numeric(1))
-  lig <- as.integer(sub(".*\\|", "", ref))
-  typ <- ifelse(grepl('t="[^"]*"', cells), sub('.*t="([^"]*)".*', "\\1", cells), "n")
+  col <- vapply(sub("[0-9]+$", "", cc$ref), .lettre_col, numeric(1), USE.NAMES = FALSE)
+  lig <- as.integer(sub("^[A-Z]+", "", cc$ref))
+  typ <- ifelse(is.na(cc$typ), "n", cc$typ)
   val <- rep(NA_character_, length(cells))
   vv <- regmatches(cells, regexpr("<v>.*?</v>", cells))
   ok <- grepl("<v>", cells)
   val[ok] <- gsub("<[^>]*>", "", vv)
   isx <- grepl("<is>", cells)
-  if (any(isx)) val[isx] <- gsub("<[^>]*>", "",
-    regmatches(cells[isx], regexpr("<t[^>]*>.*?</t>", cells[isx])))
+  if (any(isx)) val[isx] <- vapply(cells[isx], .xml_textes, character(1), USE.NAMES = FALSE)
   s <- typ == "s" & !is.na(val)
-  if (any(s)) val[s] <- partagees[as.integer(val[s]) + 1L]
+  if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE", comme
   # openxlsx : sa valeur brute "1"/"0" passerait pour un nombre en aval.
   b <- typ == "b" & !is.na(val)
@@ -8045,7 +8653,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   m <- matrix(NA_character_, max(lig), max(col))
   m[cbind(lig, col)] <- val
   if (entete) {
-    nm <- m[1, ]; corps <- m[-1, , drop = FALSE]
+    nm <- .xlsx_blancs_entete(m[1, ]); corps <- m[-1, , drop = FALSE]
     nm[is.na(nm) | nm == ""] <- paste0("V", which(is.na(nm) | nm == ""))
   } else { nm <- paste0("V", seq_len(ncol(m))); corps <- m }
   df <- as.data.frame(corps, stringsAsFactors = FALSE)
@@ -8109,6 +8717,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
 ## =============================================================================
 
 engine_empreinte <- function(res) {
+  .engine_point_decimal()
   md5_octets <- function(ecrire) {
     f <- tempfile("empreinte_")
     on.exit(unlink(f), add = TRUE)
@@ -8194,6 +8803,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
                                    nature_donnees = NULL, bareme = NULL,
                                    segment = NULL, annexe = "II") {
+  .engine_point_decimal()
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
   # Repere de profondeur (issue #499) : character(0) sauf T < 10 sur une
   # serie recevable, comme erreurs et avertissements quand ils sont vides.
@@ -8356,6 +8966,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
 # annees retenues (lecture (A) de l'issue #104, decision du mainteneur du
 # 28/09/2026).
 engine_valider_profondeur <- function(T, n, T_min = 5) {
+  .engine_point_decimal()
   if (is.null(T)) return(character(0))
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
   # pour un simple chargement (T_min = 1), les motifs sont neutres.
@@ -8396,6 +9007,7 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
                                          delta_equiv = NULL, methode = NULL,
                                          nature_donnees = NULL, bareme = NULL,
                                          segment = NULL, annexe = "II") {
+  .engine_point_decimal()
   n <- length(xt)
   err_T <- engine_valider_profondeur(T, n)
   # Series de longueurs differentes (issue #482) : aucune troncature. Coupees
@@ -9216,6 +9828,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 # DBL_MAX^(1/3), grandeurs de degre 3).
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
+  .engine_point_decimal()
   err <- character(0); avt <- character(0)
   # Repere de profondeur (issue #499) : character(0) sauf I + 1 < 10 sur un
   # triangle recevable, comme dans engine_valider_donnees().
@@ -9314,8 +9927,8 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # les motifs perl : laisse dans le vecteur sans recodage, un nom "bytes"
     # fait lire trimws() octet par octet pour TOUS les noms (mesure : "2022"
     # suivi d'une espace insecable UTF-8 devenait "2022\xc2" au lieu de
-    # "2022"). Les motifs des autres noms gardent les numeros de ligne et les
-    # i= du triangle d'origine.
+    # "2022"). Les motifs des autres noms gardent les indices i (i = k - 1)
+    # du triangle d'origine.
     octets <- !is.na(noms) & Encoding(noms) == "bytes"
     # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
     # comparaison : une chaine non ASCII d'encodage "unknown" est
@@ -9362,47 +9975,30 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # Motifs par ligne dans l'ordre des lignes : "bytes" ou nom manquant.
     for (k in which(octets | manquant))
       err <- c(err, if (octets[k]) sprintf(paste(
-        "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+        "Nom de l'annee d'accident i = %d declare d'encodage \"bytes\" :",
         "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
-        "Latin-1 declare."), k, k - 1L)
-        else sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
-                     k, k - 1L))
+        "Latin-1 declare."), k - 1L)
+        else sprintf("Nom de l'annee d'accident i = %d manquant ou vide.", k - 1L))
     # Doublons compares sur les noms renseignes debarrasses de leurs blancs
     # initiaux et finaux ("2022", " 2022" et "2022" suivi d'une espace
     # insecable designent la meme annee), sans autre normalisation (ni casse,
     # ni conversion numerique). Un motif par nom en double, qui cite les
-    # formes saisies et les positions des lignes. Chaque forme est citee
-    # entre guillemets, echappee de facon independante de la locale : un
-    # caractere ASCII l'est par encodeString() (tabulation -> \t, guillemet
-    # -> \", controles), un caractere non ASCII blanc, de controle ou de
-    # format (classes \h, \v, \p{Z}, \p{C}) est ecrit \uXXXX (\UXXXXXXXX
-    # au-dela de U+FFFF), les autres non ASCII ("e" accentue) restent tels
-    # quels. encodeString() seul ecrirait l'espace insecable telle quelle en
-    # locale UTF-8 (invisible) et "\u00a0" en locale C. En defense, une
-    # chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee
-    # par encodeString() seul.
-    citer <- function(x) vapply(x, function(s) {
-      cp <- utf8ToInt(s)
-      if (anyNA(cp)) return(encodeString(s, quote = "\""))
-      ch <- vapply(cp, function(c) {
-        if (c < 128L) {
-          q <- encodeString(intToUtf8(c), quote = "\"")
-          substr(q, 2L, nchar(q) - 1L)
-        } else if (grepl("[\\h\\v\\p{Z}\\p{C}]", intToUtf8(c), perl = TRUE)) {
-          sprintf(if (c > 65535L) "\\U%08x" else "\\u%04x", c)
-        } else intToUtf8(c)
-      }, "")
-      paste0("\"", paste(ch, collapse = ""), "\"")
-    }, "", USE.NAMES = FALSE)
+    # formes saisies et les indices i des annees d'accident (i = k - 1 pour la
+    # ligne k ; une seule notation par message, #550). Chaque forme est citee
+    # entre guillemets, echappee de facon independante de la locale par
+    # .echapper_texte() (guillemets = TRUE), partagee avec la liste des
+    # en-tetes d'engine_lire_donnees_csv() : regle et motifs de l'echappement
+    # a son commentaire.
+    citer <- function(x) .echapper_texte(x, guillemets = TRUE)
     examine <- !manquant & !octets
     cle <- sans_blancs; cle[!examine] <- NA_character_
     enum <- function(x) if (length(x) == 1L) x else
       paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
     for (d in unique(cle[examine & duplicated(cle)])) {
       k <- which(examine & cle == d)
-      err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
+      err <- c(err, sprintf("Annee d'accident en double : %s (annees d'accident %s).",
                             paste(citer(unique(noms_u[k])), collapse = ", "),
-                            enum(k), enum(paste0("i=", k - 1L))))
+                            enum(paste0("i = ", k - 1L))))
     }
   }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de
@@ -13201,6 +13797,7 @@ engine_b_minimal <- function(alpha) {
 # (engine_b_minimal() en erreur, alpha tres petit), le message ne cite pas
 # de valeur.
 engine_motif_b_alpha <- function(B, alpha) {
+  .engine_point_decimal()
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
   if (!scalaire_fini(B) || !scalaire_fini(alpha) || alpha <= 0 ||
       alpha >= SEUIL_ECHEC_SENS_REJETER || B < B_MIN_USAGE) return(NULL)
@@ -13243,6 +13840,7 @@ engine_motif_b_alpha <- function(B, alpha) {
 # pas la valeur, #133), puis virgule decimale francaise.
 # Accents en echappements \u, le source du moteur etant ASCII.
 engine_regle_verdicts <- function(alpha) {
+  .engine_point_decimal()
   if (!(is.numeric(alpha) && length(alpha) == 1L && is.finite(alpha) &&
         is.null(attributes(alpha)) &&
         alpha > 0 && alpha < SEUIL_ECHEC_SENS_REJETER))
@@ -14197,6 +14795,7 @@ run_engine <- function(xt, yt,
                        bareme = NULL,
                        plus_recent_en_dernier = TRUE,
                        nature_donnees = NULL) {
+  .engine_point_decimal()
   t0 <- Sys.time()
   # Controle exact de methode et d'annexe avant match.arg() (#489, constat
   # C5 de l'audit entrees-sorties) : match.arg() completait une abreviation
@@ -14621,6 +15220,7 @@ run_engine <- function(xt, yt,
 }
 
 engine_parametre_standard <- function(res) {
+  .engine_point_decimal()
   if (!isTRUE(res$ok)) return(NULL)
   m <- res$metadata
   ps <- .engine_trace_sigma(res, "engine_parametre_standard()")
@@ -14705,6 +15305,7 @@ engine_parametre_standard <- function(res) {
 # metadata$n_fournies manque ou est incoherent, ou si metadata$T est absent
 # ou non entier (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
+  .engine_point_decimal()
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
   # Profondeur avant bareme (#135) : un metadata$T invalide est refuse par le
@@ -14875,6 +15476,7 @@ USP_TXT_RENVOI_SV <- paste(
 # rend NA sur chaque ligne (aucune ligne constante), sans cas particulier
 # (#222, point 3).
 engine_table_tests <- function(res) {
+  .engine_point_decimal()
   rv <- usp_renvois(res$tests)
   do.call(base::rbind, lapply(seq_along(res$tests), function(i) { t <- res$tests[[i]]; data.frame(
     famille = t$famille, test = t$test, type = t$type,

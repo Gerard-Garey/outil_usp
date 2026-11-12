@@ -26,8 +26,14 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
 
 - **R ≥ 4.3** (développé et testé avec R 4.3.1).
 - Moteur (`R/engine.R`) : R base + `stats` uniquement. `openxlsx` est utilisé
-  s'il est installé pour lire et écrire les fichiers Excel, avec repli sur une
-  implémentation interne ; les calculs n'en dépendent pas.
+  s'il est installé pour lire les fichiers Excel, avec repli sur une
+  implémentation interne ; l'écriture passe toujours par l'écrivain interne
+  du moteur, dont l'archive est compressée par le paquet `zip` s'il est
+  installé (importé par `openxlsx`), sinon par `utils::zip()` et la commande
+  `zip` du système (#488). Si `zip::zipr()` échoue (vieux paquet `zip`, par
+  exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
+  quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
+  deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
 - Application : `shiny` ; `plotly` en option (repli automatique sur les
   graphiques de base R). Dépendances déclarées dans `DESCRIPTION` :
   `remotes::install_deps(dependencies = TRUE)` les installe.
@@ -113,6 +119,27 @@ sans en-tête est nommée par `read.csv` (« X », « X.1 »…) : elle est alor
 pour une colonne qui porte un en-tête et refusée dans un triangle ; à l'inverse,
 un en-tête numérique « k » devient « Xk » et, placé en k-ième colonne, est pris
 pour un en-tête absent.
+
+Pour écrire des données dans un fichier que ces lecteurs relisent à
+l'identique (nombres en point décimal, à 15 chiffres significatifs s'ils
+suffisent, sinon 17), comme l'export de l'application (#488) :
+
+    engine_ecrire_csv(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.csv")
+    engine_ecrire_xlsx(data.frame(t = 1:8, xt = ..., yt = ...), "usp_donnees_LN.xlsx")
+
+L'en-tête du tableau est en ligne 1 : une ligne 1 qui ne porte que des
+séparateurs ou des blancs (cellules absentes, vides ou faites de blancs ;
+l'espace insécable n'est pas un blanc) est refusée, pour un CSV par un motif
+d'`erreurs` d'`engine_lire_donnees_csv()` et d'`engine_lire_triangle()`, pour
+un classeur par une erreur de classe `usp_refus_lecture` (#522). Avec les
+réglages par défaut de `read.csv`, une ligne 1 `,,` donne les noms « X »,
+« X.1 »… et n'est pas visée. `engine_lire_xlsx()` refuse aussi une cellule
+sans attribut de position `r` ou une balise de cellule de forme non reconnue
+(#487). Ces refus motivés du classeur sont des erreurs de classe
+`usp_refus_lecture`
+(`inherits(e, "usp_refus_lecture")`), dont le message s'adresse à
+l'utilisateur et que l'application affiche tel quel ; une archive illisible
+ou sans feuille lève une erreur ordinaire.
 
 `charger_moteur()` (`R/charger_moteur.R`, ADR 0016) charge le moteur dans un
 environnement dédié dont la chaîne de résolution ne voit que le moteur, les

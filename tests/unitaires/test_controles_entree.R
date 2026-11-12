@@ -2,7 +2,8 @@
 #  tests/unitaires/test_controles_entree.R  --  CONTROLES D'ENTREE
 #
 #  engine_valider_donnees(), mw_valider_triangle(), engine_lire_donnees_csv(),
-#  usp_controle_donnees(), usp_lire_vecteur() / usp_charger().
+#  usp_controle_donnees(), usp_lire_vecteur() / usp_charger() ; exports de
+#  donnees engine_ecrire_csv() et engine_ecrire_xlsx() relus au bit (#488).
 #  Cas valides, valeurs negatives ou nulles, NA, valeurs infinies, longueurs
 #  differentes, T < 5, triangle non carre.
 #  Reference : exigences de l'annexe XVII (B(2)(b) et D(2)(b), (c), (e) :
@@ -1963,9 +1964,10 @@ verifier("repere_profondeur : refus (ok = FALSE) -- champ present, character(0) 
 # Regle commune aux series et au triangle, posee par
 # .retirer_lignes_colonnes_vides() : lignes vides de fin retirees ; ligne vide
 # intercalee ou en tete refusee (motifs distincts) ; colonne vide sans en-tete
-# en bord retiree ; triangle : colonne vide intercalee ou portant un en-tete
-# refusee ; meme motif quel que soit le chemin (openxlsx, lecteur interne,
-# data.frame d'un CSV lu en texte avec ses lignes vides).
+# en bord retiree, sauf au bord gauche du triangle, apres i s'il existe et
+# precede les donnees (#520) ; triangle : colonne vide intercalee ou portant
+# un en-tete refusee ; meme motif quel que soit le chemin (openxlsx, lecteur
+# interne, data.frame d'un CSV lu en texte avec ses lignes vides).
 xt483 <- 100:108; yt483 <- 60 + (0:8)
 ser483 <- data.frame(xt = xt483, yt = yt483)
 avec_vide <- function(d, k) d[append(seq_len(nrow(d)), NA, after = k - 1), , drop = FALSE]
@@ -2044,14 +2046,95 @@ verifier("Lignes vides (#483) : triangle a lignes vides de fin lu comme sans ell
              isTRUE(all.equal(engine_lire_triangle(en_texte(rbind(tri483, NA)))$triangle, r0$triangle,
                               tolerance = 1e-15))
          })
-verifier("Colonnes vides (#483) : triangle, colonne vide sans en-tete en bord (gauche, entre i et j0, droite) retiree",
+# Bord gauche du triangle (#520, regle R-a) : une colonne vide sans en-tete
+# entre i et j0 n'est plus retiree (cas col_vide(tri483, 1, "V2"), accepte
+# par #483, desormais refuse par le motif de #520, test suivant).
+verifier("Colonnes vides (#483, #520) : triangle, colonne vide sans en-tete en bord (gauche avant i, droite) retiree",
          {
            r0 <- engine_lire_triangle(tri483)
            # forme texte : valeurs ecrites par as.character() (15 chiffres), d'ou all.equal()
-           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X8")),
+           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 7, "X8")),
                       function(d) identical(engine_lire_triangle(d), r0), logical(1))) &&
              isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, ""))), r0,
+                              tolerance = 1e-15)) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 0, ""))), r0,
                               tolerance = 1e-15))
+         })
+# Issue #520 (regle R-a, decision du mainteneur D1 du 11/11/2026 ; texte fixe
+# par l'avis amont d'actuary sur K2, par. 1.1) : colonne vide sans en-tete
+# avant la premiere colonne de developpement renseignee, et apres i si i
+# existe, refusee comme annee de developpement 0 manquante presumee, avec ou
+# sans colonne i ; le motif tient lieu de "Triangle non carre". Colonne
+# numerotee par sa position dans le tableau lu, colonne i comprise.
+motif520 <- function(cols)
+  sprintf(paste("Colonne(s) vide(s) sans en-tete avant la premiere colonne renseignee du triangle (colonne(s) %s) :",
+                "annee de developpement 0 manquante presumee ; la renseigner, ou retirer la colonne vide",
+                "si le triangle commence bien a l'annee de developpement 0."), cols)
+tri520 <- fichier_tri(triangle(8))
+# Colonne j0 videe, sans en-tete ("" : CSV lu avec check.names = FALSE)
+c0_520 <- function(avec_i = TRUE, nom = "") {
+  d <- tri520; d$j0 <- NA; names(d)[2] <- nom
+  if (avec_i) d else d[, -1, drop = FALSE]
+}
+# n colonnes vides sans en-tete inserees apres la colonne k
+vides520 <- function(d, k, n) {
+  v <- as.data.frame(matrix(NA, nrow(d), n))
+  d2 <- cbind(d[, seq_len(k), drop = FALSE], v, d[, setdiff(seq_len(ncol(d)), seq_len(k)), drop = FALSE])
+  names(d2) <- append(names(d), rep("", n), after = k); d2
+}
+verifier("Colonne 0 vide (#520) : triangle 8 x 8 a colonne 0 vide sans en-tete refuse, sans i (colonne 1) et avec i (colonne 2), motif seul, CSV texte compris",
+         {
+           a <- engine_lire_triangle(c0_520(FALSE)); b <- engine_lire_triangle(c0_520(TRUE))
+           !a$ok && is.null(a$triangle) && identical(a$erreurs, motif520("1")) &&
+             !b$ok && is.null(b$triangle) && identical(b$erreurs, motif520("2")) &&
+             identical(engine_lire_triangle(en_texte(c0_520(FALSE)))$erreurs, a$erreurs) &&
+             identical(engine_lire_triangle(en_texte(c0_520(TRUE)))$erreurs, b$erreurs) &&
+             identical(engine_lire_triangle(c0_520(FALSE, "X1"))$erreurs, a$erreurs) &&
+             identical(engine_lire_triangle(c0_520(TRUE, "V2"))$erreurs, b$erreurs)
+         })
+verifier("Colonne 0 vide (#520) : colonne vide sans en-tete entre i et j0 refusee (accepte par #483), triangle 8 x 8 complet decale sans i refuse",
+         {
+           identical(engine_lire_triangle(col_vide(tri483, 1, "V2"))$erreurs, motif520("2")) &&
+             identical(engine_lire_triangle(vides520(tri520[, -1], 0, 1))$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520) : deux colonnes vides sans en-tete a gauche refusees et citees, sans i (1, 2) et avec i (2, 3) ; colonne avant i seule non citee",
+         {
+           identical(engine_lire_triangle(vides520(tri520[, -1], 0, 2))$erreurs, motif520("1, 2")) &&
+             identical(engine_lire_triangle(vides520(tri520, 1, 2))$erreurs, motif520("2, 3")) &&
+             identical(engine_lire_triangle(vides520(vides520(tri520, 1, 1), 0, 1))$erreurs, motif520("3"))
+         })
+verifier("Colonne 0 vide (#520) : colonne vide avant i retiree sans message ; colonne 0 vide portant un en-tete refusee par LE-06 inchange, sans le motif de #520",
+         {
+           r0 <- engine_lire_triangle(tri520)
+           e_i <- engine_lire_triangle(c0_520(TRUE, "j0"))$erreurs
+           e_s <- engine_lire_triangle(c0_520(FALSE, "j0"))$erreurs
+           isTRUE(r0$ok) && identical(engine_lire_triangle(vides520(tri520, 0, 1)), r0) &&
+             identical(e_i, paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 2,",
+                                  "d'en-tete(s) j0) : annee de developpement sans valeur ; la renseigner",
+                                  "ou retirer la colonne.")) &&
+             identical(e_s, sub("colonne(s) 2,", "colonne(s) 1,", e_i, fixed = TRUE))
+         })
+# Precision (B) d'actuary sur R-a : seule une colonne placee avant une
+# colonne i qui precede elle-meme les donnees est retiree sans message ; i en
+# fin de tableau ne protege aucune colonne vide de gauche.
+verifier("Colonne 0 vide (#520, precision (B)) : i en fin de tableau, colonne 0 vide sans en-tete (\"\", j1..j7, i) refusee colonne 1, au lieu de \"Triangle non carre\"",
+         {
+           d <- c0_520(TRUE); d <- d[, c(2:9, 1)]
+           identical(names(d), c("", paste0("j", 1:7), "i")) &&
+             identical(engine_lire_triangle(d)$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520, precision (B)) : 8 x 8 complet, i en fin, colonne vide a gauche refusee (colonne 1)",
+         identical(engine_lire_triangle(vides520(tri520[, c(2:9, 1)], 0, 1))$erreurs, motif520("1")))
+verifier("Colonne 0 vide (#520, precision (B)) : colonne vide a gauche, i entre j6 et j7 (\"\", j0..j6, i, j7) refusee (colonne 1)",
+         {
+           d <- vides520(tri520[, c(2:8, 1, 9)], 0, 1)
+           identical(names(d), c("", paste0("j", 0:6), "i", "j7")) &&
+             identical(engine_lire_triangle(d)$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520) : vrai triangle non carre (colonne j7 absente) garde le motif \"Triangle non carre\"",
+         {
+           e <- engine_lire_triangle(tri520[, -9])$erreurs
+           length(e) == 1L && startsWith(e, "Triangle non carre (8 annees d'accident, 7 annees de developpement)")
          })
 verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
          {
@@ -2179,6 +2262,31 @@ verifier("engine_lire_triangle : LE-06, une puis deux colonnes vides a en-tete a
                        paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 10, 11,",
                              "d'en-tete(s) 8, 9) : annee de developpement sans valeur ; la renseigner ou",
                              "retirer la colonne."))
+         })
+# #550 (O2) : la liste des en-tetes de LE-06 est coupee a cinq par liste(),
+# comme celle des numeros de colonne, et le reste est dit (" et N autre(s)") ;
+# chaque en-tete est echappe par .echapper_texte() (tabulation -> \t, espace
+# insecable -> \u00a0). Six colonnes vides a en-tete : "10, 11, 12, 13, 14 et
+# 1 autre(s)" deux fois ; sept : "et 2 autre(s)" deux fois.
+verifier("engine_lire_triangle : LE-06, six puis sept colonnes vides a en-tete au bord -> les deux listes signalent le reste ; en-tetes echappes (#550)",
+         {
+           ajoute <- function(noms) {
+             d <- tri_527
+             for (n in noms) d[[n]] <- ""
+             d
+           }
+           suite <- function(col, ent) paste0("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) ",
+                                              col, ", d'en-tete(s) ", ent, ") : annee de developpement sans valeur ; ",
+                                              "la renseigner ou retirer la colonne.")
+           plain <- paste0("vide", 1:5)
+           e6 <- engine_lire_triangle(ajoute(c(plain, "vide6")))$erreurs
+           e7 <- engine_lire_triangle(ajoute(c(plain, "vide6", "vide7")))$erreurs
+           ec <- engine_lire_triangle(ajoute(c("vide1", "v\tide2", paste0("vide3", intToUtf8(0xA0)),
+                                               "vide4", "vide5", "vide6")))$erreurs
+           identical(e6, suite("10, 11, 12, 13, 14 et 1 autre(s)", "vide1, vide2, vide3, vide4, vide5 et 1 autre(s)")) &&
+             identical(e7, suite("10, 11, 12, 13, 14 et 2 autre(s)", "vide1, vide2, vide3, vide4, vide5 et 2 autre(s)")) &&
+             identical(ec, suite("10, 11, 12, 13, 14 et 1 autre(s)",
+                                 "vide1, v\\tide2, vide3\\u00a0, vide4, vide5 et 1 autre(s)"))
          })
 verifier("engine_lire_donnees_csv : LE-07, une colonne, puis deux colonnes a plus de cinq cellules et cellule \"NA\" -> textes complets (#527)",
          {
@@ -2344,8 +2452,24 @@ if (nzchar(Sys.which("zip"))) {
            tous(rv, function(r) !r$ok && identical(r$erreurs,
                 engine_lire_triangle(avec_vide(tri483, 4))$erreurs)) &&
              tous(rf, function(r) identical(r, ref_tri)))
-  verifier("Colonnes vides (#483) : xlsx de triangle decale en colonne B, accepte a l'identique sur chaque chemin",
+  # Temoin de #520 (precision (B)) : colonne A vide avant i en colonne B, i
+  # precedant les donnees : toujours retiree sans message.
+  verifier("Colonnes vides (#483, #520) : xlsx de triangle decale en colonne B (i en B), accepte a l'identique sur chaque chemin",
            tous(rtdec, function(r) identical(r, ref_tri)))
+  # Issue #520 : memes motifs que le CSV lu en texte, sur chaque chemin. Un
+  # triangle sans i decale en colonne B a les cellules d'un 8 x 8 a colonne 0
+  # vide sans en-tete (mesure M1) : refuse.
+  r520s <- chemins483(xlsx483(tri520[, 3:9], decaler("A")), engine_lire_triangle)
+  r520i <- chemins483(xlsx483(tri520[, -2], decaler("B")), engine_lire_triangle)
+  r520d <- chemins483(xlsx483(tri520[, 3:9], function(s) decaler("A")(decaler("A")(s))), engine_lire_triangle)
+  r520e <- chemins483(xlsx483(c0_520(TRUE, "j0")), engine_lire_triangle)
+  verifier("Colonne 0 vide (#520) : xlsx de triangle 8 x 8 a colonne 0 vide sans en-tete refuse sur chaque chemin, sans i (colonne A) et avec i (colonne B), motif du CSV",
+           tous(r520s, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(FALSE))$erreurs)) &&
+             tous(r520i, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(TRUE))$erreurs)))
+  verifier("Colonne 0 vide (#520) : xlsx a deux colonnes vides a gauche sans i refuse sur chaque chemin (colonnes 1, 2)",
+           tous(r520d, function(r) !r$ok && identical(r$erreurs, motif520("1, 2"))))
+  verifier("Colonne 0 vide (#520) : xlsx a colonne 0 vide portant l'en-tete j0 refuse par LE-06 sur chaque chemin, motif du CSV",
+           tous(r520e, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(TRUE, "j0"))$erreurs)))
   verifier("Lignes et colonnes vides (#483) : xlsx de triangle a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
            tous(rtforme, function(r) identical(r, ref_tri)))
   verifier("Colonnes vides (#483) : xlsx de triangle a colonne vide intercalee refuse, meme motif sur chaque chemin",
@@ -2401,7 +2525,542 @@ if (nzchar(Sys.which("zip"))) {
            identical(dhex490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
              identical(dhex490$interne$yt, as.numeric(60:64)) &&
              identical(engine_lire_donnees_csv(dhex490$interne)$erreurs, motif490))
+
+  # --- #487 : feuille lue, entites XML, chaine enrichie, cellule sans r, blancs
+  # d'en-tete. Classeurs ecrits a la main (plusieurs feuilles, workbook.xml et
+  # rels), lus par les deux chemins ; les parites avec openxlsx ne tournent
+  # qu'avec le paquet installe (sautees sinon, comme celles de #483).
+  classeur487 <- function(feuilles, shared = NULL, avant = "") {
+    d <- tempfile("c487_"); dir.create(d)
+    on.exit(unlink(d, recursive = TRUE), add = TRUE)
+    ecrire <- function(rel, txt) {
+      p <- file.path(d, rel); dir.create(dirname(p), recursive = TRUE, showWarnings = FALSE)
+      writeLines(txt, p, useBytes = TRUE)
+    }
+    h <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    ns <- 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    rt <- 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+    rid <- seq_along(feuilles) + 10L
+    ecrire("[Content_Types].xml", paste0(h, '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+      '<Default Extension="xml" ContentType="application/xml"/></Types>'))
+    ecrire("_rels/.rels", paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      '<Relationship Id="rId1" Type="', rt, '/officeDocument" Target="xl/workbook.xml"/></Relationships>'))
+    ecrire("xl/workbook.xml", paste0(h, '<workbook ', ns, ' xmlns:r="', rt, '"><sheets>',
+      paste(sprintf('<sheet name="%s" sheetId="%d" r:id="rId%d"/>',
+                    vapply(feuilles, `[[`, "", "nom"), seq_along(feuilles), rid), collapse = ""),
+      '</sheets></workbook>'))
+    ecrire("xl/_rels/workbook.xml.rels", paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+      paste(sprintf('<Relationship Id="rId%d" Type="%s/worksheet" Target="%s"/>',
+                    rid, rt, vapply(feuilles, function(fe)
+                      if (is.null(fe$cible)) paste0("worksheets/", fe$fichier) else fe$cible, "")), collapse = ""),
+      if (!is.null(shared)) paste0('<Relationship Id="rId99" Type="', rt, '/sharedStrings" Target="sharedStrings.xml"/>'),
+      '</Relationships>'))
+    for (fe in feuilles)
+      if (!isTRUE(fe$absente))
+        ecrire(file.path("xl", "worksheets", fe$fichier),
+               paste0(h, '<worksheet ', ns, '>', avant, '<sheetData>', fe$xml, '</sheetData></worksheet>'))
+    if (!is.null(shared)) ecrire("xl/sharedStrings.xml", paste0(h, '<sst ', ns, '>', shared, '</sst>'))
+    f <- tempfile(fileext = ".xlsx")
+    od <- setwd(d); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # tous() sur une liste complete : un chemin qui rend NULL (element supprime
+  # par l'affectation dans chemins483()) ne passe pas inapercu
+  tous487 <- function(r, test) length(r) == 1L + avec_openxlsx483 && tous(r, test)
+  ligne487 <- function(i, cellules) sprintf('<row r="%d">%s</row>', i, paste(cellules, collapse = ""))
+  nb487 <- function(ref, v) sprintf('<c r="%s"><v>%s</v></c>', ref, v)
+  en487 <- function(ref, t) sprintf('<c r="%s" t="inlineStr"><is>%s</is></c>', ref, t)
+  ps487 <- function(ref, k) sprintf('<c r="%s" t="s"><v>%d</v></c>', ref, k)   # chaine partagee k (base 0)
+  # feuille de series t, xt, yt dont xt vaut base + 1 et base + 3
+  donnees487 <- function(base) paste0(
+    ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+    ligne487(2, c(nb487("A2", 2001), nb487("B2", base + 1), nb487("C2", base + 2))),
+    ligne487(3, c(nb487("A3", 2002), nb487("B3", base + 3), nb487("C3", base + 4))))
+  # lecture qui rend le message du refus au lieu de lever l'erreur (la promesse
+  # est forcee dans tryCatch)
+  lire487 <- function(d) tryCatch(d, error = function(e) conditionMessage(e))
+  premier487 <- function(r) vapply(r, function(d) as.numeric(d$xt[1]), numeric(1))
+  base487 <- function(r, b) tous487(r, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt")) &&
+                                                  identical(as.numeric(d$xt), b + c(1, 3)))
+  CELLULE_SANS_R <- "Classeur illisible : cellule sans reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."
+  # Feuille : la premiere du classeur (xl/workbook.xml), non le premier fichier
+  rA <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet2.xml", xml = donnees487(200)),
+                                    list(nom = "Brouillon", fichier = "sheet1.xml", xml = donnees487(100)))), lire487)
+  rB <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet2.xml", xml = donnees487(200)),
+                                    list(nom = "Autre", fichier = "sheet10.xml", xml = donnees487(100)))), lire487)
+  rC <- chemins483(classeur487(list(list(nom = "Donnees", fichier = "sheet10.xml", xml = donnees487(200)),
+                                    list(nom = "Autre", fichier = "sheet2.xml", xml = donnees487(100)))), lire487)
+  rD <- chemins483(classeur487(lapply(11:1, function(k) list(nom = paste0("F", k), fichier = sprintf("sheet%d.xml", k),
+                                                            xml = donnees487(1000 * k)))), lire487)
+  verifier("xlsx (#487) : donnees en sheet2.xml, premiere feuille du classeur, devant sheet1.xml : feuille du classeur lue sur chaque chemin (xt = 201)",
+           base487(rA, 200))
+  verifier("xlsx (#487) : sheet2.xml premiere et sheet10.xml deuxieme, puis l'inverse : feuille du classeur lue sur chaque chemin",
+           base487(rB, 200) && base487(rC, 200))
+  verifier("xlsx (#487) : onze feuilles en ordre inverse : la premiere du classeur (sheet11.xml) est lue sur chaque chemin (xt = 11001)",
+           base487(rD, 11000))
+  rS <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE))), lire487)
+  verifier("xlsx (#487) : cible de la premiere feuille absente du classeur : refus \"aucune feuille trouvee\" sur chaque chemin",
+           tous487(rS, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Cellule sans attribut r (avec ou sans autres attributs) : refus commun, avant openxlsx
+  sans_r <- function(cellule, ...) {
+    chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+      ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+      ligne487(2, c(nb487("A2", 2001), cellule, nb487("C2", 6)))))), ...), lire487)
+  }
+  verifier("xlsx (#487) : cellule <c><v>5</v></c> sans aucun attribut : refus au texte fixe sur chaque chemin (valeur auparavant perdue sans message)",
+           tous487(sans_r("<c><v>5</v></c>"), function(d) identical(d, CELLULE_SANS_R)))
+  verifier("xlsx (#487) : cellule sans r mais avec d'autres attributs (<c s=\"0\">, <c t=\"n\">, <c s=\"1\"/>) : meme refus sur chaque chemin",
+           tous487(sans_r('<c s="0"><v>5</v></c>'), function(d) identical(d, CELLULE_SANS_R)) &&
+             tous487(sans_r('<c t="n"><v>5</v></c>'), function(d) identical(d, CELLULE_SANS_R)) &&
+             tous487(sans_r('<c s="1"/>'), function(d) identical(d, CELLULE_SANS_R)))
+  rcols <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0))),
+                                  avant = '<cols><col min="1" max="3" width="9" customWidth="1"/></cols>'), lire487)
+  verifier("xlsx (#487) : la balise <cols><col .../> d'une feuille n'est pas prise pour une cellule : lecture inchangee sur chaque chemin",
+           base487(rcols, 0))
+  # Cible de la premiere feuille : un dossier n'est pas une feuille, et une
+  # cible qui remonte (".." avec / ou \) n'est pas suivie ; meme refus sur
+  # chaque chemin.
+  rdos <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                           cible = "worksheets"))), lire487)
+  rrem <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                           cible = "..\\..\\x.xml"))), lire487)
+  rrem2 <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0),
+                                            cible = "../../x.xml"))), lire487)
+  verifier("xlsx (#487) : cible de la premiere feuille qui est un dossier, ou qui remonte (\"..\\\\..\\\\x.xml\", \"../../x.xml\") : refus \"aucune feuille trouvee\" sur chaque chemin",
+           tous487(rdos, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             tous487(rrem, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             tous487(rrem2, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Entree d'archive "../evil487.txt" : utils::unzip() (R 4.3.3, mesure) l'ecrit
+  # hors du dossier d'extraction ; le lecteur la refuse avant toute extraction,
+  # sur chaque chemin, et rien n'est ecrit hors de son dossier temporaire.
+  evil487 <- file.path(tempdir(), "evil487.txt")
+  unlink(evil487)
+  zslip487 <- function() {
+    f <- classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0))))
+    w <- tempfile("w487_"); dir.create(file.path(w, "sub"), recursive = TRUE)
+    writeLines("x", file.path(w, "evil487.txt"))
+    od <- setwd(file.path(w, "sub")); on.exit({ setwd(od); unlink(w, recursive = TRUE) })
+    utils::zip(f, "../evil487.txt", flags = "-q")
+    f
+  }
+  rsl <- chemins483(zslip487(), lire487)
+  verifier("xlsx (#487) : classeur dont une entree d'archive remonte (\"../evil487.txt\") : refuse sur chaque chemin, aucun fichier ecrit hors du dossier de lecture",
+           tous487(rsl, function(d) is.character(d) && grepl("sort du dossier de lecture", d, fixed = TRUE)) &&
+             !file.exists(evil487))
+  unlink(evil487)
+  # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF) : refusee d'un
+  # texte propre sur chaque chemin, avant openxlsx (qui perd la cellule sans
+  # message, ou rend NULL si toutes ont cette forme) ; cas mixte compris.
+  BALISE_C <- "Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur."
+  rbl_c <- lapply(c(TAB = "\t", CR = "\r", LF = "\n"), function(bl) list(
+    toutes = chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+                                              xml = gsub("<c r=", paste0("<c", bl, "r="), donnees487(0), fixed = TRUE)))), lire487),
+    une = chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+                                           xml = sub('<c r="B2">', paste0("<c", bl, 'r="B2">'), donnees487(0), fixed = TRUE)))), lire487)))
+  verifier("xlsx (#487) : balise <c suivie de TAB, CR ou LF (toutes les cellules, ou une seule) : refus au texte fixe sur chaque chemin",
+           all(vapply(rbl_c, function(x) tous487(x$toutes, function(d) identical(d, BALISE_C)) &&
+                                          tous487(x$une, function(d) identical(d, BALISE_C)), logical(1))))
+  rapo <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = sub('<c r="B2">', "<c r='B2'>",
+                                                                                    donnees487(0), fixed = TRUE)))), lire487)
+  rbl <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = sub('<c r="B2">', '<c r = "B2">',
+                                                                                   donnees487(0), fixed = TRUE)))), lire487)
+  verifier("xlsx (#487) : attribut r sous la forme r='B2' ou r = \"B2\" (XML legal) refuse comme cellule sans reference, texte fixe, sur chaque chemin",
+           tous487(rapo, function(d) identical(d, CELLULE_SANS_R)) && tous487(rbl, function(d) identical(d, CELLULE_SANS_R)))
+  # Revue finale de K2 (#487) : classeurs ecrits a la main, fichier par
+  # fichier (workbook.xml et relations libres), lus par les deux chemins.
+  brut487 <- function(wbx, relsx, feuilles = list("xl/worksheets/sheet1.xml" = NULL)) {
+    d <- tempfile("b487_"); dir.create(d)
+    on.exit(unlink(d, recursive = TRUE), add = TRUE)
+    h <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    ns <- "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    fichiers <- c(list(
+      "[Content_Types].xml" = paste0(h, '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'),
+      "_rels/.rels" = paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+      "xl/workbook.xml" = paste0(h, wbx), "xl/_rels/workbook.xml.rels" = paste0(h, relsx)),
+      lapply(feuilles, function(x) paste0(h, if (is.null(x)) paste0('<worksheet xmlns="', ns, '"><sheetData>', donnees487(0),
+                                                                      '</sheetData></worksheet>') else x)))
+    for (n in names(fichiers)) {
+      q <- file.path(d, n); dir.create(dirname(q), recursive = TRUE, showWarnings = FALSE)
+      writeLines(fichiers[[n]], q, useBytes = TRUE)
+    }
+    f <- tempfile(fileext = ".xlsx")
+    od <- setwd(d); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  rt487 <- "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  wb487 <- function(sheets, p = "") paste0('<', p, 'workbook xmlns', if (nzchar(p)) paste0(":", sub(":", "", p)),
+    '="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="', rt487, '"><', p, 'sheets>', sheets,
+    '</', p, 'sheets></', p, 'workbook>')
+  rels487 <- function(liens, p = "") paste0('<', p, 'Relationships xmlns', if (nzchar(p)) paste0(":", sub(":", "", p)),
+    '="http://schemas.openxmlformats.org/package/2006/relationships">', liens, '</', p, 'Relationships>')
+  lien487 <- function(id, cible, type = "worksheet", p = "", q = '"')
+    paste0('<', p, 'Relationship Id=', q, id, q, ' Type=', q, rt487, '/', type, q, ' Target=', q, cible, q, '/>')
+  sh487 <- '<sheet name="D" sheetId="1" r:id="rId1"/>'
+  li487 <- lien487("rId1", "worksheets/sheet1.xml")
+  # Lecteur interne seul ; le chemin openxlsx rend une erreur R (classeur que
+  # openxlsx 4.2.9 ne lit pas, mesure) sans la classe usp_refus_lecture.
+  interne_seul487 <- function(r) is.data.frame(r$interne) && identical(names(r$interne), c("t", "xt", "yt")) &&
+    identical(as.numeric(r$interne$xt), c(1, 3)) &&
+    (!avec_openxlsx483 || (is.character(r$openxlsx) && !identical(r$openxlsx, "Classeur illisible : aucune feuille trouvee.")))
+  rpx <- chemins483(brut487(wb487('<x:sheet name="D" sheetId="1" r:id="rId1"/>', "x:"), rels487(li487)), lire487)
+  rpr <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "worksheets/sheet1.xml", p = "p:"), "p:")), lire487)
+  rap <- chemins483(brut487(wb487("<sheet name='D' sheetId='1' r:id='rId1'/>"), rels487(lien487("rId1", "worksheets/sheet1.xml", q = "'"))), lire487)
+  reg <- chemins483(brut487(wb487('<sheet name="D" sheetId="1" r:id = "rId1"/>'), rels487(li487)), lire487)
+  verifier("xlsx, lecteur interne (#487) : balises <x:sheet> et <p:Relationship> prefixees, attributs entre apostrophes, blancs autour de = : premiere feuille lue ; openxlsx 4.2.9 ne les lit pas (erreur R, non un refus)",
+           all(vapply(list(rpx, rpr, rap, reg), interne_seul487, logical(1))))
+  rnx <- chemins483(brut487(wb487('<sheet name="x id=" sheetId="1" r:id="rId1"/>'), rels487(li487)), lire487)
+  rna2 <- chemins483(brut487(wb487('<sheet name="a r:id=\'rId2\' b" sheetId="1" r:id="rId1"/><sheet name="B" sheetId="2" r:id="rId2"/>'),
+                             rels487(paste0(li487, lien487("rId2", "worksheets/sheet2.xml"))),
+                             list("xl/worksheets/sheet1.xml" = NULL,
+                                  "xl/worksheets/sheet2.xml" = paste0('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>',
+                                                                      donnees487(500), '</sheetData></worksheet>'))), lire487)
+  verifier("xlsx (#487) : attribut lu entier (name=\"x id=\" ne capte plus id=, r:id='rId2' dans la valeur de name ignore) : premiere feuille lue sur chaque chemin",
+           base487(rnx, 0) && base487(rna2, 0) &&
+             identical(.xlsx_attribut('<sheet name="x id=" sheetId="7" r:id="rId1"/>', "id"), "rId1") &&
+             identical(.xlsx_attribut("<sheet name='a&amp;b' sheetId='7'/>", "name"), "a&b") &&
+             identical(.xlsx_attribut('<sheet name="D" sheetId="7"/>', "id"), NA_character_))
+  rabs <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "/xl/worksheets/sheet1.xml"))), lire487)
+  rdbl <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "//xl/worksheets/sheet1.xml"))), lire487)
+  verifier("xlsx (#487) : cible \"/xl/worksheets/sheet1.xml\" (nom de partie absolu, forme d'openpyxl) lue sur chaque chemin ; \"//xl/...\" refusee \"aucune feuille trouvee\" ; regle unique .xlsx_chemin_sort()",
+           base487(rabs, 0) && tous487(rdbl, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             identical(.xlsx_chemin_sort(c("xl/a.xml", "../a", "a/../b", "a\\..\\b", "/a", "\\a", "C:a", "a..b", "..a")),
+                       c(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE)))
+  # Feuille de graphique en premier onglet : openxlsx::read.xlsx(sheet = 1) la
+  # lit et rend NULL (mesure, openxlsx 4.2.9) ; la premiere feuille de calcul
+  # est lue sur chaque chemin (openxlsx appele avec son rang).
+  cs487 <- '<chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews></chartsheet>'
+  rch <- chemins483(brut487(wb487('<sheet name="G" sheetId="1" r:id="rId1"/><sheet name="G2" sheetId="2" r:id="rId3"/><sheet name="D" sheetId="3" r:id="rId2"/>'),
+                            rels487(paste0(lien487("rId2", "worksheets/sheet1.xml"), lien487("rId1", "chartsheets/sheet1.xml", "chartsheet"),
+                                           lien487("rId3", "chartsheets/sheet2.xml", "chartsheet"))),
+                            list("xl/worksheets/sheet1.xml" = NULL, "xl/chartsheets/sheet1.xml" = cs487, "xl/chartsheets/sheet2.xml" = cs487)), lire487)
+  rch0 <- chemins483(brut487(wb487('<sheet name="G" sheetId="1" r:id="rId1"/>'), rels487(lien487("rId1", "chartsheets/sheet1.xml", "chartsheet")),
+                             list("xl/chartsheets/sheet1.xml" = cs487)), lire487)
+  verifier("xlsx (#487) : deux feuilles de graphique avant la feuille de calcul : la feuille de calcul est lue sur chaque chemin ; classeur sans feuille de calcul refuse \"aucune feuille trouvee\"",
+           base487(rch, 0) && tous487(rch0, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Attributs r et t lus dans la seule balise ouvrante (.xlsx_cellules()) :
+  # un texte r="B9" ou t="s" dans une chaine en ligne ne deplace ni ne retype
+  # la cellule (le lecteur interne placait la valeur en B9).
+  rgl <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+    ligne487(2, c(en487("A2", '<t>x r="B9"</t>'), nb487("B2", 2))),
+    ligne487(3, c(en487("A3", '<t>q t="s"</t>'), nb487("B3", 4))))))), lire487)
+  verifier("xlsx (#487) : chaine en ligne portant r=\"B9\" ou t=\"s\" lue a sa place et en texte sur chaque chemin (deux lignes de donnees)",
+           tous487(rgl, function(d) is.data.frame(d) && identical(d$xt, c('x r="B9"', 'q t="s"')) &&
+                     identical(as.numeric(d$yt), c(2, 4))))
+  # Attributs de cellule compares par leur nom entier (revue de l'audit) : un
+  # attribut prefixe x:r ou x:t place avant r et t n'est pas lu a leur place ;
+  # openxlsx 4.2.9 place, lui, la valeur en Z9 (mesure, non fige ici).
+  rxr <- lire487(sans_openxlsx483(engine_lire_xlsx(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+    ligne487(2, c('<c x:r="Z9" r="A2" x:t="s" t="n"><v>5</v></c>', nb487("B2", 6))))))))))
+  verifier("xlsx, lecteur interne (#487) : <c x:r=\"Z9\" r=\"A2\" x:t=\"s\" t=\"n\"> lue en A2, en nombre (attributs r et t compares par leur nom entier)",
+           is.data.frame(rxr) && identical(names(rxr), c("xt", "yt")) && identical(rxr$xt, 5) && identical(rxr$yt, 6) &&
+             identical(.xlsx_cellules('<c x:r="Z9" r="A1" t="n"><v>1</v></c>')$ref, "A1") &&
+             identical(.xlsx_attribut('<sheet x:id="rId4" name="D"/>', "id"), "rId4"))
+  # Entites XML. Chaines partagees : entites nommees lues pareil par les deux
+  # chemins ; le reste (references numeriques, chaines en ligne, "&amp;lt;" que
+  # openxlsx decode deux fois) n'est lu juste que par le lecteur interne
+  # (divergences nommees dans l'en-tete d'engine_lire_xlsx()).
+  ent_ps <- c("a&amp;b", "s&lt;t&gt;", "q&quot;x&apos;y")
+  rE <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(ps487("A1", 0), ps487("B1", 1), ps487("C1", 2))),
+    ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3)))))),
+    shared = paste0("<si><t>", ent_ps, "</t></si>", collapse = "")), function(d) names(d))
+  verifier("xlsx (#487) : entites nommees des chaines partagees decodees, memes en-tetes sur chaque chemin",
+           tous487(rE, function(n) identical(n, c("a&b", "s<t>", "q\"x'y"))))
+  interne487 <- function(xml, shared = NULL)
+    lire487(sans_openxlsx483(engine_lire_xlsx(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
+                                                          shared = shared))))
+  nI <- names(interne487(paste0(
+    ligne487(1, c(en487("A1", "<t>a&amp;b</t>"), en487("B1", "<t>&#233;t&#xE9;</t>"),
+                  en487("C1", "<t>&lt;x&gt; &quot;q&quot; &apos;a&apos;</t>"), en487("D1", "<t>&amp;lt;|&#38;lt;|&#x41;</t>"),
+                  en487("E1", "<t>&#0;&#xD800;&#x110000;&#99999999999;</t>"))),
+    ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), nb487("D2", 4), nb487("E2", 5))))))
+  nS <- names(interne487(paste0(ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))),
+                         shared = "<si><t>&#233;t&#xE9;</t></si><si><t>&amp;lt;|&#38;lt;|&#x41;</t></si>"))
+  verifier("xlsx, lecteur interne (#487) : entites nommees et references numeriques decodees (chaines en ligne et partagees), en une seule passe",
+           identical(nI, c("a&b", "\u00e9t\u00e9", "<x> \"q\" 'a'", "&lt;|&lt;|A",
+                           "&#0;&#xD800;&#x110000;&#99999999999;")) &&
+             identical(nS, c("\u00e9t\u00e9", "&lt;|&lt;|A")))
+  # Chaine enrichie en ligne : segments concatenes par le lecteur interne
+  # (openxlsx la rend NA) ; en chaine partagee, les deux chemins concatenent.
+  enr <- '<r><t>x</t></r><r><rPr><b/></rPr><t>t</t></r>'
+  renr <- interne487(paste0(
+    ligne487(1, c(en487("A1", enr), en487("B1", "<r><t>y</t></r><r><t xml:space=\"preserve\"> t</t></r>"))),
+    ligne487(2, c(en487("A2", "<r><t>ab</t></r><r><t>cd</t></r>"), nb487("B2", 2)))))
+  verifier("xlsx, lecteur interne (#487) : chaine en ligne enrichie lue entiere (segments concatenes), en en-tete comme en corps",
+           identical(names(renr), c("xt", "y t")) && identical(renr$xt, "abcd"))
+  rP <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
+    shared = paste0("<si>", enr, "</si><si><r><t>y</t></r><r><t>t</t></r></si>")), function(d) names(d))
+  verifier("xlsx (#487) : chaine partagee enrichie lue entiere par chaque chemin",
+           tous487(rP, function(n) identical(n, c("xt", "yt"))))
+  # Blancs d'en-tete : blancs de bord retires, suite de blancs ramenee a une
+  # espace (regle mesuree sur openxlsx, sep.names = " ") ; l'espace insecable
+  # n'est pas un blanc. Noms rendus uniques par un prefixe.
+  nb <- intToUtf8(160L)   # espace insecable
+  grille487 <- c("u1 x", "u2\tx", "u3\nx", "u4  x", "u5 \t x", "u6\r\nx", " u7", "u8 ", "\t u9\n ", paste0("u10", nb, "x"),
+                 paste0(nb, "u11"), paste0("u12", nb), "u13 x y", " ")
+  attendu487 <- c("u1 x", "u2 x", "u3 x", "u4 x", "u5 x", "u6 x", "u7", "u8", "u9", paste0("u10", nb, "x"),
+                  paste0(nb, "u11"), paste0("u12", nb), "u13 x y", "V14")
+  col487 <- function(k) if (k <= 26) LETTERS[k] else paste0("A", LETTERS[k - 26])
+  rW <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, vapply(seq_along(grille487), function(k) ps487(paste0(col487(k), "1"), k - 1L), "")),
+    ligne487(2, vapply(seq_along(grille487), function(k) nb487(paste0(col487(k), "2"), k), ""))))),
+    shared = paste0('<si><t xml:space="preserve">', grille487, '</t></si>', collapse = "")), function(d) names(d))
+  verifier("xlsx, lecteur interne (#487) : blancs de bord retires et suite de blancs ramenee a une espace dans la ligne d'en-tete ; espace insecable gardee",
+           identical(rW$interne, attendu487))
+  if (avec_openxlsx483)
+    verifier("xlsx (#487) : blancs d'en-tete lus pareil par openxlsx (sep.names = \" \") et le lecteur interne, hors en-tete de blancs seuls (\"\" pour openxlsx, V<col> ici)",
+             identical(rW$interne[-14], rW$openxlsx[-14]) && identical(rW$openxlsx[-14], attendu487[-14]))
+  # En-tetes en chaine en ligne (classeur ecrit par l'ecrivain interne) : blancs mis en forme pareil sur chaque chemin
+  ent487 <- function(s) sub('<t>yt</t>', '<t>yt  </t>', sub('<t>xt</t>', '<t> x  t </t>', s, fixed = TRUE), fixed = TRUE)
+  rM <- chemins483(xlsx483(ser483, ent487), function(d) names(d))
+  verifier("xlsx (#487) : en-tetes \" x  t \" et \"yt  \" lus \"x t\" et \"yt\" sur chaque chemin",
+           tous487(rM, function(n) identical(n, c("x t", "yt"))))
+  # Acceptation : un en-tete " xt" ou "yt  " est accepte en xlsx sur chaque chemin
+  # (il est refuse en CSV : divergence CSV - xlsx nommee dans l'en-tete
+  # d'engine_lire_xlsx(), decision D3 du mainteneur)
+  rX <- chemins483(xlsx483(ser483, function(s) sub('<t>yt</t>', '<t>yt  </t>', sub('<t>xt</t>', '<t> xt</t>', s, fixed = TRUE), fixed = TRUE)),
+                   engine_lire_donnees_csv)
+  verifier("xlsx (#487) : en-tetes \" xt\" et \"yt  \" acceptes, series identiques, sur chaque chemin",
+           tous487(rX, function(r) identical(r, ref_ser)))
+
+  # --- #522 : l'en-tete du tableau est en ligne 1. Une ligne 1 sans aucune
+  # valeur (absente, ou cellules mises en forme sans valeur) est refusee au
+  # texte fixe, sur chaque chemin, series et triangle ; openxlsx sautait les
+  # lignes vides de tete (il acceptait le fichier), le lecteur interne
+  # prenait la ligne vide pour l'en-tete.
+  LIGNE1_522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
+  # Descend de n lignes toutes les lignes <row r="k"> et cellules <c r="Xk">
+  descendre522 <- function(n) function(s) {
+    m <- gregexpr('<(row|c) r="[A-Z]*[0-9]+"', s)
+    regmatches(s, m) <- lapply(regmatches(s, m), function(tk) vapply(tk, function(t) {
+      k <- as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t))
+      sub('[0-9]+"$', paste0(k + n, '"'), t)
+    }, "", USE.NAMES = FALSE))
+    s
+  }
+  avant522 <- function(xml) function(s) sub("<sheetData>", paste0("<sheetData>", xml), s, fixed = TRUE)
+  forme1_522 <- '<row r="1"><c r="A1" s="1"/><c r="B1" s="1"/></row>'
+  titre1_522 <- '<row r="1"><c r="A1" t="inlineStr"><is><t>Export ACME</t></is></c></row>'
+  refus522 <- function(r) tous487(r, function(d) identical(d, LIGNE1_522))
+  lire522 <- function(d) tryCatch(d, error = function(e) conditionMessage(e))
+  verifier("xlsx (#522) : series dont l'en-tete est en ligne 2, puis en ligne 3 (ligne 1 absente) : refus au texte fixe sur chaque chemin",
+           refus522(chemins483(xlsx483(ser483, descendre522(1)), lire522)) &&
+             refus522(chemins483(xlsx483(ser483, descendre522(2)), lire522)))
+  verifier("xlsx (#522) : triangle dont l'en-tete est en ligne 2, puis en ligne 3 (ligne 1 absente) : meme refus sur chaque chemin",
+           refus522(chemins483(xlsx483(tri483, descendre522(1)), lire522)) &&
+             refus522(chemins483(xlsx483(tri483, descendre522(2)), lire522)))
+  verifier("xlsx (#522) : ligne 1 faite de cellules mises en forme sans valeur (<c r=\"A1\" s=\"1\"/>), en-tete en ligne 2 ou 3 : meme refus, series et triangle, sur chaque chemin",
+           refus522(chemins483(xlsx483(ser483, function(s) avant522(forme1_522)(descendre522(1)(s))), lire522)) &&
+             refus522(chemins483(xlsx483(ser483, function(s) avant522(forme1_522)(descendre522(2)(s))), lire522)) &&
+             refus522(chemins483(xlsx483(tri483, function(s) avant522(forme1_522)(descendre522(1)(s))), lire522)))
+  # Hors du refus : en-tete en ligne 1 (lecture inchangee) ; titre seul en A1
+  # (la ligne 1 porte une valeur : pas de motif propre, refus par colonne
+  # manquante, meme texte sur chaque chemin, noms generes cites "(vide)") ;
+  # feuille sans aucune cellule ; entete = FALSE (la ligne 1 est une ligne de
+  # donnees, qui peut etre vide).
+  ser3_522 <- data.frame(t = seq_along(xt483), xt = xt483, yt = yt483)
+  rtitre <- chemins483(xlsx483(ser3_522, function(s) avant522(titre1_522)(descendre522(1)(s))), engine_lire_donnees_csv)
+  verifier("xlsx (#522) : titre seul en A1, en-tete en ligne 2 : pas de refus de la ligne 1, refus par colonne manquante, memes noms \"(vide)\" sur chaque chemin",
+           tous487(rtitre, function(r) !r$ok && identical(r$erreurs,
+             "Colonne(s) manquante(s) : xt, yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : Export ACME, (vide), (vide).")))
+  verifier("xlsx (#522) : en-tete en ligne 1 : lecture inchangee, series et triangle identiques sur chaque chemin",
+           tous487(chemins483(xlsx483(ser483), engine_lire_donnees_csv), function(r) identical(r, ref_ser)) &&
+             tous487(chemins483(xlsx483(tri483), engine_lire_triangle), function(r) identical(r, ref_tri)))
+  # openxlsx rend NULL pour une feuille sans cellule (l'element serait supprime
+  # par chemins483()) : "NULL" le represente.
+  rvide <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ""))),
+                      function(d) { d <- suppressWarnings(lire522(d)); if (is.null(d)) "NULL" else d })
+  verifier("xlsx (#522) : feuille sans aucune cellule : pas le refus de la ligne 1 (tableau vide : \"Fichier vide ou illisible comme tableau.\"), sur chaque chemin",
+           tous487(rvide, function(d) !identical(d, LIGNE1_522) &&
+                     identical(engine_lire_donnees_csv(if (identical(d, "NULL")) NULL else d)$erreurs,
+                               "Fichier vide ou illisible comme tableau.")))
+  f522 <- xlsx483(ser483, descendre522(2))
+  e522 <- list(interne = lire522(sans_openxlsx483(engine_lire_xlsx(f522, entete = FALSE))))
+  if (avec_openxlsx483) e522$openxlsx <- lire522(engine_lire_xlsx(f522, entete = FALSE))
+  unlink(f522)
+  verifier("xlsx (#522) : entete = FALSE : pas de refus de la ligne 1, un data.frame sur chaque chemin",
+           tous487(e522, is.data.frame))
+  # Ligne 1 de chaines vides ou de blancs (decision du mainteneur du
+  # 12/11/2026, option (b)) : refusee au texte de #522 sur chaque chemin,
+  # chaines partagees comme chaines en ligne ; une cellule nombre ou
+  # booleenne reste une valeur ; une feuille faite seulement de blancs garde
+  # ses refus (tableau vide).
+  corps522b <- paste0(ligne487(2, c(nb487("A2", 1), nb487("B2", 2))), ligne487(3, c(nb487("A3", 3), nb487("B3", 4))))
+  bl522 <- function(ligne1, shared = NULL, corps = corps522b)
+    chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(ligne487(1, ligne1), corps))), shared = shared), lire522)
+  verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", \"&#32;\"), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522 sur chaque chemin",
+           refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">  </t></si>')) &&
+             refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = "<si><t>&#32;</t></si>")) &&
+             refus522(bl522(c(en487("A1", '<t xml:space="preserve"> </t>'), en487("B1", "<t>\t</t>")))) &&
+             refus522(bl522(c(en487("A1", "<t></t>"), en487("B1", "<t></t>")))))
+  verifier("xlsx (#522, option (b)) : ligne 1 portant un nombre 0 ou un booleen parmi des blancs : pas de refus de la ligne 1 sur chaque chemin",
+           tous487(bl522(c(nb487("A1", 0), en487("B1", "<t> </t>"))), is.data.frame) &&
+             tous487(bl522(c('<c r="A1" t="b"><v>0</v></c>', en487("B1", "<t> </t>"))), is.data.frame))
+  vide522b <- bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve"> </t></si>',
+                    corps = ligne487(2, c(ps487("A2", 0), ps487("B2", 0))))
+  verifier("xlsx (#522, option (b)) : feuille faite seulement de blancs : pas le refus de la ligne 1 ; triangle \"Fichier vide ou illisible comme tableau.\", series meme motif, sur chaque chemin",
+           tous487(vide522b, is.data.frame) &&
+             tous487(vide522b, function(d) identical(engine_lire_triangle(d)$erreurs, "Fichier vide ou illisible comme tableau.")) &&
+             length(unique(lapply(vide522b, function(d) engine_lire_donnees_csv(d)$erreurs))) == 1L &&
+             identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                            partagees = " "), error = conditionMessage), LIGNE1_522) &&
+             is.null(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                 partagees = "x")))
+  # Indice de chaine partagee negatif ou non numerique (fichier forge) : NA,
+  # compte comme une valeur par le controle de la ligne 1, sans erreur R ni
+  # textes recycles hors de leur cellule (audit de la revue finale de K2).
+  verifier("xlsx (#522) : indice de chaine partagee negatif ou non numerique -> NA, sans erreur R ni recyclage dans le controle de la ligne 1",
+           identical(.xlsx_indice_partage(c("0", "2", "-1", "abc", NA)), c(1L, 3L, NA, NA, NA)) &&
+             is.null(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>-1</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                 partagees = c(" ", "xt", "\t"))) &&
+             identical(tryCatch(.xlsx_controler_ligne_entete(paste0('<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>-1</v></c>',
+                                                                   '<c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>'),
+                                                            partagees = c(" ", "xt", "\t")),
+                                warning = function(w) "avertissement", error = function(e) "erreur"), NULL))
+  # Classe de la condition : les refus motives (ligne 1 #522, cellule sans r et
+  # balise <c de #487) sont de classe "usp_refus_lecture", lue par
+  # l'application ; feuille introuvable : erreur ordinaire.
+  classe522 <- function(f) { force(f)
+    out <- list(interne = tryCatch(sans_openxlsx483(engine_lire_xlsx(f)), error = function(e) class(e)))
+    if (avec_openxlsx483) out$openxlsx <- tryCatch(engine_lire_xlsx(f), error = function(e) class(e))
+    unlink(f); out }
+  REFUS522 <- c("usp_refus_lecture", "error", "condition")
+  verifier("xlsx (#522, #487) : refus de la ligne 1, de la cellule sans r et de la balise <c TAB : classe usp_refus_lecture sur chaque chemin ; feuille introuvable : erreur sans cette classe",
+           tous487(classe522(xlsx483(ser483, descendre522(1))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+               ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+               ligne487(2, c(nb487("A2", 1), "<c><v>5</v></c>"))))))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+               xml = sub('<c r="B2">', '<c\tr="B2">', donnees487(0), fixed = TRUE))))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE)))),
+                     function(k) is.character(k) && "error" %in% k && !"usp_refus_lecture" %in% k))
+  # Reference de cellule en minuscules (r="a1", reserve de l'audit) : la ligne
+  # 1 est reconnue, pas de refus "ligne 1" ; le lecteur interne lit la
+  # feuille (reference mise en majuscules par .xlsx_cellules(), #487 ; il
+  # levait une erreur R) ; openxlsx 4.2.9 leve une erreur R ordinaire.
+  rmin <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    '<row r="1"><c r="a1" t="inlineStr"><is><t>xt</t></is></c><c r="b1" t="inlineStr"><is><t>yt</t></is></c></row>',
+    '<row r="2"><c r="a2"><v>1</v></c><c r="b2"><v>2</v></c></row><row r="3"><c r="a3"><v>3</v></c><c r="b3"><v>4</v></c></row>')))),
+    function(d) tryCatch(d, error = function(e) class(e)))
+  verifier("xlsx (#522, #487) : references en minuscules (r=\"a1\") : pas de refus de la ligne 1 sur chaque chemin ; lecteur interne : feuille lue (xt = 1, 3 ; yt = 2, 4) ; openxlsx : erreur R ordinaire",
+           tous487(rmin, function(k) !identical(k, REFUS522)) &&
+             is.data.frame(rmin$interne) && identical(names(rmin$interne), c("xt", "yt")) &&
+             identical(rmin$interne$xt, c(1, 3)) && identical(rmin$interne$yt, c(2, 4)) &&
+             (!avec_openxlsx483 || (is.character(rmin$openxlsx) && "error" %in% rmin$openxlsx &&
+                                      !"usp_refus_lecture" %in% rmin$openxlsx)) &&
+             identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
+                                error = function(e) "refus"), NULL))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
+
+## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)
+# Decision du mainteneur du 12/11/2026 : un CSV dont la ligne 1 ne contient
+# que des separateurs (",,,,,") est refuse avec le texte du classeur, motif
+# "erreurs" d'engine_lire_donnees_csv() et d'engine_lire_triangle()
+# (.ligne1_sans_valeur()). Lecture de l'application (lire_tableau()).
+lire_csv522 <- function(txt) {
+  f <- tempfile(fileext = ".csv"); on.exit(unlink(f))
+  writeBin(charToRaw(enc2utf8(txt)), f)
+  utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE, check.names = FALSE,
+                  na.strings = character(0), row.names = NULL)
+}
+MOTIF522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
+tri522 <- "i,j0,j1,j2,j3,j4\n0,100,150,170,180,185\n1,110,160,180,190,\n2,120,170,190,,\n3,130,180,,,\n4,140,,,,\n"
+ser522 <- "t,xt,yt\n1,10,2\n2,11,2\n3,12,3\n4,13,3\n5,14,4\n"
+num522 <- "100,150,170,180,185\n110,160,180,190,\n120,170,190,,\n130,180,,,\n140,,,,\n"
+refuse522 <- function(df) identical(engine_lire_donnees_csv(df)$erreurs, MOTIF522) &&
+  identical(engine_lire_triangle(df)$erreurs, MOTIF522) && !engine_lire_triangle(df)$ok
+verifier("CSV (#522) : ligne 1 \",,,\" au-dessus d'un en-tete texte (series t,xt,yt ; triangle i,j0..) : refus au texte du classeur, series et triangle",
+         refuse522(lire_csv522(paste0(",,\n", ser522))) && refuse522(lire_csv522(paste0(",,,,,\n", tri522))) &&
+           identical(MOTIF522, MOTIF_LIGNE1_VIDE))
+verifier("CSV (#522) : ligne 1 \",,,\" au-dessus d'un en-tete numerique (0,1,2,3,4) ou d'un triangle sans en-tete : refus (auparavant triangle non carre, ou triangle accepte)",
+         refuse522(lire_csv522(paste0(",,,,,\n0,1,2,3,4\n", num522))) && refuse522(lire_csv522(paste0(",,,,\n", num522))))
+verifier("CSV (#522) : ligne 1 \",,,\" avec BOM, de blancs \" , , \" ou de guillemets vides : meme refus",
+         refuse522(lire_csv522(paste0("﻿,,\n", ser522))) && refuse522(lire_csv522(paste0(" , , \n", ser522))) &&
+           refuse522(lire_csv522(paste0('"","",""\n', ser522))))
+verifier("CSV (#522, option (b)) : en-tetes cites faits seulement de blancs [[:space:]] (\" \", TAB) : meme refus ; en-tetes faits d'une espace insecable (hors [[:space:]] sous C.UTF-8) : en-tetes reels, pas ce refus",
+         refuse522(lire_csv522(paste0('" "," "," "\n', ser522))) &&
+           refuse522(lire_csv522(paste0('"\t","  ",""\n', ser522))) &&
+           !identical(engine_lire_triangle(lire_csv522(paste0('" "," "," "," "," "\n', num522)))$erreurs, MOTIF522))
+verifier("CSV (#522) : ligne 1 \",,,\" sans aucune valeur dessous : pas ce refus (tableau vide : \"Fichier vide ou illisible comme tableau.\")",
+         identical(engine_lire_donnees_csv(lire_csv522(",,\n"))$erreurs, "Fichier vide ou illisible comme tableau.") &&
+           identical(engine_lire_triangle(lire_csv522(",,\n,,\n"))$erreurs, "Fichier vide ou illisible comme tableau."))
+m522 <- as.matrix(utils::read.csv(text = tri522))[, -1]; dimnames(m522) <- NULL
+x522 <- as.data.frame(m522); names(x522) <- paste0("X", 1:5)
+verifier("CSV (#522) : pas de faux refus : series xt,yt sans t ; triangle i,j0.. ; en-tete \"i\" suivi d'en-tetes vides ; matrice sans noms et noms generes V<k> / X<k>",
+         isTRUE(engine_lire_donnees_csv(lire_csv522(sub("t,xt,yt", "xt,yt", gsub("\n[0-9],", "\n", ser522))))$ok) &&
+           isTRUE(engine_lire_triangle(lire_csv522(tri522))$ok) &&
+           isTRUE(engine_lire_triangle(lire_csv522(sub("i,j0,j1,j2,j3,j4", "i,,,,,", tri522)))$ok) &&
+           isTRUE(engine_lire_triangle(m522)$ok) && isTRUE(engine_lire_triangle(as.data.frame(m522))$ok) &&
+           isTRUE(engine_lire_triangle(x522)$ok))
+verifier("CSV (#522) : motifs LE-02, LE-03 et LE-13 inchanges (en-tete y, ligne vide sous l'en-tete, cellule non numerique)",
+         grepl("^Colonne\\(s\\) manquante\\(s\\) : yt\\.", engine_lire_donnees_csv(lire_csv522("t,xt,y\n1,2,3\n"))$erreurs) &&
+           grepl("^Ligne\\(s\\) vide\\(s\\) en tete, sous l'en-tete",
+                 engine_lire_donnees_csv(lire_csv522(paste0("t,xt,yt\n,,\n", sub("^[^\n]*\n", "", ser522))))$erreurs) &&
+           identical(engine_lire_triangle(lire_csv522(sub("185", "xyz", tri522)))$erreurs,
+                     "Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement)."))
+
+## --- Colonnes presentes : caracteres echappes, noms absents cites "(vide)" (#522)
+# Liste des en-tetes de engine_lire_donnees_csv() ecrite par .echapper_texte() :
+# caracteres de controle ecrits \001, \t, \n, \033, blancs et controles non
+# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030) ;
+# nom que
+# .entete_absent() juge absent ("", NA, "X<k>" ou "V<k>" a sa position) cite
+# "(vide)".
+cols522 <- function(noms) {
+  d <- as.data.frame(matrix("1", 1L, length(noms)), stringsAsFactors = FALSE)
+  names(d) <- noms
+  r <- engine_lire_donnees_csv(d)
+  sub("^.*Colonnes presentes : (.*)\\.$", "\\1", r$erreurs)
+}
+octet89_522 <- rawToChar(as.raw(c(0x61, 0x89, 0x62)))          # "a<89>b", encodage non declare
+latin1_522 <- octet89_522; Encoding(latin1_522) <- "latin1"    # declare Latin-1
+verifier("Colonnes presentes (#522) : caracteres de controle ASCII ecrits \\001, \\t, \\n, \\033, sans guillemets",
+         identical(cols522(c("a\001b", "x\tt\n", "y\033[31mt")), "a\\001b, x\\tt\\n, y\\033[31mt") &&
+           identical(cols522(c("a\\b", "q\"r", "d\ref")), "a\\\\b, q\"r, d\\ref"))
+# Octet 0x89 declare Latin-1 (ou non declare, en locale UTF-8, ou
+# .declarer_latin1() le declare) : enc2utf8() le lit comme Windows-1252, U+2030
+# (pour mille), caractere imprimable cite tel quel, et non comme le controle
+# U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81, sans
+# caractere en Windows-1252, reste ecrit "<81>" par R (mesures, R 4.3.3,
+# C.UTF-8, comme .nettoyer_cellules(), #99). Le controle U+0089 lui-meme, en
+# UTF-8 valide, est ecrit \u0089.
+l1_522 <- function(b) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- "latin1"; x }
+verifier("Colonnes presentes (#522) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 cite <81> ; \"e\" accentue inchange",
+         identical(cols522(c(latin1_522, "ann\u00e9e", "x")), "a\u2030b, ann\u00e9e, x") &&
+           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a<81>b, a\u00e9b") &&
+           (!isTRUE(l10n_info()[["UTF-8"]]) ||
+              identical(cols522(c(octet89_522, "x", "y")), "a\u2030b, x, y")))
+verifier("Colonnes presentes (#522) : controle C1 U+0089 en UTF-8 valide ecrit \\u0089",
+         identical(cols522(c("a\u0089b", "x", "y")), "a\\u0089b, x, y"))
+verifier("Colonnes presentes (#522) : blancs, controles et caracteres de format non ASCII ecrits \\uXXXX (\\UXXXXXXXX au-dela de U+FFFF)",
+         identical(cols522(c("a\u00a0b", "a\u200bb", "\u2028")), "a\\u00a0b, a\\u200bb, \\u2028") &&
+           identical(cols522(c(intToUtf8(0xE0001), "\u00e9", "x")), "\\U000e0001, \u00e9, x"))
+verifier("Colonnes presentes (#522) : nom absent cite \"(vide)\" (\"\", NA, \"X<k>\" et \"V<k>\" a leur position), nom reel \"X5\" ou \"V1\" hors position garde ; tous les noms \"\" : refus de la ligne 1 (extension aux CSV)",
+         identical(cols522(c("Export ACME", "", NA)), "Export ACME, (vide), (vide)") &&
+           identical(cols522(c("t", "X2", "V3")), "t, (vide), (vide)") &&
+           identical(cols522(c("t", "X5", "V1")), "t, X5, V1") &&
+           identical(cols522(c("", NA, "X3")), "(vide), (vide), (vide)") &&
+           identical(cols522(c("", "", "")), MOTIF_LIGNE1_VIDE))
+verifier("Colonnes presentes (#522) : en-tete a controle et nom absent dans la meme liste ; motif UTF-8 valide",
+         {
+           r <- engine_lire_donnees_csv(setNames(data.frame("1", "2", "3", stringsAsFactors = FALSE),
+                                                 c("x\001", "", latin1_522)))
+           validUTF8(r$erreurs) && contient(r$erreurs, "Colonnes presentes : x\\001, (vide), a\u2030b.")
+         })
+# Fonction partagee : avec guillemets, la forme de citer() de mw_valider_triangle()
+verifier(".echapper_texte() (#522) : guillemets = TRUE rend la forme de citer() (guillemet echappe \\\", blancs non ASCII \\uXXXX), FALSE la meme sans guillemets",
+         identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x"), guillemets = TRUE),
+                   c("\"a\\\"b\\t\"", "\"2022\\u00a0\"", "\"x\"")) &&
+           identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x")), c("a\"b\\t", "2022\\u00a0", "x")))
 
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
@@ -3805,5 +4464,182 @@ verifier("Phrase de contexte Spearman ratio / volume (#213, Q-D1-Fc-5 (b)) : pre
                identical(l$type, "non applicable") && !grepl(PHRASE_SV213, l$detail, fixed = TRUE)
              }, logical(1)))
          })
+
+
+## --- Exports de donnees relus au bit (#488) -----------------------------------
+# engine_ecrire_csv() (export CSV des donnees de l'application) et
+# engine_ecrire_xlsx() (ecrivain interne seul, avec ou sans openxlsx ;
+# compression par le paquet zip s'il est installe, sinon utils::zip()). Le CSV
+# est relu comme le fait lire_tableau() d'app.R (read.csv en texte, aucune
+# chaine NA), le classeur par chaque chemin d'engine_lire_xlsx() disponible,
+# puis par engine_lire_donnees_csv() / engine_lire_triangle().
+env488 <- environment(run_engine)
+# Paquets declares absents pour le moteur (substitution de requireNamespace
+# dans son environnement, ADR 0016), retiree en sortie.
+sans488 <- function(paquets, expr) {
+  assign("requireNamespace", function(package, ...)
+    if (package %in% paquets) FALSE else base::requireNamespace(package, ...), envir = env488)
+  on.exit(rm("requireNamespace", envir = env488), add = TRUE)
+  force(expr)
+}
+lire_csv488 <- function(f) utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                           check.names = FALSE, na.strings = character(0),
+                                           row.names = NULL)
+ecrire_csv488 <- function(d) { f <- tempfile(fileext = ".csv"); engine_ecrire_csv(d, f); f }
+grille488 <- c(0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1 + 0.2, 5e-324, NA)
+g488 <- data.frame(t = 1:8, xt = grille488, yt = c(7, rev(grille488[-8])))
+lu488 <- engine_lire_donnees_csv(lire_csv488(f488 <- ecrire_csv488(g488)))
+verifier("engine_ecrire_csv() : grille (0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1+0.2, 5e-324, NA) relue identical() par engine_lire_donnees_csv() (#488)",
+         identical(lu488$xt, g488$xt) && identical(lu488$yt, g488$yt))
+verifier("engine_ecrire_csv() : 15 chiffres si la relecture est exacte, sinon 17 ; 1.7976931348623157e308 ecrit en entier, NA en cellule vide (#488)",
+         identical(readLines(f488)[c(1:3, 6, 9)],
+                   c('"t","xt","yt"', "1,0.1,7", "2,0.33333333333333331,4.94065645841247e-324",
+                     "5,1.7976931348623157e+308,1e-300", "8,,0.1")))
+verifier("engine_ecrire_csv() : texte identique sous OutDec = \",\" (point decimal) (#488)",
+         { op <- options(OutDec = ","); on.exit(options(op), add = TRUE)
+           identical(readLines(ecrire_csv488(g488)), readLines(f488)) })
+inf488 <- data.frame(t = 1:3, xt = c(Inf, -Inf, NaN), yt = c(1, 2, 3))
+li488 <- engine_lire_donnees_csv(lire_csv488(fi488 <- ecrire_csv488(inf488)))
+verifier("engine_ecrire_csv() : +-Inf ecrits \"Inf\" / \"-Inf\" et relus +-Inf ; NaN ecrit vide et relu NA (#488)",
+         identical(readLines(fi488)[2:4], c("1,Inf,1", "2,-Inf,2", "3,,3")) &&
+           identical(li488$xt, c(Inf, -Inf, NA)))
+# Format de utils::write.csv(row.names = FALSE, na = "") garde : texte
+# identique sur les donnees des six cas (tests/donnees/) et sur un tableau a
+# chaines (guillemet interne, NA, facteur, logique, entier).
+donnees488 <- lapply(c("donnees_ln.csv", "donnees_ln_interieur.csv", "triangle_mw.csv"),
+                     function(n) utils::read.csv(file.path(RACINE, "tests", "donnees", n)))
+chaines488 <- data.frame(a = c("x", 'di"t', NA), f = factor(c("u", NA, "v")), l = c(TRUE, NA, FALSE),
+                         n = c(1L, NA, 3L), check.names = FALSE, stringsAsFactors = FALSE)
+verifier("engine_ecrire_csv() : texte identique a celui de write.csv(row.names = FALSE, na = \"\") sur les donnees des six cas et un tableau a chaines (#488)",
+         all(vapply(c(donnees488, list(chaines488)), function(d) {
+           g <- tempfile(fileext = ".csv"); utils::write.csv(d, g, row.names = FALSE, na = "")
+           identical(readLines(ecrire_csv488(d)), readLines(g))
+         }, logical(1))))
+# Jeux relus : donnees des six cas, en double ; serie et triangle perturbes
+# (decimales a 17 chiffres, que write.csv ne restituait pas).
+tri488 <- unname(as.matrix(donnees488[[3]][, -1])); storage.mode(tri488) <- "double"
+export_tri488 <- function(m) { d <- data.frame(i = 0:(nrow(m) - 1L), m)
+                               names(d) <- c("i", paste0("j", 0:(ncol(m) - 1L))); d }
+serie488 <- function(d) data.frame(t = seq_len(nrow(d)), xt = as.double(d$xt), yt = as.double(d$yt))
+jeux488 <- list(ln = serie488(donnees488[[1]]), ln_interieur = serie488(donnees488[[2]]),
+                ln_pert = data.frame(t = 1:8, xt = as.double(donnees488[[1]]$xt) * pi / 3,
+                                     yt = as.double(donnees488[[1]]$yt) / 7),
+                tri = export_tri488(tri488), tri_pert = export_tri488(tri488 * pi / 3))
+relu488 <- function(df, d) if ("i" %in% names(d)) {
+  r <- engine_lire_triangle(df); m <- as.matrix(d[, -1]); dimnames(m) <- NULL
+  isTRUE(r$ok) && identical(r$triangle, m)
+} else { r <- engine_lire_donnees_csv(df); isTRUE(r$ok) && identical(r$xt, d$xt) && identical(r$yt, d$yt) }
+verifier("engine_ecrire_csv() : donnees des six cas et jeux perturbes relus identical() par engine_lire_donnees_csv() / engine_lire_triangle() (#488)",
+         all(vapply(jeux488, function(d) relu488(lire_csv488(ecrire_csv488(d)), d), logical(1))))
+# Voies d'ecriture xlsx : paquet zip (s'il est installe), utils::zip() (paquet
+# zip declare absent, commande zip requise) ; chemins de lecture : interne
+# (openxlsx declare absent), openxlsx (s'il est installe).
+voies488 <- list()
+if (base::requireNamespace("zip", quietly = TRUE)) voies488$paquet_zip <- character(0) else
+  cat("  [saute] export xlsx (#488), voie du paquet zip : paquet non installe\n")
+if (nzchar(Sys.which("zip"))) voies488$utils_zip <- "zip" else
+  cat("  [saute] export xlsx (#488), voie utils::zip() : commande zip indisponible\n")
+lecteurs488 <- list(interne = "openxlsx")
+if (base::requireNamespace("openxlsx", quietly = TRUE)) lecteurs488$openxlsx <- character(0) else
+  cat("  [saute] export xlsx (#488), lecture par openxlsx : paquet non installe\n")
+for (v488 in names(voies488)) {
+  ecrire_x488 <- function(d) { f <- tempfile(fileext = ".xlsx"); sans488(voies488[[v488]], engine_ecrire_xlsx(d, f)); f }
+  fg488 <- ecrire_x488(g488); fi488x <- ecrire_x488(inf488)
+  verifier(sprintf("engine_ecrire_xlsx(), voie %s : [Content_Types].xml en premiere entree de l'archive (#488)", v488),
+           identical(utils::unzip(fg488, list = TRUE)$Name[1], "[Content_Types].xml"))
+  for (l488 in names(lecteurs488)) {
+    lire_x488 <- function(f) { force(f); sans488(lecteurs488[[l488]], engine_lire_xlsx(f)) }
+    verifier(sprintf("engine_ecrire_xlsx(), voie %s, lecture %s : grille relue identical(), +-Inf relus +-Inf, NaN relu NA (#488)", v488, l488),
+             { r <- engine_lire_donnees_csv(lire_x488(fg488)); ri <- engine_lire_donnees_csv(lire_x488(fi488x))
+               identical(r$xt, g488$xt) && identical(r$yt, g488$yt) && identical(ri$xt, c(Inf, -Inf, NA)) })
+    verifier(sprintf("engine_ecrire_xlsx(), voie %s, lecture %s : donnees des six cas et jeux perturbes relus identical() (#488)", v488, l488),
+             all(vapply(jeux488, function(d) relu488(lire_x488(ecrire_x488(d)), d), logical(1))))
+  }
+}
+# Divergence documentee (en-tetes d'engine_ecrire_xlsx() et d'engine_lire_xlsx()) :
+# chaines en ligne portant &, <, > et colonne logique, relues differemment par
+# les deux chemins (mesure, openxlsx 4.2.9) ; la sortie d'openxlsx n'est pas
+# retouchee. Comportement fige sur la premiere voie d'ecriture disponible.
+if (length(voies488)) {
+  div488 <- data.frame(c("a<b&c", "x>y", "simple"), c(TRUE, FALSE, NA), c(1.5, 2, 3),
+                       stringsAsFactors = FALSE)
+  names(div488) <- c("l&b", "l", "n")
+  fd488 <- tempfile(fileext = ".xlsx")
+  sans488(voies488[[1]], engine_ecrire_xlsx(div488, fd488))
+  verifier("engine_ecrire_xlsx(), lecture interne : chaines et en-tete a &, <, > relus tels quels ; colonne logique relue en chaines \"TRUE\" / \"FALSE\" (#488)",
+           identical(sans488("openxlsx", engine_lire_xlsx(fd488)),
+                     data.frame(`l&b` = div488[[1]], l = c("TRUE", "FALSE", NA), n = div488$n,
+                                check.names = FALSE, stringsAsFactors = FALSE)))
+  if (base::requireNamespace("openxlsx", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx(), lecture openxlsx : chaines et en-tete a &, <, > relus echappes (a&lt;b&amp;c), colonne logique relue en logique, sortie non retouchee (#488)",
+             { o <- engine_lire_xlsx(fd488)
+               identical(names(o), c("l&amp;b", "l", "n")) &&
+                 identical(o[[1]], c("a&lt;b&amp;c", "x&gt;y", "simple")) &&
+                 identical(o$l, c(TRUE, FALSE, NA)) && identical(o$n, div488$n) })
+  } else cat("  [saute] divergence &, <, > et logique (#488), chemin openxlsx : paquet non installe\n")
+}
+verifier("engine_ecrire_xlsx() / engine_ecrire_csv() : requireNamespace() simule retire, moteur intact (#488)",
+         !exists("requireNamespace", envir = env488, inherits = FALSE))
+verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur R ordinaire (pas usp_refus_lecture), motif nomme, aucun fichier ecrit (#488)",
+         {
+           f <- tempfile(fileext = ".xlsx")
+           ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+           Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+           on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+           e <- tryCatch(sans488("zip", engine_ecrire_xlsx(g488, f)), error = function(e) e)
+           inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
+             grepl("ni le paquet R zip ni la commande zip du systeme ne sont disponibles",
+                   conditionMessage(e), fixed = TRUE)
+         })
+# Repli de compression (revue finale de K2) : zip::zipr() en echec (paquet
+# zip ancien, sans l'argument include_directories), simule par une
+# substitution de "::" dans l'environnement du moteur (ADR 0016), retiree en
+# sortie ; utils::zip() prend le relais si la commande existe, sinon l'erreur
+# nomme les deux echecs, sans fichier laisse.
+zipr_en_echec488 <- function(expr) {
+  assign("::", function(pkg, name) {
+    pkg <- as.character(substitute(pkg)); name <- as.character(substitute(name))
+    if (pkg == "zip" && name == "zipr") function(...) stop("unused argument (include_directories = FALSE)")
+    else getExportedValue(pkg, name)
+  }, envir = env488)
+  on.exit(rm("::", envir = env488), add = TRUE)
+  force(expr)
+}
+if (base::requireNamespace("zip", quietly = TRUE)) {
+  if (nzchar(Sys.which("zip"))) {
+    verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip presente -> repli sur utils::zip(), classeur relu identical() (#488)",
+             { f <- tempfile(fileext = ".xlsx"); zipr_en_echec488(engine_ecrire_xlsx(g488, f))
+               r <- engine_lire_donnees_csv(sans488("openxlsx", engine_lire_xlsx(f)))
+               identical(r$xt, g488$xt) && identical(r$yt, g488$yt) })
+  } else cat("  [saute] repli de zip::zipr() sur utils::zip() (#488) : commande zip indisponible\n")
+  verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip absente -> erreur R ordinaire nommant les deux echecs, aucun fichier ecrit (#488)",
+           {
+             f <- tempfile(fileext = ".xlsx")
+             ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+             Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+             on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+             e <- tryCatch(zipr_en_echec488(engine_ecrire_xlsx(g488, f)), error = function(e) e)
+             inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
+               identical(conditionMessage(e), paste("Echec de la creation du fichier .xlsx (paquet zip : unused argument",
+                                                    "(include_directories = FALSE) ; commande zip indisponible)."))
+           })
+  verifier("engine_ecrire_xlsx() : substitution de \"::\" retiree, moteur intact (#488)",
+           !exists("::", envir = env488, inherits = FALSE))
+} else cat("  [saute] repli de zip::zipr() (#488) : paquet zip non installe\n")
+# Empreinte "donnees" du rapport fige (engine_empreinte()) egale apres
+# reimport de chaque export (serie perturbee, premium, B = 99).
+if (length(voies488)) {
+  d488 <- jeux488$ln_pert
+  calc488 <- function(xt, yt) run_engine(xt = xt, yt = yt, methode = "premium", segment = 1,
+                                         annexe = "II", nature_donnees = "brutes", B = 99)
+  e0_488 <- engine_empreinte(calc488(d488$xt, d488$yt))$donnees
+  rc488 <- engine_lire_donnees_csv(lire_csv488(ecrire_csv488(d488)))
+  fx488 <- tempfile(fileext = ".xlsx"); engine_ecrire_xlsx(d488, fx488)
+  rx488 <- engine_lire_donnees_csv(engine_lire_xlsx(fx488))
+  verifier("Empreinte \"donnees\" (engine_empreinte()) egale apres reimport de l'export CSV et de l'export xlsx (#488)",
+           is.character(e0_488) && !is.na(e0_488) &&
+             identical(engine_empreinte(calc488(rc488$xt, rc488$yt))$donnees, e0_488) &&
+             identical(engine_empreinte(calc488(rx488$xt, rx488$yt))$donnees, e0_488))
+} else cat("  [saute] empreinte apres reimport xlsx (#488) : aucune voie d'ecriture xlsx\n")
 
 fin_fichier()

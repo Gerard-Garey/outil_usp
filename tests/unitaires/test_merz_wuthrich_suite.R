@@ -1094,31 +1094,31 @@ verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes contro
 annees <- as.character(2017:2024)
 verifier("Noms de ligne (#268) : nom NA refuse, motif metier, sans erreur_r",
          .refus_noms(replace(annees, 8, NA),
-                     "Nom d'annee d'accident manquant ou vide en ligne 8 (i=7)."))
+                     "Nom de l'annee d'accident i = 7 manquant ou vide."))
 verifier("Noms de ligne (#268) : nom vide refuse, motif metier, sans erreur_r",
          .refus_noms(replace(annees, 3, ""),
-                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+                     "Nom de l'annee d'accident i = 2 manquant ou vide."))
 verifier("Noms de ligne (#268) : nom fait de seuls blancs refuse comme un nom vide",
          .refus_noms(replace(annees, 1, " \t"),
-                     "Nom d'annee d'accident manquant ou vide en ligne 1 (i=0)."))
+                     "Nom de l'annee d'accident i = 0 manquant ou vide."))
 verifier("Noms de ligne (#268) : annees d'accident en double refusees, un motif par nom, positions citees",
          .refus_noms(replace(annees, c(7, 4), c("2022", "2019")),
-                     c("Annee d'accident en double : \"2019\" (lignes 3 et 4, i=2 et i=3).",
-                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+                     c("Annee d'accident en double : \"2019\" (annees d'accident i = 2 et i = 3).",
+                       "Annee d'accident en double : \"2022\" (annees d'accident i = 5 et i = 6).")))
 verifier("Noms de ligne (#268) : trois lignes au meme nom, un seul motif",
          .refus_noms(replace(annees, c(2, 5), "2017"),
-                     "Annee d'accident en double : \"2017\" (lignes 1, 2 et 5, i=0, i=1 et i=4)."))
+                     "Annee d'accident en double : \"2017\" (annees d'accident i = 0, i = 1 et i = 4)."))
 verifier("Noms de ligne (#268) : blanc initial, doublon compare sans les blancs, forme saisie citee",
          .refus_noms(replace(annees, 7, " 2022"),
-                     "Annee d'accident en double : \"2022\", \" 2022\" (lignes 6 et 7, i=5 et i=6)."))
+                     "Annee d'accident en double : \"2022\", \" 2022\" (annees d'accident i = 5 et i = 6)."))
 verifier("Noms de ligne (#268) : blanc final, doublon compare sans les blancs, forme saisie citee",
          .refus_noms(replace(annees, 2, "2017 "),
-                     "Annee d'accident en double : \"2017\", \"2017 \" (lignes 1 et 2, i=0 et i=1)."))
+                     "Annee d'accident en double : \"2017\", \"2017 \" (annees d'accident i = 0 et i = 1)."))
 verifier("Noms de ligne (#268) : manquants et doublon cumules, doublon compte hors des noms manquants",
          .refus_noms(c(NA, "", annees[3:6], "2022", "2024"),
-                     c("Nom d'annee d'accident manquant ou vide en ligne 1 (i=0).",
-                       "Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
-                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+                     c("Nom de l'annee d'accident i = 0 manquant ou vide.",
+                       "Nom de l'annee d'accident i = 1 manquant ou vide.",
+                       "Annee d'accident en double : \"2022\" (annees d'accident i = 5 et i = 6).")))
 # Blancs Unicode et echappement des formes citees (#268, correction du
 # 16/10/2026) : l'espace insecable U+00A0, les autres blancs \h, \v et les
 # caracteres de format sans chasse U+200B, U+200C, U+200D, U+2060, U+FEFF
@@ -1130,38 +1130,38 @@ verifier("Noms de ligne (#268) : manquants et doublon cumules, doublon compte ho
 .octets <- function(b, enc) { s <- rawToChar(as.raw(b)); Encoding(s) <- enc; s }
 verifier("Noms de ligne (#268) : espace insecable finale, doublon compare sans elle, citee \\u00a0",
          .refus_noms(replace(annees, 7, paste0("2022", .u(0xA0))),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (annees d'accident i = 5 et i = 6)."))
 verifier("Noms de ligne (#268) : nom fait d'une seule espace insecable refuse comme un nom vide",
          .refus_noms(replace(annees, 3, .u(0xA0)),
-                     "Nom d'annee d'accident manquant ou vide en ligne 3 (i=2)."))
+                     "Nom de l'annee d'accident i = 2 manquant ou vide."))
 verifier("Noms de ligne (#268) : nom fait de blancs Unicode (U+2003, U+3000) refuse comme un nom vide",
          .refus_noms(replace(annees, 5, .u(0x2003, 0x3000)),
-                     "Nom d'annee d'accident manquant ou vide en ligne 5 (i=4)."))
+                     "Nom de l'annee d'accident i = 4 manquant ou vide."))
 verifier("Noms de ligne (#268) : nom fait de l'espace sans chasse U+200B refuse comme un nom vide",
          .refus_noms(replace(annees, 4, .u(0x200B)),
-                     "Nom d'annee d'accident manquant ou vide en ligne 4 (i=3)."))
+                     "Nom de l'annee d'accident i = 3 manquant ou vide."))
 verifier("Noms de ligne (#268) : \"x\" suivi de U+FEFF doublon de \"x\", cite \\ufeff",
          .refus_noms(c("x", paste0("x", .u(0xFEFF)), annees[3:8]),
-                     "Annee d'accident en double : \"x\", \"x\\ufeff\" (lignes 1 et 2, i=0 et i=1)."))
+                     "Annee d'accident en double : \"x\", \"x\\ufeff\" (annees d'accident i = 0 et i = 1)."))
 verifier("Noms de ligne (#268) : U+2060, U+200C et U+200D de bord retires, doublon de \"x\"",
          .refus_noms(c(paste0(.u(0x2060, 0x200C), "x", .u(0x200D)), "x", annees[3:8]),
-                     "Annee d'accident en double : \"\\u2060\\u200cx\\u200d\", \"x\" (lignes 1 et 2, i=0 et i=1)."))
+                     "Annee d'accident en double : \"\\u2060\\u200cx\\u200d\", \"x\" (annees d'accident i = 0 et i = 1)."))
 verifier("Noms de ligne (#268) : tabulation et guillemet echappes dans les formes citees",
          .refus_noms(c("a\tb", "a\tb ", "a\"b", " a\"b", annees[5:8]),
-                     c("Annee d'accident en double : \"a\\tb\", \"a\\tb \" (lignes 1 et 2, i=0 et i=1).",
-                       "Annee d'accident en double : \"a\\\"b\", \" a\\\"b\" (lignes 3 et 4, i=2 et i=3).")))
+                     c("Annee d'accident en double : \"a\\tb\", \"a\\tb \" (annees d'accident i = 0 et i = 1).",
+                       "Annee d'accident en double : \"a\\\"b\", \" a\\\"b\" (annees d'accident i = 2 et i = 3).")))
 verifier("Noms de ligne (#268) : nom a octet A0 non UTF-8 (Latin-1 non declare), sans erreur R, lu comme une espace insecable",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "unknown")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (annees d'accident i = 5 et i = 6)."))
 # Encodage "bytes" : avant la reprise, citer() levait une erreur R
 # (utf8ToInt() -> NA) que run_engine() propageait sans ok = FALSE. Depuis
 # #321 (decision d'actuary), un nom d'encodage "bytes" ne recoit que son
 # propre motif : il est exclu des controles de nom manquant et de doublon,
 # ses caracteres n'etant pas determines.
 .motif_bytes <- function(k) sprintf(paste(
-  "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+  "Nom de l'annee d'accident i = %d declare d'encodage \"bytes\" :",
   "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
-  "Latin-1 declare."), k, k - 1L)
+  "Latin-1 declare."), k - 1L)
 verifier("Noms de ligne (#268, #321) : encodage \"bytes\", octets UTF-8 (C2 A0) : seul le motif \"bytes\", pas de doublon, sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xc2, 0xa0), "bytes")),
                      .motif_bytes(7)))
@@ -1174,16 +1174,16 @@ verifier("Noms de ligne (#268, #321) : encodage \"bytes\", nom fait d'une seule 
 verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3 et doublon ASCII \"2022\" en lignes 6 et 7 : deux motifs, positions d'origine",
          .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"), "2022")),
                      c(.motif_bytes(3),
-                       "Annee d'accident en double : \"2022\" (lignes 6 et 7, i=5 et i=6).")))
+                       "Annee d'accident en double : \"2022\" (annees d'accident i = 5 et i = 6).")))
 # Motifs par ligne interclasses dans l'ordre des lignes (nom manquant et
 # "bytes"), doublons ensuite : avant cette reprise, le motif "bytes" de la
 # ligne 4 precedait le motif de nom manquant de la ligne 2.
 verifier("Noms de ligne (#321) : NA en ligne 2, \"bytes\" en ligne 4, vide en ligne 6 : motifs dans l'ordre des lignes",
          .refus_noms(c(annees[1], NA, annees[3], .octets(c(0x32, 0x30, 0xe9), "bytes"),
                        annees[5], "", annees[7:8]),
-                     c("Nom d'annee d'accident manquant ou vide en ligne 2 (i=1).",
+                     c("Nom de l'annee d'accident i = 1 manquant ou vide.",
                        .motif_bytes(4),
-                       "Nom d'annee d'accident manquant ou vide en ligne 6 (i=5).")))
+                       "Nom de l'annee d'accident i = 5 manquant ou vide.")))
 # Un nom "bytes" retire de la lecture des autres noms : laisse dans le
 # vecteur sans recodage, il ferait lire trimws() octet par octet pour tous
 # les noms ("2022" suivi d'une espace insecable UTF-8 lu "2022\xc2", doublon
@@ -1192,7 +1192,7 @@ verifier("Noms de ligne (#321) : nom \"bytes\" en ligne 3, \"2022\" suivi d'une 
          .refus_noms(replace(annees, c(3, 7), c(.octets(c(0x32, 0x30, 0xe9), "bytes"),
                                                 paste0("2022", .u(0xA0)))),
                      c(.motif_bytes(3),
-                       "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6).")))
+                       "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (annees d'accident i = 5 et i = 6).")))
 # Issue #321 : un nom non ASCII UNIQUE d'encodage "bytes" passait
 # mw_valider_triangle() ; run_engine() rendait ensuite ok = FALSE avec
 # l'erreur R interceptee "translating strings with "bytes" encoding is not
@@ -1230,10 +1230,10 @@ verifier("Noms de ligne (#268) : nom declare UTF-8 invalide (32 FF FE) seul : ac
 verifier("Noms de ligne (#268) : deux noms declares UTF-8 invalides identiques : doublon refuse sans erreur R, cite en Latin-1",
          .refus_noms(c(.utf8_invalide, .utf8_invalide, annees[3:8]),
                      paste0("Annee d'accident en double : \"2", .u(0xFF, 0xFE),
-                            "\" (lignes 1 et 2, i=0 et i=1).")))
+                            "\" (annees d'accident i = 0 et i = 1).")))
 verifier("Noms de ligne (#268) : nom declare UTF-8 a octet A0 (32 30 32 32 A0) : doublon de \"2022\" refuse sans erreur R",
          .refus_noms(replace(annees, 7, .octets(c(0x32, 0x30, 0x32, 0x32, 0xa0), "UTF-8")),
-                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (lignes 6 et 7, i=5 et i=6)."))
+                     "Annee d'accident en double : \"2022\", \"2022\\u00a0\" (annees d'accident i = 5 et i = 6)."))
 # Parametre final identique, noms compris (issue #319) : avant sa correction,
 # sous un triangle nomme, sigma_usp, sigma_estime, sigma_estime_brut et
 # variation_relative portaient un nom de ligne ("2018" pour 2017:2024), pris

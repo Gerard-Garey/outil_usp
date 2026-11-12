@@ -193,6 +193,7 @@ Monte-Carlo (bootstrap parametrique, conditionnel au regime interieur de delta e
 
 **3. Verdict Monte-Carlo proche d'un seuil (#244 ; Q-E2b-5, D1-5).**
 - Constante `PHRASE_VERDICT_SENSIBLE_MC` = « verdict sensible a l'alea de simulation (p a moins de 2 erreurs de Monte-Carlo du seuil) », posée par **`add()` seul**, sans champ nouveau, en dernier élément du `detail` (après la mention du plancher de #128, point d), avec la règle de jonction d'`add()`.
+- *[Annoté le 11/11/2026 (Q-59-5 (a), cinquante-neuvième point) : depuis K4 (#519, `49f4600`), la constante s'écrit « Verdict sensible a l'alea de simulation (p a moins de 2 erreurs de Monte-Carlo du seuil). » (majuscule initiale, point final) ; texte seul, condition, place et exclusions inchangées.]*
 - Condition : ligne de type test sans verdict fourni ; p retenue Monte-Carlo (pas de p exacte finie, `p_mc` finie, par `mc_nom` ou `p_mc_ext`) ; `err_mc` finie et > 0 ; |p − s| < 2·`err_mc` (inégalité stricte) pour un seuil s de la règle des verdicts de la ligne : {α/2, α} en sens « ne pas rejeter », {α, `SEUIL_ECHEC_SENS_REJETER`} en sens « rejeter ». Exclusions : diagnostic (dont test inopérant), non applicable, verdict fourni, p exacte retenue.
 - La phrase ne contient **aucun nombre issu du bootstrap** (« 2 » est une constante de la règle) : elle respecte la règle #76. Elle ne change ni p ni verdict.
 - Références : patch chirurgical du `detail` de 11 lignes des six cas (spécification, § 5).

@@ -10,5 +10,5 @@ License: file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.3)
 Imports: shiny, htmltools, tools
-Suggests: plotly, openxlsx
+Suggests: plotly, openxlsx, zip
 DisplayMode: Normal

@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{11~novembre 2026}
-\newcommand{\versiondoc}{3.4}
+\newcommand{\datedoc}{12~novembre 2026}
+\newcommand{\versiondoc}{3.5}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -780,7 +780,7 @@ la condition de Kuhn et Tucker (§\ref{sec:controles}) \\
 du repère de profondeur à $I + 1 < 10$, aussi parmi les avertissements~; vide à $I + 1 \ge 10$ ou
 sur un refus), $I$, $J$~; refus d'une cellule observée
 hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
-(année d'accident) manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
+(année d'accident, désignée dans le motif par son indice «~\code{i =}~$N$~») manquant, vide ou fait de seuls blancs, ou en double après retrait des blancs
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
 de ligne déclaré d'encodage \code{"bytes"}, par un motif propre, un par ligne, qui ne cite pas le
 nom, ce nom étant exclu des contrôles de nom manquant et de doublon, ses caractères n'étant pas
@@ -820,39 +820,137 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
-du premier nom de colonne, lignes et colonnes vides selon
+du premier nom de colonne, refus d'une ligne~1 sans valeur
+(\code{.ligne1\_sans\_valeur()}), refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
+colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
+est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
 position en lignes de données~; conversion numérique d'un facteur par ses valeurs \\
+\code{.echapper\_texte()} & textes, \code{guillemets} (\code{FALSE}) & textes cités dans un
+motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
+\code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
+contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$, autres caractères tels
+quels, chaque texte ramené d'abord en UTF-8 (octets 0x80 à 0x9F d'un texte déclaré Latin-1 lus selon Windows-1252, comme les cellules)~; entre guillemets doubles sous \code{guillemets =
+TRUE} (noms d'année d'accident de \code{mw\_valider\_triangle()}), sans guillemets sinon (colonnes
+présentes du motif d'\code{engine\_lire\_donnees\_csv()}, en-têtes des colonnes vides du motif de
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}) \\
 \code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
-\code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()} & tableau lu, objet
-(\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
+\code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()},\newline
+\code{.ligne1\_sans\_}\newline\code{valeur()} & tableau lu, objet
+(\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules~; tableau lu &
 tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs de refus d'une
 ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
-en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
+en-tête, ou d'une colonne vide sans en-tête placée avant la première colonne de développement
+renseignée (année de développement~0 manquante présumée), sauf si elle précède aussi une
+colonne \code{i} placée avant les données, auquel cas elle est retirée (§\ref{sec:controles})~;
+numéros de ligne ou de colonne cités cinq au plus, suivis du nombre des autres («~\code{et 2
+autre(s)}~» pour sept), et
+de même les en-têtes des colonnes vides qui en portent, échappés par
+\code{.echapper\_texte()}~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
-inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
+inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe~;
+vrai si tous les noms de colonne sont vides (\code{NA}, chaîne vide ou faite de blancs de la
+classe \code{[[:space:]]}, BOM retiré) et si au moins une cellule porte une valeur \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 \code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
-premier nom de colonne, lignes et colonnes vides selon
+premier nom de colonne, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
+lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec
 sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
 dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
-\code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
-\code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
-lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines})~; \code{openxlsx}, s'il est installé, est appelé sans
-retrait des lignes et colonnes vides et sans conversion de la cellule texte «~\code{NA}~»~; à la
-lecture, dans la voie de repli, une colonne n'est
+\code{engine\_lire\_xlsx()} & \code{chemin}, \code{entete} (\code{TRUE}) & \code{data.frame}
+lu dans la première feuille de calcul du classeur, dans l'ordre de \code{xl/workbook.xml}
+(feuilles de graphique placées avant passées), par la cible que
+les relations du classeur donnent à cette feuille (et non par le nom de son fichier), sur les
+deux chemins (\code{openxlsx} appelé avec le rang de cette feuille)~; archive
+extraite, avec ou sans \code{openxlsx}, dans un dossier temporaire supprimé à la sortie, sans
+tirage aléatoire (§\ref{sec:graines}), après refus d'une archive dont une entrée a un chemin qui
+sort du dossier de lecture (\code{.xlsx\_chemin\_sort()}~: un composant du chemin vaut
+«~\code{..}~», chemin absolu ou chemin de lecteur)~; refus, avant l'appel à \code{openxlsx} et de même sur les deux
+chemins de lecture, d'une cellule sans attribut de position \code{r} et d'une balise de cellule
+\code{<c} suivie d'un blanc autre que l'espace, et, sous \code{entete = TRUE}, d'une ligne~1 sans
+aucune valeur (§\ref{sec:controles})~; ces trois refus sont des erreurs de classe
+\code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
+feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
+installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
+texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
+(blancs de bord retirés, suite de blancs intérieurs ramenée à une espace)~; balises
+\code{<sheet>} et \code{<Relationship>} préfixées et attributs entre apostrophes ou à blancs autour du signe \code{=} du
+classeur et de ses relations, ainsi que références de cellule en minuscules, lus par la voie de repli et non
+par \code{openxlsx}~4.2.9, qui s'arrête sur une erreur R (mesuré)~; dans la voie de
+repli, entités XML nommées et références numériques des chaînes partagées et en ligne décodées,
+chaîne en ligne enrichie lue entière, et une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
-caractères, interprétée en aval (§\ref{sec:controles})~; à l'écriture, dans la voie de repli, chaque nombre fini est écrit
-par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres significatifs
-s'ils restituent la valeur, 17 sinon), $\pm\infty$ en chaîne de caractères et \code{NA} en
-cellule vide \\
+caractères, interprétée en aval (§\ref{sec:controles}) \\
+\code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
+\code{.xlsx\_attribut()},\newline \code{.xlsx\_balises()},\newline
+\code{.xlsx\_chemin\_sort()},\newline \code{.xlsx\_cellules()},\newline
+\code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
+\code{.xlsx\_controler\_}\newline\code{cellules()},\newline
+\code{.xlsx\_indice\_}\newline\code{partage()},\newline
+\code{.xlsx\_controler\_}\newline\code{ligne\_entete()},\newline \code{.refus\_lecture()},\newline
+\code{.xlsx\_blancs\_}\newline\code{entete()}
+& fichier XML~; texte~; fragment XML~; balise, nom d'attribut, \code{local} (\code{TRUE})~; XML,
+nom d'élément~; chemins~; XML de la feuille~; dossier d'extraction~; XML de la
+feuille~; valeurs de \code{<v>}~; XML de la feuille, \code{partagees} (table des chaînes
+partagées)~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
+conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
+seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
+caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
+ou non, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
+entre guillemets doubles ou apostrophes, blancs admis autour du signe \code{=}), nom local
+comparé, préfixe d'espace de noms retiré, sous \code{local = TRUE} (classeur et relations), nom
+entier sous \code{local = FALSE} (attributs \code{r} et \code{t} d'une cellule), \code{NA} s'il
+est absent~; balises ouvrantes de l'élément, préfixées ou non (\code{<sheet}, \code{<x:sheet})~;
+vrai pour un chemin qui sort du dossier de lecture (un composant vaut «~\code{..}~», avec
+\code{/} ou \code{\textbackslash} pour séparateur, \code{/} ou \code{\textbackslash} initial,
+ou lecteur tel que \code{C:}), règle commune aux entrées de l'archive et à la cible de la
+feuille~; cellules \code{<c>} de la feuille, règle commune au contrôle de la ligne~1 et à la voie
+de repli, attributs \code{r} et \code{t} lus dans la seule balise ouvrante, référence mise en
+majuscules~; fichier et rang de la première feuille de calcul (relation de type
+\code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées), erreur «~\code{Classeur illisible : aucune
+feuille trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
+d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et \code{//}
+refusé~; refus de la cellule sans attribut \code{r} et de la balise de forme non
+reconnue~; indice (base~1) d'une chaîne partagée, \code{NA} si la valeur n'est pas un entier
+positif ou nul~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
+\code{<is>}, hors cellule texte vide ou faite de blancs~: chaîne partagée résolue dans
+\code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée invalide
+compte comme une valeur), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
+\code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
+refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
+les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
+\code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} (\code{"Donnees"}) &
+chemin du fichier écrit par l'écrivain interne, seul employé, avec ou sans \code{openxlsx}~;
+archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
+la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
+\code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
+commande existe~; sinon, ou si le repli échoue, erreur qui nomme l'échec du paquet et le statut
+de la commande, ou son absence, sans fichier laissé~; sans
+tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
+fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
+significatifs s'ils restituent la valeur, 17 sinon), de sorte que la relecture rend les mêmes
+doubles (mesuré sur les deux chemins de lecture), $\pm\infty$ en chaîne de caractères,
+\code{NA} en cellule vide, une colonne logique en chaînes «~\code{TRUE}~» et «~\code{FALSE}~», les
+autres valeurs en chaînes en ligne~; relu par \code{openxlsx}, un en-tête ou une chaîne portant
+\code{\&}, \code{<} ou \code{>} reste échappé («~\code{a\&lt;b\&amp;c}~») et une colonne logique
+est rendue logique, alors que la voie de repli les relit tels qu'écrits et en caractères
+(mesuré, \code{openxlsx}~4.2.9)~; les exports de données de l'application, à en-têtes fixes et
+cellules numériques, n'y sont pas exposés \\
+\code{engine\_ecrire\_csv()} & \code{df}, \code{chemin} (fichier, non une connexion) & chemin
+du fichier écrit, au format de \code{write.csv()} sans noms de ligne et à cellule vide pour
+\code{NA} (séparateur virgule, ligne d'en-tête, noms et chaînes entre guillemets, nombres et
+logiques sans guillemets, texte en UTF-8), seule l'écriture des nombres différant~: double fini
+écrit par \code{.xlsx\_nombre()}, entier en \code{\%d}, \code{NA} et \code{NaN} en cellule vide,
+$\pm\infty$ en «~\code{Inf}~» et «~\code{-Inf}~»~; un double fini se relit à l'identique, alors
+que les 15~chiffres de \code{write.csv()} ne restituent ni $1/3$ ni le plus grand double fini
+(\code{.Machine\$double.xmax}), relu \code{Inf} (mesuré)~; export CSV des données de
+l'application \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
 vecteur $\pi_t$ \\
@@ -1375,6 +1473,12 @@ celles de \code{stats::quantile()}, nommés en point décimal quelle que soit l'
 défaut)~; noms de \code{res\$ic\_bootstrap}, de \code{res\$ic\_bootstrap\_restreint} et des
 lignes de \code{res\$plots\_data\$qq2ech} (section~\ref{sec:notations},
 «~Graphie des textes produits par le moteur~») \\
+\code{.engine\_point\_}\newline\code{decimal()} & \code{envir} (cadre de l'appelant) & aucune
+valeur~; appelée en première instruction de chacun des seize points d'entrée que l'application
+appelle directement, pose \code{options(OutDec = ".")} et enregistre dans le cadre de l'appelant
+la restauration de l'option antérieure, exécutée à sa sortie, normale ou sur erreur~; erreur si
+elle est appelée au niveau global, où la restauration serait sans effet~; aucun calcul
+(section~\ref{sec:notations}, «~Graphie des textes produits par le moteur~») \\
 \code{usp\_parametre()} & \code{fit}, $\sigma_{\text{std}}$, barème &
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
@@ -2454,8 +2558,9 @@ principal (\code{bootstrap\$stats\_boot}) et dans les statistiques observées~; 
 la graine \code{seed} par ces réplications seulement. Mesuré~: un appel direct
 d'\code{engine\_p\_famille()} sur les lignes et le bootstrap de la référence \code{premium} laisse
 \code{.Random.seed} identique.
-\code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
-voie de repli sans le paquet \code{openxlsx}, ne tirent rien~: le dossier temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
+\code{engine\_lire\_xlsx()} et \code{engine\_ecrire\_xlsx()}, qui travaillent l'un et l'autre dans
+un dossier temporaire avec ou sans le paquet \code{openxlsx}, ne tirent rien~: le dossier
+temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
 (\code{on.exit(unlink(\dots, recursive = TRUE))}). Mesuré dans les deux voies, avec et sans
 \code{openxlsx}~: un aller-retour écriture puis lecture laisse \code{.Random.seed} identique et
 ne laisse aucun dossier dans \code{tempdir()}.
@@ -3653,15 +3758,27 @@ tests, avec ses motifs d'indisponibilité et son préfixe «~\code{TEST INOPERAN
 validation, libellés des dérogations et des étapes de calibration, motifs des graphiques --- sont
 écrits en ASCII, sans accents, et leurs nombres avec le point décimal de R, quelle que soit
 l'option de session qui fixe le séparateur décimal (\code{getOption("OutDec")}, dont la valeur
-par défaut est le point et que le moteur ne modifie pas~; l'interface et le rapport figé la posent
-à la virgule le temps d'un tracé de graphique en base~R). \code{format()},
+par défaut est le point~; l'interface et le rapport figé la posent
+à la virgule le temps d'un tracé de graphique en base~R). La garantie est posée à la racine~:
+chacun des seize points d'entrée du moteur que l'application appelle directement
+(\code{run\_engine()}, les lecteurs \code{engine\_lire\_donnees\_csv()},
+\code{engine\_lire\_triangle()} et \code{engine\_lire\_xlsx()}, les écrivains
+\code{engine\_ecrire\_xlsx()} et \code{engine\_ecrire\_csv()}, les validateurs
+\code{engine\_valider\_donnees()}, \code{engine\_valider\_profondeur()},
+\code{engine\_valider\_serie\_retenue()} et \code{mw\_valider\_triangle()}, puis
+\code{engine\_motif\_b\_alpha()}, \code{engine\_table\_tests()}, \code{engine\_derogations()},
+\code{engine\_empreinte()}, \code{engine\_parametre\_standard()} et
+\code{engine\_regle\_verdicts()}) pose l'option au point en première instruction, par
+\code{.engine\_point\_decimal()}, et restaure en sortie celle de l'appelant, y compris sur
+erreur~; le moteur ne modifie donc pas l'option de l'appelant. \code{format()},
 \code{paste()}, \code{as.character()} et \code{sprintf("\%s")} suivent cette option, non les
 formats numériques de \code{sprintf()} (mesuré en R~4.3.3~: sous \code{options(OutDec = ",")},
 $0{,}25$ s'écrit «~\code{0,25}~» par les quatre premiers et «~\code{0.25}~» par
 \code{sprintf("\%.2f")})~; tous les appels de \code{format()} du moteur
 qui produisent du texte (notamment commentaires de \code{mw\_tests()}, refus et avertissements
 de \code{mw\_valider\_ajustement()}, libellés d'\code{engine\_derogations()}, messages d'usage)
-fixent le point décimal (argument \code{decimal.mark}), et les noms des quantiles bootstrap
+fixent en outre le point décimal (argument \code{decimal.mark}), ce qui protège aussi l'appel
+direct d'une fonction qui n'est pas un point d'entrée, et les noms des quantiles bootstrap
 (\code{res\$ic\_bootstrap}, \code{res\$ic\_bootstrap\_restreint}, noms de ligne de
 \code{res\$plots\_data\$qq2ech}), que \code{stats::quantile()} forme par \code{format()}, sont
 posés par \code{.engine\_quantile()} en point décimal («~\code{2.5\%}~», «~\code{97.5\%}~»), sous
@@ -3670,10 +3787,15 @@ $B = 99$)~: \code{run\_engine()} rend des objets identiques au bit près sous
 \code{options(OutDec = ",")} et sous l'option par défaut, horodatage, durée et version de R
 exceptés~; le test \code{tests/unitaires/test\_outdec.R} le vérifie aussi sur un triangle
 Merz--Wüthrich, sur les points d'entrée du moteur que l'application appelle directement et sur
-l'export xlsx de repli (\code{engine\_ecrire\_xlsx()} sans \code{openxlsx}), qui écrit
+l'export xlsx (\code{engine\_ecrire\_xlsx()}, dont l'écrivain interne est seul employé, avec ou
+sans \code{openxlsx}), qui écrit
 chaque nombre fini en point décimal et en pleine précision (\code{.xlsx\_nombre()}~:
 15~chiffres significatifs s'ils restituent la valeur, 17 sinon) et $\pm\infty$ en chaîne de
-caractères. L'interface et le
+caractères~; l'export CSV des données (\code{engine\_ecrire\_csv()}) écrit ses nombres par la
+même règle, et les mêmes octets sous les deux options. Le même test vérifie que toute fonction du
+moteur citée par \code{app.R} ou \code{R/display\_helpers.R} est un point d'entrée qui commence
+par \code{.engine\_point\_decimal()}, et que l'option de l'appelant est restaurée après une
+sortie normale comme après une erreur. L'interface et le
 rapport figé écrivent au contraire avec une virgule décimale les nombres qu'ils mettent en forme
 eux-mêmes, et restituent les textes du moteur tels quels~: dans une même ligne de
 la table des tests, la p-value retenue s'écrit donc avec une virgule et le commentaire avec un
@@ -3752,13 +3874,34 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
 le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
 refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
-vides sans en-tête placées en bord sont retirées, une ligne vide intercalée ou en tête est refusée
+vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
+une ligne vide intercalée ou en tête est refusée
 comme année d'accident manquante présumée (D(2)(b)), une colonne vide intercalée ou portant un
 en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
 indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
 la plus récente de la première année d'accident~; la présomption est une lecture retenue par
-l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~»~; elle
-appelle ensuite \code{mw\_valider\_triangle()}.
+l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
+une colonne vide sans en-tête placée avant la première colonne de développement renseignée, autre
+que la colonne \code{i}, est refusée, avec ou sans colonne \code{i}, comme année de
+développement~0 manquante présumée (motif «~\code{\ldots{} sans en-tete avant la premiere colonne
+renseignee du triangle}~» suivi de «~\code{annee de developpement 0 manquante presumee}~», qui la
+numérote par sa position dans le tableau lu, colonne \code{i} comprise). Ce refus est une
+précaution de l'outil, qui ne peut pas déterminer l'année de développement de chaque colonne~:
+sans colonne \code{i}, un tableau décalé d'une colonne a les mêmes cellules qu'un triangle dont la
+colonne~0 est vide, et l'outil ne choisit pas entre les deux lectures. Il se rattache à
+l'annexe~XVII, D(1), lu avec A(1)(b)~: l'année de développement d'un paiement étant «~la
+différence entre l'année de ce paiement et l'année de l'accident auquel il correspond~»
+(A(1)(b)), les paiements de l'année de l'accident relèvent de l'année de développement~0, et un
+triangle dont cette colonne est vide n'indique pas les montants que D(1) demande «~pour chaque
+année d'accident et chaque année de développement des paiements~». Un tableau décalé, dont la
+première colonne renseignée est l'année de développement~0, satisfait au contraire D(1) sur ce
+point~: son refus relève de la seule précaution (lecture retenue par l'outil). D(2)(c) n'est pas
+en cause, les années de développement renseignées restant consécutives dans l'une et l'autre
+lecture. Seule exception, une colonne vide placée avant la colonne \code{i}, quand celle-ci
+précède elle-même les données, est retirée sans message (tableau décalé, qui se reconnaît à sa
+colonne \code{i})~; une colonne vide placée entre la colonne \code{i} et les données, ou à gauche
+quand la colonne \code{i} suit les données, est refusée (mesuré). La fonction appelle ensuite
+\code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
 d'\code{engine\_valider\_donnees()} appelée sans segment~; l'avertissement qui vaut pour le
@@ -3963,7 +4106,12 @@ abouti. À la lecture d'un fichier, enfin, l'application ne montre jamais un mes
 fichier que R ne lit pas comme tableau (CSV vide ou dont une ligne compte plus de valeurs que
 l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est signalé par un
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
-dans le journal~; l'interprétation d'un tableau lu reste au moteur
+dans le journal~; un refus motivé du lecteur de classeur (erreur de classe
+\code{usp\_refus\_lecture}~: ligne~1 sans aucune valeur, cellule sans attribut de position,
+balise de cellule de forme non reconnue, paragraphe «~Lecture des fichiers~» ci-dessous) est au
+contraire affiché tel que le moteur l'écrit, à l'import («~\code{Fichier <nom> (XLSX)
+refuse.}~», \code{(XLSM)} pour un classeur \code{.xlsm}, suivi de ce texte) comme au démarrage, et écrit de même dans le
+journal~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
 sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
@@ -4338,7 +4486,9 @@ est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B(2)(
 un motif qui cite sa position en lignes de données, faute de quoi la série serait lue sur une
 année de moins présentée comme consécutive (mesuré~: une ligne vide en troisième ligne de
 données, sans colonne~$t$, est refusée par le motif des lignes vides intercalées, qui la situe
-«~\code{(ligne(s) de donnees 3)}~»). Une colonne entièrement vide sans en-tête est retirée~; une colonne vide qui
+«~\code{(ligne(s) de donnees 3)}~»). Dans une série, une colonne entièrement vide sans en-tête est
+retirée où qu'elle soit (pour le triangle, la règle des colonnes est celle des contrôles du
+triangle, en tête de la présente section)~; une colonne vide qui
 porte un en-tête est laissée aux contrôles par nom (\code{xt}, \code{yt} ou~$t$ vides refusés,
 toute autre colonne ignorée). Une cellule est vide si elle vaut \code{NA} ou est une chaîne vide
 ou faite de blancs~; un en-tête est absent s'il est vide ou \code{NA}, ou s'il a la forme que
@@ -4348,7 +4498,55 @@ hors de cette position, ces formes sont des en-têtes réels. Cette règle
 (\code{.retirer\_lignes\_colonnes\_vides()}), commune aux séries et au triangle, est la même quel
 que soit le chemin de lecture~: classeur lu par \code{openxlsx}, appelé sans retrait des lignes et
 colonnes vides et sans conversion de la cellule texte «~\code{NA}~», classeur lu par la voie de
-repli, ou tableau lu d'un CSV en gardant ses lignes vides. Une cellule texte «~\code{NA}~» est
+repli, ou tableau lu d'un CSV en gardant ses lignes vides. Un classeur est lu dans sa première
+feuille de calcul, dans l'ordre que le classeur lui-même donne à ses feuilles, les feuilles de
+graphique placées avant étant passées, et non dans le premier
+fichier de feuille par ordre alphabétique, la même feuille sur les deux chemins (\code{openxlsx}
+étant appelé avec son rang)~; avant tout appel à \code{openxlsx}, et de même sur les
+deux chemins de lecture, \code{engine\_lire\_xlsx()} refuse une archive dont une entrée a un
+chemin qui serait écrit hors du dossier de lecture (un composant du chemin vaut «~\code{..}~»,
+chemin absolu ou chemin de lecteur~; même règle pour la cible de la feuille, dont le seul
+\code{/} initial, nom de partie absolu dans le paquet, est admis, \code{//} étant refusé), une
+cellule sans attribut de position \code{r} (motif «~\code{Classeur illisible : cellule sans
+reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position.}~»,
+suivi de la conduite à tenir), l'outil ne déduisant pas la position d'une cellule de son rang dans
+la ligne, et une balise de cellule suivie d'un blanc autre que l'espace («~\code{balise de
+cellule de forme non reconnue}~»), dont \code{openxlsx} perd la valeur sans message (mesuré).
+Les attributs \code{r} et \code{t} d'une cellule sont lus dans sa seule balise ouvrante, jamais
+dans son texte. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
+et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
+cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
+signalée par le message fixe de l'application~: les deux chemins divergent sur ce point
+(mesuré).
+L'en-tête du tableau est en ligne~1~: une ligne~1 dont aucune cellule ne porte de valeur est
+refusée, avec le texte «~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit
+etre en ligne 1, sans ligne au-dessus ;}~» suivi de la conduite à tenir
+(\code{MOTIF\_LIGNE1\_VIDE}). Sont sans valeur~: une cellule absente, une cellule mise en forme
+sans valeur, une chaîne vide ou une chaîne faite de blancs~; l'espace insécable n'est pas un
+blanc (classe \code{[[:space:]]}, mesuré sous la locale \code{C.UTF-8}), et un en-tête fait
+d'elle seule est un en-tête réel. La règle vaut pour un classeur, sur les deux chemins de
+lecture, comme pour un CSV dont la ligne~1 ne porte que des séparateurs, éventuellement entourés
+de blancs (noms de colonne lus tels quels, comme les lit l'application). Un fichier sans aucune
+valeur n'est pas visé et garde ses refus propres~: tableau vide pour un triangle~; pour une
+série, tableau vide, ou colonnes manquantes si le fichier porte des lignes de cellules vides
+(mesuré). Pour un CSV, ce refus est un motif d'erreurs du lecteur
+(\code{.ligne1\_sans\_valeur()}, en tête d'\code{engine\_lire\_donnees\_csv()} et
+d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un classeur, c'est un
+refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
+\code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
+lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
+prendrait la ligne vide pour l'en-tête. Les trois refus du classeur (ligne~1 sans valeur,
+cellule sans attribut de position, balise de forme non reconnue) sont des erreurs de classe
+\code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
+feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
+ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
+d'en-tête d'un classeur sont mis en forme de même par les deux chemins (blancs de bord retirés,
+suite de blancs intérieurs ramenée à une espace), les blancs étant ceux de la classe
+\code{[[:space:]]} de la locale (parité mesurée sous la locale \code{C.UTF-8} avec
+\code{openxlsx}~4.2.9, non sous Windows)~; ceux d'un CSV, lus tels quels, ne le sont
+pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
+(mesuré). Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
 «~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
@@ -4621,11 +4819,13 @@ restituées (\code{.mw\_noms\_lignes\_}\allowbreak\code{empilees()}). Un nom man
 échouer l'assemblage des tables nommées~; un doublon ferait perdre en silence le nom saisi au
 profit d'un numéro automatique.
 \code{mw\_valider\_triangle()} refuse, après les contrôles de cellules qu'il ne masque pas, un nom
-\code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom d'annee d'accident manquant ou vide en
-ligne} $k$ \code{(i=}$k-1$\code{).}~»), et un nom qui désigne deux fois la même année d'accident
-(motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des positions des
-lignes). Un nom déclaré d'encodage \code{"bytes"} reçoit son seul motif («~\code{Nom d'annee
-d'accident en ligne} $k$ \code{(i=}$k-1$\code{) declare d'encodage "bytes" :}~…~»), qui ne cite
+\code{NA}, vide ou fait de seuls blancs (motif «~\code{Nom de l'annee d'accident i =}~$k-1$
+\code{manquant ou vide.}~» pour la ligne~$k$), et un nom qui désigne deux fois la même année
+d'accident (motif «~\code{Annee d'accident en double :}~» suivi des formes saisies et des indices
+«~\code{i =}~$\ldots$~» des années d'accident en cause). Chaque motif désigne l'année d'accident
+par son seul indice $i$, une seule notation par message. Un nom déclaré d'encodage
+\code{"bytes"} reçoit son seul motif («~\code{Nom de l'annee d'accident i =}~$k-1$ \code{declare
+d'encodage "bytes" :}~…~»), qui ne cite
 pas le nom, et n'entre pas dans les contrôles de nom manquant et de doublon~: ses caractères ne
 sont pas déterminés, et le lire serait deviner. Les autres noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
 l'UTF-8 valide étant lue en Latin-1, si bien que le contrôle ne lève aucune erreur R, quelle que
@@ -4634,17 +4834,17 @@ et \code{\textbackslash v} des expressions régulières Perl, dont l'espace ins�
 caractères de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF. Les doublons sont
 comparés après retrait des blancs initiaux et finaux, sans autre normalisation (ni casse, ni
 conversion numérique). Dans le motif, chaque forme saisie est citée entre guillemets et échappée
-(un blanc, un caractère de contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$),
-pour qu'un blanc invisible y reste lisible. Aucun nom par défaut n'est substitué~: un
+(\code{.echapper\_texte()}~: un blanc, un caractère de contrôle ou de format non ASCII écrit
+\code{\textbackslash u}$XXXX$), pour qu'un blanc invisible y reste lisible. Aucun nom par défaut n'est substitué~: un
 remplacement masquerait l'erreur de saisie et romprait la traçabilité entre la saisie et les
 tables restituées. Mesuré sur le triangle de contrôle \code{tests/donnees/triangle\_mw.csv}
 muni des noms 2015 à~2022 puis modifié~: un nom \code{NA} en troisième ligne donne
-«~\code{Nom d'annee d'accident manquant ou vide en ligne 3 (i=2).}~», et \code{run\_engine()}
+«~\code{Nom de l'annee d'accident i = 2 manquant ou vide.}~», et \code{run\_engine()}
 (méthode de réserve n\textsuperscript{o}~2, $B = 99$) rend \code{ok = FALSE} avec ce motif, sans
 \code{validation\$erreur\_r}~; un nom fait d'une espace, d'une espace insécable et de U+200B est
 refusé comme vide~; les noms «~2020~» en lignes~5 et~6 et «~2020~» entouré d'une espace et d'une
 espace insécable en ligne~7 donnent un seul motif, qui cite \code{"2020"} et
-\code{" 2020\textbackslash u00a0"} et les lignes 5, 6 et~7~; les mêmes motifs sont rendus en locale
+\code{" 2020\textbackslash u00a0"} et les années d'accident «~\code{i = 4, i = 5 et i = 6}~»~; les mêmes motifs sont rendus en locale
 \code{C}. Le triangle rendu par \code{engine\_lire\_triangle()}, par lequel l'application lit le
 fichier, ne porte pas de noms de ligne (mesuré sur le même fichier)~: le refus n'est atteint
 qu'en appel direct, avec une matrice nommée.
@@ -19927,7 +20127,13 @@ par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, lignes et colonnes vides par
-\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()} \\
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, ligne~1 sans valeur d'un CSV par
+\code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
+\code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
+\code{.xlsx\_chemin\_sort()}, cellules lues par \code{.xlsx\_cellules()}~; contrôle des cellules et de la ligne d'en-tête du classeur par
+\code{.xlsx\_controler\_}\allowbreak\code{cellules()} et
+\code{.xlsx\_controler\_}\allowbreak\code{ligne\_entete()}, refus motivés par
+\code{.refus\_lecture()}) \\
 Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
 fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}) & \code{usp\_controles\_numeriques()},
 qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_engine()}~;
