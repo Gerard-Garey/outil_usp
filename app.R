@@ -218,9 +218,15 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # est refuse avant lecture (utils::count.fields, memes separateur, guillemet
 # et caractere de commentaire que read.csv) : MESSAGE_ILLISIBLE$csv, motif
 # precis au journal. Une colonne en surnombre NOMMEE (en-tete aussi long que
-# les lignes) reste ignoree par nom, convention du moteur. Retourne
-# list(df, erreur) : erreur vaut NULL si la lecture a abouti, le message
-# fixe sinon.
+# les lignes) reste ignoree par nom, convention du moteur. Refus motive du
+# moteur (erreur de classe "usp_refus_lecture" levee par engine_lire_xlsx() :
+# ligne 1 sans aucune valeur, cellule sans attribut r, balise <c de forme non
+# reconnue ; #522, #487) : son texte est rendu tel quel au lieu du message
+# fixe, et journalise de meme ; toute autre erreur garde MESSAGE_ILLISIBLE,
+# motif R au journal (#94). Retourne list(df, erreur, refus_moteur) : erreur
+# vaut NULL si la lecture a abouti, sinon le message fixe ou le texte du
+# moteur ; refus_moteur dit lequel (TRUE pour le texte du moteur), pour la
+# phrase de l'import ("Fichier ... (XLSX) refuse : <texte>").
 MESSAGE_ILLISIBLE <- c(
   xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
                ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
@@ -245,9 +251,11 @@ lire_tableau <- function(chemin, xlsx, nom = basename(chemin)) {
                                    na.strings = character(0), row.names = NULL)
                  },
                  error = function(e) e)
-  if (!inherits(df, "error")) return(list(df = df, erreur = NULL))
+  if (!inherits(df, "error")) return(list(df = df, erreur = NULL, refus_moteur = FALSE))
   journaliser(sprintf("Lecture du fichier %s impossible", nom), conditionMessage(df))
-  list(df = NULL, erreur = MESSAGE_ILLISIBLE[[if (xlsx) "xlsx" else "csv"]])
+  if (inherits(df, "usp_refus_lecture"))
+    return(list(df = NULL, erreur = conditionMessage(df), refus_moteur = TRUE))
+  list(df = NULL, erreur = MESSAGE_ILLISIBLE[[if (xlsx) "xlsx" else "csv"]], refus_moteur = FALSE)
 }
 
 # Le nombre d'annees T est deduit du fichier lui-meme : il n'est pas impose
@@ -1162,12 +1170,15 @@ server <- function(input, output, session) {
     # Le format est deduit de l'extension du fichier depose. La lecture est du
     # ressort de l'interface ; l'interpretation structurelle revient au moteur.
     ext <- tolower(tools::file_ext(fi$name))
-    # Fichier illisible : message fixe, message R au journal (issue #94).
+    # Fichier illisible : message fixe, message R au journal (issue #94) ;
+    # refus motive du moteur : son texte, apres "refuse." (#522).
     lu <- lire_tableau(fi$datapath, ext %in% c("xlsx", "xlsm"), nom = fi$name)
     if (!is.null(lu$erreur)) {
       statut_import(list(ok = FALSE,
-        msg = sprintf("Fichier %s (%s) %s", fi$name, toupper(ext), lu$erreur)))
-      showNotification("Import refuse : fichier illisible.", type = "error", duration = 8)
+        msg = sprintf(if (lu$refus_moteur) "Fichier %s (%s) refuse. %s" else "Fichier %s (%s) %s",
+                      fi$name, toupper(ext), lu$erreur)))
+      showNotification(if (lu$refus_moteur) "Import refuse." else "Import refuse : fichier illisible.",
+                       type = "error", duration = 8)
       return()
     }
     df <- lu$df

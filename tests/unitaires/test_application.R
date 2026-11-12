@@ -555,6 +555,50 @@ verifier("Demarrage : tests/donnees/triangle_mw.csv (8 x 8, sans cellule sous la
            length(.lu518b$avertissements) == 2L &&
            !any(grepl("%|credibilite", .cm518b$statut$msg)))
 unlink(.dir518, recursive = TRUE); rm("FICHIER_MW", envir = .env)
+## --- Refus motive du lecteur xlsx restitue (issue #522) ---------------------
+# Un refus de classe "usp_refus_lecture" (engine_lire_xlsx() : ligne 1 sans
+# aucune valeur...) est rendu tel quel par lire_tableau(), journalise ; toute
+# autre erreur garde MESSAGE_ILLISIBLE. Classeur ecrit par l'ecrivain du
+# moteur, lignes descendues d'une ligne dans le XML (commande zip requise).
+if (nzchar(Sys.which("zip"))) {
+  .ligne1_522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
+  .xlsx522 <- function(f) {
+    engine_ecrire_xlsx(data.frame(xt = 100:107, yt = 60:67), f)
+    x <- tempfile("x522_"); on.exit(unlink(x, recursive = TRUE), add = TRUE)
+    utils::unzip(f, exdir = x)
+    fs <- file.path(x, "xl", "worksheets", "sheet1.xml")
+    s <- paste(readLines(fs, warn = FALSE), collapse = "")
+    m <- gregexpr('<(row|c) r="[A-Z]*[0-9]+"', s)
+    regmatches(s, m) <- lapply(regmatches(s, m), function(tk) vapply(tk, function(t)
+      sub('[0-9]+"$', paste0(as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t)) + 1L, '"'), t), "", USE.NAMES = FALSE))
+    writeLines(s, fs, useBytes = TRUE)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq")
+    f
+  }
+  .f522 <- .xlsx522(tempfile(fileext = ".xlsx"))
+  .jr522 <- character(0)
+  .l522 <- withCallingHandlers(.env$lire_tableau(.f522, TRUE),
+                               message = function(m) { .jr522 <<- c(.jr522, conditionMessage(m)); invokeRestart("muffleMessage") })
+  .faux522 <- tempfile(fileext = ".xlsx"); writeLines("pas un classeur", .faux522)
+  .g522 <- suppressMessages(.env$lire_tableau(.faux522, TRUE))
+  verifier("lire_tableau() : refus motive du moteur (ligne 1 sans aucune valeur, classe usp_refus_lecture) rendu tel quel, refus_moteur TRUE, journalise ; autre erreur : MESSAGE_ILLISIBLE$xlsx, refus_moteur FALSE (#522)",
+           is.null(.l522$df) && identical(.l522$erreur, .ligne1_522) && isTRUE(.l522$refus_moteur) &&
+             any(grepl(.ligne1_522, .jr522, fixed = TRUE)) &&
+             is.null(.g522$df) && identical(.g522$erreur, .env$MESSAGE_ILLISIBLE[["xlsx"]]) &&
+             identical(.g522$refus_moteur, FALSE))
+  # Demarrage : usp_donnees_LN.xlsx (prioritaire sur le CSV) a ligne 1 vide
+  .dir522 <- tempfile("demarrage522_"); dir.create(.dir522)
+  .env$FICHIER_LN <- file.path(.dir522, "usp_donnees_LN.csv")
+  invisible(file.copy(.f522, file.path(.dir522, "usp_donnees_LN.xlsx")))
+  .cl522 <- suppressMessages(.env$charger_ln())
+  verifier("Demarrage : classeur de series a ligne 1 vide refuse, statut \"present mais refuse au demarrage : <texte du moteur> <REFUS_DEMARRAGE>\" (#522)",
+           identical(.cl522$statut$ok, FALSE) &&
+             grepl(paste("present mais refuse au demarrage :", .ligne1_522, .env$REFUS_DEMARRAGE),
+                   .cl522$statut$msg, fixed = TRUE) &&
+             identical(.cl522$valeur, .env$grille_vide_ln(8L)))
+  unlink(c(.f522, .faux522)); unlink(.dir522, recursive = TRUE); rm("FICHIER_LN", envir = .env)
+} else cat("  [saute] refus motive du lecteur xlsx (#522) : commande zip indisponible\n")
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -841,6 +885,29 @@ testServer(app, {
   session$setInputs(fichier_import = fichier(40))
   a("import de series de 40 annees : accepte, champ T pousse a 40 (#286)",
     nrow(donnees()) == 40L && identical(champ_T(), 40))
+  # Refus motive du lecteur xlsx (#522) : classeur dont la ligne 1 est vide
+  # (lignes descendues d'une ligne dans le XML ; commande zip requise).
+  if (nzchar(Sys.which("zip"))) {
+    f522 <- tempfile(fileext = ".xlsx")
+    get("engine_ecrire_xlsx", envir = ea)(data.frame(xt = 100:107, yt = 60:67), f522)
+    x522 <- tempfile("x522_"); utils::unzip(f522, exdir = x522)
+    fs <- file.path(x522, "xl", "worksheets", "sheet1.xml")
+    s <- paste(readLines(fs, warn = FALSE), collapse = "")
+    m <- gregexpr('<(row|c) r="[A-Z]*[0-9]+"', s)
+    regmatches(s, m) <- lapply(regmatches(s, m), function(tk) vapply(tk, function(t)
+      sub('[0-9]+"$', paste0(as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t)) + 1L, '"'), t), "", USE.NAMES = FALSE))
+    writeLines(s, fs, useBytes = TRUE)
+    unlink(f522); od <- setwd(x522)
+    utils::zip(f522, list.files(".", all.files = TRUE, no.. = TRUE), flags = "-r9Xq"); setwd(od)
+    d40 <- donnees(); notifs212 <<- character(0)
+    suppressMessages(session$setInputs(fichier_import = list(name = "ligne1.xlsx", datapath = f522)))
+    a("import d'un classeur a ligne 1 vide : statut \"Fichier ligne1.xlsx (XLSX) refuse. <texte du moteur>\", notification Import refuse, series gardees (#522)",
+      identical(statut_import()$ok, FALSE) && identical(donnees(), d40) &&
+        identical(statut_import()$msg, paste("Fichier ligne1.xlsx (XLSX) refuse.",
+          "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete.")) &&
+        identical(notifs212, "Import refuse."))
+    unlink(c(f522, x522), recursive = TRUE)
+  }
 })
 rm("updateNumericInput", "showNotification", envir = ea)
 )---"
@@ -1868,8 +1935,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 137 assertions rendues", length(.lignes) == 137L)
-  if (length(.lignes) != 137L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 138 assertions rendues", length(.lignes) == 138L)
+  if (length(.lignes) != 138L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
