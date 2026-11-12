@@ -8436,6 +8436,17 @@ engine_ecrire_csv <- function(df, chemin) {
   invisible(NULL)
 }
 
+# Indice (base 1) d'une chaine partagee lu dans <v> d'une cellule t="s" ;
+# NA si la valeur n'est pas un entier positif ou nul (fichier forge : indice
+# negatif ou non numerique). Un indice au-dela de la table donne NA a
+# l'indexation. Sans ce garde, un indice negatif donnait l'index 0 et un
+# remplacement trop court (erreur R, ou textes recycles hors de leur cellule).
+.xlsx_indice_partage <- function(v) {
+  i <- suppressWarnings(as.integer(v)) + 1L
+  i[!is.na(i) & i < 1L] <- NA_integer_
+  i
+}
+
 # Controle de la ligne d'en-tete, commun aux deux chemins de lecture, fait sur
 # le XML de la feuille lue avant l'appel a openxlsx (#522) : l'en-tete du
 # tableau est en ligne 1, et une ligne 1 sans aucune valeur est refusee.
@@ -8480,7 +8491,7 @@ engine_ecrire_csv <- function(df, chemin) {
   brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
   texte <- rep(NA_character_, length(cel))
   s <- v & cc$typ %in% "s"
-  if (any(s)) texte[s] <- partagees[suppressWarnings(as.integer(brut[s])) + 1L]
+  if (any(s)) texte[s] <- partagees[.xlsx_indice_partage(brut[s])]
   st <- v & cc$typ %in% "str"
   texte[st] <- brut[st]
   if (any(is)) texte[is] <- vapply(cel[is], .xml_textes, "", USE.NAMES = FALSE)
@@ -8634,7 +8645,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   isx <- grepl("<is>", cells)
   if (any(isx)) val[isx] <- vapply(cells[isx], .xml_textes, character(1), USE.NAMES = FALSE)
   s <- typ == "s" & !is.na(val)
-  if (any(s)) val[s] <- partagees[as.integer(val[s]) + 1L]
+  if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE", comme
   # openxlsx : sa valeur brute "1"/"0" passerait pour un nombre en aval.
   b <- typ == "b" & !is.na(val)

@@ -2915,6 +2915,17 @@ if (nzchar(Sys.which("zip"))) {
                                                             partagees = " "), error = conditionMessage), LIGNE1_522) &&
              is.null(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
                                                  partagees = "x")))
+  # Indice de chaine partagee negatif ou non numerique (fichier forge) : NA,
+  # compte comme une valeur par le controle de la ligne 1, sans erreur R ni
+  # textes recycles hors de leur cellule (audit de la revue finale de K2).
+  verifier("xlsx (#522) : indice de chaine partagee negatif ou non numerique -> NA, sans erreur R ni recyclage dans le controle de la ligne 1",
+           identical(.xlsx_indice_partage(c("0", "2", "-1", "abc", NA)), c(1L, 3L, NA, NA, NA)) &&
+             is.null(.xlsx_controler_ligne_entete('<row r="1"><c r="A1" t="s"><v>-1</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>',
+                                                 partagees = c(" ", "xt", "\t"))) &&
+             identical(tryCatch(.xlsx_controler_ligne_entete(paste0('<row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>-1</v></c>',
+                                                                   '<c r="C1" t="s"><v>2</v></c></row><row r="2"><c r="A2"><v>1</v></c></row>'),
+                                                            partagees = c(" ", "xt", "\t")),
+                                warning = function(w) "avertissement", error = function(e) "erreur"), NULL))
   # Classe de la condition : les refus motives (ligne 1 #522, cellule sans r et
   # balise <c de #487) sont de classe "usp_refus_lecture", lue par
   # l'application ; feuille introuvable : erreur ordinaire.
