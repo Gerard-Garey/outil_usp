@@ -837,7 +837,9 @@ présentes du motif d'\code{engine\_lire\_donnees\_csv()}) \\
 (\code{"series"} ou \code{"triangle"})~; noms de colonne~; chaînes~; cellules &
 tableau sans ses lignes vides de fin ni ses colonnes vides retirées, et motifs de refus d'une
 ligne vide intercalée ou en tête et, pour le triangle, d'une colonne vide intercalée ou portant un
-en-tête (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
+en-tête, ou d'une colonne vide sans en-tête placée avant la première colonne de développement
+renseignée (année de développement~0 manquante présumée), sauf si elle précède aussi une
+colonne \code{i} placée avant les données, auquel cas elle est retirée (§\ref{sec:controles})~; prédicat «~en-tête absent~» (vide, \code{NA}, \code{X<k>} ou
 \code{V<k>} à sa position $k$)~; chaînes non UTF-8 déclarées Latin-1 en locale UTF-8, octets
 inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif une phrase fixe \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
@@ -3794,13 +3796,24 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
 le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
 refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
-vides sans en-tête placées en bord sont retirées, une ligne vide intercalée ou en tête est refusée
+vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
+une ligne vide intercalée ou en tête est refusée
 comme année d'accident manquante présumée (D(2)(b)), une colonne vide intercalée ou portant un
 en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
 indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
 la plus récente de la première année d'accident~; la présomption est une lecture retenue par
-l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~»~; elle
-appelle ensuite \code{mw\_valider\_triangle()}.
+l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
+une colonne vide sans en-tête placée avant la première colonne de développement renseignée, autre
+que la colonne \code{i}, est refusée de même comme année de développement~0 manquante présumée
+(motif «~\code{\ldots{} sans en-tete avant la premiere colonne renseignee du triangle}~»
+suivi de «~\code{annee de developpement 0 manquante presumee}~», qui la numérote par sa position dans le tableau lu, colonne \code{i} comprise), avec ou sans
+colonne \code{i}~: sans colonne \code{i}, un tableau décalé d'une colonne a les mêmes cellules
+qu'un triangle dont la colonne~0 est vide, et l'outil ne choisit pas entre les deux lectures. Seule
+exception, une colonne vide placée avant la colonne \code{i}, quand celle-ci précède elle-même les
+données, est retirée sans message (tableau décalé, qui se reconnaît à sa colonne \code{i})~; une
+colonne vide placée entre la colonne \code{i} et les données, ou à gauche quand la colonne
+\code{i} suit les données, est refusée (mesuré). La fonction appelle ensuite
+\code{mw\_valider\_triangle()}.
 Elle l'appelle sans segment~: l'avertissement de crédibilité éventuel suit alors le barème court
 par convention, la section~G ne déterminant aucun barème sans segment, et il en va de même
 d'\code{engine\_valider\_donnees()} appelée sans segment~; l'avertissement qui vaut pour le
@@ -4385,7 +4398,9 @@ est refusée, avec ou sans colonne~$t$, comme année manquante présumée (B(2)(
 un motif qui cite sa position en lignes de données, faute de quoi la série serait lue sur une
 année de moins présentée comme consécutive (mesuré~: une ligne vide en troisième ligne de
 données, sans colonne~$t$, est refusée par le motif des lignes vides intercalées, qui la situe
-«~\code{(ligne(s) de donnees 3)}~»). Une colonne entièrement vide sans en-tête est retirée~; une colonne vide qui
+«~\code{(ligne(s) de donnees 3)}~»). Dans une série, une colonne entièrement vide sans en-tête est
+retirée où qu'elle soit (pour le triangle, la règle des colonnes est celle des contrôles du
+triangle, en tête de la présente section)~; une colonne vide qui
 porte un en-tête est laissée aux contrôles par nom (\code{xt}, \code{yt} ou~$t$ vides refusés,
 toute autre colonne ignorée). Une cellule est vide si elle vaut \code{NA} ou est une chaîne vide
 ou faite de blancs~; un en-tête est absent s'il est vide ou \code{NA}, ou s'il a la forme que
