@@ -1963,9 +1963,10 @@ verifier("repere_profondeur : refus (ok = FALSE) -- champ present, character(0) 
 # Regle commune aux series et au triangle, posee par
 # .retirer_lignes_colonnes_vides() : lignes vides de fin retirees ; ligne vide
 # intercalee ou en tete refusee (motifs distincts) ; colonne vide sans en-tete
-# en bord retiree ; triangle : colonne vide intercalee ou portant un en-tete
-# refusee ; meme motif quel que soit le chemin (openxlsx, lecteur interne,
-# data.frame d'un CSV lu en texte avec ses lignes vides).
+# en bord retiree, sauf au bord gauche du triangle, apres i s'il existe et
+# precede les donnees (#520) ; triangle : colonne vide intercalee ou portant
+# un en-tete refusee ; meme motif quel que soit le chemin (openxlsx, lecteur
+# interne, data.frame d'un CSV lu en texte avec ses lignes vides).
 xt483 <- 100:108; yt483 <- 60 + (0:8)
 ser483 <- data.frame(xt = xt483, yt = yt483)
 avec_vide <- function(d, k) d[append(seq_len(nrow(d)), NA, after = k - 1), , drop = FALSE]
@@ -2044,14 +2045,95 @@ verifier("Lignes vides (#483) : triangle a lignes vides de fin lu comme sans ell
              isTRUE(all.equal(engine_lire_triangle(en_texte(rbind(tri483, NA)))$triangle, r0$triangle,
                               tolerance = 1e-15))
          })
-verifier("Colonnes vides (#483) : triangle, colonne vide sans en-tete en bord (gauche, entre i et j0, droite) retiree",
+# Bord gauche du triangle (#520, regle R-a) : une colonne vide sans en-tete
+# entre i et j0 n'est plus retiree (cas col_vide(tri483, 1, "V2"), accepte
+# par #483, desormais refuse par le motif de #520, test suivant).
+verifier("Colonnes vides (#483, #520) : triangle, colonne vide sans en-tete en bord (gauche avant i, droite) retiree",
          {
            r0 <- engine_lire_triangle(tri483)
            # forme texte : valeurs ecrites par as.character() (15 chiffres), d'ou all.equal()
-           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 1, "V2"), col_vide(tri483, 7, "X8")),
+           all(vapply(list(col_vide(tri483, 0, "X1"), col_vide(tri483, 7, "X8")),
                       function(d) identical(engine_lire_triangle(d), r0), logical(1))) &&
              isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 7, ""))), r0,
+                              tolerance = 1e-15)) &&
+             isTRUE(all.equal(engine_lire_triangle(en_texte(col_vide(tri483, 0, ""))), r0,
                               tolerance = 1e-15))
+         })
+# Issue #520 (regle R-a, decision du mainteneur D1 du 11/11/2026 ; texte fixe
+# par l'avis amont d'actuary sur K2, par. 1.1) : colonne vide sans en-tete
+# avant la premiere colonne de developpement renseignee, et apres i si i
+# existe, refusee comme annee de developpement 0 manquante presumee, avec ou
+# sans colonne i ; le motif tient lieu de "Triangle non carre". Colonne
+# numerotee par sa position dans le tableau lu, colonne i comprise.
+motif520 <- function(cols)
+  sprintf(paste("Colonne(s) vide(s) sans en-tete avant la premiere colonne renseignee du triangle (colonne(s) %s) :",
+                "annee de developpement 0 manquante presumee ; la renseigner, ou retirer la colonne vide",
+                "si le triangle commence bien a l'annee de developpement 0."), cols)
+tri520 <- fichier_tri(triangle(8))
+# Colonne j0 videe, sans en-tete ("" : CSV lu avec check.names = FALSE)
+c0_520 <- function(avec_i = TRUE, nom = "") {
+  d <- tri520; d$j0 <- NA; names(d)[2] <- nom
+  if (avec_i) d else d[, -1, drop = FALSE]
+}
+# n colonnes vides sans en-tete inserees apres la colonne k
+vides520 <- function(d, k, n) {
+  v <- as.data.frame(matrix(NA, nrow(d), n))
+  d2 <- cbind(d[, seq_len(k), drop = FALSE], v, d[, setdiff(seq_len(ncol(d)), seq_len(k)), drop = FALSE])
+  names(d2) <- append(names(d), rep("", n), after = k); d2
+}
+verifier("Colonne 0 vide (#520) : triangle 8 x 8 a colonne 0 vide sans en-tete refuse, sans i (colonne 1) et avec i (colonne 2), motif seul, CSV texte compris",
+         {
+           a <- engine_lire_triangle(c0_520(FALSE)); b <- engine_lire_triangle(c0_520(TRUE))
+           !a$ok && is.null(a$triangle) && identical(a$erreurs, motif520("1")) &&
+             !b$ok && is.null(b$triangle) && identical(b$erreurs, motif520("2")) &&
+             identical(engine_lire_triangle(en_texte(c0_520(FALSE)))$erreurs, a$erreurs) &&
+             identical(engine_lire_triangle(en_texte(c0_520(TRUE)))$erreurs, b$erreurs) &&
+             identical(engine_lire_triangle(c0_520(FALSE, "X1"))$erreurs, a$erreurs) &&
+             identical(engine_lire_triangle(c0_520(TRUE, "V2"))$erreurs, b$erreurs)
+         })
+verifier("Colonne 0 vide (#520) : colonne vide sans en-tete entre i et j0 refusee (accepte par #483), triangle 8 x 8 complet decale sans i refuse",
+         {
+           identical(engine_lire_triangle(col_vide(tri483, 1, "V2"))$erreurs, motif520("2")) &&
+             identical(engine_lire_triangle(vides520(tri520[, -1], 0, 1))$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520) : deux colonnes vides sans en-tete a gauche refusees et citees, sans i (1, 2) et avec i (2, 3) ; colonne avant i seule non citee",
+         {
+           identical(engine_lire_triangle(vides520(tri520[, -1], 0, 2))$erreurs, motif520("1, 2")) &&
+             identical(engine_lire_triangle(vides520(tri520, 1, 2))$erreurs, motif520("2, 3")) &&
+             identical(engine_lire_triangle(vides520(vides520(tri520, 1, 1), 0, 1))$erreurs, motif520("3"))
+         })
+verifier("Colonne 0 vide (#520) : colonne vide avant i retiree sans message ; colonne 0 vide portant un en-tete refusee par LE-06 inchange, sans le motif de #520",
+         {
+           r0 <- engine_lire_triangle(tri520)
+           e_i <- engine_lire_triangle(c0_520(TRUE, "j0"))$erreurs
+           e_s <- engine_lire_triangle(c0_520(FALSE, "j0"))$erreurs
+           isTRUE(r0$ok) && identical(engine_lire_triangle(vides520(tri520, 0, 1)), r0) &&
+             identical(e_i, paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 2,",
+                                  "d'en-tete(s) j0) : annee de developpement sans valeur ; la renseigner",
+                                  "ou retirer la colonne.")) &&
+             identical(e_s, sub("colonne(s) 2,", "colonne(s) 1,", e_i, fixed = TRUE))
+         })
+# Precision (B) d'actuary sur R-a : seule une colonne placee avant une
+# colonne i qui precede elle-meme les donnees est retiree sans message ; i en
+# fin de tableau ne protege aucune colonne vide de gauche.
+verifier("Colonne 0 vide (#520, precision (B)) : i en fin de tableau, colonne 0 vide sans en-tete (\"\", j1..j7, i) refusee colonne 1, au lieu de \"Triangle non carre\"",
+         {
+           d <- c0_520(TRUE); d <- d[, c(2:9, 1)]
+           identical(names(d), c("", paste0("j", 1:7), "i")) &&
+             identical(engine_lire_triangle(d)$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520, precision (B)) : 8 x 8 complet, i en fin, colonne vide a gauche refusee (colonne 1)",
+         identical(engine_lire_triangle(vides520(tri520[, c(2:9, 1)], 0, 1))$erreurs, motif520("1")))
+verifier("Colonne 0 vide (#520, precision (B)) : colonne vide a gauche, i entre j6 et j7 (\"\", j0..j6, i, j7) refusee (colonne 1)",
+         {
+           d <- vides520(tri520[, c(2:8, 1, 9)], 0, 1)
+           identical(names(d), c("", paste0("j", 0:6), "i", "j7")) &&
+             identical(engine_lire_triangle(d)$erreurs, motif520("1"))
+         })
+verifier("Colonne 0 vide (#520) : vrai triangle non carre (colonne j7 absente) garde le motif \"Triangle non carre\"",
+         {
+           e <- engine_lire_triangle(tri520[, -9])$erreurs
+           length(e) == 1L && startsWith(e, "Triangle non carre (8 annees d'accident, 7 annees de developpement)")
          })
 verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
          {
@@ -2344,8 +2426,24 @@ if (nzchar(Sys.which("zip"))) {
            tous(rv, function(r) !r$ok && identical(r$erreurs,
                 engine_lire_triangle(avec_vide(tri483, 4))$erreurs)) &&
              tous(rf, function(r) identical(r, ref_tri)))
-  verifier("Colonnes vides (#483) : xlsx de triangle decale en colonne B, accepte a l'identique sur chaque chemin",
+  # Temoin de #520 (precision (B)) : colonne A vide avant i en colonne B, i
+  # precedant les donnees : toujours retiree sans message.
+  verifier("Colonnes vides (#483, #520) : xlsx de triangle decale en colonne B (i en B), accepte a l'identique sur chaque chemin",
            tous(rtdec, function(r) identical(r, ref_tri)))
+  # Issue #520 : memes motifs que le CSV lu en texte, sur chaque chemin. Un
+  # triangle sans i decale en colonne B a les cellules d'un 8 x 8 a colonne 0
+  # vide sans en-tete (mesure M1) : refuse.
+  r520s <- chemins483(xlsx483(tri520[, 3:9], decaler("A")), engine_lire_triangle)
+  r520i <- chemins483(xlsx483(tri520[, -2], decaler("B")), engine_lire_triangle)
+  r520d <- chemins483(xlsx483(tri520[, 3:9], function(s) decaler("A")(decaler("A")(s))), engine_lire_triangle)
+  r520e <- chemins483(xlsx483(c0_520(TRUE, "j0")), engine_lire_triangle)
+  verifier("Colonne 0 vide (#520) : xlsx de triangle 8 x 8 a colonne 0 vide sans en-tete refuse sur chaque chemin, sans i (colonne A) et avec i (colonne B), motif du CSV",
+           tous(r520s, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(FALSE))$erreurs)) &&
+             tous(r520i, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(TRUE))$erreurs)))
+  verifier("Colonne 0 vide (#520) : xlsx a deux colonnes vides a gauche sans i refuse sur chaque chemin (colonnes 1, 2)",
+           tous(r520d, function(r) !r$ok && identical(r$erreurs, motif520("1, 2"))))
+  verifier("Colonne 0 vide (#520) : xlsx a colonne 0 vide portant l'en-tete j0 refuse par LE-06 sur chaque chemin, motif du CSV",
+           tous(r520e, function(r) !r$ok && identical(r$erreurs, engine_lire_triangle(c0_520(TRUE, "j0"))$erreurs)))
   verifier("Lignes et colonnes vides (#483) : xlsx de triangle a lignes et colonne de fin mises en forme sans valeur, accepte sur chaque chemin",
            tous(rtforme, function(r) identical(r, ref_tri)))
   verifier("Colonnes vides (#483) : xlsx de triangle a colonne vide intercalee refuse, meme motif sur chaque chemin",

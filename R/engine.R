@@ -7643,7 +7643,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # elle est ignoree par engine_lire_triangle()) :
 #  - une colonne entierement vide et sans en-tete (.entete_absent()) en bord,
 #    avant la premiere ou apres la derniere colonne qui porte une valeur, est
-#    retiree sans refus (mise en forme, tableau decale) ;
+#    retiree sans refus (mise en forme, tableau decale), sauf au bord gauche
+#    du triangle (point suivant) ;
+#  - triangle, bord gauche (#520, regle R-a, decision du mainteneur D1 du
+#    11/11/2026, precision (B) d'actuary) : une colonne entierement vide sans
+#    en-tete placee avant la premiere colonne de developpement renseignee est
+#    refusee comme annee de developpement 0 manquante presumee, avec ou sans
+#    colonne i, ou que soit i, sauf si elle est aussi avant la colonne i (sa
+#    premiere occurrence) et que i precede lui-meme les donnees : les
+#    cellules d'un triangle decale d'une colonne et celles d'un triangle dont
+#    la colonne 0 est vide sans en-tete sont les memes (mesure M1 de l'avis
+#    amont d'actuary sur K2), ce que le motif dit par son alternative. Ce
+#    motif precede mw_valider_triangle() et tient lieu du motif "Triangle
+#    non carre". Exception : une colonne vide sans en-tete placee avant une
+#    colonne i qui precede les donnees reste retiree sans refus (tableau
+#    decale) ;
 #  - triangle : une colonne entierement vide intercalee, ou portant un
 #    en-tete, est refusee comme annee de developpement manquante presumee
 #    (sans renvoi reglementaire) ;
@@ -7717,8 +7731,23 @@ usp_tests <- function(fit, boot, alpha = 0.10,
           else rep(TRUE, ncol(df))
   retirer <- col_vide & sans_ent & (bord | serie)
   if (!serie) {
+    # Bord gauche (#520, regle R-a, decision du mainteneur D1 du 11/11/2026,
+    # precision (B) d'actuary) : colonne vide sans en-tete avant la premiere
+    # colonne de developpement renseignee, sauf si elle est aussi avant la
+    # colonne i (premiere occurrence) et que i precede les donnees.
+    pos <- seq_len(ncol(df))
+    ii <- which(names(df) == "i")
+    gauche <- if (length(avec_val)) {
+      avant_i <- if (length(ii) && min(ii) < min(avec_val)) pos < min(ii) else rep(FALSE, ncol(df))
+      which(col_vide & sans_ent & pos < min(avec_val) & !avant_i)
+    } else integer(0)
+    retirer[gauche] <- FALSE
     inter <- which(col_vide & !bord)
     ent_bord <- which(col_vide & bord & !sans_ent)
+    if (length(gauche))
+      err <- c(err, sprintf(paste("Colonne(s) vide(s) sans en-tete avant la premiere colonne renseignee du triangle (colonne(s) %s) :",
+                                  "annee de developpement 0 manquante presumee ; la renseigner, ou retirer la colonne vide",
+                                  "si le triangle commence bien a l'annee de developpement 0."), liste(gauche)))
     if (length(inter))
       err <- c(err, sprintf(paste("Colonne(s) vide(s) intercalee(s) dans le triangle (colonne(s) %s) :",
                                   "annee de developpement manquante presumee ; la renseigner ou",
