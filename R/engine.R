@@ -7695,11 +7695,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #  - une colonne facteur est convertie par ses VALEURS (texte), jamais par ses
 #    codes internes ;
 #  - la colonne t, si elle est presente, doit etre complete, numerique,
-#    entiere, sans doublon et CONSECUTIVE (annexe XVII, B(2)(b) : "cinq
-#    annees d'accident consecutives" ; C(2)(b) : "cinq exercices
-#    consecutifs") ; elle est alors triee en croissant.
+#    entiere, sans doublon et CONSECUTIVE (lecture de l'outil : annexe XVII,
+#    B(3)(a)-(b) et C(3)(a)-(b), annees d'accident ou exercices numerotes par
+#    des nombres consecutifs de 1 a T ; B(2)(b) et C(2)(b) n'exigent que "cinq
+#    [...] consecutives au moins" (resp. "consecutifs"), controle de
+#    profondeur distinct) ; elle est alors triee en croissant.
 #    Sinon le fichier est refuse : aucun tri ni comblement silencieux. Les
 #    tests de la famille H3 supposent des annees equidistantes ;
+#  - en-tetes (#555, decisions du mainteneur 8 et 9 du 12/11/2026) : un
+#    en-tete designe la colonne t s'il vaut t ou T apres retrait du BOM et
+#    des blancs de bord [[:space:]] (.entete_designe(), regle N d'actuary) ;
+#    la colonne unique ainsi designee est renommee "t". Plusieurs en-tetes
+#    designant t, ou un en-tete xt ou yt present plusieurs fois (comparaison
+#    exacte), sont refuses avant toute lecture des cellules, cumules avec le
+#    motif des colonnes manquantes : sans ce refus, la seconde colonne etait
+#    ignoree sans message (le premier xt etait lu) ;
 #  - sans colonne t, l'ordre du fichier est repute chronologique et la
 #    consecutivite n'est pas verifiable, sauf une ligne entierement vide
 #    hors fin de tableau, refusee comme annee manquante presumee par
@@ -7716,11 +7726,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #  - une ligne entierement vide intercalee, ou en tete (sous l'en-tete), est
 #    refusee comme annee manquante presumee, avec un motif distinct pour
 #    chacun des deux cas, au lieu d'etre lue sur T - 1 annees presentees comme
-#    consecutives (series : annexe XVII, B(2)(b) et C(2)(b) ; triangle :
-#    D(2)(b)). Positions citees en lignes de donnees (premiere ligne sous
-#    l'en-tete = 1), cinq au plus.
+#    consecutives (lecture de l'outil ; series : annexe XVII, B(3)(a)-(b) et
+#    C(3)(a)-(b) ; triangle : D(1) et D(3)(a)-(b)). Positions citees en
+#    lignes de donnees (premiere ligne sous l'en-tete = 1), cinq au plus.
 # Colonnes (cellules des lignes gardees ; colonne "i" du triangle hors regle,
-# elle est ignoree par engine_lire_triangle()) :
+# ses valeurs sont controlees par engine_lire_triangle(), #555) :
 #  - une colonne entierement vide et sans en-tete (.entete_absent()) en bord,
 #    avant la premiere ou apres la derniere colonne qui porte une valeur, est
 #    retiree sans refus (mise en forme, tableau decale), sauf au bord gauche
@@ -7765,6 +7775,93 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   # ces formes (README, "Usage sans Shiny").
   k <- seq_along(noms)
   is.na(noms) | !nzchar(noms) | noms == paste0("X", k) | noms == paste0("V", k)
+}
+
+# Regle N (#555, decisions du mainteneur 7 et 8 du 12/11/2026, actuary) :
+# vrai pour un en-tete qui designe la colonne `lettre` ("i" du triangle, "t"
+# des series), c'est-a-dire qui vaut la lettre en minuscule ou en majuscule
+# une fois retires les blancs de bord de la classe [[:space:]]
+# (.xlsx_blancs_entete(), comme le lecteur interne du classeur et openxlsx :
+# " i " se lit ainsi de la meme facon en CSV et en classeur). Le BOM du
+# premier nom est retire en amont (.nom_sans_bom()). Un nom NA ou non UTF-8
+# (apres conversion d'un nom declare Latin-1) ne designe jamais la colonne :
+# garde validUTF8(), comme dans .ligne1_sans_valeur() (gsub() leverait une
+# erreur). L'espace insecable U+00A0 n'est pas un blanc : " i" precede
+# d'elle reste un en-tete distinct.
+.entete_designe <- function(noms, lettre) {
+  u <- enc2utf8(as.character(noms))
+  lisible <- !is.na(noms) & validUTF8(u)
+  res <- rep(FALSE, length(noms))
+  res[lisible] <- .xlsx_blancs_entete(u[lisible]) %in% c(lettre, toupper(lettre))
+  res
+}
+
+# Positions (lignes de donnees, colonnes ou paires) listees dans un motif de
+# lecture : cinq au plus, puis "et <n> autre(s)". Commune aux motifs de
+# .retirer_lignes_colonnes_vides(), des en-tetes en double et de la colonne
+# i (#555).
+.liste_positions <- function(k) {
+  paste0(paste(utils::head(k, 5), collapse = ", "),
+         if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+}
+
+# Valeurs de la colonne i du triangle (#555, decision du mainteneur 1 du
+# 12/11/2026, textes d'actuary et decision 5) : si la colonne est presente,
+# elle porte, ligne apres ligne, des entiers croissants de pas 1, sans vide ;
+# depart libre (0, 1, annee civile, valeur negative comprise). La colonne
+# n'est pas lue pour le calcul (l'annee d'accident vient de l'ordre des
+# lignes) : une colonne i qui contredit cet ordre signale un triangle qui
+# n'est peut-etre pas celui que l'utilisateur voulait fournir. Cellules lues
+# comme celles du triangle (.nettoyer_cellules(), .en_numerique() : point
+# decimal) ; une cellule est vide selon la meme definition. Ordre et cumul
+# (etape B de l'avis amont) : V1 (vides) et V2 (non numeriques, non entieres
+# ou non finies) cumules ; sans eux, V3 (valeurs repetees), V4 (ordre non
+# croissant) puis V5 (ecart superieur a 1), exclusifs dans cet ordre. v :
+# colonne i du tableau sans ses lignes de fin vides ; positions en lignes de
+# donnees. Renvoie les motifs (character(0) si la colonne est conforme).
+.motifs_colonne_i <- function(v) {
+  if (is.factor(v)) v <- as.character(v)
+  if (is.character(v)) v <- .nettoyer_cellules(v)
+  vide <- is.na(v) | (is.character(v) & !nzchar(v))
+  x <- .en_numerique(v)
+  fautive <- !vide & (is.na(x) | !is.finite(x) | x != round(x))
+  fautive[is.na(fautive)] <- TRUE
+  err <- character(0)
+  if (any(vide))
+    err <- c(err, sprintf(paste("Colonne i incomplete (ligne(s) de donnees %s sans valeur) : la colonne i,",
+                                "facultative, numerote les annees d'accident ; la renseigner pour chaque",
+                                "ligne, ou la retirer."), .liste_positions(which(vide))))
+  if (any(fautive))
+    err <- c(err, sprintf(paste("Colonne i non entiere ou non numerique (ligne(s) de donnees %s) : la colonne",
+                                "i, facultative, numerote les annees d'accident par des entiers ; la",
+                                "corriger, ou la retirer."), .liste_positions(which(fautive))))
+  if (length(err) || length(x) < 2) return(err)
+  # Valeurs repetees : toutes les lignes qui portent une valeur presente
+  # plusieurs fois sont citees.
+  rep_ <- x %in% x[duplicated(x)]
+  if (any(rep_))
+    return(sprintf(paste("Colonne i a valeurs repetees (ligne(s) de donnees %s) : chaque ligne est une",
+                         "annee d'accident distincte ; corriger la colonne i, ou la retirer."),
+                   .liste_positions(which(rep_))))
+  d <- diff(x)
+  # Ordre non croissant : la ligne k est citee si sa valeur est inferieure a
+  # celle de la ligne k - 1.
+  if (any(d < 0))
+    return(sprintf(paste("Colonne i non croissante (ligne(s) de donnees %s) : les annees d'accident sont",
+                         "lues dans l'ordre des lignes, de la plus ancienne a la plus recente ; ordonner",
+                         "les lignes selon la colonne i, ou la corriger."),
+                   .liste_positions(which(d < 0) + 1L)))
+  # Ecart superieur a 1 entre les lignes k - 1 et k : paires "k-1 et k".
+  if (any(d > 1)) {
+    k <- which(d > 1) + 1L
+    return(sprintf(paste("Colonne i non consecutive (entre les lignes de donnees %s) : annee d'accident",
+                         "manquante presumee ; le triangle de l'annexe XVII, section D, porte les",
+                         "montants de chaque annee d'accident, numerotees par des nombres consecutifs",
+                         "de 0 a I (D(1), D(3)(a) et (b)). Renseigner l'annee d'accident manquante, ou",
+                         "corriger la colonne i."),
+                   .liste_positions(paste(k - 1L, "et", k))))
+  }
+  character(0)
 }
 
 # Texte du refus d'une ligne 1 sans aucune valeur (#522), commun au classeur
@@ -7826,12 +7923,18 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
     if (is.character(v)) is.na(v) | !nzchar(.nettoyer_cellules(v)) else is.na(v)
   }, logical(nrow(df)))
   vide <- matrix(vide, nrow = nrow(df))
-  liste <- function(k) paste0(paste(utils::head(k, 5), collapse = ", "),
-                              if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+  liste <- .liste_positions
   serie <- objet == "series"
   quoi <- if (serie) "annee" else "annee d'accident"
-  texte <- if (serie) "l'annexe XVII, B(2)(b) et C(2)(b), exige des annees consecutives"
-           else "l'annexe XVII, D(2)(b), exige des annees d'accident consecutives"
+  # Ancrage (decisions du mainteneur 5 et 6 du 12/11/2026, textes d'actuary) :
+  # series, B(3)(a)-(b) et C(3)(a)-(b) ; triangle, D(1) et D(3)(a)-(b). La
+  # presomption d'annee manquante est une lecture de l'outil.
+  texte <- if (serie) paste("les annees d'accident (annexe XVII, section B) ou exercices (section C)",
+                            "sont numerotes par des nombres consecutifs de 1 a T (B(3)(a) et (b),",
+                            "C(3)(a) et (b))")
+           else paste("le triangle de l'annexe XVII, section D, porte les montants de chaque annee",
+                      "d'accident, numerotees par des nombres consecutifs de 0 a I (D(1), D(3)(a)",
+                      "et (b))")
   dans <- if (serie) "" else " dans le triangle"
   err <- character(0)
   # --- Lignes
@@ -7854,7 +7957,8 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
   df <- df[garde, , drop = FALSE]
   vide <- vide[garde, , drop = FALSE]
   # --- Colonnes
-  regle <- if (serie) rep(TRUE, ncol(df)) else names(df) != "i"
+  # %in% plutot que != : un nom NA (appel direct) ne propage pas NA (#555).
+  regle <- if (serie) rep(TRUE, ncol(df)) else !(names(df) %in% "i")
   col_vide <- colSums(!vide) == 0 & regle
   sans_ent <- .entete_absent(names(df))
   avec_val <- which(!col_vide & regle)
@@ -7928,21 +8032,52 @@ engine_lire_donnees_csv <- function(df) {
   # manquantes, comme en classeur (#522).
   if (.ligne1_sans_valeur(df))
     return(list(ok = FALSE, erreurs = MOTIF_LIGNE1_VIDE, xt = NULL, yt = NULL, n = 0L))
+  # Etape des noms (#555, decisions du mainteneur 8 et 9 du 12/11/2026),
+  # avant .retirer_lignes_colonnes_vides(), dont la selection de colonnes
+  # renommerait un doublon en "t.1" : en-tete t present plusieurs fois (regle
+  # N, .entete_designe()) ou en-tete xt / yt present plusieurs fois
+  # (comparaison exacte) refuses, cumules avec le motif des colonnes
+  # manquantes ; sinon la colonne unique designee par t ou T (blancs de bord
+  # ignores) est renommee "t" et noms recalcule. Les en-tetes sont cites
+  # tels que recus (echappes, #550).
+  err_noms <- character(0)
+  kt <- which(.entete_designe(noms, "t"))
+  if (length(kt) > 1)
+    err_noms <- c(err_noms, sprintf(paste("En-tete de la colonne t present plusieurs fois (colonnes %s,",
+                                          "d'en-tetes %s) : la colonne t, facultative, porte l'annee de",
+                                          "chaque ligne et ne peut figurer qu'une fois (en-tete t ou T,",
+                                          "blancs de bord ignores) ; retirer ou renommer la colonne en trop."),
+                                    .liste_positions(kt), .liste_positions(.echapper_texte(noms[kt]))))
+  for (nom in c("xt", "yt")) {
+    k <- which(noms %in% nom)
+    if (length(k) > 1)
+      err_noms <- c(err_noms, sprintf(paste("En-tete %s present plusieurs fois (colonnes %s) : la colonne %s",
+                                            "ne peut figurer qu'une fois ; retirer ou renommer la colonne en trop."),
+                                      nom, .liste_positions(k), nom))
+  }
+  noms_recus <- noms
+  if (length(kt) == 1) {
+    names(df)[kt] <- "t"
+    noms <- names(df)
+  }
   manquantes <- setdiff(c("xt", "yt"), noms)
+  if (length(err_noms) && !length(manquantes))
+    return(list(ok = FALSE, erreurs = err_noms, xt = NULL, yt = NULL, n = 0L))
   if (length(manquantes)) {
     # Noms cites echappes (caracteres de controle, blancs non ASCII :
     # .echapper_texte(), sans guillemets, #522) ; un nom que .entete_absent()
     # juge absent (vide, NA, "X<k>" ou "V<k>" a sa position) est cite
     # "(vide)" : le nom que lui donne openxlsx ("X<k>") ou le lecteur interne
-    # ("V<k>") ne dit rien du fichier.
-    absent <- .entete_absent(noms)
-    cites <- character(length(noms))
+    # ("V<k>") ne dit rien du fichier. Noms cites tels que recus, avant le
+    # renommage de la colonne t (#555).
+    absent <- .entete_absent(noms_recus)
+    cites <- character(length(noms_recus))
     cites[absent] <- "(vide)"
-    cites[!absent] <- .echapper_texte(noms[!absent])
+    cites[!absent] <- .echapper_texte(noms_recus[!absent])
     return(list(ok = FALSE,
-                erreurs = sprintf(
+                erreurs = c(err_noms, sprintf(
                   "Colonne(s) manquante(s) : %s. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : %s.",
-                  paste(manquantes, collapse = ", "), paste(cites, collapse = ", ")),
+                  paste(manquantes, collapse = ", "), paste(cites, collapse = ", "))),
                 xt = NULL, yt = NULL, n = 0L))
   }
   # Lignes et colonnes vides (#483), avant toute autre interpretation des
@@ -7986,8 +8121,10 @@ engine_lire_donnees_csv <- function(df) {
       err <- c(err, sprintf("Colonne t : annee(s) dupliquee(s) (%s).",
                             paste(unique(to[duplicated(to)]), collapse = ", ")))
     else if (length(to) > 1 && any(diff(sort(to)) != 1))
-      err <- c(err, sprintf(paste("Colonne t : annees non consecutives (%s) ; l'annexe XVII,",
-                                  "B(2)(b) et C(2)(b), exige des annees consecutives."),
+      err <- c(err, sprintf(paste("Colonne t : annees non consecutives (%s), annee manquante presumee ;",
+                                  "les annees d'accident (annexe XVII, section B) ou exercices (section C)",
+                                  "sont numerotes par des nombres consecutifs de 1 a T (B(3)(a) et (b),",
+                                  "C(3)(a) et (b))."),
                             paste(sort(to), collapse = ", ")))
     else { o <- order(to); xt <- xt[o]; yt <- yt[o] }
   }
@@ -7996,8 +8133,8 @@ engine_lire_donnees_csv <- function(df) {
 
 # Conversion d'un tableau deja charge (data.frame ou matrice : une ligne par
 # annee d'accident, une colonne par annee de developpement, colonne "i"
-# facultative ignoree) en triangle de cumules, puis controle de recevabilite
-# par mw_valider_triangle(). Fonction unique de conversion fichier ->
+# facultative, controlee puis retiree, #555) en triangle de cumules, puis
+# controle de recevabilite par mw_valider_triangle(). Fonction unique de conversion fichier ->
 # triangle (issue #33, #4 piste 3) : l'interface n'a plus a convertir. Une
 # cellule vide vaut NA (partie non observee) ; une cellule non vide et non
 # numerique est refusee, jamais lue comme NA. Les colonnes facteur sont
@@ -8026,15 +8163,38 @@ engine_lire_triangle <- function(df) {
   # Ligne 1 sans aucune valeur (CSV ",,,"), avant toute autre regle (#522) ;
   # une matrice convertie porte les noms "V<k>", non vises.
   if (.ligne1_sans_valeur(df)) return(refus(MOTIF_LIGNE1_VIDE))
+  # Etape A sur les noms recus (#555, decisions du mainteneur 1 et 7 du
+  # 12/11/2026), avant .retirer_lignes_colonnes_vides(), dont la selection
+  # de colonnes renommerait un doublon en "i.1" : un en-tete designe la
+  # colonne i s'il vaut i ou I, blancs de bord ignores (regle N,
+  # .entete_designe()) ; plusieurs en-tetes de ce type sont refuses (motif
+  # H1, retourne seul, en-tetes cites tels que recus, echappes comme pour
+  # #550) ; l'unique colonne designee est renommee "i", sa forme canonique,
+  # lue ensuite par le code en aval. Un nom NA est un en-tete absent
+  # (decision 2), jamais la colonne i.
+  ki <- which(.entete_designe(names(df), "i"))
+  if (length(ki) > 1)
+    return(refus(sprintf(paste("En-tete de la colonne i present plusieurs fois (colonnes %s, d'en-tetes %s) :",
+                               "la colonne i, facultative, porte l'annee d'accident de chaque ligne et ne",
+                               "peut figurer qu'une fois (en-tete i ou I, blancs de bord ignores) ; retirer",
+                               "ou renommer la colonne en trop."),
+                         .liste_positions(ki), .liste_positions(.echapper_texte(names(df)[ki])))))
+  if (length(ki) == 1) names(df)[ki] <- "i"
   # Lignes vides (colonne "i" comprise) et colonnes vides (colonne "i" hors
   # regle) : voir .retirer_lignes_colonnes_vides() (#483).
   lv <- .retirer_lignes_colonnes_vides(df, "triangle")
   if (length(lv$erreurs)) return(refus(lv$erreurs))
   df <- lv$df
   if (!nrow(df)) return(refus("Fichier vide ou illisible comme tableau."))
+  # Etape B sur les valeurs de la colonne i (#555) : voir .motifs_colonne_i().
+  if ("i" %in% names(df)) {
+    mi <- .motifs_colonne_i(df[[which(names(df) %in% "i")]])
+    if (length(mi)) return(refus(mi))
+  }
   # Selection par position : setdiff() sur les noms perdait les colonnes de
-  # nom duplique.
-  df <- df[, names(df) != "i", drop = FALSE]
+  # nom duplique ; %in% plutot que != : un nom NA (appel direct) levait
+  # l'erreur R "undefined columns selected" (#555).
+  df <- df[, !(names(df) %in% "i"), drop = FALSE]
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
   brut <- lapply(df, function(v) {
     if (is.factor(v)) v <- as.character(v)
@@ -8709,7 +8869,13 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     nm[is.na(nm) | nm == ""] <- paste0("V", which(is.na(nm) | nm == ""))
   } else { nm <- paste0("V", seq_len(ncol(m))); corps <- m }
   df <- as.data.frame(corps, stringsAsFactors = FALSE)
-  names(df) <- make.unique(nm)
+  # En-tetes gardes tels quels, doublons compris, comme openxlsx 4.2.9
+  # (check.names = FALSE par defaut, mesure) et comme le CSV de
+  # l'application (#555, decision du mainteneur 10 du 12/11/2026) : un
+  # en-tete i, t, xt ou yt en double recoit le meme refus par les trois
+  # chemins (make.unique() le lisait "i.1", "xt.1"..., qui echappait au
+  # controle).
+  names(df) <- nm
   # Conversion en numerique d'une colonne dont toutes les cellules a valeur
   # sont des cellules nombre (sans attribut t, ou t="n") qui se lisent par
   # .cellules_en_nombre() (point decimal, exposant complet "1e-05", "1.5E+20"
