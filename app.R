@@ -1864,7 +1864,9 @@ server <- function(input, output, session) {
                                            fileEncoding = "UTF-8"))
 
   # Construction du tableau exporte, commune aux deux formats : le contenu ne
-  # depend pas de l'extension choisie.
+  # depend pas de l'extension choisie. Les nombres sont ecrits par le moteur
+  # (engine_ecrire_xlsx(), engine_ecrire_csv()), de sorte qu'ils se relisent
+  # a l'identique (#488).
   tableau_export <- function() {
     if (est_mw()) {
       m <- lire_triangle()
@@ -1886,8 +1888,7 @@ server <- function(input, output, session) {
 
   output$dl_donnees <- downloadHandler(
     filename = function() if (est_mw()) FICHIER_MW else FICHIER_LN,
-    content = function(f)
-      utils::write.csv(tableau_export(), f, row.names = FALSE, na = ""))
+    content = function(f) engine_ecrire_csv(tableau_export(), f))
 }
 
 shinyApp(ui, server)

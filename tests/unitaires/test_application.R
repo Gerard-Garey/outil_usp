@@ -100,7 +100,11 @@
 #     demarrage (statut) et a l'import d'un triangle (statut, rendu,
 #     notification warning), seul : champ avertissements_lecture du moteur,
 #     jamais les avertissements calcules sans segment (credibilite, repere
-#     I + 1 < 10), absents du statut.
+#     I + 1 < 10), absents du statut ;
+#   - exports des donnees relus au bit (issue #488) : export CSV par
+#     engine_ecrire_csv() relu par lire_tableau() (grille, triangle a 17
+#     chiffres) ; avec shiny, output$dl_donnees et output$dl_donnees_xlsx
+#     (series et triangle) relus identical() a la saisie.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -725,6 +729,39 @@ verifier("selection_reportee() : ligne qui subsiste gardee, ligne nouvelle au de
            identical(.r380$base, c("r", "z", "commun")) && is.null(.dh380$selection_reportee(NULL, .tb380b)))
 verifier("selection_defaut() : cle = cle_ligne_test(), alignement lu par rapport_html() (#380)",
          identical(.dh380$selection_defaut(.tb380)$cle, .dh380$cle_ligne_test(.tb380)))
+
+## --- Export CSV des donnees relu par lire_tableau() (issue #488) --------------
+# L'export CSV des donnees (output$dl_donnees) passe par engine_ecrire_csv() ;
+# relu par lire_tableau() d'app.R (journaliser() neutralise), puis par
+# engine_lire_donnees_csv() / engine_lire_triangle() comme a l'import.
+.env488 <- new.env(); .env488$journaliser <- function(...) invisible(NULL)
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("lire_tableau", "MESSAGE_ILLISIBLE")) eval(.x, .env488)
+.csv488 <- function(d) { f <- tempfile(fileext = ".csv"); engine_ecrire_csv(d, f); .env488$lire_tableau(f, FALSE) }
+.g488 <- c(0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1 + 0.2, 5e-324, NA)
+.l488 <- .csv488(data.frame(t = 1:8, xt = .g488, yt = rev(.g488)))
+.r488 <- engine_lire_donnees_csv(.l488$df)
+verifier("Export CSV des donnees (#488) : grille relue par lire_tableau() puis engine_lire_donnees_csv(), identical()",
+         is.null(.l488$erreur) && identical(.r488$xt, .g488) && identical(.r488$yt, rev(.g488)))
+.t488 <- .env$triangle_defaut(8) * pi / 3
+.d488 <- data.frame(i = 0:7, .t488); names(.d488) <- c("i", paste0("j", 0:7))
+.rt488 <- engine_lire_triangle(.csv488(.d488)$df)
+verifier("Export CSV des donnees (#488) : triangle a decimales sur 17 chiffres relu par lire_tableau() puis engine_lire_triangle(), identical()",
+         isTRUE(.rt488$ok) && identical(.rt488$triangle, unname(.t488)))
+# Lecture du code : corps du downloadHandler de dl_donnees (de son ouverture a
+# la prochaine affectation d'une sortie ou a la fin du serveur).
+verifier("app.R : le downloadHandler de dl_donnees appelle engine_ecrire_csv() et non write.csv (#488)",
+         {
+           src <- readLines(.app, warn = FALSE)
+           i <- grep("output$dl_donnees <- downloadHandler(", src, fixed = TRUE)
+           corps <- if (length(i) == 1L) {
+             fin <- grep("^\\s*output\\$|^}", src)
+             fin <- fin[fin > i]
+             paste(src[i:(if (length(fin)) fin[1] - 1L else length(src))], collapse = "\n")
+           } else ""
+           grepl("engine_ecrire_csv(", corps, fixed = TRUE) && !grepl("write.csv", corps, fixed = TRUE)
+         })
 
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
@@ -1784,6 +1821,46 @@ testServer(app, {
     meme_tri(triangle(), t497) && a_val(grille_html(output), "c_0_0", "300"))
 })
 )---"
+  # Exports des donnees (issue #488) : output$dl_donnees (CSV) et
+  # output$dl_donnees_xlsx telecharges en testServer (chemin du fichier
+  # ecrit), relus comme a l'import ; valeurs identical() a la saisie.
+  .bloc_488 <- r"---(
+## Exports des donnees relus au bit (issue #488)
+g488 <- c(0.1, 1/3, 2001, 1e-300, 1.7976931348623157e308, 0.1 + 0.2, 5e-324, 7)
+relire488 <- function(f, xlsx) ea$lire_tableau(f, xlsx)$df
+# Export xlsx saute, et signale dans le libelle, sans paquet ni commande zip
+# (meme nombre d'assertions dans les deux cas).
+xlsx488 <- requireNamespace("zip", quietly = TRUE) || nzchar(Sys.which("zip"))
+saut488 <- if (xlsx488) "" else " ; xlsx saute (ni paquet ni commande zip)"
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, c(setNames(as.list(g488), paste0("x_", 1:8)),
+                               setNames(as.list(rev(g488)), paste0("y_", 1:8))))
+  sa <- lire_saisie()
+  rc <- engine_lire_donnees_csv(relire488(output$dl_donnees, FALSE))
+  ok_x <- !xlsx488 || {
+    rx <- engine_lire_donnees_csv(relire488(output$dl_donnees_xlsx, TRUE))
+    identical(rx$xt, sa$xt) && identical(rx$yt, sa$yt)
+  }
+  a(paste0("export des series (CSV et xlsx) : saisie a 17 chiffres (1/3, 0.1+0.2, 1e-300, 1.7976931348623157e308, 5e-324) relue identical() (#488)", saut488),
+    identical(sa$xt, g488) && identical(sa$yt, rev(g488)) &&
+      identical(rc$xt, sa$xt) && identical(rc$yt, sa$yt) && ok_x)
+  session$setInputs(methode = "reserve2")
+  session$setInputs(reinit = 2)
+  t488 <- ea$triangle_defaut(8) * pi / 3
+  cel <- list()
+  for (i in 0:7) for (j in 0:(7 - i)) cel[[paste0("c_", i, "_", j)]] <- t488[i + 1, j + 1]
+  do.call(session$setInputs, cel)
+  m <- lire_triangle()
+  tc <- engine_lire_triangle(relire488(output$dl_donnees, FALSE))
+  ok_x <- !xlsx488 || {
+    tx <- engine_lire_triangle(relire488(output$dl_donnees_xlsx, TRUE))
+    isTRUE(tx$ok) && identical(tx$triangle, m)
+  }
+  a(paste0("export du triangle (CSV et xlsx) : cellules a 17 chiffres relues identical() par engine_lire_triangle() (#488)", saut488),
+    identical(m, unname(t488)) && isTRUE(tc$ok) && identical(tc$triangle, m) && ok_x)
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -1918,7 +1995,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -1935,8 +2012,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 138 assertions rendues", length(.lignes) == 138L)
-  if (length(.lignes) != 138L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 140 assertions rendues", length(.lignes) == 140L)
+  if (length(.lignes) != 140L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
