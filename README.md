@@ -30,7 +30,10 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   implémentation interne ; l'écriture passe toujours par l'écrivain interne
   du moteur, dont l'archive est compressée par le paquet `zip` s'il est
   installé (importé par `openxlsx`), sinon par `utils::zip()` et la commande
-  `zip` du système (#488). Les calculs n'en dépendent pas.
+  `zip` du système (#488). Si `zip::zipr()` échoue (vieux paquet `zip`, par
+  exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
+  quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
+  deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
 - Application : `shiny` ; `plotly` en option (repli automatique sur les
   graphiques de base R). Dépendances déclarées dans `DESCRIPTION` :
   `remotes::install_deps(dependencies = TRUE)` les installe.

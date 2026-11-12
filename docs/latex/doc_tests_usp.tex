@@ -928,7 +928,10 @@ les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
 \code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} (\code{"Donnees"}) &
 chemin du fichier écrit par l'écrivain interne, seul employé, avec ou sans \code{openxlsx}~;
 archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
-la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; sans
+la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
+\code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
+commande existe~; sinon, ou si le repli échoue, erreur qui nomme l'échec du paquet et le statut
+de la commande, ou son absence, sans fichier laissé~; sans
 tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
 fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
 significatifs s'ils restituent la valeur, 17 sinon), de sorte que la relecture rend les mêmes
