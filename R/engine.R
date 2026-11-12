@@ -4211,19 +4211,34 @@ COMPLEMENTS_MOTIF_MC <- stats::setNames(DETAIL_MC_ATOME_HORS_OBS, MOTIF_MC_ATOME
 # figurent pas.
 MOTIFS_MC_DEGENERES <- c(MOTIF_MC_DISPERSION_NULLE, MOTIF_MC_ATOME_HORS_OBS,
                          MOTIF_MC_CONDITION)
+# Motif "Monte-Carlo indisponible" d'une ligne de add() (#536) : aide
+# unique qui compose "Monte-Carlo indisponible : <motif>" suivi de "." si
+# suite est vide, de ", <suite>" sinon, et qui porte sa garde anti-doublon :
+# si detail est fourni et contient deja le motif (recherche litterale,
+# celle des deux gardes qu'elle remplace), elle rend suite seule
+# (character(0) sans suite). Appelee par .prefixe_motif_mc() (motif non
+# degenere) et par add() ; motif non manquant, a la charge de l'appelant.
+# La branche MOTIF_MC_OBS_NON_FINIE sans p exacte d'add() (ligne non
+# applicable, #533) compose son propre texte, sans cette aide.
+.motif_mc_indisponible <- function(motif, suite = character(0), detail) {
+  if (!missing(detail) && grepl(motif, detail, fixed = TRUE)) return(suite)
+  if (length(suite)) paste0("Monte-Carlo indisponible : ", motif, ", ", suite)
+  else paste0("Monte-Carlo indisponible : ", motif, ".")
+}
 # Prefixe du detail d'une ligne dont la p Monte-Carlo manque (#358 ; forme
 # fixee par l'errata du 19/10/2026 de la specification Fh, section 4.2),
 # pose par add() seule : motif de degenerescence -> "<motif> : aucune p-value
 # retenue." suivi de son complement (#126) ; autre motif ->
-# "Monte-Carlo indisponible : <motif>." (forme des lignes de type
-# diagnostic ; une ligne de type test y ajoute, dans add(), le sort de sa p
-# non simulee). Finit toujours par un point : .engine_joindre() le joint par
-# une espace. Aucun nombre issu du bootstrap (regle #76).
+# "Monte-Carlo indisponible : <motif>." (compose par
+# .motif_mc_indisponible() ; forme des lignes de type diagnostic ; une
+# ligne de type test y ajoute, dans add(), le sort de sa p non simulee).
+# Finit toujours par un point : .engine_joindre() le joint par une espace.
+# Aucun nombre issu du bootstrap (regle #76).
 .prefixe_motif_mc <- function(motif) {
   if (motif %in% MOTIFS_MC_DEGENERES)
     trimws(paste(c(paste0(motif, " : aucune p-value retenue."),
                    .complement_motif_mc(motif)), collapse = " "))
-  else paste0("Monte-Carlo indisponible : ", motif, ".")
+  else .motif_mc_indisponible(motif)
 }
 # Motif d'indisponibilite Monte-Carlo de la statistique nm, lu au bootstrap
 # (boot$motif_mc, produit par .mc_p_values()) : NA si la p Monte-Carlo est
@@ -4738,8 +4753,8 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         # reglementaire ; elle n'est pas retenue a la place de la p
         # Monte-Carlo absente (ADR 0001), la ligne devient un diagnostic.
         type <- "diagnostic"
-        detail <- trimws(paste0("Monte-Carlo indisponible : ", motif_boot, ", ",
-                                libelle_p_as, " non retenue. ", detail))
+        txt_mc <- .motif_mc_indisponible(motif_boot, paste0(libelle_p_as, " non retenue."))
+        detail <- trimws(paste0(txt_mc, " ", detail))
       }
     }
     # Ligne sans aucune p-value (p exacte, Monte-Carlo et asymptotique toutes
@@ -4846,10 +4861,13 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
         # ci-dessous aurait pose, la bascule la sortant du type test. Il est
         # joint juste apres la phrase "TEST INOPERANT", qui reste en tete
         # (#129), sous la forme de .prefixe_motif_mc(), sauf s'il figure deja
-        # dans le detail (meme garde que le bloc aucune_p). Avec une p exacte
-        # finie, retenue, aucun motif (comme hors R1).
+        # dans le detail (garde de .motif_mc_indisponible(), commune au bloc
+        # aucune_p, #536 : sans suite, l'aide rend character(0) si le motif y
+        # figure deja). Le texte reste choisi par .prefixe_motif_mc() selon
+        # la classe du motif (avis amont d'actuary sur K3b, section 3). Avec
+        # une p exacte finie, retenue, aucun motif (comme hors R1).
         pre_mc <- if (!is.finite(p_ex) && !is.na(motif_boot) &&
-                      !grepl(motif_boot, detail, fixed = TRUE))
+                      length(.motif_mc_indisponible(motif_boot, detail = detail)) > 0L)
           .prefixe_motif_mc(motif_boot) else character(0)
         detail <- trimws(paste(c(sprintf("TEST INOPERANT au seuil alpha = %g : %s = %.4f%s, aucun verdict.",
                                          alpha, lib_pmin, p_min, eff),
@@ -4881,12 +4899,13 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # Test sans aucune p-value (#128, point 2') : type, verdict INFO, sens et
     # p_retenue = NA inchanges (decision du 27/09/2026, "Test sans p-value
     # retenue") ; le detail le dit en tete, precede du motif Monte-Carlo
-    # (motif_boot) s'il existe et n'y figure pas deja.
+    # (motif_boot) s'il existe et n'y figure pas deja (garde de
+    # .motif_mc_indisponible(), #536).
     if (type == "test" && aucune_p) {
-      pre_mc <- if (!is.na(motif_boot) && !grepl(motif_boot, detail, fixed = TRUE))
-        paste0("Monte-Carlo indisponible : ", motif_boot, ", ") else ""
-      detail <- trimws(paste0(pre_mc, "aucune p-value disponible sur ces donnees :",
-                              " aucun verdict. ", detail))
+      txt_aucune <- "aucune p-value disponible sur ces donnees : aucun verdict."
+      if (!is.na(motif_boot))
+        txt_aucune <- .motif_mc_indisponible(motif_boot, txt_aucune, detail)
+      detail <- trimws(paste0(txt_aucune, " ", detail))
     }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > p non simulee
     # (colonne p_asymptotique), dont la nature est nature_as (#120).

@@ -236,4 +236,35 @@ verifier("run_engine() : TOST test, Pitman enumeration, aleatoire et non applica
              identical(k$tost$type, "non applicable") && identical(k$tost$nature_p, NA_character_)
          })
 
+## --- #536 : aide unique du motif "Monte-Carlo indisponible" ---------------------
+## Trois formes (". " sans suite, ", <suite>" sinon, suite seule sous la garde)
+## et garde anti-doublon par recherche litterale ; textes inchanges (Q-60-2 (a)).
+## Les deux gardes d'add() (R1, bloc aucune_p) sont exercees par
+## test_inoperance.R ("deja : <motif>.", "motif deja dans le detail").
+verifier("#536 .motif_mc_indisponible() : formes '<motif>.' et '<motif>, <suite>', avec ou sans detail sans le motif",
+         {
+           m <- MOTIF_MC_REPLIC_INSUFFISANTES
+           identical(.motif_mc_indisponible(m), paste0("Monte-Carlo indisponible : ", m, ".")) &&
+             identical(.motif_mc_indisponible(m, "s."), paste0("Monte-Carlo indisponible : ", m, ", s.")) &&
+             identical(.motif_mc_indisponible(m, detail = "autre."),
+                       paste0("Monte-Carlo indisponible : ", m, ".")) &&
+             identical(.motif_mc_indisponible(m, "s.", "autre."),
+                       paste0("Monte-Carlo indisponible : ", m, ", s."))
+         })
+verifier("#536 .motif_mc_indisponible() : motif deja dans le detail -> suite seule, character(0) sans suite ; recherche litterale",
+         {
+           m <- MOTIF_MC_REPLIC_INSUFFISANTES  # contient "(", "<" et "=" : litteral exige
+           d <- paste0("deja : ", m, ".")
+           identical(.motif_mc_indisponible(m, detail = d), character(0)) &&
+             identical(.motif_mc_indisponible(m, "s.", d), "s.") &&
+             identical(.motif_mc_indisponible("a.c", detail = "abc"), "Monte-Carlo indisponible : a.c.")
+         })
+verifier("#536 .prefixe_motif_mc() : motif non degenere -> forme de l'aide ; motif degenere -> forme propre, hors aide",
+         {
+           m <- MOTIF_MC_AUCUNE_REPLIC; g <- MOTIF_MC_ATOME_HORS_OBS
+           identical(.prefixe_motif_mc(m), .motif_mc_indisponible(m)) &&
+             startsWith(.prefixe_motif_mc(g), paste0(g, " : aucune p-value retenue.")) &&
+             !grepl("Monte-Carlo indisponible", .prefixe_motif_mc(g), fixed = TRUE)
+         })
+
 fin_fichier()
