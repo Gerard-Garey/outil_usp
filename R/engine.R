@@ -992,8 +992,9 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # une chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee par
 # encodeString() seul. guillemets = TRUE : chaque texte est rendu entre
 # guillemets doubles (mw_valider_triangle(), noms d'annee d'accident) ; FALSE :
-# sans guillemets (liste des en-tetes de engine_lire_donnees_csv()). Partagee
-# par ces deux appelants.
+# sans guillemets (liste des en-tetes de engine_lire_donnees_csv() et de
+# .retirer_lignes_colonnes_vides(), motif LE-06, #550). Partagee par ces
+# appelants.
 .echapper_texte <- function(x, guillemets = FALSE) {
   q <- if (guillemets) "\"" else ""
   vapply(enc2utf8(as.character(x)), function(s) {
@@ -7756,7 +7757,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
       err <- c(err, sprintf(paste("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) %s,",
                                   "d'en-tete(s) %s) : annee de developpement sans valeur ; la renseigner",
                                   "ou retirer la colonne."), liste(ent_bord),
-                            paste(utils::head(names(df)[ent_bord], 5), collapse = ", ")))
+                            # en-tetes echappes, listes par liste() comme les numeros (#550)
+                            liste(.echapper_texte(names(df)[ent_bord]))))
   }
   list(df = df[, !retirer, drop = FALSE], erreurs = err)
 }
@@ -9607,8 +9609,8 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # les motifs perl : laisse dans le vecteur sans recodage, un nom "bytes"
     # fait lire trimws() octet par octet pour TOUS les noms (mesure : "2022"
     # suivi d'une espace insecable UTF-8 devenait "2022\xc2" au lieu de
-    # "2022"). Les motifs des autres noms gardent les numeros de ligne et les
-    # i= du triangle d'origine.
+    # "2022"). Les motifs des autres noms gardent les indices i (i = k - 1)
+    # du triangle d'origine.
     octets <- !is.na(noms) & Encoding(noms) == "bytes"
     # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
     # comparaison : une chaine non ASCII d'encodage "unknown" est
@@ -9655,16 +9657,16 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # Motifs par ligne dans l'ordre des lignes : "bytes" ou nom manquant.
     for (k in which(octets | manquant))
       err <- c(err, if (octets[k]) sprintf(paste(
-        "Nom d'annee d'accident en ligne %d (i=%d) declare d'encodage \"bytes\" :",
+        "Nom de l'annee d'accident i = %d declare d'encodage \"bytes\" :",
         "ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en",
-        "Latin-1 declare."), k, k - 1L)
-        else sprintf("Nom d'annee d'accident manquant ou vide en ligne %d (i=%d).",
-                     k, k - 1L))
+        "Latin-1 declare."), k - 1L)
+        else sprintf("Nom de l'annee d'accident i = %d manquant ou vide.", k - 1L))
     # Doublons compares sur les noms renseignes debarrasses de leurs blancs
     # initiaux et finaux ("2022", " 2022" et "2022" suivi d'une espace
     # insecable designent la meme annee), sans autre normalisation (ni casse,
     # ni conversion numerique). Un motif par nom en double, qui cite les
-    # formes saisies et les positions des lignes. Chaque forme est citee
+    # formes saisies et les indices i des annees d'accident (i = k - 1 pour la
+    # ligne k ; une seule notation par message, #550). Chaque forme est citee
     # entre guillemets, echappee de facon independante de la locale par
     # .echapper_texte() (guillemets = TRUE), partagee avec la liste des
     # en-tetes d'engine_lire_donnees_csv() : regle et motifs de l'echappement
@@ -9676,9 +9678,9 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       paste(paste(x[-length(x)], collapse = ", "), "et", x[length(x)])
     for (d in unique(cle[examine & duplicated(cle)])) {
       k <- which(examine & cle == d)
-      err <- c(err, sprintf("Annee d'accident en double : %s (lignes %s, %s).",
+      err <- c(err, sprintf("Annee d'accident en double : %s (annees d'accident %s).",
                             paste(citer(unique(noms_u[k])), collapse = ", "),
-                            enum(k), enum(paste0("i=", k - 1L))))
+                            enum(paste0("i = ", k - 1L))))
     }
   }
   # Bareme, segment et annexe (issue #131) : controles apres les erreurs de

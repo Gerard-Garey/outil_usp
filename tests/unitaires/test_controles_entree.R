@@ -2262,6 +2262,31 @@ verifier("engine_lire_triangle : LE-06, une puis deux colonnes vides a en-tete a
                              "d'en-tete(s) 8, 9) : annee de developpement sans valeur ; la renseigner ou",
                              "retirer la colonne."))
          })
+# #550 (O2) : la liste des en-tetes de LE-06 est coupee a cinq par liste(),
+# comme celle des numeros de colonne, et le reste est dit (" et N autre(s)") ;
+# chaque en-tete est echappe par .echapper_texte() (tabulation -> \t, espace
+# insecable -> \u00a0). Six colonnes vides a en-tete : "10, 11, 12, 13, 14 et
+# 1 autre(s)" deux fois ; sept : "et 2 autre(s)" deux fois.
+verifier("engine_lire_triangle : LE-06, six puis sept colonnes vides a en-tete au bord -> les deux listes signalent le reste ; en-tetes echappes (#550)",
+         {
+           ajoute <- function(noms) {
+             d <- tri_527
+             for (n in noms) d[[n]] <- ""
+             d
+           }
+           suite <- function(col, ent) paste0("Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) ",
+                                              col, ", d'en-tete(s) ", ent, ") : annee de developpement sans valeur ; ",
+                                              "la renseigner ou retirer la colonne.")
+           plain <- paste0("vide", 1:5)
+           e6 <- engine_lire_triangle(ajoute(c(plain, "vide6")))$erreurs
+           e7 <- engine_lire_triangle(ajoute(c(plain, "vide6", "vide7")))$erreurs
+           ec <- engine_lire_triangle(ajoute(c("vide1", "v\tide2", paste0("vide3", intToUtf8(0xA0)),
+                                               "vide4", "vide5", "vide6")))$erreurs
+           identical(e6, suite("10, 11, 12, 13, 14 et 1 autre(s)", "vide1, vide2, vide3, vide4, vide5 et 1 autre(s)")) &&
+             identical(e7, suite("10, 11, 12, 13, 14 et 2 autre(s)", "vide1, vide2, vide3, vide4, vide5 et 2 autre(s)")) &&
+             identical(ec, suite("10, 11, 12, 13, 14 et 1 autre(s)",
+                                 "vide1, v\\tide2, vide3\\u00a0, vide4, vide5 et 1 autre(s)"))
+         })
 verifier("engine_lire_donnees_csv : LE-07, une colonne, puis deux colonnes a plus de cinq cellules et cellule \"NA\" -> textes complets (#527)",
          {
            s1 <- ser_527; s1$xt[3] <- "abc"
