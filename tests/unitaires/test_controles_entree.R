@@ -2668,6 +2668,101 @@ if (nzchar(Sys.which("zip"))) {
                                                                                    donnees487(0), fixed = TRUE)))), lire487)
   verifier("xlsx (#487) : attribut r sous la forme r='B2' ou r = \"B2\" (XML legal) refuse comme cellule sans reference, texte fixe, sur chaque chemin",
            tous487(rapo, function(d) identical(d, CELLULE_SANS_R)) && tous487(rbl, function(d) identical(d, CELLULE_SANS_R)))
+  # Revue finale de K2 (#487) : classeurs ecrits a la main, fichier par
+  # fichier (workbook.xml et relations libres), lus par les deux chemins.
+  brut487 <- function(wbx, relsx, feuilles = list("xl/worksheets/sheet1.xml" = NULL)) {
+    d <- tempfile("b487_"); dir.create(d)
+    on.exit(unlink(d, recursive = TRUE), add = TRUE)
+    h <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    ns <- "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    fichiers <- c(list(
+      "[Content_Types].xml" = paste0(h, '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'),
+      "_rels/.rels" = paste0(h, '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'),
+      "xl/workbook.xml" = paste0(h, wbx), "xl/_rels/workbook.xml.rels" = paste0(h, relsx)),
+      lapply(feuilles, function(x) paste0(h, if (is.null(x)) paste0('<worksheet xmlns="', ns, '"><sheetData>', donnees487(0),
+                                                                      '</sheetData></worksheet>') else x)))
+    for (n in names(fichiers)) {
+      q <- file.path(d, n); dir.create(dirname(q), recursive = TRUE, showWarnings = FALSE)
+      writeLines(fichiers[[n]], q, useBytes = TRUE)
+    }
+    f <- tempfile(fileext = ".xlsx")
+    od <- setwd(d); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  rt487 <- "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  wb487 <- function(sheets, p = "") paste0('<', p, 'workbook xmlns', if (nzchar(p)) paste0(":", sub(":", "", p)),
+    '="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="', rt487, '"><', p, 'sheets>', sheets,
+    '</', p, 'sheets></', p, 'workbook>')
+  rels487 <- function(liens, p = "") paste0('<', p, 'Relationships xmlns', if (nzchar(p)) paste0(":", sub(":", "", p)),
+    '="http://schemas.openxmlformats.org/package/2006/relationships">', liens, '</', p, 'Relationships>')
+  lien487 <- function(id, cible, type = "worksheet", p = "", q = '"')
+    paste0('<', p, 'Relationship Id=', q, id, q, ' Type=', q, rt487, '/', type, q, ' Target=', q, cible, q, '/>')
+  sh487 <- '<sheet name="D" sheetId="1" r:id="rId1"/>'
+  li487 <- lien487("rId1", "worksheets/sheet1.xml")
+  # Lecteur interne seul ; le chemin openxlsx rend une erreur R (classeur que
+  # openxlsx 4.2.9 ne lit pas, mesure) sans la classe usp_refus_lecture.
+  interne_seul487 <- function(r) is.data.frame(r$interne) && identical(names(r$interne), c("t", "xt", "yt")) &&
+    identical(as.numeric(r$interne$xt), c(1, 3)) &&
+    (!avec_openxlsx483 || (is.character(r$openxlsx) && !identical(r$openxlsx, "Classeur illisible : aucune feuille trouvee.")))
+  rpx <- chemins483(brut487(wb487('<x:sheet name="D" sheetId="1" r:id="rId1"/>', "x:"), rels487(li487)), lire487)
+  rpr <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "worksheets/sheet1.xml", p = "p:"), "p:")), lire487)
+  rap <- chemins483(brut487(wb487("<sheet name='D' sheetId='1' r:id='rId1'/>"), rels487(lien487("rId1", "worksheets/sheet1.xml", q = "'"))), lire487)
+  reg <- chemins483(brut487(wb487('<sheet name="D" sheetId="1" r:id = "rId1"/>'), rels487(li487)), lire487)
+  verifier("xlsx, lecteur interne (#487) : balises <x:sheet> et <p:Relationship> prefixees, attributs entre apostrophes, blancs autour de = : premiere feuille lue ; openxlsx 4.2.9 ne les lit pas (erreur R, non un refus)",
+           all(vapply(list(rpx, rpr, rap, reg), interne_seul487, logical(1))))
+  rnx <- chemins483(brut487(wb487('<sheet name="x id=" sheetId="1" r:id="rId1"/>'), rels487(li487)), lire487)
+  rna2 <- chemins483(brut487(wb487('<sheet name="a r:id=\'rId2\' b" sheetId="1" r:id="rId1"/><sheet name="B" sheetId="2" r:id="rId2"/>'),
+                             rels487(paste0(li487, lien487("rId2", "worksheets/sheet2.xml"))),
+                             list("xl/worksheets/sheet1.xml" = NULL,
+                                  "xl/worksheets/sheet2.xml" = paste0('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>',
+                                                                      donnees487(500), '</sheetData></worksheet>'))), lire487)
+  verifier("xlsx (#487) : attribut lu entier (name=\"x id=\" ne capte plus id=, r:id='rId2' dans la valeur de name ignore) : premiere feuille lue sur chaque chemin",
+           base487(rnx, 0) && base487(rna2, 0) &&
+             identical(.xlsx_attribut('<sheet name="x id=" sheetId="7" r:id="rId1"/>', "id"), "rId1") &&
+             identical(.xlsx_attribut("<sheet name='a&amp;b' sheetId='7'/>", "name"), "a&b") &&
+             identical(.xlsx_attribut('<sheet name="D" sheetId="7"/>', "id"), NA_character_))
+  rabs <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "/xl/worksheets/sheet1.xml"))), lire487)
+  rdbl <- chemins483(brut487(wb487(sh487), rels487(lien487("rId1", "//xl/worksheets/sheet1.xml"))), lire487)
+  verifier("xlsx (#487) : cible \"/xl/worksheets/sheet1.xml\" (nom de partie absolu, forme d'openpyxl) lue sur chaque chemin ; \"//xl/...\" refusee \"aucune feuille trouvee\" ; regle unique .xlsx_chemin_sort()",
+           base487(rabs, 0) && tous487(rdbl, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")) &&
+             identical(.xlsx_chemin_sort(c("xl/a.xml", "../a", "a/../b", "a\\..\\b", "/a", "\\a", "C:a", "a..b", "..a")),
+                       c(FALSE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE)))
+  # Feuille de graphique en premier onglet : openxlsx::read.xlsx(sheet = 1) la
+  # lit et rend NULL (mesure, openxlsx 4.2.9) ; la premiere feuille de calcul
+  # est lue sur chaque chemin (openxlsx appele avec son rang).
+  cs487 <- '<chartsheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews></chartsheet>'
+  rch <- chemins483(brut487(wb487('<sheet name="G" sheetId="1" r:id="rId1"/><sheet name="G2" sheetId="2" r:id="rId3"/><sheet name="D" sheetId="3" r:id="rId2"/>'),
+                            rels487(paste0(lien487("rId2", "worksheets/sheet1.xml"), lien487("rId1", "chartsheets/sheet1.xml", "chartsheet"),
+                                           lien487("rId3", "chartsheets/sheet2.xml", "chartsheet"))),
+                            list("xl/worksheets/sheet1.xml" = NULL, "xl/chartsheets/sheet1.xml" = cs487, "xl/chartsheets/sheet2.xml" = cs487)), lire487)
+  rch0 <- chemins483(brut487(wb487('<sheet name="G" sheetId="1" r:id="rId1"/>'), rels487(lien487("rId1", "chartsheets/sheet1.xml", "chartsheet")),
+                             list("xl/chartsheets/sheet1.xml" = cs487)), lire487)
+  verifier("xlsx (#487) : deux feuilles de graphique avant la feuille de calcul : la feuille de calcul est lue sur chaque chemin ; classeur sans feuille de calcul refuse \"aucune feuille trouvee\"",
+           base487(rch, 0) && tous487(rch0, function(d) identical(d, "Classeur illisible : aucune feuille trouvee.")))
+  # Attributs r et t lus dans la seule balise ouvrante (.xlsx_cellules()) :
+  # un texte r="B9" ou t="s" dans une chaine en ligne ne deplace ni ne retype
+  # la cellule (le lecteur interne placait la valeur en B9).
+  rgl <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+    ligne487(2, c(en487("A2", '<t>x r="B9"</t>'), nb487("B2", 2))),
+    ligne487(3, c(en487("A3", '<t>q t="s"</t>'), nb487("B3", 4))))))), lire487)
+  verifier("xlsx (#487) : chaine en ligne portant r=\"B9\" ou t=\"s\" lue a sa place et en texte sur chaque chemin (deux lignes de donnees)",
+           tous487(rgl, function(d) is.data.frame(d) && identical(d$xt, c('x r="B9"', 'q t="s"')) &&
+                     identical(as.numeric(d$yt), c(2, 4))))
+  # Attributs de cellule compares par leur nom entier (revue de l'audit) : un
+  # attribut prefixe x:r ou x:t place avant r et t n'est pas lu a leur place ;
+  # openxlsx 4.2.9 place, lui, la valeur en Z9 (mesure, non fige ici).
+  rxr <- lire487(sans_openxlsx483(engine_lire_xlsx(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+    ligne487(2, c('<c x:r="Z9" r="A2" x:t="s" t="n"><v>5</v></c>', nb487("B2", 6))))))))))
+  verifier("xlsx, lecteur interne (#487) : <c x:r=\"Z9\" r=\"A2\" x:t=\"s\" t=\"n\"> lue en A2, en nombre (attributs r et t compares par leur nom entier)",
+           is.data.frame(rxr) && identical(names(rxr), c("xt", "yt")) && identical(rxr$xt, 5) && identical(rxr$yt, 6) &&
+             identical(.xlsx_cellules('<c x:r="Z9" r="A1" t="n"><v>1</v></c>')$ref, "A1") &&
+             identical(.xlsx_attribut('<sheet x:id="rId4" name="D"/>', "id"), "rId4"))
   # Entites XML. Chaines partagees : entites nommees lues pareil par les deux
   # chemins ; le reste (references numeriques, chaines en ligne, "&amp;lt;" que
   # openxlsx decode deux fois) n'est lu juste que par le lecteur interne
@@ -2812,14 +2907,19 @@ if (nzchar(Sys.which("zip"))) {
              tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE)))),
                      function(k) is.character(k) && "error" %in% k && !"usp_refus_lecture" %in% k))
   # Reference de cellule en minuscules (r="a1", reserve de l'audit) : la ligne
-  # 1 est reconnue, pas de refus "ligne 1" ; une telle feuille reste illisible
-  # par les deux chemins (erreur R ordinaire, constat anterieur a #522).
+  # 1 est reconnue, pas de refus "ligne 1" ; le lecteur interne lit la
+  # feuille (reference mise en majuscules par .xlsx_cellules(), #487 ; il
+  # levait une erreur R) ; openxlsx 4.2.9 leve une erreur R ordinaire.
   rmin <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     '<row r="1"><c r="a1" t="inlineStr"><is><t>xt</t></is></c><c r="b1" t="inlineStr"><is><t>yt</t></is></c></row>',
-    '<row r="2"><c r="a2"><v>1</v></c><c r="b2"><v>2</v></c></row>')))),
+    '<row r="2"><c r="a2"><v>1</v></c><c r="b2"><v>2</v></c></row><row r="3"><c r="a3"><v>3</v></c><c r="b3"><v>4</v></c></row>')))),
     function(d) tryCatch(d, error = function(e) class(e)))
-  verifier("xlsx (#522) : references en minuscules (r=\"a1\") : pas de refus de la ligne 1 sur chaque chemin (lettres de colonne en minuscules reconnues)",
+  verifier("xlsx (#522, #487) : references en minuscules (r=\"a1\") : pas de refus de la ligne 1 sur chaque chemin ; lecteur interne : feuille lue (xt = 1, 3 ; yt = 2, 4) ; openxlsx : erreur R ordinaire",
            tous487(rmin, function(k) !identical(k, REFUS522)) &&
+             is.data.frame(rmin$interne) && identical(names(rmin$interne), c("xt", "yt")) &&
+             identical(rmin$interne$xt, c(1, 3)) && identical(rmin$interne$yt, c(2, 4)) &&
+             (!avec_openxlsx483 || (is.character(rmin$openxlsx) && "error" %in% rmin$openxlsx &&
+                                      !"usp_refus_lecture" %in% rmin$openxlsx)) &&
              identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
                                 error = function(e) "refus"), NULL))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")

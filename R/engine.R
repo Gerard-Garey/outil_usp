@@ -8225,20 +8225,77 @@ engine_ecrire_csv <- function(df, chemin) {
   .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
 }
 
-# Valeur d'un attribut (entre guillemets doubles) dans une balise ouvrante ;
-# NA s'il est absent. nom sans prefixe d'espace de noms : "id" lit aussi
-# "r:id", mais pas "sheetId".
-.xlsx_attribut <- function(balise, nom) {
-  m <- regmatches(balise, regexpr(paste0("[ \t\r\n:]", nom, "=\"[^\"]*\""), balise))
-  if (!length(m)) return(NA_character_)
-  .xml_decoder(sub("^[^=]*=\"(.*)\"$", "\\1", m))
+# Valeur d'un attribut dans une balise ouvrante ; NA s'il est absent. La
+# balise est decoupee en attributs entiers, de gauche a droite : paires
+# nom="valeur" ou nom='valeur' (guillemets doubles ou apostrophes, blancs
+# admis autour du signe =, XML legal), et le nom de chaque attribut est
+# compare exactement a nom ; un texte "x id=" dans la valeur d'un autre
+# attribut (name="x id=") n'est pas pris pour un attribut (#487). local =
+# TRUE (classeur et relations) : nom local compare, prefixe d'espace de noms
+# retire, "id" lit "r:id" et "id", mais pas "sheetId" ; local = FALSE
+# (attributs r et t d'une cellule, .xlsx_cellules()) : nom entier compare,
+# x:r="Z9" n'est pas l'attribut r (revue de l'audit). Le nom de l'element
+# (<sheet, <x:sheet) n'est pas un attribut. Premiere occurrence retenue.
+# Valeur decodee (.xml_decoder()).
+.xlsx_attribut <- function(balise, nom, local = TRUE) {
+  paires <- regmatches(balise, gregexpr(
+    "[^[:space:]<>=\"'/]+[[:space:]]*=[[:space:]]*(\"[^\"]*\"|'[^']*')", balise))[[1]]
+  if (!length(paires)) return(NA_character_)
+  noms <- sub("[[:space:]]*=.*$", "", paires)
+  k <- which((if (local) sub("^.*:", "", noms) else noms) == nom)
+  if (!length(k)) return(NA_character_)
+  v <- sub("^[^=]*=[[:space:]]*", "", paires[k[1L]])
+  .xml_decoder(substr(v, 2L, nchar(v) - 1L))
 }
 
-# Fichier XML de la premiere feuille du classeur, dans l'ordre de
-# xl/workbook.xml (premiere balise <sheet>), par la cible que xl/_rels/
-# workbook.xml.rels donne a son r:id : le nom du fichier (sheet2.xml,
-# sheet10.xml...) ne dit rien de l'ordre des feuilles (#487). Refus si le
-# classeur ne permet pas de la resoudre.
+# Balises ouvrantes d'un element, avec ou sans prefixe d'espace de noms
+# (<sheet ...> et <x:sheet ...>, forme ecrite par Open XML SDK ; #487) : le
+# nom de l'element doit etre suivi d'un blanc, ce qui ecarte <sheets> et
+# <Relationships>.
+.xlsx_balises <- function(xml, element)
+  regmatches(xml, gregexpr(paste0("<([A-Za-z_][A-Za-z0-9_.-]*:)?", element, "[ \t\r\n][^>]*>"), xml))[[1]]
+
+# Vrai pour un chemin qui sort du dossier de lecture : composant ".." (avec
+# l'un ou l'autre separateur), chemin absolu ("/" ou "\" initial) ou chemin
+# de lecteur ("C:"). Regle unique, appliquee aux entrees de l'archive avant
+# extraction (zip slip) et a la cible de la feuille lue (#487). La cible
+# "/xl/worksheets/sheet1.xml" d'une relation est un nom de partie absolu
+# dans le paquet OPC (forme ecrite par openpyxl 3.1.5, mesure ; lue par
+# openxlsx 4.2.9) : son seul "/" initial, qui designe la racine du paquet,
+# est retire avant la regle par .xlsx_fichier_feuille() ; "//xl/..." garde
+# alors un "/" initial et est refusee.
+.xlsx_chemin_sort <- function(x)
+  grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[/\\\\]|^[A-Za-z]:", x)
+
+# Cellules <c> du XML d'une feuille, regle unique du controle de la ligne
+# d'en-tete et du lecteur interne (#487, #522) : cellule vide (<c .../>) ou
+# avec contenu (<c ...>...</c>). Les attributs r et t sont lus dans la seule
+# balise ouvrante (.xlsx_attribut(), nom entier : un attribut prefixe x:r
+# n'est pas r), jamais dans le texte de la cellule (<is><t>x r="B9"</t></is>
+# ne deplace plus la valeur). La reference r est
+# mise en majuscules : r="a1" designe la cellule A1 (les references de
+# cellule ne distinguent pas la casse). Renvoie list(cellules, balise, ref,
+# typ) ; ref et typ valent NA pour un attribut absent.
+.xlsx_cellules <- function(xml) {
+  cellules <- regmatches(xml, gregexpr("<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>", xml))[[1]]
+  balise <- regmatches(cellules, regexpr("^<c[^>]*>", cellules))
+  list(cellules = cellules, balise = balise,
+       ref = toupper(vapply(balise, .xlsx_attribut, "", nom = "r", local = FALSE, USE.NAMES = FALSE)),
+       typ = vapply(balise, .xlsx_attribut, "", nom = "t", local = FALSE, USE.NAMES = FALSE))
+}
+
+# Fichier XML de la premiere feuille de calcul du classeur, dans l'ordre de
+# xl/workbook.xml (balises <sheet>, prefixees ou non), par la cible que
+# xl/_rels/workbook.xml.rels donne a son r:id : le nom du fichier
+# (sheet2.xml, sheet10.xml...) ne dit rien de l'ordre des feuilles (#487).
+# Feuille de calcul : relation dont l'attribut Type finit par "/worksheet"
+# (a defaut d'attribut Type, cible sous "worksheets/") ; une feuille de
+# graphique (chartsheet) placee avant est passee. Renvoie list(fichier,
+# rang) : rang est la position de la feuille parmi les balises <sheet>,
+# l'indice que openxlsx::read.xlsx(sheet =) attend (mesure, openxlsx 4.2.9 :
+# sheet = k lit la k-ieme balise <sheet>, feuilles de graphique comprises ;
+# sur une feuille de graphique il rend NULL). Refus si le classeur ne permet
+# pas de la resoudre.
 .xlsx_fichier_feuille <- function(d) {
   refus <- function() stop("Classeur illisible : aucune feuille trouvee.")
   lire <- function(rel) {
@@ -8247,24 +8304,34 @@ engine_ecrire_csv <- function(df, chemin) {
   }
   wb <- lire("xl/workbook.xml")
   rels <- lire("xl/_rels/workbook.xml.rels")
-  feuilles <- regmatches(wb, gregexpr("<sheet[ \t\r\n][^>]*>", wb))[[1]]
+  feuilles <- .xlsx_balises(wb, "sheet")
   if (!length(feuilles)) refus()
-  id <- .xlsx_attribut(feuilles[1L], "id")
-  liens <- regmatches(rels, gregexpr("<Relationship[ \t\r\n][^>]*>", rels))[[1]]
-  cible <- NA_character_
-  for (l in liens)
-    if (identical(.xlsx_attribut(l, "Id"), id)) { cible <- .xlsx_attribut(l, "Target"); break }
-  if (is.na(id) || is.na(cible)) refus()
-  # une cible qui sort du classeur n'est pas suivie : ".." avec l'un ou l'autre
-  # separateur, chemin de lecteur ou commencant par "\" ; puis, resolue, la
-  # cible doit rester sous d. Un dossier n'est pas une feuille (utils::file_test).
-  if (grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[\\\\]|^[A-Za-z]:", cible)) refus()
-  cible <- if (startsWith(cible, "/")) substring(cible, 2L) else file.path("xl", cible)
+  liens <- .xlsx_balises(rels, "Relationship")
+  ids_liens <- vapply(liens, .xlsx_attribut, "", nom = "Id", USE.NAMES = FALSE)
+  rang <- NA_integer_; cible <- NA_character_
+  for (k in seq_along(feuilles)) {
+    id <- .xlsx_attribut(feuilles[k], "id")
+    l <- if (is.na(id)) integer(0) else which(ids_liens == id)
+    if (!length(l)) next
+    type <- .xlsx_attribut(liens[l[1L]], "Type")
+    cb <- .xlsx_attribut(liens[l[1L]], "Target")
+    calcul <- if (is.na(type)) !is.na(cb) && grepl("(^|/)worksheets/", cb) else grepl("/worksheet$", type)
+    if (calcul) { rang <- k; cible <- cb; break }
+  }
+  if (is.na(rang) || is.na(cible)) refus()
+  # une cible qui sort du classeur n'est pas suivie (.xlsx_chemin_sort(), meme
+  # regle que pour les entrees de l'archive, apres retrait du seul "/" initial
+  # d'un nom de partie absolu) ; puis, resolue, la cible doit rester sous d.
+  # Un dossier n'est pas une feuille (utils::file_test).
+  absolue <- startsWith(cible, "/")
+  if (absolue) cible <- substring(cible, 2L)
+  if (.xlsx_chemin_sort(cible)) refus()
+  if (!absolue) cible <- file.path("xl", cible)
   f <- file.path(d, cible)
   if (!utils::file_test("-f", f)) refus()
   racine <- normalizePath(d, winslash = "/", mustWork = FALSE)
   if (!startsWith(normalizePath(f, winslash = "/", mustWork = FALSE), paste0(racine, "/"))) refus()
-  f
+  list(fichier = f, rang = rang)
 }
 
 # Controle du XML de la feuille lue, commun aux deux chemins de lecture et
@@ -8274,9 +8341,10 @@ engine_ecrire_csv <- function(df, chemin) {
 # sans ce controle, openxlsx leve une erreur R brute ou perd la valeur sans
 # message, et le lecteur interne de meme (#487). L'attribut n'est reconnu que
 # sous la forme r="..." (guillemets doubles, sans blanc autour du signe =),
-# celle que les tableurs ecrivent, comme les autres attributs lus ici : r='A2'
-# ou r = "A2", XML legal, sont refuses avec le meme texte (refus, jamais une
-# position devinee). Une balise <c suivie de TAB, CR ou LF est refusee, avec
+# celle que les tableurs ecrivent : r='A2' ou r = "A2", XML legal, sont
+# refuses avec le meme texte (refus, jamais une position devinee), alors que
+# .xlsx_attribut() lit ces formes dans xl/workbook.xml et ses relations
+# (#487). Une balise <c suivie de TAB, CR ou LF est refusee, avec
 # son propre texte, avant ce controle.
 .xlsx_controler_cellules <- function(xml) {
   # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF) : XML legal,
@@ -8314,17 +8382,15 @@ engine_ecrire_csv <- function(df, chemin) {
 # visee (elle garde ses refus : tableau vide) ; un titre seul en A1, ligne 1
 # qui porte une valeur, ne l'est pas non plus (refuse plus loin par les
 # controles de colonnes). La ligne d'une cellule est lue dans sa balise
-# ouvrante (r="A1").
+# ouvrante (r="A1", .xlsx_cellules()).
 .xlsx_controler_ligne_entete <- function(xml) {
-  cellules <- regmatches(xml, gregexpr("<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>", xml))[[1]]
-  if (!length(cellules)) return(invisible(NULL))
-  avec_valeur <- grepl("<v>|<is>", cellules)
+  cc <- .xlsx_cellules(xml)
+  if (!length(cc$cellules)) return(invisible(NULL))
+  avec_valeur <- grepl("<v>|<is>", cc$cellules)
   if (!any(avec_valeur)) return(invisible(NULL))
-  balise <- sub("^(<c[^>]*>).*$", "\\1", cellules)
-  ref <- vapply(balise, .xlsx_attribut, "", nom = "r", USE.NAMES = FALSE)
   # Lettres de colonne en majuscules ou en minuscules (r="a1" : ligne 1,
-  # reserve de l'audit) ; le motif ne lit que le numero de ligne.
-  ligne1 <- !is.na(ref) & grepl("^[A-Za-z]+1$", ref)
+  # reserve de l'audit ; .xlsx_cellules() met la reference en majuscules).
+  ligne1 <- !is.na(cc$ref) & grepl("^[A-Z]+1$", cc$ref)
   if (!any(avec_valeur & ligne1))
     .refus_lecture("Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete.")
   invisible(NULL)
@@ -8405,7 +8471,20 @@ engine_ecrire_csv <- function(df, chemin) {
 # 4.2.9 perd la cellule sans message (NA) ou rend NULL. Une cible de feuille
 # "./worksheets/sheet1.xml" est acceptee par le controle et lue par le lecteur
 # interne, mais lue par openxlsx 4.2.9 par une erreur R brute ("Length of
-# worksheet is 0"). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
+# worksheet is 0"). Feuille lue : la premiere feuille de calcul, feuilles de
+# graphique placees avant passees, sur les deux chemins (openxlsx appele avec
+# son rang, .xlsx_fichier_feuille()). Balises <sheet> et <Relationship>
+# prefixees (<x:sheet>), attributs entre apostrophes ou a blancs autour du
+# signe = dans xl/workbook.xml et ses relations : lus par le lecteur interne,
+# mais pas par openxlsx 4.2.9 (mesure : "Workbook has no worksheets" ou
+# "Length of worksheet is 0", erreur R brute, message fixe de l'application) ;
+# une feuille dont les balises de cellule sont prefixees (<x:c>) n'est lue
+# par aucun des deux chemins comme un tableau. Une reference de cellule en
+# minuscules (r="a1") est lue par le lecteur interne (.xlsx_cellules()) ;
+# openxlsx 4.2.9 la lit par une erreur R brute ("missing value where
+# TRUE/FALSE needed"). Un attribut prefixe avant r (<c x:r="Z9" r="A2">)
+# n'est pas pris pour r par le lecteur interne (valeur en A2) ; openxlsx
+# 4.2.9 place la valeur en Z9 (mesure). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
 # parite mesuree sous C.UTF-8 seulement.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   .engine_point_decimal()
@@ -8420,15 +8499,17 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   noms <- tryCatch(suppressWarnings(utils::unzip(chemin, list = TRUE)$Name),
                    error = function(e) NULL)
   if (is.null(noms)) stop("Classeur illisible : aucune feuille trouvee.")
-  if (any(grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[/\\\\]|^[A-Za-z]:", noms)))
+  if (any(.xlsx_chemin_sort(noms)))
     stop("Classeur illisible : l'archive contient une entree dont le chemin sort du dossier de lecture (chemin absolu ou \"..\").")
   utils::unzip(chemin, exdir = d)
-  fichier <- .xlsx_fichier_feuille(d)
-  xml <- .xlsx_texte(fichier)
+  feuille <- .xlsx_fichier_feuille(d)
+  xml <- .xlsx_texte(feuille$fichier)
   .xlsx_controler_cellules(xml)
   if (entete) .xlsx_controler_ligne_entete(xml)
+  # openxlsx lit la feuille resolue par son rang (feuilles de graphique
+  # placees avant passees, #487).
   if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = 1, colNames = entete,
+    return(openxlsx::read.xlsx(chemin, sheet = feuille$rang, colNames = entete,
                                skipEmptyRows = FALSE, skipEmptyCols = FALSE,
                                na.strings = character(0), sep.names = " "))
   # table des chaines partagees, si presente
@@ -8439,12 +8520,14 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
     partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
-  cells <- regmatches(xml, gregexpr('<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>', xml))[[1]]
+  # r et t lus dans la seule balise ouvrante, reference en majuscules
+  # (.xlsx_cellules(), regle commune avec .xlsx_controler_ligne_entete()).
+  cc <- .xlsx_cellules(xml)
+  cells <- cc$cellules
   if (!length(cells)) return(data.frame())
-  ref <- sub('.*r="([A-Z]+)([0-9]+)".*', "\\1|\\2", cells)
-  col <- vapply(sub("\\|.*", "", ref), .lettre_col, numeric(1))
-  lig <- as.integer(sub(".*\\|", "", ref))
-  typ <- ifelse(grepl('t="[^"]*"', cells), sub('.*t="([^"]*)".*', "\\1", cells), "n")
+  col <- vapply(sub("[0-9]+$", "", cc$ref), .lettre_col, numeric(1), USE.NAMES = FALSE)
+  lig <- as.integer(sub("^[A-Z]+", "", cc$ref))
+  typ <- ifelse(is.na(cc$typ), "n", cc$typ)
   val <- rep(NA_character_, length(cells))
   vv <- regmatches(cells, regexpr("<v>.*?</v>", cells))
   ok <- grepl("<v>", cells)
