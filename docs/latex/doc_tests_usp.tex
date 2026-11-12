@@ -12338,8 +12338,12 @@ entre u et z, d'ou ni identite garantie ni p exacte.}~»), sans nommer la cause 
 traitement numérique à $\hat\pi_t$ \emph{exactement} constant (centrage de $u$ par la
 moyenne, aplatissement des ex \ae quo à une tolérance relative à $\max_t|r_t|$ sur $u$ et absolue
 sous~1 sur $z$, section~\ref{sec:ex-aequo}), variation résiduelle de $\hat\pi_t$ quand il n'est
-constant qu'à \code{TOL\_DELTA\_BORD} près~; quand un seul côté de la médiane est représenté, il
-dit «~\code{sans p exacte (un seul cote de la mediane represente)}~». Il ne cite pas la p-value de
+constant qu'à \code{TOL\_DELTA\_BORD} près. Quand un seul côté de la médiane est représenté, $R$
+n'est pas définie et la ligne est non applicable, au commentaire «~\code{un seul cote de la mediane
+represente : loi de R non definie, test non applicable}~»~; à l'inverse, $R$ finie suppose
+$n_1, n_2 \ge 1$ et $(n_1, n_2) \neq (1, 1)$, si bien que la p-value exacte existe dès que
+$\hat\pi_t$ est constant et que les signes de $u_t$ et $z_t$ coïncident (un objet bootstrap
+contraire est refusé par une erreur). Le commentaire ne cite pas la p-value de
 Monte-Carlo~; quand elle manque, le motif Monte-Carlo en tête du commentaire et la phrase de la
 règle~R15 disent seuls l'absence de p-value retenue (cas construit, $\delta$ fixé à
 $1 - 5\cdot 10^{-7}$ et un ratio rapproché de son voisin à $10^{-10}$ près~: commentaire ouvert
