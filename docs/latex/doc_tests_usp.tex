@@ -840,16 +840,40 @@ sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
 dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
-\code{engine\_lire\_xlsx()}, \code{engine\_ecrire\_xlsx()} & \code{chemin},
-\code{entete}~; \code{df}, \code{chemin}, \code{feuille} & \code{data.frame}
-lu~; chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
-supprimé à la sortie (§\ref{sec:graines})~; \code{openxlsx}, s'il est installé, est appelé sans
-retrait des lignes et colonnes vides et sans conversion de la cellule texte «~\code{NA}~»~; à la
-lecture, dans la voie de repli, une colonne n'est
+\code{engine\_lire\_xlsx()} & \code{chemin}, \code{entete} (\code{TRUE}) & \code{data.frame}
+lu dans la première feuille du classeur, dans l'ordre de \code{xl/workbook.xml}, par la cible que
+les relations du classeur donnent à cette feuille (et non par le nom de son fichier)~; archive
+extraite, avec ou sans \code{openxlsx}, dans un dossier temporaire supprimé à la sortie, sans
+tirage aléatoire (§\ref{sec:graines}), après refus d'une archive dont une entrée a un chemin
+absolu ou contenant «~\code{..}~»~; refus, avant l'appel à \code{openxlsx} et de même sur les deux
+chemins de lecture, d'une cellule sans attribut de position \code{r} et d'une balise de cellule
+\code{<c} suivie d'un blanc autre que l'espace (§\ref{sec:controles})~; \code{openxlsx}, s'il est
+installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
+texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
+(blancs de bord retirés, suite de blancs intérieurs ramenée à une espace)~; dans la voie de
+repli, entités XML nommées et références numériques des chaînes partagées et en ligne décodées,
+chaîne en ligne enrichie lue entière, et une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
-caractères, interprétée en aval (§\ref{sec:controles})~; à l'écriture, dans la voie de repli, chaque nombre fini est écrit
+caractères, interprétée en aval (§\ref{sec:controles}) \\
+\code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
+\code{.xlsx\_attribut()},\newline \code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
+\code{.xlsx\_controler\_}\newline\code{cellules()},\newline \code{.xlsx\_blancs\_}\newline\code{entete()}
+& fichier XML~; texte~; fragment XML~; balise, nom d'attribut~; dossier d'extraction~; XML de la
+feuille~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
+conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
+seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
+caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
+ou non, décodé~; valeur d'un attribut écrit entre guillemets doubles, \code{NA} s'il est
+absent~; fichier de la première feuille, erreur «~\code{Classeur illisible : aucune feuille
+trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
+d'extraction~; refus de la cellule sans attribut \code{r} et de la balise de forme non
+reconnue~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
+les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
+\code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} &
+chemin du fichier écrit~; sans tirage aléatoire, dossier temporaire de la voie de repli
+supprimé à la sortie (§\ref{sec:graines})~; dans la voie de repli, chaque nombre fini est écrit
 par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres significatifs
 s'ils restituent la valeur, 17 sinon), $\pm\infty$ en chaîne de caractères et \code{NA} en
 cellule vide \\
@@ -2454,8 +2478,9 @@ principal (\code{bootstrap\$stats\_boot}) et dans les statistiques observées~; 
 la graine \code{seed} par ces réplications seulement. Mesuré~: un appel direct
 d'\code{engine\_p\_famille()} sur les lignes et le bootstrap de la référence \code{premium} laisse
 \code{.Random.seed} identique.
-\code{engine\_ecrire\_xlsx()} et \code{engine\_lire\_xlsx()}, dans leur
-voie de repli sans le paquet \code{openxlsx}, ne tirent rien~: le dossier temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
+\code{engine\_lire\_xlsx()}, qui extrait le classeur dans un dossier temporaire avec ou sans le
+paquet \code{openxlsx}, et \code{engine\_ecrire\_xlsx()}, dans sa
+voie de repli sans ce paquet, ne tirent rien~: le dossier temporaire vient de \code{tempfile()} et est supprimé à la sortie de la fonction
 (\code{on.exit(unlink(\dots, recursive = TRUE))}). Mesuré dans les deux voies, avec et sans
 \code{openxlsx}~: un aller-retour écriture puis lecture laisse \code{.Random.seed} identique et
 ne laisse aucun dossier dans \code{tempdir()}.
@@ -4348,7 +4373,20 @@ hors de cette position, ces formes sont des en-têtes réels. Cette règle
 (\code{.retirer\_lignes\_colonnes\_vides()}), commune aux séries et au triangle, est la même quel
 que soit le chemin de lecture~: classeur lu par \code{openxlsx}, appelé sans retrait des lignes et
 colonnes vides et sans conversion de la cellule texte «~\code{NA}~», classeur lu par la voie de
-repli, ou tableau lu d'un CSV en gardant ses lignes vides. Une cellule texte «~\code{NA}~» est
+repli, ou tableau lu d'un CSV en gardant ses lignes vides. Un classeur est lu dans sa première
+feuille, dans l'ordre que le classeur lui-même donne à ses feuilles, et non dans le premier
+fichier de feuille par ordre alphabétique~; avant tout appel à \code{openxlsx}, et de même sur les
+deux chemins de lecture, \code{engine\_lire\_xlsx()} refuse une archive dont une entrée a un
+chemin absolu ou contenant «~\code{..}~», qui serait écrite hors du dossier de lecture, une
+cellule sans attribut de position \code{r} (motif «~\code{Classeur illisible : cellule sans
+reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position.}~»,
+suivi de la conduite à tenir), l'outil ne déduisant pas la position d'une cellule de son rang dans
+la ligne, et une balise de cellule suivie d'un blanc autre que l'espace («~\code{balise de
+cellule de forme non reconnue}~»), que \code{openxlsx} ne lit pas. Les blancs de la ligne
+d'en-tête d'un classeur sont mis en forme de même par les deux chemins (blancs de bord retirés,
+suite de blancs intérieurs ramenée à une espace)~; ceux d'un CSV, lus tels quels, ne le sont
+pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
+(mesuré). Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
 «~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
@@ -19927,7 +19965,8 @@ par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, lignes et colonnes vides par
-\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()} \\
+\code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, \code{engine\_lire\_xlsx()}
+(contrôle des cellules du classeur par \code{.xlsx\_controler\_}\allowbreak\code{cellules()}) \\
 Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
 fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}) & \code{usp\_controles\_numeriques()},
 qui produit les deux entrées ajoutées à \code{res\$controles} par \code{run\_engine()}~;
