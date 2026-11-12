@@ -9,3 +9,5 @@
   - **B** : écrire « première mesure consignée du poste sur `premium_interieur`, et première au-delà du seuil », l'ADR 0011 consignant déjà une mesure du poste le 25/09/2026 ;
   - **C** : traitement d'un pas de p Monte-Carlo dans le critère de KR, `SF` ayant une réplication à 3,28e-6 de l'observée.
 - **Suite** (Q-60-7 (a)) : le mainteneur fait la mesure du § 3 sur son poste et dépose le relevé sur #548 ; `architect` annote l'ADR 0006 au premier commit `docs:` de KR (texte proposé au § 4) et écrit le critère du § 2 dans la fiche KR ; `Closes #548` dans KR.
+
+**Décision du mainteneur du 12/11/2026** (questionnaire à la session principale) : corrections **A, B et C retenues**. L'annotation de l'ADR 0006 (texte du § 4 du rapport, avec A et B) et le critère de la batterie sous Windows (§ 2, avec le traitement d'un pas de p Monte-Carlo, C) sont portés par `architect` au premier commit `docs:` de KR.
