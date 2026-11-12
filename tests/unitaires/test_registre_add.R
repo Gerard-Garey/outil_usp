@@ -88,6 +88,28 @@ verifier("C2 add() : tolerance TOL_P_BORNE : 1 + 1e-15 et -1e-15 admis tels quel
              grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = 1 + 1e-9))) &&
              grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = -1e-9)))
          })
+## #537 : valeur ecrite par la plus courte ecriture qui se relit a l'identique
+## (15 a 17 chiffres), au point decimal meme sous OutDec = ","
+## Textes fixes sous scipen = 0 (format() suit options(scipen) ; audit leger
+## de #537, reserve m1), option restauree en sortie.
+verifier("#537 add() : refus de 1 + 1e-9 et -1e-9 -> valeur ecrite en entier ('1.000000001', '-1e-09')",
+         {
+           ancien <- options(scipen = 0)
+           m <- tryCatch(c(msg484(ligne484(p_ex = 1 + 1e-9)), msg484(ligne484(p_ex = -1e-9))),
+                         finally = options(ancien))
+           identical(m, c("add() : p-value hors de [0, 1] : p_ex = 1.000000001 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -1e-09 (t)"))
+         })
+verifier("#537 add() : sous options(OutDec = ','), meme texte, au point decimal",
+         {
+           ancien <- options(OutDec = ",", scipen = 0)
+           m <- tryCatch(c(msg484(ligne484(p_ex = 1 + 1e-9)), msg484(ligne484(p_ex = -1e-9)),
+                           msg484(ligne484(p_ex = -0.2))),
+                         finally = options(ancien))
+           identical(m, c("add() : p-value hors de [0, 1] : p_ex = 1.000000001 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -1e-09 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -0.2 (t)"))
+         })
 verifier("C2 add() : p non finies (NA, NaN, Inf, -Inf) lues comme absentes, sans erreur",
          {
            l <- ligne484(p_ex = NaN, p_as = Inf, p_min = -Inf)
