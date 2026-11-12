@@ -61,7 +61,7 @@ Séparation stricte moteur / affichage, exigée par `docs/exigences.md` pour per
 
 - **`R/engine.R`** contient **toute** la logique quantitative : contrôles de validité métier, estimation, statistiques de test, p-values, bootstrap/Monte-Carlo, jackknife, profils, calibration, paramètre final, et les quantités numériques des graphiques (`engine_plots_data()`, `mw_plots_data()`).
 - Il reste utilisable sans Shiny (aucun `input$`, `reactive()`, `render*()`…) et sans dépendance obligatoire hors R base + stats.
-- Seule exception : la lecture/écriture xlsx utilise `openxlsx` s'il est installé, avec repli sur une implémentation interne ; les calculs n'en dépendent pas. **Ne jamais éclater le moteur en plusieurs fichiers.**
+- Seules exceptions : la lecture xlsx utilise `openxlsx` s'il est installé, avec repli sur un lecteur interne ; l'écriture xlsx passe toujours par l'écrivain interne (nombres relus au bit, #488), archive compressée par le paquet `zip` s'il est installé, sinon par `utils::zip()` ; les calculs n'en dépendent pas. **Ne jamais éclater le moteur en plusieurs fichiers.**
 - **`R/charger_moteur.R`** : chargeur unique, `charger_moteur(fichier, dans)`, sans logique quantitative ; charge le moteur dans l'environnement `usp_moteur` (→ exports de `stats` → `base`, jamais l'environnement global) et en expose une copie.
 - `app.R` et les tests chargent le moteur par lui ; une substitution de test se pose dans `environment(run_engine)` (ADR 0016, #200).
 - **`R/display_helpers.R`** : formatage, badges, tables HTML, tracés (plotly ou base R) à partir de `res$plots_data` uniquement. Aucun calcul.
