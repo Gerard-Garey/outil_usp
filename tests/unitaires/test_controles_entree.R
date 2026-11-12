@@ -2612,7 +2612,146 @@ if (nzchar(Sys.which("zip"))) {
                    engine_lire_donnees_csv)
   verifier("xlsx (#487) : en-tetes \" xt\" et \"yt  \" acceptes, series identiques, sur chaque chemin",
            tous487(rX, function(r) identical(r, ref_ser)))
+
+  # --- #522 : l'en-tete du tableau est en ligne 1. Une ligne 1 sans aucune
+  # valeur (absente, ou cellules mises en forme sans valeur) est refusee au
+  # texte fixe, sur chaque chemin, series et triangle ; openxlsx sautait les
+  # lignes vides de tete (il acceptait le fichier), le lecteur interne
+  # prenait la ligne vide pour l'en-tete.
+  LIGNE1_522 <- "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete."
+  # Descend de n lignes toutes les lignes <row r="k"> et cellules <c r="Xk">
+  descendre522 <- function(n) function(s) {
+    m <- gregexpr('<(row|c) r="[A-Z]*[0-9]+"', s)
+    regmatches(s, m) <- lapply(regmatches(s, m), function(tk) vapply(tk, function(t) {
+      k <- as.integer(sub('.*[^0-9]([0-9]+)"$', "\\1", t))
+      sub('[0-9]+"$', paste0(k + n, '"'), t)
+    }, "", USE.NAMES = FALSE))
+    s
+  }
+  avant522 <- function(xml) function(s) sub("<sheetData>", paste0("<sheetData>", xml), s, fixed = TRUE)
+  forme1_522 <- '<row r="1"><c r="A1" s="1"/><c r="B1" s="1"/></row>'
+  titre1_522 <- '<row r="1"><c r="A1" t="inlineStr"><is><t>Export ACME</t></is></c></row>'
+  refus522 <- function(r) tous487(r, function(d) identical(d, LIGNE1_522))
+  lire522 <- function(d) tryCatch(d, error = function(e) conditionMessage(e))
+  verifier("xlsx (#522) : series dont l'en-tete est en ligne 2, puis en ligne 3 (ligne 1 absente) : refus au texte fixe sur chaque chemin",
+           refus522(chemins483(xlsx483(ser483, descendre522(1)), lire522)) &&
+             refus522(chemins483(xlsx483(ser483, descendre522(2)), lire522)))
+  verifier("xlsx (#522) : triangle dont l'en-tete est en ligne 2, puis en ligne 3 (ligne 1 absente) : meme refus sur chaque chemin",
+           refus522(chemins483(xlsx483(tri483, descendre522(1)), lire522)) &&
+             refus522(chemins483(xlsx483(tri483, descendre522(2)), lire522)))
+  verifier("xlsx (#522) : ligne 1 faite de cellules mises en forme sans valeur (<c r=\"A1\" s=\"1\"/>), en-tete en ligne 2 ou 3 : meme refus, series et triangle, sur chaque chemin",
+           refus522(chemins483(xlsx483(ser483, function(s) avant522(forme1_522)(descendre522(1)(s))), lire522)) &&
+             refus522(chemins483(xlsx483(ser483, function(s) avant522(forme1_522)(descendre522(2)(s))), lire522)) &&
+             refus522(chemins483(xlsx483(tri483, function(s) avant522(forme1_522)(descendre522(1)(s))), lire522)))
+  # Hors du refus : en-tete en ligne 1 (lecture inchangee) ; titre seul en A1
+  # (la ligne 1 porte une valeur : pas de motif propre, refus par colonne
+  # manquante, meme texte sur chaque chemin, noms generes cites "(vide)") ;
+  # feuille sans aucune cellule ; entete = FALSE (la ligne 1 est une ligne de
+  # donnees, qui peut etre vide).
+  ser3_522 <- data.frame(t = seq_along(xt483), xt = xt483, yt = yt483)
+  rtitre <- chemins483(xlsx483(ser3_522, function(s) avant522(titre1_522)(descendre522(1)(s))), engine_lire_donnees_csv)
+  verifier("xlsx (#522) : titre seul en A1, en-tete en ligne 2 : pas de refus de la ligne 1, refus par colonne manquante, memes noms \"(vide)\" sur chaque chemin",
+           tous487(rtitre, function(r) !r$ok && identical(r$erreurs,
+             "Colonne(s) manquante(s) : xt, yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : Export ACME, (vide), (vide).")))
+  verifier("xlsx (#522) : en-tete en ligne 1 : lecture inchangee, series et triangle identiques sur chaque chemin",
+           tous487(chemins483(xlsx483(ser483), engine_lire_donnees_csv), function(r) identical(r, ref_ser)) &&
+             tous487(chemins483(xlsx483(tri483), engine_lire_triangle), function(r) identical(r, ref_tri)))
+  # openxlsx rend NULL pour une feuille sans cellule (l'element serait supprime
+  # par chemins483()) : "NULL" le represente.
+  rvide <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ""))),
+                      function(d) { d <- suppressWarnings(lire522(d)); if (is.null(d)) "NULL" else d })
+  verifier("xlsx (#522) : feuille sans aucune cellule : pas le refus de la ligne 1 (tableau vide : \"Fichier vide ou illisible comme tableau.\"), sur chaque chemin",
+           tous487(rvide, function(d) !identical(d, LIGNE1_522) &&
+                     identical(engine_lire_donnees_csv(if (identical(d, "NULL")) NULL else d)$erreurs,
+                               "Fichier vide ou illisible comme tableau.")))
+  f522 <- xlsx483(ser483, descendre522(2))
+  e522 <- list(interne = lire522(sans_openxlsx483(engine_lire_xlsx(f522, entete = FALSE))))
+  if (avec_openxlsx483) e522$openxlsx <- lire522(engine_lire_xlsx(f522, entete = FALSE))
+  unlink(f522)
+  verifier("xlsx (#522) : entete = FALSE : pas de refus de la ligne 1, un data.frame sur chaque chemin",
+           tous487(e522, is.data.frame))
+  # Classe de la condition : les refus motives (ligne 1 #522, cellule sans r et
+  # balise <c de #487) sont de classe "usp_refus_lecture", lue par
+  # l'application ; feuille introuvable : erreur ordinaire.
+  classe522 <- function(f) { force(f)
+    out <- list(interne = tryCatch(sans_openxlsx483(engine_lire_xlsx(f)), error = function(e) class(e)))
+    if (avec_openxlsx483) out$openxlsx <- tryCatch(engine_lire_xlsx(f), error = function(e) class(e))
+    unlink(f); out }
+  REFUS522 <- c("usp_refus_lecture", "error", "condition")
+  verifier("xlsx (#522, #487) : refus de la ligne 1, de la cellule sans r et de la balise <c TAB : classe usp_refus_lecture sur chaque chemin ; feuille introuvable : erreur sans cette classe",
+           tous487(classe522(xlsx483(ser483, descendre522(1))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+               ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+               ligne487(2, c(nb487("A2", 1), "<c><v>5</v></c>"))))))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+               xml = sub('<c r="B2">', '<c\tr="B2">', donnees487(0), fixed = TRUE))))), function(k) identical(k, REFUS522)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE)))),
+                     function(k) is.character(k) && "error" %in% k && !"usp_refus_lecture" %in% k))
+  # Reference de cellule en minuscules (r="a1", reserve de l'audit) : la ligne
+  # 1 est reconnue, pas de refus "ligne 1" ; une telle feuille reste illisible
+  # par les deux chemins (erreur R ordinaire, constat anterieur a #522).
+  rmin <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+    '<row r="1"><c r="a1" t="inlineStr"><is><t>xt</t></is></c><c r="b1" t="inlineStr"><is><t>yt</t></is></c></row>',
+    '<row r="2"><c r="a2"><v>1</v></c><c r="b2"><v>2</v></c></row>')))),
+    function(d) tryCatch(d, error = function(e) class(e)))
+  verifier("xlsx (#522) : references en minuscules (r=\"a1\") : pas de refus de la ligne 1 sur chaque chemin (lettres de colonne en minuscules reconnues)",
+           tous487(rmin, function(k) !identical(k, REFUS522)) &&
+             identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
+                                error = function(e) "refus"), NULL))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
+
+## --- Colonnes presentes : caracteres echappes, noms absents cites "(vide)" (#522)
+# Liste des en-tetes de engine_lire_donnees_csv() ecrite par .echapper_texte() :
+# caracteres de controle ecrits \001, \t, \n, \033, blancs et controles non
+# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030) ;
+# nom que
+# .entete_absent() juge absent ("", NA, "X<k>" ou "V<k>" a sa position) cite
+# "(vide)".
+cols522 <- function(noms) {
+  d <- as.data.frame(matrix("1", 1L, length(noms)), stringsAsFactors = FALSE)
+  names(d) <- noms
+  r <- engine_lire_donnees_csv(d)
+  sub("^.*Colonnes presentes : (.*)\\.$", "\\1", r$erreurs)
+}
+octet89_522 <- rawToChar(as.raw(c(0x61, 0x89, 0x62)))          # "a<89>b", encodage non declare
+latin1_522 <- octet89_522; Encoding(latin1_522) <- "latin1"    # declare Latin-1
+verifier("Colonnes presentes (#522) : caracteres de controle ASCII ecrits \\001, \\t, \\n, \\033, sans guillemets",
+         identical(cols522(c("a\001b", "x\tt\n", "y\033[31mt")), "a\\001b, x\\tt\\n, y\\033[31mt") &&
+           identical(cols522(c("a\\b", "q\"r", "d\ref")), "a\\\\b, q\"r, d\\ref"))
+# Octet 0x89 declare Latin-1 (ou non declare, en locale UTF-8, ou
+# .declarer_latin1() le declare) : enc2utf8() le lit comme Windows-1252, U+2030
+# (pour mille), caractere imprimable cite tel quel, et non comme le controle
+# U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81, sans
+# caractere en Windows-1252, reste ecrit "<81>" par R (mesures, R 4.3.3,
+# C.UTF-8, comme .nettoyer_cellules(), #99). Le controle U+0089 lui-meme, en
+# UTF-8 valide, est ecrit \u0089.
+l1_522 <- function(b) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- "latin1"; x }
+verifier("Colonnes presentes (#522) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 cite <81> ; \"e\" accentue inchange",
+         identical(cols522(c(latin1_522, "ann\u00e9e", "x")), "a\u2030b, ann\u00e9e, x") &&
+           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a<81>b, a\u00e9b") &&
+           (!isTRUE(l10n_info()[["UTF-8"]]) ||
+              identical(cols522(c(octet89_522, "x", "y")), "a\u2030b, x, y")))
+verifier("Colonnes presentes (#522) : controle C1 U+0089 en UTF-8 valide ecrit \\u0089",
+         identical(cols522(c("a\u0089b", "x", "y")), "a\\u0089b, x, y"))
+verifier("Colonnes presentes (#522) : blancs, controles et caracteres de format non ASCII ecrits \\uXXXX (\\UXXXXXXXX au-dela de U+FFFF)",
+         identical(cols522(c("a\u00a0b", "a\u200bb", "\u2028")), "a\\u00a0b, a\\u200bb, \\u2028") &&
+           identical(cols522(c(intToUtf8(0xE0001), "\u00e9", "x")), "\\U000e0001, \u00e9, x"))
+verifier("Colonnes presentes (#522) : nom absent cite \"(vide)\" (\"\", NA, \"X<k>\" et \"V<k>\" a leur position), nom reel \"X5\" ou \"V1\" hors position garde",
+         identical(cols522(c("Export ACME", "", NA)), "Export ACME, (vide), (vide)") &&
+           identical(cols522(c("t", "X2", "V3")), "t, (vide), (vide)") &&
+           identical(cols522(c("t", "X5", "V1")), "t, X5, V1") &&
+           identical(cols522(c("", "", "")), "(vide), (vide), (vide)"))
+verifier("Colonnes presentes (#522) : en-tete a controle et nom absent dans la meme liste ; motif UTF-8 valide",
+         {
+           r <- engine_lire_donnees_csv(setNames(data.frame("1", "2", "3", stringsAsFactors = FALSE),
+                                                 c("x\001", "", latin1_522)))
+           validUTF8(r$erreurs) && contient(r$erreurs, "Colonnes presentes : x\\001, (vide), a\u2030b.")
+         })
+# Fonction partagee : avec guillemets, la forme de citer() de mw_valider_triangle()
+verifier(".echapper_texte() (#522) : guillemets = TRUE rend la forme de citer() (guillemet echappe \\\", blancs non ASCII \\uXXXX), FALSE la meme sans guillemets",
+         identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x"), guillemets = TRUE),
+                   c("\"a\\\"b\\t\"", "\"2022\\u00a0\"", "\"x\"")) &&
+           identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x")), c("a\"b\\t", "2022\\u00a0", "x")))
 
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
