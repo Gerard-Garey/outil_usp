@@ -4890,17 +4890,20 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     }
     # Hierarchie adaptee a T faible : exacte > Monte-Carlo > p non simulee
     # (colonne p_asymptotique), dont la nature est nature_as (#120).
+    # rang : rang de la p retenue, source unique lue par le controle de
+    # nature_forcee ci-dessous (#535) ; libelles de son message d'erreur,
+    # NA quand aucune p n'est retenue.
     if (is.finite(p_ex)) {
-      p_ret <- p_ex; nature <- "exacte"
+      p_ret <- p_ex; nature <- "exacte"; rang <- "exacte"
     } else if (is.finite(p_mc)) {
-      p_ret <- p_mc; nature <- nature_mc
+      p_ret <- p_mc; nature <- nature_mc; rang <- "Monte-Carlo"
     } else if (is.finite(p_as)) {
       # Atteinte seulement par une ligne sans mc_nom (p_mc_ext absente
       # comprise) : une ligne a mc_nom dont la p Monte-Carlo manque n'est
       # plus un test a p non simulee (diagnostic ou non applicable, #181).
-      p_ret <- p_as; nature <- nature_as
+      p_ret <- p_as; nature <- nature_as; rang <- "p non simulee"
     } else {
-      p_ret <- NA_real_; nature <- NA_character_
+      p_ret <- NA_real_; nature <- NA_character_; rang <- NA_character_
     }
     # Plancher Monte-Carlo relatif a alpha (#128, point d ; residu du constat
     # C1 de la revue finale d'E1) : quand la p Monte-Carlo du bootstrap est
@@ -4968,10 +4971,9 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
     # applicable, qui passe nature_forcee, a de fait p_student NA (volumes
     # constants, pertes constantes, x ecarte, t non fini : t_pente NA ou non
     # fini, mesure sur run_engine()). Son prefixe doit dire le rang de la p
-    # retenue (exacte > Monte-Carlo > p non simulee, ADR 0001, ADR 0003).
+    # retenue (exacte > Monte-Carlo > p non simulee, ADR 0001, ADR 0003),
+    # lu dans rang, pose par le bloc de hierarchie (#535).
     if (porte_verdict && !is.na(nature_forcee) && is.finite(p_ret)) {
-      rang <- if (is.finite(p_ex)) "exacte" else if (is.finite(p_mc)) "Monte-Carlo"
-              else "p non simulee"
       conforme <- switch(rang,
         "exacte" = startsWith(nature_forcee, "exacte"),
         "Monte-Carlo" = startsWith(nature_forcee, "Monte-Carlo"),
