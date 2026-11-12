@@ -11374,9 +11374,12 @@ Avec $b_2 = m_4/m_2^2$,
 \]
 Fonction nommée~: \code{test\_anscombe\_kurt()}. $Z$ n'est pas définie dans deux cas, où la
 fonction rend \code{stat} et \code{p} à \code{NA} avec un champ logique qui en dit la cause~:
-$b_2$ non défini ($m_2 = 0$, résidus constants~; champ \code{b2\_non\_defini})~; ou
+$b_2$ non défini (résidus exactement constants~; champ \code{b2\_non\_defini})~; ou
 $1 + x\sqrt{2/(A-4)} \le 0$ (champ \code{z\_non\_definie}), où la base de la racine cubique est
-négative ou infinie. Ce dénominateur croît avec $b_2$, et $b_2 \ge 1$ pour tout échantillon
+négative ou infinie. À $T \ge 20$, des résidus non finis, ou un $b_2$ non fini sur des résidus finis
+et non constants (dépassement de capacité des moments centrés en virgule flottante), sont refusés
+par une erreur et non restitués~; \code{run\_engine()} n'atteint pas ces refus, la fonction n'y
+recevant que les résidus standardisés de l'ajustement validé. Ce dénominateur croît avec $b_2$, et $b_2 \ge 1$ pour tout échantillon
 ($m_4 \ge m_2^2$, inégalité de Cauchy--Schwarz)~: il est minimal en $b_2 = 1$, où il reste
 strictement positif pour $20 \le T \le 34$ et devient négatif dès $T = 35$ (calcul sur la formule
 ci-dessus)~; le cas exige donc $T \ge 35$ et un aplatissement très inférieur à~3. La racine cubique
