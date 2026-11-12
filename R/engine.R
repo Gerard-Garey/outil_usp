@@ -506,6 +506,33 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   .engine_saisie(v)
 }
 
+# Point decimal garanti a la racine (#439), en complement des decimal.mark
+# poses appel par appel (#428), qui restent. A appeler en premiere instruction
+# d'un point d'entree du moteur, c'est-a-dire d'une fonction que l'application
+# (app.R, R/display_helpers.R) appelle directement : pose options(OutDec = ".")
+# le temps de l'appel et restaure l'option de l'appelant en sortie, erreur
+# comprise (on.exit enregistre dans le cadre de l'appelant, add = TRUE : les
+# on.exit propres de celui-ci sont conserves ; meme principe que la restauration
+# du RNGkind et de .Random.seed par engine_sous_graine(), ADR 0004). Sans effet
+# quand OutDec vaut deja "." : l'option est reposee a l'identique. Aucune
+# fonction interne ne l'appelle ; les appels directs documentes d'une fonction
+# qui n'est pas un point d'entree (test_mann_kendall(), dw_p_exacte()...) restent
+# protegees par les seuls decimal.mark. Aucun calcul : seule la representation
+# textuelle des nombres est concernee. Ordre : la restauration est enregistree
+# la premiere ; un on.exit pose ensuite par le point d'entree (add = TRUE)
+# s'execute apres elle, donc sous l'option de l'appelant (seul after = FALSE le
+# fait tourner sous ".") : aucun on.exit des points d'entree ne met aujourd'hui
+# de nombre en forme. Refusee au niveau global, ou on.exit est sans effet et
+# l'option resterait posee pour la session.
+.engine_point_decimal <- function(envir = parent.frame()) {
+  if (identical(envir, globalenv()))
+    stop(".engine_point_decimal() s'appelle en premiere instruction d'un point d'entree, pas au niveau global.",
+         call. = FALSE)
+  ancien <- options(OutDec = ".")
+  do.call(on.exit, list(bquote(options(.(ancien))), add = TRUE), envir = envir)
+  invisible(NULL)
+}
+
 # Quantiles de type 7 nommes en point decimal (#428). stats::quantile() nomme
 # ses valeurs par format() de 100 * probs : sous options(OutDec = ","), le nom
 # "2.5%" devient "2,5%", et res$ic_bootstrap (ou les noms de ligne de
@@ -7782,6 +7809,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 }
 
 engine_lire_donnees_csv <- function(df) {
+  .engine_point_decimal()
   err <- character(0)
   if (!is.data.frame(df) || !nrow(df))
     return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
@@ -7876,6 +7904,7 @@ engine_lire_donnees_csv <- function(df) {
 # cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
 # character(0) pour un refus ou un triangle sans telle cellule.
 engine_lire_triangle <- function(df) {
+  .engine_point_decimal()
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
                             avertissements_lecture = character(0),
                             triangle = NULL, I = NA, J = NA)
@@ -8011,6 +8040,7 @@ engine_lire_triangle <- function(df) {
 # usp_refus_lecture ne s'applique pas). Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
+  .engine_point_decimal()
   avec_paquet_zip <- requireNamespace("zip", quietly = TRUE)
   if (!avec_paquet_zip && !nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))))
     stop(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
@@ -8106,6 +8136,7 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
 # n'est pas acceptee.
 engine_ecrire_csv <- function(df, chemin) {
+  .engine_point_decimal()
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   guillemets <- function(x) paste0('"', gsub('"', '""', enc2utf8(x), fixed = TRUE), '"')
   colonne <- function(v) {
@@ -8377,6 +8408,7 @@ engine_ecrire_csv <- function(df, chemin) {
 # worksheet is 0"). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
 # parite mesuree sous C.UTF-8 seulement.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
+  .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
   # aucun sharedStrings.xml residuel d'une lecture anterieure.
   d <- tempfile("unx_")
@@ -8492,6 +8524,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
 ## =============================================================================
 
 engine_empreinte <- function(res) {
+  .engine_point_decimal()
   md5_octets <- function(ecrire) {
     f <- tempfile("empreinte_")
     on.exit(unlink(f), add = TRUE)
@@ -8577,6 +8610,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
                                    delta_equiv = NULL, methode = NULL,
                                    nature_donnees = NULL, bareme = NULL,
                                    segment = NULL, annexe = "II") {
+  .engine_point_decimal()
   err <- .nature_erreurs(methode, nature_donnees); avt <- character(0)
   # Repere de profondeur (issue #499) : character(0) sauf T < 10 sur une
   # serie recevable, comme erreurs et avertissements quand ils sont vides.
@@ -8739,6 +8773,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
 # annees retenues (lecture (A) de l'issue #104, decision du mainteneur du
 # 28/09/2026).
 engine_valider_profondeur <- function(T, n, T_min = 5) {
+  .engine_point_decimal()
   if (is.null(T)) return(character(0))
   # L'annexe XVII n'est citee que si la borne est la sienne (T_min >= 5) ;
   # pour un simple chargement (T_min = 1), les motifs sont neutres.
@@ -8779,6 +8814,7 @@ engine_valider_serie_retenue <- function(xt, yt, T = NULL, theta_equiv = 0.10,
                                          delta_equiv = NULL, methode = NULL,
                                          nature_donnees = NULL, bareme = NULL,
                                          segment = NULL, annexe = "II") {
+  .engine_point_decimal()
   n <- length(xt)
   err_T <- engine_valider_profondeur(T, n)
   # Series de longueurs differentes (issue #482) : aucune troncature. Coupees
@@ -9599,6 +9635,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 # DBL_MAX^(1/3), grandeurs de degre 3).
 mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                                 annexe = "II") {
+  .engine_point_decimal()
   err <- character(0); avt <- character(0)
   # Repere de profondeur (issue #499) : character(0) sauf I + 1 < 10 sur un
   # triangle recevable, comme dans engine_valider_donnees().
@@ -13567,6 +13604,7 @@ engine_b_minimal <- function(alpha) {
 # (engine_b_minimal() en erreur, alpha tres petit), le message ne cite pas
 # de valeur.
 engine_motif_b_alpha <- function(B, alpha) {
+  .engine_point_decimal()
   scalaire_fini <- function(v) is.numeric(v) && length(v) == 1L && is.finite(v)
   if (!scalaire_fini(B) || !scalaire_fini(alpha) || alpha <= 0 ||
       alpha >= SEUIL_ECHEC_SENS_REJETER || B < B_MIN_USAGE) return(NULL)
@@ -13609,6 +13647,7 @@ engine_motif_b_alpha <- function(B, alpha) {
 # pas la valeur, #133), puis virgule decimale francaise.
 # Accents en echappements \u, le source du moteur etant ASCII.
 engine_regle_verdicts <- function(alpha) {
+  .engine_point_decimal()
   if (!(is.numeric(alpha) && length(alpha) == 1L && is.finite(alpha) &&
         is.null(attributes(alpha)) &&
         alpha > 0 && alpha < SEUIL_ECHEC_SENS_REJETER))
@@ -14563,6 +14602,7 @@ run_engine <- function(xt, yt,
                        bareme = NULL,
                        plus_recent_en_dernier = TRUE,
                        nature_donnees = NULL) {
+  .engine_point_decimal()
   t0 <- Sys.time()
   # Controle exact de methode et d'annexe avant match.arg() (#489, constat
   # C5 de l'audit entrees-sorties) : match.arg() completait une abreviation
@@ -14987,6 +15027,7 @@ run_engine <- function(xt, yt,
 }
 
 engine_parametre_standard <- function(res) {
+  .engine_point_decimal()
   if (!isTRUE(res$ok)) return(NULL)
   m <- res$metadata
   ps <- .engine_trace_sigma(res, "engine_parametre_standard()")
@@ -15071,6 +15112,7 @@ engine_parametre_standard <- function(res) {
 # metadata$n_fournies manque ou est incoherent, ou si metadata$T est absent
 # ou non entier (.engine_trace_profondeur()).
 engine_derogations <- function(res) {
+  .engine_point_decimal()
   if (!isTRUE(res$ok)) return(NULL)
   ps <- .engine_trace_sigma(res, "engine_derogations()")
   # Profondeur avant bareme (#135) : un metadata$T invalide est refuse par le
@@ -15241,6 +15283,7 @@ USP_TXT_RENVOI_SV <- paste(
 # rend NA sur chaque ligne (aucune ligne constante), sans cas particulier
 # (#222, point 3).
 engine_table_tests <- function(res) {
+  .engine_point_decimal()
   rv <- usp_renvois(res$tests)
   do.call(base::rbind, lapply(seq_along(res$tests), function(i) { t <- res$tests[[i]]; data.frame(
     famille = t$famille, test = t$test, type = t$type,
