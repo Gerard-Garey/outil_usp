@@ -156,6 +156,55 @@ verifier("Anscombe-Glynn (#485) : z constant a T = 40 -> b2 non defini (stat et 
            identical(a0$stat, NA_real_) && identical(a0$p, NA_real_) &&
              isTRUE(a0$b2_non_defini) && identical(a0$z_non_definie, FALSE)
          })
+## --- Anscombe-Glynn : b2 non defini = residus constants seuls (#534) ---------
+# Decision 4 du mainteneur (K3b) : b2_non_defini <=> residus constants ; des
+# residus non finis, ou un b2 non fini sur des residus finis et non constants
+# (depassement de capacite ou sous-capacite des moments centres), sont refuses
+# par stop(). Appels directs : aucun chemin de run_engine() n'atteint ces refus.
+MSG_AK_NON_FINIS_534 <- "test_anscombe_kurt() : residus non finis"
+MSG_AK_B2_534 <- paste("test_anscombe_kurt() : aplatissement b2 non calculable en virgule",
+                       "flottante (depassement de capacite des moments centres), residus",
+                       "non constants")
+erreur_ak_534 <- function(z) tryCatch({ test_anscombe_kurt(z); NULL }, error = function(e) e)
+verifier("Anscombe-Glynn (#534) : residus constants non nuls (rep(0.5, 25)) -> b2_non_defini, stat et p NA",
+         {
+           a <- test_anscombe_kurt(rep(0.5, 25))
+           identical(a$stat, NA_real_) && identical(a$p, NA_real_) &&
+             isTRUE(a$b2_non_defini) && identical(a$z_non_definie, FALSE)
+         })
+verifier("Anscombe-Glynn (#534) : NA, NaN ou infini parmi les residus -> erreur \"residus non finis\"",
+         {
+           z <- stats::qnorm(ppoints(25))
+           ok <- vapply(c(NA_real_, NaN, Inf, -Inf), function(v) {
+             zz <- z; zz[7] <- v
+             e <- erreur_ak_534(zz)
+             inherits(e, "error") && identical(conditionMessage(e), MSG_AK_NON_FINIS_534)
+           }, logical(1))
+           all(ok)
+         })
+verifier("Anscombe-Glynn (#534) : n < 20 reste teste en premier (NA ou infini a T = 8 -> NA, sans erreur)",
+         {
+           a <- test_anscombe_kurt(c(NA_real_, rep(1, 7)))
+           b <- test_anscombe_kurt(c(Inf, rep(1, 7)))
+           identical(a$stat, NA_real_) && identical(a$b2_non_defini, FALSE) &&
+             identical(b$stat, NA_real_) && identical(b$b2_non_defini, FALSE)
+         })
+verifier("Anscombe-Glynn (#534) : 1e80 et -1e80 dans 23 normales -> erreur \"non calculable\" (m4 deborde)",
+         {
+           set.seed(534)
+           z <- c(stats::rnorm(23), 1e80, -1e80)
+           e <- erreur_ak_534(z)
+           all(is.finite(z)) && !all(z == z[1]) &&
+             inherits(e, "error") && identical(conditionMessage(e), MSG_AK_B2_534)
+         })
+verifier("Anscombe-Glynn (#534) : residus non constants d'ordre 1e-170 -> erreur \"non calculable\", pas b2_non_defini",
+         {
+           set.seed(5340)
+           z <- stats::rnorm(25) * 1e-170
+           e <- erreur_ak_534(z)
+           all(is.finite(z)) && !all(z == z[1]) &&
+             inherits(e, "error") && identical(conditionMessage(e), MSG_AK_B2_534)
+         })
 # Jeu de l'issue : T = 40, volumes constants (pi_t constant), log(y/x) =
 # -0,4 +/- 0,1 permutes plus un bruit de 0,005 (b2 mesure 1,0086).
 set.seed(485)

@@ -2405,16 +2405,29 @@ test_dagostino_skew <- function(z) {
 # logique z_non_definie le signale a usp_tests() (motif de la ligne). La
 # racine cubique reelle signee est ecartee (elle inverse le signe de Z) ;
 # le texte d'Anscombe et Glynn (1983) n'a pas ete lu sur ce point.
-# En amont, b2 non defini (moment centre d'ordre 2 nul : residus constants,
-# 0/0) : stat et p a NA, champ logique b2_non_defini (reponse d'actuary du
-# 10/11/2026 a la question 1 du compte rendu de #485).
+# En amont, b2 non defini quand les residus sont constants (moment centre
+# d'ordre 2 nul, 0/0) : stat et p a NA, champ logique b2_non_defini (reponse
+# d'actuary du 10/11/2026 a la question 1 du compte rendu de #485). Le
+# critere est la constance des residus (all(z == z[1])), non plus le b2 non
+# fini (#534, decision 4 du mainteneur, avis amont d'actuary de K3b, § 5).
+# Deux refus par stop(), inatteignables par run_engine() (z fini en amont,
+# domaine numerique de engine_valider_donnees()) : residus non finis ; b2 non
+# fini alors que les residus sont finis et non constants (depassement de
+# capacite ou sous-capacite des moments centres en virgule flottante). Le
+# test n < 20 reste premier : aucun comportement ne change a T = 8.
 test_anscombe_kurt <- function(z) {
   n <- length(z)
   if (n < 20) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = FALSE,
                           z_non_definie = FALSE))
-  m <- mean(z); b2 <- mean((z - m)^4) / mean((z - m)^2)^2
-  if (!is.finite(b2)) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = TRUE,
+  if (!all(is.finite(z)))
+    stop("test_anscombe_kurt() : residus non finis", call. = FALSE)
+  if (all(z == z[1])) return(list(stat = NA_real_, p = NA_real_, b2_non_defini = TRUE,
                                   z_non_definie = FALSE))
+  m <- mean(z); b2 <- mean((z - m)^4) / mean((z - m)^2)^2
+  if (!is.finite(b2))
+    stop("test_anscombe_kurt() : aplatissement b2 non calculable en virgule flottante ",
+         "(depassement de capacite des moments centres), residus non constants",
+         call. = FALSE)
   Eb2 <- 3 * (n - 1) / (n + 1)
   vb2 <- 24 * n * (n - 2) * (n - 3) / ((n + 1)^2 * (n + 3) * (n + 5))
   xx <- (b2 - Eb2) / sqrt(vb2)
