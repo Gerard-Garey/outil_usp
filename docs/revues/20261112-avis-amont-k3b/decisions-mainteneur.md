@@ -19,3 +19,10 @@ Pour information, sans décision du mainteneur (validation d'`actuary` suffisant
 7. **En-têtes `I` et ` i ` : traitement (a), reconnaissance** (recommandation d'`actuary`) : un en-tête désigne la colonne `i` si, après retrait du BOM et des blancs de bord (`[[:space:]]`), il vaut `i` ou `I` ; la colonne est renommée `"i"`, puis soumise à V1-V5 ; plusieurs en-têtes de ce type : refus H1 (texte révisé de l'avis). Un fichier jusqu'ici refusé (`I`, ou ` i ` en CSV) sera calculé ; aucun fichier accepté aujourd'hui ne change.
 8. **Colonne `t` des séries : K3b étendue**, contre la recommandation d'`actuary` (issue candidate pour K2b) : la même règle de reconnaissance s'applique à l'en-tête `t` (`t` ou `T`, blancs de bord ignorés), sur les deux chemins ; textes fixés par `actuary` avant l'étape 8.
 9. **Doublons d'en-tête `xt` ou `yt` des séries : refus inclus dans K3b** (recommandation d'`actuary`, `actuary-textes-555-colonne-t.md`), comparaison exacte, texte « En-tete %s present plusieurs fois (colonnes %s) : la colonne %s ne peut figurer qu'une fois ; retirer ou renommer la colonne en trop. ».
+
+## Décisions de conduite du 12/11/2026 (soir), mainteneur indisponible jusqu'à la session suivante
+
+10. **Parité classeur des doublons d'en-tête** : si `openxlsx` dédoublonne lui-même les en-têtes, relire la première ligne sans dédoublonnage pour détecter le doublon ; même refus sur les deux chemins.
+11. **Textes de #555 jugés non conformes par `regulatory`** : reformulation par `actuary` et poursuite déléguées, tant qu'aucun σ_USP ni verdict ne change et que les règles 1 à 9 restent les mêmes ; arrêt si la règle elle-même est en cause ou si les deux agents restent en désaccord.
+12. **Constats hors périmètre de la revue finale** (et issue proposée sur les graphiques plotly rognés à l'impression en portrait) : issues rédigées au handoff, créées au retour du mainteneur après approbation.
+13. **Sortie du brouillon** de la PR #563 par la session une fois la branche terminée (PDF commité, CI verte, revue finale sans constat ouvert) ; fusion par le mainteneur.
