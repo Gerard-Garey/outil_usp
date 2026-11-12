@@ -850,8 +850,11 @@ server <- function(input, output, session) {
       # Message de l'erreur d'usage : texte du moteur, qui nomme l'argument
       # rejete (.engine_verifier_usage(), issue #88).
       refuser(TITRE_ERREUR, c(conditionMessage(cond), AIDE_USAGE))
-      showNotification(paste("Erreur d'usage :", conditionMessage(cond)),
-                       type = "error", duration = 12)
+      # Le message du moteur n'est restitue qu'une fois, au bandeau (#543) ; la
+      # notification est un texte fixe qui renvoie au bandeau, comme pour les
+      # autres refus (#226).
+      showNotification("Erreur d'usage : aucun resultat n'est produit (voir le bandeau).",
+                       type = "error", duration = 15)
       return(FALSE)
     }
     if (isTRUE(res$ok)) {
