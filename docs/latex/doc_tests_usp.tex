@@ -4603,9 +4603,10 @@ pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et re
 retirés, étant seuls exceptés. Aucun en-tête n'est renommé pour lever un doublon, sur les
 deux chemins du classeur comme dans un CSV lu comme le lit l'application (noms de colonne tels
 quels), de sorte qu'un en-tête présent plusieurs fois reçoit le même refus par les trois chemins
-(mesuré sur la voie de repli~; \code{openxlsx}~4.2.9, appelé avec \code{check.names} à sa valeur
-par défaut, \code{FALSE}, garde aussi les doublons~; la batterie de tests contrôle cette parité
-quand ce paquet est installé, ce que l'intégration continue ne fait pas). Une cellule texte «~\code{NA}~» est
+(mesuré sur la voie de repli~; \code{openxlsx}, appelé avec \code{check.names} à sa valeur
+par défaut, \code{FALSE}, garde aussi les doublons, mesuré sous la version~4.2.9 et vérifié en
+intégration continue sous la version~4.2.5.2~; la batterie de tests contrôle cette parité
+quand ce paquet est installé, et l'intégration continue l'exécute sur les deux chemins de lecture). Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
 «~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
