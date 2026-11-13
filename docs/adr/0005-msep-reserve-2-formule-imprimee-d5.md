@@ -152,7 +152,7 @@ Voir `docs/feuille-de-route.md`, fiche « Branche JF » ; `docs/suivi-documentat
 **Décision.** Le refus d'un triangle non carré est **maintenu** pour la remise. La puce « Géométrie I > J » de « Ce qui reste ouvert » (« convention non prescrite, déjà documentée ; rien à arbitrer ») est **remplacée** par la qualification suivante, la même dans le motif du moteur, dans la documentation LaTeX et ici :
 - les formules de D(4)-D(5) ne se calculent à la lettre que si I = J ;
 - le domaine de l'outil est plus étroit que celui de D(2)(e), qui admet I > J ;
-- se ramener à un carré exclut des données et doit être justifié (art. 19(1)(b)), à défaut de quoi la méthode n° 1 reste ouverte ;
+- *[corrigée par l'annotation du 13 novembre 2026 (bis) ci-dessous]* se ramener à un carré exclut des données et doit être justifié (art. 19(1)(b)), à défaut de quoi la méthode n° 1 reste ouverte ;
 - Merz et Wüthrich (2008, p. 546) supposent I = J par simplicité et annoncent l'extension au cas I > J sans en imprimer la formule.
 
 Le motif de refus « triangle non carré » n'est émis que si I > J ; un triangle à moins d'années d'accident que d'années de développement relève du seul motif D(2)(e) (remarque R-1).
@@ -164,3 +164,51 @@ Le motif de refus « triangle non carré » n'est émis que si I > J ; un triang
 **Lecture du corps.** La puce « Géométrie I > J » n'est pas réécrite ; elle porte un renvoi à la présente annotation.
 
 Issues : #540 ; suite (lecture B) : #567. Voir `docs/feuille-de-route.md`, fiche « Branche K2b ».
+
+## Annotation du 13 novembre 2026 (bis) — correction de la qualification de la géométrie I > J (#540, lecture (A), remarque R-2)
+
+**Origine.** Lecture de `regulatory` sur les motifs MW-03 et MW-04 et sur l'annotation précédente (fiche de base, `medium`, 13/11/2026 ; `regulatory-lecture-mw04.md`, § 5) ; relance ciblée d'`actuary` (13/11/2026 ; `actuary-relance-mw04.md`, « Qualification commune corrigée » et « Répartition »), d'accord sur les six points de `regulatory`, sans désaccord persistant ; décision 1 du mainteneur du 13/11/2026 (`decisions-mainteneur.md`). Les trois rapports sont versés dans `docs/revues/20261113-avis-amont-k2b/`. L'annotation précédente reste en place ; sa puce 3 porte un renvoi à la présente annotation, qui la corrige.
+
+**Ce qui est corrigé.** La puce 3 de l'annotation précédente (« se ramener à un carré exclut des données et doit être justifié (art. 19(1)(b)), à défaut de quoi la méthode n° 1 reste ouverte ») était inexacte sur deux points :
+- l'art. 19(1)(b) ne vise le calcul des USP que par le renvoi de l'art. 219(1)(a), qu'il faut donc citer avec lui ;
+- la méthode du risque de réserve n° 1 n'est pas un repli qui s'ouvrirait faute de justification : c'est l'autre méthode standard de l'art. 220(1)(b), sous ses propres exigences de données (section C), et le choix entre les deux méthodes relève de l'art. 220(2).
+
+L'erreur venait de l'avis d'`actuary` du 12/11 (§ 4), repris par la décision Q-61-1 (a) ; `actuary` la retire.
+
+**Qualification commune corrigée** (texte d'`actuary-relance-mw04.md`, repris mot pour mot ; elle remplace la liste à quatre puces de l'annotation précédente) :
+
+1. Les formules des paragraphes 4 et 5 de la section D de l'annexe XVII ne se calculent à la lettre que si I = J. Pour I > J, deux termes sont indéfinis :
+   - C(i, I−i), pour i < I−J ;
+   - Q̂_{I−i}, pour 1 ≤ i ≤ I−J.
+
+   Ces termes ne concernent que les années d'accident qui ont atteint l'année de développement J.
+2. Le domaine de l'outil est plus étroit que celui de D(2)(e), qui admet I > J.
+   - Le refus d'un triangle I > J est le choix de la lecture stricte (A), non une exigence du texte.
+   - Un triangle I < J relève du seul motif D(2)(e).
+3. Se ramener à un triangle carré exclut des années d'accident. Cette exclusion est à justifier : l'art. 219(1)(a) rend applicable l'art. 19(1)(b), selon lequel « aucune donnée pertinente n'est exclue … sans justification ». Après troncature, la nouvelle première année d'accident doit satisfaire D(2)(d) [R, non relu ici].
+4. La méthode du risque de réserve n° 1 est l'autre méthode standard de l'art. 220(1)(b), sous ses propres exigences de données (section C). Le choix entre les deux méthodes relève de l'art. 220(2).
+5. Merz et Wüthrich (2008, p. 546) supposent I = J par simplicité et annoncent l'extension au cas I > J sans en imprimer la formule.
+
+(La marque « [R, non relu ici] » est celle d'`actuary` : D(2)(d) est établi par `regulatory` et n'a pas été relu par `actuary` dans sa relance.)
+
+**Répartition.** La contrainte « la même dans le motif du moteur, dans la documentation LaTeX et ici » de l'annotation précédente est **levée** et remplacée par :
+- le **motif** MW-04 de `mw_valider_triangle()` porte les points 1 à 3, sans D(2)(d) ni la citation de Merz et Wüthrich (une source académique n'aide pas l'utilisateur à corriger ses données) ;
+- le **présent ADR** et la **documentation LaTeX** portent les points 1 à 5 ; le point 5 renvoie à la bibliographie (`sec:biblio`), où l'entrée Merz et Wüthrich (2008) existe déjà. Côté `.tex` : l'encadré « Restriction d'implémentation » de `sec:mw` reçoit la qualification entière ; le tableau de `sec:controles` (ligne « Géométrie carrée ») garde la description des termes indéfinis, ajoute les points 1 et 2 et renvoie à l'encadré ; le passage sur la géométrie du triangle ajoute « à la lettre » et sépare les cas I < J et I > J. La rédaction revient à `docwriter` (règle 9).
+
+**Texte du motif MW-04** (décision 2 du mainteneur ; émis si I > J seulement, remarque R-1 ; `sprintf` avec `nrow(tri)` puis `ncol(tri)`) :
+
+```
+Triangle non carre (%d annees d'accident, %d annees de developpement) : admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil, les formules des paragraphes 4 et 5 de cette section ne se calculant a la lettre que pour un triangle carre. Se ramener a un triangle carre exclut des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b)).
+```
+
+Le motif écrit « section D, point (2)(e) » et non « D(2)(e) » : le test de MW-03, qui cherche cette dernière chaîne, ne peut donc pas être satisfait par le seul texte de MW-04.
+
+**Corrections mineures de l'annotation précédente** (point (vi) de `regulatory`, accepté par `actuary` et compris dans la décision 1) :
+- « les années d'accident entièrement développées en J » (« Ce qui est établi ») se lit « les années d'accident **qui ont atteint l'année de développement J** » : le texte ne dit pas que ces années sont entièrement développées, et D(2)(d) ne vise que la première année d'accident ;
+- la parenthèse de « Suite » se lit comme annoncée par « **notamment** » : les critères de l'issue de suite #567 comprennent aussi l'identité au bit des six références et la règle de minimum gardée pour j = J−1 (exigence de D(5)(d)(ii)).
+
+**Ce qui ne change pas.** La lecture (A) : refus d'un triangle I > J maintenu pour la remise, aucune valeur fabriquée ; la remarque R-1 (MW-04 émis si I > J seulement ; I < J relève du seul motif D(2)(e)) ; la décision du présent ADR sur la formule de D(5) ; la MSEP, aucun σ_USP, aucune p-value ni aucun verdict ; les références de non-régression (« non carre » et « D(2)(e) » absents des six `.rds`). Le texte de MW-04 change hors références : le test qui compare le texte complet du motif est remplacé, celui du triangle I < J est complété (une seule ligne de refus, sans « non carre »).
+
+**Lecture du corps et de l'annotation précédente.** Ni l'une ni l'autre n'est réécrite ; la puce 3 de l'annotation précédente porte un renvoi à la présente annotation. Le texte de la présente annotation est soumis à l'accord du mainteneur avant la reprise par `coder` (étape 5 de K2b) et par `docwriter`.
+
+Issues : #540 ; suite (lecture B) : #567. Voir `docs/feuille-de-route.md`, fiche « Branche K2b » et § 4, E-13/11 (K2b, avis amont) ; `docs/revues/20261113-avis-amont-k2b/`.
