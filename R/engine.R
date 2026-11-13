@@ -8460,8 +8460,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # ligne 1 sans aucune valeur (#522), cellule sans attribut r et balise <c de
 # forme non reconnue (#487), reference de cellule de forme non attendue,
 # table des chaines partagees decoupee en segments <r> sans aucun <rPr>
-# (#557). Le refus d'une ligne 1 sans valeur d'un CSV
-# (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
+# (#557), table qui porte une balise <rPh .../> auto-fermante ou une chaine
+# formee de plusieurs <t> directs (#572). Le refus d'une ligne 1 sans valeur
+# d'un CSV (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
 # d'engine_lire_donnees_csv() et d'engine_lire_triangle(). Les refus
 # d'archive illisible ou dont une entree
 # sort du dossier de lecture, et de feuille introuvable ("Classeur illisible :
@@ -8524,12 +8525,21 @@ engine_ecrire_csv <- function(df, chemin) {
 # schema, sans texte), puis les blocs <rPh ...>...</rPh> ; un seul motif
 # prenait <rPh sb="0" eb="0"/> pour une balise ouvrante et retirait le texte
 # reel jusqu'au </rPh> suivant ("1" puis "1.5" lu "1", revue de l'audit,
-# #557). Apres le premier retrait, toute balise <rPh restante est ouvrante :
-# [^>]* admet une valeur d'attribut qui porte "/". Le point traverse les fins
-# de ligne (expression TRE, mesure : bloc <rPh> sur plusieurs lignes retire).
+# #557). Les attributs sont lus par XML_ATTRIBUTS_BALISE, qui tient compte des
+# guillemets : un ">" ou un "/" dans une valeur d'attribut entre guillemets
+# ou apostrophes (<rPh sb="0>" eb="0"/>, <rPh sb="a/b">) ne ferme pas la
+# balise ; avec [^>]*, <rPh sb="0>" eb="0"/> etait pris pour une balise
+# ouvrante et le texte reel retire jusqu'au </rPh> suivant ("1" puis "1.5"
+# lu "1", #572). Une table de chaines partagees qui porte une balise <rPh
+# .../> auto-fermante est refusee avant la lecture (engine_lire_xlsx(),
+# #572) : le retrait de ces balises ne sert plus qu'aux chaines en ligne. Le point
+# et les classes niees traversent les fins de ligne (expression TRE, mesure :
+# bloc <rPh> sur plusieurs lignes retire, saut de ligne dans une valeur
+# d'attribut lu).
+XML_ATTRIBUTS_BALISE <- "([ \t\r\n]([^>\"']|\"[^\"]*\"|'[^']*')*)?"
 .xml_textes <- function(x) {
-  x <- gsub("<rPh([ \t\r\n][^>]*)?/>", "", x)
-  x <- gsub("<rPh([ \t\r\n][^>]*)?>.*?</rPh>", "", x)
+  x <- gsub(paste0("<rPh", XML_ATTRIBUTS_BALISE, "/>"), "", x)
+  x <- gsub(paste0("<rPh", XML_ATTRIBUTS_BALISE, ">.*?</rPh>"), "", x)
   t <- regmatches(x, gregexpr("<t([ \t\r\n][^>]*)?>.*?</t>", x))[[1]]
   .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
 }
@@ -8807,10 +8817,12 @@ engine_ecrire_csv <- function(df, chemin) {
 # sans ligne vide au-dessus, que le chemin soit openxlsx (qui saute les lignes
 # vides de tete) ou le lecteur interne (qui prenait la ligne vide pour
 # l'en-tete). Ces deux refus, celui d'une balise <c de forme non reconnue,
-# celui d'une reference de cellule de forme non attendue et celui d'une
+# celui d'une reference de cellule de forme non attendue, celui d'une
 # table des chaines partagees decoupee en segments <r> sans aucun <rPr>
-# (#557) sont des erreurs de classe "usp_refus_lecture" (.refus_lecture()), dont
-# l'application affiche le texte ; les autres refus (archive, feuille) sont
+# (#557) et ceux d'une table qui porte une balise <rPh .../> auto-fermante
+# ou une chaine formee de plusieurs <t> directs (#572) sont des erreurs de
+# classe "usp_refus_lecture" (.refus_lecture()), dont l'application affiche
+# le texte ; les autres refus (archive, feuille) sont
 # des erreurs ordinaires. Les
 # blancs de la ligne d'en-tete sont mis en forme de la meme facon
 # (sep.names = " " pour openxlsx, .xlsx_blancs_entete()
@@ -8859,11 +8871,18 @@ engine_ecrire_csv <- function(df, chemin) {
 # Une telle table est refusee d'un texte propre, avant les deux chemins
 # (decision du mainteneur du 13/11/2026, Q-F, #557) ; une table qui porte au
 # moins un <rPr> est lue avec tous ses segments par les deux chemins
-# (mesure), sauf chaine qui porte une balise <rPh .../> auto-fermante (hors
-# schema) : openxlsx 4.2.9 et 4.2.5.2 en perdent alors le texte jusqu'au
-# </rPh> suivant ("1" puis "1.5" lu 1, mesure, #557), limite propre a
-# openxlsx, dont la sortie n'est pas retouchee. Hypothese non verifiee : un
-# tableur n'ecrit pas de segments <r> sans aucun <rPr>.
+# (mesure). Une table qui porte une balise <rPh .../> auto-fermante (hors
+# schema ; openxlsx 4.2.9 et 4.2.5.2 en perdent le texte jusqu'au </rPh>
+# suivant, "1" puis "1.5" lu 1, mesure, #557), puis une table dont une
+# chaine est formee de plusieurs <t> directs (hors schema ; openxlsx 4.2.9
+# n'en lit que le premier sans <rPr> dans la table, mesure, #572), sont
+# refusees de meme, chacune d'un texte propre (decision du mainteneur du
+# 13/11/2026, P2 et X1, #572). Une chaine en ligne (<is>) de ces formes
+# n'est pas refusee : lue entiere par le lecteur interne, NA par openxlsx
+# 4.2.9, cellule refusee en aval (mesure, #572), limite consignee ; une
+# balise prefixee <x:rPh .../> n'est pas visee (lue 11.5 par les deux
+# chemins pour "1" puis "1.5", mesure, #572). Hypothese non verifiee : un
+# tableur n'ecrit aucune de ces formes.
 # L'attribut r d'une cellule n'est lu que sous la forme
 # r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
 # reference ; une reference de forme non attendue (r="", "1", "A0", "1A",
@@ -8927,7 +8946,31 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     # avant celui de la ligne 1, qui lit ces chaines.
     if (grepl("<([A-Za-z_][A-Za-z0-9_.-]*:)?r[[:space:]/>]", sx) && !grepl("<rPr>", sx, fixed = TRUE))
       .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
+    # Balise <rPh .../> auto-fermante (indication phonetique sans <t>, hors
+    # schema ; attributs lus par XML_ATTRIBUTS_BALISE, ">" entre guillemets
+    # compris) : openxlsx 4.2.9 et 4.2.5.2 en perdent le texte jusqu'au
+    # </rPh> suivant ou la fin de la chaine ("1" puis "1.5" lu 1, sans
+    # message, <rPr> present ; mesure, #557, #572). Refus sur les deux
+    # chemins, avant openxlsx, apres Q-F (decision du mainteneur du
+    # 13/11/2026, P2, #572). Ni <phoneticPr .../>, ni <rPhX .../>, ni une
+    # balise prefixee <x:rPh .../> ne sont visees.
+    if (grepl(paste0("<rPh", XML_ATTRIBUTS_BALISE, "/>"), sx))
+      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une indication phonetique vide (balise <rPh .../> sans texte), forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
     si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
+    # Chaine <si> formee de plusieurs balises <t> directes (<t>, <t ...>,
+    # <t/>), comptees une fois retires les blocs <r>...</r> et <rPh>...</rPh>
+    # (hors schema : un seul <t>, puis des <r>, puis des <rPh>) : openxlsx
+    # 4.2.9 n'en lit que le premier ("1" puis "1.5" lu 1, sans message, table
+    # sans <rPr> ; mesure, #572), le lecteur interne les concatene. Refus sur
+    # les deux chemins, avant openxlsx, apres P2 (decision du mainteneur du
+    # 13/11/2026, X1, #572). Un <t> suivi de <r> (conforme) reste lu ;
+    # <tab ...> n'est pas compte.
+    sit <- gsub(paste0("<rPh", XML_ATTRIBUTS_BALISE, ">.*?</rPh>"), "", si)
+    sit <- gsub(paste0("<r", XML_ATTRIBUTS_BALISE, "/>"), "", sit)
+    sit <- gsub(paste0("<r", XML_ATTRIBUTS_BALISE, ">.*?</r>"), "", sit)
+    nt <- lengths(regmatches(sit, gregexpr(paste0("<t", XML_ATTRIBUTS_BALISE, "/?>"), sit)))
+    if (any(nt > 1L))
+      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
     partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
   if (entete) .xlsx_controler_ligne_entete(xml, partagees)
