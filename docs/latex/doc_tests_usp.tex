@@ -3739,8 +3739,8 @@ que «~\code{rejeter}~» ou «~\code{ne pas rejeter}~»~; une p-value (\code{p\_
 qui n'est pas un nombre unique ou une valeur manquante unique, ou qui est finie hors de l'intervalle
 fermé $[0, 1]$ à une tolérance d'arrondi près (\code{TOL\_P\_BORNE} $= 10^{-12}$~; une valeur
 admise dans cette tolérance est gardée telle quelle, sans troncature~; le message de refus écrit la
-valeur refusée par la plus courte écriture, de 15 à 17 chiffres significatifs au point décimal, qui
-se relit à l'identique~: $1 + 10^{-9}$ y est écrit «~\code{1.000000001}~» et non «~\code{1}~»), une valeur non finie restant lue comme absente~; un libellé \code{nature\_forcee}
+valeur refusée par la plus courte écriture qui se relit à l'identique, à 15, 16 ou 17 chiffres
+significatifs au plus, au point décimal~: $1 + 10^{-9}$ y est écrit «~\code{1.000000001}~» et non «~\code{1}~»), une valeur non finie restant lue comme absente~; un libellé \code{nature\_forcee}
 qui n'est ni \code{NA} ni une chaîne non vide, ou dont le préfixe ne dit pas le rang de la
 p-value retenue (section~\ref{sec:modele-auxiliaire-regles}, «~Nature forcée~»). Une ligne non applicable d'\code{usp\_tests()} ne restitue aucune
 p-value (\code{p\_exacte}, \code{p\_asymptotique}, \code{p\_mc} et \code{p\_retenue} à
