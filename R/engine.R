@@ -4700,12 +4700,14 @@ engine_registre_tests <- function(boot, catalogue, alpha, nature_mc) {
              ", longueur ", length(val), ") (", nom, ")", call. = FALSE)
       if (is.numeric(val) && is.finite(val) &&
           (val < -TOL_P_BORNE || val > 1 + TOL_P_BORNE)) {
-        # Valeur ecrite par la plus courte ecriture qui se relit a l'identique
-        # (15 a 17 chiffres significatifs, a defaut 17), au point decimal
+        # Valeur ecrite au plus petit nombre de chiffres significatifs (15, 16
+        # ou 17, a defaut 17) qui se relit a l'identique, au point decimal
         # quel que soit OutDec (#537) : format(val) arrondissait a 7 chiffres
-        # et ecrivait "1" pour 1 + 1e-9.
+        # et ecrivait "1" pour 1 + 1e-9. sprintf("%.*g") ne lit ni
+        # options(scipen) ni options(OutDec), comme .xlsx_nombre() : le texte
+        # est le meme sous scipen = 0 et sous scipen = 100.
         for (d in 15:17) {
-          s <- format(val, digits = d, decimal.mark = ".")
+          s <- sprintf("%.*g", d, val)
           if (as.numeric(s) == val) break
         }
         stop("add() : p-value hors de [0, 1] : ", arg, " = ", s, " (", nom, ")",
