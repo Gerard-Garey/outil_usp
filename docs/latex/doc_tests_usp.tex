@@ -889,8 +889,10 @@ chemins de lecture, d'une balise de cellule \code{<c} suivie d'un blanc autre qu
 cellule sans attribut de position \code{r}, d'une cellule dont l'attribut \code{r} est répété ou
 n'a pas, écrit tel quel, la forme lettres de colonne puis numéro de ligne à partir de~1
 (\code{r="A2"}), d'une table des chaînes partagées qui porte du texte découpé en segments
-\code{<r>} sans aucune balise \code{<rPr>}, et, sous \code{entete = TRUE}, d'une ligne~1 sans
-aucune valeur (§\ref{sec:controles})~; ces cinq refus sont des erreurs de classe
+\code{<r>} sans aucune balise \code{<rPr>}, d'une table qui porte une balise \code{<rPh .../>}
+auto-fermante ou une chaîne formée de plusieurs balises \code{<t>} successives, et, sous
+\code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces sept refus
+sont des erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
 feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
@@ -922,7 +924,8 @@ partagées)~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc e
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
-ou non, texte phonétique (blocs \code{<rPh>}) retiré, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
+ou non, texte phonétique (balises \code{<rPh .../>} et blocs \code{<rPh>}, attributs lus en
+tenant compte des guillemets) retiré, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
 entre guillemets doubles ou apostrophes, blancs admis autour du signe \code{=}), nom local
 comparé, préfixe d'espace de noms retiré, sous \code{local = TRUE} (classeur et relations), nom
 entier sous \code{local = FALSE} (attributs \code{r} et \code{t} d'une cellule), \code{NA} s'il
@@ -4589,7 +4592,18 @@ lue sans son texte phonétique par la voie de repli, alors qu'\code{openxlsx} en
 cellule non numérique ou manquante, ou comme colonne manquante~; le texte d'une cellule
 \code{t="str"} (résultat de formule) est lu tel quel, sans décodage des entités (\code{\&amp;},
 \code{\&\#xE9;}), par les deux chemins à l'identique, un en-tête attendu ou un nombre ne
-s'écrivant pas avec une entité (mesuré). La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+s'écrivant pas avec une entité (mesuré). Sont refusées de même, avant l'appel à \code{openxlsx} et sur les deux chemins, une
+table des chaînes partagées qui porte une indication phonétique vide (balise \code{<rPh .../>}
+auto-fermante, motif «~\code{contient une indication phonetique vide}~») et une table dont une
+chaîne est formée de plusieurs balises \code{<t>} successives (motif «~\code{contient une chaine
+formee de plusieurs balises <t> successives}~»), formes que l'outil tient pour non prévues par le
+format~: \code{openxlsx}~4.2.9 en tronque le texte, sans message («~\code{1}~»
+puis «~\code{1.5}~» lu~1, mesuré). Une chaîne en ligne (\code{<is>}) de ces deux formes n'est pas
+refusée~: la voie de repli la lit entière, \code{openxlsx}~4.2.9 en rend la cellule \code{NA}
+(\code{<rPh .../>}) ou un texte non numérique (\code{<t>} successifs), refusés en aval comme
+cellule non numérique (mesuré). Les balises préfixées \code{<x:rPh>} et \code{<x:t>} ne sont pas
+visées~: une \code{<x:rPh .../>} est lue sans perte par les deux chemins, une chaîne faite de
+\code{<x:t>} est lue vide par les deux chemins (mesuré). La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
@@ -4612,9 +4626,10 @@ d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un c
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
 \code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
 lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
-prendrait la ligne vide pour l'en-tête. Les cinq refus du classeur (balise de forme non
+prendrait la ligne vide pour l'en-tête. Les sept refus du classeur (balise de forme non
 reconnue, cellule sans attribut de position, référence de position de forme non attendue, table
-des chaînes partagées découpée en segments sans mise en forme, ligne~1 sans valeur) sont des
+des chaînes partagées découpée en segments sans mise en forme, indication phonétique vide,
+chaîne formée de plusieurs \code{<t>}, ligne~1 sans valeur) sont des
 erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
 feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
