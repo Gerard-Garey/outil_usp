@@ -26,3 +26,7 @@ Pour information, sans décision du mainteneur (validation d'`actuary` suffisant
 11. **Textes de #555 jugés non conformes par `regulatory`** : reformulation par `actuary` et poursuite déléguées, tant qu'aucun σ_USP ni verdict ne change et que les règles 1 à 9 restent les mêmes ; arrêt si la règle elle-même est en cause ou si les deux agents restent en désaccord.
 12. **Constats hors périmètre de la revue finale** (et issue proposée sur les graphiques plotly rognés à l'impression en portrait) : issues rédigées au handoff, créées au retour du mainteneur après approbation.
 13. **Sortie du brouillon** de la PR #563 par la session une fois la branche terminée (PDF commité, CI verte, revue finale sans constat ouvert) ; fusion par le mainteneur.
+
+## Décision du 13/11/2026, après la revue finale (constat C1, `../20261112-fin-de-branche-k3b/actuary-avis-c1-entete-T.md`)
+
+14. **Décision 8 confirmée en connaissance de ses effets** (option (a), recommandation d'`actuary`) : un fichier de séries d'en-tête `T` (ou ` t ` en CSV) aux lignes dans le désordre est trié par `T`. Hors des six cas de référence, cela change σ_USP à profondeur réduite (0,1280504 → 0,1193536 à T = 6 sur 8 lignes, exemple du tableau avant / après de la PR #563) et sept verdicts sur une série à S/P croissant au fichier mélangé ; le changement est approuvé. Aucun code à changer. Le message de `21561e0` (« Aucun σ_USP, p-value ni verdict changé ») n'est pas réécrit ; le corps de la PR #563 et l'avis d'`actuary` en tiennent lieu.
