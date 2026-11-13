@@ -486,6 +486,10 @@ ui <- fluidPage(
       /* Titre de carte jamais isole en bas de page ; ligne de tableau jamais
          coupee entre deux pages. */
       .entete-carte { break-after:avoid; break-inside:avoid; }
+      /* Titre de carte des blocs (onglets Calibration, Descriptif...) : jamais
+         isole en bas de page (#566). */
+      .bloc > h4 { break-after:avoid; }
+      .bloc > h4 + .row { break-inside:avoid; }
       .defil-detail table.data tr { break-inside:avoid; }
       /* Les <span> a taille en ligne (11 px, display_helpers.R) depasseraient la
          police d'impression de la cellule. */
@@ -494,6 +498,22 @@ ui <- fluidPage(
          sinon ils se superposent au tableau ; zone principale en pleine largeur. */
       .hors-impression, #shiny-notification-panel { display:none !important; }
       .zone-principale { width:100%; float:none; }
+      /* Graphiques plotly (#566) : plotly fixe en pixels la largeur de ses
+         calques SVG au dernier affichage a l'ecran ; sur papier, un graphique
+         plus large que la zone utile etait coupe a droite. Le script de
+         l'en-tete (beforeprint) pose sur chaque graphique data-impression, un
+         viewBox sur ses calques SVG et deux variables (largeur et rapport
+         naturels) ; ici, le conteneur se limite a la largeur utile (jamais
+         agrandi : max-width = largeur naturelle) et le dessin suit, a
+         proportions conservees. Hors impression, ni attribut ni viewBox :
+         ecran inchange. */
+      .js-plotly-plot { break-inside:avoid; }
+      .js-plotly-plot[data-impression] { height:auto !important; }
+      .js-plotly-plot[data-impression] .svg-container { width:100% !important;
+        max-width:var(--impr-largeur); height:auto !important;
+        aspect-ratio:var(--impr-ratio); }
+      .js-plotly-plot[data-impression] svg.main-svg { width:100% !important;
+        height:100% !important; }
     }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
@@ -514,6 +534,46 @@ ui <- fluidPage(
     table.triangle input.form-control { padding:3px 6px; height:30px;
                                         font-size:12.5px; text-align:right; }
   "))),
+  # Impression des graphiques plotly (#566) : prepare le dessin avant la mise
+  # en page d'impression (beforeprint, et le changement de media print pour les
+  # navigateurs sans beforeprint), le remet tel quel apres (afterprint). Aucun
+  # calcul : lecture de la taille deja affichee par plotly.
+  tags$head(tags$script(HTML(r"---(
+    (function() {
+      function preparer() {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
+          var c = g.querySelector('.svg-container');
+          if (!c) return;
+          // Seulement si la taille posee par plotly est en px (sinon, rien).
+          if (!/px$/.test(c.style.width) || !/px$/.test(c.style.height)) return;
+          var w = parseFloat(c.style.width), h = parseFloat(c.style.height);
+          if (!(w > 0 && h > 0)) return;
+          g.querySelectorAll('svg.main-svg').forEach(function(s) {
+            s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); });
+          g.style.setProperty('--impr-largeur', w + 'px');
+          g.style.setProperty('--impr-ratio', w + ' / ' + h);
+          g.setAttribute('data-impression', '1');
+        });
+      }
+      function restaurer() {
+        document.querySelectorAll('.js-plotly-plot[data-impression]').forEach(function(g) {
+          g.removeAttribute('data-impression');
+          g.style.removeProperty('--impr-largeur');
+          g.style.removeProperty('--impr-ratio');
+          g.querySelectorAll('svg.main-svg').forEach(function(s) {
+            s.removeAttribute('viewBox'); });
+        });
+      }
+      window.addEventListener('beforeprint', preparer);
+      window.addEventListener('afterprint', restaurer);
+      if (window.matchMedia) {
+        var mp = window.matchMedia('print');
+        var ecoute = function(e) { if (e.matches) preparer(); else restaurer(); };
+        if (mp.addEventListener) mp.addEventListener('change', ecoute);
+        else if (mp.addListener) mp.addListener(ecoute);
+      }
+    })();
+  )---"))),
 
   fluidRow(
     tagAppendAttributes(class = "zone-principale", column(

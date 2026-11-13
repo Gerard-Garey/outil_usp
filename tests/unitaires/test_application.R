@@ -278,6 +278,16 @@ verifier("app.R : bandeau des avertissements, titre en gras et sans repere [...]
          any(grepl(".avert details.com > summary { font-weight:700; }", .src_app, fixed = TRUE)) &&
            any(grepl(".avert details.com:not([open]) > summary::after { content:none; }", .src_app, fixed = TRUE)))
 
+verifier("app.R : impression des graphiques plotly (script beforeprint / afterprint, data-impression, regles @media print) et titre de carte jamais isole (#566)",
+         any(grepl("addEventListener('beforeprint'", .src_app, fixed = TRUE)) &&
+           any(grepl("addEventListener('afterprint'", .src_app, fixed = TRUE)) &&
+           any(grepl("setAttribute('data-impression'", .src_app, fixed = TRUE)) &&
+           any(grepl(".js-plotly-plot[data-impression] .svg-container", .src_app, fixed = TRUE)) &&
+           any(grepl(".js-plotly-plot[data-impression] svg.main-svg", .src_app, fixed = TRUE)) &&
+           any(grepl(".bloc > h4 { break-after:avoid; }", .src_app, fixed = TRUE)) &&
+           any(grepl(".bloc > h4 + .row { break-inside:avoid; }", .src_app, fixed = TRUE)) &&
+           any(grepl("/px$/.test(c.style.width)", .src_app, fixed = TRUE)))
+
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
 .noms_155 <- c("DONNEES_DEFAUT", "profondeur_reinitialisation", "jeu_reinitialise",
