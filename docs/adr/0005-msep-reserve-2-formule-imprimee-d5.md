@@ -67,7 +67,7 @@ Le moteur (`mw_msep()`, avant le commit `cb7f497`) calculait `t1 + Σ_{i<k} ĈĈ
 **Ce qui reste ouvert** (hors du présent ADR, décisions du mainteneur) :
 - **`σ̂²_{J−1}` quand `σ̂²_{J−3} = 0`** : le texte impose `min(σ̂²_{J−2}, σ̂²_{J−3}, (σ̂²_{J−2})²/σ̂²_{J−3})` et ne prévoit rien pour un dénominateur nul ; lu littéralement, le minimum vaut 0. `mw_ajuster()` pose alors `σ̂²_{J−2}`, sans le signaler, et la ligne M6 affiche cette valeur sous le libellé « règle min(...) du règlement ». `actuary` recommande la valeur littérale 0 avec alerte visible, à défaut le refus du calcul, et en aucun cas le maintien silencieux de `σ̂²_{J−2}` ; sensibilité de l'ordre de 4 % sur σ_USP. Le triangle de test n'est pas dégénéré (aucune référence touchée) ; la convention retenue devra être consignée, dans un ADR si elle s'écarte de la lettre.
 - **Réserve ≤ 0 ou MSEP non finie** (décision M4, jalon J7) : D(4) divise par la réserve sans conditionner au signe ; `actuary` recommande le refus (`ok = FALSE`).
-- **Géométrie I > J** : le moteur impose un triangle carré, convention non prescrite, déjà documentée ; rien à arbitrer tant qu'aucun dossier ne présente un trapèze.
+- **Géométrie I > J** : le moteur impose un triangle carré, convention non prescrite, déjà documentée ; rien à arbitrer tant qu'aucun dossier ne présente un trapèze. *[Annotation du 13/11/2026 : qualification remplacée, voir l'annotation du même jour en fin d'ADR (#540, lecture (A) retenue pour la remise).]*
 
 Issues : #7 (partie bloquante). Feuille de route : jalon J3 ; décision M1 close sans objet ; M3 (visa du tableau) ; J6 et J7 débloqués après fusion. Voir `CONTEXT.md` (référence de non-régression).
 
@@ -142,3 +142,25 @@ Voir `docs/feuille-de-route.md`, fiche « Branche JF » ; `docs/suivi-documentat
 **Lecture du corps.** Le texte décidé n'est pas réécrit. Portent un renvoi à la présente annotation : la première mention de la « version consolidée en vigueur » dans le Contexte (renvoi qui vaut pour les autres mentions du présent ADR), celle de l'amendement du 22 septembre 2026, la réserve « non à l'image » de l'annotation précédente et son « qui fait foi ».
 
 Voir `docs/feuille-de-route.md`, fiche « Branche JF » ; `docs/suivi-documentation/III-M.md`.
+
+## Annotation du 13 novembre 2026 — géométrie I > J : refus maintenu pour la remise, qualification unifiée (#540, lecture (A), remarque R-2)
+
+**Origine.** Lecture de D(2)(e), D(4) et D(5) par `regulatory` (effort `high`, 12/11/2026) et avis d'`actuary` sur la lecture extensive (12/11/2026), versés dans `docs/revues/20261112-lecture-d2e-540/` ; décision Q-61-1 (a) du mainteneur du 13/11/2026 (`docs/feuille-de-route.md`, § 4, E-13/11 (61e point)) : lecture (A) pour la remise, remarques R-1 et R-2 portées par la branche K2b.
+
+**Ce qui est établi.** D(2)(e) admet un triangle à plus d'années d'accident que d'années de développement (I > J). Pour I > J, deux termes de D(4) et D(5) sont indéfinis : C(i, I−i) pour i < I−J, et Q̂_{I−i} pour 1 ≤ i ≤ I−J ; ils ne concernent que les années d'accident entièrement développées en J. Textes consolidé et JOUE identiques sur ces points, hors formule de la MSEP (présent ADR). Deux lectures : (A) refus, retenue par le moteur ; (B) extension (réserve et contribution à la MSEP nulles pour i ≤ I−J, règle de minimum gardée pour j = J−1, durée G(3)(c) = I + 1), dont l'égalité avec l'erreur à un an de Merz et Wüthrich n'est établie que par raisonnement et dont le niveau des tests n'est pas mesuré à T = 8. Aucun σ_USP des cas de référence (tous carrés) n'est touché par l'une ou l'autre.
+
+**Décision.** Le refus d'un triangle non carré est **maintenu** pour la remise. La puce « Géométrie I > J » de « Ce qui reste ouvert » (« convention non prescrite, déjà documentée ; rien à arbitrer ») est **remplacée** par la qualification suivante, la même dans le motif du moteur, dans la documentation LaTeX et ici :
+- les formules de D(4)-D(5) ne se calculent à la lettre que si I = J ;
+- le domaine de l'outil est plus étroit que celui de D(2)(e), qui admet I > J ;
+- se ramener à un carré exclut des données et doit être justifié (art. 19(1)(b)), à défaut de quoi la méthode n° 1 reste ouverte ;
+- Merz et Wüthrich (2008, p. 546) supposent I = J par simplicité et annoncent l'extension au cas I > J sans en imprimer la formule.
+
+Le motif de refus « triangle non carré » n'est émis que si I > J ; un triangle à moins d'années d'accident que d'années de développement relève du seul motif D(2)(e) (remarque R-1).
+
+**Ce qui ne change pas.** La MSEP, σ_USP, les p-values, les verdicts et les références de non-régression ; la décision du présent ADR sur la formule de D(5). Le texte du motif et les passages du `.tex` sont alignés par la branche K2b (`coder`, puis `docwriter`), sous contrôle de conformité de `regulatory`.
+
+**Suite.** L'extension selon la lecture (B) fait l'objet d'une issue de suite, après la remise, en circuit 1 + 2, aux critères du § 4 de l'avis d'`actuary` (MSEP du trapèze confrontée à une implémentation ou à une simulation indépendante, sort des résidus de la colonne J−1, niveau des tests mesuré sur 8 × 5, 8 × 6 et 8 × 7, durée G(3)(c) = I + 1, refus de R̂ ≤ 0 gardé).
+
+**Lecture du corps.** La puce « Géométrie I > J » n'est pas réécrite ; elle porte un renvoi à la présente annotation.
+
+Issues : #540 ; suite (lecture B) : #567. Voir `docs/feuille-de-route.md`, fiche « Branche K2b ».
