@@ -11425,16 +11425,18 @@ Fonction nommée~: \code{test\_anscombe\_kurt()}. $Z$ n'est pas définie dans de
 fonction rend \code{stat} et \code{p} à \code{NA} avec un champ logique qui en dit la cause~:
 $b_2$ non défini (résidus exactement constants~; champ \code{b2\_non\_defini})~; ou
 $1 + x\sqrt{2/(A-4)} \le 0$ (champ \code{z\_non\_definie}), où la base de la racine cubique est
-négative ou infinie. À $T \ge 20$, des résidus non finis, ou un $b_2$ non fini sur des résidus finis
-et non constants (dépassement de capacité des moments centrés en virgule flottante), sont refusés
-par une erreur et non restitués~; \code{run\_engine()} n'atteint pas ces refus, la fonction n'y
-recevant que les résidus standardisés de l'ajustement validé. Ce dénominateur croît avec $b_2$, et $b_2 \ge 1$ pour tout échantillon
+négative ou infinie. Ce dénominateur croît avec $b_2$, et $b_2 \ge 1$ pour tout échantillon
 ($m_4 \ge m_2^2$, inégalité de Cauchy--Schwarz)~: il est minimal en $b_2 = 1$, où il reste
 strictement positif pour $20 \le T \le 34$ et devient négatif dès $T = 35$ (calcul sur la formule
 ci-dessus)~; le cas exige donc $T \ge 35$ et un aplatissement très inférieur à~3. La racine cubique
 réelle signée, qui prolongerait $Z$, est écartée~: elle en inverse le signe ($Z = +35{,}9$ à
 $T = 40$ et $b_2 = 1$, valeur de $b_2$ la plus éloignée de~3 vers le bas). Le texte d'Anscombe et
 Glynn (1983) n'a pas été relu (texte intégral non relu)~; le document n'affirme rien de ce qu'il prescrirait dans ce cas.
+À $T \ge 20$, des résidus non finis, ou un $b_2$ non fini sur des résidus finis et non constants
+(dépassement ou soupassement de capacité des moments centrés en virgule flottante), sont refusés
+par une erreur et non restitués. \code{run\_engine()} ne transmet à la fonction que les résidus
+standardisés de l'ajustement validé, et aucun de ces refus n'y a été observé (constat sur un
+balayage d'ajustements, sans script versionné)~; leur inatteignabilité n'est pas démontrée.
 \Loi
 $Z \sim \mathcal{N}(0,1)$ approximativement (transformation de Wilson--Hilferty).
 \Pval
