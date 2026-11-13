@@ -8307,21 +8307,22 @@ engine_lire_triangle <- function(df) {
 # (t, xt, yt ; i, j0, j1...) et cellules numeriques.
 # Compression : paquet zip s'il est installe (zip::zipr(), appel de meme forme
 # que celui d'openxlsx), sinon utils::zip() avec la commande designee par
-# R_ZIPCMD (defaut "zip"). Sans l'un ni l'autre : erreur R ordinaire, levee
-# avant toute ecriture (ce n'est pas un refus de lecture : la classe
-# usp_refus_lecture ne s'applique pas). Si zip::zipr() echoue (par exemple un
-# paquet zip ancien, sans l'argument include_directories) et que la commande
-# existe, l'archive partielle est effacee et utils::zip() prend le relais ;
-# si ce repli echoue aussi, ou si la commande manque, erreur R ordinaire qui
+# R_ZIPCMD (defaut "zip"). Sans l'un ni l'autre : erreur levee avant toute
+# ecriture, de classe "usp_refus_ecriture" (.refus_ecriture(), #556 ; ce
+# n'est pas un refus de lecture : la classe usp_refus_lecture ne s'applique
+# pas). Si zip::zipr() echoue (par exemple un paquet zip ancien, sans
+# l'argument include_directories) et que la commande existe, l'archive
+# partielle est effacee et utils::zip() prend le relais ; si ce repli echoue
+# aussi, ou si la commande manque, erreur de classe "usp_refus_ecriture" qui
 # nomme les deux echecs, archive partielle effacee. Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
   avec_paquet_zip <- requireNamespace("zip", quietly = TRUE)
   if (!avec_paquet_zip && !nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))))
-    stop(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
-               "commande zip du systeme ne sont disponibles (installer le paquet",
-               "zip, ou openxlsx qui l'importe)."), call. = FALSE)
+    .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
+                          "commande zip du systeme ne sont disponibles (installer le paquet",
+                          "zip, ou openxlsx qui l'importe)."))
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nc <- ncol(df); nr <- nrow(df)
   cellule <- function(ligne, col, valeur) {
@@ -8398,11 +8399,11 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   st <- if (commande) utils::zip(cible, entrees, flags = "-r9Xq") else NA
   if (identical(st, 0L)) return(invisible(cible))
   if (file.exists(cible)) unlink(cible)
-  stop(paste0("Echec de la creation du fichier .xlsx (",
-              paste(c(if (!is.null(echec_paquet)) paste0("paquet zip : ", echec_paquet),
-                      if (commande) sprintf("commande zip, statut %s", format(st))
-                      else "commande zip indisponible"), collapse = " ; "),
-              ")."), call. = FALSE)
+  .refus_ecriture(paste0("Echec de la creation du fichier .xlsx (",
+                         paste(c(if (!is.null(echec_paquet)) paste0("paquet zip : ", echec_paquet),
+                                 if (commande) sprintf("commande zip, statut %s", format(st))
+                                 else "commande zip indisponible"), collapse = " ; "),
+                         ")."))
 }
 
 # Ecrit un data.frame de donnees en CSV (#488) : export des donnees de
@@ -8471,6 +8472,18 @@ engine_ecrire_csv <- function(df, chemin) {
 # de l'application (MESSAGE_ILLISIBLE).
 .refus_lecture <- function(message)
   stop(structure(class = c("usp_refus_lecture", "error", "condition"),
+                 list(message = message, call = NULL)))
+
+# Refus motive de l'ecriture d'un classeur, destine a l'utilisateur : erreur
+# de classe "usp_refus_ecriture" (puis "error", "condition"), sur le modele de
+# .refus_lecture(). Son conditionMessage() est le texte fixe de la cause,
+# que l'application montre tel quel dans la notification d'echec d'un export
+# (#556) ; toute autre erreur d'ecriture reste une erreur R ordinaire, dont
+# la cause n'est pas montree a l'ecran. Levee par les deux seules erreurs
+# d'engine_ecrire_xlsx() : ni paquet zip ni commande zip, et echec de la
+# creation de l'archive par le paquet zip puis par la commande zip.
+.refus_ecriture <- function(message)
+  stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
                  list(message = message, call = NULL)))
 
 # Texte d'un fichier XML du classeur, lu d'un bloc en UTF-8 : les sauts de

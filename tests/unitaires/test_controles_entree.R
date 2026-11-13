@@ -5010,7 +5010,7 @@ if (length(voies488)) {
 }
 verifier("engine_ecrire_xlsx() / engine_ecrire_csv() : requireNamespace() simule retire, moteur intact (#488)",
          !exists("requireNamespace", envir = env488, inherits = FALSE))
-verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur R ordinaire (pas usp_refus_lecture), motif nomme, aucun fichier ecrit (#488)",
+verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur usp_refus_ecriture (pas usp_refus_lecture), motif nomme, aucun fichier ecrit (#488)",
          {
            f <- tempfile(fileext = ".xlsx")
            ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
@@ -5020,6 +5020,20 @@ verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> erreur R ordin
            inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
              grepl("ni le paquet R zip ni la commande zip du systeme ne sont disponibles",
                    conditionMessage(e), fixed = TRUE)
+         })
+# Classe usp_refus_ecriture (#556) : texte destine a l'utilisateur, que
+# l'application montre tel quel ; textes inchanges octet pour octet.
+verifier("engine_ecrire_xlsx() : ni paquet zip ni commande zip -> classe usp_refus_ecriture (puis error, condition), pas usp_refus_lecture, texte inchange octet pour octet (#556)",
+         {
+           f <- tempfile(fileext = ".xlsx")
+           ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+           Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+           on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+           e <- tryCatch(sans488("zip", engine_ecrire_xlsx(g488, f)), error = function(e) e)
+           identical(class(e), c("usp_refus_ecriture", "error", "condition")) && is.null(conditionCall(e)) &&
+             identical(conditionMessage(e), paste(
+               "Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la commande zip du systeme",
+               "ne sont disponibles (installer le paquet zip, ou openxlsx qui l'importe)."))
          })
 # Repli de compression (revue finale de K2) : zip::zipr() en echec (paquet
 # zip ancien, sans l'argument include_directories), simule par une
@@ -5042,7 +5056,7 @@ if (base::requireNamespace("zip", quietly = TRUE)) {
                r <- engine_lire_donnees_csv(sans488("openxlsx", engine_lire_xlsx(f)))
                identical(r$xt, g488$xt) && identical(r$yt, g488$yt) })
   } else cat("  [saute] repli de zip::zipr() sur utils::zip() (#488) : commande zip indisponible\n")
-  verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip absente -> erreur R ordinaire nommant les deux echecs, aucun fichier ecrit (#488)",
+  verifier("engine_ecrire_xlsx() : zip::zipr() en echec et commande zip absente -> erreur usp_refus_ecriture (pas usp_refus_lecture) nommant les deux echecs, aucun fichier ecrit (#488)",
            {
              f <- tempfile(fileext = ".xlsx")
              ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
@@ -5052,6 +5066,16 @@ if (base::requireNamespace("zip", quietly = TRUE)) {
              inherits(e, "error") && !inherits(e, "usp_refus_lecture") && !file.exists(f) &&
                identical(conditionMessage(e), paste("Echec de la creation du fichier .xlsx (paquet zip : unused argument",
                                                     "(include_directories = FALSE) ; commande zip indisponible)."))
+           })
+  verifier("engine_ecrire_xlsx() : echec de la creation de l'archive -> classe usp_refus_ecriture (puis error, condition), pas usp_refus_lecture (#556)",
+           {
+             f <- tempfile(fileext = ".xlsx")
+             ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+             Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp488")
+             on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+             e <- tryCatch(zipr_en_echec488(engine_ecrire_xlsx(g488, f)), error = function(e) e)
+             identical(class(e), c("usp_refus_ecriture", "error", "condition")) && is.null(conditionCall(e)) &&
+               !file.exists(f)
            })
   verifier("engine_ecrire_xlsx() : substitution de \"::\" retiree, moteur intact (#488)",
            !exists("::", envir = env488, inherits = FALSE))
