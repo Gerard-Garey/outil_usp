@@ -4805,10 +4805,15 @@ Données nettes exigées par D(2)(f)~; contrôle de \code{.run\_engine\_mw()}. B
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
-Géométrie carrée & $I = J$ & Restriction d'implémentation~: les formules des
-paragraphes~4 et~5 font intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du
-paragraphe~5 aussi $\hat Q_{I-i}$, indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni
-$\hat\sigma^2_j$ au-delà de $j = J-1$). Bloquant. \\
+Géométrie carrée & $I = J$ (motif émis si $I > J$) & Restriction d'implémentation~: les
+formules des paragraphes~4 et~5 ne se calculent à la lettre que si $I = J$~; elles font
+intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du paragraphe~5 aussi $\hat Q_{I-i}$,
+indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà de $j = J-1$), termes qui
+ne concernent que les années d'accident ayant atteint l'année de développement~$J$. Le domaine
+de l'outil est plus étroit que celui de D(2)(e), qui admet $I > J$~: le refus est le choix d'une
+lecture stricte retenue par l'outil, non une exigence du texte~; un triangle $I < J$ ne relève que
+du contrôle de forme (D(2)(e)). Qualification complète~: encadré «~Restriction
+d'implémentation~» (§\ref{sec:mw}). Bloquant. \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
@@ -5065,8 +5070,10 @@ amplitude des volumes), et, par le domaine numérique, sur la seule capacité du
 virgule flottante à traiter les montants, sans jugement économique~; ce domaine
 vaut aussi pour les cellules du triangle. Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend la simple définition des estimateurs~:
-un triangle non carré ou incomplet ne permet pas d'appliquer les formules des
-paragraphes~4 et~5. C'est pourquoi la plupart sont bloquants et non de simples
+un triangle incomplet ne permet pas d'appliquer les formules des paragraphes~4 et~5, un
+triangle à moins d'années d'accident que d'années de développement ($I < J$) est exclu par
+D(2)(e), et un triangle $I > J$, admis par D(2)(e), ne permet pas de les appliquer à la lettre
+(§\ref{sec:mw}). C'est pourquoi la plupart sont bloquants et non de simples
 avertissements.
 
 \smallskip
@@ -14698,12 +14705,24 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 
 \begin{encadre}
 \textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
-les formules des paragraphes~4 et~5 font intervenir $C(i, I-i)$, qui n'est définie que si
-$I - i \le J$, et celle du paragraphe~5 aussi $\hat Q_{I-i}$, qui ne l'est que si
-$I - i \le J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà de $j = J-1$). Le cas $I > J$ produirait un trapèze dont le texte ne précise pas
-le traitement. Le moteur impose donc $I = J$ (triangle carré) et refuse
-explicitement les autres géométries, plutôt que de les traiter par une convention
-implicite non prévue par le règlement.
+les formules des paragraphes~4 et~5 ne se calculent à la lettre que si $I = J$~: elles font
+intervenir $C(i, I-i)$, qui n'est définie que si $I - i \le J$, et celle du paragraphe~5 aussi
+$\hat Q_{I-i}$, qui ne l'est que si $I - i \le J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà
+de $j = J-1$). Pour $I > J$, deux termes sont donc indéfinis, $C(i, I-i)$ pour $i < I - J$ et
+$\hat Q_{I-i}$ pour $1 \le i \le I - J$~; ils ne concernent que les années d'accident ayant
+atteint l'année de développement~$J$. Le moteur impose $I = J$ (triangle carré) et refuse un
+triangle $I > J$ plutôt que de lui appliquer une convention que le texte ne prévoit pas~: ce
+refus est le choix d'une lecture stricte retenue par l'outil, non une exigence du texte, et le
+domaine de l'outil est plus étroit que celui de D(2)(e). Un triangle $I < J$ ne relève que du
+contrôle de D(2)(e). Se ramener à un triangle carré exclut des années d'accident~: cette
+exclusion est à justifier, l'article~219, paragraphe~1, point~a) rendant applicable
+l'article~19, paragraphe~1, point~b), selon lequel aucune donnée pertinente n'est exclue sans
+justification~; après la troncature, D(2)(d) s'applique à la nouvelle première année d'accident.
+La méthode du risque de réserve n\textsuperscript{o}~1 est l'autre méthode standard de
+l'article~220, paragraphe~1, point~b), sous ses propres exigences de données (section~C)~; le
+choix entre les deux méthodes relève de l'article~220, paragraphe~2. M.~Merz et M.\,V. Wüthrich
+(2008, p.~546, section~\ref{sec:biblio}) supposent aussi $I = J$, par simplicité, et notent que
+leurs résultats se généralisent au cas $I > J$, sans en imprimer la formule.
 \end{encadre}
 
 \subsection{Hypothèses testables et résidus}
