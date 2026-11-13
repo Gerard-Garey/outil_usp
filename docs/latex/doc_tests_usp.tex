@@ -885,9 +885,12 @@ extraite, avec ou sans \code{openxlsx}, dans un dossier temporaire supprimé à 
 tirage aléatoire (§\ref{sec:graines}), après refus d'une archive dont une entrée a un chemin qui
 sort du dossier de lecture (\code{.xlsx\_chemin\_sort()}~: un composant du chemin vaut
 «~\code{..}~», chemin absolu ou chemin de lecteur)~; refus, avant l'appel à \code{openxlsx} et de même sur les deux
-chemins de lecture, d'une cellule sans attribut de position \code{r} et d'une balise de cellule
-\code{<c} suivie d'un blanc autre que l'espace, et, sous \code{entete = TRUE}, d'une ligne~1 sans
-aucune valeur (§\ref{sec:controles})~; ces trois refus sont des erreurs de classe
+chemins de lecture, d'une balise de cellule \code{<c} suivie d'un blanc autre que l'espace, d'une
+cellule sans attribut de position \code{r}, d'une cellule dont l'attribut \code{r} est répété ou
+n'a pas, écrit tel quel, la forme lettres de colonne puis numéro de ligne à partir de~1
+(\code{r="A2"}), d'une table des chaînes partagées qui porte du texte découpé en segments
+\code{<r>} sans aucune balise \code{<rPr>}, et, sous \code{entete = TRUE}, d'une ligne~1 sans
+aucune valeur (§\ref{sec:controles})~; ces cinq refus sont des erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
 feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
@@ -898,7 +901,8 @@ renommé pour lever un doublon~; balises
 classeur et de ses relations, ainsi que références de cellule en minuscules, lus par la voie de repli et non
 par \code{openxlsx}~4.2.9, qui s'arrête sur une erreur R (mesuré)~; dans la voie de
 repli, entités XML nommées et références numériques des chaînes partagées et en ligne décodées,
-chaîne en ligne enrichie lue entière, et une colonne n'est
+chaîne en ligne enrichie lue entière, texte phonétique (\code{<rPh>}) d'une chaîne non lu~; texte
+d'une cellule \code{t="str"} lu tel quel, sans décodage des entités, sur les deux chemins~; dans la voie de repli encore, une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
@@ -918,7 +922,7 @@ partagées)~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc e
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
-ou non, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
+ou non, texte phonétique (blocs \code{<rPh>}) retiré, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
 entre guillemets doubles ou apostrophes, blancs admis autour du signe \code{=}), nom local
 comparé, préfixe d'espace de noms retiré, sous \code{local = TRUE} (classeur et relations), nom
 entier sous \code{local = FALSE} (attributs \code{r} et \code{t} d'une cellule), \code{NA} s'il
@@ -932,8 +936,8 @@ majuscules~; fichier et rang de la première feuille de calcul (relation de type
 \code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées), erreur «~\code{Classeur illisible : aucune
 feuille trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
 d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et \code{//}
-refusé~; refus de la cellule sans attribut \code{r} et de la balise de forme non
-reconnue~; indice (base~1) d'une chaîne partagée, \code{NA} si la valeur n'est pas un entier
+refusé~; refus de la balise de forme non reconnue, de la cellule sans attribut \code{r} et de
+la cellule dont l'attribut \code{r} est répété ou de forme non attendue~; indice (base~1) d'une chaîne partagée, \code{NA} si la valeur n'est pas un entier
 positif ou nul~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
 \code{<is>}, hors cellule texte vide ou faite de blancs~: chaîne partagée résolue dans
 \code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée invalide
@@ -4152,8 +4156,7 @@ fichier que R ne lit pas comme tableau (CSV vide ou dont une ligne compte plus d
 l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est signalé par un
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
 dans le journal~; un refus motivé du lecteur de classeur (erreur de classe
-\code{usp\_refus\_lecture}~: ligne~1 sans aucune valeur, cellule sans attribut de position,
-balise de cellule de forme non reconnue, paragraphe «~Lecture des fichiers~» ci-dessous) est au
+\code{usp\_refus\_lecture}, refus énumérés au paragraphe «~Lecture des fichiers~» ci-dessous) est au
 contraire affiché tel que le moteur l'écrit, à l'import («~\code{Fichier <nom> (XLSX)
 refuse.}~», \code{(XLSM)} pour un classeur \code{.xlsm}, suivi de ce texte) comme au démarrage, et écrit de même dans le
 journal~; l'interprétation d'un tableau lu reste au moteur
@@ -4563,10 +4566,30 @@ chemin absolu ou chemin de lecteur~; même règle pour la cible de la feuille, d
 cellule sans attribut de position \code{r} (motif «~\code{Classeur illisible : cellule sans
 reference de position (attribut r) dans la feuille lue ; l'outil ne deduit pas sa position.}~»,
 suivi de la conduite à tenir), l'outil ne déduisant pas la position d'une cellule de son rang dans
-la ligne, et une balise de cellule suivie d'un blanc autre que l'espace («~\code{balise de
-cellule de forme non reconnue}~»), dont \code{openxlsx} perd la valeur sans message (mesuré).
-Les attributs \code{r} et \code{t} d'une cellule sont lus dans sa seule balise ouvrante, jamais
-dans son texte. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+la ligne, une cellule dont l'attribut \code{r} est répété ou n'a pas, écrit tel quel entre
+guillemets doubles, la forme lettres de colonne puis numéro de ligne à partir de~1 (\code{r="1"},
+\code{r="A0"}, \code{r=" A2 "}, \code{r=""}, cellule vide de style comprise~; motif
+«~\code{cellule dont la reference de position (attribut r) n'a pas la forme attendue}~»), dont la
+position n'est pas devinée non plus, une balise de cellule suivie d'un blanc autre que l'espace
+(«~\code{balise de cellule de forme non reconnue}~»), dont \code{openxlsx} perd la valeur sans
+message (mesuré), et une table des chaînes partagées qui porte du texte découpé en segments
+\code{<r>} sans aucune balise de mise en forme \code{<rPr>} («~\code{la table des chaines
+partagees (xl/sharedStrings.xml) contient du texte decoupe en segments}~»), dont
+\code{openxlsx}~4.2.9 ne lit que le premier segment, sans message (valeur $11{,}5$ écrite en deux
+segments «~\code{1}~» et «~\code{1.5}~», lue~1, mesuré)~; ce refus juge la forme de la table,
+non la valeur lue, et vaut aussi pour une table de cette forme qu'\code{openxlsx} lirait juste
+(hypothèse non vérifiée~: aucun tableur n'écrit cette forme). Les références de cellule en
+minuscules restent admises. Les attributs \code{r} et \code{t} d'une cellule sont lus dans sa
+seule balise ouvrante, jamais dans son texte. Le texte phonétique d'une chaîne (blocs
+\code{<rPh>}) n'est pas lu, comme par \code{openxlsx} pour une chaîne partagée~: «~\code{11}~»
+suivi du texte phonétique «~\code{7}~» est lu~11 (mesuré). Deux limites sont consignées, sans
+valeur fausse ni sur l'un ni sur l'autre chemin~: une chaîne en ligne qui porte \code{<rPh>} est
+lue sans son texte phonétique par la voie de repli, alors qu'\code{openxlsx} en rend la cellule
+\code{NA} dans le corps du tableau et en perd l'en-tête (nom \code{X<k>}), refusés en aval comme
+cellule non numérique ou manquante, ou comme colonne manquante~; le texte d'une cellule
+\code{t="str"} (résultat de formule) est lu tel quel, sans décodage des entités (\code{\&amp;},
+\code{\&\#xE9;}), par les deux chemins à l'identique, un en-tête attendu ou un nombre ne
+s'écrivant pas avec une entité (mesuré). La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
@@ -4589,15 +4612,18 @@ d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un c
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
 \code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
 lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
-prendrait la ligne vide pour l'en-tête. Les trois refus du classeur (ligne~1 sans valeur,
-cellule sans attribut de position, balise de forme non reconnue) sont des erreurs de classe
+prendrait la ligne vide pour l'en-tête. Les cinq refus du classeur (balise de forme non
+reconnue, cellule sans attribut de position, référence de position de forme non attendue, table
+des chaînes partagées découpée en segments sans mise en forme, ligne~1 sans valeur) sont des
+erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
 feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
 ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
 d'en-tête d'un classeur sont mis en forme de même par les deux chemins (blancs de bord retirés,
 suite de blancs intérieurs ramenée à une espace), les blancs étant ceux de la classe
 \code{[[:space:]]} de la locale (parité mesurée sous la locale \code{C.UTF-8} avec
-\code{openxlsx}~4.2.9, non sous Windows)~; ceux d'un CSV, lus tels quels, ne le sont
+\code{openxlsx}~4.2.9~; non mesurée sous Windows, où la page de codes et la locale de R sont
+propres au poste~: limite consignée)~; ceux d'un CSV, lus tels quels, ne le sont
 pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
 (mesuré), les en-têtes de la colonne~$t$ et de la colonne \code{i}, reconnus blancs de bord
 retirés, étant seuls exceptés. Aucun en-tête n'est renommé pour lever un doublon, sur les
