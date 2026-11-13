@@ -2960,6 +2960,154 @@ if (nzchar(Sys.which("zip"))) {
                                       !"usp_refus_lecture" %in% rmin$openxlsx)) &&
              identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
                                 error = function(e) "refus"), NULL))
+
+  # --- #557 : references de cellule, texte phonetique <rPh>, cellules t="str".
+  # Mesures du rejeu de K2b et de l'etape 4 (openxlsx 4.2.9 et 4.2.5.2, memes
+  # sorties) ; les limites propres a openxlsx sont figees quand il est installe.
+  REF557 <- "Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."
+  feuille557 <- function(xml, shared = NULL) chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
+                                                                    shared = shared), lire487)
+  # Reference de cellule hors ^[A-Za-z]+[1-9][0-9]*$ (decision du mainteneur du
+  # 13/11/2026) : refus au texte fixe sur chaque chemin, avant openxlsx
+  # (auparavant : erreur R brute, ou valeur deplacee ou perdue sans message).
+  formes557 <- c("", "1", "A0", "1A", " A2 ", "A", "A1:B2")
+  rref557 <- lapply(formes557, function(rv) feuille557(paste0(
+    ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+    ligne487(2, c(nb487("A2", 2001), sprintf('<c r="%s"><v>1.5</v></c>', rv), nb487("C2", 6))))))
+  verifier("xlsx (#557) : reference de cellule r=\"\", \"1\", \"A0\", \"1A\", \" A2 \", \"A\", \"A1:B2\" : refus au texte fixe sur chaque chemin",
+           all(vapply(rref557, function(r) tous487(r, function(d) identical(d, REF557)), logical(1))))
+  rvide557 <- feuille557(paste0(donnees487(0), '<row r="4"><c r="" s="1"/></row>'))
+  rent557 <- feuille557(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), '<c r="" t="inlineStr"><is><t>xt</t></is></c>',
+                                             en487("C1", "<t>yt</t>"))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3)))))
+  verifier("xlsx (#557) : cellule vide de style <c r=\"\" s=\"1\"/> (auparavant lue par openxlsx) et en-tete <c r=\"\"> : meme refus sur chaque chemin",
+           tous487(rvide557, function(d) identical(d, REF557)) && tous487(rent557, function(d) identical(d, REF557)))
+  rordre557 <- feuille557(paste0(ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
+                                 ligne487(2, c('<c r="1"><v>1</v></c>', "<c><v>2</v></c>"))))
+  verifier("xlsx (#557) : cellule sans r et reference mal formee dans la meme feuille : refus de la cellule sans r, texte inchange (controle place avant)",
+           tous487(rordre557, function(d) identical(d, CELLULE_SANS_R)))
+  verifier("xlsx (#557) : refus d'une reference mal formee de classe usp_refus_lecture sur chaque chemin",
+           tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
+                                                   xml = sub('<c r="B2">', '<c r="A0">', donnees487(0), fixed = TRUE))))),
+                   function(k) identical(k, REFUS522)))
+  # Minuscules admises (inchange) ; reference lue par la regle du lecteur
+  # (.xlsx_attribut(), nom entier) : x:r="Z9" avant r="A2" n'est pas la reference.
+  verifier("xlsx (#557) : .xlsx_controler_cellules() admet r=\"a2\", r=\"XFD1048576\" et <c x:r=\"Z9\" r=\"A2\"> ; refuse <c x:r=\"A2\" r=\"0\">",
+           is.null(.xlsx_controler_cellules('<row r="2"><c r="a2"><v>1</v></c><c r="XFD1048576"><v>2</v></c></row>')) &&
+             is.null(.xlsx_controler_cellules('<row r="2"><c x:r="Z9" r="A2"><v>1</v></c></row>')) &&
+             identical(tryCatch(.xlsx_controler_cellules('<row r="2"><c x:r="A2" r="0"><v>1</v></c></row>'),
+                                error = conditionMessage), REF557))
+  # Texte phonetique <rPh> (decision du mainteneur du 13/11/2026) : non lu par
+  # .xml_textes() ; chaine partagee : meme texte sur chaque chemin.
+  rph557 <- '<rPh sb="0" eb="2"><t>ZZ</t></rPh>'
+  verifier("xlsx (#557) : .xml_textes() ne lit pas le texte phonetique <rPh> (chaine simple, enrichie, plusieurs <rPh>)",
+           identical(.xml_textes(paste0("<t>xt</t>", rph557)), "xt") &&
+             identical(.xml_textes(paste0("<r><t>x</t></r>", rph557, "<r><t>t</t></r>", rph557, '<phoneticPr fontId="1"/>')), "xt") &&
+             identical(.xml_textes(paste0("<t>11</t>", '<rPh sb="0" eb="1"><t>7</t></rPh>')), "11"))
+  rphS557 <- feuille557(paste0(ligne487(1, c(ps487("A1", 0), ps487("B1", 1), ps487("C1", 2), ps487("D1", 3))),
+                               ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), ps487("D2", 4))),
+                               ligne487(3, c(nb487("A3", 2), nb487("B3", 4), nb487("C3", 5), ps487("D3", 4)))),
+                        shared = paste0("<si><t>t</t></si><si><t>xt</t>", rph557, "</si><si><t>yt</t></si><si><t>z</t></si>",
+                                        "<si><t>abc</t>", rph557, "</si>"))
+  verifier("xlsx (#557) : chaine partagee avec <rPh>, en-tete \"xt\" et corps \"abc\" : lus \"xt\" et \"abc\" sur chaque chemin (lecteur interne : auparavant \"xtZZ\", \"abcZZ\")",
+           tous487(rphS557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt", "z")) &&
+                     identical(d$z, c("abc", "abc")) && identical(as.numeric(d$xt), c(2, 4))))
+  # Chaine en ligne avec <rPh> : lue entiere par le lecteur interne ; openxlsx
+  # en perd l'en-tete (X2) et rend NA la cellule du corps (limite consignee,
+  # sans valeur fausse : colonne manquante ou cellule refusee en aval).
+  rphI557 <- feuille557(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", paste0("<t>xt</t>", rph557)),
+                                             en487("C1", "<t>yt</t>"), en487("D1", "<t>z</t>"))),
+                               ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), en487("D2", paste0("<t>abc</t>", rph557)))),
+                               ligne487(3, c(nb487("A3", 2), nb487("B3", 4), nb487("C3", 5), en487("D3", "<t>q</t>")))))
+  verifier("xlsx, lecteur interne (#557) : chaine en ligne avec <rPh> lue sans le texte phonetique, en en-tete (\"xt\") et en corps (\"abc\")",
+           is.data.frame(rphI557$interne) && identical(names(rphI557$interne), c("t", "xt", "yt", "z")) &&
+             identical(rphI557$interne$z, c("abc", "q")))
+  if (avec_openxlsx483)
+    verifier("xlsx, openxlsx (#557, limite consignee) : chaine en ligne avec <rPh> : en-tete perdu (nom X2), cellule du corps NA",
+             is.data.frame(rphI557$openxlsx) && identical(names(rphI557$openxlsx), c("t", "X2", "yt", "z")) &&
+               identical(rphI557$openxlsx$z, c(NA, "q")))
+  # Chaine partagee enrichie (<r>) : table sans aucune balise <rPr>, refusee
+  # sur chaque chemin avant openxlsx, qui n'en lit que le premier segment
+  # (decision du mainteneur du 13/11/2026, Q-F) ; table qui porte un <rPr> :
+  # lue entiere sur chaque chemin, <rPh> retire.
+  QF557 <- "Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur."
+  entE557 <- function(shared) feuille557(paste0(ligne487(1, c(ps487("A1", 0), ps487("B1", 1), ps487("C1", 2))),
+                                                ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3)))),
+                                         shared = paste0("<si><t>t</t></si><si>", shared, "</si><si><t>yt</t></si>"))
+  verifier("xlsx (#557) : en-tete \"xt\" en segments <r> (avec <rPh>), table sans <rPr> : refus Q-F au texte fixe sur chaque chemin (openxlsx lisait \"x\")",
+           tous487(entE557(paste0("<r><t>x</t></r><r><t>t</t></r>", rph557)), function(d) identical(d, QF557)))
+  verifier("xlsx (#557) : en-tete \"xt\" en segments <r> dont un porte <rPr>, avec <rPh> : lu \"xt\" sur chaque chemin",
+           tous487(entE557(paste0("<r><rPr><b/></rPr><t>x</t></r><r><t>t</t></r>", rph557)),
+                   function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt"))))
+  # Cas de bout en bout : xt = 11.5 ecrit "1" puis "1.5" en chaine partagee
+  # (openxlsx lisait 1, ok = TRUE ; lecteur interne : 11.5).
+  ser557 <- function(b3, shared) feuille557(paste0(
+    ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+    ligne487(2, c(nb487("A2", 1), nb487("B2", 10), nb487("C2", 2))), ligne487(3, c(nb487("A3", 2), b3, nb487("C3", 3))),
+    ligne487(4, c(nb487("A4", 3), nb487("B4", 12), nb487("C4", 3))), ligne487(5, c(nb487("A5", 4), nb487("B5", 13), nb487("C5", 4))),
+    ligne487(6, c(nb487("A6", 5), nb487("B6", 14), nb487("C6", 4)))), shared = shared)
+  verifier("xlsx (#557) : valeur 11.5 en segments <r> \"1\" et \"1.5\", table sans <rPr> (aussi <rPr/>, <rPr a=..>, <r >) : refus Q-F sur chaque chemin",
+           all(vapply(c("<si><r><t>1</t></r><r><t>1.5</t></r></si>",
+                        "<si><r><rPr/><t>1</t></r><r><t>1.5</t></r></si>",
+                        "<si><r><t>1</t></r><r><t>1.5</t></r></si><si><r><rPr a=\"1\"><b/></rPr><t>a</t></r></si>",
+                        "<si><r ><t>1</t></r><r ><t>1.5</t></r></si>"),
+                      function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) identical(d, QF557)), logical(1))))
+  rqf557 <- ser557(ps487("B3", 0), "<si><r><t>1</t></r><r><t>1.5</t></r></si><si><r><rPr><b/></rPr><t>a</t></r></si>")
+  verifier("xlsx (#557, temoin Q-F) : valeur 11.5 en segments <r>, <rPr> present dans la table : 11.5 lu sur chaque chemin (series acceptees)",
+           tous487(rqf557, function(d) { v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) }))
+  verifier("xlsx (#557) : refus Q-F de classe usp_refus_lecture sur chaque chemin",
+           tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+             ligne487(1, c(ps487("A1", 0), en487("B1", "<t>xt</t>"))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
+             shared = "<si><r><t>t</t></r></si>")), function(k) identical(k, REFUS522)))
+  # Attribut r repete ou ecrit avec une entite (extension de Q-A, decision du
+  # mainteneur du 13/11/2026) : refus au texte fixe (openxlsx : erreur R brute
+  # pour <c r='Z9' r="B3"> et r="&#66;3" ; <c r="B3" r='Z9'> lu en B3).
+  verifier("xlsx (#557) : <c r='Z9' r=\"B3\">, <c r=\"B3\" r='Z9'>, <c r=\"Z9\" r=\"B3\"> et r=\"&#66;3\" : refus au texte fixe sur chaque chemin",
+           all(vapply(c("<c r='Z9' r=\"B3\"><v>11</v></c>", "<c r=\"B3\" r='Z9'><v>11</v></c>",
+                        "<c r=\"Z9\" r=\"B3\"><v>11</v></c>", "<c r=\"&#66;3\"><v>11</v></c>"),
+                      function(b3) tous487(ser557(b3, NULL), function(d) identical(d, REF557)), logical(1))))
+  # Blanc autre que l'espace apres <c (FF, VT, U+2003), classe [[:space:]] du
+  # lecteur interne : refus de la balise sur chaque chemin, reference valide
+  # ou non (auparavant : valeur lue ou deplacee par le lecteur interne, NA
+  # chez openxlsx).
+  verifier("xlsx (#557) : balise <c suivie de FF, VT ou U+2003 (r valide ou \"1\") : refus de la balise sur chaque chemin",
+           all(vapply(c("<c\fr=\"B3\"><v>11</v></c>", "<c\vr=\"B3\"><v>11</v></c>", "<c\u2003r=\"B3\"><v>11</v></c>",
+                        "<c\fr=\"1\"><v>11</v></c>", "<c\u2003r=\"1\"><v>11</v></c>"),
+                      function(b3) tous487(ser557(b3, NULL), function(d) identical(d, BALISE_C)), logical(1))))
+  # .xml_textes() : <rPh .../> auto-fermant (hors schema) retire seul, sans
+  # le texte reel qui suit (revue de l'audit : "x" puis "t" lu "x") ; bloc
+  # <rPh> sur plusieurs lignes retire.
+  verifier("xlsx (#557) : .xml_textes() : <rPh sb=\"0\" eb=\"0\"/> suivi d'un vrai <rPh> lu \"xt\", bloc <rPh> avec sauts de ligne retire",
+           identical(.xml_textes('<r><t>x</t></r><rPh sb="0" eb="0"/><r><t>t</t></r><rPh sb="1" eb="1"><t>Z</t></rPh>'), "xt") &&
+             identical(.xml_textes('<t>11</t><rPh sb="0" eb="1">\n<t>7</t>\r\n</rPh><t>2</t>'), "112") &&
+             identical(.xml_textes('<t>a</t><rPh/><t>b</t><rPh sb="a/b"><t>Z</t></rPh><t>c</t>'), "abc"))
+  rph1557 <- ser557(ps487("B3", 0), paste0('<si><r><rPr><b/></rPr><t>1</t></r><rPh sb="0" eb="0"/><r><t>1.5</t></r>',
+                                           '<rPh sb="1" eb="1"><t>Z</t></rPh></si>'))
+  verifier("xlsx, lecteur interne (#557) : chaine partagee avec <rPh .../> auto-fermant, \"1\" puis \"1.5\" : 11.5 lu (auparavant refuse en aval, \"11.5Z\")",
+           { v <- engine_lire_donnees_csv(rph1557$interne); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) })
+  if (avec_openxlsx483) {
+    verifier("xlsx, openxlsx (#557, limite propre a openxlsx) : meme chaine avec <rPh .../> auto-fermant, <rPr> present : 1 lu",
+             { v <- engine_lire_donnees_csv(rph1557$openxlsx); isTRUE(v$ok) && identical(v$xt, c(10, 1, 12, 13, 14)) })
+    # Chaine en ligne avec <rPh> dans le corps : NA par openxlsx, cellule
+    # refusee en aval (limite consignee en tete de .xml_textes()).
+    rphC557 <- ser557(en487("B3", paste0("<t>11</t>", rph557)), NULL)
+    verifier("xlsx, openxlsx (#557, limite consignee) : chaine en ligne avec <rPh> dans le corps des series : NA puis refus en aval (valeur non numerique de xt) ; lecteur interne : 11 lu",
+             identical(engine_lire_donnees_csv(rphC557$openxlsx)$erreurs,
+                       "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).") &&
+               identical(engine_lire_donnees_csv(rphC557$interne)$xt, c(10, 11, 12, 13, 14)))
+  }
+  # Cellules t="str" (resultat de formule) : texte de <v> lu tel quel, entites
+  # non decodees, a l'identique sur chaque chemin (limite consignee), en en-tete
+  # et en corps.
+  rstr557 <- feuille557(paste0(
+    ligne487(1, c('<c r="A1" t="str"><f>"t"</f><v>t</v></c>', '<c r="B1" t="str"><f>"xt"</f><v>xt</v></c>',
+                  '<c r="C1" t="str"><v>a&amp;b</v></c>', '<c r="D1" t="str"><v>y&#233;</v></c>')),
+    ligne487(2, c(nb487("A2", 1), '<c r="B2" t="str"><f>TEXT(1.5,"0.0")</f><v>1.5</v></c>',
+                  '<c r="C2" t="str"><v>a&amp;b</v></c>', nb487("D2", 4))),
+    ligne487(3, c(nb487("A3", 2), '<c r="B3" t="str"><v>3</v></c>', '<c r="C3" t="str"><v>x&lt;y</v></c>', nb487("D3", 5)))))
+  verifier("xlsx (#557, limite consignee) : cellules t=\"str\" lues brutes, entites non decodees, a l'identique sur chaque chemin (en-tete et corps)",
+           tous487(rstr557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "a&amp;b", "y&#233;")) &&
+                     identical(d$xt, c("1.5", "3")) && identical(d[["a&amp;b"]], c("a&amp;b", "x&lt;y"))) &&
+             (!avec_openxlsx483 || identical(rstr557$interne, rstr557$openxlsx)))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)
