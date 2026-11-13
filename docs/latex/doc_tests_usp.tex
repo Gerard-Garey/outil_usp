@@ -3939,10 +3939,10 @@ colonne \code{i} qui contredit l'ordre des lignes signale un triangle qui n'est 
 que l'utilisateur voulait fournir. \code{.motifs\_colonne\_i()} refuse, en lignes de données,
 les valeurs manquantes («~\code{Colonne i incomplete}~») et les valeurs non numériques, non
 entières ou non finies («~\code{Colonne i non entiere ou non numerique}~»), motifs cumulés~;
-à défaut, le premier qui s'applique de trois motifs exclusifs, dans cet ordre~: valeurs répétées
+en l'absence de ces deux motifs, le premier qui s'applique de trois motifs exclusifs, dans cet ordre~: valeurs répétées
 («~\code{Colonne i a valeurs repetees}~», qui cite toutes les lignes portant une valeur répétée,
 aucune occurrence ne pouvant être désignée comme fautive), ordre non croissant
-(«~\code{Colonne i non croissante}~», ligne citée~: celle dont la valeur est inférieure à celle
+(«~\code{Colonne i non croissante}~», qui cite chaque ligne dont la valeur est inférieure à celle
 de la ligne précédente) et écart supérieur à~1 («~\code{Colonne i non consecutive}~», qui cite
 les paires de lignes «~\code{k-1 et k}~»), refusé comme année d'accident manquante présumée
 (D(1), D(3)(a) et~(b), même lecture que pour une ligne vide). La fonction appelle ensuite
@@ -4601,10 +4601,11 @@ suite de blancs intérieurs ramenée à une espace), les blancs étant ceux de l
 pas, si bien qu'un en-tête «~\code{ xt}~» est accepté dans un classeur et refusé dans un CSV
 (mesuré), les en-têtes de la colonne~$t$ et de la colonne \code{i}, reconnus blancs de bord
 retirés, étant seuls exceptés. Aucun en-tête n'est renommé pour lever un doublon, sur les
-deux chemins du classeur comme dans un CSV, de sorte qu'un en-tête présent plusieurs fois reçoit
-le même refus par les trois chemins (mesuré sur la voie de repli~; \code{openxlsx}~4.2.9, appelé
-sans \code{check.names}, garde aussi les doublons, mesure faite hors de la batterie de tests, qui
-n'installe pas ce paquet). Une cellule texte «~\code{NA}~» est
+deux chemins du classeur comme dans un CSV lu comme le lit l'application (noms de colonne tels
+quels), de sorte qu'un en-tête présent plusieurs fois reçoit le même refus par les trois chemins
+(mesuré sur la voie de repli~; \code{openxlsx}~4.2.9, appelé avec \code{check.names} à sa valeur
+par défaut, \code{FALSE}, garde aussi les doublons~; la batterie de tests contrôle cette parité
+quand ce paquet est installé, ce que l'intégration continue ne fait pas). Une cellule texte «~\code{NA}~» est
 refusée comme non numérique, et le motif ajoute qu'elle est lue comme du texte et non comme une
 valeur manquante (mesuré~: \code{NA} en deuxième ligne de \code{xt} donne
 «~\code{colonne xt : ligne(s) de donnees 2}~» suivi de cette phrase). Une cellule de \code{xt} ou de
