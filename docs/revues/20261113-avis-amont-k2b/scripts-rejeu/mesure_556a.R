@@ -1,0 +1,6 @@
+source("R/charger_moteur.R"); charger_moteur()
+cat("zip (paquet) present:", requireNamespace("zip", quietly = TRUE), " | R_ZIPCMD =", Sys.getenv("R_ZIPCMD", "<non defini>"), " | Sys.which('zip') =", unname(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))), "\n")
+f <- tempfile(fileext = ".xlsx")
+r <- tryCatch(engine_ecrire_xlsx(data.frame(t = 1:2, xt = c(1.5, 2), yt = c(3, 4)), f), error = function(e) e)
+cat("classe:", class(r), "\nmessage: ", if (inherits(r, "error")) conditionMessage(r) else "(aucune erreur)", "\n")
+cat("fichier ecrit apres l'echec ? ", file.exists(f), "\n")
