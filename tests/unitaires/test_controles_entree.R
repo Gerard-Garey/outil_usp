@@ -1620,6 +1620,14 @@ verifier("Triangle 5 x 6 (moins d'annees d'accident que de developpement) refuse
            r <- mw_valider_triangle(cbind(triangle(5), NA))
            !r$ok && contient(r$erreurs, "D(2)(e)")
          })
+# #540, remarque R-1 : MW-04 n'est emis que si I > J ; un triangle I < J ne
+# recoit que le motif D(2)(e) (MW-03), sans "Triangle non carre".
+verifier("Triangle 5 x 6 (I < J) : un seul motif, D(2)(e), sans \"non carre\" (#540, R-1)",
+         {
+           r <- mw_valider_triangle(cbind(triangle(5), NA))
+           !r$ok && length(r$erreurs) == 1L && startsWith(r$erreurs, "D(2)(e)") &&
+             !contient(r$erreurs, "non carre")
+         })
 verifier("Triangle : cellule observee manquante refusee",
          {
            m <- t5; m[2, 3] <- NA
@@ -1663,9 +1671,18 @@ refus_mw_527 <- function(t) {
 cellule_527 <- function(i, j, v) { t <- tri_usage; t[i + 1L, j + 1L] <- v; t }
 verifier("run_engine reserve2 : MW-04, triangle 8 x 6 -> texte complet du motif (#527)",
          identical(refus_mw_527(tri_usage[, 1:6]),
-                   paste("Triangle non carre (8 annees d'accident, 6 annees de developpement) : cas",
-                         "non couvert par les formules des paragraphes 4 et 5 de la section D de",
-                         "l'annexe XVII.")))
+                   paste("Triangle non carre (8 annees d'accident, 6 annees de developpement) :",
+                         "admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil,",
+                         "les formules des paragraphes 4 et 5 de cette section ne se calculant a la",
+                         "lettre que pour un triangle carre. Se ramener a un triangle carre exclut",
+                         "des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b)).")))
+# #540, remarque R-1 : triangle I < J (8 x 9) par run_engine() : refus ok = FALSE,
+# un seul motif (MW-03), aucun "Triangle non carre".
+verifier("run_engine reserve2 : triangle 8 x 9 (I < J) -> ok = FALSE, un seul motif D(2)(e), sans \"non carre\" (#540, R-1)",
+         {
+           e <- refus_mw_527(cbind(tri_usage, NA_real_))
+           length(e) == 1L && !anyNA(e) && startsWith(e, "D(2)(e)") && !grepl("non carre", e, fixed = TRUE)
+         })
 verifier("run_engine reserve2 : MW-05, cellule observee vide -> texte complet du motif (#527)",
          identical(refus_mw_527(cellule_527(0, 2, NA)),
                    paste("Cellule observee manquante : annee d'accident i = 0, annee de",

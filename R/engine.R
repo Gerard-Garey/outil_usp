@@ -10085,11 +10085,17 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##
 ##     RESTRICTION D'IMPLEMENTATION : on impose I = J (triangle carre). Le
 ##     paragraphe 2(e) autorise I >= J, mais les formules des paragraphes 4 et
-##     5 font intervenir C(i, I-i), qui n'est definie que si I - i <= J, et
-##     celle du paragraphe 5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1
-##     (ni f_j ni sigma2_j au-dela de j = J-1). Le cas I > J produirait un
-##     trapeze dont le texte ne precise pas le traitement ; il est donc refuse
-##     explicitement plutot que traite par convention implicite.
+##     5 ne se calculent a la lettre que si I = J : elles font intervenir
+##     C(i, I-i), qui n'est definie que si I - i <= J, et celle du paragraphe
+##     5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1 (ni f_j ni
+##     sigma2_j au-dela de j = J-1). Le domaine de l'outil est donc plus
+##     etroit que celui de D(2)(e) : le refus d'un triangle I > J (motif
+##     "Triangle non carre") est le choix de la lecture stricte (A), non une
+##     exigence du texte (ADR 0005, annotations du 13/11/2026 et du 13/11/2026
+##     (bis), #540) ; se ramener a un triangle carre exclut des annees
+##     d'accident, exclusion a justifier (art. 219(1)(a) et 19(1)(b)). Un
+##     triangle I < J ne recoit que le motif D(2)(e), sans "Triangle non
+##     carre" (remarque R-1).
 ## =============================================================================
 
 # Cellules renseignees sous la diagonale (issue #491, decision du mainteneur
@@ -10158,10 +10164,16 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                           T_min, ncol(tri)))
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
-  if (I != J)
+  # MW-04 : emis si I > J seulement (remarque R-1, ADR 0005, annotation du
+  # 13/11/2026 (bis)) ; I < J ne recoit que MW-03. Les deux %d sont des
+  # comptes (nrow(tri), ncol(tri)), non les indices I et J.
+  if (I > J)
     err <- c(err, sprintf(paste("Triangle non carre (%d annees d'accident, %d annees de developpement) :",
-                                "cas non couvert par les formules des paragraphes 4 et 5 de la section D",
-                                "de l'annexe XVII."), nrow(tri), ncol(tri)))
+                                "admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil,",
+                                "les formules des paragraphes 4 et 5 de cette section ne se calculant a la",
+                                "lettre que pour un triangle carre. Se ramener a un triangle carre exclut",
+                                "des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b))."),
+                          nrow(tri), ncol(tri)))
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
