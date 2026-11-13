@@ -954,7 +954,8 @@ archive compressée par le paquet \code{zip} s'il est installé, sinon par \code
 la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
 \code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
 commande existe~; sinon, ou si le repli échoue, erreur qui nomme l'échec du paquet et le statut
-de la commande, ou son absence, sans fichier laissé~; sans
+de la commande, ou son absence, sans fichier laissé~; ces deux erreurs sont de classe
+\code{usp\_refus\_ecriture} (\code{.refus\_ecriture()}), dont l'application affiche le texte~; sans
 tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
 fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
 significatifs s'ils restituent la valeur, 17 sinon), de sorte que la relecture rend les mêmes
@@ -4160,9 +4161,12 @@ l'en-tête, classeur corrompu ou tronqué, une partie des fichiers binaires) est
 message fixe selon le format (\code{lire\_tableau()} de \code{app.R}), le message de R étant écrit
 dans le journal~; un refus motivé du lecteur de classeur (erreur de classe
 \code{usp\_refus\_lecture}, refus énumérés au paragraphe «~Lecture des fichiers~» ci-dessous) est au
-contraire affiché tel que le moteur l'écrit, à l'import («~\code{Fichier <nom> (XLSX)
-refuse.}~», \code{(XLSM)} pour un classeur \code{.xlsm}, suivi de ce texte) comme au démarrage, et écrit de même dans le
-journal~; l'interprétation d'un tableau lu reste au moteur
+contraire affiché tel que le moteur l'écrit, à l'import comme au démarrage, et écrit de même dans le
+journal~; à l'import, tout refus (fichier illisible, refus motivé du lecteur, motifs de
+recevabilité du moteur, dimension hors borne) a une seule forme, «~\code{Import du fichier <nom>
+(<EXT>) refuse ; donnees courantes conservees. Motif :}~» suivi du message fixe, du texte du
+moteur ou des motifs (\code{<EXT>}~: extension en capitales, XLSX, XLSM ou CSV), et une seule notification («~\code{Import refuse ; donnees courantes conservees :
+voir le statut d'import.}~»), les données courantes n'étant pas modifiées~; l'interprétation d'un tableau lu reste au moteur
 (\code{engine\_lire\_donnees\_csv()}, \code{engine\_lire\_triangle()})~: le CSV est lu en texte,
 sans conversion des cellules ni colonne prise pour noms de ligne, lignes vides et en-têtes vides gardés, cellule «~\code{NA}~» gardée
 comme chaîne, de sorte que nombres, cellules vides et lignes et colonnes vides sont jugés par le
@@ -4171,7 +4175,10 @@ lecture accepte passe par les mêmes contrôles du moteur que tout tableau (colo
 cellules numériques), sans détection propre aux fichiers binaires~: un fichier binaire est ainsi
 arrêté soit à la lecture, par R ou par le contrôle de structure de \code{lire\_tableau()}, qui
 refuse avant lecture toute ligne comptant plus de valeurs que l'en-tête, soit par ces contrôles
-du moteur.
+du moteur. Un export qui échoue est notifié («~\code{Export impossible :}~» suivi du texte du
+moteur pour une erreur de classe \code{usp\_refus\_ecriture}, d'un texte fixe sinon)~; la cause R
+est écrite dans le journal, jamais à l'écran, et l'export est interrompu par une erreur qui ne
+porte que le texte notifié.
 
 \subsection*{Méthodes lognormales (annexe XVII, section B/C, paragraphe 2)}
 
