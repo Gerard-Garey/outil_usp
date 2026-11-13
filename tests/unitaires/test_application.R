@@ -104,7 +104,14 @@
 #   - exports des donnees relus au bit (issue #488) : export CSV par
 #     engine_ecrire_csv() relu par lire_tableau() (grille, triangle a 17
 #     chiffres) ; avec shiny, output$dl_donnees et output$dl_donnees_xlsx
-#     (series et triangle) relus identical() a la saisie.
+#     (series et triangle) relus identical() a la saisie ;
+#   - restitution unique des refus d'import et echec d'un export (issue
+#     #556) : texte_refus_import(), NOTIFICATION_REFUS_IMPORT et
+#     texte_echec_export() hors Shiny ; avec shiny, statut et notification
+#     des refus illisible, de recevabilite (series, triangle), de dimension et
+#     du lecteur, donnees courantes gardees ; echec d'un export (erreur
+#     usp_refus_ecriture, erreur R ordinaire, erreur silencieuse de shiny) :
+#     notification, journal, erreur relevee.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -620,6 +627,44 @@ if (.zip522 || nzchar(Sys.which("zip"))) {
              identical(.cl522$valeur, .env$grille_vide_ln(8L)))
   unlink(c(.f522, .faux522)); unlink(.dir522, recursive = TRUE); rm("FICHIER_LN", envir = .env)
 } else cat("  [saute] refus motive du lecteur xlsx (#522) : ni paquet zip ni commande zip\n")
+## --- Restitution unique des refus d'import, echec d'export (issue #556) -----
+# Textes et mises en forme evalues hors Shiny (definitions de app.R seules) ;
+# le comportement des observateurs et des exports est dans le processus Shiny
+# (bloc de #556).
+.env556 <- new.env()
+for (.x in parse(.app, keep.source = FALSE))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("texte_refus_import", "NOTIFICATION_REFUS_IMPORT",
+                                   "texte_echec_export", "MESSAGE_ILLISIBLE")) eval(.x, .env556)
+verifier("texte_refus_import() : \"Import du fichier <nom> (<EXT>) refuse ; donnees courantes conservees. Motif : <motifs>\", motifs joints par une espace, extension en majuscules (#556)",
+         identical(.env556$texte_refus_import("a.xlsx", "xlsx", c("m1.", "m2.")),
+                   "Import du fichier a.xlsx (XLSX) refuse ; donnees courantes conservees. Motif : m1. m2.") &&
+           identical(.env556$texte_refus_import("b.csv", "csv", .env556$MESSAGE_ILLISIBLE[["csv"]]),
+                     paste("Import du fichier b.csv (CSV) refuse ; donnees courantes conservees. Motif :",
+                           .env556$MESSAGE_ILLISIBLE[["csv"]])) &&
+           startsWith(.env556$MESSAGE_ILLISIBLE[["xlsx"]], "illisible comme "))
+verifier("NOTIFICATION_REFUS_IMPORT : texte unique, voir le statut d'import (#556)",
+         identical(.env556$NOTIFICATION_REFUS_IMPORT,
+                   "Import refuse ; donnees courantes conservees : voir le statut d'import."))
+.refus_ecr556 <- structure(class = c("usp_refus_ecriture", "error", "condition"),
+                           list(message = "Ecriture du fichier .xlsx impossible : cause de test.", call = NULL))
+.brute556 <- simpleError("impossible d'ouvrir le fichier '/tmp/x/usp_tests.csv' : Permission denied")
+verifier("texte_echec_export() : usp_refus_ecriture -> \"Export impossible : <texte du moteur>\" ; toute autre erreur -> texte fixe sans la cause R (#556)",
+         identical(.env556$texte_echec_export(.refus_ecr556),
+                   "Export impossible : Ecriture du fichier .xlsx impossible : cause de test.") &&
+           identical(.env556$texte_echec_export(.brute556),
+                     "Export impossible : erreur lors de l'ecriture du fichier (detail consigne au journal de l'application).") &&
+           !grepl("Permission|usp_tests", .env556$texte_echec_export(.brute556)))
+# Lecture du code : aucun ancien texte de refus, un seul showNotification de
+# refus d'import (refuser_import()), cinq exports passes par proteger_export().
+verifier("app.R : anciens textes de refus d'import retires, une seule notification de refus, les cinq downloadHandler passent par proteger_export() (#556)",
+         {
+           src <- paste(readLines(.app, warn = FALSE), collapse = "\n")
+           n <- function(motif) lengths(regmatches(src, gregexpr(motif, src, fixed = TRUE)))
+           n('"Import refuse.') == 0L && n("fichier illisible.") == 0L &&
+             n("Import refuse, ") == 0L && n("showNotification(NOTIFICATION_REFUS_IMPORT") == 1L &&
+             n("downloadHandler(") == 5L && n("content = proteger_export(") == 5L
+         })
 .pa <- lapply(list(NULL, NA_real_, 0, 5, 12, 40, 200), function(t)
   .env$profondeur_apres_reinitialisation(FALSE, t))
 verifier("profondeur_apres_reinitialisation() (series) : T = 8 des series par defaut, quel que soit le T saisi, sans motif ni plafonnement (#212)",
@@ -887,11 +932,13 @@ testServer(app, {
   a("import d'un triangle 41 x 41 : refuse, triangle courant 8 x 8 et grille gardes (#212)",
     identical(triangle(), t0) && identical(version_grille(), v0) &&
       a_id(grille_html(output), "c_7_0") && !a_id(grille_html(output), "c_8_0"))
-  a("import d'un triangle 41 x 41 : statut d'import motive, notification Import refuse, champ T non touche (#212)",
+  a("import d'un triangle 41 x 41 : statut d'import au texte unique (fichier, donnees courantes conservees, motif), notification unique, champ T non touche (#212, #556)",
     identical(statut_import()$ok, FALSE) &&
-      grepl(paste(ea$refus_dimension_triangle(41L), "Import refuse, triangle courant conserve."),
-            statut_import()$msg, fixed = TRUE) &&
-      identical(notifs212, "Import refuse.") && !length(champ_T()))
+      identical(statut_import()$msg,
+                sprintf("Import du fichier %s (CSV) refuse ; donnees courantes conservees. Motif : %s",
+                        f41$name, ea$refus_dimension_triangle(41L))) &&
+      identical(notifs212, "Import refuse ; donnees courantes conservees : voir le statut d'import.") &&
+      !length(champ_T()))
   a("import d'un triangle 41 x 41 : refus en moins de 1 s (1,65 s avant #212)", duree < 1)
   session$setInputs(fichier_import = fichier_tri(ea$triangle_defaut(40)))
   a("import d'un triangle 40 x 40 : accepte, dimension gardee (#212)",
@@ -928,13 +975,16 @@ testServer(app, {
   do.call(session$setInputs, base)
   d0 <- donnees(); v0 <- version_grille()
   maj212 <<- list(); notifs212 <<- character(0)
-  session$setInputs(fichier_import = fichier(60))
+  f60 <- fichier(60)
+  session$setInputs(fichier_import = f60)
   a("import de series de 60 annees : refuse, series courantes et grille gardees, champ T non touche (#286)",
     identical(donnees(), d0) && identical(version_grille(), v0) &&
       identical(statut_import()$ok, FALSE) &&
-      grepl(paste(ea$refus_dimension_series(60L), "Import refuse, series courantes conservees."),
-            statut_import()$msg, fixed = TRUE) &&
-      identical(notifs212, "Import refuse.") && !length(champ_T()))
+      identical(statut_import()$msg,
+                sprintf("Import du fichier %s (CSV) refuse ; donnees courantes conservees. Motif : %s",
+                        f60$name, ea$refus_dimension_series(60L))) &&
+      identical(notifs212, "Import refuse ; donnees courantes conservees : voir le statut d'import.") &&
+      !length(champ_T()))
   maj212 <<- list()
   session$setInputs(fichier_import = fichier(40))
   a("import de series de 40 annees : accepte, champ T pousse a 40 (#286)",
@@ -943,7 +993,7 @@ testServer(app, {
   # (lignes descendues d'une ligne dans le XML ; paquet zip ou commande zip
   # requis). Sans l'un ni l'autre : assertion sautee, signalee dans le
   # libelle (meme nombre d'assertions, comme le bloc de #488).
-  nom522 <- "import d'un classeur a ligne 1 vide : statut \"Fichier ligne1.xlsx (XLSX) refuse. <texte du moteur>\", notification Import refuse, series gardees (#522)"
+  nom522 <- "import d'un classeur a ligne 1 vide : statut \"Import du fichier ligne1.xlsx (XLSX) refuse ; donnees courantes conservees. Motif : <texte du moteur>\", notification unique, series gardees (#522, #556)"
   zip522 <- requireNamespace("zip", quietly = TRUE)
   if (zip522 || nzchar(Sys.which("zip"))) {
     f522 <- tempfile(fileext = ".xlsx")
@@ -963,9 +1013,9 @@ testServer(app, {
     suppressMessages(session$setInputs(fichier_import = list(name = "ligne1.xlsx", datapath = f522)))
     a(nom522,
       identical(statut_import()$ok, FALSE) && identical(donnees(), d40) &&
-        identical(statut_import()$msg, paste("Fichier ligne1.xlsx (XLSX) refuse.",
+        identical(statut_import()$msg, paste("Import du fichier ligne1.xlsx (XLSX) refuse ; donnees courantes conservees. Motif :",
           "Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit etre en ligne 1, sans ligne au-dessus ; supprimer la ou les lignes vides au-dessus de l'en-tete.")) &&
-        identical(notifs212, "Import refuse."))
+        identical(notifs212, "Import refuse ; donnees courantes conservees : voir le statut d'import."))
     unlink(c(f522, x522), recursive = TRUE)
   } else a(paste0(nom522, " ; saute (ni paquet ni commande zip)"), TRUE)
 })
@@ -1618,8 +1668,11 @@ testServer(app, {
   if (xlsx_dispo) {
     session$setInputs(fichier_import = depot(d = data.frame(xt = c(100:102, NA, 103:107),
                                                             yt = c(60:62, NA, 63:67))))
-    a("import xlsx du meme tableau : meme motif que le CSV (#483)",
-      identical(statut_import(), m_csv) && identical(donnees(), d0))
+    # Le statut porte le nom du fichier (#556) : meme motif, nom et extension propres.
+    motif483 <- function(st) sub("^.* Motif : ", "", st$msg)
+    a("import xlsx du meme tableau : meme motif que le CSV (#483, #556)",
+      identical(statut_import()$ok, m_csv$ok) && nzchar(motif483(m_csv)) &&
+        identical(motif483(statut_import()), motif483(m_csv)) && identical(donnees(), d0))
   } else a("import xlsx du meme tableau : saute (aucun ecrivain xlsx)", TRUE)
   session$setInputs(fichier_import = depot(c("xt,yt", "100,60", "0x10,61", paste(102:104, 62:64, sep = ","))))
   a("import CSV avec \"0x10\" : refuse comme valeur non numerique (xt : ligne de donnees 2), series courantes gardees (#490)",
@@ -1696,6 +1749,105 @@ testServer(app, {
   a("import de series avec une colonne en surnombre NOMMEE : importee, colonne ignoree par nom (convention du moteur), 8 annees (#518)",
     isTRUE(statut_import()$ok) && identical(donnees(), data.frame(t = 1:8, xt = as.numeric(100:107),
                                                                   yt = as.numeric(60:67))))
+})
+rm("showNotification", envir = ea)
+)---"
+  # Restitution unique des refus d'import et echec d'export (issue #556) :
+  # showNotification() est remplace, dans l'environnement d'app.R, par un
+  # releve (texte, type, duree) ; engine_ecrire_xlsx() et engine_ecrire_csv()
+  # sont remplaces par une erreur, retiree en sortie. Refus de dimension et du
+  # lecteur : voir les blocs de #212 et #522.
+  .bloc_556 <- r"---(
+## Restitution unique des refus d'import ; echec d'un export (issue #556)
+notifs556 <- list()
+assign("showNotification", function(ui, ..., type = "default", duration = 5) {
+  notifs556[[length(notifs556) + 1L]] <<- list(texte = paste(as.character(ui), collapse = ""),
+                                               type = type, duration = duration)
+  invisible("id")
+}, envir = ea)
+dep556 <- function(lignes, ext = ".csv") {
+  f <- tempfile(fileext = ext); writeLines(lignes, f)
+  data.frame(name = basename(f), size = file.size(f), type = "", datapath = f, stringsAsFactors = FALSE)
+}
+NOTIF556 <- "Import refuse ; donnees courantes conservees : voir le statut d'import."
+ent556 <- function(d, ext) sprintf("Import du fichier %s (%s) refuse ; donnees courantes conservees. Motif : ", d$name, ext)
+une_notif556 <- function() length(notifs556) == 1L && identical(notifs556[[1]]$texte, NOTIF556) &&
+  identical(notifs556[[1]]$type, "error") && identical(notifs556[[1]]$duration, 8)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  d0 <- donnees(); t0 <- triangle()
+  notifs556 <<- list()
+  dr <- dep556(c("xt,yt", "100,60,1", "101,61"))
+  suppressMessages(session$setInputs(fichier_import = dr))
+  a("import illisible (CSV a ligne plus longue que l'en-tete) : statut \"Import du fichier ... refuse ; donnees courantes conservees. Motif : <MESSAGE_ILLISIBLE>\", notification unique error de 8 s, series gardees (#556)",
+    identical(statut_import()$ok, FALSE) &&
+      identical(statut_import()$msg, paste0(ent556(dr, "CSV"), ea$MESSAGE_ILLISIBLE[["csv"]])) &&
+      une_notif556() && identical(donnees(), d0) && identical(triangle(), t0))
+  notifs556 <<- list()
+  dx <- dep556("pas un classeur", ".xlsx")
+  suppressMessages(session$setInputs(fichier_import = dx))
+  a("import illisible (xlsx faux) : meme forme, motif MESSAGE_ILLISIBLE$xlsx, notification unique, series gardees (#556)",
+    identical(statut_import()$msg, paste0(ent556(dx, "XLSX"), ea$MESSAGE_ILLISIBLE[["xlsx"]])) &&
+      une_notif556() && identical(donnees(), d0) && identical(triangle(), t0))
+  notifs556 <<- list()
+  dv <- dep556(c("xt,zz", "100,60"))
+  session$setInputs(fichier_import = dv)
+  a("import refuse par la recevabilite du moteur (colonne yt manquante) : nom du fichier, donnees conservees, motif du moteur apres \"Motif : \", notification unique, series gardees (#556)",
+    identical(statut_import()$msg, paste0(ent556(dv, "CSV"), engine_lire_donnees_csv(
+      data.frame(xt = "100", zz = "60"))$erreurs)) &&
+      grepl("Motif : Colonne(s) manquante(s) : yt.", statut_import()$msg, fixed = TRUE) &&
+      une_notif556() && identical(donnees(), d0) && identical(triangle(), t0))
+  notifs556 <<- list()
+  session$setInputs(methode = "reserve2", reinit = 2)
+  t0 <- triangle(); notifs556 <<- list()
+  dt <- dep556(c("i,j0,j1,j2", "0,1,2,3", "1,4,5,", "2,6,,", "3,7,,"))
+  session$setInputs(fichier_import = dt)
+  lu556 <- engine_lire_triangle(utils::read.csv(dt$datapath, colClasses = "character", check.names = FALSE,
+                                                na.strings = character(0), row.names = NULL))
+  a("import de triangle refuse par la recevabilite du moteur (triangle non carre) : meme forme, notification unique, triangle gardee (#556)",
+    !lu556$ok && identical(statut_import()$msg, paste0(ent556(dt, "CSV"), paste(lu556$erreurs, collapse = " "))) &&
+      une_notif556() && identical(triangle(), t0) && identical(donnees(), d0))
+})
+# Echec d'un export : journal, notification (texte, type, duree), erreur relevee.
+journal556 <- character(0)
+tente556 <- function(expr) withCallingHandlers(tryCatch(expr, error = function(e) e),
+  message = function(m) { journal556 <<- c(journal556, conditionMessage(m)); invokeRestart("muffleMessage") })
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  notifs556 <<- list(); journal556 <<- character(0)
+  assign("engine_ecrire_xlsx", function(...) stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
+    list(message = "Ecriture du fichier .xlsx impossible : cause de test.", call = NULL))), envir = ea)
+  e <- tente556(output$dl_donnees_xlsx)
+  rm("engine_ecrire_xlsx", envir = ea)
+  a("export xlsx en echec par usp_refus_ecriture : notification error de 10 s \"Export impossible : <texte du moteur>\", cause au journal, erreur relevee au texte utilisateur (#556)",
+    length(notifs556) == 1L &&
+      identical(notifs556[[1]]$texte, "Export impossible : Ecriture du fichier .xlsx impossible : cause de test.") &&
+      identical(notifs556[[1]]$type, "error") && identical(notifs556[[1]]$duration, 10) &&
+      any(grepl("cause de test", journal556, fixed = TRUE)) &&
+      inherits(e, "error") && identical(conditionMessage(e), notifs556[[1]]$texte))
+  notifs556 <<- list(); journal556 <<- character(0)
+  assign("engine_ecrire_csv", function(...) stop("impossible d'ouvrir le fichier 'cause R brute' : Permission denied"), envir = ea)
+  e <- tente556(output$dl_donnees)
+  rm("engine_ecrire_csv", envir = ea)
+  a("export CSV en echec par une erreur R ordinaire : texte fixe sans la cause R, cause au journal, erreur relevee (#556)",
+    length(notifs556) == 1L &&
+      identical(notifs556[[1]]$texte, "Export impossible : erreur lors de l'ecriture du fichier (detail consigne au journal de l'application).") &&
+      identical(notifs556[[1]]$type, "error") && identical(notifs556[[1]]$duration, 10) &&
+      !grepl("cause R brute", notifs556[[1]]$texte, fixed = TRUE) &&
+      any(grepl("cause R brute", journal556, fixed = TRUE)) &&
+      inherits(e, "error"))
+  a("export CSV en echec : message de l'erreur relevee = texte destine a l'utilisateur, sans la cause R brute ni le chemin (corps de la page d'erreur HTTP 500 de shiny) (#556)",
+    identical(conditionMessage(e), "Export impossible : erreur lors de l'ecriture du fichier (detail consigne au journal de l'application).") &&
+      !grepl("cause R brute|Permission", conditionMessage(e)))
+  notifs556 <<- list(); journal556 <<- character(0)
+  f <- tente556(output$dl_donnees)
+  a("export CSV reussi : fichier ecrit, aucune notification, aucune ligne de journal (#556)",
+    is.character(f) && file.exists(f) && !length(notifs556) && !length(journal556))
+  # Export sans resultat (req(resultat()) : erreur silencieuse de shiny) : pas
+  # un echec d'ecriture, aucune notification ; l'erreur reste relevee.
+  e <- tente556(output$dl_tests)
+  a("export des tests sans resultat : erreur silencieuse de shiny relevee, ni notification ni journal (#556)",
+    inherits(e, "shiny.silent.error") && !length(notifs556) && !length(journal556))
 })
 rm("showNotification", envir = ea)
 )---"
@@ -2018,7 +2170,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -2035,8 +2187,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 140 assertions rendues", length(.lignes) == 140L)
-  if (length(.lignes) != 140L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 149 assertions rendues", length(.lignes) == 149L)
+  if (length(.lignes) != 149L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {
