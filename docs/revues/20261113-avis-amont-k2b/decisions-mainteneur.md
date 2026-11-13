@@ -10,7 +10,13 @@
 | 4 | Q-B, #557, `<rPh>` | **Texte phonétique ignoré** par `.xml_textes()` ; chaîne en ligne avec `rPh` : limite consignée, sous la condition de mesure du corps (avis, § 3b) | Texte lu changé dans des fichiers acceptés ; un en-tête attendu passe de refusé à accepté |
 | 5 | Q-C, #557, blancs d'en-tête sous Windows | **Limite consignée dans K2b ; mesure facultative sur le poste du mainteneur à KR** (`scripts-rejeu/mesure_557d.R`, avec la batterie Windows de #548) | Aucun |
 | 6 | Q-D, #565, job de parité | **Branché à l'agrégat bloquant `tests-moteur`** (mêmes conditions de déclenchement que les lots, `success` ou `skipped`) | La parité des lecteurs bloque la fusion |
+| 7 | Q-F, #557, chaîne partagée enrichie lue tronquée par `openxlsx` (constat de `coder-approfondi` à l'étape 4 ; `actuary-questions-557.md`, Q1) | **Refus** (`usp_refus_lecture`), avant `openxlsx` et sur les deux chemins, d'une table de chaînes partagées qui contient au moins un segment `<r>` sans aucun `<rPr>` dans toute la table. Texte : « Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur. » | `openxlsx` : valeur tronquée acceptée sans message (11,5 lu 1) devient refusée ; lecteur interne : lu juste devient refusé (parité). Hypothèse non vérifiée : aucun tableur n'écrit cette forme |
+| 8 | Q-A étendue, #557, forme de l'attribut `r` (`actuary-questions-557.md`, Q3 ; constat 3 de l'audit léger) | **Durcissement** : exactement un attribut `r` par balise `<c>`, en valeur brute `r="[A-Za-z]+[1-9][0-9]*"` (guillemets doubles, sans `&`) ; même texte de refus que la décision 3 | `<c r='Z9' r="A2">` et `r="&#66;2"`, aujourd'hui lus par le lecteur interne (le second en erreur R brute chez `openxlsx`), deviennent refusés |
 
 **Tranché par délégation par `actuary`** (avis amont, sans question au mainteneur) : `t="str"` en limite consignée ; textes de #556 (statut unique, notification, classe `usp_refus_ecriture`, forme « démarrage » hors périmètre) ; critères d'acceptation de #566 ; versions et fichiers du job de #565 ; `coder-approfondi` d'office pour #557.
+
+Requalification de Q-B (`actuary-questions-557.md`, Q2) : le correctif `<rPh>` corrige une valeur fausse acceptée par le lecteur interne (« 11 » + phonétique « 7 » lu 117), et non un simple alignement.
+
+Décisions 7 et 8 prises le 13/11/2026 sur questionnaire, après le compte rendu de `coder-approfondi` (étape 4).
 
 Fable : aucune consultation (0 sur 3).
