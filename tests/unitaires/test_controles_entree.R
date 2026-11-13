@@ -1797,8 +1797,9 @@ verifier("Lecture : colonne facteur convertie par ses valeurs, non par ses codes
            isTRUE(r$ok) && identical(r$xt, c(104.2, 102.25, 109.34, 114.64, 118.41)) &&
              identical(r$yt, c(70, 80, 85, 90, 99))
          })
-# Avis d'actuary du 24/09/2026 : annexe XVII, B(2)(b) et C(2)(b), annees
-# consecutives ; doublon, trou, annee non entiere ou manquante : refus.
+# Avis d'actuary du 24/09/2026 : annees consecutives (lecture de l'outil,
+# annexe XVII, B(3)(a)-(b) et C(3)(a)-(b)) ; doublon, trou, annee non
+# entiere ou manquante : refus.
 verifier("Lecture : annees t dupliquees ou non consecutives refusees (#33)",
          {
            a <- engine_lire_donnees_csv(data.frame(t = c(2001, 2001, 2002, 2003, 2004), xt = 1:5, yt = 1:5))
@@ -1979,11 +1980,11 @@ col_vide <- function(d, k, nom) {
   names(d2)[k + 1] <- nom; d2
 }
 MOTIF483 <- "Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4) : une ligne vide est refusee comme annee manquante presumee"
-verifier("Lignes vides (#483) : ligne vide intercalee dans des series sans t refusee, motif citant B(2)(b) et C(2)(b)",
+verifier("Lignes vides (#483) : ligne vide intercalee dans des series sans t refusee, motif citant B(3)(a) et (b), C(3)(a) et (b)",
          {
            r <- engine_lire_donnees_csv(avec_vide(ser483, 4))
            !r$ok && length(r$erreurs) == 1 && contient(r$erreurs, MOTIF483) &&
-             contient(r$erreurs, "B(2)(b) et C(2)(b)") && is.null(r$xt)
+             contient(r$erreurs, "(B(3)(a) et (b), C(3)(a) et (b))") && !contient(r$erreurs, "(2)(b)") && is.null(r$xt)
          })
 verifier("Lignes vides (#483) : meme motif pour un data.frame de chaines (CSV lu en texte, cellules vides ou blanches)",
          {
@@ -2028,13 +2029,13 @@ verifier("Colonnes vides (#483) : series, colonne vide sans en-tete retiree (bor
                       function(d) identical(engine_lire_donnees_csv(d), r0), logical(1)))
          })
 tri483 <- fichier_tri(triangle(6))
-verifier("Lignes vides (#483) : triangle a ligne vide intercalee refuse (colonne i comprise), D(2)(b) cite, CSV texte compris",
+verifier("Lignes vides (#483) : triangle a ligne vide intercalee refuse (colonne i comprise), D(1) et D(3)(a)-(b) cites, CSV texte compris",
          {
            r <- engine_lire_triangle(avec_vide(tri483, 4))
            r2 <- engine_lire_triangle(en_texte(avec_vide(tri483, 4)))
            !r$ok && is.null(r$triangle) &&
              contient(r$erreurs, "Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 4)") &&
-             contient(r$erreurs, "D(2)(b)") && identical(r2$erreurs, r$erreurs)
+             contient(r$erreurs, "(D(1), D(3)(a) et (b))") && !contient(r$erreurs, "D(2)(b)") && identical(r2$erreurs, r$erreurs)
          })
 verifier("Lignes vides (#483) : triangle a ligne vide en tete refuse par le motif \"en tete\"",
          contient(engine_lire_triangle(avec_vide(tri483, 1))$erreurs,
@@ -3061,6 +3062,211 @@ verifier(".echapper_texte() (#522) : guillemets = TRUE rend la forme de citer() 
          identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x"), guillemets = TRUE),
                    c("\"a\\\"b\\t\"", "\"2022\\u00a0\"", "\"x\"")) &&
            identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x")), c("a\"b\\t", "2022\\u00a0", "x")))
+
+## --- Colonne i du triangle, colonne t et en-tetes en double des series (#555)
+# Decisions du mainteneur 1, 2 et 5 a 10 du 12/11/2026 ; textes d'actuary
+# (docs/revues/20261112-avis-amont-k3b/), verifies ici mot pour mot.
+# Chemin CSV : lecture de l'application (lire_tableau(), en-tetes tels
+# quels ; read.csv retire les blancs d'un en-tete non cite, d'ou les
+# en-tetes cites "\" i \"" ci-dessous). Chemin classeur : ecrivain interne,
+# puis engine_lire_xlsx() par le lecteur interne force et, s'il est installe,
+# par openxlsx (parite, decision 10).
+liste555 <- function(k) paste0(paste(utils::head(k, 5), collapse = ", "),
+                               if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+H1_I555 <- function(cols, ents) sprintf(paste0("En-tete de la colonne i present plusieurs fois (colonnes %s, d'en-tetes %s) : ",
+  "la colonne i, facultative, porte l'annee d'accident de chaque ligne et ne peut figurer qu'une fois ",
+  "(en-tete i ou I, blancs de bord ignores) ; retirer ou renommer la colonne en trop."), liste555(cols), liste555(ents))
+H1_T555 <- function(cols, ents) sprintf(paste0("En-tete de la colonne t present plusieurs fois (colonnes %s, d'en-tetes %s) : ",
+  "la colonne t, facultative, porte l'annee de chaque ligne et ne peut figurer qu'une fois ",
+  "(en-tete t ou T, blancs de bord ignores) ; retirer ou renommer la colonne en trop."), liste555(cols), liste555(ents))
+DUP555 <- function(nom, cols) sprintf(paste0("En-tete %s present plusieurs fois (colonnes %s) : la colonne %s ne peut ",
+  "figurer qu'une fois ; retirer ou renommer la colonne en trop."), nom, liste555(cols), nom)
+V1_555 <- function(k) sprintf(paste0("Colonne i incomplete (ligne(s) de donnees %s sans valeur) : la colonne i, ",
+  "facultative, numerote les annees d'accident ; la renseigner pour chaque ligne, ou la retirer."), liste555(k))
+V2_555 <- function(k) sprintf(paste0("Colonne i non entiere ou non numerique (ligne(s) de donnees %s) : la colonne i, ",
+  "facultative, numerote les annees d'accident par des entiers ; la corriger, ou la retirer."), liste555(k))
+V3_555 <- function(k) sprintf(paste0("Colonne i a valeurs repetees (ligne(s) de donnees %s) : chaque ligne est une ",
+  "annee d'accident distincte ; corriger la colonne i, ou la retirer."), liste555(k))
+V4_555 <- function(k) sprintf(paste0("Colonne i non croissante (ligne(s) de donnees %s) : les annees d'accident sont ",
+  "lues dans l'ordre des lignes, de la plus ancienne a la plus recente ; ordonner les lignes selon la ",
+  "colonne i, ou la corriger."), liste555(k))
+V5_555 <- function(paires) sprintf(paste0("Colonne i non consecutive (entre les lignes de donnees %s) : annee d'accident ",
+  "manquante presumee ; le triangle de l'annexe XVII, section D, porte les montants de chaque annee ",
+  "d'accident, numerotees par des nombres consecutifs de 0 a I (D(1), D(3)(a) et (b)). Renseigner l'annee ",
+  "d'accident manquante, ou corriger la colonne i."), liste555(paires))
+MANQ555 <- function(manq, pres) sprintf(paste0("Colonne(s) manquante(s) : %s. Colonnes attendues : t, xt, yt ",
+  "(format d'export de l'application). Colonnes presentes : %s."), manq, pres)
+# Lignes CSV -> data.frame lu comme par l'application
+csv555 <- function(lignes) {
+  f <- tempfile(fileext = ".csv"); on.exit(unlink(f)); writeLines(lignes, f)
+  utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE, check.names = FALSE,
+                  na.strings = character(0), row.names = NULL)
+}
+# Triangle n x n en lignes CSV ; icol : valeurs de la colonne i (NULL : sans
+# colonne i), nom_i son en-tete ; extra : colonne ajoutee a droite.
+tri555 <- function(icol = NULL, nom_i = "i", n = 6, extra = NULL) {
+  m <- matrix("", n, n)
+  for (a in 1:n) for (b in 1:(n - a + 1)) m[a, b] <- format(100 * 1.3^(b - 1) + a)
+  ent <- paste0("j", 0:(n - 1)); corps <- apply(m, 1, paste, collapse = ",")
+  if (!is.null(icol)) { ent <- c(nom_i, ent); corps <- paste(icol, corps, sep = ",") }
+  if (!is.null(extra)) { ent <- c(ent, extra$nom); corps <- paste(corps, extra$val, sep = ",") }
+  c(paste(ent, collapse = ","), corps)
+}
+ser555 <- function(ent, cols) c(paste(ent, collapse = ","), apply(do.call(cbind, cols), 1, paste, collapse = ","))
+X555 <- c(3, 1, 2, 4, 5); XT555 <- c(103, 101, 102, 104, 105); YT555 <- c(63, 61, 62, 64, 65)
+lt555 <- function(lignes) engine_lire_triangle(csv555(lignes))
+ls555 <- function(lignes) engine_lire_donnees_csv(csv555(lignes))
+
+verifier("Colonne i (#555) : nom de colonne NA traite comme un en-tete absent, sans erreur R (colonne de donnees, colonne vide de bord, colonne de series en surnombre)",
+         {
+           d <- csv555(tri555()); d2 <- d; names(d2)[3] <- NA; d3 <- d; names(d3)[3] <- ""
+           e <- cbind(d, x = ""); names(e)[ncol(e)] <- NA
+           s <- csv555(ser555(c("t", "xt", "yt"), list(1:5, 101:105, 61:65))); s2 <- cbind(s, z = "a"); names(s2)[4] <- NA
+           r0 <- engine_lire_triangle(d)
+           isTRUE(r0$ok) && identical(engine_lire_triangle(d2), engine_lire_triangle(d3)) &&
+             identical(engine_lire_triangle(d2)$triangle, r0$triangle) &&
+             identical(engine_lire_triangle(e), r0) &&
+             identical(engine_lire_donnees_csv(s2), engine_lire_donnees_csv(s))
+         })
+verifier("Colonne i (#555) : en-tete i en double (i + i, i + I, i + \" i \") refuse par H1 seul, en-tetes cites tels que recus",
+         identical(lt555(tri555(1:6, extra = list(nom = "i", val = 1:6)))$erreurs, H1_I555(c(1, 8), c("i", "i"))) &&
+           identical(lt555(tri555(1:6, extra = list(nom = "I", val = 1:6)))$erreurs, H1_I555(c(1, 8), c("i", "I"))) &&
+           identical(lt555(tri555(1:6, extra = list(nom = "\" i \"", val = 1:6)))$erreurs, H1_I555(c(1, 8), c("i", " i "))) &&
+           identical(lt555(tri555(c(1, 1:5), extra = list(nom = "I", val = 1:6)))$erreurs, H1_I555(c(1, 8), c("i", "I"))))
+verifier("Colonne i (#555) : en-tete I seul, ou \" i \" (CSV, en-tete cite) accepte, triangle identique a celui de l'en-tete i",
+         {
+           r0 <- lt555(tri555(1:6))
+           isTRUE(r0$ok) && identical(lt555(tri555(1:6, "I")), r0) && identical(lt555(tri555(1:6, "\" i \"")), r0) &&
+             identical(r0$triangle, lt555(tri555())$triangle)
+         })
+verifier("Colonne i (#555) : depart libre (0, 1, annee civile, valeur negative) accepte, triangle identique a celui sans colonne i",
+         {
+           r0 <- lt555(tri555())
+           isTRUE(r0$ok) && all(vapply(list(0:5, 1:6, 2015:2020, -3:2), function(v) identical(lt555(tri555(v)), r0), logical(1)))
+         })
+verifier("Colonne i (#555) : V1 (vides) et V2 (texte, non entier, Inf) cumules, textes fixes",
+         identical(lt555(tri555(c(1, "", 3:6)))$erreurs, V1_555(2)) &&
+           identical(lt555(tri555(c(1, "x", 2.5, 4, 5, "Inf")))$erreurs, V2_555(c(2, 3, 6))) &&
+           identical(lt555(tri555(c(1, "", "x", 4, "  ", 6)))$erreurs, c(V1_555(c(2, 5)), V2_555(3))))
+verifier("Colonne i (#555) : V3, V4 et V5 exclusifs dans cet ordre, textes fixes",
+         identical(lt555(tri555(c(1, 1:5)))$erreurs, V3_555(1:2)) &&
+           identical(lt555(tri555(c(3, 3, 2, 7, 8, 9)))$erreurs, V3_555(1:2)) &&
+           identical(lt555(tri555(6:1))$erreurs, V4_555(2:6)) &&
+           identical(lt555(tri555(c(1, 2, 5, 4, 9, 10)))$erreurs, V4_555(4)) &&
+           identical(lt555(tri555(c(1:3, 5:7)))$erreurs, V5_555("3 et 4")) &&
+           identical(lt555(tri555(c(0, 2, 3, 5, 6, 9)))$erreurs, V5_555(c("1 et 2", "3 et 4", "5 et 6"))) &&
+           identical(lt555(tri555(c(1, 1:5), "I"))$erreurs, V3_555(1:2)))
+verifier("Colonne t (#555) : en-tete T (dans le desordre) trie comme t ; \" t \" (CSV, en-tete cite) identique",
+         {
+           r0 <- ls555(ser555(c("t", "xt", "yt"), list(X555, XT555, YT555)))
+           isTRUE(r0$ok) && identical(r0$xt, sort(XT555)) &&
+             identical(ls555(ser555(c("T", "xt", "yt"), list(X555, XT555, YT555))), r0) &&
+             identical(ls555(ser555(c("\" t \"", "xt", "yt"), list(X555, XT555, YT555))), r0)
+         })
+verifier("Colonne t (#555) : t + T et t + t refuses (texte fixe), T vide refuse par \"Colonne t incomplete\", T a trou par le texte reancre",
+         identical(ls555(ser555(c("t", "xt", "yt", "T"), list(1:5, 101:105, 61:65, 1:5)))$erreurs, H1_T555(c(1, 4), c("t", "T"))) &&
+           identical(ls555(ser555(c("t", "xt", "yt", "t"), list(1:5, 101:105, 61:65, 1:5)))$erreurs, H1_T555(c(1, 4), c("t", "t"))) &&
+           identical(ls555(ser555(c("T", "xt", "yt"), list(rep("", 5), 101:105, 61:65)))$erreurs,
+                     "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5) : chaque ligne doit porter son annee.") &&
+           identical(ls555(ser555(c("T", "xt", "yt"), list(c(1, 2, 3, 5, 6), 101:105, 61:65)))$erreurs,
+                     paste("Colonne t : annees non consecutives (1, 2, 3, 5, 6), annee manquante presumee ; les annees d'accident",
+                           "(annexe XVII, section B) ou exercices (section C) sont numerotes par des nombres consecutifs de 1 a T",
+                           "(B(3)(a) et (b), C(3)(a) et (b)).")))
+verifier("Colonne t (#555) : t en double et xt manquant cumules ; xt + xt et yt + yt refuses (comparaison exacte), colonnes presentes citees telles que recues",
+         identical(ls555(ser555(c("t", "yt", "t"), list(1:5, 61:65, 1:5)))$erreurs,
+                   c(H1_T555(c(1, 3), c("t", "t")), MANQ555("xt", "t, yt, t"))) &&
+           identical(ls555(ser555(c("t", "xt", "yt", "xt"), list(1:5, 101:105, 61:65, 201:205)))$erreurs, DUP555("xt", c(2, 4))) &&
+           identical(ls555(ser555(c("t", "xt", "yt", "yt"), list(1:5, 101:105, 61:65, 201:205)))$erreurs, DUP555("yt", c(3, 4))) &&
+           identical(ls555(ser555(c("T", "yt"), list(1:5, 61:65)))$erreurs, MANQ555("xt", "T, yt")) &&
+           identical(ls555(ser555(c("XT", "xt", "yt"), list(1:5, 101:105, 61:65)))$erreurs, character(0)))
+verifier("Textes reancres (#555, decisions 5 et 6) : lignes vides des series et du triangle, colonne t non consecutive (cas b ci-dessus)",
+         {
+           s <- data.frame(xt = 100:108, yt = 60 + 0:8)
+           vide <- function(d, k) d[append(seq_len(nrow(d)), NA, after = k - 1), , drop = FALSE]
+           tri <- csv555(tri555(1:6)); tri[] <- lapply(tri, function(v) ifelse(v == "", NA, v))
+           SB <- paste("les annees d'accident (annexe XVII, section B) ou exercices (section C) sont numerotes par des",
+                       "nombres consecutifs de 1 a T (B(3)(a) et (b), C(3)(a) et (b)). Renseigner l'annee manquante ou",
+                       "retirer la ligne vide.")
+           SD <- paste("le triangle de l'annexe XVII, section D, porte les montants de chaque annee d'accident, numerotees",
+                       "par des nombres consecutifs de 0 a I (D(1), D(3)(a) et (b)). Renseigner l'annee d'accident",
+                       "manquante ou retirer la ligne vide.")
+           identical(engine_lire_donnees_csv(vide(s, 1))$erreurs,
+                     paste("Ligne(s) vide(s) en tete, sous l'en-tete (ligne(s) de donnees 1) : une ligne vide est refusee",
+                           "comme annee manquante presumee ;", SB)) &&
+             identical(engine_lire_donnees_csv(vide(s, 4))$erreurs,
+                       paste("Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 4) : une ligne vide est refusee comme",
+                             "annee manquante presumee ;", SB)) &&
+             identical(engine_lire_triangle(vide(tri, 1))$erreurs,
+                       paste("Ligne(s) vide(s) en tete dans le triangle, sous l'en-tete (ligne(s) de donnees 1) : une ligne",
+                             "vide est refusee comme annee d'accident manquante presumee ;", SD)) &&
+             identical(engine_lire_triangle(vide(tri, 4))$erreurs,
+                       paste("Ligne(s) vide(s) intercalee(s) dans le triangle (ligne(s) de donnees 4) : une ligne vide est",
+                             "refusee comme annee d'accident manquante presumee ;", SD)) &&
+             identical(engine_lire_donnees_csv(data.frame(t = c(2001, 2003, 2005, 2007, 2009), xt = 1:5, yt = 1:5))$erreurs,
+                       paste("Colonne t : annees non consecutives (2001, 2003, 2005, 2007, 2009), annee manquante presumee ;",
+                             "les annees d'accident (annexe XVII, section B) ou exercices (section C) sont numerotes par des",
+                             "nombres consecutifs de 1 a T (B(3)(a) et (b), C(3)(a) et (b))."))
+         })
+# Classeur : memes cas par le lecteur interne force et, s'il est installe,
+# par openxlsx ; en-tetes ecrits par l'ecrivain interne, blancs de bord
+# retires a la lecture par les deux chemins.
+if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
+  env555 <- environment(run_engine)
+  interne555 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env555)
+    on.exit(rm("requireNamespace", envir = env555), add = TRUE)
+    force(expr)
+  }
+  avec_openxlsx555 <- requireNamespace("openxlsx", quietly = TRUE)
+  if (!avec_openxlsx555) cat("  [saute] colonne i et en-tetes en double (#555), chemin openxlsx : paquet non installe\n")
+  # Lignes CSV -> classeur (cellules numeriques en nombres, vides en NA) ->
+  # liste des tableaux relus par chaque chemin disponible.
+  xl555 <- function(lignes) {
+    d <- csv555(lignes)
+    d[] <- lapply(d, function(v) {
+      n <- suppressWarnings(as.numeric(v))
+      if (all(!is.na(n) | v == "")) ifelse(v == "", NA, n) else ifelse(v == "", NA, v)
+    })
+    f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+    engine_ecrire_xlsx(d, f)
+    out <- list(interne = interne555(engine_lire_xlsx(f)))
+    if (avec_openxlsx555) out$openxlsx <- engine_lire_xlsx(f)
+    out
+  }
+  tous555 <- function(lignes, lire, test) all(vapply(xl555(lignes), function(d) test(lire(d)), logical(1)))
+  verifier("Colonne i (#555), classeur : i + i et i + I refuses par H1, sans en-tete renomme \"i.1\" (parite CSV, lecteur interne et openxlsx)",
+           tous555(tri555(1:6, extra = list(nom = "i", val = 1:6)), engine_lire_triangle,
+                   function(r) identical(r$erreurs, H1_I555(c(1, 8), c("i", "i")))) &&
+             tous555(tri555(1:6, extra = list(nom = "I", val = 1:6)), engine_lire_triangle,
+                     function(r) identical(r$erreurs, H1_I555(c(1, 8), c("i", "I")))) &&
+             tous555(tri555(1:6, extra = list(nom = "\" i \"", val = 1:6)), engine_lire_triangle,
+                     function(r) identical(r$erreurs, H1_I555(c(1, 8), c("i", "i")))))
+  verifier("Colonne i (#555), classeur : I seul et \" i \" acceptes, triangle identique au CSV a en-tete i ; i = 0..5 (export de l'application) accepte",
+           {
+             r0 <- lt555(tri555(1:6))
+             tous555(tri555(1:6, "I"), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri555(1:6, "\" i \""), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri555(0:5), engine_lire_triangle, function(r) identical(r, r0))
+           })
+  verifier("Colonne i (#555), classeur : V1, V3, V4 et V5 aux memes textes qu'en CSV",
+           tous555(tri555(c(1, "", 3:6)), engine_lire_triangle, function(r) identical(r$erreurs, V1_555(2))) &&
+             tous555(tri555(c(1, 1:5)), engine_lire_triangle, function(r) identical(r$erreurs, V3_555(1:2))) &&
+             tous555(tri555(6:1), engine_lire_triangle, function(r) identical(r$erreurs, V4_555(2:6))) &&
+             tous555(tri555(c(1:3, 5:7)), engine_lire_triangle, function(r) identical(r$erreurs, V5_555("3 et 4"))))
+  verifier("Colonne t (#555), classeur : T trie comme t ; \" t \" identique au CSV ; t + T, t + t, xt + xt refuses aux textes du CSV",
+           {
+             r0 <- ls555(ser555(c("t", "xt", "yt"), list(X555, XT555, YT555)))
+             tous555(ser555(c("T", "xt", "yt"), list(X555, XT555, YT555)), engine_lire_donnees_csv, function(r) identical(r, r0)) &&
+               tous555(ser555(c("\" t \"", "xt", "yt"), list(X555, XT555, YT555)), engine_lire_donnees_csv,
+                       function(r) identical(r, r0)) &&
+               tous555(ser555(c("t", "xt", "yt", "T"), list(1:5, 101:105, 61:65, 1:5)), engine_lire_donnees_csv,
+                       function(r) identical(r$erreurs, H1_T555(c(1, 4), c("t", "T")))) &&
+               tous555(ser555(c("t", "xt", "yt", "t"), list(1:5, 101:105, 61:65, 1:5)), engine_lire_donnees_csv,
+                       function(r) identical(r$erreurs, H1_T555(c(1, 4), c("t", "t")))) &&
+               tous555(ser555(c("t", "xt", "yt", "xt"), list(1:5, 101:105, 61:65, 201:205)), engine_lire_donnees_csv,
+                       function(r) identical(r$erreurs, DUP555("xt", c(2, 4))))
+           })
+} else cat("  [saute] colonne i et en-tetes en double (#555), classeur : aucune voie d'ecriture xlsx\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",

@@ -376,7 +376,7 @@ verifier_detail(ut514(f_v, lr_delta = lr514(0.4, lr = NA_real_)),
                 "S14 rapport de vraisemblance, borne en echec")
 verifier_detail(ut514(force514(rep(110, 8), y514, 0), lr_delta = lr514(0.4)),
                 "S14 rapport de vraisemblance, volumes constants")
-# S16 : T-3a et T-3b (lignes de famille fictives) ; S22 Runsr branche 2b et 2.
+# S16 : T-3a et T-3b (lignes de famille fictives).
 cat514 <- list(A = .mc_entree(function(e) 1, "haut"), B = .mc_entree(function(e) 1, "haut"))
 lf514 <- function(n, na_B = 0L) {
   S <- cbind(A = seq_len(n) / n, B = rev(seq_len(n)) / n)

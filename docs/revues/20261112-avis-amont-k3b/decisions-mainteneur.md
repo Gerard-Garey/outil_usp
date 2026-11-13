@@ -1,0 +1,32 @@
+# Décisions du mainteneur sur l'avis amont de K3b (12/11/2026)
+
+> *Rédigé par la session principale (IA).* Réponses du mainteneur, par questionnaire à la session principale, aux décisions 1 à 4 de `actuary-avis-amont.md`.
+
+1. **#555, portée : règle unique retenue** (recommandation d'`actuary`). Si la colonne `i` est présente, elle porte, ligne après ligne, des entiers croissants de pas 1, sans vide ; départ libre (0, 1, année civile, valeur négative comprise). Motifs H1, V1 à V5 du tableau de l'avis ; le motif V5 (« non consecutive », qui cite l'annexe XVII, D(2)(b)) reste sous réserve de la lecture de D(2)(b) par `regulatory` (`medium`).
+2. **#555, nom de colonne `NA` : traité comme un en-tête absent**, sans refus (recommandation d'`actuary`), comme `""` et comme le fait déjà `.entete_absent()`. Écart assumé à la lettre « refus motivé » de l'issue ; le critère « jamais d'erreur R brute » est tenu.
+3. **#555, en-têtes `I` (majuscule) ou ` i ` (avec blancs) : traités dans #555**, contre la recommandation d'`actuary` (hors périmètre, issue). Le traitement et le texte sont à fixer avant l'étape 8 (`actuary`).
+4. **#534, b2 non calculable sur des résidus finis et non constants : assertion `stop()`** (recommandation d'`actuary`) ; résidus non finis : `stop()` ; résidus exactement constants (`all(z == z[1])`) : motif actuel inchangé. Interface de `test_anscombe_kurt()` inchangée.
+
+Pour information, sans décision du mainteneur (validation d'`actuary` suffisante, aucun σ_USP ni verdict touché) : #537, plus courte écriture qui se relit à l'identique (15 à 17 chiffres, point décimal) ; #532, option (ii), branche 2b retirée et assertion `stop()`. Critère Q-A2 corrigé : `tests/unitaires/test_non_applicable.R` (dont l. 158-171) vert à chaque commit d'`add()`.
+
+## Décisions complémentaires du 12/11/2026, après la lecture de `regulatory` (`regulatory-lecture-d2b-v5.md`)
+
+5. **Motif V5 : ancré sur D(1) et D(3)(a)-(b)** (recommandation de `regulatory`) : `Colonne i non consecutive (entre les lignes de donnees %s) : annee d'accident manquante presumee ; le triangle de l'annexe XVII, section D, porte les montants de chaque annee d'accident, numerotees par des nombres consecutifs de 0 a I (D(1), D(3)(a) et (b)). Renseigner l'annee d'accident manquante, ou corriger la colonne i.` D(2)(b) n'y est pas cité.
+6. **Motifs existants qui citent « (2)(b) … exige des annees consecutives »** (lignes vides du triangle et des séries, colonne `t`, commentaires, `.tex` l. 3879) : **corrigés dans K3b, avec #555**, au lieu d'une issue séparée. Textes à fixer par `actuary` avant l'étape 8, sur la lecture de `regulatory` (structure de la méthode, B/C/D(3)(a)-(b) et D(1) ; présomption qualifiée de lecture de l'outil) ; `regulatory` contrôle la conformité des textes en aval. Le motif « D(2)(b) : au moins %d annees d'accident consecutives (%d fournies) », fidèle, ne change pas.
+
+## Décisions complémentaires du 12/11/2026, après l'avis d'`actuary` sur les textes restants (`actuary-textes-555.md`)
+
+7. **En-têtes `I` et ` i ` : traitement (a), reconnaissance** (recommandation d'`actuary`) : un en-tête désigne la colonne `i` si, après retrait du BOM et des blancs de bord (`[[:space:]]`), il vaut `i` ou `I` ; la colonne est renommée `"i"`, puis soumise à V1-V5 ; plusieurs en-têtes de ce type : refus H1 (texte révisé de l'avis). Un fichier jusqu'ici refusé (`I`, ou ` i ` en CSV) sera calculé ; aucun fichier accepté aujourd'hui ne change.
+8. **Colonne `t` des séries : K3b étendue**, contre la recommandation d'`actuary` (issue candidate pour K2b) : la même règle de reconnaissance s'applique à l'en-tête `t` (`t` ou `T`, blancs de bord ignorés), sur les deux chemins ; textes fixés par `actuary` avant l'étape 8.
+9. **Doublons d'en-tête `xt` ou `yt` des séries : refus inclus dans K3b** (recommandation d'`actuary`, `actuary-textes-555-colonne-t.md`), comparaison exacte, texte « En-tete %s present plusieurs fois (colonnes %s) : la colonne %s ne peut figurer qu'une fois ; retirer ou renommer la colonne en trop. ».
+
+## Décisions de conduite du 12/11/2026 (soir), mainteneur indisponible jusqu'à la session suivante
+
+10. **Parité classeur des doublons d'en-tête** : si `openxlsx` dédoublonne lui-même les en-têtes, relire la première ligne sans dédoublonnage pour détecter le doublon ; même refus sur les deux chemins.
+11. **Textes de #555 jugés non conformes par `regulatory`** : reformulation par `actuary` et poursuite déléguées, tant qu'aucun σ_USP ni verdict ne change et que les règles 1 à 9 restent les mêmes ; arrêt si la règle elle-même est en cause ou si les deux agents restent en désaccord.
+12. **Constats hors périmètre de la revue finale** (et issue proposée sur les graphiques plotly rognés à l'impression en portrait) : issues rédigées au handoff, créées au retour du mainteneur après approbation.
+13. **Sortie du brouillon** de la PR #563 par la session une fois la branche terminée (PDF commité, CI verte, revue finale sans constat ouvert) ; fusion par le mainteneur.
+
+## Décision du 13/11/2026, après la revue finale (constat C1, `../20261112-fin-de-branche-k3b/actuary-avis-c1-entete-T.md`)
+
+14. **Décision 8 confirmée en connaissance de ses effets** (option (a), recommandation d'`actuary`) : un fichier de séries d'en-tête `T` (ou ` t ` en CSV) aux lignes dans le désordre est trié par `T`. Hors des six cas de référence, cela change σ_USP à profondeur réduite (0,1280504 → 0,1193536 à T = 6 sur 8 lignes, exemple du tableau avant / après de la PR #563) et sept verdicts sur une série à S/P croissant au fichier mélangé ; le changement est approuvé. Aucun code à changer. Le message de `21561e0` (« Aucun σ_USP, p-value ni verdict changé ») n'est pas réécrit ; le corps de la PR #563 et l'avis d'`actuary` en tiennent lieu.

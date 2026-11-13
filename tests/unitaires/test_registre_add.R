@@ -88,6 +88,39 @@ verifier("C2 add() : tolerance TOL_P_BORNE : 1 + 1e-15 et -1e-15 admis tels quel
              grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = 1 + 1e-9))) &&
              grepl("^add\\(\\) : p-value hors de \\[0, 1\\] : p_ex = ", msg484(ligne484(p_ex = -1e-9)))
          })
+## #537 : valeur ecrite par la plus courte ecriture qui se relit a l'identique
+## (15 a 17 chiffres), au point decimal meme sous OutDec = ","
+## Textes fixes sous scipen = 0 puis scipen = 100 (l'ecriture ne suit pas
+## options(scipen) : sprintf, et non format(), constat C2 de la revue finale
+## de K3b), option restauree en sortie.
+verifier("#537 add() : refus de 1 + 1e-9 et -1e-9 -> valeur ecrite en entier ('1.000000001', '-1e-09')",
+         {
+           ancien <- options(scipen = 0)
+           m <- tryCatch(c(msg484(ligne484(p_ex = 1 + 1e-9)), msg484(ligne484(p_ex = -1e-9))),
+                         finally = options(ancien))
+           identical(m, c("add() : p-value hors de [0, 1] : p_ex = 1.000000001 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -1e-09 (t)"))
+         })
+verifier("#537 add() : sous options(OutDec = ','), meme texte, au point decimal",
+         {
+           ancien <- options(OutDec = ",", scipen = 0)
+           m <- tryCatch(c(msg484(ligne484(p_ex = 1 + 1e-9)), msg484(ligne484(p_ex = -1e-9)),
+                           msg484(ligne484(p_ex = -0.2))),
+                         finally = options(ancien))
+           identical(m, c("add() : p-value hors de [0, 1] : p_ex = 1.000000001 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -1e-09 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -0.2 (t)"))
+         })
+verifier("#537 add() : sous options(scipen = 100), meme texte que sous scipen = 0",
+         {
+           ancien <- options(scipen = 100)
+           m <- tryCatch(c(msg484(ligne484(p_ex = 1 + 1e-9)), msg484(ligne484(p_ex = -1e-9)),
+                           msg484(ligne484(p_ex = -0.2))),
+                         finally = options(ancien))
+           identical(m, c("add() : p-value hors de [0, 1] : p_ex = 1.000000001 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -1e-09 (t)",
+                          "add() : p-value hors de [0, 1] : p_ex = -0.2 (t)"))
+         })
 verifier("C2 add() : p non finies (NA, NaN, Inf, -Inf) lues comme absentes, sans erreur",
          {
            l <- ligne484(p_ex = NaN, p_as = Inf, p_min = -Inf)
@@ -212,6 +245,37 @@ verifier("run_engine() : TOST test, Pitman enumeration, aleatoire et non applica
              identical(k$pitman$type, "non applicable") &&
              identical(k$pitman$nature_p, NA_character_) &&
              identical(k$tost$type, "non applicable") && identical(k$tost$nature_p, NA_character_)
+         })
+
+## --- #536 : aide unique du motif "Monte-Carlo indisponible" ---------------------
+## Trois formes (". " sans suite, ", <suite>" sinon, suite seule sous la garde)
+## et garde anti-doublon par recherche litterale ; textes inchanges (Q-60-2 (a)).
+## Les deux gardes d'add() (R1, bloc aucune_p) sont exercees par
+## test_inoperance.R ("deja : <motif>.", "motif deja dans le detail").
+verifier("#536 .motif_mc_indisponible() : formes '<motif>.' et '<motif>, <suite>', avec ou sans detail sans le motif",
+         {
+           m <- MOTIF_MC_REPLIC_INSUFFISANTES
+           identical(.motif_mc_indisponible(m), paste0("Monte-Carlo indisponible : ", m, ".")) &&
+             identical(.motif_mc_indisponible(m, "s."), paste0("Monte-Carlo indisponible : ", m, ", s.")) &&
+             identical(.motif_mc_indisponible(m, detail = "autre."),
+                       paste0("Monte-Carlo indisponible : ", m, ".")) &&
+             identical(.motif_mc_indisponible(m, "s.", "autre."),
+                       paste0("Monte-Carlo indisponible : ", m, ", s."))
+         })
+verifier("#536 .motif_mc_indisponible() : motif deja dans le detail -> suite seule, character(0) sans suite ; recherche litterale",
+         {
+           m <- MOTIF_MC_REPLIC_INSUFFISANTES  # contient "(", "<" et "=" : litteral exige
+           d <- paste0("deja : ", m, ".")
+           identical(.motif_mc_indisponible(m, detail = d), character(0)) &&
+             identical(.motif_mc_indisponible(m, "s.", d), "s.") &&
+             identical(.motif_mc_indisponible("a.c", detail = "abc"), "Monte-Carlo indisponible : a.c.")
+         })
+verifier("#536 .prefixe_motif_mc() : motif non degenere -> forme de l'aide ; motif degenere -> forme propre, hors aide",
+         {
+           m <- MOTIF_MC_AUCUNE_REPLIC; g <- MOTIF_MC_ATOME_HORS_OBS
+           identical(.prefixe_motif_mc(m), .motif_mc_indisponible(m)) &&
+             startsWith(.prefixe_motif_mc(g), paste0(g, " : aucune p-value retenue.")) &&
+             !grepl("Monte-Carlo indisponible", .prefixe_motif_mc(g), fixed = TRUE)
          })
 
 fin_fichier()
