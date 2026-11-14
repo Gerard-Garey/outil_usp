@@ -2009,7 +2009,8 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
               sec, sec, sec)), collapse = " ")
     return(list(ok = FALSE, erreurs = motif))
   }
-  # Forme 1 (#188, inchangee) : demarrage retenu sur une borne.
+  # Forme 1 (#188 ; phrase de la reserve no 2 retiree par #573) : demarrage
+  # retenu sur une borne.
   motif <- paste(c(
     sprintf(paste0("Maximum de vraisemblance non atteint (annexe XVII, %s(6)) : ",
                    "gamma estime sur la borne %s du domaine de recherche [%s ; %s] ",
