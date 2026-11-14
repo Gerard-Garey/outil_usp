@@ -34,6 +34,20 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
   quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
   deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
+- Limites connues de la lecture xlsx, sur des formes de classeur
+  qu'aucun tableur n'est supposé écrire (hypothèse non vérifiée) :
+  - **#575** : une cellule `t="s"` dont l'indice sort de la table des
+    chaînes partagées arrête le processus R sous `openxlsx` 4.2.5.2 et
+    4.2.9 (mesurés sous Linux et sous Windows 11). Aucun `tryCatch()` ne
+    l'intercepte. Sans `openxlsx`, la cellule est lue `NA` puis refusée.
+    `openxlsx` reste le lecteur par défaut quand il est installé.
+  - **#574-1** : une chaîne partagée préfixée `<x:si>` n'est comptée par
+    aucun des deux chemins dans l'indice des chaînes partagées. La cellule
+    qui la désigne peut donc être lue avec une autre valeur, fausse, sans
+    message. Contrôle compensatoire : relire les données affichées avant
+    le calcul contre leur source ; le rapport figé donne l'empreinte md5
+    des données du calcul (table « Empreintes », `engine_empreinte()`),
+    qu'un tiers peut recalculer.
 - Application : `shiny` ; `plotly` en option (repli automatique sur les
   graphiques de base R). Dépendances déclarées dans `DESCRIPTION` :
   `remotes::install_deps(dependencies = TRUE)` les installe.
