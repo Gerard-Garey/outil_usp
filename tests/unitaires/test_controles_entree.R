@@ -3209,6 +3209,24 @@ if (nzchar(Sys.which("zip"))) {
            tous487(ser557(ps487("B3", 0), xr572("<x:t>1</x:t>", "<x:t>1.5</x:t>")), function(d)
              identical(engine_lire_donnees_csv(d)$erreurs,
                        "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
+  # .xml_textes() retire aussi les blocs <x:rPh>...</x:rPh> et les balises
+  # <x:rPh .../> prefixes (/code-review). Auparavant (mesure) : "11" suivi de
+  # <x:rPh ...><t>7</t></x:rPh> lu 117 par le lecteur interne, sans message,
+  # 11 par openxlsx 4.2.9 ; <x:rPh .../> suivi d'un bloc <x:rPh> : 117 / 11.
+  xrph572 <- function(apres) sprintf("<si><t>11</t>%s</si>", apres)
+  verifier("xlsx (#572) : chaine partagee \"11\" suivie d'un bloc <x:rPh> (<t> ou <x:t> dedans), d'une balise <x:rPh .../> seule ou suivie d'un bloc <x:rPh> : 11 lu sur chaque chemin (lecteur interne : auparavant 117)",
+           all(vapply(c(xrph572(sprintf('<x:rPh %s sb="0" eb="1"><t>7</t></x:rPh>', nsx572)),
+                        xrph572(sprintf('<x:rPh %s sb="0" eb="1"><x:t>7</x:t></x:rPh>', nsx572)),
+                        xrph572(sprintf('<x:rPh %s sb="0" eb="1"/>', nsx572)),
+                        xrph572(sprintf('<x:rPh %s sb="0" eb="0"/><x:rPh %s sb="1" eb="1"><t>7</t></x:rPh>', nsx572, nsx572))),
+                      function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
+                        v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11, 12, 13, 14)) }), logical(1))))
+  verifier("xlsx (#572) : .xml_textes() retire <x:rPh .../> avant les blocs <x:rPh> (\"11.5\", auparavant \"11.5Z\"), blocs <x:rPh> sur plusieurs lignes, non gloutons, \">\" dans une valeur d'attribut ; <x:rPhX> garde",
+           identical(.xml_textes(paste0(rpr572, '<x:rPh sb="0" eb="0"/><r><t>1.5</t></r><x:rPh sb="1" eb="1"><t>Z</t></x:rPh>')), "11.5") &&
+             identical(.xml_textes('<t>11</t><x:rPh sb="0"\neb="1">\n<t>7</t>\r\n</x:rPh><t>2</t>'), "112") &&
+             identical(.xml_textes('<t>1</t><rPh sb="0" eb="1"><t>7</t></rPh><t>2</t><x:rPh sb="1" eb="1"><t>8</t></x:rPh>'), "12") &&
+             identical(.xml_textes('<t>11</t><x:rPh sb="a>b" eb="1"><t>7</t></x:rPh><t>.5</t>'), "11.5") &&
+             identical(.xml_textes('<t>1</t><x:rPhX><t>7</t></x:rPhX>'), "17"))
   # Chaines en ligne (<is>) de forme P2 ou X1 : non refusees (table des
   # chaines partagees seule) ; lecteur interne : 11.5 lu ; openxlsx : NA (P2)
   # ou texte non numerique (X1), cellule refusee en aval (mesure, limite
