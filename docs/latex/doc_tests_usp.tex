@@ -4666,9 +4666,21 @@ relevant du refus des \code{<t>} successifs. Une chaîne préfixée \code{<x:si>
 n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
 \code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
 chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et donne une valeur
-fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Une table entièrement préfixée
+fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Faute de refus,
+le contrôle d'une telle valeur revient à l'utilisateur~: l'application affiche les données lues
+avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
+les données du calcul et porte, dans sa table «~Empreintes~», l'empreinte md5 de leur texte
+canonique (\code{engine\_empreinte()}), fonction des seules valeurs, qu'un tiers peut recalculer
+à partir des valeurs de la source. Une table entièrement préfixée
 est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
-sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+sur une erreur R. Une cellule de chaîne partagée (\code{t="s"}) dont l'indice désigne une chaîne
+absente de la table (indice~5 dans une table d'une seule chaîne) n'est pas refusée avant l'appel
+à \code{openxlsx}~: dans ses versions~4.2.5.2 et~4.2.9, celui-ci arrête alors le processus~R
+par une violation d'accès mémoire, qu'aucun \code{tryCatch()} n'intercepte, et l'application
+avec lui (mesuré pour les deux versions sous Linux, et pour la version~4.2.9 sous Windows)~; la
+voie de repli lit la cellule \code{NA}, refusée en aval (mesuré). Aucun tableur n'est supposé
+écrire cette forme (hypothèse non vérifiée). \code{openxlsx} reste le lecteur employé quand il
+est installé, de sorte qu'un poste qui l'a installé est exposé à cette limite. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
