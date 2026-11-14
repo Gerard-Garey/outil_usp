@@ -23,6 +23,17 @@ Usage : `git show 9f7290f:R/engine.R > <dir>/old.R ; git show a2f9c3a:R/engine.R
 
 **Brief de `docwriter`** : rien à ajouter au titre du balayage, hors #573 (l. 4398, l. 4444, puce de `sec:mw`).
 
-## (ii) Mesure de #575 sous `openxlsx` 4.2.5.2
+## (ii) Mesure de #575 sous `openxlsx` 4.2.5.2 (M4 (ii))
 
-À compléter.
+**Environnement** : session cloud, R 4.3.3, `LC_ALL=C.UTF-8` ; bibliothèque temporaire hors dépôt (`openxlsx` 4.2.5.2, `zip` 2.3.1, `shiny` 1.8.0, `plotly` 4.10.4, depuis l'archive CRAN) ; dépôt non touché ; moteur au SHA du gel `a2f9c3a`. Script : `mesure_575.sh <bibliotheque> <depot>`, chaque lecture dans un sous-processus R.
+
+**Classeur forgé** (md5 `f9b8e9215f6785b6aa16ec6ffaa56bc2`, non versé) : une feuille `Donnees`, `xl/sharedStrings.xml` à une seule `<si>` (`<si><t>annee</t></si>`), `xl/worksheets/sheet1.xml` :
+`<row r="1"><c r="A1" t="s"><v>0</v></c></row><row r="2"><c r="A2" t="s"><v>5</v></c></row>` (indice 5 hors bornes).
+
+| Chemin | Résultat |
+|---|---|
+| `openxlsx::read.xlsx()` direct, 4.2.5.2 | **segfault** (« caught segfault », `getCellInfo()`), processus R tué, code de sortie 139 |
+| `engine_lire_xlsx()` avec `openxlsx` 4.2.5.2 installé | **segfault** au même endroit (appel `openxlsx::read.xlsx()` du moteur), code 139 : le `tryCatch()` de l'appelant ne l'intercepte pas |
+| `engine_lire_xlsx()` sans `openxlsx` (lecteur interne) | `data.frame` d'une colonne `annee`, valeur `NA` (refus en aval), code 0 |
+
+**Conclusion** : le défaut de #575 **n'est pas propre à 4.2.9** ; il existe aussi sous **4.2.5.2**, la version de la CI. Sur un poste muni d'`openxlsx`, l'ouverture d'un tel classeur arrête le processus R, donc l'application. Aucun tableur connu n'écrit cette forme (*hypothèse non vérifiée*, handoff `6878784223`). Limite à consigner (Q-C, M4) au README et dans le `.tex` avec les versions mesurées : 4.2.5.2 (cette mesure) et 4.2.9 (#575) ; la version du poste sera relevée à l'étape 3.
