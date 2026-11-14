@@ -4602,7 +4602,8 @@ non la valeur lue, et vaut aussi pour une table de cette forme qu'\code{openxlsx
 minuscules restent admises. Les attributs \code{r} et \code{t} d'une cellule sont lus dans sa
 seule balise ouvrante, jamais dans son texte. Le texte phonétique d'une chaîne (blocs
 \code{<rPh>} ou \code{<x:rPh>}) n'est pas lu par la voie de repli, comme par \code{openxlsx} pour
-une chaîne partagée~: «~\code{11}~»
+une chaîne partagée, sauf la forme à segments \code{<r>} suivie d'un bloc \code{<x:rPh>}
+consignée plus bas~: «~\code{11}~»
 suivi du texte phonétique «~\code{7}~» est lu~11 (mesuré). Deux limites sont consignées, sans
 valeur fausse ni sur l'un ni sur l'autre chemin~: une chaîne en ligne qui porte \code{<rPh>} est
 lue sans son texte phonétique par la voie de repli, alors qu'\code{openxlsx} en rend la cellule
@@ -4642,8 +4643,9 @@ contient une table des chaines partagees (fichier dont le nom finit par sharedSt
 ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Trois limites sont consignées
 (mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>}
 placés dans des segments \code{<x:r>} n'est lue par aucun chemin~: la cellule de valeur qui la
-désigne est refusée en aval comme cellule non numérique (une chaîne formée de plusieurs
-\code{<x:t>} directs relève du refus des \code{<t>} successifs). Une chaîne préfixée \code{<x:si>}
+désigne est refusée en aval comme cellule non numérique~; il en va de même d'une chaîne formée
+d'un seul \code{<x:t>} direct (mesuré), une chaîne formée de plusieurs \code{<x:t>} directs
+relevant du refus des \code{<t>} successifs. Une chaîne préfixée \code{<x:si>}
 n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
 \code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
 chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et donne une valeur
