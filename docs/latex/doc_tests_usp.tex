@@ -908,7 +908,7 @@ renommé pour lever un doublon~; balises
 classeur et de ses relations, ainsi que références de cellule en minuscules, lus par la voie de repli et non
 par \code{openxlsx}~4.2.9, qui s'arrête sur une erreur R (mesuré)~; dans la voie de
 repli, entités XML nommées et références numériques des chaînes partagées et en ligne décodées,
-chaîne en ligne enrichie lue entière, texte phonétique (\code{<rPh>}) d'une chaîne non lu~; texte
+chaîne en ligne enrichie lue entière, texte phonétique (\code{<rPh>}, \code{<x:rPh>}) d'une chaîne non lu~; texte
 d'une cellule \code{t="str"} lu tel quel, sans décodage des entités, sur les deux chemins~; dans la voie de repli encore, une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
@@ -922,7 +922,7 @@ nom d'élément~; chemins~; XML de la feuille & texte du fichier lu d'un bloc en
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
-ou non, texte phonétique (balises \code{<rPh .../>} et blocs \code{<rPh>}, attributs lus en
+ou non, texte phonétique (balises \code{<rPh .../>} et blocs \code{<rPh>}, préfixés ou non, attributs lus en
 tenant compte des guillemets) retiré, décodé~; valeur d'un attribut, la balise étant découpée en attributs entiers (valeur
 entre guillemets doubles ou apostrophes, blancs admis autour du signe \code{=}), nom local
 comparé, préfixe d'espace de noms retiré, sous \code{local = TRUE} (classeur et relations), nom
@@ -4601,7 +4601,8 @@ non la valeur lue, et vaut aussi pour une table de cette forme qu'\code{openxlsx
 (hypothèse non vérifiée~: aucun tableur n'écrit cette forme). Les références de cellule en
 minuscules restent admises. Les attributs \code{r} et \code{t} d'une cellule sont lus dans sa
 seule balise ouvrante, jamais dans son texte. Le texte phonétique d'une chaîne (blocs
-\code{<rPh>}) n'est pas lu, comme par \code{openxlsx} pour une chaîne partagée~: «~\code{11}~»
+\code{<rPh>} ou \code{<x:rPh>}) n'est pas lu par la voie de repli, comme par \code{openxlsx} pour
+une chaîne partagée~: «~\code{11}~»
 suivi du texte phonétique «~\code{7}~» est lu~11 (mesuré). Deux limites sont consignées, sans
 valeur fausse ni sur l'un ni sur l'autre chemin~: une chaîne en ligne qui porte \code{<rPh>} est
 lue sans son texte phonétique par la voie de repli, alors qu'\code{openxlsx} en rend la cellule
@@ -4624,7 +4625,11 @@ chaîne en ligne (\code{<is>}) de ces deux formes n'est pas
 refusée~: la voie de repli la lit entière, \code{openxlsx}~4.2.9 en rend la cellule \code{NA}
 (\code{<rPh .../>}) ou un texte non numérique (\code{<t>} successifs), refusés en aval comme
 cellule non numérique (mesuré). Le refus de l'indication phonétique vide ne vise pas la balise
-préfixée \code{<x:rPh .../>}, lue sans perte par les deux chemins (mesuré).
+préfixée \code{<x:rPh .../>}, lue sans perte par les deux chemins (mesuré). Une chaîne partagée
+en segments \code{<r>} (table qui porte une \code{<rPr>}) suivie d'un bloc \code{<x:rPh>} n'est
+pas refusée et donne une valeur fausse~: «~\code{1}~» et «~\code{1.5}~» suivis du bloc «~\code{7}~»
+sont lus $11{,}57$ par \code{openxlsx}~4.2.9, sans message, et $11{,}5$ par la voie de repli
+(mesuré)~; aucun tableur n'est supposé écrire cette forme (hypothèse non vérifiée).
 Ces trois refus de la table des chaînes partagées (segments sans mise en forme, indication
 phonétique vide, \code{<t>} successifs) ne lisent que \code{xl/sharedStrings.xml}, alors
 qu'\code{openxlsx}~4.2.9 lit toute entrée de l'archive dont le nom finit par
@@ -4635,13 +4640,14 @@ Une archive qui porte une entrée de ce nom ailleurs qu'en \code{xl/sharedString
 plusieurs, est donc refusée avant l'extraction, de même sur les deux chemins (motif «~\code{l'archive
 contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml)
 ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Trois limites sont consignées
-(mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>},
-seuls ou dans des segments \code{<x:r>}, n'est lue par aucun chemin~: la cellule de valeur qui la
-désigne est refusée en aval comme cellule non numérique. Une chaîne préfixée \code{<x:si>}
+(mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>}
+placés dans des segments \code{<x:r>} n'est lue par aucun chemin~: la cellule de valeur qui la
+désigne est refusée en aval comme cellule non numérique (une chaîne formée de plusieurs
+\code{<x:t>} directs relève du refus des \code{<t>} successifs). Une chaîne préfixée \code{<x:si>}
 n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
 \code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
-chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et peut donner une valeur
-fausse (hypothèse non vérifiée~: aucun tableur connu ne l'écrit). Une table entièrement préfixée
+chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et donne une valeur
+fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Une table entièrement préfixée
 est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
 sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
