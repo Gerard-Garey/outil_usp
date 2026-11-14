@@ -38,8 +38,8 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   défaut quand il est installé.
   - **Cellules booléennes** (#579) : sur le chemin `openxlsx`, une colonne
     dont toutes les cellules à valeur sont booléennes, ou des textes
-    « TRUE » / « FALSE », est lue 1 pour `TRUE`, sans message (valeur
-    fausse) ; la voie de repli la refuse. Un tableur peut écrire une
+    « TRUE » / « FALSE », est lue 1 pour `TRUE` et 0 pour `FALSE`, sans
+    message (valeur fausse) ; la voie de repli la refuse. Un tableur peut écrire une
     cellule booléenne : relire les données affichées (voir ci-dessous).
   - Formes de classeur qu'aucun tableur n'est supposé écrire (hypothèse
     non vérifiée) :
