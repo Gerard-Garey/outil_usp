@@ -287,6 +287,15 @@ verifier("app.R : impression des graphiques plotly (script beforeprint / afterpr
            any(grepl(".bloc > h4 { break-after:avoid; }", .src_app, fixed = TRUE)) &&
            any(grepl(".bloc > h4 + .row { break-inside:avoid; }", .src_app, fixed = TRUE)) &&
            any(grepl("/px$/.test(c.style.width)", .src_app, fixed = TRUE)))
+verifier("app.R : impression du graphique WebGL (surface 3D) par une image prise a l'avance (Plotly.toImage) ou une mention, jamais un cadre vide (#576)",
+         any(grepl("Plotly.toImage(g,", .src_app, fixed = TRUE)) &&
+           any(grepl("function remplacerGL(g)", .src_app, fixed = TRUE)) &&
+           any(grepl("setAttribute('data-impr-gl', '1')", .src_app, fixed = TRUE)) &&
+           any(grepl("removeAttribute('data-impr-gl')", .src_app, fixed = TRUE)) &&
+           any(grepl("b.className += ' impr-gl-mention'", .src_app, fixed = TRUE)) &&
+           any(grepl(".impr-gl { display:none; }", .src_app, fixed = TRUE)) &&
+           any(grepl(".js-plotly-plot[data-impr-gl] > :not(.impr-gl) { display:none !important; }",
+                     .src_app, fixed = TRUE)))
 
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().

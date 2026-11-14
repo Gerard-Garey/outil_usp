@@ -420,6 +420,10 @@ ui <- fluidPage(
     .defil-detail table.data { margin-bottom:0; }
     .defil-detail table.data > thead > tr > th { position:sticky; top:0; z-index:2;
       background:#fff; border-bottom:0; box-shadow:inset 0 -2px 0 #ddd; }
+    /* Graphique WebGL a l'impression (#576) : le bloc de remplacement (image ou
+       mention) que pose le script de l'en-tete n'existe que le temps de
+       l'impression ; il reste masque a l'ecran. */
+    .impr-gl { display:none; }
     /* A l'impression, le cadre defilant tronquerait le tableau (hauteur bornee,
        defilement invisible sur papier) : cadre deplie, en-tete non colle, trait
        sous l'en-tete en bordure (une ombre interne n'est pas toujours imprimee). */
@@ -515,6 +519,18 @@ ui <- fluidPage(
         aspect-ratio:var(--impr-ratio); }
       .js-plotly-plot[data-impression] svg.main-svg { width:100% !important;
         height:100% !important; }
+      /* Graphique WebGL (surface 3D, #576) : le canevas WebGL est imprime vide
+         (mesure : image integree au PDF de 2,5 Ko, transparente, dans
+         Chromium sans option graphique). Le graphique est remplace par une
+         image de lui-meme, prise a l'ecran apres son rendu, ou, faute d'image
+         fiable, par une mention qui renvoie a l'ecran ; jamais un cadre vide. */
+      .js-plotly-plot[data-impr-gl] { height:auto !important; }
+      .js-plotly-plot[data-impr-gl] > :not(.impr-gl) { display:none !important; }
+      .js-plotly-plot[data-impr-gl] > .impr-gl { display:block; }
+      .impr-gl img { display:block; width:100%; max-width:var(--impr-largeur);
+        height:auto; }
+      .impr-gl-mention { border:1px dashed #888; padding:12px 16px; margin:8px 0;
+        color:#333; font-size:10pt; }
     }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
@@ -539,9 +555,74 @@ ui <- fluidPage(
   # en page d'impression (beforeprint, et le changement de media print pour les
   # navigateurs sans beforeprint), le remet tel quel apres (afterprint). Aucun
   # calcul : lecture de la taille deja affichee par plotly.
+  # Graphique WebGL (surface 3D, #576) : beforeprint est synchrone, alors que
+  # Plotly.toImage est asynchrone. L'image est donc prise a l'avance, apres
+  # chaque rendu du graphique (evenements plotly, fin d'un geste de la souris,
+  # delai de 800 ms) ; a beforeprint, elle remplace le graphique si elle est
+  # prete et a jour, sinon une mention renvoie a l'ecran. Aucun calcul : image
+  # du graphique tel que plotly l'affiche.
   tags$head(tags$script(HTML(r"---(
     (function() {
+      function estGL(g) { return !!g.querySelector('.gl-container canvas'); }
+      function planifier(g) {
+        var e = g.__impr || (g.__impr = { seq: 0, pret: false, t: null, img: null });
+        e.seq++; e.pret = false; clearTimeout(e.t);
+        if (e.geste) return;
+        e.t = setTimeout(function() { capturer(g); }, 800);
+      }
+      function capturer(g) {
+        var e = g.__impr, n = e.seq, w = g.offsetWidth, h = g.offsetHeight;
+        if (!(w > 0 && h > 0) || !window.Plotly || !window.Plotly.toImage) return;
+        try {
+          window.Plotly.toImage(g, { format: 'png', width: w, height: h, scale: 2 })
+            .then(function(u) {
+              var im = new Image();
+              im.src = u;
+              return im.decode().then(function() {
+                if (n !== e.seq) return;
+                im.alt = 'Image du graphique prise a l\u2019ecran';
+                e.img = im; e.w = w; e.h = h; e.pret = true;
+              });
+            })
+            .catch(function() { if (n === e.seq) e.pret = false; });
+        } catch (err) { e.pret = false; }
+      }
+      function armer() {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
+          // Le clone cache que Plotly.toImage cree n'a pas d'id : exclu.
+          if (!g.id || g.__imprArme || typeof g.on !== 'function' || !estGL(g)) return;
+          g.__imprArme = true;
+          ['plotly_afterplot', 'plotly_relayout', 'plotly_restyle'].forEach(function(ev) {
+            g.on(ev, function() { planifier(g); }); });
+          g.addEventListener('pointerdown', function() {
+            if (g.__impr) { g.__impr.geste = true; g.__impr.pret = false;
+                            clearTimeout(g.__impr.t); } });
+          planifier(g);
+        });
+      }
+      document.addEventListener('pointerup', function() {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
+          if (g.__impr && g.__impr.geste) { g.__impr.geste = false; planifier(g); }
+        });
+      });
+      new MutationObserver(armer).observe(document.documentElement,
+        { childList: true, subtree: true });
+      function remplacerGL(g) {
+        if (!estGL(g) || g.querySelector('.impr-gl')) return;
+        var e = g.__impr, b = document.createElement('div');
+        b.className = 'impr-gl';
+        if (e && e.pret && e.img) {
+          g.style.setProperty('--impr-largeur', e.w + 'px');
+          b.appendChild(e.img);
+        } else {
+          b.className += ' impr-gl-mention';
+          b.textContent = 'Graphique interactif (surface 3D) non reproduit a l\u2019impression : le consulter a l\u2019ecran.';
+        }
+        g.appendChild(b);
+        g.setAttribute('data-impr-gl', '1');
+      }
       function preparer() {
+        document.querySelectorAll('.js-plotly-plot').forEach(remplacerGL);
         document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
           var c = g.querySelector('.svg-container');
           if (!c) return;
@@ -557,6 +638,11 @@ ui <- fluidPage(
         });
       }
       function restaurer() {
+        document.querySelectorAll('.js-plotly-plot[data-impr-gl]').forEach(function(g) {
+          g.removeAttribute('data-impr-gl');
+          g.style.removeProperty('--impr-largeur');
+          g.querySelectorAll(':scope > .impr-gl').forEach(function(b) { b.remove(); });
+        });
         document.querySelectorAll('.js-plotly-plot[data-impression]').forEach(function(g) {
           g.removeAttribute('data-impression');
           g.style.removeProperty('--impr-largeur');
