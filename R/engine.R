@@ -8544,15 +8544,27 @@ engine_ecrire_csv <- function(df, chemin) {
 # balise ; avec [^>]*, <rPh sb="0>" eb="0"/> etait pris pour une balise
 # ouvrante et le texte reel retire jusqu'au </rPh> suivant ("1" puis "1.5"
 # lu "1", #572). Une table de chaines partagees qui porte une balise <rPh
-# .../> auto-fermante est refusee avant la lecture (engine_lire_xlsx(),
-# #572) : le retrait de ces balises ne sert plus qu'aux chaines en ligne. Le point
-# et les classes niees traversent les fins de ligne (expression TRE, mesure :
-# bloc <rPh> sur plusieurs lignes retire, saut de ligne dans une valeur
-# d'attribut lu).
+# .../> auto-fermante non prefixee est refusee avant la lecture
+# (engine_lire_xlsx(), #572). Les balises et blocs prefixes (<x:rPh .../>,
+# <x:rPh ...>...</x:rPh>, prefixe lu par XML_PREFIXE_NOM, comme au comptage
+# X1 d'engine_lire_xlsx()) sont retires de meme : sans ce retrait, "11" suivi
+# de <x:rPh ...><t>7</t></x:rPh> etait lu 117 par le lecteur interne, 11 par
+# openxlsx 4.2.9 (mesure, /code-review, #557, #572) ; un <x:t> y reste sans
+# effet (non lu de toute facon). Blocs retires en PCRE, point etendu aux fins
+# de ligne ((?s)), comme au comptage X1 : sous TRE, ".*?" suivi du groupe
+# facultatif du prefixe de la balise fermante devient glouton (mesure :
+# <rPh>..</rPh><t>2</t><x:rPh>..</x:rPh> retire jusqu'au dernier </x:rPh>,
+# "2" perdu). Le point (?s) et les classes niees traversent les fins de ligne
+# (mesure : bloc <x:rPh> sur plusieurs lignes retire, saut de ligne dans une
+# valeur d'attribut lu).
 XML_ATTRIBUTS_BALISE <- "([ \t\r\n]([^>\"']|\"[^\"]*\"|'[^']*')*)?"
+# Prefixe d'espace de noms facultatif d'un nom d'element ("x:" dans <x:t>),
+# partage par .xml_textes() et les controles Q-F et X1 d'engine_lire_xlsx().
+XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 .xml_textes <- function(x) {
-  x <- gsub(paste0("<rPh", XML_ATTRIBUTS_BALISE, "/>"), "", x)
-  x <- gsub(paste0("<rPh", XML_ATTRIBUTS_BALISE, ">.*?</rPh>"), "", x)
+  x <- gsub(paste0("<", XML_PREFIXE_NOM, "rPh", XML_ATTRIBUTS_BALISE, "/>"), "", x)
+  x <- gsub(paste0("(?s)<", XML_PREFIXE_NOM, "rPh", XML_ATTRIBUTS_BALISE, ">.*?</",
+                   XML_PREFIXE_NOM, "rPh>"), "", x, perl = TRUE)
   t <- regmatches(x, gregexpr("<t([ \t\r\n][^>]*)?>.*?</t>", x))[[1]]
   .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
 }
@@ -8989,7 +9001,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     # #557). Refus sur les deux chemins, avant openxlsx (decision du
     # mainteneur du 13/11/2026, Q-F), apres les controles de la feuille et
     # avant celui de la ligne 1, qui lit ces chaines.
-    if (grepl("<([A-Za-z_][A-Za-z0-9_.-]*:)?r[[:space:]/>]", sx) && !grepl("<rPr>", sx, fixed = TRUE))
+    if (grepl(paste0("<", XML_PREFIXE_NOM, "r[[:space:]/>]"), sx) && !grepl("<rPr>", sx, fixed = TRUE))
       .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
     # Balise <rPh .../> auto-fermante (indication phonetique sans <t>, hors
     # schema ; attributs lus par XML_ATTRIBUTS_BALISE, ">" entre guillemets
@@ -9019,8 +9031,8 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     # point de TRE) : sous TRE, ".*?" suivi du groupe facultatif du prefixe
     # de la balise fermante devient glouton (mesure : <r>..</r><t>1</t>
     # <t>2</t><r>..</r> entierement retire, X1 manque).
-    pfx <- "<([A-Za-z_][A-Za-z0-9_.-]*:)?"
-    fin <- "</([A-Za-z_][A-Za-z0-9_.-]*:)?"
+    pfx <- paste0("<", XML_PREFIXE_NOM)
+    fin <- paste0("</", XML_PREFIXE_NOM)
     sit <- gsub(paste0(pfx, "rPh", XML_ATTRIBUTS_BALISE, "/>"), "", si)
     sit <- gsub(paste0("(?s)", pfx, "rPh", XML_ATTRIBUTS_BALISE, ">.*?", fin, "rPh>"), "", sit, perl = TRUE)
     sit <- gsub(paste0(pfx, "r", XML_ATTRIBUTS_BALISE, "/>"), "", sit)
