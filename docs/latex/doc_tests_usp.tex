@@ -885,17 +885,20 @@ extraite, avec ou sans \code{openxlsx}, dans un dossier temporaire supprimé à 
 tirage aléatoire (§\ref{sec:graines}), après refus d'une archive dont une entrée a un chemin qui
 sort du dossier de lecture (\code{.xlsx\_chemin\_sort()}~: un composant du chemin vaut
 «~\code{..}~», chemin absolu ou chemin de lecteur)~; \\
-& & refus, avant l'appel à \code{openxlsx} et de même sur les deux
-chemins de lecture, d'une balise de cellule \code{<c} suivie d'un blanc autre que l'espace, d'une
+& & refus, de même sur les deux chemins de lecture, avant l'extraction,
+d'une archive qui porte une entrée dont le nom finit par \code{sharedStrings.xml} ailleurs qu'en
+\code{xl/sharedStrings.xml}, ou plusieurs telles entrées, puis, avant l'appel à \code{openxlsx},
+d'une balise de cellule \code{<c} suivie d'un blanc autre que l'espace, d'une
 cellule sans attribut de position \code{r}, d'une cellule dont l'attribut \code{r} est répété ou
 n'a pas, écrit tel quel, la forme lettres de colonne puis numéro de ligne à partir de~1
 (\code{r="A2"}), d'une table des chaînes partagées qui porte du texte découpé en segments
 \code{<r>} sans aucune balise \code{<rPr>} écrite sous cette forme exacte, d'une table qui porte une balise \code{<rPh .../>}
 auto-fermante ou une chaîne formée de plusieurs balises \code{<t>} successives, et, sous
-\code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces sept refus
+\code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces huit refus
 sont des erreurs de classe
-\code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
-feuille restant des erreurs ordinaires~; \\
+\code{usp\_refus\_lecture}, dont l'application affiche le texte, le refus d'une entrée dont le
+chemin sort du dossier de lecture et celui d'une archive illisible ou sans feuille trouvée restant
+des erreurs ordinaires~; \\
 & & \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
 texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
@@ -4613,12 +4616,34 @@ auto-fermante, motif «~\code{contient une indication phonetique vide}~») et un
 chaîne est formée de plusieurs balises \code{<t>} successives (motif «~\code{contient une chaine
 formee de plusieurs balises <t> successives}~»), formes que l'outil tient pour non prévues par le
 format~: \code{openxlsx}~4.2.9 en tronque le texte, sans message («~\code{1}~»
-puis «~\code{1.5}~» lu~1, mesuré). Une chaîne en ligne (\code{<is>}) de ces deux formes n'est pas
+puis «~\code{1.5}~» lu~1, mesuré). Les balises \code{<t>} sont comptées préfixées ou non
+(\code{<x:t>}), une fois retirés les blocs \code{<r>} et \code{<rPh>}, préfixés ou non~: aucun
+des deux chemins ne lisant le texte d'un \code{<x:t>}, «~\code{1}~» en \code{<t>} suivi de
+«~\code{1.5}~» en \code{<x:t>} serait lu~1 sans message, et cette chaîne est refusée (mesuré). Une
+chaîne en ligne (\code{<is>}) de ces deux formes n'est pas
 refusée~: la voie de repli la lit entière, \code{openxlsx}~4.2.9 en rend la cellule \code{NA}
 (\code{<rPh .../>}) ou un texte non numérique (\code{<t>} successifs), refusés en aval comme
-cellule non numérique (mesuré). Les balises préfixées \code{<x:rPh>} et \code{<x:t>} ne sont pas
-visées~: une \code{<x:rPh .../>} est lue sans perte par les deux chemins, une chaîne faite de
-\code{<x:t>} est lue vide par les deux chemins (mesuré). La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+cellule non numérique (mesuré). Le refus de l'indication phonétique vide ne vise pas la balise
+préfixée \code{<x:rPh .../>}, lue sans perte par les deux chemins (mesuré).
+Ces trois refus de la table des chaînes partagées (segments sans mise en forme, indication
+phonétique vide, \code{<t>} successifs) ne lisent que \code{xl/sharedStrings.xml}, alors
+qu'\code{openxlsx}~4.2.9 lit toute entrée de l'archive dont le nom finit par
+\code{sharedStrings.xml}, quel que soit son dossier~: il lit~1, sans message, la table de
+segments «~\code{1}~» et «~\code{1.5}~» sans \code{<rPr>} placée en
+\code{xl/strings/sharedStrings.xml}, et s'arrête sur une erreur R devant deux tables (mesuré).
+Une archive qui porte une entrée de ce nom ailleurs qu'en \code{xl/sharedStrings.xml}, ou
+plusieurs, est donc refusée avant l'extraction, de même sur les deux chemins (motif «~\code{l'archive
+contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml)
+ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Trois limites sont consignées
+(mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>},
+seuls ou dans des segments \code{<x:r>}, n'est lue par aucun chemin~: la cellule de valeur qui la
+désigne est refusée en aval comme cellule non numérique. Une chaîne préfixée \code{<x:si>}
+n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
+\code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
+chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et peut donner une valeur
+fausse (hypothèse non vérifiée~: aucun tableur connu ne l'écrit). Une table entièrement préfixée
+est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
+sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
@@ -4641,14 +4666,15 @@ d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un c
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
 \code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
 lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
-prendrait la ligne vide pour l'en-tête. Les sept refus du classeur (balise de forme non
+prendrait la ligne vide pour l'en-tête. Les huit refus du classeur (table des chaînes partagées
+ailleurs qu'en \code{xl/sharedStrings.xml} ou en plusieurs exemplaires, balise de forme non
 reconnue, cellule sans attribut de position, référence de position de forme non attendue, table
 des chaînes partagées découpée en segments sans mise en forme, indication phonétique vide,
 chaîne formée de plusieurs \code{<t>}, ligne~1 sans valeur) sont des
 erreurs de classe
-\code{usp\_refus\_lecture}, dont l'application affiche le texte~; un refus de l'archive ou une
-feuille introuvable («~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs
-ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
+\code{usp\_refus\_lecture}, dont l'application affiche le texte~; le refus d'une entrée dont le
+chemin sort du dossier de lecture, une archive illisible et une feuille introuvable
+(«~\code{Classeur illisible : aucune feuille trouvee.}~») restent des erreurs ordinaires, signalées par le message fixe de l'application. Les blancs de la ligne
 d'en-tête d'un classeur sont mis en forme de même par les deux chemins (blancs de bord retirés,
 suite de blancs intérieurs ramenée à une espace), les blancs étant ceux de la classe
 \code{[[:space:]]} de la locale (parité mesurée sous la locale \code{C.UTF-8} avec
