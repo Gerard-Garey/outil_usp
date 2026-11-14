@@ -2548,7 +2548,11 @@ if (nzchar(Sys.which("zip"))) {
   # d'en-tete. Classeurs ecrits a la main (plusieurs feuilles, workbook.xml et
   # rels), lus par les deux chemins ; les parites avec openxlsx ne tournent
   # qu'avec le paquet installe (sautees sinon, comme celles de #483).
-  classeur487 <- function(feuilles, shared = NULL, avant = "") {
+  # fichiers_partages, cible_partage : emplacement(s) de la table des chaines
+  # partagees dans l'archive et cible de sa relation (#572, table hors de
+  # xl/sharedStrings.xml ou en plusieurs exemplaires).
+  classeur487 <- function(feuilles, shared = NULL, avant = "", fichiers_partages = "xl/sharedStrings.xml",
+                          cible_partage = "sharedStrings.xml") {
     d <- tempfile("c487_"); dir.create(d)
     on.exit(unlink(d, recursive = TRUE), add = TRUE)
     ecrire <- function(rel, txt) {
@@ -2572,16 +2576,16 @@ if (nzchar(Sys.which("zip"))) {
       paste(sprintf('<Relationship Id="rId%d" Type="%s/worksheet" Target="%s"/>',
                     rid, rt, vapply(feuilles, function(fe)
                       if (is.null(fe$cible)) paste0("worksheets/", fe$fichier) else fe$cible, "")), collapse = ""),
-      if (!is.null(shared)) paste0('<Relationship Id="rId99" Type="', rt, '/sharedStrings" Target="sharedStrings.xml"/>'),
+      if (!is.null(shared)) paste0('<Relationship Id="rId99" Type="', rt, '/sharedStrings" Target="', cible_partage, '"/>'),
       '</Relationships>'))
     for (fe in feuilles)
       if (!isTRUE(fe$absente))
         ecrire(file.path("xl", "worksheets", fe$fichier),
                paste0(h, '<worksheet ', ns, '>', avant, '<sheetData>', fe$xml, '</sheetData></worksheet>'))
-    if (!is.null(shared)) ecrire("xl/sharedStrings.xml", paste0(h, '<sst ', ns, '>', shared, '</sst>'))
+    if (!is.null(shared)) for (fp in fichiers_partages) ecrire(fp, paste0(h, '<sst ', ns, '>', shared, '</sst>'))
     f <- tempfile(fileext = ".xlsx")
     od <- setwd(d); on.exit(setwd(od), add = TRUE, after = FALSE)
-    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    utils::zip(f, c("[Content_Types].xml", "_rels", unique(c("xl", sub("/.*$", "", fichiers_partages)))), flags = "-r9Xq")
     f
   }
   # tous() sur une liste complete : un chemin qui rend NULL (element supprime
@@ -2982,8 +2986,8 @@ if (nzchar(Sys.which("zip"))) {
   # Mesures du rejeu de K2b et de l'etape 4 (openxlsx 4.2.9 et 4.2.5.2, memes
   # sorties) ; les limites propres a openxlsx sont figees quand il est installe.
   REF557 <- "Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."
-  feuille557 <- function(xml, shared = NULL) chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
-                                                                    shared = shared), lire487)
+  feuille557 <- function(xml, shared = NULL, ...) chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
+                                                                         shared = shared, ...), lire487)
   # Reference de cellule hors ^[A-Za-z]+[1-9][0-9]*$ (decision du mainteneur du
   # 13/11/2026) : refus au texte fixe sur chaque chemin, avant openxlsx
   # (auparavant : erreur R brute, ou valeur deplacee ou perdue sans message).
@@ -3057,11 +3061,11 @@ if (nzchar(Sys.which("zip"))) {
                    function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt"))))
   # Cas de bout en bout : xt = 11.5 ecrit "1" puis "1.5" en chaine partagee
   # (openxlsx lisait 1, ok = TRUE ; lecteur interne : 11.5).
-  ser557 <- function(b3, shared) feuille557(paste0(
+  ser557 <- function(b3, shared, ...) feuille557(paste0(
     ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
     ligne487(2, c(nb487("A2", 1), nb487("B2", 10), nb487("C2", 2))), ligne487(3, c(nb487("A3", 2), b3, nb487("C3", 3))),
     ligne487(4, c(nb487("A4", 3), nb487("B4", 12), nb487("C4", 3))), ligne487(5, c(nb487("A5", 4), nb487("B5", 13), nb487("C5", 4))),
-    ligne487(6, c(nb487("A6", 5), nb487("B6", 14), nb487("C6", 4)))), shared = shared)
+    ligne487(6, c(nb487("A6", 5), nb487("B6", 14), nb487("C6", 4)))), shared = shared, ...)
   verifier("xlsx (#557) : valeur 11.5 en segments <r> \"1\" et \"1.5\", table sans <rPr> (aussi <rPr/>, <rPr a=..>, <r >) : refus Q-F sur chaque chemin",
            all(vapply(c("<si><r><t>1</t></r><r><t>1.5</t></r></si>",
                         "<si><r><rPr/><t>1</t></r><r><t>1.5</t></r></si>",
@@ -3152,15 +3156,69 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx (#572) : sans faux refus, 11.5 lu sur chaque chemin : <t> seul, xml:space=\"preserve\", <t/> seul, plusieurs <r> avec <rPr>, <rPh> ouvrant et <phoneticPr/>, <rPhX/>, <tab/>, <t> suivi de <r> (conforme), <x:rPh .../> prefixe (non vise)",
            all(vapply(admis572, function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
              v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) }), logical(1))))
+  # --- #572, revue finale de l'audit (decision du mainteneur du 14/11/2026).
+  # M-1 : openxlsx 4.2.9 prend toute entree dont le nom finit par
+  # sharedStrings.xml, quel que soit son dossier, alors que Q-F, P2 et X1 ne
+  # lisent que xl/sharedStrings.xml ; table hors de xl/ ou en plusieurs
+  # exemplaires refusee avant extraction, au texte fixe, sur chaque chemin.
+  # Auparavant (mesure) : table "1" puis "1.5" sans <rPr> en
+  # xl/strings/sharedStrings.xml lue 1 par openxlsx (ok = TRUE), vide par le
+  # lecteur interne ; deux tables : erreur R brute d'openxlsx.
+  EMPL572 <- "Classeur illisible : l'archive contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml) ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
+  seg572 <- "<si><r><t>1</t></r><r><t>1.5</t></r></si>"
+  verifier("xlsx (#572, M-1) : table \"1\" puis \"1.5\" en segments <r> placee en xl/strings/sharedStrings.xml (relation Target=\"strings/sharedStrings.xml\") : refus au texte fixe sur chaque chemin (openxlsx lisait 1)",
+           tous487(ser557(ps487("B3", 0), seg572, fichiers_partages = "xl/strings/sharedStrings.xml",
+                          cible_partage = "strings/sharedStrings.xml"), function(d) identical(d, EMPL572)))
+  verifier("xlsx (#572, M-1) : deux tables (xl/sharedStrings.xml et a/sharedStrings.xml, ou xl/x/sharedStrings.xml), 11.5 dans chacune : refus au texte fixe sur chaque chemin (openxlsx : erreur R brute)",
+           all(vapply(list(c("xl/sharedStrings.xml", "a/sharedStrings.xml"), c("xl/sharedStrings.xml", "xl/x/sharedStrings.xml")),
+                      function(fp) tous487(ser557(ps487("B3", 0), "<si><t>11.5</t></si>", fichiers_partages = fp),
+                                           function(d) identical(d, EMPL572)), logical(1))))
+  verifier("xlsx (#572, M-1) : refus de classe usp_refus_lecture sur chaque chemin (table hors de xl/, deux tables)",
+           all(vapply(list(list("xl/strings/sharedStrings.xml", "strings/sharedStrings.xml"),
+                           list(c("xl/sharedStrings.xml", "a/sharedStrings.xml"), "sharedStrings.xml")), function(a)
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+               ligne487(1, c(ps487("A1", 0), en487("B1", "<t>xt</t>"))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
+               shared = "<si><t>t</t></si>", fichiers_partages = a[[1]], cible_partage = a[[2]])),
+               function(k) identical(k, REFUS522)), logical(1))))
+  # m-1 : X1 compte aussi les <t> prefixes (<x:t>), blocs <r> et <rPh>
+  # prefixes retires. Auparavant (mesure) : <t>1</t><x:t>1.5</x:t> lu 1 par
+  # les deux chemins (ok = TRUE), aucun des deux ne lisant le texte d'un
+  # <x:t> ; <t> dans un <x:r> conforme compte et refuse X1 a tort.
+  nsx572 <- 'xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+  verifier("xlsx (#572, X1) : chaine partagee de plusieurs <t> dont des <x:t> prefixes (<x:t> puis <x:t> ; <t> puis <x:t> ; <x:t xml:space> puis <x:t/>), et deux <t> entre deux blocs <r> (retrait des blocs non glouton) : refus X1 au texte fixe sur chaque chemin (auparavant <t>1</t><x:t>1.5</x:t> lu 1)",
+           all(vapply(c(sprintf("<si><x:t %s>1</x:t><x:t %s>1.5</x:t></si>", nsx572, nsx572),
+                        sprintf("<si><t>1</t><x:t %s>1.5</x:t></si>", nsx572),
+                        sprintf('<si><x:t %s xml:space="preserve">1</x:t><x:t %s/></si>', nsx572, nsx572),
+                        paste0("<si>", rpr572, "<t>1</t><t>1.5</t>", rpr572, "</si>")),
+                      refus572, logical(1), texte = X1_572)) &&
+             tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+               ligne487(1, c(ps487("A1", 0), en487("B1", "<t>xt</t>"))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
+               shared = sprintf("<si><t>t</t><x:t %s/></si>", nsx572))), function(k) identical(k, REFUS522)))
+  # Temoins sans faux refus : <t> dans des <x:r> (avec <x:rPr>, <rPr> litteral
+  # ailleurs dans la table pour Q-F) et <x:tab/> apres <t> : 11.5 lu sur
+  # chaque chemin ; <x:t> dans des <x:r> : non refuse par X1, mais lu par
+  # aucun des deux chemins (texte d'un <x:t> non lu), cellule refusee en aval
+  # (mesure, limite consignee).
+  xr572 <- function(t1, t2) sprintf("<si><x:r %s><x:rPr><x:b/></x:rPr>%s</x:r><x:r %s>%s</x:r></si>%s",
+                                    nsx572, t1, nsx572, t2, "<si><r><rPr><b/></rPr><t>a</t></r></si>")
+  verifier("xlsx (#572, temoins X1) : <t> dans des <x:r> conformes (avec <x:rPr>), <t> suivi de <x:tab/> : sans refus, 11.5 lu sur chaque chemin (auparavant <x:r><t> refuse X1)",
+           all(vapply(c(xr572("<t>1</t>", "<t>1.5</t>"), sprintf("<si><t>11.5</t><x:tab %s/></si>", nsx572)),
+                      function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
+                        v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) }), logical(1))))
+  verifier("xlsx (#572, limite consignee) : <x:t> dans des <x:r> conformes : non refuse par X1, texte lu par aucun des deux chemins, refus en aval (valeur non numerique de xt)",
+           tous487(ser557(ps487("B3", 0), xr572("<x:t>1</x:t>", "<x:t>1.5</x:t>")), function(d)
+             identical(engine_lire_donnees_csv(d)$erreurs,
+                       "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
   # Chaines en ligne (<is>) de forme P2 ou X1 : non refusees (table des
-  # chaines partagees seule) ; lecteur interne : 11.5 lu ; openxlsx : NA,
-  # cellule refusee en aval (mesure, limite consignee).
+  # chaines partagees seule) ; lecteur interne : 11.5 lu ; openxlsx : NA (P2)
+  # ou texte non numerique (X1), cellule refusee en aval (mesure, limite
+  # consignee).
   is572 <- lapply(c('<r><rPr><b/></rPr><t>1</t></r><rPh sb="0" eb="0"/><r><t>1.5</t></r>', "<t>1</t><t>1.5</t>"),
                   function(x) ser557(en487("B3", x), NULL))
   verifier("xlsx, lecteur interne (#572, limite consignee) : chaine en ligne de forme P2 ou X1 : non refusee, 11.5 lu",
            all(vapply(is572, function(r) identical(engine_lire_donnees_csv(r$interne)$xt, c(10, 11.5, 12, 13, 14)), logical(1))))
   if (avec_openxlsx483) {
-    verifier("xlsx, openxlsx (#572, limite consignee) : chaine en ligne de forme P2 ou X1 : NA puis refus en aval (valeur non numerique de xt)",
+    verifier("xlsx, openxlsx (#572, limite consignee) : chaine en ligne de forme P2 ou X1 : NA (P2) ou texte non numerique (X1), refus en aval (valeur non numerique de xt)",
              all(vapply(is572, function(r) identical(engine_lire_donnees_csv(r$openxlsx)$erreurs,
                "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2)."), logical(1))))
     # Chaine en ligne avec <rPh> dans le corps : NA par openxlsx, cellule
