@@ -20,7 +20,7 @@
 | 10 | `audit` (base) | audit léger de la reprise | conforme avec réserves (documentation ; UTF-8 invalide, antérieur) | [`audit-leger-reprise-m1.md`](audit-leger-reprise-m1.md) |
 | 10 | `docwriter` | documentation de la reprise | — | `4740dde` ; revue d'`actuary` : conforme avec réserves (C1, C2) |
 | 10 | `/code-review` (medium) | `main...HEAD` | dix constats, dont `<x:rPh>` préfixé lu 117 par la voie de repli (antérieur à la reprise) | [`code-review-et-correctif-xrph.md`](code-review-et-correctif-xrph.md) |
-| 10 | mainteneur | `<x:rPh>` | correction dans K2b ; défaut résiduel côté openxlsx (segments `<r>` + `<x:rPh>`, 11,57) : limite consignée et issue | `36d4a07` (coder-approfondi), audit léger conforme avec réserves ; `81e95ef` (docwriter, avec C1 et C2) |
+| 10 | mainteneur | `<x:rPh>` | correction dans K2b ; défaut résiduel côté openxlsx (segments `<r>` + `<x:rPh>`, 11,57) : limite consignée et issue | `85c312a`, `36d4a07` (coder-approfondi), audit léger conforme avec réserves ; `81e95ef` (docwriter, avec C1 et C2) |
 
 ## Résultats
 
