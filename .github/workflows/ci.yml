@@ -357,16 +357,16 @@ jobs:
   #
   # Versions : même instantané que shiny et plotly (DATE_INSTANTANE), soit
   # d'après les dates de l'archive CRAN openxlsx 4.2.5.2 (06/02/2023, dernière
-  # version au 15/02/2024) et zip 2.3.1 (27/01/2024). À CONFIRMER par le
-  # journal de la première exécution : le contenu de l'instantané Posit n'a pas
-  # pu être vérifié depuis la session de rédaction (accès refusé, 403). Le
+  # version au 15/02/2024) et zip 2.3.1 (27/01/2024). Confirmé par le journal
+  # de l'exécution 43519555424 (job « Parité des lecteurs de classeur ») :
+  # openxlsx 4.2.5.2 et zip 2.3.1 installés depuis l'instantané. Le
   # contrôle des versions ci-dessous est bloquant : si l'instantané donne
   # d'autres versions, le job échoue en le disant, et VERSION_OPENXLSX /
   # VERSION_ZIP se corrigent d'après ce journal, sans rien supposer. Mesuré en
   # session (R 4.3.3, LC_ALL=C.UTF-8), sous openxlsx 4.2.5.2 + zip 2.3.1 comme
-  # sous openxlsx 4.2.9 + zip 3.0.2 : aucune ligne « [saute] », 403 sur 403
-  # (test_controles_entree.R), 97 sur 97 (test_outdec.R), 127 sur 127
-  # (test_defauts_connus.R).
+  # sous openxlsx 4.2.9 + zip 3.0.2 : aucune ligne « [saute] » et toutes les
+  # assertions vertes dans test_controles_entree.R, test_outdec.R et
+  # test_defauts_connus.R.
   #
   # Fichiers exécutés, un par un (le lanceur tests/test_unitaires.R n'a pas
   # d'option de sélection de fichiers), sous LC_ALL=C.UTF-8 :
@@ -394,7 +394,7 @@ jobs:
       DATE_INSTANTANE: "2024-02-15"
       VERSION_SHINY: "1.8.0"
       VERSION_PLOTLY: "4.10.4"
-      # À CONFIRMER par le journal de la première exécution (voir plus haut).
+      # Confirmé par le journal de l'exécution 43519555424 (voir plus haut).
       VERSION_OPENXLSX: "4.2.5.2"
       VERSION_ZIP: "2.3.1"
     steps:
