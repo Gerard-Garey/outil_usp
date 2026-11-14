@@ -2751,38 +2751,47 @@ comparaison par une différence relative \emph{moyenne} (\code{all.equal()}) pou
 le cas réel. Le seuil $10^{-6}$ est
 \emph{empirique}, non théorique~: c'est une \emph{garde de la CI}, plateforme de production des
 références, où chaque exécution du job « Tests du moteur » compare les cas de contrôle à leurs
-références~; un écart au-delà du seuil y signale un changement de résultat, non une dérive de
-plateforme. Il n'est pas une marge calée sur la dérive d'un poste de travail, qui peut le
+références~; un écart au-delà du seuil y est traité comme un changement de résultat, à
+identifier et à expliquer, la CI reproduisant ses références au bit près~; une mise à jour de
+l'image du système, consignée, peut aussi en produire un. Il n'est pas une marge calée sur la dérive d'un poste de travail, qui peut le
 dépasser sans défaut (ci-après).
 
 Mesurée en confrontant un poste Windows (Windows~11, R~4.3.3, BLAS et LAPACK de R) aux
 références de la CI (\code{tests/comparer\_references.R}, option \code{--deux-parts}, six cas
-de contrôle), la dérive reste sous $3{,}454\cdot 10^{-8}$ en relatif dans les quatre cas
+de contrôle), la dérive atteint au plus $3{,}454\cdot 10^{-8}$ en relatif dans les quatre cas
 lognormaux à $\hat\delta = 1$ et vaut au plus $4{,}545\cdot 10^{-16}$ sur la branche
 Merz--Wüthrich (8 valeurs sur 18\,725, tirages bootstrap)~; aucune valeur de
-\code{parametre\_final}, donc aucun $\sigma_{\mathrm{USP}}$, ne diffère au bit près. Dans le cas
+\code{parametre\_final}, donc aucun $\sigma_{\mathrm{USP}}$, ne s'écarte de sa référence, fût-ce
+d'un bit. Dans le cas
 \code{premium\_interieur}, deux valeurs \textbf{dépassent le seuil}~: les tirages d'une même
 réplication bootstrap des statistiques de Breusch--Pagan (Koenker) et de Breusch--Pagan (1979)
 (\code{bootstrap\$stats\_boot}, clés \code{BP} et \code{BP79}), à $1{,}814\cdot 10^{-6}$ et
-$1{,}779\cdot 10^{-6}$ en relatif. Ces tirages, petits ($0{,}0158$ et $0{,}0024$) et donc
-jugés en relatif, sont loin des statistiques observées ($0{,}0750$ et $0{,}0551$)~: l'écart
-relatif minimal de toute réplication à la statistique observée, $1{,}3\cdot 10^{-3}$ et
-$2{,}0\cdot 10^{-4}$, dépasse cent fois la dérive, si bien qu'aucun décompte Monte-Carlo n'est
-atteint, ni aucune p-value, aucun verdict, ni $\sigma_{\mathrm{USP}}$, qui ne dépend d'aucun
-tirage. La cause de ces deux écarts n'est pas établie. Sur le poste,
+$1{,}779\cdot 10^{-6}$ en relatif. Ces tirages sont petits ($0{,}0158$ et $0{,}0024$)~: jugés
+en relatif, comme toute valeur dont la référence dépasse $10^{-6}$, des écarts absolus
+d'environ $2{,}9\cdot 10^{-8}$ et $4{,}2\cdot 10^{-9}$ y franchissent le seuil. Ils sont loin
+des statistiques observées ($0{,}0750$ et $0{,}0551$)~: l'écart relatif minimal de toute
+réplication à la statistique observée, $1{,}3\cdot 10^{-3}$ et $2{,}0\cdot 10^{-4}$, dépasse
+cent fois la dérive maximale, si bien qu'aucun décompte Monte-Carlo n'est atteint, ni aucune
+p-value, aucun verdict, ni $\sigma_{\mathrm{USP}}$, qui ne dépend d'aucun tirage. Ces deux
+écarts viennent de la plateforme~: à code, données et graines identiques, chaque machine
+reproduit son propre résultat au bit près, et la CI reproduit ses références~; le mécanisme
+numérique qui les porte au-delà du seuil, pour cette seule réplication, n'est pas établi. Sur le
+poste,
 \code{tests/test\_reproductibilite.R} peut donc échouer sans défaut, et la batterie y est jugée
 par un critère qui porte sur l'effet de la dérive, non sur sa valeur~: elle est acceptée si et
 seulement si, pour chaque cas, la part non numérique et la structure de la comparaison sont
 vides~; aucune valeur de \code{parametre\_final}, aucune p-value, aucun nombre de réplications
-retenues ni aucun décompte du régime de $\hat\delta$ n'est au-delà du seuil, et aucune p-value de
-Monte-Carlo ne diffère au bit près~; deux exécutions sur le poste donnent des objets identiques
+retenues ni aucun décompte du régime de $\hat\delta$ n'est au-delà du seuil, et chaque p-value de
+Monte-Carlo est identique au bit près à sa référence~; deux exécutions sur le poste donnent des objets identiques
 (\code{identical()})~; chaque valeur au-delà du seuil est un tirage bootstrap dont la dérive ne
 franchit pas la statistique observée correspondante. Toute autre valeur au-delà du seuil, ou
 toute p-value de Monte-Carlo qui diffère d'un pas, fait échouer la batterie, sans changement de
-seuil ni régénération des références. Le poste décrit ci-dessus satisfait ce critère.
+seuil ni régénération des références. Mesuré sur le code que décrit le présent document, le
+poste ci-dessus satisfait ce critère.
 La mesure ne se refait qu'en confrontant deux plateformes. La branche Merz--Wüthrich, qui
 n'emploie pas d'optimiseur, n'est pas strictement indemne de toute dérive de plateforme, mais son
-écart, d'ordre $10^{-16}$, relève de l'arrondi du dernier bit (constat, non démontré). La part non numérique (chaînes,
+écart vaut une à trois unités du dernier bit des valeurs concernées (mesuré)~; il est de l'ordre
+de l'arrondi en double précision, sans que son mécanisme soit établi. La part non numérique (chaînes,
 verdicts, booléens, valeurs non finies, structure) de la comparaison entre plateformes est vide,
 ce qui confirme entre deux machines la règle d'écriture des libellés exposée ci-après.
 
