@@ -830,7 +830,10 @@ blancs de bord ignorés (\code{.entete\_designe()}), refus d'un en-tête~$t$, \c
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
 est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
-position en lignes de données~; conversion numérique d'un facteur par ses valeurs \\
+position en lignes de données, une colonne de type logique (celle que rend \code{openxlsx} pour
+une colonne booléenne d'un classeur) étant en revanche convertie sans refus, \code{TRUE} en~1 et
+\code{FALSE} en~0 (§\ref{sec:controles})~;
+conversion numérique d'un facteur par ses valeurs \\
 \code{.echapper\_texte()} & textes, \code{guillemets} (\code{FALSE}) & textes cités dans un
 motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
 \code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
@@ -875,7 +878,7 @@ colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscul
 lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, valeurs de la colonne \code{i}
 contrôlées par \code{.motifs\_colonne\_i()}, puis colonne retirée, cellule non numérique refusée avec
-sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
+sa position, une colonne logique étant convertie de même sans refus, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
 dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
@@ -4683,7 +4686,10 @@ segments «~\code{1}~» et «~\code{1.5}~» sans \code{<rPr>} placée en
 Une archive qui porte une entrée de ce nom ailleurs qu'en \code{xl/sharedStrings.xml}, ou
 plusieurs, est donc refusée avant l'extraction, de même sur les deux chemins (motif «~\code{l'archive
 contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml)
-ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Trois limites sont consignées
+ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Les trois refus de la table des
+chaînes partagées supposent une table en UTF-8 valide~; une table en UTF-8 invalide n'y est pas soumise, sans
+valeur fausse~: la voie de repli n'en lit alors aucune chaîne, et \code{openxlsx}~4.2.9 s'arrête
+sur une erreur R (mesuré). Trois limites sont consignées
 (mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>}
 placés dans des segments \code{<x:r>} n'est lue par aucun chemin~: la cellule de valeur qui la
 désigne est refusée en aval comme cellule non numérique~; il en va de même d'une chaîne formée
@@ -4692,12 +4698,19 @@ relevant du refus des \code{<t>} successifs. Une chaîne préfixée \code{<x:si>
 n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
 \code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
 chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et donne une valeur
-fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Faute de refus,
-le contrôle d'une telle valeur revient à l'utilisateur~: l'application affiche les données lues
+fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Hors des formes
+préfixées, deux cellules de même référence (\code{<c r="B2">} écrit deux fois) ne sont pas
+refusées~: la dernière l'emporte, sans message, sur les deux chemins (valeur fausse, mesuré)~;
+aucun tableur n'est supposé écrire cette forme (hypothèse non vérifiée). Faute de refus,
+le contrôle de ces valeurs revient à l'utilisateur~: l'application affiche les données lues
 avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
 les données du calcul et porte, dans sa table «~Empreintes~», l'empreinte md5 de leur texte
-canonique (\code{engine\_empreinte()}), fonction des seules valeurs, qu'un tiers peut recalculer
-à partir des valeurs de la source. Une table entièrement préfixée
+canonique (\code{engine\_empreinte()}~: une ligne d'en-tête, puis une ligne par année ou par
+ligne du triangle, valeurs écrites par \code{sprintf("\%.17g")}, à 17 chiffres significatifs, et
+séparées par «~\code{;}~»), fonction des seules valeurs utilisées. Elle identifie ces valeurs~;
+elle ne révèle une valeur fausse que si un tiers la recalcule à partir des valeurs de la source,
+sans passer par le lecteur de l'outil, en reproduisant ce texte~; sa constance entre plateformes
+est attendue, non vérifiée. Une table entièrement préfixée
 est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
 sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
@@ -4713,6 +4726,11 @@ deux versions sous Linux, et pour la version~4.2.9 sous Windows)~; la voie de re
 cellule \code{NA}, refusée en aval (mesuré). Aucun tableur n'est supposé écrire cette forme
 (hypothèse non vérifiée). \code{openxlsx} reste le lecteur employé quand il est installé, de
 sorte qu'un poste qui l'a installé est exposé à cette limite.
+Sur le chemin \code{openxlsx}, une colonne dont toutes les cellules à valeur sont booléennes
+(\code{t="b"}) ou des textes «~\code{TRUE}~» ou «~\code{FALSE}~» est rendue logique, puis
+convertie par \code{.en\_numerique()}, \code{TRUE} étant lu~1 et \code{FALSE}~0, sans message
+(valeur fausse, mesuré)~; la voie de repli la refuse comme cellule non numérique. Un tableur
+peut écrire une cellule booléenne~; le contrôle de l'utilisateur décrit ci-dessus s'applique.
 L'en-tête du tableau est en ligne~1~: une ligne~1 dont aucune cellule ne porte de valeur est
 refusée, avec le texte «~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit
 etre en ligne 1, sans ligne au-dessus ;}~» suivi de la conduite à tenir
