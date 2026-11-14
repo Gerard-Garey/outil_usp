@@ -287,6 +287,26 @@ verifier("app.R : impression des graphiques plotly (script beforeprint / afterpr
            any(grepl(".bloc > h4 { break-after:avoid; }", .src_app, fixed = TRUE)) &&
            any(grepl(".bloc > h4 + .row { break-inside:avoid; }", .src_app, fixed = TRUE)) &&
            any(grepl("/px$/.test(c.style.width)", .src_app, fixed = TRUE)))
+verifier("app.R : impression du graphique WebGL (surface 3D) par une image prise a l'avance (Plotly.toImage) ou une mention, jamais un cadre vide (#576)",
+         any(grepl("Plotly.toImage(g,", .src_app, fixed = TRUE)) &&
+           any(grepl("function remplacerGL(g)", .src_app, fixed = TRUE)) &&
+           any(grepl("setAttribute('data-impr-gl', '1')", .src_app, fixed = TRUE)) &&
+           any(grepl("removeAttribute('data-impr-gl')", .src_app, fixed = TRUE)) &&
+           any(grepl("b.className += ' impr-gl-mention'", .src_app, fixed = TRUE)) &&
+           any(grepl(".impr-gl { display:none; }", .src_app, fixed = TRUE)) &&
+           any(grepl(".js-plotly-plot[data-impr-gl] > :not(.impr-gl) { display:none !important; }",
+                     .src_app, fixed = TRUE)))
+# Geste termine hors du canevas : gl3d ne reporte pas la camera dans le layout
+# et n'emet pas de plotly_relayout ; la camera vivante est reportee par un
+# relayout garde, avec repli sur planifier(g) (#576).
+verifier("app.R : fin de geste d'un graphique WebGL, camera vivante reportee dans le layout par un relayout garde, repli planifier(g) (#576)",
+         any(grepl("function cameraVivante(g)", .src_app, fixed = TRUE)) &&
+           any(grepl("typeof s.getCamera === 'function'", .src_app, fixed = TRUE)) &&
+           any(grepl("function memeCamera(a, b)", .src_app, fixed = TRUE)) &&
+           any(grepl("<= 1e-9", .src_app, fixed = TRUE)) &&
+           any(grepl("window.Plotly.relayout(g, { 'scene.camera': c })", .src_app, fixed = TRUE)) &&
+           any(grepl("function finGesteGL(g)", .src_app, fixed = TRUE)) &&
+           any(grepl("g.__impr.geste = false; finGesteGL(g);", .src_app, fixed = TRUE)))
 
 ## --- Dimension du triangle et reinitialisation (issue #155) --------------------
 # Fonctions de premier niveau d'app.R, evaluees seules comme triangle_defaut().
