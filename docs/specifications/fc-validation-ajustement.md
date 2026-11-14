@@ -373,3 +373,9 @@ Lignes à `60f135e`.
 - Quenouille (1949), Tukey (1958), Spearman (1904) : déjà citées par le moteur et le `.tex`, non relues ici [NV].
 - Nocedal et Wright (2006), chap. 16 : cité par le moteur pour l'écrêtage, non relu [NV], non invoqué ici.
 - Aucune autre référence. Les résultats invoqués sont des propriétés du code ou des mesures du § 0 : inclusion de la règle actuelle dans la règle nouvelle, indépendance de l'objectif vis-à-vis de δ à volumes constants, inégalité de premier ordre sur Δ ln σ.
+
+## Annotation du 14/11/2026 : phrase de la réserve n° 2 retirée du motif (#573)
+
+> *Annotation datée de la session principale (branche KR, `claude/passage-de-remise`, PR #578 ; ajustement m1 de la consultation Fable du soixante-deuxième point).* Le corps de la spécification n'est pas modifié.
+
+Le § 2.4 décrit la forme 1 du motif comme « identique octet pour octet » au motif de #188, et la forme 2 comme suivie, « pour la réserve n° 1 », de la phrase « La methode du risque de reserve no 2 reste ouverte (meme point). ». **Cette phrase est retirée des deux formes** par #573, sur la lecture de `regulatory` et l'avis d'`actuary` (`docs/revues/20261114-passage-de-remise/`), texte visé par le mainteneur le 14/11/2026 (suppression pure) : elle présentait la méthode n° 2 comme un repli acquis, ce qu'excède l'art. 220 du règlement délégué (UE) 2015/35 (annotation bis du 13/11/2026 de l'ADR 0005). Le renvoi à l'art. 220(1)(b) reste porté par la phrase « L'outil ne calcule pas de parametre sur ces donnees (article 220, paragraphe 1, point b)) … ». Les deux formes du motif sont désormais identiques entre `premium` et `reserve1`, à la section (B / C) et au point (a / b) près. Aucun effet sur σ_USP, les p-values ni les verdicts ; références identiques.
