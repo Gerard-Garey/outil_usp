@@ -1,0 +1,189 @@
+1500 1508 543 chaines disparues ou modifiees
+HIT ['tex'] ::  p non simulee NA : T = %d hors de la plage de l'implementation
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] ::  sous la loi de reference echangeable
+HIT ['tex'] :: %d etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs
+HIT ['tex', 'docs/suivi-documentation/I.md', 'docs/suivi-documentation/III-M.md'] :: %s : %s ; %s, %s hors de la combinaison de Fisher%s. 
+HIT ['tex', 'docs/suivi-documentation/III-M.md'] :: (B_effectif < B_MIN_DEGENERESCENCE = %d) ; aucune p-value.
+HIT ['docs/suivi-documentation/II.md'] :: (beta > 0) : puissance approchee sous le modele ajuste non restituee
+HIT ['docs/suivi-documentation/II.md'] :: (calculee sous beta > 0, sans objet ici).
+HIT ['tex'] :: (p a moins de 2 erreurs de Monte-Carlo du seuil)
+HIT ['docs/suivi-documentation/III-H.md'] :: (sens de la variation de sigma_USP selon l'annee)
+HIT ['docs/suivi-documentation/III-H.md'] :: (sigma_USP en hausse ou en baisse selon l'annee)
+HIT ['docs/suivi-documentation/III-H.md'] :: 90 % : res$ic_bootstrap. A T = 8, couverture inferieure au niveau
+HIT ['docs/suivi-documentation/III-H.md'] :: Annee %d non evaluable (reajustement sans maximum de 
+HIT ['tex'] :: Annee d'accident en double : %s (lignes %s, %s).
+HIT ['docs/suivi-documentation/III-H.md'] :: Annee la plus influente : %d (sigma_USP %s).
+HIT ['docs/suivi-documentation/III-H.md'] :: Annee la plus influente non determinee.
+HIT ['docs/suivi-documentation/III-H.md'] :: Annees les plus influentes, d'influence egale a la precision numerique pres : %s et %d %s.
+HIT ['docs/suivi-documentation/III-H.md'] :: Aucune annee evaluable (reajustements sans maximum de 
+HIT ['docs/suivi-documentation/III-M.md'] :: Aucune colonne retenue (n_j >= 3).
+HIT ['docs/suivi-documentation/III-H.md'] :: Bootstrap parametrique a delta fixe a sa valeur estimee (seul gamma
+HIT ['docs/suivi-documentation/III-H.md'] :: Bornes : res$ic_bootstrap_restreint.
+HIT ['docs/suivi-documentation/I.md'] :: Couples (xt, yt) dupliques detectes.
+HIT ['docs/suivi-documentation/III-M.md'] :: D(4)(c) et D(5)(d)(ii)), les residus de Mack r(i,j), non redresses, ont
+HIT ['docs/suivi-documentation/III-M.md'] :: Diagnostic sans verdict : aucun verdict de ligne n'est modifie.
+HIT ['docs/suivi-documentation/III-M.md'] :: Diagnostic sans verdict : procedure ESD generalisee de Rosner (1983)
+HIT ['docs/suivi-documentation/III-H.md'] :: Diagnostic, aucun verdict : la pente est testee par le seul test de Pitman.
+HIT ['docs/suivi-documentation/III-H.md'] :: Diagnostic, redondante avec le test de Pitman (F = t^2) : aucun verdict.
+HIT ['docs/suivi-documentation/III-H.md'] :: EXACTE est calculee (convention bilaterale du doublement, celle du
+HIT ['docs/suivi-documentation/III-M.md'] :: H ne mesure rien ici : la ligne ne teste ni l'homogeneite des residus 
+HIT ['docs/suivi-documentation/III-M.md'] :: Homogeneite des residus entre annees de survenance sous la formalisation
+HIT ['docs/suivi-documentation/III-H.md'] :: Intervalle bootstrap de percentile du parametre retenu, niveau nominal
+HIT ['tex', 'docs/suivi-documentation/I.md', 'docs/suivi-documentation/III-M.md'] :: L'exclusion ne vaut pas preuve %s.
+HIT ['docs/suivi-documentation/III-H.md'] :: La formule asymptotique n'a aucune validite a T = 8 ;
+HIT ['docs/suivi-documentation/III-H.md'] :: La formule asymptotique n'a aucune validite a T = 8 ; p_mc est calculee ;
+HIT ['docs/suivi-documentation/III-H.md'] :: La p Monte-Carlo, simulee sous le modele ajuste,
+HIT ['docs/suivi-documentation/III-H.md'] :: La p Monte-Carlo, simulee sous le modele ajuste, est calculee ;
+HIT ['docs/suivi-documentation/III-H.md'] :: La p-value Monte-Carlo de la colonne p_mc estime la meme
+HIT ['docs/suivi-documentation/III-H.md'] :: La p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,
+HIT ['docs/suivi-documentation/III-H.md'] :: La p-value Monte-Carlo, simulee sous le modele ajuste, est calculee.
+HIT ['docs/suivi-documentation/III-H.md'] :: Le NON-rejet ne prouve pas la proportionnalite :
+HIT ['docs/suivi-documentation/III-M.md'] :: Lecture conjointe de la batterie : p minP en une etape sur les %d
+HIT ['docs/suivi-documentation/III-M.md'] :: Lecture conjointe des tests de la famille : p minP en une etape,
+HIT ['docs/suivi-documentation/II.md'] :: Lien observe nul ou negatif (r <= 0), de signe contraire au modele
+HIT ['docs/suivi-documentation/III-M.md'] :: Minimum en cellule (annee d'accident %d, developpement %d), n_j = %d.
+HIT ['docs/suivi-documentation/III-M.md'] :: Monte-Carlo (cle ExpVar) reproduit cet effet, les residus de
+HIT ['docs/suivi-documentation/III-H.md'] :: Pertes y_t constantes a la tolerance relative TOL_DELTA_BORD pres (voir
+HIT ['docs/suivi-documentation/II.md'] :: Puissance approchee a posteriori du test
+HIT ['docs/suivi-documentation/III-H.md'] :: Puissance maximale d'un test invariant de delta = 1 contre delta = 0 ou
+HIT ['docs/suivi-documentation/II.md'] :: Restituee en diagnostic (regle R15) : aucun verdict ni p-value
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md', 'docs/suivi-documentation/III-M.md'] :: Restituee en diagnostic par decision : aucun verdict
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md', 'docs/suivi-documentation/III-M.md'] :: Restituee en diagnostic par decision : aucun verdict ni
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md', 'docs/suivi-documentation/III-M.md'] :: Restituee en diagnostic par decision : aucun verdict ni p-value retenue ;
+HIT ['docs/suivi-documentation/III-H.md'] :: SOLUTION AU BORD delta = %d : LR = 0 par construction.
+HIT ['docs/suivi-documentation/III-H.md'] :: Seule la p-value Monte-Carlo, simulee sous le modele ajuste avec ses pi_t,
+HIT ['docs/suivi-documentation/III-M.md'] :: Si la variance est proportionnelle a C(i,j), avec un facteur f_j et une
+HIT ['docs/suivi-documentation/III-M.md'] :: Student-Bonferroni) et son domaine declare (n >= 25) valent pour un echantillon
+HIT ['docs/suivi-documentation/III-H.md'] :: T = %d ; ex aequo %s : loi de permutation conditionnelle non
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: TEST INOPERANT au seuil alpha = %g : %s = %.4f%s ; aucun verdict.
+HIT ['docs/suivi-documentation/III-H.md'] :: VOLUMES CONSTANTS : delta non identifie, LR nul aux deux bornes par construction.
+HIT ['docs/suivi-documentation/III-H.md'] :: a T = 8 et mauvaise en queue, ou elle peut etre inferieure a la plus petite p de
+HIT ['docs/suivi-documentation/III-H.md'] :: a T = 8, niveau superieur a alpha (voir la fiche) ; une valeur aberrante isolee
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md'] :: a pi_t constant (z = P epsilon non echangeable, r_t non
+HIT ['docs/suivi-documentation/III-M.md'] :: a sigma_j connu une variance 1 - h dans chaque colonne (h = C(i,j)/S_j,
+HIT ['docs/suivi-documentation/II.md'] :: ajuste (au point estime ; approximation au premier ordre, loi de
+HIT ['docs/suivi-documentation/III-M.md'] :: appliquee aux residus de Mack. Ses valeurs critiques (eq. (2.5), approximation de
+HIT ['docs/suivi-documentation/III-H.md'] :: approximation asymptotique de la p de permutation, par le theoreme central limite
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: atteignable sur ces replications >= alpha%s ; aucun verdict.
+HIT ['tex', 'docs/suivi-documentation/II.md', 'docs/suivi-documentation/III-M.md'] :: aucune p-value disponible sur ces donnees :
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: aucune p-value n'est retenue
+HIT ['docs/suivi-documentation/III-H.md'] :: autre test, autre loi de reference) restituee dans p asymptotique, non retenue :
+HIT ['docs/suivi-documentation/III-H.md'] :: bootstrap), la meme que sur la ligne des suites sur residus
+HIT ['docs/suivi-documentation/III-H.md'] :: ces volumes : echec numerique de l'integration d'Imhof ou de la recherche
+HIT ['docs/suivi-documentation/III-M.md'] :: chaque replication etant recalcules sur le triangle simule reajuste ;
+HIT ['docs/suivi-documentation/III-H.md'] :: combinatoire sous des conditions sur x et y (hypothese, voir la fiche), non etablie
+HIT ['docs/suivi-documentation/III-H.md'] :: conditionnelle a la structure de variance retenue. Couverture
+HIT ['docs/suivi-documentation/III-M.md'] :: constante sigma_j^2 communs aux annees (interpretation de l'outil,
+HIT ['docs/suivi-documentation/III-H.md'] :: contre delta = 0 ou de delta = 0 contre delta = 1 (ecart le plus grand
+HIT ['tex'] :: d'arret de l'optimiseur, et un ecart
+HIT ['docs/suivi-documentation/II.md'] :: d'ordre (1 - delta), ou de l'etendue relative des
+HIT ['docs/suivi-documentation/III-H.md'] :: dans un modele de moyenne contrainte ; sa transposition a l'estimateur
+HIT ['docs/suivi-documentation/III-H.md'] :: de delta = 0 contre delta = 1 (famille de l'annexe XVII) non calculee avec
+HIT ['docs/suivi-documentation/III-H.md'] :: de delta n'est pas demontree, et l'effet sur sigma n'est pas etabli.
+HIT ['docs/suivi-documentation/III-M.md'] :: de l'outil (f_j et sigma_j^2 communs) ; ne teste pas a elle seule
+HIT ['docs/suivi-documentation/III-H.md'] :: de la famille de l'annexe XVII,
+HIT ['docs/suivi-documentation/III-H.md'] :: de racine (usp_puissance_enveloppe_h2()) ; un OK ne demontre pas la
+HIT ['docs/suivi-documentation/III-M.md'] :: decroit avec C(i,j) par le seul effet de levier, et |r(i,j)| n'est pas
+HIT ['docs/suivi-documentation/III-M.md'] :: derive de f_j avec l'annee ou a une esperance non proportionnelle
+HIT ['tex', 'docs/suivi-documentation/III-M.md'] :: dernieres variances estimees
+HIT ['docs/suivi-documentation/III-H.md'] :: documentation). Intervalle basic sur l'echelle logarithmique en
+HIT ['docs/suivi-documentation/III-H.md'] :: dont le reajustement contraint echoue est ecartee du seul bootstrap
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: ecart a la proportionnalite.
+HIT ['docs/suivi-documentation/III-M.md'] :: echangeable a l'interieur d'une colonne sous H0. La p-value de
+HIT ['docs/suivi-documentation/III-M.md'] :: entre annees de survenance, ni l'independance de D(2)(h)(i)
+HIT ['docs/suivi-documentation/III-H.md'] :: est indisponible sur ces donnees :
+HIT ['docs/suivi-documentation/III-M.md'] :: exacte. Diagnostic sans verdict : aucun verdict de ligne n'est modifie.
+HIT ['docs/suivi-documentation/III-H.md'] :: fini, influence non mesuree.
+HIT ['docs/suivi-documentation/I.md', 'docs/suivi-documentation/III-M.md'] :: hors de la combinaison de Fisher.
+HIT ['docs/suivi-documentation/III-M.md'] :: i.i.d. normal ; les residus de Mack, soumis a des contraintes exactes par colonne,
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md'] :: identiquement distribues).
+HIT ['docs/suivi-documentation/III-H.md'] :: inferieure au niveau nominal a T = 8 sous les modeles simules, comme
+HIT ['docs/suivi-documentation/II.md'] :: information, jamais retenue.
+HIT ['docs/suivi-documentation/III-H.md'] :: inverse du volume ; un rejet traduit des pertes non proportionnelles au
+HIT ['docs/suivi-documentation/III-H.md'] :: l'avertissement sur les donnees) : le ratio y_t/x_t varie alors en sens
+HIT ['docs/suivi-documentation/III-M.md'] :: l'independance de D(2)(h)(i), reagit aussi a une annee atypique, a une
+HIT ['docs/suivi-documentation/III-H.md'] :: l'intervalle complet (voir la documentation). Andrews (2000) montre
+HIT ['docs/suivi-documentation/III-M.md'] :: la p chi2(2K) et la plus petite p-value atteignable, fondees sur une
+HIT ['tex', 'docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md'] :: la p-value retenue, s'il en est une,
+HIT ['docs/suivi-documentation/III-H.md'] :: le modele auxiliaire MCO seulement, qui n'est pas le modele reglementaire ;
+HIT ['docs/suivi-documentation/III-M.md'] :: levier de la cellule, S_j somme des cumuls de la colonne) : leur echelle
+HIT ['docs/suivi-documentation/III-H.md'] :: ligne \"Test de Fisher (significativite globale)\" (F = t^2).
+HIT ['docs/suivi-documentation/III-M.md'] :: loi echangeable, l'ignorent.
+HIT ['docs/suivi-documentation/III-H.md'] :: m = %d differences non nulles sur n_p = %d paires ;
+HIT ['tex'] :: minimale atteignable%s = %.4f, atteinte seulement pour
+HIT ['docs/suivi-documentation/III-M.md'] :: n'en sont pas un, et le cadre de Rosner (1983) ne les couvre pas. La procedure
+HIT ['docs/suivi-documentation/III-M.md'] :: n'est donc pas un test de la ligne : le nombre de cellules declarees se lit comme
+HIT ['tex'] :: n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois
+HIT ['docs/suivi-documentation/III-H.md'] :: ni p-value retenue ; meme alternative (tendance monotone du
+HIT ['docs/suivi-documentation/III-H.md'] :: nominal sous les modeles simules (constat de simulation, voir la
+HIT ['docs/suivi-documentation/III-H.md'] :: non calcule, influence non mesuree.
+HIT ['docs/suivi-documentation/III-H.md'] :: non retenue ; egale a la p de la ligne \"Test de Student sur la pente (modele
+HIT ['docs/suivi-documentation/III-M.md'] :: ordre de parcours, dont le type et le verdict font foi.
+HIT ['docs/suivi-documentation/III-H.md'] :: p de Fisher F(1,T-2) bilaterale sous le modele auxiliaire MCO, pour information,
+HIT ['docs/suivi-documentation/III-H.md'] :: p de Student t(T-2) bilaterale (H1 : b != 0, lien de signe quelconque), exacte sous
+HIT ['docs/suivi-documentation/III-H.md'] :: p de Student unilaterale (t(T-2), exacte sous le modele auxiliaire MCO seulement :
+HIT ['docs/suivi-documentation/III-H.md'] :: p de permutation unilaterale (sens du test) ; p bilaterale de
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md'] :: p exacte non attribuee : loi de reference exacte seulement
+HIT ['docs/suivi-documentation/II.md'] :: p non simulee etablie pour un echantillon i.i.d. normal, que
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: p-value EXACTE est calculee
+HIT ['docs/suivi-documentation/III-M.md'] :: p-value retenue ; l'hypothese releve de la ligne Autocorrelation des
+HIT ['docs/suivi-documentation/III-H.md'] :: p_mc non calculee (replications sans ex aequo)
+HIT ['docs/suivi-documentation/III-H.md'] :: permutation atteignable (champ p_min).
+HIT ['docs/suivi-documentation/III-H.md'] :: pondere, approchee ; la p retenue, de Monte-Carlo, n'a pas exactement ce
+HIT ['docs/suivi-documentation/III-H.md'] :: procedure ESD de Rosner (1983) a niveau nominal alpha = %g, sans p-value%s.
+HIT ['docs/suivi-documentation/III-M.md'] :: proportion des replications, observe compris, dont la plus petite p Monte-Carlo
+HIT ['docs/suivi-documentation/III-H.md'] :: quantite, a l'erreur Monte-Carlo pres.
+HIT ['docs/suivi-documentation/III-H.md'] :: que le bootstrap n'est pas convergent quand le parametre est au bord,
+HIT ['docs/suivi-documentation/III-H.md'] :: ratio) que la ligne Mann-Kendall, dont le type et le verdict
+HIT ['docs/suivi-documentation/III-H.md'] :: reajuste), memes replications que l'IC complet ; une replication
+HIT ['docs/suivi-documentation/III-H.md'] :: regard : res$ic_bootstrap_basic_log.
+HIT ['tex'] :: relative de ses cumuls et la precision de ses facteurs, non selon l'echelle
+HIT ['tex', 'docs/suivi-documentation/II.md'] :: relative des volumes, pres
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: releve de la ligne Grubbs sur residus standardises, dont le type et le verdict
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: repere conventionnel 2k/T = %.3f ; %d observation(s) au-dessus
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: repere conventionnel 4/T = %.3f ; %d observation(s) au-dessus%s
+HIT ['docs/suivi-documentation/III-M.md'] :: residus (Durbin-Watson), calculee sur les residus de Mack dans le meme
+HIT ['docs/suivi-documentation/III-H.md'] :: restituee dans p asymptotique pour information, non retenue. Egale a la p de la
+HIT ['docs/suivi-documentation/III-H.md'] :: restreint (res$bootstrap$n_echec_restreint). Incertitude
+HIT ['docs/suivi-documentation/II.md'] :: retenue ; l'hypothese releve de la ligne homologue sur residus
+HIT ['docs/suivi-documentation/III-M.md'] :: seconde ligne, et non estimee : la regle ne lit que les deux
+HIT ['docs/suivi-documentation/III-H.md'] :: sigma_USP nul, non fini ou trop petit : ecart relatif non 
+HIT ['docs/suivi-documentation/III-H.md', 'docs/suivi-documentation/II.md'] :: standardises, dont le type et le verdict font foi.
+HIT ['docs/suivi-documentation/III-H.md'] :: tabulee, p_min et p exacte non attribuees
+HIT ['docs/suivi-documentation/III-H.md'] :: un OK ne demontre pas la structure de variance.
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: un seul cote de la mediane represente : loi de R non definie,
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: un seul cote de la mediane represente : loi de R non definie, test non applicable
+HIT ['docs/suivi-documentation/III-H.md'] :: valeurs critiques approchees, jugees adequates par l'auteur a partir de n = 25 ;
+HIT ['tex'] :: verdict sensible a l'alea de simulation
+HIT ['tex', 'docs/suivi-documentation/III-H.md'] :: voir l'avertissement sur les donnees
+HIT ['docs/suivi-documentation/III-H.md'] :: voir le test d'equivalence ci-dessous.
+HIT ['docs/suivi-documentation/III-H.md'] :: volume, ce que teste la ligne.
+HIT ['docs/suivi-documentation/III-H.md'] :: vraisemblance etabli, ou en echec) : ecart relatif max 
+HIT ['docs/suivi-documentation/III-H.md'] :: vraisemblance etabli, ou en echec) : ecartee du maximum, 
+HIT ['docs/suivi-documentation/II.md'] :: z = P epsilon ne verifie pas a pi_t variable : restituee pour
+=== filtre : cite par le .tex et absent du moteur gele ===
+REEL :: %d etiquettes peut descendre a %s %%. Diagonales k = i + j des facteurs
+    absent : [' etiquettes peut descendre a ', '. Diagonales k = i + j des facteurs']
+REEL :: L'exclusion ne vaut pas preuve %s.
+    absent : ["L'exclusion ne vaut pas preuve "]
+REEL :: aucune p-value n'est retenue
+    absent : ["aucune p-value n'est retenue"]
+REEL :: d'arret de l'optimiseur, et un ecart
+    absent : ["d'arret de l'optimiseur, et un ecart"]
+REEL :: la p-value retenue, s'il en est une,
+    absent : ["la p-value retenue, s'il en est une,"]
+REEL :: minimale atteignable%s = %.4f, atteinte seulement pour
+    absent : [', atteinte seulement pour']
+REEL :: n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fois
+    absent : ["n'est pas detectable dans sa colonne ; sa detection fiable en exige plusieurs fo"]
+REEL :: p-value EXACTE est calculee
+    absent : ['p-value EXACTE est calculee']
+REEL :: relative de ses cumuls et la precision de ses facteurs, non selon l'echelle
+    absent : ["relative de ses cumuls et la precision de ses facteurs, non selon l'echelle"]
+REEL :: releve de la ligne Grubbs sur residus standardises, dont le type et le verdict
+    absent : ['releve de la ligne Grubbs sur residus standardises, dont le type et le verdict']
+REEL :: un seul cote de la mediane represente : loi de R non definie,
+    absent : ['un seul cote de la mediane represente : loi de R non definie,']
+REEL :: un seul cote de la mediane represente : loi de R non definie, test non applicable
+    absent : ['un seul cote de la mediane represente : loi de R non definie, test non applicabl']
+12 cas reels
