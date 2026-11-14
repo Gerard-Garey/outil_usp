@@ -3959,7 +3959,8 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
 vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
 le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
-refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
+refusée avec sa position, jamais lue comme manquante, hors le cas d'une colonne booléenne lue par \code{openxlsx}, décrit
+ci-après parmi les limites de la lecture des classeurs~; les lignes vides de fin et les colonnes
 vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
 une ligne vide intercalée ou en tête est refusée
 comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée comme année de développement manquante présumée (D(1) et D(4)(c),
@@ -4707,9 +4708,11 @@ aucun tableur n'est supposé écrire cette forme (hypothèse non vérifiée). Fa
 le contrôle de ces valeurs revient à l'utilisateur~: l'application affiche les données lues
 avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
 les données du calcul et porte, dans sa table «~Empreintes~», l'empreinte md5 de leur texte
-canonique (\code{engine\_empreinte()}~: une ligne d'en-tête, puis une ligne par année ou par
-ligne du triangle, valeurs écrites par \code{sprintf("\%.17g")}, à 17 chiffres significatifs, et
-séparées par «~\code{;}~»), fonction des seules valeurs utilisées. Elle identifie ces valeurs~;
+canonique (\code{engine\_empreinte()}~: une ligne d'en-tête, «~\code{t;xt;yt}~» ou
+«~\code{triangle;}~» suivi des nombres de lignes et de colonnes séparés par «~\code{;}~», puis
+une ligne par année ou par ligne du triangle, valeurs écrites par \code{sprintf("\%.17g")}, au
+plus 17 chiffres significatifs, valeur manquante écrite «~\code{NA}~», année écrite telle quelle,
+séparées par «~\code{;}~», chaque ligne terminée par un saut de ligne LF), fonction des seules valeurs utilisées. Elle identifie ces valeurs~;
 elle ne révèle une valeur fausse que si un tiers la recalcule à partir des valeurs de la source,
 sans passer par le lecteur de l'outil, en reproduisant ce texte~; sa constance entre plateformes
 est attendue, non vérifiée. Une table entièrement préfixée
