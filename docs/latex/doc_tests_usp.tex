@@ -749,7 +749,10 @@ d'\code{usp\_controle\_donnees()}~; conventions de l'outil, sans source régleme
 arguments\newline d'\code{engine\_valider\_}\newline\code{donnees()} & \code{\$xt}, \code{\$yt} (les $T$ années les plus
 récentes si $T$ est accepté), \code{\$validation}~; étape~1 de \code{run\_engine()} (profondeur,
 troncature, validation), qui l'appelle, et que l'application appelle pour valider la même série
-avant le calcul \\
+avant le calcul~; série non tronquée si $T$ est refusé (motifs de profondeur en tête des
+erreurs, avertissements retirés, longueur retenue manquante) ou si $x_t$ et $y_t$ n'ont pas la
+même longueur (refus par le motif de longueur d'\code{engine\_valider\_donnees()})
+(§\ref{sec:controles}) \\
 \code{engine\_valider\_}\newline\code{profondeur()} & \code{T}, $n$ (années fournies),
 \code{T\_min} (5) & motifs de refus d'une profondeur $T$ autre que \code{NULL} ou qu'un entier
 scalaire fini, \code{T\_min} $\le T \le n$, contrôlée avant toute troncature~; vide si $T$
@@ -3915,11 +3918,13 @@ le motif demandant alors de renseigner la valeur ou de laisser vide une cellule 
 refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
 vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
 une ligne vide intercalée ou en tête est refusée
-comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée ou portant un
-en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
-indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
-la plus récente de la première année d'accident~; la présomption est une lecture retenue par
-l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
+comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée comme année de développement manquante présumée (D(1) et D(4)(c),
+lus avec A(1)(b)~: montants indiqués pour chaque année de développement des paiements, l'année
+de développement étant la différence entre l'année du paiement et celle de l'accident~;
+l'estimation $\hat C(i,j)$ de D(4)(c) enchaîne les facteurs $\hat f_{I-i}, \dots, \hat f_{j-1}$,
+dont chacun relie une année de développement à la suivante~; la présomption est une lecture
+retenue par l'outil), une colonne vide portant un en-tête, placée en bord de tableau, comme année
+de développement sans valeur (motif distinct~; précaution de l'outil, sans ancrage dans le texte), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
 une colonne vide sans en-tête placée avant la première colonne de développement renseignée, autre
 que la colonne \code{i}, est refusée, avec ou sans colonne \code{i}, comme année de
 développement~0 manquante présumée (motif «~\code{\ldots{} sans en-tete avant la premiere colonne
