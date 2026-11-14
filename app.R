@@ -603,9 +603,46 @@ ui <- fluidPage(
           planifier(g);
         });
       }
+      // Camera vivante du graphique WebGL, ou null. Lit une propriete INTERNE de
+      // plotly.js (_fullLayout.scene._scene.getCamera, plotly.js 2.11.1 de plotly
+      // 4.10.4), non documentee : si elle disparait, la lecture rend null, le
+      // repli est planifier(g) seul, et l'image peut alors montrer l'ancien
+      // angle apres une rotation terminee hors du canevas.
+      function cameraVivante(g) {
+        try {
+          var f = g._fullLayout, s = f && f.scene && f.scene._scene;
+          if (!(s && typeof s.getCamera === 'function')) return null;
+          var c = s.getCamera();
+          if (!(c && c.eye && c.center && c.up)) return null;
+          var v = function(o) { return { x: o.x, y: o.y, z: o.z }; };
+          return { eye: v(c.eye), center: v(c.center), up: v(c.up) };
+        } catch (err) { return null; }
+      }
+      function memeCamera(a, b) {
+        if (!(a && b && a.eye && a.center && a.up && b.eye && b.center && b.up)) return false;
+        return ['eye', 'center', 'up'].every(function(k) {
+          return ['x', 'y', 'z'].every(function(d) {
+            return Math.abs(a[k][d] - b[k][d]) <= 1e-9; }); });
+      }
+      // Souris relachee hors du canevas : gl3d ne reporte pas la camera dans
+      // layout.scene.camera et n'emet aucun plotly_relayout ; Plotly.toImage
+      // redessine depuis layout. Si la camera vivante differe de celle du layout,
+      // un relayout la reporte (il replanifie la capture par plotly_relayout,
+      // sans nouveau geste) ; sinon, ou en cas d'echec, planifier(g) seul.
+      function finGesteGL(g) {
+        var c = cameraVivante(g), l = g.layout && g.layout.scene && g.layout.scene.camera;
+        if (!l && g._fullLayout && g._fullLayout.scene) l = g._fullLayout.scene.camera;
+        if (!c || memeCamera(c, l) || !window.Plotly || !window.Plotly.relayout) {
+          planifier(g); return;
+        }
+        try {
+          Promise.resolve(window.Plotly.relayout(g, { 'scene.camera': c }))
+            .catch(function() { planifier(g); });
+        } catch (err) { planifier(g); }
+      }
       function finGeste() {
         document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
-          if (g.__impr && g.__impr.geste) { g.__impr.geste = false; planifier(g); }
+          if (g.__impr && g.__impr.geste) { g.__impr.geste = false; finGesteGL(g); }
         });
       }
       ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function(ev) {
