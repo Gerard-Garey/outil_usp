@@ -1955,8 +1955,8 @@ usp_controles_numeriques <- function(fit) {
 # la classe quasi proportionnelle est refusee, et le refus l'emporte aussi a
 # volumes et pertes constants. Borne haute : dispersion extreme des ratios.
 # Argument methode (ajout a la signature de la specification) : seul le
-# motif en depend (section B ou C, point a) ou b) de l'article 220(1),
-# renvoi a la methode de reserve no 2 pour reserve1), jamais le predicat.
+# motif en depend (section B ou C, point a) ou b) de l'article 220(1)),
+# jamais le predicat.
 # Aucune constante nouvelle. Resultat : list(ok, erreurs), au format de
 # validation ; appele par run_engine() juste apres usp_ajuster(), un refus
 # y rend ok = FALSE comme un refus des donnees.
@@ -1983,7 +1983,6 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
     "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1, ",
     "point d))."),
     if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
-  phrase_res2 <- if (!prem) "La methode du risque de reserve no 2 reste ouverte (meme point)."
   if (is.na(bord)) {
     # Forme 2 (#227 ; texte de la section 2.4 de
     # docs/specifications/fc-validation-ajustement.md, Q-D1-Fc-2) : demarrage
@@ -2003,7 +2002,7 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
                      "y_t/x_t quasi egaux pres de la borne basse ; dispersion des ",
                      "ratios extreme pres de la borne haute)."),
               sec, format(BORNES_GAMMA[1], decimal.mark = "."), format(BORNES_GAMMA[2], decimal.mark = "."), sec, sec),
-      phrase_art220, phrase_res2,
+      phrase_art220,
       sprintf(paste0("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t ",
                      "par un coefficient fixe, ainsi que les unites, la correspondance ",
                      "des annees et les valeurs aberrantes (%s(1) et %s(2)(a))."),
@@ -2021,7 +2020,7 @@ usp_valider_ajustement <- function(fit, methode = c("premium", "reserve1")) {
             format(BORNES_GAMMA[2], decimal.mark = "."), sec, sec),
     if (bas) "Cause : ratios y_t/x_t egaux ou quasi egaux ; s'ils sont exactement egaux, ce minimum n'existe pas."
     else "Cause : dispersion des ratios y_t/x_t extreme ; le minimum, s'il existe, est au-dela de la borne.",
-    phrase_art220, phrase_res2,
+    phrase_art220,
     if (bas) sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
     else sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
                  sec, sec)), collapse = " ")
