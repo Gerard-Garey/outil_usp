@@ -8891,8 +8891,10 @@ XML_ATTRIBUTS_BALISE <- "([ \t\r\n]([^>\"']|\"[^\"]*\"|'[^']*')*)?"
 # n'en lit que le premier sans <rPr> dans la table, mesure, #572), sont
 # refusees de meme, chacune d'un texte propre (decision du mainteneur du
 # 13/11/2026, P2 et X1, #572). Une chaine en ligne (<is>) de ces formes
-# n'est pas refusee : lue entiere par le lecteur interne, NA par openxlsx
-# 4.2.9, cellule refusee en aval (mesure, #572), limite consignee ; une
+# n'est pas refusee : lue entiere par le lecteur interne ; openxlsx 4.2.9 la
+# lit NA (forme P2) ou en texte non numerique (forme X1, deux <t> directs :
+# "1</t><t>1.5" pour "1" puis "1.5"), cellule refusee en aval dans les deux
+# cas (mesure du relecteur de la documentation, #572), limite consignee ; une
 # balise prefixee <x:rPh .../> n'est pas visee (lue 11.5 par les deux
 # chemins pour "1" puis "1.5", mesure, #572). Hypothese non verifiee : un
 # tableur n'ecrit aucune de ces formes.
