@@ -249,8 +249,9 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # precis au journal. Une colonne en surnombre NOMMEE (en-tete aussi long que
 # les lignes) reste ignoree par nom, convention du moteur. Refus motive du
 # moteur (erreur de classe "usp_refus_lecture" levee par engine_lire_xlsx() :
-# ligne 1 sans aucune valeur, cellule sans attribut r, balise <c de forme non
-# reconnue ; #522, #487) : son texte est rendu tel quel au lieu du message
+# ligne 1 sans aucune valeur, balise <c de forme non reconnue, cellule sans
+# position lisible, table de chaines partagees de forme non lisible de facon
+# sure ; #522, #487, #557, #572) : son texte est rendu tel quel au lieu du message
 # fixe, et journalise de meme ; toute autre erreur garde MESSAGE_ILLISIBLE,
 # motif R au journal (#94). Retourne list(df, erreur, refus_moteur) : erreur
 # vaut NULL si la lecture a abouti, sinon le message fixe ou le texte du
