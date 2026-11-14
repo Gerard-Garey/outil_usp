@@ -523,7 +523,8 @@ ui <- fluidPage(
          (mesure : image integree au PDF de 2,5 Ko, transparente, dans
          Chromium sans option graphique). Le graphique est remplace par une
          image de lui-meme, prise a l'ecran apres son rendu, ou, faute d'image
-         fiable, par une mention qui renvoie a l'ecran ; jamais un cadre vide. */
+         fiable, par une mention neutre (sans renvoi a l'ecran, que WebGL soit
+         disponible ou non) ; jamais un cadre vide. */
       .js-plotly-plot[data-impr-gl] { height:auto !important; }
       .js-plotly-plot[data-impr-gl] > :not(.impr-gl) { display:none !important; }
       .js-plotly-plot[data-impr-gl] > .impr-gl { display:block; }
@@ -559,8 +560,10 @@ ui <- fluidPage(
   # Plotly.toImage est asynchrone. L'image est donc prise a l'avance, apres
   # chaque rendu du graphique (evenements plotly, fin d'un geste de la souris,
   # delai de 800 ms) ; a beforeprint, elle remplace le graphique si elle est
-  # prete et a jour, sinon une mention renvoie a l'ecran. Aucun calcul : image
-  # du graphique tel que plotly l'affiche.
+  # prete et a jour, sinon une mention neutre, exacte aussi sans WebGL (ni
+  # renvoi a l'ecran, ni "surface 3D" : le graphique peut etre autre chose).
+  # Un geste interrompu (pointercancel, lostpointercapture) leve le drapeau
+  # comme pointerup. Aucun calcul : image du graphique tel que plotly l'affiche.
   tags$head(tags$script(HTML(r"---(
     (function() {
       function estGL(g) { return !!g.querySelector('.gl-container canvas'); }
@@ -580,7 +583,7 @@ ui <- fluidPage(
               im.src = u;
               return im.decode().then(function() {
                 if (n !== e.seq) return;
-                im.alt = 'Image du graphique prise a l\u2019ecran';
+                im.alt = 'Image du graphique prise \u00e0 l\u2019\u00e9cran';
                 e.img = im; e.w = w; e.h = h; e.pret = true;
               });
             })
@@ -600,11 +603,13 @@ ui <- fluidPage(
           planifier(g);
         });
       }
-      document.addEventListener('pointerup', function() {
+      function finGeste() {
         document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
           if (g.__impr && g.__impr.geste) { g.__impr.geste = false; planifier(g); }
         });
-      });
+      }
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(function(ev) {
+        document.addEventListener(ev, finGeste, true); });
       new MutationObserver(armer).observe(document.documentElement,
         { childList: true, subtree: true });
       function remplacerGL(g) {
@@ -616,7 +621,7 @@ ui <- fluidPage(
           b.appendChild(e.img);
         } else {
           b.className += ' impr-gl-mention';
-          b.textContent = 'Graphique interactif (surface 3D) non reproduit a l\u2019impression : le consulter a l\u2019ecran.';
+          b.textContent = 'Graphique interactif non reproduit \u00e0 l\u2019impression.';
         }
         g.appendChild(b);
         g.setAttribute('data-impr-gl', '1');
