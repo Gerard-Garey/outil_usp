@@ -894,7 +894,8 @@ auto-fermante ou une chaîne formée de plusieurs balises \code{<t>} successives
 \code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces sept refus
 sont des erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte, les refus de l'archive et de la
-feuille restant des erreurs ordinaires~; \code{openxlsx}, s'il est
+feuille restant des erreurs ordinaires~; \\
+& & \code{openxlsx}, s'il est
 installé, est appelé sans retrait des lignes et colonnes vides et sans conversion de la cellule
 texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme de même sur les deux chemins
 (blancs de bord retirés, suite de blancs intérieurs ramenée à une espace), aucun en-tête
@@ -911,16 +912,9 @@ rendue numérique que si toutes ses cellules à valeur sont des cellules nombre,
 caractères, interprétée en aval (§\ref{sec:controles}) \\
 \code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
 \code{.xlsx\_attribut()},\newline \code{.xlsx\_balises()},\newline
-\code{.xlsx\_chemin\_sort()},\newline \code{.xlsx\_cellules()},\newline
-\code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
-\code{.xlsx\_controler\_}\newline\code{cellules()},\newline
-\code{.xlsx\_indice\_}\newline\code{partage()},\newline
-\code{.xlsx\_controler\_}\newline\code{ligne\_entete()},\newline \code{.refus\_lecture()},\newline
-\code{.xlsx\_blancs\_}\newline\code{entete()}
+\code{.xlsx\_chemin\_sort()},\newline \code{.xlsx\_cellules()}
 & fichier XML~; texte~; fragment XML~; balise, nom d'attribut, \code{local} (\code{TRUE})~; XML,
-nom d'élément~; chemins~; XML de la feuille~; dossier d'extraction~; XML de la
-feuille~; valeurs de \code{<v>}~; XML de la feuille, \code{partagees} (table des chaînes
-partagées)~; texte du refus~; noms d'en-tête & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
+nom d'élément~; chemins~; XML de la feuille & texte du fichier lu d'un bloc en UTF-8, sauts de ligne
 conservés~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
@@ -935,7 +929,15 @@ vrai pour un chemin qui sort du dossier de lecture (un composant vaut «~\code{.
 ou lecteur tel que \code{C:}), règle commune aux entrées de l'archive et à la cible de la
 feuille~; cellules \code{<c>} de la feuille, règle commune au contrôle de la ligne~1 et à la voie
 de repli, attributs \code{r} et \code{t} lus dans la seule balise ouvrante, référence mise en
-majuscules~; fichier et rang de la première feuille de calcul (relation de type
+majuscules~; \\
+\code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
+\code{.xlsx\_controler\_}\newline\code{cellules()},\newline
+\code{.xlsx\_indice\_}\newline\code{partage()},\newline
+\code{.xlsx\_controler\_}\newline\code{ligne\_entete()},\newline \code{.refus\_lecture()},\newline
+\code{.xlsx\_blancs\_}\newline\code{entete()}
+& dossier d'extraction~; XML de la
+feuille~; valeurs de \code{<v>}~; XML de la feuille, \code{partagees} (table des chaînes
+partagées)~; texte du refus~; noms d'en-tête & fichier et rang de la première feuille de calcul (relation de type
 \code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées), erreur «~\code{Classeur illisible : aucune
 feuille trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
 d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et \code{//}
