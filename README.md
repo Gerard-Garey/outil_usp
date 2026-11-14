@@ -189,11 +189,13 @@ propriétés distinctes :
 | Reproductibilité à graine égale | `identical()` entre deux appels de `run_engine()` à données, paramètres et `seed` identiques, sur une même machine | au bit près, mesuré |
 | Non-régression | comparaison valeur par valeur (`comparer_objets()`, tolérance 1e-6, relative ou absolue pour une référence quasi nulle) contre les références versionnées (`tests/reference/*.rds`), produites par la CI (workflow `references.yml`, `ubuntu-22.04`, R 4.3.1, BLAS et LAPACK de référence monothread ; ADR 0011 amendé M34) | à tolérance explicite ; ce n'est pas du bit près |
 
-La seconde comparaison absorbe volontairement la dérive d'arrondi d'une
-plateforme à l'autre (écart relatif maximal mesuré 3,5e-07 sur la branche
-lognormale entre le poste Windows et la CI, alors sous OpenBLAS, ADR 0006 et
-0011 ; depuis M34, la CI calcule sous BLAS et LAPACK de référence et deux
-exécutions successives y sont identiques au bit près) :
+La seconde comparaison est une garde de la CI, plateforme de production des
+références : la CI reproduit ses références au bit près (depuis M34, BLAS et
+LAPACK de référence ; deux exécutions successives y sont identiques au bit
+près), et un écart au-delà du seuil y est un changement de résultat à
+identifier et à expliquer (ADR 0006, annoté le 14/11/2026, et ADR 0011). Le
+seuil n'est pas une marge calée sur la dérive d'un poste de travail, qui peut
+le dépasser sans défaut (voir ci-dessous) :
 
     Rscript tests/test_reproductibilite.R
 
@@ -220,22 +222,30 @@ complète :
 
     Rscript tests/test_unitaires.R --parallele --lot=2/3
 
-Sous Windows, la batterie unitaire lancée sous PowerShell passe sans échec
-(poste du mainteneur, 11/11/2026, R 4.3.3 ucrt) depuis la correction du
-lancement des processus fils (#477), de la langue des sorties de `summary.lm()`
-(#478) et de l'affichage de `fmt_p()` sous la bibliothèque C de Windows (#479).
-Deux points connus demeurent :
+Sous Windows, la batterie unitaire lancée sous PowerShell passe (poste du
+mainteneur, 11/11/2026, R 4.3.3 ucrt) depuis la correction du lancement des
+processus fils (#477), de la langue des sorties de `summary.lm()` (#478) et de
+l'affichage de `fmt_p()` sous la bibliothèque C de Windows (#479). Deux points
+connus demeurent :
 
 - `tests/test_reproductibilite.R` rend `premium_interieur` non conforme : deux
   valeurs de `bootstrap$stats_boot`, celles des statistiques `BP` et `BP79`
   d'une même réplication, s'écartent de la référence au-delà du seuil 1e-6
-  (1,81e-6 au plus). C'est une dérive de plateforme entre le poste
-  et la CI ; σ_USP des six cas est identique aux références, et l'absence
-  d'effet sur les p-values retenues et les verdicts, attendue, reste à
-  confirmer (#548).
-- `tests/unitaires/test_controle_doc_nd.R` échoue au chargement si la batterie
-  est lancée depuis Git Bash, dont le `pdftotext` (xpdf) ne connaît pas
-  `-bbox` : la lancer sous PowerShell en attendant #549.
+  (1,81e-6 au plus). C'est une dérive de plateforme entre le poste et la CI.
+  Sous Windows, la batterie est jugée par le critère d'effet de l'ADR 0006
+  (annotation du 14/11/2026). Mesurée le 14/11/2026 sur le code gelé
+  `a2f9c3a`, elle le satisfait : aucune valeur de `parametre_final` ni aucune
+  p-value au-delà du seuil, p-values Monte-Carlo identiques au bit près, aucun
+  verdict ni libellé modifié (#548 ; relevé :
+  `docs/revues/20261114-passage-de-remise/etape-3-releve-poste.md`).
+- Avec `openxlsx` installé, `tests/unitaires/test_controles_entree.R` compte
+  un échec propre à Windows (#588) : un octet 0x81 déclaré Latin-1 est cité
+  `\u0081` au lieu de `<81>` dans un motif de refus d'import. Aucun nombre,
+  verdict ni σ_USP n'est touché.
+
+Lancée depuis Git Bash, dont le `pdftotext` (xpdf) ne connaît pas `-bbox`,
+`tests/unitaires/test_controle_doc_nd.R` saute la passe de mesure du
+remplissage au lieu d'échouer (#549).
 
 La batterie de référence est celle de la CI, sous Linux.
 
