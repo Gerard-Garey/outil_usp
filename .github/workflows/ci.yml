@@ -345,11 +345,175 @@ jobs:
       - name: Tableau des écarts aux références
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
 
+  # Issue #565 (branche K2b) : parité des deux chemins de lecture des classeurs
+  # (lecteur interne / openxlsx::read.xlsx(), #487, #522, #555) et chemin
+  # d'archive zip::zipr() (#488). Les trois lots n'ont ni openxlsx ni zip (ils
+  # exercent les replis : lecteur interne hors masquage, utils::zip()) ; leurs
+  # tests de parité y sautent (sept lignes « [saute] », relevées en CI sur
+  # 8205955). Installer ces deux paquets dans un lot retirerait la couverture
+  # des replis : ce job dédié les installe seul, et les trois lots restent
+  # sans eux. Mêmes conditions de déclenchement que les lots (« changements »,
+  # moteur == 'true'), même R, même instantané CRAN et même image.
+  #
+  # Versions : même instantané que shiny et plotly (DATE_INSTANTANE), soit
+  # d'après les dates de l'archive CRAN openxlsx 4.2.5.2 (06/02/2023, dernière
+  # version au 15/02/2024) et zip 2.3.1 (27/01/2024). Confirmé par le journal
+  # de l'exécution 43519555424 (job « Parité des lecteurs de classeur ») :
+  # openxlsx 4.2.5.2 et zip 2.3.1 installés depuis l'instantané. Le
+  # contrôle des versions ci-dessous est bloquant : si l'instantané donne
+  # d'autres versions, le job échoue en le disant, et VERSION_OPENXLSX /
+  # VERSION_ZIP se corrigent d'après ce journal, sans rien supposer. Mesuré en
+  # session (R 4.3.3, LC_ALL=C.UTF-8), sous openxlsx 4.2.5.2 + zip 2.3.1 comme
+  # sous openxlsx 4.2.9 + zip 3.0.2 : aucune ligne « [saute] » et toutes les
+  # assertions vertes dans test_controles_entree.R, test_outdec.R et
+  # test_defauts_connus.R.
+  #
+  # Fichiers exécutés, un par un (le lanceur tests/test_unitaires.R n'a pas
+  # d'option de sélection de fichiers), sous LC_ALL=C.UTF-8 :
+  # test_controles_entree.R et test_outdec.R (les sept lignes « [saute] » des
+  # lots), test_defauts_connus.R (voie « paquet » de zip) et
+  # test_application.R (export xlsx de l'application par zip::zipr(), celui
+  # qu'emprunte un poste muni d'openxlsx). Ce dernier exige shiny et plotly :
+  # ils sont installés ici aussi, aux mêmes versions que les lots, dans la
+  # bibliothèque de ce job (clé de cache propre : openxlsx et zip ne doivent pas
+  # entrer dans la bibliothèque, donc dans le cache, des lots). Critère : AUCUNE
+  # ligne « [saute] » dans la sortie de ces fichiers, quel que soit le paquet.
+  # Agrégat tests-moteur : le job y est branché (décision du mainteneur du
+  # 13/11/2026, Q-D de K2b) ; la parité bloque donc la fusion.
+  parite-lecteurs:
+    name: Parité des lecteurs de classeur
+    runs-on: ubuntu-22.04
+    needs: changements
+    if: needs.changements.outputs.moteur == 'true'
+    # Préparation comme un lot (setup-r, BLAS, paquets) puis quatre fichiers
+    # dont test_application.R (195 s en CI) : même délai que les lots.
+    timeout-minutes: 30
+    env:
+      VERSION_R: "4.3.1"
+      # Même instantané que les lots (CRAN au 15/02/2024).
+      DATE_INSTANTANE: "2024-02-15"
+      VERSION_SHINY: "1.8.0"
+      VERSION_PLOTLY: "4.10.4"
+      # Confirmé par le journal de l'exécution 43519555424 (voir plus haut).
+      VERSION_OPENXLSX: "4.2.5.2"
+      VERSION_ZIP: "2.3.1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2.14.0
+        id: installer_r
+        with:
+          r-version: ${{ env.VERSION_R }}
+      # Mêmes étapes que dans les lots (bibliothèque d'installation, cache,
+      # installation depuis l'instantané, contrôle bloquant dans un processus R
+      # neuf) : voir les commentaires du job tests-unitaires. Cache : clé propre
+      # à ce job (préfixe « paquets-parite »), qui porte aussi les versions
+      # d'openxlsx et de zip.
+      - name: Bibliothèque des paquets R
+        id: biblio
+        run: |
+          set -euo pipefail
+          bib="$(Rscript -e '
+            bib <- .libPaths()[1L]
+            if (file.access(bib, 2L) != 0L) {
+              bib <- Sys.getenv("R_LIBS_USER")
+              if (!nzchar(bib)) stop("aucune bibliothèque inscriptible et R_LIBS_USER vide.")
+              dir.create(bib, recursive = TRUE, showWarnings = FALSE)
+            }
+            cat(bib)')"
+          echo "Bibliothèque d'installation : $bib"
+          echo "chemin=$bib" >> "$GITHUB_OUTPUT"
+      - name: Cache des paquets R
+        id: cache_paquets
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ steps.biblio.outputs.chemin }}
+          key: paquets-parite-${{ runner.os }}-${{ runner.arch }}-R${{ env.VERSION_R }}-ppm${{ env.DATE_INSTANTANE }}-shiny${{ env.VERSION_SHINY }}-plotly${{ env.VERSION_PLOTLY }}-openxlsx${{ env.VERSION_OPENXLSX }}-zip${{ env.VERSION_ZIP }}
+      - name: Paquets R (shiny, plotly, openxlsx, zip), instantané daté
+        if: steps.cache_paquets.outputs.cache-hit != 'true'
+        env:
+          BIBLIOTHEQUE: ${{ steps.biblio.outputs.chemin }}
+        run: |
+          set -euo pipefail
+          export INSTANTANE_CRAN="https://packagemanager.posit.co/cran/__linux__/jammy/${DATE_INSTANTANE}"
+          Rscript - <<'EOF'
+          bib <- Sys.getenv("BIBLIOTHEQUE")
+          .libPaths(c(bib, .libPaths()))
+          cat("Bibliothèque d'installation :", bib, "\n")
+          options(HTTPUserAgent = sprintf("R/%s R (%s)", getRversion(),
+                    paste(getRversion(), R.version$platform, R.version$arch, R.version$os)))
+          install.packages(c("shiny", "plotly", "openxlsx", "zip"), lib = bib, Ncpus = 2L,
+                           repos = c(CRAN = Sys.getenv("INSTANTANE_CRAN")))
+          ip <- installed.packages(lib.loc = bib)[, c("Package", "Version")]
+          cat(sprintf("%d paquets installés dans %s :\n", nrow(ip), bib))
+          write.table(ip[order(ip[, "Package"]), ], row.names = FALSE, quote = FALSE)
+          EOF
+      # Contrôle bloquant dans un processus R NEUF (voir les lots), étendu à
+      # openxlsx et zip : c'est lui qui empêche un paquet absent de faire sauter
+      # des tests, et lui seul pour les voies qui sautent sans écrire « [saute] »
+      # (test_outdec.R l. 198-199, test_application.R l. 970, 1035-1039, 2043) ;
+      # le grep de l'étape des tests n'attrape que les lignes « [saute] »
+      # explicites. Il détecte aussi une version différente de celle attendue.
+      - name: Contrôle des paquets R
+        run: |
+          Rscript -e '
+            attendu <- c(shiny = Sys.getenv("VERSION_SHINY"), plotly = Sys.getenv("VERSION_PLOTLY"),
+                         openxlsx = Sys.getenv("VERSION_OPENXLSX"), zip = Sys.getenv("VERSION_ZIP"))
+            for (p in names(attendu)) {
+              if (!requireNamespace(p, quietly = TRUE)) stop(sprintf("%s absent ou non chargeable.", p))
+              v <- as.character(packageVersion(p))
+              if (!identical(v, unname(attendu[p])))
+                stop(sprintf("%s %s installé, %s attendu.", p, v, attendu[p]))
+              cat(sprintf("%s %s (%s)\n", p, v, dirname(find.package(p))))
+            }'
+      # Même BLAS que les lots (références et assertions numériques testées sur
+      # la plateforme qui les produit).
+      - name: BLAS et LAPACK de référence
+        uses: ./.github/actions/blas-reference
+      # Un fichier par processus, tous exécutés même si l'un échoue ; la sortie
+      # est conservée pour le contrôle des lignes « [saute] » et pour le résumé.
+      # pipefail : le code de sortie de Rscript, non celui de tee.
+      - name: Tests de parité des lecteurs de classeur
+        id: parite
+        env:
+          LC_ALL: C.UTF-8
+        run: |
+          set -uo pipefail
+          journal="$RUNNER_TEMP/parite_lecteurs.log"
+          : > "$journal"
+          statut=0
+          for f in test_controles_entree test_outdec test_defauts_connus test_application; do
+            echo "=== tests/unitaires/$f.R ===" | tee -a "$journal"
+            if ! Rscript "tests/unitaires/$f.R" 2>&1 | tee -a "$journal"; then
+              echo "::error title=Parité des lecteurs::$f.R en échec."
+              statut=1
+            fi
+          done
+          # Aucun test sauté, quel que soit le paquet manquant.
+          if grep -n '\[saute\]' "$journal"; then
+            echo "::error title=Parité des lecteurs::au moins un test a sauté (lignes [saute] ci-dessus)."
+            statut=1
+          fi
+          exit "$statut"
+      - name: Bilan (résumé du job)
+        if: ${{ !cancelled() && steps.parite.outcome != 'skipped' }}
+        run: |
+          {
+            echo "### Parité des lecteurs de classeur"
+            echo
+            echo '```'
+            grep -E '^(=== |TOTAL|ECHEC$)|assertions :|\[saute\]' "$RUNNER_TEMP/parite_lecteurs.log" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # Agrégat portant le nom de l'ancien job unique, vérification requise des
   # rulesets (voir plus haut). Réussit si et seulement si le job
   # « changements » et les jobs attendus ont réussi : les lots et la
   # reproductibilité quand le moteur change, la reproductibilité (concordance)
-  # seule quand seul le .tex change. Sauté, comme l'ancien job, quand
+  # seule quand seul le .tex change ; la parité des lecteurs de classeur (issue
+  # #565, décision du mainteneur du 13/11/2026) quand le moteur change, comme
+  # les lots. Sauté, comme l'ancien job, quand
   # « changements » a réussi et que ni le moteur ni le .tex ne changent ; un
   # échec ou une annulation de « changements » le fait exécuter et échouer
   # (sinon il serait sauté, donc passant, revue finale de K1). « always() » et non
@@ -359,7 +523,7 @@ jobs:
   tests-moteur:
     name: Tests du moteur (unitaires, reproductibilité)
     runs-on: ubuntu-22.04
-    needs: [changements, tests-unitaires, reproductibilite]
+    needs: [changements, tests-unitaires, reproductibilite, parite-lecteurs]
     if: ${{ always() && (needs.changements.result != 'success' || needs.changements.outputs.moteur == 'true' || needs.changements.outputs.latex == 'true') }}
     timeout-minutes: 5
     env:
@@ -367,6 +531,7 @@ jobs:
       MOTEUR: ${{ needs.changements.outputs.moteur }}
       UNITAIRES: ${{ needs.tests-unitaires.result }}
       REPRODUCTIBILITE: ${{ needs.reproductibilite.result }}
+      PARITE: ${{ needs.parite-lecteurs.result }}
     steps:
       - name: Résultat des jobs de tests
         run: |
@@ -379,7 +544,9 @@ jobs:
           if [ "$MOTEUR" = "true" ]; then attendu_unitaires=success; fi
           echo "Tests unitaires : $UNITAIRES (attendu : $attendu_unitaires)"
           echo "Reproductibilité et concordance : $REPRODUCTIBILITE (attendu : success)"
-          if [ "$UNITAIRES" != "$attendu_unitaires" ] || [ "$REPRODUCTIBILITE" != "success" ]; then
+          # Parité des lecteurs de classeur : mêmes conditions que les lots.
+          echo "Parité des lecteurs de classeur : $PARITE (attendu : $attendu_unitaires)"
+          if [ "$UNITAIRES" != "$attendu_unitaires" ] || [ "$PARITE" != "$attendu_unitaires" ] || [ "$REPRODUCTIBILITE" != "success" ]; then
             echo "::error title=Tests du moteur::au moins un job de tests n'a pas réussi."
             exit 1
           fi

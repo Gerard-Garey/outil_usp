@@ -195,6 +195,35 @@ REFUS_DEMARRAGE <- paste("Aucune donnee n'a ete chargee a sa place : corriger le
                          "fichier puis l'importer, ou cliquer sur \"Reinitialiser les",
                          "donnees\" pour charger le jeu par defaut.")
 
+# Restitution unique d'un import refuse (#556), pour les quatre branches :
+# fichier illisible (MESSAGE_ILLISIBLE) ; refus motive du lecteur (erreur de
+# classe usp_refus_lecture) ; recevabilite du moteur (erreurs de
+# engine_lire_triangle() ou d'engine_lire_donnees_csv()) ; dimension
+# (refus_dimension_triangle(), refus_dimension_series()). L'etat vient
+# d'abord (fichier refuse, donnees courantes conservees : series et triangle
+# ne sont jamais touches par un refus), le motif ensuite. Ni la forme du
+# demarrage (statut_fichier(), REFUS_DEMARRAGE : aucune donnee courante n'est
+# conservee, une grille vide est chargee), ni les imports acceptes avec
+# reserve ("Donnees importees, mais non valides", "Triangle importe, avec des
+# avertissements") ne passent par ici. Aucun calcul : mise en forme de textes.
+texte_refus_import <- function(nom, ext, motifs)
+  sprintf("Import du fichier %s (%s) refuse ; donnees courantes conservees. Motif : %s",
+          nom, toupper(ext), paste(motifs, collapse = " "))
+NOTIFICATION_REFUS_IMPORT <-
+  "Import refuse ; donnees courantes conservees : voir le statut d'import."
+
+# Texte de la notification d'echec d'un export (#556). Une erreur de classe
+# usp_refus_ecriture (engine_ecrire_xlsx() : ni paquet zip ni commande zip,
+# echec de la creation de l'archive) porte un texte destine a l'utilisateur,
+# montre tel quel ; toute autre erreur recoit un texte fixe, sa cause R
+# (dans la langue du systeme pour write.csv(), erreur de programmation pour
+# rapport_html()) ne va qu'au journal, comme a la lecture (#94).
+texte_echec_export <- function(e) {
+  if (inherits(e, "usp_refus_ecriture")) return(sprintf("Export impossible : %s", conditionMessage(e)))
+  paste("Export impossible : erreur lors de l'ecriture du fichier (detail consigne",
+        "au journal de l'application).")
+}
+
 grille_vide_ln <- function(T) data.frame(t = seq_len(T), xt = NA_real_, yt = NA_real_)
 triangle_vide <- function(T) matrix(NA_real_, T, T)
 
@@ -220,13 +249,15 @@ triangle_vide <- function(T) matrix(NA_real_, T, T)
 # precis au journal. Une colonne en surnombre NOMMEE (en-tete aussi long que
 # les lignes) reste ignoree par nom, convention du moteur. Refus motive du
 # moteur (erreur de classe "usp_refus_lecture" levee par engine_lire_xlsx() :
-# ligne 1 sans aucune valeur, cellule sans attribut r, balise <c de forme non
-# reconnue ; #522, #487) : son texte est rendu tel quel au lieu du message
+# ligne 1 sans aucune valeur, balise <c de forme non reconnue, cellule sans
+# position lisible, table de chaines partagees de forme non lisible de facon
+# sure ; #522, #487, #557, #572) : son texte est rendu tel quel au lieu du message
 # fixe, et journalise de meme ; toute autre erreur garde MESSAGE_ILLISIBLE,
 # motif R au journal (#94). Retourne list(df, erreur, refus_moteur) : erreur
 # vaut NULL si la lecture a abouti, sinon le message fixe ou le texte du
-# moteur ; refus_moteur dit lequel (TRUE pour le texte du moteur), pour la
-# phrase de l'import ("Fichier ... (XLSX) refuse. <texte>").
+# moteur ; refus_moteur dit lequel (TRUE pour le texte du moteur). Depuis
+# #556 l'application ne le lit plus (texte unique, texte_refus_import()) ;
+# il reste verifie par les tests.
 MESSAGE_ILLISIBLE <- c(
   xlsx = paste("illisible comme classeur Excel : verifier qu'il s'agit d'un fichier",
                ".xlsx valide et non corrompu, dont la premiere feuille porte les donnees."),
@@ -456,6 +487,10 @@ ui <- fluidPage(
       /* Titre de carte jamais isole en bas de page ; ligne de tableau jamais
          coupee entre deux pages. */
       .entete-carte { break-after:avoid; break-inside:avoid; }
+      /* Titre de carte des blocs (onglets Calibration, Descriptif...) : jamais
+         isole en bas de page (#566). */
+      .bloc > h4 { break-after:avoid; }
+      .bloc > h4 + .row { break-inside:avoid; }
       .defil-detail table.data tr { break-inside:avoid; }
       /* Les <span> a taille en ligne (11 px, display_helpers.R) depasseraient la
          police d'impression de la cellule. */
@@ -464,6 +499,22 @@ ui <- fluidPage(
          sinon ils se superposent au tableau ; zone principale en pleine largeur. */
       .hors-impression, #shiny-notification-panel { display:none !important; }
       .zone-principale { width:100%; float:none; }
+      /* Graphiques plotly (#566) : plotly fixe en pixels la largeur de ses
+         calques SVG au dernier affichage a l'ecran ; sur papier, un graphique
+         plus large que la zone utile etait coupe a droite. Le script de
+         l'en-tete (beforeprint) pose sur chaque graphique data-impression, un
+         viewBox sur ses calques SVG et deux variables (largeur et rapport
+         naturels) ; ici, le conteneur se limite a la largeur utile (jamais
+         agrandi : max-width = largeur naturelle) et le dessin suit, a
+         proportions conservees. Hors impression, ni attribut ni viewBox :
+         ecran inchange. */
+      .js-plotly-plot { break-inside:avoid; }
+      .js-plotly-plot[data-impression] { height:auto !important; }
+      .js-plotly-plot[data-impression] .svg-container { width:100% !important;
+        max-width:var(--impr-largeur); height:auto !important;
+        aspect-ratio:var(--impr-ratio); }
+      .js-plotly-plot[data-impression] svg.main-svg { width:100% !important;
+        height:100% !important; }
     }
     /* Vue Detail (#178) : commentaire du moteur long replie, deplie au clic. */
     details.com > summary { cursor:pointer; }
@@ -484,6 +535,46 @@ ui <- fluidPage(
     table.triangle input.form-control { padding:3px 6px; height:30px;
                                         font-size:12.5px; text-align:right; }
   "))),
+  # Impression des graphiques plotly (#566) : prepare le dessin avant la mise
+  # en page d'impression (beforeprint, et le changement de media print pour les
+  # navigateurs sans beforeprint), le remet tel quel apres (afterprint). Aucun
+  # calcul : lecture de la taille deja affichee par plotly.
+  tags$head(tags$script(HTML(r"---(
+    (function() {
+      function preparer() {
+        document.querySelectorAll('.js-plotly-plot').forEach(function(g) {
+          var c = g.querySelector('.svg-container');
+          if (!c) return;
+          // Seulement si la taille posee par plotly est en px (sinon, rien).
+          if (!/px$/.test(c.style.width) || !/px$/.test(c.style.height)) return;
+          var w = parseFloat(c.style.width), h = parseFloat(c.style.height);
+          if (!(w > 0 && h > 0)) return;
+          g.querySelectorAll('svg.main-svg').forEach(function(s) {
+            s.setAttribute('viewBox', '0 0 ' + w + ' ' + h); });
+          g.style.setProperty('--impr-largeur', w + 'px');
+          g.style.setProperty('--impr-ratio', w + ' / ' + h);
+          g.setAttribute('data-impression', '1');
+        });
+      }
+      function restaurer() {
+        document.querySelectorAll('.js-plotly-plot[data-impression]').forEach(function(g) {
+          g.removeAttribute('data-impression');
+          g.style.removeProperty('--impr-largeur');
+          g.style.removeProperty('--impr-ratio');
+          g.querySelectorAll('svg.main-svg').forEach(function(s) {
+            s.removeAttribute('viewBox'); });
+        });
+      }
+      window.addEventListener('beforeprint', preparer);
+      window.addEventListener('afterprint', restaurer);
+      if (window.matchMedia) {
+        var mp = window.matchMedia('print');
+        var ecoute = function(e) { if (e.matches) preparer(); else restaurer(); };
+        if (mp.addEventListener) mp.addEventListener('change', ecoute);
+        else if (mp.addListener) mp.addListener(ecoute);
+      }
+    })();
+  )---"))),
 
   fluidRow(
     tagAppendAttributes(class = "zone-principale", column(
@@ -1261,23 +1352,24 @@ server <- function(input, output, session) {
     # ressort de l'interface ; l'interpretation structurelle revient au moteur.
     ext <- tolower(tools::file_ext(fi$name))
     # Fichier illisible : message fixe, message R au journal (issue #94) ;
-    # refus motive du moteur : son texte, apres "refuse." (#522).
+    # refus motive du moteur : son texte, comme motif (#522, #556).
     lu <- lire_tableau(fi$datapath, ext %in% c("xlsx", "xlsm"), nom = fi$name)
+    # Refus d'import, quatre branches, une seule restitution (#556) : statut
+    # (texte_refus_import()) et notification unique ; donnees courantes
+    # jamais touchees.
+    refuser_import <- function(motifs) {
+      statut_import(list(ok = FALSE, msg = texte_refus_import(fi$name, ext, motifs)))
+      showNotification(NOTIFICATION_REFUS_IMPORT, type = "error", duration = 8)
+    }
     if (!is.null(lu$erreur)) {
-      statut_import(list(ok = FALSE,
-        msg = sprintf(if (lu$refus_moteur) "Fichier %s (%s) refuse. %s" else "Fichier %s (%s) %s",
-                      fi$name, toupper(ext), lu$erreur)))
-      showNotification(if (lu$refus_moteur) "Import refuse." else "Import refuse : fichier illisible.",
-                       type = "error", duration = 8)
-      return()
+      refuser_import(lu$erreur); return()
     }
     df <- lu$df
     if (est_mw()) {
       # Conversion fichier -> triangle et recevabilite : moteur.
       v <- engine_lire_triangle(df)
       if (!v$ok) {
-        statut_import(list(ok = FALSE, msg = paste(v$erreurs, collapse = " ")))
-        showNotification("Import refuse.", type = "error", duration = 8); return()
+        refuser_import(v$erreurs); return()
       }
       # Le triangle importe garde sa dimension ; le champ T n'est plus aligne
       # sur elle (issue #155, Q-R7-2 (A)) : T ne pilote pas le triangle, et
@@ -1288,10 +1380,7 @@ server <- function(input, output, session) {
       # que la reinitialisation (refus_dimension_triangle(), issue #212).
       rd <- refus_dimension_triangle(nrow(m))
       if (length(rd)) {
-        statut_import(list(ok = FALSE, msg = sprintf(
-          "Fichier %s (%s) : %s Import refuse, triangle courant conserve.",
-          fi$name, toupper(ext), rd)))
-        showNotification("Import refuse.", type = "error", duration = 8); return()
+        refuser_import(rd); return()
       }
       triangle(m); version_grille(version_grille() + 1L)
       effacer_statut_demarrage()
@@ -1310,18 +1399,14 @@ server <- function(input, output, session) {
     } else {
       r <- engine_lire_donnees_csv(df)
       if (!r$ok) {
-        statut_import(list(ok = FALSE, msg = paste(r$erreurs, collapse = " ")))
-        showNotification("Import refuse.", type = "error", duration = 8); return()
+        refuser_import(r$erreurs); return()
       }
       # Series de plus de PROFONDEUR_MAX annees : refus motive, meme regle que
       # le triangle (refus_dimension_series(), issue #286) ; series courantes
       # et champ T non touches.
       rd <- refus_dimension_series(r$n)
       if (length(rd)) {
-        statut_import(list(ok = FALSE, msg = sprintf(
-          "Fichier %s (%s) : %s Import refuse, series courantes conservees.",
-          fi$name, toupper(ext), rd)))
-        showNotification("Import refuse.", type = "error", duration = 8); return()
+        refuser_import(rd); return()
       }
       donnees(data.frame(t = seq_along(r$xt), xt = r$xt, yt = r$yt))
       version_grille(version_grille() + 1L)
@@ -1935,24 +2020,45 @@ server <- function(input, output, session) {
             downloadButton("dl_rapport", "Rapport fige (HTML)"))
   })
 
+  # Echec d'un export (#556) : le content des cinq downloadHandler passe par
+  # cette enveloppe, qui journalise la cause R, notifie a l'ecran
+  # (texte_echec_export() : texte du moteur pour un usp_refus_ecriture, texte
+  # fixe sinon), puis RELEVE une erreur, pour que le navigateur ne recoive pas
+  # un fichier vide presente comme valide (il enregistre alors la page
+  # d'erreur de shiny, limite connue). L'erreur relevee ne porte que le texte
+  # destine a l'utilisateur (texte_echec_export()), jamais la cause R brute :
+  # la page d'erreur HTTP 500 de shiny la reproduit. Une erreur silencieuse
+  # de shiny (req(), lien d'un resultat retire) n'est pas un echec
+  # d'ecriture : elle est relevee telle quelle, sans notification.
+  proteger_export <- function(nom, ecrire) function(f)
+    tryCatch(ecrire(f), error = function(e) {
+      if (inherits(e, "shiny.silent.error")) stop(e)
+      journaliser(sprintf("Export %s impossible", nom), conditionMessage(e))
+      texte <- texte_echec_export(e)
+      showNotification(texte, type = "error", duration = 10, session = session)
+      stop(texte, call. = FALSE)
+    })
+
   # Rapport fige : l'objet resultat() et la selection courante sont transmis
   # tels quels ; rapport_html() ne fait que les mettre en forme.
   output$dl_rapport <- downloadHandler(
     filename = function() sprintf("usp_rapport_%s_%s.html", R()$metadata$methode,
                                   format(R()$metadata$horodatage, "%Y%m%d_%H%M%S")),
-    content = function(f)
+    content = proteger_export("dl_rapport", function(f)
       rapport_html(resultat(), sel_courante(), f,
                    interactif = isTRUE(input$rapport_interactif),
-                   identite = IDENTITE_CODE))
+                   identite = IDENTITE_CODE)))
 
   output$dl_tests <- downloadHandler(
     filename = function() sprintf("usp_tests_T%d_B%d.csv", R()$metadata$T, R()$metadata$B),
-    content = function(f) utils::write.csv(TB(), f, row.names = FALSE, fileEncoding = "UTF-8"))
+    content = proteger_export("dl_tests", function(f)
+      utils::write.csv(TB(), f, row.names = FALSE, fileEncoding = "UTF-8")))
 
   output$dl_calib <- downloadHandler(
     filename = function() sprintf("usp_calibration_T%d.csv", R()$metadata$T),
-    content = function(f) utils::write.csv(R()$calibration, f, row.names = FALSE,
-                                           fileEncoding = "UTF-8"))
+    content = proteger_export("dl_calib", function(f)
+      utils::write.csv(R()$calibration, f, row.names = FALSE,
+                       fileEncoding = "UTF-8")))
 
   # Construction du tableau exporte, commune aux deux formats : le contenu ne
   # depend pas de l'extension choisie. Les nombres sont ecrits par le moteur
@@ -1973,13 +2079,14 @@ server <- function(input, output, session) {
   output$dl_donnees_xlsx <- downloadHandler(
     filename = function()
       sub("\\.csv$", ".xlsx", if (est_mw()) FICHIER_MW else FICHIER_LN),
-    content = function(f)
+    content = proteger_export("dl_donnees_xlsx", function(f)
       engine_ecrire_xlsx(tableau_export(), f,
-                         feuille = if (est_mw()) "Triangle" else "Donnees"))
+                         feuille = if (est_mw()) "Triangle" else "Donnees")))
 
   output$dl_donnees <- downloadHandler(
     filename = function() if (est_mw()) FICHIER_MW else FICHIER_LN,
-    content = function(f) engine_ecrire_csv(tableau_export(), f))
+    content = proteger_export("dl_donnees", function(f)
+      engine_ecrire_csv(tableau_export(), f)))
 }
 
 shinyApp(ui, server)

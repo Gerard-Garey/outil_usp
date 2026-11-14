@@ -1,0 +1,13 @@
+sp <- "<scratchpad>/k2b-rejeu"
+.libPaths(c(file.path(sp, "lib_old"), file.path(sp, "lib"), .libPaths()))
+source("R/charger_moteur.R"); charger_moteur()
+source(file.path(sp, "fab.R"))
+cl <- function(n) file.path(sp, "classeurs", n)
+num <- function(ref, v) sprintf('<c r="%s"><v>%s</v></c>', ref, v)
+sst <- function(ref, i) sprintf('<c r="%s" t="s"><v>%d</v></c>', ref, i)
+row <- function(r, ...) sprintf('<row r="%d">%s</row>', r, paste0(..., collapse = ""))
+sh <- c("<t>t</t>","<t>xt</t>","<t>yt</t>")
+fab(cl("r_vide_style.xlsx"), paste0(row(1, sst("A1",0), sst("B1",1), sst("C1",2)), row(2, num("A2",1), num("B2",1.5), num("C2",2.5)), row(3, num("A3",2), num("B3",3), num("C3",4)), '<row r="4"><c r="" s="1"/></row>'), shared = sh)
+montrer("3f. cellule vide de style <c r=\"\" s=\"1\"/> en ligne 4 (sans valeur)", lire2(cl("r_vide_style.xlsx")))
+fab(cl("row_r_vide.xlsx"), paste0('<row r="">', paste0(sst("A1",0), sst("B1",1), sst("C1",2)), '</row>', '<row r="2">', num("A2",1), num("B2",1.5), num("C2",2.5), '</row>'), shared = sh)
+montrer("3g. <row r=\"\"> (attribut de ligne vide, cellules r valides)", lire2(cl("row_r_vide.xlsx")))
