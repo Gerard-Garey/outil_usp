@@ -3385,7 +3385,154 @@ if (nzchar(Sys.which("zip"))) {
   echec_attendu("xlsx (#575) : cellule t=\"s\" portant <is> (sans <v>) : refus de classe usp_refus_lecture, code 0, meme message sur chaque chemin, en sous-processus (aujourd'hui : erreur R brute par openxlsx, data.frame par le lecteur interne)",
                 "#574 : t=\"s\" portant <is>, regle R8, hors de R10",
                 refus575(ser575('<c r="B2" t="s"><is><t>11</t></is></c>', "<si><t>a</t></si>"), NULL))
+  # --- #574, regle R1 du contrat ferme (lot A) : xl/workbook.xml,
+  # xl/_rels/workbook.xml.rels, la feuille lue et xl/sharedStrings.xml sont
+  # du texte UTF-8 valide sans octet nul, controle en octets avant toute
+  # expression reguliere (.xlsx_texte()). Avant (e0ce07a, R 4.3.3, openxlsx
+  # 4.2.5.2 ; sonde docs/revues/20261115-s1-rejeu/sondes/sonde_574_r1_r2.R) :
+  # table en 0xFF qu'aucune cellule ne cite, erreur R brute d'openxlsx
+  # ("invalid input ... in 'utf8towcs'") et lecture du lecteur interne avec
+  # "stack imbalance" ; table citee, refus R10 a 0 chaine (controles Q-F, P2
+  # et X1 sautes) ; feuille portant 0xFF, lue avec "stack imbalance" (ok par
+  # openxlsx) ; octet nul, partie tronquee par readChar() sans refus ;
+  # xl/workbook.xml ou ses relations, "aucune feuille trouvee". En
+  # sous-processus sur les deux chemins (erreur R brute possible). Position
+  # attendue : relevee dans la partie de l'archive (premier octet fautif),
+  # independamment du moteur.
+  texte574r1 <- function(partie, k) sprintf("Classeur illisible : la partie %s du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet %d) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", partie, k)
+  octets574 <- function(f, partie) {
+    x <- tempfile("o574_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, files = partie, exdir = x)
+    p <- file.path(x, partie); readBin(p, "raw", file.info(p)$size)
+  }
+  # Remplace dans une partie de l'archive la premiere occurrence du texte
+  # ASCII motif par les octets par (raw), puis recompresse.
+  retoucher574 <- function(f, partie, motif, par) {
+    x <- tempfile("r574_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, exdir = x)
+    p <- file.path(x, partie); b <- readBin(p, "raw", file.info(p)$size)
+    m <- charToRaw(motif); n <- length(m)
+    k <- which(vapply(seq_len(length(b) - n + 1L), function(i) identical(b[i:(i + n - 1L)], m), logical(1)))[1L]
+    stopifnot(!is.na(k))
+    writeBin(c(b[seq_len(k - 1L)], par, b[(k + n):length(b)]), p)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # Refus R1 attendu, position relevee dans la partie : premier octet de
+  # valeur octet (0xFF, 0x00, 0xE9, 0xE2 de la sequence tronquee E2 82).
+  r1_574 <- function(f, partie, octet) {
+    k <- which(octets574(f, partie) == as.raw(octet))[1L]
+    refus575(f, texte574r1(partie, k))
+  }
+  oct574 <- function(...) rawToChar(as.raw(c(...)))
+  ent574 <- ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>")))
+  ser574 <- function(b2 = nb487("B2", 11.5), d2 = NULL) paste0(ent574, ligne487(2, c(nb487("A2", 1), b2, nb487("C2", 2), d2)))
+  verifier("xlsx (#574, R1, forme 5) : table en UTF-8 invalide (octet 0xFF) de forme Q-F, citee par B2 : refus R1 \"xl/sharedStrings.xml\" avec la position de l'octet 0xFF, code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : refus R10 a 0 chaine, controles Q-F, P2, X1 sautes, \"stack imbalance\")",
+           r1_574(feuille575(ser574(ps487("B2", 1)), paste0("<si><t>a", oct574(0xff), "b</t></si><si><r><t>1</t></r><r><t>1.5</t></r></si>")),
+                  "xl/sharedStrings.xml", 0xff))
+  verifier("xlsx (#574, R1, forme 5) : table en UTF-8 invalide (octet 0xFF) qu'aucune cellule ne cite : refus R1, code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R brute d'openxlsx 4.2.5.2 \"invalid input ... in 'utf8towcs'\", lecture du lecteur interne)",
+           r1_574(feuille575(ser574(), paste0("<si><t>a", oct574(0xff), "b</t></si>")), "xl/sharedStrings.xml", 0xff))
+  verifier("xlsx (#574, R1) : table portant une sequence tronquee E2 82 : refus R1, position de l'octet E2, en sous-processus",
+           r1_574(feuille575(ser574(ps487("B2", 0)), paste0("<si><t>11.5", oct574(0xe2, 0x82), "</t></si>")), "xl/sharedStrings.xml", 0xe2))
+  verifier("xlsx (#574, R1) : feuille portant un octet nul dans une chaine en ligne : refus R1 \"xl/worksheets/sheet1.xml\", position de l'octet nul, en sous-processus (avant : partie tronquee par readChar(), sans refus)",
+           r1_574(retoucher574(feuille575(ser574(d2 = en487("D2", "<t>zzz</t>")), NULL), "xl/worksheets/sheet1.xml", "zzz",
+                               as.raw(c(0x61, 0x00, 0x62))), "xl/worksheets/sheet1.xml", 0x00))
+  verifier("xlsx (#574, R1) : nom de feuille en Latin-1 (octet 0xE9) dans xl/workbook.xml : refus R1 \"xl/workbook.xml\", en sous-processus (avant : \"aucune feuille trouvee\", erreur ordinaire)",
+           r1_574(classeur487(list(list(nom = paste0("Donn", oct574(0xe9), "es"), fichier = "sheet1.xml", xml = ser574()))),
+                  "xl/workbook.xml", 0xe9))
+  verifier("xlsx (#574, R1) : relation portant l'octet 0xFF dans xl/_rels/workbook.xml.rels : refus R1, en sous-processus",
+           r1_574(retoucher574(feuille575(ser574(), NULL), "xl/_rels/workbook.xml.rels", "</Relationships>",
+                               c(charToRaw('<Relationship Id="rId9" Type="http://example.org/x" Target="x'), as.raw(0xff),
+                                 charToRaw('.xml"/></Relationships>'))), "xl/_rels/workbook.xml.rels", 0xff))
   unlink(fils575)
+  # Position du premier octet fautif (.xlsx_premier_octet_fautif()) : cas
+  # connus, puis comparaison a une recherche exhaustive du plus long prefixe
+  # valide sur 500 suites d'octets tirees (graine fixe, dans le processus).
+  verifier("xlsx (#574, R1) : .xlsx_premier_octet_fautif() : 0xFF isole, sequence tronquee (son premier octet), sequence tronquee en fin, octet nul, le plus petit des deux, texte valide et vide (NA) ; egal a la recherche exhaustive sur 500 tirages",
+           { pf <- .xlsx_premier_octet_fautif
+             exh <- function(b) {
+               nul <- which(b == as.raw(0)); n <- if (length(nul)) nul[1] - 1L else length(b)
+               for (k in n:0) if (k == 0 || validUTF8(rawToChar(b[seq_len(k)]))) break
+               if (k == n) (if (length(nul)) nul[1] else NA_integer_) else k + 1L
+             }
+             pool <- as.raw(c(0x41, 0x00, 0x80, 0xbf, 0xc3, 0xa9, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0xff, 0xed, 0xa0, 0xc0, 0xf8))
+             tirs <- local({ old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
+                             on.exit(if (is.null(old)) rm(".Random.seed", envir = globalenv()) else assign(".Random.seed", old, globalenv()))
+                             set.seed(574); lapply(1:500, function(i) c(charToRaw(strrep("a\u00e9\u20ac", sample(0:3, 1))), sample(pool, sample(0:30, 1), TRUE))) })
+             identical(pf(c(charToRaw("a"), as.raw(0xff), charToRaw("b"))), 2L) &&
+               identical(pf(c(charToRaw("ab"), as.raw(c(0xe2, 0x82)), charToRaw("c"))), 3L) &&
+               identical(pf(c(charToRaw("abc"), as.raw(0xf0))), 4L) &&
+               identical(pf(c(charToRaw("a"), as.raw(0), charToRaw("b"))), 2L) &&
+               identical(pf(as.raw(c(0x41, 0xff, 0x00))), 2L) && identical(pf(as.raw(c(0x41, 0x00, 0xff))), 2L) &&
+               identical(pf(charToRaw("a\u00e9\u20ac")), NA_integer_) && identical(pf(raw(0)), NA_integer_) &&
+               all(vapply(tirs, function(b) identical(pf(b), exh(b)), logical(1))) })
+  # --- #574, regle R2 (lot A) : commentaire, section CDATA, declaration de
+  # type de document, instruction de traitement autre que la declaration XML
+  # initiale, dans la feuille lue ou dans la table, refuses avant les deux
+  # chemins (dans le processus : aucune erreur R brute mesuree avant, sonde
+  # sonde_574_r1_r2.R). Avant : <t>11<!-- x -->.5</t> en table lu 11.5 par le
+  # lecteur interne et 11 par openxlsx 4.2.5.2 (deux valeurs differentes
+  # acceptees) ; les autres formes lues juste, ou refusees en aval.
+  texte574r2 <- function(partie) sprintf("Classeur illisible : la partie %s du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", partie)
+  r2_574 <- function(f, partie) { r <- chemins483(f, lire487); unlink(f)
+                                  tous487(r, function(m) identical(m, texte574r2(partie))) }
+  fe574 <- "xl/worksheets/sheet1.xml"; ta574 <- "xl/sharedStrings.xml"
+  verifier("xlsx (#574, R2) : feuille portant un commentaire entre deux lignes, une section CDATA dans une chaine en ligne, une DTD, une instruction de traitement, une seconde declaration XML : refus R2 de la feuille, meme texte sur chaque chemin",
+           r2_574(feuille575(paste0(ent574, "<!-- note -->", ligne487(2, nb487("A2", 1))), NULL), fe574) &&
+             r2_574(feuille575(ser574(en487("B2", "<t><![CDATA[11.5]]></t>")), NULL), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<worksheet", charToRaw('<!DOCTYPE worksheet [<!ENTITY v "11.5">]><worksheet')), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData><?mso note?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<worksheet", charToRaw('<?xml version="1.0"?><worksheet')), fe574))
+  # Reprise apres l'audit leger du lot A : la declaration initiale n'est
+  # retiree que jusqu'au PREMIER "?>". Avant la reprise, une declaration
+  # fermee par "??>" puis une instruction de traitement plus loin faisaient
+  # retirer tout le texte intermediaire : <t>11<!-- x -->.5</t> lu 11.5 en
+  # interne et 11 par openxlsx (table, ok = TRUE), ou 11.5 en interne et
+  # refus en aval par openxlsx (feuille). Declaration precedee d'un blanc ou
+  # d'un saut de ligne : non initiale, refusee (avis d'actuary, Q2).
+  verifier("xlsx (#574, R2, reprise de l'audit) : declaration fermee par \"??>\" suivie d'un commentaire et d'une instruction de traitement, dans la table puis dans la feuille ; declaration precedee d'une espace ou d'un saut de ligne : refus R2, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si><?z?>"),
+                               ta574, 'standalone="yes"?>', charToRaw('standalone="yes"??>')), ta574) &&
+             r2_574(retoucher574(retoucher574(feuille575(ser574(en487("B2", "<t>11<!-- x -->.5</t>")), NULL),
+                                              fe574, 'standalone="yes"?>', charToRaw('standalone="yes"??>')),
+                                 fe574, "</sheetData>", charToRaw("</sheetData><?z?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", charToRaw(" <?xml")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", charToRaw("\n<?xml")), fe574))
+  # Seconde reprise : la declaration n'est retiree que si elle suit la
+  # grammaire de XMLDecl. Avant : coupe au premier "?>", une declaration non
+  # fermee englobait la partie jusqu'a un "?>" final (table : 11.5 en
+  # interne, 11 par openxlsx, ok = TRUE ; feuille : 11.5 en interne).
+  # Declaration fermee par "??>" et "?>" dans une valeur d'attribut : hors
+  # grammaire, refusees (XML mal forme, cote sur ; avis d'actuary Q1, Q2).
+  verifier("xlsx (#574, R2, seconde reprise de l'audit) : declaration non fermee englobant la table ou la feuille jusqu'a un \"?>\" final, declaration fermee par \"??>\", \"?>\" dans une valeur d'attribut : refus R2, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si>?>"),
+                               ta574, 'standalone="yes"?>', charToRaw('standalone="yes" ')), ta574) &&
+             r2_574(retoucher574(retoucher574(feuille575(ser574(en487("B2", "<t>11<!-- x -->.5</t>")), NULL),
+                                              fe574, 'standalone="yes"?>', charToRaw('standalone="yes" ')),
+                                 fe574, "</sheetData>", charToRaw("</sheetData>?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(ps487("B2", 0)), "<si><t>11.5</t></si>"), ta574,
+                                 'standalone="yes"?>', charToRaw('standalone="yes"??>')), ta574) &&
+             r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si>"), ta574,
+                                 'standalone="yes"?>', charToRaw('standalone="y?>es"?>')), ta574))
+  verifier("xlsx (#574, R2) : feuille de cible \"./worksheets/sheet1.xml\" portant un commentaire : partie citee \"xl/worksheets/sheet1.xml\" (segment \"./\" retire), meme texte sur chaque chemin",
+           r2_574(classeur487(list(list(nom = "D", fichier = "sheet1.xml", cible = "./worksheets/sheet1.xml",
+                                        xml = paste0(ent574, "<!--x-->", ligne487(2, nb487("A2", 1)))))), fe574))
+  verifier("xlsx (#574, R2) : table portant un commentaire dans un <t> (avant : 11.5 en interne, 11 par openxlsx), une section CDATA, une instruction de traitement : refus R2 de la table, meme texte sur chaque chemin",
+           r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11<!-- x -->.5</t></si>"), ta574) &&
+             r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t><![CDATA[11.5]]></t></si>"), ta574) &&
+             r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11.5</t></si><?x y?>"), ta574))
+  verifier("xlsx (#574, R1, R2) : temoins lus a l'identique sur chaque chemin : partie sans declaration XML, declaration precedee de la marque d'ordre des octets UTF-8, declaration \"<?xml<TAB>version\" (avis d'actuary, Q2), declaration a apostrophes et blancs autour de \"=\" (grammaire de XMLDecl), texte echappe \"&lt;!-- &lt;?x?&gt; &lt;![CDATA[\", caracteres non ASCII valides (e accentue, euro) en table",
+           { lit574 <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574 <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) &&
+                                    (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt))
+             ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', raw(0)))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", c(as.raw(c(0xef, 0xbb, 0xbf)), charToRaw("<?xml"))))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml version", charToRaw("<?xml\tversion")))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+                                         charToRaw("<?xml version = '1.0'\r\n encoding='UTF-8' ?>")))) &&
+               ok574(lit574(feuille575(ser574(d2 = en487("D2", "<t>&lt;!-- &lt;?x?&gt; &lt;![CDATA[</t>")), NULL))) &&
+               ok574(lit574(feuille575(ser574(d2 = ps487("D2", 0)), "<si><t>\u00e9\u20ac</t></si>"))) })
   # Lecteur interne, dans le processus (aucun appel a openxlsx) : bornes de
   # R10 ; indice au-dela de .Machine$integer.max (as.integer() rendrait NA),
   # indice cite tronque a 20 caracteres ; classeur sans table ; cinq positions

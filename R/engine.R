@@ -8475,7 +8475,11 @@ engine_ecrire_csv <- function(df, chemin) {
 # forme non reconnue (#487), reference de cellule de forme non attendue,
 # table des chaines partagees decoupee en segments <r> sans aucun <rPr>
 # (#557), table qui porte une balise <rPh .../> auto-fermante ou une chaine
-# formee de plusieurs <t> directs (#572). Le refus d'une ligne 1 sans valeur
+# formee de plusieurs <t> directs (#572), indice de chaine partagee hors de
+# la table (regle R10, #575), partie du classeur qui n'est pas du texte UTF-8
+# valide ou qui porte un commentaire, une section CDATA, une instruction de
+# traitement ou une declaration de type de document (regles R1 et R2, #574).
+# Le refus d'une ligne 1 sans valeur
 # d'un CSV (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
 # d'engine_lire_donnees_csv() et d'engine_lire_triangle(). Les refus
 # d'archive illisible ou dont une entree
@@ -8499,13 +8503,139 @@ engine_ecrire_csv <- function(df, chemin) {
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
                  list(message = message, call = NULL)))
 
-# Texte d'un fichier XML du classeur, lu d'un bloc en UTF-8 : les sauts de
-# ligne d'une cellule texte sont conserves (readLines() puis paste(collapse =
-# "") les supprimait, "a<LF>b" devenait "ab").
-.xlsx_texte <- function(f) {
-  x <- readChar(f, file.info(f)$size, useBytes = TRUE)
+# Position (base 1) du premier octet fautif d'une partie du classeur lue en
+# octets (b, vecteur raw), NA si la partie est du texte UTF-8 valide sans
+# octet nul (regle R1, #574). Convention : le premier octet fautif est le
+# premier octet nul, ou le premier octet de la premiere sequence UTF-8
+# invalide, soit L + 1 pour L la longueur du plus long prefixe valide au sens
+# de validUTF8() (octet 0xFF isole : sa position ; sequence tronquee E2 82
+# suivie de "b" : position de E2 ; sequence tronquee en fin de partie :
+# position de son premier octet) ; le plus petit des deux. Aucune expression
+# reguliere : validUTF8() sur des prefixes (rawToChar(), sans octet nul).
+# Recherche par dichotomie sur ok(k) = l'un des prefixes de longueur k a
+# k - 5 est valide : ok est vrai jusqu'a L + 5 et faux au-dela (validUTF8()
+# n'admet que des sequences de 4 octets au plus : sequences de 5 et 6 octets,
+# surrogats et formes surlongues refuses, mesure R 4.3.3 ; marge de 6), puis
+# L est cherche parmi les six longueurs qui precedent. Resultat identique a
+# celui d'une recherche exhaustive du plus long prefixe valide sur 3000
+# suites d'octets tirees (mesure). Cout : validUTF8() sur toute la partie
+# (0,8 s pour 50 Mo valides), plus O(log n) prefixes sur une partie refusee
+# seulement (0,5 s pour un octet fautif en position 5 000 001 ; mesures R
+# 4.3.3).
+.xlsx_premier_octet_fautif <- function(b) {
+  nul <- which(b == as.raw(0L))
+  n <- if (length(nul)) nul[1L] - 1L else length(b)
+  valide <- function(k) k <= 0L || validUTF8(rawToChar(b[seq_len(k)]))
+  if (valide(n)) return(if (length(nul)) as.integer(nul[1L]) else NA_integer_)
+  ok <- function(k) any(vapply(k - 0:5, function(j) j >= 0L && valide(j), logical(1)))
+  lo <- n
+  if (!ok(n)) {
+    lo <- 0L; hi <- n
+    while (hi - lo > 1L) {
+      mi <- (lo + hi) %/% 2L
+      if (ok(mi)) lo <- mi else hi <- mi
+    }
+  }
+  # L, plus long prefixe valide, est dans [lo - 5, lo] et L < n
+  j <- rev(max(0L, lo - 5L):min(lo, n - 1L))
+  as.integer(j[vapply(j, valide, logical(1))][1L] + 1L)
+}
+
+# Texte d'une partie XML du classeur (chemin partie relatif au dossier
+# d'extraction d), lu d'un bloc en octets (readBin) : les sauts de ligne
+# d'une cellule texte sont conserves (readLines() puis paste(collapse = "")
+# les supprimait, "a<LF>b" devenait "ab"). Regle R1 du contrat ferme du
+# lecteur de classeur (#574 ; avis amont d'actuary du 15/11/2026, S1, par. 1
+# et texte du par. 2 ; option R1b non retenue, decision D-S1-6 : la
+# declaration d'encodage n'est pas lue) : la partie est du texte UTF-8 valide
+# (validUTF8()) sans octet nul, controle fait sur les octets, avant toute
+# expression reguliere, puis la partie est rendue declaree UTF-8. Partie
+# refusee sinon, de classe usp_refus_lecture, avec la position du premier
+# octet fautif (.xlsx_premier_octet_fautif()) et le nom de la partie dans
+# l'archive. Ce nom, passe par .echapper_texte(), n'est pas tronque :
+# exception voulue a la regle de troncature a 20 caracteres du par. 2 de
+# l'avis, qui vise les textes issus des cellules (xl/_rels/workbook.xml.rels
+# en compte 26 ; avis d'actuary sur le lot A, Q3). Lues par elle :
+# xl/workbook.xml, xl/_rels/workbook.xml.rels (.xlsx_fichier_feuille()), la
+# feuille lue et xl/sharedStrings.xml (.xlsx_admettre()). Limite consignee
+# (avis d'actuary sur le lot A, Q4) : R1 ne sonde que les quatre parties qui
+# portent ou designent les valeurs. Les autres parties ne sont pas
+# controlees ; une corruption y est sans effet mesure sur les valeurs
+# (openxlsx 4.2.5.2, detectDates non employe ; mesure : octet 0xFF dans
+# xl/styles.xml et dans [Content_Types].xml, valeurs lues identiques sur
+# les deux chemins). A revoir si detectDates ou une lecture des styles
+# venait a etre employe. Mesure (#574,
+# forme 5, rejeu S1 ; sonde sondes/sonde_574_r1_r2.R) : avant R1, une table
+# des chaines partagees portant l'octet 0xFF faisait sauter les controles
+# Q-F, P2 et X1 (grepl() rend FALSE avec l'avertissement "input string 1 is
+# invalid"), signalait des "stack imbalance" (gregexpr() sur une chaine
+# UTF-8 invalide, R 4.3.3, reproduction minimale hors moteur) et menait
+# openxlsx 4.2.5.2 a une erreur R brute ("invalid input ... in 'utf8towcs'")
+# quand aucune cellule ne citait la table (sinon refus R10, 0 chaine
+# extraite) ; nchar() et substr() levent une erreur R sur une telle chaine
+# ("invalid multibyte string"). Un octet nul tronquait la partie lue par
+# readChar() a cet octet (avertissement "truncating string with embedded
+# nuls"), sans refus.
+.xlsx_texte <- function(d, partie) {
+  f <- file.path(d, partie)
+  b <- readBin(f, "raw", file.info(f)$size)
+  k <- .xlsx_premier_octet_fautif(b)
+  if (!is.na(k))
+    .refus_lecture(sprintf("Classeur illisible : la partie %s du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet %d) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .echapper_texte(partie), k))
+  x <- rawToChar(b)
   Encoding(x) <- "UTF-8"
   x
+}
+
+# Regle R2 du contrat ferme du lecteur de classeur (#574 ; avis amont
+# d'actuary du 15/11/2026, S1, par. 1 et texte du par. 2) : la feuille lue et
+# la table des chaines partagees ne portent ni commentaire (<!--), ni section
+# CDATA (<![CDATA[), ni declaration de type de document (<!DOCTYPE), ni
+# instruction de traitement (<?...?>) autre que la declaration XML initiale.
+# Aucun tableur n'en ecrit (hypothese de l'avis, a confirmer par le corpus de
+# l'etape 10). Mesure avant R2 (sonde sondes/sonde_574_r1_r2.R, R 4.3.3,
+# openxlsx 4.2.5.2) : une chaine partagee <t>11<!-- x -->.5</t> etait lue
+# 11.5 par le lecteur interne et 11 par openxlsx, deux valeurs differentes
+# acceptees ; une section CDATA ("11.5") lue texte non numerique par les
+# deux chemins, refusee en aval ; commentaire, DOCTYPE ou instruction de
+# traitement entre les balises de la feuille, sans effet sur les valeurs lues.
+# La declaration XML initiale n'est retiree avant la recherche que si elle
+# ouvre la partie (apres une marque d'ordre des octets UTF-8 eventuelle) et
+# suit la grammaire de la declaration (XMLDecl) : "<?xml", puis des
+# attributs blanc + nom (lettres) = valeur entre guillemets doubles ou
+# apostrophes, valeur sans "<", ">" ni guillemet de meme sorte, puis des
+# blancs XML (espace, TAB, CR, LF) facultatifs et "?>". Sinon rien n'est
+# retire et la partie est refusee. Motif ancre, en octets (texte declare
+# "bytes", useBytes) ; une valeur ne pouvant contenir ">", aucun "?>"
+# interieur a une valeur n'est pris pour la fin de la declaration
+# (standalone="y?>es"?> : rien n'est retire, refus). Deux formes plus
+# permissives ont ete contournees (audit leger du lot A, constats majeurs ;
+# tests) : un motif qui traversait un "??>" retirait la partie jusqu'au
+# "?>" d'une instruction de traitement plus loin, et la coupe au premier
+# "?>" laissait une declaration non fermee englober toute la partie
+# (<?xml version="1.0" ... <sst ...>...<t>11<!-- x -->.5</t>...?></sst>) :
+# dans la table, lu 11.5 en interne et 11 par openxlsx, ok = TRUE (dans la
+# feuille, 11.5 en interne, refus en aval par openxlsx). Une
+# declaration fermee par "??>", precedee d'un blanc ou d'un saut de ligne
+# (XML : elle doit ouvrir l'entite), ou de forme hors grammaire est donc
+# refusee (avis d'actuary sur le lot A, Q2). Toute autre suite "<!" ou "<?"
+# est refusee : un "<" ne figure tel quel dans du XML bien forme que comme
+# debut de balise (dans un texte ou une valeur d'attribut, il s'ecrit &lt;),
+# et "<!" ou "<?" n'y ouvre que l'une des quatre formes visees ; toute autre
+# suite "<!" ou "<?" est du XML mal forme, refuse avec les quatre formes
+# (avis d'actuary sur le lot A, Q1). Recherche en octets (useBytes ; motifs
+# fixes pour "<!" et "<?", expression reguliere pour la declaration), apres R1. Refus de classe usp_refus_lecture, partie citee comme
+# pour R1.
+.xlsx_controler_balisage <- function(x, partie) {
+  y <- x
+  Encoding(y) <- "bytes"
+  y <- sub(paste0("^(\ufeff)?<[?]xml([ \t\r\n]+[A-Za-z]+[ \t\r\n]*=[ \t\r\n]*",
+                  "(\"[^\"<>]*\"|'[^'<>]*'))*[ \t\r\n]*[?]>"), "", y, useBytes = TRUE)
+  if (grepl("<!", y, fixed = TRUE, useBytes = TRUE) || grepl("<?", y, fixed = TRUE, useBytes = TRUE))
+    .refus_lecture(sprintf("Classeur illisible : la partie %s du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .echapper_texte(partie)))
+  invisible(NULL)
 }
 
 # Decode les references d'un texte XML, en une seule passe : les cinq entites
@@ -8648,16 +8778,20 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # Feuille de calcul : relation dont l'attribut Type finit par "/worksheet"
 # (a defaut d'attribut Type, cible sous "worksheets/") ; une feuille de
 # graphique (chartsheet) placee avant est passee. Renvoie list(fichier,
-# rang) : rang est la position de la feuille parmi les balises <sheet>,
+# rang, partie) : partie est le chemin de la feuille dans l'archive
+# (xl/worksheets/sheet1.xml), cite par les refus R1 et R2 (#574) ; rang est
+# la position de la feuille parmi les balises <sheet>,
 # l'indice que openxlsx::read.xlsx(sheet =) attend (mesure, openxlsx 4.2.9 :
 # sheet = k lit la k-ieme balise <sheet>, feuilles de graphique comprises ;
 # sur une feuille de graphique il rend NULL). Refus si le classeur ne permet
 # pas de la resoudre.
 .xlsx_fichier_feuille <- function(d) {
   refus <- function() stop("Classeur illisible : aucune feuille trouvee.")
+  # Regle R1 (#574) : chaque partie controlee en octets par .xlsx_texte()
+  # avant toute expression reguliere ; partie absente : refus inchange.
   lire <- function(rel) {
     f <- file.path(d, rel)
-    if (utils::file_test("-f", f)) .xlsx_texte(f) else refus()
+    if (utils::file_test("-f", f)) .xlsx_texte(d, rel) else refus()
   }
   wb <- lire("xl/workbook.xml")
   rels <- lire("xl/_rels/workbook.xml.rels")
@@ -8688,7 +8822,12 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   if (!utils::file_test("-f", f)) refus()
   racine <- normalizePath(d, winslash = "/", mustWork = FALSE)
   if (!startsWith(normalizePath(f, winslash = "/", mustWork = FALSE), paste0(racine, "/"))) refus()
-  list(fichier = f, rang = rang)
+  # Nom de la partie dans l'archive, cite par les refus R1 et R2 : segments
+  # "./" retires (cible "./worksheets/sheet1.xml" citee
+  # "xl/worksheets/sheet1.xml", et non "xl/./worksheets/sheet1.xml").
+  partie <- cible
+  repeat { p2 <- gsub("(^|/)\\./", "\\1", partie); if (identical(p2, partie)) break; partie <- p2 }
+  list(fichier = f, rang = rang, partie = partie)
 }
 
 # Controle du XML de la feuille lue, commun aux deux chemins de lecture et
@@ -8726,10 +8865,10 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   # refusee avant lui (seule la balise c : <col, <cols, <cfRule... ne sont
   # pas touchees). Classe [[:space:]] de .xlsx_cellules() (expression TRE,
   # blancs de la locale) : toute balise que le lecteur interne lit passe par
-  # les controles ci-dessous (revue de l'audit, #557). Faux refus possible
-  # si "<c" suivi d'un blanc figure dans une section CDATA ou un commentaire
-  # XML, jamais ecrits par un tableur dans une feuille (sens sur : refus,
-  # jamais une valeur fausse).
+  # les controles ci-dessous (revue de l'audit, #557). Un "<c" suivi d'un
+  # blanc ne peut figurer dans une section CDATA ni dans un commentaire XML :
+  # la regle R2 refuse ces deux formes avant ce controle
+  # (.xlsx_controler_balisage(), #574).
   if (any(regmatches(xml, gregexpr("<c[[:space:]]", xml))[[1]] != "<c "))
     .refus_lecture("Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur.")
   balises <- regmatches(xml, gregexpr("<c([[:space:]][^>]*)?/?>", xml))[[1]]
@@ -8881,6 +9020,124 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   gsub("[[:space:]]+", " ", nm)
 }
 
+# Controle unique d'admission du contrat ferme du lecteur de classeur (#574 ;
+# avis amont d'actuary du 15/11/2026, S1, par. 1 ; decision D-S1-1), fait
+# avant les deux adaptateurs (openxlsx et lecteur interne) : extrait
+# l'archive chemin dans le dossier d, lit une seule fois les parties
+# necessaires et evalue les regles dans l'ordre R0 a R12, seule la premiere
+# qui echoue levant son refus. Regles posees : R0 (archive : entrees qui
+# sortent du dossier, table des chaines partagees ailleurs qu'en
+# xl/sharedStrings.xml ou en plusieurs exemplaires), R1 (UTF-8 valide, sans
+# octet nul : .xlsx_texte()), R2 (sections de balisage :
+# .xlsx_controler_balisage()), refus existants de la balise <c> et de
+# l'attribut r (.xlsx_controler_cellules(), sous R3 et R4), refus existants
+# Q-F, P2 et X1 de la table (tete de R9), R10 (.xlsx_controler_indices_partages(),
+# #575) et R12 (.xlsx_controler_ligne_entete(), si entete). Les autres regles
+# (R3 a R9, R11) viendront a leur place d'ordre (lots B a D de #574). Rend
+# list(rang, xml, partagees) : rang de la feuille lue pour openxlsx, XML de
+# la feuille et chaines de la table pour le lecteur interne.
+.xlsx_admettre <- function(chemin, d, entete = TRUE) {
+  # R0, archive. Extraction : aucune entree d'archive absolue ou remontant
+  # ("..", separateur / ou \) n'est ecrite (zip slip) ; une archive illisible
+  # est refusee comme un classeur sans feuille.
+  noms <- tryCatch(suppressWarnings(utils::unzip(chemin, list = TRUE)$Name),
+                   error = function(e) NULL)
+  if (is.null(noms)) stop("Classeur illisible : aucune feuille trouvee.")
+  if (any(.xlsx_chemin_sort(noms)))
+    stop("Classeur illisible : l'archive contient une entree dont le chemin sort du dossier de lecture (chemin absolu ou \"..\").")
+  # Table des chaines partagees ailleurs qu'en xl/sharedStrings.xml, ou en
+  # plusieurs exemplaires : openxlsx 4.2.9 prend toute entree dont le nom
+  # finit par sharedStrings.xml (grep("sharedStrings.xml$") sur les fichiers
+  # extraits), quel que soit son dossier, alors que les refus Q-F, P2 et X1
+  # ci-dessous ne lisent que xl/sharedStrings.xml. Mesure (#572) : table
+  # "1" puis "1.5" en segments <r> sans <rPr> placee en
+  # xl/strings/sharedStrings.xml, lue 1 par openxlsx (ok = TRUE), vide par le
+  # lecteur interne ; deux tables, erreur R brute d'openxlsx ("Expecting a
+  # single string value"). Refus sur les deux chemins, avant extraction,
+  # sur les noms d'entree de l'archive, meme motif qu'openxlsx (sensible a la
+  # casse, point non echappe) ; un nom a "/" ou "\" initial est deja refuse
+  # par .xlsx_chemin_sort(), un "\" interieur differe de xl/sharedStrings.xml
+  # et est refuse ici (decision du mainteneur du 14/11/2026, #572).
+  ss <- grepl("sharedStrings.xml$", noms)
+  if (sum(ss) > 1L || any(noms[ss] != "xl/sharedStrings.xml"))
+    .refus_lecture("Classeur illisible : l'archive contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml) ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.")
+  utils::unzip(chemin, exdir = d)
+  # R1 (#574) : xl/workbook.xml et xl/_rels/workbook.xml.rels, controles par
+  # .xlsx_texte() avant leur lecture par .xlsx_fichier_feuille() ; puis la
+  # feuille lue et la table des chaines partagees, si presente (lue par le
+  # controle de la ligne 1, texte des cellules, #522, et par le lecteur
+  # interne). Les quatre parties sont controlees avant R2.
+  feuille <- .xlsx_fichier_feuille(d)
+  xml <- .xlsx_texte(d, feuille$partie)
+  fs <- file.path(d, "xl", "sharedStrings.xml")
+  sx <- if (file.exists(fs)) .xlsx_texte(d, "xl/sharedStrings.xml")
+  # R2 (#574) : sections de balisage, feuille puis table
+  .xlsx_controler_balisage(xml, feuille$partie)
+  if (!is.null(sx)) .xlsx_controler_balisage(sx, "xl/sharedStrings.xml")
+  # Refus existants de la balise <c> et de l'attribut r (#487, #557), places
+  # par l'avis amont sous R3 et R4 (lot B de #574)
+  .xlsx_controler_cellules(xml)
+  partagees <- character(0)
+  if (!is.null(sx)) {
+    # Refus existants Q-F, P2 et X1 de la table, places par l'avis amont en
+    # tete de R9 (lot D de #574).
+    # Texte decoupe en segments <r> (prefixes ou non, avec ou sans blanc) sans
+    # aucune balise <rPr> litterale dans la table : openxlsx 4.2.9 et 4.2.5.2
+    # n'en lisent que le premier segment ("1" puis "1.5" lu 1, sans message ;
+    # <rPr/>, <rPr > ou <rPr a="1"> ne suffisent pas a l'eviter, mesure,
+    # #557). Refus sur les deux chemins, avant openxlsx (decision du
+    # mainteneur du 13/11/2026, Q-F), apres les controles de la feuille et
+    # avant celui de la ligne 1, qui lit ces chaines.
+    if (grepl(paste0("<", XML_PREFIXE_NOM, "r[[:space:]/>]"), sx) && !grepl("<rPr>", sx, fixed = TRUE))
+      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
+    # Balise <rPh .../> auto-fermante (indication phonetique sans <t>, hors
+    # schema ; attributs lus par XML_ATTRIBUTS_BALISE, ">" entre guillemets
+    # compris) : openxlsx 4.2.9 et 4.2.5.2 en perdent le texte jusqu'au
+    # </rPh> suivant ou la fin de la chaine ("1" puis "1.5" lu 1, sans
+    # message, <rPr> present ; mesure, #557, #572). Refus sur les deux
+    # chemins, avant openxlsx, apres Q-F (decision du mainteneur du
+    # 13/11/2026, P2, #572). Ni <phoneticPr .../>, ni <rPhX .../>, ni une
+    # balise prefixee <x:rPh .../> ne sont visees.
+    if (grepl(paste0("<rPh", XML_ATTRIBUTS_BALISE, "/>"), sx))
+      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une indication phonetique vide (balise <rPh .../> sans texte), forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
+    si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
+    # Chaine <si> formee de plusieurs balises <t> directes (<t>, <t ...>,
+    # <t/>, prefixees ou non : <x:t>), comptees une fois retires les blocs
+    # <r>...</r> et <rPh>...</rPh> et les balises <r/> et <rPh .../>,
+    # prefixes ou non (hors schema : un seul <t>, puis des <r>, puis des
+    # <rPh>) : openxlsx 4.2.9 n'en lit que le premier ("1" puis "1.5" lu 1,
+    # sans message, table sans <rPr> ; mesure, #572), le lecteur interne les
+    # concatene. Ni l'un ni l'autre ne lit le texte d'un <x:t> : "1" puis
+    # <x:t>1.5</x:t> etait lu 1 par les deux chemins (mesure, revue de
+    # l'audit, #572). Refus sur les deux chemins, avant openxlsx, apres P2
+    # (decision du mainteneur du 13/11/2026, X1, #572). Un <t> suivi de <r>
+    # (conforme) reste lu, de meme qu'un <t> dans un <x:r> (auparavant compte
+    # et refuse) ; <tab ...> et <x:tab ...> ne sont pas comptes. Une chaine
+    # <x:si> prefixee n'est pas extraite ici (limite consignee, mesure).
+    # Blocs retires en PCRE, point etendu aux fins de ligne ((?s), comme le
+    # point de TRE) : sous TRE, ".*?" suivi du groupe facultatif du prefixe
+    # de la balise fermante devient glouton (mesure : <r>..</r><t>1</t>
+    # <t>2</t><r>..</r> entierement retire, X1 manque).
+    pfx <- paste0("<", XML_PREFIXE_NOM)
+    fin <- paste0("</", XML_PREFIXE_NOM)
+    sit <- gsub(paste0(pfx, "rPh", XML_ATTRIBUTS_BALISE, "/>"), "", si)
+    sit <- gsub(paste0("(?s)", pfx, "rPh", XML_ATTRIBUTS_BALISE, ">.*?", fin, "rPh>"), "", sit, perl = TRUE)
+    sit <- gsub(paste0(pfx, "r", XML_ATTRIBUTS_BALISE, "/>"), "", sit)
+    sit <- gsub(paste0("(?s)", pfx, "r", XML_ATTRIBUTS_BALISE, ">.*?", fin, "r>"), "", sit, perl = TRUE)
+    nt <- lengths(regmatches(sit, gregexpr(paste0(pfx, "t", XML_ATTRIBUTS_BALISE, "/?>"), sit)))
+    if (any(nt > 1L))
+      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
+    partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
+  }
+  # Regle R10 (#575) : indice de chaine partagee dans les bornes de la table,
+  # avant le controle de la ligne 1 et avant tout appel a openxlsx, qui lit
+  # hors bornes (arret du processus R ou erreur R brute, mesure).
+  .xlsx_controler_indices_partages(xml, length(partagees))
+  # R12 : ligne 1 sans valeur (#522)
+  if (entete) .xlsx_controler_ligne_entete(xml, partagees)
+  list(rang = feuille$rang, xml = xml, partagees = partagees)
+}
+
 # Lit la premiere feuille (premiere du classeur, dans l'ordre de
 # xl/workbook.xml) d'un classeur .xlsx et renvoie un data.frame, la
 # premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
@@ -9013,6 +9270,12 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # locale de R propres au poste), elle n'est pas mesuree : limite consignee
 # (decision du mainteneur du 13/11/2026, #557 ; mesure facultative sur le
 # poste au passage KR).
+# Tous les refus ci-dessus, et ceux du contrat ferme (#574, #575), sont leves
+# par le controle unique d'admission .xlsx_admettre(), avant les deux
+# adaptateurs ; une partie du classeur qui n'est pas du texte UTF-8 valide,
+# ou qui porte un commentaire, une section CDATA, une instruction de
+# traitement ou une declaration de type de document, est refusee (regles R1
+# et R2, #574).
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
@@ -9020,97 +9283,12 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   d <- tempfile("unx_")
   on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
-  # Extraction : aucune entree d'archive absolue ou remontant ("..", separateur
-  # / ou \) n'est ecrite (zip slip) ; une archive illisible est refusee comme
-  # un classeur sans feuille.
-  noms <- tryCatch(suppressWarnings(utils::unzip(chemin, list = TRUE)$Name),
-                   error = function(e) NULL)
-  if (is.null(noms)) stop("Classeur illisible : aucune feuille trouvee.")
-  if (any(.xlsx_chemin_sort(noms)))
-    stop("Classeur illisible : l'archive contient une entree dont le chemin sort du dossier de lecture (chemin absolu ou \"..\").")
-  # Table des chaines partagees ailleurs qu'en xl/sharedStrings.xml, ou en
-  # plusieurs exemplaires : openxlsx 4.2.9 prend toute entree dont le nom
-  # finit par sharedStrings.xml (grep("sharedStrings.xml$") sur les fichiers
-  # extraits), quel que soit son dossier, alors que les refus Q-F, P2 et X1
-  # ci-dessous ne lisent que xl/sharedStrings.xml. Mesure (#572) : table
-  # "1" puis "1.5" en segments <r> sans <rPr> placee en
-  # xl/strings/sharedStrings.xml, lue 1 par openxlsx (ok = TRUE), vide par le
-  # lecteur interne ; deux tables, erreur R brute d'openxlsx ("Expecting a
-  # single string value"). Refus sur les deux chemins, avant extraction,
-  # sur les noms d'entree de l'archive, meme motif qu'openxlsx (sensible a la
-  # casse, point non echappe) ; un nom a "/" ou "\" initial est deja refuse
-  # par .xlsx_chemin_sort(), un "\" interieur differe de xl/sharedStrings.xml
-  # et est refuse ici (decision du mainteneur du 14/11/2026, #572).
-  ss <- grepl("sharedStrings.xml$", noms)
-  if (sum(ss) > 1L || any(noms[ss] != "xl/sharedStrings.xml"))
-    .refus_lecture("Classeur illisible : l'archive contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml) ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.")
-  utils::unzip(chemin, exdir = d)
-  feuille <- .xlsx_fichier_feuille(d)
-  xml <- .xlsx_texte(feuille$fichier)
-  .xlsx_controler_cellules(xml)
-  # table des chaines partagees, si presente : lue par le controle de la
-  # ligne 1 (texte des cellules, #522) et par le lecteur interne
-  fs <- file.path(d, "xl", "sharedStrings.xml")
-  partagees <- character(0)
-  if (file.exists(fs)) {
-    sx <- .xlsx_texte(fs)
-    # Texte decoupe en segments <r> (prefixes ou non, avec ou sans blanc) sans
-    # aucune balise <rPr> litterale dans la table : openxlsx 4.2.9 et 4.2.5.2
-    # n'en lisent que le premier segment ("1" puis "1.5" lu 1, sans message ;
-    # <rPr/>, <rPr > ou <rPr a="1"> ne suffisent pas a l'eviter, mesure,
-    # #557). Refus sur les deux chemins, avant openxlsx (decision du
-    # mainteneur du 13/11/2026, Q-F), apres les controles de la feuille et
-    # avant celui de la ligne 1, qui lit ces chaines.
-    if (grepl(paste0("<", XML_PREFIXE_NOM, "r[[:space:]/>]"), sx) && !grepl("<rPr>", sx, fixed = TRUE))
-      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient du texte decoupe en segments (balises <r>) sans aucune mise en forme (balise <rPr>) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
-    # Balise <rPh .../> auto-fermante (indication phonetique sans <t>, hors
-    # schema ; attributs lus par XML_ATTRIBUTS_BALISE, ">" entre guillemets
-    # compris) : openxlsx 4.2.9 et 4.2.5.2 en perdent le texte jusqu'au
-    # </rPh> suivant ou la fin de la chaine ("1" puis "1.5" lu 1, sans
-    # message, <rPr> present ; mesure, #557, #572). Refus sur les deux
-    # chemins, avant openxlsx, apres Q-F (decision du mainteneur du
-    # 13/11/2026, P2, #572). Ni <phoneticPr .../>, ni <rPhX .../>, ni une
-    # balise prefixee <x:rPh .../> ne sont visees.
-    if (grepl(paste0("<rPh", XML_ATTRIBUTS_BALISE, "/>"), sx))
-      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une indication phonetique vide (balise <rPh .../> sans texte), forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
-    si <- regmatches(sx, gregexpr("<si>.*?</si>", sx))[[1]]
-    # Chaine <si> formee de plusieurs balises <t> directes (<t>, <t ...>,
-    # <t/>, prefixees ou non : <x:t>), comptees une fois retires les blocs
-    # <r>...</r> et <rPh>...</rPh> et les balises <r/> et <rPh .../>,
-    # prefixes ou non (hors schema : un seul <t>, puis des <r>, puis des
-    # <rPh>) : openxlsx 4.2.9 n'en lit que le premier ("1" puis "1.5" lu 1,
-    # sans message, table sans <rPr> ; mesure, #572), le lecteur interne les
-    # concatene. Ni l'un ni l'autre ne lit le texte d'un <x:t> : "1" puis
-    # <x:t>1.5</x:t> etait lu 1 par les deux chemins (mesure, revue de
-    # l'audit, #572). Refus sur les deux chemins, avant openxlsx, apres P2
-    # (decision du mainteneur du 13/11/2026, X1, #572). Un <t> suivi de <r>
-    # (conforme) reste lu, de meme qu'un <t> dans un <x:r> (auparavant compte
-    # et refuse) ; <tab ...> et <x:tab ...> ne sont pas comptes. Une chaine
-    # <x:si> prefixee n'est pas extraite ici (limite consignee, mesure).
-    # Blocs retires en PCRE, point etendu aux fins de ligne ((?s), comme le
-    # point de TRE) : sous TRE, ".*?" suivi du groupe facultatif du prefixe
-    # de la balise fermante devient glouton (mesure : <r>..</r><t>1</t>
-    # <t>2</t><r>..</r> entierement retire, X1 manque).
-    pfx <- paste0("<", XML_PREFIXE_NOM)
-    fin <- paste0("</", XML_PREFIXE_NOM)
-    sit <- gsub(paste0(pfx, "rPh", XML_ATTRIBUTS_BALISE, "/>"), "", si)
-    sit <- gsub(paste0("(?s)", pfx, "rPh", XML_ATTRIBUTS_BALISE, ">.*?", fin, "rPh>"), "", sit, perl = TRUE)
-    sit <- gsub(paste0(pfx, "r", XML_ATTRIBUTS_BALISE, "/>"), "", sit)
-    sit <- gsub(paste0("(?s)", pfx, "r", XML_ATTRIBUTS_BALISE, ">.*?", fin, "r>"), "", sit, perl = TRUE)
-    nt <- lengths(regmatches(sit, gregexpr(paste0(pfx, "t", XML_ATTRIBUTS_BALISE, "/?>"), sit)))
-    if (any(nt > 1L))
-      .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
-    partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
-  }
-  # Regle R10 (#575) : indice de chaine partagee dans les bornes de la table,
-  # avant le controle de la ligne 1 et avant tout appel a openxlsx, qui lit
-  # hors bornes (arret du processus R ou erreur R brute, mesure).
-  .xlsx_controler_indices_partages(xml, length(partagees))
-  if (entete) .xlsx_controler_ligne_entete(xml, partagees)
+  adm <- .xlsx_admettre(chemin, d, entete)
+  xml <- adm$xml; partagees <- adm$partagees
   # openxlsx lit la feuille resolue par son rang (feuilles de graphique
   # placees avant passees, #487).
   if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = feuille$rang, colNames = entete,
+    return(openxlsx::read.xlsx(chemin, sheet = adm$rang, colNames = entete,
                                skipEmptyRows = FALSE, skipEmptyCols = FALSE,
                                na.strings = character(0), sep.names = " "))
   # r et t lus dans la seule balise ouvrante, reference en majuscules
