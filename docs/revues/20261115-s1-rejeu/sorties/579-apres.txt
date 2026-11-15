@@ -1,0 +1,62 @@
+[579-b] chemin = interne
+  colonne xt : cellules t="b" valeur 1 
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+  [code de sortie : 0]
+
+[579-b] chemin = openxlsx 4.2.5.2
+  colonne xt : cellules t="b" valeur 1 
+  classes colonnes : t=numeric xt=logical yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+  [code de sortie : 0]
+
+[579-txt] chemin = interne
+  colonne xt : chaines en ligne "TRUE" 
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+  [code de sortie : 0]
+
+[579-txt] chemin = openxlsx 4.2.5.2
+  colonne xt : chaines en ligne "TRUE" 
+  classes colonnes : t=numeric xt=logical yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+  [code de sortie : 0]
+
+[579-tri] chemin = interne
+  classe de j4 : character 
+  engine_lire_triangle : ok = FALSE  
+  erreurs :
+    Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).
+  [code de sortie : 0]
+
+[579-tri] chemin = openxlsx 4.2.5.2
+  classe de j4 : logical 
+  engine_lire_triangle : ok = FALSE  
+  erreurs :
+    Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).
+  [code de sortie : 0]
+
+[579-df] chemin = interne
+  engine_lire_donnees_csv : ok = FALSE  xt = NA NA NA NA NA NA NA NA 
+  read.csv() par defaut : classe de xt = logical 
+  engine_lire_donnees_csv : ok = FALSE  xt = NA NA NA NA NA NA NA NA 
+  [code de sortie : 0]
+
+[579-df] chemin = openxlsx 4.2.5.2
+  engine_lire_donnees_csv : ok = FALSE  xt = NA NA NA NA NA NA NA NA 
+  read.csv() par defaut : classe de xt = logical 
+  engine_lire_donnees_csv : ok = FALSE  xt = NA NA NA NA NA NA NA NA 
+  [code de sortie : 0]
+
