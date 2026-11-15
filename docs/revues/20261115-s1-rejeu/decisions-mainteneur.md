@@ -31,3 +31,16 @@
 |---|---|---|
 | D-S1-12 | Visa du tableau avant / après du lot C (R7, R8) : valeurs fausses corrigées (`t="d"`, `0x10`, `1&#48;4.2`, `1&lt;2`, `1e`, `104,2`, `t="b"` 2, `t="s"` sans `<v>` ou avec `<v/>`, `t="S"`) ; formes lues juste (σ_USP 0.1114524114) refusées : `t="N"`, `t="Str"`, indice de chaîne `" 1"`, `1.0`, `+1`, `1e0`, `<is>` sans `t="inlineStr"` ou avec `t="n"` ou `t="str"`, `inlineStr` avec `<v>`, `t="e"` hors du tableau | **Visa accordé** |
 | D-S1-13 | Portée de D-S1-2 relevée par l'audit léger du lot C : `openxlsx::write.xlsx()` écrit `t="e"` pour un NA (`keepNA = TRUE`, « #N/A ») et, par défaut, pour Inf, -Inf, NaN (« #NUM! ») ; un tel classeur, lu avant si la cellule est hors des colonnes lues, est refusé | **D-S1-2 maintenue** dans toute sa portée : toute cellule en erreur refusée, quelle que soit sa place ; changement porté au tableau avant / après du lot C (visa D-S1-12) |
+
+## Lot D de #574 et suite de la branche (15/11/2026)
+
+> *Réponses du mainteneur aux questions posées le 15/11/2026 sur le compte rendu du codeur du lot D (règle R9), avant l'avis d'`actuary-approfondi` (`actuary-avis-lot-d.md`), le mainteneur ne pouvant plus répondre avant la session suivante.*
+
+| N° | Question | Décision |
+|---|---|---|
+| D-S1-14 | Visa des formes lues juste (σ_USP 0.2005042338 sur les deux chemins) et désormais refusées par R9, non énumérées au § 8 : `<rPhX/>`, `<tab/>`, `<tabx/>`, `<x:tab/>`, `<t>` dans `<x:r>` (deux témoins de #572), texte hors de `<t>`, `<SI>`, `<t>` après `<rPh>` ; liste fermée des éléments de `<rPr>` (`XML_ENFANTS_RPR`, 15 éléments, à confronter au corpus Excel / LibreOffice de l'étape 10) | **Visa accordé** ; liste fermée gardée jusqu'au corpus |
+| D-S1-15 | Second `<rPh>` dans une même `<si>` (lu « 117 » au lieu de « 11 » par `openxlsx` 4.2.5.2 si la table porte `<rPr>`) | **Règle conditionnelle** : refus seulement si la table porte `<rPr>` |
+| D-S1-16 | Balises préfixées dans `<extLst>` de la table des chaînes partagées | **Refus** (lettre de l'avis amont : aucune balise préfixée dans toute la table), à revoir sur le corpus de l'étape 10 |
+| D-S1-17 | Corrections demandées en l'absence du mainteneur par `actuary` ou l'audit, pour le lot D ou #570 | **Délégation** : réalisées et commitées sans le mainteneur si elles ne refusent aucune forme lue juste de plus et ne changent ni σ_USP ni verdict des références ; une reprise par constat ; hors de ces bornes, ou désaccord d'`actuary` avec D-S1-14 à D-S1-16 : arrêt, sauvegarde et handoff |
+
+> *Note de la session sur `actuary-avis-lot-d.md`, rendu après D-S1-14 à D-S1-17. Pas de désaccord avec ces décisions : Q1 à Q6 confirment ou acceptent (Q2 conditionnelle = D-S1-15, Q3 refus = D-S1-16). Les témoins `<t>` dans `<x:r>` de #572, que l'avis demande de nommer au visa comme renversement du correctif du 14/11, l'étaient dans la question de D-S1-14. Réserves (a), commentaire de `XML_ENFANTS_RPR`, et (b), `<phoneticPr></phoneticPr>` admise, sont réalisées sous D-S1-17 (aucun refus nouveau). **Q7 reste ouverte** : le refus ciblé des références numériques de caractère désignant un caractère ASCII imprimable refuserait une forme lue juste par le chemin interne ; il sort des bornes de D-S1-17 et attend le mainteneur (handoff). La forme est antérieure au lot D et sans lien avec R9.*
