@@ -1,0 +1,866 @@
+### Sonde sonde_574_lot_d.R, moteur 1c206a7 (avant), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[574-1-xsi-mele] chemin = interne ; moteur = engine_avant.R
+  table : <x:si><x:t>9</x:t></x:si><si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 9
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[574-2-r-puis-xrph] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><x:rPh sb="0" eb="1"><t>7</t></x:rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[xsi-seul] chemin = interne ; moteur = engine_avant.R
+  table : <x:si><x:t>11.5</x:t></x:si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 0 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[xrph-auto] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:rPh sb="0" eb="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[xrph-apres-t] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:rPh sb="0" eb="1"><t>7</t></x:rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-auto-indice-0] chemin = interne ; moteur = engine_avant.R
+  table : <si/><si><t>9</t></si>
+  B2 : indice 0 ; attendu : (chaine vide)
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "9" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2001456831
+
+  [code de sortie : 0]
+
+[si-auto-indice-1] chemin = interne ; moteur = engine_avant.R
+  table : <si/><si><t>9</t></si>
+  B2 : indice 1 ; attendu : 9
+  duree de lecture : 0.12 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rph-second-table-rpr] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[rph-sans-t] chemin = interne ; moteur = engine_avant.R
+  table : <si><rPh sb="0" eb="1"><t>1</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si>
+  B2 : indice 0 ; attendu : (chaine vide)
+  duree de lecture : 0.14 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[t-vide-dans-r] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t/></r><r><t>5</t></r></si>
+  B2 : indice 0 ; attendu : 15
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "15" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1989114678
+
+  [code de sortie : 0]
+
+[rpr-element-tz] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b/><tz val="1">9</tz></rPr><t>1</t></r></si>
+  B2 : indice 0 ; attendu : 1
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "1" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1700579153
+
+  [code de sortie : 0]
+
+[rphx] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPhX sb="0"/><phoneticPr fontId="1" type="noConversion"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[tab] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><tab/><tabx a="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[x-r-t] chemin = interne ; moteur = engine_avant.R
+  table : <si><x:r><x:rPr><x:b/></x:rPr><t>1</t></x:r><x:r><t>1.5</t></x:r></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.17 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[x-r-x-t] chemin = interne ; moteur = engine_avant.R
+  table : <si><x:r><x:rPr><x:b/></x:rPr><x:t>1</x:t></x:r><x:r><x:t>1.5</x:t></x:r></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[x-tab] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:tab/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-blanc] chemin = interne ; moteur = engine_avant.R
+  table : <si ><t>11.5</t></si><si><t>9</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "9" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2001456831
+
+  [code de sortie : 0]
+
+[si-fermante-blanc] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si ><si><t>9</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.14 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[texte-hors-t] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t>9</si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-dans-extlst] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>9</t></si><extLst><ext uri="u"><si><t>7</t></si></ext></extLst><si><t>11.5</t></si>
+  B2 : indice 1 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "7" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1984143656
+
+  [code de sortie : 0]
+
+[prefixe-dans-extlst] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u"><x:a/></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[SI-majuscules] chemin = interne ; moteur = engine_avant.R
+  table : <SI><t>9</t></SI><si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[t-apres-rph] chemin = interne ; moteur = engine_avant.R
+  table : <si><rPh sb="0" eb="1"><t>Z</t></rPh><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-simple] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.16 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-riche-excel] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b/><sz val="11"/><color rgb="FFFF0000"/><rFont val="Calibri"/><family val="2"/><scheme val="minor"/></rPr><t>1</t></r><r><rPr><sz val="11"/></rPr><t xml:space="preserve">1.5</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.14 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-phonetique] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>ZZ</t></rPh><phoneticPr fontId="1" type="noConversion"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-rph-second-sans-rpr] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-preserve] chemin = interne ; moteur = engine_avant.R
+  table : <si><t xml:space="preserve">11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-vides-indices] chemin = interne ; moteur = engine_avant.R
+  table : <si></si><si><t/></si><si>\n <t>11.5</t>\n</si>
+  B2 : indice 2 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-extlst] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u"><a b="1">z</a></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-phoneticpr-ouvert-ferme] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><phoneticPr fontId="1" type="noConversion"></phoneticPr></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[q1-texte-dans-b] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b>9</b></rPr><t>1</t></r></si>
+  B2 : indice 0 ; attendu : 1
+  duree de lecture : 0.16 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "1" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1700579153
+
+  [code de sortie : 0]
+
+[q2-japonais-rpr] chemin = interne ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh><phoneticPr fontId="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[q2-rpr-dans-extlst] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si><extLst><ext uri="u"><rPr></rPr></ext></extLst>
+  B2 : indice 0 ; attendu : 11
+  duree de lecture : 0.14 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[q3-ext-x14] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u" xmlns:x14="urn:x14"><x14:a/></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.16 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[574-4-n1000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 1000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 0.37 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n2000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 2000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 1.15 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n4000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 4000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 3.99 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n16000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 57.31 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x1-rph-guillemet-n16000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <rPh a=", puis <si> a <rPr> ; attendu : refus
+  duree de lecture : 69.64 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x1-r-guillemet-n16000] chemin = interne ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <r a=", puis <si> a <rPr> ; attendu : refus
+  duree de lecture : 27.75 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x-sst-racine] chemin = interne ; moteur = engine_avant.R
+  table : <x:sst><x:si><x:t>11.5</x:t></x:si></x:sst> ; attendu : 11.5
+  duree de lecture : 0.09 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 0 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = interne ; moteur = engine_avant.R
+  duree de lecture : 0.08 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-write] chemin = interne ; moteur = engine_avant.R
+  duree de lecture : 0.09 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r10-cinq-positions] chemin = interne ; moteur = engine_avant.R
+  R10, 100 000 cellules hors de la table : 6.73 s ; positions : (A1 : indice 1, A2 : indice 2, A3 : indice 3, A4 : indice 4, A5 : indice 5 et 99995 autre(s) 
+
+  [code de sortie : 0]
+
+### Chemin openxlsx 4.2.5.2 (R_LIBS)
+[574-1-xsi-mele] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <x:si><x:t>9</x:t></x:si><si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 9
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[574-2-r-puis-xrph] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><x:rPh sb="0" eb="1"><t>7</t></x:rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.57" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2004928854
+
+  [code de sortie : 0]
+
+[xsi-seul] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <x:si><x:t>11.5</x:t></x:si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 0 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[xrph-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:rPh sb="0" eb="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[xrph-apres-t] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:rPh sb="0" eb="1"><t>7</t></x:rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-auto-indice-0] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si/><si><t>9</t></si>
+  B2 : indice 0 ; attendu : (chaine vide)
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "9" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2001456831
+
+  [code de sortie : 0]
+
+[si-auto-indice-1] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si/><si><t>9</t></si>
+  B2 : indice 1 ; attendu : 9
+  duree de lecture : 0.10 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rph-second-table-rpr] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "117" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1170143382
+
+  [code de sortie : 0]
+
+[rph-sans-t] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><rPh sb="0" eb="1"><t>1</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si>
+  B2 : indice 0 ; attendu : (chaine vide)
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "7" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1984143656
+
+  [code de sortie : 0]
+
+[t-vide-dans-r] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t/></r><r><t>5</t></r></si>
+  B2 : indice 0 ; attendu : 15
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "1" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1700579153
+
+  [code de sortie : 0]
+
+[rpr-element-tz] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b/><tz val="1">9</tz></rPr><t>1</t></r></si>
+  B2 : indice 0 ; attendu : 1
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "91" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1110337313
+
+  [code de sortie : 0]
+
+[rphx] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPhX sb="0"/><phoneticPr fontId="1" type="noConversion"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[tab] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><tab/><tabx a="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[x-r-t] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><x:r><x:rPr><x:b/></x:rPr><t>1</t></x:r><x:r><t>1.5</t></x:r></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[x-r-x-t] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><x:r><x:rPr><x:b/></x:rPr><x:t>1</x:t></x:r><x:r><x:t>1.5</x:t></x:r></si><si><r><rPr><b/></rPr><t>a</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[x-tab] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><x:tab/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-blanc] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si ><t>11.5</t></si><si><t>9</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "9" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2001456831
+
+  [code de sortie : 0]
+
+[si-fermante-blanc] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si ><si><t>9</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[texte-hors-t] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t>9</si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.15 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[si-dans-extlst] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>9</t></si><extLst><ext uri="u"><si><t>7</t></si></ext></extLst><si><t>11.5</t></si>
+  B2 : indice 1 ; attendu : 11.5
+  duree de lecture : 0.10 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "7" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1984143656
+
+  [code de sortie : 0]
+
+[prefixe-dans-extlst] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u"><x:a/></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[SI-majuscules] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <SI><t>9</t></SI><si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[t-apres-rph] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><rPh sb="0" eb="1"><t>Z</t></rPh><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-simple] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-riche-excel] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b/><sz val="11"/><color rgb="FFFF0000"/><rFont val="Calibri"/><family val="2"/><scheme val="minor"/></rPr><t>1</t></r><r><rPr><sz val="11"/></rPr><t xml:space="preserve">1.5</t></r></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-phonetique] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>ZZ</t></rPh><phoneticPr fontId="1" type="noConversion"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.14 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-rph-second-sans-rpr] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-preserve] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t xml:space="preserve">11.5</t></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-vides-indices] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si></si><si><t/></si><si>\n <t>11.5</t>\n</si>
+  B2 : indice 2 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-extlst] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u"><a b="1">z</a></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[ok-phoneticpr-ouvert-ferme] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><phoneticPr fontId="1" type="noConversion"></phoneticPr></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[q1-texte-dans-b] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b>9</b></rPr><t>1</t></r></si>
+  B2 : indice 0 ; attendu : 1
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "1" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1700579153
+
+  [code de sortie : 0]
+
+[q2-japonais-rpr] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh><phoneticPr fontId="1"/></si>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.57" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2004928854
+
+  [code de sortie : 0]
+
+[q2-rpr-dans-extlst] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si><extLst><ext uri="u"><rPr></rPr></ext></extLst>
+  B2 : indice 0 ; attendu : 11
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "117" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1170143382
+
+  [code de sortie : 0]
+
+[q3-ext-x14] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11.5</t></si><extLst><ext uri="u" xmlns:x14="urn:x14"><x14:a/></ext></extLst>
+  B2 : indice 0 ; attendu : 11.5
+  duree de lecture : 0.11 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11.5" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005042338
+
+  [code de sortie : 0]
+
+[574-4-n1000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 1000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 0.34 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n2000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 2000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 1.02 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n4000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 4000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 3.61 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[574-4-n16000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <x:rPh sb="0" eb="1"> non fermes ; attendu : refus
+  duree de lecture : 54.95 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x1-rph-guillemet-n16000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <rPh a=", puis <si> a <rPr> ; attendu : refus
+  duree de lecture : 70.46 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x1-r-guillemet-n16000] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <si><t>11</t> suivi de 16000 <r a=", puis <si> a <rPr> ; attendu : refus
+  duree de lecture : 29.24 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "11" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.2005553421
+
+  [code de sortie : 0]
+
+[x-sst-racine] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  table : <x:sst><x:si><x:t>11.5</x:t></x:si></x:sst> ; attendu : 11.5
+  duree de lecture : 0.09 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 0 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-write] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  duree de lecture : 0.08 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r10-cinq-positions] chemin = openxlsx 4.2.5.2 ; moteur = engine_avant.R
+  R10, 100 000 cellules hors de la table : 7.09 s ; positions : (A1 : indice 1, A2 : indice 2, A3 : indice 3, A4 : indice 4, A5 : indice 5 et 99995 autre(s) 
+
+  [code de sortie : 0]
+
