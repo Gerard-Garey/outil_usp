@@ -8270,10 +8270,6 @@ engine_lire_triangle <- function(df) {
   while (i > 0) { r <- (i - 1) %% 26; out <- c(LETTERS[r + 1], out); i <- (i - 1) %/% 26 }
   paste(out, collapse = "")
 }
-.lettre_col <- function(s) {                       # "AA" -> 27
-  ch <- utf8ToInt(toupper(s)) - 64L
-  sum(ch * 26^rev(seq_along(ch) - 1))
-}
 .xml_echap <- function(x) {
   x <- gsub("&", "&amp;", x, fixed = TRUE)
   x <- gsub("<", "&lt;", x, fixed = TRUE)
@@ -8669,14 +8665,12 @@ engine_ecrire_csv <- function(df, chemin) {
 # puis decodes.
 # Le texte phonetique (<rPh>) d'une chaine n'est pas lu (.xml_textes()), comme
 # par openxlsx pour une chaine partagee (mesure, #557). Une chaine en ligne
-# qui porte <rPh> est lue entiere ici ; openxlsx 4.2.9 en perd l'en-tete (nom
-# de colonne X<col>), qui est alors refuse en aval comme colonne manquante :
-# limite consignee, sans valeur fausse sur aucun des deux chemins.
+# qui porte <rPh> (ou <r>) est refusee avant la lecture par la regle R3
+# (.xlsx_controler_structure(), #574 : <is> ne porte qu'un <t>) ; avant R3,
+# elle etait lue entiere ici, et openxlsx 4.2.9 en perdait l'en-tete (nom
+# de colonne X<col>) et rendait NA la cellule du corps (mesure, #557).
 # Sans ce retrait, ses <t> seraient concatenes au texte ("xt" suivi du
-# phonetique "ZZ" lu "xtZZ", "11" suivi de "7" lu "117"). Dans le corps,
-# openxlsx 4.2.9 et 4.2.5.2 rendent NA une chaine en ligne qui porte <rPh>, cellule refusee en
-# aval (series : valeur non numerique de xt ; triangle : cellule observee
-# manquante ; mesure, #557).
+# phonetique "ZZ" lu "xtZZ", "11" suivi de "7" lu "117").
 # Retrait en deux temps : d'abord les balises <rPh .../> auto-fermantes (hors
 # schema, sans texte), puis les blocs <rPh ...>...</rPh> ; un seul motif
 # prenait <rPh sb="0" eb="0"/> pour une balise ouvrante et retirait le texte
@@ -8754,21 +8748,220 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 .xlsx_chemin_sort <- function(x)
   grepl("(^|[/\\\\])\\.\\.([/\\\\]|$)|^[/\\\\]|^[A-Za-z]:", x)
 
+# Balise XML (ouvrante, fermante ou vide) d'une partie du classeur : "<",
+# puis des caracteres hors "<", ">" et guillemets, et des valeurs entre
+# guillemets doubles ou apostrophes (sans "<", qui ne figure dans aucune
+# valeur d'attribut de XML bien forme ; un ">" y est admis par le decoupage),
+# puis ">". Quantificateurs possessifs (PCRE) : aucun retour arriere, cout
+# lineaire en la longueur de la partie (regle R3, #574).
+XML_MOTIF_BALISE <- "<[^<>\"']*+(?:(?:\"[^\"<]*+\"|'[^'<]*+')[^<>\"']*+)*+>"
+
+# Decoupage d'une partie XML en balises (regle R3 du contrat ferme, #574) :
+# un seul gregexpr() sur le texte declare "bytes" (positions en octets, sans
+# erreur sur un caractere non ASCII ; R1 a deja verifie l'UTF-8). Renvoie
+# list(y, deb, fin, tok, genre, nom, orphelin) : y, le texte en octets ; deb
+# et fin, premier et dernier octet de chaque balise ; tok, son texte (declare
+# UTF-8) ; genre "o" (ouvrante), "f" (fermante, "</...") ou "v" (vide,
+# ".../>") ; nom, le nom de l'element tel qu'ecrit (prefixe compris, "x:c") ;
+# orphelin, la position de chaque "<" qui n'ouvre aucune balise (XML mal
+# forme : "<" dans un texte ou dans une valeur d'attribut, guillemet non
+# ferme).
+.xlsx_jetons <- function(x) {
+  y <- x
+  Encoding(y) <- "bytes"
+  m <- gregexpr(XML_MOTIF_BALISE, y, perl = TRUE, useBytes = TRUE)[[1L]]
+  deb <- if (m[1L] == -1L) integer(0) else as.integer(m)
+  fin <- deb + (if (m[1L] == -1L) integer(0) else attr(m, "match.length")) - 1L
+  # (partie sans aucune balise : substring() refuse des bornes vides, erreur
+  # R "invalid substring arguments", constat de l'audit leger du lot B)
+  tok <- if (length(deb)) substring(y, deb, fin) else character(0)
+  Encoding(tok) <- "UTF-8"
+  # (motif perl et non fixed = TRUE : gregexpr() a motif fixe est de cout
+  # quadratique en le nombre de correspondances, mesure R 4.3.3 : 20,8 s
+  # pour 256 000 "<", contre 0,06 s en perl)
+  lt <- gregexpr("<", y, perl = TRUE, useBytes = TRUE)[[1L]]
+  lt <- if (lt[1L] == -1L) integer(0) else as.integer(lt)
+  ferm <- startsWith(tok, "</")
+  genre <- ifelse(ferm, "f", ifelse(endsWith(tok, "/>"), "v", "o"))
+  nom <- sub("^</?([^ \t\r\n/>\"'=]*).*$", "\\1", tok, useBytes = TRUE)
+  Encoding(nom) <- "UTF-8"
+  list(y = y, deb = deb, fin = fin, tok = tok, genre = genre, nom = nom,
+       orphelin = lt[!lt %in% deb])
+}
+
+# Imbrication d'une suite de balises (genre, nom : vecteurs de .xlsx_jetons(),
+# dans l'ordre du texte), sans boucle sur les balises (regle R3, #574) :
+# profondeur par somme cumulee, niveau de chaque element (ouvrante ou vide :
+# profondeur avant + 1 ; fermante : profondeur avant), parent (derniere
+# ouvrante du niveau inferieur qui precede) et fermante appariee a chaque
+# ouvrante (derniere ouvrante du meme niveau qui precede la fermante). La
+# suite est bien imbriquee si et seulement si chaque fermante trouve une
+# ouvrante de meme nom, chaque ouvrante une seule fermante, et la profondeur
+# finale est nulle. Recherches par findInterval() sur une cle niveau x (n + 1)
+# + indice : cout O(n log n), quelle que soit la profondeur (16 000 balises
+# non fermees comprises). Renvoie list(niv, parent, ferme, faute) : ferme[k],
+# indice de la fermante de l'ouvrante k (NA sinon) ; faute, indice de la
+# balise a citer (ouvrante restee ouverte, ou fermante sans ouvrante de
+# meme nom), NA si la suite est bien imbriquee.
+.xlsx_imbrication <- function(genre, nom) {
+  n <- length(genre)
+  delta <- ifelse(genre == "o", 1L, ifelse(genre == "f", -1L, 0L))
+  avant <- cumsum(delta) - delta
+  niv <- ifelse(genre == "f", avant, avant + 1L)
+  o <- which(genre == "o")
+  cle <- niv[o] * (n + 1) + o
+  ord <- order(cle)
+  cle <- cle[ord]; o <- o[ord]
+  # derniere ouvrante de niveau L d'indice < i (NA sinon)
+  derniere <- function(L, i) {
+    k <- findInterval(L * (n + 1) + i - 0.5, cle)
+    r <- rep(NA_integer_, length(i))
+    a <- k > 0L
+    r[a] <- o[k[a]]
+    r[a][niv[r[a]] != L[a]] <- NA_integer_
+    r
+  }
+  idx <- seq_len(n)
+  parent <- derniere(niv - 1L, idx)
+  f <- which(genre == "f")
+  app <- derniere(niv[f], f)
+  bad <- f[is.na(app) | nom[pmax(app, 1L)] != nom[f] | duplicated(app) & !is.na(app)]
+  ferme <- rep(NA_integer_, n)
+  okf <- !f %in% bad
+  ferme[app[okf]] <- f[okf]
+  orph <- which(genre == "o" & is.na(ferme))
+  # balise citee : a la premiere fermante fautive, l'ouvrante qu'elle
+  # devait fermer si elle existe (balise restee ouverte : <x:rPh> non
+  # ferme dans une chaine en ligne), sinon la fermante ; a defaut, la
+  # premiere ouvrante jamais fermee
+  faute <- if (length(bad)) { k <- which(f == min(bad)); if (is.na(app[k])) f[k] else app[k] }
+           else if (length(orph)) min(orph) else NA_integer_
+  list(niv = niv, parent = parent, ferme = ferme, faute = faute)
+}
+
 # Cellules <c> du XML d'une feuille, regle unique du controle de la ligne
-# d'en-tete et du lecteur interne (#487, #522) : cellule vide (<c .../>) ou
-# avec contenu (<c ...>...</c>). Les attributs r et t sont lus dans la seule
+# d'en-tete et du lecteur interne (#487, #522), lues sur le decoupage en
+# balises (.xlsx_jetons(), #574) : toute balise de nom c (<c .../> ou
+# <c ...>...</c>). Les attributs r et t sont lus dans la seule
 # balise ouvrante (.xlsx_attribut(), nom entier : un attribut prefixe x:r
 # n'est pas r), jamais dans le texte de la cellule (<is><t>x r="B9"</t></is>
 # ne deplace plus la valeur). La reference r est
-# mise en majuscules : r="a1" designe la cellule A1 (les references de
-# cellule ne distinguent pas la casse). Renvoie list(cellules, balise, ref,
-# typ) ; ref et typ valent NA pour un attribut absent.
-.xlsx_cellules <- function(xml) {
-  cellules <- regmatches(xml, gregexpr("<c[[:space:]][^>]*?/>|<c[[:space:]][^>]*?>.*?</c>", xml))[[1]]
-  balise <- regmatches(cellules, regexpr("^<c[^>]*>", cellules))
-  list(cellules = cellules, balise = balise,
-       ref = toupper(vapply(balise, .xlsx_attribut, "", nom = "r", local = FALSE, USE.NAMES = FALSE)),
-       typ = vapply(balise, .xlsx_attribut, "", nom = "t", local = FALSE, USE.NAMES = FALSE))
+# mise en majuscules (en appel direct, r="a1" designe la cellule A1 ;
+# engine_lire_xlsx() refuse les minuscules avant, decision D-S1-9). La valeur (<v>) et la chaine en
+# ligne (<is>) sont les enfants directs de la cellule : premiere balise
+# ouvrante v (resp. is) placee dans la cellule a la profondeur de la cellule
+# + 1 (une balise <v> du contenu d'un <extLst> n'est pas la valeur). Sur une
+# feuille admise par la regle R3 (.xlsx_controler_structure()), chaque
+# cellule porte au plus un <v> et un <is>, sans balise dans <v> ni texte
+# hors de <t> dans <is>. Renvoie list(cellules, balise, ref, typ, r_brut, v,
+# is, is_contenu, deb, fin_ouv, fin, v_deb, v_fin, is_deb, is_fin, t_fin) :
+# ref et typ valent NA pour un attribut absent ; r_brut, la reference telle
+# qu'ecrite ; v, le texte entre <v ...> et </v> (NA sans <v> ni pour <v/>) ;
+# is, vrai si la cellule porte <is> ; is_contenu, le texte entre <is> et
+# </is> ; positions en octets dans la partie : deb (premier octet de la
+# cellule), fin_ouv (dernier de sa balise ouvrante), fin (dernier de la
+# cellule), v_deb et v_fin (debut de <v ...> et de </v>), is_deb et is_fin
+# (debut de <is> et dernier octet de </is>), t_fin (debut du </t> qui ferme
+# le premier <t> de <is>). j : decoupage deja fait de xml (.xlsx_jetons()).
+.xlsx_cellules <- function(xml, j = .xlsx_jetons(xml)) {
+  g <- j$genre; nm <- j$nom; n <- length(g)
+  delta <- ifelse(g == "o", 1L, ifelse(g == "f", -1L, 0L))
+  avant <- cumsum(delta) - delta
+  ic <- which(nm == "c" & g != "f")
+  fc <- which(nm == "c" & g == "f")
+  # suivante(i, idx) : premier element de idx strictement superieur a i (NA)
+  suivante <- function(i, idx) {
+    k <- findInterval(i, idx) + 1L
+    r <- rep(NA_integer_, length(i))
+    a <- !is.na(k) & k <= length(idx)
+    r[a] <- idx[k[a]]
+    r
+  }
+  fe <- ifelse(g[ic] == "v", ic, suivante(ic, fc))
+  fe[is.na(fe)] <- ic[is.na(fe)]
+  # enfant direct de nom e, ouvrant (non vide) : premier par cellule
+  enfant <- function(e) {
+    cand <- which(nm == e & g == "o")
+    k <- findInterval(cand, ic)
+    a <- k > 0L
+    cand <- cand[a]; k <- k[a]
+    ok <- cand < fe[k] & avant[cand] == avant[ic[k]] + 1L
+    cand <- cand[ok]; k <- k[ok]
+    r <- rep(NA_integer_, length(ic))
+    prem <- !duplicated(k)
+    r[k[prem]] <- cand[prem]
+    r
+  }
+  iv <- enfant("v"); ii <- enfant("is")
+  fv <- suivante(iv, which(nm == "v" & g == "f"))
+  fi <- suivante(ii, which(nm == "is" & g == "f"))
+  it <- suivante(ii, which(nm == "t" & g == "o"))
+  it[!is.na(it) & (is.na(fi) | it > fi)] <- NA_integer_
+  ft <- suivante(it, which(nm == "t" & g == "f"))
+  extrait <- function(a, b) {
+    r <- rep(NA_character_, length(a))
+    ok <- !is.na(a) & !is.na(b) & b > a
+    if (any(ok)) {
+      s <- substring(j$y, j$fin[a[ok]] + 1L, j$deb[b[ok]] - 1L)
+      Encoding(s) <- "UTF-8"
+      r[ok] <- s
+    }
+    r
+  }
+  cellules <- if (length(ic)) substring(j$y, j$deb[ic], j$fin[fe]) else character(0)
+  Encoding(cellules) <- "UTF-8"
+  balise <- j$tok[ic]
+  r_brut <- vapply(balise, .xlsx_attribut, "", nom = "r", local = FALSE, USE.NAMES = FALSE)
+  pos <- function(i, champ) ifelse(is.na(i), NA_integer_, j[[champ]][pmax(i, 1L)])
+  list(cellules = cellules, balise = balise, ref = toupper(r_brut),
+       typ = vapply(balise, .xlsx_attribut, "", nom = "t", local = FALSE, USE.NAMES = FALSE),
+       r_brut = r_brut, v = extrait(iv, fv), is = !is.na(ii),
+       is_contenu = ifelse(is.na(ii), NA_character_, ifelse(is.na(fi), "", extrait(ii, fi))),
+       deb = j$deb[ic], fin_ouv = j$fin[ic], fin = j$fin[fe],
+       v_deb = pos(iv, "deb"), v_fin = pos(fv, "deb"),
+       is_deb = pos(ii, "deb"), is_fin = pos(fi, "fin"), t_fin = pos(ft, "deb"))
+}
+
+# Texte cite dans un refus du contrat ferme (#574 ; avis amont d'actuary, par.
+# 2) : tronque a 20 caracteres suivis de "...", puis echappe
+# (.echapper_texte()).
+.xlsx_citer <- function(s) {
+  long <- !is.na(s) & nchar(s) > 20L
+  s[long] <- paste0(substr(s[long], 1L, 20L), "...")
+  .echapper_texte(s)
+}
+
+# Liste des positions d'un refus du contrat ferme (#574) : cle, cle brute
+# (non citee) de chaque position, dans l'ordre voulu ; etiq(i), texte cite
+# des positions d'indices i. Seules les cinq premieres cles distinctes sont
+# citees (.liste_positions() n'en montre pas plus, puis "et k autre(s)") :
+# .xlsx_citer() coute environ 0,14 ms par texte, et citer toutes les
+# positions d'une feuille forgee a 10^6 fautes prenait 142 s (mesure, regle
+# R6b, reprise du lot B).
+.xlsx_cinq <- function(cle, etiq) {
+  u <- which(!duplicated(cle))
+  n <- length(u)
+  .liste_positions(c(etiq(u[seq_len(min(5L, n))]), character(max(0L, n - 5L))))
+}
+
+# Position d'un octet p (vecteur) de la feuille lue, dite par rapport aux
+# cellules cc (.xlsx_cellules()) : "dans la chaine en ligne de la cellule
+# B2", "dans la cellule B2", "apres la cellule B2" ou "avant la premiere
+# cellule" (regle R3, #574). Reference citee telle qu'ecrite
+# (citer, .xlsx_citer() par defaut ; identity pour une cle brute),
+# "sans reference" si l'attribut r manque.
+.xlsx_position <- function(cc, p, citer = .xlsx_citer) {
+  k <- findInterval(p, cc$deb)
+  out <- rep("avant la premiere cellule", length(p))
+  a <- k > 0L
+  if (!any(a)) return(out)
+  kk <- k[a]; pa <- p[a]
+  ref <- ifelse(is.na(cc$r_brut[kk]), "cellule sans reference", paste("cellule", citer(cc$r_brut[kk])))
+  dans <- pa <= cc$fin[kk]
+  is <- dans & !is.na(cc$is_deb[kk]) & pa >= cc$is_deb[kk] & pa <= ifelse(is.na(cc$is_fin[kk]), cc$fin[kk], cc$is_fin[kk])
+  out[a] <- ifelse(is, paste("dans la chaine en ligne de la", ref),
+                   ifelse(dans, paste("dans la", ref), paste("apres la", ref)))
+  out
 }
 
 # Fichier XML de la premiere feuille de calcul du classeur, dans l'ordre de
@@ -8830,6 +9023,330 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   list(fichier = f, rang = rang, partie = partie)
 }
 
+# Numero de colonne (A = 1) de lettres de colonne en majuscules, vectorise ;
+# Inf au-dela de trois lettres (hors des limites d'une feuille de calcul,
+# regle R5, #574), sans appel par cellule.
+.xlsx_colonnes <- function(l) {
+  r <- rep(Inf, length(l))
+  ok <- nchar(l) <= 3L
+  if (any(ok)) {
+    l3 <- formatC(l[ok], width = 3L)
+    ch <- function(i) match(substr(l3, i, i), LETTERS, nomatch = 0L)
+    r[ok] <- ch(1L) * 676 + ch(2L) * 26 + ch(3L)
+  }
+  r
+}
+
+# Texte du refus du segment de cellule lu par openxlsx (regle R3, partie
+# "segments" ; avis d'actuary sur le lot B, Q1, texte propre).
+TEXTE_REFUS_SEGMENT <- "Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
+TEXTE_REFUS_R3 <- "Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
+# Balise ouvrante ou vide bien formee : nom, puis attributs blanc + nom =
+# valeur entre guillemets doubles ou apostrophes, valeur sans "<" ni ">".
+XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\r\n=/<>\"']+[ \t\r\n]*=[ \t\r\n]*",
+                                 "(?:\"[^\"<>]*\"|'[^'<>]*'))*[ \t\r\n]*/?>$")
+
+# Regle R3 du contrat ferme du lecteur de classeur (#574 ; avis amont
+# d'actuary du 15/11/2026, S1, par. 1 et texte du par. 2 ; decision D-S1-1),
+# structure du bloc des donnees de la feuille lue, dans cet ordre :
+#  - refus existant, texte inchange (#557) : balise <c suivie d'un blanc
+#    autre que l'espace ;
+#  - decoupage en balises par un seul gregexpr() (.xlsx_jetons()) ; tout "<"
+#    ouvre une balise (sinon XML mal forme : "<" dans un texte ou une valeur
+#    d'attribut, guillemet non ferme) ;
+#  - un seul <sheetData>, non prefixe, ecrit <sheetData>...</sheetData> ou
+#    <sheetData/> ; openxlsx 4.2.5.2 cherche la suite "<sheetData>" exacte et
+#    lit de la jusqu'a la fin de la partie (source, read_workbook.cpp) :
+#    <sheetData > n'y est pas lu (feuille vide, NULL), une cellule placee
+#    apres </sheetData> ou dans un second <sheetData> y est lue (mesures) ;
+#  - aucune balise <c> hors du bloc ;
+#  - dans le bloc, balises bien imbriquees (.xlsx_imbrication()) ;
+#  - hors du contenu des <extLst> (ni examine ni lu) : aucune balise
+#    prefixee ; <sheetData> ne contient que <row>, <row> que <c> et
+#    <extLst>, <c> que <f>, <v>, <is> et <extLst>, chacun au plus une fois,
+#    <is> (ecrit <is>, sans attribut) un seul <t> ; <v>, <f> et <t> ne
+#    contiennent aucune balise ; balises bien formees (attributs nom =
+#    valeur entre guillemets, sans "<" ni ">" dans une valeur ; fermante
+#    ecrite </nom>, sans blanc : openxlsx cherche "</v>" exact ; </v > etait
+#    lu NA par openxlsx et decalait les valeurs du lecteur interne, avec
+#    avertissement R, mesure) ;
+#    aucun texte hors de <v>, <f> et <t>, sinon des blancs ; aucun texte,
+#    meme blanc, dans <is> hors de <t> (openxlsx ne lit une chaine en ligne
+#    que sous la forme <is><t ...>...</t></is> : <is> <t> lu comme un
+#    morceau de la balise, </t> </is> lu NA, mesure) ;
+#  - aucune balise <c> dans le contenu d'un <extLst> ;
+#  - segment de chaque cellule lu par openxlsx : openxlsx 4.2.5.2 decoupe la
+#    partie en segments, de chaque "<c " au "<c " suivant ou a la fin de la
+#    partie, et y cherche, depuis le debut du segment, la premiere suite
+#    " t=" (type, si aucune "<f" ne la precede), la premiere "</v>" et le
+#    premier "<v" (valeur), la premiere "</t></is>" et le premier "<is><t"
+#    (chaine en ligne), au-dela de la balise de la cellule (source
+#    read_workbook.cpp, getCellInfo()). Chacune doit etre celle de la
+#    cellule : pour une cellule sans attribut t, aucune " t=" non precedee
+#    d'un "<f" dans son segment ; pour une cellule sans <v> (ou <v/>), aucune
+#    "</v>" ; sinon, la premiere "<v" et la premiere "</v>" sont celles de
+#    son <v> ; de meme pour <is>. Mesures avant (openxlsx 4.2.5.2) : <row
+#    r="3" t="s"> apres une cellule nombre C2 sans t, C2 lue comme la chaine
+#    partagee d'indice sa valeur (0 lu 11.5, ok = TRUE ; indice 5 hors
+#    d'une table d'une chaine : arret du processus, segfault) ; <v> dans
+#    l'<extLst> d'une cellule, avant son <v> : valeur de l'<extLst> lue par
+#    les deux chemins ; pied de page <headerFooter><oddHeader>&amp;C t="s"
+#    apres la derniere cellule nombre, sans table : arret du processus R par
+#    openxlsx ("irrecoverable exception", avis d'actuary sur le lot B). Les
+#    attributs de <row> sont donc lus ici, en tant que texte d'un segment.
+#    Refus de texte propre (TEXTE_REFUS_SEGMENT ; avis d'actuary sur le lot
+#    B, Q1), positions "cellule C2 : suite \" t=\", dans le bloc des
+#    donnees", "cellule B12 : balise </v>, apres le bloc des donnees" (zone
+#    jugee par rapport a la fin de </sheetData>). Cout accepte (decision
+#    D-S1-10, a) : un texte saisi portant " t=" apres la derniere cellule
+#    (en-tete de page "&amp;CMontant t=1", lu juste avant) est refuse.
+# Positions (cinq au plus, .liste_positions(), dans l'ordre du texte, chacune
+# une fois) :
+# "balise <x:c>, apres la cellule B2", "balise <r>, dans la chaine en ligne
+# de la cellule B2", "texte, dans la cellule B2", "balise <sheetData>
+# absente" (partie sans bloc, ou sans aucune balise) ; nom et reference
+# cites par .xlsx_citer(). Cout : un
+# gregexpr() de decoupage, sept recherches de suites sans caractere special
+# (motifs perl), des findInterval() ; aucune boucle sur les balises (#574,
+# forme 4, variante en ligne : n balises <x:rPh> non fermees dans une
+# chaine en ligne, refus R3 en 0,09 s, 0,32 s, 0,56 s et 2,40 s pour n =
+# 16 000, 64 000, 256 000 et 1 024 000, controle seul, R 4.3.3 ; lecture
+# complete dans la sonde sondes/sonde_574_lot_b.R). Renvoie les cellules de
+# la feuille (.xlsx_cellules()), lues sur le meme decoupage.
+.xlsx_controler_structure <- function(xml) {
+  if (any(regmatches(xml, gregexpr("<c[[:space:]]", xml))[[1]] != "<c "))
+    .refus_lecture("Classeur illisible : balise de cellule de forme non reconnue (blanc autre qu'une espace apres \"<c\") dans la feuille lue. Enregistrer de nouveau le classeur depuis un tableur.")
+  j <- .xlsx_jetons(xml)
+  cc <- .xlsx_cellules(xml, j)
+  # quoi : gabarit de la position ("balise <%s>", "texte"...), %s remplace
+  # par le nom cite ; positions dans l'ordre du texte, chacune une fois
+  refus <- function(p, quoi, nom = rep(NA_character_, length(p))) {
+    o <- order(p); p <- p[o]; quoi <- quoi[o]; nom <- nom[o]
+    lab <- function(i, citer) paste0(vapply(seq_along(i), function(m) sub("%s", citer(nom[i[m]]), quoi[i[m]], fixed = TRUE), ""),
+                                     ", ", .xlsx_position(cc, p[i], citer))
+    .refus_lecture(sprintf(TEXTE_REFUS_R3, .xlsx_cinq(paste(quoi, nom, .xlsx_position(cc, p, identity)),
+                                                      function(i) lab(i, .xlsx_citer))))
+  }
+  balise <- function(k) if (!length(k)) character(0) else
+    paste0("balise <", ifelse(j$genre[k] == "f", "/", ""), "%s>")
+  if (length(j$orphelin)) refus(j$orphelin, rep("caractere < hors d'une balise", length(j$orphelin)))
+  sd <- which(sub("^[^:]*:", "", j$nom) == "sheetData")
+  if (!length(sd)) .refus_lecture(sprintf(TEXTE_REFUS_R3, "balise <sheetData> absente"))
+  bad <- if (any(j$nom[sd] != "sheetData")) sd[j$nom[sd] != "sheetData"]
+         else if (length(sd) == 1L && j$genre[sd] == "v") integer(0)
+         else if (length(sd) == 2L && identical(j$genre[sd], c("o", "f"))) sd[j$tok[sd] != c("<sheetData>", "</sheetData>")]
+         else sd[j$genre[sd] != "f"]
+  if (length(bad)) refus(j$deb[bad], balise(bad), j$nom[bad])
+  a <- sd[1L]; b <- sd[length(sd)]
+  hors <- which(j$nom == "c" & j$genre != "f")
+  hors <- hors[hors < a | hors > b]
+  # (position d'une balise c : dite par rapport a la cellule qui la precede)
+  if (length(hors)) refus(j$deb[hors] - 0.5, balise(hors), j$nom[hors])
+  reg <- if (b - a > 1L) (a + 1L):(b - 1L) else integer(0)
+  if (!length(reg)) {
+    if (j$fin[a] + 1L < j$deb[b] && grepl("[^ \t\r\n]", substring(j$y, j$fin[a] + 1L, j$deb[b] - 1L), useBytes = TRUE))
+      refus(j$fin[a] + 1L, "texte")
+    return(cc)
+  }
+  g <- j$genre[reg]; nm <- j$nom[reg]; tk <- j$tok[reg]; m <- length(reg)
+  im <- .xlsx_imbrication(g, nm)
+  if (!is.na(im$faute)) refus(j$deb[reg[im$faute]], balise(reg[im$faute]), nm[im$faute])
+  # Sous-arbres <extLst> : balises strictement entre l'ouvrante et sa fermante
+  e <- which(nm == "extLst" & g == "o")
+  dans_ext <- cumsum(tabulate(e + 1L, m + 1L) - tabulate(im$ferme[e], m + 1L))[seq_len(m)] > 0L
+  ce <- which(nm == "c" & g != "f" & dans_ext)
+  if (length(ce)) refus(j$deb[reg[ce]] - 0.5, balise(reg[ce]), nm[ce])
+  par <- im$parent
+  pn <- ifelse(is.na(par), "sheetData", nm[pmax(par, 1L)])
+  ouv <- !dans_ext & g != "f"
+  permis <- paste(pn, nm) %in% c("sheetData row", "row c", "row extLst", "c f", "c v", "c is", "c extLst", "is t")
+  forme_o <- grepl(XML_GRAMMAIRE_OUVRANTE, tk, perl = TRUE, useBytes = TRUE)
+  forme_f <- tk == paste0("</", nm, ">") & grepl("^[A-Za-z_][A-Za-z0-9_.:-]*$", nm, useBytes = TRUE)
+  cle <- ifelse(ouv & pn %in% c("c", "is"), paste(par, nm), NA_character_)
+  faute <- (ouv & (!permis | !forme_o | (nm == "is" & (g == "v" | tk != "<is>")))) |
+           (!dans_ext & g == "f" & !forme_f) | duplicated(cle, incomparables = NA)
+  # Seule la balise fautive la plus haute est citee (pas ses descendantes)
+  faute <- faute & (is.na(par) | !faute[pmax(par, 1L)])
+  # <is> sans <t> (et sans enfant deja cite : <is><r>... cite <r>)
+  io <- which(ouv & nm == "is" & g == "o")
+  faute[io[!io %in% par[ouv & nm == "t"] & !io %in% par[faute]]] <- TRUE
+  # Texte apres <sheetData> et apres chaque balise du bloc ; element
+  # englobant : la balise si ouvrante, son parent sinon (0 : <sheetData>)
+  dbt <- c(j$fin[a], j$fin[reg]) + 1L
+  fnt <- c(j$deb[reg], j$deb[b]) - 1L
+  env <- c(0L, ifelse(g == "o", seq_len(m), ifelse(is.na(par), 0L, par)))
+  envn <- ifelse(env == 0L, "sheetData", nm[pmax(env, 1L)])
+  # texte examine dans <sheetData>, <row>, <c> et <is> seulement (le contenu
+  # de <v>, <f> et <t> est la valeur ; celui d'une balise fautive est deja
+  # refuse avec elle)
+  libre <- !envn %in% c("sheetData", "row", "c", "is") | (env > 0L & dans_ext[pmax(env, 1L)])
+  it <- which(!libre & fnt >= dbt)
+  mauvais <- logical(length(it))
+  if (length(it)) {
+    txt <- substring(j$y, dbt[it], fnt[it])
+    mauvais <- envn[it] == "is" | grepl("[^ \t\r\n]", txt, useBytes = TRUE)
+  }
+  if (any(faute) || any(mauvais))
+    refus(c(j$deb[reg[faute]] - 0.5 * (nm[faute] == "c"), dbt[it][mauvais]),
+          c(balise(reg[faute]), rep("texte", sum(mauvais))), c(nm[faute], rep(NA_character_, sum(mauvais))))
+  # Segments de cellule lus par openxlsx (cellules "<c ...")
+  ox <- startsWith(cc$balise, "<c ")
+  if (!any(ox)) return(cc)
+  y <- j$y
+  deb <- cc$deb[ox]; o <- cc$fin_ouv[ox]
+  fin_seg <- c(deb[-1L] - 1L, nchar(y, type = "bytes"))
+  # suites sans caractere special : motif perl (cout lineaire, voir .xlsx_jetons())
+  trouve <- function(s) { r <- gregexpr(s, y, perl = TRUE, useBytes = TRUE)[[1L]]; if (r[1L] == -1L) integer(0) else as.integer(r) }
+  premier <- function(p) {
+    k <- findInterval(o, p) + 1L
+    r <- rep(NA_integer_, length(o))
+    a2 <- k <= length(p)
+    r[a2] <- p[k[a2]]
+    r[!is.na(r) & r > fin_seg] <- NA_integer_
+    r
+  }
+  pt <- premier(trouve(" t=")); pf <- premier(trouve("<f"))
+  pv <- premier(trouve("</v>")); pvo <- premier(trouve("<v"))
+  pi <- premier(trouve("</t></is>")); pio <- premier(trouve("<is><t"))
+  vf <- cc$v_fin[ox]; vd <- cc$v_deb[ox]; tf <- cc$t_fin[ox]; id <- cc$is_deb[ox]
+  f_t <- !grepl(" t=", cc$balise[ox], fixed = TRUE) & !is.na(pt) & (is.na(pf) | pt < pf)
+  f_v <- ifelse(is.na(vf), !is.na(pv), is.na(pv) | pv != vf | is.na(pvo) | pvo != vd)
+  f_i <- ifelse(is.na(tf), !is.na(pi), is.na(pi) | pi != tf | is.na(pio) | pio != id)
+  if (any(f_t) || any(f_v) || any(f_i)) {
+    pvx <- ifelse(!is.na(vd) & !is.na(pvo) & pvo != vd, pvo, pv)
+    ref <- cc$r_brut[ox]
+    pos <- c(pt[f_t], pvx[f_v], pi[f_i])
+    cel <- c(ref[f_t], ref[f_v], ref[f_i])
+    quoi <- c(rep("suite \" t=\"", sum(f_t)),
+              ifelse(pvx[f_v] %in% pvo[f_v] & !is.na(vd[f_v]), "balise <v>", "balise </v>"),
+              rep("suite </t></is>", sum(f_i)))
+    zone <- ifelse(pos <= j$fin[b], "dans le bloc des donnees", "apres le bloc des donnees")
+    o <- order(pos); cel <- cel[o]; quoi <- quoi[o]; zone <- zone[o]
+    .refus_lecture(sprintf(TEXTE_REFUS_SEGMENT, .xlsx_cinq(paste(cel, quoi, zone), function(i)
+      paste0("cellule ", .xlsx_citer(cel[i]), " : ", quoi[i], ", ", zone[i]))))
+  }
+  cc
+}
+
+# Regle R4 du contrat ferme (#574 ; avis amont d'actuary, par. 1 et 2),
+# apres les refus existants de l'attribut r (.xlsx_controler_cellules()) :
+# attributs de <c> pris dans la liste fermee r, s, t, cm, vm, ph, non
+# prefixes, chacun au plus une fois, ecrits nom="valeur" (guillemets
+# doubles, sans blanc autour du signe =), t precede d'une espace (openxlsx
+# cherche la suite " t=") ; valeurs : s, cm et vm en chiffres, ph 0, 1, true
+# ou false, t en lettres (type lu par la regle R7). openxlsx 4.2.5.2 lit la
+# reference a la premiere suite "r=" de la balise, le type a la premiere
+# " t=" et chaque valeur jusqu'au guillemet double suivant (source
+# read_workbook.cpp) ; mesures avant (openxlsx 4.2.5.2, sonde
+# sondes/sonde_574_lot_b.R) : <c x:r="Z9" r="B2">, valeur placee en
+# colonne Z par openxlsx (26 colonnes lues ; #557, sous 4.2.9 : en Z9), en
+# B2 par le lecteur interne ; <c s="xr=_D2" r="B2">, valeur placee en D2 par
+# openxlsx, en B2 par le lecteur interne. Les attributs de <row> ne sont pas
+# lus ici (la regle R3 les lit en tant que texte d'un segment de cellule).
+# Positions "B2 : x:r" (reference telle qu'ecrite, nom de l'attribut),
+# cinq au plus. Texte amende par actuary (avis sur le lot B, Q2) : il couvre
+# aussi un attribut de la liste repete ou ecrit sous une forme non lue.
+.xlsx_controler_attributs <- function(cc) {
+  if (!length(cc$balise)) return(invisible(NULL))
+  corps <- sub("[ \t\r\n]*/?>$", "", sub("^<c", "", cc$balise))
+  pr <- regmatches(corps, gregexpr("[ \t\r\n]+[^ \t\r\n=]+[ \t\r\n]*=[ \t\r\n]*(\"[^\"]*\"|'[^']*')", corps))
+  k <- rep(seq_along(pr), lengths(pr)); p <- unlist(pr)
+  if (!length(p)) return(invisible(NULL))
+  nom <- sub("^[ \t\r\n]+([^ \t\r\n=]+).*$", "\\1", p)
+  val <- sub("^[^=]*=[ \t\r\n]*.(.*).$", "\\1", p)
+  vok <- ifelse(nom %in% c("s", "cm", "vm"), grepl("^[0-9]+$", val),
+         ifelse(nom == "ph", val %in% c("0", "1", "true", "false"),
+         ifelse(nom == "t", grepl("^[A-Za-z]+$", val), TRUE)))
+  faute <- !nom %in% c("r", "s", "t", "cm", "vm", "ph") | duplicated(paste(k, nom)) |
+           !grepl("^[ \t\r\n]+[a-z]+=\"[^\"]*\"$", p) | !vok | (nom == "t" & !grepl(" t=\"", p, fixed = TRUE))
+  if (any(faute))
+    .refus_lecture(sprintf("Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(paste(cc$r_brut[k[faute]], nom[faute]), function(i)
+                             paste0(.xlsx_citer(cc$r_brut[k[faute]][i]), " : ", .xlsx_citer(nom[faute][i])))))
+  invisible(NULL)
+}
+
+# Regle R5 du contrat ferme (#574) : reference de toute cellule, avec ou
+# sans valeur, dans les limites d'une feuille de calcul, colonnes A a XFD
+# (16 384), lignes 1 a 1 048 576 (avis amont d'actuary, par. 1). Mesures
+# avant (#574, forme 3) : XFD1048576 portant une valeur, erreur R
+# d'allocation de 128 Go sur les deux chemins ; A99999999999, erreur R brute
+# ("invalid 'nrow' value" en interne, "missing value where TRUE/FALSE
+# needed" par openxlsx). Positions : references telles qu'ecrites.
+.xlsx_controler_limites <- function(cc) {
+  if (!length(cc$ref)) return(invisible(NULL))
+  d <- sub("^[A-Z]+", "", cc$ref)
+  lig <- ifelse(nchar(d) <= 7L, suppressWarnings(as.numeric(d)), Inf)
+  hors <- .xlsx_colonnes(sub("[0-9]+$", "", cc$ref)) > 16384 | lig > 1048576
+  if (any(hors))
+    .refus_lecture(sprintf("Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (%s ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(seq_len(sum(hors)), function(i) .xlsx_citer(cc$r_brut[hors][i]))))
+  invisible(NULL)
+}
+
+# Regle R6 du contrat ferme (#574) : reference unique dans la feuille, sans
+# tenir compte de la casse (a2 et A2 designent la meme cellule ; sans objet
+# depuis le refus des minuscules, decision D-S1-9, mais inoffensif). Mesure
+# avant (#574, m1) : deux <c r="B2"> (104.2 puis 999), 999 lu par les deux
+# chemins, ok = TRUE ; r="B2" puis r="b2", erreur R brute d'openxlsx.
+# Positions : references en majuscules, chacune une fois.
+.xlsx_controler_doublons <- function(cc) {
+  dup <- duplicated(cc$ref)
+  if (any(dup))
+    .refus_lecture(sprintf("Classeur illisible : reference de cellule presente plusieurs fois dans la feuille lue (%s) ; l'outil ne choisit pas entre deux valeurs donnees pour la meme cellule. Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(cc$ref[dup], function(i) .xlsx_citer(cc$ref[dup][i]))))
+  invisible(NULL)
+}
+
+# Regle R6b du contrat ferme (#574 ; avis d'actuary sur le lot B ; decision
+# du mainteneur D-S1-11 du 15/11/2026) : dans l'ordre du document, les
+# references de toutes les cellules (avec ou sans valeur) croissent
+# strictement en ordre de lecture, ligne puis colonne ; aucune regle sur
+# <row r> (lu par aucun des deux chemins). Evaluee apres R6 (un doublon garde
+# son message) et R5 (cle ligne x 16 384 + colonne, exacte en double).
+# Mesures avant (openxlsx 4.2.5.2, sonde sondes/sonde_574_lot_b.R) : openxlsx
+# nomme les colonnes dans l'ordre du document (read_workbook.cpp,
+# col_names[i] = v[pos]) : en-tete A1 t, C1 yt, B1 xt, colonnes xt et yt
+# permutees, sigma_USP 0.1764544949 au lieu de 0.1114524114 (lecteur
+# interne), ok = TRUE ; ligne 1 placee en fin de bloc, erreur R brute
+# ("attempt to set index -2/24 in SET_STRING_ELT"). Des lignes de donnees
+# permutees, lues juste par les deux chemins, sont refusees aussi (ordre
+# strict sur toute la feuille). Positions "B1 apres C1" (cellule fautive,
+# puis celle qui la precede dans le document), cinq au plus (.xlsx_cinq()).
+# Cout lineaire : 0,97 s pour 10^6 cellules en ordre, 1,01 s pour 10^6
+# cellules en ordre inverse (controle seul, R 4.3.3).
+.xlsx_controler_ordre <- function(cc) {
+  n <- length(cc$ref)
+  if (n < 2L) return(invisible(NULL))
+  cle <- as.numeric(sub("^[A-Z]+", "", cc$ref)) * 16384 + .xlsx_colonnes(sub("[0-9]+$", "", cc$ref))
+  k <- which(cle[-1L] <= cle[-n]) + 1L
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (%s ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(seq_along(k), function(i) paste(.xlsx_citer(cc$ref[k[i]]), "apres", .xlsx_citer(cc$ref[k[i] - 1L])))))
+  invisible(NULL)
+}
+
+# Regle R11 du contrat ferme (#574 ; decision D-S1-5 : seuil 10^6) : la
+# derniere ligne x la derniere colonne des cellules a valeur (<v>...</v> ou
+# <is>) ne depasse pas 1 000 000. Les deux adaptateurs allouent le
+# rectangle de A1 a la derniere cellule a valeur (le lecteur interne est
+# dimensionne sur ces seules cellules) : a 10^6 cellules, lecture en 0,07 a
+# 0,19 s (avis amont, mesures). Positions : cellules a valeur de la
+# derniere ligne ou de la derniere colonne, cinq au plus.
+.xlsx_controler_etendue <- function(cc) {
+  val <- !is.na(cc$v) | cc$is
+  if (!any(val)) return(invisible(NULL))
+  ref <- cc$ref[val]
+  lig <- as.numeric(sub("^[A-Z]+", "", ref))
+  col <- .xlsx_colonnes(sub("[0-9]+$", "", ref))
+  mr <- max(lig); mc <- max(col)
+  if (mr * mc > 1e6)
+    .refus_lecture(sprintf("Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne %d et jusqu'a la colonne %s (cellules %s), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.",
+                           as.integer(mr), sub("[0-9]+$", "", ref[which(col == mc)[1L]]),
+                           .xlsx_cinq(ref[lig == mr | col == mc], function(i) .xlsx_citer(ref[lig == mr | col == mc][i]))))
+  invisible(NULL)
+}
+
 # Controle du XML de la feuille lue, commun aux deux chemins de lecture et
 # fait avant l'appel a openxlsx : une cellule <c> sans attribut r (reference
 # de position) est refusee. L'attribut est facultatif dans le schema, et
@@ -8844,7 +9361,7 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # avec son propre texte, avant ce controle. Apres lui, une cellule dont
 # l'attribut r n'est pas unique ou n'a pas, ecrit tel quel, la forme
 # r="lettres de colonne puis numero de ligne a partir de 1" (valeur brute
-# ^[A-Za-z]+[1-9][0-9]*$ entre guillemets doubles : r="", "1", "A0", "1A",
+# ^[A-Z]+[1-9][0-9]*$ entre guillemets doubles : r="", "1", "A0", "1A",
 # " A2 ", "A", "A1:B2", "&#66;2"..., ou <c r='Z9' r="A2">, <c r="A2"
 # r="Z9">), cellule vide de style (<c r="" s="1"/>) comprise, est refusee
 # avec son propre texte (decisions du mainteneur du 13/11/2026, Q-A et son
@@ -8853,11 +9370,19 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # r="A0"), et openxlsx 4.2.9 leve une erreur R brute (r="", "&#66;2",
 # <c r='Z9' r="A2">) ou perd la valeur sans message (mesure, #557). Les
 # attributs sont decoupes par la regle de .xlsx_attribut() (nom entier : un
-# attribut prefixe n'est pas r, <c x:r="Z9" r="A2"> est admis) ; sur une
-# balise admise, .xlsx_attribut() rend la valeur brute (une seule
+# attribut prefixe n'est pas r : <c x:r="Z9" r="A2"> passe ce controle, et
+# est refuse ensuite par la regle R4, .xlsx_controler_attributs(), #574) ;
+# sur une balise admise, .xlsx_attribut() rend la valeur brute (une seule
 # occurrence, sans entite) : controle et lecteur voient la meme reference.
-# Les minuscules restent admises (r="a2", lu A2 par le lecteur interne).
-# Aucune borne de colonne ni de ligne (XFD, 1 048 576) n'est controlee.
+# Une reference en minuscules (r="a2") est refusee avec le meme texte
+# (decision du mainteneur D-S1-9 du 15/11/2026, qui renverse Q-A sur ce
+# point : lue A2 par le lecteur interne, elle menait openxlsx 4.2.5.2 a une
+# erreur R brute, "missing value where TRUE/FALSE needed", mesure).
+# Les bornes de colonne et de ligne (XFD, 1 048 576) sont controlees apres
+# lui (regle R5, .xlsx_controler_limites(), #574). Dans .xlsx_admettre(), la
+# regle R3 (.xlsx_controler_structure()) fait avant lui le refus de la
+# balise <c suivie d'un blanc autre que l'espace ; il est garde ici pour un
+# appel direct.
 .xlsx_controler_cellules <- function(xml) {
   # Balise <c suivie d'un blanc autre que l'espace (TAB, CR, LF, legaux en
   # XML ; FF, VT, U+2003..., illegaux) : openxlsx 4.2.9 perd la cellule sans
@@ -8882,7 +9407,7 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
     "[^[:space:]<>=\"'/]+[[:space:]]*=[[:space:]]*(\"[^\"]*\"|'[^']*')", balises))
   ref_ok <- vapply(paires, function(p) {
     k <- sub("[[:space:]]*=.*$", "", p) == "r"
-    sum(k) == 1L && grepl("^r=\"[A-Za-z]+[1-9][0-9]*\"$", p[k])
+    sum(k) == 1L && grepl("^r=\"[A-Z]+[1-9][0-9]*\"$", p[k])
   }, logical(1))
   if (!all(ref_ok))
     .refus_lecture("Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.")
@@ -8913,9 +9438,11 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # le nombre de chaines extraites par le lecteur interne (balises <si>...</si>)
 # ; le decompte definitif est celui de la regle R9 (#574). Toute balise <v>
 # est vue, avec ou sans blanc ou attribut (<v >, <v xml:space="preserve"> :
-# openxlsx 4.2.5.2 les lit et s'arrete, code 139, mesure de l'audit ; le
-# lecteur interne ne lit que <v>, divergence laissee aux regles R3 et R8,
-# #574). Texte de la balise, balises retirees, blancs XML de bord retires,
+# openxlsx 4.2.5.2 les lit et s'arrete, code 139, mesure de l'audit) : texte
+# du <v> de la cellule (.xlsx_cellules(), decoupage de la regle R3, #574),
+# lu de meme par le lecteur interne depuis R3 (il ne lisait auparavant que
+# <v>, et rendait NA un <v > lu 11.5 par openxlsx, mesure). cc : cellules
+# deja lues (.xlsx_admettre()). Texte de la balise, balises retirees, blancs XML de bord retires,
 # puis compare en double (as.numeric(), jamais as.integer(), qui rendrait NA
 # au-dela de .Machine$integer.max et laisserait passer l'indice). Un indice
 # negatif est hors de la table (<v>-1</v> : segfault d'openxlsx 4.2.5.2, code
@@ -8924,14 +9451,10 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # #574). Positions "A2 : indice 5", cinq au plus (.liste_positions()), indice
 # cite par .echapper_texte(), tronque a 20 caracteres suivis de "...". Refus
 # de classe usp_refus_lecture.
-.xlsx_controler_indices_partages <- function(xml, n) {
-  cc <- .xlsx_cellules(xml)
+.xlsx_controler_indices_partages <- function(xml, n, cc = .xlsx_cellules(xml)) {
   s <- cc$typ %in% "s"
   if (!any(s)) return(invisible(NULL))
-  cel <- cc$cellules[s]
-  brut <- rep(NA_character_, length(cel))
-  mv <- regexpr("<v([[:space:]][^>]*)?>.*?</v>", cel)
-  brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
+  brut <- gsub("<[^>]*>", "", cc$v[s])
   brut <- sub("[ \t\r\n]+$", "", sub("^[ \t\r\n]+", "", brut))
   k <- suppressWarnings(as.numeric(brut))
   hors <- !is.na(k) & (k >= n | k < 0)
@@ -8977,27 +9500,27 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # le refus du CSV dont la ligne 1 ne porte que des separateurs, pose par
 # engine_lire_donnees_csv() et engine_lire_triangle() (.ligne1_sans_valeur(),
 # motif "erreurs" des lecteurs et non erreur levee, extension aux CSV du
-# 12/11/2026).
-.xlsx_controler_ligne_entete <- function(xml, partagees = character(0)) {
-  cc <- .xlsx_cellules(xml)
+# 12/11/2026). Valeur et chaine en ligne lues dans le <v> et le <is> de la
+# cellule (.xlsx_cellules(), decoupage de la regle R3, #574 : un <v > ou un
+# <v xml:space="preserve"> est une valeur, comme pour openxlsx) ; cc :
+# cellules deja lues (.xlsx_admettre()).
+.xlsx_controler_ligne_entete <- function(xml, partagees = character(0), cc = .xlsx_cellules(xml)) {
   if (!length(cc$cellules)) return(invisible(NULL))
-  cel <- cc$cellules
-  v <- grepl("<v>", cel, fixed = TRUE)
-  is <- grepl("<is>", cel, fixed = TRUE)
-  brut <- rep(NA_character_, length(cel))
-  mv <- regexpr("<v>.*?</v>", cel)
-  brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
-  texte <- rep(NA_character_, length(cel))
+  v <- !is.na(cc$v)
+  is <- cc$is
+  brut <- gsub("<[^>]*>", "", cc$v)
+  texte <- rep(NA_character_, length(v))
   s <- v & cc$typ %in% "s"
   if (any(s)) texte[s] <- partagees[.xlsx_indice_partage(brut[s])]
   st <- v & cc$typ %in% "str"
   texte[st] <- brut[st]
-  if (any(is)) texte[is] <- vapply(cel[is], .xml_textes, "", USE.NAMES = FALSE)
+  if (any(is)) texte[is] <- vapply(cc$is_contenu[is], .xml_textes, "", USE.NAMES = FALSE)
   blanc <- !is.na(texte) & !nzchar(.xlsx_blancs_entete(texte))
   avec_valeur <- (v | is) & !blanc
   if (!any(avec_valeur)) return(invisible(NULL))
-  # Lettres de colonne en majuscules ou en minuscules (r="a1" : ligne 1,
-  # reserve de l'audit ; .xlsx_cellules() met la reference en majuscules).
+  # Lettres de colonne en majuscules ou en minuscules en appel direct
+  # (r="a1" : ligne 1, reserve de l'audit ; .xlsx_cellules() met la
+  # reference en majuscules ; engine_lire_xlsx() refuse les minuscules).
   ligne1 <- !is.na(cc$ref) & grepl("^[A-Z]+1$", cc$ref)
   if (!any(avec_valeur & ligne1)) .refus_lecture(MOTIF_LIGNE1_VIDE)
   invisible(NULL)
@@ -9029,13 +9552,20 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # sortent du dossier, table des chaines partagees ailleurs qu'en
 # xl/sharedStrings.xml ou en plusieurs exemplaires), R1 (UTF-8 valide, sans
 # octet nul : .xlsx_texte()), R2 (sections de balisage :
-# .xlsx_controler_balisage()), refus existants de la balise <c> et de
-# l'attribut r (.xlsx_controler_cellules(), sous R3 et R4), refus existants
-# Q-F, P2 et X1 de la table (tete de R9), R10 (.xlsx_controler_indices_partages(),
-# #575) et R12 (.xlsx_controler_ligne_entete(), si entete). Les autres regles
-# (R3 a R9, R11) viendront a leur place d'ordre (lots B a D de #574). Rend
-# list(rang, xml, partagees) : rang de la feuille lue pour openxlsx, XML de
-# la feuille et chaines de la table pour le lecteur interne.
+# .xlsx_controler_balisage()), R3 (structure du bloc des donnees, refus
+# existant de la balise <c suivie d'un blanc autre que l'espace en tete :
+# .xlsx_controler_structure()), R4 (refus existants de l'attribut r,
+# .xlsx_controler_cellules(), puis liste fermee des attributs de <c>,
+# .xlsx_controler_attributs()), R5 (.xlsx_controler_limites()), R6
+# (.xlsx_controler_doublons()), R6b (.xlsx_controler_ordre(), decision
+# D-S1-11), refus existants Q-F, P2 et X1 de la table
+# (tete de R9), R10 (.xlsx_controler_indices_partages(), #575), R11
+# (.xlsx_controler_etendue()) et R12 (.xlsx_controler_ligne_entete(), si
+# entete). Les autres regles (R7, R8, R9) viendront a leur place d'ordre
+# (lots C et D de #574). Rend list(rang, xml, partagees, cellules) : rang de
+# la feuille lue pour openxlsx, XML de la feuille, chaines de la table et
+# cellules admises (.xlsx_cellules(), decoupage de R3) pour le lecteur
+# interne.
 .xlsx_admettre <- function(chemin, d, entete = TRUE) {
   # R0, archive. Extraction : aucune entree d'archive absolue ou remontant
   # ("..", separateur / ou \) n'est ecrite (zip slip) ; une archive illisible
@@ -9074,9 +9604,18 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   # R2 (#574) : sections de balisage, feuille puis table
   .xlsx_controler_balisage(xml, feuille$partie)
   if (!is.null(sx)) .xlsx_controler_balisage(sx, "xl/sharedStrings.xml")
-  # Refus existants de la balise <c> et de l'attribut r (#487, #557), places
-  # par l'avis amont sous R3 et R4 (lot B de #574)
+  # R3 (#574) : structure du bloc des donnees (refus existant de la balise
+  # <c suivie d'un blanc autre que l'espace en tete) ; cellules lues sur le
+  # meme decoupage, reprises par R4 a R12 et par le lecteur interne.
+  cc <- .xlsx_controler_structure(xml)
+  # R4 : refus existants de l'attribut r (#487, #557), puis liste fermee des
+  # attributs de <c> ; R5 : limites d'une feuille ; R6 : reference unique
   .xlsx_controler_cellules(xml)
+  .xlsx_controler_attributs(cc)
+  .xlsx_controler_limites(cc)
+  .xlsx_controler_doublons(cc)
+  # R6b (#574, decision D-S1-11) : cellules dans l'ordre de lecture
+  .xlsx_controler_ordre(cc)
   partagees <- character(0)
   if (!is.null(sx)) {
     # Refus existants Q-F, P2 et X1 de la table, places par l'avis amont en
@@ -9132,10 +9671,12 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
   # Regle R10 (#575) : indice de chaine partagee dans les bornes de la table,
   # avant le controle de la ligne 1 et avant tout appel a openxlsx, qui lit
   # hors bornes (arret du processus R ou erreur R brute, mesure).
-  .xlsx_controler_indices_partages(xml, length(partagees))
+  .xlsx_controler_indices_partages(xml, length(partagees), cc)
+  # R11 (#574) : etendue des cellules a valeur
+  .xlsx_controler_etendue(cc)
   # R12 : ligne 1 sans valeur (#522)
-  if (entete) .xlsx_controler_ligne_entete(xml, partagees)
-  list(rang = feuille$rang, xml = xml, partagees = partagees)
+  if (entete) .xlsx_controler_ligne_entete(xml, partagees, cc)
+  list(rang = feuille$rang, xml = xml, partagees = partagees, cellules = cc)
 }
 
 # Lit la premiere feuille (premiere du classeur, dans l'ordre de
@@ -9172,9 +9713,7 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # est donc accepte en xlsx et refuse en CSV, ou l'application lit les noms tels
 # quels (divergence CSV - xlsx laissee en l'etat, decision D3 du mainteneur).
 # Les deux chemins different encore par endroits : nom d'une colonne sans
-# en-tete ("X<col>" pour openxlsx, "V<col>" ici) ; lignes et colonnes mises
-# en forme sans valeur (cellules <c .../> sans <v>) gardees ici, ignorees par
-# openxlsx ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
+# en-tete ("X<col>" pour openxlsx, "V<col>" ici) ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
 # <v>0x10</v>, cellule forgee) : lue 16 par openxlsx, colonne
 # laissee en caractere ici et cellule refusee en aval. Texte des cellules
 # (mesure, openxlsx 4.2.9) : le lecteur interne decode les entites nommees et
@@ -9183,9 +9722,6 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # chaines partagees seulement (en decodant deux fois "&amp;lt;", lu "<"), et
 # laisse telles quelles les references numeriques des chaines partagees et
 # toute entite d'une chaine en ligne ;
-# une chaine en ligne enrichie (<is><r><t>..) est lue entiere ici ; openxlsx
-# 4.2.9 la rend NA dans le corps du tableau et en perd l'en-tete (nom de
-# colonne X<col>, mesure, #557) ;
 # un <t xml:space="preserve"> d'une chaine en ligne laisse
 # l'attribut dans le texte lu par openxlsx.
 # Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
@@ -9233,14 +9769,12 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # dans <x:si><x:t>9</x:t></x:si><si><t>11.5</t></si>, l'indice 0 est lu
 # 11.5 par les deux chemins (mesure, openxlsx 4.2.9) ; forme non refusee,
 # limite consignee (#572).
-# Une chaine en ligne (<is>) de ces formes
-# n'est pas refusee : lue entiere par le lecteur interne ; openxlsx 4.2.9 la
-# lit NA (forme P2) ou en texte non numerique (forme X1, deux <t> directs :
-# "1</t><t>1.5" pour "1" puis "1.5"), cellule refusee en aval dans les deux
-# cas (mesure du relecteur de la documentation, #572), limite consignee ; une
-# balise prefixee <x:rPh .../> n'est pas visee (lue 11.5 par les deux
-# chemins pour "1" puis "1.5", mesure, #572). Hypothese non verifiee : un
-# tableur n'ecrit aucune de ces formes.
+# Une chaine en ligne (<is>) de ces formes, ou portant <r>, <rPh> ou une
+# balise prefixee, est refusee par la regle R3 (<is> ne porte qu'un <t>,
+# #574) ; avant R3, elle etait lue entiere par le lecteur interne, et
+# openxlsx 4.2.9 la lisait NA (forme P2) ou en texte non numerique (forme
+# X1, deux <t> directs : "1</t><t>1.5" pour "1" puis "1.5"), cellule
+# refusee en aval (mesure du relecteur de la documentation, #572).
 # L'attribut r d'une cellule n'est lu que sous la forme
 # r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
 # reference ; une reference de forme non attendue (r="", "1", "A0", "1A",
@@ -9259,13 +9793,18 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # signe = dans xl/workbook.xml et ses relations : lus par le lecteur interne,
 # mais pas par openxlsx 4.2.9 (mesure : "Workbook has no worksheets" ou
 # "Length of worksheet is 0", erreur R brute, message fixe de l'application) ;
-# une feuille dont les balises de cellule sont prefixees (<x:c>) n'est lue
-# par aucun des deux chemins comme un tableau. Une reference de cellule en
-# minuscules (r="a1") est lue par le lecteur interne (.xlsx_cellules()) ;
-# openxlsx 4.2.9 la lit par une erreur R brute ("missing value where
-# TRUE/FALSE needed"). Un attribut prefixe avant r (<c x:r="Z9" r="A2">)
-# n'est pas pris pour r par le lecteur interne (valeur en A2) ; openxlsx
-# 4.2.9 place la valeur en Z9 (mesure). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
+# une feuille dont les balises de cellule sont prefixees (<x:c>) est
+# refusee (regle R3, #574). Une reference de cellule en
+# minuscules (r="a1"), lue par le lecteur interne et menant openxlsx 4.2.9
+# et 4.2.5.2 a une erreur R brute ("missing value where TRUE/FALSE needed",
+# mesure), est refusee comme reference de forme non attendue (decision du
+# mainteneur D-S1-9 du 15/11/2026). Des cellules hors de l'ordre de
+# lecture sont refusees (regle R6b, #574 ; openxlsx 4.2.5.2 nomme les
+# colonnes dans l'ordre du document : en-tete A1 t, C1 yt, B1 xt lu xt et
+# yt permutes, sigma_USP 0.1764544949 au lieu de 0.1114524114, ok = TRUE ;
+# ligne 1 placee en fin de bloc, erreur R brute, mesures). Un attribut prefixe avant r (<c
+# x:r="Z9" r="A2">), que openxlsx 4.2.9 prenait pour r (valeur placee en Z9,
+# mesure), est refuse (regle R4, #574). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
 # parite mesuree sous C.UTF-8 seulement ; sous Windows (page de codes et
 # locale de R propres au poste), elle n'est pas mesuree : limite consignee
 # (decision du mainteneur du 13/11/2026, #557 ; mesure facultative sur le
@@ -9275,7 +9814,14 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # adaptateurs ; une partie du classeur qui n'est pas du texte UTF-8 valide,
 # ou qui porte un commentaire, une section CDATA, une instruction de
 # traitement ou une declaration de type de document, est refusee (regles R1
-# et R2, #574).
+# et R2, #574), de meme qu'une feuille dont le bloc des donnees sort de la
+# structure admise, dont une cellule porte un attribut hors de la liste r,
+# s, t, cm, vm, ph, une reference hors des limites d'une feuille ou une
+# reference en double, ou dont les cellules a valeur s'etendent sur plus de
+# 1 000 000 de cellules, ou dont les cellules sortent de l'ordre de
+# lecture (regles R3 a R6, R6b et R11, #574). Le lecteur interne
+# dimensionne son tableau sur les seules cellules a valeur : une cellule
+# mise en forme sans valeur n'y est pas placee, comme par openxlsx.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
@@ -9284,27 +9830,31 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   on.exit(unlink(d, recursive = TRUE), add = TRUE)
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
   adm <- .xlsx_admettre(chemin, d, entete)
-  xml <- adm$xml; partagees <- adm$partagees
+  partagees <- adm$partagees
   # openxlsx lit la feuille resolue par son rang (feuilles de graphique
   # placees avant passees, #487).
   if (requireNamespace("openxlsx", quietly = TRUE))
     return(openxlsx::read.xlsx(chemin, sheet = adm$rang, colNames = entete,
                                skipEmptyRows = FALSE, skipEmptyCols = FALSE,
                                na.strings = character(0), sep.names = " "))
-  # r et t lus dans la seule balise ouvrante, reference en majuscules
-  # (.xlsx_cellules(), regle commune avec .xlsx_controler_ligne_entete()).
-  cc <- .xlsx_cellules(xml)
-  cells <- cc$cellules
-  if (!length(cells)) return(data.frame())
-  col <- vapply(sub("[0-9]+$", "", cc$ref), .lettre_col, numeric(1), USE.NAMES = FALSE)
-  lig <- as.integer(sub("^[A-Z]+", "", cc$ref))
-  typ <- ifelse(is.na(cc$typ), "n", cc$typ)
-  val <- rep(NA_character_, length(cells))
-  vv <- regmatches(cells, regexpr("<v>.*?</v>", cells))
-  ok <- grepl("<v>", cells)
-  val[ok] <- gsub("<[^>]*>", "", vv)
-  isx <- grepl("<is>", cells)
-  if (any(isx)) val[isx] <- vapply(cells[isx], .xml_textes, character(1), USE.NAMES = FALSE)
+  # Cellules admises (.xlsx_admettre(), decoupage de la regle R3) : r et t
+  # lus dans la seule balise ouvrante, reference en majuscules, valeur dans
+  # le <v> ou le <is> de la cellule (.xlsx_cellules(), regle commune avec
+  # .xlsx_controler_ligne_entete()). Matrice dimensionnee sur les seules
+  # cellules a valeur (<v>...</v> ou <is> ; regle R11, #574) : une cellule
+  # sans valeur ne porte que NA et n'est pas placee (une cellule mise en
+  # forme sans valeur en XFD1048576 demandait une matrice de 128 Go, erreur
+  # R d'allocation, mesure ; openxlsx l'ignore deja).
+  cc <- adm$cellules
+  a_val <- !is.na(cc$v) | cc$is
+  if (!any(a_val)) return(data.frame())
+  ref <- cc$ref[a_val]
+  col <- .xlsx_colonnes(sub("[0-9]+$", "", ref))
+  lig <- as.integer(sub("^[A-Z]+", "", ref))
+  typ <- ifelse(is.na(cc$typ[a_val]), "n", cc$typ[a_val])
+  val <- cc$v[a_val]
+  isx <- cc$is[a_val]
+  if (any(isx)) val[isx] <- vapply(cc$is_contenu[a_val][isx], .xml_textes, character(1), USE.NAMES = FALSE)
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE" : sa
