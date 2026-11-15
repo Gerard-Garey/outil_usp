@@ -736,6 +736,21 @@ html_table <- function(d, classe = "table table-condensed data", largeurs = NULL
        yref = "container", y = 1, yanchor = "top",
        pad = list(t = .BARRE_PLOTLY_PX + if (grepl("<br>", texte, fixed = TRUE)) 13 else 3))
 .marge_haute <- function(t) t + .BARRE_PLOTLY_PX - 10
+# Legende horizontale sous le titre de l'axe des abscisses (#582). L'ancrage au
+# conteneur (legend.yref = "container") est inconnu de plotly.js 2.11.1, livre
+# par plotly 4.10.4 : la legende y retombait en bas de la zone de trace et en
+# masquait le bas (g_boot, mw_boot, ratio, rapport fige interactif). L'ancrage
+# est donc pris en coordonnees du papier : yref = "paper" et y negatif, la
+# legende pendant sous la zone de trace (yanchor = "top"), valable sous
+# plotly.js 2.11.1 et 2.25.2. Sa distance au bas de la zone de trace est
+# -y x hauteur de la zone : y est choisi pour qu'elle depasse les 55 px que
+# prennent les graduations et le titre de l'axe (mesure du harnais de #582).
+# La marge basse effective depasse alors margin.b et la zone de trace est plus
+# basse qu'avec l'ancrage au conteneur (mesures d'app-review sous Chromium,
+# plotly.js 2.11.1 et 2.25.2, resultats identiques : voir plot_boot_sigma()).
+.legende_sous_axe <- function(y)
+  list(orientation = "h", x = 0, xanchor = "left", yref = "paper",
+       y = y, yanchor = "top", font = list(size = 10))
 # Titres longs a 330 px (#500). Un titre ou un sous-titre plotly ne se replie
 # pas : au-dela de la largeur de la figure, il sort des deux cotes (largeurs
 # mesurees sous Chromium, plotly.js 2.25.2, figure de 330 px, police par defaut :
@@ -833,12 +848,11 @@ plot_ratio <- function(pd) {
         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
         hovertemplate = "t = %{x}<br>y/x = %{y:.4f}<extra></extra>")
   p <- .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
-  # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas du
-  # conteneur (comme plot_boot_sigma()) : sa distance au titre d'axe ne depend
-  # pas de la hauteur de la figure.
-  plotly::layout(p, showlegend = TRUE,
-                 legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
-                               y = 0, yanchor = "bottom", font = list(size = 10)),
+  # Legende horizontale sous le titre de l'axe des abscisses (une entree, sur
+  # une ligne) : ancrage en coordonnees du papier, .legende_sous_axe() (#582).
+  # y = -0,4 : a 330 px de haut, la legende est a 11 px du titre d'axe (mesure
+  # sous Chromium, plotly.js 2.11.1 et 2.25.2).
+  plotly::layout(p, showlegend = TRUE, legend = .legende_sous_axe(-0.4),
                  margin = list(t = .marge_haute(45), b = 90))
 }
 
@@ -1596,18 +1610,21 @@ plot_boot_sigma <- function(pd) {
   xl <- if (length(xf)) range(xf) else c(NA_real_, NA_real_)
   xl <- xl + c(-1, 1) * 0.05 * diff(xl)
   xl_ok <- all(is.finite(xl)) && diff(xl) > 0
-  # Legende horizontale sous le titre de l'axe des abscisses, ancree au bas
-  # du conteneur (yref = "container", y = 0) : sa distance au titre d'axe ne
-  # depend plus de la hauteur du cadre (ancree a y = -0,45 de la zone de
-  # trace, elle laissait un vide sous elle a 420 px, #392) ; sans
-  # chevauchement du titre d'axe a 520 x 330, 800 x 330 (onglet M5, mw_boot),
-  # 520 x 420 et 1000 x 420 px (g_boot), mesure sous Chromium.
+  # Legende horizontale sous le titre de l'axe des abscisses : ancrage en
+  # coordonnees du papier, .legende_sous_axe() (#582). L'ancrage au conteneur
+  # (#392) etait ignore par plotly.js 2.11.1 et la legende recouvrait le bas
+  # de l'histogramme. y = -0,6. Cas de l'application, mesures d'app-review sous
+  # Chromium, plotly.js 2.11.1 et 2.25.2, resultats identiques (#582) : g_boot
+  # (420 px de haut, huit entrees) : zone de trace de 158 px et legende a 40 px
+  # sous le titre d'axe a 690 px de large, 182 px et 54 px de 1 000 a 1 170 px ;
+  # mw_boot (330 px de haut, quatre entrees) : 108 px et 10 px de 320 a 520 px
+  # de large, 132 px et 24 px a 600 px. Avant, avec l'ancrage au conteneur : 241
+  # a 251 px pour g_boot, 151 px pour mw_boot.
   plotly::layout(p, barmode = "stack",
                  xaxis = if (!is.null(rp) && nrow(rp) && xl_ok) list(range = xl),
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
-                 legend = list(orientation = "h", x = 0, xanchor = "left", yref = "container",
-                               y = 0, yanchor = "bottom", font = list(size = 10)),
+                 legend = .legende_sous_axe(-0.6),
                  margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 110))
 }
 
