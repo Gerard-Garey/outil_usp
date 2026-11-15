@@ -10,6 +10,8 @@ Les skills raisonnent en termes de cinq rôles de tri canoniques. Ce fichier fai
 | `ready-for-human`              | `ready-for-human`        | Nécessite une implémentation humaine                  |
 | `wontfix`                      | `wontfix`                | Ne sera pas traitée                                   |
 
+Depuis le 15/11/2026 (ADR 0018), une issue créée puis jugée mineure (aucun critère G, E1 à E6) est fermée `not planned` avec `wontfix`, et un commentaire qui cite la ligne « Constats mineurs écartés (ADR 0018) » du rapport de revue.
+
 Lorsqu'un skill mentionne un rôle (par exemple « appliquer le libellé de tri prêt pour un agent »), utiliser le libellé correspondant de ce tableau.
 
 Modifier la colonne de droite pour l'aligner sur le vocabulaire réellement utilisé.
