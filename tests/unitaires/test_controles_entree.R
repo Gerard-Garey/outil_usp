@@ -1838,6 +1838,27 @@ verifier("Lecture : t consecutive dans le desordre -> triee en croissant",
                                                    xt = c(5, 3, 4, 1, 2), yt = c(50, 30, 40, 10, 20)))
            isTRUE(r$ok) && identical(r$xt, c(1, 2, 3, 4, 5)) && identical(r$yt, c(10, 20, 30, 40, 50))
          })
+# Issue #579 (decision D-S1-3) : colonne ni numerique, ni texte, ni facteur
+# (logique, apres read.csv() par defaut ; Date ; POSIXct) lue NA par
+# .en_numerique(), refusee avec ses positions (as.numeric() lisait TRUE 1 et
+# une date en jours : sigma_USP rendu). Une colonne logique hors de t, xt et
+# yt reste ignoree.
+motif579d <- paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques",
+                   "(colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).")
+verifier("Lecture (#579) : colonne xt logique, Date ou POSIXct refusee avec ses positions (appel direct)",
+         all(vapply(list(rep(TRUE, 8), as.Date("2020-01-01") + 0:7,
+                         as.POSIXct("2020-01-01", tz = "UTC") + 86400 * (0:7)), function(v) {
+           r <- engine_lire_donnees_csv(data.frame(t = 1:8, xt = v, yt = y))
+           !r$ok && identical(r$erreurs, motif579d)
+         }, logical(1))))
+verifier("Lecture (#579) : colonne t en Date refusee comme non numerique (appel direct)",
+         {
+           r <- engine_lire_donnees_csv(data.frame(t = as.Date("2020-01-01") + 0:7, xt = x, yt = y))
+           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5, 6, 7, 8)")
+         })
+verifier("Lecture (#579) : colonne logique hors de t, xt et yt ignoree (series lues a l'identique)",
+         identical(engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y, drapeau = c(TRUE, FALSE))),
+                   engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y))))
 
 ## --- engine_lire_triangle (#33, #4 piste 3) -----------------------------------
 # Conversion fichier -> triangle en une fonction du moteur, puis
@@ -2529,6 +2550,33 @@ if (nzchar(Sys.which("zip"))) {
            identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
              tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
                   "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
+  # Issue #579 : colonne entierement booleenne (t="b") ou de textes "TRUE"
+  # (chaines en ligne de l'ecrivain interne) : rendue en caractere par le
+  # lecteur interne, en logique par openxlsx (sortie non retouchee) ;
+  # .en_numerique() lit la colonne logique NA, et les deux chemins refusent
+  # les memes cellules, avec le meme motif. Idem pour C(0,4) booleen.
+  motif579 <- paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques",
+                    "(colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5).")
+  b579 <- function(s) gsub('<c r="A([2-6])"><v>[0-9]+</v></c>', '<c r="A\\1" t="b"><v>1</v></c>', s)
+  db579 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), b579), identity)
+  dtxt579 <- chemins483(xlsx483(data.frame(xt = rep(TRUE, 5), yt = 60:64)), identity)
+  tri579 <- data.frame(i = 0:4, j0 = c(100, 110, 115, 125, 150), j1 = c(150, 168, 169, 185, NA),
+                       j2 = c(175, 192, 197, NA, NA), j3 = c(180, 198, NA, NA, NA), j4 = c(182, NA, NA, NA, NA))
+  motif_tri579 <- paste("Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident,",
+                        "j : annee de developpement).")
+  dtri579 <- chemins483(xlsx483(tri579, function(s) sub('<c r="F2"><v>182</v></c>', '<c r="F2" t="b"><v>1</v></c>',
+                                                       s, fixed = TRUE)), identity)
+  verifier("xlsx (#579) : colonne xt entierement booleenne (t=\"b\") en caractere (interne), en logique (openxlsx), refusee avec ses positions et le meme motif sur chaque chemin",
+           is.character(db579$interne$xt) && (is.null(db579$openxlsx) || is.logical(db579$openxlsx$xt)) &&
+             tous(db579, function(d) { r <- engine_lire_donnees_csv(d); !r$ok && identical(r$erreurs, motif579) }))
+  verifier("xlsx (#579) : colonne xt de textes \"TRUE\" en caractere (interne), en logique (openxlsx), refusee avec ses positions et le meme motif sur chaque chemin",
+           identical(dtxt579$interne$xt, rep("TRUE", 5)) &&
+             (is.null(dtxt579$openxlsx) || identical(dtxt579$openxlsx$xt, rep(TRUE, 5))) &&
+             tous(dtxt579, function(d) { r <- engine_lire_donnees_csv(d); !r$ok && identical(r$erreurs, motif579) }))
+  verifier("xlsx (#579) : triangle a C(0,4) booleen (t=\"b\") refuse avec sa position sur chaque chemin (openxlsx lisait 1)",
+           identical(dtri579$interne$j4, c("TRUE", NA, NA, NA, NA)) &&
+             (is.null(dtri579$openxlsx) || identical(dtri579$openxlsx$j4, c(TRUE, NA, NA, NA, NA))) &&
+             tous(dtri579, function(d) { r <- engine_lire_triangle(d); !r$ok && identical(r$erreurs, motif_tri579) }))
   # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
   # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
   # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.

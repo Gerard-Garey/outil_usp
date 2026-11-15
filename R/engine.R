@@ -7815,7 +7815,9 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # lignes) : une colonne i qui contredit cet ordre signale un triangle qui
 # n'est peut-etre pas celui que l'utilisateur voulait fournir. Cellules lues
 # comme celles du triangle (.nettoyer_cellules(), .en_numerique() : point
-# decimal) ; une cellule est vide selon la meme definition. Ordre et cumul
+# decimal) ; une cellule est vide selon la meme definition. Une colonne i
+# logique, Date, difftime ou d'un autre type non numerique est lue NA par
+# .en_numerique() (#579) : ses cellules non vides relevent de V2. Ordre et cumul
 # (etape B de l'avis amont) : V1 (vides) et V2 (non numeriques, non entieres
 # ou non finies) cumules ; sans eux, V3 (valeurs repetees), V4 (ordre non
 # croissant) puis V5 (ecart superieur a 1), exclusifs dans cet ordre. v :
@@ -8010,10 +8012,19 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
   !is.na(v) & .nettoyer_cellules(v) == "NA"
 }
 
+# Cellules d'une colonne en nombres ; NA pour une cellule vide ou non
+# numerique. Texte et facteur : .cellules_en_nombre() (point decimal). Tout
+# autre vecteur qui n'est pas numerique (logique, Date, POSIXct, complexe,
+# brut, liste) rend NA a chaque position (#579, decision D-S1-3) : une cellule
+# TRUE / FALSE (colonne booleenne ou de textes "TRUE" relue en logique par
+# openxlsx), une date ou un instant n'est pas une valeur ; non vide, elle est
+# refusee en aval avec sa position (as.numeric() lisait TRUE 1 et une date
+# en jours). Une colonne entierement NA reste vide.
 .en_numerique <- function(v) {
   if (is.factor(v)) v <- as.character(v)
   # Cellule non UTF-8 en locale UTF-8 : non numerique, sans erreur R (#99).
   if (is.character(v)) return(.cellules_en_nombre(.nettoyer_cellules(v)))
+  if (!is.numeric(v)) return(rep(NA_real_, length(v)))
   suppressWarnings(as.numeric(v))
 }
 
@@ -8302,7 +8313,9 @@ engine_lire_triangle <- function(df) {
 # portant "&", "<" ou ">" (ecrits echappes &amp; &lt; &gt;) sont relus tels
 # quels par le lecteur interne, encore echappes par openxlsx ("a&lt;b&amp;c") ;
 # la colonne logique est relue en caractere ("TRUE") par le lecteur interne,
-# en logique par openxlsx. Aucune retouche de la sortie d'openxlsx. Les
+# en logique par openxlsx ; dans t, xt, yt ou le triangle, elle est refusee
+# en aval par l'un et l'autre chemin, avec les memes positions
+# (.en_numerique(), #579). Aucune retouche de la sortie d'openxlsx. Les
 # exports de donnees de l'application n'y sont pas exposes : en-tetes fixes
 # (t, xt, yt ; i, j0, j1...) et cellules numeriques.
 # Compression : paquet zip s'il est installe (zip::zipr(), appel de meme forme
@@ -8886,8 +8899,10 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # chaine ecrits "a<b&c" sont relus "a<b&c" ici et "a&lt;b&amp;c" par
 # openxlsx, dont la sortie n'est pas retouchee ; une colonne logique, ecrite
 # en chaines "TRUE"/"FALSE", est relue en caractere ici et en logique par
-# openxlsx. Les exports de donnees de l'application n'y sont pas exposes :
-# en-tetes fixes (t, xt, yt ; i, j0, j1...), cellules numeriques.
+# openxlsx, puis refusee en aval sur les deux chemins si elle porte t, xt,
+# yt ou une colonne du triangle (.en_numerique(), #579). Les exports de
+# donnees de l'application n'y sont pas exposes : en-tetes fixes (t, xt,
+# yt ; i, j0, j1...), cellules numeriques.
 # Le texte phonetique (<rPh>) d'une chaine n'est pas lu (limite de la chaine
 # en ligne consignee en tete de .xml_textes(), #557). Une chaine partagee
 # enrichie (<r>..</r>) est lue entiere ici ; openxlsx 4.2.9 et 4.2.5.2 n'en
@@ -9065,8 +9080,11 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   if (any(isx)) val[isx] <- vapply(cells[isx], .xml_textes, character(1), USE.NAMES = FALSE)
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
-  # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE", comme
-  # openxlsx : sa valeur brute "1"/"0" passerait pour un nombre en aval.
+  # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE" : sa
+  # valeur brute "1"/"0" passerait pour un nombre en aval. openxlsx rend une
+  # colonne entierement booleenne (ou de textes "TRUE"/"FALSE") en logique,
+  # non en texte : .en_numerique() la lit NA, et les deux chemins refusent
+  # les memes cellules en aval (#579).
   b <- typ == "b" & !is.na(val)
   if (any(b)) val[b] <- ifelse(val[b] == "1", "TRUE", ifelse(val[b] == "0", "FALSE", val[b]))
   m <- matrix(NA_character_, max(lig), max(col))
