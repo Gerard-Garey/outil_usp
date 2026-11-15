@@ -43,6 +43,20 @@ sortie_graphique <- function(id, hauteur = "330px") {
   else plotOutput(id, height = hauteur)
 }
 
+# Onglet M5 de la methode Merz-Wuthrich (#582) : le QQ-plot (420 px de haut,
+# comme g_qq : a 330 px en pleine largeur, sa zone de trace ferait environ
+# 925 x 170 px, soit 5,4 pour 1, mesure d'app-review) et la distribution
+# bootstrap de sigma_USP (330 px), chacun en pleine largeur de la zone
+# principale, l'un sous l'autre. En demi-largeur (column(6) dans column(width = 9)), la figure de
+# plot_boot_sigma() mesure 0,375 W - 30 px (324 a 330 px a 960 px de fenetre) :
+# sa legende verticale a droite laisse alors 64 px de zone de trace et la
+# recouvre de 10 px (mesures d'app-review sous Chromium, plotly.js 2.11.1 et
+# 2.25.2). Aucun autre graphique ne partage la ligne : pas de demi-ligne vide.
+onglet_m5_mw <- function()
+  tabPanel("M5 - normalite (diagnostic)", br(),
+           fluidRow(column(12, sortie_graphique("mw_qq", "420px"))),
+           fluidRow(column(12, sortie_graphique("mw_boot"))))
+
 # Les fonctions render*() de Shiny CAPTURENT leur argument sans l'evaluer.
 # Il faut donc leur transmettre l'expression deja citee ET l'environnement
 # d'evaluation, via les arguments `env` et `quoted` -- c'est l'idiome prevu
@@ -1897,9 +1911,7 @@ server <- function(input, output, session) {
         tabPanel("M3 - independance", br(),
                  fluidRow(column(6, sortie_graphique("mw_racc")),
                           column(6, sortie_graphique("mw_rcal")))),
-        tabPanel("M5 - normalite (diagnostic)", br(),
-                 fluidRow(column(6, sortie_graphique("mw_qq")),
-                          column(6, sortie_graphique("mw_boot")))),
+        onglet_m5_mw(),
         tabPanel("Influence et leviers", br(),
                  div(class = "bloc", uiOutput("note_influence_mw")),
                  fluidRow(column(6, sortie_graphique("mw_lev", "380px")),
