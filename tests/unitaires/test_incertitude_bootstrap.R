@@ -314,19 +314,26 @@ verifier("plot_boot_sigma(), base R, objet anterieur a #305 (sans sigma_usp_boot
            identical(unname(r$axes), c("sigma simule", "effectif", "Distribution bootstrap de sigma")) &&
              !length(r$v) && !length(r$leg)
          })
-# Legende sous l'axe des abscisses (#582) : legend.yref = "container" est inconnu
-# de plotly.js 2.11.1 (plotly 4.10.4), la legende y recouvrait le bas de la zone
-# de trace ; ancrage en coordonnees du papier, ordonnee negative, legende
-# suspendue sous la zone de trace. Sans plotly : lecture des fonctions.
-verifier(".legende_sous_axe() : ancrage au papier (yref 'paper', y negatif, yanchor 'top'), jamais au conteneur ; plot_boot_sigma() et plot_ratio() l'emploient, sans 'container' dans leur code (#582)",
+# Legendes plotly hors de la zone de trace, a position independante de la
+# hauteur de la figure (#582) : legend.yref = "container" est inconnu de plotly.js
+# 2.11.1 (plotly 4.10.4) et un decalage en fraction de la zone de trace depend de
+# la hauteur de la figure. Legende verticale a droite (x > 1 au papier, bord
+# gauche de la legende, haut aligne sur le haut de la zone) ou horizontale
+# au-dessus (y >= 1 au papier, bas de la legende sur le haut de la zone).
+verifier(".legende_droite() : verticale, a droite de la zone de trace (x > 1 au papier, xanchor 'left'), haut aligne sur la zone (y = 1, yanchor 'top'), sans ancrage au conteneur (#582)",
          {
-           l <- .legende_sous_axe(-0.6)
-           identical(l$yref, "paper") && identical(l$y, -0.6) && identical(l$yanchor, "top") &&
-             identical(l$orientation, "h") && identical(l$x, 0) && identical(l$xanchor, "left") &&
-             all(vapply(list(plot_boot_sigma, plot_ratio), function(f) {
-               src <- paste(deparse(f), collapse = "\n")
-               grepl(".legende_sous_axe(", src, fixed = TRUE) && !grepl("container", src, fixed = TRUE)
-             }, NA))
+           l <- .legende_droite()
+           identical(l$orientation, "v") && identical(l$xref, "paper") && l$x > 1 &&
+             identical(l$xanchor, "left") && identical(l$yref, "paper") && identical(l$y, 1) &&
+             identical(l$yanchor, "top") && !"container" %in% unlist(l)
+         })
+verifier(".legende_haut() : horizontale, au-dessus de la zone de trace (y >= 1 au papier, yanchor 'bottom'), sans ancrage au conteneur ; marge haute reservee .LEGENDE_HAUTE_PX > 0 (#582)",
+         {
+           l <- .legende_haut()
+           identical(l$orientation, "h") && identical(l$yref, "paper") && l$y >= 1 &&
+             identical(l$yanchor, "bottom") && identical(l$xref, "paper") && identical(l$x, 0) &&
+             identical(l$xanchor, "left") && !"container" %in% unlist(l) &&
+             is.numeric(.LEGENDE_HAUTE_PX) && .LEGENDE_HAUTE_PX > 0
          })
 if (requireNamespace("plotly", quietly = TRUE)) {
   bp <- plotly::plotly_build(plot_boot_sigma(pdi))$x
@@ -343,15 +350,17 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(bp$layout$title$text, "Distribution bootstrap de sigma_USP") &&
                identical(unique(vapply(bp$data[ty == "scatter"], function(t) t$name, "")), LIB_REP)
            })
-  verifier("plot_boot_sigma(), plotly, premium_interieur : abscisses couvrant les sept reperes et l'histogramme (aucun repere rogne au bord, #392) ; legende sous la zone de trace, en coordonnees du papier (#582)",
+  verifier("plot_boot_sigma(), plotly, premium_interieur : abscisses couvrant les sept reperes et l'histogramme (aucun repere rogne au bord, #392) ; legende a droite de la zone de trace (#582)",
            {
              b <- pdi$boot_reperes
              xr <- as.numeric(bp$layout$xaxis$range)
              rep7 <- c(b$sigma_usp, b$ic_bas, b$ic_haut, b$basic_log_bas, b$basic_log_haut, b$moyenne, b$sigma_standard)
              length(xr) == 2L && all(rep7 > xr[1] & rep7 < xr[2]) &&
                min(pdi$sigma_usp_boot) > xr[1] && max(pdi$sigma_usp_boot) < xr[2] &&
-               identical(bp$layout$legend$yref, "paper") && identical(bp$layout$legend$y, -0.6) &&
-               identical(bp$layout$legend$yanchor, "top")
+               # Legende hors de la zone de trace, a droite (#582).
+               identical(bp$layout$legend$orientation, "v") && identical(bp$layout$legend$xref, "paper") &&
+               bp$layout$legend$x > 1 && identical(bp$layout$legend$xanchor, "left") &&
+               !identical(bp$layout$legend$yref, "container")
            })
   verifier("plot_boot_sigma(), plotly, valeurs simulees non finies (NA, Inf, NaN) : plage des abscisses finie, calculee sur les seules valeurs finies, et couvrant les sept reperes (#392, correctif 4505ae3)",
            {

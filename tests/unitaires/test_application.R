@@ -789,6 +789,54 @@ options(.op295)
 verifier("sortie_graphique() : option usp.graphiques_base posee, plotly simule installe -> plotOutput (#295)",
          identical(.so295, c(base = "p")))
 
+## --- Onglet M5 de Merz-Wuthrich en pleine largeur (issue #582) -----------------
+# La legende verticale de plot_boot_sigma() prend 198 px a la zone de trace : en
+# demi-largeur (column(6) dans column(width = 9), figure de 0,375 W - 30 px),
+# mw_boot laissait 64 px de zone de trace a 960 px de fenetre. Comportement sans
+# shiny : onglet_m5_mw() est evalue dans un environnement ou les fonctions de
+# mise en page sont remplacees par des releves (largeur de colonne, sortie), et
+# on lit la largeur de la colonne qui porte chaque graphique.
+.env582 <- new.env()
+for (.x in as.list(parse(.app, keep.source = FALSE)))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      as.character(.x[[2]]) %in% c("onglet_m5_mw", "sortie_graphique")) eval(.x, .env582)
+.env582$.plotly_dispo <- function() FALSE
+.env582$plotOutput <- function(id, height) list(sortie = id, hauteur = height)
+.env582$tabPanel <- function(titre, ...) list(titre = titre, contenu = list(...))
+.env582$br <- function() NULL
+.env582$fluidRow <- function(...) list(ligne = list(...))
+.env582$column <- function(width, ...) list(largeur = width, contenu = list(...))
+.m5_582 <- tryCatch(.env582$onglet_m5_mw(), error = function(e) e)
+.largeur_582 <- function(id) {
+  l <- unlist(lapply(.m5_582$contenu, function(x) if (!is.null(x$ligne)) x$ligne), recursive = FALSE)
+  v <- vapply(l, function(cl) if (any(unlist(cl$contenu) == id)) cl$largeur else NA_real_, 0)
+  v[!is.na(v)]
+}
+.hauteur_582 <- function(id) {
+  l <- unlist(lapply(.m5_582$contenu, function(x) if (!is.null(x$ligne)) x$ligne), recursive = FALSE)
+  h <- unlist(lapply(l, function(cl) lapply(cl$contenu, function(o) if (identical(o$sortie, id)) o$hauteur)))
+  unlist(h)
+}
+verifier("onglet_m5_mw() : mw_qq et mw_boot, chacun seul dans une colonne de largeur 12 (pleine largeur, pas de demi-ligne vide) (#582)",
+         !inherits(.m5_582, "error") && identical(.m5_582$titre, "M5 - normalite (diagnostic)") &&
+           identical(.largeur_582("mw_boot"), 12) && identical(.largeur_582("mw_qq"), 12))
+verifier("onglet_m5_mw() : mw_qq a 420 px de haut (comme g_qq, pas aplati), mw_boot a 330 px (#582)",
+         identical(.hauteur_582("mw_qq"), "420px") && identical(.hauteur_582("mw_boot"), "330px"))
+# Le serveur passe par onglet_m5_mw() : un onglet M5 remis en ligne dans
+# output$onglets_graphiques contournerait la fonction testee ci-dessus. Lecture
+# de l'arbre de app.R (appels de onglet_m5_mw(), tabPanel() au titre M5).
+.affect_582 <- function(e, lhs) {
+  if (!is.call(e)) return(list())
+  ici <- if (identical(e[[1]], as.name("<-")) && identical(e[[2]], lhs)) list(e) else list()
+  c(ici, unlist(lapply(as.list(e)[-1], .affect_582, lhs), recursive = FALSE))
+}
+.og_582 <- unlist(lapply(as.list(parse(.app, keep.source = FALSE)), .affect_582,
+                         quote(output$onglets_graphiques)), recursive = FALSE)
+.tp_m5 <- Filter(function(cl) is.character(cl[[2]]) && grepl("^M5", cl[[2]]),
+                 .appels(.og_582, "tabPanel"))
+verifier("app.R : output$onglets_graphiques appelle onglet_m5_mw() une fois (reserve2) et ne porte aucun tabPanel() M5 en ligne (#582)",
+         length(.og_582) == 1L && length(.appels(.og_582, "onglet_m5_mw")) == 1L && !length(.tp_m5))
+
 ## --- Cle de ligne et report de la selection (issue #380) ------------------------
 .dh380 <- new.env()
 sys.source(file.path(.racine, "R", "display_helpers.R"), envir = .dh380)
