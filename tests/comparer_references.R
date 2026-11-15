@@ -55,11 +55,13 @@
 #                      absente ou ajoutee, structure differente --, qui doit
 #                      etre VIDE. Code de sortie 1 (bascule refusee, message
 #                      explicite) si la part non numerique n'est pas vide ou
-#                      si un ecart numerique depasse TOLERANCE (ce ne serait
-#                      plus de la derive). Console : liste complete, triee
-#                      par ecart decroissant ; markdown : les deux parts,
-#                      chacune plafonnee a --max-lignes. Incompatible avec
-#                      --tout : la bascule juge ce que juge la CI.
+#                      si un ecart numerique depasse TOLERANCE (sur la CI, un
+#                      changement de resultat ; sur une autre plateforme, a
+#                      juger par le critere de #548). Console : liste
+#                      complete, triee par ecart decroissant ; markdown :
+#                      les deux parts, chacune plafonnee a --max-lignes.
+#                      Incompatible avec --tout : la bascule juge ce que
+#                      juge la CI.
 #
 #  Une erreur sur un cas (reference absente ou illisible, erreur du moteur) est
 #  signalee, a l'ecran et dans le markdown, et n'arrete pas les cas
@@ -240,7 +242,9 @@ separer_parts <- function(r, ref) {
 
 # Motifs de refus de la bascule pour un cas (character(0) si aucun) : part
 # non numerique non vide ; ecart numerique au-dela de tol (TOLERANCE, le
-# seuil de la CI), qui ne serait plus de la derive de plateforme.
+# seuil de la CI) : sur la CI, un changement de resultat ; sur une autre
+# plateforme, il peut n'etre qu'une derive de plateforme, a juger par le
+# critere de #548 (et non par ce seuil).
 refus_bascule <- function(p, tol = TOLERANCE) {
   n_nn <- nrow(p$non_numerique); n_st <- length(p$structure)
   n_ent <- sum(p$non_numerique$mesure == "entier modifie")
@@ -251,7 +255,8 @@ refus_bascule <- function(p, tol = TOLERANCE) {
               if (n_ent) sprintf(" dont %d valeur(s) entiere(s) modifiee(s)", n_ent) else "",
               if (n_st) sprintf(", %d noeud(s) de structure", n_st) else ""),
     if (n_au_dela)
-      sprintf("%d ecart(s) numerique(s) au-dela du seuil %g de la CI : ce n'est plus de la derive de plateforme",
+      sprintf(paste0("%d ecart(s) numerique(s) au-dela du seuil %g de la CI : changement de resultat sur la CI ; ",
+                     "sur une autre plateforme, juger par le critere de #548"),
               n_au_dela, tol))
 }
 
