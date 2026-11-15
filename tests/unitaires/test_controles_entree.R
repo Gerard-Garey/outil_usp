@@ -3307,6 +3307,110 @@ if (nzchar(Sys.which("zip"))) {
            tous487(rstr557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "a&amp;b", "y&#233;")) &&
                      identical(d$xt, c("1.5", "3")) && identical(d[["a&amp;b"]], c("a&amp;b", "x&lt;y"))) &&
              (!avec_openxlsx483 || identical(rstr557$interne, rstr557$openxlsx)))
+
+  # --- #575 : regle R10 du contrat ferme (indice de chaine partagee dans les
+  # bornes de la table), avant tout appel a openxlsx. Avant correction
+  # (rejeu S1, openxlsx 4.2.5.2) : lecture hors bornes par openxlsx, arret du
+  # processus R (code 139) ou erreur R brute selon l'etat de la memoire ;
+  # lecteur interne : data.frame (cellule NA). Chaque lecture tourne dans un
+  # sous-processus Rscript (un arret n'interrompt pas la batterie), sur les
+  # deux chemins : openxlsx tel qu'installe, et lecteur interne par
+  # substitution de requireNamespace dans environment(run_engine) (modele de
+  # sans488). Succes si et seulement si : code 0, CLASSE=usp_refus_lecture,
+  # message attendu (sauf pour l'indice negatif, dont le texte sera celui de
+  # R8 a #574 : refus et classe seuls), meme message sur chaque chemin, et
+  # chemin effectivement suivi (OPENXLSX=, requireNamespace("openxlsx") vu
+  # par le moteur : TRUE sur le chemin openxlsx, FALSE sur le chemin
+  # interne).
+  texte575 <- function(pos, n) sprintf("Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (%s ; la table xl/sharedStrings.xml en compte %d) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.", pos, n)
+  fils575 <- tempfile("fils575_", fileext = ".R")
+  writeLines(c(
+    "a <- commandArgs(TRUE)",
+    "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+    "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+    "if (identical(a[3], \"interne\"))",
+    "  assign(\"requireNamespace\", function(package, ...)",
+    "    if (package %in% \"openxlsx\") FALSE else base::requireNamespace(package, ...), envir = environment(run_engine))",
+    "cat(\"OPENXLSX=\", eval(quote(requireNamespace(\"openxlsx\", quietly = TRUE)), environment(run_engine)), \"\\n\", sep = \"\")",
+    "r <- tryCatch(engine_lire_xlsx(a[2]), error = function(e) e)",
+    "cat(\"CLASSE=\", class(r)[1], \"\\n\", sep = \"\")",
+    "cat(\"MESSAGE=\", if (inherits(r, \"condition\")) conditionMessage(r) else \"\", \"\\n\", sep = \"\")"), fils575)
+  racine575 <- normalizePath(RACINE, winslash = "/")
+  lancer575 <- function(f, chemin) {
+    out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(fils575, racine575, f, chemin)),
+                                    stdout = TRUE, stderr = TRUE, timeout = 120))
+    st <- attr(out, "status"); if (is.null(st)) st <- 0L
+    list(st = as.integer(st), classe = grep("^CLASSE=", out, value = TRUE),
+         openxlsx = grep("^OPENXLSX=", out, value = TRUE),
+         message = sub("^MESSAGE=", "", grep("^MESSAGE=", out, value = TRUE)))
+  }
+  chemins575 <- c("interne", if (avec_openxlsx483) "openxlsx")
+  if (!avec_openxlsx483) cat("  [saute] indice de chaine partagee hors bornes (#575), chemin openxlsx : paquet non installe\n")
+  # Rend TRUE ou un texte qui decrit chaque chemin (code, classe, message), lu
+  # dans le compte rendu de la batterie.
+  # attendu = NULL : texte non fige (refus, classe et message commun seuls).
+  refus575 <- function(f, attendu) {
+    r <- lapply(setNames(chemins575, chemins575), function(ch) lancer575(f, ch))
+    unlink(f)
+    ok <- vapply(names(r), function(ch) { x <- r[[ch]]
+                   identical(x$st, 0L) && "CLASSE=usp_refus_lecture" %in% x$classe &&
+                     identical(x$openxlsx, paste0("OPENXLSX=", ch == "openxlsx")) &&
+                     length(x$message) == 1L && nzchar(x$message) &&
+                     (is.null(attendu) || identical(x$message, attendu)) }, logical(1))
+    if (all(ok) && length(unique(lapply(r, `[[`, "message"))) == 1L) return(TRUE)
+    paste(vapply(names(r), function(k) sprintf("chemin %s : code %d, %s, %s, MESSAGE=%s", k, r[[k]]$st,
+                                               c(r[[k]]$classe, "CLASSE absente")[1L], c(r[[k]]$openxlsx, "OPENXLSX absent")[1L],
+                                               paste(r[[k]]$message, collapse = " | ")),
+                 ""), collapse = " ; ")
+  }
+  feuille575 <- function(xml, shared) classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)), shared = shared)
+  verifier("xlsx (#575, R10) : table d'une seule <si>, A2 t=\"s\" d'indice 5 : refus R10 \"A2 : indice 5\" (table : 1 chaine), code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : arret du processus ou erreur R brute par openxlsx, data.frame par le lecteur interne)",
+           refus575(feuille575(paste0(ligne487(1, ps487("A1", 0)), ligne487(2, ps487("A2", 5))), "<si><t>annee</t></si>"),
+                    texte575("A2 : indice 5", 1L)))
+  verifier("xlsx (#575, R10) : table entierement en <x:si>, B2 t=\"s\" d'indice 0 : refus R10 \"B2 : indice 0\" (table : 0 chaine extraite), code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R brute par openxlsx, lecture hors bornes)",
+           refus575(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+                                      ligne487(2, c(nb487("A2", 1), ps487("B2", 0), nb487("C2", 2)))),
+                               '<x:si><x:t>11.5</x:t></x:si>'),
+                    texte575("B2 : indice 0", 0L)))
+  # Balise <v > (blanc avant ">") : vue par R10 (openxlsx 4.2.5.2 la lit et
+  # s'arretait, code 139, mesure de l'audit) ; indice negatif (<v>-1</v>,
+  # segfault d'openxlsx 4.2.5.2, mesure) : refus et classe seuls, le texte
+  # sera celui de R8 (#574).
+  ser575 <- function(b2, shared) feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"))),
+                                                   ligne487(2, c(nb487("A2", 1), b2))), shared)
+  verifier("xlsx (#575, R10) : balise <v > (blanc), B2 t=\"s\" d'indice 5, table d'une chaine : refus R10 \"B2 : indice 5\", code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : arret du processus par openxlsx, code 139)",
+           refus575(ser575('<c r="B2" t="s"><v >5</v></c>', "<si><t>a</t></si>"), texte575("B2 : indice 5", 1L)))
+  verifier("xlsx (#575, R10) : indice negatif <v>-1</v>, table d'une chaine : refus de classe usp_refus_lecture, code 0, meme message sur chaque chemin, en sous-processus (texte non fige : R8, #574 ; avant : arret du processus par openxlsx, code 139)",
+           refus575(ser575('<c r="B2" t="s"><v>-1</v></c>', "<si><t>a</t></si>"), NULL))
+  echec_attendu("xlsx (#575) : cellule t=\"s\" portant <is> (sans <v>) : refus de classe usp_refus_lecture, code 0, meme message sur chaque chemin, en sous-processus (aujourd'hui : erreur R brute par openxlsx, data.frame par le lecteur interne)",
+                "#574 : t=\"s\" portant <is>, regle R8, hors de R10",
+                refus575(ser575('<c r="B2" t="s"><is><t>11</t></is></c>', "<si><t>a</t></si>"), NULL))
+  unlink(fils575)
+  # Lecteur interne, dans le processus (aucun appel a openxlsx) : bornes de
+  # R10 ; indice au-dela de .Machine$integer.max (as.integer() rendrait NA),
+  # indice cite tronque a 20 caracteres ; classeur sans table ; cinq positions
+  # au plus ; indice n - 1 lu. Aucune forme non entiere (1.5, 0x10, 1e3, Inf,
+  # blancs) n'est figee : R8 les refusera avant R10 (#574).
+  int575 <- function(xml, shared = NULL) {
+    f <- feuille575(xml, shared); on.exit(unlink(f))
+    tryCatch(sans_openxlsx483(engine_lire_xlsx(f)), error = function(e) conditionMessage(e))
+  }
+  ent575 <- ligne487(1, c(ps487("A1", 0), ps487("B1", 1)))
+  verifier("xlsx, lecteur interne (#575, R10) : indice 1 pour une table de 2 chaines lu ; indice 2 refuse ; indice 99999999999 (au-dela de .Machine$integer.max) refuse ; indice de 25 chiffres cite tronque a 20 caracteres suivis de \"...\" ; sans table, indice 0 refuse (0 chaine)",
+           { sh <- "<si><t>t</t></si><si><t>xt</t></si>"
+             d1 <- int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), ps487("B2", 1)))), sh)
+             is.data.frame(d1) && identical(names(d1), c("t", "xt")) && identical(d1$xt, "xt") &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), ps487("B2", 2)))), sh), texte575("B2 : indice 2", 2L)) &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), '<c r="B2" t="s"><v>99999999999</v></c>'))), sh),
+                         texte575("B2 : indice 99999999999", 2L)) &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), sprintf('<c r="B2" t="s"><v>%s</v></c>', strrep("9", 25))))), sh),
+                         texte575(paste0("B2 : indice ", strrep("9", 20), "..."), 2L)) &&
+               identical(int575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"))),
+                                       ligne487(2, c(nb487("A2", 1), ps487("B2", 0)))), NULL), texte575("B2 : indice 0", 0L)) })
+  verifier("xlsx, lecteur interne (#575, R10) : sept cellules hors bornes : cinq positions citees, dans l'ordre de la feuille, puis \"et 2 autre(s)\"",
+           identical(int575(paste0(ent575, ligne487(2, vapply(1:7, function(k) ps487(paste0(LETTERS[k], 2), 10 + k), ""))),
+                            "<si><t>t</t></si><si><t>xt</t></si>"),
+                     texte575("A2 : indice 11, B2 : indice 12, C2 : indice 13, D2 : indice 14, E2 : indice 15 et 2 autre(s)", 2L)))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)

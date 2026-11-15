@@ -8753,12 +8753,56 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # Indice (base 1) d'une chaine partagee lu dans <v> d'une cellule t="s" ;
 # NA si la valeur n'est pas un entier positif ou nul (fichier forge : indice
 # negatif ou non numerique). Un indice au-dela de la table donne NA a
-# l'indexation. Sans ce garde, un indice negatif donnait l'index 0 et un
-# remplacement trop court (erreur R, ou textes recycles hors de leur cellule).
+# l'indexation (appel direct ; engine_lire_xlsx() le refuse avant, regle R10,
+# .xlsx_controler_indices_partages(), #575). Sans ce garde, un indice negatif
+# donnait l'index 0 et un remplacement trop court (erreur R, ou textes
+# recycles hors de leur cellule).
 .xlsx_indice_partage <- function(v) {
   i <- suppressWarnings(as.integer(v)) + 1L
   i[!is.na(i) & i < 1L] <- NA_integer_
   i
+}
+
+# Regle R10 du contrat ferme du lecteur de classeur (#575 ; avis amont
+# d'actuary du 15/11/2026, S1, textes du par. 2) : toute cellule t="s" qui
+# porte <v> a un indice positif ou nul et strictement inferieur au nombre n de
+# chaines de la table (0 sans table). Mesure (#575, rejeu S1) : indice 5 pour
+# une table d'une seule <si>, openxlsx 4.2.5.2 lit hors bornes (segfault du
+# processus R, code 139, ou erreur R brute selon l'etat de la memoire ; 4.2.9
+# : segfault), le lecteur interne lit NA. Controle pose dans
+# engine_lire_xlsx() avant tout appel a openxlsx, sur les deux chemins. n est
+# le nombre de chaines extraites par le lecteur interne (balises <si>...</si>)
+# ; le decompte definitif est celui de la regle R9 (#574). Toute balise <v>
+# est vue, avec ou sans blanc ou attribut (<v >, <v xml:space="preserve"> :
+# openxlsx 4.2.5.2 les lit et s'arrete, code 139, mesure de l'audit ; le
+# lecteur interne ne lit que <v>, divergence laissee aux regles R3 et R8,
+# #574). Texte de la balise, balises retirees, blancs XML de bord retires,
+# puis compare en double (as.numeric(), jamais as.integer(), qui rendrait NA
+# au-dela de .Machine$integer.max et laisserait passer l'indice). Un indice
+# negatif est hors de la table (<v>-1</v> : segfault d'openxlsx 4.2.5.2, code
+# 139, mesure ; decision d'actuary du 15/11/2026). Une valeur que as.numeric()
+# ne lit pas (NA, NaN) ne releve pas de R10 (forme de l'indice : regle R8,
+# #574). Positions "A2 : indice 5", cinq au plus (.liste_positions()), indice
+# cite par .echapper_texte(), tronque a 20 caracteres suivis de "...". Refus
+# de classe usp_refus_lecture.
+.xlsx_controler_indices_partages <- function(xml, n) {
+  cc <- .xlsx_cellules(xml)
+  s <- cc$typ %in% "s"
+  if (!any(s)) return(invisible(NULL))
+  cel <- cc$cellules[s]
+  brut <- rep(NA_character_, length(cel))
+  mv <- regexpr("<v([[:space:]][^>]*)?>.*?</v>", cel)
+  brut[mv > 0] <- gsub("<[^>]*>", "", regmatches(cel, mv))
+  brut <- sub("[ \t\r\n]+$", "", sub("^[ \t\r\n]+", "", brut))
+  k <- suppressWarnings(as.numeric(brut))
+  hors <- !is.na(k) & (k >= n | k < 0)
+  if (!any(hors)) return(invisible(NULL))
+  cite <- brut[hors]
+  long <- nchar(cite) > 20L
+  cite[long] <- paste0(substr(cite[long], 1L, 20L), "...")
+  .refus_lecture(sprintf("Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (%s ; la table xl/sharedStrings.xml en compte %d) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.",
+                         .liste_positions(paste0(cc$ref[s][hors], " : indice ", .echapper_texte(cite))),
+                         as.integer(n)))
 }
 
 # Controle de la ligne d'en-tete, commun aux deux chemins de lecture, fait sur
@@ -8779,10 +8823,11 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # cellule nombre, booleenne ou d'erreur qui porte <v> reste une valeur ; une
 # cellule mise en forme sans valeur (<c r="A1" s="1"/>), <v/>, ou une
 # formule sans <v> n'en est pas une. Une reference de chaine partagee
-# illisible ou hors de la table reste une valeur (pas de refus sur une
-# cellule mal formee). La sonde openxlsx::read.xlsx(rows = 1, colNames =
-# FALSE, skipEmptyRows = FALSE, skipEmptyCols = FALSE) n'est pas appelee :
-# elle avertit "No data found on worksheet", depend de la version
+# illisible, ou hors de la table en appel direct, reste une valeur (pas de
+# refus ici sur une cellule mal formee ; engine_lire_xlsx() refuse avant
+# l'indice hors de la table, regle R10, #575). La sonde
+# openxlsx::read.xlsx(rows = 1, colNames = FALSE, skipEmptyRows = FALSE,
+# skipEmptyCols = FALSE) n'est pas appelee : elle avertit "No data found on worksheet", depend de la version
 # d'openxlsx et ne voit pas la cellule A1 d'un <row> sans attribut r que la
 # lecture complete lit (mesure, openxlsx 4.2.9, avant la regle des blancs).
 # Une feuille sans aucune cellule a valeur, chaines de blancs comprises,
@@ -9057,6 +9102,10 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
       .refus_lecture("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une chaine formee de plusieurs balises <t> successives, forme non prevue par le format ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre tronquee). Enregistrer de nouveau le classeur depuis un tableur.")
     partagees <- vapply(si, .xml_textes, character(1), USE.NAMES = FALSE)
   }
+  # Regle R10 (#575) : indice de chaine partagee dans les bornes de la table,
+  # avant le controle de la ligne 1 et avant tout appel a openxlsx, qui lit
+  # hors bornes (arret du processus R ou erreur R brute, mesure).
+  .xlsx_controler_indices_partages(xml, length(partagees))
   if (entete) .xlsx_controler_ligne_entete(xml, partagees)
   # openxlsx lit la feuille resolue par son rang (feuilles de graphique
   # placees avant passees, #487).
