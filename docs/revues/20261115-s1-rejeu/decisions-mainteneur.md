@@ -22,3 +22,11 @@
 | D-S1-9 | Q6 : référence de cellule en minuscules (`r="b2"`), admise par Q-A du 13/11, mais erreur R brute par `openxlsx` 4.2.5.2 | **Refus** : forme de `r` restreinte à `^[A-Z]+[1-9][0-9]*$`, texte du refus de Q-A inchangé ; renverse Q-A sur ce point |
 | D-S1-10 | Visa des changements de résultat hors références du lot B : (a) texte portant « t= » après une cellule (en-tête ou pied de page), σ_USP rendu → refus ; (b) chaîne en ligne indentée, σ_USP rendu en interne → refus ; (c) cellule sans valeur hors des limites (XFE10) → refus ; (d) `<v >` et `<v xml:space="preserve">`, refus en interne → σ_USP 0.1114524114, comme `openxlsx` | **Visa accordé**, (a) à (d) |
 | D-S1-11 | Constat hors périmètre n° 1 du codeur (cellules hors de l'ordre de lecture : `xt` et `yt` permutés par `openxlsx`, σ_USP 0.1764544949 au lieu de 0.1114524114 ; erreur R brute si la ligne 1 est en fin de bloc ; critère E1 de l'ADR 0018) | **Règle R6b dans #574** (S1, lot B), texte d'`actuary` ; pas d'issue nouvelle |
+
+## Lot C de #574 (15/11/2026)
+
+> *Sur l'avis d'`actuary` (fiche de base) sur les questions du codeur du lot C : points 1 à 4 acceptés sans décision ; point 5, formes lues juste et désormais refusées, couvertes par D-S1-1, visa requis comme changement de résultat hors références.*
+
+| N° | Question | Décision |
+|---|---|---|
+| D-S1-12 | Visa du tableau avant / après du lot C (R7, R8) : valeurs fausses corrigées (`t="d"`, `0x10`, `1&#48;4.2`, `1&lt;2`, `1e`, `104,2`, `t="b"` 2, `t="s"` sans `<v>` ou avec `<v/>`, `t="S"`) ; formes lues juste (σ_USP 0.1114524114) refusées : `t="N"`, `t="Str"`, indice de chaîne `" 1"`, `1.0`, `+1`, `1e0`, `<is>` sans `t="inlineStr"` ou avec `t="n"` ou `t="str"`, `inlineStr` avec `<v>`, `t="e"` hors du tableau | **Visa accordé** |
