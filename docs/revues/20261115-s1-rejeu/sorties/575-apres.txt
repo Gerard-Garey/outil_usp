@@ -1,0 +1,14 @@
+[575] chemin = interne
+  table a une <si>, A2 t="s" indice 5
+  ERREUR classe = usp_refus_lecture/error/condition
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (A2 : indice 5 ; la table xl/sharedStrings.xml en compte 1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+ NULL
+  [code de sortie : 0]
+
+[575] chemin = openxlsx 4.2.5.2
+  table a une <si>, A2 t="s" indice 5
+  ERREUR classe = usp_refus_lecture/error/condition
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (A2 : indice 5 ; la table xl/sharedStrings.xml en compte 1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+ NULL
+  [code de sortie : 0]
+
