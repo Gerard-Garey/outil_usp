@@ -30,3 +30,4 @@
 | N° | Question | Décision |
 |---|---|---|
 | D-S1-12 | Visa du tableau avant / après du lot C (R7, R8) : valeurs fausses corrigées (`t="d"`, `0x10`, `1&#48;4.2`, `1&lt;2`, `1e`, `104,2`, `t="b"` 2, `t="s"` sans `<v>` ou avec `<v/>`, `t="S"`) ; formes lues juste (σ_USP 0.1114524114) refusées : `t="N"`, `t="Str"`, indice de chaîne `" 1"`, `1.0`, `+1`, `1e0`, `<is>` sans `t="inlineStr"` ou avec `t="n"` ou `t="str"`, `inlineStr` avec `<v>`, `t="e"` hors du tableau | **Visa accordé** |
+| D-S1-13 | Portée de D-S1-2 relevée par l'audit léger du lot C : `openxlsx::write.xlsx()` écrit `t="e"` pour un NA (`keepNA = TRUE`, « #N/A ») et, par défaut, pour Inf, -Inf, NaN (« #NUM! ») ; un tel classeur, lu avant si la cellule est hors des colonnes lues, est refusé | **D-S1-2 maintenue** dans toute sa portée : toute cellule en erreur refusée, quelle que soit sa place ; changement porté au tableau avant / après du lot C (visa D-S1-12) |
