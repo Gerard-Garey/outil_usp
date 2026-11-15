@@ -314,6 +314,20 @@ verifier("plot_boot_sigma(), base R, objet anterieur a #305 (sans sigma_usp_boot
            identical(unname(r$axes), c("sigma simule", "effectif", "Distribution bootstrap de sigma")) &&
              !length(r$v) && !length(r$leg)
          })
+# Legende sous l'axe des abscisses (#582) : legend.yref = "container" est inconnu
+# de plotly.js 2.11.1 (plotly 4.10.4), la legende y recouvrait le bas de la zone
+# de trace ; ancrage en coordonnees du papier, ordonnee negative, legende
+# suspendue sous la zone de trace. Sans plotly : lecture des fonctions.
+verifier(".legende_sous_axe() : ancrage au papier (yref 'paper', y negatif, yanchor 'top'), jamais au conteneur ; plot_boot_sigma() et plot_ratio() l'emploient, sans 'container' dans leur code (#582)",
+         {
+           l <- .legende_sous_axe(-0.6)
+           identical(l$yref, "paper") && identical(l$y, -0.6) && identical(l$yanchor, "top") &&
+             identical(l$orientation, "h") && identical(l$x, 0) && identical(l$xanchor, "left") &&
+             all(vapply(list(plot_boot_sigma, plot_ratio), function(f) {
+               src <- paste(deparse(f), collapse = "\n")
+               grepl(".legende_sous_axe(", src, fixed = TRUE) && !grepl("container", src, fixed = TRUE)
+             }, NA))
+         })
 if (requireNamespace("plotly", quietly = TRUE)) {
   bp <- plotly::plotly_build(plot_boot_sigma(pdi))$x
   verifier("plot_boot_sigma(), plotly, premium_interieur : trois histogrammes empiles (bingroup commun, barmode stack), sept reperes, axes 'sigma_USP simule' / 'effectif', titre",
@@ -329,15 +343,15 @@ if (requireNamespace("plotly", quietly = TRUE)) {
                identical(bp$layout$title$text, "Distribution bootstrap de sigma_USP") &&
                identical(unique(vapply(bp$data[ty == "scatter"], function(t) t$name, "")), LIB_REP)
            })
-  verifier("plot_boot_sigma(), plotly, premium_interieur : abscisses couvrant les sept reperes et l'histogramme (aucun repere rogne au bord, #392) ; legende ancree au bas du conteneur, hors de la hauteur du cadre",
+  verifier("plot_boot_sigma(), plotly, premium_interieur : abscisses couvrant les sept reperes et l'histogramme (aucun repere rogne au bord, #392) ; legende sous la zone de trace, en coordonnees du papier (#582)",
            {
              b <- pdi$boot_reperes
              xr <- as.numeric(bp$layout$xaxis$range)
              rep7 <- c(b$sigma_usp, b$ic_bas, b$ic_haut, b$basic_log_bas, b$basic_log_haut, b$moyenne, b$sigma_standard)
              length(xr) == 2L && all(rep7 > xr[1] & rep7 < xr[2]) &&
                min(pdi$sigma_usp_boot) > xr[1] && max(pdi$sigma_usp_boot) < xr[2] &&
-               identical(bp$layout$legend$yref, "container") && identical(bp$layout$legend$y, 0) &&
-               identical(bp$layout$legend$yanchor, "bottom")
+               identical(bp$layout$legend$yref, "paper") && identical(bp$layout$legend$y, -0.6) &&
+               identical(bp$layout$legend$yanchor, "top")
            })
   verifier("plot_boot_sigma(), plotly, valeurs simulees non finies (NA, Inf, NaN) : plage des abscisses finie, calculee sur les seules valeurs finies, et couvrant les sept reperes (#392, correctif 4505ae3)",
            {

@@ -3382,7 +3382,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              all(vapply(strsplit(tt, "<br>", fixed = TRUE), function(l) all(nchar(l) <= 18L) && length(l) <= 2L, NA))
            })
   # Legende de la ligne pointillee de plot_ratio() (niveau = beta estime).
-  verifier("plot_ratio() plotly : la ligne pointillee porte une legende (beta estime lu dans plots_data$ratio$niveau), la courbe observee aucune ; legende ancree au bas du conteneur",
+  verifier("plot_ratio() plotly : la ligne pointillee porte une legende (beta estime lu dans plots_data$ratio$niveau), la courbe observee aucune ; legende sous la zone de trace, en coordonnees du papier (#582)",
            {
              op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
              b <- plotly::plotly_build(plot_ratio(res_ln$plots_data))$x
@@ -3393,7 +3393,8 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              length(ligne) == 1L && length(courbe) == 1L &&
                identical(ligne[[1]]$name, lib) && !identical(ligne[[1]]$showlegend, FALSE) &&
                identical(courbe[[1]]$showlegend, FALSE) &&
-               isTRUE(b$layout$showlegend) && identical(b$layout$legend$yref, "container") &&
+               isTRUE(b$layout$showlegend) && identical(b$layout$legend$yref, "paper") && identical(b$layout$legend$y, -0.4) &&
+               identical(b$layout$legend$yanchor, "top") &&
                grepl("^beta estime = [0-9]+,[0-9]{4} \\(ratio attendu\\)$", lib)
            })
   # Huit titres longs : aucune ligne de titre ne depasse la figure de 330 px.
