@@ -865,11 +865,10 @@ motif188 <- function(borne = c("basse", "haute"), methode = c("premium", "reserv
                       "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1,",
                       "point d))."),
                 if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
-  rr <- "La methode du risque de reserve no 2 reste ouverte (meme point)."
   v1 <- sprintf("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un coefficient fixe.", sec)
   v2 <- sprintf("Verifier les unites, la correspondance des annees et les valeurs aberrantes (%s(1) et %s(2)(a)).",
                 sec, sec)
-  paste(c(tt, if (borne == "basse") c1 else c2, ff, if (!prem) rr,
+  paste(c(tt, if (borne == "basse") c1 else c2, ff,
           if (borne == "basse") v1 else v2), collapse = " ")
 }
 # Meme entree par run_engine() : la decision du mainteneur du 02/10/2026
@@ -4789,12 +4788,11 @@ motif227 <- function(methode = c("premium", "reserve1")) {
                       "vraisemblance maximum (%s, iii et iv ; article 219, paragraphe 1,",
                       "point d))."),
                 if (prem) "a)" else "b)", if (prem) "B(2)(g)" else "C(2)(e)")
-  rr <- "La methode du risque de reserve no 2 reste ouverte (meme point)."
   vv <- sprintf(paste("Verifier que y_t est observe (%s(1)(a)) et non deduit de x_t par un",
                       "coefficient fixe, ainsi que les unites, la correspondance des annees et",
                       "les valeurs aberrantes (%s(1) et %s(2)(a))."),
                 sec, sec, sec)
-  paste(c(tt, ff, if (!prem) rr, vv), collapse = " ")
+  paste(c(tt, ff, vv), collapse = " ")
 }
 # Ajustements fictifs a trois champs (gamma, kkt_au_moins_un,
 # gamma_bord_au_moins_un) ; v2() a deux champs (champ absent).
@@ -4809,6 +4807,18 @@ verifier("usp_valider_ajustement(), critere (a) : (-12, KKT non, bord oui) refus
              identical(v227(3, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif188("haute", m))) &&
              identical(v227(2.5, FALSE, TRUE, m), list(ok = FALSE, erreurs = motif227(m))),
            logical(1))))
+# #573 (texte vise par le mainteneur le 14/11/2026, suppression pure) : le
+# motif de refus ne qualifie plus la methode du risque de reserve no 2 de
+# "reste ouverte", dans les deux formes et aux deux bornes ; la phrase de
+# l'article 220(1) est suivie directement de la phrase "Verifier...".
+verifier("usp_valider_ajustement(), reserve1 : motif sans la phrase \"reste ouverte\" (formes 1 et 2, deux bornes), article 220(1)(b) suivi de \"Verifier\" (#573)",
+         {
+           mm <- c(v227(-12, FALSE, TRUE, "reserve1")$erreurs, v227(-11.5, FALSE, TRUE, "reserve1")$erreurs,
+                   v227(3, FALSE, TRUE, "reserve1")$erreurs, v227(2.5, FALSE, TRUE, "reserve1")$erreurs)
+           length(mm) == 4L && !any(grepl("reste ouverte", mm, fixed = TRUE)) &&
+             !any(grepl("reserve no 2", mm, fixed = TRUE)) &&
+             all(grepl("point d)). Verifier ", mm, fixed = TRUE))
+         })
 verifier("usp_valider_ajustement(), critere (b) : (-11,5, KKT oui, bord oui), (-12, oui, oui) et (-11,5, non, bord non) acceptes, premium et reserve1 (#227)",
          all(vapply(c("premium", "reserve1"), function(m)
            identical(v227(-11.5, TRUE, TRUE, m), OK227) &&

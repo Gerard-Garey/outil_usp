@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{13~novembre 2026}
-\newcommand{\versiondoc}{3.7}
+\newcommand{\datedoc}{14~novembre 2026}
+\newcommand{\versiondoc}{3.8}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -749,7 +749,10 @@ d'\code{usp\_controle\_donnees()}~; conventions de l'outil, sans source régleme
 arguments\newline d'\code{engine\_valider\_}\newline\code{donnees()} & \code{\$xt}, \code{\$yt} (les $T$ années les plus
 récentes si $T$ est accepté), \code{\$validation}~; étape~1 de \code{run\_engine()} (profondeur,
 troncature, validation), qui l'appelle, et que l'application appelle pour valider la même série
-avant le calcul \\
+avant le calcul~; série non tronquée si $T$ est refusé (motifs de profondeur en tête des
+erreurs, avertissements retirés, longueur retenue manquante) ou si $x_t$ et $y_t$ n'ont pas la
+même longueur (refus par le motif de longueur d'\code{engine\_valider\_donnees()})
+(§\ref{sec:controles}) \\
 \code{engine\_valider\_}\newline\code{profondeur()} & \code{T}, $n$ (années fournies),
 \code{T\_min} (5) & motifs de refus d'une profondeur $T$ autre que \code{NULL} ou qu'un entier
 scalaire fini, \code{T\_min} $\le T \le n$, contrôlée avant toute troncature~; vide si $T$
@@ -827,7 +830,10 @@ blancs de bord ignorés (\code{.entete\_designe()}), refus d'un en-tête~$t$, \c
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
 est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
-position en lignes de données~; conversion numérique d'un facteur par ses valeurs \\
+position en lignes de données, une colonne de type logique (celle que rend \code{openxlsx} pour
+une colonne booléenne d'un classeur) étant en revanche convertie sans refus, \code{TRUE} en~1 et
+\code{FALSE} en~0 (§\ref{sec:controles})~;
+conversion numérique d'un facteur par ses valeurs \\
 \code{.echapper\_texte()} & textes, \code{guillemets} (\code{FALSE}) & textes cités dans un
 motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
 \code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
@@ -872,7 +878,7 @@ colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscul
 lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, valeurs de la colonne \code{i}
 contrôlées par \code{.motifs\_colonne\_i()}, puis colonne retirée, cellule non numérique refusée avec
-sa position, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
+sa position, une colonne logique étant convertie de même sans refus, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
 dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
@@ -2185,7 +2191,26 @@ entre dans le mélange de l'annexe~XVII étant celui en vigueur à la date de
 référence du calcul~; il ne permet pas de reproduire un calcul selon les valeurs
 de la version d'origine (\emph{Journal officiel de l'Union européenne}, L~12 du
 17~janvier 2015, p.~230 pour l'annexe~II et p.~269 pour l'annexe~XIV), citée ici
-pour l'historique seulement.
+pour l'historique seulement. \textbf{Borne supérieure du domaine}~: sur données déclarées nettes,
+l'outil applique aux segments 1, 4 et~5 de l'annexe~II le facteur d'ajustement standard pour la
+réassurance non proportionnelle de $80~\%$ sans condition (colonne \code{np\_standard}, ci-dessous),
+conformément à l'article~117, paragraphe~3, de la version consolidée. Le règlement délégué
+(UE)~2026/269 de la Commission du 29~octobre 2025 (\emph{Journal officiel de l'Union européenne},
+série~L, 2026/269 du 18.2.2026) remplace ce paragraphe (article~1\textsuperscript{er}, point~29)~b))~: le
+produit de l'écart-type brut par ce facteur ne vaut plus que «~s'il existe une telle réassurance
+non proportionnelle pour ce segment précis, ou par un facteur de 100~\% dans les autres cas~»~;
+il redéfinit aussi l'écart-type du risque de réserve de l'article~117, paragraphe~2, point~b),
+par de nouveaux paragraphes~4 et~5 (point~29)~a) et~c)), et modifie de même l'article~148
+(point~39)), avec effet sur le seul risque de réserve, le facteur d'ajustement des segments de
+l'annexe~XIV restant de $100~\%$ pour le risque de primes. L'outil ne vaut donc que pour un
+calcul dont la date de référence est antérieure au 30.1.2027, date d'application de cet acte
+fixée par son article~2. Au-delà, sur données nettes de ces
+trois segments sans réassurance non proportionnelle, le paramètre standard du mélange serait
+l'écart-type brut, et le paramètre propre rendu par l'outil serait inférieur à celui du texte
+modifié (écart chiffré au paragraphe «~Paramètre remplacé par la méthode du risque de primes~»,
+ci-dessous)~; pour les méthodes de réserve, l'outil retient $\sigma_{(\text{res},s)}$ de
+l'annexe, et la lecture du texte modifié en présence d'une couverture pour développements
+défavorables n'est pas établie par l'outil.
 
 \begin{center}
 \small
@@ -2384,8 +2409,8 @@ véhicules de titrisation en place pour les douze mois à venir, ce que l'outil 
 que la déclaration atteste)~; le texte lie explicitement chaque paramètre remplacé à une
 exigence sur les données, dont cette lecture est la réciproque, les quatre points étant les
 seuls que la méthode puisse remplacer (article~220, paragraphe~1, point~a)).
-\emph{Interprétation}, et non texte~: sur données nettes, le
-facteur est le facteur \emph{standard} ($80~\%$ pour les segments 1, 4
+\emph{Interprétation}, et non texte, valable dans le domaine de dates borné ci-dessus~: sur
+données nettes, le facteur est le facteur \emph{standard} ($80~\%$ pour les segments 1, 4
 et 5 de l'annexe~II, $100~\%$ ailleurs, colonne \code{np\_standard} des tables), et non un
 facteur propre à l'entreprise au titre du point~a)~iii), que l'outil ne reçoit pas. Sur le
 segment~1 de l'annexe~II ($c = 0{,}59$ à $T = 8$), l'écart vaut
@@ -2729,27 +2754,49 @@ $(\hat\delta, \hat\gamma)$ restent comparés, et la reproductibilité
 comparaison par une différence relative \emph{moyenne} (\code{all.equal()}) pourrait diluer un
 écart localisé dans un vecteur dont les autres valeurs dérivent --- les tirages bootstrap en sont
 le cas réel. Le seuil $10^{-6}$ est
-\emph{empirique}, non théorique~: il vaut environ trois fois la dérive maximale
-mesurée entre plateformes, décrite ci-après ($3{,}508\cdot 10^{-7}$), qu'il
-absorbe avec une marge. Il est maintenu bien que la CI compare ses résultats à des références
-produites sur la même plateforme~: un poste Windows (R~4.3.1) exécute lui aussi les tests, contre
-ces mêmes références, et la dérive y joue alors dans l'autre sens.
+\emph{empirique}, non théorique~: c'est une \emph{garde de la CI}, plateforme de production des
+références, où chaque exécution du job « Tests du moteur » compare les cas de contrôle à leurs
+références~; un écart au-delà du seuil y est traité comme un changement de résultat, à
+identifier et à expliquer, la CI reproduisant ses références au bit près~; une mise à jour de
+l'image du système, consignée, peut aussi en produire un. Il n'est pas une marge calée sur la dérive d'un poste de travail, qui peut le
+dépasser sans défaut (ci-après).
 
-Mesurée en confrontant un poste Windows (R~4.3.1) à la CI (Linux, R~4.3.1), la dérive atteint
-au plus $3{,}508\cdot 10^{-7}$ en relatif sur la branche lognormale (sur
-\code{bootstrap\$sigma\_boot}, aucune valeur au-delà du seuil)~; l'écart sur
-$\sigma_{\mathrm{USP}}$ lui-même est de l'ordre de $10^{-14}$ en relatif, très en deçà de la
-précision à laquelle le paramètre est lu. Sur la branche Merz--Wüthrich, l'écart atteint au plus
-$1{,}339\cdot 10^{-13}$ en relatif (8 valeurs sur 4\,211, statistique de la première ligne de la
-table des tests), contre la CI alors sous OpenBLAS~; il est nul contre les références produites
-sous le BLAS de référence. La mesure ne
-se refait qu'en confrontant deux plateformes. Deux enseignements, constatés et non
-démontrés~: sur la branche lognormale, la dérive entre le poste et Linux ne
-dépend pas de la version mineure de R (même résultat sous R~4.3.3 et sous R~4.3.1), et le seuil
-$10^{-6}$ garde sa marge d'environ trois~; la branche Merz--Wüthrich, qui n'emploie pas
-d'optimiseur, n'est pas strictement indemne de toute dérive de plateforme, mais son écart,
-d'ordre $10^{-13}$, relève de l'arrondi du dernier bit et se situe six ordres de
-grandeur sous la dérive lognormale et sept sous le seuil. La part non numérique (chaînes,
+Mesurée en confrontant un poste Windows (Windows~11, R~4.3.3, BLAS et LAPACK de R) aux
+références de la CI (\code{tests/comparer\_references.R}, option \code{--deux-parts}, six cas
+de contrôle), la dérive atteint au plus $3{,}454\cdot 10^{-8}$ en relatif dans les quatre cas
+lognormaux à $\hat\delta = 1$ et vaut au plus $4{,}545\cdot 10^{-16}$ sur la branche
+Merz--Wüthrich (8 valeurs sur 18\,725, tirages bootstrap)~; aucune valeur de
+\code{parametre\_final}, donc aucun $\sigma_{\mathrm{USP}}$, ne s'écarte de sa référence, fût-ce
+d'un bit. Dans le cas
+\code{premium\_interieur}, deux valeurs \textbf{dépassent le seuil}~: les tirages d'une même
+réplication bootstrap des statistiques de Breusch--Pagan (Koenker) et de Breusch--Pagan (1979)
+(\code{bootstrap\$stats\_boot}, clés \code{BP} et \code{BP79}), à $1{,}814\cdot 10^{-6}$ et
+$1{,}779\cdot 10^{-6}$ en relatif. Ces tirages sont petits ($0{,}0158$ et $0{,}0024$)~: jugés
+en relatif, comme toute valeur dont la référence dépasse $10^{-6}$, des écarts absolus
+d'environ $2{,}9\cdot 10^{-8}$ et $4{,}2\cdot 10^{-9}$ y franchissent le seuil. Ils sont loin
+des statistiques observées ($0{,}0750$ et $0{,}0551$)~: l'écart relatif minimal de toute
+réplication à la statistique observée, $1{,}3\cdot 10^{-3}$ et $2{,}0\cdot 10^{-4}$, dépasse
+cent fois la dérive maximale, si bien qu'aucun décompte Monte-Carlo n'est atteint, ni aucune
+p-value, aucun verdict, ni $\sigma_{\mathrm{USP}}$, qui ne dépend d'aucun tirage. Ces deux
+écarts viennent de la plateforme~: à code, données et graines identiques, chaque machine
+reproduit son propre résultat au bit près, et la CI reproduit ses références~; le mécanisme
+numérique qui les porte au-delà du seuil, pour cette seule réplication, n'est pas établi. Sur le
+poste,
+\code{tests/test\_reproductibilite.R} peut donc échouer sans défaut, et la batterie y est jugée
+par un critère qui porte sur l'effet de la dérive, non sur sa valeur~: elle est acceptée si et
+seulement si, pour chaque cas, la part non numérique et la structure de la comparaison sont
+vides~; aucune valeur de \code{parametre\_final}, aucune p-value, aucun nombre de réplications
+retenues ni aucun décompte du régime de $\hat\delta$ n'est au-delà du seuil, et chaque p-value de
+Monte-Carlo est identique au bit près à sa référence~; deux exécutions sur le poste donnent des objets identiques
+(\code{identical()})~; chaque valeur au-delà du seuil est un tirage bootstrap dont la dérive ne
+franchit pas la statistique observée correspondante. Toute autre valeur au-delà du seuil, ou
+toute p-value de Monte-Carlo qui diffère d'un pas, fait échouer la batterie, sans changement de
+seuil ni régénération des références. Mesuré sur le code que décrit le présent document, le
+poste ci-dessus satisfait ce critère.
+La mesure ne se refait qu'en confrontant deux plateformes. La branche Merz--Wüthrich, qui
+n'emploie pas d'optimiseur, n'est pas strictement indemne de toute dérive de plateforme, mais son
+écart vaut une à trois unités du dernier bit des valeurs concernées (mesuré)~; il est de l'ordre
+de l'arrondi en double précision, sans que son mécanisme soit établi. La part non numérique (chaînes,
 verdicts, booléens, valeurs non finies, structure) de la comparaison entre plateformes est vide,
 ce qui confirme entre deux machines la règle d'écriture des libellés exposée ci-après.
 
@@ -3912,14 +3959,17 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
 vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
 le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
-refusée avec sa position, jamais lue comme manquante~; les lignes vides de fin et les colonnes
+refusée avec sa position, jamais lue comme manquante, hors le cas d'une colonne booléenne lue par \code{openxlsx}, décrit
+ci-après parmi les limites de la lecture des classeurs~; les lignes vides de fin et les colonnes
 vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
 une ligne vide intercalée ou en tête est refusée
-comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée ou portant un
-en-tête comme année de développement manquante présumée (D(1), D(2)(c) et D(3)(c)~: montants
-indiqués pour chaque année de développement, années de développement consécutives, $J$ étant
-la plus récente de la première année d'accident~; la présomption est une lecture retenue par
-l'outil), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
+comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée comme année de développement manquante présumée (D(1) et D(4)(c),
+lus avec A(1)(b)~: montants indiqués pour chaque année de développement des paiements, l'année
+de développement étant la différence entre l'année du paiement et celle de l'accident~;
+l'estimation $\hat C(i,j)$ de D(4)(c) enchaîne les facteurs $\hat f_{I-i}, \dots, \hat f_{j-1}$,
+dont chacun relie une année de développement à la suivante~; la présomption est une lecture
+retenue par l'outil), une colonne vide portant un en-tête, placée en bord de tableau, comme année
+de développement sans valeur (motif distinct~; précaution de l'outil, sans ancrage dans le texte), selon la règle commune décrite au paragraphe «~Lecture des fichiers~». Au bord gauche,
 une colonne vide sans en-tête placée avant la première colonne de développement renseignée, autre
 que la colonne \code{i}, est refusée, avec ou sans colonne \code{i}, comme année de
 développement~0 manquante présumée (motif «~\code{\ldots{} sans en-tete avant la premiere colonne
@@ -4394,8 +4444,7 @@ basse du domaine de recherche [-12 ; 3] (BORNES\_GAMMA, bornes de l'outil, non r
 \ldots~», C(6) pour la méthode du risque de réserve n\textsuperscript{o}~1, «~\code{haute}~» à
 l'autre borne), une cause (ratios $y_t/x_t$ égaux ou quasi égaux à la borne basse, dispersion
 extrême des ratios à la borne haute), le fondement (article~220, paragraphe~1, point~a) ou~b)~;
-B(2)(g) ou C(2)(e), iii et iv~; article~219, paragraphe~1, point~d)), pour la méthode de
-réserve n\textsuperscript{o}~1 le rappel que la méthode n\textsuperscript{o}~2 reste ouverte, et
+B(2)(g) ou C(2)(e), iii et iv~; article~219, paragraphe~1, point~d)) et
 une vérification à faire (borne basse~: $y_t$ observé, B(1)(a) ou C(1)(a), et non déduit de
 $x_t$ par un coefficient fixe~; borne haute~: unités, correspondance des années et valeurs
 aberrantes, B(1) et B(2)(a) ou leurs homologues de la section~C). Quand le démarrage retenu est
@@ -4406,8 +4455,8 @@ bornes de l'outil, non reglementaires) et aucun ne satisfait la condition du pre
 ; le demarrage retenu, de gamma interieur, n'est pas un point stationnaire certifie}
 \ldots~»~; il ne nomme pas le côté de la borne, que le seul booléen
 \code{\$gamma\_bord\_au\_moins\_un} ne porte pas, et
-réunit les causes et les vérifications des deux bornes, le fondement et le rappel de la méthode
-n\textsuperscript{o}~2 étant ceux de la forme~1, sans renvoi nouveau au règlement. Mesuré sur les volumes du jeu
+réunit les causes et les vérifications des deux bornes, le fondement étant celui de la
+forme~1, sans renvoi nouveau au règlement. Mesuré sur les volumes du jeu
 de contrôle (segment II-1, $B = 99$)~: $y_t = 0{,}7\,x_t$ est refusé à la borne basse
 pour les deux méthodes, $y_t = x_t \exp(3 w_t)$ ($w_t$ gaussien de graine 15520, ratios
 très dispersés) à la borne haute~; les jeux refusés et le texte exact des motifs sont vérifiés
@@ -4441,7 +4490,7 @@ ni l'une ni l'autre. L'outil ne calcule alors pas le paramètre visé à l'artic
 paragraphe~1 (p.~144)~: point~a) pour la méthode du risque de primes, seule méthode
 standardisée pour ce paramètre, de sorte que l'outil ne fournit aucun paramètre propre en
 remplacement de $\sigma_{(\text{prem},s)}$~; point~b) pour la méthode du risque de réserve
-n\textsuperscript{o}~1, ce point ouvrant aussi la méthode n\textsuperscript{o}~2.
+n\textsuperscript{o}~1, ce point prévoyant aussi la méthode n\textsuperscript{o}~2.
 L'article~220, paragraphe~2 (choix entre plusieurs méthodes standard que l'entreprise est en
 mesure d'utiliser) n'est \textbf{pas} invoqué~: pour les primes, il n'y a pas d'autre méthode~; pour le risque de
 réserve, le refus ne procède pas d'un choix entre méthodes au sens de ce paragraphe, mais de ce
@@ -4640,7 +4689,10 @@ segments «~\code{1}~» et «~\code{1.5}~» sans \code{<rPr>} placée en
 Une archive qui porte une entrée de ce nom ailleurs qu'en \code{xl/sharedStrings.xml}, ou
 plusieurs, est donc refusée avant l'extraction, de même sur les deux chemins (motif «~\code{l'archive
 contient une table des chaines partagees (fichier dont le nom finit par sharedStrings.xml)
-ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Trois limites sont consignées
+ailleurs qu'en xl/sharedStrings.xml, ou en contient plusieurs}~»). Les trois refus de la table des
+chaînes partagées supposent une table en UTF-8 valide~; une table en UTF-8 invalide n'y est pas soumise, sans
+valeur fausse~: la voie de repli n'en lit alors aucune chaîne, et \code{openxlsx}~4.2.9 s'arrête
+sur une erreur R (mesuré). Trois limites sont consignées
 (mesuré sur les deux chemins). Une chaîne dont le texte n'est porté que par des \code{<x:t>}
 placés dans des segments \code{<x:r>} n'est lue par aucun chemin~: la cellule de valeur qui la
 désigne est refusée en aval comme cellule non numérique~; il en va de même d'une chaîne formée
@@ -4649,14 +4701,41 @@ relevant du refus des \code{<t>} successifs. Une chaîne préfixée \code{<x:si>
 n'est comptée par aucun chemin dans l'indice des chaînes partagées~: dans une table qui porte
 \code{<x:si>} «~\code{9}~» puis \code{<si>} «~\code{11.5}~», la cellule qui désigne la
 chaîne~0 est lue $11{,}5$, sans message~; cette forme n'est pas refusée et donne une valeur
-fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Une table entièrement préfixée
+fausse (mesuré)~; aucun tableur n'est supposé l'écrire (hypothèse non vérifiée). Hors des formes
+préfixées, deux cellules de même référence (\code{<c r="B2">} écrit deux fois) ne sont pas
+refusées~: la dernière l'emporte, sans message, sur les deux chemins (valeur fausse, mesuré)~;
+aucun tableur n'est supposé écrire cette forme (hypothèse non vérifiée). Faute de refus,
+le contrôle de ces valeurs revient à l'utilisateur~: l'application affiche les données lues
+avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
+les données du calcul et porte, dans sa table «~Empreintes~», l'empreinte md5 de leur texte
+canonique (\code{engine\_empreinte()}~: une ligne d'en-tête, «~\code{t;xt;yt}~» ou
+«~\code{triangle;}~» suivi des nombres de lignes et de colonnes séparés par «~\code{;}~», puis
+une ligne par année ou par ligne du triangle, valeurs écrites par \code{sprintf("\%.17g")}, au
+plus 17 chiffres significatifs, valeur manquante écrite «~\code{NA}~», année écrite telle quelle,
+séparées par «~\code{;}~», chaque ligne terminée par un saut de ligne LF), fonction des seules valeurs utilisées. Elle identifie ces valeurs~;
+elle ne révèle une valeur fausse que si un tiers la recalcule à partir des valeurs de la source,
+sans passer par le lecteur de l'outil, en reproduisant ce texte~; sa constance entre plateformes
+est attendue, non vérifiée. Une table entièrement préfixée
 est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
 sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
 signalée par le message fixe de l'application~: les deux chemins divergent sur ce point
-(mesuré).
+(mesuré). Hors des formes préfixées, une limite propre à \code{openxlsx} est consignée~: une
+cellule de chaîne partagée (\code{t="s"}) dont l'indice désigne une chaîne absente de la table
+(indice~5 dans une table d'une seule chaîne) n'est pas refusée avant l'appel à \code{openxlsx},
+qui, dans ses versions~4.2.5.2 et~4.2.9, arrête alors le processus~R par une violation d'accès
+mémoire, qu'aucun \code{tryCatch()} n'intercepte, et l'application avec lui (mesuré pour les
+deux versions sous Linux, et pour la version~4.2.9 sous Windows)~; la voie de repli lit la
+cellule \code{NA}, refusée en aval (mesuré). Aucun tableur n'est supposé écrire cette forme
+(hypothèse non vérifiée). \code{openxlsx} reste le lecteur employé quand il est installé, de
+sorte qu'un poste qui l'a installé est exposé à cette limite.
+Sur le chemin \code{openxlsx}, une colonne dont toutes les cellules à valeur sont booléennes
+(\code{t="b"}) ou des textes «~\code{TRUE}~» ou «~\code{FALSE}~» est rendue logique, puis
+convertie par \code{.en\_numerique()}, \code{TRUE} étant lu~1 et \code{FALSE}~0, sans message
+(valeur fausse, mesuré)~; la voie de repli la refuse comme cellule non numérique. Un tableur
+peut écrire une cellule booléenne~; le contrôle de l'utilisateur décrit ci-dessus s'applique.
 L'en-tête du tableau est en ligne~1~: une ligne~1 dont aucune cellule ne porte de valeur est
 refusée, avec le texte «~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit
 etre en ligne 1, sans ligne au-dessus ;}~» suivi de la conduite à tenir
@@ -14695,12 +14774,14 @@ règlement.
   $\sigma_{(\text{res},s,\mathrm{USP})}$ \emph{inférieur} à l'écart-type standard
   $\sigma_{(\text{res},s)}$~--- un allégement d'exigence obtenu par une division
   par un nombre négatif. C'est l'appui principal.
-\item \textbf{Le refus ne prive l'entreprise d'aucun droit.} L'article~220,
-  paragraphe~1, point~b) présente les méthodes du risque de réserve
-  n\textsuperscript{o}~1 (section~C) et n\textsuperscript{o}~2 (section~D) comme
-  \emph{alternatives}~: l'entreprise à qui l'outil refuse la seconde conserve la
-  première. Le refus ne crée donc aucune impasse réglementaire, ce qui est la
-  condition de son admissibilité.
+\item \textbf{Le refus ne prive l'entreprise d'aucun droit.} Le remplacement est une faculté~:
+  l'article~218, paragraphe~1, énumère les paramètres standard «~pouvant être remplacés~» par des
+  paramètres propres, et, à défaut de paramètre propre, $\sigma_{(\text{res},s)}$ s'applique. Pour
+  ce paramètre, l'article~220, paragraphe~1, point~b), prévoit aussi la méthode du risque de
+  réserve n\textsuperscript{o}~1 (section~C), sous ses propres exigences de données~; le choix
+  entre les deux méthodes, quand l'entreprise est en mesure d'utiliser l'une et l'autre, relève de
+  l'article~220, paragraphe~2. Le refus ne crée donc aucune impasse réglementaire, ce qui est la
+  condition que l'outil retient pour son admissibilité.
 \item \textbf{Le règlement oriente vers le résultat le plus prudent.} L'article~220,
   paragraphe~2, régit le choix entre plusieurs méthodes standard que l'entreprise est en
   mesure d'utiliser~: elle retient celle qui fournit les résultats les plus précis, et
@@ -14717,7 +14798,7 @@ règlement.
   construction être démontrée, va à l'encontre de cette orientation.
 \end{itemize}
 
-Un quatrième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
+Un troisième appui, hors annexe~XVII, va dans le même sens~: le règlement refuse
 explicitement qu'un risque de réserve soit porté par un volume négatif, pour les segments de
 l'annexe~II (article~116, paragraphe~6, ci-dessous) comme pour ceux de l'annexe~XIV
 (article~147, paragraphe~6, qui se termine par la même phrase).
