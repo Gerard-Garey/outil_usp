@@ -9096,7 +9096,10 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 #    attributs de <row> sont donc lus ici, en tant que texte d'un segment.
 #    Refus de texte propre (TEXTE_REFUS_SEGMENT ; avis d'actuary sur le lot
 #    B, Q1), positions "cellule C2 : suite \" t=\", dans le bloc des
-#    donnees", "cellule B12 : balise </v>, apres le bloc des donnees" (zone
+#    donnees", "cellule B12 : balise </v>, apres le bloc des donnees",
+#    "cellule sans reference : ..." (cellule sans attribut r, refusee
+#    ensuite par la regle R4 ; reprise de l'audit du lot B, qui citait
+#    "cellule <NA>") (zone
 #    jugee par rapport a la fin de </sheetData>). Cout accepte (decision
 #    D-S1-10, a) : un texte saisi portant " t=" apres la derniere cellule
 #    (en-tete de page "&amp;CMontant t=1", lu juste avant) est refuse.
@@ -9223,7 +9226,8 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
     zone <- ifelse(pos <= j$fin[b], "dans le bloc des donnees", "apres le bloc des donnees")
     o <- order(pos); cel <- cel[o]; quoi <- quoi[o]; zone <- zone[o]
     .refus_lecture(sprintf(TEXTE_REFUS_SEGMENT, .xlsx_cinq(paste(cel, quoi, zone), function(i)
-      paste0("cellule ", .xlsx_citer(cel[i]), " : ", quoi[i], ", ", zone[i]))))
+      paste0(ifelse(is.na(cel[i]), "cellule sans reference", paste("cellule", .xlsx_citer(cel[i]))),
+             " : ", quoi[i], ", ", zone[i]))))
   }
   cc
 }
@@ -9347,6 +9351,110 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   invisible(NULL)
 }
 
+# Regle R7 du contrat ferme (#574 ; avis amont d'actuary, par. 1 et textes du
+# par. 2 ; decisions D-S1-1 et D-S1-2) : type de cellule (attribut t, lu
+# dans la balise ouvrante par .xlsx_cellules() ; ecrit en lettres, regle
+# R4) absent ou pris dans la liste n, s, str, inlineStr, b, compare
+# exactement (t="S", t="N", t="Str" sont des types inconnus). Trois refus,
+# dans cet ordre : type inconnu (positions "B2 : t=\"x\""), t="d" (date
+# ISO 8601) et t="e" (cellule en erreur de calcul, decision D-S1-2 (i) ;
+# positions "B7 : #N/A", valeur citee si la cellule en porte une, la
+# reference seule sinon). Mesures avant (185a3e7, openxlsx 4.2.5.2, sonde
+# sondes/sonde_574_lot_c.R) : t="d" <v>2020-01-01T00:00:00</v> lu 2020 par
+# openxlsx, ok = TRUE (sigma_USP 0.8040317900) ; t="x" <v>5</v>, et t="S"
+# <v>1</v>, lus comme des nombres par les deux chemins ; t="e" <v>#N/A</v>
+# dans le corps lu "#N/A" en interne et NA par openxlsx (refus en aval) ;
+# t="e" dans une colonne non utilisee : lu, sigma_USP rendu (refus nouveau,
+# decision D-S1-2). Cinq positions au plus par refus (.xlsx_cinq()).
+.xlsx_controler_types <- function(cc) {
+  t <- cc$typ
+  if (!length(t) || all(is.na(t) | t %in% c("n", "s", "str", "inlineStr", "b"))) return(invisible(NULL))
+  ref <- function(k) ifelse(is.na(cc$r_brut[k]), "cellule sans reference", .xlsx_citer(cc$r_brut[k]))
+  # reference, puis valeur citee si la cellule en porte une
+  avec_valeur <- function(k) { v <- cc$v[k]
+    ifelse(is.na(v) | !nzchar(v), ref(k), paste0(ref(k), " : ", .xlsx_citer(v))) }
+  k <- which(!is.na(t) & !t %in% c("n", "s", "str", "inlineStr", "b", "d", "e"))
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellule de type non prevu par le format (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(k, function(i) paste0(ref(k[i]), " : t=\"", .xlsx_citer(t[k[i]]), "\""))))
+  k <- which(t %in% "d")
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellule date au format ISO 8601 (attribut t=\"d\") dans la feuille lue (%s) ; l'outil ne lit pas cette forme de facon sure (une date pourrait etre lue comme un nombre). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(k, function(i) avec_valeur(k[i]))))
+  k <- which(t %in% "e")
+  .refus_lecture(sprintf("Cellule(s) en erreur de calcul dans la feuille lue (%s) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.",
+                         .xlsx_cinq(k, function(i) avec_valeur(k[i]))))
+}
+
+# Forme decimale d'une valeur de cellule nombre (regle R8, #574 ; avis amont
+# d'actuary, par. 1) : blancs XML de bord admis, signe facultatif, chiffres
+# ASCII avec point decimal facultatif, exposant complet facultatif. Exclut
+# l'hexadecimal (0x10), les entites (&#49;5, &lt;), INF, NaN, la virgule, les
+# chiffres pleine chasse et la chaine vide. Motif perl : [0-9] et [eE] sont
+# des plages de points de code, sans classe de la locale ; fin de chaine
+# ancree par \z (en perl, $ admet un saut de ligne final : "^[0-9]+$" lisait
+# "1\n" comme un indice de chaine, revue de l'audit du lot C).
+XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-9]+)?[ \t\r\n]*\\z"
+
+# Regle R8 du contrat ferme (#574 ; avis amont d'actuary, par. 1 et textes
+# du par. 2 ; amendement de l'avis d'actuary sur le lot B, Q5) : contenu de
+# chaque cellule conforme a son type (R7 admis). <v> designe la valeur
+# <v>...</v> de la cellule (.xlsx_cellules()) ; <v/> vaut absence de <v>,
+# comme pour openxlsx 4.2.5.2, qui lit <v/> exactement comme une cellule
+# sans <v> sur chaque type (mesure, sonde sondes/sonde_574_lot_c.R : NA sans
+# t, t="str" ou t="inlineStr", chaine partagee d'indice 0 pour t="s",
+# "FALSE" pour t="b") ; <v></v> est un <v> present, de contenu vide (lu 0
+# par openxlsx sans t, "" en interne, mesure). Regles :
+#  - t absent ou n : pas d'<is> ; <v> facultatif, de forme XML_MOTIF_NOMBRE
+#    s'il est present (<v></v> refuse) ;
+#  - b : <v> present, valant exactement 0 ou 1 ;
+#  - s : <v> present, en chiffres seulement (^[0-9]+\z : ni signe, ni blanc,
+#    ni point, ni exposant), sans <is> ;
+#  - str : <v> facultatif, texte quelconque (<v></v> : chaine vide, lue ""
+#    par les deux chemins), sans <is> ;
+#  - inlineStr : sans <v> (<is> facultatif) ;
+#  - cellule sans <v> ni <is> admise, sauf t="s" et t="b" (amendement Q5 :
+#    openxlsx lit sharedStrings[0] et "FALSE", et alloue 128 Go en
+#    XFD1048576, mesures).
+# Trois refus, dans cet ordre : contenu et type (positions "B2 : t=\"s\"
+# avec <is>", "B2 : t=\"s\" sans <v>", "B2 : indice de chaine non entier",
+# "B2 : <is> sans t=\"inlineStr\"", "B2 : t=\"inlineStr\" avec <v>"), nombre
+# ("B2 : 0x10", "B2 : valeur vide") et booleen ("B2 : 2"). Mesures avant
+# (185a3e7, openxlsx 4.2.5.2) : <v>0x10</v> lu 16, <v>1&#48;4.2</v>,
+# <v>1&lt;2</v>, <v>1>2</v> et <v>1e</v> lus 1, <v>104,2</v> lu 104 par
+# openxlsx, ok = TRUE ; t="b" <v>2</v> et <v> 1</v> lus 2 et 1 en interne,
+# ok = TRUE ; t="s" sans <v> lu 11.5 par openxlsx (sigma_USP 0.2005042338) ;
+# t="s" portant <is> : erreur R brute d'openxlsx (SET_STRING_ELT) ; <is>
+# sans t="inlineStr" lu 11.5. Cinq positions au plus par refus.
+.xlsx_controler_contenus <- function(cc) {
+  if (!length(cc$balise)) return(invisible(NULL))
+  t <- ifelse(is.na(cc$typ), "", cc$typ)
+  v <- cc$v; av <- !is.na(v); is <- cc$is
+  ref <- function(k) ifelse(is.na(cc$r_brut[k]), "cellule sans reference", .xlsx_citer(cc$r_brut[k]))
+  nombre <- t %in% c("", "n")
+  # contenu et type : etiquette de la faute de chaque cellule (NA si aucune)
+  ct <- rep(NA_character_, length(t))
+  ct[t == "s" & av & !grepl("^[0-9]+\\z", v, perl = TRUE)] <- "indice de chaine non entier"
+  ct[t %in% c("s", "b") & !av] <- paste0("t=\"", t[t %in% c("s", "b") & !av], "\" sans <v>")
+  ct[t %in% c("n", "s", "str", "b") & is] <- paste0("t=\"", t[t %in% c("n", "s", "str", "b") & is], "\" avec <is>")
+  ct[t == "" & is] <- "<is> sans t=\"inlineStr\""
+  ct[t == "inlineStr" & av] <- "t=\"inlineStr\" avec <v>"
+  k <- which(!is.na(ct))
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellule dont le contenu ne correspond pas a son type (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(k, function(i) paste0(ref(k[i]), " : ", ct[k[i]]))))
+  cite <- function(k) ifelse(grepl("^[ \t\r\n]*\\z", v[k], perl = TRUE), "valeur vide", .xlsx_citer(v[k]))
+  k <- which(nombre & av & !grepl(XML_MOTIF_NOMBRE, v, perl = TRUE))
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(k, function(i) paste0(ref(k[i]), " : ", cite(k[i])))))
+  k <- which(t == "b" & av & !v %in% c("0", "1"))
+  if (length(k))
+    .refus_lecture(sprintf("Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                           .xlsx_cinq(k, function(i) paste0(ref(k[i]), " : ", cite(k[i])))))
+  invisible(NULL)
+}
+
 # Controle du XML de la feuille lue, commun aux deux chemins de lecture et
 # fait avant l'appel a openxlsx : une cellule <c> sans attribut r (reference
 # de position) est refusee. L'attribut est facultatif dans le schema, et
@@ -9448,7 +9556,9 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 # negatif est hors de la table (<v>-1</v> : segfault d'openxlsx 4.2.5.2, code
 # 139, mesure ; decision d'actuary du 15/11/2026). Une valeur que as.numeric()
 # ne lit pas (NA, NaN) ne releve pas de R10 (forme de l'indice : regle R8,
-# #574). Positions "A2 : indice 5", cinq au plus (.liste_positions()), indice
+# #574, evaluee avant R10 dans .xlsx_admettre() : l'indice y est en
+# chiffres seulement ; un indice negatif, -1, y est refuse par R8, "indice
+# de chaine non entier"). Positions "A2 : indice 5", cinq au plus (.liste_positions()), indice
 # cite par .echapper_texte(), tronque a 20 caracteres suivis de "...". Refus
 # de classe usp_refus_lecture.
 .xlsx_controler_indices_partages <- function(xml, n, cc = .xlsx_cellules(xml)) {
@@ -9558,11 +9668,12 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 # .xlsx_controler_cellules(), puis liste fermee des attributs de <c>,
 # .xlsx_controler_attributs()), R5 (.xlsx_controler_limites()), R6
 # (.xlsx_controler_doublons()), R6b (.xlsx_controler_ordre(), decision
-# D-S1-11), refus existants Q-F, P2 et X1 de la table
+# D-S1-11), R7 (.xlsx_controler_types(), decision D-S1-2), R8
+# (.xlsx_controler_contenus()), refus existants Q-F, P2 et X1 de la table
 # (tete de R9), R10 (.xlsx_controler_indices_partages(), #575), R11
 # (.xlsx_controler_etendue()) et R12 (.xlsx_controler_ligne_entete(), si
-# entete). Les autres regles (R7, R8, R9) viendront a leur place d'ordre
-# (lots C et D de #574). Rend list(rang, xml, partagees, cellules) : rang de
+# entete). La regle generale de R9 viendra a sa place d'ordre (lot D de
+# #574). Rend list(rang, xml, partagees, cellules) : rang de
 # la feuille lue pour openxlsx, XML de la feuille, chaines de la table et
 # cellules admises (.xlsx_cellules(), decoupage de R3) pour le lecteur
 # interne.
@@ -9616,6 +9727,11 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   .xlsx_controler_doublons(cc)
   # R6b (#574, decision D-S1-11) : cellules dans l'ordre de lecture
   .xlsx_controler_ordre(cc)
+  # R7 (#574, decision D-S1-2) : type de cellule admis ; R8 : contenu
+  # conforme au type, avant R9 et R10 (l'indice d'une chaine partagee est
+  # en chiffres quand R10 le lit)
+  .xlsx_controler_types(cc)
+  .xlsx_controler_contenus(cc)
   partagees <- character(0)
   if (!is.null(sx)) {
     # Refus existants Q-F, P2 et X1 de la table, places par l'avis amont en
@@ -9713,9 +9829,12 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 # est donc accepte en xlsx et refuse en CSV, ou l'application lit les noms tels
 # quels (divergence CSV - xlsx laissee en l'etat, decision D3 du mainteneur).
 # Les deux chemins different encore par endroits : nom d'une colonne sans
-# en-tete ("X<col>" pour openxlsx, "V<col>" ici) ; cellule nombre de forme refusee par .cellules_en_nombre() (valeur
-# <v>0x10</v>, cellule forgee) : lue 16 par openxlsx, colonne
-# laissee en caractere ici et cellule refusee en aval. Texte des cellules
+# en-tete ("X<col>" pour openxlsx, "V<col>" ici). Une cellule nombre dont la
+# valeur n'a pas la forme decimale (<v>0x10</v>, cellule forgee, lue 16 par
+# openxlsx et laissee en caractere ici, refusee en aval), une cellule de type
+# inconnu, date (t="d") ou en erreur de calcul (t="e"), ou dont le contenu ne
+# correspond pas au type, est refusee avant les deux chemins (regles R7 et
+# R8, #574). Texte des cellules
 # (mesure, openxlsx 4.2.9) : le lecteur interne decode les entites nommees et
 # les references numeriques (&#233;, &#xE9;) des chaines partagees et des
 # chaines en ligne (.xml_decoder()) ; openxlsx decode les entites nommees des
@@ -9819,7 +9938,9 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 # s, t, cm, vm, ph, une reference hors des limites d'une feuille ou une
 # reference en double, ou dont les cellules a valeur s'etendent sur plus de
 # 1 000 000 de cellules, ou dont les cellules sortent de l'ordre de
-# lecture (regles R3 a R6, R6b et R11, #574). Le lecteur interne
+# lecture (regles R3 a R6, R6b et R11, #574), ou dont une cellule a un type
+# hors de la liste (t absent, n, s, str, inlineStr, b) ou un contenu non
+# conforme a son type (regles R7 et R8, #574). Le lecteur interne
 # dimensionne son tableau sur les seules cellules a valeur : une cellule
 # mise en forme sans valeur n'y est pas placee, comme par openxlsx.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
@@ -9886,7 +10007,10 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   # booleenne ou d'erreur, ou une cellule nombre de forme refusee, reste en
   # caractere : ses cellules sont interpretees en aval par
   # .cellules_en_nombre(), qui refuse la cellule fautive avec sa position
-  # (as.numeric() lisait "0x10" comme 16, en cellule texte comme en
+  # (depuis la regle R8, #574, une cellule nombre admise a la forme
+  # decimale, lue en nombre ici : formes de la sonde
+  # sondes/sonde_574_lot_c.R, "104.", "+.5e-3", blancs XML de bord ;
+  # as.numeric() lisait "0x10" comme 16, en cellule texte comme en
   # cellule nombre forgee).
   tm <- matrix(NA_character_, max(lig), max(col))
   tm[cbind(lig, col)] <- ifelse(is.na(val), NA_character_, typ)
