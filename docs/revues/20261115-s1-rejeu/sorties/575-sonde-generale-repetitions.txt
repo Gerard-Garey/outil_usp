@@ -1,0 +1,1 @@
+     10 code 0 | message = Value of SET_STRING_ELT() must be a 'CHARSXP' not a 'raw'
