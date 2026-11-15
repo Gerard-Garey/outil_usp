@@ -1,0 +1,535 @@
+### Sonde sonde_574_lot_b.R, moteur 1818b4d (avant), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[574-3a-xfd-valeur] chemin = interne ; moteur = avant_moteur
+  ERREUR classe = simpleError (0.18 s)
+  message = cannot allocate vector of size 128.0 Gb
+  [code de sortie : 0]
+
+[574-3b-a99999999999] chemin = interne ; moteur = avant_moteur
+  avertissements R : 1 (premier : NAs introduced by coercion to integer range)
+  ERREUR classe = simpleError (0.09 s)
+  message = invalid 'nrow' value (too large or NA)
+  [code de sortie : 0]
+
+[574-m1-doublon] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r6-doublon-casse] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r4-xr-z9] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-hors-bloc] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 4 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-deux-blocs] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 4 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[574-4-en-ligne] chemin = interne ; moteur = avant_moteur
+  n =  1000 : 0.30 s ; B2 lu = 11
+  n =  2000 : 1.02 s ; B2 lu = 11
+  n =  4000 : 3.63 s ; B2 lu = 11
+  n = 16000 : 56.28 s ; B2 lu = 11
+  [code de sortie : 0]
+
+[r3-is-r] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-is-rph] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-x-c] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-ligne-t-s] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =   0.00  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-ligne-t-s-hors-table] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =   5.00  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-apres-bloc-v] chemin = interne ; moteur = avant_moteur
+  lu : 11 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-extlst-v] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt =   9.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-is-blanc] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-fin-v-blanc] chemin = interne ; moteur = avant_moteur
+  avertissements R : 1 (premier : number of items to replace is not a multiple of replacement )
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Colonne t : les annees doivent etre des entiers finis.
+
+  [code de sortie : 0]
+
+[r3-sheetdata-blanc] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r4-s-r] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r5-xfe] chemin = interne ; moteur = avant_moteur
+  lu : 9 x 16385 (6.15 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r11-1e6] chemin = interne ; moteur = avant_moteur
+  lu : 99999 x 10 (0.18 s)
+  [code de sortie : 0]
+
+[r11-1e6-plus] chemin = interne ; moteur = avant_moteur
+  lu : 99999 x 11 (0.24 s)
+  [code de sortie : 0]
+
+[r11-1e7] chemin = interne ; moteur = avant_moteur
+  lu : 99999 x 100 (1.65 s)
+  [code de sortie : 0]
+
+[entete-t] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[entete-t-s] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[indente-is] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[ordre-l1] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[ordre-row1-fin] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[ordre-rows] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[minuscule] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[v-space] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[feuille-vide] chemin = interne ; moteur = avant_moteur
+  lu : 0 x 0 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[feuille-sans-balise] chemin = interne ; moteur = avant_moteur
+  lu : 0 x 0 (0.07 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[temoin-vide-xfd] chemin = interne ; moteur = avant_moteur
+  ERREUR classe = simpleError (0.14 s)
+  message = cannot allocate vector of size 128.0 Gb
+  [code de sortie : 0]
+
+[temoin-v-blanc] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[temoin-forme-legale] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 4 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = interne ; moteur = avant_moteur
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+### Chemin openxlsx 4.2.5.2
+[574-3a-xfd-valeur] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  ERREUR classe = simpleError (0.20 s)
+  message = cannot allocate vector of size 128.0 Gb
+  [code de sortie : 0]
+
+[574-3b-a99999999999] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : NAs introduced by coercion to integer range)
+  ERREUR classe = simpleError (0.08 s)
+  message = missing value where TRUE/FALSE needed
+  [code de sortie : 0]
+
+[574-m1-doublon] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r6-doublon-casse] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : NAs introduced by coercion)
+  ERREUR classe = simpleError (0.07 s)
+  message = missing value where TRUE/FALSE needed
+  [code de sortie : 0]
+
+[r4-xr-z9] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 26 (0.06 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-hors-bloc] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 4 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-deux-blocs] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 4 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[574-4-en-ligne] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  n =  1000 : 0.17 s ; B2 lu = <NA>
+  n =  2000 : 0.57 s ; B2 lu = <NA>
+  n =  4000 : 1.78 s ; B2 lu = <NA>
+  n = 16000 : 29.12 s ; B2 lu = <NA>
+  [code de sortie : 0]
+
+[r3-is-r] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-is-rph] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-x-c] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-ligne-t-s] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  11.50  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-ligne-t-s-hors-table] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+
+ *** caught segfault ***
+address 0x1, cause 'memory not mapped'
+
+Traceback:
+ 1: getCellInfo(xmlFile = worksheet, sharedStrings = sharedStrings,     skipEmptyRows = skipEmptyRows, startRow = startRow, rows = rows,     getDates = detectDates)
+ 2: read.xlsx.default(chemin, sheet = adm$rang, colNames = entete,     skipEmptyRows = FALSE, skipEmptyCols = FALSE, na.strings = character(0),     sep.names = " ")
+ 3: openxlsx::read.xlsx(chemin, sheet = adm$rang, colNames = entete,     skipEmptyRows = FALSE, skipEmptyCols = FALSE, na.strings = character(0),     sep.names = " ")
+ 4: e$engine_lire_xlsx(f)
+ 5: withCallingHandlers(e$engine_lire_xlsx(f), warning = function(x) {    w <<- c(w, conditionMessage(x))    invokeRestart("muffleWarning")})
+ 6: doTryCatch(return(expr), name, parentenv, handler)
+ 7: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 8: tryCatchList(expr, classes, parentenv, handlers)
+ 9: tryCatch(withCallingHandlers(e$engine_lire_xlsx(f), warning = function(x) {    w <<- c(w, conditionMessage(x))    invokeRestart("muffleWarning")}), error = function(err) err)
+10: lire_serie(forger(l, partagees = "<si><t>11.5</t></si>"))
+An irrecoverable exception occurred. R is aborting now ...
+Segmentation fault
+  [code de sortie : 139]
+
+[r3-apres-bloc-v] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 11 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Ligne(s) vide(s) intercalee(s) (ligne(s) de donnees 9, 10) : une ligne vide est refusee comme annee manquante presumee ; les annees d'accident (annexe XVII, section B) ou exercices (section C) sont numerotes par des nombres consecutifs de 1 a T (B(3)(a) et (b), C(3)(a) et (b)). Renseigner l'annee manquante ou retirer la ligne vide.
+
+  [code de sortie : 0]
+
+[r3-extlst-v] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt =   9.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r3-is-blanc] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.06 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-fin-v-blanc] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r3-sheetdata-blanc] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : No data found on worksheet.
+)
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[r4-s-r] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 4 (0.08 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r5-xfe] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[r11-1e6] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 99999 x 10 (0.07 s)
+  [code de sortie : 0]
+
+[r11-1e6-plus] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 99999 x 11 (0.08 s)
+  [code de sortie : 0]
+
+[r11-1e7] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 99999 x 100 (0.33 s)
+  [code de sortie : 0]
+
+[entete-t] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[entete-t-s] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+
+ *** caught segfault ***
+address 0x1, cause 'memory not mapped'
+
+Traceback:
+ 1: getCellInfo(xmlFile = worksheet, sharedStrings = sharedStrings,     skipEmptyRows = skipEmptyRows, startRow = startRow, rows = rows,     getDates = detectDates)
+ 2: read.xlsx.default(chemin, sheet = adm$rang, colNames = entete,     skipEmptyRows = FALSE, skipEmptyCols = FALSE, na.strings = character(0),     sep.names = " ")
+ 3: openxlsx::read.xlsx(chemin, sheet = adm$rang, colNames = entete,     skipEmptyRows = FALSE, skipEmptyCols = FALSE, na.strings = character(0),     sep.names = " ")
+ 4: e$engine_lire_xlsx(f)
+ 5: withCallingHandlers(e$engine_lire_xlsx(f), warning = function(x) {    w <<- c(w, conditionMessage(x))    invokeRestart("muffleWarning")})
+ 6: doTryCatch(return(expr), name, parentenv, handler)
+ 7: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 8: tryCatchList(expr, classes, parentenv, handlers)
+ 9: tryCatch(withCallingHandlers(e$engine_lire_xlsx(f), warning = function(x) {    w <<- c(w, conditionMessage(x))    invokeRestart("muffleWarning")}), error = function(err) err)
+10: lire_serie(retoucher(forger(L), "</sheetData>", "</sheetData><headerFooter><oddHeader>&amp;C t=\"s\"</oddHeader></headerFooter>"))
+An irrecoverable exception occurred. R is aborting now ...
+Segmentation fault
+  [code de sortie : 139]
+
+[indente-is] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ordre-l1] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+  yt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[ordre-row1-fin] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  ERREUR classe = simpleError (0.08 s)
+  message = attempt to set index -2/24 in SET_STRING_ELT
+  [code de sortie : 0]
+
+[ordre-rows] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[minuscule] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : NAs introduced by coercion)
+  ERREUR classe = simpleError (0.07 s)
+  message = missing value where TRUE/FALSE needed
+  [code de sortie : 0]
+
+[v-space] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[feuille-vide] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : No data found on worksheet.
+)
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[feuille-sans-balise] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  avertissements R : 1 (premier : No data found on worksheet.
+)
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[temoin-vide-xfd] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-v-blanc] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.07 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-forme-legale] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.13 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.05 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = openxlsx 4.2.5.2 ; moteur = avant_moteur
+  lu : 8 x 3 (0.06 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+

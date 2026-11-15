@@ -1,0 +1,409 @@
+### Sonde sonde_574_lot_b.R, moteur R/engine.R du lot B, reprise (apres), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[574-3a-xfd-valeur] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.13 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 1048576 et jusqu'a la colonne XFD (cellules XFD1048576), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[574-3b-a99999999999] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (A99999999999 ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-m1-doublon] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : reference de cellule presente plusieurs fois dans la feuille lue (B2) ; l'outil ne choisit pas entre deux valeurs donnees pour la meme cellule. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r6-doublon-casse] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r4-xr-z9] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (B2 : x:r) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-hors-bloc] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <c>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-deux-blocs] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.13 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-4-en-ligne] chemin = interne ; moteur = R
+  n =  1000 : 0.11 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n =  2000 : 0.27 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n =  4000 : 0.02 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n = 16000 : 0.05 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  [code de sortie : 0]
+
+[r3-is-r] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.13 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <r>, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-is-rph] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <rPh>, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-x-c] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:c>, apres la cellule A2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-ligne-t-s] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C2 : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-ligne-t-s-hors-table] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C2 : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-apres-bloc-v] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule B12 : balise </v>, apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-extlst-v] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule B2 : balise <v>, dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-is-blanc] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-fin-v-blanc] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </v>, dans la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-sheetdata-blanc] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r4-s-r] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (B2 : s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r5-xfe] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (XFE10 ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r11-1e6] chemin = interne ; moteur = R
+  lu : 99999 x 10 (0.24 s)
+  [code de sortie : 0]
+
+[r11-1e6-plus] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.15 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 100000 et jusqu'a la colonne K (cellules K100000), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[r11-1e7] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 100000 et jusqu'a la colonne CV (cellules CV100000), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[entete-t] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C9 : suite " t=", apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[entete-t-s] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C9 : suite " t=", apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[indente-is] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.12 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-l1] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (B1 apres C1 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-row1-fin] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.12 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (A1 apres C9 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-rows] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.14 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (A2 apres C3 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[minuscule] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[v-space] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[feuille-vide] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData> absente) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[feuille-sans-balise] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.08 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData> absente) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[temoin-vide-xfd] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-v-blanc] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-forme-legale] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.09 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = interne ; moteur = R
+  lu : 8 x 3 (0.12 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+### Chemin openxlsx 4.2.5.2
+[574-3a-xfd-valeur] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 1048576 et jusqu'a la colonne XFD (cellules XFD1048576), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[574-3b-a99999999999] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (A99999999999 ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-m1-doublon] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : reference de cellule presente plusieurs fois dans la feuille lue (B2) ; l'outil ne choisit pas entre deux valeurs donnees pour la meme cellule. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r6-doublon-casse] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r4-xr-z9] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (B2 : x:r) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-hors-bloc] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <c>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-deux-blocs] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.15 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-4-en-ligne] chemin = openxlsx 4.2.5.2 ; moteur = R
+  n =  1000 : 0.10 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n =  2000 : 0.25 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n =  4000 : 0.02 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  n = 16000 : 0.06 s ; ERREUR usp_refus_lecture Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:rPh>, dans la chaine en ligne de la cell
+  [code de sortie : 0]
+
+[r3-is-r] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <r>, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-is-rph] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <rPh>, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-x-c] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.14 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <x:c>, apres la cellule A2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-ligne-t-s] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C2 : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-ligne-t-s-hors-table] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C2 : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-apres-bloc-v] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule B12 : balise </v>, apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-extlst-v] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule B2 : balise <v>, dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-is-blanc] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-fin-v-blanc] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.14 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </v>, dans la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r3-sheetdata-blanc] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r4-s-r] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (B2 : s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r5-xfe] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (XFE10 ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r11-1e6] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 99999 x 10 (0.11 s)
+  [code de sortie : 0]
+
+[r11-1e6-plus] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 100000 et jusqu'a la colonne K (cellules K100000), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[r11-1e7] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne 100000 et jusqu'a la colonne CV (cellules CV100000), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.
+  [code de sortie : 0]
+
+[entete-t] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C9 : suite " t=", apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[entete-t-s] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.10 s)
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule C9 : suite " t=", apres le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[indente-is] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.12 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-l1] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (B1 apres C1 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-row1-fin] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (A1 apres C9 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[ordre-rows] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.11 s)
+  message = Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (A2 apres C3 ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[minuscule] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.08 s)
+  message = Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[v-space] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[feuille-vide] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.09 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData> absente) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[feuille-sans-balise] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture (0.08 s)
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData> absente) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[temoin-vide-xfd] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.13 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-v-blanc] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-forme-legale] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.11 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.08 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = openxlsx 4.2.5.2 ; moteur = R
+  lu : 8 x 3 (0.10 s) ; engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  yt =  68.97  76.76  83.49  95.38  88.96  70.22  78.89 117.37 
+
+  [code de sortie : 0]
+
