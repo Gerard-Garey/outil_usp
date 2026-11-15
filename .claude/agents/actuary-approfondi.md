@@ -47,6 +47,7 @@ Termine chaque consultation par un bloc **Retour** (`docs/agents/routage.md`, §
 - **Informations manquantes** : source introuvable ou dans une version douteuse, mesure impossible ;
 - **Décisions non résolues** (qui doit trancher) ;
 - **Critères déclenchés** (`docs/agents/routage.md`, § 4) : deux lectures d'une source (en disant si c'est un problème de documentation disponible), désaccord avec `audit`, un autre expert ou un ADR, question qu'aucun test ni aucune source ne tranche, changement de résultat, validité à T = 8 qu'aucun résultat exact ni aucune simulation ne tranche. Tu les signales, tu ne décides pas de l'escalade ;
+- **Constats hors périmètre** : pour chacun, critère de tri de l'ADR 0018 (G, E1 à E6, ou « aucun ») et preuve, sans rien filtrer ;
 - **Prochaine action recommandée**.
 
 ## Fin de mission

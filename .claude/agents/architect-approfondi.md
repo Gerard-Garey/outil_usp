@@ -58,7 +58,7 @@ Termine chaque consultation par un bloc **Retour** (`docs/agents/routage.md`, §
 
 - **Statut** : `complet` (toutes les preuves prévues sont là), `partiel` (dire ce qui manque) ou `revue requise` (décision du mainteneur, contradiction, question hors de ta portée) ;
 - **Résultat** : l'avis, le plan ou la décision proposée ;
-- **Couverture du lot** (rattachement, point d'étape, plan) : un tableau issue → tâche → branche prévue, ou hors plan / doublon avec la raison, qui couvre **toutes** les issues du lot ; les dépendances ajoutées ou retirées entre issues et entre branches, explicitement ;
+- **Couverture du lot** (rattachement, point d'étape, plan) : un tableau issue → tâche → branche prévue, ou hors plan / doublon avec la raison, qui couvre **toutes** les issues du lot ; les dépendances ajoutées ou retirées entre issues et entre branches, explicitement ; pour une issue nouvelle, la règle d'entrée au plan de l'ADR 0018 (§ 5) et, au point d'étape, l'indicateur de dette et le compte des problèmes gardés et des mineurs écartés (§ 4) ;
 - **Preuves** : pour chaque conclusion, la référence (`fichier:ligne`, ADR, issue, SHA) ou la commande et sa sortie, marquée *vérifiée*, *hypothèse* ou *non vérifiée* ;
 - **Informations manquantes** et **décisions non résolues** (qui doit trancher) ;
 - **Critères déclenchés** (`docs/agents/routage.md`, § 4) : ADR ou invariant touché, contrat partagé, changement de résultat, seuil « macro », désaccord. Tu les signales, tu ne décides pas de l'escalade ;
