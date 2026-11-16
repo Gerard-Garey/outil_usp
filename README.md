@@ -38,7 +38,8 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   installé. Avant les deux chemins de lecture, un contrôle de forme du
   classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
   l'outil sait lire de façon identique sur les deux chemins, hors des écarts
-  sans valeur fausse consignés dans la documentation (formes de classeur
+  consignés dans la documentation, dont une cible de feuille forgée qui
+  mène à une valeur fausse et une balise qui bloque `openxlsx` (formes de classeur
   hors de ce sous-ensemble : #574 ; détail dans la documentation,
   « Contrôles de qualité des données »).
   - Précaution : relire les données affichées avant le calcul
