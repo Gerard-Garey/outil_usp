@@ -44,3 +44,13 @@
 | D-S1-17 | Corrections demandées en l'absence du mainteneur par `actuary` ou l'audit, pour le lot D ou #570 | **Délégation** : réalisées et commitées sans le mainteneur si elles ne refusent aucune forme lue juste de plus et ne changent ni σ_USP ni verdict des références ; une reprise par constat ; hors de ces bornes, ou désaccord d'`actuary` avec D-S1-14 à D-S1-16 : arrêt, sauvegarde et handoff |
 
 > *Note de la session sur `actuary-avis-lot-d.md`, rendu après D-S1-14 à D-S1-17. Pas de désaccord avec ces décisions : Q1 à Q6 confirment ou acceptent (Q2 conditionnelle = D-S1-15, Q3 refus = D-S1-16). Les témoins `<t>` dans `<x:r>` de #572, que l'avis demande de nommer au visa comme renversement du correctif du 14/11, l'étaient dans la question de D-S1-14. Réserves (a), commentaire de `XML_ENFANTS_RPR`, et (b), `<phoneticPr></phoneticPr>` admise, sont réalisées sous D-S1-17 (aucun refus nouveau). **Q7 reste ouverte** : le refus ciblé des références numériques de caractère désignant un caractère ASCII imprimable refuserait une forme lue juste par le chemin interne ; il sort des bornes de D-S1-17 et attend le mainteneur (handoff). La forme est antérieure au lot D et sans lien avec R9.*
+
+## Fin de #574 et de #570, suite de la branche (16/11/2026)
+
+> *Réponses du mainteneur aux décisions ouvertes du handoff du 16/11 (commentaire 6904582235 de la PR #591).*
+
+| N° | Question | Décision |
+|---|---|---|
+| D-S1-18 | Q7 de `actuary-avis-lot-d.md` : références numériques de caractère dans le texte d'un classeur (lecteur interne qui décode, `openxlsx` non ; doublon d'en-tête pris en silence par `openxlsx`, σ_USP 0.0762262056) | **Refus ciblé** (recommandation d'`actuary`) : en chaîne partagée et en chaîne en ligne, toute référence numérique désignant un caractère ASCII imprimable (U+0020 à U+007E) autre que `"`, `&`, `'`, `<`, `>` ; texte du refus de l'avis ; une forme lue juste en interne devient un refus (visa) |
+| D-S1-19 | Faille résiduelle de #570 (audit) : en colonne 1, nom « bytes » à préfixe de BOM dont la marque est perdue par `.nom_sans_bom()` | **Option 2** : `.nom_sans_bom()` reporte la marque « bytes » du nom reçu ; le nom forgé fautif devient refusé ; un BOM brut suivi de « t » reste admis |
+| D-S1-20 | Délégation D-S1-17 | **Étendue à #588 et à la revue finale**, mêmes bornes |
