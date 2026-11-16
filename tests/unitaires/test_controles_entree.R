@@ -8,7 +8,8 @@
 #  differentes, T < 5, triangle non carre.
 #  Reference : exigences de l'annexe XVII (B(2)(b) et D(2)(b), (c), (e) :
 #  au moins 5 annees ; strict positivite requise par la loi lognormale et par
-#  les rapports C(i,j+1)/C(i,j)) et article 19 (donnees completes).
+#  les rapports C(i,j+1)/C(i,j)) et article 219, paragraphe 1, point a),
+#  renvoyant a l'article 19, paragraphe 1 (donnees completes).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -37,7 +38,7 @@ verifier("Validation : x negatif ou nul refuse",
 verifier("Validation : y nul ou negatif refuse (lognormale)",
          !engine_valider_donnees(x, replace(y, 2, 0))$ok &&
          !engine_valider_donnees(x, replace(y, 2, -5))$ok)
-verifier("Validation : NA dans x ou y refuse (art. 19), sans erreur R",
+verifier("Validation : NA dans x ou y refuse (art. 219(1)(a) -> art. 19(1)), sans erreur R",
          {
            a <- engine_valider_donnees(replace(x, 1, NA), y)
            b <- engine_valider_donnees(x, replace(y, 8, NaN))
