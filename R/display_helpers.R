@@ -1642,7 +1642,7 @@ plot_boot_sigma <- function(pd) {
   # (zone de trace, hauteur x largeur ; entre parentheses, avec sous-titre) :
   # g_boot (420 px de haut, huit entrees, legende de 198 x 162 px) : 301 x 392
   # px a 690 px de large, 301 x 696 px a 1 000 px, 301 x 863 px a 1 170 px (286
-  # px de haut) ; mw_boot (330 px de haut, quatre entrees, legende de 198 x 86
+  # px de haut) ; mw_boot (mesure a 330 px de haut, quatre entrees, legende de 198 x 86
   # px), pleine largeur : 211 x 392 px a 690 px, 211 x 863 px a 1 170 px,
   # 211 x 841 px dans la cellule du rapport fige (1 148 px) (196 px de haut).
   # Avant, avec l'ancrage au conteneur de 2.25.2 : g_boot 251 px de haut ;
