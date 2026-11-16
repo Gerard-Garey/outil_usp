@@ -4471,7 +4471,7 @@ TOL_P_BORNE <- 1e-12
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
 # annote le 12/10/2026, point 3 ; Q-E2b-5, D1-5), posee par add() seul en
-# dernier element du detail d'une ligne de type test, sans verdict fourni,
+# dernier element du detail d'une ligne de type test,
 # dont la p retenue est Monte-Carlo (bootstrap ou p_mc_ext), d'erreur err_mc
 # finie et > 0, quand |p - s| < 2 err_mc (inegalite stricte) pour un seuil s
 # de la regle des verdicts de la ligne : {alpha/2, alpha} en sens "ne pas
