@@ -1,4 +1,4 @@
-### Sonde sonde_574_lot_h.R, moteur arbre de travail sur 5950e03, lot H (apres, decision D-S1-37, m1), R 4.3.3, LC_ALL=C.UTF-8
+### Sonde sonde_574_lot_h.R, moteur de 20dc10b (apres : lot H, decision D-S1-37, m1, et M1 de l'audit leger du lot H), R 4.3.3, LC_ALL=C.UTF-8
 ### Chemin interne (sans openxlsx)
 [a-rels-id-dans-valeur] chemin = interne ; moteur = engine.R
   relations : <Relationship Id="rIdQ" ... Foo='Id="rId1"' Target="worksheets/sheet2.xml"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx
@@ -109,6 +109,79 @@
   feuille : </sheetData>...<sheetData> (permutees) ; attendu apres : refus R3 citant </sheetData> et <sheetData> ; avant : refus citant </sheetData> seule
   ERREUR classe = usp_refus_lecture
   message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-rid-lf-dans-nom] chemin = interne ; moteur = engine.R
+  classeur : <sheet name='a r:id<LF>="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (texte r:id=" hors d'un attribut r:id : balise <sheet> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-rid-cr-dans-nom] chemin = interne ; moteur = engine.R
+  classeur : <sheet name='a r:id<CR>="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (texte r:id=" hors d'un attribut r:id : balise <sheet> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-rels-id-lf-dans-valeur] chemin = interne ; moteur = engine.R
+  relations : <Relationship Id="rIdQ" ... Foo='Id<LF>="rId1"' Target="worksheets/sheet2.xml"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur designe la feuille lue de facon ambigue (texte Id="rId1" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-lf-seul-avant-rid] chemin = interne ; moteur = engine.R
+  classeur : feuille 1 sheetId="1"<LF>r:id="rId1" (colle : plus de blanc devant r:id), feuille 2 r:id="rId2" ; attendu apres : refus nommant xl/workbook.xml ; avant (5950e03) : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (balise <sheet> 1 de la feuille lue : relation rId1, mais relation rId2 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id="..." a identifiant de lettres et de chiffres) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-m1h-espace-lf-avant-rid] chemin = interne ; moteur = engine.R
+  classeur : feuille 1 sheetId="1" <LF>r:id="rId1" (espace garde au collage), feuille 2 r:id="rId2" ; attendu : 104.2 (refuse a tort par le lot H avant M1)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-m1h-rels-id-lf-retenu] chemin = interne ; moteur = engine.R
+  relations : relation retenue Id<LF>="rId1", deux feuilles ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-m1h-crlf] chemin = interne ; moteur = engine.R
+  xl/workbook.xml et xl/_rels/workbook.xml.rels ecrits en fins de ligne CRLF, deux feuilles ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[limite-target-x-target] chemin = interne ; moteur = engine.R
+  relations : Target='worksheets/sheet1.xml' x:Target="worksheets/sheet2.xml" (relation de la feuille lue) ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[limite-target-dans-valeur] chemin = interne ; moteur = engine.R
+  relations : Target='worksheets/sheet1.xml' Foo='Target="worksheets/sheet2.xml"' ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
 
   [code de sortie : 0]
 
@@ -304,6 +377,79 @@
   feuille : </sheetData>...<sheetData> (permutees) ; attendu apres : refus R3 citant </sheetData> et <sheetData> ; avant : refus citant </sheetData> seule
   ERREUR classe = usp_refus_lecture
   message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-rid-lf-dans-nom] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  classeur : <sheet name='a r:id<LF>="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (texte r:id=" hors d'un attribut r:id : balise <sheet> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-rid-cr-dans-nom] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  classeur : <sheet name='a r:id<CR>="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (texte r:id=" hors d'un attribut r:id : balise <sheet> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-rels-id-lf-dans-valeur] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  relations : <Relationship Id="rIdQ" ... Foo='Id<LF>="rId1"' Target="worksheets/sheet2.xml"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur designe la feuille lue de facon ambigue (texte Id="rId1" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[m1h-workbook-lf-seul-avant-rid] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  classeur : feuille 1 sheetId="1"<LF>r:id="rId1" (colle : plus de blanc devant r:id), feuille 2 r:id="rId2" ; attendu apres : refus nommant xl/workbook.xml ; avant (5950e03) : 104.2 interne, 999 openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur designe la feuille lue de facon ambigue (balise <sheet> 1 de la feuille lue : relation rId1, mais relation rId2 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id="..." a identifiant de lettres et de chiffres) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-m1h-espace-lf-avant-rid] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  classeur : feuille 1 sheetId="1" <LF>r:id="rId1" (espace garde au collage), feuille 2 r:id="rId2" ; attendu : 104.2 (refuse a tort par le lot H avant M1)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-m1h-rels-id-lf-retenu] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  relations : relation retenue Id<LF>="rId1", deux feuilles ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-m1h-crlf] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml et xl/_rels/workbook.xml.rels ecrits en fins de ligne CRLF, deux feuilles ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[limite-target-x-target] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  relations : Target='worksheets/sheet1.xml' x:Target="worksheets/sheet2.xml" (relation de la feuille lue) ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[limite-target-dans-valeur] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  relations : Target='worksheets/sheet1.xml' Foo='Target="worksheets/sheet2.xml"' ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
 
   [code de sortie : 0]
 

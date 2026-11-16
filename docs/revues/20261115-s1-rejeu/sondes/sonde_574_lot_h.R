@@ -10,6 +10,15 @@
 #    x:id, r:id repete ; nom de feuille portant ">" ; RelId="rId1").
 #  - m1 : </sheetData> puis <sheetData> (permutees) : l'ouvrante non fermee
 #    est citee avec la fermante en surnombre.
+#  - M1 de l'audit leger du lot H : openxlsx colle les lignes de
+#    xl/workbook.xml et des relations (readLines() puis paste(collapse =
+#    "")) : r:id<LF>=" ou r:id<CR>=" dans un nom de feuille, Id<LF>=" dans
+#    la valeur d'un autre attribut d'une relation, <LF> seul devant r:id
+#    (refus) ; espace puis <LF> devant r:id, Id<LF>="rId1" de la relation
+#    retenue, workbook.xml et relations en fins de ligne CRLF (temoins).
+#  - limite connue (D-S1-38, cible Target hors du controle) :
+#    Target='...sheet1.xml' x:Target="...sheet2.xml" et
+#    Target='...sheet1.xml' Foo='Target="...sheet2.xml"'.
 #  - temoins : classeur forge ordinaire, deux feuilles ordinaires, attributs
 #    entre apostrophes et a blancs (une feuille, #487), r:id dans une autre
 #    balise que <sheet> (externalReference), r:id='rId2' dans un nom,
@@ -36,6 +45,12 @@ CAS <- c(# D-S1-37, formes de l'audit
          "workbook-id-sans-prefixe", "workbook-x-id", "workbook-rid-repete", "workbook-nom-chevron",
          # m1
          "m1-sheetdata-permutees",
+         # M1 de l'audit leger du lot H (texte colle par openxlsx)
+         "m1h-workbook-rid-lf-dans-nom", "m1h-workbook-rid-cr-dans-nom", "m1h-rels-id-lf-dans-valeur",
+         "m1h-workbook-lf-seul-avant-rid",
+         "temoin-m1h-espace-lf-avant-rid", "temoin-m1h-rels-id-lf-retenu", "temoin-m1h-crlf",
+         # limite connue (D-S1-38)
+         "limite-target-x-target", "limite-target-dans-valeur",
          # temoins
          "temoin-forge", "temoin-deux-feuilles", "temoin-apostrophes-une-feuille", "temoin-blancs-une-feuille",
          "temoin-rels-id-apostrophes", "temoin-externalreference", "temoin-rid-apostrophes-dans-nom",
@@ -154,6 +169,36 @@ switch(cas,
   "m1-sheetdata-permutees" = {
     cat("  feuille : </sheetData>...<sheetData> (permutees) ; attendu apres : refus R3 citant </sheetData> et <sheetData> ; avant : refus citant </sheetData> seule\n")
     lire_serie(retoucher(f0(), list(c(FS, "<sheetData>", "@@"), c(FS, "</sheetData>", "<sheetData>"), c(FS, "@@", "</sheetData>")))) },
+  "m1h-workbook-rid-lf-dans-nom" = {
+    cat("  classeur : <sheet name='a r:id<LF>=\"rId2\"' ... r:id=\"rId1\"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), c(WB, 'name="Donnees"', "name='a r:id\n=\"rId2\"'")), 1L)) },
+  "m1h-workbook-rid-cr-dans-nom" = {
+    cat("  classeur : <sheet name='a r:id<CR>=\"rId2\"' ... r:id=\"rId1\"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), c(WB, 'name="Donnees"', "name='a r:id\r=\"rId2\"'")), 1L)) },
+  "m1h-rels-id-lf-dans-valeur" = {
+    cat("  relations : <Relationship Id=\"rIdQ\" ... Foo='Id<LF>=\"rId1\"' Target=\"worksheets/sheet2.xml\"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(c(RL, REL1, paste0(rel("rIdQ", 2L, "Id=\"rIdQ\" Foo='Id\n=\"rId1\"'"), REL1))), 1L)) },
+  "m1h-workbook-lf-seul-avant-rid" = {
+    cat("  classeur : feuille 1 sheetId=\"1\"<LF>r:id=\"rId1\" (colle : plus de blanc devant r:id), feuille 2 r:id=\"rId2\" ; attendu apres : refus nommant xl/workbook.xml ; avant (5950e03) : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), fin_sheets(sh("Autre", 2L, 'r:id="rId2"')), c(WB, ' r:id="rId1"', '\nr:id="rId1"')), 1L)) },
+  "temoin-m1h-espace-lf-avant-rid" = {
+    cat("  classeur : feuille 1 sheetId=\"1\" <LF>r:id=\"rId1\" (espace garde au collage), feuille 2 r:id=\"rId2\" ; attendu : 104.2 (refuse a tort par le lot H avant M1)\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), fin_sheets(sh("Autre", 2L, 'r:id="rId2"')), c(WB, ' r:id="rId1"', ' \nr:id="rId1"')), 1L)) },
+  "temoin-m1h-rels-id-lf-retenu" = {
+    cat("  relations : relation retenue Id<LF>=\"rId1\", deux feuilles ; attendu : 104.2\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), fin_sheets(sh("Autre", 2L, 'r:id="rId2"')), c(RL, 'Id="rId1"', 'Id\n="rId1"')), 1L)) },
+  "temoin-m1h-crlf" = {
+    cat("  xl/workbook.xml et xl/_rels/workbook.xml.rels ecrits en fins de ligne CRLF, deux feuilles ; attendu : 104.2\n")
+    lire_serie(retoucher(f0(), list(fin_rels(rel("rId2", 2L)), fin_sheets(sh("Autre", 2L, 'r:id="rId2"')),
+                                    c(WB, "?><workbook", "?>\r\n<workbook"), c(WB, "<sheets>", "\r\n<sheets>\r\n"),
+                                    c(WB, '"/><sheet ', '"/>\r\n<sheet '), c(WB, "</sheets>", "\r\n</sheets>\r\n"),
+                                    c(RL, "?><Relationships", "?>\r\n<Relationships"), c(RL, '"/><Relationship ', '"/>\r\n<Relationship ')), 1L)) },
+  "limite-target-x-target" = {
+    cat("  relations : Target='worksheets/sheet1.xml' x:Target=\"worksheets/sheet2.xml\" (relation de la feuille lue) ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(c(RL, 'Target="worksheets/sheet1.xml"', "Target='worksheets/sheet1.xml' x:Target=\"worksheets/sheet2.xml\"")), 1L)) },
+  "limite-target-dans-valeur" = {
+    cat("  relations : Target='worksheets/sheet1.xml' Foo='Target=\"worksheets/sheet2.xml\"' ; limite connue (D-S1-38, hors du controle) : 104.2 interne, 999 openxlsx\n")
+    lire_serie(retoucher(f0(), list(c(RL, 'Target="worksheets/sheet1.xml"', "Target='worksheets/sheet1.xml' Foo='Target=\"worksheets/sheet2.xml\"'")), 1L)) },
   "temoin-forge" = {
     cat("  classeur forge ordinaire ; attendu : 104.2, sigma_USP de la serie\n")
     lire_serie(f0()) },
