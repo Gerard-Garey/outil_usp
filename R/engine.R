@@ -10955,7 +10955,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, sprintf("xt (%d valeurs) et yt (%d valeurs) doivent avoir la meme longueur.",
                           length(xt), length(yt)))
   if (anyNA(xt) || anyNA(yt))
-    err <- c(err, "Valeurs manquantes : le calibrage exige des series completes (art. 19).")
+    err <- c(err, "Valeurs manquantes : le calibrage exige des series completes (art. 219, paragraphe 1, point a), renvoyant a l'art. 19, paragraphe 1 ; annexe XVII, B/C(1) et B/C(2)(b)).")
   # Valeur infinie (issue #33) : anyNA(Inf) est FALSE et Inf > 0 ; sans ce
   # controle, run_engine() s'arretait sur une erreur R au lieu de refuser.
   if (is.numeric(xt) && is.numeric(yt) && any(is.infinite(c(xt, yt))))
