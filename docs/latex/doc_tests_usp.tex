@@ -4991,8 +4991,9 @@ illisible et une feuille introuvable («~\code{Classeur illisible : aucune feuil
 restent des erreurs ordinaires, signalées par le message fixe de l'application.
 
 \emph{Écarts qui subsistent entre les deux chemins.} Sur un classeur admis, les deux chemins
-peuvent encore différer~; un seul de ces écarts connus donne une valeur fausse (cible de la
-feuille forgée, ci-dessous). Le texte phonétique d'une chaîne partagée
+peuvent encore différer~; une seule forme connue donne une valeur fausse sur un classeur admis
+(cible de la feuille forgée, ci-dessous, lue fausse par l'un des chemins ou par les deux). Le
+texte phonétique d'une chaîne partagée
 n'est lu par aucun des deux~: «~\code{11}~» suivi du texte phonétique «~\code{7}~» est lu~11
 (mesuré). Le texte d'une cellule \code{t="str"} (résultat de formule) est lu tel quel, sans
 décodage des entités (\code{\&amp;}, \code{\&\#{}xE9;}), par les deux chemins à l'identique
@@ -5014,14 +5015,16 @@ sont sans effet sur la lecture (attribut \code{r:id} entre apostrophes dans la s
 feuilles, mesuré, version~4.2.5.2). La cible de la relation de la feuille lue n'est pas soumise
 à la règle «~Désignation de la feuille lue~»~: une relation forgée qui porte, outre son
 attribut de cible, un attribut \code{x:Target="}\ldots\code{"} ou un texte
-\code{Target="}\ldots\code{"} dans la valeur d'un autre attribut fait lire à l'un des deux
-chemins, sur un classeur admis et sans message, une autre feuille que celle de son attribut de
-cible~: à \code{openxlsx}, qui lit la cible à partir du premier texte \code{Target="} de la
-relation, quand l'attribut de cible est écrit entre apostrophes (\code{Target='}\ldots\code{'})
-avant ce texte, et à la voie de repli, qui lit le premier des deux attributs, préfixé ou non,
-quand \code{x:Target="}\ldots\code{"} précède \code{Target="}\ldots\code{"} (première valeur
-de \code{xt} lue $999$ au lieu de $104{,}2$, mesuré, \code{openxlsx}~4.2.5.2)~; aucun tableur n'est supposé écrire ces formes
-(hypothèse non vérifiée)~; limite consignée, à laquelle s'applique le contrôle des valeurs par
+\code{Target="}\ldots\code{"} dans la valeur d'un autre attribut peut faire lire, sur un
+classeur admis et sans message, une autre feuille que celle de son attribut de cible~: à
+\code{openxlsx}, qui lit la cible à partir du premier texte \code{Target="} de la relation,
+quand l'attribut de cible est écrit entre apostrophes (\code{Target='}\ldots\code{'}), que ce
+texte le précède ou le suive~; à la voie de repli, qui lit le premier des deux attributs,
+préfixé ou non, quand \code{x:Target="}\ldots\code{"} précède l'attribut de cible~; aux deux
+chemins quand ces deux conditions sont réunies (\code{x:Target="}\ldots\code{"} suivi de
+\code{Target='}\ldots\code{'}) (première valeur de \code{xt} lue $999$ au lieu de $104{,}2$,
+mesuré, \code{openxlsx}~4.2.5.2)~; aucun tableur n'est supposé écrire ces formes (hypothèse
+non vérifiée)~; limite consignée, à laquelle s'applique le contrôle des valeurs par
 l'utilisateur décrit ci-après. Une seconde limite est consignée, sans valeur fausse~: dans
 \code{xl/\_rels/}\allowbreak\code{workbook.xml.rels}, une première balise \code{<Relationship}
 suivie d'une tabulation ou d'une fin de ligne (XML valide) fait entrer \code{openxlsx} dans une
