@@ -37,8 +37,9 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
 - Lecture xlsx. `openxlsx` reste le lecteur par défaut quand il est
   installé. Avant les deux chemins de lecture, un contrôle de forme du
   classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
-  l'outil sait lire de façon identique sur les deux chemins (formes de
-  classeur hors de ce sous-ensemble : #574 ; détail dans la documentation,
+  l'outil sait lire de façon identique sur les deux chemins, hors des écarts
+  sans valeur fausse consignés dans la documentation (formes de classeur
+  hors de ce sous-ensemble : #574 ; détail dans la documentation,
   « Contrôles de qualité des données »).
   - Précaution : relire les données affichées avant le calcul
     contre leur source. Le rapport figé donne l'empreinte md5 des données
