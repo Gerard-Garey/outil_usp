@@ -9153,7 +9153,9 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 #  - hors du contenu des <extLst> (ni examine ni lu) : aucune balise
 #    prefixee ; <sheetData> ne contient que <row>, <row> que <c> et
 #    <extLst>, <c> que <f>, <v>, <is> et <extLst>, chacun au plus une fois,
-#    <is> (ecrit <is>, sans attribut) un seul <t> ; <v>, <f> et <t> ne
+#    <is> (ecrit <is>, sans attribut) un seul <t>, ecrit <t> (sans
+#    attribut ni blanc, decision D-S1-31) ou, vide, <t/> (blancs admis avant
+#    "/>") ; <v>, <f> et <t> ne
 #    contiennent aucune balise ; balises bien formees (attributs nom =
 #    valeur entre guillemets, sans "<" ni ">" dans une valeur ; fermante
 #    ecrite </nom>, sans blanc : openxlsx cherche "</v>" exact ; </v > etait
@@ -9255,7 +9257,16 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   forme_o <- grepl(XML_GRAMMAIRE_OUVRANTE, tk, perl = TRUE, useBytes = TRUE)
   forme_f <- tk == paste0("</", nm, ">") & grepl("^[A-Za-z_][A-Za-z0-9_.:-]*$", nm, useBytes = TRUE)
   cle <- ifelse(ouv & pn %in% c("c", "is"), paste(par, nm), NA_character_)
-  faute <- (ouv & (!permis | !forme_o | (nm == "is" & (g == "v" | tk != "<is>")))) |
+  # <t> d'une chaine en ligne sans attribut ni blanc (decision D-S1-31) :
+  # openxlsx 4.2.5.2 garde dans le texte lu ce qui suit "<t" et un caractere
+  # (en-tete <t xml:space="preserve">xt lu "xml:space=\"preserve\">xt", <t >xt
+  # et <t\t>xt lus ">xt", valeur 104.2 lue non numerique), le lecteur
+  # interne lit xt et 104.2 (mesure) ; vide : <t/>, avec ou sans blancs
+  # avant "/>", admis, lus
+  # pareil l'un et l'autre sur chaque chemin (chaine vide en interne, NA par
+  # openxlsx ; meme verdict de engine_lire_donnees_csv(), mesure)
+  t_is <- nm == "t" & pn == "is" & ifelse(g == "o", tk != "<t>", !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE))
+  faute <- (ouv & (!permis | !forme_o | (nm == "is" & (g == "v" | tk != "<is>")) | t_is)) |
            (!dans_ext & g == "f" & !forme_f) | duplicated(cle, incomparables = NA)
   # Seule la balise fautive la plus haute est citee (pas ses descendantes)
   faute <- faute & (is.na(par) | !faute[pmax(par, 1L)])
@@ -10340,8 +10351,10 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23 : "x&#116;"
 # ou "xt&#9;" lu "xt" en interne, laisse tel quel par openxlsx, qui
 # prenait en silence une autre colonne xt, mesure) ;
-# un <t xml:space="preserve"> d'une chaine en ligne laisse
-# l'attribut dans le texte lu par openxlsx.
+# un <t> a attribut ou a blanc d'une chaine en ligne (<t
+# xml:space="preserve">, <t >), dont openxlsx gardait dans le texte lu ce
+# qui suit "<t" et un caractere, est refuse avant les deux chemins (.xlsx_controler_structure(),
+# decision D-S1-31).
 # Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
 # decodage des entites (&amp;, &lt;, &#233;...), a l'identique par les deux
 # chemins (mesure, #557) : limite consignee. Un decodage sur le seul lecteur

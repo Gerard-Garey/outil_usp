@@ -2987,11 +2987,13 @@ if (nzchar(Sys.which("zip"))) {
   # (blanc ecrit en reference numerique, &#32; auparavant : refuse depuis
   # les decisions D-S1-18 et D-S1-23, #574, lot E, comme toute reference a
   # un blanc que retire la mise en forme des en-tetes ; remplace par une
-  # tabulation ecrite telle quelle dans la chaine partagee)
+  # tabulation ecrite telle quelle dans la chaine partagee ; espace en
+  # chaine en ligne ecrite <t> </t> et non plus <t xml:space="preserve"> </t>,
+  # refusee par la regle R3 depuis la decision D-S1-31, #574, lot F)
   verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", TAB), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522 sur chaque chemin",
            refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">  </t></si>')) &&
              refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">\t</t></si>')) &&
-             refus522(bl522(c(en487("A1", '<t xml:space="preserve"> </t>'), en487("B1", "<t>\t</t>")))) &&
+             refus522(bl522(c(en487("A1", "<t> </t>"), en487("B1", "<t>\t</t>")))) &&
              refus522(bl522(c(en487("A1", "<t></t>"), en487("B1", "<t></t>")))))
   verifier("xlsx (#522, option (b)) : ligne 1 portant un nombre 0 ou un booleen parmi des blancs : pas de refus de la ligne 1 sur chaque chemin",
            tous487(bl522(c(nb487("A1", 0), en487("B1", "<t> </t>"))), is.data.frame) &&
@@ -3685,6 +3687,34 @@ if (nzchar(Sys.which("zip"))) {
              rb574(feuille575(ser574('<c r="B2" t="inlineStr"><is/></c>'), NULL), texte574r3("balise <is>, dans la cellule B2")) &&
              rb574(feuille575(ser574('<c r="B2"><v>1<2</v></c>'), NULL), texte574r3("caractere < hors d'une balise, dans la cellule B2")) &&
              rb574(feuille575(ser574(d2 = "x"), NULL), texte574r3("texte, apres la cellule C2")))
+  # Decision D-S1-31 (constat H1 de la validation du .tex par actuary) :
+  # <t> d'une chaine en ligne ecrit <t>, sans attribut ni blanc (<t/> et
+  # <t /> admis). Avant : <is><t xml:space="preserve">11.5</t></is> lu 11.5
+  # par le lecteur interne (classeur accepte), "xml:space=\"preserve\">11.5"
+  # par openxlsx 4.2.5.2 (refus en aval) ; en-tete <t >xt lu ">xt" par
+  # openxlsx, xt en interne (sonde sondes/sonde_574_lot_f.R).
+  ent574f <- function(b1) ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", b1), en487("C1", "<t>yt</t>")))
+  verifier("xlsx (#574, R3, D-S1-31) : <t> a attribut (xml:space, prefixe ou non, entre apostrophes) ou a blanc dans une chaine en ligne, en valeur (B2) et en en-tete (B1), ouvrant ou vide : refus R3 \"balise <t>, dans la chaine en ligne de la cellule ...\" sur chaque chemin (avant : lu juste en interne, attribut garde dans le texte par openxlsx)",
+           all(vapply(c('<t xml:space="preserve">11.5</t>', '<t space="preserve">11.5</t>', '<t x:space="preserve">11.5</t>',
+                        "<t xml:space='preserve'>11.5</t>", '<t >11.5</t>', '<t\t>11.5</t>', '<t xml:space="preserve"/>'),
+                      function(t) rb574(feuille575(ser574(en487("B2", t)), NULL), texte574r3("balise <t>, dans la chaine en ligne de la cellule B2")),
+                      logical(1))) &&
+             all(vapply(c('<t xml:space="preserve">xt</t>', '<t >xt</t>'),
+                        function(t) rb574(feuille575(paste0(ent574f(t), ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL),
+                                          texte574r3("balise <t>, dans la chaine en ligne de la cellule B1")),
+                        logical(1))))
+  verifier("xlsx (#574, R3, D-S1-31) : temoins admis, lus a l'identique sur chaque chemin (xt = 11.5, en-tete xt) : <is><t>11.5</t></is> en B2, <is><t/></is> et <is><t /></is> hors du tableau, chaine partagee <si><t xml:space=\"preserve\"> en valeur (B2) et en en-tete (B1)",
+           local({ lit574f <- function(f) chemins483(f, lire487)
+             ok574f <- function(r) tous487(r, function(d) is.data.frame(d) && identical(names(d)[1:3], c("t", "xt", "yt")) &&
+                                                        identical(as.numeric(d$xt), 11.5)) &&
+                                     (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt))
+             ok574f(lit574f(feuille575(ser574(en487("B2", "<t>11.5</t>")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t/>")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t />")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(ps487("B2", 0)), '<si><t xml:space="preserve">11.5</t></si>'))) &&
+               ok574f(lit574f(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), ps487("B1", 0), en487("C1", "<t>yt</t>"))),
+                                                ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))),
+                                         '<si><t xml:space="preserve">xt</t></si>'))) }))
   # Segment de cellule lu par openxlsx (de "<c " a "<c " suivant ou a la fin
   # de la feuille) : " t=", "</v>" et "</t></is>" hors de la cellule.
   verifier("xlsx (#574, R3, segment) : attribut t=\"s\" de la ligne 3 apres C2 = 0 sans t (avant : C2 lue 11.5 par openxlsx, 0 en interne, ok = TRUE), <v> et <is><t> d'un element place apres </sheetData> rattaches a la derniere cellule sans valeur, en-tete de page \"&amp;CMontant t=1\" apres la derniere cellule (avant : lu juste par les deux chemins ; refus accepte, decision D-S1-10, a) : refus du segment sur chaque chemin",
