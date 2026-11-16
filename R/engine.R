@@ -9134,36 +9134,55 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
 # mainteneur, #574, lot H), fait par .xlsx_fichier_feuille() une fois la
 # feuille retenue (rang, parmi les balises <sheet> ; lien, rang de sa
 # relation parmi les balises <Relationship> ; id, son Id), avant le choix de
-# la cible. openxlsx 4.2.5.2 (read.xlsx.default(), source lue) prend les
-# balises <sheet[^>]*> entre <sheets> et </sheets>, ecarte celles qui
-# portent r:id="" (ou de blancs), lit dans chacune le texte qui suit
-# ' r:id="' (lettres et chiffres), prend le rang-ieme de ces identifiants,
-# puis la premiere relation dont le texte contient Id="<identifiant>".
+# la cible. openxlsx 4.2.5.2 (read.xlsx.default(), source lue) lit
+# xl/workbook.xml et xl/_rels/workbook.xml.rels par readUTF8() (readLines())
+# puis colle les lignes (paste(collapse = "")) : les fins de ligne \n, \r et
+# \r\n disparaissent avant toute recherche (mesure, R 4.3.3 : readLines() de
+# "a\r\nb\rc\nd\n\re\r\r\nf" colle en "abcdef", derniere ligne sans fin
+# gardee). Sur ce texte colle, il prend les balises <sheet[^>]*> entre
+# <sheets> et </sheets>, ecarte celles qui portent r:id="" (ou de blancs),
+# lit dans chacune le texte qui suit ' r:id="' (lettres et chiffres), prend
+# le rang-ieme de ces identifiants, puis la premiere relation dont le texte
+# contient Id="<identifiant>". Les trois controles ci-dessous cherchent donc
+# les textes r:id=" et Id="<id>" et l'identifiant du rang-ieme r:id dans le
+# texte colle (texte_colle()), puis reportent chaque occurrence a sa
+# position dans la partie (premier caractere) pour la situer dans les
+# balises et les attributs lus par le lecteur interne. Partie sans \r ni \n :
+# texte colle identique a la partie.
 # Refus (TEXTE_REFUS_RELATIONS, usp_refus_lecture) :
 #  - d'un texte r:id=" de xl/workbook.xml qui commence dans une valeur
 #    d'attribut ou dans un texte, hors d'un nom d'attribut (mesure : nom de
 #    feuille name='a r:id="rId2"', rId2 de cible sheet2.xml, 104.2 en
-#    interne et 999 par openxlsx, ok = TRUE) ;
+#    interne et 999 par openxlsx, ok = TRUE ; de meme name='a r:id<LF>="rId2"'
+#    ou <CR> au lieu de <LF>, texte r:id=" forme par le collage) ;
 #  - d'un rang-ieme identifiant lu a la facon d'openxlsx different de id :
 #    attribut r:id ecrit entre apostrophes, a blancs autour du signe =,
-#    precede d'une tabulation, vide, ou d'identifiant non alphanumerique
+#    precede d'une tabulation ou d'une seule fin de ligne (collee : plus de
+#    blanc devant r:id), vide, ou d'identifiant non alphanumerique
 #    (rId-1), dans la balise de la feuille lue ou une balise precedente
 #    (mesure, deux ou trois feuilles : openxlsx lisait la feuille suivante,
 #    999 au lieu de 104.2, ou l'inverse) ; de meme une balise <x:sheet>
 #    prefixee suivie d'une balise <sheet> (openxlsx ne lit que la seconde :
-#    999, mesure). Quand openxlsx ne trouve pas de
-#    rang-ieme identifiant, il s'arrete sur une erreur R (classeur a une
-#    feuille dont r:id est entre apostrophes ou a blancs, lu par le lecteur
-#    interne, #487) : pas de refus, la lecture reste celle de #487 ;
-#  - d'un texte Id="<id>" des relations ailleurs qu'a l'attribut Id de la
-#    relation retenue : valeur d'un autre attribut (Foo='Id="rId1"'), nom
-#    d'attribut qui finit par Id (RelId="rId1"), autre balise (mesure : 104.2
-#    en interne, 999 par openxlsx, ok = TRUE). L'attribut retenu ecrit
-#    Id='rId1' ou Id = "rId1" n'est pas refuse : openxlsx ne le trouve pas et
-#    s'arrete sur une erreur R ("Length of worksheet is 0", mesure, #487).
-# Positions en caracteres (parties UTF-8 valides, R1). Hors du controle :
-# la cible (attribut Target) lue a la facon d'openxlsx (premier texte
-# Target=" de la relation) ; non mesuree ici.
+#    999, mesure). Un r:id precede d'un espace puis d'une fin de ligne reste
+#    lu par openxlsx (espace garde) : pas de refus. Quand openxlsx ne trouve
+#    pas de rang-ieme identifiant, il s'arrete sur une erreur R (classeur a
+#    une feuille dont r:id est entre apostrophes ou a blancs, lu par le
+#    lecteur interne, #487) : pas de refus, la lecture reste celle de #487 ;
+#  - d'un texte Id="<id>" des relations (texte colle) ailleurs qu'a
+#    l'attribut Id de la relation retenue : valeur d'un autre attribut
+#    (Foo='Id="rId1"', ou Foo='Id<LF>="rId1"'), nom d'attribut qui finit
+#    par Id (RelId="rId1"), autre balise (mesure : 104.2 en interne, 999 par
+#    openxlsx, ok = TRUE). L'attribut retenu ecrit Id='rId1' ou Id = "rId1"
+#    n'est pas refuse : openxlsx ne le trouve pas et s'arrete sur une erreur
+#    R ("Length of worksheet is 0", mesure, #487) ; ecrit Id<LF>="rId1", il
+#    est trouve par openxlsx et n'est pas refuse.
+# Positions en caracteres (parties UTF-8 valides, R1). Hors du controle,
+# limite connue (decision D-S1-38, renvoyee a une issue) : la cible
+# (attribut Target) lue a la facon d'openxlsx, premier texte Target=" de la
+# relation ; mesure (deux feuilles, sheet2.xml portant 999) :
+# Target='worksheets/sheet1.xml' x:Target="worksheets/sheet2.xml" ou
+# Target='worksheets/sheet1.xml' Foo='Target="worksheets/sheet2.xml"' :
+# 104.2 en interne, 999 par openxlsx, ok = TRUE, sans refus.
 .xlsx_controler_designation <- function(wb, rels, liens, rang, lien, id) {
   refuser <- function(partie, pos)
     .refus_lecture(sprintf(TEXTE_REFUS_RELATIONS, partie, pos))
@@ -9179,9 +9198,25 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
     })
     do.call(rbind, c(list(data.frame(deb = integer(0), val = integer(0), texte = character(0), balise = integer(0))), out))
   }
-  # 1. Texte r:id=" de xl/workbook.xml hors d'un nom d'attribut
-  occ <- as.integer(gregexpr("r:id=\"", wb, fixed = TRUE)[[1]])
-  occ <- occ[occ > 0L]
+  # Texte d'une partie tel qu'openxlsx le lit (lignes de readLines()
+  # collees : tout \r et tout \n retires), et position dans la partie de
+  # chaque caractere garde (NULL : partie sans \r ni \n, positions egales).
+  texte_colle <- function(x) {
+    if (!grepl("[\r\n]", x)) return(list(x = x, pos = NULL))
+    ch <- strsplit(x, "", fixed = TRUE)[[1]]
+    garde <- which(ch != "\r" & ch != "\n")
+    list(x = paste(ch[garde], collapse = ""), pos = garde)
+  }
+  # Occurrences d'un texte dans le texte colle, reportees a la position de
+  # leur premier caractere dans la partie.
+  occurrences <- function(tc, aiguille) {
+    o <- as.integer(gregexpr(aiguille, tc$x, fixed = TRUE)[[1]])
+    o <- o[o > 0L]
+    if (is.null(tc$pos)) o else tc$pos[o]
+  }
+  wbc <- texte_colle(wb)
+  # 1. Texte r:id=" de xl/workbook.xml (texte colle) hors d'un nom d'attribut
+  occ <- occurrences(wbc, "r:id=\"")
   if (length(occ)) {
     mb <- gregexpr(XML_MOTIF_BALISE, wb, perl = TRUE)[[1]]
     tok <- regmatches(wb, list(mb))[[1]]
@@ -9198,8 +9233,8 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
       refuser("xl/workbook.xml", sprintf("texte r:id=\" hors d'un attribut r:id : %s", .liste_positions(unique(lab))))
     }
   }
-  # 2. Identifiant de la feuille lue a la facon d'openxlsx
-  zone <- regmatches(wb, regexpr("(?s)(?<=<sheets>).*(?=</sheets>)", wb, perl = TRUE))
+  # 2. Identifiant de la feuille lue a la facon d'openxlsx (texte colle)
+  zone <- regmatches(wbc$x, regexpr("(?s)(?<=<sheets>).*(?=</sheets>)", wbc$x, perl = TRUE))
   ox <- character(0)
   if (length(zone)) {
     tk <- regmatches(zone, gregexpr("<sheet[^>]*>", zone, perl = TRUE))[[1]]
@@ -9209,15 +9244,15 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
   if (rang <= length(ox) && !identical(ox[rang], id))
     refuser("xl/workbook.xml", sprintf("balise <sheet> %d de la feuille lue : relation %s, mais relation %s pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres",
                                        rang, .xlsx_citer(id), .xlsx_citer(ox[rang])))
-  # 3. Texte Id="<id>" des relations hors de l'attribut Id retenu
+  # 3. Texte Id="<id>" des relations (texte colle) hors de l'attribut Id
+  # retenu, reconnu a son texte colle (Id<LF>="rId1" compris)
   aiguille <- paste0("Id=\"", id, "\"")
-  occ <- as.integer(gregexpr(aiguille, rels, fixed = TRUE)[[1]])
-  occ <- occ[occ > 0L]
+  occ <- occurrences(texte_colle(rels), aiguille)
   if (length(occ)) {
     ml <- gregexpr("<([A-Za-z_][A-Za-z0-9_.-]*:)?Relationship[ \t\r\n][^>]*>", rels)[[1]]
     deb <- as.integer(ml); fin <- deb + attr(ml, "match.length") - 1L
     pa <- paires(rels, deb[lien], liens[lien])
-    propre <- pa$deb[pa$texte == aiguille]
+    propre <- pa$deb[gsub("[\r\n]", "", pa$texte) == aiguille]
     hors <- setdiff(occ, propre)
     if (length(hors)) {
       b <- findInterval(hors, deb)

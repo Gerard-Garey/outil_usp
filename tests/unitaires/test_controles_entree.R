@@ -3781,6 +3781,37 @@ if (nzchar(Sys.which("zip"))) {
                is.data.frame(rap574h$interne) && identical(as.numeric(rap574h$interne$xt), 11.5) &&
                (!avec_openxlsx483 || (is.character(rap574h$openxlsx) && !startsWith(rap574h$openxlsx, "Classeur illisible"))) &&
                ok574h(ecr574h) && ox574h })
+  # M1 de l'audit leger du lot H : openxlsx 4.2.5.2 colle les lignes de
+  # xl/workbook.xml et des relations (readLines() puis paste(collapse = ""))
+  # avant d'y chercher ' r:id="' et Id="rIdN". Avant (tete 291a47c, sonde
+  # sondes/sonde_574_lot_h.R) : nom de feuille name='a r:id<LF>="rId12"' (ou
+  # <CR>), relation de cible sheet2.xml placee avant la vraie portant
+  # Foo='Id<LF>="rId11"' : premiere feuille lue en interne, seconde (999)
+  # par openxlsx, ok = TRUE ; <LF> seul devant r:id de la premiere feuille
+  # (deux feuilles) : seconde feuille lue par openxlsx, refus deja pose ;
+  # espace puis <LF> devant r:id : refuse a tort (premiere feuille lue sur
+  # les deux chemins avant le lot H, moteur 5950e03).
+  verifier("xlsx (#574, D-S1-37, M1 du lot H) : texte colle par openxlsx (fins de ligne retirees) : nom de feuille name='a r:id<LF>=\"rId12\"' ou <CR>, relation de cible sheet2.xml placee avant la vraie portant Foo='Id<LF>=\"rId11\"', <LF> seul devant r:id de la premiere feuille (deux feuilles) : refus nommant la partie, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id\n=\"rId12\"'")),
+                 texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id\r=\"rId12\"'")),
+                   texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(avant574h("Id=\"rIdQ\" Foo='Id\n=\"rId11\"'"),
+                   texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw('\nr:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")))
+  verifier("xlsx (#574, D-S1-37, M1 du lot H) : temoins lus a l'identique sur chaque chemin (11.5, deux feuilles) : espace puis <LF> devant r:id de la premiere feuille (refus a tort avant), attribut Id<LF>=\"rId11\" de la relation retenue, xl/workbook.xml et relations ecrits en fins de ligne CRLF",
+           { lit574l <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574l <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             crlf574l <- function(f) {
+               for (m in list(c(wb574, "?><workbook", "?>\r\n<workbook"), c(wb574, "<sheets>", "\r\n<sheets>\r\n"),
+                              c(wb574, '"/><sheet ', '"/>\r\n<sheet '), c(wb574, "</sheets>", "\r\n</sheets>\r\n"),
+                              c(rl574, '"/><Relationship ', '"/>\r\n<Relationship '), c(rl574, "?><Relationships", "?>\r\n<Relationships")))
+                 f <- retoucher574(f, m[1], m[2], charToRaw(m[3]))
+               f }
+             ok574l(lit574l(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw(' \nr:id="rId11"')))) &&
+               ok574l(lit574l(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw('Id\n="rId11"')))) &&
+               ok574l(lit574l(crlf574l(deux574h()))) })
   verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
            rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
              rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
