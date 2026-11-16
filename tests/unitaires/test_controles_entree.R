@@ -3723,6 +3723,64 @@ if (nzchar(Sys.which("zip"))) {
                    texte574r3("balise </sheetData>, apres la cellule C2")) &&
              rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData/>")),
                    texte574r3("balise <sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C2")))
+  # Mineur m1 de l'audit leger du lot G : </sheetData> puis <sheetData>
+  # (permutees) ; l'ouvrante non fermee est citee avec la fermante en
+  # surnombre (avant, moteur 5950e03 : </sheetData> seule citee).
+  verifier("xlsx (#574, R3, m1 du lot G) : </sheetData> puis <sheetData> (permutees) : refus R3 sur chaque chemin citant la fermante en surnombre et l'ouvrante non fermee",
+           rb574(retoucher574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>", charToRaw("<sheetData>")),
+                              fe574, "<sheetData>", charToRaw("</sheetData>")),
+                 texte574r3("balise </sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C2")))
+  # Decision D-S1-37 (H1 de l'audit leger du lot G) : relations forgees qui
+  # font lire a openxlsx une autre feuille que le lecteur interne. Avant
+  # (moteur 5950e03, sonde sondes/sonde_574_lot_h.R, openxlsx 4.2.5.2) :
+  # Id="rId11" dans la valeur d'un autre attribut, RelId="rId11", Id repete
+  # ou x:Id dans une relation de cible sheet2.xml placee avant la vraie, nom
+  # de feuille portant r:id="rId12", r:id de la premiere feuille entre
+  # apostrophes (deux feuilles) : 11.5 en interne, 999 par openxlsx ; deux
+  # relations rId11, sheet2.xml d'abord : 999 sur les deux chemins ;
+  # id="rId12" r:id="rId11", nom de feuille portant ">" : 999 en interne
+  # (ok = TRUE dans tous les cas). Refus sur chaque chemin, partie et
+  # position citees.
+  texte574h <- function(partie, pos) sprintf("Classeur illisible : la partie %s du classeur designe la feuille lue de facon ambigue (%s) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.", partie, pos)
+  deux574h <- function() classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                          list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999)))))
+  rel574h <- function(att) charToRaw(paste0('<Relationship ', att, ' Type="', rt487, '/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId11"'))
+  avant574h <- function(att) retoucher574(deux574h(), rl574, '<Relationship Id="rId11"', rel574h(att))
+  verifier("xlsx (#574, D-S1-37) : relation de cible sheet2.xml placee avant la vraie, portant Foo='Id=\"rId11\"', RelId=\"rId11\", Id=\"rId9\" Id=\"rId11\", x:Id=\"rId9\" Id=\"rId11\", ou de meme Id rId11 (avant : 999 lu par openxlsx, ou par les deux chemins) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(avant574h("Id=\"rIdQ\" Foo='Id=\"rId11\"'"),
+                 texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(avant574h('RelId="rId11" Id="rIdQ"'),
+                   texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(avant574h('Id="rId9" Id="rId11"'),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Id absent, repete ou prefixe (Id, Id)")) &&
+             rb574(avant574h('x:Id="rId9" Id="rId11"'),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Id absent, repete ou prefixe (x:Id, Id)")) &&
+             rb574(avant574h('Id="rId11"'), texte574h(rl574, "Id rId11 en double : balises <Relationship> 1 et 2")))
+  verifier("xlsx (#574, D-S1-37) : premiere feuille de nom portant r:id=\"rId12\", d'attributs id=\"rId12\" r:id=\"rId11\", de nom \"a>b\" (balise coupee), de r:id entre apostrophes ou precede d'une tabulation (deux feuilles) : refus nommant xl/workbook.xml, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id=\"rId12\"'")),
+                 texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, 'r:id="rId11"', charToRaw('id="rId12" r:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 : attribut r:id absent, repete ou prefixe autrement que r: (id, r:id)")) &&
+             rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw('name="a>b"')),
+                   texte574h(wb574, "balise <sheet> 1 : attribut r:id absent, repete ou prefixe autrement que r: (aucun)")) &&
+             rb574(retoucher574(deux574h(), wb574, 'r:id="rId11"', charToRaw("r:id='rId11'")),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")) &&
+             rb574(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw('\tr:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")))
+  verifier("xlsx (#574, D-S1-37) : temoins lus a l'identique sur chaque chemin (11.5) : r:id dans une autre balise que <sheet> (externalReference), r:id='rId12' dans un nom de feuille, Id de relation entre apostrophes (lecteur interne seul, erreur R d'openxlsx inchangee), classeur de l'ecrivain interne, classeur d'openxlsx::write.xlsx() a deux feuilles",
+           { lit574h <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574h <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             rap574h <- lit574h(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw("Id='rId11'")))
+             ecr574h <- lit574h(xlsx483(data.frame(t = 1, xt = 11.5, yt = 2)))
+             ox574h <- if (avec_openxlsx483) {
+               fo <- tempfile(fileext = ".xlsx")
+               openxlsx::write.xlsx(list(D = data.frame(t = 1, xt = 11.5, yt = 2), E = data.frame(t = 1, xt = 999, yt = 2)), fo)
+               ok574h(lit574h(fo)) } else TRUE
+             ok574h(lit574h(retoucher574(deux574h(), wb574, "</sheets>", charToRaw('</sheets><externalReferences><externalReference r:id="rId99"/></externalReferences>')))) &&
+               ok574h(lit574h(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name=\"a r:id='rId12' b\"")))) &&
+               is.data.frame(rap574h$interne) && identical(as.numeric(rap574h$interne$xt), 11.5) &&
+               (!avec_openxlsx483 || (is.character(rap574h$openxlsx) && !startsWith(rap574h$openxlsx, "Classeur illisible"))) &&
+               ok574h(ecr574h) && ox574h })
   verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
            rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
              rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
