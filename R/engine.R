@@ -58,7 +58,11 @@
 # reference est posterieure ou egale a la date d'application du reglement
 # delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
 # l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
-# permet pas de reproduire un calcul selon les valeurs de 2015.
+# permet pas de reproduire un calcul selon les valeurs de 2015. Borne
+# superieure : l'outil ne vaut que pour une date de reference anterieure au
+# 30.1.2027, date d'application du reglement delegue (UE) 2026/269, qui
+# conditionne le facteur d'ajustement NP de l'art. 117, paragraphe 3 (colonne
+# np_standard ci-dessous) ; ANNEXE_II et ANNEXE_XIV restent celles de M6.
 
 # Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
 # sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
@@ -7801,9 +7805,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    non carre". Exception : une colonne vide sans en-tete placee avant une
 #    colonne i qui precede les donnees reste retiree sans refus (tableau
 #    decale) ;
-#  - triangle : une colonne entierement vide intercalee, ou portant un
-#    en-tete, est refusee comme annee de developpement manquante presumee
-#    (sans renvoi reglementaire) ;
+#  - triangle : une colonne entierement vide intercalee est refusee comme
+#    annee de developpement manquante presumee ; une colonne vide portant un
+#    en-tete, en bord, comme annee de developpement sans valeur (motif
+#    distinct, sans renvoi reglementaire) ;
 #  - series : une colonne entierement vide sans en-tete est retiree ou
 #    qu'elle soit (xt, yt et t sont lus par leur nom) ; une colonne vide qui
 #    porte un en-tete est laissee aux controles par nom (xt, yt ou t vides
@@ -11894,8 +11899,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     17.1.2015, p. 276-277) et dans la version consolidee au 14.11.2024
 ##     (aucune marque de modification dans la section D ; comparaison des
 ##     formules en rendu graphique le 22/09/2026).
-##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la VERSION CONSOLIDEE
-##     en vigueur (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
+##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la version consolidee
+##     retenue par l'outil comme reference de lecture, sans effet juridique
+##     propre (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
 ##     n'a pas de pagination au JOUE ; la formule d'origine (JOUE
 ##     L 12/277-278) en differe (ADR 0005).
 ##
@@ -12533,8 +12539,9 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 }
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
-# Formule telle qu'imprimee au paragraphe 5 de la VERSION CONSOLIDEE en
-# vigueur (ADR 0005). Dans la version d'origine, le paragraphe 5 couvre les
+# Formule telle qu'imprimee au paragraphe 5 de la version consolidee retenue
+# par l'outil comme reference de lecture, sans effet juridique propre
+# (ADR 0005). Dans la version d'origine, le paragraphe 5 couvre les
 # p. 277-278 du JOUE L 12 du 17.1.2015 (pagination verifiee le 22/09/2026,
 # issue #26) ; la formule qui y est imprimee differe de celle appliquee ici.
 #
