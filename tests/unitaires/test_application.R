@@ -820,8 +820,8 @@ for (.x in as.list(parse(.app, keep.source = FALSE)))
 verifier("onglet_m5_mw() : mw_qq et mw_boot, chacun seul dans une colonne de largeur 12 (pleine largeur, pas de demi-ligne vide) (#582)",
          !inherits(.m5_582, "error") && identical(.m5_582$titre, "M5 - normalite (diagnostic)") &&
            identical(.largeur_582("mw_boot"), 12) && identical(.largeur_582("mw_qq"), 12))
-verifier("onglet_m5_mw() : mw_qq a 420 px de haut (comme g_qq, pas aplati), mw_boot a 330 px (#582)",
-         identical(.hauteur_582("mw_qq"), "420px") && identical(.hauteur_582("mw_boot"), "330px"))
+verifier("onglet_m5_mw() : mw_qq a 420 px de haut (comme g_qq, pas aplati), mw_boot a 420 px (comme g_boot) (#582)",
+         identical(.hauteur_582("mw_qq"), "420px") && identical(.hauteur_582("mw_boot"), "420px"))
 # Le serveur passe par onglet_m5_mw() : un onglet M5 remis en ligne dans
 # output$onglets_graphiques contournerait la fonction testee ci-dessus. Lecture
 # de l'arbre de app.R (appels de onglet_m5_mw(), tabPanel() au titre M5).

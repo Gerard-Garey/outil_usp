@@ -432,10 +432,10 @@ if (png_ok)
 # groupe M5 (pas de demi-ligne vide), dans la structure du rapport et dans la
 # cellule rendue (classe "cel plein").
 .m5_mw <- Filter(function(o) grepl("^M5", o$titre), .graphiques_rapport(res_mw))
-verifier("Rapport MW : groupe M5, QQ-plot (420 px) et distribution bootstrap (330 px) en cellules pleines (#582)",
+verifier("Rapport MW : groupe M5, QQ-plot et distribution bootstrap (420 px chacun) en cellules pleines (#582)",
          length(.m5_mw) == 1L && length(.m5_mw[[1]]$g) == 2L &&
            all(vapply(.m5_mw[[1]]$g, function(g) isTRUE(g$plein), NA)) &&
-           identical(vapply(.m5_mw[[1]]$g, function(g) g$h, 0), c(420, 330)) &&
+           identical(vapply(.m5_mw[[1]]$g, function(g) g$h, 0), c(420, 420)) &&
            (!png_ok || all(vapply(.m5_mw[[1]]$g, function(g)
              identical(.graphique(g, "png")[[1]], "<div class='cel plein'>"), NA))))
 
