@@ -808,7 +808,8 @@ liste \code{\$x}, \code{\$y}, \code{\$T} (les $T$ années les plus récentes) \\
 \code{.allure\_manquante\_}\newline\code{ou\_nombre()},\newline \code{.ligne\_annees()} &
 chaîne~; nom de colonne~; cellules~; première et seconde lignes, \code{dec} &
 chaîne sans la marque d'ordre des octets UTF-8 (comparaison d'octets)~; premier nom de colonne
-sans BOM, y compris sous ses formes lues hors locale UTF-8~; prédicat de refus d'un en-tête,
+sans BOM, y compris sous ses formes lues hors locale UTF-8, la marque d'encodage \code{"bytes"}
+du nom reçu étant gardée~; prédicat de refus d'un en-tête,
 d'une étiquette de ligne, d'une cellule d'angle ou d'une cellule de la ligne d'en-têtes à
 l'allure de valeur manquante ou de nombre~;
 \code{\$ok}, \code{\$angle}, \code{\$cause}~: première ligne lue comme ligne d'années
@@ -823,8 +824,9 @@ décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles})
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
 \code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
-du premier nom de colonne, refus d'une ligne~1 sans valeur
-(\code{.ligne1\_sans\_valeur()}), colonne~$t$ désignée par l'en-tête \code{t}, en minuscule ou en majuscule,
+du premier nom de colonne, refus de tout en-tête déclaré d'encodage \code{"bytes"}, quelle que
+soit sa colonne, par un motif propre, un par colonne, qui ne cite pas le nom, refus d'une ligne~1
+sans valeur (\code{.ligne1\_sans\_valeur()}), colonne~$t$ désignée par l'en-tête \code{t}, en minuscule ou en majuscule,
 blancs de bord ignorés (\code{.entete\_designe()}), refus d'un en-tête~$t$, \code{xt} ou
 \code{yt} présent plusieurs fois, cumulé avec le refus faute de colonne \code{xt} ou \code{yt}, dont le motif cite les
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
@@ -873,7 +875,8 @@ ordre (§\ref{sec:controles}) \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 \code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
-premier nom de colonne, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
+premier nom de colonne, refus de tout nom de colonne déclaré d'encodage \code{"bytes"}, même
+motif que pour les séries, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
 colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscule, blancs de bord ignorés
 (\code{.entete\_designe()}), refus d'un tel en-tête présent plusieurs fois,
 lignes et colonnes vides selon
@@ -4926,8 +4929,9 @@ de blancs (noms de colonne lus tels quels, comme les lit l'application). Un fich
 valeur n'est pas visé et garde ses refus propres~: tableau vide pour un triangle~; pour une
 série, tableau vide, ou colonnes manquantes si le fichier porte des lignes de cellules vides
 (mesuré). Pour un CSV, ce refus est un motif d'erreurs du lecteur
-(\code{.ligne1\_sans\_valeur()}, en tête d'\code{engine\_lire\_donnees\_csv()} et
-d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un classeur, c'est un
+(\code{.ligne1\_sans\_valeur()}, appelée par \code{engine\_lire\_donnees\_csv()} et
+\code{engine\_lire\_triangle()} après le retrait du BOM et le refus des en-têtes d'encodage
+\code{"bytes"}, avant toute autre règle), affiché comme les autres motifs~; pour un classeur, c'est un
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, dernier du
 contrat de forme, parce que
 \code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
@@ -5073,7 +5077,19 @@ le BOM du premier nom de colonne (\code{.nom\_sans\_bom()}, qui reconnaît aussi
 lui donne \code{read.csv()} hors locale UTF-8, dont \code{X...} sous la locale \code{C})~: sans ce retrait, hors
 locale UTF-8, la colonne $t$ ne serait pas reconnue, si bien que le contrôle des années ne
 s'appliquerait pas, et la colonne \code{i} d'un triangle ne serait pas reconnue, d'où un refus au
-motif trompeur.
+motif trompeur. Les deux lecteurs refusent ensuite tout nom de colonne déclaré d'encodage
+\code{"bytes"}, quelle que soit sa colonne, colonnes non lues comprises, par un motif par colonne
+qui ne cite pas le nom («~\code{En-tete de la colonne}~$k$~\code{declare d'encodage "bytes" :
+ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.}~»)~:
+ses octets ne disent pas quels caractères ils codent, et le lire en UTF-8 ou en Latin-1 serait
+deviner~; R ne marquant ainsi que des chaînes non ASCII, un tel nom ne peut valoir $t$,
+\code{xt}, \code{yt} ni \code{i}. Sans ce refus, l'accès à une colonne d'un tableau qui porte un
+tel nom avant elle lève l'erreur de~R «~\code{translating strings with "bytes" encoding is not
+allowed}~» (mesuré). \code{.nom\_sans\_bom()} garde la marque du nom reçu après le retrait d'un
+préfixe de BOM, si bien qu'un nom de première colonne de cette forme est refusé de même~; un reste
+ASCII (\code{t}, \code{i}) ne porte pas la marque et reste lu (mesuré). Les noms de ligne du
+tableau ne sont pas lus par \code{engine\_lire\_triangle()}~; ceux d'une matrice passée à
+\code{mw\_valider\_triangle()} relèvent de son motif propre (ci-dessous).
 \code{engine\_lire\_donnees\_csv()} ne refuse pas, elle, une valeur non finie de \code{xt} ou
 \code{yt}~: c'est \code{engine\_valider\_donnees()} qui la refuse (ligne «~Valeurs finies~» du
 tableau ci-dessus). Un fichier encodé en Windows-1252 (ou Latin-1) et lu sous une locale UTF-8
