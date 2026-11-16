@@ -1,0 +1,54 @@
+moteur : engine_avant.R 
+[logique] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 9.4077602303 
+
+[Date] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.0415125890 
+
+[POSIXct] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.0410000059 
+
+[complexe] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[t en Date] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[liste] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[difftime] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[brut] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 5.9863155881 
+
+[temoin numerique] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[colonne logique supplementaire] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[colonne Date supplementaire] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[triangle temoin] engine_lire_triangle : ok = TRUE
+  C(0,4) = 182
+
+[triangle C(0,4) logique] engine_lire_triangle : ok = TRUE
+  C(0,4) = 1
+
+[triangle C(0,4) Date] engine_lire_triangle : ok = TRUE
+  C(0,4) = 18262
+
+[triangle colonne i logique] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Colonne i a valeurs repetees (ligne(s) de donnees 1, 2, 3, 4, 5) : chaque ligne est une annee d'accident distincte ; corriger la colonne i, ou la retirer.
+
+
+[triangle colonne i Date (jours consecutifs)] engine_lire_triangle : ok = TRUE
+  C(0,4) = 182
+
+[triangle colonne i difftime] engine_lire_triangle : ok = TRUE
+  C(0,4) = 182
+

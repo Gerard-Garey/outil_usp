@@ -1,0 +1,60 @@
+[574-5] chemin = interne
+  table : chaine 0 "a<ff>b" (UTF-8 invalide), chaine 1 en segments <r> "1" + "1.5" sans <rPr> (forme Q-F) ; B2 -> chaine 1 ; refus Q-F attendu
+Warning: stack imbalance in '[[', 48 then 50
+Warning: stack imbalance in '<-', 46 then 48
+Warning: stack imbalance in '{', 42 then 44
+Warning: stack imbalance in 'if', 40 then 42
+Warning: stack imbalance in '{', 36 then 38
+  classes colonnes : t=numeric xt=numeric yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  variante P2 : refus P2 attendu
+  classes colonnes : t=numeric xt=numeric yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  variante X1 : refus X1 attendu
+  classes colonnes : t=numeric xt=numeric yt=numeric 
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+There were 18 warnings (use warnings() to see them)
+  [code de sortie : 0]
+
+[574-5] chemin = openxlsx 4.2.5.2
+  table : chaine 0 "a<ff>b" (UTF-8 invalide), chaine 1 en segments <r> "1" + "1.5" sans <rPr> (forme Q-F) ; B2 -> chaine 1 ; refus Q-F attendu
+Warning: stack imbalance in '[[', 48 then 50
+Warning: stack imbalance in '<-', 46 then 48
+Warning: stack imbalance in '{', 42 then 44
+Warning: stack imbalance in 'if', 40 then 42
+  ERREUR classe = simpleError/error/condition
+  message = invalid input 'aÿb' in 'utf8towcs'
+  variante P2 : refus P2 attendu
+  ERREUR classe = simpleError/error/condition
+  message = invalid input 'aÿb' in 'utf8towcs'
+  variante X1 : refus X1 attendu
+  ERREUR classe = simpleError/error/condition
+  message = invalid input 'aÿb' in 'utf8towcs'
+There were 18 warnings (use warnings() to see them)
+  [code de sortie : 0]
+
+[575] chemin = interne
+  table a une <si>, A2 t="s" indice 5
+'data.frame':	1 obs. of  1 variable:
+ $ annee: num NA
+  [code de sortie : 0]
+
+[575] chemin = openxlsx 4.2.5.2
+  table a une <si>, A2 t="s" indice 5
+  ERREUR classe = simpleError/error/condition
+  message = Value of SET_STRING_ELT() must be a 'CHARSXP' not a 'raw'
+ NULL
+Warning message:
+In getCellInfo(xmlFile = worksheet, sharedStrings = sharedStrings,  :
+  subscript out of bounds (index 5 >= vector size 1)
+  [code de sortie : 0]
+

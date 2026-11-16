@@ -1,0 +1,555 @@
+# Rscript docs/revues/20261115-s1-rejeu/sondes/sonde_574_r1_r2.R <depot> docs/revues/20261115-s1-rejeu/sondes <moteur>, LC_ALL=C.UTF-8, R 4.3.3
+# moteur : git show e0ce07a:R/engine.R
+# chemin interne (R_LIBS vide), puis openxlsx 4.2.5.2 (R_LIBS = bibliotheque du rejeu)
+
+[574-5-QF] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-P2] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-X1] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-sans-renvoi] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+Warning: stack imbalance in '{', 16 then 18
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r1-feuille-ff] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '!=', 30 then 32
+Warning: stack imbalance in 'any', 29 then 31
+Warning: stack imbalance in 'if', 27 then 29
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '<-', 29 then 31
+Warning: stack imbalance in '{', 23 then 27
+Warning: stack imbalance in '[[', 42 then 44
+Warning: stack imbalance in '<-', 40 then 42
+Warning: stack imbalance in '{', 36 then 38
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '[[', 44 then 46
+Warning: stack imbalance in '<-', 42 then 44
+Warning: stack imbalance in '{', 38 then 40
+Warning: stack imbalance in '<-', 33 then 35
+Warning: stack imbalance in '[[', 35 then 37
+Warning: stack imbalance in '<-', 33 then 35
+Warning: stack imbalance in '{', 29 then 31
+Warning: stack imbalance in '<-', 24 then 26
+  avertissements R : 10 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[r1-feuille-nul] chemin = interne ; moteur = avant
+  avertissements R : 1 (premier : truncating string with embedded nuls)
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r1-feuille-tronquee] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '!=', 30 then 32
+Warning: stack imbalance in 'any', 29 then 31
+Warning: stack imbalance in 'if', 27 then 29
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '<-', 29 then 31
+Warning: stack imbalance in '{', 23 then 27
+Warning: stack imbalance in '[[', 42 then 44
+Warning: stack imbalance in '<-', 40 then 42
+Warning: stack imbalance in '{', 36 then 38
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '[[', 44 then 46
+Warning: stack imbalance in '<-', 42 then 44
+Warning: stack imbalance in '{', 38 then 40
+Warning: stack imbalance in '<-', 33 then 35
+Warning: stack imbalance in '[[', 35 then 37
+Warning: stack imbalance in '<-', 33 then 35
+Warning: stack imbalance in '{', 29 then 31
+Warning: stack imbalance in '<-', 24 then 26
+  avertissements R : 10 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Fichier vide ou illisible comme tableau.
+
+  [code de sortie : 0]
+
+[r1-classeur-latin1] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 34 then 36
+Warning: stack imbalance in '<-', 29 then 31
+  avertissements R : 2 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[r1-relations-ff] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 34 then 36
+Warning: stack imbalance in '<-', 29 then 31
+  avertissements R : 3 (premier : truncating string with embedded nuls)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[r1-table-nul] chemin = interne ; moteur = avant
+  avertissements R : 1 (premier : truncating string with embedded nuls)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-fin-tronquee] chemin = interne ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-commentaire] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-cdata] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-feuille-doctype] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-pi] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-table-commentaire] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-table-cdata] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-table-pi] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-declaration-repetee] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-contournement] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-contournement-feuille] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-blanc-initial] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-saut-initial] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-cible-point-commentaire] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-qq] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-englobante-table] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-englobante-feuille] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-valeur-fin] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-decl-tab] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-styles] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-content-types] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-sans-declaration] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-bom] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-texte-echappe] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = interne ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-5-QF] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-P2] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-X1] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-sans-renvoi] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = simpleError
+  message = invalid input 'aÿb' in 'utf8towcs'
+  [code de sortie : 0]
+
+[r1-feuille-ff] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '!=', 30 then 32
+Warning: stack imbalance in 'any', 29 then 31
+Warning: stack imbalance in 'if', 27 then 29
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '<-', 29 then 31
+Warning: stack imbalance in '{', 23 then 27
+Warning: stack imbalance in '[[', 42 then 44
+Warning: stack imbalance in '<-', 40 then 42
+Warning: stack imbalance in '{', 36 then 38
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '[[', 44 then 46
+Warning: stack imbalance in '<-', 42 then 44
+Warning: stack imbalance in '{', 38 then 40
+Warning: stack imbalance in '<-', 33 then 35
+  avertissements R : 8 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r1-feuille-nul] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  avertissements R : 1 (premier : truncating string with embedded nuls)
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r1-feuille-tronquee] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '!=', 30 then 32
+Warning: stack imbalance in 'any', 29 then 31
+Warning: stack imbalance in 'if', 27 then 29
+Warning: stack imbalance in '[[', 31 then 33
+Warning: stack imbalance in '<-', 29 then 31
+Warning: stack imbalance in '{', 23 then 27
+Warning: stack imbalance in '[[', 42 then 44
+Warning: stack imbalance in '<-', 40 then 42
+Warning: stack imbalance in '{', 36 then 38
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '[[', 44 then 46
+Warning: stack imbalance in '<-', 42 then 44
+Warning: stack imbalance in '{', 38 then 40
+Warning: stack imbalance in '<-', 33 then 35
+  avertissements R : 8 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r1-classeur-latin1] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 34 then 36
+Warning: stack imbalance in '<-', 29 then 31
+  avertissements R : 2 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[r1-relations-ff] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 34 then 36
+Warning: stack imbalance in '<-', 29 then 31
+  avertissements R : 3 (premier : truncating string with embedded nuls)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[r1-table-nul] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  avertissements R : 1 (premier : truncating string with embedded nuls)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-fin-tronquee] chemin = openxlsx 4.2.5.2 ; moteur = avant
+Warning: stack imbalance in '[[', 28 then 30
+Warning: stack imbalance in '<-', 26 then 28
+Warning: stack imbalance in '{', 22 then 24
+Warning: stack imbalance in 'if', 20 then 22
+  avertissements R : 6 (premier : unable to translate '<?xml version="1.0" encoding="UTF-8" st)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (B2 : indice 1 ; la table xl/sharedStrings.xml en compte 0) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-cdata] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-feuille-doctype] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-pi] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-table-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-table-cdata] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-table-pi] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-feuille-declaration-repetee] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-contournement] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-contournement-feuille] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-decl-blanc-initial] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-saut-initial] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-cible-point-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[r2-decl-qq] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-englobante-table] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[r2-decl-englobante-feuille] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r2-decl-valeur-fin] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-decl-tab] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-styles] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-content-types] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-sans-declaration] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-bom] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-texte-echappe] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = openxlsx 4.2.5.2 ; moteur = avant
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+

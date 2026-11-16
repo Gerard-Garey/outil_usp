@@ -1,0 +1,42 @@
+== R_LIBS=(aucune)
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > regmatches > gregexpr > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > regmatches > gregexpr > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+Warning: stack imbalance in '[[', 33 then 35
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '{', 27 then 29
+Warning: stack imbalance in 'if', 25 then 27
+Warning: stack imbalance in '{', 21 then 23
+lu : B2 = <NA> 
+validUTF8(table) = FALSE 
+Q-F grepl : AVERT unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+== R_LIBS=/tmp/claude-0/-home-user-outil-usp/72e7dbb2-03bc-5232-8636-a08b44746855/scratchpad/s1-rejeu/lib
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > grepl > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > regmatches > gregexpr > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+AVERTISSEMENT : input string 1 is invalid 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > regmatches > gregexpr > .signalSimpleWarning > withRestarts > withOneRestart > doWithOneRestart > function (w)  > cat > pile 
+Warning: stack imbalance in '[[', 33 then 35
+Warning: stack imbalance in '<-', 31 then 33
+Warning: stack imbalance in '{', 27 then 29
+Warning: stack imbalance in 'if', 25 then 27
+ERREUR : invalid input 'aÿb' in 'utf8towcs' 
+  pile : tryCatch > tryCatchList > tryCatchOne > doTryCatch > withCallingHandlers > e$engine_lire_xlsx > openxlsx::read.xlsx > read.xlsx.default > getSharedStringsFromFile > tolower > .handleSimpleError > h > cat > pile 
+validUTF8(table) = FALSE 
+Q-F grepl : AVERT unable to translate '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>a<ff>b</t></si><si><r><t>1</t></r><r><t>1.5</t></r>...' to a wide string 

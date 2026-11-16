@@ -1,0 +1,485 @@
+### Sonde sonde_574_lot_e.R, moteur arbre de travail sur 63b96f2 (moteur de 5a28380), lot E (apres, decisions D-S1-18, D-S1-22 a D-S1-25), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[valeur-partagee-dec] chemin = interne ; moteur = engine.R
+  table : <si><t>1&#48;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.19 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-hex] chemin = interne ; moteur = engine.R
+  table : <si><t>1&#x30;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.24 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#x30;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-point] chemin = interne ; moteur = engine.R
+  table : <si><t>104&#46;2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.19 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#46;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-zeros-dec] chemin = interne ; moteur = engine.R
+  table : <si><t>1&#00048;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.20 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#00048;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-zeros-hex] chemin = interne ; moteur = engine.R
+  table : <si><t>1&#x0030;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.22 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#x0030;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-X-majuscule] chemin = interne ; moteur = engine.R
+  table : <si><t>1&#X30;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.16 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#X30;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-ligne-dec] chemin = interne ; moteur = engine.R
+  B2 : <is><t>1&#48;4.2</t></is> ; attendu : 104.2
+  duree de lecture : 0.15 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B2 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[entete-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>x&#116;</t> ; attendu : en-tete xt, sigma_USP de la serie
+  duree de lecture : 0.31 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[entete-ligne] chemin = interne ; moteur = engine.R
+  B1 : chaine en ligne <t>x&#116;</t> ; attendu : en-tete xt, sigma_USP de la serie
+  duree de lecture : 0.13 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>x&#116;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus du doublon xt
+  duree de lecture : 0.22 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-ligne] chemin = interne ; moteur = engine.R
+  B1 : chaine en ligne <t>x&#116;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus du doublon xt
+  duree de lecture : 0.13 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-str] chemin = interne ; moteur = engine.R
+  B1 : t="str" <v>x&#116;</v>, D1 : xt (colonne D = 2 xt) ; texte t="str" non decode par les deux chemins
+  duree de lecture : 0.12 s
+  lu : 8 x 4 ; noms = t,x&#116;,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[valeur-nombre-v] chemin = interne ; moteur = engine.R
+  B2 : cellule nombre <v>1&#48;4.2</v> ; attendu : refus R8
+  duree de lecture : 0.12 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&#48;4.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[formule-f-nombre] chemin = interne ; moteur = engine.R
+  B2 : cellule nombre <f>1&#48;4.2</f><v>104.2</v> ; attendu : 104.2 (formule non lue)
+  duree de lecture : 0.12 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[formule-f-str] chemin = interne ; moteur = engine.R
+  D1 : t="str" <f>&quot;n&#111;te&quot;</f><v>note</v> ; attendu : en-tete note (formule non lue)
+  duree de lecture : 0.11 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[doublon-tab-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#9;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.21 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-tab-ligne] chemin = interne ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#9;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-cr-debut-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>&#xD;xt</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.31 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#xD;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-ideo-ligne] chemin = interne ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#12288;</t> (U+3000), D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.14 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#12288;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-tab] chemin = interne ; moteur = engine.R
+  table : <si><t>104.2&#9;</t></si> ; B2 : indice 0 ; attendu : 104.2
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[t-bom-annees-decroissantes] chemin = interne ; moteur = engine.R
+  A1 : chaine partagee <t>&#65279;t</t> ; annees 8 a 1 en A2 a A9 (ordre du fichier inverse) ; attendu : colonne t, serie remise dans l'ordre des annees
+  duree de lecture : 0.23 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#65279;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[t-tab-annees-decroissantes] chemin = interne ; moteur = engine.R
+  A1 : chaine partagee <t>t&#9;</t> ; annees 8 a 1 en A2 a A9 (ordre du fichier inverse) ; attendu : colonne t, serie remise dans l'ordre des annees
+  duree de lecture : 0.17 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-controle-1-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#1;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.19 s
+  lu : 8 x 4 ; noms = t,xt\001,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[doublon-nbsp-partagee] chemin = interne ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#160;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.18 s
+  lu : 8 x 4 ; noms = t,xt ,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[doublon-eacute-ligne] chemin = interne ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#233;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.14 s
+  lu : 8 x 4 ; noms = t,xté,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[temoins-admis] chemin = interne ; moteur = engine.R
+  colonne note : D2 a D6 en chaines partagees, D7 a D9 en chaines en ligne : &#233;t&#xE9; | a&#160;b&#x202F;c&#8203;d&#x85;e | &#38;&#39;&#x27;&#34;&#60;&#62; | &amp;&lt;&gt;&quot;&apos; | &#0;&#127;&#31;&#x110000; 
+  duree de lecture : 0.22 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  colonne note : "été" ; "a b c​d\u0085e" ; "&''\"<>" ; "&<>\"'" ; "&#0;\177\037&#x110000;" ; "été" ; "a b c​d\u0085e" ; "&''\"<>"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[cout-table-1e5-admise] chemin = interne ; moteur = engine.R
+  table : 100 000 chaines <si><t>x&#233;&#160;&#38; k</t></si>, puis 104.2 a l'indice 100000 ; B2 : indice 100000
+  duree de lecture : 18.38 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de la colonne 2 : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[cout-table-1e5-refus] chemin = interne ; moteur = engine.R
+  table : 100 000 chaines <si><t>1&#48; k</t></si>, puis 104.2 a l'indice 100000 ; B2 : indice 100000
+  duree de lecture : 11.77 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#48;, chaine no 1 : &#48;, chaine no 2 : &#48;, chaine no 3 : &#48;, chaine no 4 : &#48; et 99995 autre(s)) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+### Chemin openxlsx 4.2.5.2 (R_LIBS)
+[valeur-partagee-dec] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>1&#48;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.23 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-hex] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>1&#x30;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#x30;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-point] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>104&#46;2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.19 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#46;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-zeros-dec] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>1&#00048;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#00048;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-zeros-hex] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>1&#x0030;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#x0030;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-X-majuscule] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>1&#X30;4.2</t></si> ; B2 : indice 0 ; attendu : 104.2 (X majuscule : hors grammaire XML)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#X30;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-ligne-dec] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B2 : <is><t>1&#48;4.2</t></is> ; attendu : 104.2
+  duree de lecture : 0.15 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B2 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[entete-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>x&#116;</t> ; attendu : en-tete xt, sigma_USP de la serie
+  duree de lecture : 0.25 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[entete-ligne] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine en ligne <t>x&#116;</t> ; attendu : en-tete xt, sigma_USP de la serie
+  duree de lecture : 0.11 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>x&#116;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus du doublon xt
+  duree de lecture : 0.26 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-ligne] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine en ligne <t>x&#116;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus du doublon xt
+  duree de lecture : 0.12 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-str] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : t="str" <v>x&#116;</v>, D1 : xt (colonne D = 2 xt) ; texte t="str" non decode par les deux chemins
+  duree de lecture : 0.15 s
+  lu : 8 x 4 ; noms = t,x&#116;,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[valeur-nombre-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B2 : cellule nombre <v>1&#48;4.2</v> ; attendu : refus R8
+  duree de lecture : 0.13 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&#48;4.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[formule-f-nombre] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B2 : cellule nombre <f>1&#48;4.2</f><v>104.2</v> ; attendu : 104.2 (formule non lue)
+  duree de lecture : 0.13 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[formule-f-str] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  D1 : t="str" <f>&quot;n&#111;te&quot;</f><v>note</v> ; attendu : en-tete note (formule non lue)
+  duree de lecture : 0.10 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[doublon-tab-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#9;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.18 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-tab-ligne] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#9;</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.14 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-cr-debut-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>&#xD;xt</t>, D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.19 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#xD;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-ideo-ligne] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#12288;</t> (U+3000), D1 : xt (colonne D = 2 xt) ; attendu : refus (doublon xt)
+  duree de lecture : 0.17 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#12288;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[valeur-partagee-tab] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : <si><t>104.2&#9;</t></si> ; B2 : indice 0 ; attendu : 104.2
+  duree de lecture : 0.23 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[t-bom-annees-decroissantes] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  A1 : chaine partagee <t>&#65279;t</t> ; annees 8 a 1 en A2 a A9 (ordre du fichier inverse) ; attendu : colonne t, serie remise dans l'ordre des annees
+  duree de lecture : 0.17 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#65279;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[t-tab-annees-decroissantes] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  A1 : chaine partagee <t>t&#9;</t> ; annees 8 a 1 en A2 a A9 (ordre du fichier inverse) ; attendu : colonne t, serie remise dans l'ordre des annees
+  duree de lecture : 0.19 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[doublon-controle-1-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#1;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.20 s
+  lu : 8 x 4 ; noms = t,xt&#1;,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[doublon-nbsp-partagee] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine partagee <t>xt&#160;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.20 s
+  lu : 8 x 4 ; noms = t,xt&#160;,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[doublon-eacute-ligne] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  B1 : chaine en ligne <t>xt&#233;</t>, D1 : xt (colonne D = 2 xt) ; en-tete distinct de xt sur les deux chemins : colonne D
+  duree de lecture : 0.14 s
+  lu : 8 x 4 ; noms = t,xt&#233;,yt,xt ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 208.40 204.50 218.68 229.28 236.82 242.56 264.80 262.44
+  run_engine : ok = TRUE, sigma_USP = 0.0762262056
+
+  [code de sortie : 0]
+
+[temoins-admis] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  colonne note : D2 a D6 en chaines partagees, D7 a D9 en chaines en ligne : &#233;t&#xE9; | a&#160;b&#x202F;c&#8203;d&#x85;e | &#38;&#39;&#x27;&#34;&#60;&#62; | &amp;&lt;&gt;&quot;&apos; | &#0;&#127;&#31;&#x110000; 
+  duree de lecture : 0.17 s
+  lu : 8 x 4 ; noms = t,xt,yt,note ; B2 lu = "104.2" (classe de la colonne 2 : numeric)
+  colonne note : "&#233;t&#xE9;" ; "a&#160;b&#x202F;c&#8203;d&#x85;e" ; "&#38;&#39;&#x27;&#34;&#60;&#62;" ; "&<>\"'" ; "&#0;&#127;&#31;&#x110000;" ; "&#233;t&#xE9;" ; "a&#160;b&#x202F;c&#8203;d&#x85;e" ; "&#38;&#39;&#x27;&#34;&#60;&#62;"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[cout-table-1e5-admise] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : 100 000 chaines <si><t>x&#233;&#160;&#38; k</t></si>, puis 104.2 a l'indice 100000 ; B2 : indice 100000
+  duree de lecture : 18.57 s
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de la colonne 2 : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[cout-table-1e5-refus] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  table : 100 000 chaines <si><t>1&#48; k</t></si>, puis 104.2 a l'indice 100000 ; B2 : indice 100000
+  duree de lecture : 11.14 s
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (chaine no 0 : &#48;, chaine no 1 : &#48;, chaine no 2 : &#48;, chaine no 3 : &#48;, chaine no 4 : &#48; et 99995 autre(s)) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+

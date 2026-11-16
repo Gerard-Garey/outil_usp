@@ -336,3 +336,18 @@ Les plans, les circuits et les surfaces documentaires sont ceux des deux fiches 
 **Options écartées.** (b) Le texte proposé par Fable, « jusqu'à huit par décision expresse » : K5 (neuf numéros) aurait été hors règle dès l'adoption, et chaque branche au-delà aurait demandé une annotation d'exception de plus. (c) Aucun amendement : écart permanent entre le texte du point 1 et la pratique.
 
 **Ce que l'annotation ne change pas.** La règle « une seule branche de travail à la fois » et la fin des branches de travail parallèles (annotation du 15/10/2026 au soir) ; l'ajout d'une issue en cours de branche, qui demandait déjà l'accord du mainteneur et sa note dans la PR (point 1) ; la ligne de fermeture dédiée par issue, la vérification à cinq minutes (annotation du 30/09/2026) et la règle Q-45-12 (annotation du 31/10/2026) ; les points 2 à 6. Les dérogations antérieures (C, D, Fh, Fl, Fr, Fs, ND, K1, K5) restent ce qu'elles étaient ; celle de ND (annotation du 06/11/2026) entre désormais dans la règle générale, sans autre effet. `CLAUDE.md` (« Git et GitHub ») ne cite pas de plafond chiffré. Les fiches `architect` et `architect-approfondi` (« ADR 0007 : trois à cinq issues ») et la matrice de `docs/agents/routage.md`, § 3 (ligne « Plan de la branche suivante » : « trois à cinq issues ») gardent l'ancienne formulation : leur alignement relève d'un commit `claude:` (fiche de base, puis `.claude/outils/fiches_jumelles.sh` pour la jumelle) et `docs:`, sur instruction du mainteneur ; jusque-là, la présente annotation fait foi.
+
+---
+
+## Annotation du 15 novembre 2026 — après la remise, seul un problème hors périmètre marquant devient une issue (Q-63-2 ; ADR 0018)
+
+**Fait.** La branche KR (passage de remise, PR #578) est fusionnée le 15/11/2026 en `abc6ff1`. Quarante et une issues sont ouvertes ; les revues de KR en ont créé douze en une journée (#579 à #590), dont deux majeures et dix mineures selon les rapports qui les fondent (*vérifié*, corps des issues).
+
+**Décision** (mainteneur, 15/11/2026, Q-63-2 ; `docs/feuille-de-route.md`, § 4, ligne E-15/11 (63e point)). Pour tout problème identifié à partir du 15/11/2026, la première phrase du point 3, « Un problème hors périmètre devient une issue, pas une branche », se lit ainsi :
+
+1. **seul un problème marquant est gardé** : bloquant ou majeur, ou effet sur σ_USP, un verdict, une p-value, la conformité réglementaire, une affirmation fausse de la documentation sur le code, la reproductibilité. Il devient une issue et il est intégré au plan, dans le périmètre d'une branche à venir ;
+2. **un mineur est écarté** : pas d'issue (ou issue fermée `not planned`, libellé `wontfix`), mention d'une ligne dans le rapport de revue concerné.
+
+**Forme.** Les critères écrits, la répartition des décisions, la trace et la règle d'insertion des issues gardées dans le plan sont dans l'**ADR 0018**, dont la forme, proposée au mainteneur (Q-63-4), est **acceptée le 15/11/2026** (Q-63-4 (a) ; `docs/feuille-de-route.md`, § 4, ligne E-15/11 (Q-63-3 à Q-63-12)) : l'ADR 0018 fait foi pour l'application des deux points ci-dessus.
+
+**Ce que l'annotation ne change pas.** Le reste du point 3 (une issue, pas une branche ; le correctif rapide et ses trois conditions) ; le point 4 (création d'issue sur accord du mainteneur) ; les points 1, 2, 5 et 6 ; le plafond indicatif de cinq numéros au plan (annotation du 10/11/2026) ; le traitement des constats qui portent sur le diff de la branche en cours. Les quarante et une issues ouvertes le 15/11/2026 ne sont pas triées par cette règle : toutes sont rattachées au plan de la phase (Q-63-1). La décision Q-48-9 (a) (pendant un gel du code, un défaut de code devient une issue) se lit avec le même filtre.

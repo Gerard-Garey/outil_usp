@@ -1,0 +1,96 @@
+== variante avec_rel, direct, indice 5 (10 essais) :
+/bin/bash: line 39: 11098 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11115 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11132 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11149 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11166 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11183 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11200 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11217 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11234 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11251 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante avec_rel, direct, indice 1000000 (10 essais) :
+/bin/bash: line 39: 11272 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11289 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11306 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11323 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11343 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11360 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11377 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11394 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11411 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11428 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante avec_rel, moteur, indice 5 (10 essais) :
+/bin/bash: line 39: 11449 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11466 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11483 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11500 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11518 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11535 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11552 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11569 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11586 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11603 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante avec_rel, moteur, indice 1000000 (10 essais) :
+/bin/bash: line 39: 11624 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11641 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11658 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11675 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11692 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11709 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11726 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11743 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11760 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11777 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante sans_rel, direct, indice 5 (10 essais) :
+/bin/bash: line 39: 11798 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11817 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11836 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11855 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11874 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11893 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11912 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11931 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11950 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 11969 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante sans_rel, direct, indice 1000000 (10 essais) :
+/bin/bash: line 39: 11992 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12011 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12030 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12049 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12068 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12087 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12106 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12125 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12144 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12163 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante sans_rel, moteur, indice 5 (10 essais) :
+/bin/bash: line 39: 12186 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12205 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12224 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12243 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12262 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12281 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12300 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12319 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12338 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12357 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault
+== variante sans_rel, moteur, indice 1000000 (10 essais) :
+/bin/bash: line 39: 12380 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12399 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12418 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12437 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12456 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12475 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12494 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12513 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12532 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+/bin/bash: line 39: 12551 Segmentation fault      R_LIBS=$S/lib LC_ALL=C.UTF-8 Rscript $S/sondes/sonde_575.R /home/user/outil_usp $S/sondes $i $m $v > $S/sorties/575_essai.txt 2>&1
+     10 code 139 | caught segfault

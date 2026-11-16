@@ -1,0 +1,81 @@
+[574-1] chemin = interne
+  cellule B2 : t="s" indice 0 ; chaine 0 = <x:si> "9", chaine 1 = <si> "11.5" ; valeur attendue (rang 0) : 9
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-1] chemin = openxlsx 4.2.5.2
+  cellule B2 : t="s" indice 0 ; chaine 0 = <x:si> "9", chaine 1 = <si> "11.5" ; valeur attendue (rang 0) : 9
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-2] chemin = interne
+  cellule B2 : t="s" -> <r>1</r><r>1.5</r><x:rPh>7</x:rPh> ; valeur attendue : 11.5
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.50 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-2] chemin = openxlsx 4.2.5.2
+  cellule B2 : t="s" -> <r>1</r><r>1.5</r><x:rPh>7</x:rPh> ; valeur attendue : 11.5
+  classes colonnes : t=numeric xt=character yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt =  11.57 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-3a] chemin = interne
+  cellule supplementaire : XFD1048576 
+  ERREUR classe = simpleError/error/condition
+  message = cannot allocate vector of size 128.0 Gb
+  duree : 0.14 s
+  [code de sortie : 0]
+
+[574-3a] chemin = openxlsx 4.2.5.2
+  cellule supplementaire : XFD1048576 
+  ERREUR classe = simpleError/error/condition
+  message = cannot allocate vector of size 128.0 Gb
+  duree : 0.16 s
+  [code de sortie : 0]
+
+[574-3b] chemin = interne
+  cellule supplementaire : A99999999999 
+  ERREUR classe = simpleError/error/condition
+  message = invalid 'nrow' value (too large or NA)
+  duree : 0.04 s
+Warning message:
+In e$engine_lire_xlsx(f) : NAs introduced by coercion to integer range
+  [code de sortie : 0]
+
+[574-3b] chemin = openxlsx 4.2.5.2
+  cellule supplementaire : A99999999999 
+  ERREUR classe = simpleError/error/condition
+  message = missing value where TRUE/FALSE needed
+  duree : 0.03 s
+Warning message:
+In read.xlsx.default(chemin, sheet = feuille$rang, colNames = entete,  :
+  NAs introduced by coercion to integer range
+  [code de sortie : 0]
+
+[574-m1] chemin = interne
+  B2 present deux fois : 104.2 puis 999
+  classes colonnes : t=numeric xt=numeric yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-m1] chemin = openxlsx 4.2.5.2
+  B2 present deux fois : 104.2 puis 999
+  classes colonnes : t=numeric xt=numeric yt=numeric 
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+

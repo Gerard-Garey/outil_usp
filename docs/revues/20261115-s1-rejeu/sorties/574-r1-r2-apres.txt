@@ -1,0 +1,368 @@
+# Rscript docs/revues/20261115-s1-rejeu/sondes/sonde_574_r1_r2.R <depot> docs/revues/20261115-s1-rejeu/sondes <moteur>, LC_ALL=C.UTF-8, R 4.3.3
+# moteur : R/engine.R, arbre de travail (lot A de #574, R1 et R2, apres la seconde reprise de l audit leger)
+# chemin interne (R_LIBS vide), puis openxlsx 4.2.5.2 (R_LIBS = bibliotheque du rejeu)
+
+[574-5-QF] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-P2] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-X1] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-sans-renvoi] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-ff] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-nul] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-tronquee] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-classeur-latin1] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 235) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-relations-ff] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 342) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-nul] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-fin-tronquee] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 232) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-commentaire] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-cdata] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-doctype] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-pi] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-commentaire] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-cdata] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-pi] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-declaration-repetee] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-contournement] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-contournement-feuille] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-blanc-initial] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-saut-initial] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-cible-point-commentaire] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-qq] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-englobante-table] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-englobante-feuille] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-valeur-fin] chemin = interne ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[temoin-decl-tab] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-styles] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-content-types] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-sans-declaration] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-bom] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-texte-echappe] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = interne ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[574-5-QF] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-P2] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-X1] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[574-5-sans-renvoi] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-ff] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-nul] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-feuille-tronquee] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 1059) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-classeur-latin1] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 235) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-relations-ff] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 342) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-nul] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 203) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r1-table-fin-tronquee] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet 232) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-cdata] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-doctype] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-pi] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-cdata] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-table-pi] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-feuille-declaration-repetee] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-contournement] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-contournement-feuille] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-blanc-initial] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-saut-initial] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-cible-point-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-qq] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-englobante-table] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-englobante-feuille] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[r2-decl-valeur-fin] chemin = openxlsx 4.2.5.2 ; moteur = R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/sharedStrings.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+  [code de sortie : 0]
+
+[temoin-decl-tab] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-styles] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-hors-r1-content-types] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-sans-declaration] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-bom] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-texte-echappe] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = openxlsx 4.2.5.2 ; moteur = R
+  engine_lire_donnees_csv : ok = TRUE 
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+
+  [code de sortie : 0]
+

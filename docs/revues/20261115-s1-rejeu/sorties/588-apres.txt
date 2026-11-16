@@ -1,0 +1,293 @@
+moteur = engine.R ; R 4.3.3 ; locale LC_CTYPE = C.UTF-8 ; UTF-8 = TRUE
+
+== 1. .echapper_texte("a<octet>b" declare Latin-1)
+80  a[U+20AC]b
+81  a\u0081b
+82  a[U+201A]b
+83  a[U+0192]b
+84  a[U+201E]b
+85  a[U+2026]b
+86  a[U+2020]b
+87  a[U+2021]b
+88  a[U+02C6]b
+89  a[U+2030]b
+8A  a[U+0160]b
+8B  a[U+2039]b
+8C  a[U+0152]b
+8D  a\u008db
+8E  a[U+017D]b
+8F  a\u008fb
+90  a\u0090b
+91  a[U+2018]b
+92  a[U+2019]b
+93  a[U+201C]b
+94  a[U+201D]b
+95  a[U+2022]b
+96  a[U+2013]b
+97  a[U+2014]b
+98  a[U+02DC]b
+99  a[U+2122]b
+9A  a[U+0161]b
+9B  a[U+203A]b
+9C  a[U+0153]b
+9D  a\u009db
+9E  a[U+017E]b
+9F  a[U+0178]b
+A0  a\u00a0b
+A1  a[U+00A1]b
+A2  a[U+00A2]b
+A3  a[U+00A3]b
+A4  a[U+00A4]b
+A5  a[U+00A5]b
+A6  a[U+00A6]b
+A7  a[U+00A7]b
+A8  a[U+00A8]b
+A9  a[U+00A9]b
+AA  a[U+00AA]b
+AB  a[U+00AB]b
+AC  a[U+00AC]b
+AD  a\u00adb
+AE  a[U+00AE]b
+AF  a[U+00AF]b
+B0  a[U+00B0]b
+B1  a[U+00B1]b
+B2  a[U+00B2]b
+B3  a[U+00B3]b
+B4  a[U+00B4]b
+B5  a[U+00B5]b
+B6  a[U+00B6]b
+B7  a[U+00B7]b
+B8  a[U+00B8]b
+B9  a[U+00B9]b
+BA  a[U+00BA]b
+BB  a[U+00BB]b
+BC  a[U+00BC]b
+BD  a[U+00BD]b
+BE  a[U+00BE]b
+BF  a[U+00BF]b
+C0  a[U+00C0]b
+C1  a[U+00C1]b
+C2  a[U+00C2]b
+C3  a[U+00C3]b
+C4  a[U+00C4]b
+C5  a[U+00C5]b
+C6  a[U+00C6]b
+C7  a[U+00C7]b
+C8  a[U+00C8]b
+C9  a[U+00C9]b
+CA  a[U+00CA]b
+CB  a[U+00CB]b
+CC  a[U+00CC]b
+CD  a[U+00CD]b
+CE  a[U+00CE]b
+CF  a[U+00CF]b
+D0  a[U+00D0]b
+D1  a[U+00D1]b
+D2  a[U+00D2]b
+D3  a[U+00D3]b
+D4  a[U+00D4]b
+D5  a[U+00D5]b
+D6  a[U+00D6]b
+D7  a[U+00D7]b
+D8  a[U+00D8]b
+D9  a[U+00D9]b
+DA  a[U+00DA]b
+DB  a[U+00DB]b
+DC  a[U+00DC]b
+DD  a[U+00DD]b
+DE  a[U+00DE]b
+DF  a[U+00DF]b
+E0  a[U+00E0]b
+E1  a[U+00E1]b
+E2  a[U+00E2]b
+E3  a[U+00E3]b
+E4  a[U+00E4]b
+E5  a[U+00E5]b
+E6  a[U+00E6]b
+E7  a[U+00E7]b
+E8  a[U+00E8]b
+E9  a[U+00E9]b
+EA  a[U+00EA]b
+EB  a[U+00EB]b
+EC  a[U+00EC]b
+ED  a[U+00ED]b
+EE  a[U+00EE]b
+EF  a[U+00EF]b
+F0  a[U+00F0]b
+F1  a[U+00F1]b
+F2  a[U+00F2]b
+F3  a[U+00F3]b
+F4  a[U+00F4]b
+F5  a[U+00F5]b
+F6  a[U+00F6]b
+F7  a[U+00F7]b
+F8  a[U+00F8]b
+F9  a[U+00F9]b
+FA  a[U+00FA]b
+FB  a[U+00FB]b
+FC  a[U+00FC]b
+FD  a[U+00FD]b
+FE  a[U+00FE]b
+FF  a[U+00FF]b
+
+== 2. Assertion #522 : Colonnes presentes pour 0xA0, 0x81, 0xE9 declares Latin-1
+a\u00a0b, a\u0081b, a[U+00E9]b 
+
+== 3. mw_valider_triangle() : nom Latin-1 a octet C1 non defini et nom ASCII "a<xx>b"
+81  ok = TRUE ; erreurs = (aucune)
+8D  ok = TRUE ; erreurs = (aucune)
+8F  ok = TRUE ; erreurs = (aucune)
+90  ok = TRUE ; erreurs = (aucune)
+9D  ok = TRUE ; erreurs = (aucune)
+temoin ete Latin-1 / UTF-8  ok = FALSE ; erreurs = Annee d'accident en double : "[U+00E9]t[U+00E9]" (annees d'accident i = 0 et i = 1).
+
+== 4. Autres motifs citant un en-tete Latin-1 a octet 0x81
+t en double + yt manquant :  En-tete de la colonne t present plusieurs fois (colonnes 1, 2, d'en-tetes t, T) : la colonne t, facultative, porte l'annee de chaque ligne et ne peut figurer qu'une fois (en-tete t ou T, blancs de bord ignores) ; retirer ou renommer la colonne en trop. | Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, T, xt, a\u0081b. 
+triangle, colonne vide a en-tete 0x81 :  Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 6, d'en-tete(s) a\u0081b) : annee de developpement sans valeur ; la renseigner ou retirer la colonne. 
+
+moteur = engine.R ; R 4.3.3 ; locale LC_CTYPE = C ; UTF-8 = FALSE
+
+== 1. .echapper_texte("a<octet>b" declare Latin-1)
+80  a[U+20AC]b
+81  a\u0081b
+82  a[U+201A]b
+83  a[U+0192]b
+84  a[U+201E]b
+85  a[U+2026]b
+86  a[U+2020]b
+87  a[U+2021]b
+88  a[U+02C6]b
+89  a[U+2030]b
+8A  a[U+0160]b
+8B  a[U+2039]b
+8C  a[U+0152]b
+8D  a\u008db
+8E  a[U+017D]b
+8F  a\u008fb
+90  a\u0090b
+91  a[U+2018]b
+92  a[U+2019]b
+93  a[U+201C]b
+94  a[U+201D]b
+95  a[U+2022]b
+96  a[U+2013]b
+97  a[U+2014]b
+98  a[U+02DC]b
+99  a[U+2122]b
+9A  a[U+0161]b
+9B  a[U+203A]b
+9C  a[U+0153]b
+9D  a\u009db
+9E  a[U+017E]b
+9F  a[U+0178]b
+A0  a\u00a0b
+A1  a[U+00A1]b
+A2  a[U+00A2]b
+A3  a[U+00A3]b
+A4  a[U+00A4]b
+A5  a[U+00A5]b
+A6  a[U+00A6]b
+A7  a[U+00A7]b
+A8  a[U+00A8]b
+A9  a[U+00A9]b
+AA  a[U+00AA]b
+AB  a[U+00AB]b
+AC  a[U+00AC]b
+AD  a\u00adb
+AE  a[U+00AE]b
+AF  a[U+00AF]b
+B0  a[U+00B0]b
+B1  a[U+00B1]b
+B2  a[U+00B2]b
+B3  a[U+00B3]b
+B4  a[U+00B4]b
+B5  a[U+00B5]b
+B6  a[U+00B6]b
+B7  a[U+00B7]b
+B8  a[U+00B8]b
+B9  a[U+00B9]b
+BA  a[U+00BA]b
+BB  a[U+00BB]b
+BC  a[U+00BC]b
+BD  a[U+00BD]b
+BE  a[U+00BE]b
+BF  a[U+00BF]b
+C0  a[U+00C0]b
+C1  a[U+00C1]b
+C2  a[U+00C2]b
+C3  a[U+00C3]b
+C4  a[U+00C4]b
+C5  a[U+00C5]b
+C6  a[U+00C6]b
+C7  a[U+00C7]b
+C8  a[U+00C8]b
+C9  a[U+00C9]b
+CA  a[U+00CA]b
+CB  a[U+00CB]b
+CC  a[U+00CC]b
+CD  a[U+00CD]b
+CE  a[U+00CE]b
+CF  a[U+00CF]b
+D0  a[U+00D0]b
+D1  a[U+00D1]b
+D2  a[U+00D2]b
+D3  a[U+00D3]b
+D4  a[U+00D4]b
+D5  a[U+00D5]b
+D6  a[U+00D6]b
+D7  a[U+00D7]b
+D8  a[U+00D8]b
+D9  a[U+00D9]b
+DA  a[U+00DA]b
+DB  a[U+00DB]b
+DC  a[U+00DC]b
+DD  a[U+00DD]b
+DE  a[U+00DE]b
+DF  a[U+00DF]b
+E0  a[U+00E0]b
+E1  a[U+00E1]b
+E2  a[U+00E2]b
+E3  a[U+00E3]b
+E4  a[U+00E4]b
+E5  a[U+00E5]b
+E6  a[U+00E6]b
+E7  a[U+00E7]b
+E8  a[U+00E8]b
+E9  a[U+00E9]b
+EA  a[U+00EA]b
+EB  a[U+00EB]b
+EC  a[U+00EC]b
+ED  a[U+00ED]b
+EE  a[U+00EE]b
+EF  a[U+00EF]b
+F0  a[U+00F0]b
+F1  a[U+00F1]b
+F2  a[U+00F2]b
+F3  a[U+00F3]b
+F4  a[U+00F4]b
+F5  a[U+00F5]b
+F6  a[U+00F6]b
+F7  a[U+00F7]b
+F8  a[U+00F8]b
+F9  a[U+00F9]b
+FA  a[U+00FA]b
+FB  a[U+00FB]b
+FC  a[U+00FC]b
+FD  a[U+00FD]b
+FE  a[U+00FE]b
+FF  a[U+00FF]b
+
+== 2. Assertion #522 : Colonnes presentes pour 0xA0, 0x81, 0xE9 declares Latin-1
+a\u00a0b, a\u0081b, a[U+00E9]b 
+
+== 3. mw_valider_triangle() : nom Latin-1 a octet C1 non defini et nom ASCII "a<xx>b"
+81  ok = TRUE ; erreurs = (aucune)
+8D  ok = TRUE ; erreurs = (aucune)
+8F  ok = TRUE ; erreurs = (aucune)
+90  ok = TRUE ; erreurs = (aucune)
+9D  ok = TRUE ; erreurs = (aucune)
+temoin ete Latin-1 / UTF-8  ok = FALSE ; erreurs = Annee d'accident en double : "[U+00E9]t[U+00E9]" (annees d'accident i = 0 et i = 1).
+
+== 4. Autres motifs citant un en-tete Latin-1 a octet 0x81
+t en double + yt manquant :  En-tete de la colonne t present plusieurs fois (colonnes 1, 2, d'en-tetes t, T) : la colonne t, facultative, porte l'annee de chaque ligne et ne peut figurer qu'une fois (en-tete t ou T, blancs de bord ignores) ; retirer ou renommer la colonne en trop. | Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, T, xt, a\u0081b. 
+triangle, colonne vide a en-tete 0x81 :  Colonne(s) vide(s) portant un en-tete dans le triangle (colonne(s) 6, d'en-tete(s) a\u0081b) : annee de developpement sans valeur ; la renseigner ou retirer la colonne. 

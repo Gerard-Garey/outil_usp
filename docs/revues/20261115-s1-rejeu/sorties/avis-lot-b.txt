@@ -1,0 +1,328 @@
+== avant
+int entete-t noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox entete-t noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== avant
+int entete-t-s noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ 7: tryCatchOne(expr, names, parentenv, handlers[[1L]])
+ 8: tryCatchList(expr, classes, parentenv, handlers)
+ 9: tryCatch(withCallingHandlers(e$engine_lire_xlsx(f), warning = function(w) invokeRestart("muffleWarning")),     error = function(z) z)
+An irrecoverable exception occurred. R is aborting now ...
+   [st 0]
+== avant
+int indente-is noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox indente-is noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int indente-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox indente-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== avant
+int t-apos noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 11.5 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.2005042338 
+   [st 0]
+ox t-apos noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 0 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = NULL 
+   [st 0]
+== avant
+int ts-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox ts-sans-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 11.5 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.2005042338 
+   [st 0]
+== avant
+int ts-sans-v-f noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox ts-sans-v-f noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 11.5 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.2005042338 
+   [st 0]
+== avant
+int tb-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox tb-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int tstr-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox tstr-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int minuscule noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox minuscule ERREUR simpleError : missing value where TRUE/FALSE needed 
+   [st 0]
+== avant
+int ordre-l1 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-l1 noms = t yt xt ; dim = 8 3 ; ok = TRUE 
+  xt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  yt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  sigma_USP = 0.1764544949 
+   [st 0]
+== avant
+int ordre-l2 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-l2 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== avant
+int ordre-rows noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-rows noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== avant
+int ordre-row1-fin noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-row1-fin ERREUR simpleError : attempt to set index -2/24 in SET_STRING_ELT 
+   [st 0]
+== avant
+int is-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox is-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int is-t-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox is-t-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int is-t-vide2 noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox is-t-vide2 noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== avant
+int v-space noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox v-space noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== avant
+int reference noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox reference noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== apres
+int entete-t ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (suite " t=", apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeu 
+   [st 0]
+ox entete-t ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (suite " t=", apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeu 
+   [st 0]
+== apres
+int entete-t-s ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (suite " t=", apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeu 
+   [st 0]
+ox entete-t-s ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (suite " t=", apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeu 
+   [st 0]
+== apres
+int indente-is ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nou 
+   [st 0]
+ox indente-is ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (texte, dans la chaine en ligne de la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nou 
+   [st 0]
+== apres
+int indente-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox indente-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== apres
+int t-apos ERREUR usp_refus_lecture : Classeur illisible : cellule portant un attribut que l'outil ne lit pas (B2 : t) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal placee). Enregistrer de nouveau le classeur depuis un tableur. 
+   [st 0]
+ox t-apos ERREUR usp_refus_lecture : Classeur illisible : cellule portant un attribut que l'outil ne lit pas (B2 : t) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal placee). Enregistrer de nouveau le classeur depuis un tableur. 
+   [st 0]
+== apres
+int ts-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox ts-sans-v noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 11.5 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.2005042338 
+   [st 0]
+== apres
+int ts-sans-v-f noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox ts-sans-v-f noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 11.5 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.2005042338 
+   [st 0]
+== apres
+int tb-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox tb-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== apres
+int tstr-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox tstr-sans-v noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== apres
+int minuscule noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox minuscule ERREUR simpleError : missing value where TRUE/FALSE needed 
+   [st 0]
+== apres
+int ordre-l1 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-l1 noms = t yt xt ; dim = 8 3 ; ok = TRUE 
+  xt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  yt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  sigma_USP = 0.1764544949 
+   [st 0]
+== apres
+int ordre-l2 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-l2 noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== apres
+int ordre-rows noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-rows noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== apres
+int ordre-row1-fin noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox ordre-row1-fin ERREUR simpleError : attempt to set index -2/24 in SET_STRING_ELT 
+   [st 0]
+== apres
+int is-vide ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <is>, dans la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur 
+   [st 0]
+ox is-vide ERREUR usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <is>, dans la cellule B2) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur 
+   [st 0]
+== apres
+int is-t-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox is-t-vide noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== apres
+int is-t-vide2 noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+ox is-t-vide2 noms = t xt yt ; dim = 8 3 ; ok = FALSE 
+  erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+   [st 0]
+== apres
+int v-space noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox v-space noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+== apres
+int reference noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]
+ox reference noms = t xt yt ; dim = 8 3 ; ok = TRUE 
+  xt = 104.2 102.25 109.34 114.64 118.41 121.28 132.4 131.22 
+  yt = 68.97 76.76 83.49 95.38 88.96 70.22 78.89 117.37 
+  sigma_USP = 0.1114524114 
+   [st 0]

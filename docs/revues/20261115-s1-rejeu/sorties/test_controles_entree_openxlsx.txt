@@ -1,0 +1,10 @@
+
+== test_controles_entree.R
+  note : plateforme courante, y = x / 2 : ligne Cook non applicable ; TOST sous-normal 1e-320 : statistique non definie ; 5e-324 : statistique non definie (#153).
+Warning message:
+In read.xlsx.default(chemin, sheet = feuille$rang, colNames = entete,  :
+  NAs introduced by coercion
+   444 assertions : 444 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (127.5 s)
+
+TOTAL : 444 assertions, 444 ok, 0 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)
+OK
