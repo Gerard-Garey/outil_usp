@@ -1647,6 +1647,8 @@ plot_boot_sigma <- function(pd) {
   # 211 x 841 px dans la cellule du rapport fige (1 148 px) (196 px de haut).
   # Avant, avec l'ancrage au conteneur de 2.25.2 : g_boot 251 px de haut ;
   # mw_boot 161 x 530 px a 690 px et 161 x 1 010 px a 1 170 px.
+  # Les mesures de mw_boot ci-dessus datent de sa hauteur de 330 px ; il est
+  # depuis a 420 px, comme g_boot (decision du mainteneur), sans nouvelle mesure.
   plotly::layout(p, barmode = "stack",
                  xaxis = if (!is.null(rp) && nrow(rp) && xl_ok) list(range = xl),
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
@@ -3040,8 +3042,9 @@ encoder_base64 <- function(octets) {
          # Pleine largeur et memes hauteurs que l'onglet de l'application
          # (onglet_m5_mw(), #582) : la legende verticale de plot_boot_sigma()
          # laisse sinon une zone de trace trop etroite ; le QQ-plot a 420 px,
-         # comme g_qq, pour ne pas etre aplati.
-         g = list(g(function() plot_mw_qq(pd), 420, TRUE), g(function() plot_boot_sigma(pd), 330, TRUE))),
+         # comme g_qq, pour ne pas etre aplati, et la distribution bootstrap a
+         # 420 px, comme g_boot (decision du mainteneur).
+         g = list(g(function() plot_mw_qq(pd), 420, TRUE), g(function() plot_boot_sigma(pd), 420, TRUE))),
     list(titre = "Influence et leviers", note = note_influence_mw(pd),
          g = list(g(function() plot_mw_levier(pd), 380), g(function() plot_mw_contributions(pd), 380),
                   g(function() plot_mw_dfbeta(pd), 330, TRUE)))))
