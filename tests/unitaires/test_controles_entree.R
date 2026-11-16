@@ -4401,6 +4401,102 @@ verifier("En-tete \"bytes\" (#570) : temoins ASCII, UTF-8, Latin-1 declare ou no
            }
            ok
          })
+# Decision D-S1-19 du mainteneur (option 2) : en colonne 1, un nom "bytes"
+# commencant par un prefixe de BOM reconnu par .nom_sans_bom() (X..., octets
+# EF 2E 2E, X.U.FEFF.) garde sa marque et est refuse. Avant : la marque
+# etait perdue par rawToChar(), le nom declare Latin-1 et lu (ok = TRUE).
+verifier("En-tete \"bytes\" (#570) : colonne 1 a prefixe de BOM (X..., EF 2E 2E, X.U.FEFF.) refusee, motif colonne 1",
+         {
+           pref <- list(charToRaw("X..."), as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."))
+           all(vapply(pref, function(p) {
+             r <- lit570(c(oct570(c(as.integer(p), 0x61, 0xff, 0x62)), "xt", "yt"))
+             is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(1)) && is.null(r$xt)
+           }, TRUE))
+         })
+verifier("En-tete \"bytes\" (#570) : temoins colonne 1 BOM brut + t, X... non bytes, ASCII lus comme la serie seule",
+         {
+           ref <- engine_lire_donnees_csv(ser570(c("t", "xt", "yt")))
+           bom_t <- rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x74)))
+           x3 <- rawToChar(as.raw(c(0x58, 0x2e, 0x2e, 0x2e, 0x61, 0xff, 0x62)))
+           ok <- isTRUE(ref$ok)
+           for (n in list(bom_t, x3, "t", "abc")) {
+             r <- lit570(c(n, "xt", "yt"))
+             ok <- ok && is.list(r) && isTRUE(r$ok) && identical(r$xt, ref$xt) && identical(r$yt, ref$yt)
+           }
+           ok && identical(.nom_sans_bom(bom_t), "t")
+         })
+## --- En-tete d'encodage "bytes" du triangle (#570, decision D-S1-26)
+# engine_lire_triangle() refuse tout nom de colonne declare "bytes", quelle
+# que soit sa place, un motif par colonne, meme texte que pour les series,
+# retour immediat de la structure de refus du triangle. Avant : le nom etait
+# lu (declare Latin-1) quand les autres noms etaient renseignes, ou faisait
+# lever l'erreur R "translating strings with "bytes" encoding is not
+# allowed" quand ils etaient vides. Triangle lu comme par l'application
+# (cellules en texte, en-tetes tels quels).
+tri570 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"), colClasses = "character",
+                          check.names = FALSE, na.strings = character(0))
+lt570 <- function(noms) {
+  d <- tri570; names(d) <- noms
+  tryCatch(engine_lire_triangle(d), error = function(e) e)
+}
+refus570 <- function(r, k) is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(k)) &&
+  identical(r$avertissements, character(0)) && identical(r$avertissements_lecture, character(0)) &&
+  is.null(r$triangle) && identical(r$I, NA) && identical(r$J, NA) &&
+  identical(names(r), c("ok", "erreurs", "avertissements", "avertissements_lecture", "triangle", "I", "J"))
+noms570 <- names(tri570); vides570 <- rep("", length(noms570))
+ref570 <- engine_lire_triangle(tri570)
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : colonne 1 sans prefixe, autres noms renseignes ou vides, refusee, motif colonne 1, sans erreur R",
+         {
+           all(vapply(list(NB570, NB570b, oct570(c(0xe3, 0x80, 0x80)), oct570(c(0x69, 0xe3, 0x80, 0x80))), function(n)
+             refus570(lt570(c(n, noms570[-1])), 1) && refus570(lt570(c(n, vides570[-1])), 1), TRUE))
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-19, D-S1-26) : colonne 1 a prefixe de BOM (X..., EF 2E 2E, X.U.FEFF., BOM brut), autres noms renseignes ou vides, refusee",
+         {
+           pref <- list(charToRaw("X..."), as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."), as.raw(c(0xef, 0xbb, 0xbf)))
+           reste <- list(c(0x61, 0xff, 0x62), c(0xc3, 0xa9), c(0xe3, 0x80, 0x80), c(0x69, 0xe3, 0x80, 0x80))
+           ok <- TRUE
+           for (p in pref) for (q in reste) {
+             n <- oct570(c(as.integer(p), q))
+             ok <- ok && refus570(lt570(c(n, noms570[-1])), 1) && refus570(lt570(c(n, vides570[-1])), 1)
+           }
+           ok
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : colonne > 1 et plusieurs colonnes, un motif par colonne dans l'ordre, colonne i presente ou non",
+         {
+           a <- noms570; a[4] <- NB570
+           b <- noms570; b[c(2, 9)] <- c(NB570, NB570b)
+           cc <- vides570; cc[c(1, 3)] <- c(NB570b, NB570)
+           d <- noms570; d[1] <- "j"; d[9] <- NB570
+           refus570(lt570(a), 4) && refus570(lt570(b), c(2, 9)) && refus570(lt570(cc), c(1, 3)) && refus570(lt570(d), 9)
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : temoins ASCII, ASCII declare bytes, UTF-8, Latin-1 declare ou non, BOM brut + i, EF 2E 2E + i declare bytes : triangle inchange",
+         {
+           asc <- "j7"; Encoding(asc) <- "bytes"
+           l1 <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65))); Encoding(l1) <- "latin1"
+           l1n <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65)))
+           ok <- isTRUE(ref570$ok)
+           for (n in list(asc, "année", l1, l1n)) {
+             v <- noms570; v[9] <- n; r <- lt570(v)
+             ok <- ok && is.list(r) && identical(r, ref570)
+           }
+           for (n in list(rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x69))), oct570(c(0xef, 0x2e, 0x2e, 0x69)))) {
+             r <- lt570(c(n, noms570[-1]))
+             ok <- ok && is.list(r) && identical(r, ref570)
+           }
+           ok
+         })
+# Chemin matrice (branche is.matrix(df) d'engine_lire_triangle()) : meme refus.
+# Autres noms NA : avant le correctif, erreur R (D-S1-26).
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : matrice, colonne 5 avec autres noms renseignes, colonne 2 avec autres noms NA, refusee, motif de la colonne, sans erreur R",
+         {
+           lm570 <- function(noms) {
+             m <- as.matrix(tri570); colnames(m) <- noms
+             tryCatch(engine_lire_triangle(m), error = function(e) e)
+           }
+           a <- noms570; a[5] <- NB570
+           b <- rep(NA_character_, length(noms570)); b[2] <- NB570
+           refus570(lm570(a), 5) && refus570(lm570(b), 2)
+         })
 # Classeur : memes cas par le lecteur interne force et, s'il est installe,
 # par openxlsx ; en-tetes ecrits par l'ecrivain interne, blancs de bord
 # retires a la lecture par les deux chemins.

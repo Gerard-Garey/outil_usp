@@ -1228,14 +1228,23 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # y est une lettre, les deux suivants deviennent des points). La forme
 # "X.U.FEFF." (make.names sur le caractere U+FEFF) est aussi reconnue, non
 # observee sur ce poste. Le prefixe n'est retire que s'il reste un nom
-# (issue #96).
+# (issue #96). La marque "bytes" du nom recu est reportee sur le nom rendu
+# (#570, decision D-S1-19 du mainteneur, option 2), comme le fait deja
+# .sans_bom() pour le BOM brut : rawToChar() rendait un nom "unknown", que
+# .declarer_latin1() declarait ensuite Latin-1, et le refus des en-tetes
+# "bytes" d'engine_lire_donnees_csv() ne le voyait plus. R ne garde pas la
+# marque sur un reste ASCII ("t", "i") : un tel nom reste lu.
 .nom_sans_bom <- function(n) {
   if (!length(n) || is.na(n)) return(n)
   n <- .sans_bom(n)
   r <- charToRaw(n)
   for (p in list(as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."), charToRaw("X..."))) {
     k <- length(p)
-    if (length(r) > k && identical(r[seq_len(k)], p)) return(rawToChar(r[-seq_len(k)]))
+    if (length(r) > k && identical(r[seq_len(k)], p)) {
+      out <- rawToChar(r[-seq_len(k)])
+      if (Encoding(n) == "bytes") Encoding(out) <- "bytes"
+      return(out)
+    }
   }
   n
 }
@@ -8187,6 +8196,23 @@ engine_lire_triangle <- function(df) {
   # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne "i" n'etait
   # plus reconnue et le triangle etait refuse avec un motif trompeur (#96).
   names(df)[1] <- .nom_sans_bom(names(df)[1])
+  # En-tete d'encodage "bytes" (#570, decision D-S1-26 du mainteneur) :
+  # refuse quelle que soit sa place, un motif par colonne dans l'ordre des
+  # colonnes, sans citer le nom, retour immediat, meme texte que dans
+  # engine_lire_donnees_csv(). Place apres .nom_sans_bom(), qui garde la
+  # marque (D-S1-19), et avant .declarer_latin1() : sans ce refus, un tel nom
+  # etait lu en Latin-1, ou faisait lever par make.unique(), appele par
+  # `[.data.frame` dans la selection de colonnes de
+  # .retirer_lignes_colonnes_vides(), l'erreur R "translating strings with
+  # "bytes" encoding is not allowed". Les noms de ligne du tableau ne sont
+  # pas transmis a mw_valider_triangle() (colonnes sans noms reunies par
+  # cbind()) ; ceux d'une matrice qui lui est passee directement restent
+  # refuses (#321).
+  octets <- which(!is.na(names(df)) & Encoding(names(df)) == "bytes")
+  if (length(octets))
+    return(refus(sprintf(paste("En-tete de la colonne %d declare d'encodage \"bytes\" :",
+                               "ses caracteres ne sont pas determines ; fournir le nom en UTF-8",
+                               "ou en Latin-1 declare."), octets)))
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
   # Ligne 1 sans aucune valeur (CSV ",,,"), avant toute autre regle (#522) ;
