@@ -164,7 +164,7 @@ verifier("refus_bascule : part non numerique non vide -> un motif de refus",
          { rf <- cr$refus_bascule(pc); length(rf) == 1L && grepl("^part non numerique non vide : 4 feuille", rf) })
 obt_d <- obt_b; obt_d$v[3] <- 3 * (1 + 2e-6)
 pd <- cr$separer_parts(cr$comparer_objets(ref_b, obt_d, tol = 0), ref_b)
-verifier("refus_bascule : ecart numerique > TOLERANCE -> refus (ce n'est plus de la derive)",
+verifier("refus_bascule : ecart numerique > TOLERANCE -> refus (changement de resultat sur la CI)",
          { rf <- cr$refus_bascule(pd); length(rf) == 1L && grepl("^1 ecart\\(s\\) numerique\\(s\\) au-dela du seuil 1e-06", rf) })
 ref_e <- list(n = 10000000L, x = 1)
 obt_e <- list(n = 10000001L, x = 1)
