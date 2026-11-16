@@ -1,0 +1,442 @@
+### Sonde sonde_574_lot_h.R, moteur de 5950e03 (avant), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[a-rels-id-dans-valeur] chemin = interne ; moteur = engine_5950e03.R
+  relations : <Relationship Id="rIdQ" ... Foo='Id="rId1"' Target="worksheets/sheet2.xml"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[b-workbook-rid-dans-nom] chemin = interne ; moteur = engine_5950e03.R
+  classeur : <sheet name='a r:id="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[c-rels-id-repete] chemin = interne ; moteur = engine_5950e03.R
+  relations : <Relationship Id="rId9" Id="rId1" ... sheet2.xml/> avant la vraie ; attendu apres : refus (attribut Id repete) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[d-rels-id-prefixe] chemin = interne ; moteur = engine_5950e03.R
+  relations : <Relationship x:Id="rId9" Id="rId1" ... sheet2.xml/> avant la vraie ; attendu apres : refus (attribut Id prefixe) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[e-rels-id-en-double] chemin = interne ; moteur = engine_5950e03.R
+  relations : deux <Relationship Id="rId1">, sheet2.xml d'abord ; attendu apres : refus (Id en double) ; avant : 999 sur les deux chemins
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[rels-relid] chemin = interne ; moteur = engine_5950e03.R
+  relations : <Relationship RelId="rId1" Id="rIdQ" ... sheet2.xml/> avant la vraie ; attendu apres : refus (texte Id="rId1" hors de l'attribut) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-apostrophes-2-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id='rId1', feuille 2 r:id="rId2" (sheet2.xml) ; attendu apres : refus (un autre lecteur designe une autre relation) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-blancs-2-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id = "rId1", feuille 2 r:id="rId2" ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-tabulation-2-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 <TAB>r:id="rId1", feuille 2 r:id="rId2" ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-vide-3-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id="", feuille 2 r:id="rId2" (sheet2.xml, 999), feuille 3 r:id="rId3" (sheet1.xml) ; attendu apres : refus ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-non-alphanumerique] chemin = interne ; moteur = engine_5950e03.R
+  classeur : r:id="rId-1" (relation rId-1 -> sheet1.xml) et relation rId -> sheet2.xml ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-id-sans-prefixe] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (attribut id sans prefixe) ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-x-id] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 x:id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (attribut x:id) ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-repete] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (r:id repete) ; avant : 999 interne, mesure openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-nom-chevron] chemin = interne ; moteur = engine_5950e03.R
+  classeur : feuille 1 name="a>b" (balise coupee au ">" par les deux lecteurs), feuille 2 r:id="rId2" ; attendu apres : refus (r:id absent de la balise lue) ; avant : 999 interne, erreur openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[m1-sheetdata-permutees] chemin = interne ; moteur = engine_5950e03.R
+  feuille : </sheetData>...<sheetData> (permutees) ; attendu apres : refus R3 citant </sheetData> et <sheetData> ; avant : refus citant </sheetData> seule
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-forge] chemin = interne ; moteur = engine_5950e03.R
+  classeur forge ordinaire ; attendu : 104.2, sigma_USP de la serie
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-deux-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  deux feuilles ordinaires (sheet2.xml : 999) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-apostrophes-une-feuille] chemin = interne ; moteur = engine_5950e03.R
+  une feuille, r:id='rId1' et Id='rId1' (#487) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-blancs-une-feuille] chemin = interne ; moteur = engine_5950e03.R
+  une feuille, r:id = "rId1" (#487) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-rels-id-apostrophes] chemin = interne ; moteur = engine_5950e03.R
+  relations : Id='rId1' (une feuille) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-externalreference] chemin = interne ; moteur = engine_5950e03.R
+  classeur : <externalReferences><externalReference r:id="rId1"/></externalReferences> apres </sheets> ; attendu : 104.2 (r:id hors des balises <sheet> non vise)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-rid-apostrophes-dans-nom] chemin = interne ; moteur = engine_5950e03.R
+  classeur : name="a r:id='rId2' b" (#487 ; forme que openxlsx ne lit pas comme r:id) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-ecrivain-interne] chemin = interne ; moteur = engine_5950e03.R
+  classeur de engine_ecrire_xlsx() (serie de reference) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-deux-feuilles] chemin = interne ; moteur = engine_5950e03.R
+  classeur d'openxlsx::write.xlsx(list(Donnees = serie, Autre = serie avec B2 = 999)) ; attendu : 104.2
+  (ecrit par openxlsx 4.2.5.2 dans un sous-processus)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+### Chemin openxlsx (R_LIBS)
+[a-rels-id-dans-valeur] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : <Relationship Id="rIdQ" ... Foo='Id="rId1"' Target="worksheets/sheet2.xml"/> avant la vraie ; attendu apres : refus nommant xl/_rels/workbook.xml.rels ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[b-workbook-rid-dans-nom] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : <sheet name='a r:id="rId2"' ... r:id="rId1"/>, rId2 -> sheet2.xml ; attendu apres : refus nommant xl/workbook.xml ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[c-rels-id-repete] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : <Relationship Id="rId9" Id="rId1" ... sheet2.xml/> avant la vraie ; attendu apres : refus (attribut Id repete) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[d-rels-id-prefixe] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : <Relationship x:Id="rId9" Id="rId1" ... sheet2.xml/> avant la vraie ; attendu apres : refus (attribut Id prefixe) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[e-rels-id-en-double] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : deux <Relationship Id="rId1">, sheet2.xml d'abord ; attendu apres : refus (Id en double) ; avant : 999 sur les deux chemins
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[rels-relid] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : <Relationship RelId="rId1" Id="rIdQ" ... sheet2.xml/> avant la vraie ; attendu apres : refus (texte Id="rId1" hors de l'attribut) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-apostrophes-2-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id='rId1', feuille 2 r:id="rId2" (sheet2.xml) ; attendu apres : refus (un autre lecteur designe une autre relation) ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-blancs-2-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id = "rId1", feuille 2 r:id="rId2" ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-tabulation-2-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 <TAB>r:id="rId1", feuille 2 r:id="rId2" ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-rid-vide-3-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id="", feuille 2 r:id="rId2" (sheet2.xml, 999), feuille 3 r:id="rId3" (sheet1.xml) ; attendu apres : refus ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-non-alphanumerique] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : r:id="rId-1" (relation rId-1 -> sheet1.xml) et relation rId -> sheet2.xml ; attendu apres : refus ; avant : 104.2 interne, 999 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-id-sans-prefixe] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (attribut id sans prefixe) ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-x-id] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 x:id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (attribut x:id) ; avant : 999 interne, 104.2 openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-rid-repete] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 r:id="rId2" r:id="rId1" (rId2 -> sheet2.xml) ; attendu apres : refus (r:id repete) ; avant : 999 interne, mesure openxlsx
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "999"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 999.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+
+  [code de sortie : 0]
+
+[workbook-nom-chevron] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : feuille 1 name="a>b" (balise coupee au ">" par les deux lecteurs), feuille 2 r:id="rId2" ; attendu apres : refus (r:id absent de la balise lue) ; avant : 999 interne, erreur openxlsx
+  ERREUR classe = simpleError
+  message = sheet 2 does not exist.
+
+  [code de sortie : 0]
+
+[m1-sheetdata-permutees] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  feuille : </sheetData>...<sheetData> (permutees) ; attendu apres : refus R3 citant </sheetData> et <sheetData> ; avant : refus citant </sheetData> seule
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-forge] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur forge ordinaire ; attendu : 104.2, sigma_USP de la serie
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-deux-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  deux feuilles ordinaires (sheet2.xml : 999) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-apostrophes-une-feuille] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  une feuille, r:id='rId1' et Id='rId1' (#487) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  ERREUR classe = simpleError
+  message = Workbook has no worksheets
+
+  [code de sortie : 0]
+
+[temoin-blancs-une-feuille] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  une feuille, r:id = "rId1" (#487) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  ERREUR classe = simpleError
+  message = Workbook has no worksheets
+
+  [code de sortie : 0]
+
+[temoin-rels-id-apostrophes] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  relations : Id='rId1' (une feuille) ; attendu : 104.2 interne, erreur R d'openxlsx (inchange)
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+
+  [code de sortie : 0]
+
+[temoin-externalreference] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : <externalReferences><externalReference r:id="rId1"/></externalReferences> apres </sheets> ; attendu : 104.2 (r:id hors des balises <sheet> non vise)
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-rid-apostrophes-dans-nom] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur : name="a r:id='rId2' b" (#487 ; forme que openxlsx ne lit pas comme r:id) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-ecrivain-interne] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur de engine_ecrire_xlsx() (serie de reference) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-deux-feuilles] chemin = openxlsx 4.2.5.2 ; moteur = engine_5950e03.R
+  classeur d'openxlsx::write.xlsx(list(Donnees = serie, Autre = serie avec B2 = 999)) ; attendu : 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
