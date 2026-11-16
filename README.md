@@ -38,11 +38,6 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   défaut quand il est installé.
   - Formes de classeur qu'aucun tableur n'est supposé écrire (hypothèse
     non vérifiée) :
-    - **#575** : une cellule `t="s"` dont l'indice sort de la table des
-      chaînes partagées arrête le processus R sous `openxlsx` 4.2.5.2
-      (mesuré sous Linux) et 4.2.9 (mesuré sous Linux et sous Windows 11).
-      Aucun `tryCatch()` ne l'intercepte. Sans `openxlsx`, la cellule est
-      lue `NA` puis refusée.
     - **#574** : une chaîne partagée préfixée `<x:si>` n'est comptée par
       aucun des deux chemins dans l'indice des chaînes partagées, et deux
       cellules de même référence ne sont pas refusées (la dernière

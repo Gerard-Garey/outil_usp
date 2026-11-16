@@ -901,8 +901,10 @@ cellule sans attribut de position \code{r}, d'une cellule dont l'attribut \code{
 n'a pas, écrit tel quel, la forme lettres de colonne puis numéro de ligne à partir de~1
 (\code{r="A2"}), d'une table des chaînes partagées qui porte du texte découpé en segments
 \code{<r>} sans aucune balise \code{<rPr>} écrite sous cette forme exacte, d'une table qui porte une balise \code{<rPh .../>}
-auto-fermante ou une chaîne formée de plusieurs balises \code{<t>} successives, et, sous
-\code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces huit refus
+auto-fermante ou une chaîne formée de plusieurs balises \code{<t>} successives, d'une cellule de
+chaîne partagée (\code{t="s"}) dont l'indice désigne une chaîne absente de la table (indice au
+moins égal au nombre de chaînes de la table, zéro sans table), et, sous
+\code{entete = TRUE}, d'une ligne~1 sans aucune valeur (§\ref{sec:controles})~; ces neuf refus
 sont des erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte, le refus d'une entrée dont le
 chemin sort du dossier de lecture et celui d'une archive illisible ou sans feuille trouvée restant
@@ -947,20 +949,24 @@ majuscules~; \\
 \code{.xlsx\_fichier\_}\newline\code{feuille()},\newline
 \code{.xlsx\_controler\_}\newline\code{cellules()},\newline
 \code{.xlsx\_indice\_}\newline\code{partage()},\newline
+\code{.xlsx\_controler\_}\newline\code{indices\_partages()},\newline
 \code{.xlsx\_controler\_}\newline\code{ligne\_entete()},\newline \code{.refus\_lecture()},\newline
 \code{.xlsx\_blancs\_}\newline\code{entete()}
 & dossier d'extraction~; XML de la
-feuille~; valeurs de \code{<v>}~; XML de la feuille, \code{partagees} (table des chaînes
-partagées)~; texte du refus~; noms d'en-tête & fichier et rang de la première feuille de calcul (relation de type
+feuille~; valeurs de \code{<v>}~; XML de la feuille, nombre de chaînes de la table~; XML de la
+feuille, \code{partagees} (table des chaînes partagées)~; texte du refus~; noms d'en-tête & fichier et rang de la première feuille de calcul (relation de type
 \code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées), erreur «~\code{Classeur illisible : aucune
 feuille trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
 d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et \code{//}
 refusé~; refus de la balise de forme non reconnue, de la cellule sans attribut \code{r} et de
 la cellule dont l'attribut \code{r} est répété ou de forme non attendue~; indice (base~1) d'une chaîne partagée, \code{NA} si la valeur n'est pas un entier
-positif ou nul~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
+positif ou nul~; refus des cellules \code{t="s"} dont l'indice, lu dans \code{<v>} et comparé
+en double, est négatif ou au moins égal au nombre de chaînes de la table (zéro sans table),
+positions citées cinq au plus~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
 \code{<is>}, hors cellule texte vide ou faite de blancs~: chaîne partagée résolue dans
-\code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée invalide
-compte comme une valeur), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
+\code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée illisible
+ou hors de la table compte comme une valeur, l'indice hors de la table étant refusé avant par
+\code{engine\_lire\_xlsx()}), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
 \code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
 refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à une espace,
 les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
@@ -4727,21 +4733,23 @@ séparées par «~\code{;}~», chaque ligne terminée par un saut de ligne LF), 
 elle ne révèle une valeur fausse que si un tiers la recalcule à partir des valeurs de la source,
 sans passer par le lecteur de l'outil, en reproduisant ce texte~; sa constance entre plateformes
 est attendue, non vérifiée. Une table entièrement préfixée
-est refusée en aval par la voie de repli (cellule non numérique) et arrête \code{openxlsx}~4.2.9
-sur une erreur R. La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
+est refusée avant l'appel à \code{openxlsx}, sur les deux chemins (mesuré). La voie de repli lit aussi des balises \code{<sheet>} et \code{<Relationship>}
 préfixées, des attributs entre apostrophes ou à blancs autour du signe \code{=} dans le classeur
 et ses relations, et des références de cellule en minuscules (\code{r="a1"}, lue comme la
 cellule A1)~; \code{openxlsx}~4.2.9 ne lit pas ces classeurs et s'arrête sur une erreur R,
 signalée par le message fixe de l'application~: les deux chemins divergent sur ce point
-(mesuré). Hors des formes préfixées, une limite propre à \code{openxlsx} est consignée~: une
-cellule de chaîne partagée (\code{t="s"}) dont l'indice désigne une chaîne absente de la table
-(indice~5 dans une table d'une seule chaîne) n'est pas refusée avant l'appel à \code{openxlsx},
-qui, dans ses versions~4.2.5.2 et~4.2.9, arrête alors le processus~R par une violation d'accès
-mémoire, qu'aucun \code{tryCatch()} n'intercepte, et l'application avec lui (mesuré pour les
-deux versions sous Linux, et pour la version~4.2.9 sous Windows)~; la voie de repli lit la
-cellule \code{NA}, refusée en aval (mesuré). Aucun tableur n'est supposé écrire cette forme
-(hypothèse non vérifiée). \code{openxlsx} reste le lecteur employé quand il est installé, de
-sorte qu'un poste qui l'a installé est exposé à cette limite.
+(mesuré). Hors des formes préfixées, une cellule de chaîne partagée (\code{t="s"}) dont l'indice
+désigne une chaîne absente de la table (indice au moins égal au nombre de chaînes de la table,
+zéro sans table~; ainsi l'indice~5 dans une table d'une seule chaîne) est refusée avant l'appel à
+\code{openxlsx}, sur les deux chemins, par un motif qui cite sa position, l'indice et le nombre
+de chaînes de la table («~\code{cellule renvoyant a une chaine partagee absente de la table}~»,
+\code{.xlsx\_controler\_}\allowbreak\code{indices\_partages()}~; mesuré, \code{openxlsx}~4.2.5.2)~:
+\code{openxlsx}, dans ses versions~4.2.5.2 et~4.2.9, arrêterait sinon le processus~R par une
+violation d'accès mémoire, qu'aucun \code{tryCatch()} n'intercepte, et l'application avec lui
+(mesuré pour les deux versions sous Linux, et pour la version~4.2.9 sous Windows), alors que la
+voie de repli lirait la cellule \code{NA}. L'indice, lu dans \code{<v>}, est comparé en nombre
+réel~: un indice supérieur à \code{.Machine\$integer.max}, plus grand entier de~R (ainsi
+$3 \times 10^{9}$), est refusé de même (mesuré).
 Sur le chemin \code{openxlsx}, une colonne dont toutes les cellules à valeur sont booléennes
 (\code{t="b"}) ou des textes «~\code{TRUE}~» ou «~\code{FALSE}~» est rendue logique, sans
 retouche~; \code{.en\_numerique()} la lit \code{NA}, et ses cellules renseignées sont refusées
@@ -4766,11 +4774,12 @@ d'\code{engine\_lire\_triangle()}), affiché comme les autres motifs~; pour un c
 refus motivé, fait sur le XML de la feuille avant tout appel à \code{openxlsx}, parce que
 \code{openxlsx} saute les lignes vides de tête, même appelé sans retrait des lignes vides, et
 lirait le tableau décalé comme un tableau bien formé (mesuré), alors que la voie de repli
-prendrait la ligne vide pour l'en-tête. Les huit refus du classeur (table des chaînes partagées
+prendrait la ligne vide pour l'en-tête. Les neuf refus du classeur (table des chaînes partagées
 ailleurs qu'en \code{xl/sharedStrings.xml} ou en plusieurs exemplaires, balise de forme non
 reconnue, cellule sans attribut de position, référence de position de forme non attendue, table
 des chaînes partagées découpée en segments sans mise en forme, indication phonétique vide,
-chaîne formée de plusieurs \code{<t>}, ligne~1 sans valeur) sont des
+chaîne formée de plusieurs \code{<t>}, indice de chaîne partagée absente de la table, ligne~1
+sans valeur) sont des
 erreurs de classe
 \code{usp\_refus\_lecture}, dont l'application affiche le texte~; le refus d'une entrée dont le
 chemin sort du dossier de lecture, une archive illisible et une feuille introuvable
@@ -20404,7 +20413,8 @@ fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
 \code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
 \code{.xlsx\_chemin\_sort()}, cellules lues par \code{.xlsx\_cellules()}~; contrôle des cellules et de la ligne d'en-tête du classeur par
-\code{.xlsx\_controler\_}\allowbreak\code{cellules()} et
+\code{.xlsx\_controler\_}\allowbreak\code{cellules()},
+\code{.xlsx\_controler\_}\allowbreak\code{indices\_partages()} et
 \code{.xlsx\_controler\_}\allowbreak\code{ligne\_entete()}, refus motivés par
 \code{.refus\_lecture()}) \\
 Contrôles numériques de l'estimation (famille~H~; §\ref{sec:controles},
