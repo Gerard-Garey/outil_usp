@@ -64,3 +64,13 @@
 | D-S1-28 | Visa de #588 (D-S1-7, D-S1-8) : citation des octets 0x81, 0x8D, 0x8F, 0x90, 0x9D d'un nom déclaré Latin-1 (« <81> » sous Linux → « \u0081 » partout) ; faux doublon Latin-1 / ASCII de `mw_valider_triangle()` retiré (triangle accepté, σ_USP 0.0517 sur le triangle de mesure) ; références inchangées | **Visa accordé** |
 | D-S1-29 | Portée de la table fixe : une chaîne « unknown » non UTF-8, non déclarée Latin-1 dans une locale non UTF-8, reste citée selon la locale (texte seul) | **Garder la portée** de la spécification et consigner la limite ; le rejeu Windows de l'étape 10 dira s'il faut plus |
 | D-S1-30 | Effet de #588 relevé par l'audit léger, non listé au visa D-S1-28 : deux noms de ligne du même texte « a » U+0081 « b », l'un Latin-1 (octet 0x81), l'autre UTF-8, acceptés sous Linux (le Latin-1 lu « a<81>b »), désormais refusés « Annee d'accident en double », comme sous Windows | **Refus confirmé** |
+
+## Validation du `.tex` de S1 (16/11/2026)
+
+> *Réponses du mainteneur aux points d'`actuary-validation-tex.md` (validation d'`actuary-approfondi`, validé avec réserves).*
+
+| N° | Question | Décision |
+|---|---|---|
+| D-S1-31 | H1 : chaîne en ligne dont la balise `<t>` porte un attribut (`<is><t xml:space="preserve">104.2</t></is>`), lue juste par la voie de repli (classeur accepté), attribut gardé dans le texte par `openxlsx` (classeur refusé en aval) ; même écart sur un en-tête | **Refus dans le contrat** (règle du bloc des données : `<t>` sans attribut dans `<is>`) ; forme lue juste en interne refusée, visa compris ; rattaché à #574 |
+| D-S1-32 | Veille datée du jour du PDF (Q-53-6 (a)) | **Étendue** au règlement d'exécution (UE) 2015/498 (EUR-Lex) et aux articles R. 352-5 et R. 356-19 du Code des assurances (Légifrance), en plus de #463 et #504 ; une source changée renvoie à `regulatory` avant le PDF |
+| D-S1-33 | ISO/IEC 29500-4:2016 sans entrée en `sec:biblio` | **Citation en ligne complète** (titre complet), pas d'entrée bibliographique |
