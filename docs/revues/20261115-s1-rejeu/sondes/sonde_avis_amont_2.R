@@ -1,0 +1,10 @@
+a <- commandArgs(TRUE); setwd(a[1]); source("R/charger_moteur.R"); e <- charger_moteur(); source(file.path(a[2], "forge.R"))
+cat(if (requireNamespace("openxlsx", quietly = TRUE)) "openxlsx" else "interne", a[3], "\n")
+l <- serie()
+if (a[3] == "row") l[2] <- sub('<row r="2">', '<row r="20">', l[2], fixed = TRUE)
+if (a[3] == "rowsansr") l <- gsub('<row r="[0-9]+">', '<row>', l)
+if (a[3] == "fsansv") l[2] <- sub('<c r="B2"><v>104.2</v></c>', '<c r="B2"><f>1+1</f></c>', l[2], fixed = TRUE)
+if (a[3] == "horsdonnees") l <- c(l, '</sheetData><foo><c r="B2"><v>5</v></c></foo><sheetData>')
+f <- forger(l)
+df <- tryCatch(e$engine_lire_xlsx(f), error = function(x) { cat("ERREUR", conditionMessage(x), "\n"); NULL })
+if (!is.null(df)) { print(dim(df)); print(head(df, 3)) }

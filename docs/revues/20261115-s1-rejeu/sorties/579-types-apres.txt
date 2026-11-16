@@ -1,0 +1,70 @@
+moteur : engine.R 
+[logique] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[Date] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[POSIXct] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[complexe] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[t en Date] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5, 6, 7, 8) : chaque ligne doit porter son annee.
+
+[liste] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[difftime] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[brut] engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).
+
+[temoin numerique] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[colonne logique supplementaire] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[colonne Date supplementaire] engine_lire_donnees_csv : ok = TRUE
+  run_engine : ok = TRUE  sigma_USP = 0.1114524114 
+
+[triangle temoin] engine_lire_triangle : ok = TRUE
+  C(0,4) = 182
+
+[triangle C(0,4) logique] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).
+
+
+[triangle C(0,4) Date] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).
+
+
+[triangle colonne i logique] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Colonne i non entiere ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5) : la colonne i, facultative, numerote les annees d'accident par des entiers ; la corriger, ou la retirer.
+
+
+[triangle colonne i Date (jours consecutifs)] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Colonne i non entiere ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5) : la colonne i, facultative, numerote les annees d'accident par des entiers ; la corriger, ou la retirer.
+
+
+[triangle colonne i difftime] engine_lire_triangle : ok = FALSE
+  erreurs :
+    Colonne i non entiere ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5) : la colonne i, facultative, numerote les annees d'accident par des entiers ; la corriger, ou la retirer.
+
+

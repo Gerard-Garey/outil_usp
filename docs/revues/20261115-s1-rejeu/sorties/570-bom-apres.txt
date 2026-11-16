@@ -1,0 +1,186 @@
+moteur = engine.R ; R 4.3.3 ; locale LC_CTYPE = C.UTF-8
+Encoding("abc" declare bytes) = unknown 
+
+[bytes apres yt (t, xt, yt, B)]
+  Encoding(noms) = unknown, unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 4 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes en tete (B, xt, yt)]
+  Encoding(noms) = bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes avant xt (t, B, xt, yt)]
+  Encoding(noms) = unknown, bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 2 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes entre xt et yt (t, xt, B, yt)]
+  Encoding(noms) = unknown, unknown, bytes, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 3 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes a la place de yt (t, xt, B)]
+  Encoding(noms) = unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 3 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[deux bytes (B, t, xt, yt, B2)]
+  Encoding(noms) = bytes, unknown, unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+    En-tete de la colonne 5 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes precede d'un BOM, colonne 1]
+  Encoding(noms) = bytes, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[bytes et t en double (t, xt, yt, t, B)]
+  Encoding(noms) = unknown, unknown, unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 5 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[temoin ASCII (t, xt, yt, abc)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin ASCII declare bytes (t, xt, yt, ASC)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin UTF-8 (t, xt, yt, annee UTF-8)]
+  Encoding(noms) = unknown, unknown, unknown, UTF-8
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin Latin-1 declare (t, xt, yt, L1)]
+  Encoding(noms) = unknown, unknown, unknown, latin1
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin Latin-1 non declare (t, xt, yt, L1n)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin UTF-8 seul manquant (t, xt, U8)]
+  Encoding(noms) = unknown, unknown, UTF-8
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, xt, année.
+
+
+[temoin sans colonne de plus (t, xt, yt)]
+  Encoding(noms) = unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[D-S1-19 : X... + bytes, colonne 1]
+  Encoding(noms) = bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[D-S1-19 : EF 2E 2E + bytes, colonne 1]
+  Encoding(noms) = bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[D-S1-19 : X.U.FEFF. + bytes, colonne 1]
+  Encoding(noms) = bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare.
+
+
+[D-S1-19 temoin : BOM brut + t non declare]
+  Encoding(noms) = unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[D-S1-19 temoin : EF 2E 2E + t declare bytes]
+  Encoding(noms) = bytes, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[D-S1-19 temoin : X... + octets non declare]
+  Encoding(noms) = unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[D-S1-19 temoin : ASCII t en colonne 1]
+  Encoding(noms) = unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+== engine_lire_triangle, premier nom ==
+[X3 + 61 ff 62 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + 61 ff 62 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + c3 a9 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + c3 a9 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + i e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[X3 + i e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + 61 ff 62 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + 61 ff 62 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + c3 a9 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + c3 a9 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + i e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[EF + i e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + 61 ff 62 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + 61 ff 62 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + c3 a9 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + c3 a9 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + i e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[XU + i e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + 61 ff 62 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + 61 ff 62 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + c3 a9 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + c3 a9 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + i e3 80 80 bytes, autres noms j0..j7] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[BOM + i e3 80 80 bytes, autres noms vides] ok = FALSE En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+
+== engine_lire_triangle, autres places et temoins ==
+[bytes en colonne 4, autres renseignes] ok = FALSE  En-tete de la colonne 4 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[bytes en colonne 4, autres vides] ok = FALSE  En-tete de la colonne 4 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[bytes en colonnes 2 et 9] ok = FALSE  En-tete de la colonne 2 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. | En-tete de la colonne 9 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[bytes en colonnes 1 et 3, autres vides] ok = FALSE  En-tete de la colonne 1 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. | En-tete de la colonne 3 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[bytes en colonne 9, colonne 1 nommee j] ok = FALSE  En-tete de la colonne 9 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[temoin ASCII declare bytes en colonne 9] ok = TRUE =ref I = 7, somme = 58157.34 
+[temoin UTF-8 en colonne 9] ok = TRUE =ref I = 7, somme = 58157.34 
+[temoin Latin-1 declare en colonne 9] ok = TRUE =ref I = 7, somme = 58157.34 
+[temoin Latin-1 non declare en colonne 9] ok = TRUE =ref I = 7, somme = 58157.34 
+[temoin BOM brut + i non declare, colonne 1] ok = TRUE =ref I = 7, somme = 58157.34 
+[temoin EF 2E 2E + i declare bytes, colonne 1] ok = TRUE =ref I = 7, somme = 58157.34 
+[matrice, nom de colonne 3 bytes] ok = FALSE  En-tete de la colonne 3 declare d'encodage "bytes" : ses caracteres ne sont pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare. 
+[data.frame, nom de ligne 3 bytes (non lu)] ok = TRUE =ref I = 7, somme = 58157.34 

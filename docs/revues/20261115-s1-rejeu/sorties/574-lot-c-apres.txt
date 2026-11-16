@@ -1,0 +1,1053 @@
+### Sonde sonde_574_lot_c.R, moteur arbre de travail (apres, reprise de l'audit du lot C), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[r7-t-d] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule date au format ISO 8601 (attribut t="d") dans la feuille lue (B2 : 2020-01-01T00:00:00) ; l'outil ne lit pas cette forme de facon sure (une date pourrait etre lue comme un nombre). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-e-corps] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2 : #N/A) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-e-vm] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2 : #VALUE!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-e-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-x] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="x") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-S] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="S") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-N] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="N") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-Str] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="Str") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-hex] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 0x10) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-entite-15] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : &#49;5) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-entite-104] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&#48;4.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-lt] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&lt;2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-gt] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1>2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-INF] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : INF) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-NaN] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : NaN) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-vide] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-auto] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-tn-vide] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-point] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : .) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-1e] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1e) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-1e400] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "Inf" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =    Inf 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = FALSE ;
+    Valeurs infinies : x_t et y_t doivent etre des nombres finis.
+
+  [code de sortie : 0]
+
+[r8-n-pleine-chasse] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : １０４.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-virgule] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 104,2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-blanc-interieur] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 104 .2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-is] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : <is> sans t="inlineStr") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-tn-is] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="n" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-n-blancs] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-cr] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-plus-exposant] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-point-final] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1113975926
+
+  [code de sortie : 0]
+
+[ok-n-point-initial] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "5e-04" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =   0.0005 102.2500 109.3400 114.6400 118.4100 121.2800 132.4000 131.2200 
+  run_engine : ok = TRUE, sigma_USP = 0.1352609719
+
+  [code de sortie : 0]
+
+[ok-n-moins-zero] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "0" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =   0.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = FALSE ;
+    Toutes les valeurs de x_t doivent etre strictement positives.
+
+  [code de sortie : 0]
+
+[ok-tn] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-f-sans-v] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-f-avec-v] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r8-b-2] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : 2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-true] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : true) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-blanc] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 :  1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-vide] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-auto] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-f-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-b-1] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "TRUE" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-s-is] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-v-is] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-f-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-vide] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-auto] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-blanc] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-1.0] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-moins1] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-plus1] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-1e0] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-s-01] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r8-str-is] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="str" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-str-vide] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-str-auto] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-str-sans-v] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str-entite] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104&#46;2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-is-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="inlineStr" avec <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-is-v-seul] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="inlineStr" avec <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-is-auto] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-is-sans] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-is-auto-seul] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str-auto-seul] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-is] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r7-t-e-hors-tableau] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #DIV/0!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r8-s-xfd-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (XFD1048576 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-xfd-sans-v] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (XFD1048576 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-xfd-vide] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (XFD1048576 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[seg-sans-r] chemin = interne ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule sans reference : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = interne ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-write] chemin = interne ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : aucune 
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[openxlsx-write-keepna] chemin = interne ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : <c r="D2" t="e"><v>#N/A</v></c> 
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #N/A) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[openxlsx-write-inf] chemin = interne ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : <c r="D2" t="e"><v>#NUM!</v></c> <c r="D3" t="e"><v>#NUM!</v></c> <c r="D4" t="e"><v>#NUM!</v></c> 
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #NUM!, D3 : #NUM!, D4 : #NUM!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+### Chemin openxlsx 4.2.5.2 (R_LIBS)
+[r7-t-d] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule date au format ISO 8601 (attribut t="d") dans la feuille lue (B2 : 2020-01-01T00:00:00) ; l'outil ne lit pas cette forme de facon sure (une date pourrait etre lue comme un nombre). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-e-corps] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2 : #N/A) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-e-vm] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2 : #VALUE!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-e-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (B2) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r7-t-x] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="x") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-S] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="S") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-N] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="N") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r7-t-Str] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule de type non prevu par le format (B2 : t="Str") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-hex] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 0x10) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-entite-15] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : &#49;5) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-entite-104] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&#48;4.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-lt] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1&lt;2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-gt] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1>2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-INF] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : INF) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-NaN] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : NaN) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-tn-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-point] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : .) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-1e] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 1e) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-1e400] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "Inf" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =    Inf 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = FALSE ;
+    Valeurs infinies : x_t et y_t doivent etre des nombres finis.
+
+  [code de sortie : 0]
+
+[r8-n-pleine-chasse] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : １０４.2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-virgule] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 104,2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-blanc-interieur] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (B2 : 104 .2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : <is> sans t="inlineStr") dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-tn-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="n" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-n-blancs] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-cr] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-plus-exposant] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-n-point-final] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1113975926
+
+  [code de sortie : 0]
+
+[ok-n-point-initial] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "5e-04" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =   0.0005 102.2500 109.3400 114.6400 118.4100 121.2800 132.4000 131.2200 
+  run_engine : ok = TRUE, sigma_USP = 0.1352609719
+
+  [code de sortie : 0]
+
+[ok-n-moins-zero] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "0" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt =   0.00 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = FALSE ;
+    Toutes les valeurs de x_t doivent etre strictement positives.
+
+  [code de sortie : 0]
+
+[ok-tn] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-f-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-f-avec-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r8-b-2] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : 2) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-true] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : true) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-blanc] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 :  1) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (B2 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-f-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-b-1] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "TRUE" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-s-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-v-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-f-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-blanc] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-1.0] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-moins1] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-plus1] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-s-1e0] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : indice de chaine non entier) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[ok-s-01] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r8-str-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="str" avec <is>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-str-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-str-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-str-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str-entite] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104&#46;2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[r8-is-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="inlineStr" avec <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-is-v-seul] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (B2 : t="inlineStr" avec <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-is-auto] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[ok-is-sans] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-is-auto-seul] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-str-auto-seul] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "NA" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = FALSE
+  erreurs :
+    Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+  [code de sortie : 0]
+
+[ok-is] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : character)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[r7-t-e-hors-tableau] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #DIV/0!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[r8-s-xfd-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (XFD1048576 : t="s" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-b-xfd-sans-v] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule dont le contenu ne correspond pas a son type (XFD1048576 : t="b" sans <v>) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[r8-n-xfd-vide] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (XFD1048576 : valeur vide) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[seg-sans-r] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (cellule sans reference : suite " t=", dans le bloc des donnees) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-reference] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-ecrit-par-moteur] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-openxlsx-write] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : aucune 
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2" (classe de xt : numeric)
+  engine_lire_donnees_csv : ok = TRUE
+  xt = 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[openxlsx-write-keepna] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : <c r="D2" t="e"><v>#N/A</v></c> 
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #N/A) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+
+[openxlsx-write-inf] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  cellules t="e" ecrites par openxlsx : <c r="D2" t="e"><v>#NUM!</v></c> <c r="D3" t="e"><v>#NUM!</v></c> <c r="D4" t="e"><v>#NUM!</v></c> 
+  ERREUR classe = usp_refus_lecture
+  message = Cellule(s) en erreur de calcul dans la feuille lue (D2 : #NUM!, D3 : #NUM!, D4 : #NUM!) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.
+
+  [code de sortie : 0]
+

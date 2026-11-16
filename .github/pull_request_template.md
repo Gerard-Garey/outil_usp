@@ -10,6 +10,10 @@
 
 <!-- « Aucune », ou une ligne par escalade, relance ciblée ou arrêt (docs/agents/routage.md, § 7), et par emploi de coder-approfondi hors des cas d'office ou passage à l'effort high sur accord du mainteneur, et par appel de regulatory en effort high (§ 10) : fiche / modèle / critère déclenché / statut obtenu / suite. -->
 
+## Constats mineurs écartés (ADR 0018)
+
+<!-- « Aucun », ou une ligne par constat hors périmètre écarté sans issue : emplacement — constat en une phrase — agent, date — aucun critère. -->
+
 ## Contrôles
 
 - [ ] Les tests passent : `Rscript tests/test_reproductibilite.R`

@@ -1838,6 +1838,27 @@ verifier("Lecture : t consecutive dans le desordre -> triee en croissant",
                                                    xt = c(5, 3, 4, 1, 2), yt = c(50, 30, 40, 10, 20)))
            isTRUE(r$ok) && identical(r$xt, c(1, 2, 3, 4, 5)) && identical(r$yt, c(10, 20, 30, 40, 50))
          })
+# Issue #579 (decision D-S1-3) : colonne ni numerique, ni texte, ni facteur
+# (logique, apres read.csv() par defaut ; Date ; POSIXct) lue NA par
+# .en_numerique(), refusee avec ses positions (as.numeric() lisait TRUE 1 et
+# une date en jours : sigma_USP rendu). Une colonne logique hors de t, xt et
+# yt reste ignoree.
+motif579d <- paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques",
+                   "(colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s)).")
+verifier("Lecture (#579) : colonne xt logique, Date ou POSIXct refusee avec ses positions (appel direct)",
+         all(vapply(list(rep(TRUE, 8), as.Date("2020-01-01") + 0:7,
+                         as.POSIXct("2020-01-01", tz = "UTC") + 86400 * (0:7)), function(v) {
+           r <- engine_lire_donnees_csv(data.frame(t = 1:8, xt = v, yt = y))
+           !r$ok && identical(r$erreurs, motif579d)
+         }, logical(1))))
+verifier("Lecture (#579) : colonne t en Date refusee comme non numerique (appel direct)",
+         {
+           r <- engine_lire_donnees_csv(data.frame(t = as.Date("2020-01-01") + 0:7, xt = x, yt = y))
+           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5, 6, 7, 8)")
+         })
+verifier("Lecture (#579) : colonne logique hors de t, xt et yt ignoree (series lues a l'identique)",
+         identical(engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y, drapeau = c(TRUE, FALSE))),
+                   engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y))))
 
 ## --- engine_lire_triangle (#33, #4 piste 3) -----------------------------------
 # Conversion fichier -> triangle en une fonction du moteur, puis
@@ -2529,19 +2550,49 @@ if (nzchar(Sys.which("zip"))) {
            identical(dbool490$interne$xt, c("100", "TRUE", "102", "103", "104")) &&
              tous(dbool490, function(d) identical(engine_lire_donnees_csv(d)$erreurs,
                   "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
-  # Cellule nombre forgee <v>0x10</v> : colonne laissee en caractere par le
-  # lecteur interne (regle de .cellules_en_nombre()), refusee en aval avec sa
-  # position ; exposants complets ("6E+1", "6.1e1") lus en nombre.
-  hex490 <- function(s) {
-    s <- sub('<c r="A3"><v>101</v></c>', '<c r="A3"><v>0x10</v></c>', s, fixed = TRUE)
+  # Issue #579 : colonne entierement booleenne (t="b") ou de textes "TRUE"
+  # (chaines en ligne de l'ecrivain interne) : rendue en caractere par le
+  # lecteur interne, en logique par openxlsx (sortie non retouchee) ;
+  # .en_numerique() lit la colonne logique NA, et les deux chemins refusent
+  # les memes cellules, avec le meme motif. Idem pour C(0,4) booleen.
+  motif579 <- paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques",
+                    "(colonne xt : ligne(s) de donnees 1, 2, 3, 4, 5).")
+  b579 <- function(s) gsub('<c r="A([2-6])"><v>[0-9]+</v></c>', '<c r="A\\1" t="b"><v>1</v></c>', s)
+  db579 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), b579), identity)
+  dtxt579 <- chemins483(xlsx483(data.frame(xt = rep(TRUE, 5), yt = 60:64)), identity)
+  tri579 <- data.frame(i = 0:4, j0 = c(100, 110, 115, 125, 150), j1 = c(150, 168, 169, 185, NA),
+                       j2 = c(175, 192, 197, NA, NA), j3 = c(180, 198, NA, NA, NA), j4 = c(182, NA, NA, NA, NA))
+  motif_tri579 <- paste("Cellule(s) non numerique(s) en (i = 0, j = 4) (i : annee d'accident,",
+                        "j : annee de developpement).")
+  dtri579 <- chemins483(xlsx483(tri579, function(s) sub('<c r="F2"><v>182</v></c>', '<c r="F2" t="b"><v>1</v></c>',
+                                                       s, fixed = TRUE)), identity)
+  verifier("xlsx (#579) : colonne xt entierement booleenne (t=\"b\") en caractere (interne), en logique (openxlsx), refusee avec ses positions et le meme motif sur chaque chemin",
+           is.character(db579$interne$xt) && (is.null(db579$openxlsx) || is.logical(db579$openxlsx$xt)) &&
+             tous(db579, function(d) { r <- engine_lire_donnees_csv(d); !r$ok && identical(r$erreurs, motif579) }))
+  verifier("xlsx (#579) : colonne xt de textes \"TRUE\" en caractere (interne), en logique (openxlsx), refusee avec ses positions et le meme motif sur chaque chemin",
+           identical(dtxt579$interne$xt, rep("TRUE", 5)) &&
+             (is.null(dtxt579$openxlsx) || identical(dtxt579$openxlsx$xt, rep(TRUE, 5))) &&
+             tous(dtxt579, function(d) { r <- engine_lire_donnees_csv(d); !r$ok && identical(r$erreurs, motif579) }))
+  verifier("xlsx (#579) : triangle a C(0,4) booleen (t=\"b\") refuse avec sa position sur chaque chemin (openxlsx lisait 1)",
+           identical(dtri579$interne$j4, c("TRUE", NA, NA, NA, NA)) &&
+             (is.null(dtri579$openxlsx) || identical(dtri579$openxlsx$j4, c(TRUE, NA, NA, NA, NA))) &&
+             tous(dtri579, function(d) { r <- engine_lire_triangle(d); !r$ok && identical(r$erreurs, motif_tri579) }))
+  # Cellule nombre forgee <v>0x10</v> : refusee a la lecture sur chaque
+  # chemin par la regle R8 du contrat ferme (#574, lot C ; avant : colonne
+  # laissee en caractere par le lecteur interne, refusee en aval, et lue 16
+  # par openxlsx, ok = TRUE) ; exposants complets ("6E+1", "6.1e1") lus en
+  # nombre.
+  hex490 <- function(s) sub('<c r="A3"><v>101</v></c>', '<c r="A3"><v>0x10</v></c>', s, fixed = TRUE)
+  exp490 <- function(s) {
     s <- sub('<c r="B2"><v>60</v></c>', '<c r="B2"><v>6E+1</v></c>', s, fixed = TRUE)
     sub('<c r="B3"><v>61</v></c>', '<c r="B3"><v>6.1e1</v></c>', s, fixed = TRUE)
   }
-  dhex490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), hex490), identity)
-  verifier("xlsx, lecteur interne (#490) : cellule nombre forgee \"0x10\" garde sa colonne en caractere, refusee avec sa position ; exposants complets lus en nombre",
-           identical(dhex490$interne$xt, c("100", "0x10", "102", "103", "104")) &&
-             identical(dhex490$interne$yt, as.numeric(60:64)) &&
-             identical(engine_lire_donnees_csv(dhex490$interne)$erreurs, motif490))
+  dhex490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), hex490),
+                        function(d) tryCatch(d, error = function(e) conditionMessage(e)))
+  dexp490 <- chemins483(xlsx483(data.frame(xt = 100:104, yt = 60:64), exp490), identity)
+  verifier("xlsx (#490, #574 R8) : cellule nombre forgee \"0x10\" refusee a la lecture sur chaque chemin (\"A3 : 0x10\") ; exposants complets lus en nombre",
+           tous(dhex490, function(m) identical(m, sprintf("Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", "A3 : 0x10"))) &&
+             tous(dexp490, function(d) identical(d$yt, as.numeric(60:64)) && identical(as.numeric(d$xt), as.numeric(100:104))))
 
   # --- #487 : feuille lue, entites XML, chaine enrichie, cellule sans r, blancs
   # d'en-tete. Classeurs ecrits a la main (plusieurs feuilles, workbook.xml et
@@ -2775,19 +2826,32 @@ if (nzchar(Sys.which("zip"))) {
            tous487(rgl, function(d) is.data.frame(d) && identical(d$xt, c('x r="B9"', 'q t="s"')) &&
                      identical(as.numeric(d$yt), c(2, 4))))
   # Attributs de cellule compares par leur nom entier (revue de l'audit) : un
-  # attribut prefixe x:r ou x:t place avant r et t n'est pas lu a leur place ;
-  # openxlsx 4.2.9 place, lui, la valeur en Z9 (mesure, non fige ici).
-  rxr <- lire487(sans_openxlsx483(engine_lire_xlsx(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
+  # attribut prefixe x:r ou x:t place avant r et t n'est pas lu a leur place
+  # par .xlsx_cellules() ; openxlsx 4.2.9 placait, lui, la valeur en Z9
+  # (mesure). Depuis la regle R4 du contrat ferme (#574, lot B : attributs de
+  # <c> pris dans la liste r, s, t, cm, vm, ph), la cellule est refusee sur
+  # chaque chemin, avant openxlsx (avant R4 : lue 5 en A2 par le lecteur
+  # interne).
+  texte574r3 <- function(pos) sprintf("Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r4 <- function(pos) sprintf("Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  # Segment de cellule lu par openxlsx (regle R3, texte propre : avis
+  # d'actuary sur le lot B, Q1)
+  texte574seg <- function(pos) sprintf("Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  rxr <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     ligne487(1, c(en487("A1", "<t>xt</t>"), en487("B1", "<t>yt</t>"))),
-    ligne487(2, c('<c x:r="Z9" r="A2" x:t="s" t="n"><v>5</v></c>', nb487("B2", 6))))))))))
-  verifier("xlsx, lecteur interne (#487) : <c x:r=\"Z9\" r=\"A2\" x:t=\"s\" t=\"n\"> lue en A2, en nombre (attributs r et t compares par leur nom entier)",
-           is.data.frame(rxr) && identical(names(rxr), c("xt", "yt")) && identical(rxr$xt, 5) && identical(rxr$yt, 6) &&
+    ligne487(2, c('<c x:r="Z9" r="A2" x:t="s" t="n"><v>5</v></c>', nb487("B2", 6))))))), lire487)
+  verifier("xlsx (#487, #574 R4) : <c x:r=\"Z9\" r=\"A2\" x:t=\"s\" t=\"n\"> refusee sur chaque chemin (\"A2 : x:r, A2 : x:t\") ; .xlsx_cellules() et .xlsx_attribut() comparent les attributs par leur nom entier",
+           tous487(rxr, function(m) identical(m, texte574r4("A2 : x:r, A2 : x:t"))) &&
              identical(.xlsx_cellules('<c x:r="Z9" r="A1" t="n"><v>1</v></c>')$ref, "A1") &&
              identical(.xlsx_attribut('<sheet x:id="rId4" name="D"/>', "id"), "rId4"))
   # Entites XML. Chaines partagees : entites nommees lues pareil par les deux
   # chemins ; le reste (references numeriques, chaines en ligne, "&amp;lt;" que
   # openxlsx decode deux fois) n'est lu juste que par le lecteur interne
-  # (divergences nommees dans l'en-tete d'engine_lire_xlsx()).
+  # (divergences nommees dans l'en-tete d'engine_lire_xlsx()). Depuis la
+  # decision D-S1-18 (#574, lot E), une reference numerique d'un caractere
+  # ASCII ordinaire est refusee : le temoin &#x41; ("A") des deux
+  # verifications suivantes est remplace par &#x3A9; (omega), et la forme
+  # refusee est verifiee plus loin (lot E).
   ent_ps <- c("a&amp;b", "s&lt;t&gt;", "q&quot;x&apos;y")
   rE <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     ligne487(1, c(ps487("A1", 0), ps487("B1", 1), ps487("C1", 2))),
@@ -2800,23 +2864,25 @@ if (nzchar(Sys.which("zip"))) {
                                                           shared = shared))))
   nI <- names(interne487(paste0(
     ligne487(1, c(en487("A1", "<t>a&amp;b</t>"), en487("B1", "<t>&#233;t&#xE9;</t>"),
-                  en487("C1", "<t>&lt;x&gt; &quot;q&quot; &apos;a&apos;</t>"), en487("D1", "<t>&amp;lt;|&#38;lt;|&#x41;</t>"),
+                  en487("C1", "<t>&lt;x&gt; &quot;q&quot; &apos;a&apos;</t>"), en487("D1", "<t>&amp;lt;|&#38;lt;|&#x3A9;</t>"),
                   en487("E1", "<t>&#0;&#xD800;&#x110000;&#99999999999;</t>"))),
     ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), nb487("D2", 4), nb487("E2", 5))))))
   nS <- names(interne487(paste0(ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))),
-                         shared = "<si><t>&#233;t&#xE9;</t></si><si><t>&amp;lt;|&#38;lt;|&#x41;</t></si>"))
+                         shared = "<si><t>&#233;t&#xE9;</t></si><si><t>&amp;lt;|&#38;lt;|&#x3A9;</t></si>"))
   verifier("xlsx, lecteur interne (#487) : entites nommees et references numeriques decodees (chaines en ligne et partagees), en une seule passe",
-           identical(nI, c("a&b", "\u00e9t\u00e9", "<x> \"q\" 'a'", "&lt;|&lt;|A",
+           identical(nI, c("a&b", "\u00e9t\u00e9", "<x> \"q\" 'a'", "&lt;|&lt;|\u03a9",
                            "&#0;&#xD800;&#x110000;&#99999999999;")) &&
-             identical(nS, c("\u00e9t\u00e9", "&lt;|&lt;|A")))
-  # Chaine enrichie en ligne : segments concatenes par le lecteur interne
-  # (openxlsx la rend NA) ; en chaine partagee, les deux chemins concatenent.
+             identical(nS, c("\u00e9t\u00e9", "&lt;|&lt;|\u03a9")))
+  # Chaine enrichie en ligne (<is><r>...) : refusee sur chaque chemin par la
+  # regle R3 du contrat ferme (#574, lot B : <is> ne porte qu'un <t>) ; avant
+  # R3, segments concatenes par le lecteur interne et NA par openxlsx. En
+  # chaine partagee, les deux chemins concatenent.
   enr <- '<r><t>x</t></r><r><rPr><b/></rPr><t>t</t></r>'
-  renr <- interne487(paste0(
+  renr <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     ligne487(1, c(en487("A1", enr), en487("B1", "<r><t>y</t></r><r><t xml:space=\"preserve\"> t</t></r>"))),
-    ligne487(2, c(en487("A2", "<r><t>ab</t></r><r><t>cd</t></r>"), nb487("B2", 2)))))
-  verifier("xlsx, lecteur interne (#487) : chaine en ligne enrichie lue entiere (segments concatenes), en en-tete comme en corps",
-           identical(names(renr), c("xt", "y t")) && identical(renr$xt, "abcd"))
+    ligne487(2, c(en487("A2", "<r><t>ab</t></r><r><t>cd</t></r>"), nb487("B2", 2))))))), lire487)
+  verifier("xlsx (#487, #574 R3) : chaine en ligne enrichie refusee sur chaque chemin, en en-tete comme en corps (positions A1, B1, A2)",
+           tous487(renr, function(m) identical(m, texte574r3(paste(sprintf("balise <r>, dans la chaine en ligne de la cellule %s", c("A1", "B1", "A2")), collapse = ", ")))))
   rP <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     ligne487(1, c(ps487("A1", 0), ps487("B1", 1))), ligne487(2, c(nb487("A2", 1), nb487("B2", 2)))))),
     shared = paste0("<si>", enr, "</si><si><r><t>y</t></r><r><t>t</t></r></si>")), function(d) names(d))
@@ -2918,10 +2984,16 @@ if (nzchar(Sys.which("zip"))) {
   corps522b <- paste0(ligne487(2, c(nb487("A2", 1), nb487("B2", 2))), ligne487(3, c(nb487("A3", 3), nb487("B3", 4))))
   bl522 <- function(ligne1, shared = NULL, corps = corps522b)
     chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(ligne487(1, ligne1), corps))), shared = shared), lire522)
-  verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", \"&#32;\"), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522 sur chaque chemin",
+  # (blanc ecrit en reference numerique, &#32; auparavant : refuse depuis
+  # les decisions D-S1-18 et D-S1-23, #574, lot E, comme toute reference a
+  # un blanc que retire la mise en forme des en-tetes ; remplace par une
+  # tabulation ecrite telle quelle dans la chaine partagee ; espace en
+  # chaine en ligne ecrite <t> </t> et non plus <t xml:space="preserve"> </t>,
+  # refusee par la regle R3 depuis la decision D-S1-31, #574, lot F)
+  verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", TAB), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522 sur chaque chemin",
            refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">  </t></si>')) &&
-             refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = "<si><t>&#32;</t></si>")) &&
-             refus522(bl522(c(en487("A1", '<t xml:space="preserve"> </t>'), en487("B1", "<t>\t</t>")))) &&
+             refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">\t</t></si>')) &&
+             refus522(bl522(c(en487("A1", "<t> </t>"), en487("B1", "<t>\t</t>")))) &&
              refus522(bl522(c(en487("A1", "<t></t>"), en487("B1", "<t></t>")))))
   verifier("xlsx (#522, option (b)) : ligne 1 portant un nombre 0 ou un booleen parmi des blancs : pas de refus de la ligne 1 sur chaque chemin",
            tous487(bl522(c(nb487("A1", 0), en487("B1", "<t> </t>"))), is.data.frame) &&
@@ -2964,20 +3036,19 @@ if (nzchar(Sys.which("zip"))) {
                xml = sub('<c r="B2">', '<c\tr="B2">', donnees487(0), fixed = TRUE))))), function(k) identical(k, REFUS522)) &&
              tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = donnees487(0), absente = TRUE)))),
                      function(k) is.character(k) && "error" %in% k && !"usp_refus_lecture" %in% k))
-  # Reference de cellule en minuscules (r="a1", reserve de l'audit) : la ligne
-  # 1 est reconnue, pas de refus "ligne 1" ; le lecteur interne lit la
-  # feuille (reference mise en majuscules par .xlsx_cellules(), #487 ; il
-  # levait une erreur R) ; openxlsx 4.2.9 leve une erreur R ordinaire.
+  # Reference de cellule en minuscules (r="a1", reserve de l'audit) : refusee
+  # sur chaque chemin comme reference de forme non attendue, texte de Q-A
+  # (decision du mainteneur D-S1-9 du 15/11/2026, qui renverse Q-A sur ce
+  # point ; avant : lue par le lecteur interne, erreur R brute d'openxlsx
+  # 4.2.9 et 4.2.5.2, "missing value where TRUE/FALSE needed"). En appel
+  # direct, .xlsx_controler_ligne_entete() reconnait toujours la ligne 1
+  # (reference mise en majuscules par .xlsx_cellules()).
   rmin <- chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = paste0(
     '<row r="1"><c r="a1" t="inlineStr"><is><t>xt</t></is></c><c r="b1" t="inlineStr"><is><t>yt</t></is></c></row>',
     '<row r="2"><c r="a2"><v>1</v></c><c r="b2"><v>2</v></c></row><row r="3"><c r="a3"><v>3</v></c><c r="b3"><v>4</v></c></row>')))),
     function(d) tryCatch(d, error = function(e) class(e)))
-  verifier("xlsx (#522, #487) : references en minuscules (r=\"a1\") : pas de refus de la ligne 1 sur chaque chemin ; lecteur interne : feuille lue (xt = 1, 3 ; yt = 2, 4) ; openxlsx : erreur R ordinaire",
-           tous487(rmin, function(k) !identical(k, REFUS522)) &&
-             is.data.frame(rmin$interne) && identical(names(rmin$interne), c("xt", "yt")) &&
-             identical(rmin$interne$xt, c(1, 3)) && identical(rmin$interne$yt, c(2, 4)) &&
-             (!avec_openxlsx483 || (is.character(rmin$openxlsx) && "error" %in% rmin$openxlsx &&
-                                      !"usp_refus_lecture" %in% rmin$openxlsx)) &&
+  verifier("xlsx (#522, #487, D-S1-9) : references en minuscules (r=\"a1\") : refus de classe usp_refus_lecture sur chaque chemin (reference de forme non attendue, pas le refus de la ligne 1) ; en appel direct, ligne 1 reconnue",
+           tous487(rmin, function(k) identical(k, REFUS522)) &&
              identical(tryCatch(.xlsx_controler_ligne_entete('<row r="1"><c r="a1"><v>1</v></c></row><row r="2"><c r="a2"><v>2</v></c></row>'),
                                 error = function(e) "refus"), NULL))
 
@@ -2987,8 +3058,8 @@ if (nzchar(Sys.which("zip"))) {
   REF557 <- "Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."
   feuille557 <- function(xml, shared = NULL, ...) chemins483(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)),
                                                                          shared = shared, ...), lire487)
-  # Reference de cellule hors ^[A-Za-z]+[1-9][0-9]*$ (decision du mainteneur du
-  # 13/11/2026) : refus au texte fixe sur chaque chemin, avant openxlsx
+  # Reference de cellule hors ^[A-Z]+[1-9][0-9]*$ (decision du mainteneur du
+  # 13/11/2026, minuscules refusees par D-S1-9 du 15/11/2026) : refus au texte fixe sur chaque chemin, avant openxlsx
   # (auparavant : erreur R brute, ou valeur deplacee ou perdue sans message).
   formes557 <- c("", "1", "A0", "1A", " A2 ", "A", "A1:B2")
   rref557 <- lapply(formes557, function(rv) feuille557(paste0(
@@ -3009,10 +3080,13 @@ if (nzchar(Sys.which("zip"))) {
            tous487(classe522(classeur487(list(list(nom = "D", fichier = "sheet1.xml",
                                                    xml = sub('<c r="B2">', '<c r="A0">', donnees487(0), fixed = TRUE))))),
                    function(k) identical(k, REFUS522)))
-  # Minuscules admises (inchange) ; reference lue par la regle du lecteur
-  # (.xlsx_attribut(), nom entier) : x:r="Z9" avant r="A2" n'est pas la reference.
-  verifier("xlsx (#557) : .xlsx_controler_cellules() admet r=\"a2\", r=\"XFD1048576\" et <c x:r=\"Z9\" r=\"A2\"> ; refuse <c x:r=\"A2\" r=\"0\">",
-           is.null(.xlsx_controler_cellules('<row r="2"><c r="a2"><v>1</v></c><c r="XFD1048576"><v>2</v></c></row>')) &&
+  # Minuscules refusees (decision D-S1-9 du 15/11/2026, renverse Q-A sur ce
+  # point) ; reference lue par la regle du lecteur (.xlsx_attribut(), nom
+  # entier) : x:r="Z9" avant r="A2" n'est pas la reference (refuse ensuite
+  # par la regle R4, #574).
+  verifier("xlsx (#557, D-S1-9) : .xlsx_controler_cellules() refuse r=\"a2\" (texte de Q-A), admet r=\"XFD1048576\" et <c x:r=\"Z9\" r=\"A2\"> ; refuse <c x:r=\"A2\" r=\"0\">",
+           identical(tryCatch(.xlsx_controler_cellules('<row r="2"><c r="a2"><v>1</v></c></row>'), error = conditionMessage), REF557) &&
+             is.null(.xlsx_controler_cellules('<row r="2"><c r="XFD1048576"><v>2</v></c></row>')) &&
              is.null(.xlsx_controler_cellules('<row r="2"><c x:r="Z9" r="A2"><v>1</v></c></row>')) &&
              identical(tryCatch(.xlsx_controler_cellules('<row r="2"><c x:r="A2" r="0"><v>1</v></c></row>'),
                                 error = conditionMessage), REF557))
@@ -3031,20 +3105,16 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx (#557) : chaine partagee avec <rPh>, en-tete \"xt\" et corps \"abc\" : lus \"xt\" et \"abc\" sur chaque chemin (lecteur interne : auparavant \"xtZZ\", \"abcZZ\")",
            tous487(rphS557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt", "z")) &&
                      identical(d$z, c("abc", "abc")) && identical(as.numeric(d$xt), c(2, 4))))
-  # Chaine en ligne avec <rPh> : lue entiere par le lecteur interne ; openxlsx
-  # en perd l'en-tete (X2) et rend NA la cellule du corps (limite consignee,
-  # sans valeur fausse : colonne manquante ou cellule refusee en aval).
+  # Chaine en ligne avec <rPh> : refusee sur chaque chemin par la regle R3
+  # (#574, lot B) ; avant R3, lue entiere par le lecteur interne, et openxlsx
+  # en perdait l'en-tete (X2) et rendait NA la cellule du corps (limite
+  # consignee, levee par R3).
   rphI557 <- feuille557(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", paste0("<t>xt</t>", rph557)),
                                              en487("C1", "<t>yt</t>"), en487("D1", "<t>z</t>"))),
                                ligne487(2, c(nb487("A2", 1), nb487("B2", 2), nb487("C2", 3), en487("D2", paste0("<t>abc</t>", rph557)))),
                                ligne487(3, c(nb487("A3", 2), nb487("B3", 4), nb487("C3", 5), en487("D3", "<t>q</t>")))))
-  verifier("xlsx, lecteur interne (#557) : chaine en ligne avec <rPh> lue sans le texte phonetique, en en-tete (\"xt\") et en corps (\"abc\")",
-           is.data.frame(rphI557$interne) && identical(names(rphI557$interne), c("t", "xt", "yt", "z")) &&
-             identical(rphI557$interne$z, c("abc", "q")))
-  if (avec_openxlsx483)
-    verifier("xlsx, openxlsx (#557, limite consignee) : chaine en ligne avec <rPh> : en-tete perdu (nom X2), cellule du corps NA",
-             is.data.frame(rphI557$openxlsx) && identical(names(rphI557$openxlsx), c("t", "X2", "yt", "z")) &&
-               identical(rphI557$openxlsx$z, c(NA, "q")))
+  verifier("xlsx (#557, #574 R3) : chaine en ligne avec <rPh>, en en-tete (B1) et en corps (D2) : refusee sur chaque chemin",
+           tous487(rphI557, function(m) identical(m, texte574r3("balise <rPh>, dans la chaine en ligne de la cellule B1, balise <rPh>, dans la chaine en ligne de la cellule D2"))))
   # Chaine partagee enrichie (<r>) : table sans aucune balise <rPr>, refusee
   # sur chaque chemin avant openxlsx, qui n'en lit que le premier segment
   # (decision du mainteneur du 13/11/2026, Q-F) ; table qui porte un <rPr> :
@@ -3148,13 +3218,21 @@ if (nzchar(Sys.which("zip"))) {
                 vide = "<si><t>11.5</t></si><si><t/></si>",
                 segments = '<si><r><rPr><b/></rPr><t>1</t></r><r><rPr><i/></rPr><t>1.</t></r><r><t>5</t></r></si>',
                 japon = '<si><t>11.5</t><rPh sb="0" eb="1"><t>ZZ</t></rPh><phoneticPr fontId="1"/></si>',
-                rPhX = '<si><t>11.5</t><rPhX sb="0"/><phoneticPr fontId="1" type="noConversion"/></si>',
-                tab = '<si><t>11.5</t><tab/><tabx a="1"/></si>',
-                t_puis_r = "<si><t>1</t><r><rPr><b/></rPr><t>1.5</t></r></si>",
-                prefixe = paste0("<si>", rpr572, '<x:rPh sb="0" eb="0"/><r><t>1.5</t></r></si>'))
-  verifier("xlsx (#572) : sans faux refus, 11.5 lu sur chaque chemin : <t> seul, xml:space=\"preserve\", <t/> seul, plusieurs <r> avec <rPr>, <rPh> ouvrant et <phoneticPr/>, <rPhX/>, <tab/>, <t> suivi de <r> (conforme), <x:rPh .../> prefixe (non vise)",
+                t_puis_r = "<si><t>1</t><r><rPr><b/></rPr><t>1.5</t></r></si>")
+  verifier("xlsx (#572) : sans faux refus, 11.5 lu sur chaque chemin : <t> seul, xml:space=\"preserve\", <t/> seul, plusieurs <r> avec <rPr>, <rPh> ouvrant et <phoneticPr/>, <t> suivi de <r> (conforme)",
            all(vapply(admis572, function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
              v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) }), logical(1))))
+  # Trois formes de ce temoin, non visees par Q-F, P2 et X1 et lues 11.5
+  # avant le lot D de #574, sont refusees par la regle generale de R9 (balise
+  # non prevue ou prefixee ; decision D-S1-1).
+  texte574r9 <- function(pos) sprintf("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  verifier("xlsx (#572, #574 R9) : <rPhX/>, <tab/> et <tabx/>, <x:rPh .../> prefixe apres un <r> : refus R9 sur chaque chemin (lus 11.5 avant R9)",
+           all(mapply(function(sh, pos) tous487(ser557(ps487("B3", 0), sh), function(d) identical(d, texte574r9(pos))),
+                      c('<si><t>11.5</t><rPhX sb="0"/><phoneticPr fontId="1" type="noConversion"/></si>',
+                        '<si><t>11.5</t><tab/><tabx a="1"/></si>',
+                        paste0("<si>", rpr572, '<x:rPh sb="0" eb="0"/><r><t>1.5</t></r></si>')),
+                      c("chaine no 0 : balise <rPhX/>", "chaine no 0 : balise <tab/>, chaine no 0 : balise <tabx/>",
+                        "chaine no 0 : balise <x:rPh/>"))))
   # --- #572, revue finale de l'audit (decision du mainteneur du 14/11/2026).
   # M-1 : openxlsx 4.2.9 prend toute entree dont le nom finit par
   # sharedStrings.xml, quel que soit son dossier, alors que Q-F, P2 et X1 ne
@@ -3200,52 +3278,48 @@ if (nzchar(Sys.which("zip"))) {
   # (mesure, limite consignee).
   xr572 <- function(t1, t2) sprintf("<si><x:r %s><x:rPr><x:b/></x:rPr>%s</x:r><x:r %s>%s</x:r></si>%s",
                                     nsx572, t1, nsx572, t2, "<si><r><rPr><b/></rPr><t>a</t></r></si>")
-  verifier("xlsx (#572, temoins X1) : <t> dans des <x:r> conformes (avec <x:rPr>), <t> suivi de <x:tab/> : sans refus, 11.5 lu sur chaque chemin (auparavant <x:r><t> refuse X1)",
-           all(vapply(c(xr572("<t>1</t>", "<t>1.5</t>"), sprintf("<si><t>11.5</t><x:tab %s/></si>", nsx572)),
-                      function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
-                        v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11.5, 12, 13, 14)) }), logical(1))))
-  verifier("xlsx (#572, limite consignee) : <x:t> dans des <x:r> conformes : non refuse par X1, texte lu par aucun des deux chemins, refus en aval (valeur non numerique de xt)",
-           tous487(ser557(ps487("B3", 0), xr572("<x:t>1</x:t>", "<x:t>1.5</x:t>")), function(d)
-             identical(engine_lire_donnees_csv(d)$erreurs,
-                       "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).")))
+  # Depuis la regle generale de R9 (#574, lot D ; decision D-S1-1), ces
+  # temoins, non refuses par X1 et lus 11.5 auparavant, et la limite
+  # consignee (<x:t> dans des <x:r>, lu par aucun des deux chemins, refus en
+  # aval) sont refuses par R9 (balise prefixee), avant les deux chemins.
+  verifier("xlsx (#572, #574 R9) : <t> dans des <x:r> conformes (avec <x:rPr>), <t> suivi de <x:tab/>, <x:t> dans des <x:r> : non refuses par X1, refus R9 \"balise <x:r>\" ou \"balise <x:tab/>\" sur chaque chemin (auparavant lus 11.5, ou refus en aval)",
+           all(mapply(function(sh, pos) tous487(ser557(ps487("B3", 0), sh), function(d) identical(d, texte574r9(pos))),
+                      c(xr572("<t>1</t>", "<t>1.5</t>"), sprintf("<si><t>11.5</t><x:tab %s/></si>", nsx572),
+                        xr572("<x:t>1</x:t>", "<x:t>1.5</x:t>")),
+                      c("chaine no 0 : balise <x:r>", "chaine no 0 : balise <x:tab/>", "chaine no 0 : balise <x:r>"))))
   # .xml_textes() retire aussi les blocs <x:rPh>...</x:rPh> et les balises
   # <x:rPh .../> prefixes (/code-review). Auparavant (mesure) : "11" suivi de
   # <x:rPh ...><t>7</t></x:rPh> lu 117 par le lecteur interne, sans message,
   # 11 par openxlsx 4.2.9 ; <x:rPh .../> suivi d'un bloc <x:rPh> : 117 / 11.
   xrph572 <- function(apres) sprintf("<si><t>11</t>%s</si>", apres)
-  verifier("xlsx (#572) : chaine partagee \"11\" suivie d'un bloc <x:rPh> (<t> ou <x:t> dedans), d'une balise <x:rPh .../> seule ou suivie d'un bloc <x:rPh> : 11 lu sur chaque chemin (lecteur interne : auparavant 117)",
-           all(vapply(c(xrph572(sprintf('<x:rPh %s sb="0" eb="1"><t>7</t></x:rPh>', nsx572)),
+  # Depuis la regle generale de R9 (#574, lot D), ces chaines, lues 11 sur
+  # chaque chemin apres le retrait des blocs prefixes, sont refusees (balise
+  # prefixee <x:rPh>, forme du par. 8 B de l'avis amont d'actuary).
+  verifier("xlsx (#572, #574 R9) : chaine partagee \"11\" suivie d'un bloc <x:rPh> (<t> ou <x:t> dedans), d'une balise <x:rPh .../> seule ou suivie d'un bloc <x:rPh> : refus R9 \"chaine no 0 : balise <x:rPh>\" sur chaque chemin (lu 11 avant R9)",
+           all(mapply(function(sh, pos) tous487(ser557(ps487("B3", 0), sh), function(d) identical(d, texte574r9(pos))),
+                      c(xrph572(sprintf('<x:rPh %s sb="0" eb="1"><t>7</t></x:rPh>', nsx572)),
                         xrph572(sprintf('<x:rPh %s sb="0" eb="1"><x:t>7</x:t></x:rPh>', nsx572)),
                         xrph572(sprintf('<x:rPh %s sb="0" eb="1"/>', nsx572)),
                         xrph572(sprintf('<x:rPh %s sb="0" eb="0"/><x:rPh %s sb="1" eb="1"><t>7</t></x:rPh>', nsx572, nsx572))),
-                      function(sh) tous487(ser557(ps487("B3", 0), sh), function(d) {
-                        v <- engine_lire_donnees_csv(d); isTRUE(v$ok) && identical(v$xt, c(10, 11, 12, 13, 14)) }), logical(1))))
+                      c("chaine no 0 : balise <x:rPh>", "chaine no 0 : balise <x:rPh>", "chaine no 0 : balise <x:rPh/>",
+                        "chaine no 0 : balise <x:rPh/>, chaine no 0 : balise <x:rPh>"))))
   verifier("xlsx (#572) : .xml_textes() retire <x:rPh .../> avant les blocs <x:rPh> (\"11.5\", auparavant \"11.5Z\"), blocs <x:rPh> sur plusieurs lignes, non gloutons, \">\" dans une valeur d'attribut ; <x:rPhX> garde",
            identical(.xml_textes(paste0(rpr572, '<x:rPh sb="0" eb="0"/><r><t>1.5</t></r><x:rPh sb="1" eb="1"><t>Z</t></x:rPh>')), "11.5") &&
              identical(.xml_textes('<t>11</t><x:rPh sb="0"\neb="1">\n<t>7</t>\r\n</x:rPh><t>2</t>'), "112") &&
              identical(.xml_textes('<t>1</t><rPh sb="0" eb="1"><t>7</t></rPh><t>2</t><x:rPh sb="1" eb="1"><t>8</t></x:rPh>'), "12") &&
              identical(.xml_textes('<t>11</t><x:rPh sb="a>b" eb="1"><t>7</t></x:rPh><t>.5</t>'), "11.5") &&
              identical(.xml_textes('<t>1</t><x:rPhX><t>7</t></x:rPhX>'), "17"))
-  # Chaines en ligne (<is>) de forme P2 ou X1 : non refusees (table des
-  # chaines partagees seule) ; lecteur interne : 11.5 lu ; openxlsx : NA (P2)
-  # ou texte non numerique (X1), cellule refusee en aval (mesure, limite
-  # consignee).
-  is572 <- lapply(c('<r><rPr><b/></rPr><t>1</t></r><rPh sb="0" eb="0"/><r><t>1.5</t></r>', "<t>1</t><t>1.5</t>"),
+  # Chaines en ligne (<is>) de forme P2 ou X1, et chaine en ligne avec <rPh>
+  # dans le corps : refusees sur chaque chemin par la regle R3 (#574, lot B :
+  # <is> ne porte qu'un <t>). Avant R3 (limites consignees, levees) :
+  # lecteur interne, 11.5 (P2, X1) ou 11 (<rPh>) lu ; openxlsx, NA (P2,
+  # <rPh>) ou texte non numerique (X1), cellule refusee en aval (mesure).
+  is572 <- lapply(c('<r><rPr><b/></rPr><t>1</t></r><rPh sb="0" eb="0"/><r><t>1.5</t></r>', "<t>1</t><t>1.5</t>",
+                    paste0("<t>11</t>", rph557)),
                   function(x) ser557(en487("B3", x), NULL))
-  verifier("xlsx, lecteur interne (#572, limite consignee) : chaine en ligne de forme P2 ou X1 : non refusee, 11.5 lu",
-           all(vapply(is572, function(r) identical(engine_lire_donnees_csv(r$interne)$xt, c(10, 11.5, 12, 13, 14)), logical(1))))
-  if (avec_openxlsx483) {
-    verifier("xlsx, openxlsx (#572, limite consignee) : chaine en ligne de forme P2 ou X1 : NA (P2) ou texte non numerique (X1), refus en aval (valeur non numerique de xt)",
-             all(vapply(is572, function(r) identical(engine_lire_donnees_csv(r$openxlsx)$erreurs,
-               "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2)."), logical(1))))
-    # Chaine en ligne avec <rPh> dans le corps : NA par openxlsx, cellule
-    # refusee en aval (limite consignee en tete de .xml_textes()).
-    rphC557 <- ser557(en487("B3", paste0("<t>11</t>", rph557)), NULL)
-    verifier("xlsx, openxlsx (#557, limite consignee) : chaine en ligne avec <rPh> dans le corps des series : NA puis refus en aval (valeur non numerique de xt) ; lecteur interne : 11 lu",
-             identical(engine_lire_donnees_csv(rphC557$openxlsx)$erreurs,
-                       "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 2).") &&
-               identical(engine_lire_donnees_csv(rphC557$interne)$xt, c(10, 11, 12, 13, 14)))
-  }
+  verifier("xlsx (#572, #557, #574 R3) : chaine en ligne de forme P2 (<r>), X1 (deux <t>) ou portant <rPh>, dans le corps : refusee sur chaque chemin",
+           all(mapply(function(r, b) tous487(r, function(m) identical(m, texte574r3(paste(sprintf("balise <%s>, dans la chaine en ligne de la cellule B3", b), collapse = ", ")))),
+                      is572, list(c("r", "rPh"), "t", "rPh"))))
   # Cellules t="str" (resultat de formule) : texte de <v> lu tel quel, entites
   # non decodees, a l'identique sur chaque chemin (limite consignee), en en-tete
   # et en corps.
@@ -3259,6 +3333,944 @@ if (nzchar(Sys.which("zip"))) {
            tous487(rstr557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "a&amp;b", "y&#233;")) &&
                      identical(d$xt, c("1.5", "3")) && identical(d[["a&amp;b"]], c("a&amp;b", "x&lt;y"))) &&
              (!avec_openxlsx483 || identical(rstr557$interne, rstr557$openxlsx)))
+
+  # --- #575 : regle R10 du contrat ferme (indice de chaine partagee dans les
+  # bornes de la table), avant tout appel a openxlsx. Avant correction
+  # (rejeu S1, openxlsx 4.2.5.2) : lecture hors bornes par openxlsx, arret du
+  # processus R (code 139) ou erreur R brute selon l'etat de la memoire ;
+  # lecteur interne : data.frame (cellule NA). Chaque lecture tourne dans un
+  # sous-processus Rscript (un arret n'interrompt pas la batterie), sur les
+  # deux chemins : openxlsx tel qu'installe, et lecteur interne par
+  # substitution de requireNamespace dans environment(run_engine) (modele de
+  # sans488). Succes si et seulement si : code 0, CLASSE=usp_refus_lecture,
+  # message attendu (l'indice negatif recoit le texte de R8, #574, evaluee
+  # avant R10), meme message sur chaque chemin, et
+  # chemin effectivement suivi (OPENXLSX=, requireNamespace("openxlsx") vu
+  # par le moteur : TRUE sur le chemin openxlsx, FALSE sur le chemin
+  # interne).
+  texte575 <- function(pos, n) sprintf("Classeur illisible : cellule renvoyant a une chaine partagee absente de la table (%s ; la table xl/sharedStrings.xml en compte %d) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (la lecture pourrait arreter l'application). Enregistrer de nouveau le classeur depuis un tableur.", pos, n)
+  fils575 <- tempfile("fils575_", fileext = ".R")
+  writeLines(c(
+    "a <- commandArgs(TRUE)",
+    "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+    "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+    "if (identical(a[3], \"interne\"))",
+    "  assign(\"requireNamespace\", function(package, ...)",
+    "    if (package %in% \"openxlsx\") FALSE else base::requireNamespace(package, ...), envir = environment(run_engine))",
+    "cat(\"OPENXLSX=\", eval(quote(requireNamespace(\"openxlsx\", quietly = TRUE)), environment(run_engine)), \"\\n\", sep = \"\")",
+    "r <- tryCatch(engine_lire_xlsx(a[2]), error = function(e) e)",
+    "cat(\"CLASSE=\", class(r)[1], \"\\n\", sep = \"\")",
+    "cat(\"MESSAGE=\", if (inherits(r, \"condition\")) conditionMessage(r) else \"\", \"\\n\", sep = \"\")"), fils575)
+  racine575 <- normalizePath(RACINE, winslash = "/")
+  lancer575 <- function(f, chemin) {
+    out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(fils575, racine575, f, chemin)),
+                                    stdout = TRUE, stderr = TRUE, timeout = 120))
+    st <- attr(out, "status"); if (is.null(st)) st <- 0L
+    list(st = as.integer(st), classe = grep("^CLASSE=", out, value = TRUE),
+         openxlsx = grep("^OPENXLSX=", out, value = TRUE),
+         message = sub("^MESSAGE=", "", grep("^MESSAGE=", out, value = TRUE)))
+  }
+  chemins575 <- c("interne", if (avec_openxlsx483) "openxlsx")
+  if (!avec_openxlsx483) cat("  [saute] indice de chaine partagee hors bornes (#575), chemin openxlsx : paquet non installe\n")
+  # Rend TRUE ou un texte qui decrit chaque chemin (code, classe, message), lu
+  # dans le compte rendu de la batterie.
+  # attendu = NULL : texte non fige (refus, classe et message commun seuls).
+  refus575 <- function(f, attendu) {
+    r <- lapply(setNames(chemins575, chemins575), function(ch) lancer575(f, ch))
+    unlink(f)
+    ok <- vapply(names(r), function(ch) { x <- r[[ch]]
+                   identical(x$st, 0L) && "CLASSE=usp_refus_lecture" %in% x$classe &&
+                     identical(x$openxlsx, paste0("OPENXLSX=", ch == "openxlsx")) &&
+                     length(x$message) == 1L && nzchar(x$message) &&
+                     (is.null(attendu) || identical(x$message, attendu)) }, logical(1))
+    if (all(ok) && length(unique(lapply(r, `[[`, "message"))) == 1L) return(TRUE)
+    paste(vapply(names(r), function(k) sprintf("chemin %s : code %d, %s, %s, MESSAGE=%s", k, r[[k]]$st,
+                                               c(r[[k]]$classe, "CLASSE absente")[1L], c(r[[k]]$openxlsx, "OPENXLSX absent")[1L],
+                                               paste(r[[k]]$message, collapse = " | ")),
+                 ""), collapse = " ; ")
+  }
+  feuille575 <- function(xml, shared) classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = xml)), shared = shared)
+  verifier("xlsx (#575, R10) : table d'une seule <si>, A2 t=\"s\" d'indice 5 : refus R10 \"A2 : indice 5\" (table : 1 chaine), code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : arret du processus ou erreur R brute par openxlsx, data.frame par le lecteur interne)",
+           refus575(feuille575(paste0(ligne487(1, ps487("A1", 0)), ligne487(2, ps487("A2", 5))), "<si><t>annee</t></si>"),
+                    texte575("A2 : indice 5", 1L)))
+  # Table entierement en <x:si> : refusee par R10 a 0 chaine extraite
+  # jusqu'au lot D de #574, par la regle generale de R9 depuis (balise
+  # prefixee), avant R10. Avant R10 : erreur R brute par openxlsx (lecture
+  # hors bornes, "index 0 >= vector size 0").
+  verifier("xlsx (#575, #574 R9) : table entierement en <x:si>, B2 t=\"s\" d'indice 0 : refus R9 \"balise <x:si>, dans une table sans chaine\", code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant R10 : erreur R brute par openxlsx, lecture hors bornes)",
+           refus575(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+                                      ligne487(2, c(nb487("A2", 1), ps487("B2", 0), nb487("C2", 2)))),
+                               '<x:si><x:t>11.5</x:t></x:si>'),
+                    sprintf("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                            "balise <x:si>, dans une table sans chaine")))
+  # Decompte des chaines (#574, lot D, R9) : une par balise <si>, <si/>
+  # comprise ; ni openxlsx 4.2.5.2 ni le lecteur interne (avant R9) ne
+  # comptaient une <si/> (mesure : <si/><si><t>9</t></si>, indice 0 lu 9 sur
+  # les deux chemins au lieu de la chaine vide ; indice 1 : hors de la table
+  # pour les deux lecteurs, refus R10 a 1 chaine). Refus R9 de la <si/>, avant
+  # R10 et avant openxlsx (en sous-processus : un indice au-dela de ce
+  # qu'openxlsx compte le menait hors bornes, #575).
+  verifier("xlsx (#574 R9, decompte) : table <si/><si><t>9</t></si>, B2 d'indice 0 puis d'indice 1 : refus R9 \"chaine no 0 : balise <si/>\", code 0, meme message sur chaque chemin, en sous-processus (avant : indice 0 lu 9, indice 1 refuse par R10 a 1 chaine)",
+           all(vapply(0:1, function(k) isTRUE(refus575(
+             feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+                               ligne487(2, c(nb487("A2", 1), ps487("B2", k), nb487("C2", 2)))), "<si/><si><t>9</t></si>"),
+             sprintf("Classeur illisible : la table des chaines partagees (xl/sharedStrings.xml) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.",
+                     "chaine no 0 : balise <si/>"))), logical(1))))
+  # Balise <v > (blanc avant ">") : vue par R10 (openxlsx 4.2.5.2 la lit et
+  # s'arretait, code 139, mesure de l'audit) ; indice negatif (<v>-1</v>,
+  # segfault d'openxlsx 4.2.5.2, mesure) : refus de R8 (#574), evaluee avant
+  # R10.
+  ser575 <- function(b2, shared) feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"))),
+                                                   ligne487(2, c(nb487("A2", 1), b2))), shared)
+  verifier("xlsx (#575, R10) : balise <v > (blanc), B2 t=\"s\" d'indice 5, table d'une chaine : refus R10 \"B2 : indice 5\", code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : arret du processus par openxlsx, code 139)",
+           refus575(ser575('<c r="B2" t="s"><v >5</v></c>', "<si><t>a</t></si>"), texte575("B2 : indice 5", 1L)))
+  # Regle R8 du contrat ferme (#574, lot C), evaluee avant R10 : contenu de
+  # la cellule conforme a son type ; l'indice d'une chaine partagee est en
+  # chiffres seulement.
+  texte574r8c <- function(pos) sprintf("Classeur illisible : cellule dont le contenu ne correspond pas a son type (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  verifier("xlsx (#575, #574 R8) : indice negatif <v>-1</v>, table d'une chaine : refus R8 \"B2 : indice de chaine non entier\", code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant R8 : refus R10 ; avant R10 : arret du processus par openxlsx, code 139)",
+           refus575(ser575('<c r="B2" t="s"><v>-1</v></c>', "<si><t>a</t></si>"), texte574r8c("B2 : indice de chaine non entier")))
+  # Cellule t="s" portant <is>, avec ou sans <v> (defaut connu, marque
+  # echec_attendu() jusqu'au lot C de #574) : avant (185a3e7, openxlsx
+  # 4.2.5.2, sonde sondes/sonde_574_lot_c.R, cas r8-s-is et r8-s-v-is), erreur
+  # R brute d'openxlsx ("Value of SET_STRING_ELT() must be a 'CHARSXP' not a
+  # 'NULL'"), data.frame par le lecteur interne (B2 NA).
+  verifier("xlsx (#575, #574 R8) : cellule t=\"s\" portant <is>, sans <v> puis avec <v> : refus R8 \"B2 : t=\"s\" avec <is>\", code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R brute par openxlsx, data.frame par le lecteur interne)",
+           isTRUE(refus575(ser575('<c r="B2" t="s"><is><t>11</t></is></c>', "<si><t>a</t></si>"), texte574r8c("B2 : t=\"s\" avec <is>"))) &&
+             isTRUE(refus575(ser575('<c r="B2" t="s"><v>0</v><is><t>11</t></is></c>', "<si><t>a</t></si>"), texte574r8c("B2 : t=\"s\" avec <is>"))))
+  # --- #574, regle R1 du contrat ferme (lot A) : xl/workbook.xml,
+  # xl/_rels/workbook.xml.rels, la feuille lue et xl/sharedStrings.xml sont
+  # du texte UTF-8 valide sans octet nul, controle en octets avant toute
+  # expression reguliere (.xlsx_texte()). Avant (e0ce07a, R 4.3.3, openxlsx
+  # 4.2.5.2 ; sonde docs/revues/20261115-s1-rejeu/sondes/sonde_574_r1_r2.R) :
+  # table en 0xFF qu'aucune cellule ne cite, erreur R brute d'openxlsx
+  # ("invalid input ... in 'utf8towcs'") et lecture du lecteur interne avec
+  # "stack imbalance" ; table citee, refus R10 a 0 chaine (controles Q-F, P2
+  # et X1 sautes) ; feuille portant 0xFF, lue avec "stack imbalance" (ok par
+  # openxlsx) ; octet nul, partie tronquee par readChar() sans refus ;
+  # xl/workbook.xml ou ses relations, "aucune feuille trouvee". En
+  # sous-processus sur les deux chemins (erreur R brute possible). Position
+  # attendue : relevee dans la partie de l'archive (premier octet fautif),
+  # independamment du moteur.
+  texte574r1 <- function(partie, k) sprintf("Classeur illisible : la partie %s du classeur n'est pas du texte UTF-8 valide (premier octet fautif : octet %d) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", partie, k)
+  octets574 <- function(f, partie) {
+    x <- tempfile("o574_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, files = partie, exdir = x)
+    p <- file.path(x, partie); readBin(p, "raw", file.info(p)$size)
+  }
+  # Remplace dans une partie de l'archive la premiere occurrence du texte
+  # ASCII motif par les octets par (raw), puis recompresse.
+  retoucher574 <- function(f, partie, motif, par) {
+    x <- tempfile("r574_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, exdir = x)
+    p <- file.path(x, partie); b <- readBin(p, "raw", file.info(p)$size)
+    m <- charToRaw(motif); n <- length(m)
+    k <- which(vapply(seq_len(length(b) - n + 1L), function(i) identical(b[i:(i + n - 1L)], m), logical(1)))[1L]
+    stopifnot(!is.na(k))
+    writeBin(c(b[seq_len(k - 1L)], par, b[(k + n):length(b)]), p)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  # Refus R1 attendu, position relevee dans la partie : premier octet de
+  # valeur octet (0xFF, 0x00, 0xE9, 0xE2 de la sequence tronquee E2 82).
+  r1_574 <- function(f, partie, octet) {
+    k <- which(octets574(f, partie) == as.raw(octet))[1L]
+    refus575(f, texte574r1(partie, k))
+  }
+  oct574 <- function(...) rawToChar(as.raw(c(...)))
+  ent574 <- ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>")))
+  ser574 <- function(b2 = nb487("B2", 11.5), d2 = NULL) paste0(ent574, ligne487(2, c(nb487("A2", 1), b2, nb487("C2", 2), d2)))
+  verifier("xlsx (#574, R1, forme 5) : table en UTF-8 invalide (octet 0xFF) de forme Q-F, citee par B2 : refus R1 \"xl/sharedStrings.xml\" avec la position de l'octet 0xFF, code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : refus R10 a 0 chaine, controles Q-F, P2, X1 sautes, \"stack imbalance\")",
+           r1_574(feuille575(ser574(ps487("B2", 1)), paste0("<si><t>a", oct574(0xff), "b</t></si><si><r><t>1</t></r><r><t>1.5</t></r></si>")),
+                  "xl/sharedStrings.xml", 0xff))
+  verifier("xlsx (#574, R1, forme 5) : table en UTF-8 invalide (octet 0xFF) qu'aucune cellule ne cite : refus R1, code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R brute d'openxlsx 4.2.5.2 \"invalid input ... in 'utf8towcs'\", lecture du lecteur interne)",
+           r1_574(feuille575(ser574(), paste0("<si><t>a", oct574(0xff), "b</t></si>")), "xl/sharedStrings.xml", 0xff))
+  verifier("xlsx (#574, R1) : table portant une sequence tronquee E2 82 : refus R1, position de l'octet E2, en sous-processus",
+           r1_574(feuille575(ser574(ps487("B2", 0)), paste0("<si><t>11.5", oct574(0xe2, 0x82), "</t></si>")), "xl/sharedStrings.xml", 0xe2))
+  verifier("xlsx (#574, R1) : feuille portant un octet nul dans une chaine en ligne : refus R1 \"xl/worksheets/sheet1.xml\", position de l'octet nul, en sous-processus (avant : partie tronquee par readChar(), sans refus)",
+           r1_574(retoucher574(feuille575(ser574(d2 = en487("D2", "<t>zzz</t>")), NULL), "xl/worksheets/sheet1.xml", "zzz",
+                               as.raw(c(0x61, 0x00, 0x62))), "xl/worksheets/sheet1.xml", 0x00))
+  verifier("xlsx (#574, R1) : nom de feuille en Latin-1 (octet 0xE9) dans xl/workbook.xml : refus R1 \"xl/workbook.xml\", en sous-processus (avant : \"aucune feuille trouvee\", erreur ordinaire)",
+           r1_574(classeur487(list(list(nom = paste0("Donn", oct574(0xe9), "es"), fichier = "sheet1.xml", xml = ser574()))),
+                  "xl/workbook.xml", 0xe9))
+  verifier("xlsx (#574, R1) : relation portant l'octet 0xFF dans xl/_rels/workbook.xml.rels : refus R1, en sous-processus",
+           r1_574(retoucher574(feuille575(ser574(), NULL), "xl/_rels/workbook.xml.rels", "</Relationships>",
+                               c(charToRaw('<Relationship Id="rId9" Type="http://example.org/x" Target="x'), as.raw(0xff),
+                                 charToRaw('.xml"/></Relationships>'))), "xl/_rels/workbook.xml.rels", 0xff))
+  # --- #574, lot B (regles R3, R4, R5, R6 et R11 du contrat ferme, et
+  # lecteur interne dimensionne sur les seules cellules a valeur) : formes
+  # qui menaient a une erreur R brute ou a l'arret du processus, en
+  # sous-processus sur les deux chemins. Avant (1818b4d, R 4.3.3, openxlsx
+  # 4.2.5.2 ; sonde docs/revues/20261115-s1-rejeu/sondes/sonde_574_lot_b.R) :
+  # valeur en XFD1048576, erreur R d'allocation de 128 Go sur les deux
+  # chemins ; A99999999999, erreur R brute sur les deux chemins ; B2 puis b2,
+  # erreur R brute d'openxlsx (refus de la forme de r, decision D-S1-9) ;
+  # attribut t="s" d'une ligne suivante, ou pied de page "&amp;C t="s""
+  # apres la derniere cellule, lu par openxlsx comme le type de la cellule
+  # (indice hors de la table : arret du processus) ; ligne 1 placee en fin de
+  # bloc, erreur R brute d'openxlsx (regle R6b, decision D-S1-11) ; cellule
+  # mise en forme sans valeur en XFD1048576, erreur R d'allocation du
+  # lecteur interne.
+  fe574b <- "xl/worksheets/sheet1.xml"
+  texte574r6b <- function(pos) sprintf("Classeur illisible : cellules de la feuille lue placees hors de l'ordre de lecture (%s ; cellules attendues ligne par ligne, de haut en bas, puis de gauche a droite dans chaque ligne) ; l'outil ne lit pas cette forme de facon sure (une colonne pourrait etre mal nommee ou la lecture interrompue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r5 <- function(pos) sprintf("Classeur illisible : cellule de reference hors des limites d'une feuille de calcul (%s ; colonnes A a XFD, lignes 1 a 1048576) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure. Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r6 <- function(pos) sprintf("Classeur illisible : reference de cellule presente plusieurs fois dans la feuille lue (%s) ; l'outil ne choisit pas entre deux valeurs donnees pour la meme cellule. Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r11 <- function(l, c, pos) sprintf("Classeur illisible : la feuille lue porte des valeurs jusqu'a la ligne %d et jusqu'a la colonne %s (cellules %s), soit un tableau de plus de 1000000 de cellules ; l'outil lit un tableau de donnees, non une feuille de cette etendue. Retirer les valeurs eloignees du tableau, ou copier le tableau seul dans un nouveau classeur.", l, c, pos)
+  verifier("xlsx (#574 forme 3, R11) : valeur en XFD1048576 : refus R11 (ligne 1048576, colonne XFD), code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R d'allocation de 128 Go sur les deux chemins)",
+           refus575(feuille575(paste0(ser574(), ligne487(1048576, nb487("XFD1048576", 1))), NULL),
+                    texte574r11(1048576L, "XFD", "XFD1048576")))
+  verifier("xlsx (#574 forme 3, R5) : reference A99999999999 : refus R5, code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R brute sur les deux chemins)",
+           refus575(feuille575(paste0(ser574(), '<row r="99999999999"><c r="A99999999999"><v>1</v></c></row>'), NULL),
+                    texte574r5("A99999999999")))
+  verifier("xlsx (#574, D-S1-9) : B2 puis b2 : refus de la reference en minuscules (texte de Q-A), code 0, meme message sur chaque chemin, en sous-processus (avant : 999 par le lecteur interne, erreur R brute d'openxlsx)",
+           refus575(feuille575(ser574(paste0(nb487("B2", 11.5), nb487("b2", 999))), NULL),
+                    "Classeur illisible : cellule dont la reference de position (attribut r) n'a pas la forme attendue, lettres de colonne puis numero de ligne a partir de 1 (par exemple A2), dans la feuille lue ; l'outil ne deduit pas sa position. Enregistrer de nouveau le classeur depuis un tableur."))
+  verifier("xlsx (#574, R3, segment) : attribut t=\"s\" de la ligne 3, apres C2 sans t d'indice 5, table d'une chaine : refus du segment (\"cellule C2 : suite \" t=\", dans le bloc des donnees\"), code 0, meme message sur chaque chemin, en sous-processus (avant : arret d'openxlsx, segfault, code 139)",
+           refus575(feuille575(paste0(ent574, ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 5))),
+                                      '<row r="3" t="s">', nb487("A3", 2), nb487("B3", 12), nb487("C3", 3), "</row>"), "<si><t>a</t></si>"),
+                    texte574seg("cellule C2 : suite \" t=\", dans le bloc des donnees")))
+  verifier("xlsx (#574, R3, segment) : pied de page <headerFooter><oddHeader>&amp;C t=\"s\" apres la derniere cellule nombre (C2), sans table : refus du segment (\"cellule C2 : suite \" t=\", apres le bloc des donnees\"), code 0, meme message sur chaque chemin, en sous-processus (avant, openxlsx 4.2.5.2 : erreur R brute \"Value of SET_STRING_ELT() must be a 'CHARSXP' not a 'NULL'\" sur cette feuille, arret de R, code 139, apres C9 dans la sonde sonde_574_lot_b.R, cas entete-t-s, et dans la mesure d'actuary)",
+           refus575(retoucher574(feuille575(ser574(), NULL), fe574b, "</sheetData>",
+                                 charToRaw('</sheetData><headerFooter><oddHeader>&amp;C t="s"</oddHeader></headerFooter>')),
+                    texte574seg("cellule C2 : suite \" t=\", apres le bloc des donnees")))
+  verifier("xlsx (#574, R6b) : ligne 1 placee en fin de bloc : refus R6b (\"A1 apres C2\"), code 0, meme message sur chaque chemin, en sous-processus (avant : erreur R brute d'openxlsx, SET_STRING_ELT)",
+           refus575(feuille575(paste0(ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2))), ent574), NULL),
+                    texte574r6b("A1 apres C2")))
+  # Regle R8 (#574, lot C ; amendement de l'avis d'actuary sur le lot B, Q5) :
+  # cellule t="s" ou t="b" sans <v>, en XFD1048576 ; avant (185a3e7,
+  # openxlsx 4.2.5.2, sonde sondes/sonde_574_lot_c.R), erreur R d'allocation
+  # de 128 Go d'openxlsx ("cannot allocate vector of size 128.0 Gb"),
+  # lecture du lecteur interne.
+  verifier("xlsx (#574, R8, Q5) : cellule t=\"s\" puis t=\"b\" sans <v> en XFD1048576 : refus R8 \"XFD1048576 : t=\"s\" sans <v>\" (resp. t=\"b\"), code 0, classe usp_refus_lecture, meme message sur chaque chemin, en sous-processus (avant : erreur R d'allocation de 128 Go par openxlsx)",
+           isTRUE(refus575(feuille575(paste0(ser574(), ligne487(1048576, '<c r="XFD1048576" t="s"/>')), "<si><t>a</t></si>"),
+                           texte574r8c("XFD1048576 : t=\"s\" sans <v>"))) &&
+             isTRUE(refus575(feuille575(paste0(ser574(), ligne487(1048576, '<c r="XFD1048576" t="b"/>')), NULL),
+                             texte574r8c("XFD1048576 : t=\"b\" sans <v>"))))
+  # Lecture en sous-processus : CLASSE= et, pour un data.frame, dimensions,
+  # noms et colonne xt.
+  fils574b <- tempfile("fils574b_", fileext = ".R")
+  writeLines(c(head(readLines(fils575), -3L),
+    "r <- tryCatch(engine_lire_xlsx(a[2]), error = function(e) e)",
+    "cat(\"CLASSE=\", class(r)[1], \"\\n\", sep = \"\")",
+    "if (is.data.frame(r)) cat(\"LU=\", nrow(r), \"x\", ncol(r), \" \", paste(names(r), collapse = \",\"), \" \", paste(format(as.numeric(r$xt), digits = 15), collapse = \";\"), \"\\n\", sep = \"\")"),
+    fils574b)
+  lu574b <- function(f, attendu) {
+    r <- lapply(setNames(chemins575, chemins575), function(ch) {
+      out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(fils574b, racine575, f, ch)),
+                                      stdout = TRUE, stderr = TRUE, timeout = 120))
+      st <- attr(out, "status"); if (is.null(st)) st <- 0L
+      list(st = as.integer(st), lu = sub("^LU=", "", grep("^LU=", out, value = TRUE)), tout = out) })
+    unlink(f)
+    ok <- vapply(r, function(x) identical(x$st, 0L) && identical(x$lu, attendu), logical(1))
+    if (all(ok)) return(TRUE)
+    paste(vapply(names(r), function(k) sprintf("chemin %s : code %d, %s", k, r[[k]]$st, paste(tail(r[[k]]$tout, 3), collapse = " | ")), ""), collapse = " ; ")
+  }
+  verifier("xlsx (#574, lecteur interne dimensionne sur les cellules a valeur) : cellule mise en forme sans valeur en XFD1048576 : lue sur chaque chemin (1 x 3, xt = 11.5), en sous-processus (avant : erreur R d'allocation de 128 Go du lecteur interne)",
+           lu574b(feuille575(paste0(ser574(), ligne487(1048576, '<c r="XFD1048576" s="1"/>')), NULL), "1x3 t,xt,yt 11.5"))
+  unlink(fils574b)
+  unlink(fils575)
+  # Position du premier octet fautif (.xlsx_premier_octet_fautif()) : cas
+  # connus, puis comparaison a une recherche exhaustive du plus long prefixe
+  # valide sur 500 suites d'octets tirees (graine fixe, dans le processus).
+  verifier("xlsx (#574, R1) : .xlsx_premier_octet_fautif() : 0xFF isole, sequence tronquee (son premier octet), sequence tronquee en fin, octet nul, le plus petit des deux, texte valide et vide (NA) ; egal a la recherche exhaustive sur 500 tirages",
+           { pf <- .xlsx_premier_octet_fautif
+             exh <- function(b) {
+               nul <- which(b == as.raw(0)); n <- if (length(nul)) nul[1] - 1L else length(b)
+               for (k in n:0) if (k == 0 || validUTF8(rawToChar(b[seq_len(k)]))) break
+               if (k == n) (if (length(nul)) nul[1] else NA_integer_) else k + 1L
+             }
+             pool <- as.raw(c(0x41, 0x00, 0x80, 0xbf, 0xc3, 0xa9, 0xe2, 0x82, 0xac, 0xf0, 0x9f, 0x98, 0xff, 0xed, 0xa0, 0xc0, 0xf8))
+             tirs <- local({ old <- if (exists(".Random.seed", globalenv())) get(".Random.seed", globalenv())
+                             on.exit(if (is.null(old)) rm(".Random.seed", envir = globalenv()) else assign(".Random.seed", old, globalenv()))
+                             set.seed(574); lapply(1:500, function(i) c(charToRaw(strrep("a\u00e9\u20ac", sample(0:3, 1))), sample(pool, sample(0:30, 1), TRUE))) })
+             identical(pf(c(charToRaw("a"), as.raw(0xff), charToRaw("b"))), 2L) &&
+               identical(pf(c(charToRaw("ab"), as.raw(c(0xe2, 0x82)), charToRaw("c"))), 3L) &&
+               identical(pf(c(charToRaw("abc"), as.raw(0xf0))), 4L) &&
+               identical(pf(c(charToRaw("a"), as.raw(0), charToRaw("b"))), 2L) &&
+               identical(pf(as.raw(c(0x41, 0xff, 0x00))), 2L) && identical(pf(as.raw(c(0x41, 0x00, 0xff))), 2L) &&
+               identical(pf(charToRaw("a\u00e9\u20ac")), NA_integer_) && identical(pf(raw(0)), NA_integer_) &&
+               all(vapply(tirs, function(b) identical(pf(b), exh(b)), logical(1))) })
+  # --- #574, regle R2 (lot A) : commentaire, section CDATA, declaration de
+  # type de document, instruction de traitement autre que la declaration XML
+  # initiale, dans la feuille lue ou dans la table, refuses avant les deux
+  # chemins (dans le processus : aucune erreur R brute mesuree avant, sonde
+  # sonde_574_r1_r2.R). Avant : <t>11<!-- x -->.5</t> en table lu 11.5 par le
+  # lecteur interne et 11 par openxlsx 4.2.5.2 (deux valeurs differentes
+  # acceptees) ; les autres formes lues juste, ou refusees en aval.
+  texte574r2 <- function(partie) sprintf("Classeur illisible : la partie %s du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", partie)
+  r2_574 <- function(f, partie) { r <- chemins483(f, lire487); unlink(f)
+                                  tous487(r, function(m) identical(m, texte574r2(partie))) }
+  fe574 <- "xl/worksheets/sheet1.xml"; ta574 <- "xl/sharedStrings.xml"
+  verifier("xlsx (#574, R2) : feuille portant un commentaire entre deux lignes, une section CDATA dans une chaine en ligne, une DTD, une instruction de traitement, une seconde declaration XML : refus R2 de la feuille, meme texte sur chaque chemin",
+           r2_574(feuille575(paste0(ent574, "<!-- note -->", ligne487(2, nb487("A2", 1))), NULL), fe574) &&
+             r2_574(feuille575(ser574(en487("B2", "<t><![CDATA[11.5]]></t>")), NULL), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<worksheet", charToRaw('<!DOCTYPE worksheet [<!ENTITY v "11.5">]><worksheet')), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData><?mso note?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<worksheet", charToRaw('<?xml version="1.0"?><worksheet')), fe574))
+  # Reprise apres l'audit leger du lot A : la declaration initiale n'est
+  # retiree que jusqu'au PREMIER "?>". Avant la reprise, une declaration
+  # fermee par "??>" puis une instruction de traitement plus loin faisaient
+  # retirer tout le texte intermediaire : <t>11<!-- x -->.5</t> lu 11.5 en
+  # interne et 11 par openxlsx (table, ok = TRUE), ou 11.5 en interne et
+  # refus en aval par openxlsx (feuille). Declaration precedee d'un blanc ou
+  # d'un saut de ligne : non initiale, refusee (avis d'actuary, Q2).
+  verifier("xlsx (#574, R2, reprise de l'audit) : declaration fermee par \"??>\" suivie d'un commentaire et d'une instruction de traitement, dans la table puis dans la feuille ; declaration precedee d'une espace ou d'un saut de ligne : refus R2, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si><?z?>"),
+                               ta574, 'standalone="yes"?>', charToRaw('standalone="yes"??>')), ta574) &&
+             r2_574(retoucher574(retoucher574(feuille575(ser574(en487("B2", "<t>11<!-- x -->.5</t>")), NULL),
+                                              fe574, 'standalone="yes"?>', charToRaw('standalone="yes"??>')),
+                                 fe574, "</sheetData>", charToRaw("</sheetData><?z?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", charToRaw(" <?xml")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", charToRaw("\n<?xml")), fe574))
+  # Seconde reprise : la declaration n'est retiree que si elle suit la
+  # grammaire de XMLDecl. Avant : coupe au premier "?>", une declaration non
+  # fermee englobait la partie jusqu'a un "?>" final (table : 11.5 en
+  # interne, 11 par openxlsx, ok = TRUE ; feuille : 11.5 en interne).
+  # Declaration fermee par "??>" et "?>" dans une valeur d'attribut : hors
+  # grammaire, refusees (XML mal forme, cote sur ; avis d'actuary Q1, Q2).
+  verifier("xlsx (#574, R2, seconde reprise de l'audit) : declaration non fermee englobant la table ou la feuille jusqu'a un \"?>\" final, declaration fermee par \"??>\", \"?>\" dans une valeur d'attribut : refus R2, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si>?>"),
+                               ta574, 'standalone="yes"?>', charToRaw('standalone="yes" ')), ta574) &&
+             r2_574(retoucher574(retoucher574(feuille575(ser574(en487("B2", "<t>11<!-- x -->.5</t>")), NULL),
+                                              fe574, 'standalone="yes"?>', charToRaw('standalone="yes" ')),
+                                 fe574, "</sheetData>", charToRaw("</sheetData>?>")), fe574) &&
+             r2_574(retoucher574(feuille575(ser574(ps487("B2", 0)), "<si><t>11.5</t></si>"), ta574,
+                                 'standalone="yes"?>', charToRaw('standalone="yes"??>')), ta574) &&
+             r2_574(retoucher574(feuille575(ser574(ps487("B2", 1)), "<si><t>a</t></si><si><t>11<!-- x -->.5</t></si>"), ta574,
+                                 'standalone="yes"?>', charToRaw('standalone="y?>es"?>')), ta574))
+  verifier("xlsx (#574, R2) : feuille de cible \"./worksheets/sheet1.xml\" portant un commentaire : partie citee \"xl/worksheets/sheet1.xml\" (segment \"./\" retire), meme texte sur chaque chemin",
+           r2_574(classeur487(list(list(nom = "D", fichier = "sheet1.xml", cible = "./worksheets/sheet1.xml",
+                                        xml = paste0(ent574, "<!--x-->", ligne487(2, nb487("A2", 1)))))), fe574))
+  verifier("xlsx (#574, R2) : table portant un commentaire dans un <t> (avant : 11.5 en interne, 11 par openxlsx), une section CDATA, une instruction de traitement : refus R2 de la table, meme texte sur chaque chemin",
+           r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11<!-- x -->.5</t></si>"), ta574) &&
+             r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t><![CDATA[11.5]]></t></si>"), ta574) &&
+             r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11.5</t></si><?x y?>"), ta574))
+  # Decision D-S1-36 (/code-review de la revue finale de S1) : R2 etendue a
+  # xl/workbook.xml et xl/_rels/workbook.xml.rels, avant le choix de la
+  # feuille. Avant (moteur 261c45e, sonde sondes/sonde_574_lot_g.R) : une
+  # <Relationship Id="rId1"> commentee, cible sheet2.xml, placee avant la
+  # vraie, faisait lire sheet2.xml (B2 999 au lieu de 11.5) par les deux
+  # chemins ; les autres formes lues juste. _rels/.rels, non lue : admise.
+  wb574 <- "xl/workbook.xml"; rl574 <- "xl/_rels/workbook.xml.rels"
+  h574 <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  verifier("xlsx (#574, R2, D-S1-36) : commentaire, section CDATA, instruction de traitement, DTD dans xl/workbook.xml puis dans xl/_rels/workbook.xml.rels ; <Relationship> commentee de cible sheet2.xml avant la vraie (avant : sheet2.xml lue, 999 au lieu de 11.5, sur chaque chemin) : refus R2 nommant la partie, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(), NULL), wb574, "<sheets>", charToRaw("<sheets><!-- x -->")), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, "</sheets>", charToRaw("</sheets><![CDATA[x]]>")), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, h574, charToRaw(paste0(h574, "<?foo bar?>"))), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, h574, charToRaw(paste0(h574, "<!DOCTYPE workbook>"))), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, "<Relationship ", charToRaw("<!-- x --><Relationship ")), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, "<Relationship ", charToRaw("<![CDATA[x]]><Relationship ")), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, h574, charToRaw(paste0(h574, "<?foo bar?>"))), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, h574, charToRaw(paste0(h574, "<!DOCTYPE Relationships>"))), rl574) &&
+             r2_574(retoucher574(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                                  list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999))))),
+                                 rl574, '<Relationship Id="rId11"',
+                                 charToRaw(paste0('<!-- <Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/> -->',
+                                                  '<Relationship Id="rId11"'))), rl574))
+  verifier("xlsx (#574, R2, D-S1-36) : temoins lus a l'identique sur chaque chemin (11.5) : commentaire dans _rels/.rels (partie non lue), classeur a deux feuilles sans commentaire (premiere feuille lue)",
+           { lit574g <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574g <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             ok574g(lit574g(retoucher574(feuille575(ser574(), NULL), "_rels/.rels", "<Relationship ", charToRaw("<!-- x --><Relationship ")))) &&
+               ok574g(lit574g(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                               list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999))))))) })
+  verifier("xlsx (#574, R1, R2) : temoins lus a l'identique sur chaque chemin : partie sans declaration XML, declaration precedee de la marque d'ordre des octets UTF-8, declaration \"<?xml<TAB>version\" (avis d'actuary, Q2), declaration a apostrophes et blancs autour de \"=\" (grammaire de XMLDecl), texte echappe \"&lt;!-- &lt;?x?&gt; &lt;![CDATA[\", caracteres non ASCII valides (e accentue, euro) en table",
+           { lit574 <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574 <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) &&
+                                    (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt))
+             ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', raw(0)))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml", c(as.raw(c(0xef, 0xbb, 0xbf)), charToRaw("<?xml"))))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, "<?xml version", charToRaw("<?xml\tversion")))) &&
+               ok574(lit574(retoucher574(feuille575(ser574(), NULL), fe574, '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+                                         charToRaw("<?xml version = '1.0'\r\n encoding='UTF-8' ?>")))) &&
+               ok574(lit574(feuille575(ser574(d2 = en487("D2", "<t>&lt;!-- &lt;?x?&gt; &lt;![CDATA[</t>")), NULL))) &&
+               ok574(lit574(feuille575(ser574(d2 = ps487("D2", 0)), "<si><t>\u00e9\u20ac</t></si>"))) })
+  # --- #574, lot B, dans le processus (aucune erreur R brute ni arret mesure
+  # avant sur ces formes ; sonde sonde_574_lot_b.R et mesures du lot B,
+  # 1818b4d, openxlsx 4.2.5.2) : meme refus sur chaque chemin.
+  rb574 <- function(f, attendu) tous487(chemins483(f, lire487), function(m) identical(m, attendu))
+  verifier("xlsx (#574 m1, R6) : deux <c r=\"B2\"> (11.5 puis 999) : refus R6 \"B2\" sur chaque chemin (avant : 999 lu par les deux chemins, ok = TRUE)",
+           rb574(feuille575(ser574(paste0(nb487("B2", 11.5), nb487("B2", 999))), NULL), texte574r6("B2")))
+  verifier("xlsx (#574, R4) : attribut hors liste, repete, de valeur ou d'ecriture non prevue : s=\"xr=_D2\" (avant : valeur placee en D2 par openxlsx, en B2 en interne), t='s' et t precede d'une tabulation (avant : chaine partagee 11.5 en interne, indice 0 par openxlsx), s repete, ph=\"2\", foo=\"1\" : refus R4 sur chaque chemin",
+           rb574(feuille575(ser574('<c s="xr=_D2" r="B2"><v>11.5</v></c>'), NULL), texte574r4("B2 : s")) &&
+             rb574(feuille575(ser574("<c r=\"B2\" t='s'><v>0</v></c>"), "<si><t>11.5</t></si>"), texte574r4("B2 : t")) &&
+             rb574(feuille575(ser574('<c r="B2"\tt="s"><v>0</v></c>'), "<si><t>11.5</t></si>"), texte574r4("B2 : t")) &&
+             rb574(feuille575(ser574('<c r="B2" s="1" s="2"><v>11.5</v></c>'), NULL), texte574r4("B2 : s")) &&
+             rb574(feuille575(ser574('<c r="B2" ph="2"><v>11.5</v></c>'), NULL), texte574r4("B2 : ph")) &&
+             rb574(feuille575(ser574('<c r="B2" foo="1"><v>11.5</v></c>'), NULL), texte574r4("B2 : foo")))
+  verifier("xlsx (#574, R3) : cellule apres </sheetData>, second <sheetData>, <sheetData > (avant : cellule hors du bloc lue par les deux chemins ; <sheetData > lu NULL par openxlsx) : refus R3 sur chaque chemin",
+           rb574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>", charToRaw('</sheetData><c r="D2"><v>7</v></c>')),
+                 texte574r3("balise <c>, apres la cellule C2")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>",
+                                charToRaw('</sheetData><sheetData><row r="5"><c r="D5"><v>7</v></c></row></sheetData>')),
+                   texte574r3("balise <sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C2")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData >")),
+                   texte574r3("balise <sheetData>, avant la premiere cellule")))
+  # Decision D-S1-35 (M1 de l'audit de la revue finale de S1) : balises
+  # <sheetData> toutes fermantes refusees ; une fermante en surnombre est
+  # citee, non l'ouvrante (mineur m1). Avant (moteur 261c45e, sonde
+  # sondes/sonde_574_lot_g.R) : deux </sheetData> sans ouvrante, lues par le
+  # lecteur interne (11.5), "Fichier vide" par openxlsx ; fermante en
+  # surnombre refusee en citant <sheetData> ; fermante seule refusee en
+  # citant les balises <c>.
+  verifier("xlsx (#574, R3, D-S1-35) : deux </sheetData> sans ouvrante, </sheetData> seule en tete, <sheetData>...</sheetData></sheetData>, <sheetData/>...</sheetData> : refus R3 sur chaque chemin, position citant la fermante en surnombre",
+           rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("</sheetData>")),
+                 texte574r3("balise </sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C2")) &&
+             rb574(retoucher574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("</sheetData>")),
+                                fe574, "</sheetData></worksheet>", charToRaw("</worksheet>")),
+                   texte574r3("balise </sheetData>, avant la premiere cellule")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>", charToRaw("</sheetData></sheetData>")),
+                   texte574r3("balise </sheetData>, apres la cellule C2")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData/>")),
+                   texte574r3("balise <sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C2")))
+  # Mineur m1 de l'audit leger du lot G : </sheetData> puis <sheetData>
+  # (permutees) ; l'ouvrante non fermee est citee avec la fermante en
+  # surnombre (avant, moteur 5950e03 : </sheetData> seule citee).
+  verifier("xlsx (#574, R3, m1 du lot G) : </sheetData> puis <sheetData> (permutees) : refus R3 sur chaque chemin citant la fermante en surnombre et l'ouvrante non fermee",
+           rb574(retoucher574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>", charToRaw("<sheetData>")),
+                              fe574, "<sheetData>", charToRaw("</sheetData>")),
+                 texte574r3("balise </sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C2")))
+  # Decision D-S1-37 (H1 de l'audit leger du lot G) : relations forgees qui
+  # font lire a openxlsx une autre feuille que le lecteur interne. Avant
+  # (moteur 5950e03, sonde sondes/sonde_574_lot_h.R, openxlsx 4.2.5.2) :
+  # Id="rId11" dans la valeur d'un autre attribut, RelId="rId11", Id repete
+  # ou x:Id dans une relation de cible sheet2.xml placee avant la vraie, nom
+  # de feuille portant r:id="rId12", r:id de la premiere feuille entre
+  # apostrophes (deux feuilles) : 11.5 en interne, 999 par openxlsx ; deux
+  # relations rId11, sheet2.xml d'abord : 999 sur les deux chemins ;
+  # id="rId12" r:id="rId11", nom de feuille portant ">" : 999 en interne
+  # (ok = TRUE dans tous les cas). Refus sur chaque chemin, partie et
+  # position citees.
+  texte574h <- function(partie, pos) sprintf("Classeur illisible : la partie %s du classeur designe la feuille lue de facon ambigue (%s) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur.", partie, pos)
+  deux574h <- function() classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                          list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999)))))
+  rel574h <- function(att) charToRaw(paste0('<Relationship ', att, ' Type="', rt487, '/worksheet" Target="worksheets/sheet2.xml"/><Relationship Id="rId11"'))
+  avant574h <- function(att) retoucher574(deux574h(), rl574, '<Relationship Id="rId11"', rel574h(att))
+  verifier("xlsx (#574, D-S1-37) : relation de cible sheet2.xml placee avant la vraie, portant Foo='Id=\"rId11\"', RelId=\"rId11\", Id=\"rId9\" Id=\"rId11\", x:Id=\"rId9\" Id=\"rId11\", ou de meme Id rId11 (avant : 999 lu par openxlsx, ou par les deux chemins) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(avant574h("Id=\"rIdQ\" Foo='Id=\"rId11\"'"),
+                 texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(avant574h('RelId="rId11" Id="rIdQ"'),
+                   texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(avant574h('Id="rId9" Id="rId11"'),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Id absent, repete ou prefixe (Id, Id)")) &&
+             rb574(avant574h('x:Id="rId9" Id="rId11"'),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Id absent, repete ou prefixe (x:Id, Id)")) &&
+             rb574(avant574h('Id="rId11"'), texte574h(rl574, "Id rId11 en double : balises <Relationship> 1 et 2")))
+  verifier("xlsx (#574, D-S1-37) : premiere feuille de nom portant r:id=\"rId12\", d'attributs id=\"rId12\" r:id=\"rId11\", de nom \"a>b\" (balise coupee), de r:id entre apostrophes ou precede d'une tabulation (deux feuilles) : refus nommant xl/workbook.xml, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id=\"rId12\"'")),
+                 texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, 'r:id="rId11"', charToRaw('id="rId12" r:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 : attribut r:id absent, repete ou prefixe autrement que r: (id, r:id)")) &&
+             rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw('name="a>b"')),
+                   texte574h(wb574, "balise <sheet> 1 : attribut r:id absent, repete ou prefixe autrement que r: (aucun)")) &&
+             rb574(retoucher574(deux574h(), wb574, 'r:id="rId11"', charToRaw("r:id='rId11'")),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")) &&
+             rb574(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw('\tr:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")))
+  verifier("xlsx (#574, D-S1-37) : temoins lus a l'identique sur chaque chemin (11.5) : r:id dans une autre balise que <sheet> (externalReference), r:id='rId12' dans un nom de feuille, Id de relation entre apostrophes (lecteur interne seul, erreur R d'openxlsx inchangee), classeur de l'ecrivain interne, classeur d'openxlsx::write.xlsx() a deux feuilles",
+           { lit574h <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574h <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             rap574h <- lit574h(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw("Id='rId11'")))
+             ecr574h <- lit574h(xlsx483(data.frame(t = 1, xt = 11.5, yt = 2)))
+             ox574h <- if (avec_openxlsx483) {
+               fo <- tempfile(fileext = ".xlsx")
+               openxlsx::write.xlsx(list(D = data.frame(t = 1, xt = 11.5, yt = 2), E = data.frame(t = 1, xt = 999, yt = 2)), fo)
+               ok574h(lit574h(fo)) } else TRUE
+             ok574h(lit574h(retoucher574(deux574h(), wb574, "</sheets>", charToRaw('</sheets><externalReferences><externalReference r:id="rId99"/></externalReferences>')))) &&
+               ok574h(lit574h(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name=\"a r:id='rId12' b\"")))) &&
+               is.data.frame(rap574h$interne) && identical(as.numeric(rap574h$interne$xt), 11.5) &&
+               (!avec_openxlsx483 || (is.character(rap574h$openxlsx) && !startsWith(rap574h$openxlsx, "Classeur illisible"))) &&
+               ok574h(ecr574h) && ox574h })
+  # M1 de l'audit leger du lot H : openxlsx 4.2.5.2 colle les lignes de
+  # xl/workbook.xml et des relations (readLines() puis paste(collapse = ""))
+  # avant d'y chercher ' r:id="' et Id="rIdN". Avant (tete 291a47c, sonde
+  # sondes/sonde_574_lot_h.R) : nom de feuille name='a r:id<LF>="rId12"' (ou
+  # <CR>), relation de cible sheet2.xml placee avant la vraie portant
+  # Foo='Id<LF>="rId11"' : premiere feuille lue en interne, seconde (999)
+  # par openxlsx, ok = TRUE ; <LF> seul devant r:id de la premiere feuille
+  # (deux feuilles) : seconde feuille lue par openxlsx, refus deja pose ;
+  # espace puis <LF> devant r:id : refuse a tort (premiere feuille lue sur
+  # les deux chemins avant le lot H, moteur 5950e03).
+  verifier("xlsx (#574, D-S1-37, M1 du lot H) : texte colle par openxlsx (fins de ligne retirees) : nom de feuille name='a r:id<LF>=\"rId12\"' ou <CR>, relation de cible sheet2.xml placee avant la vraie portant Foo='Id<LF>=\"rId11\"', <LF> seul devant r:id de la premiere feuille (deux feuilles) : refus nommant la partie, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id\n=\"rId12\"'")),
+                 texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, 'name="D"', charToRaw("name='a r:id\r=\"rId12\"'")),
+                   texte574h(wb574, "texte r:id=\" hors d'un attribut r:id : balise <sheet> 1")) &&
+             rb574(avant574h("Id=\"rIdQ\" Foo='Id\n=\"rId11\"'"),
+                   texte574h(rl574, "texte Id=\"rId11\" hors de l'attribut Id de la relation de la feuille lue : balise <Relationship> 1")) &&
+             rb574(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw('\nr:id="rId11"')),
+                   texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")))
+  verifier("xlsx (#574, D-S1-37, M1 du lot H) : temoins lus a l'identique sur chaque chemin (11.5, deux feuilles) : espace puis <LF> devant r:id de la premiere feuille (refus a tort avant), attribut Id<LF>=\"rId11\" de la relation retenue, xl/workbook.xml et relations ecrits en fins de ligne CRLF",
+           { lit574l <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574l <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             crlf574l <- function(f) {
+               for (m in list(c(wb574, "?><workbook", "?>\r\n<workbook"), c(wb574, "<sheets>", "\r\n<sheets>\r\n"),
+                              c(wb574, '"/><sheet ', '"/>\r\n<sheet '), c(wb574, "</sheets>", "\r\n</sheets>\r\n"),
+                              c(rl574, '"/><Relationship ', '"/>\r\n<Relationship '), c(rl574, "?><Relationships", "?>\r\n<Relationships")))
+                 f <- retoucher574(f, m[1], m[2], charToRaw(m[3]))
+               f }
+             ok574l(lit574l(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw(' \nr:id="rId11"')))) &&
+               ok574l(lit574l(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw('Id\n="rId11"')))) &&
+               ok574l(lit574l(crlf574l(deux574h()))) })
+  verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
+           rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
+             rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
+                   texte574seg("cellule B2 : balise <v>, dans le bloc des donnees")) &&
+             rb574(feuille575(ser574('<c r="B2"><v>11.5</v ></c>'), NULL), texte574r3("balise </v>, dans la cellule B2")) &&
+             rb574(feuille575(ser574(en487("B2", " <t>11.5</t>")), NULL), texte574r3("texte, dans la chaine en ligne de la cellule B2")) &&
+             rb574(feuille575(ser574('<c r="B2" t="inlineStr"><is/></c>'), NULL), texte574r3("balise <is>, dans la cellule B2")) &&
+             rb574(feuille575(ser574('<c r="B2"><v>1<2</v></c>'), NULL), texte574r3("caractere < hors d'une balise, dans la cellule B2")) &&
+             rb574(feuille575(ser574(d2 = "x"), NULL), texte574r3("texte, apres la cellule C2")))
+  # Decision D-S1-31 (constat H1 de la validation du .tex par actuary) :
+  # <t> d'une chaine en ligne ecrit <t>, sans attribut ni blanc (<t/> et
+  # <t /> admis). Avant : <is><t xml:space="preserve">11.5</t></is> lu 11.5
+  # par le lecteur interne (classeur accepte), "xml:space=\"preserve\">11.5"
+  # par openxlsx 4.2.5.2 (refus en aval) ; en-tete <t >xt lu ">xt" par
+  # openxlsx, xt en interne (sonde sondes/sonde_574_lot_f.R).
+  ent574f <- function(b1) ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", b1), en487("C1", "<t>yt</t>")))
+  verifier("xlsx (#574, R3, D-S1-31) : <t> a attribut (xml:space, prefixe ou non, entre apostrophes) ou a blanc dans une chaine en ligne, en valeur (B2) et en en-tete (B1), ouvrant ou vide : refus R3 \"balise <t>, dans la chaine en ligne de la cellule ...\" sur chaque chemin (avant : lu juste en interne, attribut garde dans le texte par openxlsx)",
+           all(vapply(c('<t xml:space="preserve">11.5</t>', '<t space="preserve">11.5</t>', '<t x:space="preserve">11.5</t>',
+                        "<t xml:space='preserve'>11.5</t>", '<t >11.5</t>', '<t\t>11.5</t>', '<t xml:space="preserve"/>'),
+                      function(t) rb574(feuille575(ser574(en487("B2", t)), NULL), texte574r3("balise <t>, dans la chaine en ligne de la cellule B2")),
+                      logical(1))) &&
+             all(vapply(c('<t xml:space="preserve">xt</t>', '<t >xt</t>'),
+                        function(t) rb574(feuille575(paste0(ent574f(t), ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL),
+                                          texte574r3("balise <t>, dans la chaine en ligne de la cellule B1")),
+                        logical(1))))
+  verifier("xlsx (#574, R3, D-S1-31) : temoins admis, lus a l'identique sur chaque chemin (xt = 11.5, en-tete xt) : <is><t>11.5</t></is> en B2, <is><t/></is> et <is><t /></is> hors du tableau, chaine partagee <si><t xml:space=\"preserve\"> en valeur (B2) et en en-tete (B1)",
+           local({ lit574f <- function(f) chemins483(f, lire487)
+             ok574f <- function(r) tous487(r, function(d) is.data.frame(d) && identical(names(d)[1:3], c("t", "xt", "yt")) &&
+                                                        identical(as.numeric(d$xt), 11.5)) &&
+                                     (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt))
+             ok574f(lit574f(feuille575(ser574(en487("B2", "<t>11.5</t>")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t/>")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t />")), NULL))) &&
+               ok574f(lit574f(feuille575(ser574(ps487("B2", 0)), '<si><t xml:space="preserve">11.5</t></si>'))) &&
+               ok574f(lit574f(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), ps487("B1", 0), en487("C1", "<t>yt</t>"))),
+                                                ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))),
+                                         '<si><t xml:space="preserve">xt</t></si>'))) }))
+  # Segment de cellule lu par openxlsx (de "<c " a "<c " suivant ou a la fin
+  # de la feuille) : " t=", "</v>" et "</t></is>" hors de la cellule.
+  verifier("xlsx (#574, R3, segment) : attribut t=\"s\" de la ligne 3 apres C2 = 0 sans t (avant : C2 lue 11.5 par openxlsx, 0 en interne, ok = TRUE), <v> et <is><t> d'un element place apres </sheetData> rattaches a la derniere cellule sans valeur, en-tete de page \"&amp;CMontant t=1\" apres la derniere cellule (avant : lu juste par les deux chemins ; refus accepte, decision D-S1-10, a) : refus du segment sur chaque chemin",
+           rb574(feuille575(paste0(ent574, ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 0))),
+                                   '<row r="3" t="s">', nb487("A3", 2), nb487("B3", 12), nb487("C3", 3), "</row>"), "<si><t>11.5</t></si>"),
+                 texte574seg("cellule C2 : suite \" t=\", dans le bloc des donnees")) &&
+             rb574(retoucher574(feuille575(ser574(d2 = '<c r="D2" s="1"/>'), NULL), fe574, "</sheetData>",
+                                charToRaw('</sheetData><foo xmlns="urn:x"><v>9</v></foo>')), texte574seg("cellule D2 : balise </v>, apres le bloc des donnees")) &&
+             rb574(retoucher574(feuille575(ser574(d2 = '<c r="D2" s="1"/>'), NULL), fe574, "</sheetData>",
+                                charToRaw('</sheetData><foo xmlns="urn:x"><is><t>9</t></is></foo>')), texte574seg("cellule D2 : suite </t></is>, apres le bloc des donnees")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>",
+                                charToRaw('</sheetData><headerFooter><oddHeader>&amp;CMontant t=1</oddHeader></headerFooter>')),
+                   texte574seg("cellule C2 : suite \" t=\", apres le bloc des donnees")))
+  # Regle R6b (decision D-S1-11) : cellules dans l'ordre de lecture, avec
+  # ou sans valeur, sur toute la feuille ; un doublon garde le refus R6.
+  verifier("xlsx (#574, R6b) : en-tete A1 t, C1 yt, B1 xt (avant : xt et yt permutes par openxlsx, sigma_USP 0.1764544949 au lieu de 0.1114524114, ok = TRUE), lignes de donnees permutees (avant : lues juste), cellule sans valeur intercalee (C2 vide avant B2), A1 apres XFD1, six fautes (cinq citees) : refus R6b sur chaque chemin ; doublon : refus R6",
+           rb574(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("C1", "<t>yt</t>"), en487("B1", "<t>xt</t>"))),
+                                   ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL), texte574r6b("B1 apres C1")) &&
+             rb574(feuille575(paste0(ent574, ligne487(3, c(nb487("A3", 2), nb487("B3", 12), nb487("C3", 3))),
+                                     ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL), texte574r6b("A2 apres C3")) &&
+             rb574(feuille575(paste0(ent574, ligne487(2, c(nb487("A2", 1), '<c r="C2" s="1"/>', nb487("B2", 11.5)))), NULL),
+                   texte574r6b("B2 apres C2")) &&
+             rb574(feuille575(paste0('<row r="1"><c r="XFD1" s="1"/></row>', ent574, ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL),
+                   texte574r6b("A1 apres XFD1")) &&
+             rb574(feuille575(paste0(ent574, ligne487(2, rev(c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2), nb487("D2", 3), nb487("E2", 4), nb487("F2", 5), nb487("G2", 6))))), NULL),
+                   texte574r6b("F2 apres G2, E2 apres F2, D2 apres E2, C2 apres D2, B2 apres C2 et 1 autre(s)")) &&
+             rb574(feuille575(paste0(ent574, ligne487(2, c(nb487("B2", 11.5), nb487("A2", 1), nb487("B2", 9)))), NULL), texte574r6("B2")))
+  verifier("xlsx (#574, R6b) : 10^5 cellules en ordre inverse : refus R6b en moins de 10 s, controle seul, cinq positions citees puis \"et 99994 autre(s)\" (seules les cinq premieres sont citees ; citer les 10^6 positions d'une feuille inversee prenait 142 s)",
+           local({ r6b <- rev(paste0(rep(LETTERS[1:10], 1e4), rep(seq_len(1e4), each = 10)))
+                   t0 <- proc.time()[["elapsed"]]
+                   m6b <- tryCatch(.xlsx_controler_ordre(list(ref = r6b)), error = function(e) conditionMessage(e))
+                   proc.time()[["elapsed"]] - t0 < 10 &&
+                     identical(m6b, texte574r6b("I10000 apres J10000, H10000 apres I10000, G10000 apres H10000, F10000 apres G10000, E10000 apres F10000 et 99994 autre(s)")) }))
+  # Feuille sans aucune balise (partie vide ou "abc") : refus R3 "balise
+  # <sheetData> absente" (constat de l'audit leger : erreur R brute
+  # "invalid substring arguments" avant la reprise ; avant le lot B :
+  # data.frame() en interne, NULL par openxlsx, refus en aval).
+  remplacer574 <- function(f, contenu) {
+    x <- tempfile("v574_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, exdir = x); p <- file.path(x, fe574); unlink(p); writeBin(charToRaw(contenu), p)
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  verifier("xlsx (#574, R3) : feuille de 0 octet, feuille \"abc\" sans balise : refus R3 \"balise <sheetData> absente\" sur chaque chemin, aucune erreur R brute",
+           rb574(remplacer574(feuille575(ser574(), NULL), ""), texte574r3("balise <sheetData> absente")) &&
+             rb574(remplacer574(feuille575(ser574(), NULL), "abc"), texte574r3("balise <sheetData> absente")))
+  verifier("xlsx (#574, R5) : cellule sans valeur en XFE10, cellule en A1048577 : refus R5 sur chaque chemin (avant : lues, 16 385 colonnes vides en interne pour XFE10)",
+           rb574(feuille575(paste0(ser574(), ligne487(10, '<c r="XFE10" s="1"/>')), NULL), texte574r5("XFE10")) &&
+             rb574(feuille575(paste0(ser574(), ligne487(1048577, '<c r="A1048577" s="1"/>')), NULL), texte574r5("A1048577")))
+  verifier("xlsx (#574, R11, seuil 10^6, decision D-S1-5) : valeur en J100000 (10^6 cellules) lue sur chaque chemin (99999 x 10) ; en K100000 (1,1 x 10^6) : refus R11 sur chaque chemin",
+           tous487(chemins483(feuille575(paste0(ser574(), ligne487(100000, nb487("J100000", 1))), NULL), lire487),
+                   function(d) is.data.frame(d) && identical(dim(d), c(99999L, 10L))) &&
+             rb574(feuille575(paste0(ser574(), ligne487(100000, nb487("K100000", 1))), NULL), texte574r11(100000L, "K", "K100000")))
+  verifier("xlsx (#574, lecteur interne dimensionne sur les cellules a valeur) : cellules mises en forme sans valeur en Z2 et en ligne 40 : memes noms et memes dimensions sur chaque chemin (t, xt, yt ; 1 ligne)",
+           tous487(chemins483(feuille575(paste0(ser574(d2 = '<c r="Z2" s="1"/>'), ligne487(40, '<c r="A40" s="1"/>')), NULL), lire487),
+                   function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt")) && identical(dim(d), c(1L, 3L))))
+  verifier("xlsx (#574 forme 4, variante en ligne, R3) : chaine en ligne portant 64 000 balises <x:rPh> non fermees : refus R3 \"balise <x:rPh>\" en moins de 10 s, controle seul (cout lineaire ; avant : 3,57 s en interne des n = 4000, cout quadratique, rejeu S1)",
+           local({ x4 <- paste0('<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>11</t>', strrep('<x:rPh sb="0" eb="1">', 64000),
+                                '</is></c></row></sheetData></worksheet>')
+                   t0 <- proc.time()[["elapsed"]]
+                   m4 <- tryCatch(.xlsx_controler_structure(x4), error = function(e) conditionMessage(e))
+                   proc.time()[["elapsed"]] - t0 < 10 && identical(m4, texte574r3("balise <x:rPh>, dans la chaine en ligne de la cellule A1")) }))
+  verifier("xlsx (#574, R3 a R6, R6b, R11) : temoins de forme XML legale lus a l'identique sur chaque chemin (xt = 11.5) : attributs de ligne (spans, s, customFormat, x14ac:dyDescent), attributs s, t, cm, vm, ph de cellule, formule partagee <f t=\"shared\">, <v xml:space=\"preserve\">, <v > (avant : NA en interne, 11.5 par openxlsx), <extLst> de ligne au contenu prefixe, saut de ligne avant \">\", contenu apres </sheetData>, cellule sans valeur en XFD1 puis A2 (ordre de lecture)",
+           local({ lit574b <- function(f) chemins483(f, lire487)
+             ok574b <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) &&
+                                     (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt))
+             ok574b(lit574b(feuille575(sub('<row r="1">', '<row r="1" spans="1:3" s="2" customFormat="1" x14ac:dyDescent="0.25">',
+                                           ser574('<c r="B2" s="1" t="n" cm="1" vm="1" ph="true"><f t="shared" ref="B2:B3" si="0">1+1</f><v xml:space="preserve">11.5</v></c>'),
+                                           fixed = TRUE), NULL))) &&
+               ok574b(lit574b(feuille575(ser574('<c r="B2"><v >11.5</v></c>'), NULL))) &&
+               ok574b(lit574b(feuille575(sub("</row>", '<c r="XFD1" s="1"/></row>', ser574(), fixed = TRUE), NULL))) &&
+               ok574b(lit574b(feuille575(sub("</row>$", '<extLst><ext uri="{x}" xmlns:x14="urn:x14"><x14:a b="1"><x14:v>9</x14:v></x14:a></ext></extLst></row>',
+                                             ser574(), perl = TRUE), NULL))) &&
+               ok574b(lit574b(feuille575(ser574('<c r="B2"\n><v>11.5</v></c>'), NULL))) &&
+               ok574b(lit574b(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>",
+                                           charToRaw('</sheetData><mergeCells count="1"><mergeCell ref="E1:F1"/></mergeCells><conditionalFormatting sqref="B2"><cfRule type="expression" priority="1"><formula>B2&gt;0</formula></cfRule></conditionalFormatting>')))) }))
+  # --- #574, lot C (regles R7 et R8 du contrat ferme), dans le processus
+  # (aucune erreur R brute ni arret mesure avant sur ces formes ; sonde
+  # docs/revues/20261115-s1-rejeu/sondes/sonde_574_lot_c.R, 185a3e7,
+  # openxlsx 4.2.5.2) : meme refus sur chaque chemin. Avant : t="d" lu 2020
+  # par openxlsx (sigma_USP 0.8040317900) ; t="x", t="S" lus en nombre par
+  # les deux chemins ; t="e" lu "#N/A" en interne, NA par openxlsx ; t="e"
+  # en colonne non utilisee : lu, sigma_USP rendu (decision D-S1-2) ;
+  # <v>0x10</v> lu 16, <v>1&#48;4.2</v>, <v>1&lt;2</v>, <v>1>2</v>, <v>1e</v>
+  # lus 1, <v>104,2</v> lu 104 par openxlsx (ok = TRUE) ; <v></v> sans t lu 0
+  # par openxlsx, "" en interne ; t="b" <v>2</v> et <v> 1</v> lus 2 et 1 en
+  # interne (ok = TRUE) ; t="s" sans <v> (ou <v/>) lu 11.5 par openxlsx
+  # (sigma_USP 0.2005042338) ; <is> sans t="inlineStr" lu 11.5.
+  texte574r7x <- function(pos) sprintf("Classeur illisible : cellule de type non prevu par le format (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r7d <- function(pos) sprintf("Classeur illisible : cellule date au format ISO 8601 (attribut t=\"d\") dans la feuille lue (%s) ; l'outil ne lit pas cette forme de facon sure (une date pourrait etre lue comme un nombre). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r7e <- function(pos) sprintf("Cellule(s) en erreur de calcul dans la feuille lue (%s) : une cellule en erreur ne porte pas de donnee. Corriger ou effacer ces cellules, puis enregistrer de nouveau le classeur.", pos)
+  texte574r8n <- function(pos) sprintf("Classeur illisible : cellule nombre dont la valeur n'est pas ecrite comme un nombre decimal (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  texte574r8b <- function(pos) sprintf("Classeur illisible : cellule booleenne de valeur autre que 0 ou 1 (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  sh574c <- "<si><t>x</t></si><si><t>11.5</t></si>"
+  # cellule B2 de la serie, table sh574c si la cellule est t="s"
+  b2_574c <- function(x, d2 = NULL) feuille575(ser574(x, d2), if (grepl('t="s"', paste(x, d2), fixed = TRUE)) sh574c)
+  verifier("xlsx (#574, R7) : t=\"x\", t=\"S\", t=\"N\", t=\"Str\" (casse comparee exactement) : refus R7 \"B2 : t=\"x\"\" sur chaque chemin ; t=\"d\" : refus R7 date, valeur citee ; t=\"e\" dans le corps (#N/A), avec vm (#VALUE!), sans valeur (reference seule), en colonne non utilisee (D2, #DIV/0!) : refus R7 erreur de calcul (decision D-S1-2)",
+           rb574(b2_574c('<c r="B2" t="x"><v>5</v></c>'), texte574r7x("B2 : t=\"x\"")) &&
+             rb574(b2_574c('<c r="B2" t="S"><v>1</v></c>'), texte574r7x("B2 : t=\"S\"")) &&
+             rb574(b2_574c('<c r="B2" t="N"><v>11.5</v></c>'), texte574r7x("B2 : t=\"N\"")) &&
+             rb574(b2_574c('<c r="B2" t="Str"><v>11.5</v></c>'), texte574r7x("B2 : t=\"Str\"")) &&
+             rb574(b2_574c('<c r="B2" t="d"><v>2020-01-01T00:00:00</v></c>'), texte574r7d("B2 : 2020-01-01T00:00:00")) &&
+             rb574(b2_574c('<c r="B2" t="e"><v>#N/A</v></c>'), texte574r7e("B2 : #N/A")) &&
+             rb574(b2_574c('<c r="B2" t="e" vm="1"><v>#VALUE!</v></c>'), texte574r7e("B2 : #VALUE!")) &&
+             rb574(b2_574c('<c r="B2" t="e"/>'), texte574r7e("B2")) &&
+             rb574(b2_574c(nb487("B2", 11.5), '<c r="D2" t="e"><v>#DIV/0!</v></c>'), texte574r7e("D2 : #DIV/0!")))
+  verifier("xlsx (#574, R7) : ordre des refus (type inconnu avant t=\"d\", t=\"d\" avant t=\"e\") ; six cellules en erreur : cinq citees puis \"et 1 autre(s)\" ; valeur de plus de 20 caracteres tronquee",
+           rb574(b2_574c('<c r="B2" t="e"><v>#N/A</v></c>', '<c r="D2" t="x"><v>1</v></c>'), texte574r7x("D2 : t=\"x\"")) &&
+             rb574(b2_574c('<c r="B2" t="e"><v>#N/A</v></c>', '<c r="D2" t="d"><v>2020</v></c>'), texte574r7d("D2 : 2020")) &&
+             rb574(b2_574c('<c r="B2" t="e"><v>#N/A</v></c>', paste(sprintf('<c r="%s2" t="e"><v>#REF!</v></c>', LETTERS[4:8]), collapse = "")),
+                   texte574r7e("B2 : #N/A, D2 : #REF!, E2 : #REF!, F2 : #REF!, G2 : #REF! et 1 autre(s)")) &&
+             rb574(b2_574c(sprintf('<c r="B2" t="e"><v>%s</v></c>', strrep("#", 25))), texte574r7e(paste0("B2 : ", strrep("#", 20), "..."))))
+  verifier("xlsx (#574, R8, nombre) : 0x10, &#49;5, 1&#48;4.2, 1&lt;2, 1>2, INF, NaN, <v></v> sans t et t=\"n\" (\"valeur vide\"), \".\", 1e, chiffres pleine chasse, 104,2, 104 .2 : refus R8 nombre sur chaque chemin, valeur citee telle qu'ecrite",
+           all(mapply(function(v, cite) rb574(b2_574c(sprintf('<c r="B2"><v>%s</v></c>', v)), texte574r8n(paste0("B2 : ", cite))),
+                      c("0x10", "&#49;5", "1&#48;4.2", "1&lt;2", "1>2", "INF", "NaN", "", ".", "1e", "１１.5", "104,2", "104 .2"),
+                      c("0x10", "&#49;5", "1&#48;4.2", "1&lt;2", "1>2", "INF", "NaN", "valeur vide", ".", "1e", "１１.5", "104,2", "104 .2"))) &&
+             rb574(b2_574c('<c r="B2" t="n"><v></v></c>'), texte574r8n("B2 : valeur vide")))
+  verifier("xlsx (#574, R8, booleen) : t=\"b\" <v>2</v> (avant : 2 en interne, ok = TRUE), <v>true</v>, <v> 1</v> (avant : 1 en interne, ok = TRUE), <v></v> : refus R8 booleen sur chaque chemin",
+           rb574(b2_574c('<c r="B2" t="b"><v>2</v></c>'), texte574r8b("B2 : 2")) &&
+             rb574(b2_574c('<c r="B2" t="b"><v>true</v></c>'), texte574r8b("B2 : true")) &&
+             rb574(b2_574c('<c r="B2" t="b"><v> 1</v></c>'), texte574r8b("B2 :  1")) &&
+             rb574(b2_574c('<c r="B2" t="b"><v></v></c>'), texte574r8b("B2 : valeur vide")))
+  verifier("xlsx (#574, R8, contenu et type) : t=\"s\" ou t=\"b\" sans <v>, avec <v/>, avec <f> sans <v> (amendement Q5) ; t=\"s\" d'indice \" 1\", \"1\\n\", 1.0, +1, 1e0, <v></v> ; <is> sans t, t=\"n\" ou t=\"str\" avec <is> ; t=\"inlineStr\" avec <v> : refus R8 contenu et type sur chaque chemin, avant le refus nombre",
+           rb574(b2_574c('<c r="B2" t="s"/>'), texte574r8c("B2 : t=\"s\" sans <v>")) &&
+             rb574(b2_574c('<c r="B2" t="s"><v/></c>'), texte574r8c("B2 : t=\"s\" sans <v>")) &&
+             rb574(b2_574c('<c r="B2" t="s"><f>A1</f></c>'), texte574r8c("B2 : t=\"s\" sans <v>")) &&
+             rb574(b2_574c('<c r="B2" t="b"/>'), texte574r8c("B2 : t=\"b\" sans <v>")) &&
+             rb574(b2_574c('<c r="B2" t="b"><v/></c>'), texte574r8c("B2 : t=\"b\" sans <v>")) &&
+             rb574(b2_574c('<c r="B2" t="b"><f>TRUE()</f></c>'), texte574r8c("B2 : t=\"b\" sans <v>")) &&
+             all(vapply(c(" 1", "1\n", "1.0", "+1", "1e0", ""), function(v)
+               rb574(b2_574c(sprintf('<c r="B2" t="s"><v>%s</v></c>', v)), texte574r8c("B2 : indice de chaine non entier")), logical(1))) &&
+             rb574(b2_574c('<c r="B2"><is><t>11.5</t></is></c>'), texte574r8c("B2 : <is> sans t=\"inlineStr\"")) &&
+             rb574(b2_574c('<c r="B2" t="n"><is><t>11.5</t></is></c>'), texte574r8c("B2 : t=\"n\" avec <is>")) &&
+             rb574(b2_574c('<c r="B2" t="str"><is><t>11.5</t></is></c>'), texte574r8c("B2 : t=\"str\" avec <is>")) &&
+             rb574(b2_574c('<c r="B2" t="inlineStr"><v>11.5</v><is><t>11.5</t></is></c>'), texte574r8c("B2 : t=\"inlineStr\" avec <v>")) &&
+             rb574(b2_574c('<c r="B2" t="inlineStr"><v>11.5</v></c>'), texte574r8c("B2 : t=\"inlineStr\" avec <v>")) &&
+             rb574(b2_574c('<c r="B2" t="s"/>', '<c r="D2"><v>0x10</v></c>'), texte574r8c("B2 : t=\"s\" sans <v>")))
+  verifier("xlsx (#574, R7, R8) : temoins lus a l'identique sur chaque chemin (xt = 11.5) : blancs XML de bord, CR final, +1.15E+1, t=\"n\", <f> puis <v>, t=\"s\" d'indice 01, t=\"str\", t=\"inlineStr\" portant <v/> ; \"11.\" lu 11, \"+.5e-3\" lu 5e-4, 1e400 lu Inf ; B2 NA sur chaque chemin : <v/> sans t, <f> sans <v>, t=\"str\" sans <v> ou avec <v/>, t=\"inlineStr\" sans <is> ou avec <v/> seul ; t=\"str\" <v></v> lu \"\" sur chaque chemin",
+           local({ lit <- function(x) chemins483(b2_574c(x), lire487)
+             val <- function(x, attendu) tous487(lit(x), function(d) is.data.frame(d) && identical(as.numeric(d$xt[1]), attendu))
+             brut <- function(x, attendu) tous487(lit(x), function(d) is.data.frame(d) && identical(d$xt[1], attendu))
+             all(vapply(c('<c r="B2"><v> \t11.5\n</v></c>', '<c r="B2"><v>11.5\r</v></c>', '<c r="B2"><v>+1.15E+1</v></c>',
+                          '<c r="B2" t="n"><v>11.5</v></c>', '<c r="B2"><f>1+1</f><v>11.5</v></c>', '<c r="B2" t="s"><v>01</v></c>',
+                          '<c r="B2" t="str"><f>A1</f><v>11.5</v></c>', '<c r="B2" t="inlineStr"><v/><is><t>11.5</t></is></c>'),
+                        val, logical(1), attendu = 11.5)) &&
+               val('<c r="B2"><v>11.</v></c>', 11) && val('<c r="B2"><v>+.5e-3</v></c>', 5e-4) && val('<c r="B2"><v>1e400</v></c>', Inf) &&
+               all(vapply(c('<c r="B2"><v/></c>', '<c r="B2"><f>1+1</f></c>', '<c r="B2" t="str"><f>A1</f></c>',
+                            '<c r="B2" t="str"><f>""</f><v/></c>', '<c r="B2" t="inlineStr"/>', '<c r="B2" t="inlineStr"><v/></c>'),
+                          function(x) tous487(lit(x), function(d) is.data.frame(d) && is.na(d$xt[1])), logical(1))) &&
+               brut('<c r="B2" t="str"><f>""</f><v></v></c>', "") }))
+  verifier("xlsx (#574, R3, segment ; reprise de l'audit du lot B) : cellule sans attribut r (ligne 2) suivie de <row r=\"3\" t=\"s\"> : refus du segment \"cellule sans reference : suite \" t=\", dans le bloc des donnees\" sur chaque chemin (avant : \"cellule <NA>\")",
+           rb574(feuille575(paste0(ser574(d2 = '<c s="1"/>'), '<row r="3" t="s">', nb487("A3", 2), nb487("B3", 12), nb487("C3", 3), "</row>"), sh574c),
+                 texte574seg("cellule sans reference : suite \" t=\", dans le bloc des donnees")))
+  verifier("xlsx (#574, R7, R8) : 10^6 cellules dont 2 x 10^5 fautives : refus R8 puis R7 en moins de 10 s chacun, controle seul, cinq positions citees puis \"et 199995 autre(s)\"",
+           local({ n <- 1e6
+             cc <- list(balise = rep("<c>", n), typ = rep(c(NA, "n", "str", "s", "b"), length.out = n),
+                        v = rep(c("0x10", "1.5e3", "x", "12", "1"), length.out = n), is = rep(FALSE, n), r_brut = rep("A1", n))
+             t0 <- proc.time()[["elapsed"]]
+             m8 <- tryCatch(.xlsx_controler_contenus(cc), error = function(e) conditionMessage(e))
+             t8 <- proc.time()[["elapsed"]] - t0
+             cc$typ[seq(1, n, 5)] <- "e"
+             t0 <- proc.time()[["elapsed"]]
+             m7 <- tryCatch(.xlsx_controler_types(cc), error = function(e) conditionMessage(e))
+             t7 <- proc.time()[["elapsed"]] - t0
+             t8 < 10 && t7 < 10 && identical(m8, texte574r8n(paste0(paste(rep("A1 : 0x10", 5), collapse = ", "), " et 199995 autre(s)"))) &&
+               identical(m7, texte574r7e(paste0(paste(rep("A1 : 0x10", 5), collapse = ", "), " et 199995 autre(s)"))) }))
+  # Lecteur interne, dans le processus (aucun appel a openxlsx) : bornes de
+  # R10 ; indice au-dela de .Machine$integer.max (as.integer() rendrait NA),
+  # indice cite tronque a 20 caracteres ; classeur sans table ; cinq positions
+  # au plus ; indice n - 1 lu. Aucune forme non entiere (1.5, 0x10, 1e3, Inf,
+  # blancs) n'est figee ici : R8 les refuse avant R10 (#574, lot C).
+  int575 <- function(xml, shared = NULL) {
+    f <- feuille575(xml, shared); on.exit(unlink(f))
+    tryCatch(sans_openxlsx483(engine_lire_xlsx(f)), error = function(e) conditionMessage(e))
+  }
+  ent575 <- ligne487(1, c(ps487("A1", 0), ps487("B1", 1)))
+  verifier("xlsx, lecteur interne (#575, R10) : indice 1 pour une table de 2 chaines lu ; indice 2 refuse ; indice 99999999999 (au-dela de .Machine$integer.max) refuse ; indice de 25 chiffres cite tronque a 20 caracteres suivis de \"...\" ; sans table, indice 0 refuse (0 chaine)",
+           { sh <- "<si><t>t</t></si><si><t>xt</t></si>"
+             d1 <- int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), ps487("B2", 1)))), sh)
+             is.data.frame(d1) && identical(names(d1), c("t", "xt")) && identical(d1$xt, "xt") &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), ps487("B2", 2)))), sh), texte575("B2 : indice 2", 2L)) &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), '<c r="B2" t="s"><v>99999999999</v></c>'))), sh),
+                         texte575("B2 : indice 99999999999", 2L)) &&
+               identical(int575(paste0(ent575, ligne487(2, c(nb487("A2", 1), sprintf('<c r="B2" t="s"><v>%s</v></c>', strrep("9", 25))))), sh),
+                         texte575(paste0("B2 : indice ", strrep("9", 20), "..."), 2L)) &&
+               identical(int575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"))),
+                                       ligne487(2, c(nb487("A2", 1), ps487("B2", 0)))), NULL), texte575("B2 : indice 0", 0L)) })
+  verifier("xlsx, lecteur interne (#575, R10) : sept cellules hors bornes : cinq positions citees, dans l'ordre de la feuille, puis \"et 2 autre(s)\"",
+           identical(int575(paste0(ent575, ligne487(2, vapply(1:7, function(k) ps487(paste0(LETTERS[k], 2), 10 + k), ""))),
+                            "<si><t>t</t></si><si><t>xt</t></si>"),
+                     texte575("A2 : indice 11, B2 : indice 12, C2 : indice 13, D2 : indice 14, E2 : indice 15 et 2 autre(s)", 2L)))
+  # R10 (#575), reprise du lot D de #574 : seules les cinq premieres
+  # positions sont citees (.xlsx_cinq()) ; chaque indice hors table etait
+  # auparavant cite par .echapper_texte() (environ 0,14 ms par position).
+  # Controle seul, cellules deja lues hors du temps mesure.
+  verifier("xlsx (#575, R10, #574 lot D) : 100 000 cellules hors de la table : cinq positions citees puis \"et 99995 autre(s)\", controle en moins de 2 s (cellules deja lues)",
+           local({ x10 <- paste0("<worksheet><sheetData><row r=\"1\">",
+                                 paste(sprintf('<c r="A%d" t="s"><v>%d</v></c>', 1:100000, 1:100000), collapse = ""),
+                                 "</row></sheetData></worksheet>")
+                   cc10 <- .xlsx_cellules(x10)
+                   t0 <- proc.time()[["elapsed"]]
+                   m10 <- tryCatch(.xlsx_controler_indices_partages(x10, 1, cc10), error = function(e) conditionMessage(e))
+                   proc.time()[["elapsed"]] - t0 < 2 &&
+                     identical(m10, texte575("A1 : indice 1, A2 : indice 2, A3 : indice 3, A4 : indice 4, A5 : indice 5 et 99995 autre(s)", 1L)) }))
+  # --- #574, lot D : regle generale R9 (structure de la table des chaines
+  # partagees), apres Q-F, P2 et X1 et avant R10, dans le processus (aucune
+  # erreur R brute ni arret mesure avant sur ces formes ; sonde
+  # docs/revues/20261115-s1-rejeu/sondes/sonde_574_lot_d.R, 1c206a7,
+  # openxlsx 4.2.5.2) : meme refus sur chaque chemin. Avant : #574 (1),
+  # <x:si> mele a des <si>, indice 0 lu 11.5 par les deux chemins au lieu de
+  # 9 ; #574 (2), <r> puis <x:rPh>, lu 11.57 par openxlsx ; second <rPh>
+  # dans une table a <rPr> lu "117" par openxlsx ("11" en interne) ; deux
+  # <rPh> sans <t> lus "7" par openxlsx ; <t/> dans un <r> : "1" par
+  # openxlsx, "15" en interne ; element inconnu <tz> dans <rPr> : "91" par
+  # openxlsx (mesures de la sonde).
+  b2_574d <- function(sh, k = 1L) feuille575(ser574(ps487("B2", k)), sh)
+  verifier("xlsx (#574 R9, formes 1 et 2) : <x:si><x:t>9</x:t></x:si><si><t>11.5</t></si> (B2 d'indice 0) : refus \"balise <x:si>, avant la chaine no 0\" ; <r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><x:rPh ..><t>7</t></x:rPh> : refus \"chaine no 0 : balise <x:rPh>\" ; sur chaque chemin (avant : 11.5 au lieu de 9 sur les deux chemins ; 11.57 par openxlsx)",
+           rb574(b2_574d(sprintf("<x:si %s><x:t>9</x:t></x:si><si><t>11.5</t></si>", nsx572), 0L), texte574r9("balise <x:si>, avant la chaine no 0")) &&
+             rb574(b2_574d(sprintf('<si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r><x:rPh %s sb="0" eb="1"><t>7</t></x:rPh></si>', nsx572), 0L),
+                   texte574r9("chaine no 0 : balise <x:rPh>")))
+  verifier("xlsx (#574 R9) : formes lues autrement par openxlsx : second <rPh> (table a <rPr>), <rPh> sans <t> ni <r>, <t/> dans une chaine a <r>, element <tz> dans <rPr> : refus R9 cite sur chaque chemin",
+           rb574(b2_574d(paste0("<si><t>x</t></si><si><t>11</t><rPh sb=\"0\" eb=\"1\"><t>a</t></rPh><rPh sb=\"1\" eb=\"2\"><t>7</t></rPh></si>",
+                                "<si><r><rPr><b/></rPr><t>a</t></r></si>")), texte574r9("chaine no 1 : balise <rPh>")) &&
+             rb574(b2_574d("<si><t>x</t></si><si><rPh sb=\"0\" eb=\"1\"><t>1</t></rPh><rPh sb=\"1\" eb=\"2\"><t>7</t></rPh></si>"),
+                   texte574r9("chaine no 1 : balise <rPh>")) &&
+             rb574(b2_574d("<si><t>x</t></si><si><r><rPr><b/></rPr><t>1</t></r><r><t/></r><r><t>5</t></r></si>"),
+                   texte574r9("chaine no 1 : balise <t/>")) &&
+             rb574(b2_574d("<si><t>x</t></si><si><r><rPr><b/><tz val=\"1\">9</tz></rPr><t>1</t></r></si>"),
+                   texte574r9("chaine no 1 : balise <tz>")))
+  verifier("xlsx (#574 R9) : <si >, </si >, texte hors de <t>, <si> dans un <extLst>, balise prefixee dans un <extLst>, <si> dans un <si>, deux <t>, <r> sans <t>, <t> apres <rPh>, majuscules <SI> : refus R9 cite sur chaque chemin",
+           all(mapply(function(sh, pos) rb574(b2_574d(sh, 0L), texte574r9(pos)),
+                      c("<si ><t>11.5</t></si>", "<si><t>11.5</t></si >", "<si><t>11.5</t>x</si>",
+                        "<si><t>11.5</t></si><extLst><ext uri=\"u\"><si><t>7</t></si></ext></extLst>",
+                        sprintf("<si><t>11.5</t></si><extLst><ext uri=\"u\"><x14:a %s/></ext></extLst>", 'xmlns:x14="urn:x14"'),
+                        "<si><si><t>11.5</t></si></si>", "<si><t>11.5</t><r><rPr><b/></rPr></r></si>",
+                        "<si><rPh sb=\"0\" eb=\"1\"><t>Z</t></rPh><t>11.5</t></si>", "<SI><t>11.5</t></SI>"),
+                      c("chaine no 0 : balise <si>", "chaine no 0 : balise </si>", "chaine no 0 : texte",
+                        "chaine no 1 : balise <si>", "balise <x14:a/>, apres la chaine no 0", "chaine no 1 : balise <si>",
+                        "chaine no 0 : balise <r>", "chaine no 0 : balise <t>", "balise <SI>, dans une table sans chaine"))))
+  # Partie entiere (racine, texte hors de la racine, marque d'ordre des
+  # octets), cinq positions au plus, cout : controle seul
+  # (.xlsx_controler_partagees(), apres R1 et R2).
+  r9_574d <- function(x) tryCatch({ .xlsx_controler_partagees(x); "lu" }, error = function(e) conditionMessage(e))
+  verifier("xlsx (#574 R9) : racine <x:sst>, deux racines, texte apres </sst>, partie sans <sst> : refus R9 ; marque d'ordre des octets, declaration et blancs autour de la racine, <sst/>, attributs de <sst> : lus",
+           identical(r9_574d('<?xml version="1.0"?><x:sst xmlns:x="m"><si><t>1</t></si></x:sst>'), texte574r9("balise <x:sst>, avant la chaine no 0")) &&
+             identical(r9_574d('<sst><si><t>1</t></si></sst><sst/>'), texte574r9("balise <sst/>, apres la chaine no 0")) &&
+             identical(r9_574d('<sst><si><t>1</t></si></sst>z'), texte574r9("texte, apres la chaine no 0")) &&
+             identical(r9_574d('<?xml version="1.0"?>'), texte574r9("balise <sst> absente")) &&
+             identical(r9_574d('\ufeff<?xml version="1.0"?>\r\n<sst xmlns="m" count="2" uniqueCount="1">\n <si>\n  <t>1</t>\n </si>\n</sst>\n'), "lu") &&
+             identical(r9_574d('\ufeff<sst/>'), "lu") && identical(.xlsx_controler_partagees("<sst/>"), character(0)))
+  verifier("xlsx (#574 R9) : sept chaines fautives : cinq positions citees, dans l'ordre du texte, puis \"et 2 autre(s)\" ; nom de plus de 20 caracteres tronque",
+           identical(r9_574d(paste0("<sst>", paste(sprintf("<si><t>%d</t><x:b/></si>", 0:6), collapse = ""), "</sst>")),
+                     texte574r9("chaine no 0 : balise <x:b/>, chaine no 1 : balise <x:b/>, chaine no 2 : balise <x:b/>, chaine no 3 : balise <x:b/>, chaine no 4 : balise <x:b/> et 2 autre(s)")) &&
+             identical(r9_574d(sprintf("<sst><si><t>1</t><%s/></si></sst>", strrep("z", 30))),
+                       texte574r9(sprintf("chaine no 0 : balise <%s.../>", strrep("z", 20)))))
+  # Controle seul (.xlsx_controler_partagees()) : mesure 0,12 s a 0,24 s
+  # (lot D). Lecture complete avant R9 : sonde sondes/sonde_574_lot_d.R, cas
+  # 574-4-n1000 a 574-4-n16000.
+  verifier("xlsx (#574 forme 4, R9) : table portant 64 000 balises <x:rPh> non fermees : refus R9 \"chaine no 0 : balise <x:rPh>\" en moins de 10 s, controle seul (cout lineaire ; avant : 3,72 s en interne des n = 4000, cout quadratique)",
+           local({ x4 <- paste0("<sst><si><t>11</t>", strrep('<x:rPh sb="0" eb="1">', 64000), "</si></sst>")
+                   t0 <- proc.time()[["elapsed"]]
+                   m4 <- r9_574d(x4)
+                   proc.time()[["elapsed"]] - t0 < 10 && identical(m4, texte574r9("chaine no 0 : balise <x:rPh>")) }))
+  # Lecture complete (X1 avant la regle generale de R9) : les retraits de
+  # blocs <r> et <rPh> de X1 etaient de cout quadratique (#574, lot D).
+  # Mesures avant, 1c206a7, lecture complete par engine_lire_xlsx() (sonde
+  # sondes/sonde_574_lot_d.R, cas 574-4-n16000 et x1-rph-guillemet-n16000) :
+  # 57,3 s (forme 4, 16 000 <x:rPh sb="0" eb="1"> non fermes) et 69,6 s
+  # (16 000 <rPh a=") sur le chemin interne, 55,0 s et 70,5 s par openxlsx,
+  # lus 11 ; apres, refus R9 en 0,17 s a 0,23 s par chemin.
+  verifier("xlsx (#574 forme 4, X1 puis R9) : lecture complete d'une table portant 16 000 <x:rPh sb=\"0\" eb=\"1\"> non fermes, ou 16 000 <rPh a=\" : refus R9 sur chaque chemin, moins de 10 s par chemin (avant, lecture complete : 57 s et 70 s, lus 11)",
+           all(mapply(function(forme, pos) { t0 <- proc.time()[["elapsed"]]
+                        ok <- rb574(b2_574d(paste0("<si><t>11</t>", strrep(forme, 16000), "</si><si><r><rPr><b/></rPr><t>a</t></r></si>"), 0L), texte574r9(pos))
+                        ok && proc.time()[["elapsed"]] - t0 < 10 * (1 + avec_openxlsx483) },
+                      c('<x:rPh sb="0" eb="1">', '<rPh a="'),
+                      c("chaine no 0 : balise <x:rPh>",
+                        "chaine no 0 : caractere < hors d'une balise"))))
+  # Temoins lus a l'identique sur chaque chemin : chaine riche d'Excel
+  # (<rPr> complet), phonetique non prefixee (<rPh>, <phoneticPr>), <t
+  # xml:space="preserve">, chaines vides (<si></si>, <si><t/></si>), blancs
+  # entre les balises, attributs de <sst>, <extLst> a contenu non prefixe ;
+  # chaque indice lit sa chaine (decompte de R9 = extraction).
+  sh574d <- paste0('<si></si><si><t/></si>',
+                   '<si>\n <t>t</t>\n <rPh sb="0" eb="1"><t>T</t></rPh><phoneticPr fontId="1" type="noConversion"/>\n</si>',
+                   '<si><r><rPr><b/><i/><sz val="11"/><color rgb="FFFF0000"/><rFont val="Calibri"/><family val="2"/><charset val="1"/><scheme val="minor"/><u/><strike/><vertAlign val="baseline"/><outline/><shadow/><condense/><extend/></rPr><t>x</t></r><r><t xml:space="preserve">t</t></r></si>',
+                   '<si><t xml:space="preserve">yt</t></si>',
+                   '<si><r><rPr><b/></rPr><t>1</t></r><r><t>1.5</t></r></si>',
+                   '<extLst><ext uri="{u}"><a b="1">z</a></ext></extLst>')
+  verifier("xlsx (#574 R9, temoins) : chaine riche (<rPr> complet), phonetique <rPh> et <phoneticPr>, xml:space=\"preserve\", chaines vides, blancs entre balises, <extLst> non prefixe : en-tete t, xt, yt aux indices 2, 3, 4 et xt = 11.5 a l'indice 5, lus a l'identique sur chaque chemin",
+           local({ r <- chemins483(feuille575(paste0(ligne487(1, c(ps487("A1", 2), ps487("B1", 3), ps487("C1", 4))),
+                                                     ligne487(2, c(nb487("A2", 1), ps487("B2", 5), nb487("C2", 2)))), sh574d), lire487)
+                   tous487(r, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt")) && identical(as.numeric(d$xt), 11.5)) &&
+                     identical(.xlsx_controler_partagees(paste0('<sst count="6">', sh574d, '</sst>')), c("", "", "t", "xt", "yt", "11.5")) }))
+  verifier("xlsx (#574 R9, temoin) : second <rPh> dans une chaine a <t>, table sans <rPr> (phonetique d'Excel) : lu sur chaque chemin (openxlsx ne lit que le premier <t>)",
+           tous487(chemins483(b2_574d('<si><t>x</t></si><si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><rPh sb="1" eb="2"><t>7</t></rPh></si>'), lire487),
+                   function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)))
+  # <phoneticPr ...></phoneticPr> (ouvrante et fermante, sans contenu) :
+  # admise comme <phoneticPr .../> (avis d'actuary sur le lot D, reserve b ;
+  # avant la reprise, refus R9 « balise <phoneticPr> » ; lue 11.5 par openxlsx
+  # 4.2.5.2, mesure).
+  verifier("xlsx (#574 R9, temoin) : <phoneticPr ...></phoneticPr> sans contenu, table sans puis avec <rPr> : lue 11.5 a l'identique sur chaque chemin ; avec un enfant ou du texte : refus R9",
+           all(vapply(c("", "<si><r><rPr><b/></rPr><t>a</t></r></si>"), function(suite) {
+             r <- chemins483(b2_574d(paste0('<si><t>x</t></si><si><t>11.5</t><rPh sb="0" eb="1"><t>a</t></rPh><phoneticPr fontId="1" type="noConversion"></phoneticPr></si>', suite)), lire487)
+             tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) &&
+               (!avec_openxlsx483 || identical(r$interne$xt, r$openxlsx$xt)) }, logical(1))) &&
+             identical(r9_574d("<sst><si><t>1</t><phoneticPr><b/></phoneticPr></si></sst>"), texte574r9("chaine no 0 : balise <b/>")) &&
+             identical(r9_574d("<sst><si><t>1</t><phoneticPr>x</phoneticPr></si></sst>"), texte574r9("chaine no 0 : texte")))
+  if (avec_openxlsx483) {
+    verifier("xlsx (#574 R9, temoin) : classeur ecrit par openxlsx::write.xlsx() (table des chaines partagees, <t xml:space=\"preserve\">, colonne texte annexe) : lu a l'identique sur chaque chemin",
+             local({ f <- tempfile(fileext = ".xlsx")
+                     openxlsx::write.xlsx(data.frame(t = 1:8, xt = x, yt = y, note = c("a b", "\u00e9&<", rep("n", 6))), f)
+                     tous487(chemins483(f, lire487), function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt", "note")) &&
+                               identical(as.numeric(d$xt), x) && identical(d$note[1:2], c("a b", "\u00e9&<"))) }))
+  } else cat("  [saute] classeur ecrit par openxlsx::write.xlsx() (#574 R9) : paquet non installe\n")
+  # --- #574, lot E : references numeriques de caracteres ordinaires
+  # (decision D-S1-18 du mainteneur, Q7 de l'avis d'actuary sur le lot D) :
+  # toute reference &#NNN; ou &#xHH; designant un caractere ASCII imprimable
+  # (U+0020 a U+007E) autre que " & ' < > est refusee dans le texte d'une
+  # chaine partagee (regle R9) et d'une chaine en ligne (complement de R8),
+  # avant les deux chemins (.xlsx_controler_references()). Mesures avant
+  # (5a28380, openxlsx 4.2.5.2 ; sonde
+  # docs/revues/20261115-s1-rejeu/sondes/sonde_574_lot_e.R) : B2 en chaine
+  # partagee 1&#48;4.2, 1&#x30;4.2 ou 104&#46;2 lu 104.2 en interne
+  # (sigma_USP 0.1114524114) et en texte par openxlsx, refuse en aval ;
+  # en-tete B1 x&#116;, D1 xt (colonne D = 2 xt), en chaine partagee comme en
+  # chaine en ligne : doublon refuse en interne, colonne D prise en silence
+  # par openxlsx, sigma_USP 0.0762262056, ok = TRUE.
+  texte574e <- function(partie, pos) sprintf("Classeur illisible : la partie %s du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.", partie, pos)
+  ss574e <- "xl/sharedStrings.xml"; fe574e <- "xl/worksheets/sheet1.xml"
+  verifier("xlsx (#574 lot E) : valeur B2 en chaine partagee 1&#48;4.2, 1&#x30;4.2, 104&#46;2, 1&#00048;4.2, 1&#x0030;4.2, 1&#X30;4.2 : refus \"chaine no 0 : <reference>\" sur chaque chemin (avant : 104.2 en interne, sigma_USP 0.1114524114 ; texte par openxlsx ; X majuscule : texte sur les deux chemins)",
+           all(mapply(function(v, ref) rb574(b2_574d(sprintf("<si><t>%s</t></si>", v), 0L), texte574e(ss574e, paste("chaine no 0 :", ref))),
+                      c("1&#48;4.2", "1&#x30;4.2", "104&#46;2", "1&#00048;4.2", "1&#x0030;4.2", "1&#X30;4.2"),
+                      c("&#48;", "&#x30;", "&#46;", "&#00048;", "&#x0030;", "&#X30;"))))
+  verifier("xlsx (#574 lot E) : valeur B2 en chaine en ligne <t>1&#48;4.2</t> : refus \"B2 : &#48;\", partie xl/worksheets/sheet1.xml, sur chaque chemin",
+           rb574(feuille575(ser574(en487("B2", "<t>1&#48;4.2</t>")), NULL), texte574e(fe574e, "B2 : &#48;")))
+  ent574e <- function(b1, doublon = FALSE)
+    paste0(ligne487(1, c(en487("A1", "<t>t</t>"), b1, en487("C1", "<t>yt</t>"), if (doublon) en487("D1", "<t>xt</t>"))),
+           paste(vapply(1:8, function(k) ligne487(k + 1L, c(nb487(paste0("A", k + 1L), k), nb487(paste0("B", k + 1L), x[k]),
+                                                            nb487(paste0("C", k + 1L), y[k]),
+                                                            if (doublon) nb487(paste0("D", k + 1L), 2 * x[k]))), ""), collapse = ""))
+  verifier("xlsx (#574 lot E) : en-tete B1 x&#116;, en chaine partagee puis en chaine en ligne, avec ou sans en-tete D1 xt (doublon) : refus \"chaine no 0 : &#116;\" ou \"B1 : &#116;\" sur chaque chemin (avant, doublon : refus en interne, sigma_USP 0.0762262056 par openxlsx)",
+           all(vapply(c(FALSE, TRUE), function(dbl)
+             rb574(feuille575(ent574e(ps487("B1", 0), dbl), "<si><t>x&#116;</t></si>"), texte574e(ss574e, "chaine no 0 : &#116;")) &&
+               rb574(feuille575(ent574e(en487("B1", "<t>x&#116;</t>"), dbl), NULL), texte574e(fe574e, "B1 : &#116;")), logical(1))))
+  # Decision D-S1-23 (constat de l'audit du lot E) : reference a un blanc
+  # que retire la mise en forme des en-tetes (.xlsx_blancs_entete(),
+  # .nom_sans_bom()). Mesures avant (5a28380 et lot E premier etat, openxlsx
+  # 4.2.5.2, sonde 574 lot E) : B1 xt&#9; et D1 xt, en chaine partagee comme
+  # en ligne : doublon refuse en interne, colonne D prise en silence par
+  # openxlsx (sigma_USP 0.0762262056, ok = TRUE) ; B2 104.2&#9; lu 104.2 en
+  # interne, refuse en aval par openxlsx.
+  verifier("xlsx (#574 lot E, D-S1-23) : en-tete B1 xt&#9; (partagee, puis en ligne), &#xD;xt (partagee), xt&#12288; (en ligne), avec D1 xt (doublon) : refus \"chaine no 0 : <reference>\" ou \"B1 : <reference>\" sur chaque chemin (avant : refus du doublon en interne, sigma_USP 0.0762262056 par openxlsx)",
+           rb574(feuille575(ent574e(ps487("B1", 0), TRUE), "<si><t>xt&#9;</t></si>"), texte574e(ss574e, "chaine no 0 : &#9;")) &&
+             rb574(feuille575(ent574e(en487("B1", "<t>xt&#9;</t>"), TRUE), NULL), texte574e(fe574e, "B1 : &#9;")) &&
+             rb574(feuille575(ent574e(ps487("B1", 0), TRUE), "<si><t>&#xD;xt</t></si>"), texte574e(ss574e, "chaine no 0 : &#xD;")) &&
+             rb574(feuille575(ent574e(en487("B1", "<t>xt&#12288;</t>"), TRUE), NULL), texte574e(fe574e, "B1 : &#12288;")))
+  verifier("xlsx (#574 lot E, D-S1-23) : valeur B2 en chaine partagee 104.2&#9; et en-tete A1 &#65279;t en chaine partagee : refus \"chaine no 0 : &#9;\" et \"chaine no 0 : &#65279;\" sur chaque chemin (avant : 104.2 en interne, texte refuse en aval par openxlsx ; colonne t lue en interne seulement)",
+           rb574(b2_574d("<si><t>104.2&#9;</t></si>", 0L), texte574e(ss574e, "chaine no 0 : &#9;")) &&
+             rb574(feuille575(sub(en487("A1", "<t>t</t>"), ps487("A1", 0), ent574e(en487("B1", "<t>xt</t>")), fixed = TRUE), "<si><t>&#65279;t</t></si>"),
+                   texte574e(ss574e, "chaine no 0 : &#65279;")))
+  # Temoins restant admis (D-S1-22) : U+00A0 n'est pas un blanc de
+  # .xlsx_blancs_entete() ; en-tete B1 distinct de xt sur les deux chemins,
+  # seule colonne xt, la colonne D (2 xt).
+  verifier("xlsx (#574 lot E, D-S1-22, temoins) : en-tete B1 xt&#160; ou xt&#233; ou xt&#1; (partagee et en ligne) et D1 xt : lu sur chaque chemin, colonne xt = D (2 xt)",
+           all(vapply(c("xt&#160;", "xt&#233;", "xt&#1;"), function(h)
+             tous487(chemins483(feuille575(ent574e(ps487("B1", 0), TRUE), sprintf("<si><t>%s</t></si>", h)), lire487),
+                     function(d) is.data.frame(d) && identical(as.numeric(d[, 4]), 2 * x) && identical(names(d)[4], "xt")) &&
+               tous487(chemins483(feuille575(ent574e(en487("B1", sprintf("<t>%s</t>", h)), TRUE), NULL), lire487),
+                       function(d) is.data.frame(d) && identical(as.numeric(d[, 4]), 2 * x) && identical(names(d)[4], "xt")), logical(1))))
+  # t="str" : texte de <v> lu tel quel par les deux chemins (aucun decodage,
+  # parite) : non vise ; seule colonne xt, la colonne D (sigma_USP
+  # 0.0762262056 sur les deux chemins, avant comme apres, sonde).
+  verifier("xlsx (#574 lot E, temoin) : en-tete B1 t=\"str\" <v>x&#116;</v> et D1 xt : non refuse, en-tetes t, x&#116;, yt, xt identiques sur chaque chemin",
+           tous487(chemins483(feuille575(ent574e('<c r="B1" t="str"><v>x&#116;</v></c>', TRUE), NULL), lire487),
+                   function(d) is.data.frame(d) && identical(names(d), c("t", "x&#116;", "yt", "xt"))))
+  # Temoins admis : non ASCII, dont des espaces qui ne sont pas des blancs
+  # de .xlsx_blancs_entete() (U+00A0, U+202F, U+200B, U+0085), echappements
+  # des cinq caracteres XML, entites nommees, references hors domaine ou de
+  # controle (laissees ou decodees par le lecteur interne comme avant ; les
+  # fins de ligne et la tabulation &#10;, &#13;, &#9;, &#xD;, auparavant
+  # temoins ici, sont refusees depuis la decision D-S1-23).
+  tem574e <- c("&#233;t&#xE9;", "a&#160;b&#x202F;c&#8203;d&#x85;e", "&#38;&#39;&#x27;&#34;&#60;&#62;",
+               "&amp;&lt;&gt;&quot;&apos;", "&#0;&#127;&#31;&#x110000;")
+  dec574e <- c("été", "a\u00a0b\u202fc\u200bd\u0085e", "&''\"<>", "&<>\"'", "&#0;\177\037&#x110000;")
+  verifier("xlsx (#574 lot E, temoins) : &#160;, &#x202F;, &#8203;, &#x85;, &#233;, &#xE9;, &#38;, &#39;, &#x27;, &#34;, &#60;, &#62;, entites nommees, &#0;, &#127;, &#31;, &#x110000; en chaines partagees et en ligne (colonne annexe) : lus sur chaque chemin ; lecteur interne : textes decodes",
+           local({ l1 <- ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"), en487("D1", "<t>note</t>")))
+                   corps <- paste(vapply(1:8, function(k) ligne487(k + 1L, c(nb487(paste0("A", k + 1L), k), nb487(paste0("B", k + 1L), x[k]),
+                                                                            nb487(paste0("C", k + 1L), y[k]),
+                                                                            if (k <= 5) ps487(paste0("D", k + 1L), k - 1L) else en487(paste0("D", k + 1L), paste0("<t>", tem574e[k - 5L], "</t>")))), ""),
+                                  collapse = "")
+                   r <- chemins483(feuille575(paste0(l1, corps), paste0("<si><t>", tem574e, "</t></si>", collapse = "")), lire487)
+                   tous487(r, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "yt", "note")) && identical(as.numeric(d$xt), x)) &&
+                     identical(r$interne$note, c(dec574e, dec574e[1:3])) &&
+                     identical(.xlsx_controler_partagees(paste0("<sst>", paste0("<si><t>", tem574e, "</t></si>", collapse = ""), "</sst>")), dec574e) }))
+  # Phonetique (<rPh>) non lue par les deux chemins : non examinee.
+  verifier("xlsx (#574 lot E, temoin) : &#48; dans le texte phonetique <rPh> d'une chaine : lu 11.5 sur chaque chemin",
+           tous487(chemins483(b2_574d('<si><t>x</t></si><si><t>11.5</t><rPh sb="0" eb="1"><t>&#48;</t></rPh></si>'), lire487),
+                   function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)))
+  r574e <- function(tx) tryCatch({ .xlsx_controler_references(tx, function(i) paste0("chaine no ", i - 1L), ss574e); "admis" },
+                                 error = function(e) conditionMessage(e))
+  verifier("xlsx (#574 lot E) : positions dans l'ordre du texte, chaque couple (chaine, reference) une fois, cinq au plus ; chaine non ASCII avant la reference ; references admises ignorees ; &#x0; hors domaine, &#xFFFFFFFFFF; illisible : admis ; controles hors &#9; a &#13;, U+0085, U+00A0, U+2007, U+200B, U+202F admis ; blancs &#9; a &#13;, U+1680, U+2000 a U+2006, U+2008 a U+200A, U+2028, U+2029, U+205F, U+3000 et U+FEFF refuses (D-S1-22, D-S1-23)",
+           identical(r574e(c("é&#48;&#48;&#x31;", "zz", "&#233;&#38;", "&#32;", "a&#126;b&#127;", "&#X7E;", "&#x7e;")),
+                     texte574e(ss574e, "chaine no 0 : &#48;, chaine no 0 : &#x31;, chaine no 3 : &#32;, chaine no 4 : &#126;, chaine no 5 : &#X7E; et 1 autre(s)")) &&
+             identical(r574e(c("&#x0;&#xFFFFFFFFFF;&#99999999999999999999;", "&#31;&#127;&#128;", "&amp;#48;&#38;#48;")), "admis") &&
+             identical(r574e(c("&#1;&#8;&#14;&#x85;&#160;&#x2007;&#x200B;&#x202F;&#xFEFE;", "a&#9;", "&#x0A;&#11;&#12;&#xd;", "&#5760;&#x2000;&#8198;&#x2008;&#8202;",
+                               "&#x2028;&#8233;&#x205F;&#12288;&#xFEFF;")),
+                       texte574e(ss574e, "chaine no 1 : &#9;, chaine no 2 : &#x0A;, chaine no 2 : &#11;, chaine no 2 : &#12;, chaine no 2 : &#xd; et 10 autre(s)")) &&
+             identical(r574e("&#x2028;&#8233;&#x205F;&#12288;&#xFEFF;"),
+                       texte574e(ss574e, "chaine no 0 : &#x2028;, chaine no 0 : &#8233;, chaine no 0 : &#x205F;, chaine no 0 : &#12288;, chaine no 0 : &#xFEFF;")) &&
+             identical(r574e(character(0)), "admis"))
+  # Cout : un gregexpr() sur les textes joints, sans boucle par chaine ni
+  # par caractere (mesure, lot E : 0,14 s a 0,27 s pour 10^5 chaines, 0,8 s
+  # a 1,0 s pour 4 x 10^5).
+  verifier("xlsx (#574 lot E) : 10^5 chaines portant chacune trois references admises, puis 10^5 chaines fautives : admis, puis refus a cinq positions \"et 99995 autre(s)\", chacun en moins de 5 s (controle seul)",
+           local({ t0 <- proc.time()[["elapsed"]]
+                   a <- r574e(paste("x&#233;&#160;&#38;", seq_len(1e5)))
+                   t1 <- proc.time()[["elapsed"]]
+                   b <- r574e(paste("1&#48;", seq_len(1e5)))
+                   t2 <- proc.time()[["elapsed"]]
+                   identical(a, "admis") && t1 - t0 < 5 && t2 - t1 < 5 &&
+                     identical(b, texte574e(ss574e, "chaine no 0 : &#48;, chaine no 1 : &#48;, chaine no 2 : &#48;, chaine no 3 : &#48;, chaine no 4 : &#48; et 99995 autre(s)")) }))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)
@@ -3311,7 +4323,8 @@ verifier("CSV (#522) : motifs LE-02, LE-03 et LE-13 inchanges (en-tete y, ligne 
 ## --- Colonnes presentes : caracteres echappes, noms absents cites "(vide)" (#522)
 # Liste des en-tetes de engine_lire_donnees_csv() ecrite par .echapper_texte() :
 # caracteres de controle ecrits \001, \t, \n, \033, blancs et controles non
-# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030) ;
+# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030),
+# octet 0x81 declare Latin-1 lu U+0081 et ecrit \u0081 (table fixe, #588) ;
 # nom que
 # .entete_absent() juge absent ("", NA, "X<k>" ou "V<k>" a sa position) cite
 # "(vide)".
@@ -3327,16 +4340,17 @@ verifier("Colonnes presentes (#522) : caracteres de controle ASCII ecrits \\001,
          identical(cols522(c("a\001b", "x\tt\n", "y\033[31mt")), "a\\001b, x\\tt\\n, y\\033[31mt") &&
            identical(cols522(c("a\\b", "q\"r", "d\ref")), "a\\\\b, q\"r, d\\ref"))
 # Octet 0x89 declare Latin-1 (ou non declare, en locale UTF-8, ou
-# .declarer_latin1() le declare) : enc2utf8() le lit comme Windows-1252, U+2030
-# (pour mille), caractere imprimable cite tel quel, et non comme le controle
-# U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81, sans
-# caractere en Windows-1252, reste ecrit "<81>" par R (mesures, R 4.3.3,
-# C.UTF-8, comme .nettoyer_cellules(), #99). Le controle U+0089 lui-meme, en
-# UTF-8 valide, est ecrit \u0089.
+# .declarer_latin1() le declare) : .vers_utf8() le lit comme Windows-1252,
+# U+2030 (pour mille), caractere imprimable cite tel quel, et non comme le
+# controle U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81,
+# sans caractere en Windows-1252, devient le controle U+0081, ecrit \u0081
+# sous toute plateforme (table fixe, #588, decision D-S1-7 du mainteneur ;
+# avant : "<81>" sous Linux, \u0081 sous Windows). Le controle U+0089 lui-meme,
+# en UTF-8 valide, est ecrit \u0089.
 l1_522 <- function(b) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- "latin1"; x }
-verifier("Colonnes presentes (#522) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 cite <81> ; \"e\" accentue inchange",
+verifier("Colonnes presentes (#522, #588) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 ecrit \\u0081 ; \"e\" accentue inchange",
          identical(cols522(c(latin1_522, "ann\u00e9e", "x")), "a\u2030b, ann\u00e9e, x") &&
-           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a<81>b, a\u00e9b") &&
+           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a\\u0081b, a\u00e9b") &&
            (!isTRUE(l10n_info()[["UTF-8"]]) ||
               identical(cols522(c(octet89_522, "x", "y")), "a\u2030b, x, y")))
 verifier("Colonnes presentes (#522) : controle C1 U+0089 en UTF-8 valide ecrit \\u0089",
@@ -3361,6 +4375,97 @@ verifier(".echapper_texte() (#522) : guillemets = TRUE rend la forme de citer() 
          identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x"), guillemets = TRUE),
                    c("\"a\\\"b\\t\"", "\"2022\\u00a0\"", "\"x\"")) &&
            identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x")), c("a\"b\\t", "2022\\u00a0", "x")))
+
+## --- Chaine declaree Latin-1 : table fixe de .vers_utf8() (#588) -----------
+# Decisions D-S1-7 et D-S1-8 du mainteneur (avis amont d'actuary, par. 7) :
+# une chaine declaree Latin-1 est ramenee en UTF-8 par une table fixe,
+# independante de la plateforme et de la locale. Octets 0x80-0x9F : les 27
+# positions definies en Windows-1252, et U+0081, U+008D, U+008F, U+0090,
+# U+009D pour les cinq autres (forme de R sous Windows ; R sous Linux les
+# ecrit "<81>"... en texte ASCII). Table attendue ecrite ici independamment
+# de CP_WINDOWS_1252_80_9F : elle la fige.
+table588 <- c(0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+              0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+              0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+              0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178)
+indefinis588 <- c(0x81, 0x8D, 0x8F, 0x90, 0x9D)
+# Point de code attendu de l'octet b (0x80-0xFF) d'une chaine declaree Latin-1
+cp588 <- function(b) if (b <= 0x9F) table588[b - 0x7F] else b
+verifier(".vers_utf8() (#588) : table 0x80-0x9F complete (32 positions), chaine rendue UTF-8 declaree, NA conserve",
+         identical(CP_WINDOWS_1252_80_9F, as.integer(table588)) &&
+           all(vapply(0x80:0x9F, function(b) {
+             u <- .vers_utf8(l1_522(b))
+             identical(utf8ToInt(u), as.integer(c(0x61, cp588(b), 0x62))) && Encoding(u) == "UTF-8"
+           }, NA)) &&
+           identical(.vers_utf8(c(NA, l1_522(0x81))), c(NA, "a\u0081b")))
+# Les 27 positions definies sont celles que rend la conversion de R (toute
+# plateforme) ; les cinq autres, celles de R sous Windows, ou "<xx>" sous
+# Linux. 0xA0-0xFF : identiques a enc2utf8() (U+00A0-U+00FF).
+verifier(".vers_utf8() (#588) : identique a enc2utf8() hors des cinq octets sans caractere en Windows-1252",
+         all(vapply(0x80:0xFF, function(b) {
+           r <- enc2utf8(l1_522(b))
+           if (b %in% indefinis588) identical(r, intToUtf8(c(0x61, b, 0x62))) ||
+             identical(r, sprintf("a<%02x>b", b))
+           else identical(.vers_utf8(l1_522(b)), r)
+         }, NA)))
+verifier(".echapper_texte() (#588) : cinq octets sans caractere en Windows-1252 ecrits \\u0081, \\u008d, \\u008f, \\u0090, \\u009d, avec ou sans guillemets",
+         identical(.echapper_texte(vapply(indefinis588, l1_522, "")),
+                   c("a\\u0081b", "a\\u008db", "a\\u008fb", "a\\u0090b", "a\\u009db")) &&
+           identical(.echapper_texte(l1_522(0x81), guillemets = TRUE), "\"a\\u0081b\""))
+# Independance a la locale : .echapper_texte() sur les 128 octets 0x80-0xFF
+# declares Latin-1, dans un sous-processus Rscript lance sous LC_ALL = C puis
+# C.UTF-8 ; attendu : le texte que rend .echapper_texte() pour la chaine UTF-8
+# des points de code de la table. Le fils ecrit les points de code (ASCII
+# seul, sans dependance a l'encodage de sortie) et son mode UTF-8 : une
+# locale indisponible (mode UTF-8 autre que prevu) est signalee [saute].
+fils588 <- tempfile("fils588_", fileext = ".R")
+writeLines(c(
+  "a <- commandArgs(TRUE)",
+  "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+  "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+  "cat(\"UTF8=\", isTRUE(l10n_info()[[\"UTF-8\"]]), \"\\n\", sep = \"\")",
+  "for (b in 0x80:0xFF) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- \"latin1\"",
+  "  cat(\"CP=\", paste(utf8ToInt(.echapper_texte(x)), collapse = \" \"), \"\\n\", sep = \"\") }"), fils588)
+attendu588 <- vapply(0x80:0xFF, function(b)
+  paste(utf8ToInt(.echapper_texte(intToUtf8(c(0x61, cp588(b), 0x62)))), collapse = " "), "")
+locale588 <- function(loc) {
+  ancien <- Sys.getenv("LC_ALL", unset = NA)
+  Sys.setenv(LC_ALL = loc)
+  on.exit(if (is.na(ancien)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = ancien))
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                  shQuote(c(fils588, normalizePath(RACINE, winslash = "/"))),
+                                  stdout = TRUE, stderr = TRUE, timeout = 120))
+  list(utf8 = sub("^UTF8=", "", grep("^UTF8=", out, value = TRUE)),
+       cp = sub("^CP=", "", grep("^CP=", out, value = TRUE)))
+}
+for (loc588 in c("C", "C.UTF-8")) {
+  r588 <- locale588(loc588)
+  if (!identical(r588$utf8, if (loc588 == "C") "FALSE" else "TRUE")) {
+    cat(sprintf("  [saute] .echapper_texte() sous LC_ALL = %s (#588) : locale indisponible\n", loc588))
+    next
+  }
+  verifier(sprintf(".echapper_texte() (#588) : 128 octets 0x80-0xFF declares Latin-1, meme texte sous LC_ALL = %s qu'attendu par la table", loc588),
+           identical(r588$cp, attendu588))
+}
+unlink(fils588)
+# D-S1-8 : mw_valider_triangle() compare les noms de ligne apres .vers_utf8().
+# Avant : sous Linux, un nom Latin-1 "a\x81b" et un nom ASCII "a<81>b"
+# etaient tous deux lus "a<81>b" et juges en double (triangle refuse a tort ;
+# constat hors perimetre n. 1 de l'avis amont d'actuary). Le meme nom en
+# Latin-1 et en UTF-8 ("a" U+0081 "b") devient un doublon sous Linux (deja
+# juge tel sous Windows ; D-S1-30), cite \u0081.
+noms588 <- function(n1, n2) { m <- triangle(5); rownames(m) <- c(n1, n2, "2", "3", "4"); mw_valider_triangle(m) }
+verifier("mw_valider_triangle() (#588, D-S1-8) : nom Latin-1 a octet sans caractere en Windows-1252 et nom ASCII \"a<xx>b\" : pas de doublon, triangle accepte",
+         all(vapply(indefinis588, function(b) {
+           r <- noms588(l1_522(b), sprintf("a<%02x>b", b))
+           isTRUE(r$ok) && !length(r$erreurs)
+         }, NA)))
+verifier("mw_valider_triangle() (#588, D-S1-8) : meme nom en Latin-1 et en UTF-8 (U+0081) : doublon cite \\u0081",
+         {
+           r <- noms588(l1_522(0x81), "a\u0081b")
+           !isTRUE(r$ok) && identical(r$erreurs,
+             "Annee d'accident en double : \"a\\u0081b\" (annees d'accident i = 0 et i = 1).")
+         })
 
 ## --- Colonne i du triangle, colonne t et en-tetes en double des series (#555)
 # Decisions du mainteneur 1, 2 et 5 a 10 du 12/11/2026 ; textes d'actuary
@@ -3505,6 +4610,149 @@ verifier("Textes reancres (#555, decisions 5 et 6) : lignes vides des series et 
                        paste("Colonne t : annees non consecutives (2001, 2003, 2005, 2007, 2009), annee manquante presumee ;",
                              "les annees d'accident (annexe XVII, section B) ou exercices (section C) sont numerotes par des",
                              "nombres consecutifs de 1 a T (B(3)(a) et (b), C(3)(a) et (b))."))
+         })
+## --- En-tete d'encodage "bytes" des series (#570)
+# Decision D-S1-4 du mainteneur (option a), texte d'actuary
+# (docs/revues/20261115-s1-rejeu/actuary-avis-amont.md, par. 2 et 6) :
+# tout en-tete declare "bytes" est refuse quelle que soit sa place, un motif
+# par colonne, ok = FALSE sans erreur R ; aucun autre motif ne s'y ajoute.
+# Avant : erreur R brute ("translating strings with "bytes" encoding is not
+# allowed") si le nom precede xt ou yt, lecture acceptee s'il suit yt.
+B570 <- function(k) sprintf(paste0("En-tete de la colonne %d declare d'encodage \"bytes\" : ses caracteres ne sont ",
+                                   "pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare."), k)
+oct570 <- function(s) { z <- rawToChar(as.raw(s)); Encoding(z) <- "bytes"; z }
+ser570 <- function(noms) {
+  d <- data.frame(t = 1:8, xt = x, yt = y)
+  d <- d[, match(ifelse(noms %in% c("t", "xt", "yt"), noms, "t"), names(d)), drop = FALSE]
+  names(d) <- noms; d
+}
+lit570 <- function(noms) tryCatch(engine_lire_donnees_csv(ser570(noms)), error = function(e) e)
+NB570 <- oct570(c(0x61, 0xff, 0x62)); NB570b <- oct570(c(0xe9, 0x74, 0xe9))
+verifier("En-tete \"bytes\" (#570) : colonne non lue (apres yt) refusee, motif seul, ok = FALSE sans erreur R",
+         {
+           r <- lit570(c("t", "xt", "yt", NB570))
+           is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(4)) && is.null(r$xt) && is.null(r$yt)
+         })
+verifier("En-tete \"bytes\" (#570) : colonne placee avant xt ou yt (colonne 1, 2 ou 3) refusee, motif seul, sans erreur R",
+         {
+           r1 <- lit570(c(NB570, "xt", "yt")); r2 <- lit570(c("t", NB570, "xt", "yt")); r3 <- lit570(c("t", "xt", NB570, "yt"))
+           all(vapply(list(r1, r2, r3), function(r) is.list(r) && identical(r$ok, FALSE), TRUE)) &&
+             identical(r1$erreurs, B570(1)) && identical(r2$erreurs, B570(2)) && identical(r3$erreurs, B570(3))
+         })
+verifier("En-tete \"bytes\" (#570) : plusieurs colonnes -> un motif par colonne dans l'ordre ; yt manquant ou t en double non cumules",
+         {
+           r <- lit570(c(NB570, "t", "xt", "yt", NB570b))
+           m <- lit570(c("t", "xt", NB570)); dd <- lit570(c("t", "xt", "yt", "t", NB570))
+           is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(c(1, 5))) &&
+             is.list(m) && identical(m$erreurs, B570(3)) && is.list(dd) && identical(dd$erreurs, B570(5))
+         })
+verifier("En-tete \"bytes\" (#570) : temoins ASCII, UTF-8, Latin-1 declare ou non (colonne de plus) lus comme la serie seule",
+         {
+           l1 <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65)))
+           l1d <- l1; Encoding(l1d) <- "latin1"
+           ref <- engine_lire_donnees_csv(ser570(c("t", "xt", "yt")))
+           ok <- isTRUE(ref$ok) && identical(ref$xt, x) && identical(ref$yt, y)
+           for (n in list("abc", "année", l1d, l1)) {
+             r <- lit570(c("t", "xt", "yt", n))
+             ok <- ok && is.list(r) && isTRUE(r$ok) && identical(r$xt, ref$xt) && identical(r$yt, ref$yt)
+           }
+           ok
+         })
+# Decision D-S1-19 du mainteneur (option 2) : en colonne 1, un nom "bytes"
+# commencant par un prefixe de BOM reconnu par .nom_sans_bom() (X..., octets
+# EF 2E 2E, X.U.FEFF.) garde sa marque et est refuse. Avant : la marque
+# etait perdue par rawToChar(), le nom declare Latin-1 et lu (ok = TRUE).
+verifier("En-tete \"bytes\" (#570) : colonne 1 a prefixe de BOM (X..., EF 2E 2E, X.U.FEFF.) refusee, motif colonne 1",
+         {
+           pref <- list(charToRaw("X..."), as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."))
+           all(vapply(pref, function(p) {
+             r <- lit570(c(oct570(c(as.integer(p), 0x61, 0xff, 0x62)), "xt", "yt"))
+             is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(1)) && is.null(r$xt)
+           }, TRUE))
+         })
+verifier("En-tete \"bytes\" (#570) : temoins colonne 1 BOM brut + t, X... non bytes, ASCII lus comme la serie seule",
+         {
+           ref <- engine_lire_donnees_csv(ser570(c("t", "xt", "yt")))
+           bom_t <- rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x74)))
+           x3 <- rawToChar(as.raw(c(0x58, 0x2e, 0x2e, 0x2e, 0x61, 0xff, 0x62)))
+           ok <- isTRUE(ref$ok)
+           for (n in list(bom_t, x3, "t", "abc")) {
+             r <- lit570(c(n, "xt", "yt"))
+             ok <- ok && is.list(r) && isTRUE(r$ok) && identical(r$xt, ref$xt) && identical(r$yt, ref$yt)
+           }
+           ok && identical(.nom_sans_bom(bom_t), "t")
+         })
+## --- En-tete d'encodage "bytes" du triangle (#570, decision D-S1-26)
+# engine_lire_triangle() refuse tout nom de colonne declare "bytes", quelle
+# que soit sa place, un motif par colonne, meme texte que pour les series,
+# retour immediat de la structure de refus du triangle. Avant : le nom etait
+# lu (declare Latin-1) quand les autres noms etaient renseignes, ou faisait
+# lever l'erreur R "translating strings with "bytes" encoding is not
+# allowed" quand ils etaient vides. Triangle lu comme par l'application
+# (cellules en texte, en-tetes tels quels).
+tri570 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"), colClasses = "character",
+                          check.names = FALSE, na.strings = character(0))
+lt570 <- function(noms) {
+  d <- tri570; names(d) <- noms
+  tryCatch(engine_lire_triangle(d), error = function(e) e)
+}
+refus570 <- function(r, k) is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(k)) &&
+  identical(r$avertissements, character(0)) && identical(r$avertissements_lecture, character(0)) &&
+  is.null(r$triangle) && identical(r$I, NA) && identical(r$J, NA) &&
+  identical(names(r), c("ok", "erreurs", "avertissements", "avertissements_lecture", "triangle", "I", "J"))
+noms570 <- names(tri570); vides570 <- rep("", length(noms570))
+ref570 <- engine_lire_triangle(tri570)
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : colonne 1 sans prefixe, autres noms renseignes ou vides, refusee, motif colonne 1, sans erreur R",
+         {
+           all(vapply(list(NB570, NB570b, oct570(c(0xe3, 0x80, 0x80)), oct570(c(0x69, 0xe3, 0x80, 0x80))), function(n)
+             refus570(lt570(c(n, noms570[-1])), 1) && refus570(lt570(c(n, vides570[-1])), 1), TRUE))
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-19, D-S1-26) : colonne 1 a prefixe de BOM (X..., EF 2E 2E, X.U.FEFF., BOM brut), autres noms renseignes ou vides, refusee",
+         {
+           pref <- list(charToRaw("X..."), as.raw(c(0xef, 0x2e, 0x2e)), charToRaw("X.U.FEFF."), as.raw(c(0xef, 0xbb, 0xbf)))
+           reste <- list(c(0x61, 0xff, 0x62), c(0xc3, 0xa9), c(0xe3, 0x80, 0x80), c(0x69, 0xe3, 0x80, 0x80))
+           ok <- TRUE
+           for (p in pref) for (q in reste) {
+             n <- oct570(c(as.integer(p), q))
+             ok <- ok && refus570(lt570(c(n, noms570[-1])), 1) && refus570(lt570(c(n, vides570[-1])), 1)
+           }
+           ok
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : colonne > 1 et plusieurs colonnes, un motif par colonne dans l'ordre, colonne i presente ou non",
+         {
+           a <- noms570; a[4] <- NB570
+           b <- noms570; b[c(2, 9)] <- c(NB570, NB570b)
+           cc <- vides570; cc[c(1, 3)] <- c(NB570b, NB570)
+           d <- noms570; d[1] <- "j"; d[9] <- NB570
+           refus570(lt570(a), 4) && refus570(lt570(b), c(2, 9)) && refus570(lt570(cc), c(1, 3)) && refus570(lt570(d), 9)
+         })
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : temoins ASCII, ASCII declare bytes, UTF-8, Latin-1 declare ou non, BOM brut + i, EF 2E 2E + i declare bytes : triangle inchange",
+         {
+           asc <- "j7"; Encoding(asc) <- "bytes"
+           l1 <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65))); Encoding(l1) <- "latin1"
+           l1n <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65)))
+           ok <- isTRUE(ref570$ok)
+           for (n in list(asc, "année", l1, l1n)) {
+             v <- noms570; v[9] <- n; r <- lt570(v)
+             ok <- ok && is.list(r) && identical(r, ref570)
+           }
+           for (n in list(rawToChar(as.raw(c(0xef, 0xbb, 0xbf, 0x69))), oct570(c(0xef, 0x2e, 0x2e, 0x69)))) {
+             r <- lt570(c(n, noms570[-1]))
+             ok <- ok && is.list(r) && identical(r, ref570)
+           }
+           ok
+         })
+# Chemin matrice (branche is.matrix(df) d'engine_lire_triangle()) : meme refus.
+# Autres noms NA : avant le correctif, erreur R (D-S1-26).
+verifier("En-tete \"bytes\" du triangle (#570, D-S1-26) : matrice, colonne 5 avec autres noms renseignes, colonne 2 avec autres noms NA, refusee, motif de la colonne, sans erreur R",
+         {
+           lm570 <- function(noms) {
+             m <- as.matrix(tri570); colnames(m) <- noms
+             tryCatch(engine_lire_triangle(m), error = function(e) e)
+           }
+           a <- noms570; a[5] <- NB570
+           b <- rep(NA_character_, length(noms570)); b[2] <- NB570
+           refus570(lm570(a), 5) && refus570(lm570(b), 2)
          })
 # Classeur : memes cas par le lecteur interne force et, s'il est installe,
 # par openxlsx ; en-tetes ecrits par l'ecrivain interne, blancs de bord

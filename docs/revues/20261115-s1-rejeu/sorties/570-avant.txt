@@ -1,0 +1,85 @@
+### Sonde sonde_570.R, moteur cc6c9a9 (avant, git show cc6c9a9:R/engine.R), LC_ALL=C.UTF-8, chemin direct engine_lire_donnees_csv()
+moteur = engine_avant.R ; R 4.3.3 ; locale LC_CTYPE = C.UTF-8
+Encoding("abc" declare bytes) = unknown 
+
+[bytes apres yt (t, xt, yt, B)]
+  Encoding(noms) = unknown, unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[bytes en tete (B, xt, yt)]
+  Encoding(noms) = bytes, unknown, unknown
+  ERREUR R : classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+
+[bytes avant xt (t, B, xt, yt)]
+  Encoding(noms) = unknown, bytes, unknown, unknown
+  ERREUR R : classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+
+[bytes entre xt et yt (t, xt, B, yt)]
+  Encoding(noms) = unknown, unknown, bytes, unknown
+  ERREUR R : classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+
+[bytes a la place de yt (t, xt, B)]
+  Encoding(noms) = unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, xt, a\\xffb.
+
+
+[deux bytes (B, t, xt, yt, B2)]
+  Encoding(noms) = bytes, unknown, unknown, unknown, bytes
+  ERREUR R : classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+
+[bytes precede d'un BOM, colonne 1]
+  Encoding(noms) = bytes, unknown, unknown, unknown
+  ERREUR R : classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+
+[bytes et t en double (t, xt, yt, t, B)]
+  Encoding(noms) = unknown, unknown, unknown, unknown, bytes
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    En-tete de la colonne t present plusieurs fois (colonnes 1, 4, d'en-tetes t, t) : la colonne t, facultative, porte l'annee de chaque ligne et ne peut figurer qu'une fois (en-tete t ou T, blancs de bord ignores) ; retirer ou renommer la colonne en trop.
+
+
+[temoin ASCII (t, xt, yt, abc)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin ASCII declare bytes (t, xt, yt, ASC)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin UTF-8 (t, xt, yt, annee UTF-8)]
+  Encoding(noms) = unknown, unknown, unknown, UTF-8
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin Latin-1 declare (t, xt, yt, L1)]
+  Encoding(noms) = unknown, unknown, unknown, latin1
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin Latin-1 non declare (t, xt, yt, L1n)]
+  Encoding(noms) = unknown, unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+[temoin UTF-8 seul manquant (t, xt, U8)]
+  Encoding(noms) = unknown, unknown, UTF-8
+  engine_lire_donnees_csv : ok = FALSE 
+  erreurs :
+    Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, xt, année.
+
+
+[temoin sans colonne de plus (t, xt, yt)]
+  Encoding(noms) = unknown, unknown, unknown
+  engine_lire_donnees_csv : ok = TRUE 
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+

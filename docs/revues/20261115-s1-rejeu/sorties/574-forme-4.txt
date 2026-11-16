@@ -1,0 +1,18 @@
+[574-4] chemin = interne
+  n =  1000, a_partagee : 0.22 s ; B2 lu = 11
+  n =  1000, b_en_ligne : 0.31 s ; B2 lu = 11
+  n =  2000, a_partagee : 0.77 s ; B2 lu = 11
+  n =  2000, b_en_ligne : 0.96 s ; B2 lu = 11
+  n =  4000, a_partagee : 3.72 s ; B2 lu = 11
+  n =  4000, b_en_ligne : 3.57 s ; B2 lu = 11
+  [code de sortie : 0]
+
+[574-4] chemin = openxlsx 4.2.5.2
+  n =  1000, a_partagee : 0.21 s ; B2 lu = 11
+  n =  1000, b_en_ligne : 0.18 s ; B2 lu = <NA>
+  n =  2000, a_partagee : 0.92 s ; B2 lu = 11
+  n =  2000, b_en_ligne : 0.52 s ; B2 lu = <NA>
+  n =  4000, a_partagee : 3.66 s ; B2 lu = 11
+  n =  4000, b_en_ligne : 1.51 s ; B2 lu = <NA>
+  [code de sortie : 0]
+

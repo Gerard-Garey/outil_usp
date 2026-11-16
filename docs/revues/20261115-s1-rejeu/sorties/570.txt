@@ -1,0 +1,42 @@
+[570] chemin = interne
+  noms : t, xt, <bytes a\xffb> 
+  ok = FALSE 
+  erreurs :
+    Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, xt, a\\xffb.
+
+  noms : t, xt, yt, <bytes a\xffb> 
+  ok = TRUE 
+
+  noms : <bytes a\xffb>, xt, yt 
+  ERREUR classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+  engine_lire_triangle, colonne 2 au nom bytes :
+  ok =
+    FALSE
+    
+  erreurs :
+    D(2)(c) : au moins 5 annees de developpement pour la premiere annee d'accident (1 fournies).
+    Triangle non carre (5 annees d'accident, 1 annees de developpement) : admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil, les formules des paragraphes 4 et 5 de cette section ne se calculant a la lettre que pour un triangle carre. Se ramener a un triangle carre exclut des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b)).
+  [code de sortie : 0]
+
+[570] chemin = openxlsx 4.2.5.2
+  noms : t, xt, <bytes a\xffb> 
+  ok = FALSE 
+  erreurs :
+    Colonne(s) manquante(s) : yt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, xt, a\\xffb.
+
+  noms : t, xt, yt, <bytes a\xffb> 
+  ok = TRUE 
+
+  noms : <bytes a\xffb>, xt, yt 
+  ERREUR classe = simpleError/error/condition
+  message = translating strings with "bytes" encoding is not allowed
+  engine_lire_triangle, colonne 2 au nom bytes :
+  ok =
+    FALSE
+    
+  erreurs :
+    D(2)(c) : au moins 5 annees de developpement pour la premiere annee d'accident (1 fournies).
+    Triangle non carre (5 annees d'accident, 1 annees de developpement) : admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil, les formules des paragraphes 4 et 5 de cette section ne se calculant a la lettre que pour un triangle carre. Se ramener a un triangle carre exclut des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b)).
+  [code de sortie : 0]
+

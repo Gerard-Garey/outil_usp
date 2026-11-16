@@ -1,0 +1,13 @@
+
+== test_controles_entree.R
+  note : plateforme courante, y = x / 2 : ligne Cook non applicable ; TOST sous-normal 1e-320 : statistique non definie ; 5e-324 : statistique non definie (#153).
+  [saute] lignes vides (#483), chemin openxlsx : paquet non installe
+  [saute] colonne i et en-tetes en double (#555), chemin openxlsx : paquet non installe
+  [saute] export xlsx (#488), voie du paquet zip : paquet non installe
+  [saute] export xlsx (#488), lecture par openxlsx : paquet non installe
+  [saute] divergence &, <, > et logique (#488), chemin openxlsx : paquet non installe
+  [saute] repli de zip::zipr() (#488) : paquet zip non installe
+   428 assertions : 428 ok, 0 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (126.5 s)
+
+TOTAL : 428 assertions, 428 ok, 0 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)
+OK

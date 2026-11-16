@@ -34,26 +34,15 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
   quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
   deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
-- Limites connues de la lecture xlsx. `openxlsx` reste le lecteur par
-  défaut quand il est installé.
-  - **Cellules booléennes** (#579) : sur le chemin `openxlsx`, une colonne
-    dont toutes les cellules à valeur sont booléennes, ou des textes
-    « TRUE » / « FALSE », est lue 1 pour `TRUE` et 0 pour `FALSE`, sans
-    message (valeur fausse) ; la voie de repli la refuse. Un tableur peut écrire une
-    cellule booléenne : relire les données affichées (voir ci-dessous).
-  - Formes de classeur qu'aucun tableur n'est supposé écrire (hypothèse
-    non vérifiée) :
-    - **#575** : une cellule `t="s"` dont l'indice sort de la table des
-      chaînes partagées arrête le processus R sous `openxlsx` 4.2.5.2
-      (mesuré sous Linux) et 4.2.9 (mesuré sous Linux et sous Windows 11).
-      Aucun `tryCatch()` ne l'intercepte. Sans `openxlsx`, la cellule est
-      lue `NA` puis refusée.
-    - **#574** : une chaîne partagée préfixée `<x:si>` n'est comptée par
-      aucun des deux chemins dans l'indice des chaînes partagées, et deux
-      cellules de même référence ne sont pas refusées (la dernière
-      l'emporte). Dans les deux cas, une valeur fausse est lue sans
-      message.
-  - Contrôle compensatoire : relire les données affichées avant le calcul
+- Lecture xlsx. `openxlsx` reste le lecteur par défaut quand il est
+  installé. Avant les deux chemins de lecture, un contrôle de forme du
+  classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
+  l'outil sait lire de façon identique sur les deux chemins, hors des écarts
+  consignés dans la documentation, dont une cible de feuille forgée qui
+  mène à une valeur fausse et une balise qui bloque `openxlsx` (formes de classeur
+  hors de ce sous-ensemble : #574 ; détail dans la documentation,
+  « Contrôles de qualité des données »).
+  - Précaution : relire les données affichées avant le calcul
     contre leur source. Le rapport figé donne l'empreinte md5 des données
     du calcul (table « Empreintes », `engine_empreinte()`). Recalculée à
     partir des valeurs de la source, sans le lecteur de l'outil, elle
@@ -238,10 +227,6 @@ connus demeurent :
   p-value au-delà du seuil, p-values Monte-Carlo identiques au bit près, aucun
   verdict ni libellé modifié (#548 ; relevé :
   `docs/revues/20261114-passage-de-remise/etape-3-releve-poste.md`).
-- Avec `openxlsx` installé, `tests/unitaires/test_controles_entree.R` compte
-  un échec propre à Windows (#588) : un octet 0x81 déclaré Latin-1 est cité
-  `\u0081` au lieu de `<81>` dans un motif de refus d'import. Aucun nombre,
-  verdict ni σ_USP n'est touché.
 
 Lancée depuis Git Bash, dont le `pdftotext` (xpdf) ne connaît pas `-bbox`,
 `tests/unitaires/test_controle_doc_nd.R` saute la passe de mesure du
