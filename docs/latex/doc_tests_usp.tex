@@ -4719,8 +4719,14 @@ fausses sans message, qu'il lit autrement que la voie de repli, ou devant lesque
 sur une erreur de~R ou arrête le processus~R~; parce qu'il est fermé, il refuse aussi des formes
 que les deux chemins liraient juste. Il refuse en outre des formes qu'un outil d'écriture de
 classeur produit~: une cellule en erreur de calcul (\code{t="e"}), qu'\code{openxlsx::write.xlsx()}
-écrit pour une valeur manquante ou infinie (mesuré, ci-dessous) et qu'un tableur écrit pour
-une formule en erreur (non vérifié sur un classeur de tableur)~; un texte qui porte
+écrit pour une valeur manquante (\code{keepNA = TRUE}) ou infinie (mesuré, ci-dessous) et
+qu'un tableur écrit pour une formule en erreur (non vérifié sur un classeur de tableur)~; une
+chaîne en ligne dont le texte commence ou finit par un blanc, qu'openpyxl (qui écrit tout texte
+en chaîne en ligne) et XlsxWriter en mode \code{constant\_memory} écrivent
+\code{<t xml:space="preserve">}, y compris dans une colonne que l'outil ne lit pas (mesuré,
+openpyxl~3.1.5 et XlsxWriter~3.2.9, ainsi que pandas~3.0.5 par son moteur openpyxl~; dans son
+mode par défaut, XlsxWriter écrit ce texte dans la table des chaînes partagées, où il est
+admis)~; un texte qui porte
 «~\code{ t=}~» après la dernière cellule (en-tête ou pied de page)~; une feuille dont les
 cellules à valeur, comptées depuis A1, couvrent un rectangle de plus de $10^6$~cellules~; ces
 deux dernières formes résultent d'une saisie qu'un tableur admet (raisonnement, non vérifié sur
@@ -4773,16 +4779,18 @@ du bloc sont bien imbriquées~; hors du contenu des \code{<extLst>}, qui n'est p
 balise n'est préfixée, \code{<sheetData>} ne contient que des \code{<row>}, \code{<row>} que des
 \code{<c>} et des \code{<extLst>}, \code{<c>} au plus un \code{<f>}, un \code{<v>}, un
 \code{<is>} et un \code{<extLst>}, \code{<is>}, écrit sans attribut, un seul \code{<t>} sans
-texte autour, écrit lui aussi sans attribut ni blanc (\code{<t>}, ou \code{<t/>} s'il est vide,
-des blancs étant admis avant «~\code{/>}~»), et \code{<v>}, \code{<f>} et \code{<t>} aucune
+texte autour, écrit lui aussi sans attribut ni blanc (\code{<t>}\ldots\code{</t>}, ou
+\code{<t/>}, des blancs étant admis avant «~\code{/>}~»), et \code{<v>}, \code{<f>} et \code{<t>} aucune
 balise~; hors de \code{<v>}, \code{<f>} et \code{<t>}, le texte n'est fait que de blancs. Une
 chaîne en ligne ne porte donc ni segments \code{<r>}, ni texte phonétique, ni plusieurs
 \code{<t>}~; une chaîne en ligne indentée (\code{<is>}, une espace, puis \code{<t>}) est lue par
-\code{openxlsx} comme un morceau de balise (mesuré)~; d'un \code{<t>} à attribut ou à blanc,
+\code{openxlsx} comme un morceau de balise (mesuré)~; d'un \code{<t>} ouvrant à attribut ou à blanc,
 \code{openxlsx} garde dans le texte lu ce qui suit «~\code{<t}~» et un caractère~: l'en-tête
 écrit \code{<t xml:space="preserve">xt</t>} est lu «~\code{xml:space="preserve">xt}~» et n'est
 pas reconnu, la valeur $104{,}2$ ainsi écrite est lue comme un texte non numérique, quand la
-voie de repli lit \code{xt} et $104{,}2$ (mesuré). Cette règle ne vise que la chaîne en ligne~:
+voie de repli lit \code{xt} et $104{,}2$ (mesuré)~; la forme vide \code{<t xml:space="preserve"/>},
+lue vide par les deux chemins (mesuré), est refusée aussi, la règle étant fermée. Cette règle ne
+vise que la chaîne en ligne~:
 dans la table des chaînes partagées, \code{<t xml:space="preserve">}, lu de même par les deux
 chemins, est admis (mesuré).
 \item \emph{Segment de cellule} (même fonction, motif \code{TEXTE\_REFUS\_SEGMENT}).
@@ -4936,8 +4944,8 @@ aucun des deux chemins. La voie de repli lit aussi des balises \code{<sheet>} et
 \code{=} dans le classeur et ses relations, ainsi qu'une cible de feuille écrite
 \code{./worksheets/\ldots}~; \code{openxlsx} ne lit pas ces classeurs et s'arrête sur une erreur
 R, signalée par le message fixe de l'application~: les deux chemins divergent sur ce point
-(mesuré avec la version~4.2.9, et avec la version~4.2.5.2 pour la cible \code{./worksheets/\ldots},
-erreur «~\code{Length of worksheet is 0}~»). Le contrat juge la forme du classeur, non les
+(mesuré avec la version~4.2.9~; la cible \code{./worksheets/\ldots}, avec la version~4.2.5.2
+seulement, erreur «~\code{Length of worksheet is 0}~»). Le contrat juge la forme du classeur, non les
 valeurs qu'il porte~; le
 contrôle des valeurs lues contre leur source revient à l'utilisateur~: l'application affiche les données lues
 avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
