@@ -238,10 +238,6 @@ connus demeurent :
   p-value au-delà du seuil, p-values Monte-Carlo identiques au bit près, aucun
   verdict ni libellé modifié (#548 ; relevé :
   `docs/revues/20261114-passage-de-remise/etape-3-releve-poste.md`).
-- Avec `openxlsx` installé, `tests/unitaires/test_controles_entree.R` compte
-  un échec propre à Windows (#588) : un octet 0x81 déclaré Latin-1 est cité
-  `\u0081` au lieu de `<81>` dans un motif de refus d'import. Aucun nombre,
-  verdict ni σ_USP n'est touché.
 
 Lancée depuis Git Bash, dont le `pdftotext` (xpdf) ne connaît pas `-bbox`,
 `tests/unitaires/test_controle_doc_nd.R` saute la passe de mesure du
