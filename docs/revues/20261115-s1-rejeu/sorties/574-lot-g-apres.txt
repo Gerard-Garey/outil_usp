@@ -1,0 +1,225 @@
+### Sonde sonde_574_lot_g.R, moteur arbre de travail sur 261c45e, lot G (apres, decisions D-S1-35 et D-S1-36), R 4.3.3, LC_ALL=C.UTF-8
+### Chemin interne (sans openxlsx)
+[sheetdata-deux-fermantes] chemin = interne ; moteur = engine.R
+  feuille : </sheetData>...</sheetData> (aucune ouvrante) ; attendu apres : refus R3 citant les deux </sheetData> ; avant : lu en interne, "Fichier vide" par openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-une-fermante-seule] chemin = interne ; moteur = engine.R
+  feuille : </sheetData>... (fermante seule en tete, aucune a la fin) ; attendu apres : refus R3 citant </sheetData>
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-fermante-en-surnombre] chemin = interne ; moteur = engine.R
+  feuille : <sheetData>...</sheetData></sheetData> ; attendu apres : refus R3 citant la seconde </sheetData> (avant : refus citant l'ouvrante)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-vide-puis-fermante] chemin = interne ; moteur = engine.R
+  feuille : <sheetData/>...</sheetData> ; attendu apres : refus R3 citant <sheetData/> et </sheetData>
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-temoin] chemin = interne ; moteur = engine.R
+  feuille : <sheetData>...</sheetData> ; attendu : 104.2, sigma_USP de la serie
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-commentaire] chemin = interne ; moteur = engine.R
+  xl/workbook.xml : <sheets><!-- x --><sheet .../> ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-cdata] chemin = interne ; moteur = engine.R
+  xl/workbook.xml : <![CDATA[x]]> apres </sheets> ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-pi] chemin = interne ; moteur = engine.R
+  xl/workbook.xml : <?foo bar?> apres la declaration ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-doctype] chemin = interne ; moteur = engine.R
+  xl/workbook.xml : <!DOCTYPE workbook> apres la declaration ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-commentaire-sheet2] chemin = interne ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <!-- <Relationship Id="rId1" ... Target="worksheets/sheet2.xml"/> --> avant la vraie ; sheet2.xml : B2 = 999 ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels ; avant : sheet2 lue (999)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-cdata] chemin = interne ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <![CDATA[x]]> avant la relation ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-pi] chemin = interne ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <?foo bar?> apres la declaration ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-doctype] chemin = interne ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <!DOCTYPE Relationships> apres la declaration ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-dot-rels-commentaire] chemin = interne ; moteur = engine.R
+  _rels/.rels : <!-- x --> avant la relation (partie non lue par le lecteur) ; attendu : admis, 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-workbook-declaration] chemin = interne ; moteur = engine.R
+  xl/workbook.xml et ses relations : declaration XML initiale seule ; attendu : admis, 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+### Chemin openxlsx (R_LIBS)
+[sheetdata-deux-fermantes] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  feuille : </sheetData>...</sheetData> (aucune ouvrante) ; attendu apres : refus R3 citant les deux </sheetData> ; avant : lu en interne, "Fichier vide" par openxlsx
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-une-fermante-seule] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  feuille : </sheetData>... (fermante seule en tete, aucune a la fin) ; attendu apres : refus R3 citant </sheetData>
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, avant la premiere cellule) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-fermante-en-surnombre] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  feuille : <sheetData>...</sheetData></sheetData> ; attendu apres : refus R3 citant la seconde </sheetData> (avant : refus citant l'ouvrante)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-vide-puis-fermante] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  feuille : <sheetData/>...</sheetData> ; attendu apres : refus R3 citant <sheetData/> et </sheetData>
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C9) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[sheetdata-temoin] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  feuille : <sheetData>...</sheetData> ; attendu : 104.2, sigma_USP de la serie
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[workbook-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml : <sheets><!-- x --><sheet .../> ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-cdata] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml : <![CDATA[x]]> apres </sheets> ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-pi] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml : <?foo bar?> apres la declaration ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[workbook-doctype] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml : <!DOCTYPE workbook> apres la declaration ; attendu apres : refus R2 nommant xl/workbook.xml
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/workbook.xml du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-commentaire-sheet2] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <!-- <Relationship Id="rId1" ... Target="worksheets/sheet2.xml"/> --> avant la vraie ; sheet2.xml : B2 = 999 ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels ; avant : sheet2 lue (999)
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-cdata] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <![CDATA[x]]> avant la relation ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-pi] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <?foo bar?> apres la declaration ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[rels-doctype] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/_rels/workbook.xml.rels : <!DOCTYPE Relationships> apres la declaration ; attendu apres : refus R2 nommant xl/_rels/workbook.xml.rels
+  ERREUR classe = usp_refus_lecture
+  message = Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur contient un commentaire, une section CDATA, une instruction de traitement ou une declaration de type de document ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+  [code de sortie : 0]
+
+[temoin-dot-rels-commentaire] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  _rels/.rels : <!-- x --> avant la relation (partie non lue par le lecteur) ; attendu : admis, 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
+[temoin-workbook-declaration] chemin = openxlsx 4.2.5.2 ; moteur = engine.R
+  xl/workbook.xml et ses relations : declaration XML initiale seule ; attendu : admis, 104.2
+  lu : 8 x 3 ; noms = t,xt,yt ; B2 lu = "104.2"
+  engine_lire_donnees_csv : ok = TRUE
+  xt retenu : 104.20 102.25 109.34 114.64 118.41 121.28 132.40 131.22
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+
+  [code de sortie : 0]
+
