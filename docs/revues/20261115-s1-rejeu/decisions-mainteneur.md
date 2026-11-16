@@ -74,3 +74,13 @@
 | D-S1-31 | H1 : chaîne en ligne dont la balise `<t>` porte un attribut (`<is><t xml:space="preserve">104.2</t></is>`), lue juste par la voie de repli (classeur accepté), attribut gardé dans le texte par `openxlsx` (classeur refusé en aval) ; même écart sur un en-tête | **Refus dans le contrat** (règle du bloc des données : `<t>` sans attribut dans `<is>`) ; forme lue juste en interne refusée, visa compris ; rattaché à #574 |
 | D-S1-32 | Veille datée du jour du PDF (Q-53-6 (a)) | **Étendue** au règlement d'exécution (UE) 2015/498 (EUR-Lex) et aux articles R. 352-5 et R. 356-19 du Code des assurances (Légifrance), en plus de #463 et #504 ; une source changée renvoie à `regulatory` avant le PDF |
 | D-S1-33 | ISO/IEC 29500-4:2016 sans entrée en `sec:biblio` | **Citation en ligne complète** (titre complet), pas d'entrée bibliographique |
+
+## Revue finale de S1 (16/11/2026)
+
+> *Questions posées le 16/11/2026 sur `actuary-revue-reprise-tex.md` (R-A), le rapport de revue finale d'`audit` (M1) et un constat de `/code-review` vérifié par la session.*
+
+| N° | Question | Décision |
+|---|---|---|
+| D-S1-34 | R-A : openpyxl 3.1.5 (tout texte en chaîne en ligne), pandas et XlsxWriter 3.2.9 en `constant_memory` écrivent `<is><t xml:space="preserve">` pour un texte bordé de blancs ; refusé depuis D-S1-31, même dans une colonne non lue (mesuré, sans valeur fausse) | **(a) D-S1-31 maintenue** ; le `.tex` ajoute cette forme à la liste des formes qu'un outil d'écriture produit (mesuré), avec r1 à r4 ; issue proposée pour borner plus tard le refus aux cellules lues |
+| D-S1-35 | M1 d'`audit` : exactement deux `</sheetData>` sans ouvrante admises par la structure du bloc (voie de repli : données lues ; `openxlsx` : « Fichier vide ») | **Refus** (forme lue juste en interne, visa compris) ; la position cite la balise en surnombre ; assertions sur les deux chemins |
+| D-S1-36 | `/code-review` : une `<Relationship>` commentée avant la vraie dans `xl/_rels/workbook.xml.rels` fait lire une autre feuille sur les deux chemins (mesuré par la session : `xt[1]` = 999 au lieu de 104,2) ; antérieur à S1 (même lecture sur `origin/main`) ; le refus des commentaires, CDATA, PI et DOCTYPE ne couvre que la feuille et `sharedStrings.xml` | **Absorbé dans S1** : refus étendu à `xl/workbook.xml` et aux parties `.rels` lues (refus nouveau, visa compris) ; rattaché à #574 |
