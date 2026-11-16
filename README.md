@@ -34,16 +34,13 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
   quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
   deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
-- Limites connues de la lecture xlsx. `openxlsx` reste le lecteur par
-  défaut quand il est installé.
-  - Formes de classeur qu'aucun tableur n'est supposé écrire (hypothèse
-    non vérifiée) :
-    - **#574** : une chaîne partagée préfixée `<x:si>` n'est comptée par
-      aucun des deux chemins dans l'indice des chaînes partagées, et deux
-      cellules de même référence ne sont pas refusées (la dernière
-      l'emporte). Dans les deux cas, une valeur fausse est lue sans
-      message.
-  - Contrôle compensatoire : relire les données affichées avant le calcul
+- Lecture xlsx. `openxlsx` reste le lecteur par défaut quand il est
+  installé. Avant les deux chemins de lecture, un contrôle de forme du
+  classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
+  l'outil sait lire de façon identique sur les deux chemins (formes de
+  classeur hors de ce sous-ensemble : #574 ; détail dans la documentation,
+  « Contrôles de qualité des données »).
+  - Précaution : relire les données affichées avant le calcul
     contre leur source. Le rapport figé donne l'empreinte md5 des données
     du calcul (table « Empreintes », `engine_empreinte()`). Recalculée à
     partir des valeurs de la source, sans le lecteur de l'outil, elle
