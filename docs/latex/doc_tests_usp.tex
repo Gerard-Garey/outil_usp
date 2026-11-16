@@ -830,9 +830,10 @@ blancs de bord ignorés (\code{.entete\_designe()}), refus d'un en-tête~$t$, \c
 colonnes présentes, chaque nom échappé par \code{.echapper\_texte()} ou cité «~\code{(vide)}~» s'il
 est absent au sens d'\code{.entete\_absent()}, lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, cellule non numérique refusée avec sa
-position en lignes de données, une colonne de type logique (celle que rend \code{openxlsx} pour
-une colonne booléenne d'un classeur) étant en revanche convertie sans refus, \code{TRUE} en~1 et
-\code{FALSE} en~0 (§\ref{sec:controles})~;
+position en lignes de données, de même que toute cellule renseignée d'une colonne ni numérique,
+ni texte, ni facteur (logique, celle que rend \code{openxlsx} pour une colonne booléenne d'un
+classeur, date, instant, durée, octets bruts, complexe, liste), lue \code{NA} par
+\code{.en\_numerique()} (§\ref{sec:controles})~;
 conversion numérique d'un facteur par ses valeurs \\
 \code{.echapper\_texte()} & textes, \code{guillemets} (\code{FALSE}) & textes cités dans un
 motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
@@ -866,7 +867,7 @@ minuscule ou en majuscule une fois retirés les blancs de bord de la classe \cod
 nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées dans un motif de
 lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
 vides, des en-têtes en double et de la colonne \code{i}~; motifs de refus des valeurs de la
-colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières
+colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières ou non numériques
 cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
 ordre (§\ref{sec:controles}) \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
@@ -878,7 +879,8 @@ colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscul
 lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, valeurs de la colonne \code{i}
 contrôlées par \code{.motifs\_colonne\_i()}, puis colonne retirée, cellule non numérique refusée avec
-sa position, une colonne logique étant convertie de même sans refus, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
+sa position, une cellule renseignée d'une colonne ni numérique, ni texte, ni facteur (logique,
+date\ldots) l'étant de même, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
 cellules renseignées sous la diagonale (\code{.mw\_avert\_sous\_diagonale()}, même texte que
 dans \code{\$avertissements}), vide pour un refus ou sans telle cellule (§\ref{sec:controles}) \\
@@ -919,7 +921,9 @@ d'une cellule \code{t="str"} lu tel quel, sans décodage des entités, sur les d
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
-caractères, interprétée en aval (§\ref{sec:controles}) \\
+caractères, interprétée en aval (§\ref{sec:controles})~; une colonne booléenne, rendue logique par
+\code{openxlsx} et en caractères par la voie de repli, est refusée en aval aux mêmes positions
+sur les deux chemins (\code{.en\_numerique()}, mesuré) \\
 \code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
 \code{.xlsx\_attribut()},\newline \code{.xlsx\_balises()},\newline
 \code{.xlsx\_chemin\_sort()},\newline \code{.xlsx\_cellules()}
@@ -976,7 +980,8 @@ doubles (mesuré sur les deux chemins de lecture), $\pm\infty$ en chaîne de car
 autres valeurs en chaînes en ligne~; relu par \code{openxlsx}, un en-tête ou une chaîne portant
 \code{\&}, \code{<} ou \code{>} reste échappé («~\code{a\&lt;b\&amp;c}~») et une colonne logique
 est rendue logique, alors que la voie de repli les relit tels qu'écrits et en caractères
-(mesuré, \code{openxlsx}~4.2.9)~; les exports de données de l'application, à en-têtes fixes et
+(mesuré, \code{openxlsx}~4.2.9), une colonne logique placée en $t$, \code{xt}, \code{yt} ou dans
+le triangle étant refusée en aval sur les deux chemins~; les exports de données de l'application, à en-têtes fixes et
 cellules numériques, n'y sont pas exposés \\
 \code{engine\_ecrire\_csv()} & \code{df}, \code{chemin} (fichier, non une connexion) & chemin
 du fichier écrit, au format de \code{write.csv()} sans noms de ligne et à cellule vide pour
@@ -3959,8 +3964,9 @@ le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous éga
 \code{engine\_lire\_triangle()} convertit en amont le tableau lu en triangle~: une cellule vide
 vaut « non observée », une cellule non vide et non numérique (cellule texte «~\code{NA}~» comprise,
 le motif demandant alors de renseigner la valeur ou de laisser vide une cellule non observée) est
-refusée avec sa position, jamais lue comme manquante, hors le cas d'une colonne booléenne lue par \code{openxlsx}, décrit
-ci-après parmi les limites de la lecture des classeurs~; les lignes vides de fin et les colonnes
+refusée avec sa position, jamais lue comme manquante, de même qu'une cellule renseignée d'une
+colonne ni numérique, ni texte, ni facteur (logique, dont la colonne booléenne d'un classeur lue
+par \code{openxlsx}, dates, durées), lue \code{NA} par \code{.en\_numerique()}~; les lignes vides de fin et les colonnes
 vides sans en-tête placées après la dernière colonne de développement renseignée sont retirées,
 une ligne vide intercalée ou en tête est refusée
 comme année d'accident manquante présumée (D(1), D(3)(a) et~(b)~: montants indiqués pour chaque année d'accident, années d'accident représentées par des nombres consécutifs de~0 à~$I$~; lecture retenue par l'outil), une colonne vide intercalée comme année de développement manquante présumée (D(1) et D(4)(c),
@@ -4002,7 +4008,9 @@ pas~1, sans vide, la valeur de départ étant libre (0, 1, année civile ou vale
 colonne \code{i} qui contredit l'ordre des lignes signale un triangle qui n'est peut-être pas celui
 que l'utilisateur voulait fournir. \code{.motifs\_colonne\_i()} refuse, en lignes de données,
 les valeurs manquantes («~\code{Colonne i incomplete}~») et les valeurs non numériques, non
-entières ou non finies («~\code{Colonne i non entiere ou non numerique}~»), motifs cumulés~;
+entières ou non finies («~\code{Colonne i non entiere ou non numerique}~», qui vise toute valeur
+renseignée d'une colonne logique, de dates ou de durées, lue \code{NA} par
+\code{.en\_numerique()}, mesuré), motifs cumulés~;
 en l'absence de ces deux motifs, le premier qui s'applique de trois motifs exclusifs, dans cet ordre~: valeurs répétées
 («~\code{Colonne i a valeurs repetees}~», qui cite toutes les lignes portant une valeur répétée,
 aucune occurrence ne pouvant être désignée comme fautive), ordre non croissant
@@ -4591,7 +4599,10 @@ refuse de telles données en amont~; ils concernent un appel direct de
 \code{usp\_controle\_donnees()}.
 
 \emph{Lecture des fichiers.} \code{engine\_lire\_donnees\_csv()} (colonnes $t$, \code{xt},
-\code{yt}) convertit une colonne de type facteur par ses valeurs (\code{.en\_numerique()}) et,
+\code{yt}) convertit une colonne de type facteur par ses valeurs (\code{.en\_numerique()}),
+lit \code{NA} chaque cellule d'une colonne ni numérique, ni texte, ni facteur (logique, date,
+instant, durée, octets bruts, complexe, liste), refusée avec sa position si elle est renseignée
+(une date n'est pas lue en jours, ni \code{TRUE} en~1, mesuré), et,
 si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
 (lecture retenue par l'outil~: annexe~XVII, B/C(3)(a) et~(b), années d'accident ou exercices représentés par des nombres consécutifs de~1 à~$T$), puis range les lignes par $t$ croissant~; à défaut, le
 fichier est refusé, sans tri ni comblement. Un en-tête désigne la colonne~$t$ s'il vaut \code{t},
@@ -4732,10 +4743,12 @@ cellule \code{NA}, refusée en aval (mesuré). Aucun tableur n'est supposé écr
 (hypothèse non vérifiée). \code{openxlsx} reste le lecteur employé quand il est installé, de
 sorte qu'un poste qui l'a installé est exposé à cette limite.
 Sur le chemin \code{openxlsx}, une colonne dont toutes les cellules à valeur sont booléennes
-(\code{t="b"}) ou des textes «~\code{TRUE}~» ou «~\code{FALSE}~» est rendue logique, puis
-convertie par \code{.en\_numerique()}, \code{TRUE} étant lu~1 et \code{FALSE}~0, sans message
-(valeur fausse, mesuré)~; la voie de repli la refuse comme cellule non numérique. Un tableur
-peut écrire une cellule booléenne~; le contrôle de l'utilisateur décrit ci-dessus s'applique.
+(\code{t="b"}) ou des textes «~\code{TRUE}~» ou «~\code{FALSE}~» est rendue logique, sans
+retouche~; \code{.en\_numerique()} la lit \code{NA}, et ses cellules renseignées sont refusées
+comme cellules non numériques, aux mêmes positions et avec le même motif que par la voie de
+repli, qui la rend en caractères (mesuré, \code{openxlsx}~4.2.5.2). Une cellule booléenne n'est
+pas refusée à la lecture du classeur~: placée hors de $t$, \code{xt}, \code{yt} et du triangle,
+sa colonne est ignorée.
 L'en-tête du tableau est en ligne~1~: une ligne~1 dont aucune cellule ne porte de valeur est
 refusée, avec le texte «~\code{Ligne 1 du fichier sans aucune valeur : l'en-tete du tableau doit
 etre en ligne 1, sans ligne au-dessus ;}~» suivi de la conduite à tenir
