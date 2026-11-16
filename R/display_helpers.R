@@ -744,9 +744,8 @@ html_table <- function(d, classe = "table table-condensed data", largeurs = NULL
 #    rapport fige interactif) ;
 # 2. decalage en fraction de la zone de trace (y negatif au papier : -0,6 et
 #    -0,4), valable sous les deux versions mais ecarte : l'ecart au titre d'axe
-#    en depend, donc de la hauteur de la figure, qui varie a l'impression
-#    (.js-plotly-plot[data-impression], hauteur auto) ; 10 px d'ecart a 330 px
-#    de haut, 4 px avec un sous-titre ;
+#    en depend, donc de la hauteur de la figure ; 10 px d'ecart a 330 px de
+#    haut, 4 px avec un sous-titre ;
 # 3. etat actuel, deux dispositions sans attribut propre a une version de
 #    plotly.js (mesures sous Chromium, plotly.js 2.11.1 et 2.25.2, resultats
 #    identiques) :
@@ -759,6 +758,8 @@ html_table <- function(d, classe = "table table-condensed data", largeurs = NULL
 #   reserve pas la place du titre (a marge haute de 59 px, legende de 29 px a
 #   30-59 px et titre a 24-43 px : recouvrement) : la marge haute doit couvrir
 #   le titre et la legende (.marge_haute() + .LEGENDE_HAUTE_PX).
+# .LEGENDE_HAUTE_PX n'est pas la hauteur de la legende (29 px mesures a
+# 330 px de haut) : c'est la marge haute ajoutee a .marge_haute() pour la loger.
 .LEGENDE_HAUTE_PX <- 26
 .legende_droite <- function()
   list(orientation = "v", xref = "paper", x = 1.02, xanchor = "left",
