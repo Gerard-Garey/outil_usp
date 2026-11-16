@@ -4159,7 +4159,8 @@ verifier("CSV (#522) : motifs LE-02, LE-03 et LE-13 inchanges (en-tete y, ligne 
 ## --- Colonnes presentes : caracteres echappes, noms absents cites "(vide)" (#522)
 # Liste des en-tetes de engine_lire_donnees_csv() ecrite par .echapper_texte() :
 # caracteres de controle ecrits \001, \t, \n, \033, blancs et controles non
-# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030) ;
+# ASCII \uXXXX, octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030),
+# octet 0x81 declare Latin-1 lu U+0081 et ecrit \u0081 (table fixe, #588) ;
 # nom que
 # .entete_absent() juge absent ("", NA, "X<k>" ou "V<k>" a sa position) cite
 # "(vide)".
@@ -4175,16 +4176,17 @@ verifier("Colonnes presentes (#522) : caracteres de controle ASCII ecrits \\001,
          identical(cols522(c("a\001b", "x\tt\n", "y\033[31mt")), "a\\001b, x\\tt\\n, y\\033[31mt") &&
            identical(cols522(c("a\\b", "q\"r", "d\ref")), "a\\\\b, q\"r, d\\ref"))
 # Octet 0x89 declare Latin-1 (ou non declare, en locale UTF-8, ou
-# .declarer_latin1() le declare) : enc2utf8() le lit comme Windows-1252, U+2030
-# (pour mille), caractere imprimable cite tel quel, et non comme le controle
-# U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81, sans
-# caractere en Windows-1252, reste ecrit "<81>" par R (mesures, R 4.3.3,
-# C.UTF-8, comme .nettoyer_cellules(), #99). Le controle U+0089 lui-meme, en
-# UTF-8 valide, est ecrit \u0089.
+# .declarer_latin1() le declare) : .vers_utf8() le lit comme Windows-1252,
+# U+2030 (pour mille), caractere imprimable cite tel quel, et non comme le
+# controle U+0089 ; 0xA0 devient l'espace insecable (ecrite \u00a0) ; 0x81,
+# sans caractere en Windows-1252, devient le controle U+0081, ecrit \u0081
+# sous toute plateforme (table fixe, #588, decision D-S1-7 du mainteneur ;
+# avant : "<81>" sous Linux, \u0081 sous Windows). Le controle U+0089 lui-meme,
+# en UTF-8 valide, est ecrit \u0089.
 l1_522 <- function(b) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- "latin1"; x }
-verifier("Colonnes presentes (#522) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 cite <81> ; \"e\" accentue inchange",
+verifier("Colonnes presentes (#522, #588) : octet 0x89 declare Latin-1 lu comme Windows-1252 (U+2030, cite tel quel), 0xA0 ecrit \\u00a0, 0x81 ecrit \\u0081 ; \"e\" accentue inchange",
          identical(cols522(c(latin1_522, "ann\u00e9e", "x")), "a\u2030b, ann\u00e9e, x") &&
-           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a<81>b, a\u00e9b") &&
+           identical(cols522(c(l1_522(0xa0), l1_522(0x81), l1_522(0xe9))), "a\\u00a0b, a\\u0081b, a\u00e9b") &&
            (!isTRUE(l10n_info()[["UTF-8"]]) ||
               identical(cols522(c(octet89_522, "x", "y")), "a\u2030b, x, y")))
 verifier("Colonnes presentes (#522) : controle C1 U+0089 en UTF-8 valide ecrit \\u0089",
@@ -4209,6 +4211,97 @@ verifier(".echapper_texte() (#522) : guillemets = TRUE rend la forme de citer() 
          identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x"), guillemets = TRUE),
                    c("\"a\\\"b\\t\"", "\"2022\\u00a0\"", "\"x\"")) &&
            identical(.echapper_texte(c("a\"b\t", "2022\u00a0", "x")), c("a\"b\\t", "2022\\u00a0", "x")))
+
+## --- Chaine declaree Latin-1 : table fixe de .vers_utf8() (#588) -----------
+# Decisions D-S1-7 et D-S1-8 du mainteneur (avis amont d'actuary, par. 7) :
+# une chaine declaree Latin-1 est ramenee en UTF-8 par une table fixe,
+# independante de la plateforme et de la locale. Octets 0x80-0x9F : les 27
+# positions definies en Windows-1252, et U+0081, U+008D, U+008F, U+0090,
+# U+009D pour les cinq autres (forme de R sous Windows ; R sous Linux les
+# ecrit "<81>"... en texte ASCII). Table attendue ecrite ici independamment
+# de CP_WINDOWS_1252_80_9F : elle la fige.
+table588 <- c(0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+              0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+              0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+              0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178)
+indefinis588 <- c(0x81, 0x8D, 0x8F, 0x90, 0x9D)
+# Point de code attendu de l'octet b (0x80-0xFF) d'une chaine declaree Latin-1
+cp588 <- function(b) if (b <= 0x9F) table588[b - 0x7F] else b
+verifier(".vers_utf8() (#588) : table 0x80-0x9F complete (32 positions), chaine rendue UTF-8 declaree, NA conserve",
+         identical(CP_WINDOWS_1252_80_9F, as.integer(table588)) &&
+           all(vapply(0x80:0x9F, function(b) {
+             u <- .vers_utf8(l1_522(b))
+             identical(utf8ToInt(u), as.integer(c(0x61, cp588(b), 0x62))) && Encoding(u) == "UTF-8"
+           }, NA)) &&
+           identical(.vers_utf8(c(NA, l1_522(0x81))), c(NA, "a\u0081b")))
+# Les 27 positions definies sont celles que rend la conversion de R (toute
+# plateforme) ; les cinq autres, celles de R sous Windows, ou "<xx>" sous
+# Linux. 0xA0-0xFF : identiques a enc2utf8() (U+00A0-U+00FF).
+verifier(".vers_utf8() (#588) : identique a enc2utf8() hors des cinq octets sans caractere en Windows-1252",
+         all(vapply(0x80:0xFF, function(b) {
+           r <- enc2utf8(l1_522(b))
+           if (b %in% indefinis588) identical(r, intToUtf8(c(0x61, b, 0x62))) ||
+             identical(r, sprintf("a<%02x>b", b))
+           else identical(.vers_utf8(l1_522(b)), r)
+         }, NA)))
+verifier(".echapper_texte() (#588) : cinq octets sans caractere en Windows-1252 ecrits \\u0081, \\u008d, \\u008f, \\u0090, \\u009d, avec ou sans guillemets",
+         identical(.echapper_texte(vapply(indefinis588, l1_522, "")),
+                   c("a\\u0081b", "a\\u008db", "a\\u008fb", "a\\u0090b", "a\\u009db")) &&
+           identical(.echapper_texte(l1_522(0x81), guillemets = TRUE), "\"a\\u0081b\""))
+# Independance a la locale : .echapper_texte() sur les 128 octets 0x80-0xFF
+# declares Latin-1, dans un sous-processus Rscript lance sous LC_ALL = C puis
+# C.UTF-8 ; attendu : le texte que rend .echapper_texte() pour la chaine UTF-8
+# des points de code de la table. Le fils ecrit les points de code (ASCII
+# seul, sans dependance a l'encodage de sortie) et son mode UTF-8 : une
+# locale indisponible (mode UTF-8 autre que prevu) est signalee [saute].
+fils588 <- tempfile("fils588_", fileext = ".R")
+writeLines(c(
+  "a <- commandArgs(TRUE)",
+  "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+  "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+  "cat(\"UTF8=\", isTRUE(l10n_info()[[\"UTF-8\"]]), \"\\n\", sep = \"\")",
+  "for (b in 0x80:0xFF) { x <- rawToChar(as.raw(c(0x61, b, 0x62))); Encoding(x) <- \"latin1\"",
+  "  cat(\"CP=\", paste(utf8ToInt(.echapper_texte(x)), collapse = \" \"), \"\\n\", sep = \"\") }"), fils588)
+attendu588 <- vapply(0x80:0xFF, function(b)
+  paste(utf8ToInt(.echapper_texte(intToUtf8(c(0x61, cp588(b), 0x62)))), collapse = " "), "")
+locale588 <- function(loc) {
+  ancien <- Sys.getenv("LC_ALL", unset = NA)
+  Sys.setenv(LC_ALL = loc)
+  on.exit(if (is.na(ancien)) Sys.unsetenv("LC_ALL") else Sys.setenv(LC_ALL = ancien))
+  out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"),
+                                  shQuote(c(fils588, normalizePath(RACINE, winslash = "/"))),
+                                  stdout = TRUE, stderr = TRUE, timeout = 120))
+  list(utf8 = sub("^UTF8=", "", grep("^UTF8=", out, value = TRUE)),
+       cp = sub("^CP=", "", grep("^CP=", out, value = TRUE)))
+}
+for (loc588 in c("C", "C.UTF-8")) {
+  r588 <- locale588(loc588)
+  if (!identical(r588$utf8, if (loc588 == "C") "FALSE" else "TRUE")) {
+    cat(sprintf("  [saute] .echapper_texte() sous LC_ALL = %s (#588) : locale indisponible\n", loc588))
+    next
+  }
+  verifier(sprintf(".echapper_texte() (#588) : 128 octets 0x80-0xFF declares Latin-1, meme texte sous LC_ALL = %s qu'attendu par la table", loc588),
+           identical(r588$cp, attendu588))
+}
+unlink(fils588)
+# D-S1-8 : mw_valider_triangle() compare les noms de ligne apres .vers_utf8().
+# Avant : sous Linux, un nom Latin-1 "a\x81b" et un nom ASCII "a<81>b"
+# etaient tous deux lus "a<81>b" et juges en double (triangle refuse a tort ;
+# constat hors perimetre n. 1 de l'avis amont d'actuary). Le meme nom en
+# Latin-1 et en UTF-8 ("a" U+0081 "b") devient un doublon sous Linux (deja
+# juge tel sous Windows ; D-S1-30), cite \u0081.
+noms588 <- function(n1, n2) { m <- triangle(5); rownames(m) <- c(n1, n2, "2", "3", "4"); mw_valider_triangle(m) }
+verifier("mw_valider_triangle() (#588, D-S1-8) : nom Latin-1 a octet sans caractere en Windows-1252 et nom ASCII \"a<xx>b\" : pas de doublon, triangle accepte",
+         all(vapply(indefinis588, function(b) {
+           r <- noms588(l1_522(b), sprintf("a<%02x>b", b))
+           isTRUE(r$ok) && !length(r$erreurs)
+         }, NA)))
+verifier("mw_valider_triangle() (#588, D-S1-8) : meme nom en Latin-1 et en UTF-8 (U+0081) : doublon cite \\u0081",
+         {
+           r <- noms588(l1_522(0x81), "a\u0081b")
+           !isTRUE(r$ok) && identical(r$erreurs,
+             "Annee d'accident en double : \"a\\u0081b\" (annees d'accident i = 0 et i = 1).")
+         })
 
 ## --- Colonne i du triangle, colonne t et en-tetes en double des series (#555)
 # Decisions du mainteneur 1, 2 et 5 a 10 du 12/11/2026 ; textes d'actuary

@@ -1003,6 +1003,44 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
   x
 }
 
+# Points de code des octets 0x80 a 0x9F d'une chaine declaree Latin-1, lus
+# comme Windows-1252 (#588, decision D-S1-7 du mainteneur, avis amont
+# d'actuary, par. 7) : table fixe, propre au moteur. Les 27 positions
+# definies sont celles que rend enc2utf8() sous Linux (mesure, R 4.3.3,
+# C.UTF-8 et C : utf8ToInt(enc2utf8(octet declare latin1)) ; 0x80 -> U+20AC,
+# 0x89 -> U+2030, 0x9F -> U+0178...). Les cinq positions sans caractere en
+# Windows-1252 (0x81, 0x8D, 0x8F, 0x90, 0x9D) sont posees sur les controles
+# U+0081, U+008D, U+008F, U+0090, U+009D : forme que rend R sous Windows
+# (#588, R 4.3.3 ucrt), alors que R sous Linux les ecrit "<81>"... en texte
+# ASCII, indiscernable d'un nom ASCII "a<81>b".
+CP_WINDOWS_1252_80_9F <- as.integer(c(
+  0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+  0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+  0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+  0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178))
+
+# Ramene un vecteur de chaines en UTF-8, comme enc2utf8(), sauf pour une
+# chaine declaree Latin-1, convertie octet par octet par une table fixe,
+# independante de la plateforme et de la locale (#588) : 0x00-0x7F ASCII,
+# 0x80-0x9F selon CP_WINDOWS_1252_80_9F, 0xA0-0xFF vers U+00A0-U+00FF. La
+# conversion Latin-1 de R depend de la plateforme pour les cinq octets sans
+# caractere en Windows-1252 (texte ASCII "<81>" sous Linux, controle U+0081
+# sous Windows). NA reste NA ; attributs (noms) conserves. Partagee par
+# .echapper_texte() et mw_valider_triangle() (comparaison des noms de ligne,
+# decision D-S1-8).
+.vers_utf8 <- function(x) {
+  lat <- !is.na(x) & Encoding(x) == "latin1"
+  if (any(lat))
+    x[lat] <- vapply(x[lat], function(s) {
+      cp <- as.integer(charToRaw(s))
+      c1 <- cp >= 0x80L & cp <= 0x9FL
+      cp[c1] <- CP_WINDOWS_1252_80_9F[cp[c1] - 0x7FL]
+      intToUtf8(cp)
+    }, "", USE.NAMES = FALSE)
+  if (any(!lat)) x[!lat] <- enc2utf8(x[!lat])
+  x
+}
+
 # Texte cite dans un motif, echappe de facon independante de la locale :
 # un caractere ASCII l'est par encodeString() (tabulation -> \t, controles
 # -> \001, \033, saut de ligne -> \n, barre oblique inverse doublee ; le
@@ -1011,11 +1049,12 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # \p{C}) est ecrit \uXXXX (\UXXXXXXXX au-dela de U+FFFF), les autres non ASCII
 # ("e" accentue) restent tels quels. encodeString() seul ecrirait l'espace
 # insecable telle quelle en locale UTF-8 (invisible) et "\u00a0" en locale C.
-# Les noms sont d'abord ramenes en UTF-8 par enc2utf8() : un nom declare
-# Latin-1 y est lu comme Windows-1252 pour les octets 0x80 a 0x9F (0x89 donne
-# U+2030, caractere imprimable cite tel quel, et non le controle U+0089 ; 0x81
-# et 0x8D, sans caractere en Windows-1252, restent ecrits "<81>", "<8d>" par R ;
-# mesure, R 4.3.3, C.UTF-8), comme .nettoyer_cellules() (#99). En defense,
+# Les noms sont d'abord ramenes en UTF-8 par .vers_utf8() : un nom declare
+# Latin-1 y est lu par la table fixe CP_WINDOWS_1252_80_9F pour les octets
+# 0x80 a 0x9F (0x89 donne U+2030, caractere imprimable cite tel quel, et non
+# le controle U+0089 ; 0x81, 0x8D, 0x8F, 0x90 et 0x9D, sans caractere en
+# Windows-1252, donnent les controles U+0081... ecrits "\u0081"...), de la
+# meme facon sous toute plateforme et toute locale (#588). En defense,
 # une chaine dont utf8ToInt() ne lit pas les points de code (NA) est citee par
 # encodeString() seul. guillemets = TRUE : chaque texte est rendu entre
 # guillemets doubles (mw_valider_triangle(), noms d'annee d'accident) ; FALSE :
@@ -1024,7 +1063,7 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # appelants.
 .echapper_texte <- function(x, guillemets = FALSE) {
   q <- if (guillemets) "\"" else ""
-  vapply(enc2utf8(as.character(x)), function(s) {
+  vapply(.vers_utf8(as.character(x)), function(s) {
     cp <- utf8ToInt(s)
     if (anyNA(cp)) return(encodeString(s, quote = q))
     ch <- vapply(cp, function(c) {
@@ -1050,7 +1089,10 @@ usp_lire_vecteur <- function(chemin, sep = ",", dec = ".") {
 # selon Windows-1252, et non comme des caracteres de controle (mesure du
 # 01/10/2026, R 4.3.3, locale C.UTF-8 : 80 -> U+20AC symbole euro,
 # 85 -> U+2026, 96 -> U+2013, 9F -> U+0178 ; les octets 81, 8D, 8F, 90 et
-# 9D, sans caractere en Windows-1252, restent ecrits "<81>"...). Les octets
+# 9D, sans caractere en Windows-1252, restent ecrits "<81>"... par R sous
+# Linux, U+0081... sous Windows ; un texte cite dans un motif passe par
+# .echapper_texte(), qui lit ces cinq octets U+0081... sur toute plateforme
+# par la table fixe de .vers_utf8(), #588). Les octets
 # etant inchanges, .allure_manquante_ou_nombre() reconnait l'espace
 # insecable Windows-1252 (octet A0 isole) en locale UTF-8 comme ailleurs.
 .nettoyer_cellules <- function(x) {
@@ -11751,7 +11793,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # Noms ramenes en UTF-8 declare, quelle que soit la locale, avant toute
     # comparaison : une chaine non ASCII d'encodage "unknown" est
     # declaree UTF-8 si ses octets en sont, Latin-1 sinon (convention de
-    # .nettoyer_cellules(), issue #99), puis convertie par enc2utf8(). Les
+    # .nettoyer_cellules(), issue #99), puis convertie en UTF-8. Les
     # motifs perl lisent alors des caracteres et non des octets, en locale
     # UTF-8 comme en locale C (en locale C, un nom UTF-8 non declare serait
     # sinon lu octet par octet et l'octet A0 de l'espace insecable retire
@@ -11760,7 +11802,12 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # les autres (decision du mainteneur du 16/10/2026) : laissee telle
     # quelle, elle faisait lever par trimws() l'erreur R "input string k is
     # invalid UTF-8" (mesuree). Une chaine declaree "latin1" est toujours
-    # valide (tout octet est un caractere Latin-1) et convertie par enc2utf8().
+    # valide (tout octet est un caractere Latin-1). La conversion passe par
+    # .vers_utf8() (decision D-S1-8 du mainteneur), table fixe partagee avec
+    # .echapper_texte() : un nom Latin-1 a octet 0x81 donne U+0081 sur toute
+    # plateforme, et non le texte ASCII "<81>" de R sous Linux, qui faisait
+    # juger en double un nom Latin-1 "a\x81b" et un nom ASCII "a<81>b"
+    # (constat hors perimetre n. 1 de l'avis amont d'actuary, #588).
     noms_u <- noms
     noms_u[octets] <- NA_character_
     inc <- !is.na(noms_u) &
@@ -11772,7 +11819,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
       e <- rep("latin1", sum(inc)); e[v] <- "UTF-8"
       Encoding(noms_u)[inc] <- e
     }
-    noms_u <- enc2utf8(noms_u)
+    noms_u <- .vers_utf8(noms_u)
     # Blancs : tout blanc Unicode horizontal ou vertical (classes perl \h et
     # \v : espace, tabulation, retour chariot, saut de ligne, espace
     # insecable U+00A0, espaces U+2000-U+200A, U+3000...) et les caracteres
