@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{14~novembre 2026}
-\newcommand{\versiondoc}{3.8}
+\newcommand{\datedoc}{16~novembre 2026}
+\newcommand{\versiondoc}{3.9}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -841,10 +841,24 @@ conversion numérique d'un facteur par ses valeurs \\
 motif, de façon indépendante de la locale~: caractères de contrôle ASCII écrits par
 \code{encodeString()} (\code{\textbackslash t}, \code{\textbackslash n}), blanc, caractère de
 contrôle ou de format non ASCII écrit \code{\textbackslash u}$XXXX$, autres caractères tels
-quels, chaque texte ramené d'abord en UTF-8 (octets 0x80 à 0x9F d'un texte déclaré Latin-1 lus selon Windows-1252, comme les cellules)~; entre guillemets doubles sous \code{guillemets =
+quels, chaque texte ramené d'abord en UTF-8 par \code{.vers\_utf8()} (texte déclaré Latin-1 lu
+par sa table fixe~: les octets 0x81, 0x8D, 0x8F, 0x90 et 0x9D, sans caractère en Windows-1252,
+cités \code{\textbackslash u0081}, \code{\textbackslash u008d}, \code{\textbackslash u008f},
+\code{\textbackslash u0090}, \code{\textbackslash u009d} sous toute locale, mesuré sous Linux
+en locales \code{C} et \code{C.UTF-8}, et sous toute plateforme par construction de la table~;
+limite consignée~: une chaîne non UTF-8 d'encodage non déclaré, dans une locale non UTF-8, reste
+citée selon la locale, mesuré)~; entre guillemets doubles sous \code{guillemets =
 TRUE} (noms d'année d'accident de \code{mw\_valider\_triangle()}), sans guillemets sinon (colonnes
 présentes du motif d'\code{engine\_lire\_donnees\_csv()}, en-têtes des colonnes vides du motif de
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}) \\
+\code{.vers\_utf8()} & chaînes & chaînes en UTF-8, comme par \code{enc2utf8()}, sauf une
+chaîne déclarée Latin-1, convertie octet par octet par une table fixe, indépendante de la
+plateforme et de la locale~: 0x80 à 0x9F selon Windows-1252 (\code{CP\_WINDOWS\_1252\_80\_9F}),
+les cinq octets sans caractère en Windows-1252 (0x81, 0x8D, 0x8F, 0x90, 0x9D) vers les
+caractères de contrôle U+0081, U+008D, U+008F, U+0090, U+009D, 0xA0 à 0xFF vers U+00A0 à
+U+00FF~; identique à \code{enc2utf8()} hors de ces cinq octets (mesuré sous Linux, locales
+\code{C} et \code{C.UTF-8})~; employée par \code{.echapper\_texte()} et par la comparaison des
+noms de ligne de \code{mw\_valider\_triangle()} \\
 \code{.retirer\_lignes\_}\newline\code{colonnes\_vides()},\newline \code{.entete\_absent()},\newline
 \code{.declarer\_latin1()},\newline \code{.cellule\_texte\_na()},\newline
 \code{.ligne1\_sans\_}\newline\code{valeur()} & tableau lu, objet
@@ -5250,8 +5264,12 @@ par son seul indice $i$, une seule notation par message. Un nom déclaré d'enco
 d'encodage "bytes" :}~…~»), qui ne cite
 pas le nom, et n'entre pas dans les contrôles de nom manquant et de doublon~: ses caractères ne
 sont pas déterminés, et le lire serait deviner. Les autres noms sont d'abord ramenés en UTF-8, une chaîne dont les octets ne sont pas de
-l'UTF-8 valide étant lue en Latin-1, si bien que le contrôle ne lève aucune erreur R, quelle que
-soit la locale. Sont des blancs les blancs Unicode horizontaux et verticaux (classes \code{\textbackslash h}
+l'UTF-8 valide étant lue en Latin-1, par la table fixe de \code{.vers\_utf8()} (index des
+fonctions), si bien que le contrôle ne lève aucune erreur R et compare les mêmes caractères,
+quelles que soient la plateforme et la locale~: un nom Latin-1 «~\code{a}~», octet 0x81,
+«~\code{b}~» et le même texte écrit en UTF-8 (U+0081) sont en double, alors que le même nom
+Latin-1 et le nom ASCII «~\code{a<81>b}~» ne le sont pas (mesuré sous les locales \code{C} et
+\code{C.UTF-8}). Sont des blancs les blancs Unicode horizontaux et verticaux (classes \code{\textbackslash h}
 et \code{\textbackslash v} des expressions régulières Perl, dont l'espace insécable) et les
 caractères de format sans chasse U+200B, U+200C, U+200D, U+2060 et U+FEFF. Les doublons sont
 comparés après retrait des blancs initiaux et finaux, sans autre normalisation (ni casse, ni
