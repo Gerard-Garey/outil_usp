@@ -7,7 +7,7 @@
 #  12/10/2026, point 3) :
 #    - constante PHRASE_VERDICT_SENSIBLE_MC, posee par add() seul en dernier
 #      element du detail ;
-#    - condition : ligne de type test, sans verdict fourni, p retenue
+#    - condition : ligne de type test, p retenue
 #      Monte-Carlo, err_mc finie et > 0, |p - s| < 2 err_mc (stricte) pour un
 #      seuil s de la regle des verdicts : {alpha/2, alpha} en sens "ne pas
 #      rejeter", {alpha, SEUIL_ECHEC_SENS_REJETER} en sens "rejeter".
