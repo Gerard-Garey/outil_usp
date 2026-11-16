@@ -8714,12 +8714,17 @@ XML_ATTRIBUTS_BALISE <- "([ \t\r\n]([^>\"']|\"[^\"]*\"|'[^']*')*)?"
 # Prefixe d'espace de noms facultatif d'un nom d'element ("x:" dans <x:t>),
 # partage par .xml_textes() et les controles Q-F et X1 d'engine_lire_xlsx().
 XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
-.xml_textes <- function(x) {
+# decoder = FALSE : texte des <t> concatene sans decodage des references
+# (controle des references numeriques de la table, regle R9,
+# .xlsx_controler_partagees(), decision D-S1-18 ; le decodage, vectoriel,
+# est fait ensuite par .xml_decoder() sur la chaine entiere, comme ici).
+.xml_textes <- function(x, decoder = TRUE) {
   x <- gsub(paste0("<", XML_PREFIXE_NOM, "rPh", XML_ATTRIBUTS_BALISE, "/>"), "", x)
   x <- gsub(paste0("(?s)<", XML_PREFIXE_NOM, "rPh", XML_ATTRIBUTS_BALISE, ">.*?</",
                    XML_PREFIXE_NOM, "rPh>"), "", x, perl = TRUE)
   t <- regmatches(x, gregexpr("<t([ \t\r\n][^>]*)?>.*?</t>", x))[[1]]
-  .xml_decoder(paste(gsub("<[^>]*>", "", t), collapse = ""))
+  t <- paste(gsub("<[^>]*>", "", t), collapse = "")
+  if (decoder) .xml_decoder(t) else t
 }
 
 # Valeur d'un attribut dans une balise ouvrante ; NA s'il est absent. La
@@ -9630,6 +9635,13 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
 # vectorielles ; aucune boucle sur les balises (forme 4 : 64 000 balises
 # <x:rPh> non fermees dans la table, controle seul, refus en 0,24 s ;
 # assertion de test_controles_entree.R, seuil 10 s).
+# Puis, sur le texte des <t> de chaque chaine (phonetique exclu), refus des
+# references numeriques de caracteres ordinaires (&#48;, &#x74;...) ou de
+# blancs retires des en-tetes (&#9;, &#12288;...), positions "chaine no 3 :
+# &#48;" (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23).
+# Chaines decodees par .xml_decoder() en un seul appel vectoriel sur la
+# table (auparavant un appel par chaine, dans .xml_textes() ; meme
+# texte rendu, .xml_decoder() traitant chaque element isolement).
 # Renvoie les chaines de la table, decodees.
 .xlsx_controler_partagees <- function(sx) {
   j <- .xlsx_jetons(sx)
@@ -9765,7 +9777,138 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
   f <- im$ferme[s]
   x <- ifelse(fin[s] + 1L <= deb[f] - 1L, substring(y, fin[s] + 1L, deb[f] - 1L), "")
   Encoding(x) <- "UTF-8"
-  vapply(x, .xml_textes, character(1), USE.NAMES = FALSE)
+  # Texte des <t> de chaque chaine, phonetique exclu, avant decodage :
+  # references numeriques de caracteres ordinaires refusees (decision
+  # D-S1-18, .xlsx_controler_references()), puis decodage
+  brut <- vapply(x, .xml_textes, character(1), decoder = FALSE, USE.NAMES = FALSE)
+  .xlsx_controler_references(brut, function(i) paste0("chaine no ", i - 1L), "xl/sharedStrings.xml")
+  .xml_decoder(brut)
+}
+
+# Texte du refus des references numeriques de caracteres ordinaires ou de
+# blancs (decision D-S1-18, libelle complete par la decision D-S1-24 ;
+# texte de l'avis d'actuary sur le lot D de #574, Q7, premier %s ecrit
+# "la partie <nom> du classeur", comme les refus R1 et R2).
+TEXTE_REFUS_REFERENCE_NUMERIQUE <- "Classeur illisible : %s porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur."
+# Codes admis parmi les caracteres ASCII imprimables (U+0020 a U+007E) ecrits
+# en reference numerique : ", &, ', <, > (echappements XML).
+XML_CODES_REFERENCE_ADMIS <- c(34, 38, 39, 60, 62)
+# Codes refuses en reference numerique parce que la mise en forme des
+# en-tetes les retire (decision D-S1-23) : blancs de la classe [[:space:]]
+# retires en bord (et ramenes a une espace a l'interieur) par
+# .xlsx_blancs_entete(), appliquee aux en-tetes par le lecteur interne
+# (engine_lire_xlsx()) et par .entete_designe() / .ligne1_sans_valeur()
+# (colonne t ou i, ligne 1 vide) ; U+FEFF, retire en tete du premier nom par
+# .nom_sans_bom() (engine_lire_donnees_csv(), engine_lire_triangle()). Jeu
+# de [[:space:]] releve sous C.UTF-8 dans l'en-tete de .xlsx_blancs_entete()
+# et remesure ici (lot E, sonde 574) : U+0009 a U+000D, U+1680, U+2000 a
+# U+2006, U+2008 a U+200A, U+2028, U+2029, U+205F, U+3000 (U+0020 est deja
+# refuse comme caractere ASCII imprimable). Ce jeu dependant de la locale,
+# .xml_codes_retires_entete() lui ajoute les blancs que .xlsx_blancs_entete()
+# retire dans la locale de la session.
+XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x2028, 0x2029,
+                                0x205F, 0x3000, 0xFEFF)
+
+# Vrai pour un code (numerique, NA admis) que la mise en forme des en-tetes
+# retire : code de XML_CODES_REFERENCE_BLANCS, ou caractere decodable par
+# .xml_decoder() (1 a U+10FFFF hors substituts) que .xlsx_blancs_entete()
+# reduit a "" dans la locale de la session (decision D-S1-23). Un seul
+# appel vectoriel a .xlsx_blancs_entete() sur les codes distincts.
+.xml_codes_retires_entete <- function(code) {
+  res <- !is.na(code) & code %in% XML_CODES_REFERENCE_BLANCS
+  dec <- which(!res & !is.na(code) & code >= 1 & code <= 1114111 & !(code >= 55296 & code <= 57343))
+  if (length(dec)) {
+    u <- unique(code[dec])
+    blanc <- u[!nzchar(.xlsx_blancs_entete(intToUtf8(u, multiple = TRUE)))]
+    res[dec] <- code[dec] %in% blanc
+  }
+  res
+}
+
+# Refus des references numeriques de caracteres ordinaires dans le texte
+# d'une chaine (#574 ; decision D-S1-18 du mainteneur sur la Q7 de l'avis
+# d'actuary sur le lot D), complement des regles R8 (texte d'une chaine en
+# ligne, <is><t>, positions "B1 : &#116;") et R9 (texte des <t> d'une chaine
+# de la table, phonetique <rPh> exclu, positions "chaine no 3 : &#48;",
+# chaines numerotees a partir de 0 comme pour R9). Est refusee toute
+# reference numerique &#NNN; ou &#xHH; (zeros de tete admis, x ecrit en
+# minuscule ou en majuscule) qui designe un caractere ASCII imprimable,
+# U+0020 a U+007E, autre que ", &, ', < et > (XML_CODES_REFERENCE_ADMIS),
+# ou un caractere que retire la mise en forme des en-tetes (decision
+# D-S1-23, .xml_codes_retires_entete() : blancs de .xlsx_blancs_entete(),
+# dont la tabulation et les fins de ligne &#9; a &#13;, &#xD;, et les
+# blancs Unicode &#12288;... ; U+FEFF de .nom_sans_bom()). Mesure de
+# l'audit du lot E (openxlsx 4.2.5.2, C.UTF-8) : en-tete B1 xt&#9; (ou
+# &#xD;xt, xt&#12288;...) et D1 xt : decode puis retire en interne, doublon
+# xt refuse ; texte garde par openxlsx, colonne D prise en silence
+# (sigma_USP 0.0762262056, ok = TRUE) ; de meme, en-tete A1 t&#9; ou
+# &#65279;t : colonne t lue et lignes triees par annee en interne, ordre du
+# fichier par openxlsx ; valeur 104.2&#9; lue 104.2 en interne
+# (.nettoyer_cellules()), refusee par openxlsx. Restent admis (decision
+# D-S1-22, mesure du lot E sur les deux chemins : en-tete xt suivi,
+# precede ou coupe de la reference, B1 + D1 xt, en chaine partagee et en
+# ligne, et en-tete t de meme, annees decroissantes ; meme colonne prise,
+# meme ordre, par les deux chemins, le texte seul differant) : les
+# caracteres de controle &#1; a &#8;, &#14; a &#31;, &#127;, ainsi que
+# U+0085, U+00A0, U+2007, U+200B et U+202F, qui ne sont pas des blancs de
+# [[:space:]] sous C.UTF-8 ; les autres caracteres non ASCII (&#233;) ; les
+# echappements des cinq caracteres XML (&#38;, &#39;, &#x27;, &#34;, &#60;,
+# &#62;), les cinq entites nommees, et les references hors du domaine des
+# caracteres (&#0;, au-dela de U+10FFFF), laissees telles quelles par le
+# lecteur interne (.xml_decoder()). Le refus vaut pour tout le classeur
+# (decision D-S1-25) : toute chaine de la table et toute chaine en ligne
+# de la feuille lue, en-tete ou non, colonne lue ou annexe. Motif :
+# openxlsx 4.2.5.2 ne decode que les cinq entites
+# nommees des chaines partagees et aucune entite d'une chaine en ligne,
+# alors que le lecteur interne decode aussi les references numeriques
+# (mesures de l'avis, Q7 ; sonde sondes/sonde_574_lot_e.R) : <t>1&#48;4.2</t>
+# lu 104.2 en interne (sigma_USP 0.1114524114) et en texte, refuse en aval,
+# par openxlsx ; en-tete B1 x&#116; et en-tete D1 xt, en chaine partagee
+# comme en chaine en ligne : doublon xt refuse en interne, colonne D prise
+# en silence par openxlsx (sigma_USP 0.0762262056, ok = TRUE). Le x
+# majuscule (&#X30;) n'est decode par aucun des deux chemins (texte
+# litteral) ; il est refuse avec les autres (forme hors de la grammaire
+# XML). Un caractere ASCII ordinaire ecrit en reference numerique n'est,
+# par hypothese de l'avis, ecrit par aucun tableur (a eprouver sur le
+# corpus de l'etape 10). Le texte d'une cellule t="str" (<v>) n'est decode
+# par aucun des deux chemins (parite, mesure) et n'est pas vise ; une
+# reference dans le <v> d'une cellule nombre est refusee par R8
+# (XML_MOTIF_NOMBRE). textes : texte brut (non decode) de chaque chaine ;
+# lieu(i) : position citee des chaines d'indices i ; partie : nom de la
+# partie, cite par .echapper_texte(). Positions "lieu : reference", la
+# reference citee par .xlsx_citer() telle qu'ecrite, dans l'ordre du texte,
+# chaque couple (chaine, reference) une fois, cinq au plus (.xlsx_cinq()).
+# Cout : un gregexpr() vectoriel sur les textes, puis des operations
+# vectorielles sur les references trouvees ; aucune boucle par chaine ni par
+# caractere.
+.xlsx_controler_references <- function(textes, lieu, partie) {
+  # textes sans "&#" ecartes d'abord (motif fixe) ; les autres joints en un
+  # seul texte, en octets, separes par un saut de ligne (qu'aucune reference
+  # ne contient), et parcourus par un seul gregexpr() ; chaine de chaque
+  # reference retrouvee par findInterval() sur les debuts des textes
+  k <- which(grepl("&#", textes, fixed = TRUE, useBytes = TRUE))
+  if (!length(k)) return(invisible(NULL))
+  y <- textes[k]
+  Encoding(y) <- "bytes"
+  tout <- paste(y, collapse = "\n")
+  m <- gregexpr("&#([0-9]+|[xX][0-9A-Fa-f]+);", tout, perl = TRUE, useBytes = TRUE)[[1]]
+  if (m[1L] == -1L) return(invisible(NULL))
+  ref <- substring(tout, m, m + attr(m, "match.length") - 1L)
+  qui <- k[findInterval(m, cumsum(c(1, nchar(y, type = "bytes") + 1))[seq_along(y)])]
+  corps <- substr(ref, 3L, nchar(ref) - 1L)
+  hex <- startsWith(corps, "x") | startsWith(corps, "X")
+  code <- rep(NA_real_, length(ref))
+  # decimal lu en double (aucun depassement) ; hexadecimal au-dela de
+  # 7FFFFFFF lu NA par strtoi(), hors du domaine ASCII de toute facon
+  code[!hex] <- as.numeric(corps[!hex])
+  code[hex] <- strtoi(substring(corps[hex], 2L), 16L)
+  faute <- which(!is.na(code) & ((code >= 32 & code <= 126 & !code %in% XML_CODES_REFERENCE_ADMIS) |
+                                   .xml_codes_retires_entete(code)))
+  if (!length(faute)) return(invisible(NULL))
+  .refus_lecture(sprintf(TEXTE_REFUS_REFERENCE_NUMERIQUE,
+                         paste("la partie", .echapper_texte(partie), "du classeur"),
+                         .xlsx_cinq(paste(qui[faute], ref[faute]),
+                                    function(i) paste0(lieu(qui[faute][i]), " : ", .xlsx_citer(ref[faute][i])))))
 }
 
 # Indice (base 1) d'une chaine partagee lu dans <v> d'une cellule t="s" ;
@@ -9916,8 +10059,10 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
 # .xlsx_controler_attributs()), R5 (.xlsx_controler_limites()), R6
 # (.xlsx_controler_doublons()), R6b (.xlsx_controler_ordre(), decision
 # D-S1-11), R7 (.xlsx_controler_types(), decision D-S1-2), R8
-# (.xlsx_controler_contenus()), R9 (refus existants Q-F, P2 et X1 de la
-# table, puis regle generale, .xlsx_controler_partagees()), R10
+# (.xlsx_controler_contenus(), puis references numeriques de caracteres
+# ordinaires d'une chaine en ligne, .xlsx_controler_references(), decision
+# D-S1-18), R9 (refus existants Q-F, P2 et X1 de la table, puis regle
+# generale et references numeriques, .xlsx_controler_partagees()), R10
 # (.xlsx_controler_indices_partages(), #575), R11
 # (.xlsx_controler_etendue()) et R12 (.xlsx_controler_ligne_entete(), si
 # entete). Rend list(rang, xml, partagees, cellules) : rang de
@@ -9979,6 +10124,14 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
   # en chiffres quand R10 le lit)
   .xlsx_controler_types(cc)
   .xlsx_controler_contenus(cc)
+  # Complement de R8 (#574, decisions D-S1-18 et D-S1-23) : references
+  # numeriques de caracteres ordinaires ou de blancs retires des en-tetes
+  # dans le texte d'une chaine en ligne (texte de
+  # l'unique <t> de <is>, regle R3 : balises retirees), avant R9
+  ki <- which(cc$is)
+  if (length(ki))
+    .xlsx_controler_references(gsub("<[^>]*>", "", cc$is_contenu[ki]),
+                               function(i) .xlsx_citer(cc$r_brut[ki][i]), feuille$partie)
   partagees <- character(0)
   if (!is.null(sx)) {
     # Regle R9 (#574) : d'abord les refus existants Q-F, P2 et X1 de la
@@ -10112,7 +10265,13 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
 # chaines en ligne (.xml_decoder()) ; openxlsx decode les entites nommees des
 # chaines partagees seulement (en decodant deux fois "&amp;lt;", lu "<"), et
 # laisse telles quelles les references numeriques des chaines partagees et
-# toute entite d'une chaine en ligne ;
+# toute entite d'une chaine en ligne ; une reference numerique d'un
+# caractere ASCII imprimable autre que ", &, ', < et > (&#48;, &#x74;), ou
+# d'un blanc que retire la mise en forme des en-tetes (&#9;, &#12288;,
+# &#65279;...), est refusee avant les deux chemins
+# (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23 : "x&#116;"
+# ou "xt&#9;" lu "xt" en interne, laisse tel quel par openxlsx, qui
+# prenait en silence une autre colonne xt, mesure) ;
 # un <t xml:space="preserve"> d'une chaine en ligne laisse
 # l'attribut dans le texte lu par openxlsx.
 # Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
