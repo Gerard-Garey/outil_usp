@@ -736,21 +736,37 @@ html_table <- function(d, classe = "table table-condensed data", largeurs = NULL
        yref = "container", y = 1, yanchor = "top",
        pad = list(t = .BARRE_PLOTLY_PX + if (grepl("<br>", texte, fixed = TRUE)) 13 else 3))
 .marge_haute <- function(t) t + .BARRE_PLOTLY_PX - 10
-# Legende horizontale sous le titre de l'axe des abscisses (#582). L'ancrage au
-# conteneur (legend.yref = "container") est inconnu de plotly.js 2.11.1, livre
-# par plotly 4.10.4 : la legende y retombait en bas de la zone de trace et en
-# masquait le bas (g_boot, mw_boot, ratio, rapport fige interactif). L'ancrage
-# est donc pris en coordonnees du papier : yref = "paper" et y negatif, la
-# legende pendant sous la zone de trace (yanchor = "top"), valable sous
-# plotly.js 2.11.1 et 2.25.2. Sa distance au bas de la zone de trace est
-# -y x hauteur de la zone : y est choisi pour qu'elle depasse les 55 px que
-# prennent les graduations et le titre de l'axe (mesure du harnais de #582).
-# La marge basse effective depasse alors margin.b et la zone de trace est plus
-# basse qu'avec l'ancrage au conteneur (mesures d'app-review sous Chromium,
-# plotly.js 2.11.1 et 2.25.2, resultats identiques : voir plot_boot_sigma()).
-.legende_sous_axe <- function(y)
-  list(orientation = "h", x = 0, xanchor = "left", yref = "paper",
-       y = y, yanchor = "top", font = list(size = 10))
+# Legendes plotly hors de la zone de trace, a une position independante de la
+# hauteur de la figure (#582). Trois etats successifs :
+# 1. ancrage au conteneur (legend.yref = "container", #392) : attribut inconnu
+#    de plotly.js 2.11.1, livre par plotly 4.10.4 ; la legende y retombait en
+#    bas de la zone de trace et en masquait le bas (g_boot, mw_boot, ratio,
+#    rapport fige interactif) ;
+# 2. decalage en fraction de la zone de trace (y negatif au papier : -0,6 et
+#    -0,4), valable sous les deux versions mais ecarte : l'ecart au titre d'axe
+#    en depend, donc de la hauteur de la figure ; 10 px d'ecart a 330 px de
+#    haut, 4 px avec un sous-titre ;
+# 3. etat actuel, deux dispositions sans attribut propre a une version de
+#    plotly.js (mesures sous Chromium, plotly.js 2.11.1 et 2.25.2, resultats
+#    identiques) :
+# - .legende_droite() : legende verticale a droite de la zone de trace
+#   (x = 1,02 au papier), son haut au niveau du haut de la zone ; plotly.js
+#   agrandit la marge droite pour la loger (198 px de legende pour
+#   plot_boot_sigma(), marge droite effective de 224 px a 1 000 px de large) ;
+# - .legende_haut() : legende horizontale au-dessus de la zone de trace
+#   (y = 1 au papier), son bas au niveau du haut de la zone ; plotly.js ne
+#   reserve pas la place du titre (a marge haute de 59 px, legende de 29 px a
+#   30-59 px et titre a 24-43 px : recouvrement) : la marge haute doit couvrir
+#   le titre et la legende (.marge_haute() + .LEGENDE_HAUTE_PX).
+# .LEGENDE_HAUTE_PX n'est pas la hauteur de la legende (29 px mesures a
+# 330 px de haut) : c'est la marge haute ajoutee a .marge_haute() pour la loger.
+.LEGENDE_HAUTE_PX <- 26
+.legende_droite <- function()
+  list(orientation = "v", xref = "paper", x = 1.02, xanchor = "left",
+       yref = "paper", y = 1, yanchor = "top", font = list(size = 10))
+.legende_haut <- function()
+  list(orientation = "h", xref = "paper", x = 0, xanchor = "left",
+       yref = "paper", y = 1, yanchor = "bottom", font = list(size = 10))
 # Titres longs a 330 px (#500). Un titre ou un sous-titre plotly ne se replie
 # pas : au-dela de la largeur de la figure, il sort des deux cotes (largeurs
 # mesurees sous Chromium, plotly.js 2.25.2, figure de 330 px, police par defaut :
@@ -848,12 +864,16 @@ plot_ratio <- function(pd) {
         line = list(color = COUL$pt), marker = list(size = 9, color = COUL$pt),
         hovertemplate = "t = %{x}<br>y/x = %{y:.4f}<extra></extra>")
   p <- .mep(p, "Ratio observe dans le temps", "annee t", "y_t / x_t")
-  # Legende horizontale sous le titre de l'axe des abscisses (une entree, sur
-  # une ligne) : ancrage en coordonnees du papier, .legende_sous_axe() (#582).
-  # y = -0,4 : a 330 px de haut, la legende est a 11 px du titre d'axe (mesure
-  # sous Chromium, plotly.js 2.11.1 et 2.25.2).
-  plotly::layout(p, showlegend = TRUE, legend = .legende_sous_axe(-0.4),
-                 margin = list(t = .marge_haute(45), b = 90))
+  # Legende d'une entree, sur une ligne (29 px de haut, 204 px de large) :
+  # au-dessus de la zone de trace, .legende_haut() (#582). Mesure sous Chromium,
+  # plotly.js 2.11.1 et 2.25.2, resultats identiques, 330 px de haut, de 320 a
+  # 600 px de large : legende de 56 a 85 px, titre de 24 a 43 px, zone de trace
+  # de 85 a 270 px (185 px de haut ; 181 px avec l'ancrage au conteneur de
+  # 2.25.2), largeur inchangee ; a 250 et 700 px de haut, position de la
+  # legende inchangee. Marge basse de 60 px : plus de legende sous le titre
+  # d'axe.
+  plotly::layout(p, showlegend = TRUE, legend = .legende_haut(),
+                 margin = list(t = .marge_haute(45) + .LEGENDE_HAUTE_PX, b = 60))
 }
 
 # Enveloppe du QQ-plot (issue #47) : bande simultanee (exterieure, plus
@@ -1610,22 +1630,31 @@ plot_boot_sigma <- function(pd) {
   xl <- if (length(xf)) range(xf) else c(NA_real_, NA_real_)
   xl <- xl + c(-1, 1) * 0.05 * diff(xl)
   xl_ok <- all(is.finite(xl)) && diff(xl) > 0
-  # Legende horizontale sous le titre de l'axe des abscisses : ancrage en
-  # coordonnees du papier, .legende_sous_axe() (#582). L'ancrage au conteneur
-  # (#392) etait ignore par plotly.js 2.11.1 et la legende recouvrait le bas
-  # de l'histogramme. y = -0,6. Cas de l'application, mesures d'app-review sous
-  # Chromium, plotly.js 2.11.1 et 2.25.2, resultats identiques (#582) : g_boot
-  # (420 px de haut, huit entrees) : zone de trace de 158 px et legende a 40 px
-  # sous le titre d'axe a 690 px de large, 182 px et 54 px de 1 000 a 1 170 px ;
-  # mw_boot (330 px de haut, quatre entrees) : 108 px et 10 px de 320 a 520 px
-  # de large, 132 px et 24 px a 600 px. Avant, avec l'ancrage au conteneur : 241
-  # a 251 px pour g_boot, 151 px pour mw_boot.
+  # Legende verticale a droite de la zone de trace, .legende_droite() (#582) :
+  # elle ne recouvre ni la zone de trace ni le titre, et sa position ne depend
+  # pas de la hauteur de la figure. Marge basse de 60 px (titre d'axe seul).
+  # Elle prend la largeur de la legende (198 px) a la zone de trace : g_boot et
+  # mw_boot sont donc affiches en pleine largeur de la zone principale
+  # (onglet_m5_mw() de app.R, cellule pleine du rapport fige) ; en demi-largeur,
+  # mw_boot mesurait 0,375 W - 30 px (324 a 330 px a 960 px de fenetre) et la
+  # zone de trace tombait a 64 px, recouverte de 10 px par la legende.
+  # Mesures sous Chromium, plotly.js 2.11.1 et 2.25.2, resultats identiques
+  # (zone de trace, hauteur x largeur ; entre parentheses, avec sous-titre) :
+  # g_boot (420 px de haut, huit entrees, legende de 198 x 162 px) : 301 x 392
+  # px a 690 px de large, 301 x 696 px a 1 000 px, 301 x 863 px a 1 170 px (286
+  # px de haut) ; mw_boot (mesure a 330 px de haut, quatre entrees, legende de 198 x 86
+  # px), pleine largeur : 211 x 392 px a 690 px, 211 x 863 px a 1 170 px,
+  # 211 x 841 px dans la cellule du rapport fige (1 148 px) (196 px de haut).
+  # Avant, avec l'ancrage au conteneur de 2.25.2 : g_boot 251 px de haut ;
+  # mw_boot 161 x 530 px a 690 px et 161 x 1 010 px a 1 170 px.
+  # Les mesures de mw_boot ci-dessus datent de sa hauteur de 330 px ; il est
+  # depuis a 420 px, comme g_boot (decision du mainteneur), sans nouvelle mesure.
   plotly::layout(p, barmode = "stack",
                  xaxis = if (!is.null(rp) && nrow(rp) && xl_ok) list(range = xl),
                  yaxis2 = list(overlaying = "y", range = c(0, 1), visible = FALSE, fixedrange = TRUE),
                  showlegend = length(niv_reg) > 0L || (!is.null(rp) && nrow(rp) > 0L),
-                 legend = .legende_sous_axe(-0.6),
-                 margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 110))
+                 legend = .legende_droite(),
+                 margin = list(t = .marge_haute(if (length(st)) 60 else 45), b = 60))
 }
 
 # Barres libellees par cand$variante, dans l'ordre des lignes de cand (celui du
@@ -3010,7 +3039,12 @@ encoder_base64 <- function(octets) {
     list(titre = "M3 - ind\u00e9pendance", note = NULL,
          g = list(g(function() plot_mw_residus_acc(pd)), g(function() plot_mw_residus_cal(pd)))),
     list(titre = "M5 - normalit\u00e9 (diagnostic)", note = NULL,
-         g = list(g(function() plot_mw_qq(pd)), g(function() plot_boot_sigma(pd)))),
+         # Pleine largeur et memes hauteurs que l'onglet de l'application
+         # (onglet_m5_mw(), #582) : la legende verticale de plot_boot_sigma()
+         # laisse sinon une zone de trace trop etroite ; le QQ-plot a 420 px,
+         # comme g_qq, pour ne pas etre aplati, et la distribution bootstrap a
+         # 420 px, comme g_boot (decision du mainteneur).
+         g = list(g(function() plot_mw_qq(pd), 420, TRUE), g(function() plot_boot_sigma(pd), 420, TRUE))),
     list(titre = "Influence et leviers", note = note_influence_mw(pd),
          g = list(g(function() plot_mw_levier(pd), 380), g(function() plot_mw_contributions(pd), 380),
                   g(function() plot_mw_dfbeta(pd), 330, TRUE)))))
