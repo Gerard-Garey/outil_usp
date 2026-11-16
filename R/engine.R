@@ -8550,15 +8550,28 @@ engine_ecrire_csv <- function(df, chemin) {
 # distingue d'une erreur R quelconque par inherits() ; son conditionMessage()
 # est le texte fixe du refus (l'application l'affiche tel quel, lire_tableau(),
 # #522). Sans dependance : structure() et stop() de base. Levee par les refus
-# d'engine_lire_xlsx() dont le texte dit a l'utilisateur quoi corriger :
-# ligne 1 sans aucune valeur (#522), cellule sans attribut r et balise <c de
-# forme non reconnue (#487), reference de cellule de forme non attendue,
-# table des chaines partagees decoupee en segments <r> sans aucun <rPr>
-# (#557), table qui porte une balise <rPh .../> auto-fermante ou une chaine
-# formee de plusieurs <t> directs (#572), indice de chaine partagee hors de
-# la table (regle R10, #575), partie du classeur qui n'est pas du texte UTF-8
-# valide ou qui porte un commentaire, une section CDATA, une instruction de
-# traitement ou une declaration de type de document (regles R1 et R2, #574).
+# d'engine_lire_xlsx() dont le texte dit a l'utilisateur quoi corriger,
+# soit tous les refus du contrat ferme du lecteur de classeur (#574), regles
+# R0 a R12 de .xlsx_admettre() (liste et ordre : son commentaire d'en-tete ;
+# detail des refus : le \label{sec:controles} de
+# docs/latex/doc_tests_usp.tex) : table des chaines partagees ailleurs
+# qu'en xl/sharedStrings.xml ou en plusieurs exemplaires (R0, #572) ;
+# partie lue qui n'est pas du texte UTF-8 valide (R1) ; commentaire,
+# section CDATA, instruction de traitement ou declaration de type de
+# document dans la feuille, la table, xl/workbook.xml ou
+# xl/_rels/workbook.xml.rels (R2, D-S1-36) ; structure du bloc des donnees
+# (R3 : balise <c de forme non reconnue, #487, balises <sheetData> en
+# surnombre ou toutes fermantes, D-S1-35, balise non prevue ou mal
+# imbriquee, segment de cellule lu par openxlsx, <t> a attribut d'une
+# chaine en ligne, D-S1-31) ; cellule sans attribut r (#487), reference de
+# forme non attendue (#557, D-S1-9), attribut hors liste (R4) ; limites
+# d'une feuille (R5) ; reference en double (R6) ; ordre de lecture (R6b,
+# D-S1-11) ; type de cellule, t="d" et t="e" compris (R7, D-S1-2) ; contenu
+# de cellule (R8) et references numeriques de caractere (D-S1-18,
+# D-S1-23) ; table des chaines partagees (R9 : segments <r> sans <rPr>,
+# #557, <rPh .../> auto-fermante et plusieurs <t> directs, #572, regle
+# generale) ; indice de chaine partagee hors de la table (R10, #575) ;
+# etendue des cellules (R11) ; ligne 1 sans aucune valeur (R12, #522).
 # Le refus d'une ligne 1 sans valeur
 # d'un CSV (meme texte, MOTIF_LIGNE1_VIDE) n'est pas leve : c'est un motif "erreurs"
 # d'engine_lire_donnees_csv() et d'engine_lire_triangle(). Les refus
@@ -8670,7 +8683,9 @@ engine_ecrire_csv <- function(df, chemin) {
 
 # Regle R2 du contrat ferme du lecteur de classeur (#574 ; avis amont
 # d'actuary du 15/11/2026, S1, par. 1 et texte du par. 2) : la feuille lue et
-# la table des chaines partagees ne portent ni commentaire (<!--), ni section
+# la table des chaines partagees, ainsi que xl/workbook.xml et
+# xl/_rels/workbook.xml.rels, qui designent la feuille (decision D-S1-36,
+# controle fait dans .xlsx_fichier_feuille()), ne portent ni commentaire (<!--), ni section
 # CDATA (<![CDATA[), ni declaration de type de document (<!DOCTYPE), ni
 # instruction de traitement (<?...?>) autre que la declaration XML initiale.
 # Aucun tableur n'en ecrit (hypothese de l'avis, a confirmer par le corpus de
@@ -9077,6 +9092,17 @@ XML_MOTIF_BALISE <- "<[^<>\"']*+(?:(?:\"[^\"<]*+\"|'[^'<]*+')[^<>\"']*+)*+>"
   }
   wb <- lire("xl/workbook.xml")
   rels <- lire("xl/_rels/workbook.xml.rels")
+  # Regle R2 (#574, decision D-S1-36) : les deux parties qui designent la
+  # feuille, controlees par .xlsx_controler_balisage() avant le choix de la
+  # cible (apres R1 des deux). Mesure avant (moteur 261c45e, R 4.3.3, les
+  # deux chemins, openxlsx 4.2.5.2) : une <Relationship Id="rId1"> en
+  # commentaire, cible sheet2.xml, placee avant la vraie, faisait lire
+  # sheet2.xml (xt[1] = 999 au lieu de 104.2, classeur accepte). Refus de
+  # classe usp_refus_lecture, partie citee. _rels/.rels n'est pas lue par
+  # le lecteur (la partie principale est prise en xl/workbook.xml) ni
+  # controlee.
+  .xlsx_controler_balisage(wb, "xl/workbook.xml")
+  .xlsx_controler_balisage(rels, "xl/_rels/workbook.xml.rels")
   feuilles <- .xlsx_balises(wb, "sheet")
   if (!length(feuilles)) refus()
   liens <- .xlsx_balises(rels, "Relationship")
@@ -9144,8 +9170,12 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 #    ouvre une balise (sinon XML mal forme : "<" dans un texte ou une valeur
 #    d'attribut, guillemet non ferme) ;
 #  - un seul <sheetData>, non prefixe, ecrit <sheetData>...</sheetData> ou
-#    <sheetData/> ; openxlsx 4.2.5.2 cherche la suite "<sheetData>" exacte et
-#    lit de la jusqu'a la fin de la partie (source, read_workbook.cpp) :
+#    <sheetData/> (balises <sheetData> toutes fermantes, ex. deux
+#    </sheetData> sans ouvrante, refusees, decision D-S1-35 : lues par la
+#    voie de repli, "Fichier vide" par openxlsx, mesure, sonde
+#    sondes/sonde_574_lot_g.R ; la position cite la fermante en surnombre,
+#    non l'ouvrante) ; openxlsx 4.2.5.2 cherche la suite "<sheetData>"
+#    exacte et lit de la jusqu'a la fin de la partie (source, read_workbook.cpp) :
 #    <sheetData > n'y est pas lu (feuille vide, NULL), une cellule placee
 #    apres </sheetData> ou dans un second <sheetData> y est lue (mesures) ;
 #  - aucune balise <c> hors du bloc ;
@@ -9229,7 +9259,19 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   bad <- if (any(j$nom[sd] != "sheetData")) sd[j$nom[sd] != "sheetData"]
          else if (length(sd) == 1L && j$genre[sd] == "v") integer(0)
          else if (length(sd) == 2L && identical(j$genre[sd], c("o", "f"))) sd[j$tok[sd] != c("<sheetData>", "</sheetData>")]
-         else sd[j$genre[sd] != "f"]
+         else {
+           # Fermantes en surnombre (decision D-S1-35) : fermante sans
+           # ouvrante qui la precede, non encore fermee (profondeur sous son
+           # minimum anterieur, sans boucle). Une seule ouvrante, sans balise
+           # vide : seules les fermantes en surnombre sont citees ; sinon
+           # ouvrantes et vides, plus les fermantes en surnombre ; toujours au
+           # moins une balise citee (toutes fermantes : chacune en surnombre).
+           s <- (j$genre[sd] == "o") - (j$genre[sd] == "f")
+           p <- cumsum(s)
+           sur <- sd[s < 0L & p < c(0L, pmin(cummin(p), 0L))[seq_along(p)]]
+           k <- sd[j$genre[sd] != "f"]
+           if (length(sur) && sum(s > 0L) == 1L && !any(j$genre[sd] == "v")) sur else sort(c(k, sur))
+         }
   if (length(bad)) refus(j$deb[bad], balise(bad), j$nom[bad])
   a <- sd[1L]; b <- sd[length(sd)]
   hors <- which(j$nom == "c" & j$genre != "f")
@@ -9689,7 +9731,9 @@ XML_ENFANTS_RPR <- c("rFont", "charset", "family", "b", "i", "strike", "outline"
 # "&amp;lt;1" decode deux fois par openxlsx ("<1"), une fois en interne
 # ("&lt;1") ; "true", "False" rendus "TRUE", "FALSE" par openxlsx ; lignes
 # vides d'un texte retirees par openxlsx (lecture par getline, "1\n\n2" lu
-# "1\n2") ; <t xml:space="preserve"/> (ou <t />) suivi de blancs, lu en
+# "1\n2"), dans la table comme dans une chaine en ligne de la feuille
+# (mesure, openxlsx 4.2.5.2 : <is><t>1\n\n2</t></is> lu "1\n2", "1\n\n2" en
+# interne) ; <t xml:space="preserve"/> (ou <t />) suivi de blancs, lu en
 # blancs par openxlsx, "" en interne ; <si></si> ou <si><t/></si> lue NA
 # par openxlsx (table sans "<rPr>" ; <t/> aussi avec "<rPr>"), "" en
 # interne.
@@ -10178,7 +10222,9 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   # .xlsx_texte() avant leur lecture par .xlsx_fichier_feuille() ; puis la
   # feuille lue et la table des chaines partagees, si presente (lue par le
   # controle de la ligne 1, texte des cellules, #522, et par le lecteur
-  # interne). Les quatre parties sont controlees avant R2.
+  # interne). R1 puis R2 de xl/workbook.xml et de ses relations sont faites
+  # dans .xlsx_fichier_feuille(), avant le choix de la feuille (decision
+  # D-S1-36) ; R1 de la feuille et de la table, puis leur R2, ensuite.
   feuille <- .xlsx_fichier_feuille(d)
   xml <- .xlsx_texte(d, feuille$partie)
   fs <- file.path(d, "xl", "sharedStrings.xml")

@@ -3646,6 +3646,34 @@ if (nzchar(Sys.which("zip"))) {
            r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11<!-- x -->.5</t></si>"), ta574) &&
              r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t><![CDATA[11.5]]></t></si>"), ta574) &&
              r2_574(feuille575(ser574(ps487("B2", 0)), "<si><t>11.5</t></si><?x y?>"), ta574))
+  # Decision D-S1-36 (/code-review de la revue finale de S1) : R2 etendue a
+  # xl/workbook.xml et xl/_rels/workbook.xml.rels, avant le choix de la
+  # feuille. Avant (moteur 261c45e, sonde sondes/sonde_574_lot_g.R) : une
+  # <Relationship Id="rId1"> commentee, cible sheet2.xml, placee avant la
+  # vraie, faisait lire sheet2.xml (B2 999 au lieu de 11.5) par les deux
+  # chemins ; les autres formes lues juste. _rels/.rels, non lue : admise.
+  wb574 <- "xl/workbook.xml"; rl574 <- "xl/_rels/workbook.xml.rels"
+  h574 <- '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+  verifier("xlsx (#574, R2, D-S1-36) : commentaire, section CDATA, instruction de traitement, DTD dans xl/workbook.xml puis dans xl/_rels/workbook.xml.rels ; <Relationship> commentee de cible sheet2.xml avant la vraie (avant : sheet2.xml lue, 999 au lieu de 11.5, sur chaque chemin) : refus R2 nommant la partie, meme texte sur chaque chemin",
+           r2_574(retoucher574(feuille575(ser574(), NULL), wb574, "<sheets>", charToRaw("<sheets><!-- x -->")), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, "</sheets>", charToRaw("</sheets><![CDATA[x]]>")), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, h574, charToRaw(paste0(h574, "<?foo bar?>"))), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), wb574, h574, charToRaw(paste0(h574, "<!DOCTYPE workbook>"))), wb574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, "<Relationship ", charToRaw("<!-- x --><Relationship ")), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, "<Relationship ", charToRaw("<![CDATA[x]]><Relationship ")), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, h574, charToRaw(paste0(h574, "<?foo bar?>"))), rl574) &&
+             r2_574(retoucher574(feuille575(ser574(), NULL), rl574, h574, charToRaw(paste0(h574, "<!DOCTYPE Relationships>"))), rl574) &&
+             r2_574(retoucher574(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                                  list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999))))),
+                                 rl574, '<Relationship Id="rId11"',
+                                 charToRaw(paste0('<!-- <Relationship Id="rId11" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/> -->',
+                                                  '<Relationship Id="rId11"'))), rl574))
+  verifier("xlsx (#574, R2, D-S1-36) : temoins lus a l'identique sur chaque chemin (11.5) : commentaire dans _rels/.rels (partie non lue), classeur a deux feuilles sans commentaire (premiere feuille lue)",
+           { lit574g <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             ok574g <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
+             ok574g(lit574g(retoucher574(feuille575(ser574(), NULL), "_rels/.rels", "<Relationship ", charToRaw("<!-- x --><Relationship ")))) &&
+               ok574g(lit574g(classeur487(list(list(nom = "D", fichier = "sheet1.xml", xml = ser574()),
+                                               list(nom = "E", fichier = "sheet2.xml", xml = ser574(nb487("B2", 999))))))) })
   verifier("xlsx (#574, R1, R2) : temoins lus a l'identique sur chaque chemin : partie sans declaration XML, declaration precedee de la marque d'ordre des octets UTF-8, declaration \"<?xml<TAB>version\" (avis d'actuary, Q2), declaration a apostrophes et blancs autour de \"=\" (grammaire de XMLDecl), texte echappe \"&lt;!-- &lt;?x?&gt; &lt;![CDATA[\", caracteres non ASCII valides (e accentue, euro) en table",
            { lit574 <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
              ok574 <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) &&
@@ -3678,6 +3706,23 @@ if (nzchar(Sys.which("zip"))) {
                    texte574r3("balise <sheetData>, avant la premiere cellule, balise <sheetData>, apres la cellule C2")) &&
              rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData >")),
                    texte574r3("balise <sheetData>, avant la premiere cellule")))
+  # Decision D-S1-35 (M1 de l'audit de la revue finale de S1) : balises
+  # <sheetData> toutes fermantes refusees ; une fermante en surnombre est
+  # citee, non l'ouvrante (mineur m1). Avant (moteur 261c45e, sonde
+  # sondes/sonde_574_lot_g.R) : deux </sheetData> sans ouvrante, lues par le
+  # lecteur interne (11.5), "Fichier vide" par openxlsx ; fermante en
+  # surnombre refusee en citant <sheetData> ; fermante seule refusee en
+  # citant les balises <c>.
+  verifier("xlsx (#574, R3, D-S1-35) : deux </sheetData> sans ouvrante, </sheetData> seule en tete, <sheetData>...</sheetData></sheetData>, <sheetData/>...</sheetData> : refus R3 sur chaque chemin, position citant la fermante en surnombre",
+           rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("</sheetData>")),
+                 texte574r3("balise </sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C2")) &&
+             rb574(retoucher574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("</sheetData>")),
+                                fe574, "</sheetData></worksheet>", charToRaw("</worksheet>")),
+                   texte574r3("balise </sheetData>, avant la premiere cellule")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "</sheetData>", charToRaw("</sheetData></sheetData>")),
+                   texte574r3("balise </sheetData>, apres la cellule C2")) &&
+             rb574(retoucher574(feuille575(ser574(), NULL), fe574, "<sheetData>", charToRaw("<sheetData/>")),
+                   texte574r3("balise <sheetData>, avant la premiere cellule, balise </sheetData>, apres la cellule C2")))
   verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
            rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
              rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
