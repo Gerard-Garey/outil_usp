@@ -8038,6 +8038,22 @@ engine_lire_donnees_csv <- function(df) {
   # (premiere colonne) n'etait plus reconnue et le controle des annees ne
   # s'appliquait pas, sans message (issue #96).
   if (ncol(df)) names(df)[1] <- .nom_sans_bom(names(df)[1])
+  # En-tete d'encodage "bytes" (#570, decision D-S1-4 du mainteneur, option
+  # a) : refuse quelle que soit sa place (colonne lue ou non), un motif par
+  # colonne dans l'ordre des colonnes, sans citer le nom, retour immediat,
+  # comme les noms de lignes du triangle (mw_valider_triangle(), #321). Ses
+  # octets ne disent pas quels caracteres ils codent : le lire en UTF-8 ou en
+  # Latin-1 serait deviner ; place avant xt ou yt, il faisait lever par
+  # l'acces df$xt / df$yt l'erreur R "translating strings with "bytes"
+  # encoding is not allowed". R ne marque "bytes" que des chaines non ASCII :
+  # un tel nom ne peut valoir t, xt ni yt.
+  octets <- which(!is.na(names(df)) & Encoding(names(df)) == "bytes")
+  if (length(octets))
+    return(list(ok = FALSE,
+                erreurs = sprintf(paste("En-tete de la colonne %d declare d'encodage \"bytes\" :",
+                                        "ses caracteres ne sont pas determines ; fournir le nom en UTF-8",
+                                        "ou en Latin-1 declare."), octets),
+                xt = NULL, yt = NULL, n = 0L))
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
   noms <- names(df)

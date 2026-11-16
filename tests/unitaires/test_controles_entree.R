@@ -4239,6 +4239,53 @@ verifier("Textes reancres (#555, decisions 5 et 6) : lignes vides des series et 
                              "les annees d'accident (annexe XVII, section B) ou exercices (section C) sont numerotes par des",
                              "nombres consecutifs de 1 a T (B(3)(a) et (b), C(3)(a) et (b))."))
          })
+## --- En-tete d'encodage "bytes" des series (#570)
+# Decision D-S1-4 du mainteneur (option a), texte d'actuary
+# (docs/revues/20261115-s1-rejeu/actuary-avis-amont.md, par. 2 et 6) :
+# tout en-tete declare "bytes" est refuse quelle que soit sa place, un motif
+# par colonne, ok = FALSE sans erreur R ; aucun autre motif ne s'y ajoute.
+# Avant : erreur R brute ("translating strings with "bytes" encoding is not
+# allowed") si le nom precede xt ou yt, lecture acceptee s'il suit yt.
+B570 <- function(k) sprintf(paste0("En-tete de la colonne %d declare d'encodage \"bytes\" : ses caracteres ne sont ",
+                                   "pas determines ; fournir le nom en UTF-8 ou en Latin-1 declare."), k)
+oct570 <- function(s) { z <- rawToChar(as.raw(s)); Encoding(z) <- "bytes"; z }
+ser570 <- function(noms) {
+  d <- data.frame(t = 1:8, xt = x, yt = y)
+  d <- d[, match(ifelse(noms %in% c("t", "xt", "yt"), noms, "t"), names(d)), drop = FALSE]
+  names(d) <- noms; d
+}
+lit570 <- function(noms) tryCatch(engine_lire_donnees_csv(ser570(noms)), error = function(e) e)
+NB570 <- oct570(c(0x61, 0xff, 0x62)); NB570b <- oct570(c(0xe9, 0x74, 0xe9))
+verifier("En-tete \"bytes\" (#570) : colonne non lue (apres yt) refusee, motif seul, ok = FALSE sans erreur R",
+         {
+           r <- lit570(c("t", "xt", "yt", NB570))
+           is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(4)) && is.null(r$xt) && is.null(r$yt)
+         })
+verifier("En-tete \"bytes\" (#570) : colonne placee avant xt ou yt (colonne 1, 2 ou 3) refusee, motif seul, sans erreur R",
+         {
+           r1 <- lit570(c(NB570, "xt", "yt")); r2 <- lit570(c("t", NB570, "xt", "yt")); r3 <- lit570(c("t", "xt", NB570, "yt"))
+           all(vapply(list(r1, r2, r3), function(r) is.list(r) && identical(r$ok, FALSE), TRUE)) &&
+             identical(r1$erreurs, B570(1)) && identical(r2$erreurs, B570(2)) && identical(r3$erreurs, B570(3))
+         })
+verifier("En-tete \"bytes\" (#570) : plusieurs colonnes -> un motif par colonne dans l'ordre ; yt manquant ou t en double non cumules",
+         {
+           r <- lit570(c(NB570, "t", "xt", "yt", NB570b))
+           m <- lit570(c("t", "xt", NB570)); dd <- lit570(c("t", "xt", "yt", "t", NB570))
+           is.list(r) && identical(r$ok, FALSE) && identical(r$erreurs, B570(c(1, 5))) &&
+             is.list(m) && identical(m$erreurs, B570(3)) && is.list(dd) && identical(dd$erreurs, B570(5))
+         })
+verifier("En-tete \"bytes\" (#570) : temoins ASCII, UTF-8, Latin-1 declare ou non (colonne de plus) lus comme la serie seule",
+         {
+           l1 <- rawToChar(as.raw(c(0x61, 0x6e, 0x6e, 0xe9, 0x65)))
+           l1d <- l1; Encoding(l1d) <- "latin1"
+           ref <- engine_lire_donnees_csv(ser570(c("t", "xt", "yt")))
+           ok <- isTRUE(ref$ok) && identical(ref$xt, x) && identical(ref$yt, y)
+           for (n in list("abc", "année", l1d, l1)) {
+             r <- lit570(c("t", "xt", "yt", n))
+             ok <- ok && is.list(r) && isTRUE(r$ok) && identical(r$xt, ref$xt) && identical(r$yt, ref$yt)
+           }
+           ok
+         })
 # Classeur : memes cas par le lecteur interne force et, s'il est installe,
 # par openxlsx ; en-tetes ecrits par l'ecrivain interne, blancs de bord
 # retires a la lecture par les deux chemins.
