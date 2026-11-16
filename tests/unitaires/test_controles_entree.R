@@ -43,6 +43,21 @@ verifier("Validation : NA dans x ou y refuse (art. 19), sans erreur R",
            b <- engine_valider_donnees(x, replace(y, 8, NaN))
            !a$ok && !b$ok && contient(a$erreurs, "manquantes")
          })
+# Texte entier du motif (issue #585) : ancrage art. 219(1)(a) renvoyant a
+# l'art. 19(1), et annexe XVII, B/C(1) et B/C(2)(b), au lieu de "art. 19"
+# seul. Motif seul refuse : aucun autre controle ne se declenche sur ces
+# series. Meme validation par run_engine() (ok = FALSE, sans erreur R).
+motif_na585 <- paste0("Valeurs manquantes : le calibrage exige des series completes ",
+                      "(art. 219, paragraphe 1, point a), renvoyant a l'art. 19, ",
+                      "paragraphe 1 ; annexe XVII, B/C(1) et B/C(2)(b)).")
+verifier("Validation : NA ou NaN dans x ou y, texte entier du motif (#585), appel direct et run_engine()",
+         all(vapply(list(list(replace(x, 1, NA), y), list(x, replace(y, 8, NaN))), function(d) {
+           v <- engine_valider_donnees(d[[1]], d[[2]])
+           r <- run_engine(xt = d[[1]], yt = d[[2]], methode = "premium", segment = 1,
+                           annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes")
+           !v$ok && identical(v$erreurs, motif_na585) &&
+             identical(r$ok, FALSE) && identical(r$validation$erreurs, motif_na585)
+         }, logical(1))))
 verifier("Validation : longueurs differentes refusees",
          {
            a <- engine_valider_donnees(x, y[-1])
