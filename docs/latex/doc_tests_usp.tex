@@ -976,7 +976,9 @@ la cellule \\
 feuille~; valeurs de \code{<v>}~; XML de la feuille, nombre de chaînes de la table, cellules~;
 XML de la feuille, \code{partagees} (table des chaînes partagées), cellules~; texte du refus~;
 noms d'en-tête & fichier, rang et chemin dans l'archive (segments «~\code{./}~» retirés) de la première feuille de calcul (relation de type
-\code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées), erreur «~\code{Classeur illisible : aucune
+\code{worksheet} ou, sans type, cible sous \code{worksheets/}~; feuilles de graphique passées),
+\code{xl/workbook.xml} et ses relations étant d'abord soumis aux règles d'encodage et de
+balisage, erreur «~\code{Classeur illisible : aucune
 feuille trouvee.}~» si le classeur ne permet pas de la résoudre ou si sa cible sort du dossier
 d'extraction, le seul \code{/} initial d'un nom de partie absolu étant admis et \code{//}
 refusé~; refus de la balise de forme non reconnue, de la cellule sans attribut \code{r} et de
@@ -4761,12 +4763,22 @@ expressions régulières, supposent un texte valide, et \code{openxlsx} s'arrêt
 de~R devant une table en UTF-8 invalide qu'aucune cellule ne cite (mesuré). Les autres parties
 ne sont pas contrôlées~: un octet 0xFF placé dans \code{[Content\_Types].xml} est sans effet sur
 les valeurs lues par les deux chemins (mesuré)~; limite consignée.
-\item \emph{Balisage.} La feuille lue et la table des chaînes partagées ne portent ni
+\item \emph{Balisage.} Les quatre parties de la règle précédente ne portent ni
 commentaire, ni section CDATA, ni déclaration de type de document, ni instruction de
 traitement~; seule la déclaration XML initiale est admise, si elle ouvre la partie (après une
 marque d'ordre des octets éventuelle) et suit la grammaire de la déclaration XML
 (\code{.xlsx\_controler\_balisage()})~: une chaîne partagée «~\code{11}~», commentaire,
-«~\code{.5}~» est lue~11 par \code{openxlsx}, sans message (mesuré).
+«~\code{.5}~» est lue~11 par \code{openxlsx}, sans message (mesuré)~; une relation commentée
+qui porte l'identifiant de la feuille et désigne une autre feuille, placée avant la vraie dans
+\code{xl/\_rels/}\allowbreak\code{workbook.xml.rels}, ferait lire cette autre feuille par les
+deux chemins, sans message (première valeur de \code{xt} lue $999$ au lieu de $104{,}2$,
+mesuré). La partie \code{\_rels/.rels}, que le lecteur ne lit pas, n'est pas contrôlée (commentaire admis, classeur lu juste par les deux
+chemins, mesuré). Ces deux règles s'appliquent d'abord à \code{xl/workbook.xml} et à ses
+relations (encodage des deux parties, puis leur balisage), avant le choix de la feuille
+(\code{.xlsx\_fichier\_}\allowbreak\code{feuille()}), puis à la feuille lue et à la table~:
+un commentaire dans \code{xl/workbook.xml} est refusé par la présente règle, même si la feuille
+n'est pas du texte UTF-8 valide ou si ce commentaire masque la seule feuille du classeur
+(mesuré).
 \item \emph{Bloc des données de la feuille} (\code{.xlsx\_controler\_structure()}, motif
 \code{TEXTE\_REFUS\_R3}). Une balise de cellule \code{<c} suivie d'un blanc autre que l'espace
 est refusée d'un motif propre («~\code{balise de cellule de forme non reconnue}~»), car
@@ -4774,7 +4786,12 @@ est refusée d'un motif propre («~\code{balise de cellule de forme non reconnue
 bien formée (attributs nom~=~valeur entre guillemets, sans «~\code{<}~» ni «~\code{>}~» dans une
 valeur, \code{XML\_GRAMMAIRE\_OUVRANTE}~; fermante écrite \code{</nom>})~; la feuille porte un
 seul bloc \code{<sheetData>}, écrit \code{<sheetData>}\ldots\code{</sheetData>} ou
-\code{<sheetData/>}, et aucune cellule hors de ce bloc ni dans un \code{<extLst>}~; les balises
+\code{<sheetData/>}, et aucune cellule hors de ce bloc ni dans un \code{<extLst>} (des balises
+\code{<sheetData>} toutes fermantes sont donc refusées~: deux \code{</sheetData>} sans ouvrante
+feraient lire les données par la voie de repli et une feuille vide par \code{openxlsx}, mesuré~; le
+motif cite chaque fermante en surnombre, sans ouvrante non encore fermée qui la précède, et,
+sauf si le bloc compte une seule ouvrante et aucune balise vide, les ouvrantes et les balises
+vides)~; les balises
 du bloc sont bien imbriquées~; hors du contenu des \code{<extLst>}, qui n'est pas lu, aucune
 balise n'est préfixée, \code{<sheetData>} ne contient que des \code{<row>}, \code{<row>} que des
 \code{<c>} et des \code{<extLst>}, \code{<c>} au plus un \code{<f>}, un \code{<v>}, un
