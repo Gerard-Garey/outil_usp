@@ -335,6 +335,22 @@ verifier(".legende_haut() : horizontale, au-dessus de la zone de trace (y >= 1 a
              identical(l$xanchor, "left") && !"container" %in% unlist(l) &&
              is.numeric(.LEGENDE_HAUTE_PX) && .LEGENDE_HAUTE_PX > 0
          })
+# Emploi des assistants par les deux figures, lu dans le code (sans plotly, car
+# les blocs plotly ne tournent pas en CI) : plot_boot_sigma() appelle
+# .legende_droite(), plot_ratio() appelle .legende_haut() et reserve la marge
+# .LEGENDE_HAUTE_PX ; ni l'une ni l'autre ne revient a un ancrage au conteneur
+# (legend.yref = "container") ni a un decalage sous l'axe (#582).
+verifier("plot_boot_sigma() appelle .legende_droite() ; plot_ratio() appelle .legende_haut() et reserve .LEGENDE_HAUTE_PX ; aucune ne contient 'container' ni .legende_sous_axe (#582)",
+         {
+           src_bs <- paste(deparse(plot_boot_sigma), collapse = "\n")
+           src_pr <- paste(deparse(plot_ratio), collapse = "\n")
+           interdits <- function(s) !grepl("container", s, fixed = TRUE) &&
+             !grepl(".legende_sous_axe", s, fixed = TRUE)
+           grepl(".legende_droite(", src_bs, fixed = TRUE) &&
+             grepl(".legende_haut(", src_pr, fixed = TRUE) &&
+             grepl(".LEGENDE_HAUTE_PX", src_pr, fixed = TRUE) &&
+             interdits(src_bs) && interdits(src_pr)
+         })
 if (requireNamespace("plotly", quietly = TRUE)) {
   bp <- plotly::plotly_build(plot_boot_sigma(pdi))$x
   verifier("plot_boot_sigma(), plotly, premium_interieur : trois histogrammes empiles (bingroup commun, barmode stack), sept reperes, axes 'sigma_USP simule' / 'effectif', titre",
