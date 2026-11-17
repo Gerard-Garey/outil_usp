@@ -2325,9 +2325,19 @@ for (f_ref in REFS_263) {
 # table_parametre_standard() sans code d'affichage nouveau.
 CLE_DATE_504 <- "Date de référence du calcul"
 CLE_TEXTE_504 <- "Texte applicable au paramètre standard"
-val_texte_504 <- function(x)
-  paste0("<code>", x, "</code> — règlement délégué (UE) 2015/35 modifié",
-         " par le règlement délégué (UE) ", x, " (détail : section 4)")
+# Valeur attendue (ecart E-1 du controle aval de regulatory, etape 6 de S3) :
+# libelle de la ligne "Texte applicable au parametre standard"
+# d'engine_parametre_standard(), repris tel quel, suivi du renvoi a la
+# section 4 ; le libelle commence par le texte applicable de res$metadata.
+val_texte_504 <- function(r) {
+  d <- engine_parametre_standard(r)
+  l <- d$texte[d$grandeur == "Texte applicable au parametre standard"]
+  stopifnot(length(l) == 1L,
+            startsWith(l, paste0(r$metadata$texte_applicable,
+                                 " : reglement delegue (UE) 2015/35 modifie par le reglement",
+                                 " delegue (UE) ", r$metadata$texte_applicable, " (")))
+  paste0(.txt(l), " ; d\u00e9tail : section 4")
+}
 .html504 <- function(res) {
   f <- tempfile(fileext = ".html")
   rapport_html(res, NULL, f, interactif = FALSE, identite = idt)
@@ -2345,10 +2355,21 @@ verifier("#504 rapport fige : en-tete, date de reference du calcul et texte appl
            g <- entre(h504[[k]], "<h2 id='gel'>", "</table>")
            identical(r$metadata$date_reference, DATE_REFERENCE_TESTS) &&
              identical(cle_val(g, CLE_DATE_504), DATE_REFERENCE_TESTS) &&
-             identical(cle_val(g, CLE_TEXTE_504), val_texte_504(r$metadata$texte_applicable)) &&
+             identical(cle_val(g, CLE_TEXTE_504), val_texte_504(r)) &&
              compte(g, CLE_DATE_504) == 1L && compte(g, CLE_TEXTE_504) == 1L
          }, logical(1))) &&
            identical(res_ln$metadata$texte_applicable, "2019/981"))
+verifier("#504 rapport fige : en-tete, texte applicable \"2026/269\" (date de reference 2027-01-30) : libelle d'engine_parametre_standard() repris tel quel, distinct de celui de \"2019/981\" (ecart E-1, controle aval de regulatory)",
+         {
+           r27 <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99,
+                             nature_donnees = "brutes", date_reference = "2027-01-30")
+           g27 <- entre(.html504(r27), "<h2 id='gel'>", "</table>")
+           g_ln <- entre(h504$ln, "<h2 id='gel'>", "</table>")
+           identical(r27$metadata$texte_applicable, "2026/269") &&
+             identical(cle_val(g27, CLE_TEXTE_504), val_texte_504(r27)) &&
+             !identical(cle_val(g27, CLE_TEXTE_504), cle_val(g_ln, CLE_TEXTE_504)) &&
+             compte(g27, CLE_TEXTE_504) == 1L
+         })
 verifier("#504 rapport fige : en-tete, ordre horodatage, generation du rapport, date de reference, texte applicable, methode (docs/exigences.md, paragraphe 5.6)",
          {
            g <- entre(h504$ln, "<h2 id='gel'>", "</table>")

@@ -3233,8 +3233,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # avant la methode, lus dans res$metadata ; objet relu sans ces champs
     # (#263) : tiret. Le texte est designe par le dernier acte modificatif du
     # reglement delegue (UE) 2015/35 qui change le parametre standard
-    # (CONTEXT.md, "Texte applicable") ; son detail est en section 4
-    # (engine_parametre_standard()).
+    # (CONTEXT.md, "Texte applicable") : son libelle est celui de la ligne
+    # "Texte applicable au parametre standard" d'engine_parametre_standard(),
+    # repris tel quel (via table_parametre_standard(), comme la nature des
+    # donnees ci-dessous), sans etre recompose ici ; ligne introuvable :
+    # tiret. Le detail (declarations, facteur NP) est en section 4.
     cles <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul",
               "G\u00e9n\u00e9ration du pr\u00e9sent rapport",
               "Date de r\u00e9f\u00e9rence du calcul",
@@ -3255,10 +3258,11 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     vals <- c(.ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S %Z")),
               .ou_tiret(m$duree_sec, function(x) paste(.num_fr(x, "%.2f"), "s")), genere,
               .ou_tiret(m$date_reference),
-              .ou_tiret(m$texte_applicable, function(x)
-                paste0("<code>", .txt(x), "</code> \u2014 r\u00e8glement d\u00e9l\u00e9gu\u00e9 (UE)",
-                       " 2015/35 modifi\u00e9 par le r\u00e8glement d\u00e9l\u00e9gu\u00e9 (UE) ",
-                       .txt(x), " (d\u00e9tail : section 4)")),
+              .ou_tiret(m$texte_applicable, function(x) {
+                tp <- table_parametre_standard(res)
+                v <- tp$Valeur[tp$Grandeur == "Texte applicable au parametre standard"]
+                if (length(v) == 1L) paste0(.txt(v), " ; d\u00e9tail : section 4") else NA
+              }),
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),
