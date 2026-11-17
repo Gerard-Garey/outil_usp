@@ -968,7 +968,7 @@ verifier("Issue #121 : jeu_synthetique() deterministe, de taille T, ratios deux 
 .lignes_synth <- do.call(rbind, lapply(c(9L, 10L), function(Tn) {
   j <- cc$jeu_synthetique(Tn)
   r <- run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
-                  nature_donnees = "brutes")
+                  nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
   data.frame(T = Tn, test = vapply(r$tests, function(t) t$test, ""), type = vapply(r$tests, function(t) t$type, ""),
              stringsAsFactors = FALSE)
 }))
@@ -983,7 +983,7 @@ verifier("Issue #121 : moteur -- Cox-Stuart de type test sur le jeu synthetique 
 .ag_synth <- do.call(rbind, lapply(c(FALSE, TRUE), function(vc) {
   j <- cc$jeu_synthetique(20L, volumes_constants = vc)
   r <- run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
-                  nature_donnees = "brutes")
+                  nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
   data.frame(T = 20L, test = vapply(r$tests, function(t) t$test, ""), type = vapply(r$tests, function(t) t$type, ""),
              volumes_constants = vc, stringsAsFactors = FALSE)
 }))

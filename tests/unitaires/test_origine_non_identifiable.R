@@ -211,7 +211,8 @@ verifier("T273-6 : detail : T4, phrase fixe apres le libelle de base, estimation
            l999 <- ligne_origine(a4, boot_t4$boot)
            l199 <- ligne_origine(a4, mw_bootstrap(a4, B = 199, seed = 20260831))
            re <- engine_table_tests(run_engine(methode = "reserve2", triangle = t4_273, segment = 1,
-                                               annexe = "II", B = 199, seed = 1))
+                                               annexe = "II", B = 199, seed = 1,
+                                               date_reference = DATE_REFERENCE_TESTS))
            cms <- c(l999$detail, l199$detail, re$commentaire[grepl("ordonnee a l'origine", re$test)])
            att <- paste(base273, phrase273_t4)
            ad <- mw_ajuster(t4d_273)
@@ -235,7 +236,8 @@ verifier("T273-7 : colonne quasi constante (1e-8, six valeurs distinctes, lm() a
          {
            ae <- mw_ajuster(t4e_273)
            o <- mw_test_ordonnee_origine(ae)
-           r <- run_engine(methode = "reserve2", triangle = t4e_273, segment = 1, annexe = "II", B = 99)
+           r <- run_engine(methode = "reserve2", triangle = t4e_273, segment = 1, annexe = "II", B = 99,
+                           date_reference = DATE_REFERENCE_TESTS)
            l <- Filter(function(x) grepl("ordonnee a l'origine", x$test), r$tests)[[1]]
            ok_liste(list(
              six = length(unique(t4e_273[1:6, 2])) == 6L,

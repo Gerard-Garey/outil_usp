@@ -380,8 +380,11 @@ CONTROLE_MAX <- max(vapply(PREC, `[[`, 0, "controle"))
 SOUS_P <- GRILLE$id[GRILLE$e == 0 | GRILLE$e %in% EXPOSANTS_P]
 lancer <- function(job) {
   k <- job$k; E <- MOTEURS[[job$v]]
-  r <- suppressWarnings(E$run_engine(methode = "reserve2", triangle = triangle_de(k), segment = 1,
-                                     annexe = "II", B = B, seed = GRAINE))
+  # Date de reference des tests (#504) : passee au seul moteur qui la
+  # connait ; le moteur d'avant (--avant) n'a pas cet argument.
+  dr <- if ("date_reference" %in% names(formals(E$run_engine))) list(date_reference = OT$DATE_REFERENCE_TESTS)
+  r <- suppressWarnings(do.call(E$run_engine, c(list(methode = "reserve2", triangle = triangle_de(k), segment = 1,
+                                                     annexe = "II", B = B, seed = GRAINE), dr)))
   if (!isTRUE(r$ok)) return(list(ok = FALSE, motif = paste(unlist(r$validation$erreurs), collapse = " ; ")))
   tb <- E$engine_table_tests(r)
   list(ok = TRUE, sigma_usp = r$parametre_final$sigma_usp,

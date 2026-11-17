@@ -78,8 +78,9 @@ yt <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 tri <- unname(as.matrix(utils::read.csv(file.path(.racine, "tests", "donnees",
                                                   "triangle_mw.csv"))[, -1]))
 res_ln <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99,
-                     nature_donnees = "brutes")
-res_mw <- run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 99)
+                     nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
+res_mw <- run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 99,
+                     date_reference = DATE_REFERENCE_TESTS)
 idt <- identite_code(.racine)
 png_ok <- isTRUE(capabilities("png"))
 if (!png_ok) cat("  note : capabilities(\"png\") vaut FALSE ; la branche sans graphique est exercee a la place des PNG.\n")
@@ -103,13 +104,14 @@ verifier("Empreintes : md5 de 32 caracteres hexadecimaux, donnees et resultat",
 verifier("Empreintes : stables pour un meme res", identical(e1, e2))
 x2 <- xt; x2[1] <- 104.21
 e3 <- engine_empreinte(run_engine(xt = x2, yt = yt, methode = "premium", segment = 1, B = 99,
-                                  nature_donnees = "brutes"))
+                                  nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS))
 verifier("Empreintes : changent si xt[1] change (donnees et resultat)",
          e3$donnees != e1$donnees && e3$resultat != e1$resultat)
 verifier("Empreintes : stables entre deux run_engine() a graine egale (hors horodatage)",
          identical(engine_empreinte(run_engine(xt = xt, yt = yt, methode = "premium",
                                                segment = 1, B = 99,
-                                               nature_donnees = "brutes"))[c("donnees", "resultat")],
+                                               nature_donnees = "brutes",
+                                               date_reference = DATE_REFERENCE_TESTS))[c("donnees", "resultat")],
                    e1[c("donnees", "resultat")]))
 verifier("Empreintes : texte canonique en %.17g, recalculable",
          grepl("1;104.2;68.969999999999999", e1$texte_donnees, fixed = TRUE) && {
@@ -120,14 +122,15 @@ verifier("Empreintes : triangle Merz-Wuthrich, cellules non observees ecrites NA
          grepl(";NA\n", engine_empreinte(res_mw)$texte_donnees, fixed = TRUE))
 
 res_refus <- run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4), methode = "premium",
-                        segment = 1, B = 99, nature_donnees = "brutes")
+                        segment = 1, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 e_refus <- engine_empreinte(res_refus)
 verifier("Empreintes : resultat refuse (ok = FALSE), donnees NA, empreinte md5 de l'objet refuse, stable",
          !isTRUE(res_refus$ok) && is.na(e_refus$donnees) && is.na(e_refus$texte_donnees) &&
          grepl("^[0-9a-f]{32}$", e_refus$resultat) &&
          identical(engine_empreinte(run_engine(xt = c(1, NA, 3, 4), yt = c(1, 2, 3, 4),
                                                methode = "premium", segment = 1, B = 99,
-                                               nature_donnees = "brutes")),
+                                               nature_donnees = "brutes",
+                                               date_reference = DATE_REFERENCE_TESTS)),
                    e_refus))
 
 ## --- Rapport fige, branche PNG, methode lognormale ----------------------------
@@ -338,7 +341,8 @@ verifier("Garde : table sans colonnes type ni commentaire -> tirets, aucun libel
              !any(grepl("<br>", s0$Verdict, fixed = TRUE))
          })
 tb_vc <- engine_table_tests(run_engine(xt = rep(100, 8), yt = yt, methode = "premium",
-                                       segment = 1, B = 99, nature_donnees = "brutes"))
+                                       segment = 1, B = 99, nature_donnees = "brutes",
+                                       date_reference = DATE_REFERENCE_TESTS))
 i_r13 <- which(tb_vc$type == "non applicable" & startsWith(tb_vc$commentaire, "volumes x_t constants"))
 verifier("Volumes constants (R13) : 14 lignes non applicables (ligne Student ajoutee, #423), type et motif restitues",
          length(i_r13) == 14 &&
@@ -368,7 +372,8 @@ verifier("Rapport : selection NULL = selection par defaut",
          })
 verifier("Rapport : refus explicite sur un resultat refuse ou une selection d'un autre resultat",
          leve_erreur(rapport_html(run_engine(xt = xt[1:4], yt = yt[1:4], methode = "premium",
-                                             segment = 1, B = 99, nature_donnees = "brutes"),
+                                             segment = 1, B = 99, nature_donnees = "brutes",
+                                             date_reference = DATE_REFERENCE_TESTS),
                                   NULL, tempfile())) &&
          leve_erreur(rapport_html(res_ln, selection_defaut(engine_table_tests(res_mw)), tempfile())))
 
@@ -447,7 +452,7 @@ verifier("Rapport MW : groupe M5, QQ-plot et distribution bootstrap (420 px chac
 # groupe_de() ; repli sur GROUPES$ref pour les groupes sans citation (F., G.,
 # M4 a M6). Valeurs attendues ressaisies ici (double saisie).
 res_r1 <- run_engine(xt = xt, yt = yt, methode = "reserve1", segment = 1, annexe = "II",
-                     B = 99)
+                     B = 99, date_reference = DATE_REFERENCE_TESTS)
 diag_c <- "diagnostics compl\u00e9mentaires"
 # F. et M4 : hors hypotheses de l'annexe XVII, sans le mot "diagnostic"
 # (texte fixe par actuary, issue #509).
@@ -543,7 +548,8 @@ if (requireNamespace("plotly", quietly = TRUE) && requireNamespace("htmltools", 
 # absente quand n = T (res_ln).
 res_12 <- run_engine(xt = c(95.10, 97.80, 99.40, 101.05, xt),
                      yt = c(71.30, 64.20, 80.15, 69.90, yt), methode = "premium",
-                     segment = 1, B = 99, nature_donnees = "brutes", T = 8)
+                     segment = 1, B = 99, nature_donnees = "brutes", T = 8,
+                     date_reference = DATE_REFERENCE_TESTS)
 f_12 <- tempfile(fileext = ".html")
 rapport_html(res_12, selection_defaut(engine_table_tests(res_12)), f_12,
              interactif = FALSE, identite = idt)
@@ -557,7 +563,8 @@ verifier("Rapport fige, n = 12, T = 8 : libelle \"profondeur\" du moteur repris 
 # jusqu'a T = 14).
 res_12_12 <- run_engine(xt = c(95.10, 97.80, 99.40, 101.05, xt),
                         yt = c(71.30, 64.20, 80.15, 69.90, yt), methode = "premium",
-                        segment = 1, B = 99, nature_donnees = "brutes", T = 12)
+                        segment = 1, B = 99, nature_donnees = "brutes", T = 12,
+                        date_reference = DATE_REFERENCE_TESTS)
 f_12_12 <- tempfile(fileext = ".html")
 rapport_html(res_12_12, NULL, f_12_12, interactif = FALSE, identite = idt)
 h12_12 <- lire(f_12_12)
@@ -593,7 +600,8 @@ avec_y_nul153 <- function(expr) {
   expr
 }
 res_g153 <- suppressWarnings(avec_y_nul153(
-  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")))
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes",
+             date_reference = DATE_REFERENCE_TESTS)))
 pd153 <- res_g153$plots_data
 # Decision du mainteneur du 08/10/2026, #188 : run_engine() refuse
 # desormais la serie exactement proportionnelle (maximum de vraisemblance
@@ -610,11 +618,13 @@ pd153 <- res_g153$plots_data
 # 08/10/2026).
 xp153 <- 2^(0:7)
 res_p153 <- suppressWarnings(run_engine(xt = xp153, yt = xp153 / 2, methode = "premium",
-                                        segment = 1, B = 99, nature_donnees = "brutes"))
+                                        segment = 1, B = 99, nature_donnees = "brutes",
+                                        date_reference = DATE_REFERENCE_TESTS))
 pdp153 <- suppressWarnings(local({
   f <- usp_ajuster(xp153, xp153 / 2)
   b <- usp_bootstrap(f, B = B_MIN_USAGE)
-  s0 <- usp_parametre_standard("premium", 1, "II", "brutes")$sigma_standard
+  s0 <- usp_parametre_standard("premium", 1, "II", "brutes",
+                               date_reference = DATE_REFERENCE_TESTS)$sigma_standard
   bar <- usp_bareme_segment(1, "II")
   engine_plots_data(f, b, usp_profil(f), usp_jackknife(f, s0, bar),
                     usp_parametre(f, s0, bar)$sigma_usp)
@@ -730,7 +740,8 @@ verifier("Rapport fige, jackknife entierement NA (plots_data injecte) : produit 
 # cite l'annee 5 (ensemble des annees dont ecart_sigma n'est pas fini).
 y328 <- 0.7 * xt; y328[5] <- 0.8 * xt[5]
 res328 <- tryCatch(run_engine(xt = xt, yt = y328, methode = "premium", segment = 1, B = 99,
-                               nature_donnees = "brutes"), error = function(e) e)
+                               nature_donnees = "brutes",
+                              date_reference = DATE_REFERENCE_TESTS), error = function(e) e)
 pd328 <- res328$plots_data
 option328 <- options(usp.graphiques_base = TRUE); grDevices::pdf(NULL)
 base328 <- !inherits(tryCatch(plot_influence_sigma(pd328), error = function(e) e), "error")
@@ -793,7 +804,8 @@ sigma_nul405 <- function(annee3 = FALSE) {
   }, envir = e)
   if (annee3)
     assign("usp_jackknife", function(...) { j <- jk_o(...); j$sigma_usp[3] <- NA; j }, envir = e)
-  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")
+  run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, nature_donnees = "brutes",
+             date_reference = DATE_REFERENCE_TESTS)
 }
 verifier("sigma_USP nul (chemin reel) : note et graphique alignes sur la ligne jackknife du moteur, pas de 'Aucune annee evaluable' (#405)",
          {
@@ -1034,7 +1046,7 @@ res161 <- avec_injection161("usp_ajuster_contraint",
       stop("panne simulee")
     objectif161(par, ...)
   }, run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
-                nature_donnees = "brutes")))
+                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)))
 tb161 <- engine_table_tests(res161)
 verifier("LR sur delta et profil en echec : ok = TRUE, lr, quantile_bootstrap et objectifs du profil a NA dans plots_data (#161)",
          isTRUE(res161$ok) && all(is.na(res161$plots_data$lr_delta$lr)) &&
@@ -1065,7 +1077,7 @@ releve_vide161 <- function(pdx, base = TRUE) {
 }
 MSG_PROFIL_NA <- "Profil non calculable pour ces donnees (voir le motif des lignes G dans l'onglet Tests)"
 res161_ord <- run_engine(xt = xi161, yt = yi161, methode = "premium", segment = 1, B = 99,
-                         nature_donnees = "brutes")
+                         nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("Profil entierement NA : plot_profil_delta() aiguille vers .vide() avec le message renvoyant aux lignes G ; profil ordinaire trace sans .vide() (#161)",
          identical(releve_vide161(res161$plots_data), MSG_PROFIL_NA) &&
            is.null(releve_vide161(res161_ord$plots_data)))
@@ -1213,9 +1225,11 @@ verifier("Profil de delta, base R (560 x 250 px, rapport fige) : repere asymptot
 # (560 x 250 px) et a 550 x 330 et 700 x 450 px (#162).
 x_int162 <- c(100, 150, 80, 300, 120, 60, 250, 90)
 pd_j2 <- run_engine(xt = x_int162, yt = c(58.82, 90.47, 46.68, 187.03, 72.72, 34.95, 151.85, 55.31),
-                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")$plots_data
+                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes",
+                    date_reference = DATE_REFERENCE_TESTS)$plots_data
 pd_j3 <- run_engine(xt = x_int162, yt = c(58.1, 89.8, 47.63, 176.5, 73.7, 35.79, 153.72, 57.09),
-                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes")$plots_data
+                    methode = "premium", segment = 1, B = 99, nature_donnees = "brutes",
+                    date_reference = DATE_REFERENCE_TESTS)$plots_data
 delta_hors_cadres162 <- function(pd, l, h) {
   r <- releve_base162(function() plot_profil_delta(pd), l / 72, h / 72)
   leg <- r$leg[[length(r$leg)]]$rect
@@ -2131,7 +2145,8 @@ verifier("Objet non fonction rbind dans l'environnement global : section Control
 # constants non atteint par usp_ajuster(), qui n'y libere jamais delta) ;
 # res_mw (reserve2).
 .lancer_ln <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                        B = 99, nature_donnees = "brutes")
+                                        B = 99, nature_donnees = "brutes",
+                                        date_reference = DATE_REFERENCE_TESTS)
 .ln_int <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln_interieur.csv"))
 .ln_j1 <- utils::read.csv(file.path(.racine, "tests", "donnees", "donnees_ln.csv"))
 res_cible <- .lancer_ln(.ln_int$xt, .ln_int$yt)
@@ -3222,7 +3237,7 @@ verifier("html_regle_verdicts() : les quatre phrases d'engine_regle_verdicts(alp
          all(diff(vapply(ph498, function(x) regexpr(.echap_html(x), rg498, fixed = TRUE)[1], numeric(1))) > 0) &&
          grepl("p &lt; 0,1 ;", rg498, fixed = TRUE) && !grepl("p < 0,1", rg498, fixed = TRUE))
 res_a05 <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99, alpha = 0.05,
-                      nature_donnees = "brutes")
+                      nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("html_regle_verdicts() : alpha lu dans le resultat (0,05), non dans la valeur par defaut",
          identical(res_a05$metadata$alpha, 0.05) &&
          grepl(.echap_html(engine_regle_verdicts(0.05)[1]), html_regle_verdicts(res_a05), fixed = TRUE) &&

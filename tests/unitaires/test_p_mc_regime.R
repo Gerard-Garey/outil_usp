@@ -690,7 +690,7 @@ local({
 # =============================================================================
 local({
   r1 <- run_engine(xt = x1, yt = y1, methode = "premium", segment = 1, annexe = "II",
-                   nature_donnees = "brutes", B = 99, seed = 20260831)
+                   nature_donnees = "brutes", B = 99, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
   nm <- names(r1$metadata)
   # Depuis #504 (ADR 0019, point 5), les quatre champs de la date de
   # reference du calcul suivent seed_flux_regime, avant horodatage.
@@ -702,7 +702,8 @@ local({
              identical(r1$metadata$seed_flux_regime, r1$bootstrap$p_mc_regime$graine_flux))
   df <- utils::read.csv(file.path(.racine, "tests", "donnees", "triangle_mw.csv"))
   tri <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(tri) <- "double"; tri <- unname(tri)
-  r2 <- run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II", B = 99, seed = 20260831)
+  r2 <- run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II", B = 99, seed = 20260831,
+                   date_reference = DATE_REFERENCE_TESTS)
   verifier("U13 run_engine() reserve2 : seed_flux_regime absent de metadata, p_mc_regime absent du bootstrap",
            isTRUE(r2$ok) && !("seed_flux_regime" %in% names(r2$metadata)) &&
              is.null(r2$bootstrap$p_mc_regime))

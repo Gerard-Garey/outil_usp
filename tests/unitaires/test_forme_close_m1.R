@@ -451,7 +451,8 @@ verifier("T269-4 : reserve2, aucune colonne non identifiable, phrase vide ; deta
 verifier("T269-5 : T1, B = 199 et 999, deux graines : phrase identique (aucun nombre issu du bootstrap), phrase de #244 en dernier si posee ; run_engine() et mw_tests() (#269)",
          {
            re <- engine_table_tests(run_engine(methode = "reserve2", triangle = t1_269, segment = 1,
-                                               annexe = "II", B = 199, seed = 20260831))
+                                               annexe = "II", B = 199, seed = 20260831,
+                                               date_reference = DATE_REFERENCE_TESTS))
            cms <- c(re$commentaire[grepl("courbure", re$test)],
                     courbure_mw270("t1", t1_269, 999)$commentaire,
                     courbure_mw270("t1", t1_269, 199, seed = 1)$commentaire)
@@ -602,7 +603,8 @@ verifier("T293 : cache des combinaisons de M1 borne a n <= 20 ; reserve2 identiq
                                       S4 = utils::combn(n, 4))
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
            lance <- function() sans_temps(suppressWarnings(
-             run_engine(methode = "reserve2", triangle = tri253, segment = 1, annexe = "II", B = 199)))
+             run_engine(methode = "reserve2", triangle = tri253, segment = 1, annexe = "II", B = 199,
+                        date_reference = DATE_REFERENCE_TESTS)))
            vider()
            froid <- lance()
            cles_froid <- sort(ls(.MW_COMBN_CACHE))

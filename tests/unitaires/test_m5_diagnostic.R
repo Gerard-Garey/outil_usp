@@ -31,7 +31,8 @@ debut_fichier("test_m5_diagnostic.R")
 outils245 <- new.env(parent = globalenv())
 sys.source(file.path(.racine245, "tests", "outils_tests.R"), envir = outils245)
 res245 <- suppressWarnings(run_engine(methode = "reserve2", triangle = outils245$.tri,
-                                      segment = 1, annexe = "II", B = B_MIN_USAGE))
+                                      segment = 1, annexe = "II", B = B_MIN_USAGE,
+                                      date_reference = DATE_REFERENCE_TESTS))
 ligne245 <- function(nom) Filter(function(l) identical(l$test, nom), res245$tests)
 NOM_SW <- "Shapiro-Wilk sur les residus de Mack"
 NOM_LI <- "Lilliefors sur les residus de Mack"

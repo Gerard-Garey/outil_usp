@@ -48,7 +48,7 @@ sigma_sous_globaux200 <- function(run, objets = list()) {
              envir = genv), add = TRUE)
   for (n in noms) assign(n, objets[[n]], envir = genv)
   r <- run(xt = .ln200$xt, yt = .ln200$yt, methode = "reserve1", segment = 1,
-           annexe = "II", B = B_MIN_USAGE)
+           annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
   if (!isTRUE(r$ok)) return(NA_real_)
   r$parametre_final$sigma_usp
 }

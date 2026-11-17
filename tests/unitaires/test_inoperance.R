@@ -261,7 +261,8 @@ verifier("usp_bootstrap(B = 2) + usp_tests() : motif replications insuffisantes 
 verifier("run_engine(B = 2) refuse : erreur d'usage citant B_MIN_USAGE",
          {
            e <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                                    nature_donnees = "brutes", B = 2, seed = 20260831),
+                                    nature_donnees = "brutes", B = 2, seed = 20260831,
+                                    date_reference = DATE_REFERENCE_TESTS),
                          error = function(e) e)
            inherits(e, "error") && startsWith(conditionMessage(e), "B = 2 : ") &&
              grepl("au moins egal a 99 (B_MIN_USAGE)", conditionMessage(e), fixed = TRUE)
@@ -857,7 +858,7 @@ verifier("SENS_PITMAN_PENTE : verrou unilateral (toute autre valeur refusee) ; p
 x10p <- 100 + 7 * (1:10) + ((1:10) %% 3) * 5
 y10p <- c(80, 95, 70, 110, 90, 85, 120, 75, 100, 105)
 res10p <- run_engine(xt = x10p, yt = y10p, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = 199, seed = 11)
+                     nature_donnees = "brutes", B = 199, seed = 11, date_reference = DATE_REFERENCE_TESTS)
 verifier("run_engine(T = 10, B = 199, seed = 11) : p_mc de la pente = usp_permutation_pente(B = 199, seed = 11)$p ; metadata$permutation_pente (aleatoire, 199, p_bilateral)",
          {
            pp <- usp_permutation_pente(x10p, y10p, B = 199, seed = 11)
@@ -871,9 +872,11 @@ verifier("run_engine(T = 10, B = 199, seed = 11) : p_mc de la pente = usp_permut
 verifier("run_engine(T = 8) : metadata$permutation_pente = enumeration, B NA, p_bilateral = celle du detail ; volumes constants -> non calcule",
          {
            r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                            date_reference = DATE_REFERENCE_TESTS)
            rc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
-                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                            nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                            date_reference = DATE_REFERENCE_TESTS)
            identical(r8$metadata$permutation_pente,
                      list(methode = "enumeration", B = NA_real_, p_bilateral = 8515 / 40320)) &&
              identical(rc$metadata$permutation_pente,
@@ -1295,10 +1298,12 @@ y12 <- c(55.5473, 89.7727, 45.4909, 183.251, 182.202, 39.2104, 72.2114,
          166.748, 90.18, 57.2182, 276.78, 116.692)
 y12[7] <- x12[7] * y12[1] / x12[1]
 res12 <- run_engine(xt = x12, yt = y12, methode = "premium", segment = 1, annexe = "II",
-                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                    date_reference = DATE_REFERENCE_TESTS)
 x10 <- x12[1:10]; y10 <- y12[1:10]; y10[6] <- x10[6] * y10[1] / x10[1]
 res10 <- run_engine(xt = x10, yt = y10, methode = "premium", segment = 1, annexe = "II",
-                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                    date_reference = DATE_REFERENCE_TESTS)
 verifier("Cox-Stuart T = 12, m = 5 sur n_p = 6, alpha = 0,10 : test INFO sans p-value, phrase de #128, sans 'ECHEC inatteignable'",
          {
            cx <- test_cox_stuart(y12 / x12, plancher = 0); l <- ligne(res12$tests, "Tendance par signes du ratio S/P")
@@ -1547,9 +1552,11 @@ inv_i2 <- function(res) {
   else paste("lignes 'asymptotique' sans motif :", n_nu)
 }
 res_ln <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                     date_reference = DATE_REFERENCE_TESTS)
 res_vc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                     date_reference = DATE_REFERENCE_TESTS)
 verifier("Invariant I2 : donnees de test, aucune nature 'asymptotique' sans motif ; motif_mc tout NA",
          isTRUE(inv_i2(res_ln)) && all(is.na(res_ln$bootstrap$motif_mc)) &&
            identical(names(res_ln$bootstrap$motif_mc), names(USP_CATALOGUE_MC)))
@@ -1716,13 +1723,15 @@ tri214 <- local({
   df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
   m <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(m) <- "double"; unname(m)
 })
-lnp214 <- function(d, ...) run_engine(xt = d$xt, yt = d$yt, segment = 1, annexe = "II", B = 99, ...)
+lnp214 <- function(d, ...) run_engine(xt = d$xt, yt = d$yt, segment = 1, annexe = "II", B = 99, ...,
+                                      date_reference = DATE_REFERENCE_TESTS)
 cas214 <- list(
   premium = lnp214(ln214, methode = "premium", nature_donnees = "brutes"),
   reserve1 = lnp214(ln214, methode = "reserve1"),
-  reserve2 = run_engine(methode = "reserve2", triangle = tri214, segment = 1, annexe = "II", B = 99),
+  reserve2 = run_engine(methode = "reserve2", triangle = tri214, segment = 1, annexe = "II", B = 99,
+                        date_reference = DATE_REFERENCE_TESTS),
   premium_ii6 = run_engine(xt = ln214$xt, yt = ln214$yt, methode = "premium", segment = 6, annexe = "II",
-                           nature_donnees = "brutes", B = 99),
+                           nature_donnees = "brutes", B = 99, date_reference = DATE_REFERENCE_TESTS),
   premium_net = lnp214(ln214, methode = "premium", nature_donnees = "nettes"),
   premium_interieur = lnp214(li214, methode = "premium", nature_donnees = "brutes"),
   j214_regime1 = lnp214(ln214, methode = "premium", nature_donnees = "brutes", alpha = 0.05),

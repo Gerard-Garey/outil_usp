@@ -819,7 +819,8 @@ if (OPT_PARTIE %in% c("tout", "ks")) {
   # Controle de la transcription de p_kolmogorov() et de stat_ks() contre la
   # ligne produite par run_engine() sur J1 (p non simulee independante de B).
   res0 <- run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = 99, seed = 20260831)
+                     nature_donnees = "brutes", B = 99, seed = 20260831,
+                     date_reference = DATE_REFERENCE_TESTS)
   tab0 <- engine_table_tests(res0)
   l_ks <- tab0[tab0$test == "Kolmogorov-Smirnov contre N(0,1)", ]
   FIT0 <- usp_ajuster(.ln$xt, .ln$yt)
@@ -929,7 +930,8 @@ jeux_tost <- function() {
 p_tost_moteur <- function(x, y, delta_equiv = NULL) {
   tb <- engine_table_tests(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
                                       annexe = "II", nature_donnees = "brutes",
-                                      B = 99, seed = 20260831, delta_equiv = delta_equiv))
+                                      B = 99, seed = 20260831, delta_equiv = delta_equiv,
+                                      date_reference = DATE_REFERENCE_TESTS))
   l <- tb[tb$test == "Equivalence de la constante a zero (TOST)", ]
   if (nrow(l) == 1L) l$p_asymptotique else NA_real_
 }
@@ -1087,7 +1089,8 @@ if (OPT_PARTIE %in% c("tout", "normalite")) {
   }, ""), collapse = " ; ")
   # Transcription contre run_engine() sur J1 (pi chapeau constant).
   res1 <- run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = 99, seed = 20260831)
+                     nature_donnees = "brutes", B = 99, seed = 20260831,
+                     date_reference = DATE_REFERENCE_TESTS)
   tb1 <- engine_table_tests(res1)
   ligne <- function(nom) tb1[tb1$test == nom, ]
   l_sw  <- ligne("Shapiro-Wilk sur residus standardises")
@@ -1678,7 +1681,8 @@ if (OPT_PARTIE == "pitman") {
   # verdict ; NULL si la ligne manque (donnees refusees).
   ligne_pitman_moteur <- function(x, y) {
     res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                      nature_donnees = "brutes", B = 99, seed = 20260831)
+                      nature_donnees = "brutes", B = 99, seed = 20260831,
+                      date_reference = DATE_REFERENCE_TESTS)
     if (!isTRUE(res$ok)) return(NULL)
     tb <- engine_table_tests(res)
     l <- tb[tb$test == LIGNE_PITMAN, ]
@@ -2297,7 +2301,8 @@ if (OPT_PARTIE == "esd") {
   # fonction deterministe de k chapeau, lu desormais dans estimation).
   trans_esd <- all(vapply(MES_ESD, function(m) all(vapply(list(m$J$y, m$YSIM[1, ]), function(y) {
     tb <- engine_table_tests(run_engine(xt = m$J$x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                                        nature_donnees = "brutes", B = 99, seed = 20260831))
+                                        nature_donnees = "brutes", B = 99, seed = 20260831,
+                                        date_reference = DATE_REFERENCE_TESTS))
     l <- tb[tb$test == LIGNE_ESD, ]
     k <- test_rosner(usp_ajuster(m$J$x, y)$z, alpha = ALPHA_ESD_MOTEUR)$nb_outliers
     nrow(l) == 1L && identical(as.numeric(l$estimation), as.numeric(k)) &&

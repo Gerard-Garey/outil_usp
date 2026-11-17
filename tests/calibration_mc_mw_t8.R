@@ -2555,10 +2555,12 @@ traiter_triangle <- function(loi, b, avec_brut, ctl = FALSE) {
     so <- as.list(.mw_stats(aj, .mw_ensembles_figes(aj, jd, .mw_colonnes_courbure_non_identifiables(aj, jd),
                                                     .mw_colonnes_origine_non_identifiables(aj, jd))))
     out$i1 <- c(stats_obs = identical(bR$stats_obs, so), oracle = identical(as.list(stats_oracle(aj)), bR$stats_obs))
-    re <- run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g)
+    re <- run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g,
+                     date_reference = DATE_REFERENCE_TESTS)
     i2 <- c(tests_R = identical(re$tests, tR), bootstrap_R = identical(re$bootstrap, bR))
     if (avec_brut) {
-      rb <- avec_pool_brut(run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g))
+      rb <- avec_pool_brut(run_engine(methode = METHODE, triangle = tri, segment = SEGMENT, annexe = ANNEXE, seed = g,
+                                      date_reference = DATE_REFERENCE_TESTS))
       if (!pool_restaure()) out$i4 <- c(out$i4, "restauration (run_engine)")
       i2 <- c(i2, tests_B = identical(rb$tests, tB), bootstrap_B = identical(rb$bootstrap, bB))
     }
@@ -3558,7 +3560,8 @@ if (MODE == "tranche") {
   i1_r2 <- identical(RES_A$bootstrap$stats_obs, as.list(.mw_stats(aj_r2, .mw_ensembles_figes(aj_r2, jd_r2, jni_r2)))) && identical(as.list(stats_oracle(aj_r2)), RES_A$bootstrap$stats_obs)
   controle(i1_r2, "(i1) reserve2 : bootstrap$stats_obs de run_engine() identique (identical()) \u00e0 .mw_stats(aj, .mw_ensembles_figes(aj, jd, jni)) recalcul\u00e9 (ensembles fig\u00e9s \u00e0 l'observ\u00e9 : jd et jni pass\u00e9s, #270 ; jno, colonnes non identifiables de l'ordonn\u00e9e \u00e0 l'origine, par le d\u00e9faut de .mw_ensembles_figes(), #273) et au chemin oracle stats_oracle() (jd pass\u00e9, jni et jno par le d\u00e9faut de .mw_ensembles_figes(), m\u00eames fonctions que mw_bootstrap() : d\u00e9finition de la loi oracle, pas un recalcul ind\u00e9pendant de jni ni de jno)")
   if (identical(OPT_POOLS, "redresse,brut")) {
-    re_b <- avec_pool_brut(run_engine(methode = METHODE, triangle = .tri, segment = SEGMENT, annexe = ANNEXE, seed = GRAINE_R2))
+    re_b <- avec_pool_brut(run_engine(methode = METHODE, triangle = .tri, segment = SEGMENT, annexe = ANNEXE, seed = GRAINE_R2,
+                                      date_reference = DATE_REFERENCE_TESTS))
     b_r2b <- avec_pool_brut(mw_bootstrap(aj_r2, B = B_BOOT, seed = GRAINE_R2)); t_r2b <- mw_tests(aj_r2, b_r2b, ALPHA)
     i2b <- identical(re_b$tests, t_r2b) && identical(re_b$bootstrap, b_r2b) && pool_restaure()
   } else i2b <- NA

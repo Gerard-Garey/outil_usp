@@ -705,7 +705,8 @@ code_regime <- function(fit) if (fit$delta >= 1 - TOL_DELTA_BORD) "bord1" else
 # run_engine() sur le jeu observe (controles de transcription).
 engine_observe <- function(jeu) run_engine(xt = jeu$x, yt = jeu$y, methode = METHODE, segment = SEGMENT,
                                            annexe = ANNEXE, nature_donnees = NATURE, B = OPT_B,
-                                           alpha = ALPHA, theta_equiv = THETA_EQUIV, seed = OPT_GRAINE_IC)
+                                           alpha = ALPHA, theta_equiv = THETA_EQUIV, seed = OPT_GRAINE_IC,
+                                           date_reference = DATE_REFERENCE_TESTS)
 # Lignes de LIGNES (douze : six de #116, six de stabilite de #313) dans une
 # table de engine_table_tests().
 lignes_tests <- function(tab) {

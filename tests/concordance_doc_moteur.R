@@ -2023,9 +2023,11 @@ executions_principales <- function(outils, B) {
   ln <- outils$.ln
   resultats <- list(
     premium  = outils$run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II", B = B,
-                                 nature_donnees = "brutes"),
-    reserve1 = outils$run_engine(xt = ln$xt, yt = ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B),
-    reserve2 = outils$run_engine(methode = "reserve2", triangle = outils$.tri, segment = 1, annexe = "II", B = B))
+                                 nature_donnees = "brutes", date_reference = outils$DATE_REFERENCE_TESTS),
+    reserve1 = outils$run_engine(xt = ln$xt, yt = ln$yt, methode = "reserve1", segment = 1, annexe = "II", B = B,
+                                 date_reference = outils$DATE_REFERENCE_TESTS),
+    reserve2 = outils$run_engine(methode = "reserve2", triangle = outils$.tri, segment = 1, annexe = "II", B = B,
+                                 date_reference = outils$DATE_REFERENCE_TESTS))
   n_finies <- vapply(resultats[c("premium", "reserve1")], function(r) length(r$bootstrap$sigma_boot), integer(1))
   if (any(n_finies <= 20L))
     stop(sprintf(paste0("replications bootstrap finies insuffisantes (%s) : run_engine() ne calcule l'IC ",
@@ -2042,9 +2044,10 @@ executions_volumes_constants <- function(outils, B) {
   ln <- outils$.ln
   resultats_vc <- list(
     premium_vc  = outils$run_engine(xt = rep(100, length(ln$yt)), yt = ln$yt, methode = "premium", segment = 1,
-                                    annexe = "II", B = B, nature_donnees = "brutes"),
+                                    annexe = "II", B = B, nature_donnees = "brutes",
+                                    date_reference = outils$DATE_REFERENCE_TESTS),
     reserve1_vc = outils$run_engine(xt = rep(100, length(ln$yt)), yt = ln$yt, methode = "reserve1", segment = 1,
-                                    annexe = "II", B = B))
+                                    annexe = "II", B = B, date_reference = outils$DATE_REFERENCE_TESTS))
   if (!all(vapply(resultats_vc, function(r) isTRUE(r$ok), logical(1))))
     stop("run_engine() a volumes constants : resultat ok = FALSE", call. = FALSE)
   resultats_vc
@@ -2057,8 +2060,9 @@ executions_j2 <- function(outils, B, racine) {
   j2 <- lire_jeu_j2(racine)
   resultats_j2 <- list(
     premium_j2  = outils$run_engine(xt = j2$x, yt = j2$y, methode = "premium", segment = 1, annexe = "II", B = B,
-                                    nature_donnees = "brutes"),
-    reserve1_j2 = outils$run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B))
+                                    nature_donnees = "brutes", date_reference = outils$DATE_REFERENCE_TESTS),
+    reserve1_j2 = outils$run_engine(xt = j2$x, yt = j2$y, methode = "reserve1", segment = 1, annexe = "II", B = B,
+                                    date_reference = outils$DATE_REFERENCE_TESTS))
   if (!all(vapply(resultats_j2, function(r) isTRUE(r$ok), logical(1))))
     stop("run_engine() sur le jeu J2 : resultat ok = FALSE", call. = FALSE)
   resultats_j2
@@ -2079,7 +2083,7 @@ executions_hors_jeux <- function(outils, B) {
     Tn <- jeux_pos$T[i]; vc <- jeux_pos$vc[i]
     j <- jeu_synthetique(Tn, volumes_constants = vc)
     r <- outils$run_engine(xt = j$x, yt = j$y, methode = "premium", segment = 1, annexe = "II", B = B,
-                           nature_donnees = "brutes")
+                           nature_donnees = "brutes", date_reference = outils$DATE_REFERENCE_TESTS)
     if (!isTRUE(r$ok)) stop(sprintf("run_engine() sur le jeu synthetique T = %d%s : resultat ok = FALSE", Tn,
                                     if (vc) " a volumes constants" else ""), call. = FALSE)
     data.frame(T = Tn, test = vapply(r$tests, function(t) as.character(t$test)[1], character(1)),

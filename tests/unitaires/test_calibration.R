@@ -367,10 +367,11 @@ bout_en_bout_M6 <- list(
 for (cas in bout_en_bout_M6) {
   res <- if (cas$methode == "reserve2")
     run_engine(methode = "reserve2", triangle = .tri_m6, segment = cas$segment,
-               annexe = cas$annexe, B = B_M6)
+               annexe = cas$annexe, B = B_M6, date_reference = DATE_REFERENCE_TESTS)
   else run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = cas$methode,
                   segment = cas$segment, annexe = cas$annexe, B = B_M6,
-                  nature_donnees = if (cas$methode == "premium") "brutes")
+                  nature_donnees = if (cas$methode == "premium") "brutes",
+                  date_reference = DATE_REFERENCE_TESTS)
   pf <- res$parametre_final
   etiquette <- sprintf("run_engine %s, %s-%d", cas$methode, cas$annexe, cas$segment)
   # bareme_saisi (issue #93) : bareme deduit du segment, drapeau FALSE.
@@ -425,8 +426,8 @@ verifier("NP standard, annexe XIV : 100 % pour les 4 segments (art. 148, par. 3)
 verifier("SEGMENTS : colonne np_standard alignee sur les deux annexes (16 cles)",
          identical(SEGMENTS$np_standard, c(np_II, np_XIV)))
 
-ps_b <- usp_parametre_standard("premium", 1, "II", "brutes")
-ps_n <- usp_parametre_standard("premium", 1, "II", "nettes")
+ps_b <- usp_parametre_standard("premium", 1, "II", "brutes", date_reference = DATE_REFERENCE_TESTS)
+ps_n <- usp_parametre_standard("premium", 1, "II", "nettes", date_reference = DATE_REFERENCE_TESTS)
 verifier("Donnees brutes II-1 : sigma standard = sigma brut de la table, sans multiplication (identical), point a) ii), B(2)(c)",
          identical(ps_b$sigma_standard, ANNEXE_II$sigma_prime_brut[1]) &&
            identical(ps_b$sigma_standard, 0.10) &&
@@ -439,30 +440,38 @@ verifier("Donnees nettes II-1 : sigma standard = 0,8 x 10 % = 8 %, point a) i), 
            identical(ps_n$point_art218, "art. 218, paragraphe 1, point a) i)") &&
            grepl("section B, paragraphe 2, point d)", ps_n$exigence_donnees, fixed = TRUE))
 verifier("Donnees nettes : II-4 = 0,8 x 8 %, II-5 = 0,8 x 14 %, II-2 = 8 % (NP 100 %), II-6 = 19 %",
-         isTRUE(proche(usp_parametre_standard("premium", 4, "II", "nettes")$sigma_standard, 0.064, rel = 1e-15)) &&
-           isTRUE(proche(usp_parametre_standard("premium", 5, "II", "nettes")$sigma_standard, 0.112, rel = 1e-15)) &&
-           identical(usp_parametre_standard("premium", 2, "II", "nettes")$sigma_standard, 0.08) &&
-           identical(usp_parametre_standard("premium", 6, "II", "nettes")$sigma_standard, 0.19))
+         isTRUE(proche(usp_parametre_standard("premium", 4, "II", "nettes",
+                                              date_reference = DATE_REFERENCE_TESTS)$sigma_standard, 0.064, rel = 1e-15)) &&
+           isTRUE(proche(usp_parametre_standard("premium", 5, "II", "nettes",
+                                                date_reference = DATE_REFERENCE_TESTS)$sigma_standard, 0.112, rel = 1e-15)) &&
+           identical(usp_parametre_standard("premium", 2, "II", "nettes",
+                                            date_reference = DATE_REFERENCE_TESTS)$sigma_standard, 0.08) &&
+           identical(usp_parametre_standard("premium", 6, "II", "nettes",
+                                            date_reference = DATE_REFERENCE_TESTS)$sigma_standard, 0.19))
 verifier("Annexe XIV : nettes = brutes (NP 100 %), points c) i) / c) ii)",
          {
-           a <- usp_parametre_standard("premium", 1, "XIV", "brutes")
-           b <- usp_parametre_standard("premium", 1, "XIV", "nettes")
+           a <- usp_parametre_standard("premium", 1, "XIV", "brutes", date_reference = DATE_REFERENCE_TESTS)
+           b <- usp_parametre_standard("premium", 1, "XIV", "nettes", date_reference = DATE_REFERENCE_TESTS)
            identical(a$sigma_standard, 0.05) && identical(b$sigma_standard, 0.05) &&
              identical(a$point_art218, "art. 218, paragraphe 1, point c) ii)") &&
              identical(b$point_art218, "art. 218, paragraphe 1, point c) i)")
          })
 verifier("Nature non declaree ou irrecevable (NULL, NA, \"Brutes\", \"net\", vecteur, nombre) : erreur pour premium",
-         leve_erreur(usp_parametre_standard("premium", 1, "II")) &&
-           leve_erreur(usp_parametre_standard("premium", 1, "II", NA_character_)) &&
-           leve_erreur(usp_parametre_standard("premium", 1, "II", "Brutes")) &&
-           leve_erreur(usp_parametre_standard("premium", 1, "II", "net")) &&
-           leve_erreur(usp_parametre_standard("premium", 1, "II", c("brutes", "nettes"))) &&
-           leve_erreur(usp_parametre_standard("premium", 1, "II", 1)))
+         leve_erreur(usp_parametre_standard("premium", 1, "II", date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", NA_character_,
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", "Brutes",
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", "net",
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", c("brutes", "nettes"),
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("premium", 1, "II", 1, date_reference = DATE_REFERENCE_TESTS)))
 verifier("Methodes de reserve : sigma(res,s) de la table, point a) iv), NULL = \"nettes\" (exigence C(2)(c), D(2)(f))",
          {
-           r1 <- usp_parametre_standard("reserve1", 1, "II")
-           r1n <- usp_parametre_standard("reserve1", 1, "II", "nettes")
-           r2 <- usp_parametre_standard("reserve2", 4, "XIV", "nettes")
+           r1 <- usp_parametre_standard("reserve1", 1, "II", date_reference = DATE_REFERENCE_TESTS)
+           r1n <- usp_parametre_standard("reserve1", 1, "II", "nettes", date_reference = DATE_REFERENCE_TESTS)
+           r2 <- usp_parametre_standard("reserve2", 4, "XIV", "nettes", date_reference = DATE_REFERENCE_TESTS)
            identical(r1, r1n) && identical(r1$sigma_standard, 0.09) &&
              identical(r1$point_art218, "art. 218, paragraphe 1, point a) iv)") &&
              grepl("section C, paragraphe 2, point c)", r1$exigence_donnees, fixed = TRUE) &&
@@ -472,23 +481,30 @@ verifier("Methodes de reserve : sigma(res,s) de la table, point a) iv), NULL = \
              grepl("section D, paragraphe 2, point f)", r2$exigence_donnees, fixed = TRUE)
          })
 verifier("Methodes de reserve, appel direct : \"brutes\" (et valeur non reconnue) -> erreur R",
-         leve_erreur(usp_parametre_standard("reserve1", 1, "II", "brutes")) &&
-           leve_erreur(usp_parametre_standard("reserve2", 1, "II", "brutes")) &&
-           leve_erreur(usp_parametre_standard("reserve1", 1, "II", "net")) &&
-           leve_erreur(usp_parametre_standard("reserve2", 1, "II", NA_character_)))
+         leve_erreur(usp_parametre_standard("reserve1", 1, "II", "brutes",
+                                            date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("reserve2", 1, "II", "brutes",
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("reserve1", 1, "II", "net",
+                                              date_reference = DATE_REFERENCE_TESTS)) &&
+           leve_erreur(usp_parametre_standard("reserve2", 1, "II", NA_character_,
+                                              date_reference = DATE_REFERENCE_TESTS)))
 verifier("Saisie libre : elle prime (derogation signalee), la valeur reglementaire reste restituee",
          {
-           s <- usp_parametre_standard("premium", 1, "II", "nettes", sigma_standard = 0.12)
-           s0 <- usp_parametre_standard("premium", NULL, "II", "brutes", sigma_standard = 0.12)
+           s <- usp_parametre_standard("premium", 1, "II", "nettes", sigma_standard = 0.12,
+                                       date_reference = DATE_REFERENCE_TESTS)
+           s0 <- usp_parametre_standard("premium", NULL, "II", "brutes", sigma_standard = 0.12,
+                                        date_reference = DATE_REFERENCE_TESTS)
            identical(s$sigma_standard, 0.12) && isTRUE(s$saisie) &&
              isTRUE(proche(s$sigma_reglementaire, 0.08, rel = 1e-15)) &&
              identical(s0$sigma_standard, 0.12) && is.na(s0$sigma_reglementaire) &&
-             leve_erreur(usp_parametre_standard("premium", NULL, "II", "brutes"))
+             leve_erreur(usp_parametre_standard("premium", NULL, "II", "brutes",
+                                                date_reference = DATE_REFERENCE_TESTS))
          })
 
 # Bout en bout, B = B_MIN_USAGE (sigma_USP ne depend pas du bootstrap, voir plus haut).
 .args55 <- list(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "premium", segment = 1,
-                annexe = "II", B = B_M6)
+                annexe = "II", B = B_M6, date_reference = DATE_REFERENCE_TESTS)
 r_sans <- tryCatch(do.call(run_engine, .args55), error = function(e) e)
 verifier("run_engine premium sans declaration : ok = FALSE avec motif, sans erreur R (M13)",
          !inherits(r_sans, "error") && identical(r_sans$ok, FALSE) &&
@@ -559,17 +575,20 @@ verifier("Saisie libre du sigma standard (premium) : conservee, derogation dans 
            })
 sans_exec <- function(r) { r$metadata[c("horodatage", "duree_sec")] <- NULL; r }
 r1_sans <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                      annexe = "II", B = B_M6)
+                      annexe = "II", B = B_M6, date_reference = DATE_REFERENCE_TESTS)
 r1_net <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                     annexe = "II", B = B_M6, nature_donnees = "nettes")
+                     annexe = "II", B = B_M6, nature_donnees = "nettes",
+                     date_reference = DATE_REFERENCE_TESTS)
 r1_brut <- tryCatch(run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                               annexe = "II", B = B_M6, nature_donnees = "brutes"),
+                               annexe = "II", B = B_M6, nature_donnees = "brutes",
+                               date_reference = DATE_REFERENCE_TESTS),
                     error = function(e) e)
-r2_sans <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II", B = B_M6)
+r2_sans <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II", B = B_M6,
+                      date_reference = DATE_REFERENCE_TESTS)
 r2_net <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II", B = B_M6,
-                     nature_donnees = "nettes")
+                     nature_donnees = "nettes", date_reference = DATE_REFERENCE_TESTS)
 r2_brut <- tryCatch(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                               B = B_M6, nature_donnees = "brutes"),
+                               B = B_M6, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS),
                     error = function(e) e)
 verifier("Methodes de reserve : NULL et \"nettes\" acceptes (resultats identical), sigma(res,s) = 9 %, metadata sans nature",
          identical(sans_exec(r1_sans), sans_exec(r1_net)) &&
@@ -613,9 +632,10 @@ verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau 
          {
            e_p <- do.call(run_engine, c(.args55, nature_donnees = "brutes", sigma_standard = 0.10))
            e_1 <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                             annexe = "II", B = B_M6, sigma_standard = 0.09)
+                             annexe = "II", B = B_M6, sigma_standard = 0.09,
+                             date_reference = DATE_REFERENCE_TESTS)
            e_2 <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                             B = B_M6, sigma_standard = 0.09)
+                             B = B_M6, sigma_standard = 0.09, date_reference = DATE_REFERENCE_TESTS)
            all(vapply(list(e_p, e_1, e_2), function(r) {
              d <- engine_parametre_standard(r)
              identical(r$metadata$sigma_standard_saisi, TRUE) &&
@@ -638,7 +658,7 @@ verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), deroga
            d1 <- engine_parametre_standard(r1_sans)
            d2 <- engine_parametre_standard(r2_sans)
            r2s <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                             B = B_M6, sigma_standard = 0.15)
+                             B = B_M6, sigma_standard = 0.15, date_reference = DATE_REFERENCE_TESTS)
            d3 <- engine_parametre_standard(r2s)
            grepl("^nettes", d1$texte[1]) && grepl("point a) iv)", d1$texte[2], fixed = TRUE) &&
              grepl("section C, paragraphe 2, point c)", d1$texte[3], fixed = TRUE) &&
@@ -678,11 +698,13 @@ verifier("#504 : un espion pose a la place d'usp_parametre_standard() est appele
            o <- tryCatch({
              p  <- appelants_de(do.call(run_engine, c(.args55, nature_donnees = "brutes")))
              r1 <- appelants_de(run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1",
-                                           segment = 1, annexe = "II", B = B_M6))
+                                           segment = 1, annexe = "II", B = B_M6,
+                                           date_reference = DATE_REFERENCE_TESTS))
              r2 <- appelants_de(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1,
-                                           annexe = "II", B = B_M6))
+                                           annexe = "II", B = B_M6, date_reference = DATE_REFERENCE_TESTS))
              r2s <- appelants_de(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1,
-                                            annexe = "II", B = B_M6, sigma_standard = 0.15))
+                                            annexe = "II", B = B_M6, sigma_standard = 0.15,
+                                            date_reference = DATE_REFERENCE_TESTS))
              tr <- appelants_de(engine_parametre_standard(r2$r))
              list(p = p, r1 = r1, r2 = r2, r2s = r2s, tr = tr)
            }, finally = assign("usp_parametre_standard", orig, envir = e))
@@ -742,13 +764,13 @@ verifier("Bareme force : sigma_USP(force) - sigma_USP(regl.) = (c_force - c_regl
                          rel = 1e-10))
          }, logical(1))))
 r1_c <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                   annexe = "II", B = B_M6, bareme = "court")
+                   annexe = "II", B = B_M6, bareme = "court", date_reference = DATE_REFERENCE_TESTS)
 r1_l <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                   annexe = "II", B = B_M6, bareme = "long")
+                   annexe = "II", B = B_M6, bareme = "long", date_reference = DATE_REFERENCE_TESTS)
 r2_c <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                   B = B_M6, bareme = "court")
+                   B = B_M6, bareme = "court", date_reference = DATE_REFERENCE_TESTS)
 r2_l <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                   B = B_M6, bareme = "long")
+                   B = B_M6, bareme = "long", date_reference = DATE_REFERENCE_TESTS)
 origine_bareme <- function(r) {
   d <- engine_parametre_standard(r); d$texte[d$grandeur == "Origine du bareme retenu"]
 }
@@ -882,7 +904,7 @@ verifier("engine_derogations : sigma saisi 0,08 egal a 0,8 x 10 % (premium nette
          {
            r_e <- do.call(run_engine, c(.args55, nature_donnees = "nettes", sigma_standard = 0.08))
            r_m <- run_engine(methode = "reserve2", triangle = .tri_m6, B = B_M6,
-                             sigma_standard = 0.09)
+                             sigma_standard = 0.09, date_reference = DATE_REFERENCE_TESTS)
            d_e <- engine_derogations(r_e); d_m <- engine_derogations(r_m)
            identical(d_e$parametre, "sigma_standard") && identical(d_e$conforme, TRUE) &&
              identical(r_m$metadata$bareme_saisi, FALSE) &&
@@ -989,7 +1011,7 @@ verifier("Profondeur, n = T : n_fournies = T, aucune ligne \"profondeur\" (premi
 verifier("Profondeur, reserve no 1, n = 12, T = 11 : \"exercices\", singulier masculin, G(3)(b) et section C cites ; n_fournies absent, non entier ou < T -> erreur (#104)",
          {
            r1_11 <- run_engine(xt = .x12, yt = .y12, methode = "reserve1", segment = 1,
-                               annexe = "II", B = B_M6, T = 11)
+                               annexe = "II", B = B_M6, T = 11, date_reference = DATE_REFERENCE_TESTS)
            l <- engine_derogations(r1_11)$libelle
            r_x <- r_12; r_x$metadata$n_fournies <- NULL
            r_y <- r_12; r_y$metadata$n_fournies <- 7L
@@ -1006,7 +1028,7 @@ verifier("Profondeur, reserve no 1, n = 12, T = 11 : \"exercices\", singulier ma
 verifier("Profondeur, reserve no 1, n = 12, T = 10 : pluriel masculin \"les 2 exercices les plus anciens sont ecartes\" (#104)",
          {
            r1_10 <- run_engine(xt = .x12, yt = .y12, methode = "reserve1", segment = 1,
-                               annexe = "II", B = B_M6, T = 10)
+                               annexe = "II", B = B_M6, T = 10, date_reference = DATE_REFERENCE_TESTS)
            grepl("sur n = 12 exercices fournis : les 2 exercices les plus anciens sont ecartes de",
                  engine_derogations(r1_10)$libelle, fixed = TRUE)
          })
@@ -1059,9 +1081,9 @@ verifier("Objets non fonctions c, cbind, rbind dans l'environnement global : run
            assign("cbind", 5, envir = genv)
            assign("rbind", 5, envir = genv)
            r1_m <- run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1", segment = 1,
-                              annexe = "II", B = B_M6)
+                              annexe = "II", B = B_M6, date_reference = DATE_REFERENCE_TESTS)
            r2_m <- run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1, annexe = "II",
-                              B = B_M6)
+                              B = B_M6, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r1_m$ok) && isTRUE(r2_m$ok) &&
              identical(sans_exec(r1_m), sans_exec(r1_sans)) &&
              identical(sans_exec(r2_m), sans_exec(r2_sans)) &&

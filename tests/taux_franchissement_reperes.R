@@ -834,7 +834,8 @@ JEU <- if (OPT_JEU == "J1")
   c(lire_j2(), libelle = "J2 : xi, yi de tests/unitaires/test_controles_numeriques.R (\u03b4 estim\u00e9 int\u00e9rieur)")
 X <- JEU$x; T_ <- length(X)
 FIT0 <- usp_ajuster(X, JEU$y)
-SIGMA_STD <- usp_parametre_standard(METHODE, SEGMENT, ANNEXE, NATURE, NULL)$sigma_standard
+SIGMA_STD <- usp_parametre_standard(METHODE, SEGMENT, ANNEXE, NATURE, NULL,
+                                    date_reference = DATE_REFERENCE_TESTS)$sigma_standard
 BAREME <- usp_bareme_segment(SEGMENT, ANNEXE)
 
 # Tranche
@@ -1026,7 +1027,7 @@ integrite <- character(0)
 t0 <- Sys.time()
 res <- run_engine(xt = X, yt = JEU$y, methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
                   nature_donnees = NATURE, B = OPT_B_IC, alpha = ALPHA, theta_equiv = THETA_EQUIV,
-                  seed = OPT_GRAINE_IC)
+                  seed = OPT_GRAINE_IC, date_reference = DATE_REFERENCE_TESTS)
 obs <- traiter(X, JEU$y, OPT_GRAINE_IC)
 if (!isTRUE(res$ok)) integrite <- c(integrite, "run_engine() sur le jeu observe : ok = FALSE")
 if (!identical(obs$sigma_boot, res$bootstrap$sigma_boot))

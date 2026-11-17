@@ -310,7 +310,7 @@ verifier("usp_ajuster : liste exacte des champs de l'ajustement (structure des r
 verifier("run_engine : res$ajustement se termine par kkt_au_moins_un puis gamma_bord_au_moins_un (condition de patchabilite des references, #227)",
          {
            r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
-                           nature_donnees = "brutes")
+                           nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            identical(utils::tail(names(r$ajustement), 2), c("kkt_au_moins_un", "gamma_bord_au_moins_un")) &&
              all(c("ecart_jackknife", "largeur_ic") %in% names(r$ajustement))
          })

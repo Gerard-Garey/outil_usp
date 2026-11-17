@@ -433,7 +433,7 @@ verifier("Invariant M7 : hors test, verdict INFO et sens NA",
              (identical(l$verdict, "INFO") && is.na(l$sens) && is.na(l$p_retenue)),
            logical(1))))
 res8 <- run_engine(xt = x8, yt = y8, methode = "premium", segment = 1, annexe = "II",
-                   nature_donnees = "brutes", B = 99, seed = 20260831)
+                   nature_donnees = "brutes", B = 99, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
 verifier("run_engine, pi_t variable, B = 99 : 48 lignes hors lecture conjointe (#45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423 ; lignes de famille de #297 en fin), catalogue complet, aucune nature 'exacte' sur les sept",
          isTRUE(res8$ok) &&
            sum(vapply(res8$tests, function(l) !identical(l$fonction, "engine_p_famille"), NA)) == 48L &&

@@ -55,7 +55,8 @@ verifier("Validation : NA ou NaN dans x ou y, texte entier du motif (#585), appe
          all(vapply(list(list(replace(x, 1, NA), y), list(x, replace(y, 8, NaN))), function(d) {
            v <- engine_valider_donnees(d[[1]], d[[2]])
            r <- run_engine(xt = d[[1]], yt = d[[2]], methode = "premium", segment = 1,
-                           annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes")
+                           annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes",
+                           date_reference = DATE_REFERENCE_TESTS)
            !v$ok && identical(v$erreurs, motif_na585) &&
              identical(r$ok, FALSE) && identical(r$validation$erreurs, motif_na585)
          }, logical(1))))
@@ -86,7 +87,8 @@ verifier("Validation : valeur infinie dans y ou x refusee (#33)",
 verifier("run_engine : valeur infinie -> ok = FALSE avec motif, sans erreur R (#33)",
          {
            r <- run_engine(xt = x, yt = replace(y, 3, Inf), methode = "premium",
-                           segment = 1, annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes")
+                           segment = 1, annexe = "II", B = B_MIN_USAGE, nature_donnees = "brutes",
+                           date_reference = DATE_REFERENCE_TESTS)
            identical(r$ok, FALSE) && contient(r$validation$erreurs, "infinies")
          })
 ## --- Marge du test d'equivalence (#33, complement d'audit de #58) ------------
@@ -174,11 +176,13 @@ verifier("Marge Delta fournie : theta ignore (theta = 5 ou NA accepte avec Delta
 verifier("run_engine : theta_equiv NA ou 1, delta_equiv vide -> ok = FALSE, sans erreur R",
          {
            r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                            theta_equiv = NA, nature_donnees = "brutes")
+                            theta_equiv = NA, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            r2 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
-                            theta_equiv = 1)
+                            theta_equiv = 1, date_reference = DATE_REFERENCE_TESTS)
            r3 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                            delta_equiv = numeric(0), nature_donnees = "brutes")
+                            delta_equiv = numeric(0), nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            identical(r1$ok, FALSE) && identical(r2$ok, FALSE) && identical(r3$ok, FALSE) &&
              contient(r1$validation$erreurs, "theta_equiv") &&
              contient(r3$validation$erreurs, "delta_equiv")
@@ -217,7 +221,8 @@ verifier("engine_valider_profondeur : T > n et T < 5 refuses ; T_min parametrabl
 verifier("run_engine : T refuse (5.5, NA, Inf, c(5, 6), '6', T > n entier ou non) -> ok = FALSE avec motif, sans erreur R (#87)",
          all(vapply(c(T_refuses[c(1, 3, 4, 6, 8, 9)], list(9)), function(t) {
            r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                    B = B_MIN_USAGE, T = t, nature_donnees = "brutes"),
+                                    B = B_MIN_USAGE, T = t, nature_donnees = "brutes",
+                                    date_reference = DATE_REFERENCE_TESTS),
                          error = function(e) e)
            !inherits(r, "error") && identical(r$ok, FALSE) &&
              contient(r$validation$erreurs, "Profondeur T")
@@ -225,11 +230,11 @@ verifier("run_engine : T refuse (5.5, NA, Inf, c(5, 6), '6', T > n entier ou non
 verifier("run_engine : T = 6 retient les 6 annees les plus recentes (metadata$T = 6), T = 8 equivaut a T absent",
          {
            r6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                            T = 6, nature_donnees = "brutes")
+                            T = 6, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            r8 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                            T = 8, nature_donnees = "brutes")
+                            T = 8, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            r0 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                            nature_donnees = "brutes")
+                            nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r6$ok) && identical(r6$metadata$T, 6L) &&
              identical(r6$donnees$xt, x[3:8]) && identical(r6$donnees$yt, y[3:8]) &&
              identical(r8$parametre_final, r0$parametre_final) && identical(r8$metadata$T, 8L)
@@ -246,7 +251,7 @@ verifier("usp_charger : T non entier ou NA refuse (erreur explicite, pas de tron
 verifier("run_engine : T refuse -> aucun avertissement de serie retenue, validation$T = NA (#87, audit)",
          {
            r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                           T = 5.5, nature_donnees = "brutes")
+                           T = 5.5, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            identical(r$ok, FALSE) && identical(r$validation$avertissements, character(0)) &&
              identical(r$validation$T, NA_integer_)
          })
@@ -279,7 +284,7 @@ MOTIF_DEFAUT <- "Defaut de calcul intercepte"
 MOTIF_DOMAINE <- "hors du domaine numerique [1e-50 ; 1e+50]"
 calcul_extreme <- function(xt, yt) suppressWarnings(
   run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = B_MIN_USAGE,
-             nature_donnees = "brutes"))
+             nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS))
 # Evalue expr avec la fonction `nom` du moteur remplacee par f, restauree en
 # sortie (meme en cas d'erreur).
 avec_injection <- function(nom, f, expr) {
@@ -1051,7 +1056,8 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
            assign("mw_bootstrap", function(...) stop("panne simulee"), envir = e)
            tri <- as.matrix(read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv")))
            tri <- unname(tri[, colnames(tri) != "i"]); storage.mode(tri) <- "double"
-           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = B_MIN_USAGE),
+           r <- tryCatch(run_engine(methode = "reserve2", triangle = tri, segment = 1, B = B_MIN_USAGE,
+                                    date_reference = DATE_REFERENCE_TESTS),
                          error = function(err) err,
                          finally = assign("mw_bootstrap", orig, envir = e))
            !inherits(r, "error") && identical(r$ok, FALSE) && !"methode" %in% names(r) &&
@@ -1061,23 +1067,28 @@ verifier("run_engine, Merz-Wuthrich : erreur dans le calcul apres mw_valider_tri
          })
 verifier("run_engine : erreurs d'usage -> erreur R explicite, non interceptee (annexe III, methode 'prime', segment 99, reserve2 sans triangle, xt manquant, B = -1, 0 ou 98, seed NA, bareme 'x')",
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", annexe = "III", segment = 1,
-                                B = B_MIN_USAGE, nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = B_MIN_USAGE)) &&
+                                B = B_MIN_USAGE, nature_donnees = "brutes",
+                                date_reference = DATE_REFERENCE_TESTS)) &&
+         leve_erreur(run_engine(xt = x, yt = y, methode = "prime", segment = 1, B = B_MIN_USAGE,
+                                date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 99, B = B_MIN_USAGE,
-                                nature_donnees = "brutes")) &&
-         leve_erreur(run_engine(methode = "reserve2", B = B_MIN_USAGE)) &&
+                                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)) &&
+         leve_erreur(run_engine(methode = "reserve2", B = B_MIN_USAGE,
+                                date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                                nature_donnees = "brutes")) &&
+                                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = -1,
-                                nature_donnees = "brutes")) &&
+                                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 0,
-                                nature_donnees = "brutes")) &&
+                                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = 98,
-                                nature_donnees = "brutes")) &&
+                                nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                                seed = NA, nature_donnees = "brutes")) &&
+                                seed = NA, nature_donnees = "brutes",
+                                date_reference = DATE_REFERENCE_TESTS)) &&
          leve_erreur(run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                                bareme = "x", nature_donnees = "brutes")))
+                                bareme = "x", nature_donnees = "brutes",
+                                date_reference = DATE_REFERENCE_TESTS)))
 
 # Suite de #88 (decision du mainteneur du 26/09/2026) : alpha, sigma_standard,
 # seed et bareme invalides levent une erreur d'usage de
@@ -1095,9 +1106,11 @@ appel_usage <- function(nominal, ...) {
   do.call(run_engine, nominal)
 }
 usage_premium <- function(...) appel_usage(list(xt = x, yt = y, methode = "premium", segment = 1,
-                                                B = B_MIN_USAGE, nature_donnees = "brutes"), ...)
+                                                B = B_MIN_USAGE, nature_donnees = "brutes",
+                                                date_reference = DATE_REFERENCE_TESTS), ...)
 usage_mw <- function(...) appel_usage(list(methode = "reserve2", triangle = tri_usage,
-                                           segment = 1, B = B_MIN_USAGE), ...)
+                                           segment = 1, B = B_MIN_USAGE,
+                                           date_reference = DATE_REFERENCE_TESTS), ...)
 # TRUE si chaque valeur de `valeurs`, passee comme argument `arg`, leve une
 # erreur R dont le message contient `motif` (fixe), sur les deux branches.
 erreur_usage <- function(arg, valeurs, motif) {
@@ -1234,7 +1247,7 @@ verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#
 # .engine_calcul_protege().
 refus_527 <- function(...) {
   a <- list(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-            nature_donnees = "brutes")
+            nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
   l <- list(...); for (n in names(l)) a[n] <- l[n]
   r <- tryCatch(do.call(run_engine, a), error = function(e) e)
   if (inherits(r, "usp_engine") && identical(r$ok, FALSE)) r$validation$erreurs else NA_character_
@@ -1466,7 +1479,7 @@ erreurs_segment <- function(appels, motif) {
   }, logical(1)))
 }
 appels_segment <- function(...) {
-  s <- list(...)
+  s <- list(..., date_reference = DATE_REFERENCE_TESTS)
   list(c(list(xt = x, yt = y, methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
        c(list(xt = x, yt = y_neg, methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
        c(list(xt = x[1:4], yt = y[1:4], methode = "premium", B = B_MIN_USAGE, nature_donnees = "brutes"), s),
@@ -1520,7 +1533,7 @@ verifier("run_engine : theta_equiv invalide -> refus ok = FALSE en premium et re
          {
            r1 <- usage_premium(theta_equiv = NA)
            r3 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, B = B_MIN_USAGE,
-                            theta_equiv = NA)
+                            theta_equiv = NA, date_reference = DATE_REFERENCE_TESTS)
            r2 <- tryCatch(usage_mw(theta_equiv = NA), error = function(e) e)
            identical(r1$ok, FALSE) && is.null(r1$validation$erreur_r) &&
              contient(r1$validation$erreurs, "(theta_equiv) = NA (valeur manquante) :") &&
@@ -1559,7 +1572,8 @@ verifier("run_engine : methode = \"p\", \"reserve\", NA, NULL, c(\"premium\", \"
          }, logical(1))))
 verifier("run_engine : methode omise -> premium, annexe omise -> II (defauts inchanges, #489)",
          {
-           r <- run_engine(xt = x, yt = y, segment = 1, B = B_MIN_USAGE, nature_donnees = "brutes")
+           r <- run_engine(xt = x, yt = y, segment = 1, B = B_MIN_USAGE, nature_donnees = "brutes",
+                           date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r$ok) && identical(r$metadata$methode, "premium") &&
              identical(r$metadata$annexe, "II")
          })
@@ -1581,7 +1595,8 @@ verifier("run_engine, premium et reserve1 : triangle fourni -> erreur d'usage no
          {
            m1 <- message_489(usage_premium(triangle = tri_usage))
            m3 <- message_489(run_engine(xt = x, yt = y, methode = "reserve1", segment = 1,
-                                        B = B_MIN_USAGE, triangle = tri_usage))
+                                        B = B_MIN_USAGE, triangle = tri_usage,
+                                        date_reference = DATE_REFERENCE_TESTS))
            !is.na(m1) && startsWith(m1, "triangle : argument sans effet pour la methode \"premium\"") &&
              !is.na(m3) && startsWith(m3, "triangle : argument sans effet pour la methode \"reserve1\"") &&
              isTRUE(usage_premium(triangle = NULL)$ok)
@@ -1597,10 +1612,10 @@ verifier("run_engine : filet transparent sans erreur (identique avec et sans int
          {
            sans_temps <- function(r) { r$metadata$horodatage <- NULL; r$metadata$duree_sec <- NULL; r }
            a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                           nature_donnees = "brutes")
+                           nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            ancien <- options(usp.engine.lever_erreurs = TRUE)
            b <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-                           nature_donnees = "brutes")
+                           nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            options(ancien)
            identical(sans_temps(a), sans_temps(b))
          })
@@ -1679,7 +1694,7 @@ verifier("Triangle : Inf, -Inf, NaN signales 'valeur non finie' (pas 'manquante'
 # developpement j.
 refus_mw_527 <- function(t) {
   r <- tryCatch(run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
-                           B = B_MIN_USAGE), error = function(e) e)
+                           B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS), error = function(e) e)
   if (inherits(r, "usp_engine") && identical(r$ok, FALSE) && is.null(r$validation$erreur_r))
     r$validation$erreurs else NA_character_
 }
@@ -1746,7 +1761,7 @@ cel491 <- function(r) with(r$statistiques_descriptives, valeur[grandeur == "Cell
 verifier("Triangle de reference : aucune cellule sous la diagonale signalee, 36 cellules observees (#491)",
          {
            r <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
-                           annexe = "II", B = B_MIN_USAGE)
+                           annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r$ok) && !contient(r$validation$avertissements, "sous la diagonale") &&
              cel491(r) == 36 && contient(r$controles[[1]]$detail, "36 cellules observees")
          })
@@ -1754,9 +1769,9 @@ verifier("Rectangle 8 x 8 complete par C_chapeau : avertissement, 36 cellules, t
          {
            rect <- mw_ajuster(tri491)$C_chapeau
            r0 <- run_engine(methode = "reserve2", triangle = tri491, segment = 1,
-                            annexe = "II", B = B_MIN_USAGE)
+                            annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            r <- run_engine(methode = "reserve2", triangle = rect, segment = 1,
-                           annexe = "II", B = B_MIN_USAGE)
+                           annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            av <- r$validation$avertissements
            isTRUE(r$ok) && !anyNA(rect) &&
              sum(grepl("sous la diagonale", av, fixed = TRUE)) == 1L &&
@@ -1772,7 +1787,7 @@ verifier("Deux cellules sous la diagonale dont une negative : avertissement, pas
            v <- mw_valider_triangle(m)
            l <- engine_lire_triangle(as.data.frame(m))
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
-                           annexe = "II", B = B_MIN_USAGE)
+                           annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(v$ok) && !length(v$erreurs) &&
              contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 4, j = 5), (i = 7, j = 1) (i : annee d'accident, j : annee de developpement) :") &&
              isTRUE(l$ok) && contient(l$avertissements, "(i = 4, j = 5), (i = 7, j = 1)") &&
@@ -1783,7 +1798,7 @@ verifier("Cellule NaN sous la diagonale signalee et remise a NA (#491)",
            m <- tri491; m[8, 3] <- NaN
            v <- mw_valider_triangle(m)
            r <- run_engine(methode = "reserve2", triangle = m, segment = 1,
-                           annexe = "II", B = B_MIN_USAGE)
+                           annexe = "II", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(v$ok) && contient(v$avertissements, "sous la diagonale (i + j > I) en (i = 7, j = 2) (i : annee d'accident, j : annee de developpement) :") &&
              isTRUE(r$ok) && cel491(r) == 36 && identical(r$triangle, tri491)
          })
@@ -1972,7 +1987,7 @@ verifier("repere_profondeur : premium T = 8 pose (texte exact, present une fois 
          {
            v <- engine_valider_donnees(x, y)
            r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                           nature_donnees = "brutes", B = B_MIN_USAGE)
+                           nature_donnees = "brutes", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            identical(v$repere_profondeur, REPERE_T8) && sum(v$avertissements == REPERE_T8) == 1L &&
              isTRUE(r$ok) && identical(r$validation$repere_profondeur, REPERE_T8) &&
              sum(r$validation$avertissements == REPERE_T8) == 1L
@@ -1989,7 +2004,8 @@ verifier("repere_profondeur : T >= 10 vide (character(0)), y compris sur le bare
 verifier("repere_profondeur : reserve2 I + 1 = 8 pose dans res$validation de run_engine(), I + 1 = 10 vide (#499)",
          {
            r <- suppressWarnings(run_engine(methode = "reserve2", triangle = tri499, segment = 1,
-                                            annexe = "II", B = B_MIN_USAGE))
+                                            annexe = "II", B = B_MIN_USAGE,
+                                            date_reference = DATE_REFERENCE_TESTS))
            v10 <- mw_valider_triangle(triangle(10))
            identical(mw_valider_triangle(tri499)$repere_profondeur, REPERE_I8) &&
              isTRUE(r$ok) && identical(r$validation$repere_profondeur, REPERE_I8) &&
@@ -1998,14 +2014,17 @@ verifier("repere_profondeur : reserve2 I + 1 = 8 pose dans res$validation de run
          })
 verifier("repere_profondeur : refus (ok = FALSE) -- champ present, character(0) sans avertissement (nature absente, T non entier, donnees refusees, triangle non numerique) ; refus de nature du triangle : garde, comme les avertissements (#499)",
          {
-           rn <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE)
+           rn <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = B_MIN_USAGE,
+                            date_reference = DATE_REFERENCE_TESTS)
            rt <- run_engine(xt = x12, yt = y12, methode = "premium", segment = 1, annexe = "II",
-                            nature_donnees = "brutes", T = 8.5, B = B_MIN_USAGE)
+                            nature_donnees = "brutes", T = 8.5, B = B_MIN_USAGE,
+                            date_reference = DATE_REFERENCE_TESTS)
            vd <- engine_valider_donnees(replace(x, 3, -1), y)
            vs <- engine_valider_serie_retenue(x12, y12, T = 8.5)
-           rc <- run_engine(methode = "reserve2", triangle = matrix("a", 6, 6), segment = 1, annexe = "II")
+           rc <- run_engine(methode = "reserve2", triangle = matrix("a", 6, 6), segment = 1, annexe = "II",
+                            date_reference = DATE_REFERENCE_TESTS)
            rb <- run_engine(methode = "reserve2", triangle = tri499, segment = 1, annexe = "II",
-                            nature_donnees = "brutes", B = B_MIN_USAGE)
+                            nature_donnees = "brutes", B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
            vide <- function(v) "repere_profondeur" %in% names(v) && identical(v$repere_profondeur, character(0))
            !rn$ok && vide(rn$validation) && !rt$ok && vide(rt$validation) &&
              !vd$ok && vide(vd) && !vs$validation$ok && vide(vs$validation) &&
@@ -2374,7 +2393,8 @@ verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une
 # avertissements_lecture (meme texte, #518).
 avert_527 <- function(r, debut) grep(debut, r$validation$avertissements, fixed = TRUE, value = TRUE)
 ln_527 <- function(xx, yy) run_engine(xt = xx, yt = yy, methode = "premium", segment = 1,
-                                      B = B_MIN_USAGE, nature_donnees = "brutes")
+                                      B = B_MIN_USAGE, nature_donnees = "brutes",
+                                      date_reference = DATE_REFERENCE_TESTS)
 SUITE_AV08_527 <- paste("(i : annee d'accident, j : annee de developpement) : hors de la partie",
                         "observee du triangle, ces cellules ne sont ni lues par le calcul, ni",
                         "restituees dans son resultat, ni comptees parmi les cellules observees ;",
@@ -2405,8 +2425,10 @@ verifier("run_engine reserve2 et engine_lire_triangle : AV-08, une cellule puis 
              d[] <- lapply(d, function(v) ifelse(is.na(v), "", as.character(v)))
              cbind(i = as.character(0:7), d, stringsAsFactors = FALSE)
            }
-           r1 <- run_engine(methode = "reserve2", triangle = t1, segment = 1, B = B_MIN_USAGE)
-           r7 <- run_engine(methode = "reserve2", triangle = t7, segment = 1, B = B_MIN_USAGE)
+           r1 <- run_engine(methode = "reserve2", triangle = t1, segment = 1, B = B_MIN_USAGE,
+                            date_reference = DATE_REFERENCE_TESTS)
+           r7 <- run_engine(methode = "reserve2", triangle = t7, segment = 1, B = B_MIN_USAGE,
+                            date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r1$ok) && isTRUE(r7$ok) &&
              identical(avert_527(r1, "sous la diagonale"), a1) &&
              identical(avert_527(r7, "sous la diagonale"), a7) &&
@@ -4918,7 +4940,7 @@ verifier("Credibilite pleine : detail du bareme applique (segment G(1) / G(2), c
 verifier("Credibilite pleine : duree = T retenu, pas n fourni (run_engine, II-1, n = 16, T = 10 : non atteinte) (#131)",
          {
            r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
-                           T = 10, B = 99, nature_donnees = "brutes")
+                           T = 10, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            l <- ligne_cred(r$controles)
            r$metadata$T == 10 && r$metadata$n_fournies == 16 && identical(l$verdict, "ECHEC") &&
              grepl("T = 10 ; c = 74%", l$detail, fixed = TRUE) &&
@@ -4961,7 +4983,7 @@ verifier("engine_valider_serie_retenue : serie tronquee a T comme run_engine() (
            sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = 10, methode = "premium",
                                               nature_donnees = "brutes", segment = 1)
            r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
-                           T = 10, B = 99, nature_donnees = "brutes")
+                           T = 10, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            identical(sr$validation, r$validation) && identical(sr$xt, xc[7:16]) &&
              identical(sr$yt, yc[7:16]) &&
              contient(sr$validation$avertissements, "T = 10 : credibilite partielle, c = 74%")
@@ -4971,7 +4993,7 @@ verifier("engine_valider_serie_retenue : T refuse = meme validation que run_engi
            sr <- engine_valider_serie_retenue(xc[1:16], yc[1:16], T = Tr, methode = "premium",
                                               nature_donnees = "brutes", segment = 1)
            r <- run_engine(xc[1:16], yc[1:16], methode = "premium", segment = 1, annexe = "II",
-                           T = Tr, B = 99, nature_donnees = "brutes")
+                           T = Tr, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            identical(sr$validation, r$validation) && !sr$validation$ok &&
              length(sr$xt) == 16 && !length(sr$validation$avertissements)
          }, logical(1))))
@@ -4991,9 +5013,9 @@ verifier("#482 : xt et yt de longueurs differentes avec T valide : refus par le 
            s0 <- engine_valider_serie_retenue(xt, yt, methode = "premium",
                                               nature_donnees = "brutes", segment = 1)
            r8 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
-                            T = 8, B = 99, nature_donnees = "brutes")
+                            T = 8, B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            r0 <- run_engine(xt, yt, methode = "premium", segment = 1, annexe = "II",
-                            B = 99, nature_donnees = "brutes")
+                            B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            !s8$validation$ok && identical(s8$validation, s0$validation) &&
              identical(s8$xt, xt) && identical(s8$yt, yt) &&
              identical(s8$validation$erreurs, motif) &&
@@ -5015,7 +5037,7 @@ args154 <- list(T = 8, methode = "premium", nature_donnees = "brutes", segment =
 sr154 <- function(xt, yt, ...)
   do.call(engine_valider_serie_retenue, c(list(xt, yt), args154, list(...)))
 re154 <- function(xt, yt, ...)
-  do.call(run_engine, c(list(xt, yt), args154, list(annexe = "II", B = 99), list(...)))
+  do.call(run_engine, c(list(xt, yt), args154, list(annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS), list(...)))
 verifier("#154 : annee refusable hors des T retenues (x_1 = NA, n = 10, T = 8) : moteur ok, run_engine() ok, serie entiere refusee",
          {
            xn <- x154(NA); yn <- y154(1e6)
@@ -5793,7 +5815,7 @@ avt_pc189 <- function(y) sprintf(paste(
 lancer189 <- function(xx, yy, methode = "premium") suppressWarnings(
   run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
              nature_donnees = if (methode == "premium") "brutes",
-             B = B_MIN_USAGE, seed = 20260831))
+             B = B_MIN_USAGE, seed = 20260831, date_reference = DATE_REFERENCE_TESTS))
 # Les six lignes au motif pertes constantes (ligne Student, #423) : non applicables, INFO, sans
 # p ni statistique ni estimation, inoperant FALSE, detail exact ; chaine
 # vide si conforme, sinon la liste des lignes fautives.
@@ -5938,7 +5960,7 @@ w188 <- engine_sous_graine(15520, stats::rnorm(8))
 lancer188 <- function(xx, yy, methode) suppressWarnings(
   run_engine(xt = xx, yt = yy, methode = methode, segment = 1, annexe = "II",
              nature_donnees = if (methode == "premium") "brutes",
-             B = B_MIN_USAGE, seed = 20260831))
+             B = B_MIN_USAGE, seed = 20260831, date_reference = DATE_REFERENCE_TESTS))
 refus188 <- function(r, borne, methode)
   identical(r$ok, FALSE) && identical(names(r), c("ok", "validation", "metadata")) &&
     is.null(r$validation$erreur_r) && identical(names(r$metadata), c("horodatage", "methode")) &&
@@ -6209,7 +6231,8 @@ verifier("Critere (d) : serie de 9 annees, la premiere a volume 50 : avertisseme
            s9 <- engine_valider_serie_retenue(xx, yy)$validation
            r8 <- suppressWarnings(run_engine(xt = xx, yt = yy, T = 8, methode = "premium",
                                              segment = 1, annexe = "II", nature_donnees = "brutes",
-                                             B = B_MIN_USAGE, seed = 20260831))
+                                             B = B_MIN_USAGE, seed = 20260831,
+                                             date_reference = DATE_REFERENCE_TESTS))
            avt_vc213(x213) %in% s8$avertissements && !a_vc213(s9$avertissements) &&
              isTRUE(r8$ok) && avt_vc213(x213) %in% r8$validation$avertissements
          })
@@ -6435,7 +6458,8 @@ if (base::requireNamespace("zip", quietly = TRUE)) {
 if (length(voies488)) {
   d488 <- jeux488$ln_pert
   calc488 <- function(xt, yt) run_engine(xt = xt, yt = yt, methode = "premium", segment = 1,
-                                         annexe = "II", nature_donnees = "brutes", B = 99)
+                                         annexe = "II", nature_donnees = "brutes", B = 99,
+                                         date_reference = DATE_REFERENCE_TESTS)
   e0_488 <- engine_empreinte(calc488(d488$xt, d488$yt))$donnees
   rc488 <- engine_lire_donnees_csv(lire_csv488(ecrire_csv488(d488)))
   fx488 <- tempfile(fileext = ".xlsx"); engine_ecrire_xlsx(d488, fx488)

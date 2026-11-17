@@ -85,7 +85,8 @@ verifier("U120-4 add() : p Monte-Carlo externe (p_mc_ext) -> nature Monte-Carlo,
 outils120 <- new.env(parent = globalenv())
 sys.source(file.path(.racine120, "tests", "outils_tests.R"), envir = outils120)
 res120 <- suppressWarnings(run_engine(methode = "reserve2", triangle = outils120$.tri,
-                                      segment = 1, annexe = "II", B = B_MIN_USAGE))
+                                      segment = 1, annexe = "II", B = B_MIN_USAGE,
+                                      date_reference = DATE_REFERENCE_TESTS))
 ref120 <- readRDS(file.path(.racine120, "tests", "reference", "reserve2.rds"))
 lil <- function(res) Filter(function(l) identical(l$test, "Lilliefors sur les residus de Mack"),
                             res$tests)[[1]]
@@ -114,9 +115,10 @@ x120 <- c(98.87, 101.8, 99.61, 110.06, 114.15, 111.77, 116.84, 123.69, 129.87, 1
 y120 <- c(75.87, 77.06, 70.25, 63.14, 85.01, 77.8, 80.52, 74.74, 86.66, 95.24,
           115.13, 103.48, 107.49, 93.92, 88.8, 99.52, 101.66, 112.43, 134.2, 136.36)
 r20v <- suppressWarnings(run_engine(xt = x120, yt = y120, methode = "premium", segment = 1,
-                                    B = 99, nature_donnees = "brutes"))
+                                    B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS))
 r20 <- suppressWarnings(run_engine(xt = rep(100, 20), yt = 100 * y120 / x120, methode = "premium",
-                                   segment = 1, B = 99, nature_donnees = "brutes"))
+                                   segment = 1, B = 99, nature_donnees = "brutes",
+                                   date_reference = DATE_REFERENCE_TESTS))
 verifier("U120-5 Anscombe-Glynn a T = 20, pi_t constant (volumes constants) : p retenue = p non simulee, nature NATURE_APPROX_N_FINI",
          {
            l <- Filter(function(l) identical(l$test, "Aplatissement (Anscombe-Glynn, T >= 20)"),

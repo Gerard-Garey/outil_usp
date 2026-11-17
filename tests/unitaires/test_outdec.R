@@ -63,9 +63,11 @@ verifier("OutDec : l'option est restituee par sous_outdec(), erreur comprise",
 # reserve2 : triangle du depot (colonnes degenerees non concernees) ; B reduit,
 # la comparaison porte sur deux appels de meme graine.
 r2_pt <- sous_outdec(".", sans_horloge(run_engine(methode = "reserve2", triangle = tri428,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 r2_vg <- sous_outdec(",", sans_horloge(run_engine(methode = "reserve2", triangle = tri428,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 verifier("OutDec : run_engine(reserve2) sous \",\" identique a celui sous \".\"",
          isTRUE(r2_pt$ok) && identical(r2_pt, r2_vg))
 verifier("OutDec : reserve2, des detail portent un nombre decimal en point, aucun en virgule",
@@ -74,24 +76,28 @@ verifier("OutDec : reserve2, des detail portent un nombre decimal en point, aucu
 
 ln_pt <- sous_outdec(".", sans_horloge(run_engine(xt = x428, yt = y428, methode = "premium",
                                                   segment = 1, annexe = "II",
-                                                  nature_donnees = "brutes", B = 99)))
+                                                  nature_donnees = "brutes", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 ln_vg <- sous_outdec(",", sans_horloge(run_engine(xt = x428, yt = y428, methode = "premium",
                                                   segment = 1, annexe = "II",
-                                                  nature_donnees = "brutes", B = 99)))
+                                                  nature_donnees = "brutes", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 verifier("OutDec : run_engine(premium) sous \",\" identique a celui sous \".\"",
          isTRUE(ln_pt$ok) && identical(ln_pt, ln_vg))
 
 # Refus et avertissements : textes de mw_valider_ajustement() et de la saisie
 tri_neg <- tri428; tri_neg[1, 2] <- 0.5 * tri_neg[1, 1]
 rf_pt <- sous_outdec(".", sans_horloge(run_engine(methode = "reserve2", triangle = tri_neg,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 rf_vg <- sous_outdec(",", sans_horloge(run_engine(methode = "reserve2", triangle = tri_neg,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 verifier("OutDec : triangle a cumuls decroissants (refus ou avertissements), identique sous \",\" et \".\"",
          identical(rf_pt, rf_vg))
 msg_seg <- function(od) sous_outdec(od, tryCatch(
   run_engine(xt = x428, yt = y428, methode = "premium", segment = 1.5, annexe = "II",
-             nature_donnees = "brutes", B = 99),
+             nature_donnees = "brutes", B = 99, date_reference = DATE_REFERENCE_TESTS),
   error = function(e) conditionMessage(e)))
 verifier("OutDec : segment non entier, le refus d'usage cite 1.5 en point, sous \",\" comme sous \".\"",
          is.character(msg_seg(".")) && grepl("1.5", msg_seg(","), fixed = TRUE) &&
@@ -107,9 +113,11 @@ for (i in seq_len(nrow(tri_deg))) {
   if (!is.na(tri_deg[i, J428])) tri_deg[i, J428] <- 1.0123 * tri_deg[i, J428 - 1]
 }
 dg_pt <- sous_outdec(".", sans_horloge(run_engine(methode = "reserve2", triangle = tri_deg,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 dg_vg <- sous_outdec(",", sans_horloge(run_engine(methode = "reserve2", triangle = tri_deg,
-                                                  segment = 1, annexe = "II", B = 99)))
+                                                  segment = 1, annexe = "II", B = 99,
+                                                  date_reference = DATE_REFERENCE_TESTS)))
 verifier("OutDec : triangle degenere a facteurs 1.0457 et 1.0123, identique sous \",\" et \".\"",
          isTRUE(dg_pt$ok) && identical(dg_pt, dg_vg) &&
            any(grepl("facteurs individuels", chaines(dg_pt), fixed = TRUE) &
@@ -123,7 +131,7 @@ x_bas <- x428; x_bas[8] <- 1e-9
 # pour une derogation (valeur retenue 0.1234567 contre 0.1 reglementaire).
 ln_sg <- sans_horloge(run_engine(xt = x428, yt = y428, methode = "premium", segment = 1,
                                  annexe = "II", nature_donnees = "brutes", B = 99,
-                                 sigma_standard = 0.1234567))
+                                 sigma_standard = 0.1234567, date_reference = DATE_REFERENCE_TESTS))
 tri_bas <- tri428; tri_bas[2, 2] <- 0.5 * tri_bas[2, 1]
 entrees <- list(
   engine_valider_donnees = function() engine_valider_donnees(
@@ -289,7 +297,8 @@ df_ln439 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln.cs
 df_tri439 <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
 valides439 <- list(
   run_engine = function() run_engine(xt = x428, yt = y428, methode = "premium", segment = 1,
-                                     annexe = "II", nature_donnees = "brutes", B = 99),
+                                     annexe = "II", nature_donnees = "brutes", B = 99,
+                                     date_reference = DATE_REFERENCE_TESTS),
   engine_lire_xlsx = function() if (peut_ecrire439) engine_lire_xlsx(ft439) else NULL,
   engine_lire_donnees_csv = function() engine_lire_donnees_csv(df_ln439),
   engine_lire_triangle = function() engine_lire_triangle(df_tri439),
@@ -357,10 +366,12 @@ verifier("point d'entree : run_engine(reserve1) sous \",\" identique a celui sou
          {
            a <- sous_outdec(".", sans_horloge(run_engine(xt = x428, yt = y428, methode = "reserve1",
                                                          segment = 1, annexe = "II",
-                                                         nature_donnees = "nettes", B = 99)))
+                                                         nature_donnees = "nettes", B = 99,
+                                                         date_reference = DATE_REFERENCE_TESTS)))
            b <- sous_outdec(",", sans_horloge(run_engine(xt = x428, yt = y428, methode = "reserve1",
                                                          segment = 1, annexe = "II",
-                                                         nature_donnees = "nettes", B = 99)))
+                                                         nature_donnees = "nettes", B = 99,
+                                                         date_reference = DATE_REFERENCE_TESTS)))
            isTRUE(a$ok) && identical(a, b)
          })
 for (nm in c("engine_empreinte", "engine_parametre_standard", "engine_regle_verdicts",

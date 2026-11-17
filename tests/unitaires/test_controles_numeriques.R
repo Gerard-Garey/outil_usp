@@ -913,7 +913,7 @@ verifier("Details des deux controles invariants a une perturbation de gamma de 1
 
 ## --- Place dans le resultat de run_engine() --------------------------------
 res <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II", B = 99,
-                  nature_donnees = "brutes")
+                  nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 tb <- engine_table_tests(res)
 verifier("run_engine : table des tests a 48 lignes hors lecture conjointe (dont les trois de #45 ; LB1r retiree, #303 ; trois lignes retirees, #302 ; ligne Student ajoutee, #423 ; lignes de famille de #297 ajoutees en fin), sans les deux controles numeriques",
          sum(tb$fonction != "engine_p_famille") == 48L &&
