@@ -3468,7 +3468,7 @@ Pour un segment donné et une profondeur $T$~:
   \item $x_1,\dots,x_T$ : primes acquises par année de survenance (méthode risque de primes) ou
         meilleure estimation de la provision en début d'exercice (méthode risque de réserve~1) ;
   \item $y_1,\dots,y_T$ : pertes agrégées (méthode prime~; B(1)(a) et lecture retenue par
-        l'outil~: §\ref{sec:spec-lognormale}) ou paiements de l'exercice augmentés de
+        l'outil~: §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) ou paiements de l'exercice augmentés de
         la meilleure estimation de clôture sur les mêmes sinistres (méthode réserve~1) ;
   \item $r_t = y_t / x_t$ : ratio observé (ratio S/P, ou ratio de liquidation) ;
   \item $\bar x = T^{-1}\sum_t x_t$.
@@ -3519,6 +3519,7 @@ modèle, et H3 ne se teste pas sur les $\ln r_t$ mis en commun (sections~\ref{se
 et~\ref{sec:h3}).
 
 \subsection*{Méthodes lognormales : spécification réglementaire}
+\phantomsection
 \label{sec:spec-lognormale}
 
 Les formules ci-dessous sont la transcription littérale de l'annexe~XVII, section~B,
@@ -5682,14 +5683,18 @@ contrôlées sur les séries ou le triangle fournis~; leur respect est à établ
 dans le dossier (article~219, paragraphe~1, points~a), d) et~e)). Ce sont, pour la méthode du
 risque de primes, B(1)(a) (pertes agrégées~: paiements effectués pendant l'année d'accident au titre des sinistres
 de cette année et meilleure estimation de la provision pour ces sinistres établie à la fin de
-cette année, non réestimée depuis, lecture retenue par l'outil, §\ref{sec:spec-lognormale}), B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
+cette année, non réestimée depuis, lecture retenue par l'outil, §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}), B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
 B(2)(d) (pertes et primes non ajustées ou ajustées de la réassurance selon le paramètre remplacé,
 ce que la nature déclarée atteste, §\ref{sec:segments}), B(2)(e) (pertes agrégées ajustées des
 sinistres catastrophiques dans la mesure où ce risque est pris en considération dans les
 sous-modules «~risque de catastrophe en non-vie~» ou «~risque de catastrophe en santé~») et
 B(2)(f) (dépenses de gestion incluses)~; pour la méthode du risque de réserve n\textsuperscript{o}~1,
-C(2)(a), C(2)(c) et C(2)(d)~; pour la méthode du risque de réserve n\textsuperscript{o}~2, D(2)(a),
-D(2)(f), D(2)(g) et D(2)(d)~: «~pour la première année d'accident, le montant de paiements cumulé
+C(1)(a) ($y_t$~: somme de la meilleure estimation de la provision établie à la fin de l'exercice
+pour les sinistres qui étaient à payer en début d'exercice et des paiements effectués durant
+l'exercice pour ces mêmes sinistres), C(2)(a), C(2)(c) et C(2)(d)~; pour la méthode du risque de
+réserve n\textsuperscript{o}~2, D(1) (montants de paiements cumulés relatifs aux sinistres du
+segment, indiqués séparément pour chaque année d'accident et chaque année de développement des
+paiements), D(2)(a), D(2)(f), D(2)(g) et D(2)(d)~: «~pour la première année d'accident, le montant de paiements cumulé
 de la dernière année de développement pour laquelle des données sont disponibles inclut tous les
 paiements de l'année d'accident à quelque différence non significative près~», un montant de
 paiement étant «~considéré comme important si le fait de l'omettre dans le calcul du paramètre
@@ -18865,7 +18870,7 @@ tête de section)~; aucun résultat général.
 L'implémentation est vérifiée par trois voies~: recalcul indépendant des statistiques, mesure
 du niveau et, quand elle est étudiée, de la puissance à $T = 8$ (par simulation, ou par calcul
 numérique d'une quantité exacte) et confrontation au texte réglementaire, par des transcriptions
-littérales de ses formules (méthodes lognormales, §\ref{sec:spec-lognormale}~; méthode
+littérales de ses formules (méthodes lognormales, §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}~; méthode
 Merz--Wüthrich, §\ref{sec:mw}), complétée, pour la méthode Merz--Wüthrich, par une
 implémentation externe et des valeurs publiées.
 
@@ -20734,7 +20739,7 @@ partie~III).
   article~31 et annexe~XVII~; statut «~Final~»~; question soumise le 13~février 2023),
   \url{https://www.eiopa.europa.eu/qa-regulation/questions-and-answers-database/2580_en}, consultée
   à la date d'établissement du présent document. \emph{Portée.} Réponse au point~1, citée mot pour
-  mot en section~\ref{sec:spec-lognormale}~: les pertes agrégées de B(1)(a) d'une année~$t$ sont
+  mot en section~\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}~: les pertes agrégées de B(1)(a) d'une année~$t$ sont
   les sinistres payés pendant l'année~$t$ et la meilleure estimation des sinistres à payer à la fin
   de la première année de développement de l'année d'accident~$t$. Appui de la lecture de B(1)(a)
   retenue par l'outil, sans valeur juridique propre. La réponse au point~2, sur B(2)(f), n'est pas
@@ -20785,7 +20790,7 @@ statistique ou actuarielle.
 \textbf{Élément documenté} & \textbf{Implémentation dans \code{R/engine.R}} \\
 \midrule
 \endhead
-Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$~; B(5) et C(5), §\ref{sec:spec-lognormale}) & \code{usp\_pi()}, \code{usp\_noyau()} \\
+Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$~; B(5) et C(5), §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) & \code{usp\_pi()}, \code{usp\_noyau()} \\
 Optimisation sous contrainte $\delta\in[0,1]$ (B(6) et C(6)) & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD}~; bord de $\delta$ par \code{usp\_delta\_bord()} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
@@ -20867,7 +20872,7 @@ de $\hat p$, par statistique, dans \code{granularite\_stat}~; lue par \code{add(
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
 \code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()}~; années les plus
 influentes du jackknife~: \code{usp\_jack\_annees()} \\
-Calibration et paramètre final (B(4) et C(4), §\ref{sec:spec-lognormale}) & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
+Calibration et paramètre final (B(4) et C(4), §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
 \code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante
