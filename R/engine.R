@@ -7808,7 +7808,7 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #  - triangle : une colonne entierement vide intercalee est refusee comme
 #    annee de developpement manquante presumee ; une colonne vide portant un
 #    en-tete, en bord, comme annee de developpement sans valeur (motif
-#    distinct, sans renvoi reglementaire) ;
+#    distinct) ; aucun de ces deux motifs ne porte de renvoi reglementaire ;
 #  - series : une colonne entierement vide sans en-tete est retiree ou
 #    qu'elle soit (xt, yt et t sont lus par leur nom) ; une colonne vide qui
 #    porte un en-tete est laissee aux controles par nom (xt, yt ou t vides
