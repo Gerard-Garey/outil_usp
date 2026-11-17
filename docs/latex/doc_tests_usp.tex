@@ -3468,7 +3468,7 @@ Pour un segment donné et une profondeur $T$~:
   \item $x_1,\dots,x_T$ : primes acquises par année de survenance (méthode risque de primes) ou
         meilleure estimation de la provision en début d'exercice (méthode risque de réserve~1) ;
   \item $y_1,\dots,y_T$ : pertes agrégées (méthode prime~; B(1)(a) et lecture retenue par
-        l'outil~: sous-section «~spécification réglementaire~» ci-après) ou paiements de l'exercice augmentés de
+        l'outil~: §\ref{sec:spec-lognormale}) ou paiements de l'exercice augmentés de
         la meilleure estimation de clôture sur les mêmes sinistres (méthode réserve~1) ;
   \item $r_t = y_t / x_t$ : ratio observé (ratio S/P, ou ratio de liquidation) ;
   \item $\bar x = T^{-1}\sum_t x_t$.
@@ -3547,19 +3547,22 @@ suivant l'année d'accident de ces sinistres (pertes agrégées)~;~»}
 \noindent
 B(3)(c) nomme $y_t$ «~les pertes accumulées dans le segment~$s$ durant une année d'accident
 donnée~$t$~»~; l'outil les lit comme les pertes agrégées de B(1)(a), seules pertes que définit
-B(1). \emph{Lecture retenue par l'outil}~: la première année de développement est l'année
+B(1) et seules dont B(2)(g) pose les hypothèses du modèle (relations linéaire et quadratique avec
+les primes acquises, loi log-normale). \emph{Lecture retenue par l'outil}~: la première année de développement est l'année
 d'accident elle-même, numérotée~0 par A(1)(b), qui définit l'année de développement d'un paiement
 comme «~la différence entre l'année de ce paiement et l'année de l'accident auquel il
 correspond~»~; c'est aussi la numérotation de la section~D, où les indices partent de~0 (D(3)(a)
 pour les années d'accident~; D(5)(d)(ii), $j = 0,\dots,J-2$, pour les années de développement).
-$y_t$ est donc la somme des paiements effectués pendant l'année d'accident~$t$ et de la meilleure
-estimation, établie à la fin de cette année, de la provision pour les sinistres survenus pendant
-celle-ci~; une estimation révisée ultérieurement n'en tient pas lieu. Cette lecture est celle de
+$y_t$ est donc la somme des paiements effectués pendant l'année d'accident~$t$ au titre des
+sinistres survenus pendant celle-ci et de la meilleure estimation, établie à la fin de cette
+année, de la provision pour ces mêmes sinistres~; une estimation révisée ultérieurement n'en
+tient pas lieu. Cette lecture est conforme à
 la réponse de l'AEAPP à la question~2580 de sa base de questions-réponses
 (section~\ref{sec:biblio}), qui n'a pas de valeur juridique propre~: «~The aggregated losses
 referred to in Annex XVII B.(1)(a) DR for a given year~$t$ should be equal to the claims paid
 during year~$t$ plus the best estimate of the claims outstanding at the year end of the first
-development year of the accident year~$t$.~» La lecture qui situerait la mesure à la fin de
+development year of the accident year~$t$.~» La réponse retient les paiements de l'année~$t$
+elle-même, ce qui situe la meilleure estimation à la fin de l'année d'accident. La lecture qui situerait la mesure à la fin de
 l'année suivant l'année d'accident n'est pas retenue. Le moteur ne voit que les montants fournis
 et n'en dépend pas~; le contenu de $y_t$ est à établir par l'entreprise (§\ref{sec:controles},
 exigences de données non vérifiables par l'outil).
@@ -5672,9 +5675,9 @@ réserve n\textsuperscript{o}~1, l'autre méthode standard, sous ses propres exi
 portent sur l'origine ou l'élaboration des données, non sur leurs valeurs, et ne peuvent pas être
 contrôlées sur les séries ou le triangle fournis~; leur respect est à établir par l'entreprise,
 dans le dossier (article~219, paragraphe~1, points~a), d) et~e)). Ce sont, pour la méthode du
-risque de primes, B(1)(a) (pertes agrégées~: paiements de l'année d'accident et meilleure
-estimation de la provision établie à la fin de cette année, non réestimée depuis, lecture retenue
-par l'outil, §\ref{sec:spec-lognormale}), B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
+risque de primes, B(1)(a) (pertes agrégées~: paiements effectués pendant l'année d'accident au titre des sinistres
+de cette année et meilleure estimation de la provision pour ces sinistres établie à la fin de
+cette année, non réestimée depuis, lecture retenue par l'outil, §\ref{sec:spec-lognormale}), B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
 B(2)(d) (pertes et primes non ajustées ou ajustées de la réassurance selon le paramètre remplacé,
 ce que la nature déclarée atteste, §\ref{sec:segments}), B(2)(e) (pertes agrégées ajustées des
 sinistres catastrophiques dans la mesure où ce risque est pris en considération dans les
