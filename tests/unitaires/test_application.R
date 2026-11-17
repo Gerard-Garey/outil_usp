@@ -2237,19 +2237,16 @@ testServer(app, {
       identical(ref$titre, ea$TITRE_REFUSE) &&
       grepl("(date_reference = \" 2026-12-31\")", ref$motifs[1], fixed = TRUE))
   # Champ vide : "non declaree" (NULL), jamais "" ni la date du jour. Le
-  # moteur decide : depuis le commit (b3) de la fiche S3, il refuse
-  # l'absence (motif nommant date_reference), que l'application relaie tel
-  # quel ; avant (b3), il la tolerait et le calcul aboutissait a date NA.
-  # L'issue attendue est lue au moteur, jamais deduite ici.
+  # moteur refuse l'absence (date obligatoire, commit (b3) de la fiche S3) ;
+  # l'application relaie ses motifs tels quels (lus au moteur, jamais
+  # recomposes ici).
   session$setInputs(date_reference = "", go = 2)
   dv <- engine_valider_declarations("premium", 1L, "II", "brutes", NULL)
   ref <- dernier_refus()
   a("primes, champ de date vide : transmis comme non declare (NULL), sans erreur R ; refus du moteur (date obligatoire) relaye tel quel, motif en tete nommant date_reference, aucun resultat (#504)",
-    is.null(date_saisie()) && !identical(ref$titre, ea$TITRE_ERREUR) &&
-      if (!isTRUE(dv$ok))
-        is.null(resultat()) && identical(ref$titre, ea$TITRE_REFUSE) &&
-          identical(ref$motifs, dv$erreurs) && grepl("date_reference", ref$motifs[1], fixed = TRUE)
-      else isTRUE(resultat()$ok) && identical(resultat()$metadata$date_reference, NA_character_))
+    is.null(date_saisie()) && !isTRUE(dv$ok) && is.null(resultat()) &&
+      identical(ref$titre, ea$TITRE_REFUSE) && identical(ref$motifs, dv$erreurs) &&
+      grepl("date_reference", ref$motifs[1], fixed = TRUE))
 })
 )---"
   .script <- tempfile(fileext = ".R")

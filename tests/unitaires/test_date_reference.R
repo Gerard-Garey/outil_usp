@@ -1,16 +1,18 @@
 ###############################################################################
 #  tests/unitaires/test_date_reference.R  --  DATE DE REFERENCE DU CALCUL
 #
-#  Issue #504, ADR 0019 (accepte le 17/11/2026), commit (b1) de la fiche S3
-#  de docs/feuille-de-route.md : entrees date_reference, reassurance_np et
-#  cdd_qualifiante de run_engine(), accueillies, controlees et consignees
-#  dans res$metadata. Etat intermediaire teste ici :
+#  Issue #504, ADR 0019 (accepte le 17/11/2026), commits (b1) et (b3) de la
+#  fiche S3 de docs/feuille-de-route.md : entrees date_reference,
+#  reassurance_np et cdd_qualifiante de run_engine(), accueillies, controlees
+#  et consignees dans res$metadata. Etat intermediaire teste ici :
 #    - seul le texte "2019/981" est porte par le moteur ; une date de
 #      reference anterieure au 1.1.2020 (borne M6, #19) ou posterieure ou
 #      egale au 30.1.2027 (reglement delegue (UE) 2026/269, article 2) est
 #      refusee comme hors du domaine (ok = FALSE, sans erreur R) ;
-#    - une date absente est encore toleree (texte "2019/981",
-#      metadata$date_reference NA) ;
+#    - la date est obligatoire (commit (b3)) : son absence est un refus
+#      motive (ok = FALSE, motif nommant date_reference, sans erreur R) ;
+#      appel direct d'usp_parametre_standard() sans date : erreur ; objet a
+#      date NA refuse par les fonctions de trace ;
 #    - une date ou une declaration mal formee est refusee sans conversion ;
 #    - sous "2019/981", les declarations sont consignees sans effet (Q-S3-4)
 #      et aucun resultat ne change (meme double pour le sigma standard).
@@ -66,7 +68,7 @@ verifier("#504 : TEXTES_APPLICABLES, deux lignes, \"2019/981\" du 2020-01-01 et 
 dates_refusees <- list("30/01/2027", "2027-1-30", "2027-02-30", " 2026-12-31", 20261231,
                        as.Date("2026-12-31"), NA, "", c("2026-12-31", "2026-12-31"),
                        NA_character_, "2026-12-31 ", "2026-12-31T00:00:00",
-                       "2019-12-31", "2027-01-30")
+                       "2019-12-31", "2027-01-30", "0999-12-31")
 for (m in methodes504) {
   r <- lapply(dates_refusees, function(x) essai504(appel504(m, date_reference = x)))
   verifier(sprintf("#504 %s : date refusee (mal formee, < 2020-01-01 ou >= 2027-01-30) -> ok = FALSE, motif en tete nommant date_reference, sans erreur R (%d cas)",
@@ -80,11 +82,12 @@ for (m in methodes504) {
                  paste(deparse(x), collapse = " "), character(1)), collapse = " | "))
            })
 }
-verifier("#504 : motifs distincts : forme (\"date_reference = \"), borne M6 (2020-01-01), texte 2026/269 non porte",
+verifier("#504 : motifs distincts : forme (\"date_reference = \"), borne M6 (2020-01-01), texte 2026/269 non porte, absence (\"date_reference absente\")",
          {
            e <- function(x) engine_valider_declarations("premium", 1, "II", "brutes", x)$erreurs
            grepl("non recevable (date_reference = \"2027-1-30\")", e("2027-1-30"), fixed = TRUE) &&
              grepl("anterieure au 2020-01-01", e("2019-12-31"), fixed = TRUE) &&
+             grepl("non declaree (date_reference absente)", e(NULL), fixed = TRUE) &&
              grepl("reglement delegue (UE) 2026/269 y est applicable", e("2027-01-30"), fixed = TRUE) &&
              grepl("format(d, \"%Y-%m-%d\"), ici \"2026-12-31\"", e(as.Date("2026-12-31")),
                    fixed = TRUE)
@@ -103,18 +106,53 @@ verifier("#504 premium nettes II-1 : \"2020-01-01\" et \"2027-01-29\" acceptees,
            identical(sans504(r_2027, "date_reference"), sans504(r_ref, "date_reference")) &&
            identical(r_ref$parametre_final$sigma_standard, 0.8 * 0.10))
 
-## --- Date absente : encore toleree (etat intermediaire) --------------------
-r_sans <- lapply(methodes504, function(m) appel504(m))
+## --- Date absente : refus motive (date obligatoire, commit (b3)) ----------
+# Argument omis, et NULL explicite : meme refus.
+r_sans <- lapply(methodes504, function(m) essai504(appel504(m)))
+r_null <- lapply(methodes504, function(m) essai504(appel504(m, date_reference = NULL)))
 r_avec <- lapply(methodes504, function(m) appel504(m, date_reference = DATE_REFERENCE_TESTS))
-verifier("#504 : date absente toleree (trois methodes) : ok, texte \"2019/981\", metadata$date_reference NA_character_, resultat identical hors date_reference",
-         all(vapply(seq_along(methodes504), function(i) {
-           a <- r_sans[[i]]; b <- r_avec[[i]]
-           isTRUE(a$ok) && isTRUE(b$ok) &&
-             identical(a$metadata$date_reference, NA_character_) &&
-             identical(a$metadata$texte_applicable, "2019/981") &&
-             identical(b$metadata$date_reference, DATE_REFERENCE_TESTS) &&
-             identical(sans504(a, "date_reference"), sans504(b, "date_reference"))
+verifier("#504 : date absente refusee (trois methodes, argument omis ou NULL) : ok = FALSE, sans erreur R, motif en tete nommant date_reference, seul motif, metadata reduite a horodatage et methode",
+         all(vapply(c(r_sans, r_null), function(a)
+           !inherits(a, "error") && identical(a$ok, FALSE) &&
+             length(a$validation$erreurs) == 1L &&
+             grepl("^Date de reference du calcul non declaree \\(date_reference absente\\)",
+                   a$validation$erreurs[1]) &&
+             identical(names(a$metadata), c("horodatage", "methode")), logical(1))) &&
+           identical(vapply(r_sans, function(a) a$metadata$methode, character(1)), methodes504) &&
+           all(vapply(r_avec, function(b) isTRUE(b$ok) &&
+                        identical(b$metadata$date_reference, DATE_REFERENCE_TESTS), logical(1))))
+verifier("#504 engine_valider_declarations() sans date : ok = FALSE, un motif, sans erreur R ; date_reference, texte_applicable et facteur_np NA (trois methodes)",
+         all(vapply(methodes504, function(m) {
+           x <- essai504(engine_valider_declarations(m, 1, "II", if (m == "premium") "nettes" else NULL))
+           !inherits(x, "error") && identical(x$ok, FALSE) && length(x$erreurs) == 1L &&
+             grepl("date_reference", x$erreurs, fixed = TRUE) &&
+             identical(x$date_reference, NA_character_) &&
+             identical(x$texte_applicable, NA_character_) && identical(x$facteur_np, NA_real_)
          }, logical(1))))
+verifier("#504 : date absente et donnees refusees ensemble : motif de date en tete, motif des donnees garde (premium sans nature)",
+         {
+           p <- run_engine(xt = .ln504$xt, yt = .ln504$yt, methode = "premium", segment = 1,
+                           B = B504)
+           identical(p$ok, FALSE) &&
+             grepl("^Date de reference du calcul non declaree", p$validation$erreurs[1]) &&
+             any(grepl("Nature des donnees non declaree", p$validation$erreurs, fixed = TRUE))
+         })
+verifier("#504 : annee < 1000 de forme valide (\"0999-12-31\", \"0000-01-01\") : motif hors du domaine (borne M6), non motif de forme ; date inexistante de petite annee (\"0999-02-29\") ou seculaire non bissextile (\"1900-02-29\") : motif de forme",
+         {
+           e <- function(x) engine_valider_declarations("premium", 1, "II", "brutes", x)
+           a <- e("0999-12-31"); z <- e("0000-01-01")
+           f <- e("0999-02-29"); g <- e("1900-02-29")
+           identical(a$ok, FALSE) && length(a$erreurs) == 1L &&
+             grepl("Date de reference du calcul 0999-12-31 hors du domaine de l'outil : anterieure au 2020-01-01",
+                   a$erreurs, fixed = TRUE) &&
+             identical(a$date_reference, "0999-12-31") &&
+             identical(z$ok, FALSE) && grepl("0000-01-01 hors du domaine", z$erreurs, fixed = TRUE) &&
+             identical(f$ok, FALSE) &&
+             grepl("non recevable (date_reference = \"0999-02-29\")", f$erreurs, fixed = TRUE) &&
+             identical(g$ok, FALSE) &&
+             grepl("non recevable (date_reference = \"1900-02-29\")", g$erreurs, fixed = TRUE) &&
+             isTRUE(e("2024-02-29")$ok)
+         })
 verifier("#504 : metadata porte date_reference, texte_applicable (caractere), reassurance_np et cdd_qualifiante (logiques NA si non declarees), aucun nombre",
          all(vapply(r_avec, function(r) {
            m <- r$metadata
@@ -195,25 +233,38 @@ verifier("#504 engine_valider_declarations() : aucune erreur R pour une declarat
          })
 
 ## --- usp_parametre_standard() : delegation, refus, meme double -------------
-verifier("#504 usp_parametre_standard() : seize segments, trois methodes, brutes et nettes : sigma standard identical avec et sans DATE_REFERENCE_TESTS ; champs de la regle rendus",
+verifier("#504 usp_parametre_standard() : seize segments, trois methodes, brutes et nettes : sans date, erreur ; avec DATE_REFERENCE_TESTS, sigma standard identical a la valeur de la table (NP standard x sigma brut sur donnees nettes) ; champs de la regle rendus",
          {
            ok <- TRUE
            for (a in c("II", "XIV")) for (s in seq_len(if (a == "II") 12L else 4L))
              for (m in methodes504) for (n in if (m == "premium") c("brutes", "nettes") else list(NULL)) {
-               p0 <- usp_parametre_standard(m, s, a, n)
+               inf <- usp_segment_infos(s, a)
+               attendu <- if (m != "premium") inf$sigma_reserve else
+                 if (identical(n, "nettes")) inf$np_standard * inf$sigma_prime_brut else
+                   inf$sigma_prime_brut
                p1 <- usp_parametre_standard(m, s, a, n, date_reference = DATE_REFERENCE_TESTS)
-               ok <- ok && identical(p0$sigma_standard, p1$sigma_standard) &&
-                 identical(p0$sigma_reglementaire, p1$sigma_reglementaire) &&
+               ok <- ok && leve_erreur(usp_parametre_standard(m, s, a, n)) &&
+                 identical(p1$sigma_standard, attendu) &&
+                 identical(p1$sigma_reglementaire, attendu) &&
                  identical(p1$texte_applicable, "2019/981") &&
                  identical(p1$date_reference, DATE_REFERENCE_TESTS)
              }
            ok
          })
+verifier("#504 usp_parametre_standard() appelee directement sans date : erreur nommant date_reference, sigma standard saisi compris (trois methodes)",
+         all(vapply(methodes504, function(m) {
+           n <- if (m == "premium") "brutes" else NULL
+           e1 <- essai504(usp_parametre_standard(m, 1, "II", n))
+           e2 <- essai504(usp_parametre_standard(m, NULL, "II", n, sigma_standard = 0.1))
+           inherits(e1, "error") && grepl("date_reference absente", conditionMessage(e1), fixed = TRUE) &&
+             inherits(e2, "error") && grepl("date_reference absente", conditionMessage(e2), fixed = TRUE)
+         }, logical(1))))
 verifier("#504 usp_parametre_standard() appelee directement : date ou declaration refusee -> erreur (stop), comme la nature des donnees",
          leve_erreur(usp_parametre_standard("premium", 1, "II", "brutes", date_reference = "2027-01-30")) &&
            leve_erreur(usp_parametre_standard("premium", 1, "II", "brutes", date_reference = "2019-12-31")) &&
            leve_erreur(usp_parametre_standard("reserve1", 1, "II", date_reference = as.Date("2026-12-31"))) &&
-           leve_erreur(usp_parametre_standard("reserve2", 1, "II", reassurance_np = "oui")) &&
+           leve_erreur(usp_parametre_standard("reserve2", 1, "II", date_reference = DATE_REFERENCE_TESTS,
+                                              reassurance_np = "oui")) &&
            !leve_erreur(usp_parametre_standard("reserve2", 1, "II", date_reference = "2027-01-29",
                                                cdd_qualifiante = TRUE)))
 
@@ -245,7 +296,7 @@ verifier("#504 : ni Sys.Date ni Sys.time dans all.names() d'engine_valider_decla
                 c(all.names(body(engine_valider_declarations)), all.names(body(usp_parametre_standard)))))
 
 ## --- Trace : objet sans les champs ou altere refuse ------------------------
-verifier("#504 : objet sans l'un des quatre champs, ou a champ de forme invalide, ou a texte_applicable altere : erreur d'engine_parametre_standard() et d'engine_derogations()",
+verifier("#504 : objet sans l'un des quatre champs, ou a champ de forme invalide, ou a date NA (commit (b3)), ou a texte_applicable altere : erreur d'engine_parametre_standard() et d'engine_derogations()",
          {
            base <- r_avec[[1]]
            alteres <- c(
@@ -254,6 +305,7 @@ verifier("#504 : objet sans l'un des quatre champs, ou a champ de forme invalide
              list(local({ r <- base; r$metadata$texte_applicable <- "2026/269"; r }),
                   local({ r <- base; r$metadata$texte_applicable <- NA_character_; r }),
                   local({ r <- base; r$metadata$date_reference <- "2027-01-30"; r }),
+                  local({ r <- base; r$metadata$date_reference <- NA_character_; r }),
                   local({ r <- base; r$metadata$date_reference <- as.Date("2026-12-31"); r }),
                   local({ r <- base; r$metadata$reassurance_np <- "oui"; r }),
                   local({ r <- base; r$metadata$cdd_qualifiante <- 0; r })))
@@ -265,11 +317,13 @@ verifier("#504 : objet sans l'un des quatre champs, ou a champ de forme invalide
                leve_erreur(engine_parametre_standard(r)) && leve_erreur(engine_derogations(r))
              }, logical(1)))
          })
-verifier("#504 engine_parametre_standard() : lignes de la date, du texte et des declarations apres les trois premieres, trois dernieres inchangees ; facteur NP applique (primes)",
+verifier("#504 engine_parametre_standard() : lignes de la date, du texte et des declarations apres les trois premieres, trois dernieres inchangees ; facteur NP applique (primes) ; resultat refuse sans date : NULL, objet a date NA : erreur",
          {
            d <- engine_parametre_standard(r_decl[[1]])
            t <- stats::setNames(d$texte, d$grandeur); v <- stats::setNames(d$valeur, d$grandeur)
-           d0 <- engine_parametre_standard(r_sans[[2]])
+           d1 <- engine_parametre_standard(r_avec[[2]])
+           na_date <- r_avec[[2]]; na_date$metadata$date_reference <- NA_character_
+           e_na <- essai504(engine_parametre_standard(na_date))
            identical(d$grandeur[1:3], c("Nature declaree des donnees", "Parametre standard remplace",
                                         "Exigence relative aux donnees")) &&
              identical(d$grandeur[4:7], c("Date de reference du calcul",
@@ -284,10 +338,12 @@ verifier("#504 engine_parametre_standard() : lignes de la date, du texte et des 
              grepl("^declaree absente ; sans effet pour cette methode",
                    t[["Couverture pour developpements defavorables qualifiante (declaration)"]]) &&
              identical(v[["Facteur NP applique a sigma brut"]], 0.8) &&
-             identical(d0$texte[d0$grandeur == "Date de reference du calcul"], "non declaree") &&
-             grepl("en l'absence de date de reference",
-                   d0$texte[d0$grandeur == "Texte applicable au parametre standard"], fixed = TRUE) &&
-             !"Facteur NP applique a sigma brut" %in% d0$grandeur
+             identical(d1$texte[d1$grandeur == "Date de reference du calcul"], DATE_REFERENCE_TESTS) &&
+             grepl("^2019/981 : ", d1$texte[d1$grandeur == "Texte applicable au parametre standard"]) &&
+             !"Facteur NP applique a sigma brut" %in% d1$grandeur &&
+             is.null(engine_parametre_standard(r_sans[[2]])) &&
+             inherits(e_na, "error") &&
+             grepl("metadata$date_reference absent ou invalide", conditionMessage(e_na), fixed = TRUE)
          })
 
 ## --- Reproductibilite : deux executions identical() ------------------------
