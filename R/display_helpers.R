@@ -3230,10 +3230,15 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       m$methode)
     # Date de reference du calcul et texte applicable (issue #504, ADR 0019,
     # point 7 ; docs/exigences.md, paragraphe 5.6), apres l'horodatage et
-    # avant la methode, lus dans res$metadata ; objet relu sans ces champs
-    # (#263) : tiret. Le texte est designe par le dernier acte modificatif du
-    # reglement delegue (UE) 2015/35 qui change le parametre standard
-    # (CONTEXT.md, "Texte applicable") : son libelle est celui de la ligne
+    # avant la methode, lus dans res$metadata. Un objet sans date de
+    # reference ou sans texte applicable (absent, NA ; objet relu produit
+    # avant #504) n'a pas de rapport : la trace du parametre standard
+    # (.engine_trace_sigma(), ADR 0019, point 5) le refuse par une erreur,
+    # levee par engine_parametre_standard() (via table_parametre_standard(),
+    # ici meme) ou par engine_derogations(). Le tiret de .ou_tiret() n'est
+    # garde que par robustesse. Le texte est designe par le dernier acte
+    # modificatif du reglement delegue (UE) 2015/35 qui change le parametre
+    # standard (CONTEXT.md, "Texte applicable") : son libelle est celui de la ligne
     # "Texte applicable au parametre standard" d'engine_parametre_standard(),
     # repris tel quel (via table_parametre_standard(), comme la nature des
     # donnees ci-dessous), sans etre recompose ici ; ligne introuvable :
