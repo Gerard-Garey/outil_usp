@@ -61,8 +61,10 @@
 # permet pas de reproduire un calcul selon les valeurs de 2015. Borne
 # superieure : l'outil ne vaut que pour une date de reference anterieure au
 # 30.1.2027, date d'application du reglement delegue (UE) 2026/269, qui
-# conditionne le facteur d'ajustement NP de l'art. 117, paragraphe 3 (colonne
-# np_standard ci-dessous) ; ANNEXE_II et ANNEXE_XIV restent celles de M6.
+# modifie notamment l'art. 117 (facteur d'ajustement NP du paragraphe 3,
+# colonne np_standard ci-dessous ; ecart-type du risque de reserve du
+# paragraphe 2, point b)) et l'art. 148 (detail : sec:segments du .tex) ;
+# ANNEXE_II et ANNEXE_XIV restent celles de M6.
 
 # Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
 # sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
