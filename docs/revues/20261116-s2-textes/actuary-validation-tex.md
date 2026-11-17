@@ -146,3 +146,10 @@ primes acquises, loi log-normale)
 - **Décisions non résolues** : la session décide d'appliquer m-2 à m-4 ; elle trie les constats hors périmètre (le mainteneur décide).
 - **Critères déclenchés (§ 4)** : aucun. Il n'y a ni changement de résultat, ni désaccord avec `regulatory` (ses mineurs appliqués sont validés), ni question de validité à T = 8 dans ce diff.
 - **Prochaine action recommandée** : `docwriter` applique m-1 (et, au choix de la session, m-2 à m-4) par un commit `docs:` Refs #586 (Refs #589 pour m-2), puis compile (skill `compiler-doc`). Je relis ensuite ce seul diff, sans nouvelle validation complète. Après cela vient le commit du PDF par la session principale, puis la sortie du brouillon.
+
+---
+
+## Relectures des corrections postérieures (17/11/2026), rapportées par la session
+
+- **Diff `e2db194..f797776`** (m-1 à m-4 et remarque de forme ; commits `49d02df`, `7346685`, `f797776`) : réserve m-1 levée, **visa définitif**. L'adaptation « quand au moins un démarrage à l'optimum a γ sur une borne » est jugée plus exacte que le texte proposé (prédicat `refus <- bord_ensemble && !isTRUE(fit$kkt_au_moins_un)` de `usp_valider_ajustement()`). Aucun nouveau constat.
+- **Diff `f797776..0ca4e1b`** (corrections de la revue finale ; commits `a9968fb`, `0ca4e1b`) : **visa**. C(1)(a) et D(1) ajoutés aux exigences non vérifiables : paraphrases fidèles de la prose consolidée, sans lecture nouvelle (la lecture retenue reste propre à B(1)(a), D-S2-1) ; `\phantomsection` et `\pageref` sans effet sur le fond. Constats hors périmètre inchangés (l. 14175 « minimum global », critère E5 à apprécier ; l. 2906 « quatre fichiers », critère aucun).

@@ -181,3 +181,24 @@ Fichiers concernés :
 Sources :
 - [EIOPA Q&A 2580](https://www.eiopa.europa.eu/qa-regulation/questions-and-answers-database/2580_en)
 - [legislation.gov.uk, annexe XVII (texte adopté, source secondaire, lu par un extrait de recherche)](https://legislation.gov.uk/eur/2015/35/annex/XVII/2014-10-10/data.xht)
+
+---
+
+<!-- Relance ciblée de l'agent regulatory, branche S2, étape 7, 17/11/2026 : paraphrases de C(1)(a) et de D(1) ajoutées par le commit a9968fb. À verser avec le rapport principal. -->
+
+# Relance ciblée : paraphrases de C(1)(a) et de D(1) (`a9968fb`)
+
+Je n'ai rien écrit dans le dépôt. Ma lecture porte sur `git diff f797776..0ca4e1b -- docs/latex/doc_tests_usp.tex`, liste « Exigences de données non vérifiables » de `sec:controles`, l. 5695-5700 à `0ca4e1b`.
+
+**Verdict : les deux paraphrases sont conformes au texte. Aucun remplacement n'est nécessaire.**
+
+| Disposition | Texte (version d'origine, lue sur l'image ; version consolidée) | Paraphrase du `.tex` | Verdict |
+|---|---|---|---|
+| C(1)(a), JOUE L 12, p. 274 | « la somme de la meilleure estimation de la provision établie à la fin de l'exercice pour les sinistres qui étaient à payer en début d'exercice dans le segment s et des paiements effectués durant l'exercice pour les sinistres qui étaient à payer en début d'exercice dans le segment s; ». Texte identique dans la consolidée (XHTML l. 82398 et suivantes), sous ▼B : le seul marqueur de la section C, ►C4, porte sur C(2)(e)(ii). | « $y_t$ : somme de la meilleure estimation de la provision établie à la fin de l'exercice pour les sinistres qui étaient à payer en début d'exercice et des paiements effectués durant l'exercice pour ces mêmes sinistres » | **Conforme**. « ces mêmes sinistres » reprend exactement la répétition du texte. « dans le segment s » est omis mais reste implicite, puisque toute la liste porte sur le segment. L'étiquette y_t est juste : C(3)(c), p. 275, désigne par y_t le montant visé au paragraphe 1, point a). |
+| D(1), JOUE L 12, **p. 276** (et non p. 277) | « […] consistent en montants de paiements cumulés relatifs aux sinistres d'assurance ou de réassurance dans le segment s (montants de sinistres cumulés), indiqués séparément pour chaque année d'accident et chaque année de développement des paiements. ». Texte identique dans la consolidée (XHTML l. 82717 et suivantes), aucun marqueur dans la section D. | « montants de paiements cumulés relatifs aux sinistres du segment, indiqués séparément pour chaque année d'accident et chaque année de développement des paiements » | **Conforme**. « sinistres du segment » résume fidèlement « sinistres d'assurance ou de réassurance dans le segment s ». |
+
+**Pagination.** Le `.tex` ne cite pas de page pour ces deux points, donc il n'y a rien à corriger. Si une page est ajoutée plus tard, il faudra écrire p. 274 pour C(1) et **p. 276** pour D(1) (vérifié sur l'en-tête « L 12/276 »). La p. 277 commence à D(2)(h)(iii).
+
+**Diff hors question.** Le reste du diff (`\phantomsection`, `\pageref`) n'a aucun contenu réglementaire et je ne l'ai pas commenté. Le constat M-3 de mon rapport principal n'est pas touché par cet ajout.
+
+Fichier : `docs/latex/doc_tests_usp.tex` (l. 5695-5700 à `0ca4e1b`).
