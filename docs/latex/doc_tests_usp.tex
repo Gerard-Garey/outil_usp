@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{16~novembre 2026}
-\newcommand{\versiondoc}{3.9}
+\newcommand{\datedoc}{17~novembre 2026}
+\newcommand{\versiondoc}{3.10}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -2549,7 +2549,8 @@ barème de crédibilité (annexe~XVII, section~G)~».
 
 \smallskip
 \emph{Anomalies rédactionnelles du texte consolidé}, relevées sur la version consolidée du
-14~novembre~2024, sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
+14~novembre~2024, sans incidence sur les calculs, et présentes aussi dans la version d'origine
+(\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~75, 142, 143 et~275)~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
 paragraphe~4 écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
 (article~220, paragraphe~1, point~b))~:
@@ -2557,7 +2558,9 @@ le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «
 lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
 l'article~218, paragraphe~1, point~c)~iv), renvoie à l'article~148, paragraphe~2, point~a), au
 lieu du point~b)~: le moteur retient $\sigma_{(\text{res},s)}$ de l'annexe~XIV, sens évident du
-texte.
+texte~; l'article~219, paragraphe~1, point~c), renvoie à l'article~101, paragraphe~3, «~de la
+directive 2009/13/CE~», lue comme la directive 2009/138/CE que complète le règlement~: le moteur
+n'en dépend pas.
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -4364,7 +4367,7 @@ sous le tableau). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
-Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité. Bloquant. \\
+Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité~; annexe~XVII, B/C(1) et B/C(2)(b). Bloquant. \\
 Valeurs finies & aucune valeur infinie & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~2~: exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul. Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
@@ -5532,7 +5535,21 @@ vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années, chacun
 lus par \code{usp\_charger()} étant alors contrôlé séparément, sans comparaison de leurs années
 (paragraphe «~Lecture des fichiers~» ci-dessus)~;
 les hypothèses B(2)(g), C(2)(e) et D(2)(h) sont éprouvées par les tests de la partie~III, qui ne
-les établissent pas.
+les établissent pas. Il en va de même des critères de l'article~219 qui ne relèvent pas de
+l'annexe~XVII~: les données peuvent être intégrées aux méthodes standardisées (paragraphe~1,
+point~b))~: l'outil vérifie seulement que les séries ou le triangle fournis sont recevables par la
+méthode (contrôles de la présente section), non que leurs montants soient ceux que définissent
+B(1), C(1) ou D(1), ni qu'ils soient indexés par année d'accident (B, D) ou par exercice (C)~;
+elles n'empêchent pas l'entreprise de se conformer aux exigences de l'article~101, paragraphe~3,
+de la directive~2009/138/CE (paragraphe~1, point~c), dont le texte écrit «~2009/13/CE~»,
+§\ref{sec:segments})~; lorsque des données externes sont utilisées, elles satisfont aux critères
+supplémentaires du paragraphe~2, points~a) à~e)~: processus de collecte transparent, vérifiable
+par audit et connu de l'entreprise, comparabilité des données de sources différentes, données
+d'entreprises d'activité et de profil de risque similaires, éléments statistiques suffisants
+d'un degré élevé de similitude des distributions de probabilité, en particulier quant à la
+volatilité, et d'homogénéité des distributions sous-jacentes aux données externes. Leur respect
+est à la charge de l'entreprise et à établir dans le dossier (\emph{Journal officiel}, L~12 du
+17~janvier 2015, p.~143--144).
 
 \medskip
 \begin{encadre}
