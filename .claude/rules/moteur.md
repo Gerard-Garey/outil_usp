@@ -9,7 +9,7 @@ paths:
 
 # Règle du moteur : structure d'un résultat de test et reproductibilité
 
-Détail des sous-sections « Structure d'un résultat de test » et « Reproductibilité » de `CLAUDE.md`, et des données réglementaires de « Flux du moteur » (ADR 0017). Document de fond, lu aussi par GPT (`AGENTS.md`, exception bornée à l'interdiction de `.claude/`, Q-56-12). Texte repris à l'identique de `CLAUDE.md` à `d5cdb51`.
+Détail des sous-sections « Structure d'un résultat de test » et « Reproductibilité » de `CLAUDE.md`, et des données réglementaires de « Flux du moteur » (ADR 0017). Document de fond, lu aussi par GPT (`AGENTS.md`, exception bornée à l'interdiction de `.claude/`, Q-56-12). Texte repris à l'identique de `CLAUDE.md` à `d5cdb51` ; section « Reproductibilité » alignée depuis sur l'ADR 0006 annoté le 14/11/2026 (#589).
 
 ## Données réglementaires
 
