@@ -2854,7 +2854,9 @@ le cas réel. Le seuil $10^{-6}$ est
 \emph{empirique}, non théorique~: c'est une \emph{garde de la CI}, plateforme de production des
 références, où chaque exécution du job « Tests du moteur » compare les cas de contrôle à leurs
 références~; un écart au-delà du seuil y est traité comme un changement de résultat, à
-identifier et à expliquer, la CI reproduisant ses références au bit près~; une mise à jour de
+identifier et à expliquer, la CI, où deux exécutions successives sont identiques au bit près
+sous les bibliothèques de référence (propriété mesurée, non démontrée, ci-après), ne s'écartant pas
+de ses références à image constante~; une mise à jour de
 l'image du système, consignée, peut aussi en produire un. Il n'est pas une marge calée sur la dérive d'un poste de travail, qui peut le
 dépasser sans défaut (ci-après).
 
@@ -2876,7 +2878,8 @@ réplication à la statistique observée, $1{,}3\cdot 10^{-3}$ et $2{,}0\cdot 10
 cent fois la dérive maximale, si bien qu'aucun décompte Monte-Carlo n'est atteint, ni aucune
 p-value, aucun verdict, ni $\sigma_{\mathrm{USP}}$, qui ne dépend d'aucun tirage. Ces deux
 écarts viennent de la plateforme~: à code, données et graines identiques, chaque machine
-reproduit son propre résultat au bit près, et la CI reproduit ses références~; le mécanisme
+reproduit son propre résultat au bit près, et la CI ne s'écarte pas de ses références à image
+constante~; le mécanisme
 numérique qui les porte au-delà du seuil, pour cette seule réplication, n'est pas établi. Sur le
 poste,
 \code{tests/test\_reproductibilite.R} peut donc échouer sans défaut, et la batterie y est jugée
