@@ -233,7 +233,7 @@ pe_moteur439 <- get(".engine_point_decimal", envir = env_moteur439)
 # 12 + 7 dont 3 communes, plus engine_ecrire_csv(), nee en K2, #488), et
 # engine_valider_declarations(), point d'entree depuis le commit (b3) de S3
 # (decision du mainteneur du 17/11/2026 sur les motifs d'avant clic, #504),
-# que app.R appelle a partir du commit (d2) (PE_NON_CITES439 ci-dessous). Les appels
+# que app.R appelle depuis le commit (d2) (motifs d'avant clic). Les appels
 # directs documentes de fonctions qui n'en sont pas (test_mann_kendall(),
 # dw_p_exacte()...) ne sont pas enveloppes : les decimal.mark y suffisent.
 PE439 <- c("run_engine", "engine_lire_xlsx", "engine_lire_donnees_csv",
@@ -256,11 +256,11 @@ citees439 <- intersect(unique(unlist(lapply(
 # Points d'entree poses avant que l'application ne les cite : egalite exacte
 # avec PE439 prive de cette liste, donc aussi stricte que setequal(citees439,
 # PE439) ; une fonction citee sans etre de PE439, ou un point d'entree de la
-# liste deja cite, la fait echouer. Etat du commit (b3) de S3 (#504) : le
-# commit (d2), qui fait appeler engine_valider_declarations() par app.R, fait
-# echouer cette assertion et vide la liste (character(0)).
-PE_NON_CITES439 <- "engine_valider_declarations"
-verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 17 attendues, hors engine_valider_declarations(), pas encore citee (#504, commit (d2))",
+# liste deja cite, la fait echouer. Vide depuis le commit (d2) de S3 (#504),
+# qui fait appeler engine_valider_declarations() par app.R : l'egalite est
+# alors setequal(citees439, PE439).
+PE_NON_CITES439 <- character(0)
+verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 17 attendues",
          all(PE_NON_CITES439 %in% PE439) &&
            setequal(citees439, setdiff(PE439, PE_NON_CITES439)))
 for (nm in PE439) {

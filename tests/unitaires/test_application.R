@@ -120,8 +120,13 @@
 #     transmission par les deux appels (primes, reserve no 1 et no 2,
 #     declaration non affichee non transmise), bloc Etat lu dans
 #     res$metadata, date non recevable et champ vide : refus du moteur
-#     relaye sans erreur R. Tous les scenarios qui cliquent "Relancer les
-#     calculs" saisissent la date (DATE_REFERENCE_TESTS).
+#     relaye sans erreur R ; motifs d'avant clic (commit (d2) de S3) : ceux
+#     d'engine_valider_declarations() tels quels, dans l'apercu (champ vide
+#     au demarrage, date mal formee ; aucun pour une date valide) et en tete
+#     des deux refus "non lance" (series, triangle), sans erreur R pour une
+#     methode, un segment ou une annexe hors du domaine du moteur. Tous les
+#     scenarios qui cliquent "Relancer les calculs" pour un calcul abouti
+#     saisissent la date (DATE_REFERENCE_TESTS).
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -2248,6 +2253,82 @@ testServer(app, {
       identical(ref$titre, ea$TITRE_REFUSE) && identical(ref$motifs, dv$erreurs) &&
       grepl("date_reference", ref$motifs[1], fixed = TRUE))
 })
+# Motifs d'avant clic (commit (d2) de S3, ADR 0019, point 7) : ceux
+# d'engine_valider_declarations(), appelee telle quelle (motifs_declarations()),
+# en tete de l'apercu et des deux refus "non lance". Le champ de date n'est
+# pas saisi : au demarrage, le navigateur n'a encore rien envoye (NULL).
+apercu504 <- function(output) tryCatch(as.character(output$validation_live$html),
+                                       error = function(e) e)
+# Position du motif m (rendu en <li>) dans l'apercu, -1 s'il en est absent.
+pos504 <- function(ap, m) regexpr(as.character(tags$li(m)), ap, fixed = TRUE)[1]
+# Elements <li> du bloc des refus de l'apercu (div class="err"), dans l'ordre.
+err504 <- function(ap) {
+  bloc <- regmatches(ap, regexpr('(?s)<div class="err">.*?</div>', ap, perl = TRUE))
+  if (!length(bloc)) character(0) else regmatches(bloc, gregexpr("(?s)<li>.*?</li>", bloc, perl = TRUE))[[1]]
+}
+base504 <- base[names(base) != "date_reference"]
+testServer(app, {
+  do.call(session$setInputs, c(base504, list(reinit = 1)))
+  do.call(session$setInputs, saisie504)
+  dv <- engine_valider_declarations("premium", 1L, "II", "brutes", NULL)$erreurs
+  ap <- apercu504(output)
+  a("avant clic, champ de date vide au demarrage : motif d'engine_valider_declarations() tel quel, nommant date_reference, seul refus de l'apercu (donnees par defaut valides) (#504, (d2))",
+    length(dv) == 1L && grepl("date_reference", dv, fixed = TRUE) &&
+      identical(motifs_declarations(), dv) && is.character(ap) &&
+      grepl(paste0("<b>", ea$TITRE_APERCU_REFUS, "</b>"), ap, fixed = TRUE) &&
+      identical(err504(ap), as.character(tags$li(dv))) &&
+      !grepl("Donnees valides.", ap, fixed = TRUE))
+  session$setInputs(date_reference = "")
+  a("avant clic, champ de date \"\" : memes motifs que sans saisie (non declaree) (#504, (d2))",
+    identical(motifs_declarations(), dv) && pos504(apercu504(output), dv) > 0L)
+  session$setInputs(date_reference = "2026-13-01")
+  dm <- engine_valider_declarations("premium", 1L, "II", "brutes", "2026-13-01")$erreurs
+  a("avant clic, date mal formee \"2026-13-01\" : motif du moteur nommant date_reference, dans l'apercu (#504, (d2))",
+    identical(motifs_declarations(), dm) && length(dm) == 1L &&
+      grepl("(date_reference = \"2026-13-01\")", dm, fixed = TRUE) &&
+      pos504(apercu504(output), dm) > 0L)
+  session$setInputs(date_reference = DATE_REFERENCE_TESTS)
+  ap <- apercu504(output)
+  a("avant clic, date valide : aucun motif de date ni de declaration, aucun refus dans l'apercu (#504, (d2))",
+    identical(motifs_declarations(), character(0)) && is.character(ap) &&
+      !grepl("class=\"err\"", ap, fixed = TRUE) && !grepl("date_reference", ap, fixed = TRUE))
+  # Gardes : le moteur leve stop() pour une methode, une annexe ou un segment
+  # hors de son domaine ; l'apercu n'affiche aucune erreur R.
+  session$setInputs(date_reference = "", methode = "inconnue")
+  ap <- apercu504(output)
+  a("avant clic, methode hors des choix du panneau : aucun motif, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), character(0)) && is.character(ap))
+  session$setInputs(methode = "premium", segment = "99")
+  ap <- apercu504(output)
+  a("avant clic, segment hors de l'annexe : motif de date du moteur, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), dv) && is.character(ap) && pos504(ap, dv) > 0L)
+  session$setInputs(annexe = "XX", segment = "1")
+  ap <- apercu504(output)
+  a("avant clic, annexe inconnue : motif de date du moteur, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), dv) && is.character(ap) && pos504(ap, dv) > 0L)
+  # Refus "non lance" (series) : motifs de la date en tete, puis ceux des
+  # donnees, dans l'ordre du moteur.
+  session$setInputs(annexe = "II", x_1 = -5, go = 1)
+  ref <- dernier_refus()
+  vd <- engine_valider_serie_retenue(replace(d504$xt, 1L, -5), d504$yt, T = 8,
+                                     methode = "premium", nature_donnees = "brutes",
+                                     segment = 1L, annexe = "II")$validation
+  a("clic, series non valides et date vide : refus \"non lance\", motif de date en tete puis motifs des donnees (#504, (d2))",
+    identical(ref$titre, ea$TITRE_NON_LANCE) && is.null(resultat()) && !isTRUE(vd$ok) &&
+      identical(ref$motifs, c(dv, vd$erreurs)))
+  # Reserve no 2 : apercu et refus "non lance" (triangle), memes motifs.
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, saisie_tri504)
+  dv2 <- engine_valider_declarations("reserve2", 1L, "II", NULL, NULL)$erreurs
+  a("avant clic, reserve no 2, champ de date vide : motif du moteur dans l'apercu du triangle (#504, (d2))",
+    identical(motifs_declarations(), dv2) && pos504(apercu504(output), dv2) > 0L)
+  session$setInputs(c_1_1 = NA, go = 2)
+  ref <- dernier_refus()
+  vt <- mw_valider_triangle(lire_triangle(), segment = 1L, annexe = "II")
+  a("clic, triangle non valide et date vide : refus \"non lance\", motif de date en tete puis motifs du triangle (#504, (d2))",
+    identical(ref$titre, ea$TITRE_NON_LANCE) && is.null(resultat()) && !isTRUE(vt$ok) &&
+      identical(ref$motifs, c(dv2, vt$erreurs)))
+})
 )---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
@@ -2402,8 +2483,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 160 assertions rendues", length(.lignes) == 160L)
-  if (length(.lignes) != 160L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 170 assertions rendues", length(.lignes) == 170L)
+  if (length(.lignes) != 170L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

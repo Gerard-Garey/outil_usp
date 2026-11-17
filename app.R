@@ -366,6 +366,13 @@ charger_mw <- function() {
 PROFONDEUR_MIN <- 5L
 PROFONDEUR_MAX <- 40L
 
+# Choix du champ Methode (selectInput "methode"), partages avec la garde des
+# motifs d'avant clic (methode_recevable(), issue #504) : une seule source,
+# celle du panneau.
+CHOIX_METHODE <- c("Risque de prime (section B)" = "premium",
+                   "Risque de reserve 1 (section C)" = "reserve1",
+                   "Risque de reserve 2 - Merz-Wuthrich (section D)" = "reserve2")
+
 # Refus d'un triangle de plus de T_max annees d'accident, importe ou lu au
 # demarrage (issue #212, regle "T = donnees chargees" du mainteneur du
 # 14/10/2026) : meme borne que la reinitialisation (PROFONDEUR_MAX, borne du
@@ -884,10 +891,7 @@ ui <- fluidPage(
       width = 3,
       div(class = "bloc",
           h4("Parametres de calcul"),
-          selectInput("methode", "Methode (annexe XVII)",
-                      c("Risque de prime (section B)" = "premium",
-                        "Risque de reserve 1 (section C)" = "reserve1",
-                        "Risque de reserve 2 - Merz-Wuthrich (section D)" = "reserve2")),
+          selectInput("methode", "Methode (annexe XVII)", CHOIX_METHODE),
           helpText(textOutput("aide_methode", inline = TRUE)),
           radioButtons("annexe", "Perimetre", inline = TRUE,
                        choices = c("Non-vie (annexe II)" = "II",
@@ -1026,6 +1030,17 @@ segment_recevable <- function(s, a) {
   num <- SEGMENTS$segment[SEGMENTS$annexe == a]
   i <- match(as.character(s), as.character(num))
   if (is.na(i)) NULL else as.integer(num[i])
+}
+
+# Methode transmise a engine_valider_declarations() avant le clic (issue
+# #504) : la valeur saisie si c'est l'un des choix du panneau
+# (CHOIX_METHODE), NULL sinon (champ pas encore lu, valeur inattendue,
+# inatteignable depuis l'interface). Le moteur leve une erreur d'usage
+# (stop()) pour une methode hors de son domaine : l'apercu n'en montre
+# aucune ; au clic, run_engine() leve la meme erreur, restituee par
+# conserver(). Garde de la meme nature que segment_recevable().
+methode_recevable <- function(m) {
+  if (is.character(m) && length(m) == 1L && !is.na(m) && m %in% CHOIX_METHODE) m else NULL
 }
 
 # Titre du bloc des erreurs de l'apercu (issue #183, constat 2) : le moteur
@@ -1195,6 +1210,23 @@ server <- function(input, output, session) {
     else if (identical(v, "oui")) TRUE
     else if (identical(v, "non")) FALSE
     else v
+  }
+  # Motifs d'avant clic de la date de reference et des declarations (issue
+  # #504, ADR 0019, point 7) : ceux d'engine_valider_declarations(), appelee
+  # telle quelle avec les entrees transmises au clic ; aucune regle ici.
+  # Gardes de l'apercu : methode_recevable(), segment_apercu() et
+  # annexe_apercu() (le moteur leve stop() pour une methode, une annexe ou un
+  # segment hors de son domaine) ; methode non recevable : aucun motif.
+  # Places en tete de l'apercu et des deux refus "non lance", comme en tete
+  # de validation$erreurs au clic.
+  motifs_declarations <- function() {
+    m <- methode_recevable(input$methode)
+    if (is.null(m)) return(character(0))
+    engine_valider_declarations(m, segment = segment_apercu(), annexe = annexe_apercu(),
+                                nature_donnees = nature_saisie(),
+                                date_reference = date_saisie(),
+                                reassurance_np = declaration_saisie("reassurance_np"),
+                                cdd_qualifiante = declaration_saisie("cdd_qualifiante"))$erreurs
   }
 
   # Retour anticipe de observeEvent(input$go) : on retire le resultat du
@@ -1498,14 +1530,17 @@ server <- function(input, output, session) {
                                              nature_donnees = nature_saisie(),
                                              segment = segment_apercu(),
                                              annexe = annexe_apercu())$validation }
+    # Motifs de la date de reference et des declarations en tete (issue
+    # #504), comme au clic : le champ de date vide au demarrage y est signale.
+    erreurs <- c(motifs_declarations(), v$erreurs)
     tagList(
-      if (length(v$erreurs))
+      if (length(erreurs))
         div(class = "err", tags$b(TITRE_APERCU_REFUS),
-            tags$ul(lapply(v$erreurs, tags$li))),
+            tags$ul(lapply(erreurs, tags$li))),
       if (length(v$avertissements))
         div(class = "avert", tags$b("Avertissements :"),
             tags$ul(lapply(v$avertissements, tags$li))),
-      if (isTRUE(v$ok) && !length(v$avertissements))
+      if (isTRUE(v$ok) && !length(erreurs) && !length(v$avertissements))
         div(style = "color:#1E8449", "Donnees valides.")
     )
   })
@@ -1655,7 +1690,8 @@ server <- function(input, output, session) {
       m <- lire_triangle()
       v <- mw_valider_triangle(m, segment = segment_apercu(), annexe = annexe_apercu())
       if (!v$ok) {
-        refuser(TITRE_NON_LANCE, v$erreurs)
+        # Motifs de la date et des declarations en tete (issue #504).
+        refuser(TITRE_NON_LANCE, c(motifs_declarations(), v$erreurs))
         # Texte fixe (issue #226) : les deux premiers motifs, seuls repris
         # jusqu'ici, sont aussi dans le bandeau, qui les porte tous (issue
         # #287, plafond de six motifs leve).
@@ -1698,7 +1734,8 @@ server <- function(input, output, session) {
                                         segment = segment_apercu(),
                                         annexe = annexe_apercu())$validation
       if (!v$ok && !is.na(v$T)) {
-        refuser(TITRE_NON_LANCE, v$erreurs)
+        # Motifs de la date et des declarations en tete (issue #504).
+        refuser(TITRE_NON_LANCE, c(motifs_declarations(), v$erreurs))
         # Texte fixe (issue #287, option (a)), comme les trois autres
         # notifications de refus (#226) : la notification recopiait tous les
         # motifs (jusqu'a 7 motifs et 1 229 caracteres, mesure de l'issue
