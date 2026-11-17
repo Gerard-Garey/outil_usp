@@ -16299,16 +16299,22 @@ engine_regle_verdicts <- function(alpha) {
 
   # Segment connu, ou sigma_standard fourni : deja verifie avant la
   # validation du triangle par .engine_verifier_usage() (constat 4 de la
-  # revue finale de #88) ; le stop() ci-dessous n'est plus atteint depuis
-  # run_engine().
+  # revue finale de #88) ; le stop() d'usp_parametre_standard() pour ce cas
+  # (ni segment ni sigma_standard) n'est pas atteint depuis run_engine().
+  # infos ne sert plus qu'au libelle du segment (metadata$libelle_segment).
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   # Saisie libre du sigma standard : derogation au parametre reglementaire,
   # restituee par metadata$sigma_standard_saisi (issue #55).
+  # sigma(res,s) obtenu, comme dans la branche lognormale et dans
+  # .engine_trace_sigma(), par usp_parametre_standard(), seul point
+  # d'obtention du parametre standard (issue #504, ADR 0019, point 6) : meme
+  # double que l'ancienne lecture directe de la table (valeur de la table
+  # reprise telle quelle, ou sigma_standard saisi rendu tel quel). La nature
+  # des donnees est controlee plus haut (.nature_erreurs(), ok = FALSE) : le
+  # stop() correspondant d'usp_parametre_standard() n'est pas atteint ici.
   saisi <- !is.null(sigma_standard)
-  if (is.null(sigma_standard)) {
-    if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
-    sigma_standard <- infos$sigma_reserve      # methode de reserve : sigma(res,s)
-  }
+  sigma_standard <- usp_parametre_standard("reserve2", segment, annexe, nature_donnees,
+                                           sigma_standard)$sigma_standard
   # Saisie libre du bareme : derogation au bareme de la section G, restituee
   # par metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
   saisi_bareme <- !is.null(bareme)

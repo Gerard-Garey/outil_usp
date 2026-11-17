@@ -644,6 +644,60 @@ verifier("engine_parametre_standard, reserve : nettes (exigence), a) iv), deroga
              identical(d3$texte[d3$grandeur == "Origine du sigma standard retenu"],
                        "sigma standard saisi, derogation au parametre reglementaire")
          })
+## --- Seul point d'obtention du parametre standard (issue #504) -------------
+# ADR 0019, point 6 : les trois lecteurs du parametre standard (branche
+# lognormale de run_engine(), branche Merz-Wuthrich .run_engine_mw(),
+# .engine_trace_sigma()) l'obtiennent par usp_parametre_standard(), et la
+# branche Merz-Wuthrich ne lit plus la colonne sigma_reserve de la table.
+# Espion pose dans environment(run_engine) (ADR 0016), qui delegue a la
+# fonction d'origine et note la fonction appelante (sys.function() du cadre
+# sys.parent()), restaure en sortie.
+verifier("#504 : un espion pose a la place d'usp_parametre_standard() est appele par run_engine() (premium, reserve1), .run_engine_mw() (reserve2) et .engine_trace_sigma() ; resultats inchanges",
+         local({
+           e <- environment(run_engine)
+           orig <- get("usp_parametre_standard", envir = e, inherits = FALSE)
+           note <- new.env(parent = emptyenv()); note$appelants <- character(0)
+           # Appelant identifie par sa fonction (do.call() ne garde pas le nom).
+           lecteurs <- c("run_engine", ".run_engine_mw", ".engine_trace_sigma")
+           espion <- function(...) {
+             f <- sys.function(sys.parent())
+             nom <- Find(function(n) identical(get(n, envir = e, inherits = FALSE), f), lecteurs)
+             note$appelants <- c(note$appelants, if (is.null(nom)) "(autre)" else nom)
+             orig(...)
+           }
+           appelants_de <- function(expr) {
+             note$appelants <- character(0)
+             r <- expr
+             list(r = r, appelants = note$appelants)
+           }
+           assign("usp_parametre_standard", espion, envir = e)
+           o <- tryCatch({
+             p  <- appelants_de(do.call(run_engine, c(.args55, nature_donnees = "brutes")))
+             r1 <- appelants_de(run_engine(xt = .ln_m6$xt, yt = .ln_m6$yt, methode = "reserve1",
+                                           segment = 1, annexe = "II", B = B_M6))
+             r2 <- appelants_de(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1,
+                                           annexe = "II", B = B_M6))
+             r2s <- appelants_de(run_engine(methode = "reserve2", triangle = .tri_m6, segment = 1,
+                                            annexe = "II", B = B_M6, sigma_standard = 0.15))
+             tr <- appelants_de(engine_parametre_standard(r2$r))
+             list(p = p, r1 = r1, r2 = r2, r2s = r2s, tr = tr)
+           }, finally = assign("usp_parametre_standard", orig, envir = e))
+           identical(get("usp_parametre_standard", envir = e, inherits = FALSE), orig) &&
+             identical(o$p$appelants, "run_engine") &&
+             identical(o$r1$appelants, "run_engine") &&
+             identical(o$r2$appelants, ".run_engine_mw") &&
+             identical(o$r2s$appelants, ".run_engine_mw") &&
+             identical(o$tr$appelants, ".engine_trace_sigma") &&
+             identical(sans_exec(o$p$r), sans_exec(r_b)) &&
+             identical(sans_exec(o$r1$r), sans_exec(r1_sans)) &&
+             identical(sans_exec(o$r2$r), sans_exec(r2_sans)) &&
+             identical(o$r2$r$parametre_final$sigma_standard, 0.09) &&
+             identical(o$r2s$r$parametre_final$sigma_standard, 0.15) &&
+             identical(o$tr$r, engine_parametre_standard(r2_sans))
+         }))
+verifier("#504 : sigma_reserve absent de all.names(body(.run_engine_mw)) (aucune lecture directe de la table)",
+         !"sigma_reserve" %in% all.names(body(get(".run_engine_mw", envir = environment(run_engine),
+                                                    inherits = FALSE))))
 ## --- Bareme de credibilite saisi : derogation declaree (issue #93) ----------
 # Source : annexe XVII, section G, points (1) et (2) (marqueur B, JOUE L 12
 # du 17.1.2015, p. L 12/282) : le bareme est une fonction du segment et de
