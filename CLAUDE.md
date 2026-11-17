@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II : règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII.
 - Textes sources à la racine : `Règlement délégué.pdf` (JOUE L 12 du 17.1.2015) et `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml`.
+- Modificatif à la racine : `Règlement délégué 2026-269.pdf` (JO série L 2026/269 du 18.2.2026, applicable au 30.1.2027 ; #504, Q-65-3).
 - **La version consolidée est la référence de lecture** (sans effet juridique propre : font foi les versions du JOUE) ; sa MSEP de l'annexe XVII D(5) diffère de 2015 (ADR 0005).
 - Les formules sont des images : les lire en rendu graphique, jamais par extraction de texte (#7). Données `usp_*.csv/.xlsx` non versionnées.
 - Dépôt de référence public `https://github.com/Gerard-Garey/outil_usp`, employé en local et en session cloud.
