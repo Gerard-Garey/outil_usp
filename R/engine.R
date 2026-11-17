@@ -58,7 +58,7 @@
 # LIMITE DE PERIMETRE : l'outil ne vaut que pour un calcul dont la date de
 # reference est posterieure ou egale a la date d'application du reglement
 # delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
-# l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
+# l'annexe XVII est celui applicable a la date de reference du calcul. Il ne
 # permet pas de reproduire un calcul selon les valeurs de 2015. La borne est
 # controlee sur la date de reference du calcul (argument date_reference de
 # run_engine(), table TEXTES_APPLICABLES ci-dessous,
@@ -186,8 +186,9 @@ SEGMENTS$cle <- paste0(SEGMENTS$annexe, "-", SEGMENTS$segment)
 #    2019, article 2 (JO L 161 du 18.6.2019, p. 40) : annexes II et XIV
 #    remplacees (M6 ; points 66) et 74) de son article 1er) a partir du
 #    1er janvier 2020 ; art. 117, paragraphe 3, et art. 148 dans leur version
-#    d'origine. Date reprise de l'ADR 0005 et de sec:segments du .tex (ADR
-#    0019, point 2), non relue a l'image pour ce commit.
+#    d'origine. Date, page et points relus a l'image sur le JOUE L 161 du
+#    18.6.2019 (p. 40 : article 2 ; p. 39 : points 66) et 74) de l'article
+#    1er), controle aval de regulatory du 17/11/2026 (issue #504).
 #  - "2026/269" : reglement delegue (UE) 2026/269 de la Commission du 29
 #    octobre 2025, article 2 (JO serie L du 18.2.2026, p. 94 du PDF verse a
 #    la racine du depot) : "Il est applicable a partir du 30 janvier 2027" ;
@@ -695,7 +696,9 @@ NATURES_DONNEES <- c("brutes", "nettes")
       "Nature des donnees non declaree : pour la methode du risque de primes, declarer",
       "des donnees \"brutes\" (non ajustees de la reassurance, annexe XVII, B(2)(c) :",
       "sigma brut de l'annexe) ou \"nettes\" (ajustees de la reassurance, B(2)(d) :",
-      "NP standard x sigma brut) ; aucune valeur par defaut."))
+      "facteur NP x sigma brut ; selon le texte applicable a la date de reference, le",
+      "facteur NP standard s'applique sans condition ou seulement si une reassurance",
+      "non proportionnelle est declaree, 100 % sinon) ; aucune valeur par defaut."))
   }
   # Robustesse (audit de la reprise de #55) : une methode non scalaire ou non
   # textuelle n'est pas une methode de reserve, sans erreur R "condition has
@@ -910,12 +913,14 @@ engine_valider_declarations <- function(methode, segment = NULL, annexe = "II",
         erreurs <- c(erreurs, sprintf(paste(
           "Declaration de reassurance non proportionnelle exigee (reassurance_np absente) :",
           "a la date de reference %s, le reglement delegue (UE) 2026/269 est applicable, et",
-          "l'ecart type du risque de primes du segment %s de l'annexe %s sur donnees nettes",
-          "est le produit de l'ecart type brut par le facteur NP standard (%s) s'il existe",
+          "le parametre standard remplace sur donnees nettes (art. 218, paragraphe 1, point",
+          "%s i)), ecart type du risque de primes du segment %s de l'annexe %s, est le",
+          "produit de l'ecart type brut par le facteur NP standard (%s) s'il existe",
           "une reassurance non proportionnelle pour ce segment, par 100 %% sinon (%s,",
           "paragraphe 3, dans sa version modifiee) ; declarer TRUE ou FALSE (%s), sans",
           "valeur par defaut."),
-          date_reference, format(segment, decimal.mark = "."), annexe,
+          date_reference, if (identical(annexe, "XIV")) "c)" else "a)",
+          format(segment, decimal.mark = "."), annexe,
           format(infos$np_standard, decimal.mark = "."),
           if (identical(annexe, "XIV")) "art. 148" else "art. 117",
           paste("reassurance non proportionnelle couvrant ce segment, en place pour les",
