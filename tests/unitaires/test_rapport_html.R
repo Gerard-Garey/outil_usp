@@ -33,7 +33,9 @@
 #  fige ; issue #236) ; regle des verdicts (html_regle_verdicts(), alpha du
 #  resultat) en tete de la section des tests du rapport, absente de la
 #  section des controles, colonne Sens des tableaux de synthese et de detail,
-#  texte_alpha_divergent() (issue #498).
+#  texte_alpha_divergent() (issue #498) ; date de reference du calcul et
+#  texte applicable dans l'en-tete, lus dans res$metadata, et lignes des
+#  declarations en section 4 (issue #504, ADR 0019).
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -2314,6 +2316,73 @@ for (f_ref in REFS_263) {
                !grepl(">NULL<", h0, fixed = TRUE)
            })
 }
+
+# Date de reference du calcul et texte applicable (issue #504, ADR 0019,
+# point 7 ; docs/exigences.md, paragraphe 5.6) : deux lignes de l'en-tete,
+# apres la generation du rapport et avant la methode, lues dans
+# res$metadata ; section 4 : lignes de la date, du texte et des deux
+# declarations d'engine_parametre_standard(), rendues par
+# table_parametre_standard() sans code d'affichage nouveau.
+CLE_DATE_504 <- "Date de référence du calcul"
+CLE_TEXTE_504 <- "Texte applicable au paramètre standard"
+val_texte_504 <- function(x)
+  paste0("<code>", x, "</code> — règlement délégué (UE) 2015/35 modifié",
+         " par le règlement délégué (UE) ", x, " (détail : section 4)")
+.html504 <- function(res) {
+  f <- tempfile(fileext = ".html")
+  rapport_html(res, NULL, f, interactif = FALSE, identite = idt)
+  h <- lire(f); unlink(f); h
+}
+res_np504 <- run_engine(xt = xt, yt = yt, methode = "premium", segment = 1, B = 99,
+                        nature_donnees = "nettes", date_reference = DATE_REFERENCE_TESTS,
+                        reassurance_np = TRUE, cdd_qualifiante = FALSE)
+res_cdd504 <- run_engine(methode = "reserve2", triangle = tri, segment = 1, B = 99,
+                         date_reference = DATE_REFERENCE_TESTS, cdd_qualifiante = FALSE)
+h504 <- lapply(list(ln = res_ln, mw = res_mw, np = res_np504, cdd = res_cdd504), .html504)
+verifier("#504 rapport fige : en-tete, date de reference du calcul et texte applicable lus dans res$metadata (primes et reserve2, avec et sans declaration)",
+         all(vapply(names(h504), function(k) {
+           r <- list(ln = res_ln, mw = res_mw, np = res_np504, cdd = res_cdd504)[[k]]
+           g <- entre(h504[[k]], "<h2 id='gel'>", "</table>")
+           identical(r$metadata$date_reference, DATE_REFERENCE_TESTS) &&
+             identical(cle_val(g, CLE_DATE_504), DATE_REFERENCE_TESTS) &&
+             identical(cle_val(g, CLE_TEXTE_504), val_texte_504(r$metadata$texte_applicable)) &&
+             compte(g, CLE_DATE_504) == 1L && compte(g, CLE_TEXTE_504) == 1L
+         }, logical(1))) &&
+           identical(res_ln$metadata$texte_applicable, "2019/981"))
+verifier("#504 rapport fige : en-tete, ordre horodatage, generation du rapport, date de reference, texte applicable, methode (docs/exigences.md, paragraphe 5.6)",
+         {
+           g <- entre(h504$ln, "<h2 id='gel'>", "</table>")
+           i <- vapply(c("<td>Horodatage du calcul (run_engine)</td>",
+                         "<td>Génération du présent rapport</td>",
+                         paste0("<td>", CLE_DATE_504, "</td>"), paste0("<td>", CLE_TEXTE_504, "</td>"),
+                         "<td>Méthode</td>"),
+                       function(cle) as.numeric(regexpr(cle, g, fixed = TRUE)), numeric(1))
+           all(i > 0) && !is.unsorted(i, strictly = TRUE)
+         })
+verifier("#504 rapport fige : section 4, lignes de la date, du texte applicable et des deux declarations, rendues comme table_parametre_standard() les produit (non declarees, declarees presente et absente)",
+         all(vapply(names(h504), function(k) {
+           r <- list(ln = res_ln, mw = res_mw, np = res_np504, cdd = res_cdd504)[[k]]
+           s4 <- entre(h504[[k]], "<h2 id='parametre'>", "<h3>Chaîne de calibration</h3>")
+           tp <- table_parametre_standard(r)
+           lignes <- paste0("<tr><td>", .txt(tp$Grandeur), "</td><td>", .txt(tp$Valeur), "</td></tr>")
+           decl <- grepl("(declaration)", tp$Grandeur, fixed = TRUE)
+           sum(decl) == 2L && "Date de reference du calcul" %in% tp$Grandeur &&
+             "Texte applicable au parametre standard" %in% tp$Grandeur &&
+             all(vapply(lignes, grepl, NA, x = s4, fixed = TRUE)) &&
+             identical(tp$Valeur[tp$Grandeur == "Date de reference du calcul"], DATE_REFERENCE_TESTS)
+         }, logical(1))) && {
+           # Valeurs declarees restituees (et non "non declaree") : moteur seul
+           # source du libelle, compare a celui du calcul sans declaration.
+           v <- function(r, g) { tp <- table_parametre_standard(r); tp$Valeur[tp$Grandeur == g] }
+           g_np <- "Reassurance non proportionnelle en place (declaration)"
+           g_cdd <- "Couverture pour developpements defavorables qualifiante (declaration)"
+           !identical(v(res_np504, g_np), v(res_ln, g_np)) &&
+             !identical(v(res_np504, g_cdd), v(res_ln, g_cdd)) &&
+             !identical(v(res_cdd504, g_cdd), v(res_mw, g_cdd)) &&
+             identical(res_np504$metadata$reassurance_np, TRUE) &&
+             identical(res_np504$metadata$cdd_qualifiante, FALSE) &&
+             identical(res_cdd504$metadata$cdd_qualifiante, FALSE)
+         })
 
 # Marges du test d'equivalence de la constante (revue de #263) : un objet
 # lognormal sans theta_equiv (ou avec un delta_equiv vide) donne un rapport

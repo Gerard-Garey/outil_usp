@@ -894,6 +894,42 @@ ui <- fluidPage(
                                    "Sante non-SLT (annexe XIV)" = "XIV"),
                        selected = "II"),
           uiOutput("choix_segment"),
+          # Date de reference du calcul et declarations (issue #504, ADR
+          # 0019, point 7). Champ de TEXTE vide au depart, transmis tel quel
+          # (forme AAAA-MM-JJ) : pas de dateInput, qui presente la date du
+          # jour du poste client, ni de valeur par defaut (decision D-S3-5).
+          # Le moteur seul en deduit le texte applicable et dit si une
+          # declaration est exigee (engine_valider_declarations()) ; aucune
+          # date ni aucun segment n'est compare ici. Les deux declarations,
+          # sans preselection (selected = character(0) : NULL tant qu'aucun
+          # choix n'est fait), s'affichent selon la methode seule, comme la
+          # nature des donnees.
+          textInput("date_reference",
+                    "Date de reference du calcul (AAAA-MM-JJ, declaration obligatoire)",
+                    value = "", placeholder = "AAAA-MM-JJ"),
+          helpText("Date de reference du SCR dans lequel sigma_USP est employe ;",
+                   "elle fixe le texte applicable au parametre standard, deduit par",
+                   "le moteur. Aucune valeur par defaut."),
+          conditionalPanel("input.methode == 'premium'",
+                           radioButtons("reassurance_np",
+                                        "Reassurance non proportionnelle en place (declaration)",
+                                        choices = c("Oui" = "oui", "Non" = "non"),
+                                        selected = character(0), inline = TRUE),
+                           helpText("Reassurance non proportionnelle couvrant ce segment, en",
+                                    "place pour les douze mois suivant la date de reference",
+                                    "et prise en compte comme technique d'attenuation du",
+                                    "risque. Le moteur dit si elle est exigee pour ce calcul ;",
+                                    "ailleurs, elle est consignee sans effet.")),
+          conditionalPanel("input.methode != 'premium'",
+                           radioButtons("cdd_qualifiante",
+                                        paste("Couverture pour developpements defavorables",
+                                              "qualifiante (declaration)"),
+                                        choices = c("Oui" = "oui", "Non" = "non"),
+                                        selected = character(0), inline = TRUE),
+                           helpText("Art. 117, paragraphe 4, ou art. 148, paragraphe 4, dans",
+                                    "leur version modifiee par le reglement delegue (UE)",
+                                    "2026/269. Le moteur dit si elle est exigee pour ce calcul ;",
+                                    "ailleurs, elle est consignee sans effet.")),
           # Nature des donnees (issue #55, decision M13) : declaration
           # obligatoire pour la methode du risque de primes, SANS
           # preselection (selected = character(0) : aucune case cochee,
@@ -1136,6 +1172,30 @@ server <- function(input, output, session) {
   # fait : le moteur refuse alors le calcul), rien pour les methodes de
   # reserve (issue #55).
   nature_saisie <- function() if (identical(input$methode, "premium")) input$nature_donnees else NULL
+  # Date de reference du calcul transmise au moteur (issue #504, ADR 0019,
+  # point 7) : la chaine saisie, telle quelle ; champ vide (ou absent) :
+  # NULL, c'est-a-dire "non declaree", jamais la date du jour. Aucun
+  # controle de forme ici : une saisie non recevable (blancs, autre format)
+  # est transmise et refusee par le moteur, avec son motif.
+  date_saisie <- function() {
+    v <- input$date_reference
+    if (is.null(v) || identical(v, "")) NULL else v
+  }
+  # Declaration transmise au moteur (issue #504) : "reassurance_np" pour la
+  # methode du risque de primes, "cdd_qualifiante" pour les methodes de
+  # reserve, comme l'affichage du panneau (methode seule) ; NULL tant
+  # qu'aucun choix n'est fait ("non declaree") et pour la declaration non
+  # affichee. "oui" / "non" deviennent TRUE / FALSE ; toute autre valeur est
+  # transmise telle quelle, et le moteur la refuse sans conversion.
+  declaration_saisie <- function(nom) {
+    affichee <- if (identical(nom, "reassurance_np")) identical(input$methode, "premium")
+                else !identical(input$methode, "premium")
+    v <- input[[nom]]
+    if (!affichee || is.null(v)) NULL
+    else if (identical(v, "oui")) TRUE
+    else if (identical(v, "non")) FALSE
+    else v
+  }
 
   # Retour anticipe de observeEvent(input$go) : on retire le resultat du
   # calcul precedent (il ne correspond plus aux donnees affichees, et il ne
@@ -1603,10 +1663,18 @@ server <- function(input, output, session) {
                          type = "error", duration = 10); return()
       }
       abouti <- withProgress(message = "Merz-Wuthrich : chain-ladder, MSEP et bootstrap", value = 0.4, {
+        # Date de reference et declarations (issue #504) transmises telles
+        # que collectees (date_saisie(), declaration_saisie()), dans les deux
+        # appels : leur refus par le moteur (ok = FALSE, motifs en tete de
+        # validation$erreurs) est restitue par conserver(), sans regle ici.
         res <- try(run_engine(methode = "reserve2", triangle = m,
                               segment = as.integer(input$segment), annexe = input$annexe,
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
-                              B = input$B, alpha = input$alpha, seed = input$seed), silent = TRUE)
+                              B = input$B, alpha = input$alpha, seed = input$seed,
+                              date_reference = date_saisie(),
+                              reassurance_np = declaration_saisie("reassurance_np"),
+                              cdd_qualifiante = declaration_saisie("cdd_qualifiante")),
+                   silent = TRUE)
         # Le moteur peut refuser le calcul APRES l'ajustement (reserve
         # chain-ladder totale <= 0, MSEP non finie) : le motif vient de lui,
         # l'interface ne fait que le restituer (conserver()).
@@ -1645,7 +1713,10 @@ server <- function(input, output, session) {
                               T = input$profondeur, B = input$B, alpha = input$alpha,
                               seed = input$seed,
                               theta_equiv = marge_theta(), delta_equiv = marge_delta(),
-                              nature_donnees = nature_saisie()),
+                              nature_donnees = nature_saisie(),
+                              date_reference = date_saisie(),
+                              reassurance_np = declaration_saisie("reassurance_np"),
+                              cdd_qualifiante = declaration_saisie("cdd_qualifiante")),
                    silent = TRUE)
         conserver(res)
       })
@@ -1720,6 +1791,11 @@ server <- function(input, output, session) {
     # objet sans p_mc_regime. Texte echappe par tags.
     lig_mc <- texte_p_mc_regime(r)
     tagList(
+      # Date de reference du calcul et texte applicable du resultat affiche
+      # (issue #504, ADR 0019, point 7), lus dans res$metadata, jamais dans
+      # le panneau ; champ absent ou NA : tiret (.ou_tiret(), qui echappe).
+      div(HTML(sprintf("<b>Date de reference</b> = %s", .ou_tiret(m$date_reference)))),
+      div(HTML(sprintf("<b>Texte applicable</b> = %s", .ou_tiret(m$texte_applicable)))),
       div(HTML(sprintf("<b>T</b> = %d &nbsp; <b>B</b> = %d", m$T, m$B))),
       # Seuil des verdicts du resultat affiche (#498), lu dans res$metadata,
       # jamais dans le panneau ; signal, sans recalcul, si le champ alpha du
