@@ -3547,8 +3547,8 @@ suivant l'année d'accident de ces sinistres (pertes agrégées)~;~»}
 \noindent
 B(3)(c) nomme $y_t$ «~les pertes accumulées dans le segment~$s$ durant une année d'accident
 donnée~$t$~»~; l'outil les lit comme les pertes agrégées de B(1)(a), seules pertes que définit
-B(1) et seules dont B(2)(g) pose les hypothèses du modèle (relations linéaire et quadratique avec
-les primes acquises, loi log-normale). \emph{Lecture retenue par l'outil}~: la première année de développement est l'année
+B(1) et seules dont B(2)(g) pose les hypothèses du modèle (espérance en relation linéaire proportionnelle et variance en relation quadratique avec les
+primes acquises, loi log-normale). \emph{Lecture retenue par l'outil}~: la première année de développement est l'année
 d'accident elle-même, numérotée~0 par A(1)(b), qui définit l'année de développement d'un paiement
 comme «~la différence entre l'année de ce paiement et l'année de l'accident auquel il
 correspond~»~; c'est aussi la numérotation de la section~D, où les indices partent de~0 (D(3)(a)
@@ -3630,7 +3630,8 @@ Dans les paragraphes~4 à~6 de la section~C, $t$ indexe des exercices, $y_t$ est
 C(1)(a) et $x_t$ la meilleure estimation de la provision pour sinistres à payer (C(3)(a) à~(d)).
 
 \paragraph{Équivalence avec le moteur.} Le moteur calcule ces formules sous une forme
-algébriquement identique, sans approximation des formules~:
+algébriquement identique, sans approximation des formules, seul le minimiseur de B(6) étant
+approché numériquement (troisième point)~:
 \begin{itemize}[itemsep=1pt]
   \item \code{usp\_pi()} rend $\pi_t$ de B(5)(d) sous la forme
         $1/\ln\!\big(1 + e^{2\gamma}(\delta + (1-\delta)\,\bar x/x_t)\big)$, égale à la forme
@@ -3649,8 +3650,12 @@ algébriquement identique, sans approximation des formules~:
         \code{usp\_objectif()}~: le dernier alinéa de B(6) y est tenu par les bornes $[0,1]$ de
         $\delta$ et par la pénalité hors de cet intervalle~; $\gamma$, que le texte ne borne pas,
         l'est par l'outil (\code{BORNES\_GAMMA}, borne non réglementaire, §\ref{sec:controles}).
-        L'existence du minimiseur est traitée en section~\ref{sec:h4}, l'optimalité numérique du
-        point retenu par les contrôles des fiches~\ref{fiche:foc} et~\ref{fiche:multi-demarrages}~;
+        L'existence du minimiseur est traitée en section~\ref{sec:h4}~; quand au moins un
+        démarrage à l'optimum a $\gamma$ sur une borne de \code{BORNES\_GAMMA} sans qu'aucun
+        satisfasse la condition de Kuhn et Tucker, le calcul est refusé
+        (\code{usp\_valider\_ajustement()}, §\ref{sec:controles}). L'optimalité numérique du point
+        retenu est contrôlée, sans garantie d'optimum global, par les fiches~\ref{fiche:foc}
+        et~\ref{fiche:multi-demarrages}~;
   \item \code{usp\_parametre()} calcule B(4) et C(4) terme à terme~: $c$ de la section~G
         (\code{usp\_credibilite()}), facteur $\sqrt{(T+1)/(T-1)}$, $T$ étant le nombre d'années de
         la série retenue (B(3)(b), sous la numérotation consécutive de B(3)(a), §\ref{sec:segments}),
