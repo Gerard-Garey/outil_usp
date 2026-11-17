@@ -2379,7 +2379,7 @@ p.~75), $1$ pour tous les segments de l'annexe~XIV (article~148, paragraphe~3,
 $\blacktriangledown$\,B, p.~94)~; le renvoi de l'article~117 aux segments 1, 4 et~5 reste exact
 après le remplacement de l'annexe~II par M6, leurs intitulés et lignes d'activité étant
 inchangés. Le règlement délégué (UE)~2026/269 ne change pas ces valeurs~; il en change la
-condition d'emploi (paragraphe suivant). Neuf des trente-deux valeurs diffèrent de la version d'origine de
+condition d'emploi (paragraphe «~Texte «~2026/269~», risque de primes~», ci-dessous). Neuf des trente-deux valeurs diffèrent de la version d'origine de
 2015 (entre parenthèses)~: segment~6 de l'annexe~II, $19~\%$ ($12~\%$) et
 $17{,}2~\%$ ($19~\%$)~; segment~7, $8{,}3~\%$ ($7~\%$) et $5{,}5~\%$
 ($12~\%$)~; segment~8, $6{,}4~\%$ ($9~\%$) et $22~\%$ ($20~\%$)~; segment~1 de
@@ -2404,7 +2404,8 @@ acte modificatif qui change ce paramètre~: «~2019/981~» du 1\textsuperscript{
 29.1.2027 (annexes~II et~XIV remplacées par cet acte, articles~117 et~148 dans leur version
 d'origine), «~2026/269~» à partir du 30.1.2027, date d'application du règlement délégué
 (UE)~2026/269 de la Commission du 29~octobre 2025 (\emph{Journal officiel de l'Union européenne},
-série~L, 2026/269 du 18.2.2026), fixée par son article~2 (p.~94), sans disposition transitoire.
+série~L, 2026/269 du 18.2.2026), fixée par son article~2 (p.~94), sans disposition transitoire
+pour les articles~117, 148 et~218 à~220.
 Ces deux dates sont celles de la table \code{TEXTES\_APPLICABLES} de \code{R/engine.R}, que seule
 \code{engine\_valider\_declarations()} lit~; la table n'a pas de borne supérieure, et l'outil ne
 connaît aucun acte postérieur au règlement délégué (UE)~2026/269. La date et le texte applicable
@@ -2412,8 +2413,8 @@ sont consignés dans \code{\$metadata} et portés par l'en-tête du rapport fig�
 (section~\ref{sec:archi}). \emph{Interprétation}, et non texte~: le règlement ne dit pas quelle
 date fixe le texte applicable à un calcul~; l'outil retient la date de référence du calcul de
 capital de solvabilité requis dans lequel le paramètre est employé, parce que le mélange de B(4),
-C(4) et D(4) n'a de sens que si ses deux termes visent le paramètre standard de ce même calcul,
-et suit ainsi la même convention que pour la borne du 1\textsuperscript{er}~janvier 2020~; la
+C(4) et D(4) n'a de sens que si son terme standard est le paramètre que $\sigma_{\mathrm{USP}}$
+remplace dans ce même calcul, et suit ainsi la même convention que pour la borne du 1\textsuperscript{er}~janvier 2020~; la
 lecture qui retiendrait la date d'établissement ou de remise du calcul est écartée.
 
 \noindent
@@ -2449,8 +2450,10 @@ articles~209 à~211, renvoi que l'article~117, paragraphe~3, ne fait pas lui-mê
 de façon inclusive~: un traité non proportionnel qui couvre plusieurs segments, dont celui-ci,
 suffit. Le texte admet aussi une lecture restrictive, qui exigerait une couverture propre au
 segment~; l'outil ne la retient pas, sans que le texte la tranche. Aux segments 1, 4 et~5,
-déclarée présente à tort, la réassurance abaisse $\sigma_{\mathrm{USP}}$ de $(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$
-(sens non prudent)~; déclarée absente à tort, elle l'élève d'autant (sens prudent).
+sans $\sigma$ standard saisi, déclarée présente à tort, la réassurance abaisse $\sigma_{\mathrm{USP}}$ de $(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$
+(sens non prudent)~; déclarée absente à tort, elle l'élève d'autant (sens prudent). Avec un
+$\sigma$ standard saisi, $\sigma_{\mathrm{USP}}$ n'en dépend pas~; seule change la valeur
+réglementaire à laquelle la saisie est comparée.
 
 \noindent
 \emph{Texte «~2026/269~», risque de réserve.} Le même acte redéfinit l'écart-type du risque de
@@ -2463,12 +2466,14 @@ polices de mêmes caractéristiques de risque et d'un même segment, à points d
 détachement séparés et distincts, dont le point d'attachement ne dépasse pas la meilleure
 estimation nominale du segment, nette de cette couverture, multipliée par la somme de~1 et de
 l'écart-type de l'annexe), le
-facteur $\mathrm{Adjust}_{(\mathrm{NP},s)}$ défini au deuxième alinéa, et $100~\%$ pour toute autre
-réassurance non proportionnelle (quatrième alinéa). Sans couverture qualifiante,
+facteur $\mathrm{Adjust}_{(\mathrm{NP},s)}$ défini au deuxième alinéa, $100~\%$ pour toute autre
+réassurance non proportionnelle (quatrième alinéa) et en l'absence de réassurance non
+proportionnelle (premier alinéa). Sans couverture qualifiante,
 $\sigma_{(\text{res},s)}$ est donc la valeur de l'annexe sous toutes les lectures. Avec elle, le
-paramètre standard «~à remplacer~» de C(4) et D(4) peut se lire comme la valeur ajustée (renvoi
+paramètre standard à remplacer de C(4) et D(4) peut se lire comme la valeur ajustée (renvoi
 de l'article~218, paragraphe~1, point~a)~iv), à l'article~117, paragraphe~2, point~b), ainsi
-redéfini) ou comme la valeur de l'annexe, qui est l'entrée du facteur d'ajustement~; aucune des
+redéfini, et, pour l'annexe~XIV, de l'article~218, paragraphe~1, point~c)~iv), à l'article~148,
+paragraphe~2, lu comme le point~b), redéfini de même) ou comme la valeur de l'annexe, qui est l'entrée du facteur d'ajustement~; aucune des
 deux lectures n'est uniformément prudente, ce facteur n'étant pas plafonné à~1. \textbf{Cette
 question n'est pas tranchée par l'outil}~: sous le texte «~2026/269~», les méthodes de réserve
 n\textsuperscript{o}~1 et n\textsuperscript{o}~2 exigent la déclaration d'une couverture
@@ -2647,9 +2652,10 @@ données brutes). \emph{Constat chiffré}~: un $\sigma_{\mathrm{USP}}$ calculé 
 référence antérieure au 30.1.2027 sur données nettes des segments 1, 4 ou~5 de l'annexe~II, sans
 réassurance non proportionnelle, ne vaut pas tel quel pour un capital de solvabilité requis dont
 la date de référence est postérieure ou égale à cette date~: le paramètre standard du mélange y
-passe de $0{,}8\,\sigma_{\text{brut}}$ à $\sigma_{\text{brut}}$, et $\sigma_{\mathrm{USP}}$
-augmente de $(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$, écart exact qui ne dépend pas des
-données ($\sigma_{\mathrm{USP}}$ est affine en $\sigma_{\text{std}}$, B(4)), soit, à $T = 8$,
+passe de $0{,}8\,\sigma_{\text{brut}}$ à $\sigma_{\text{brut}}$, et $\sigma_{\mathrm{USP}}$,
+calculé avec le $\sigma$ standard de la table, augmente de
+$(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$, écart exact qui ne dépend pas des valeurs
+observées ($\sigma_{\mathrm{USP}}$ est affine en $\sigma_{\text{std}}$, B(4)), soit, à $T = 8$,
 $+0{,}0082$ au segment~1 ($c = 0{,}59$, $\sigma_{\text{brut}} = 10~\%$), $+0{,}00304$ au
 segment~4 ($c = 0{,}81$, $8~\%$) et $+0{,}01148$ au segment~5 ($c = 0{,}59$, $14~\%$), aucune
 p-value ni aucun verdict ne changeant (mesuré par \code{run\_engine()} sur le jeu de contrôle et
@@ -2719,8 +2725,9 @@ directive 2009/13/CE~», lue comme la directive 2009/138/CE que complète le rè
 n'en dépend pas. S'y ajoute une anomalie du règlement délégué (UE)~2026/269 (p.~29)~:
 l'article~148, paragraphe~4, deuxième alinéa, renvoie aux conditions énoncées au «~quatrième
 alinéa~», qui figurent au troisième, le quatrième fixant le facteur de $100~\%$~; lu comme le
-troisième alinéa, sens évident, ce renvoi est sans effet sur l'outil, qui ne calcule pas le
-facteur d'ajustement de ce paragraphe.
+troisième alinéa, sens évident, ce renvoi est sans effet sur l'outil, dont la couverture
+qualifiante déclarée est définie par le troisième alinéa (paragraphe «~Texte «~2026/269~», risque
+de réserve~», ci-dessus) et qui ne calcule pas le facteur d'ajustement de ce paragraphe.
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -14149,7 +14156,7 @@ Aucune~: ligne \code{INFO}, sans verdict ni sens du test. Le repère conventionn
 loi ni niveau~; le graphique d'influence colore les années dont l'écart dépasse strictement 10~\%
 en valeur absolue (\code{REPERE\_INFLUENCE\_SIGMA},
 \code{fort\_ecart\_sigma}). Aucun repère sur l'échelle de la part estimée~: le transposer le
-multiplierait par un rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette
+multiplierait par un rapport qui dépend du paramètre standard retenu, et un repère fixe propre à cette
 échelle n'aurait aucune référence.
 \Usage
 À $T$ faible, c'est le diagnostic le plus informatif du dispositif~: le paramètre proposé
@@ -22426,9 +22433,12 @@ $\sigma_{\mathrm{USP}}$ ne les lit pas (\code{usp\_parametre()} et \code{mw\_par
 reçoivent pas les tests). \code{usp\_parametre\_standard()} et
 \code{engine\_valider\_declarations()}, qui fixent le paramètre standard du mélange dans les deux
 méthodes (§\ref{sec:segments}), relèvent elles aussi des fonctions communes aux deux
-dispositifs~: une anomalie y atteindrait $\sigma_{\mathrm{USP}}$ des deux méthodes et, pour les
-méthodes lognormales, les diagnostics de robustesse qui en dérivent (famille~G), mais aucune
-p-value ni aucun verdict, les tests ne lisant pas le paramètre standard.
+dispositifs~: une anomalie y atteindrait $\sigma_{\mathrm{USP}}$ des deux méthodes, ses
+intervalles bootstrap et les quantités graphiques correspondantes (\code{res\$plots\_data}),
+et, pour les méthodes lognormales, les diagnostics de robustesse qui en dérivent (famille~G), mais
+aucune p-value ni aucun verdict, les tests ne lisant pas le paramètre standard~; une anomalie
+d'\code{engine\_valider\_declarations()} atteindrait en outre l'acceptation ou le refus du calcul
+(\code{ok}).
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification de l'implémentation (section~\ref{sec:verif})~:
