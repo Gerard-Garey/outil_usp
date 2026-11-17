@@ -426,6 +426,19 @@ if (png_ok)
            compte(hm, "src='data:image/png;base64,iVBORw0KGgo") ==
              sum(vapply(.graphiques_rapport(res_mw), function(o) length(o$g), integer(1))) + 1L)
 
+# Onglet M5 de reserve2 en pleine largeur (#582) : la legende verticale de
+# plot_boot_sigma() prend 198 px a la zone de trace ; en demi-cellule, la zone de
+# trace de mw_boot tombait a 64 px. Aucun graphique de demi-largeur dans le
+# groupe M5 (pas de demi-ligne vide), dans la structure du rapport et dans la
+# cellule rendue (classe "cel plein").
+.m5_mw <- Filter(function(o) grepl("^M5", o$titre), .graphiques_rapport(res_mw))
+verifier("Rapport MW : groupe M5, QQ-plot et distribution bootstrap (420 px chacun) en cellules pleines (#582)",
+         length(.m5_mw) == 1L && length(.m5_mw[[1]]$g) == 2L &&
+           all(vapply(.m5_mw[[1]]$g, function(g) isTRUE(g$plein), NA)) &&
+           identical(vapply(.m5_mw[[1]]$g, function(g) g$h, 0), c(420, 420)) &&
+           (!png_ok || all(vapply(.m5_mw[[1]]$g, function(g)
+             identical(.graphique(g, "png")[[1]], "<div class='cel plein'>"), NA))))
+
 ## --- Citation reglementaire sous chaque groupe (issue #92) --------------------
 # Source : annexe XVII, point B(2)(g) i. a iv. (methode du risque de primes) et
 # point C(2)(e) i. a iv. (methode du risque de reserve no 1) ; D(2)(h) pour
@@ -3382,7 +3395,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              all(vapply(strsplit(tt, "<br>", fixed = TRUE), function(l) all(nchar(l) <= 18L) && length(l) <= 2L, NA))
            })
   # Legende de la ligne pointillee de plot_ratio() (niveau = beta estime).
-  verifier("plot_ratio() plotly : la ligne pointillee porte une legende (beta estime lu dans plots_data$ratio$niveau), la courbe observee aucune ; legende sous la zone de trace, en coordonnees du papier (#582)",
+  verifier("plot_ratio() plotly : la ligne pointillee porte une legende (beta estime lu dans plots_data$ratio$niveau), la courbe observee aucune ; legende au-dessus de la zone de trace (#582)",
            {
              op <- options(usp.graphiques_base = FALSE); on.exit(options(op))
              b <- plotly::plotly_build(plot_ratio(res_ln$plots_data))$x
@@ -3393,8 +3406,12 @@ if (requireNamespace("plotly", quietly = TRUE)) {
              length(ligne) == 1L && length(courbe) == 1L &&
                identical(ligne[[1]]$name, lib) && !identical(ligne[[1]]$showlegend, FALSE) &&
                identical(courbe[[1]]$showlegend, FALSE) &&
-               isTRUE(b$layout$showlegend) && identical(b$layout$legend$yref, "paper") && identical(b$layout$legend$y, -0.4) &&
-               identical(b$layout$legend$yanchor, "top") &&
+               isTRUE(b$layout$showlegend) &&
+               # Legende au-dessus de la zone de trace (y >= 1 au papier), marge haute
+               # couvrant le titre et la legende (#582).
+               identical(b$layout$legend$yref, "paper") && b$layout$legend$y >= 1 &&
+               identical(b$layout$legend$yanchor, "bottom") &&
+               b$layout$margin$t >= .marge_haute(45) + .LEGENDE_HAUTE_PX &&
                grepl("^beta estime = [0-9]+,[0-9]{4} \\(ratio attendu\\)$", lib)
            })
   # Huit titres longs : aucune ligne de titre ne depasse la figure de 330 px.
