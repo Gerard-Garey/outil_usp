@@ -88,6 +88,8 @@ Au démarrage, l'application charge les fichiers d'échange s'ils existent
 
 La profondeur T est déduite du fichier des séries (méthodes lognormales) ; le triangle garde la dimension de son propre fichier, et seule « Réinitialiser les données » la change (triangle par défaut de T années, T étant plafonné à 40, #194). La limite de 40 années de l'application vaut pour toutes les voies d'entrée : des séries de plus de 40 années ou un triangle de plus de 40 années d'accident sont refusés avec un motif, à l'import (données courantes conservées) comme au démarrage (fichier présent mais refusé, grille vide) (#212, #286). En méthode lognormale, « Réinitialiser les données » charge les 8 années des séries par défaut et ramène le champ T à 8 (#212).
 
+La date de référence du calcul (`AAAA-MM-JJ`, obligatoire) et, selon la méthode, la déclaration de réassurance non proportionnelle en place (risque de primes) ou de couverture pour développements défavorables qualifiante (risque de réserve n° 1 et n° 2) se saisissent dans le panneau de droite ; le champ de date est vide au démarrage, sans valeur par défaut, et les deux déclarations sont sans présélection ; les motifs de refus du moteur (`engine_valider_declarations()`) s'affichent avant le clic sur « Relancer les calculs », sous les contrôles de validité de l'onglet des données (#504).
+
 Les textes produits par le moteur (`detail` et motifs des tests, détail des contrôles, messages de validation, libellés de dérogation et de calibration, motifs des graphiques) sont écrits en ASCII, sans accents, avec le point décimal, et l'application les restitue tels quels, alors qu'elle écrit ses propres nombres avec une virgule (#236) : choix délibéré (#294), qui ne modifie ni les références ni les textes cités par la documentation, et évite la conversion à tort des numéros d'article, références et identifiants.
 
 ## Usage sans Shiny (revue indépendante)
@@ -95,15 +97,25 @@ Les textes produits par le moteur (`detail` et motifs des tests, détail des con
     source("R/charger_moteur.R")
     charger_moteur()   # charge R/engine.R dans son environnement dédié et expose run_engine()
 
+    # date_reference obligatoire pour les trois methodes : date de reference du
+    # SCR, chaine "AAAA-MM-JJ" ; sans elle, ok = FALSE avec un motif (#504)
+    # a partir du 30.1.2027 (texte applicable "2026/269"), declarations exigees
+    # la ou elles agissent, TRUE ou FALSE, sans valeur par defaut :
+    # reassurance_np pour premium sur donnees nettes de II-1, II-4 et II-5 ;
+    # cdd_qualifiante pour reserve1 et reserve2 (TRUE refuse, hors du domaine) ;
+    # ailleurs, une declaration est consignee sans effet (res$metadata)
+
     # méthode lognormale
     # nature_donnees obligatoire pour premium : "brutes" ou "nettes" (#55)
     res <- run_engine(xt = ..., yt = ..., methode = "premium",
                       segment = 1, annexe = "II", nature_donnees = "brutes",
+                      date_reference = "2026-12-31",
                       T = 8, B = 999, seed = 20260831)
 
     # méthode Merz-Wüthrich
     res <- run_engine(methode = "reserve2", triangle = tri,
-                      segment = 1, annexe = "II", B = 999, seed = 20260831)
+                      segment = 1, annexe = "II", date_reference = "2026-12-31",
+                      B = 999, seed = 20260831)
 
     res$parametre_final$sigma_usp
     engine_table_tests(res)
