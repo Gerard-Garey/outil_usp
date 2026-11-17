@@ -1084,12 +1084,9 @@ libelle_ligne <- function(l) if (identical(fk_champ(l, "fonction"), "engine_p_fa
 # {alpha, SEUIL_ECHEC_SENS_REJETER} en sens "rejeter" ; s atteignable si le
 # plancher, p_min_mc de la ligne s'il est fini, granularite_stat de la cle
 # sinon, NA hors bootstrap, est NA ou < s) ; ok = FALSE au moindre desaccord
-# entre la phrase et l'inegalite recalculee. Ecart documente a add() : la
-# condition "aucun verdict fourni par l'appelant" n'est pas lisible dans la
-# reference (aucun champ) ; aucun appel d'add() du moteur ne fournit de
-# verdict a une ligne de type test (recherche de "verdict =" dans
-# R/engine.R, 25/10/2026 : controles numeriques et enregistrement par add()
-# seulement), de sorte que la condition est sans effet sur les lignes lues.
+# entre la phrase et l'inegalite recalculee. Depuis #484, add() n'a plus
+# d'argument verdict : le verdict suit de la p retenue seule, de sorte
+# qu'aucune condition sur un verdict impose par l'appelant n'est a controler.
 frontiere_reference <- function() {
   r <- readRDS(chemin_reference("reserve2"))
   L <- r$tests; gs <- r$bootstrap$granularite_stat

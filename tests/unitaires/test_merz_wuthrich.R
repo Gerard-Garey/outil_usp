@@ -3,8 +3,9 @@
 #
 #  mw_ajuster(), mw_msep(), mw_residus() : annexe XVII, section D.
 #  Par. 4 : identique dans la version d'origine (JOUE L 12/277) et dans la
-#  version consolidee au 14.11.2024. Par. 5 : VERSION CONSOLIDEE en vigueur
-#  (ADR 0005) ; dans la version d'origine, le par. 5 couvre le JOUE
+#  version consolidee au 14.11.2024. Par. 5 : version consolidee retenue par
+#  l'outil comme reference de lecture, sans effet juridique propre (ADR 0005) ;
+#  dans la version d'origine, le par. 5 couvre le JOUE
 #  L 12/277-278 (pagination verifiee le 22/09/2026, issue #26) et sa formule
 #  differe de celle appliquee.
 #  References :

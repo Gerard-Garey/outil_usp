@@ -46,8 +46,8 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{16~novembre 2026}
-\newcommand{\versiondoc}{3.9}
+\newcommand{\datedoc}{17~novembre 2026}
+\newcommand{\versiondoc}{3.10}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -2548,8 +2548,9 @@ le rapport figé, sous l'intitulé «~Paramètre standard remplacé (art.~218, p
 barème de crédibilité (annexe~XVII, section~G)~».
 
 \smallskip
-\emph{Anomalies rédactionnelles du texte consolidé}, relevées sur la version consolidée du
-14~novembre~2024, sans incidence sur les calculs~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
+\emph{Anomalies rédactionnelles du texte}, relevées sur la version consolidée du
+14~novembre~2024, sans incidence sur les calculs, et présentes aussi dans la version d'origine
+(\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~75, 142, 143 et~275)~: C(4)(e) nomme $\sigma_{(\text{prem},s)}$ le
 paramètre à remplacer de la méthode de réserve n\textsuperscript{o}~1, alors que la formule du
 paragraphe~4 écrit $\sigma_{(\text{res},s)}$ et que la méthode remplace le point~a)~iv) ou c)~iv)
 (article~220, paragraphe~1, point~b))~:
@@ -2557,7 +2558,9 @@ le moteur suit la formule~; l'article~117, paragraphe~2, point~a), renvoie au «
 lu comme le paragraphe~3 par parallélisme avec l'article~148, paragraphe~2, point~a)~;
 l'article~218, paragraphe~1, point~c)~iv), renvoie à l'article~148, paragraphe~2, point~a), au
 lieu du point~b)~: le moteur retient $\sigma_{(\text{res},s)}$ de l'annexe~XIV, sens évident du
-texte.
+texte~; l'article~219, paragraphe~1, point~c), renvoie à l'article~101, paragraphe~3, «~de la
+directive 2009/13/CE~», lue comme la directive 2009/138/CE que complète le règlement~: le moteur
+n'en dépend pas.
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -2851,7 +2854,9 @@ le cas réel. Le seuil $10^{-6}$ est
 \emph{empirique}, non théorique~: c'est une \emph{garde de la CI}, plateforme de production des
 références, où chaque exécution du job « Tests du moteur » compare les cas de contrôle à leurs
 références~; un écart au-delà du seuil y est traité comme un changement de résultat, à
-identifier et à expliquer, la CI reproduisant ses références au bit près~; une mise à jour de
+identifier et à expliquer, la CI, où deux exécutions successives sont identiques au bit près
+sous le BLAS et le LAPACK de référence (propriété mesurée, non démontrée, ci-après), ne s'écartant pas
+de ses références à image constante~; une mise à jour de
 l'image du système, consignée, peut aussi en produire un. Il n'est pas une marge calée sur la dérive d'un poste de travail, qui peut le
 dépasser sans défaut (ci-après).
 
@@ -2873,7 +2878,8 @@ réplication à la statistique observée, $1{,}3\cdot 10^{-3}$ et $2{,}0\cdot 10
 cent fois la dérive maximale, si bien qu'aucun décompte Monte-Carlo n'est atteint, ni aucune
 p-value, aucun verdict, ni $\sigma_{\mathrm{USP}}$, qui ne dépend d'aucun tirage. Ces deux
 écarts viennent de la plateforme~: à code, données et graines identiques, chaque machine
-reproduit son propre résultat au bit près, et la CI reproduit ses références~; le mécanisme
+reproduit son propre résultat au bit près, et la CI ne s'écarte pas de ses références à image
+constante~; le mécanisme
 numérique qui les porte au-delà du seuil, pour cette seule réplication, n'est pas établi. Sur le
 poste,
 \code{tests/test\_reproductibilite.R} peut donc échouer sans défaut, et la batterie y est jugée
@@ -3443,13 +3449,26 @@ de la table des tests et de plusieurs messages de validation du moteur. Les cita
 du règlement conservent sa propre typographie, qui varie d'un passage à l'autre («~paragraphe~1,
 point~a)~», «~paragraphe~(1), point~(a)~»).
 
+\smallskip
+\emph{Année de survenance.} Le document nomme \emph{année de survenance} ce que l'annexe~XVII
+nomme \emph{année d'accident}~: «~en ce qui concerne le paiement d'un sinistre d'assurance ou de
+réassurance, l'année au cours de laquelle l'événement assuré ayant donné lieu à ce sinistre s'est
+produit~» (A(1)(a), \emph{Journal officiel}, L~12 du 17~janvier 2015, p.~272). Les deux termes
+désignent la même année dans les sections~B et~D (méthode du risque de primes et méthode du
+risque de réserve n\textsuperscript{o}~2). L'année de survenance n'est ni l'année de souscription
+du contrat, que l'annexe ne définit pas, ni l'année de déclaration du sinistre (A(1)(c))~: une
+série tenue par année de souscription n'est pas celle que définissent B(1) et D(1). En section~C
+(méthode du risque de réserve n\textsuperscript{o}~1), $t$ indexe des \emph{exercices} (C(3)(a)),
+années de paiement au sens de A(1)(d), et non des années de survenance.
+
 \subsection*{Méthodes lognormales : données et modèle}
 
 Pour un segment donné et une profondeur $T$~:
 \begin{itemize}[itemsep=1pt]
   \item $x_1,\dots,x_T$ : primes acquises par année de survenance (méthode risque de primes) ou
         meilleure estimation de la provision en début d'exercice (méthode risque de réserve~1) ;
-  \item $y_1,\dots,y_T$ : pertes agrégées (méthode prime) ou paiements de l'exercice augmentés de
+  \item $y_1,\dots,y_T$ : pertes agrégées (méthode prime~; B(1)(a) et lecture retenue par
+        l'outil~: §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) ou paiements de l'exercice augmentés de
         la meilleure estimation de clôture sur les mêmes sinistres (méthode réserve~1) ;
   \item $r_t = y_t / x_t$ : ratio observé (ratio S/P, ou ratio de liquidation) ;
   \item $\bar x = T^{-1}\sum_t x_t$.
@@ -3499,6 +3518,155 @@ est le régime $\hat\pi_t$ constant, $\hat\delta$ au bord~1 ou volumes constants
 modèle, et H3 ne se teste pas sur les $\ln r_t$ mis en commun (sections~\ref{sec:base-residus}
 et~\ref{sec:h3}).
 
+\subsection*{Méthodes lognormales : spécification réglementaire}
+\phantomsection
+\label{sec:spec-lognormale}
+
+Les formules ci-dessous sont la transcription littérale de l'annexe~XVII, section~B,
+paragraphes~4 à~6, sous leur \emph{forme imprimée}, et non sous la forme équivalente de la
+sous-section précédente~: un relecteur doit pouvoir les comparer au texte terme à terme. Les
+définitions en prose sont citées mot pour mot. $T$, $x_t$ et $y_t$ sont ceux de B(3)(b) à~(d),
+les années d'accident étant numérotées de~1 à~$T$ (B(3)(a)).
+
+\medskip
+\noindent
+\emph{Version du texte et pagination.} Les formules ont été lues en rendu graphique dans la
+version d'origine (\emph{Journal officiel}, L~12 du 17~janvier 2015) et dans la version
+consolidée du 14~novembre 2024, référence de lecture de l'outil (§\ref{sec:segments})~: elles
+sont identiques, et le texte consolidé ne marque aucune modification des paragraphes~1 et~3 à~6
+des sections~B et~C. La pagination du \emph{Journal officiel} vaut donc pour le texte
+qu'applique le moteur~: B(1) en p.~272, B(4) en p.~273, B(5) en p.~273--274, B(6) en p.~274~;
+C(1) en p.~274, C(4) et~C(5) en p.~275, C(6) en p.~276.
+
+\paragraph{Pertes agrégées (B(1)(a)).} B(1)(a) définit ainsi la première des deux séries de
+données de la méthode du risque de primes~:
+\reglement{Annexe XVII, B(1)(a), du règlement délégué (UE) 2015/35 (\emph{Journal officiel},
+L~12 du 17~janvier 2015, p.~272)}{«~les paiements effectués et les meilleures estimations de la
+provision pour sinistres à payer dans le segment~$s$ après la première année de développement
+suivant l'année d'accident de ces sinistres (pertes agrégées)~;~»}
+
+\noindent
+B(3)(c) nomme $y_t$ «~les pertes accumulées dans le segment~$s$ durant une année d'accident
+donnée~$t$~»~; l'outil les lit comme les pertes agrégées de B(1)(a), seules pertes que définit
+B(1) et seules dont B(2)(g) pose les hypothèses du modèle (espérance en relation linéaire proportionnelle et variance en relation quadratique avec les
+primes acquises, loi log-normale). \emph{Lecture retenue par l'outil}~: la première année de développement est l'année
+d'accident elle-même, numérotée~0 par A(1)(b), qui définit l'année de développement d'un paiement
+comme «~la différence entre l'année de ce paiement et l'année de l'accident auquel il
+correspond~»~; c'est aussi la numérotation de la section~D, où les indices partent de~0 (D(3)(a)
+pour les années d'accident~; D(5)(d)(ii), $j = 0,\dots,J-2$, pour les années de développement).
+$y_t$ est donc la somme des paiements effectués pendant l'année d'accident~$t$ au titre des
+sinistres survenus pendant celle-ci et de la meilleure estimation, établie à la fin de cette
+année, de la provision pour ces mêmes sinistres~; une estimation révisée ultérieurement n'en
+tient pas lieu. Cette lecture est conforme à
+la réponse de l'AEAPP à la question~2580 de sa base de questions-réponses
+(section~\ref{sec:biblio}), qui n'a pas de valeur juridique propre~: «~The aggregated losses
+referred to in Annex XVII B.(1)(a) DR for a given year~$t$ should be equal to the claims paid
+during year~$t$ plus the best estimate of the claims outstanding at the year end of the first
+development year of the accident year~$t$.~» La réponse retient les paiements de l'année~$t$
+elle-même, ce qui situe la meilleure estimation à la fin de l'année d'accident. La lecture qui situerait la mesure à la fin de
+l'année suivant l'année d'accident n'est pas retenue. Le moteur ne voit que les montants fournis
+et n'en dépend pas~; le contenu de $y_t$ est à établir par l'entreprise (§\ref{sec:controles},
+exigences de données non vérifiables par l'outil).
+
+\paragraph{Écart type propre à l'entreprise (B(4)).} «~L'écart type propre à l'entreprise dans
+le segment~$s$ se calcule comme suit~:~»
+\[
+  \sigma_{(\text{prem},s,\text{USP})} = c\cdot\hat\sigma(\hat\delta,\hat\gamma)\cdot\sqrt{\frac{T+1}{T-1}}
+  + (1-c)\cdot\sigma_{(\text{prem},s)}
+\]
+«~où~: (a)~$c$ représente le facteur de crédibilité visé à la section~G~; (b)~$\hat\sigma$
+représente la fonction d'écart type définie au paragraphe~5~; (c)~$\hat\delta$ représente le
+paramètre de mélange défini au paragraphe~6~; (d)~$\hat\gamma$ représente le coefficient de
+variation logarithmique défini au paragraphe~6~; (e)~$\sigma_{(\text{prem},s)}$ représente le
+paramètre standard à remplacer par le paramètre propre à l'entreprise.~»
+
+\paragraph{Fonction d'écart type (B(5)).} «~La fonction d'écart type est égale à la fonction de
+deux variables suivante~:~»
+\[
+  \hat\sigma(\hat\delta,\hat\gamma) = \exp\!\left(\hat\gamma +
+  \frac{\tfrac{1}{2}T + \displaystyle\sum_{t=1}^{T}\pi_t(\hat\delta,\hat\gamma)\cdot\ln\!\left(\frac{y_t}{x_t}\right)}
+       {\displaystyle\sum_{t=1}^{T}\pi_t(\hat\delta,\hat\gamma)}\right)
+\]
+«~où~: (a)~$\hat\delta$ et~$\hat\gamma$ sont définis aux points~(c) et~(d) du paragraphe~4~;
+(b)~exp représente la fonction exponentielle~; (c)~ln représente le logarithme naturel~;
+(d)~$\pi_t$ représente la fonction de deux variables suivante~:~»
+\[
+  \pi_t(\hat\delta,\hat\gamma) = \frac{1}{\ln\!\left(1 + \left((1-\hat\delta)\cdot\dfrac{\bar x}{x_t}
+  + \hat\delta\right)\cdot e^{2\cdot\hat\gamma}\right)}
+\]
+«~où~: i.~$\hat\delta$ et~$\hat\gamma$ sont définis aux points~(c) et~(d) du paragraphe~4~;
+ii.~$\bar x$ représente le montant suivant~:~»
+\[
+  \bar x = \frac{1}{T}\cdot\sum_{t=1}^{T} x_t
+\]
+
+\paragraph{Paramètre de mélange et coefficient de variation logarithmique (B(6)).} «~Le paramètre
+de mélange et le coefficient de variation logarithmique sont les valeurs $\hat\delta$
+et~$\hat\gamma$, respectivement, qui minimisent le montant suivant~:~»
+\[
+  \sum_{t=1}^{T}\pi_t(\hat\delta,\hat\gamma)\left(\ln\!\left(\frac{y_t}{x_t}\right)
+  + \frac{1}{2\cdot\pi_t(\hat\delta,\hat\gamma)} + \hat\gamma - \ln\!\big(\hat\sigma(\hat\delta,\hat\gamma)\big)\right)^{2}
+  - \sum_{t=1}^{T}\ln\!\big(\pi_t(\hat\delta,\hat\gamma)\big)
+\]
+«~où~: (a)~ln représente le logarithme naturel~; (b)~$\pi_t$ représente la fonction définie au
+point~(d) du paragraphe~5~; (c)~$\hat\sigma$ représente la fonction d'écart type définie au
+paragraphe~5~; (d)~$\bar x$ représente le montant suivant~:~»
+\[
+  \bar x = \frac{1}{T}\cdot\sum_{t=1}^{T} x_t
+\]
+Dernier alinéa~: «~Pour la détermination du montant minimum, aucune valeur du paramètre de
+mélange inférieure à zéro ou supérieure à 1 n'est prise en considération.~»
+
+\paragraph{Section~C.} C(4) à~(6) (méthode du risque de réserve n\textsuperscript{o}~1)
+reproduisent mot pour mot et formule pour formule B(4) à~(6), aux seules différences suivantes. Le
+chapeau de C(4) est «~L'écart type propre à l'entreprise pour le risque de réserve en non-vie ou
+le risque de réserve en santé non-SLT dans le segment~$s$ est le suivant~:~», et sa formule s'écrit
+\[
+  \sigma_{(\text{res},s,\text{USP})} = c\cdot\hat\sigma(\hat\delta,\hat\gamma)\cdot\sqrt{\frac{T+1}{T-1}}
+  + (1-c)\cdot\sigma_{(\text{res},s)}~;
+\]
+son point~(e) nomme pourtant $\sigma_{(\text{prem},s)}$ le paramètre à remplacer, anomalie
+rédactionnelle des deux versions du texte, où le moteur suit la formule (§\ref{sec:segments}).
+Dans les paragraphes~4 à~6 de la section~C, $t$ indexe des exercices, $y_t$ est le montant de
+C(1)(a) et $x_t$ la meilleure estimation de la provision pour sinistres à payer (C(3)(a) à~(d)).
+
+\paragraph{Équivalence avec le moteur.} Le moteur calcule ces formules sous une forme
+algébriquement identique, sans approximation des formules, seul le minimiseur de B(6) étant
+approché numériquement (troisième point)~:
+\begin{itemize}[itemsep=1pt]
+  \item \code{usp\_pi()} rend $\pi_t$ de B(5)(d) sous la forme
+        $1/\ln\!\big(1 + e^{2\gamma}(\delta + (1-\delta)\,\bar x/x_t)\big)$, égale à la forme
+        imprimée par commutativité~; $\ln(1+u)$ y est évalué par \code{log1p()}, égal à
+        $\ln(1+u)$ en arithmétique réelle et plus précis pour $u$ petit~; $\bar x$ est la moyenne
+        des $x_t$ de la série retenue, B(5)(d)(ii)~;
+  \item \code{usp\_noyau()} calcule la fraction de l'exposant de B(5), notée $\ln\hat\beta$ dans la
+        sous-section précédente (le texte ne nomme pas $\beta$), puis
+        $\hat\sigma = \exp(\hat\gamma + \ln\hat\beta)$, terme à terme la formule de B(5), d'où la
+        forme $\hat\sigma = \hat\beta\,e^{\hat\gamma}$~;
+  \item par B(5), $\hat\gamma - \ln\hat\sigma(\hat\delta,\hat\gamma) = -\ln\hat\beta$~: le terme
+        élevé au carré dans B(6) est $v_t = \ln(y_t/x_t) + 1/(2\pi_t) - \ln\hat\beta$, et le montant à
+        minimiser est le critère profilé $\sum_t \pi_t v_t^2 - \sum_t \ln\pi_t$ que calcule
+        \code{usp\_noyau()}~; l'identité est exacte, le $\hat\sigma$ de B(6) étant la fonction de
+        B(5) évaluée au même couple. \code{usp\_ajuster()} le minimise numériquement par
+        \code{usp\_objectif()}~: le dernier alinéa de B(6) y est tenu par les bornes $[0,1]$ de
+        $\delta$ et par la pénalité hors de cet intervalle~; $\gamma$, que le texte ne borne pas,
+        l'est par l'outil (\code{BORNES\_GAMMA}, borne non réglementaire, §\ref{sec:controles}).
+        L'existence du minimiseur est traitée en section~\ref{sec:h4}~; quand au moins un
+        démarrage à l'optimum a $\gamma$ sur une borne de \code{BORNES\_GAMMA} sans qu'aucun
+        satisfasse la condition de Kuhn et Tucker, le calcul est refusé
+        (\code{usp\_valider\_ajustement()}, §\ref{sec:controles}). L'optimalité numérique du point
+        retenu est contrôlée, sans garantie d'optimum global, par les fiches~\ref{fiche:foc}
+        et~\ref{fiche:multi-demarrages}~;
+  \item \code{usp\_parametre()} calcule B(4) et C(4) terme à terme~: $c$ de la section~G
+        (\code{usp\_credibilite()}), facteur $\sqrt{(T+1)/(T-1)}$, $T$ étant le nombre d'années de
+        la série retenue (B(3)(b), sous la numérotation consécutive de B(3)(a), §\ref{sec:segments}),
+        et $\sigma_{(\text{prem},s)}$ ou $\sigma_{(\text{res},s)}$, désigné au §\ref{sec:segments}.
+\end{itemize}
+Ces égalités sont contrôlées numériquement par \code{tests/unitaires/test\_modele\_lognormal.R},
+qui confronte \code{usp\_pi()} et \code{usp\_noyau()} à une transcription littérale de B(5)
+et de B(6) écrite indépendamment du moteur, et par \code{tests/unitaires/test\_calibration.R} pour
+B(4).
+
 \subsection*{Résidus}
 
 Les tests des sections~\ref{sec:h2} à~\ref{sec:stabilite} portent sur les \emph{résidus standardisés}
@@ -3516,6 +3684,7 @@ $\bar z$ la moyenne empirique, $s_z^2 = (T-1)^{-1}\sum_t (z_t - \bar z)^2$ la va
 corrigée, et $p_{(i)} = \Phi(z_{(i)})$.
 
 \subsection*{Ex \ae quo des tests de rang et de signe}
+\phantomsection
 \label{sec:ex-aequo}
 
 Le moteur n'a qu'une définition de l'ex \ae quo~: deux valeurs $a$ et $b$ sont ex
@@ -3706,6 +3875,7 @@ auxiliaire pondéré, même section).
 \end{encadre}
 
 \subsection*{Méthode Merz--Wüthrich : données et modèle}
+\phantomsection
 \label{sec:notations-mw}
 
 La donnée d'entrée est un \emph{triangle} de paiements cumulés, non un couple de
@@ -3784,6 +3954,7 @@ résidus est une \emph{hypothèse à tester} (H3)~; pour la méthode Merz--Wüth
 elle n'est qu'un \emph{diagnostic facultatif} (M5).
 
 \subsection*{Convention de restitution : statistique, estimation, p-value}
+\phantomsection
 \label{sec:convention-restitution}
 
 Les sorties du script distinguent explicitement trois grandeurs, qui ne doivent jamais être
@@ -4364,7 +4535,7 @@ sous le tableau). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
-Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité. Bloquant. \\
+Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité~; annexe~XVII, B/C(1) et B/C(2)(b). Bloquant. \\
 Valeurs finies & aucune valeur infinie & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~2~: exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul. Bloquant. \\
 Positivité de $x_t$ & $\min_t x_t > 0$ & $r_t = y_t/x_t$ doit être défini. Bloquant. \\
@@ -5513,14 +5684,20 @@ réserve n\textsuperscript{o}~1, l'autre méthode standard, sous ses propres exi
 portent sur l'origine ou l'élaboration des données, non sur leurs valeurs, et ne peuvent pas être
 contrôlées sur les séries ou le triangle fournis~; leur respect est à établir par l'entreprise,
 dans le dossier (article~219, paragraphe~1, points~a), d) et~e)). Ce sont, pour la méthode du
-risque de primes, B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
+risque de primes, B(1)(a) (pertes agrégées~: paiements effectués pendant l'année d'accident au titre des sinistres
+de cette année et meilleure estimation de la provision pour ces sinistres établie à la fin de
+cette année, non réestimée depuis, lecture retenue par l'outil, §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}), B(2)(a) (données représentatives du risque des douze mois à venir), B(2)(c) ou
 B(2)(d) (pertes et primes non ajustées ou ajustées de la réassurance selon le paramètre remplacé,
 ce que la nature déclarée atteste, §\ref{sec:segments}), B(2)(e) (pertes agrégées ajustées des
 sinistres catastrophiques dans la mesure où ce risque est pris en considération dans les
 sous-modules «~risque de catastrophe en non-vie~» ou «~risque de catastrophe en santé~») et
 B(2)(f) (dépenses de gestion incluses)~; pour la méthode du risque de réserve n\textsuperscript{o}~1,
-C(2)(a), C(2)(c) et C(2)(d)~; pour la méthode du risque de réserve n\textsuperscript{o}~2, D(2)(a),
-D(2)(f), D(2)(g) et D(2)(d)~: «~pour la première année d'accident, le montant de paiements cumulé
+C(1)(a) ($y_t$~: somme de la meilleure estimation de la provision établie à la fin de l'exercice
+pour les sinistres qui étaient à payer en début d'exercice et des paiements effectués durant
+l'exercice pour ces mêmes sinistres), C(2)(a), C(2)(c) et C(2)(d)~; pour la méthode du risque de
+réserve n\textsuperscript{o}~2, D(1) (montants de paiements cumulés relatifs aux sinistres du
+segment, indiqués séparément pour chaque année d'accident et chaque année de développement des
+paiements), D(2)(a), D(2)(f), D(2)(g) et D(2)(d)~: «~pour la première année d'accident, le montant de paiements cumulé
 de la dernière année de développement pour laquelle des données sont disponibles inclut tous les
 paiements de l'année d'accident à quelque différence non significative près~», un montant de
 paiement étant «~considéré comme important si le fait de l'omettre dans le calcul du paramètre
@@ -5532,7 +5709,21 @@ vérifiée que si le fichier porte la colonne~$t$ ou une ligne d'années, chacun
 lus par \code{usp\_charger()} étant alors contrôlé séparément, sans comparaison de leurs années
 (paragraphe «~Lecture des fichiers~» ci-dessus)~;
 les hypothèses B(2)(g), C(2)(e) et D(2)(h) sont éprouvées par les tests de la partie~III, qui ne
-les établissent pas.
+les établissent pas. Relèvent aussi de l'entreprise, en tout ou en partie, les critères de l'article~219 étrangers
+à l'annexe~XVII. Les données peuvent être intégrées aux méthodes standardisées (paragraphe~1,
+point~b))~: l'outil vérifie seulement que les séries ou le triangle fournis sont recevables par la
+méthode (contrôles de la présente section), non que leurs montants soient ceux que définissent
+B(1), C(1) ou D(1), ni qu'ils soient indexés par année d'accident (B, D) ou par exercice (C)~;
+elles n'empêchent pas l'entreprise de se conformer aux exigences de l'article~101, paragraphe~3,
+de la directive~2009/138/CE (paragraphe~1, point~c), dont le texte écrit «~2009/13/CE~»,
+§\ref{sec:segments})~; lorsque des données externes sont utilisées, elles satisfont aux critères
+supplémentaires du paragraphe~2, points~a) à~e)~: processus de collecte transparent, vérifiable
+par audit et connu de l'entreprise, comparabilité des données de sources différentes, données
+d'entreprises d'activité et de profil de risque similaires, éléments statistiques suffisants
+d'un degré élevé de similitude des distributions de probabilité, en particulier quant à la
+volatilité, et d'homogénéité des distributions sous-jacentes aux données externes. Leur respect
+est à la charge de l'entreprise et à établir dans le dossier (\emph{Journal officiel}, L~12 du
+17~janvier 2015, p.~143--144).
 
 \medskip
 \begin{encadre}
@@ -18681,8 +18872,10 @@ tête de section)~; aucun résultat général.
 
 L'implémentation est vérifiée par trois voies~: recalcul indépendant des statistiques, mesure
 du niveau et, quand elle est étudiée, de la puissance à $T = 8$ (par simulation, ou par calcul
-numérique d'une quantité exacte) et, pour la méthode Merz--Wüthrich,
-confrontation au texte réglementaire, à une implémentation externe et à des valeurs publiées.
+numérique d'une quantité exacte) et confrontation au texte réglementaire, par des transcriptions
+littérales de ses formules (méthodes lognormales, §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}~; méthode
+Merz--Wüthrich, §\ref{sec:mw}), complétée, pour la méthode Merz--Wüthrich, par une
+implémentation externe et des valeurs publiées.
 
 Les mesures de cette partie sont rattachées à l'état du moteur consigné en tête de leurs fichiers
 de résultats (\code{docs/tableaux/}), qui portent aussi la plateforme et le générateur~; ce qui a
@@ -20545,6 +20738,16 @@ partie~III).
   trouvée, à la date d'établissement du présent document (page de garde). C'est le texte des
   orientations qui fait référence, non le rapport final, qui garde l'ancienne numérotation.
 
+  \item AEAPP, \emph{Q\&A on regulation}, question~2580 (règlement délégué (UE)~2015/35,
+  article~31 et annexe~XVII~; statut «~Final~»~; question soumise le 13~février 2023),
+  \url{https://www.eiopa.europa.eu/qa-regulation/questions-and-answers-database/2580_en}, consultée
+  à la date d'établissement du présent document. \emph{Portée.} Réponse au point~1, citée mot pour
+  mot en section~\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}~: les pertes agrégées de B(1)(a) d'une année~$t$ sont
+  les sinistres payés pendant l'année~$t$ et la meilleure estimation des sinistres à payer à la fin
+  de la première année de développement de l'année d'accident~$t$. Appui de la lecture de B(1)(a)
+  retenue par l'outil, sans valeur juridique propre. La réponse au point~2, sur B(2)(f), n'est pas
+  reprise par le document. Relue sur la page de l'AEAPP.
+
   \item Code des assurances, partie réglementaire, livre~III, titre~V~: article~R.~352-5, créé
   par le décret n\textsuperscript{o}~2015-513 du 7~mai 2015 (article~4), en vigueur depuis le
   1\textsuperscript{er}~janvier 2016~; article~R.~356-19, modifié par le décret
@@ -20590,8 +20793,8 @@ statistique ou actuarielle.
 \textbf{Élément documenté} & \textbf{Implémentation dans \code{R/engine.R}} \\
 \midrule
 \endhead
-Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$) & \code{usp\_pi()}, \code{usp\_noyau()} \\
-Optimisation sous contrainte $\delta\in[0,1]$ & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
+Noyau du modèle ($\pi_t$, $\hat\beta$, $z_t$~; B(5) et C(5), §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) & \code{usp\_pi()}, \code{usp\_noyau()} \\
+Optimisation sous contrainte $\delta\in[0,1]$ (B(6) et C(6)) & \code{usp\_objectif()}, \code{usp\_ajuster()} \\
 $\hat\delta$ au bord, $\hat\pi_t$ constant (fiches~\ref{fiche:position-delta}, \ref{fiche:centrage}) & \code{usp\_regime()}, tolérance \code{TOL\_DELTA\_BORD}~; bord de $\delta$ par \code{usp\_delta\_bord()} \\
 Lois exactes (Kendall, suites) & \code{mk\_p\_exacte()}, \code{runs\_p\_exacte()},
 \code{usp\_runsr\_p\_exacte()}~; attribution des p-values exactes à $\hat\pi_t$ constant seulement
@@ -20672,7 +20875,7 @@ de $\hat p$, par statistique, dans \code{granularite\_stat}~; lue par \code{add(
 Jackknife, profils, rapport de vraisemblance & \code{usp\_jackknife()}, \code{usp\_profil()},
 \code{usp\_lr\_delta()} et \code{usp\_ajuster\_contraint()}~; années les plus
 influentes du jackknife~: \code{usp\_jack\_annees()} \\
-Calibration et paramètre final & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
+Calibration et paramètre final (B(4) et C(4), §\ref{sec:spec-lognormale}, p.~\pageref{sec:spec-lognormale}) & \code{usp\_parametre()}, \code{usp\_credibilite()} \\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
 \code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante

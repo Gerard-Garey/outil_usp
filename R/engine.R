@@ -58,7 +58,13 @@
 # reference est posterieure ou egale a la date d'application du reglement
 # delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
 # l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
-# permet pas de reproduire un calcul selon les valeurs de 2015.
+# permet pas de reproduire un calcul selon les valeurs de 2015. Borne
+# superieure : l'outil ne vaut que pour une date de reference anterieure au
+# 30.1.2027, date d'application du reglement delegue (UE) 2026/269, qui
+# modifie notamment l'art. 117 (facteur d'ajustement NP du paragraphe 3,
+# colonne np_standard ci-dessous ; ecart-type du risque de reserve du
+# paragraphe 2, point b)) et l'art. 148 (detail : sec:segments du .tex) ;
+# ANNEXE_II et ANNEXE_XIV restent celles de M6.
 
 # Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
 # sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
@@ -4471,7 +4477,7 @@ TOL_P_BORNE <- 1e-12
 
 # Phrase de sensibilite du verdict a l'alea de simulation (#244 ; ADR 0003
 # annote le 12/10/2026, point 3 ; Q-E2b-5, D1-5), posee par add() seul en
-# dernier element du detail d'une ligne de type test, sans verdict fourni,
+# dernier element du detail d'une ligne de type test,
 # dont la p retenue est Monte-Carlo (bootstrap ou p_mc_ext), d'erreur err_mc
 # finie et > 0, quand |p - s| < 2 err_mc (inegalite stricte) pour un seuil s
 # de la regle des verdicts de la ligne : {alpha/2, alpha} en sens "ne pas
@@ -7801,9 +7807,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    non carre". Exception : une colonne vide sans en-tete placee avant une
 #    colonne i qui precede les donnees reste retiree sans refus (tableau
 #    decale) ;
-#  - triangle : une colonne entierement vide intercalee, ou portant un
-#    en-tete, est refusee comme annee de developpement manquante presumee
-#    (sans renvoi reglementaire) ;
+#  - triangle : une colonne entierement vide intercalee est refusee comme
+#    annee de developpement manquante presumee ; une colonne vide portant un
+#    en-tete, en bord, comme annee de developpement sans valeur (motif
+#    distinct) ; aucun de ces deux motifs ne porte de renvoi reglementaire ;
 #  - series : une colonne entierement vide sans en-tete est retiree ou
 #    qu'elle soit (xt, yt et t sont lus par leur nom) ; une colonne vide qui
 #    porte un en-tete est laissee aux controles par nom (xt, yt ou t vides
@@ -10950,7 +10957,7 @@ engine_valider_donnees <- function(xt, yt, T_min = 5, theta_equiv = 0.10,
     err <- c(err, sprintf("xt (%d valeurs) et yt (%d valeurs) doivent avoir la meme longueur.",
                           length(xt), length(yt)))
   if (anyNA(xt) || anyNA(yt))
-    err <- c(err, "Valeurs manquantes : le calibrage exige des series completes (art. 19).")
+    err <- c(err, "Valeurs manquantes : le calibrage exige des series completes (art. 219, paragraphe 1, point a), renvoyant a l'art. 19, paragraphe 1 ; annexe XVII, B/C(1) et B/C(2)(b)).")
   # Valeur infinie (issue #33) : anyNA(Inf) est FALSE et Inf > 0 ; sans ce
   # controle, run_engine() s'arretait sur une erreur R au lieu de refuser.
   if (is.numeric(xt) && is.numeric(yt) && any(is.infinite(c(xt, yt))))
@@ -11894,8 +11901,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     17.1.2015, p. 276-277) et dans la version consolidee au 14.11.2024
 ##     (aucune marque de modification dans la section D ; comparaison des
 ##     formules en rendu graphique le 22/09/2026).
-##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la VERSION CONSOLIDEE
-##     en vigueur (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
+##     Paragraphe 5 (MSEP, mw_msep()) : transcription de la version consolidee
+##     retenue par l'outil comme reference de lecture, sans effet juridique
+##     propre (EUR-Lex, CELEX 32015R0035, consolidee au 14.11.2024), qui
 ##     n'a pas de pagination au JOUE ; la formule d'origine (JOUE
 ##     L 12/277-278) en differe (ADR 0005).
 ##
@@ -12533,8 +12541,9 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 }
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
-# Formule telle qu'imprimee au paragraphe 5 de la VERSION CONSOLIDEE en
-# vigueur (ADR 0005). Dans la version d'origine, le paragraphe 5 couvre les
+# Formule telle qu'imprimee au paragraphe 5 de la version consolidee retenue
+# par l'outil comme reference de lecture, sans effet juridique propre
+# (ADR 0005). Dans la version d'origine, le paragraphe 5 couvre les
 # p. 277-278 du JOUE L 12 du 17.1.2015 (pagination verifiee le 22/09/2026,
 # issue #26) ; la formule qui y est imprimee differe de celle appliquee ici.
 #

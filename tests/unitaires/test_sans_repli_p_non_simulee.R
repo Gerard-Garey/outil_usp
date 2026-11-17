@@ -58,7 +58,7 @@ verifier("U181-2 add() : MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REGIME_RARE, motif de 
          all(vapply(c(MOTIF_MC_AUCUNE_REPLIC, MOTIF_MC_REGIME_RARE,
                       "statistique observee non definie : ex aequo"), function(m)
            est_diag181(ligne181(m, p_as = 0.03, detail = "d."), m, 0.03, "d."), logical(1))))
-verifier("U181-2 add() : sens 'rejeter' et verdict fourni absent -> meme diagnostic (sens NA)",
+verifier("U181-2 add() : sens 'rejeter' -> meme diagnostic (sens NA)",
          est_diag181(ligne181(MOTIF_MC_AUCUNE_REPLIC, p_as = 0.5, sens = "rejeter"),
                      MOTIF_MC_AUCUNE_REPLIC, 0.5))
 verifier("U181-2 add() : p_min fournie (alpha/2 <= p_min < alpha) -> diagnostic, R1 sans objet, inoperant FALSE",
