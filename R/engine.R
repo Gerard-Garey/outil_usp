@@ -17870,14 +17870,20 @@ engine_parametre_standard <- function(res) {
     "et XIV de 2019/981 (M6)"))[[ps$texte_applicable]]
   lib_declaration <- function(v) if (is.na(v)) "non declaree" else
     if (v) "declaree presente" else "declaree absente"
+  # Effet de la declaration NP : absence de segment, puis donnees brutes,
+  # testees avant le texte applicable et dans l'ordre de la ligne "Facteur
+  # NP applique a sigma brut" ("aucun segment designe", puis "sans objet :
+  # donnees brutes"), pour que le libelle ne cite pas le texte la ou aucun
+  # facteur NP n'est applique ; np_requise n'est jamais TRUE sans segment ni
+  # sur donnees brutes (engine_valider_declarations()).
   effet_np <- if (!prime) "sans effet pour cette methode" else
+    if (is.null(m$segment)) "sans effet : aucun segment designe" else
+    if (!nettes) "sans effet : donnees brutes" else
     if (!nouveau) "sans effet sous ce texte : facteur NP standard sans condition" else
     if (isTRUE(ps$np_requise)) {
       if (isTRUE(ps$reassurance_np)) "exigee sous ce texte : facteur NP standard applique"
       else "exigee sous ce texte : facteur de 100 % applique"
-    } else if (!nettes) "sans effet : donnees brutes" else
-    if (is.null(m$segment)) "sans effet : aucun segment designe" else
-      "sans effet : facteur NP standard de 100 % pour ce segment"
+    } else "sans effet : facteur NP standard de 100 % pour ce segment"
   effet_cdd <- if (prime) "sans effet pour cette methode" else
     if (nouveau) "exigee sous ce texte : facteur de 100 %, sigma(res,s) de l'annexe" else
       "sans effet sous ce texte"

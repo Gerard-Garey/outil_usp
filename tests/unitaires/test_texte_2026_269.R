@@ -274,6 +274,44 @@ verifier("#504 (c) engine_parametre_standard() a 2027-01-30 : texte \"2026/269\"
                    R$t[["Parametre standard remplace"]], fixed = TRUE)
          })
 
+# Libelle de l'effet de la declaration NP (revue finale de S3, critere E5),
+# accorde a la ligne du facteur NP applique : II-1, donnees brutes, "sans
+# effet : donnees brutes" sous les deux textes ("sans objet : donnees
+# brutes") ; donnees nettes, "sans condition" sous "2019/981", exigee sous
+# "2026/269" ; sans segment, brutes ou nettes : "aucun segment designe" ;
+# II-2 nettes sous "2026/269" : "de 100 % pour ce segment".
+verifier("#504 engine_parametre_standard(), reassurance_np = TRUE : effet de la declaration NP, II-1 donnees brutes / nettes x textes \"2019/981\" / \"2026/269\" ; sans segment (brutes sous \"2026/269\", nettes sous \"2019/981\") : aucun segment designe ; II-2 nettes sous \"2026/269\" : facteur de 100 % du segment ; accorde a la ligne du facteur NP applique",
+         {
+           np <- "Reassurance non proportionnelle en place (declaration)"
+           fa <- "Facteur NP applique a sigma brut"
+           lire <- function(nat, date, segment = 1, ...) {
+             d <- engine_parametre_standard(prime269("donnees_ln", segment, nature_donnees = nat,
+                                                     date_reference = date,
+                                                     reassurance_np = TRUE, ...))
+             stats::setNames(d$texte, d$grandeur)
+           }
+           b19 <- lire("brutes", "2027-01-29"); b26 <- lire("brutes", DATE269)
+           n19 <- lire("nettes", "2027-01-29"); n26 <- lire("nettes", DATE269)
+           s0 <- lire("nettes", "2027-01-29", NULL, sigma_standard = 0.1)
+           sb <- lire("brutes", DATE269, NULL, sigma_standard = 0.1)
+           n26_2 <- lire("nettes", DATE269, 2)
+           identical(b19[[np]], "declaree presente ; sans effet : donnees brutes") &&
+             identical(b26[[np]], "declaree presente ; sans effet : donnees brutes") &&
+             identical(b19[[fa]], "sans objet : donnees brutes") &&
+             identical(b26[[fa]], "sans objet : donnees brutes") &&
+             identical(n19[[np]],
+                       "declaree presente ; sans effet sous ce texte : facteur NP standard sans condition") &&
+             identical(n19[[fa]], "NP standard, sans condition") &&
+             identical(n26[[np]], "declaree presente ; exigee sous ce texte : facteur NP standard applique") &&
+             identical(s0[[np]], "declaree presente ; sans effet : aucun segment designe") &&
+             identical(s0[[fa]], "aucun segment designe") &&
+             identical(sb[[np]], "declaree presente ; sans effet : aucun segment designe") &&
+             identical(sb[[fa]], "aucun segment designe") &&
+             identical(n26_2[[np]],
+                       "declaree presente ; sans effet : facteur NP standard de 100 % pour ce segment") &&
+             identical(n26_2[[fa]], "100 % : facteur NP standard du segment")
+         })
+
 ## --- sigma_USP egaux a ceux des references (B = 999, defaut) ---------------
 # II-1, donnees_ln, nettes a 2027-01-30 : sans reassurance NP, sigma_USP de
 # la reference premium (donnees brutes) ; avec, de premium_net. Reserve no 1
