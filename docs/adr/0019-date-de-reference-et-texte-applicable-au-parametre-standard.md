@@ -1,11 +1,11 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-17
 ---
 
 # La date de référence du calcul entre dans `run_engine()` et fixe, dans le moteur seul, le texte applicable au paramètre standard ; les déclarations de réassurance non proportionnelle et de couverture pour développements défavorables l'accompagnent ; une seule fonction porte la règle
 
-> *Rédigé par l'agent architect (IA), fiche `architect-approfondi`, Fable d'office pour un ADR d'architecture (`docs/agents/routage.md`, § 3 et § 4.1.3 ; compteur de S3 : 1 sur 3), le 17/11/2026, sur la branche `claude/reglement-2026-269` à `b88d861` (PR brouillon #599), étape 4 de la fiche S3 de `docs/feuille-de-route.md`. **Statut : proposé.** Les lectures du règlement et l'étendue sont **décidées** par le mainteneur (D-S3-1 à D-S3-10, `docs/revues/20261117-s3-reglement-2026-269/decisions-mainteneur.md`) et ne sont pas rediscutées ici ; **la forme ci-dessous attend sa décision** (rubrique « Acceptation »). Les numéros de ligne de `R/engine.R` sont ceux de `b88d861`.*
+> *Rédigé par l'agent architect (IA), fiche `architect-approfondi`, Fable d'office pour un ADR d'architecture (`docs/agents/routage.md`, § 3 et § 4.1.3 ; compteur de S3 : 1 sur 3), le 17/11/2026, sur la branche `claude/reglement-2026-269` à `b88d861` (PR brouillon #599), étape 4 de la fiche S3 de `docs/feuille-de-route.md`. **Statut : accepté le 17/11/2026** (rubrique « Acceptation »). Les lectures du règlement et l'étendue sont **décidées** par le mainteneur (D-S3-1 à D-S3-10, `docs/revues/20261117-s3-reglement-2026-269/decisions-mainteneur.md`) et ne sont pas rediscutées ici ; **la forme ci-dessous attend sa décision** (rubrique « Acceptation »). Les numéros de ligne de `R/engine.R` sont ceux de `b88d861`.*
 
 ## Contexte
 
@@ -157,4 +157,13 @@ La lecture directe d'`infos$sigma_reserve` (l. 16310) disparaît : la branche Me
 
 ## Acceptation
 
-*À compléter par la décision du mainteneur (Q-S3-1).*
+**Accepté** par le mainteneur le 17/11/2026, tel que proposé (Q-S3-1 (a)), avec les décisions de forme qui l'accompagnent :
+
+- **Q-S3-2 (a)** : références traitées par **patch non numérique** au commit (b1) (`tests/patcher_reference.R`, ADR 0006, premier amendement) ;
+- **Q-S3-3** : (i) déclaration de réassurance non proportionnelle absente là où elle n'agit pas consignée `NA` (« non déclarée ») ; (ii) déclaration exigée aussi avec un σ standard saisi et un segment désigné ;
+- **Q-S3-4 (a)** : déclaration fournie pour une méthode où elle n'agit pas consignée sans effet, sans erreur d'usage ;
+- **Q-S3-5 (a)** : aucun septième cas de référence ; tests d'identité dans la batterie unitaire ;
+- **Q-S3-6** : `docs/exigences.md` § 5.6 modifié par la session au commit (0) ; `CLAUDE.md` et `.claude/rules/moteur.md` alignés par un commit `claude:` en fin de branche, sur instruction du mainteneur ;
+- **Q-S3-7** : date conventionnelle des tests `"2026-12-31"`.
+
+Source : réponses du mainteneur à la session principale, 17/11/2026 ; consignées au § 4 de `docs/feuille-de-route.md` (E-17/11 (Q-S3)) et dans `docs/revues/20261117-s3-reglement-2026-269/decisions-mainteneur.md`.

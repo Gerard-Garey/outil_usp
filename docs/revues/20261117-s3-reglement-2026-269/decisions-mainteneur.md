@@ -18,3 +18,17 @@ Source : réponses du mainteneur à la session principale, le 17/11/2026, après
 | D-S3-10 | Rapport figé (Q9) | **Oui** : la date de référence entre dans l'en-tête du rapport figé ; `docs/exigences.md` § 5.6 est modifié en conséquence. |
 
 **Effet attendu** (avis d'`actuary`, § 3.2, *vérifié* par `run_engine()`) : à date ≥ 30.1.2027, données nettes sans réassurance NP, σ_USP +0,0082 (II-1), +0,00304 (II-4), +0,01148 (II-5), côté prudent ; aucune p-value ni aucun verdict touchés ; six cas de référence inchangés en valeur à date antérieure. **Visa du mainteneur** à donner sur le tableau avant / après du commit qui change le résultat (étape 5).
+
+## Plan de forme, 17/11/2026 : ADR 0019 et questions Q-S3-1 à Q-S3-7
+
+Source : réponses du mainteneur à la session principale, le 17/11/2026, sur le plan de forme d'`architect-approfondi` (fiche S3, étape 4, `8198892`). Recommandation retenue sur chaque point.
+
+| N° | Décision |
+|---|---|
+| Q-S3-1 | **ADR 0019 accepté** tel que proposé. |
+| Q-S3-2 | Six références traitées par **patch non numérique** au commit (b1) (24 feuilles ajoutées, aucune valeur numérique changée). |
+| Q-S3-3 | (i) Déclaration de réassurance NP absente là où elle n'agit pas : consignée `NA` (« non déclarée »). (ii) Déclaration exigée aussi avec un σ standard saisi et un segment désigné. |
+| Q-S3-4 | Déclaration fournie pour une méthode où elle n'agit pas : consignée sans effet, sans erreur d'usage. |
+| Q-S3-5 | Aucun septième cas de référence ; tests d'identité dans la batterie unitaire. |
+| Q-S3-6 | `docs/exigences.md` § 5.6 modifié par la session au commit (0) ; `CLAUDE.md` et `.claude/rules/moteur.md` alignés par un commit `claude:` en fin de branche (instruction du mainteneur). |
+| Q-S3-7 | Date conventionnelle des tests : `"2026-12-31"`. |
