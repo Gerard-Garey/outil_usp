@@ -87,25 +87,38 @@ TOLERANCE <- 1e-6
 # provenance non documentee, sont REPUTEES BRUTES par convention pour les cas
 # premium et premium_ii6 (references inchangees) ; premium_net est le meme
 # cas II-1 declare net (sigma standard = NP standard x sigma brut = 0,8 x 10 %).
+# Date de reference du calcul (issue #504, ADR 0019, decision Q-S3-7 du
+# mainteneur) : les jeux de tests/donnees/ sont REPUTES calcules pour
+# l'arrete du 31.12.2026, sous le texte "2019/981" (anterieur au reglement
+# delegue (UE) 2026/269), comme ils sont reputes bruts depuis M13 ; les six
+# cas gardent ainsi leurs valeurs. Constante definie ici seulement, et lue
+# par tests/unitaires/outils_unitaires.R dans le texte de ce fichier, sans
+# l'executer : une affectation litterale unique, a garder de cette forme.
+DATE_REFERENCE_TESTS <- "2026-12-31"
 CAS <- list(
   premium  = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                   segment = 1, annexe = "II", nature_donnees = "brutes"),
+                                   segment = 1, annexe = "II", nature_donnees = "brutes",
+                                   date_reference = DATE_REFERENCE_TESTS),
   reserve1 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "reserve1",
-                                   segment = 1, annexe = "II"),
+                                   segment = 1, annexe = "II",
+                                   date_reference = DATE_REFERENCE_TESTS),
   reserve2 = function() run_engine(methode = "reserve2", triangle = .tri,
-                                   segment = 1, annexe = "II"),
+                                   segment = 1, annexe = "II",
+                                   date_reference = DATE_REFERENCE_TESTS),
   # Segment modifie par le reglement delegue (UE) 2019/981 (M6), bareme long
   # comme le segment 1 (annexe II, segment 6 ; issue #61) : sigma standard de
   # primes de 19 % au lieu de 10 %, memes donnees, B et graine que premium.
   premium_ii6 = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                      segment = 6, annexe = "II", nature_donnees = "brutes"),
+                                      segment = 6, annexe = "II", nature_donnees = "brutes",
+                                      date_reference = DATE_REFERENCE_TESTS),
   # Meme cas II-1 que premium, donnees declarees NETTES de reassurance
   # (annexe XVII, B(2)(d), marqueur M1 ; parametre remplace : art. 218,
   # paragraphe 1, point a) i)) : memes donnees, B et graine ; seul le sigma
   # standard du melange change (NP standard 80 %, art. 117, paragraphe 3 ;
   # issue #55). Reference creee par la CI (mode creation, M31, M30).
   premium_net = function() run_engine(xt = .ln$xt, yt = .ln$yt, methode = "premium",
-                                      segment = 1, annexe = "II", nature_donnees = "nettes"),
+                                      segment = 1, annexe = "II", nature_donnees = "nettes",
+                                      date_reference = DATE_REFERENCE_TESTS),
   # Jeu a delta estime INTERIEUR (J2 de la mesure de #229, delta estime
   # 0,664 ; tests/donnees/donnees_ln_interieur.csv), configuration de #229 :
   # methode premium, segment 1 de l'annexe II, donnees brutes. Seul cas ou la
@@ -113,7 +126,8 @@ CAS <- list(
   # V3b, flux complementaire) est calculee (issue #240, Q-A4-11). Reference
   # creee par la CI (mode creation, M31, M30).
   premium_interieur = function() run_engine(xt = .ln_int$xt, yt = .ln_int$yt, methode = "premium",
-                                            segment = 1, annexe = "II", nature_donnees = "brutes")
+                                            segment = 1, annexe = "II", nature_donnees = "brutes",
+                                            date_reference = DATE_REFERENCE_TESTS)
 )
 
 # Retire les champs qui varient d'un appel a l'autre ou d'une machine a

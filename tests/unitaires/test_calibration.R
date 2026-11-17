@@ -588,7 +588,7 @@ verifier("Methodes de reserve : donnees \"brutes\" refusees (ok = FALSE, motif C
 # bareme_saisi (#93), puis de n_fournies (#104), dernier avant les champs
 # d'execution ; les champs ajoutes le sont en fin de metadata (patch des
 # references, feuille ajoutee en fin de conteneur).
-verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93), de n_fournies (#104), de permutation_pente (#169, lognormale), de seed_flux_regime (#240, lognormale) puis de horodatage",
+verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les trois methodes, suivi des seuls champs de #37, de bareme_saisi (#93), de n_fournies (#104), de permutation_pente (#169, lognormale), de seed_flux_regime (#240, lognormale), des quatre champs de la date de reference (#504) puis de horodatage",
          identical(r_b$metadata$sigma_standard_saisi, FALSE) &&
            identical(r1_sans$metadata$sigma_standard_saisi, FALSE) &&
            identical(r2_sans$metadata$sigma_standard_saisi, FALSE) &&
@@ -599,10 +599,14 @@ verifier("Drapeau explicite sigma_standard_saisi (FALSE sans saisie) pour les tr
              # le bootstrap), pour les trois methodes.
              # permutation_pente (#169) et seed_flux_regime (#240) : methodes
              # lognormales seulement ; seed_loi_nulle_sw : reserve2 seulement
-             # (#351).
+             # (#351). Date de reference du calcul, texte applicable et
+             # declarations (#504, ADR 0019, point 5) : trois methodes,
+             # derniers avant les champs d'execution.
              mw <- identical(r$metadata$methode, "reserve2")
              attendu <- c("generateur", if (mw) "seed_loi_nulle_sw", "bareme_saisi", "n_fournies",
-                          if (!mw) c("permutation_pente", "seed_flux_regime"))
+                          if (!mw) c("permutation_pente", "seed_flux_regime"),
+                          "date_reference", "texte_applicable", "reassurance_np",
+                          "cdd_qualifiante")
              identical(entre, attendu)
            }, logical(1))))
 verifier("Saisie EGALE a la table : derogation pour les trois methodes (drapeau TRUE, origine \"saisi\")",

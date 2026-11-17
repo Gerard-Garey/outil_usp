@@ -692,10 +692,13 @@ local({
   r1 <- run_engine(xt = x1, yt = y1, methode = "premium", segment = 1, annexe = "II",
                    nature_donnees = "brutes", B = 99, seed = 20260831)
   nm <- names(r1$metadata)
-  verifier("U13 run_engine() premium (J1) : metadata$seed_flux_regime = 20800000, juste apres permutation_pente, avant horodatage",
+  # Depuis #504 (ADR 0019, point 5), les quatre champs de la date de
+  # reference du calcul suivent seed_flux_regime, avant horodatage.
+  verifier("U13 run_engine() premium (J1) : metadata$seed_flux_regime = 20800000, juste apres permutation_pente, suivi des quatre champs de #504 puis de horodatage",
            isTRUE(r1$ok) && identical(r1$metadata$seed_flux_regime, 20800000) &&
              identical(match("seed_flux_regime", nm), match("permutation_pente", nm) + 1L) &&
-             identical(match("horodatage", nm), match("seed_flux_regime", nm) + 1L) &&
+             identical(match("date_reference", nm), match("seed_flux_regime", nm) + 1L) &&
+             identical(match("horodatage", nm), match("seed_flux_regime", nm) + 5L) &&
              identical(r1$metadata$seed_flux_regime, r1$bootstrap$p_mc_regime$graine_flux))
   df <- utils::read.csv(file.path(.racine, "tests", "donnees", "triangle_mw.csv"))
   tri <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(tri) <- "double"; tri <- unname(tri)
