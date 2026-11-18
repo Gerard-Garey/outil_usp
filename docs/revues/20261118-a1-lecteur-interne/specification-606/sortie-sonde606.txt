@@ -1,0 +1,76 @@
+openxlsx : FALSE ; md5 moteur : 26220144141d922f4ea85d259004f093 
+
+[F1] C1 : B1 str x&#116; + D1 xt
+  avant : noms "t","x&#116;","yt","xt" | t="1" "2" ; x&#116;="11" "13" ; yt="2" "4" ; xt="99" "98" | aval ok ; xt = 99 98
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F2] C1 : B1 str x&#116; seul
+  avant : noms "t","x&#116;","yt" | t="1" "2" ; x&#116;="11" "13" ; yt="2" "4" | aval refus : Colonne(s) manquante(s) : xt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, x&#116;, yt.
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#116;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F3] C1 : B2 str 1&#48;4.2
+  avant : noms "t","xt","yt" | t="1" "2" ; xt="1&#48;4.2" "13" ; yt="2" "4" | aval refus : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B2 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B2 : &#48;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F4] B1 str xt&#9; + D1 xt (blanc, D-S1-23)
+  avant : noms "t","xt&#9;","yt","xt" | t="1" "2" ; xt&#9;="11" "13" ; yt="2" "4" ; xt="99" "98" | aval ok ; xt = 99 98
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#9;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F5] B1 str x&#X74; (X majuscule)
+  avant : noms "t","x&#X74;","yt" | t="1" "2" ; x&#X74;="11" "13" ; yt="2" "4" | aval refus : Colonne(s) manquante(s) : xt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, x&#X74;, yt.
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#X74;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (B1 : &#X74;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F6] D2 str &#65; en colonne annexe
+  avant : noms "t","xt","yt","note" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; note="&#65;" "a" | aval ok ; xt = 11 13
+  i : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (D2 : &#65;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  ii : REFUS lecture [usp_refus_lecture/error] : Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (D2 : &#65;) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.
+  identical(i, ii) df : TRUE ; identical(avant, i) df : FALSE 
+
+[F7] entites nommees : D1 str R&amp;D, D2 str a&lt;b&gt;c
+  avant : noms "t","xt","yt","R&amp;D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&amp;D="a&lt;b&gt;c" "a" | aval ok ; xt = 11 13
+  i : noms "t","xt","yt","R&amp;D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&amp;D="a&lt;b&gt;c" "a" | aval ok ; xt = 11 13
+  ii : noms "t","xt","yt","R&D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&D="a<b>c" "a" | aval ok ; xt = 11 13
+  identical(i, ii) df : FALSE ; identical(avant, i) df : TRUE 
+
+[F8] references admises : D2 str caf&#233;, D3 str &#38;&#0;
+  avant : noms "t","xt","yt","note" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; note="caf&#233;" "&#38;&#0;" | aval ok ; xt = 11 13
+  i : noms "t","xt","yt","note" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; note="caf&#233;" "&#38;&#0;" | aval ok ; xt = 11 13
+  ii : noms "t","xt","yt","note" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; note="café" "&&#0;" | aval ok ; xt = 11 13
+  identical(i, ii) df : FALSE ; identical(avant, i) df : TRUE 
+
+[F9] B2 str 104.2&#160; (insecable admise)
+  avant : noms "t","xt","yt" | t="1" "2" ; xt="104.2&#160;" "13" ; yt="2" "4" | aval refus : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+  i : noms "t","xt","yt" | t="1" "2" ; xt="104.2&#160;" "13" ; yt="2" "4" | aval refus : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+  ii : noms "t","xt","yt" | t="1" "2" ; xt="104.2 " "13" ; yt="2" "4" | aval refus : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+  identical(i, ii) df : FALSE ; identical(avant, i) df : TRUE 
+
+[F10] temoin : B1 str xt, B2 str 104.2
+  avant : noms "t","xt","yt" | t="1" "2" ; xt="104.2" "13" ; yt="2" "4" | aval ok ; xt = 104.2 13
+  i : noms "t","xt","yt" | t="1" "2" ; xt="104.2" "13" ; yt="2" "4" | aval ok ; xt = 104.2 13
+  ii : noms "t","xt","yt" | t="1" "2" ; xt="104.2" "13" ; yt="2" "4" | aval ok ; xt = 104.2 13
+  identical(i, ii) df : TRUE ; identical(avant, i) df : TRUE 
+
+[F11] A1 str &amp;amp;lt; en en-tete annexe ; ligne 1 sinon normale
+  avant : noms "t","xt","yt","&amp;lt;" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; &amp;lt;="5" "6" | aval ok ; xt = 11 13
+  i : noms "t","xt","yt","&amp;lt;" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; &amp;lt;="5" "6" | aval ok ; xt = 11 13
+  ii : noms "t","xt","yt","&lt;" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; &lt;="5" "6" | aval ok ; xt = 11 13
+  identical(i, ii) df : FALSE ; identical(avant, i) df : TRUE 
+
+[F12] meme texte en chaine en ligne (reference) : D1 R&amp;D, D2 caf&#233;
+  avant : noms "t","xt","yt","R&D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&D="café" "a" | aval ok ; xt = 11 13
+  i : noms "t","xt","yt","R&D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&D="café" "a" | aval ok ; xt = 11 13
+  ii : noms "t","xt","yt","R&D" | t="1" "2" ; xt="11" "13" ; yt="2" "4" ; R&D="café" "a" | aval ok ; xt = 11 13
+  identical(i, ii) df : TRUE ; identical(avant, i) df : TRUE 
+
+(ii) F7 D1/D2 vs F12 : TRUE 
+(ii) F8 D2 vs F12 D2 : TRUE 

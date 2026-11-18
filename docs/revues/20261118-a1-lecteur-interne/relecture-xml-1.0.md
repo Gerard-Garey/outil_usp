@@ -16,6 +16,10 @@
 
 > [2] Char ::= #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD] | [#x10000-#x10FFFF]
 
+### § 2.4 Character Data and Markup (ajout du 18/11, à la demande d'`actuary` pour #606)
+
+> The ampersand character (&) and the left angle bracket (<) MUST NOT appear in their literal form, except when used as markup delimiters, or within a comment, a processing instruction, or a CDATA section. If they are needed elsewhere, they MUST be escaped using either numeric character references or the strings " &amp; " and " &lt; " respectively.
+
 ### § 2.10 White Space Handling
 
 > An XML processor MUST always pass all characters in a document that are not markup through to the application.
@@ -54,6 +58,12 @@
 
 Le tableau du § 4.4 rattache ce traitement à la « Reference in Content », définie comme « a reference anywhere after the start-tag and before the end-tag of an element ».
 
+### § 4.6 Predefined Entities (ajout du 18/11, à la demande d'`actuary` pour #606)
+
+> A set of general entities (amp, lt, gt, apos, quot) is specified for this purpose. Numeric character references may also be used; they are expanded immediately when recognized and MUST be treated as character data […]
+
+> All XML processors MUST recognize these entities whether they are declared or not.
+
 ## Ce que la source établit pour A1
 
 Ce que la source établit (*vérifié*, citations ci-dessus) :
@@ -71,7 +81,8 @@ Ce que la source établit (*vérifié*, citations ci-dessus) :
    - Les autres formes refusées par le contrat fermé sont du XML légal, ou ne sont pas `xml:space` : `xml:space="default"`, valeur légale ; les apostrophes, même attribut et même valeur ; `<t >`, sans attribut ; `space=` ou `x:space=`, qui ne sont pas `xml:space`. Leur refus repose sur le **contrat fermé** (ADR 0020, point 2 ; Q-68-4), non sur XML 1.0. *Bornage apporté après la lecture d'`actuary` (`specification-594-amendee.md`, § 10.1).*
    - Une balise vide `<t xml:space="preserve"/>` représente le même élément vide que `<t xml:space="preserve"></t>` (§ 3.1).
 4. **Références de caractère dans le contenu** (§ 4.4.2). Une référence `&#116;` dans le contenu d'un élément est remplacée par le caractère qu'elle désigne (« t »). Un lecteur qui rend le texte d'une cellule `t="str"` « tel quel, sans décodage » s'écarte donc de la source : c'est le défaut commun C1 de l'inventaire (`inventaire-ecarts.md`, § 3), dont le jugement passe ainsi d'*hypothèse fondée* à *vérifié* par la source.
-5. **Valeurs d'attribut** (§ 3.3.3) : un blanc littéral dans une valeur d'attribut devient une espace, et un attribut non déclaré se traite comme `CDATA`. Cela touche la lecture des attributs `r`, `t` et `s`. Le contrat fermé refuse déjà les formes d'attribut non attendues (règles R3 à R8, #574).
+5. **Entités prédéfinies** (§§ 2.4 et 4.6). Hors du balisage, `&` et `<` ne peuvent s'écrire qu'échappés (`&amp;`, `&lt;` ou une référence numérique), et tout processeur doit reconnaître les cinq entités prédéfinies, déclarées ou non. Un texte « R&D » s'écrit donc obligatoirement `R&amp;D`. Un lecteur qui rend « `R&amp;D` » s'écarte de la source ; refuser ces entités reviendrait à refuser l'écriture obligatoire de `&` et `<` (spécification de #606, D-1).
+6. **Valeurs d'attribut** (§ 3.3.3) : un blanc littéral dans une valeur d'attribut devient une espace, et un attribut non déclaré se traite comme `CDATA`. Cela touche la lecture des attributs `r`, `t` et `s`. Le contrat fermé refuse déjà les formes d'attribut non attendues (règles R3 à R8, #574).
 
 Ce que la source n'établit pas (*non vérifié* ici) :
 
