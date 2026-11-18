@@ -8120,6 +8120,14 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    consecutivite n'est pas verifiable, sauf une ligne entierement vide
 #    hors fin de tableau, refusee comme annee manquante presumee par
 #    .retirer_lignes_colonnes_vides() (#483), avec ou sans colonne t.
+# Renvoie list(ok, erreurs, xt, yt, n, avertissements_lecture).
+# avertissements_lecture (issue #569, decision Q-66-6 (a), texte d'actuary) :
+# information propre au fichier lu, que run_engine(), qui recoit des
+# vecteurs deja ranges, ne peut pas voir ; un seul motif quand le tri par t
+# change l'ordre des lignes (any(o != seq_along(o)), o <- order(t)),
+# character(0) sinon : fichier deja range, sans colonne t, ou refus.
+# Restituee par l'application sous le statut du fichier, comme le champ de
+# meme nom d'engine_lire_triangle() (#518).
 # Regle des lignes et colonnes vides, commune a la lecture des series
 # (engine_lire_donnees_csv()) et a celle du triangle (engine_lire_triangle()),
 # quel que soit le chemin de lecture du fichier : engine_lire_xlsx(), avec
@@ -8513,9 +8521,13 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
 engine_lire_donnees_csv <- function(df) {
   .engine_point_decimal()
   err <- character(0)
+  avert_lecture <- character(0)
+  # Retour de refus : memes champs qu'un succes, avertissements_lecture vide
+  # (#569), comme le refus() d'engine_lire_triangle().
+  refus <- function(e) list(ok = FALSE, erreurs = e, xt = NULL, yt = NULL, n = 0L,
+                            avertissements_lecture = character(0))
   if (!is.data.frame(df) || !nrow(df))
-    return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
-                xt = NULL, yt = NULL, n = 0L))
+    return(refus("Fichier vide ou illisible comme tableau."))
   # BOM d'un CSV lu hors locale UTF-8 : sans ce retrait, la colonne t
   # (premiere colonne) n'etait plus reconnue et le controle des annees ne
   # s'appliquait pas, sans message (issue #96).
@@ -8531,18 +8543,16 @@ engine_lire_donnees_csv <- function(df) {
   # un tel nom ne peut valoir t, xt ni yt.
   octets <- which(!is.na(names(df)) & Encoding(names(df)) == "bytes")
   if (length(octets))
-    return(list(ok = FALSE,
-                erreurs = sprintf(paste("En-tete de la colonne %d declare d'encodage \"bytes\" :",
-                                        "ses caracteres ne sont pas determines ; fournir le nom en UTF-8",
-                                        "ou en Latin-1 declare."), octets),
-                xt = NULL, yt = NULL, n = 0L))
+    return(refus(sprintf(paste("En-tete de la colonne %d declare d'encodage \"bytes\" :",
+                               "ses caracteres ne sont pas determines ; fournir le nom en UTF-8",
+                               "ou en Latin-1 declare."), octets)))
   # En-tetes non UTF-8 declares Latin-1, octets inchanges (#483, #99).
   names(df) <- .declarer_latin1(names(df))
   noms <- names(df)
   # Ligne 1 sans aucune valeur (CSV ",,,") : refusee avant les colonnes
   # manquantes, comme en classeur (#522).
   if (.ligne1_sans_valeur(df))
-    return(list(ok = FALSE, erreurs = MOTIF_LIGNE1_VIDE, xt = NULL, yt = NULL, n = 0L))
+    return(refus(MOTIF_LIGNE1_VIDE))
   # Etape des noms (#555, decisions du mainteneur 8 et 9 du 12/11/2026),
   # avant .retirer_lignes_colonnes_vides(), dont la selection de colonnes
   # renommerait un doublon en "t.1" : en-tete t present plusieurs fois (regle
@@ -8573,7 +8583,7 @@ engine_lire_donnees_csv <- function(df) {
   }
   manquantes <- setdiff(c("xt", "yt"), noms)
   if (length(err_noms) && !length(manquantes))
-    return(list(ok = FALSE, erreurs = err_noms, xt = NULL, yt = NULL, n = 0L))
+    return(refus(err_noms))
   if (length(manquantes)) {
     # Noms cites echappes (caracteres de controle, blancs non ASCII :
     # .echapper_texte(), sans guillemets, #522) ; un nom que .entete_absent()
@@ -8585,21 +8595,18 @@ engine_lire_donnees_csv <- function(df) {
     cites <- character(length(noms_recus))
     cites[absent] <- "(vide)"
     cites[!absent] <- .echapper_texte(noms_recus[!absent])
-    return(list(ok = FALSE,
-                erreurs = c(err_noms, sprintf(
-                  "Colonne(s) manquante(s) : %s. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : %s.",
-                  paste(manquantes, collapse = ", "), paste(cites, collapse = ", "))),
-                xt = NULL, yt = NULL, n = 0L))
+    return(refus(c(err_noms, sprintf(
+      "Colonne(s) manquante(s) : %s. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : %s.",
+      paste(manquantes, collapse = ", "), paste(cites, collapse = ", ")))))
   }
   # Lignes et colonnes vides (#483), avant toute autre interpretation des
   # cellules : voir .retirer_lignes_colonnes_vides().
   lv <- .retirer_lignes_colonnes_vides(df, "series")
   if (length(lv$erreurs))
-    return(list(ok = FALSE, erreurs = lv$erreurs, xt = NULL, yt = NULL, n = 0L))
+    return(refus(lv$erreurs))
   df <- lv$df
   if (!nrow(df))
-    return(list(ok = FALSE, erreurs = "Fichier vide ou illisible comme tableau.",
-                xt = NULL, yt = NULL, n = 0L))
+    return(refus("Fichier vide ou illisible comme tableau."))
   xt <- .en_numerique(df$xt)
   yt <- .en_numerique(df$yt)
   # Cellule non numerique (texte, hexadecimal, cellule vide) : position citee,
@@ -8637,9 +8644,24 @@ engine_lire_donnees_csv <- function(df) {
                                   "sont numerotes par des nombres consecutifs de 1 a T (B(3)(a) et (b),",
                                   "C(3)(a) et (b))."),
                             paste(sort(to), collapse = ", ")))
-    else { o <- order(to); xt <- xt[o]; yt <- yt[o] }
+    else {
+      o <- order(to); xt <- xt[o]; yt <- yt[o]
+      # Information de lecture (#569, texte d'actuary) : emise si et
+      # seulement si le tri change l'ordre des lignes ; les positions citees
+      # (points non fixes de la permutation o, les memes que pour son
+      # inverse) sont celles des lignes de donnees du fichier.
+      if (any(o != seq_along(o)))
+        avert_lecture <- sprintf(paste("Lignes du tableau rangees par annee t croissante pour le calcul (ligne(s) de donnees %s",
+                                       "deplacee(s)) : l'outil suit l'ordre de la colonne t, non celui des lignes du fichier ; cet",
+                                       "ordre determine notamment les p-values et verdicts des tests sensibles a l'ordre des annees",
+                                       "et, si la profondeur T retenue est inferieure au nombre de lignes, les annees retenues (les",
+                                       "T plus recentes selon t). Verifier que la colonne t porte l'annee de chaque ligne ; aucune",
+                                       "action n'est requise si c'est le cas."),
+                                 .liste_positions(which(o != seq_along(o))))
+    }
   }
-  list(ok = length(err) == 0, erreurs = err, xt = xt, yt = yt, n = length(xt))
+  list(ok = length(err) == 0, erreurs = err, xt = xt, yt = yt, n = length(xt),
+       avertissements_lecture = if (length(err)) character(0) else avert_lecture)
 }
 
 # Conversion d'un tableau deja charge (data.frame ou matrice : une ligne par
