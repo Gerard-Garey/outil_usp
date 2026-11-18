@@ -8692,13 +8692,13 @@ engine_lire_triangle <- function(df) {
   if (length(illisible)) {
     # Cellule "NA" (texte, toujours non numerique) : phrase fixe (#483).
     na_txt <- any(vapply(brut, function(v) any(.cellule_texte_na(v)), logical(1)))
-    # Coordonnees (i = ..., j = ...) suivies de leur sens (#527), cinq au plus
-    # par .liste_positions() (#558) ; seules les cinq premieres sont mises en
-    # texte, les autres ne comptent que pour "et <n> autre(s)".
-    k <- utils::head(illisible, 5)
+    # Coordonnees (i = ..., j = ...) suivies de leur sens (#527), toutes mises
+    # en texte : .liste_positions() seule en garde cinq, puis "et <n>
+    # autre(s)" (#558 ; 0,5 ms pour les 2 500 cellules d'un triangle 50 x 50,
+    # mesure).
     return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s (i : annee d'accident, j : annee de developpement).",
-                                .liste_positions(c(paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")"),
-                                                   character(nrow(illisible) - nrow(k))))),
+                                .liste_positions(paste0("(i = ", illisible[, 1] - 1L, ", j = ",
+                                                        illisible[, 2] - 1L, ")"))),
                         if (na_txt) paste(" Une cellule \"NA\" est lue comme du texte : renseigner",
                                           "la valeur, ou laisser vide une cellule non observee."))))
   }
@@ -11522,6 +11522,27 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # partagees sort de la structure admise (regle R9, #574). Le lecteur interne
 # dimensionne son tableau sur les seules cellules a valeur : une cellule
 # mise en forme sans valeur n'y est pas placee, comme par openxlsx.
+# Deux decompressions sur le chemin openxlsx (#558, decision Q-66-2 du
+# mainteneur, 18/11/2026) : .xlsx_admettre() extrait l'archive dans un
+# dossier propre a l'appel (utils::unzip(chemin, exdir = d)) pour les
+# controles du contrat ferme, puis openxlsx::read.xlsx() recoit le chemin du
+# fichier et l'extrait de nouveau. Dans openxlsx 4.2.5.2, read.xlsx() n'a que
+# deux methodes, pour un chemin (read.xlsx.default(), qui fait
+# unzip(xlsxFile, exdir = xmlDir), R/readWorkbook.R l. 142-143) et pour un
+# objet Workbook (read.xlsx.Workbook()) ; loadWorkbook() construit cet objet
+# en decompressant aussi (R/loadWorkbook.R l. 44-48), sauf a lui passer un
+# dossier deja extrait (isUnzipped = TRUE, l. 31-33), mais read.xlsx.Workbook()
+# est un autre interprete que celui dont la parite avec le lecteur interne
+# est mesuree (job de parite). La seconde decompression est donc gardee tant
+# qu'openxlsx lit le classeur. Son cout est faible (mesure, openxlsx
+# 4.2.5.2, R 4.3.3, C.UTF-8, mediane de 5 a 21 repetitions) : la
+# decompression (extraction par utils::unzip() et suppression du dossier)
+# prend 0,6 ms pour une serie de 8 lignes (4,5 % des 14 ms de la lecture
+# entiere), 1,0 ms pour 1 000 lignes x 3 (0,2 % de 0,47 s), 6,3 ms pour
+# 50 000 cellules (0,1 % de 9,9 s) et 29 ms pour 250 000 cellules (0,1 %
+# d'environ 1 min, 5 repetitions seulement), l'essentiel du temps etant
+# pris par les controles d'admission. La lecture par le seul lecteur interne, qui
+# leverait la seconde decompression, est examinee apres S4 (Q-66-3).
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
@@ -12729,10 +12750,9 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
   if (!nrow(sous)) return(character(0))
   sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
   # Coordonnees (i = ..., j = ...) suivies de leur sens, comme le motif des
-  # cellules non numeriques d'engine_lire_triangle() (#527), cinq au plus par
-  # .liste_positions() (#558) ; seules les cinq premieres sont mises en texte,
-  # les autres ne comptent que pour "et <n> autre(s)".
-  k <- utils::head(sous, 5)
+  # cellules non numeriques d'engine_lire_triangle() (#527), toutes mises en
+  # texte : .liste_positions() seule en garde cinq, puis "et <n> autre(s)"
+  # (#558).
   sprintf(paste(
     "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s",
     "(i : annee d'accident, j : annee de developpement) : hors",
@@ -12740,8 +12760,7 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
     "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
     "observees ;",
     "verifier qu'il ne s'agit pas de valeurs projetees."),
-    .liste_positions(c(paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")"),
-                       character(nrow(sous) - nrow(k)))))
+    .liste_positions(paste0("(i = ", sous[, 1] - 1L, ", j = ", sous[, 2] - 1L, ")")))
 }
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
