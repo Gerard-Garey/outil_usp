@@ -4473,14 +4473,14 @@ en chiffres romains seraient refusées sous un motif qui ne dit pas la cause~: u
 moins deux en-têtes I, II, III, \ldots{} en colonnes consécutives, de casse uniforme (toute en
 majuscules ou toute en minuscules, blancs de bord ignorés, formes canoniques
 d'\code{utils::as.roman()}), est reconnue par \code{.suite\_entetes\_romains()}. Si une colonne
-désignée \code{i} existe hors de la suite (\code{i}, \code{I}, \code{II}, \ldots), le tableau
+désignée \code{i} existe hors de la suite (\code{i}, puis I, II, \ldots), le tableau
 est refusé avant le refus des en-têtes en double, par le motif «~\code{En-tetes de colonnes en
 chiffres romains}~», qui cite les positions et les en-têtes de la suite et demande de renommer
 les colonnes de développement (\code{j0}, \code{j1}, \ldots)~; si le I de la suite est la seule
 colonne désignée \code{i}, la lecture continue et ce motif remplace celui de
 \code{.motifs\_colonne\_i()} quand celle-ci en émet un, de sorte qu'une colonne I qui porte les
 années d'accident, suivie de colonnes II, III, \ldots, reste lue (mesuré). Un I seul, ou suivi
-d'en-têtes d'une autre casse (\code{i}, \code{II}, \ldots), relève des seules règles de la
+d'en-têtes d'une autre casse (\code{i}, puis II, III, \ldots), relève des seules règles de la
 colonne \code{i}. Limite~: une colonne I de montants qui forment par hasard des entiers
 croissants de pas~1 passe ces règles, et le refus vient en aval, par le contrôle de la forme
 du triangle, sans le motif dédié (mesuré). Présente, la colonne doit porter, ligne après ligne, des entiers croissants de
