@@ -5042,6 +5042,166 @@ if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
            })
 } else cat("  [saute] colonne i et en-tetes en double (#555), classeur : aucune voie d'ecriture xlsx\n")
 
+## --- En-tetes de developpement en chiffres romains (#568) --------------------
+# Texte d'actuary (docs/revues/20261118-s4-lecteurs/actuary-textes-etape-1.md,
+# (ii)), verifie ici mot pour mot. Deux configurations : (1) le I de la suite
+# est la seule colonne designee i (I, II, ... sans colonne i ; colonne I
+# d'annees suivie de II, ...) : le flux continue, le motif dedie remplace a
+# l'etape B celui de la colonne i, et un triangle accepte avant #568 reste
+# accepte ; (2) une colonne designee i existe hors de la suite (i, I, II, ...) :
+# motif dedie avant H1. Les helpers de #555 (csv555(), tri555(), liste555(),
+# xl555(), tous555()) sont reutilises.
+ROM568 <- function(cols, ents) sprintf(paste0("En-tetes de colonnes en chiffres romains (colonnes %s, d'en-tetes %s) : ",
+  "l'en-tete I designe la colonne i, facultative, qui porte l'annee d'accident de chaque ligne (en-tete i ou I, ",
+  "blancs de bord ignores), et ne peut titrer une colonne d'annee de developpement ; renommer les colonnes d'annee ",
+  "de developpement, par exemple j0, j1, j2, ... (format d'export de l'application)."), liste555(cols), liste555(ents))
+# Triangle de tri555() dont la ligne d'en-tete est remplacee par ent (vecteur).
+# col1 : valeurs imposees a la premiere colonne en l'absence de colonne i
+# (config. 1) ; sans elle, les montants de j0 de tri555() (101, 102, ...) sont
+# des entiers consecutifs croissants, que .motifs_colonne_i() ne refuse pas
+# (residu documente dans engine_lire_triangle()).
+tri568 <- function(ent, icol = NULL, n = 6, col1 = NULL) {
+  l <- tri555(icol, n = n); l[1] <- paste(ent, collapse = ",")
+  if (!is.null(col1)) l[-1] <- paste0(col1, sub("^[^,]*", "", l[-1]))
+  l
+}
+C568 <- (1:8) + 0.5        # premiere colonne non entiere : V2 sans le motif dedie
+rom568 <- c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
+r568 <- function(lignes) engine_lire_triangle(csv555(lignes))
+refus568 <- function(r, cols, ents) !r$ok && is.null(r$triangle) && identical(r$erreurs, ROM568(cols, ents))
+# Triangle de reference (en-tetes i, j0, ...) pour 6 annees, colonne i d'annees.
+ref568 <- function(n = 6) r568(tri568(c("i", paste0("j", 0:(n - 1))), 1:n, n = n))
+verifier("En-tetes romains (#568), CSV, configuration 1 : I, II, ... sans colonne i refuse au motif dedie, positions et en-tetes cites (cinq puis \"et n autre(s)\")",
+         refus568(r568(tri568(rom568[1:6], col1 = C568[1:6])), 1:6, rom568[1:6]) &&
+           refus568(r568(tri568(rom568[1:2], n = 2, col1 = C568[1:2])), 1:2, rom568[1:2]) &&
+           refus568(r568(tri568(rom568[1:8], n = 8, col1 = C568)), 1:8, rom568[1:8]))
+verifier("En-tetes romains (#568), CSV, configuration 2 : colonne i suivie de I, II, ... refusee au motif dedie (au lieu de H1 \"present plusieurs fois\"), positions de la suite seule",
+         refus568(r568(tri568(c("i", rom568[1:6]), 1:6)), 2:7, rom568[1:6]) &&
+           refus568(r568(tri568(c("I", rom568[1:6]), 1:6)), 2:7, rom568[1:6]) &&
+           refus568(r568(tri568(c("i", rom568[1:8]), 1:8, n = 8)), 2:9, rom568[1:8]))
+verifier("En-tetes romains (#568), CSV : minuscules (i, ii, ...) et blancs de bord (en-tetes cites tels que recus) reconnus comme par la regle N ; \"IIII\" n'est pas un chiffre romain canonique",
+         refus568(r568(tri568(tolower(rom568[1:6]), col1 = C568[1:6])), 1:6, tolower(rom568[1:6])) &&
+           refus568(r568(tri568(c("\" i \"", "\" ii \"", "\" iii \"", "iv", "v", "vi"), col1 = C568[1:6])), 1:6,
+                    c(" i ", " ii ", " iii ", "iv", "v", "vi")) &&
+           refus568(r568(tri568(c("I", "II", "III", "IIII", "V", "VI"), col1 = C568[1:6])), 1:3, rom568[1:3]))
+verifier("En-tetes romains (#568), CSV, configuration 2 : refus place avant H1 et avant la colonne i (un seul motif, sans autre refus cumule)",
+         {
+           # colonne i fautive (valeurs repetees) derriere la suite : le motif dedie seul
+           r <- r568(tri568(c("i", rom568[1:6]), c(1, 1:5)))
+           length(r$erreurs) == 1L && refus568(r, 2:7, rom568[1:6])
+         })
+verifier("En-tetes romains (#568), CSV, configuration 1 : le motif dedie remplace celui de la colonne i (V1 vides, V2 non entiere, V3 repetees, V4 non croissante, V5 non consecutive) ; lignes vides en fin de fichier : motif dedie, pas \"Colonne i incomplete\"",
+         {
+           ent <- rom568[1:6]
+           fin <- c(tri568(ent, col1 = C568[1:6]), ",,,,,", ",,,,,")
+           vide <- tri568(ent, col1 = C568[1:6]); vide[3] <- sub("^[^,]*", "", vide[3])
+           refus568(r568(tri568(ent, col1 = c(1, "", 3:6))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1, "x", 2.5, 4, 5, "Inf"))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1, 1:5))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = 6:1)), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1:3, 5:7))), 1:6, ent) &&
+             refus568(r568(fin), 1:6, ent) && !grepl("incomplete", paste(r568(fin)$erreurs, collapse = "")) &&
+             refus568(r568(vide), 1:6, ent)
+         })
+verifier("En-tetes romains (#568), CSV, configuration 1 : colonne I d'annees d'accident suivie de II, III, ... (ou de i, ii, ... en minuscules) acceptee, triangle identique a celui de l'en-tete i, j0, j1, ... (aussi avec lignes vides en fin de fichier)",
+         {
+           r0 <- ref568(); ent <- rom568[1:7]
+           isTRUE(r0$ok) &&
+             identical(r568(tri568(ent, 1:6)), r0) &&
+             identical(r568(tri568(tolower(ent), 1:6)), r0) &&
+             identical(r568(c(tri568(ent, 1:6), ",,,,,,", ",,,,,,")), r0) &&
+             identical(r568(tri568(c("\" I \"", ent[-1]), 1:6)), r0)
+         })
+# Fichier du depot (9 colonnes : i, j0, ..., j7) : en-tete remplace par I a IX
+# (colonne I d'annees, puis II a IX), ou i a ix ; meme triangle que i, j0, ...
+mw568 <- readLines(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+ent568 <- function(ent) { l <- mw568; l[1] <- paste0('"', ent, '"', collapse = ","); l }
+verifier("En-tetes romains (#568), CSV, configuration 1 : triangle_mw.csv avec les en-tetes I a IX (9 colonnes) ou i a ix accepte, triangle identique a celui des en-tetes i, j0, ..., j7 ; I a VIII sur les 8 colonnes de developpement (sans colonne i) refuse au motif dedie",
+         {
+           r0 <- r568(mw568)
+           isTRUE(r0$ok) && r0$I == 7L &&
+             identical(r568(ent568(rom568[1:9])), r0) && identical(r568(ent568(tolower(rom568[1:9]))), r0) &&
+             identical(r568(ent568(c("i", rom568[2:9]))), r0) && identical(r568(ent568(c("I", tolower(rom568[2:9])))), r0) &&
+             refus568(r568(c(paste0('"', rom568[1:8], '"', collapse = ","), sub("^[^,]*,", "", mw568[-1]))), 1:8, rom568[1:8])
+         })
+verifier("En-tetes romains (#568), CSV : casse uniforme sur toute la suite ; i, II, III, ... et I, ii, iii, ... ne sont pas une suite (acceptes, sans motif \"romains\", triangle identique)",
+         {
+           r0 <- ref568()
+           a <- r568(tri568(c("i", rom568[2:7]), 1:6)); b <- r568(tri568(c("I", tolower(rom568[2:7])), 1:6))
+           identical(a, r0) && identical(b, r0) &&
+             identical(.suite_entetes_romains(c("i", "II", "III")), integer(0)) &&
+             identical(.suite_entetes_romains(c("I", "ii", "iii")), integer(0)) &&
+             identical(.suite_entetes_romains(c("i", "ii", "iii")), 1:3) &&
+             identical(.suite_entetes_romains(c("I", "II", "iii")), 1:2) &&
+             identical(.suite_entetes_romains(c("x", "i", "ii", "III")), 2:3)
+         })
+verifier("En-tetes romains (#568), CSV : un en-tete I sans II a sa droite garde ses motifs (colonne i) ; suite qui ne commence pas a I ou rompue avant II : aucune reconnaissance",
+         {
+           # I seul sans colonne i : lu comme la colonne i, motif actuel (triangle non carre), comme l'en-tete i
+           a <- r568(tri568(c("I", paste0("j", 1:5))))
+           # colonne I fautive (non entiere) suivie de j0, j1, ... : motif V2 de la colonne i
+           b <- r568(tri568(c("I", paste0("j", 0:5)), c(1, 2, 3, 4.5, 5, 6)))
+           # i, I, III : H1 inchange ; II, III, ... (sans I) : aucun motif romain, triangle lu
+           c3 <- r568(tri568(c("i", "I", "III", paste0("j", 2:5)), 1:6))
+           d <- r568(tri568(rom568[2:7]))
+           !a$ok && grepl("^Triangle non carre", a$erreurs) &&
+             identical(a, r568(tri568(c("i", paste0("j", 1:5))))) &&
+             identical(b$erreurs, V2_555(4)) &&
+             identical(c3$erreurs, H1_I555(c(1, 2), c("i", "I"))) &&
+             isTRUE(d$ok) && identical(d$triangle, r568(tri568(paste0("j", 0:5)))$triangle)
+         })
+verifier("En-tetes romains (#568), CSV : triangle lu d'une matrice (colonnes I, II, ...) refuse au meme motif ; en-tetes NA ou non UTF-8 jamais pris pour des chiffres romains, sans erreur R",
+         {
+           m <- matrix(as.numeric(as.matrix(csv555(tri555()))), 6, 6)
+           m[, 1] <- m[, 1] + 0.5
+           colnames(m) <- rom568[1:6]
+           d <- csv555(tri568(rom568[1:6])); names(d)[2] <- NA
+           e <- csv555(tri568(rom568[1:6])); names(e)[2] <- "\xc9"
+           Encoding(names(e)[2]) <- "latin1"
+           # helper seul : un nom NA ou non UTF-8 rompt la suite sans lever d'erreur
+           identical(.suite_entetes_romains(c("I", "II", NA, "\xc9")), 1:2) &&
+             identical(.suite_entetes_romains(c("I", NA, "II")), integer(0)) &&
+             identical(.suite_entetes_romains(c("\xc9", "I", "II")), 2:3) &&
+             identical(.suite_entetes_romains(c("I", "\xc9", "II")), integer(0)) &&
+             refus568(engine_lire_triangle(m), 1:6, rom568[1:6]) &&
+             !inherits(tryCatch(engine_lire_triangle(d), error = function(e) e), "error") &&
+             !inherits(tryCatch(engine_lire_triangle(e), error = function(e) e), "error") &&
+             !grepl("chiffres romains", paste(engine_lire_triangle(d)$erreurs, collapse = "")) &&
+             !grepl("chiffres romains", paste(engine_lire_triangle(e)$erreurs, collapse = ""))
+         })
+# Classeur : memes cas par le lecteur interne force et, s'il est installe, par
+# openxlsx (parite, comme #555) ; en-tetes ecrits par l'ecrivain interne, blancs
+# de bord retires a la lecture par les deux chemins.
+if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
+  verifier("En-tetes romains (#568), classeur : configuration 1 (I, II, ... sans colonne i ; lignes vides en fin de fichier) et configuration 2 (colonne i suivie de I, II, ...) refusees au meme motif qu'en CSV (lecteur interne et openxlsx)",
+           tous555(tri568(rom568[1:6], col1 = C568[1:6]), engine_lire_triangle, function(r) refus568(r, 1:6, rom568[1:6])) &&
+             tous555(tri568(rom568[1:8], n = 8, col1 = C568), engine_lire_triangle, function(r) refus568(r, 1:8, rom568[1:8])) &&
+             tous555(c(tri568(rom568[1:6], col1 = C568[1:6]), ",,,,,", ",,,,,"), engine_lire_triangle,
+                     function(r) refus568(r, 1:6, rom568[1:6]) && !grepl("incomplete", paste(r$erreurs, collapse = ""))) &&
+             tous555(tri568(c("i", rom568[1:6]), 1:6), engine_lire_triangle, function(r) refus568(r, 2:7, rom568[1:6])) &&
+             tous555(tri568(c("I", rom568[1:6]), 1:6), engine_lire_triangle, function(r) refus568(r, 2:7, rom568[1:6])) &&
+             tous555(tri568(tolower(rom568[1:6]), col1 = C568[1:6]), engine_lire_triangle, function(r) refus568(r, 1:6, tolower(rom568[1:6]))) &&
+             tous555(tri568(c("\" i \"", "\" ii \"", "\" iii \"", "iv", "v", "vi"), col1 = C568[1:6]), engine_lire_triangle,
+                     function(r) refus568(r, 1:6, tolower(rom568[1:6]))))
+  verifier("En-tetes romains (#568), classeur : colonne I d'annees suivie de II, III, ... (ou i, ii, ... ; 9 colonnes de triangle_mw.csv) acceptee, triangle identique au CSV ; i, II, III, ... et I, ii, iii, ... acceptes ; I sans II, i + I + III et II, III, ... : memes resultats qu'en CSV",
+           {
+             r0 <- ref568(); ent <- rom568[1:7]; r9 <- r568(mw568)
+             a <- tri568(c("I", paste0("j", 1:5))); c3 <- tri568(c("i", "I", "III", paste0("j", 2:5)), 1:6)
+             tous555(tri568(ent, 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(tolower(ent), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("i", ent[-1]), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("I", tolower(ent[-1])), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("I", 0:5), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(ent568(rom568[1:9]), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(tolower(rom568[1:9])), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(c("i", rom568[2:9])), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(c("I", tolower(rom568[2:9]))), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(a, engine_lire_triangle, function(r) identical(r, r568(a))) &&
+               tous555(c3, engine_lire_triangle, function(r) identical(r$erreurs, H1_I555(c(1, 2), c("i", "I")))) &&
+               tous555(tri568(rom568[2:7]), engine_lire_triangle, function(r) isTRUE(r$ok) && identical(r$triangle, r0$triangle))
+           })
+}
+
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
          {
