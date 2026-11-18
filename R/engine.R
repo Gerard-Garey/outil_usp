@@ -9297,9 +9297,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # 1.0 ou UTF-8 invalide, refusee avant toute ecriture ; nom de feuille qui
 # n'est pas une chaine unique non NA non vide ; chemin de sortie refuse
 # (type, NA, vide, barre finale, encodage "bytes" non ASCII ou UTF-8 invalide,
-# chemin de lecteur ou d'UNC en barres inverses sous unix, nom hors .xlsx,
-# dossier existant ; .xlsx_defaut_chemin()), le tout avant toute ecriture
-# (#580).
+# chemin de lecteur ou d'UNC en barres inverses sous unix, nom hors .xlsx :
+# .xlsx_defaut_chemin() ; cible resolue qui designe un dossier existant :
+# engine_ecrire_xlsx()), le tout avant toute ecriture (#580).
 .refus_ecriture <- function(message)
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
                  list(message = message, call = NULL)))
