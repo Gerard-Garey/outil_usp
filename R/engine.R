@@ -9111,7 +9111,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # partie lue qui n'est pas du texte UTF-8 valide (R1) ; commentaire,
 # section CDATA, instruction de traitement ou declaration de type de
 # document dans la feuille, la table, xl/workbook.xml ou
-# xl/_rels/workbook.xml.rels (R2, D-S1-36) ; structure du bloc des donnees
+# xl/_rels/workbook.xml.rels (R2, D-S1-36) ; designation de la feuille lue
+# (D-S1-37 ; balise <Relationship> de forme non reconnue, attribut Type et
+# cible, #595) ; structure du bloc des donnees
 # (R3 : balise <c de forme non reconnue, #487, balises <sheetData> en
 # surnombre ou toutes fermantes, D-S1-35, balise non prevue ou mal
 # imbriquee, segment de cellule lu par openxlsx, <t> a attribut d'une
@@ -9398,7 +9400,10 @@ XML_PREFIXE_NOM <- "([A-Za-z_][A-Za-z0-9_.-]*:)?"
 # Balises ouvrantes d'un element, avec ou sans prefixe d'espace de noms
 # (<sheet ...> et <x:sheet ...>, forme ecrite par Open XML SDK ; #487) : le
 # nom de l'element doit etre suivi d'un blanc, ce qui ecarte <sheets> et
-# <Relationships>.
+# <Relationships>. Pour les relations, <Relationship (sans prefixe) suivi,
+# dans le texte colle, d'un autre caractere qu'une espace, "/" ou ">" (une
+# tabulation, une fin de ligne suivie directement d'un attribut) est refuse
+# avant ce decoupage (.xlsx_controler_balises_relation(), #595).
 .xlsx_balises <- function(xml, element)
   regmatches(xml, gregexpr(paste0("<([A-Za-z_][A-Za-z0-9_.-]*:)?", element, "[ \t\r\n][^>]*>"), xml))[[1]]
 
@@ -9635,6 +9640,68 @@ XML_MOTIF_BALISE <- "<[^<>\"']*+(?:(?:\"[^\"<]*+\"|'[^'<]*+')[^<>\"']*+)*+>"
 # citee, puis positions (balise et rang, attributs ou texte en cause).
 TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe la feuille lue de facon ambigue (%s) ; l'outil ne lit pas cette forme de facon sure (une autre feuille pourrait etre lue). Enregistrer de nouveau le classeur depuis un tableur."
 
+# Texte du refus d'une balise <Relationship> de forme non reconnue dans
+# xl/_rels/workbook.xml.rels (#595, decision D-S1-39 du mainteneur ; texte
+# d'actuary de l'etape 1 de S4) : positions (rangs des balises).
+TEXTE_REFUS_BALISE_RELATION <- "Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur porte une balise <Relationship> de forme non reconnue (%s : caractere autre qu'une espace, \"/\" ou \">\" apres le nom de la balise, par exemple une tabulation, ou une fin de ligne suivie directement d'un attribut) ; l'outil ne lit pas cette forme de facon sure (selon la place de la balise, la lecture pourrait ignorer cette relation, ou ne jamais se terminer et figer l'application). Enregistrer de nouveau le classeur depuis un tableur."
+
+# Controle de la forme des balises <Relationship> de
+# xl/_rels/workbook.xml.rels (#595, decision D-S1-39 du mainteneur), fait
+# par .xlsx_fichier_feuille() apres R1 et R2 des relations, avant leur
+# decoupage en balises et avant tout appel d'openxlsx. openxlsx 4.2.5.2
+# (getChildlessNode(), load_workbook.cpp, source lue) cherche le texte
+# "<Relationship" dans les relations collees (readLines() puis
+# paste(collapse = "") : fins de ligne retirees) et n'admet un noeud que si
+# ce texte est suivi d'une espace, de "/" ou de ">" ; sinon il cherche le
+# suivant, mais ne progresse plus a partir du deuxieme essai consecutif :
+# la racine <Relationships, toujours ecartee, suivie d'une balise ecartee,
+# ou deux balises ecartees consecutives, le font boucler sans fin. Mesure
+# avant (moteur 9440415, R 4.3.3, openxlsx 4.2.5.2, sonde sonde_595.R de
+# l'etape 3 de S4, timeout 20 s) : premiere relation ecrite
+# <Relationship<TAB>Id=, <Relationship<LF>Id=, <Relationship<CR>Id=, ou
+# <RelationshipX Id=...> placee avant la vraie, code 124 (aucune fin) par
+# openxlsx, 104.2 en interne ; balise ecartee suivie d'une balise admise,
+# passee en silence par openxlsx. Refus (TEXTE_REFUS_BALISE_RELATION,
+# usp_refus_lecture), sur le seul texte colle de la partie (fins de ligne
+# retirees, ce que voit openxlsx ; un texte "<Relationship<TAB>" peut etre
+# forme par le collage : <Relation<LF>ship<TAB>), de toute occurrence du
+# texte "<Relationship" (sans prefixe : openxlsx ne voit pas
+# <x:Relationship) suivie d'un autre caractere qu'une espace, "/" ou ">",
+# hors de la racine : la premiere occurrence, suivie de "s"
+# (<Relationships, suivie d'un blanc ou, collee, de xmlns : lue sans
+# blocage, mesure). Une fin de ligne suivie d'une espace, de "/" ou de ">"
+# est admise : collee, la balise est suivie de ce caractere ; la forme
+# <Relationship<LF> Id=, ou <Relationship<CR><LF> Id= (un attribut par
+# ligne), est lue de meme par les deux chemins (mesure, audit leger de
+# l'etape 3 de S4, et test unitaire). Une fin de ligne suivie directement
+# d'un attribut (<Relationship<LF>Id=) est refusee. Positions : rang de
+# la balise parmi les balises <Relationship> du texte colle (prefixees ou
+# non, suivies d'une espace ou d'une tabulation dans le texte colle, et
+# balises refusees), racine exclue ; ce compte peut differer de celui de
+# .xlsx_balises(), qui lit le texte brut (balise prefixee suivie d'une fin
+# de ligne puis d'un attribut, non comptee) : seul le rang cite en depend.
+# Une balise prefixee <x:Relationship<TAB> n'est pas visee (lue par le
+# lecteur interne, ignoree par openxlsx, qui s'arrete sur une erreur R,
+# comme pour <x:Relationship suivie d'une espace, #487 ; mesure).
+.xlsx_controler_balises_relation <- function(rels) {
+  # Recherches lineaires en octets (R1 a deja verifie l'UTF-8) sur le texte
+  # colle : toutes les occurrences, celles suivies d'une espace, de "/" ou
+  # de ">", celles suivies de "s", puis les balises prefixees ou non
+  # suivies d'un blanc (rang cite) ; correspondances par %in% et match()
+  # (tables de hachage, sans cout quadratique).
+  pos <- function(tx, motif) { p <- as.integer(gregexpr(motif, tx, perl = TRUE, useBytes = TRUE)[[1]]); p[p > 0L] }
+  tx <- gsub("[\r\n]", "", rels)
+  p <- pos(tx, "<Relationship")
+  if (!length(p)) return(invisible(NULL))
+  racine <- seq_along(p) == 1L & p %in% pos(tx, "<Relationship(?=s)")
+  bad <- p[!racine & !(p %in% pos(tx, "<Relationship(?=[ />])"))]
+  if (length(bad)) {
+    balises <- sort(unique(c(pos(tx, "<([A-Za-z_][A-Za-z0-9_.-]*:)?Relationship(?=[ \t])"), bad)))
+    .refus_lecture(sprintf(TEXTE_REFUS_BALISE_RELATION, sprintf("balise(s) <Relationship> %s", .liste_positions(match(bad, balises)))))
+  }
+  invisible(NULL)
+}
+
 # Controle des attributs qui relient les feuilles a leurs relations (decision
 # D-S1-37 du mainteneur, #574, lot H ; constat H1 de l'audit leger du lot G),
 # fait par .xlsx_fichier_feuille() apres R1 et R2 de xl/workbook.xml et de
@@ -9646,7 +9713,19 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
 #  - d'une balise <sheet> dont les attributs de nom local id ne se reduisent
 #    pas a un seul, ecrit r:id (absent, repete, sans prefixe ou d'un autre
 #    prefixe : id="rId2" r:id="rId1", x:id=...) ;
+#  - d'une balise <Relationship> dont les attributs de nom local Type ne se
+#    reduisent pas a un seul, ecrit Type, ou a aucun (#595 : repete,
+#    Type="...chartsheet" Type="...worksheet", ou prefixe, x:Type=...) ;
 #  - d'un Id porte par plusieurs balises <Relationship>.
+# Type (#595) : le lecteur interne choisit la feuille lue par le premier
+# attribut de nom local Type (feuille de graphique passee) et openxlsx lit
+# la feuille de ce rang. Mesure (moteur 9440415, R 4.3.3, openxlsx 4.2.5.2,
+# deux feuilles, sheet2.xml portant 999, sonde sonde_595.R de l'etape 3 de
+# S4) : relation de la premiere feuille
+# x:Type="...chartsheet" Type="...worksheet", 999 sur les deux chemins,
+# sigma_USP 0.5064392336 au lieu de 0.1114524114, ok = TRUE ; de meme
+# Type="...chartsheet" Type="...worksheet" ou Type="...chartsheet"
+# x:Type="...worksheet".
 # Le lecteur interne lit le premier attribut de nom local Id ou id
 # (.xlsx_attribut()) et la premiere relation de cet Id ; openxlsx 4.2.5.2
 # cherche, lui, le texte Id="rIdN" dans les relations et le texte r:id="
@@ -9680,6 +9759,11 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
   if (length(bad))
     refuser("xl/workbook.xml", sprintf("balise <sheet> %d : attribut r:id absent, repete ou prefixe autrement que r: (%s)",
                                        bad, vapply(ns[bad], cite, "")))
+  nt <- lapply(liens, noms_id, local = "Type")
+  bad <- which(!vapply(nt, function(n) !length(n) || identical(n, "Type"), NA))
+  if (length(bad))
+    refuser("xl/_rels/workbook.xml.rels", sprintf("balise <Relationship> %d : attribut Type repete ou prefixe (%s)",
+                                                  bad, vapply(nt[bad], cite, "")))
   ids <- vapply(liens, .xlsx_attribut, "", nom = "Id", USE.NAMES = FALSE)
   dbl <- unique(ids[duplicated(ids)])
   if (length(dbl))
@@ -9735,13 +9819,40 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
 #    n'est pas refuse : openxlsx ne le trouve pas et s'arrete sur une erreur
 #    R ("Length of worksheet is 0", mesure, #487) ; ecrit Id<LF>="rId1", il
 #    est trouve par openxlsx et n'est pas refuse.
-# Positions en caracteres (parties UTF-8 valides, R1). Hors du controle,
-# limite connue (decision D-S1-38, renvoyee a une issue) : la cible
-# (attribut Target) lue a la facon d'openxlsx, premier texte Target=" de la
-# relation ; mesure (deux feuilles, sheet2.xml portant 999) :
-# Target='worksheets/sheet1.xml' x:Target="worksheets/sheet2.xml" ou
-# Target='worksheets/sheet1.xml' Foo='Target="worksheets/sheet2.xml"' :
-# 104.2 en interne, 999 par openxlsx, ok = TRUE, sans refus.
+#  - cible de la relation retenue (attribut Target ; #595, decisions
+#    D-S1-38 et D-S1-39 du mainteneur, textes d'actuary de l'etape 1 de
+#    S4). Le lecteur interne lit le premier attribut de nom local Target de
+#    la balise ouvrante, valeur decodee (.xlsx_attribut()) ; openxlsx
+#    4.2.5.2 (read.xlsx.default(), getChildlessNode(), source lue) prend,
+#    dans le texte colle des relations, le noeud qui va de "<Relationship"
+#    au premier ">" (jusqu'au "</Relationship>" suivant s'il ne finit pas
+#    par "/>"), y applique (?<=Target=").+xml(?=") (premier texte
+#    Target=", glouton jusqu'au dernier xml" du noeud, sans decodage), puis
+#    lit l'entree de l'archive dont le nom contient ce texte. Refus, dans
+#    cet ordre : (a1) attributs de nom local Target qui ne se reduisent pas
+#    a un seul, ecrit Target, dans la balise ou dans son texte colle ; (a2)
+#    texte Target= du noeud colle ailleurs qu'au debut de l'attribut Target
+#    (valeur d'un autre attribut ou de Target lui-meme, nom d'attribut qui
+#    finit par Target, contenu de l'element) ; (a3) cible lue a la facon
+#    d'openxlsx presente et differente de la cible du lecteur interne.
+#    Mesures avant (moteur 9440415, R 4.3.3, openxlsx 4.2.5.2, deux
+#    feuilles, sheet2.xml portant 999, sonde sonde_595.R de l'etape 3 de
+#    S4 ; sigma_USP 0.5064392336 au lieu de 0.1114524114, ok = TRUE, quand
+#    999 est lu) : x:Target="...sheet2.xml" Target='...sheet1.xml', 999 sur
+#    les deux chemins ; x:Target="...sheet2.xml" Target="...sheet1.xml" ou
+#    Target="...sheet2.xml" Target="...sheet1.xml", 999 en interne, erreur
+#    R d'openxlsx ("Length of worksheet is 0") ; Target='...sheet1.xml'
+#    suivi ou precede de x:Target="...sheet2.xml", de
+#    Foo='Target="...sheet2.xml"' (ou Target<LF>=", texte colle) ou de
+#    xTarget="...sheet2.xml", 104.2 en interne, 999 par openxlsx ;
+#    Target="...sheet1.xml" Foo="z.xml" avec une entree d'archive
+#    xl/worksheets/sheet1.xml" Foo="z.xml, ou Target="...sheet&#49;.xml"
+#    avec une entree xl/worksheets/sheet&#49;.xml (999), 104.2 en interne,
+#    999 par openxlsx (a3). L'attribut Target unique ecrit entre apostrophes
+#    ou a blancs autour du signe = n'est pas refuse : openxlsx ne trouve
+#    aucune cible et s'arrete sur une erreur R ("Length of worksheet is 0",
+#    mesure, deux feuilles comme une), la lecture reste celle de #487.
+# Positions en caracteres (parties UTF-8 valides, R1).
 .xlsx_controler_designation <- function(wb, rels, liens, rang, lien, id) {
   refuser <- function(partie, pos)
     .refus_lecture(sprintf(TEXTE_REFUS_RELATIONS, partie, pos))
@@ -9821,6 +9932,56 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
                                                     .xlsx_citer(aiguille), .liste_positions(unique(lab))))
     }
   }
+  # 4. Cible de la relation retenue (#595) : a1, a2, a3 (en-tete). Noeud lu
+  # par openxlsx dans le texte colle des relations : de la balise ouvrante
+  # retenue (premier caractere reporte du texte de la partie) au premier
+  # ">", ou au "</Relationship>" suivant si la balise ne finit pas par "/>".
+  rl <- "xl/_rels/workbook.xml.rels"
+  rel_lien <- sprintf("balise <Relationship> %d, relation de la feuille lue", lien)
+  motif_paire <- "[^[:space:]<>=\"'/]+[[:space:]]*=[[:space:]]*(\"[^\"]*\"|'[^']*')"
+  noms_target <- function(b) {
+    n <- sub("[[:space:]]*=.*$", "", .xlsx_paires(b))
+    n[sub("^.*:", "", n) == "Target"]
+  }
+  cite <- function(n) if (length(n)) paste(.xlsx_citer(n), collapse = ", ") else "aucun"
+  tcr <- texte_colle(rels)
+  d0 <- as.integer(gregexpr("<([A-Za-z_][A-Za-z0-9_.-]*:)?Relationship[ \t\r\n][^>]*>", rels)[[1]])[lien]
+  reste <- substring(tcr$x, if (is.null(tcr$pos)) d0 else match(d0, tcr$pos))
+  ouvrante <- substr(reste, 1L, regexpr(">", reste, fixed = TRUE))
+  noeud <- ouvrante
+  if (!endsWith(ouvrante, "/>")) {
+    fe <- regexpr("</Relationship>", reste, fixed = TRUE)
+    if (fe > 0L) noeud <- substr(reste, 1L, fe + 14L)
+  }
+  # a1 : un seul attribut de nom local Target, ecrit Target (balise, puis
+  # texte colle)
+  nt <- noms_target(liens[lien]); ntc <- noms_target(ouvrante)
+  if (!identical(nt, "Target") || !identical(ntc, "Target"))
+    refuser(rl, sprintf("%s : attribut Target repete ou prefixe (%s)", rel_lien,
+                        cite(if (!identical(nt, "Target")) nt else ntc)))
+  # a2 : texte Target= du noeud colle ailleurs qu'au debut de l'attribut
+  # Target ; attribut cite : celui dans la valeur duquel l'occurrence
+  # commence
+  m <- gregexpr(motif_paire, ouvrante)[[1]]
+  pt <- regmatches(ouvrante, list(m))[[1]]
+  pdeb <- as.integer(m); pfin <- pdeb + attr(m, "match.length") - 1L
+  pval <- pdeb + as.integer(regexpr("[\"']", pt)) - 1L
+  pnom <- sub("[[:space:]]*=.*$", "", pt)
+  occ <- as.integer(gregexpr("Target=", noeud, fixed = TRUE)[[1]])
+  hors <- setdiff(occ[occ > 0L], pdeb[pnom == "Target"])
+  if (length(hors)) {
+    k <- findInterval(hors, pdeb)
+    dans <- k > 0L & hors > pval[pmax(k, 1L)] & hors <= pfin[pmax(k, 1L)]
+    if (any(dans))
+      refuser(rl, sprintf("%s : texte Target= dans la valeur de l'attribut %s", rel_lien,
+                          .liste_positions(.xlsx_citer(unique(pnom[k[dans]])))))
+    refuser(rl, sprintf("%s : texte Target= ailleurs qu'au debut de l'attribut Target (par exemple a la fin du nom d'un autre attribut, ou apres la balise ouvrante)", rel_lien))
+  }
+  # a3 : cible lue a la facon d'openxlsx (texte brut du noeud colle) egale a
+  # celle du lecteur interne (valeur decodee), quand openxlsx en trouve une
+  ox <- regmatches(noeud, regexpr("(?<=Target=\").+xml(?=\")", noeud, perl = TRUE))
+  if (length(ox) && !identical(ox, .xlsx_attribut(liens[lien], "Target")))
+    refuser(rl, sprintf("%s : cible differente pour un autre lecteur de classeur, qui lit le texte de l'attribut Target=\"...\" tel quel, sans decoder les references de caracteres (&...;), jusqu'au dernier texte xml\" de la relation", rel_lien))
   invisible(NULL)
 }
 
@@ -9840,8 +10001,11 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
 # pas de la resoudre. Avant le choix de la feuille, puis avant celui de sa
 # cible : controle des relations (.xlsx_controler_relations(),
 # .xlsx_controler_designation() ; decision D-S1-37, #574, lot H), qui refuse
-# les formes ou openxlsx designerait une autre relation que le lecteur
-# interne.
+# les formes ou openxlsx designerait une autre relation ou une autre cible
+# que le lecteur interne (cible et attribut Type : #595), precede du
+# controle de la forme des balises <Relationship>
+# (.xlsx_controler_balises_relation(), #595), qui refuse celles qui
+# feraient boucler openxlsx sans fin.
 .xlsx_fichier_feuille <- function(d) {
   refus <- function() stop("Classeur illisible : aucune feuille trouvee.")
   # Regle R1 (#574) : chaque partie controlee en octets par .xlsx_texte()
@@ -9863,6 +10027,10 @@ TEXTE_REFUS_RELATIONS <- "Classeur illisible : la partie %s du classeur designe 
   # controlee.
   .xlsx_controler_balisage(wb, "xl/workbook.xml")
   .xlsx_controler_balisage(rels, "xl/_rels/workbook.xml.rels")
+  # #595 (decision D-S1-39) : forme des balises <Relationship>, avant leur
+  # decoupage et avant tout appel d'openxlsx, qui pourrait ne pas rendre la
+  # main (.xlsx_controler_balises_relation()).
+  .xlsx_controler_balises_relation(rels)
   feuilles <- .xlsx_balises(wb, "sheet")
   if (!length(feuilles)) refus()
   liens <- .xlsx_balises(rels, "Relationship")
@@ -10950,9 +11118,11 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # qui echoue levant son refus. Apres R0, et avant R1 et R2 de la feuille et
 # de la table, viennent d'abord, dans .xlsx_fichier_feuille(), R1 puis R2 de
 # xl/workbook.xml et de xl/_rels/workbook.xml.rels (decision D-S1-36), puis
-# le controle des relations (.xlsx_controler_relations() et
-# .xlsx_controler_designation(), decision D-S1-37), avant le choix de la
-# feuille lue et de sa cible. Regles posees : R0 (archive : entrees qui
+# le controle de la forme des balises <Relationship>
+# (.xlsx_controler_balises_relation(), #595) et celui des relations
+# (.xlsx_controler_relations() et .xlsx_controler_designation(), decision
+# D-S1-37, etendue par #595 a l'attribut Type et a la cible), avant le
+# choix de la feuille lue et de sa cible. Regles posees : R0 (archive : entrees qui
 # sortent du dossier, table des chaines partagees ailleurs qu'en
 # xl/sharedStrings.xml ou en plusieurs exemplaires), R1 (UTF-8 valide, sans
 # octet nul : .xlsx_texte()), R2 (sections de balisage :
@@ -11005,7 +11175,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   # controle de la ligne 1, texte des cellules, #522, et par le lecteur
   # interne). R1 puis R2 de xl/workbook.xml et de ses relations sont faites
   # dans .xlsx_fichier_feuille(), avant le choix de la feuille (decision
-  # D-S1-36), suivies du controle des relations (decision D-S1-37) ; R1 de
+  # D-S1-36), suivies du controle de la forme des balises <Relationship>
+  # et de celui des relations (decision D-S1-37, #595) ; R1 de
   # la feuille et de la table, puis leur R2, ensuite.
   feuille <- .xlsx_fichier_feuille(d)
   xml <- .xlsx_texte(d, feuille$partie)
@@ -11261,7 +11432,14 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # les relations forgees qui designent une autre feuille pour openxlsx
 # (attribut Id ou r:id repete ou prefixe, Id en double, texte Id="rIdN" ou
 # r:id=" hors de l'attribut ; decision D-S1-37, #574, lot H, mesures dans
-# .xlsx_controler_relations() et .xlsx_controler_designation()) ;
+# .xlsx_controler_relations() et .xlsx_controler_designation()), de meme
+# qu'une cible de la feuille lue ambigue (attribut Target repete ou
+# prefixe, texte Target= hors de l'attribut, cible lue autrement par
+# openxlsx), un attribut Type repete ou prefixe et une balise <Relationship>
+# de forme non reconnue (caractere autre qu'une espace, "/" ou ">" apres
+# le nom, dans le texte colle : openxlsx 4.2.5.2 pouvait ne jamais rendre la main (selon la place de la balise) ;
+# #595, decisions D-S1-38 et D-S1-39,
+# .xlsx_controler_balises_relation()) ;
 # une feuille dont les balises de cellule sont prefixees (<x:c>) est
 # refusee (regle R3, #574). Une reference de cellule en
 # minuscules (r="a1"), lue par le lecteur interne et menant openxlsx 4.2.9
