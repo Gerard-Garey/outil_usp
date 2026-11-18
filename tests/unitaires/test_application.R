@@ -646,7 +646,7 @@ unlink(.dir518, recursive = TRUE); rm("FICHIER_MW", envir = .env)
 .lu569 <- function() engine_lire_donnees_csv(.env$lire_tableau(.env$FICHIER_LN, FALSE)$df)
 .ecrire569(.d569); .cl569_0 <- .env$charger_ln()
 .ecrire569(.d569[.p569, ]); .cl569 <- .env$charger_ln(); .r569 <- .lu569()
-verifier("Demarrage : series CSV aux lignes 1 et 2 permutees, chargees rangees par t (grille identique a celle du fichier range), statut vert au seul motif d'engine_lire_donnees_csv()$avertissements_lecture, tel quel (#569)",
+verifier("Demarrage : series CSV aux lignes 1 et 2 permutees, chargees rangees par t (grille identique a celle du fichier range), statut en succes (ok) au seul motif d'engine_lire_donnees_csv()$avertissements_lecture, tel quel (#569)",
          isTRUE(.cl569$statut$ok) && length(.cl569$statut$avertissements) == 1L &&
            identical(.cl569$statut$avertissements, .r569$avertissements_lecture) &&
            grepl("(ligne(s) de donnees 1, 2 deplacee(s))", .cl569$statut$avertissements, fixed = TRUE) &&
