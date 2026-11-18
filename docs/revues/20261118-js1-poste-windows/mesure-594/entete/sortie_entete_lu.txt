@@ -1,0 +1,5 @@
+chemin : openxlsx 4.2.5.2 
+openxlsx::read.xlsx direct, noms : [t] [xml:space="preserve">xt] [yt] 
+engine_lire_xlsx : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule B1) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur. 
+chemin : repli (openxlsx absent) 
+engine_lire_xlsx : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule B1) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur. 

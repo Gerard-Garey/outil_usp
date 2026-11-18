@@ -1,0 +1,62 @@
+HEAD : 80225013179d457f362b48dad92c0790598fd7ca 
+chemin : repli (openxlsx absent) 
+
+openpyxl_series_blancs.xlsx
+  md5 7657f79b9f23fbc49c91bb65154a7e17 ; t="s" : 0 ; inlineStr : 11 ; t="str" : 0 ; xml:space (feuille / sst) : 5 / 0
+  moteur : refus [usp_refus_lecture, error, condition] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule D2, balise <t>, dans la chaine en ligne de la cellule D3, balise <t>, dans la chaine en ligne de la cellule D4, balise <t>, dans la chaine en ligne de la cellule D7, balise <t>, dans la chaine en ligne de la cellule D8) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+openpyxl_series_temoin.xlsx
+  md5 43cdb6701bf9598cafe8b1de6767f340 ; t="s" : 0 ; inlineStr : 11 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+openpyxl_triangle_temoin.xlsx
+  md5 e89e1c82979988eba3b4ab293b26c2f6 ; t="s" : 0 ; inlineStr : 9 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; engine_lire_triangle ok = TRUE ; triangle identique a celui du CSV (identical) = TRUE 
+
+pandas-openpyxl_series_blancs.xlsx
+  md5 5b5934fc5f995ee14f1bb8422a0d802d ; t="s" : 0 ; inlineStr : 12 ; t="str" : 0 ; xml:space (feuille / sst) : 5 / 0
+  moteur : refus [usp_refus_lecture, error, condition] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule D2, balise <t>, dans la chaine en ligne de la cellule D3, balise <t>, dans la chaine en ligne de la cellule D4, balise <t>, dans la chaine en ligne de la cellule D7, balise <t>, dans la chaine en ligne de la cellule D8) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+pandas-openpyxl_series_temoin.xlsx
+  md5 44e53bff79b7da9c7cf2d7b5952f4f08 ; t="s" : 0 ; inlineStr : 12 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+pandas-openpyxl_triangle_temoin.xlsx
+  md5 90c494b957a7ebea79ba0e35a9511d14 ; t="s" : 0 ; inlineStr : 37 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; engine_lire_triangle ok = TRUE ; triangle identique a celui du CSV (identical) = TRUE 
+
+pandas-xlsxwriter_series_blancs.xlsx
+  md5 545ed25f67adb72e8784fa54dc5cfc7c ; t="s" : 11 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 5
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+pandas-xlsxwriter_series_temoin.xlsx
+  md5 4fab5303315f6c67f462ca7650c25881 ; t="s" : 11 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+pandas-xlsxwriter_triangle_temoin.xlsx
+  md5 9f1365ad73b824710c2d3f0914db800e ; t="s" : 9 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; engine_lire_triangle ok = TRUE ; triangle identique a celui du CSV (identical) = TRUE 
+
+xlsxwriter-constant_memory_series_blancs.xlsx
+  md5 04e30129c726c2f676a75d80f33f5abe ; t="s" : 0 ; inlineStr : 11 ; t="str" : 0 ; xml:space (feuille / sst) : 5 / 0
+  moteur : refus [usp_refus_lecture, error, condition] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule D2, balise <t>, dans la chaine en ligne de la cellule D3, balise <t>, dans la chaine en ligne de la cellule D4, balise <t>, dans la chaine en ligne de la cellule D7, balise <t>, dans la chaine en ligne de la cellule D8) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.
+
+xlsxwriter-constant_memory_series_temoin.xlsx
+  md5 0c12849f126f17c8e9d5e4a63b3225a7 ; t="s" : 0 ; inlineStr : 11 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+xlsxwriter-constant_memory_triangle_temoin.xlsx
+  md5 79a183aff3a0fab466274f4d618f2d04 ; t="s" : 0 ; inlineStr : 9 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; engine_lire_triangle ok = TRUE ; triangle identique a celui du CSV (identical) = TRUE 
+
+xlsxwriter-defaut_series_blancs.xlsx
+  md5 545ed25f67adb72e8784fa54dc5cfc7c ; t="s" : 11 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 5
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+xlsxwriter-defaut_series_temoin.xlsx
+  md5 4fab5303315f6c67f462ca7650c25881 ; t="s" : 11 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; t/xt/yt identiques au CSV (identical) = TRUE ; engine_lire_donnees_csv ok = TRUE , n = 8 ; avertissements : aucun 
+
+xlsxwriter-defaut_triangle_temoin.xlsx
+  md5 9f1365ad73b824710c2d3f0914db800e ; t="s" : 9 ; inlineStr : 0 ; t="str" : 0 ; xml:space (feuille / sst) : 0 / 0
+  moteur : lu ; engine_lire_triangle ok = TRUE ; triangle identique a celui du CSV (identical) = TRUE 

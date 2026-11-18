@@ -1,0 +1,9 @@
+chemin : repli (openxlsx absent) 
+openpyxl_blancs.xlsx                       moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+openpyxl_temoin.xlsx                       moteur : lu, t/xt/yt identiques au CSV (identical)
+pandas_blancs.xlsx                         moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+pandas_temoin.xlsx                         moteur : lu, t/xt/yt identiques au CSV (identical)
+xlsxwriter_constant_memory_blancs.xlsx     moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+xlsxwriter_constant_memory_temoin.xlsx     moteur : lu, t/xt/yt identiques au CSV (identical)
+xlsxwriter_defaut_blancs.xlsx              moteur : lu, t/xt/yt identiques au CSV (identical)
+xlsxwriter_defaut_temoin.xlsx              moteur : lu, t/xt/yt identiques au CSV (identical)

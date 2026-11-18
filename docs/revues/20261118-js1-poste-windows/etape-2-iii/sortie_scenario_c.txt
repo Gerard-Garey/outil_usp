@@ -1,0 +1,17 @@
+HEAD : 80225013179d457f362b48dad92c0790598fd7ca 
+md5 R/engine.R : 26220144141d922f4ea85d259004f093 
+R : R version 4.3.3 (2024-02-29 ucrt) ; openxlsx : 4.2.9 ; zip : 2.3.0 
+tempdir() : <TEMP>\RtmpkJpk9e (lecteur C: )
+getwd() avant : <scratchpad>/e2iii_b 
+normalizePath("C:") avant : <scratchpad>\e2iii_b 
+normalizePath("C:f.xlsx") avant : <scratchpad>\e2iii_b\f.xlsx 
+file.exists("C:f.xlsx") avant : FALSE 
+Avertissements : aucun 
+Valeur rendue :
+ chr "C:f.xlsx"
+getwd() apres : <scratchpad>/e2iii_b 
+existe <scratchpad>/e2iii_b/f.xlsx : FALSE 
+existe <scratchpad>\e2iii_b/f.xlsx : FALSE 
+existe C:/f.xlsx : FALSE 
+existe <depot>/f.xlsx : FALSE 
+code de sortie: 0

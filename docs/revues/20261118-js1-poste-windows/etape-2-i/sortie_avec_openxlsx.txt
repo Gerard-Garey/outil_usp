@@ -1,0 +1,17 @@
+HEAD: c75a112214d757ad778b89aaf2e680ba719d6c0f
+Debut: 2026-11-18T19:56:00.5079839+01:00
+
+== test_controles_entree.R
+  note : plateforme courante, y = x / 2 : ligne Cook non applicable ; TOST sous-normal 1e-320 : statistique non definie ; 5e-324 : statistique non definie (#153).
+  [saute] .echapper_texte() sous LC_ALL = C.UTF-8 (#588) : locale indisponible
+  [ECHEC] engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC en barres obliques tel quel (absolu sur tout systeme), sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)
+          -> valeur obtenue : FALSE
+  [saute] chemin "~" (#580) : HOME non redirigeable sur ce systeme
+  [ECHEC] engine_ecrire_xlsx() : tabulation et saut de ligne admis en cellule (relus identical(), texte marque latin1 compris) et en en-tete (ecrits tels quels dans la feuille) (#580)
+          -> valeur obtenue : FALSE
+   608 assertions : 606 ok, 2 echec(s), 0 echec(s) attendu(s), 0 succes inattendu(s)  (506.5 s)
+
+TOTAL : 608 assertions, 606 ok, 2 echec(s), 0 echec(s) attendu(s) (defauts connus), 0 succes inattendu(s)
+
+ECHEC
+Fin: 2026-11-18T20:04:27.7359056+01:00 ; duree s: 507 ; code de sortie: 1
