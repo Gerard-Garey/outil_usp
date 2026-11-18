@@ -843,7 +843,9 @@ sans erreur de R, de même qu'une cellule hexadécimale, à exposant incomplet o
 décimal \code{dec} autre que le point, portant un point (§\ref{sec:controles}) \\
 \code{engine\_lire\_donnees\_}\newline\code{csv()}, \code{.en\_numerique()} & \code{data.frame}
 (colonnes $t$, \code{xt}, \code{yt})~; vecteur & \code{\$ok}, \code{\$erreurs}, \code{\$xt},
-\code{\$yt}, \code{\$n}, lignes rangées par $t$ (entier, sans doublon, consécutif), BOM retiré
+\code{\$yt}, \code{\$n}, \code{\$avertissements\_lecture}, lignes rangées par $t$ (entier,
+sans doublon, consécutif), information de lecture rendue dans \code{\$avertissements\_lecture}
+si et seulement si ce rangement change l'ordre des lignes (vide pour un refus), BOM retiré
 du premier nom de colonne, refus de tout en-tête déclaré d'encodage \code{"bytes"}, quelle que
 soit sa colonne, par un motif propre, un par colonne, qui ne cite pas le nom, refus d'une ligne~1
 sans valeur (\code{.ligne1\_sans\_valeur()}), colonne~$t$ désignée par l'en-tête \code{t}, en minuscule ou en majuscule,
@@ -904,8 +906,8 @@ minuscule ou en majuscule une fois retirés les blancs de bord de la classe \cod
 nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées dans un motif de
 lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
 vides, des en-têtes en double, de la colonne \code{i}, des cellules non numériques des colonnes
-\code{xt}, \code{yt} et~$t$ et du triangle, des cellules renseignées sous la diagonale et de
-la suite d'en-têtes en chiffres romains~; motifs de refus des valeurs de la
+\code{xt}, \code{yt} et~$t$ et du triangle, des cellules renseignées sous la diagonale, de
+la suite d'en-têtes en chiffres romains et des lignes déplacées par le rangement par~$t$~; motifs de refus des valeurs de la
 colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières ou non numériques
 cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
 ordre (§\ref{sec:controles})~; positions de la première suite d'au moins deux en-têtes I, II,
@@ -5089,7 +5091,15 @@ instant, durée, octets bruts, complexe, liste), refusée avec sa position si el
 (une date n'est pas lue en jours, ni \code{TRUE} en~1, mesuré), et,
 si la colonne $t$ est présente, exige des années entières, finies, sans doublon et consécutives
 (lecture retenue par l'outil~: annexe~XVII, B/C(3)(a) et~(b), années d'accident ou exercices représentés par des nombres consécutifs de~1 à~$T$), puis range les lignes par $t$ croissant~; à défaut, le
-fichier est refusé, sans tri ni comblement. Un en-tête désigne la colonne~$t$ s'il vaut \code{t},
+fichier est refusé, sans tri ni comblement. Quand ce rangement change l'ordre des lignes du
+fichier, le lecteur rend dans \code{\$avertissements\_lecture} une information, non bloquante
+(«~\code{Lignes du tableau rangees par annee t croissante pour le calcul}~»), qui cite les lignes
+de données déplacées, cinq au plus, et rappelle que l'ordre de la colonne~$t$ détermine les
+p-values et les verdicts des tests sensibles à l'ordre des années et, si la profondeur $T$
+retenue est inférieure au nombre de lignes, les années retenues~; ce champ est vide pour un
+fichier déjà rangé, sans colonne~$t$ ou refusé (mesuré). L'application restitue l'information
+sous le statut du fichier, au démarrage et à l'import, que les données chargées passent ou non
+les contrôles de validité~: la grille ne montre que les lignes déjà rangées. Un en-tête désigne la colonne~$t$ s'il vaut \code{t},
 en minuscule ou en majuscule, une fois retirés le BOM et les blancs de bord de la classe \code{[[:space:]]}
 (\code{.entete\_designe()}, règle commune avec la colonne \code{i} du triangle)~; un en-tête
 \code{NA}, ou dont les octets ne forment pas de l'UTF-8 valide, ne la désigne jamais. Plusieurs
@@ -5695,8 +5705,9 @@ Ne pas la lire découle de D(4)(c) et D(5), dont les formules ne portent que sur
 $i + j \le I$ (sommes sur $i \le I - j - 1$ ou $i \le I - j$, cumuls $C(i, I-i)$ de la
 diagonale)~; seul l'avertissement est une convention de l'outil.
 Un seul avertissement par triangle, cinq positions au plus~; \code{engine\_lire\_triangle()} le
-rend aussi dans \code{\$avertissements\_lecture}, seul avertissement de la lecture d'un fichier
-que l'application restitue à l'import et au démarrage, les autres étant calculés sans segment ni annexe. \\
+rend aussi dans \code{\$avertissements\_lecture}, seul avertissement de la lecture d'un triangle
+que l'application restitue à l'import et au démarrage, les autres étant calculés sans segment ni
+annexe (pour les séries, information de rangement par~$t$, paragraphe «~Lecture des fichiers~»). \\
 Positivité des cumulés & $C(i,j) > 0$ & Les facteurs $F(i,j)$ et la pondération
 en $C(i,j)$ doivent être définis. \\
 Domaine numérique & chaque cellule observée ($i + j \le I$) dans $[10^{-50}\,;10^{50}]$, bornes
