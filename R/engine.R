@@ -8203,6 +8203,50 @@ usp_tests <- function(fit, boot, alpha = 0.10,
   res
 }
 
+# Suite d'en-tetes en chiffres romains I, II, III, ... en colonnes
+# consecutives (#568). Comme l'en-tete I designe la colonne i (regle N,
+# .entete_designe()), des colonnes de developpement titrees en chiffres
+# romains faisaient lire la premiere comme la colonne i, d'ou un refus sur ses
+# valeurs ("Colonne i non entiere ...", "Triangle non carre") ou, derriere une
+# vraie colonne i, le refus H1 "present plusieurs fois" : surs, mais au motif
+# trompeur. La suite commence a I et chaque en-tete suivant est le chiffre
+# romain suivant ; elle compte au moins deux en-tetes (I et II) : un I seul
+# garde les motifs actuels (colonne i). Blancs de bord ignores comme par la
+# regle N ; majuscules (I, II, ...) ou minuscules (i, ii, ...), comme i ou I
+# pour la colonne i, sans melange dans un meme en-tete ("Ii" n'est pas lu) ni
+# d'un en-tete a l'autre de la suite : "i, II, III" et "I, ii, iii" ne sont
+# pas des suites (le premier en-tete est alors la colonne i et les suivants
+# des colonnes de developpement, comme avant #568). Formes canoniques par
+# utils::as.roman() (R base), jamais lues par analyse : "IIII" n'est pas
+# reconnu. Rang limite a 3000 colonnes : as.roman() rend NA des 3900 dans
+# R 4.3.3 (mesure), borne laissee hors du calcul ; aucun triangle
+# n'approche cette largeur. Nom NA ou non UTF-8 : jamais romain (garde de
+# .entete_designe()). Renvoie les positions (colonnes du tableau) de la
+# premiere suite, integer(0) s'il n'y en a pas ; la suite contient
+# toujours exactement une colonne designee i (son premier en-tete).
+.suite_entetes_romains <- function(noms) {
+  if (!any(.entete_designe(noms, "i"))) return(integer(0))
+  n <- length(noms)
+  u <- enc2utf8(as.character(noms))
+  lisible <- !is.na(noms) & validUTF8(u)
+  rom <- as.character(utils::as.roman(seq_len(min(n, 3000L))))
+  nom <- rep(NA_character_, n)
+  nom[lisible] <- .xlsx_blancs_entete(u[lisible])
+  # Une casse a la fois : la suite entiere est lue en majuscules, ou entiere
+  # en minuscules ; premiere suite rencontree, en position croissante.
+  res <- list()
+  for (casse in list(rom, tolower(rom))) {
+    rang <- match(nom, casse)
+    for (k in which(rang == 1L)) {
+      m <- 1L
+      while (k + m <= n && !is.na(rang[k + m]) && rang[k + m] == m + 1L) m <- m + 1L
+      if (m >= 2L) { res[[length(res) + 1L]] <- k + seq_len(m) - 1L; break }
+    }
+  }
+  if (!length(res)) return(integer(0))
+  res[[which.min(vapply(res, `[`, integer(1), 1L))]]
+}
+
 # Positions (lignes de donnees, colonnes ou paires) listees dans un motif de
 # lecture : cinq au plus, puis "et <n> autre(s)". Commune aux motifs de
 # .retirer_lignes_colonnes_vides(), des en-tetes en double et de la colonne
@@ -8656,7 +8700,37 @@ engine_lire_triangle <- function(df) {
   # #550) ; l'unique colonne designee est renommee "i", sa forme canonique,
   # lue ensuite par le code en aval. Un nom NA est un en-tete absent
   # (decision 2), jamais la colonne i.
+  # Suite d'en-tetes en chiffres romains (#568, textes d'actuary), lue sur
+  # les noms recus ; deux configurations, selon que la suite porte ou non
+  # toutes les colonnes designees i par la regle N :
+  # - configuration 2 (une colonne designee i existe hors de la suite : i, I,
+  #   II, ... ou i, I, II, j2, ...) : refus ici, avant H1, au motif dedie,
+  #   positions et en-tetes de la suite seule, tels que recus ; sans lui,
+  #   H1 dirait "present plusieurs fois" d'une colonne i que l'utilisateur
+  #   n'a pas dupliquee ;
+  # - configuration 1 (le I de la suite est la seule colonne designee i : I,
+  #   II, ... sans colonne i, ou colonne I d'annees suivie de II, ...) : le
+  #   flux continue, renommage en "i", retrait des lignes et colonnes vides
+  #   (aucun triangle accepte avant #568 n'est refuse : un fichier valide
+  #   dont la colonne I porte les annees, ou qui finit par des lignes vides,
+  #   reste lu) ; le motif dedie remplace a l'etape B le motif de
+  #   .motifs_colonne_i() quand celle-ci en renvoie un. Les positions et
+  #   en-tetes cites sont ceux de la suite, calcules ici sur les noms
+  #   d'origine, donc independants du retrait des colonnes vides qui suit.
+  #   Residu : si les montants de cette colonne I sont par hasard des
+  #   entiers consecutifs croissants, .motifs_colonne_i() ne renvoie rien,
+  #   le flux continue et le motif generique tombe en aval (forme du
+  #   triangle, mw_valider_triangle()).
+  kr <- .suite_entetes_romains(names(df))
   ki <- which(.entete_designe(names(df), "i"))
+  motif_romains <- if (length(kr))
+    sprintf(paste("En-tetes de colonnes en chiffres romains (colonnes %s, d'en-tetes %s) : l'en-tete I",
+                  "designe la colonne i, facultative, qui porte l'annee d'accident de chaque ligne (en-tete",
+                  "i ou I, blancs de bord ignores), et ne peut titrer une colonne d'annee de developpement ;",
+                  "renommer les colonnes d'annee de developpement, par exemple j0, j1, j2, ... (format",
+                  "d'export de l'application)."),
+            .liste_positions(kr), .liste_positions(.echapper_texte(names(df)[kr])))
+  if (length(kr) && any(!(ki %in% kr))) return(refus(motif_romains))
   if (length(ki) > 1)
     return(refus(sprintf(paste("En-tete de la colonne i present plusieurs fois (colonnes %s, d'en-tetes %s) :",
                                "la colonne i, facultative, porte l'annee d'accident de chaque ligne et ne",
@@ -8673,7 +8747,8 @@ engine_lire_triangle <- function(df) {
   # Etape B sur les valeurs de la colonne i (#555) : voir .motifs_colonne_i().
   if ("i" %in% names(df)) {
     mi <- .motifs_colonne_i(df[[which(names(df) %in% "i")]])
-    if (length(mi)) return(refus(mi))
+    # Configuration 1 de #568 : le motif dedie remplace celui de la colonne i.
+    if (length(mi)) return(refus(if (length(kr) >= 2) motif_romains else mi))
   }
   # Selection par position : setdiff() sur les noms perdait les colonnes de
   # nom duplique ; %in% plutot que != : un nom NA (appel direct) levait
