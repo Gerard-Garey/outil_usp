@@ -8708,10 +8708,16 @@ engine_lire_triangle <- function(df) {
   while (i > 0) { r <- (i - 1) %% 26; out <- c(LETTERS[r + 1], out); i <- (i - 1) %/% 26 }
   paste(out, collapse = "")
 }
-.xml_echap <- function(x) {
+# Echappement XML d'une chaine. Texte de cellule : & < > seuls. Avec
+# attribut = TRUE (valeur d'un attribut entre guillemets doubles, nom de la
+# feuille de xl/workbook.xml) : le guillemet double est echappe aussi (&quot;),
+# faute de quoi il ferme l'attribut et le XML est mal forme (#580).
+.xml_echap <- function(x, attribut = FALSE) {
   x <- gsub("&", "&amp;", x, fixed = TRUE)
   x <- gsub("<", "&lt;", x, fixed = TRUE)
-  gsub(">", "&gt;", x, fixed = TRUE)
+  x <- gsub(">", "&gt;", x, fixed = TRUE)
+  if (attribut) x <- gsub('"', "&quot;", x, fixed = TRUE)
+  x
 }
 
 # Chemin absolu au sens de l'ecrivain xlsx (#580), sur la seule chaine : barre
@@ -8729,14 +8735,19 @@ engine_lire_triangle <- function(df) {
 # dira). Un chemin absolu dont dirname() vaut "." n'a pas de dossier que R
 # sache lire : sous Linux, "\\\\serveur\\partage\\f.xlsx" (la barre inverse n'y
 # est pas un separateur), "X:f.xlsx" ou "C:" ; normalizePath(".") rendrait
-# alors getwd() : le chemin est rendu tel quel. Le resultat ne depend pas de
-# getwd() (il depend de wd, de HOME pour "~" et, par normalizePath(), des liens
-# du dossier s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
+# alors getwd() : le chemin est rendu tel quel. Sous unix, un dossier qui ne
+# commence pas par "/" n'est pas absolu pour le systeme (dirname("C:/a/f.xlsx")
+# vaut "C:/a" ; mesure : normalizePath() le resout contre getwd() des qu'un
+# dossier "C:/a" y existe) : il est rendu tel quel aussi, non normalise. Le
+# resultat ne depend pas de getwd() (il depend de wd, de HOME pour "~" et, par
+# normalizePath(), des liens du dossier s'il existe) ; aucun fichier ni dossier
+# n'est lu, cree ni ecrit.
 .xlsx_chemin_sortie <- function(chemin, wd) {
   chemin <- path.expand(chemin)
   base <- if (.xlsx_chemin_absolu(chemin)) chemin else file.path(wd, chemin)
   dossier <- dirname(base)
-  if (identical(dossier, ".")) return(base)
+  if (identical(dossier, ".") ||
+      (.Platform$OS.type == "unix" && !startsWith(dossier, "/"))) return(base)
   file.path(normalizePath(dossier, winslash = "/", mustWork = FALSE), basename(base))
 }
 
@@ -8754,14 +8765,18 @@ engine_lire_triangle <- function(df) {
 # conforme relit les blancs d'un attribut en espaces (XML 1.0, 3.3.3). La
 # tabulation et le saut de ligne restent admis en cellule et en en-tete, qui
 # sont du texte de cellule (<t>). x : un seul element ; une chaine marquee
-# latin1 est d'abord convertie (enc2utf8()), comme l'ecrit paste0() ; enc2utf8()
-# ne convertit pas une chaine marquee bytes : elle est refusee ici si ses octets
-# ne sont pas de l'UTF-8 valide, admise sinon (mesure : "caf\xe9" bytes refusee,
-# "abc" bytes admise). Limite constatee, non traitee : une chaine bytes non
-# ASCII et UTF-8 valide passe ce controle puis leve une erreur R de sprintf()
-# a l'ecriture de la cellule, avant tout fichier. NA : admis.
+# latin1 est d'abord convertie (enc2utf8()), comme l'ecrit paste0(). Une chaine
+# marquee bytes et non ASCII est refusee a tous les emplacements, meme si ses
+# octets sont de l'UTF-8 valide : ses caracteres ne sont pas determines (meme
+# regle que l'en-tete "bytes" des lecteurs, #570, D-S1-4 et D-S1-26), et
+# l'ecrire levait une erreur R brute de sprintf() en cellule et en en-tete
+# (mesure) ou l'admettait en nom de feuille. Une chaine bytes ASCII reste
+# admise (mesure : "abc" bytes admise). NA : admis.
 .xlsx_defaut_texte <- function(x, attribut = FALSE) {
   if (is.na(x)) return(NULL)
+  if (Encoding(x) == "bytes" && grepl("[^\x01-\x7f]", x, useBytes = TRUE))
+    return(paste("un encodage declare \"bytes\" : ses caracteres ne sont pas determines",
+                 "(fournir le texte en UTF-8 ou en Latin-1 declare)"))
   x <- enc2utf8(x)
   if (!validUTF8(x)) return("une suite d'octets qui n'est pas de l'UTF-8 valide")
   cp <- utf8ToInt(x)
@@ -8825,10 +8840,12 @@ engine_lire_triangle <- function(df) {
 # aussi, ou si la commande manque, erreur de classe "usp_refus_ecriture" qui
 # nomme les deux echecs, archive partielle effacee. Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
-# Chemin de sortie (#580) : resolu avant tout changement de repertoire par
-# .xlsx_chemin_sortie() ("~" developpe, chemin UNC ou lecteur "X:" absolu,
-# sinon relatif au repertoire courant de l'appelant) ; la valeur rendue est
-# ce chemin resolu.
+# Chemin de sortie (#580) : chaine unique, non NA, non vide, ne finissant pas
+# par une barre oblique ou inverse (nom de dossier sans fichier), sinon refus
+# usp_refus_ecriture avant toute ecriture ; resolu avant tout changement de
+# repertoire par .xlsx_chemin_sortie() ("~" developpe, chemin UNC ou lecteur
+# "X:" absolu, sinon relatif au repertoire courant de l'appelant) ; la valeur
+# rendue est ce chemin resolu.
 # Caracteres (#580) : une chaine ecrite (cellule, en-tete, nom de feuille) qui
 # porte un caractere hors XML 1.0 (controles C0 hors tabulation, saut de
 # ligne et retour chariot ; U+FFFE, U+FFFF ; substituts) ou qui n'est pas de
@@ -8842,13 +8859,21 @@ engine_lire_triangle <- function(df) {
 # lecteur interne les relisent intacts (mesure, decision du mainteneur du
 # 18/11/2026) ; l'echappement &#13; est exclu (le lecteur refuse ces
 # references). Tabulation et saut de ligne restent admis en cellule et en
-# en-tete (texte de cellule). Le message cite l'emplacement (feuille,
+# en-tete (texte de cellule). Une chaine marquee "bytes" et non ASCII est
+# refusee de meme, a tous les emplacements. Le guillemet double d'un nom de
+# feuille est ecrit &quot; dans l'attribut name. Le message cite l'emplacement (feuille,
 # en-tete ou cellule) et le code du caractere, jamais le contenu de la chaine.
 # Nom de la feuille : chaine unique, non NA, non vide ; un nombre fini seul
 # est admis et ecrit as.character() (feuille = 1 donne la feuille "1", comme
 # avant le controle) ; tout autre argument est refuse (usp_refus_ecriture).
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
+  # Controle d'usage de chemin, avant tout (#580) : un fichier est designe, non
+  # un dossier ni la chaine vide (dirname("sub/") vaut ".", basename "sub")
+  if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin) ||
+      grepl("[/\\\\]$", chemin))
+    .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : le chemin doit etre une chaine",
+                          "unique, non NA, non vide et ne pas finir par une barre ; aucun fichier ecrit."))
   # Controle d'usage de feuille, avant tout (#580) : un nombre fini seul devient
   # sa chaine ; le reste de ce qui n'est pas une chaine unique non NA non vide
   # est refuse ici, sans erreur R brute dans .xlsx_defaut_texte()
@@ -8922,7 +8947,7 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
     ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
-    '<sheets><sheet name="', .xml_echap(enc2utf8(feuille)), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+    '<sheets><sheet name="', .xml_echap(enc2utf8(feuille), attribut = TRUE), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
     file.path(d, "xl", "workbook.xml"), useBytes = TRUE)
   writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
