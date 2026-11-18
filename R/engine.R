@@ -8714,6 +8714,68 @@ engine_lire_triangle <- function(df) {
   gsub(">", "&gt;", x, fixed = TRUE)
 }
 
+# Chemin absolu au sens de l'ecrivain xlsx (#580), sur la seule chaine : barre
+# oblique ou barre inverse en tete (racine ; chemin UNC "//serveur/partage/f"
+# ou, en barres inverses, "\\serveur\partage\f"), ou lecteur "X:".
+# Reconnu de la meme facon sur tout systeme, comme le faisait le test de
+# lecteur qui precedait. Aucun acces au systeme de fichiers.
+.xlsx_chemin_absolu <- function(chemin) grepl("^([/\\\\]|[A-Za-z]:)", chemin)
+
+# Resolution du chemin de sortie de l'ecrivain xlsx (#580), appelee AVANT que
+# le repertoire courant ne change : "~" est developpe (path.expand()), un
+# chemin non absolu est pris relativement a wd (repertoire courant de
+# l'appelant), puis le dossier est normalise (normalizePath(mustWork = FALSE) :
+# un dossier absent n'est pas une erreur ici, la creation de l'archive le
+# dira). Un chemin absolu dont dirname() vaut "." n'a pas de dossier que R
+# sache lire : sous Linux, "\\\\serveur\\partage\\f.xlsx" (la barre inverse n'y
+# est pas un separateur), "X:f.xlsx" ou "C:" ; normalizePath(".") rendrait
+# alors getwd() : le chemin est rendu tel quel. Le resultat ne depend pas de
+# getwd() (il depend de wd, de HOME pour "~" et, par normalizePath(), des liens
+# du dossier s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
+.xlsx_chemin_sortie <- function(chemin, wd) {
+  chemin <- path.expand(chemin)
+  base <- if (.xlsx_chemin_absolu(chemin)) chemin else file.path(wd, chemin)
+  dossier <- dirname(base)
+  if (identical(dossier, ".")) return(base)
+  file.path(normalizePath(dossier, winslash = "/", mustWork = FALSE), basename(base))
+}
+
+# Defaut de texte d'une chaine ecrite dans le classeur (#580), NULL si elle
+# est admise : texte decrivant le premier defaut sinon. XML 1.0 n'admet, parmi
+# les caracteres de controle, que la tabulation, le saut de ligne et le retour
+# chariot ; sont refuses les controles C0 restants (U+0000 a U+0008, U+000B,
+# U+000C, U+000E a U+001F), U+FFFE, U+FFFF et les substituts (U+D800 a U+DFFF,
+# que validUTF8() rejette deja), ainsi que toute suite d'octets qui n'est pas
+# de l'UTF-8 valide. Est refuse aussi le retour chariot (U+000D), meme admis
+# par XML 1.0 : un analyseur XML conforme le relit en saut de ligne (XML 1.0,
+# 2.11), le caractere ne survit pas a la relecture par un tableur. Avec
+# attribut = TRUE (nom de feuille, ecrit dans l'attribut name de xl/workbook.xml),
+# la tabulation et le saut de ligne sont refuses de meme : un analyseur
+# conforme relit les blancs d'un attribut en espaces (XML 1.0, 3.3.3). La
+# tabulation et le saut de ligne restent admis en cellule et en en-tete, qui
+# sont du texte de cellule (<t>). x : un seul element ; une chaine marquee
+# latin1 est d'abord convertie (enc2utf8()), comme l'ecrit paste0() ; enc2utf8()
+# ne convertit pas une chaine marquee bytes : elle est refusee ici si ses octets
+# ne sont pas de l'UTF-8 valide, admise sinon (mesure : "caf\xe9" bytes refusee,
+# "abc" bytes admise). Limite constatee, non traitee : une chaine bytes non
+# ASCII et UTF-8 valide passe ce controle puis leve une erreur R de sprintf()
+# a l'ecriture de la cellule, avant tout fichier. NA : admis.
+.xlsx_defaut_texte <- function(x, attribut = FALSE) {
+  if (is.na(x)) return(NULL)
+  x <- enc2utf8(x)
+  if (!validUTF8(x)) return("une suite d'octets qui n'est pas de l'UTF-8 valide")
+  cp <- utf8ToInt(x)
+  interdit_xml <- (cp < 32L & !(cp %in% c(9L, 10L, 13L))) | cp %in% c(0xFFFEL, 0xFFFFL) |
+                  (cp >= 0xD800L & cp <= 0xDFFFL)
+  non_conserve <- cp == 13L | (attribut & cp %in% c(9L, 10L))
+  mauvais <- which(interdit_xml | non_conserve)
+  if (!length(mauvais)) return(NULL)
+  k <- mauvais[1L]
+  sprintf("le caractere U+%04X (position %d de la chaine), %s", cp[k], k,
+          if (interdit_xml[k]) "interdit en XML 1.0"
+          else "qu'un tableur ne conserve pas a la relecture (normalise par l'analyse XML)")
+}
+
 # Ecriture d'un nombre fini dans une cellule <v> du repli : point decimal et
 # pleine precision, independants de getOption("OutDec") et de digits (#428).
 # sprintf() n'a recours ni a l'un ni a l'autre. Ecriture a 15 chiffres
@@ -8763,8 +8825,38 @@ engine_lire_triangle <- function(df) {
 # aussi, ou si la commande manque, erreur de classe "usp_refus_ecriture" qui
 # nomme les deux echecs, archive partielle effacee. Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
+# Chemin de sortie (#580) : resolu avant tout changement de repertoire par
+# .xlsx_chemin_sortie() ("~" developpe, chemin UNC ou lecteur "X:" absolu,
+# sinon relatif au repertoire courant de l'appelant) ; la valeur rendue est
+# ce chemin resolu.
+# Caracteres (#580) : une chaine ecrite (cellule, en-tete, nom de feuille) qui
+# porte un caractere hors XML 1.0 (controles C0 hors tabulation, saut de
+# ligne et retour chariot ; U+FFFE, U+FFFF ; substituts) ou qui n'est pas de
+# l'UTF-8 valide est refusee (.xlsx_defaut_texte()), de classe
+# "usp_refus_ecriture", avant toute ecriture : aucun fichier n'est cree ni
+# retire, aucun caractere n'est supprime en silence. Est refuse aussi, en
+# cellule et en en-tete, le retour chariot (U+000D), et dans le nom de la
+# feuille la tabulation, le saut de ligne et le retour chariot : un analyseur
+# XML 1.0 conforme relit un retour chariot de texte en saut de ligne (2.11) et
+# les blancs d'un attribut en espaces (3.3.3), alors que openxlsx et le
+# lecteur interne les relisent intacts (mesure, decision du mainteneur du
+# 18/11/2026) ; l'echappement &#13; est exclu (le lecteur refuse ces
+# references). Tabulation et saut de ligne restent admis en cellule et en
+# en-tete (texte de cellule). Le message cite l'emplacement (feuille,
+# en-tete ou cellule) et le code du caractere, jamais le contenu de la chaine.
+# Nom de la feuille : chaine unique, non NA, non vide ; un nombre fini seul
+# est admis et ecrit as.character() (feuille = 1 donne la feuille "1", comme
+# avant le controle) ; tout autre argument est refuse (usp_refus_ecriture).
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
+  # Controle d'usage de feuille, avant tout (#580) : un nombre fini seul devient
+  # sa chaine ; le reste de ce qui n'est pas une chaine unique non NA non vide
+  # est refuse ici, sans erreur R brute dans .xlsx_defaut_texte()
+  if (is.numeric(feuille) && length(feuille) == 1L && is.finite(feuille))
+    feuille <- as.character(feuille)
+  if (!is.character(feuille) || length(feuille) != 1L || is.na(feuille) || !nzchar(feuille))
+    .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : le nom de la feuille doit etre",
+                          "une chaine unique, non NA et non vide ; aucun fichier ecrit."))
   avec_paquet_zip <- requireNamespace("zip", quietly = TRUE)
   if (!avec_paquet_zip && !nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip"))))
     .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : ni le paquet R zip ni la",
@@ -8772,14 +8864,28 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
                           "zip, ou openxlsx qui l'importe)."))
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nc <- ncol(df); nr <- nrow(df)
+  # Chemin de sortie resolu ici, avant setwd(d) plus bas (#580)
+  cible <- .xlsx_chemin_sortie(chemin, getwd())
+  # Refus d'une chaine hors XML 1.0 ou d'UTF-8 invalide ; ou : emplacement
+  refuser_texte <- function(texte, ou, attribut = FALSE) {
+    defaut <- .xlsx_defaut_texte(texte, attribut)
+    if (!is.null(defaut))
+      .refus_ecriture(sprintf(
+        "Ecriture du fichier .xlsx impossible : %s porte %s ; aucun fichier ecrit.", ou, defaut))
+  }
+  refuser_texte(feuille, "le nom de la feuille", attribut = TRUE)
   cellule <- function(ligne, col, valeur) {
     ref <- paste0(.col_lettre(col), ligne)
     if (is.na(valeur)) return("")
     # +-Inf : chaine en ligne (voir l'en-tete de engine_ecrire_xlsx())
     if (is.numeric(valeur) && is.finite(valeur))
       sprintf('<c r="%s"><v>%s</v></c>', ref, .xlsx_nombre(valeur))
-    else
-      sprintf('<c r="%s" t="inlineStr"><is><t>%s</t></is></c>', ref, .xml_echap(as.character(valeur)))
+    else {
+      texte <- enc2utf8(as.character(valeur))
+      refuser_texte(texte, if (ligne == 1) sprintf("l'en-tete de la colonne %d (cellule %s)", col, ref)
+                           else sprintf("la cellule %s (colonne %d)", ref, col))
+      sprintf('<c r="%s" t="inlineStr"><is><t>%s</t></is></c>', ref, .xml_echap(texte))
+    }
   }
   lignes <- character(nr + 1)
   lignes[1] <- paste0('<row r="1">',
@@ -8816,7 +8922,7 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
     ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
-    '<sheets><sheet name="', .xml_echap(feuille), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
+    '<sheets><sheet name="', .xml_echap(enc2utf8(feuille)), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
     file.path(d, "xl", "workbook.xml"), useBytes = TRUE)
   writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
@@ -8827,7 +8933,6 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   # Retour au repertoire initial AVANT la suppression de d (after = FALSE) :
   # on ne supprime pas le repertoire courant.
   wd <- setwd(d); on.exit(setwd(wd), add = TRUE, after = FALSE)
-  cible <- if (grepl("^(/|[A-Za-z]:)", chemin)) chemin else file.path(wd, chemin)
   if (file.exists(cible)) unlink(cible)
   entrees <- c("[Content_Types].xml", "_rels", "xl")
   echec_paquet <- NULL
@@ -8943,9 +9048,11 @@ engine_ecrire_csv <- function(df, chemin) {
 # .refus_lecture(). Son conditionMessage() est le texte fixe de la cause,
 # que l'application montre tel quel dans la notification d'echec d'un export
 # (#556) ; toute autre erreur d'ecriture reste une erreur R ordinaire, dont
-# la cause n'est pas montree a l'ecran. Levee par les deux seules erreurs
-# d'engine_ecrire_xlsx() : ni paquet zip ni commande zip, et echec de la
-# creation de l'archive par le paquet zip puis par la commande zip.
+# la cause n'est pas montree a l'ecran. Levee par les seules erreurs
+# d'engine_ecrire_xlsx() dont la cause se dit a l'utilisateur : ni paquet zip
+# ni commande zip ; echec de la creation de l'archive par le paquet zip puis
+# par la commande zip ; chaine hors XML 1.0 ou UTF-8 invalide, refusee avant
+# toute ecriture (#580).
 .refus_ecriture <- function(message)
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
                  list(message = message, call = NULL)))
