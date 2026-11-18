@@ -8723,8 +8723,11 @@ engine_lire_triangle <- function(df) {
 # Chemin absolu au sens de l'ecrivain xlsx (#580), sur la seule chaine : barre
 # oblique ou barre inverse en tete (racine ; chemin UNC "//serveur/partage/f"
 # ou, en barres inverses, "\\serveur\partage\f"), ou lecteur "X:".
-# Reconnu de la meme facon sur tout systeme, comme le faisait le test de
-# lecteur qui precedait. Aucun acces au systeme de fichiers.
+# Reconnu de la meme facon sur tout systeme : fonction de reconnaissance, qui
+# ne dit pas ce que le systeme courant admet (sous unix, .xlsx_chemin_sortie()
+# n'en retient que la barre oblique, et engine_ecrire_xlsx() refuse avant les
+# formes de lecteur et d'UNC en barres inverses, voir .xlsx_defaut_chemin()).
+# Aucun acces au systeme de fichiers.
 .xlsx_chemin_absolu <- function(chemin) grepl("^([/\\\\]|[A-Za-z]:)", chemin)
 
 # Resolution du chemin de sortie de l'ecrivain xlsx (#580), appelee AVANT que
@@ -8732,23 +8735,74 @@ engine_lire_triangle <- function(df) {
 # chemin non absolu est pris relativement a wd (repertoire courant de
 # l'appelant), puis le dossier est normalise (normalizePath(mustWork = FALSE) :
 # un dossier absent n'est pas une erreur ici, la creation de l'archive le
-# dira). Un chemin absolu dont dirname() vaut "." n'a pas de dossier que R
-# sache lire : sous Linux, "\\\\serveur\\partage\\f.xlsx" (la barre inverse n'y
-# est pas un separateur), "X:f.xlsx" ou "C:" ; normalizePath(".") rendrait
-# alors getwd() : le chemin est rendu tel quel. Sous unix, un dossier qui ne
-# commence pas par "/" n'est pas absolu pour le systeme (dirname("C:/a/f.xlsx")
-# vaut "C:/a" ; mesure : normalizePath() le resout contre getwd() des qu'un
-# dossier "C:/a" y existe) : il est rendu tel quel aussi, non normalise. Le
-# resultat ne depend pas de getwd() (il depend de wd, de HOME pour "~" et, par
-# normalizePath(), des liens du dossier s'il existe) ; aucun fichier ni dossier
-# n'est lu, cree ni ecrit.
+# dira). Sous unix, est absolu pour le systeme un chemin qui commence par "/"
+# ("//serveur/partage/f.xlsx" compris) ; tout autre est resolu contre wd, de
+# sorte que la cible est toujours absolue : un chemin de lecteur ("X:f.xlsx",
+# "C:/a/f.xlsx", "C:") ou d'UNC en barres inverses n'y arrive pas
+# (engine_ecrire_xlsx() le refuse avant, .xlsx_defaut_chemin()) ; donne ici,
+# il serait pris pour un nom de fichier ordinaire, sous wd. Sous Windows, les
+# formes de .xlsx_chemin_absolu() restent absolues ; un dossier "." (forme
+# absolue sans dossier que R sache lire, dont normalizePath(".") rendrait
+# getwd()) rend le chemin tel quel. Le resultat ne depend pas de getwd() (il
+# depend de wd, de HOME pour "~" et, par normalizePath(), des liens du dossier
+# s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
 .xlsx_chemin_sortie <- function(chemin, wd) {
   chemin <- path.expand(chemin)
-  base <- if (.xlsx_chemin_absolu(chemin)) chemin else file.path(wd, chemin)
+  unix <- .Platform$OS.type == "unix"
+  absolu <- if (unix) startsWith(chemin, "/") else .xlsx_chemin_absolu(chemin)
+  base <- if (absolu) chemin else file.path(wd, chemin)
   dossier <- dirname(base)
-  if (identical(dossier, ".") ||
-      (.Platform$OS.type == "unix" && !startsWith(dossier, "/"))) return(base)
+  if (!unix && identical(dossier, ".")) return(base)
   file.path(normalizePath(dossier, winslash = "/", mustWork = FALSE), basename(base))
+}
+
+# Defaut d'encodage d'une chaine (#580), NULL si elle est admise : texte
+# decrivant le defaut sinon. Une chaine marquee bytes et non ASCII est refusee
+# meme si ses octets sont de l'UTF-8 valide : ses caracteres ne sont pas
+# determines (meme regle que l'en-tete "bytes" des lecteurs, #570, D-S1-4 et
+# D-S1-26), et l'ecrire levait une erreur R brute de sprintf() en cellule et en
+# en-tete (mesure) ou l'admettait en nom de feuille. Une chaine bytes ASCII
+# reste admise (mesure : "abc" bytes admise). Est refusee aussi toute chaine
+# qui n'est pas de l'UTF-8 valide apres enc2utf8() (une chaine marquee latin1
+# est d'abord convertie). Precondition : x est une chaine unique non NA (aucun
+# controle ici ; l'appelant l'a fait, de sorte qu'aucun test sur la chaine ne
+# leve d'avertissement).
+.xlsx_defaut_encodage <- function(x) {
+  if (Encoding(x) == "bytes" && grepl("[^\x01-\x7f]", x, useBytes = TRUE))
+    return(paste("un encodage declare \"bytes\" : ses caracteres ne sont pas determines",
+                 "(fournir le texte en UTF-8 ou en Latin-1 declare)"))
+  if (!validUTF8(enc2utf8(x))) return("une suite d'octets qui n'est pas de l'UTF-8 valide")
+  NULL
+}
+
+# Defaut du chemin de sortie de l'ecrivain xlsx (#580), NULL s'il est admis :
+# motif decrivant le premier defaut sinon, que engine_ecrire_xlsx() range dans
+# un refus usp_refus_ecriture, avant toute ecriture et avant toute resolution.
+# Ordre : type (chaine unique, non NA, non vide) ; encodage, avant tout test
+# sur la chaine (.xlsx_defaut_encodage()) ; sous unix, forme de lecteur Windows
+# ("^[A-Za-z]:") ou d'UNC en barres inverses ("^\\\\"), qui n'est pas un chemin
+# de ce systeme (mesure : la cible, rendue telle quelle, etait relative au
+# dossier temporaire de l'appel, supprime en sortie : "OK" sans fichier) ; barre
+# finale ; enfin nom ne se terminant pas par .xlsx, casse indifferente, ce qui
+# refuse aussi ".", ".." et "sub/." / "sub/.." (un nom sans extension recevait
+# ".zip" de la commande zip : "f" ecrivait "f.zip"). Sous Windows, les formes de
+# lecteur et d'UNC restent des chemins absolus admis. Un dossier existant est
+# refuse plus loin, sur la cible resolue (dir.exists()).
+.xlsx_defaut_chemin <- function(chemin) {
+  motif_usage <- paste("le chemin doit etre une chaine unique, non NA, non vide et ne pas",
+                       "finir par une barre")
+  if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin))
+    return(motif_usage)
+  defaut <- .xlsx_defaut_encodage(chemin)
+  if (!is.null(defaut)) return(paste("le chemin porte", defaut))
+  if (.Platform$OS.type == "unix" && grepl("^([A-Za-z]:|\\\\\\\\)", chemin))
+    return(paste("le chemin est un chemin de lecteur Windows (X:...) ou de partage en barres",
+                 "inverses (\\\\serveur\\...) : ce n'est pas un chemin de ce systeme"))
+  if (grepl("[/\\\\]$", chemin)) return(motif_usage)
+  if (!grepl("\\.[xX][lL][sS][xX]$", chemin))
+    return(paste("le chemin doit designer un fichier dont le nom se termine par .xlsx",
+                 "(casse indifferente) ; un dossier, \".\" ou \"..\" n'est pas un fichier"))
+  NULL
 }
 
 # Defaut de texte d'une chaine ecrite dans le classeur (#580), NULL si elle
@@ -8766,19 +8820,14 @@ engine_lire_triangle <- function(df) {
 # tabulation et le saut de ligne restent admis en cellule et en en-tete, qui
 # sont du texte de cellule (<t>). x : un seul element ; une chaine marquee
 # latin1 est d'abord convertie (enc2utf8()), comme l'ecrit paste0(). Une chaine
-# marquee bytes et non ASCII est refusee a tous les emplacements, meme si ses
-# octets sont de l'UTF-8 valide : ses caracteres ne sont pas determines (meme
-# regle que l'en-tete "bytes" des lecteurs, #570, D-S1-4 et D-S1-26), et
-# l'ecrire levait une erreur R brute de sprintf() en cellule et en en-tete
-# (mesure) ou l'admettait en nom de feuille. Une chaine bytes ASCII reste
-# admise (mesure : "abc" bytes admise). NA : admis.
+# marquee bytes et non ASCII est refusee a tous les emplacements, et toute
+# suite d'octets qui n'est pas de l'UTF-8 valide aussi (.xlsx_defaut_encodage(),
+# commun avec le chemin de sortie). NA : admis.
 .xlsx_defaut_texte <- function(x, attribut = FALSE) {
   if (is.na(x)) return(NULL)
-  if (Encoding(x) == "bytes" && grepl("[^\x01-\x7f]", x, useBytes = TRUE))
-    return(paste("un encodage declare \"bytes\" : ses caracteres ne sont pas determines",
-                 "(fournir le texte en UTF-8 ou en Latin-1 declare)"))
+  defaut <- .xlsx_defaut_encodage(x)
+  if (!is.null(defaut)) return(defaut)
   x <- enc2utf8(x)
-  if (!validUTF8(x)) return("une suite d'octets qui n'est pas de l'UTF-8 valide")
   cp <- utf8ToInt(x)
   interdit_xml <- (cp < 32L & !(cp %in% c(9L, 10L, 13L))) | cp %in% c(0xFFFEL, 0xFFFFL) |
                   (cp >= 0xD800L & cp <= 0xDFFFL)
@@ -8841,11 +8890,19 @@ engine_lire_triangle <- function(df) {
 # nomme les deux echecs, archive partielle effacee. Dans les deux voies,
 # [Content_Types].xml est la premiere entree de l'archive.
 # Chemin de sortie (#580) : chaine unique, non NA, non vide, ne finissant pas
-# par une barre oblique ou inverse (nom de dossier sans fichier), sinon refus
-# usp_refus_ecriture avant toute ecriture ; resolu avant tout changement de
-# repertoire par .xlsx_chemin_sortie() ("~" developpe, chemin UNC ou lecteur
-# "X:" absolu, sinon relatif au repertoire courant de l'appelant) ; la valeur
-# rendue est ce chemin resolu.
+# par une barre oblique ou inverse (nom de dossier sans fichier), sans
+# encodage "bytes" non ASCII ni UTF-8 invalide, dont le nom se termine par
+# .xlsx (casse indifferente ; refuse "." et ".." et le nom sans extension, que
+# la commande zip ecrivait en "f.zip"), et qui n'est ni un chemin de lecteur
+# Windows ("X:...") ni un chemin UNC en barres inverses sous unix (pas un
+# chemin de ce systeme : la cible, relative au dossier temporaire de l'appel,
+# n'ecrivait rien), sinon refus usp_refus_ecriture avant toute ecriture
+# (.xlsx_defaut_chemin()) ; refuse aussi une cible qui est un dossier existant ;
+# resolu avant tout changement de repertoire par .xlsx_chemin_sortie() ("~"
+# developpe ; sous unix, absolu s'il commence par "/", sinon relatif au
+# repertoire courant de l'appelant ; sous Windows, lecteur "X:" et UNC absolus).
+# La valeur rendue est ce chemin resolu, rendue seulement si le fichier existe
+# apres l'ecriture (sinon refus usp_refus_ecriture).
 # Caracteres (#580) : une chaine ecrite (cellule, en-tete, nom de feuille) qui
 # porte un caractere hors XML 1.0 (controles C0 hors tabulation, saut de
 # ligne et retour chariot ; U+FFFE, U+FFFF ; substituts) ou qui n'est pas de
@@ -8868,12 +8925,14 @@ engine_lire_triangle <- function(df) {
 # avant le controle) ; tout autre argument est refuse (usp_refus_ecriture).
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
-  # Controle d'usage de chemin, avant tout (#580) : un fichier est designe, non
-  # un dossier ni la chaine vide (dirname("sub/") vaut ".", basename "sub")
-  if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin) ||
-      grepl("[/\\\\]$", chemin))
-    .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : le chemin doit etre une chaine",
-                          "unique, non NA, non vide et ne pas finir par une barre ; aucun fichier ecrit."))
+  # Controle d'usage de chemin, avant tout (#580) : un fichier .xlsx est
+  # designe, d'un chemin de ce systeme, d'encodage determine (voir
+  # .xlsx_defaut_chemin() : le type et NA sont controles avant tout test sur
+  # la chaine)
+  defaut_chemin <- .xlsx_defaut_chemin(chemin)
+  if (!is.null(defaut_chemin))
+    .refus_ecriture(sprintf("Ecriture du fichier .xlsx impossible : %s ; aucun fichier ecrit.",
+                            defaut_chemin))
   # Controle d'usage de feuille, avant tout (#580) : un nombre fini seul devient
   # sa chaine ; le reste de ce qui n'est pas une chaine unique non NA non vide
   # est refuse ici, sans erreur R brute dans .xlsx_defaut_texte()
@@ -8891,6 +8950,11 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   nc <- ncol(df); nr <- nrow(df)
   # Chemin de sortie resolu ici, avant setwd(d) plus bas (#580)
   cible <- .xlsx_chemin_sortie(chemin, getwd())
+  # Cible qui est un dossier existant (un nom en .xlsx peut en etre un) : refus,
+  # le fichier ne peut pas le remplacer
+  if (dir.exists(cible))
+    .refus_ecriture(paste("Ecriture du fichier .xlsx impossible : le chemin designe un dossier",
+                          "existant, non un fichier ; aucun fichier ecrit."))
   # Refus d'une chaine hors XML 1.0 ou d'UTF-8 invalide ; ou : emplacement
   refuser_texte <- function(texte, ou, attribut = FALSE) {
     defaut <- .xlsx_defaut_texte(texte, attribut)
@@ -8967,6 +9031,9 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
                 include_directories = FALSE)
       NULL
     }, error = function(e) conditionMessage(e))
+    # archive absente apres un retour sans erreur : echec, non un succes
+    if (is.null(echec_paquet) && !file.exists(cible))
+      echec_paquet <- "archive absente apres l'ecriture"
     if (is.null(echec_paquet)) return(invisible(cible))
     # archive partielle effacee : la commande zip completerait une archive
     # existante au lieu de la remplacer
@@ -8974,11 +9041,12 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   }
   commande <- nzchar(Sys.which(Sys.getenv("R_ZIPCMD", "zip")))
   st <- if (commande) utils::zip(cible, entrees, flags = "-r9Xq") else NA
-  if (identical(st, 0L)) return(invisible(cible))
+  if (identical(st, 0L) && file.exists(cible)) return(invisible(cible))
   if (file.exists(cible)) unlink(cible)
   .refus_ecriture(paste0("Echec de la creation du fichier .xlsx (",
                          paste(c(if (!is.null(echec_paquet)) paste0("paquet zip : ", echec_paquet),
-                                 if (commande) sprintf("commande zip, statut %s", format(st))
+                                 if (commande && identical(st, 0L)) "commande zip, statut 0 mais archive absente"
+                                 else if (commande) sprintf("commande zip, statut %s", format(st))
                                  else "commande zip indisponible"), collapse = " ; "),
                          ")."))
 }
@@ -9076,8 +9144,13 @@ engine_ecrire_csv <- function(df, chemin) {
 # la cause n'est pas montree a l'ecran. Levee par les seules erreurs
 # d'engine_ecrire_xlsx() dont la cause se dit a l'utilisateur : ni paquet zip
 # ni commande zip ; echec de la creation de l'archive par le paquet zip puis
-# par la commande zip ; chaine hors XML 1.0 ou UTF-8 invalide, refusee avant
-# toute ecriture (#580).
+# par la commande zip, ou archive absente apres l'ecriture ; chaine hors XML
+# 1.0 ou UTF-8 invalide, refusee avant toute ecriture ; nom de feuille qui
+# n'est pas une chaine unique non NA non vide ; chemin de sortie refuse
+# (type, NA, vide, barre finale, encodage "bytes" non ASCII ou UTF-8 invalide,
+# chemin de lecteur ou d'UNC en barres inverses sous unix, nom hors .xlsx,
+# dossier existant ; .xlsx_defaut_chemin()), le tout avant toute ecriture
+# (#580).
 .refus_ecriture <- function(message)
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
                  list(message = message, call = NULL)))
