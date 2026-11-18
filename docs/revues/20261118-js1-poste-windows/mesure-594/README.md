@@ -78,3 +78,26 @@ Mesure : `mesurer_blancs.R`, sur les deux chemins. Pour chaque classeur lu, ce s
   - **avec lxml**, le moteur refuse le classeur sur les deux chemins. La divergence de verdict n'est donc pas observable aujourd'hui ; elle apparaîtrait si ce texte était admis ;
   - **sans lxml**, le texte n'a pas d'attribut. Les deux chemins lisent 9 lignes, et `engine_lire_donnees_csv()` écarte la neuvième sans avertissement (`n = 8`). Les deux chemins concordent et aucune valeur n'est fausse. C'est un comportement antérieur à JS1, constaté et non jugé ici ; il est à verser à la spécification d'A1.
 - Le refus de #594 touche openpyxl avec ou sans lxml pour un texte bordé de blancs. Pour un texte fait de seuls blancs, il ne le touche qu'avec lxml.
+
+## Complément : corpus du poste Windows (étape 2 (ii) de JS1, 18/11/2026)
+
+Dossier `poste-windows/`, relevé complet : `../etape-2-ii-corpus.md`. Le corpus a été produit et mesuré par la session principale (IA), en session locale sur le poste du mainteneur, au SHA de la batterie `c75a112`.
+
+Conditions :
+- Windows 11, R 4.3.3 ucrt, `French_France.utf8` ;
+- **`openxlsx` 4.2.9**, version du poste, et non 4.2.5.2 ;
+- openpyxl 3.1.5, pandas 3.0.6 (moteurs openpyxl et xlsxwriter), XlsxWriter 3.3.1, lxml 6.1.3 ;
+- quinze classeurs : séries témoin, séries à `note` bordée de blancs, et triangle témoin.
+
+Reproduction, depuis la racine du dépôt :
+- `python poste-windows/generer_corpus.py tests/donnees/donnees_ln.csv tests/donnees/triangle_mw.csv <sortie>` ;
+- `Rscript poste-windows/mesurer_corpus.R <sortie>`, avec puis sans `openxlsx` ;
+- md5 des classeurs dans `md5.txt`.
+
+Constat :
+- Le comportement mesuré ci-dessus sous `openxlsx` 4.2.5.2 se reproduit **à l'identique** sous 4.2.9 :
+  - refus de D-S1-31 sur les deux chemins pour les trois classeurs à chaînes en ligne `xml:space` (openpyxl, pandas-openpyxl, XlsxWriter `constant_memory`) ;
+  - lecture directe par `openxlsx` : colonne `note` fausse (préfixe `xml:space="preserve">`), mais `t`, `xt` et `yt` identiques au CSV au bit près ;
+  - classeurs à chaînes partagées (XlsxWriter par défaut, pandas-xlsxwriter) lus justes.
+- Les classeurs témoins, séries et triangle, sont lus sur les deux chemins, identiques au CSV.
+- **Non couverts** : Excel et LibreOffice, absents du poste (décision du mainteneur du 18/11 : pas d'installation). Le relevé de ce qu'ils écrivent (§ 3 de la spécification) reste à faire avant le codage d'A1.

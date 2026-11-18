@@ -1,0 +1,6 @@
+dirname: .
+cible: C:f.xlsx
+Tracing function "unlink" in package "base"
+[1] "unlink"
+unlink <TEMP>\RtmpKkdhE3\xlsx_71e41b5940b2 ; f.xlsx present dans d : TRUE
+rendu: C:f.xlsx
