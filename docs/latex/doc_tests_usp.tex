@@ -1039,12 +1039,13 @@ refus~; noms sans blancs de bord, chaque suite de blancs intérieurs ramenée à
 les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
 \code{.xlsx\_admettre()},\newline \code{.xlsx\_premier\_}\newline\code{octet\_fautif()},\newline
 \code{.xlsx\_controler\_}\newline\code{balisage()},\newline
+\code{.xlsx\_controler\_}\newline\code{balises\_relation()},\newline
 \code{.xlsx\_controler\_}\newline\code{relations()},\newline
 \code{.xlsx\_controler\_}\newline\code{designation()},\newline \code{.xlsx\_jetons()},\newline
 \code{.xlsx\_imbrication()},\newline \code{.xlsx\_controler\_}\newline\code{structure()},\newline
 \code{.xlsx\_controler\_}\newline\code{attributs()}
 & chemin du classeur, dossier d'extraction, \code{entete}~; octets d'une partie~; texte et nom
-d'une partie~; balises \code{<sheet>} et \code{<Relationship>}~; textes du classeur et de ses
+d'une partie~; texte des relations~; balises \code{<sheet>} et \code{<Relationship>}~; textes du classeur et de ses
 relations, balises \code{<Relationship>}, rangs de la feuille retenue et de sa relation,
 identifiant de celle-ci~; partie XML~; genres et noms des balises~; XML de la feuille~; cellules &
 contrôle unique d'admission du contrat de forme du classeur, règles appliquées dans l'ordre
@@ -1052,13 +1053,19 @@ du §\ref{sec:controles}, qui rend le rang de la feuille, son XML, les chaînes 
 cellules admises~; position du premier octet nul ou du premier octet de la première séquence
 UTF-8 invalide, \code{NA} pour un texte valide~; refus d'un commentaire, d'une section CDATA,
 d'une déclaration de type de document ou d'une instruction de traitement, la seule déclaration
-XML initiale conforme à sa grammaire étant admise~; refus d'une relation dont l'attribut
-\code{Id="}\ldots\code{"} est absent, répété ou préfixé, d'une balise \code{<sheet>} dont
+XML initiale conforme à sa grammaire étant admise~; refus, dans le texte des relations aux fins
+de ligne retirées, d'une balise \code{<Relationship} sans préfixe suivie d'un caractère autre
+qu'une espace, «~\code{/}~» ou «~\code{>}~», racine exceptée
+(\code{TEXTE\_REFUS\_BALISE\_RELATION})~; refus d'une relation dont l'attribut
+\code{Id="}\ldots\code{"} est absent, répété ou préfixé, ou dont l'attribut \code{Type="}\ldots\code{"} est
+répété ou préfixé, d'une balise \code{<sheet>} dont
 l'attribut \code{r:id} est absent, répété, sans préfixe ou d'un autre préfixe, et de deux
 relations de même identifiant (\code{TEXTE\_REFUS\_RELATIONS})~; refus, sous le même motif, d'un texte \code{r:id="} hors d'un
 nom d'attribut, d'un texte \code{Id="}\ldots\code{"} de l'identifiant retenu hors de l'attribut
 de la relation retenue et d'une feuille qu'\code{openxlsx} désignerait par une autre relation,
-textes cherchés dans les parties aux fins de ligne retirées~; découpage de la partie en balises par une
+puis d'une relation retenue dont l'attribut \code{Target="}\ldots\code{"} est répété ou préfixé, qui porte un
+texte \code{Target=} ailleurs qu'au début de cet attribut, ou dont \code{openxlsx} lirait une
+autre cible, textes cherchés dans les parties aux fins de ligne retirées~; découpage de la partie en balises par une
 seule expression régulière (\code{XML\_MOTIF\_BALISE}), genre (ouvrante, fermante, vide), nom et
 positions de chaque balise, positions des «~\code{<}~» qui n'ouvrent aucune balise~; niveau,
 parent et fermante de chaque balise, balise fautive d'une suite mal imbriquée~; refus de la
@@ -5200,14 +5207,31 @@ n'est pas du texte UTF-8 valide ou si ce commentaire masque la seule feuille du 
 (mesuré).
 \item \emph{Désignation de la feuille lue} (\code{.xlsx\_controler\_relations()},
 \code{.xlsx\_controler\_designation()}, motif \code{TEXTE\_REFUS\_RELATIONS}, qui cite la partie
-et la balise ou le texte en cause). La voie de repli lit l'attribut \code{r:id="}\ldots\code{"}
+et la balise ou le texte en cause~; \code{.xlsx\_controler\_}\allowbreak\code{balises\_relation()},
+motif \code{TEXTE\_REFUS\_BALISE\_RELATION}, qui cite le rang de la balise). Avant le
+découpage des relations en balises, toute balise \code{<Relationship} sans préfixe suivie, dans
+le texte de \code{xl/\_rels/}\allowbreak\code{workbook.xml.rels} aux fins de ligne retirées, celui
+que lit \code{openxlsx}, d'un caractère autre qu'une espace, «~\code{/}~» ou «~\code{>}~»
+(tabulation, fin de ligne suivie directement d'un attribut, nom prolongé tel que
+\code{<RelationshipX}) est refusée, la racine \code{<Relationships} exceptée. \code{openxlsx}
+n'admet une relation que si son nom est suivi de l'un de ces trois caractères~: placée en
+première relation, ou suivie d'une autre balise de cette forme, une telle balise le fait boucler
+sans fin (source lue, version~4.2.5.2), et le processus~R ne rend pas la main (arrêté sans
+réponse au bout de 20~s, et de 90~s pour une tabulation, mesuré), alors que la voie de repli lit le classeur juste~; placée
+après une relation ordinaire, elle est passée sans message par
+\code{openxlsx}, et une relation qui n'est pas celle de la feuille lue, écrite ainsi, est lue
+juste par les deux chemins et refusée parce que le contrat est fermé (mesuré). La forme
+\code{<Relationship} suivie d'une fin de ligne puis d'une espace (un attribut par ligne) reste
+admise, lue juste par les deux chemins (mesuré). La voie de repli lit l'attribut \code{r:id="}\ldots\code{"}
 de la balise \code{<sheet>} de la feuille, puis la relation dont l'attribut
 \code{Id="}\ldots\code{"} porte cet identifiant~; \code{openxlsx} cherche, dans le texte de
 chacune de ces deux parties dont les fins de ligne sont retirées, le texte \code{r:id="},
 précédé d'une espace, des balises \code{<sheet>} sans préfixe, puis la première relation qui
 porte le texte \code{Id="}\ldots\code{"} de l'identifiant trouvé. Sont refusées, avant le choix
 de la feuille, une relation dont l'attribut \code{Id="}\ldots\code{"} est absent, répété ou
-préfixé, une balise \code{<sheet>} dont l'attribut \code{r:id="}\ldots\code{"} est absent,
+préfixé, une relation dont l'attribut \code{Type="}\ldots\code{"} est répété ou préfixé (la voie de repli choisit
+la feuille par le premier de ces attributs, préfixé ou non, une feuille de graphique étant
+passée, et \code{openxlsx} lit la feuille de ce rang), une balise \code{<sheet>} dont l'attribut \code{r:id="}\ldots\code{"} est absent,
 répété, sans préfixe ou d'un autre préfixe, et deux relations de même identifiant~; puis, la
 feuille retenue et avant le choix de sa cible, un texte \code{r:id="} de \code{xl/workbook.xml}
 hors d'un nom d'attribut (dans un nom de feuille, par exemple), un texte
@@ -5219,15 +5243,26 @@ par une autre relation (attribut \code{r:id} entre apostrophes, à blancs autour
 pas fait de lettres et de chiffres, dans la balise de la feuille lue ou d'une feuille qui la
 précède~; balise \code{<x:sheet>} suivie d'une balise \code{<sheet>}). Chacune de ces formes,
 forgée sur un classeur de deux ou trois feuilles, fait lire sans message, par l'un des deux
-chemins, ou par les deux pour deux relations de même identifiant, une autre feuille que la
-feuille désignée (première valeur de \code{xt} lue $999$ au lieu de $104{,}2$, mesuré), à une
+chemins, ou par les deux pour deux relations de même identifiant et pour un attribut
+\code{Type="}\ldots\code{"} répété ou préfixé, une autre feuille que la feuille désignée (première valeur de \code{xt} lue $999$ au lieu de $104{,}2$, mesuré), à une
 exception près~: une relation sans attribut \code{Id="}\ldots\code{"}, lue juste par les deux
 chemins, est refusée parce que le contrat est fermé (mesuré). Quand \code{openxlsx} ne trouve
 pas d'identifiant au rang de la feuille lue, ou pas le texte de sa relation (classeur à une
 feuille dont l'attribut \code{r:id}, ou l'attribut d'identifiant de sa relation, est entre
 apostrophes ou à blancs), il s'arrête sur une erreur de~R (mesuré)~: ce cas n'est pas refusé
-(écarts ci-dessous). La cible de la
-relation n'est pas soumise à cette règle (limite consignée parmi les écarts ci-dessous).
+(écarts ci-dessous). Enfin, avant le choix de la cible, la relation de la feuille lue est
+refusée si son attribut \code{Target="}\ldots\code{"} est répété ou préfixé (\code{x:Target="}\ldots\code{"}), si un texte
+\code{Target=} y figure ailleurs qu'au début de cet attribut (valeur d'un autre attribut, nom
+d'attribut qui finit par ce texte, tel \code{xTarget="}\ldots\code{"}, contenu de l'élément), ou si la cible que lit
+\code{openxlsx} --- texte brut qui suit le premier \code{Target="} de la relation, jusqu'au
+dernier \code{xml"}, sans décodage des références de caractère --- diffère de celle de la voie
+de repli, valeur décodée du premier attribut \code{Target="}\ldots\code{"}, préfixé ou non. Ces formes font lire
+sans message une autre feuille par l'un des deux chemins ou par les deux (\code{x:Target="}\ldots\code{"}
+suivi de \code{Target='}\ldots\code{'}~: première valeur de \code{xt} lue $999$ au lieu de
+$104{,}2$ par les deux chemins, mesuré), ou arrêtent \code{openxlsx} sur une erreur de~R. Un
+attribut \code{Target="}\ldots\code{"} unique écrit entre apostrophes ou à blancs autour du signe \code{=} n'est
+pas refusé~: \code{openxlsx} n'y trouve aucune cible et s'arrête sur une erreur de~R, la voie de
+repli lisant le classeur juste (mesuré~; écarts ci-dessous).
 \item \emph{Bloc des données de la feuille} (\code{.xlsx\_controler\_structure()}, motif
 \code{TEXTE\_REFUS\_R3}). Une balise de cellule \code{<c} suivie d'un blanc autre que l'espace
 est refusée d'un motif propre («~\code{balise de cellule de forme non reconnue}~»), car
@@ -5396,9 +5431,9 @@ illisible et une feuille introuvable («~\code{Classeur illisible : aucune feuil
 restent des erreurs ordinaires, signalées par le message fixe de l'application.
 
 \emph{Écarts qui subsistent entre les deux chemins.} Sur un classeur admis, les deux chemins
-peuvent encore différer~; une seule forme connue donne une valeur fausse sur un classeur admis
-(cible de la feuille forgée, ci-dessous, lue fausse par l'un des chemins ou par les deux). Le
-texte phonétique d'une chaîne partagée
+peuvent encore différer~; aucune des formes mesurées n'y donne de valeur fausse, celles de la
+cible ou de l'attribut \code{Type="}\ldots\code{"} qui en donnent étant refusées (règle «~Désignation de la
+feuille lue~»). Le texte phonétique d'une chaîne partagée
 n'est lu par aucun des deux~: «~\code{11}~» suivi du texte phonétique «~\code{7}~» est lu~11
 (mesuré). Le texte d'une cellule \code{t="str"} (résultat de formule) est lu tel quel, sans
 décodage des entités (\code{\&amp;}, \code{\&\#{}xE9;}), par les deux chemins à l'identique
@@ -5417,28 +5452,11 @@ deux chemins divergent sur ce point (mesuré avec la version~4.2.9~; la cible
 is 0}~»)~; quand elles lui feraient désigner une autre feuille, le classeur est refusé (règle
 «~Désignation de la feuille lue~»)~; portées par une feuille qui suit la feuille lue, elles
 sont sans effet sur la lecture (attribut \code{r:id} entre apostrophes dans la seconde de deux
-feuilles, mesuré, version~4.2.5.2). La cible de la relation de la feuille lue n'est pas soumise
-à la règle «~Désignation de la feuille lue~»~: une relation forgée qui porte, outre son
-attribut de cible, un attribut \code{x:Target="}\ldots\code{"} ou un texte
-\code{Target="}\ldots\code{"} dans la valeur d'un autre attribut peut faire lire, sur un
-classeur admis et sans message, une autre feuille que celle de son attribut de cible~: à
-\code{openxlsx}, qui lit la cible à partir du premier texte \code{Target="} de la relation,
-quand l'attribut de cible est écrit entre apostrophes (\code{Target='}\ldots\code{'}), que ce
-texte le précède ou le suive~; à la voie de repli, qui lit le premier des deux attributs,
-préfixé ou non, quand \code{x:Target="}\ldots\code{"} précède l'attribut de cible~; aux deux
-chemins quand ces deux conditions sont réunies (\code{x:Target="}\ldots\code{"} suivi de
-\code{Target='}\ldots\code{'}) (première valeur de \code{xt} lue $999$ au lieu de $104{,}2$,
-mesuré, \code{openxlsx}~4.2.5.2)~; aucun tableur n'est supposé écrire ces formes (hypothèse
-non vérifiée)~; limite consignée, à laquelle s'applique le contrôle des valeurs par
-l'utilisateur décrit ci-après. Une seconde limite est consignée, sans valeur fausse~: dans
-\code{xl/\_rels/}\allowbreak\code{workbook.xml.rels}, une première balise \code{<Relationship}
-suivie d'une tabulation ou d'une fin de ligne (XML valide) fait entrer \code{openxlsx} dans une
-boucle sans fin de son analyse des relations (source lue, version~4.2.5.2), et le processus~R
-ne rend pas la main (processus arrêté sans réponse au bout de 90~s, mesuré), alors que la voie
-de repli lit le classeur juste (première valeur de \code{xt} lue $104{,}2$, mesuré)~; la même
-balise placée après une relation ordinaire est sans effet (mesuré)~; aucun tableur n'est supposé
-écrire cette forme (hypothèse non vérifiée). Les balises de \code{xl/styles.xml}, qu'il analyse
-de la même façon, ne sont lues par lui que sous l'option \code{detectDates}, que l'outil
+feuilles, mesuré, version~4.2.5.2). De même, une archive qui porte, dans un autre dossier, une
+seconde entrée de même nom que \code{xl/workbook.xml}, que ses relations ou que la feuille lue
+est lue juste par la voie de repli, alors qu'\code{openxlsx} s'arrête sur une erreur de~R
+(mesuré, version~4.2.5.2). Les balises de \code{xl/styles.xml}, qu'\code{openxlsx} analyse
+comme celles des relations (règle «~Désignation de la feuille lue~»), ne sont lues par lui que sous l'option \code{detectDates}, que l'outil
 n'emploie pas (balises suivies d'une tabulation sans effet sur la lecture, mesuré). Le contrat juge la forme du classeur, non les
 valeurs qu'il porte~; le
 contrôle des valeurs lues contre leur source revient à l'utilisateur~: l'application affiche les données lues
@@ -21183,7 +21201,8 @@ fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{.xlsx\_chemin\_sort()}, cellules lues par \code{.xlsx\_cellules()}~; contrat de forme du
 classeur appliqué par \code{.xlsx\_admettre()}~: parties lues par \code{.xlsx\_texte()},
 balisage par \code{.xlsx\_controler\_}\allowbreak\code{balisage()}, désignation de la feuille
-par \code{.xlsx\_controler\_}\allowbreak\code{relations()} et
+par \code{.xlsx\_controler\_}\allowbreak\code{balises\_relation()},
+\code{.xlsx\_controler\_}\allowbreak\code{relations()} et
 \code{.xlsx\_controler\_}\allowbreak\code{designation()}, bloc des données par
 \code{.xlsx\_controler\_}\allowbreak\code{structure()}, cellules par
 \code{.xlsx\_controler\_}\allowbreak\code{cellules()},
