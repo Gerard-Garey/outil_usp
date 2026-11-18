@@ -47,7 +47,7 @@
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
 \newcommand{\datedoc}{17~novembre 2026}
-\newcommand{\versiondoc}{4.0}
+\newcommand{\versiondoc}{4.1}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -1101,12 +1101,33 @@ tronqué à 20~caractères suivis de «~\code{...}~», puis échappé par \code{
 cinq premières positions distinctes, suivies du nombre des autres~; position d'un octet dite
 par rapport aux cellules («~\code{dans la cellule B2}~», «~\code{apres la cellule B2}~»\ldots) \\
 \code{engine\_ecrire\_xlsx()} & \code{df}, \code{chemin}, \code{feuille} (\code{"Donnees"}) &
-chemin du fichier écrit par l'écrivain interne, seul employé, avec ou sans \code{openxlsx}~;
-archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
+chemin du fichier écrit par l'écrivain interne, seul employé, avec ou sans \code{openxlsx},
+résolu avant tout changement de répertoire (\code{.xlsx\_chemin\_sortie()}) et rendu seulement si
+le fichier existe après l'écriture~; refus, avant toute écriture, d'un chemin qui n'est pas une
+chaîne unique, non \code{NA} et non vide, qui finit par une barre oblique ou inverse, d'encodage
+\code{"bytes"} non ASCII ou d'UTF-8 invalide, de lecteur Windows («~\code{X:}~») ou de partage
+en barres inverses sous unix, où ce n'est pas un chemin du système, dont le nom ne finit pas par
+\code{.xlsx} (casse indifférente), ou qui désigne un dossier existant
+(\code{.xlsx\_defaut\_chemin()}), et d'un nom de feuille qui n'est pas une chaîne unique, non
+\code{NA} et non vide, un nombre fini seul étant écrit en chaîne~; refus de même de toute chaîne
+écrite --- cellule, en-tête ou nom de feuille --- qui porte un caractère exclu de XML~1.0
+(caractère de contrôle autre que la tabulation, le saut de ligne et le retour chariot, U+FFFE,
+U+FFFF), qui n'est pas de l'UTF-8 valide ou qui est d'encodage \code{"bytes"} non ASCII, ainsi
+que du retour chariot en cellule et en en-tête, et de la tabulation, du saut de ligne et du
+retour chariot dans le nom de feuille, écrit en attribut~: un analyseur XML conforme relit le
+retour chariot d'un texte en saut de ligne et les blancs d'un attribut en espaces
+(recommandation du W3C \emph{Extensible Markup Language (XML) 1.0}, cinquième édition, 2008,
+§~2.2, 2.11 et 3.3.3), si bien que ces caractères ne se conservent pas à la relecture
+(\code{.xlsx\_defaut\_texte()})~; le motif cite l'emplacement et le code du caractère, jamais le
+contenu de la chaîne, aucun caractère n'étant retiré en silence et aucun fichier n'étant écrit
+ni retiré (mesuré)~; tabulation et saut de ligne admis en cellule et en en-tête, relus tels
+quels par la voie de repli (mesuré)~; guillemet double d'un nom de feuille écrit
+\code{\&quot;}~; archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
 la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
 \code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
 commande existe~; sinon, ou si le repli échoue, erreur qui nomme l'échec du paquet et le statut
-de la commande, ou son absence, sans fichier laissé~; ces deux erreurs sont de classe
+de la commande, ou son absence, sans fichier laissé, de même qu'une archive absente après
+une écriture sans erreur~; ces erreurs et les refus ci-dessus sont de classe
 \code{usp\_refus\_ecriture} (\code{.refus\_ecriture()}), dont l'application montre le texte tel quel~; sans
 tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
 fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
@@ -1119,6 +1140,21 @@ est rendue logique, alors que la voie de repli les relit tels qu'écrits et en c
 (mesuré, \code{openxlsx}~4.2.9), une colonne logique placée en $t$, \code{xt}, \code{yt} ou dans
 le triangle étant refusée en aval sur les deux chemins (mesuré, \code{openxlsx}~4.2.5.2)~; les exports de données de l'application, à en-têtes fixes et
 cellules numériques, n'y sont pas exposés \\
+\code{.xlsx\_chemin\_absolu()},\newline \code{.xlsx\_chemin\_sortie()},\newline
+\code{.xlsx\_defaut\_chemin()},\newline \code{.xlsx\_defaut\_encodage()},\newline
+\code{.xlsx\_defaut\_texte()} & chemin~; chemin, répertoire de l'appelant~; chemin~; chaîne~;
+chaîne, \code{attribut} (\code{FALSE}) &
+prédicat «~chemin absolu~» sur la seule chaîne (barre oblique ou inverse en tête, lecteur
+\code{X:}), sans accès au système de fichiers~; chemin de sortie résolu sans lire ni créer de
+fichier~: «~\code{\textasciitilde}~» développé, chemin non absolu pris dans le répertoire de
+l'appelant, dossier normalisé, cible toujours absolue sous unix, où seul le «~\code{/}~» initial
+(chemin UNC «~\code{//serveur/}\ldots~» compris) rend un chemin absolu, lecteur et chemin UNC
+restant absolus sous Windows~; premier défaut du chemin de sortie, \code{NULL} s'il est admis,
+dans l'ordre type, encodage, forme de lecteur ou de partage sous unix, barre finale, extension~;
+défaut d'encodage d'une chaîne (\code{"bytes"} non ASCII, UTF-8 invalide), commun au chemin et
+aux chaînes écrites~; premier défaut d'une chaîne écrite, \code{NULL} si elle est admise ou
+\code{NA}, la tabulation et le saut de ligne étant refusés de plus sous \code{attribut = TRUE}
+(nom de feuille) \\
 \code{engine\_ecrire\_csv()} & \code{df}, \code{chemin} (fichier, non une connexion) & chemin
 du fichier écrit, au format de \code{write.csv()} sans noms de ligne et à cellule vide pour
 \code{NA} (séparateur virgule, ligne d'en-tête, noms et chaînes entre guillemets, nombres et
