@@ -1885,7 +1885,7 @@ verifier("Lecture (#579) : colonne xt logique, Date ou POSIXct refusee avec ses 
 verifier("Lecture (#579) : colonne t en Date refusee comme non numerique (appel direct)",
          {
            r <- engine_lire_donnees_csv(data.frame(t = as.Date("2020-01-01") + 0:7, xt = x, yt = y))
-           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5, 6, 7, 8)")
+           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s))")
          })
 verifier("Lecture (#579) : colonne logique hors de t, xt et yt ignoree (series lues a l'identique)",
          identical(engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y, drapeau = c(TRUE, FALSE))),
@@ -2385,6 +2385,37 @@ verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une
                        paste("Cellule(s) non numerique(s) en (i = 2, j = 0), (i = 3, j = 1), (i = 5, j = 1),",
                              "(i = 4, j = 2), (i = 1, j = 3) et 2 autre(s) (i : annee d'accident, j : annee",
                              "de developpement).", PHRASE_NA_TRI_527))
+         })
+# #558 (4a) : les positions de "Colonne t incomplete" sont plafonnees a cinq
+# par .liste_positions(), puis "et <n> autre(s)" (seul motif change ; avant :
+# toutes les positions) ; les motifs des colonnes xt et yt et des cellules non
+# numeriques du triangle, desormais construits par la meme fonction, gardent
+# leur texte a l'octet, au seuil de cinq comme au-dela.
+verifier("Positions (#558) : \"Colonne t incomplete\" plafonnee a cinq positions (5 : sans suffixe ; 6 et 8 : \"et n autre(s)\")",
+         {
+           motif_t <- function(pos) sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) de donnees %s) :",
+                                                  "chaque ligne doit porter son annee."), pos)
+           t_vide <- function(k) { s <- ser_527; s$t[k] <- ""; engine_lire_donnees_csv(s)$erreurs }
+           identical(t_vide(1:5), motif_t("1, 2, 3, 4, 5")) &&
+             identical(t_vide(c(1:4, 6:7)), motif_t("1, 2, 3, 4, 6 et 1 autre(s)")) &&
+             identical(t_vide(1:8), motif_t("1, 2, 3, 4, 5 et 3 autre(s)"))
+         })
+verifier("Positions (#558) : motifs des colonnes xt et yt et du triangle inchanges a l'octet, au seuil de cinq et a six",
+         {
+           s5 <- ser_527; s5$xt[1:5] <- "x"; s5$yt[2:7] <- "y"
+           d5 <- tri_527; d5[1, as.character(0:4)] <- "z"
+           d6 <- tri_527; d6[1, as.character(0:5)] <- "z"
+           identical(engine_lire_donnees_csv(s5)$erreurs,
+                     paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                           "ligne(s) de donnees 1, 2, 3, 4, 5 ; colonne yt : ligne(s) de donnees 2, 3, 4, 5, 6",
+                           "et 1 autre(s)).")) &&
+             identical(engine_lire_triangle(d5)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 0, j = 0), (i = 0, j = 1), (i = 0, j = 2),",
+                             "(i = 0, j = 3), (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).")) &&
+             identical(engine_lire_triangle(d6)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 0, j = 0), (i = 0, j = 1), (i = 0, j = 2),",
+                             "(i = 0, j = 3), (i = 0, j = 4) et 1 autre(s) (i : annee d'accident, j : annee",
+                             "de developpement)."))
          })
 # Issue #527, avertissements (AV-01, AV-03, AV-08) : texte complet de chaque
 # avertissement change, sur le gabarit du tableau du par. 7.2 de l'avis amont
