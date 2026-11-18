@@ -1,6 +1,10 @@
-dirname: .
-cible: C:f.xlsx
-Tracing function "unlink" in package "base"
+HEAD : 80225013179d457f362b48dad92c0790598fd7ca 
+tempdir() : <TEMP>\RtmpI7ZVEc ; getwd() : <scratchpad>/e2iii_b 
+dirname: . 
+cible: C:f.xlsx 
 [1] "unlink"
-unlink <TEMP>\RtmpKkdhE3\xlsx_71e41b5940b2 ; f.xlsx present dans d : TRUE
-rendu: C:f.xlsx
+Tracing function "unlink" in package "base"
+unlink <TEMP>\RtmpI7ZVEc\xlsx_c201929194d ; f.xlsx present dans d : TRUE 
+Untracing function "unlink" in package "base"
+rendu: C:f.xlsx 
+f.xlsx dans getwd() apres : FALSE 

@@ -1,6 +1,8 @@
 # JS1 : relevés du poste Windows (18/11/2026)
 
-> Versement de l'étape 5 de la fiche « Jalon JS1 et créneau d'absorption A1 » (`docs/feuille-de-route.md`, Q-67-5 (a)). Les étapes 2 et 4 ont été exécutées par la session principale (IA), en session locale de Claude Code sur le poste du mainteneur, à la demande de celui-ci. Toutes ont tourné au **SHA de la batterie `c75a112`**, en tête détachée, sur un arbre propre (hors `?? prompt-poste-local.md`, fichier du mainteneur hors dépôt).
+> Versement de l'étape 5 de la fiche « Jalon JS1 et créneau d'absorption A1 » (`docs/feuille-de-route.md`, Q-67-5 (a)). Les étapes 2 et 4 ont été exécutées par la session principale (IA), en session locale de Claude Code sur le poste du mainteneur, à la demande de celui-ci.
+>
+> Toutes ont tourné au **SHA de la batterie `c75a112`**, en tête détachée, sur un arbre propre (hors `?? prompt-poste-local.md`, fichier du mainteneur hors dépôt). Après le `/code-review` de l'étape 6, les sondes et la mesure du corpus ont été reprises à la tête `8022501`, dont le code est identique. Les sorties de l'étape 4 et de l'étape 2 (i) sont celles de `c75a112`.
 
 ## Plateforme
 
@@ -46,17 +48,18 @@ Les deux issues sont rédigées ici et seront créées sur accord du mainteneur.
 - **Portée** : textes seuls ; aucun nombre, aucun verdict ni aucun σ_USP.
 - **Pistes**, à décider en A1 :
   - écriture en binaire (`writeBin()` des octets UTF-8, ou connexion `"wb"`) ;
-  - normalisation `\r\n` → `\n`, puis `\r` → `\n`, dans le lecteur interne (§ 2.11), pour les classeurs tiers.
+  - normalisation `\r\n` → `\n`, puis `\r` → `\n`, dans le lecteur interne (§ 2.11), pour les classeurs tiers. Elle porte sur les fins de ligne **littérales** du XML, **avant** le décodage des références de caractère : un `&#13;` décodé reste un retour chariot, comme chez un analyseur conforme. L'appliquer au texte décodé recréerait deux lectures, dans l'autre sens.
 - **Mesure** : `etape-2-i/sonde_tab.R`.
 
-**Proposition d'issue 2 — « moteur: `engine_ecrire_xlsx(df, "C:f.xlsx")` sous Windows, succès annoncé, fichier écrit dans le dossier temporaire puis effacé »**
+**Proposition d'issue 2 — « moteur: `engine_ecrire_xlsx(df, "C:f.xlsx")` sous Windows, lecteur de `tempdir()`, succès annoncé, fichier écrit dans le dossier temporaire puis effacé »**
 - **Constat** (étape 2 (iii)) :
   - un chemin de lecteur sans barre (`X:f.xlsx`) est tenu pour absolu par `.xlsx_chemin_absolu()`, et `dirname()` vaut `"."` ;
   - `.xlsx_chemin_sortie()` le rend tel quel ; après `setwd(d)`, l'archive est écrite dans `d`, le contrôle `file.exists()` réussit, puis `unlink(d)` l'efface ;
   - la fonction rend `"C:f.xlsx"`.
+- **Condition** : `X:` est le lecteur de `tempdir()` (ici `C:`), car `setwd(d)` ne change que le dossier courant de ce lecteur. Pour un autre lecteur, la cible reste relative à son propre dossier courant et l'écriture devrait aboutir ; ce cas n'est **pas mesuré**, le poste n'ayant que `C:`. Le défaut touche donc le cas courant, puisque `tempdir()` est d'ordinaire sous `C:`.
 - **Critère ADR 0018** (fiche JS1, étape 5) : fichier écrit ailleurs sous un succès annoncé. C'est une affirmation fausse de la documentation sur le code : index du `.tex` et en-tête d'`engine_ecrire_xlsx()`.
 - **Portée** : usage sans Shiny seulement ; l'application passe un chemin absolu. Aucune donnée écrasée.
-- **Pistes**, à décider en A1 :
+- **Pistes**, à décider en A1, après mesure sur un poste à deux lecteurs :
   - refus motivé de la forme `X:` sans barre ;
   - ou résolution par `normalizePath()` du chemin avant `setwd()`.
 - **Mesure** : `etape-2-iii/scenario_c.R`.

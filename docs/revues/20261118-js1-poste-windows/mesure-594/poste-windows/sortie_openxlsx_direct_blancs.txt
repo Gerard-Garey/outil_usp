@@ -1,6 +1,0 @@
-openxlsx 4.2.9 
-openpyxl_series_blancs.xlsx : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z] 
-pandas-openpyxl_series_blancs.xlsx : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z] 
-pandas-xlsxwriter_series_blancs.xlsx : t/xt/yt identiques = TRUE ; note = [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] 
-xlsxwriter-constant_memory_series_blancs.xlsx : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z] 
-xlsxwriter-defaut_series_blancs.xlsx : t/xt/yt identiques = TRUE ; note = [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] 

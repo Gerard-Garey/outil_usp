@@ -21,9 +21,9 @@
 Tout est versé dans `mesure-594/poste-windows/`.
 
 Commandes, depuis la racine du dépôt :
-1. `python generer_corpus.py tests/donnees/donnees_ln.csv tests/donnees/triangle_mw.csv <sortie>` ;
-2. `Rscript mesurer_corpus.R <sortie>`, avec `openxlsx`, puis avec `R_LIBS_USER` vide ;
-3. intégrité : `../md5.txt`.
+1. `python docs/revues/20261118-js1-poste-windows/mesure-594/poste-windows/generer_corpus.py tests/donnees/donnees_ln.csv tests/donnees/triangle_mw.csv <sortie>` ;
+2. `Rscript docs/revues/20261118-js1-poste-windows/mesure-594/poste-windows/mesurer_corpus.R <sortie>`, avec `openxlsx`, puis avec `R_LIBS_USER` vide ;
+3. intégrité : `mesure-594/md5.txt`, depuis `mesure-594/`.
 
 Quinze classeurs synthétiques :
 - **outils** : openpyxl ; pandas avec le moteur openpyxl ; pandas avec le moteur xlsxwriter ; XlsxWriter en mode par défaut ; XlsxWriter en mode `constant_memory` ;
@@ -32,7 +32,12 @@ Quinze classeurs synthétiques :
   - `series_blancs` : la même colonne `note`, bordée de blancs (cas de #594) ;
   - `triangle_temoin` : `i`, `j0` à `j7`.
 
-Sorties : `sortie_openxlsx.txt`, `sortie_repli.txt` ; lecture directe des classeurs à blancs par `openxlsx::read.xlsx()` : `sortie_openxlsx_direct_blancs.txt`.
+Sorties : `sortie_openxlsx.txt` et `sortie_repli.txt`. Sur le chemin openxlsx, chaque classeur de séries est aussi lu directement par `openxlsx::read.xlsx()`, y compris ceux que le moteur refuse.
+
+Historique des sorties :
+- Premières exécutions au SHA `c75a112`. La lecture directe des classeurs refusés y était faite par une commande à part.
+- Après le `/code-review` de l'étape 6, elle a été intégrée à `mesurer_corpus.R`, et les deux sorties ont été régénérées à la tête `8022501`, dont le code est identique à `c75a112`.
+- `sortie_repli.txt` est identique à la première exécution, hors ligne `HEAD`.
 
 Comparaison :
 - **séries** : `t`, `xt` et `yt`, convertis en double, comparés au CSV par `identical()`, puis passés à `engine_lire_donnees_csv()` ;

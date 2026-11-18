@@ -41,7 +41,7 @@ L'assertion de #522 (octet 0x89 déclaré Latin-1), seule en échec au relevé d
 
 ### Échec 2 : tabulation et saut de ligne admis en cellule (`test_controles_entree.R`, l. 7064)
 
-Sonde : `etape-2-i/sonde_tab.R`, sortie `etape-2-i/sortie_sonde_tab.txt`.
+Sonde : `etape-2-i/sonde_tab.R`, lancée par `Rscript sonde_tab.R <racine du dépôt>`, sortie `etape-2-i/sortie_sonde_tab.txt`. La sortie versée est celle de la reprise après le `/code-review` : restauration garantie de `requireNamespace`, lecture du XML entier. Elle a été faite à la tête `8022501`, dont le code est identique à `c75a112`.
 
 - **Écriture** : `engine_ecrire_xlsx()` écrit `sheet1.xml` par `writeLines(..., useBytes = TRUE)` sur une connexion en mode texte. Sous Windows, chaque `\n` du texte d'une cellule y devient `\r\n`. Le XML écrit contient donc `<t>a\r\nb</t>` pour la cellule `"a\nb"`, et `<t>e\tn\r\ntéte</t>` pour l'en-tête.
 - **Relecture**, pour la cellule `"a\nb"` :

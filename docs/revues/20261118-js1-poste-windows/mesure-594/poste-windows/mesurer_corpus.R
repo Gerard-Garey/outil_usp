@@ -1,6 +1,6 @@
 # Mesure du corpus d'acceptation de JS1, etape 2 (ii), poste Windows.
-# Usage : Rscript mesurer_corpus.R <dossier des classeurs>, depuis la racine du
-# depot ; openxlsx present (chemin openxlsx) ou masque par R_LIBS_USER vide
+# Usage, depuis la racine du depot :
+#   Rscript docs/revues/20261118-js1-poste-windows/mesure-594/poste-windows/mesurer_corpus.R <dossier des classeurs> ; openxlsx present (chemin openxlsx) ou masque par R_LIBS_USER vide
 # (chemin de repli). Moteur charge par charger_moteur() (ADR 0016).
 dossier <- commandArgs(TRUE)[1]
 source("R/charger_moteur.R"); charger_moteur()
@@ -27,6 +27,14 @@ sonde <- function(f) {
 for (f in sort(list.files(dossier, pattern = "\\.xlsx$", full.names = TRUE))) {
   nom <- basename(f)
   cat(sprintf("\n%s\n  md5 %s ; %s\n", nom, unname(tools::md5sum(f)), sonde(f)))
+  # Lecture directe par openxlsx (series), y compris des classeurs que le
+  # moteur refuse : c'est elle qui montre la colonne note faussee (#594)
+  if (avec && !grepl("triangle", nom)) {
+    o <- openxlsx::read.xlsx(f, sheet = 1)
+    nb <- if (grepl("_blancs", nom)) notes_b else trimws(notes_b)
+    cat("  openxlsx::read.xlsx direct : t/xt/yt identiques =", identical(num3(o), unname(as.list(ref))),
+        "; note =", paste(sprintf("[%s]", o$note), collapse = " "), "; note juste =", identical(o$note, nb), "\n")
+  }
   r <- tryCatch(engine_lire_xlsx(f), error = function(e) e)
   if (inherits(r, "condition")) {
     cat("  moteur : refus [", paste(class(r), collapse = ", "), "] ", conditionMessage(r), "\n", sep = "")
@@ -42,11 +50,5 @@ for (f in sort(list.files(dossier, pattern = "\\.xlsx$", full.names = TRUE))) {
     cat("  moteur : lu ; t/xt/yt identiques au CSV (identical) =", identical(num3(r), unname(as.list(ref))),
         "; engine_lire_donnees_csv ok =", ld$ok, ", n =", ld$n,
         "; avertissements :", if (length(ld$avertissements_lecture)) paste(ld$avertissements_lecture, collapse = " | ") else "aucun", "\n")
-    if (avec) {
-      o <- openxlsx::read.xlsx(f, sheet = 1)
-      nb <- if (grepl("_blancs", nom)) notes_b else trimws(notes_b)
-      cat("  openxlsx::read.xlsx direct : t/xt/yt identiques =", identical(num3(o), unname(as.list(ref))),
-          "; note =", paste(sprintf("[%s]", o$note), collapse = " "), "; note juste =", identical(o$note, nb), "\n")
-    }
   }
 }

@@ -1,4 +1,4 @@
-HEAD : c75a112214d757ad778b89aaf2e680ba719d6c0f 
+HEAD : 80225013179d457f362b48dad92c0790598fd7ca 
 chemin : repli (openxlsx absent) 
 
 openpyxl_series_blancs.xlsx

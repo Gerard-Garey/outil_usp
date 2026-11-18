@@ -2,7 +2,7 @@
 
 *Mesure faite par la session principale (IA) le 18/11/2026, sur la branche `claude/jalon-js1`, au SHA de la batterie `c75a112`. Le code du moteur est identique à celui de `8bc49fb`.*
 
-*Écart à Q-67-4 (a), consigné : la décision prévoyait une mesure hors branche, sur le corpus de l'étape 2 de JS1 (classeurs du poste Windows). La session l'a faite plus tôt, sur des classeurs synthétiques produits ici par les mêmes bibliothèques Python, et l'a versée sur la branche de JS1 (`docs/revues/` seulement ; le code n'est pas touché). Le corpus du poste, qui porte aussi Excel et LibreOffice, reste à mesurer. Le mainteneur a décidé de #594 au vu de cette mesure (E-18/11 (#594)).*
+*Écart à Q-67-4 (a), consigné : la décision prévoyait une mesure hors branche, sur le corpus de l'étape 2 de JS1 (classeurs du poste Windows). La session l'a faite plus tôt, sur des classeurs synthétiques produits ici par les mêmes bibliothèques Python, et l'a versée sur la branche de JS1 (`docs/revues/` seulement ; le code n'est pas touché). Le corpus du poste a été mesuré le 18/11 (complément en fin de document). Excel et LibreOffice n'y sont pas couverts, faute d'être installés sur le poste. Le mainteneur a décidé de #594 au vu de cette mesure (E-18/11 (#594)).*
 
 **Reproduction** (depuis la racine du dépôt, `LC_ALL=C.UTF-8`, openpyxl 3.1.5, pandas 3.0.5 et XlsxWriter 3.2.9 importables par `python3`) :
 - `python3 <ce dossier>/generer.py tests/donnees/donnees_ln.csv <sortie>` ;
@@ -90,8 +90,8 @@ Conditions :
 - quinze classeurs : séries témoin, séries à `note` bordée de blancs, et triangle témoin.
 
 Reproduction, depuis la racine du dépôt :
-- `python poste-windows/generer_corpus.py tests/donnees/donnees_ln.csv tests/donnees/triangle_mw.csv <sortie>` ;
-- `Rscript poste-windows/mesurer_corpus.R <sortie>`, avec puis sans `openxlsx` ;
+- `python docs/revues/20261118-js1-poste-windows/mesure-594/poste-windows/generer_corpus.py tests/donnees/donnees_ln.csv tests/donnees/triangle_mw.csv <sortie>` ;
+- `Rscript docs/revues/20261118-js1-poste-windows/mesure-594/poste-windows/mesurer_corpus.R <sortie>`, avec puis sans `openxlsx` ;
 - md5 des classeurs dans `md5.txt`.
 
 Constat :

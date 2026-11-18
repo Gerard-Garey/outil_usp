@@ -25,6 +25,11 @@ Commandes, lancées sous PowerShell, dans l'ordre :
 
 Sorties brutes : `etape-4/sortie_comparer_references_deux_parts.txt` et `etape-4/sortie_test_reproductibilite.txt`.
 
+Script de lancement : `etape-4/lancer.ps1`, qui enchaîne aussi les deux exécutions de l'étape 2 (i).
+- `R_LIBS_USER` n'y est posé que pour l'exécution « sans openxlsx ». Il est retiré par `Remove-Item` avant les deux scripts de la batterie.
+- Contrôle fait dans la même session après ce retrait : `.libPaths()` rend la bibliothèque du poste, et `packageVersion("openxlsx")` rend 4.2.9.
+- Aucun des deux scripts de la batterie ne lit de classeur xlsx.
+
 ## Résultats
 
 | Cas | Feuilles | Part numérique (≠ au bit) | Écart maximal | Au-delà de 1e-6 | Part non numérique / structure | σ_USP |
