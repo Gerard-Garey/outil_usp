@@ -1,0 +1,25 @@
+chemin : openxlsx 4.2.5.2 
+openpyxl_blancs.xlsx                       moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z]
+                                           note attendue : [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] ; identique = FALSE
+openpyxl_temoin.xlsx                       moteur : lu, t/xt/yt identiques au CSV (identical)
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z]
+                                           note attendue : [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z] ; identique = TRUE
+pandas_blancs.xlsx                         moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z]
+                                           note attendue : [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] ; identique = FALSE
+pandas_temoin.xlsx                         moteur : lu, t/xt/yt identiques au CSV (identical)
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z]
+                                           note attendue : [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z] ; identique = TRUE
+xlsxwriter_constant_memory_blancs.xlsx     moteur : refus [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal i
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [xml:space="preserve"> debut blanc] [xml:space="preserve">fin blanche ] [xml:space="preserve"> deux ] [sans] [NA] [xml:space="preserve">x ] [xml:space="preserve"> y] [z]
+                                           note attendue : [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] ; identique = FALSE
+xlsxwriter_constant_memory_temoin.xlsx     moteur : lu, t/xt/yt identiques au CSV (identical)
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z]
+                                           note attendue : [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z] ; identique = TRUE
+xlsxwriter_defaut_blancs.xlsx              moteur : lu, t/xt/yt identiques au CSV (identical)
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z]
+                                           note attendue : [ debut blanc] [fin blanche ] [ deux ] [sans] [NA] [x ] [ y] [z] ; identique = TRUE
+xlsxwriter_defaut_temoin.xlsx              moteur : lu, t/xt/yt identiques au CSV (identical)
+                                           openxlsx::read.xlsx direct : t/xt/yt identiques = TRUE ; note = [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z]
+                                           note attendue : [debut blanc] [fin blanche] [deux] [sans] [NA] [x] [y] [z] ; identique = TRUE
