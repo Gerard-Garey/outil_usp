@@ -5202,6 +5202,113 @@ if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
            })
 }
 
+## --- Information de lecture : lignes rangees par t (#569) -------------------
+# Decision Q-66-6 (a) du mainteneur ; texte d'actuary
+# (docs/revues/20261118-s4-lecteurs/actuary-textes-etape-1.md, (iii)),
+# verifie ici mot pour mot. Champ avertissements_lecture
+# d'engine_lire_donnees_csv() : un seul motif si et seulement si le tri par t
+# change l'ordre des lignes (o <- order(t), any(o != seq_along(o))),
+# character(0) sinon (fichier deja range, sans colonne t, refus) ; xt, yt, n
+# et erreurs inchanges (valeurs du fichier range). Positions citees : lignes
+# de donnees deplacees (points non fixes de la permutation, les memes que
+# ceux de son inverse). Chemin CSV : lecture de l'application (csv555()) ;
+# chemin classeur : ecrivain interne, puis engine_lire_xlsx() par le lecteur
+# interne force et, s'il est installe, par openxlsx. Helpers de #555
+# reutilises (liste555(), csv555(), ser555()).
+TRI569 <- function(k) sprintf(paste0("Lignes du tableau rangees par annee t croissante pour le calcul (ligne(s) de ",
+  "donnees %s deplacee(s)) : l'outil suit l'ordre de la colonne t, non celui des lignes du fichier ; cet ordre ",
+  "determine notamment les p-values et verdicts des tests sensibles a l'ordre des annees et, si la profondeur T ",
+  "retenue est inferieure au nombre de lignes, les annees retenues (les T plus recentes selon t). Verifier que la ",
+  "colonne t porte l'annee de chaque ligne ; aucune action n'est requise si c'est le cas."), liste555(k))
+# Lignes CSV d'un fichier dont la ligne de donnees k porte l'annee p[k]
+# (t = t0 - 1 + p[k]) et les montants x[p[k]], y[p[k]].
+lig569 <- function(p, t0 = 1, ent = c("t", "xt", "yt"))
+  ser555(ent, list(t0 - 1 + p, x[p], y[p]))
+NOMS569 <- c("ok", "erreurs", "xt", "yt", "n", "avertissements_lecture")
+r0_569 <- ls555(lig569(1:8))
+verifier("Lignes rangees par t (#569) : fichier deja range (t = 1..8) : avertissements_lecture = character(0), xt et yt du fichier, champ en dernier",
+         isTRUE(r0_569$ok) && identical(r0_569$avertissements_lecture, character(0)) &&
+           identical(names(r0_569), NOMS569) && identical(r0_569$xt, x) && identical(r0_569$yt, y) &&
+           identical(r0_569$n, 8L))
+verifier("Lignes rangees par t (#569) : les 120 ordres de 5 lignes : information presente si et seulement si l'ordre du fichier differe de celui de t, texte exact, lignes deplacees citees ; xt et yt toujours ceux du fichier range",
+         {
+           # base::c : un objet c (non fonction) de l'environnement global
+           # (laisse par un test plus haut) serait pris par do.call(c, ...).
+           perms <- function(v) if (length(v) <= 1) list(v) else
+             do.call(base::c, lapply(seq_along(v), function(i) lapply(perms(v[-i]), function(q) c(v[i], q))))
+           pp <- perms(1:5); r5 <- ls555(lig569(1:5))
+           length(pp) == 120L && all(vapply(pp, function(p) {
+             r <- ls555(lig569(p)); bouge <- which(p != seq_along(p))
+             attendu <- if (length(bouge)) TRI569(bouge) else character(0)
+             isTRUE(r$ok) && identical(r$avertissements_lecture, attendu) &&
+               identical(r[c("ok", "erreurs", "xt", "yt", "n")], r5[c("ok", "erreurs", "xt", "yt", "n")])
+           }, logical(1)))
+         })
+verifier("Lignes rangees par t (#569) : 8 lignes inversees (plus de cinq deplacees, liste plafonnee \"1, 2, 3, 4, 5 et 3 autre(s)\") ; cycle des lignes 3, 4, 5 ; annees 2015..2022 et en-tete T : meme regle",
+         {
+           ri <- ls555(lig569(8:1)); rc <- ls555(lig569(c(1, 2, 4, 5, 3, 6, 7, 8)))
+           ra <- ls555(lig569(c(2, 1, 3:8), t0 = 2015)); rT <- ls555(lig569(c(2, 1, 3:8), ent = c("T", "xt", "yt")))
+           identical(ri$avertissements_lecture, TRI569(1:8)) &&
+             grepl("(ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s) deplacee(s))", ri$avertissements_lecture, fixed = TRUE) &&
+             identical(rc$avertissements_lecture, TRI569(3:5)) &&
+             identical(ra$avertissements_lecture, TRI569(1:2)) && identical(rT, ra) &&
+             identical(ri$xt, x) && identical(rc$yt, y) && identical(ra$xt, x) &&
+             identical(ls555(lig569(1:8, t0 = 2015))$avertissements_lecture, character(0))
+         })
+verifier("Lignes rangees par t (#569) : sans colonne t, aucun tri ni information (character(0)), lignes lues dans l'ordre du fichier",
+         {
+           p <- c(2, 1, 3:8); r <- ls555(ser555(c("xt", "yt"), list(x[p], y[p])))
+           isTRUE(r$ok) && identical(r$avertissements_lecture, character(0)) && identical(r$xt, x[p]) &&
+             identical(names(r), NOMS569)
+         })
+verifier("Lignes rangees par t (#569) : refus inchanges, avertissements_lecture = character(0) et champ present a chaque retour de refus (tableau vide, en-tete bytes, ligne 1 vide, colonne manquante, t en double, ligne vide intercalee, xt non numerique sur fichier permute, t en double, non consecutif, non entier)",
+         {
+           p <- c(2, 1, 3:8); l <- lig569(p)
+           xt_txt <- l; xt_txt[4] <- sub("^([^,]*),[^,]*", "\\1,abc", xt_txt[4])
+           refus <- list(engine_lire_donnees_csv(data.frame()),
+                         engine_lire_donnees_csv(ser570(c("t", "xt", "yt", NB570))),
+                         ls555(c(",,", l)),
+                         ls555(ser555(c("t", "xt"), list(p, x[p]))),
+                         ls555(ser555(c("t", "xt", "yt", "T"), list(p, x[p], y[p], p))),
+                         ls555(append(l, "", after = 3)),
+                         ls555(xt_txt),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2, 1, 1, 4:8), x, y))),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2, 1, 4:9), x, y))),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2.5, 1, 3:8), x, y))))
+           all(vapply(refus, function(r) identical(r$ok, FALSE) && length(r$erreurs) >= 1L &&
+                        identical(names(r), NOMS569) &&
+                        identical(r$avertissements_lecture, character(0)), logical(1))) &&
+             contient(refus[[7]]$erreurs, "colonne xt : ligne(s) de donnees 3")
+         })
+if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
+  env569 <- environment(run_engine)
+  interne569 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env569)
+    on.exit(rm("requireNamespace", envir = env569), add = TRUE)
+    force(expr)
+  }
+  avec_openxlsx569 <- requireNamespace("openxlsx", quietly = TRUE)
+  if (!avec_openxlsx569) cat("  [saute] lignes rangees par t (#569), classeur, chemin openxlsx : paquet non installe\n")
+  # Fichier d'ordre p ecrit en classeur (cellules en nombres) puis relu par
+  # chaque chemin disponible et interprete par engine_lire_donnees_csv().
+  xl569 <- function(p) {
+    f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+    engine_ecrire_xlsx(data.frame(t = p, xt = x[p], yt = y[p]), f)
+    out <- list(interne = engine_lire_donnees_csv(interne569(engine_lire_xlsx(f))))
+    if (avec_openxlsx569) out$openxlsx <- engine_lire_donnees_csv(engine_lire_xlsx(f))
+    out
+  }
+  verifier("Lignes rangees par t (#569), classeur : fichier permute (lignes 1 et 2, cycle 3-4-5, inverse) : meme information qu'en CSV, resultat identique au CSV, xt et yt du fichier range (lecteur interne et openxlsx)",
+           all(vapply(list(c(2, 1, 3:8), c(1, 2, 4, 5, 3, 6, 7, 8), 8:1), function(p) {
+             rc <- ls555(lig569(p))
+             all(vapply(xl569(p), function(r) identical(r, rc) && identical(r$xt, x) && identical(r$yt, y) &&
+                          length(r$avertissements_lecture) == 1L, logical(1)))
+           }, logical(1))))
+  verifier("Lignes rangees par t (#569), classeur : fichier deja range : avertissements_lecture = character(0), resultat identique au CSV (lecteur interne et openxlsx)",
+           all(vapply(xl569(1:8), function(r) identical(r, r0_569) &&
+                        identical(r$avertissements_lecture, character(0)), logical(1))))
+} else cat("  [saute] lignes rangees par t (#569), classeur : aucune voie d'ecriture xlsx\n")
+
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
          {
