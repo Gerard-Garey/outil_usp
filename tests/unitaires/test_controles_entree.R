@@ -6515,6 +6515,20 @@ verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC ou de
            }
            ok
          })
+# Sous unix, dirname("C:/a/f.xlsx") vaut "C:/a", relatif pour le systeme :
+# normalizePath() le resoudrait contre getwd() des qu'un dossier "C:/a" y existe
+# (avant : "<cwd>/C:/a/f.xlsx"). Le chemin doit etre rendu tel quel.
+if (.Platform$OS.type == "unix") {
+  verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() ne resout pas contre getwd() un dossier \"C:/a\" relatif pour le systeme, meme present dans le repertoire courant (#580)",
+           {
+             cwd580_c <- normalizePath(tempfile("cwd580c_"), winslash = "/", mustWork = FALSE)
+             dir.create(file.path(cwd580_c, "C:", "a"), recursive = TRUE)
+             cwd580_c <- normalizePath(cwd580_c, winslash = "/")
+             identical(depuis580(cwd580_c, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx") &&
+               identical(depuis580(cwd580_c, .xlsx_chemin_sortie("C:/a/f.xlsx", cwd580_c)), "C:/a/f.xlsx") &&
+               identical(depuis580(cwd580_b, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx")
+           })
+}
 verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() prend un chemin relatif par rapport au repertoire donne, sans creer le dossier (#580)",
          identical(.xlsx_chemin_sortie("nouveau/f.xlsx", wd580), file.path(wd580, "nouveau", "f.xlsx")) &&
            identical(.xlsx_chemin_sortie("f.xlsx", wd580), file.path(wd580, "f.xlsx")) &&
@@ -6639,6 +6653,78 @@ if (length(voies488)) {
              r$classe && !r$cree && grepl("nom de la feuille doit etre une chaine unique", r$msg, fixed = TRUE) &&
                grepl("aucun fichier ecrit", r$msg, fixed = TRUE)
            }, logical(1))))
+  # Chemin vide, non chaine, vecteur, NA ou finissant par une barre : refus
+  # avant toute ecriture, depuis un repertoire courant vide (avant : "sub/"
+  # ecrivait "sub.zip", "" ecrivait "<repertoire courant>.zip")
+  verifier("engine_ecrire_xlsx() : chemin vide, NA, vecteur, non chaine ou finissant par une barre (oblique ou inverse) refuse par un usp_refus_ecriture motive, aucun fichier cree (#580)",
+           {
+             rep580c <- normalizePath(tempfile("chemin580_"), winslash = "/", mustWork = FALSE)
+             dir.create(rep580c); rep580c <- normalizePath(rep580c, winslash = "/")
+             zip580c <- paste0(rep580c, ".zip")
+             all(vapply(list("", NA, NA_character_, c("a", "b"), "sub/", "sub\\", "sub//", 1, NULL, list("a.xlsx")), function(ch) {
+               e <- depuis580(rep580c, tryCatch(ecrire580(d580, ch), error = function(e) e))
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) &&
+                 grepl("le chemin doit etre une chaine unique", conditionMessage(e), fixed = TRUE) &&
+                 grepl("aucun fichier ecrit", conditionMessage(e), fixed = TRUE) &&
+                 !length(list.files(rep580c, all.files = TRUE, no.. = TRUE, recursive = TRUE, include.dirs = TRUE)) &&
+                 !file.exists(zip580c)
+             }, logical(1)))
+           })
+  verifier("engine_ecrire_xlsx() : un chemin ordinaire (sans barre finale) reste admis (#580)",
+           {
+             f <- file.path(h580, "chemin_ok580.xlsx"); if (file.exists(f)) unlink(f)
+             r <- tryCatch(ecrire580(d580, f), error = function(e) e)
+             !inherits(r, "error") && identical(r, f) && file.exists(f)
+           })
+  # Guillemet double d'un nom de feuille : echappe &quot; dans l'attribut name
+  # (avant : XML mal forme, classeur refuse par le lecteur interne) ; dans le
+  # texte d'une cellule il reste ecrit tel quel.
+  verifier("engine_ecrire_xlsx() : nom de feuille a guillemet double ecrit &quot; dans workbook.xml, classeur relu intact par le lecteur interne, guillemet de cellule inchange (#580)",
+           {
+             f <- file.path(h580, "guillemet580.xlsx"); if (file.exists(f)) unlink(f)
+             dq <- data.frame(a = c(0.1, 1/3), b = c('di"t', "y"), stringsAsFactors = FALSE)
+             e <- tryCatch(ecrire580(dq, f, 'a"b'), error = function(e) e)
+             if (inherits(e, "error")) FALSE else {
+               rep <- tempfile("gui580_"); utils::unzip(f, exdir = rep)
+               lire_txt <- function(...) paste(readLines(file.path(rep, ...), warn = FALSE), collapse = "")
+               grepl('<sheet name="a&quot;b" ', lire_txt("xl", "workbook.xml"), fixed = TRUE) &&
+                 grepl('<t>di"t</t>', lire_txt("xl", "worksheets", "sheet1.xml"), fixed = TRUE) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(f)), dq)
+             }
+           })
+  if (base::requireNamespace("openxlsx", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx() : nom de feuille a guillemet double relu a l'identique par openxlsx::getSheetNames() et donnees intactes par engine_lire_xlsx() avec openxlsx (#580)",
+             {
+               f <- file.path(h580, "guillemet580.xlsx")
+               dq <- data.frame(a = c(0.1, 1/3), b = c('di"t', "y"), stringsAsFactors = FALSE)
+               identical(openxlsx::getSheetNames(f), 'a"b') &&
+                 identical(sans488(character(0), engine_lire_xlsx(f)), dq)
+             })
+  } else cat("  [saute] nom de feuille a guillemet relu par openxlsx (#580) : paquet non installe\n")
+  # Chaine marquee "bytes" : refusee a tous les emplacements des qu'elle est
+  # non ASCII, meme UTF-8 valide (avant : erreur R brute de sprintf() en cellule
+  # et en en-tete, admise en nom de feuille) ; une chaine bytes ASCII reste admise.
+  octets580 <- function(s) { Encoding(s) <- "bytes"; s }
+  verifier("engine_ecrire_xlsx() : chaine \"caf\\xc3\\xa9\" marquee bytes (UTF-8 valide, non ASCII) refusee en cellule, en en-tete et en nom de feuille, motif \"bytes\", aucun fichier cree (#580)",
+           {
+             m <- octets580("caf\xc3\xa9")
+             rc <- refus580(data.frame(a = m, stringsAsFactors = FALSE))
+             dh <- data.frame(a = 1); names(dh) <- m
+             rh <- refus580(dh); rf <- refus580(d580, m)
+             identical(Encoding(m), "bytes") && validUTF8(m) &&
+               motif580(rc, "la cellule A2", "\"bytes\"") &&
+               motif580(rh, "l'en-tete de la colonne 1 (cellule A1)", "\"bytes\"") &&
+               motif580(rf, "le nom de la feuille", "\"bytes\"")
+           })
+  verifier("engine_ecrire_xlsx() : chaine \"abc\" marquee bytes (ASCII) admise en cellule, en en-tete et en nom de feuille, fichier cree et relu (#580)",
+           {
+             f <- file.path(h580, "bytes_ascii580.xlsx"); if (file.exists(f)) unlink(f)
+             m <- octets580("abc")
+             d <- data.frame(a = m, stringsAsFactors = FALSE); names(d) <- m
+             e <- tryCatch(ecrire580(d, f, m), error = function(e) e)
+             !inherits(e, "error") && file.exists(f) &&
+               identical(sans488("openxlsx", engine_lire_xlsx(f)), data.frame(abc = "abc", stringsAsFactors = FALSE))
+           })
 } else cat("  [saute] refus et ecriture xlsx (#580) : aucune voie d'ecriture xlsx\n")
 
 fin_fichier()
