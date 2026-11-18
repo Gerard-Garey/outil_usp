@@ -8206,7 +8206,8 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # Positions (lignes de donnees, colonnes ou paires) listees dans un motif de
 # lecture : cinq au plus, puis "et <n> autre(s)". Commune aux motifs de
 # .retirer_lignes_colonnes_vides(), des en-tetes en double et de la colonne
-# i (#555).
+# i (#555), ainsi qu'aux cellules non numeriques des colonnes xt, yt et t et
+# du triangle (#558).
 .liste_positions <- function(k) {
   paste0(paste(utils::head(k, 5), collapse = ", "),
          if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
@@ -8532,8 +8533,7 @@ engine_lire_donnees_csv <- function(df) {
     pos <- function(nom, v) {
       k <- which(is.na(v))
       if (!length(k)) return(character(0))
-      sprintf("colonne %s : ligne(s) de donnees %s%s", nom, paste(utils::head(k, 5), collapse = ", "),
-              if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+      sprintf("colonne %s : ligne(s) de donnees %s", nom, .liste_positions(k))
     }
     err <- c(err, paste0(sprintf("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (%s).",
                                  paste(c(pos("xt", xt), pos("yt", yt)), collapse = " ; ")),
@@ -8546,9 +8546,10 @@ engine_lire_donnees_csv <- function(df) {
   if ("t" %in% noms) {
     to <- .en_numerique(df$t)
     if (anyNA(to))
+      # Positions plafonnees a cinq par .liste_positions() (#558).
       err <- c(err, sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) de donnees %s) :",
                                   "chaque ligne doit porter son annee."),
-                            paste(which(is.na(to)), collapse = ", ")))
+                            .liste_positions(which(is.na(to)))))
     else if (any(!is.finite(to) | to != round(to)))
       err <- c(err, "Colonne t : les annees doivent etre des entiers finis.")
     else if (anyDuplicated(to))
@@ -8661,13 +8662,15 @@ engine_lire_triangle <- function(df) {
   illisible <- which(!do.call(base::cbind, unname(vide)) & is.na(do.call(base::cbind, unname(num))),
                      arr.ind = TRUE)
   if (length(illisible)) {
-    k <- utils::head(illisible, 5)
     # Cellule "NA" (texte, toujours non numerique) : phrase fixe (#483).
     na_txt <- any(vapply(brut, function(v) any(.cellule_texte_na(v)), logical(1)))
-    # Coordonnees (i = ..., j = ...) suivies de leur sens (#527).
-    return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s%s (i : annee d'accident, j : annee de developpement).",
-                                paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")", collapse = ", "),
-                                if (nrow(illisible) > 5) sprintf(" et %d autre(s)", nrow(illisible) - 5) else ""),
+    # Coordonnees (i = ..., j = ...) suivies de leur sens (#527), cinq au plus
+    # par .liste_positions() (#558) ; seules les cinq premieres sont mises en
+    # texte, les autres ne comptent que pour "et <n> autre(s)".
+    k <- utils::head(illisible, 5)
+    return(refus(paste0(sprintf("Cellule(s) non numerique(s) en %s (i : annee d'accident, j : annee de developpement).",
+                                .liste_positions(c(paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")"),
+                                                   character(nrow(illisible) - nrow(k))))),
                         if (na_txt) paste(" Une cellule \"NA\" est lue comme du texte : renseigner",
                                           "la valeur, ou laisser vide une cellule non observee."))))
   }
