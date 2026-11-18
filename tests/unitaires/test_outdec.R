@@ -11,10 +11,11 @@
 #       des textes produits par le moteur ; ADR 0006) ;
 #    2. l'ecrivain xlsx interne d'engine_ecrire_xlsx() (seul depuis #488) ecrit les nombres en
 #       point decimal et pleine precision (15 chiffres quand ils suffisent,
-#       sinon 17) : aller-retour sans perte par le lecteur interne, sous les
-#       deux options. L'absence d'openxlsx est simulee en posant
-#       requireNamespace() dans environment(run_engine), jamais dans
-#       l'environnement global (ADR 0016).
+#       sinon 17) : aller-retour sans perte par le lecteur interne (seul
+#       lecteur depuis #604, ADR 0020), sous les deux options. L'absence du
+#       paquet zip est simulee en posant requireNamespace() dans
+#       environment(run_engine), jamais dans l'environnement global (ADR
+#       0016) : l'archive passe alors par utils::zip().
 #    3. garantie a la racine (#439) : chacun des 17 points d'entree que
 #       l'application appelle (app.R, R/display_helpers.R ; pour
 #       engine_valider_declarations(), a partir du commit (d2) de S3, #504) pose
@@ -169,9 +170,10 @@ for (pr in list(c(.025, .05, .5, .95, .975), ppoints(8), ppoints(99), ppoints(10
 ## --- 2. xlsx de repli : aller-retour a pleine precision ------------------------
 if (nzchar(Sys.which("zip"))) {
   env_moteur <- environment(run_engine)
-  # Simule l'absence d'openxlsx et de zip (lecteur de repli ; ecrivain interne
-  # compresse par utils::zip(), #488) ; retire a la sortie
-  sans_openxlsx <- function(expr) {
+  # Simule l'absence de tout paquet facultatif (ecrivain interne compresse
+  # par utils::zip(), #488 ; la lecture n'en depend plus depuis #604) ;
+  # retire a la sortie
+  sans_paquets <- function(expr) {
     assign("requireNamespace", function(package, ...) FALSE, envir = env_moteur)
     on.exit(rm("requireNamespace", envir = env_moteur), add = TRUE)
     force(expr)
@@ -187,7 +189,7 @@ if (nzchar(Sys.which("zip"))) {
   df$v[9] <- NA_real_
   aller_retour <- function(od) {
     f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f), add = TRUE)
-    sous_outdec(od, sans_openxlsx({ engine_ecrire_xlsx(df, f); engine_lire_xlsx(f) }))
+    sous_outdec(od, sans_paquets({ engine_ecrire_xlsx(df, f); engine_lire_xlsx(f) }))
   }
   lu_pt <- aller_retour("."); lu_vg <- aller_retour(",")
   verifier("xlsx de repli : requireNamespace() simule restitue le moteur intact",
@@ -196,25 +198,19 @@ if (nzchar(Sys.which("zip"))) {
            identical(as.numeric(lu_pt$v), df$v) && identical(as.numeric(lu_pt$n), df$n) &&
              identical(as.numeric(lu_pt$f), df$f) && identical(as.integer(lu_pt$t), df$t) &&
              identical(as.character(lu_pt$lib), df$lib))
-  # +-Inf : chaine en ligne dans le classeur. Le lecteur interne et openxlsx,
-  # s'il est installe, les relisent en chaine : la colonne porte une cellule
-  # texte et reste en caractere dans le lecteur interne (#490).
-  verifier("xlsx de repli : +-Inf relus en chaine par le lecteur interne (colonne en caractere) et par openxlsx",
-           {
-             f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f), add = TRUE)
-             sans_openxlsx(engine_ecrire_xlsx(df, f))
-             interne <- is.character(lu_pt$f) && identical(lu_pt$f[1:2], c("Inf", "-Inf"))
-             externe <- if (base::requireNamespace("openxlsx", quietly = TRUE))
-               identical(as.character(openxlsx::read.xlsx(f)$f[1:2]), c("Inf", "-Inf")) else TRUE
-             interne && externe
-           })
+  # +-Inf : chaine en ligne dans le classeur. Le lecteur interne les relit en
+  # chaine : la colonne porte une cellule texte et reste en caractere (#490).
+  # (La relecture par openxlsx est retiree par #604 : le temoin de
+  # l'ecrivain, test_controles_entree.R, section #488, relit +-Inf.)
+  verifier("xlsx de repli : +-Inf relus en chaine par le lecteur interne (colonne en caractere)",
+           is.character(lu_pt$f) && identical(lu_pt$f[1:2], c("Inf", "-Inf")))
   verifier("xlsx de repli : aller-retour sans perte sous OutDec = \",\", identique a celui sous \".\"",
            identical(lu_vg, lu_pt))
   verifier("xlsx de repli : le XML ecrit sous OutDec = \",\" n'a ni virgule decimale ni troncature a 7 chiffres",
            {
              f <- tempfile(fileext = ".xlsx"); d <- tempfile("lec_")
              on.exit({ unlink(f); unlink(d, recursive = TRUE) }, add = TRUE)
-             sous_outdec(",", sans_openxlsx(engine_ecrire_xlsx(df, f)))
+             sous_outdec(",", sans_paquets(engine_ecrire_xlsx(df, f)))
              utils::unzip(f, exdir = d)
              xml <- paste(readLines(file.path(d, "xl", "worksheets", "sheet1.xml"), warn = FALSE),
                           collapse = "")
@@ -412,8 +408,8 @@ verifier("point d'entree : engine_lire_donnees_csv() et engine_lire_triangle() l
            isTRUE(sous_outdec(",", engine_lire_triangle(df_tri439))$ok) &&
            identical(sous_outdec(",", engine_lire_donnees_csv(df_ln439))$xt, x428))
 if (peut_ecrire439) {
-  # Ecrivain xlsx : XML de la feuille identique sous les deux options ; lecteur :
-  # data.frame identique, avec le lecteur de repli et, s'il est installe, openxlsx.
+  # Ecrivain xlsx : XML de la feuille identique sous les deux options ; lecteur
+  # (seul depuis #604) : data.frame identique.
   xml_ecrit <- function(od) {
     f <- tempfile(fileext = ".xlsx"); d <- tempfile("k439_")
     on.exit({ unlink(f); unlink(d, recursive = TRUE) })
@@ -422,20 +418,10 @@ if (peut_ecrire439) {
   }
   verifier("point d'entree : engine_ecrire_xlsx() ecrit la meme feuille sous \",\" et \".\"",
            identical(xml_ecrit(","), xml_ecrit(".")) && grepl("<v>0.5</v>", xml_ecrit(","), fixed = TRUE))
-  sans_ox439 <- function(expr) {
-    assign("requireNamespace", function(package, ...) FALSE, envir = env_moteur439)
-    on.exit(rm("requireNamespace", envir = env_moteur439), add = TRUE)
-    force(expr)
-  }
-  lu439 <- function(od, repli) sous_outdec(od, if (repli) sans_ox439(engine_lire_xlsx(ft439)) else
-    engine_lire_xlsx(ft439))
-  verifier("point d'entree : engine_lire_xlsx() (lecteur de repli) identique sous \",\" et \".\", valeurs relues a l'identique",
-           identical(lu439(",", TRUE), lu439(".", TRUE)) &&
-             identical(as.numeric(lu439(",", TRUE)$v), df_xl439$v))
-  if (base::requireNamespace("openxlsx", quietly = TRUE))
-    verifier("point d'entree : engine_lire_xlsx() (openxlsx) identique sous \",\" et \".\"",
-             identical(lu439(",", FALSE), lu439(".", FALSE)))
-  else cat("  [saute] engine_lire_xlsx() par openxlsx : paquet absent\n")
+  lu439 <- function(od) sous_outdec(od, engine_lire_xlsx(ft439))
+  verifier("point d'entree : engine_lire_xlsx() identique sous \",\" et \".\", valeurs relues a l'identique",
+           identical(lu439(","), lu439(".")) &&
+             identical(as.numeric(lu439(",")$v), df_xl439$v))
 }
 unlink(d439, recursive = TRUE)
 
