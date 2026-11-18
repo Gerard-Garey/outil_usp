@@ -3850,6 +3850,164 @@ if (nzchar(Sys.which("zip"))) {
              ok574l(lit574l(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw(' \nr:id="rId11"')))) &&
                ok574l(lit574l(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw('Id\n="rId11"')))) &&
                ok574l(lit574l(crlf574l(deux574h()))) })
+  # --- #595 (decisions D-S1-38 et D-S1-39 du mainteneur ; textes d'actuary
+  # de l'etape 1 de S4) : relation de la feuille lue a cible ambigue,
+  # attribut Type ambigu, balise <Relationship> de forme non reconnue.
+  # Mesures avant (moteur 9440415, R 4.3.3, openxlsx 4.2.5.2, sonde
+  # sonde_595.R de l'etape 3 de S4, classeur de la serie de reference dont
+  # la feuille 2 porte 999 : 999 lu donnait sigma_USP 0.5064392336 au lieu
+  # de 0.1114524114, ok = TRUE) :
+  #  - x:Target="...sheet2.xml" Target='...sheet1.xml' : 999 sur les deux
+  #    chemins ; Target="...sheet2.xml" Target="...sheet1.xml" (avec ou sans
+  #    x:) : 999 en interne, erreur R d'openxlsx ; Target='...sheet1.xml'
+  #    avec x:Target="...sheet2.xml", Foo='Target="...sheet2.xml"' (ou
+  #    Target<LF>=") ou xTarget="...sheet2.xml" : premiere feuille en
+  #    interne, 999 par openxlsx ; Target="...sheet&#49;.xml" avec une entree
+  #    xl/worksheets/sheet&#49;.xml, ou Target="...sheet1.xml" Foo="z.xml"
+  #    avec une entree xl/worksheets/sheet1.xml" Foo="z.xml (999) : premiere
+  #    feuille en interne, 999 par openxlsx ; Target='...sheet1.xml
+  #    Target="..."' : "aucune feuille trouvee" sur les deux chemins ;
+  #  - relation de la premiere feuille x:Type="...chartsheet"
+  #    Type="...worksheet" : 999 sur les deux chemins ;
+  #  - <Relationship<TAB>, <LF> ou <CR> en premiere relation,
+  #    <RelationshipX ...> placee avant : openxlsx ne rend jamais la main
+  #    (code 124 sous timeout), premiere feuille en interne ;
+  #    <Relationship<TAB> en seconde relation, <Relationship<CR><LF><espace> :
+  #    lus juste par les deux chemins ; <Relation<LF>ship<TAB> : "aucune
+  #    feuille trouvee" sur les deux chemins.
+  # Refus sur chaque chemin, meme texte ; <Relationship<CR><LF><espace> et
+  # la forme "un attribut par ligne" (fin de ligne puis espace apres le nom
+  # de la balise), lues juste par les deux chemins, sont des temoins.
+  texte595b <- function(pos) sprintf("Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur porte une balise <Relationship> de forme non reconnue (balise(s) <Relationship> %s : caractere autre qu'une espace, \"/\" ou \">\" apres le nom de la balise, par exemple une tabulation, ou une fin de ligne suivie directement d'un attribut) ; l'outil ne lit pas cette forme de facon sure (selon la place de la balise, la lecture pourrait ignorer cette relation, ou ne jamais se terminer et figer l'application). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  lien595 <- "balise <Relationship> 1, relation de la feuille lue : "
+  t1_595 <- 'Target="worksheets/sheet1.xml"'
+  cible595 <- function(par) retoucher574(deux574h(), rl574, t1_595, charToRaw(par))
+  # Ajoute a l'archive f l'entree entree, copie de la partie source.
+  ajouter595 <- function(f, entree, source) {
+    x <- tempfile("a595_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, exdir = x)
+    file.copy(file.path(x, source), file.path(x, entree))
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  verifier("xlsx (#595, a1) : relation de la feuille lue portant x:Target=\"...sheet2.xml\" Target='...sheet1.xml' (avant : 999 sur les deux chemins, ok = TRUE), Target=\"...sheet2.xml\" Target=\"...sheet1.xml\" (avant : 999 en interne), Target='...sheet1.xml' x:Target=\"...sheet2.xml\" (avant : 999 par openxlsx) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(cible595("x:Target=\"worksheets/sheet2.xml\" Target='worksheets/sheet1.xml'"),
+                 texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (x:Target, Target)"))) &&
+             rb574(cible595('Target="worksheets/sheet2.xml" Target="worksheets/sheet1.xml"'),
+                   texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (Target, Target)"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml' x:Target=\"worksheets/sheet2.xml\""),
+                   texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (Target, x:Target)"))))
+  verifier("xlsx (#595, a2) : relation de la feuille lue portant Foo='Target=\"...sheet2.xml\"' avant ou apres Target='...sheet1.xml', Foo='Target<LF>=\"...\"' (texte colle), Target='...sheet1.xml Target=\"...\"', xTarget=\"...sheet2.xml\" (avant : 999 par openxlsx, ou aucune feuille) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(cible595("Foo='Target=\"worksheets/sheet2.xml\"' Target='worksheets/sheet1.xml'"),
+                 texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml' Foo='Target=\"worksheets/sheet2.xml\"'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Foo='Target\n=\"worksheets/sheet2.xml\"' Target='worksheets/sheet1.xml'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml Target=\"worksheets/sheet2.xml\"'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Target"))) &&
+             rb574(cible595("xTarget=\"worksheets/sheet2.xml\" Target='worksheets/sheet1.xml'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= ailleurs qu'au debut de l'attribut Target (par exemple a la fin du nom d'un autre attribut, ou apres la balise ouvrante)"))))
+  # Entree d'archive au nom portant des guillemets : creee seulement hors
+  # de Windows (nom de fichier interdit) ; la forme a entite vaut partout.
+  verifier("xlsx (#595, a3) : Target=\"worksheets/sheet&#49;.xml\" avec une entree xl/worksheets/sheet&#49;.xml (999), et hors de Windows Target=\"...sheet1.xml\" Foo=\"z.xml\" avec une entree xl/worksheets/sheet1.xml\" Foo=\"z.xml (999) (avant : 999 par openxlsx, ok = TRUE) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           { a3_595 <- texte574h(rl574, paste0(lien595, "cible differente pour un autre lecteur de classeur, qui lit le texte de l'attribut Target=\"...\" tel quel, sans decoder les references de caracteres (&...;), jusqu'au dernier texte xml\" de la relation"))
+             rb574(ajouter595(cible595('Target="worksheets/sheet&#49;.xml"'), "xl/worksheets/sheet&#49;.xml", "xl/worksheets/sheet2.xml"), a3_595) &&
+               (.Platform$OS.type == "windows" ||
+                  rb574(ajouter595(cible595(paste0(t1_595, ' Foo="z.xml"')), 'xl/worksheets/sheet1.xml" Foo="z.xml', "xl/worksheets/sheet2.xml"), a3_595)) })
+  verifier("xlsx (#595, Type) : relation de la premiere feuille portant x:Type=\"...chartsheet\" Type=\"...worksheet\", ou Type repete (avant : 999 sur les deux chemins, ok = TRUE) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet"'),
+                              charToRaw(paste0('Id="rId11" x:Type="', rt487, '/chartsheet" Type="', rt487, '/worksheet"'))),
+                 texte574h(rl574, "balise <Relationship> 1 : attribut Type repete ou prefixe (x:Type, Type)")) &&
+             rb574(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet"'),
+                                charToRaw(paste0('Id="rId11" Type="', rt487, '/chartsheet" Type="', rt487, '/worksheet"'))),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Type repete ou prefixe (Type, Type)")))
+  verifier("xlsx (#595) : temoins lus a l'identique sur chaque chemin (11.5) : Target unique entre apostrophes ou a blancs autour de = (lecteur interne seul, erreur R d'openxlsx inchangee, #487), <x:Relationship<TAB> prefixee (idem), relation sans attribut Type (cible sous worksheets/)",
+           { lit595 <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             interne595 <- function(r) is.data.frame(r$interne) && identical(as.numeric(r$interne$xt), 11.5) &&
+               (!avec_openxlsx483 || (is.character(r$openxlsx) && !startsWith(r$openxlsx, "Classeur illisible")))
+             interne595(lit595(cible595("Target='worksheets/sheet1.xml'"))) &&
+               interne595(lit595(cible595('Target = "worksheets/sheet1.xml"'))) &&
+               interne595(lit595(retoucher574(deux574h(), rl574, '<Relationship Id="rId11"', charToRaw('<x:Relationship\tId="rId11"')))) &&
+               tous487(lit595(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet" '), charToRaw('Id="rId11" '))),
+                       function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) })
+  # Balises <Relationship> : en sous-processus Rscript borne (timeout 60 s),
+  # sur les deux chemins ; un processus qui ne rend pas la main (code 124,
+  # blocage d'openxlsx) fait echouer le test.
+  fils595 <- tempfile("fils595_", fileext = ".R")
+  writeLines(c(
+    "a <- commandArgs(TRUE)",
+    "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+    "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+    "if (identical(a[3], \"interne\"))",
+    "  assign(\"requireNamespace\", function(package, ...)",
+    "    if (package %in% \"openxlsx\") FALSE else base::requireNamespace(package, ...), envir = environment(run_engine))",
+    "cat(\"OPENXLSX=\", eval(quote(requireNamespace(\"openxlsx\", quietly = TRUE)), environment(run_engine)), \"\\n\", sep = \"\")",
+    "r <- tryCatch(engine_lire_xlsx(a[2]), error = function(e) e)",
+    "cat(\"CLASSE=\", class(r)[1], \"\\n\", sep = \"\")",
+    "cat(\"MESSAGE=\", if (inherits(r, \"condition\")) conditionMessage(r) else \"\", \"\\n\", sep = \"\")",
+    "if (is.data.frame(r)) cat(\"LU=\", paste(format(as.numeric(r$xt), digits = 15), collapse = \";\"), \"\\n\", sep = \"\")"), fils595)
+  lancer595 <- function(f, ch) {
+    out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(fils595, racine575, f, ch)),
+                                    stdout = TRUE, stderr = TRUE, timeout = 60))
+    st <- attr(out, "status"); if (is.null(st)) st <- 0L
+    list(st = as.integer(st), classe = sub("^CLASSE=", "", grep("^CLASSE=", out, value = TRUE)),
+         openxlsx = grep("^OPENXLSX=", out, value = TRUE),
+         message = sub("^MESSAGE=", "", grep("^MESSAGE=", out, value = TRUE)),
+         lu = sub("^LU=", "", grep("^LU=", out, value = TRUE)))
+  }
+  # attendu : message du refus (classe usp_refus_lecture), ou lu = valeurs
+  # de xt attendues sur chaque chemin. Rend TRUE ou un texte par chemin.
+  sous595 <- function(f, attendu = NULL, lu = NULL) {
+    r <- lapply(setNames(chemins575, chemins575), function(ch) lancer595(f, ch))
+    unlink(f)
+    ok <- vapply(names(r), function(ch) { x <- r[[ch]]
+                   identical(x$st, 0L) && identical(x$openxlsx, paste0("OPENXLSX=", ch == "openxlsx")) &&
+                     (if (is.null(lu)) identical(x$classe, "usp_refus_lecture") && identical(x$message, attendu)
+                      else identical(x$lu, lu)) }, logical(1))
+    if (all(ok)) return(TRUE)
+    paste(vapply(names(r), function(k) sprintf("chemin %s : code %d%s, CLASSE=%s, MESSAGE=%s, LU=%s", k, r[[k]]$st,
+                                               if (identical(r[[k]]$st, 124L)) " (le processus n'a pas rendu la main en 60 s)" else "",
+                                               paste(r[[k]]$classe, collapse = "|"), paste(r[[k]]$message, collapse = " | "),
+                                               paste(r[[k]]$lu, collapse = "|")), ""), collapse = " ; ")
+  }
+  rel1_595 <- '<Relationship Id="rId11"'
+  balise595 <- function(par, motif = rel1_595) retoucher574(deux574h(), rl574, motif, charToRaw(par))
+  verifier("xlsx (#595, b) : premiere relation <Relationship<TAB>, <LF> ou <CR> (avant : openxlsx ne rendait jamais la main), <RelationshipX ...> placee avant (idem), <Relation<LF>ship<TAB> (balise formee par le collage), seconde relation <Relationship<TAB>, apres une premiere relation sans prefixe ou prefixee (<x:Relationship ...>, comptee dans le rang) : refus nommant la balise, code 0, classe usp_refus_lecture, meme texte sur chaque chemin, en sous-processus borne (echec si le processus ne rend pas la main)",
+           { res595 <- list(
+               sous595(balise595('<Relationship\tId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\nId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\rId="rId11"'), texte595b("1")),
+               sous595(balise595(paste0('<RelationshipX Id="rId9" Type="', rt487, '/worksheet" Target="worksheets/sheet2.xml"/>', rel1_595)),
+                       texte595b("1")),
+               sous595(balise595('<Relation\nship\tId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\tId="rId12"', '<Relationship Id="rId12"'), texte595b("2")),
+               sous595(retoucher574(balise595('<x:Relationship Id="rId11"'), rl574, '<Relationship Id="rId12"', charToRaw('<Relationship\tId="rId12"')),
+                       texte595b("2")))
+             if (all(vapply(res595, isTRUE, NA))) TRUE else paste(unlist(res595[!vapply(res595, isTRUE, NA)]), collapse = " // ") })
+  # Relations des deux feuilles ecrites un attribut par ligne, fins de
+  # ligne fl (forme lue juste par les deux chemins, mesure de l'audit leger
+  # de l'etape 3 de S4).
+  par_ligne595 <- function(fl) {
+    f <- deux574h()
+    for (k in 1:2) {
+      av <- sprintf('<Relationship Id="rId1%d" Type="%s/worksheet" Target="worksheets/sheet%d.xml"/>', k, rt487, k)
+      f <- retoucher574(f, rl574, av, charToRaw(gsub(" ", paste0(fl, " "), av, fixed = TRUE)))
+    }
+    f
+  }
+  verifier("xlsx (#595, b) : temoins lus a l'identique sur chaque chemin (11.5), en sous-processus borne : racine <Relationships<TAB>xmlns, racine <Relationships<LF>xmlns (collee : <Relationshipsxmlns), relations ecrites une par ligne (<LF> avant <Relationship), <Relationship<CR><LF><espace>Id=, relations ecrites un attribut par ligne (<LF><espace> ou <CR><LF><espace> avant chaque attribut)",
+           { res595t <- list(
+               sous595(balise595('<Relationship\r\n Id="rId11"'), lu = "11.5"),
+               sous595(par_ligne595("\n"), lu = "11.5"),
+               sous595(par_ligne595("\r\n"), lu = "11.5"),
+               sous595(balise595("<Relationships\txmlns", "<Relationships xmlns"), lu = "11.5"),
+               sous595(balise595("<Relationships\nxmlns", "<Relationships xmlns"), lu = "11.5"),
+               sous595(retoucher574(balise595(paste0("\n", rel1_595)), rl574, '"/><Relationship Id="rId12"', charToRaw('"/>\n<Relationship Id="rId12"')),
+                       lu = "11.5"))
+             if (all(vapply(res595t, isTRUE, NA))) TRUE else paste(unlist(res595t[!vapply(res595t, isTRUE, NA)]), collapse = " // ") })
+  unlink(fils595)
   verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
            rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
              rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
