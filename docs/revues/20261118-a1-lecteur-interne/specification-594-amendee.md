@@ -1,6 +1,6 @@
 > *Rédigé par l'agent actuary (IA).*
 >
-> *Note de la session principale* : texte versé intégralement le 18/11/2026. Les scripts et sorties de la mesure, d'abord hors dépôt, sont versés sous `specification-594/` ; leurs md5 sont identiques à ceux que cite le texte (`gen.py` `8c96f9fc…`, `mesurer.R` `dd8c469b…`). Les précisions 10.1 et 10.2 sont portées dans `relecture-xml-1.0.md`, et le § 3.1 de XML 1.0 y est ajouté. Le texte est aussi publié en commentaire de #594.
+> *Note de la session principale* : texte versé intégralement le 18/11/2026. Les scripts et sorties de la mesure, d'abord hors dépôt, sont versés sous `specification-594/` ; leurs md5 sont identiques à ceux que cite le texte (`gen.py` `8c96f9fc…`, `mesurer.R` `dd8c469b…`). Les précisions 10.1 et 10.2 sont portées dans `relecture-xml-1.0.md`, et le § 3.1 de XML 1.0 y est ajouté. Un résumé, avec le lien vers ce fichier et les questions A-1 à A-5, est publié en commentaire de #594 (`issuecomment-6993151965`). Arrêt A décidé par le mainteneur le 18/11/2026 : A-1 à A-5 en (a).
 
 ## Spécification amendée de #594 (A1, étape 1b ; décision Q-68-4 (a) du 18/11/2026)
 
