@@ -47,7 +47,7 @@
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
 \newcommand{\datedoc}{17~novembre 2026}
-\newcommand{\versiondoc}{3.10}
+\newcommand{\versiondoc}{4.0}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -514,7 +514,7 @@ Le moteur s'exécute seul~:
 \code{charger\_moteur()}\\
 \code{res <- run\_engine(xt = ..., yt = ..., methode = "premium", segment = 1,}\\
 \code{\phantom{res <- run\_engine(}nature\_donnees = "brutes", T = 8, B = 999,}\\
-\code{\phantom{res <- run\_engine(}seed = 20260831)}\\
+\code{\phantom{res <- run\_engine(}seed = 20260831, date\_reference = "2025-12-31")}\\
 \code{res\$parametre\_final\$sigma\_usp \ \ ;\ \ engine\_table\_tests(res)}
 \end{encadre}
 
@@ -557,7 +557,10 @@ des données du calcul et celle de l'objet résultat, calculées par \code{engin
 aussi du chargeur, qui fixe la chaîne d'environnements du moteur~; ces deux
 dernières sont relevées avec la version déclarée dans \code{DESCRIPTION} par
 \code{identite\_code()}, hors de \code{run\_engine()}, au chargement du moteur par
-l'application, à une même heure de relevé~; il porte aussi le générateur et les graines fixes des simulations,
+l'application, à une même heure de relevé~; il porte aussi la date de référence du calcul et le
+texte applicable au paramètre standard, lus dans \code{\$metadata} (le libellé du texte est celui
+de la ligne correspondante du tableau d'\code{engine\_parametre\_standard()}, que la section~4 du
+rapport restitue entier, déclarations et facteur NP compris~; §\ref{sec:segments}), puis le générateur et les graines fixes des simulations,
 lus dans \code{\$metadata} (\code{valeurs\_generateur()}), dont la graine fixe de
 la loi nulle de Shapiro--Wilk (méthode de réserve n\textsuperscript{o}~2 seulement,
 section~\ref{sec:graines}) et la graine du flux complémentaire des p-values de Monte-Carlo
@@ -695,8 +698,8 @@ fonction.
 aiguille vers l'une des deux chaînes~: à gauche les méthodes lognormales
 (sections~B et~C de l'annexe~XVII), à droite la méthode Merz--Wüthrich
 (section~D). Les deux convergent vers un objet de sortie unique, que la couche
-d'affichage se contente de lire. \code{usp\_credibilite()} est la seule fonction
-de calibration commune aux deux branches.}
+d'affichage se contente de lire. \code{usp\_credibilite()} et \code{usp\_parametre\_standard()}
+servent les deux branches.}
 \label{fig:archi}
 \end{figure}
 
@@ -760,6 +763,23 @@ convient (§\ref{sec:controles}) \\
 \code{NATURES\_DONNEES},\newline \code{.nature\_erreurs()} & \code{methode},
 \code{nature\_donnees} & natures recevables (\code{"brutes"}, \code{"nettes"})~; motifs de refus~:
 déclaration obligatoire pour \code{premium}, «~brutes~» refusé pour les méthodes de réserve \\
+\code{TEXTES\_APPLICABLES} & constante (\code{texte}, \code{applicable\_du}) & état du règlement délégué (UE)~2015/35
+qui fixe le paramètre standard, désigné par le dernier acte modificatif qui le change, et date
+à partir de laquelle il s'applique~: «~2019/981~» au 1\textsuperscript{er}~janvier 2020,
+«~2026/269~» au 30.1.2027~; sources en commentaire~; lue par
+\code{engine\_valider\_declarations()} seule (§\ref{sec:segments}) \\
+\code{engine\_valider\_}\newline\code{declarations()} & \code{methode}, \code{segment},
+\code{annexe}, \code{nature\_donnees}, \code{date\_reference}, \code{reassurance\_np},
+\code{cdd\_qualifiante} & liste~: \code{ok}, \code{erreurs} (motifs de refus), date reçue,
+\code{texte\_applicable}, déclarations reçues (\code{NA} si non déclarées), \code{np\_requise}
+et \code{cdd\_requise} (déclaration exigée pour ce calcul), \code{facteur\_np} (facteur appliqué
+à $\sigma$ brut, méthode de primes sur données nettes avec segment désigné~; \code{NA} sinon)~;
+siège unique de la règle date de référence $\to$ texte applicable $\to$ facteur, lue sur
+\code{np\_standard} et non sur une liste de segments~; aucune erreur R pour une date ou une
+déclaration absente, mal formée ou hors du domaine, erreur d'usage pour une méthode, une annexe ou
+un segment invalide~; point d'entrée appelé par \code{run\_engine()} (motifs en tête de
+\code{validation\$erreurs}), par \code{usp\_parametre\_standard()} et par l'application avant
+le clic (§\ref{sec:segments}, §\ref{sec:controles}) \\
 \code{usp\_controle\_donnees()} & $x$, $y$, \code{alpha} (0,10), \code{bareme},
 \code{segment}, \code{annexe} (\code{NULL}, \code{NULL}, \code{"II"}) &
 liste de contrôles de recevabilité, dont la crédibilité pleine lue sur le barème appliqué \\
@@ -1566,19 +1586,29 @@ d'usage pour un segment qui n'est pas un nombre scalaire fini entier sans attrib
 par les deux fonctions (par \code{usp\_bareme\_segment()} en appel direct)~; barème seul (court par convention pour \code{segment = NULL}, barème non
 déterminé par la section~G) \\
 \code{usp\_parametre\_}\newline\code{standard()} & \code{methode}, \code{segment}, \code{annexe},
-\code{nature\_donnees}, \code{sigma\_standard} & paramètre standard du mélange selon la
-nature déclarée (lecture retenue par l'outil, §\ref{sec:segments}), point de l'article~218 remplacé, exigence relative aux données,
-drapeau de saisie (§\ref{sec:segments}) \\
+\code{nature\_donnees}, \code{sigma\_standard}, \code{date\_reference},
+\code{reassurance\_np}, \code{cdd\_qualifiante} & paramètre standard du mélange selon la
+nature déclarée (lecture retenue par l'outil, §\ref{sec:segments}) et le texte applicable à la
+date de référence, dont elle applique le facteur NP rendu par
+\code{engine\_valider\_declarations()}, point de l'article~218 remplacé, exigence relative aux
+données, drapeau de saisie, date, texte applicable et déclarations~; erreur R si cette règle refuse
+(date absente, mal formée ou hors du domaine, déclaration exigée absente ou refusée)~; seul point
+d'obtention du paramètre standard, appelé par les deux branches de \code{run\_engine()} et par
+\code{.engine\_trace\_sigma()} \\
 \code{engine\_parametre\_}\newline\code{standard()} & \code{res} & tableau «~Paramètre standard remplacé~»
-d'un résultat, complété du barème et du facteur $c$ applicables et retenus et de l'origine du
-barème, recalculé et contrôlé contre \code{\$metadata} et \code{\$parametre\_final} (hors
-\code{run\_engine()}~; erreur si un drapeau de saisie manque) \\
+d'un résultat, avec la date de référence, le texte applicable, les deux déclarations et leur
+effet et le facteur NP appliqué, complété du barème et du facteur $c$ applicables et retenus et de
+l'origine du barème, recalculé et contrôlé contre \code{\$metadata} et \code{\$parametre\_final}
+(hors \code{run\_engine()}~; erreur si un drapeau de saisie manque, si la date de référence, le
+texte applicable ou une déclaration manque ou est invalide, ou si le $\sigma$ standard ou le texte
+applicable recalculés par \code{.engine\_trace\_sigma()} diffèrent de ceux du résultat) \\
 \code{engine\_derogations()} & \code{res} & \code{NULL} si le calcul n'a pas abouti~; sinon table
 des dérogations (\code{parametre}, \code{valeur\_reglementaire}, \code{valeur\_retenue},
 \code{conforme}, \code{libelle}), zéro ligne sans dérogation~: $\sigma$ standard saisi, barème
 saisi, barème non déterminé faute de segment, troncature des années fournies à la profondeur $T$
-(ligne \code{profondeur}) (§\ref{sec:segments})~; erreur si un drapeau de saisie ou
-\code{\$metadata\$n\_fournies} manque ou est incohérent, ou si \code{\$metadata\$T} est absent,
+(ligne \code{profondeur}) (§\ref{sec:segments})~; conformité jugée selon le texte applicable~;
+erreur si un drapeau de saisie, la date de référence, le texte applicable, une déclaration ou
+\code{\$metadata\$n\_fournies} manque ou est incohérent (\code{.engine\_trace\_sigma()}), ou si \code{\$metadata\$T} est absent,
 non fini ou non entier (\code{.engine\_trace\_profondeur()}, appelée avant la lecture du barème) \\
 \code{TOLERANCE\_CONFORME\_}\newline\code{SIGMA} & constante ($10^{-12}$) & tolérance relative de
 l'égalité entre $\sigma$ standard saisi et $\sigma$ standard réglementaire (colonne
@@ -1611,7 +1641,7 @@ défaut)~; noms de \code{res\$ic\_bootstrap}, de \code{res\$ic\_bootstrap\_restr
 lignes de \code{res\$plots\_data\$qq2ech} (section~\ref{sec:notations},
 «~Graphie des textes produits par le moteur~») \\
 \code{.engine\_point\_}\newline\code{decimal()} & \code{envir} (cadre de l'appelant) & aucune
-valeur~; appelée en première instruction de chacun des seize points d'entrée que l'application
+valeur~; appelée en première instruction de chacun des dix-sept points d'entrée que l'application
 appelle directement, pose \code{options(OutDec = ".")} et enregistre dans le cadre de l'appelant
 la restauration de l'option antérieure, exécutée à sa sortie, normale ou sur erreur~; erreur si
 elle est appelée au niveau global, où la restauration serait sans effet~; aucun calcul
@@ -2204,13 +2234,15 @@ provenance de la ligne, et \code{inoperant}, indicateur logique de test inopéra
 (\code{NA} pour un objet antérieur au champ)~; l'export CSV de l'application
 reprend ces 28 colonnes telles quelles \\
 \code{run\_engine()} & entrées utilisateur, dont \code{nature\_donnees} (obligatoire pour
-\code{premium}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
+\code{premium}), \code{date\_reference} (obligatoire), \code{reassurance\_np} et
+\code{cdd\_qualifiante} (exigées là où elles agissent, §\ref{sec:segments}), $T$ (contrôlé par \code{engine\_valider\_}\newline\code{profondeur()}~; les $T$
 années les plus récentes des $n$ fournies sont retenues, $n$ étant consigné dans
 \code{\$metadata\$n\_fournies}) et
 \code{bareme} (\code{NULL}~: barème du segment~; valeur saisie~: dérogation déclarée,
 §\ref{sec:segments}) & objet
 \code{usp\_engine}
-complet~; \code{ok = FALSE} pour un refus de données ou un défaut de calcul intercepté, erreur
+complet~; \code{ok = FALSE} pour un refus de données (date de référence et déclarations
+comprises) ou un défaut de calcul intercepté, erreur
 R pour une erreur d'usage (§\ref{sec:controles}) \\
 \code{.engine\_verifier\_}\newline\code{usage()} & \code{B}, \code{seed}, \code{bareme},
 \code{alpha}, \code{sigma\_standard}, \code{segment}, \code{annexe}, \code{methode}, noms des
@@ -2238,8 +2270,10 @@ $0 < \alpha <$ \code{SEUIL\_ECHEC\_SENS\_REJETER} (§\ref{sec:nature}) \\
 \code{validation\$erreur\_r} si ce calcul, qui suit une validation réussie, lève une erreur R
 (défaut de calcul intercepté~; option \code{usp.engine.lever\_erreurs}, §\ref{sec:controles}) \\
 \code{.run\_engine\_mw()} & entrées de \code{run\_engine()} pour
-\code{methode = "reserve2"}, dont \code{nature\_donnees} & objet \code{usp\_engine} de la branche
-Merz--Wüthrich~; construit une fois, sur le triangle observé, l'objet des
+\code{methode = "reserve2"}, dont \code{nature\_donnees}, la date de référence et les
+déclarations, et le résultat de leur contrôle par \code{engine\_valider\_}\allowbreak\code{declarations()},
+appelée par \code{run\_engine()} avant le choix de la branche & objet \code{usp\_engine} de la branche
+Merz--Wüthrich~; $\sigma_{(\text{res},s)}$ obtenu par \code{usp\_parametre\_standard()}~; construit une fois, sur le triangle observé, l'objet des
 ensembles figés (\code{.mw\_ensembles\_figes()}) et le passe à \code{mw\_bootstrap()} et à
 \code{mw\_tests()} (argument \code{figes}) \\
 \end{longtable}
@@ -2265,7 +2299,11 @@ tête de l'annexe~XVII, section~D, paragraphe~5, diffère en revanche de celle p
 aucun marqueur, et l'acte correcteur n'est pas identifié~: aucun des cinq rectificatifs
 qu'énumère le texte consolidé ne porte sur la section~D. L'outil applique ce libellé consolidé
 (§\ref{sec:mw}), identiquement égal à l'erreur de prédiction à un an de Merz--Wüthrich
-(2008)~; l'égalité est vérifiée numériquement (section~\ref{sec:verif}).
+(2008)~; l'égalité est vérifiée numériquement (section~\ref{sec:verif}). Les articles~117 et~148
+dans leur version modifiée par le règlement délégué (UE)~2026/269, postérieure à cette version
+consolidée, sont lus dans le texte publié au \emph{Journal officiel} (paragraphe «~Date de
+référence du calcul et texte applicable~», ci-dessous)~; cet acte ne modifie ni les articles~218
+à~220, ni les annexes~II, XIV et~XVII.
 
 \noindent
 Les écarts-types standard ci-dessous sont ceux de cette version consolidée. Les annexes~II
@@ -2281,30 +2319,13 @@ pas les valeurs antérieures. \textbf{Limite de périmètre}~: l'outil ne vaut q
 pour un calcul dont la date de référence est postérieure ou égale au
 1\textsuperscript{er}~janvier 2020, date d'application des annexes~II et~XIV remplacées par le
 règlement délégué (UE)~2019/981, l'écart-type standard qui
-entre dans le mélange de l'annexe~XVII étant celui en vigueur à la date de
+entre dans le mélange de l'annexe~XVII étant celui applicable à la date de
 référence du calcul~; il ne permet pas de reproduire un calcul selon les valeurs
 de la version d'origine (\emph{Journal officiel de l'Union européenne}, L~12 du
 17~janvier 2015, p.~230 pour l'annexe~II et p.~269 pour l'annexe~XIV), citée ici
-pour l'historique seulement. \textbf{Borne supérieure du domaine}~: sur données déclarées nettes,
-l'outil applique aux segments 1, 4 et~5 de l'annexe~II le facteur d'ajustement standard pour la
-réassurance non proportionnelle de $80~\%$ sans condition (colonne \code{np\_standard}, ci-dessous),
-conformément à l'article~117, paragraphe~3, de la version consolidée. Le règlement délégué
-(UE)~2026/269 de la Commission du 29~octobre 2025 (\emph{Journal officiel de l'Union européenne},
-série~L, 2026/269 du 18.2.2026) remplace ce paragraphe (article~1\textsuperscript{er}, point~29)~b))~: le
-produit de l'écart-type brut par ce facteur ne vaut plus que «~s'il existe une telle réassurance
-non proportionnelle pour ce segment précis, ou par un facteur de 100~\% dans les autres cas~»~;
-il redéfinit aussi l'écart-type du risque de réserve de l'article~117, paragraphe~2, point~b),
-par de nouveaux paragraphes~4 et~5 (point~29)~a) et~c)), et modifie de même l'article~148
-(point~39)), avec effet sur le seul risque de réserve, le facteur d'ajustement des segments de
-l'annexe~XIV restant de $100~\%$ pour le risque de primes. L'outil ne vaut donc que pour un
-calcul dont la date de référence est antérieure au 30.1.2027, date d'application de cet acte
-fixée par son article~2. Au-delà, sur données nettes de ces
-trois segments sans réassurance non proportionnelle, le paramètre standard du mélange serait
-l'écart-type brut, et le paramètre propre rendu par l'outil serait inférieur à celui du texte
-modifié (écart chiffré au paragraphe «~Paramètre remplacé par la méthode du risque de primes~»,
-ci-dessous)~; pour les méthodes de réserve, l'outil retient $\sigma_{(\text{res},s)}$ de
-l'annexe, et la lecture du texte modifié en présence d'une couverture pour développements
-défavorables n'est pas établie par l'outil.
+pour l'historique seulement. Le moteur contrôle cette borne sur la date de référence déclarée,
+et refuse une date antérieure (paragraphe «~Date de référence du calcul et texte applicable~»,
+ci-dessous)~; il n'a pas de borne supérieure.
 
 \begin{center}
 \small
@@ -2357,13 +2378,121 @@ proportionnelle~: $0{,}8$ pour les segments 1, 4 et 5 de l'annexe~II, $1$ pour l
 p.~75), $1$ pour tous les segments de l'annexe~XIV (article~148, paragraphe~3,
 $\blacktriangledown$\,B, p.~94)~; le renvoi de l'article~117 aux segments 1, 4 et~5 reste exact
 après le remplacement de l'annexe~II par M6, leurs intitulés et lignes d'activité étant
-inchangés. Neuf des trente-deux valeurs diffèrent de la version d'origine de
+inchangés. Le règlement délégué (UE)~2026/269 ne change pas ces valeurs~; il en change la
+condition d'emploi (paragraphe «~Texte «~2026/269~», risque de primes~», ci-dessous). Neuf des trente-deux valeurs diffèrent de la version d'origine de
 2015 (entre parenthèses)~: segment~6 de l'annexe~II, $19~\%$ ($12~\%$) et
 $17{,}2~\%$ ($19~\%$)~; segment~7, $8{,}3~\%$ ($7~\%$) et $5{,}5~\%$
 ($12~\%$)~; segment~8, $6{,}4~\%$ ($9~\%$) et $22~\%$ ($20~\%$)~; segment~1 de
 l'annexe~XIV, réserve $5{,}7~\%$ ($5~\%$)~; segment~3, primes $9{,}6~\%$
 ($8~\%$)~; segment~4, réserve $17~\%$ ($20~\%$). Les vingt-trois autres sont
 inchangées.
+
+\noindent
+\emph{Date de référence du calcul et texte applicable.} \code{run\_engine()} reçoit la
+\emph{date de référence du calcul} (\code{date\_reference}), date de référence du capital de
+solvabilité requis dans lequel $\sigma_{\mathrm{USP}}$ est employé. Elle est déclarée
+obligatoirement, pour les trois méthodes et sans valeur par défaut, par une chaîne unique de forme
+exacte \code{AAAA-MM-JJ} désignant une date qui existe (par exemple \code{"2025-12-31"})~; le
+moteur ne la remplace jamais par la date du jour et ne lit pas l'horloge pour l'appliquer, de
+sorte qu'à données, paramètres et graine identiques le résultat ne dépend pas du jour où il est
+calculé. Une date absente, d'une autre forme (\code{"31/12/2025"}, chaîne entourée de blancs,
+valeur de classe \code{"Date"}, nombre), inexistante ou antérieure au
+1\textsuperscript{er}~janvier 2020 est refusée sans conversion (\code{ok = FALSE}, motif dans
+\code{validation\$erreurs}, sans erreur R~; §\ref{sec:controles}). La date fixe le \emph{texte
+applicable} au paramètre standard, état du règlement délégué (UE)~2015/35 désigné par le dernier
+acte modificatif qui change ce paramètre~: «~2019/981~» du 1\textsuperscript{er}~janvier 2020 au
+29.1.2027 (annexes~II et~XIV remplacées par cet acte, articles~117 et~148 dans leur version
+d'origine), «~2026/269~» à partir du 30.1.2027, date d'application du règlement délégué
+(UE)~2026/269 de la Commission du 29~octobre 2025 (\emph{Journal officiel de l'Union européenne},
+série~L, 2026/269 du 18.2.2026), fixée par son article~2 (p.~94), sans disposition transitoire
+pour les articles~117, 148 et~218 à~220.
+Ces deux dates sont celles de la table \code{TEXTES\_APPLICABLES} de \code{R/engine.R}, que seule
+\code{engine\_valider\_declarations()} lit~; la table n'a pas de borne supérieure, et l'outil ne
+connaît aucun acte postérieur au règlement délégué (UE)~2026/269. La date et le texte applicable
+sont consignés dans \code{\$metadata} et portés par l'en-tête du rapport figé
+(section~\ref{sec:archi}). \emph{Interprétation}, et non texte~: le règlement ne dit pas quelle
+date fixe le texte applicable à un calcul~; l'outil retient la date de référence du calcul de
+capital de solvabilité requis dans lequel le paramètre est employé, parce que le mélange de B(4),
+C(4) et D(4) n'a de sens que si son terme standard est le paramètre que $\sigma_{\mathrm{USP}}$
+remplace dans ce même calcul, et suit ainsi la même convention que pour la borne du 1\textsuperscript{er}~janvier 2020~; la
+lecture qui retiendrait la date d'établissement ou de remise du calcul est écartée.
+
+\noindent
+\emph{Texte «~2026/269~», risque de primes.} Le règlement délégué (UE)~2026/269 remplace
+l'article~117, paragraphe~3 (article~1\textsuperscript{er}, point~29)~b), p.~25)~: l'écart-type du
+risque de primes d'un segment de l'annexe~II est le produit de l'écart-type brut par le facteur
+d'ajustement pour la réassurance non proportionnelle «~s'il existe une telle réassurance non
+proportionnelle pour ce segment précis, ou par un facteur de 100~\% dans les autres cas~», ce
+facteur restant de $80~\%$ pour les segments 1, 4 et~5 et de $100~\%$ pour les autres. Il ne
+remplace que la première phrase de l'article~148, paragraphe~3 (point~39)~b), p.~29), dont la
+deuxième, «~Pour tous les segments visés à l'annexe XIV, le facteur d'ajustement par défaut pour
+la réassurance non proportionnelle est égal à 100~\%~» (\emph{Journal officiel}, L~12, p.~94),
+demeure. Sur données déclarées nettes
+(paramètre remplacé a)~i) ou c)~i), paragraphe «~Paramètre remplacé par la méthode du risque de
+primes~», ci-dessous), l'outil applique donc le facteur \code{np\_standard} si une réassurance non
+proportionnelle est déclarée présente (\code{reassurance\_np = TRUE}), et un facteur de
+$100~\%$ si elle est déclarée absente (\code{FALSE}). La déclaration est exigée là où elle agit,
+c'est-à-dire là où le facteur de la table diffère de $100~\%$ (segments 1, 4 et~5 de
+l'annexe~II), $\sigma$ standard saisi ou non~; elle est consignée sans effet ailleurs (données
+brutes, autres segments, annexe~XIV, aucun segment désigné, méthodes de réserve) et sous le texte
+«~2019/981~», où le facteur standard s'applique sans condition sur données nettes. Son libellé
+est «~réassurance non proportionnelle couvrant ce segment, en place pour les douze mois suivant
+la date de référence et prise en compte comme technique d'atténuation du risque~».
+\emph{Interprétation}, et non texte~: l'article~117, paragraphe~3, ne précise ni la date à
+laquelle s'apprécie l'existence de la réassurance, ni un critère de reconnaissance, ni si une
+couverture commune à plusieurs segments suffit. «~En place pour les douze mois suivant la date de référence~»
+reprend l'horizon de B(2)(d), de sorte que les mêmes contrats fondent la nature «~nettes~» et le
+facteur (lecture écartée~: contrats en vigueur à la seule date de référence)~; «~prise en compte
+comme technique d'atténuation du risque~» exclut, parce que le facteur forfaitaire ne dépend pas
+de l'efficacité de la couverture, une réassurance qui ne serait pas reconnue au titre des
+articles~209 à~211, renvoi que l'article~117, paragraphe~3, ne fait pas lui-même (lecture
+écartée~: toute réassurance non proportionnelle)~; «~couvrant ce segment~» lit «~pour ce segment précis~»
+de façon inclusive~: un traité non proportionnel qui couvre plusieurs segments, dont celui-ci,
+suffit. Le texte admet aussi une lecture restrictive, qui exigerait une couverture propre au
+segment~; l'outil ne la retient pas, sans que le texte la tranche. Aux segments 1, 4 et~5,
+sans $\sigma$ standard saisi, déclarée présente à tort, la réassurance abaisse $\sigma_{\mathrm{USP}}$ de $(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$
+(sens non prudent)~; déclarée absente à tort, elle l'élève d'autant (sens prudent). Avec un
+$\sigma$ standard saisi, $\sigma_{\mathrm{USP}}$ n'en dépend pas~; seule change la valeur
+réglementaire à laquelle la saisie est comparée.
+
+\noindent
+\emph{Texte «~2026/269~», risque de réserve.} Le même acte redéfinit l'écart-type du risque de
+réserve (article~117, paragraphe~2, point~b), et paragraphes~4 et~5 ajoutés, points~29)~a)
+et~c), p.~25--26~; article~148, de même, point~39), p.~29--30)~: produit de l'écart-type de
+l'annexe par un facteur d'ajustement pour la réassurance non proportionnelle, qui est, pour une
+couverture pour développements défavorables remplissant les conditions du troisième alinéa du
+paragraphe~4 (\emph{couverture qualifiante}~: couverture appliquée à un seul groupe précis de
+polices de mêmes caractéristiques de risque et d'un même segment, à points d'attachement et de
+détachement séparés et distincts, dont le point d'attachement ne dépasse pas la meilleure
+estimation nominale du segment, nette de cette couverture, multipliée par la somme de~1 et de
+l'écart-type de l'annexe), le
+facteur $\mathrm{Adjust}_{(\mathrm{NP},s)}$ défini au deuxième alinéa, $100~\%$ pour toute autre
+réassurance non proportionnelle (quatrième alinéa) et en l'absence de réassurance non
+proportionnelle (premier alinéa). Sans couverture qualifiante,
+$\sigma_{(\text{res},s)}$ est donc la valeur de l'annexe sous toutes les lectures. Avec elle, le
+paramètre standard à remplacer de C(4) et D(4) peut se lire comme la valeur ajustée (renvoi
+de l'article~218, paragraphe~1, point~a)~iv), à l'article~117, paragraphe~2, point~b), ainsi
+redéfini, et, pour l'annexe~XIV, de l'article~218, paragraphe~1, point~c)~iv), à l'article~148,
+paragraphe~2, lu comme le point~b), redéfini de même) ou comme la valeur de l'annexe, qui est l'entrée du facteur d'ajustement~; aucune des
+deux lectures n'est uniformément prudente, ce facteur n'étant pas plafonné à~1. \textbf{Cette
+question n'est pas tranchée par l'outil}~: sous le texte «~2026/269~», les méthodes de réserve
+n\textsuperscript{o}~1 et n\textsuperscript{o}~2 exigent la déclaration d'une couverture
+qualifiante (\code{cdd\_qualifiante}, sans valeur par défaut, $\sigma$ standard saisi ou non)~;
+déclarée présente, elle fait refuser le calcul comme hors du domaine (\code{ok = FALSE}, $\sigma$
+standard saisi compris)~; déclarée absente, $\sigma_{(\text{res},s)}$ est celui de l'annexe.
+Sous le texte «~2019/981~» et pour la méthode de primes, la déclaration est consignée sans effet.
+L'outil ne calcule pas $\mathrm{Adjust}_{(\mathrm{NP},s)}$ et ne vérifie aucune des conditions.
+
+\noindent
+\emph{Déclarations non vérifiables.} L'outil ne vérifie ni la date de référence, ni l'une ou
+l'autre déclaration~: comme la nature des données, ce sont des exigences de données que
+l'entreprise atteste et documente. Les déclarations sont consignées dans \code{\$metadata}
+(\code{NA} si elles ne sont pas fournies) et restituées, avec leur effet, par le tableau
+«~Paramètre standard remplacé~» (\code{engine\_parametre\_standard()}). La règle date de référence
+$\to$ texte applicable $\to$ facteur n'a qu'un siège, \code{engine\_valider\_declarations()}~;
+\code{usp\_parametre\_standard()} applique le facteur qu'elle rend. Elle est vérifiée par
+\code{tests/}\allowbreak\code{unitaires/}\allowbreak\code{test\_date\_reference.R} et
+\code{tests/}\allowbreak\code{unitaires/}\allowbreak\code{test\_texte\_2026\_269.R}.
 
 \noindent
 Le facteur de crédibilité applicable est déterminé par la section~G de
@@ -2473,7 +2602,10 @@ Il met en revanche en \oe uvre trois des méthodes de calibrage de
 l'annexe~XVII~: risque de primes (section~B), risque de réserve
 n\textsuperscript{o}~1 (section~C) et risque de réserve
 n\textsuperscript{o}~2 (section~D~: chaîne d'échelle et erreur de prédiction à un
-an, §\ref{sec:mw}).
+an, §\ref{sec:mw}), pour une date de référence du calcul postérieure ou égale au
+1\textsuperscript{er}~janvier 2020~; à partir du 30.1.2027, une méthode de réserve en présence
+d'une couverture pour développements défavorables qualifiante est hors de son domaine
+(paragraphe «~Texte «~2026/269~», risque de réserve~», ci-dessus).
 
 \smallskip
 \textbf{Paramètre remplacé par la méthode du risque de primes} (lecture retenue par l'outil). Le paramètre standard qui entre dans le mélange de B(4) (annexe~XVII, section~B,
@@ -2493,7 +2625,10 @@ la méthode remplace les points~a)~i) et c)~i), pertes et primes sont ajustées 
 contrats de réassurance et véhicules de titrisation en place pour les douze mois à venir. La
 valeur standard des points~a)~ii) et c)~ii) est l'écart-type brut de l'annexe~; celle des
 points~a)~i) et c)~i) est le produit de l'écart-type brut et du facteur d'ajustement pour la
-réassurance non proportionnelle (article~117, paragraphe~3~; article~148, paragraphe~3). Dans la
+réassurance non proportionnelle (article~117, paragraphe~3~; article~148, paragraphe~3), produit
+qui, sous le texte «~2026/269~», ne vaut que s'il existe une réassurance non proportionnelle pour
+le segment, le facteur étant de $100~\%$ sinon (paragraphe «~Texte «~2026/269~», risque de
+primes~», ci-dessus). Dans la
 version d'origine (\emph{Journal officiel}, L~12 du 17~janvier 2015, p.~272), les renvois de
 B(2)(c) et B(2)(d) sont inversés~: seule la version consolidée est citée. \emph{Lecture
 retenue par l'outil}~: la nature déclarée des données désigne le paramètre remplacé,
@@ -2503,16 +2638,33 @@ véhicules de titrisation en place pour les douze mois à venir, ce que l'outil 
 que la déclaration atteste)~; le texte lie explicitement chaque paramètre remplacé à une
 exigence sur les données, dont cette lecture est la réciproque, les quatre points étant les
 seuls que la méthode puisse remplacer (article~220, paragraphe~1, point~a)).
-\emph{Interprétation}, et non texte, valable dans le domaine de dates borné ci-dessus~: sur
+\emph{Interprétation}, et non texte, valable sous les deux textes applicables~: sur
 données nettes, le facteur est le facteur \emph{standard} ($80~\%$ pour les segments 1, 4
 et 5 de l'annexe~II, $100~\%$ ailleurs, colonne \code{np\_standard} des tables), et non un
-facteur propre à l'entreprise au titre du point~a)~iii), que l'outil ne reçoit pas. Sur le
-segment~1 de l'annexe~II ($c = 0{,}59$ à $T = 8$), l'écart vaut
+facteur propre à l'entreprise au titre du point~a)~iii), que l'outil ne reçoit pas~; sous le
+texte «~2026/269~», il n'est appliqué que si une réassurance non proportionnelle est déclarée
+présente. Sur le segment~1 de l'annexe~II ($c = 0{,}59$ à $T = 8$), l'écart vaut
 $-(1-c)(1-\mathrm{NP})\,\sigma_{\text{brut}} = -0{,}41 \times 0{,}2 \times 0{,}1 = -0{,}0082$~:
 mesuré sur le jeu de contrôle, $\sigma_{\mathrm{USP}}$ passe de $0{,}1114524$ (brutes) à
-$0{,}1032524$ (nettes). Les méthodes de réserve remplacent le point~a)~iv) ou c)~iv)
-(article~220, paragraphe~1, point~b)),
-$\sigma_{(\text{res},s)}$ de l'annexe, sans facteur NP, et exigent des données nettes
+$0{,}1032524$ (nettes, sous le texte «~2019/981~», ou sous le texte «~2026/269~» avec une
+réassurance non proportionnelle déclarée présente~; déclarée absente, $0{,}1114524$, comme sur
+données brutes). \emph{Constat chiffré}~: un $\sigma_{\mathrm{USP}}$ calculé pour une date de
+référence antérieure au 30.1.2027 sur données nettes des segments 1, 4 ou~5 de l'annexe~II, sans
+réassurance non proportionnelle, ne vaut pas tel quel pour un capital de solvabilité requis dont
+la date de référence est postérieure ou égale à cette date~: le paramètre standard du mélange y
+passe de $0{,}8\,\sigma_{\text{brut}}$ à $\sigma_{\text{brut}}$, et $\sigma_{\mathrm{USP}}$,
+calculé avec le $\sigma$ standard de la table, augmente de
+$(1-c) \times 0{,}2 \times \sigma_{\text{brut}}$, écart exact qui ne dépend pas des valeurs
+observées ($\sigma_{\mathrm{USP}}$ est affine en $\sigma_{\text{std}}$, B(4)), soit, à $T = 8$,
+$+0{,}0082$ au segment~1 ($c = 0{,}59$, $\sigma_{\text{brut}} = 10~\%$), $+0{,}00304$ au
+segment~4 ($c = 0{,}81$, $8~\%$) et $+0{,}01148$ au segment~5 ($c = 0{,}59$, $14~\%$), aucune
+p-value ni aucun verdict ne changeant (mesuré par \code{run\_engine()} sur le jeu de contrôle et
+sur le jeu à $\hat\delta$ intérieur, aux dates de référence du 31.12.2026 et du 30.1.2027~:
+\code{docs/tableaux/20261117-issue504-facteur-np-conditionnel.md})~; la nécessité d'une nouvelle
+approbation du paramètre est hors de la portée de l'outil. Les méthodes de réserve remplacent le
+point~a)~iv) ou c)~iv) (article~220, paragraphe~1, point~b)),
+$\sigma_{(\text{res},s)}$ de l'annexe, sans facteur NP (sous le texte «~2026/269~», facteur de
+$100~\%$, la couverture qualifiante étant hors du domaine), et exigent des données nettes
 (C(2)(c)~; D(2)(f))~: une déclaration «~brutes~» y est refusée, l'absence de déclaration
 ou «~nettes~» acceptées. Un $\sigma$ standard saisi librement reste possible pour les trois
 méthodes~: il prime sur la table, et le résultat le signale comme \emph{dérogation au paramètre
@@ -2532,15 +2684,25 @@ drapeau, le barème non déterminé faute de segment et la troncature des
 années fournies à la profondeur~$T$ (ligne \code{profondeur}, paragraphe de la durée de
 crédibilité ci-dessus), et refuse, par une erreur, un résultat dépourvu de l'un des deux drapeaux
 ou dont \code{\$metadata\$n\_fournies} manque ou contredit $T$ (\code{.engine\_trace\_profondeur()}~:
-$n$ non entier, $n < T$, ou triangle tronqué en réserve n\textsuperscript{o}~2), plutôt que de
+$n$ non entier, $n < T$, ou triangle tronqué en réserve n\textsuperscript{o}~2), ou dont la date
+de référence, le texte applicable ou une déclaration manque dans \code{\$metadata} ou n'y a pas sa
+forme (chaîne, logique), ou dont le texte applicable recalculé diffère de celui du résultat
+(\code{.engine\_trace\_sigma()}, commune avec \code{engine\_parametre\_standard()}), plutôt que de
 deviner~; un \code{\$metadata\$T} absent, non fini ou non entier y est refusé par le message
 «~\code{metadata\$T absent ou invalide}~», la profondeur étant contrôlée avant le barème. L'égalité du $\sigma$ saisi à la valeur réglementaire y est
 jugée en relatif à $10^{-12}$ près (constante \code{TOLERANCE\_CONFORME\_SIGMA}), parce que le
 produit du facteur NP standard et de $\sigma$ brut n'est pas toujours représentable exactement
 (mesuré~: $0{,}8 \times 0{,}10$ diffère de $0{,}08$ de $1{,}4\cdot 10^{-17}$, et une saisie de
-$0{,}08$ au segment~1 sur données nettes est dite conforme). Le tableau «~Paramètre standard
+$0{,}08$ au segment~1 sur données nettes est dite conforme sous le texte «~2019/981~»). La valeur
+réglementaire est celle du texte applicable à la date de référence~: mesuré, une saisie de
+$0{,}10$ au segment~1 sur données nettes, réassurance non proportionnelle déclarée absente, est
+dite non conforme pour une date de référence du 31.12.2026 (valeur réglementaire $0{,}08$) et
+conforme pour une date du 30.1.2027 (valeur réglementaire $0{,}10$). Le tableau «~Paramètre standard
 remplacé~» (\code{engine\_parametre\_standard()}~: nature, point de l'article~218 remplacé,
-exigence relative aux données, $\sigma$ de l'annexe, facteur NP, $\sigma$ retenu, origine, puis
+exigence relative aux données, date de référence du calcul, texte applicable, déclarations de
+réassurance non proportionnelle et de couverture qualifiante avec leur effet, $\sigma$ de
+l'annexe, facteur NP standard et facteur NP appliqué (méthode de primes), $\sigma$
+réglementaire, $\sigma$ retenu, origine, puis
 barème et facteur $c$ applicables selon la section~G, paragraphe~1 ou~2,
 barème et facteur $c$ retenus, et origine du barème retenu~: réglementaire, défaut sans segment,
 saisi égal, saisi contraire ou saisi sans segment) est restitué par l'onglet Calibration et par
@@ -2560,7 +2722,12 @@ l'article~218, paragraphe~1, point~c)~iv), renvoie à l'article~148, paragraphe~
 lieu du point~b)~: le moteur retient $\sigma_{(\text{res},s)}$ de l'annexe~XIV, sens évident du
 texte~; l'article~219, paragraphe~1, point~c), renvoie à l'article~101, paragraphe~3, «~de la
 directive 2009/13/CE~», lue comme la directive 2009/138/CE que complète le règlement~: le moteur
-n'en dépend pas.
+n'en dépend pas. S'y ajoute une anomalie du règlement délégué (UE)~2026/269 (p.~29)~:
+l'article~148, paragraphe~4, deuxième alinéa, renvoie aux conditions énoncées au «~quatrième
+alinéa~», qui figurent au troisième, le quatrième fixant le facteur de $100~\%$~; lu comme le
+troisième alinéa, sens évident, ce renvoi est sans effet sur l'outil, dont la couverture
+qualifiante déclarée est définie par le troisième alinéa (paragraphe «~Texte «~2026/269~», risque
+de réserve~», ci-dessus) et qui ne calcule pas le facteur d'ajustement de ce paragraphe.
 \end{encadre}
 
 \subsection{Reproductibilité et gestion des graines}
@@ -2783,6 +2950,9 @@ réserve n\textsuperscript{o}~2 et la méthode de primes au segment~1 de
 l'annexe~II sur données brutes du jeu J2 à $\hat\delta$ intérieur ($\hat\delta = 0{,}664$,
 \code{tests/donnees/donnees\_ln\_interieur.csv}, cas \code{premium\_interieur}), seul cas où la p-value de Monte-Carlo conditionnelle au régime de $\hat\delta$ et le
 flux complémentaire sont calculés~; les quatre autres cas lognormaux sont à $\hat\delta = 1$.
+Tous sont calculés pour la date de référence du 31.12.2026 (constante
+\code{DATE\_REFERENCE\_TESTS} du même fichier), donc sous le texte «~2019/981~», sans déclaration
+de réassurance (§\ref{sec:segments}).
 
 \emph{La reproductibilité.} Deux appels de \code{run\_engine()} avec les mêmes
 données, les mêmes paramètres et la même graine, \textbf{sur une même machine},
@@ -3014,6 +3184,10 @@ $\alpha$, la graine du bootstrap (\code{seed}), le générateur posé par le mot
 la graine du flux complémentaire de la p-value de Monte-Carlo conditionnelle au régime de
 $\hat\delta$ (\code{seed\_flux\_regime}, méthodes de primes et de réserve n\textsuperscript{o}~1,
 consignée même quand le flux n'est pas posé),
+la date de référence du calcul et le texte applicable qui s'en déduit (\code{date\_reference},
+\code{texte\_applicable}, chaînes, trois méthodes), les déclarations de réassurance non
+proportionnelle et de couverture qualifiante (\code{reassurance\_np}, \code{cdd\_qualifiante},
+logiques, \code{NA} si non déclarées, trois méthodes~; §\ref{sec:segments}),
 l'horodatage, la durée et la version de R~; le nombre de tirages de la loi nulle (20\,000) reste
 une constante du code. Le rapport de vraisemblance sur $\delta$ et l'enveloppe du QQ-plot
 emploient la graine \code{seed} et le $B$ de l'appel. Ce champ suffit, avec les données, à rejouer un calcul à l'identique sur une
@@ -4111,15 +4285,15 @@ validation, libellés des dérogations et des étapes de calibration, motifs des
 l'option de session qui fixe le séparateur décimal (\code{getOption("OutDec")}, dont la valeur
 par défaut est le point~; l'interface et le rapport figé la posent
 à la virgule le temps d'un tracé de graphique en base~R). La garantie est posée à la racine~:
-chacun des seize points d'entrée du moteur que l'application appelle directement
+chacun des dix-sept points d'entrée du moteur que l'application appelle directement
 (\code{run\_engine()}, les lecteurs \code{engine\_lire\_donnees\_csv()},
 \code{engine\_lire\_triangle()} et \code{engine\_lire\_xlsx()}, les écrivains
 \code{engine\_ecrire\_xlsx()} et \code{engine\_ecrire\_csv()}, les validateurs
 \code{engine\_valider\_donnees()}, \code{engine\_valider\_profondeur()},
 \code{engine\_valider\_serie\_retenue()} et \code{mw\_valider\_triangle()}, puis
 \code{engine\_motif\_b\_alpha()}, \code{engine\_table\_tests()}, \code{engine\_derogations()},
-\code{engine\_empreinte()}, \code{engine\_parametre\_standard()} et
-\code{engine\_regle\_verdicts()}) pose l'option au point en première instruction, par
+\code{engine\_empreinte()}, \code{engine\_parametre\_standard()},
+\code{engine\_regle\_verdicts()} et \code{engine\_valider\_declarations()}) pose l'option au point en première instruction, par
 \code{.engine\_point\_decimal()}, et restaure en sortie celle de l'appelant, y compris sur
 erreur~; le moteur ne modifie donc pas l'option de l'appelant. \code{format()},
 \code{paste()}, \code{as.character()} et \code{sprintf("\%s")} suivent cette option, non les
@@ -4187,7 +4361,11 @@ fonctions de contrôle dans le moteur, exécutables indépendamment de l'interfa
 \code{engine\_valider\_donnees()} et \code{usp\_controle\_donnees()} pour les
 méthodes lognormales, complétées \emph{après} l'ajustement par
 \code{usp\_valider\_ajustement()} (existence de l'estimateur du maximum de vraisemblance, décrite sous le tableau des méthodes lognormales)~; \code{mw\_valider\_triangle()} \emph{et}
-\code{mw\_valider\_ajustement()} pour la méthode Merz--Wüthrich.
+\code{mw\_valider\_ajustement()} pour la méthode Merz--Wüthrich. La date de référence du calcul
+et les déclarations qui l'accompagnent sont contrôlées, pour les trois méthodes, par
+\code{engine\_valider\_declarations()}, que \code{run\_engine()} appelle avant le choix de la
+branche (§\ref{sec:segments})~: ce contrôle ne dépend pas des données, et ses motifs sont
+placés en tête de \code{validation\$erreurs}, avant ceux des données.
 
 La section décrit en outre, dans une sous-section propre placée à sa fin, les deux
 \emph{contrôles numériques de l'estimation} des méthodes lognormales (famille
@@ -4316,7 +4494,8 @@ Ce \emph{refus de données} n'est que l'un des trois régimes de sortie de \code
 autres qu'un calcul abouti, à ne pas confondre~:
 \begin{itemize}[itemsep=2pt]
 \item le \textbf{refus de données}~: les données, ou un paramètre qui leur est attaché (marge du
-  test d'équivalence, nature des données, profondeur $T$), ne satisfont pas un contrôle de
+  test d'équivalence, nature des données, profondeur $T$, date de référence du calcul et
+  déclarations de réassurance), ne satisfont pas un contrôle de
   validité des tableaux ci-dessous~; \code{ok = FALSE}, motifs dans
   \code{validation\$erreurs}, aucune erreur R~; en relève aussi le refus prononcé après
   l'ajustement lognormal par \code{usp\_valider\_ajustement()}, au même format~;
@@ -4469,15 +4648,21 @@ de sorte qu'un paramètre calculé sur d'autres données ne puisse être ni lu n
 exporté à côté d'un triangle refusé. Le titre du bandeau dit où le calcul s'est arrêté, lu dans
 ce que le moteur retourne, sans règle métier dans l'interface~: calcul non lancé
 (les données saisies n'ont pas passé les contrôles de validité du moteur, appelés avant
-\code{run\_engine()})~; calcul refusé par le moteur (\code{ok = FALSE} sans
-\code{validation\$erreur\_r})~; défaut de calcul (\code{ok = FALSE} avec
+\code{run\_engine()}~; les motifs de la date de référence et des déclarations y sont placés en
+tête)~; calcul refusé par le moteur (\code{ok = FALSE} sans
+\code{validation\$erreur\_r}, dont le refus de la seule date de référence ou des seules
+déclarations)~; défaut de calcul (\code{ok = FALSE} avec
 \code{validation\$erreur\_r})~; erreur d'usage (\code{run\_engine()} a levé une erreur R, dont le
 texte, écrit par le moteur, nomme l'argument rejeté). Le motif affiché vient toujours du
 moteur~; le diagnostic d'un défaut de calcul (message R, appel, origine, pile) n'est écrit que
 dans le journal de la session R, jamais à l'écran. Un champ $\alpha$, graine ou $\sigma$ standard (saisie libre
 cochée) laissé vide est transmis comme \code{NA} et s'affiche en erreur d'usage~; un champ $T$ vide
 reste refusé par le moteur, sans profondeur implicite, et l'interface ajoute seulement au motif
-le nom du champ en cause. Le champ $B$ a pour minimum \code{B\_MIN\_USAGE}~; quand le couple
+le nom du champ en cause. Le champ de la date de référence est un champ de texte vide au
+démarrage, sans date du jour proposée~; les deux déclarations, sans présélection, s'affichent
+selon la seule méthode~; les motifs de la date et des déclarations, rendus par
+\code{engine\_valider\_declarations()} appelée telle quelle avec les entrées transmises au clic,
+sont affichés avant le clic, en tête de ceux des données, sans règle dans l'interface. Le champ $B$ a pour minimum \code{B\_MIN\_USAGE}~; quand le couple
 $(B, \alpha)$ saisi ne satisfait pas $B + 1 > 4/\alpha$, un bandeau d'avertissement l'annonce
 avant le clic, avec le texte d'\code{engine\_motif\_b\_alpha()}, sans règle dans l'interface~; le
 bouton «~Relancer les calculs~» reste actif et le clic produit l'erreur d'usage de même texte. La notification «~Calculs terminés~» n'est émise qu'après un calcul
@@ -4535,6 +4720,12 @@ sous le tableau). \\
 Nature des données & méthode de primes~: «~brutes~» ou «~nettes~» déclarée, sans défaut~;
 réserve n\textsuperscript{o}~1~: «~brutes~» refusé & Désigne le paramètre remplacé
 (B(2)(c), B(2)(d), §\ref{sec:segments})~; données nettes exigées par C(2)(c). Bloquant. \\
+Date de référence et déclarations & date \code{AAAA-MM-JJ} déclarée, sans défaut, au
+1\textsuperscript{er}~janvier 2020 ou après~; à partir du 30.1.2027, réassurance non
+proportionnelle déclarée (primes, données nettes, segments 1, 4 et~5 de l'annexe~II) et
+couverture qualifiante déclarée absente (réserve n\textsuperscript{o}~1) & Fixe le texte
+applicable au paramètre standard (§\ref{sec:segments})~; contrôle
+d'\code{engine\_valider\_}\allowbreak\code{declarations()}, commun aux trois méthodes. Bloquant. \\
 Valeurs manquantes & aucun \code{NA} & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~1~: exhaustivité~; annexe~XVII, B/C(1) et B/C(2)(b). Bloquant. \\
 Valeurs finies & aucune valeur infinie & Art.~219, paragraphe~1, point~a), renvoyant à l'art.~19, paragraphe~2~: exactitude~; refus explicite au lieu
 d'une erreur R en cours de calcul. Bloquant. \\
@@ -5441,6 +5632,10 @@ erreur d'usage (ci-dessus)~; \code{run\_engine()} applique la même exactitude �
 \endhead
 Nature des données & «~brutes~» refusé (absence de déclaration ou «~nettes~» acceptées) &
 Données nettes exigées par D(2)(f)~; contrôle de \code{.run\_engine\_mw()}. Bloquant. \\
+Date de référence et déclarations & date \code{AAAA-MM-JJ} déclarée, sans défaut, au
+1\textsuperscript{er}~janvier 2020 ou après~; à partir du 30.1.2027, couverture qualifiante
+déclarée absente & Fixe le texte applicable au paramètre standard (§\ref{sec:segments})~;
+contrôle d'\code{engine\_valider\_}\allowbreak\code{declarations()}, commun aux trois méthodes. Bloquant. \\
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
@@ -13887,7 +14082,7 @@ années sont évaluables. Fonction nommée~: \code{run\_engine()}.
 
 \emph{Part estimée et part standard.} La \emph{part estimée} de $\sigma_{\mathrm{USP}}$ est
 $c\sqrt{(T+1)/(T-1)}\,\hat\sigma$~; la \emph{part standard}, $(1-c)\,\sigma_{\text{std}}$, ne
-dépend que de la table de l'annexe et du barème. $c$ et la correction étant maintenus, \code{usp\_jackknife()} donne
+dépend que du paramètre standard retenu et du barème, non des données. $c$ et la correction étant maintenus, \code{usp\_jackknife()} donne
 \[
   \frac{\sigma_{\mathrm{USP}}^{(-t)} - \sigma_{\mathrm{USP}}}{\sigma_{\mathrm{USP}}}
   \;=\; \frac{c\sqrt{(T+1)/(T-1)}\;\hat\sigma}{\sigma_{\mathrm{USP}}}\cdot
@@ -13961,7 +14156,7 @@ Aucune~: ligne \code{INFO}, sans verdict ni sens du test. Le repère conventionn
 loi ni niveau~; le graphique d'influence colore les années dont l'écart dépasse strictement 10~\%
 en valeur absolue (\code{REPERE\_INFLUENCE\_SIGMA},
 \code{fort\_ecart\_sigma}). Aucun repère sur l'échelle de la part estimée~: le transposer le
-multiplierait par un rapport qui dépend de la table de l'annexe, et un repère fixe propre à cette
+multiplierait par un rapport qui dépend du paramètre standard retenu, et un repère fixe propre à cette
 échelle n'aurait aucune référence.
 \Usage
 À $T$ faible, c'est le diagnostic le plus informatif du dispositif~: le paramètre proposé
@@ -13973,7 +14168,7 @@ $\delta$, où le retrait d'un point peut faire basculer l'optimum d'une borne à
 l'autre.
 
 \emph{Deux échelles.} L'écart sur $\sigma_{\mathrm{USP}}$ est celui que subit le paramètre
-proposé~; il dépend de la table de l'annexe par la part standard du dénominateur, à données
+proposé~; il dépend du paramètre standard retenu par la part standard du dénominateur, à données
 identiques. Celui de la part estimée mesure la seule sensibilité de l'estimation. Mesuré
 (méthode prime, jeu de contrôle, $B = 999$, graine 20260831)~: au segment~1 de l'annexe~II, retrait
 de l'année~8, $-9{,}4~\%$ sur $\sigma_{\mathrm{USP}}$ et $-14{,}8~\%$ sur la part estimée~; au
@@ -13988,7 +14183,7 @@ l'année~8 ($-14{,}8~\%$)~: la différence tient au réajustement de $\hat\beta$
 
 \emph{Pourquoi aucun verdict} (règle de sortie, section~\ref{sec:nature})~: $\Delta_{\max}$ n'a pas
 de loi de référence, et le repère, convention de l'outil sans source, n'est pas un niveau de test et
-dépend de la table de l'annexe. Sous le modèle ajusté (segment~1 de l'annexe~II),
+dépend du paramètre standard retenu. Sous le modèle ajusté (segment~1 de l'annexe~II),
 $\Delta_{\max}$ dépasse 10~\% dans $70{,}4~\%$ $[68{,}3~;~72{,}4]$ des jeux simulés sur le jeu de
 contrôle et $56{,}8~\%$ $[54{,}6~;~59{,}0]$ sur le jeu à $\hat\delta$ intérieur, et 20~\% dans
 $18{,}1~\%$ $[16{,}5~;~19{,}9]$ et $9{,}2~\%$ $[8{,}0~;~10{,}6]$ (constat de simulation,
@@ -14165,7 +14360,7 @@ l'intervalle, ce qui rejoint la platitude du profil en $\delta$ ($\mathrm{LR}(0)
 fiche~\ref{fiche:rv-delta}).
 
 \emph{Pourquoi aucun verdict} (règle de sortie, section~\ref{sec:nature})~: $L$ ne peut pas
-contredire le modèle ajusté~; les repères, sans source, dépendent de la table. Sous ce modèle
+contredire le modèle ajusté~; les repères, sans source, dépendent du paramètre standard retenu. Sous ce modèle
 (segment~1), $L > 50~\%$ dans $49{,}0~\%$ $[46{,}8~;~51{,}3]$ sur J1 et
 $4{,}2~\%$ $[3{,}4~;~5{,}2]$ sur J2, $L > 80~\%$ dans aucun des jeux simulés
 ($[0~;~0{,}2]~\%$~; constat de simulation, $R = 2\,000$ par plan, section~\ref{sec:taux-reperes}).
@@ -14185,7 +14380,7 @@ l'estimation, ni test ni diagnostic}~: il figure dans
 \Hzero
 Sans objet.
 \Stat
-Nombre $n^{\star}$ de démarrages atteignant le minimum global à \code{TOL\_OPTIMUM}
+Nombre $n^{\star}$ de démarrages atteignant le plus petit objectif obtenu parmi les démarrages à \code{TOL\_OPTIMUM}
 $= 10^{-6}$ près (champ \code{\$n\_starts\_optimum}), nombre $n^{\star}_0$ d'entre eux dont \code{optim()} rend le code
 de retour~0 (champ \code{\$n\_starts\_optimum\_code0}, que le commentaire n'imprime pas~: il
 dit seulement si $n^{\star}_0 \ge 1$, « oui » ou « non »), nombre de démarrages sans résultat, en
@@ -14203,7 +14398,7 @@ Le code de retour du démarrage retenu reste dans le champ \code{\$convergence} 
 Sans objet.
 \Pval
 Aucune. Le contrôle est \code{OK} si et seulement si \emph{au moins un} démarrage à l'optimum
-rend le code~0 ($n^{\star}_0 \ge 1$) \emph{et} si au moins deux démarrages atteignent le minimum
+rend le code~0 ($n^{\star}_0 \ge 1$) \emph{et} si au moins deux démarrages sont à l'optimum
 ($n^{\star} \ge 2$). C'est une \textbf{convention minimale, sans référence}~; le commentaire tient en une phrase~:
 $n^{\star}$, la réponse « oui » ou « non » à $n^{\star}_0 \ge 1$ (sans « au moins un » lorsque
 $n^{\star} = 1$), puis, s'il est non nul, le nombre de démarrages sans résultat. \emph{Pourquoi «~au
@@ -20694,6 +20889,19 @@ partie~III).
   (UE)~2015/498. Relu sur la version consolidée et sur la version d'origine du \emph{Journal
   officiel}, formules en rendu graphique.
 
+  \item Règlement délégué (UE)~2026/269 de la Commission du 29~octobre 2025 modifiant le règlement
+  délégué (UE)~2015/35 en ce qui concerne les provisions techniques, les mesures relatives aux
+  garanties à long terme, les fonds propres, le risque sur actions, le risque de spread sur les
+  positions de titrisation, les autres exigences de capital selon la formule standard, la
+  communication et la publication d'informations, la proportionnalité et la solvabilité du
+  groupe, \emph{Journal officiel de l'Union européenne}, série~L, 2026/269 du 18.2.2026.
+  \emph{Portée.} Article~1\textsuperscript{er}, points~29) et~39) (articles~117 et~148 modifiés~:
+  facteur d'ajustement pour la réassurance non proportionnelle du risque de primes subordonné à
+  l'existence d'une telle réassurance pour le segment~; écart-type du risque de réserve redéfini en
+  présence d'une couverture pour développements défavorables), et article~2 (application à partir
+  du 30.1.2027)~; fonde le texte applicable «~2026/269~» et le domaine de l'outil
+  (section~\ref{sec:segments}). Relu sur le texte publié, passages cités en rendu graphique.
+
   \item Règlement d'exécution (UE)~2015/498 de la Commission, \emph{Journal officiel de l'Union
   européenne}, L~79 du 25.3.2015, p.~8 (ni version consolidée ni acte modificatif selon l'Office
   des publications, à la date d'établissement du présent document).
@@ -20879,9 +21087,15 @@ Calibration et paramètre final (B(4) et C(4), §\ref{sec:spec-lognormale}, p.~\
 Paramètre standard remplacé, barème de crédibilité et dérogations déclarées
 (§\ref{sec:segments}) & \code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()},
 \code{engine\_parametre\_standard()}, \code{engine\_derogations()} (constante
-\code{TOLERANCE\_CONFORME\_SIGMA}), \code{.engine\_trace\_profondeur()}~; drapeaux
+\code{TOLERANCE\_CONFORME\_SIGMA}), \code{.engine\_trace\_sigma()}, \code{.engine\_trace\_profondeur()}~; drapeaux
 \code{\$metadata\$sigma\_standard\_saisi} et \code{\$metadata\$bareme\_saisi}, et nombre d'années
 fournies \code{\$metadata\$n\_fournies}, posés par \code{run\_engine()} \\
+Date de référence du calcul, texte applicable et déclarations de réassurance
+(§\ref{sec:segments}) & \code{engine\_valider\_declarations()}, seul siège de la règle, et
+table \code{TEXTES\_APPLICABLES}~; champs \code{\$metadata\$date\_reference},
+\code{\$metadata\$texte\_applicable}, \code{\$metadata\$reassurance\_np} et
+\code{\$metadata\$cdd\_qualifiante}, posés par \code{run\_engine()} et relus par
+\code{.engine\_trace\_sigma()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
 projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
@@ -20972,6 +21186,7 @@ Orchestration complète & \code{run\_engine()}~; méthode de réserve
 n\textsuperscript{o}~2 déléguée à\newline \code{.run\_engine\_mw()} \\
 Refus de données, erreur d'usage, défaut de calcul intercepté (§\ref{sec:controles}) &
 \code{engine\_valider\_profondeur()} (profondeur $T$, refus)~;
+\code{engine\_valider\_declarations()} (date de référence et déclarations, refus)~;
 \code{.engine\_verifier\_usage()} (arguments d'appel, erreur R~; plancher de $B$~:
 \code{B\_MIN\_USAGE}, et $B + 1 > 4/\alpha$ par \code{engine\_motif\_b\_alpha()},
 \code{engine\_b\_minimal()})~;
@@ -20987,11 +21202,13 @@ non appelée par \code{run\_engine()}, sans tirage aléatoire \\
 
 \noindent
 L'application Shiny (\code{app.R}, \code{R/display\_helpers.R}) ne contient
-aucun de ces calculs~: elle collecte les entrées, appelle \code{run\_engine()} et
+aucun de ces calculs~: elle collecte les entrées, dont la date de référence du calcul et les
+deux déclarations, qu'elle transmet sans les juger, appelle \code{run\_engine()} et
 affiche l'objet retourné. Le moteur s'exécute indépendamment de toute interface,
 ce qui permet une revue et une reproduction externes~:
 \code{source("R/charger\_moteur.R")}, \code{charger\_moteur()}, puis
-\code{run\_engine(xt = ..., yt = ...)} (chargement du moteur~: section~\ref{sec:archi}).
+\code{run\_engine(xt = ..., yt = ..., date\_reference = ...)} (chargement du moteur~:
+section~\ref{sec:archi}~; date de référence~: §\ref{sec:segments}).
 
 \subsection*{Méthode Merz--Wüthrich}
 
@@ -21674,7 +21891,8 @@ suivant les recense.
 \textcolor{financeblue}{\textbf{Portée}} &
 \textcolor{financeblue}{\textbf{Tests concernés}} \\
 \code{usp\_credibilite()} & LN + MW & Calibration des deux méthodes~: seule
-fonction de calibration commune aux deux branches \\
+fonction de calibration commune aux deux branches, hors le paramètre standard et le barème
+(\code{usp\_parametre\_standard()}, \code{usp\_bareme\_segment()}) \\
 \code{engine\_p\_mc()},\newline \code{.mc\_evaluer()} & LN + MW & Toutes les p-values de
 Monte-Carlo et leurs erreurs, dans les deux méthodes~; évaluation des deux catalogues \\
 \code{engine\_registre\_}\newline\code{tests()} & LN + MW & Enregistrement de toutes les lignes
@@ -21765,7 +21983,7 @@ seul appel \\
 % usp_credibilite() est placee SOUS la rangee des deux fonctions de tests,
 % faute de quoi les fleches de convergence la longent au lieu d'y entrer.
 \node[mut] at ($(tln)!0.5!(tmw) + (0,-18mm)$) (cred)
-  {\code{usp\_credibilite()}\\ \scriptsize seule fonction de calibration commune};
+  {\code{usp\_credibilite()}\\ \scriptsize fonction de calibration commune};
 \node[sor, below=6mm of cred] (out) {$\sigma_{\mathrm{USP}}$ et table des tests};
 
 \draw[fl] (xy) -- (fit);   \draw[fl] (tri) -- (amw);
@@ -22212,7 +22430,15 @@ conjointe des deux méthodes (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globa
 aussi des fonctions communes aux deux dispositifs~: une anomalie y atteindrait les p de famille et
 les p globales des deux méthodes~; elles n'écrivent que les lignes qu'elles ajoutent, et
 $\sigma_{\mathrm{USP}}$ ne les lit pas (\code{usp\_parametre()} et \code{mw\_parametre()} ne
-reçoivent pas les tests).
+reçoivent pas les tests). \code{usp\_parametre\_standard()} et
+\code{engine\_valider\_declarations()}, qui fixent le paramètre standard du mélange dans les deux
+méthodes (§\ref{sec:segments}), relèvent elles aussi des fonctions communes aux deux
+dispositifs~: une anomalie y atteindrait $\sigma_{\mathrm{USP}}$ des deux méthodes, ses
+intervalles bootstrap et les quantités graphiques correspondantes (\code{res\$plots\_data}),
+et, pour les méthodes lognormales, les diagnostics de robustesse qui en dérivent (famille~G), mais
+aucune p-value ni aucun verdict, les tests ne lisant pas le paramètre standard~; une anomalie
+d'\code{engine\_valider\_declarations()} atteindrait en outre l'acceptation ou le refus du calcul
+(\code{ok}).
 
 \noindent
 Cette hiérarchie explique l'ordre de vérification de l'implémentation (section~\ref{sec:verif})~:

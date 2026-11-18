@@ -1864,7 +1864,8 @@ if (MODE_LN == "unite") {
       t1 <- Sys.time()
       invisible(tryCatch(run_engine(xt = d$x, yt = ys[b, ], methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
                                     nature_donnees = NATURE, B = B_BOOT, alpha = ALPHA, theta_equiv = THETA_EQUIV,
-                                    seed = GRAINE_BOOT + b), error = function(e) NULL))
+                                    seed = GRAINE_BOOT + b,
+                                    date_reference = DATE_REFERENCE_TESTS), error = function(e) NULL))
       writeLines(sprintf("UNITE\t%s\t%d\t%.3f", j, b, as.numeric(difftime(Sys.time(), t1, units = "secs"))))
     }
   }
@@ -1956,7 +1957,8 @@ JEU <- if (OPT_JEU == "J1")
 X <- JEU$x
 stopifnot(length(X) == T_, length(JEU$y) == T_)
 FIT0 <- usp_ajuster(X, JEU$y)
-SIGMA_STD <- usp_parametre_standard(METHODE, SEGMENT, ANNEXE, NATURE, NULL)$sigma_standard
+SIGMA_STD <- usp_parametre_standard(METHODE, SEGMENT, ANNEXE, NATURE, NULL,
+                                    date_reference = DATE_REFERENCE_TESTS)$sigma_standard
 BAREME <- usp_bareme_segment(SEGMENT, ANNEXE)
 PARAM0 <- usp_parametre(FIT0, SIGMA_STD, BAREME)
 controle(!usp_volumes_constants(X),
@@ -2127,7 +2129,8 @@ for (b in seq.int(DEBUT, FIN)) {
   ajoute(paste0("reg72|", r72))
   res <- tryCatch(run_engine(xt = X, yt = y, methode = METHODE, segment = SEGMENT, annexe = ANNEXE,
                              nature_donnees = NATURE, B = B_BOOT, alpha = ALPHA, theta_equiv = THETA_EQUIV,
-                             seed = GRAINE_BOOT + b), error = function(e) e)
+                             seed = GRAINE_BOOT + b,
+                             date_reference = DATE_REFERENCE_TESTS), error = function(e) e)
   motif <- if (inherits(res, "error")) paste("erreur de run_engine() :", conditionMessage(res)) else
     if (!isTRUE(res$ok)) paste("ok = FALSE :", decrire_refus(res)) else NA_character_
   if (!is.na(motif)) {

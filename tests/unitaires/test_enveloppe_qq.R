@@ -119,7 +119,7 @@ verifier("(i) engine_enveloppe_qq() : lignes NA ecartees du B effectif et des ba
 
 # --- (ii) enveloppe recalculable depuis res$bootstrap$z_boot --------------
 r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                 B = 199, seed = GRAINE, nature_donnees = "brutes")
+                 B = 199, seed = GRAINE, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("(ii) env_bas / env_haut = quantiles 5 % et 95 % (type 7) des colonnes triees de z_boot, apres order(order(theorique))",
          {
            S <- ordres(r1$bootstrap$z_boot)
@@ -157,7 +157,7 @@ verifier("(ii) plots_data$qq_enveloppe : champs, source, B_eff, niveaux fixes, s
          })
 # Bande simultanee : run_engine() a B = 999 (B_eff >= 500).
 r999 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                   B = 999, seed = GRAINE, nature_donnees = "brutes")
+                   B = 999, seed = GRAINE, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("(ii) B = 999 : env_sim_bas / env_sim_haut = k*-iemes plus petite et plus grande valeurs de chaque colonne, apres order(order(theorique))",
          {
            S <- ordres(r999$bootstrap$z_boot); Sc <- apply(S, 2, sort)
@@ -176,7 +176,8 @@ verifier("(ii) B = 999 : taux_global_simultane = taux (4.17) recalcule par les r
 verifier("(ii) niveau fixe : alpha = 0,05 ne change ni les bandes ni qq_enveloppe",
          {
            r1a <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                             B = 199, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05)
+                             B = 199, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05,
+                             date_reference = DATE_REFERENCE_TESTS)
            identical(r1a$plots_data$qqnorm, r1$plots_data$qqnorm) &&
              identical(r1a$plots_data$qq_enveloppe, r1$plots_data$qq_enveloppe)
          })
@@ -428,7 +429,7 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 
 # --- (vi) graine de l'enveloppe retiree ---------------------------------------
 r_res1 <- run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, annexe = "II",
-                     B = B_MIN_USAGE, seed = GRAINE)
+                     B = B_MIN_USAGE, seed = GRAINE, date_reference = DATE_REFERENCE_TESTS)
 verifier("(vi) SEED_ENVELOPPE_QQ absent du moteur ; metadata sans seed_enveloppe_qq ni seed_loi_nulle_sw (#351) (premium, reserve1)",
          !exists("SEED_ENVELOPPE_QQ") &&
            !"seed_enveloppe_qq" %in% names(r1$metadata) &&
@@ -447,9 +448,11 @@ verifier("(vi) engine_plots_data() ne tire plus : n'appelle pas engine_sous_grai
 verifier("(vii) deux appels a graine egale : enveloppes, qq_enveloppe et z_boot identiques ; autre graine : enveloppe differente",
          {
            r2 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 199, seed = GRAINE, nature_donnees = "brutes")
+                            B = 199, seed = GRAINE, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            r3 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 199, seed = GRAINE + 1, nature_donnees = "brutes")
+                            B = 199, seed = GRAINE + 1, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            identical(r2$plots_data$qqnorm, r1$plots_data$qqnorm) &&
              identical(r2$plots_data$qq_enveloppe, r1$plots_data$qq_enveloppe) &&
              identical(r2$bootstrap$z_boot, r1$bootstrap$z_boot) &&

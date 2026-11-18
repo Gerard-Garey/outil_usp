@@ -223,7 +223,8 @@ x484 <- c(104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)
 y484 <- c(68.97, 76.76, 83.49, 95.38, 88.96, 70.22, 78.89, 117.37)
 lignes484 <- function(xx, yy) {
   res <- run_engine(xt = xx, yt = yy, methode = "premium", segment = 1, annexe = "II",
-                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                    nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                    date_reference = DATE_REFERENCE_TESTS)
   t <- engine_table_tests(res)
   list(tost = t[t$test == "Equivalence de la constante a zero (TOST)", ],
        pitman = t[t$test == "Test de Pitman sur la pente (lien positif pertes / volume)", ])

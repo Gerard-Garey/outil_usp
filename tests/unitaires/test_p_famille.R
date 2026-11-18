@@ -299,8 +299,9 @@ verifier("#297 lignes posees par add() : diagnostic INFO, sans sens ni p retenue
   m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
 })
 res297_p <- run_engine(xt = .ln297$xt, yt = .ln297$yt, methode = "premium", segment = 1, annexe = "II",
-                       nature_donnees = "brutes", B = 99)
-res297_r2 <- run_engine(methode = "reserve2", triangle = .tri297, segment = 1, annexe = "II", B = 99)
+                       nature_donnees = "brutes", B = 99, date_reference = DATE_REFERENCE_TESTS)
+res297_r2 <- run_engine(methode = "reserve2", triangle = .tri297, segment = 1, annexe = "II", B = 99,
+                        date_reference = DATE_REFERENCE_TESTS)
 
 # Recalcul independant, depuis les lignes existantes, stats_boot et stats_obs,
 # des lignes ajoutees ; TRUE ou un message.
@@ -358,9 +359,9 @@ verifier("#297 run_engine() B = 99 (reserve2) : idem, sans phrase de #204 ni de 
 # identiques, une autre graine change les replications (p_mc des membres)
 # sans changer ni la liste des membres ni les textes des lignes de famille.
 res297_p2 <- run_engine(xt = .ln297$xt, yt = .ln297$yt, methode = "premium", segment = 1, annexe = "II",
-                        nature_donnees = "brutes", B = 99, seed = 1L)
+                        nature_donnees = "brutes", B = 99, seed = 1L, date_reference = DATE_REFERENCE_TESTS)
 res297_r22 <- run_engine(methode = "reserve2", triangle = .tri297, segment = 1, annexe = "II", B = 99,
-                         seed = 1L)
+                         seed = 1L, date_reference = DATE_REFERENCE_TESTS)
 verifier("#297 / #76 : champs test des membres et textes des lignes de famille invariants quand la graine change (premium, reserve2), p_mc des membres changees",
          {
            fam <- function(r) Filter(function(l) identical(l$fonction, "engine_p_famille"), r$tests)

@@ -101,7 +101,8 @@ verifier(".runs_effectifs() : la paire, a la mediane, est ecartee (n1 + n2 = 6)"
          identical(unname(.runs_effectifs(r_ea)), c(3L, 3L)))
 
 res_ea <- run_engine(xt = x_ea, yt = y_ea, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                     nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                     date_reference = DATE_REFERENCE_TESTS)
 lig_ea <- function(nom, base = NULL) {
   l <- Filter(function(l) identical(l$test, nom) && (is.null(base) || identical(l$base, base)),
               res_ea$tests)
@@ -192,7 +193,7 @@ verifier("Ecart relatif 1e-6 via run_engine() : aucun motif ex aequo, p_min attr
          {
            res_d <- run_engine(xt = x_ea, yt = y_d, methode = "premium", segment = 1,
                                annexe = "II", nature_donnees = "brutes",
-                               B = B_MIN_USAGE, seed = 20260831)
+                               B = B_MIN_USAGE, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
            noms <- c("Independance ratio S/P vs volume", "Correlation ratio S/P vs temps",
                      "Tendance monotone du ratio S/P", "Tendance par signes du ratio S/P",
                      "Egalite des lois petits vs gros volumes (2 ech.)",
@@ -293,7 +294,7 @@ sys.source(file.path(.dossier187, "..", "outils_tests.R"), envir = outils187)
 d187 <- utils::read.csv(file.path(.dossier187, "..", "donnees", "donnees_ln.csv"))
 calcul187 <- function(x, y) suppressWarnings(
   run_engine(xt = x, yt = y, methode = "premium", segment = 1, B = B_MIN_USAGE,
-             nature_donnees = "brutes"))
+             nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS))
 # Cle de comparaison des lignes sur ratios : verdict, nature, p retenue et
 # nombre d'INFO, mais aussi statistique, p exacte et p_min (statistiques de
 # rang, invariantes d'echelle), et le commentaire de chaque ligne, qui porte

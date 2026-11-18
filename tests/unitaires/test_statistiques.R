@@ -134,7 +134,8 @@ MOTIF_AG_Z_485 <- paste("statistique Z non definie : 1 + x sqrt(2/(A - 4)) <= 0 
                         "non applicable")
 ligne_ag_485 <- function(x, y) {
   r <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                  nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                  nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                  date_reference = DATE_REFERENCE_TESTS)
   list(ok = r$ok, l = Filter(function(e) identical(e$test, NOM_AG_485), r$tests)[[1]],
        z = r$ajustement$z)
 }
@@ -317,7 +318,7 @@ verifier("Suites (#486) : run_engine() lognormal T = 5, n1 = n2 = 1 sur u -> Run
          {
            r <- run_engine(xt = x_486, yt = x_486 * c(.6, .7, .7, .7, .85), methode = "premium",
                            segment = 1, annexe = "II", nature_donnees = "brutes",
-                           B = 199, seed = 20260831)
+                           B = 199, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
            l <- ligne_486(r$tests, NOM_RUNSR_486); st <- engine_table_tests(r)$statistique
            isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
              identical(r$bootstrap$stats_obs$Runsr, NA_real_) && identical(l$verdict, "INFO") &&
@@ -329,7 +330,7 @@ verifier("Suites (#486) : run_engine() lognormal T = 5, un seul cote sur u -> Ru
          {
            r <- run_engine(xt = x_486, yt = x_486 * c(.7, .7, .7, .7, .8), methode = "premium",
                            segment = 1, annexe = "II", nature_donnees = "brutes",
-                           B = 199, seed = 20260831)
+                           B = 199, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
            l <- ligne_486(r$tests, NOM_RUNSR_486)
            isTRUE(r$ok) && identical(l$type, "non applicable") && identical(l$stat, NA_real_) &&
              identical(l$detail, paste("un seul cote de la mediane represente : loi de R non definie,",
@@ -391,7 +392,7 @@ tri_486 <- local({
 verifier("Suites (#486) : Merz-Wuthrich a deux residus de Mack -> stat NA, motif n1 = n2 = 1, aucun NaN dans la table",
          {
            r <- run_engine(methode = "reserve2", triangle = tri_486, segment = 2, annexe = "II",
-                           B = 199, seed = 20260831)
+                           B = 199, seed = 20260831, date_reference = DATE_REFERENCE_TESTS)
            l <- ligne_486(r$tests, "Test des suites sur les residus de Mack")
            isTRUE(r$ok) && nrow(mw_residus(r$ajustement)) == 2L &&
              identical(r$bootstrap$stats_obs$Runs, NA_real_) &&
@@ -416,7 +417,8 @@ verifier("Suites (#486) : n1 = n2 = 1 a pi_t constant -> p_exacte et p_min NA (l
                             NOM_RUNS_486)
            rr <- function(m) ligne_486(run_engine(xt = xc, yt = xc * m, methode = "premium", segment = 1,
                                                   annexe = "II", nature_donnees = "brutes",
-                                                  B = 199, seed = 20260831)$tests, NOM_RUNSR_486)
+                                                  B = 199, seed = 20260831,
+                                                  date_reference = DATE_REFERENCE_TESTS)$tests, NOM_RUNSR_486)
            lr1 <- rr(c(.6, .7, .7, .7, .85)); lr0 <- rr(c(.7, .7, .7, .7, .8))
            isTRUE(usp_regime(f$delta, f$x)$pi_constant) &&
              identical(runs_p_exacte(f1$z), 1) && identical(runs_p_min(1, 1), 1) &&
@@ -504,7 +506,8 @@ verifier("Cox-Stuart, run_engine() avec ex aequo (m = 3, n_p = 4) : p exacte cal
          {
            res_cs <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 72, 78, 117),
                                 methode = "premium", segment = 1, annexe = "II",
-                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                                date_reference = DATE_REFERENCE_TESTS)
            t_cs <- cs_ligne(res_cs)
            isTRUE(res_cs$ok) && !is.null(t_cs) && identical(t_cs$stat, 1L) &&
              identical(t_cs$detail, paste(
@@ -523,7 +526,8 @@ verifier("Cox-Stuart, run_engine() sans difference non nulle (m = 0) : K non def
          {
            res_c0 <- run_engine(xt = rep(100, 8), yt = c(70, 76, 83, 95, 70, 76, 83, 95),
                                 methode = "premium", segment = 1, annexe = "II",
-                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831)
+                                nature_donnees = "brutes", B = B_MIN_USAGE, seed = 20260831,
+                                date_reference = DATE_REFERENCE_TESTS)
            t_c0 <- cs_ligne(res_c0)
            tb_c0 <- tryCatch(engine_table_tests(res_c0), error = function(e) NULL)
            isTRUE(res_c0$ok) && !is.null(t_c0) &&

@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Outil de calibrage des paramètres propres à l'entreprise (USP), Solvabilité II : règlement délégué (UE) 2015/35, art. 218-220 et annexe XVII.
 - Textes sources à la racine : `Règlement délégué.pdf` (JOUE L 12 du 17.1.2015) et `TEXTE consolidé_ 32015R0035 — FR — 14.11.2024.xhtml`.
+- Modificatif à la racine : `Règlement délégué 2026-269.pdf` (JO série L 2026/269 du 18.2.2026, applicable au 30.1.2027 ; #504, Q-65-3).
 - **La version consolidée est la référence de lecture** (sans effet juridique propre : font foi les versions du JOUE) ; sa MSEP de l'annexe XVII D(5) diffère de 2015 (ADR 0005).
 - Les formules sont des images : les lire en rendu graphique, jamais par extraction de texte (#7). Données `usp_*.csv/.xlsx` non versionnées.
 - Dépôt de référence public `https://github.com/Gerard-Garey/outil_usp`, employé en local et en session cloud.
@@ -78,7 +79,7 @@ Si un résultat peut être calculé indépendamment de l'interface, il va dans `
 - **Lognormale** (`premium`, section B ; `reserve1`, section C) : `usp_ajuster()` (MV sur δ, γ) → `usp_bootstrap()` → `usp_parametre()` (√((T+1)/(T−1)), crédibilité, mélange avec σ standard) → `usp_tests()`.
 - **Merz-Wüthrich** (`reserve2`, section D) : triangle → `.run_engine_mw()` → `mw_ajuster()`, `mw_msep()`, `mw_bootstrap()`, `mw_parametre()`, `mw_tests()`.
 - Données réglementaires en tête d'`engine.R` (`ANNEXE_II`, `ANNEXE_XIV`, `SEGMENTS`, `CRED_LONG`, `CRED_COURT`), vérifiées contre les sources : ne pas les modifier sans source.
-- Annexes II et XIV selon M6 (règlement délégué (UE) 2019/981) : l'outil ne vaut que pour une date de référence postérieure ou égale à l'application de M6 (#19).
+- Annexes II et XIV selon M6 (règlement délégué (UE) 2019/981) ; date de référence du calcul obligatoire (`date_reference`), contrôlée par `engine_valider_declarations()` contre `TEXTES_APPLICABLES` : refus avant le 1.1.2020 (M6, #19) ; à partir du 30.1.2027, texte 2026/269 (facteur NP conditionnel, déclarations `reassurance_np` / `cdd_qualifiante` ; ADR 0019, #504).
 
 ### Structure d'un résultat de test
 

@@ -384,9 +384,11 @@ verifier("MeanZ, VarZ, LB2r et BP2r ne sont plus simulees",
 # verifie sur une batterie sans jackknife ni IC (usp_tests + bootstrap
 # fictif) et sur un run_engine() complet (B = 99), qui les contient.
 res_ln_ii1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                         annexe = "II", B = 99, nature_donnees = "brutes")
+                         annexe = "II", B = 99, nature_donnees = "brutes",
+                         date_reference = DATE_REFERENCE_TESTS)
 res_ln_ii6 <- run_engine(xt = x, yt = y, methode = "premium", segment = 6,
-                         annexe = "II", B = 99, nature_donnees = "brutes")
+                         annexe = "II", B = 99, nature_donnees = "brutes",
+                         date_reference = DATE_REFERENCE_TESTS)
 tab_ln <- engine_table_tests(res_ln_ii1)
 lignes_df <- function(L) data.frame(
   test = vapply(L, function(l) l$test, character(1)),
@@ -661,14 +663,17 @@ verifier("Cinq cas (#111) : chaque ligne porte une fonction du moteur, suivie d'
            env_moteur <- environment(engine_registre_tests)
            cas <- list(
              premium = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II",
-                                  nature_donnees = "brutes", B = 99),
+                                  nature_donnees = "brutes", B = 99, date_reference = DATE_REFERENCE_TESTS),
              reserve1 = run_engine(xt = ln$xt, yt = ln$yt, methode = "reserve1", segment = 1, annexe = "II",
-                                   B = 99),
-             reserve2 = run_engine(methode = "reserve2", triangle = tri_mw, segment = 1, annexe = "II", B = 99),
+                                   B = 99, date_reference = DATE_REFERENCE_TESTS),
+             reserve2 = run_engine(methode = "reserve2", triangle = tri_mw, segment = 1, annexe = "II", B = 99,
+                                   date_reference = DATE_REFERENCE_TESTS),
              premium_ii6 = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 6, annexe = "II",
-                                      nature_donnees = "brutes", B = 99),
+                                      nature_donnees = "brutes", B = 99,
+                                      date_reference = DATE_REFERENCE_TESTS),
              premium_net = run_engine(xt = ln$xt, yt = ln$yt, methode = "premium", segment = 1, annexe = "II",
-                                      nature_donnees = "nettes", B = 99))
+                                      nature_donnees = "nettes", B = 99,
+                                      date_reference = DATE_REFERENCE_TESTS))
            all(vapply(cas, function(r) {
              f <- vapply(r$tests, function(t) if (is.character(t$fonction)) t$fonction else NA_character_, "")
              tb <- engine_table_tests(r)
@@ -758,7 +763,8 @@ verifier("run_engine : jackknife entierement NA -> table produite, une ligne jac
              o
            }, envir = e)
            r <- tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                                    annexe = "II", B = 99, nature_donnees = "brutes"),
+                                    annexe = "II", B = 99, nature_donnees = "brutes",
+                                    date_reference = DATE_REFERENCE_TESTS),
                          finally = assign("usp_jackknife", usp_jackknife_orig, envir = e))
            tb <- engine_table_tests(r)
            lj <- tb[tb$test == NOM_JK, , drop = FALSE]
@@ -789,7 +795,8 @@ verifier("run_engine, chemin reel de #329 : huit reajustements refuses, echantil
          {
            y_329 <- 0.7 * x * exp(exp(-11.9925) * rep(c(1, -1), 4))
            r <- run_engine(xt = x, yt = y_329, methode = "premium", segment = 1,
-                           annexe = "II", B = 99, nature_donnees = "brutes")
+                           annexe = "II", B = 99, nature_donnees = "brutes",
+                           date_reference = DATE_REFERENCE_TESTS)
            tb <- engine_table_tests(r)
            lj <- tb[tb$test == NOM_JK, , drop = FALSE]
            txt <- paste0("Aucune annee evaluable (reajustements sans maximum de ",
@@ -831,7 +838,7 @@ jkn <- function(k, sens, ne = "")
 # sur la borne basse sans KKT (refus de #188).
 y_224 <- 0.7 * x; y_224[5] <- 0.8 * x[5]
 res_224 <- run_engine(xt = x, yt = y_224, methode = "premium", segment = 1,
-                      annexe = "II", B = 99, nature_donnees = "brutes")
+                      annexe = "II", B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 verifier("#224 (a) : jeu de l'issue, annee 5 entierement NA, 'Annee 5 non evaluable', estim = 0,02063, annee 5 non designee",
          {
            tb <- engine_table_tests(res_224); dj <- detail_jk(res_224)
@@ -862,7 +869,8 @@ jk_imposer <- function(ecarts) {          # ecarts relatifs signes, un par annee
     o
   }, envir = e)
   tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1,
-                      annexe = "II", B = 99, nature_donnees = "brutes"),
+                      annexe = "II", B = 99, nature_donnees = "brutes",
+                      date_reference = DATE_REFERENCE_TESTS),
            finally = assign("usp_jackknife", orig, envir = e))
 }
 tau_327 <- function(d1, d2) 2 * REP_SIGMA_KKT * (2 + d1 + d2)
@@ -932,11 +940,12 @@ verifier("#327 : usp_tests() direct, jack_annees absent -> phrase de l'annee la 
 # res$methode et plots_data$methode retires, methode lue dans metadata.
 appels_396 <- list(
   premium  = function() run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                                   B = B_MIN_USAGE, nature_donnees = "brutes"),
+                                   B = B_MIN_USAGE, nature_donnees = "brutes",
+                                   date_reference = DATE_REFERENCE_TESTS),
   reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1", segment = 1, annexe = "II",
-                                   B = B_MIN_USAGE),
+                                   B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS),
   reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw, segment = 1, annexe = "II",
-                                   B = B_MIN_USAGE))
+                                   B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS))
 jack_annees_relevees <- function(appel) {
   e <- environment(run_engine); orig <- get("usp_tests", envir = e); ja <- "non releve"
   assign("usp_tests", function(...) { ja <<- list(...)$robustesse$jack_annees; orig(...) }, envir = e)
@@ -949,7 +958,8 @@ verifier("#396 : jeu de #224, plus_influente = robustesse$jack_annees releve (id
          {
            rel <- jack_annees_relevees(function() run_engine(xt = x, yt = y_224, methode = "premium",
                                                               segment = 1, annexe = "II", B = 99,
-                                                              nature_donnees = "brutes"))
+                                                              nature_donnees = "brutes",
+                                                             date_reference = DATE_REFERENCE_TESTS))
            d <- rel$res$plots_data$influence
            is.logical(d$plus_influente) && !anyNA(d$plus_influente) &&
              identical(utils::tail(names(d), 2L), c("plus_influente", "non_evaluable")) &&
@@ -982,7 +992,7 @@ jk_sigma_usp_force <- function(v) {
   e <- environment(run_engine); orig <- get("usp_parametre", envir = e)
   assign("usp_parametre", function(...) { p <- orig(...); p$sigma_usp <- v; p }, envir = e)
   tryCatch(run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                      B = 99, nature_donnees = "brutes"),
+                      B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS),
            finally = assign("usp_parametre", orig, envir = e))
 }
 verifier("#405 : sigma_USP force a 0 puis a NA -> ligne jackknife presente, diagnostic sans estimation, detail 'sigma_USP nul, non fini ou trop petit' ; usp_jack_annees(c(1, 2, NA), 0) NULL",
@@ -1071,7 +1081,8 @@ jk_echecs <- function(annees) {
     orig(x, y, ...)
   }, envir = e)
   tryCatch(run_engine(xt = x, yt = y, methode = "premium",
-                      segment = 1, annexe = "II", B = 99, nature_donnees = "brutes"),
+                      segment = 1, annexe = "II", B = 99, nature_donnees = "brutes",
+                      date_reference = DATE_REFERENCE_TESTS),
            finally = assign("usp_ajuster", orig, envir = e))
 }
 verifier("#224 (c) : reajustement force en erreur, meme phrase (une, deux et trois annees)",
@@ -1102,7 +1113,8 @@ verifier("#224 (d) : aucune phrase 'non evaluable' si toutes les annees sont eva
          {
            ln_int <- utils::read.csv(file.path(RACINE, "tests", "donnees", "donnees_ln_interieur.csv"))
            r2 <- run_engine(xt = ln_int$xt, yt = ln_int$yt, methode = "premium", segment = 1,
-                            annexe = "II", B = 99, nature_donnees = "brutes")
+                            annexe = "II", B = 99, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            ok <- TRUE
            for (r in list(res_ln_ii1, res_ln_ii6, r2)) {
              dj <- detail_jk(r)
@@ -1125,7 +1137,7 @@ NOM_DELTA <- "Position de delta dans [0,1]"
 LIB_DELTA_CST <- "VOLUMES CONSTANTS : la vraisemblance ne depend pas de delta, qui n'est pas identifie"
 for (m in c("premium", "reserve1")) {
   r_cst <- run_engine(xt = x_cst, yt = y, methode = m, segment = 1, annexe = "II", B = 99,
-                      nature_donnees = if (m == "premium") "brutes")
+                      nature_donnees = if (m == "premium") "brutes", date_reference = DATE_REFERENCE_TESTS)
   tb_cst <- tryCatch(engine_table_tests(r_cst), error = function(e) e)
   verifier(sprintf("Volumes constants (%s) : run_engine ok et engine_table_tests() produit la table (#58)", m),
            if (!isTRUE(r_cst$ok)) "run_engine : ok FALSE"
@@ -1292,11 +1304,13 @@ verifier("engine_sous_graine() : etat restaure (ou retire) meme si l'expression 
 appels_run <- list(
   premium  = function() run_engine(xt = x, yt = y, methode = "premium",
                                    segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5,
-                                   nature_donnees = "brutes"),
+                                   nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS),
   reserve1 = function() run_engine(xt = x, yt = y, methode = "reserve1",
-                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5),
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5,
+                                   date_reference = DATE_REFERENCE_TESTS),
   reserve2 = function() run_engine(methode = "reserve2", triangle = tri_mw,
-                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5))
+                                   segment = 1, annexe = "II", B = B_MIN_USAGE, seed = 5,
+                                   date_reference = DATE_REFERENCE_TESTS))
 sans_horodatage <- function(res) {
   res$metadata[c("horodatage", "duree_sec")] <- NULL
   res

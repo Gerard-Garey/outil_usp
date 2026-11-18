@@ -190,7 +190,8 @@ verifier("U244-9 frontiere g_mc = alpha/2 = 0,05 : alpha/2 inatteignable -> pas 
 o244 <- new.env(parent = globalenv())
 sys.source(file.path(.racine244, "tests", "outils_tests.R"), envir = o244)
 r215 <- suppressWarnings(run_engine(xt = o244$.ln$xt, yt = o244$.ln$yt + 100, methode = "premium",
-                                    segment = 1, annexe = "II", nature_donnees = "brutes"))
+                                    segment = 1, annexe = "II", nature_donnees = "brutes",
+                                    date_reference = DATE_REFERENCE_TESTS))
 cst244 <- Filter(function(l) identical(l$test, "Nullite de la constante (proportionnalite stricte)") &&
                    identical(l$variante, "principale"), r215$tests)[[1]]
 verifier("Renvoi #215 : ligne constante (yt + 100) -> renvoi present, phrase de #244 en dernier, une fois",

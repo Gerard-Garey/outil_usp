@@ -118,7 +118,8 @@ for (nm in names(jeux)) local({
 # Entree minimale de #533 : T = 5, volumes constants, pi_t constant,
 # n1 = n2 = 1 sur z et sur u (17 lignes non applicables, mesure du 11/11/2026).
 res533 <- suppressWarnings(run_engine(xt = rep(100, 5), yt = c(60, 80, 80, 80, 110),
-                                      methode = "reserve1", segment = 1, annexe = "II", B = 99))
+                                      methode = "reserve1", segment = 1, annexe = "II", B = 99,
+                                      date_reference = DATE_REFERENCE_TESTS))
 verifier("#533 entree minimale : 17 lignes non applicables, toutes a loi NA",
          {
            na533 <- Filter(function(l) identical(l$type, "non applicable"), hors_famille(res533$tests))

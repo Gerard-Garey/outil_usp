@@ -362,10 +362,11 @@ for (nm in c("run_engine", ".run_engine_mw", "usp_bootstrap", "mw_bootstrap"))
     assign(nm, copie125(get(nm, envir = env_moteur125)), envir = env_cap125)
 run_cap125 <- get("run_engine", envir = env_cap125)
 res_p <- run_cap125(xt = .ln125$xt, yt = .ln125$yt, methode = "premium", segment = 1, annexe = "II",
-                    nature_donnees = "brutes")
+                    nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
 res_pi <- run_cap125(xt = .ln125i$xt, yt = .ln125i$yt, methode = "premium", segment = 1, annexe = "II",
-                     nature_donnees = "brutes")
-res_r2 <- run_cap125(methode = "reserve2", triangle = .tri125, segment = 1, annexe = "II")
+                     nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
+res_r2 <- run_cap125(methode = "reserve2", triangle = .tri125, segment = 1, annexe = "II",
+                     date_reference = DATE_REFERENCE_TESTS)
 # Formule de la specification, section 1, recalculee independamment
 # d'engine_p_mc() a partir des extremites du catalogue.
 formule125 <- function(sim, q, ex) {

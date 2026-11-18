@@ -30,6 +30,22 @@ if (!exists("ENGINE_CHARGE", inherits = TRUE)) {
   ENGINE_CHARGE <- TRUE
 }
 
+# Date de reference conventionnelle des tests (issue #504, ADR 0019,
+# decision Q-S3-7) : definie une seule fois, dans tests/outils_tests.R, et lue
+# ici dans le texte de ce fichier, sans l'executer (il recharge le moteur et
+# lit les jeux de donnees) : son affectation litterale unique est cherchee
+# dans l'arbre syntaxique.
+DATE_REFERENCE_TESTS <- local({
+  f <- file.path(if (exists("RACINE", inherits = TRUE)) RACINE else ".", "tests", "outils_tests.R")
+  def <- Filter(function(e) is.call(e) && identical(e[[1L]], as.name("<-")) &&
+                  identical(e[[2L]], as.name("DATE_REFERENCE_TESTS")),
+                as.list(parse(f, keep.source = FALSE)))
+  v <- if (length(def) == 1L) def[[1L]][[3L]] else NULL
+  if (!is.character(v) || length(v) != 1L || is.na(v))
+    stop("DATE_REFERENCE_TESTS : une affectation litterale unique est attendue dans ", f)
+  v
+})
+
 .tu <- new.env(parent = emptyenv())
 .tu$lignes <- data.frame(fichier = character(0), nom = character(0),
                          statut = character(0), message = character(0),

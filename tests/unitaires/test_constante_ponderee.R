@@ -158,7 +158,8 @@ verifier("Ligne TOST : p_exacte NA dans les deux branches de marge, p retenue = 
 ## --- 3. Valeurs de l'issue (B = 999, graine 20260831) ------------------------
 # Critere 3 de #215. p_mc a un pas de comptage bilateral (2 / (B + 1)) pres.
 run_jeu <- function(x, y) run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                                     nature_donnees = "brutes", B = 999, seed = 20260831)
+                                     nature_donnees = "brutes", B = 999, seed = 20260831,
+                                     date_reference = DATE_REFERENCE_TESTS)
 r1 <- run_jeu(x1, y1); r2 <- run_jeu(x2, y2)
 tb1 <- engine_table_tests(r1); tb2 <- engine_table_tests(r2)
 # p du TOST lue dans p_asymptotique (champ conserve) ; depuis #298 (regle
@@ -271,7 +272,8 @@ verifier("Renvoi, reserve2 : colonne renvoi presente, toute NA",
              d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
              m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
            })
-           r <- run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II", B = 99)
+           r <- run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II", B = 99,
+                           date_reference = DATE_REFERENCE_TESTS)
            tb <- engine_table_tests(r)
            isTRUE(r$ok) && "renvoi" %in% names(tb) && all(is.na(tb$renvoi)) &&
              identical(tail(names(tb), 2L), c("fonction", "inoperant"))

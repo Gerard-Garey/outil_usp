@@ -69,8 +69,9 @@ verifier("#330 references : mc_nom cinquieme champ de fin de ligne, chaine du ca
   m <- as.matrix(d[, setdiff(names(d), "i")]); storage.mode(m) <- "double"; unname(m)
 })
 res330_p <- run_engine(xt = .ln330$xt, yt = .ln330$yt, methode = "premium", segment = 1, annexe = "II",
-                       nature_donnees = "brutes", B = 99)
-res330_r2 <- run_engine(methode = "reserve2", triangle = .tri330, segment = 1, annexe = "II", B = 99)
+                       nature_donnees = "brutes", B = 99, date_reference = DATE_REFERENCE_TESTS)
+res330_r2 <- run_engine(methode = "reserve2", triangle = .tri330, segment = 1, annexe = "II", B = 99,
+                        date_reference = DATE_REFERENCE_TESTS)
 verifier("#330 run_engine() B = 99 (premium, reserve2) : memes invariants",
          isTRUE(res330_p$ok) && isTRUE(res330_r2$ok) &&
            isTRUE(inv330(res330_p$tests, USP_CATALOGUE_MC, res330_p$bootstrap)) &&

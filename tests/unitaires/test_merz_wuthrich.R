@@ -125,7 +125,7 @@ verifier("Triangle a cumuls decroissants : reserve chain-ladder negative (-27,56
 verifier("run_engine : reserve totale negative refusee (ok = FALSE, motif chiffre)",
          {
            r <- run_engine(methode = "reserve2", triangle = tri_decroissant,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            identical(r$ok, FALSE) && !r$validation$ok &&
              any(grepl("-27.5666", r$validation$erreurs, fixed = TRUE)) &&
              any(grepl("n'est pas applicable", r$validation$erreurs, fixed = TRUE)) &&
@@ -137,7 +137,7 @@ verifier("run_engine : reserve totale exactement nulle refusee (tous les f_j = 1
            for (i in 1:5) for (j in 1:(6 - i)) tz[i, j] <- 100 + 10 * i
            a <- mw_ajuster(tz)
            r <- run_engine(methode = "reserve2", triangle = tz,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            a$reserve == 0 && all(abs(a$f - 1) < 1e-14) &&
              identical(r$ok, FALSE) &&
              any(grepl("R = 0", r$validation$erreurs, fixed = TRUE)) &&
@@ -153,7 +153,7 @@ verifier("run_engine : reserves negatives par annee mais total positif -> calcul
            tp[3, 1:3] <- c(120, 185, 219); tp[4, 1:2] <- c(130, 200); tp[5, 1] <- 140
            a <- mw_ajuster(tp)
            r <- run_engine(methode = "reserve2", triangle = tp,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            any(a$reserve_par_annee < 0) && any(a$f < 1) && a$reserve > 0 &&
              isTRUE(r$ok) && is.finite(r$parametre_final$sigma_usp) &&
              r$parametre_final$sigma_usp > 0 &&
@@ -200,7 +200,7 @@ verifier("Colonne J-3 degeneree : detection par les facteurs, arguments du minim
 verifier("run_engine : colonne J-3 degeneree signalee dans validation$avertissements",
          {
            r <- run_engine(methode = "reserve2", triangle = tri_deg,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            av <- r$validation$avertissements
            isTRUE(r$ok) &&
              any(grepl("sigma2_(J-3) = 0", av, fixed = TRUE)) &&
@@ -213,7 +213,7 @@ verifier("run_engine : colonne J-3 degeneree signalee dans validation$avertissem
 verifier("Diagnostic M6 : les trois arguments du minimum et celui qui est retenu sont affiches",
          {
            r <- run_engine(methode = "reserve2", triangle = tri_deg,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            d <- engine_table_tests(r)
            l <- d$commentaire[grepl("Extrapolation de sigma", d$test)]
            length(l) == 1 &&
@@ -254,7 +254,7 @@ av_exclues <- function(av) grep(paste0("a facteurs individuels egaux a f_j a la 
                                        " ; sigma2_j nul ou numeriquement nul)"), av,
                                 fixed = TRUE, value = TRUE)
 run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
-                                 segment = 1, annexe = "II", B = 99)
+                                 segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
 av_extrap <- function(r) grep("sigma2_(J-1) = min", r$validation$avertissements,
                               fixed = TRUE, value = TRUE)
 detail_m6 <- function(r) {
@@ -951,7 +951,7 @@ verifier("Triangle non degenere : sigma2_(J-1) inchange = min(...) et aucun aver
          {
            ex <- mw_extrapolation_sigma2(aj)
            r <- run_engine(methode = "reserve2", triangle = tri,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            identical(ex$degeneree, FALSE) && is.finite(ex$quotient) &&
              isTRUE(proche(aj$sigma2[4],
                            min(s2_main[3], s2_main[2], s2_main[3]^2 / s2_main[2]),
@@ -1291,7 +1291,7 @@ tri_ref <- local({
 nb_warnings_mw <- function(t) {
   n <- 0L
   withCallingHandlers(run_engine(methode = "reserve2", triangle = t, segment = 1,
-                                 annexe = "II", B = 99),
+                                 annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS),
                       warning = function(w) { n <<- n + 1L; invokeRestart("muffleWarning") })
   n
 }
@@ -1463,7 +1463,8 @@ verifier("Restitution : la colonne exclue est nommee dans le commentaire, estima
            d <- engine_table_tests(run_mw(tri_deg))
            l <- d[grepl("ordonnee a l'origine", d$test), ]
            dr <- engine_table_tests(run_engine(methode = "reserve2", triangle = tri_ref,
-                                               segment = 1, annexe = "II", B = 99))
+                                               segment = 1, annexe = "II", B = 99,
+                                               date_reference = DATE_REFERENCE_TESTS))
            # Textes de #514 (specification finale d'actuary, M1).
            base_oo <- paste("Un ECHEC ou une ALERTE signale une composante fixe (ordonnee a l'origine)",
                             "dans au moins une colonne, contraire a la proportionnalite des cumules. A",
@@ -1596,14 +1597,15 @@ verifier("Domaine (#185) : une seule cellule hors du domaine -> refus qui la cit
 verifier("Domaine (#185) : run_engine reserve2, triangle_mw x 1e-110 et x 1e60 -> ok = FALSE, motif hors domaine, sans erreur R",
          all(vapply(c(-110, 60), function(e) {
            r <- run_engine(methode = "reserve2", triangle = m185 * 10^e,
-                           segment = 1, annexe = "II", B = 99)
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            isFALSE(r$ok) && inherits(r, "usp_engine") &&
              any(grepl(motif185, r$validation$erreurs, fixed = TRUE))
          }, logical(1))))
 verifier("Domaine (#185) : invariance dans le domaine, x 1e-40 et x 1e40 : sigma_USP et p retenues = echelle 1 (rel 1e-6), verdicts identiques",
          {
            lancer <- function(e) run_engine(methode = "reserve2", triangle = m185 * 10^e,
-                                            segment = 1, annexe = "II", B = 99)
+                                            segment = 1, annexe = "II", B = 99,
+                                            date_reference = DATE_REFERENCE_TESTS)
            r0 <- lancer(0); d0 <- engine_table_tests(r0)
            # Ligne d'identifiabilite intra-colonne (#308), designee par son nom :
            # CV et e_a sont des rapports, invariants par changement d'echelle.
@@ -1641,7 +1643,8 @@ verifier("summary.lm() en M1 (#203) : run_engine reserve2 sans aucun avertisseme
          {
            n <- vapply(list(ta_pert(9e-13), m185 * 1e20, m185 * 1e46), function(t)
              length(avert203(run_engine(methode = "reserve2", triangle = t,
-                                        segment = 1, annexe = "II", B = 199))), integer(1))
+                                        segment = 1, annexe = "II", B = 199,
+                                        date_reference = DATE_REFERENCE_TESTS))), integer(1))
            if (all(n == 0L)) TRUE else paste("avertissements :", paste(n, collapse = ", "))
          })
 verifier(".mw_summary_lm() (#203) : resultat = summary() ; seul l'avertissement 'essentially perfect fit' de summary.lm() est intercepte",
@@ -1764,7 +1767,7 @@ verifier("run_engine : total_exact, total_f_binaire, col0_1e13 -> ok = FALSE, mo
          all(vapply(refuses192, function(t) {
            nw <- 0L
            r <- withCallingHandlers(run_engine(methode = "reserve2", triangle = t, segment = 1,
-                                               annexe = "II", B = 99),
+                                               annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS),
                                     warning = function(w) { nw <<- nw + 1L
                                       invokeRestart("muffleWarning") })
            inherits(r, "usp_engine") && identical(r$ok, FALSE) && isFALSE(r$validation$ok) &&
@@ -1775,7 +1778,7 @@ verifier("run_engine : total_exact, total_f_binaire, col0_1e13 -> ok = FALSE, mo
 verifier("run_engine : col0_1e11, sauf_une, total_arrondi acceptes, sigma_USP inchange (#192, Q-E2r-192-3)",
          all(vapply(names(acceptes192), function(nm) {
            r <- run_engine(methode = "reserve2", triangle = acceptes192[[nm]], segment = 1,
-                           annexe = "II", B = 99)
+                           annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r$ok) && is.null(r$validation$erreur_r) &&
              !any(grepl("Triangle totalement degenere", r$validation$erreurs, fixed = TRUE)) &&
              isTRUE(proche(r$parametre_final$sigma_usp, sigma192[[nm]], rel = 1e-8))
@@ -1784,7 +1787,8 @@ verifier("Reserve nulle (tous les f_j = 1, triangle totalement degenere) : seul 
          {
            tz <- matrix(NA_real_, 5, 5)
            for (i in 1:5) for (j in 1:(6 - i)) tz[i, j] <- 100 + 10 * i
-           r <- run_engine(methode = "reserve2", triangle = tz, segment = 1, annexe = "II", B = 99)
+           r <- run_engine(methode = "reserve2", triangle = tz, segment = 1, annexe = "II", B = 99,
+                           date_reference = DATE_REFERENCE_TESTS)
            isTRUE(.mw_triangle_totalement_degenere(mw_ajuster(tz))) && identical(r$ok, FALSE) &&
              any(grepl("R = 0", r$validation$erreurs, fixed = TRUE)) &&
              !any(grepl("Triangle totalement degenere", r$validation$erreurs, fixed = TRUE))

@@ -17,7 +17,8 @@
 #      source("R/charger_moteur.R")
 #      charger_moteur()          # expose run_engine() et les fonctions du moteur
 #      res <- run_engine(xt = ..., yt = ..., methode = "premium", segment = 1,
-#                        nature_donnees = "brutes")   # ou "nettes" (issue #55)
+#                        nature_donnees = "brutes",   # ou "nettes" (issue #55)
+#                        date_reference = "2026-12-31")   # obligatoire (#504)
 #  source("R/engine.R") reste possible (point isole en session vierge, lecture
 #  du code), mais le moteur est alors expose a tout homonyme de
 #  l'environnement global (fonction c(), intersect()...).
@@ -57,14 +58,26 @@
 # LIMITE DE PERIMETRE : l'outil ne vaut que pour un calcul dont la date de
 # reference est posterieure ou egale a la date d'application du reglement
 # delegue (UE) 2019/981 (M6) : le sigma standard qui entre dans le melange de
-# l'annexe XVII est celui en vigueur a la date de reference du calcul. Il ne
-# permet pas de reproduire un calcul selon les valeurs de 2015. Borne
-# superieure : l'outil ne vaut que pour une date de reference anterieure au
-# 30.1.2027, date d'application du reglement delegue (UE) 2026/269, qui
-# modifie notamment l'art. 117 (facteur d'ajustement NP du paragraphe 3,
-# colonne np_standard ci-dessous ; ecart-type du risque de reserve du
-# paragraphe 2, point b)) et l'art. 148 (detail : sec:segments du .tex) ;
-# ANNEXE_II et ANNEXE_XIV restent celles de M6.
+# l'annexe XVII est celui applicable a la date de reference du calcul. Il ne
+# permet pas de reproduire un calcul selon les valeurs de 2015. La borne est
+# controlee sur la date de reference du calcul (argument date_reference de
+# run_engine(), table TEXTES_APPLICABLES ci-dessous,
+# engine_valider_declarations() ; issue #504, ADR 0019) : une date
+# anterieure au 1.1.2020 donne ok = FALSE. La date est obligatoire : son
+# absence donne aussi ok = FALSE.
+# A partir du 30.1.2027, date d'application du reglement delegue (UE)
+# 2026/269, le moteur applique les art. 117 et 148 dans leur version
+# modifiee par ce reglement (texte "2026/269" de TEXTES_APPLICABLES ; ADR
+# 0019, point 3) : facteur d'ajustement NP du paragraphe 3 (colonne
+# np_standard ci-dessous) applique seulement si une reassurance non
+# proportionnelle est declaree pour le segment (reassurance_np), 100 %
+# sinon ; methodes de reserve : declaration d'une couverture pour
+# developpements defavorables qualifiante (cdd_qualifiante) exigee, et refus
+# motive (ok = FALSE) si elle est declaree, la lecture du parametre standard
+# de reserve en sa presence restant ouverte (paragraphes 4 et 5, decision
+# D-S3-4). ANNEXE_II et ANNEXE_XIV restent celles de M6 sous les deux
+# textes (detail : sec:segments du .tex). Aucune borne superieure : un acte
+# posterieur ne se voit que par la veille (issue #463).
 
 # Ecarts-types standard de l'annexe II (non-vie), version consolidee, tableau
 # sous le marqueur M6 de la ligne 36887 du xhtml (valeurs des segments 1 a 12
@@ -101,6 +114,14 @@ ANNEXE_II <- data.frame(
   # Sert a la valeur standard du parametre a) i) de l'art. 218, paragraphe 1
   # (ecart type net = NP x ecart type brut), remplace sur donnees nettes
   # (usp_parametre_standard(), decision M13).
+  # Condition d'emploi selon le texte applicable (issue #504, ADR 0019,
+  # point 3 ; engine_valider_declarations()) : avant le 30.1.2027 (texte
+  # "2019/981"), facteur applique sans condition sur donnees nettes ; a
+  # partir du 30.1.2027 (texte "2026/269"), art. 117, paragraphe 3, remplace
+  # par le reglement delegue (UE) 2026/269 (art. 1er, point 29) b), p. 25) :
+  # facteur applique "s'il existe une telle reassurance non proportionnelle
+  # pour ce segment precis", 100 % sinon. Valeurs inchangees : memes 80 %
+  # (segments 1, 4 et 5) et 100 % (autres segments) dans le texte modifie.
   np_standard      = c(.8, 1, 1, .8, .8, 1, 1, 1, 1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
@@ -126,6 +147,9 @@ ANNEXE_XIV <- data.frame(
   # Facteur NP par defaut : art. 148, paragraphe 3, deuxieme phrase (marqueur
   # B, JOUE L 12/94) : "Pour tous les segments vises a l'annexe XIV, le
   # facteur d'ajustement par defaut [...] est egal a 100 %" (issue #55).
+  # Deuxieme phrase maintenue par le reglement delegue (UE) 2026/269, qui ne
+  # remplace que la premiere (art. 1er, point 39) b)) : 100 % sous les deux
+  # textes, la declaration de reassurance non proportionnelle n'agit pas ici.
   np_standard      = c(1, 1, 1, 1),
   stringsAsFactors = FALSE
 )
@@ -144,6 +168,36 @@ SEGMENTS <- rbind(
              np_standard = ANNEXE_XIV$np_standard, stringsAsFactors = FALSE)
 )
 SEGMENTS$cle <- paste0(SEGMENTS$annexe, "-", SEGMENTS$segment)
+
+# Textes applicables au parametre standard (issue #504, ADR 0019, point 2) :
+# une ligne par etat du reglement delegue (UE) 2015/35 qui change le
+# parametre standard du melange de l'annexe XVII, designe par l'acte
+# modificatif qui le change, avec sa date d'application (chaine AAAA-MM-JJ,
+# lue par as.Date(format = "%Y-%m-%d") ; les dates se comparent sur leurs
+# valeurs de Date, jamais comme des chaines). Le texte applicable a un calcul
+# est celui de la ligne de date d'application la plus recente parmi celles
+# qui sont anterieures ou egales a la date de reference du calcul ; aucune
+# ligne : hors du domaine (borne M6, issue #19). Aucune borne superieure : un
+# acte posterieur ajoute une ligne et sa regle (veille datee, issue #463).
+# Seule engine_valider_declarations() lit cette table. Valeurs d'ANNEXE_II,
+# d'ANNEXE_XIV et de np_standard identiques sous les deux textes.
+# Sources :
+#  - "2019/981" : reglement delegue (UE) 2019/981 de la Commission du 8 mars
+#    2019, article 2 (JO L 161 du 18.6.2019, p. 40) : annexes II et XIV
+#    remplacees (M6 ; points 66) et 74) de son article 1er) a partir du
+#    1er janvier 2020 ; art. 117, paragraphe 3, et art. 148 dans leur version
+#    d'origine. Date, page et points relus a l'image sur le JOUE L 161 du
+#    18.6.2019 (p. 40 : article 2 ; p. 39 : points 66) et 74) de l'article
+#    1er), controle aval de regulatory du 17/11/2026 (issue #504).
+#  - "2026/269" : reglement delegue (UE) 2026/269 de la Commission du 29
+#    octobre 2025, article 2 (JO serie L du 18.2.2026, p. 94 du PDF verse a
+#    la racine du depot) : "Il est applicable a partir du 30 janvier 2027" ;
+#    art. 117 et 148 modifies (art. 1er, points 29) et 39)).
+TEXTES_APPLICABLES <- data.frame(
+  texte = c("2019/981", "2026/269"),
+  applicable_du = c("2020-01-01", "2027-01-30"),
+  stringsAsFactors = FALSE
+)
 
 # Annexe XVII, section G - facteurs de crédibilité.
 # Barème "long" : segments 1, 5 et 6 de l'annexe II.
@@ -642,7 +696,9 @@ NATURES_DONNEES <- c("brutes", "nettes")
       "Nature des donnees non declaree : pour la methode du risque de primes, declarer",
       "des donnees \"brutes\" (non ajustees de la reassurance, annexe XVII, B(2)(c) :",
       "sigma brut de l'annexe) ou \"nettes\" (ajustees de la reassurance, B(2)(d) :",
-      "NP standard x sigma brut) ; aucune valeur par defaut."))
+      "facteur NP x sigma brut ; selon le texte applicable a la date de reference, le",
+      "facteur NP standard s'applique sans condition ou seulement si une reassurance",
+      "non proportionnelle est declaree, 100 % sinon) ; aucune valeur par defaut."))
   }
   # Robustesse (audit de la reprise de #55) : une methode non scalaire ou non
   # textuelle n'est pas une methode de reserve, sans erreur R "condition has
@@ -669,6 +725,257 @@ NATURES_DONNEES <- c("brutes", "nettes")
           if (identical(methode, "reserve1")) "1" else "2", exigence)
 }
 
+# Date de reference du calcul et declarations qui l'accompagnent (issue
+# #504, ADR 0019, points 1 et 3) : siege unique de la regle date de
+# reference -> texte applicable -> facteur NP. Seule fonction qui lit
+# TEXTES_APPLICABLES et qui sait quand une declaration agit ; appelee une
+# fois par run_engine() (motifs en tete de validation$erreurs, ok = FALSE)
+# et par usp_parametre_standard() (appel direct : stop() si refus).
+# Ne leve AUCUNE erreur pour une declaration absente, mal formee ou hors du
+# domaine : les motifs sont rendus dans erreurs. Une methode, une annexe ou
+# un segment invalides restent des erreurs d'usage (stop(), comme dans
+# usp_segment_infos()). Aucune lecture de l'horloge (decision D-S3-5).
+# Point d'entree (issue #439, decision du mainteneur du 17/11/2026 sur les
+# motifs d'avant clic, issue #504) : l'application l'appelle directement
+# pour les motifs d'avant clic (a partir du commit (d2) de la fiche S3) ;
+# .engine_point_decimal() en premiere instruction, comme les seize autres
+# (dix-septieme point d'entree de tests/unitaires/test_outdec.R). Appelee
+# aussi par run_engine() et usp_parametre_standard(), sous OutDec = "." deja
+# pose ou non : la pose y est sans effet sur la valeur rendue.
+# Arguments (NULL : non declare, jamais une valeur) :
+#   date_reference  obligatoire (NULL : refus, aucune valeur par defaut,
+#                   decision D-S3-5) ; chaine scalaire sans attribut, de
+#                   forme exacte AAAA-MM-JJ, designant une date qui existe ;
+#                   controle par une expression reguliere stricte, puis
+#                   as.Date(format = "%Y-%m-%d") et aller-retour sur l'annee,
+#                   le mois et le jour lus par as.POSIXlt() (as.Date() seule
+#                   lit "2027-1-30" et "2027-01-30 ", et rend NA pour
+#                   "2027-02-30") ; une Date, un nombre, "30/01/2027",
+#                   "2027-1-30", une chaine entouree de blancs, NA, "" et un
+#                   vecteur sont refuses, sans conversion. L'aller-retour
+#                   compare des entiers, non la chaine format(d, "%Y-%m-%d") :
+#                   format() n'ecrit pas l'annee 999 sur quatre chiffres
+#                   ("999-12-31", mesure R 4.3.3), et "0999-12-31", de forme
+#                   valide, aurait ete refusee comme mal formee au lieu de
+#                   hors du domaine ;
+#   reassurance_np  reassurance non proportionnelle en place (libelle de
+#                   D-S3-3), logique scalaire non NA sans attribut ;
+#   cdd_qualifiante couverture pour developpements defavorables qualifiante
+#                   (art. 117, paragraphe 4, et art. 148, paragraphe 4, dans
+#                   leur version modifiee par 2026/269), meme forme.
+# Valeur : liste ok ; erreurs (motifs, vide si recevable) ; date_reference
+# (chaine recue, NA si non declaree ou mal formee) ; texte_applicable
+# (ligne de TEXTES_APPLICABLES, NA si non determine) ; reassurance_np et
+# cdd_qualifiante (valeur declaree, NA si non declaree ou mal formee) ;
+# np_requise et cdd_requise (declaration exigee pour ce calcul) ; facteur_np
+# (facteur applique a sigma brut, methode du risque de primes sur donnees
+# nettes avec segment designe ; NA sans objet).
+# Date absente : refus motive (date obligatoire, ADR 0019, point 4 ; commit
+# (b3) de la fiche S3 de la feuille de route), texte_applicable NA.
+# Regle (ADR 0019, point 3 ; commit (c) de la fiche S3 ; decisions D-S3-1,
+# D-S3-4, D-S3-6, D-S3-7, Q-S3-3 et Q-S3-4) :
+#   - "2019/981" (du 1.1.2020 au 29.1.2027), regle anterieure a 2026/269,
+#     inchangee : sur donnees nettes, facteur np_standard de la table sans
+#     condition ; aucune declaration n'est exigee, les deux sont consignees
+#     sans effet, pour les trois methodes (pas d'erreur d'usage) ;
+#   - "2026/269" (a partir du 30.1.2027), methode du risque de primes :
+#     donnees brutes, ou aucun segment designe : declarations consignees sans
+#     effet ; donnees nettes : facteur np_standard si reassurance_np = TRUE,
+#     100 % sinon ; reassurance_np exigee (np_requise) la ou np_standard
+#     differe de 1 (segments 1, 4 et 5 de l'annexe II), sigma standard saisi
+#     ou non ; cdd_qualifiante toujours consignee sans effet ;
+#   - "2026/269", methodes de reserve no 1 et no 2 : cdd_qualifiante exigee
+#     (cdd_requise), sigma standard saisi ou non ; TRUE : refus, hors du
+#     domaine (question R-3 ouverte) ; FALSE : sigma(res,s) de l'annexe ;
+#     reassurance_np consignee sans effet.
+# Le facteur rendu est NA quand la declaration exigee manque ou est refusee.
+engine_valider_declarations <- function(methode, segment = NULL, annexe = "II",
+                                        nature_donnees = NULL, date_reference = NULL,
+                                        reassurance_np = NULL, cdd_qualifiante = NULL) {
+  .engine_point_decimal()
+  if (!(is.character(methode) && length(methode) == 1L && !is.na(methode) &&
+        methode %in% c("premium", "reserve1", "reserve2")))
+    stop(sprintf(paste("engine_valider_declarations() : methode = %s : \"premium\",",
+                       "\"reserve1\" ou \"reserve2\" exactement est attendu."),
+                 .engine_saisie(methode)), call. = FALSE)
+  annexe <- .annexe_verifiee(annexe)
+  infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
+  erreurs <- character(0)
+
+  # --- Date de reference du calcul et texte applicable ---
+  date_lue <- NA_character_
+  texte <- NA_character_
+  if (is.null(date_reference)) {
+    # Date obligatoire, sans valeur par defaut ni lecture de l'horloge
+    # (D-S3-5) : l'absence est un refus motive, texte applicable non
+    # determine (NA).
+    erreurs <- c(erreurs, paste(
+      "Date de reference du calcul non declaree (date_reference absente) : elle est",
+      "obligatoire et fixe le texte applicable au parametre standard ; une chaine unique",
+      "de forme exacte AAAA-MM-JJ est attendue (par exemple \"2026-12-31\"), sans valeur",
+      "par defaut."))
+  } else {
+    # Chiffres ASCII ecrits en clair (une classe [0-9] peut dependre de la
+    # locale) ; useBytes : aucune lecture d'encodage, une chaine non ASCII
+    # est refusee sans erreur R.
+    forme <- is.character(date_reference) && length(date_reference) == 1L &&
+      is.null(attributes(date_reference)) && !is.na(date_reference) &&
+      grepl("^[0123456789]{4}-[0123456789]{2}-[0123456789]{2}$", date_reference,
+            useBytes = TRUE)
+    d <- if (forme) as.Date(date_reference, format = "%Y-%m-%d") else NA
+    # Aller-retour sur des entiers (annee, mois, jour) : la date lue doit
+    # etre celle qui est ecrite (voir l'en-tete pour l'annee < 1000).
+    existe <- forme && !is.na(d) && {
+      lt <- as.POSIXlt(d)
+      identical(c(lt$year + 1900L, lt$mon + 1L, lt$mday),
+                as.integer(c(substr(date_reference, 1L, 4L), substr(date_reference, 6L, 7L),
+                             substr(date_reference, 9L, 10L))))
+    }
+    if (!existe) {
+      indication <- if (inherits(date_reference, "Date") && length(date_reference) == 1L &&
+                        !is.na(date_reference))
+        sprintf(" ; pour une valeur de classe Date, fournir format(d, \"%%Y-%%m-%%d\"), ici \"%s\"",
+                format(date_reference, "%Y-%m-%d")) else ""
+      erreurs <- c(erreurs, sprintf(paste(
+        "Date de reference du calcul non recevable (date_reference = %s) : une chaine",
+        "unique de forme exacte AAAA-MM-JJ, designant une date qui existe, est attendue",
+        "(par exemple \"2026-12-31\"), sans conversion%s."),
+        .engine_saisie(date_reference), indication))
+    } else {
+      date_lue <- date_reference
+      debuts <- as.Date(TEXTES_APPLICABLES$applicable_du, format = "%Y-%m-%d")
+      k <- which(debuts <= d)
+      if (!length(k)) {
+        erreurs <- c(erreurs, sprintf(paste(
+          "Date de reference du calcul %s hors du domaine de l'outil : anterieure au %s,",
+          "date d'application des annexes II et XIV remplacees par le reglement delegue",
+          "(UE) 2019/981 (M6, issue #19) ; l'outil ne reproduit pas un calcul selon les",
+          "valeurs de 2015."), date_reference,
+          TEXTES_APPLICABLES$applicable_du[which.min(debuts)]))
+      } else {
+        k <- k[which.max(debuts[k])]
+        texte <- TEXTES_APPLICABLES$texte[k]
+      }
+    }
+  }
+
+  # --- Declarations : forme (refus sans conversion), puis regle du texte ---
+  lire_declaration <- function(v, nom, libelle) {
+    if (is.null(v)) return(list(valeur = NA, erreur = character(0)))
+    if (is.logical(v) && length(v) == 1L && !is.na(v) && is.null(attributes(v)))
+      return(list(valeur = v, erreur = character(0)))
+    list(valeur = NA, erreur = sprintf(paste(
+      "Declaration non recevable (%s = %s) : %s ; TRUE ou FALSE (logique scalaire non NA,",
+      "sans attribut) est attendu, ou aucune declaration (NULL), sans conversion."),
+      nom, .engine_saisie(v), libelle))
+  }
+  np <- lire_declaration(reassurance_np, "reassurance_np", paste(
+    "reassurance non proportionnelle couvrant ce segment, en place pour les douze mois",
+    "suivant la date de reference et prise en compte comme technique d'attenuation du",
+    "risque"))
+  cdd <- lire_declaration(cdd_qualifiante, "cdd_qualifiante", paste(
+    "couverture pour developpements defavorables qualifiante (art. 117, paragraphe 4, ou",
+    "art. 148, paragraphe 4, dans leur version modifiee par le reglement delegue (UE)",
+    "2026/269)"))
+  erreurs <- c(erreurs, np$erreur, cdd$erreur)
+
+  # --- Regle du texte applicable (ADR 0019, point 3) ---
+  # Facteur NP : sans objet (NA) hors de la methode du risque de primes sur
+  # donnees nettes avec segment designe, et quand le texte n'est pas
+  # determine.
+  nettes_segment <- identical(methode, "premium") && identical(nature_donnees, "nettes") &&
+    !is.null(infos)
+  np_requise <- FALSE
+  cdd_requise <- FALSE
+  facteur <- NA_real_
+  if (identical(texte, "2019/981")) {
+    # Regle anterieure a 2026/269, inchangee : sur donnees nettes, facteur
+    # np_standard de la table sans condition (art. 117, paragraphe 3, et
+    # art. 148, paragraphe 3, dans leur version d'origine), meme double que
+    # la colonne de la table ; aucune declaration exigee, les deux sont
+    # consignees sans effet (decision Q-S3-4).
+    if (nettes_segment) facteur <- infos$np_standard
+  } else if (identical(texte, "2026/269")) {
+    if (identical(methode, "premium")) {
+      # Art. 117, paragraphe 3, et art. 148, paragraphe 3, premiere phrase,
+      # remplaces par le reglement delegue (UE) 2026/269 (art. 1er, points
+      # 29) b) et 39) b), p. 25 et 29) : produit de l'ecart type brut par le
+      # facteur NP "s'il existe une telle reassurance non proportionnelle pour
+      # ce segment precis, ou par un facteur de 100 % dans les autres cas" ;
+      # valeurs du facteur inchangees (colonne np_standard). La declaration
+      # agit la ou le facteur de la table differe de 100 % (lu sur la table,
+      # non sur une liste de segments : II-1, II-4 et II-5 aujourd'hui), sur
+      # donnees nettes ; elle y est exigee, sigma standard saisi ou non
+      # (decisions D-S3-6 et Q-S3-3 (ii)). Ailleurs (donnees brutes, autre
+      # segment, annexe XIV, aucun segment designe) : consignee sans effet.
+      np_requise <- nettes_segment && infos$np_standard != 1
+      if (np_requise && is.null(reassurance_np))
+        erreurs <- c(erreurs, sprintf(paste(
+          "Declaration de reassurance non proportionnelle exigee (reassurance_np absente) :",
+          "a la date de reference %s, le reglement delegue (UE) 2026/269 est applicable, et",
+          "le parametre standard remplace sur donnees nettes (art. 218, paragraphe 1, point",
+          "%s i)), ecart type du risque de primes du segment %s de l'annexe %s, est le",
+          "produit de l'ecart type brut par le facteur NP standard (%s) s'il existe",
+          "une reassurance non proportionnelle pour ce segment, par 100 %% sinon (%s,",
+          "paragraphe 3, dans sa version modifiee) ; declarer TRUE ou FALSE (%s), sans",
+          "valeur par defaut."),
+          date_reference, if (identical(annexe, "XIV")) "c)" else "a)",
+          format(segment, decimal.mark = "."), annexe,
+          format(infos$np_standard, decimal.mark = "."),
+          if (identical(annexe, "XIV")) "art. 148" else "art. 117",
+          paste("reassurance non proportionnelle couvrant ce segment, en place pour les",
+                "douze mois suivant la date de reference et prise en compte comme",
+                "technique d'attenuation du risque")))
+      # Facteur NP du segment si une reassurance non proportionnelle est
+      # declaree presente, 100 % sinon (declaration FALSE, ou non declaree la
+      # ou elle n'agit pas : np_standard vaut alors 1). Non determine (NA) si
+      # la declaration exigee manque ou est refusee. 1 * sigma brut est le
+      # meme double que sigma brut.
+      if (nettes_segment)
+        facteur <- if (isTRUE(np$valeur)) infos$np_standard else
+          if (np_requise && is.na(np$valeur)) NA_real_ else 1
+    } else {
+      # Methodes de reserve : art. 117, paragraphe 4, et art. 148, paragraphe
+      # 4, ajoutes par le reglement delegue (UE) 2026/269 (points 29) c) et
+      # 39) c), p. 25-26 et 29-30) : facteur Adjust(NP,s) pour une couverture
+      # pour developpements defavorables (CDD) qualifiante, 100 % pour toute
+      # autre reassurance non proportionnelle. La lecture du parametre
+      # standard du melange en presence d'une CDD qualifiante (R-3) est
+      # laissee ouverte (decision D-S3-4) : la declaration est exigee, sigma
+      # standard saisi ou non (D-S3-7) ; TRUE est refusee comme hors du
+      # domaine ; FALSE : sigma(res,s) de l'annexe (facteur 100 %).
+      cdd_requise <- TRUE
+      no <- if (identical(methode, "reserve1")) "1" else "2"
+      if (is.null(cdd_qualifiante))
+        erreurs <- c(erreurs, sprintf(paste(
+          "Declaration de couverture pour developpements defavorables exigee",
+          "(cdd_qualifiante absente) : a la date de reference %s, le reglement delegue (UE)",
+          "2026/269 est applicable, et l'ecart type du risque de reserve depend de",
+          "l'existence d'une couverture pour developpements defavorables qualifiante",
+          "(art. 117, paragraphe 4, ou art. 148, paragraphe 4, dans leur version",
+          "modifiee) ; declarer TRUE ou FALSE pour la methode du risque de reserve no %s,",
+          "sigma standard saisi ou non, sans valeur par defaut."),
+          date_reference, no))
+      else if (isTRUE(cdd$valeur))
+        erreurs <- c(erreurs, sprintf(paste(
+          "Couverture pour developpements defavorables qualifiante declaree",
+          "(cdd_qualifiante = TRUE) : calcul hors du domaine de l'outil a la date de",
+          "reference %s (reglement delegue (UE) 2026/269 applicable) ; le parametre",
+          "standard de reserve a remplacer en presence d'une telle couverture (facteur",
+          "Adjust(NP,s) de l'art. 117, paragraphe 4, ou de l'art. 148, paragraphe 4) n'est",
+          "pas tranche, et la methode du risque de reserve no %s n'est pas calculee, sigma",
+          "standard saisi compris."),
+          date_reference, no))
+    }
+  }
+
+  list(ok = !length(erreurs), erreurs = erreurs,
+       date_reference = date_lue, texte_applicable = texte,
+       reassurance_np = np$valeur, cdd_qualifiante = cdd$valeur,
+       np_requise = np_requise, cdd_requise = cdd_requise,
+       facteur_np = facteur)
+}
+
 # Parametre standard qui entre dans le melange de l'annexe XVII (B(4), C(4),
 # D(4) : "le parametre standard a remplacer"), et sa tracabilite
 # reglementaire. Lecture CONDITIONNELLE de la decision M13 (issue #55) :
@@ -679,7 +986,9 @@ NATURES_DONNEES <- c("brutes", "nettes")
 #     remplace point a) i) ou c) i) ; valeur standard = NP standard x sigma
 #     brut (art. 117, paragraphe 3 ; art. 148, paragraphe 3). NP est le
 #     facteur STANDARD de la colonne np_standard, jamais un NP propre a
-#     l'entreprise (pas d'entree NP : M13) ;
+#     l'entreprise (pas d'entree NP : M13) ; a partir du 30.1.2027 (texte
+#     "2026/269"), NP s'il existe une reassurance non proportionnelle pour
+#     le segment (declaration reassurance_np), 100 % sinon (issue #504) ;
 #   - methodes de reserve (C, D) : parametre a) iv) ou c) iv), sigma(res,s)
 #     de l'annexe, sans NP ; donnees nettes par exigence du texte (C(2)(c),
 #     D(2)(f)) : NULL ou "nettes" acceptes, "brutes" refuse (erreur,
@@ -692,9 +1001,23 @@ NATURES_DONNEES <- c("brutes", "nettes")
 # Donnees brutes et methodes de reserve : la valeur de la table est reprise
 # telle quelle, sans multiplication, afin que le sigma standard soit le meme
 # double qu'avant l'issue #55.
+# Date de reference du calcul et declarations (issue #504, ADR 0019, point
+# 3) : date_reference, reassurance_np et cdd_qualifiante sont transmis a
+# engine_valider_declarations(), qui porte la regle du texte applicable ;
+# refus : stop() (appel direct, comme pour la nature des donnees). Donnees
+# nettes : facteur_np rendu par cette fonction, applique a sigma brut (sous
+# le texte "2019/981", np_standard de la table : meme double qu'avant
+# l'issue #504 ; sous le texte "2026/269", np_standard si une reassurance
+# non proportionnelle est declaree, 1 sinon : 1 x sigma brut est le meme
+# double que sigma brut). Libelle du parametre remplace selon le texte
+# applicable. La valeur gagne date_reference, texte_applicable,
+# reassurance_np, cdd_qualifiante (NA si non declarees), np_requise,
+# cdd_requise et facteur_np ; np_standard reste la valeur de la table.
 usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"),
                                    segment = NULL, annexe = "II",
-                                   nature_donnees = NULL, sigma_standard = NULL) {
+                                   nature_donnees = NULL, sigma_standard = NULL,
+                                   date_reference = NULL, reassurance_np = NULL,
+                                   cdd_qualifiante = NULL) {
   methode <- match.arg(methode)
   annexe  <- .annexe_verifiee(annexe)
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
@@ -704,13 +1027,23 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
   article <- if (identical(annexe, "XIV")) "art. 148" else "art. 117"
   err_nature <- .nature_erreurs(methode, nature_donnees)
   if (length(err_nature)) stop(err_nature)
+  decl <- engine_valider_declarations(methode, segment, annexe, nature_donnees,
+                                      date_reference, reassurance_np, cdd_qualifiante)
+  if (!decl$ok) stop(paste(decl$erreurs, collapse = " "))
   if (methode == "premium") {
     nettes <- identical(nature_donnees, "nettes")
     sigma_annexe <- if (!is.null(infos)) infos$sigma_prime_brut else NA_real_
     np <- if (!is.null(infos)) infos$np_standard else NA_real_
-    sigma_regl <- if (is.null(infos)) NA_real_ else if (nettes) np * sigma_annexe else sigma_annexe
+    sigma_regl <- if (is.null(infos)) NA_real_ else
+      if (nettes) decl$facteur_np * sigma_annexe else sigma_annexe
     point <- paste(lettre, if (nettes) "i)" else "ii)")
-    parametre <- if (nettes)
+    parametre <- if (nettes && identical(decl$texte_applicable, "2026/269"))
+      sprintf(paste("ecart type du risque de primes (%s, paragraphe 2, point a)),",
+                    "valeur standard facteur NP x ecart type brut (%s, paragraphe 3, modifie",
+                    "par le reglement delegue (UE) 2026/269 : facteur NP s'il existe une",
+                    "reassurance non proportionnelle pour ce segment, 100 %% sinon)"),
+              article, article)
+    else if (nettes)
       sprintf(paste("ecart type du risque de primes (%s, paragraphe 2, point a)),",
                     "valeur standard NP x ecart type brut (%s, paragraphe 3)"), article, article)
     else sprintf("ecart type du risque de primes brut (%s, paragraphe 3)", article)
@@ -732,6 +1065,13 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
     sigma_regl <- sigma_annexe
     point <- paste(lettre, "iv)")
     parametre <- sprintf("ecart type du risque de reserve sigma(res,s) de l'annexe %s", annexe)
+    # Texte "2026/269" : la regle n'admet ici qu'une couverture pour
+    # developpements defavorables qualifiante declaree absente (refus sinon,
+    # engine_valider_declarations()) : facteur de 100 % (paragraphe 4).
+    if (identical(decl$texte_applicable, "2026/269"))
+      parametre <- sprintf(paste("%s (%s, paragraphe 4, ajoute par le reglement delegue (UE)",
+                                 "2026/269 : facteur de 100 %%, aucune couverture pour",
+                                 "developpements defavorables qualifiante)"), parametre, article)
     exigence <- if (methode == "reserve1")
       paste("annexe XVII, section C, paragraphe 2, point c) : donnees ajustees de la reassurance",
             "et des vehicules de titrisation, conformement aux contrats en place pour",
@@ -751,7 +1091,14 @@ usp_parametre_standard <- function(methode = c("premium", "reserve1", "reserve2"
        np_standard = np,
        sigma_reglementaire = sigma_regl,
        sigma_standard = if (saisie) sigma_standard else sigma_regl,
-       saisie = saisie)
+       saisie = saisie,
+       date_reference = decl$date_reference,
+       texte_applicable = decl$texte_applicable,
+       reassurance_np = decl$reassurance_np,
+       cdd_qualifiante = decl$cdd_qualifiante,
+       np_requise = decl$np_requise,
+       cdd_requise = decl$cdd_requise,
+       facteur_np = decl$facteur_np)
 }
 
 
@@ -16271,8 +16618,15 @@ engine_regle_verdicts <- function(alpha) {
 # Orchestrateur de la methode du risque de reserve no 2. Retourne un objet de
 # meme classe et de meme forme generale que la branche lognormale, afin que la
 # couche d'affichage puisse le consommer sans traitement particulier.
+# date_reference, reassurance_np, cdd_qualifiante : arguments de run_engine()
+# transmis tels quels a usp_parametre_standard() ; declarations : resultat
+# d'engine_valider_declarations() calcule une fois par run_engine() (issue
+# #504, ADR 0019, point 4), dont les motifs vont en tete de
+# validation$erreurs et les champs dans metadata.
 .run_engine_mw <- function(triangle, segment, annexe, sigma_standard,
-                           B, alpha, seed, bareme, t0, nature_donnees = NULL) {
+                           B, alpha, seed, bareme, t0, nature_donnees = NULL,
+                           date_reference = NULL, reassurance_np = NULL,
+                           cdd_qualifiante = NULL, declarations) {
   if (is.null(triangle))
     stop("La methode du risque de reserve no 2 exige un triangle de paiements cumules.")
   triangle <- as.matrix(triangle)
@@ -16287,6 +16641,12 @@ engine_regle_verdicts <- function(alpha) {
     validation$ok <- FALSE
     validation$erreurs <- c(err_nature, validation$erreurs)
   }
+  # Declarations refusees (issue #504) : motifs en tete, avant ceux de la
+  # nature et du triangle.
+  if (!declarations$ok) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(declarations$erreurs, validation$erreurs)
+  }
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0, methode = "reserve2")),
@@ -16299,16 +16659,23 @@ engine_regle_verdicts <- function(alpha) {
 
   # Segment connu, ou sigma_standard fourni : deja verifie avant la
   # validation du triangle par .engine_verifier_usage() (constat 4 de la
-  # revue finale de #88) ; le stop() ci-dessous n'est plus atteint depuis
-  # run_engine().
+  # revue finale de #88) ; le stop() d'usp_parametre_standard() pour ce cas
+  # (ni segment ni sigma_standard) n'est pas atteint depuis run_engine().
+  # infos ne sert plus qu'au libelle du segment (metadata$libelle_segment).
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   # Saisie libre du sigma standard : derogation au parametre reglementaire,
   # restituee par metadata$sigma_standard_saisi (issue #55).
+  # sigma(res,s) obtenu, comme dans la branche lognormale et dans
+  # .engine_trace_sigma(), par usp_parametre_standard(), seul point
+  # d'obtention du parametre standard (issue #504, ADR 0019, point 6) : meme
+  # double que l'ancienne lecture directe de la table (valeur de la table
+  # reprise telle quelle, ou sigma_standard saisi rendu tel quel). La nature
+  # des donnees est controlee plus haut (.nature_erreurs(), ok = FALSE) : le
+  # stop() correspondant d'usp_parametre_standard() n'est pas atteint ici.
   saisi <- !is.null(sigma_standard)
-  if (is.null(sigma_standard)) {
-    if (is.null(infos)) stop("Fournir soit sigma_standard, soit segment (avec son annexe).")
-    sigma_standard <- infos$sigma_reserve      # methode de reserve : sigma(res,s)
-  }
+  sigma_standard <- usp_parametre_standard("reserve2", segment, annexe, nature_donnees,
+                                           sigma_standard, date_reference, reassurance_np,
+                                           cdd_qualifiante)$sigma_standard
   # Saisie libre du bareme : derogation au bareme de la section G, restituee
   # par metadata$bareme_saisi (issue #93), meme egale au bareme du segment.
   saisi_bareme <- !is.null(bareme)
@@ -16432,6 +16799,13 @@ engine_regle_verdicts <- function(alpha) {
                       # triangle, jamais tronque (n_fournies = T = I + 1).
                       # Place apres bareme_saisi, avant les champs d'execution.
                       n_fournies = nrow(triangle),
+                      # Date de reference du calcul, texte applicable et
+                      # declarations (issue #504, ADR 0019, point 5) : apres
+                      # n_fournies, avant les champs d'execution.
+                      date_reference = declarations$date_reference,
+                      texte_applicable = declarations$texte_applicable,
+                      reassurance_np = declarations$reassurance_np,
+                      cdd_qualifiante = declarations$cdd_qualifiante,
                       horodatage = t0,
                       duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
                       version_R = R.version.string)
@@ -16931,6 +17305,22 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
 #                  (annee la plus recente en dernier), FALSE sinon (series
 #                  inversees avant tout calcul) ; logique scalaire non NA ;
 #                  methodes lognormales seulement
+#   date_reference date de reference du calcul (issue #504, ADR 0019) :
+#                  chaine "AAAA-MM-JJ" exacte ; fixe le texte applicable au
+#                  parametre standard (TEXTES_APPLICABLES) ; anterieure au
+#                  1.1.2020 ou mal formee : ok = FALSE ; obligatoire : NULL
+#                  (absente) donne aussi ok = FALSE, sans erreur R
+#   reassurance_np, cdd_qualifiante  declarations (TRUE ou FALSE ; NULL : non
+#                  declarees), acceptees pour les trois methodes, consignees
+#                  sans effet sous le texte "2019/981" ; mal formees : ok =
+#                  FALSE. Texte "2026/269" (date >= 30.1.2027 ; regle
+#                  d'engine_valider_declarations(), ADR 0019, point 3) :
+#                  reassurance_np exigee pour la methode du risque de primes
+#                  sur donnees nettes d'un segment a facteur NP standard
+#                  different de 100 % (II-1, II-4, II-5), facteur NP si TRUE,
+#                  100 % si FALSE ; cdd_qualifiante exigee pour les methodes
+#                  de reserve, TRUE refusee (hors du domaine) ; absence d'une
+#                  declaration exigee : ok = FALSE
 #
 # Valeur : liste de classe "usp_engine" (voir la structure en fin de fonction).
 # Erreurs (issue #88) : un argument d'usage invalide (methode, annexe,
@@ -16956,7 +17346,10 @@ run_engine <- function(xt, yt,
                        seed = 20260831,
                        bareme = NULL,
                        plus_recent_en_dernier = TRUE,
-                       nature_donnees = NULL) {
+                       nature_donnees = NULL,
+                       date_reference = NULL,
+                       reassurance_np = NULL,
+                       cdd_qualifiante = NULL) {
   .engine_point_decimal()
   t0 <- Sys.time()
   # Controle exact de methode et d'annexe avant match.arg() (#489, constat
@@ -16997,6 +17390,13 @@ run_engine <- function(xt, yt,
                          annexe = annexe, methode = methode,
                          fournis = names(fournis)[fournis],
                          plus_recent_en_dernier = plus_recent_en_dernier)
+  # Date de reference du calcul et declarations (issue #504, ADR 0019, point
+  # 4) : controlees une fois, avant le choix de la branche ; une declaration
+  # irrecevable n'est pas une erreur d'usage (parallelisme avec
+  # nature_donnees, M13) : ses motifs vont en tete de validation$erreurs de
+  # la branche suivie, ok = FALSE, sans erreur R.
+  decl <- engine_valider_declarations(methode, segment, annexe, nature_donnees,
+                                      date_reference, reassurance_np, cdd_qualifiante)
 
   # --- Branche Merz-Wuthrich (methode du risque de reserve no 2) ------------
   # Cette methode ne prend pas en entree deux vecteurs mais un TRIANGLE de
@@ -17005,7 +17405,9 @@ run_engine <- function(xt, yt,
     return(.run_engine_mw(triangle = triangle, segment = segment, annexe = annexe,
                           sigma_standard = sigma_standard, B = B, alpha = alpha,
                           seed = seed, bareme = bareme, t0 = t0,
-                          nature_donnees = nature_donnees))
+                          nature_donnees = nature_donnees,
+                          date_reference = date_reference, reassurance_np = reassurance_np,
+                          cdd_qualifiante = cdd_qualifiante, declarations = decl))
 
   # --- 1. Donnees et controles de validite ---------------------------------
   if (!plus_recent_en_dernier) { xt <- rev(xt); yt <- rev(yt) }
@@ -17018,6 +17420,11 @@ run_engine <- function(xt, yt,
                                      nature_donnees = nature_donnees, bareme = bareme,
                                      segment = segment, annexe = annexe)
   xt <- sr$xt; yt <- sr$yt; validation <- sr$validation
+  # Declarations refusees (issue #504) : motifs en tete, avec ceux des donnees.
+  if (!decl$ok) {
+    validation$ok <- FALSE
+    validation$erreurs <- c(decl$erreurs, validation$erreurs)
+  }
   if (!validation$ok)
     return(structure(list(ok = FALSE, validation = validation,
                           metadata = list(horodatage = t0, methode = methode)),
@@ -17035,7 +17442,8 @@ run_engine <- function(xt, yt,
   infos <- if (!is.null(segment)) usp_segment_infos(segment, annexe) else NULL
   saisi <- !is.null(sigma_standard)
   sigma_standard <- usp_parametre_standard(methode, segment, annexe, nature_donnees,
-                                           sigma_standard)$sigma_standard
+                                           sigma_standard, date_reference, reassurance_np,
+                                           cdd_qualifiante)$sigma_standard
   # Annexe XVII, section G(2) : les segments de l'annexe XIV relevent tous du
   # bareme court, quel que soit leur numero. Un bareme saisi prime :
   # derogation au bareme de la section G, restituee par
@@ -17274,6 +17682,15 @@ run_engine <- function(xt, yt,
         # n'est pas pose (delta estime au bord) ; apres permutation_pente,
         # avant les champs d'execution.
         list(seed_flux_regime = boot$p_mc_regime$graine_flux),
+        # Date de reference du calcul, texte applicable et declarations
+        # (issue #504, ADR 0019, point 5) : quatre champs non numeriques
+        # (chaines et logiques, NA si non declares), relus par
+        # .engine_trace_sigma() ; apres seed_flux_regime, avant les champs
+        # d'execution.
+        list(date_reference = decl$date_reference,
+             texte_applicable = decl$texte_applicable,
+             reassurance_np = decl$reassurance_np,
+             cdd_qualifiante = decl$cdd_qualifiante),
         list(horodatage = t0,
              duree_sec = as.numeric(difftime(Sys.time(), t0, units = "secs")),
              version_R = R.version.string)),
@@ -17314,13 +17731,42 @@ run_engine <- function(xt, yt,
 
 # Sigma standard retenu et sa tracabilite, recalcules depuis res$metadata ;
 # controle de coherence avec le sigma standard du resultat.
+# Date de reference du calcul, texte applicable et declarations (issue #504,
+# ADR 0019, point 5) : les quatre champs de metadata sont relus et
+# usp_parametre_standard() est rappelee avec eux (declaration NA relue comme
+# "non declaree") ; le sigma standard ET le texte applicable recalcules
+# doivent etre ceux du resultat. Un resultat qui ne porte pas ces champs, ou
+# les porte sous une autre forme (produit avant l'issue #504), est refuse
+# plutot que devine ; une date NA l'est aussi (date obligatoire, commit (b3)
+# de la fiche S3 : run_engine() ne rend plus d'objet ok sans date) ; une date
+# ou une declaration que la regle refuse fait lever l'erreur
+# d'usp_parametre_standard().
 .engine_trace_sigma <- function(res, appelant) {
   m <- res$metadata
   saisi <- .engine_drapeau(m, "sigma_standard_saisi", appelant)
+  chaine <- function(nom) {
+    v <- m[[nom]]
+    if (!is.character(v) || length(v) != 1L || !is.null(attributes(v)) || is.na(v))
+      stop(sprintf("%s : metadata$%s absent ou invalide.", appelant, nom))
+    v
+  }
+  declaree <- function(nom) {
+    v <- m[[nom]]
+    if (!is.logical(v) || length(v) != 1L || !is.null(attributes(v)))
+      stop(sprintf("%s : metadata$%s absent ou invalide.", appelant, nom))
+    if (is.na(v)) NULL else v
+  }
+  date_ref <- chaine("date_reference")
+  texte <- chaine("texte_applicable")
+  np <- declaree("reassurance_np")
+  cdd <- declaree("cdd_qualifiante")
   ps <- usp_parametre_standard(m$methode, m$segment, m$annexe, m$nature_donnees,
-                               if (saisi) m$sigma_standard else NULL)
+                               if (saisi) m$sigma_standard else NULL,
+                               date_ref, np, cdd)
   if (!identical(ps$sigma_standard, m$sigma_standard))
     stop(sprintf("%s : sigma standard recalcule different de celui du resultat.", appelant))
+  if (!identical(ps$texte_applicable, texte))
+    stop(sprintf("%s : texte applicable recalcule different de celui du resultat.", appelant))
   ps
 }
 
@@ -17404,31 +17850,88 @@ engine_parametre_standard <- function(res) {
                                        "section G : aucun segment designe (saisie declaree",
                                        "comme derogation)"),
                                  tb$retenu))
+  # Date de reference, texte applicable, declarations et facteur NP applique
+  # (issue #504, ADR 0019, point 5) : lignes inserees apres les trois
+  # premieres et avant les trois dernieres, que l'affichage (Valeur[1]) et
+  # les tests lisent par position. Libelles selon le texte applicable et les
+  # champs np_requise, cdd_requise et facteur_np rendus par
+  # usp_parametre_standard() (regle d'engine_valider_declarations(), aucune
+  # regle ici). La date est toujours presente : .engine_trace_sigma() refuse
+  # un objet a date NA.
+  nouveau <- identical(ps$texte_applicable, "2026/269")
+  nettes <- identical(ps$nature_donnees, "nettes")
+  lib_texte <- c(`2019/981` = paste(
+    "2019/981 : reglement delegue (UE) 2015/35 modifie par le reglement delegue (UE)",
+    "2019/981 (annexes II et XIV, M6), articles 117 et 148 dans leur version anterieure",
+    "au reglement delegue (UE) 2026/269"),
+    `2026/269` = paste(
+    "2026/269 : reglement delegue (UE) 2015/35 modifie par le reglement delegue (UE)",
+    "2026/269 (articles 117 et 148, applicable a partir du 30 janvier 2027), annexes II",
+    "et XIV de 2019/981 (M6)"))[[ps$texte_applicable]]
+  lib_declaration <- function(v) if (is.na(v)) "non declaree" else
+    if (v) "declaree presente" else "declaree absente"
+  # Effet de la declaration NP : absence de segment, puis donnees brutes,
+  # testees avant le texte applicable et dans l'ordre de la ligne "Facteur
+  # NP applique a sigma brut" ("aucun segment designe", puis "sans objet :
+  # donnees brutes"), pour que le libelle ne cite pas le texte la ou aucun
+  # facteur NP n'est applique ; np_requise n'est jamais TRUE sans segment ni
+  # sur donnees brutes (engine_valider_declarations()).
+  effet_np <- if (!prime) "sans effet pour cette methode" else
+    if (is.null(m$segment)) "sans effet : aucun segment designe" else
+    if (!nettes) "sans effet : donnees brutes" else
+    if (!nouveau) "sans effet sous ce texte : facteur NP standard sans condition" else
+    if (isTRUE(ps$np_requise)) {
+      if (isTRUE(ps$reassurance_np)) "exigee sous ce texte : facteur NP standard applique"
+      else "exigee sous ce texte : facteur de 100 % applique"
+    } else "sans effet : facteur NP standard de 100 % pour ce segment"
+  effet_cdd <- if (prime) "sans effet pour cette methode" else
+    if (nouveau) "exigee sous ce texte : facteur de 100 %, sigma(res,s) de l'annexe" else
+      "sans effet sous ce texte"
   d <- data.frame(
     grandeur = c(
       if (prime) "Nature declaree des donnees" else "Nature des donnees (exigence de la methode)",
       "Parametre standard remplace",
       "Exigence relative aux donnees",
+      "Date de reference du calcul",
+      "Texte applicable au parametre standard",
+      "Reassurance non proportionnelle en place (declaration)",
+      "Couverture pour developpements defavorables qualifiante (declaration)",
       sprintf("sigma %s de l'annexe %s", if (prime) "brut (primes)" else "(reserve)", ps$annexe),
       if (prime) sprintf("Facteur NP standard (%s, paragraphe 3)",
                          if (identical(ps$annexe, "XIV")) "art. 148" else "art. 117"),
+      if (prime) "Facteur NP applique a sigma brut",
       "sigma standard reglementaire",
       "sigma standard retenu dans le melange",
       "Origine du sigma standard retenu",
       "Bareme et facteur c applicables (annexe XVII, section G)",
       "Bareme et facteur c retenus",
       "Origine du bareme retenu"),
-    valeur = c(NA, NA, NA, ps$sigma_annexe, if (prime) ps$np_standard,
+    valeur = c(NA, NA, NA, NA, NA, NA, NA, ps$sigma_annexe, if (prime) ps$np_standard,
+               if (prime) ps$facteur_np,
                ps$sigma_reglementaire, ps$sigma_standard, NA,
                tb$c_reglementaire, tb$c_retenu, NA),
     texte = c(lib_nature,
               paste0(ps$point_art218, " : ", ps$parametre_remplace),
               ps$exigence_donnees,
+              ps$date_reference,
+              lib_texte,
+              paste0(lib_declaration(ps$reassurance_np), " ; ", effet_np),
+              paste0(lib_declaration(ps$cdd_qualifiante), " ; ", effet_cdd),
               if (is.null(m$segment)) "aucun segment designe" else NA,
               if (prime) NA,
+              if (prime) {
+                if (is.null(m$segment)) "aucun segment designe" else
+                  if (!nettes) "sans objet : donnees brutes" else
+                  if (!nouveau) "NP standard, sans condition" else
+                  if (!isTRUE(ps$np_requise)) "100 % : facteur NP standard du segment"
+                  else if (isTRUE(ps$reassurance_np))
+                    "NP standard : reassurance non proportionnelle declaree presente"
+                  else "100 % : reassurance non proportionnelle declaree absente"
+              },
               if (is.null(m$segment)) "aucun segment designe" else
                 if (!prime) "sigma(res,s)" else
-                if (identical(ps$nature_donnees, "nettes")) "NP standard x sigma brut" else "sigma brut",
+                if (!nettes) "sigma brut" else
+                if (!nouveau) "NP standard x sigma brut" else "facteur NP applique x sigma brut",
               NA,
               if (ps$saisie) "sigma standard saisi, derogation au parametre reglementaire"
               else "parametre reglementaire",

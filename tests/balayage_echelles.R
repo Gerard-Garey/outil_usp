@@ -75,7 +75,7 @@ JEUX <- list(
 
 calcul <- function(j, e) suppressWarnings(
   run_engine(xt = j$x * 10^e, yt = j$y * 10^e, methode = "premium", segment = 1,
-             B = B, nature_donnees = "brutes"))
+             B = B, nature_donnees = "brutes", date_reference = outils$DATE_REFERENCE_TESTS))
 cle <- function(r) list(sigma = r$parametre_final$sigma_usp,
                         p = engine_table_tests(r)$p_retenue)
 dans_domaine <- function(v) all(v >= DOMAINE_NUMERIQUE_MIN & v <= DOMAINE_NUMERIQUE_MAX)

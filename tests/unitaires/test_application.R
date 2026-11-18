@@ -111,7 +111,22 @@
 #     des refus illisible, de recevabilite (series, triangle), de dimension et
 #     du lecteur, donnees courantes gardees ; echec d'un export (erreur
 #     usp_refus_ecriture, erreur R ordinaire, erreur silencieuse de shiny) :
-#     notification, journal, erreur relevee.
+#     notification, journal, erreur relevee ;
+#   - date de reference du calcul et declarations (issue #504, ADR 0019,
+#     point 7) : ni 2027, ni 2020, ni np_standard dans app.R, ni Sys.Date(),
+#     ni as.Date(), ni dateInput() ; les deux appels de run_engine()
+#     transmettent date_saisie() et declaration_saisie() (lecture du code) ;
+#     avec shiny, champ de texte vide au demarrage, choix sans preselection,
+#     transmission par les deux appels (primes, reserve no 1 et no 2,
+#     declaration non affichee non transmise), bloc Etat lu dans
+#     res$metadata, date non recevable et champ vide : refus du moteur
+#     relaye sans erreur R ; motifs d'avant clic (commit (d2) de S3) : ceux
+#     d'engine_valider_declarations() tels quels, dans l'apercu (champ vide
+#     au demarrage, date mal formee ; aucun pour une date valide) et en tete
+#     des deux refus "non lance" (series, triangle), sans erreur R pour une
+#     methode, un segment ou une annexe hors du domaine du moteur. Tous les
+#     scenarios qui cliquent "Relancer les calculs" pour un calcul abouti
+#     saisissent la date (DATE_REFERENCE_TESTS).
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -903,6 +918,36 @@ verifier("app.R : le downloadHandler de dl_donnees appelle engine_ecrire_csv() e
            grepl("engine_ecrire_csv(", corps, fixed = TRUE) && !grepl("write.csv", corps, fixed = TRUE)
          })
 
+## --- Date de reference du calcul et declarations : lecture du code (#504) ----
+# ADR 0019, point 7 : l'application collecte et transmet, la regle date ->
+# texte et l'exigence des declarations restent au moteur. Lecture du texte
+# et de l'arbre syntaxique d'app.R, sans shiny.
+.src504 <- readLines(.app, warn = FALSE, encoding = "UTF-8")
+.noms504 <- all.names(parse(.app, keep.source = FALSE))
+verifier("app.R : aucune date d'application ni colonne de la table ecrite en dur (ni 2027, ni 2020, ni np_standard) (#504)",
+         !any(grepl("2027|2020|np_standard", .src504)))
+verifier("app.R : ni Sys.Date(), ni as.Date(), ni dateInput() (date jamais lue a l'horloge ni convertie ; D-S3-5) (#504)",
+         !any(c("Sys.Date", "as.Date", "dateInput") %in% .noms504))
+.appels504 <- local({
+  trouves <- list()
+  visiter <- function(e) {
+    if (is.call(e)) {
+      if (identical(e[[1L]], as.name("run_engine"))) trouves[[length(trouves) + 1L]] <<- e
+      arg <- as.list(e)[-1L]
+      for (i in seq_along(arg)) if (!identical(arg[[i]], quote(expr = ))) visiter(arg[[i]])
+    }
+  }
+  for (e in as.list(parse(.app, keep.source = FALSE))) visiter(e)
+  trouves
+})
+verifier("app.R : deux appels de run_engine(), chacun avec date_reference = date_saisie(), reassurance_np et cdd_qualifiante = declaration_saisie() (#504)",
+         length(.appels504) == 2L &&
+           all(vapply(.appels504, function(e)
+             identical(e$date_reference, quote(date_saisie())) &&
+               identical(e$reassurance_np, quote(declaration_saisie("reassurance_np"))) &&
+               identical(e$cdd_qualifiante, quote(declaration_saisie("cdd_qualifiante"))),
+             logical(1))))
+
 ## --- Grille des series et journal (issues #134, #136) -------------------------
 if (requireNamespace("shiny", quietly = TRUE)) {
   # Scenarios de l'issue #155 (dimension du triangle, reinitialisation),
@@ -1334,7 +1379,8 @@ assign("showNotification", function(ui, ...) {
 xs226 <- c(98.10, 101.30, 104.20, 102.25, 109.34, 114.64, 118.41, 121.28)
 r226 <- run_engine(xs226, 0.7 * xs226, methode = "premium", sigma_standard = 0.1,
                    nature_donnees = "brutes", T = 8, B = 99, alpha = 0.10, seed = 20260831,
-                   segment = 1L, annexe = "II", theta_equiv = 0.10)
+                   segment = 1L, annexe = "II", theta_equiv = 0.10,
+                   date_reference = DATE_REFERENCE_TESTS)
 motif226 <- r226$validation$erreurs
 testServer(app, {
   do.call(session$setInputs, modifyList(base, list(reinit = 1, sigma_manuel = TRUE, sigma_std = 0.1)))
@@ -2114,9 +2160,180 @@ testServer(app, {
     identical(m, unname(t488)) && isTRUE(tc$ok) && identical(tc$triangle, m) && ok_x)
 })
 )---"
+  # Date de reference du calcul et declarations (issue #504, ADR 0019,
+  # point 7) : champ de texte vide au demarrage, choix sans preselection ;
+  # collecte (date_saisie(), declaration_saisie()) et transmission par les
+  # deux appels de run_engine() ; refus du moteur relaye sans erreur R ;
+  # bloc Etat lu dans res$metadata. Les scenarios qui attendent un calcul
+  # abouti saisissent la date (base, DATE_REFERENCE_TESTS), comme tous ceux
+  # de ce script : le commit (b3) de la fiche S3 rend la date obligatoire.
+  .bloc_504 <- r"---(
+## Date de reference du calcul et declarations (issue #504, ADR 0019)
+ui504 <- paste(as.character(ea$ui), collapse = "")
+radios504 <- function(nom) regmatches(ui504, gregexpr(sprintf('<input type="radio" name="%s"[^>]*>', nom),
+                                                      ui504))[[1]]
+a("panneau : champ de texte date_reference vide au demarrage, sans composant de date (#504, D-S3-5)",
+  grepl('<input id="date_reference" type="text"[^>]* value=""', ui504) &&
+    !grepl("shiny-date-input", ui504, fixed = TRUE))
+a("panneau : declarations reassurance_np et cdd_qualifiante, deux choix chacune, sans preselection (#504)",
+  length(radios504("reassurance_np")) == 2L && length(radios504("cdd_qualifiante")) == 2L &&
+    !any(grepl("checked", c(radios504("reassurance_np"), radios504("cdd_qualifiante")), fixed = TRUE)))
+d504 <- ea$DONNEES_DEFAUT
+saisie504 <- c(setNames(as.list(d504$xt), paste0("x_", seq_len(nrow(d504)))),
+               setNames(as.list(d504$yt), paste0("y_", seq_len(nrow(d504)))))
+tri504 <- ea$triangle_defaut(8)
+k504 <- which(row(tri504) + col(tri504) <= 9L, arr.ind = TRUE)
+saisie_tri504 <- setNames(as.list(tri504[k504]), sprintf("c_%d_%d", k504[, 1] - 1L, k504[, 2] - 1L))
+etat504 <- function(output) as.character(output$etat$html)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie504)
+  a("demarrage : aucune declaration choisie, transmises comme non declarees (NULL) (#504)",
+    is.null(declaration_saisie("reassurance_np")) && is.null(declaration_saisie("cdd_qualifiante")))
+  # Primes : reassurance NP declaree "oui" ; la CDD, non affichee pour cette
+  # methode, n'est pas transmise meme si un choix y est reste.
+  session$setInputs(reassurance_np = "oui", cdd_qualifiante = "non", go = 1)
+  r <- resultat()
+  a("primes : date saisie et reassurance NP \"oui\" transmises (metadata), CDD non affichee non transmise (NA) (#504)",
+    isTRUE(r$ok) && identical(r$metadata$date_reference, DATE_REFERENCE_TESTS) &&
+      identical(r$metadata$reassurance_np, TRUE) && identical(r$metadata$cdd_qualifiante, NA))
+  et <- etat504(output)
+  a("bloc Etat : date de reference et texte applicable du resultat, lus dans res$metadata (#504)",
+    grepl(paste0("<b>Date de reference</b> = ", r$metadata$date_reference), et, fixed = TRUE) &&
+      grepl(paste0("<b>Texte applicable</b> = ", r$metadata$texte_applicable), et, fixed = TRUE) &&
+      identical(r$metadata$texte_applicable, "2019/981"))
+  session$setInputs(reassurance_np = "non", go = 2)
+  a("primes : reassurance NP \"non\" transmise FALSE (#504)",
+    isTRUE(resultat()$ok) && identical(resultat()$metadata$reassurance_np, FALSE))
+  # Reserve no 1 (second appel de run_engine()) : CDD transmise, reassurance
+  # NP non affichee non transmise.
+  session$setInputs(methode = "reserve1", cdd_qualifiante = "oui", go = 3)
+  r1 <- resultat()
+  a("reserve no 1 : CDD \"oui\" transmise TRUE, reassurance NP non transmise (NA), date transmise (#504)",
+    isTRUE(r1$ok) && identical(r1$metadata$cdd_qualifiante, TRUE) &&
+      identical(r1$metadata$reassurance_np, NA) &&
+      identical(r1$metadata$date_reference, DATE_REFERENCE_TESTS))
+  # Reserve no 2 (premier appel de run_engine()).
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, saisie_tri504)
+  session$setInputs(cdd_qualifiante = "non", go = 4)
+  r2 <- resultat()
+  a("reserve no 2 : date et CDD \"non\" transmises (metadata), reassurance NP non transmise (NA) (#504)",
+    isTRUE(r2$ok) && identical(r2$metadata$date_reference, DATE_REFERENCE_TESTS) &&
+      identical(r2$metadata$cdd_qualifiante, FALSE) && identical(r2$metadata$reassurance_np, NA))
+  # Date non recevable (jour inexistant) : refus du moteur relaye, sans
+  # erreur R, par le premier appel.
+  session$setInputs(date_reference = "2026-02-30", go = 5)
+  ref <- dernier_refus()
+  a("reserve no 2, date non recevable \"2026-02-30\" transmise telle quelle : refus du moteur relaye (titre des refus, motif en tete nommant date_reference), aucun resultat, sans erreur R (#504)",
+    identical(date_saisie(), "2026-02-30") && is.null(resultat()) &&
+      identical(ref$titre, ea$TITRE_REFUSE) &&
+      grepl("(date_reference = \"2026-02-30\")", ref$motifs[1], fixed = TRUE))
+})
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  do.call(session$setInputs, saisie504)
+  # Saisie entouree de blancs : transmise sans conversion, refusee par le
+  # moteur (second appel de run_engine()).
+  session$setInputs(date_reference = " 2026-12-31", go = 1)
+  ref <- dernier_refus()
+  a("primes, date \" 2026-12-31\" (blanc en tete) transmise sans conversion : refus du moteur relaye, motif en tete nommant date_reference, sans erreur R (#504)",
+    identical(date_saisie(), " 2026-12-31") && is.null(resultat()) &&
+      identical(ref$titre, ea$TITRE_REFUSE) &&
+      grepl("(date_reference = \" 2026-12-31\")", ref$motifs[1], fixed = TRUE))
+  # Champ vide : "non declaree" (NULL), jamais "" ni la date du jour. Le
+  # moteur refuse l'absence (date obligatoire, commit (b3) de la fiche S3) ;
+  # l'application relaie ses motifs tels quels (lus au moteur, jamais
+  # recomposes ici).
+  session$setInputs(date_reference = "", go = 2)
+  dv <- engine_valider_declarations("premium", 1L, "II", "brutes", NULL)
+  ref <- dernier_refus()
+  a("primes, champ de date vide : transmis comme non declare (NULL), sans erreur R ; refus du moteur (date obligatoire) relaye tel quel, motif en tete nommant date_reference, aucun resultat (#504)",
+    is.null(date_saisie()) && !isTRUE(dv$ok) && is.null(resultat()) &&
+      identical(ref$titre, ea$TITRE_REFUSE) && identical(ref$motifs, dv$erreurs) &&
+      grepl("date_reference", ref$motifs[1], fixed = TRUE))
+})
+# Motifs d'avant clic (commit (d2) de S3, ADR 0019, point 7) : ceux
+# d'engine_valider_declarations(), appelee telle quelle (motifs_declarations()),
+# en tete de l'apercu et des deux refus "non lance". Le champ de date n'est
+# pas saisi : au demarrage, le navigateur n'a encore rien envoye (NULL).
+apercu504 <- function(output) tryCatch(as.character(output$validation_live$html),
+                                       error = function(e) e)
+# Position du motif m (rendu en <li>) dans l'apercu, -1 s'il en est absent.
+pos504 <- function(ap, m) regexpr(as.character(tags$li(m)), ap, fixed = TRUE)[1]
+# Elements <li> du bloc des refus de l'apercu (div class="err"), dans l'ordre.
+err504 <- function(ap) {
+  bloc <- regmatches(ap, regexpr('(?s)<div class="err">.*?</div>', ap, perl = TRUE))
+  if (!length(bloc)) character(0) else regmatches(bloc, gregexpr("(?s)<li>.*?</li>", bloc, perl = TRUE))[[1]]
+}
+base504 <- base[names(base) != "date_reference"]
+testServer(app, {
+  do.call(session$setInputs, c(base504, list(reinit = 1)))
+  do.call(session$setInputs, saisie504)
+  dv <- engine_valider_declarations("premium", 1L, "II", "brutes", NULL)$erreurs
+  ap <- apercu504(output)
+  a("avant clic, champ de date vide au demarrage : motif d'engine_valider_declarations() tel quel, nommant date_reference, seul refus de l'apercu (donnees par defaut valides) (#504, (d2))",
+    length(dv) == 1L && grepl("date_reference", dv, fixed = TRUE) &&
+      identical(motifs_declarations(), dv) && is.character(ap) &&
+      grepl(paste0("<b>", ea$TITRE_APERCU_REFUS, "</b>"), ap, fixed = TRUE) &&
+      identical(err504(ap), as.character(tags$li(dv))) &&
+      !grepl("Donnees valides.", ap, fixed = TRUE))
+  session$setInputs(date_reference = "")
+  a("avant clic, champ de date \"\" : memes motifs que sans saisie (non declaree) (#504, (d2))",
+    identical(motifs_declarations(), dv) && pos504(apercu504(output), dv) > 0L)
+  session$setInputs(date_reference = "2026-13-01")
+  dm <- engine_valider_declarations("premium", 1L, "II", "brutes", "2026-13-01")$erreurs
+  a("avant clic, date mal formee \"2026-13-01\" : motif du moteur nommant date_reference, dans l'apercu (#504, (d2))",
+    identical(motifs_declarations(), dm) && length(dm) == 1L &&
+      grepl("(date_reference = \"2026-13-01\")", dm, fixed = TRUE) &&
+      pos504(apercu504(output), dm) > 0L)
+  session$setInputs(date_reference = DATE_REFERENCE_TESTS)
+  ap <- apercu504(output)
+  a("avant clic, date valide : aucun motif de date ni de declaration, aucun refus dans l'apercu (#504, (d2))",
+    identical(motifs_declarations(), character(0)) && is.character(ap) &&
+      !grepl("class=\"err\"", ap, fixed = TRUE) && !grepl("date_reference", ap, fixed = TRUE))
+  # Gardes : le moteur leve stop() pour une methode, une annexe ou un segment
+  # hors de son domaine ; l'apercu n'affiche aucune erreur R.
+  session$setInputs(date_reference = "", methode = "inconnue")
+  ap <- apercu504(output)
+  a("avant clic, methode hors des choix du panneau : aucun motif, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), character(0)) && is.character(ap))
+  session$setInputs(methode = "premium", segment = "99")
+  ap <- apercu504(output)
+  a("avant clic, segment hors de l'annexe : motif de date du moteur, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), dv) && is.character(ap) && pos504(ap, dv) > 0L)
+  session$setInputs(annexe = "XX", segment = "1")
+  ap <- apercu504(output)
+  a("avant clic, annexe inconnue : motif de date du moteur, apercu rendu sans erreur R (#504, (d2))",
+    identical(motifs_declarations(), dv) && is.character(ap) && pos504(ap, dv) > 0L)
+  # Refus "non lance" (series) : motifs de la date en tete, puis ceux des
+  # donnees, dans l'ordre du moteur.
+  session$setInputs(annexe = "II", x_1 = -5, go = 1)
+  ref <- dernier_refus()
+  vd <- engine_valider_serie_retenue(replace(d504$xt, 1L, -5), d504$yt, T = 8,
+                                     methode = "premium", nature_donnees = "brutes",
+                                     segment = 1L, annexe = "II")$validation
+  a("clic, series non valides et date vide : refus \"non lance\", motif de date en tete puis motifs des donnees (#504, (d2))",
+    identical(ref$titre, ea$TITRE_NON_LANCE) && is.null(resultat()) && !isTRUE(vd$ok) &&
+      identical(ref$motifs, c(dv, vd$erreurs)))
+  # Reserve no 2 : apercu et refus "non lance" (triangle), memes motifs.
+  session$setInputs(methode = "reserve2", reinit = 2)
+  do.call(session$setInputs, saisie_tri504)
+  dv2 <- engine_valider_declarations("reserve2", 1L, "II", NULL, NULL)$erreurs
+  a("avant clic, reserve no 2, champ de date vide : motif du moteur dans l'apercu du triangle (#504, (d2))",
+    identical(motifs_declarations(), dv2) && pos504(apercu504(output), dv2) > 0L)
+  session$setInputs(c_1_1 = NA, go = 2)
+  ref <- dernier_refus()
+  vt <- mw_valider_triangle(lire_triangle(), segment = 1L, annexe = "II")
+  a("clic, triangle non valide et date vide : refus \"non lance\", motif de date en tete puis motifs du triangle (#504, (d2))",
+    identical(ref$titre, ea$TITRE_NON_LANCE) && is.null(resultat()) && !isTRUE(vt$ok) &&
+      identical(ref$motifs, c(dv2, vt$erreurs)))
+})
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
+    sprintf('DATE_REFERENCE_TESTS <- %s', deparse(DATE_REFERENCE_TESTS)),
     'ea <- new.env(); app <- source("app.R", local = ea)$value',
     'a <- function(nom, ok) cat(sprintf("ASSERT\\t%s\\t%s\\n", nom, isTRUE(ok)))',
     'xt <- c(98.10, 101.30, 104.20, 102.25, 109.34, 114.64, 118.41, 121.28, 132.40, 131.22)',
@@ -2125,7 +2342,7 @@ testServer(app, {
     '  session$setInputs(annexe = "II", segment = "1", sigma_manuel = FALSE, B = 99,',
     '                    alpha = 0.10, seed = 20260831, delta_apriori = FALSE,',
     '                    theta_equiv = 0.10, methode = "premium", nature_donnees = "brutes",',
-    '                    profondeur = 8, reinit = 1)',
+    '                    profondeur = 8, date_reference = DATE_REFERENCE_TESTS, reinit = 1)',
     '  a("reinitialisation : 8 annees du jeu par defaut", identical(donnees(), ea$DONNEES_DEFAUT))',
     '  session$setInputs(profondeur = 6)',
     '  a("T = 6 : la grille garde ses 8 annees (#134)", identical(donnees(), ea$DONNEES_DEFAUT))',
@@ -2209,7 +2426,8 @@ testServer(app, {
     'garde <- function(avant, apres) inherits(apres, "shiny.output.cancel") || identical(apres, avant)',
     'base <- list(annexe = "II", segment = "1", sigma_manuel = FALSE, B = 99, alpha = 0.10,',
     '             seed = 20260831, delta_apriori = FALSE, theta_equiv = 0.10,',
-    '             methode = "premium", nature_donnees = "brutes", profondeur = 8)',
+    '             methode = "premium", nature_donnees = "brutes", profondeur = 8,',
+    '             date_reference = DATE_REFERENCE_TESTS)',
     'testServer(app, {',
     '  do.call(session$setInputs, base)',
     '  av <- apercu(output)',
@@ -2248,7 +2466,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556, .bloc_504), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -2265,8 +2483,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 149 assertions rendues", length(.lignes) == 149L)
-  if (length(.lignes) != 149L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 170 assertions rendues", length(.lignes) == 170L)
+  if (length(.lignes) != 170L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

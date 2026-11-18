@@ -46,7 +46,7 @@ av_exclues <- function(av) grep(paste0("a facteurs individuels egaux a f_j a la 
                                        " ; sigma2_j nul ou numeriquement nul)"), av,
                                 fixed = TRUE, value = TRUE)
 run_mw <- function(t) run_engine(methode = "reserve2", triangle = t,
-                                 segment = 1, annexe = "II", B = 99)
+                                 segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
 av_extrap <- function(r) grep("sigma2_(J-1) = min", r$validation$avertissements,
                               fixed = TRUE, value = TRUE)
 detail_m6 <- function(r) {
@@ -88,7 +88,7 @@ tri_ref <- local({
 nb_warnings_mw <- function(t) {
   n <- 0L
   withCallingHandlers(run_engine(methode = "reserve2", triangle = t, segment = 1,
-                                 annexe = "II", B = 99),
+                                 annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS),
                       warning = function(w) { n <<- n + 1L; invokeRestart("muffleWarning") })
   n
 }
@@ -551,7 +551,7 @@ verifier("ta_deg : HomogF a K = 5, p de la colonne j = 5 (n = 4, rho = -1) = 1/1
 verifier("tri_deg : B_effectif = 99 pour HomogF et ExpVar, B = 99 (#90)",
          {
            b <- run_engine(methode = "reserve2", triangle = tri_deg, segment = 1, annexe = "II",
-                           B = 99)$bootstrap
+                           B = 99, date_reference = DATE_REFERENCE_TESTS)$bootstrap
            b$B_effectif[["HomogF"]] == 99 && b$B_effectif[["ExpVar"]] == 99
          })
 
@@ -718,7 +718,8 @@ verifier("Sous-triangle 5 x 5, alpha = 0,10 (Calendaire ECHEC atteignable a alph
            co <- l("Correlation entre annees de developpement adjacentes", d)
            su <- l("Test des suites sur les residus de Mack", d)
            d20 <- engine_table_tests(run_engine(methode = "reserve2", triangle = t5, segment = 1,
-                                                annexe = "II", B = 99, alpha = 0.20))
+                                                annexe = "II", B = 99, alpha = 0.20,
+                                                date_reference = DATE_REFERENCE_TESTS))
            c9 <- l("Effets d'annee calendaire (test de Mack)", d20)
            isTRUE(co$inoperant) && co$type == "diagnostic" && identical(co$verdict, "INFO") &&
              startsWith(co$commentaire, pre) &&
@@ -932,7 +933,7 @@ verifier("ExpVar a premiere colonne de cumuls a ex aequo : p_min attribuee, moti
            t[, -1] <- t[, -1] - tri_ref[, 1] + t[, 1]
            ev <- mw_test_exposant_variance(mw_ajuster(t))
            d <- engine_table_tests(run_engine(methode = "reserve2", triangle = t, segment = 1,
-                                              annexe = "II", B = 99))
+                                              annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS))
            x <- d[d$test == "Adequation de l'exposant de variance, colonne par colonne", ]
            any(ev$detail$ex_aequo) && length(ev$masse_min) == nrow(ev$detail) &&
              is.finite(x$p_min) && x$p_min == .mw_fisher_rangs_p_min(ev$detail$n, ev$masse_min)
@@ -1006,7 +1007,7 @@ verifier("Pool redresse (#46, C2) : ligne 0 x 1e17, pool fini, B_eff > 0 ou moti
            a <- mw_ajuster(t17); jd <- .mw_colonnes_degenerees(a)
            p <- .mw_pool_residus(a, jd)
            r <- suppressWarnings(run_engine(methode = "reserve2", triangle = t17, segment = 1,
-                                                annexe = "II", B = 99))
+                                                annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS))
            tb <- engine_table_tests(r)
            be <- unlist(r$bootstrap$B_effectif); mo <- unlist(r$bootstrap$motif_mc)
            isTRUE(r$ok) && length(p) > 0 && all(is.finite(p)) &&
@@ -1081,7 +1082,8 @@ verifier("mw_influence() stable (#233) : reserve2, ligne 0 x 1e17 : memes contro
 # silence dans les tables. Un refus est un motif metier, sans erreur_r.
 .run_noms <- function(noms) {
   t <- tri_ref; rownames(t) <- noms
-  run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II", B = 99)
+  run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II", B = 99,
+             date_reference = DATE_REFERENCE_TESTS)
 }
 .refus_noms <- function(noms, motif) {
   r <- .run_noms(noms)
@@ -1242,7 +1244,7 @@ verifier("Noms de ligne (#268) : nom declare UTF-8 a octet A0 (32 30 32 32 A0) :
 verifier("Noms de ligne (#268, #319) : triangle sans noms et triangle a noms valides admis, parametre final identique",
          {
            r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
-                            annexe = "II", B = 99)
+                            annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            r1 <- .run_noms(annees)
            isTRUE(r0$ok) && isTRUE(r1$ok) && !length(r1$validation$erreurs) &&
              identical(r0$parametre_final, r1$parametre_final)
@@ -1264,7 +1266,7 @@ verifier("Parametre final sans nom (#319) : champs scalaires de parametre_final 
 verifier("Tests sans nom (#319) : stat, estim et p-values de res$tests sans nom sous un triangle nomme ; res$tests et engine_table_tests() identiques",
          {
            r0 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1,
-                            annexe = "II", B = 99)
+                            annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)
            r1 <- .run_noms(annees)
            isTRUE(r1$ok) &&
              all(vapply(r1$tests, function(t)
@@ -1275,7 +1277,7 @@ verifier("Tests sans nom (#319) : stat, estim et p-values de res$tests sans nom 
          })
 verifier("Noms de ligne (#268) : data.frame a noms de ligne automatiques admis",
          isTRUE(run_engine(methode = "reserve2", triangle = as.data.frame(tri_ref),
-                           segment = 1, annexe = "II", B = 99)$ok))
+                           segment = 1, annexe = "II", B = 99, date_reference = DATE_REFERENCE_TESTS)$ok))
 
 ## --- Diagnostic par diagonale, repere de Mack 1997 (#275) -------------------
 # Specification docs/specifications/fd-test-calendaire.md, par. 3.2 et 3.4 ;
@@ -2138,7 +2140,7 @@ local({
                 "niveau", "quantile_t", "bas", "haut", "exclut_zero", "plus_petite_p")
   r10 <- run_mw(tri_ref)
   r05 <- run_engine(methode = "reserve2", triangle = tri_ref, segment = 1, annexe = "II",
-                    B = 99, alpha = 0.05)
+                    B = 99, alpha = 0.05, date_reference = DATE_REFERENCE_TESTS)
   for (r in list(r10, r05)) {
     al <- r$metadata$alpha; d <- r$plots_data$origine
     q <- stats::qt(1 - al / 2, d$n - 2)

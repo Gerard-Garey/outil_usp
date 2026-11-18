@@ -155,7 +155,8 @@ verifier("Matrice jouet : taux_global_ponctuel = proportion des lignes ayant une
 # restent au bloc des cinq cas lognormaux de reference plus bas.
 B_SPREAD <- 599L
 rB <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                   B = B_SPREAD, seed = GRAINE, nature_donnees = "brutes")
+                   B = B_SPREAD, seed = GRAINE, nature_donnees = "brutes",
+                 date_reference = DATE_REFERENCE_TESTS)
 eB <- rB$plots_data$spread_enveloppe
 LB <- courbes(rB$bootstrap$z_boot)
 verifier("plots_data$spread_enveloppe : suivi des trois champs de #305 en fin de plots_data, champs dans l'ordre du par. 1.5, constantes du QQ-plot, regle DH1997_4.17, motif NA",
@@ -200,9 +201,11 @@ verifier("B = 599 : emboitement sim_bas <= bas <= haut <= sim_haut",
 verifier("Niveau fixe : alpha = 0,05 ne change pas spread_enveloppe (B = 99)",
          {
            ra <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 99, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05)
+                            B = 99, seed = GRAINE, nature_donnees = "brutes", alpha = 0.05,
+                            date_reference = DATE_REFERENCE_TESTS)
            rb <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 99, seed = GRAINE, nature_donnees = "brutes")
+                            B = 99, seed = GRAINE, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            identical(ra$plots_data$spread_enveloppe, rb$plots_data$spread_enveloppe)
          })
 
@@ -302,7 +305,8 @@ verifier("Volumes constants (usp_volumes_constants()) : bornes NA, k NA, B_eff =
            xc <- rep(100, T1)
            e <- engine_enveloppe_spread(rB$bootstrap$z_boot, xc)
            rc <- run_engine(xt = xc, yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 99, seed = GRAINE, nature_donnees = "brutes")
+                            B = 99, seed = GRAINE, nature_donnees = "brutes",
+                            date_reference = DATE_REFERENCE_TESTS)
            motif <- "volumes constants : graphique dispersion-niveau sans objet"
            usp_volumes_constants(xc) && identical(e$motif, motif) && identical(e$B_eff, 0L) &&
              identical(rc$plots_data$spread_enveloppe$B_eff, 0L) &&

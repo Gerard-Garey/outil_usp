@@ -3228,8 +3228,25 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
       reserve1 = "risque de r\u00e9serve n\u00b0 1 (annexe XVII, section C)",
       reserve2 = "risque de r\u00e9serve n\u00b0 2, Merz-W\u00fcthrich (annexe XVII, section D)",
       m$methode)
+    # Date de reference du calcul et texte applicable (issue #504, ADR 0019,
+    # point 7 ; docs/exigences.md, paragraphe 5.6), apres l'horodatage et
+    # avant la methode, lus dans res$metadata. Un objet sans date de
+    # reference ou sans texte applicable (absent, NA ; objet relu produit
+    # avant #504) n'a pas de rapport : la trace du parametre standard
+    # (.engine_trace_sigma(), ADR 0019, point 5) le refuse par une erreur,
+    # levee par engine_parametre_standard() (via table_parametre_standard(),
+    # ici meme) ou par engine_derogations(). Le tiret de .ou_tiret() n'est
+    # garde que par robustesse. Le texte est designe par le dernier acte
+    # modificatif du reglement delegue (UE) 2015/35 qui change le parametre
+    # standard (CONTEXT.md, "Texte applicable") : son libelle est celui de la ligne
+    # "Texte applicable au parametre standard" d'engine_parametre_standard(),
+    # repris tel quel (via table_parametre_standard(), comme la nature des
+    # donnees ci-dessous), sans etre recompose ici ; ligne introuvable :
+    # tiret. Le detail (declarations, facteur NP) est en section 4.
     cles <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul",
               "G\u00e9n\u00e9ration du pr\u00e9sent rapport",
+              "Date de r\u00e9f\u00e9rence du calcul",
+              "Texte applicable au param\u00e8tre standard",
               "M\u00e9thode", "P\u00e9rim\u00e8tre", "Segment",
               if (mw) "Profondeur (I + 1 ann\u00e9es de survenance)" else "Profondeur T",
               "R\u00e9plications B",
@@ -3245,6 +3262,12 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
     # Nombres en virgule decimale (#236) ; .num_fr_defaut() reproduit format(x).
     vals <- c(.ou_tiret(m$horodatage, function(x) format(x, "%Y-%m-%d %H:%M:%S %Z")),
               .ou_tiret(m$duree_sec, function(x) paste(.num_fr(x, "%.2f"), "s")), genere,
+              .ou_tiret(m$date_reference),
+              .ou_tiret(m$texte_applicable, function(x) {
+                tp <- table_parametre_standard(res)
+                v <- tp$Valeur[tp$Grandeur == "Texte applicable au parametre standard"]
+                if (length(v) == 1L) paste0(.txt(v), " ; d\u00e9tail : section 4") else NA
+              }),
               paste0("<code>", m$methode, "</code> \u2014 ", libelle_methode),
               paste("annexe", m$annexe),
               if (is.null(m$segment)) "\u2013" else paste0(m$segment, " \u2014 ", .txt(m$libelle_segment)),

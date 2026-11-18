@@ -141,7 +141,7 @@ f1 <- usp_ajuster(x, y); prof1 <- usp_profil(f1)
 verifier("Volumes constants : regime_boot NULL (champ present), regime_boot_motif 'volumes constants : regime de delta non identifie' ; sigma_usp_boot et boot_reperes presents (run_engine(), B = 99)",
          {
            rc <- run_engine(xt = rep(100, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
-                            B = 99, nature_donnees = "brutes")
+                            B = 99, nature_donnees = "brutes", date_reference = DATE_REFERENCE_TESTS)
            pd <- rc$plots_data
            isTRUE(rc$ok) && "regime_boot" %in% names(pd) && is.null(pd$regime_boot) &&
              identical(pd$regime_boot_motif, "volumes constants : regime de delta non identifie") &&

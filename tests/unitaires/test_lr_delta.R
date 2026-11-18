@@ -116,7 +116,8 @@ verifier("U6 p_mc = (1 + #{LR* >= LR}) / (B_eff + 1), err_mc = sqrt(p(1 - p) / B
 
 # --- U7 : volumes constants ------------------------------------------------------
 rc <- run_engine(xt = rep(110, 8), yt = y, methode = "premium", segment = 1, annexe = "II",
-                 nature_donnees = "brutes", B = B_MIN_USAGE, seed = GRAINE)
+                 nature_donnees = "brutes", B = B_MIN_USAGE, seed = GRAINE,
+                 date_reference = DATE_REFERENCE_TESTS)
 verifier("U7 volumes constants : LR nuls, LR* tous nuls, p_mc NA, motif MOTIF_MC_DISPERSION_NULLE",
          isTRUE(rc$ok) &&
            all(vapply(list(rc$lr_delta$borne0, rc$lr_delta$borne1), function(b)
@@ -136,7 +137,7 @@ verifier("U7 volumes constants : lignes LR INFO, detail = motif puis VOLUMES CON
 
 # --- U8 : structure ----------------------------------------------------------------
 r1 <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
-                 nature_donnees = "brutes", B = B_T, seed = GRAINE)
+                 nature_donnees = "brutes", B = B_T, seed = GRAINE, date_reference = DATE_REFERENCE_TESTS)
 CHAMPS_BORNE <- c("delta0", "gamma_contraint", "beta_contraint", "sigma_contraint", "obj_contraint",
                   "lr", "p_asymptotique", "p_mc", "err_mc", "B_effectif", "granularite", "motif_mc",
                   "part_lr_nul", "n_refit_pire", "n_echec", "lr_boot")
@@ -293,7 +294,7 @@ verifier("U8 reserve2 : ni lr_delta ni ic_bootstrap_restreint",
            df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
            tri <- unname(as.matrix(df[, -1]))
            r2 <- run_engine(methode = "reserve2", triangle = tri, segment = 1, annexe = "II",
-                            B = B_MIN_USAGE, seed = GRAINE)
+                            B = B_MIN_USAGE, seed = GRAINE, date_reference = DATE_REFERENCE_TESTS)
            isTRUE(r2$ok) && is.null(r2$lr_delta) && is.null(r2$ic_bootstrap_restreint) &&
              !"lr_delta" %in% names(r2$plots_data)
          })
@@ -341,7 +342,7 @@ avec_injection_161 <- function(nom, f, expr) {
 contraint_orig <- usp_ajuster_contraint; objectif_orig <- usp_objectif
 calcul_j2 <- function() run_engine(xt = xi, yt = yi, methode = "premium", segment = 1,
                                    annexe = "II", nature_donnees = "brutes",
-                                   B = B_MIN_USAGE, seed = GRAINE)
+                                   B = B_MIN_USAGE, seed = GRAINE, date_reference = DATE_REFERENCE_TESTS)
 r2_ref <- calcul_j2()
 panne_borne <- function(d_cible) function(x, y, delta0, gamma_depart) {
   if (identical(y, yi) && delta0 == d_cible) stop("panne simulee")
@@ -414,7 +415,7 @@ verifier("U11 borne delta = 0 a objectif contraint NaN sur l'observe : ok = TRUE
 x_cst <- rep(100, length(y))
 calcul_cst <- function() run_engine(xt = x_cst, yt = y, methode = "premium", segment = 1,
                                     annexe = "II", nature_donnees = "brutes",
-                                    B = B_MIN_USAGE, seed = GRAINE)
+                                    B = B_MIN_USAGE, seed = GRAINE, date_reference = DATE_REFERENCE_TESTS)
 r_cst <- avec_injection_161("usp_ajuster_contraint", function(x, y0, delta0, gamma_depart) {
   if (identical(y0, y) && delta0 == 1) stop("panne simulee")
   contraint_orig(x, y0, delta0, gamma_depart)

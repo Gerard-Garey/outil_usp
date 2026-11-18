@@ -88,7 +88,8 @@ executer <- function(methode, xt = NULL, yt = NULL, triangle = NULL)
                                             B = B_ANTI_BRUIT,
                                             # nature declaree : premium seulement
                                             # ("brutes" refuse en reserve, #55)
-                                            nature_donnees = if (methode == "premium") "brutes"))
+                                            nature_donnees = if (methode == "premium") "brutes",
+                                            date_reference = DATE_REFERENCE_TESTS))
 
 # Controle anti-bruit : TRUE, ou un message listant les feuilles fautives.
 controle_anti_bruit <- function(a, b) {
