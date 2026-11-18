@@ -1041,13 +1041,11 @@ les blancs étant ceux de la classe \code{[[:space:]]} de la locale \\
 \code{.xlsx\_controler\_}\newline\code{balisage()},\newline
 \code{.xlsx\_controler\_}\newline\code{balises\_relation()},\newline
 \code{.xlsx\_controler\_}\newline\code{relations()},\newline
-\code{.xlsx\_controler\_}\newline\code{designation()},\newline \code{.xlsx\_jetons()},\newline
-\code{.xlsx\_imbrication()},\newline \code{.xlsx\_controler\_}\newline\code{structure()},\newline
-\code{.xlsx\_controler\_}\newline\code{attributs()}
+\code{.xlsx\_controler\_}\newline\code{designation()}
 & chemin du classeur, dossier d'extraction, \code{entete}~; octets d'une partie~; texte et nom
 d'une partie~; texte des relations~; balises \code{<sheet>} et \code{<Relationship>}~; textes du classeur et de ses
 relations, balises \code{<Relationship>}, rangs de la feuille retenue et de sa relation,
-identifiant de celle-ci~; partie XML~; genres et noms des balises~; XML de la feuille~; cellules &
+identifiant de celle-ci &
 contrôle unique d'admission du contrat de forme du classeur, règles appliquées dans l'ordre
 du §\ref{sec:controles}, qui rend le rang de la feuille, son XML, les chaînes de la table et les
 cellules admises~; position du premier octet nul ou du premier octet de la première séquence
@@ -1065,7 +1063,12 @@ nom d'attribut, d'un texte \code{Id="}\ldots\code{"} de l'identifiant retenu hor
 de la relation retenue et d'une feuille qu'\code{openxlsx} désignerait par une autre relation,
 puis d'une relation retenue dont l'attribut \code{Target="}\ldots\code{"} est répété ou préfixé, qui porte un
 texte \code{Target=} ailleurs qu'au début de cet attribut, ou dont \code{openxlsx} lirait une
-autre cible, textes cherchés dans les parties aux fins de ligne retirées~; découpage de la partie en balises par une
+autre cible, textes cherchés dans les parties aux fins de ligne retirées \\
+\code{.xlsx\_jetons()},\newline
+\code{.xlsx\_imbrication()},\newline \code{.xlsx\_controler\_}\newline\code{structure()},\newline
+\code{.xlsx\_controler\_}\newline\code{attributs()}
+& partie XML~; genres et noms des balises~; XML de la feuille~; cellules &
+découpage de la partie en balises par une
 seule expression régulière (\code{XML\_MOTIF\_BALISE}), genre (ouvrante, fermante, vide), nom et
 positions de chaque balise, positions des «~\code{<}~» qui n'ouvrent aucune balise~; niveau,
 parent et fermante de chaque balise, balise fautive d'une suite mal imbriquée~; refus de la
@@ -1108,7 +1111,8 @@ chaîne unique, non \code{NA} et non vide, qui finit par une barre oblique ou in
 \code{"bytes"} non ASCII ou d'UTF-8 invalide, de lecteur Windows («~\code{X:}~») ou de partage
 en barres inverses sous unix, où ce n'est pas un chemin du système, dont le nom ne finit pas par
 \code{.xlsx} (casse indifférente) (\code{.xlsx\_defaut\_chemin()}), ou dont la cible résolue désigne un dossier existant, et d'un nom de feuille qui n'est pas une chaîne unique, non
-\code{NA} et non vide, un nombre fini seul étant écrit en chaîne~; refus de même de toute chaîne
+\code{NA} et non vide, un nombre fini seul étant écrit en chaîne~; \\
+\code{engine\_ecrire\_xlsx()} (suite) & idem & refus de même de toute chaîne
 écrite --- cellule, en-tête ou nom de feuille --- qui porte un caractère exclu de XML~1.0
 (caractère de contrôle de U+0000 à U+001F autre que la tabulation, le saut de ligne et le retour chariot, U+FFFE, U+FFFF~; U+007F et U+0080 à U+009F, admis par XML~1.0, sont écrits), qui n'est pas de l'UTF-8 valide ou qui est d'encodage \code{"bytes"} non ASCII, ainsi
 que du retour chariot en cellule et en en-tête, et de la tabulation, du saut de ligne et du
@@ -1120,14 +1124,16 @@ retour chariot d'un texte en saut de ligne et les blancs d'un attribut en espace
 contenu de la chaîne, aucun caractère n'étant retiré en silence et aucun fichier n'étant écrit
 ni retiré (mesuré)~; tabulation et saut de ligne admis en cellule et en en-tête, relus tels
 quels par la voie de repli (mesuré)~; guillemet double d'un nom de feuille écrit
-\code{\&quot;}~; archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
+\code{\&quot;}~; \\
+\code{engine\_ecrire\_xlsx()} (suite) & idem & archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
 la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
 \code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
 commande existe~; sinon, ou si le repli échoue, erreur qui nomme l'échec du paquet et le statut
 de la commande, ou son absence, sans fichier laissé, de même qu'une archive absente après
 une écriture sans erreur~; ces erreurs et les refus ci-dessus sont de classe
 \code{usp\_refus\_ecriture} (\code{.refus\_ecriture()}), dont l'application montre le texte tel quel~; sans
-tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; chaque nombre
+tirage aléatoire, dossier temporaire supprimé à la sortie (§\ref{sec:graines})~; \\
+\code{engine\_ecrire\_xlsx()} (suite) & idem & chaque nombre
 fini est écrit par \code{.xlsx\_nombre()} en point décimal et en pleine précision (15~chiffres
 significatifs s'ils restituent la valeur, 17 sinon), de sorte que la relecture rend les mêmes
 doubles (mesuré sur les deux chemins de lecture), $\pm\infty$ en chaîne de caractères,
