@@ -6470,4 +6470,175 @@ if (length(voies488)) {
              identical(engine_empreinte(calc488(rx488$xt, rx488$yt))$donnees, e0_488))
 } else cat("  [saute] empreinte apres reimport xlsx (#488) : aucune voie d'ecriture xlsx\n")
 
+## --- Ecrivain xlsx : chemin de sortie et caracteres hors XML 1.0 (#580) --------
+# .xlsx_chemin_absolu() et .xlsx_chemin_sortie() sont purs (aucune ecriture ;
+# normalizePath(mustWork = FALSE) seul touche au systeme de fichiers) : testes
+# sans ecrire. "~" : HOME est redirige vers un dossier temporaire. Refus :
+# classe usp_refus_ecriture, avant toute ecriture (aucun fichier cree, un
+# fichier deja la n'est pas retire). L'ecriture exige une voie de compression.
+sous_home580 <- function(h, expr) {
+  ancien <- Sys.getenv("HOME", unset = NA)
+  Sys.setenv(HOME = h)
+  on.exit(if (is.na(ancien)) Sys.unsetenv("HOME") else Sys.setenv(HOME = ancien), add = TRUE)
+  force(expr)
+}
+wd580 <- normalizePath(tempdir(), winslash = "/")
+verifier("engine_ecrire_xlsx() : chemins reconnus absolus (racine, UNC en barres obliques ou inverses, lecteur X:), les autres relatifs (#580)",
+         identical(unname(vapply(c("/a/f.xlsx", "//serveur/partage/f.xlsx", "\\\\serveur\\partage\\f.xlsx",
+                                   "C:/a/f.xlsx", "c:\\a\\f.xlsx", "X:f.xlsx"),
+                                 .xlsx_chemin_absolu, logical(1))), rep(TRUE, 6)) &&
+           identical(unname(vapply(c("f.xlsx", "sub/f.xlsx", "./f.xlsx", "../f.xlsx", "~/f.xlsx"),
+                                   .xlsx_chemin_absolu, logical(1))), rep(FALSE, 5)))
+# Fonction pure : meme resultat depuis deux repertoires courants differents
+# (wd est un argument, getwd() n'y entre pas). Les formes dont dirname() vaut
+# "." sous Linux (UNC en barres inverses, "X:f.xlsx", "C:") ne se testent que
+# ici ; sous Windows, normalizePath() les resout par lecteur et par serveur.
+h580 <- normalizePath(tempfile("home580_"), winslash = "/", mustWork = FALSE)
+dir.create(h580)
+h580 <- normalizePath(h580, winslash = "/")
+cwd580_b <- normalizePath(tempfile("cwd580_"), winslash = "/", mustWork = FALSE)
+dir.create(cwd580_b)
+cwd580_b <- normalizePath(cwd580_b, winslash = "/")
+depuis580 <- function(rep, expr) { ancien <- setwd(rep); on.exit(setwd(ancien)); force(expr) }
+sortie580 <- function(chemin) .xlsx_chemin_sortie(chemin, wd580)
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC ou de lecteur absolu tel quel, sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)",
+         {
+           attendu <- c("//serveur/partage/f.xlsx", "C:/a/f.xlsx")
+           ok <- identical(sortie580(attendu[1]), attendu[1]) && identical(sortie580(attendu[2]), attendu[2]) &&
+             identical(depuis580(cwd580_b, sortie580(attendu[1])), attendu[1]) &&
+             identical(depuis580(cwd580_b, sortie580(attendu[2])), attendu[2])
+           if (.Platform$OS.type == "unix") {
+             exotiques <- c("\\\\serveur\\partage\\f.xlsx", "X:f.xlsx", "C:")
+             ok <- ok && all(vapply(exotiques, function(x)
+               identical(sortie580(x), x) && identical(depuis580(cwd580_b, sortie580(x)), x) &&
+                 identical(depuis580(h580, sortie580(x)), x), logical(1)))
+           }
+           ok
+         })
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() prend un chemin relatif par rapport au repertoire donne, sans creer le dossier (#580)",
+         identical(.xlsx_chemin_sortie("nouveau/f.xlsx", wd580), file.path(wd580, "nouveau", "f.xlsx")) &&
+           identical(.xlsx_chemin_sortie("f.xlsx", wd580), file.path(wd580, "f.xlsx")) &&
+           identical(depuis580(cwd580_b, .xlsx_chemin_sortie("nouveau/f.xlsx", wd580)), file.path(wd580, "nouveau", "f.xlsx")) &&
+           !dir.exists(file.path(wd580, "nouveau")) && !dir.exists(file.path(cwd580_b, "nouveau")))
+if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+  verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() developpe \"~\" (HOME redirige), sans le prefixer du repertoire courant (#580)",
+           identical(sous_home580(h580, .xlsx_chemin_sortie("~/f.xlsx", wd580)), file.path(h580, "f.xlsx")))
+} else cat("  [saute] chemin \"~\" (#580) : HOME non redirigeable sur ce systeme\n")
+if (length(voies488)) {
+  ecrire580 <- function(...) sans488(voies488[[1]], engine_ecrire_xlsx(...))
+  d580 <- data.frame(a = c(0.1, 1/3), b = c("x", "y"), stringsAsFactors = FALSE)
+  if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+    verifier("engine_ecrire_xlsx() : \"~/...\" ecrit sous HOME (redirige) et se relit identical(), sans creer de dossier \"~\" dans le repertoire courant (#580)",
+             {
+               r <- sous_home580(h580, ecrire580(d580, "~/export580.xlsx"))
+               identical(r, file.path(h580, "export580.xlsx")) && file.exists(r) &&
+                 !dir.exists(file.path(getwd(), "~")) && !file.exists(file.path(getwd(), "~", "export580.xlsx")) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+             })
+  }
+  verifier("engine_ecrire_xlsx() : chemin relatif resolu avant le changement de repertoire interne, fichier ecrit sous le repertoire courant de l'appelant (#580)",
+           {
+             ancien <- setwd(h580); on.exit(setwd(ancien), add = TRUE)
+             r <- ecrire580(d580, "relatif580.xlsx")
+             setwd(ancien)
+             identical(r, file.path(h580, "relatif580.xlsx")) && file.exists(file.path(h580, "relatif580.xlsx")) &&
+               identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+           })
+  refus580 <- function(df, feuille = "Donnees") {
+    f <- file.path(h580, "refus580.xlsx")
+    if (file.exists(f)) unlink(f)
+    e <- tryCatch(ecrire580(df, f, feuille), error = function(e) e)
+    list(e = e, classe = identical(class(e), c("usp_refus_ecriture", "error", "condition")),
+         cree = file.exists(f), msg = if (inherits(e, "error")) conditionMessage(e) else "")
+  }
+  motif580 <- function(r, ou, code)
+    r$classe && !r$cree && grepl(ou, r$msg, fixed = TRUE) && grepl(code, r$msg, fixed = TRUE) &&
+      grepl("aucun fichier ecrit", r$msg, fixed = TRUE) && !grepl("\001", r$msg, fixed = TRUE)
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" en cellule refuse (usp_refus_ecriture), cellule et code cites, aucun fichier cree (#580)",
+           motif580(refus580(data.frame(a = 1:2, b = c("ok", "x\001y"), stringsAsFactors = FALSE)),
+                    "la cellule B3", "U+0001"))
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" en en-tete refuse (usp_refus_ecriture), en-tete et code cites, aucun fichier cree (#580)",
+           motif580(refus580(data.frame(`x\001y` = 1, check.names = FALSE)),
+                    "l'en-tete de la colonne 1 (cellule A1)", "U+0001"))
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" dans le nom de la feuille refuse (usp_refus_ecriture), feuille et code cites, aucun fichier cree (#580)",
+           motif580(refus580(d580, "x\001y"), "le nom de la feuille", "U+0001"))
+  verifier("engine_ecrire_xlsx() : un fichier deja present n'est ni retire ni modifie par un refus (#580)",
+           {
+             f <- file.path(h580, "refus580.xlsx"); writeLines("existant", f)
+             e <- tryCatch(ecrire580(data.frame(a = "x\001y"), f), error = function(e) e)
+             inherits(e, "usp_refus_ecriture") && identical(readLines(f), "existant")
+           })
+  interdits580 <- c(0:8, 11L, 12L, 14:31, 0xFFFEL, 0xFFFFL)
+  cr580 <- 13L   # admis par XML 1.0, refuse : relu en saut de ligne par un analyseur conforme
+  verifier("engine_ecrire_xlsx() : les controles C0 hors tabulation et saut de ligne (retour chariot compris), U+FFFE et U+FFFF sont refuses en cellule, aucun fichier cree (#580)",
+           all(vapply(setdiff(c(interdits580, cr580), 0L), function(cp) {   # U+0000 : impossible dans une chaine R
+             r <- refus580(data.frame(a = paste0("a", intToUtf8(cp), "b"), stringsAsFactors = FALSE))
+             motif580(r, "la cellule A2", sprintf("U+%04X", cp))
+           }, logical(1))))
+  verifier("engine_ecrire_xlsx() : UTF-8 invalide (octet 0xE9 isole, substitut U+D800 encode) refuse en cellule, en en-tete et dans le nom de la feuille, aucun fichier cree (#580)",
+           {
+             mauvais <- c(rawToChar(as.raw(c(0x61, 0xE9, 0x62))), rawToChar(as.raw(c(0xED, 0xA0, 0x80))))
+             all(vapply(mauvais, function(m) {
+               rc <- refus580(data.frame(a = m, stringsAsFactors = FALSE))
+               dh <- data.frame(a = 1); names(dh) <- m
+               rh <- refus580(dh); rf <- refus580(d580, m)
+               motif580(rc, "la cellule A2", "UTF-8 valide") && motif580(rh, "l'en-tete de la colonne 1", "UTF-8 valide") &&
+                 motif580(rf, "le nom de la feuille", "UTF-8 valide")
+             }, logical(1)))
+           })
+  # En-tete : ecrit comme texte de cellule (<t>), non comme attribut : meme
+  # regle que la cellule. Le lecteur interne relit les blancs d'un nom de
+  # colonne en espaces (comportement du lecteur, hors de cette issue) :
+  # l'en-tete est donc controle dans le XML ecrit, les cellules par la relecture.
+  verifier("engine_ecrire_xlsx() : tabulation et saut de ligne admis en cellule (relus identical(), texte marque latin1 compris) et en en-tete (ecrits tels quels dans la feuille) (#580)",
+           {
+             f <- file.path(h580, "admis580.xlsx")
+             txt <- c("a\tb", "a\nb", "c\u00e9")
+             latin <- iconv("caf\u00e9", "UTF-8", "latin1")
+             d <- data.frame(a = c(txt, latin), stringsAsFactors = FALSE)
+             names(d) <- "e\tn\nt\u00e9te"
+             ecrire580(d, f)
+             l <- sans488("openxlsx", engine_lire_xlsx(f))
+             rep580 <- tempfile("dec580_"); utils::unzip(f, exdir = rep580)
+             xml580 <- rawToChar(readBin(file.path(rep580, "xl", "worksheets", "sheet1.xml"), "raw", 10000L))
+             identical(l[[1]], enc2utf8(d[[1]])) &&
+               grepl("<t>e\tn\nt\u00e9te</t>", xml580, fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : retour chariot refuse en cellule et en en-tete (usp_refus_ecriture, emplacement et U+000D cites, caractere non conserve a la relecture, aucun fichier cree) (#580)",
+           {
+             rc <- refus580(data.frame(a = c("ok", "x\ry"), stringsAsFactors = FALSE))
+             dh <- data.frame(a = 1); names(dh) <- "x\ry"
+             rh <- refus580(dh)
+             motif580(rc, "la cellule A3", "U+000D") && motif580(rh, "l'en-tete de la colonne 1 (cellule A1)", "U+000D") &&
+               grepl("ne conserve pas a la relecture", rc$msg, fixed = TRUE) &&
+               grepl("ne conserve pas a la relecture", rh$msg, fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : tabulation, saut de ligne et retour chariot refuses dans le nom de la feuille (usp_refus_ecriture, U+0009, U+000A, U+000D cites, aucun fichier cree) (#580)",
+           all(vapply(c(9L, 10L, 13L), function(cp) {
+             r <- refus580(d580, paste0("a", intToUtf8(cp), "b"))
+             motif580(r, "le nom de la feuille", sprintf("U+%04X", cp)) &&
+               grepl("ne conserve pas a la relecture", r$msg, fixed = TRUE)
+           }, logical(1))))
+  verifier("engine_ecrire_xlsx() : un nom de feuille ordinaire (accent, espace, &, <) est admis, le fichier est cree (#580)",
+           {
+             f <- file.path(h580, "feuille580.xlsx"); if (file.exists(f)) unlink(f)
+             e <- tryCatch(ecrire580(d580, f, "Donn\u00e9es & <1>"), error = function(e) e)
+             !inherits(e, "error") && file.exists(f)
+           })
+  verifier("engine_ecrire_xlsx() : feuille = 1 (nombre fini seul) ecrit la feuille \"1\", comme avant le controle (#580)",
+           {
+             f <- file.path(h580, "feuille1_580.xlsx"); if (file.exists(f)) unlink(f)
+             e <- tryCatch(ecrire580(d580, f, 1), error = function(e) e)
+             rep <- tempfile("fe580_"); if (!inherits(e, "error")) utils::unzip(f, exdir = rep)
+             !inherits(e, "error") && file.exists(f) &&
+               grepl('<sheet name="1" ', paste(readLines(file.path(rep, "xl", "workbook.xml"), warn = FALSE), collapse = ""), fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : feuille NA, NA_character_, vide, vecteur, Inf, liste, NULL ou facteur refusee par un usp_refus_ecriture motive, jamais par une erreur R brute, aucun fichier cree (#580)",
+           all(vapply(list(NA, NA_character_, NA_real_, "", c("a", "b"), Inf, list("a"), NULL, factor("a")), function(fe) {
+             r <- refus580(d580, fe)
+             r$classe && !r$cree && grepl("nom de la feuille doit etre une chaine unique", r$msg, fixed = TRUE) &&
+               grepl("aucun fichier ecrit", r$msg, fixed = TRUE)
+           }, logical(1))))
+} else cat("  [saute] refus et ecriture xlsx (#580) : aucune voie d'ecriture xlsx\n")
+
 fin_fichier()
