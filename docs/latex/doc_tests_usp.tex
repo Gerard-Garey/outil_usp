@@ -46,7 +46,7 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (la page de garde et les mentions « à la date
 % d'établissement du présent document » s'y ancrent) ; ne se recalcule pas.
-\newcommand{\datedoc}{17~novembre 2026}
+\newcommand{\datedoc}{18~novembre 2026}
 \newcommand{\versiondoc}{4.1}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
@@ -907,7 +907,7 @@ nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées
 lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
 vides, des en-têtes en double, de la colonne \code{i}, des cellules non numériques des colonnes
 \code{xt}, \code{yt} et~$t$ et du triangle, des cellules renseignées sous la diagonale, de
-la suite d'en-têtes en chiffres romains et des lignes déplacées par le rangement par~$t$~; motifs de refus des valeurs de la
+la suite d'en-têtes en chiffres romains et des lignes déplacées par le rangement par~$t$, ainsi que des motifs du contrat de forme du classeur (\code{.xlsx\_cinq()}, relations, désignation de la feuille, balises de relation)~; motifs de refus des valeurs de la
 colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières ou non numériques
 cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
 ordre (§\ref{sec:controles})~; positions de la première suite d'au moins deux en-têtes I, II,
@@ -1107,12 +1107,10 @@ le fichier existe après l'écriture~; refus, avant toute écriture, d'un chemin
 chaîne unique, non \code{NA} et non vide, qui finit par une barre oblique ou inverse, d'encodage
 \code{"bytes"} non ASCII ou d'UTF-8 invalide, de lecteur Windows («~\code{X:}~») ou de partage
 en barres inverses sous unix, où ce n'est pas un chemin du système, dont le nom ne finit pas par
-\code{.xlsx} (casse indifférente), ou qui désigne un dossier existant
-(\code{.xlsx\_defaut\_chemin()}), et d'un nom de feuille qui n'est pas une chaîne unique, non
+\code{.xlsx} (casse indifférente) (\code{.xlsx\_defaut\_chemin()}), ou dont la cible résolue désigne un dossier existant, et d'un nom de feuille qui n'est pas une chaîne unique, non
 \code{NA} et non vide, un nombre fini seul étant écrit en chaîne~; refus de même de toute chaîne
 écrite --- cellule, en-tête ou nom de feuille --- qui porte un caractère exclu de XML~1.0
-(caractère de contrôle autre que la tabulation, le saut de ligne et le retour chariot, U+FFFE,
-U+FFFF), qui n'est pas de l'UTF-8 valide ou qui est d'encodage \code{"bytes"} non ASCII, ainsi
+(caractère de contrôle de U+0000 à U+001F autre que la tabulation, le saut de ligne et le retour chariot, U+FFFE, U+FFFF~; U+007F et U+0080 à U+009F, admis par XML~1.0, sont écrits), qui n'est pas de l'UTF-8 valide ou qui est d'encodage \code{"bytes"} non ASCII, ainsi
 que du retour chariot en cellule et en en-tête, et de la tabulation, du saut de ligne et du
 retour chariot dans le nom de feuille, écrit en attribut~: un analyseur XML conforme relit le
 retour chariot d'un texte en saut de ligne et les blancs d'un attribut en espaces
@@ -5137,7 +5135,7 @@ si la colonne $t$ est présente, exige des années entières, finies, sans doubl
 fichier est refusé, sans tri ni comblement. Quand ce rangement change l'ordre des lignes du
 fichier, le lecteur rend dans \code{\$avertissements\_lecture} une information, non bloquante
 («~\code{Lignes du tableau rangees par annee t croissante pour le calcul}~»), qui cite les lignes
-de données déplacées, cinq au plus, et rappelle que l'ordre de la colonne~$t$ détermine les
+de données déplacées, cinq au plus, et rappelle que l'ordre de la colonne~$t$ détermine notamment les
 p-values et les verdicts des tests sensibles à l'ordre des années et, si la profondeur $T$
 retenue est inférieure au nombre de lignes, les années retenues~; ce champ est vide pour un
 fichier déjà rangé, sans colonne~$t$ ou refusé (mesuré). L'application restitue l'information
@@ -5248,15 +5246,12 @@ motif \code{TEXTE\_REFUS\_BALISE\_RELATION}, qui cite le rang de la balise). Ava
 découpage des relations en balises, toute balise \code{<Relationship} sans préfixe suivie, dans
 le texte de \code{xl/\_rels/}\allowbreak\code{workbook.xml.rels} aux fins de ligne retirées, celui
 que lit \code{openxlsx}, d'un caractère autre qu'une espace, «~\code{/}~» ou «~\code{>}~»
-(tabulation, fin de ligne suivie directement d'un attribut, nom prolongé tel que
+(tabulation ou fin de ligne suivie directement d'un attribut, formes de XML bien formé, ou nom prolongé tel que
 \code{<RelationshipX}) est refusée, la racine \code{<Relationships} exceptée. \code{openxlsx}
 n'admet une relation que si son nom est suivi de l'un de ces trois caractères~: placée en
 première relation, ou suivie d'une autre balise de cette forme, une telle balise le fait boucler
-sans fin (source lue, version~4.2.5.2), et le processus~R ne rend pas la main (arrêté sans
-réponse au bout de 20~s, et de 90~s pour une tabulation, mesuré), alors que la voie de repli lit le classeur juste~; placée
-après une relation ordinaire, elle est passée sans message par
-\code{openxlsx}, et une relation qui n'est pas celle de la feuille lue, écrite ainsi, est lue
-juste par les deux chemins et refusée parce que le contrat est fermé (mesuré). La forme
+sans fin (source lue et mesuré, version~4.2.5.2), et le processus~R ne rend pas la main (arrêté sans
+réponse au bout de 20~s, et de 90~s pour une tabulation ou une fin de ligne, mesuré), alors que la voie de repli lit le classeur juste~; placée après une relation ordinaire, elle est passée sans message par \code{openxlsx} (source lue)~: une relation qui n'est pas celle de la feuille lue, écrite ainsi, est lue juste par les deux chemins et refusée parce que le contrat est fermé, et la relation de la feuille lue, écrite ainsi, fait arrêter \code{openxlsx} sur une erreur de~R (mesuré). La forme
 \code{<Relationship} suivie d'une fin de ligne puis d'une espace (un attribut par ligne) reste
 admise, lue juste par les deux chemins (mesuré). La voie de repli lit l'attribut \code{r:id="}\ldots\code{"}
 de la balise \code{<sheet>} de la feuille, puis la relation dont l'attribut
@@ -5295,7 +5290,7 @@ dernier \code{xml"}, sans décodage des références de caractère --- diffère 
 de repli, valeur décodée du premier attribut \code{Target="}\ldots\code{"}, préfixé ou non. Ces formes font lire
 sans message une autre feuille par l'un des deux chemins ou par les deux (\code{x:Target="}\ldots\code{"}
 suivi de \code{Target='}\ldots\code{'}~: première valeur de \code{xt} lue $999$ au lieu de
-$104{,}2$ par les deux chemins, mesuré), ou arrêtent \code{openxlsx} sur une erreur de~R. Un
+$104{,}2$ par les deux chemins, mesuré), ou arrêtent \code{openxlsx} sur une erreur de~R~; un texte \code{Target="}\ldots\code{"} écrit dans la valeur même de l'attribut de cible ne fait trouver de feuille à aucun des deux chemins (mesuré). Un
 attribut \code{Target="}\ldots\code{"} unique écrit entre apostrophes ou à blancs autour du signe \code{=} n'est
 pas refusé~: \code{openxlsx} n'y trouve aucune cible et s'arrête sur une erreur de~R, la voie de
 repli lisant le classeur juste (mesuré~; écarts ci-dessous).
