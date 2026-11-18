@@ -9067,6 +9067,25 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # 1.7976931348623157e308 relu Inf). NA et NaN donnent une cellule vide (NaN
 # revient donc NA a la relecture) ; +-Inf s'ecrit "Inf" / "-Inf". Entiers en
 # "%d". Aucun calcul : seule la representation textuelle est produite.
+# Ecriture a la main gardee (#558) : la variante qui met les colonnes en texte
+# (nombres par .xlsx_nombre()) puis ecrit par utils::write.table(sep = ",",
+# qmethod = "double", na = "", quote = colonnes ni double, ni entiere, ni
+# logique) donne les memes octets sur les jeux de #488, les donnees de
+# tests/donnees/ et les cas courants (NA, guillemets, virgules, points-virgules,
+# fins de ligne, accents, -0, entiers, facteurs, logiques, chaine vide), mais
+# pas partout (mesure, R 4.3.3) : (i) hors locale UTF-8 (LC_ALL=C), une chaine
+# marquee UTF-8 ou latin1 (en-tete compris) est transcrite dans l'encodage
+# natif par write.table() ("\u00e9" ecrit "<U+00E9>"), alors qu'enc2utf8() et
+# writeLines(useBytes = TRUE) ecrivent ici les octets UTF-8 en toute locale ;
+# (ii) une chaine d'encodage "bytes" fait echouer write.table() ("translating
+# strings with "bytes" encoding is not allowed"), ecrite telle quelle ici ;
+# (iii) un tableau a lignes sans colonne recoit une fin de ligne par ligne
+# apres l'en-tete, contre l'en-tete seul ici. Le gain de la variante est
+# faible (22 lignes contre 30 : la mise en texte par colonne reste, le vecteur
+# quote s'ajoute).
+# Fin de ligne : la connexion est ouverte en mode texte ("w"), comme celle de
+# write.table() ; selon la documentation de file() (non mesure sous Windows),
+# "\n" y devient "\r\n" sous Windows dans les deux cas.
 # chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
 # n'est pas acceptee.
 engine_ecrire_csv <- function(df, chemin) {
