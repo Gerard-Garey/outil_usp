@@ -6490,9 +6490,9 @@ verifier("engine_ecrire_xlsx() : chemins reconnus absolus (racine, UNC en barres
            identical(unname(vapply(c("f.xlsx", "sub/f.xlsx", "./f.xlsx", "../f.xlsx", "~/f.xlsx"),
                                    .xlsx_chemin_absolu, logical(1))), rep(FALSE, 5)))
 # Fonction pure : meme resultat depuis deux repertoires courants differents
-# (wd est un argument, getwd() n'y entre pas). Les formes dont dirname() vaut
-# "." sous Linux (UNC en barres inverses, "X:f.xlsx", "C:") ne se testent que
-# ici ; sous Windows, normalizePath() les resout par lecteur et par serveur.
+# (wd est un argument, getwd() n'y entre pas). Elle ne refuse rien : le refus
+# des formes de lecteur et d'UNC en barres inverses sous unix est celui
+# d'engine_ecrire_xlsx() (tests plus bas).
 h580 <- normalizePath(tempfile("home580_"), winslash = "/", mustWork = FALSE)
 dir.create(h580)
 h580 <- normalizePath(h580, winslash = "/")
@@ -6501,32 +6501,33 @@ dir.create(cwd580_b)
 cwd580_b <- normalizePath(cwd580_b, winslash = "/")
 depuis580 <- function(rep, expr) { ancien <- setwd(rep); on.exit(setwd(ancien)); force(expr) }
 sortie580 <- function(chemin) .xlsx_chemin_sortie(chemin, wd580)
-verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC ou de lecteur absolu tel quel, sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)",
-         {
-           attendu <- c("//serveur/partage/f.xlsx", "C:/a/f.xlsx")
-           ok <- identical(sortie580(attendu[1]), attendu[1]) && identical(sortie580(attendu[2]), attendu[2]) &&
-             identical(depuis580(cwd580_b, sortie580(attendu[1])), attendu[1]) &&
-             identical(depuis580(cwd580_b, sortie580(attendu[2])), attendu[2])
-           if (.Platform$OS.type == "unix") {
-             exotiques <- c("\\\\serveur\\partage\\f.xlsx", "X:f.xlsx", "C:")
-             ok <- ok && all(vapply(exotiques, function(x)
-               identical(sortie580(x), x) && identical(depuis580(cwd580_b, sortie580(x)), x) &&
-                 identical(depuis580(h580, sortie580(x)), x), logical(1)))
-           }
-           ok
-         })
-# Sous unix, dirname("C:/a/f.xlsx") vaut "C:/a", relatif pour le systeme :
-# normalizePath() le resoudrait contre getwd() des qu'un dossier "C:/a" y existe
-# (avant : "<cwd>/C:/a/f.xlsx"). Le chemin doit etre rendu tel quel.
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC en barres obliques tel quel (absolu sur tout systeme), sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)",
+         identical(sortie580("//serveur/partage/f.xlsx"), "//serveur/partage/f.xlsx") &&
+           identical(depuis580(cwd580_b, sortie580("//serveur/partage/f.xlsx")), "//serveur/partage/f.xlsx"))
+if (.Platform$OS.type == "windows") {
+  verifier("engine_ecrire_xlsx() : sous Windows, .xlsx_chemin_sortie() garde un chemin de lecteur absolu tel quel, depuis deux repertoires courants (#580)",
+           identical(sortie580("C:/a/f.xlsx"), "C:/a/f.xlsx") &&
+             identical(depuis580(cwd580_b, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx"))
+}
+# Sous unix, la cible est toujours absolue : un chemin qui ne commence pas par
+# "/" est resolu contre wd, formes de lecteur ("X:f.xlsx", "C:", "C:/a/f.xlsx")
+# et d'UNC en barres inverses comprises (engine_ecrire_xlsx() les refuse avant ;
+# avant : rendues telles quelles, donc relatives au dossier temporaire interne).
+# Meme avec un dossier "C:/a" present dans le repertoire courant, wd l'emporte.
 if (.Platform$OS.type == "unix") {
-  verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() ne resout pas contre getwd() un dossier \"C:/a\" relatif pour le systeme, meme present dans le repertoire courant (#580)",
+  verifier("engine_ecrire_xlsx() : sous unix, .xlsx_chemin_sortie() resout contre wd tout chemin ne commencant pas par une barre oblique (lecteur, UNC en barres inverses compris) : cible absolue, independante du repertoire courant (#580)",
            {
              cwd580_c <- normalizePath(tempfile("cwd580c_"), winslash = "/", mustWork = FALSE)
              dir.create(file.path(cwd580_c, "C:", "a"), recursive = TRUE)
              cwd580_c <- normalizePath(cwd580_c, winslash = "/")
-             identical(depuis580(cwd580_c, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx") &&
-               identical(depuis580(cwd580_c, .xlsx_chemin_sortie("C:/a/f.xlsx", cwd580_c)), "C:/a/f.xlsx") &&
-               identical(depuis580(cwd580_b, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx")
+             formes <- c("\\\\serveur\\partage\\f.xlsx", "X:f.xlsx", "C:", "C:/a/f.xlsx", "\\f.xlsx")
+             all(vapply(formes, function(x) {
+               attendu <- file.path(wd580, x)
+               startsWith(attendu, "/") && identical(sortie580(x), attendu) &&
+                 identical(depuis580(cwd580_b, sortie580(x)), attendu) &&
+                 identical(depuis580(cwd580_c, sortie580(x)), attendu) &&
+                 identical(depuis580(cwd580_c, .xlsx_chemin_sortie(x, cwd580_c)), file.path(cwd580_c, x))
+             }, logical(1)))
            })
 }
 verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() prend un chemin relatif par rapport au repertoire donne, sans creer le dossier (#580)",
@@ -6676,6 +6677,143 @@ if (length(voies488)) {
              r <- tryCatch(ecrire580(d580, f), error = function(e) e)
              !inherits(r, "error") && identical(r, f) && file.exists(f)
            })
+  # Chemin de sortie, troisieme reprise (#580) : chemin de la plateforme, fichier
+  # designe, encodage. Chaque refus est juge depuis un repertoire courant propre
+  # (contenant un dossier "sub" et un dossier "dos.xlsx"), classe
+  # usp_refus_ecriture, motif cite, aucun avertissement R, et inventaire de
+  # tempdir() (repertoire courant, HOME redirige et autres dossiers de ce
+  # fichier compris) inchange : rien de cree ni retire, nulle part.
+  inventaire580 <- function() sort(list.files(tempdir(), all.files = TRUE, no.. = TRUE,
+                                              recursive = TRUE, include.dirs = TRUE))
+  nouveau_rep580 <- function(pref) {
+    rep <- normalizePath(tempfile(pref), winslash = "/", mustWork = FALSE)
+    dir.create(file.path(rep, "sub"), recursive = TRUE); dir.create(file.path(rep, "dos.xlsx"))
+    normalizePath(rep, winslash = "/")
+  }
+  refus580p <- function(chemin, motif) {
+    rep <- nouveau_rep580("chp580_")
+    avant <- inventaire580(); wd_avant <- getwd(); n_avert <- 0L
+    e <- depuis580(rep, withCallingHandlers(
+      tryCatch(ecrire580(d580, chemin), error = function(e) e),
+      warning = function(w) { n_avert <<- n_avert + 1L; invokeRestart("muffleWarning") }))
+    msg <- if (inherits(e, "error")) conditionMessage(e) else ""
+    identical(class(e), c("usp_refus_ecriture", "error", "condition")) && n_avert == 0L &&
+      grepl(motif, msg, fixed = TRUE) && grepl("aucun fichier ecrit", msg, fixed = TRUE) &&
+      identical(inventaire580(), avant) && identical(getwd(), wd_avant) &&
+      dir.exists(file.path(rep, "sub")) && dir.exists(file.path(rep, "dos.xlsx"))
+  }
+  if (.Platform$OS.type == "unix") {
+    verifier("engine_ecrire_xlsx() : sous unix, \"X:f.xlsx\", \"C:f.xlsx\", \"C:\", \"\\\\srv\\p\\f.xlsx\" et \"C:/a/f.xlsx\" refuses (usp_refus_ecriture, pas un chemin de ce systeme), aucun fichier cree nulle part, aucun avertissement (#580)",
+             all(vapply(c("X:f.xlsx", "C:f.xlsx", "C:", "\\\\srv\\p\\f.xlsx", "C:/a/f.xlsx", "c:\\a\\f.xlsx"),
+                        refus580p, logical(1), motif = "n'est pas un chemin de ce systeme")))
+    verifier("engine_ecrire_xlsx() : sous unix, un chemin en \"//serveur/...\" reste un chemin absolu (non refuse comme chemin de plateforme), et un nom a deux-points interne reste admis (#580)",
+             {
+               e1 <- tryCatch(ecrire580(d580, "//serveur_inexistant580/p/f.xlsx"), error = function(e) e)
+               f2 <- file.path(h580, "a:b580.xlsx"); if (file.exists(f2)) unlink(f2)
+               e2 <- tryCatch(ecrire580(d580, f2), error = function(e) e)
+               inherits(e1, "usp_refus_ecriture") &&
+                 !grepl("n'est pas un chemin de ce systeme", conditionMessage(e1), fixed = TRUE) &&
+                 !inherits(e2, "error") && file.exists(f2)
+             })
+  }
+  verifier("engine_ecrire_xlsx() : un dossier existant (\"dos.xlsx\"), \".\", \"..\", \"sub/..\", \"sub/.\", \"sub\", \"f\", \"f.csv\" et \"f.xlsx.zip\" refuses, motif .xlsx ou dossier existant, rien cree (ni sub.zip, ni f.zip) (#580)",
+           refus580p("dos.xlsx", "designe un dossier existant") &&
+             all(vapply(c(".", "..", "sub/..", "sub/.", "sub", "f", "f.csv", "f.xlsx.zip", "f.xlsx.", "xlsx"),
+                        refus580p, logical(1), motif = "se termine par .xlsx")))
+  verifier("engine_ecrire_xlsx() : un dossier existant donne en chemin absolu est refuse de meme (#580)",
+           {
+             rep <- nouveau_rep580("chd580_"); avant <- inventaire580()
+             e1 <- tryCatch(ecrire580(d580, file.path(rep, "dos.xlsx")), error = function(e) e)
+             e2 <- tryCatch(ecrire580(d580, file.path(rep, "sub")), error = function(e) e)
+             inherits(e1, "usp_refus_ecriture") && grepl("designe un dossier existant", conditionMessage(e1), fixed = TRUE) &&
+               inherits(e2, "usp_refus_ecriture") && identical(inventaire580(), avant)
+           })
+  verifier("engine_ecrire_xlsx() : \"F.XLSX\" et \"g.XlSx\" (casse indifferente) admis et ecrits, valeur rendue = fichier existant, relus identical() (#580)",
+           {
+             rep <- nouveau_rep580("chm580_")
+             all(vapply(c("F.XLSX", "g.XlSx"), function(ch) {
+               r <- depuis580(rep, ecrire580(d580, ch))
+               identical(r, file.path(rep, ch)) && file.exists(r) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+             }, logical(1)))
+           })
+  octets580 <- function(s) { Encoding(s) <- "bytes"; s }
+  # Chemin "bytes" non ASCII ou UTF-8 invalide : refus motive, sans erreur R
+  # brute ni avertissement (avant : simpleError "translating strings with
+  # bytes encoding is not allowed" ; avec le paquet zip, "caf\xe9.xlsx" ecrivait
+  # un fichier au nom invalide)
+  verifier("engine_ecrire_xlsx() : chemin \"bytes\" non ASCII refuse (motif \"bytes\"), chemin \"bytes\" ASCII admis, sans avertissement, rien cree (#580)",
+           {
+             m <- octets580("caf\xc3\xa9.xlsx")
+             rep <- nouveau_rep580("chb580_")
+             asc <- octets580("bytes_ascii_chemin580.xlsx")
+             r <- tryCatch(depuis580(rep, ecrire580(d580, asc)), error = function(e) e)
+             identical(Encoding(m), "bytes") && refus580p(m, "\"bytes\"") &&
+               !inherits(r, "error") && file.exists(file.path(rep, "bytes_ascii_chemin580.xlsx"))
+           })
+  if (isTRUE(l10n_info()[["UTF-8"]])) {
+    verifier("engine_ecrire_xlsx() : chemin \"caf\\xe9.xlsx\" non marque (UTF-8 invalide) refuse (motif UTF-8 valide), sans avertissement, rien cree ; NA et non chaine refuses sans avertissement (#580)",
+             {
+               n_avert <- 0L
+               autres <- withCallingHandlers(
+                 vapply(list(NA, NA_character_, 1, NULL, c("a.xlsx", "b.xlsx"), list("a.xlsx"), ""), function(ch) {
+                   e <- tryCatch(ecrire580(d580, ch), error = function(e) e)
+                   identical(class(e), c("usp_refus_ecriture", "error", "condition")) &&
+                     grepl("le chemin doit etre une chaine unique", conditionMessage(e), fixed = TRUE)
+                 }, logical(1)),
+                 warning = function(w) { n_avert <<- n_avert + 1L; invokeRestart("muffleWarning") })
+               refus580p("caf\xe9.xlsx", "UTF-8 valide") && all(autres) && n_avert == 0L
+             })
+  }
+  verifier("engine_ecrire_xlsx() : appels legitimes admis (tempfile(fileext = \".xlsx\"), relatif, relatif avec dossier existant, \"~\"), valeur rendue = fichier existant (#580)",
+           {
+             rep <- nouveau_rep580("chl580_")
+             f1 <- tempfile(fileext = ".xlsx")
+             r1 <- ecrire580(d580, f1)
+             r2 <- depuis580(rep, ecrire580(d580, "rel580.xlsx"))
+             r3 <- depuis580(rep, ecrire580(d580, "./sub/rel580.xlsx"))
+             ok <- identical(r1, normalizePath(f1, winslash = "/")) && file.exists(r1) &&
+               identical(r2, file.path(rep, "rel580.xlsx")) && file.exists(r2) &&
+               identical(r3, file.path(rep, "sub", "rel580.xlsx")) && file.exists(r3)
+             if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+               r4 <- sous_home580(h580, ecrire580(d580, "~/legitime580.xlsx"))
+               ok <- ok && identical(r4, file.path(h580, "legitime580.xlsx")) && file.exists(r4)
+             }
+             ok
+           })
+  # Valeur rendue seulement si le fichier existe : archive absente apres un
+  # retour sans erreur (zip::zipr(), puis utils::zip() rendant 0), simule par
+  # une substitution de "::" dans l'environnement du moteur (ADR 0016)
+  sans_archive580 <- function(pkg_nom, nom, valeur, expr) {
+    assign("::", function(pkg, name) {
+      pkg <- as.character(substitute(pkg)); name <- as.character(substitute(name))
+      if (pkg == pkg_nom && name == nom) function(...) valeur else getExportedValue(pkg, name)
+    }, envir = env488)
+    on.exit(rm("::", envir = env488), add = TRUE)
+    force(expr)
+  }
+  if (base::requireNamespace("zip", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx() : zip::zipr() rendant sans erreur ni archive, sans commande zip -> usp_refus_ecriture \"archive absente\", aucune valeur rendue (#580)",
+             {
+               f <- file.path(h580, "absente580.xlsx"); if (file.exists(f)) unlink(f)
+               ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+               Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp580")
+               on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+               e <- tryCatch(sans_archive580("zip", "zipr", NULL, engine_ecrire_xlsx(d580, f)), error = function(e) e)
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) && !file.exists(f) &&
+                 grepl("paquet zip : archive absente apres l'ecriture", conditionMessage(e), fixed = TRUE)
+             })
+  }
+  if (nzchar(Sys.which("zip"))) {
+    verifier("engine_ecrire_xlsx() : utils::zip() rendant 0 sans archive -> usp_refus_ecriture \"statut 0 mais archive absente\", aucune valeur rendue (#580)",
+             {
+               f <- file.path(h580, "absente580b.xlsx"); if (file.exists(f)) unlink(f)
+               e <- tryCatch(sans488("zip", sans_archive580("utils", "zip", 0L, engine_ecrire_xlsx(d580, f))),
+                             error = function(e) e)
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) && !file.exists(f) &&
+                 grepl("statut 0 mais archive absente", conditionMessage(e), fixed = TRUE)
+             })
+  }
   # Guillemet double d'un nom de feuille : echappe &quot; dans l'attribut name
   # (avant : XML mal forme, classeur refuse par le lecteur interne) ; dans le
   # texte d'une cellule il reste ecrit tel quel.
@@ -6704,7 +6842,6 @@ if (length(voies488)) {
   # Chaine marquee "bytes" : refusee a tous les emplacements des qu'elle est
   # non ASCII, meme UTF-8 valide (avant : erreur R brute de sprintf() en cellule
   # et en en-tete, admise en nom de feuille) ; une chaine bytes ASCII reste admise.
-  octets580 <- function(s) { Encoding(s) <- "bytes"; s }
   verifier("engine_ecrire_xlsx() : chaine \"caf\\xc3\\xa9\" marquee bytes (UTF-8 valide, non ASCII) refusee en cellule, en en-tete et en nom de feuille, motif \"bytes\", aucun fichier cree (#580)",
            {
              m <- octets580("caf\xc3\xa9")
