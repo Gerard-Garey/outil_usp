@@ -898,16 +898,19 @@ inchangés~; prédicat «~cellule texte \code{NA}~», qui fait ajouter au motif 
 vrai si tous les noms de colonne sont vides (\code{NA}, chaîne vide ou faite de blancs de la
 classe \code{[[:space:]]}, BOM retiré) et si au moins une cellule porte une valeur \\
 \code{.entete\_designe()},\newline \code{.liste\_positions()},\newline
-\code{.motifs\_colonne\_i()} & noms de colonne, lettre~; positions~; colonne \code{i} &
+\code{.motifs\_colonne\_i()},\newline \code{.suite\_entetes\_romains()} & noms de colonne, lettre~; positions~; colonne \code{i}~; noms de colonne &
 prédicat «~en-tête qui désigne la colonne~» \code{i} du triangle ou~$t$ des séries~: la lettre en
 minuscule ou en majuscule une fois retirés les blancs de bord de la classe \code{[[:space:]]}, un
 nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées dans un motif de
 lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
 vides, des en-têtes en double, de la colonne \code{i}, des cellules non numériques des colonnes
-\code{xt}, \code{yt} et~$t$ et du triangle, et des cellules renseignées sous la diagonale~; motifs de refus des valeurs de la
+\code{xt}, \code{yt} et~$t$ et du triangle, des cellules renseignées sous la diagonale et de
+la suite d'en-têtes en chiffres romains~; motifs de refus des valeurs de la
 colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières ou non numériques
 cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
-ordre (§\ref{sec:controles}) \\
+ordre (§\ref{sec:controles})~; positions de la première suite d'au moins deux en-têtes I, II,
+III, \ldots{} en colonnes consécutives, de casse uniforme, blancs de bord ignorés (formes
+canoniques d'\code{utils::as.roman()}, rang limité à 3\,000), vide sans telle suite \\
 \code{.cellules\_nettoyees()},\newline \code{.cellules\_vides()},\newline
 \code{.valeurs\_non\_entieres()} & colonne~; colonne nettoyée~; valeurs numériques &
 primitives communes aux contrôles de la colonne~$t$, de la colonne \code{i} et des colonnes de
@@ -925,10 +928,13 @@ survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 premier nom de colonne, refus de tout nom de colonne déclaré d'encodage \code{"bytes"}, même
 motif que pour les séries, refus d'une ligne~1 sans valeur par \code{.ligne1\_sans\_valeur()},
 colonne \code{i} désignée par l'en-tête \code{i}, en minuscule ou en majuscule, blancs de bord ignorés
-(\code{.entete\_designe()}), refus d'un tel en-tête présent plusieurs fois,
+(\code{.entete\_designe()}), refus d'une suite d'en-têtes en chiffres romains
+(\code{.suite\_entetes\_romains()}) quand une colonne désignée \code{i} existe hors de la suite,
+puis refus d'un tel en-tête présent plusieurs fois,
 lignes et colonnes vides selon
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, valeurs de la colonne \code{i}
-contrôlées par \code{.motifs\_colonne\_i()}, puis colonne retirée, cellule non numérique refusée avec
+contrôlées par \code{.motifs\_colonne\_i()}, dont le motif est remplacé par celui de la suite
+d'en-têtes en chiffres romains quand le I de la suite est la colonne \code{i}, puis colonne retirée, cellule non numérique refusée avec
 sa position, une cellule renseignée d'une colonne ni numérique, ni texte, ni facteur (logique,
 date\ldots) l'étant de même, puis \code{mw\_valider\_triangle()}, appelé sans segment ni annexe~;
 \code{\$avertissements\_lecture}, seuls avertissements propres au fichier lu~: le motif des
@@ -4453,7 +4459,22 @@ séries, paragraphe «~Lecture des fichiers~»)~; plusieurs en-têtes qui la dé
 après le refus d'une ligne~1 sans valeur et avant la règle des lignes et colonnes vides, par un
 motif rendu seul («~\code{En-tete de la colonne i present plusieurs fois}~», en-têtes cités tels
 que reçus)~; une colonne de nom \code{NA} (appel direct) est un en-tête absent, jamais la
-colonne \code{i}. Présente, la colonne doit porter, ligne après ligne, des entiers croissants de
+colonne \code{i}. L'en-tête I désignant la colonne \code{i}, des colonnes de développement titrées
+en chiffres romains seraient refusées sous un motif qui ne dit pas la cause~: une suite d'au
+moins deux en-têtes I, II, III, \ldots{} en colonnes consécutives, de casse uniforme (toute en
+majuscules ou toute en minuscules, blancs de bord ignorés, formes canoniques
+d'\code{utils::as.roman()}), est reconnue par \code{.suite\_entetes\_romains()}. Si une colonne
+désignée \code{i} existe hors de la suite (\code{i}, \code{I}, \code{II}, \ldots), le tableau
+est refusé avant le refus des en-têtes en double, par le motif «~\code{En-tetes de colonnes en
+chiffres romains}~», qui cite les positions et les en-têtes de la suite et demande de renommer
+les colonnes de développement (\code{j0}, \code{j1}, \ldots)~; si le I de la suite est la seule
+colonne désignée \code{i}, la lecture continue et ce motif remplace celui de
+\code{.motifs\_colonne\_i()} quand celle-ci en émet un, de sorte qu'une colonne I qui porte les
+années d'accident, suivie de colonnes II, III, \ldots, reste lue (mesuré). Un I seul, ou suivi
+d'en-têtes d'une autre casse (\code{i}, \code{II}, \ldots), relève des seules règles de la
+colonne \code{i}. Limite~: une colonne I de montants qui forment par hasard des entiers
+croissants de pas~1 passe ces règles, et le refus vient en aval, par le contrôle de la forme
+du triangle, sans le motif dédié (mesuré). Présente, la colonne doit porter, ligne après ligne, des entiers croissants de
 pas~1, sans vide, la valeur de départ étant libre (0, 1, année civile ou valeur négative)~: une
 colonne \code{i} qui contredit l'ordre des lignes signale un triangle qui n'est peut-être pas celui
 que l'utilisateur voulait fournir. \code{.motifs\_colonne\_i()} refuse, en lignes de données,
@@ -21144,7 +21165,7 @@ par \code{usp\_gamma\_bord()}),
 \code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, en-têtes de la colonne~$t$ et de la colonne \code{i} par
-\code{.entete\_designe()}, valeurs de la colonne \code{i} par \code{.motifs\_colonne\_i()}, lignes et colonnes vides par
+\code{.entete\_designe()}, suite d'en-têtes en chiffres romains par \code{.suite\_entetes\_romains()}, valeurs de la colonne \code{i} par \code{.motifs\_colonne\_i()}, lignes et colonnes vides par
 \code{.retirer\_lignes\_}\allowbreak\code{colonnes\_vides()}, ligne~1 sans valeur d'un CSV par
 \code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
 \code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
