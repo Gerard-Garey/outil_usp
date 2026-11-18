@@ -1,0 +1,474 @@
+[t1-xtarget-dq-puis-target-apos] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  relation de la feuille lue : x:Target="...sheet2.xml" Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t1-xtarget-dq-puis-target-apos] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  relation de la feuille lue : x:Target="...sheet2.xml" Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t2-xtarget-dq-puis-target-dq] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  x:Target="...sheet2.xml" Target="...sheet1.xml"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t2-xtarget-dq-puis-target-dq] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  x:Target="...sheet2.xml" Target="...sheet1.xml"
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[t3-target-apos-puis-xtarget-dq] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target='...sheet1.xml' x:Target="...sheet2.xml"
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t3-target-apos-puis-xtarget-dq] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target='...sheet1.xml' x:Target="...sheet2.xml"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t4-foo-target-puis-target-apos] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Foo='Target="...sheet2.xml"' Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t4-foo-target-puis-target-apos] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Foo='Target="...sheet2.xml"' Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+Error: unexpected '=' in "="
+Execution halted
+  [code de sortie : 1]
+
+[t5-target-apos-puis-foo-target] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target='...sheet1.xml' Foo='Target="...sheet2.xml"'
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t5-target-apos-puis-foo-target] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target='...sheet1.xml' Foo='Target="...sheet2.xml"'
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t6-target-dq-puis-foo-target] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target="...sheet1.xml" Foo='Target="...sheet2.xml"'
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t6-target-dq-puis-foo-target] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target="...sheet1.xml" Foo='Target="...sheet2.xml"'
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[t7-target-repete-dq] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target="...sheet2.xml" Target="...sheet1.xml" (Target repete, sans prefixe)
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t7-target-repete-dq] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target="...sheet2.xml" Target="...sheet1.xml" (Target repete, sans prefixe)
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[t8-foo-target-lf-puis-target-apos] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Foo='Target<LF>="...sheet2.xml"' Target='...sheet1.xml' (texte colle)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t8-foo-target-lf-puis-target-apos] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Foo='Target<LF>="...sheet2.xml"' Target='...sheet1.xml' (texte colle)
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t9-xtarget-nom-puis-target-apos] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  xTarget="...sheet2.xml" Target='...sheet1.xml' (nom d'attribut qui finit par Target)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t9-xtarget-nom-puis-target-apos] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  xTarget="...sheet2.xml" Target='...sheet1.xml' (nom d'attribut qui finit par Target)
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t10-target-dans-sa-valeur] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target='...sheet1.xml Target="...sheet2.xml"' (texte dans la valeur de Target)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[t10-target-dans-sa-valeur] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target='...sheet1.xml Target="...sheet2.xml"' (texte dans la valeur de Target)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[t11-target-apos-seul-2f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ; relation de la feuille lue Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t11-target-apos-seul-2f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ; relation de la feuille lue Target='...sheet1.xml'
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[t12-target-blancs-seul-2f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ; relation de la feuille lue Target = "...sheet1.xml"
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t12-target-blancs-seul-2f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ; relation de la feuille lue Target = "...sheet1.xml"
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[t13-target-apos-seul-1f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  une feuille ; Target='...sheet1.xml'
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t13-target-apos-seul-1f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  une feuille ; Target='...sheet1.xml'
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[b1-tab-premiere] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <Relationship<TAB>Id="rId1" (premiere relation)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b1-tab-premiere] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <Relationship<TAB>Id="rId1" (premiere relation)
+  [code de sortie : 124 = BLOCAGE (timeout 20 s)]
+
+[b2-lf-premiere] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <Relationship<LF>Id="rId1" (premiere relation)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b2-lf-premiere] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <Relationship<LF>Id="rId1" (premiere relation)
+  [code de sortie : 124 = BLOCAGE (timeout 20 s)]
+
+[b3-cr-premiere] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <Relationship<CR>Id="rId1" (premiere relation)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b3-cr-premiere] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <Relationship<CR>Id="rId1" (premiere relation)
+  [code de sortie : 124 = BLOCAGE (timeout 20 s)]
+
+[b4-tab-seconde] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles, seconde relation (feuille 2) <Relationship<TAB>Id="rId2"
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b4-tab-seconde] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles, seconde relation (feuille 2) <Relationship<TAB>Id="rId2"
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b5-relation-lf-ship-tab] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <Relation<LF>ship<TAB>Id="rId1" (colle : <Relationship<TAB>)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[b5-relation-lf-ship-tab] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <Relation<LF>ship<TAB>Id="rId1" (colle : <Relationship<TAB>)
+  ERREUR classe = simpleError
+  message = Classeur illisible : aucune feuille trouvee.
+  [code de sortie : 0]
+
+[b6-relationshipx] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <RelationshipX Id="rId9" .../> placee avant la vraie
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b6-relationshipx] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <RelationshipX Id="rId9" .../> placee avant la vraie
+  [code de sortie : 124 = BLOCAGE (timeout 20 s)]
+
+[b7-crlf-espace] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <Relationship<CR><LF> Id="rId1" (colle : <Relationship Id)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b7-crlf-espace] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <Relationship<CR><LF> Id="rId1" (colle : <Relationship Id)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b8-x-prefixe-tab] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  <x:Relationship<TAB>Id="rId1" (prefixe declare sur la racine)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b8-x-prefixe-tab] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  <x:Relationship<TAB>Id="rId1" (prefixe declare sur la racine)
+  ERREUR classe = simpleError
+  message = Length of worksheet is 0
+  [code de sortie : 0]
+
+[b9-racine-tab] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  racine <Relationships<TAB>xmlns=...
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b9-racine-tab] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  racine <Relationships<TAB>xmlns=...
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b10-racine-lf] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  racine <Relationships<LF>xmlns=... (colle : <Relationshipsxmlns)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b10-racine-lf] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  racine <Relationships<LF>xmlns=... (colle : <Relationshipsxmlns)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b11-tab-derniere-2f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles, relation 2 en derniere position <Relationship<TAB>Id="rId2" (idem b4, controle)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b11-tab-derniere-2f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles, relation 2 en derniere position <Relationship<TAB>Id="rId2" (idem b4, controle)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[y1-xtype-chart-puis-type-ws] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : x:Type=".../chartsheet" Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[y1-xtype-chart-puis-type-ws] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : x:Type=".../chartsheet" Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[y2-type-chart-puis-xtype-ws] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : Type=".../chartsheet" x:Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[y2-type-chart-puis-xtype-ws] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : Type=".../chartsheet" x:Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[y3-type-repete] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : Type=".../chartsheet" Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[y3-type-repete] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ; relation 1 : Type=".../chartsheet" Type=".../worksheet"
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[h1-autre-workbook] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  entree a/workbook.xml (copie de xl/workbook.xml) placee avant xl/ dans l'archive
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[h1-autre-workbook] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  entree a/workbook.xml (copie de xl/workbook.xml) placee avant xl/ dans l'archive
+  ERREUR classe = simpleError
+  message = invalid 'description' argument
+  [code de sortie : 0]
+
+[h2-autre-workbook-rels] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  entree a/_rels/workbook.xml.rels (relation rId1 -> sheet2.xml) placee avant xl/
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[h2-autre-workbook-rels] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  entree a/_rels/workbook.xml.rels (relation rId1 -> sheet2.xml) placee avant xl/
+  ERREUR classe = simpleError
+  message = invalid 'description' argument
+  [code de sortie : 0]
+
+[h3-copie-feuille-autre-dossier] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  entree a/worksheets/sheet1.xml (999 en B2) placee avant xl/
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[h3-copie-feuille-autre-dossier] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  entree a/worksheets/sheet1.xml (999 en B2) placee avant xl/
+  ERREUR classe = Rcpp::not_compatible
+  message = Expecting a single string value: [type=character; extent=2].
+  [code de sortie : 0]
+
+[h4-copie-feuille-xworksheets] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  entree xl/xworksheets/sheet1.xml (999 en B2)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[h4-copie-feuille-xworksheets] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  entree xl/xworksheets/sheet1.xml (999 en B2)
+  ERREUR classe = Rcpp::not_compatible
+  message = Expecting a single string value: [type=character; extent=2].
+  [code de sortie : 0]
+
+[w1-forge] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  classeur forge ordinaire
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w1-forge] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  classeur forge ordinaire
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w2-deux-feuilles] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles ordinaires
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w2-deux-feuilles] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles ordinaires
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w3-ecrivain-interne] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  classeur de engine_ecrire_xlsx()
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w3-ecrivain-interne] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  classeur de engine_ecrire_xlsx()
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w4-openxlsx-deux-feuilles] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  classeur d'openxlsx::write.xlsx() a deux feuilles
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w4-openxlsx-deux-feuilles] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  classeur d'openxlsx::write.xlsx() a deux feuilles
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w5-crlf] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles, workbook.xml et relations en CRLF
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[w5-crlf] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles, workbook.xml et relations en CRLF
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t14-guillemet-entree] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target="...sheet1.xml" Foo="z.xml" et entree xl/worksheets/sheet1.xml" Foo="z.xml (999) dans l'archive
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t14-guillemet-entree] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target="...sheet1.xml" Foo="z.xml" et entree xl/worksheets/sheet1.xml" Foo="z.xml (999) dans l'archive
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[t15-entite-entree] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  Target="worksheets/sheet&#49;.xml" et entree xl/worksheets/sheet&#49;.xml (999) dans l'archive
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[t15-entite-entree] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  Target="worksheets/sheet&#49;.xml" et entree xl/worksheets/sheet&#49;.xml (999) dans l'archive
+  lu : 8 x 3 ; B2 lu = 999
+  run_engine : ok = TRUE, sigma_USP = 0.5064392336
+  [code de sortie : 0]
+
+[b12-attribut-par-ligne-lf-2f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles, relations ecrites un attribut par ligne (<LF><espace> avant chaque attribut)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b12-attribut-par-ligne-lf-2f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles, relations ecrites un attribut par ligne (<LF><espace> avant chaque attribut)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b13-attribut-par-ligne-crlf-2f] chemin = interne (openxlsx vu par le moteur : FALSE) ; moteur = engine_avant.R
+  deux feuilles, relations ecrites un attribut par ligne (<CR><LF><espace> avant chaque attribut)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
+[b13-attribut-par-ligne-crlf-2f] chemin = openxlsx (openxlsx vu par le moteur : TRUE, 4.2.5.2) ; moteur = engine_avant.R
+  deux feuilles, relations ecrites un attribut par ligne (<CR><LF><espace> avant chaque attribut)
+  lu : 8 x 3 ; B2 lu = 104.2
+  run_engine : ok = TRUE, sigma_USP = 0.1114524114
+  [code de sortie : 0]
+
