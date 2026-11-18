@@ -1,0 +1,80 @@
+| t1-xtarget-dq-puis-target-apos | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (x:Target, Target) |
+| t1-xtarget-dq-puis-target-apos | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (x:Target, Target) |
+| t2-xtarget-dq-puis-target-dq | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (x:Target, Target) |
+| t2-xtarget-dq-puis-target-dq | openxlsx | Length of worksheet is 0 | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (x:Target, Target) |
+| t3-target-apos-puis-xtarget-dq | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (Target, x:Target) |
+| t3-target-apos-puis-xtarget-dq | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (Target, x:Target) |
+| t4-foo-target-puis-target-apos | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t4-foo-target-puis-target-apos | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t5-target-apos-puis-foo-target | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t5-target-apos-puis-foo-target | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t6-target-dq-puis-foo-target | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t6-target-dq-puis-foo-target | openxlsx | Length of worksheet is 0 | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t7-target-repete-dq | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (Target, Target) |
+| t7-target-repete-dq | openxlsx | Length of worksheet is 0 | (a) balise <Relationship> 1, relation de la feuille lue : attribut Target repete ou prefixe (Target, Target) |
+| t8-foo-target-lf-puis-target-apos | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t8-foo-target-lf-puis-target-apos | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Foo |
+| t9-xtarget-nom-puis-target-apos | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= ailleurs qu'au debut de l'attribut Target (par exemple a la fin du nom d'un autre attribut, ou apres la balise ouvrante) |
+| t9-xtarget-nom-puis-target-apos | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= ailleurs qu'au debut de l'attribut Target (par exemple a la fin du nom d'un autre attribut, ou apres la balise ouvrante) |
+| t10-target-dans-sa-valeur | interne | aucune feuille trouvee. | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Target |
+| t10-target-dans-sa-valeur | openxlsx | aucune feuille trouvee. | (a) balise <Relationship> 1, relation de la feuille lue : texte Target= dans la valeur de l'attribut Target |
+| t14-guillemet-entree | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : cible differente pour un autre lecteur (a3) |
+| t14-guillemet-entree | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : cible differente pour un autre lecteur (a3) |
+| t15-entite-entree | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : cible differente pour un autre lecteur (a3) |
+| t15-entite-entree | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1, relation de la feuille lue : cible differente pour un autre lecteur (a3) |
+| t11-target-apos-seul-2f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| t11-target-apos-seul-2f | openxlsx | Length of worksheet is 0 | Length of worksheet is 0 |
+| t12-target-blancs-seul-2f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| t12-target-blancs-seul-2f | openxlsx | Length of worksheet is 0 | Length of worksheet is 0 |
+| t13-target-apos-seul-1f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| t13-target-apos-seul-1f | openxlsx | Length of worksheet is 0 | Length of worksheet is 0 |
+| b1-tab-premiere | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 1 |
+| b1-tab-premiere | openxlsx | BLOCAGE (code 124, timeout 20 s) | (b) balise(s) <Relationship> 1 |
+| b2-lf-premiere | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 1 |
+| b2-lf-premiere | openxlsx | BLOCAGE (code 124, timeout 20 s) | (b) balise(s) <Relationship> 1 |
+| b3-cr-premiere | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 1 |
+| b3-cr-premiere | openxlsx | BLOCAGE (code 124, timeout 20 s) | (b) balise(s) <Relationship> 1 |
+| b4-tab-seconde | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 2 |
+| b4-tab-seconde | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 2 |
+| b5-relation-lf-ship-tab | interne | aucune feuille trouvee. | (b) balise(s) <Relationship> 1 |
+| b5-relation-lf-ship-tab | openxlsx | aucune feuille trouvee. | (b) balise(s) <Relationship> 1 |
+| b6-relationshipx | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 1 |
+| b6-relationshipx | openxlsx | BLOCAGE (code 124, timeout 20 s) | (b) balise(s) <Relationship> 1 |
+| b7-crlf-espace | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b7-crlf-espace | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b8-x-prefixe-tab | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b8-x-prefixe-tab | openxlsx | Length of worksheet is 0 | Length of worksheet is 0 |
+| b9-racine-tab | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b9-racine-tab | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b10-racine-lf | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b10-racine-lf | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b11-tab-derniere-2f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 2 |
+| b11-tab-derniere-2f | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | (b) balise(s) <Relationship> 2 |
+| y1-xtype-chart-puis-type-ws | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (x:Type, Type) |
+| y1-xtype-chart-puis-type-ws | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (x:Type, Type) |
+| y2-type-chart-puis-xtype-ws | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (Type, x:Type) |
+| y2-type-chart-puis-xtype-ws | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (Type, x:Type) |
+| y3-type-repete | interne | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (Type, Type) |
+| y3-type-repete | openxlsx | 999 ; sigma 0.5064392336 ; ok TRUE | (a) balise <Relationship> 1 : attribut Type repete ou prefixe (Type, Type) |
+| h1-autre-workbook | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| h1-autre-workbook | openxlsx | invalid 'description' argument | invalid 'description' argument |
+| h2-autre-workbook-rels | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| h2-autre-workbook-rels | openxlsx | invalid 'description' argument | invalid 'description' argument |
+| h3-copie-feuille-autre-dossier | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| h3-copie-feuille-autre-dossier | openxlsx | Expecting a single string value: [type=character; extent=2]. | Expecting a single string value: [type=character; extent=2]. |
+| h4-copie-feuille-xworksheets | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| h4-copie-feuille-xworksheets | openxlsx | Expecting a single string value: [type=character; extent=2]. | Expecting a single string value: [type=character; extent=2]. |
+| w1-forge | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w1-forge | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w2-deux-feuilles | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w2-deux-feuilles | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w3-ecrivain-interne | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w3-ecrivain-interne | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w4-openxlsx-deux-feuilles | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w4-openxlsx-deux-feuilles | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w5-crlf | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| w5-crlf | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b12-attribut-par-ligne-lf-2f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b12-attribut-par-ligne-lf-2f | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b13-attribut-par-ligne-crlf-2f | interne | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |
+| b13-attribut-par-ligne-crlf-2f | openxlsx | 104.2 ; sigma 0.1114524114 ; ok TRUE | 104.2 ; sigma 0.1114524114 ; ok TRUE |

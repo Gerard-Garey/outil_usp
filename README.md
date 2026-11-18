@@ -38,10 +38,10 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
   installé. Avant les deux chemins de lecture, un contrôle de forme du
   classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
   l'outil sait lire de façon identique sur les deux chemins, hors des écarts
-  consignés dans la documentation, dont une cible de feuille forgée qui
-  mène à une valeur fausse et une balise qui bloque `openxlsx` (formes de classeur
-  hors de ce sous-ensemble : #574 ; détail dans la documentation,
-  « Contrôles de qualité des données »).
+  consignés dans la documentation. Il refuse notamment une cible de feuille
+  forgée qui mènerait à une valeur fausse et une balise de relation qui
+  bloquerait `openxlsx` (formes de classeur hors de ce sous-ensemble : #574,
+  #595 ; détail dans la documentation, « Contrôles de qualité des données »).
   - Précaution : relire les données affichées avant le calcul
     contre leur source. Le rapport figé donne l'empreinte md5 des données
     du calcul (table « Empreintes », `engine_empreinte()`). Recalculée à

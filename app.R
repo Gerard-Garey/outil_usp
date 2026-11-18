@@ -184,12 +184,16 @@ triangle_defaut <- function(T = 8) {
 # sur clic de "Reinitialiser les donnees". Chaque fonction renvoie
 # list(valeur, statut) ; statut vaut NULL si aucun fichier n'existe.
 # avertissements : avertissements non bloquants du moteur propres au fichier
-# lu (triangle : engine_lire_triangle()$avertissements_lecture, #518, soit
-# les cellules renseignees sous la diagonale de #491, que la grille
-# i + j <= I ne montre pas), restitues sous le statut par statut_ui() ; vides
-# pour un refus et pour les series. Jamais le champ avertissements, calcule
-# sans segment ni annexe : la credibilite et le repere I + 1 < 10 sont
-# restitues par l'apercu validation_live, au segment choisi.
+# lu, champ avertissements_lecture du lecteur (triangle :
+# engine_lire_triangle(), #518, soit les cellules renseignees sous la
+# diagonale de #491, que la grille i + j <= I ne montre pas ; series :
+# engine_lire_donnees_csv(), #569, soit l'information de lignes rangees par
+# t croissante, que la grille t = 1..n ne montre pas), restitues sous le
+# statut par statut_ui() ; vides pour un refus (aucune donnee chargee).
+# Series chargees mais hors des controles de validite : restitues aussi, la
+# grille montrant les lignes deja rangees. Jamais le champ avertissements du
+# triangle, calcule sans segment ni annexe : la credibilite et le repere
+# I + 1 < 10 sont restitues par l'apercu validation_live, au segment choisi.
 statut_fichier <- function(ok, src, texte, avertissements = character(0))
   list(ok = ok, msg = sprintf("Fichier %s %s", src, texte),
        avertissements = as.character(avertissements))
@@ -326,11 +330,15 @@ charger_ln <- function() {
   # etre corrigees dans la grille, avec les motifs du moteur (le calcul reste
   # bloque par les memes controles au clic).
   v <- engine_valider_donnees(r$xt, r$yt)
+  # Information de lecture du moteur (lignes rangees par t, #569) : passee
+  # telle quelle, dans les deux branches (donnees chargees).
   list(valeur = d, statut = if (v$ok)
-    statut_fichier(TRUE, src, sprintf("charge au demarrage (%d annees).", r$n))
+    statut_fichier(TRUE, src, sprintf("charge au demarrage (%d annees).", r$n),
+                   r$avertissements_lecture)
     else statut_fichier(FALSE, src, paste("charge au demarrage, mais les donnees ne passent",
                                           "pas les controles de validite du moteur :",
-                                          paste(v$erreurs, collapse = " "))))
+                                          paste(v$erreurs, collapse = " ")),
+                        r$avertissements_lecture))
 }
 
 # Triangle : une colonne par annee de developpement, une ligne par annee
@@ -1668,16 +1676,22 @@ server <- function(input, output, session) {
       v <- engine_valider_donnees(r$xt, r$yt, theta_equiv = marge_theta(),
                                   delta_equiv = marge_delta(), methode = input$methode,
                                   nature_donnees = nature_saisie())
+      # Information de lecture du moteur (lignes rangees par t, champ
+      # avertissements_lecture, #569) : restituee sous le statut, telle
+      # quelle, dans les deux branches (donnees chargees), comme au
+      # demarrage ; notification inchangee.
       if (!v$ok) {
         statut_import(list(ok = FALSE, msg = paste(
           sprintf("%d annees importees depuis %s (%s), mais les donnees ne passent pas",
                   r$n, fi$name, toupper(ext)),
-          "les controles de validite du moteur :", paste(v$erreurs, collapse = " "))))
+          "les controles de validite du moteur :", paste(v$erreurs, collapse = " ")),
+          avertissements = r$avertissements_lecture))
         showNotification("Donnees importees, mais non valides : voir le statut d'import.",
                          type = "warning", duration = 8); return()
       }
       statut_import(list(ok = TRUE, msg = sprintf("%d annees importees depuis %s (%s).",
-                                                  r$n, fi$name, toupper(ext))))
+                                                  r$n, fi$name, toupper(ext)),
+                         avertissements = r$avertissements_lecture))
     }
     showNotification("Donnees importees.", type = "message")
   })

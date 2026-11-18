@@ -127,6 +127,12 @@
 #     methode, un segment ou une annexe hors du domaine du moteur. Tous les
 #     scenarios qui cliquent "Relancer les calculs" pour un calcul abouti
 #     saisissent la date (DATE_REFERENCE_TESTS).
+#   - information de lecture des series (issue #569, decision Q-66-6 (a)) :
+#     engine_lire_donnees_csv()$avertissements_lecture restitue tel quel sous
+#     le statut au demarrage (charger_ln(), CSV et classeur : lignes
+#     permutees, donnees valides ou hors controles de validite ; aucun pour
+#     un fichier range ni pour un refus) et, avec shiny, a l'import (CSV et
+#     xlsx, rendu sous le titre Avertissements, memes cas).
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -624,6 +630,55 @@ verifier("Demarrage : tests/donnees/triangle_mw.csv (8 x 8, sans cellule sous la
            length(.lu518b$avertissements) == 2L &&
            !any(grepl("%|credibilite", .cm518b$statut$msg)))
 unlink(.dir518, recursive = TRUE); rm("FICHIER_MW", envir = .env)
+## --- Information de lecture des series restituee au demarrage (issue #569) --
+# charger_ln() passe engine_lire_donnees_csv()$avertissements_lecture a
+# statut_fichier(), tel quel (decision Q-66-6 (a)) : fichier dont l'ordre des
+# lignes differe de celui de t, motif du moteur sous le statut, que les
+# donnees chargees passent ou non les controles de validite ; fichier deja
+# range, aucun ; refus (aucune donnee chargee), aucun. Le classeur
+# usp_donnees_LN.xlsx, prioritaire, passe par le meme lecteur.
+.dir569 <- tempfile("demarrage569_"); dir.create(.dir569)
+.env$FICHIER_LN <- file.path(.dir569, "usp_donnees_LN.csv")
+.p569 <- c(2, 1, 3:8)
+.d569 <- data.frame(t = 1:8, xt = round(100 * 1.03^(1:8), 2),
+                    yt = round(70 * 1.03^(1:8) + 5 * (-1)^(1:8), 2))
+.ecrire569 <- function(d) utils::write.csv(d, .env$FICHIER_LN, row.names = FALSE)
+.lu569 <- function() engine_lire_donnees_csv(.env$lire_tableau(.env$FICHIER_LN, FALSE)$df)
+.ecrire569(.d569); .cl569_0 <- .env$charger_ln()
+.ecrire569(.d569[.p569, ]); .cl569 <- .env$charger_ln(); .r569 <- .lu569()
+verifier("Demarrage : series CSV aux lignes 1 et 2 permutees, chargees rangees par t (grille identique a celle du fichier range), statut en succes (ok) au seul motif d'engine_lire_donnees_csv()$avertissements_lecture, tel quel (#569)",
+         isTRUE(.cl569$statut$ok) && length(.cl569$statut$avertissements) == 1L &&
+           identical(.cl569$statut$avertissements, .r569$avertissements_lecture) &&
+           grepl("(ligne(s) de donnees 1, 2 deplacee(s))", .cl569$statut$avertissements, fixed = TRUE) &&
+           identical(.cl569$valeur, .cl569_0$valeur) && grepl("charge au demarrage (8 annees).", .cl569$statut$msg, fixed = TRUE))
+verifier("Demarrage : series CSV deja rangees par t, statut sans avertissement (character(0)) (#569)",
+         isTRUE(.cl569_0$statut$ok) && identical(.cl569_0$statut$avertissements, character(0)))
+.dneg569 <- .d569; .dneg569$yt[3] <- -5
+.ecrire569(.dneg569[.p569, ]); .clneg569 <- .env$charger_ln(); .rneg569 <- .lu569()
+verifier("Demarrage : series CSV permutees chargees mais hors des controles de validite (yt negatif), statut en erreur avec le motif de lecture du moteur, tel quel (#569)",
+         isTRUE(.rneg569$ok) && identical(.clneg569$statut$ok, FALSE) &&
+           grepl("ne passent pas les controles de validite du moteur", .clneg569$statut$msg, fixed = TRUE) &&
+           length(.clneg569$statut$avertissements) == 1L &&
+           identical(.clneg569$statut$avertissements, .rneg569$avertissements_lecture))
+.ecrire569(data.frame(t = c(2, 1, 3:41), xt = 100 + c(2, 1, 3:41), yt = 60 + c(2, 1, 3:41)))
+.cl41_569 <- .env$charger_ln()
+.nn569 <- .d569[.p569, ]; .nn569$xt <- as.character(.nn569$xt); .nn569$xt[3] <- "abc"
+.ecrire569(.nn569); .clnn569 <- .env$charger_ln()
+verifier("Demarrage : refus de series permutees (41 annees ; xt non numerique), statut sans avertissement (character(0)), grille vide (#569)",
+         identical(.cl41_569$statut$ok, FALSE) && identical(.cl41_569$statut$avertissements, character(0)) &&
+           identical(.cl41_569$valeur, .env$grille_vide_ln(8L)) &&
+           identical(.clnn569$statut$ok, FALSE) && identical(.clnn569$statut$avertissements, character(0)) &&
+           identical(.clnn569$valeur, .env$grille_vide_ln(8L)))
+if (requireNamespace("zip", quietly = TRUE) || nzchar(Sys.which("zip"))) {
+  .ecrire569(.d569)
+  engine_ecrire_xlsx(.d569[.p569, ], file.path(.dir569, "usp_donnees_LN.xlsx"))
+  .clx569 <- .env$charger_ln()
+  verifier("Demarrage : classeur usp_donnees_LN.xlsx (prioritaire sur un CSV range) aux lignes 1 et 2 permutees, statut au meme motif que le CSV permute, grille identique (#569)",
+           isTRUE(.clx569$statut$ok) && grepl("usp_donnees_LN.xlsx", .clx569$statut$msg, fixed = TRUE) &&
+             identical(.clx569$statut$avertissements, .r569$avertissements_lecture) &&
+             identical(.clx569$valeur, .cl569_0$valeur))
+} else cat("  [saute] information de lecture au demarrage (#569), classeur : ni paquet zip ni commande zip\n")
+unlink(.dir569, recursive = TRUE); rm("FICHIER_LN", envir = .env)
 ## --- Refus motive du lecteur xlsx restitue (issue #522) ---------------------
 # Un refus de classe "usp_refus_lecture" (engine_lire_xlsx() : ligne 1 sans
 # aucune valeur...) est rendu tel quel par lire_tableau(), journalise ; toute
@@ -1876,6 +1931,57 @@ testServer(app, {
 })
 rm("showNotification", envir = ea)
 )---"
+  # Information de lecture des series restituee a l'import (issue #569,
+  # decision Q-66-6 (a)) : engine_lire_donnees_csv()$avertissements_lecture
+  # sous le statut d'import, tel quel, en CSV comme en classeur, que les
+  # donnees chargees passent ou non les controles de validite ; aucun pour
+  # un fichier range ni pour un refus. depot() : bloc de #483.
+  .bloc_569 <- r"---(
+## Information de lecture des series restituee a l'import (issue #569)
+x569 <- round(100 * 1.03^(1:8), 2); y569 <- round(70 * 1.03^(1:8) + 5 * (-1)^(1:8), 2)
+lig569 <- function(p, x = x569, y = y569) c("t,xt,yt", paste(p, x[p], y[p], sep = ","))
+lu569 <- function(dp) engine_lire_donnees_csv(ea$lire_tableau(dp$datapath, grepl("xlsx$", dp$datapath))$df)
+testServer(app, {
+  do.call(session$setInputs, c(base, list(reinit = 1)))
+  dp <- depot(lig569(c(2, 1, 3:8))); session$setInputs(fichier_import = dp)
+  lu <- lu569(dp); h <- as.character(output$import_statut$html)
+  a("import CSV de series aux lignes 1 et 2 permutees : importe, rangees par t, statut au seul motif d'avertissements_lecture du moteur, tel quel (#569)",
+    isTRUE(statut_import()$ok) && length(statut_import()$avertissements) == 1L &&
+      identical(statut_import()$avertissements, lu$avertissements_lecture) &&
+      grepl("(ligne(s) de donnees 1, 2 deplacee(s))", statut_import()$avertissements, fixed = TRUE) &&
+      identical(donnees(), data.frame(t = 1:8, xt = lu$xt, yt = lu$yt)) && identical(lu$xt, x569))
+  a("import CSV permute : motif visible a l'ecran sous le titre Avertissements, sans le vert du succes (#569)",
+    grepl("Avertissements :", h, fixed = TRUE) &&
+      grepl(paste0("<li>", htmltools::htmlEscape(lu$avertissements_lecture), "</li>"), h, fixed = TRUE) &&
+      !grepl("1E8449", h, fixed = TRUE))
+  session$setInputs(fichier_import = depot(lig569(1:8)))
+  h0 <- as.character(output$import_statut$html)
+  a("import CSV de series deja rangees : statut sans avertissement (character(0)), en vert (#569)",
+    isTRUE(statut_import()$ok) && identical(statut_import()$avertissements, character(0)) &&
+      !grepl("Avertissements", h0, fixed = TRUE) && grepl("1E8449", h0, fixed = TRUE))
+  if (xlsx_dispo) {
+    dx <- depot(d = data.frame(t = c(2, 1, 3:8), xt = x569[c(2, 1, 3:8)], yt = y569[c(2, 1, 3:8)]))
+    session$setInputs(fichier_import = dx)
+    a("import xlsx de series aux lignes 1 et 2 permutees : meme motif qu'en CSV, tel quel, series rangees (#569)",
+      isTRUE(statut_import()$ok) && identical(statut_import()$avertissements, lu$avertissements_lecture) &&
+        identical(statut_import()$avertissements, lu569(dx)$avertissements_lecture) &&
+        identical(donnees(), data.frame(t = 1:8, xt = lu$xt, yt = lu$yt)))
+  } else a("import xlsx de series permutees : saute (aucun ecrivain xlsx)", TRUE)
+  yneg <- y569; yneg[3] <- -5
+  dn <- depot(lig569(c(2, 1, 3:8), y = yneg)); session$setInputs(fichier_import = dn)
+  a("import CSV permute hors des controles de validite (yt negatif) : charge, statut en erreur avec le motif de lecture du moteur, tel quel (#569)",
+    identical(statut_import()$ok, FALSE) &&
+      grepl("ne passent pas les controles de validite du moteur", statut_import()$msg, fixed = TRUE) &&
+      length(statut_import()$avertissements) == 1L &&
+      identical(statut_import()$avertissements, lu569(dn)$avertissements_lecture))
+  session$setInputs(fichier_import = depot(lig569(1:8))); d0 <- donnees()
+  l <- lig569(c(2, 1, 3:8)); l[4] <- sub("^([^,]*),[^,]*", "\\1,abc", l[4])
+  session$setInputs(fichier_import = depot(l))
+  a("import CSV permute refuse (xt non numerique) : statut de refus sans avertissement, series courantes gardees (#569)",
+    identical(statut_import()$ok, FALSE) && !length(statut_import()$avertissements) &&
+      grepl("ne sont pas numeriques", statut_import()$msg, fixed = TRUE) && identical(donnees(), d0))
+})
+)---"
   # Restitution unique des refus d'import et echec d'export (issue #556) :
   # showNotification() est remplace, dans l'environnement d'app.R, par un
   # releve (texte, type, duree) ; engine_ecrire_xlsx() et engine_ecrire_csv()
@@ -2466,7 +2572,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556, .bloc_504), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556, .bloc_504, .bloc_569), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -2483,8 +2589,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 170 assertions rendues", length(.lignes) == 170L)
-  if (length(.lignes) != 170L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 176 assertions rendues", length(.lignes) == 176L)
+  if (length(.lignes) != 176L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

@@ -1885,7 +1885,7 @@ verifier("Lecture (#579) : colonne xt logique, Date ou POSIXct refusee avec ses 
 verifier("Lecture (#579) : colonne t en Date refusee comme non numerique (appel direct)",
          {
            r <- engine_lire_donnees_csv(data.frame(t = as.Date("2020-01-01") + 0:7, xt = x, yt = y))
-           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5, 6, 7, 8)")
+           !r$ok && contient(r$erreurs, "Colonne t incomplete ou non numerique (ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s))")
          })
 verifier("Lecture (#579) : colonne logique hors de t, xt et yt ignoree (series lues a l'identique)",
          identical(engine_lire_donnees_csv(data.frame(t = 1:8, xt = x, yt = y, drapeau = c(TRUE, FALSE))),
@@ -2385,6 +2385,37 @@ verifier("engine_lire_triangle : LE-13, une cellule, puis sept cellules dont une
                        paste("Cellule(s) non numerique(s) en (i = 2, j = 0), (i = 3, j = 1), (i = 5, j = 1),",
                              "(i = 4, j = 2), (i = 1, j = 3) et 2 autre(s) (i : annee d'accident, j : annee",
                              "de developpement).", PHRASE_NA_TRI_527))
+         })
+# #558 (4a) : les positions de "Colonne t incomplete" sont plafonnees a cinq
+# par .liste_positions(), puis "et <n> autre(s)" (seul motif change ; avant :
+# toutes les positions) ; les motifs des colonnes xt et yt et des cellules non
+# numeriques du triangle, desormais construits par la meme fonction, gardent
+# leur texte a l'octet, au seuil de cinq comme au-dela.
+verifier("Positions (#558) : \"Colonne t incomplete\" plafonnee a cinq positions (5 : sans suffixe ; 6 et 8 : \"et n autre(s)\")",
+         {
+           motif_t <- function(pos) sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) de donnees %s) :",
+                                                  "chaque ligne doit porter son annee."), pos)
+           t_vide <- function(k) { s <- ser_527; s$t[k] <- ""; engine_lire_donnees_csv(s)$erreurs }
+           identical(t_vide(1:5), motif_t("1, 2, 3, 4, 5")) &&
+             identical(t_vide(c(1:4, 6:7)), motif_t("1, 2, 3, 4, 6 et 1 autre(s)")) &&
+             identical(t_vide(1:8), motif_t("1, 2, 3, 4, 5 et 3 autre(s)"))
+         })
+verifier("Positions (#558) : motifs des colonnes xt et yt et du triangle inchanges a l'octet, au seuil de cinq et a six",
+         {
+           s5 <- ser_527; s5$xt[1:5] <- "x"; s5$yt[2:7] <- "y"
+           d5 <- tri_527; d5[1, as.character(0:4)] <- "z"
+           d6 <- tri_527; d6[1, as.character(0:5)] <- "z"
+           identical(engine_lire_donnees_csv(s5)$erreurs,
+                     paste("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt :",
+                           "ligne(s) de donnees 1, 2, 3, 4, 5 ; colonne yt : ligne(s) de donnees 2, 3, 4, 5, 6",
+                           "et 1 autre(s)).")) &&
+             identical(engine_lire_triangle(d5)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 0, j = 0), (i = 0, j = 1), (i = 0, j = 2),",
+                             "(i = 0, j = 3), (i = 0, j = 4) (i : annee d'accident, j : annee de developpement).")) &&
+             identical(engine_lire_triangle(d6)$erreurs,
+                       paste("Cellule(s) non numerique(s) en (i = 0, j = 0), (i = 0, j = 1), (i = 0, j = 2),",
+                             "(i = 0, j = 3), (i = 0, j = 4) et 1 autre(s) (i : annee d'accident, j : annee",
+                             "de developpement)."))
          })
 # Issue #527, avertissements (AV-01, AV-03, AV-08) : texte complet de chaque
 # avertissement change, sur le gabarit du tableau du par. 7.2 de l'avis amont
@@ -3850,6 +3881,164 @@ if (nzchar(Sys.which("zip"))) {
              ok574l(lit574l(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw(' \nr:id="rId11"')))) &&
                ok574l(lit574l(retoucher574(deux574h(), rl574, 'Id="rId11"', charToRaw('Id\n="rId11"')))) &&
                ok574l(lit574l(crlf574l(deux574h()))) })
+  # --- #595 (decisions D-S1-38 et D-S1-39 du mainteneur ; textes d'actuary
+  # de l'etape 1 de S4) : relation de la feuille lue a cible ambigue,
+  # attribut Type ambigu, balise <Relationship> de forme non reconnue.
+  # Mesures avant (moteur 9440415, R 4.3.3, openxlsx 4.2.5.2, sonde
+  # sonde_595.R de l'etape 3 de S4, classeur de la serie de reference dont
+  # la feuille 2 porte 999 : 999 lu donnait sigma_USP 0.5064392336 au lieu
+  # de 0.1114524114, ok = TRUE) :
+  #  - x:Target="...sheet2.xml" Target='...sheet1.xml' : 999 sur les deux
+  #    chemins ; Target="...sheet2.xml" Target="...sheet1.xml" (avec ou sans
+  #    x:) : 999 en interne, erreur R d'openxlsx ; Target='...sheet1.xml'
+  #    avec x:Target="...sheet2.xml", Foo='Target="...sheet2.xml"' (ou
+  #    Target<LF>=") ou xTarget="...sheet2.xml" : premiere feuille en
+  #    interne, 999 par openxlsx ; Target="...sheet&#49;.xml" avec une entree
+  #    xl/worksheets/sheet&#49;.xml, ou Target="...sheet1.xml" Foo="z.xml"
+  #    avec une entree xl/worksheets/sheet1.xml" Foo="z.xml (999) : premiere
+  #    feuille en interne, 999 par openxlsx ; Target='...sheet1.xml
+  #    Target="..."' : "aucune feuille trouvee" sur les deux chemins ;
+  #  - relation de la premiere feuille x:Type="...chartsheet"
+  #    Type="...worksheet" : 999 sur les deux chemins ;
+  #  - <Relationship<TAB>, <LF> ou <CR> en premiere relation,
+  #    <RelationshipX ...> placee avant : openxlsx ne rend jamais la main
+  #    (code 124 sous timeout), premiere feuille en interne ;
+  #    <Relationship<TAB> en seconde relation, <Relationship<CR><LF><espace> :
+  #    lus juste par les deux chemins ; <Relation<LF>ship<TAB> : "aucune
+  #    feuille trouvee" sur les deux chemins.
+  # Refus sur chaque chemin, meme texte ; <Relationship<CR><LF><espace> et
+  # la forme "un attribut par ligne" (fin de ligne puis espace apres le nom
+  # de la balise), lues juste par les deux chemins, sont des temoins.
+  texte595b <- function(pos) sprintf("Classeur illisible : la partie xl/_rels/workbook.xml.rels du classeur porte une balise <Relationship> de forme non reconnue (balise(s) <Relationship> %s : caractere autre qu'une espace, \"/\" ou \">\" apres le nom de la balise, par exemple une tabulation, ou une fin de ligne suivie directement d'un attribut) ; l'outil ne lit pas cette forme de facon sure (selon la place de la balise, la lecture pourrait ignorer cette relation, ou ne jamais se terminer et figer l'application). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  lien595 <- "balise <Relationship> 1, relation de la feuille lue : "
+  t1_595 <- 'Target="worksheets/sheet1.xml"'
+  cible595 <- function(par) retoucher574(deux574h(), rl574, t1_595, charToRaw(par))
+  # Ajoute a l'archive f l'entree entree, copie de la partie source.
+  ajouter595 <- function(f, entree, source) {
+    x <- tempfile("a595_"); on.exit(unlink(x, recursive = TRUE))
+    utils::unzip(f, exdir = x)
+    file.copy(file.path(x, source), file.path(x, entree))
+    unlink(f); od <- setwd(x); on.exit(setwd(od), add = TRUE, after = FALSE)
+    utils::zip(f, c("[Content_Types].xml", "_rels", "xl"), flags = "-r9Xq")
+    f
+  }
+  verifier("xlsx (#595, a1) : relation de la feuille lue portant x:Target=\"...sheet2.xml\" Target='...sheet1.xml' (avant : 999 sur les deux chemins, ok = TRUE), Target=\"...sheet2.xml\" Target=\"...sheet1.xml\" (avant : 999 en interne), Target='...sheet1.xml' x:Target=\"...sheet2.xml\" (avant : 999 par openxlsx) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(cible595("x:Target=\"worksheets/sheet2.xml\" Target='worksheets/sheet1.xml'"),
+                 texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (x:Target, Target)"))) &&
+             rb574(cible595('Target="worksheets/sheet2.xml" Target="worksheets/sheet1.xml"'),
+                   texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (Target, Target)"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml' x:Target=\"worksheets/sheet2.xml\""),
+                   texte574h(rl574, paste0(lien595, "attribut Target repete ou prefixe (Target, x:Target)"))))
+  verifier("xlsx (#595, a2) : relation de la feuille lue portant Foo='Target=\"...sheet2.xml\"' avant ou apres Target='...sheet1.xml', Foo='Target<LF>=\"...\"' (texte colle), Target='...sheet1.xml Target=\"...\"', xTarget=\"...sheet2.xml\" (avant : 999 par openxlsx, ou aucune feuille) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(cible595("Foo='Target=\"worksheets/sheet2.xml\"' Target='worksheets/sheet1.xml'"),
+                 texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml' Foo='Target=\"worksheets/sheet2.xml\"'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Foo='Target\n=\"worksheets/sheet2.xml\"' Target='worksheets/sheet1.xml'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Foo"))) &&
+             rb574(cible595("Target='worksheets/sheet1.xml Target=\"worksheets/sheet2.xml\"'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= dans la valeur de l'attribut Target"))) &&
+             rb574(cible595("xTarget=\"worksheets/sheet2.xml\" Target='worksheets/sheet1.xml'"),
+                   texte574h(rl574, paste0(lien595, "texte Target= ailleurs qu'au debut de l'attribut Target (par exemple a la fin du nom d'un autre attribut, ou apres la balise ouvrante)"))))
+  # Entree d'archive au nom portant des guillemets : creee seulement hors
+  # de Windows (nom de fichier interdit) ; la forme a entite vaut partout.
+  verifier("xlsx (#595, a3) : Target=\"worksheets/sheet&#49;.xml\" avec une entree xl/worksheets/sheet&#49;.xml (999), et hors de Windows Target=\"...sheet1.xml\" Foo=\"z.xml\" avec une entree xl/worksheets/sheet1.xml\" Foo=\"z.xml (999) (avant : 999 par openxlsx, ok = TRUE) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           { a3_595 <- texte574h(rl574, paste0(lien595, "cible differente pour un autre lecteur de classeur, qui lit le texte de l'attribut Target=\"...\" tel quel, sans decoder les references de caracteres (&...;), jusqu'au dernier texte xml\" de la relation"))
+             rb574(ajouter595(cible595('Target="worksheets/sheet&#49;.xml"'), "xl/worksheets/sheet&#49;.xml", "xl/worksheets/sheet2.xml"), a3_595) &&
+               (.Platform$OS.type == "windows" ||
+                  rb574(ajouter595(cible595(paste0(t1_595, ' Foo="z.xml"')), 'xl/worksheets/sheet1.xml" Foo="z.xml', "xl/worksheets/sheet2.xml"), a3_595)) })
+  verifier("xlsx (#595, Type) : relation de la premiere feuille portant x:Type=\"...chartsheet\" Type=\"...worksheet\", ou Type repete (avant : 999 sur les deux chemins, ok = TRUE) : refus nommant xl/_rels/workbook.xml.rels, meme texte sur chaque chemin",
+           rb574(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet"'),
+                              charToRaw(paste0('Id="rId11" x:Type="', rt487, '/chartsheet" Type="', rt487, '/worksheet"'))),
+                 texte574h(rl574, "balise <Relationship> 1 : attribut Type repete ou prefixe (x:Type, Type)")) &&
+             rb574(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet"'),
+                                charToRaw(paste0('Id="rId11" Type="', rt487, '/chartsheet" Type="', rt487, '/worksheet"'))),
+                   texte574h(rl574, "balise <Relationship> 1 : attribut Type repete ou prefixe (Type, Type)")))
+  verifier("xlsx (#595) : temoins lus a l'identique sur chaque chemin (11.5) : Target unique entre apostrophes ou a blancs autour de = (lecteur interne seul, erreur R d'openxlsx inchangee, #487), <x:Relationship<TAB> prefixee (idem), relation sans attribut Type (cible sous worksheets/)",
+           { lit595 <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
+             interne595 <- function(r) is.data.frame(r$interne) && identical(as.numeric(r$interne$xt), 11.5) &&
+               (!avec_openxlsx483 || (is.character(r$openxlsx) && !startsWith(r$openxlsx, "Classeur illisible")))
+             interne595(lit595(cible595("Target='worksheets/sheet1.xml'"))) &&
+               interne595(lit595(cible595('Target = "worksheets/sheet1.xml"'))) &&
+               interne595(lit595(retoucher574(deux574h(), rl574, '<Relationship Id="rId11"', charToRaw('<x:Relationship\tId="rId11"')))) &&
+               tous487(lit595(retoucher574(deux574h(), rl574, paste0('Id="rId11" Type="', rt487, '/worksheet" '), charToRaw('Id="rId11" '))),
+                       function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5)) })
+  # Balises <Relationship> : en sous-processus Rscript borne (timeout 60 s),
+  # sur les deux chemins ; un processus qui ne rend pas la main (code 124,
+  # blocage d'openxlsx) fait echouer le test.
+  fils595 <- tempfile("fils595_", fileext = ".R")
+  writeLines(c(
+    "a <- commandArgs(TRUE)",
+    "source(file.path(a[1], \"R\", \"charger_moteur.R\"))",
+    "charger_moteur(file.path(a[1], \"R\", \"engine.R\"))",
+    "if (identical(a[3], \"interne\"))",
+    "  assign(\"requireNamespace\", function(package, ...)",
+    "    if (package %in% \"openxlsx\") FALSE else base::requireNamespace(package, ...), envir = environment(run_engine))",
+    "cat(\"OPENXLSX=\", eval(quote(requireNamespace(\"openxlsx\", quietly = TRUE)), environment(run_engine)), \"\\n\", sep = \"\")",
+    "r <- tryCatch(engine_lire_xlsx(a[2]), error = function(e) e)",
+    "cat(\"CLASSE=\", class(r)[1], \"\\n\", sep = \"\")",
+    "cat(\"MESSAGE=\", if (inherits(r, \"condition\")) conditionMessage(r) else \"\", \"\\n\", sep = \"\")",
+    "if (is.data.frame(r)) cat(\"LU=\", paste(format(as.numeric(r$xt), digits = 15), collapse = \";\"), \"\\n\", sep = \"\")"), fils595)
+  lancer595 <- function(f, ch) {
+    out <- suppressWarnings(system2(file.path(R.home("bin"), "Rscript"), shQuote(c(fils595, racine575, f, ch)),
+                                    stdout = TRUE, stderr = TRUE, timeout = 60))
+    st <- attr(out, "status"); if (is.null(st)) st <- 0L
+    list(st = as.integer(st), classe = sub("^CLASSE=", "", grep("^CLASSE=", out, value = TRUE)),
+         openxlsx = grep("^OPENXLSX=", out, value = TRUE),
+         message = sub("^MESSAGE=", "", grep("^MESSAGE=", out, value = TRUE)),
+         lu = sub("^LU=", "", grep("^LU=", out, value = TRUE)))
+  }
+  # attendu : message du refus (classe usp_refus_lecture), ou lu = valeurs
+  # de xt attendues sur chaque chemin. Rend TRUE ou un texte par chemin.
+  sous595 <- function(f, attendu = NULL, lu = NULL) {
+    r <- lapply(setNames(chemins575, chemins575), function(ch) lancer595(f, ch))
+    unlink(f)
+    ok <- vapply(names(r), function(ch) { x <- r[[ch]]
+                   identical(x$st, 0L) && identical(x$openxlsx, paste0("OPENXLSX=", ch == "openxlsx")) &&
+                     (if (is.null(lu)) identical(x$classe, "usp_refus_lecture") && identical(x$message, attendu)
+                      else identical(x$lu, lu)) }, logical(1))
+    if (all(ok)) return(TRUE)
+    paste(vapply(names(r), function(k) sprintf("chemin %s : code %d%s, CLASSE=%s, MESSAGE=%s, LU=%s", k, r[[k]]$st,
+                                               if (identical(r[[k]]$st, 124L)) " (le processus n'a pas rendu la main en 60 s)" else "",
+                                               paste(r[[k]]$classe, collapse = "|"), paste(r[[k]]$message, collapse = " | "),
+                                               paste(r[[k]]$lu, collapse = "|")), ""), collapse = " ; ")
+  }
+  rel1_595 <- '<Relationship Id="rId11"'
+  balise595 <- function(par, motif = rel1_595) retoucher574(deux574h(), rl574, motif, charToRaw(par))
+  verifier("xlsx (#595, b) : premiere relation <Relationship<TAB>, <LF> ou <CR> (avant : openxlsx ne rendait jamais la main), <RelationshipX ...> placee avant (idem), <Relation<LF>ship<TAB> (balise formee par le collage), seconde relation <Relationship<TAB>, apres une premiere relation sans prefixe ou prefixee (<x:Relationship ...>, comptee dans le rang) : refus nommant la balise, code 0, classe usp_refus_lecture, meme texte sur chaque chemin, en sous-processus borne (echec si le processus ne rend pas la main)",
+           { res595 <- list(
+               sous595(balise595('<Relationship\tId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\nId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\rId="rId11"'), texte595b("1")),
+               sous595(balise595(paste0('<RelationshipX Id="rId9" Type="', rt487, '/worksheet" Target="worksheets/sheet2.xml"/>', rel1_595)),
+                       texte595b("1")),
+               sous595(balise595('<Relation\nship\tId="rId11"'), texte595b("1")),
+               sous595(balise595('<Relationship\tId="rId12"', '<Relationship Id="rId12"'), texte595b("2")),
+               sous595(retoucher574(balise595('<x:Relationship Id="rId11"'), rl574, '<Relationship Id="rId12"', charToRaw('<Relationship\tId="rId12"')),
+                       texte595b("2")))
+             if (all(vapply(res595, isTRUE, NA))) TRUE else paste(unlist(res595[!vapply(res595, isTRUE, NA)]), collapse = " // ") })
+  # Relations des deux feuilles ecrites un attribut par ligne, fins de
+  # ligne fl (forme lue juste par les deux chemins, mesure de l'audit leger
+  # de l'etape 3 de S4).
+  par_ligne595 <- function(fl) {
+    f <- deux574h()
+    for (k in 1:2) {
+      av <- sprintf('<Relationship Id="rId1%d" Type="%s/worksheet" Target="worksheets/sheet%d.xml"/>', k, rt487, k)
+      f <- retoucher574(f, rl574, av, charToRaw(gsub(" ", paste0(fl, " "), av, fixed = TRUE)))
+    }
+    f
+  }
+  verifier("xlsx (#595, b) : temoins lus a l'identique sur chaque chemin (11.5), en sous-processus borne : racine <Relationships<TAB>xmlns, racine <Relationships<LF>xmlns (collee : <Relationshipsxmlns), relations ecrites une par ligne (<LF> avant <Relationship), <Relationship<CR><LF><espace>Id=, relations ecrites un attribut par ligne (<LF><espace> ou <CR><LF><espace> avant chaque attribut)",
+           { res595t <- list(
+               sous595(balise595('<Relationship\r\n Id="rId11"'), lu = "11.5"),
+               sous595(par_ligne595("\n"), lu = "11.5"),
+               sous595(par_ligne595("\r\n"), lu = "11.5"),
+               sous595(balise595("<Relationships\txmlns", "<Relationships xmlns"), lu = "11.5"),
+               sous595(balise595("<Relationships\nxmlns", "<Relationships xmlns"), lu = "11.5"),
+               sous595(retoucher574(balise595(paste0("\n", rel1_595)), rl574, '"/><Relationship Id="rId12"', charToRaw('"/>\n<Relationship Id="rId12"')),
+                       lu = "11.5"))
+             if (all(vapply(res595t, isTRUE, NA))) TRUE else paste(unlist(res595t[!vapply(res595t, isTRUE, NA)]), collapse = " // ") })
+  unlink(fils595)
   verifier("xlsx (#574, R3) : <x:c>, <v> dans l'<extLst> d'une cellule avant son <v> (avant : 9 lu par les deux chemins ; refus du segment), </v >, texte dans <is> hors de <t>, <is/>, \"<\" hors balise, texte dans <row> : refus R3 sur chaque chemin, position citee",
            rb574(feuille575(ser574('<x:c r="B2"><x:v>11.5</x:v></x:c>'), NULL), texte574r3("balise <x:c>, apres la cellule A2")) &&
              rb574(feuille575(ser574('<c r="B2"><extLst><ext uri="u"><v>9</v></ext></extLst><v>11.5</v></c>'), NULL),
@@ -4852,6 +5041,273 @@ if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
                        function(r) identical(r$erreurs, DUP555("xt", c(2, 4))))
            })
 } else cat("  [saute] colonne i et en-tetes en double (#555), classeur : aucune voie d'ecriture xlsx\n")
+
+## --- En-tetes de developpement en chiffres romains (#568) --------------------
+# Texte d'actuary (docs/revues/20261118-s4-lecteurs/actuary-textes-etape-1.md,
+# (ii)), verifie ici mot pour mot. Deux configurations : (1) le I de la suite
+# est la seule colonne designee i (I, II, ... sans colonne i ; colonne I
+# d'annees suivie de II, ...) : le flux continue, le motif dedie remplace a
+# l'etape B celui de la colonne i, et un triangle accepte avant #568 reste
+# accepte ; (2) une colonne designee i existe hors de la suite (i, I, II, ...) :
+# motif dedie avant H1. Les helpers de #555 (csv555(), tri555(), liste555(),
+# xl555(), tous555()) sont reutilises.
+ROM568 <- function(cols, ents) sprintf(paste0("En-tetes de colonnes en chiffres romains (colonnes %s, d'en-tetes %s) : ",
+  "l'en-tete I designe la colonne i, facultative, qui porte l'annee d'accident de chaque ligne (en-tete i ou I, ",
+  "blancs de bord ignores), et ne peut titrer une colonne d'annee de developpement ; renommer les colonnes d'annee ",
+  "de developpement, par exemple j0, j1, j2, ... (format d'export de l'application)."), liste555(cols), liste555(ents))
+# Triangle de tri555() dont la ligne d'en-tete est remplacee par ent (vecteur).
+# col1 : valeurs imposees a la premiere colonne en l'absence de colonne i
+# (config. 1) ; sans elle, les montants de j0 de tri555() (101, 102, ...) sont
+# des entiers consecutifs croissants, que .motifs_colonne_i() ne refuse pas
+# (residu documente dans engine_lire_triangle()).
+tri568 <- function(ent, icol = NULL, n = 6, col1 = NULL) {
+  l <- tri555(icol, n = n); l[1] <- paste(ent, collapse = ",")
+  if (!is.null(col1)) l[-1] <- paste0(col1, sub("^[^,]*", "", l[-1]))
+  l
+}
+C568 <- (1:8) + 0.5        # premiere colonne non entiere : V2 sans le motif dedie
+rom568 <- c("I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX")
+r568 <- function(lignes) engine_lire_triangle(csv555(lignes))
+refus568 <- function(r, cols, ents) !r$ok && is.null(r$triangle) && identical(r$erreurs, ROM568(cols, ents))
+# Triangle de reference (en-tetes i, j0, ...) pour 6 annees, colonne i d'annees.
+ref568 <- function(n = 6) r568(tri568(c("i", paste0("j", 0:(n - 1))), 1:n, n = n))
+verifier("En-tetes romains (#568), CSV, configuration 1 : I, II, ... sans colonne i refuse au motif dedie, positions et en-tetes cites (cinq puis \"et n autre(s)\")",
+         refus568(r568(tri568(rom568[1:6], col1 = C568[1:6])), 1:6, rom568[1:6]) &&
+           refus568(r568(tri568(rom568[1:2], n = 2, col1 = C568[1:2])), 1:2, rom568[1:2]) &&
+           refus568(r568(tri568(rom568[1:8], n = 8, col1 = C568)), 1:8, rom568[1:8]))
+verifier("En-tetes romains (#568), CSV, configuration 2 : colonne i suivie de I, II, ... refusee au motif dedie (au lieu de H1 \"present plusieurs fois\"), positions de la suite seule",
+         refus568(r568(tri568(c("i", rom568[1:6]), 1:6)), 2:7, rom568[1:6]) &&
+           refus568(r568(tri568(c("I", rom568[1:6]), 1:6)), 2:7, rom568[1:6]) &&
+           refus568(r568(tri568(c("i", rom568[1:8]), 1:8, n = 8)), 2:9, rom568[1:8]))
+verifier("En-tetes romains (#568), CSV : minuscules (i, ii, ...) et blancs de bord (en-tetes cites tels que recus) reconnus comme par la regle N ; \"IIII\" n'est pas un chiffre romain canonique",
+         refus568(r568(tri568(tolower(rom568[1:6]), col1 = C568[1:6])), 1:6, tolower(rom568[1:6])) &&
+           refus568(r568(tri568(c("\" i \"", "\" ii \"", "\" iii \"", "iv", "v", "vi"), col1 = C568[1:6])), 1:6,
+                    c(" i ", " ii ", " iii ", "iv", "v", "vi")) &&
+           refus568(r568(tri568(c("I", "II", "III", "IIII", "V", "VI"), col1 = C568[1:6])), 1:3, rom568[1:3]))
+verifier("En-tetes romains (#568), CSV, configuration 2 : refus place avant H1 et avant la colonne i (un seul motif, sans autre refus cumule)",
+         {
+           # colonne i fautive (valeurs repetees) derriere la suite : le motif dedie seul
+           r <- r568(tri568(c("i", rom568[1:6]), c(1, 1:5)))
+           length(r$erreurs) == 1L && refus568(r, 2:7, rom568[1:6])
+         })
+verifier("En-tetes romains (#568), CSV, configuration 1 : le motif dedie remplace celui de la colonne i (V1 vides, V2 non entiere, V3 repetees, V4 non croissante, V5 non consecutive) ; lignes vides en fin de fichier : motif dedie, pas \"Colonne i incomplete\"",
+         {
+           ent <- rom568[1:6]
+           fin <- c(tri568(ent, col1 = C568[1:6]), ",,,,,", ",,,,,")
+           vide <- tri568(ent, col1 = C568[1:6]); vide[3] <- sub("^[^,]*", "", vide[3])
+           refus568(r568(tri568(ent, col1 = c(1, "", 3:6))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1, "x", 2.5, 4, 5, "Inf"))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1, 1:5))), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = 6:1)), 1:6, ent) &&
+             refus568(r568(tri568(ent, col1 = c(1:3, 5:7))), 1:6, ent) &&
+             refus568(r568(fin), 1:6, ent) && !grepl("incomplete", paste(r568(fin)$erreurs, collapse = "")) &&
+             refus568(r568(vide), 1:6, ent)
+         })
+verifier("En-tetes romains (#568), CSV, configuration 1 : colonne I d'annees d'accident suivie de II, III, ... (ou de i, ii, ... en minuscules) acceptee, triangle identique a celui de l'en-tete i, j0, j1, ... (aussi avec lignes vides en fin de fichier)",
+         {
+           r0 <- ref568(); ent <- rom568[1:7]
+           isTRUE(r0$ok) &&
+             identical(r568(tri568(ent, 1:6)), r0) &&
+             identical(r568(tri568(tolower(ent), 1:6)), r0) &&
+             identical(r568(c(tri568(ent, 1:6), ",,,,,,", ",,,,,,")), r0) &&
+             identical(r568(tri568(c("\" I \"", ent[-1]), 1:6)), r0)
+         })
+# Fichier du depot (9 colonnes : i, j0, ..., j7) : en-tete remplace par I a IX
+# (colonne I d'annees, puis II a IX), ou i a ix ; meme triangle que i, j0, ...
+mw568 <- readLines(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+ent568 <- function(ent) { l <- mw568; l[1] <- paste0('"', ent, '"', collapse = ","); l }
+verifier("En-tetes romains (#568), CSV, configuration 1 : triangle_mw.csv avec les en-tetes I a IX (9 colonnes) ou i a ix accepte, triangle identique a celui des en-tetes i, j0, ..., j7 ; I a VIII sur les 8 colonnes de developpement (sans colonne i) refuse au motif dedie",
+         {
+           r0 <- r568(mw568)
+           isTRUE(r0$ok) && r0$I == 7L &&
+             identical(r568(ent568(rom568[1:9])), r0) && identical(r568(ent568(tolower(rom568[1:9]))), r0) &&
+             identical(r568(ent568(c("i", rom568[2:9]))), r0) && identical(r568(ent568(c("I", tolower(rom568[2:9])))), r0) &&
+             refus568(r568(c(paste0('"', rom568[1:8], '"', collapse = ","), sub("^[^,]*,", "", mw568[-1]))), 1:8, rom568[1:8])
+         })
+verifier("En-tetes romains (#568), CSV : casse uniforme sur toute la suite ; i, II, III, ... et I, ii, iii, ... ne sont pas une suite (acceptes, sans motif \"romains\", triangle identique)",
+         {
+           r0 <- ref568()
+           a <- r568(tri568(c("i", rom568[2:7]), 1:6)); b <- r568(tri568(c("I", tolower(rom568[2:7])), 1:6))
+           identical(a, r0) && identical(b, r0) &&
+             identical(.suite_entetes_romains(c("i", "II", "III")), integer(0)) &&
+             identical(.suite_entetes_romains(c("I", "ii", "iii")), integer(0)) &&
+             identical(.suite_entetes_romains(c("i", "ii", "iii")), 1:3) &&
+             identical(.suite_entetes_romains(c("I", "II", "iii")), 1:2) &&
+             identical(.suite_entetes_romains(c("x", "i", "ii", "III")), 2:3)
+         })
+verifier("En-tetes romains (#568), CSV : un en-tete I sans II a sa droite garde ses motifs (colonne i) ; suite qui ne commence pas a I ou rompue avant II : aucune reconnaissance",
+         {
+           # I seul sans colonne i : lu comme la colonne i, motif actuel (triangle non carre), comme l'en-tete i
+           a <- r568(tri568(c("I", paste0("j", 1:5))))
+           # colonne I fautive (non entiere) suivie de j0, j1, ... : motif V2 de la colonne i
+           b <- r568(tri568(c("I", paste0("j", 0:5)), c(1, 2, 3, 4.5, 5, 6)))
+           # i, I, III : H1 inchange ; II, III, ... (sans I) : aucun motif romain, triangle lu
+           c3 <- r568(tri568(c("i", "I", "III", paste0("j", 2:5)), 1:6))
+           d <- r568(tri568(rom568[2:7]))
+           !a$ok && grepl("^Triangle non carre", a$erreurs) &&
+             identical(a, r568(tri568(c("i", paste0("j", 1:5))))) &&
+             identical(b$erreurs, V2_555(4)) &&
+             identical(c3$erreurs, H1_I555(c(1, 2), c("i", "I"))) &&
+             isTRUE(d$ok) && identical(d$triangle, r568(tri568(paste0("j", 0:5)))$triangle)
+         })
+verifier("En-tetes romains (#568), CSV : triangle lu d'une matrice (colonnes I, II, ...) refuse au meme motif ; en-tetes NA ou non UTF-8 jamais pris pour des chiffres romains, sans erreur R",
+         {
+           m <- matrix(as.numeric(as.matrix(csv555(tri555()))), 6, 6)
+           m[, 1] <- m[, 1] + 0.5
+           colnames(m) <- rom568[1:6]
+           d <- csv555(tri568(rom568[1:6])); names(d)[2] <- NA
+           e <- csv555(tri568(rom568[1:6])); names(e)[2] <- "\xc9"
+           Encoding(names(e)[2]) <- "latin1"
+           # helper seul : un nom NA ou non UTF-8 rompt la suite sans lever d'erreur
+           identical(.suite_entetes_romains(c("I", "II", NA, "\xc9")), 1:2) &&
+             identical(.suite_entetes_romains(c("I", NA, "II")), integer(0)) &&
+             identical(.suite_entetes_romains(c("\xc9", "I", "II")), 2:3) &&
+             identical(.suite_entetes_romains(c("I", "\xc9", "II")), integer(0)) &&
+             refus568(engine_lire_triangle(m), 1:6, rom568[1:6]) &&
+             !inherits(tryCatch(engine_lire_triangle(d), error = function(e) e), "error") &&
+             !inherits(tryCatch(engine_lire_triangle(e), error = function(e) e), "error") &&
+             !grepl("chiffres romains", paste(engine_lire_triangle(d)$erreurs, collapse = "")) &&
+             !grepl("chiffres romains", paste(engine_lire_triangle(e)$erreurs, collapse = ""))
+         })
+# Classeur : memes cas par le lecteur interne force et, s'il est installe, par
+# openxlsx (parite, comme #555) ; en-tetes ecrits par l'ecrivain interne, blancs
+# de bord retires a la lecture par les deux chemins.
+if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
+  verifier("En-tetes romains (#568), classeur : configuration 1 (I, II, ... sans colonne i ; lignes vides en fin de fichier) et configuration 2 (colonne i suivie de I, II, ...) refusees au meme motif qu'en CSV (lecteur interne et openxlsx)",
+           tous555(tri568(rom568[1:6], col1 = C568[1:6]), engine_lire_triangle, function(r) refus568(r, 1:6, rom568[1:6])) &&
+             tous555(tri568(rom568[1:8], n = 8, col1 = C568), engine_lire_triangle, function(r) refus568(r, 1:8, rom568[1:8])) &&
+             tous555(c(tri568(rom568[1:6], col1 = C568[1:6]), ",,,,,", ",,,,,"), engine_lire_triangle,
+                     function(r) refus568(r, 1:6, rom568[1:6]) && !grepl("incomplete", paste(r$erreurs, collapse = ""))) &&
+             tous555(tri568(c("i", rom568[1:6]), 1:6), engine_lire_triangle, function(r) refus568(r, 2:7, rom568[1:6])) &&
+             tous555(tri568(c("I", rom568[1:6]), 1:6), engine_lire_triangle, function(r) refus568(r, 2:7, rom568[1:6])) &&
+             tous555(tri568(tolower(rom568[1:6]), col1 = C568[1:6]), engine_lire_triangle, function(r) refus568(r, 1:6, tolower(rom568[1:6]))) &&
+             tous555(tri568(c("\" i \"", "\" ii \"", "\" iii \"", "iv", "v", "vi"), col1 = C568[1:6]), engine_lire_triangle,
+                     function(r) refus568(r, 1:6, tolower(rom568[1:6]))))
+  verifier("En-tetes romains (#568), classeur : colonne I d'annees suivie de II, III, ... (ou i, ii, ... ; 9 colonnes de triangle_mw.csv) acceptee, triangle identique au CSV ; i, II, III, ... et I, ii, iii, ... acceptes ; I sans II, i + I + III et II, III, ... : memes resultats qu'en CSV",
+           {
+             r0 <- ref568(); ent <- rom568[1:7]; r9 <- r568(mw568)
+             a <- tri568(c("I", paste0("j", 1:5))); c3 <- tri568(c("i", "I", "III", paste0("j", 2:5)), 1:6)
+             tous555(tri568(ent, 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(tolower(ent), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("i", ent[-1]), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("I", tolower(ent[-1])), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(tri568(c("I", 0:5), 1:6), engine_lire_triangle, function(r) identical(r, r0)) &&
+               tous555(ent568(rom568[1:9]), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(tolower(rom568[1:9])), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(c("i", rom568[2:9])), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(ent568(c("I", tolower(rom568[2:9]))), engine_lire_triangle, function(r) identical(r, r9)) &&
+               tous555(a, engine_lire_triangle, function(r) identical(r, r568(a))) &&
+               tous555(c3, engine_lire_triangle, function(r) identical(r$erreurs, H1_I555(c(1, 2), c("i", "I")))) &&
+               tous555(tri568(rom568[2:7]), engine_lire_triangle, function(r) isTRUE(r$ok) && identical(r$triangle, r0$triangle))
+           })
+}
+
+## --- Information de lecture : lignes rangees par t (#569) -------------------
+# Decision Q-66-6 (a) du mainteneur ; texte d'actuary
+# (docs/revues/20261118-s4-lecteurs/actuary-textes-etape-1.md, (iii)),
+# verifie ici mot pour mot. Champ avertissements_lecture
+# d'engine_lire_donnees_csv() : un seul motif si et seulement si le tri par t
+# change l'ordre des lignes (o <- order(t), any(o != seq_along(o))),
+# character(0) sinon (fichier deja range, sans colonne t, refus) ; xt, yt, n
+# et erreurs inchanges (valeurs du fichier range). Positions citees : lignes
+# de donnees deplacees (points non fixes de la permutation, les memes que
+# ceux de son inverse). Chemin CSV : lecture de l'application (csv555()) ;
+# chemin classeur : ecrivain interne, puis engine_lire_xlsx() par le lecteur
+# interne force et, s'il est installe, par openxlsx. Helpers de #555
+# reutilises (liste555(), csv555(), ser555()).
+TRI569 <- function(k) sprintf(paste0("Lignes du tableau rangees par annee t croissante pour le calcul (ligne(s) de ",
+  "donnees %s deplacee(s)) : l'outil suit l'ordre de la colonne t, non celui des lignes du fichier ; cet ordre ",
+  "determine notamment les p-values et verdicts des tests sensibles a l'ordre des annees et, si la profondeur T ",
+  "retenue est inferieure au nombre de lignes, les annees retenues (les T plus recentes selon t). Verifier que la ",
+  "colonne t porte l'annee de chaque ligne ; aucune action n'est requise si c'est le cas."), liste555(k))
+# Lignes CSV d'un fichier dont la ligne de donnees k porte l'annee p[k]
+# (t = t0 - 1 + p[k]) et les montants x[p[k]], y[p[k]].
+lig569 <- function(p, t0 = 1, ent = c("t", "xt", "yt"))
+  ser555(ent, list(t0 - 1 + p, x[p], y[p]))
+NOMS569 <- c("ok", "erreurs", "xt", "yt", "n", "avertissements_lecture")
+r0_569 <- ls555(lig569(1:8))
+verifier("Lignes rangees par t (#569) : fichier deja range (t = 1..8) : avertissements_lecture = character(0), xt et yt du fichier, champ en dernier",
+         isTRUE(r0_569$ok) && identical(r0_569$avertissements_lecture, character(0)) &&
+           identical(names(r0_569), NOMS569) && identical(r0_569$xt, x) && identical(r0_569$yt, y) &&
+           identical(r0_569$n, 8L))
+verifier("Lignes rangees par t (#569) : les 120 ordres de 5 lignes : information presente si et seulement si l'ordre du fichier differe de celui de t, texte exact, lignes deplacees citees ; xt et yt toujours ceux du fichier range",
+         {
+           # base::c : un objet c (non fonction) de l'environnement global
+           # (laisse par un test plus haut) serait pris par do.call(c, ...).
+           perms <- function(v) if (length(v) <= 1) list(v) else
+             do.call(base::c, lapply(seq_along(v), function(i) lapply(perms(v[-i]), function(q) c(v[i], q))))
+           pp <- perms(1:5); r5 <- ls555(lig569(1:5))
+           length(pp) == 120L && all(vapply(pp, function(p) {
+             r <- ls555(lig569(p)); bouge <- which(p != seq_along(p))
+             attendu <- if (length(bouge)) TRI569(bouge) else character(0)
+             isTRUE(r$ok) && identical(r$avertissements_lecture, attendu) &&
+               identical(r[c("ok", "erreurs", "xt", "yt", "n")], r5[c("ok", "erreurs", "xt", "yt", "n")])
+           }, logical(1)))
+         })
+verifier("Lignes rangees par t (#569) : 8 lignes inversees (plus de cinq deplacees, liste plafonnee \"1, 2, 3, 4, 5 et 3 autre(s)\") ; cycle des lignes 3, 4, 5 ; annees 2015..2022 et en-tete T : meme regle",
+         {
+           ri <- ls555(lig569(8:1)); rc <- ls555(lig569(c(1, 2, 4, 5, 3, 6, 7, 8)))
+           ra <- ls555(lig569(c(2, 1, 3:8), t0 = 2015)); rT <- ls555(lig569(c(2, 1, 3:8), ent = c("T", "xt", "yt")))
+           identical(ri$avertissements_lecture, TRI569(1:8)) &&
+             grepl("(ligne(s) de donnees 1, 2, 3, 4, 5 et 3 autre(s) deplacee(s))", ri$avertissements_lecture, fixed = TRUE) &&
+             identical(rc$avertissements_lecture, TRI569(3:5)) &&
+             identical(ra$avertissements_lecture, TRI569(1:2)) && identical(rT, ra) &&
+             identical(ri$xt, x) && identical(rc$yt, y) && identical(ra$xt, x) &&
+             identical(ls555(lig569(1:8, t0 = 2015))$avertissements_lecture, character(0))
+         })
+verifier("Lignes rangees par t (#569) : sans colonne t, aucun tri ni information (character(0)), lignes lues dans l'ordre du fichier",
+         {
+           p <- c(2, 1, 3:8); r <- ls555(ser555(c("xt", "yt"), list(x[p], y[p])))
+           isTRUE(r$ok) && identical(r$avertissements_lecture, character(0)) && identical(r$xt, x[p]) &&
+             identical(names(r), NOMS569)
+         })
+verifier("Lignes rangees par t (#569) : refus inchanges, avertissements_lecture = character(0) et champ present a chaque retour de refus (tableau vide, en-tete bytes, ligne 1 vide, colonne manquante, t en double, ligne vide intercalee, xt non numerique sur fichier permute, t en double, non consecutif, non entier)",
+         {
+           p <- c(2, 1, 3:8); l <- lig569(p)
+           xt_txt <- l; xt_txt[4] <- sub("^([^,]*),[^,]*", "\\1,abc", xt_txt[4])
+           refus <- list(engine_lire_donnees_csv(data.frame()),
+                         engine_lire_donnees_csv(ser570(c("t", "xt", "yt", NB570))),
+                         ls555(c(",,", l)),
+                         ls555(ser555(c("t", "xt"), list(p, x[p]))),
+                         ls555(ser555(c("t", "xt", "yt", "T"), list(p, x[p], y[p], p))),
+                         ls555(append(l, "", after = 3)),
+                         ls555(xt_txt),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2, 1, 1, 4:8), x, y))),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2, 1, 4:9), x, y))),
+                         ls555(ser555(c("t", "xt", "yt"), list(c(2.5, 1, 3:8), x, y))))
+           all(vapply(refus, function(r) identical(r$ok, FALSE) && length(r$erreurs) >= 1L &&
+                        identical(names(r), NOMS569) &&
+                        identical(r$avertissements_lecture, character(0)), logical(1))) &&
+             contient(refus[[7]]$erreurs, "colonne xt : ligne(s) de donnees 3")
+         })
+if (nzchar(Sys.which("zip")) || requireNamespace("zip", quietly = TRUE)) {
+  env569 <- environment(run_engine)
+  interne569 <- function(expr) {
+    assign("requireNamespace", function(package, ...) FALSE, envir = env569)
+    on.exit(rm("requireNamespace", envir = env569), add = TRUE)
+    force(expr)
+  }
+  avec_openxlsx569 <- requireNamespace("openxlsx", quietly = TRUE)
+  if (!avec_openxlsx569) cat("  [saute] lignes rangees par t (#569), classeur, chemin openxlsx : paquet non installe\n")
+  # Fichier d'ordre p ecrit en classeur (cellules en nombres) puis relu par
+  # chaque chemin disponible et interprete par engine_lire_donnees_csv().
+  xl569 <- function(p) {
+    f <- tempfile(fileext = ".xlsx"); on.exit(unlink(f))
+    engine_ecrire_xlsx(data.frame(t = p, xt = x[p], yt = y[p]), f)
+    out <- list(interne = engine_lire_donnees_csv(interne569(engine_lire_xlsx(f))))
+    if (avec_openxlsx569) out$openxlsx <- engine_lire_donnees_csv(engine_lire_xlsx(f))
+    out
+  }
+  verifier("Lignes rangees par t (#569), classeur : fichier permute (lignes 1 et 2, cycle 3-4-5, inverse) : meme information qu'en CSV, resultat identique au CSV, xt et yt du fichier range (lecteur interne et openxlsx)",
+           all(vapply(list(c(2, 1, 3:8), c(1, 2, 4, 5, 3, 6, 7, 8), 8:1), function(p) {
+             rc <- ls555(lig569(p))
+             all(vapply(xl569(p), function(r) identical(r, rc) && identical(r$xt, x) && identical(r$yt, y) &&
+                          length(r$avertissements_lecture) == 1L, logical(1)))
+           }, logical(1))))
+  verifier("Lignes rangees par t (#569), classeur : fichier deja range : avertissements_lecture = character(0), resultat identique au CSV (lecteur interne et openxlsx)",
+           all(vapply(xl569(1:8), function(r) identical(r, r0_569) &&
+                        identical(r$avertissements_lecture, character(0)), logical(1))))
+} else cat("  [saute] lignes rangees par t (#569), classeur : aucune voie d'ecriture xlsx\n")
 
 ## --- usp_controle_donnees ----------------------------------------------------
 verifier("Controles qualite : 8 lignes ; jeu de test OK sauf credibilite pleine (T < 10)",
@@ -6469,5 +6925,399 @@ if (length(voies488)) {
              identical(engine_empreinte(calc488(rc488$xt, rc488$yt))$donnees, e0_488) &&
              identical(engine_empreinte(calc488(rx488$xt, rx488$yt))$donnees, e0_488))
 } else cat("  [saute] empreinte apres reimport xlsx (#488) : aucune voie d'ecriture xlsx\n")
+
+## --- Ecrivain xlsx : chemin de sortie et caracteres hors XML 1.0 (#580) --------
+# .xlsx_chemin_absolu() et .xlsx_chemin_sortie() sont purs (aucune ecriture ;
+# normalizePath(mustWork = FALSE) seul touche au systeme de fichiers) : testes
+# sans ecrire. "~" : HOME est redirige vers un dossier temporaire. Refus :
+# classe usp_refus_ecriture, avant toute ecriture (aucun fichier cree, un
+# fichier deja la n'est pas retire). L'ecriture exige une voie de compression.
+sous_home580 <- function(h, expr) {
+  ancien <- Sys.getenv("HOME", unset = NA)
+  Sys.setenv(HOME = h)
+  on.exit(if (is.na(ancien)) Sys.unsetenv("HOME") else Sys.setenv(HOME = ancien), add = TRUE)
+  force(expr)
+}
+wd580 <- normalizePath(tempdir(), winslash = "/")
+verifier("engine_ecrire_xlsx() : chemins reconnus absolus (racine, UNC en barres obliques ou inverses, lecteur X:), les autres relatifs (#580)",
+         identical(unname(vapply(c("/a/f.xlsx", "//serveur/partage/f.xlsx", "\\\\serveur\\partage\\f.xlsx",
+                                   "C:/a/f.xlsx", "c:\\a\\f.xlsx", "X:f.xlsx"),
+                                 .xlsx_chemin_absolu, logical(1))), rep(TRUE, 6)) &&
+           identical(unname(vapply(c("f.xlsx", "sub/f.xlsx", "./f.xlsx", "../f.xlsx", "~/f.xlsx"),
+                                   .xlsx_chemin_absolu, logical(1))), rep(FALSE, 5)))
+# Fonction pure : meme resultat depuis deux repertoires courants differents
+# (wd est un argument, getwd() n'y entre pas). Elle ne refuse rien : le refus
+# des formes de lecteur et d'UNC en barres inverses sous unix est celui
+# d'engine_ecrire_xlsx() (tests plus bas).
+h580 <- normalizePath(tempfile("home580_"), winslash = "/", mustWork = FALSE)
+dir.create(h580)
+h580 <- normalizePath(h580, winslash = "/")
+cwd580_b <- normalizePath(tempfile("cwd580_"), winslash = "/", mustWork = FALSE)
+dir.create(cwd580_b)
+cwd580_b <- normalizePath(cwd580_b, winslash = "/")
+depuis580 <- function(rep, expr) { ancien <- setwd(rep); on.exit(setwd(ancien)); force(expr) }
+sortie580 <- function(chemin) .xlsx_chemin_sortie(chemin, wd580)
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC en barres obliques tel quel (absolu sur tout systeme), sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)",
+         identical(sortie580("//serveur/partage/f.xlsx"), "//serveur/partage/f.xlsx") &&
+           identical(depuis580(cwd580_b, sortie580("//serveur/partage/f.xlsx")), "//serveur/partage/f.xlsx"))
+if (.Platform$OS.type == "windows") {
+  verifier("engine_ecrire_xlsx() : sous Windows, .xlsx_chemin_sortie() garde un chemin de lecteur absolu tel quel, depuis deux repertoires courants (#580)",
+           identical(sortie580("C:/a/f.xlsx"), "C:/a/f.xlsx") &&
+             identical(depuis580(cwd580_b, sortie580("C:/a/f.xlsx")), "C:/a/f.xlsx"))
+}
+# Sous unix, la cible est toujours absolue : un chemin qui ne commence pas par
+# "/" est resolu contre wd, formes de lecteur ("X:f.xlsx", "C:", "C:/a/f.xlsx")
+# et d'UNC en barres inverses comprises (engine_ecrire_xlsx() les refuse avant ;
+# avant : rendues telles quelles, donc relatives au dossier temporaire interne).
+# Meme avec un dossier "C:/a" present dans le repertoire courant, wd l'emporte.
+if (.Platform$OS.type == "unix") {
+  verifier("engine_ecrire_xlsx() : sous unix, .xlsx_chemin_sortie() resout contre wd tout chemin ne commencant pas par une barre oblique (lecteur, UNC en barres inverses compris) : cible absolue, independante du repertoire courant (#580)",
+           {
+             cwd580_c <- normalizePath(tempfile("cwd580c_"), winslash = "/", mustWork = FALSE)
+             dir.create(file.path(cwd580_c, "C:", "a"), recursive = TRUE)
+             cwd580_c <- normalizePath(cwd580_c, winslash = "/")
+             formes <- c("\\\\serveur\\partage\\f.xlsx", "X:f.xlsx", "C:", "C:/a/f.xlsx", "\\f.xlsx")
+             all(vapply(formes, function(x) {
+               attendu <- file.path(wd580, x)
+               startsWith(attendu, "/") && identical(sortie580(x), attendu) &&
+                 identical(depuis580(cwd580_b, sortie580(x)), attendu) &&
+                 identical(depuis580(cwd580_c, sortie580(x)), attendu) &&
+                 identical(depuis580(cwd580_c, .xlsx_chemin_sortie(x, cwd580_c)), file.path(cwd580_c, x))
+             }, logical(1)))
+           })
+}
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() prend un chemin relatif par rapport au repertoire donne, sans creer le dossier (#580)",
+         identical(.xlsx_chemin_sortie("nouveau/f.xlsx", wd580), file.path(wd580, "nouveau", "f.xlsx")) &&
+           identical(.xlsx_chemin_sortie("f.xlsx", wd580), file.path(wd580, "f.xlsx")) &&
+           identical(depuis580(cwd580_b, .xlsx_chemin_sortie("nouveau/f.xlsx", wd580)), file.path(wd580, "nouveau", "f.xlsx")) &&
+           !dir.exists(file.path(wd580, "nouveau")) && !dir.exists(file.path(cwd580_b, "nouveau")))
+if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+  verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() developpe \"~\" (HOME redirige), sans le prefixer du repertoire courant (#580)",
+           identical(sous_home580(h580, .xlsx_chemin_sortie("~/f.xlsx", wd580)), file.path(h580, "f.xlsx")))
+} else cat("  [saute] chemin \"~\" (#580) : HOME non redirigeable sur ce systeme\n")
+if (length(voies488)) {
+  ecrire580 <- function(...) sans488(voies488[[1]], engine_ecrire_xlsx(...))
+  d580 <- data.frame(a = c(0.1, 1/3), b = c("x", "y"), stringsAsFactors = FALSE)
+  if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+    verifier("engine_ecrire_xlsx() : \"~/...\" ecrit sous HOME (redirige) et se relit identical(), sans creer de dossier \"~\" dans le repertoire courant (#580)",
+             {
+               r <- sous_home580(h580, ecrire580(d580, "~/export580.xlsx"))
+               identical(r, file.path(h580, "export580.xlsx")) && file.exists(r) &&
+                 !dir.exists(file.path(getwd(), "~")) && !file.exists(file.path(getwd(), "~", "export580.xlsx")) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+             })
+  }
+  verifier("engine_ecrire_xlsx() : chemin relatif resolu avant le changement de repertoire interne, fichier ecrit sous le repertoire courant de l'appelant (#580)",
+           {
+             ancien <- setwd(h580); on.exit(setwd(ancien), add = TRUE)
+             r <- ecrire580(d580, "relatif580.xlsx")
+             setwd(ancien)
+             identical(r, file.path(h580, "relatif580.xlsx")) && file.exists(file.path(h580, "relatif580.xlsx")) &&
+               identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+           })
+  refus580 <- function(df, feuille = "Donnees") {
+    f <- file.path(h580, "refus580.xlsx")
+    if (file.exists(f)) unlink(f)
+    e <- tryCatch(ecrire580(df, f, feuille), error = function(e) e)
+    list(e = e, classe = identical(class(e), c("usp_refus_ecriture", "error", "condition")),
+         cree = file.exists(f), msg = if (inherits(e, "error")) conditionMessage(e) else "")
+  }
+  motif580 <- function(r, ou, code)
+    r$classe && !r$cree && grepl(ou, r$msg, fixed = TRUE) && grepl(code, r$msg, fixed = TRUE) &&
+      grepl("aucun fichier ecrit", r$msg, fixed = TRUE) && !grepl("\001", r$msg, fixed = TRUE)
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" en cellule refuse (usp_refus_ecriture), cellule et code cites, aucun fichier cree (#580)",
+           motif580(refus580(data.frame(a = 1:2, b = c("ok", "x\001y"), stringsAsFactors = FALSE)),
+                    "la cellule B3", "U+0001"))
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" en en-tete refuse (usp_refus_ecriture), en-tete et code cites, aucun fichier cree (#580)",
+           motif580(refus580(data.frame(`x\001y` = 1, check.names = FALSE)),
+                    "l'en-tete de la colonne 1 (cellule A1)", "U+0001"))
+  verifier("engine_ecrire_xlsx() : \"x\\001y\" dans le nom de la feuille refuse (usp_refus_ecriture), feuille et code cites, aucun fichier cree (#580)",
+           motif580(refus580(d580, "x\001y"), "le nom de la feuille", "U+0001"))
+  verifier("engine_ecrire_xlsx() : un fichier deja present n'est ni retire ni modifie par un refus (#580)",
+           {
+             f <- file.path(h580, "refus580.xlsx"); writeLines("existant", f)
+             e <- tryCatch(ecrire580(data.frame(a = "x\001y"), f), error = function(e) e)
+             inherits(e, "usp_refus_ecriture") && identical(readLines(f), "existant")
+           })
+  interdits580 <- c(0:8, 11L, 12L, 14:31, 0xFFFEL, 0xFFFFL)
+  cr580 <- 13L   # admis par XML 1.0, refuse : relu en saut de ligne par un analyseur conforme
+  verifier("engine_ecrire_xlsx() : les controles C0 hors tabulation et saut de ligne (retour chariot compris), U+FFFE et U+FFFF sont refuses en cellule, aucun fichier cree (#580)",
+           all(vapply(setdiff(c(interdits580, cr580), 0L), function(cp) {   # U+0000 : impossible dans une chaine R
+             r <- refus580(data.frame(a = paste0("a", intToUtf8(cp), "b"), stringsAsFactors = FALSE))
+             motif580(r, "la cellule A2", sprintf("U+%04X", cp))
+           }, logical(1))))
+  verifier("engine_ecrire_xlsx() : UTF-8 invalide (octet 0xE9 isole, substitut U+D800 encode) refuse en cellule, en en-tete et dans le nom de la feuille, aucun fichier cree (#580)",
+           {
+             mauvais <- c(rawToChar(as.raw(c(0x61, 0xE9, 0x62))), rawToChar(as.raw(c(0xED, 0xA0, 0x80))))
+             all(vapply(mauvais, function(m) {
+               rc <- refus580(data.frame(a = m, stringsAsFactors = FALSE))
+               dh <- data.frame(a = 1); names(dh) <- m
+               rh <- refus580(dh); rf <- refus580(d580, m)
+               motif580(rc, "la cellule A2", "UTF-8 valide") && motif580(rh, "l'en-tete de la colonne 1", "UTF-8 valide") &&
+                 motif580(rf, "le nom de la feuille", "UTF-8 valide")
+             }, logical(1)))
+           })
+  # En-tete : ecrit comme texte de cellule (<t>), non comme attribut : meme
+  # regle que la cellule. Le lecteur interne relit les blancs d'un nom de
+  # colonne en espaces (comportement du lecteur, hors de cette issue) :
+  # l'en-tete est donc controle dans le XML ecrit, les cellules par la relecture.
+  verifier("engine_ecrire_xlsx() : tabulation et saut de ligne admis en cellule (relus identical(), texte marque latin1 compris) et en en-tete (ecrits tels quels dans la feuille) (#580)",
+           {
+             f <- file.path(h580, "admis580.xlsx")
+             txt <- c("a\tb", "a\nb", "c\u00e9")
+             latin <- iconv("caf\u00e9", "UTF-8", "latin1")
+             d <- data.frame(a = c(txt, latin), stringsAsFactors = FALSE)
+             names(d) <- "e\tn\nt\u00e9te"
+             ecrire580(d, f)
+             l <- sans488("openxlsx", engine_lire_xlsx(f))
+             rep580 <- tempfile("dec580_"); utils::unzip(f, exdir = rep580)
+             xml580 <- rawToChar(readBin(file.path(rep580, "xl", "worksheets", "sheet1.xml"), "raw", 10000L))
+             identical(l[[1]], enc2utf8(d[[1]])) &&
+               grepl("<t>e\tn\nt\u00e9te</t>", xml580, fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : retour chariot refuse en cellule et en en-tete (usp_refus_ecriture, emplacement et U+000D cites, caractere non conserve a la relecture, aucun fichier cree) (#580)",
+           {
+             rc <- refus580(data.frame(a = c("ok", "x\ry"), stringsAsFactors = FALSE))
+             dh <- data.frame(a = 1); names(dh) <- "x\ry"
+             rh <- refus580(dh)
+             motif580(rc, "la cellule A3", "U+000D") && motif580(rh, "l'en-tete de la colonne 1 (cellule A1)", "U+000D") &&
+               grepl("ne conserve pas a la relecture", rc$msg, fixed = TRUE) &&
+               grepl("ne conserve pas a la relecture", rh$msg, fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : tabulation, saut de ligne et retour chariot refuses dans le nom de la feuille (usp_refus_ecriture, U+0009, U+000A, U+000D cites, aucun fichier cree) (#580)",
+           all(vapply(c(9L, 10L, 13L), function(cp) {
+             r <- refus580(d580, paste0("a", intToUtf8(cp), "b"))
+             motif580(r, "le nom de la feuille", sprintf("U+%04X", cp)) &&
+               grepl("ne conserve pas a la relecture", r$msg, fixed = TRUE)
+           }, logical(1))))
+  verifier("engine_ecrire_xlsx() : un nom de feuille ordinaire (accent, espace, &, <) est admis, le fichier est cree (#580)",
+           {
+             f <- file.path(h580, "feuille580.xlsx"); if (file.exists(f)) unlink(f)
+             e <- tryCatch(ecrire580(d580, f, "Donn\u00e9es & <1>"), error = function(e) e)
+             !inherits(e, "error") && file.exists(f)
+           })
+  verifier("engine_ecrire_xlsx() : feuille = 1 (nombre fini seul) ecrit la feuille \"1\", comme avant le controle (#580)",
+           {
+             f <- file.path(h580, "feuille1_580.xlsx"); if (file.exists(f)) unlink(f)
+             e <- tryCatch(ecrire580(d580, f, 1), error = function(e) e)
+             rep <- tempfile("fe580_"); if (!inherits(e, "error")) utils::unzip(f, exdir = rep)
+             !inherits(e, "error") && file.exists(f) &&
+               grepl('<sheet name="1" ', paste(readLines(file.path(rep, "xl", "workbook.xml"), warn = FALSE), collapse = ""), fixed = TRUE)
+           })
+  verifier("engine_ecrire_xlsx() : feuille NA, NA_character_, vide, vecteur, Inf, liste, NULL ou facteur refusee par un usp_refus_ecriture motive, jamais par une erreur R brute, aucun fichier cree (#580)",
+           all(vapply(list(NA, NA_character_, NA_real_, "", c("a", "b"), Inf, list("a"), NULL, factor("a")), function(fe) {
+             r <- refus580(d580, fe)
+             r$classe && !r$cree && grepl("nom de la feuille doit etre une chaine unique", r$msg, fixed = TRUE) &&
+               grepl("aucun fichier ecrit", r$msg, fixed = TRUE)
+           }, logical(1))))
+  # Chemin vide, non chaine, vecteur, NA ou finissant par une barre : refus
+  # avant toute ecriture, depuis un repertoire courant vide (avant : "sub/"
+  # ecrivait "sub.zip", "" ecrivait "<repertoire courant>.zip")
+  verifier("engine_ecrire_xlsx() : chemin vide, NA, vecteur, non chaine ou finissant par une barre (oblique ou inverse) refuse par un usp_refus_ecriture motive, aucun fichier cree (#580)",
+           {
+             rep580c <- normalizePath(tempfile("chemin580_"), winslash = "/", mustWork = FALSE)
+             dir.create(rep580c); rep580c <- normalizePath(rep580c, winslash = "/")
+             zip580c <- paste0(rep580c, ".zip")
+             all(vapply(list("", NA, NA_character_, c("a", "b"), "sub/", "sub\\", "sub//", 1, NULL, list("a.xlsx")), function(ch) {
+               e <- depuis580(rep580c, tryCatch(ecrire580(d580, ch), error = function(e) e))
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) &&
+                 grepl("le chemin doit etre une chaine unique", conditionMessage(e), fixed = TRUE) &&
+                 grepl("aucun fichier ecrit", conditionMessage(e), fixed = TRUE) &&
+                 !length(list.files(rep580c, all.files = TRUE, no.. = TRUE, recursive = TRUE, include.dirs = TRUE)) &&
+                 !file.exists(zip580c)
+             }, logical(1)))
+           })
+  verifier("engine_ecrire_xlsx() : un chemin ordinaire (sans barre finale) reste admis (#580)",
+           {
+             f <- file.path(h580, "chemin_ok580.xlsx"); if (file.exists(f)) unlink(f)
+             r <- tryCatch(ecrire580(d580, f), error = function(e) e)
+             !inherits(r, "error") && identical(r, f) && file.exists(f)
+           })
+  # Chemin de sortie, troisieme reprise (#580) : chemin de la plateforme, fichier
+  # designe, encodage. Chaque refus est juge depuis un repertoire courant propre
+  # (contenant un dossier "sub" et un dossier "dos.xlsx"), classe
+  # usp_refus_ecriture, motif cite, aucun avertissement R, et inventaire de
+  # tempdir() (repertoire courant, HOME redirige et autres dossiers de ce
+  # fichier compris) inchange : rien de cree ni retire, nulle part.
+  inventaire580 <- function() sort(list.files(tempdir(), all.files = TRUE, no.. = TRUE,
+                                              recursive = TRUE, include.dirs = TRUE))
+  nouveau_rep580 <- function(pref) {
+    rep <- normalizePath(tempfile(pref), winslash = "/", mustWork = FALSE)
+    dir.create(file.path(rep, "sub"), recursive = TRUE); dir.create(file.path(rep, "dos.xlsx"))
+    normalizePath(rep, winslash = "/")
+  }
+  refus580p <- function(chemin, motif) {
+    rep <- nouveau_rep580("chp580_")
+    avant <- inventaire580(); wd_avant <- getwd(); n_avert <- 0L
+    e <- depuis580(rep, withCallingHandlers(
+      tryCatch(ecrire580(d580, chemin), error = function(e) e),
+      warning = function(w) { n_avert <<- n_avert + 1L; invokeRestart("muffleWarning") }))
+    msg <- if (inherits(e, "error")) conditionMessage(e) else ""
+    identical(class(e), c("usp_refus_ecriture", "error", "condition")) && n_avert == 0L &&
+      grepl(motif, msg, fixed = TRUE) && grepl("aucun fichier ecrit", msg, fixed = TRUE) &&
+      identical(inventaire580(), avant) && identical(getwd(), wd_avant) &&
+      dir.exists(file.path(rep, "sub")) && dir.exists(file.path(rep, "dos.xlsx"))
+  }
+  if (.Platform$OS.type == "unix") {
+    verifier("engine_ecrire_xlsx() : sous unix, \"X:f.xlsx\", \"C:f.xlsx\", \"C:\", \"\\\\srv\\p\\f.xlsx\" et \"C:/a/f.xlsx\" refuses (usp_refus_ecriture, pas un chemin de ce systeme), aucun fichier cree nulle part, aucun avertissement (#580)",
+             all(vapply(c("X:f.xlsx", "C:f.xlsx", "C:", "\\\\srv\\p\\f.xlsx", "C:/a/f.xlsx", "c:\\a\\f.xlsx"),
+                        refus580p, logical(1), motif = "n'est pas un chemin de ce systeme")))
+    verifier("engine_ecrire_xlsx() : sous unix, un chemin en \"//serveur/...\" reste un chemin absolu (non refuse comme chemin de plateforme), et un nom a deux-points interne reste admis (#580)",
+             {
+               e1 <- tryCatch(ecrire580(d580, "//serveur_inexistant580/p/f.xlsx"), error = function(e) e)
+               f2 <- file.path(h580, "a:b580.xlsx"); if (file.exists(f2)) unlink(f2)
+               e2 <- tryCatch(ecrire580(d580, f2), error = function(e) e)
+               inherits(e1, "usp_refus_ecriture") &&
+                 !grepl("n'est pas un chemin de ce systeme", conditionMessage(e1), fixed = TRUE) &&
+                 !inherits(e2, "error") && file.exists(f2)
+             })
+  }
+  verifier("engine_ecrire_xlsx() : un dossier existant (\"dos.xlsx\"), \".\", \"..\", \"sub/..\", \"sub/.\", \"sub\", \"f\", \"f.csv\" et \"f.xlsx.zip\" refuses, motif .xlsx ou dossier existant, rien cree (ni sub.zip, ni f.zip) (#580)",
+           refus580p("dos.xlsx", "designe un dossier existant") &&
+             all(vapply(c(".", "..", "sub/..", "sub/.", "sub", "f", "f.csv", "f.xlsx.zip", "f.xlsx.", "xlsx"),
+                        refus580p, logical(1), motif = "se termine par .xlsx")))
+  verifier("engine_ecrire_xlsx() : un dossier existant donne en chemin absolu est refuse de meme (#580)",
+           {
+             rep <- nouveau_rep580("chd580_"); avant <- inventaire580()
+             e1 <- tryCatch(ecrire580(d580, file.path(rep, "dos.xlsx")), error = function(e) e)
+             e2 <- tryCatch(ecrire580(d580, file.path(rep, "sub")), error = function(e) e)
+             inherits(e1, "usp_refus_ecriture") && grepl("designe un dossier existant", conditionMessage(e1), fixed = TRUE) &&
+               inherits(e2, "usp_refus_ecriture") && identical(inventaire580(), avant)
+           })
+  verifier("engine_ecrire_xlsx() : \"F.XLSX\" et \"g.XlSx\" (casse indifferente) admis et ecrits, valeur rendue = fichier existant, relus identical() (#580)",
+           {
+             rep <- nouveau_rep580("chm580_")
+             all(vapply(c("F.XLSX", "g.XlSx"), function(ch) {
+               r <- depuis580(rep, ecrire580(d580, ch))
+               identical(r, file.path(rep, ch)) && file.exists(r) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(r)), d580)
+             }, logical(1)))
+           })
+  octets580 <- function(s) { Encoding(s) <- "bytes"; s }
+  # Chemin "bytes" non ASCII ou UTF-8 invalide : refus motive, sans erreur R
+  # brute ni avertissement (avant : simpleError "translating strings with
+  # bytes encoding is not allowed" ; avec le paquet zip, "caf\xe9.xlsx" ecrivait
+  # un fichier au nom invalide)
+  verifier("engine_ecrire_xlsx() : chemin \"bytes\" non ASCII refuse (motif \"bytes\"), chemin \"bytes\" ASCII admis, sans avertissement, rien cree (#580)",
+           {
+             m <- octets580("caf\xc3\xa9.xlsx")
+             rep <- nouveau_rep580("chb580_")
+             asc <- octets580("bytes_ascii_chemin580.xlsx")
+             r <- tryCatch(depuis580(rep, ecrire580(d580, asc)), error = function(e) e)
+             identical(Encoding(m), "bytes") && refus580p(m, "\"bytes\"") &&
+               !inherits(r, "error") && file.exists(file.path(rep, "bytes_ascii_chemin580.xlsx"))
+           })
+  if (isTRUE(l10n_info()[["UTF-8"]])) {
+    verifier("engine_ecrire_xlsx() : chemin \"caf\\xe9.xlsx\" non marque (UTF-8 invalide) refuse (motif UTF-8 valide), sans avertissement, rien cree ; NA et non chaine refuses sans avertissement (#580)",
+             {
+               n_avert <- 0L
+               autres <- withCallingHandlers(
+                 vapply(list(NA, NA_character_, 1, NULL, c("a.xlsx", "b.xlsx"), list("a.xlsx"), ""), function(ch) {
+                   e <- tryCatch(ecrire580(d580, ch), error = function(e) e)
+                   identical(class(e), c("usp_refus_ecriture", "error", "condition")) &&
+                     grepl("le chemin doit etre une chaine unique", conditionMessage(e), fixed = TRUE)
+                 }, logical(1)),
+                 warning = function(w) { n_avert <<- n_avert + 1L; invokeRestart("muffleWarning") })
+               refus580p("caf\xe9.xlsx", "UTF-8 valide") && all(autres) && n_avert == 0L
+             })
+  }
+  verifier("engine_ecrire_xlsx() : appels legitimes admis (tempfile(fileext = \".xlsx\"), relatif, relatif avec dossier existant, \"~\"), valeur rendue = fichier existant (#580)",
+           {
+             rep <- nouveau_rep580("chl580_")
+             f1 <- tempfile(fileext = ".xlsx")
+             r1 <- ecrire580(d580, f1)
+             r2 <- depuis580(rep, ecrire580(d580, "rel580.xlsx"))
+             r3 <- depuis580(rep, ecrire580(d580, "./sub/rel580.xlsx"))
+             ok <- identical(r1, normalizePath(f1, winslash = "/")) && file.exists(r1) &&
+               identical(r2, file.path(rep, "rel580.xlsx")) && file.exists(r2) &&
+               identical(r3, file.path(rep, "sub", "rel580.xlsx")) && file.exists(r3)
+             if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/", mustWork = FALSE), h580)) {
+               r4 <- sous_home580(h580, ecrire580(d580, "~/legitime580.xlsx"))
+               ok <- ok && identical(r4, file.path(h580, "legitime580.xlsx")) && file.exists(r4)
+             }
+             ok
+           })
+  # Valeur rendue seulement si le fichier existe : archive absente apres un
+  # retour sans erreur (zip::zipr(), puis utils::zip() rendant 0), simule par
+  # une substitution de "::" dans l'environnement du moteur (ADR 0016)
+  sans_archive580 <- function(pkg_nom, nom, valeur, expr) {
+    assign("::", function(pkg, name) {
+      pkg <- as.character(substitute(pkg)); name <- as.character(substitute(name))
+      if (pkg == pkg_nom && name == nom) function(...) valeur else getExportedValue(pkg, name)
+    }, envir = env488)
+    on.exit(rm("::", envir = env488), add = TRUE)
+    force(expr)
+  }
+  if (base::requireNamespace("zip", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx() : zip::zipr() rendant sans erreur ni archive, sans commande zip -> usp_refus_ecriture \"archive absente\", aucune valeur rendue (#580)",
+             {
+               f <- file.path(h580, "absente580.xlsx"); if (file.exists(f)) unlink(f)
+               ancien <- Sys.getenv("R_ZIPCMD", unset = NA)
+               Sys.setenv(R_ZIPCMD = "commande_zip_absente_usp580")
+               on.exit(if (is.na(ancien)) Sys.unsetenv("R_ZIPCMD") else Sys.setenv(R_ZIPCMD = ancien), add = TRUE)
+               e <- tryCatch(sans_archive580("zip", "zipr", NULL, engine_ecrire_xlsx(d580, f)), error = function(e) e)
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) && !file.exists(f) &&
+                 grepl("paquet zip : archive absente apres l'ecriture", conditionMessage(e), fixed = TRUE)
+             })
+  }
+  if (nzchar(Sys.which("zip"))) {
+    verifier("engine_ecrire_xlsx() : utils::zip() rendant 0 sans archive -> usp_refus_ecriture \"statut 0 mais archive absente\", aucune valeur rendue (#580)",
+             {
+               f <- file.path(h580, "absente580b.xlsx"); if (file.exists(f)) unlink(f)
+               e <- tryCatch(sans488("zip", sans_archive580("utils", "zip", 0L, engine_ecrire_xlsx(d580, f))),
+                             error = function(e) e)
+               identical(class(e), c("usp_refus_ecriture", "error", "condition")) && !file.exists(f) &&
+                 grepl("statut 0 mais archive absente", conditionMessage(e), fixed = TRUE)
+             })
+  }
+  # Guillemet double d'un nom de feuille : echappe &quot; dans l'attribut name
+  # (avant : XML mal forme, classeur refuse par le lecteur interne) ; dans le
+  # texte d'une cellule il reste ecrit tel quel.
+  verifier("engine_ecrire_xlsx() : nom de feuille a guillemet double ecrit &quot; dans workbook.xml, classeur relu intact par le lecteur interne, guillemet de cellule inchange (#580)",
+           {
+             f <- file.path(h580, "guillemet580.xlsx"); if (file.exists(f)) unlink(f)
+             dq <- data.frame(a = c(0.1, 1/3), b = c('di"t', "y"), stringsAsFactors = FALSE)
+             e <- tryCatch(ecrire580(dq, f, 'a"b'), error = function(e) e)
+             if (inherits(e, "error")) FALSE else {
+               rep <- tempfile("gui580_"); utils::unzip(f, exdir = rep)
+               lire_txt <- function(...) paste(readLines(file.path(rep, ...), warn = FALSE), collapse = "")
+               grepl('<sheet name="a&quot;b" ', lire_txt("xl", "workbook.xml"), fixed = TRUE) &&
+                 grepl('<t>di"t</t>', lire_txt("xl", "worksheets", "sheet1.xml"), fixed = TRUE) &&
+                 identical(sans488("openxlsx", engine_lire_xlsx(f)), dq)
+             }
+           })
+  if (base::requireNamespace("openxlsx", quietly = TRUE)) {
+    verifier("engine_ecrire_xlsx() : nom de feuille a guillemet double relu a l'identique par openxlsx::getSheetNames() et donnees intactes par engine_lire_xlsx() avec openxlsx (#580)",
+             {
+               f <- file.path(h580, "guillemet580.xlsx")
+               dq <- data.frame(a = c(0.1, 1/3), b = c('di"t', "y"), stringsAsFactors = FALSE)
+               identical(openxlsx::getSheetNames(f), 'a"b') &&
+                 identical(sans488(character(0), engine_lire_xlsx(f)), dq)
+             })
+  } else cat("  [saute] nom de feuille a guillemet relu par openxlsx (#580) : paquet non installe\n")
+  # Chaine marquee "bytes" : refusee a tous les emplacements des qu'elle est
+  # non ASCII, meme UTF-8 valide (avant : erreur R brute de sprintf() en cellule
+  # et en en-tete, admise en nom de feuille) ; une chaine bytes ASCII reste admise.
+  verifier("engine_ecrire_xlsx() : chaine \"caf\\xc3\\xa9\" marquee bytes (UTF-8 valide, non ASCII) refusee en cellule, en en-tete et en nom de feuille, motif \"bytes\", aucun fichier cree (#580)",
+           {
+             m <- octets580("caf\xc3\xa9")
+             rc <- refus580(data.frame(a = m, stringsAsFactors = FALSE))
+             dh <- data.frame(a = 1); names(dh) <- m
+             rh <- refus580(dh); rf <- refus580(d580, m)
+             identical(Encoding(m), "bytes") && validUTF8(m) &&
+               motif580(rc, "la cellule A2", "\"bytes\"") &&
+               motif580(rh, "l'en-tete de la colonne 1 (cellule A1)", "\"bytes\"") &&
+               motif580(rf, "le nom de la feuille", "\"bytes\"")
+           })
+  verifier("engine_ecrire_xlsx() : chaine \"abc\" marquee bytes (ASCII) admise en cellule, en en-tete et en nom de feuille, fichier cree et relu (#580)",
+           {
+             f <- file.path(h580, "bytes_ascii580.xlsx"); if (file.exists(f)) unlink(f)
+             m <- octets580("abc")
+             d <- data.frame(a = m, stringsAsFactors = FALSE); names(d) <- m
+             e <- tryCatch(ecrire580(d, f, m), error = function(e) e)
+             !inherits(e, "error") && file.exists(f) &&
+               identical(sans488("openxlsx", engine_lire_xlsx(f)), data.frame(abc = "abc", stringsAsFactors = FALSE))
+           })
+} else cat("  [saute] refus et ecriture xlsx (#580) : aucune voie d'ecriture xlsx\n")
 
 fin_fichier()
