@@ -903,10 +903,22 @@ prédicat «~en-tête qui désigne la colonne~» \code{i} du triangle ou~$t$ des
 minuscule ou en majuscule une fois retirés les blancs de bord de la classe \code{[[:space:]]}, un
 nom \code{NA} ou non UTF-8 ne la désignant jamais~; liste des positions citées dans un motif de
 lecture, cinq au plus, suivies du nombre des autres, commune aux motifs des lignes et colonnes
-vides, des en-têtes en double et de la colonne \code{i}~; motifs de refus des valeurs de la
+vides, des en-têtes en double, de la colonne \code{i}, des cellules non numériques des colonnes
+\code{xt}, \code{yt} et~$t$ et du triangle, et des cellules renseignées sous la diagonale~; motifs de refus des valeurs de la
 colonne \code{i} (entiers croissants de pas~1, sans vide, départ libre), vides et non entières ou non numériques
 cumulées, puis valeurs répétées, ordre non croissant ou écart supérieur à~1, exclusifs dans cet
 ordre (§\ref{sec:controles}) \\
+\code{.cellules\_nettoyees()},\newline \code{.cellules\_vides()},\newline
+\code{.valeurs\_non\_entieres()} & colonne~; colonne nettoyée~; valeurs numériques &
+primitives communes aux contrôles de la colonne~$t$, de la colonne \code{i} et des colonnes de
+développement du triangle~: colonne prête à lire (facteur lu par ses valeurs, texte passé par
+\code{.nettoyer\_cellules()}, tout autre vecteur rendu tel quel), pour la colonne \code{i} et
+les colonnes de développement~; prédicat «~cellule vide~» (\code{NA} ou texte de longueur
+nulle), définition unique pour ces mêmes colonnes~; prédicat «~valeur non entière ou non
+finie~» (\code{NA}, \code{NaN}, $\pm\infty$ ou valeur qui diffère de son arrondi, jamais
+\code{NA}), pour la colonne~$t$ et la colonne \code{i}~; les règles propres à chaque colonne
+(doublons, ordre, pas) restent dans \code{engine\_lire\_donnees\_csv()} et
+\code{.motifs\_colonne\_i()} \\
 \code{engine\_lire\_triangle()} & \code{data.frame} ou matrice (une ligne par année de
 survenance) & \code{\$ok}, \code{\$erreurs}, \code{\$avertissements},
 \code{\$avertissements\_lecture}, \code{\$triangle}, \code{\$I}, \code{\$J}~; BOM retiré du
