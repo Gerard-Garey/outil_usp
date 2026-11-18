@@ -40,7 +40,7 @@ Les deux avis suivants n'ont été rendus qu'en compte rendu ; leur contenu est 
 
 ### Étape 10 : veille et PDF
 - Veille du 18/11 (second relevé, 14:17-14:52 UTC), commentaire daté sur #463 seul (Q-66-9) : aucun fait nouveau (AEAPP, orientations de 2015, question 2580 ajoutée à la liste, 2015/498, rectificatifs de 2026/269 (R(01) à R(03)) et de 2015/35 (R(01) à R(14)), R. 352-5, R. 356-19).
-- PDF de fin de branche `0b08d1d` (`.tex` de `1ae0790`, pdfTeX-1.40.25, 463 pages, 0 référence indéfinie).
+- PDF de fin de branche `0b08d1d` (`.tex` de `1ae0790`), remplacé par `46e27fc` (`.tex` de `f4c2810`, pdfTeX-1.40.25, 463 pages, 0 référence indéfinie) : la compilation de la CI (TeX Live 2026) signalait un `Overfull \vbox` de 343 pt sur la rangée d'`engine_ecrire_xlsx()` de l'index, que la TeX Live 2023 de la session tait (`docs/latex/CONVENTIONS.md`, rangée de `longtable` insécable) ; `docwriter` a coupé cette rangée en « (suite) » et scindé le groupe de `.xlsx_admettre()`, texte inchangé ; CI de `46e27fc` entièrement verte.
 
 ## Constats hors périmètre (ADR 0018)
 
