@@ -8207,10 +8207,43 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # lecture : cinq au plus, puis "et <n> autre(s)". Commune aux motifs de
 # .retirer_lignes_colonnes_vides(), des en-tetes en double et de la colonne
 # i (#555), ainsi qu'aux cellules non numeriques des colonnes xt, yt et t et
-# du triangle (#558).
+# du triangle et aux cellules sous la diagonale (.mw_avert_sous_diagonale())
+# (#558).
 .liste_positions <- function(k) {
   paste0(paste(utils::head(k, 5), collapse = ", "),
          if (length(k) > 5) sprintf(" et %d autre(s)", length(k) - 5) else "")
+}
+
+# Cellules d'une colonne avant lecture (#558) : facteur lu par ses valeurs,
+# texte nettoye par .nettoyer_cellules() (blancs de bord retires, octets non
+# UTF-8 declares Latin-1) ; tout autre vecteur rendu tel quel. Commune a la
+# colonne i (.motifs_colonne_i()) et aux colonnes de developpement du
+# triangle (engine_lire_triangle()), dont les cellules sont lues de la meme
+# facon.
+.cellules_nettoyees <- function(v) {
+  if (is.factor(v)) v <- as.character(v)
+  if (is.character(v)) v <- .nettoyer_cellules(v)
+  v
+}
+
+# Cellules vides d'une colonne passee par .cellules_nettoyees() (#558) : NA,
+# ou texte de longueur nulle. Definition unique de la cellule vide de la
+# colonne i (.motifs_colonne_i(), motif V1) et des colonnes de developpement
+# du triangle (engine_lire_triangle() : jamais refusee comme non numerique ;
+# une cellule vide de la partie observee est refusee par mw_valider_triangle()).
+.cellules_vides <- function(v) is.na(v) | (is.character(v) & !nzchar(v))
+
+# Valeurs non entieres ou non finies (#558) : vrai pour NA, NaN, Inf, -Inf et
+# toute valeur qui differe de son arrondi ; jamais NA. Commune a la colonne t
+# (engine_lire_donnees_csv(), appliquee a une colonne sans NA : "les annees
+# doivent etre des entiers finis") et a la colonne i (.motifs_colonne_i(),
+# motif V2, sur les cellules non vides). Les regles qui suivent (doublons,
+# ordre, pas) restent propres a chaque colonne : t est consecutive apres
+# tri, i croissante de pas 1 dans l'ordre des lignes.
+.valeurs_non_entieres <- function(x) {
+  r <- is.na(x) | !is.finite(x) | x != round(x)
+  r[is.na(r)] <- TRUE
+  r
 }
 
 # Valeurs de la colonne i du triangle (#555, decision du mainteneur 1 du
@@ -8220,22 +8253,21 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # n'est pas lue pour le calcul (l'annee d'accident vient de l'ordre des
 # lignes) : une colonne i qui contredit cet ordre signale un triangle qui
 # n'est peut-etre pas celui que l'utilisateur voulait fournir. Cellules lues
-# comme celles du triangle (.nettoyer_cellules(), .en_numerique() : point
-# decimal) ; une cellule est vide selon la meme definition. Une colonne i
-# logique, Date, difftime ou d'un autre type non numerique est lue NA par
-# .en_numerique() (#579) : ses cellules non vides relevent de V2. Ordre et cumul
-# (etape B de l'avis amont) : V1 (vides) et V2 (non numeriques, non entieres
-# ou non finies) cumules ; sans eux, V3 (valeurs repetees), V4 (ordre non
-# croissant) puis V5 (ecart superieur a 1), exclusifs dans cet ordre. v :
-# colonne i du tableau sans ses lignes de fin vides ; positions en lignes de
-# donnees. Renvoie les motifs (character(0) si la colonne est conforme).
+# comme celles du triangle (.cellules_nettoyees(), .en_numerique() : point
+# decimal) ; une cellule est vide selon la meme definition (.cellules_vides()).
+# Une colonne i logique, Date, difftime ou d'un autre type non numerique est
+# lue NA par .en_numerique() (#579) : ses cellules non vides relevent de V2.
+# Ordre et cumul (etape B de l'avis amont) : V1 (vides) et V2 (non
+# numeriques, non entieres ou non finies) cumules ; sans eux, V3 (valeurs
+# repetees), V4 (ordre non croissant) puis V5 (ecart superieur a 1),
+# exclusifs dans cet ordre. v : colonne i du tableau sans ses lignes de fin
+# vides ; positions en lignes de donnees. Renvoie les motifs (character(0) si
+# la colonne est conforme).
 .motifs_colonne_i <- function(v) {
-  if (is.factor(v)) v <- as.character(v)
-  if (is.character(v)) v <- .nettoyer_cellules(v)
-  vide <- is.na(v) | (is.character(v) & !nzchar(v))
+  v <- .cellules_nettoyees(v)
+  vide <- .cellules_vides(v)
   x <- .en_numerique(v)
-  fautive <- !vide & (is.na(x) | !is.finite(x) | x != round(x))
-  fautive[is.na(fautive)] <- TRUE
+  fautive <- !vide & .valeurs_non_entieres(x)
   err <- character(0)
   if (any(vide))
     err <- c(err, sprintf(paste("Colonne i incomplete (ligne(s) de donnees %s sans valeur) : la colonne i,",
@@ -8550,7 +8582,7 @@ engine_lire_donnees_csv <- function(df) {
       err <- c(err, sprintf(paste("Colonne t incomplete ou non numerique (ligne(s) de donnees %s) :",
                                   "chaque ligne doit porter son annee."),
                             .liste_positions(which(is.na(to)))))
-    else if (any(!is.finite(to) | to != round(to)))
+    else if (any(.valeurs_non_entieres(to)))
       err <- c(err, "Colonne t : les annees doivent etre des entiers finis.")
     else if (anyDuplicated(to))
       err <- c(err, sprintf("Colonne t : annee(s) dupliquee(s) (%s).",
@@ -8648,13 +8680,9 @@ engine_lire_triangle <- function(df) {
   # l'erreur R "undefined columns selected" (#555).
   df <- df[, !(names(df) %in% "i"), drop = FALSE]
   if (!ncol(df)) return(refus("Aucune colonne d'annee de developpement."))
-  brut <- lapply(df, function(v) {
-    if (is.factor(v)) v <- as.character(v)
-    if (is.character(v)) v <- .nettoyer_cellules(v)
-    v
-  })
+  brut <- lapply(df, .cellules_nettoyees)
   num <- lapply(brut, .en_numerique)
-  vide <- lapply(brut, function(v) is.na(v) | (is.character(v) & !nzchar(v)))
+  vide <- lapply(brut, .cellules_vides)
   # Listes sans noms : cbind() ne traduit pas les en-tetes declares Latin-1
   # (avertissement "unable to translate" pour un octet sans caractere en
   # Windows-1252, fichier binaire lu en texte, #483) ; seuls les indices
@@ -12700,18 +12728,20 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
                 arr.ind = TRUE)
   if (!nrow(sous)) return(character(0))
   sous <- sous[order(sous[, 1], sous[, 2]), , drop = FALSE]
-  k <- utils::head(sous, 5)
   # Coordonnees (i = ..., j = ...) suivies de leur sens, comme le motif des
-  # cellules non numeriques d'engine_lire_triangle() (#527).
+  # cellules non numeriques d'engine_lire_triangle() (#527), cinq au plus par
+  # .liste_positions() (#558) ; seules les cinq premieres sont mises en texte,
+  # les autres ne comptent que pour "et <n> autre(s)".
+  k <- utils::head(sous, 5)
   sprintf(paste(
-    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s%s",
+    "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en %s",
     "(i : annee d'accident, j : annee de developpement) : hors",
     "de la partie observee du triangle, ces cellules ne sont ni lues par le",
     "calcul, ni restituees dans son resultat, ni comptees parmi les cellules",
     "observees ;",
     "verifier qu'il ne s'agit pas de valeurs projetees."),
-    paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")", collapse = ", "),
-    if (nrow(sous) > 5) sprintf(" et %d autre(s)", nrow(sous) - 5) else "")
+    .liste_positions(c(paste0("(i = ", k[, 1] - 1L, ", j = ", k[, 2] - 1L, ")"),
+                       character(nrow(sous) - nrow(k)))))
 }
 
 # --- Controles de recevabilite : annexe XVII, section D, paragraphe 2 --------
