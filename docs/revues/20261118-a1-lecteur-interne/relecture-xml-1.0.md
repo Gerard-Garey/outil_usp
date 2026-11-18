@@ -42,6 +42,18 @@
 
 > All attributes for which no declaration has been read SHOULD be treated by a non-validating processor as if declared CDATA.
 
+### § 3.1 Start-Tags, End-Tags, and Empty-Element Tags (ajout du 18/11, après la lecture d'`actuary`)
+
+> The representation of an empty element is either a start-tag immediately followed by an end-tag, or an empty-element tag.
+
+> [44] EmptyElemTag ::= '<' Name (S Attribute)* S? '/>'
+
+### § 4.4.2 Included (ajout du 18/11, après l'inventaire de l'étape 1a)
+
+> A character reference is included when the indicated character is processed in place of the reference itself.
+
+Le tableau du § 4.4 rattache ce traitement à la « Reference in Content », définie comme « a reference anywhere after the start-tag and before the end-tag of an element ».
+
 ## Ce que la source établit pour A1
 
 Ce que la source établit (*vérifié*, citations ci-dessus) :
@@ -50,13 +62,16 @@ Ce que la source établit (*vérifié*, citations ci-dessus) :
    - Le processeur XML doit se comporter comme s'il remplaçait, avant l'analyse, toute suite littérale #xD #xA, et tout #xD isolé, par un seul #xA (§ 2.11).
    - Un classeur dont une partie porte un saut de ligne écrit `\r\n` en clair doit donc être lu `\n`. C'est le cas d'une partie écrite par `writeLines()` en mode texte sous Windows (constat de JS1, #602).
    - Un lecteur qui rend `\r\n` n'est donc pas conforme sur ce point. La normalisation des fins de ligne littérales de l'étape 3b est **conforme** à XML 1.0.
-   - En revanche, une **référence de caractère** `&#xD;` reste le caractère #xD (§ 3.3.3, note), car la normalisation du § 2.11 ne porte que sur les caractères littéraux du document.
+   - En revanche, une **référence de caractère** `&#xD;` reste le caractère #xD. Pour le contenu d'un élément, comme le texte d'un `<t>` ou d'un `<v>`, cela découle du § 2.11 : la normalisation se fait « on input, before parsing », donc avant la reconnaissance des références. La référence est ensuite remplacée par le caractère qu'elle désigne (§ 4.4.2). La note du § 3.3.3 dit la même chose, mais pour les seules valeurs d'attribut. *Précision apportée après la lecture d'`actuary` (`specification-594-amendee.md`, § 10.2).*
 2. **Le #xD est un caractère légal** (§ 2.2). Le lire n'est pas une erreur de forme ; seule sa normalisation au § 2.11 est en cause.
 3. **`xml:space="preserve"`, #594.**
    - Le processeur doit transmettre à l'application tout caractère qui n'est pas du balisage, blancs compris (§ 2.10, première citation). Le texte d'un `<t>` bordé de blancs est donc transmis avec ses blancs, que l'attribut soit présent ou non.
    - L'attribut ne change pas ce que le processeur transmet. Il signale une **intention** à l'application, qui doit garder les blancs.
-   - Une valeur autre que `default` ou `preserve` est une erreur que l'application peut ignorer ou rejeter (§ 2.10). Le refus des formes non exactes par le contrat fermé reste donc permis.
-4. **Valeurs d'attribut** (§ 3.3.3) : un blanc littéral dans une valeur d'attribut devient une espace, et un attribut non déclaré se traite comme `CDATA`. Cela touche la lecture des attributs `r`, `t` et `s`. Le contrat fermé refuse déjà les formes d'attribut non attendues (règles R3 à R8, #574).
+   - Une valeur autre que `default` ou `preserve` est une erreur que l'application peut ignorer ou rejeter (§ 2.10). Cette clause fonde le refus d'une **autre valeur** (`xml:space="PRESERVE"`, par exemple), et de celle-là seulement.
+   - Les autres formes refusées par le contrat fermé sont du XML légal, ou ne sont pas `xml:space` : `xml:space="default"`, valeur légale ; les apostrophes, même attribut et même valeur ; `<t >`, sans attribut ; `space=` ou `x:space=`, qui ne sont pas `xml:space`. Leur refus repose sur le **contrat fermé** (ADR 0020, point 2 ; Q-68-4), non sur XML 1.0. *Bornage apporté après la lecture d'`actuary` (`specification-594-amendee.md`, § 10.1).*
+   - Une balise vide `<t xml:space="preserve"/>` représente le même élément vide que `<t xml:space="preserve"></t>` (§ 3.1).
+4. **Références de caractère dans le contenu** (§ 4.4.2). Une référence `&#116;` dans le contenu d'un élément est remplacée par le caractère qu'elle désigne (« t »). Un lecteur qui rend le texte d'une cellule `t="str"` « tel quel, sans décodage » s'écarte donc de la source : c'est le défaut commun C1 de l'inventaire (`inventaire-ecarts.md`, § 3), dont le jugement passe ainsi d'*hypothèse fondée* à *vérifié* par la source.
+5. **Valeurs d'attribut** (§ 3.3.3) : un blanc littéral dans une valeur d'attribut devient une espace, et un attribut non déclaré se traite comme `CDATA`. Cela touche la lecture des attributs `r`, `t` et `s`. Le contrat fermé refuse déjà les formes d'attribut non attendues (règles R3 à R8, #574).
 
 Ce que la source n'établit pas (*non vérifié* ici) :
 
@@ -66,4 +81,4 @@ Ce que la source n'établit pas (*non vérifié* ici) :
 ## Suite
 
 - L'étape 3b n'attend plus la relecture (Q-69-3 (a) satisfaite).
-- `actuary` relit cette note dans le cadre de l'étape 1b, ou à la validation de l'étape 3b.
+- `actuary` l'a relue à l'étape 1b (`specification-594-amendee.md`, § 10) : il est d'accord sur les points 1, 2 et 4, et sur les deux premières puces du point 3. Ses deux précisions (10.1, 10.2) sont portées ci-dessus. Sa troisième remarque (§ 3.1, non cité) est levée par l'ajout du § 3.1.

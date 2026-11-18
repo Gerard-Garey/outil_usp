@@ -1,0 +1,131 @@
+openxlsx : 4.2.5.2 
+
+[t=str en-tete B1 x&#116; + D1 xt]
+  interne : noms = "t","x&#116;","yt","xt" ; classes = numeric,numeric,numeric,numeric 
+     t : "1" "2" 
+     x&#116; : "11" "13" 
+     yt : "2" "4" 
+     xt : "99" "98" 
+    aval ok = TRUE ; xt = 99 98 
+  openxlsx : noms = "t","x&#116;","yt","xt" ; classes = numeric,numeric,numeric,numeric 
+     t : "1" "2" 
+     x&#116; : "11" "13" 
+     yt : "2" "4" 
+     xt : "99" "98" 
+    aval ok = TRUE ; xt = 99 98 
+
+[t=str en-tete B1 x&#116; seul]
+  interne : noms = "t","x&#116;","yt" ; classes = numeric,numeric,numeric 
+     t : "1" "2" 
+     x&#116; : "11" "13" 
+     yt : "2" "4" 
+    aval ok = FALSE ; erreurs : Colonne(s) manquante(s) : xt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, x&#116;, yt. 
+  openxlsx : noms = "t","x&#116;","yt" ; classes = numeric,numeric,numeric 
+     t : "1" "2" 
+     x&#116; : "11" "13" 
+     yt : "2" "4" 
+    aval ok = FALSE ; erreurs : Colonne(s) manquante(s) : xt. Colonnes attendues : t, xt, yt (format d'export de l'application). Colonnes presentes : t, x&#116;, yt. 
+
+[t=str valeur B2 1&#48;4.2]
+  interne : noms = "t","xt","yt" ; classes = numeric,character,numeric 
+     t : "1" "2" 
+     xt : "1&#48;4.2" "13" 
+     yt : "2" "4" 
+    aval ok = FALSE ; erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+  openxlsx : noms = "t","xt","yt" ; classes = numeric,character,numeric 
+     t : "1" "2" 
+     xt : "1&#48;4.2" "13" 
+     yt : "2" "4" 
+    aval ok = FALSE ; erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+
+[texte en ligne 1<LF><LF>2 en colonne annexe]
+  interne : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "1\n\n2" "a" 
+    aval ok = TRUE ; xt = 11 13 
+  openxlsx : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "1\n2" "a" 
+    aval ok = TRUE ; xt = 11 13 
+
+[valeur B2 104.2&#160; en ligne ; D1 R&amp;D ; D2 &#233;]
+  interne : noms = "t","xt","yt","R&D" ; classes = numeric,character,numeric,character 
+     t : "1" "2" 
+     xt : "104.2 " "13" 
+     yt : "2" "4" 
+     R&D : "é" "a" 
+    aval ok = FALSE ; erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+  openxlsx : noms = "t","xt","yt","R&amp;D" ; classes = numeric,character,numeric,character 
+     t : "1" "2" 
+     xt : "104.2&#160;" "13" 
+     yt : "2" "4" 
+     R&amp;D : "&#233;" "a" 
+    aval ok = FALSE ; erreurs : Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1). 
+
+[texte en ligne a<CR><LF>b et c<CR>d (#602)]
+  interne : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "a\r\nb" "c\rd" 
+    aval ok = TRUE ; xt = 11 13 
+  openxlsx : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "a\r\nb" "c\rd" 
+    aval ok = TRUE ; xt = 11 13 
+
+relations d'origine contiennent worksheets/sheet1.xml : TRUE 
+
+[cible ./worksheets/sheet1.xml]
+  interne : noms = "t","xt","yt" ; classes = numeric,numeric,numeric 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+    aval ok = TRUE ; xt = 11 13 
+  openxlsx : ERREUR: Length of worksheet is 0 
+
+[ecrivain interne : &,<,> et logique]
+'data.frame':	3 obs. of  3 variables:
+ $ l&b: chr  "a<b&c" "x>y" "simple"
+ $ l  : chr  "TRUE" "FALSE" NA
+ $ n  : num  1.5 2 3
+NULL
+'data.frame':	3 obs. of  3 variables:
+ $ l&amp;b: chr  "a&lt;b&amp;c" "x&gt;y" "simple"
+ $ l      : logi  TRUE FALSE NA
+ $ n      : num  1.5 2 3
+NULL
+
+[<t/> en ligne en D2]
+  interne : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "" "a" 
+    aval ok = TRUE ; xt = 11 13 
+  openxlsx : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : NA "a" 
+    aval ok = TRUE ; xt = 11 13 
+
+[chaines partagees true et &amp;lt;1 (sans relation ni type de contenu declares)]
+  interne : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "true" "&lt;1" 
+    aval ok = TRUE ; xt = 11 13 
+  openxlsx : noms = "t","xt","yt","note" ; classes = numeric,numeric,numeric,character 
+     t : "1" "2" 
+     xt : "11" "13" 
+     yt : "2" "4" 
+     note : "TRUE" "<1" 
+    aval ok = TRUE ; xt = 11 13 

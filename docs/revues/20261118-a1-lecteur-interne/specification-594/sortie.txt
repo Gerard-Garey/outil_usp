@@ -1,0 +1,244 @@
+ligne t_is actuelle : t_is <- nm == "t" & pn == "is" & ifelse(g == "o", tk != "<t>", !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE)) 
+ligne t_is prototype : t_is <- nm == "t" & pn == "is" & ifelse(g == "o", !tk %in% c("<t>", "<t xml:space=\"preserve\">"), !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE) & tk != "<t xml:space=\"preserve\"/>") 
+
+=== 1. Scenarios par ecrivain (avant = moteur actuel ; apres = prototype)
+S1_note_bordee__openpyxl.xlsx                      avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S1_note_bordee__xlsxwriter_cm.xlsx                 avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S1_note_bordee__xlsxwriter_defaut.xlsx             avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2_entete_xt_blanc_fin__openpyxl.xlsx              avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2_entete_xt_blanc_fin__xlsxwriter_cm.xlsx         avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2_entete_xt_blanc_fin__xlsxwriter_defaut.xlsx     avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2b_entete_t_borde__openpyxl.xlsx                  avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2b_entete_t_borde__xlsxwriter_cm.xlsx             avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2b_entete_t_borde__xlsxwriter_defaut.xlsx         avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2c_entete_yt_tab__openpyxl.xlsx                   avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2c_entete_yt_tab__xlsxwriter_cm.xlsx              avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S2c_entete_yt_tab__xlsxwriter_defaut.xlsx          avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3_xt_104_2_borde__openpyxl.xlsx                   avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3_xt_104_2_borde__xlsxwriter_cm.xlsx              avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3_xt_104_2_borde__xlsxwriter_defaut.xlsx          avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3b_xt_104_2_saut_ligne__openpyxl.xlsx             avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3b_xt_104_2_saut_ligne__xlsxwriter_cm.xlsx        avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3b_xt_104_2_saut_ligne__xlsxwriter_defaut.xlsx    avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3c_t_1_borde__openpyxl.xlsx                       avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3c_t_1_borde__xlsxwriter_cm.xlsx                  avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S3c_t_1_borde__xlsxwriter_defaut.xlsx              avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S4_xt_104_2_texte_sans_blanc__openpyxl.xlsx        avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S4_xt_104_2_texte_sans_blanc__xlsxwriter_cm.xlsx   avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S4_xt_104_2_texte_sans_blanc__xlsxwriter_defaut.xlsx avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S5_note_un_blanc__openpyxl.xlsx                    avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S5_note_un_blanc__xlsxwriter_cm.xlsx               avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S5_note_un_blanc__xlsxwriter_defaut.xlsx           avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S6_xt_un_blanc__openpyxl.xlsx                      avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+S6_xt_un_blanc__xlsxwriter_cm.xlsx                 avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+S6_xt_un_blanc__xlsxwriter_defaut.xlsx             avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+S7_entete_note_blanc__openpyxl.xlsx                avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [V4]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S7_entete_note_blanc__xlsxwriter_cm.xlsx           avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [V4]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S7_entete_note_blanc__xlsxwriter_defaut.xlsx       avant : lu 8x4 ; noms = [t] [xt] [yt] [V4]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [V4]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S8_ligne_finale_note_blanche__openpyxl.xlsx        avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S8_ligne_finale_note_blanche__xlsxwriter_cm.xlsx   avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S8_ligne_finale_note_blanche__xlsxwriter_defaut.xlsx avant : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+S8b_ligne_finale_note_non_blanche__openpyxl.xlsx   avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=9 xt=CSV:FALSE yt=CSV:FALSE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 9 ; colonne yt : ligne(s) de donnees 9). | Colonne t incomplete
+S8b_ligne_finale_note_non_blanche__xlsxwriter_cm.xlsx avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=9 xt=CSV:FALSE yt=CSV:FALSE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 9 ; colonne yt : ligne(s) de donnees 9). | Colonne t incomplete
+S8b_ligne_finale_note_non_blanche__xlsxwriter_defaut.xlsx avant : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 9x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=9 xt=CSV:FALSE yt=CSV:FALSE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 9 ; colonne yt : ligne(s) de donnees 9). | Colonne t incomplete
+S9_xt_104_2_insecable__openpyxl.xlsx               avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+S9_xt_104_2_insecable__xlsxwriter_cm.xlsx          avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+S9_xt_104_2_insecable__xlsxwriter_defaut.xlsx      avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   apres : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                                                   aval apres : ok=FALSE n=8 xt=CSV:FALSE yt=CSV:TRUE erreurs=Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1).
+
+=== 2. Critere : chaine en ligne (apres) == chaine partagee (avant), data.frame et engine_lire_donnees_csv() par identical()
+S1_note_bordee                         openpyxl       df identique : TRUE  aval identique : TRUE 
+S1_note_bordee                         xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S2_entete_xt_blanc_fin                 openpyxl       df identique : TRUE  aval identique : TRUE 
+S2_entete_xt_blanc_fin                 xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S2b_entete_t_borde                     openpyxl       df identique : TRUE  aval identique : TRUE 
+S2b_entete_t_borde                     xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S2c_entete_yt_tab                      openpyxl       df identique : TRUE  aval identique : TRUE 
+S2c_entete_yt_tab                      xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S3_xt_104_2_borde                      openpyxl       df identique : TRUE  aval identique : TRUE 
+S3_xt_104_2_borde                      xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S3b_xt_104_2_saut_ligne                openpyxl       df identique : TRUE  aval identique : TRUE 
+S3b_xt_104_2_saut_ligne                xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S3c_t_1_borde                          openpyxl       df identique : TRUE  aval identique : TRUE 
+S3c_t_1_borde                          xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S4_xt_104_2_texte_sans_blanc           openpyxl       df identique : TRUE  aval identique : TRUE 
+S4_xt_104_2_texte_sans_blanc           xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S5_note_un_blanc                       openpyxl       df identique : TRUE  aval identique : TRUE 
+S5_note_un_blanc                       xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S6_xt_un_blanc                         openpyxl       df identique : TRUE  aval identique : TRUE 
+S6_xt_un_blanc                         xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S7_entete_note_blanc                   openpyxl       df identique : TRUE  aval identique : TRUE 
+S7_entete_note_blanc                   xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S8_ligne_finale_note_blanche           openpyxl       df identique : TRUE  aval identique : TRUE 
+S8_ligne_finale_note_blanche           xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S8b_ligne_finale_note_non_blanche      openpyxl       df identique : TRUE  aval identique : TRUE 
+S8b_ligne_finale_note_non_blanche      xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+S9_xt_104_2_insecable                  openpyxl       df identique : TRUE  aval identique : TRUE 
+S9_xt_104_2_insecable                  xlsxwriter_cm  df identique : TRUE  aval identique : TRUE 
+
+=== 3. Formes forgees (sur S1 openpyxl, note D5)
+F_apostrophes.xlsx           avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_attribut_en_plus.xlsx      avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_blanc_avant_chevron.xlsx   avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_crlf_litteral.xlsx         avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = " a\r\nb "
+F_default.xlsx               avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_deux_espaces.xlsx          avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_entite_amp.xlsx            avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = " a&b "
+F_prefixe_x.xlsx             avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_ref_233.xlsx               avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = " fén "
+F_ref_32.xlsx                avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numer
+F_ref_9.xlsx                 avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numer
+F_sans_attribut.xlsx         avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = " fin "
+F_t_blanc.xlsx               avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_t_tab.xlsx                 avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_valeur_majuscule.xlsx      avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_vide_auto_blanc.xlsx       avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+F_vide_auto.xlsx             avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = ""
+F_vide_paire.xlsx            avant : REFUS [usp_refus_lecture] Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de 
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = ""
+F_vide_t.xlsx                avant : lu 8x4 ; noms = [t] [xt] [yt] [note]
+                             apres : lu 8x4 ; noms = [t] [xt] [yt] [note] ; D5 note = ""
+
+=== 3b. Lecture apres vs lecture avant de la forme sans attribut (identical)
+S1 openpyxl apres == F_sans_attribut avant : TRUE 
+vide_auto apres == vide_paire apres : TRUE  ; == <t/> avant : TRUE 
+
+=== 4. Corpus du temoin (38 classeurs)
+blancs/classeurs_sans_lxml/ligne_finale_note_blanche.xlsx                        lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_bordee_blancs.xlsx                               refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_chaine_vide.xlsx                                 lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_tab.xlsx                                         lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_temoin.xlsx                                      lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_trois_blancs.xlsx                                lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs_sans_lxml/note_un_blanc.xlsx                                    lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs/ligne_finale_note_blanche.xlsx                                  refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs/note_chaine_vide.xlsx                                           lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs/note_tab.xlsx                                                   refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs/note_trois_blancs.xlsx                                          refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+blancs/classeurs/note_un_blanc.xlsx                                              refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/openpyxl_blancs.xlsx                                                   refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/openpyxl_temoin.xlsx                                                   lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/pandas_blancs.xlsx                                                     refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/pandas_temoin.xlsx                                                     lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/xlsxwriter_constant_memory_blancs.xlsx                                 refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/xlsxwriter_constant_memory_temoin.xlsx                                 lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/xlsxwriter_defaut_blancs.xlsx                                          lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+classeurs/xlsxwriter_defaut_temoin.xlsx                                          lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+entete/openpyxl_entete_lu_blanc.xlsx                                             refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/openpyxl_series_blancs.xlsx                              refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/openpyxl_series_temoin.xlsx                              lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/openpyxl_triangle_temoin.xlsx                            lu    -> lu    =         triangle ok=TRUE 
+poste-windows/classeurs/pandas-openpyxl_series_blancs.xlsx                       refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/pandas-openpyxl_series_temoin.xlsx                       lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/pandas-openpyxl_triangle_temoin.xlsx                     lu    -> lu    =         triangle ok=TRUE 
+poste-windows/classeurs/pandas-xlsxwriter_series_blancs.xlsx                     lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/pandas-xlsxwriter_series_temoin.xlsx                     lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/pandas-xlsxwriter_triangle_temoin.xlsx                   lu    -> lu    =         triangle ok=TRUE 
+poste-windows/classeurs/xlsxwriter-constant_memory_series_blancs.xlsx            refus -> lu    CHANGE    ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/xlsxwriter-constant_memory_series_temoin.xlsx            lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/xlsxwriter-constant_memory_triangle_temoin.xlsx          lu    -> lu    =         triangle ok=TRUE 
+poste-windows/classeurs/xlsxwriter-defaut_series_blancs.xlsx                     lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/xlsxwriter-defaut_series_temoin.xlsx                     lu    -> lu    =         ok=TRUE n=8 xt=CSV:TRUE yt=CSV:TRUE erreurs=aucune
+poste-windows/classeurs/xlsxwriter-defaut_triangle_temoin.xlsx                   lu    -> lu    =         triangle ok=TRUE 
+triangle/classeurs/openpyxl_triangle_note_blancs.xlsx                            refus -> lu    CHANGE    triangle ok=FALSE Cellule(s) non numerique(s) en (i = 0, j = 8), (i = 1, j = 8), (i = 2,
+triangle/classeurs/openpyxl_triangle_note_temoin.xlsx                            lu    -> lu    =         triangle ok=FALSE Cellule(s) non numerique(s) en (i = 0, j = 8), (i = 1, j = 8), (i = 2,
