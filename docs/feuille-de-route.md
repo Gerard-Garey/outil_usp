@@ -4089,7 +4089,7 @@ Commandes et contenu du relevé : avis d'`actuary`, § 3 (`docs/revues/20261112-
 - **Fable** : aucune consultation prévue ; compteur de S4 : 0 sur 3.
 - **Durée** : moyenne (un `actuary` de routine, deux `coder`, deux ou trois `coder-approfondi`, une revue légère d'`app-review`, un `docwriter`, une validation, une revue finale `high`).
 
-- [x] 0 (*branche ouverte depuis `3c6af48` le 18/11 ; `0b9adb4` ; PR brouillon #600, cinq lignes de fermeture ; Q-66-1 à Q-66-9 décidées le 18/11*) — [ ] 1 — [ ] 2 — [ ] 3 — [ ] 4 — [ ] 5 — [ ] 6 — [ ] 7 — [ ] 8 — [ ] 9 — [ ] 10 — [ ] 11 — *(plan rédigé le 18/11/2026, soixante-sixième point)*
+- [x] 0 (*branche ouverte depuis `3c6af48` le 18/11 ; `0b9adb4` ; PR brouillon #600, cinq lignes de fermeture ; Q-66-1 à Q-66-9 décidées le 18/11*) — [x] 1 (*textes d'`actuary` versés, `60816a4`*) — [x] 2 (*#580 : `f6d8931`, `a234226` ; reprises accordées par le mainteneur `2649962`, `4999b15`, `32f3b21`, `9440415` ; M1 tranché (refus) ; audit léger conforme*) — [x] 3 (*#595 : `5752c81`, `cf80595`, `9ace916`, sondes `d5fb6bd` ; une reprise ; **visa du mainteneur le 18/11***) — [x] 4 (*#558 : 4a `a01be4e`, `4dcb429` ; 4b `4905d80` ; 4c `5242a8b` ; 4d `c8e3512` (Q-66-2, commentaire sur #558) ; audit léger après chaque commit*) — [x] 5 (*#568 : `8d2fe56`, `589c6fb` ; une reprise (règle d'`actuary` : aucun triangle accepté refusé ; casse uniforme) ; audit conforme*) — [x] 6 (*#569 : `267b55d`, `f6c1a45`, `6422df3` ; audit conforme, `app-review` légère conforme ; bloc shiny exécuté en session sous shiny 1.8.0, CI à relever*) — [ ] 7 — [ ] 8 — [ ] 9 — [ ] 10 — [ ] 11 — *(plan rédigé le 18/11/2026, soixante-sixième point)*
 
 #### Jalon JS1 et créneau d'absorption A1 (**décidés** le 15/11, Q-63-11 (a))
 
