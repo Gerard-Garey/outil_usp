@@ -1,0 +1,6 @@
+0d8bdcad44be7b6697bd98a81369649a  interne_series.xlsx
+6f281f927754858406a4fd79ea506676  interne_series_5000.xlsx
+dd1c6f71f53e97c1c37f663caa2f75a5  interne_triangle.xlsx
+27814272968df3fffbdd0520ec2fd2ab  openxlsx_series.xlsx
+6833ff08e3a688df1527a02587e39a5d  openxlsx_series_5000.xlsx
+26f30471f2aa96c967542b2c2ddfa13b  openxlsx_triangle.xlsx

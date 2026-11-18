@@ -34,3 +34,5 @@ e89e1c82979988eba3b4ab293b26c2f6  ./poste-windows/classeurs/openpyxl_triangle_te
 545ed25f67adb72e8784fa54dc5cfc7c  ./poste-windows/classeurs/xlsxwriter-defaut_series_blancs.xlsx
 4fab5303315f6c67f462ca7650c25881  ./poste-windows/classeurs/xlsxwriter-defaut_series_temoin.xlsx
 9f1365ad73b824710c2d3f0914db800e  ./poste-windows/classeurs/xlsxwriter-defaut_triangle_temoin.xlsx
+29f5844f797f104105dad3624a25b02f  ./triangle/classeurs/openpyxl_triangle_note_blancs.xlsx
+8d57a4ccbfefd989392c9e4d6fe4a0b9  ./triangle/classeurs/openpyxl_triangle_note_temoin.xlsx

@@ -1,0 +1,24 @@
+chemin : openxlsx 4.2.5.2 
+== openpyxl_triangle_note_blancs.xlsx 
+refus usp_refus_lecture : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (balise <t>, dans la chaine en ligne de la cellule J2, balise <t>, dans la chaine en ligne de la cellule J3, balise <t>, dans la chaine en ligne de la cellule J4, balise <t>, dans la chaine en ligne de la cellule J5, balise <t>, dans la chaine en ligne de la cellule J6 et 3 autre(s)) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur. 
+== openpyxl_triangle_note_temoin.xlsx 
+lu 8 x 10 
+ok = FALSE 
+$ok
+[1] FALSE
+
+$erreurs
+[1] "Cellule(s) non numerique(s) en (i = 0, j = 8), (i = 1, j = 8), (i = 2, j = 8), (i = 3, j = 8), (i = 4, j = 8) et 3 autre(s) (i : annee d'accident, j : annee de developpement)."
+
+$avertissements
+character(0)
+
+$avertissements_lecture
+character(0)
+
+$I
+[1] NA
+
+$J
+[1] NA
+
