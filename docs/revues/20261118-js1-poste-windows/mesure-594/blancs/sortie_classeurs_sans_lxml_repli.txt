@@ -1,0 +1,8 @@
+chemin : repli (openxlsx absent) 
+ligne_finale_note_blanche.xlsx   moteur : lu, 9 lignes, t/xt/yt identiques au CSV = TRUE
+note_bordee_blancs.xlsx          moteur : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une bali
+note_chaine_vide.xlsx            moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE
+note_tab.xlsx                    moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE
+note_temoin.xlsx                 moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE
+note_trois_blancs.xlsx           moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE
+note_un_blanc.xlsx               moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE

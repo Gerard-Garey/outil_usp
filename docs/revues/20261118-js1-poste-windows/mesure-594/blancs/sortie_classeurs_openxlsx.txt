@@ -1,0 +1,11 @@
+chemin : openxlsx 4.2.5.2 
+ligne_finale_note_blanche.xlsx   moteur : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une bali
+                                 read.xlsx : 9 lignes ; note = [ok] [ok] [ok] [ok] [ok] [ok] [ok] [ok] [xml:space="preserve"> ]
+note_chaine_vide.xlsx            moteur : lu, 8 lignes, t/xt/yt identiques au CSV = TRUE
+                                 read.xlsx : 8 lignes ; note = [NA] [ok] [ok] [ok] [ok] [ok] [ok] [ok]
+note_tab.xlsx                    moteur : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une bali
+                                 read.xlsx : 8 lignes ; note = [xml:space="preserve">	] [ok] [ok] [ok] [ok] [ok] [ok] [ok]
+note_trois_blancs.xlsx           moteur : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une bali
+                                 read.xlsx : 8 lignes ; note = [xml:space="preserve">   ] [ok] [ok] [ok] [ok] [ok] [ok] [ok]
+note_un_blanc.xlsx               moteur : refus : Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une bali
+                                 read.xlsx : 8 lignes ; note = [xml:space="preserve"> ] [ok] [ok] [ok] [ok] [ok] [ok] [ok]

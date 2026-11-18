@@ -34,7 +34,37 @@ Sonde complémentaire (`sortie_entete_lu.txt`) : un en-tête **lu**, `xt ` écri
 
 - L'hypothèse d'`actuary` est **vérifiée** pour les trois outils de l'issue, sur une colonne non lue. `openxlsx` lit faussement la colonne `note`, mais les colonnes `t`, `xt` et `yt` restent identiques au bit près.
 - Une cellule **lue** bordée de blancs est altérée par `openxlsx`. Le refus doit donc être maintenu pour la ligne d'en-têtes, les colonnes `t`, `xt` et `yt` et les cellules du triangle.
-- Non mesuré :
-  - le triangle (colonnes `i`, `j0`…) avec une colonne de texte non lue ;
-  - les classeurs du poste Windows (étape 2).
-- La suite selon Q-67-4 (a) : spécification d'`actuary-approfondi` en commentaire de #594.
+- Non mesuré : les classeurs du poste Windows (étape 2). Le cas d'un triangle avec une colonne de texte non lue est **sans objet** : toute colonne d'un triangle autre que `i` est une colonne de développement convertie en nombre (`engine_lire_triangle()`), selon la spécification d'`actuary-approfondi`.
+- La suite selon Q-67-4 (a) : spécification d'`actuary-approfondi`, postée en commentaire de #594 le 18/11 (`issuecomment-6986469629`). Les deux premières mesures qu'elle demande avant le codage sont faites ci-dessous.
+
+## Complément : textes faits de seuls blancs (§ 3 de la spécification, points 1 et 2)
+
+Dossier `blancs/`. Les classeurs sont produits par `generer_blancs.py` avec openpyxl 3.1.5, de deux façons :
+- avec lxml 6.1.3, installé sur la machine (`classeurs/`) ;
+- sans lxml, en posant `OPENPYXL_LXML=False` (`classeurs_sans_lxml/`, où `generer.py` donne aussi `note_bordee_blancs` et `note_temoin`).
+
+Mesure : `mesurer_blancs.R`, sur les deux chemins. Les sorties sont les fichiers `sortie_*.txt` et les md5 sont dans `md5.txt`.
+
+**Attribut posé par openpyxl** (constaté dans `sheet1.xml`) :
+
+| Texte de la note | avec lxml | sans lxml |
+|---|---|---|
+| bordé de blancs, non blanc (` debut blanc`) | `<t xml:space="preserve">` | `<t xml:space="preserve">` |
+| fait de seuls blancs (` `, `   `, tabulation) | `<t xml:space="preserve">` | `<t>`, sans attribut |
+| chaîne vide | aucune cellule écrite | aucune cellule écrite |
+
+**Lecture** :
+
+| Classeur | `engine_lire_xlsx()`, deux chemins | `openxlsx::read.xlsx()` direct, colonne `note` |
+|---|---|---|
+| seuls blancs avec lxml (un blanc, trois blancs, tabulation) | refus (D-S1-31) | **fausse** : `xml:space="preserve"> `, une chaîne non vide |
+| seuls blancs sans lxml | lu ; `t`, `xt` et `yt` identiques au CSV | juste (blancs conservés) |
+| ligne finale qui ne porte qu'une note blanche, avec lxml | refus | 9 lignes, la neuvième note vaut `xml:space="preserve"> ` |
+| ligne finale qui ne porte qu'une note blanche, sans lxml | lu, 9 lignes sur les deux chemins (la neuvième a `t`, `xt` et `yt` à `NA`) ; `engine_lire_donnees_csv()` rend `ok = TRUE` | 9 lignes, la neuvième note vaut ` ` |
+| bordé de blancs sans lxml | refus | fausse, comme avec lxml |
+| chaîne vide | lu ; `t`, `xt` et `yt` identiques | `NA` |
+
+**Constat** :
+- La mécanique supposée par la spécification est **vérifiée** sous openxlsx 4.2.5.2 : un texte fait de seuls blancs sous `xml:space="preserve"` est lu par openxlsx comme une chaîne non vide préfixée. Ce texte doit donc rester refusé, comme le recommande la spécification.
+- La divergence de verdict sur la ligne finale n'est pas observée aujourd'hui : le moteur refuse ce classeur sur les deux chemins. Elle apparaîtrait si ce texte était admis.
+- Le refus de #594 touche openpyxl avec ou sans lxml pour un texte bordé de blancs. Pour un texte fait de seuls blancs, il ne le touche qu'avec lxml.
