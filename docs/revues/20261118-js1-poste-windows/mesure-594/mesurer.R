@@ -1,4 +1,6 @@
-args <- commandArgs(TRUE); dossier <- args[1]; chemin_lib <- args[2]
+# Usage : Rscript mesurer.R <dossier>, depuis la racine du depot ; openxlsx est
+# pris dans R_LIBS (chemin openxlsx) ou absent (chemin de repli).
+dossier <- commandArgs(TRUE)[1]
 source("R/charger_moteur.R"); charger_moteur()
 ref <- read.csv("tests/donnees/donnees_ln.csv"); ref[] <- lapply(ref, as.numeric)
 num3 <- function(d) unname(lapply(d[c("t","xt","yt")], as.numeric))
@@ -14,7 +16,7 @@ for (f in sort(list.files(dossier, full.names = TRUE))) {
   if (avec) {
     o <- openxlsx::read.xlsx(f, sheet = 1)
     same <- identical(num3(o), unname(as.list(ref)))
-    nb <- if (grepl("blancs", f)) notes_b else trimws(notes_b)
+    nb <- if (grepl("_blancs", basename(f))) notes_b else trimws(notes_b)
     cat(sprintf("%-42s openxlsx::read.xlsx direct : t/xt/yt identiques = %s ; note = %s\n", "", same,
         paste(sprintf("[%s]", o$note), collapse = " ")))
     cat(sprintf("%-42s note attendue : %s ; identique = %s\n", "", paste(sprintf("[%s]", nb), collapse = " "), identical(o$note, nb)))

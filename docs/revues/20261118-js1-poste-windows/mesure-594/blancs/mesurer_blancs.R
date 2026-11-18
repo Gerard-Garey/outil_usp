@@ -8,9 +8,18 @@ cat("chemin :", if (avec) paste("openxlsx", packageVersion("openxlsx")) else "re
 for (f in sort(list.files(dossier, full.names = TRUE))) {
   r <- tryCatch(engine_lire_xlsx(f), error = function(e) e)
   etat <- if (inherits(r, "condition")) paste0("refus : ", substr(conditionMessage(r), 1, 90))
-          else sprintf("lu, %d lignes, t/xt/yt identiques au CSV = %s", nrow(r),
-                       nrow(r) >= 8 && identical(num3(r[1:8, ]), unname(as.list(ref))))
+          else {
+            sup <- if (nrow(r) > 8) r[-(1:8), c("t","xt","yt")] else NULL
+            sprintf("lu, %d lignes ; lignes 1 a 8 : t/xt/yt identiques au CSV = %s ; lignes en plus : %s",
+                    nrow(r), nrow(r) >= 8 && identical(num3(r[1:8, ]), unname(as.list(ref))),
+                    if (is.null(sup)) "aucune" else paste(apply(sup, 1, function(x) paste(x, collapse = "/")), collapse = " ; "))
+          }
   cat(sprintf("%-32s moteur : %s\n", basename(f), etat))
+  if (!inherits(r, "condition")) {
+    v <- engine_lire_donnees_csv(r)
+    cat(sprintf("%-32s engine_lire_donnees_csv : ok = %s ; n = %s ; avertissements_lecture = %s\n", "", v$ok,
+                if (isTRUE(v$ok)) length(v$xt) else "-", length(v$avertissements_lecture)))
+  }
   if (avec) {
     o <- tryCatch(openxlsx::read.xlsx(f, sheet = 1), error = function(e) e)
     if (inherits(o, "condition")) { cat(sprintf("%-32s read.xlsx : erreur %s\n", "", conditionMessage(o))); next }
