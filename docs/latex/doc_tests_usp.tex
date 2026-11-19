@@ -20636,6 +20636,30 @@ $0{,}10$)~; 1 à 9 paires discordantes par clé et par seuil, si bien qu'une non
 une équivalence~; rien n'est mesuré sous N ni sur d'autres triangles. Constat de simulation sous
 ce plan.
 
+\emph{Fréquence de la p-value de Monte-Carlo observée dans sa loi simulée (outil hors CI).} Le
+script hors CI \code{tests/double\_bootstrap\_mw.R} situe, pour un triangle donné, chacune des
+treize p-values de Monte-Carlo observées $p_{\mathrm{obs}}$ du moteur dans la loi qu'elles ont sous
+le modèle ajusté à ce triangle. Il ajuste le modèle de Mack au triangle ($\hat f_j$ et
+$\hat\sigma_j^2$ pris pour vrais, première colonne fixée), simule $R$ triangles sous ce modèle
+(1\,000 par défaut, au plus 2\,000), avec des erreurs tirées dans le vivier redressé du triangle
+divisé par son écart-type (loi E ci-dessus), applique à chacun le test bootstrap du moteur
+(\code{mw\_bootstrap()} à $B = 999$, puis \code{mw\_tests()}) et rend, par clé de
+\code{MW\_CATALOGUE\_MC}, la fréquence $\hat F^{*}(p_{\mathrm{obs}})$ des p-values simulées au plus
+égales à $p_{\mathrm{obs}}$ parmi les triangles admis, avec son intervalle de Clopper--Pearson, et
+les taux de rejet du test bootstrap sous ce modèle. \emph{Statut}~: constat de simulation sous le
+modèle ajusté et la loi E, à $T = 8$~; $\hat F^{*}(p_{\mathrm{obs}})$ n'est ni une p-value exacte ni
+une p-value retenue, et n'entre dans aucun verdict~; ni le moteur ni l'application ne lisent ce
+script. Trois erreurs restent distinctes~: l'erreur de Monte-Carlo de $\hat F^{*}$, fonction de $R$
+(intervalle de Clopper--Pearson)~; celle de $p_{\mathrm{obs}}$, fonction de $B$~; l'erreur de
+substitution (paramètres estimés pris pour vrais, loi E pour la loi des erreurs), que l'outil ne
+quantifie pas. Aucun résultat exact ni aucune référence relue n'établit que
+$\hat F^{*}(p_{\mathrm{obs}})$ est mieux calibrée que $p_{\mathrm{obs}}$ à $T = 8$, et les mesures
+ci-dessus montrent que le niveau dépend de la loi des erreurs~; une fréquence élevée n'atteste pas
+l'adéquation, la puissance n'étant pas étudiée. Sur le triangle de contrôle, un contrôle
+d'intégrité du script vérifie que ses comptes sont identiques à ceux des valeurs brutes de la
+mesure sur les lignes de lecture conjointe (même loi E, mêmes graines)~: il établit que l'outil réalise ce plan, non une validation
+indépendante de la méthode. Le document ne cite aucune sortie de cet outil.
+
 \clearpage
 % =============================================================================
 \section{Compléments bibliographiques}
