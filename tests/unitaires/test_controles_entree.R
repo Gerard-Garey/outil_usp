@@ -7059,6 +7059,16 @@ if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/"
   verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() developpe \"~\" (HOME redirige), sans le prefixer du repertoire courant (#580)",
            identical(sous_home580(h580, .xlsx_chemin_sortie("~/f.xlsx", wd580)), file.path(h580, "f.xlsx")))
 } else cat("  [saute] chemin \"~\" (#580) : HOME non redirigeable sur ce systeme\n")
+# Ecriture en octets du CSV (#602), hors de toute voie zip : la fin
+# d'enregistrement et le saut de ligne d'une chaine sont ecrits 0x0A seul.
+# Non discriminant sous Linux (l'ancien writeLines() en mode texte n'y
+# ecrivait pas non plus 0x0D) ; garde sous Windows.
+verifier("engine_ecrire_csv() : saut de ligne dans une chaine et fins d'enregistrement ecrits 0x0A seul, aucun octet 0x0D dans le fichier (#602)",
+         {
+           g <- ecrire_csv488(data.frame(a = c("a\nb", "c"), n = 1:2, stringsAsFactors = FALSE))
+           b <- readBin(g, "raw", file.size(g))
+           !any(b == as.raw(0x0D)) && identical(rawToChar(b), "\"a\",\"n\"\n\"a\nb\",1\n\"c\",2\n")
+         })
 if (length(voies488)) {
   ecrire580 <- function(...) sans488(voies488[[1]], engine_ecrire_xlsx(...))
   d580 <- data.frame(a = c(0.1, 1/3), b = c("x", "y"), stringsAsFactors = FALSE)
@@ -7138,6 +7148,27 @@ if (length(voies488)) {
              xml580 <- rawToChar(readBin(file.path(rep580, "xl", "worksheets", "sheet1.xml"), "raw", 10000L))
              identical(l[[1]], enc2utf8(d[[1]])) &&
                grepl("<t>e\tn\nt\u00e9te</t>", xml580, fixed = TRUE)
+           })
+  # Ecriture en octets (#602) : aucune partie de l'archive ne porte l'octet
+  # 0x0D pour un texte a saut de ligne (en mode texte, writeLines() ecrivait
+  # "\r\n" sous Windows) ; le saut de ligne de la cellule et de l'en-tete est
+  # ecrit 0x0A seul dans la feuille. Lecture brute des parties decompressees.
+  # Non discriminant sous Linux (l'ancien writeLines() en mode texte n'y
+  # ecrivait pas non plus 0x0D) ; garde sous Windows.
+  verifier("engine_ecrire_xlsx() : saut de ligne en cellule et en en-tete, aucune des cinq parties de l'archive ne contient l'octet 0x0D, saut de ligne ecrit 0x0A seul (#602)",
+           {
+             f <- file.path(h580, "octets602.xlsx")
+             d <- data.frame(a = c("a\nb", "c\n\nd\n"), stringsAsFactors = FALSE)
+             names(d) <- "e\nt"
+             ecrire580(d, f)
+             rep602 <- tempfile("dec602_"); utils::unzip(f, exdir = rep602)
+             parties <- list.files(rep602, recursive = TRUE, all.files = TRUE)
+             brut <- lapply(file.path(rep602, parties), function(p) readBin(p, "raw", file.size(p)))
+             feuille <- brut[[match("xl/worksheets/sheet1.xml", parties)]]
+             a_trouver <- function(motif) grepl(motif, rawToChar(feuille), fixed = TRUE)
+             unlink(rep602, recursive = TRUE)
+             length(parties) == 5L && !any(vapply(brut, function(b) any(b == as.raw(0x0D)), logical(1))) &&
+               a_trouver("<t>a\nb</t>") && a_trouver("<t>c\n\nd\n</t>") && a_trouver("<t>e\nt</t>")
            })
   verifier("engine_ecrire_xlsx() : retour chariot refuse en cellule et en en-tete (usp_refus_ecriture, emplacement et U+000D cites, caractere non conserve a la relecture, aucun fichier cree) (#580)",
            {
