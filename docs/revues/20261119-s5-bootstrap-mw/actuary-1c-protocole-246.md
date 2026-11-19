@@ -216,3 +216,12 @@ Ces valeurs sont un constat de simulation sous le modèle ajusté à `reserve2` 
 Sources consultées : [Exeter ORE (renvoi)](https://ore.exeter.ac.uk/rest/bitstreams/195453/retrieve), [arXiv 2102.04423](https://arxiv.org/pdf/2102.04423), [MaRDI Q3811510](https://portal.mardi4nfdi.de/wiki/Item:Q3811510). Ce sont des pages de seconde main, insuffisantes pour citer Beran (1988). Ni Taylor & Francis ni JSTOR n'étaient joignables.
 
 Fichiers pertinents : `tests/calibration_mc_mw_t8.R`, `docs/specifications/206-calibration-mc-merz-wuthrich.md`, `docs/tableaux/20261026-issue297-calibration-famille-mw-brut.tsv`, `docs/tableaux/20261011-issue206-calibration-mw-brut.tsv`, `tests/outils_tests.R`, `R/engine.R`.
+
+---
+
+## Décisions du mainteneur du 19/11/2026 (questionnaire de la session principale)
+
+- **D-1 (a)** : citation de Beran (1988) retirée du script, de sa sortie et du `.tex` ; le principe est décrit par son opération.
+- **D-2 (a)** : la sortie d'un triangle du dossier reste hors dépôt (`--sortie`) ; seule la sortie de `reserve2` est versée dans `docs/tableaux/`.
+- **D-3** : R = 1 000 par défaut (plafond 2 000) ; propositions reprises : alerte si |sd_pop − 1| > 0,05, bande descriptive F̂\*(p_obs ∓ 2 err_mc) affichée, lois N et A non proposées par défaut.
+- **D-4 (a)** : critère d'acceptation sur `reserve2` sous E : comptes identiques au bit près au brut de #297 ; pour les 9 clés inchangées, identiques aussi au brut de #206.
