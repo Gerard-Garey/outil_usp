@@ -8946,8 +8946,14 @@ engine_lire_triangle <- function(df) {
 # U+000C, U+000E a U+001F), U+FFFE, U+FFFF et les substituts (U+D800 a U+DFFF,
 # que validUTF8() rejette deja), ainsi que toute suite d'octets qui n'est pas
 # de l'UTF-8 valide. Est refuse aussi le retour chariot (U+000D), meme admis
-# par XML 1.0 : un analyseur XML conforme le relit en saut de ligne (XML 1.0,
-# 2.11), le caractere ne survit pas a la relecture par un tableur. Avec
+# par XML 1.0 : le motif tient a la lecture, non a l'ecrivain (qui ecrit les
+# octets tels quels, .engine_ecrire_octets(), #602). Un processeur XML 1.0
+# doit se comporter comme s'il remplacait a l'entree, avant l'analyse, toute
+# suite litterale #xD #xA et tout #xD isole par un seul #xA (XML 1.0, 2.11,
+# normalisation des fins de ligne ; citation dans
+# docs/revues/20261118-a1-lecteur-interne/relecture-xml-1.0.md) : un retour
+# chariot ecrit en clair dans une cellule est donc relu saut de ligne par un
+# analyseur conforme. Avec
 # attribut = TRUE (nom de feuille, ecrit dans l'attribut name de xl/workbook.xml),
 # la tabulation et le saut de ligne sont refuses de meme : un analyseur
 # conforme relit les blancs d'un attribut en espaces (XML 1.0, 3.3.3). La
@@ -8989,6 +8995,26 @@ engine_lire_triangle <- function(df) {
   s <- sprintf("%.15g", x)
   if (as.double(s) != x) s <- sprintf("%.17g", x)
   s
+}
+
+# Ecrit des lignes de texte dans un fichier, en octets (#602) : chaque element
+# de lignes est ecrit avec ses octets tels quels (charToRaw(), aucune
+# conversion d'encodage ; un NA s'ecrit "NA"), suivi de l'octet 0x0A, par
+# writeBin() sur une connexion binaire ("wb"). Aucune fin de ligne n'est
+# convertie, quel que soit le systeme : en mode texte, writeLines() ecrit
+# "\r\n" pour chaque "\n" sous Windows (constat de JS1, #602), y compris dans
+# le texte d'une cellule. Memes octets que writeLines(lignes, chemin,
+# useBytes = TRUE) sous Linux (mesure, R 4.3.3, parties et CSV des cas des
+# tests de #488 et #580). lignes : vecteur de chaines, en UTF-8 par
+# enc2utf8() chez les appelants, sauf une chaine d'encodage "bytes" du CSV,
+# ecrite telle quelle : l'aide n'impose aucun encodage ; chemin : chemin d'un fichier,
+# cree ou ecrase. Employee pour chaque partie de l'archive d'engine_ecrire_xlsx()
+# et par engine_ecrire_csv().
+.engine_ecrire_octets <- function(lignes, chemin) {
+  octets <- unlist(lapply(lignes, function(l) c(charToRaw(l), as.raw(10L))),
+                   use.names = FALSE)
+  writeBin(if (is.null(octets)) raw(0) else octets, chemin)
+  invisible(chemin)
 }
 
 # Ecrit un data.frame dans un classeur .xlsx a une feuille, par l'ecrivain
@@ -9057,6 +9083,10 @@ engine_lire_triangle <- function(df) {
 # Nom de la feuille : chaine unique, non NA, non vide ; un nombre fini seul
 # est admis et ecrit as.character() (feuille = 1 donne la feuille "1", comme
 # avant le controle) ; tout autre argument est refuse (usp_refus_ecriture).
+# Parties de l'archive : chacune est ecrite en octets UTF-8 par
+# .engine_ecrire_octets() (#602), sans conversion de fin de ligne quel que
+# soit le systeme : un saut de ligne de cellule ou d'en-tete est ecrit 0x0A
+# seul, aucune partie ne porte l'octet 0x0D.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
   # Controle d'usage de chemin, avant tout (#580) : un fichier .xlsx est
@@ -9131,27 +9161,27 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   dir.create(file.path(d, "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "worksheets"), recursive = TRUE, showWarnings = FALSE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
     '<Default Extension="xml" ContentType="application/xml"/>',
     '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
     '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
-    '</Types>'), file.path(d, "[Content_Types].xml"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '</Types>'), file.path(d, "[Content_Types].xml"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>',
-    '</Relationships>'), file.path(d, "_rels", ".rels"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '</Relationships>'), file.path(d, "_rels", ".rels"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
     ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
     '<sheets><sheet name="', .xml_echap(enc2utf8(feuille), attribut = TRUE), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
-    file.path(d, "xl", "workbook.xml"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    file.path(d, "xl", "workbook.xml"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
-    '</Relationships>'), file.path(d, "xl", "_rels", "workbook.xml.rels"), useBytes = TRUE)
-  writeLines(sheet, file.path(d, "xl", "worksheets", "sheet1.xml"), useBytes = TRUE)
+    '</Relationships>'), file.path(d, "xl", "_rels", "workbook.xml.rels"))
+  .engine_ecrire_octets(sheet, file.path(d, "xl", "worksheets", "sheet1.xml"))
 
   # Retour au repertoire initial AVANT la suppression de d (after = FALSE) :
   # on ne supprime pas le repertoire courant.
@@ -9190,7 +9220,7 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # engine_lire_triangle(). Format de utils::write.csv(row.names = FALSE,
 # na = "") : separateur virgule, ligne d'en-tete, noms de colonnes et
 # chaines entre guillemets (guillemet interne double), nombres et logiques
-# sans guillemets, fin de ligne "\n" (connexion texte), texte en UTF-8.
+# sans guillemets, fin de ligne "\n" (octet 0x0A sur tout systeme), texte en UTF-8.
 # Seule l'ecriture des nombres change : un double fini suit .xlsx_nombre()
 # (15 chiffres significatifs si la relecture est exacte, sinon 17 ; point
 # decimal quels que soient OutDec et digits), alors que write.csv() ecrit
@@ -9207,16 +9237,19 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # pas partout (mesure, R 4.3.3) : (i) hors locale UTF-8 (LC_ALL=C), une chaine
 # marquee UTF-8 ou latin1 (en-tete compris) est transcrite dans l'encodage
 # natif par write.table() ("\u00e9" ecrit "<U+00E9>"), alors qu'enc2utf8() et
-# writeLines(useBytes = TRUE) ecrivent ici les octets UTF-8 en toute locale ;
+# .engine_ecrire_octets() ecrivent ici les octets UTF-8 en toute locale ;
 # (ii) une chaine d'encodage "bytes" fait echouer write.table() ("translating
 # strings with "bytes" encoding is not allowed"), ecrite telle quelle ici ;
 # (iii) un tableau a lignes sans colonne recoit une fin de ligne par ligne
 # apres l'en-tete, contre l'en-tete seul ici. Le gain de la variante est
 # faible (22 lignes contre 30 : la mise en texte par colonne reste, le vecteur
 # quote s'ajoute).
-# Fin de ligne : la connexion est ouverte en mode texte ("w"), comme celle de
-# write.table() ; selon la documentation de file() (non mesure sous Windows),
-# "\n" y devient "\r\n" sous Windows dans les deux cas.
+# Fin de ligne : le fichier est ecrit en octets par .engine_ecrire_octets()
+# (#602), connexion binaire : "\n" reste 0x0A sous Windows aussi, fin de
+# ligne des enregistrements comme saut de ligne d'une chaine entre guillemets.
+# write.csv() et write.table(), qui ouvrent une connexion en mode texte,
+# ecrivent "\r\n" sous Windows selon la documentation de file() (non mesure) :
+# c'est le seul ecart de fin de ligne avec eux, sous Windows seulement.
 # chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
 # n'est pas acceptee.
 engine_ecrire_csv <- function(df, chemin) {
@@ -9244,9 +9277,7 @@ engine_ecrire_csv <- function(df, chemin) {
   cols <- lapply(df, colonne)
   lignes <- c(paste(guillemets(names(df)), collapse = ","),
               if (nrow(df)) do.call(paste, c(unname(cols), sep = ",")))
-  con <- file(chemin, open = "w", encoding = "")
-  on.exit(close(con), add = TRUE)
-  writeLines(lignes, con, sep = "\n", useBytes = TRUE)
+  .engine_ecrire_octets(lignes, chemin)
   invisible(chemin)
 }
 
