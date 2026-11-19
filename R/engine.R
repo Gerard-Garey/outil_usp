@@ -9491,7 +9491,7 @@ engine_ecrire_csv <- function(df, chemin) {
 # tiennent "\r" et "\n" pour des blancs de meme classe ([ \t\r\n],
 # [[:space:]]). Seul change le texte d'une partie qui porte un "\r" en clair,
 # et ce que le lecteur en cite dans un refus. Le <v> d'une cellule t="str" est
-# normalise de meme (texte de la partie), bien qu'il ne soit pas decode.
+# normalise de meme (texte de la partie), avant son decodage (#606).
 .xml_fins_de_ligne <- function(x) {
   if (!grepl("\r", x, fixed = TRUE)) return(x)
   y <- gsub("\r", "\n", gsub("\r\n", "\n", x, fixed = TRUE), fixed = TRUE)
@@ -9556,7 +9556,10 @@ engine_ecrire_csv <- function(df, chemin) {
 # (&#NNN; &#xHH;). Une seule passe decode "&amp;lt;" en "&lt;" et non en "<"
 # (equivalent de "&amp; en dernier" d'un decodage par etapes). Une reference
 # numerique hors du domaine des caracteres (0, substituts, au-dela de
-# U+10FFFF) est laissee telle quelle.
+# U+10FFFF) est laissee telle quelle. Appele sur le texte des trois sources
+# de texte d'une feuille : chaine partagee et chaine en ligne
+# (.xml_textes()), <v> d'une cellule t="str" (engine_lire_xlsx() et
+# .xlsx_controler_ligne_entete(), #606).
 .xml_decoder <- function(x) {
   une <- function(e) {
     corps <- substr(e, 2L, nchar(e) - 1L)
@@ -10776,7 +10779,9 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
 #  - s : <v> present, en chiffres seulement (^[0-9]+\z : ni signe, ni blanc,
 #    ni point, ni exposant), sans <is> ;
 #  - str : <v> facultatif, texte quelconque (<v></v> : chaine vide, lue ""
-#    par les deux chemins), sans <is> ;
+#    par les deux chemins), sans <is> ; texte soumis au complement de R8
+#    (.xlsx_controler_references(), appele par .xlsx_admettre()) puis
+#    decode par .xml_decoder() (#606) ;
 #  - inlineStr : sans <v> (<is> facultatif) ;
 #  - cellule sans <v> ni <is> admise, sauf t="s" et t="b" (amendement Q5 :
 #    openxlsx lit sharedStrings[0] et "FALSE", et alloue 128 Go en
@@ -11174,7 +11179,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # Refus des references numeriques de caracteres ordinaires dans le texte
 # d'une chaine (#574 ; decision D-S1-18 du mainteneur sur la Q7 de l'avis
 # d'actuary sur le lot D), complement des regles R8 (texte d'une chaine en
-# ligne, <is><t>, positions "B1 : &#116;") et R9 (texte des <t> d'une chaine
+# ligne, <is><t>, et, depuis #606, du <v> d'une cellule t="str", positions
+# "B1 : &#116;") et R9 (texte des <t> d'une chaine
 # de la table, phonetique <rPh> exclu, positions "chaine no 3 : &#48;",
 # chaines numerotees a partir de 0 comme pour R9). Est refusee toute
 # reference numerique &#NNN; ou &#xHH; (zeros de tete admis, x ecrit en
@@ -11202,8 +11208,9 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # &#62;), les cinq entites nommees, et les references hors du domaine des
 # caracteres (&#0;, au-dela de U+10FFFF), laissees telles quelles par le
 # lecteur interne (.xml_decoder()). Le refus vaut pour tout le classeur
-# (decision D-S1-25) : toute chaine de la table et toute chaine en ligne
-# de la feuille lue, en-tete ou non, colonne lue ou annexe. Motif :
+# (decision D-S1-25) : toute chaine de la table, toute chaine en ligne et
+# tout <v> de cellule t="str" (#606, D-2 (a)) de la feuille lue, en-tete
+# ou non, colonne lue ou annexe. Motif :
 # openxlsx 4.2.5.2 ne decode que les cinq entites
 # nommees des chaines partagees et aucune entite d'une chaine en ligne,
 # alors que le lecteur interne decode aussi les references numeriques
@@ -11216,10 +11223,16 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # litteral) ; il est refuse avec les autres (forme hors de la grammaire
 # XML). Un caractere ASCII ordinaire ecrit en reference numerique n'est,
 # par hypothese de l'avis, ecrit par aucun tableur (a eprouver sur le
-# corpus de l'etape 10). Le texte d'une cellule t="str" (<v>) n'est decode
-# par aucun des deux chemins (parite, mesure) et n'est pas vise ; une
-# reference dans le <v> d'une cellule nombre est refusee par R8
-# (XML_MOTIF_NOMBRE). textes : texte brut (non decode) de chaque chaine ;
+# corpus de l'etape 10). Le texte du <v> d'une cellule t="str" est vise
+# de meme (#606, decisions du mainteneur D-1 (a), option (ii), et D-2 (a)
+# du 18/11/2026 : toute cellule t="str" de la feuille), puis decode par
+# .xml_decoder() ; il etait exclu tant qu'openxlsx et le lecteur interne
+# le lisaient tous deux sans decodage (parite, tombee avec l'ADR 0020).
+# Mesure avant #606 (lecteur interne, C.UTF-8) : en-tete B1 t="str"
+# <v>x&#116;</v> et D1 xt, lu, colonne xt prise en D, ok = TRUE ; apres,
+# refus "B1 : &#116;". Une reference dans le <v> d'une cellule nombre est
+# refusee par R8 (XML_MOTIF_NOMBRE).
+# textes : texte brut (non decode) de chaque chaine ;
 # lieu(i) : position citee des chaines d'indices i ; partie : nom de la
 # partie, cite par .echapper_texte(). Positions "lieu : reference", la
 # reference citee par .xlsx_citer() telle qu'ecrite, dans l'ordre du texte,
@@ -11329,7 +11342,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # blancs est sans valeur, comme en CSV, et openxlsx en lit les noms "").
 # Texte d'une cellule : chaine partagee (t="s", resolue dans partagees, la
 # table decodee comme par le lecteur interne), chaine en ligne (<is>,
-# .xml_textes()) ou chaine de formule (t="str", texte de <v> tel quel). Une
+# .xml_textes()) ou chaine de formule (t="str", texte de <v> decode par
+# .xml_decoder(), comme a l'assemblage d'engine_lire_xlsx(), #606). Une
 # cellule nombre, booleenne ou d'erreur qui porte <v> reste une valeur ; une
 # cellule mise en forme sans valeur (<c r="A1" s="1"/>), <v/>, ou une
 # formule sans <v> n'en est pas une. Une reference de chaine partagee
@@ -11361,7 +11375,7 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   s <- v & cc$typ %in% "s"
   if (any(s)) texte[s] <- partagees[.xlsx_indice_partage(brut[s])]
   st <- v & cc$typ %in% "str"
-  texte[st] <- brut[st]
+  texte[st] <- .xml_decoder(brut[st])
   if (any(is)) texte[is] <- vapply(cc$is_contenu[is], .xml_textes, "", USE.NAMES = FALSE)
   blanc <- !is.na(texte) & !nzchar(.xlsx_blancs_entete(texte))
   avec_valeur <- (v | is) & !blanc
@@ -11418,8 +11432,9 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # (.xlsx_controler_doublons()), R6b (.xlsx_controler_ordre(), decision
 # D-S1-11), R7 (.xlsx_controler_types(), decision D-S1-2), R8
 # (.xlsx_controler_contenus(), puis references numeriques de caracteres
-# ordinaires d'une chaine en ligne, .xlsx_controler_references(), decision
-# D-S1-18), R9 (refus existants Q-F, P2 et X1 de la table, puis regle
+# ordinaires d'une chaine en ligne ou du <v> d'une cellule t="str",
+# .xlsx_controler_references(), decisions D-S1-18 et, pour t="str", D-1 et
+# D-2 du 18/11/2026, #606), R9 (refus existants Q-F, P2 et X1 de la table, puis regle
 # generale et references numeriques, .xlsx_controler_partagees()), R10
 # (.xlsx_controler_indices_partages(), #575), R11
 # (.xlsx_controler_etendue()) et R12 (.xlsx_controler_ligne_entete(), si
@@ -11490,11 +11505,18 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   .xlsx_controler_contenus(cc)
   # Complement de R8 (#574, decisions D-S1-18 et D-S1-23) : references
   # numeriques de caracteres ordinaires ou de blancs retires des en-tetes
-  # dans le texte d'une chaine en ligne (texte de
-  # l'unique <t> de <is>, regle R3 : balises retirees), avant R9
-  ki <- which(cc$is)
+  # dans le texte d'une chaine en ligne (texte de l'unique <t> de <is>,
+  # regle R3 : balises retirees) ou du <v> d'une cellule t="str" (#606,
+  # decisions du mainteneur D-1 (a), option (ii), et D-2 (a) du 18/11/2026 :
+  # toute cellule t="str" de la feuille, en-tete ou corps, colonne lue ou
+  # annexe), avant R9. Un seul appel, cellules dans l'ordre du document ;
+  # R8 a deja refuse t="str" avec <is>, de sorte qu'une cellule n'a qu'un
+  # texte. Sans cellule t="str" a <v>, l'entree de l'appel est celle d'avant
+  # #606.
+  ki <- which(cc$is | (cc$typ %in% "str" & !is.na(cc$v)))
   if (length(ki))
-    .xlsx_controler_references(gsub("<[^>]*>", "", cc$is_contenu[ki]),
+    .xlsx_controler_references(gsub("<[^>]*>", "",
+                                    ifelse(cc$is[ki], cc$is_contenu[ki], cc$v[ki])),
                                function(i) .xlsx_citer(cc$r_brut[ki][i]), feuille$partie)
   partagees <- character(0)
   if (!is.null(sx)) {
@@ -11650,8 +11672,9 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # une fin de ligne litterale, n'est pas normalisee (decodee, elle serait un
 # retour chariot) ; elle reste refusee par .xlsx_controler_references().
 # Texte des cellules : le lecteur decode les entites nommees et
-# les references numeriques (&#233;, &#xE9;) des chaines partagees et des
-# chaines en ligne (.xml_decoder()). openxlsx (mesure, 4.2.9) decode les
+# les references numeriques (&#233;, &#xE9;) des chaines partagees, des
+# chaines en ligne et du <v> des cellules t="str" (.xml_decoder() ; t="str"
+# depuis #606). openxlsx (mesure, 4.2.9) decode les
 # entites nommees des chaines partagees seulement (en decodant deux fois
 # "&amp;lt;", lu "<"), et laisse telles quelles les references numeriques
 # des chaines partagees et toute entite d'une chaine en ligne ; une
@@ -11661,7 +11684,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # &#65279;...), est refusee avant la lecture
 # (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23 : "x&#116;"
 # ou "xt&#9;" lu "xt" par le lecteur interne, laisse tel quel par openxlsx,
-# qui prenait en silence une autre colonne xt, mesure) ;
+# qui prenait en silence une autre colonne xt, mesure ; etendu au <v> des
+# cellules t="str", #606) ;
 # le <t> d'une chaine en ligne est admis sous les seules formes exactes
 # <t>, <t xml:space="preserve">, <t/> (blancs admis avant "/>") et
 # <t xml:space="preserve"/>, son texte lu tel quel, attribut ignore, comme
@@ -11670,12 +11694,14 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # (.xlsx_controler_structure(), regle R3 ; #594, decision du mainteneur du
 # 18/11/2026, qui leve dans cette mesure la decision D-S1-31, prise quand
 # openxlsx gardait l'attribut dans le texte lu).
-# Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
-# decodage des entites (&amp;, &lt;, &#233;...) : limite consignee (#557).
-# Elle a ete fixee quand openxlsx lisait ce texte de meme (mesure, #557) et
-# ne disait pas quelle cellule etait t="str" ; elle reste en l'etat (ADR
-# 0020, point 2). Un en-tete attendu (t, xt, yt, i,
-# j<k>) ou un nombre ne s'ecrit pas avec une entite.
+# Le texte d'une cellule t="str" (resultat de formule) suit la meme regle
+# (#606, decisions du mainteneur D-1 (a), option (ii), et D-2 (a) du
+# 18/11/2026 ; XML 1.0, 4.4.2 et 4.6) : refus des references ci-dessus,
+# puis decodage ("R&amp;D" lu "R&D", "&#233;" lu U+00E9). Il
+# etait lu tel quel jusque-la, limite fixee quand openxlsx le lisait de
+# meme (#557) ; mesure avant #606 (lecteur interne, C.UTF-8) : en-tete B1
+# t="str" "x&#116;" et D1 xt, colonne xt prise en D sans message
+# (ok = TRUE) ; refuse depuis.
 # engine_ecrire_xlsx() n'ecrit que des chaines en ligne (#488) : un en-tete
 # ou une chaine ecrits "a<b&c" sont relus "a<b&c" ; une colonne logique,
 # ecrite en chaines "TRUE"/"FALSE", est relue en caractere, puis refusee en
@@ -11832,6 +11858,13 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   val <- cc$v[a_val]
   isx <- cc$is[a_val]
   if (any(isx)) val[isx] <- vapply(cc$is_contenu[a_val][isx], .xml_textes, character(1), USE.NAMES = FALSE)
+  # Texte du <v> d'une cellule t="str" decode comme celui des chaines
+  # partagees et en ligne (.xml_decoder(), une passe ; #606, D-1 (a),
+  # option (ii)), une fois passe le refus des references de
+  # .xlsx_admettre() ; meme texte que celui que lit R12
+  # (.xlsx_controler_ligne_entete()).
+  sx <- typ == "str" & !is.na(val)
+  if (any(sx)) val[sx] <- .xml_decoder(val[sx])
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE" : sa
