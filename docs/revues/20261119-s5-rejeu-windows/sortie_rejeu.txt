@@ -1,0 +1,34 @@
+
+==== Contexte ====
+HEAD : 8a3ebc52d4086b449f5930caef91db693e711c7e 
+R/, tests/ et app.R identiques a e4a8ae4 : FALSE 
+arbre propre : FALSE 
+?? prompt-poste-local.md
+?? sorties-p/
+R version 4.3.3 (2024-02-29 ucrt) | windows | LC_CTYPE = French_France.utf8 
+openxlsx : 4.2.9 
+getwd() : <DEPOT> | tempdir() : <TEMP>\RtmpSyTc4h 
+
+==== (ii) #602 : "a\nb" ecrit par engine_ecrire_xlsx() puis relu ====
+[OK]    cellules relues identical() ; lu : c("a\nb", "c\td", "e")
+[OK]    aucun octet 0x0D dans les 4 parties de l'archive
+
+==== (iii) #603 : engine_ecrire_xlsx(df, "C:f.xlsx") ====
+[OK]    refus motive : Ecriture du fichier .xlsx impossible : le chemin est de la forme X: sans barre (lecteur seul, ou fichier relatif au dossier courant de ce lecteur) : la cible n'est pas resolue contre le dossier de l'appelant et le fichier pourrait n'etre pas ecrit la ou on l'attend (donner le chemin complet, X:/dossier/f.xlsx, ou un chemin relatif sans lecteur) ; aucun fichier ecrit.
+[OK]    aucun f.xlsx cree (lieux controles : <TEMP>\RtmpSyTc4h/p603/f.xlsx ; C:/f.xlsx ; <DEPOT>/f.xlsx)
+
+==== (v) temoin openxlsx, corpus naturel : ecarts a la source (releve, sans effet sur la branche) ====
+version : 4.2.9 | classeurs : 38 
+ecarts mesures : blancs/ligne_finale_note_blanche.xlsx, entete/openpyxl_entete_lu_blanc.xlsx 
+egaux a la liste datee 4.2.5.2 : TRUE 
+[OK]    lecteur interne : 38 classeurs sur 38 rendent la source
+
+==== (vi) #608 : chemin a barre initiale unique (releve, sans effet sur la branche) ====
+lecteur virtuel Z: -> <TEMP>\RtmpSyTc4h\p608_58c0142e2f36 | getwd() : Z:/ | lecteur de tempdir() : C: 
+  sans dossier C:/usp608_s5, chemin "\\usp608_s5\\f.xlsx" : rendu "<TEMP>/RtmpSyTc4h/p608_58c0142e2f36/usp608_s5/f.xlsx" | fichier en Z://usp608_s5/f.xlsx : TRUE | fichier en C:/usp608_s5/f.xlsx : FALSE
+  avec dossier C:/usp608_s5, chemin "\\usp608_s5\\f.xlsx" : rendu "<TEMP>/RtmpSyTc4h/p608_58c0142e2f36/usp608_s5/f.xlsx" | fichier en Z://usp608_s5/f.xlsx : TRUE | fichier en C:/usp608_s5/f.xlsx : FALSE
+  sans dossier C:/usp608_s5, chemin "/usp608_s5/f.xlsx" : rendu "<TEMP>/RtmpSyTc4h/p608_58c0142e2f36/usp608_s5/f.xlsx" | fichier en Z://usp608_s5/f.xlsx : TRUE | fichier en C:/usp608_s5/f.xlsx : FALSE
+  avec dossier C:/usp608_s5, chemin "/usp608_s5/f.xlsx" : rendu "<TEMP>/RtmpSyTc4h/p608_58c0142e2f36/usp608_s5/f.xlsx" | fichier en Z://usp608_s5/f.xlsx : TRUE | fichier en C:/usp608_s5/f.xlsx : FALSE
+Lecture : fichier attendu sur Z: (lecteur de l'appelant) ; un fichier sur C: ou une erreur confirme le constat de #608.
+
+Fin du rejeu.
