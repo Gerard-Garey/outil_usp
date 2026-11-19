@@ -13835,9 +13835,12 @@ mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) 
 # -- un allegement de capital fabrique par une division par un nombre negatif ;
 # avec R = 0 il vaut NaN. Le refus est donc la seule conclusion actuarielle
 # tenable : la methode n'est pas applicable au triangle fourni.
-# Coherence interne : mw_bootstrap() ecarte deja toute replication dont la
-# reserve simulee est <= 0 ; la regle de l'estimation ponctuelle ne peut pas
-# etre plus permissive que celle de ses replications.
+# Coherence interne : mw_bootstrap() ecarte de sigma_boot, donc de
+# l'intervalle bootstrap, toute replication dont la reserve simulee est <= 0
+# (comptee dans bootstrap$n_sans_sigma, #492), mais non des statistiques
+# simulees ni des p-values de Monte-Carlo ; la regle de l'estimation
+# ponctuelle ne peut pas etre plus permissive que celle qui forme
+# l'intervalle bootstrap.
 # Ne sont PAS des motifs de refus (decision M4, issue #7) : des reserves
 # negatives sur certaines annees de survenance avec un total > 0 (bonis de
 # liquidation, recours sur annees anciennes) et un f_j < 1 isole, qui restent
@@ -16081,8 +16084,16 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # plafond de FACTEUR_B_MAX_MW * (B + 1) triangles tires au total ; au
     # plafond, les replications restantes valent NA. Deux booleens seuls
     # sont restitues (D1-3 (a)) : aucun compte de tirages.
+    # Replications sans sigma simule (#492) : une replication dont les
+    # statistiques sont calculees mais dont sigma* n'est pas fini (reserve
+    # simulee <= 0, MSEP en erreur ou non finie, ou racine(MSEP) / R non
+    # fini) reste dans sim, donc dans les statistiques simulees et les
+    # p-values de Monte-Carlo ; elle n'est retiree que de sigma_boot, donc
+    # de l'intervalle bootstrap, et comptee dans n_sans_sigma. Compteur
+    # sans tirage : aucun alea ajoute ni retire.
     n_max <- FACTEUR_B_MAX_MW * (as.numeric(B) + 1)
     n_tires <- 0; cumuls_retires <- FALSE; plafond_cumuls <- FALSE
+    n_sans_sigma <- 0L
     for (b in seq_len(B)) {
       tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
       n_tires <- n_tires + tir$n
@@ -16097,6 +16108,8 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
       mb <- try(mw_msep(ab), silent = TRUE)
       if (!inherits(mb, "try-error") && is.finite(mb$msep) && ab$reserve > 0)
         sig[b] <- sqrt(mb$msep) / ab$reserve
+      # Meme condition que le filtre sig[is.finite(sig)] de sigma_boot (#492).
+      if (!is.finite(sig[b])) n_sans_sigma <- n_sans_sigma + 1L
     }
   })
   # Les tests de NORMALITE sont volontairement exclus du bootstrap. Le
@@ -16133,6 +16146,11 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
        # Tracabilite du retirage (#257, D1-3 (a)) : au moins un triangle
        # simule retire ; plafond atteint (des replications manquent).
        cumuls_retires = cumuls_retires, plafond_cumuls = plafond_cumuls,
+       # Replications a statistiques calculees sans sigma* fini (#492) :
+       # entier, 0L sans tirage ; ecartees de sigma_boot seul, gardees dans
+       # stats_boot. n_sans_sigma + length(sigma_boot) = nombre de
+       # replications a statistiques calculees.
+       n_sans_sigma = n_sans_sigma,
        # Plancher Monte-Carlo par statistique (#125, D1-10), comme dans
        # usp_bootstrap().
        p_min_mc = mc$p_min_mc,

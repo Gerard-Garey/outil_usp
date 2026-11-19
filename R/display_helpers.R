@@ -2516,6 +2516,12 @@ texte_formule <- function(res) {
 # (Merz-Wuthrich, #387). Niveaux nominaux ecrits en
 # clair, comme les positions des quantiles qu'ils designent. Aucun calcul.
 # Sans intervalle (res$ic_bootstrap NULL) : NULL.
+# Merz-Wuthrich (#492, specification d'actuary, par. A.3) : si
+# res$bootstrap$n_sans_sigma est present et non nul, la note commence par le
+# caractere conditionnel de l'intervalle et le compte k sur B, lus tels quels
+# dans res$bootstrap$n_sans_sigma et res$bootstrap$B (entiers ecrits sans
+# decimale, sans separateur des milliers) ; k = 0 ou champ absent (objet
+# anterieur a #492) : note inchangee.
 textes_ic_bootstrap <- function(res) {
   ic <- res$ic_bootstrap
   if (is.null(ic)) return(NULL)
@@ -2523,9 +2529,19 @@ textes_ic_bootstrap <- function(res) {
   borne <- function(v) .num_fr(v, "%.4f")
   lignes <- sprintf("Intervalle bootstrap de percentile, niveau nominal 90 %% : [%s ; %s] %s 95 %% : [%s ; %s]",
                     borne(ic[2]), borne(ic[4]), sep, borne(ic[1]), borne(ic[5]))
-  if (identical(res$metadata$methode, "reserve2"))
-    return(list(lignes = lignes,
-                note = "Couverture \u00e0 T = 8 non mesur\u00e9e pour cette m\u00e9thode."))
+  if (identical(res$metadata$methode, "reserve2")) {
+    note <- "Couverture \u00e0 T = 8 non mesur\u00e9e pour cette m\u00e9thode."
+    k <- res$bootstrap$n_sans_sigma
+    if (!is.null(k) && k != 0L)
+      note <- paste(
+        "Intervalle conditionnel \u00e0 une r\u00e9serve simul\u00e9e strictement positive.",
+        "R\u00e9plications sans \u03c3 simul\u00e9 (r\u00e9serve simul\u00e9e n\u00e9gative ou nulle,",
+        "ou MSEP simul\u00e9e non finie ou n\u00e9gative), \u00e9cart\u00e9es de l'intervalle mais",
+        sprintf("non des p-values de Monte-Carlo : %s sur B = %s.",
+                .num_fr(k, "%.0f"), .num_fr(res$bootstrap$B, "%.0f")),
+        note)
+    return(list(lignes = lignes, note = note))
+  }
   bl <- res$ic_bootstrap_basic_log
   if (!is.null(bl))
     lignes <- c(lignes, sprintf(paste0(
