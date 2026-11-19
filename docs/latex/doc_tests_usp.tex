@@ -973,7 +973,7 @@ renommé pour lever un doublon~; balises
 \code{<sheet>} et \code{<Relationship>} préfixées et attributs entre apostrophes ou à blancs autour du signe \code{=} du
 classeur et de ses relations lus (mesuré~; le paquet \code{openxlsx}~4.2.9 s'y arrête sur une
 erreur R, §\ref{sec:controles})~; fins de ligne littérales de chaque partie lue normalisées en
-saut de ligne avant toute règle et tout décodage (\code{.xml\_fins\_de\_ligne()})~; entités XML nommées et références numériques admises des
+saut de ligne après le contrôle d'encodage, avant toute autre règle et tout décodage (\code{.xml\_fins\_de\_ligne()})~; entités XML nommées et références numériques admises des
 chaînes partagées, des chaînes en ligne et du texte (\code{<v>}) des cellules \code{t="str"}
 décodées en une passe (\code{.xml\_decoder()}), texte phonétique (\code{<rPh>}) d'une chaîne
 partagée non lu, tableau dimensionné sur les seules cellules à valeur~; une colonne n'est
@@ -5203,13 +5203,14 @@ l'écriture (il ne sert que de témoin à la batterie de tests, ci-dessous, «~L
 limites~»). Avant l'assemblage du tableau, \code{engine\_lire\_xlsx()} soumet le classeur à un
 contrôle unique d'admission (\code{.xlsx\_admettre()}), qui n'admet qu'une liste fermée de formes
 et refuse toute autre forme, sans valeur devinée. Ce contrat vise les formes que l'outil ne lit
-pas de façon sûre~: formes qu'aucun écrivain connu ne produit, ou qu'un lecteur répandu lit
+pas de façon sûre~: formes qu'un lecteur répandu lit
 fausses sans message, lit autrement que le lecteur interne, ou devant lesquelles il s'arrête sur
 une erreur de~R ou arrête le processus~R. Ce lecteur répandu est le paquet \code{openxlsx}
 (fonction \code{openxlsx::read.xlsx()}, appelée sans retrait des lignes et colonnes vides)~; ses lectures,
 citées ci-dessous, sont des mesures qui motivent une règle, non une lecture de l'outil. Parce que
 le contrat est fermé, il refuse aussi des formes que le lecteur interne et \code{openxlsx}
-liraient juste l'un et l'autre. Il refuse en outre des formes qu'un outil d'écriture de
+liraient juste l'un et l'autre, et qu'aucun écrivain mesuré ne produit (hypothèse non vérifiée
+pour Excel et LibreOffice). Il refuse en outre des formes qu'un outil d'écriture de
 classeur produit~: une cellule en erreur de calcul (\code{t="e"}), qu'\code{openxlsx::write.xlsx()}
 écrit pour une valeur manquante (\code{keepNA = TRUE}) ou infinie (mesuré, ci-dessous) et
 qu'un tableur écrit pour une formule en erreur (non vérifié sur un classeur de tableur)~; un
@@ -5365,15 +5366,15 @@ l'application tout caractère qui n'est pas du balisage, et \code{xml:space="pre
 signaler l'intention de garder les blancs (recommandation XML~1.0 citée à la règle «~Encodage~»,
 §~2.10)~; la forme vide \code{<t xml:space="preserve"/>} représente le même élément vide que
 \code{<t xml:space="preserve"></t>} (§~3.1) et est lue vide, comme \code{<t/>} (mesuré). Toute
-autre forme est refusée (mesuré)~: blanc après le nom ou avant «~\code{>}~» ou «~\code{/>}~»
-(\code{<t >}, tabulation, deux espaces, \code{<t xml:space="preserve" >},
+autre forme est refusée (mesuré)~: blanc dans la balise, hors des blancs admis avant «~\code{/>}~»
+de la forme vide sans attribut (\code{<t >}, tabulation, deux espaces, \code{<t xml:space="preserve" >},
 \code{<t xml:space="preserve" />}), valeur entre apostrophes, autre valeur
 (\code{xml:space="default"}, \code{xml:space="PRESERVE"}), autre attribut (\code{space=},
 \code{x:space=}, attribut supplémentaire). Seul le refus d'une valeur autre que \code{default} et
 \code{preserve} se fonde sur la recommandation, qui en fait une erreur que l'application peut
 rejeter (§~2.10)~; les autres formes refusées sont du XML légal, ou ne sont pas l'attribut
-\code{xml:space}, et leur refus ne repose que sur le contrat fermé, aucun écrivain connu ne les
-produisant (hypothèse non vérifiée sur Excel et LibreOffice). Le texte admis reste soumis à la
+\code{xml:space}, et leur refus ne repose que sur le contrat fermé~; aucun des écrivains mesurés
+(openpyxl, pandas, XlsxWriter) ne les produit, ce qui n'est pas vérifié pour Excel et LibreOffice. Le texte admis reste soumis à la
 règle des références numériques (ci-dessous). Ses blancs sont interprétés en aval comme ceux
 d'une chaîne partagée~: une valeur bordée de blancs ASCII est lue comme un nombre, ses blancs de
 bord retirés (\code{.nettoyer\_cellules()}~; l'espace insécable n'est pas un blanc)~; un en-tête
@@ -5536,15 +5537,16 @@ illisible et une feuille introuvable («~\code{Classeur illisible : aucune feuil
 restent des erreurs ordinaires, signalées par le message fixe de l'application.
 
 \emph{Lecteur unique et ses limites.} Un classeur admis est lu par le seul lecteur interne~: sa
-lecture ne dépend que du code de \code{R/engine.R} et de~R, que l'empreinte md5 de
+lecture dépend du code de \code{R/engine.R} et de~R, que l'empreinte md5 de
 \code{R/engine.R} et la version de~R, portées par le rapport figé (section~\ref{sec:archi}),
 identifient. Restent hors de cette identité trois éléments du système~: la méthode interne
 d'extraction d'\code{utils::unzip()}, les moteurs d'expressions régulières de~R, sur lesquels
 reposent le découpage en balises et les règles du contrat, et la locale, qui fixe la classe
 \code{[[:space:]]} des blancs d'en-tête (ci-dessous). Le texte phonétique d'une chaîne partagée
 n'est pas lu~: «~\code{11}~» suivi du texte phonétique «~\code{7}~» est lu~11
-(mesuré). Le lecteur interne lit juste des balises \code{<sheet>} et
-\code{<Relationship>} préfixées, des attributs entre apostrophes ou à blancs autour du signe
+(mesuré). Le lecteur interne lit juste la feuille désignée sous des balises \code{<sheet>} et
+\code{<Relationship>} préfixées (mesuré, préfixe lié à l'espace de noms du classeur, liaison non
+contrôlée), des attributs entre apostrophes ou à blancs autour du signe
 \code{=} dans le classeur et ses relations, une cible de feuille écrite
 \code{./worksheets/\ldots}, et une archive qui porte, dans un autre dossier, une
 seconde entrée de même nom que \code{xl/workbook.xml}, que ses relations ou que la feuille lue
@@ -5557,7 +5559,8 @@ La batterie de tests (\code{tests/unitaires/test\_controles\_entree.R}) emploie 
 \code{openxlsx}, quand il est installé (l'intégration continue l'installe dans sa
 version~4.2.5.2), comme témoin, à trois fins seulement~: relire un corpus de 38~classeurs écrits
 par openpyxl, par pandas et par XlsxWriter à partir des fichiers CSV de \code{tests/donnees/}
-(\code{tests/donnees/classeurs/}), relire ce qu'écrit l'écrivain interne, et vérifier que la
+(\code{tests/donnees/classeurs/}~; les classeurs de triangle à note sont tirés de
+\code{triangle\_mw.csv} complété d'une colonne \code{note} que construit la batterie), relire ce qu'écrit l'écrivain interne, et vérifier que la
 lecture d'un classeur ne charge pas ce paquet. Le critère bloquant est l'accord du lecteur
 interne avec la source (fichier CSV dont le classeur est tiré, ou valeur écrite), non avec le
 témoin~: les 38~classeurs du corpus sont lus, et la sortie
@@ -5568,11 +5571,11 @@ n'est jamais comparé au témoin~: les règles du contrat sont vérifiées par u
 explicite, valeur lue ou texte du refus. Aucun classeur du corpus ne porte de cellule
 \code{t="str"}~: la lecture du texte d'un résultat de formule n'est vérifiée que sur des
 classeurs forgés, et l'hypothèse qu'aucun écrivain n'y écrit de référence numérique à un
-caractère ordinaire, forme qui ferait refuser le classeur, n'est pas vérifiée. Aucun classeur
+caractère ordinaire ou à un blanc, forme qui ferait refuser le classeur, n'est pas vérifiée. Aucun classeur
 écrit par Excel ni par LibreOffice ne figure au corpus, et le lecteur interne n'a été mesuré sur aucun~: l'absence de valeur lue
-fausse sur un classeur de ces deux tableurs est une hypothèse, non vérifiée, que bornent
-l'admission, qui refuse toute forme hors du contrat, et la relecture des données affichées
-avant tout calcul (ci-dessous). Le contrat juge la forme du classeur, non les
+fausse sur un classeur de ces deux tableurs est une hypothèse, non vérifiée~; l'admission refuse
+toute forme hors du contrat, et seule la relecture des données affichées avant tout calcul
+(ci-dessous) couvre une forme admise qui serait mal lue. Le contrat juge la forme du classeur, non les
 valeurs qu'il porte~; le
 contrôle des valeurs lues contre leur source revient à l'utilisateur~: l'application affiche les données lues
 avant tout calcul, pour qu'elles soient relues contre leur source, et le rapport figé restitue
