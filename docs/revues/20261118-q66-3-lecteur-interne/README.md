@@ -27,7 +27,7 @@ Q-66-3 examine la lecture des classeurs par le **lecteur interne seul**, c'est-�
   - séries de `tests/donnees/donnees_ln.csv`, triangle de `tests/donnees/triangle_mw.csv` ;
   - une série de 5 000 lignes (graine 1), pour la durée.
 
-  Leurs md5 sont dans `md5_suppl.txt`. Ceux d'`openxlsx::write.xlsx()` ne sont pas reproductibles, parce que le classeur porte sa date de création ; ceux de l'écrivain interne le sont.
+  Leurs md5 sont dans `md5_suppl.txt`. Ceux d'`openxlsx::write.xlsx()` ne sont pas reproductibles, parce que le classeur porte sa date de création ; ceux de l'écrivain interne ne le sont pas non plus, l'archive portant la date de ses entrées, mais les parties décompressées de ses classeurs le sont (*correction du 19/11/2026*, revue finale d'A1 : md5 des archives régénérées différents, parties identiques).
 - Excel et LibreOffice ne sont pas couverts (décision du mainteneur du 18/11/2026 : pas de corpus Excel ni LibreOffice).
 
 ## Reproduction
