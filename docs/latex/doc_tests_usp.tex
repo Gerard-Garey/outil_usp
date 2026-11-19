@@ -5212,18 +5212,18 @@ le contrat est fermé, il refuse aussi des formes que le lecteur interne et \cod
 liraient juste l'un et l'autre. Il refuse en outre des formes qu'un outil d'écriture de
 classeur produit~: une cellule en erreur de calcul (\code{t="e"}), qu'\code{openxlsx::write.xlsx()}
 écrit pour une valeur manquante (\code{keepNA = TRUE}) ou infinie (mesuré, ci-dessous) et
-qu'un tableur écrit pour une formule en erreur (non vérifié sur un classeur de tableur)~; une
-chaîne en ligne dont le texte commence ou finit par un blanc, qu'openpyxl (qui écrit tout texte
-en chaîne en ligne) et XlsxWriter en mode \code{constant\_memory} écrivent
-\code{<t xml:space="preserve">}, y compris dans une colonne que l'outil ne lit pas (mesuré,
-openpyxl~3.1.5 et XlsxWriter~3.2.9, ainsi que pandas~3.0.5 par son moteur openpyxl~; dans son
-mode par défaut, XlsxWriter écrit ce texte dans la table des chaînes partagées, où il est
-admis)~; un texte qui porte
+qu'un tableur écrit pour une formule en erreur (non vérifié sur un classeur de tableur)~; un
+texte qui porte
 «~\code{ t=}~» après la dernière cellule (en-tête ou pied de page)~; une feuille dont les
 cellules à valeur, comptées depuis A1, couvrent un rectangle de plus de $10^6$~cellules~; ces
 deux dernières formes résultent d'une saisie qu'un tableur admet (raisonnement, non vérifié sur
 un classeur de tableur). Hors de ces cas, aucun tableur n'est
-supposé écrire les formes refusées (hypothèse non vérifiée). Les règles s'appliquent dans
+supposé écrire les formes refusées (hypothèse non vérifiée). Une chaîne en ligne dont le texte
+commence ou finit par un blanc, qu'openpyxl (qui écrit tout texte en chaîne en ligne) et
+XlsxWriter en mode \code{constant\_memory} écrivent \code{<t xml:space="preserve">}, y compris dans
+une colonne que l'outil ne lit pas (mesuré, openpyxl~3.1.5 et XlsxWriter~3.2.9, ainsi que
+pandas~3.0.5 par son moteur openpyxl~; dans son mode par défaut, XlsxWriter écrit ce texte dans la
+table des chaînes partagées), est admise (règle «~Bloc des données de la feuille~»). Les règles s'appliquent dans
 l'ordre ci-dessous~; seul le premier refus rencontré est restitué, avec cinq positions au plus
 (cellule, chaîne de la table ou partie du classeur), chaque texte tiré du contenu de la partie
 (référence, nom de balise ou d'attribut, valeur, référence numérique) étant tronqué à
@@ -5334,7 +5334,8 @@ attribut \code{Target="}\ldots\code{"} unique écrit entre apostrophes ou à bla
 pas refusé~: le lecteur interne lit le classeur juste, alors qu'\code{openxlsx} n'y trouve aucune
 cible et s'arrête sur une erreur de~R (mesuré).
 \item \emph{Bloc des données de la feuille} (\code{.xlsx\_controler\_structure()}, motif
-\code{TEXTE\_REFUS\_R3}). Une balise de cellule \code{<c} suivie d'un blanc autre que l'espace
+\code{TEXTE\_REFUS\_R3}, qui dit la balise non prévue, mal imbriquée, à préfixe d'espace de noms
+ou écrite sous une forme que l'outil n'admet pas, et cite sa position). Une balise de cellule \code{<c} suivie d'un blanc autre que l'espace
 est refusée d'un motif propre («~\code{balise de cellule de forme non reconnue}~»), car
 \code{openxlsx} en perd la valeur sans message (mesuré). Puis tout «~\code{<}~» ouvre une balise
 bien formée (attributs nom~=~valeur entre guillemets, sans «~\code{<}~» ni «~\code{>}~» dans une
@@ -5350,20 +5351,42 @@ du bloc sont bien imbriquées~; hors du contenu des \code{<extLst>}, qui n'est p
 balise n'est préfixée, \code{<sheetData>} ne contient que des \code{<row>}, \code{<row>} que des
 \code{<c>} et des \code{<extLst>}, \code{<c>} au plus un \code{<f>}, un \code{<v>}, un
 \code{<is>} et un \code{<extLst>}, \code{<is>}, écrit sans attribut, un seul \code{<t>} sans
-texte autour, écrit lui aussi sans attribut ni blanc (\code{<t>}\ldots\code{</t>}, ou
-\code{<t/>}, des blancs étant admis avant «~\code{/>}~»), et \code{<v>}, \code{<f>} et \code{<t>} aucune
+texte autour, et \code{<v>}, \code{<f>} et \code{<t>} aucune
 balise~; hors de \code{<v>}, \code{<f>} et \code{<t>}, le texte n'est fait que de blancs. Une
 chaîne en ligne ne porte donc ni segments \code{<r>}, ni texte phonétique, ni plusieurs
 \code{<t>}~; une chaîne en ligne indentée (\code{<is>}, une espace, puis \code{<t>}) est lue par
-\code{openxlsx} comme un morceau de balise (mesuré)~; d'un \code{<t>} ouvrant à attribut ou à blanc,
-\code{openxlsx} garde dans le texte lu ce qui suit «~\code{<t}~» et un caractère~: l'en-tête
-écrit \code{<t xml:space="preserve">xt</t>} est lu «~\code{xml:space="preserve">xt}~» et n'est
-pas reconnu, la valeur $104{,}2$ ainsi écrite est lue comme un texte non numérique, quand le
-lecteur interne lit \code{xt} et $104{,}2$ (mesuré)~; la forme vide \code{<t xml:space="preserve"/>},
-lue vide par l'un et l'autre (mesuré), est refusée aussi, la règle étant fermée. Cette règle ne
-vise que la chaîne en ligne~:
-dans la table des chaînes partagées, \code{<t xml:space="preserve">}, lu de même par l'un et
-l'autre, est admis (mesuré).
+\code{openxlsx} comme un morceau de balise (mesuré). Le \code{<t>} d'une chaîne en ligne s'écrit,
+à l'octet près, sous l'une de quatre formes~: ouvrante \code{<t>} ou
+\code{<t xml:space="preserve">}, vide \code{<t/>} (des blancs étant admis avant «~\code{/>}~») ou
+\code{<t xml:space="preserve"/>}, quel que soit le lieu de la cellule (en-tête ou valeur, colonne
+lue ou non, séries ou triangle, sous \code{entete = TRUE} ou \code{FALSE}). Son texte est lu tel
+quel, avec ses blancs, que l'attribut soit présent ou non~: un processeur XML transmet à
+l'application tout caractère qui n'est pas du balisage, et \code{xml:space="preserve"} ne fait que
+signaler l'intention de garder les blancs (recommandation XML~1.0 citée à la règle «~Encodage~»,
+§~2.10)~; la forme vide \code{<t xml:space="preserve"/>} représente le même élément vide que
+\code{<t xml:space="preserve"></t>} (§~3.1) et est lue vide, comme \code{<t/>} (mesuré). Toute
+autre forme est refusée (mesuré)~: blanc après le nom ou avant «~\code{>}~» ou «~\code{/>}~»
+(\code{<t >}, tabulation, deux espaces, \code{<t xml:space="preserve" >},
+\code{<t xml:space="preserve" />}), valeur entre apostrophes, autre valeur
+(\code{xml:space="default"}, \code{xml:space="PRESERVE"}), autre attribut (\code{space=},
+\code{x:space=}, attribut supplémentaire). Seul le refus d'une valeur autre que \code{default} et
+\code{preserve} se fonde sur la recommandation, qui en fait une erreur que l'application peut
+rejeter (§~2.10)~; les autres formes refusées sont du XML légal, ou ne sont pas l'attribut
+\code{xml:space}, et leur refus ne repose que sur le contrat fermé, aucun écrivain connu ne les
+produisant (hypothèse non vérifiée sur Excel et LibreOffice). Le texte admis reste soumis à la
+règle des références numériques (ci-dessous). Ses blancs sont interprétés en aval comme ceux
+d'une chaîne partagée~: une valeur bordée de blancs ASCII est lue comme un nombre, ses blancs de
+bord retirés (\code{.nettoyer\_cellules()}~; l'espace insécable n'est pas un blanc)~; un en-tête
+bordé de blancs est mis en forme (ci-dessous)~; un texte fait de seuls blancs ne porte pas de
+valeur (cellule vide pour la règle des lignes et colonnes vides, en-tête absent, valeur non
+numérique en \code{xt} ou \code{yt}), et une ligne finale qui ne porte qu'un tel texte est écartée
+comme vide, sans avertissement (mesuré~: «~\code{ 104.2 }~» en \code{xt} lu $104{,}2$, en-tête
+«~\code{xt }~» lu \code{xt}, ligne finale à note faite d'un blanc écartée). La table des chaînes
+partagées admet, elle, toute forme bien formée du \code{<t>} (règle «~Table des chaînes
+partagées~», ci-dessous)~: les deux lieux lisent le texte de même, tel quel, mais une forme
+refusée en chaîne en ligne (\code{<t xml:space="default">}, apostrophes, \code{<t >}) est admise
+dans la table (mesuré)~; limite consignée, restreindre la table revenant à refuser des classeurs
+que le lecteur lit juste.
 \item \emph{Segment de cellule} (même fonction, motif \code{TEXTE\_REFUS\_SEGMENT}).
 \code{openxlsx} cherche le type, la valeur et la chaîne en ligne d'une cellule dans le texte qui
 va de sa balise à la balise de cellule suivante, ou à la fin de la partie~; ce texte ne porte,
@@ -5530,7 +5553,7 @@ par openpyxl, par pandas et par XlsxWriter à partir des fichiers CSV de \code{t
 (\code{tests/donnees/classeurs/}), relire ce qu'écrit l'écrivain interne, et vérifier que la
 lecture d'un classeur ne charge pas ce paquet. Le critère bloquant est l'accord du lecteur
 interne avec la source (fichier CSV dont le classeur est tiré, ou valeur écrite), non avec le
-témoin~: les classeurs du corpus que le contrat admet sont lus, et la sortie
+témoin~: les 38~classeurs du corpus sont lus, et la sortie
 d'\code{engine\_lire\_donnees\_csv()} ou d'\code{engine\_lire\_triangle()} est identique à celle
 de leur source CSV (mesuré sous la locale \code{C.UTF-8})~; un écart du témoin à la source n'est
 admis que s'il figure dans une liste fermée, datée de la version du paquet. Un classeur forgé
