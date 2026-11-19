@@ -244,3 +244,13 @@ Mesures *vérifiées* : R 4.3.3, Linux, 4 cœurs, moteur HEAD, 19/11/2026. La ma
 - **Q-1b-2 (b)** : chemin hybride (boucle allégée sur P1, P2, P3 et P5, avec le contrôle 5 ; `mw_bootstrap()` complet sur P4).
 - **Q-1b-3, Q-1b-4, Q-1b-6, Q-1b-8** : profils, niveaux L0 à L2 (budget de 3 h), critère K-M1 à K-M5, profils de lecture Ω0 à Ω4, Ω2′ et V, retour au mainteneur sous L2 : **approuvés tels quels**.
 - **Q-1b-5 (A)** et **Q-1b-7** : oracle conditionnel, McNemar avec la p conditionnelle (dans le script seulement), témoin, profils Λ ; sous Ω2, extension de I4 en regard du percentile, textes de la note tranchés à D2 après lecture.
+
+---
+
+## Questions d'application Q5, Q8 et Q9 (avis d'actuary-approfondi du 19/11/2026, avant toute exécution)
+
+Posées par `coder-approfondi` et l'audit léger du script ; elles ne changent ni les classes du § 3 ni les profils approuvés, et ajoutent deux états pour un cas non prévu (signalés au mainteneur dans la PR #609).
+
+- **Q5 (Λ)** : état distinct « Λ non évaluable », juste après Λ0 (clé dont ρ est absente : défaut du script ou oracle trop petit, non un résultat) ; lecture du volet suspendue, retour au mainteneur. Ordre : Λ0, Λ non évaluable, Λ3, Λ1, Λ2.
+- **Q9 (V)** : « V non évaluable (n = 0 sur P4) » si une classe sur P4 est absente ; K-M2 non lu, extension non remise en cause, décision du mainteneur à D2. Cas d'essai seulement.
+- **Q8** : classe de τ de la p conditionnelle gardée, intitulée « descriptif : ρ à B = 999, p conditionnelle à B_eff variable, écart de référence non corrigé », avec les quantiles de B_eff sur P4 ; hors de Λ. Pour une statistique continue, l'écart de taille dû à B reste inférieur à 1/(B_eff + 1) ≈ 0,002 (calcul exact sur la règle de rejet de `taille_lissee()`), moins que la demi-largeur de l'IC de τ ; non borné pour les statistiques à atomes.
