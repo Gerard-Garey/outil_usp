@@ -345,14 +345,22 @@ jobs:
       - name: Tableau des écarts aux références
         run: Rscript tests/comparer_references.R --markdown "$GITHUB_STEP_SUMMARY"
 
-  # Issue #565 (branche K2b) : parité des deux chemins de lecture des classeurs
-  # (lecteur interne / openxlsx::read.xlsx(), #487, #522, #555) et chemin
-  # d'archive zip::zipr() (#488). Les trois lots n'ont ni openxlsx ni zip (ils
-  # exercent les replis : lecteur interne hors masquage, utils::zip()) ; leurs
-  # tests de parité y sautent (sept lignes « [saute] », relevées en CI sur
-  # 8205955). Installer ces deux paquets dans un lot retirerait la couverture
-  # des replis : ce job dédié les installe seul, et les trois lots restent
-  # sans eux. Mêmes conditions de déclenchement que les lots (« changements »,
+  # Témoin openxlsx et archive zip (ADR 0020, point 4, #604 ; job créé par
+  # l'issue #565, branche K2b, pour la parité des deux chemins de lecture,
+  # retirée par #604). Depuis #604, le moteur lit tout classeur par son seul
+  # lecteur interne ; openxlsx n'est plus qu'un témoin de test borné (ADR
+  # 0020, point 3), dans tests/ seulement, à trois emplois : lecture du corpus
+  # naturel tests/donnees/classeurs/ comparée à la source CSV, avec la liste
+  # fermée des écarts attendus datée de sa version ; relecture de ce qu'écrit
+  # engine_ecrire_xlsx() ; absence de chargement de son espace de noms par
+  # engine_lire_xlsx(), dans un processus R neuf. Le job couvre aussi
+  # l'archive par zip::zipr() (#488) et l'export xlsx de l'application, qui ne
+  # dépendent pas d'openxlsx. Les trois lots n'ont ni openxlsx ni zip (ils
+  # exercent le lecteur interne et utils::zip()) ; les tests du témoin et de
+  # la voie « paquet » de zip y sautent (lignes « [saute] »). Installer ces
+  # deux paquets dans un lot retirerait la couverture d'utils::zip() : ce job
+  # dédié les installe seul, et les trois lots restent sans eux. Mêmes
+  # conditions de déclenchement que les lots (« changements »,
   # moteur == 'true'), même R, même instantané CRAN et même image.
   #
   # Versions : même instantané que shiny et plotly (DATE_INSTANTANE), soit
@@ -367,21 +375,28 @@ jobs:
   # sous openxlsx 4.2.9 + zip 3.0.2 : aucune ligne « [saute] » et toutes les
   # assertions vertes dans test_controles_entree.R, test_outdec.R et
   # test_defauts_connus.R.
+  # Remesuré après #604 (étape 2c, 43dd3d1 ; R 4.3.3, LC_ALL=C.UTF-8,
+  # openxlsx 4.2.5.2) : aucune ligne « [saute] » et toutes les assertions
+  # vertes dans test_controles_entree.R et test_outdec.R ; les deux autres
+  # fichiers sont jugés par ce job.
   #
   # Fichiers exécutés, un par un (le lanceur tests/test_unitaires.R n'a pas
   # d'option de sélection de fichiers), sous LC_ALL=C.UTF-8 :
-  # test_controles_entree.R et test_outdec.R (les sept lignes « [saute] » des
-  # lots), test_defauts_connus.R (voie « paquet » de zip) et
-  # test_application.R (export xlsx de l'application par zip::zipr(), celui
-  # qu'emprunte un poste muni d'openxlsx). Ce dernier exige shiny et plotly :
+  # test_controles_entree.R (témoin openxlsx, voie « paquet » de zip),
+  # test_outdec.R (export xlsx sous OutDec = ","), test_defauts_connus.R
+  # (voie « paquet » de zip) et test_application.R (export xlsx de
+  # l'application par zip::zipr(), celui qu'emprunte un poste muni du paquet
+  # zip). Ce dernier exige shiny et plotly :
   # ils sont installés ici aussi, aux mêmes versions que les lots, dans la
   # bibliothèque de ce job (clé de cache propre : openxlsx et zip ne doivent pas
   # entrer dans la bibliothèque, donc dans le cache, des lots). Critère : AUCUNE
   # ligne « [saute] » dans la sortie de ces fichiers, quel que soit le paquet.
   # Agrégat tests-moteur : le job y est branché (décision du mainteneur du
-  # 13/11/2026, Q-D de K2b) ; la parité bloque donc la fusion.
+  # 13/11/2026, Q-D de K2b) ; il bloque donc la fusion. L'identifiant
+  # « parite-lecteurs » est gardé (needs et variable PARITE de l'agrégat) ;
+  # seul le libellé a changé (#604).
   parite-lecteurs:
-    name: Parité des lecteurs de classeur
+    name: Témoin openxlsx et archive zip
     runs-on: ubuntu-22.04
     needs: changements
     if: needs.changements.outputs.moteur == 'true'
@@ -452,7 +467,8 @@ jobs:
       # Contrôle bloquant dans un processus R NEUF (voir les lots), étendu à
       # openxlsx et zip : c'est lui qui empêche un paquet absent de faire sauter
       # des tests, et lui seul pour les voies qui sautent sans écrire « [saute] »
-      # (test_outdec.R l. 198-199, test_application.R l. 970, 1035-1039, 2043) ;
+      # (test_controles_entree.R : classeurs écrits par openxlsx::write.xlsx()
+      # du test D-S1-37 ; test_application.R l. 970, 1035-1039, 2043) ;
       # le grep de l'étape des tests n'attrape que les lignes « [saute] »
       # explicites. Il détecte aussi une version différente de celle attendue.
       - name: Contrôle des paquets R
@@ -474,25 +490,25 @@ jobs:
       # Un fichier par processus, tous exécutés même si l'un échoue ; la sortie
       # est conservée pour le contrôle des lignes « [saute] » et pour le résumé.
       # pipefail : le code de sortie de Rscript, non celui de tee.
-      - name: Tests de parité des lecteurs de classeur
+      - name: Tests du témoin openxlsx et de l'archive zip
         id: parite
         env:
           LC_ALL: C.UTF-8
         run: |
           set -uo pipefail
-          journal="$RUNNER_TEMP/parite_lecteurs.log"
+          journal="$RUNNER_TEMP/temoin_openxlsx.log"
           : > "$journal"
           statut=0
           for f in test_controles_entree test_outdec test_defauts_connus test_application; do
             echo "=== tests/unitaires/$f.R ===" | tee -a "$journal"
             if ! Rscript "tests/unitaires/$f.R" 2>&1 | tee -a "$journal"; then
-              echo "::error title=Parité des lecteurs::$f.R en échec."
+              echo "::error title=Témoin openxlsx et archive zip::$f.R en échec."
               statut=1
             fi
           done
           # Aucun test sauté, quel que soit le paquet manquant.
           if grep -n '\[saute\]' "$journal"; then
-            echo "::error title=Parité des lecteurs::au moins un test a sauté (lignes [saute] ci-dessus)."
+            echo "::error title=Témoin openxlsx et archive zip::au moins un test a sauté (lignes [saute] ci-dessus)."
             statut=1
           fi
           exit "$statut"
@@ -500,10 +516,10 @@ jobs:
         if: ${{ !cancelled() && steps.parite.outcome != 'skipped' }}
         run: |
           {
-            echo "### Parité des lecteurs de classeur"
+            echo "### Témoin openxlsx et archive zip"
             echo
             echo '```'
-            grep -E '^(=== |TOTAL|ECHEC$)|assertions :|\[saute\]' "$RUNNER_TEMP/parite_lecteurs.log" || true
+            grep -E '^(=== |TOTAL|ECHEC$)|assertions :|\[saute\]' "$RUNNER_TEMP/temoin_openxlsx.log" || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -511,9 +527,9 @@ jobs:
   # rulesets (voir plus haut). Réussit si et seulement si le job
   # « changements » et les jobs attendus ont réussi : les lots et la
   # reproductibilité quand le moteur change, la reproductibilité (concordance)
-  # seule quand seul le .tex change ; la parité des lecteurs de classeur (issue
-  # #565, décision du mainteneur du 13/11/2026) quand le moteur change, comme
-  # les lots. Sauté, comme l'ancien job, quand
+  # seule quand seul le .tex change ; le témoin openxlsx et l'archive zip
+  # (job parite-lecteurs, issue #565, décision du mainteneur du 13/11/2026,
+  # rebaptisé par #604) quand le moteur change, comme les lots. Sauté, comme l'ancien job, quand
   # « changements » a réussi et que ni le moteur ni le .tex ne changent ; un
   # échec ou une annulation de « changements » le fait exécuter et échouer
   # (sinon il serait sauté, donc passant, revue finale de K1). « always() » et non
@@ -544,8 +560,8 @@ jobs:
           if [ "$MOTEUR" = "true" ]; then attendu_unitaires=success; fi
           echo "Tests unitaires : $UNITAIRES (attendu : $attendu_unitaires)"
           echo "Reproductibilité et concordance : $REPRODUCTIBILITE (attendu : success)"
-          # Parité des lecteurs de classeur : mêmes conditions que les lots.
-          echo "Parité des lecteurs de classeur : $PARITE (attendu : $attendu_unitaires)"
+          # Témoin openxlsx et archive zip : mêmes conditions que les lots.
+          echo "Témoin openxlsx et archive zip : $PARITE (attendu : $attendu_unitaires)"
           if [ "$UNITAIRES" != "$attendu_unitaires" ] || [ "$PARITE" != "$attendu_unitaires" ] || [ "$REPRODUCTIBILITE" != "success" ]; then
             echo "::error title=Tests du moteur::au moins un job de tests n'a pas réussi."
             exit 1
