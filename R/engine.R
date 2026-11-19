@@ -4351,6 +4351,50 @@ usp_simuler <- function(fit) {
 .usp_aplatir_ratios <- function(r) engine_aplatir_ex_aequo(r, plancher = 0)
 .usp_plancher_u <- function(r) max(abs(r))
 
+# Statistiques de stats::cor.test() et de stats::ks.test() calculees seules
+# (#445, piste B4), pour les entrees SpearVol, SpearTps et Smirnov du
+# catalogue ci-dessous, evaluees a chaque replication du bootstrap : ces
+# fonctions calculaient aussi une p-value (loi exacte de Smirnov par
+# psmirnov(), approximation de Spearman) et un objet htest, que le catalogue
+# ne lit pas. Transcription des seules lignes de cor.test.default() et de
+# ks.test.default() (paquet stats de R 4.3) qui forment la statistique, dans
+# le meme ordre et avec les memes operations : valeur identique au bit pres
+# (mesure #445, tests/unitaires/test_chemins_chauds_445.R, contre les
+# fonctions de stats), erreurs dans les memes cas (texte seul different
+# s'il y a lieu ; dans le bootstrap, l'erreur ecarte la replication).
+# S de Spearman, exact = FALSE : S = (n^3 - n) (1 - rho_s) / 6, rho_s =
+# cor(rank(a), rank(b)) apres retrait des paires incompletes ; rho_s non
+# fini (une serie constante) : NA (logique, comme c(S = NA) de cor.test()).
+# L'avertissement de cor() (ecart-type nul) est intercepte, comme l'etait
+# celui de cor.test() par suppressWarnings() dans le catalogue.
+.usp_spearman_S <- function(a, b) {
+  if (length(a) != length(b)) stop(".usp_spearman_S() : longueurs differentes")
+  ok <- stats::complete.cases(a, b)
+  a <- a[ok]; b <- b[ok]
+  n <- length(a)
+  if (n < 2) stop(".usp_spearman_S() : moins de deux observations finies")
+  r <- suppressWarnings(stats::cor(rank(a), rank(b)))
+  if (!is.finite(r)) return(NA)
+  (n^3 - n) * (1 - r) / 6
+}
+# D de Smirnov a deux echantillons, bilateral : plus grand ecart absolu des
+# fonctions de repartition empiriques, lu aux seuls points de saut des
+# valeurs distinctes de c(x, y) en presence d'ex aequo.
+.usp_smirnov_D <- function(x, y) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 1L) stop(".usp_smirnov_D() : x sans donnee")
+  y <- y[!is.na(y)]
+  n.x <- as.double(n)
+  n.y <- length(y)
+  if (n.y < 1L) stop(".usp_smirnov_D() : y sans donnee")
+  w <- c(x, y)
+  z <- cumsum(ifelse(order(w) <= n.x, 1/n.x, -1/n.y))
+  if (length(unique(w)) < (n.x + n.y))
+    z <- z[c(which(diff(sort(w)) != 0), n.x + n.y)]
+  max(abs(z))
+}
+
 USP_CATALOGUE_MC <- list(
   AD     = .mc_entree(function(e) stat_ad(e$z), "haut"),
   CvM    = .mc_entree(function(e) stat_cvm(e$z), "haut"),
@@ -4385,10 +4429,11 @@ USP_CATALOGUE_MC <- list(
     if (e$T >= 8 && !usp_volumes_constants(e$x)) {
       g <- e$x > stats::median(e$x)
       if (sum(g) >= 3 && sum(!g) >= 3)
-        # z aplati a TOL_EX_AEQUO (#112), comme dans usp_tests()
+        # z aplati a TOL_EX_AEQUO (#112), comme dans usp_tests() ; D de
+        # ks.test() calcule seul (.usp_smirnov_D(), #445).
         sm <- local({
           za <- engine_aplatir_ex_aequo(e$z)
-          unname(suppressWarnings(stats::ks.test(za[g], za[!g])$statistic))
+          .usp_smirnov_D(za[g], za[!g])
         })
     }
     sm
@@ -4424,20 +4469,18 @@ USP_CATALOGUE_MC <- list(
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   # r et x aplatis a TOL_EX_AEQUO avant cor.test() (#112), comme dans
   # usp_tests() ; r et x en tolerance purement relative
-  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()).
+  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()). S de
+  # cor.test(method = "spearman", exact = FALSE) calcule seul
+  # (.usp_spearman_S(), #445).
   SpearVol = .mc_entree(function(e)
     if (!usp_volumes_constants(e$x))
-      suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r),
-                                              .usp_aplatir_volumes(e$x),
-                                              method = "spearman",
-                                              exact = FALSE)$statistic)) else NA_real_,
+      .usp_spearman_S(.usp_aplatir_ratios(e$r), .usp_aplatir_volumes(e$x)) else NA_real_,
     "deux", extremes = function(e)
       if (usp_volumes_constants(e$x) || anyDuplicated(.usp_aplatir_ratios(e$r)) ||
           anyDuplicated(.usp_aplatir_volumes(e$x))) c(NA_real_, NA_real_)
       else .spearman_extremes(e$T)),
   SpearTps = .mc_entree(function(e)
-    suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r), seq_along(e$r),
-                                            method = "spearman", exact = FALSE)$statistic)),
+    .usp_spearman_S(.usp_aplatir_ratios(e$r), seq_along(e$r)),
     "deux", extremes = function(e)
       if (anyDuplicated(.usp_aplatir_ratios(e$r))) c(NA_real_, NA_real_)
       else .spearman_extremes(e$T)),
