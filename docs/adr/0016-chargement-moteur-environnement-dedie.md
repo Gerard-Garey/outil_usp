@@ -78,6 +78,8 @@ date: 2026-10-28
 
 6. **`openxlsx`** reste une dépendance facultative, appelée par `requireNamespace()` puis `openxlsx::` (`R/engine.R:7229-7230`, `:7300-7301`), avec le repli interne. Il n'est ni importé ni attaché par le chargeur. Le chargement dédié n'en change pas le comportement : `::` ne dépend pas de la chaîne.
 
+   > *Annotation (ADR 0020).* `openxlsx` n'est plus appelé par le moteur. Le point 6, et la mention d'`openxlsx::` dans l'inventaire des noms et au point 2, sont sans objet pour la lecture. `zip` est la seule dépendance facultative encore appelée par `requireNamespace()` puis `zip::` (`engine_ecrire_xlsx()`) ; la substitution de test de `requireNamespace` dans `environment(run_engine)` ne sert plus que pour elle.
+
 7. **Appelants et règle des substitutions dans les tests.**
    - Tout chargement du moteur **qui exécute un calcul** passe par `charger_moteur()`.
    - Un chargement qui ne fait que **lire le code** (formals, corps, graphe d'appels) peut rester un `sys.source()` dans un environnement jetable : il ne produit aucun résultat.
