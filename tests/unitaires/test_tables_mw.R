@@ -372,8 +372,14 @@ local({
     jni <- if (is.null(j_non_identifiables)) .jni_oracle(aj, jd) else as.integer(j_non_identifiables)
     jno <- if (is.null(j_origine_non_identifiables)) .jno_oracle(aj, jd) else
       as.integer(j_origine_non_identifiables)
+    # Champ degeneres_aj (#445, piste B3) : colonnes degenerees de aj
+    # lui-meme, calculees une fois par le contexte du moteur et lues par
+    # les statistiques de M1 et M4 ; meme definition qu'au moteur (predicat
+    # unique), sans effet sur les statistiques de cette reecriture, qui ne
+    # le lisent pas.
     list(aj = aj, res = res, r = res$residu,
-         figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno))
+         figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno),
+         degeneres_aj = .mw_colonnes_degenerees(aj))
   }
 
   # Calendrier en queue basse depuis #276 (decision Q-Fd-1 ; sans effet sur

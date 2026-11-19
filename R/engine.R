@@ -13450,6 +13450,16 @@ mw_ajuster <- function(tri) {
   j <- 0:(aj$J - 1L)
   as.integer(j[vapply(j, function(k) .mw_colonne_degeneree(aj, k, tol), logical(1))])
 }
+# Predicat de la colonne j, 0 <= j <= J - 1, sur aj lui-meme (et non sur
+# l'ensemble fige a l'observe), lu dans degeneres_aj s'il est fourni : il
+# vaut alors .mw_colonnes_degenerees(aj) (meme aj, tolerance par defaut),
+# calcule une fois par .mw_contexte_mc() pour toutes les statistiques d'une
+# replication (#445, piste B3) ; NULL : predicat evalue sur la colonne
+# (appel hors du catalogue). Meme booleen dans les deux cas, par
+# definition de .mw_colonnes_degenerees().
+.mw_degeneree_courante <- function(aj, j, degeneres_aj = NULL) {
+  if (is.null(degeneres_aj)) .mw_colonne_degeneree(aj, j) else j %in% degeneres_aj
+}
 # Enonce du predicat dans les messages (issue #60, decision du mainteneur du
 # 06/10/2026, constat C1-a de l'audit) : UNE SEULE chaine, reutilisee par
 # l'avertissement des colonnes exclues (mw_valider_ajustement()), le motif de
@@ -15077,8 +15087,11 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 # j_non_identifiables : ensemble des colonnes non identifiables de
 # l'ordonnee (#273), fige a l'observe par mw_bootstrap() (element
 # origine_non_identifiables de .mw_ensembles_figes()) ; NULL : calcule sur aj
-# (appel observe).
-mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
+# (appel observe). degeneres_aj : .mw_colonnes_degenerees(aj), pose par le
+# contexte du catalogue (.mw_degeneree_courante(), #445) ; NULL : predicat
+# evalue colonne par colonne.
+mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                                     degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15107,7 +15120,7 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
     # .mw_phrase_origine_non_identifiable(). Testee AVANT le controle de
     # degenerescence, comme pour la courbure (#270).
     if (j %in% jni) next
-    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(.mw_coefs_origine(C0, C1), silent = TRUE)
     # Plus aucune exclusion silencieuse (#273, second volet de #56) : une
@@ -15148,7 +15161,8 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
 # Si f_j est commun a toutes les annees d'accident, les facteurs individuels
 # F(i,j) d'une meme colonne ne doivent presenter aucune tendance en i.
 # Correlation de rang de Spearman entre F(i,j) et i, colonne par colonne.
-mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
+# degeneres_aj : comme pour mw_test_ordonnee_origine() (#445).
+mw_test_homogeneite_f <- function(aj, j_degeneres = NULL, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15165,7 +15179,7 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     # fige exclue, colonne retenue mais degeneree -> statistique NA.
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(.mw_stat_non_definie(ex))
     # F aplati a TOL_EX_AEQUO avant .mw_spearman() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
     # rho et p de la colonne par un seul appel de .mw_spearman() (#239,
@@ -15407,8 +15421,9 @@ MW_COMBN_N_MAX <- 20L
 # l'observe par mw_bootstrap() ; NULL : calcule sur aj (appel observe).
 # combn : table d'appel des combinaisons de n > MW_COMBN_N_MAX, posee par
 # mw_bootstrap() (.mw_combinaisons(), #432) ; NULL hors de cet appel.
+# degeneres_aj : comme pour mw_test_ordonnee_origine() (#445).
 mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
-                             combn = NULL) {
+                             combn = NULL, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15443,7 +15458,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
     # degenerescence : une colonne de l'ensemble fige, hors de K, ne rend pas
     # la statistique NA si elle devient degeneree dans une replication.
     if (j %in% jni) next
-    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
     # numerique de lm(). Colonne retenue a l'observe mais non identifiable
@@ -16127,12 +16142,19 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # s'ils ne sont pas fournis ; residus de Mack (mw_residus(), calcules une
 # fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
 # pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
-# refuse.
+# refuse. degeneres_aj (#445, piste B3) : colonnes degenerees de aj LUI-MEME
+# (.mw_colonnes_degenerees(aj)), distinctes de l'ensemble fige
+# figes$degeneres dans une replication ; calculees une fois ici au lieu de
+# l'etre par colonne dans mw_test_ordonnee_origine(), mw_test_homogeneite_f(),
+# mw_test_courbure() et pour toutes les colonnes dans mw_influence() (via
+# mw_test_cellule_aberrante()), qui les lisent par l'argument degeneres_aj
+# (meme predicat, memes resultats au bit pres).
 .mw_contexte_mc <- function(aj, figes = NULL, combn = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
   .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
   res <- mw_residus(aj, figes$degeneres)
-  e <- list(aj = aj, res = res, r = res$residu, figes = figes)
+  e <- list(aj = aj, res = res, r = res$residu, figes = figes,
+            degeneres_aj = .mw_colonnes_degenerees(aj))
   # Table d'appel des combinaisons (#432, point 3), posee par mw_bootstrap()
   # seulement : absente du contexte sinon.
   if (!is.null(combn)) e$combn <- combn
@@ -16218,9 +16240,11 @@ MW_CATALOGUE_MC <- list(
   # non bornee (option (iii), Q-D1-Fi-8) : statistique observee non definie,
   # motif propre par non_definie ; p_ij = 0 en replication.
   MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres,
-                                                              replique = isTRUE(e$replique))$stat, "bas",
+                                                              replique = isTRUE(e$replique),
+                                                              degeneres_aj = e$degeneres_aj)$stat, "bas",
                           non_definie = function(e)
-                            .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(e$aj, e$figes$degeneres))),
+                            .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(e$aj, e$figes$degeneres,
+                                                                                   degeneres_aj = e$degeneres_aj))),
   DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
   Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux",
                           extremes = function(e) .runs_extremes(e$r)),
@@ -16241,14 +16265,19 @@ MW_CATALOGUE_MC <- list(
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
+  # degeneres_aj : predicat des colonnes degenerees de e$aj, calcule une fois
+  # par .mw_contexte_mc() (#445, piste B3).
   Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
-                                                            e$figes$origine_non_identifiables)$stat, "haut"),
-  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut",
+                                                            e$figes$origine_non_identifiables,
+                                                            e$degeneres_aj)$stat, "haut"),
+  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres,
+                                                         e$degeneres_aj)$stat, "haut",
                           extremes = function(e)
-                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres))),
+                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres,
+                                                                   e$degeneres_aj))),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
                                                     e$figes$non_identifiables,
-                                                    e[["combn"]])$stat, "haut"),
+                                                    e[["combn"]], e$degeneres_aj)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
@@ -17634,9 +17663,13 @@ engine_regle_verdicts <- function(alpha) {
 #   les autres cas, jamais NA).
 # repere_levier = REPERE_LEVIER / n_j et repere_dfbetas =
 # REPERE_DFBETAS_MW / sqrt(n_j), reperes de lecture.
-mw_influence <- function(aj) {
+# degeneres_aj : .mw_colonnes_degenerees(aj), lu au lieu d'etre recalcule
+# quand il est fourni (contexte du catalogue, via
+# mw_test_cellule_aberrante() ; #445, piste B3) ; NULL : calcule ici
+# (.mw_j_exclues(aj, NULL), meme ensemble).
+mw_influence <- function(aj, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  jd <- .mw_j_exclues(aj, NULL)
+  jd <- if (is.null(degeneres_aj)) .mw_j_exclues(aj, NULL) else degeneres_aj
   # Un bloc par colonne, empile par .mw_empiler() (#260), comme les tables
   # de M1-M6 depuis #239 : memes colonnes, types et noms de lignes (noms de
   # C(i,j), premier vecteur nomme de l'ancien bloc data.frame()) que
@@ -17764,9 +17797,11 @@ MW_NJ_MIN_CELLULE <- 4L
 # chargement (#513) : meme objet que data.frame(i = integer(0), j =
 # integer(0)) (identical()).
 .MW_DF_VIDE_I_J <- data.frame(i = integer(0), j = integer(0))
-mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) {
+# degeneres_aj : transmis a mw_influence() (#445, piste B3).
+mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE,
+                                      degeneres_aj = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
-  inf <- mw_influence(aj)
+  inf <- mw_influence(aj, degeneres_aj)
   t <- rep(NA_real_, nrow(inf))
   for (j in unique(inf$j)) {
     sel <- which(inf$j == j)
