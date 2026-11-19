@@ -5560,7 +5560,9 @@ La batterie de tests (\code{tests/unitaires/test\_controles\_entree.R}) emploie 
 version~4.2.5.2), comme témoin, à trois fins seulement~: relire un corpus de 38~classeurs écrits
 par openpyxl, par pandas et par XlsxWriter à partir des fichiers CSV de \code{tests/donnees/}
 (\code{tests/donnees/classeurs/}~; les classeurs de triangle à note sont tirés de
-\code{triangle\_mw.csv} complété d'une colonne \code{note} que construit la batterie), relire ce qu'écrit l'écrivain interne, et vérifier que la
+\code{triangle\_mw.csv} complété d'une colonne \code{note} que construit la batterie) et, en
+écrivain réel, écrire par \code{openxlsx::write.xlsx()} des classeurs que lit le lecteur
+interne, valeurs lues comparées aux valeurs écrites~; relire ce qu'écrit l'écrivain interne~; vérifier que la
 lecture d'un classeur ne charge pas ce paquet. Le critère bloquant est l'accord du lecteur
 interne avec la source (fichier CSV dont le classeur est tiré, ou valeur écrite), non avec le
 témoin~: les 38~classeurs du corpus sont lus, et la sortie
