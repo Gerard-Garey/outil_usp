@@ -409,7 +409,14 @@ NOTE_LN <- paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux
                  "nominal (σ sous-estimé, borne haute dépassée) ; l'intervalle « basic »",
                  "sur l'échelle logarithmique couvre près de son niveau nominal. Constat de",
                  "simulation : voir la documentation, fiche de l'intervalle bootstrap.")
-NOTE_MW <- "Couverture à T = 8 non mesurée pour cette méthode."
+# Note Merz-Wuthrich requalifiee (#387, decision du mainteneur du 19/11/2026,
+# D2 (b) ; texte exact de
+# docs/revues/20261119-s5-bootstrap-mw/actuary-4-lecture-mesure-387.md, par. 2.1).
+NOTE_MW <- paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux triangles,",
+                 "l'intervalle de percentile couvre nettement moins que son niveau nominal",
+                 "(σ sous-estimé, borne haute dépassée) ; aucun intervalle « basic » mesuré",
+                 "ne rétablit ce niveau. Constat de simulation : voir la documentation, fiche",
+                 "de l'intervalle bootstrap.")
 fb <- function(v) sub(".", ",", sprintf("%.4f", v), fixed = TRUE)
 verifier("textes_ic_bootstrap(), lognormal (premium) : ligne de percentile, ligne basic log, note (Q-D2-Fn-3 (A)) ; virgule decimale",
          {
@@ -434,7 +441,7 @@ verifier("textes_ic_bootstrap(), lognormal, objet anterieur a #305 (sans ic_boot
              startsWith(t$lignes, "Intervalle bootstrap de percentile, niveau nominal 90 % : [") &&
              identical(t$note, NOTE_LN_ANT)
          })
-verifier("textes_ic_bootstrap(), Merz-Wuthrich : ligne de percentile seule, note 'Couverture a T = 8 non mesuree pour cette methode.' ; sans intervalle : NULL",
+verifier("textes_ic_bootstrap(), Merz-Wuthrich : ligne de percentile seule, note de couverture requalifiee (#387, par. 2.1 : sous-couverture mesuree, aucun basic) ; sans intervalle : NULL",
          {
            r <- R6$reserve2; t <- textes_ic_bootstrap(r); r0 <- r; r0["ic_bootstrap"] <- list(NULL)
            length(t$lignes) == 1L &&

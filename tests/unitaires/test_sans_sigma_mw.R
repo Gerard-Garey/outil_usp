@@ -177,12 +177,18 @@ verifier("#492 reference reserve2 : n_sans_sigma = 0L = B - length(sigma_boot)",
 
 ## --- Affichage : note de textes_ic_bootstrap() ---------------------------------------
 source(file.path(.racine492, "R", "display_helpers.R"), local = TRUE)
-NOTE_MW_492 <- "Couverture à T = 8 non mesurée pour cette méthode."
+# Constat de couverture requalifie (#387, decision du mainteneur du
+# 19/11/2026, D2 (b), par. 2.1) : place apres le compte k sur B quand k > 0.
+NOTE_MW_492 <- paste("Niveaux nominaux. À T = 8, sous les modèles ajustés à deux triangles,",
+                     "l'intervalle de percentile couvre nettement moins que son niveau nominal",
+                     "(σ sous-estimé, borne haute dépassée) ; aucun intervalle « basic » mesuré",
+                     "ne rétablit ce niveau. Constat de simulation : voir la documentation, fiche",
+                     "de l'intervalle bootstrap.")
 NOTE_MW_K <- paste("Intervalle conditionnel à une réserve simulée strictement positive.",
                    "Réplications sans σ simulé (réserve simulée négative ou nulle,",
                    "ou MSEP simulée non finie ou négative), écartées de l'intervalle mais",
                    "non des p-values de Monte-Carlo : %s sur B = %s.",
-                   "Couverture à T = 8 non mesurée pour cette méthode.")
+                   NOTE_MW_492)
 res_vol <- suppressWarnings(run_engine(methode = "reserve2", segment = 1, annexe = "II",
                                        triangle = vol492, date_reference = "2025-12-31", B = 199))
 verifier("#492 textes_ic_bootstrap(), fixture volatile, B = 199 : note 'Intervalle conditionnel ...' avec '77 sur B = 199' (texte du par. A.3)",
@@ -192,7 +198,7 @@ verifier("#492 textes_ic_bootstrap(), fixture volatile, B = 199 : note 'Interval
              identical(t$note, sprintf(NOTE_MW_K, "77", "199")) &&
              grepl("77 sur B = 199", t$note, fixed = TRUE)
          })
-verifier("#492 textes_ic_bootstrap(), reserve2 : k = 0 ou champ absent, note inchangee ; lignes inchangees",
+verifier("#492 textes_ic_bootstrap(), reserve2 : k = 0 ou champ absent, note reduite au constat de couverture (sans compte) ; lignes inchangees",
          {
            r0 <- res_vol; r0$bootstrap$n_sans_sigma <- 0L
            ra <- res_vol; ra$bootstrap$n_sans_sigma <- NULL
