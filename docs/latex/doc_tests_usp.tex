@@ -4665,7 +4665,9 @@ autres qu'un calcul abouti, à ne pas confondre~:
   $2/(B+1) = 0{,}02 < \alpha/2$ au seuil par défaut, une détection de dégénérescence armée
   (\code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies, section~\ref{sec:nature}) et la
   présence de l'intervalle bootstrap à 90~\%, calculé au-delà de 20 valeurs bootstrap, avec la
-  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{B} et
+  ligne de sa largeur (en méthode Merz--Wüthrich, au-delà de 20 valeurs de $\sigma^{*}$ finies,
+  présence que $B$ seul ne garantit donc pas, les \code{bootstrap\$n\_sans\_sigma} réplications
+  sans $\sigma^{*}$ fini étant écartées), et qui est le minimum du champ $B$ de l'application~; \code{B} et
   \code{alpha} conjointement, $B + 1 > 4/\alpha$ en plus de $B \ge$ \code{B\_MIN\_USAGE}, contrôle fait après ceux de $B$ et de $\alpha$, dont les messages restent
   inchangés pour une valeur invalide isolément~: le plancher bilatéral $2/(B+1)$ de la p-value de
   Monte-Carlo doit être strictement inférieur à $\alpha/2$, seuil d'\code{ECHEC} de la règle des
