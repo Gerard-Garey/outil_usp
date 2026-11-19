@@ -1,6 +1,7 @@
 ###############################################################################
-#  tests/unitaires/test_outdec.R  --  TEXTES ET EXPORT XLSX DE REPLI
-#                                     INDEPENDANTS DE getOption("OutDec")
+#  tests/unitaires/test_outdec.R  --  TEXTES ET EXPORT XLSX (ECRIVAIN INTERNE,
+#                                     ARCHIVE PAR utils::zip()) INDEPENDANTS
+#                                     DE getOption("OutDec")
 #                                     (ISSUE #428, suite de #413)
 #
 #  format(), paste() et sprintf("%s") d'un double suivent l'option de session
@@ -167,7 +168,7 @@ for (pr in list(c(.025, .05, .5, .95, .975), ppoints(8), ppoints(99), ppoints(10
              !any(grepl(",", names(sous_outdec(",", .engine_quantile(z150, pr))), fixed = TRUE)))
 }
 
-## --- 2. xlsx de repli : aller-retour a pleine precision ------------------------
+## --- 2. xlsx (ecrivain interne, archive par utils::zip()) : aller-retour a pleine precision ------------------------
 if (nzchar(Sys.which("zip"))) {
   env_moteur <- environment(run_engine)
   # Simule l'absence de tout paquet facultatif (ecrivain interne compresse
@@ -192,9 +193,9 @@ if (nzchar(Sys.which("zip"))) {
     sous_outdec(od, sans_paquets({ engine_ecrire_xlsx(df, f); engine_lire_xlsx(f) }))
   }
   lu_pt <- aller_retour("."); lu_vg <- aller_retour(",")
-  verifier("xlsx de repli : requireNamespace() simule restitue le moteur intact",
+  verifier("xlsx (ecrivain interne, archive par utils::zip()) : requireNamespace() simule restitue le moteur intact",
            !exists("requireNamespace", envir = env_moteur, inherits = FALSE))
-  verifier("xlsx de repli : aller-retour sans perte (17 chiffres significatifs) sous \".\"",
+  verifier("xlsx (ecrivain interne, archive par utils::zip()) : aller-retour sans perte (17 chiffres significatifs) sous \".\"",
            identical(as.numeric(lu_pt$v), df$v) && identical(as.numeric(lu_pt$n), df$n) &&
              identical(as.numeric(lu_pt$f), df$f) && identical(as.integer(lu_pt$t), df$t) &&
              identical(as.character(lu_pt$lib), df$lib))
@@ -202,11 +203,11 @@ if (nzchar(Sys.which("zip"))) {
   # chaine : la colonne porte une cellule texte et reste en caractere (#490).
   # (La relecture par openxlsx est retiree par #604 : le temoin de
   # l'ecrivain, test_controles_entree.R, section #488, relit +-Inf.)
-  verifier("xlsx de repli : +-Inf relus en chaine par le lecteur interne (colonne en caractere)",
+  verifier("xlsx (ecrivain interne, archive par utils::zip()) : +-Inf relus en chaine par le lecteur interne (colonne en caractere)",
            is.character(lu_pt$f) && identical(lu_pt$f[1:2], c("Inf", "-Inf")))
-  verifier("xlsx de repli : aller-retour sans perte sous OutDec = \",\", identique a celui sous \".\"",
+  verifier("xlsx (ecrivain interne, archive par utils::zip()) : aller-retour sans perte sous OutDec = \",\", identique a celui sous \".\"",
            identical(lu_vg, lu_pt))
-  verifier("xlsx de repli : le XML ecrit sous OutDec = \",\" n'a ni virgule decimale ni troncature a 7 chiffres",
+  verifier("xlsx (ecrivain interne, archive par utils::zip()) : le XML ecrit sous OutDec = \",\" n'a ni virgule decimale ni troncature a 7 chiffres",
            {
              f <- tempfile(fileext = ".xlsx"); d <- tempfile("lec_")
              on.exit({ unlink(f); unlink(d, recursive = TRUE) }, add = TRUE)
@@ -218,7 +219,7 @@ if (nzchar(Sys.which("zip"))) {
              !any(grepl(",", v)) && all(grepl("^-?[0-9.]+(e[-+][0-9]+)?$", v)) &&
                "0.123456789012" %in% v && "0.5" %in% v && "2001" %in% v
            })
-} else cat("  [saute] xlsx de repli : commande zip indisponible\n")
+} else cat("  [saute] xlsx (ecrivain interne, archive par utils::zip()) : commande zip indisponible\n")
 
 ## --- 3. Point d'entree : OutDec = "." local, option de l'appelant restituee (#439) ---
 env_moteur439 <- environment(run_engine)

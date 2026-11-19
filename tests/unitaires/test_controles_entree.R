@@ -2475,12 +2475,15 @@ verifier("engine_lire_triangle : colonnes de nom duplique toutes gardees (select
 ## --- Temoin openxlsx et corpus naturel des classeurs (ADR 0020, #604) --------
 # Depuis #604, engine_lire_xlsx() lit tout classeur par le seul lecteur
 # interne (ADR 0020, point 1). openxlsx n'est plus qu'un temoin de test borne
-# (point 3), appele par la seule aide temoin_openxlsx() ci-dessous, et limite
-# a trois emplois : (1) lecture du corpus naturel tests/donnees/classeurs/
-# (classeurs d'openpyxl, de pandas et de XlsxWriter), comparee a la source
-# CSV ; (2) relecture de ce qu'ecrit engine_ecrire_xlsx() (sections #488 et
-# #580, plus bas) ; (3) absence de chargement de son espace de noms par
-# engine_lire_xlsx(). Il n'est jamais employe sur un classeur forge : ces
+# (point 3), limite a trois emplois : (1) lecture du corpus naturel
+# tests/donnees/classeurs/ (classeurs d'openpyxl, de pandas et de XlsxWriter),
+# comparee a la source CSV ; (2) relecture de ce qu'ecrit engine_ecrire_xlsx()
+# (sections #488 et #580, plus bas) ; (3) absence de chargement de son espace
+# de noms par engine_lire_xlsx(). Le temoin lit par l'aide temoin_openxlsx()
+# ci-dessous ; openxlsx::write.xlsx() est en outre appele directement, comme
+# ecrivain reel dont le classeur est lu par le seul lecteur interne (emploi 1
+# de l'ADR 0020, point 3, qui inclut les classeurs d'openxlsx::write.xlsx() ;
+# #574, plus bas). Le temoin n'est jamais employe sur un classeur forge : ces
 # classeurs sont des tests du seul lecteur, a valeur attendue explicite.
 # Le critere bloquant est l'accord du lecteur avec la source, sur tous les
 # lots ; un ecart du temoin a la source n'est admis que s'il figure dans la
@@ -3974,6 +3977,8 @@ if (nzchar(Sys.which("zip"))) {
                    texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")) &&
              rb574(retoucher574(deux574h(), wb574, ' r:id="rId11"', charToRaw('\tr:id="rId11"')),
                    texte574h(wb574, "balise <sheet> 1 de la feuille lue : relation rId11, mais relation rId12 pour un autre lecteur de classeur, qui ne lit que les balises <sheet> sans prefixe et les attributs r:id=\"...\" a identifiant de lettres et de chiffres")))
+  if (!base::requireNamespace("openxlsx", quietly = TRUE))
+    cat("  [saute] xlsx (#574, D-S1-37), temoins lus (11.5) : classeur d'openxlsx::write.xlsx() a deux feuilles : paquet non installe\n")
   verifier("xlsx (#574, D-S1-37) : temoins lus (11.5) : r:id dans une autre balise que <sheet> (externalReference), r:id='rId12' dans un nom de feuille, Id de relation entre apostrophes (openxlsx s'y arretait sur une erreur R), classeur de l'ecrivain interne, classeur d'openxlsx::write.xlsx() a deux feuilles",
            { lit574h <- function(f) { r <- chemins483(f, lire487); unlink(f); r }
              ok574h <- function(r) tous487(r, function(d) is.data.frame(d) && identical(as.numeric(d$xt), 11.5))
@@ -7459,6 +7464,28 @@ verifier("engine_ecrire_csv() : saut de ligne dans une chaine et fins d'enregist
            g <- ecrire_csv488(data.frame(a = c("a\nb", "c"), n = 1:2, stringsAsFactors = FALSE))
            b <- readBin(g, "raw", file.size(g))
            !any(b == as.raw(0x0D)) && identical(rawToChar(b), "\"a\",\"n\"\n\"a\nb\",1\n\"c\",2\n")
+         })
+# Chemin d'engine_ecrire_csv() : chaine unique non NA non vide seule (m-a de la
+# revue finale d'A1). Depuis #602 writeBin() accepte une connexion binaire : sans
+# garde, file(f, "wb") serait ecrite sans erreur.
+verifier("engine_ecrire_csv() : une connexion (file(f, \"wb\")), NA, \"\", un vecteur de deux chemins, un nombre ou NULL sont refuses par un usp_refus_ecriture motive, aucun fichier cree ; une chaine est ecrite (#602)",
+         {
+           f602 <- tempfile(fileext = ".csv")
+           d602 <- data.frame(a = 1)
+           refus602 <- function(chemin) {
+             e <- tryCatch(engine_ecrire_csv(d602, chemin), error = function(e) e)
+             inherits(e, "usp_refus_ecriture") &&
+               grepl("une chaine unique, non NA et non vide", conditionMessage(e), fixed = TRUE)
+           }
+           con602 <- file(f602, "wb")
+           r_con602 <- refus602(con602)
+           close(con602)
+           # file(f, "wb") cree le fichier vide a l'ouverture : le refus n'y ecrit rien
+           r_con602 && identical(file.size(f602), 0) && (unlink(f602) == 0) &&
+             refus602(NA_character_) && refus602("") &&
+             refus602(c(f602, f602)) && refus602(1) && refus602(NULL) && !file.exists(f602) &&
+             identical(engine_ecrire_csv(d602, f602), f602) &&
+             identical(rawToChar(readBin(f602, "raw", file.size(f602))), "\"a\"\n1\n")
          })
 if (length(voies488)) {
   ecrire580 <- function(...) sans488(voies488[[1]], engine_ecrire_xlsx(...))
