@@ -4582,6 +4582,66 @@ if (nzchar(Sys.which("zip"))) {
                    t2 <- proc.time()[["elapsed"]]
                    identical(a, "admis") && t1 - t0 < 5 && t2 - t1 < 5 &&
                      identical(b, texte574e(ss574e, "chaine no 0 : &#48;, chaine no 1 : &#48;, chaine no 2 : &#48;, chaine no 3 : &#48;, chaine no 4 : &#48; et 99995 autre(s)")) }))
+
+  # --- #602, etape 3b d'A1 : fins de ligne litterales normalisees a l'entree
+  # de chaque partie lue (XML 1.0, 2.11 : "\r\n", puis tout "\r" isole, lus
+  # "\n"), avant le decodage des references (&#13; decode reste un retour
+  # chariot). Avant : "a\r\nb" et "c\rd" lus tels quels. Les octets 0x0D du
+  # texte sont poses par retoucher574() (writeBin), non par writeLines() :
+  # ils sont les memes sous Windows.
+  cr602 <- function(f, ...) { r <- list(...); for (k in seq_along(r)) f <- retoucher574(f, names(r)[k], r[[k]][1L], charToRaw(r[[k]][2L])); f }
+  verifier("xlsx (#602, XML 1.0 2.11) : .xml_fins_de_ligne() : \"\\r\\n\", puis \"\\r\" isole, rendus \"\\n\" ; texte sans \"\\r\" rendu identique ; marque UTF-8 gardee",
+           identical(.xml_fins_de_ligne("a\r\nb"), "a\nb") && identical(.xml_fins_de_ligne("c\rd"), "c\nd") &&
+             identical(.xml_fins_de_ligne("e\r\r\nf\n\rg\r"), "e\n\nf\n\ng\n") &&
+             identical(.xml_fins_de_ligne("h\n\ti &#13;"), "h\n\ti &#13;") &&
+             identical(Encoding(.xml_fins_de_ligne("\u00e9\r\n")), "UTF-8") && identical(.xml_fins_de_ligne("\u00e9\r\n"), "\u00e9\n"))
+  verifier("xlsx (#602, XML 1.0 2.11) : chaine en ligne portant une fin de ligne litterale \"a<CR><LF>b\", \"c<CR>d\", \"e<CR><CR><LF>f<LF><CR>g\" : lue \"a\\nb\", \"c\\nd\", \"e\\n\\nf\\n\\ng\" (avant : \"\\r\" garde)",
+           local({ f <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
+                                          ligne487(2, c(nb487("A2", 1), en487("B2", "<t>P602a</t>"))),
+                                          ligne487(3, c(nb487("A3", 2), en487("B3", "<t>P602b</t>"))),
+                                          ligne487(4, c(nb487("A4", 3), en487("B4", "<t>P602c</t>")))), NULL)
+                   f <- cr602(f, "xl/worksheets/sheet1.xml" = c("P602a", "a\r\nb"))
+                   f <- cr602(f, "xl/worksheets/sheet1.xml" = c("P602b", "c\rd"))
+                   f <- cr602(f, "xl/worksheets/sheet1.xml" = c("P602c", "e\r\r\nf\n\rg"))
+                   r <- chemins483(f, lire487)
+                   tous487(r, function(d) is.data.frame(d) && identical(names(d), c("t", "note")) &&
+                             identical(d$note, c("a\nb", "c\nd", "e\n\nf\n\ng")) && identical(as.numeric(d$t), c(1, 2, 3))) }))
+  verifier("xlsx (#602, XML 1.0 2.11) : chaine partagee portant une fin de ligne litterale (\"a<CR><LF>b\" ; \"c<CR>\" puis \"d\" en segments <r>) : lue \"a\\nb\", \"c\\nd\" (avant : \"\\r\" garde)",
+           local({ f <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
+                                          ligne487(2, c(nb487("A2", 1), ps487("B2", 0L))),
+                                          ligne487(3, c(nb487("A3", 2), ps487("B3", 1L)))),
+                                   "<si><t>P602d</t></si><si><r><rPr><b/></rPr><t>P602e</t></r><r><t>d</t></r></si>")
+                   f <- cr602(f, "xl/sharedStrings.xml" = c("P602d", "a\r\nb"))
+                   f <- cr602(f, "xl/sharedStrings.xml" = c("P602e", "c\r"))
+                   r <- chemins483(f, lire487)
+                   tous487(r, function(d) is.data.frame(d) && identical(d$note, c("a\nb", "c\nd"))) }))
+  # Le <v> d'une cellule t="str" n'est pas decode (#606, non traite ici) ;
+  # il est du texte de la feuille, normalise a l'entree comme le reste.
+  verifier("xlsx (#602, XML 1.0 2.11) : <v> d'une cellule t=\"str\" portant \"a<CR><LF>b\" : lu \"a\\nb\" (avant : \"a\\r\\nb\")",
+           local({ f <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
+                                          ligne487(2, c(nb487("A2", 1), '<c r="B2" t="str"><v>P602f</v></c>'))), NULL)
+                   r <- chemins483(cr602(f, "xl/worksheets/sheet1.xml" = c("P602f", "a\r\nb")), lire487)
+                   tous487(r, function(d) is.data.frame(d) && identical(d$note, "a\nb")) }))
+  # Ordre : normalisation de la partie (.xlsx_texte()) puis decodage
+  # (.xml_textes()) ; &#13; et &#xD; ne sont pas des octets 0x0D et restent
+  # des retours chariot. Decoder d'abord aurait rendu "a\nb\nc\nd\ne" ; ne pas
+  # normaliser, "a\rb\r\nc\rd\r\ne". Mesure sur la chaine d'analyse, la
+  # reference &#13; etant refusee dans tout le classeur (D-S1-23, test
+  # suivant).
+  verifier("xlsx (#602, XML 1.0 2.11 et 4.4.2) : partie lue par .xlsx_texte() puis .xml_textes() : <is> et <si> \"a&#13;b<CR><LF>c<CR>d&#xD;&#xA;e\" lus \"a\\rb\\nc\\nd\\r\\ne\" (references decodees apres la normalisation)",
+           local({ d <- tempfile("p602_"); dir.create(d); on.exit(unlink(d, recursive = TRUE))
+                   brut <- "a&#13;b\r\nc\rd&#xD;&#xA;e"
+                   writeBin(charToRaw(paste0("<is><t>", brut, "</t></is>")), file.path(d, "is.xml"))
+                   writeBin(charToRaw(paste0("<si><r><rPr><b/></rPr><t>", brut, "</t></r></si>")), file.path(d, "si.xml"))
+                   identical(.xml_textes(.xlsx_texte(d, "is.xml")), "a\rb\nc\nd\r\ne") &&
+                     identical(.xml_textes(.xlsx_texte(d, "si.xml")), "a\rb\nc\nd\r\ne") }))
+  verifier("xlsx (#602) : &#13; suivi d'une fin de ligne litterale, en chaine en ligne et en chaine partagee : refus inchange (D-S1-23), reference citee telle qu'ecrite",
+           local({ fe <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
+                                           ligne487(2, c(nb487("A2", 1), en487("B2", "<t>P602g</t>")))), NULL)
+                   fs <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
+                                           ligne487(2, c(nb487("A2", 1), ps487("B2", 0L)))), "<si><t>P602h</t></si>")
+                   rb574(cr602(fe, "xl/worksheets/sheet1.xml" = c("P602g", "a&#13;\r\nb")), texte574e(fe574e, "B2 : &#13;")) &&
+                     rb574(cr602(fs, "xl/sharedStrings.xml" = c("P602h", "a&#xD;\r\nb")), texte574e(ss574e, "chaine no 0 : &#xD;")) }))
 } else cat("  [saute] lignes et colonnes vides (#483), lecture xlsx : commande zip indisponible\n")
 
 ## --- CSV dont la ligne 1 ne porte que des separateurs (#522, extension aux CSV)
