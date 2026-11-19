@@ -7081,9 +7081,18 @@ dir.create(cwd580_b)
 cwd580_b <- normalizePath(cwd580_b, winslash = "/")
 depuis580 <- function(rep, expr) { ancien <- setwd(rep); on.exit(setwd(ancien)); force(expr) }
 sortie580 <- function(chemin) .xlsx_chemin_sortie(chemin, wd580)
-verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC en barres obliques tel quel (absolu sur tout systeme), sans le prefixer du repertoire courant, depuis deux repertoires courants (#580)",
-         identical(sortie580("//serveur/partage/f.xlsx"), "//serveur/partage/f.xlsx") &&
-           identical(depuis580(cwd580_b, sortie580("//serveur/partage/f.xlsx")), "//serveur/partage/f.xlsx"))
+# Forme de la tete UNC : sous Windows, dirname() rend "\\\\serveur/partage" (deux
+# barres inverses en tete, mesure du poste Windows de JS1, relevee dans
+# docs/revues/20261118-js1-poste-windows/etape-2-i-controles-entree.md) ; le
+# chemin rendu designe le meme partage. On compare donc les barres inverses
+# lues comme des barres obliques (meme chemin, forme du systeme indifferente) :
+# le test est juste sous Linux, ou le chemin est rendu tel quel, et sous Windows.
+unc580 <- "//serveur/partage/f.xlsx"
+uniforme580 <- function(x) gsub("\\", "/", x, fixed = TRUE)
+verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() garde un chemin UNC en barres obliques tel quel (absolu sur tout systeme ; barres inverses de la tete lues comme des barres obliques), sans le prefixer du repertoire courant, depuis deux repertoires courants (#580, #603)",
+         identical(uniforme580(sortie580(unc580)), unc580) &&
+           identical(uniforme580(depuis580(cwd580_b, sortie580(unc580))), unc580) &&
+           identical(uniforme580("\\\\serveur/partage/f.xlsx"), unc580))
 if (.Platform$OS.type == "windows") {
   verifier("engine_ecrire_xlsx() : sous Windows, .xlsx_chemin_sortie() garde un chemin de lecteur absolu tel quel, depuis deux repertoires courants (#580)",
            identical(sortie580("C:/a/f.xlsx"), "C:/a/f.xlsx") &&
@@ -7119,6 +7128,38 @@ if (identical(normalizePath(sous_home580(h580, path.expand("~")), winslash = "/"
   verifier("engine_ecrire_xlsx() : .xlsx_chemin_sortie() developpe \"~\" (HOME redirige), sans le prefixer du repertoire courant (#580)",
            identical(sous_home580(h580, .xlsx_chemin_sortie("~/f.xlsx", wd580)), file.path(h580, "f.xlsx")))
 } else cat("  [saute] chemin \"~\" (#580) : HOME non redirigeable sur ce systeme\n")
+# Forme de lecteur sans barre sous Windows (#603) : .xlsx_defaut_chemin() est
+# pure ; le systeme est son argument (defaut .Platform$OS.type), de sorte que la
+# branche Windows se juge sous Linux. Texte attendu ecrit en clair.
+txt603_windows <- paste("le chemin est de la forme X: sans barre (lecteur seul, ou fichier relatif au",
+                        "dossier courant de ce lecteur) : la cible n'est pas resolue contre le dossier",
+                        "de l'appelant et le fichier pourrait n'etre pas ecrit la ou on l'attend",
+                        "(donner le chemin complet, X:/dossier/f.xlsx, ou un chemin relatif sans lecteur)")
+txt603_unix <- paste("le chemin est un chemin de lecteur Windows (X:...) ou de partage en barres",
+                     "inverses (\\\\serveur\\...) : ce n'est pas un chemin de ce systeme")
+rep603 <- tempdir(); inv603 <- function() sort(list.files(rep603, all.files = TRUE, no.. = TRUE,
+                                                           recursive = TRUE, include.dirs = TRUE))
+inv603_avant <- inv603(); wd603_avant <- getwd()
+verifier("engine_ecrire_xlsx() : systeme \"windows\" simule, \"X:f.xlsx\", \"c:f.xlsx\", \"X:\", \"a:b.xlsx\", \"C:sub/f.xlsx\" et \"C:f\" refuses par .xlsx_defaut_chemin(), texte du refus attendu (constat, cause, action), rien cree (#603)",
+         all(vapply(c("X:f.xlsx", "c:f.xlsx", "X:", "a:b.xlsx", "C:sub/f.xlsx", "C:f"),
+                    function(x) identical(.xlsx_defaut_chemin(x, "windows"), txt603_windows), logical(1))) &&
+           identical(inv603(), inv603_avant) && identical(getwd(), wd603_avant))
+verifier("engine_ecrire_xlsx() : systeme \"windows\" simule, \"C:/a/f.xlsx\", \"C:\\a\\f.xlsx\", \"c:/f.xlsx\" et les UNC (\"\\\\serveur\\partage\\f.xlsx\", \"//serveur/partage/f.xlsx\") admis par le controle de chemin (#603)",
+         all(vapply(c("C:/a/f.xlsx", "C:\\a\\f.xlsx", "c:/f.xlsx", "\\\\serveur\\partage\\f.xlsx",
+                      "//serveur/partage/f.xlsx"),
+                    function(x) is.null(.xlsx_defaut_chemin(x, "windows")), logical(1))))
+verifier("engine_ecrire_xlsx() : systeme \"windows\" simule, les autres controles de chemin restent ceux de tout systeme (\"X:/a/\" barre finale, \"X:/a/f.csv\" hors .xlsx, \"\", NA) (#603)",
+         identical(.xlsx_defaut_chemin("X:/a/", "windows"),
+                   "le chemin doit etre une chaine unique, non NA, non vide et ne pas finir par une barre") &&
+           identical(.xlsx_defaut_chemin("", "windows"), .xlsx_defaut_chemin("", "unix")) &&
+           identical(.xlsx_defaut_chemin(NA_character_, "windows"), .xlsx_defaut_chemin(NA_character_, "unix")) &&
+           grepl("se termine par .xlsx", .xlsx_defaut_chemin("X:/a/f.csv", "windows"), fixed = TRUE))
+verifier("engine_ecrire_xlsx() : systeme \"unix\", comportement inchange : \"X:f.xlsx\", \"c:f.xlsx\", \"X:\", \"C:/a/f.xlsx\", \"C:\\a\\f.xlsx\" et l'UNC en barres inverses refuses (texte propre a unix), l'UNC en barres obliques admis ; le defaut est le systeme courant (#580, #603)",
+         all(vapply(c("X:f.xlsx", "c:f.xlsx", "X:", "C:/a/f.xlsx", "C:\\a\\f.xlsx", "\\\\serveur\\partage\\f.xlsx"),
+                    function(x) identical(.xlsx_defaut_chemin(x, "unix"), txt603_unix), logical(1))) &&
+           is.null(.xlsx_defaut_chemin("//serveur/partage/f.xlsx", "unix")) &&
+           identical(eval(formals(.xlsx_defaut_chemin)$systeme), .Platform$OS.type) &&
+           identical(.xlsx_defaut_chemin("X:f.xlsx"), .xlsx_defaut_chemin("X:f.xlsx", .Platform$OS.type)))
 # Ecriture en octets du CSV (#602), hors de toute voie zip : la fin
 # d'enregistrement et le saut de ligne d'une chaine sont ecrits 0x0A seul.
 # Non discriminant sous Linux (l'ancien writeLines() en mode texte n'y
@@ -7327,6 +7368,33 @@ if (length(voies488)) {
                  !inherits(e2, "error") && file.exists(f2)
              })
   }
+  # Forme "X:" sans barre sous Windows (#603), de bout en bout : le systeme
+  # "windows" est simule en remplacant, dans l'environnement du moteur (ADR 0016),
+  # .xlsx_defaut_chemin() par un appel de l'original avec systeme = "windows" ;
+  # restauree en sortie. Le refus precede toute ecriture : classe
+  # usp_refus_ecriture, texte attendu en entier, aucun avertissement, inventaire
+  # de tempdir() et repertoire courant inchanges.
+  en_windows603 <- function(expr) {
+    orig <- get(".xlsx_defaut_chemin", envir = env488)
+    assign(".xlsx_defaut_chemin", function(chemin) orig(chemin, "windows"), envir = env488)
+    on.exit(assign(".xlsx_defaut_chemin", orig, envir = env488), add = TRUE)
+    force(expr)
+  }
+  verifier("engine_ecrire_xlsx() : systeme \"windows\" simule, \"X:f.xlsx\", \"c:f.xlsx\" et \"X:\" refuses (usp_refus_ecriture) avec le texte attendu en entier, aucun fichier cree nulle part, aucun avertissement (#603)",
+           all(vapply(c("X:f.xlsx", "c:f.xlsx", "X:"), function(ch) {
+             rep <- nouveau_rep580("chw603_")
+             avant <- inventaire580(); wd_avant <- getwd(); n_avert <- 0L
+             e <- en_windows603(depuis580(rep, withCallingHandlers(
+               tryCatch(ecrire580(d580, ch), error = function(e) e),
+               warning = function(w) { n_avert <<- n_avert + 1L; invokeRestart("muffleWarning") })))
+             identical(class(e), c("usp_refus_ecriture", "error", "condition")) && n_avert == 0L &&
+               identical(conditionMessage(e),
+                         paste0("Ecriture du fichier .xlsx impossible : ", txt603_windows, " ; aucun fichier ecrit.")) &&
+               identical(inventaire580(), avant) && identical(getwd(), wd_avant) &&
+               !file.exists(file.path(rep, "f.xlsx"))
+           }, logical(1))) &&
+             identical(get(".xlsx_defaut_chemin", envir = env488)("X:f.xlsx"),
+                       if (.Platform$OS.type == "unix") txt603_unix else txt603_windows))
   verifier("engine_ecrire_xlsx() : un dossier existant (\"dos.xlsx\"), \".\", \"..\", \"sub/..\", \"sub/.\", \"sub\", \"f\", \"f.csv\" et \"f.xlsx.zip\" refuses, motif .xlsx ou dossier existant, rien cree (ni sub.zip, ni f.zip) (#580)",
            refus580p("dos.xlsx", "designe un dossier existant") &&
              all(vapply(c(".", "..", "sub/..", "sub/.", "sub", "f", "f.csv", "f.xlsx.zip", "f.xlsx.", "xlsx"),
