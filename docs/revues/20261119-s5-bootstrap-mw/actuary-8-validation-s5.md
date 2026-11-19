@@ -1,4 +1,4 @@
-> *Versé intégralement par la session principale le 20/11/2026 (`actuary-approfondi`, étape 8 de S5, validation de fond ; tête `4585867`). Trois parties : le rapport de validation, la réponse à la question complémentaire sur « en erreur » dans `n_sans_sigma`, le contrôle ciblé du commit de correction `0489800`.*
+> *Versé intégralement par la session principale le 20/11/2026 (`actuary-approfondi`, étape 8 de S5, validation de fond ; tête `4585867`). Quatre parties : le rapport de validation, la réponse à la question complémentaire sur « en erreur » dans `n_sans_sigma`, le contrôle ciblé du commit de correction `0489800`, la réponse à la question d'`audit` sur m-4.*
 
 ---
 
@@ -246,3 +246,19 @@ Deux endroits citent déjà le cas : l'index des fonctions, `doc_tests_usp.tex:1
 - **Mise en page et contrôles** : je ne les ai pas relancés. Je reprends du message de commit la compilation à 468 pages, la fiche aux pages 321 à 323, et `controle_doc_nd.R --bloquant` et `concordance_doc_moteur.R --strict` à 0. Le diff est lu par `git show 0489800`.
 
 Avec ce commit, les quatre objets de l'étape 8 sont visés sans réserve. Le constat « en erreur » sur `n_sans_sigma` reste écarté (ADR 0018). Prochaine étape : revue finale, puis PDF.
+
+---
+
+## Partie 4 — Réponse à la question d'`audit` sur m-4 (audit léger de `0489800`)
+
+> *Rédigé par l'agent actuary (IA).* Réponse à la question d'`audit` sur m-4 (`.tex`:6556-6557). Lecture seule.
+
+**Je réponds (a) : la formulation est maintenue.**
+
+**Motif.** Ce qui est mesuré étaye la non-pivotalité de σ̂/σ elle-même, et pas seulement une loi bootstrap inadéquate :
+1. La loi bootstrap σ̂^(b)/σ̂ d'un triangle *r* est, à l'erreur Monte-Carlo près, la loi de σ̂/σ sous le modèle de paramètres (θ̂_r, F̂_r). Sur le triangle de contrôle, elle reproduit la loi réelle de σ̂/σ_A sous son propre générateur (moyennes 0,887 et 0,891, médianes 0,845 et 0,845 ; ma lecture d4eb433, § 1.3).
+2. Sur les triangles simulés, la même loi est décalée : la moyenne de σ̂/moy(σ*) vaut environ 1,055, contre environ 1,13 sur le triangle de contrôle. La loi de σ̂/σ dépend donc des paramètres, ce qui est la définition même d'une statistique non pivotale. L'échec des intervalles réfléchis (I2, I4) en est la conséquence, et non une autre explication.
+
+Le statut d'*hypothèse* reste justifié. Le résumé du biais est un rapport de moyennes et non une loi complète. Et la mesure ne sépare pas l'effet de (f, σ²) de celui de la loi des résidus, qui sont l'une et l'autre des paramètres de nuisance pour un pivot. La phrase marque déjà ce statut : je ne change rien.
+
+*Seconde question d'`audit` (l. 9116, « 0,573 et 0,617 à 90 % sur le triangle de contrôle ») : déjà tranchée au § 2.3 de la partie 1 (« `sec:boot-mw` et le tableau 2 (l. 9116, « sur le triangle de contrôle ») restent exacts tels quels »).*
