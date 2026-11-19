@@ -3545,18 +3545,19 @@ if (nzchar(Sys.which("zip"))) {
   verifier("xlsx (#572, #557, #574 R3) : chaine en ligne de forme P2 (<r>), X1 (deux <t>) ou portant <rPh>, dans le corps : refusee",
            all(mapply(function(r, b) tous487(r, function(m) identical(m, texte574r3(paste(sprintf("balise <%s>, dans la chaine en ligne de la cellule B3", b), collapse = ", ")))),
                       is572, list(c("r", "rPh"), "t", "rPh"))))
-  # Cellules t="str" (resultat de formule) : texte de <v> lu tel quel, entites
-  # non decodees (limite consignee), en en-tete
-  # et en corps.
+  # Cellules t="str" (resultat de formule) : texte de <v> decode comme celui
+  # des chaines partagees et en ligne, en en-tete et en corps (#606, D-1 (a),
+  # option (ii), T13 de la specification ; avant : lu tel quel, en-tetes
+  # "a&amp;b", "y&#233;", limite consignee de #557).
   rstr557 <- feuille557(paste0(
     ligne487(1, c('<c r="A1" t="str"><f>"t"</f><v>t</v></c>', '<c r="B1" t="str"><f>"xt"</f><v>xt</v></c>',
                   '<c r="C1" t="str"><v>a&amp;b</v></c>', '<c r="D1" t="str"><v>y&#233;</v></c>')),
     ligne487(2, c(nb487("A2", 1), '<c r="B2" t="str"><f>TEXT(1.5,"0.0")</f><v>1.5</v></c>',
                   '<c r="C2" t="str"><v>a&amp;b</v></c>', nb487("D2", 4))),
     ligne487(3, c(nb487("A3", 2), '<c r="B3" t="str"><v>3</v></c>', '<c r="C3" t="str"><v>x&lt;y</v></c>', nb487("D3", 5)))))
-  verifier("xlsx (#557, limite consignee) : cellules t=\"str\" lues brutes, entites non decodees (en-tete et corps)",
-           tous487(rstr557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "a&amp;b", "y&#233;")) &&
-                     identical(d$xt, c("1.5", "3")) && identical(d[["a&amp;b"]], c("a&amp;b", "x&lt;y"))))
+  verifier("xlsx (#557, #606 T13) : cellules t=\"str\" decodees (en-tete et corps) : en-tetes t, xt, a&b, y\u00e9 ; xt = \"1.5\", \"3\" ; a&b = \"a&b\", \"x<y\" (avant : \"a&amp;b\", \"y&#233;\", \"x&lt;y\" lus bruts)",
+           tous487(rstr557, function(d) is.data.frame(d) && identical(names(d), c("t", "xt", "a&b", "y\u00e9")) &&
+                     identical(d$xt, c("1.5", "3")) && identical(d[["a&b"]], c("a&b", "x<y"))))
 
   # --- #575 : regle R10 du contrat ferme (indice de chaine partagee dans les
   # bornes de la table), avant la lecture. Avant correction
@@ -4736,12 +4737,95 @@ if (nzchar(Sys.which("zip"))) {
                      function(d) is.data.frame(d) && identical(as.numeric(d[, 4]), 2 * x) && identical(names(d)[4], "xt")) &&
                tous487(chemins483(feuille575(ent574e(en487("B1", sprintf("<t>%s</t>", h)), TRUE), NULL), lire487),
                        function(d) is.data.frame(d) && identical(as.numeric(d[, 4]), 2 * x) && identical(names(d)[4], "xt")), logical(1))))
-  # t="str" : texte de <v> lu tel quel par les deux chemins (aucun decodage,
-  # parite) : non vise ; seule colonne xt, la colonne D (sigma_USP
-  # 0.0762262056 sur les deux chemins, avant comme apres, sonde).
-  verifier("xlsx (#574 lot E, temoin) : en-tete B1 t=\"str\" <v>x&#116;</v> et D1 xt : non refuse, en-tetes t, x&#116;, yt, xt identiques",
-           tous487(chemins483(feuille575(ent574e('<c r="B1" t="str"><v>x&#116;</v></c>', TRUE), NULL), lire487),
-                   function(d) is.data.frame(d) && identical(names(d), c("t", "x&#116;", "yt", "xt"))))
+  # --- #606, etape 6b d'A1 : <v> des cellules t="str" (decisions du
+  # mainteneur du 18/11/2026, D-1 (a), option (ii), et D-2 (a)). Refus des
+  # references de D-S1-18 et D-S1-23 etendu au <v>, dans tout le classeur,
+  # meme texte et meme forme de position que pour une chaine en ligne ; puis
+  # texte decode par .xml_decoder(). Tests T1 a T14 de la specification
+  # (docs/revues/20261118-a1-lecteur-interne/specification-606.md, par. 4) ;
+  # texte attendu construit depuis TEXTE_REFUS_REFERENCE_NUMERIQUE du moteur
+  # charge, classe usp_refus_lecture verifiee. Mesure avant (a7f1af4,
+  # lecteur interne, C.UTF-8) : en-tete B1 t="str" <v>x&#116;</v> et D1 xt,
+  # lu, en-tetes t, x&#116;, yt, xt, colonne xt prise en D, sigma_USP
+  # 0.0762262056 (ok = TRUE) ; B1 x&#116; seul : refus en aval "colonne
+  # manquante" ; B2 1&#48;4.2 : refus en aval "non numeriques".
+  str606 <- function(r, v, f = TRUE) sprintf('<c r="%s" t="str">%s<v>%s</v></c>', r, if (f) "<f>A1</f>" else "", v)
+  ref606 <- function(f, pos) {
+    e <- tryCatch(engine_lire_xlsx(f), error = function(e) e)
+    unlink(f)
+    inherits(e, "usp_refus_lecture") &&
+      identical(conditionMessage(e), sprintf(TEXTE_REFUS_REFERENCE_NUMERIQUE, "la partie xl/worksheets/sheet1.xml du classeur", pos))
+  }
+  l1n606 <- ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"), en487("D1", "<t>note</t>")))
+  verifier("xlsx (#606 T1) : en-tete B1 t=\"str\" <v>x&#116;</v> et D1 xt (doublon), puis sans <f> : refus \"B1 : &#116;\", classe usp_refus_lecture (avant : lu, colonne xt prise en D, sigma_USP 0.0762262056)",
+           ref606(feuille575(ent574e(str606("B1", "x&#116;"), TRUE), NULL), "B1 : &#116;") &&
+             ref606(feuille575(ent574e(str606("B1", "x&#116;", FALSE), TRUE), NULL), "B1 : &#116;"))
+  verifier("xlsx (#606 T2, T5) : en-tete B1 t=\"str\" x&#116; ou x&#X74; seul : refus \"B1 : &#116;\" et \"B1 : &#X74;\" (avant : refus en aval \"colonne manquante : xt\")",
+           ref606(feuille575(ent574e(str606("B1", "x&#116;")), NULL), "B1 : &#116;") &&
+             ref606(feuille575(ent574e(str606("B1", "x&#X74;")), NULL), "B1 : &#X74;"))
+  verifier("xlsx (#606 T3) : valeur B2 t=\"str\" 1&#48;4.2 : refus \"B2 : &#48;\", jamais lue 104.2 (avant : refus en aval \"non numeriques\")",
+           ref606(feuille575(ser574(str606("B2", "1&#48;4.2")), NULL), "B2 : &#48;"))
+  verifier("xlsx (#606 T4, D-S1-23) : en-tete B1 t=\"str\" xt&#9;, &#xD;xt, xt&#12288; avec D1 xt, et A1 t=\"str\" &#65279;t : refus, reference citee telle qu'ecrite",
+           all(mapply(function(h, ref) ref606(feuille575(ent574e(str606("B1", h), TRUE), NULL), paste("B1 :", ref)),
+                      c("xt&#9;", "&#xD;xt", "xt&#12288;"), c("&#9;", "&#xD;", "&#12288;"))) &&
+             ref606(feuille575(sub(en487("A1", "<t>t</t>"), str606("A1", "&#65279;t"), ent574e(en487("B1", "<t>xt</t>")), fixed = TRUE), NULL),
+                    "A1 : &#65279;"))
+  verifier("xlsx (#606 T6, D-2 (a)) : note annexe D2 t=\"str\" &#65; : refus \"D2 : &#65;\" (avant : lu, xt = 11.5)",
+           ref606(feuille575(paste0(l1n606, ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2), str606("D2", "&#65;")))), NULL),
+                  "D2 : &#65;"))
+  verifier("xlsx (#606 T7) : B1 en ligne x&#116; et D2 t=\"str\" &#65; : un seul refus, positions \"B1 : &#116;, D2 : &#65;\" (ordre du document)",
+           ref606(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>x&#116;</t>"), en487("C1", "<t>yt</t>"), en487("D1", "<t>note</t>"))),
+                                    ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2), str606("D2", "&#65;")))), NULL),
+                  "B1 : &#116;, D2 : &#65;"))
+  verifier("xlsx (#606, triangle) : en-tete C1 t=\"str\" j&#49; d'un triangle : refus \"C1 : &#49;\"",
+           ref606(feuille575(paste0(ligne487(1, c(en487("A1", "<t>i</t>"), en487("B1", "<t>j0</t>"), str606("C1", "j&#49;"))),
+                                    ligne487(2, c(nb487("A2", 0), nb487("B2", 100), nb487("C2", 150)))), NULL),
+                  "C1 : &#49;"))
+  # Texte decode (D-1 (a), option (ii)) : entites nommees et references
+  # admises du <v> lues comme dans une chaine en ligne. F7, F8, F11 de la
+  # specification ; feuille de deux lignes de donnees.
+  l3_606 <- function(d1, d2, d3)
+    paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"), d1)),
+           ligne487(2, c(nb487("A2", 1), nb487("B2", 11), nb487("C2", 2), d2)),
+           ligne487(3, c(nb487("A3", 2), nb487("B3", 13), nb487("C3", 4), d3)))
+  lu606 <- function(xml) { f <- feuille575(xml, NULL); on.exit(unlink(f)); engine_lire_xlsx(f) }
+  f7_606 <- lu606(l3_606(str606("D1", "R&amp;D"), str606("D2", "a&lt;b&gt;c"), en487("D3", "<t>a</t>")))
+  av7_606 <- engine_lire_donnees_csv(f7_606)
+  verifier("xlsx (#606 T8) : en-tete D1 t=\"str\" R&amp;D, valeur D2 t=\"str\" a&lt;b&gt;c : en-tete \"R&D\", note \"a<b>c\", \"a\" ; aval ok, xt = 11, 13 (avant : \"R&amp;D\", \"a&lt;b&gt;c\")",
+           identical(names(f7_606), c("t", "xt", "yt", "R&D")) && identical(f7_606[[4]], c("a<b>c", "a")) &&
+             isTRUE(av7_606$ok) && identical(av7_606$xt, c(11, 13)))
+  f8_606 <- lu606(l3_606(en487("D1", "<t>note</t>"), str606("D2", "caf&#233;"), str606("D3", "&#38;&#0;")))
+  f11_606 <- lu606(l3_606(str606("D1", "&amp;lt;"), nb487("D2", 5), nb487("D3", 6)))
+  verifier("xlsx (#606 T9) : D2 t=\"str\" caf&#233;, D3 &#38;&#0; lus \"caf\u00e9\", \"&&#0;\" ; en-tete D1 &amp;lt; lu \"&lt;\" (une seule passe)",
+           identical(f8_606$note, c("caf\u00e9", "&&#0;")) && identical(names(f11_606)[4], "&lt;"))
+  verifier("xlsx (#606 T10) : memes textes en chaine en ligne (R&amp;D, a&lt;b&gt;c ; caf&#233;, &#38;&#0;) : data.frame identical() a celui des cellules t=\"str\"",
+           identical(f7_606, lu606(l3_606(en487("D1", "<t>R&amp;D</t>"), en487("D2", "<t>a&lt;b&gt;c</t>"), en487("D3", "<t>a</t>")))) &&
+             identical(f8_606, lu606(l3_606(en487("D1", "<t>note</t>"), en487("D2", "<t>caf&#233;</t>"), en487("D3", "<t>&#38;&#0;</t>")))))
+  f9_606 <- lu606(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>xt</t>"), en487("C1", "<t>yt</t>"))),
+                         ligne487(2, c(nb487("A2", 1), str606("B2", "104.2&#160;"), nb487("C2", 2))),
+                         ligne487(3, c(nb487("A3", 2), nb487("B3", 13), nb487("C3", 4)))))
+  verifier("xlsx (#606 T11) : valeur B2 t=\"str\" 104.2&#160; : lue \"104.2\" suivi de U+00A0 ; refus en aval \"... non numeriques (colonne xt : ligne(s) de donnees 1).\", message identique a celui d'avant (texte \"104.2&#160;\")",
+           identical(f9_606$xt, c("104.2\u00a0", "13")) &&
+             identical(engine_lire_donnees_csv(f9_606)$erreurs,
+                       "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1)."))
+  f10_606 <- lu606(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), str606("B1", "xt"), en487("C1", "<t>yt</t>"))),
+                          ligne487(2, c(nb487("A2", 1), str606("B2", "104.2"), nb487("C2", 2))),
+                          ligne487(3, c(nb487("A3", 2), nb487("B3", 13), nb487("C3", 4)))))
+  verifier("xlsx (#606 T12, temoin) : en-tete B1 t=\"str\" xt, valeur B2 t=\"str\" 104.2 sans reference : lus, xt = 104.2, 13 (inchange)",
+           identical(names(f10_606), c("t", "xt", "yt")) && identical(engine_lire_donnees_csv(f10_606)$xt, c(104.2, 13)))
+  # R12 lit le texte decode : en lecture complete, seule cellule de la
+  # ligne 1 t="str" &amp; (texte "&", non blanc), pas de refus de ligne 1
+  # vide. Aucune reference admise ne se decode en blanc (D-S1-23) : en
+  # lecture complete, l'effet du decodage sur R12 ne se voit pas. Il se voit
+  # en appel direct, hors admission : A1 t="str" &#32; decode en " " (blanc)
+  # est une ligne 1 vide (avant : texte "&#32;", non blanc, pas de refus).
+  verifier("xlsx (#606 T14) : ligne 1 dont la seule cellule est t=\"str\" &amp; : lue, en-tete \"&\", pas de MOTIF_LIGNE1_VIDE ; appel direct de .xlsx_controler_ligne_entete() sur A1 t=\"str\" &#32; : MOTIF_LIGNE1_VIDE (texte decode)",
+           local({ d <- lu606(paste0(ligne487(1, str606("A1", "&amp;")), ligne487(2, nb487("A2", 1))))
+                   x14 <- paste0("<sheetData>", ligne487(1, str606("A1", "&#32;")), ligne487(2, nb487("A2", 1)), "</sheetData>")
+                   e <- tryCatch(.xlsx_controler_ligne_entete(x14), error = function(e) e)
+                   is.data.frame(d) && identical(names(d), "&") &&
+                     inherits(e, "usp_refus_lecture") && identical(conditionMessage(e), MOTIF_LIGNE1_VIDE) &&
+                     is.null(.xlsx_controler_ligne_entete(sub("&#32;", "&amp;", x14, fixed = TRUE))) }))
   # Temoins admis : non ASCII, dont des espaces qui ne sont pas des blancs
   # de .xlsx_blancs_entete() (U+00A0, U+202F, U+200B, U+0085), echappements
   # des cinq caracteres XML, entites nommees, references hors domaine ou de
@@ -4821,8 +4905,8 @@ if (nzchar(Sys.which("zip"))) {
                    f <- cr602(f, "xl/sharedStrings.xml" = c("P602e", "c\r"))
                    r <- chemins483(f, lire487)
                    tous487(r, function(d) is.data.frame(d) && identical(d$note, c("a\nb", "c\nd"))) }))
-  # Le <v> d'une cellule t="str" n'est pas decode (#606, non traite ici) ;
-  # il est du texte de la feuille, normalise a l'entree comme le reste.
+  # Le <v> d'une cellule t="str" est du texte de la feuille, normalise a
+  # l'entree comme le reste, avant son decodage (#606).
   verifier("xlsx (#602, XML 1.0 2.11) : <v> d'une cellule t=\"str\" portant \"a<CR><LF>b\" : lu \"a\\nb\" (avant : \"a\\r\\nb\")",
            local({ f <- feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", "<t>note</t>"))),
                                           ligne487(2, c(nb487("A2", 1), '<c r="B2" t="str"><v>P602f</v></c>'))), NULL)
