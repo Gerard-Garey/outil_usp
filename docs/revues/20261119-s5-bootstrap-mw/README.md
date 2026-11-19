@@ -53,9 +53,12 @@
 - `/code-review` (`medium`, sur `origin/main...4585867`) : quatre constats, tous mineurs, écartés (ADR 0018 ; PR #609).
 - Audit léger de `0489800` : **conforme avec réserves** ; mineur l. 9116 déjà tranché par `actuary` (exact tel quel) ; question sur m-4, formulation maintenue par `actuary` (`6174cec`).
 - `\datedoc` au 20 novembre 2026, jour du PDF (`3ea33f4`) ; `\dateconsultation` inchangée.
+- Synthèse versée : `ae9fc5f`, complétée de l'étape 10 au commit suivant.
 
 ### Étape 10 : veille et PDF
-- *(à compléter)*
+- Veille du 20/11 (heure de Paris ; relevés de 23:54 à 23:56 UTC le 19/11), commentaire daté sur #463 (`7025668429`) : aucun fait nouveau (AEAPP, orientations de 2015, question 2580, 2015/498, rectificatifs de 2026/269 (R(01) à R(03)) et de 2015/35 (R(01) à R(14)), ACPR) ; Légifrance non lu (403), dernier relevé réussi le 18/11 ; `\dateconsultation` inchangée.
+- PDF de fin de branche `3d6cc96` (`.tex` de `3ea33f4`, pdfTeX-1.40.25, 468 pages, aucune référence indéfinie, aucun Overfull ; `controle_doc_nd.R --bloquant` sans violation).
+- Mots-clés de fermeture : aucun dans `git log origin/main..HEAD --format=%B` ; corps de la PR : les seules lignes `Closes #N`.
 
 ## Constats hors périmètre (ADR 0018)
 
