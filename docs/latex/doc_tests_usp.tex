@@ -972,7 +972,8 @@ texte «~\code{NA}~»~; blancs de la ligne d'en-tête mis en forme
 renommé pour lever un doublon~; balises
 \code{<sheet>} et \code{<Relationship>} préfixées et attributs entre apostrophes ou à blancs autour du signe \code{=} du
 classeur et de ses relations lus (mesuré~; le paquet \code{openxlsx}~4.2.9 s'y arrête sur une
-erreur R, §\ref{sec:controles})~; entités XML nommées et références numériques admises des
+erreur R, §\ref{sec:controles})~; fins de ligne littérales de chaque partie lue normalisées en
+saut de ligne avant toute règle et tout décodage (\code{.xml\_fins\_de\_ligne()})~; entités XML nommées et références numériques admises des
 chaînes partagées et en ligne
 décodées, texte phonétique (\code{<rPh>}) d'une chaîne partagée non lu, tableau dimensionné sur
 les seules cellules à valeur~; texte
@@ -983,14 +984,18 @@ rendue numérique que si toutes ses cellules à valeur sont des cellules nombre,
 caractères, interprétée en aval (§\ref{sec:controles})~; une colonne booléenne, rendue en
 caractères, est refusée en aval avec la position de ses cellules renseignées si elle porte $t$,
 \code{xt}, \code{yt} ou une colonne du triangle (\code{.en\_numerique()}, mesuré) \\
-\code{.xlsx\_texte()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
+\code{.xlsx\_texte()},\newline \code{.xml\_fins\_de\_ligne()},\newline \code{.xml\_decoder()},\newline \code{.xml\_textes()},\newline
 \code{.xlsx\_paires()},\newline \code{.xlsx\_attribut()},\newline \code{.xlsx\_balises()},\newline
 \code{.xlsx\_chemin\_sort()},\newline \code{.xlsx\_cellules()}
-& dossier d'extraction, partie~; texte~; fragment XML, \code{decoder} (\code{TRUE})~; balise~; balise, nom
+& dossier d'extraction, partie~; texte~; texte~; fragment XML, \code{decoder} (\code{TRUE})~; balise~; balise, nom
 d'attribut, \code{local} (\code{TRUE})~; XML, nom d'élément~; chemins~; XML de la feuille,
-découpage en balises & texte de la partie lu d'un bloc en octets, sauts de ligne
-conservés, partie refusée si elle n'est pas du texte UTF-8 valide sans octet nul (motif qui cite
-la partie et la position du premier octet fautif)~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
+découpage en balises & texte de la partie lu d'un bloc en octets, partie refusée si elle n'est
+pas du texte UTF-8 valide sans octet nul (motif qui cite la partie et la position du premier octet
+fautif dans la partie archivée), puis rendu aux fins de ligne normalisées par
+\code{.xml\_fins\_de\_ligne()}, avant toute règle d'admission~; texte dont chaque fin de ligne
+littérale («~\code{\textbackslash r\textbackslash n}~», puis tout «~\code{\textbackslash r}~»
+isolé) devient un saut de ligne «~\code{\textbackslash n}~», les références de caractère
+(\code{\&\#{}13;}) n'étant pas touchées~; texte aux cinq entités prédéfinies et aux références numériques décodées en une
 seule passe («~\code{\&amp;lt;}~» rendu «~\code{\&lt;}~»), une référence hors du domaine des
 caractères laissée telle quelle~; texte de tous les segments \code{<t>} d'une chaîne, enrichie
 ou non, texte phonétique (balises \code{<rPh .../>} et blocs \code{<rPh>}, préfixés ou non, attributs lus en
@@ -1126,7 +1131,10 @@ retour chariot d'un texte en saut de ligne et les blancs d'un attribut en espace
 contenu de la chaîne, aucun caractère n'étant retiré en silence et aucun fichier n'étant écrit
 ni retiré (mesuré)~; tabulation et saut de ligne admis en cellule et en en-tête, relus tels
 quels par le lecteur interne (mesuré)~; guillemet double d'un nom de feuille écrit
-\code{\&quot;}~; \\
+\code{\&quot;}~; chacune des cinq parties de l'archive écrite en octets, chaque ligne suivie du
+seul octet 0x0A, sans conversion de fin de ligne quel que soit le système
+(\code{.engine\_ecrire\_octets()}), si bien qu'un saut de ligne de cellule ou d'en-tête est
+écrit 0x0A seul (mesuré sous Linux~; sous Windows, par construction, non mesuré)~; \\
 \code{engine\_ecrire\_xlsx()} (suite) & idem & archive compressée par le paquet \code{zip} s'il est installé, sinon par \code{utils::zip()} et
 la commande \code{zip} du système, erreur levée avant toute écriture sans l'un ni l'autre~; si
 \code{zip::zipr()} échoue, archive partielle effacée et repli sur \code{utils::zip()} quand la
@@ -1169,7 +1177,9 @@ logiques sans guillemets, texte en UTF-8), seule l'écriture des nombres différ
 écrit par \code{.xlsx\_nombre()}, entier en \code{\%d}, \code{NA} et \code{NaN} en cellule vide,
 $\pm\infty$ en «~\code{Inf}~» et «~\code{-Inf}~»~; un double fini se relit à l'identique, alors
 que les 15~chiffres de \code{write.csv()} ne restituent ni $1/3$ ni le plus grand double fini
-(\code{.Machine\$double.xmax}), relu \code{Inf} (mesuré)~; export CSV des données de
+(\code{.Machine\$double.xmax}), relu \code{Inf} (mesuré)~; fichier écrit en octets par
+\code{.engine\_ecrire\_octets()}, chaque ligne suivie du seul octet 0x0A quel que soit le système
+(mesuré sous Linux~; sous Windows, par construction, non mesuré)~; export CSV des données de
 l'application \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Noyau du modèle}}} \\
 \code{usp\_pi()} & $\delta$, $\gamma$, $x$, \code{xbar} (moyenne de $x$) &
@@ -5231,7 +5241,16 @@ deux tables~; mesuré).
 (\code{xl/workbook.xml}, \code{xl/\_rels/}\allowbreak\code{workbook.xml.rels}, la feuille lue et
 \code{xl/sharedStrings.xml}) sont lues en octets et doivent être du texte UTF-8 valide, sans
 octet nul (\code{.xlsx\_texte()})~; le motif cite la partie et la position du premier octet
-fautif (\code{.xlsx\_premier\_octet\_fautif()}). Les règles suivantes, appliquées par
+fautif (\code{.xlsx\_premier\_octet\_fautif()}). Le texte de chacune de ces parties est ensuite
+normalisé, avant toute autre règle et tout décodage~: une fin de ligne littérale
+«~\code{\textbackslash r\textbackslash n}~», puis tout retour chariot isolé, devient un saut de
+ligne (\code{.xml\_fins\_de\_ligne()}), normalisation qu'un processeur XML doit faire «~on input,
+before parsing~» (recommandation du W3C \emph{Extensible Markup Language (XML) 1.0}, cinquième
+édition, 2008, §~2.11)~; un texte écrit «~\code{a}~», retour chariot, saut de ligne, «~\code{b}~»
+est lu «~\code{a}~», saut de ligne, «~\code{b}~» (mesuré). Une référence \code{\&\#{}13;} ou
+\code{\&\#{}xD;}, qui n'est pas une fin de ligne littérale, n'est pas normalisée~: décodée, elle
+resterait un retour chariot (§~2.11 et~4.4.2 de la même recommandation)~; elle est refusée par la
+règle des références numériques, ci-dessous. Les règles suivantes, appliquées par
 expressions régulières, supposent un texte valide, et \code{openxlsx} s'arrête sur une erreur
 de~R devant une table en UTF-8 invalide qu'aucune cellule ne cite (mesuré). Les autres parties
 ne sont pas contrôlées~: un octet 0xFF placé dans \code{[Content\_Types].xml} est sans effet sur
@@ -21250,7 +21269,8 @@ fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{.ligne1\_sans\_valeur()}, \code{engine\_lire\_xlsx()} (feuille résolue par
 \code{.xlsx\_fichier\_}\allowbreak\code{feuille()}, chemin qui sort par
 \code{.xlsx\_chemin\_sort()}, cellules lues par \code{.xlsx\_cellules()}~; contrat de forme du
-classeur appliqué par \code{.xlsx\_admettre()}~: parties lues par \code{.xlsx\_texte()},
+classeur appliqué par \code{.xlsx\_admettre()}~: parties lues par \code{.xlsx\_texte()}, fins de
+ligne normalisées par \code{.xml\_fins\_de\_ligne()},
 balisage par \code{.xlsx\_controler\_}\allowbreak\code{balisage()}, désignation de la feuille
 par \code{.xlsx\_controler\_}\allowbreak\code{balises\_relation()},
 \code{.xlsx\_controler\_}\allowbreak\code{relations()} et
