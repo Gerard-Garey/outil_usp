@@ -8388,7 +8388,8 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
 # Une ligne 1 physiquement vide (aucun separateur) reste refusee avant
 # lecture par l'application (utils::count.fields), comme avant. Un classeur
 # dont la ligne 1 ne porte que des chaines vides ou de blancs est refuse en
-# amont, au meme texte, sur les deux chemins (.xlsx_controler_ligne_entete()).
+# amont, par le lecteur interne (.xlsx_controler_ligne_entete(), R12, lecteur
+# unique depuis #604 ; jusqu'a #604, au meme texte sur les deux chemins).
 # L'espace insecable U+00A0 n'est pas un blanc de [[:space:]] sous C.UTF-8 :
 # un en-tete fait d'elle seule est un en-tete reel, ici comme en classeur.
 .ligne1_sans_valeur <- function(df) {
@@ -8818,9 +8819,15 @@ engine_lire_triangle <- function(df) {
 ## rectangulaires de nombres et de chaines, qui est exactement le besoin ici
 ## (series x_t / y_t, ou triangle de cumules).
 ##
-## Lecture : si le paquet openxlsx est installe, il est utilise en priorite
-## (implementation plus complete et mieux eprouvee) ; le lecteur ci-dessous
-## est un repli, non un remplacement.
+## Lecture : le lecteur interne ci-dessous est le seul lecteur du moteur,
+## que le paquet openxlsx soit installe ou non (ADR 0020, #604) : controle
+## unique d'admission du contrat ferme (.xlsx_admettre(), #574), puis
+## assemblage du tableau a partir des cellules admises (engine_lire_xlsx()).
+## Jusqu'a #604, un poste muni d'openxlsx lisait le classeur admis par
+## openxlsx::read.xlsx() ; les regles nees de la comparaison des deux
+## lectures restent, comme regles propres du contrat ferme, dont plusieurs
+## protegent aussi le lecteur interne (en-tete d'engine_lire_xlsx()).
+## openxlsx ne sert plus que de temoin dans les tests.
 ## Ecriture : l'ecrivain interne est seul employe, avec ou sans openxlsx
 ## (#488) : openxlsx ecrit les nombres par as.character(), a 15 chiffres
 ## significatifs, et l'aller-retour n'est pas identique au bit ;
@@ -8854,7 +8861,9 @@ engine_lire_triangle <- function(df) {
 # Reconnu de la meme facon sur tout systeme : fonction de reconnaissance, qui
 # ne dit pas ce que le systeme courant admet (sous unix, .xlsx_chemin_sortie()
 # n'en retient que la barre oblique, et engine_ecrire_xlsx() refuse avant les
-# formes de lecteur et d'UNC en barres inverses, voir .xlsx_defaut_chemin()).
+# formes de lecteur et d'UNC en barres inverses ; sous Windows, il refuse la
+# forme "X:" sans barre, que cette fonction tient pour absolue : voir
+# .xlsx_defaut_chemin()).
 # Aucun acces au systeme de fichiers.
 .xlsx_chemin_absolu <- function(chemin) grepl("^([/\\\\]|[A-Za-z]:)", chemin)
 
@@ -8871,7 +8880,9 @@ engine_lire_triangle <- function(df) {
 # il serait pris pour un nom de fichier ordinaire, sous wd. Sous Windows, les
 # formes de .xlsx_chemin_absolu() restent absolues ; un dossier "." (forme
 # absolue sans dossier que R sache lire, dont normalizePath(".") rendrait
-# getwd()) rend le chemin tel quel. Le resultat ne depend pas de getwd() (il
+# getwd()) rend le chemin tel quel : c'est la forme "X:f.xlsx", que
+# engine_ecrire_xlsx() refuse avant sous Windows (#603), de sorte que cette
+# branche n'est plus atteinte par l'ecrivain. Le resultat ne depend pas de getwd() (il
 # depend de wd, de HOME pour "~" et, par normalizePath(), des liens du dossier
 # s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
 .xlsx_chemin_sortie <- function(chemin, wd) {
@@ -8910,22 +8921,45 @@ engine_lire_triangle <- function(df) {
 # sur la chaine (.xlsx_defaut_encodage()) ; sous unix, forme de lecteur Windows
 # ("^[A-Za-z]:") ou d'UNC en barres inverses ("^\\\\"), qui n'est pas un chemin
 # de ce systeme (mesure : la cible, rendue telle quelle, etait relative au
-# dossier temporaire de l'appel, supprime en sortie : "OK" sans fichier) ; barre
+# dossier temporaire de l'appel, supprime en sortie : "OK" sans fichier) ; sous
+# Windows, forme de lecteur sans barre (#603, voir ci-dessous) ; barre
 # finale ; enfin nom ne se terminant pas par .xlsx, casse indifferente, ce qui
 # refuse aussi ".", ".." et "sub/." / "sub/.." (un nom sans extension recevait
 # ".zip" de la commande zip : "f" ecrivait "f.zip"). Sous Windows, les formes de
-# lecteur et d'UNC restent des chemins absolus admis. Un dossier existant est
-# refuse plus loin, sur la cible resolue (dir.exists()).
-.xlsx_defaut_chemin <- function(chemin) {
+# lecteur suivies d'une barre ("C:/a/f.xlsx", "C:\\a\\f.xlsx") et d'UNC restent
+# des chemins absolus admis. Un dossier existant est refuse plus loin, sur la
+# cible resolue (dir.exists()).
+# Forme de lecteur sans barre sous Windows (#603) : lettre, deux-points, puis
+# autre chose qu'une barre oblique ou inverse, ou rien ("X:f.xlsx", "c:f.xlsx",
+# "X:") ; la cible est relative au dossier courant de ce lecteur, non a celui de
+# l'appelant. Constat de JS1 sur un poste Windows (docs/revues/20261118-js1-poste-
+# windows/etape-2-iii-chemin-de-lecteur.md) : "C:f.xlsx" rendait un succes sans
+# fichier la ou on l'attend ; la lecture du code et la sonde de ce releve en
+# donnent le mecanisme (setwd() sur le dossier temporaire de l'appel, qui est
+# alors le dossier courant du lecteur de tempdir(), puis suppression de ce
+# dossier avec le fichier) ; non rejoue sous Linux. Refuse ici avant toute
+# ecriture, quel que soit le lecteur : le refus ne depend pas de la mesure d'un
+# second lecteur, non faite (le poste du constat n'a que C:).
+# systeme : "unix" ou "windows" (defaut .Platform$OS.type ; autre valeur
+# refusee par match.arg()) ; argument de la
+# fonction pure qui decide, pour que la branche Windows soit testable sous
+# Linux ; engine_ecrire_xlsx() l'appelle sans lui.
+.xlsx_defaut_chemin <- function(chemin, systeme = .Platform$OS.type) {
+  systeme <- match.arg(systeme, c("unix", "windows"))
   motif_usage <- paste("le chemin doit etre une chaine unique, non NA, non vide et ne pas",
                        "finir par une barre")
   if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin))
     return(motif_usage)
   defaut <- .xlsx_defaut_encodage(chemin)
   if (!is.null(defaut)) return(paste("le chemin porte", defaut))
-  if (.Platform$OS.type == "unix" && grepl("^([A-Za-z]:|\\\\\\\\)", chemin))
+  if (systeme == "unix" && grepl("^([A-Za-z]:|\\\\\\\\)", chemin))
     return(paste("le chemin est un chemin de lecteur Windows (X:...) ou de partage en barres",
                  "inverses (\\\\serveur\\...) : ce n'est pas un chemin de ce systeme"))
+  if (systeme == "windows" && grepl("^[A-Za-z]:([^/\\\\]|$)", chemin))
+    return(paste("le chemin est de la forme X: sans barre (lecteur seul, ou fichier relatif au",
+                 "dossier courant de ce lecteur) : la cible n'est pas resolue contre le dossier",
+                 "de l'appelant et le fichier pourrait n'etre pas ecrit la ou on l'attend",
+                 "(donner le chemin complet, X:/dossier/f.xlsx, ou un chemin relatif sans lecteur)"))
   if (grepl("[/\\\\]$", chemin)) return(motif_usage)
   if (!grepl("\\.[xX][lL][sS][xX]$", chemin))
     return(paste("le chemin doit designer un fichier dont le nom se termine par .xlsx",
@@ -8940,8 +8974,15 @@ engine_lire_triangle <- function(df) {
 # U+000C, U+000E a U+001F), U+FFFE, U+FFFF et les substituts (U+D800 a U+DFFF,
 # que validUTF8() rejette deja), ainsi que toute suite d'octets qui n'est pas
 # de l'UTF-8 valide. Est refuse aussi le retour chariot (U+000D), meme admis
-# par XML 1.0 : un analyseur XML conforme le relit en saut de ligne (XML 1.0,
-# 2.11), le caractere ne survit pas a la relecture par un tableur. Avec
+# par XML 1.0 : le motif tient a la lecture, non a l'ecrivain (qui ecrit les
+# octets tels quels, .engine_ecrire_octets(), #602). Un processeur XML 1.0
+# doit se comporter comme s'il remplacait a l'entree, avant l'analyse, toute
+# suite litterale #xD #xA et tout #xD isole par un seul #xA (XML 1.0, 2.11,
+# normalisation des fins de ligne ; citation dans
+# docs/revues/20261118-a1-lecteur-interne/relecture-xml-1.0.md) : un retour
+# chariot ecrit en clair dans une cellule est donc relu saut de ligne par un
+# analyseur conforme, dont le lecteur interne (.xml_fins_de_ligne(), #602,
+# etape 3b d'A1). Avec
 # attribut = TRUE (nom de feuille, ecrit dans l'attribut name de xl/workbook.xml),
 # la tabulation et le saut de ligne sont refuses de meme : un analyseur
 # conforme relit les blancs d'un attribut en espaces (XML 1.0, 3.3.3). La
@@ -8985,6 +9026,26 @@ engine_lire_triangle <- function(df) {
   s
 }
 
+# Ecrit des lignes de texte dans un fichier, en octets (#602) : chaque element
+# de lignes est ecrit avec ses octets tels quels (charToRaw(), aucune
+# conversion d'encodage ; un NA s'ecrit "NA"), suivi de l'octet 0x0A, par
+# writeBin() sur une connexion binaire ("wb"). Aucune fin de ligne n'est
+# convertie, quel que soit le systeme : en mode texte, writeLines() ecrit
+# "\r\n" pour chaque "\n" sous Windows (constat de JS1, #602), y compris dans
+# le texte d'une cellule. Memes octets que writeLines(lignes, chemin,
+# useBytes = TRUE) sous Linux (mesure, R 4.3.3, parties et CSV des cas des
+# tests de #488 et #580). lignes : vecteur de chaines, en UTF-8 par
+# enc2utf8() chez les appelants, sauf une chaine d'encodage "bytes" du CSV,
+# ecrite telle quelle : l'aide n'impose aucun encodage ; chemin : chemin d'un fichier,
+# cree ou ecrase. Employee pour chaque partie de l'archive d'engine_ecrire_xlsx()
+# et par engine_ecrire_csv().
+.engine_ecrire_octets <- function(lignes, chemin) {
+  octets <- unlist(lapply(lignes, function(l) c(charToRaw(l), as.raw(10L))),
+                   use.names = FALSE)
+  writeBin(if (is.null(octets)) raw(0) else octets, chemin)
+  invisible(chemin)
+}
+
 # Ecrit un data.frame dans un classeur .xlsx a une feuille, par l'ecrivain
 # interne seul, avec ou sans openxlsx (#488 ; voir l'en-tete de la section).
 # Les colonnes numeriques sont ecrites comme nombres (.xlsx_nombre()), les
@@ -8996,14 +9057,14 @@ engine_lire_triangle <- function(df) {
 # la colonne en chaine ; l'interpretation revient a .cellules_en_nombre(). Les
 # NA sont des cellules vides. Une colonne logique est ecrite en chaines en
 # ligne "TRUE" / "FALSE" (as.character(), aucune cellule booleenne t="b").
-# Divergence de relecture entre les deux chemins d'engine_lire_xlsx() (mesure,
-# openxlsx 4.2.9 ; voir la liste de son en-tete) : une chaine ou un en-tete
+# Relecture par engine_lire_xlsx(), seul lecteur depuis #604, comparee a
+# openxlsx (mesure, openxlsx 4.2.9 ; voir son en-tete) : une chaine ou un en-tete
 # portant "&", "<" ou ">" (ecrits echappes &amp; &lt; &gt;) sont relus tels
 # quels par le lecteur interne, encore echappes par openxlsx ("a&lt;b&amp;c") ;
 # la colonne logique est relue en caractere ("TRUE") par le lecteur interne,
 # en logique par openxlsx ; dans t, xt, yt ou le triangle, elle est refusee
-# en aval par l'un et l'autre chemin, avec les memes positions
-# (.en_numerique(), #579). Aucune retouche de la sortie d'openxlsx. Les
+# en aval par l'un et l'autre lecteur, avec les memes positions
+# (.en_numerique(), #579). Les
 # exports de donnees de l'application n'y sont pas exposes : en-tetes fixes
 # (t, xt, yt ; i, j0, j1...) et cellules numeriques.
 # Compression : paquet zip s'il est installe (zip::zipr(), appel de meme forme
@@ -9024,11 +9085,14 @@ engine_lire_triangle <- function(df) {
 # la commande zip ecrivait en "f.zip"), et qui n'est ni un chemin de lecteur
 # Windows ("X:...") ni un chemin UNC en barres inverses sous unix (pas un
 # chemin de ce systeme : la cible, relative au dossier temporaire de l'appel,
-# n'ecrivait rien), sinon refus usp_refus_ecriture avant toute ecriture
-# (.xlsx_defaut_chemin()) ; refuse aussi une cible qui est un dossier existant ;
+# n'ecrivait rien), ni, sous Windows, la forme de lecteur sans barre ("X:f.xlsx",
+# "X:" : relative au dossier courant du lecteur, succes annonce sans fichier la
+# ou on l'attend, #603 ; "X:/a/f.xlsx" et "X:\\a\\f.xlsx" restent admis), sinon
+# refus usp_refus_ecriture avant toute ecriture (.xlsx_defaut_chemin()) ;
+# refuse aussi une cible qui est un dossier existant ;
 # resolu avant tout changement de repertoire par .xlsx_chemin_sortie() ("~"
 # developpe ; sous unix, absolu s'il commence par "/", sinon relatif au
-# repertoire courant de l'appelant ; sous Windows, lecteur "X:" et UNC absolus).
+# repertoire courant de l'appelant ; sous Windows, lecteur "X:/..." et UNC absolus).
 # La valeur rendue est ce chemin resolu, rendue seulement si le fichier existe
 # apres l'ecriture (sinon refus usp_refus_ecriture).
 # Caracteres (#580) : une chaine ecrite (cellule, en-tete, nom de feuille) qui
@@ -9040,10 +9104,16 @@ engine_lire_triangle <- function(df) {
 # cellule et en en-tete, le retour chariot (U+000D), et dans le nom de la
 # feuille la tabulation, le saut de ligne et le retour chariot : un analyseur
 # XML 1.0 conforme relit un retour chariot de texte en saut de ligne (2.11) et
-# les blancs d'un attribut en espaces (3.3.3), alors que openxlsx et le
-# lecteur interne les relisent intacts (mesure, decision du mainteneur du
-# 18/11/2026) ; l'echappement &#13; est exclu (le lecteur refuse ces
-# references). Tabulation et saut de ligne restent admis en cellule et en
+# les blancs d'un attribut en espaces (3.3.3), alors que openxlsx les relit
+# intacts (mesure, decision du mainteneur du 18/11/2026 ; openxlsx 4.2.5.2
+# sous Linux, retour chariot de texte : inventaire de l'etape 1a d'A1, A14 ;
+# openxlsx 4.2.9 sous Windows le relit en saut de ligne, meme ligne A14).
+# Le lecteur interne relit un retour chariot ecrit en clair en saut de ligne,
+# dans le texte comme dans un attribut (.xml_fins_de_ligne(), #602, etape
+# 3b d'A1), mais garde intacts la tabulation et le saut de ligne d'un
+# attribut (3.3.3 non appliquee ; mesure : name="a<TAB>b<LF>c" lu tel quel
+# par .xlsx_attribut()) ; l'echappement &#13; est exclu (le lecteur refuse
+# ces references). Tabulation et saut de ligne restent admis en cellule et en
 # en-tete (texte de cellule). Une chaine marquee "bytes" et non ASCII est
 # refusee de meme, a tous les emplacements. Le guillemet double d'un nom de
 # feuille est ecrit &quot; dans l'attribut name. Le message cite l'emplacement (feuille,
@@ -9051,6 +9121,10 @@ engine_lire_triangle <- function(df) {
 # Nom de la feuille : chaine unique, non NA, non vide ; un nombre fini seul
 # est admis et ecrit as.character() (feuille = 1 donne la feuille "1", comme
 # avant le controle) ; tout autre argument est refuse (usp_refus_ecriture).
+# Parties de l'archive : chacune est ecrite en octets UTF-8 par
+# .engine_ecrire_octets() (#602), sans conversion de fin de ligne quel que
+# soit le systeme : un saut de ligne de cellule ou d'en-tete est ecrit 0x0A
+# seul, aucune partie ne porte l'octet 0x0D.
 engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   .engine_point_decimal()
   # Controle d'usage de chemin, avant tout (#580) : un fichier .xlsx est
@@ -9125,27 +9199,27 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
   dir.create(file.path(d, "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "_rels"), recursive = TRUE, showWarnings = FALSE)
   dir.create(file.path(d, "xl", "worksheets"), recursive = TRUE, showWarnings = FALSE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">',
     '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
     '<Default Extension="xml" ContentType="application/xml"/>',
     '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>',
     '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>',
-    '</Types>'), file.path(d, "[Content_Types].xml"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '</Types>'), file.path(d, "[Content_Types].xml"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>',
-    '</Relationships>'), file.path(d, "_rels", ".rels"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    '</Relationships>'), file.path(d, "_rels", ".rels"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"',
     ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">',
     '<sheets><sheet name="', .xml_echap(enc2utf8(feuille), attribut = TRUE), '" sheetId="1" r:id="rId1"/></sheets></workbook>'),
-    file.path(d, "xl", "workbook.xml"), useBytes = TRUE)
-  writeLines(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+    file.path(d, "xl", "workbook.xml"))
+  .engine_ecrire_octets(paste0('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">',
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>',
-    '</Relationships>'), file.path(d, "xl", "_rels", "workbook.xml.rels"), useBytes = TRUE)
-  writeLines(sheet, file.path(d, "xl", "worksheets", "sheet1.xml"), useBytes = TRUE)
+    '</Relationships>'), file.path(d, "xl", "_rels", "workbook.xml.rels"))
+  .engine_ecrire_octets(sheet, file.path(d, "xl", "worksheets", "sheet1.xml"))
 
   # Retour au repertoire initial AVANT la suppression de d (after = FALSE) :
   # on ne supprime pas le repertoire courant.
@@ -9184,7 +9258,7 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # engine_lire_triangle(). Format de utils::write.csv(row.names = FALSE,
 # na = "") : separateur virgule, ligne d'en-tete, noms de colonnes et
 # chaines entre guillemets (guillemet interne double), nombres et logiques
-# sans guillemets, fin de ligne "\n" (connexion texte), texte en UTF-8.
+# sans guillemets, fin de ligne "\n" (octet 0x0A sur tout systeme), texte en UTF-8.
 # Seule l'ecriture des nombres change : un double fini suit .xlsx_nombre()
 # (15 chiffres significatifs si la relecture est exacte, sinon 17 ; point
 # decimal quels que soient OutDec et digits), alors que write.csv() ecrit
@@ -9201,20 +9275,33 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # pas partout (mesure, R 4.3.3) : (i) hors locale UTF-8 (LC_ALL=C), une chaine
 # marquee UTF-8 ou latin1 (en-tete compris) est transcrite dans l'encodage
 # natif par write.table() ("\u00e9" ecrit "<U+00E9>"), alors qu'enc2utf8() et
-# writeLines(useBytes = TRUE) ecrivent ici les octets UTF-8 en toute locale ;
+# .engine_ecrire_octets() ecrivent ici les octets UTF-8 en toute locale ;
 # (ii) une chaine d'encodage "bytes" fait echouer write.table() ("translating
 # strings with "bytes" encoding is not allowed"), ecrite telle quelle ici ;
 # (iii) un tableau a lignes sans colonne recoit une fin de ligne par ligne
 # apres l'en-tete, contre l'en-tete seul ici. Le gain de la variante est
 # faible (22 lignes contre 30 : la mise en texte par colonne reste, le vecteur
 # quote s'ajoute).
-# Fin de ligne : la connexion est ouverte en mode texte ("w"), comme celle de
-# write.table() ; selon la documentation de file() (non mesure sous Windows),
-# "\n" y devient "\r\n" sous Windows dans les deux cas.
-# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
-# n'est pas acceptee.
+# Fin de ligne : le fichier est ecrit en octets par .engine_ecrire_octets()
+# (#602), connexion binaire : "\n" reste 0x0A sous Windows aussi, fin de
+# ligne des enregistrements comme saut de ligne d'une chaine entre guillemets.
+# write.csv() et write.table(), qui ouvrent une connexion en mode texte,
+# ecrivent "\r\n" sous Windows selon la documentation de file() (non mesure) :
+# c'est le seul ecart de fin de ligne avec eux, sous Windows seulement.
+# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici), chaine unique,
+# non NA, non vide ; une connexion, NA, une chaine vide ou un vecteur sont
+# refuses avant toute ecriture par un usp_refus_ecriture motive (.refus_ecriture(),
+# meme classe que le refus de chemin d'engine_ecrire_xlsx()), aucun fichier
+# cree. Depuis #602, writeBin() accepte une connexion binaire : sans cette
+# garde, file(f, "wb") est ecrit sans erreur, NA_character_ et un vecteur levent l'erreur
+# R brute "invalid 'description' argument", un NA logique "invalid
+# connection" (mesure a c182d0d, R 4.3.3).
 engine_ecrire_csv <- function(df, chemin) {
   .engine_point_decimal()
+  if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin))
+    .refus_ecriture(paste("Ecriture du fichier CSV impossible : le chemin doit etre une chaine",
+                          "unique, non NA et non vide (un fichier, non une connexion) ;",
+                          "aucun fichier ecrit."))
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   guillemets <- function(x) paste0('"', gsub('"', '""', enc2utf8(x), fixed = TRUE), '"')
   colonne <- function(v) {
@@ -9238,9 +9325,7 @@ engine_ecrire_csv <- function(df, chemin) {
   cols <- lapply(df, colonne)
   lignes <- c(paste(guillemets(names(df)), collapse = ","),
               if (nrow(df)) do.call(paste, c(unname(cols), sep = ",")))
-  con <- file(chemin, open = "w", encoding = "")
-  on.exit(close(con), add = TRUE)
-  writeLines(lignes, con, sep = "\n", useBytes = TRUE)
+  .engine_ecrire_octets(lignes, chemin)
   invisible(chemin)
 }
 
@@ -9263,9 +9348,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # cible, #595) ; structure du bloc des donnees
 # (R3 : balise <c de forme non reconnue, #487, balises <sheetData> en
 # surnombre ou toutes fermantes, D-S1-35, balise non prevue ou mal
-# imbriquee, segment de cellule lu par openxlsx, <t> a attribut d'une
-# chaine en ligne, D-S1-31) ; cellule sans attribut r (#487), reference de
-# forme non attendue (#557, D-S1-9), attribut hors liste (R4) ; limites
+# imbriquee, segment de cellule lu par openxlsx, <t> d'une chaine en ligne
+# hors des formes exactes admises, #594) ; cellule sans attribut r (#487),
+# reference de forme non attendue (#557, D-S1-9), attribut hors liste (R4) ; limites
 # d'une feuille (R5) ; reference en double (R6) ; ordre de lecture (R6b,
 # D-S1-11) ; type de cellule, t="d" et t="e" compris (R7, D-S1-2) ; contenu
 # de cellule (R8) et references numeriques de caractere (D-S1-18,
@@ -9297,8 +9382,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # 1.0 ou UTF-8 invalide, refusee avant toute ecriture ; nom de feuille qui
 # n'est pas une chaine unique non NA non vide ; chemin de sortie refuse
 # (type, NA, vide, barre finale, encodage "bytes" non ASCII ou UTF-8 invalide,
-# chemin de lecteur ou d'UNC en barres inverses sous unix, nom hors .xlsx :
-# .xlsx_defaut_chemin() ; cible resolue qui designe un dossier existant :
+# chemin de lecteur ou d'UNC en barres inverses sous unix, forme "X:" sans
+# barre sous Windows (#603), nom hors .xlsx : .xlsx_defaut_chemin() ; cible
+# resolue qui designe un dossier existant :
 # engine_ecrire_xlsx()), le tout avant toute ecriture (#580).
 .refus_ecriture <- function(message)
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
@@ -9362,10 +9448,11 @@ engine_ecrire_csv <- function(df, chemin) {
 # (avis d'actuary sur le lot A, Q4) : R1 ne sonde que les quatre parties qui
 # portent ou designent les valeurs. Les autres parties ne sont pas
 # controlees ; une corruption y est sans effet mesure sur les valeurs
-# (openxlsx 4.2.5.2, detectDates non employe ; mesure : octet 0xFF dans
-# xl/styles.xml et dans [Content_Types].xml, valeurs lues identiques sur
-# les deux chemins). A revoir si detectDates ou une lecture des styles
-# venait a etre employe. Mesure (#574,
+# (mesure datee, jusqu'a #604, openxlsx 4.2.5.2 sans detectDates : octet 0xFF
+# dans xl/styles.xml et dans [Content_Types].xml, valeurs lues identiques sur
+# les deux chemins ; le lecteur interne, seul depuis #604, ne lit ni les styles
+# ni [Content_Types].xml). A revoir si une lecture des styles venait a etre
+# employee par le lecteur interne. Mesure (#574,
 # forme 5, rejeu S1 ; sonde sondes/sonde_574_r1_r2.R) : avant R1, une table
 # des chaines partagees portant l'octet 0xFF faisait sauter les controles
 # Q-F, P2 et X1 (grepl() rend FALSE avec l'avertissement "input string 1 is
@@ -9377,6 +9464,13 @@ engine_ecrire_csv <- function(df, chemin) {
 # ("invalid multibyte string"). Un octet nul tronquait la partie lue par
 # readChar() a cet octet (avertissement "truncating string with embedded
 # nuls"), sans refus.
+# Fins de ligne (#602, etape 3b d'A1) : une fois R1 passee, le texte de la
+# partie est normalise par .xml_fins_de_ligne() (XML 1.0, 2.11), avant toute
+# autre regle et toute analyse : tout ce que le lecteur tire des quatre
+# parties (texte des chaines en ligne et partagees, <v> des cellules,
+# valeurs d'attribut) l'est donc apres la normalisation, et avant le
+# decodage des references (.xml_decoder()). La position citee par R1 est
+# celle de l'octet dans la partie telle qu'archivee (avant normalisation).
 .xlsx_texte <- function(d, partie) {
   f <- file.path(d, partie)
   b <- readBin(f, "raw", file.info(f)$size)
@@ -9386,7 +9480,35 @@ engine_ecrire_csv <- function(df, chemin) {
                            .echapper_texte(partie), k))
   x <- rawToChar(b)
   Encoding(x) <- "UTF-8"
-  x
+  .xml_fins_de_ligne(x)
+}
+
+# Normalisation des fins de ligne litterales d'un texte XML (#602 ; XML 1.0,
+# 5e edition, 2.11 : le processeur "MUST behave as if it normalized all line
+# breaks [...] on input, before parsing, by translating both the
+# two-character sequence #xD #xA and any #xD that is not followed by #xA to a
+# single #xA character" ; citation et analyse dans
+# docs/revues/20261118-a1-lecteur-interne/relecture-xml-1.0.md) : "\r\n",
+# puis tout "\r" restant, remplaces par "\n". Appliquee par .xlsx_texte() a
+# chaque partie lue, a l'entree, donc avant le decodage des references de
+# caractere : une reference &#13; ou &#xD; n'est pas un octet 0x0D du texte,
+# elle n'est pas touchee ici et, decodee par .xml_decoder(), reste un retour
+# chariot (XML 1.0, 2.11 et 4.4.2). Remplacements a motif fixe : l'octet
+# 0x0D ne figure dans aucune sequence UTF-8 multi-octet, et la partie a deja
+# passe R1 (UTF-8 valide) ; texte sans "\r" rendu tel quel, sans copie. Les
+# regles d'admission qui lisent la partie en suivent l'effet sans changer de
+# decision : celles qui lisent le texte colle des relations (fins de ligne
+# retirees, .xlsx_controler_balises_relation(),
+# .xlsx_controler_designation()) voient le meme texte colle, et les autres
+# tiennent "\r" et "\n" pour des blancs de meme classe ([ \t\r\n],
+# [[:space:]]). Seul change le texte d'une partie qui porte un "\r" en clair,
+# et ce que le lecteur en cite dans un refus. Le <v> d'une cellule t="str" est
+# normalise de meme (texte de la partie), avant son decodage (#606).
+.xml_fins_de_ligne <- function(x) {
+  if (!grepl("\r", x, fixed = TRUE)) return(x)
+  y <- gsub("\r", "\n", gsub("\r\n", "\n", x, fixed = TRUE), fixed = TRUE)
+  Encoding(y) <- "UTF-8"
+  y
 }
 
 # Regle R2 du contrat ferme du lecteur de classeur (#574 ; avis amont
@@ -9446,7 +9568,10 @@ engine_ecrire_csv <- function(df, chemin) {
 # (&#NNN; &#xHH;). Une seule passe decode "&amp;lt;" en "&lt;" et non en "<"
 # (equivalent de "&amp; en dernier" d'un decodage par etapes). Une reference
 # numerique hors du domaine des caracteres (0, substituts, au-dela de
-# U+10FFFF) est laissee telle quelle.
+# U+10FFFF) est laissee telle quelle. Appele sur le texte des trois sources
+# de texte d'une feuille : chaine partagee et chaine en ligne
+# (.xml_textes()), <v> d'une cellule t="str" (engine_lire_xlsx() et
+# .xlsx_controler_ligne_entete(), #606).
 .xml_decoder <- function(x) {
   une <- function(e) {
     corps <- substr(e, 2L, nchar(e) - 1L)
@@ -10238,7 +10363,11 @@ TEXTE_REFUS_BALISE_RELATION <- "Classeur illisible : la partie xl/_rels/workbook
 # Texte du refus du segment de cellule lu par openxlsx (regle R3, partie
 # "segments" ; avis d'actuary sur le lot B, Q1, texte propre).
 TEXTE_REFUS_SEGMENT <- "Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
-TEXTE_REFUS_R3 <- "Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
+# Texte du refus de la regle R3 (#574) ; quatrieme qualification ("ou ecrite
+# sous une forme que l'outil n'admet pas") ajoutee par #594 (A-3 (a) du
+# 18/11/2026) : les formes non exactes de <t> d'une chaine en ligne, refusees
+# par R3, ne sont ni non prevues, ni mal imbriquees, ni prefixees.
+TEXTE_REFUS_R3 <- "Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee, a prefixe d'espace de noms ou ecrite sous une forme que l'outil n'admet pas (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
 # Balise ouvrante ou vide bien formee : nom, puis attributs blanc + nom =
 # valeur entre guillemets doubles ou apostrophes, valeur sans "<" ni ">".
 XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\r\n=/<>\"']+[ \t\r\n]*=[ \t\r\n]*",
@@ -10266,9 +10395,11 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 #  - hors du contenu des <extLst> (ni examine ni lu) : aucune balise
 #    prefixee ; <sheetData> ne contient que <row>, <row> que <c> et
 #    <extLst>, <c> que <f>, <v>, <is> et <extLst>, chacun au plus une fois,
-#    <is> (ecrit <is>, sans attribut) un seul <t>, ecrit <t> (sans
-#    attribut ni blanc, decision D-S1-31) ou, vide, <t/> (blancs admis avant
-#    "/>") ; <v>, <f> et <t> ne
+#    <is> (ecrit <is>, sans attribut) un seul <t>, sous l'une des seules
+#    formes exactes <t>, <t xml:space="preserve"> ou, vide, <t/> (blancs
+#    admis avant "/>") et <t xml:space="preserve"/> (#594, decision du
+#    mainteneur du 18/11/2026, A-1 et A-2 (a), qui leve D-S1-31 dans cette
+#    mesure seulement) ; <v>, <f> et <t> ne
 #    contiennent aucune balise ; balises bien formees (attributs nom =
 #    valeur entre guillemets, sans "<" ni ">" dans une valeur ; fermante
 #    ecrite </nom>, sans blanc : openxlsx cherche "</v>" exact ; </v > etait
@@ -10390,15 +10521,31 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   forme_o <- grepl(XML_GRAMMAIRE_OUVRANTE, tk, perl = TRUE, useBytes = TRUE)
   forme_f <- tk == paste0("</", nm, ">") & grepl("^[A-Za-z_][A-Za-z0-9_.:-]*$", nm, useBytes = TRUE)
   cle <- ifelse(ouv & pn %in% c("c", "is"), paste(par, nm), NA_character_)
-  # <t> d'une chaine en ligne sans attribut ni blanc (decision D-S1-31) :
-  # openxlsx 4.2.5.2 garde dans le texte lu ce qui suit "<t" et un caractere
-  # (en-tete <t xml:space="preserve">xt lu "xml:space=\"preserve\">xt", <t >xt
-  # et <t\t>xt lus ">xt", valeur 104.2 lue non numerique), le lecteur
-  # interne lit xt et 104.2 (mesure) ; vide : <t/>, avec ou sans blancs
-  # avant "/>", admis, lus
-  # pareil l'un et l'autre sur chaque chemin (chaine vide en interne, NA par
-  # openxlsx ; meme verdict de engine_lire_donnees_csv(), mesure)
-  t_is <- nm == "t" & pn == "is" & ifelse(g == "o", tk != "<t>", !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE))
+  # <t> d'une chaine en ligne (#594, decision du mainteneur du 18/11/2026,
+  # A-1 et A-2 (a)) : admis sous les seules formes exactes, a l'octet pres,
+  # ouvrante <t> ou <t xml:space="preserve">, vide <t/> (blancs admis avant
+  # "/>") ou <t xml:space="preserve"/> ; regle uniforme, sans egard a la
+  # cellule, a la colonne, a l'objet lu ni a l'argument entete. Le lecteur
+  # interne ne lit pas l'attribut (.xml_textes() prend le texte du <t> tel
+  # quel, avec ou sans attribut) : le texte est lu comme celui de la meme
+  # chaine ecrite <t>, et comme celui d'une chaine partagee
+  # <si><t xml:space="preserve">, deja admise (XML 1.0, 2.10 : xml:space ne
+  # fait que signaler une intention a l'application) ; ses blancs ne sont
+  # interpretes qu'en aval (.nettoyer_cellules(), .xlsx_blancs_entete()),
+  # comme pour toute chaine. Restent refusees, au seul titre du contrat ferme
+  # (ADR 0020, point 2) : blanc dans la balise (<t >, <t\t>, deux espaces,
+  # blanc avant ">" ou avant "/>" de la forme a attribut), apostrophes, autre
+  # valeur (default, PRESERVE), autre attribut (space=, x:space=) ou
+  # attribut en plus. La table partagee admet, elle, toute forme bien formee
+  # de <t> (regle R9, XML_GRAMMAIRE_OUVRANTE), lue de meme (limite
+  # d'uniformite consignee, A-5 (a)). D-S1-31, qui refusait tout <t> a
+  # attribut ou a blanc parce qu'openxlsx 4.2.5.2 en gardait l'attribut dans
+  # le texte lu, est levee dans cette mesure seulement : openxlsx ne lit plus
+  # aucun classeur depuis #604 (ADR 0020). Les references numeriques du texte
+  # restent refusees par le complement de R8 (D-S1-18, D-S1-23).
+  t_is <- nm == "t" & pn == "is" &
+    ifelse(g == "o", !tk %in% c("<t>", "<t xml:space=\"preserve\">"),
+           !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE) & tk != "<t xml:space=\"preserve\"/>")
   faute <- (ouv & (!permis | !forme_o | (nm == "is" & (g == "v" | tk != "<is>")) | t_is)) |
            (!dans_ext & g == "f" & !forme_f) | duplicated(cle, incomparables = NA)
   # Seule la balise fautive la plus haute est citee (pas ses descendantes)
@@ -10565,8 +10712,8 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 
 # Regle R11 du contrat ferme (#574 ; decision D-S1-5 : seuil 10^6) : la
 # derniere ligne x la derniere colonne des cellules a valeur (<v>...</v> ou
-# <is>) ne depasse pas 1 000 000. Les deux adaptateurs allouent le
-# rectangle de A1 a la derniere cellule a valeur (le lecteur interne est
+# <is>) ne depasse pas 1 000 000. Le lecteur (et openxlsx, quand il lisait
+# le classeur, jusqu'a #604) alloue le rectangle de A1 a la derniere cellule a valeur (le lecteur interne est
 # dimensionne sur ces seules cellules) : a 10^6 cellules, lecture en 0,07 a
 # 0,19 s (avis amont, mesures). Positions : cellules a valeur de la
 # derniere ligne ou de la derniere colonne, cinq au plus.
@@ -10633,8 +10780,8 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
 # du par. 2 ; amendement de l'avis d'actuary sur le lot B, Q5) : contenu de
 # chaque cellule conforme a son type (R7 admis). <v> designe la valeur
 # <v>...</v> de la cellule (.xlsx_cellules()) ; <v/> vaut absence de <v>,
-# comme pour openxlsx 4.2.5.2, qui lit <v/> exactement comme une cellule
-# sans <v> sur chaque type (mesure, sonde sondes/sonde_574_lot_c.R : NA sans
+# comme pour openxlsx 4.2.5.2 (temoin retire de la lecture par #604), qui lit
+# <v/> exactement comme une cellule sans <v> sur chaque type (mesure, sonde sondes/sonde_574_lot_c.R : NA sans
 # t, t="str" ou t="inlineStr", chaine partagee d'indice 0 pour t="s",
 # "FALSE" pour t="b") ; <v></v> est un <v> present, de contenu vide (lu 0
 # par openxlsx sans t, "" en interne, mesure). Regles :
@@ -10644,7 +10791,10 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
 #  - s : <v> present, en chiffres seulement (^[0-9]+\z : ni signe, ni blanc,
 #    ni point, ni exposant), sans <is> ;
 #  - str : <v> facultatif, texte quelconque (<v></v> : chaine vide, lue ""
-#    par les deux chemins), sans <is> ;
+#    par le lecteur interne ; lue "" aussi par openxlsx 4.2.5.2 jusqu'a #604,
+#    constat d'origine du lot C, non remesure), sans <is> ; texte soumis au complement de R8
+#    (.xlsx_controler_references(), appele par .xlsx_admettre()) puis
+#    decode par .xml_decoder() (#606) ;
 #  - inlineStr : sans <v> (<is> facultatif) ;
 #  - cellule sans <v> ni <is> admise, sauf t="s" et t="b" (amendement Q5 :
 #    openxlsx lit sharedStrings[0] et "FALSE", et alloue 128 Go en
@@ -10688,8 +10838,8 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
   invisible(NULL)
 }
 
-# Controle du XML de la feuille lue, commun aux deux chemins de lecture et
-# fait avant l'appel a openxlsx : une cellule <c> sans attribut r (reference
+# Controle du XML de la feuille lue, fait avant l'assemblage du tableau
+# (jusqu'a #604, avant l'appel a openxlsx, sur les deux chemins) : une cellule <c> sans attribut r (reference
 # de position) est refusee. L'attribut est facultatif dans le schema, et
 # l'outil ne deduit pas la position d'une cellule de son rang dans la ligne ;
 # sans ce controle, openxlsx leve une erreur R brute ou perd la valeur sans
@@ -11042,7 +11192,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # Refus des references numeriques de caracteres ordinaires dans le texte
 # d'une chaine (#574 ; decision D-S1-18 du mainteneur sur la Q7 de l'avis
 # d'actuary sur le lot D), complement des regles R8 (texte d'une chaine en
-# ligne, <is><t>, positions "B1 : &#116;") et R9 (texte des <t> d'une chaine
+# ligne, <is><t>, et, depuis #606, du <v> d'une cellule t="str", positions
+# "B1 : &#116;") et R9 (texte des <t> d'une chaine
 # de la table, phonetique <rPh> exclu, positions "chaine no 3 : &#48;",
 # chaines numerotees a partir de 0 comme pour R9). Est refusee toute
 # reference numerique &#NNN; ou &#xHH; (zeros de tete admis, x ecrit en
@@ -11070,8 +11221,9 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # &#62;), les cinq entites nommees, et les references hors du domaine des
 # caracteres (&#0;, au-dela de U+10FFFF), laissees telles quelles par le
 # lecteur interne (.xml_decoder()). Le refus vaut pour tout le classeur
-# (decision D-S1-25) : toute chaine de la table et toute chaine en ligne
-# de la feuille lue, en-tete ou non, colonne lue ou annexe. Motif :
+# (decision D-S1-25) : toute chaine de la table, toute chaine en ligne et
+# tout <v> de cellule t="str" (#606, D-2 (a)) de la feuille lue, en-tete
+# ou non, colonne lue ou annexe. Motif :
 # openxlsx 4.2.5.2 ne decode que les cinq entites
 # nommees des chaines partagees et aucune entite d'une chaine en ligne,
 # alors que le lecteur interne decode aussi les references numeriques
@@ -11084,10 +11236,16 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # litteral) ; il est refuse avec les autres (forme hors de la grammaire
 # XML). Un caractere ASCII ordinaire ecrit en reference numerique n'est,
 # par hypothese de l'avis, ecrit par aucun tableur (a eprouver sur le
-# corpus de l'etape 10). Le texte d'une cellule t="str" (<v>) n'est decode
-# par aucun des deux chemins (parite, mesure) et n'est pas vise ; une
-# reference dans le <v> d'une cellule nombre est refusee par R8
-# (XML_MOTIF_NOMBRE). textes : texte brut (non decode) de chaque chaine ;
+# corpus de l'etape 10). Le texte du <v> d'une cellule t="str" est vise
+# de meme (#606, decisions du mainteneur D-1 (a), option (ii), et D-2 (a)
+# du 18/11/2026 : toute cellule t="str" de la feuille), puis decode par
+# .xml_decoder() ; il etait exclu tant qu'openxlsx et le lecteur interne
+# le lisaient tous deux sans decodage (parite, tombee avec l'ADR 0020).
+# Mesure avant #606 (lecteur interne, C.UTF-8) : en-tete B1 t="str"
+# <v>x&#116;</v> et D1 xt, lu, colonne xt prise en D, ok = TRUE ; apres,
+# refus "B1 : &#116;". Une reference dans le <v> d'une cellule nombre est
+# refusee par R8 (XML_MOTIF_NOMBRE).
+# textes : texte brut (non decode) de chaque chaine ;
 # lieu(i) : position citee des chaines d'indices i ; partie : nom de la
 # partie, cite par .echapper_texte(). Positions "lieu : reference", la
 # reference citee par .xlsx_citer() telle qu'ecrite, dans l'ordre du texte,
@@ -11145,7 +11303,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # une table d'une seule <si>, openxlsx 4.2.5.2 lit hors bornes (segfault du
 # processus R, code 139, ou erreur R brute selon l'etat de la memoire ; 4.2.9
 # : segfault), le lecteur interne lit NA. Controle pose dans
-# engine_lire_xlsx() avant tout appel a openxlsx, sur les deux chemins. n est
+# l'admission (.xlsx_admettre()), avant l'assemblage du tableau (jusqu'a
+# #604, avant tout appel a openxlsx, sur les deux chemins). n est
 # le nombre de chaines de la table, une par balise <si> (decompte de la
 # regle R9, .xlsx_controler_partagees(), #574). Toute balise <v>
 # est vue, avec ou sans blanc ou attribut (<v >, <v xml:space="preserve"> :
@@ -11181,10 +11340,11 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
                          as.integer(n)))
 }
 
-# Controle de la ligne d'en-tete, commun aux deux chemins de lecture, fait sur
-# le XML de la feuille lue avant l'appel a openxlsx (#522) : l'en-tete du
+# Controle de la ligne d'en-tete, fait sur le XML de la feuille lue avant
+# l'assemblage du tableau (jusqu'a #604, avant l'appel a openxlsx, sur les
+# deux chemins ; #522) : l'en-tete du
 # tableau est en ligne 1, et une ligne 1 sans aucune valeur est refusee.
-# Une regle sur le data.frame lu est impossible : openxlsx saute les lignes
+# Une regle sur le data.frame lu etait impossible : openxlsx saute les lignes
 # vides de tete meme avec skipEmptyRows = FALSE, et lit alors le tableau
 # decale comme un tableau bien forme (mesure, openxlsx 4.2.9) ; le lecteur
 # interne, lui, prend la ligne vide pour l'en-tete. Une cellule a valeur est
@@ -11195,7 +11355,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # blancs est sans valeur, comme en CSV, et openxlsx en lit les noms "").
 # Texte d'une cellule : chaine partagee (t="s", resolue dans partagees, la
 # table decodee comme par le lecteur interne), chaine en ligne (<is>,
-# .xml_textes()) ou chaine de formule (t="str", texte de <v> tel quel). Une
+# .xml_textes()) ou chaine de formule (t="str", texte de <v> decode par
+# .xml_decoder(), comme a l'assemblage d'engine_lire_xlsx(), #606). Une
 # cellule nombre, booleenne ou d'erreur qui porte <v> reste une valeur ; une
 # cellule mise en forme sans valeur (<c r="A1" s="1"/>), <v/>, ou une
 # formule sans <v> n'en est pas une. Une reference de chaine partagee
@@ -11227,7 +11388,7 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   s <- v & cc$typ %in% "s"
   if (any(s)) texte[s] <- partagees[.xlsx_indice_partage(brut[s])]
   st <- v & cc$typ %in% "str"
-  texte[st] <- brut[st]
+  texte[st] <- .xml_decoder(brut[st])
   if (any(is)) texte[is] <- vapply(cc$is_contenu[is], .xml_textes, "", USE.NAMES = FALSE)
   blanc <- !is.na(texte) & !nzchar(.xlsx_blancs_entete(texte))
   avec_valeur <- (v | is) & !blanc
@@ -11259,8 +11420,10 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 
 # Controle unique d'admission du contrat ferme du lecteur de classeur (#574 ;
 # avis amont d'actuary du 15/11/2026, S1, par. 1 ; decision D-S1-1), fait
-# avant les deux adaptateurs (openxlsx et lecteur interne) : extrait
-# l'archive chemin dans le dossier d, lit une seule fois les parties
+# avant l'assemblage du tableau par engine_lire_xlsx() (seul lecteur depuis
+# #604, ADR 0020 ; jusque-la, avant les deux adaptateurs, openxlsx et
+# lecteur interne, de sorte que tout classeur refuse l'etait sur les deux
+# chemins) : extrait l'archive chemin dans le dossier d, lit une seule fois les parties
 # necessaires et evalue les regles dans l'ordre R0 a R12, seule la premiere
 # qui echoue levant son refus. Apres R0, et avant R1 et R2 de la feuille et
 # de la table, viennent d'abord, dans .xlsx_fichier_feuille(), R1 puis R2 de
@@ -11272,7 +11435,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # choix de la feuille lue et de sa cible. Regles posees : R0 (archive : entrees qui
 # sortent du dossier, table des chaines partagees ailleurs qu'en
 # xl/sharedStrings.xml ou en plusieurs exemplaires), R1 (UTF-8 valide, sans
-# octet nul : .xlsx_texte()), R2 (sections de balisage :
+# octet nul : .xlsx_texte(), qui normalise ensuite les fins de ligne de la
+# partie, .xml_fins_de_ligne(), #602), R2 (sections de balisage :
 # .xlsx_controler_balisage()), R3 (structure du bloc des donnees, refus
 # existant de la balise <c suivie d'un blanc autre que l'espace en tete :
 # .xlsx_controler_structure()), R4 (refus existants de l'attribut r,
@@ -11281,15 +11445,17 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # (.xlsx_controler_doublons()), R6b (.xlsx_controler_ordre(), decision
 # D-S1-11), R7 (.xlsx_controler_types(), decision D-S1-2), R8
 # (.xlsx_controler_contenus(), puis references numeriques de caracteres
-# ordinaires d'une chaine en ligne, .xlsx_controler_references(), decision
-# D-S1-18), R9 (refus existants Q-F, P2 et X1 de la table, puis regle
+# ordinaires d'une chaine en ligne ou du <v> d'une cellule t="str",
+# .xlsx_controler_references(), decisions D-S1-18 et, pour t="str", D-1 et
+# D-2 du 18/11/2026, #606), R9 (refus existants Q-F, P2 et X1 de la table, puis regle
 # generale et references numeriques, .xlsx_controler_partagees()), R10
 # (.xlsx_controler_indices_partages(), #575), R11
 # (.xlsx_controler_etendue()) et R12 (.xlsx_controler_ligne_entete(), si
 # entete). Rend list(rang, xml, partagees, cellules) : rang de
-# la feuille lue pour openxlsx, XML de la feuille, chaines de la table et
-# cellules admises (.xlsx_cellules(), decoupage de R3) pour le lecteur
-# interne.
+# la feuille lue (qui servait a l'appel d'openxlsx retire par #604, garde
+# dans le retour), XML de la feuille, chaines de la table et cellules
+# admises (.xlsx_cellules(), decoupage de R3), d'ou engine_lire_xlsx()
+# assemble le tableau.
 .xlsx_admettre <- function(chemin, d, entete = TRUE) {
   # R0, archive. Extraction : aucune entree d'archive absolue ou remontant
   # ("..", separateur / ou \) n'est ecrite (zip slip) ; une archive illisible
@@ -11307,7 +11473,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   # "1" puis "1.5" en segments <r> sans <rPr> placee en
   # xl/strings/sharedStrings.xml, lue 1 par openxlsx (ok = TRUE), vide par le
   # lecteur interne ; deux tables, erreur R brute d'openxlsx ("Expecting a
-  # single string value"). Refus sur les deux chemins, avant extraction,
+  # single string value"). Refus avant extraction (sur les deux chemins
+  # jusqu'a #604),
   # sur les noms d'entree de l'archive, meme motif qu'openxlsx (sensible a la
   # casse, point non echappe) ; un nom a "/" ou "\" initial est deja refuse
   # par .xlsx_chemin_sort(), un "\" interieur differe de xl/sharedStrings.xml
@@ -11351,11 +11518,18 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
   .xlsx_controler_contenus(cc)
   # Complement de R8 (#574, decisions D-S1-18 et D-S1-23) : references
   # numeriques de caracteres ordinaires ou de blancs retires des en-tetes
-  # dans le texte d'une chaine en ligne (texte de
-  # l'unique <t> de <is>, regle R3 : balises retirees), avant R9
-  ki <- which(cc$is)
+  # dans le texte d'une chaine en ligne (texte de l'unique <t> de <is>,
+  # regle R3 : balises retirees) ou du <v> d'une cellule t="str" (#606,
+  # decisions du mainteneur D-1 (a), option (ii), et D-2 (a) du 18/11/2026 :
+  # toute cellule t="str" de la feuille, en-tete ou corps, colonne lue ou
+  # annexe), avant R9. Un seul appel, cellules dans l'ordre du document ;
+  # R8 a deja refuse t="str" avec <is>, de sorte qu'une cellule n'a qu'un
+  # texte. Sans cellule t="str" a <v>, l'entree de l'appel est celle d'avant
+  # #606.
+  ki <- which(cc$is | (cc$typ %in% "str" & !is.na(cc$v)))
   if (length(ki))
-    .xlsx_controler_references(gsub("<[^>]*>", "", cc$is_contenu[ki]),
+    .xlsx_controler_references(gsub("<[^>]*>", "",
+                                    ifelse(cc$is[ki], cc$is_contenu[ki], cc$v[ki])),
                                function(i) .xlsx_citer(cc$r_brut[ki][i]), feuille$partie)
   partagees <- character(0)
   if (!is.null(sx)) {
@@ -11366,7 +11540,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
     # aucune balise <rPr> litterale dans la table : openxlsx 4.2.9 et 4.2.5.2
     # n'en lisent que le premier segment ("1" puis "1.5" lu 1, sans message ;
     # <rPr/>, <rPr > ou <rPr a="1"> ne suffisent pas a l'eviter, mesure,
-    # #557). Refus sur les deux chemins, avant openxlsx (decision du
+    # #557). Refus avant l'assemblage du tableau (avant openxlsx jusqu'a
+    # #604 ; decision du
     # mainteneur du 13/11/2026, Q-F), apres les controles de la feuille et
     # avant celui de la ligne 1, qui lit ces chaines.
     if (grepl(paste0("<", XML_PREFIXE_NOM, "r[[:space:]/>]"), sx) && !grepl("<rPr>", sx, fixed = TRUE))
@@ -11390,7 +11565,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
     # sans message, table sans <rPr> ; mesure, #572), le lecteur interne les
     # concatene. Ni l'un ni l'autre ne lit le texte d'un <x:t> : "1" puis
     # <x:t>1.5</x:t> etait lu 1 par les deux chemins (mesure, revue de
-    # l'audit, #572). Refus sur les deux chemins, avant openxlsx, apres P2
+    # l'audit, #572). Refus avant l'assemblage du tableau (avant openxlsx
+    # jusqu'a #604), apres P2
     # (decision du mainteneur du 13/11/2026, X1, #572). Un <t> suivi de <r>
     # (conforme) reste lu par X1, de meme qu'un <t> dans un <x:r> (auparavant
     # compte et refuse ; refuse depuis par la regle generale de R9, balise
@@ -11450,20 +11626,36 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # premiere ligne etant traitee comme l'en-tete. Une colonne dont toutes les
 # cellules a valeur sont des cellules nombre est rendue en numerique ; une
 # colonne qui porte une cellule texte est rendue en caractere, nombres
-# compris, une cellule booleenne en "TRUE"/"FALSE" (#490). Aucune ligne ni
-# colonne vide n'est retiree ici sans message : openxlsx est appele avec
-# skipEmptyRows et skipEmptyCols a FALSE (son reglage par defaut les
-# retirait), et avec
-# na.strings = character(0), pour qu'une cellule texte "NA" reste une chaine
-# comme dans le lecteur interne. La regle des lignes et colonnes vides est
-# posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
-# (#483), identique pour les deux chemins. Une cellule sans attribut r est
-# refusee avant la lecture, de la meme facon sur les deux chemins
-# (.xlsx_controler_cellules()), et une ligne 1 sans aucune valeur l'est de meme
-# (.xlsx_controler_ligne_entete(), #522) : l'en-tete du tableau est en ligne 1,
-# sans ligne vide au-dessus, que le chemin soit openxlsx (qui saute les lignes
-# vides de tete) ou le lecteur interne (qui prenait la ligne vide pour
-# l'en-tete). Ces deux refus, celui d'une balise <c de forme non reconnue,
+# compris, une cellule booleenne en "TRUE"/"FALSE" (#490).
+# Lecteur unique (ADR 0020, #604) : le classeur passe le controle unique
+# d'admission du contrat ferme, .xlsx_admettre(), puis le tableau est
+# assemble a partir des cellules admises, sans autre lecture de l'archive et
+# sans appel a un paquet, que openxlsx soit installe ou non. Jusqu'a #604,
+# un poste muni d'openxlsx lisait le classeur admis par
+# openxlsx::read.xlsx(chemin, sheet = rang, colNames = entete,
+# skipEmptyRows = FALSE, skipEmptyCols = FALSE, na.strings = character(0),
+# sep.names = " ") ; plusieurs regles ci-dessous sont nees de la
+# comparaison des deux lectures (mesures datees, avec la version
+# d'openxlsx). Elles restent a l'identique (ADR 0020, point 2), comme regles
+# propres du contrat ferme : forme que le lecteur ne lit pas de facon sure
+# (aucun ecrivain connu ne la produit, ou un lecteur repandu la lit
+# autrement, mesure a l'appui). Plusieurs protegent aussi le lecteur
+# interne, qui lisait lui-meme faux certaines de ces formes avant la regle
+# (table partagee hors de xl/, relation commentee, id="rId2" r:id="rId1",
+# attribut Type prefixe ou repete, </v >, r="1" ou r="A0", <x:si> ;
+# inventaire des ecarts, docs/revues/20261118-a1-lecteur-interne/
+# inventaire-ecarts.md, par. 2) : un assouplissement s'instruit contre la
+# source et sur le lecteur interne, non contre la seule comparaison a
+# openxlsx. openxlsx ne sert plus que de temoin dans les tests (tests/).
+# Aucune ligne ni colonne vide n'est retiree ici sans message, et une
+# cellule texte "NA" reste une chaine. La regle des lignes et colonnes vides
+# est posee par l'interpretation du tableau, .retirer_lignes_colonnes_vides()
+# (#483). Une cellule sans attribut r est refusee avant la lecture
+# (.xlsx_controler_cellules()), et une ligne 1 sans aucune valeur l'est de
+# meme (.xlsx_controler_ligne_entete(), #522) : l'en-tete du tableau est en
+# ligne 1, sans ligne vide au-dessus (le lecteur interne prenait la ligne
+# vide pour l'en-tete ; openxlsx sautait les lignes vides de tete). Ces deux
+# refus, celui d'une balise <c de forme non reconnue,
 # celui d'une reference de cellule de forme non attendue, celui d'une
 # table des chaines partagees decoupee en segments <r> sans aucun <rPr>
 # (#557), ceux d'une table qui porte une balise <rPh .../> auto-fermante
@@ -11473,49 +11665,62 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # classe "usp_refus_lecture" (.refus_lecture()), dont l'application affiche
 # le texte ; les autres refus (archive, feuille) sont
 # des erreurs ordinaires. Les
-# blancs de la ligne d'en-tete sont mis en forme de la meme facon
-# (sep.names = " " pour openxlsx, .xlsx_blancs_entete()
-# ici : "deux  mots" et " deux mots" sont lus "deux mots") ; un en-tete " xt"
+# blancs de la ligne d'en-tete sont mis en forme par .xlsx_blancs_entete(),
+# regle mesuree sur openxlsx::read.xlsx(sep.names = " ") : "deux  mots" et
+# " deux mots" sont lus "deux mots" ; un en-tete " xt"
 # est donc accepte en xlsx et refuse en CSV, ou l'application lit les noms tels
 # quels (divergence CSV - xlsx laissee en l'etat, decision D3 du mainteneur).
-# Les deux chemins different encore par endroits : nom d'une colonne sans
-# en-tete ("X<col>" pour openxlsx, "V<col>" ici). Une cellule nombre dont la
+# Une colonne sans en-tete est nommee "V<col>" (openxlsx la nommait
+# "X<col>"). Une cellule nombre dont la
 # valeur n'a pas la forme decimale (<v>0x10</v>, cellule forgee, lue 16 par
-# openxlsx et laissee en caractere ici, refusee en aval), une cellule de type
+# openxlsx et laissee en caractere par le lecteur interne), une cellule de type
 # inconnu, date (t="d") ou en erreur de calcul (t="e"), ou dont le contenu ne
-# correspond pas au type, est refusee avant les deux chemins (regles R7 et
-# R8, #574). Texte des cellules
-# (mesure, openxlsx 4.2.9) : le lecteur interne decode les entites nommees et
-# les references numeriques (&#233;, &#xE9;) des chaines partagees et des
-# chaines en ligne (.xml_decoder()) ; openxlsx decode les entites nommees des
-# chaines partagees seulement (en decodant deux fois "&amp;lt;", lu "<"), et
-# laisse telles quelles les references numeriques des chaines partagees et
-# toute entite d'une chaine en ligne ; une reference numerique d'un
+# correspond pas au type, est refusee avant la lecture (regles R7 et
+# R8, #574). Fins de ligne : chaque partie lue est normalisee a l'entree,
+# avant toute regle d'admission et toute analyse ("\r\n", puis "\r" isole,
+# lus "\n" : XML 1.0, 2.11 ; .xml_fins_de_ligne(), appelee par .xlsx_texte(),
+# #602) ; un texte "a<CR><LF>b" ecrit en clair, en chaine en ligne, en
+# chaine partagee ou dans le <v> d'une cellule t="str", est lu "a\nb" (il
+# etait lu "a\r\nb" jusque-la). Une reference &#13; ou &#xD;, qui n'est pas
+# une fin de ligne litterale, n'est pas normalisee (decodee, elle serait un
+# retour chariot) ; elle reste refusee par .xlsx_controler_references().
+# Texte des cellules : le lecteur decode les entites nommees et
+# les references numeriques (&#233;, &#xE9;) des chaines partagees, des
+# chaines en ligne et du <v> des cellules t="str" (.xml_decoder() ; t="str"
+# depuis #606). openxlsx (mesure, 4.2.9) decode les
+# entites nommees des chaines partagees seulement (en decodant deux fois
+# "&amp;lt;", lu "<"), et laisse telles quelles les references numeriques
+# des chaines partagees et toute entite d'une chaine en ligne ; une
+# reference numerique d'un
 # caractere ASCII imprimable autre que ", &, ', < et > (&#48;, &#x74;), ou
 # d'un blanc que retire la mise en forme des en-tetes (&#9;, &#12288;,
-# &#65279;...), est refusee avant les deux chemins
+# &#65279;...), est refusee avant la lecture
 # (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23 : "x&#116;"
-# ou "xt&#9;" lu "xt" en interne, laisse tel quel par openxlsx, qui
-# prenait en silence une autre colonne xt, mesure) ;
-# un <t> a attribut ou a blanc d'une chaine en ligne (<t
-# xml:space="preserve">, <t >), dont openxlsx gardait dans le texte lu ce
-# qui suit "<t" et un caractere, est refuse avant les deux chemins (.xlsx_controler_structure(),
-# decision D-S1-31).
-# Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
-# decodage des entites (&amp;, &lt;, &#233;...), a l'identique par les deux
-# chemins (mesure, #557) : limite consignee. Un decodage sur le seul lecteur
-# interne romprait la parite, et openxlsx ne dit pas quelle cellule etait
-# t="str" (sa sortie n'est pas retouchee). Un en-tete attendu (t, xt, yt, i,
-# j<k>) ou un nombre ne s'ecrit pas avec une entite.
-# Un en-tete qui porte
-# "&", "<" ou ">" n'est donc relu identique par les deux chemins que s'il est
-# en chaine partagee. Consequence pour engine_ecrire_xlsx(), qui n'ecrit que
-# des chaines en ligne (#488, mesure openxlsx 4.2.9) : un en-tete ou une
-# chaine ecrits "a<b&c" sont relus "a<b&c" ici et "a&lt;b&amp;c" par
-# openxlsx, dont la sortie n'est pas retouchee ; une colonne logique, ecrite
-# en chaines "TRUE"/"FALSE", est relue en caractere ici et en logique par
-# openxlsx, puis refusee en aval sur les deux chemins si elle porte t, xt,
-# yt ou une colonne du triangle (.en_numerique(), #579). Les exports de
+# ou "xt&#9;" lu "xt" par le lecteur interne, laisse tel quel par openxlsx,
+# qui prenait en silence une autre colonne xt, mesure ; etendu au <v> des
+# cellules t="str", #606) ;
+# le <t> d'une chaine en ligne est admis sous les seules formes exactes
+# <t>, <t xml:space="preserve">, <t/> (blancs admis avant "/>") et
+# <t xml:space="preserve"/>, son texte lu tel quel, attribut ignore, comme
+# celui d'une chaine partagee ; toute autre forme (<t >, apostrophes,
+# xml:space="default", attribut en plus...) est refusee avant la lecture
+# (.xlsx_controler_structure(), regle R3 ; #594, decision du mainteneur du
+# 18/11/2026, qui leve dans cette mesure la decision D-S1-31, prise quand
+# openxlsx gardait l'attribut dans le texte lu).
+# Le texte d'une cellule t="str" (resultat de formule) suit la meme regle
+# (#606, decisions du mainteneur D-1 (a), option (ii), et D-2 (a) du
+# 18/11/2026 ; XML 1.0, 4.4.2 et 4.6) : refus des references ci-dessus,
+# puis decodage ("R&amp;D" lu "R&D", "&#233;" lu U+00E9). Il
+# etait lu tel quel jusque-la, limite fixee quand openxlsx le lisait de
+# meme (#557) ; mesure avant #606 (lecteur interne, C.UTF-8) : en-tete B1
+# t="str" "x&#116;" et D1 xt, colonne xt prise en D sans message
+# (ok = TRUE) ; refuse depuis.
+# engine_ecrire_xlsx() n'ecrit que des chaines en ligne (#488) : un en-tete
+# ou une chaine ecrits "a<b&c" sont relus "a<b&c" ; une colonne logique,
+# ecrite en chaines "TRUE"/"FALSE", est relue en caractere, puis refusee en
+# aval si elle porte t, xt, yt ou une colonne du triangle (.en_numerique(),
+# #579). openxlsx relit le premier "a&lt;b&amp;c" et la seconde en logique
+# (mesure, 4.2.9). Les exports de
 # donnees de l'application n'y sont pas exposes : en-tetes fixes (t, xt,
 # yt ; i, j0, j1...), cellules numeriques.
 # Le texte phonetique (<rPh>) d'une chaine n'est pas lu (limite de la chaine
@@ -11525,10 +11730,10 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # telle quelle) ne figure dans la table : en-tete "xt" ecrit en deux
 # segments "x" et "t" lu "x", valeur "11.5" ecrite en deux segments "1" et
 # "1.5" lue "1", sans message (mesure, #557 ; <rPh> sans effet sur ce cas).
-# Une telle table est refusee d'un texte propre, avant les deux chemins
+# Une telle table est refusee d'un texte propre, avant la lecture
 # (decision du mainteneur du 13/11/2026, Q-F, #557) ; une table qui porte au
-# moins un <rPr> est lue avec tous ses segments par les deux chemins
-# (mesure). Une table qui porte une balise <rPh .../> auto-fermante (hors
+# moins un <rPr> est lue avec tous ses segments (par openxlsx aussi,
+# mesure). Une table qui porte une balise <rPh .../> auto-fermante (hors
 # schema ; openxlsx 4.2.9 et 4.2.5.2 en perdent le texte jusqu'au </rPh>
 # suivant, "1" puis "1.5" lu 1, mesure, #557), puis une table dont une
 # chaine est formee de plusieurs <t> directs (hors schema ; openxlsx 4.2.9
@@ -11539,16 +11744,17 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # refus ne lisent que xl/sharedStrings.xml, alors qu'openxlsx 4.2.9 prend
 # toute entree de l'archive dont le nom finit par sharedStrings.xml : une
 # archive qui porte une telle entree ailleurs, ou plusieurs, est refusee
-# d'un texte propre avant extraction, sur les deux chemins (table "1" puis
-# "1.5" sans <rPr> en xl/strings/ : lue 1 par openxlsx, mesure ; decision
-# du mainteneur du 14/11/2026, #572). Une chaine <x:si> prefixee n'etait
-# comptee par aucun des deux chemins dans l'indice des chaines partagees
+# d'un texte propre avant extraction (table "1" puis
+# "1.5" sans <rPr> en xl/strings/ : lue 1 par openxlsx, vide par le lecteur
+# interne, mesure ; decision du mainteneur du 14/11/2026, #572). Une
+# chaine <x:si> prefixee n'etait comptee ni par openxlsx ni par le lecteur
+# interne dans l'indice des chaines partagees
 # (dans <x:si><x:t>9</x:t></x:si><si><t>11.5</t></si>, l'indice 0 etait lu
-# 11.5 par les deux chemins, mesure) ; depuis la regle generale de R9
+# 11.5 par les deux, mesure) ; depuis la regle generale de R9
 # (.xlsx_controler_partagees(), #574, decision D-S1-1), toute table hors de
 # la structure admise (balise prefixee, non prevue ou mal imbriquee, <si>
-# vide <si/>, formes que openxlsx lit autrement que le lecteur interne) est
-# refusee avant les deux chemins, et le lecteur interne lit une chaine par
+# vide <si/>, formes que openxlsx lisait autrement que le lecteur interne)
+# est refusee avant la lecture, et le lecteur lit une chaine par
 # balise <si>, decompte repris par R10.
 # Une chaine en ligne (<is>) de ces formes, ou portant <r>, <rPh> ou une
 # balise prefixee, est refusee par la regle R3 (<is> ne porte qu'un <t>,
@@ -11560,32 +11766,36 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # r="..." : r='A2' ou r = "A2" (XML legal) sont refuses comme une cellule sans
 # reference ; une reference de forme non attendue (r="", "1", "A0", "1A",
 # " A2 "...), cellule vide de style comprise, est refusee d'un texte propre,
-# avant les deux chemins (#557), de meme qu'un attribut r repete ou ecrit
+# avant la lecture (#557 ; r="1" et r="A0" deplacaient les valeurs dans le
+# lecteur interne), de meme qu'un attribut r repete ou ecrit
 # avec une entite (r="&#66;2"). Une balise <c> suivie d'un blanc autre que
 # l'espace (<c<TAB>r=..>, XML legal ; FF, VT, U+2003..., illegaux) est
-# refusee d'un texte propre, avant les deux chemins : openxlsx 4.2.9 perd
-# la cellule sans message (NA) ou rend NULL. Une cible de feuille
-# "./worksheets/sheet1.xml" est acceptee par le controle et lue par le lecteur
-# interne, mais lue par openxlsx 4.2.9 par une erreur R brute ("Length of
-# worksheet is 0"). Feuille lue : la premiere feuille de calcul, feuilles de
-# graphique placees avant passees, sur les deux chemins (openxlsx appele avec
-# son rang, .xlsx_fichier_feuille()). Balises <sheet> et <Relationship>
+# refusee d'un texte propre, avant la lecture : openxlsx 4.2.9 perdait
+# la cellule sans message (NA) ou rendait NULL. Une cible de feuille
+# "./worksheets/sheet1.xml" est acceptee par le controle et lue par le
+# lecteur ; openxlsx s'y arretait sur une erreur R brute ("Length of
+# worksheet is 0", mesure, 4.2.9 et 4.2.5.2). Feuille lue : la premiere
+# feuille de calcul, feuilles de graphique placees avant passees
+# (.xlsx_fichier_feuille(), #487). Balises <sheet> et <Relationship>
 # prefixees (<x:sheet>), attributs entre apostrophes ou a blancs autour du
-# signe = dans xl/workbook.xml et ses relations : lus par le lecteur interne,
+# signe = dans xl/workbook.xml et ses relations : lus par le lecteur,
 # mais pas par openxlsx 4.2.9 (mesure : "Workbook has no worksheets" ou
-# "Length of worksheet is 0", erreur R brute, message fixe de l'application) ;
+# "Length of worksheet is 0", erreur R brute) ;
 # dans un classeur de plusieurs feuilles, un attribut r:id de cette forme
 # faisait lire a openxlsx 4.2.5.2 la feuille suivante : refuse, de meme que
-# les relations forgees qui designent une autre feuille pour openxlsx
+# les relations forgees qui designaient une autre feuille pour openxlsx
 # (attribut Id ou r:id repete ou prefixe, Id en double, texte Id="rIdN" ou
 # r:id=" hors de l'attribut ; decision D-S1-37, #574, lot H, mesures dans
-# .xlsx_controler_relations() et .xlsx_controler_designation()), de meme
+# .xlsx_controler_relations() et .xlsx_controler_designation() ; avec
+# id="rId2" r:id="rId1", c'est le lecteur interne qui lisait la mauvaise
+# feuille), de meme
 # qu'une cible de la feuille lue ambigue (attribut Target repete ou
 # prefixe, texte Target= hors de l'attribut, cible lue autrement par
-# openxlsx), un attribut Type repete ou prefixe et une balise <Relationship>
+# openxlsx), un attribut Type repete ou prefixe (lu faux par les deux
+# lecteurs, mesure) et une balise <Relationship>
 # de forme non reconnue (caractere autre qu'une espace, "/" ou ">" apres
-# le nom, dans le texte colle : openxlsx 4.2.5.2 pouvait ne jamais rendre la main (selon la place de la balise) ;
-# #595, decisions D-S1-38 et D-S1-39,
+# le nom, dans le texte colle : openxlsx 4.2.5.2 pouvait ne jamais rendre
+# la main, selon la place de la balise ; #595, decisions D-S1-38 et D-S1-39,
 # .xlsx_controler_balises_relation()) ;
 # une feuille dont les balises de cellule sont prefixees (<x:c>) est
 # refusee (regle R3, #574). Une reference de cellule en
@@ -11593,19 +11803,21 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # et 4.2.5.2 a une erreur R brute ("missing value where TRUE/FALSE needed",
 # mesure), est refusee comme reference de forme non attendue (decision du
 # mainteneur D-S1-9 du 15/11/2026). Des cellules hors de l'ordre de
-# lecture sont refusees (regle R6b, #574 ; openxlsx 4.2.5.2 nomme les
+# lecture sont refusees (regle R6b, #574 ; openxlsx 4.2.5.2 nommait les
 # colonnes dans l'ordre du document : en-tete A1 t, C1 yt, B1 xt lu xt et
 # yt permutes, sigma_USP 0.1764544949 au lieu de 0.1114524114, ok = TRUE ;
-# ligne 1 placee en fin de bloc, erreur R brute, mesures). Un attribut prefixe avant r (<c
+# ligne 1 placee en fin de bloc, erreur R brute, mesures). Un attribut
+# prefixe avant r (<c
 # x:r="Z9" r="A2">), que openxlsx 4.2.9 prenait pour r (valeur placee en Z9,
-# mesure), est refuse (regle R4, #574). Les blancs d'en-tete sont ceux de [[:space:]] dans la locale :
-# parite mesuree sous C.UTF-8 seulement ; sous Windows (page de codes et
+# mesure), est refuse (regle R4, #574). Les blancs d'en-tete sont ceux de
+# [[:space:]] dans la locale : la mise en forme n'a ete mesuree contre
+# openxlsx que sous C.UTF-8 ; sous Windows (page de codes et
 # locale de R propres au poste), elle n'est pas mesuree : limite consignee
 # (decision du mainteneur du 13/11/2026, #557 ; mesure facultative sur le
 # poste au passage KR).
 # Tous les refus ci-dessus, et ceux du contrat ferme (#574, #575), sont leves
-# par le controle unique d'admission .xlsx_admettre(), avant les deux
-# adaptateurs ; une partie du classeur qui n'est pas du texte UTF-8 valide,
+# par le controle unique d'admission .xlsx_admettre(), avant l'assemblage du
+# tableau ; une partie du classeur qui n'est pas du texte UTF-8 valide,
 # ou qui porte un commentaire, une section CDATA, une instruction de
 # traitement ou une declaration de type de document, est refusee (regles R1
 # et R2, #574), de meme qu'une feuille dont le bloc des donnees sort de la
@@ -11616,30 +11828,22 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # lecture (regles R3 a R6, R6b et R11, #574), ou dont une cellule a un type
 # hors de la liste (t absent, n, s, str, inlineStr, b) ou un contenu non
 # conforme a son type (regles R7 et R8, #574), ou dont la table des chaines
-# partagees sort de la structure admise (regle R9, #574). Le lecteur interne
+# partagees sort de la structure admise (regle R9, #574). Le lecteur
 # dimensionne son tableau sur les seules cellules a valeur : une cellule
-# mise en forme sans valeur n'y est pas placee, comme par openxlsx.
-# Deux decompressions sur le chemin openxlsx (#558, decision Q-66-2 du
-# mainteneur, 18/11/2026) : .xlsx_admettre() extrait l'archive dans un
-# dossier propre a l'appel (utils::unzip(chemin, exdir = d)) pour les
-# controles du contrat ferme, puis openxlsx::read.xlsx() recoit le chemin du
-# fichier et l'extrait de nouveau. Dans openxlsx 4.2.5.2, read.xlsx() n'a que
-# deux methodes, pour un chemin (read.xlsx.default(), qui fait
-# unzip(xlsxFile, exdir = xmlDir), R/readWorkbook.R l. 142-143) et pour un
-# objet Workbook (read.xlsx.Workbook()) ; loadWorkbook() construit cet objet
-# en decompressant aussi (R/loadWorkbook.R l. 44-48), sauf a lui passer un
-# dossier deja extrait (isUnzipped = TRUE, l. 31-33), mais read.xlsx.Workbook()
-# est un autre interprete que celui dont la parite avec le lecteur interne
-# est mesuree (job de parite). La seconde decompression est donc gardee tant
-# qu'openxlsx lit le classeur. Son cout est faible (mesure, openxlsx
-# 4.2.5.2, R 4.3.3, C.UTF-8, mediane de 5 a 21 repetitions) : la
-# decompression (extraction par utils::unzip() et suppression du dossier)
-# prend 0,6 ms pour une serie de 8 lignes (4,5 % des 14 ms de la lecture
-# entiere), 1,0 ms pour 1 000 lignes x 3 (0,2 % de 0,47 s), 6,3 ms pour
-# 50 000 cellules (0,1 % de 9,9 s) et 29 ms pour 250 000 cellules (0,1 %
-# d'environ 1 min, 5 repetitions seulement), l'essentiel du temps etant
-# pris par les controles d'admission. La lecture par le seul lecteur interne, qui
-# leverait la seconde decompression, est examinee apres S4 (Q-66-3).
+# mise en forme sans valeur n'y est pas placee (openxlsx l'ignorait aussi).
+# Une seule decompression : .xlsx_admettre() extrait l'archive dans un
+# dossier propre a l'appel (utils::unzip(chemin, exdir = d)), et le tableau
+# est assemble a partir des cellules qu'il a analysees. La seconde
+# decompression, faite par openxlsx::read.xlsx() sur le chemin du fichier
+# (#558, decision Q-66-2 du mainteneur, 18/11/2026), a disparu avec lui
+# (#604). Son cout etait faible (mesure de #558, openxlsx 4.2.5.2, R 4.3.3,
+# C.UTF-8, mediane de 5 a 21 repetitions) : la decompression (extraction
+# par utils::unzip() et suppression du dossier) prenait 0,6 ms pour une
+# serie de 8 lignes (4,5 % des 14 ms de la lecture entiere), 1,0 ms pour
+# 1 000 lignes x 3 (0,2 % de 0,47 s), 6,3 ms pour 50 000 cellules (0,1 % de
+# 9,9 s) et 29 ms pour 250 000 cellules (0,1 % d'environ 1 min,
+# 5 repetitions seulement), l'essentiel du temps etant pris par les
+# controles d'admission.
 engine_lire_xlsx <- function(chemin, entete = TRUE) {
   .engine_point_decimal()
   # Dossier temporaire propre a l'appel, supprime en sortie (ADR 0004, #42) :
@@ -11649,12 +11853,6 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   dir.create(d, recursive = TRUE, showWarnings = FALSE)
   adm <- .xlsx_admettre(chemin, d, entete)
   partagees <- adm$partagees
-  # openxlsx lit la feuille resolue par son rang (feuilles de graphique
-  # placees avant passees, #487).
-  if (requireNamespace("openxlsx", quietly = TRUE))
-    return(openxlsx::read.xlsx(chemin, sheet = adm$rang, colNames = entete,
-                               skipEmptyRows = FALSE, skipEmptyCols = FALSE,
-                               na.strings = character(0), sep.names = " "))
   # Cellules admises (.xlsx_admettre(), decoupage de la regle R3) : r et t
   # lus dans la seule balise ouvrante, reference en majuscules, valeur dans
   # le <v> ou le <is> de la cellule (.xlsx_cellules(), regle commune avec
@@ -11662,7 +11860,7 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   # cellules a valeur (<v>...</v> ou <is> ; regle R11, #574) : une cellule
   # sans valeur ne porte que NA et n'est pas placee (une cellule mise en
   # forme sans valeur en XFD1048576 demandait une matrice de 128 Go, erreur
-  # R d'allocation, mesure ; openxlsx l'ignore deja).
+  # R d'allocation, mesure ; openxlsx l'ignorait aussi).
   cc <- adm$cellules
   a_val <- !is.na(cc$v) | cc$is
   if (!any(a_val)) return(data.frame())
@@ -11673,13 +11871,20 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
   val <- cc$v[a_val]
   isx <- cc$is[a_val]
   if (any(isx)) val[isx] <- vapply(cc$is_contenu[a_val][isx], .xml_textes, character(1), USE.NAMES = FALSE)
+  # Texte du <v> d'une cellule t="str" decode comme celui des chaines
+  # partagees et en ligne (.xml_decoder(), une passe ; #606, D-1 (a),
+  # option (ii)), une fois passe le refus des references de
+  # .xlsx_admettre() ; meme texte que celui que lit R12
+  # (.xlsx_controler_ligne_entete()).
+  sx <- typ == "str" & !is.na(val)
+  if (any(sx)) val[sx] <- .xml_decoder(val[sx])
   s <- typ == "s" & !is.na(val)
   if (any(s)) val[s] <- partagees[.xlsx_indice_partage(val[s])]
   # Cellule booleenne (t="b", valeur 1 ou 0) rendue "TRUE" ou "FALSE" : sa
-  # valeur brute "1"/"0" passerait pour un nombre en aval. openxlsx rend une
-  # colonne entierement booleenne (ou de textes "TRUE"/"FALSE") en logique,
-  # non en texte : .en_numerique() la lit NA, et les deux chemins refusent
-  # les memes cellules en aval (#579).
+  # valeur brute "1"/"0" passerait pour un nombre en aval. Une colonne
+  # entierement booleenne (ou de textes "TRUE"/"FALSE") reste donc en
+  # caractere ; .en_numerique() refuse ses cellules en aval (#579), aux
+  # memes positions que la colonne logique que rendait openxlsx.
   b <- typ == "b" & !is.na(val)
   if (any(b)) val[b] <- ifelse(val[b] == "1", "TRUE", ifelse(val[b] == "0", "FALSE", val[b]))
   m <- matrix(NA_character_, max(lig), max(col))
@@ -11689,12 +11894,11 @@ engine_lire_xlsx <- function(chemin, entete = TRUE) {
     nm[is.na(nm) | nm == ""] <- paste0("V", which(is.na(nm) | nm == ""))
   } else { nm <- paste0("V", seq_len(ncol(m))); corps <- m }
   df <- as.data.frame(corps, stringsAsFactors = FALSE)
-  # En-tetes gardes tels quels, doublons compris, comme openxlsx 4.2.9
-  # (check.names = FALSE par defaut, mesure) et comme le CSV de
-  # l'application (#555, decision du mainteneur 10 du 12/11/2026) : un
-  # en-tete i, t, xt ou yt en double recoit le meme refus par les trois
-  # chemins (make.unique() le lisait "i.1", "xt.1"..., qui echappait au
-  # controle).
+  # En-tetes gardes tels quels, doublons compris, comme le CSV de
+  # l'application (#555, decision du mainteneur 10 du 12/11/2026 ; regle
+  # mesuree sur openxlsx 4.2.9, check.names = FALSE par defaut) : un
+  # en-tete i, t, xt ou yt en double recoit le meme refus en xlsx et en CSV
+  # (make.unique() le lisait "i.1", "xt.1"..., qui echappait au controle).
   names(df) <- nm
   # Conversion en numerique d'une colonne dont toutes les cellules a valeur
   # sont des cellules nombre (sans attribut t, ou t="n") qui se lisent par

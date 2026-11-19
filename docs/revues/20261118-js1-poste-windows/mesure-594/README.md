@@ -101,3 +101,24 @@ Constat :
   - classeurs à chaînes partagées (XlsxWriter par défaut, pandas-xlsxwriter) lus justes.
 - Les classeurs témoins, séries et triangle, sont lus sur les deux chemins, identiques au CSV.
 - **Non couverts** : Excel et LibreOffice, absents du poste (décision du mainteneur du 18/11 : pas d'installation). Le relevé de ce qu'ils écrivent (§ 3 de la spécification) reste à faire avant le codage d'A1.
+
+## Complément : triangle à colonne `note` (§ 3.3 de la spécification, 18/11/2026, hors branche)
+
+*Mesure faite par la session principale (IA) le 18/11/2026 au soir, après la fusion de JS1, sur `main` `c013568` (code du moteur identique à `c75a112`). Elle répond au § 3.3 de la spécification d'`actuary-approfondi`, que le soixante-huitième point d'étape relève comme seule mesure restante pour #594.*
+
+Dossier `triangle/` :
+- `generer_triangle.py` écrit, avec openpyxl 3.1.5 (lxml 6.1.3 présent), deux triangles tirés de `tests/donnees/triangle_mw.csv`, augmentés d'une colonne `note` :
+  - `openpyxl_triangle_note_temoin.xlsx` : la note est sans blancs ;
+  - `openpyxl_triangle_note_blancs.xlsx` : la note est bordée de blancs, en chaîne en ligne `<t xml:space="preserve">`.
+- `mesurer_triangle.R` lit chaque classeur par `engine_lire_xlsx()`, puis par `engine_lire_triangle()`, sur le chemin courant.
+- Sorties : `sortie_openxlsx.txt` (`openxlsx` 4.2.5.2) et `sortie_repli.txt` (sans `openxlsx`), identiques hors de la ligne `chemin`.
+- Les md5 des deux classeurs sont ajoutés à `md5.txt`.
+
+Résultat, identique sur les deux chemins :
+
+| Classeur | `engine_lire_xlsx()` | `engine_lire_triangle()` |
+|---|---|---|
+| `_temoin` | lu, 8 × 10 | `ok = FALSE` : « Cellule(s) non numerique(s) en (i = 0, j = 8), … et 3 autre(s) » |
+| `_blancs` | **refus** `usp_refus_lecture`, règle R3 (balise `<t>` de la chaîne en ligne, cellules J2 à J9) | sans objet |
+
+Constat : le § 3.3 est **vérifié**. Une colonne non numérique d'un triangle est refusée en aval avec le même motif sur les deux chemins, et sa variante bordée de blancs est refusée en R3 dès la lecture. Aucun triangle n'est donc concerné par l'option (b) bornée, qui ne vise que les séries.

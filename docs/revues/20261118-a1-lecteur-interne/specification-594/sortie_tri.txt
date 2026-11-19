@@ -1,0 +1,5 @@
+triangle cellule bordee : openpyxl avant = usp_refus_lecture 
+apres openpyxl : ok = TRUE ; == xlsxwriter defaut avant (identical) : TRUE ; j1 de i=1 : 962.71 
+triangle == lecture du CSV : TRUE 
+triangle note blancs (apres) vs temoin (avant), engine_lire_triangle identical : TRUE 
+Cellule(s) non numerique(s) en (i = 0, j = 8), (i = 1, j = 8), (i = 2, j = 8), (i = 3, j = 8), (i = 4, j = 8) et 3 autre(s) (i : annee d'accident, j : annee de developpement).
