@@ -257,3 +257,9 @@ Réserves mineures :
   4. `docwriter` en fin de branche, puis validation du diff du `.tex` par `actuary`.
 
 Sources consultées pour repérer seulement l'existence de la section citée ci-dessus (aucune affirmation de fond ne s'y appuie) : table des matières de Davison et Hinkley (Scribd) ; compte rendu de l'ouvrage (Cambridge).
+
+---
+
+## Décision du mainteneur du 19/11/2026 (point d'arrêt D2, questionnaire de la session principale)
+
+- **D2 (b)** : note de l'intervalle Merz-Wüthrich requalifiée selon le § 2.1, portée « sous les modèles ajustés à deux triangles » ; issue proposée au § 2.3 créée, hors S5 ; aucun « basic » étendu ; étape 4b refondue en note requalifiée (commits `app:`, `tests:`, `moteur:` limité aux commentaires), sans régénération.
