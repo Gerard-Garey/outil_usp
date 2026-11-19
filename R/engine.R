@@ -8860,7 +8860,9 @@ engine_lire_triangle <- function(df) {
 # Reconnu de la meme facon sur tout systeme : fonction de reconnaissance, qui
 # ne dit pas ce que le systeme courant admet (sous unix, .xlsx_chemin_sortie()
 # n'en retient que la barre oblique, et engine_ecrire_xlsx() refuse avant les
-# formes de lecteur et d'UNC en barres inverses, voir .xlsx_defaut_chemin()).
+# formes de lecteur et d'UNC en barres inverses ; sous Windows, il refuse la
+# forme "X:" sans barre, que cette fonction tient pour absolue : voir
+# .xlsx_defaut_chemin()).
 # Aucun acces au systeme de fichiers.
 .xlsx_chemin_absolu <- function(chemin) grepl("^([/\\\\]|[A-Za-z]:)", chemin)
 
@@ -8877,7 +8879,9 @@ engine_lire_triangle <- function(df) {
 # il serait pris pour un nom de fichier ordinaire, sous wd. Sous Windows, les
 # formes de .xlsx_chemin_absolu() restent absolues ; un dossier "." (forme
 # absolue sans dossier que R sache lire, dont normalizePath(".") rendrait
-# getwd()) rend le chemin tel quel. Le resultat ne depend pas de getwd() (il
+# getwd()) rend le chemin tel quel : c'est la forme "X:f.xlsx", que
+# engine_ecrire_xlsx() refuse avant sous Windows (#603), de sorte que cette
+# branche n'est plus atteinte par l'ecrivain. Le resultat ne depend pas de getwd() (il
 # depend de wd, de HOME pour "~" et, par normalizePath(), des liens du dossier
 # s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
 .xlsx_chemin_sortie <- function(chemin, wd) {
@@ -8916,22 +8920,45 @@ engine_lire_triangle <- function(df) {
 # sur la chaine (.xlsx_defaut_encodage()) ; sous unix, forme de lecteur Windows
 # ("^[A-Za-z]:") ou d'UNC en barres inverses ("^\\\\"), qui n'est pas un chemin
 # de ce systeme (mesure : la cible, rendue telle quelle, etait relative au
-# dossier temporaire de l'appel, supprime en sortie : "OK" sans fichier) ; barre
+# dossier temporaire de l'appel, supprime en sortie : "OK" sans fichier) ; sous
+# Windows, forme de lecteur sans barre (#603, voir ci-dessous) ; barre
 # finale ; enfin nom ne se terminant pas par .xlsx, casse indifferente, ce qui
 # refuse aussi ".", ".." et "sub/." / "sub/.." (un nom sans extension recevait
 # ".zip" de la commande zip : "f" ecrivait "f.zip"). Sous Windows, les formes de
-# lecteur et d'UNC restent des chemins absolus admis. Un dossier existant est
-# refuse plus loin, sur la cible resolue (dir.exists()).
-.xlsx_defaut_chemin <- function(chemin) {
+# lecteur suivies d'une barre ("C:/a/f.xlsx", "C:\\a\\f.xlsx") et d'UNC restent
+# des chemins absolus admis. Un dossier existant est refuse plus loin, sur la
+# cible resolue (dir.exists()).
+# Forme de lecteur sans barre sous Windows (#603) : lettre, deux-points, puis
+# autre chose qu'une barre oblique ou inverse, ou rien ("X:f.xlsx", "c:f.xlsx",
+# "X:") ; la cible est relative au dossier courant de ce lecteur, non a celui de
+# l'appelant. Constat de JS1 sur un poste Windows (docs/revues/20261118-js1-poste-
+# windows/etape-2-iii-chemin-de-lecteur.md) : "C:f.xlsx" rendait un succes sans
+# fichier la ou on l'attend ; la lecture du code et la sonde de ce releve en
+# donnent le mecanisme (setwd() sur le dossier temporaire de l'appel, qui est
+# alors le dossier courant du lecteur de tempdir(), puis suppression de ce
+# dossier avec le fichier) ; non rejoue sous Linux. Refuse ici avant toute
+# ecriture, quel que soit le lecteur : le refus ne depend pas de la mesure d'un
+# second lecteur, non faite (le poste du constat n'a que C:).
+# systeme : "unix" ou "windows" (defaut .Platform$OS.type ; autre valeur
+# refusee par match.arg()) ; argument de la
+# fonction pure qui decide, pour que la branche Windows soit testable sous
+# Linux ; engine_ecrire_xlsx() l'appelle sans lui.
+.xlsx_defaut_chemin <- function(chemin, systeme = .Platform$OS.type) {
+  systeme <- match.arg(systeme, c("unix", "windows"))
   motif_usage <- paste("le chemin doit etre une chaine unique, non NA, non vide et ne pas",
                        "finir par une barre")
   if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin))
     return(motif_usage)
   defaut <- .xlsx_defaut_encodage(chemin)
   if (!is.null(defaut)) return(paste("le chemin porte", defaut))
-  if (.Platform$OS.type == "unix" && grepl("^([A-Za-z]:|\\\\\\\\)", chemin))
+  if (systeme == "unix" && grepl("^([A-Za-z]:|\\\\\\\\)", chemin))
     return(paste("le chemin est un chemin de lecteur Windows (X:...) ou de partage en barres",
                  "inverses (\\\\serveur\\...) : ce n'est pas un chemin de ce systeme"))
+  if (systeme == "windows" && grepl("^[A-Za-z]:([^/\\\\]|$)", chemin))
+    return(paste("le chemin est de la forme X: sans barre (lecteur seul, ou fichier relatif au",
+                 "dossier courant de ce lecteur) : la cible n'est pas resolue contre le dossier",
+                 "de l'appelant et le fichier pourrait n'etre pas ecrit la ou on l'attend",
+                 "(donner le chemin complet, X:/dossier/f.xlsx, ou un chemin relatif sans lecteur)"))
   if (grepl("[/\\\\]$", chemin)) return(motif_usage)
   if (!grepl("\\.[xX][lL][sS][xX]$", chemin))
     return(paste("le chemin doit designer un fichier dont le nom se termine par .xlsx",
@@ -9057,11 +9084,14 @@ engine_lire_triangle <- function(df) {
 # la commande zip ecrivait en "f.zip"), et qui n'est ni un chemin de lecteur
 # Windows ("X:...") ni un chemin UNC en barres inverses sous unix (pas un
 # chemin de ce systeme : la cible, relative au dossier temporaire de l'appel,
-# n'ecrivait rien), sinon refus usp_refus_ecriture avant toute ecriture
-# (.xlsx_defaut_chemin()) ; refuse aussi une cible qui est un dossier existant ;
+# n'ecrivait rien), ni, sous Windows, la forme de lecteur sans barre ("X:f.xlsx",
+# "X:" : relative au dossier courant du lecteur, succes annonce sans fichier la
+# ou on l'attend, #603 ; "X:/a/f.xlsx" et "X:\\a\\f.xlsx" restent admis), sinon
+# refus usp_refus_ecriture avant toute ecriture (.xlsx_defaut_chemin()) ;
+# refuse aussi une cible qui est un dossier existant ;
 # resolu avant tout changement de repertoire par .xlsx_chemin_sortie() ("~"
 # developpe ; sous unix, absolu s'il commence par "/", sinon relatif au
-# repertoire courant de l'appelant ; sous Windows, lecteur "X:" et UNC absolus).
+# repertoire courant de l'appelant ; sous Windows, lecteur "X:/..." et UNC absolus).
 # La valeur rendue est ce chemin resolu, rendue seulement si le fichier existe
 # apres l'ecriture (sinon refus usp_refus_ecriture).
 # Caracteres (#580) : une chaine ecrite (cellule, en-tete, nom de feuille) qui
@@ -9341,8 +9371,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # 1.0 ou UTF-8 invalide, refusee avant toute ecriture ; nom de feuille qui
 # n'est pas une chaine unique non NA non vide ; chemin de sortie refuse
 # (type, NA, vide, barre finale, encodage "bytes" non ASCII ou UTF-8 invalide,
-# chemin de lecteur ou d'UNC en barres inverses sous unix, nom hors .xlsx :
-# .xlsx_defaut_chemin() ; cible resolue qui designe un dossier existant :
+# chemin de lecteur ou d'UNC en barres inverses sous unix, forme "X:" sans
+# barre sous Windows (#603), nom hors .xlsx : .xlsx_defaut_chemin() ; cible
+# resolue qui designe un dossier existant :
 # engine_ecrire_xlsx()), le tout avant toute ecriture (#580).
 .refus_ecriture <- function(message)
   stop(structure(class = c("usp_refus_ecriture", "error", "condition"),
