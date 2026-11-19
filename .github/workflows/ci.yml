@@ -468,7 +468,8 @@ jobs:
       # openxlsx et zip : c'est lui qui empêche un paquet absent de faire sauter
       # des tests, et lui seul pour les voies qui sautent sans écrire « [saute] »
       # (test_controles_entree.R : classeurs écrits par openxlsx::write.xlsx()
-      # du test D-S1-37 ; test_application.R l. 970, 1035-1039, 2043) ;
+      # du test D-S1-37 ; test_application.R : export par zip (#522), test plotly #236, note
+      # shiny absent #199) ;
       # le grep de l'étape des tests n'attrape que les lignes « [saute] »
       # explicites. Il détecte aussi une version différente de celle attendue.
       - name: Contrôle des paquets R
