@@ -14107,6 +14107,22 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
   structure(colonnes,
             row.names = if (is.null(noms_lignes)) .set_row_names(length(colonnes[[1L]])) else noms_lignes,
             class = "data.frame")
+# Table de colonnes sous la forme exacte du resultat de data.frame(...) :
+# attributs names, class, row.names dans cet ordre (celui de data.frame(),
+# distinct de celui de .mw_table()), noms de lignes automatiques, sans le
+# cout d'appel de data.frame() (#445, piste B2 : tables de
+# mw_test_cellule_aberrante() construites a chaque replication du bootstrap
+# de reserve2). Arguments : colonnes nommees (noms syntaxiques, que
+# data.frame() garde tels quels), vecteurs atomiques sans dimension, de meme
+# longueur. Une colonne a noms (dont data.frame() tirerait les noms de
+# lignes et qu'il depouillerait de ses noms) renvoie a data.frame() lui-meme.
+# Critere : identical(attrib.as.set = FALSE) avec data.frame(...)
+# (tests/unitaires/test_chemins_chauds_445.R).
+.mw_df <- function(...) {
+  colonnes <- list(...)
+  if (any(vapply(colonnes, function(v) !is.null(names(v)), logical(1)))) return(data.frame(...))
+  structure(colonnes, class = "data.frame", row.names = .set_row_names(length(colonnes[[1L]])))
+}
 # Noms de lignes de rbind() ITERE (table <- rbind(table, data.frame(bloc)),
 # depuis data.frame()) sur des blocs dont les noms viennent des vecteurs de
 # `sources` (un par bloc, NULL ou non nomme pour un bloc a noms
@@ -14222,7 +14238,10 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, j_degeneres)
-  exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
+  # Table vide construite une fois au chargement (.MW_DF_VIDE_J_N, #513),
+  # meme objet que data.frame(j = integer(0), n_facteurs = integer(0)),
+  # appele a chaque replication avant #445 (piste B2) ; copiee a l'ecriture.
+  exclues <- .MW_DF_VIDE_J_N
   # Un bloc par colonne de developpement, table assemblee une fois par
   # .mw_empiler() (#239, #250) ; noms de lignes tires de C (noms de lignes
   # du triangle), comme dans l'ancienne forme.
@@ -17762,15 +17781,15 @@ mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) 
   tk <- t[k]; njk <- nj[k]; ik <- inf$i[k]; jk <- inf$j[k]
   if (any(is.na(tk) & !nb)) return(na)
   if (any(nb) && !replique) {
-    na$non_borne <- data.frame(i = ik[nb], j = jk[nb])
+    na$non_borne <- .mw_df(i = ik[nb], j = jk[nb])
     return(na)
   }
   p <- 2 * stats::pt(-abs(tk), njk - 2); p[nb] <- 0
   im <- which.min(p)
   M <- min(p)
   list(stat = M, p = min(1, length(p) * M), N_t = length(p), i = ik[im], j = jk[im],
-       n_j = njk[im], t = tk[im], non_borne = data.frame(i = ik[nb], j = jk[nb]),
-       cellules = data.frame(i = ik, j = jk, n_j = njk, t = tk, p = p, non_borne = nb))
+       n_j = njk[im], t = tk[im], non_borne = .mw_df(i = ik[nb], j = jk[nb]),
+       cellules = .mw_df(i = ik, j = jk, n_j = njk, t = tk, p = p, non_borne = nb))
 }
 
 # Motif de la statistique observee non definie de la ligne M4 (option (iii),
