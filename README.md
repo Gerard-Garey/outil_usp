@@ -25,23 +25,24 @@ Périmètres : annexe II (non-vie, 12 segments) et annexe XIV (santé non-SLT, 4
 ## Prérequis
 
 - **R ≥ 4.3** (développé et testé avec R 4.3.1).
-- Moteur (`R/engine.R`) : R base + `stats` uniquement. `openxlsx` est utilisé
-  s'il est installé pour lire les fichiers Excel, avec repli sur une
-  implémentation interne ; l'écriture passe toujours par l'écrivain interne
-  du moteur, dont l'archive est compressée par le paquet `zip` s'il est
+- Moteur (`R/engine.R`) : R base + `stats` uniquement. Les fichiers Excel
+  sont lus par le seul lecteur interne du moteur et écrits par son seul
+  écrivain interne, qu'`openxlsx` soit installé ou non (ADR 0020, #604).
+  L'archive écrite est compressée par le paquet `zip` s'il est
   installé (importé par `openxlsx`), sinon par `utils::zip()` et la commande
   `zip` du système (#488). Si `zip::zipr()` échoue (vieux paquet `zip`, par
   exemple), l'archive partielle est effacée et `utils::zip()` prend le relais
   quand la commande existe ; sinon, ou si ce repli échoue, l'erreur nomme les
   deux échecs et aucun fichier n'est laissé. Les calculs n'en dépendent pas.
-- Lecture xlsx. `openxlsx` reste le lecteur par défaut quand il est
-  installé. Avant les deux chemins de lecture, un contrôle de forme du
-  classeur refuse, avec un motif, tout ce qui sort du sous-ensemble que
-  l'outil sait lire de façon identique sur les deux chemins, hors des écarts
-  consignés dans la documentation. Il refuse notamment une cible de feuille
-  forgée qui mènerait à une valeur fausse et une balise de relation qui
-  bloquerait `openxlsx` (formes de classeur hors de ce sous-ensemble : #574,
-  #595 ; détail dans la documentation, « Contrôles de qualité des données »).
+- Lecture xlsx. Le lecteur interne est le seul lecteur de l'outil.
+  Avant la lecture, un contrôle de forme du classeur refuse, avec un motif,
+  tout ce qui sort du sous-ensemble que l'outil sait lire de façon sûre. Il
+  refuse notamment une cible de feuille forgée qui mènerait à une valeur
+  fausse et une balise de relation de forme non reconnue (formes de classeur
+  hors de ce sous-ensemble : #574, #595 ; détail dans la documentation,
+  « Contrôles de qualité des données »). `openxlsx`, déclaré en `Suggests`
+  de `DESCRIPTION`, ne sert que de témoin de test, sans effet sur l'outil
+  (job « Témoin openxlsx et archive zip » de la CI).
   - Précaution : relire les données affichées avant le calcul
     contre leur source. Le rapport figé donne l'empreinte md5 des données
     du calcul (table « Empreintes », `engine_empreinte()`). Recalculée à
