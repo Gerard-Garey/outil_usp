@@ -8953,7 +8953,8 @@ engine_lire_triangle <- function(df) {
 # normalisation des fins de ligne ; citation dans
 # docs/revues/20261118-a1-lecteur-interne/relecture-xml-1.0.md) : un retour
 # chariot ecrit en clair dans une cellule est donc relu saut de ligne par un
-# analyseur conforme. Avec
+# analyseur conforme, dont le lecteur interne (.xml_fins_de_ligne(), #602,
+# etape 3b d'A1). Avec
 # attribut = TRUE (nom de feuille, ecrit dans l'attribut name de xl/workbook.xml),
 # la tabulation et le saut de ligne sont refuses de meme : un analyseur
 # conforme relit les blancs d'un attribut en espaces (XML 1.0, 3.3.3). La
@@ -9072,10 +9073,16 @@ engine_lire_triangle <- function(df) {
 # cellule et en en-tete, le retour chariot (U+000D), et dans le nom de la
 # feuille la tabulation, le saut de ligne et le retour chariot : un analyseur
 # XML 1.0 conforme relit un retour chariot de texte en saut de ligne (2.11) et
-# les blancs d'un attribut en espaces (3.3.3), alors que openxlsx et le
-# lecteur interne les relisent intacts (mesure, decision du mainteneur du
-# 18/11/2026) ; l'echappement &#13; est exclu (le lecteur refuse ces
-# references). Tabulation et saut de ligne restent admis en cellule et en
+# les blancs d'un attribut en espaces (3.3.3), alors que openxlsx les relit
+# intacts (mesure, decision du mainteneur du 18/11/2026 ; openxlsx 4.2.5.2
+# sous Linux, retour chariot de texte : inventaire de l'etape 1a d'A1, A14 ;
+# openxlsx 4.2.9 sous Windows le relit en saut de ligne, meme ligne A14).
+# Le lecteur interne relit un retour chariot ecrit en clair en saut de ligne,
+# dans le texte comme dans un attribut (.xml_fins_de_ligne(), #602, etape
+# 3b d'A1), mais garde intacts la tabulation et le saut de ligne d'un
+# attribut (3.3.3 non appliquee ; mesure : name="a<TAB>b<LF>c" lu tel quel
+# par .xlsx_attribut()) ; l'echappement &#13; est exclu (le lecteur refuse
+# ces references). Tabulation et saut de ligne restent admis en cellule et en
 # en-tete (texte de cellule). Une chaine marquee "bytes" et non ASCII est
 # refusee de meme, a tous les emplacements. Le guillemet double d'un nom de
 # feuille est ecrit &quot; dans l'attribut name. Le message cite l'emplacement (feuille,
@@ -9414,6 +9421,13 @@ engine_ecrire_csv <- function(df, chemin) {
 # ("invalid multibyte string"). Un octet nul tronquait la partie lue par
 # readChar() a cet octet (avertissement "truncating string with embedded
 # nuls"), sans refus.
+# Fins de ligne (#602, etape 3b d'A1) : une fois R1 passee, le texte de la
+# partie est normalise par .xml_fins_de_ligne() (XML 1.0, 2.11), avant toute
+# autre regle et toute analyse : tout ce que le lecteur tire des quatre
+# parties (texte des chaines en ligne et partagees, <v> des cellules,
+# valeurs d'attribut) l'est donc apres la normalisation, et avant le
+# decodage des references (.xml_decoder()). La position citee par R1 est
+# celle de l'octet dans la partie telle qu'archivee (avant normalisation).
 .xlsx_texte <- function(d, partie) {
   f <- file.path(d, partie)
   b <- readBin(f, "raw", file.info(f)$size)
@@ -9423,7 +9437,35 @@ engine_ecrire_csv <- function(df, chemin) {
                            .echapper_texte(partie), k))
   x <- rawToChar(b)
   Encoding(x) <- "UTF-8"
-  x
+  .xml_fins_de_ligne(x)
+}
+
+# Normalisation des fins de ligne litterales d'un texte XML (#602 ; XML 1.0,
+# 5e edition, 2.11 : le processeur "MUST behave as if it normalized all line
+# breaks [...] on input, before parsing, by translating both the
+# two-character sequence #xD #xA and any #xD that is not followed by #xA to a
+# single #xA character" ; citation et analyse dans
+# docs/revues/20261118-a1-lecteur-interne/relecture-xml-1.0.md) : "\r\n",
+# puis tout "\r" restant, remplaces par "\n". Appliquee par .xlsx_texte() a
+# chaque partie lue, a l'entree, donc avant le decodage des references de
+# caractere : une reference &#13; ou &#xD; n'est pas un octet 0x0D du texte,
+# elle n'est pas touchee ici et, decodee par .xml_decoder(), reste un retour
+# chariot (XML 1.0, 2.11 et 4.4.2). Remplacements a motif fixe : l'octet
+# 0x0D ne figure dans aucune sequence UTF-8 multi-octet, et la partie a deja
+# passe R1 (UTF-8 valide) ; texte sans "\r" rendu tel quel, sans copie. Les
+# regles d'admission qui lisent la partie en suivent l'effet sans changer de
+# decision : celles qui lisent le texte colle des relations (fins de ligne
+# retirees, .xlsx_controler_balises_relation(),
+# .xlsx_controler_designation()) voient le meme texte colle, et les autres
+# tiennent "\r" et "\n" pour des blancs de meme classe ([ \t\r\n],
+# [[:space:]]). Seul change le texte d'une partie qui porte un "\r" en clair,
+# et ce que le lecteur en cite dans un refus. Le <v> d'une cellule t="str" est
+# normalise de meme (texte de la partie), bien qu'il ne soit pas decode.
+.xml_fins_de_ligne <- function(x) {
+  if (!grepl("\r", x, fixed = TRUE)) return(x)
+  y <- gsub("\r", "\n", gsub("\r\n", "\n", x, fixed = TRUE), fixed = TRUE)
+  Encoding(y) <- "UTF-8"
+  y
 }
 
 # Regle R2 du contrat ferme du lecteur de classeur (#574 ; avis amont
@@ -11313,7 +11355,8 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # choix de la feuille lue et de sa cible. Regles posees : R0 (archive : entrees qui
 # sortent du dossier, table des chaines partagees ailleurs qu'en
 # xl/sharedStrings.xml ou en plusieurs exemplaires), R1 (UTF-8 valide, sans
-# octet nul : .xlsx_texte()), R2 (sections de balisage :
+# octet nul : .xlsx_texte(), qui normalise ensuite les fins de ligne de la
+# partie, .xml_fins_de_ligne(), #602), R2 (sections de balisage :
 # .xlsx_controler_balisage()), R3 (structure du bloc des donnees, refus
 # existant de la balise <c suivie d'un blanc autre que l'espace en tete :
 # .xlsx_controler_structure()), R4 (refus existants de l'attribut r,
@@ -11545,7 +11588,15 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # openxlsx et laissee en caractere par le lecteur interne), une cellule de type
 # inconnu, date (t="d") ou en erreur de calcul (t="e"), ou dont le contenu ne
 # correspond pas au type, est refusee avant la lecture (regles R7 et
-# R8, #574). Texte des cellules : le lecteur decode les entites nommees et
+# R8, #574). Fins de ligne : chaque partie lue est normalisee a l'entree,
+# avant toute regle d'admission et toute analyse ("\r\n", puis "\r" isole,
+# lus "\n" : XML 1.0, 2.11 ; .xml_fins_de_ligne(), appelee par .xlsx_texte(),
+# #602) ; un texte "a<CR><LF>b" ecrit en clair, en chaine en ligne, en
+# chaine partagee ou dans le <v> d'une cellule t="str", est lu "a\nb" (il
+# etait lu "a\r\nb" jusque-la). Une reference &#13; ou &#xD;, qui n'est pas
+# une fin de ligne litterale, n'est pas normalisee (decodee, elle serait un
+# retour chariot) ; elle reste refusee par .xlsx_controler_references().
+# Texte des cellules : le lecteur decode les entites nommees et
 # les references numeriques (&#233;, &#xE9;) des chaines partagees et des
 # chaines en ligne (.xml_decoder()). openxlsx (mesure, 4.2.9) decode les
 # entites nommees des chaines partagees seulement (en decodant deux fois
