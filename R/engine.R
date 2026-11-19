@@ -8388,7 +8388,8 @@ MOTIF_LIGNE1_VIDE <- paste("Ligne 1 du fichier sans aucune valeur : l'en-tete du
 # Une ligne 1 physiquement vide (aucun separateur) reste refusee avant
 # lecture par l'application (utils::count.fields), comme avant. Un classeur
 # dont la ligne 1 ne porte que des chaines vides ou de blancs est refuse en
-# amont, au meme texte, sur les deux chemins (.xlsx_controler_ligne_entete()).
+# amont, par le lecteur interne (.xlsx_controler_ligne_entete(), R12, lecteur
+# unique depuis #604 ; jusqu'a #604, au meme texte sur les deux chemins).
 # L'espace insecable U+00A0 n'est pas un blanc de [[:space:]] sous C.UTF-8 :
 # un en-tete fait d'elle seule est un en-tete reel, ici comme en classeur.
 .ligne1_sans_valeur <- function(df) {
@@ -9287,10 +9288,20 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
 # write.csv() et write.table(), qui ouvrent une connexion en mode texte,
 # ecrivent "\r\n" sous Windows selon la documentation de file() (non mesure) :
 # c'est le seul ecart de fin de ligne avec eux, sous Windows seulement.
-# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici) ; une connexion
-# n'est pas acceptee.
+# chemin : chemin d'un fichier (ouvert, ecrase et ferme ici), chaine unique,
+# non NA, non vide ; une connexion, NA, une chaine vide ou un vecteur sont
+# refuses avant toute ecriture par un usp_refus_ecriture motive (.refus_ecriture(),
+# meme classe que le refus de chemin d'engine_ecrire_xlsx()), aucun fichier
+# cree. Depuis #602, writeBin() accepte une connexion binaire : sans cette
+# garde, file(f, "wb") est ecrit sans erreur, NA_character_ et un vecteur levent l'erreur
+# R brute "invalid 'description' argument", un NA logique "invalid
+# connection" (mesure a c182d0d, R 4.3.3).
 engine_ecrire_csv <- function(df, chemin) {
   .engine_point_decimal()
+  if (!is.character(chemin) || length(chemin) != 1L || is.na(chemin) || !nzchar(chemin))
+    .refus_ecriture(paste("Ecriture du fichier CSV impossible : le chemin doit etre une chaine",
+                          "unique, non NA et non vide (un fichier, non une connexion) ;",
+                          "aucun fichier ecrit."))
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   guillemets <- function(x) paste0('"', gsub('"', '""', enc2utf8(x), fixed = TRUE), '"')
   colonne <- function(v) {
@@ -9437,10 +9448,11 @@ engine_ecrire_csv <- function(df, chemin) {
 # (avis d'actuary sur le lot A, Q4) : R1 ne sonde que les quatre parties qui
 # portent ou designent les valeurs. Les autres parties ne sont pas
 # controlees ; une corruption y est sans effet mesure sur les valeurs
-# (openxlsx 4.2.5.2, detectDates non employe ; mesure : octet 0xFF dans
-# xl/styles.xml et dans [Content_Types].xml, valeurs lues identiques sur
-# les deux chemins). A revoir si detectDates ou une lecture des styles
-# venait a etre employe. Mesure (#574,
+# (mesure datee, jusqu'a #604, openxlsx 4.2.5.2 sans detectDates : octet 0xFF
+# dans xl/styles.xml et dans [Content_Types].xml, valeurs lues identiques sur
+# les deux chemins ; le lecteur interne, seul depuis #604, ne lit ni les styles
+# ni [Content_Types].xml). A revoir si une lecture des styles venait a etre
+# employee par le lecteur interne. Mesure (#574,
 # forme 5, rejeu S1 ; sonde sondes/sonde_574_r1_r2.R) : avant R1, une table
 # des chaines partagees portant l'octet 0xFF faisait sauter les controles
 # Q-F, P2 et X1 (grepl() rend FALSE avec l'avertissement "input string 1 is
@@ -10768,8 +10780,8 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
 # du par. 2 ; amendement de l'avis d'actuary sur le lot B, Q5) : contenu de
 # chaque cellule conforme a son type (R7 admis). <v> designe la valeur
 # <v>...</v> de la cellule (.xlsx_cellules()) ; <v/> vaut absence de <v>,
-# comme pour openxlsx 4.2.5.2, qui lit <v/> exactement comme une cellule
-# sans <v> sur chaque type (mesure, sonde sondes/sonde_574_lot_c.R : NA sans
+# comme pour openxlsx 4.2.5.2 (temoin retire de la lecture par #604), qui lit
+# <v/> exactement comme une cellule sans <v> sur chaque type (mesure, sonde sondes/sonde_574_lot_c.R : NA sans
 # t, t="str" ou t="inlineStr", chaine partagee d'indice 0 pour t="s",
 # "FALSE" pour t="b") ; <v></v> est un <v> present, de contenu vide (lu 0
 # par openxlsx sans t, "" en interne, mesure). Regles :
@@ -10779,7 +10791,8 @@ XML_MOTIF_NOMBRE <- "^[ \t\r\n]*[+-]?([0-9]+(\\.[0-9]*)?|\\.[0-9]+)([eE][+-]?[0-
 #  - s : <v> present, en chiffres seulement (^[0-9]+\z : ni signe, ni blanc,
 #    ni point, ni exposant), sans <is> ;
 #  - str : <v> facultatif, texte quelconque (<v></v> : chaine vide, lue ""
-#    par les deux chemins), sans <is> ; texte soumis au complement de R8
+#    par le lecteur interne ; lue "" aussi par openxlsx 4.2.5.2 jusqu'a #604,
+#    constat d'origine du lot C, non remesure), sans <is> ; texte soumis au complement de R8
 #    (.xlsx_controler_references(), appele par .xlsx_admettre()) puis
 #    decode par .xml_decoder() (#606) ;
 #  - inlineStr : sans <v> (<is> facultatif) ;
