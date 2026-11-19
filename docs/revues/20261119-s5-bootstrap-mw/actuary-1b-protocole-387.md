@@ -235,3 +235,12 @@ Mesures *vérifiées* : R 4.3.3, Linux, 4 cœurs, moteur HEAD, 19/11/2026. La ma
   1. Débit mesuré à 4 processus de 2,72 contre 3,917 dans #297 : l'estimation de durée de 1c (environ 1,05 h pour #246) est peut-être optimiste. Critère : aucun ; le pré-vol de #246 fait foi.
   2. À HEAD (#445 B3 et B4 non commités), `mw_bootstrap()` coûte 15 à 16 s, comme dans 1c : aucun gain encore. Le motif « −20 % » est déjà signalé par 1a. Critère : aucun.
 - **Prochaine action recommandée** : la session verse ce rapport, puis le mainteneur tranche Q-1b-1 à Q-1b-8. Ensuite, étape 4 : `coder-approfondi` (`high`) écrit le script, lance `--essai` puis `--prevol`, et exécute selon M42 seulement après #492 (champ `n_sans_sigma` comparé par le contrôle 8) et après #445.
+
+---
+
+## Décisions du mainteneur du 19/11/2026 (questionnaire de la session principale, avant toute exécution)
+
+- **Q-1b-1 (A)** : σ_A (σ̂ du triangle générateur) est la cible principale, σ_B est descriptive.
+- **Q-1b-2 (b)** : chemin hybride (boucle allégée sur P1, P2, P3 et P5, avec le contrôle 5 ; `mw_bootstrap()` complet sur P4).
+- **Q-1b-3, Q-1b-4, Q-1b-6, Q-1b-8** : profils, niveaux L0 à L2 (budget de 3 h), critère K-M1 à K-M5, profils de lecture Ω0 à Ω4, Ω2′ et V, retour au mainteneur sous L2 : **approuvés tels quels**.
+- **Q-1b-5 (A)** et **Q-1b-7** : oracle conditionnel, McNemar avec la p conditionnelle (dans le script seulement), témoin, profils Λ ; sous Ω2, extension de I4 en regard du percentile, textes de la note tranchés à D2 après lecture.
