@@ -1353,6 +1353,16 @@ $z_t$ ou $u_t$, \code{plancher}~; $r$~; $T$ & extrémités \code{c(bas, haut)} d
 configuration observée, lues par le champ \code{extremes} d'\code{USP\_CATALOGUE\_MC} pour le
 plancher Monte-Carlo de la règle~R1~: $Z$ en $R = 2$ et en $R_{\max}$~; $Z$ en $S = \mp T(T-1)/2$,
 sans ex \ae quo~; $S = 0$ et $(T^3 - T)/3$ (tableau~\ref{tab:pmin}, note~(v)) \\
+\code{.usp\_spearman\_S()},\newline \code{.usp\_smirnov\_D()} & deux vecteurs (déjà aplatis) &
+statistique $S$ de Spearman ($\hat\rho_s$ de \code{cor(rank(a), rank(b))} après retrait des paires
+incomplètes, \code{NA} si $\hat\rho_s$ n'est pas fini) et statistique $D$ de Smirnov à deux
+échantillons, calculées seules, sans p-value~: transcription des opérations de
+\code{cor.test()} et de \code{ks.test()} qui forment ces statistiques, de même valeur au bit près
+(vérifié contre \code{stats::cor.test()} et \code{stats::ks.test()} par\newline
+\code{tests/unitaires/}\allowbreak\code{test\_chemins\_chauds\_445.R})~; employées par les entrées
+\code{SpearVol}, \code{SpearTps} et \code{Smirnov} d'\code{USP\_CATALOGUE\_MC}, à l'observé et à
+chaque réplication~; la statistique restituée par \code{usp\_tests()} reste calculée par
+\code{cor.test()} et \code{ks.test()} \\
 \code{TOL\_EX\_AEQUO},\newline \code{engine\_aplatir\_}\newline\code{ex\_aequo()},\newline
 \code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()},\newline
 \code{.usp\_aplatir\_}\newline\code{ratios()},\newline \code{.usp\_plancher\_u()} & constante
@@ -1482,7 +1492,11 @@ voulu à la fonction de test, et dont la forme, liste aux noms exacts puis chaqu
 contrôlée par \code{.mw\_verifier\_figes()}~; table d'appel des
 combinaisons (élément \code{combn}, présent seulement quand \code{mw\_bootstrap()} la passe),
 transmise par l'entrée \code{Courbure} à \code{mw\_test\_courbure()} (voir, dans cet index,
-\code{.mw\_combinaisons()}) \\
+\code{.mw\_combinaisons()})~; élément \code{degeneres\_aj}, colonnes dégénérées de l'ajustement
+courant lui-même (\code{.mw\_colonnes\_degenerees(aj)}, distinctes de l'ensemble figé dans une
+réplication), calculées une fois par contexte et passées par les entrées \code{MinP4},
+\code{Origine}, \code{HomogF} et \code{Courbure} à l'argument \code{degeneres\_aj} de leur
+fonction de test \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -1754,11 +1768,15 @@ colonne, \code{\$degeneree\_Jm3} (champs \code{\$colonne},
 \code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
 \code{\$degeneree} \\
 \code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
-\code{.mw\_colonnes\_degenerees()} & \code{aj}, $j$, \code{tol} ($10^{-12}$) & écart relatif
+\code{.mw\_colonnes\_}\newline\code{degenerees()},\newline \code{.mw\_degeneree\_}\newline\code{courante()} & \code{aj}, $j$, \code{tol} ($10^{-12}$)~;
+pour la dernière, \code{aj}, $j$, \code{degeneres\_aj} (\code{NULL}) & écart relatif
 maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée, à deux
 volets (écart relatif au plus \code{tol}, ou facteurs que l'aplatissement des ex \ae quo à
 \code{tol} rend tous égaux)~; ensemble des colonnes dégénérées, figé à l'observé par
-\code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{mw\_bootstrap()} (fiche~\ref{mw:m1a})~; booléen «~colonne $j$ de \code{aj} dégénérée~», lu
+dans \code{degeneres\_aj} s'il est fourni (élément de même nom du contexte de
+\code{.mw\_contexte\_mc()}), évalué par \code{.mw\_colonne\_degeneree()} sinon~: même prédicat,
+même booléen \\
 \code{.mw\_colonnes\_}\newline\code{non\_identifiables()} & \code{aj}, \code{j\_degeneres}, \code{n\_min},
 \code{k\_distinct} & prédicat unique des colonnes non identifiables de M1~: vecteur
 croissant d'entiers, éventuellement vide, des $j$ tels que $n_j = I - j \ge$ \code{n\_min}, hors des
@@ -1947,11 +1965,16 @@ d'appel des combinaisons, transmise à \code{.mw\_courbure\_}\allowbreak\code{co
 \code{NULL} hors d'un appel de \code{mw\_bootstrap()}) et de
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (ensemble figé des colonnes non
 identifiables de l'ordonnée, élément \code{origine\_non\_}\allowbreak\code{identifiables} de l'objet des ensembles
-figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+figés) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_test\_*()} (suite) & argument facultatif \code{degeneres\_aj} de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()},
+\code{mw\_test\_homogeneite\_}\allowbreak\code{f()} et \code{mw\_test\_courbure()} (colonnes dégénérées
+de \code{aj} lui-même, posées par le contexte de \code{.mw\_contexte\_mc()} et lues par
+\code{.mw\_degeneree\_}\allowbreak\code{courante()}~; \code{NULL}~: prédicat évalué colonne par
+colonne, même résultat)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()})
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()}~; argument \code{res} obligatoire de
-\code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (ligne d'hétéroscédasticité de M2, fiche~\ref{mw:m2bp}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (ligne d'hétéroscédasticité de M2, fiche~\ref{mw:m2bp}) & idem \\
 \code{mw\_identifiabilite\_}\newline\code{intra()} & \code{aj}, \code{j\_degeneres}
 (\code{NULL}~: ensemble calculé sur \code{aj}) & liste~: \code{estim}, moyenne des
 $\mathrm{CV}_j$ des colonnes retenues (\code{NA} sans colonne retenue), et \code{detail},
@@ -1961,8 +1984,10 @@ $C(\cdot,j)$ est constant~; lit le triangle et les $\hat\sigma_j^2$, non \code{m
 (fiche~\ref{mw:m1id}) \\
 \code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
 \code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
-(\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
-minimum et son $t(i,j)$, cellules à influence non bornée, table des cellules retenues~; motif de
+(\code{FALSE}~: observé), \code{degeneres\_aj} (\code{NULL}, transmis à
+\code{mw\_influence()})~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
+minimum et son $t(i,j)$, cellules à influence non bornée, table des cellules retenues (tables
+construites par \code{.mw\_df()})~; motif de
 la statistique observée non définie, lu par le champ \code{non\_definie} de l'entrée
 \code{MinP4} (fiche~\ref{mw:m4gr}) \\
 \code{mw\_calendrier\_}\newline\code{diagonales()} &
@@ -2046,6 +2071,14 @@ recyclage), et les noms de lignes sont lus sur \code{rbind()} itéré lui-même,
 \code{mw\_influence()} empile aussi ses blocs par \code{.mw\_empiler()}, noms de lignes lus sur
 $C(i,j)$~; un triangle dont un nom de ligne vaut \code{NA} est refusé avant tout calcul par \code{mw\_valider\_triangle()}, avec un motif de
 données et sans erreur R (§\ref{sec:controles}) \\
+\code{.mw\_df()} & colonnes nommées, vecteurs atomiques de même longueur & table
+\code{data.frame} sous la forme exacte du résultat de \code{data.frame()} sur les mêmes colonnes
+(attributs \code{names}, \code{class} et \code{row.names} dans cet ordre, noms de lignes
+automatiques), sans le coût d'appel de \code{data.frame()}~; une colonne à noms renvoie à
+\code{data.frame()} lui-même~; tables \code{non\_borne} et \code{cellules} de
+\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, construites à chaque réplication du bootstrap
+(identité avec \code{data.frame()} vérifiée par\newline
+\code{tests/unitaires/}\allowbreak\code{test\_chemins\_chauds\_445.R}) \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel de \code{.mw\_spearman()}, qui appelle \code{cor.test()} au plus une fois~: sur le
@@ -2156,7 +2189,9 @@ est omise quand $K$ vaut \code{NA} (statistique observée non définie, décompt
 arrêté à la colonne en cause)~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
-\code{mw\_influence()} & \code{aj} & levier, son repère de lecture
+\code{mw\_influence()} & \code{aj}, \code{degeneres\_aj} (\code{NULL}~: colonnes dégénérées
+calculées sur \code{aj}~; fourni par le contexte du catalogue via
+\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, même ensemble) & levier, son repère de lecture
 \code{repere\_levier} $=$ \code{REPERE\_LEVIER}$/n_j$ et le booléen de coloration \code{fort\_levier}, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
@@ -3369,7 +3404,8 @@ Coefficient $R^2$ & \ref{fiche:r2} & \code{test\_lm\_complet()} &
 diagnostic, aucune p-value & --- \\
 RESET & \ref{fiche:reset} & \code{test\_reset()} (régressions par \code{.usp\_mco\_qr()}) &
 \code{test\_reset()} (p non simulée, loi $F$ approchée) & \code{RESET} \\
-Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct) &
+Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct, statistique
+restituée)~; \code{.usp\_spearman\_S()} (catalogue Monte-Carlo, même $S$) &
 \code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation)~; \code{mk\_p\_min()}
 ($p_{\min}$) & \code{SpearVol} /
 \code{SpearTps} \\
@@ -3395,7 +3431,8 @@ Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()}
 \code{test\_goldfeld\_quandt()} (p non simulée, loi $F$ approchée) & \code{GQ} \\
 Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} (ANOVA à un facteur par \code{.usp\_mco\_qr()}) &
 \code{test\_brown\_forsythe()} (p non simulée, loi $F$ approchée) & \code{BF} \\
-Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
+Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct, statistique
+restituée)~; \code{.usp\_smirnov\_D()} (catalogue Monte-Carlo, même $D$) &
 \code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo, $z_t$ aplatis par
 \code{engine\_aplatir\_ex\_aequo()})~; \code{smirnov\_p\_min()} ($p_{\min}$, \code{NA} avec ex
 \ae quo) & \code{Smirnov} \\
@@ -11123,7 +11160,7 @@ moteur ne l'attribue que sous trois conditions, toutes exigées~: (i)~$\hat\pi_t
 (règle~R7), sinon le commentaire porte la mention de régime de la règle~R8, après le
 préfixe éventuel d'\code{add()}~; (ii)~aucun ex \ae quo
 dans $r_t$ et, pour la variante volume, dans $x_t$, au sens de la section~\ref{sec:ex-aequo}
-(séries aplaties en tolérance relative avant \code{cor.test()}, à l'observé comme dans le
+(séries aplaties en tolérance relative avant le calcul de $S$, à l'observé comme dans le
 catalogue Monte-Carlo)~: avec ex \ae quo, \code{cor.test(exact = TRUE)} rend la p-value
 asymptotique et non la loi conditionnelle, et ni p exacte ni $p_{\min}$ ne sont attribuées, ce que
 dit le commentaire~; (iii)~$T \le 9$, \code{cor.test()} rendant au-delà un développement
@@ -11798,8 +11835,9 @@ $D_{n_1,n_2} = \sup_{u} \big| \hat F_1(u) - \hat F_2(u) \big|$.
 Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Sous $H_0$, pour $z$ échangeable, la loi exacte de $D$ est combinatoire, calculée par
-\code{ks.test} sans ex \ae quo~; les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant
-\code{ks.test()}, à l'observé comme dans le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}).
+\code{ks.test} sans ex \ae quo~; les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant le
+calcul de $D$, par \code{ks.test()} à l'observé comme par \code{.usp\_smirnov\_D()}, de même
+valeur, dans le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}).
 Avec ex \ae quo, \code{ks.test()} rendrait une p-value exacte \emph{conditionnelle}, dont
 $2/\binom{n_1+n_2}{n_1}$ n'est pas le minimum~: ni p-value exacte ni $p_{\min}$ ne sont alors
 attribuées, le motif («~\code{n1 =} \ldots\code{, n2 =} \ldots\code{, ex aequo dans z : p\_min et
