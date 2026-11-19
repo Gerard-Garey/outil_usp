@@ -2497,9 +2497,16 @@ temoin_openxlsx <- function(f, entete = TRUE, quoi = c("donnees", "feuilles")) {
                       na.strings = character(0), sep.names = " ")
 }
 # Liste fermee des ecarts attendus du temoin a la source, sur le corpus
-# naturel, par version d'openxlsx (mesure du 18/11/2026, R 4.3.3, C.UTF-8) :
-# chaque classeur porte une chaine en ligne <t xml:space="preserve">, dont
-# openxlsx garde 'xml:space="preserve">' dans le texte lu (#594).
+# naturel, par version d'openxlsx (mesure du 18/11/2026, R 4.3.3, C.UTF-8 ;
+# remesuree le 19/11/2026 apres #594, liste inchangee) : chaque classeur
+# porte une chaine en ligne <t xml:space="preserve">, dont openxlsx garde
+# 'xml:space="preserve">' dans le texte lu. Les onze autres classeurs du
+# corpus a chaine en ligne <t xml:space="preserve"> (LUS_594_CORPUS), lus
+# depuis #594, ne sont pas des ecarts : openxlsx y garde aussi l'attribut
+# dans la note (colonne non employee, ou, pour le triangle, refusee aux
+# memes positions que la source), mais la sortie d'engine_lire_donnees_csv()
+# ou d'engine_lire_triangle() est celle de la source (ADR 0020, point 3 :
+# le critere porte sur la sortie aval, non sur le data.frame).
 ECARTS_TEMOIN_OPENXLSX <- list(
   "4.2.5.2" = c(
     # note faite de seuls blancs sur une ligne finale sans autre valeur : ligne
@@ -2507,10 +2514,11 @@ ECARTS_TEMOIN_OPENXLSX <- list(
     "blancs/ligne_finale_note_blanche.xlsx",
     # en-tete "xt " lu 'xml:space="preserve">xt' : colonne xt manquante
     "entete/openpyxl_entete_lu_blanc.xlsx"))
-# Classeurs du corpus refuses par le lecteur : chaine en ligne
-# <t xml:space="preserve">, refusee par la regle R3 (decision D-S1-31) ;
-# #594 doit l'admettre (A1), et cette liste suivra.
-REFUS_CORPUS_INTERNE <- c(
+# Classeurs du corpus a chaine en ligne <t xml:space="preserve"> : refuses
+# par la regle R3 jusqu'a #594 (decision D-S1-31), lus depuis (#594,
+# decision du mainteneur du 18/11/2026, A-1 (a) ; tableau du par. 8 de la
+# specification amendee). Aucun classeur du corpus n'est plus refuse.
+LUS_594_CORPUS <- c(
   "blancs-sans-lxml/note_bordee_blancs.xlsx", "blancs/ligne_finale_note_blanche.xlsx",
   "blancs/note_tab.xlsx", "blancs/note_trois_blancs.xlsx", "blancs/note_un_blanc.xlsx",
   "entete/openpyxl_entete_lu_blanc.xlsx", "poste-windows/openpyxl_series_blancs.xlsx",
@@ -2535,23 +2543,59 @@ sources_corpus <- list(series = engine_lire_donnees_csv(lire_source_corpus("donn
 nature_corpus <- function(n) if (grepl("triangle_note", basename(n))) "triangle_note" else
   if (grepl("triangle", basename(n))) "triangle" else "series"
 aval_corpus <- function(n, d) if (identical(nature_corpus(n), "series")) engine_lire_donnees_csv(d) else engine_lire_triangle(d)
-verifier("Corpus naturel (ADR 0020, #604) : 38 classeurs dans tests/donnees/classeurs/, listes REFUS_CORPUS_INTERNE et ECARTS_TEMOIN_OPENXLSX prises dans le corpus",
-         identical(length(corpus_classeurs), 38L) && all(REFUS_CORPUS_INTERNE %in% corpus_classeurs) &&
-           all(unlist(ECARTS_TEMOIN_OPENXLSX) %in% corpus_classeurs))
-# Emploi bloquant, sur tous les lots : lecteur contre la source.
-verifier("Corpus naturel (ADR 0020, #604) : lecteur : 25 classeurs lus, sortie d'engine_lire_donnees_csv() ou d'engine_lire_triangle() identical() a celle de la source CSV ; 13 refuses (classe usp_refus_lecture, R3, chaine en ligne <t xml:space=\"preserve\">, D-S1-31, #594)",
+verifier("Corpus naturel (ADR 0020, #604, #594) : 38 classeurs dans tests/donnees/classeurs/, 13 dans LUS_594_CORPUS, listes LUS_594_CORPUS et ECARTS_TEMOIN_OPENXLSX prises dans le corpus",
+         identical(length(corpus_classeurs), 38L) && identical(length(unique(LUS_594_CORPUS)), 13L) &&
+           all(LUS_594_CORPUS %in% corpus_classeurs) && all(unlist(ECARTS_TEMOIN_OPENXLSX) %in% corpus_classeurs))
+# Emploi bloquant, sur tous les lots : lecteur contre la source. Lectures
+# gardees pour la verification suivante (#594, T11).
+lus_corpus <- list()
+verifier("Corpus naturel (ADR 0020, #604, #594 T11) : lecteur : les 38 classeurs lus, sortie d'engine_lire_donnees_csv() ou d'engine_lire_triangle() identical() a celle de la source CSV, dont les 13 de LUS_594_CORPUS (refuses par R3 jusqu'a #594, D-S1-31)",
          {
            ko <- character(0)
            for (n in corpus_classeurs) {
              l <- tryCatch(engine_lire_xlsx(file.path(dossier_corpus, n)), error = function(e) e)
-             ok <- if (n %in% REFUS_CORPUS_INTERNE)
-               inherits(l, "usp_refus_lecture") &&
-                 grepl("(balise <t>, dans la chaine en ligne de la cellule ", conditionMessage(l), fixed = TRUE)
-             else is.data.frame(l) && identical(aval_corpus(n, l), sources_corpus[[nature_corpus(n)]])
-             if (!ok) ko <- c(ko, n)
+             lus_corpus[[n]] <- l
+             if (!is.data.frame(l) || !identical(aval_corpus(n, l), sources_corpus[[nature_corpus(n)]])) ko <- c(ko, n)
            }
-           if (length(ko)) paste("ecart a la source :", paste(ko, collapse = ", ")) else
-             identical(length(corpus_classeurs) - length(REFUS_CORPUS_INTERNE), 25L)
+           if (length(ko)) paste("ecart a la source :", paste(ko, collapse = ", ")) else TRUE
+         })
+# Valeurs attendues explicites des 13 classeurs lus depuis #594 (T11),
+# tirees des scripts generateurs (mesure-594/generer.py,
+# blancs/generer_blancs.py, entete/generer_entete.py,
+# triangle/generer_triangle.py, poste-windows/generer_corpus.py) : note
+# lue avec ses blancs (texte tel quel, attribut xml:space ignore) ; note ""
+# ou absente (None) non ecrite, lue NA ; ligne finale de note " " lue en
+# neuvieme ligne puis ecartee comme vide (n = 8, sans avertissement) ;
+# en-tete "xt " lu "xt" (.xlsx_blancs_entete()) ; triangle : note bordee
+# lue, puis refus en aval "Cellule(s) non numerique(s)", meme sortie que la
+# source a note sans blancs (positions seules citees).
+verifier("Corpus naturel (#594, T11) : les 13 classeurs de LUS_594_CORPUS lus aux valeurs attendues explicites (notes bordees, notes de seuls blancs, ligne finale de note blanche, en-tete \"xt \", triangle a note bordee)",
+         {
+           bordee <- c(" debut blanc", "fin blanche ", " deux ", "sans", NA, "x ", " y", "z")
+           ok8 <- c("ok", "ok", "ok", "ok", "ok", "ok", "ok")
+           note <- function(n) lus_corpus[[n]]$note
+           a_bordee <- c("blancs-sans-lxml/note_bordee_blancs.xlsx", "poste-windows/openpyxl_series_blancs.xlsx",
+                         "poste-windows/pandas-openpyxl_series_blancs.xlsx",
+                         "poste-windows/xlsxwriter-constant_memory_series_blancs.xlsx",
+                         "synthetiques/openpyxl_blancs.xlsx", "synthetiques/pandas_blancs.xlsx",
+                         "synthetiques/xlsxwriter_constant_memory_blancs.xlsx")
+           lf <- lus_corpus[["blancs/ligne_finale_note_blanche.xlsx"]]
+           tn <- lus_corpus[["triangle/openpyxl_triangle_note_blancs.xlsx"]]
+           av_lf <- aval_corpus("blancs/ligne_finale_note_blanche.xlsx", lf)
+           all(vapply(a_bordee, function(n) identical(names(lus_corpus[[n]]), c("t", "xt", "yt", "note")) &&
+                        identical(note(n), bordee), NA)) &&
+             identical(note("blancs/note_un_blanc.xlsx"), c(" ", ok8)) &&
+             identical(note("blancs/note_trois_blancs.xlsx"), c("   ", ok8)) &&
+             identical(note("blancs/note_tab.xlsx"), c("\t", ok8)) &&
+             identical(dim(lf), c(9L, 4L)) && identical(lf$note, c("ok", ok8, " ")) && all(is.na(unlist(lf[9, 1:3]))) &&
+             isTRUE(av_lf$ok) && identical(av_lf$n, 8L) && !length(av_lf$avertissements_lecture) &&
+             identical(names(lus_corpus[["entete/openpyxl_entete_lu_blanc.xlsx"]]), c("t", "xt", "yt")) &&
+             identical(tn$note, paste0(" note", 1:8, " ")) &&
+             identical(engine_lire_triangle(tn), engine_lire_triangle(lus_corpus[["triangle/openpyxl_triangle_note_temoin.xlsx"]])) &&
+             identical(engine_lire_triangle(tn)$erreurs, sources_corpus$triangle_note$erreurs) &&
+             all(LUS_594_CORPUS %in% c(a_bordee, "blancs/note_un_blanc.xlsx", "blancs/note_trois_blancs.xlsx", "blancs/note_tab.xlsx",
+                                       "blancs/ligne_finale_note_blanche.xlsx", "entete/openpyxl_entete_lu_blanc.xlsx",
+                                       "triangle/openpyxl_triangle_note_blancs.xlsx"))
          })
 # Emploi 1 du temoin : openxlsx contre la source, liste fermee des ecarts.
 if (AVEC_TEMOIN_OPENXLSX && VERSION_TEMOIN_OPENXLSX %in% names(ECARTS_TEMOIN_OPENXLSX)) {
@@ -3013,7 +3057,9 @@ if (nzchar(Sys.which("zip"))) {
   # <c> pris dans la liste r, s, t, cm, vm, ph), la cellule est refusee
   # avant la lecture (avant R4 : lue 5 en A2 par le lecteur
   # interne).
-  texte574r3 <- function(pos) sprintf("Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  # (texte de TEXTE_REFUS_R3 repris par #594, A-3 (a) : quatrieme
+  # qualification "ou ecrite sous une forme que l'outil n'admet pas")
+  texte574r3 <- function(pos) sprintf("Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee, a prefixe d'espace de noms ou ecrite sous une forme que l'outil n'admet pas (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur.", pos)
   texte574r4 <- function(pos) sprintf("Classeur illisible : cellule portant un attribut non prevu, repete, ou ecrit sous une forme que l'outil ne lit pas (%s) dans la feuille lue ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue ou mal placee). Enregistrer de nouveau le classeur depuis un tableur.", pos)
   # Segment de cellule lu par openxlsx (regle R3, texte propre : avis
   # d'actuary sur le lot B, Q1)
@@ -3167,8 +3213,9 @@ if (nzchar(Sys.which("zip"))) {
   # les decisions D-S1-18 et D-S1-23, #574, lot E, comme toute reference a
   # un blanc que retire la mise en forme des en-tetes ; remplace par une
   # tabulation ecrite telle quelle dans la chaine partagee ; espace en
-  # chaine en ligne ecrite <t> </t> et non plus <t xml:space="preserve"> </t>,
-  # refusee par la regle R3 depuis la decision D-S1-31, #574, lot F)
+  # chaine en ligne ecrite <t> </t>, la forme <t xml:space="preserve"> </t>
+  # ayant ete refusee par la regle R3 de la decision D-S1-31, #574, lot F, a
+  # #594 ; admise depuis, elle recoit le meme refus de la ligne 1 : #594, T4)
   verifier("xlsx (#522, option (b)) : ligne 1 de blancs en chaines partagees (\"  \", TAB), en chaines en ligne (espace, TAB) ou de chaines vides : refus au texte de #522",
            refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">  </t></si>')) &&
              refus522(bl522(c(ps487("A1", 0), ps487("B1", 0)), shared = '<si><t xml:space="preserve">\t</t></si>')) &&
@@ -4132,33 +4179,192 @@ if (nzchar(Sys.which("zip"))) {
              rb574(feuille575(ser574('<c r="B2" t="inlineStr"><is/></c>'), NULL), texte574r3("balise <is>, dans la cellule B2")) &&
              rb574(feuille575(ser574('<c r="B2"><v>1<2</v></c>'), NULL), texte574r3("caractere < hors d'une balise, dans la cellule B2")) &&
              rb574(feuille575(ser574(d2 = "x"), NULL), texte574r3("texte, apres la cellule C2")))
-  # Decision D-S1-31 (constat H1 de la validation du .tex par actuary) :
-  # <t> d'une chaine en ligne ecrit <t>, sans attribut ni blanc (<t/> et
-  # <t /> admis). Avant : <is><t xml:space="preserve">11.5</t></is> lu 11.5
-  # par le lecteur interne (classeur accepte), "xml:space=\"preserve\">11.5"
-  # par openxlsx 4.2.5.2 (refus en aval) ; en-tete <t >xt lu ">xt" par
-  # openxlsx, xt en interne (sonde sondes/sonde_574_lot_f.R).
+  # Regle du <t> d'une chaine en ligne (#594 ; specification amendee
+  # d'actuary, docs/revues/20261118-a1-lecteur-interne/
+  # specification-594-amendee.md ; decision du mainteneur du 18/11/2026,
+  # A-1 a A-5 en (a), qui leve la decision D-S1-31 dans cette mesure
+  # seulement) : formes exactes <t>, <t xml:space="preserve">, <t/> (blancs
+  # admis avant "/>") et <t xml:space="preserve"/> admises, regle uniforme
+  # (cellule, colonne, objet lu, argument entete) ; toute autre forme
+  # refusee par R3. Jusqu'a #594 (D-S1-31, constat H1 de la validation du
+  # .tex par actuary), tout <t> a attribut ou a blanc etait refuse :
+  # openxlsx 4.2.5.2 en gardait l'attribut dans le texte lu (sonde
+  # sondes/sonde_574_lot_f.R) ; openxlsx ne lit plus aucun classeur depuis
+  # #604 (ADR 0020). Tests T1 a T14 de la specification : tests du seul
+  # lecteur, a valeur attendue explicite (T6 et T8 retires ; T10 : batterie
+  # de reproductibilite ; T11 et T15 : corpus naturel, plus haut).
   ent574f <- function(b1) ligne487(1, c(en487("A1", "<t>t</t>"), en487("B1", b1), en487("C1", "<t>yt</t>")))
-  verifier("xlsx (#574, R3, D-S1-31) : <t> a attribut (xml:space, prefixe ou non, entre apostrophes) ou a blanc dans une chaine en ligne, en valeur (B2) et en en-tete (B1), ouvrant ou vide : refus R3 \"balise <t>, dans la chaine en ligne de la cellule ...\" (avant : lu juste en interne, attribut garde dans le texte par openxlsx)",
-           all(vapply(c('<t xml:space="preserve">11.5</t>', '<t space="preserve">11.5</t>', '<t x:space="preserve">11.5</t>',
-                        "<t xml:space='preserve'>11.5</t>", '<t >11.5</t>', '<t\t>11.5</t>', '<t xml:space="preserve"/>'),
-                      function(t) rb574(feuille575(ser574(en487("B2", t)), NULL), texte574r3("balise <t>, dans la chaine en ligne de la cellule B2")),
-                      logical(1))) &&
-             all(vapply(c('<t xml:space="preserve">xt</t>', '<t >xt</t>'),
-                        function(t) rb574(feuille575(paste0(ent574f(t), ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))), NULL),
-                                          texte574r3("balise <t>, dans la chaine en ligne de la cellule B1")),
-                        logical(1))))
-  verifier("xlsx (#574, R3, D-S1-31) : temoins admis, lus (xt = 11.5, en-tete xt) : <is><t>11.5</t></is> en B2, <is><t/></is> et <is><t /></is> hors du tableau, chaine partagee <si><t xml:space=\"preserve\"> en valeur (B2) et en en-tete (B1)",
-           local({ lit574f <- function(f) chemins483(f, lire487)
-             ok574f <- function(r) tous487(r, function(d) is.data.frame(d) && identical(names(d)[1:3], c("t", "xt", "yt")) &&
-                                                        identical(as.numeric(d$xt), 11.5))
-             ok574f(lit574f(feuille575(ser574(en487("B2", "<t>11.5</t>")), NULL))) &&
-               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t/>")), NULL))) &&
-               ok574f(lit574f(feuille575(ser574(d2 = en487("D2", "<t />")), NULL))) &&
-               ok574f(lit574f(feuille575(ser574(ps487("B2", 0)), '<si><t xml:space="preserve">11.5</t></si>'))) &&
-               ok574f(lit574f(feuille575(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), ps487("B1", 0), en487("C1", "<t>yt</t>"))),
-                                                ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))),
-                                         '<si><t xml:space="preserve">xt</t></si>'))) }))
+  # Lecture d'une feuille forgee : data.frame, ou condition du refus
+  lire594 <- function(xml, shared = NULL, entete = TRUE) {
+    f <- feuille575(xml, shared); on.exit(unlink(f), add = TRUE)
+    tryCatch(engine_lire_xlsx(f, entete = entete), error = function(e) e)
+  }
+  # Feuille donnee par ses lignes de cellules : I("...") nombre (<v>) ;
+  # texte en chaine en ligne <is><t xml:space="preserve"> (mode "ligne") ou
+  # en chaine partagee <si><t xml:space="preserve"> (mode "partagee") ;
+  # brut594(l, p) contenu brut de <is> (mode "ligne") ou de <si> (mode
+  # "partagee") ; NULL cellule absente. Rend list(xml, shared).
+  brut594 <- function(ligne, partagee) structure(list(ligne = ligne, partagee = partagee), class = "brut594")
+  feuille594 <- function(lignes, mode = c("ligne", "partagee")) {
+    mode <- match.arg(mode); tab <- character(0)
+    cel <- function(v, ref) {
+      if (is.null(v)) return(NULL)
+      if (inherits(v, "AsIs")) return(nb487(ref, v))
+      if (mode == "ligne") return(en487(ref, if (inherits(v, "brut594")) v$ligne else sprintf('<t xml:space="preserve">%s</t>', v)))
+      si <- sprintf("<si>%s</si>", if (inherits(v, "brut594")) v$partagee else sprintf('<t xml:space="preserve">%s</t>', v))
+      k <- match(si, tab); if (is.na(k)) { tab <<- c(tab, si); k <- length(tab) }
+      ps487(ref, k - 1L)
+    }
+    xml <- paste(vapply(seq_along(lignes), function(i)
+      ligne487(i, unlist(lapply(seq_along(lignes[[i]]), function(k) cel(lignes[[i]][[k]], paste0(col487(k), i))))), ""), collapse = "")
+    list(xml = xml, shared = if (length(tab)) paste(tab, collapse = ""))
+  }
+  # Lecture des deux variantes (chaine en ligne, chaine partagee)
+  lp594 <- function(lignes, entete = TRUE)
+    lapply(c(ligne = "ligne", partagee = "partagee"), function(m) do.call(lire594, c(feuille594(lignes, m), entete = entete)))
+  # Series de donnees_ln.csv (t, xt, yt en nombres) et colonne note ; t et
+  # xt : listes de cellules (I() nombre, sinon texte) ; fin : lignes ajoutees
+  src594 <- lire_source_corpus("donnees_ln.csv")
+  series594 <- function(note = as.list(rep("n", 8)), entete = c("t", "xt", "yt", "note"),
+                        t = lapply(src594$t, I), xt = lapply(src594$xt, I), fin = NULL)
+    c(list(as.list(entete)), lapply(1:8, function(i) list(t[[i]], xt[[i]], I(src594$yt[i]), note[[i]])), fin)
+  # Triangle de triangle_mw.csv (cellules vides absentes) ; c13 : texte de
+  # la cellule C2 (i = 1, j1), note : colonne note ajoutee
+  tri594 <- function(c13 = NULL, note = NULL) {
+    corps <- lapply(seq_len(nrow(tri_corpus)), function(i) {
+      l <- lapply(unlist(tri_corpus[i, ], use.names = FALSE), function(v) if (nzchar(v)) I(v))
+      if (i == 1L && !is.null(c13)) l[[3]] <- c13
+      if (!is.null(note)) l <- c(l, note[i])
+      l
+    })
+    c(list(as.list(c(names(tri_corpus), if (!is.null(note)) "note"))), corps)
+  }
+  xt594 <- function(v) { x <- lapply(src594$xt, I); x[[1]] <- v; x }
+  bordee594 <- c(" debut blanc", "fin blanche ", " deux ", "sans", "\tt\t", "x ", " y", "z\n")
+  vide594 <- brut594('<t xml:space="preserve"/>', '<t xml:space="preserve"/>')
+  non_num594 <- "Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 1)."
+  # T5 (repris) : formes non exactes du par. 1 de la specification amendee
+  # (dix ouvrantes et la forme vide a blanc), plus deux formes de meme
+  # nature (saut de ligne pour separateur, blanc avant "="), en valeur (B2)
+  # et en en-tete (B1) : refus R3, texte de TEXTE_REFUS_R3 repris (A-3 (a)).
+  formes594 <- c('<t >', '<t\t>', '<t  xml:space="preserve">', '<t xml:space="preserve" >',
+                 "<t xml:space='preserve'>", '<t xml:space="default">', '<t xml:space="PRESERVE">',
+                 '<t space="preserve">', '<t x:space="preserve">', '<t xml:space="preserve" a="1">',
+                 '<t\nxml:space="preserve">', '<t xml:space ="preserve">')
+  verifier("xlsx (#594, T5) : <t> d'une chaine en ligne sous une forme non exacte (<t >, <t\\t>, deux espaces, blanc avant \">\", apostrophes, xml:space=\"default\" ou \"PRESERVE\", space=, x:space=, attribut en plus, saut de ligne pour separateur, blanc avant \"=\", forme vide <t xml:space=\"preserve\" />), en valeur (B2) et en en-tete (B1) : refus R3 \"balise <t>, dans la chaine en ligne de la cellule ...\", classe usp_refus_lecture, texte de TEXTE_REFUS_R3 repris (A-3 (a))",
+           identical(texte574r3("%s"), TEXTE_REFUS_R3) &&
+             all(vapply(c(paste0(formes594, "11.5</t>"), '<t xml:space="preserve" />'), function(t) {
+               e <- lire594(ser574(en487("B2", t)))
+               inherits(e, "usp_refus_lecture") && identical(conditionMessage(e), texte574r3("balise <t>, dans la chaine en ligne de la cellule B2"))
+             }, NA)) &&
+             all(vapply(c(paste0(formes594, "xt</t>"), '<t xml:space="preserve" />'), function(t) {
+               e <- lire594(paste0(ent574f(t), ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))))
+               inherits(e, "usp_refus_lecture") && identical(conditionMessage(e), texte574r3("balise <t>, dans la chaine en ligne de la cellule B1"))
+             }, NA)))
+  # T9 (repris, modifie) : temoins admis de D-S1-31, completes des formes
+  # exactes admises par #594 (auparavant refusees : <t xml:space="preserve">
+  # en valeur et en en-tete, <t xml:space="preserve"/>) ; signature
+  # d'engine_lire_xlsx() inchangee (aucun argument nouveau, app.R non
+  # touche : par. 9 de la specification amendee, T8 retire).
+  verifier("xlsx (#594, T9) : temoins admis, lus (xt = 11.5, en-tete xt) : <is><t>11.5</t></is> et <is><t xml:space=\"preserve\">11.5</t></is> en B2, <is><t/></is>, <is><t /></is> et <is><t xml:space=\"preserve\"/></is> hors du tableau, <t xml:space=\"preserve\">xt</t> en en-tete (B1), chaine partagee <si><t xml:space=\"preserve\"> en valeur (B2) et en en-tete (B1) ; formals(engine_lire_xlsx) inchange (chemin, entete = TRUE)",
+           local({ ok574f <- function(d) is.data.frame(d) && identical(names(d)[1:3], c("t", "xt", "yt")) && identical(as.numeric(d$xt), 11.5)
+             ok574f(lire594(ser574(en487("B2", "<t>11.5</t>")))) &&
+               ok574f(lire594(ser574(en487("B2", '<t xml:space="preserve">11.5</t>')))) &&
+               ok574f(lire594(ser574(d2 = en487("D2", "<t/>")))) &&
+               ok574f(lire594(ser574(d2 = en487("D2", "<t />")))) &&
+               ok574f(lire594(ser574(d2 = en487("D2", '<t xml:space="preserve"/>')))) &&
+               ok574f(lire594(paste0(ent574f('<t xml:space="preserve">xt</t>'), ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))))) &&
+               ok574f(lire594(ser574(ps487("B2", 0)), '<si><t xml:space="preserve">11.5</t></si>')) &&
+               ok574f(lire594(paste0(ligne487(1, c(en487("A1", "<t>t</t>"), ps487("B1", 0), en487("C1", "<t>yt</t>"))),
+                                     ligne487(2, c(nb487("A2", 1), nb487("B2", 11.5), nb487("C2", 2)))),
+                              '<si><t xml:space="preserve">xt</t></si>')) &&
+               identical(formals(engine_lire_xlsx), as.pairlist(alist(chemin = , entete = TRUE))) }))
+  verifier("xlsx (#594, T1) : note bordee de blancs en chaine en ligne <t xml:space=\"preserve\">, series (t, xt, yt, note) et triangle (i, j0 a j7, note), entete = TRUE et FALSE : lue, data.frame identical() a la variante en chaine partagee <si><t xml:space=\"preserve\"> ; note lue avec ses blancs ; series : sortie d'engine_lire_donnees_csv() identical() a celle de donnees_ln.csv ; triangle : sortie d'engine_lire_triangle() identical() a celle de la source a note sans blancs",
+           {
+             s1 <- lp594(series594(note = as.list(bordee594))); s0 <- lp594(series594(note = as.list(bordee594)), entete = FALSE)
+             notes_tri <- paste0(" note", 1:8, " ")
+             r1 <- lp594(tri594(note = notes_tri)); r0 <- lp594(tri594(note = notes_tri), entete = FALSE)
+             all(vapply(list(s1, s0, r1, r0), function(p) is.data.frame(p$ligne) && identical(p$ligne, p$partagee), NA)) &&
+               identical(s1$ligne$note, bordee594) && identical(engine_lire_donnees_csv(s1$ligne), sources_corpus$series) &&
+               identical(dim(s0$ligne), c(9L, 4L)) && identical(s0$ligne[[4]], c("note", bordee594)) &&
+               identical(r1$ligne$note, notes_tri) && identical(engine_lire_triangle(r1$ligne), sources_corpus$triangle_note) &&
+               identical(dim(r0$ligne), c(9L, 10L)) && identical(r0$ligne[[10]], c("note", notes_tri))
+           })
+  verifier("xlsx (#594, T2) : en-tetes \"xt \", puis \" t \" et \"yt\\t\", en chaine en ligne <t xml:space=\"preserve\"> : lus t, xt, yt (blancs de bord retires, .xlsx_blancs_entete()), data.frame identical() a la variante en chaine partagee, sortie d'engine_lire_donnees_csv() identical() a celle de donnees_ln.csv (avant : refus R3, D-S1-31)",
+           all(vapply(list(c("t", "xt ", "yt", "note"), c(" t ", "xt", "yt\t", "note")), function(en) {
+             p <- lp594(series594(entete = en))
+             is.data.frame(p$ligne) && identical(p$ligne, p$partagee) && identical(names(p$ligne), c("t", "xt", "yt", "note")) &&
+               identical(engine_lire_donnees_csv(p$ligne), sources_corpus$series) }, NA)))
+  verifier("xlsx (#594, T3) : \" 104.2 \" et \"104.2\\n\" en xt, \" 1 \" en t, en chaine en ligne <t xml:space=\"preserve\"> : lus tels quels, puis 104.2 et 1 en aval, sortie d'engine_lire_donnees_csv() identical() a celle de donnees_ln.csv ; \"<U+00A0>104.2\" (espace insecable, qui n'est pas un blanc retire) refuse en aval \"... non numeriques (colonne xt : ligne(s) de donnees 1)\" ; data.frame et sortie identical() a la variante en chaine partagee (avant : refus R3, D-S1-31)",
+           {
+             t1 <- lapply(src594$t, I); t1[[1]] <- " 1 "
+             pa <- lp594(series594(xt = xt594(" 104.2 "))); pb <- lp594(series594(xt = xt594("104.2\n"))); pc <- lp594(series594(t = t1))
+             pn <- lp594(series594(xt = xt594(paste0(intToUtf8(160L), "104.2"))))
+             an <- engine_lire_donnees_csv(pn$ligne)
+             all(vapply(list(pa, pb, pc, pn), function(p) is.data.frame(p$ligne) && identical(p$ligne, p$partagee) &&
+                          identical(engine_lire_donnees_csv(p$ligne), engine_lire_donnees_csv(p$partagee)), NA)) &&
+               identical(pa$ligne$xt[1], " 104.2 ") && identical(pb$ligne$xt[1], "104.2\n") && identical(pc$ligne$t[1], " 1 ") &&
+               all(vapply(list(pa, pb, pc), function(p) identical(engine_lire_donnees_csv(p$ligne), sources_corpus$series), NA)) &&
+               identical(engine_lire_donnees_csv(pa$ligne)$xt[1], 104.2) &&
+               !an$ok && identical(an$erreurs, non_num594)
+           })
+  verifier("xlsx (#594, T4) : textes \" \", \"\\t\", \"\" et forme vide <t xml:space=\"preserve\"/> en chaine en ligne, admis : en note, lus \" \", \"\\t\", \"\", \"\" (forme vide lue comme <t/> et <t xml:space=\"preserve\"></t>), sortie d'engine_lire_donnees_csv() identical() a celle de donnees_ln.csv ; \" \" en xt : refus en aval \"... non numeriques (colonne xt : ligne(s) de donnees 1)\" ; en-tete de note \" \" : colonne nommee V4 ; ligne 1 de \" \", \"\\t\", \"\" et forme vide : refus MOTIF_LIGNE1_VIDE (classe usp_refus_lecture) ; chaque fois identical() a la variante en chaine partagee (avant : refus R3, D-S1-31)",
+           {
+             pn <- lp594(series594(note = c(list(" ", "\t", "", vide594), as.list(rep("n", 4)))))
+             vt <- function(t) lire594(ser574(d2 = en487("D2", t)))
+             px <- lp594(series594(xt = xt594(" ")))
+             pe <- lp594(series594(entete = c("t", "xt", "yt", " ")))
+             pl <- lp594(c(list(list(" ", "\t", "", vide594)), lapply(2:4, function(i) list(I(i), I(i + 1), I(i + 2)))))
+             ax <- engine_lire_donnees_csv(px$ligne)
+             all(vapply(list(pn, px, pe), function(p) is.data.frame(p$ligne) && identical(p$ligne, p$partagee) &&
+                          identical(engine_lire_donnees_csv(p$ligne), engine_lire_donnees_csv(p$partagee)), NA)) &&
+               identical(pn$ligne$note, c(" ", "\t", "", "", "n", "n", "n", "n")) &&
+               identical(engine_lire_donnees_csv(pn$ligne), sources_corpus$series) &&
+               identical(vt('<t xml:space="preserve"/>'), vt("<t/>")) && identical(vt('<t xml:space="preserve"/>'), vt('<t xml:space="preserve"></t>')) &&
+               identical(vt('<t xml:space="preserve"/>')$V4, "") &&
+               !ax$ok && identical(ax$erreurs, non_num594) &&
+               identical(names(pe$ligne), c("t", "xt", "yt", "V4")) && identical(engine_lire_donnees_csv(pe$ligne), sources_corpus$series) &&
+               all(vapply(pl, function(e) inherits(e, "usp_refus_lecture") && identical(conditionMessage(e), MOTIF_LIGNE1_VIDE), NA))
+           })
+  verifier("xlsx (#594, T7) : ligne finale qui ne porte qu'une note en chaine en ligne <t xml:space=\"preserve\"> : note \" \" : neuf lignes lues, la neuvieme ecartee comme vide, ok = TRUE, n = 8, sans avertissement, sortie identical() a celle de donnees_ln.csv ; note \" fin \" : refus en aval \"... non numeriques (colonne xt : ligne(s) de donnees 9 ; colonne yt : ...)\" et \"Colonne t incomplete ou non numerique (ligne(s) de donnees 9) ...\" ; data.frame et sortie identical() a la variante en chaine partagee",
+           {
+             pb <- lp594(series594(fin = list(list(NULL, NULL, NULL, " "))))
+             pf <- lp594(series594(fin = list(list(NULL, NULL, NULL, " fin "))))
+             ab <- engine_lire_donnees_csv(pb$ligne); af <- engine_lire_donnees_csv(pf$ligne)
+             all(vapply(list(pb, pf), function(p) is.data.frame(p$ligne) && identical(p$ligne, p$partagee) &&
+                          identical(engine_lire_donnees_csv(p$ligne), engine_lire_donnees_csv(p$partagee)), NA)) &&
+               identical(dim(pb$ligne), c(9L, 4L)) && identical(pb$ligne$note[9], " ") &&
+               identical(ab, sources_corpus$series) && isTRUE(ab$ok) && identical(ab$n, 8L) && !length(ab$avertissements_lecture) &&
+               !af$ok && identical(af$erreurs, c("Certaines valeurs des colonnes xt ou yt ne sont pas numeriques (colonne xt : ligne(s) de donnees 9 ; colonne yt : ligne(s) de donnees 9).",
+                                                 "Colonne t incomplete ou non numerique (ligne(s) de donnees 9) : chaque ligne doit porter son annee."))
+           })
+  verifier("xlsx (#594, T12, critere C1) : uniformite avec la chaine partagee, par paires en ligne <t xml:space=\"preserve\"> / partagee <si><t xml:space=\"preserve\"> : en-tete \"xt \", valeur \" 104.2 \", note bordee, notes de seuls blancs, forme vide (<t xml:space=\"preserve\"/> / <si><t xml:space=\"preserve\"/></si>) : retour d'engine_lire_xlsx() et sortie d'engine_lire_donnees_csv() identical()",
+           all(vapply(list(series594(entete = c("t", "xt ", "yt", "note")), series594(xt = xt594(" 104.2 ")),
+                           series594(note = as.list(bordee594)), series594(note = c(list(" ", "\t", "   ", ""), as.list(rep("n", 4)))),
+                           series594(note = c(list(vide594), as.list(rep("n", 7))))), function(g) {
+             p <- lp594(g)
+             is.data.frame(p$ligne) && identical(p$ligne, p$partagee) &&
+               identical(engine_lire_donnees_csv(p$ligne), engine_lire_donnees_csv(p$partagee)) }, NA)))
+  texte594e <- function(pos) sprintf("Classeur illisible : la partie xl/worksheets/sheet1.xml du classeur porte un caractere ordinaire ou un blanc ecrit sous forme de reference numerique (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur ou un en-tete pourrait etre mal lu). Enregistrer de nouveau le classeur depuis un tableur.", pos)
+  verifier("xlsx (#594, T13) : references numeriques dans le texte d'un <t xml:space=\"preserve\"> en chaine en ligne (D2) : &#32; et &#9; refuses (complement de R8, D-S1-18 et D-S1-23 : \"D2 : &#32;\", \"D2 : &#9;\", classe usp_refus_lecture) ; &#233; et &amp; admis et decodes (\" f\\u00e9n \", \" a&b \")",
+           {
+             note <- function(t) lire594(ser574(d2 = en487("D2", sprintf('<t xml:space="preserve">%s</t>', t))))
+             r32 <- note(" a&#32;b "); r9 <- note(" a&#9;b ")
+             inherits(r32, "usp_refus_lecture") && identical(conditionMessage(r32), texte594e("D2 : &#32;")) &&
+               inherits(r9, "usp_refus_lecture") && identical(conditionMessage(r9), texte594e("D2 : &#9;")) &&
+               identical(note(" f&#233;n ")$V4, " f\u00e9n ") && identical(note(" a&amp;b ")$V4, " a&b ")
+           })
+  verifier("xlsx (#594, T14) : triangle, \" 962.71 \" en C2 (i = 1, j1) en chaine en ligne <t xml:space=\"preserve\"> : lu tel quel, puis 962.71 en aval, triangle et sortie d'engine_lire_triangle() identical() a ceux de la variante en chaine partagee et de triangle_mw.csv ; colonne note bordee de blancs : sortie d'engine_lire_triangle() identical() a celle du temoin a note sans blancs (refus en aval \"Cellule(s) non numerique(s) en (i = 0, j = 8), ...\")",
+           {
+             pc <- lp594(tri594(c13 = " 962.71 "))
+             pn <- lp594(tri594(note = paste0(" note", 1:8, " "))); tn <- lp594(tri594(note = paste0("note", 1:8)))
+             ac <- engine_lire_triangle(pc$ligne); an <- engine_lire_triangle(pn$ligne)
+             is.data.frame(pc$ligne) && identical(pc$ligne, pc$partagee) && identical(pc$ligne$j1[1], " 962.71 ") &&
+               identical(ac, engine_lire_triangle(pc$partagee)) && identical(ac, sources_corpus$triangle) &&
+               identical(ac$triangle[1, 2], 962.71) &&
+               identical(an, engine_lire_triangle(tn$ligne)) && identical(an, engine_lire_triangle(pn$partagee)) && !an$ok &&
+               identical(an$erreurs, "Cellule(s) non numerique(s) en (i = 0, j = 8), (i = 1, j = 8), (i = 2, j = 8), (i = 3, j = 8), (i = 4, j = 8) et 3 autre(s) (i : annee d'accident, j : annee de developpement).")
+           })
   # Segment de cellule lu par openxlsx (de "<c " a "<c " suivant ou a la fin
   # de la feuille) : " t=", "</v>" et "</t></is>" hors de la cellule.
   verifier("xlsx (#574, R3, segment) : attribut t=\"s\" de la ligne 3 apres C2 = 0 sans t (avant : C2 lue 11.5 par openxlsx, 0 en interne, ok = TRUE), <v> et <is><t> d'un element place apres </sheetData> rattaches a la derniere cellule sans valeur, en-tete de page \"&amp;CMontant t=1\" apres la derniere cellule (avant : lu juste par les deux chemins ; refus accepte, decision D-S1-10, a) : refus du segment",
