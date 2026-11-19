@@ -1627,8 +1627,11 @@ et $999 \times 13$)~; lue par \code{engine\_p\_famille()} (fiche~\ref{fiche:p-fa
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, \code{cumuls\_retires} (au moins un triangle simulé
-écarté et remplacé par un nouveau tirage) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
-atteint avant $B$ triangles acceptés~: des réplications manquent), \code{p\_min\_mc}, et, en
+écarté et remplacé par un nouveau tirage), \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
+atteint avant $B$ triangles acceptés~: des réplications manquent) et \code{n\_sans\_sigma}
+(entier, nombre de réplications à statistiques calculées dont $\sigma^{*}$ n'est pas fini~:
+réserve simulée $\le 0$, MSEP simulée en erreur, non finie ou négative~; écartées de
+\code{sigma\_boot} seul, gardées dans \code{stats\_boot}~; \code{0L} sans tirage), \code{p\_min\_mc}, et, en
 dernier, \code{stats\_boot}, matrice
 des $B$ réplications passée à \code{.mc\_p\_values()} (\code{NA} pour une réplication écartée), lue
 par \code{engine\_p\_famille()} \\
@@ -6127,10 +6130,11 @@ n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi 
 à ne pas pouvoir être anticipé à la saisie.
 Cohérence interne~: la règle appliquée à l'estimation ponctuelle est celle que la
 distribution bootstrap de $\sigma$ (\code{sigma\_boot}, d'où l'intervalle bootstrap) applique à
-chacune de ses réplications~: \code{mw\_bootstrap()} en écarte, sans en restituer le nombre, les
+chacune de ses réplications~: \code{mw\_bootstrap()} écarte de \code{sigma\_boot} les
 réplications dont la réserve simulée n'est pas strictement positive ou dont la MSEP simulée n'est
-pas finie ou est négative. L'intervalle bootstrap est donc conditionnel à ce domaine, et la part
-des réplications écartées, qui n'est pas affichée, peut ne pas être négligeable. Ces réplications
+pas finie ou est négative, et en restitue le nombre (\code{bootstrap\$n\_sans\_sigma}), que
+l'application affiche sous l'intervalle quand il n'est pas nul. L'intervalle bootstrap est donc
+conditionnel à ce domaine, et la part des réplications écartées peut ne pas être négligeable. Ces réplications
 restent dans le calcul des statistiques de test simulées et des p-values de Monte-Carlo, que la
 condition ne vise pas.
 \end{encadre}
@@ -6475,7 +6479,8 @@ triangles.
 
 \emph{Valeurs sur le triangle de contrôle} ($B = 999$, graine 20260831, référence
 \code{tests/reference/}\allowbreak\code{reserve2.rds}). $\sigma_{\mathrm{USP}} = 0{,}0497764613$ ne dépend pas du
-redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot},
+redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot}
+(999 valeurs, \code{bootstrap\$n\_sans\_sigma} nul),
 écart type estimé avant le mélange de crédibilité de D(4), vaut $0{,}01845$ (valeur observée
 $0{,}02182$), et les quantiles à $2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap}, qui portent
 sur $\sigma_{\mathrm{USP}}$ après ce mélange ($c = 0{,}59$, section~G~; $\sigma_{(\text{res},s)} =
@@ -6548,7 +6553,10 @@ abandonne le rééchantillonnage des résidus et rend encore des cumuls nuls en 
 simulé écarté et remplacé par un nouveau tirage) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
 acceptés~: des réplications manquent), et deux phrases fixes, sans nombre issu du bootstrap,
 jointes aux lignes de Monte-Carlo (ci-dessous)~; le nombre de triangles
-écartés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
+écartés n'est pas restitué. Ce retirage, qui précède le calcul des statistiques, est distinct de
+l'exclusion qui suit~: une réplication à statistiques calculées dont $\sigma^{*}$ n'est pas fini
+reste dans les statistiques simulées et n'est écartée que de \code{sigma\_boot}, comptée dans
+\code{bootstrap\$n\_sans\_sigma} (encadré «~Différence de nature~», section~\ref{sec:controles}). \emph{Effet.} Le triangle de contrôle, son sous-triangle
 $5\times5$ et le sous-triangle $8\times8$ de Taylor \& Ashe ne peuvent tirer aucun cumul non
 positif, quelle que soit la graine~: avec $m < 0$ le plus petit résidu du vivier, la borne
 inférieure itérée $L(i,j+1) = \hat f_j\,L(i,j) + \hat\sigma_j\,m\sqrt{L(i,j)}$, partie de la
@@ -14388,9 +14396,9 @@ sa place, l'\emph{intervalle «~basic~» sur l'échelle logarithmique}
 restitue le seul percentile des $c\,\hat\sigma^{(b)} + (1-c)\,\sigma_{\text{std}}$ (sans le facteur
 $\sqrt{(T+1)/(T-1)}$, ni ligne de test, ni régime), \textbf{conditionnel à une réserve simulée
 strictement positive}~: \code{mw\_bootstrap()} en écarte les réplications à réserve simulée non
-strictement positive ou à MSEP simulée non finie ou négative, sans en restituer le nombre (encadré
-«~Différence de nature~», section~\ref{sec:controles}), et sa couverture n'est pas mesurée~; restituer
-ce nombre et mesurer cette couverture sont un travail postérieur à la remise. \textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
+strictement positive ou à MSEP simulée non finie ou négative, et en restitue le nombre
+(\code{bootstrap\$n\_sans\_sigma}), affiché sous l'intervalle s'il n'est pas nul (encadré
+«~Différence de nature~», section~\ref{sec:controles})~; sa couverture n'est pas mesurée. \textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
 («~\code{Largeur relative de l'IC bootstrap 90\%}~», $\delta$ et $\gamma$ réajustés), et l'intervalle \emph{restreint à $\delta$ fixé} («~\code{\dots~(delta fixe a delta
 estime)}~», \code{res\$ic\_bootstrap\_restreint})~: \code{usp\_bootstrap()} réajuste aussi les
 \emph{mêmes} réplications à $\delta = \hat\delta$ (\code{usp\_ajuster\_contraint()}), sans aléa
