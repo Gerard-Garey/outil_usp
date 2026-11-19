@@ -9337,9 +9337,9 @@ engine_ecrire_csv <- function(df, chemin) {
 # cible, #595) ; structure du bloc des donnees
 # (R3 : balise <c de forme non reconnue, #487, balises <sheetData> en
 # surnombre ou toutes fermantes, D-S1-35, balise non prevue ou mal
-# imbriquee, segment de cellule lu par openxlsx, <t> a attribut d'une
-# chaine en ligne, D-S1-31) ; cellule sans attribut r (#487), reference de
-# forme non attendue (#557, D-S1-9), attribut hors liste (R4) ; limites
+# imbriquee, segment de cellule lu par openxlsx, <t> d'une chaine en ligne
+# hors des formes exactes admises, #594) ; cellule sans attribut r (#487),
+# reference de forme non attendue (#557, D-S1-9), attribut hors liste (R4) ; limites
 # d'une feuille (R5) ; reference en double (R6) ; ordre de lecture (R6b,
 # D-S1-11) ; type de cellule, t="d" et t="e" compris (R7, D-S1-2) ; contenu
 # de cellule (R8) et references numeriques de caractere (D-S1-18,
@@ -10348,7 +10348,11 @@ TEXTE_REFUS_BALISE_RELATION <- "Classeur illisible : la partie xl/_rels/workbook
 # Texte du refus du segment de cellule lu par openxlsx (regle R3, partie
 # "segments" ; avis d'actuary sur le lot B, Q1, texte propre).
 TEXTE_REFUS_SEGMENT <- "Classeur illisible : la feuille lue porte, apres une cellule, un texte qu'un lecteur de classeur peut prendre pour le type ou la valeur de cette cellule (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
-TEXTE_REFUS_R3 <- "Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee ou a prefixe d'espace de noms (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
+# Texte du refus de la regle R3 (#574) ; quatrieme qualification ("ou ecrite
+# sous une forme que l'outil n'admet pas") ajoutee par #594 (A-3 (a) du
+# 18/11/2026) : les formes non exactes de <t> d'une chaine en ligne, refusees
+# par R3, ne sont ni non prevues, ni mal imbriquees, ni prefixees.
+TEXTE_REFUS_R3 <- "Classeur illisible : le bloc des donnees de la feuille lue (<sheetData>) contient une balise non prevue, mal imbriquee, a prefixe d'espace de noms ou ecrite sous une forme que l'outil n'admet pas (%s) ; l'outil ne lit pas cette forme de facon sure (une valeur pourrait etre mal lue). Enregistrer de nouveau le classeur depuis un tableur."
 # Balise ouvrante ou vide bien formee : nom, puis attributs blanc + nom =
 # valeur entre guillemets doubles ou apostrophes, valeur sans "<" ni ">".
 XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\r\n=/<>\"']+[ \t\r\n]*=[ \t\r\n]*",
@@ -10376,9 +10380,11 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
 #  - hors du contenu des <extLst> (ni examine ni lu) : aucune balise
 #    prefixee ; <sheetData> ne contient que <row>, <row> que <c> et
 #    <extLst>, <c> que <f>, <v>, <is> et <extLst>, chacun au plus une fois,
-#    <is> (ecrit <is>, sans attribut) un seul <t>, ecrit <t> (sans
-#    attribut ni blanc, decision D-S1-31) ou, vide, <t/> (blancs admis avant
-#    "/>") ; <v>, <f> et <t> ne
+#    <is> (ecrit <is>, sans attribut) un seul <t>, sous l'une des seules
+#    formes exactes <t>, <t xml:space="preserve"> ou, vide, <t/> (blancs
+#    admis avant "/>") et <t xml:space="preserve"/> (#594, decision du
+#    mainteneur du 18/11/2026, A-1 et A-2 (a), qui leve D-S1-31 dans cette
+#    mesure seulement) ; <v>, <f> et <t> ne
 #    contiennent aucune balise ; balises bien formees (attributs nom =
 #    valeur entre guillemets, sans "<" ni ">" dans une valeur ; fermante
 #    ecrite </nom>, sans blanc : openxlsx cherche "</v>" exact ; </v > etait
@@ -10500,15 +10506,31 @@ XML_GRAMMAIRE_OUVRANTE <- paste0("^<[A-Za-z_][A-Za-z0-9_.:-]*(?:[ \t\r\n]+[^ \t\
   forme_o <- grepl(XML_GRAMMAIRE_OUVRANTE, tk, perl = TRUE, useBytes = TRUE)
   forme_f <- tk == paste0("</", nm, ">") & grepl("^[A-Za-z_][A-Za-z0-9_.:-]*$", nm, useBytes = TRUE)
   cle <- ifelse(ouv & pn %in% c("c", "is"), paste(par, nm), NA_character_)
-  # <t> d'une chaine en ligne sans attribut ni blanc (decision D-S1-31) :
-  # openxlsx 4.2.5.2 garde dans le texte lu ce qui suit "<t" et un caractere
-  # (en-tete <t xml:space="preserve">xt lu "xml:space=\"preserve\">xt", <t >xt
-  # et <t\t>xt lus ">xt", valeur 104.2 lue non numerique), le lecteur
-  # interne lit xt et 104.2 (mesure) ; vide : <t/>, avec ou sans blancs
-  # avant "/>", admis, lus
-  # pareil l'un et l'autre sur chaque chemin (chaine vide en interne, NA par
-  # openxlsx ; meme verdict de engine_lire_donnees_csv(), mesure)
-  t_is <- nm == "t" & pn == "is" & ifelse(g == "o", tk != "<t>", !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE))
+  # <t> d'une chaine en ligne (#594, decision du mainteneur du 18/11/2026,
+  # A-1 et A-2 (a)) : admis sous les seules formes exactes, a l'octet pres,
+  # ouvrante <t> ou <t xml:space="preserve">, vide <t/> (blancs admis avant
+  # "/>") ou <t xml:space="preserve"/> ; regle uniforme, sans egard a la
+  # cellule, a la colonne, a l'objet lu ni a l'argument entete. Le lecteur
+  # interne ne lit pas l'attribut (.xml_textes() prend le texte du <t> tel
+  # quel, avec ou sans attribut) : le texte est lu comme celui de la meme
+  # chaine ecrite <t>, et comme celui d'une chaine partagee
+  # <si><t xml:space="preserve">, deja admise (XML 1.0, 2.10 : xml:space ne
+  # fait que signaler une intention a l'application) ; ses blancs ne sont
+  # interpretes qu'en aval (.nettoyer_cellules(), .xlsx_blancs_entete()),
+  # comme pour toute chaine. Restent refusees, au seul titre du contrat ferme
+  # (ADR 0020, point 2) : blanc dans la balise (<t >, <t\t>, deux espaces,
+  # blanc avant ">" ou avant "/>" de la forme a attribut), apostrophes, autre
+  # valeur (default, PRESERVE), autre attribut (space=, x:space=) ou
+  # attribut en plus. La table partagee admet, elle, toute forme bien formee
+  # de <t> (regle R9, XML_GRAMMAIRE_OUVRANTE), lue de meme (limite
+  # d'uniformite consignee, A-5 (a)). D-S1-31, qui refusait tout <t> a
+  # attribut ou a blanc parce qu'openxlsx 4.2.5.2 en gardait l'attribut dans
+  # le texte lu, est levee dans cette mesure seulement : openxlsx ne lit plus
+  # aucun classeur depuis #604 (ADR 0020). Les references numeriques du texte
+  # restent refusees par le complement de R8 (D-S1-18, D-S1-23).
+  t_is <- nm == "t" & pn == "is" &
+    ifelse(g == "o", !tk %in% c("<t>", "<t xml:space=\"preserve\">"),
+           !grepl("^<t[ \t\r\n]*/>$", tk, useBytes = TRUE) & tk != "<t xml:space=\"preserve\"/>")
   faute <- (ouv & (!permis | !forme_o | (nm == "is" & (g == "v" | tk != "<is>")) | t_is)) |
            (!dans_ext & g == "f" & !forme_f) | duplicated(cle, incomparables = NA)
   # Seule la balise fautive la plus haute est citee (pas ses descendantes)
@@ -11640,10 +11662,14 @@ XML_CODES_REFERENCE_BLANCS <- c(9:13, 0x1680, 0x2000:0x2006, 0x2008:0x200A, 0x20
 # (.xlsx_controler_references(), decisions D-S1-18 et D-S1-23 : "x&#116;"
 # ou "xt&#9;" lu "xt" par le lecteur interne, laisse tel quel par openxlsx,
 # qui prenait en silence une autre colonne xt, mesure) ;
-# un <t> a attribut ou a blanc d'une chaine en ligne (<t
-# xml:space="preserve">, <t >), dont openxlsx gardait dans le texte lu ce
-# qui suit "<t" et un caractere, est refuse avant la lecture
-# (.xlsx_controler_structure(), decision D-S1-31).
+# le <t> d'une chaine en ligne est admis sous les seules formes exactes
+# <t>, <t xml:space="preserve">, <t/> (blancs admis avant "/>") et
+# <t xml:space="preserve"/>, son texte lu tel quel, attribut ignore, comme
+# celui d'une chaine partagee ; toute autre forme (<t >, apostrophes,
+# xml:space="default", attribut en plus...) est refusee avant la lecture
+# (.xlsx_controler_structure(), regle R3 ; #594, decision du mainteneur du
+# 18/11/2026, qui leve dans cette mesure la decision D-S1-31, prise quand
+# openxlsx gardait l'attribut dans le texte lu).
 # Le texte d'une cellule t="str" (resultat de formule) est lu tel quel, sans
 # decodage des entites (&amp;, &lt;, &#233;...) : limite consignee (#557).
 # Elle a ete fixee quand openxlsx lisait ce texte de meme (mesure, #557) et
