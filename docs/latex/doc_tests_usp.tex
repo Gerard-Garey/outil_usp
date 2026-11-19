@@ -974,10 +974,9 @@ renommé pour lever un doublon~; balises
 classeur et de ses relations lus (mesuré~; le paquet \code{openxlsx}~4.2.9 s'y arrête sur une
 erreur R, §\ref{sec:controles})~; fins de ligne littérales de chaque partie lue normalisées en
 saut de ligne avant toute règle et tout décodage (\code{.xml\_fins\_de\_ligne()})~; entités XML nommées et références numériques admises des
-chaînes partagées et en ligne
-décodées, texte phonétique (\code{<rPh>}) d'une chaîne partagée non lu, tableau dimensionné sur
-les seules cellules à valeur~; texte
-d'une cellule \code{t="str"} lu tel quel, sans décodage des entités~; une colonne n'est
+chaînes partagées, des chaînes en ligne et du texte (\code{<v>}) des cellules \code{t="str"}
+décodées en une passe (\code{.xml\_decoder()}), texte phonétique (\code{<rPh>}) d'une chaîne
+partagée non lu, tableau dimensionné sur les seules cellules à valeur~; une colonne n'est
 rendue numérique que si toutes ses cellules à valeur sont des cellules nombre, converties par
 \code{.cellules\_en\_nombre()}~; une cellule texte, booléenne (rendue «~\code{TRUE}~» ou
 «~\code{FALSE}~») ou d'erreur, ou une cellule nombre de forme refusée, laisse la colonne en
@@ -1036,7 +1035,8 @@ positif ou nul~; refus des cellules \code{t="s"} dont l'indice, lu dans \code{<v
 en double, est négatif ou au moins égal au nombre de chaînes de la table (zéro sans table),
 positions citées cinq au plus~; refus d'une ligne~1 sans cellule à valeur (cellule qui porte \code{<v>} ou
 \code{<is>}, hors cellule texte vide ou faite de blancs~: chaîne partagée résolue dans
-\code{partagees}, chaîne en ligne ou chaîne de formule~; un indice de chaîne partagée illisible
+\code{partagees}, chaîne en ligne ou chaîne de formule \code{t="str"}, au texte décodé comme dans
+le tableau rendu~; un indice de chaîne partagée illisible
 ou hors de la table compte comme une valeur, l'indice hors de la table étant refusé avant par
 \code{engine\_lire\_xlsx()}), une feuille sans aucune cellule à valeur n'étant pas visée~; erreur de classe
 \code{usp\_refus\_lecture}, puis \code{error} et \code{condition}, dont le message est le texte du
@@ -5436,16 +5436,19 @@ infinie (mesuré).
 porte au plus un \code{<v>}, de forme décimale (blancs de bord, signe, chiffres ASCII, point
 décimal, exposant complet~: \code{XML\_MOTIF\_NOMBRE})~; une cellule booléenne, un \code{<v>}
 valant~0 ou~1~; une cellule de chaîne partagée, un \code{<v>} écrit en chiffres seulement~; une
-cellule \code{t="str"}, un \code{<v>} facultatif~; une chaîne en ligne (\code{t="inlineStr"}),
+cellule \code{t="str"} (résultat de formule), un \code{<v>} facultatif, dont le texte relève de la
+règle suivante~; une chaîne en ligne (\code{t="inlineStr"}),
 aucun \code{<v>}~; un \code{<is>} n'est admis que sous \code{t="inlineStr"}, et \code{<v/>} vaut
 absence de \code{<v>}. \code{openxlsx} lit~16 la valeur \code{0x10}, 104 la valeur
 \code{104,2}, et comme la chaîne partagée~0 une cellule \code{t="s"} sans \code{<v>} (mesuré)~;
 des formes qu'il lit juste, comme l'indice de chaîne \code{1.0} ou \code{+1}, sont refusées
 aussi (mesuré).
 \item \emph{Références numériques de caractère} (\code{.xlsx\_controler\_}\allowbreak\code{references()}, motif
-\code{TEXTE\_REFUS\_}\allowbreak\code{REFERENCE\_NUMERIQUE}~; à cette place pour les chaînes en ligne, à la fin du
+\code{TEXTE\_REFUS\_}\allowbreak\code{REFERENCE\_NUMERIQUE}~; à cette place pour les chaînes en ligne et
+le texte des cellules \code{t="str"}, pris ensemble dans l'ordre du document, à la fin du
 contrôle de la structure de la table pour ses chaînes). Dans tout le classeur, soit le texte de
-toute chaîne en ligne de la feuille lue et de toute chaîne de la table, texte phonétique exclu,
+toute chaîne en ligne et le \code{<v>} de toute cellule \code{t="str"} de la feuille lue, et le
+texte de toute chaîne de la table, texte phonétique exclu,
 en-tête ou non, colonne lue ou non, est refusée une référence \code{\&\#{}NNN;} ou \code{\&\#{}xHH;}
 (\code{x} écrit en minuscule ou en majuscule~; la forme en majuscule, que ni le lecteur interne
 ni \code{openxlsx} ne décode, est refusée de même, mesuré) qui désigne un caractère ASCII imprimable autre que \code{"}, \code{\&}, \code{'}, \code{<} et
@@ -5464,8 +5467,16 @@ locale de la session tient pour un blanc est refusé), aux autres caractères no
 (\code{\&\#{}233;}) et aux cinq caractères d'échappement XML, ainsi que les références hors du
 domaine des caractères~: décodées par le lecteur interne, elles ne changent pas la
 colonne retenue (mesuré pour \code{\&\#{}1;} et \code{\&\#{}160;} à côté d'un en-tête
-\code{xt}). Le texte d'une cellule \code{t="str"} n'est pas visé (ci-dessous), ni le
-\code{<v>} d'une cellule nombre, qui relève de la forme décimale.
+\code{xt}). Le \code{<v>} d'une cellule nombre n'est pas visé~: il relève de la forme décimale.
+Le texte admis des trois sources --- chaîne partagée, chaîne en ligne, texte d'une cellule
+\code{t="str"} --- est ensuite décodé de même, en une passe (\code{.xml\_decoder()}), après la
+normalisation des fins de ligne~: une référence de caractère est remplacée par le caractère
+qu'elle désigne, et les cinq entités prédéfinies sont reconnues (recommandation XML~1.0 citée à
+la règle «~Encodage~», §~4.4.2 et~4.6)~; ainsi «~\code{R\&amp;D}~» est lu «~\code{R\&D}~» et
+«~\code{caf\&\#{}233;}~» «~\code{café}~» dans une cellule \code{t="str"} comme dans une chaîne en
+ligne (mesuré). Les entités nommées ne sont pas refusées~: hors du balisage, «~\code{\&}~» et
+«~\code{<}~» ne s'écrivent qu'échappés, par \code{\&amp;} et \code{\&lt;} ou par une référence
+numérique (§~2.4).
 \item \emph{Table des chaînes partagées}, si elle existe. Trois refus de forme, d'abord, chacun
 d'un motif propre~: une table qui porte du texte découpé en segments \code{<r>} sans aucune
 balise \code{<rPr>} écrite sous cette forme exacte («~\code{contient du texte decoupe en
@@ -5532,11 +5543,7 @@ d'extraction d'\code{utils::unzip()}, les moteurs d'expressions régulières de~
 reposent le découpage en balises et les règles du contrat, et la locale, qui fixe la classe
 \code{[[:space:]]} des blancs d'en-tête (ci-dessous). Le texte phonétique d'une chaîne partagée
 n'est pas lu~: «~\code{11}~» suivi du texte phonétique «~\code{7}~» est lu~11
-(mesuré). Le texte d'une cellule \code{t="str"} (résultat de formule) est lu tel quel, sans
-décodage des entités (\code{\&amp;}, \code{\&\#{}xE9;})
-(mesuré)~; un texte resté non décodé garde le caractère «~\code{\&}~», si bien qu'il n'est ni un
-en-tête attendu ni un nombre et ne peut donner de valeur fausse (raisonnement, non mesuré).
-Le lecteur interne lit juste des balises \code{<sheet>} et
+(mesuré). Le lecteur interne lit juste des balises \code{<sheet>} et
 \code{<Relationship>} préfixées, des attributs entre apostrophes ou à blancs autour du signe
 \code{=} dans le classeur et ses relations, une cible de feuille écrite
 \code{./worksheets/\ldots}, et une archive qui porte, dans un autre dossier, une
@@ -5558,8 +5565,11 @@ d'\code{engine\_lire\_donnees\_csv()} ou d'\code{engine\_lire\_triangle()} est i
 de leur source CSV (mesuré sous la locale \code{C.UTF-8})~; un écart du témoin à la source n'est
 admis que s'il figure dans une liste fermée, datée de la version du paquet. Un classeur forgé
 n'est jamais comparé au témoin~: les règles du contrat sont vérifiées par une valeur attendue
-explicite, valeur lue ou texte du refus. Aucun classeur écrit par Excel ni par LibreOffice ne
-figure au corpus, et le lecteur interne n'a été mesuré sur aucun~: l'absence de valeur lue
+explicite, valeur lue ou texte du refus. Aucun classeur du corpus ne porte de cellule
+\code{t="str"}~: la lecture du texte d'un résultat de formule n'est vérifiée que sur des
+classeurs forgés, et l'hypothèse qu'aucun écrivain n'y écrit de référence numérique à un
+caractère ordinaire, forme qui ferait refuser le classeur, n'est pas vérifiée. Aucun classeur
+écrit par Excel ni par LibreOffice ne figure au corpus, et le lecteur interne n'a été mesuré sur aucun~: l'absence de valeur lue
 fausse sur un classeur de ces deux tableurs est une hypothèse, non vérifiée, que bornent
 l'admission, qui refuse toute forme hors du contrat, et la relecture des données affichées
 avant tout calcul (ci-dessous). Le contrat juge la forme du classeur, non les
