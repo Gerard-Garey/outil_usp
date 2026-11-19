@@ -12854,7 +12854,9 @@ IC_BOOT_NIVEAU_REPERES <- 0.90
 # l'application affine croissante de run_engine() (pente cred * corr,
 # ordonnee (1 - cred) sigma_std), ecrite comme usp_b : le log porte sur
 # sigma, pas sur sigma_USP (ordonnee non nulle). Methode lognormale
-# seulement (Merz-Wuthrich : couverture non mesuree, #387). Vecteur nomme
+# seulement (Merz-Wuthrich : percentile seul, couverture mesuree a T = 8,
+# nettement sous le nominal (mesure de #387), qu'aucun "basic" mesure ne
+# retablit). Vecteur nomme
 # c(bas_95, bas_90, haut_90, haut_95) ; aucune troncature. Restitue en
 # regard de l'intervalle de percentile res$ic_bootstrap, jamais a sa place.
 usp_ic_basic_log <- function(sigma_boot, sigma_hat, cred, corr, sigma_standard) {
@@ -18113,7 +18115,9 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
   # en fin de liste, comme en lognormal, sans regime de delta : sigma_USP
   # simules calcules une fois par .run_engine_mw() par l'expression qui
   # forme res$ic_bootstrap, et reperes du graphique, sans intervalle "basic"
-  # (#387). Absents en appel direct sans sigma_usp_boot.
+  # (percentile : couverture mesuree a T = 8, nettement sous le nominal
+  # (mesure de #387), qu'aucun "basic" mesure ne retablit). Absents en appel
+  # direct sans sigma_usp_boot.
   if (!is.null(sigma_usp_boot)) {
     pd$sigma_usp_boot <- sigma_usp_boot
     pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard)
