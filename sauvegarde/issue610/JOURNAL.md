@@ -32,3 +32,7 @@
 - Segment arrêté (--arret-apres 90 min) : 2026-11-20T17:21:41Z ; tranches calculées par ce segment : 20 ; tranches restantes : 39
 - Reprise : 2026-11-20T17:21:52Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
 - Segment arrêté (--arret-apres 90 min) : 2026-11-20T18:54:40Z ; tranches calculées par ce segment : 22 ; tranches restantes : 17
+- Reprise : 2026-11-20T18:54:50Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Fin : 2026-11-20T20:06:21Z ; SHA à la fin f573ddccf43211e980b0936b37924beeeae834c8 ; md5 R/engine.R à la fin faf36c545999c147087759155a2bd38a ; INTEGRITE OK
+- Sortie 20261120-issue610-couverture-ic-sigma-mw-imbrique.md : md5 51fd2c4a1b038ed824d9fdd5f9933927
+- Sortie 20261120-issue610-couverture-ic-sigma-mw-imbrique-brut.tsv : md5 de803ba3d262ef83cb8c03b09524a101
