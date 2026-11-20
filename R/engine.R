@@ -4351,6 +4351,50 @@ usp_simuler <- function(fit) {
 .usp_aplatir_ratios <- function(r) engine_aplatir_ex_aequo(r, plancher = 0)
 .usp_plancher_u <- function(r) max(abs(r))
 
+# Statistiques de stats::cor.test() et de stats::ks.test() calculees seules
+# (#445, piste B4), pour les entrees SpearVol, SpearTps et Smirnov du
+# catalogue ci-dessous, evaluees a chaque replication du bootstrap : ces
+# fonctions calculaient aussi une p-value (loi exacte de Smirnov par
+# psmirnov(), approximation de Spearman) et un objet htest, que le catalogue
+# ne lit pas. Transcription des seules lignes de cor.test.default() et de
+# ks.test.default() (paquet stats de R 4.3) qui forment la statistique, dans
+# le meme ordre et avec les memes operations : valeur identique au bit pres
+# (mesure #445, tests/unitaires/test_chemins_chauds_445.R, contre les
+# fonctions de stats), erreurs dans les memes cas (texte seul different
+# s'il y a lieu ; dans le bootstrap, l'erreur ecarte la replication).
+# S de Spearman, exact = FALSE : S = (n^3 - n) (1 - rho_s) / 6, rho_s =
+# cor(rank(a), rank(b)) apres retrait des paires incompletes ; rho_s non
+# fini (une serie constante) : NA (logique, comme c(S = NA) de cor.test()).
+# L'avertissement de cor() (ecart-type nul) est intercepte, comme l'etait
+# celui de cor.test() par suppressWarnings() dans le catalogue.
+.usp_spearman_S <- function(a, b) {
+  if (length(a) != length(b)) stop(".usp_spearman_S() : longueurs differentes")
+  ok <- stats::complete.cases(a, b)
+  a <- a[ok]; b <- b[ok]
+  n <- length(a)
+  if (n < 2) stop(".usp_spearman_S() : moins de deux observations finies")
+  r <- suppressWarnings(stats::cor(rank(a), rank(b)))
+  if (!is.finite(r)) return(NA)
+  (n^3 - n) * (1 - r) / 6
+}
+# D de Smirnov a deux echantillons, bilateral : plus grand ecart absolu des
+# fonctions de repartition empiriques, lu aux seuls points de saut des
+# valeurs distinctes de c(x, y) en presence d'ex aequo.
+.usp_smirnov_D <- function(x, y) {
+  x <- x[!is.na(x)]
+  n <- length(x)
+  if (n < 1L) stop(".usp_smirnov_D() : x sans donnee")
+  y <- y[!is.na(y)]
+  n.x <- as.double(n)
+  n.y <- length(y)
+  if (n.y < 1L) stop(".usp_smirnov_D() : y sans donnee")
+  w <- c(x, y)
+  z <- cumsum(ifelse(order(w) <= n.x, 1/n.x, -1/n.y))
+  if (length(unique(w)) < (n.x + n.y))
+    z <- z[c(which(diff(sort(w)) != 0), n.x + n.y)]
+  max(abs(z))
+}
+
 USP_CATALOGUE_MC <- list(
   AD     = .mc_entree(function(e) stat_ad(e$z), "haut"),
   CvM    = .mc_entree(function(e) stat_cvm(e$z), "haut"),
@@ -4385,10 +4429,11 @@ USP_CATALOGUE_MC <- list(
     if (e$T >= 8 && !usp_volumes_constants(e$x)) {
       g <- e$x > stats::median(e$x)
       if (sum(g) >= 3 && sum(!g) >= 3)
-        # z aplati a TOL_EX_AEQUO (#112), comme dans usp_tests()
+        # z aplati a TOL_EX_AEQUO (#112), comme dans usp_tests() ; D de
+        # ks.test() calcule seul (.usp_smirnov_D(), #445).
         sm <- local({
           za <- engine_aplatir_ex_aequo(e$z)
-          unname(suppressWarnings(stats::ks.test(za[g], za[!g])$statistic))
+          .usp_smirnov_D(za[g], za[!g])
         })
     }
     sm
@@ -4424,20 +4469,18 @@ USP_CATALOGUE_MC <- list(
   # identiques au bit pres a celles calculees sur rho_s ; issue #41).
   # r et x aplatis a TOL_EX_AEQUO avant cor.test() (#112), comme dans
   # usp_tests() ; r et x en tolerance purement relative
-  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()).
+  # (.usp_aplatir_ratios(), #187 ; .usp_aplatir_volumes()). S de
+  # cor.test(method = "spearman", exact = FALSE) calcule seul
+  # (.usp_spearman_S(), #445).
   SpearVol = .mc_entree(function(e)
     if (!usp_volumes_constants(e$x))
-      suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r),
-                                              .usp_aplatir_volumes(e$x),
-                                              method = "spearman",
-                                              exact = FALSE)$statistic)) else NA_real_,
+      .usp_spearman_S(.usp_aplatir_ratios(e$r), .usp_aplatir_volumes(e$x)) else NA_real_,
     "deux", extremes = function(e)
       if (usp_volumes_constants(e$x) || anyDuplicated(.usp_aplatir_ratios(e$r)) ||
           anyDuplicated(.usp_aplatir_volumes(e$x))) c(NA_real_, NA_real_)
       else .spearman_extremes(e$T)),
   SpearTps = .mc_entree(function(e)
-    suppressWarnings(unname(stats::cor.test(.usp_aplatir_ratios(e$r), seq_along(e$r),
-                                            method = "spearman", exact = FALSE)$statistic)),
+    .usp_spearman_S(.usp_aplatir_ratios(e$r), seq_along(e$r)),
     "deux", extremes = function(e)
       if (anyDuplicated(.usp_aplatir_ratios(e$r))) c(NA_real_, NA_real_)
       else .spearman_extremes(e$T)),
@@ -12811,7 +12854,9 @@ IC_BOOT_NIVEAU_REPERES <- 0.90
 # l'application affine croissante de run_engine() (pente cred * corr,
 # ordonnee (1 - cred) sigma_std), ecrite comme usp_b : le log porte sur
 # sigma, pas sur sigma_USP (ordonnee non nulle). Methode lognormale
-# seulement (Merz-Wuthrich : couverture non mesuree, #387). Vecteur nomme
+# seulement (Merz-Wuthrich : percentile seul, couverture mesuree a T = 8,
+# nettement sous le nominal (mesure de #387), qu'aucun "basic" mesure ne
+# retablit). Vecteur nomme
 # c(bas_95, bas_90, haut_90, haut_95) ; aucune troncature. Restitue en
 # regard de l'intervalle de percentile res$ic_bootstrap, jamais a sa place.
 usp_ic_basic_log <- function(sigma_boot, sigma_hat, cred, corr, sigma_standard) {
@@ -13450,6 +13495,16 @@ mw_ajuster <- function(tri) {
   j <- 0:(aj$J - 1L)
   as.integer(j[vapply(j, function(k) .mw_colonne_degeneree(aj, k, tol), logical(1))])
 }
+# Predicat de la colonne j, 0 <= j <= J - 1, sur aj lui-meme (et non sur
+# l'ensemble fige a l'observe), lu dans degeneres_aj s'il est fourni : il
+# vaut alors .mw_colonnes_degenerees(aj) (meme aj, tolerance par defaut),
+# calcule une fois par .mw_contexte_mc() pour toutes les statistiques d'une
+# replication (#445, piste B3) ; NULL : predicat evalue sur la colonne
+# (appel hors du catalogue). Meme booleen dans les deux cas, par
+# definition de .mw_colonnes_degenerees().
+.mw_degeneree_courante <- function(aj, j, degeneres_aj = NULL) {
+  if (is.null(degeneres_aj)) .mw_colonne_degeneree(aj, j) else j %in% degeneres_aj
+}
 # Enonce du predicat dans les messages (issue #60, decision du mainteneur du
 # 06/10/2026, constat C1-a de l'audit) : UNE SEULE chaine, reutilisee par
 # l'avertissement des colonnes exclues (mw_valider_ajustement()), le motif de
@@ -13782,9 +13837,12 @@ mw_sensibilite_sigma2_dernier <- function(aj, ex = mw_extrapolation_sigma2(aj)) 
 # -- un allegement de capital fabrique par une division par un nombre negatif ;
 # avec R = 0 il vaut NaN. Le refus est donc la seule conclusion actuarielle
 # tenable : la methode n'est pas applicable au triangle fourni.
-# Coherence interne : mw_bootstrap() ecarte deja toute replication dont la
-# reserve simulee est <= 0 ; la regle de l'estimation ponctuelle ne peut pas
-# etre plus permissive que celle de ses replications.
+# Coherence interne : mw_bootstrap() ecarte de sigma_boot, donc de
+# l'intervalle bootstrap, toute replication dont la reserve simulee est <= 0
+# (comptee dans bootstrap$n_sans_sigma, #492), mais non des statistiques
+# simulees ni des p-values de Monte-Carlo ; la regle de l'estimation
+# ponctuelle ne peut pas etre plus permissive que celle qui forme
+# l'intervalle bootstrap.
 # Ne sont PAS des motifs de refus (decision M4, issue #7) : des reserves
 # negatives sur certaines annees de survenance avec un total > 0 (bonis de
 # liquidation, recours sur annees anciennes) et un f_j < 1 isole, qui restent
@@ -14107,6 +14165,22 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
   structure(colonnes,
             row.names = if (is.null(noms_lignes)) .set_row_names(length(colonnes[[1L]])) else noms_lignes,
             class = "data.frame")
+# Table de colonnes sous la forme exacte du resultat de data.frame(...) :
+# attributs names, class, row.names dans cet ordre (celui de data.frame(),
+# distinct de celui de .mw_table()), noms de lignes automatiques, sans le
+# cout d'appel de data.frame() (#445, piste B2 : tables de
+# mw_test_cellule_aberrante() construites a chaque replication du bootstrap
+# de reserve2). Arguments : colonnes nommees (noms syntaxiques, que
+# data.frame() garde tels quels), vecteurs atomiques sans dimension, de meme
+# longueur. Une colonne a noms (dont data.frame() tirerait les noms de
+# lignes et qu'il depouillerait de ses noms) renvoie a data.frame() lui-meme.
+# Critere : identical(attrib.as.set = FALSE) avec data.frame(...)
+# (tests/unitaires/test_chemins_chauds_445.R).
+.mw_df <- function(...) {
+  colonnes <- list(...)
+  if (any(vapply(colonnes, function(v) !is.null(names(v)), logical(1)))) return(data.frame(...))
+  structure(colonnes, class = "data.frame", row.names = .set_row_names(length(colonnes[[1L]])))
+}
 # Noms de lignes de rbind() ITERE (table <- rbind(table, data.frame(bloc)),
 # depuis data.frame()) sur des blocs dont les noms viennent des vecteurs de
 # `sources` (un par bloc, NULL ou non nomme pour un bloc a noms
@@ -14222,7 +14296,10 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   jd <- .mw_j_exclues(aj, j_degeneres)
-  exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
+  # Table vide construite une fois au chargement (.MW_DF_VIDE_J_N, #513),
+  # meme objet que data.frame(j = integer(0), n_facteurs = integer(0)),
+  # appele a chaque replication avant #445 (piste B2) ; copiee a l'ecriture.
+  exclues <- .MW_DF_VIDE_J_N
   # Un bloc par colonne de developpement, table assemblee une fois par
   # .mw_empiler() (#239, #250) ; noms de lignes tires de C (noms de lignes
   # du triangle), comme dans l'ancienne forme.
@@ -15058,8 +15135,11 @@ mw_test_heteroscedasticite_intra <- function(aj, res) {
 # j_non_identifiables : ensemble des colonnes non identifiables de
 # l'ordonnee (#273), fige a l'observe par mw_bootstrap() (element
 # origine_non_identifiables de .mw_ensembles_figes()) ; NULL : calcule sur aj
-# (appel observe).
-mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL) {
+# (appel observe). degeneres_aj : .mw_colonnes_degenerees(aj), pose par le
+# contexte du catalogue (.mw_degeneree_courante(), #445) ; NULL : predicat
+# evalue colonne par colonne.
+mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
+                                     degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15088,7 +15168,7 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
     # .mw_phrase_origine_non_identifiable(). Testee AVANT le controle de
     # degenerescence, comme pour la courbure (#270).
     if (j %in% jni) next
-    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     m <- try(.mw_coefs_origine(C0, C1), silent = TRUE)
     # Plus aucune exclusion silencieuse (#273, second volet de #56) : une
@@ -15129,7 +15209,8 @@ mw_test_ordonnee_origine <- function(aj, j_degeneres = NULL, j_non_identifiables
 # Si f_j est commun a toutes les annees d'accident, les facteurs individuels
 # F(i,j) d'une meme colonne ne doivent presenter aucune tendance en i.
 # Correlation de rang de Spearman entre F(i,j) et i, colonne par colonne.
-mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
+# degeneres_aj : comme pour mw_test_ordonnee_origine() (#445).
+mw_test_homogeneite_f <- function(aj, j_degeneres = NULL, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15146,7 +15227,7 @@ mw_test_homogeneite_f <- function(aj, j_degeneres = NULL) {
     # fige exclue, colonne retenue mais degeneree -> statistique NA.
     if (j %in% jd) { ex <- .mw_exclure(ex, j, length(idx)); next }
     ex$eligibles <- ex$eligibles + 1L
-    if (.mw_colonne_degeneree(aj, j)) return(.mw_stat_non_definie(ex))
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(.mw_stat_non_definie(ex))
     # F aplati a TOL_EX_AEQUO avant .mw_spearman() (#152), plancher 0.
     F <- engine_aplatir_ex_aequo(tri[idx + 1, j + 2] / tri[idx + 1, j + 1], plancher = 0)
     # rho et p de la colonne par un seul appel de .mw_spearman() (#239,
@@ -15388,8 +15469,9 @@ MW_COMBN_N_MAX <- 20L
 # l'observe par mw_bootstrap() ; NULL : calcule sur aj (appel observe).
 # combn : table d'appel des combinaisons de n > MW_COMBN_N_MAX, posee par
 # mw_bootstrap() (.mw_combinaisons(), #432) ; NULL hors de cet appel.
+# degeneres_aj : comme pour mw_test_ordonnee_origine() (#445).
 mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
-                             combn = NULL) {
+                             combn = NULL, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   # Une ligne par colonne retenue, table assemblee une fois (.mw_empiler(),
   # #239, #250).
@@ -15424,7 +15506,7 @@ mw_test_courbure <- function(aj, j_degeneres = NULL, j_non_identifiables = NULL,
     # degenerescence : une colonne de l'ensemble fige, hors de K, ne rend pas
     # la statistique NA si elle devient degeneree dans une replication.
     if (j %in% jni) next
-    if (.mw_colonne_degeneree(aj, j)) return(na_stat())
+    if (.mw_degeneree_courante(aj, j, degeneres_aj)) return(na_stat())
     C0 <- tri[idx + 1, j + 1]; C1 <- tri[idx + 1, j + 2]
     # Forme close (#253) : plus aucune exclusion silencieuse par le rang
     # numerique de lm(). Colonne retenue a l'observe mais non identifiable
@@ -16004,8 +16086,16 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # plafond de FACTEUR_B_MAX_MW * (B + 1) triangles tires au total ; au
     # plafond, les replications restantes valent NA. Deux booleens seuls
     # sont restitues (D1-3 (a)) : aucun compte de tirages.
+    # Replications sans sigma simule (#492) : une replication dont les
+    # statistiques sont calculees mais dont sigma* n'est pas fini (reserve
+    # simulee <= 0, MSEP en erreur ou non finie, ou racine(MSEP) / R non
+    # fini) reste dans sim, donc dans les statistiques simulees et les
+    # p-values de Monte-Carlo ; elle n'est retiree que de sigma_boot, donc
+    # de l'intervalle bootstrap, et comptee dans n_sans_sigma. Compteur
+    # sans tirage : aucun alea ajoute ni retire.
     n_max <- FACTEUR_B_MAX_MW * (as.numeric(B) + 1)
     n_tires <- 0; cumuls_retires <- FALSE; plafond_cumuls <- FALSE
+    n_sans_sigma <- 0L
     for (b in seq_len(B)) {
       tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
       n_tires <- n_tires + tir$n
@@ -16020,6 +16110,8 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
       mb <- try(mw_msep(ab), silent = TRUE)
       if (!inherits(mb, "try-error") && is.finite(mb$msep) && ab$reserve > 0)
         sig[b] <- sqrt(mb$msep) / ab$reserve
+      # Meme condition que le filtre sig[is.finite(sig)] de sigma_boot (#492).
+      if (!is.finite(sig[b])) n_sans_sigma <- n_sans_sigma + 1L
     }
   })
   # Les tests de NORMALITE sont volontairement exclus du bootstrap. Le
@@ -16056,6 +16148,11 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
        # Tracabilite du retirage (#257, D1-3 (a)) : au moins un triangle
        # simule retire ; plafond atteint (des replications manquent).
        cumuls_retires = cumuls_retires, plafond_cumuls = plafond_cumuls,
+       # Replications a statistiques calculees sans sigma* fini (#492) :
+       # entier, 0L sans tirage ; ecartees de sigma_boot seul, gardees dans
+       # stats_boot. n_sans_sigma + length(sigma_boot) = nombre de
+       # replications a statistiques calculees.
+       n_sans_sigma = n_sans_sigma,
        # Plancher Monte-Carlo par statistique (#125, D1-10), comme dans
        # usp_bootstrap().
        p_min_mc = mc$p_min_mc,
@@ -16108,12 +16205,19 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # s'ils ne sont pas fournis ; residus de Mack (mw_residus(), calcules une
 # fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
 # pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
-# refuse.
+# refuse. degeneres_aj (#445, piste B3) : colonnes degenerees de aj LUI-MEME
+# (.mw_colonnes_degenerees(aj)), distinctes de l'ensemble fige
+# figes$degeneres dans une replication ; calculees une fois ici au lieu de
+# l'etre par colonne dans mw_test_ordonnee_origine(), mw_test_homogeneite_f(),
+# mw_test_courbure() et pour toutes les colonnes dans mw_influence() (via
+# mw_test_cellule_aberrante()), qui les lisent par l'argument degeneres_aj
+# (meme predicat, memes resultats au bit pres).
 .mw_contexte_mc <- function(aj, figes = NULL, combn = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
   .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
   res <- mw_residus(aj, figes$degeneres)
-  e <- list(aj = aj, res = res, r = res$residu, figes = figes)
+  e <- list(aj = aj, res = res, r = res$residu, figes = figes,
+            degeneres_aj = .mw_colonnes_degenerees(aj))
   # Table d'appel des combinaisons (#432, point 3), posee par mw_bootstrap()
   # seulement : absente du contexte sinon.
   if (!is.null(combn)) e$combn <- combn
@@ -16199,9 +16303,11 @@ MW_CATALOGUE_MC <- list(
   # non bornee (option (iii), Q-D1-Fi-8) : statistique observee non definie,
   # motif propre par non_definie ; p_ij = 0 en replication.
   MinP4      = .mc_entree(function(e) mw_test_cellule_aberrante(e$aj, e$figes$degeneres,
-                                                              replique = isTRUE(e$replique))$stat, "bas",
+                                                              replique = isTRUE(e$replique),
+                                                              degeneres_aj = e$degeneres_aj)$stat, "bas",
                           non_definie = function(e)
-                            .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(e$aj, e$figes$degeneres))),
+                            .mw_motif_cellule_non_bornee(mw_test_cellule_aberrante(e$aj, e$figes$degeneres,
+                                                                                   degeneres_aj = e$degeneres_aj))),
   DW         = .mc_entree(function(e) stat_dw(e$r), "deux"),
   Runs       = .mc_entree(function(e) test_runs(e$r)$stat, "deux",
                           extremes = function(e) .runs_extremes(e$r)),
@@ -16222,14 +16328,19 @@ MW_CATALOGUE_MC <- list(
   # Tests specifiques de l'hypothese (iii), colonne par colonne. Les
   # statistiques de Fisher et de Kruskal-Wallis rejettent en queue haute ;
   # l'amplitude de la famille alpha egalement.
+  # degeneres_aj : predicat des colonnes degenerees de e$aj, calcule une fois
+  # par .mw_contexte_mc() (#445, piste B3).
   Origine    = .mc_entree(function(e) mw_test_ordonnee_origine(e$aj, e$figes$degeneres,
-                                                            e$figes$origine_non_identifiables)$stat, "haut"),
-  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres)$stat, "haut",
+                                                            e$figes$origine_non_identifiables,
+                                                            e$degeneres_aj)$stat, "haut"),
+  HomogF     = .mc_entree(function(e) mw_test_homogeneite_f(e$aj, e$figes$degeneres,
+                                                         e$degeneres_aj)$stat, "haut",
                           extremes = function(e)
-                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres))),
+                            .mw_fisher_x_max(mw_test_homogeneite_f(e$aj, e$figes$degeneres,
+                                                                   e$degeneres_aj))),
   Courbure   = .mc_entree(function(e) mw_test_courbure(e$aj, e$figes$degeneres,
                                                     e$figes$non_identifiables,
-                                                    e[["combn"]])$stat, "haut"),
+                                                    e[["combn"]], e$degeneres_aj)$stat, "haut"),
   Alpha      = .mc_entree(function(e) mw_famille_alpha(e$aj)$stat, "haut"),
   # Residus de Mack du contexte, e$res, calcules une seule fois par
   # .mw_contexte_mc() avec l'ensemble fige des colonnes degenerees (issue
@@ -17615,9 +17726,13 @@ engine_regle_verdicts <- function(alpha) {
 #   les autres cas, jamais NA).
 # repere_levier = REPERE_LEVIER / n_j et repere_dfbetas =
 # REPERE_DFBETAS_MW / sqrt(n_j), reperes de lecture.
-mw_influence <- function(aj) {
+# degeneres_aj : .mw_colonnes_degenerees(aj), lu au lieu d'etre recalcule
+# quand il est fourni (contexte du catalogue, via
+# mw_test_cellule_aberrante() ; #445, piste B3) ; NULL : calcule ici
+# (.mw_j_exclues(aj, NULL), meme ensemble).
+mw_influence <- function(aj, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
-  jd <- .mw_j_exclues(aj, NULL)
+  jd <- if (is.null(degeneres_aj)) .mw_j_exclues(aj, NULL) else degeneres_aj
   # Un bloc par colonne, empile par .mw_empiler() (#260), comme les tables
   # de M1-M6 depuis #239 : memes colonnes, types et noms de lignes (noms de
   # C(i,j), premier vecteur nomme de l'ancien bloc data.frame()) que
@@ -17745,9 +17860,11 @@ MW_NJ_MIN_CELLULE <- 4L
 # chargement (#513) : meme objet que data.frame(i = integer(0), j =
 # integer(0)) (identical()).
 .MW_DF_VIDE_I_J <- data.frame(i = integer(0), j = integer(0))
-mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) {
+# degeneres_aj : transmis a mw_influence() (#445, piste B3).
+mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE,
+                                      degeneres_aj = NULL) {
   jd <- .mw_j_exclues(aj, j_degeneres)
-  inf <- mw_influence(aj)
+  inf <- mw_influence(aj, degeneres_aj)
   t <- rep(NA_real_, nrow(inf))
   for (j in unique(inf$j)) {
     sel <- which(inf$j == j)
@@ -17762,15 +17879,15 @@ mw_test_cellule_aberrante <- function(aj, j_degeneres = NULL, replique = FALSE) 
   tk <- t[k]; njk <- nj[k]; ik <- inf$i[k]; jk <- inf$j[k]
   if (any(is.na(tk) & !nb)) return(na)
   if (any(nb) && !replique) {
-    na$non_borne <- data.frame(i = ik[nb], j = jk[nb])
+    na$non_borne <- .mw_df(i = ik[nb], j = jk[nb])
     return(na)
   }
   p <- 2 * stats::pt(-abs(tk), njk - 2); p[nb] <- 0
   im <- which.min(p)
   M <- min(p)
   list(stat = M, p = min(1, length(p) * M), N_t = length(p), i = ik[im], j = jk[im],
-       n_j = njk[im], t = tk[im], non_borne = data.frame(i = ik[nb], j = jk[nb]),
-       cellules = data.frame(i = ik, j = jk, n_j = njk, t = tk, p = p, non_borne = nb))
+       n_j = njk[im], t = tk[im], non_borne = .mw_df(i = ik[nb], j = jk[nb]),
+       cellules = .mw_df(i = ik, j = jk, n_j = njk, t = tk, p = p, non_borne = nb))
 }
 
 # Motif de la statistique observee non definie de la ligne M4 (option (iii),
@@ -17998,7 +18115,9 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
   # en fin de liste, comme en lognormal, sans regime de delta : sigma_USP
   # simules calcules une fois par .run_engine_mw() par l'expression qui
   # forme res$ic_bootstrap, et reperes du graphique, sans intervalle "basic"
-  # (#387). Absents en appel direct sans sigma_usp_boot.
+  # (percentile : couverture mesuree a T = 8, nettement sous le nominal
+  # (mesure de #387), qu'aucun "basic" mesure ne retablit). Absents en appel
+  # direct sans sigma_usp_boot.
   if (!is.null(sigma_usp_boot)) {
     pd$sigma_usp_boot <- sigma_usp_boot
     pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard)

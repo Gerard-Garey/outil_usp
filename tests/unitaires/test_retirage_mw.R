@@ -258,22 +258,22 @@ verifier("T257-6 TA8 ligne 0 x 1e-15 : .Random.seed et RNGkind() de l'appelant i
          })
 
 ## --- Sans retirage : booleens FALSE, phrases absentes --------------------------------------
-verifier("TA8 non modifie, B = 99 : cumuls_retires et plafond_cumuls FALSE, aucune phrase de retirage (#257)",
+verifier("TA8 non modifie, B = 99 : cumuls_retires et plafond_cumuls FALSE, avant n_sans_sigma (#492), aucune phrase de retirage (#257)",
          {
            aj <- mw_ajuster(ta8_257); b <- mw_bootstrap(aj, B = 99); tm <- mw_tests(aj, b)
            identical(b$cumuls_retires, FALSE) && identical(b$plafond_cumuls, FALSE) &&
-             identical(utils::tail(names(b), 4L),
-                       c("cumuls_retires", "plafond_cumuls", "p_min_mc", "stats_boot")) &&
+             identical(utils::tail(names(b), 5L),
+                       c("cumuls_retires", "plafond_cumuls", "n_sans_sigma", "p_min_mc", "stats_boot")) &&
              !any(vapply(tm, function(l) grepl(PHRASE_MW_CUMULS_RETIRES, l$detail, fixed = TRUE) ||
                            grepl(PHRASE_MW_PLAFOND_CUMULS, l$detail, fixed = TRUE), logical(1)))
          })
-verifier("T257-1 reference reserve2 : cumuls_retires et plafond_cumuls FALSE, avant p_min_mc et stats_boot (#257, patch chirurgical ; #297, regeneration)",
+verifier("T257-1 reference reserve2 : cumuls_retires et plafond_cumuls FALSE, avant n_sans_sigma, p_min_mc et stats_boot (#257, patch chirurgical ; #297, regeneration ; #492, regeneration)",
          {
            f <- file.path(.racine257, "tests", "reference", "reserve2.rds")
            b <- readRDS(f)$bootstrap
            identical(b$cumuls_retires, FALSE) && identical(b$plafond_cumuls, FALSE) &&
-             identical(utils::tail(names(b), 4L),
-                       c("cumuls_retires", "plafond_cumuls", "p_min_mc", "stats_boot"))
+             identical(utils::tail(names(b), 5L),
+                       c("cumuls_retires", "plafond_cumuls", "n_sans_sigma", "p_min_mc", "stats_boot"))
          })
 
 ## --- Phrases : aucun nombre issu du bootstrap, refus explicite --------------------------

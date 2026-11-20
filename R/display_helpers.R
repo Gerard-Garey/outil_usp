@@ -2511,11 +2511,24 @@ texte_formule <- function(res) {
 # a echapper. Ligne de percentile (res$ic_bootstrap, quantiles 5/95 et
 # 2,5/97,5 %), puis, en lognormal et si le resultat le porte, ligne de
 # l'intervalle "basic" sur l'echelle logarithmique
-# (res$ic_bootstrap_basic_log) ; note : constat de couverture (lognormal ;
-# percentile seul pour un objet anterieur a #305) ou couverture non mesuree
-# (Merz-Wuthrich, #387). Niveaux nominaux ecrits en
-# clair, comme les positions des quantiles qu'ils designent. Aucun calcul.
+# (res$ic_bootstrap_basic_log) ; note : constat de couverture, en lognormal
+# (percentile seul pour un objet anterieur a #305) comme en Merz-Wuthrich
+# (#387 : couverture mesuree a T = 8, nettement sous le nominal, sous les
+# modeles ajustes a deux triangles ; aucun intervalle "basic" restitue, aucun
+# de ceux mesures ne retablissant le niveau ; decision du mainteneur du
+# 19/11/2026, D2 (b), texte de
+# docs/revues/20261119-s5-bootstrap-mw/actuary-4-lecture-mesure-387.md,
+# par. 2.1). Niveaux nominaux ecrits en clair, comme les positions des
+# quantiles qu'ils designent. Aucun chiffre de couverture dans la note
+# (ils vont dans la documentation). Aucun calcul.
 # Sans intervalle (res$ic_bootstrap NULL) : NULL.
+# Merz-Wuthrich (#492, specification d'actuary, par. A.3) : si
+# res$bootstrap$n_sans_sigma est present et non nul, la note commence par le
+# caractere conditionnel de l'intervalle et le compte k sur B, lus tels quels
+# dans res$bootstrap$n_sans_sigma et res$bootstrap$B (entiers ecrits sans
+# decimale, sans separateur des milliers), suivis du constat de couverture ;
+# k = 0 ou champ absent (objet anterieur a #492) : constat de couverture
+# seul.
 textes_ic_bootstrap <- function(res) {
   ic <- res$ic_bootstrap
   if (is.null(ic)) return(NULL)
@@ -2523,9 +2536,23 @@ textes_ic_bootstrap <- function(res) {
   borne <- function(v) .num_fr(v, "%.4f")
   lignes <- sprintf("Intervalle bootstrap de percentile, niveau nominal 90 %% : [%s ; %s] %s 95 %% : [%s ; %s]",
                     borne(ic[2]), borne(ic[4]), sep, borne(ic[1]), borne(ic[5]))
-  if (identical(res$metadata$methode, "reserve2"))
-    return(list(lignes = lignes,
-                note = "Couverture \u00e0 T = 8 non mesur\u00e9e pour cette m\u00e9thode."))
+  if (identical(res$metadata$methode, "reserve2")) {
+    note <- paste("Niveaux nominaux. \u00c0 T = 8, sous les mod\u00e8les ajust\u00e9s \u00e0 deux",
+                  "triangles, l'intervalle de percentile couvre nettement moins que son niveau",
+                  "nominal (\u03c3 sous-estim\u00e9, borne haute d\u00e9pass\u00e9e) ; aucun intervalle",
+                  "\u00ab basic \u00bb mesur\u00e9 ne r\u00e9tablit ce niveau. Constat de simulation :",
+                  "voir la documentation, fiche de l'intervalle bootstrap.")
+    k <- res$bootstrap$n_sans_sigma
+    if (!is.null(k) && k != 0L)
+      note <- paste(
+        "Intervalle conditionnel \u00e0 une r\u00e9serve simul\u00e9e strictement positive.",
+        "R\u00e9plications sans \u03c3 simul\u00e9 (r\u00e9serve simul\u00e9e n\u00e9gative ou nulle,",
+        "ou MSEP simul\u00e9e non finie ou n\u00e9gative), \u00e9cart\u00e9es de l'intervalle mais",
+        sprintf("non des p-values de Monte-Carlo : %s sur B = %s.",
+                .num_fr(k, "%.0f"), .num_fr(res$bootstrap$B, "%.0f")),
+        note)
+    return(list(lignes = lignes, note = note))
+  }
   bl <- res$ic_bootstrap_basic_log
   if (!is.null(bl))
     lignes <- c(lignes, sprintf(paste0(

@@ -1,0 +1,23 @@
+# JOURNAL de la mesure #387 (S5, étape 4 : couverture à T = 8 de l'intervalle bootstrap de σ, Merz-Wüthrich)
+
+- Lancement : 2026-11-19T19:07:17Z
+- Date des sorties : 20261119
+- R par profil : P1=2000,P2=2000,P3=1000,P4=1700,P5=3400,OR=17000
+- Niveau : L0 (pré-vol, P7)
+- B : 999
+- Processus : 4 ; taille des tranches : 100
+- SHA (git rev-parse HEAD) au lancement : e6547adbb614ac58ee8b92411a49f4e76e0d2ad6
+- Commit (commit_depot()) : e6547adbb614ac58ee8b92411a49f4e76e0d2ad6
+- md5 R/engine.R au lancement : e5ac6cbe50873533e2908b361e254d9a
+- Empreinte sans commentaires de R/engine.R : 17ce964a3e7d6b464851480162f75426
+- Empreintes md5 du code exécuté : R/engine.R e5ac6cbe50873533e2908b361e254d9a ; tests/outils_tests.R chargé (dépôt) cdf8f7da242e2c6281fadcb4108aab63 ; script exécuté (dépôt) 76c92d9d6533c225eaf6e02d14e54af4
+- md5 protocole (docs/revues/20261119-s5-bootstrap-mw/actuary-1b-protocole-387.md) : d6ddf1161f7b4932024b599394e7e558
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale : LC_ALL=C.UTF-8 ; LC_CTYPE=C.UTF-8
+- Dossier de travail : issue387-travail-L0 (hors du dépôt)
+- Commande : Rscript tests/couverture_ic_sigma_mw_t8.R --niveau L0 --processus 4 --ecrire
+- Contexte des tranches : B=999 || sha=e6547adbb614ac58ee8b92411a49f4e76e0d2ad6 || md5_moteur=e5ac6cbe50873533e2908b361e254d9a || md5_script=76c92d9d6533c225eaf6e02d14e54af4 || empreinte=17ce964a3e7d6b464851480162f75426 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=100
+- Fin : 2026-11-19T20:21:42Z ; SHA à la fin e6547adbb614ac58ee8b92411a49f4e76e0d2ad6 ; md5 R/engine.R à la fin e5ac6cbe50873533e2908b361e254d9a ; INTEGRITE OK
+- Sortie 20261119-issue387-couverture-ic-sigma-mw.md : md5 58472522ea1c2b98afe47c60410eb929
+- Sortie 20261119-issue387-couverture-ic-sigma-mw-brut.tsv : md5 499a9d239bc123b6b35c9ce27b3551b8
+- Oracle (oracle-P4.tsv, non versionné) : md5 3004f0d1cb14b0b343791ccb9cec5c7f

@@ -45,8 +45,8 @@
 \newcommand{\annee}{2026}
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
-\newcommand{\datedoc}{19~novembre 2026}
-\newcommand{\versiondoc}{4.2}
+\newcommand{\datedoc}{20~novembre 2026}
+\newcommand{\versiondoc}{4.3}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
@@ -1353,6 +1353,16 @@ $z_t$ ou $u_t$, \code{plancher}~; $r$~; $T$ & extrémités \code{c(bas, haut)} d
 configuration observée, lues par le champ \code{extremes} d'\code{USP\_CATALOGUE\_MC} pour le
 plancher Monte-Carlo de la règle~R1~: $Z$ en $R = 2$ et en $R_{\max}$~; $Z$ en $S = \mp T(T-1)/2$,
 sans ex \ae quo~; $S = 0$ et $(T^3 - T)/3$ (tableau~\ref{tab:pmin}, note~(v)) \\
+\code{.usp\_spearman\_S()},\newline \code{.usp\_smirnov\_D()} & deux vecteurs (déjà aplatis) &
+statistique $S$ de Spearman ($\hat\rho_s$ de \code{cor(rank(a), rank(b))} après retrait des paires
+incomplètes, \code{NA} si $\hat\rho_s$ n'est pas fini) et statistique $D$ de Smirnov à deux
+échantillons, calculées seules, sans p-value~: transcription des opérations de
+\code{cor.test()} et de \code{ks.test()} qui forment ces statistiques, de même valeur au bit près
+(vérifié contre \code{stats::cor.test()} et \code{stats::ks.test()} par\newline
+\code{tests/unitaires/}\allowbreak\code{test\_chemins\_chauds\_445.R})~; employées par les entrées
+\code{SpearVol}, \code{SpearTps} et \code{Smirnov} d'\code{USP\_CATALOGUE\_MC}, à l'observé et à
+chaque réplication~; la statistique restituée par \code{usp\_tests()} reste calculée par
+\code{cor.test()} et \code{ks.test()} \\
 \code{TOL\_EX\_AEQUO},\newline \code{engine\_aplatir\_}\newline\code{ex\_aequo()},\newline
 \code{engine\_ex\_aequo()},\newline \code{.usp\_aplatir\_}\newline\code{volumes()},\newline
 \code{.usp\_aplatir\_}\newline\code{ratios()},\newline \code{.usp\_plancher\_u()} & constante
@@ -1482,7 +1492,11 @@ voulu à la fonction de test, et dont la forme, liste aux noms exacts puis chaqu
 contrôlée par \code{.mw\_verifier\_figes()}~; table d'appel des
 combinaisons (élément \code{combn}, présent seulement quand \code{mw\_bootstrap()} la passe),
 transmise par l'entrée \code{Courbure} à \code{mw\_test\_courbure()} (voir, dans cet index,
-\code{.mw\_combinaisons()}) \\
+\code{.mw\_combinaisons()})~; élément \code{degeneres\_aj}, colonnes dégénérées de l'ajustement
+courant lui-même (\code{.mw\_colonnes\_degenerees(aj)}, distinctes de l'ensemble figé dans une
+réplication), calculées une fois par contexte et passées par les entrées \code{MinP4},
+\code{Origine}, \code{HomogF} et \code{Courbure} à l'argument \code{degeneres\_aj} de leur
+fonction de test \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -1627,8 +1641,11 @@ et $999 \times 13$)~; lue par \code{engine\_p\_famille()} (fiche~\ref{fiche:p-fa
 \code{stats\_obs}, \code{p\_mc}, \code{err\_mc},
 \code{B\_effectif}, \code{granularite}, \code{sigma\_boot}, \code{B}, \code{granularite\_stat},
 \code{motif\_mc}, \code{cumuls\_retires} (au moins un triangle simulé
-écarté et remplacé par un nouveau tirage) et \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
-atteint avant $B$ triangles acceptés~: des réplications manquent), \code{p\_min\_mc}, et, en
+écarté et remplacé par un nouveau tirage), \code{plafond\_cumuls} (plafond de \code{FACTEUR\_B\_MAX\_MW}$\,(B+1)$ triangles
+atteint avant $B$ triangles acceptés~: des réplications manquent) et \code{n\_sans\_sigma}
+(entier, nombre de réplications à statistiques calculées dont $\sigma^{*}$ n'est pas fini~:
+réserve simulée $\le 0$, MSEP simulée en erreur, non finie ou négative~; écartées de
+\code{sigma\_boot} seul, gardées dans \code{stats\_boot}~; \code{0L} sans tirage), \code{p\_min\_mc}, et, en
 dernier, \code{stats\_boot}, matrice
 des $B$ réplications passée à \code{.mc\_p\_values()} (\code{NA} pour une réplication écartée), lue
 par \code{engine\_p\_famille()} \\
@@ -1751,11 +1768,15 @@ colonne, \code{\$degeneree\_Jm3} (champs \code{\$colonne},
 \code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
 \code{\$degeneree} \\
 \code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
-\code{.mw\_colonnes\_degenerees()} & \code{aj}, $j$, \code{tol} ($10^{-12}$) & écart relatif
+\code{.mw\_colonnes\_}\newline\code{degenerees()},\newline \code{.mw\_degeneree\_}\newline\code{courante()} & \code{aj}, $j$, \code{tol} ($10^{-12}$)~;
+pour la dernière, \code{aj}, $j$, \code{degeneres\_aj} (\code{NULL}) & écart relatif
 maximal des facteurs individuels à $\hat f_j$~; prédicat unique de colonne dégénérée, à deux
 volets (écart relatif au plus \code{tol}, ou facteurs que l'aplatissement des ex \ae quo à
 \code{tol} rend tous égaux)~; ensemble des colonnes dégénérées, figé à l'observé par
-\code{mw\_bootstrap()} (fiche~\ref{mw:m1a}) \\
+\code{mw\_bootstrap()} (fiche~\ref{mw:m1a})~; booléen «~colonne $j$ de \code{aj} dégénérée~», lu
+dans \code{degeneres\_aj} s'il est fourni (élément de même nom du contexte de
+\code{.mw\_contexte\_mc()}), évalué par \code{.mw\_colonne\_degeneree()} sinon~: même prédicat,
+même booléen \\
 \code{.mw\_colonnes\_}\newline\code{non\_identifiables()} & \code{aj}, \code{j\_degeneres}, \code{n\_min},
 \code{k\_distinct} & prédicat unique des colonnes non identifiables de M1~: vecteur
 croissant d'entiers, éventuellement vide, des $j$ tels que $n_j = I - j \ge$ \code{n\_min}, hors des
@@ -1944,11 +1965,16 @@ d'appel des combinaisons, transmise à \code{.mw\_courbure\_}\allowbreak\code{co
 \code{NULL} hors d'un appel de \code{mw\_bootstrap()}) et de
 \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()} (ensemble figé des colonnes non
 identifiables de l'ordonnée, élément \code{origine\_non\_}\allowbreak\code{identifiables} de l'objet des ensembles
-figés)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
+figés) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_test\_*()} (suite) & argument facultatif \code{degeneres\_aj} de \code{mw\_test\_ordonnee\_}\allowbreak\code{origine()},
+\code{mw\_test\_homogeneite\_}\allowbreak\code{f()} et \code{mw\_test\_courbure()} (colonnes dégénérées
+de \code{aj} lui-même, posées par le contexte de \code{.mw\_contexte\_mc()} et lues par
+\code{.mw\_degeneree\_}\allowbreak\code{courante()}~; \code{NULL}~: prédicat évalué colonne par
+colonne, même résultat)~; argument facultatif \code{res} (résidus de Mack déjà calculés,
 ceux du contexte dans le bootstrap~; \code{NULL}~: calculés par \code{mw\_residus()})
 de \code{mw\_test\_exposant\_}\allowbreak\code{variance()} et
 \code{mw\_test\_homogeneite\_}\allowbreak\code{accident()}~; argument \code{res} obligatoire de
-\code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (ligne d'hétéroscédasticité de M2, fiche~\ref{mw:m2bp}) & statistiques des tests M1 à M6 (détail~: §\ref{sec:index-fonctions}) \\
+\code{mw\_test\_}\allowbreak\code{heteroscedasticite\_}\allowbreak\code{intra()} (ligne d'hétéroscédasticité de M2, fiche~\ref{mw:m2bp}) & idem \\
 \code{mw\_identifiabilite\_}\newline\code{intra()} & \code{aj}, \code{j\_degeneres}
 (\code{NULL}~: ensemble calculé sur \code{aj}) & liste~: \code{estim}, moyenne des
 $\mathrm{CV}_j$ des colonnes retenues (\code{NA} sans colonne retenue), et \code{detail},
@@ -1958,8 +1984,10 @@ $C(\cdot,j)$ est constant~; lit le triangle et les $\hat\sigma_j^2$, non \code{m
 (fiche~\ref{mw:m1id}) \\
 \code{mw\_test\_cellule\_}\newline\code{aberrante()},\newline \code{.mw\_motif\_cellule\_}\newline\code{non\_bornee()} &
 \code{aj}, \code{j\_degeneres} (\code{NULL}~: calculé sur \code{aj}), \code{replique}
-(\code{FALSE}~: observé)~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
-minimum et son $t(i,j)$, cellules à influence non bornée, table des cellules retenues~; motif de
+(\code{FALSE}~: observé), \code{degeneres\_aj} (\code{NULL}, transmis à
+\code{mw\_influence()})~; résultat de la première & $M$, borne de Bonferroni, $N_t$, cellule du
+minimum et son $t(i,j)$, cellules à influence non bornée, table des cellules retenues (tables
+construites par \code{.mw\_df()})~; motif de
 la statistique observée non définie, lu par le champ \code{non\_definie} de l'entrée
 \code{MinP4} (fiche~\ref{mw:m4gr}) \\
 \code{mw\_calendrier\_}\newline\code{diagonales()} &
@@ -2043,6 +2071,14 @@ recyclage), et les noms de lignes sont lus sur \code{rbind()} itéré lui-même,
 \code{mw\_influence()} empile aussi ses blocs par \code{.mw\_empiler()}, noms de lignes lus sur
 $C(i,j)$~; un triangle dont un nom de ligne vaut \code{NA} est refusé avant tout calcul par \code{mw\_valider\_triangle()}, avec un motif de
 données et sans erreur R (§\ref{sec:controles}) \\
+\code{.mw\_df()} & colonnes nommées, vecteurs atomiques de même longueur & table
+\code{data.frame} sous la forme exacte du résultat de \code{data.frame()} sur les mêmes colonnes
+(attributs \code{names}, \code{class} et \code{row.names} dans cet ordre, noms de lignes
+automatiques), sans le coût d'appel de \code{data.frame()}~; une colonne à noms renvoie à
+\code{data.frame()} lui-même~; tables \code{non\_borne} et \code{cellules} de
+\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, construites à chaque réplication du bootstrap
+(identité avec \code{data.frame()} vérifiée par\newline
+\code{tests/unitaires/}\allowbreak\code{test\_chemins\_chauds\_445.R}) \\
 \code{.mw\_spearman()},\newline \code{.mw\_spearman\_p()},\newline \code{.fisher\_combine()} & deux vecteurs (le premier déjà
 aplati), \code{plancher\_b} (1)~; p-values de colonne & corrélation de rang $\hat\rho_s$ et p-value
 bilatérale de Spearman d'une colonne, tirées d'un seul appel de \code{.mw\_spearman()}, qui appelle \code{cor.test()} au plus une fois~: sur le
@@ -2153,7 +2189,9 @@ est omise quand $K$ vaut \code{NA} (statistique observée non définie, décompt
 arrêté à la colonne en cause)~; chaîne vide sans colonne écartée \\
 \code{mw\_parametre()} &\code{aj}, \code{msep} (champ \code{\$msep}),
 $\sigma_{\text{std}}$, barème & $\sigma_{\mathrm{USP}}$ et ses composantes \\
-\code{mw\_influence()} & \code{aj} & levier, son repère de lecture
+\code{mw\_influence()} & \code{aj}, \code{degeneres\_aj} (\code{NULL}~: colonnes dégénérées
+calculées sur \code{aj}~; fourni par le contexte du catalogue via
+\code{mw\_test\_cellule\_}\allowbreak\code{aberrante()}, même ensemble) & levier, son repère de lecture
 \code{repere\_levier} $=$ \code{REPERE\_LEVIER}$/n_j$ et le booléen de coloration \code{fort\_levier}, facteur sans la cellule,
 écart relatif de $\hat f_j$, résidu de Mack (\code{NA} sur une colonne dégénérée), DFBETAS
 et son repère de lecture $2/\sqrt{n_j}$, par cellule, booléen de coloration
@@ -3366,7 +3404,8 @@ Coefficient $R^2$ & \ref{fiche:r2} & \code{test\_lm\_complet()} &
 diagnostic, aucune p-value & --- \\
 RESET & \ref{fiche:reset} & \code{test\_reset()} (régressions par \code{.usp\_mco\_qr()}) &
 \code{test\_reset()} (p non simulée, loi $F$ approchée) & \code{RESET} \\
-Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct) &
+Spearman ($\times 2$) & \ref{fiche:spearman} & \code{stats::cor.test()} (appel direct, statistique
+restituée)~; \code{.usp\_spearman\_S()} (catalogue Monte-Carlo, même $S$) &
 \code{stats::cor.test(..., exact = TRUE)} (p exacte, permutation)~; \code{mk\_p\_min()}
 ($p_{\min}$) & \code{SpearVol} /
 \code{SpearTps} \\
@@ -3392,7 +3431,8 @@ Goldfeld--Quandt & \ref{fiche:goldfeld-quandt} & \code{test\_goldfeld\_quandt()}
 \code{test\_goldfeld\_quandt()} (p non simulée, loi $F$ approchée) & \code{GQ} \\
 Brown--Forsythe & \ref{fiche:brown-forsythe} & \code{test\_brown\_forsythe()} (ANOVA à un facteur par \code{.usp\_mco\_qr()}) &
 \code{test\_brown\_forsythe()} (p non simulée, loi $F$ approchée) & \code{BF} \\
-Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct) &
+Smirnov (2 éch.) & \ref{fiche:smirnov} & \code{stats::ks.test()} (appel direct, statistique
+restituée)~; \code{.usp\_smirnov\_D()} (catalogue Monte-Carlo, même $D$) &
 \code{stats::ks.test()} (p exacte combinatoire, sans ex \ae quo, $z_t$ aplatis par
 \code{engine\_aplatir\_ex\_aequo()})~; \code{smirnov\_p\_min()} ($p_{\min}$, \code{NA} avec ex
 \ae quo) & \code{Smirnov} \\
@@ -4625,7 +4665,9 @@ autres qu'un calcul abouti, à ne pas confondre~:
   $2/(B+1) = 0{,}02 < \alpha/2$ au seuil par défaut, une détection de dégénérescence armée
   (\code{B\_MIN\_DEGENERESCENCE} $= 50$ réplications finies, section~\ref{sec:nature}) et la
   présence de l'intervalle bootstrap à 90~\%, calculé au-delà de 20 valeurs bootstrap, avec la
-  ligne de sa largeur, et qui est le minimum du champ $B$ de l'application~; \code{B} et
+  ligne de sa largeur (en méthode Merz--Wüthrich, au-delà de 20 valeurs de $\sigma^{*}$ finies,
+  présence que $B$ seul ne garantit donc pas, les \code{bootstrap\$n\_sans\_sigma} réplications
+  sans $\sigma^{*}$ fini étant écartées), et qui est le minimum du champ $B$ de l'application~; \code{B} et
   \code{alpha} conjointement, $B + 1 > 4/\alpha$ en plus de $B \ge$ \code{B\_MIN\_USAGE}, contrôle fait après ceux de $B$ et de $\alpha$, dont les messages restent
   inchangés pour une valeur invalide isolément~: le plancher bilatéral $2/(B+1)$ de la p-value de
   Monte-Carlo doit être strictement inférieur à $\alpha/2$, seuil d'\code{ECHEC} de la règle des
@@ -6127,12 +6169,17 @@ n'est pas l'écart type qu'elle prétend définir (§\ref{sec:mw}). C'est aussi 
 à ne pas pouvoir être anticipé à la saisie.
 Cohérence interne~: la règle appliquée à l'estimation ponctuelle est celle que la
 distribution bootstrap de $\sigma$ (\code{sigma\_boot}, d'où l'intervalle bootstrap) applique à
-chacune de ses réplications~: \code{mw\_bootstrap()} en écarte, sans en restituer le nombre, les
+chacune de ses réplications~: \code{mw\_bootstrap()} écarte de \code{sigma\_boot} les
 réplications dont la réserve simulée n'est pas strictement positive ou dont la MSEP simulée n'est
-pas finie ou est négative. L'intervalle bootstrap est donc conditionnel à ce domaine, et la part
-des réplications écartées, qui n'est pas affichée, peut ne pas être négligeable. Ces réplications
+pas finie ou est négative, et en restitue le nombre (\code{bootstrap\$n\_sans\_sigma}), que
+l'application affiche sous l'intervalle quand il n'est pas nul. L'intervalle bootstrap est donc
+conditionnel à ce domaine, et la part des réplications écartées peut ne pas être négligeable~; sa
+couverture à $T = 8$, mesurée, est nettement inférieure au nominal (fiche~\ref{fiche:ic-bootstrap}). Ces réplications
 restent dans le calcul des statistiques de test simulées et des p-values de Monte-Carlo, que la
-condition ne vise pas.
+condition ne vise pas~: la loi de référence de ces p-values n'est donc pas conditionnée par
+l'admission du triangle observé ($\hat R > 0$), et leur niveau conditionnel à cette admission n'est
+pas garanti égal au niveau sans condition (raisonnement)~; il est mesuré sur un triangle volatil,
+sans distorsion détectée (section~\ref{sec:calib-mc-mw}).
 \end{encadre}
 
 \subsection*{Contrôles numériques de l'estimation (méthodes lognormales, famille H)}
@@ -6475,12 +6522,51 @@ triangles.
 
 \emph{Valeurs sur le triangle de contrôle} ($B = 999$, graine 20260831, référence
 \code{tests/reference/}\allowbreak\code{reserve2.rds}). $\sigma_{\mathrm{USP}} = 0{,}0497764613$ ne dépend pas du
-redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot},
+redressement, le bootstrap n'entrant pas dans son calcul~; la médiane de \code{sigma\_boot}
+(999 valeurs, \code{bootstrap\$n\_sans\_sigma} nul),
 écart type estimé avant le mélange de crédibilité de D(4), vaut $0{,}01845$ (valeur observée
 $0{,}02182$), et les quantiles à $2{,}5~\%$ et $97{,}5~\%$ de \code{res\$ic\_bootstrap}, qui portent
 sur $\sigma_{\mathrm{USP}}$ après ce mélange ($c = 0{,}59$, section~G~; $\sigma_{(\text{res},s)} =
-0{,}09$), $[0{,}04435~;~0{,}05398]$. La couverture à $T = 8$ de cet intervalle n'est pas mesurée pour la
-méthode Merz--Wüthrich (travail postérieur à la remise~; fiche~\ref{fiche:ic-bootstrap}, rubrique~6).
+0{,}09$), $[0{,}04435~;~0{,}05398]$.
+
+\emph{Couverture de l'intervalle bootstrap à $T = 8$.} Constat principal à la
+fiche~\ref{fiche:ic-bootstrap}, rubrique~4~; critère de cette fiche, fixé avant l'exécution~; script
+\code{tests/}\allowbreak\code{couverture\_ic\_sigma\_mw\_t8.R}, sortie
+\code{docs/tableaux/}\allowbreak\code{20261119-}\allowbreak\code{issue387-}\allowbreak\code{couverture-ic-sigma-mw.md},
+valeurs brutes de même préfixe. Modèles de Mack ajustés à deux triangles, $\hat f_j$ et $\hat\sigma_j^2$ pris pour
+vrais, première colonne fixée~: le triangle de contrôle, sous les lois E et N de la
+section~\ref{sec:calib-mc-mw} (2\,000 triangles chacune, tous admis) et, à titre descriptif, sous
+la loi A (1\,000 triangles~; percentile à 90~\%~: $0{,}518$)~; un triangle volatil
+(\code{tests/donnees/}\allowbreak\code{triangle\_mw\_volatil.csv}, $\hat R = 158{,}6$), sous la loi E
+de son propre vivier (1\,016 triangles admis sur 1\,700, les autres refusés par le contrôle
+d'applicabilité de D(4), section~\ref{sec:controles}).
+Chaque triangle est traité comme par \code{run\_engine()} (\code{mw\_bootstrap()}, $B = 999$)~;
+intervalles de percentile, «~basic~» et «~basic~» logarithmique formés sur les mêmes $\sigma^{*}$
+finis, à 90 et 95~\%. Cible $\sigma_A$, le $\hat\sigma$ du triangle générateur~: convention de
+modélisation, le règlement définissant $\sigma$ par son estimation, sans en désigner d'analogue en
+population. \emph{Résultats.} Sur le triangle de contrôle, à 90~\%, le percentile couvre
+$0{,}573$ $[0{,}551~;~0{,}595]$ (E) et $0{,}617$ $[0{,}595~;~0{,}638]$ (N), le «~basic~» $0{,}596$ et
+$0{,}640$, le «~basic~» logarithmique $0{,}692$ et $0{,}733$~: tous en distorsion matérielle
+libérale, à 95~\% aussi (au mieux $0{,}816$)~; le percentile n'a aucun manque sous sa borne
+basse sous E et N. Sur le triangle volatil, le percentile couvre $0{,}537$, le «~basic~» $0{,}125$ (borne basse
+$\le 0$ sur 834 triangles sur 1\,016), le «~basic~» logarithmique $0{,}380$. \emph{Lecture.}
+$\hat\sigma$ est biaisé vers le bas (médiane de $\hat\sigma/\sigma_A$~: $0{,}845$ sous E et sous N),
+mais le bootstrap d'un triangle simulé n'en voit qu'environ $5~\%$ (rapport moyen de $\hat\sigma$ à
+la moyenne de ses $\hat\sigma^{(b)}$~: $1{,}055$ et $1{,}053$), contre $11{,}3~\%$ sur le triangle de
+contrôle lui-même (fiche~\ref{fiche:ic-bootstrap}, «~Biais~»)~: la loi de $\hat\sigma/\sigma$ n'est pas pivotale, celle de $\hat\sigma^{(b)}/\hat\sigma$
+variant d'un triangle à l'autre (\emph{hypothèse} étayée par ces chiffres), et la réflexion des intervalles
+«~basic~» ne corrige que le biais que voit le bootstrap, d'où leur échec. Une cible $\sigma_B$ (MSEP du triangle simulé aux $\hat f_j$ et $\hat\sigma_j^2$ du
+générateur), descriptive, laisse les classes inchangées (percentile à 90~\%~: $0{,}590$ et
+$0{,}636$). Sur le triangle volatil, la couverture du percentile croît avec la part
+$\hat\pi = $ \code{n\_sans\_sigma}$/B$ du triangle simulé~: $0$ pour $\hat\pi \le 0{,}05$ (323 triangles),
+$0{,}507$ pour $\hat\pi \in\, ]0{,}05~;~0{,}20]$, $0{,}99$ au-delà de $0{,}20$ (401 triangles)~;
+$\hat\pi$ suit la proximité de $\hat R$ à~0, et aucun élément ne fonde un seuil de retrait de
+l'intervalle sur $\hat\pi$, qui écarterait les triangles où il couvre. L'intervalle de
+Clopper--Pearson d'un taux mesure l'erreur de simulation (nombre de triangles)~; l'effet de $B$
+est inclus dans la procédure mesurée~; l'erreur de substitution (plan et loi pris pour la vérité)
+n'est pas quantifiée. \emph{Statut}~: constat de simulation sous ces deux modèles, conditionnel à
+l'admission ($\hat R > 0$) et à $R^{*} > 0$~; aucune source lue ne chiffre ces couvertures à
+$n = 8$.
 
 \emph{Écart au facteur sous forme stable.} Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
 à l'arrondi près, et la différence directe $F(i,j) - \hat f_j$ perd ses chiffres significatifs par
@@ -6548,7 +6634,10 @@ abandonne le rééchantillonnage des résidus et rend encore des cumuls nuls en 
 simulé écarté et remplacé par un nouveau tirage) et \code{bootstrap\$plafond\_cumuls} (plafond atteint avant $B$ triangles
 acceptés~: des réplications manquent), et deux phrases fixes, sans nombre issu du bootstrap,
 jointes aux lignes de Monte-Carlo (ci-dessous)~; le nombre de triangles
-écartés n'est pas restitué. \emph{Effet.} Le triangle de contrôle, son sous-triangle
+écartés n'est pas restitué. Ce retirage, qui précède le calcul des statistiques, est distinct de
+l'exclusion qui suit~: une réplication à statistiques calculées dont $\sigma^{*}$ n'est pas fini
+reste dans les statistiques simulées et n'est écartée que de \code{sigma\_boot}, comptée dans
+\code{bootstrap\$n\_sans\_sigma} (encadré «~Différence de nature~», section~\ref{sec:controles}). \emph{Effet.} Le triangle de contrôle, son sous-triangle
 $5\times5$ et le sous-triangle $8\times8$ de Taylor \& Ashe ne peuvent tirer aucun cumul non
 positif, quelle que soit la graine~: avec $m < 0$ le plus petit résidu du vivier, la borne
 inférieure itérée $L(i,j+1) = \hat f_j\,L(i,j) + \hat\sigma_j\,m\sqrt{L(i,j)}$, partie de la
@@ -7945,6 +8034,13 @@ de l'ordre de la granularité.
   calibration conditionnelle au régime, qui n'est pas une statistique ancillaire~: à $\hat\delta$
   intérieur, sa validité est un constat de simulation sur deux jeux, J2 et J3, et son extension à
   la méthode de réserve n\textsuperscript{o}~1, que la mesure ne couvre pas, reste une hypothèse.
+  \item \textbf{Niveau conditionnel à l'admission du triangle des p-values de Monte-Carlo de la
+  méthode Merz--Wüthrich.} Leur loi de référence inclut les réplications à réserve simulée
+  $\le 0$, alors que le triangle observé n'est testé que si $\hat R > 0$~: leur niveau
+  conditionnel à cette admission n'est pas garanti égal au niveau sans condition (raisonnement).
+  Il est mesuré sur un triangle volatil, sans distorsion détectée, sous une seule loi d'erreurs,
+  les écarts de moins d'environ deux points n'étant pas détectables (constat de simulation,
+  section~\ref{sec:calib-mc-mw})~; rien n'est mesuré sur d'autres triangles.
   \item \textbf{Résultats asymptotiques sans justification suffisante à
   $T = 8$.} Les statistiques de type multiplicateur de Lagrange
   (Breusch--Pagan, White), portmanteau (Ljung--Box au retard~2),
@@ -8355,7 +8451,9 @@ IC bootstrap (complet et à $\delta$ fixé) & LN & $L$ & --- & --- & --- &
 \emph{nominal} et, en regard, l'intervalle «~basic~» sur l'échelle logarithmique~; à $T = 8$, le
 percentile sous-couvre nettement (constat de simulation, deux plans, fiche~\ref{fiche:ic-bootstrap})~;
 non-convergence au bord établie par Andrews (2000) pour une moyenne contrainte, transposition à
-$\hat\delta$ non démontrée \\
+$\hat\delta$ non démontrée. En méthode Merz--Wüthrich, l'intervalle de percentile, restitué sans
+ligne de test, sous-couvre aussi (constat de simulation, deux triangles), et aucun intervalle
+«~basic~» mesuré ne rétablit le niveau \\
 
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
@@ -9014,7 +9112,9 @@ variance retenue pour l'IC restreint~; quasi-pivotalité de $\hat\sigma/\sigma$ 
 «~basic~» logarithmique (hypothèse) &
 Couverture mesurée à $T = 8$ sous deux plans (constat de simulation)~: de $0{,}64$ à $0{,}73$ à
 90~\% pour le percentile et l'IC restreint, $0{,}886$ et $0{,}895$ pour l'intervalle «~basic~»
-logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap}) \\
+logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap})~; en
+méthode Merz--Wüthrich (percentile sans ligne de test), $0{,}573$ et $0{,}617$ à 90~\% sur le
+triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$ \\
 
 \end{longtable}
 \end{center}
@@ -11062,7 +11162,7 @@ moteur ne l'attribue que sous trois conditions, toutes exigées~: (i)~$\hat\pi_t
 (règle~R7), sinon le commentaire porte la mention de régime de la règle~R8, après le
 préfixe éventuel d'\code{add()}~; (ii)~aucun ex \ae quo
 dans $r_t$ et, pour la variante volume, dans $x_t$, au sens de la section~\ref{sec:ex-aequo}
-(séries aplaties en tolérance relative avant \code{cor.test()}, à l'observé comme dans le
+(séries aplaties en tolérance relative avant le calcul de $S$, à l'observé comme dans le
 catalogue Monte-Carlo)~: avec ex \ae quo, \code{cor.test(exact = TRUE)} rend la p-value
 asymptotique et non la loi conditionnelle, et ni p exacte ni $p_{\min}$ ne sont attribuées, ce que
 dit le commentaire~; (iii)~$T \le 9$, \code{cor.test()} rendant au-delà un développement
@@ -11737,8 +11837,9 @@ $D_{n_1,n_2} = \sup_{u} \big| \hat F_1(u) - \hat F_2(u) \big|$.
 Fonction nommée~: \code{usp\_tests()}.
 \Loi
 Sous $H_0$, pour $z$ échangeable, la loi exacte de $D$ est combinatoire, calculée par
-\code{ks.test} sans ex \ae quo~; les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant
-\code{ks.test()}, à l'observé comme dans le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}).
+\code{ks.test} sans ex \ae quo~; les $z_t$ sont aplatis à la tolérance d'ex \ae quo avant le
+calcul de $D$, par \code{ks.test()} à l'observé comme par \code{.usp\_smirnov\_D()}, de même
+valeur, dans le catalogue Monte-Carlo (section~\ref{sec:ex-aequo}).
 Avec ex \ae quo, \code{ks.test()} rendrait une p-value exacte \emph{conditionnelle}, dont
 $2/\binom{n_1+n_2}{n_1}$ n'est pas le minimum~: ni p-value exacte ni $p_{\min}$ ne sont alors
 attribuées, le motif («~\code{n1 =} \ldots\code{, n2 =} \ldots\code{, ex aequo dans z : p\_min et
@@ -14387,10 +14488,10 @@ sa place, l'\emph{intervalle «~basic~» sur l'échelle logarithmique}
 \code{res\$ic\_bootstrap\_basic\_log}, sans ligne propre (rubrique~3). La méthode Merz--Wüthrich
 restitue le seul percentile des $c\,\hat\sigma^{(b)} + (1-c)\,\sigma_{\text{std}}$ (sans le facteur
 $\sqrt{(T+1)/(T-1)}$, ni ligne de test, ni régime), \textbf{conditionnel à une réserve simulée
-strictement positive}~: \code{mw\_bootstrap()} en écarte les réplications à réserve simulée non
-strictement positive ou à MSEP simulée non finie ou négative, sans en restituer le nombre (encadré
-«~Différence de nature~», section~\ref{sec:controles}), et sa couverture n'est pas mesurée~; restituer
-ce nombre et mesurer cette couverture sont un travail postérieur à la remise. \textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
+strictement positive}~: les réplications à réserve simulée non strictement positive ou à MSEP
+simulée non finie ou négative en sont écartées et comptées dans \code{bootstrap\$n\_sans\_sigma},
+affiché sous l'intervalle s'il n'est pas nul (encadré «~Différence de nature~»,
+section~\ref{sec:controles}). \textbf{Diagnostic, non test.} La famille~G porte l'intervalle \emph{complet}
 («~\code{Largeur relative de l'IC bootstrap 90\%}~», $\delta$ et $\gamma$ réajustés), et l'intervalle \emph{restreint à $\delta$ fixé} («~\code{\dots~(delta fixe a delta
 estime)}~», \code{res\$ic\_bootstrap\_restreint})~: \code{usp\_bootstrap()} réajuste aussi les
 \emph{mêmes} réplications à $\delta = \hat\delta$ (\code{usp\_ajuster\_contraint()}), sans aléa
@@ -14486,6 +14587,11 @@ en $T$~; l'extension à un autre $T$ ou à des données réelles est une \emph{h
 (report affine)~: \code{reserve1}, \code{premium\_ii6} et \code{premium\_net} ont celle de
 \code{premium}.
 
+\emph{Couverture à $T = 8$, méthode Merz--Wüthrich.} Sous les modèles ajustés à deux triangles,
+\textbf{le percentile couvre nettement moins que son niveau nominal} ($0{,}52$ à $0{,}62$ pour
+90~\%~; $\hat\sigma$ sous-estimé, borne haute dépassée), \textbf{et aucun «~basic~» mesuré ne
+rétablit ce niveau}~: constat de simulation, même critère (section~\ref{sec:boot-mw}).
+
 \emph{Biais.} Sur les références, la moyenne des $\hat\sigma^{(b)}$ est inférieure à $\hat\sigma$
 de $11{,}2~\%$ (jeu de contrôle), $13{,}9~\%$ (\code{premium\_interieur}) et $11{,}3~\%$
 (\code{reserve2})~: c'est l'estimation bootstrap du biais (Efron et Tibshirani, 1993, éq.~(10.4)),
@@ -14498,7 +14604,6 @@ l'estimateur sans biais sur une échelle transformée (Davison et Hinkley, 1997,
 «~This does not usually happen~»)~: centré sur des réplications décalées vers le bas d'environ le
 biais par rapport à $\hat\sigma$, lui-même bas, il est décalé d'environ deux fois le biais,
 cohérent avec des manques tous au-dessus (heuristique, non démontré).
-
 \emph{Pourquoi le «~basic~» logarithmique.} Si $\hat\sigma/\sigma$ était un pivot exact, il serait
 exact à l'erreur de Monte-Carlo près (raisonnement), comme dans l'exemple~5.1 de Davison et Hinkley
 (1997, p.~197--198~: modèle exponentiel, $n = 12$, $\bar Y/\mu$ pivot exact), où l'intervalle «~basic~» de l'éq.~(5.6) ne fait
@@ -14518,7 +14623,6 @@ Limites~: le percentile n'est corrigé ni du biais ni de l'asymétrie~; BC$_a$ e
 § 22.4~; section~\ref{sec:biblio}), gain non mesuré ici et qu'aucune page lue ne
 chiffre à $n = 8$~; il n'est pas proposé, l'accélération $\hat a$ n'étant pas spécifiée pour ce
 modèle. Conditionnel au modèle, l'intervalle est optimiste si celui-ci est mal spécifié.
-
 \emph{Ligne restreinte et affichage.} Le commentaire de la ligne restreinte a la portée de la
 rubrique~4 (référence «~\code{Efron (1979), Ann. Statist. 7 ; Andrews (2000), Econometrica 68}~»).
 L'application (\code{textes\_ic\_bootstrap()}) et \code{plot\_boot\_sigma()} lisent ces valeurs sans
@@ -14538,7 +14642,6 @@ restreint} (segment~1)~: largeur relative $0{,}5555$ contre $0{,}5541$, \code{n\
 nul~: fixer $\delta$ ne resserre pas
 l'intervalle, ce qui rejoint la platitude du profil en $\delta$ ($\mathrm{LR}(0) = 0{,}551$, $\mathrm{LR}^{*} \le 0{,}9$,
 fiche~\ref{fiche:rv-delta}).
-
 \emph{Pourquoi aucun verdict} (règle de sortie, section~\ref{sec:nature})~: $L$ ne peut pas
 contredire le modèle ajusté~; les repères, sans source, dépendent du paramètre standard retenu. Sous ce modèle
 (segment~1), $L > 50~\%$ dans $49{,}0~\%$ $[46{,}8~;~51{,}3]$ sur J1 et
@@ -20509,6 +20612,56 @@ taux, fonction du nombre de triangles, distincte de l'erreur de Monte-Carlo de c
 (fonction de $B$) et de l'erreur de $\rho$ (fonction de $N_0$). Lecture ligne par ligne dans la
 rubrique~7 de chaque fiche.
 
+\emph{Niveau conditionnel à l'admission du triangle.} Les treize p-values de Monte-Carlo sont
+calculées sur toutes les réplications à statistiques calculées, y compris celles dont la réserve
+simulée $R^{*}$ est $\le 0$, alors que le triangle observé n'est soumis aux tests que si
+$\hat R > 0$ (contrôle d'applicabilité de D(4), section~\ref{sec:controles})~: le niveau
+effectif, conditionnel à cette admission, n'est pas garanti égal au niveau sans condition~;
+l'écart est nul si la p-value est indépendante de l'événement $\{\hat R > 0\}$ (argument
+élémentaire, donné sans référence~; aucune source lue ne chiffre cet effet à $T = 8$). Sous le plan du
+triangle de contrôle, aucune réplication sans $\sigma$ simulé n'apparaît sur les 4\,000 triangles
+des lois E et N de la mesure de couverture de la section~\ref{sec:boot-mw}~: les niveaux
+ci-dessus y valent aussi conditionnellement à l'admission (raisonnement). Une mesure, sous-produit
+de cette mesure de couverture (même script, même sortie, critère fixé avant l'exécution), porte sur
+un plan où $\mathbb{P}(\hat R \le 0)$ est élevé~: modèle de Mack ajusté au triangle volatil, loi E,
+1\,016 triangles admis sur 1\,700, part médiane des réplications sans $\sigma$ simulé $0{,}138$,
+au-delà de $0{,}20$ sur $39~\%$ des triangles admis~; référence $\rho$ estimée sur un échantillon
+oracle de 9\,988 triangles admis (17\,000 tirés). Sur les 26 cellules (13 clés, seuils $0{,}10$ et
+$0{,}05$), 24 sont compatibles et 2 en écart mineur (\code{ExpVar} à $0{,}10$, \code{Alpha} à
+$0{,}05$), aucune en distorsion matérielle~; le test exact de McNemar entre la p-value du moteur et
+une p-value conditionnelle aux réplications à $\sigma^{*}$ fini, calculée dans le script seul et
+non restituée par le moteur, n'est significatif pour aucune clé (plus petite p-value brute
+$0{,}125$, p-value de Holm égale à~1 partout). \emph{Portée}~: niveau mesuré sur un triangle
+volatil, sans distorsion détectée, sous la seule loi E~; écarts de moins d'environ deux points non
+détectables (intervalles de Clopper--Pearson de demi-largeur voisine de $0{,}018$ au seuil
+$0{,}10$)~; 1 à 9 paires discordantes par clé et par seuil, si bien qu'une non-détection n'est pas
+une équivalence~; rien n'est mesuré sous N ni sur d'autres triangles. Constat de simulation sous
+ce plan.
+
+\emph{Fréquence de la p-value de Monte-Carlo observée dans sa loi simulée (outil hors CI).} Le
+script hors CI \code{tests/double\_bootstrap\_mw.R} situe, pour un triangle donné, chacune des
+treize p-values de Monte-Carlo observées $p_{\mathrm{obs}}$ du moteur dans la loi qu'elles ont sous
+le modèle ajusté à ce triangle. Il ajuste le modèle de Mack au triangle ($\hat f_j$ et
+$\hat\sigma_j^2$ pris pour vrais, première colonne fixée), simule $R$ triangles sous ce modèle
+(1\,000 par défaut, au plus 2\,000), avec des erreurs tirées dans le vivier redressé du triangle
+divisé par son écart-type (loi E ci-dessus), applique à chacun le test bootstrap du moteur
+(\code{mw\_bootstrap()} à $B = 999$, puis \code{mw\_tests()}) et rend, par clé de
+\code{MW\_CATALOGUE\_MC}, la fréquence $\hat F^{*}(p_{\mathrm{obs}})$ des p-values simulées au plus
+égales à $p_{\mathrm{obs}}$ parmi les triangles admis, avec son intervalle de Clopper--Pearson, et
+les taux de rejet du test bootstrap sous ce modèle. \emph{Statut}~: constat de simulation sous le
+modèle ajusté et la loi E, à $T = 8$~; $\hat F^{*}(p_{\mathrm{obs}})$ n'est ni une p-value exacte ni
+une p-value retenue, et n'entre dans aucun verdict~; ni le moteur ni l'application ne lisent ce
+script. Trois erreurs restent distinctes~: l'erreur de Monte-Carlo de $\hat F^{*}$, fonction de $R$
+(intervalle de Clopper--Pearson)~; celle de $p_{\mathrm{obs}}$, fonction de $B$~; l'erreur de
+substitution (paramètres estimés pris pour vrais, loi E pour la loi des erreurs), que l'outil ne
+quantifie pas. Aucun résultat exact ni aucune référence relue n'établit que
+$\hat F^{*}(p_{\mathrm{obs}})$ est mieux calibrée que $p_{\mathrm{obs}}$ à $T = 8$, et les mesures
+ci-dessus montrent que le niveau dépend de la loi des erreurs~; une fréquence élevée n'atteste pas
+l'adéquation, la puissance n'étant pas étudiée. Sur le triangle de contrôle, un contrôle
+d'intégrité du script vérifie que ses comptes sont identiques à ceux des valeurs brutes de la
+mesure sur les lignes de lecture conjointe (même loi E, mêmes graines)~: il établit que l'outil réalise ce plan, non une validation
+indépendante de la méthode. Le document ne cite aucune sortie de cet outil.
+
 \clearpage
 % =============================================================================
 \section{Compléments bibliographiques}
@@ -21557,12 +21710,14 @@ littérature consultée.
   \item \textbf{La couverture à $T = 8$ des intervalles bootstrap de $\sigma_{\mathrm{USP}}$}
   n'est chiffrée par aucune source lue~: les pages lues de Davison et Hinkley (1997) et d'Efron
   et Tibshirani (1993) ne donnent que des ordres asymptotiques et des simulations sur d'autres
-  modèles, de taille 10 au plus petit. Elle est mesurée par une simulation propre au dépôt, sous
-  deux plans de la méthode lognormale à $T = 8$ (fiche~\ref{fiche:ic-bootstrap})~:
-  constat de simulation, qui ne vaut ni pour un autre $T$ ni pour d'autres données, et qui n'est
-  pas fait pour la méthode Merz--Wüthrich (travail postérieur à la remise). La quasi-pivotalité de
+  modèles, de taille 10 au plus petit. Elle est mesurée par des simulations propres au dépôt, sous
+  deux plans de la méthode lognormale et sous les modèles ajustés à deux triangles de la méthode
+  Merz--Wüthrich, à $T = 8$ (fiche~\ref{fiche:ic-bootstrap})~:
+  constats de simulation, qui ne valent ni pour un autre $T$ ni pour d'autres données. La quasi-pivotalité de
   $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
-  hypothèse, étayée sur ces deux plans seulement.
+  hypothèse, étayée sur les deux plans lognormaux seulement~; en méthode Merz--Wüthrich, les
+  chiffres mesurés étayent au contraire une hypothèse de non-pivotalité
+  (section~\ref{sec:boot-mw}), et aucun intervalle «~basic~» mesuré ne rétablit le niveau.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
   d'année calendaire n'est pas établie. Les moments de chaque $Z_k$ sont exacts,
   mais la normalité de leur somme sur un nombre réduit de diagonales n'est
@@ -21819,9 +21974,11 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         simple $\bar z$ est, elle, un diagnostic (fiche~\ref{fiche:centrage}).
   \item \textbf{Jackknife et intervalle bootstrap} (section~\ref{sec:robustesse}) -- la mesure la
         plus directe de la solidité du calibrage à $T$ faible~; l'intervalle de percentile
-        sous-couvrant nettement à $T = 8$ (constat de simulation sous deux plans), il se lit,
+        sous-couvrant nettement à $T = 8$ (constat de simulation sous deux plans par méthode), il se lit,
         en méthode lognormale, avec l'intervalle «~basic~» sur l'échelle logarithmique restitué
-        en regard (fiche~\ref{fiche:ic-bootstrap}).
+        en regard~; en méthode Merz--Wüthrich, aucun intervalle de remplacement n'est restitué,
+        et ses manques de couverture mesurés sont presque tous au-dessus de sa borne haute
+        (fiche~\ref{fiche:ic-bootstrap}).
   \item \textbf{Position de $\hat\delta$ et rapport de vraisemblance aux bornes}
         (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}, diagnostics sans verdict) --
         identifiabilité de la structure de variance~; la p-value de Monte-Carlo du rapport de

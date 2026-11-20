@@ -1,0 +1,11 @@
+HEAD : 8a3ebc52d4086b449f5930caef91db693e711c7e 
+tempdir() : <TEMP>\RtmpKO9xh8 ; getwd() : <DEPOT> 
+dirname: . 
+cible: C:f.xlsx 
+Tracing function "unlink" in package "base"
+[1] "unlink"
+Erreur : Ecriture du fichier .xlsx impossible : le chemin est de la forme X: sans barre (lecteur seul, ou fichier 
+relatif au dossier courant de ce lecteur) : la cible n'est pas resolue contre le dossier de l'appelant et le fichier 
+pourrait n'etre pas ecrit la ou on l'attend (donner le chemin complet, X:/dossier/f.xlsx, ou un chemin relatif sans 
+lecteur) ; aucun fichier ecrit.
+Exécution arrêtée
