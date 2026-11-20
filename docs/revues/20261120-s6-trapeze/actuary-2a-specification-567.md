@@ -355,3 +355,9 @@ Sources web consultées : [CAS E-Forum, Merz et Wüthrich (2008)](https://www.ca
 - **Q-2a-4** : M6 restitue σ̂²_{J−1,dir} et ses degrés de liberté pour information, sans σ ni √MSEP alternatifs.
 - **Q-2a-5** : `CL_MSEPs` lue depuis l'archive CRAN (md5 fixé) par les scripts hors CI ; valeurs écrites en dur dans les tests unitaires ; aucune copie dans le dépôt.
 - **Q-2a-6** (pour D2 et l'étape 6) : avertissement non bloquant sur tout trapèze.
+
+### Amendement de P3 par actuary, 20/11/2026 (audit léger de `766b9de`, constat m1)
+
+> **Amendement de P3 (m1), avant tout tirage de la mesure.** La graine du bootstrap du 8×7 (g = 3), 568 000 000 + 1 000 000 × 2 + 100 000 (ℓ−1) + b, coïncidait avec celle de l'oracle k = b de la même loi (570 000 000 + 100 000 (ℓ−1) + k) : le flux du bootstrap du triangle b et la génération du triangle oracle k = b consommaient les mêmes nombres aléatoires, contraire à l'indépendance τ / ρ supposée par P5 (points 1 et 3). Le couplage ne touchait que les classes du 8×7 contre ρ (K-T6, volet K1) ; K3, le test de Fisher de K-T6 et Θ4 n'en dépendaient pas. **La ligne « oracle k » de P3 devient : 570 500 000 + 100 000 (ℓ−1) + k (k ≤ 20 000).** Plages de la mesure : triangles 567 000 001-567 102 000 ; bootstrap 568 000 001-570 102 000 (par sous-plages g, ℓ) ; oracle 570 500 001-570 620 000 ; pré-vol 571 000 001-571 100 000 : disjointes deux à deux, maximum 571 100 000 < 2³¹ − 1, toutes dans la plage réservée [567·10⁶ ; 572·10⁶[ et disjointes des plages externes listées par P3. Aucun chevauchement interne n'est admis : le contrôle (graines) le rend bloquant. Les autres lignes de P3 sont inchangées. Aucun résultat de mesure n'existait à la date de l'amendement.
+
+Avis complet : `actuary-5b-avis-m1-graines-567.md`.
