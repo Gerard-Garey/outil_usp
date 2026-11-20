@@ -30,3 +30,5 @@
 - Segment arrêté (--arret-apres 90 min) : 2026-11-20T15:50:20Z ; tranches calculées par ce segment : 22 ; tranches restantes : 59
 - Reprise : 2026-11-20T15:50:31Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
 - Segment arrêté (--arret-apres 90 min) : 2026-11-20T17:21:41Z ; tranches calculées par ce segment : 20 ; tranches restantes : 39
+- Reprise : 2026-11-20T17:21:52Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T18:54:40Z ; tranches calculées par ce segment : 22 ; tranches restantes : 17
