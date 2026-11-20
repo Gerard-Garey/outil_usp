@@ -1,0 +1,4 @@
+P2 N=2000 sigma_A=0.02182451 ; temps moyen par triangle (B=999, boucle allegee) = 0.215 s
+quantiles de u = G*(sigma_A) : 0.3423 0.4144 0.8829 1.0000 1.0000 1.0000 
+part u >= 0.95 (manque haut I1 90%) = 0.382 ; part u = 1 = 0.164 ; part u > 0.999 = 0.164 ; part u <= 0.05 = 0.000
+mediane sh/sigA = 0.845 ; mediane sd(log sigma*) = 0.194 ; sd(log sh) = 0.236
