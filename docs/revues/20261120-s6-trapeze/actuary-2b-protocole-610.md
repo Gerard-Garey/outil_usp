@@ -349,3 +349,15 @@ for (r in seq_len(N)) {
 `ana.R` (md5 `8bdbd95f…`) compare σ̂ au brut de #387, compte σ_A > max σ\* et σ_A > σ̂²/min σ\* avec leurs IC de Clopper-Pearson, et calcule les quantiles de v et de z. `cout_imbrique.R` (md5 `f9a1d821…`) : 40 réplications externes de `reserve2` (graine 610 900 001, hors des plages de mesure), 199 tirages internes chacune (graines 610 950 001 et suivantes), identité avec `mw_bootstrap()`. Sorties brutes : `w_P1.tsv` (md5 `c0fe00d5…`) et `w_P2.tsv` (md5 `98d45ef4…`), dans `…/scratchpad/p610/` (versées dans `actuary-2b-pilote/`).
 
 Sources consultées : [Chang et Hall, arXiv:1408.6327](https://arxiv.org/pdf/1408.6327) ; [McCarthy et al., arXiv:1511.00273](https://arxiv.org/pdf/1511.00273) ; [Zrimšek et Štrumbelj, arXiv:2403.20182](https://arxiv.org/pdf/2403.20182v3). Notices vues sans lecture du fond : [Booth et Hall (1994), notice](https://www.bohrium.com/paper-details/monte-carlo-approximation-and-the-iterated-bootstrap/812030175138021378-861) ; [DiCiccio et Efron (1996), Project Euclid](https://projecteuclid.org/euclid.ss/1032280214) (refusé par le proxy).
+
+---
+
+## Décisions du mainteneur du 20/11/2026 (questionnaire de la session principale, point d'arrêt D1')
+
+- **Q-2b-1 (a)** : candidats C1 (I4 calibré par bootstrap imbriqué, queues séparées) et C2 (studentisé sur log σ, écart-type interne) ; C0 descriptif.
+- **Q-2b-2 (a)** : niveau M1 (N = 1 000 par profil principal, B1 = 999, B2 = 199), budget de 12 h d'horloge sur 4 processus, règle du pré-vol (P7), tranches de 20 (M42 (b)).
+- **Q-2b-3 (a)** : P1 et P2 principaux ; P3 descriptif seulement si le budget le permet ; P4 et P5 exclus, limite écrite.
+- **Q-2b-4** : critère K-610-1 à K-610-4, profils Θ0 à Θ4, règle de préférence et modificateur W approuvés tels quels.
+- **Q-2b-5 (a)** : rapport et annexe A versés ; chiffres du § 1.1 citables comme « relecture du monde de #387 ».
+- **Q-2b-6 (a)** : aucune mesure de #610 sur trapèze dans S6, sauf si D2 étend #567 et D3 restitue un candidat.
+- **Q-2b-7** : branche `claude/sauvegarde-610` autorisée d'avance si le pré-vol dépasse 2 h (ADR 0007, exécution selon M42).

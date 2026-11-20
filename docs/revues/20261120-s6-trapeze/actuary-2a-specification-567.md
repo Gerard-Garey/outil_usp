@@ -343,3 +343,15 @@ Les effectifs se déduisent de I et j ; les seuils ont été lus dans le code [V
 - **Prochaine action recommandée** : la session verse ce rapport dans `docs/revues/20261120-s6-trapeze/`, porte Q-2a-1 à Q-2a-6 au mainteneur à D1', transmet la plage de graines réservée à 2b (#610), puis lance l'étape 3 (`coder-approfondi`, `high`) avec C1 et (o) comme critères d'acceptation.
 
 Sources web consultées : [CAS E-Forum, Merz et Wüthrich (2008)](https://www.casact.org/pubs/forum/08fforum/21merz_wuetrich.pdf) (non relu ce jour) ; [index CRAN des sources](https://cran.r-project.org/src/contrib/) (ChainLadder_0.2.21.tar.gz).
+
+---
+
+## Décisions du mainteneur du 20/11/2026, point d'arrêt D1' (questionnaire de la session principale)
+
+- **D1' : généralisation engagée** sous la garde MW-04 (Q-71-3 (a)) : étapes 3 et 5 (a), (b) ouvertes ; #567 `needs-info` → `ready-for-agent`.
+- **Q-2a-1** : option (c) (résidus de la colonne J−1 réduits par σ̂²_{J−1,dir}).
+- **Q-2a-2** : simulation du bootstrap avec σ de la règle de minimum, sans changement.
+- **Q-2a-3** : H_max = 20 h d'horloge sur 4 processus, échelle L0 à L2, 8×7 réduit (contrôle K-T6), niveau choisi par le pré-vol.
+- **Q-2a-4** : M6 restitue σ̂²_{J−1,dir} et ses degrés de liberté pour information, sans σ ni √MSEP alternatifs.
+- **Q-2a-5** : `CL_MSEPs` lue depuis l'archive CRAN (md5 fixé) par les scripts hors CI ; valeurs écrites en dur dans les tests unitaires ; aucune copie dans le dépôt.
+- **Q-2a-6** (pour D2 et l'étape 6) : avertissement non bloquant sur tout trapèze.
