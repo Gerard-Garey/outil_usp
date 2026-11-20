@@ -20,3 +20,4 @@
 - Contexte des tranches : B=999 || sha=425c1c938e973bc0f8c538d299b0cecf6ff9db6b || md5_moteur=faf36c545999c147087759155a2bd38a || md5_script=d7d1a0e6907953ca9a055a228c21554b || empreinte=307e07604e7d87b23173f48daebb9383 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=100
 - Segment interrompu : 2026-11-20T21:36:54Z ; 1212 tranche(s) calculée(s) dans ce segment, 88 restante(s) (--duree-max 1.8 h)
 - Reprise : 2026-11-20T21:37:05Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-20T23:09:01Z ; 16 tranche(s) calculée(s) dans ce segment, 72 restante(s) (--duree-max 1.8 h)
