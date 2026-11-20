@@ -25,3 +25,4 @@
 - Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 6 (préférence) : (i) calculée mécaniquement sur les estimations ponctuelles des queues (classes sur les valeurs non arrondies) ; (ii) non discriminante : coûts égaux à B2 = 199 ; le script ne désigne aucun candidat préféré.
 - Segment arrêté (--arret-apres 90 min) : 2026-11-20T12:31:04Z ; tranches calculées par ce segment : 24 ; tranches restantes : 101
 - Reprise : 2026-11-20T12:31:28Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T14:03:53Z ; tranches calculées par ce segment : 20 ; tranches restantes : 81
