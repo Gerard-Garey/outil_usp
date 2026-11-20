@@ -19,7 +19,12 @@
 #                   premium_interieur (test_enveloppe_qq.R, issue #385).
 #  Valeurs inscrites dans les tests : R 4.3.1, lmtest 0.9-40, tseries 0.10-55,
 #  car 3.1-2, ChainLadder 0.2.18 ; boot 1.3.30 sous R 4.3.3 (29/10/2026)
-#  (versions affichees ci-dessous).
+#  (versions affichees ci-dessous). Section "Trapezes I > J" (S6, #567) :
+#  CL_MSEPs lue dans l'archive CRAN ChainLadder 0.2.21 (variable
+#  CHAINLADDER_ARCHIVE, md5 controle), sans copie dans le depot ; elle n'a
+#  besoin ni du paquet ChainLadder installe ni des autres paquets ci-dessous
+#  (hors GenIns, fourni par ChainLadder) : sur un poste qui ne les a pas,
+#  l'executer seule (20/11/2026).
 #
 #  Usage (depuis la racine du depot) :
 #      Rscript tests/unitaires/generer_valeurs_externes.R
@@ -79,4 +84,66 @@ for (cas in c("premium", "premium_interieur")) {
   cat("k.ov :"); print(ev$k.ov)
   cat("err.ov :"); print(ev$err.ov)
   cat("err.ov[2] x (B_eff + 1) / B_eff :"); print(ev$err.ov[2] * (nrow(S) + 1) / nrow(S))
+}
+
+cat("\n# Trapezes I > J (#567) : MSEP a un an de CL_MSEPs, ChainLadder 0.2.21\n")
+# Valeurs de tests/unitaires/test_merz_wuthrich_trapeze.R (critere C1 de la
+# specification d'actuary 2a, par. 1.3). CL_MSEPs est une fonction interne de
+# ChainLadder (fichier R/MWChainLadder.R, en-tete "Author: Mario Wuthrich"),
+# qui somme sur les annees I-J+1..I (convention (B)) : implementation de
+# l'auteur, non formule publiee. Elle est lue dans l'archive CRAN
+# ChainLadder_0.2.21.tar.gz, de md5 fixe, dont le chemin est donne par la
+# variable d'environnement CHAINLADDER_ARCHIVE (decision Q-2a-5 du
+# mainteneur, 20/11/2026 : aucune copie du code dans le depot) ; section
+# sautee sans elle. Parametres (f_j, sigma2_j de la regle de minimum,
+# Q_j = sigma2_j / f_j^2, alpha_j = C(I-j,j) / S'_j) transcrits ici
+# directement de D(4)(c) et D(5)(d)(ii), sans le moteur ; estimateur direct
+# de sigma2_(J-1) : premiere ligne de D(5)(d)(ii) en j = J-1.
+archive_cl <- Sys.getenv("CHAINLADDER_ARCHIVE")
+MD5_ARCHIVE_CL <- "2a1fc0fcc593ec99529a40399274a088"
+if (!nzchar(archive_cl)) {
+  cat("CHAINLADDER_ARCHIVE non renseignee : section sautee.\n")
+} else {
+  stopifnot(file.exists(archive_cl),
+            unname(tools::md5sum(archive_cl)) == MD5_ARCHIVE_CL)
+  dossier_cl <- tempfile("cl")
+  utils::untar(archive_cl, files = "ChainLadder/R/MWChainLadder.R", exdir = dossier_cl)
+  src_cl <- readLines(file.path(dossier_cl, "ChainLadder", "R", "MWChainLadder.R"))
+  env_cl <- new.env()
+  eval(parse(text = src_cl[grep("^CL_MSEPs <- function", src_cl):
+                             (grep("^CDR.MackChainLadder", src_cl) - 1L)]), envir = env_cl)
+  ajuster_trapeze <- function(tri) {
+    I <- nrow(tri) - 1; J <- ncol(tri) - 1
+    f <- s2 <- numeric(J)
+    for (j in 0:(J - 1)) { r <- 0:(I - j - 1)
+      f[j + 1] <- sum(tri[r + 1, j + 2]) / sum(tri[r + 1, j + 1]) }
+    for (j in 0:(J - 2)) { r <- 0:(I - j - 1)
+      s2[j + 1] <- sum(tri[r + 1, j + 1] * (tri[r + 1, j + 2] / tri[r + 1, j + 1] - f[j + 1])^2) /
+        (I - j - 1) }
+    s2[J] <- min(s2[J - 1], s2[J - 2], s2[J - 1]^2 / s2[J - 2])
+    r <- 0:(I - J)
+    s2d <- sum(tri[r + 1, J] * (tri[r + 1, J + 1] / tri[r + 1, J] - f[J])^2) / (I - J)
+    complet <- tri
+    for (i in 0:I) { d <- I - i
+      if (d < J) for (j in (d + 1):J) complet[i + 1, j + 1] <- complet[i + 1, j] * f[j] }
+    Sp <- vapply(0:(J - 1), function(j) sum(tri[(0:(I - j)) + 1, j + 1]), numeric(1))
+    alpha <- vapply(0:(J - 1), function(j) tri[I - j + 1, j + 1], numeric(1)) / Sp
+    list(complet = complet, s2_regle = s2[J], s2_direct = s2d,
+         param = data.frame(f = f, sigma2 = s2, ratio = s2 / f^2, alpha = alpha))
+  }
+  tri_mw <- local({
+    df <- utils::read.csv("tests/donnees/triangle_mw.csv")
+    m <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(m) <- "double"; unname(m)
+  })
+  gen <- unname(matrix(as.numeric(GenIns), 10, 10))
+  jeux <- list("triangle_mw 8x7" = tri_mw[, 1:7], "triangle_mw 8x6" = tri_mw[, 1:6],
+               "triangle_mw 8x5" = tri_mw[, 1:5], "GenIns 10x9" = gen[, 1:9],
+               "GenIns 10x7" = gen[, 1:7], "GenIns 10x5" = gen[, 1:5])
+  cat("# jeu : MSEP ; reserve ; sigma2_(J-1) regle ; sigma2_(J-1) direct\n")
+  for (nm in names(jeux)) {
+    tri <- jeux[[nm]]; a <- ajuster_trapeze(tri)
+    r <- env_cl$CL_MSEPs(a$complet, nrow(tri), ncol(tri), a$param)
+    cat(nm, ":", sprintf("%.15g", c(r[nrow(tri) + 1, 2], r[nrow(tri) + 1, 1],
+                                    a$s2_regle, a$s2_direct)), "\n")
+  }
 }
