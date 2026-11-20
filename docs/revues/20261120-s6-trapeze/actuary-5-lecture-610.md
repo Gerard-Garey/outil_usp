@@ -165,3 +165,8 @@ Aucune règle n'est ajoutée ni modifiée. Les comparaisons appariées du § 4 s
   1. La session verse cette lecture dans `docs/revues/20261120-s6-trapeze/`.
   2. Le mainteneur tranche D3 ; je recommande (a).
   3. Sous (a) : étape 6b sans objet ; constat de #610 porté au `.tex` par `docwriter` à l'étape 8 ; ma validation du diff à l'étape 9.
+
+
+## Décision du mainteneur au point d'arrêt D3 (20/11/2026)
+
+Option **(a), constat seul** : aucune restitution de C1 ni de C2 dans `run_engine()` ; étape 6b sans objet ; mesure sur trapèze (Q-2b-6 (a)) sans objet ; note de l'application inchangée ; constat porté au `.tex` à l'étape 8 (éléments du § 7 de cette lecture) ; `Closes #610` maintenu.
