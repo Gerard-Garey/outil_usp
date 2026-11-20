@@ -67,13 +67,13 @@
 #  Graines (P3, appliquees EXACTEMENT ; toutes sous engine_sous_graine()) :
 #    triangle b, loi l : 567 000 000 + 100 000 (l - 1) + b (commune aux G) ;
 #    bootstrap : 568 000 000 + 1 000 000 (g - 1) + 100 000 (l - 1) + b ;
-#    oracle k : 570 000 000 + 100 000 (l - 1) + k (k <= 20 000) ;
+#    oracle k : 570 500 000 + 100 000 (l - 1) + k (k <= 20 000 ; P3 amende
+#      par actuary le 20/11/2026, constat m1 : l'ancienne base 570 000 000
+#      faisait coincider l'oracle k = b avec le bootstrap du 8 x 7) ;
 #    pre-vol : 571 000 000 + k ; sous-plages non fixees par P3 : triangle u
 #    571 000 000 + u, bootstrap 571 050 000 + u (u <= 50 000).
-#  CHEVAUCHEMENT INTERNE de P3 (mesure, controle (graines)) : la graine du
-#  bootstrap du 8 x 7 (g = 3) vaut 570 000 000 + 100 000 (l - 1) + b, soit
-#  la graine de l'oracle k = b de la meme loi : signale au T0, non bloquant
-#  (P3 applique tel quel ; question pour actuary).
+#  Aucun chevauchement interne n'est admis : le controle (graines) le rend
+#  bloquant (P3 amende).
 #  Controles (r297) : graines de #206 (b = 1, 2, lois N et E), bornes
 #  declarees par les affectations PLAGE_R297_* (forme exacte de R21, #350).
 #
@@ -227,7 +227,7 @@ BUDGET_S <- 20 * 3600                                     # H_max (Q-2a-3)
 K_BUDGET <- 4L                                            # sur 4 processus
 SEGMENT_S <- 2 * 3600                                     # M42 (b) : segments de 2 h
 # Graines (P3). Bases ecrites en entier.
-GRAINE_TRI <- 567000000; GRAINE_BOOT <- 568000000; GRAINE_ORA <- 570000000
+GRAINE_TRI <- 567000000; GRAINE_BOOT <- 568000000; GRAINE_ORA <- 570500000
 GRAINE_PV <- 571000000; GRAINE_PV_BOOT <- 571050000
 graine_tri  <- function(loi, b) GRAINE_TRI + 100000 * (LOIS[[loi]] - 1L) + b
 graine_boot <- function(G, loi, b) GRAINE_BOOT + 1000000 * (IDX_G[[G]] - 1L) + 100000 * (LOIS[[loi]] - 1L) + b
@@ -254,7 +254,7 @@ PLAGE_EXT_360 <- c(360380123, 360380123)    # graine 360 380 123 (P3)
 # part (tests/couverture_ic_sigma_mw_imbrique_t8.R, PLAGE_EXT_2A, #610).
 PLAGE_RESERVEE_P3 <- c(567000000, 572000000)
 DECALAGE_LITTERAL <- 20000                  # annotation du 10/10/2026 de #206, point 1
-RHO_F <- c(a10 = 0.099, a05 = 0.049)        # reference des p de famille (Fk, par. 5.3), K-T7
+RHO_F <- c(a10 = 0.099, a05 = 0.049)        # reference rho_F majorante des p de famille (#297, Fk par. 5.3, B_eff = 999), K-T7 descriptif
 PROTOCOLE <- "docs/revues/20261120-s6-trapeze/actuary-2a-specification-567.md"
 SCRIPT_DEPOT <- "tests/niveau_mw_trapeze_t8.R"
 BRUT_297 <- "docs/tableaux/20261026-issue297-calibration-famille-mw-brut.tsv"
@@ -1020,7 +1020,7 @@ local({
                                       length(ref), if (ok1) "oui" else "NON", if (ok2) "oui" else "NON"))
 })
 # (graines) : plages de la mesure, disjonction externe (P3) et litteraux du
-# depot ; chevauchements INTERNES signales sans bloquer (P3 applique tel quel).
+# depot ; un chevauchement INTERNE fait echouer le controle (P3 amende, m1).
 PLAGES <- local({
   P <- list()
   for (loi in names(LOIS)) P[[sprintf("triangles %s", loi)]] <- c(graine_tri(loi, 1), graine_tri(loi, R_MAX_PLAN))
@@ -1057,7 +1057,7 @@ GRAINES_TXT <- local({
   }))))
   coll <- lit[vapply(lit, function(v) touche(v, v + DECALAGE_LITTERAL), logical(1))]
   dans_567 <- lit[lit >= 567e6 & lit < 572e6]
-  ok <- ext_ok && r297_hors && max_ok && !length(coll)
+  ok <- ext_ok && r297_hors && max_ok && !length(coll) && !length(inter)
   list(ok = ok, inter = inter,
        txt = sprintf(paste("plages de la mesure (triangles, bootstraps des 3 G x 2 lois, oracles, pr\u00e9-vol ; b \u2264 %d, k \u2264 %d) de %.0f \u00e0 %.0f ;",
                            "disjointes de #206/#297 MW %.0f-%.0f, #297 LN %.0f-%.0f, #305 %.0f-%.0f, #387 %.0f-%.0f et de 360 380 123 : %s ;",
@@ -1065,7 +1065,7 @@ GRAINES_TXT <- local({
                            "%d litt\u00e9raux entiers de 8 \u00e0 10 chiffres dans %d fichiers (R/engine.R, tests/*.R hors ce script, tests/unitaires/*.R ; \u00e9criture scientifique non recherch\u00e9e) ;",
                            "litt\u00e9raux L dont [L ; L + %.0f] touche une plage : %s ; litt\u00e9raux dans [567 000 000 ; 572 000 000[ (plage r\u00e9serv\u00e9e par P3) : %s ;",
                            "d\u00e9clarations de la plage r\u00e9serv\u00e9e par P3 [%.0f ; %.0f] (forme exacte PLAGE_<nom> <- c(L1, L2), R21), \u00e9cart\u00e9es de la recherche des graines et cit\u00e9es ici : %s ;",
-                           "**chevauchements internes de P3 (signal\u00e9s, non bloquants)** : %s"),
+                           "chevauchements internes des plages de la mesure (bloquants, P3 amend\u00e9) : %s"),
                      R_MAX_PLAN, N0_MESURE, min(M), max(M), PLAGE_EXT_206[1], PLAGE_EXT_206[2], PLAGE_EXT_297LN[1], PLAGE_EXT_297LN[2],
                      PLAGE_EXT_305[1], PLAGE_EXT_305[2], PLAGE_EXT_387[1], PLAGE_EXT_387[2], if (ext_ok) "oui" else "NON",
                      if (r297_hors) "oui" else "NON", if (max_ok) "oui" else "NON", length(lit), length(fs), DECALAGE_LITTERAL,
@@ -1218,7 +1218,8 @@ local({
   # Triangle dont la generation meme a echoue (refus de motif "erreur", gp
   # non calcule) : hors du controle, compte a part (deja refuse, K4).
   sans_gp <- D$motif_code %in% "erreur" & is.na(D$gp)
-  ok <- nrow(D) > 0L && all(D$gp[!sans_gp] %in% 1)
+  # Pas de succes a vide : au moins un triangle dont la troncature est calculee.
+  ok <- nrow(D) > 0L && sum(!sans_gp) > 0L && all(D$gp[!sans_gp] %in% 1)
   CTRL_GP <<- sprintf("plan : %d / %d triangles tir\u00e9s o\u00f9 le trap\u00e8ze = troncature du 8 x 8 simul\u00e9 sous la m\u00eame graine ; triangles dont la g\u00e9n\u00e9ration a \u00e9chou\u00e9 (refus \u00ab erreur \u00bb, troncature non calcul\u00e9e, hors contr\u00f4le) : %d",
                       sum(D$gp[!sans_gp] %in% 1), sum(!sans_gp), sum(sans_gp))
   i <- which(vapply(CTRL, function(k) k$code == "(g')", logical(1)))
@@ -1433,12 +1434,17 @@ if (!is.null(BR297)) {
     a <- SEUILS[[ia]]
     b8 <- BR297[BR297$type == "rep" & BR297$loi == loi & BR297$statut == "admis", , drop = FALSE]
     n8 <- nrow(b8); d7 <- pop("8x7", loi); n7 <- nrow(d7)
+    # Lignes rep de #297 au statut non "admis" (exclues de n8) ; echecs du
+    # 8 x 7 (comptes dans n7) : rapportes pour comparer les denominateurs.
+    r8 <- BR297$statut[BR297$type == "rep" & BR297$loi == loi]; n8_hors <- sum(r8 != "admis")
+    st8_hors <- { t <- table(r8[r8 != "admis"]); if (length(t)) paste(sprintf("%s (%d)", names(t), as.integer(t)), collapse = ", ") else "aucun" }
+    e7 <- sum(d7$statut == "echec")
     x <- do.call(rbind, lapply(CLES, function(s) {
       p8 <- suppressWarnings(as.numeric(b8[[paste0("pR:", s)]])); k8 <- sum(is.finite(p8) & p8 < a)
       p7 <- d7[[paste0("p:", s)]]; k7 <- sum(is.finite(p7) & p7 < a)
       pf <- if (n7 && n8) stats::fisher.test(matrix(c(k7, n7 - k7, k8, n8 - k8), 2L))$p.value else NA_real_
       l8 <- lecture(k8, n8, rho_de("8x7", loi, s, ia))
-      data.frame(loi = loi, ia = ia, s = s, k7 = k7, n7 = n7, k8 = k8, n8 = n8, abs8 = sum(!is.finite(p8)), p = pf,
+      data.frame(loi = loi, ia = ia, s = s, k7 = k7, n7 = n7, e7 = e7, k8 = k8, n8 = n8, n8_hors = n8_hors, st8_hors = st8_hors, abs8 = sum(!is.finite(p8)), p = pf,
                  classe8 = txt_classe(l8), lib8 = isTRUE(l8$disj) && identical(l8$cote, "lib\u00e9ral"), cote8 = if (isTRUE(l8$disj)) l8$cote else NA_character_,
                  stringsAsFactors = FALSE)
     }))
@@ -1509,15 +1515,27 @@ THETA <- local({
   cl <- vapply(ev, function(x) x$c$classe, ""); co <- vapply(ev, function(x) if (isTRUE(x$c$disj)) x$c$cote else NA_character_, "")
   lib <- co %in% "lib\u00e9ral"; cons <- co %in% "conservateur"
   # Theta5 : par (G, cle), cotes de distorsion materielle sous N et sous E
-  # (un seuil ou l'autre), opposes ; evalue sur les trois G.
-  t5 <- character(0)
-  for (G in GEOM$code) for (s in CLES) {
-    side <- function(loi) unique(na.omit(vapply(names(SEUILS), function(ia) { c_ <- K1[[paste(G, loi, s, ia)]]$c; if (isTRUE(c_$disj)) c_$cote else NA_character_ }, "")))
-    sN <- side("N"); sE <- side("E")
-    if ((("lib\u00e9ral" %in% sN) && ("conservateur" %in% sE)) || (("conservateur" %in% sN) && ("lib\u00e9ral" %in% sE))) t5 <- c(t5, sprintf("%s %s", G, s))
+  # (un seuil ou l'autre), opposes, avec l'alpha de chaque cote. Profil sur
+  # 8 x 5 et 8 x 6 seulement ; le 8 x 7 (controle d'implementation K-T6, cles
+  # du carre) est liste a part, descriptif, sans proposer de profil (visa
+  # d'actuary, 20/11/2026).
+  theta5 <- function(G) {
+    out <- character(0)
+    for (s in CLES) {
+      cotes <- function(loi) { v <- vapply(names(SEUILS), function(ia) { c_ <- K1[[paste(G, loi, s, ia)]]$c; if (isTRUE(c_$disj)) c_$cote else NA_character_ }, "")
+                               v[!is.na(v)] }
+      cN <- cotes("N"); cE <- cotes("E")
+      opp <- function(a, b) { a_ <- names(cN)[cN == a]; b_ <- names(cE)[cE == b]
+        if (length(a_) && length(b_)) sprintf("%s %s (N : %s \u00e0 \u03b1 = %s ; E : %s \u00e0 \u03b1 = %s)", G, s, a,
+                                              paste(vapply(a_, lib_ia, ""), collapse = " et "), b, paste(vapply(b_, lib_ia, ""), collapse = " et ")) else character(0) }
+      out <- c(out, opp("lib\u00e9ral", "conservateur"), opp("conservateur", "lib\u00e9ral"))
+    }
+    out
   }
+  t5 <- unlist(lapply(c("8x5", "8x6"), theta5)); t5_87 <- theta5("8x7")
   # Theta4 : meme distorsion liberale sur le 8 x 8 (#297), contre rho du 8 x 7
-  # (oracle egal en loi a celui du 8 x 8 sous (c), critere (o)).
+  # (et non celui de #297 ; oracle egal en loi a celui du 8 x 8 sous (c),
+  # hypothese [H] appuyee sur (o), (g'), o8 et (r297) ; taux o8 en sortie).
   t4 <- vapply(ev[lib], function(x) {
     r <- if (is.null(KT6)) NULL else KT6[KT6$loi == x$loi & KT6$s == x$s & KT6$ia == x$ia, , drop = FALSE]
     sprintf("%s (8 x 8, #297, contre \u03c1 du 8 x 7 : %s)", txt(x), if (is.null(r) || !nrow(r)) "non \u00e9valuable" else if (isTRUE(r$lib8)) "**m\u00eame distorsion lib\u00e9rale**" else r$classe8)
@@ -1534,8 +1552,12 @@ THETA <- local({
   ordre <- c(T0 = p0, T5 = p5, T4 = p4, T3 = p3, T2 = p2, T1 = p1)
   noms <- c(T0 = "\u03980", T5 = "\u03985", T4 = "\u03984", T3 = "\u03983", T2 = "\u03982", T1 = "\u03981")
   propose <- if (any(ordre)) noms[[names(ordre)[which(ordre)[1]]]] else "non \u00e9valuable"
+  # Theta0 du seul fait d'un K-T6 significatif : le script ne juge pas le
+  # "non explique" de P7 ; Theta0 n'est que candidat (visa d'actuary).
+  t0_candidat <- p0 && kt6_sig && integ && !k3_non && !k3_abs && k4 && !kt6_abs
+  if (t0_candidat) propose <- "\u03980 candidat, explication \u00e0 juger par actuary (K-T6 significatif)"
   list(p0 = p0, p1 = p1, p2 = p2, p3 = p3, p4 = p4, p5 = p5, propose = propose, integ = integ, k3_non = k3_non, k3_abs = k3_abs, k4 = k4,
-       kt6_sig = kt6_sig, kt6_abs = kt6_abs, t5 = t5, t4 = t4, cons = vapply(ev[cons], txt, ""), nt = vapply(ev[cl == CLASSES[3]], txt, ""),
+       kt6_sig = kt6_sig, kt6_abs = kt6_abs, t0_candidat = t0_candidat, t5 = t5, t5_87 = t5_87, t4 = t4, cons = vapply(ev[cons], txt, ""), nt = vapply(ev[cl == CLASSES[3]], txt, ""),
        ne = vapply(ne, txt, ""), n_ev = length(ev))
 })
 
@@ -1547,6 +1569,10 @@ liste <- function(x, n = 30) if (!length(x)) "\u2014" else paste(c(utils::head(x
 q_txt <- function(v, d = 4) { v <- v[is.finite(v)]; if (!length(v)) "\u2014" else
   paste(vapply(stats::quantile(v, c(.05, .25, .5, .75, .95), type = 7, names = FALSE), num, "", d = d), collapse = " ; ") }
 virg <- function(x) sub(".", ",", x, fixed = TRUE)
+# Taux o8 : triangles 8 x 7 admis dont les statistiques observees sont
+# identical() a celles du 8 x 8 simule sous la meme graine (K-T6, Theta4).
+TXT_O8 <- paste(vapply(names(LOIS), function(loi) { d <- pop("8x7", loi)
+  sprintf("%s %d / %d (8 x 8 non ajustable : %d)", loi, sum(d$o8 %in% 1), nrow(d), sum(is.na(d$o8))) }, ""), collapse = " ; ")
 TXT_DGP <- vapply(GEOM$code, function(G) { d <- DGP[[G]]
   sprintf("%s (J = %d) : f\u0302 = (%s) ; \u03c3\u00b2 = (%s) ; \u03c3\u00b2_(J\u22121) vrai = %s (crit\u00e8re : %s, arrondi %s)", G, d$J,
           paste(virg(sprintf("%.6g", d$f)), collapse = " ; "), paste(virg(sprintf("%.6g", d$sigma2)), collapse = " ; "),
@@ -1566,8 +1592,8 @@ S <- c(sprintf("## Mesure #567 (S6, \u00e9tape 5 (b)) : niveau \u00e0 T = 8 des 
        ligne_md("Lois", sprintf("N : stats::rnorm ; E : tirage uniforme dans les %d valeurs de .mw_pool_residus(aj0, jd0) de reserve2 divis\u00e9es par leur \u00e9cart-type de population (%s)",
                                  length(POOL0), virg(sprintf("%.5f", SD_POP0)))),
        ligne_md("Chemin (P1)", "gen_triangle_h0(DGP_G, loi) sous engine_sous_graine(graine du triangle) ; admission hors MW-04 (mw_valider_triangle(), domaine num\u00e9rique, mw_ajuster(), mw_msep(), mw_valider_ajustement() ; segment 1, annexe II) ; mw_ajuster() \u2192 .mw_ensembles_figes() \u2192 mw_bootstrap(aj, B, graine du bootstrap, figes) \u2192 mw_tests(aj, boot, \u03b1 = 0,10, figes)"),
-       ligne_md("Graines (P3, appliqu\u00e9es exactement)", "triangle b, loi \u2113 : 567 000 000 + 100 000 (\u2113 \u2212 1) + b ; bootstrap : 568 000 000 + 1 000 000 (g \u2212 1) + 100 000 (\u2113 \u2212 1) + b ; oracle k : 570 000 000 + 100 000 (\u2113 \u2212 1) + k ; pr\u00e9-vol : 571 000 000 + u et 571 050 000 + u ; \u2113 = 1 (N), 2 (E) ; g = 1 (8 x 5), 2 (8 x 6), 3 (8 x 7)"),
-       ligne_md("Chevauchement interne de P3", if (length(GRAINES_TXT$inter)) sprintf("**%s** : signal\u00e9, non bloquant ; question pour actuary", paste(GRAINES_TXT$inter, collapse = " ; ")) else "aucun"),
+       ligne_md("Graines (P3 amend\u00e9 le 20/11/2026, constat m1, appliqu\u00e9es exactement)", "triangle b, loi \u2113 : 567 000 000 + 100 000 (\u2113 \u2212 1) + b ; bootstrap : 568 000 000 + 1 000 000 (g \u2212 1) + 100 000 (\u2113 \u2212 1) + b ; oracle k : 570 500 000 + 100 000 (\u2113 \u2212 1) + k ; pr\u00e9-vol : 571 000 000 + u et 571 050 000 + u ; \u2113 = 1 (N), 2 (E) ; g = 1 (8 x 5), 2 (8 x 6), 3 (8 x 7)"),
+       ligne_md("Chevauchement interne des plages (bloquant, P3 amend\u00e9)", if (length(GRAINES_TXT$inter)) sprintf("**%s** : contr\u00f4le (graines) en \u00e9chec", paste(GRAINES_TXT$inter, collapse = " ; ")) else "aucun"),
        ligne_md("G\u00e9n\u00e9rateur al\u00e9atoire", paste(ENGINE_RNG_KIND, collapse = ", ")),
        ligne_md("Oracle", sprintf("%s ; valeurs non versionn\u00e9es (oracle.tsv du dossier de travail), md5 %s",
                                   paste(vapply(names(OR), function(nm) sprintf("%s : %d tir\u00e9s, %d admis", nm, OR[[nm]]$n_tire, OR[[nm]]$n_adm), ""), collapse = " ; "), MD5_ORACLE)),
@@ -1622,13 +1648,17 @@ S <- c(S, "### K-T6 \u2014 8 x 7 contre 8 x 8 (#297, m\u00eame loi) : Fisher exa
              "(descriptive : sous (c), les statistiques observ\u00e9es d'un 8 x 7 sont celles du 8 x 8 dont il est tronqu\u00e9, crit\u00e8re (o), d'o\u00f9 la m\u00eame loi oracle ; le contr\u00f4le (r297) atteste que le moteur reproduit les p de #297).",
              "Les \u00e9chantillons sont ind\u00e9pendants (graines disjointes)."), "")
 if (is.null(KT6)) S <- c(S, sprintf("%s introuvable : K-T6 non \u00e9valuable.", BRUT_297), "") else
-  S <- c(S, entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "k / n (8 x 7)", "\u03c4 8 x 7 [IC]", "k / n (8 x 8, #297)", "\u03c4 8 x 8 [IC]", "classe du 8 x 8 (\u03c1 du 8 x 7)", "p Fisher", "p Holm", "significatif (0,05)")),
+  S <- c(S, sprintf(paste("D\u00e9nominateurs : n (8 x 7) compte les triangles admis, \u00e9checs compris (%s) ; n (8 x 8) compte les lignes rep admises du brut de #297,",
+                          "les lignes rep au statut non \u00ab admis \u00bb en sont exclues (%s)."),
+                    paste(vapply(names(LOIS), function(loi) { x <- KT6[KT6$loi == loi, ][1, ]; sprintf("%s : %d \u00e9chec(s) sur n = %d", loi, x$e7, x$n7) }, ""), collapse = " ; "),
+                    paste(vapply(names(LOIS), function(loi) { x <- KT6[KT6$loi == loi, ][1, ]; sprintf("%s : %d ligne(s) exclue(s), statuts %s, n = %d", loi, x$n8_hors, x$st8_hors, x$n8) }, ""), collapse = " ; ")), "",
+         entete_md(c("Loi", "\u03b1", "Cl\u00e9 (sens)", "k / n (8 x 7)", "\u03c4 8 x 7 [IC]", "k / n (8 x 8, #297)", "\u03c4 8 x 8 [IC]", "classe du 8 x 8 (\u03c1 du 8 x 7)", "p Fisher", "p Holm", "significatif (0,05)")),
          vapply(seq_len(nrow(KT6)), function(i) { x <- KT6[i, ]
            ligne_md(x$loi, lib_ia(x$ia), lib_cle(x$s), sprintf("%d / %d", x$k7, x$n7), sprintf("%s %s", num(x$k7 / x$n7, D_IC), txt_ic(ic_cp(x$k7, x$n7))),
                     sprintf("%d / %d", x$k8, x$n8), sprintf("%s %s", num(x$k8 / x$n8, D_IC), txt_ic(ic_cp(x$k8, x$n8))), x$classe8, fmt_p(x$p), fmt_p(x$p_holm),
                     if (x$signal) "**oui**" else "non") }, ""),
          "", sprintf("Triangles 8 x 7 dont les statistiques observ\u00e9es sont identical() \u00e0 celles du 8 x 8 simul\u00e9 sous la m\u00eame graine (descriptif ; (o) sur triangle tir\u00e9) : %s.",
-                     paste(vapply(names(LOIS), function(loi) { d <- pop("8x7", loi); sprintf("%s %d / %d (8 x 8 non ajustable : %d)", loi, sum(d$o8 %in% 1), nrow(d), sum(is.na(d$o8))) }, ""), collapse = " ; ")), "")
+                     TXT_O8), "")
 # K3.
 S <- c(S, "### K3 \u2014 t\u00e9moins oracle (r\u00e8gle b\u00eata-binomiale du 05/11/2026, Holm sur 13 par (G, loi, \u03b1))", "",
        paste("p_or = engine_p_mc(S0, s_obs, sens) contre l'oracle de (G, loi) ; test binomial exact bilat\u00e9ral de \u03c4_or contre la taille du t\u00e9moin ; un signal est expliqu\u00e9 si la p de Holm",
@@ -1678,9 +1708,10 @@ for (i in seq_len(nrow(CELLS))) {
 }
 # K-T7.
 S <- c(S, "", "### K-T7 (descriptif) \u2014 niveau des p de famille et de la p globale (engine_p_famille())", "",
-       paste("\u03c4 sur les triangles admis o\u00f9 la ligne de famille est pr\u00e9sente (p absente : non-rejet, compt\u00e9e \u00e0 part) ; classe contre \u03c1_F (0,099 ; 0,049), taille du test id\u00e9al",
-             "sans atome, majorant (sp\u00e9cification de Fk, par. 5.3), \u00e0 titre descriptif."), "",
-       entete_md(c("G", "Loi", "Famille", "\u03b1", "admis", "ligne pr\u00e9sente", "p absente", "k", "\u03c4 [IC]", "classe (\u03c1_F, descriptive)")),
+       paste("\u03c4 sur les triangles admis o\u00f9 la ligne de famille est pr\u00e9sente (p absente : non-rejet, compt\u00e9e \u00e0 part) ; classe contre la r\u00e9f\u00e9rence \u03c1_F majorante (#297, \u00a7 5.3), descriptif :",
+             sprintf("\u03c1_F = 0,099 ; 0,049, taille du test de Monte-Carlo id\u00e9al \u00e0 B_eff = 999 pour une statistique sans atome, majorant en pr\u00e9sence d'atomes (B de cette ex\u00e9cution : %s).", format(B_RUN)),
+             "Aucun profil n'en d\u00e9pend."), "",
+       entete_md(c("G", "Loi", "Famille", "\u03b1", "admis", "ligne pr\u00e9sente", "p absente", "k", "\u03c4 [IC]", "classe (r\u00e9f\u00e9rence \u03c1_F majorante, descriptive)")),
        vapply(seq_len(nrow(KT7)), function(i) { x <- KT7[i, ]
          ligne_md(x$G, x$loi, x$f, lib_ia(x$ia), x$n, x$presents, x$absentes, x$k, if (is.na(x$taux)) "\u2014" else sprintf("%s %s", num(x$taux, D_IC), txt_ic(c(x$bas, x$haut))), x$classe) }, ""), "")
 # Profils.
@@ -1690,9 +1721,13 @@ S <- c(S, "### Profils pour D2 (\u0398), \u00e9valu\u00e9s m\u00e9caniquement, s
                 sprintf("int\u00e9grit\u00e9 %s ; K3 non expliqu\u00e9 : %s ; K4 rempli : %s ; K-T6 significatif : %s",
                         if (THETA$integ) "OK" else paste("\u00c9CHEC", paste(INTEGRITE, collapse = ", ")),
                         if (THETA$k3_abs) "t\u00e9moin absent" else liste(if (nrow(K3_NON)) sprintf("%s %s %s %s", K3_NON$G, K3_NON$loi, K3_NON$s, vapply(K3_NON$ia, lib_ia, "")) else character(0)),
-                        if (THETA$k4) "oui" else "non", if (THETA$kt6_abs) "non \u00e9valuable" else liste(if (any(KT6$signal)) with(KT6[KT6$signal, ], sprintf("%s %s %s", loi, s, vapply(ia, lib_ia, ""))) else character(0)))),
-       ligne_md("\u03985", "une cl\u00e9 en distorsion de c\u00f4t\u00e9s oppos\u00e9s entre N et E pour une G (un seuil ou l'autre ; trois G)", oui(THETA$p5), liste(THETA$t5)),
-       ligne_md("\u03984", "distorsion mat\u00e9rielle lib\u00e9rale d'une cl\u00e9 sur 8 x 5 ou 8 x 6, pour une loi", oui(THETA$p4), liste(THETA$t4)),
+                        if (THETA$k4) "oui" else "non", if (THETA$kt6_abs) "non \u00e9valuable" else if (!any(KT6$signal)) "\u2014" else
+                          sprintf(if (isTRUE(THETA$t0_candidat)) "%s (\u03980 candidat, explication \u00e0 juger par actuary)" else
+                                    "%s (explication \u00e0 juger par actuary ; \u03980 acquis par ailleurs : int\u00e9grit\u00e9, K3 ou K4)", liste(with(KT6[KT6$signal, ], sprintf("%s %s %s", loi, s, vapply(ia, lib_ia, ""))))))),
+       ligne_md("\u03985", "une cl\u00e9 en distorsion de c\u00f4t\u00e9s oppos\u00e9s entre N et E pour une G (un seuil ou l'autre, \u03b1 de chaque c\u00f4t\u00e9 indiqu\u00e9 ; 8 x 5 et 8 x 6)", oui(THETA$p5), liste(THETA$t5)),
+       ligne_md("8 x 7 (descriptif, hors profil)", "m\u00eame condition que \u03985 sur le 8 x 7, contr\u00f4le d'impl\u00e9mentation (K-T6, cl\u00e9s du carr\u00e9) : ne propose aucun profil", "\u2014", liste(THETA$t5_87)),
+       ligne_md("\u03984", sprintf("distorsion mat\u00e9rielle lib\u00e9rale d'une cl\u00e9 sur 8 x 5 ou 8 x 6, pour une loi ; m\u00eame cl\u00e9 sur le 8 x 8 de #297 lue contre le \u03c1 du 8 x 7 (et non celui de #297 ; m\u00eame loi oracle sous (c), hypoth\u00e8se [H] appuy\u00e9e sur (o), (g'), (r297) et le taux o8 : %s)", TXT_O8),
+                oui(THETA$p4), liste(THETA$t4)),
        ligne_md("\u03983", "distorsion mat\u00e9rielle conservatrice sur une cl\u00e9 (8 x 5, 8 x 6)", oui(THETA$p3), liste(THETA$cons)),
        ligne_md("\u03982", "aucune distorsion, des non tranch\u00e9s (8 x 5, 8 x 6)", oui(THETA$p2), liste(THETA$nt)),
        ligne_md("\u03981", "13 cl\u00e9s compatibles ou en \u00e9cart mineur sur 8 x 5 et 8 x 6, N et E, aux deux seuils, et K-T6 sans signal", oui(THETA$p1),
