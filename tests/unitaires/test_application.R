@@ -141,7 +141,10 @@
 #     lire_triangle() identical() a l'import ; apercu avec (t1) une fois ;
 #     recopie au changement de methode a la dimension 8 x 6 ; clic et calcul
 #     abouti (sigma_USP du cas reserve2_trapeze) ; import d'un 41 x 8 refuse
-#     par refus_dimension_triangle(), triangle courant garde.
+#     par refus_dimension_triangle(), triangle courant garde ; apercu
+#     validation_live au-dessus de la grille, sous les statuts (ordre des
+#     sorties de l'interface) ; legende plotly du graphique des facteurs a
+#     y = -0,55 pour les trois entrees du trapeze, -0,30 pour le carre.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -2462,7 +2465,9 @@ testServer(app, {
   # consigne d'architect, par. 1.5) : import du 8 x 6 du cas reserve2_trapeze
   # (tests/donnees/triangle_mw_trapeze.csv) ; grille aux seules cellules
   # observees ; lecture et recopie au changement de methode a la dimension
-  # 8 x 6 ; calcul au clic ; refus de dimension d'un 41 x 8. Le navigateur
+  # 8 x 6 ; calcul au clic ; refus de dimension d'un 41 x 8 ; place de
+  # l'apercu et legende du graphique des facteurs (constats d'app-review sur
+  # rendu reel). Le navigateur
   # renvoie les champs de la grille rendue : tri_champs() (bloc de #497) le
   # reproduit. showNotification() est remplace, dans l'environnement d'app.R,
   # par un releve, retire en sortie.
@@ -2489,6 +2494,21 @@ f41_567 <- local({
   depot567(f)
 })
 T1_567 <- "Triangle a 8 annees d'accident et 6 annees de developpement : "
+# Apercu des controles au-dessus de la grille (#567, constat d'app-review
+# sur rendu reel : sous la grille, l'avertissement (t1) etait hors de vue
+# apres l'import, en 1280 x 900 comme en 1366 x 768) : ordre des sorties dans
+# l'interface, une seule sortie validation_live, hors du bloc "Controles de
+# validite" (titre et table des controles apres la grille).
+ui567 <- paste(as.character(ea$ui), collapse = "")
+pos567 <- function(motif) gregexpr(motif, ui567, fixed = TRUE)[[1]]
+a("interface : apercu validation_live unique, sous les statuts de demarrage et d'import et au-dessus de la grille ; titre \"Controles de validite\" et table des controles apres la grille (#567)",
+  length(pos567('id="validation_live"')) == 1L &&
+    all(vapply(c('id="statut_demarrage"', 'id="import_statut"', 'id="validation_live"',
+                 'id="grille_donnees"', "<h4>Controles de validite</h4>", 'id="tab_controles"'),
+               function(m) length(pos567(m)) == 1L && pos567(m) > 0L, NA)) &&
+    !is.unsorted(vapply(c('id="statut_demarrage"', 'id="import_statut"', 'id="validation_live"',
+                          'id="grille_donnees"', "<h4>Controles de validite</h4>",
+                          'id="tab_controles"'), pos567, 0L), strictly = TRUE))
 testServer(app, {
   do.call(session$setInputs, modifyList(base, list(methode = "reserve2")))
   imp <- engine_lire_triangle(utils::read.csv(f567$datapath, colClasses = "character", check.names = FALSE,
@@ -2529,6 +2549,25 @@ testServer(app, {
       abs(r$parametre$sigma_usp / 0.0475797067089398 - 1) < 1e-12 &&
       sum(startsWith(r$validation$avertissements, T1_567)) == 1L &&
       grepl("sigma_USP", as.character(output$etat$html), fixed = TRUE))
+  # Legende plotly du graphique des facteurs (#567, constat d'app-review sur
+  # rendu reel : a y = -0,30, la premiere des trois entrees du trapeze
+  # recouvrait le titre de l'axe j a 395 px) : y = -0,55 a trois entrees
+  # (trapeze calcule ci-dessus), y = -0,30 inchange a deux entrees (carre
+  # par defaut 8 x 8, plots_data construit par les fonctions du moteur).
+  if (requireNamespace("plotly", quietly = TRUE)) {
+    leg567 <- function(pd) {
+      b <- suppressWarnings(plotly::plotly_build(plot_mw_facteurs(pd)))$x
+      list(y = b$layout$legend$y,
+           n = sum(vapply(b$data, function(t) !identical(t$showlegend, FALSE), NA)))
+    }
+    pd_carre567 <- local({
+      aj <- mw_ajuster(ea$triangle_defaut(8))
+      mw_plots_data(aj, mw_residus(aj), list(sigma_boot = numeric(0)), mw_msep(aj), alpha = 0.10)
+    })
+    lt <- leg567(r$plots_data); lc <- leg567(pd_carre567)
+    a("graphique des facteurs, plotly : legende a y = -0,55 pour les trois entrees du trapeze calcule, y = -0,30 inchange pour les deux entrees du carre 8 x 8 (#567)",
+      identical(lt$n, 3L) && identical(lt$y, -0.55) && identical(lc$n, 2L) && identical(lc$y, -0.30))
+  } else a("graphique des facteurs, plotly : legende du trapeze et du carre : saute (plotly absent)", TRUE)
   t_av <- triangle()
   notifs567 <<- character(0)
   session$setInputs(fichier_import = f41_567)
@@ -2697,8 +2736,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 183 assertions rendues", length(.lignes) == 183L)
-  if (length(.lignes) != 183L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 185 assertions rendues", length(.lignes) == 185L)
+  if (length(.lignes) != 185L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

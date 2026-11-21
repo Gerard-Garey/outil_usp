@@ -770,6 +770,16 @@ ui <- fluidPage(
               ),
               uiOutput("statut_demarrage"),
               uiOutput("import_statut"),
+              # Apercu des controles de validite du moteur, sous les statuts
+              # et au-dessus de la grille (#567, constat d'app-review sur
+              # rendu reel) : place sous la grille, dans le bloc "Controles de
+              # validite", il etait hors de vue apres un import (avertissement
+              # de geometrie (t1) d'un trapeze I > J, haut de l'apercu a
+              # y = 882 en 1280 x 900, sous le bas de la fenetre en
+              # 1366 x 768). Contenu inchange, source unique
+              # (mw_valider_triangle(), engine_valider_serie_retenue()) ; le
+              # statut d'import garde les seuls avertissements_lecture (#518).
+              uiOutput("validation_live"),
               conditionalPanel("input.methode == 'reserve2'",
                 helpText(paste("Le triangle garde la dimension lue, importee ou saisie :",
                                "la profondeur T du panneau de droite ne le modifie pas.",
@@ -791,12 +801,13 @@ ui <- fluidPage(
               h4("Controles de validite"),
               helpText(paste("Ces controles ont une signification statistique et",
                              "actuarielle : ils sont implementes dans engine.R",
-                             "et non dans l'interface. Apres le calcul, la table",
+                             "et non dans l'interface. Leur apercu avant le",
+                             "calcul (refus et avertissements du moteur)",
+                             "s'affiche au-dessus de la grille. Apres le calcul, la table",
                              "comprend aussi les controles numeriques de",
                              "l'estimation (famille H : condition du premier",
                              "ordre, convergence multi-demarrages) ; un ECHEC y",
                              "est signale sans bloquer le calcul.")),
-              uiOutput("validation_live"),
               tableOutput("tab_controles"))
         ),
 

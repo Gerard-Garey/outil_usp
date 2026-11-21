@@ -2028,10 +2028,19 @@ plot_mw_facteurs <- function(pd) {
   pb <- plotly::layout(pb, xaxis = axe(xlab), yaxis = axe("sigma_j", range = ylim_sigma))
   p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
                        margin = 0.03)
+  # Haut de la legende sous le titre de l'axe j. plotly.js agrandit la marge
+  # basse pour loger la legende (la marge b = 80 n'est qu'un minimum), et le
+  # decalage y, fraction de la zone de trace, diminue avec elle. Deux entrees
+  # (carre) : y = -0,30, rendu inchange. Trois entrees (trapeze, #567), dont
+  # deux sur deux lignes, plus hautes : a y = -0,30, la premiere recouvrait le
+  # titre de l'axe ; y = -0,55 l'en ecarte (mesure d'app-review, puis du
+  # correctif, sous Chromium, plotly.js 2.25.2, figure de 330 px de haut,
+  # largeurs 270 a 584 px).
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
                  title = .titre_plotly(titre_plotly),
                  showlegend = TRUE,
-                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
+                 legend = list(orientation = "h", x = 0, xanchor = "left",
+                               y = if (deux) -0.55 else -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
                  margin = list(t = .marge_sous_titre(1L), b = 80))
