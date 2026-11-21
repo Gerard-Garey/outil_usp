@@ -29,3 +29,8 @@
 - Segment interrompu : 2026-11-21T03:43:14Z ; 16 tranche(s) calculée(s) dans ce segment, 24 restante(s) (--duree-max 1.8 h)
 - Reprise : 2026-11-21T03:43:24Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
 - Segment interrompu : 2026-11-21T05:09:16Z ; 14 tranche(s) calculée(s) dans ce segment, 10 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T05:09:26Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Fin : 2026-11-21T06:14:53Z ; SHA à la fin 425c1c938e973bc0f8c538d299b0cecf6ff9db6b ; md5 R/engine.R à la fin faf36c545999c147087759155a2bd38a ; INTEGRITE OK
+- Sortie 20261120-issue567-niveau-trapeze-mw.md : md5 adf5de226021c2521cb564757086e26b
+- Sortie 20261120-issue567-niveau-trapeze-mw-brut.tsv : md5 9fcb59cd24212f7f1c851e7634a34e3f
+- Oracle (oracle.tsv, non versionné) : md5 5bdafe159cd5624fee6ba906896d4f40
