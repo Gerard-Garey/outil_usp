@@ -361,3 +361,26 @@ Sources web consultées : [CAS E-Forum, Merz et Wüthrich (2008)](https://www.ca
 > **Amendement de P3 (m1), avant tout tirage de la mesure.** La graine du bootstrap du 8×7 (g = 3), 568 000 000 + 1 000 000 × 2 + 100 000 (ℓ−1) + b, coïncidait avec celle de l'oracle k = b de la même loi (570 000 000 + 100 000 (ℓ−1) + k) : le flux du bootstrap du triangle b et la génération du triangle oracle k = b consommaient les mêmes nombres aléatoires, contraire à l'indépendance τ / ρ supposée par P5 (points 1 et 3). Le couplage ne touchait que les classes du 8×7 contre ρ (K-T6, volet K1) ; K3, le test de Fisher de K-T6 et Θ4 n'en dépendaient pas. **La ligne « oracle k » de P3 devient : 570 500 000 + 100 000 (ℓ−1) + k (k ≤ 20 000).** Plages de la mesure : triangles 567 000 001-567 102 000 ; bootstrap 568 000 001-570 102 000 (par sous-plages g, ℓ) ; oracle 570 500 001-570 620 000 ; pré-vol 571 000 001-571 100 000 : disjointes deux à deux, maximum 571 100 000 < 2³¹ − 1, toutes dans la plage réservée [567·10⁶ ; 572·10⁶[ et disjointes des plages externes listées par P3. Aucun chevauchement interne n'est admis : le contrôle (graines) le rend bloquant. Les autres lignes de P3 sont inchangées. Aucun résultat de mesure n'existait à la date de l'amendement.
 
 Avis complet : `actuary-5b-avis-m1-graines-567.md`.
+
+### Annotation de la spécification par actuary, 21/11/2026 (lecture 5b, constats M2 et m1)
+
+> **M2 (§ 0 point 2, § 3, § 8 P4).** La phrase « son niveau doit donc égaler, en loi, celui de #297 » (§ 0, point 2) et l'invariance d'échelle par colonne posée en [H] au § 3 sont **fausses pour PenteIntra**. Ce qui reste vrai : sous l'option (c), les statistiques **observées** du 8×7 sont celles du 8×8 dont il est tronqué (contrôle (o)). Ce qui ne l'est plus : la **loi bootstrap de référence**. `.mw_pente_relative()` (`R/engine.R` l. 14661) pondère par w = C f̂² / σ̂_j² [V, lecture]. La loi de son t dépend donc des σ relatifs des colonnes. Or, sur tout trapèze, la colonne J−1 (n ≥ 2) entre dans PenteIntra et est simulée avec σ̂ de la règle (Q-2a-2), alors que sur le carré la colonne à 2 facteurs est simulée avec son σ̂ direct. Sur le 8×7, sous le plan de #206, la règle vaut en médiane 0,09 fois le vrai σ²_{J−1}. Mesure appariée : PenteIntra libéral, K1 à 0,05 égal à 0,072 sous N et 0,075 sous E, contre ρ = 0,048 (lecture 5b, § 4).
+>
+> L'ampleur et le signe de l'effet dépendent du profil des σ. Le constat ne se généralise pas à d'autres triangles.
+>
+> Conséquences :
+> - la liste du § 3 (« Seuls σ*… et la ligne Alpha en dépendent ») doit compter aussi PenteIntra ;
+> - la justification du 8×7 réduit en P4 et la lecture de K-T6 comme contrôle d'égalité de niveau ne tiennent plus pour cette clé ;
+> - la couverture de σ_boot et de l'intervalle sur trapèze, qui dépend du même choix, n'est pas mesurée [NV].
+>
+> Le mainteneur a décidé à D2 l'option (a′) : extension, avec une réserve écrite sur PenteIntra dans les fiches à l'étape 8, et le réexamen de Q-2a-2 par une mesure (Refs #612).
+>
+> **m1 (§ 7, tableau).** HomogF et ExpVar ne relèvent pas de la ligne « n ≥ 3 ». Le code retient **n ≥ 4** dans toutes les géométries [V, lecture] :
+> - HomogF : `mw_test_homogeneite_f()`, l. 15296, `if (length(idx) < 4) next` ;
+> - ExpVar : `mw_test_exposant_variance()`, l. 15746, `nd < 4`.
+>
+> Elles se rangent donc avec Courbure et MinP4 : colonnes 7..4, soit j = 0..3, en 8×8, 8×7, 8×6 et 8×5. La colonne J−1 du 8×5 (n = 3) en reste exclue.
+>
+> Les colonnes retenues sont les mêmes. Les F et les résidus de ces colonnes sont les mêmes, avec σ̂_j direct (n_j ≥ 4). Les statistiques sont donc identiques du 8×5 au 8×8 (lecture 5b, `a7`) et **aucun p_min ne change**. La mention « p_min de HomogF et d'ExpVar : 8×5 » est à retirer.
+>
+> Les seuils des autres lignes de cette rangée (Alpha, BP, identifiabilité, Origine) ne sont pas réexaminés par la présente annotation. Le texte d'origine est conservé ci-dessus. Refs #567.
