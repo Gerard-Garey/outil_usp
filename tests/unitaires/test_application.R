@@ -2048,7 +2048,7 @@ testServer(app, {
   session$setInputs(fichier_import = dt)
   lu556 <- engine_lire_triangle(utils::read.csv(dt$datapath, colClasses = "character", check.names = FALSE,
                                                 na.strings = character(0), row.names = NULL))
-  a("import de triangle refuse par la recevabilite du moteur (triangle non carre) : meme forme, notification unique, triangle gardee (#556)",
+  a("import de triangle refuse par la recevabilite du moteur (triangle 4 x 3 : D(2)(b) et D(2)(c) ; aussi MW-04 avant #567) : meme forme, notification unique, triangle gardee (#556)",
     !lu556$ok && identical(statut_import()$msg, paste0(ent556(dt, "CSV"), paste(lu556$erreurs, collapse = " "))) &&
       une_notif556() && identical(triangle(), t0) && identical(donnees(), d0))
 })

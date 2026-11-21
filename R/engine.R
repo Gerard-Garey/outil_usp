@@ -8201,10 +8201,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    cellules d'un triangle decale d'une colonne et celles d'un triangle dont
 #    la colonne 0 est vide sans en-tete sont les memes (mesure M1 de l'avis
 #    amont d'actuary sur K2), ce que le motif dit par son alternative. Ce
-#    motif precede mw_valider_triangle() et tient lieu du motif "Triangle
-#    non carre". Exception : une colonne vide sans en-tete placee avant une
-#    colonne i qui precede les donnees reste retiree sans refus (tableau
-#    decale) ;
+#    motif precede mw_valider_triangle() ; il tenait lieu du motif "Triangle
+#    non carre" (MW-04), retire depuis par #567. Exception : une colonne
+#    vide sans en-tete placee avant une colonne i qui precede les donnees
+#    reste retiree sans refus (tableau decale) ;
 #  - triangle : une colonne entierement vide intercalee est refusee comme
 #    annee de developpement manquante presumee ; une colonne vide portant un
 #    en-tete, en bord, comme annee de developpement sans valeur (motif
@@ -8258,10 +8258,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # consecutives (#568). Comme l'en-tete I designe la colonne i (regle N,
 # .entete_designe()), des colonnes de developpement titrees en chiffres
 # romains faisaient lire la premiere comme la colonne i, d'ou un refus sur ses
-# valeurs ("Colonne i non entiere ...", "Triangle non carre") ou, derriere une
-# vraie colonne i, le refus H1 "present plusieurs fois" : surs, mais au motif
-# trompeur. La suite commence a I et chaque en-tete suivant est le chiffre
-# romain suivant ; elle compte au moins deux en-tetes (I et II) : un I seul
+# valeurs ("Colonne i non entiere ...", ou "Triangle non carre" avant le
+# retrait de ce motif par #567) ou, derriere une vraie colonne i, le refus
+# H1 "present plusieurs fois" : surs, mais au motif trompeur. La suite
+# commence a I et chaque en-tete suivant est le chiffre romain suivant ;
+# elle compte au moins deux en-tetes (I et II) : un I seul
 # garde les motifs actuels (colonne i). Blancs de bord ignores comme par la
 # regle N ; majuscules (I, II, ...) ou minuscules (i, ii, ...), comme i ou I
 # pour la colonne i, sans melange dans un meme en-tete ("Ii" n'est pas lu) ni
@@ -8723,7 +8724,12 @@ engine_lire_donnees_csv <- function(df) {
 # (issue #518) : sous-ensemble propre au fichier lu, que la validation d'une
 # saisie restreinte a i + j <= I ne peut pas voir, soit le seul motif des
 # cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
-# character(0) pour un refus ou un triangle sans telle cellule.
+# character(0) pour un refus ou un triangle sans telle cellule. Un triangle
+# I > J (trapeze, plus d'annees d'accident que de developpement) est accepte
+# depuis le retrait du motif MW-04 (#567) : l'avertissement de geometrie de
+# mw_valider_triangle() est dans avertissements, non dans
+# avertissements_lecture (la validation d'une saisie le voit aussi). Un carre
+# prive de ses dernieres colonnes a la meme forme et n'est pas distingue.
 engine_lire_triangle <- function(df) {
   .engine_point_decimal()
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
@@ -8785,8 +8791,9 @@ engine_lire_triangle <- function(df) {
   #   d'origine, donc independants du retrait des colonnes vides qui suit.
   #   Residu : si les montants de cette colonne I sont par hasard des
   #   entiers consecutifs croissants, .motifs_colonne_i() ne renvoie rien,
-  #   le flux continue et le motif generique tombe en aval (forme du
-  #   triangle, mw_valider_triangle()).
+  #   le flux continue et le refus tombe en aval, dans mw_valider_triangle()
+  #   (cellules observees manquantes du triangle prive de sa colonne 0 ;
+  #   motif "Triangle non carre" avant son retrait par #567).
   kr <- .suite_entetes_romains(names(df))
   ki <- which(.entete_designe(names(df), "i"))
   motif_romains <- if (length(kr))
@@ -13061,19 +13068,29 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     Le triangle est stocke dans une matrice (I+1) x (J+1), les cellules non
 ##     observees (i + j > I) valant NA.
 ##
-##     RESTRICTION D'IMPLEMENTATION : on impose I = J (triangle carre). Le
-##     paragraphe 2(e) autorise I >= J, mais les formules des paragraphes 4 et
-##     5 ne se calculent a la lettre que si I = J : elles font intervenir
-##     C(i, I-i), qui n'est definie que si I - i <= J, et celle du paragraphe
-##     5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1 (ni f_j ni
-##     sigma2_j au-dela de j = J-1). Le domaine de l'outil est donc plus
-##     etroit que celui de D(2)(e) : le refus d'un triangle I > J (motif
-##     "Triangle non carre") est le choix de la lecture stricte (A), non une
-##     exigence du texte (ADR 0005, annotations du 13/11/2026 et du 13/11/2026
-##     (bis), #540) ; se ramener a un triangle carre exclut des annees
-##     d'accident, exclusion a justifier (art. 219(1)(a) et 19(1)(b)). Un
-##     triangle I < J ne recoit que le motif D(2)(e), sans "Triangle non
-##     carre" (remarque R-1).
+##     DOMAINE : I >= J, celui du paragraphe 2(e) (#567 ; ADR 0005, annotation
+##     du 21/11/2026, lecture (B) retenue au point d'arret D2 de S6). Un
+##     triangle I < J ne recoit que le motif D(2)(e) (remarque R-1). Pour
+##     I > J (trapeze), les formules des paragraphes 4 et 5 ne se calculent
+##     pas a la lettre : elles font intervenir C(i, I-i), qui n'est definie
+##     que si I - i <= J, et celle du paragraphe 5 aussi Q_(I-i), qui ne l'est
+##     que si I - i <= J - 1 (ni f_j ni sigma2_j au-dela de j = J-1).
+##     CONVENTION (B) : pour les annees i <= I-J, observees jusqu'a J,
+##     C_chapeau(i,J) = C(i,J), C(i, I-i) est lu C(i,J) au paragraphe 4 et
+##     Q_j vaut 0 pour j >= J au paragraphe 5 ; leur reserve et leur
+##     contribution a la MSEP sont nulles, f_j et sigma2_j restent estimes sur
+##     toutes les lignes. Dans la forme consolidee de la MSEP (mw_msep()),
+##     seule appliquee, elle revient exactement a restreindre les sommes de R
+##     et de la MSEP aux annees I-J+1..I ; la forme de 2015 n'a pas
+##     d'extension naturelle au trapeze (ADR 0005, meme annotation, point 3).
+##     La regle de minimum de sigma2_(J-1) (paragraphe 5(d)(ii), seconde
+##     ligne) s'applique quel que soit I ; l'estimateur direct de
+##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1.
+##     Un trapeze recoit de mw_valider_triangle() un avertissement non
+##     bloquant (geometrie, colonne de developpement perdue, hypothese portee
+##     par la convention pour les annees 0..I-J), et non plus le refus
+##     "Triangle non carre" (motif MW-04, retire, #567). Pour I = J, la
+##     convention est sans objet.
 ## =============================================================================
 
 # Cellules observees d'un triangle (I+1) x (J+1) (#567, etape 6 de S6,
@@ -13083,8 +13100,12 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 # tri est lue, jamais ses valeurs. Regle unique offerte a l'affichage ; les
 # trois emplois internes du moteur (.mw_avert_sous_diagonale(),
 # .mw_triangle_incomplet(), .run_engine_mw()) gardent leur propre
-# expression de la meme regle (ou de son complement, i + j > I).
+# expression de la meme regle (ou de son complement, i + j > I). Point
+# d'entree de l'application (app.R) : .engine_point_decimal() en premiere
+# instruction, comme les autres points d'entree (#439), bien qu'aucun nombre
+# n'y soit mis en texte (valeur rendue inchangee).
 mw_cellules_observees <- function(tri) {
+  .engine_point_decimal()
   row(tri) + col(tri) - 2L <= nrow(tri) - 1L
 }
 
@@ -13154,16 +13175,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                           T_min, ncol(tri)))
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
-  # MW-04 : emis si I > J seulement (remarque R-1, ADR 0005, annotation du
-  # 13/11/2026 (bis)) ; I < J ne recoit que MW-03. Les deux %d sont des
-  # comptes (nrow(tri), ncol(tri)), non les indices I et J.
-  if (I > J)
-    err <- c(err, sprintf(paste("Triangle non carre (%d annees d'accident, %d annees de developpement) :",
-                                "admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil,",
-                                "les formules des paragraphes 4 et 5 de cette section ne se calculant a la",
-                                "lettre que pour un triangle carre. Se ramener a un triangle carre exclut",
-                                "des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b))."),
-                          nrow(tri), ncol(tri)))
+  # Motif MW-04 ("Triangle non carre", refus de I > J) retire (#567 ; ADR
+  # 0005, annotation du 21/11/2026) : un trapeze I > J est calcule sous la
+  # convention (B) et recoit l'avertissement de geometrie plus bas. Les
+  # numeros MW-05 a MW-08 des motifs suivants sont gardes.
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
@@ -13328,6 +13343,24 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                   error = function(e) conditionMessage(e))
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
+    # Trapeze I > J (#567, decision Q-2a-6 du mainteneur ; texte (t1) fixe en
+    # T0 de l'etape 6 de S6, docs/revues/20261120-s6-trapeze/
+    # t0-textes-etape6.md) : avertissement non bloquant, en tete, a la place
+    # de l'ancien refus MW-04. Les deux premiers %d sont des comptes
+    # (nrow(tri), ncol(tri)), non les indices I et J ; le troisieme vaut
+    # I - J, derniere annee d'accident a reserve nulle sous la convention
+    # (B). Source unique : il n'est pas repris dans avertissements_lecture
+    # d'engine_lire_triangle(), que #518 reserve a ce que la validation d'une
+    # saisie ne peut pas voir.
+    if (I > J)
+      avt <- c(avt, sprintf(paste(
+        "Triangle a %d annees d'accident et %d annees de developpement : verifier qu'aucune",
+        "annee de developpement ne manque en fin de tableau (un triangle carre prive de ses",
+        "dernieres colonnes a la meme forme). Le calcul tient pour acheve a la derniere annee",
+        "de developpement fournie le developpement des annees d'accident i = 0 a %d (reserve",
+        "nulle) : hypothese a justifier par l'entreprise, l'annexe XVII, section D, point",
+        "(2)(d), ne l'exigeant que de la premiere annee d'accident."),
+        nrow(tri), ncol(tri), nrow(tri) - ncol(tri)))
     # Cellules renseignees sous la diagonale (issue #491) : avertissement de
     # .mw_avert_sous_diagonale(), seul avertissement propre au fichier lu,
     # repris par engine_lire_triangle() (champ avertissements_lecture, #518).
@@ -13339,8 +13372,7 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # rien des cumules decroissants. Un recul traduit un boni de liquidation
     # ou un recouvrement, licite : on le signale sans refuser.
     # Partie observee de la ligne i : colonnes 0..min(I-i, J) ; min() ne
-    # joue que pour un trapeze I > J (lignes i < I-J, #567), aujourd'hui
-    # refuse plus haut par MW-04.
+    # joue que pour un trapeze I > J (lignes i < I-J, #567).
     for (i in 0:I) {
       d <- min(I - i, J)
       if (d >= 1) {
@@ -13429,7 +13461,8 @@ mw_ajuster <- function(tri) {
   } else if (J >= 2 && is.finite(s2[J - 1])) {
     # Seul cas restant : J < 3 (sigma2_{J-3} n'existe pas) ou sigma2 non fini.
     # Le texte ne couvre pas J < 3 ; run_engine() ne peut pas l'atteindre
-    # (mw_valider_triangle impose T >= 5 et I = J, donc J >= 4).
+    # (mw_valider_triangle() impose J + 1 >= 5, D(2)(c), donc J >= 4, pour
+    # un carre comme pour un trapeze I > J).
     s2[J] <- s2[J - 1]
   }
 

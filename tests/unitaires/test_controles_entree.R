@@ -1639,19 +1639,26 @@ verifier("Triangle 4 x 4 refuse (D(2)(b) et (c))",
            r <- mw_valider_triangle(triangle(4))
            !r$ok && contient(r$erreurs, "D(2)(b)") && contient(r$erreurs, "D(2)(c)")
          })
-verifier("Triangle 6 x 5 (I > J) refuse : non carre",
+# #567, etape 6 de S6, C3 : le motif MW-04 ("Triangle non carre") est
+# retire ; un triangle I > J est recevable, avec l'avertissement de
+# geometrie (t1) en tete des avertissements (texte complet plus bas, #527).
+verifier("Triangle 6 x 5 (I > J) recevable depuis #567 : aucun motif, avertissement de geometrie en tete",
          {
            r <- mw_valider_triangle(triangle(6)[, 1:5])
-           !r$ok && contient(r$erreurs, "non carre") &&
-             contient(r$erreurs, "paragraphes 4 et 5")
+           isTRUE(r$ok) && !length(r$erreurs) && r$I == 5L && r$J == 4L &&
+             startsWith(r$avertissements[1],
+                        "Triangle a 6 annees d'accident et 5 annees de developpement : ") &&
+             sum(startsWith(r$avertissements, "Triangle a ")) == 1L &&
+             !contient(r$avertissements, "non carre")
          })
 verifier("Triangle 5 x 6 (moins d'annees d'accident que de developpement) refuse (D(2)(e))",
          {
            r <- mw_valider_triangle(cbind(triangle(5), NA))
            !r$ok && contient(r$erreurs, "D(2)(e)")
          })
-# #540, remarque R-1 : MW-04 n'est emis que si I > J ; un triangle I < J ne
-# recoit que le motif D(2)(e) (MW-03), sans "Triangle non carre".
+# #540, remarque R-1 : un triangle I < J ne recoit que le motif D(2)(e)
+# (MW-03), sans "Triangle non carre" (motif MW-04, retire par #567) ni
+# avertissement de geometrie.
 verifier("Triangle 5 x 6 (I < J) : un seul motif, D(2)(e), sans \"non carre\" (#540, R-1)",
          {
            r <- mw_valider_triangle(cbind(triangle(5), NA))
@@ -1686,9 +1693,10 @@ verifier("Triangle : Inf, -Inf, NaN signales 'valeur non finie' (pas 'manquante'
              contient(e, "Cellule observee manquante : annee d'accident i = 0, annee de developpement j = 3.") &&
              !contient(e, "manquante : annee d'accident i = 0, annee de developpement j = 1.") && length(e) == 4L
          })
-# Issue #527, groupe Merz-Wuthrich (MW-04 a MW-08) : texte complet de chaque
-# motif change, sur le gabarit du tableau du par. 7.2 de l'avis amont
-# d'actuary, declenche par run_engine(methode = "reserve2") sur le triangle
+# Issue #527, groupe Merz-Wuthrich (MW-04 a MW-08 ; MW-04 retire par #567,
+# remplace par l'avertissement de geometrie (t1), numeros non decales) :
+# texte complet de chaque motif change, sur le gabarit du tableau du par.
+# 7.2 de l'avis amont d'actuary, declenche par run_engine(methode = "reserve2") sur le triangle
 # de tests/donnees (refus ok = FALSE, motif dans validation$erreurs, aucune
 # erreur levee). Cellule designee par son annee d'accident i et son annee de
 # developpement j.
@@ -1699,13 +1707,24 @@ refus_mw_527 <- function(t) {
     r$validation$erreurs else NA_character_
 }
 cellule_527 <- function(i, j, v) { t <- tri_usage; t[i + 1L, j + 1L] <- v; t }
-verifier("run_engine reserve2 : MW-04, triangle 8 x 6 -> texte complet du motif (#527)",
-         identical(refus_mw_527(tri_usage[, 1:6]),
-                   paste("Triangle non carre (8 annees d'accident, 6 annees de developpement) :",
-                         "admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil,",
-                         "les formules des paragraphes 4 et 5 de cette section ne se calculant a la",
-                         "lettre que pour un triangle carre. Se ramener a un triangle carre exclut",
-                         "des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b)).")))
+# #567, etape 6 de S6, C3 : MW-04 retire ; le triangle 8 x 6 est calcule et
+# recoit l'avertissement de geometrie, texte (t1) fixe en T0
+# (docs/revues/20261120-s6-trapeze/t0-textes-etape6.md), une fois, en tete
+# des avertissements de la validation.
+verifier("run_engine reserve2 : triangle 8 x 6 (I > J) calcule depuis #567 (ancien MW-04) -> avertissement de geometrie (t1), texte complet, une fois, en tete",
+         {
+           r <- run_engine(methode = "reserve2", triangle = tri_usage[, 1:6], segment = 1, annexe = "II",
+                           B = B_MIN_USAGE, date_reference = DATE_REFERENCE_TESTS)
+           t1 <- paste("Triangle a 8 annees d'accident et 6 annees de developpement : verifier qu'aucune",
+                       "annee de developpement ne manque en fin de tableau (un triangle carre prive de ses",
+                       "dernieres colonnes a la meme forme). Le calcul tient pour acheve a la derniere annee",
+                       "de developpement fournie le developpement des annees d'accident i = 0 a 2 (reserve",
+                       "nulle) : hypothese a justifier par l'entreprise, l'annexe XVII, section D, point",
+                       "(2)(d), ne l'exigeant que de la premiere annee d'accident.")
+           identical(r$ok, TRUE) && !length(r$validation$erreurs) &&
+             identical(r$validation$avertissements[1], t1) &&
+             sum(r$validation$avertissements == t1) == 1L
+         })
 # #540, remarque R-1 : triangle I < J (8 x 9) par run_engine() : refus ok = FALSE,
 # un seul motif (MW-03), aucun "Triangle non carre".
 verifier("run_engine reserve2 : triangle 8 x 9 (I < J) -> ok = FALSE, un seul motif D(2)(e), sans \"non carre\" (#540, R-1)",
@@ -2137,8 +2156,9 @@ verifier("Colonnes vides (#483, #520) : triangle, colonne vide sans en-tete en b
 # par l'avis amont d'actuary sur K2, par. 1.1) : colonne vide sans en-tete
 # avant la premiere colonne de developpement renseignee, et apres i si i
 # existe, refusee comme annee de developpement 0 manquante presumee, avec ou
-# sans colonne i ; le motif tient lieu de "Triangle non carre". Colonne
-# numerotee par sa position dans le tableau lu, colonne i comprise.
+# sans colonne i ; le motif tenait lieu de "Triangle non carre" (MW-04,
+# retire par #567). Colonne numerotee par sa position dans le tableau lu,
+# colonne i comprise.
 motif520 <- function(cols)
   sprintf(paste("Colonne(s) vide(s) sans en-tete avant la premiere colonne renseignee du triangle (colonne(s) %s) :",
                 "annee de developpement 0 manquante presumee ; la renseigner, ou retirer la colonne vide",
@@ -2204,10 +2224,18 @@ verifier("Colonne 0 vide (#520, precision (B)) : colonne vide a gauche, i entre 
            identical(names(d), c("", paste0("j", 0:6), "i", "j7")) &&
              identical(engine_lire_triangle(d)$erreurs, motif520("1"))
          })
-verifier("Colonne 0 vide (#520) : vrai triangle non carre (colonne j7 absente) garde le motif \"Triangle non carre\"",
+# #567, etape 6 de S6, C3 (inventaire de la consigne d'architect, par. 1.4,
+# point 4 ; decision du mainteneur du 21/11/2026) : depuis le retrait de
+# MW-04, le carre 8 x 8 prive de sa colonne j7 a la forme d'un trapeze 8 x 7
+# et en est indiscernable ; il est accepte, l'avertissement de geometrie
+# (t1) etant son seul signal (aucun motif dedie).
+verifier("Colonne 0 vide (#520) : carre 8 x 8 prive de sa colonne j7 accepte depuis #567 (ancien motif \"Triangle non carre\"), aucun motif, avertissement de geometrie (t1) une fois",
          {
-           e <- engine_lire_triangle(tri520[, -9])$erreurs
-           length(e) == 1L && startsWith(e, "Triangle non carre (8 annees d'accident, 7 annees de developpement)")
+           r <- engine_lire_triangle(tri520[, -9])
+           isTRUE(r$ok) && !length(r$erreurs) && identical(dim(r$triangle), c(8L, 7L)) &&
+             sum(startsWith(r$avertissements,
+                            "Triangle a 8 annees d'accident et 7 annees de developpement : ")) == 1L &&
+             sum(startsWith(r$avertissements, "Triangle a ")) == 1L
          })
 verifier("Colonnes vides (#483) : triangle, colonne vide intercalee refusee (annee de developpement manquante), en-tete ou non",
          {
@@ -5566,14 +5594,15 @@ verifier("En-tetes romains (#568), CSV : casse uniforme sur toute la suite ; i, 
          })
 verifier("En-tetes romains (#568), CSV : un en-tete I sans II a sa droite garde ses motifs (colonne i) ; suite qui ne commence pas a I ou rompue avant II : aucune reconnaissance",
          {
-           # I seul sans colonne i : lu comme la colonne i, motif actuel (triangle non carre), comme l'en-tete i
+           # I seul sans colonne i : lu comme la colonne i, motif actuel, comme l'en-tete i : cellules
+           # observees manquantes (triangle 6 x 5 decale d'une colonne ; "Triangle non carre" jusqu'a #567)
            a <- r568(tri568(c("I", paste0("j", 1:5))))
            # colonne I fautive (non entiere) suivie de j0, j1, ... : motif V2 de la colonne i
            b <- r568(tri568(c("I", paste0("j", 0:5)), c(1, 2, 3, 4.5, 5, 6)))
            # i, I, III : H1 inchange ; II, III, ... (sans I) : aucun motif romain, triangle lu
            c3 <- r568(tri568(c("i", "I", "III", paste0("j", 2:5)), 1:6))
            d <- r568(tri568(rom568[2:7]))
-           !a$ok && grepl("^Triangle non carre", a$erreurs) &&
+           !a$ok && length(a$erreurs) == 5L && all(startsWith(a$erreurs, "Cellule observee manquante : ")) &&
              identical(a, r568(tri568(c("i", paste0("j", 1:5))))) &&
              identical(b$erreurs, V2_555(4)) &&
              identical(c3$erreurs, H1_I555(c(1, 2), c("i", "I"))) &&

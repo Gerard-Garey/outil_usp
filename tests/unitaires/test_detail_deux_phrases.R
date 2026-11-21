@@ -16,7 +16,7 @@
 #    A1 : chaque mention reconnait en entier un exemple produit par le moteur ;
 #         les mentions reecrites et les mentions de regime font une phrase ;
 #         texte_propre() retire les mentions ;
-#    A2 : les six cas de reference, recalcules par run_engine()
+#    A2 : les cas de reference (sept depuis reserve2_trapeze, #567), recalcules par run_engine()
 #         (tests/outils_tests.R, CAS ; environ 60 s) : texte propre <= 2
 #         phrases, <= 400 caracteres, non vide hors non applicable ;
 #         phrases du detail = phrases du texte propre + phrases des mentions ;
@@ -183,7 +183,7 @@ verifier("A1 texte_propre() retire les mentions posees par add() et garde la bas
            identical(texte_propre(paste(ex514$M15_b, BASE514)), BASE514) &&
            identical(texte_propre(paste(ex514$M16, BASE514)), BASE514))
 
-## --- A2 : six cas de reference ------------------------------------------------------
+## --- A2 : cas de reference (CAS) ----------------------------------------------------
 # Recalcul par run_engine() (CAS de tests/outils_tests.R, environ 60 s), pour
 # que le controle porte sur le moteur courant et non sur des references
 # anterieures a un patch. outils_tests.R est evalue dans un environnement
@@ -201,7 +201,10 @@ plus_de_deux <- unlist(lapply(names(res514), function(cas)
 # (M11). La specification en comptait 39, avec "Independance ratio S/P vs
 # volume" de premium_interieur : sans le renvoi de #215 (pi_t variable,
 # Q-7 (b)), son texte propre n'a qu'une phrase, M17a comprise 2 (mesure du
-# 09/11/2026), d'ou 38.
+# 09/11/2026), d'ou 38. Cas reserve2_trapeze (#567, etape 6 de S6, C3 ;
+# mesure du 21/11/2026) : 4 lignes de plus, les deux de reserve2 et
+# l'homogeneite de f_j (M11, verdict proche du seuil), et l'extrapolation de
+# sigma (M23, mention du trapeze), d'ou 42.
 r7_514 <- c("Independance ratio S/P vs volume", "Tendance monotone du ratio S/P",
             "Tendance par signes du ratio S/P", "Autocorrelation d'ordre 1 (Durbin-Watson)",
             "Test des suites (aleatoire des signes)")
@@ -215,9 +218,13 @@ attendu514 <- c(
     "Lilliefors (KS a parametres estimes)", "Jarque-Bera", "Asymetrie (D'Agostino, T >= 8)",
     "Valeur aberrante isolee (Grubbs)"), sep = " x "),
   paste("reserve2", c("Absence de tendance des facteurs avec le cumul, a colonne donnee",
-                      "Nullite de l'ordonnee a l'origine, colonne par colonne"), sep = " x "))
-verifier("A2 lignes a plus de deux phrases mentions comprises : exactement les 38 lignes attendues",
-         if (setequal(plus_de_deux, attendu514) && length(attendu514) == 38L) TRUE
+                      "Nullite de l'ordonnee a l'origine, colonne par colonne"), sep = " x "),
+  paste("reserve2_trapeze", c("Absence de tendance des facteurs avec le cumul, a colonne donnee",
+                              "Nullite de l'ordonnee a l'origine, colonne par colonne",
+                              "Homogeneite de f_j entre annees de survenance",
+                              "Extrapolation de sigma pour la derniere annee de developpement"), sep = " x "))
+verifier("A2 lignes a plus de deux phrases mentions comprises : exactement les 42 lignes attendues",
+         if (setequal(plus_de_deux, attendu514) && length(attendu514) == 42L) TRUE
          else paste("en trop :", paste(setdiff(plus_de_deux, attendu514), collapse = " | "),
                     "; manquantes :", paste(setdiff(attendu514, plus_de_deux), collapse = " | ")))
 # Phrases du detail = phrases du texte propre + phrases des mentions
@@ -509,7 +516,7 @@ verifier("A5 .mw_detail_extrapolation() sans argument sens",
 interdits514 <- c("rangs", "residus declares", "Valeurs : j = ", "k = 1 (",
                   "Sensibilite indicative", "loi de reference exacte seulement a pi_t constant",
                   "que z = P epsilon ne verifie pas", "est nommee par nature_p")
-verifier("A5 aucun detail des six cas ne contient les valeurs retirees par Q-3, les anciens textes de regime ni le renvoi a nature_p",
+verifier("A5 aucun detail des cas de reference ne contient les valeurs retirees par Q-3, les anciens textes de regime ni le renvoi a nature_p",
          {
            d <- unlist(lapply(res514, function(r) vapply(r$tests, `[[`, character(1), "detail")))
            tr <- d[vapply(d, function(s) any(vapply(interdits514, grepl, logical(1), s,

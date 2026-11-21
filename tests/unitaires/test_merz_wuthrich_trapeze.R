@@ -1,14 +1,15 @@
 ###############################################################################
 #  tests/unitaires/test_merz_wuthrich_trapeze.R  --  METHODE DU RISQUE DE
-#  RESERVE No 2 SUR UN TRAPEZE I > J, SOUS LA GARDE MW-04 (issue #567)
+#  RESERVE No 2 SUR UN TRAPEZE I > J (issue #567)
 #
 #  Etape 3 de S6 : les fonctions de Merz-Wuthrich sont generalisees a I >= J
 #  (convention (B), forme consolidee, specification d'actuary 2a,
 #  docs/revues/20261120-s6-trapeze/actuary-2a-specification-567.md ; decisions
-#  du mainteneur du 20/11/2026 : D1', Q-2a-1 (c), Q-2a-2, Q-2a-4, Q-2a-5),
-#  tandis que mw_valider_triangle() emet toujours MW-04 et que run_engine()
-#  refuse un trapeze. Les trapezes sont donc testes par les fonctions
-#  internes (chemin P1 de la specification, par. 9).
+#  du mainteneur du 20/11/2026 : D1', Q-2a-1 (c), Q-2a-2, Q-2a-4, Q-2a-5).
+#  Jusqu'a l'etape 6, C3, mw_valider_triangle() emettait MW-04 et
+#  run_engine() refusait un trapeze : les blocs ecrits avant la levee
+#  testent donc les trapezes par les fonctions internes (chemin P1 de la
+#  specification, par. 9).
 #    - C1 (par. 1.3) : MSEP et reserve egales, a 1e-12 relatif, aux valeurs
 #      de CL_MSEPs (ChainLadder 0.2.21, implementation de M. Wuthrich, non
 #      formule publiee) ; sigma2_(J-1) (regle et estimateur direct) egaux aux
@@ -31,7 +32,11 @@
 #      plots_data$facteurs, feuille usage_sigma, mention M23 du detail M6
 #      d'un trapeze (verifier_detail()), detail M6 d'un carre inchange,
 #      mw_cellules_observees() ;
-#    - garde : run_engine() rend ok = FALSE avec le seul motif MW-04.
+#    - etape 6, C3 (consigne d'architect, par. 1.4 ; texte (t1) de T0) :
+#      levee de MW-04 (decision D2 (a') du mainteneur, ADR 0005 annote le
+#      21/11/2026) ; run_engine() calcule un trapeze, avec l'avertissement de
+#      geometrie (t1), une fois ; sigma_USP du 8 x 6 (cas reserve2_trapeze)
+#      ecrit en dur ; I < J toujours refuse par MW-03 seul.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -72,6 +77,25 @@ tz_jeux <- list(
     m
   }))
 tz_aj <- lapply(tz_jeux, mw_ajuster)
+
+## --- Donnees du cas reserve2_trapeze (decision Q-F1 (a), etape 6, C3) --------
+# tests/donnees/triangle_mw_trapeze.csv : colonnes i et j0 a j5 de
+# triangle_mw.csv, texte des cellules repris a l'identique ; lu comme
+# tests/outils_tests.R lit le cas (.tri_trapeze), il donne le 8 x 6 tz_jeux.
+local({
+  src <- readLines(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  trp <- readLines(file.path(RACINE, "tests", "donnees", "triangle_mw_trapeze.csv"))
+  sept <- vapply(strsplit(src, ",", fixed = TRUE), function(x) {
+    x <- c(x, rep("", 9L - length(x)))           # champs vides de fin rendus par strsplit()
+    paste(x[1:7], collapse = ",")
+  }, character(1))
+  df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw_trapeze.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")]); storage.mode(m) <- "double"
+  verifier("triangle_mw_trapeze.csv = sept premiers champs de chaque ligne de triangle_mw.csv (texte), 8 x 6 lu = tz_carre[, 1:6]",
+           identical(trp, sept) && length(trp) == 9L &&
+             identical(utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))[, 1:7], df) &&
+             identical(unname(m), tz_jeux[["8x6"]]))
+})
 
 ## --- C1 : valeurs de CL_MSEPs (ChainLadder 0.2.21), ecrites en dur ----------
 # Colonnes : MSEP, reserve (sorties de CL_MSEPs), sigma2_(J-1) de la regle de
@@ -211,7 +235,7 @@ verifier("(s8) mw_plots_data() sur 8 x 6 : contributions et reserves par annee n
 # textes (t2) et (t3) de T0) : colonnes sigma_residus et sigma_residus_direct
 # en fin de plots_data$facteurs, feuille usage_sigma en fin de liste, mention
 # M23 en fin du detail M6 d'un trapeze, detail d'un carre inchange. Par les
-# fonctions internes (garde MW-04 en place), bootstrap a B = 19 : le detail
+# fonctions internes, bootstrap a B = 19 : le detail
 # M6 ne lit pas le bootstrap.
 tz_pd_tests <- function(a) {
   fg <- .mw_ensembles_figes(a); rs <- mw_residus(a)
@@ -388,15 +412,16 @@ local({
              identical(unname(a$reserve_par_annee[1:3]), c(0, 0, 0)))
 })
 # (s4) Annee i <= I-J a cumul decroissant : reserve de la ligne nulle ; le
-# triangle reste refuse par MW-04 seul (l'avertissement de cumul decroissant
-# n'est calcule qu'en l'absence de motif de refus : il sera teste a la levee
-# de la garde).
+# triangle est recevable depuis la levee de MW-04 (C3) et recoit
+# l'avertissement de cumul decroissant de la ligne (i = 1, lue jusqu'a
+# j = min(I - i, J) = J), apres l'avertissement de geometrie (t1).
 local({
   t <- tz_jeux[["8x5"]]; t[2, 5] <- t[2, 4] * 0.95
   a <- mw_ajuster(t); v <- mw_valider_triangle(t)
-  verifier("(s4) ligne i <= I-J a cumul decroissant : reserve identical(0) ; MW-04 seul",
-           identical(unname(a$reserve_par_annee[2]), 0) && !v$ok && length(v$erreurs) == 1L &&
-             startsWith(v$erreurs, "Triangle non carre ("))
+  verifier("(s4) ligne i <= I-J a cumul decroissant : reserve identical(0) ; recevable, avertissements (t1) puis cumul decroissant de l'annee 1",
+           identical(unname(a$reserve_par_annee[2]), 0) && isTRUE(v$ok) && !length(v$erreurs) &&
+             startsWith(v$avertissements[1], "Triangle a 8 annees d'accident et 5 annees de developpement") &&
+             sum(v$avertissements == "Annee d'accident 1 : cumul decroissant (recouvrement ou boni).") == 1L)
 })
 # (s5) Colonnes 0..J-2 degenerees (facteurs exactement 2), colonne J-1 non :
 # regle de minimum nulle, MSEP nulle, refus du triangle totalement degenere.
@@ -472,15 +497,33 @@ local({
   })
 })
 
-## --- Garde MW-04 : run_engine() refuse toujours un trapeze -------------------
+## --- Levee de MW-04 (etape 6, C3) : run_engine() calcule un trapeze --------
+# Consigne d'architect, par. 1.4 ; texte (t1) de T0 (texte complet teste dans
+# test_controles_entree.R). Les cinq geometries de l'ancienne garde, B = 99,
+# graine 20260831 : ok = TRUE, aucun motif, avertissement de geometrie (t1)
+# present une fois, en tete des avertissements de la validation. sigma_USP
+# ne lit pas le bootstrap (D(4) : c x racine(MSEP) / R + (1 - c) x sigma
+# standard) : celui du 8 x 6, cas reserve2_trapeze de tests/outils_tests.R,
+# est ecrit en dur (mesure du 21/11/2026, valeur du tableau
+# docs/tableaux/20261121-issue567-levee-mw04.md, egale a B = 99 et a
+# B = 999). Les tests du moteur sur trapeze de C4 ne sont pas ici.
+SIGMA_USP_8X6 <- 0.0475797067089398
 for (g in c("8x7", "8x6", "8x5", "10x5", "6x5")) local({
-  r <- run_engine(methode = "reserve2", triangle = tz_jeux[[g]], segment = 1, annexe = "II",
-                  date_reference = DATE_REFERENCE_TESTS, B = 99)
-  verifier(sprintf("Garde : run_engine() sur %s rend ok = FALSE avec le seul motif MW-04", g),
-           identical(r$ok, FALSE) && length(r$validation$erreurs) == 1L &&
-             startsWith(r$validation$erreurs, "Triangle non carre ("))
+  t <- tz_jeux[[g]]
+  r <- run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
+                  date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  debut <- sprintf("Triangle a %d annees d'accident et %d annees de developpement : ", nrow(t), ncol(t))
+  av <- r$validation$avertissements
+  verifier(sprintf("Levee de MW-04 : run_engine() sur %s rend ok = TRUE, sans motif, avertissement (t1) une fois, en tete", g),
+           identical(r$ok, TRUE) && !length(r$validation$erreurs) &&
+             sum(startsWith(av, "Triangle a ")) == 1L && startsWith(av[1], debut) &&
+             grepl(sprintf("annees d'accident i = 0 a %d (reserve nulle)", nrow(t) - ncol(t)), av[1],
+                   fixed = TRUE))
+  if (g == "8x6")
+    verifier("Levee de MW-04 : sigma_USP du 8 x 6 (reserve2_trapeze) = valeur du tableau, a 1e-12",
+             proche(r$parametre$sigma_usp, SIGMA_USP_8X6, rel = 1e-12))
 })
-verifier("Refus inchange : 5 x 6 (I < J) recoit MW-03 seul, sans MW-04", {
+verifier("Refus inchange : 5 x 6 (I < J) recoit MW-03 seul", {
   t <- matrix(NA_real_, 5, 6); t[, 1] <- c(100, 110, 120, 130, 140)
   for (j in 2:6) t[, j] <- t[, j - 1] * 1.1
   v <- mw_valider_triangle(t)
