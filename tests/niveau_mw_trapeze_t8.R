@@ -3,6 +3,18 @@
 #  MERZ-WUTHRICH SUR LES TRAPEZES 8 x 5, 8 x 6 ET 8 x 7 (issue #567,
 #  branche S6, etape 5 (b))
 #
+#  ETAT DEPUIS LA LEVEE DE MW-04 (annotation de l'etape 6, C4, issue #567) :
+#  mesure executee au commit 425c1c9 (moteur de md5 faf36c54..., garde MW-04
+#  en place ; docs/tableaux/20261120-issue567-niveau-trapeze-mw.md et son
+#  journal de mesure). Depuis f9eaff7 (etape 6, C3), run_engine() calcule les
+#  trapezes 8 x 5, 8 x 6 et 8 x 7 (ok = TRUE, avertissement de geometrie) :
+#  le controle d'integrite (m4) ci-dessous, qui exige ok = FALSE avec MW-04
+#  seul, echoue, et l'admission (P1) ecarte un motif qui n'est plus emis. Le
+#  script n'est donc plus rejouable tel quel ; sa logique est gardee telle
+#  qu'a la mesure, pour la tracabilite de la mesure de 425c1c9. Script de
+#  md5 d7d1a0e6... a la mesure ; seule la presente annotation a change
+#  cette empreinte.
+#
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.

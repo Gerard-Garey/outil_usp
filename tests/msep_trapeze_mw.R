@@ -3,6 +3,17 @@
 #  SUR UN TRAPEZE I > J A CL_MSEPs (ChainLadder 0.2.21), CRITERE C1
 #  (issue #567, branche S6, etape 5 (a))
 #
+#  ETAT DEPUIS LA LEVEE DE MW-04 (annotation de l'etape 6, C4, issue #567) :
+#  mesure executee au commit 766b9de (moteur de md5 faf36c54..., garde MW-04
+#  en place ; docs/tableaux/20261120-issue567-msep-trapeze.md). Depuis
+#  f9eaff7 (etape 6, C3), run_engine() calcule un trapeze : deux libelles de
+#  la sortie (statut : "garde MW-04 en place" ; ligne Moteur : "run_engine()
+#  refuse un trapeze (MW-04) jusqu'a D2") ne sont plus exacts. Le script
+#  n'est donc plus rejouable tel quel : rejoue, il ecrirait ces deux
+#  libelles ; sa logique est gardee telle qu'a la mesure, pour la
+#  tracabilite de la mesure de 766b9de. Script de md5 6e74e6c9... a la
+#  mesure ; seule la presente annotation a change cette empreinte.
+#
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
 #  test_unitaires.R (nom sans prefixe test_), ni par test_reproductibilite.R.

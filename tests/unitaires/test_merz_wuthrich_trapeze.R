@@ -506,12 +506,16 @@ local({
 # standard) : celui du 8 x 6, cas reserve2_trapeze de tests/outils_tests.R,
 # est ecrit en dur (mesure du 21/11/2026, valeur du tableau
 # docs/tableaux/20261121-issue567-levee-mw04.md, egale a B = 99 et a
-# B = 999). Les tests du moteur sur trapeze de C4 ne sont pas ici.
+# B = 999). Etape 6, C4 : les deux troncatures 10 x 7 et 10 x 9 de GenIns
+# s'ajoutent aux cinq geometries ; les resultats sont gardes dans tz_r pour
+# les tests du moteur de C4 (plus bas), sans second appel.
 SIGMA_USP_8X6 <- 0.0475797067089398
-for (g in c("8x7", "8x6", "8x5", "10x5", "6x5")) local({
+tz_r <- list()
+for (g in c("8x7", "8x6", "8x5", "10x5", "6x5", "10x7", "10x9")) local({
   t <- tz_jeux[[g]]
   r <- run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
                   date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  tz_r[[g]] <<- r
   debut <- sprintf("Triangle a %d annees d'accident et %d annees de developpement : ", nrow(t), ncol(t))
   av <- r$validation$avertissements
   verifier(sprintf("Levee de MW-04 : run_engine() sur %s rend ok = TRUE, sans motif, avertissement (t1) une fois, en tete", g),
@@ -528,6 +532,141 @@ verifier("Refus inchange : 5 x 6 (I < J) recoit MW-03 seul", {
   for (j in 2:6) t[, j] <- t[, j - 1] * 1.1
   v <- mw_valider_triangle(t)
   !v$ok && length(v$erreurs) == 1L && startsWith(v$erreurs, "D(2)(e)")
+})
+
+## --- Etape 6, C4 : tests du moteur sur trapezes -------------------------------
+# Consigne d'architect, par. 1.5 (docs/revues/20261120-s6-trapeze/
+# architect-6-forme-etape6-fable.md). Resultats tz_r de la levee de MW-04
+# (B = 99, graine 20260831, segment II-1). sigma_USP recompose (D(4) :
+# racine(MSEP) / R ; melange c x racine(MSEP) / R + (1 - c) x sigma standard,
+# c a la duree I + 1, G(3)(c) ; facteur de taille 1 en reserve no 2, verifie
+# par correction_taille), depuis des valeurs ecrites en dur : MSEP et R de
+# tz_c1 (CL_MSEPs) ; pour le 6 x 5, absent du tableau C1, MSEP et R mesures le
+# 21/11/2026 par le moteur de f9eaff7, recoupes ci-dessous par la
+# transcription independante tz_transcrire() a 1e-12 ; credibilite c du
+# bareme long du segment II-1 a la duree I + 1 (6, 8 et 10 annees :
+# 0,43, 0,59 et 0,74) et sigma standard 0,09 du segment II-1, ecrits en dur.
+tz_c4_6x5 <- c(5875.32255074124, 6086.0858807025)       # MSEP, R du 6 x 5
+verifier("C4 6 x 5 : MSEP et R ecrits en dur = transcription independante (B), a 1e-12", {
+  t <- tz_transcrire(tz_jeux[["6x5"]])
+  isTRUE(proche(c(t$msep, t$reserve), tz_c4_6x5, rel = 1e-12))
+})
+tz_c4 <- list(                                          # MSEP, R, c
+  "8x7"  = c(tz_c1[["8x7"]][1:2], 0.59), "8x6"  = c(tz_c1[["8x6"]][1:2], 0.59),
+  "8x5"  = c(tz_c1[["8x5"]][1:2], 0.59), "6x5"  = c(tz_c4_6x5, 0.43),
+  "10x5" = c(tz_c1[["10x5"]][1:2], 0.74), "10x7" = c(tz_c1[["10x7"]][1:2], 0.74),
+  "10x9" = c(tz_c1[["10x9"]][1:2], 0.74))
+for (g in names(tz_c4)) local({
+  r <- tz_r[[g]]; t <- tz_jeux[[g]]; v <- tz_c4[[g]]; p <- r$parametre
+  verifier(sprintf("C4 %s : metadata$T = I + 1 = %d (nombre d'annees d'accident), I = %d, J = %d, sigma standard 0,09, credibilite %.2f",
+                   g, nrow(t), nrow(t) - 1L, ncol(t) - 1L, v[3]),
+           identical(r$ok, TRUE) && identical(r$metadata$T, nrow(t)) &&
+             identical(r$metadata$I, nrow(t) - 1L) && identical(r$metadata$J, ncol(t) - 1L) &&
+             identical(r$metadata$sigma_standard, 0.09) && identical(p$sigma_standard, 0.09) &&
+             identical(p$credibilite, v[3]) && identical(p$correction_taille, 1))
+  verifier(sprintf("C4 %s : sigma_USP = c x racine(MSEP) / R + (1 - c) x 0,09 recompose depuis MSEP et R ecrits en dur, a 1e-12 ; MSEP, R et sigma estime du resultat idem", g),
+           isTRUE(proche(r$msep$msep, v[1], rel = 1e-12)) &&
+             isTRUE(proche(r$ajustement$reserve, v[2], rel = 1e-12)) &&
+             isTRUE(proche(p$sigma_estime, sqrt(v[1]) / v[2], rel = 1e-12)) &&
+             isTRUE(proche(p$sigma_usp, v[3] * sqrt(v[1]) / v[2] + (1 - v[3]) * 0.09, rel = 1e-12)))
+})
+# Reproductibilite sur une meme machine : deux appels a graine egale rendent
+# des objets identiques, hors horodatage et duree (champs retires par
+# nettoyer() de tests/outils_tests.R). Le 8 x 6 l'est deja par
+# test_reproductibilite.R (cas reserve2_trapeze, B par defaut) : ici le
+# 6 x 5 (I - J = 1) et le 10 x 5 (GenIns, I - J = 5), B = 99.
+for (g in c("6x5", "10x5")) local({
+  net <- function(r) { r$metadata[c("horodatage", "duree_sec")] <- NULL; r }
+  r2 <- run_engine(methode = "reserve2", triangle = tz_jeux[[g]], segment = 1, annexe = "II",
+                   date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  verifier(sprintf("C4 %s : deux appels de run_engine() a graine egale identical() (hors horodatage et duree)", g),
+           identical(net(tz_r[[g]]), net(r2)))
+})
+# R <= 0 sur un trapeze (cas (s3)) : run_engine() refuse par le motif M4,
+# seul, sans erreur levee ; l'avertissement de geometrie (t1) reste emis une
+# fois (la validation du triangle precede l'ajustement).
+verifier("C4 8 x 5 a reserve negative : run_engine() rend ok = FALSE, motif M4 seul (R <= 0), sans erreur R ; (t1) une fois", {
+  g <- c(1, 0.9, 0.8, 0.7, 0.6)
+  t <- outer(tz_carre[, 1], g) * (1 + 0.01 * sin(outer(1:8, 1:5)))
+  t[row(t) + col(t) - 2L > 7L] <- NA
+  r <- tryCatch(run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
+                           date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831),
+                error = function(e) e)
+  !inherits(r, "error") && identical(r$ok, FALSE) && length(r$validation$erreurs) == 1L &&
+    startsWith(r$validation$erreurs, "Reserve chain-ladder totale negative ou nulle (R = ") &&
+    sum(startsWith(r$validation$avertissements,
+                   "Triangle a 8 annees d'accident et 5 annees de developpement : ")) == 1L
+})
+
+## --- Etape 6, C4 : tests du lecteur sur trapezes ------------------------------
+# Export des donnees de l'application (tableau i, j0..jJ, engine_ecrire_csv()
+# et engine_ecrire_xlsx(), comme tableau_export() d'app.R) puis import (CSV
+# relu en texte comme lire_tableau() d'app.R ; classeur par
+# engine_lire_xlsx()) et engine_lire_triangle() : triangle relu identical(),
+# avertissement de geometrie (t1) une fois, absent d'avertissements_lecture
+# (#518 : ce que la validation d'une saisie ne voit pas). Jeux : les sept
+# trapezes et deux trapezes perturbes (cellules a 17 chiffres).
+tz_export <- function(m) { d <- data.frame(i = 0:(nrow(m) - 1L), m)
+                           names(d) <- c("i", paste0("j", 0:(ncol(m) - 1L))); d }
+tz_lire_csv <- function(f) utils::read.csv(f, colClasses = "character", blank.lines.skip = FALSE,
+                                           check.names = FALSE, na.strings = character(0),
+                                           row.names = NULL)
+tz_ecrire <- function(m, ext) {
+  f <- tempfile(fileext = ext)
+  if (identical(ext, ".csv")) engine_ecrire_csv(tz_export(m), f) else engine_ecrire_xlsx(tz_export(m), f)
+  f
+}
+tz_relu <- function(m, ext) {
+  f <- tz_ecrire(m, ext)
+  engine_lire_triangle(if (identical(ext, ".csv")) tz_lire_csv(f) else engine_lire_xlsx(f))
+}
+tz_jeux_lecteur <- c(tz_jeux[names(tz_c4)],
+                     list("8x6 x pi/3" = tz_jeux[["8x6"]] * pi / 3, "6x5 / 7" = tz_jeux[["6x5"]] / 7))
+tz_aller_retour <- function(ext) all(vapply(names(tz_jeux_lecteur), function(g) {
+  m <- tz_jeux_lecteur[[g]]; r <- tz_relu(m, ext)
+  isTRUE(r$ok) && identical(r$triangle, m) && identical(c(r$I, r$J), dim(m) - 1L) &&
+    sum(startsWith(r$avertissements, sprintf("Triangle a %d annees d'accident et %d annees de developpement : ",
+                                             nrow(m), ncol(m)))) == 1L &&
+    sum(startsWith(r$avertissements, "Triangle a ")) == 1L && !length(r$avertissements_lecture)
+}, logical(1)))
+verifier("C4 lecteur, aller-retour export CSV -> import : sept trapezes et deux perturbes relus identical(), (t1) une fois, avertissements_lecture vide",
+         tz_aller_retour(".csv"))
+if (base::requireNamespace("zip", quietly = TRUE) || nzchar(Sys.which("zip"))) {
+  verifier("C4 lecteur, aller-retour export xlsx -> import (engine_lire_xlsx()) : sept trapezes et deux perturbes relus identical(), (t1) une fois, avertissements_lecture vide",
+           tz_aller_retour(".xlsx"))
+} else cat("  [saute] aller-retour xlsx des trapezes : ni paquet zip ni commande zip\n")
+# Carre 8 x 8 prive de sa derniere colonne (colonne j7 retiree du fichier) :
+# accepte depuis la levee de MW-04 (decision du mainteneur du 21/11/2026),
+# l'avertissement (t1) etant son seul signal ; relu comme le trapeze 8 x 7.
+verifier("C4 lecteur : carre 8 x 8 du cas reserve2 prive de sa colonne j7, relu d'un CSV : accepte, triangle = 8 x 7 tronque, (t1) une fois, avertissements_lecture vide, meme lecture que le trapeze 8 x 7", {
+  d <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw.csv"))
+  f <- tempfile(fileext = ".csv"); engine_ecrire_csv(d[, setdiff(names(d), "j7")], f)
+  r <- engine_lire_triangle(tz_lire_csv(f))
+  isTRUE(r$ok) && !length(r$erreurs) && identical(r$triangle, tz_jeux[["8x7"]]) &&
+    sum(startsWith(r$avertissements, "Triangle a 8 annees d'accident et 7 annees de developpement : ")) == 1L &&
+    !length(r$avertissements_lecture) && identical(r, tz_relu(tz_jeux[["8x7"]], ".csv"))
+})
+# Rectangle 8 x 6 entierement rempli (triangle complete C_chapeau du 8 x 6) :
+# accepte avec les deux avertissements, (t1) puis cellules sous la diagonale
+# (#491), seul ce dernier dans avertissements_lecture ; le calcul ne lit que
+# la partie i + j <= I : sigma_USP du 8 x 6.
+local({
+  rect <- tz_aj[["8x6"]]$C_chapeau
+  r <- tz_relu(rect, ".csv")
+  av <- r$avertissements
+  i_t1 <- which(startsWith(av, "Triangle a 8 annees d'accident et 6 annees de developpement : "))
+  i_sd <- which(startsWith(av, "Cellule(s) renseignee(s) sous la diagonale (i + j > I) en "))
+  verifier("C4 lecteur : rectangle 8 x 6 rempli relu d'un CSV : accepte, deux avertissements, (t1) puis cellules sous la diagonale, une fois chacun ; avertissements_lecture = le second seul",
+           !anyNA(rect) && isTRUE(r$ok) && identical(r$triangle, rect) &&
+             length(i_t1) == 1L && length(i_sd) == 1L && i_t1 < i_sd &&
+             identical(r$avertissements_lecture, av[i_sd]))
+  e <- run_engine(methode = "reserve2", triangle = r$triangle, segment = 1, annexe = "II",
+                  date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  verifier("C4 rectangle 8 x 6 rempli : run_engine() calcule le 8 x 6 (triangle restitue restreint, sigma_USP du 8 x 6 a 1e-12), deux avertissements une fois chacun",
+           identical(e$ok, TRUE) && identical(e$triangle, tz_jeux[["8x6"]]) &&
+             isTRUE(proche(e$parametre$sigma_usp, SIGMA_USP_8X6, rel = 1e-12)) &&
+             sum(startsWith(e$validation$avertissements, "Triangle a ")) == 1L &&
+             sum(startsWith(e$validation$avertissements, "Cellule(s) renseignee(s) sous la diagonale")) == 1L)
 })
 
 fin_fichier()
