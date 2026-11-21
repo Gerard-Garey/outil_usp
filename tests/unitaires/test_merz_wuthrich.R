@@ -639,10 +639,13 @@ local({
   verifier("#310 : vocabulaire R1, ni 'extrapolee' ni 'imposee' dans le detail M6",
            !grepl("extrapol|impose", T514_M6) &&
              !grepl("extrapol|impose", .mw_detail_extrapolation(ex)))
-  verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, en fin, un seul TRUE en j = J - 1",
+  # Depuis #567 (etape 6 de S6), sigma_residus et sigma_residus_direct
+  # suivent sigma_regle_minimum en fin de table.
+  verifier("#310 : plots_data$facteurs$sigma_regle_minimum, logique, un seul TRUE en j = J - 1 ; #567 : sigma_residus, sigma_residus_direct en fin",
            {
              f <- run_mw(t_ref)$plots_data$facteurs
-             identical(names(f), c("j", "f", "sigma", "sigma_regle_minimum")) &&
+             identical(names(f), c("j", "f", "sigma", "sigma_regle_minimum", "sigma_residus",
+                                   "sigma_residus_direct")) &&
                is.logical(f$sigma_regle_minimum) && sum(f$sigma_regle_minimum) == 1L &&
                identical(f$j[f$sigma_regle_minimum], J - 1L) &&
                identical(f$sigma, sqrt(a$sigma2))
@@ -787,12 +790,14 @@ local({
   pd <- r312$plots_data; res <- pd$residus
   ga <- pd$residus_acc_groupes; gc <- pd$residus_cal_groupes
   # Depuis #311, qqline suit residus_cal_groupes en fin de liste.
-  # Depuis #305, sigma_usp_boot et boot_reperes suivent qqline.
-  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311, et les deux champs de #305), aucune feuille deplacee",
+  # Depuis #305, sigma_usp_boot et boot_reperes suivent qqline ; depuis
+  # #567 (etape 6 de S6), usage_sigma les suit.
+  verifier("#312 : residus_acc_groupes et residus_cal_groupes apres sigma_boot (puis qqline, #311, les deux champs de #305 et usage_sigma, #567), aucune feuille deplacee",
            {
              nm <- names(pd)
-             identical(utils::tail(nm, 6), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
-                                             "qqline", "sigma_usp_boot", "boot_reperes")) &&
+             identical(utils::tail(nm, 7), c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes",
+                                             "qqline", "sigma_usp_boot", "boot_reperes",
+                                             "usage_sigma")) &&
                identical(nm[1:14], c("facteurs", "reserve_par_annee", "residus", "residus_dev",
                                      "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                      "alpha", "origine", "influence", "contributions", "sigma_boot")) &&

@@ -26,6 +26,11 @@
 #      MSEP et simulation du bootstrap sur la valeur de la regle de minimum ;
 #    - cas speciaux (s1) a (s8) du par. 9 ; chemins P5 (bootstrap) et P6
 #      (mw_sensibilite_sigma2_dernier()) ;
+#    - etape 6, C1 (consigne d'architect, par. 1.2 ; textes (t2) et (t3) de
+#      T0) : colonnes sigma_residus et sigma_residus_direct de
+#      plots_data$facteurs, feuille usage_sigma, mention M23 du detail M6
+#      d'un trapeze (verifier_detail()), detail M6 d'un carre inchange,
+#      mw_cellules_observees() ;
 #    - garde : run_engine() rend ok = FALSE avec le seul motif MW-04.
 ###############################################################################
 
@@ -190,13 +195,84 @@ for (g in names(tz_jeux)) local({
       isTRUE(proche(sum(ct$terme_variance), m$terme_variance, rel = 1e-12))
   })
 })
-verifier("(s8) mw_plots_data() sur 8 x 6 : contributions et reserves par annee nulles pour i <= I-J", {
+verifier("(s8) mw_plots_data() sur 8 x 6 : contributions et reserves par annee nulles pour i <= I-J ; deux sigma de J-1 (#567, etape 6)", {
   a <- tz_aj[["8x6"]]; m <- mw_msep(a); rs <- mw_residus(a)
   pd <- mw_plots_data(a, rs, list(sigma_boot = numeric(0)), m, alpha = 0.10)
   identical(pd$contributions, mw_contributions(a, m)) &&
     identical(pd$reserve_par_annee$reserve[1:2], c(0, 0)) &&
     identical(pd$facteurs$sigma_regle_minimum, c(FALSE, FALSE, FALSE, FALSE, TRUE)) &&
-    identical(pd$facteurs$sigma, sqrt(a$sigma2))
+    identical(pd$facteurs$sigma, sqrt(a$sigma2)) &&
+    identical(pd$facteurs$sigma_residus_direct, c(FALSE, FALSE, FALSE, FALSE, TRUE)) &&
+    identical(pd$facteurs$sigma_residus, sqrt(.mw_sigma2_residus(a)))
+})
+
+## --- Restitution des deux sigma de J-1 et mention M6 (etape 6, C1) ------------
+# Forme (ii) de Q-A1 (consigne d'architect, par. 1.2, points 1 a 3 et 7 ;
+# textes (t2) et (t3) de T0) : colonnes sigma_residus et sigma_residus_direct
+# en fin de plots_data$facteurs, feuille usage_sigma en fin de liste, mention
+# M23 en fin du detail M6 d'un trapeze, detail d'un carre inchange. Par les
+# fonctions internes (garde MW-04 en place), bootstrap a B = 19 : le detail
+# M6 ne lit pas le bootstrap.
+tz_pd_tests <- function(a) {
+  fg <- .mw_ensembles_figes(a); rs <- mw_residus(a)
+  bt <- mw_bootstrap(a, B = 19, seed = 20260831, figes = fg)
+  ts <- mw_tests(a, bt, 0.10, figes = fg)
+  list(pd = mw_plots_data(a, rs, bt, mw_msep(a), alpha = 0.10), ts = ts,
+       m6 = Filter(function(x) identical(x$test,
+         "Extrapolation de sigma pour la derniere annee de developpement"), ts)[[1]])
+}
+NOMS_FACTEURS <- c("j", "f", "sigma", "sigma_regle_minimum", "sigma_residus", "sigma_residus_direct")
+tz_5x5 <- tz_carre[4:8, 1:5]                      # partie observee exactement i + j <= 4
+for (g in c("reserve2 8x8", "5x5", "GenIns 10x10")) local({
+  a <- mw_ajuster(switch(g, "reserve2 8x8" = tz_carre, "5x5" = tz_5x5, "GenIns 10x10" = tz_ta))
+  o <- tz_pd_tests(a); f <- o$pd$facteurs
+  verifier(sprintf("Carre %s : sigma_residus identical a sigma, drapeau direct FALSE partout, colonnes en fin", g),
+           identical(names(f), NOMS_FACTEURS) && identical(f$sigma_residus, f$sigma) &&
+             is.logical(f$sigma_residus_direct) && !any(f$sigma_residus_direct) &&
+             !anyNA(f$sigma_residus_direct))
+  verifier(sprintf("Carre %s : usage_sigma = MW_USAGE_SIGMA, derniere feuille ; detail M6 sans mention M23", g),
+           identical(o$pd$usage_sigma, MW_USAGE_SIGMA) &&
+             identical(utils::tail(names(o$pd), 1), "usage_sigma") &&
+             identical(names(MW_USAGE_SIGMA), c("sigma", "sigma_residus")) &&
+             identical(o$m6$detail, .mw_detail_extrapolation(mw_extrapolation_sigma2(a))) &&
+             !"M23" %in% mentions_presentes(o$m6$detail) && identical(o$m6$estim, a$sigma2[a$J]))
+})
+for (g in c("8x5", "8x6", "8x7")) local({
+  a <- tz_aj[[g]]; J <- a$J
+  o <- tz_pd_tests(a); f <- o$pd$facteurs
+  verifier(sprintf("%s : sigma_residus[J] = sqrt(sigma2_Jm1_direct), sigma_residus[-J] = sigma[-J], sigma inchange, un seul drapeau TRUE en j = J-1", g),
+           identical(names(f), NOMS_FACTEURS) &&
+             identical(f$sigma_residus[J], sqrt(a$sigma2_Jm1_direct)) &&
+             identical(f$sigma_residus[-J], f$sigma[-J]) && identical(f$sigma, sqrt(a$sigma2)) &&
+             is.logical(f$sigma_residus_direct) && sum(f$sigma_residus_direct) == 1L &&
+             identical(f$j[f$sigma_residus_direct], J - 1L) &&
+             identical(o$pd$usage_sigma, MW_USAGE_SIGMA) &&
+             identical(utils::tail(names(o$pd), 1), "usage_sigma"))
+  mention <- sprintf(FORMAT_MENTION_MW_SIGMA_DIRECT, a$I - J + 1L,
+                     format(a$sigma2_Jm1_direct, digits = 6, decimal.mark = "."), a$I - J)
+  base <- .mw_detail_extrapolation(mw_extrapolation_sigma2(a))
+  verifier(sprintf("%s : detail M6 = detail du carre puis mention M23 (.engine_joindre), estim = valeur de la regle", g),
+           identical(o$m6$detail, paste(base, mention)) &&
+             identical(o$m6$detail, .engine_joindre(base, mention)) &&
+             grepl(sprintf("porte %d facteurs", a$I - J + 1L), mention, fixed = TRUE) &&
+             grepl(sprintf("a %d degre(s) de liberte", a$I - J), mention, fixed = TRUE) &&
+             identical(o$m6$estim, a$sigma2[J]) &&
+             "M23" %in% mentions_presentes(o$m6$detail) &&
+             identical(texte_propre(o$m6$detail), base))
+  verifier_detail(o$ts, sprintf("mw_tests() sur le trapeze %s (mention M23)", g))
+})
+
+## --- mw_cellules_observees() : partie observee i + j <= I ---------------------
+verifier("mw_cellules_observees() : matrice logique de la dimension du triangle, = !is.na() des jeux (carres et trapezes)",
+         all(vapply(c(tz_jeux, list(tz_carre, tz_ta, tz_5x5)), function(t) {
+           m <- mw_cellules_observees(t)
+           is.logical(m) && is.matrix(m) && identical(dim(m), dim(t)) && identical(m, !is.na(t))
+         }, logical(1))))
+verifier("mw_cellules_observees() : 8 x 6, 8, 7, 6, 5, 4, 3 cellules observees dans les colonnes j = 0 a 5",
+         identical(colSums(mw_cellules_observees(tz_jeux[["8x6"]])), c(8, 7, 6, 5, 4, 3)))
+verifier("mw_cellules_observees() : forme seule lue (valeurs NA ou renseignees sous la diagonale sans effet)", {
+  t <- tz_jeux[["8x6"]]; t2 <- t; t2[8, 6] <- 1; t2[is.na(t2)] <- 7; t2[1, 1] <- NA
+  identical(mw_cellules_observees(t), mw_cellules_observees(t2))
 })
 
 ## --- Critere (o) : 8 x 7 et 8 x 8 ont les memes statistiques observees -------

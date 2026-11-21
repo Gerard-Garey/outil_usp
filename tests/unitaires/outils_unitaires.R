@@ -262,7 +262,12 @@ MENTIONS <- local({
     M20a = rx_fixe(MENTION_DELTA_BORNE_1),
     M20b = rx_fixe(MENTION_VOLUMES_CONSTANTS),
     M21 = rx_fixe(MENTION_EDGEWORTH),
-    M22 = rx_fixe(MENTION_PERMUTATIONS_ALEATOIRES))
+    M22 = rx_fixe(MENTION_PERMUTATIONS_ALEATOIRES),
+    # Mention M6 d'un trapeze I > J (#567, texte (t2)) : gabarit du moteur,
+    # %d -> \d+ (facteurs, degres de liberte), %s -> .rx_num (estimateur
+    # direct de sigma2_(J-1)).
+    M23 = gsub("%s", .rx_num, gsub("%d", "\\\\d+", rx_fixe(FORMAT_MENTION_MW_SIGMA_DIRECT),
+                                   fixed = FALSE), fixed = TRUE))
 })
 # Mentions conditionnelles presentes dans un detail (noms de MENTIONS).
 mentions_presentes <- function(x) {

@@ -13076,6 +13076,18 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     carre" (remarque R-1).
 ## =============================================================================
 
+# Cellules observees d'un triangle (I+1) x (J+1) (#567, etape 6 de S6,
+# consigne d'architect par. 1.2, point 4) : matrice logique de la dimension
+# de tri, TRUE si et seulement si i + j <= I (i = ligne - 1, j = colonne - 1,
+# I = nrow(tri) - 1), soit j <= min(I - i, J) quand I > J. Seule la forme de
+# tri est lue, jamais ses valeurs. Regle unique offerte a l'affichage ; les
+# trois emplois internes du moteur (.mw_avert_sous_diagonale(),
+# .mw_triangle_incomplet(), .run_engine_mw()) gardent leur propre
+# expression de la meme regle (ou de son complement, i + j > I).
+mw_cellules_observees <- function(tri) {
+  row(tri) + col(tri) - 2L <= nrow(tri) - 1L
+}
+
 # Cellules renseignees sous la diagonale (issue #491, decision du mainteneur
 # du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I renseignee (non NA,
 # NaN compris : is.na(NaN) vaut TRUE) est signalee par un avertissement non
@@ -13751,6 +13763,30 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
                     else "", lie)
   detail
 }
+
+# Mention conditionnelle du detail M6 pour un trapeze I > J (#567, etape 6
+# de S6, texte (t2) fixe par actuary, renvoi controle par regulatory,
+# docs/revues/20261120-s6-trapeze/t0-textes-etape6.md) : gabarit sprintf,
+# %d = I - J + 1 facteurs de la colonne J-1, %s = aj$sigma2_Jm1_direct
+# (format(digits = 6)), %d = I - J degres de liberte. Jointe par
+# .engine_joindre() en fin de detail par mw_tests(), seulement quand
+# aj$sigma2_Jm1_direct existe ; hors du compte des deux phrases de #514
+# (mention M23 des tests). Valeur lue dans mw_ajuster(), aucun nombre issu
+# du bootstrap (regle #76).
+FORMAT_MENTION_MW_SIGMA_DIRECT <- paste(
+  "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
+  "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
+  "facteurs, dont l'estimateur direct, %s a %d degre(s) de liberte, reduit les",
+  "residus de cette colonne (tests, influence, vivier du bootstrap) sans entrer dans",
+  "la MSEP ni dans la simulation : valeur donnee pour information.")
+
+# Usage des deux sigma_j de plots_data$facteurs (#567, forme (ii) de Q-A1,
+# texte (t3) fixe par actuary) : constante restituee telle quelle dans
+# plots_data$usage_sigma, pour toutes les geometries ; l'affichage y lit
+# les legendes au lieu de les ecrire.
+MW_USAGE_SIGMA <- c(
+  sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP et simulation",
+  sigma_residus = "sigma_(J-1) estime directement : residus de Mack et tests")
 
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
 # Formule telle qu'imprimee au paragraphe 5 de la version consolidee retenue
@@ -17166,11 +17202,19 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # La sensibilite de racine(MSEP) a sigma2_(J-1) (#310) n'est plus restituee
   # (#514, Q-3) : elle se recalcule par mw_sensibilite_sigma2_dernier(aj).
   ex <- mw_extrapolation_sigma2(aj)
+  # Trapeze I > J (#567, texte (t2)) : estimateur direct de sigma2_(J-1)
+  # donne pour information en fin de detail, estim inchange (valeur de la
+  # regle). Carre : champ absent, mention vide, detail identique a l'octet
+  # (.engine_joindre(a, "") rend a).
+  s2_dir <- aj[["sigma2_Jm1_direct"]]
+  mention_dir <- if (is.null(s2_dir)) "" else
+    sprintf(FORMAT_MENTION_MW_SIGMA_DIRECT, aj$I - aj$J + 1L,
+            format(s2_dir, digits = 6, decimal.mark = "."), aj$I - aj$J)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex))
+      detail = .engine_joindre(.mw_detail_extrapolation(ex), mention_dir))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -18138,10 +18182,20 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
     # D(5)(d)(ii), seconde ligne, et non estime ; FALSE partout si la regle
     # n'est pas applicable (mw_extrapolation_sigma2()$applicable).
+    # sigma_residus et sigma_residus_direct (#567, forme (ii) de Q-A1,
+    # colonnes ajoutees en fin) : sigma_j qui reduit les residus de Mack
+    # (.mw_sigma2_residus()), egal a sigma partout sauf en j = J - 1 d'un
+    # trapeze I > J, ou il porte l'estimateur direct ; drapeau TRUE en
+    # j = J - 1 seulement quand aj$sigma2_Jm1_direct existe, pose par la
+    # geometrie et non par comparaison des deux colonnes. Carre :
+    # sigma_residus identique a sigma, drapeau FALSE partout.
     facteurs = data.frame(j = 0:(aj$J - 1), f = aj$f,
                           sigma = sqrt(aj$sigma2),
                           sigma_regle_minimum = (0:(aj$J - 1)) == aj$J - 1 &
-                            isTRUE(mw_extrapolation_sigma2(aj)$applicable)),
+                            isTRUE(mw_extrapolation_sigma2(aj)$applicable),
+                          sigma_residus = sqrt(.mw_sigma2_residus(aj)),
+                          sigma_residus_direct = (0:(aj$J - 1)) == aj$J - 1 &
+                            !is.null(aj[["sigma2_Jm1_direct"]])),
     reserve_par_annee = data.frame(i = 0:aj$I,
                                    dernier = aj$dernier_observe,
                                    ultime = aj$ultime,
@@ -18220,6 +18274,9 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     pd$sigma_usp_boot <- sigma_usp_boot
     pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard)
   }
+  # Usage des deux sigma_j de facteurs (#567, texte (t3)), en toute fin de
+  # liste : aucune feuille existante n'est deplacee.
+  pd$usage_sigma <- MW_USAGE_SIGMA
   pd
 }
 
