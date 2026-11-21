@@ -24,7 +24,9 @@
 #       de l'appelant en sortie, normale ou sur erreur (ADR 0004, par analogie).
 #       Les decimal.mark appel par appel (#428) restent : les sections 1 et 2
 #       les exercent encore, par des fonctions qui ne sont pas des points
-#       d'entree (.engine_quantile()).
+#       d'entree (.engine_quantile()). Seule fonction du moteur citee par
+#       l'application hors des points d'entree, sur liste fermee :
+#       mw_cellules_observees() (#567), sans mise en texte d'un nombre.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -257,9 +259,25 @@ citees439 <- intersect(unique(unlist(lapply(
 # qui fait appeler engine_valider_declarations() par app.R : l'egalite est
 # alors setequal(citees439, PE439).
 PE_NON_CITES439 <- character(0)
-verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 17 attendues",
-         all(PE_NON_CITES439 %in% PE439) &&
-           setequal(citees439, setdiff(PE439, PE_NON_CITES439)))
+# Fonctions du moteur citees par l'application hors des points d'entree
+# (#567, etape 6 de S6, commit app: C2) : mw_cellules_observees(), regle des
+# cellules observees que la grille du triangle lit dans le moteur (consigne
+# d'architect, par. 1.3, point 1). Elle ne met aucun nombre en texte (corps
+# lu ci-dessous : ni fonction de mise en texte ni autre fonction du moteur),
+# l'option OutDec y est donc sans objet. Liste fermee : une fonction citee
+# qui n'est ni dans PE439 ni ici fait toujours echouer le test d'egalite.
+CITEES_HORS_PE439 <- "mw_cellules_observees"
+MISE_EN_TEXTE439 <- c("format", "formatC", "prettyNum", "sprintf", "gettextf", "paste",
+                      "paste0", "toString", "as.character", "cat", "print", "message",
+                      "warning", "stop", "writeLines", "write")
+verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 17 attendues, plus la liste fermee CITEES_HORS_PE439 (#567)",
+         all(PE_NON_CITES439 %in% PE439) && !any(CITEES_HORS_PE439 %in% PE439) &&
+           setequal(citees439, c(setdiff(PE439, PE_NON_CITES439), CITEES_HORS_PE439)))
+verifier("CITEES_HORS_PE439 : corps sans fonction de mise en texte ni autre fonction du moteur (OutDec sans objet) (#567)",
+         all(vapply(CITEES_HORS_PE439, function(nm) {
+           n <- all.names(body(get(nm, envir = env_moteur439)))
+           !any(n %in% MISE_EN_TEXTE439) && !any(n %in% setdiff(fn_moteur439, nm))
+         }, logical(1))))
 for (nm in PE439) {
   corps <- body(get(nm, envir = env_moteur439))
   verifier(sprintf("point d'entree : %s() commence par .engine_point_decimal()", nm),

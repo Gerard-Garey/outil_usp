@@ -38,7 +38,8 @@
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
 #     et par un second import du meme fichier ;
 #   - portee de PROFONDEUR_MAX, regle "T = donnees chargees" (issue #212,
-#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() et
+#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() (a
+#     deux dimensions depuis #567, motif "Triangle n_acc x n_dev") et
 #     profondeur_apres_reinitialisation() hors Shiny ; avec shiny, import
 #     d'un triangle 41 x 41 refuse avec motif (triangle courant garde),
 #     charger_mw() refusant au demarrage un fichier de 41 annees,
@@ -398,6 +399,19 @@ verifier("refus_dimension_triangle() : 41 et 100 annees refusees, motif qui nomm
                    "Triangle 41 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
            identical(.env$refus_dimension_triangle(100L),
                      "Triangle 100 x 100 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille)."))
+# Deux dimensions (#567, etape 6 de S6, consigne d'architect par. 1.3,
+# point 2) : motif "Triangle n_acc x n_dev", refus sur la plus grande ;
+# appel a un argument identique a l'appel (n, n).
+verifier("refus_dimension_triangle(n_acc, n_dev) : 8 x 6 et 40 x 39 sans motif, 41 x 8 et 8 x 41 refuses avec les deux dimensions, un argument = (n, n) (#567)",
+         identical(.env$refus_dimension_triangle(8L, 6L), character(0)) &&
+           identical(.env$refus_dimension_triangle(40L, 39L), character(0)) &&
+           identical(.env$refus_dimension_triangle(41L, 8L),
+                     "Triangle 41 x 8 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(8L, 41L),
+                     "Triangle 8 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(41L), .env$refus_dimension_triangle(41L, 41L)) &&
+           identical(.env$refus_dimension_triangle(10L, 8L, T_max = 9L),
+                     "Triangle 10 x 8 : au-dela de la limite de l'application (9 annees d'accident, rendu de la grille)."))
 # Demarrage sur un fichier de triangle de 41 annees (issue #212, M2 de la
 # revue) : charger_mw() est evaluee avec ses dependances d'app.R, FICHIER_MW
 # pointant vers un fichier ecrit dans un repertoire temporaire (le depot
