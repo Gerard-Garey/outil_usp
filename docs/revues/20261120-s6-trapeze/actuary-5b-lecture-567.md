@@ -909,3 +909,11 @@ for (loi in c("N", "E")) {
   cat(sprintf("%s : correlation des p (regle, direct) %.4f ; mediane |difference| %.4f\n", loi, cor(x$regle.PenteIntra, x$direct.PenteIntra), median(abs(x$regle.PenteIntra - x$direct.PenteIntra))))
 }
 ```
+
+## Décisions du mainteneur au point d'arrêt D2 (21/11/2026)
+
+- **Θ0 levé**, avec le motif du § 2.7 et du § 3 : signaux K3 sans lien avec l'implémentation (régénération 600 / 600, discrétude écartée par la vérification prévue d'avance), K-T6 Runs E expliqué par la composition des échantillons ; réserve du § 2.5 maintenue. Profil retenu : **Θ2**, plus la réserve PenteIntra sur le 8×7 (§ 4), hors grille.
+- **D2 : option (a′), extension** : MW-04 levée pour I > J à l'étape 6 (`app:` puis `moteur:`, seul commit qui change un résultat, visa du mainteneur) ; trois réserves écrites dans les fiches à l'étape 8 (MinP4 conservateur ; PenteIntra libéral sur trapèze sous ce plan, mécanisme et dépendance au profil des σ ; statut épistémique) ; issue créée pour réexaminer Q-2a-2 par une mesure, rattachée au plan par `architect` ; `Closes #567` maintenu.
+- **Q-A1 : forme (ii)** (`actuary-qa1-deux-sigma-trapeze.md`) : le moteur restitue les deux σ de la colonne J−1 d'un trapèze avec leur usage (colonne `sigma_residus` en fin de `plots_data$facteurs`, libellé d'usage lu dans l'objet) ; l'application trace le second point et corrige sa légende ; phrase dans la fiche M6 à l'étape 8.
+- **Seuil « macro »** (`routage.md` § 4.3) : consultation Fable autorisée, une, sur la forme de l'étape 6 (Fable : 1 sur 3 pour S6).
+- Suites : annotation de l'ADR 0005 par `architect` (lecture (A) → (B), forme consolidée seule) ; annotation de la spécification par `actuary` (constats M2 et m1) avant l'étape 8.
