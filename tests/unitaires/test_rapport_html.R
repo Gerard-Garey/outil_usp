@@ -3030,8 +3030,9 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 
 ## --- Graphique des facteurs et formule d'un trapeze I > J (#567) -------------
 # Etape 6 de S6, C2 (consigne d'architect, par. 1.3, points 5 et 6 ; textes
-# (t3) et (t4) de T0). run_engine() refusant encore un trapeze (garde MW-04),
-# plots_data est construit par les fonctions internes du moteur sur le 8 x 6
+# (t3) et (t4) de T0). Ecrit quand run_engine() refusait encore un trapeze
+# (garde MW-04, levee par C3) : plots_data est construit par les fonctions
+# internes du moteur sur le 8 x 6
 # tire des colonnes j0 a j5 de triangle_mw.csv. Second point J - 1 (losange
 # creux, pch 5) en (J - 1, sigma_residus) ; legendes lues dans
 # pd$usage_sigma ; axe des sigma_j etendu au point direct ; colonnes absentes
