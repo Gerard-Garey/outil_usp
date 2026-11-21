@@ -2302,7 +2302,9 @@ cle_val <- function(s, cle) {
 }
 CLES_263 <- c("Horodatage du calcul (run_engine)", "Dur\u00e9e du calcul", "Version de R")
 REFS_263 <- sort(list.files(file.path(.racine, "tests", "reference"), "[.]rds$", full.names = TRUE))
-verifier("Six references dans tests/reference/ pour le rapport fige (#263)", length(REFS_263) == 6L)
+# Autant de references que de cas dans CAS (tests/outils_tests.R) : sept
+# depuis l'ajout de reserve2_trapeze (#567, etape 6 de S6, C3).
+verifier("Sept references dans tests/reference/ pour le rapport fige (#263, #567)", length(REFS_263) == 7L)
 for (f_ref in REFS_263) {
   verifier(sprintf("Rapport fige sur la reference %s : sans erreur, tiret pour horodatage, duree et version de R (#263)",
                    basename(f_ref)),
