@@ -425,17 +425,54 @@ local({
 })
 # (s5) Colonnes 0..J-2 degenerees (facteurs exactement 2), colonne J-1 non :
 # regle de minimum nulle, MSEP nulle, refus du triangle totalement degenere.
-local({
+# Motif conditionne a la geometrie (constat m1 de l'etape 7 de S6, avis
+# d'actuary docs/revues/20261120-s6-trapeze/actuary-7-avis-m1-motif-degenere.md,
+# par. 4 ; decision du mainteneur du 21/11/2026, option (i)) : mw_residus()
+# retient les residus de la colonne J-1, le motif le dit (variante du
+# trapeze) ; une colonne J-1 aussi degeneree garde le motif du carre.
+tz_s5 <- function(f_Jm1) {
   t <- matrix(NA_real_, 8, 5)
   t[, 1] <- tz_carre[, 1]
   for (j in 1:3) t[, j + 1] <- 2 * t[, j]
-  t[1:4, 5] <- t[1:4, 4] * c(1.10, 1.12, 1.07, 1.15)
+  t[1:4, 5] <- t[1:4, 4] * f_Jm1
   t[row(t) + col(t) - 2L > 7L] <- NA
+  t
+}
+tz_frag_carre <- "aucun residu de Mack n'est retenu et, par D(4)"
+tz_frag_trapeze <- c("aucun residu de Mack n'est retenu sur les annees j = 0..J-2",
+                     "Seule l'annee de developpement J-1 (4 facteurs individuels, I - J + 1)",
+                     "absente de la MSEP")
+tz_contient <- function(e, x) vapply(x, grepl, logical(1), x = e, fixed = TRUE)
+local({
+  t <- tz_s5(c(1.10, 1.12, 1.07, 1.15))
   a <- mw_ajuster(t); m <- mw_msep(a); v <- mw_valider_ajustement(a, m$msep)
   verifier("(s5) colonnes 0..J-2 degenerees, J-1 non : MSEP nulle, refus totalement degenere",
            identical(a$sigma2[a$J], 0) && identical(m$msep, 0) && a$sigma2_Jm1_direct > 0 &&
              !((a$J - 1L) %in% .mw_colonnes_degenerees(a)) && .mw_triangle_totalement_degenere(a) &&
              !v$ok && any(grepl("Triangle totalement degenere", v$erreurs)))
+  rs <- mw_residus(a)
+  verifier("(s5) motif du trapeze : residus de la colonne J-1 retenus et dits ; un seul motif, aucun avertissement de colonnes",
+           nrow(rs) == 4L && all(rs$j == a$J - 1L) && length(v$erreurs) == 1L &&
+             !length(v$avertissements) && all(tz_contient(v$erreurs, tz_frag_trapeze)) &&
+             !tz_contient(v$erreurs, tz_frag_carre))
+  r <- run_engine(methode = "reserve2", triangle = t, segment = 1, annexe = "II",
+                  date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  verifier("(s5) run_engine() : ok = FALSE, le seul motif est celui de mw_valider_ajustement(), sans avertissement de colonnes",
+           identical(r$ok, FALSE) && identical(r$validation$erreurs, v$erreurs) &&
+             !any(grepl("sigma2_(J-1) = min", r$validation$avertissements, fixed = TRUE)) &&
+             !any(grepl(paste0("a facteurs individuels egaux a f_j a la tolerance relative 1e-12 de l'outil (",
+                               .MW_PREDICAT_DEGENERE_TEXTE), r$validation$avertissements, fixed = TRUE)))
+})
+# (s5 bis) Meme trapeze, colonne J-1 aussi degeneree (facteurs exactement
+# 1,10) : aucun residu retenu, motif du carre, sans fragment du trapeze.
+local({
+  t <- tz_s5(rep(1.10, 4))
+  a <- mw_ajuster(t); v <- mw_valider_ajustement(a, mw_msep(a)$msep)
+  verifier("(s5 bis) colonne J-1 aussi degeneree : aucun residu, motif du carre, un seul motif, aucun avertissement de colonnes",
+           .mw_triangle_totalement_degenere(a) && (a$J - 1L) %in% .mw_colonnes_degenerees(a) &&
+             nrow(mw_residus(a)) == 0L && !v$ok && length(v$erreurs) == 1L &&
+             !length(v$avertissements) && tz_contient(v$erreurs, tz_frag_carre) &&
+             !any(tz_contient(v$erreurs, c(tz_frag_trapeze, "Seule l'annee", "ne suffit pas a eprouver"))))
 })
 # (s6) Noms de ligne : sans effet sur le calcul ; MSEP sans nom (#319).
 local({

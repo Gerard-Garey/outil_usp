@@ -14095,9 +14095,22 @@ mw_valider_ajustement <- function(aj, msep) {
   # donnees existantes, rendues obligatoires par l'article 219, par. 1, d) :
   # coherence avec les hypotheses sur la nature stochastique des cumules
   # (D(2)(h), en particulier iv) et representativite du risque de reserve
-  # (D(2)(a)), inverifiables quand aucune variance n'est observee. La
-  # tolerance 1e-12 du predicat est une convention de l'outil. Motif evalue
-  # seulement en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
+  # (D(2)(a)), inverifiables quand aucune variance n'est observee sur
+  # j = 0..J-2. Sur un trapeze I > J (#567), la colonne J-1 porte I - J + 1
+  # facteurs et peut montrer de la variance : quand elle n'est pas degeneree
+  # et que son estimateur direct aj$sigma2_Jm1_direct est strictement positif,
+  # mw_residus() en retient les residus ; cette variance est pourtant ecartee
+  # de la MSEP par D(5)(d)(ii), ou sigma2_(J-1) est fixe par la regle de
+  # minimum, nulle ou negligeable des que sigma2_(J-2) ou sigma2_(J-3) l'est.
+  # Le refus est maintenu ; seul le texte du motif change, sous la condition
+  # nrow(mw_residus(aj)) > 0, qui suit le code sans predicat nouveau (constat
+  # m1 de l'etape 7 de S6 ; avis d'actuary et decision du mainteneur du
+  # 21/11/2026, option (i)) : la coherence avec D(2)(h)(iv) ne s'eprouve pas
+  # sur la seule colonne J-1, et la variabilite qu'elle montre est absente de
+  # la MSEP (D(2)(a)). Carre, et trapeze dont la colonne J-1 est aussi
+  # degeneree : aucun residu retenu, motif du carre inchange. La tolerance
+  # 1e-12 du predicat est une convention de l'outil. Motif evalue seulement
+  # en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
   # exemple), sigma(res,s,USP) n'est pas defini et le motif de la reserve
   # suffit. Un seul motif : les avertissements de colonnes (extrapolation de
   # sigma2_(J-1), colonnes exclues des residus) ne sont pas emis en plus
@@ -14105,25 +14118,43 @@ mw_valider_ajustement <- function(aj, msep) {
   # cumules) : inchanges, sous la doctrine de l'avertissement (Q-E2r-192-3).
   complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
   degenere <- !length(err) && complet && .mw_triangle_totalement_degenere(aj)
-  if (degenere)
-    err <- c(err, sprintf(paste0(
+  if (degenere) {
+    # Variante du trapeze (constat m1, specification d'actuary, par. 4) : les
+    # fragments [A] et [B] remplacent leur equivalent du motif du carre, le
+    # reste est commun ; motif du carre inchange au caractere pres.
+    jm1 <- nrow(mw_residus(aj)) > 0L
+    a_carre <- paste0(
+      "aucun residu ",
+      "de Mack n'est retenu et, par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a ",
+      "un ecart negligeable pres, sans contribution significative des donnees. ")
+    a_trapeze <- sprintf(paste0(
+      "aucun residu de Mack n'est retenu sur les annees j = 0..J-2 et, par D(4), ",
+      "sigma(res,s,USP) = (1 - c) * sigma(res,s) a un ecart negligeable pres, sans ",
+      "contribution significative des donnees. Seule l'annee de developpement J-1 ",
+      "(%d facteurs individuels, I - J + 1) porte des facteurs distincts et des residus ",
+      "de Mack ; sa variance n'entre pas dans la MSEP, ou sigma2_(J-1) est fixe par la ",
+      "regle de minimum de D(5)(d)(ii), nulle ou negligeable des que sigma2_(J-2) ou ",
+      "sigma2_(J-3) l'est. "), as.integer(aj$I - aj$J + 1L))
+    b1 <- if (jm1) ", que la seule annee J-1 ne suffit pas a eprouver" else ""
+    b2 <- if (jm1) ", la variabilite observee sur l'annee J-1 etant absente de la MSEP" else ""
+    err <- c(err, paste0(
       "Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2, ",
       "les facteurs individuels C(i,j+1)/C(i,j) sont identiques (a la tolerance ",
       "relative 1e-12 de l'outil pres : ", .MW_PREDICAT_DEGENERE_TEXTE, "). ",
       "Pour des facteurs exactement egaux, en arithmetique exacte, sigma2_j = 0 ",
       "(annexe XVII, D(5)(d)(ii)) et MSEP = 0 ; ici sigma2_j et la MSEP (valeur ",
-      "calculee : %s) sont nuls ou negligeables a la tolerance de l'outil (residus ",
-      "d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), aucun residu ",
-      "de Mack n'est retenu et, par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a ",
-      "un ecart negligeable pres, sans contribution significative des donnees. ",
+      "calculee : ", format(msep, digits = 3, decimal.mark = "."),
+      ") sont nuls ou negligeables a la tolerance de l'outil (residus ",
+      "d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), ",
+      if (jm1) a_trapeze else a_carre,
       "Ces donnees ne permettent pas d'etablir leur coherence avec les hypotheses sur la ",
       "nature stochastique des montants de sinistres cumules (D(2)(h), en particulier iv : ",
-      "variance proportionnelle au cumul precedent), ni leur representativite du risque ",
-      "de reserve (D(2)(a)) ; exigences de donnees rendues obligatoires par l'article 219, ",
+      "variance proportionnelle au cumul precedent)", b1, ", ni leur representativite du risque ",
+      "de reserve (D(2)(a))", b2, " ; exigences de donnees rendues obligatoires par l'article 219, ",
       "paragraphe 1, point d). L'outil n'applique donc pas a ce triangle la methode du ",
       "risque de reserve no 2 (article 220, paragraphe 1, point b)). Verifier qu'il ",
-      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."),
-      format(msep, digits = 3, decimal.mark = ".")))
+      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."))
+  }
   # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
   # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
   # colonne J-2 est degeneree, facteurs individuels egaux a f_j a la tolerance
