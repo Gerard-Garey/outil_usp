@@ -64,3 +64,4 @@ test_comparer_references.R	1.5
 test_patcher_reference.R	1.1
 test_regle_verdicts.R	0.8
 test_jonction_detail.R	0.5
+test_merz_wuthrich_trapeze.R	6.4

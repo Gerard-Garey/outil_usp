@@ -2087,11 +2087,11 @@ local({
                x <- mw_residus_redresses(a, rs)
                all(is.finite(x)) && max(abs(x) / sqrt(n - 1)) <= 1 + 1e-12
              }, logical(1))))
-  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data avant les deux champs de #305 ; feuilles anterieures inchangees et a leur place",
+  verifier("#311 : qqline = c(ordonnee = 0, pente = 1), derniere feuille de plots_data avant les deux champs de #305 et usage_sigma (#567) ; feuilles anterieures inchangees et a leur place",
            identical(pd$qqline, c(ordonnee = 0, pente = 1)) &&
-             identical(utils::tail(names(pd), 6),
+             identical(utils::tail(names(pd), 7),
                        c("sigma_boot", "residus_acc_groupes", "residus_cal_groupes", "qqline",
-                         "sigma_usp_boot", "boot_reperes")) &&
+                         "sigma_usp_boot", "boot_reperes", "usage_sigma")) &&
              identical(names(pd)[1:14], c("facteurs", "reserve_par_annee", "residus", "residus_dev",
                                           "residus_acc", "residus_cal", "residus_C", "qqnorm", "regressions",
                                           "alpha", "origine", "influence", "contributions", "sigma_boot")))

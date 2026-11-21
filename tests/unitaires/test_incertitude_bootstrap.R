@@ -78,13 +78,13 @@ verifier("Six cas : sigma_usp_boot = c sigma* corr + (1 - c) sigma_std (lognorma
          }, logical(1))))
 verifier("Six cas : plots_data$sigma_boot (sigma* brut) conserve tel quel",
          all(vapply(R6, function(r) identical(r$plots_data$sigma_boot, r$bootstrap$sigma_boot), logical(1))))
-verifier("Champs ajoutes en fin : lognormal ... spread_enveloppe, sigma_usp_boot, regime_boot, boot_reperes ; Merz-Wuthrich ... qqline, sigma_usp_boot, boot_reperes (sans regime_boot)",
+verifier("Champs ajoutes en fin : lognormal ... spread_enveloppe, sigma_usp_boot, regime_boot, boot_reperes ; Merz-Wuthrich ... qqline, sigma_usp_boot, boot_reperes, usage_sigma (#567) (sans regime_boot)",
          all(vapply(R6[CAS_LN], function(r)
            identical(utils::tail(names(r$plots_data), 4),
                      c("spread_enveloppe", "sigma_usp_boot", "regime_boot", "boot_reperes")) &&
              is.null(r$plots_data$regime_boot_motif), logical(1))) &&
-           identical(utils::tail(names(R6$reserve2$plots_data), 3),
-                     c("qqline", "sigma_usp_boot", "boot_reperes")) &&
+           identical(utils::tail(names(R6$reserve2$plots_data), 4),
+                     c("qqline", "sigma_usp_boot", "boot_reperes", "usage_sigma")) &&
            !("regime_boot" %in% names(R6$reserve2$plots_data)))
 
 # --- boot_reperes ------------------------------------------------------------

@@ -35,7 +35,11 @@
 #  section des controles, colonne Sens des tableaux de synthese et de detail,
 #  texte_alpha_divergent() (issue #498) ; date de reference du calcul et
 #  texte applicable dans l'en-tete, lus dans res$metadata, et lignes des
-#  declarations en section 4 (issue #504, ADR 0019).
+#  declarations en section 4 (issue #504, ADR 0019) ; trapeze I > J (#567,
+#  etape 6 de S6) : second point J - 1 du graphique des facteurs (sigma
+#  direct), legendes lues dans plots_data$usage_sigma, axe des sigma_j
+#  etendu, carre inchange ; texte_formule() du trapeze (texte (t4)), carre a
+#  l'octet.
 #  References : RFC 4648, section 10 (vecteurs de test base64) ; regle de
 #  selection de l'onglet Tests (filtrer_selection).
 #  La branche PNG est exercee partout ou capabilities("png") est vrai ; la
@@ -3023,6 +3027,143 @@ if (requireNamespace("plotly", quietly = TRUE)) {
 } else {
   cat("  note : plotly absent ; sous-graphiques plotly du graphique des facteurs non exerces (#310).\n")
 }
+
+## --- Graphique des facteurs et formule d'un trapeze I > J (#567) -------------
+# Etape 6 de S6, C2 (consigne d'architect, par. 1.3, points 5 et 6 ; textes
+# (t3) et (t4) de T0). run_engine() refusant encore un trapeze (garde MW-04),
+# plots_data est construit par les fonctions internes du moteur sur le 8 x 6
+# tire des colonnes j0 a j5 de triangle_mw.csv. Second point J - 1 (losange
+# creux, pch 5) en (J - 1, sigma_residus) ; legendes lues dans
+# pd$usage_sigma ; axe des sigma_j etendu au point direct ; colonnes absentes
+# ou drapeau FALSE (carre) : rendu de #310 inchange (tests ci-dessus).
+pd567 <- local({
+  a <- mw_ajuster(tri[, 1:6])
+  mw_plots_data(a, mw_residus(a), list(sigma_boot = numeric(0)), mw_msep(a), alpha = 0.10)
+})
+# Releve base R : legendes et points traces (pch, abscisses, ordonnees),
+# bords de la legende en coordonnees du peripherique (ndc) pris a l'appel de
+# legend(), avant la restauration de par() par plot_mw_facteurs().
+releve567 <- function(pd, l) {
+  e <- new.env(); e$pts <- list(); e$leg <- NULL
+  ns <- asNamespace("graphics")
+  suppressMessages({
+    trace("legend", exit = bquote(if (isTRUE(plot)) {
+      rr <- returnValue()$rect
+      assign("leg", list(texte = legend,
+        ndc = c(graphics::grconvertX(c(rr$left, rr$left + rr$w), "user", "ndc"),
+                graphics::grconvertY(c(rr$top - rr$h, rr$top), "user", "ndc"))), envir = .(e))
+    }), where = ns, print = FALSE)
+    trace("points.default", exit = bquote(assign("pts", c(get("pts", envir = .(e)),
+      list(list(x = x, y = y, pch = list(...)$pch, usr = graphics::par("usr")))), envir = .(e))),
+      where = ns, print = FALSE)
+  })
+  on.exit(suppressMessages({ untrace("legend", where = ns); untrace("points.default", where = ns) }))
+  option <- options(usp.graphiques_base = TRUE)
+  grDevices::pdf(NULL, width = l / 72, height = 330 / 72)
+  on.exit({ grDevices::dev.off(); options(option) }, add = TRUE)
+  plot_mw_facteurs(pd)
+  # Points de la legende (sous le panneau du bas, y < usr[3]) ecartes.
+  list(leg = e$leg, pts = Filter(function(p) p$y[1] >= p$usr[3], e$pts))
+}
+verifier("Graphique des facteurs, trapeze 8 x 6 : colonnes du moteur presentes, un seul drapeau direct en j = J - 1 = 4, sigma_residus distinct de sigma en ce point (#567)",
+         identical(pd567$facteurs$sigma_residus_direct, c(FALSE, FALSE, FALSE, FALSE, TRUE)) &&
+           pd567$facteurs$sigma_residus[5] != pd567$facteurs$sigma[5] &&
+           identical(pd567$usage_sigma, MW_USAGE_SIGMA))
+verifier("Graphique des facteurs, base R, trapeze 8 x 6 (395 et 480 x 330 px) : losange plein (sigma) et losange creux (sigma_residus) en j = 4, trois entrees de legende lues dans usage_sigma, legende dans le peripherique (#567)",
+         all(vapply(c(395, 480), function(l) {
+           r <- releve567(pd567, l); f <- pd567$facteurs
+           p23 <- Filter(function(p) identical(p$pch, 23), r$pts)
+           p5 <- Filter(function(p) identical(p$pch, 5), r$pts)
+           length(p23) == 1L && length(p5) == 1L &&
+             identical(as.numeric(p23[[1]]$x), 4) && identical(p23[[1]]$y, f$sigma[5]) &&
+             identical(as.numeric(p5[[1]]$x), 4) && identical(p5[[1]]$y, f$sigma_residus[5]) &&
+             identical(r$leg$texte, c("sigma_j estime", unname(pd567$usage_sigma[["sigma"]]),
+                                      unname(pd567$usage_sigma[["sigma_residus"]]))) &&
+             !(.LEGENDE_SIGMA_REGLE %in% r$leg$texte) &&
+             all(r$leg$ndc >= 0) && all(r$leg$ndc <= 1)
+         }, TRUE)))
+verifier("Graphique des facteurs, base R : axe des sigma_j etendu au sigma direct quand il depasse tous les sigma (8 x 6, sigma_residus[J] force a 2) (#567)",
+         {
+           p <- pd567; p$facteurs$sigma_residus[5] <- 2
+           r <- releve567(p, 480)
+           p5 <- Filter(function(q) identical(q$pch, 5), r$pts)
+           max(p$facteurs$sigma) < 2 && length(p5) == 1L && p5[[1]]$usr[4] >= 2
+         })
+verifier("Graphique des facteurs, base R : sans sigma_residus_direct, ou sans usage_sigma, aucun second point et legende T-5 (#567)",
+         all(vapply(list(local({ p <- pd567; p$facteurs$sigma_residus_direct <- NULL; p }),
+                         local({ p <- pd567; p$facteurs$sigma_residus <- NULL
+                                 p$facteurs$sigma_residus_direct <- NULL; p }),
+                         local({ p <- pd567; p$usage_sigma <- NULL; p })), function(p) {
+           r <- releve567(p, 480)
+           !any(vapply(r$pts, function(q) identical(q$pch, 5), TRUE)) &&
+             identical(r$leg$texte, c("sigma_j estime", .LEGENDE_SIGMA_REGLE))
+         }, TRUE)))
+verifier("Graphique des facteurs, base R, carre (reference reserve2) : drapeau direct FALSE partout, aucun second point, legende T-5 (#567)",
+         {
+           r <- releve567(pd310, 395)
+           identical(pd310$facteurs$sigma_residus_direct, rep(FALSE, nrow(pd310$facteurs))) &&
+             !any(vapply(r$pts, function(q) identical(q$pch, 5), TRUE)) &&
+             identical(r$leg$texte, c("sigma_j estime", .LEGENDE_SIGMA_REGLE))
+         })
+if (requireNamespace("plotly", quietly = TRUE)) {
+  verifier("Graphique des facteurs, plotly, trapeze 8 x 6 : losange plein et losange creux en j = 4, noms lus dans usage_sigma coupes au premier \" : \", axe des sigma_j etendu (#567)",
+           {
+             b <- b310(pd567)
+             nm <- vapply(b$data, function(t) if (is.null(t$name)) "" else t$name, "")
+             u <- pd567$usage_sigma
+             k1 <- which(nm == sub(" : ", "<br>", u[["sigma"]], fixed = TRUE))
+             k2 <- which(nm == sub(" : ", "<br>", u[["sigma_residus"]], fixed = TRUE))
+             p <- pd567; p$facteurs$sigma_residus[5] <- 2
+             b2 <- b310(p)
+             length(b$data) == 5L && length(k1) == 1L && length(k2) == 1L &&
+               identical(as.numeric(b$data[[k1]]$x), 4) &&
+               identical(as.numeric(b$data[[k1]]$y), pd567$facteurs$sigma[5]) &&
+               identical(b$data[[k1]]$marker$symbol, "diamond") &&
+               identical(as.numeric(b$data[[k2]]$x), 4) &&
+               identical(as.numeric(b$data[[k2]]$y), pd567$facteurs$sigma_residus[5]) &&
+               identical(b$data[[k2]]$marker$symbol, "diamond-open") &&
+               identical(b$data[[k2]]$yaxis, "y2") &&
+               !any(gsub("<br>", " ", nm, fixed = TRUE) == .LEGENDE_SIGMA_REGLE) &&
+               unlist(b2$layout$yaxis2$range)[2] >= 2
+           })
+  verifier("Graphique des facteurs, plotly, carre (reference reserve2) : quatre traces, aucun losange creux (#567)",
+           {
+             b <- b310(pd310)
+             sy <- vapply(b$data, function(t) if (is.null(t$marker$symbol)) "" else t$marker$symbol, "")
+             length(b$data) == 4L && !("diamond-open" %in% sy)
+           })
+} else {
+  cat("  note : plotly absent ; second point plotly d'un trapeze non exerce (#567).\n")
+}
+# Formule (texte (t4) de T0, corrige par regulatory) : objet reserve2 dont
+# metadata$J est force a 5 (I = 7), run_engine() refusant encore un trapeze ;
+# le carre garde a l'octet le texte d'avant #567, recompose ici par l'ancien
+# gabarit.
+verifier("texte_formule(), carre reserve2 : texte d'avant #567 a l'octet (#567)",
+         identical(texte_formule(res_mw), sprintf(paste(
+           "Formule appliquee (annexe XVII, section D, paragraphe 4) :",
+           "sigma_USP = c x racine(MSEP) / R + (1-c) x sigma_standard,",
+           "où R = somme_i (C^(i,J) - C(i,I-i)) est la reserve chain-ladder totale,",
+           "sans correction de taille finie, avec c = %.0f %% (bareme %s, duree %d ans)."),
+           100 * res_mw$parametre_final$credibilite, res_mw$metadata$bareme,
+           as.integer(res_mw$metadata$T))) &&
+           identical(res_mw$metadata$I, res_mw$metadata$J))
+verifier("texte_formule(), trapeze I = 7 > J = 5 : texte (t4), C(i,min(I-i,J)), annees i = 0 a 2 sans contribution (#567)",
+         {
+           r <- res_mw; r$metadata$J <- 5L
+           identical(texte_formule(r), paste0(
+             "Formule appliquee (annexe XVII, section D, paragraphe 4) : ",
+             "sigma_USP = c x racine(MSEP) / R + (1-c) x sigma_standard, ",
+             "où R = somme_i (C^(i,J) - C(i,min(I-i,J))) est la reserve chain-ladder totale ",
+             "(min(I-i,J) : convention de l'outil pour I > J, le texte ecrivant C(i,I-i)), ",
+             "a laquelle les annees d'accident i = 0 a 2, observees jusqu'a J, ne contribuent pas, ",
+             "sans correction de taille finie, avec c = 59 % (bareme long, duree 8 ans)."))
+         })
+verifier("texte_formule(), objet reserve2 sans I ni J : texte du carre (#567)",
+         {
+           r <- res_mw; r$metadata$I <- NULL; r$metadata$J <- NULL
+           identical(texte_formule(r), texte_formule(res_mw))
+         })
 
 
 ## --- Nuages de residus Merz-Wuthrich : moyennes par groupe (#312) ------------
