@@ -23,3 +23,5 @@
 - Segment interrompu : 2026-11-20T23:09:01Z ; 16 tranche(s) calculée(s) dans ce segment, 72 restante(s) (--duree-max 1.8 h)
 - Reprise : 2026-11-20T23:09:12Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
 - Segment interrompu : 2026-11-21T00:38:52Z ; 16 tranche(s) calculée(s) dans ce segment, 56 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T00:39:01Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-21T02:10:41Z ; 16 tranche(s) calculée(s) dans ce segment, 40 restante(s) (--duree-max 1.8 h)
