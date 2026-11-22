@@ -36,7 +36,13 @@
 #      levee de MW-04 (decision D2 (a') du mainteneur, ADR 0005 annote le
 #      21/11/2026) ; run_engine() calcule un trapeze, avec l'avertissement de
 #      geometrie (t1), une fois ; sigma_USP du 8 x 6 (cas reserve2_trapeze)
-#      ecrit en dur ; I < J toujours refuse par MW-03 seul.
+#      ecrit en dur ; I < J toujours refuse par MW-03 seul ;
+#    - constats M-1 et m-1 de la revue finale (avis d'actuary
+#      actuary-10-avis-m1-bootstrap-jm1.md, option (b), decision du
+#      mainteneur du 22/11/2026) : predicat .mw_simulation_sigma_direct()
+#      (cas (s2), variante J-2 degeneree, clause numerique, temoins),
+#      bootstrap du cas (s2) sur l'estimateur direct, mentions M6 et legendes
+#      usage_sigma par cas (.mw_cas_sigma_direct()).
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -400,6 +406,166 @@ local({
              a$sigma2_Jm1_direct > 0 && sum(rs$j == J - 1) == 3L &&
              isTRUE(mw_extrapolation_sigma2(a)$degeneree_Jm3))
 })
+## --- Constat M-1 de la revue finale : simulation de la colonne J-1 ----------
+# Avis d'actuary docs/revues/20261120-s6-trapeze/actuary-10-avis-m1-bootstrap-jm1.md,
+# option (b) ; decision du mainteneur du 22/11/2026. Regle de minimum nulle
+# ou negligeable, colonne J-1 non degeneree : .mw_simulation_sigma_direct()
+# vrai, mw_bootstrap() tire la colonne J-1 avec l'estimateur direct ; calcul
+# observe, MSEP et sigma_USP inchanges. Mentions M6 et legendes usage_sigma
+# par cas (constat m-1, .mw_cas_sigma_direct()).
+# tz_fixer() : facteurs de la colonne jc (0..J-1) poses a Fv (longueur
+# I - jc), colonnes suivantes reconstruites avec les facteurs individuels
+# d'origine de t0, partie non observee a NA.
+tz_fixer <- function(t0, jc, Fv) {
+  t <- t0; I <- nrow(t0) - 1L; J <- ncol(t0) - 1L
+  idx <- seq_len(I - jc)
+  t[idx, jc + 2] <- Fv * t[idx, jc + 1]
+  if (jc + 2L <= J) for (j in (jc + 2L):J) {
+    id <- which(!is.na(t0[, j + 1]))
+    t[id, j + 1] <- t[id, j] * (t0[id, j + 1] / t0[id, j])
+  }
+  t[row(t) + col(t) - 2L > I] <- NA
+  t
+}
+# Cas (s2) de l'audit : colonne J-3 = 2 a facteurs exactement 1,07 ;
+# variante J-2 degeneree : colonne J-2 = 3 a facteurs exactement 1,03 ;
+# clause numerique : colonne J-2 a facteurs 1,03 (1 + 1e-9 u), ecart relatif
+# de l'ordre de 1e-9, non degeneree.
+tz_m1 <- list(
+  s2 = tz_fixer(tz_jeux[["8x6"]], 2L, rep(1.07, 5)),
+  jm2 = tz_fixer(tz_jeux[["8x6"]], 3L, rep(1.03, 4)),
+  num = tz_fixer(tz_jeux[["8x6"]], 3L, 1.03 * (1 + 1e-9 * c(1, -1, 0.5, -0.5))))
+tz_m1_aj <- lapply(tz_m1, mw_ajuster)
+verifier("M-1 : MW_TOL_SIGMA_SIMULATION = 1e-10", identical(MW_TOL_SIGMA_SIMULATION, 1e-10))
+local({
+  a <- tz_m1_aj$s2; J <- a$J; ex <- mw_extrapolation_sigma2(a)
+  verifier("M-1 (s2) : regle nulle par la colonne J-3, colonne J-1 non degeneree, estimateur direct > 0, predicat vrai, cas \"simulation\"",
+           isTRUE(ex$degeneree_Jm3) && !isTRUE(ex$degeneree_Jm2) && identical(a$sigma2[J], 0) &&
+             !.mw_colonne_degeneree(a, J - 1L) && a$sigma2_Jm1_direct > 0 &&
+             isTRUE(.mw_simulation_sigma_direct(a)) &&
+             identical(.mw_cas_sigma_direct(a), "simulation"))
+  a <- tz_m1_aj$jm2; ex <- mw_extrapolation_sigma2(a)
+  verifier("M-1 variante J-2 degeneree : degeneree_Jm2, regle nulle, predicat vrai",
+           isTRUE(ex$degeneree_Jm2) && !isTRUE(ex$degeneree_Jm3) && identical(a$sigma2[J], 0) &&
+             isTRUE(.mw_simulation_sigma_direct(a)))
+  a <- tz_m1_aj$num; ex <- mw_extrapolation_sigma2(a)
+  verifier("M-1 clause numerique : colonne J-2 d'ecart relatif ~1e-9 non degeneree (degeneree FALSE), regle > 0 negligeable, predicat vrai",
+           !isTRUE(ex$degeneree) && ex$ecart_relatif_Jm2 > 1e-10 && ex$ecart_relatif_Jm2 < 1e-8 &&
+             a$sigma2[J] > 0 &&
+             sqrt(a$sigma2[J]) <= MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(max(a$tri[seq_len(a$I - J + 1), J])) &&
+             isTRUE(.mw_simulation_sigma_direct(a)))
+})
+# Clause numerique, de part et d'autre du seuil : 8 x 6 ordinaire dont
+# sigma2_(J-1) est force a 0,99 et 1,01 fois le carre du seuil.
+local({
+  a <- tz_aj[["8x6"]]; J <- a$J
+  s <- (MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(max(a$tri[seq_len(a$I - J + 1), J])))^2
+  a1 <- a; a1$sigma2[J] <- 0.99 * s
+  a2 <- a; a2$sigma2[J] <- 1.01 * s
+  verifier("M-1 clause numerique : sigma2_(J-1) a 0,99 fois le seuil au carre -> vrai, a 1,01 fois -> faux",
+           isTRUE(.mw_simulation_sigma_direct(a1)) && identical(.mw_simulation_sigma_direct(a2), FALSE))
+})
+verifier("M-1 temoins : predicat faux sur les carres (8 x 8, 5 x 5, GenIns), les sept trapezes ordinaires et (s1) (colonne J-1 degeneree)",
+         {
+           t1 <- tz_jeux[["8x6"]]; t1[1:3, 6] <- 2 * t1[1:3, 5]
+           l <- c(list(mw_ajuster(tz_carre), mw_ajuster(tz_5x5), mw_ajuster(tz_ta), mw_ajuster(t1)), tz_aj)
+           all(vapply(l, function(a) identical(.mw_simulation_sigma_direct(a), FALSE), logical(1))) &&
+             identical(unname(vapply(l, .mw_cas_sigma_direct, character(1))),
+                       c("carre", "carre", "carre", "degenere", rep("general", length(tz_aj))))
+         })
+# Bootstrap du cas (s2), B = 99 : boucle de mw_bootstrap() reproduite
+# (memes appels, meme graine), avec la copie de simulation et, en temoin,
+# avec aj lui-meme (comportement anterieur au correctif).
+local({
+  a <- tz_m1_aj$s2; J <- a$J; fg <- .mw_ensembles_figes(a); B <- 99L
+  bt <- mw_bootstrap(a, B = B, seed = 20260831, figes = fg)
+  verifier("M-1 (s2) mw_bootstrap(B = 99) : B effectif = B sur les 13 cles, p_mc d'Origine finie, aucun motif",
+           length(bt$B_effectif) == 13L && all(unlist(bt$B_effectif) == B) &&
+             is.finite(bt$p_mc[["Origine"]]) && all(is.na(unlist(bt$motif_mc))))
+  verifier("M-1 (s2) : statistiques observees = celles du contexte observe de aj (calcul observe inchange)",
+           identical(bt$stats_obs, as.list(.mc_evaluer(MW_CATALOGUE_MC,
+             .mw_contexte_mc(a, fg, new.env(parent = emptyenv()))))))
+  aB <- a; aB$sigma2[J] <- a$sigma2_Jm1_direct
+  btB <- mw_bootstrap(aB, B = B, seed = 20260831, figes = fg)
+  verifier("M-1 (s2) : bootstrap identical a celui de aj dont sigma2_(J-1) est remplace par l'estimateur direct (p_mc, stats_boot, objet entier)",
+           identical(bt$p_mc, btB$p_mc) && identical(bt$stats_boot, btB$stats_boot) && identical(bt, btB))
+  boucle <- function(a_tirage) engine_sous_graine(20260831, {
+    combn <- new.env(parent = emptyenv())
+    pool <- .mw_pool_residus(a, fg$degeneres)
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n <- 0
+    sim <- matrix(NA_real_, B, length(bt$stats_obs), dimnames = list(NULL, names(bt$stats_obs)))
+    deg <- logical(B); nres <- integer(B)
+    for (b in seq_len(B)) {
+      tir <- .mw_tirer_triangle_valide(a_tirage, pool, n_max - n); n <- n + tir$n
+      ab <- mw_ajuster(tir$tri)
+      sim[b, ] <- .mw_stats(ab, fg, replique = TRUE, combn = combn)[colnames(sim)]
+      deg[b] <- .mw_colonne_degeneree(ab, J - 1L)
+      nres[b] <- sum(mw_residus(ab, fg$degeneres)$j == J - 1L)
+    }
+    list(sim = sim, deg = deg, nres = nres)
+  })
+  apres <- boucle(aB)
+  verifier("M-1 (s2) boucle reproduite : replications identical a bt$stats_boot ; aucune replication a colonne J-1 degeneree ou sans ses 3 residus",
+           identical(apres$sim, bt$stats_boot) && !any(apres$deg) && all(apres$nres == 3L))
+  avant <- boucle(a)
+  verifier("M-1 (s2) temoin, tirage sur la regle nulle (avant le correctif) : colonne J-1 degeneree dans chaque replication",
+           all(avant$deg))
+})
+# run_engine() sur (s2) : Origine a une p-value ; mention M6 et legendes du
+# cas "simulation" ; (s1) : mention et legendes du cas "degenere".
+local({
+  r <- run_engine(methode = "reserve2", triangle = tz_m1$s2, segment = 1, annexe = "II",
+                  date_reference = DATE_REFERENCE_TESTS, B = 99, seed = 20260831)
+  o <- Filter(function(x) identical(x$test, "Nullite de l'ordonnee a l'origine, colonne par colonne"),
+              r$tests)[[1]]
+  m6 <- Filter(function(x) identical(x$test,
+    "Extrapolation de sigma pour la derniere annee de developpement"), r$tests)[[1]]
+  a <- r$ajustement; J <- a$J
+  base <- .mw_detail_extrapolation(mw_extrapolation_sigma2(a))
+  mention <- sprintf(FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION, a$I - J + 1L,
+                     format(a$sigma2_Jm1_direct, digits = 6, decimal.mark = "."), a$I - J)
+  verifier("M-1 (s2) run_engine(B = 99) : ok, ligne Origine a p Monte-Carlo retenue (B effectif = B)",
+           identical(r$ok, TRUE) && is.finite(o$p_mc) && identical(o$p_retenue, o$p_mc) &&
+             identical(r$bootstrap$B_effectif[["Origine"]], 99))
+  verifier("m-1 (s2) : detail M6 = detail de la regle puis mention du cas \"simulation\" (M23_simulation seule), estim = valeur de la regle ; usage_sigma = MW_USAGE_SIGMA_SIMULATION",
+           identical(m6$detail, .engine_joindre(base, mention)) &&
+             identical(mentions_presentes(m6$detail), "M23_simulation") &&
+             identical(texte_propre(m6$detail), base) && identical(m6$estim, a$sigma2[J]) &&
+             identical(r$plots_data$usage_sigma, MW_USAGE_SIGMA_SIMULATION) &&
+             identical(utils::tail(names(r$plots_data), 1), "usage_sigma"))
+  verifier_detail(r, "run_engine() sur (s2) (mention M23_simulation)")
+})
+local({
+  t1 <- tz_jeux[["8x6"]]; t1[1:3, 6] <- 2 * t1[1:3, 5]
+  a <- mw_ajuster(t1); J <- a$J; o <- tz_pd_tests(a)
+  base <- .mw_detail_extrapolation(mw_extrapolation_sigma2(a))
+  mention <- sprintf(FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE, a$I - J + 1L,
+                     format(a$sigma2_Jm1_direct, digits = 6, decimal.mark = "."), a$I - J)
+  verifier("m-1 (s1) : detail M6 = detail de la regle puis mention du cas \"degenere\" (M23_degenere seule) ; usage_sigma = MW_USAGE_SIGMA_DEGENERE",
+           identical(o$m6$detail, .engine_joindre(base, mention)) &&
+             identical(mentions_presentes(o$m6$detail), "M23_degenere") &&
+             identical(texte_propre(o$m6$detail), base) &&
+             identical(o$pd$usage_sigma, MW_USAGE_SIGMA_DEGENERE))
+  verifier_detail(o$ts, "mw_tests() sur (s1) (mention M23_degenere)")
+})
+verifier("m-1 : legendes usage_sigma des trois cas, noms sigma et sigma_residus, ASCII, coupees au premier \" : \" ; cas degenere : legende sigma du cas general",
+         all(vapply(list(MW_USAGE_SIGMA, MW_USAGE_SIGMA_SIMULATION, MW_USAGE_SIGMA_DEGENERE), function(u)
+           identical(names(u), c("sigma", "sigma_residus")) && !any(grepl("[^ -~]", u)) &&
+             all(grepl(" : ", u, fixed = TRUE)), logical(1))) &&
+           identical(MW_USAGE_SIGMA_DEGENERE[["sigma"]], MW_USAGE_SIGMA[["sigma"]]))
+verifier("m-1 : trois gabarits M23 a trois conversions (%d, %s, %d), chacun reconnu par sa seule expression",
+         {
+           g <- list(M23 = FORMAT_MENTION_MW_SIGMA_DIRECT,
+                     M23_degenere = FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE,
+                     M23_simulation = FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION)
+           all(vapply(names(g), function(k) {
+             conv <- regmatches(g[[k]], gregexpr("%[a-z]", g[[k]]))[[1]]
+             x <- sprintf(g[[k]], 3L, "0.0786829", 2L)
+             identical(conv, c("%d", "%s", "%d")) &&
+               identical(intersect(mentions_presentes(x), names(g)), k)
+           }, logical(1)))
+         })
+
 # (s3) R <= 0 (cumuls decroissants, facteurs < 1) : refus M4 inchange, reserve
 # des annees i <= I-J nulle.
 local({

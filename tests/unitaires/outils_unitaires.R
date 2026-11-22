@@ -201,6 +201,10 @@ rx_fixe <- function(s) gsub("([][{}()+*^$|\\\\.?])", "\\\\\\1", s)
   s <- rx_fixe(.mw_phrase_b_effectif(boot, "S"))
   gsub("\\b(900|999|99|30)\\b", "\\\\d+", s)
 }
+# Gabarit sprintf d'une mention M23 rendu en expression : %d -> \d+,
+# %s -> .rx_num.
+.rx_gabarit_m23 <- function(g)
+  gsub("%s", .rx_num, gsub("%d", "\\\\d+", rx_fixe(g), fixed = FALSE), fixed = TRUE)
 MENTIONS <- local({
   deg <- paste(rx_fixe(MOTIFS_MC_DEGENERES), collapse = "|")
   compl <- paste0("(?: ", rx_fixe(DETAIL_MC_ATOME_HORS_OBS), ")?")
@@ -265,9 +269,12 @@ MENTIONS <- local({
     M22 = rx_fixe(MENTION_PERMUTATIONS_ALEATOIRES),
     # Mention M6 d'un trapeze I > J (#567, texte (t2)) : gabarit du moteur,
     # %d -> \d+ (facteurs, degres de liberte), %s -> .rx_num (estimateur
-    # direct de sigma2_(J-1)).
-    M23 = gsub("%s", .rx_num, gsub("%d", "\\\\d+", rx_fixe(FORMAT_MENTION_MW_SIGMA_DIRECT),
-                                   fixed = FALSE), fixed = TRUE))
+    # direct de sigma2_(J-1)). Variantes de la colonne J-1 degeneree et de la
+    # simulation sur l'estimateur direct (constat m-1 de la revue finale de
+    # #567, .mw_cas_sigma_direct()), memes substitutions.
+    M23 = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT),
+    M23_degenere = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE),
+    M23_simulation = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION))
 })
 # Mentions conditionnelles presentes dans un detail (noms de MENTIONS).
 mentions_presentes <- function(x) {
