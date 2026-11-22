@@ -4436,7 +4436,7 @@ rester dans \code{stat}~: le moteur l'assure ligne par ligne, sans règle géné
 \code{loi} à \code{NA}, dans les deux méthodes. Le test d'invariant
 \code{tests/unitaires/test\_non\_applicable.R} le vérifie sur les jeux à volumes constants, à
 pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées,
-et, pour \code{loi}, aussi sur six des sept cas de référence (tous sauf \code{reserve2\_trapeze}).
+et, pour \code{loi}, aussi sur les sept cas de référence.
 La procédure ESD de Rosner, qui décide au niveau $\alpha$ sans produire de p-value, est un
 diagnostic par décision dans les deux méthodes (fiches~\ref{fiche:rosner-esd}
 et~\ref{mw:m4ros}).
@@ -6548,13 +6548,16 @@ support de la statistique observée, et chaque réplication y voit une colonne $
 Dans ce cas seulement (\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}),
 \code{mw\_bootstrap()} tire les triangles avec l'estimateur direct de $\sigma^2_{J-1}$
 (§\ref{sec:trapeze-niveau})~: \textbf{convention de l'outil, non réglementaire}, le règlement ne
-traitant pas de la simulation des tests. Mêmes tirages (mêmes appels à \code{sample()})~; vivier,
+traitant pas de la simulation des tests. Pour chaque triangle tiré, mêmes appels à
+\code{sample()}, dans le même ordre~; seul le retirage d'un triangle simulé à cumul non
+strictement positif peut dépendre de l'écart type de la colonne $J-1$. Vivier,
 statistiques observées, ensembles figés, ajustement et MSEP des réplications inchangés, comme la
 MSEP et $\sigma_{\mathrm{USP}}$, qui ne lisent pas la simulation. À tirages égaux, multiplier
 l'écart type simulé de la colonne $J-1$, qui n'alimente aucune autre colonne, multiplie par le
 même facteur les écarts $F(i,J-1) - \hat f_{J-1}$ de la réplication et la racine de son
 estimateur direct~: onze des treize statistiques simulées, qui ne lisent cette colonne que par des grandeurs
-réduites colonne par colonne ou par des rangs, n'en dépendent pas, et la convention ne fait pour
+réduites colonne par colonne ou par des rangs, n'en dépendent pas (propriété d'échelle des
+statistiques, tant que ce retirage n'en dépend pas), et la convention ne fait pour
 elles que remplacer la valeur~$0$ par une valeur strictement positive. La pente relative
 (fiche~\ref{mw:m1}) et la famille~$\alpha$ (fiche~\ref{mw:m1d}), qui combinent les colonnes
 entre elles, en dépendent, comme \code{sigma\_boot} et \code{res\$ic\_bootstrap}~: pour elles, la
@@ -6682,16 +6685,17 @@ l'intervalle «~basic~» logarithmique $[\hat\sigma^2/Q^{*}_{1-\alpha}~;~\hat\si
 dont chaque borne est calibrée par la proportion des réplications de second niveau qui la
 respectent, queues calibrées séparément~; C2, l'intervalle studentisé sur $\ln\sigma$, l'écart-type
 de chaque réplication étant estimé par son second niveau. Le principe de la calibration par double
-bootstrap est celui de J.~Chang et P.~Hall (2015, section~\ref{sec:biblio})~; son application à
+bootstrap est celui que décrivent J.~Chang et P.~Hall (2015, section~\ref{sec:biblio})~; son application à
 chaque borne d'un intervalle bilatéral est une construction de l'outil. \emph{Résultats}, à
 90~\%, 1\,000 triangles par loi~: C1 couvre $0{,}671$ (E) et $0{,}729$ (N), C2 $0{,}669$ et
 $0{,}719$, tous en distorsion matérielle libérale, l'intervalle de Clopper--Pearson du taux de
 non-couverture restant à $0{,}09$ au moins du bord haut de la bande~; à 95~\%, de $0{,}78$ à
 $0{,}80$. Les manques sont surtout au-dessus de la borne haute ($0{,}226$ à $0{,}293$ des
 triangles à 90~\%, contre $0{,}036$ à $0{,}055$ sous la borne basse)~: la calibration ramène la
-queue basse au voisinage du nominal, non la queue haute. Un percentile calibré est exclu par
-construction, $\sigma_A$ dépassant le plus grand des $\sigma^{*}$ dans $0{,}187$ (E) et $0{,}181$
-(N) des triangles. \textbf{Le bootstrap imbriqué ne rétablit donc pas le niveau nominal}, et aucun
+queue basse au voisinage du nominal, non la queue haute. Le percentile calibré n'est pas
+candidat~: ses bornes restent dans $[\min\sigma^{*}~;~\max\sigma^{*}]$, et $\sigma_A$ dépasse
+$\max\sigma^{*}$ dans $0{,}187$ (E) et $0{,}181$ (N) des triangles~; mesuré à titre descriptif, il
+couvre $0{,}704$ (E) et $0{,}739$ (N) à 90~\%. \textbf{Le bootstrap imbriqué ne rétablit donc pas le niveau nominal}, et aucun
 de ces intervalles n'est restitué par le moteur~; l'intervalle de percentile reste le seul
 intervalle restitué en méthode Merz--Wüthrich, avec la réserve ci-dessus. \emph{Statut}~: constat
 de simulation sous le modèle ajusté au triangle de contrôle (première colonne fixée), pour une
@@ -9251,7 +9255,7 @@ Couverture mesurée à $T = 8$ sous deux plans (constat de simulation)~: de $0{,
 logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap})~; en
 méthode Merz--Wüthrich (percentile sans ligne de test), $0{,}573$ et $0{,}617$ à 90~\% sur le
 triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$, ni aucun
-intervalle calibré par bootstrap imbriqué $0{,}729$ \\
+intervalle calibré par bootstrap imbriqué $0{,}739$ \\
 
 \end{longtable}
 \end{center}
@@ -15753,7 +15757,10 @@ statistiques simulées --- la dernière colonne de développement, qui ne compte
 individuel, ne fournit aucun résidu ---, mais dans la MSEP et dans le diagnostic de
 la fiche~\ref{mw:m6sig}. Sur un trapèze, la colonne $J-1$ fournit des résidus, réduits par un
 autre estimateur (§\ref{sec:trapeze-niveau})~; si elle n'est pas dégénérée, elle est alors
-simulée avec cet estimateur et non avec la valeur nulle de la règle (section~\ref{sec:boot-mw}). Le triangle de contrôle n'est pas dégénéré.
+simulée avec cet estimateur et non avec la valeur nulle de la règle (section~\ref{sec:boot-mw})~;
+cette convention, qui ne touche ni la MSEP ni $\sigma_{\mathrm{USP}}$, garde au seuil de la règle
+négligeable une discontinuité pour la pente relative, la famille~$\alpha$ et
+\code{sigma\_boot}. Le triangle de contrôle n'est pas dégénéré.
 
 Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité,
 \code{mw\_valider\_ajustement()} émet un \emph{avertissement} --- et non un
@@ -16109,7 +16116,7 @@ fortement, dans un sens ou dans l'autre~: sous le plan décrit ci-dessous, la r�
 $\sigma^2_{J-1}$ en moyenne sur $8\times5$ et $8\times6$, et vaut en médiane $0{,}09$ (N) et
 $0{,}11$ (E) fois le vrai $\sigma^2_{J-1}$ sur $8\times7$, où la $\sqrt{\mathrm{MSEP}}$ de la règle
 est inférieure de plus de $10~\%$ à celle que donnerait l'estimateur direct dans $37~\%$ (N) et
-$42~\%$ (E) des triangles (tableau K-T4 et valeurs brutes du fichier cité ci-dessous). C'est une
+$41{,}5~\%$ (E) des triangles (tableau K-T4 et valeurs brutes du fichier cité ci-dessous). C'est une
 propriété de la formule prescrite sous ce plan, non un défaut d'implémentation~; l'estimateur
 direct, à $I - J$ degrés de liberté, est lui-même très bruité, et aucune publication retrouvée ne
 départage les deux à $T = 8$.
@@ -16126,8 +16133,8 @@ géométries, et aucun théorème ne couvre ces tests bootstrap à $T = 8$. Les 
 Clopper--Pearson à 95~\% et ne mesurent que l'erreur Monte-Carlo en nombre de triangles~; l'écart
 à $\rho$ est l'erreur d'approximation à $T = 8$ du test bootstrap, objet mesuré~; l'erreur de
 substitution (plan et loi pris pour vrais) n'est pas quantifiée. Sur $8\times5$ et $8\times6$,
-aucune distorsion matérielle n'est classée et le niveau est comparable à celui du carré, avec deux
-réserves~:
+aucune distorsion matérielle n'est classée, le seul écart non tranché étant celui de la cellule
+aberrante~; deux réserves~:
 \begin{itemize}[itemsep=1pt]
 \item \emph{cellule aberrante} (fiche~\ref{mw:m4gr}), \textbf{conservatrice}~: sous N à $0{,}05$,
   $0{,}021$ $[0{,}015~;~0{,}028]$ sur $8\times5$ et $0{,}022$ $[0{,}016~;~0{,}029]$ sur $8\times6$,
@@ -16549,7 +16556,7 @@ inchangé.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Niveau} de la
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ et sur un trapèze (niveau sur trapèze~: rubrique~6). \emph{Niveau} de la
 p-value de Monte-Carlo, sur les triangles et sous les graines de la mesure de calibration
 (tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md},
 section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$ (E),
@@ -21208,8 +21215,8 @@ soutient dans le présent document.
   simulation}, \emph{Biometrika}, 102(1), 2015, p.~203--214.
   \emph{Portée.} Le double bootstrap conventionnel réduit l'erreur de couverture d'un intervalle
   de confiance d'un facteur $\mathcal{O}(n^{-1/2})$ en unilatéral et $\mathcal{O}(n^{-1})$ en
-  bilatéral (p.~1)~: ce sont des ordres asymptotiques, établis pour un estimateur fonction lisse
-  d'une moyenne (éq.~(1) et~(2), p.~2--3), cadre dont ne relève pas $\sqrt{\mathrm{MSEP}}/\hat R$,
+  bilatéral~: ce sont des ordres asymptotiques, rappelés p.~1, et valables dans le cadre où se
+  place l'article, un estimateur fonction lisse d'une moyenne (éq.~(1) et~(2), p.~2--3), cadre dont ne relève pas $\sqrt{\mathrm{MSEP}}/\hat R$,
   et qui ne disent rien à $T = 8$. La calibration du niveau nominal d'une borne par la proportion
   des intervalles de second niveau qui couvrent l'estimation (éq.~(9) à~(11), p.~6, écrites pour une
   seule réplication de second niveau, forme dont l'article montre qu'elle ne réduit pas l'ordre de
