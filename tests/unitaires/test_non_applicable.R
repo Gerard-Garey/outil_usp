@@ -141,12 +141,13 @@ for (nm in c("Test des suites (aleatoire des signes)", "Test des suites sur rati
            })
 })
 
-# Six references versionnees (une ligne non applicable par cas lognormal,
-# aucune en reserve2 ; leur egalite au moteur courant est controlee par
-# tests/test_reproductibilite.R).
-verifier("#533 references versionnees (6 cas) : toute ligne non applicable a loi NA",
+# Sept references versionnees (une ligne non applicable par cas lognormal,
+# aucune en reserve2 ni en reserve2_trapeze, #567 ; leur egalite au moteur
+# courant est controlee par tests/test_reproductibilite.R).
+verifier("#533 references versionnees (7 cas) : toute ligne non applicable a loi NA",
          {
-           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "premium_interieur")
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "premium_interieur",
+                    "reserve2_trapeze")
            v <- vapply(cas, function(k) {
              f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
              if (!file.exists(f)) return("reference absente")

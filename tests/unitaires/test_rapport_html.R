@@ -3139,9 +3139,11 @@ if (requireNamespace("plotly", quietly = TRUE)) {
   cat("  note : plotly absent ; second point plotly d'un trapeze non exerce (#567).\n")
 }
 # Formule (texte (t4) de T0, corrige par regulatory) : objet reserve2 dont
-# metadata$J est force a 5 (I = 7), run_engine() refusant encore un trapeze ;
-# le carre garde a l'octet le texte d'avant #567, recompose ici par l'ancien
-# gabarit.
+# metadata$J est force a 5 (I = 7) ; texte_formule() ne lit que
+# res$metadata et res$parametre_final, ce qui suffit a exercer la variante
+# du trapeze sans second appel de run_engine() (qui calcule un trapeze
+# depuis la levee de MW-04, f9eaff7) ; le carre garde a l'octet le texte
+# d'avant #567, recompose ici par l'ancien gabarit.
 verifier("texte_formule(), carre reserve2 : texte d'avant #567 a l'octet (#567)",
          identical(texte_formule(res_mw), sprintf(paste(
            "Formule appliquee (annexe XVII, section D, paragraphe 4) :",
