@@ -13085,7 +13085,10 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     d'extension naturelle au trapeze (ADR 0005, meme annotation, point 3).
 ##     La regle de minimum de sigma2_(J-1) (paragraphe 5(d)(ii), seconde
 ##     ligne) s'applique quel que soit I ; l'estimateur direct de
-##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1.
+##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1
+##     et, dans le seul cas de .mw_simulation_sigma_direct() (regle nulle
+##     ou negligeable, colonne J-1 non degeneree), a la simulation de la
+##     colonne J-1 par mw_bootstrap().
 ##     Un trapeze recoit de mw_valider_triangle() un avertissement non
 ##     bloquant (geometrie, colonne de developpement perdue, hypothese portee
 ##     par la convention pour les annees 0..I-J), et non plus le refus
@@ -13530,8 +13533,9 @@ mw_ajuster <- function(tri) {
 # aj$sigma2_Jm1_direct quand il existe (trapeze I > J). La colonne J-1 d'un
 # trapeze est ainsi traitee par la regle generique de toutes les colonnes :
 # somme_i r(i,J-1)^2 = n_(J-1) - 1, variance unitaire des residus redresses
-# du vivier. Lue par mw_residus(), mw_influence() et
-# mw_identifiabilite_intra() seulement ; f, C_chapeau et la MSEP gardent
+# du vivier. Lue par mw_residus(), mw_influence(),
+# mw_identifiabilite_intra() et mw_plots_data() (colonne sigma_residus)
+# seulement ; f, C_chapeau et la MSEP gardent
 # aj$sigma2 (regle de minimum), la simulation du bootstrap aussi, sauf dans
 # le cas de .mw_simulation_sigma_direct() (regle nulle ou negligeable,
 # colonne J-1 non degeneree), ou mw_bootstrap() simule la colonne J-1 avec
@@ -13828,19 +13832,28 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 #      une regle nulle ou negligeable ne changerait rien ;
 #   3. la regle est nulle par degenerescence d'un de ses arguments
 #      (mw_extrapolation_sigma2(aj)$degeneree), ou negligeable :
-#      sigma_(J-1) <= MW_TOL_SIGMA_SIMULATION * f_(J-1) * racine(max_i C(i,J-1)),
-#      i = 0..I-J, c'est-a-dire une dispersion relative simulee de F(i,J-1)
-#      d'au plus MW_TOL_SIGMA_SIMULATION pour le plus gros cumul de la
-#      colonne. La clause numerique couvre une regle rendue negligeable par
-#      le quotient sigma2_(J-2)^2 / sigma2_(J-3) sans colonne degeneree
+#      sigma_(J-1) <= MW_TOL_SIGMA_SIMULATION * f_(J-1) * racine(min_i C(i,J-1)),
+#      i = 0..I-J, c'est-a-dire une dispersion relative simulee
+#      sigma_(J-1) / (f_(J-1) racine(C(i,J-1))) de F(i,J-1) d'au plus
+#      MW_TOL_SIGMA_SIMULATION sur chaque ligne ; la plus dispersee est celle
+#      du plus petit cumul, et c'est elle qui gouverne .mw_colonne_degeneree()
+#      (ecart maximal sur les lignes) : predicat faux, elle garde une
+#      dispersion relative superieure a 1e-10, cent fois la tolerance 1e-12
+#      (avis d'actuary actuary-11-erratum-clause-min.md, erratum de
+#      l'avis actuary-10 : min et non max). La clause numerique couvre une
+#      regle rendue negligeable par le quotient sigma2_(J-2)^2 / sigma2_(J-3)
+#      sans colonne degeneree
 #      (colonne J-2 d'ecart relatif de l'ordre de 1e-9, par exemple).
 # MW_TOL_SIGMA_SIMULATION = 1e-10 : convention numerique, non seuil
-# statistique. Mesure d'actuary (rho.R, 500 replications du cas (s2) de
-# l'audit, refaite a l'identique le 22/11/2026) : replications dont la
-# colonne J-1 sort degeneree au sens de
-# .mw_colonne_degeneree() (tolerance 1e-12), 236 a une dispersion relative
-# simulee de 1e-12, 7 a 1e-11, 0 a 1e-10 ; d'ou 1e-10, marge de 1e-2 sur
-# l'amplitude des residus tires.
+# statistique. Mesure d'actuary (rho_min.R, 500 replications par point,
+# graine 1), refaite le 22/11/2026 a l'echelle du plus petit cumul :
+# replications dont la colonne J-1 sort degeneree au sens de
+# .mw_colonne_degeneree() (tolerance 1e-12), cas (s2) de l'audit
+# (C_max/C_min = 1,09), 250 / 7 / 0 replications degenerees sur 500 a
+# 1e-12 / 1e-11 / 1e-10 ; variante a ligne 0 multipliee par 100
+# (C_max/C_min = 97), 269 / 1 / 0, contre 1 / 0 / 0 a l'echelle du plus
+# gros cumul, qui ne gouverne pas la degenerescence. D'ou 1e-10, marge
+# de 1e-2 sur l'amplitude des residus tires.
 MW_TOL_SIGMA_SIMULATION <- 1e-10
 .mw_simulation_sigma_direct <- function(aj) {
   if (is.null(aj[["sigma2_Jm1_direct"]])) return(FALSE)
@@ -13848,7 +13861,7 @@ MW_TOL_SIGMA_SIMULATION <- 1e-10
   if (.mw_colonne_degeneree(aj, J - 1L)) return(FALSE)
   isTRUE(mw_extrapolation_sigma2(aj)$degeneree) ||
     isTRUE(sqrt(aj$sigma2[J]) <=
-             MW_TOL_SIGMA_SIMULATION * aj$f[J] * sqrt(max(aj$tri[seq_len(I - J + 1), J])))
+             MW_TOL_SIGMA_SIMULATION * aj$f[J] * sqrt(min(aj$tri[seq_len(I - J + 1), J])))
 }
 
 # Cas de la colonne J-1 lu par la mention M6 et par plots_data$usage_sigma

@@ -452,18 +452,34 @@ local({
   verifier("M-1 clause numerique : colonne J-2 d'ecart relatif ~1e-9 non degeneree (degeneree FALSE), regle > 0 negligeable, predicat vrai",
            !isTRUE(ex$degeneree) && ex$ecart_relatif_Jm2 > 1e-10 && ex$ecart_relatif_Jm2 < 1e-8 &&
              a$sigma2[J] > 0 &&
-             sqrt(a$sigma2[J]) <= MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(max(a$tri[seq_len(a$I - J + 1), J])) &&
+             sqrt(a$sigma2[J]) <= MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(min(a$tri[seq_len(a$I - J + 1), J])) &&
              isTRUE(.mw_simulation_sigma_direct(a)))
 })
 # Clause numerique, de part et d'autre du seuil : 8 x 6 ordinaire dont
-# sigma2_(J-1) est force a 0,99 et 1,01 fois le carre du seuil.
+# sigma2_(J-1) est force a 0,99 et 1,01 fois le carre du seuil, pris sur le
+# plus petit cumul de la colonne J-1 (avis d'actuary
+# actuary-11-erratum-clause-min.md : min et non max).
 local({
   a <- tz_aj[["8x6"]]; J <- a$J
-  s <- (MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(max(a$tri[seq_len(a$I - J + 1), J])))^2
+  s <- (MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(min(a$tri[seq_len(a$I - J + 1), J])))^2
   a1 <- a; a1$sigma2[J] <- 0.99 * s
   a2 <- a; a2$sigma2[J] <- 1.01 * s
   verifier("M-1 clause numerique : sigma2_(J-1) a 0,99 fois le seuil au carre -> vrai, a 1,01 fois -> faux",
            isTRUE(.mw_simulation_sigma_direct(a1)) && identical(.mw_simulation_sigma_direct(a2), FALSE))
+})
+# Temoin de la forme min (constat de /code-review) : sigma2_(J-1) egal au
+# produit des seuils pris sur le plus petit et le plus gros cumul, donc
+# sigma_(J-1) strictement entre les deux ; le predicat est faux (il etait
+# vrai sous la forme max).
+local({
+  a <- tz_aj[["8x6"]]; J <- a$J
+  cJm1 <- a$tri[seq_len(a$I - J + 1), J]
+  seuil_min <- MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(min(cJm1))
+  seuil_max <- MW_TOL_SIGMA_SIMULATION * a$f[J] * sqrt(max(cJm1))
+  a3 <- a; a3$sigma2[J] <- seuil_min * seuil_max
+  verifier("M-1 clause numerique : sigma_(J-1) strictement entre les seuils du plus petit et du plus gros cumul -> faux",
+           seuil_min < sqrt(a3$sigma2[J]) && sqrt(a3$sigma2[J]) < seuil_max &&
+             identical(.mw_simulation_sigma_direct(a3), FALSE))
 })
 verifier("M-1 temoins : predicat faux sur les carres (8 x 8, 5 x 5, GenIns), les sept trapezes ordinaires et (s1) (colonne J-1 degeneree)",
          {
