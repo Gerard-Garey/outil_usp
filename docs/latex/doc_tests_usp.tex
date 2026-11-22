@@ -6620,6 +6620,36 @@ n'est pas quantifiée. \emph{Statut}~: constat de simulation sous ces deux modè
 l'admission ($\hat R > 0$) et à $R^{*} > 0$~; aucune source lue ne chiffre ces couvertures à
 $n = 8$.
 
+\emph{Intervalles calibrés par bootstrap imbriqué, mesurés et non restitués.} Deux intervalles
+candidats ont été mesurés sur le triangle de contrôle, au même critère (classes et intervalles de
+Clopper--Pearson, fixés avant l'exécution~; script
+\code{tests/}\allowbreak\code{couverture\_ic\_sigma\_mw\_imbrique\_t8.R}, sortie
+\code{docs/tableaux/}\allowbreak\code{20261120-}\allowbreak\code{issue610-}\allowbreak\code{couverture-ic-sigma-mw-imbrique.md},
+valeurs brutes de même préfixe), avec $B_1 = 999$ réplications de premier niveau et, pour chacune,
+$B_2 = 199$ réplications de second niveau tirées sous le modèle ajusté à la réplication~: C1,
+l'intervalle «~basic~» logarithmique $[\hat\sigma^2/Q^{*}_{1-\alpha}~;~\hat\sigma^2/Q^{*}_{\alpha}]$
+dont chaque borne est calibrée par la proportion des réplications de second niveau qui la
+respectent, queues calibrées séparément~; C2, l'intervalle studentisé sur $\ln\sigma$, l'écart-type
+de chaque réplication étant estimé par son second niveau. Le principe de la calibration par double
+bootstrap est celui de J.~Chang et P.~Hall (2015, section~\ref{sec:biblio})~; son application à
+chaque borne d'un intervalle bilatéral est une construction de l'outil. \emph{Résultats}, à
+90~\%, 1\,000 triangles par loi~: C1 couvre $0{,}671$ (E) et $0{,}729$ (N), C2 $0{,}669$ et
+$0{,}719$, tous en distorsion matérielle libérale, l'intervalle de Clopper--Pearson du taux de
+non-couverture restant à $0{,}09$ au moins du bord haut de la bande~; à 95~\%, de $0{,}78$ à
+$0{,}80$. Les manques sont surtout au-dessus de la borne haute ($0{,}226$ à $0{,}293$ des
+triangles à 90~\%, contre $0{,}036$ à $0{,}055$ sous la borne basse)~: la calibration ramène la
+queue basse au voisinage du nominal, non la queue haute. Un percentile calibré est exclu par
+construction, $\sigma_A$ dépassant le plus grand des $\sigma^{*}$ dans $0{,}187$ (E) et $0{,}181$
+(N) des triangles. \textbf{Le bootstrap imbriqué ne rétablit donc pas le niveau nominal}, et aucun
+de ces intervalles n'est restitué par le moteur~; l'intervalle de percentile reste le seul
+intervalle restitué en méthode Merz--Wüthrich, avec la réserve ci-dessus. \emph{Statut}~: constat
+de simulation sous le modèle ajusté au triangle de contrôle (première colonne fixée), pour une
+loi d'erreurs donnée, conditionnel à l'admission ($\hat R > 0$) et à $R^{*} > 0$~; les intervalles
+de Clopper--Pearson ne mesurent que l'erreur de simulation en nombre de triangles, les effets de
+$B_1$ et $B_2$ étant inclus dans la procédure mesurée~; l'écart au nominal est l'erreur à
+$T = 8$ de la procédure, objet mesuré, que les ordres asymptotiques du double bootstrap ne
+chiffrent pas~; aucune mesure ne porte sur un trapèze.
+
 \emph{Écart au facteur sous forme stable.} Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
 à l'arrondi près, et la différence directe $F(i,j) - \hat f_j$ perd ses chiffres significatifs par
 annulation. L'écart est calculé par l'identité exacte
@@ -8508,7 +8538,7 @@ percentile sous-couvre nettement (constat de simulation, deux plans, fiche~\ref{
 non-convergence au bord établie par Andrews (2000) pour une moyenne contrainte, transposition à
 $\hat\delta$ non démontrée. En méthode Merz--Wüthrich, l'intervalle de percentile, restitué sans
 ligne de test, sous-couvre aussi (constat de simulation, deux triangles), et aucun intervalle
-«~basic~» mesuré ne rétablit le niveau \\
+mesuré, «~basic~» ou calibré par bootstrap imbriqué, ne rétablit le niveau \\
 
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
@@ -9169,7 +9199,8 @@ Couverture mesurée à $T = 8$ sous deux plans (constat de simulation)~: de $0{,
 90~\% pour le percentile et l'IC restreint, $0{,}886$ et $0{,}895$ pour l'intervalle «~basic~»
 logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap})~; en
 méthode Merz--Wüthrich (percentile sans ligne de test), $0{,}573$ et $0{,}617$ à 90~\% sur le
-triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$ \\
+triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$, ni aucun
+intervalle calibré par bootstrap imbriqué $0{,}729$ \\
 
 \end{longtable}
 \end{center}
@@ -14648,8 +14679,8 @@ en $T$~; l'extension à un autre $T$ ou à des données réelles est une \emph{h
 
 \emph{Couverture à $T = 8$, méthode Merz--Wüthrich.} Sous les modèles ajustés à deux triangles,
 \textbf{le percentile couvre nettement moins que son niveau nominal} ($0{,}52$ à $0{,}62$ pour
-90~\%~; $\hat\sigma$ sous-estimé, borne haute dépassée), \textbf{et aucun «~basic~» mesuré ne
-rétablit ce niveau}~: constat de simulation, même critère (section~\ref{sec:boot-mw}).
+90~\%~; $\hat\sigma$ sous-estimé, borne haute dépassée), \textbf{et aucun intervalle mesuré,
+«~basic~» ou calibré par bootstrap imbriqué, ne rétablit ce niveau}~: constat de simulation, même critère (section~\ref{sec:boot-mw}).
 
 \emph{Biais.} Sur les références, la moyenne des $\hat\sigma^{(b)}$ est inférieure à $\hat\sigma$
 de $11{,}2~\%$ (jeu de contrôle), $13{,}9~\%$ (\code{premium\_interieur}) et $11{,}3~\%$
@@ -21113,6 +21144,23 @@ soutient dans le présent document.
   vérifiée~; contenu lu sur la version de travail (Cowles Foundation Discussion Paper~1157,
   1997), le texte publié n'ayant pas pu être relu.
 
+  \item J.~Chang, P.~Hall, \emph{Double-bootstrap methods that use a single double-bootstrap
+  simulation}, \emph{Biometrika}, 102(1), 2015, p.~203--214.
+  \emph{Portée.} Le double bootstrap conventionnel réduit l'erreur de couverture d'un intervalle
+  de confiance d'un facteur $\mathcal{O}(n^{-1/2})$ en unilatéral et $\mathcal{O}(n^{-1})$ en
+  bilatéral (p.~1)~: ce sont des ordres asymptotiques, établis pour un estimateur fonction lisse
+  d'une moyenne (éq.~(1) et~(2), p.~2--3), cadre dont ne relève pas $\sqrt{\mathrm{MSEP}}/\hat R$,
+  et qui ne disent rien à $T = 8$. La calibration du niveau nominal d'une borne par la proportion
+  des intervalles de second niveau qui couvrent l'estimation (éq.~(9) à~(11), p.~6, écrites pour une
+  seule réplication de second niveau, forme dont l'article montre qu'elle ne réduit pas l'ordre de
+  l'erreur de couverture, p.~2) fonde le principe des intervalles calibrés par bootstrap imbriqué
+  mesurés en méthode Merz--Wüthrich (section~\ref{sec:boot-mw}), qui emploient le double bootstrap
+  conventionnel~; les mêmes pages notent qu'une racine studentisée demande l'écart-type recalculé
+  dans chaque réplication (p.~6). L'article ne chiffre aucune couverture à $n = 8$. Statut~:
+  contenu lu sur la prépublication (arXiv:1408.6327v1, 2014), dont sont tirées les pages citées~;
+  référence de la version publiée relevée sur la notice de la prépublication, texte publié non
+  relu.
+
   \item C.\,M. Crainiceanu, D.~Ruppert, \emph{Likelihood ratio tests in linear
   mixed models with one variance component}, \emph{Journal of the Royal
   Statistical Society, Series B}, 66(1), 2004, p.~165--185.
@@ -21898,7 +21946,8 @@ littérature consultée.
   $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
   hypothèse, étayée sur les deux plans lognormaux seulement~; en méthode Merz--Wüthrich, les
   chiffres mesurés étayent au contraire une hypothèse de non-pivotalité
-  (section~\ref{sec:boot-mw}), et aucun intervalle «~basic~» mesuré ne rétablit le niveau.
+  (section~\ref{sec:boot-mw}), et aucun intervalle mesuré, «~basic~» ou calibré par bootstrap
+  imbriqué, ne rétablit le niveau.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
   d'année calendaire n'est pas établie. Les moments de chaque $Z_k$ sont exacts,
   mais la normalité de leur somme sur un nombre réduit de diagonales n'est
@@ -22158,7 +22207,8 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         sous-couvrant nettement à $T = 8$ (constat de simulation sous deux plans par méthode), il se lit,
         en méthode lognormale, avec l'intervalle «~basic~» sur l'échelle logarithmique restitué
         en regard~; en méthode Merz--Wüthrich, aucun intervalle de remplacement n'est restitué,
-        et ses manques de couverture mesurés sont presque tous au-dessus de sa borne haute
+        aucun de ceux qui ont été mesurés, calibrés par bootstrap imbriqué compris, ne rétablissant
+        le niveau, et ses manques de couverture mesurés sont presque tous au-dessus de sa borne haute
         (fiche~\ref{fiche:ic-bootstrap}).
   \item \textbf{Position de $\hat\delta$ et rapport de vraisemblance aux bornes}
         (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}, diagnostics sans verdict) --
