@@ -1781,7 +1781,8 @@ colonne, \code{\$degeneree\_Jm3} (champs \code{\$colonne},
 ($10^{-10}$) & booléen, vrai si et seulement si \code{aj} est un trapèze, sa colonne $J-1$ n'est
 pas dégénérée (\code{.mw\_colonne\_degeneree()}) et la règle de minimum est nulle
 (\code{\$degeneree} de \code{mw\_extrapolation\_sigma2()}) ou au plus
-$10^{-10}\,\hat f_{J-1}\sqrt{\max_{0 \le i \le I-J} C(i,J-1)}$ en écart type~; lu par
+$10^{-10}\,\hat f_{J-1}\sqrt{\min_{0 \le i \le I-J} C(i,J-1)}$ en écart type (dispersion relative simulée
+d'au plus $10^{-10}$ sur chaque ligne)~; lu par
 \code{mw\_bootstrap()}, qui simule alors la colonne $J-1$ avec l'estimateur direct
 (section~\ref{sec:boot-mw}) \\
 \code{.mw\_cas\_}\newline\code{sigma\_direct()},\newline \code{.mw\_usage\_sigma()} & \code{aj} &
@@ -6540,8 +6541,11 @@ dit que le triangle est atypique de ce modèle dans cette direction~; il n'attri
 
 \emph{Colonne $J-1$ d'un trapèze à règle nulle ou négligeable.} Quand la règle de minimum est
 nulle (colonne $J-3$ ou $J-2$ dégénérée, §\ref{sec:mw}) ou négligeable, $\hat\sigma_{J-1} \le
-10^{-10}\,\hat f_{J-1}\sqrt{\max_{0 \le i \le I-J} C(i,J-1)}$ (\code{MW\_TOL\_SIGMA\_SIMULATION},
-convention numérique et non seuil statistique), alors que la colonne $J-1$ d'un trapèze n'est pas
+10^{-10}\,\hat f_{J-1}\sqrt{\min_{0 \le i \le I-J} C(i,J-1)}$ (\code{MW\_TOL\_SIGMA\_SIMULATION},
+convention numérique et non seuil statistique), c'est-à-dire une dispersion relative simulée
+$\hat\sigma_{J-1}/(\hat f_{J-1}\sqrt{C(i,J-1)})$ du facteur $F(i,J-1)$ d'au plus $10^{-10}$ sur
+chaque ligne $i$ (la ligne du plus petit cumul, la plus dispersée, gouverne la dégénérescence de la
+colonne, que \code{.mw\_colonne\_degeneree()} juge sur l'écart maximal entre lignes), alors que la colonne $J-1$ d'un trapèze n'est pas
 dégénérée, le modèle simulé avec cette valeur rend la colonne $J-1$ déterministe~: les données
 observées, où elle est dispersée, y sont de probabilité nulle, la loi de référence n'a pas le
 support de la statistique observée, et chaque réplication y voit une colonne $J-1$ dégénérée.
@@ -16115,7 +16119,7 @@ négligeable sur une colonne $J-1$ non dégénérée (section~\ref{sec:boot-mw})
 fortement, dans un sens ou dans l'autre~: sous le plan décrit ci-dessous, la règle surestime
 $\sigma^2_{J-1}$ en moyenne sur $8\times5$ et $8\times6$, et vaut en médiane $0{,}09$ (N) et
 $0{,}11$ (E) fois le vrai $\sigma^2_{J-1}$ sur $8\times7$, où la $\sqrt{\mathrm{MSEP}}$ de la règle
-est inférieure de plus de $10~\%$ à celle que donnerait l'estimateur direct dans $37~\%$ (N) et
+est inférieure de plus de $10~\%$ à celle que donnerait l'estimateur direct dans $37{,}2~\%$ (N) et
 $41{,}5~\%$ (E) des triangles (tableau K-T4 et valeurs brutes du fichier cité ci-dessous). C'est une
 propriété de la formule prescrite sous ce plan, non un défaut d'implémentation~; l'estimateur
 direct, à $I - J$ degrés de liberté, est lui-même très bruité, et aucune publication retrouvée ne
