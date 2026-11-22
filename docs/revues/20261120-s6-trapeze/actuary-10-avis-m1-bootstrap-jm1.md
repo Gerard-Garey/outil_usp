@@ -1,6 +1,8 @@
 # Avis d'`actuary` sur le constat M-1 de la revue finale (#567) : simulation de la colonne J−1 d'un trapèze quand la règle de minimum est nulle ou négligeable
 
 > *Rédigé par l'agent actuary-approfondi (IA) le 22/11/2026 ; versé intégralement par la session principale.* Constats d'origine : revue finale d'`audit` (`high`, étape 10, tête `24450d4`), M-1 (majeur) et m-1 (mineur). **Décision du mainteneur, 22/11/2026 : M-1 en option (b), prédicat à trois conditions avec la clause numérique `MW_TOL_SIGMA_SIMULATION = 1e-10` (dérogation à Q-2a-2 dans ce seul cas, verdicts changés acceptés sur la classe d'entrées visée) ; m-1 : gabarits conditionnés (DEGENERE, SIMULATION) et `usage_sigma` par cas, dans le même commit.** Scripts d'essai hors dépôt (dossier temporaire de session) : `a1.R`, `inv.R`, `rho.R`, `niveau.R`, `ic.R`, `ref.R`, `s1b.R`.
+>
+> **Errata (22/11/2026, session).** (1) La clause numérique du prédicat lit `min` et non `max` des C(i,J−1) : voir `actuary-11-erratum-clause-min.md`. (2) L'invariance trajectorielle n'est établie qu'à retirage inchangé (vérifiée de k = 1e-4 à 1e2), non à k = 1e4 : voir `actuary-9-validation-tex.md`, point 4.
 
 ## Avis d'actuary sur M-1 et m-1, branche `claude/merz-wuthrich-trapeze`, tête `24450d4`
 
