@@ -5820,11 +5820,14 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     # cible (n = B) ou a B_max tirages. Levier P1 : un tirage dont le
     # reajustement echoue ou dont delta** n'est pas interieur ne donne lieu a
     # aucun calcul de statistique. Le flux ne calcule que les statistiques
-    # du catalogue (ni bootstrap restreint, ni sigma*, ni z*) et n'imprime
-    # rien.
+    # du catalogue (ni bootstrap restreint, ni sigma*, ni z*). Sous
+    # progres = TRUE, il imprime un point tous les 1 000 tirages du flux
+    # (tir - B, rejets compris) et un saut de ligne a la fin s'il en a
+    # imprime au moins un (issue #255) ; cat() ne consomme aucun alea.
     if (n < B_cible) engine_sous_graine(graine_flux, {
       while (n < B_cible && tir < B_max) {
         tir <- tir + 1
+        if (progres && (tir - B) %% 1000 == 0) cat(".")
         yb <- usp_simuler(fit)
         f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
         if (inherits(f, "try-error") || !is.finite(f$delta)) {
@@ -5840,6 +5843,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
         n <- n + 1
         S[n, ] <- sb[noms]
       }
+      if (progres && tir - B >= 1000) cat("\n")
     })
     stats_boot <- S[seq_len(n), , drop = FALSE]
     mc <- .mc_p_values(stats_boot, stats_obs, USP_CATALOGUE_MC, e_obs)
