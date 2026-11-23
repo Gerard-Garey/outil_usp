@@ -1,0 +1,46 @@
+## Constat (1), bloc S complet -- PROVISOIRE (mesure #612 incomplète)
+
+B = 999 ; SHA d6ff8846b9516761dddd2c7de253ad863d79d268 ; md5 R/engine.R 5bffa72279b34a7ab12bd5b9f13abc15 ; script 1e320e8e1b765dfd8ff64ad4b97df1ba ; protocole md5 70176c2e3ded10922eeb81971b533ae7. Contrôles avant tout tirage : OK. Les contrôles sur les lignes calculées et (1) fin ne sont évalués qu'à la mesure complète.
+
+### Constat (1) : sonde de la plage de dispersion relative 1e-12 à 1e-10 (bloc S)
+
+Part touchée : réplications ajustées où une colonne hors de l'ensemble figé, dégénérée au sens de .mw_colonne_degeneree(), garde des résidus (code courant), divisées par le nombre de réplications ajustées, triangle observé exclu (compté à part) ; |Δp| max entre code courant et prototype P1 rapporté à err_mc du code courant. Règle (plage 1e-12 à 1e-10) : **correction (part touchée non nulle et |Δp| > 2 err_mc dans la plage)**.
+
+| Colonne sondée | ρ | Variante | statut | colonnes figées | j* dégénérée | observé touché | réplications ajustées | touchées | part touchée | appels touchés / appels (réplications) | stats_obs identiques | |Δp| max | |Δp| / err_mc max (clé) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| J−2 du carré (j* = 5) | 5e-13 | V0 | admis | 5,6 | 1 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du carré (j* = 5) | 2e-12 | V0 | admis | 6 | 0 | non | 999 | 396 | 0,3964 | 396 / 999 | oui | 0,09400 | 3,19 (PenteIntra) |
+| J−2 du carré (j* = 5) | 5e-12 | V0 | admis | 6 | 0 | non | 999 | 177 | 0,1772 | 177 / 999 | oui | 0,03400 | 1,56 (Runs) |
+| J−2 du carré (j* = 5) | 1e-11 | V0 | admis | 6 | 0 | non | 999 | 107 | 0,1071 | 107 / 999 | oui | 0,01800 | 0,81 (PenteIntra) |
+| J−2 du carré (j* = 5) | 3e-11 | V0 | admis | 6 | 0 | non | 999 | 41 | 0,0410 | 41 / 999 | oui | 0,00200 | 0,13 (Runs) |
+| J−2 du carré (j* = 5) | 1e-10 | V0 | admis | 6 | 0 | non | 999 | 25 | 0,0250 | 25 / 999 | oui | 0,00200 | 0,12 (Runs) |
+| J−2 du carré (j* = 5) | 3e-10 | V0 | admis | 6 | 0 | non | 999 | 11 | 0,0110 | 11 / 999 | oui | 0,00200 | 0,12 (PenteIntra) |
+| J−2 du 8 x 6 (j* = 3) | 5e-13 | V0 | admis | 3 | 1 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 5e-13 | V2 | admis | 3 | 1 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 2e-12 | V0 | admis | - | 0 | non | 999 | 105 | 0,1051 | 105 / 999 | oui | 0,02200 | 1,43 (ExpVar) |
+| J−2 du 8 x 6 (j* = 3) | 2e-12 | V2 | admis | - | 0 | non | 999 | 105 | 0,1051 | 105 / 999 | oui | 0,02200 | 1,43 (ExpVar) |
+| J−2 du 8 x 6 (j* = 3) | 5e-12 | V0 | admis | - | 0 | non | 999 | 14 | 0,0140 | 14 / 999 | oui | 0,00400 | 0,33 (PenteIntra) |
+| J−2 du 8 x 6 (j* = 3) | 5e-12 | V2 | admis | - | 0 | non | 999 | 14 | 0,0140 | 14 / 999 | oui | 0,00400 | 0,33 (PenteIntra) |
+| J−2 du 8 x 6 (j* = 3) | 1e-11 | V0 | admis | - | 0 | non | 999 | 3 | 0,0030 | 3 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 1e-11 | V2 | admis | - | 0 | non | 999 | 3 | 0,0030 | 3 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 3e-11 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 3e-11 | V2 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 1e-10 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 1e-10 | V2 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 3e-10 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−2 du 8 x 6 (j* = 3) | 3e-10 | V2 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 5e-13 | V0 | admis | 4 | 1 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 5e-13 | V2 | admis | 4 | 1 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 2e-12 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 2e-12 | V2 | admis | - | 0 | non | 999 | 187 | 0,1872 | 187 / 999 | oui | 0,00400 | 0,32 (PenteIntra) |
+| J−1 du 8 x 6 (j* = 4) | 5e-12 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 5e-12 | V2 | admis | - | 0 | non | 999 | 25 | 0,0250 | 25 / 999 | oui | 0,00800 | 0,55 (PenteIntra) |
+| J−1 du 8 x 6 (j* = 4) | 1e-11 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 1e-11 | V2 | admis | - | 0 | non | 999 | 9 | 0,0090 | 9 / 999 | oui | 0,00200 | 0,14 (PenteIntra) |
+| J−1 du 8 x 6 (j* = 4) | 3e-11 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 3e-11 | V2 | admis | - | 0 | non | 999 | 2 | 0,0020 | 2 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 1e-10 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 1e-10 | V2 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 3e-10 | V0 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+| J−1 du 8 x 6 (j* = 4) | 3e-10 | V2 | admis | - | 0 | non | 999 | 0 | 0,0000 | 0 / 999 | oui | 0,00000 | 0,00 (-) |
+
