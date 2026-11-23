@@ -248,6 +248,24 @@ texte_echec_export <- function(e) {
         "au journal de l'application).")
 }
 
+# Etiquette "t = k" d'une ligne de la grille des series (#583 (b)). Conception :
+# l'etiquette est un div form-control sans cadre, de meme hauteur et de meme
+# centrage vertical du texte que le numericInput voisin, quel que soit le
+# theme ; seule la premiere ligne porte, au-dessus de son champ, l'etiquette
+# x_t / y_t : une etiquette invisible de meme classe y decale "t = 1" d'autant,
+# et elle seule. L'ancien decalage uniforme de 26 px decalait aussi les lignes
+# suivantes, qui n'ont pas d'etiquette de champ. Alignement mesure au rendu
+# reel (Chromium, 960, 1 280 et 1 600 px : meme bord haut et meme hauteur que
+# le champ x_k, app-review du 23/11/2026).
+etiquette_t_grille <- function(t, premiere) {
+  div(class = "form-group",
+      if (premiere)
+        tags$label(class = "control-label", style = "visibility:hidden", HTML("&nbsp;")),
+      div(class = "form-control",
+          style = paste("border:0;box-shadow:none;background:transparent;padding-left:0;",
+                        "font-weight:600"),
+          paste0("t = ", t)))
+}
 grille_vide_ln <- function(T) data.frame(t = seq_len(T), xt = NA_real_, yt = NA_real_)
 triangle_vide <- function(T) matrix(NA_real_, T, T)
 
@@ -890,7 +908,7 @@ ui <- fluidPage(
               uiOutput("derogations"),
               tableOutput("tab_param_std")),
           div(class = "bloc",
-              h4("Chaine de calibration (annexe XVII, sections B/C et G)"),
+              h4(textOutput("titre_calibration", inline = TRUE)),
               tableOutput("tab_calibration")),
           div(class = "bloc",
               h4("Valeurs candidates"),
@@ -1460,7 +1478,7 @@ server <- function(input, output, session) {
       d <- donnees()
       tags$div(`data-version` = version, lapply(seq_len(nrow(d)), function(i) {
         fluidRow(
-          column(2, div(style = "padding-top:26px;font-weight:600", paste0("t = ", d$t[i]))),
+          column(2, etiquette_t_grille(d$t[i], premiere = (i == 1))),
           column(5, numericInput(paste0("x_", i), if (i == 1) "x_t" else NULL,
                                  value = d$xt[i], step = 0.01)),
           column(5, numericInput(paste0("y_", i), if (i == 1) "y_t" else NULL,
@@ -2233,6 +2251,11 @@ server <- function(input, output, session) {
       if (!is.null(lib_bareme)) div(class = "avert", tags$b(lib_bareme)),
       if (!is.null(lib_prof)) div(class = "avert", tags$b(lib_prof)))
   })
+
+  # Titre suivant l'objet affiche (#583 (a)) : methode lue dans
+  # res$metadata$methode par titre_chaine_calibration() (display_helpers.R),
+  # jamais dans input$methode ; aucun resultat : titre neutre.
+  output$titre_calibration <- renderText(titre_chaine_calibration(resultat()))
 
   output$tab_calibration <- renderTable({
     d <- R()$calibration; d$valeur <- fmt_nb(d$valeur, 5)

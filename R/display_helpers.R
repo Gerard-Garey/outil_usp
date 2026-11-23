@@ -2524,6 +2524,19 @@ plot_mw_alpha <- function(pd) {
 #  l'application affichait deja.
 # =============================================================================
 
+# Titre du bloc "Chaine de calibration" de l'onglet Calibration (#583 (a)),
+# selon la methode de l'objet affiche, lue dans res$metadata$methode : sections
+# B et G (premium), C et G (reserve1), D et G (reserve2, Merz-Wuthrich). Sans
+# resultat (NULL) ou methode inconnue : titre neutre, sans section nommee.
+titre_chaine_calibration <- function(res = NULL) {
+  m <- if (is.list(res)) res$metadata$methode else NULL
+  sections <- if (is.character(m) && length(m) == 1L && !is.na(m))
+    switch(m, premium = "sections B et G", reserve1 = "sections C et G",
+           reserve2 = "sections D et G", NULL) else NULL
+  paste0("Chaine de calibration (annexe XVII",
+         if (!is.null(sections)) paste0(", ", sections), ")")
+}
+
 # Formule du parametre final, propre a chaque methode :
 #  - lognormale (sections B et C) : usp_parametre() multiplie sigma(delta,
 #    gamma) par la correction de taille finie sqrt((T+1)/(T-1)) ;
