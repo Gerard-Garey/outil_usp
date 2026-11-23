@@ -554,15 +554,23 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 # .engine_saisie() cite NA_real_, forme R). Toute autre valeur, NaN
 # compris, est citee par .engine_saisie(), inchangee (contrat de #133 :
 # ecriture qui se relit
-# exactement, gardes internes et appels directs). Employee par les seuls
-# messages de l'inventaire de #527 : erreurs d'usage de B, seed, alpha et
-# sigma_standard (.engine_verifier_usage()), message jumeau de alpha
+# exactement, gardes internes et appels directs). Un entier scalaire sans
+# attribut (is.integer, longueur 1, attributes() NULL) est converti en double
+# avant .engine_saisie() (#583) : l'application transmet input$B entier, que
+# keepInteger citait "10L" ; il est cite "10", comme le double 10. NA (traite
+# plus haut), vecteurs (1:2 reste 1:2), entiers a attribut et .engine_saisie()
+# lui-meme sont inchanges ; alpha, double, garde son point decimal ("0.3").
+# Employee par les seuls messages de l'inventaire de #527 : erreurs d'usage
+# de B, seed, alpha et sigma_standard (.engine_verifier_usage()), message
+# jumeau de alpha
 # (engine_regle_verdicts()), marges delta_equiv et theta_equiv du test
 # d'equivalence (engine_valider_donnees()) et profondeur T
 # (engine_valider_profondeur()).
 .engine_saisie_lisible <- function(v) {
   if (is.atomic(v) && length(v) == 1L && is.null(attributes(v)) &&
       is.na(v) && !is.nan(v)) return("NA (valeur manquante)")
+  if (is.integer(v) && length(v) == 1L && is.null(attributes(v)))
+    v <- as.double(v)
   .engine_saisie(v)
 }
 
