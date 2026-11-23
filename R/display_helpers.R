@@ -379,6 +379,15 @@ type_ligne <- function(tb) {
          "")
 }
 
+# Cellule "Statistique" des vues Synthese et Detail (#584) : nom et valeur de
+# la statistique de test, champs nom_statistique et statistique
+# d'engine_table_tests() ; tiret si la statistique n'est pas finie (ligne
+# d'estimation, ou sans statistique). Lecture seule, aucun calcul.
+.cel_statistique <- function(tb)
+  ifelse(is.finite(tb$statistique),
+         paste0("<code>", .txt(tb$nom_statistique), "</code> = ",
+                fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013")
+
 # --- Tableaux (mise en forme seule) -----------------------------------------
 # Les colonnes textuelles venant du moteur (test, noms de statistique et
 # d'estimation, H0, H1, loi, sens, reference) sont echappees ICI, source unique
@@ -395,10 +404,7 @@ table_synthese_groupe <- function(tb) {
                      .sous_badge_type(tb)),
     Test    = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                      .repere_renvoi(tb)),
-    `Statistique` = paste0(ifelse(is.finite(tb$statistique),
-        paste0("<code>", .txt(tb$nom_statistique), "</code> = ",
-               fmt_stat(tb$statistique, tb$nom_statistique)), "\u2013"),
-        .sous_stat_famille(tb)),
+    `Statistique` = paste0(.cel_statistique(tb), .sous_stat_famille(tb)),
     Estimation = ifelse(is.finite(tb$estimation),
         paste0(.txt(tb$nom_estimation), " = ", fmt_grandeur(tb$estimation, tb$nom_estimation)),
         "\u2013"),
@@ -611,10 +617,106 @@ texte_alpha_divergent <- function(alpha_resultat, alpha_panneau) {
   cand[garde]
 }
 # Largeur minimale de la colonne "Motif / commentaire" de la vue Detail (#517) :
-# colonne etroite dans un tableau de 16 colonnes (constat de la revue finale de
-# K1, Q-56-7 (6)) ; largeur minimale posee sur l'en-tete.
+# colonne etroite dans un tableau de 16 colonnes, 20 depuis #584 (constat de la
+# revue finale de K1, Q-56-7 (6)) ; largeur minimale posee sur l'en-tete.
 # Passee a html_table(largeurs = ) par app.R.
 LARGEURS_DETAIL <- c("Motif / commentaire" = 360L)
+# Regles d'impression de la vue Detail, partagees par l'application (app.R,
+# ajoutees en fin de sa feuille de style) et par le rapport fige (CSS_RAPPORT),
+# qui rendent le meme tableau (table_detail_groupe()) dans un
+# <div class='defil-detail'>. Tableau de 20 colonnes depuis #584 (Verdict,
+# Statistique, p retenue et Nature, exigences 5.3) : les largeurs sont
+# POSITIONNELLES (nth-child, dans l'ordre des colonnes de table_detail_groupe()) ;
+# un test (test_rapport_html.R) verifie une largeur par colonne et une somme de
+# 100 % en portrait comme en paysage. Aucun calcul : mise en forme seule.
+# A l'impression, le cadre defilant tronquerait le tableau (hauteur bornee,
+# defilement invisible sur papier) : cadre deplie, en-tete non colle, trait
+# sous l'en-tete en bordure (une ombre interne n'est pas toujours imprimee).
+CSS_IMPRESSION_DETAIL <- "
+@media print {
+      .defil-detail { overflow:visible; max-height:none; }
+      .defil-detail table.data > thead > tr > th { position:static;
+        box-shadow:none; border-bottom:2px solid #ddd; }
+      /* Impression (#560) : tableau de 20 colonnes (16 avant #584) ramene a la
+         largeur utile de la page (A4 portrait comme paysage), sans mise a l'echelle (le
+         navigateur reduit la page entiere quand un tableau deborde, ce qui
+         rend le texte illisible) : largeurs de colonnes fixees en pourcentage
+         (table-layout:fixed, d'apres la ligne d'en-tete ; sans cela la colonne
+         Motif absorbe la largeur et ecrase les colonnes de texte), police et
+         marges de cellule reduites, retour a la ligne a tout caractere. La
+         largeur minimale de la colonne Motif (style en ligne de html_table())
+         est levee, d'ou !important (de meme pour la colonne Sens). Largeurs
+         dans l'ordre des colonnes de la vue Detail, Verdict, Statistique, p
+         retenue et Nature comprises (#584 ; portrait, puis paysage
+         dans le bloc orientation). */
+      @page { margin:10mm; }
+      .defil-detail table.data { width:100%; table-layout:fixed; font-size:6pt; }
+      .defil-detail table.data > thead > tr > th,
+      .defil-detail table.data > tbody > tr > td { padding:1px 2px;
+        white-space:normal; overflow-wrap:anywhere; min-width:0 !important; }
+      .defil-detail table.data > thead > tr > th { font-size:5pt; }
+      /* Badge de verdict (colonne Verdict, #584) : son remplissage de 9 px de
+         chaque cote (style en ligne, ecran) deborderait de la colonne. */
+      .defil-detail table.data td > span[style*='border-radius'] {
+        padding:0 2px !important; }
+      /* Colonne Sens : sa coupure interdite (style en ligne, ecran) deborderait. */
+      .defil-detail table.data td > span[style*='white-space:nowrap'] {
+        white-space:normal !important; }
+      .defil-detail table.data > thead > tr > th:nth-child(1) { width:6%; }
+      .defil-detail table.data > thead > tr > th:nth-child(2) { width:6%; }
+      .defil-detail table.data > thead > tr > th:nth-child(3) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(4) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(5) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(6) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(7) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(8) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(9) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(10) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(11) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(12) { width:5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(13) { width:5.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(14) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(15) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(16) { width:4%; }
+      .defil-detail table.data > thead > tr > th:nth-child(17) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(18) { width:8.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(19) { width:4.5%; }
+      .defil-detail table.data > thead > tr > th:nth-child(20) { width:4.5%; }
+      /* Paysage : police plus grande, commentaire plus large. */
+      @media (orientation:landscape) {
+        .defil-detail table.data { font-size:7.5pt; }
+        .defil-detail table.data > thead > tr > th { font-size:7pt; }
+        .defil-detail table.data > thead > tr > th:nth-child(1) { width:7%; }
+        .defil-detail table.data > thead > tr > th:nth-child(2) { width:4.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(3) { width:4%; }
+        .defil-detail table.data > thead > tr > th:nth-child(4) { width:6%; }
+        .defil-detail table.data > thead > tr > th:nth-child(5) { width:4%; }
+        .defil-detail table.data > thead > tr > th:nth-child(6) { width:4.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(7) { width:5.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(8) { width:5.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(9) { width:5.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(10) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(11) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(12) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(13) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(14) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(15) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(16) { width:3.5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(17) { width:4%; }
+        .defil-detail table.data > thead > tr > th:nth-child(18) { width:15%; }
+        .defil-detail table.data > thead > tr > th:nth-child(19) { width:5%; }
+        .defil-detail table.data > thead > tr > th:nth-child(20) { width:5%; }
+      }
+      .defil-detail table.data tr { break-inside:avoid; }
+      /* Les <span> a taille en ligne (11 px, display_helpers.R) depasseraient la
+         police d'impression de la cellule. */
+      .defil-detail table.data td span { font-size:inherit !important; }
+      /* Idem pour les <code> (colonnes Statistique et Fonction), dont la regle
+         du rapport fige (12 px) depasserait la police de la cellule. */
+      .defil-detail table.data td code { font-size:inherit !important; }
+}
+"
+
 # Colonnes Type et "Motif / commentaire" (#124) : le commentaire du moteur est
 # restitue pour TOUTES les lignes, pas seulement les INFO : sur une ligne de
 # type "test", il porte aussi des elements de lecture du verdict (ECHEC
@@ -640,7 +742,19 @@ table_detail_groupe <- function(tb, replier = FALSE, boot = NULL) {
   data.frame(
     Test = paste0("<span style='font-weight:600;color:#1B2631'>", .txt(tb$test), "</span>",
                   .repere_renvoi(tb)),
+    # Verdict, Statistique, p retenue et Nature (#584, exigences 5.3) : champs
+    # verdict, statistique / nom_statistique, p_retenue et nature_p de
+    # engine_table_tests(), jamais le texte du detail ; memes cellules que la
+    # vue Synthese (badge_verdict(), .cel_statistique(), fmt_p(), badge_nature()),
+    # sans le sous-badge de type ni la sous-ligne de p de famille, que les
+    # colonnes Type et p Monte-Carlo portent deja ici. La vue Detail imprimee
+    # seule porte ainsi, pour chaque test, son verdict et la p-value dont il
+    # decoule.
+    Verdict = unname(vapply(tb$verdict, badge_verdict, character(1))),
     Type = .txt(type_ligne(tb)),
+    `Statistique` = .cel_statistique(tb),
+    `p retenue` = fmt_p(tb$p_retenue),
+    Nature = unname(vapply(tb$nature_p, badge_nature, character(1))),
     H0 = if (replier) .commentaire_replie(tb$H0, garder_derniere = FALSE) else .txt(tb$H0),
     H1 = if (replier) .commentaire_replie(tb$H1, garder_derniere = FALSE) else .txt(tb$H1),
     `Loi sous H0` = .txt(tb$loi_sous_H0),
@@ -3072,6 +3186,26 @@ identite_code <- function(racine = ".") {
        releve = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"))
 }
 
+# Lignes du journal d'execution qui restituent l'identite du code (#584) :
+# version (DESCRIPTION), md5 de R/engine.R et de R/charger_moteur.R, heure du
+# releve, lues dans les champs de identite_code() (relevee au chargement du
+# moteur, ADR 0009, point 4), sans calcul ni nouvelle lecture de fichier : la
+# version et les empreintes se relevent ainsi a l'ecran, comme dans l'en-tete
+# du rapport fige. Texte brut (le journal est un
+# verbatimTextOutput), libelles ASCII alignes sur ceux de app.R (21 colonnes
+# avant les deux-points) ; champ absent, NULL ou NA (fichier introuvable au
+# releve) : tiret. identite = NULL : quatre tirets.
+texte_identite_code <- function(identite = NULL) {
+  val <- function(nom) {
+    x <- identite[[nom]]
+    if (length(x) == 0L || isTRUE(is.na(x[1L]))) "\u2013" else as.character(x[1L])
+  }
+  c(paste("Version de l'outil   :", val("version"), "(DESCRIPTION)"),
+    paste("md5 R/engine.R       :", val("md5_engine")),
+    paste("md5 charger_moteur.R :", val("md5_chargeur")),
+    paste("Releve du code       :", val("releve")))
+}
+
 # Encodage base64 (RFC 4648, alphabet standard, remplissage "=") en R base.
 # Trois octets (24 bits) donnent quatre caracteres de 6 bits.
 .B64 <- c(LETTERS, letters, as.character(0:9), "+", "/")
@@ -3248,7 +3382,7 @@ encoder_base64 <- function(octets) {
   out
 }
 
-CSS_RAPPORT <- "
+CSS_RAPPORT <- paste0("
 body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; color:#1B2631;
        max-width:1180px; margin:18px auto; padding:0 16px; background:#FDFEFE; }
 h1 { color:#00468C; font-size:24px; margin-bottom:4px; }
@@ -3277,7 +3411,13 @@ table.kv td:first-child { width:34%; font-weight:600; }
 .cel.plein { flex-basis:100%; }
 img.graphe { max-width:100%; height:auto; border:1px solid #EAECEE; }
 code { font-size:12px; }
-"
+/* Vue Detail du rapport (#584) : tableau de 20 colonnes dans un cadre qui defile
+   horizontalement a l'ecran plutot que de deborder de la page ; a l'impression,
+   regles de CSS_IMPRESSION_DETAIL (A4 portrait ou paysage), la page prenant toute
+   la largeur utile (marges du corps retirees). */
+.defil-detail { overflow-x:auto; }
+@media print { body { max-width:none; margin:0; padding:0; } }
+", CSS_IMPRESSION_DETAIL)
 
 # rapport_html(res, selection, chemin, interactif, identite)
 #   res        objet renvoye par run_engine(), ok = TRUE (sinon erreur)
@@ -3588,7 +3728,9 @@ rapport_html <- function(res, selection, chemin, interactif = TRUE, identite = N
             "<div class='gris'>Synth\u00e8se</div>",
             html_table(table_synthese_groupe(sub), classe = "data"),
             "<div class='gris'>D\u00e9tail</div>",
-            html_table(table_detail_groupe(sub, boot = res$bootstrap), classe = "data"))
+            "<div class='defil-detail'>",
+            html_table(table_detail_groupe(sub, boot = res$bootstrap), classe = "data"),
+            "</div>")
     }
     ajout("</section>")
 
