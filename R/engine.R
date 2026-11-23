@@ -555,11 +555,13 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 # compris, est citee par .engine_saisie(), inchangee (contrat de #133 :
 # ecriture qui se relit
 # exactement, gardes internes et appels directs). Un entier scalaire sans
-# attribut (is.integer, longueur 1, attributes() NULL) est converti en double
-# avant .engine_saisie() (#583) : l'application transmet input$B entier, que
-# keepInteger citait "10L" ; il est cite "10", comme le double 10. NA (traite
-# plus haut), vecteurs (1:2 reste 1:2), entiers a attribut et .engine_saisie()
-# lui-meme sont inchanges ; alpha, double, garde son point decimal ("0.3").
+# attribut (is.integer, longueur 1, attributes() NULL) est cite par sa forme
+# decimale, sans suffixe L ni notation scientifique (#583) : l'application
+# transmet input$B entier, que keepInteger citait "10L" ; il est cite "10",
+# et 100000L "100000" (converti en double, il aurait ete cite "1e+05"). NA
+# (traite plus haut), vecteurs (1:2 reste 1:2), entiers a attribut et
+# .engine_saisie() lui-meme sont inchanges ; alpha, double, garde son point
+# decimal ("0.3").
 # Employee par les seuls messages de l'inventaire de #527 : erreurs d'usage
 # de B, seed, alpha et sigma_standard (.engine_verifier_usage()), message
 # jumeau de alpha
@@ -570,7 +572,7 @@ usp_bareme_segment <- function(segment, annexe = "II") {
   if (is.atomic(v) && length(v) == 1L && is.null(attributes(v)) &&
       is.na(v) && !is.nan(v)) return("NA (valeur manquante)")
   if (is.integer(v) && length(v) == 1L && is.null(attributes(v)))
-    v <- as.double(v)
+    return(formatC(v, format = "d"))
   .engine_saisie(v)
 }
 
