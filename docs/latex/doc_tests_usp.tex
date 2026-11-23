@@ -45,8 +45,8 @@
 \newcommand{\annee}{2026}
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
-\newcommand{\datedoc}{22~novembre 2026}
-\newcommand{\versiondoc}{4.4}
+\newcommand{\datedoc}{23~novembre 2026}
+\newcommand{\versiondoc}{4.5}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
@@ -560,7 +560,9 @@ des données du calcul et celle de l'objet résultat, calculées par \code{engin
 aussi du chargeur, qui fixe la chaîne d'environnements du moteur~; ces deux
 dernières sont relevées avec la version déclarée dans \code{DESCRIPTION} par
 \code{identite\_code()}, hors de \code{run\_engine()}, au chargement du moteur par
-l'application, à une même heure de relevé~; il porte aussi la date de référence du calcul et le
+l'application, à une même heure de relevé, et figurent aussi, avec cette version et cette heure,
+dans le journal d'exécution de l'application (\code{texte\_identite\_code()} de
+\code{R/display\_helpers.R}, lecture seule des champs d'\code{identite\_code()})~; il porte aussi la date de référence du calcul et le
 texte applicable au paramètre standard, lus dans \code{\$metadata} (le libellé du texte est celui
 de la ligne correspondante du tableau d'\code{engine\_parametre\_standard()}, que la section~4 du
 rapport restitue entier, déclarations et facteur NP compris~; §\ref{sec:segments}), puis le générateur et les graines fixes des simulations,
@@ -578,7 +580,13 @@ retenus, cette ligne porte en outre la mention «~granularité effective par sta
 colonne «~granularité MC~» du détail des tests, plus grossière que la granularité nominale~»~;
 la même ligne figure dans le résumé et dans le journal d'exécution de
 l'application. La vue Détail de l'onglet Tests et les tableaux «~Détail~»
-de la section~5 du rapport figé («~Tests retenus~») portent une colonne «~granularité MC~»~: la
+de la section~5 du rapport figé («~Tests retenus~») sont un même tableau de vingt colonnes,
+produit par \code{table\_detail\_groupe()} de \code{R/display\_helpers.R}~; après le nom du test,
+il porte le verdict, le type de la ligne, la statistique de test, la p-value retenue et sa nature,
+lus sans calcul dans les champs \code{verdict}, \code{statistique}, \code{p\_retenue} et
+\code{nature\_p} d'\code{engine\_table\_tests()}, comme dans la vue Synthèse, jamais dans le texte
+du commentaire, de sorte que la vue Détail, imprimée seule, donne pour chaque test son verdict et
+la p-value dont il découle~; il porte ensuite, entre autres, une colonne «~granularité MC~»~: la
 granularité effective de la p-value de Monte-Carlo de la ligne, $1/(B_{\text{eff}}+1)$, ou
 $2/(B_{\text{eff}}+1)$ en bilatéral, lue sans calcul dans \code{bootstrap\$granularite\_stat}
 par \code{granularite\_lignes()} de \code{R/display\_helpers.R}, sous le nom de la statistique de
@@ -3383,7 +3391,9 @@ sont affichés dans le journal d'exécution de l'application et dans l'en-tête 
 (\code{valeurs\_generateur()} de \code{R/display\_helpers.R}, en lecture seule), la graine du
 flux complémentaire comprise (méthodes de primes et de réserve
 n\textsuperscript{o}~1), la graine de la loi nulle de Shapiro--Wilk en réserve
-n\textsuperscript{o}~2 seulement.
+n\textsuperscript{o}~2 seulement~; les deux portent aussi la version de l'outil et les empreintes
+md5 de \code{R/engine.R} et de \code{R/charger\_moteur.R} (\code{identite\_code()},
+§\ref{sec:archi}).
 \end{encadre}
 
 \subsection{Index des fonctions de statistique et de p-value}
