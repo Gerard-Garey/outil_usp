@@ -22,6 +22,11 @@
 #     appelee avec replier = TRUE, regle CSS du repli presente et, avec
 #     shiny, commentaire long replie et colonne Fonction dans le rendu de la
 #     vue Detail, absents de la vue Synthese ;
+#   - vue Detail (issue #584) : colonnes Verdict, Statistique, p retenue et
+#     Nature (voir aussi test_rapport_html.R), regles d'impression partagees
+#     (CSS_IMPRESSION_DETAIL) ; journal d'execution : version et md5 de
+#     R/engine.R et du chargeur lus dans IDENTITE_CODE par texte_identite_code()
+#     (lecture du code ; avec shiny, rendu du journal et colonnes de la vue) ;
 #   - regle des verdicts (issue #498) : avec shiny, les quatre phrases
 #     d'engine_regle_verdicts() au alpha du resultat ouvrent le tableau des
 #     tests (Synthese et Detail), absentes du tableau des controles ; colonne
@@ -303,7 +308,20 @@ verifier("app.R : texte_p_mc_regime() appelee deux fois, une dans output$etat, u
          length(.appels(parse(.app, keep.source = FALSE), "texte_p_mc_regime")) == 2L &&
            length(.etat) == 1L && length(.appels(.etat[[1]], "texte_p_mc_regime")) == 1L &&
            length(.meta) == 1L && length(.appels(.meta[[1]], "texte_p_mc_regime")) == 1L)
+# Identite du code au journal d'execution (#584, ADR 0009 point 4) : le rendu
+# de output$tab_meta restitue IDENTITE_CODE (releve une fois, au chargement du
+# moteur) par texte_identite_code() ; il ne relit ni fichier ni md5.
+.txt_meta <- paste(deparse(.meta[[1]]), collapse = "\n")
+.id_meta <- .appels(.meta[[1]], "texte_identite_code")
+verifier("app.R : journal d'execution, version et md5 de R/engine.R et du chargeur par texte_identite_code(IDENTITE_CODE), sans nouveau releve ni md5 (#584)",
+         length(.meta) == 1L && length(.id_meta) == 1L && identical(.id_meta[[1]][[2]], as.name("IDENTITE_CODE")) &&
+           length(.appels(.meta[[1]], "identite_code")) == 0L && !grepl("md5", .txt_meta, fixed = TRUE) &&
+           length(.appels(parse(.app, keep.source = FALSE), "identite_code")) == 1L)
 .src_app <- readLines(.app, encoding = "UTF-8")
+verifier("app.R : regles d'impression de la vue Detail lues dans CSS_IMPRESSION_DETAIL (display_helpers.R), partagees avec le rapport fige, non recopiees (#584)",
+         any(grepl('", CSS_IMPRESSION_DETAIL)))),', .src_app, fixed = TRUE)) &&
+           !any(grepl("th:nth-child", .src_app, fixed = TRUE)) &&
+           !any(grepl("table-layout", .src_app, fixed = TRUE)))
 verifier("app.R : regles CSS du commentaire replie (details.com) (#178)",
          any(grepl("details.com > summary", .src_app, fixed = TRUE)) &&
            any(grepl("details.com:not([open]) > summary::after", .src_app, fixed = TRUE)))
@@ -931,6 +949,61 @@ verifier("onglet_m5_mw() : mw_qq a 420 px de haut (comme g_qq, pas aplati), mw_b
                  .appels(.og_582, "tabPanel"))
 verifier("app.R : output$onglets_graphiques appelle onglet_m5_mw() une fois (reserve2) et ne porte aucun tabPanel() M5 en ligne (#582)",
          length(.og_582) == 1L && length(.appels(.og_582, "onglet_m5_mw")) == 1L && !length(.tp_m5))
+
+## --- Titre de calibration et etiquettes "t = k" de la grille (issue #583) -------
+# (a) Titre selon la methode de l'objet affiche (res$metadata$methode), pas
+# selon input$methode : titre_chaine_calibration() est une fonction de
+# display_helpers.R, evaluee sans shiny ; app.R la branche sur resultat().
+.env583 <- new.env()
+sys.source(file.path(.racine, "R", "display_helpers.R"), envir = .env583)
+.t583 <- function(m) .env583$titre_chaine_calibration(list(metadata = list(methode = m)))
+verifier("titre_chaine_calibration() : premium -> sections B et G, reserve1 -> C et G, reserve2 -> D et G (#583)",
+         identical(.t583("premium"), "Chaine de calibration (annexe XVII, sections B et G)") &&
+           identical(.t583("reserve1"), "Chaine de calibration (annexe XVII, sections C et G)") &&
+           identical(.t583("reserve2"), "Chaine de calibration (annexe XVII, sections D et G)"))
+verifier("titre_chaine_calibration() : sans resultat, methode absente ou inconnue -> titre neutre, sans \"B/C\" (#583)",
+         all(vapply(list(NULL, list(), list(metadata = list()), list(metadata = list(methode = "x")),
+                         list(metadata = list(methode = NA_character_))),
+                    function(r) identical(.env583$titre_chaine_calibration(r),
+                                          "Chaine de calibration (annexe XVII)"), logical(1))))
+# Lecture de l'arbre de app.R : le titre est la sortie titre_calibration,
+# calculee par titre_chaine_calibration(resultat()) (donc l'objet affiche) ;
+# ni le titre fixe d'avant, ni input$methode dans ce rendu.
+.ast583 <- as.list(parse(.app, keep.source = FALSE))
+.aff583 <- unlist(lapply(.ast583, .affect_582, quote(output$titre_calibration)), recursive = FALSE)
+verifier("app.R : output$titre_calibration = renderText(titre_chaine_calibration(resultat())), sans input$methode ; plus de titre fixe \"sections B/C et G\" (#583)",
+         length(.aff583) == 1L &&
+           identical(.aff583[[1]][[3]],
+                     quote(renderText(titre_chaine_calibration(resultat())))) &&
+           !any(grepl("sections B/C", readLines(.app, warn = FALSE, encoding = "UTF-8"), fixed = TRUE)))
+# (b) Etiquette "t = k" : evaluee avec des releves a la place de div() et
+# tags$label() ; seule la ligne 1 porte l'etiquette invisible qui double
+# celle de x_t / y_t ; le padding-top uniforme de 26 px a disparu.
+.env583b <- new.env()
+for (.x in as.list(parse(.app, keep.source = FALSE)))
+  if (is.call(.x) && identical(.x[[1]], as.name("<-")) &&
+      identical(as.character(.x[[2]]), "etiquette_t_grille")) eval(.x, .env583b)
+# (div() de shiny ignore les enfants NULL : le releve aussi.)
+.env583b$div <- function(..., class = NULL, style = NULL)
+  list(div = Filter(Negate(is.null), list(...)), class = class, style = style)
+.env583b$tags <- list(label = function(..., class = NULL, style = NULL)
+  list(label = list(...), class = class, style = style))
+.env583b$HTML <- function(x) x
+.e1 <- tryCatch(.env583b$etiquette_t_grille(1, premiere = TRUE), error = function(e) e)
+.e3 <- tryCatch(.env583b$etiquette_t_grille(3, premiere = FALSE), error = function(e) e)
+verifier("etiquette_t_grille() : ligne 1 = etiquette invisible + libelle \"t = 1\" ; lignes suivantes = libelle \"t = k\" seul (#583)",
+         !inherits(.e1, "error") && !inherits(.e3, "error") &&
+           length(.e1$div) == 2L && identical(.e1$div[[1]]$class, "control-label") &&
+           grepl("visibility:hidden", .e1$div[[1]]$style, fixed = TRUE) &&
+           identical(.e1$div[[2]]$div[[1]], "t = 1") &&
+           length(.e3$div) == 1L && identical(.e3$div[[1]]$div[[1]], "t = 3") &&
+           identical(.e3$div[[1]]$class, "form-control"))
+verifier("app.R : la grille des series appelle etiquette_t_grille(d$t[i], premiere = (i == 1)) ; aucun padding-top:26px (#583)",
+         {
+           src <- readLines(.app, warn = FALSE, encoding = "UTF-8")
+           !any(grepl("padding-top:26px", src, fixed = TRUE)) &&
+             any(grepl("etiquette_t_grille(d$t[i], premiere = (i == 1))", src, fixed = TRUE))
+         })
 
 ## --- Cle de ligne et report de la selection (issue #380) ------------------------
 .dh380 <- new.env()
@@ -2630,6 +2703,13 @@ rm("showNotification", envir = ea)
     '    grepl("<div class=\\"defil-detail\\"><table class=\'table table-condensed data\'>", dt, fixed = TRUE) &&',
     '    grepl(paste0("<th style=\'min-width:", LARGEURS_DETAIL[["Motif / commentaire"]], "px\'>Motif / commentaire</th>"), dt, fixed = TRUE) &&',
     '      grepl("<th>Fonction</th>", dt, fixed = TRUE) && grepl("<code>test_intercept</code>", dt, fixed = TRUE))',
+    '  a("vue Detail : Verdict, Statistique, p retenue et Nature apres Test et Type, le badge du verdict et la p retenue de chaque ligne affichee (#584)",',
+    '    grepl("<th>Test</th><th>Verdict</th><th>Type</th><th>Statistique</th><th>p retenue</th><th>Nature</th><th>H0</th>", dt, fixed = TRUE) &&',
+    '      all(vapply(unique(tb_aff$verdict), function(v) grepl(badge_verdict(v), dt, fixed = TRUE), NA)) &&',
+    '      all(vapply(unique(fmt_p(tb_aff$p_retenue[is.finite(tb_aff$p_retenue)])), function(p) grepl(paste0("<td>", p, "</td>"), dt, fixed = TRUE), NA)) &&',
+    '      any(is.finite(tb_aff$p_retenue)))',
+    '  a("interface : regles d impression de la vue Detail (CSS_IMPRESSION_DETAIL) dans la feuille de style de l application (#584)",',
+    '    grepl(CSS_IMPRESSION_DETAIL, paste(as.character(htmltools::renderTags(ea$ui)$head), collapse = ""), fixed = TRUE))',
     '  a("vue Detail : colonne granularite MC lue dans le bootstrap, au moins une valeur (#285)",',
     '    grepl("<th>granularit\u00e9 MC</th>", dt, fixed = TRUE) &&',
     '      any(is.finite(granularite_lignes(engine_table_tests(r), r$bootstrap))))',
@@ -2646,6 +2726,11 @@ rm("showNotification", envir = ea)
     '  a("bandeau Calibration : libelle du moteur", grepl(lib, as.character(output$derogations$html), fixed = TRUE))',
     '  a("journal (primes) : libelle du moteur repris tel quel (#136)",',
     '    grepl(paste0("Profondeur T         : 8 (", lib, ")"), output$tab_meta, fixed = TRUE))',
+    '  a("journal : version, md5 de R/engine.R et du chargeur lus dans IDENTITE_CODE, ligne par ligne (#584)",',
+    '    all(vapply(texte_identite_code(ea$IDENTITE_CODE), grepl, NA, x = output$tab_meta, fixed = TRUE)) &&',
+    '      grepl(paste0("md5 R/engine.R       : ", ea$IDENTITE_CODE$md5_engine, "\\n"), output$tab_meta, fixed = TRUE) &&',
+    '      grepl(paste0("md5 charger_moteur.R : ", ea$IDENTITE_CODE$md5_chargeur, "\\n"), output$tab_meta, fixed = TRUE) &&',
+    '      grepl(paste0("Version de l\'outil   : ", ea$IDENTITE_CODE$version, " (DESCRIPTION)"), output$tab_meta, fixed = TRUE))',
     '  session$setInputs(methode = "reserve1", go = 2)',
     '  lib1 <- libelle_derogation(resultat(), "profondeur")',
     '  a("journal (reserve no 1) : libelle du moteur, exercices fournis (#136)",',
@@ -2736,8 +2821,8 @@ rm("showNotification", envir = ea)
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 185 assertions rendues", length(.lignes) == 185L)
-  if (length(.lignes) != 185L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 188 assertions rendues", length(.lignes) == 188L)
+  if (length(.lignes) != 188L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

@@ -7,7 +7,8 @@
 #  Fonctions visees : usp_graine_flux_regime(), usp_bootstrap() (variante V1
 #  au bord, V3b a delta estime interieur, champ p_mc_regime), usp_tests()
 #  (nature), run_engine() (metadata$seed_flux_regime) ; U15 : transcription
-#  rejeu_p_mc_v3h() de tests/outils_tests.R (#262).
+#  rejeu_p_mc_v3h() de tests/outils_tests.R (#262) ; U16 : progression du
+#  flux complementaire sous progres = TRUE (#255).
 #
 #  Oracle (U2 a U4) : valeurs brutes de la mesure de #229,
 #  docs/tableaux/20261010-issue229-p-conditionnelle-regime-brut.tsv (valeurs
@@ -785,6 +786,37 @@ local({
            identical(u1$p_mc_regime$variante, "V1") && any(is.finite(u1$p_mc)))
   verifier("U15 rejeu_p_mc_v3h() sur J1 (V1), B = 60 : identical() a usp_bootstrap() (p_mc, err_mc, B_effectif, granularite, motif_mc, p_min_mc, variante)",
            ecarts(r1, u1, "variante"))
+})
+
+
+# =============================================================================
+# U16 -- progression du flux complementaire (issue #255, decision Q-72-2 (a))
+# =============================================================================
+# Sous progres = TRUE, usp_bootstrap() imprime une ligne de points pour les B
+# tirages de V1 (un tous les 100) puis, si le flux a tire au moins 1 000 fois,
+# une ligne d'un point tous les 1 000 tirages du flux. cat() ne consomme aucun
+# alea : la sortie est identical() a celle de progres = FALSE. Cas de la
+# reference premium_interieur (J2 observe, B = 999, seed 20260831, sortie
+# boot_u2$J2 a progres = FALSE) ; cas court B = 60 (flux de moins de 1 000
+# tirages : aucune ligne du flux).
+local({
+  sortie <- utils::capture.output(
+    bt <- usp_bootstrap(f2, B = 999, seed = 20260831, progres = TRUE))
+  b0 <- boot_u2$J2$boot
+  flux <- b0$p_mc_regime$tirages - 999
+  verifier("U16 J2 observe, B = 999 (premium_interieur) : V3b, flux d'au moins 1 000 tirages",
+           identical(b0$p_mc_regime$variante, "V3b") && flux >= 1000)
+  verifier("U16 J2 observe, B = 999 : usp_bootstrap() identical() a progres = TRUE et FALSE",
+           identical(bt, b0))
+  verifier(sprintf("U16 J2 observe, B = 999 : sortie = 9 points (V1) puis floor(%d / 1000) points (flux)", flux),
+           identical(sortie, c(strrep(".", 9L), strrep(".", floor(flux / 1000)))))
+  sortie60 <- utils::capture.output(
+    bt60 <- usp_bootstrap(f2, B = 60, seed = 20260831, progres = TRUE))
+  b60 <- usp_bootstrap(f2, B = 60, seed = 20260831)
+  verifier("U16 J2 observe, B = 60 : V3b, flux de 1 a 999 tirages, identical() a progres = TRUE et FALSE, aucune ligne du flux",
+           identical(b60$p_mc_regime$variante, "V3b") &&
+             b60$p_mc_regime$tirages - 60 >= 1 && b60$p_mc_regime$tirages - 60 < 1000 &&
+             identical(bt60, b60) && identical(sortie60, ""))
 })
 
 fin_fichier()

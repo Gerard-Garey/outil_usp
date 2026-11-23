@@ -29,7 +29,7 @@ source("R/display_helpers.R", local = FALSE)
 
 # Identite du code (version DESCRIPTION, md5 de R/engine.R et de
 # R/charger_moteur.R), relevee au moment ou le moteur est charge ; reportee
-# dans le rapport fige.
+# dans le rapport fige et dans le journal d'execution (#584).
 IDENTITE_CODE <- identite_code(".")
 
 # Sortie graphique polymorphe : plotly si le paquet est disponible, graphique
@@ -248,6 +248,24 @@ texte_echec_export <- function(e) {
         "au journal de l'application).")
 }
 
+# Etiquette "t = k" d'une ligne de la grille des series (#583 (b)). Conception :
+# l'etiquette est un div form-control sans cadre, de meme hauteur et de meme
+# centrage vertical du texte que le numericInput voisin, quel que soit le
+# theme ; seule la premiere ligne porte, au-dessus de son champ, l'etiquette
+# x_t / y_t : une etiquette invisible de meme classe y decale "t = 1" d'autant,
+# et elle seule. L'ancien decalage uniforme de 26 px decalait aussi les lignes
+# suivantes, qui n'ont pas d'etiquette de champ. Alignement mesure au rendu
+# reel (Chromium, 960, 1 280 et 1 600 px : meme bord haut et meme hauteur que
+# le champ x_k, app-review du 23/11/2026).
+etiquette_t_grille <- function(t, premiere) {
+  div(class = "form-group",
+      if (premiere)
+        tags$label(class = "control-label", style = "visibility:hidden", HTML("&nbsp;")),
+      div(class = "form-control",
+          style = paste("border:0;box-shadow:none;background:transparent;padding-left:0;",
+                        "font-weight:600"),
+          paste0("t = ", t)))
+}
 grille_vide_ln <- function(T) data.frame(t = seq_len(T), xt = NA_real_, yt = NA_real_)
 triangle_vide <- function(T) matrix(NA_real_, T, T)
 
@@ -441,7 +459,7 @@ T_INIT        <- nrow(DONNEES_INIT)
 # ---------------------------------------------------------------------------
 ui <- fluidPage(
   title = "USP Solvabilite II - annexe XVII",
-  tags$head(tags$style(HTML("
+  tags$head(tags$style(HTML(paste0("
     body { background:#FDFEFE; }
     h4 { margin-top: 4px; }
     .bloc { background:#fff; border:1px solid #E5E8E8; border-radius:6px;
@@ -464,85 +482,27 @@ ui <- fluidPage(
        mention) que pose le script de l'en-tete n'existe que le temps de
        l'impression ; il reste masque a l'ecran. */
     .impr-gl { display:none; }
-    /* A l'impression, le cadre defilant tronquerait le tableau (hauteur bornee,
-       defilement invisible sur papier) : cadre deplie, en-tete non colle, trait
-       sous l'en-tete en bordure (une ombre interne n'est pas toujours imprimee). */
+    /* Impression de la vue Detail : regles CSS_IMPRESSION_DETAIL
+       (display_helpers.R), ajoutees en fin de feuille, partagees avec le rapport
+       fige (#584). */
     @media print {
-      .defil-detail { overflow:visible; max-height:none; }
-      .defil-detail table.data > thead > tr > th { position:static;
-        box-shadow:none; border-bottom:2px solid #ddd; }
-      /* Impression (#560) : tableau de 16 colonnes ramene a la largeur utile de
-         la page (A4 portrait comme paysage), sans mise a l'echelle (le
-         navigateur reduit la page entiere quand un tableau deborde, ce qui
-         rend le texte illisible) : largeurs de colonnes fixees en pourcentage
-         (table-layout:fixed, d'apres la ligne d'en-tete ; sans cela la colonne
-         Motif absorbe la largeur et ecrase les colonnes de texte), police et
-         marges de cellule reduites, retour a la ligne a tout caractere. La
-         largeur minimale de la colonne Motif (style en ligne de html_table())
-         est levee, d'ou !important (de meme pour la colonne Sens). Largeurs
-         dans l'ordre des colonnes de la vue Detail (portrait, puis paysage
-         dans le bloc orientation). */
-      @page { margin:10mm; }
-      .defil-detail table.data { width:100%; table-layout:fixed; font-size:6.5pt; }
-      .defil-detail table.data > thead > tr > th,
-      .defil-detail table.data > tbody > tr > td { padding:1px 2px;
-        white-space:normal; overflow-wrap:anywhere; min-width:0 !important; }
-      .defil-detail table.data > thead > tr > th { font-size:5.5pt; }
-      /* Colonne Sens : sa coupure interdite (style en ligne, ecran) deborderait. */
-      .defil-detail table.data td > span[style*='white-space:nowrap'] {
-        white-space:normal !important; }
-      .defil-detail table.data > thead > tr > th:nth-child(1) { width:7.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(2) { width:4.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(3) { width:7%; }
-      .defil-detail table.data > thead > tr > th:nth-child(4) { width:7%; }
-      .defil-detail table.data > thead > tr > th:nth-child(5) { width:8.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(6) { width:6%; }
-      .defil-detail table.data > thead > tr > th:nth-child(7) { width:6%; }
-      .defil-detail table.data > thead > tr > th:nth-child(8) { width:6%; }
-      .defil-detail table.data > thead > tr > th:nth-child(9) { width:5.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(10) { width:5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(11) { width:3.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(12) { width:5.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(13) { width:5.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(14) { width:10.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(15) { width:6.5%; }
-      .defil-detail table.data > thead > tr > th:nth-child(16) { width:5.5%; }
-      /* Paysage : police plus grande, commentaire plus large. */
-      @media (orientation:landscape) {
-        .defil-detail table.data { font-size:7.5pt; }
-        .defil-detail table.data > thead > tr > th { font-size:7pt; }
-        .defil-detail table.data > thead > tr > th:nth-child(1) { width:8%; }
-        .defil-detail table.data > thead > tr > th:nth-child(2) { width:5.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(3) { width:7.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(4) { width:7.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(5) { width:8.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(6) { width:4.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(7) { width:4.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(8) { width:4.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(9) { width:5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(10) { width:5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(11) { width:3.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(12) { width:5.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(13) { width:5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(14) { width:14.5%; }
-        .defil-detail table.data > thead > tr > th:nth-child(15) { width:6%; }
-        .defil-detail table.data > thead > tr > th:nth-child(16) { width:5%; }
-      }
-      /* Titre de carte jamais isole en bas de page ; ligne de tableau jamais
-         coupee entre deux pages. */
+      /* Titre de carte jamais isole en bas de page. */
       .entete-carte { break-after:avoid; break-inside:avoid; }
       /* Titre de carte des blocs (onglets Calibration, Descriptif...) : jamais
          isole en bas de page (#566). */
       .bloc > h4 { break-after:avoid; }
       .bloc > h4 + .row { break-inside:avoid; }
-      .defil-detail table.data tr { break-inside:avoid; }
-      /* Les <span> a taille en ligne (11 px, display_helpers.R) depasseraient la
-         police d'impression de la cellule. */
-      .defil-detail table.data td span { font-size:inherit !important; }
       /* Panneau Parametres (et bloc Etat) et notifications : hors impression,
          sinon ils se superposent au tableau ; zone principale en pleine largeur. */
       .hors-impression, #shiny-notification-panel { display:none !important; }
       .zone-principale { width:100%; float:none; }
+      /* Largeur utile (#584) : sans ces marges et remplissages de la grille
+         (15 px par niveau) ni ceux du cadre de la vue Detail, l'impression A4
+         portrait du tableau (Chromium, rendu statique de ces regles) passe de
+         492 a 536 pt de largeur de texte, pour 20 colonnes. */
+      .container-fluid, .zone-principale { padding-left:0; padding-right:0; }
+      .row { margin-left:0; margin-right:0; }
+      .defil-detail { margin-left:-15px; margin-right:-15px; }
       /* Graphiques plotly (#566) : plotly fixe en pixels la largeur de ses
          calques SVG au dernier affichage a l'ecran ; sur papier, un graphique
          plus large que la zone utile etait coupe a droite. Le script de
@@ -591,7 +551,7 @@ ui <- fluidPage(
     table.triangle .form-group { margin-bottom:0; }
     table.triangle input.form-control { padding:3px 6px; height:30px;
                                         font-size:12.5px; text-align:right; }
-  "))),
+  ", CSS_IMPRESSION_DETAIL)))),
   # Impression des graphiques plotly (#566) : prepare le dessin avant la mise
   # en page d'impression (beforeprint, et le changement de media print pour les
   # navigateurs sans beforeprint), le remet tel quel apres (afterprint). Aucun
@@ -890,7 +850,7 @@ ui <- fluidPage(
               uiOutput("derogations"),
               tableOutput("tab_param_std")),
           div(class = "bloc",
-              h4("Chaine de calibration (annexe XVII, sections B/C et G)"),
+              h4(textOutput("titre_calibration", inline = TRUE)),
               tableOutput("tab_calibration")),
           div(class = "bloc",
               h4("Valeurs candidates"),
@@ -1460,7 +1420,7 @@ server <- function(input, output, session) {
       d <- donnees()
       tags$div(`data-version` = version, lapply(seq_len(nrow(d)), function(i) {
         fluidRow(
-          column(2, div(style = "padding-top:26px;font-weight:600", paste0("t = ", d$t[i]))),
+          column(2, etiquette_t_grille(d$t[i], premiere = (i == 1))),
           column(5, numericInput(paste0("x_", i), if (i == 1) "x_t" else NULL,
                                  value = d$xt[i], step = 0.01)),
           column(5, numericInput(paste0("y_", i), if (i == 1) "y_t" else NULL,
@@ -1798,7 +1758,14 @@ server <- function(input, output, session) {
         showNotification("Calcul non lance : aucun resultat n'est produit (voir le bandeau).",
                          type = "error", duration = 10); return()
       }
-      abouti <- withProgress(message = "Calculs en cours (bootstrap parametrique)", value = 0.4, {
+      # Libelle fixe (issue #255, decision Q-72-2 (a)) : au regime interieur
+      # de delta estime, le flux complementaire de la p-value conditionnelle
+      # (#240) peut ajouter des tirages ; aucun calcul ici, la barre ne suit
+      # pas l'avancement.
+      abouti <- withProgress(message = "Calculs en cours (bootstrap parametrique)",
+                             detail = paste0("au r\u00e9gime int\u00e9rieur de \u03b4 estim\u00e9, ",
+                                             "des tirages compl\u00e9mentaires peuvent prolonger le calcul"),
+                             value = 0.4, {
         res <- try(run_engine(xt = sa$xt, yt = sa$yt, methode = input$methode,
                               segment = as.integer(input$segment), annexe = input$annexe,
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
@@ -2036,7 +2003,7 @@ server <- function(input, output, session) {
                 badge_verdict("ALERTE"), nb[["ALERTE"]], "&nbsp;&nbsp;",
                 badge_verdict("ECHEC"), nb[["ECHEC"]], "&nbsp;&nbsp;",
                 "<span style='color:#5D6D7E;font-size:11px'>INFO</span>", nb[["INFO"]])))),
-          # Tableau de la vue Detail (16 colonnes, colonne Motif a largeur
+          # Tableau de la vue Detail (20 colonnes, colonne Motif a largeur
           # minimale, #517) plus large que son cadre : defilement horizontal
           # dans le cadre, sinon la partie qui depasse passe sous le panneau
           # des parametres. Vue Detail (#525) : cadre de hauteur bornee
@@ -2227,6 +2194,11 @@ server <- function(input, output, session) {
       if (!is.null(lib_prof)) div(class = "avert", tags$b(lib_prof)))
   })
 
+  # Titre suivant l'objet affiche (#583 (a)) : methode lue dans
+  # res$metadata$methode par titre_chaine_calibration() (display_helpers.R),
+  # jamais dans input$methode ; aucun resultat : titre neutre.
+  output$titre_calibration <- renderText(titre_chaine_calibration(resultat()))
+
   output$tab_calibration <- renderTable({
     d <- R()$calibration; d$valeur <- fmt_nb(d$valeur, 5)
     names(d) <- c("Etape", "Valeur"); d
@@ -2299,6 +2271,10 @@ server <- function(input, output, session) {
     cat("Horodatage           :", format(m$horodatage, "%Y-%m-%d %H:%M:%S"), "\n")
     cat("Duree (s)            :", .num_fr_defaut(round(m$duree_sec, 2)), "\n")
     cat("Version R            :", m$version_R, "\n")
+    # Identite du code (#584) : version et md5 de R/engine.R et du chargeur,
+    # releves au chargement du moteur (IDENTITE_CODE), comme l'en-tete du
+    # rapport fige ; texte de texte_identite_code(), aucun calcul ici.
+    cat(texte_identite_code(IDENTITE_CODE), sep = "\n")
   })
 
   # Les boutons d'export des resultats ne sont proposes que si un calcul a

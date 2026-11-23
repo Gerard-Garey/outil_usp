@@ -140,7 +140,8 @@ verifier("Marge : vide, texte entre guillemets, vecteur en c(...) et valeurs a 1
              contient(cite(de = c(1, 2)), "(delta_equiv) = c(1, 2) :") &&
              contient(cite(th = 1.5), "(theta_equiv) = 1.5 :") &&
              contient(cite(de = -0.3), "(delta_equiv) = -0.3 :") &&
-             contient(cite(th = 5L), "(theta_equiv) = 5L :") &&
+             contient(cite(th = 5L), "(theta_equiv) = 5 :") &&       # entier scalaire cite comme le double (#583)
+             contient(cite(th = c(a = 5L)), "(theta_equiv) = c(a = 5L) :") &&
              contient(cite(th = TRUE), "(theta_equiv) = TRUE :") &&
              contient(cite(th = NA_real_), "(theta_equiv) = NA (valeur manquante) :")
          })
@@ -1236,6 +1237,19 @@ verifier("run_engine : US-05, sigma standard vide -> texte complet du message (#
                          "etre un nombre strictement positif ; pour retenir le parametre standard du",
                          "segment, ne pas le saisir (en appel direct : un nombre seul, sans attribut,",
                          "ou NULL).")))
+# Issue #583 (c) : l'application transmet input$B entier (10L) ; le motif ne
+# cite plus "10L" mais "10", comme pour le double 10 (premium et reserve2).
+# alpha garde son point decimal (contrat de #133 et de #439).
+verifier("run_engine : B = 10L et B = 10 -> meme message, commencant par \"B = 10 : \" (premium, reserve2 ; #583)",
+         {
+           m <- function(f, B) tryCatch({ f(B = B); NA_character_ }, error = conditionMessage)
+           mp <- m(usage_premium, 10L); mw <- m(usage_mw, 10L)
+           identical(mp, m(usage_premium, 10)) && identical(mw, m(usage_mw, 10)) &&
+             startsWith(mp, "B = 10 : ") && startsWith(mw, "B = 10 : ") &&
+             !grepl("10L", mp, fixed = TRUE) && !grepl("10L", mw, fixed = TRUE)
+         })
+verifier("run_engine : alpha = 0,3 -> motif cite \"alpha = 0.3 : \", point decimal conserve (#133, #583)",
+         startsWith(message_usage(alpha = 0.3), "alpha = 0.3 : "))
 
 # Issue #527, groupe lognormale (LN-03 a LN-10, PR-01, AJ-04) : texte complet
 # de chaque motif change, sur le gabarit du tableau du par. 7.2 de l'avis

@@ -219,7 +219,7 @@ verifier("Message d'usage : .engine_saisie_lisible() cite NA, NA_real_, NA_integ
          {
            na <- list(NA, NA_real_, NA_integer_, NA_character_)
            autres <- list(NaN, structure(NA_real_, a = 1), c(NA, 1), NULL, 1 + 1e-15, -0, Inf,
-                          "a", 0.3, 99L)
+                          "a", 0.3, 1:2, c(a = 10L), structure(10L, class = "x"))
            all(vapply(na, function(v) identical(.engine_saisie_lisible(v), "NA (valeur manquante)"),
                       logical(1))) &&
              all(vapply(autres, function(v) identical(.engine_saisie_lisible(v), .engine_saisie(v)),
@@ -227,6 +227,38 @@ verifier("Message d'usage : .engine_saisie_lisible() cite NA, NA_real_, NA_integ
              identical(.engine_saisie_lisible(NaN), "NaN") &&
              identical(.engine_saisie(NA_real_), "NA_real_")
          })
+# Issue #583 (c) : l'application transmet input$B entier ; .engine_saisie()
+# le cite "10L" (keepInteger). Un entier scalaire sans attribut est cite par
+# sa forme decimale, sans suffixe L ni notation scientifique : "10", et
+# "100000" pour 100000L (converti en double, il serait cite "1e+05").
+# Vecteurs (1:2), entiers a attribut (nom, classe) et .engine_saisie()
+# inchanges ; alpha, double, garde son point decimal.
+verifier("Message d'usage : .engine_saisie_lisible() cite un entier scalaire sans attribut comme le double (10L, 0L, -3L -> \"10\", \"0\", \"-3\"), .engine_saisie() inchange (#583)",
+         identical(.engine_saisie_lisible(10L), "10") &&
+           identical(.engine_saisie_lisible(10L), .engine_saisie_lisible(10)) &&
+           identical(.engine_saisie_lisible(0L), "0") &&
+           identical(.engine_saisie_lisible(-3L), "-3") &&
+           identical(.engine_saisie_lisible(.Machine$integer.max),
+                     .engine_saisie_lisible(as.double(.Machine$integer.max))) &&
+           identical(.engine_saisie(10L), "10L") && identical(.engine_saisie(10), "10"))
+verifier("Message d'usage : .engine_saisie_lisible() cite un entier multiple de 10^5 sans notation scientifique (100000L, -200000L, integer.max -> \"100000\", \"-200000\", \"2147483647\"), B = -100000L cite \"B = -100000 : \" (#583)",
+         identical(.engine_saisie_lisible(100000L), "100000") &&
+           identical(.engine_saisie_lisible(-200000L), "-200000") &&
+           identical(.engine_saisie_lisible(.Machine$integer.max), "2147483647") &&
+           identical(.engine_saisie_lisible(-.Machine$integer.max), "-2147483647") &&
+           identical(.engine_saisie_lisible(10L), "10") &&
+           identical(.engine_saisie_lisible(100000), .engine_saisie(100000)) &&
+           motif_bareme(.engine_verifier_usage(B = -100000L, seed = 1, bareme = NULL, segment = 1),
+                        "B = -100000 : "))
+verifier("Message d'usage : .engine_saisie_lisible() laisse 1:2, c(a = 10L), un entier a classe et NA_integer_ comme avant (#583)",
+         identical(.engine_saisie_lisible(1:2), .engine_saisie(1:2)) &&
+           identical(.engine_saisie_lisible(c(a = 10L)), .engine_saisie(c(a = 10L))) &&
+           identical(.engine_saisie_lisible(structure(10L, class = "x")),
+                     .engine_saisie(structure(10L, class = "x"))) &&
+           grepl("10L", .engine_saisie_lisible(c(a = 10L)), fixed = TRUE) &&
+           grepl("10L", .engine_saisie_lisible(structure(10L, class = "x")), fixed = TRUE) &&
+           identical(.engine_saisie_lisible(NA_integer_), "NA (valeur manquante)") &&
+           identical(.engine_saisie_lisible(0.3), "0.3"))
 verifier("Message d'usage : B, seed, alpha, sigma_standard vides (NA_real_) cites \"NA (valeur manquante)\", NaN cite NaN (#527)",
          motif_bareme(.engine_verifier_usage(B = NA_real_, seed = 1, bareme = NULL, segment = 1),
                       "B = NA (valeur manquante) : ") &&

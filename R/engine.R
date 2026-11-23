@@ -554,15 +554,25 @@ usp_bareme_segment <- function(segment, annexe = "II") {
 # .engine_saisie() cite NA_real_, forme R). Toute autre valeur, NaN
 # compris, est citee par .engine_saisie(), inchangee (contrat de #133 :
 # ecriture qui se relit
-# exactement, gardes internes et appels directs). Employee par les seuls
-# messages de l'inventaire de #527 : erreurs d'usage de B, seed, alpha et
-# sigma_standard (.engine_verifier_usage()), message jumeau de alpha
+# exactement, gardes internes et appels directs). Un entier scalaire sans
+# attribut (is.integer, longueur 1, attributes() NULL) est cite par sa forme
+# decimale, sans suffixe L ni notation scientifique (#583) : l'application
+# transmet input$B entier, que keepInteger citait "10L" ; il est cite "10",
+# et 100000L "100000" (converti en double, il aurait ete cite "1e+05"). NA
+# (traite plus haut), vecteurs (1:2 reste 1:2), entiers a attribut et
+# .engine_saisie() lui-meme sont inchanges ; alpha, double, garde son point
+# decimal ("0.3").
+# Employee par les seuls messages de l'inventaire de #527 : erreurs d'usage
+# de B, seed, alpha et sigma_standard (.engine_verifier_usage()), message
+# jumeau de alpha
 # (engine_regle_verdicts()), marges delta_equiv et theta_equiv du test
 # d'equivalence (engine_valider_donnees()) et profondeur T
 # (engine_valider_profondeur()).
 .engine_saisie_lisible <- function(v) {
   if (is.atomic(v) && length(v) == 1L && is.null(attributes(v)) &&
       is.na(v) && !is.nan(v)) return("NA (valeur manquante)")
+  if (is.integer(v) && length(v) == 1L && is.null(attributes(v)))
+    return(formatC(v, format = "d"))
   .engine_saisie(v)
 }
 
@@ -5820,11 +5830,14 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
     # cible (n = B) ou a B_max tirages. Levier P1 : un tirage dont le
     # reajustement echoue ou dont delta** n'est pas interieur ne donne lieu a
     # aucun calcul de statistique. Le flux ne calcule que les statistiques
-    # du catalogue (ni bootstrap restreint, ni sigma*, ni z*) et n'imprime
-    # rien.
+    # du catalogue (ni bootstrap restreint, ni sigma*, ni z*). Sous
+    # progres = TRUE, il imprime un point tous les 1 000 tirages du flux
+    # (tir - B, rejets compris) et un saut de ligne a la fin s'il en a
+    # imprime au moins un (issue #255) ; cat() ne consomme aucun alea.
     if (n < B_cible) engine_sous_graine(graine_flux, {
       while (n < B_cible && tir < B_max) {
         tir <- tir + 1
+        if (progres && (tir - B) %% 1000 == 0) cat(".")
         yb <- usp_simuler(fit)
         f <- try(usp_ajuster_rapide(fit$x, yb, fit$delta, fit$gamma), silent = TRUE)
         if (inherits(f, "try-error") || !is.finite(f$delta)) {
@@ -5840,6 +5853,7 @@ usp_bootstrap <- function(fit, B = 999, seed = 20260831, refit = TRUE,
         n <- n + 1
         S[n, ] <- sb[noms]
       }
+      if (progres && tir - B >= 1000) cat("\n")
     })
     stats_boot <- S[seq_len(n), , drop = FALSE]
     mc <- .mc_p_values(stats_boot, stats_obs, USP_CATALOGUE_MC, e_obs)
