@@ -1,0 +1,81 @@
+
+==== Contexte ====
+HEAD : 1954e6ccacbf646ec2d556a4e242eec20cda4d91 
+git diff --stat 8d7bf2f -- R/engine.R (copie de travail comprise) vide : TRUE
+md5 de R/engine.R : 0f8167e59e3507dd40bd8a87d122e189 | egal a 0f8167e59e3507dd40bd8a87d122e189 : TRUE 
+git status --porcelain :  
+?? docs/revues/20261123-a2-creneau/sortie_mesure_608.txt
+?? prompt-poste-local.md
+?? sorties-p/
+R version 4.3.3 (2024-02-29 ucrt) | windows | LC_CTYPE = French_France.utf8 
+getwd() : C:/Personnel/Boulot/outil_USP | tempdir() : C:\Users\jerem\AppData\Local\Temp\RtmpUXBapp 
+paquet zip : 2.3.0 | commande zip : C:\RBUILD~1\4.3\usr\bin\zip.exe 
+voie prise par engine_ecrire_xlsx() : zip::zipr, puis repli utils::zip si echec 
+
+lecteur virtuel Z: -> C:\Users\jerem\AppData\Local\Temp\RtmpUXBapp\p608_21c86e28147a | lecteur de tempdir() : C: | cible_t : C:/usp608_a2_21c8593463ec 
+getwd() apres setwd : Z:/ | L:/<nom> n'est PAS cree : TRUE 
+
+==== (a) sonde pure, sans ecriture ====
+- cible_t absent (C:/usp608_a2_21c8593463ec)
+  chemin "\\usp608_a2_21c8593463ec\\f.xlsx"
+    normalizePath(dirname(chemin)) : Z:/usp608_a2_21c8593463ec
+    normalizePath("/usp608_a2_21c8593463ec")      : Z:/usp608_a2_21c8593463ec
+    .xlsx_chemin_sortie(chemin, getwd()) : Z:/usp608_a2_21c8593463ec/f.xlsx
+    lettre de lecteur : TRUE | attendu (Z:/usp608_a2_21c8593463ec/f.xlsx ou C:/Users/jerem/AppData/Local/Temp/RtmpUXBapp/p608_21c86e28147a/usp608_a2_21c8593463ec/f.xlsx) : TRUE
+  chemin "/usp608_a2_21c8593463ec/f.xlsx"
+    normalizePath(dirname(chemin)) : Z:/usp608_a2_21c8593463ec
+    normalizePath("/usp608_a2_21c8593463ec")      : Z:/usp608_a2_21c8593463ec
+    .xlsx_chemin_sortie(chemin, getwd()) : Z:/usp608_a2_21c8593463ec/f.xlsx
+    lettre de lecteur : TRUE | attendu (Z:/usp608_a2_21c8593463ec/f.xlsx ou C:/Users/jerem/AppData/Local/Temp/RtmpUXBapp/p608_21c86e28147a/usp608_a2_21c8593463ec/f.xlsx) : TRUE
+- cible_t cree (C:/usp608_a2_21c8593463ec)
+  chemin "\\usp608_a2_21c8593463ec\\f.xlsx"
+    normalizePath(dirname(chemin)) : Z:/usp608_a2_21c8593463ec
+    normalizePath("/usp608_a2_21c8593463ec")      : Z:/usp608_a2_21c8593463ec
+    .xlsx_chemin_sortie(chemin, getwd()) : Z:/usp608_a2_21c8593463ec/f.xlsx
+    lettre de lecteur : TRUE | attendu (Z:/usp608_a2_21c8593463ec/f.xlsx ou C:/Users/jerem/AppData/Local/Temp/RtmpUXBapp/p608_21c86e28147a/usp608_a2_21c8593463ec/f.xlsx) : TRUE
+  chemin "/usp608_a2_21c8593463ec/f.xlsx"
+    normalizePath(dirname(chemin)) : Z:/usp608_a2_21c8593463ec
+    normalizePath("/usp608_a2_21c8593463ec")      : Z:/usp608_a2_21c8593463ec
+    .xlsx_chemin_sortie(chemin, getwd()) : Z:/usp608_a2_21c8593463ec/f.xlsx
+    lettre de lecteur : TRUE | attendu (Z:/usp608_a2_21c8593463ec/f.xlsx ou C:/Users/jerem/AppData/Local/Temp/RtmpUXBapp/p608_21c86e28147a/usp608_a2_21c8593463ec/f.xlsx) : TRUE
+
+==== (b) ecriture, cible_t cree et vide ====
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "\\usp608_a2_21c8593463ec\\f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15).
+    fichier en Z://usp608_a2_21c8593463ec/f.xlsx : FALSE | fichier en C:/usp608_a2_21c8593463ec/f.xlsx : FALSE
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "/usp608_a2_21c8593463ec/f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15).
+    fichier en Z://usp608_a2_21c8593463ec/f.xlsx : FALSE | fichier en C:/usp608_a2_21c8593463ec/f.xlsx : FALSE
+
+==== (c) temoin d'effacement : f.xlsx de contenu connu dans cible_t avant l'appel ====
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "\\usp608_a2_21c8593463ec\\f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15).
+    temoin existe encore : TRUE | md5 avant b2d350c51b5f451713576401b68b593e | md5 apres b2d350c51b5f451713576401b68b593e | md5 change : FALSE
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "/usp608_a2_21c8593463ec/f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15).
+    temoin existe encore : TRUE | md5 avant b2d350c51b5f451713576401b68b593e | md5 apres b2d350c51b5f451713576401b68b593e | md5 change : FALSE
+
+==== (d) temoin negatif : cible_t absent, refus attendu ====
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "\\usp608_a2_21c8593463ec\\f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15). | fichier en C:/usp608_a2_21c8593463ec/f.xlsx : FALSE | cible_t cree par l'appel : FALSE
+zip I/O error: No such file or directory
+zip error: Could not create output file (Z:/usp608_a2_21c8593463ec/f.xlsx)
+  chemin "/usp608_a2_21c8593463ec/f.xlsx" : erreur [classe usp_refus_ecriture/error/condition] : Echec de la creation du fichier .xlsx (paquet zip : zip error: Cannot open zip file `Z:/usp608_a2_21c8593463ec/f.xlsx` for writing in file zip.c:309 ; commande zip, statut 15). | fichier en C:/usp608_a2_21c8593463ec/f.xlsx : FALSE | cible_t cree par l'appel : FALSE
+
+==== Lecture (regle Q-73-2 (a)) ====
+NON REPRODUIT 
+  - (a) L:/<nom>/f.xlsx deux fois, (b) refus deux fois sans fichier, (c) temoin intact
+Rappel : un refus usp_refus_ecriture ou une erreur n'est PAS le constat de #608 ;
+         le constat est un fichier ecrit ou un temoin touche sur le lecteur de tempdir().
+
+==== Verification finale du nettoyage ====
+[OK]    le lecteur Z: n'existe plus
+[OK]    C:/usp608_a2_21c8593463ec n'existe plus
+[OK]    C:\Users\jerem\AppData\Local\Temp\RtmpUXBapp\p608_21c86e28147a n'existe plus
+
+Fin de la mesure.
