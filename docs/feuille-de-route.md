@@ -4530,7 +4530,7 @@ Revue finale : `app-review` en `model: "opus"`. Puis **JS2** et **A2**.
 - **Fable** : aucune consultation d'office prévue ; compteur d'A2 : 0 sur 3.
 - **Durée** : longue (une spécification et une lecture d'`actuary-approfondi`, un script, une mesure hors CI de l'ordre de 10 à 16 h par variante (*hypothèse*), une session au poste Windows, deux points d'arrêt, un à trois passages de `coder-approfondi` et de `coder`, `docwriter` `high`, revue finale `high`).
 
-- [x] 0 (`3a82c86`, `98183f2` ; PR #614 ; commentaires de rattachement `7102994759` sur #612, `7102996373` sur #608) — [ ] 1 — [ ] 1b — [ ] PA-1 — [ ] 2 — [ ] 3 — [ ] W — [ ] 4 — [ ] PA-2 — [ ] 5 — [ ] 6 — [ ] 7 — [ ] 8 — [ ] 9 — [ ] 10 — [ ] 11 — *(plan proposé le 23/11/2026, soixante-treizième point, partie 2)*
+- [x] 0 (`3a82c86`, `98183f2` ; PR #614 ; commentaires de rattachement `7102994759` sur #612, `7102996373` sur #608) — [ ] 1 — [x] 1b (lecture d'`audit` `cb964e0` ; script `mesure_608.R` par `coder` `b65c4d9`, audit léger conforme avec réserves, reprise unique `f429b8c`, audit léger du diff conforme avec une réserve mineure gardée : sans zip, un REPRODUIT tiré de la sonde (a) est lu INDETERMINE, lecture prudente, à appliquer à la main à l'étape W si le poste n'a pas zip) — [ ] PA-1 — [ ] 2 — [ ] 3 — [ ] W — [ ] 4 — [ ] PA-2 — [ ] 5 — [ ] 6 — [ ] 7 — [ ] 8 — [ ] 9 — [ ] 10 — [ ] 11 — *(plan proposé le 23/11/2026, soixante-treizième point, partie 2)*
 
 #### Branche S8 — Tests et outillage (#544, #561, #471, #470, #523 ; **esquisse** ; nom proposé `claude/tests-et-outillage`)
 
