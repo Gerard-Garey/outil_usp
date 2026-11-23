@@ -1798,7 +1798,14 @@ server <- function(input, output, session) {
         showNotification("Calcul non lance : aucun resultat n'est produit (voir le bandeau).",
                          type = "error", duration = 10); return()
       }
-      abouti <- withProgress(message = "Calculs en cours (bootstrap parametrique)", value = 0.4, {
+      # Libelle fixe (issue #255, decision Q-72-2 (a)) : au regime interieur
+      # de delta estime, le flux complementaire de la p-value conditionnelle
+      # (#240) peut ajouter des tirages ; aucun calcul ici, la barre ne suit
+      # pas l'avancement.
+      abouti <- withProgress(message = "Calculs en cours (bootstrap parametrique)",
+                             detail = paste0("au r\u00e9gime int\u00e9rieur de \u03b4 estim\u00e9, ",
+                                             "des tirages compl\u00e9mentaires peuvent prolonger le calcul"),
+                             value = 0.4, {
         res <- try(run_engine(xt = sa$xt, yt = sa$yt, methode = input$methode,
                               segment = as.integer(input$segment), annexe = input$annexe,
                               sigma_standard = if (isTRUE(input$sigma_manuel)) input$sigma_std else NULL,
