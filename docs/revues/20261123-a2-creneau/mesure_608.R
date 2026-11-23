@@ -14,6 +14,7 @@ args <- commandArgs(TRUE)
 if (!length(args)) stop("usage : Rscript mesure_608.R <racine du depot>")
 racine <- normalizePath(args[1], winslash = "/", mustWork = TRUE)
 MAIN_A2 <- "8d7bf2f"   # main du creneau A2 : R/engine.R doit y etre identique
+MD5_ENGINE <- "0f8167e59e3507dd40bd8a87d122e189"   # md5 de R/engine.R a MAIN_A2
 source(file.path(racine, "R/charger_moteur.R"))
 charger_moteur(file.path(racine, "R/engine.R"))   # copie les liaisons (.xlsx_chemin_sortie compris) ici
 
@@ -37,12 +38,19 @@ a_lecteur <- function(cible) if (is.na(cible)) NA else grepl("^[A-Za-z]:", cible
 ##   b_refus        : (b) l'appel rend un refus usp_refus_ecriture (2 chemins)
 ##   b_apparu       : (b) un fichier f.xlsx est apparu dans cible_t (2 chemins)
 ##   c_altere       : (c) le temoin de cible_t est efface ou son md5 a change (2 chemins)
+##   zip_disponible : le paquet zip ou la commande zip existe ; sinon engine_ecrire_xlsx() refuse
+##                    AVANT de resoudre la cible (vers engine.R l. 9211) : (b) et (c) ne mesurent rien
+## b_refus exige un refus usp_refus_ecriture PORTANT le message d'echec de creation
+## ("Echec de la creation"), non un refus quelconque (dossier existant, chemin refuse...).
 ## Une erreur n'est PAS un constat : un refus est le comportement non reproduit
 ## (ne pas reprendre la lecture de S5, "une erreur confirme le constat").
-lire_608 <- function(a_sans_lecteur, a_attendu, b_refus, b_apparu, c_altere) {
+lire_608 <- function(a_sans_lecteur, a_attendu, b_refus, b_apparu, c_altere, zip_disponible = TRUE) {
   vrai <- function(x) any(x %in% TRUE)
   tout_faux <- function(x) length(x) > 0L && all(x %in% FALSE)
   tout_vrai <- function(x) length(x) > 0L && all(x %in% TRUE)
+  if (!isTRUE(zip_disponible))
+    return(list(verdict = "INDETERMINE",
+                detail = "ni le paquet zip ni la commande zip : le refus vient avant la resolution de la cible (engine.R l. 9211), mesure sans portee"))
   motifs <- character(0)
   if (vrai(a_sans_lecteur)) motifs <- c(motifs, "(a) une cible sans lettre de lecteur")
   if (vrai(b_apparu)) motifs <- c(motifs, "(b) un fichier est apparu dans cible_t")
@@ -51,7 +59,7 @@ lire_608 <- function(a_sans_lecteur, a_attendu, b_refus, b_apparu, c_altere) {
     return(list(verdict = "REPRODUIT", detail = motifs))
   manques <- character(0)
   if (!tout_vrai(a_attendu)) manques <- c(manques, "(a) pas L:/<nom>/f.xlsx pour les deux chemins (ou sonde non faite)")
-  if (!tout_vrai(b_refus)) manques <- c(manques, "(b) pas un refus usp_refus_ecriture pour les deux chemins (ou mesure non faite)")
+  if (!tout_vrai(b_refus)) manques <- c(manques, "(b) pas un refus usp_refus_ecriture \"Echec de la creation\" pour les deux chemins (ou mesure non faite)")
   if (!tout_faux(b_apparu)) manques <- c(manques, "(b) presence d'un fichier dans cible_t non constatee comme absente")
   if (!tout_faux(c_altere)) manques <- c(manques, "(c) integrite du temoin non constatee")
   if (!length(manques))
@@ -60,23 +68,34 @@ lire_608 <- function(a_sans_lecteur, a_attendu, b_refus, b_apparu, c_altere) {
   list(verdict = "INDETERMINE", detail = manques)
 }
 
-## Sonde (a), sans ecriture : ce que le moteur calcule pour un chemin donne
-sonde <- function(chemin, nom, L) {
+## Comparaison de chemins : minuscules, barres inverses -> barres, barres repetees ramenees a une
+nrm <- function(x) tolower(gsub("/+", "/", gsub("\\\\", "/", x)))
+
+## Sonde (a), sans ecriture : ce que le moteur calcule pour un chemin donne.
+## Attendu : L:/<nom>/f.xlsx, ou la cible reelle du subst (racine_virt/<nom>/f.xlsx) : sur un
+## lecteur subst, normalizePath() resout vers la cible reelle (releve S5, sortie_rejeu.txt l. 28-31).
+sonde <- function(chemin, nom, L, racine_virt) {
   np_dossier <- tryCatch(normalizePath(dirname(chemin), winslash = "/", mustWork = FALSE),
                          error = function(e) NA_character_)
   np_nom <- tryCatch(normalizePath(paste0("/", nom), winslash = "/", mustWork = FALSE),
                      error = function(e) NA_character_)
   cible <- tryCatch(.xlsx_chemin_sortie(chemin, getwd()), error = function(e) NA_character_)
-  attendu <- paste0(L, ":/", nom, "/f.xlsx")
-  cat(sprintf("  chemin %s\n    normalizePath(dirname(chemin)) : %s\n    normalizePath(\"/%s\")      : %s\n    .xlsx_chemin_sortie(chemin, getwd()) : %s\n    lettre de lecteur : %s | egale a %s : %s\n",
-              deparse(chemin), asc(np_dossier), nom, asc(np_nom), asc(cible), a_lecteur(cible), attendu,
-              if (is.na(cible)) NA else identical(tolower(cible), tolower(attendu))))
-  list(sans_lecteur = if (is.na(cible)) NA else !grepl("^[A-Za-z]:", cible),
-       attendu = if (is.na(cible)) NA else identical(tolower(cible), tolower(attendu)))
+  attendu_l <- paste0(L, ":/", nom, "/f.xlsx")
+  attendu_r <- file.path(normalizePath(racine_virt, winslash = "/", mustWork = FALSE), nom, "f.xlsx")
+  est_attendu <- if (is.na(cible)) NA else nrm(cible) %in% nrm(c(attendu_l, attendu_r))
+  cat(sprintf("  chemin %s\n    normalizePath(dirname(chemin)) : %s\n    normalizePath(\"/%s\")      : %s\n    .xlsx_chemin_sortie(chemin, getwd()) : %s\n    lettre de lecteur : %s | attendu (%s ou %s) : %s\n",
+              deparse(chemin), asc(np_dossier), nom, asc(np_nom), asc(cible), a_lecteur(cible),
+              attendu_l, asc(attendu_r), est_attendu))
+  list(sans_lecteur = if (is.na(cible)) NA else !grepl("^[A-Za-z]:", cible), attendu = est_attendu)
 }
 
+## Refus d'ecriture portant le message d'echec de creation de l'archive (engine.R, fin de
+## engine_ecrire_xlsx()) : le seul refus qui dit que la resolution a abouti et que l'archive a echoue
+est_refus_creation <- function(r)
+  inherits(r, "usp_refus_ecriture") && grepl("Echec de la creation", conditionMessage(r), fixed = TRUE)
+
 ## ------------------------------------------------------- mesure proprement dite
-## ctx : L (lettre), racine_l ("L:/"), cible_t, nom, chemins (2), donnees (data.frame)
+## ctx : L (lettre), racine_l ("L:/"), racine_virt, cible_t, nom, chemins (2), donnees (data.frame)
 ## etat : environnement qui porte le drapeau cree_cible_t (lu par le on.exit de l'appelant)
 mesurer <- function(ctx, etat) {
   L <- ctx$L; nom <- ctx$nom; cible_t <- ctx$cible_t; chemins <- ctx$chemins; d <- ctx$donnees
@@ -107,7 +126,7 @@ mesurer <- function(ctx, etat) {
     }
     cat(sprintf("- cible_t %s (%s)\n", etape, cible_t))
     for (i in seq_len(nc)) {
-      s <- sonde(chemins[i], nom, L)
+      s <- sonde(chemins[i], nom, L, ctx$racine_virt)
       k <- (if (etape == "absent") 0L else nc) + i
       m$a_sans_lecteur[k] <- s$sans_lecteur; m$a_attendu[k] <- s$attendu
     }
@@ -118,7 +137,7 @@ mesurer <- function(ctx, etat) {
     for (i in seq_len(nc)) {
       unlink(f_t)
       r <- appel(chemins[i])
-      m$b_refus[i] <- inherits(r, "usp_refus_ecriture")
+      m$b_refus[i] <- est_refus_creation(r)
       m$b_apparu[i] <- file.exists(f_t)
       cat(sprintf("  chemin %s : %s\n    fichier en %s : %s | fichier en %s : %s\n", deparse(chemins[i]), decrire(r),
                   f_l, file.exists(f_l), f_t, m$b_apparu[i]))
@@ -148,7 +167,9 @@ mesurer <- function(ctx, etat) {
   } else {
     for (i in seq_len(nc)) {
       r <- appel(chemins[i])
-      m$d_conforme[i] <- inherits(r, "usp_refus_ecriture") && !file.exists(f_t) && !dir.exists(cible_t)
+      # cible_t apparu pendant l'appel : il est a nous (nom unique, absent avant) : on.exit le nettoiera
+      if (dir.exists(cible_t)) etat$cree_cible_t <- TRUE
+      m$d_conforme[i] <- est_refus_creation(r) && !file.exists(f_t) && !dir.exists(cible_t)
       cat(sprintf("  chemin %s : %s | fichier en %s : %s | cible_t cree par l'appel : %s\n", deparse(chemins[i]),
                   decrire(r), f_t, file.exists(f_t), dir.exists(cible_t)))
     }
@@ -159,14 +180,19 @@ mesurer <- function(ctx, etat) {
 ## ------------------------------------------------------------------ contexte
 titre("Contexte")
 cat("HEAD :", git("rev-parse", "HEAD"), "\n")
-diff_moteur <- git("diff", "--stat", MAIN_A2, "HEAD", "--", "R/engine.R")
-cat(sprintf("git diff --stat %s HEAD -- R/engine.R vide : %s\n", MAIN_A2, !length(diff_moteur)))
+diff_moteur <- git("diff", "--stat", MAIN_A2, "--", "R/engine.R")   # copie de travail comprise
+cat(sprintf("git diff --stat %s -- R/engine.R (copie de travail comprise) vide : %s\n", MAIN_A2, !length(diff_moteur)))
 if (length(diff_moteur)) cat(asc(diff_moteur), sep = "\n")
-cat("md5 de R/engine.R :", unname(tools::md5sum(file.path(racine, "R/engine.R"))), "\n")
+md5_moteur <- unname(tools::md5sum(file.path(racine, "R/engine.R")))
+cat("md5 de R/engine.R :", md5_moteur, "| egal a", MD5_ENGINE, ":", identical(md5_moteur, MD5_ENGINE), "\n")
+etat_git <- git("status", "--porcelain")
+cat("git status --porcelain :", if (length(etat_git)) "" else "arbre propre", "\n")
+if (length(etat_git)) cat(asc(etat_git), sep = "\n")
 cat(R.version.string, "|", .Platform$OS.type, "| LC_CTYPE =", Sys.getlocale("LC_CTYPE"), "\n")
 cat("getwd() :", getwd(), "| tempdir() :", tempdir(), "\n")
 paquet_zip <- requireNamespace("zip", quietly = TRUE)
 commande_zip <- Sys.which(Sys.getenv("R_ZIPCMD", "zip"))
+zip_dispo <- paquet_zip || nzchar(commande_zip)
 cat("paquet zip :", if (paquet_zip) as.character(utils::packageVersion("zip")) else "non installe",
     "| commande zip :", if (nzchar(commande_zip)) commande_zip else "absente", "\n")
 cat("voie prise par engine_ecrire_xlsx() :",
@@ -210,14 +236,16 @@ if (.Platform$OS.type != "windows") {
     if (!dir.exists(racine_virt)) { etat$motif <- "creation de racine_virt impossible"; return(invisible()) }
     s <- system2("subst", c(paste0(L, ":"), shQuote(normalizePath(racine_virt, winslash = "\\"))),
                  stdout = TRUE, stderr = TRUE)
-    if (is.null(attr(s, "status")) || identical(attr(s, "status"), 0L)) etat$subst_pose <- TRUE
+    # subst_pose : statut sans echec, ou lecteur present apres l'appel (la lettre etait libre avant)
+    if (is.null(attr(s, "status")) || identical(attr(s, "status"), 0L) || dir.exists(paste0(L, ":/")))
+      etat$subst_pose <- TRUE
     if (!dir.exists(paste0(L, ":/"))) { etat$motif <- paste("subst a echoue :", asc(paste(s, collapse = " "))); return(invisible()) }
     cat("\nlecteur virtuel", paste0(L, ":"), "->", racine_virt, "| lecteur de tempdir() :", substr(tempdir(), 1, 2),
         "| cible_t :", cible_t, "\n")
     donnees <- file.path(racine, "tests/donnees/donnees_ln.csv")
     if (!file.exists(donnees)) { etat$motif <- paste("introuvable :", donnees); return(invisible()) }
     d <- utils::read.csv(donnees)
-    ctx <- list(L = L, racine_l = paste0(L, ":/"), cible_t = cible_t, nom = nom, donnees = d,
+    ctx <- list(L = L, racine_l = paste0(L, ":/"), racine_virt = racine_virt, cible_t = cible_t, nom = nom, donnees = d,
                 chemins = c(paste0("\\", nom, "\\f.xlsx"), paste0("/", nom, "/f.xlsx")))
     etat$m <- mesurer(ctx, etat)
     invisible()
@@ -230,7 +258,7 @@ if (.Platform$OS.type != "windows") {
     cat("INDETERMINE (mesure non faite :", etat$motif, ")\n")
   } else {
     m <- etat$m
-    lect <- lire_608(m$a_sans_lecteur, m$a_attendu, m$b_refus, m$b_apparu, m$c_altere)
+    lect <- lire_608(m$a_sans_lecteur, m$a_attendu, m$b_refus, m$b_apparu, m$c_altere, zip_dispo)
     cat(lect$verdict, "\n")
     cat(paste0("  - ", lect$detail), sep = "\n")
     if (!is.na(etat$motif)) cat("  note :", etat$motif, "\n")
