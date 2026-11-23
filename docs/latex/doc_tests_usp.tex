@@ -1753,8 +1753,9 @@ d'erreur d'usage~: \code{deparse()} à 15 chiffres significatifs, ou à 17 quand
 chiffres ne restitue pas le double reçu, sans rien évaluer \\
 \code{.engine\_saisie\_lisible()} & valeur reçue & enrobage de \code{.engine\_saisie()}, qui n'est pas
 modifiée~: une valeur manquante seule, sans attribut (\code{NA} hors \code{NaN}), est citée
-«~\code{NA (valeur manquante)}~», un entier scalaire sans attribut est converti en double avant
-\code{.engine\_saisie()} et cité comme lui (l'entier \code{10L} est cité «~\code{10}~»), toute
+«~\code{NA (valeur manquante)}~», un entier scalaire sans attribut est cité sous sa forme
+décimale par \code{formatC()}, sans suffixe~L ni notation scientifique (l'entier
+\code{10L} est cité «~\code{10}~», l'entier \code{100000L} «~\code{100000}~»), toute
 autre valeur (dont vecteur, entier porteur d'un attribut, \code{NaN}) comme par
 \code{.engine\_saisie()}~; employée
 par les seuls messages qui citent \code{B}, \code{seed}, \code{alpha} et \code{sigma\_standard}
@@ -4810,8 +4811,9 @@ autres qu'un calcul abouti, à ne pas confondre~:
   est cité \code{0.030000000000000002} par le message conjoint de $B$ et $\alpha$~;
   \code{alpha = 0.3} reste cité \code{0.3})~; dans les messages qui passent par
   \code{.engine\_saisie\_lisible()} (arguments qu'énumère sa ligne de l'inventaire, §\ref{sec:inventaire}), un
-  entier scalaire sans attribut est cité comme le double de même valeur (mesuré~: \code{B = 10L}
-  donne «~\code{B = 10 :}~\dots~»)~; une valeur manquante seule (\code{NA}) y est citée
+  entier scalaire sans attribut est cité sous sa forme décimale, sans suffixe~L ni notation
+  scientifique (mesuré~: \code{B = 10L} donne «~\code{B = 10 :}~\dots~», \code{B = -200000L}
+  «~\code{B = -200000 :}~\dots~»)~; une valeur manquante seule (\code{NA}) y est citée
   «~\code{NA (valeur manquante)}~» (\code{.engine\_saisie\_lisible()}~; mesuré~: \code{B = NA}
   donne «~\code{B = NA (valeur manquante) :}~\dots~»), comme dans les motifs de refus de
   \code{delta\_equiv}, de \code{theta\_equiv} et de la profondeur $T$. Relèvent du même régime, en appel
