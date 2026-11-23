@@ -3808,4 +3808,134 @@ verifier("Rapport, T = 12 : aucun bandeau repere-profondeur, la regle des verdic
          compte(h12_12, "repere-profondeur") == 0L &&
            pos_bandeau(h12_12)[["regle"]] > 0)
 
+## --- Vue Detail : Verdict, Statistique, p retenue, Nature (#584, exigences 5.3) ---
+# La vue Detail imprimee seule doit permettre de conclure par test : ses quatre
+# colonnes sont lues dans les champs de engine_table_tests() (verdict,
+# statistique et nom_statistique, p_retenue, nature_p), jamais dans le texte du
+# commentaire (detail), et sont les memes cellules que la vue Synthese. Meme
+# fonction pour l'onglet Tests et le rapport fige.
+COL_584 <- c("Test", "Verdict", "Type", "Statistique", "p retenue", "Nature")
+# Objets recalcules ici (tb, tbm, s, h sont reaffectes plus haut dans le fichier).
+tb_584 <- engine_table_tests(res_ln); tbm_584 <- engine_table_tests(res_mw)
+for (cas in list(list(nom = "lognormale", tb = tb_584, res = res_ln), list(nom = "MW", tb = tbm_584, res = res_mw))) {
+  t584 <- cas$tb
+  d584 <- table_detail_groupe(t584, replier = TRUE); p584 <- table_detail_groupe(t584, boot = cas$res$bootstrap)
+  sy584 <- table_synthese_groupe(t584)
+  verifier(sprintf("Vue Detail (%s) : colonnes Test, Verdict, Type, Statistique, p retenue, Nature en tete, la derniere colonne restant Fonction (#584)", cas$nom),
+           identical(names(d584)[seq_along(COL_584)], COL_584) && identical(names(p584), names(d584)) &&
+             identical(names(d584)[ncol(d584)], "Fonction") && identical(anyDuplicated(names(d584)), 0L))
+  verifier(sprintf("Vue Detail (%s) : Verdict, p retenue et Nature identiques a ceux de la vue Synthese, Statistique egale a la sienne hors sous-ligne de p de famille (#584)", cas$nom),
+           identical(d584$Verdict, unname(vapply(t584$verdict, badge_verdict, character(1)))) &&
+             identical(d584[["p retenue"]], sy584[["p retenue"]]) && identical(d584[["p retenue"]], fmt_p(t584$p_retenue)) &&
+             identical(d584$Nature, sy584$Nature) &&
+             identical(paste0(d584$Statistique, .sous_stat_famille(t584)), sy584$Statistique) &&
+             identical(p584[c("Verdict", "Statistique", "p retenue", "Nature")],
+                       d584[c("Verdict", "Statistique", "p retenue", "Nature")]))
+  # Lecture des champs : le commentaire (detail) et les autres colonnes de
+  # texte du moteur sont alteres, les quatre colonnes ne bougent pas ; un champ
+  # altere (verdict, p_retenue, nature_p, statistique) les fait bouger.
+  alt <- t584
+  alt$commentaire <- paste("ECHEC OK ALERTE p = 0,0001 exacte TEST INOPERANT", seq_len(nrow(alt)))
+  alt$H0 <- "H0 altere"; alt$H1 <- "H1 altere"
+  d_alt <- table_detail_groupe(alt)
+  verifier(sprintf("Vue Detail (%s) : les quatre colonnes ne lisent pas le texte du commentaire, de H0 ni de H1 (#584, #129)", cas$nom),
+           identical(d_alt[c("Verdict", "Statistique", "p retenue", "Nature")],
+                     p584[c("Verdict", "Statistique", "p retenue", "Nature")]) &&
+             !identical(d_alt[["Motif / commentaire"]], p584[["Motif / commentaire"]]))
+  i_p <- which(is.finite(t584$p_retenue))[1]; i_s <- which(is.finite(t584$statistique))[1]
+  chg <- function(champ, val) { a <- t584; a[[champ]][i_p] <- val; table_detail_groupe(a) }
+  alt_s <- t584; alt_s$statistique[i_s] <- 123.456; d_s <- table_detail_groupe(alt_s)
+  verifier(sprintf("Vue Detail (%s) : verdict, p_retenue, nature_p et statistique du moteur gouvernent chacun sa colonne (#584)", cas$nom),
+           !identical(chg("verdict", "ECHEC")$Verdict[i_p], p584$Verdict[i_p]) &&
+             identical(chg("verdict", "ECHEC")$Verdict[i_p], badge_verdict("ECHEC")) &&
+             identical(chg("p_retenue", 0.1234)[["p retenue"]][i_p], "0,1234") &&
+             identical(chg("nature_p", "exacte")$Nature[i_p], badge_nature("exacte")) &&
+             grepl("123,456", d_s$Statistique[i_s], fixed = TRUE) && !grepl("123,456", p584$Statistique[i_s], fixed = TRUE))
+  verifier(sprintf("Vue Detail (%s) : ligne sans p retenue ou sans statistique -> tiret, jamais la p non simulee en repli (#584, ADR 0001)", cas$nom),
+           all(p584[["p retenue"]][!is.finite(t584$p_retenue)] == "–") &&
+             all(p584$Nature[is.na(t584$nature_p)] == "–") &&
+             all(p584$Statistique[!is.finite(t584$statistique)] == "–") &&
+             !any(is.finite(t584$p_retenue) & p584[["p retenue"]] == "–"))
+}
+# Rapport fige : la section Detail de chaque groupe porte les mots Verdict,
+# Statistique, p retenue, Nature dans son en-tete, et, sur la ligne de chaque
+# test retenu, le badge du verdict et la p retenue ; chaque tableau de Detail est
+# dans un cadre defil-detail (regles d'impression partagees, #584).
+s_584 <- selection_defaut(tb_584)
+f_584 <- tempfile(fileext = ".html")
+rapport_html(res_ln, s_584, f_584, interactif = FALSE, identite = idt)
+h_584 <- lire(f_584)
+sec_584 <- entre(h_584, "<h2 id='tests-retenus'>", "</section>")
+det_584 <- regmatches(sec_584, gregexpr("(?s)<div class='defil-detail'>\\s*<table.*?</table>\\s*</div>", sec_584, perl = TRUE))[[1]]
+ret_584 <- tb_584[filtrer_selection(tb_584, s_584), , drop = FALSE]
+ret_584$cle <- vapply(ret_584$famille, function(f) groupe_de(f)$cle, character(1))
+n_gr_584 <- length(unique(ret_584$cle))
+verifier("Rapport : une table Detail par groupe, dans un cadre defil-detail, dont l'en-tete commence par Test, Verdict, Type, Statistique, p retenue, Nature (#584)",
+         length(det_584) == n_gr_584 && n_gr_584 >= 2L &&
+           all(startsWith(sub("^(?s)<div class='defil-detail'>\\s*<table[^>]*><thead><tr>", "", det_584, perl = TRUE),
+                          paste0("<th>", COL_584, "</th>", collapse = ""))) &&
+           compte(sec_584, "<div class='gris'>Détail</div>") == n_gr_584)
+verifier("Rapport : sur la ligne Detail de chaque test retenu, le badge du verdict et la p retenue du moteur (la vue Detail imprimee seule permet de conclure, #584)",
+         {
+           ok <- vapply(seq_len(nrow(ret_584)), function(i) {
+             g <- det_584[grepl(.echap_html(ret_584$test[i]), det_584, fixed = TRUE)]
+             l <- unlist(lapply(g, function(x) regmatches(x, gregexpr("<tr>.*?</tr>", x, perl = TRUE))[[1]]))
+             l <- l[grepl(paste0(">", .echap_html(ret_584$test[i]), "</span>"), l, fixed = TRUE)]
+             length(l) >= 1L && grepl(badge_verdict(ret_584$verdict[i]), l[1], fixed = TRUE) &&
+               grepl(paste0("<td>", fmt_p(ret_584$p_retenue[i]), "</td>"), l[1], fixed = TRUE)
+           }, NA)
+           length(ok) > 0L && all(ok)
+         })
+# Regles d'impression : largeurs POSITIONNELLES (nth-child) de la vue Detail,
+# une par colonne de table_detail_groupe() et une somme de 100 %, en portrait et
+# en paysage ; les memes regles dans l'application (app.R) et dans le rapport
+# fige (CSS_RAPPORT).
+largeurs_css <- function(css) {
+  m <- regmatches(css, gregexpr("th:nth-child\\((\\d+)\\) \\{ width:([0-9.]+)%; \\}", css))[[1]]
+  data.frame(i = as.integer(sub("th:nth-child\\((\\d+)\\).*", "\\1", m)),
+             w = as.numeric(sub(".*width:([0-9.]+)%.*", "\\1", m)))
+}
+css_land <- entre(CSS_IMPRESSION_DETAIL, "@media (orientation:landscape) {", "      }\n")
+css_port <- sub(css_land, "", CSS_IMPRESSION_DETAIL, fixed = TRUE)
+w_port <- largeurs_css(css_port); w_land <- largeurs_css(css_land)
+verifier("CSS_IMPRESSION_DETAIL : une largeur par colonne de la vue Detail, somme 100 %, en portrait et en paysage (#584, #560)",
+         nzchar(css_land) && nrow(w_port) == ncol(table_detail_groupe(tb_584)) && nrow(w_land) == nrow(w_port) &&
+           identical(w_port$i, seq_len(nrow(w_port))) && identical(w_land$i, w_port$i) &&
+           isTRUE(all.equal(sum(w_port$w), 100)) && isTRUE(all.equal(sum(w_land$w), 100)) &&
+           all(w_port$w >= 3.5) && all(w_land$w >= 3.5))
+verifier("CSS_IMPRESSION_DETAIL : cadre deplie, en-tete non colle, table a colonnes fixes, badge et code a la police de la cellule (#560, #584)",
+         grepl(".defil-detail { overflow:visible; max-height:none; }", CSS_IMPRESSION_DETAIL, fixed = TRUE) &&
+           grepl("table-layout:fixed", CSS_IMPRESSION_DETAIL, fixed = TRUE) &&
+           grepl("td > span[style*='border-radius']", CSS_IMPRESSION_DETAIL, fixed = TRUE) &&
+           grepl("td code { font-size:inherit !important; }", CSS_IMPRESSION_DETAIL, fixed = TRUE) &&
+           grepl(".defil-detail table.data tr { break-inside:avoid; }", CSS_IMPRESSION_DETAIL, fixed = TRUE))
+verifier("Rapport : les regles d'impression de la vue Detail (CSS_IMPRESSION_DETAIL) sont dans la feuille du rapport, une seule fois (#584)",
+         compte(h_584, CSS_IMPRESSION_DETAIL) == 1L && compte(CSS_RAPPORT, CSS_IMPRESSION_DETAIL) == 1L)
+
+## --- Journal d'execution : identite du code (#584, ADR 0009 point 4) ---------
+# texte_identite_code() ne fait que restituer les champs de identite_code() ;
+# aucun md5 n'est recalcule ni aucun fichier relu.
+lig_584 <- texte_identite_code(idt)
+verifier("texte_identite_code() : version, md5 de R/engine.R, md5 du chargeur et releve, lus dans identite_code() (#584)",
+         length(lig_584) == 4L &&
+           identical(lig_584[1], paste("Version de l'outil   :", idt$version, "(DESCRIPTION)")) &&
+           identical(lig_584[2], paste("md5 R/engine.R       :", idt$md5_engine)) &&
+           identical(lig_584[3], paste("md5 charger_moteur.R :", idt$md5_chargeur)) &&
+           identical(lig_584[4], paste("Releve du code       :", idt$releve)) &&
+           identical(idt$md5_engine, unname(as.character(tools::md5sum(file.path(.racine, "R", "engine.R"))))) &&
+           identical(idt$md5_chargeur, unname(as.character(tools::md5sum(file.path(.racine, "R", "charger_moteur.R"))))) &&
+           all(nchar(c(idt$md5_engine, idt$md5_chargeur)) == 32L))
+verifier("texte_identite_code() : valeurs fournies restituees telles quelles, sans lecture de fichier (identite fictive)",
+         { id <- list(version = "9.9.9", md5_engine = strrep("a", 32), md5_chargeur = strrep("b", 32), releve = "2026-01-01 00:00:00 UTC")
+           l <- texte_identite_code(id)
+           grepl("9.9.9", l[1], fixed = TRUE) && grepl(strrep("a", 32), l[2], fixed = TRUE) &&
+             grepl(strrep("b", 32), l[3], fixed = TRUE) && grepl("2026-01-01 00:00:00 UTC", l[4], fixed = TRUE) })
+verifier("texte_identite_code() : champ absent, NULL ou NA -> tiret, identite NULL -> quatre tirets, sans erreur ; libelles alignes sur 21 colonnes (#584)",
+         { l0 <- texte_identite_code(NULL); l1 <- texte_identite_code(list(version = "2.0.0", md5_engine = NA_character_))
+           all(endsWith(l0[2:4], "–")) && grepl("– (DESCRIPTION)", l0[1], fixed = TRUE) &&
+             identical(l1[2], "md5 R/engine.R       : –") && identical(l1[3], "md5 charger_moteur.R : –") &&
+             grepl("2.0.0", l1[1], fixed = TRUE) &&
+             all(regexpr(":", c(lig_584, l0, l1), fixed = TRUE) == 22L) })
+
+
 fin_fichier()
