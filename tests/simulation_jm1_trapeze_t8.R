@@ -26,11 +26,20 @@
 #  (b = 1001 a 2000) ; V1 lue comme composite des deux executions, sans
 #  implementation ; couverture mesuree pour V0 et V2, cible sigma_A^regle ;
 #  criteres K0 a K4 et regles R0 a R-V0 reportes SANS MODIFICATION dans
-#  TEXTE_CRITERE_612 (controle (t) : presence a l'identique dans le
-#  protocole verse ; md5 du protocole lu au T0, fixe dans le contexte des
-#  tranches et controle a la fin), evalues mecaniquement, SANS
-#  CONCLURE : la lecture revient a actuary (etape 4), la decision au
-#  mainteneur (PA-2).
+#  TEXTE_CRITERE_612 (controle (t), bloquant : presence a l'identique dans
+#  le protocole verse ET md5 du protocole egal a celui approuve a PA-1,
+#  MD5_PROTOCOLE_PA1 ; md5 lu au T0 fixe dans le contexte des tranches et
+#  controle a la fin), evalues mecaniquement, SANS CONCLURE : la lecture
+#  revient a actuary (etape 4), la decision au mainteneur (PA-2).
+#  Decisions du mainteneur sur le controle du script (E-23/11 (etape 2),
+#  docs/feuille-de-route.md par. 4 ; rapports actuary-2-conformite-script-612.md
+#  et audit-leger-script-612.md) : (C2) les controles (inv), (o) et (dc)
+#  carre ne sont pas des controles d'integrite mais des criteres de K0 ;
+#  leur defaut met K0 en defaut et declenche R0, sans INTEGRITE ECHEC : les
+#  sorties restent ecrites ; (dc) sur le bloc D en defaut rend les constats
+#  (3) et (4) non evaluables, sans R0 ; (R3) le bloc D n'entre pas dans le
+#  verdict K0 sur les refus et les p absentes (affiche, hors verdict) ;
+#  (R4) le bloc S (sonde du constat (1)) se lance en premier.
 #
 #  Statut des valeurs : CONSTAT DE SIMULATION SOUS UN PLAN (modele de Mack
 #  ajuste a reserve2, T = I + 1 = 8, lois N et E, B = 999), conditionnel a
@@ -70,10 +79,12 @@
 #  par le controle (r567).
 #
 #  Modes :
+#    --aide : imprime l'usage et l'ordre conseille des lancements (USAGE).
 #    --essai [--processus k] [--travail D] [--duree-max H] [--bloc LISTE] :
 #      R = 3 triangles par cellule, N0 = 100, B = 199 ; dossier temporaire
 #      supprime en fin d'essai (sauf --travail) ; sortie marquee ESSAI ;
-#      --ecrire refuse.
+#      --ecrire refuse ; le controle (oracle) y lit le tableau de #567
+#      (78 lignes, quatre champs numeriques) sans comparer les valeurs.
 #    --prevol : couts a 1, 2, 3 et 4 processus concurrents, controles (v0) et
 #      (v2), taux d'admission ; duree planifiee de L-A, L-B, L-C ; niveau qui
 #      tient dans le budget de PA-1 (13 segments de 1,8 h) ; nombre de
@@ -86,23 +97,55 @@
 #  travail (hors du depot) des qu'elles sont completes ; une relance avec le
 #  meme dossier reprend aux tranches absentes ; le contexte (B, SHA, md5 du
 #  moteur et du script, empreinte #231, plateforme) est compare entre
-#  tranches. --duree-max H : aucun groupe de tranches n'est lance au-dela ;
-#  --bloc : seuls les blocs listes sont calcules. Mesure incomplete : sortie
-#  "SEGMENT INTERROMPU", code 3. Dossier par defaut :
-#  <parent de la racine>/issue612-travail-<niveau>.
+#  tranches. --duree-max H : aucun groupe de tranches n'est lance au-dela
+#  (l'agregation finale, controle (rep) compris, vient apres : voir R7
+#  ci-dessous) ; --bloc : seuls les blocs listes sont calcules ; sans
+#  --bloc, le bloc S est calcule en premier (R4). Mesure incomplete : sortie
+#  "SEGMENT INTERROMPU", code 3 ; si le bloc S est alors complet, son
+#  tableau et la regle du constat (1) sont imprimes et ecrits dans le
+#  dossier de travail (constat-1-sonde.md, provisoire : les controles sur
+#  les lignes et (1) fin ne sont evalues qu'a la mesure complete). Dossier
+#  par defaut : <parent de la racine>/issue612-travail-<niveau>.
 #  Sorties (par. 8 ; avec --ecrire, dans docs/tableaux/ si INTEGRITE OK,
 #  commit propre et garde_ecrasement()) :
 #  <AAAAMMJJ>-issue612-simulation-jm1-trapeze.md, ...-brut.tsv,
 #  ...-balayage-brut.tsv, ...-sonde.tsv, ...-journal-mesure.md ; les oracles
 #  restent dans le dossier de travail (oracle-567.tsv, oracle-D.tsv), md5 au T0.
 #
-#  Usage (racine du depot, LC_ALL=C.UTF-8 sous Linux) :
-#      Rscript tests/simulation_jm1_trapeze_t8.R --essai
-#      Rscript tests/simulation_jm1_trapeze_t8.R --prevol
-#      Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4
-#          --duree-max 1.8 [--travail DOSSIER] [--ecrire]
-#  Derniere ligne de la console : INTEGRITE OK (code 0), INTEGRITE ECHEC
-#  (code 1, et tout refus) ou SEGMENT INTERROMPU (code 3).
+#  Ordre conseille des lancements (R4, R7 ; aussi imprime par --aide), depuis
+#  un arbre fige au commit de mesure (git worktree detache : tout commit sur
+#  la branche pendant un segment le fait echouer, reserve d'audit) :
+#    1. deux pre-vols, a comparer (empreinte de la partie deterministe) :
+#         Rscript tests/simulation_jm1_trapeze_t8.R --prevol
+#    2. essai : Rscript tests/simulation_jm1_trapeze_t8.R --essai
+#    3. bloc S EN PREMIER (sonde du constat (1), quelques minutes) :
+#         Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --bloc S
+#             --processus 4 --travail DOSSIER
+#       si la regle du constat (1) se declenche (correction), l'ordre de la
+#       correction moteur: par rapport a la mesure revient au mainteneur
+#       avant la mesure longue ;
+#    4. segments, meme DOSSIER (reprise aux tranches absentes) :
+#         Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4
+#             --duree-max 1.8 --travail DOSSIER
+#    5. dernier segment (reste estime dans un segment) et tout segment lance
+#       avec --ecrire : --duree-max 1.6 au lieu de 1.8 (R7 : marge pour
+#       l'agregation finale, (rep) et temoin, avant la fin du segment de
+#       1,8 h) :
+#         Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4
+#             --duree-max 1.6 --travail DOSSIER --ecrire
+#
+#  Sortie et codes (derniere ligne de la console) :
+#    INTEGRITE OK       code 0 (K0 en defaut compris : R0 est alors ecrite
+#                       dans la sortie, les sorties restent ecrites) ;
+#    INTEGRITE ECHEC    code 1 (controle de code ou de reproductibilite en
+#                       defaut ; --ecrire refuse) ;
+#    ECRITURE REFUSEE   code 1 (--ecrire seul, INTEGRITE OK : chemin absolu
+#                       dans une sortie, commit non propre au moment
+#                       d'ecrire, copie incomplete) ;
+#    SEGMENT INTERROMPU code 3.
+#  Refus d'option ou de reprise (message "REFUS : ..." sur la sortie
+#  d'erreur, code 1) et erreur R (code 1 de Rscript) : aucune de ces
+#  dernieres lignes. --aide : code 0.
 ###############################################################################
 
 t_debut <- Sys.time()
@@ -116,10 +159,42 @@ LOCALE_TRAVAIL <- Sys.getlocale("LC_CTYPE")
 
 # --- Options -----------------------------------------------------------------
 ARGS <- commandArgs(trailingOnly = TRUE)
-CONNUES <- c("--essai", "--prevol", "--niveau", "--bloc", "--processus", "--travail", "--duree-max",
+CONNUES <- c("--aide", "--essai", "--prevol", "--niveau", "--bloc", "--processus", "--travail", "--duree-max",
              "--ecrire", "--remplacer")
 AVEC_VALEUR <- c("--niveau", "--bloc", "--processus", "--travail", "--duree-max")
 refuser <- function(...) { message("REFUS : ", ...); quit(status = 1L) }
+# Aide (--aide) : usage, ordre conseille des lancements (R4 : bloc S en
+# premier ; R7 : --duree-max 1.6 au dernier segment) et codes de sortie.
+USAGE <- c(
+  "Usage (racine du depot ; LC_ALL=C.UTF-8 sous Linux ; arbre fige au commit de mesure, git worktree detache) :",
+  "  Rscript tests/simulation_jm1_trapeze_t8.R --aide",
+  "  Rscript tests/simulation_jm1_trapeze_t8.R --prevol",
+  "  Rscript tests/simulation_jm1_trapeze_t8.R --essai [--processus k] [--travail D] [--duree-max H] [--bloc LISTE]",
+  "  Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A|L-B|L-C [--bloc LISTE] [--processus k] [--travail D]",
+  "      [--duree-max H] [--ecrire [--remplacer]]",
+  "  Blocs (--bloc, separes par des virgules) : S, OR, M7a, M7b, M5, M6, C, OD, D, BAL ; sans --bloc, S d'abord.",
+  "",
+  "Ordre conseille des lancements :",
+  "  1. --prevol, deux fois (empreintes de la partie deterministe identiques) ;",
+  "  2. --essai (doit finir sur INTEGRITE OK) ;",
+  "  3. bloc S EN PREMIER (sonde du constat (1), quelques minutes) :",
+  "       --niveau L-A --bloc S --processus 4 --travail DOSSIER",
+  "     si la regle du constat (1) se declenche, l'ordre de la correction moteur: par rapport a",
+  "     la mesure revient au mainteneur avant la mesure longue ;",
+  "  4. segments (meme DOSSIER, reprise aux tranches absentes) :",
+  "       --niveau L-A --processus 4 --duree-max 1.8 --travail DOSSIER",
+  "  5. dernier segment (reste estime dans un segment) et tout segment lance avec --ecrire :",
+  "       --niveau L-A --processus 4 --duree-max 1.6 --travail DOSSIER --ecrire",
+  "     (marge pour l'agregation finale, (rep) et temoin, sous la limite de 1,8 h du segment).",
+  "",
+  "Derniere ligne et code : INTEGRITE OK (0, K0 en defaut compris : R0 ecrite dans la sortie) ;",
+  "  INTEGRITE ECHEC (1) ; ECRITURE REFUSEE (1, --ecrire seul) ; SEGMENT INTERROMPU (3) ;",
+  "  refus d'option ou de reprise (REFUS sur la sortie d'erreur) et erreur R : code 1, sans ces lignes.")
+if ("--aide" %in% ARGS) {
+  if (length(setdiff(ARGS, "--aide"))) refuser("--aide : aucune autre option admise")
+  writeLines(USAGE)
+  quit(status = 0L)
+}
 local({
   i <- 1L
   while (i <= length(ARGS)) {
@@ -133,6 +208,10 @@ lire_option <- function(nom, defaut) {
   if (is.na(i)) defaut else ARGS[i + 1L]
 }
 BLOCS_CONNUS <- c("OR", "M7a", "M7b", "M5", "M6", "C", "OD", "D", "BAL", "S")
+# Ordre de calcul des blocs (R4, decision du mainteneur E-23/11 (etape 2)) :
+# le bloc S (sonde du constat (1)) en premier. Chaque ligne ne depend que de
+# ses graines : l'ordre ne change aucun nombre.
+ORDRE_CALCUL <- c("S", setdiff(BLOCS_CONNUS, "S"))
 OPT_ESSAI     <- "--essai" %in% ARGS
 OPT_PREVOL    <- "--prevol" %in% ARGS
 OPT_ECRIRE    <- "--ecrire" %in% ARGS
@@ -239,9 +318,10 @@ PLAGE_EXT_360 <- c(360380123, 360380123)    # graine 360 380 123
 PLAGE_REEMPLOI_567 <- c(567000000, 572000000)
 DECALAGE_LITTERAL <- 20000
 PROTOCOLE <- "docs/revues/20261123-a2-creneau/actuary-1-protocole-612.md"
-# md5 du protocole verse a PA-1 (E-23/11 (PA-1)), cite pour information : le
-# controle (t) porte sur la presence a l'identique du par. 4 ; le md5 lu au
-# T0 est fixe dans le contexte des tranches et controle a la fin ((1) fin).
+# md5 du protocole approuve a PA-1 (E-23/11 (PA-1)) : le controle (t),
+# bloquant, exige ce md5 ET la presence a l'identique du par. 4 (correction
+# C1 d'actuary-2-conformite-script-612.md) ; le md5 lu au T0 est en outre
+# fixe dans le contexte des tranches et controle a la fin ((1) fin).
 MD5_PROTOCOLE_PA1 <- "70176c2e3ded10922eeb81971b533ae7"
 # md5 de R/engine.R a la mesure de #567 (T0 de TABLEAU_567) : cite par (r567),
 # ou seule l'identite des nombres fait foi.
@@ -440,9 +520,14 @@ f_tirer_valeur <- function(v) {
 # colonne j hors de l'ensemble exclu (j_degeneres, ou celui de aj), degeneree
 # au sens de .mw_colonne_degeneree(aj, j), au moins deux facteurs, garde
 # s2 > 0 fini, donc ses residus ; et, en mode "P1", exclut
-# union(jd, .mw_colonnes_degenerees(aj)) (prototype P1). Les triangles
-# successifs distincts (observe, puis une replication apres l'autre) sont
-# comptes, et ceux ou au moins un appel est touche.
+# union(jd, .mw_colonnes_degenerees(aj)) (prototype P1). Les appels sur le
+# triangle observe (aj$tri identical() a cpt$tri_obs, pose par une_sonde())
+# sont comptes a part (obs_appels, obs_touche) ; les autres le sont par
+# replication : triangles successifs distincts (n_triangles : replications
+# ajustees, chacune passant par .mw_stats() -> .mw_contexte_mc() ->
+# mw_residus() dans mw_bootstrap()) et ceux ou au moins un appel est touche
+# (tri_touches). Part touchee (R5) : tri_touches / triangles, triangle
+# observe exclu.
 f_residus_sonde <- function(mode, cpt) {
   e <- new.env(parent = ENV_MOTEUR); e$orig <- ORIG_SUBST[["mw_residus"]]; e$mode <- mode; e$cpt <- cpt
   f <- function(aj, j_degeneres = NULL) {
@@ -451,18 +536,23 @@ f_residus_sonde <- function(mode, cpt) {
     s2 <- .mw_sigma2_residus(aj)
     cand <- setdiff(deg, jd)
     touche <- any(vapply(cand, function(j) aj$I - j >= 2 && is.finite(s2[j + 1L]) && s2[j + 1L] > 0, logical(1)))
-    cpt$appels <- cpt$appels + 1L
-    if (!identical(aj$tri, cpt$dernier)) { cpt$dernier <- aj$tri; cpt$triangles <- cpt$triangles + 1L; cpt$marque <- FALSE }
-    if (touche) {
-      cpt$touches <- cpt$touches + 1L
-      if (!cpt$marque) { cpt$tri_touches <- cpt$tri_touches + 1L; cpt$marque <- TRUE }
+    if (!is.null(cpt$tri_obs) && identical(aj$tri, cpt$tri_obs)) {
+      cpt$obs_appels <- cpt$obs_appels + 1L
+      if (touche) cpt$obs_touche <- TRUE
+    } else {
+      cpt$appels <- cpt$appels + 1L
+      if (!identical(aj$tri, cpt$dernier)) { cpt$dernier <- aj$tri; cpt$triangles <- cpt$triangles + 1L; cpt$marque <- FALSE }
+      if (touche) {
+        cpt$touches <- cpt$touches + 1L
+        if (!cpt$marque) { cpt$tri_touches <- cpt$tri_touches + 1L; cpt$marque <- TRUE }
+      }
     }
     if (identical(mode, "P1")) orig(aj, union(jd, deg)) else orig(aj, j_degeneres)
   }
   environment(f) <- e; f
 }
-nouveau_compteur <- function() { e <- new.env(); e$appels <- 0L; e$touches <- 0L; e$triangles <- 0L; e$tri_touches <- 0L
-  e$dernier <- NULL; e$marque <- FALSE; e }
+nouveau_compteur <- function(tri_obs = NULL) { e <- new.env(); e$appels <- 0L; e$touches <- 0L; e$triangles <- 0L; e$tri_touches <- 0L
+  e$dernier <- NULL; e$marque <- FALSE; e$tri_obs <- tri_obs; e$obs_appels <- 0L; e$obs_touche <- FALSE; e }
 corps_txt <- function(f) paste(trimws(deparse(f, width.cutoff = 500L)), collapse = " ")
 CORPS_SUBST <- c(V2 = corps_txt(F_V2), balayage_k = corps_txt(f_tirer_k(1)), balayage_regle = corps_txt(f_tirer_valeur(0)),
                  sonde = corps_txt(f_residus_sonde("courant", nouveau_compteur())))
@@ -629,7 +719,7 @@ COLONNES_BAL <- c("G", "loi", "b", "g_tri", "g_boot", "point", "k", "s2_pose", "
                   paste0("p:", CLES), "message", "duree_s")
 COL_TEXTE_BAL <- c("G", "loi", "point", "statut", "motif_code", "message")
 COLONNES_S <- c("cfg", "base", "jstar", "rho", "u", "graine", "variante", "mode", "statut", "jd", "deg_jstar",
-                "n_appels", "n_touches", "n_triangles", "n_tri_touches", "B_eff_min",
+                "n_appels", "n_touches", "n_triangles", "n_tri_touches", "obs_appels", "obs_touche", "B_eff_min",
                 paste0("obs:", CLES), paste0("p:", CLES), paste0("err:", CLES), "message", "duree_s")
 COL_TEXTE_S <- c("base", "variante", "mode", "statut", "jd", "message")
 variantes_bloc <- function(bloc) if (bloc %in% c("C", "D")) "V0" else c("V2", "V0")
@@ -882,7 +972,7 @@ une_sonde <- function(cfg, ir, u, B) {
     if (!ad$ok) { L$statut <- "refus"; L$message <- nettoyer_champ(paste(ad$code, ad$motif)) } else {
       aj <- ad$aj
       L$deg_jstar <- as.integer(.mw_colonne_degeneree(aj, jstar))
-      cpt <- nouveau_compteur()
+      cpt <- nouveau_compteur(aj$tri)
       r <- tryCatch(avec_variante(v, substituer("mw_residus", f_residus_sonde(mode, cpt), {
         figes <- .mw_ensembles_figes(aj)
         list(figes = figes, bt = mw_bootstrap(aj, B = B, seed = graine_sonde(u), figes = figes))
@@ -891,6 +981,7 @@ une_sonde <- function(cfg, ir, u, B) {
         L$statut <- "admis"
         L$jd <- if (length(r$figes$degeneres)) paste(r$figes$degeneres, collapse = ",") else "-"
         L$n_appels <- cpt$appels; L$n_touches <- cpt$touches; L$n_triangles <- cpt$triangles; L$n_tri_touches <- cpt$tri_touches
+        L$obs_appels <- cpt$obs_appels; L$obs_touche <- as.integer(cpt$obs_touche)
         L$B_eff_min <- min(unlist(r$bt$B_effectif[CLES]))
         for (k in CLES) {
           L[[paste0("obs:", k)]] <- unname(r$bt$stats_obs[[k]]); L[[paste0("p:", k)]] <- unname(r$bt$p_mc[[k]])
@@ -923,26 +1014,93 @@ lire_lignes <- function(lignes, cols = COLONNES, texte = COL_TEXTE) {
 COLS_TYPE <- list(OR = list(COLONNES_ORA, COL_TEXTE_ORA), OD = list(COLONNES_ORA, COL_TEXTE_ORA),
                   BAL = list(COLONNES_BAL, COL_TEXTE_BAL), S = list(COLONNES_S, COL_TEXTE_S))
 cols_type <- function(type) if (type %in% names(COLS_TYPE)) COLS_TYPE[[type]] else list(COLONNES, COL_TEXTE)
+chaine <- function(d, cols) if (!NROW(d)) character(0) else
+  do.call(paste, c(lapply(cols, function(c) vapply(d[[c]], fv, "")), sep = " "))
+
+# --- Constat (1) : evaluation de la sonde (bloc S, par. 5 (1)) ---------------
+# Utilisee a la fin de la mesure et, bloc S complet, a l'interruption d'un
+# segment (R4 : bloc S lance en premier). Par (colonne sondee, rho,
+# variante) : part touchee (R5) = replications ajustees touchees / replications
+# ajustees, triangle observe exclu (compte a part) ; |Delta p| maximal sur
+# les 13 cles entre code courant et prototype P1, rapporte a err_mc du code
+# courant ; cle du maximum "-" si |Delta p| maximal nul ou non defini.
+evaluer_sonde <- function(SON) {
+  if (is.null(SON)) return(list(tab = NULL, regle = NA))
+  tab <- do.call(rbind, lapply(split(SON, paste(SON$cfg, SON$rho, SON$variante)), function(d) {
+    co <- d[d$mode == "courant", , drop = FALSE]; p1 <- d[d$mode == "P1", , drop = FALSE]
+    if (nrow(co) != 1L || nrow(p1) != 1L) return(NULL)
+    pc <- unlist(co[, paste0("p:", CLES)]); pp <- unlist(p1[, paste0("p:", CLES)]); er <- unlist(co[, paste0("err:", CLES)])
+    dp <- abs(pc - pp); ratio <- ifelse(dp == 0, 0, dp / er)
+    dp_max <- suppressWarnings(max(dp, na.rm = TRUE))
+    data.frame(cfg = co$cfg, base = co$base, jstar = co$jstar, rho = co$rho, variante = co$variante, statut = co$statut,
+               jd = co$jd, deg_jstar = co$deg_jstar, obs_touche = co$obs_touche, n_rep = co$n_triangles, n_rep_touchees = co$n_tri_touches,
+               part = if (is.finite(co$n_triangles) && co$n_triangles > 0) co$n_tri_touches / co$n_triangles else NA_real_,
+               appels = co$n_appels, touches = co$n_touches,
+               obs_ident = identical(chaine(co, paste0("obs:", CLES)), chaine(p1, paste0("obs:", CLES))),
+               dp_max = dp_max, ratio_max = suppressWarnings(max(ratio, na.rm = TRUE)),
+               cle_max = if (!is.finite(dp_max) || dp_max == 0) "-" else CLES[which.max(replace(ratio, is.na(ratio), -1))],
+               stringsAsFactors = FALSE)
+  }))
+  if (!is.null(tab)) tab <- tab[order(tab$cfg, tab$rho, tab$variante), , drop = FALSE]
+  regle <- if (is.null(tab)) NA else {
+    pl <- tab$rho >= PLAGE_RHO_S[1] & tab$rho <= PLAGE_RHO_S[2]
+    touchee <- is.finite(tab$part) & tab$part > 0
+    any(pl & touchee & is.finite(tab$ratio_max) & tab$ratio_max > 2) || any(pl & touchee & is.infinite(tab$ratio_max))
+  }
+  list(tab = tab, regle = regle)
+}
+lignes_constat_1 <- function(ev) {
+  x <- c("### Constat (1) : sonde de la plage de dispersion relative 1e-12 \u00e0 1e-10 (bloc S)", "",
+         sprintf("Part touch\u00e9e : r\u00e9plications ajust\u00e9es o\u00f9 une colonne hors de l'ensemble fig\u00e9, d\u00e9g\u00e9n\u00e9r\u00e9e au sens de .mw_colonne_degeneree(), garde des r\u00e9sidus (code courant), divis\u00e9es par le nombre de r\u00e9plications ajust\u00e9es, triangle observ\u00e9 exclu (compt\u00e9 \u00e0 part) ; |\u0394p| max entre code courant et prototype P1 rapport\u00e9 \u00e0 err_mc du code courant. R\u00e8gle (plage %s \u00e0 %s) : %s.",
+                 format(PLAGE_RHO_S[1]), format(PLAGE_RHO_S[2]),
+                 if (is.na(ev$regle)) "non \u00e9valuable" else if (ev$regle) "**correction (part touch\u00e9e non nulle et |\u0394p| > 2 err_mc dans la plage)**" else "constat document\u00e9, mineur (ADR 0018)"), "")
+  if (!is.null(ev$tab)) x <- c(x, entete_md(c("Colonne sond\u00e9e", "\u03c1", "Variante", "statut", "colonnes fig\u00e9es", "j* d\u00e9g\u00e9n\u00e9r\u00e9e", "observ\u00e9 touch\u00e9",
+                                               "r\u00e9plications ajust\u00e9es", "touch\u00e9es", "part touch\u00e9e", "appels touch\u00e9s / appels (r\u00e9plications)", "stats_obs identiques", "|\u0394p| max", "|\u0394p| / err_mc max (cl\u00e9)")),
+    vapply(seq_len(nrow(ev$tab)), function(i) { y <- ev$tab[i, ]
+      ligne_md(SONDE_CFG$lib[y$cfg], format(y$rho), y$variante, y$statut, y$jd, y$deg_jstar, if (isTRUE(y$obs_touche == 1)) "oui" else if (isTRUE(y$obs_touche == 0)) "non" else "\u2014",
+               format(y$n_rep), format(y$n_rep_touchees), num(y$part, 4), sprintf("%s / %s", format(y$touches), format(y$appels)),
+               if (isTRUE(y$obs_ident)) "oui" else "**non**", num(y$dp_max, 5), sprintf("%s (%s)", num(y$ratio_max, 2), y$cle_max)) }, ""), "")
+  x
+}
 
 ###############################################################################
 #  CONTROLES COMMUNS AU PRE-VOL ET A LA MESURE
 ###############################################################################
+# Nature d'un controle (decision C2 du mainteneur, E-23/11 (etape 2)) :
+# "integrite" : controle de code ou de reproductibilite, bloquant (INTEGRITE
+# ECHEC, --ecrire refuse) ; "k0" : critere de K0 ((inv), (o), (dc) carre),
+# dont le defaut met K0 en defaut et declenche R0 sans bloquer l'ecriture ;
+# "constat" : (dc) sur le bloc D, dont le defaut rend les constats (3) et (4)
+# non evaluables, sans R0.
 INTEGRITE <- character(0)
+DEFAUTS_K0 <- character(0)
+DEFAUTS_CONSTAT <- character(0)
 CTRL <- list()
-controle <- function(code, ok, detail) {
-  CTRL[[length(CTRL) + 1L]] <<- list(code = code, ok = isTRUE(ok), detail = detail)
-  if (!isTRUE(ok)) INTEGRITE <<- c(INTEGRITE, code)
+controle <- function(code, ok, detail, nature = "integrite") {
+  CTRL[[length(CTRL) + 1L]] <<- list(code = code, ok = isTRUE(ok), detail = detail, nature = nature)
+  if (!isTRUE(ok)) switch(nature,
+    integrite = INTEGRITE <<- c(INTEGRITE, code),
+    k0 = DEFAUTS_K0 <<- c(DEFAUTS_K0, code),
+    constat = DEFAUTS_CONSTAT <<- c(DEFAUTS_CONSTAT, code),
+    stop("nature de controle inconnue : ", nature))
 }
-# (t) : criteres et regles du par. 4 presents a l'identique dans le
-# protocole verse ; md5 du protocole.
+etat_ctrl <- function(k) if (k$ok) "OK" else switch(k$nature,
+  integrite = "\u00c9CHEC",
+  k0 = "D\u00c9FAUT DE K0 (R0, sans INTEGRITE ECHEC)",
+  constat = "D\u00c9FAUT (constats (3) et (4) non \u00e9valuables, sans R0)")
+lignes_ctrl <- function() vapply(CTRL, function(k) sprintf("- %s : %s -- %s", k$code, etat_ctrl(k), k$detail), "")
+# (t), bloquant (correction C1) : criteres et regles du par. 4 presents a
+# l'identique dans le protocole verse ET md5 du protocole egal a celui
+# approuve a PA-1 (MD5_PROTOCOLE_PA1).
 controle_t <- function() {
   f <- file.path(RACINE, PROTOCOLE)
   txt <- if (file.exists(f)) readLines(f, warn = FALSE, encoding = "UTF-8") else character(0)
   ok_b <- present_bloc(TEXTE_CRITERE_612, txt); m <- md5_fichier(f)
-  controle("(t)", ok_b && identical(m, MD5_PROTOCOLE_T0),
-           sprintf("par. 4 (crit\u00e8re, K0 \u00e0 K4, r\u00e8gles R0 \u00e0 d\u00e9faut, statut \u00e9pist\u00e9mique ; %d lignes) %s dans %s ; md5 au T0 %s, %s du md5 vers\u00e9 \u00e0 PA-1 (%s), fix\u00e9 dans le contexte des tranches et contr\u00f4l\u00e9 \u00e0 la fin ; v\u00e9rifi\u00e9 avant tout tirage",
+  ok_m <- identical(m, MD5_PROTOCOLE_PA1)
+  controle("(t)", ok_b && ok_m,
+           sprintf("par. 4 (crit\u00e8re, K0 \u00e0 K4, r\u00e8gles R0 \u00e0 d\u00e9faut, statut \u00e9pist\u00e9mique ; %d lignes) %s dans %s ; md5 %s, %s md5 approuv\u00e9 \u00e0 PA-1 (%s, exig\u00e9) ; md5 lu au T0 fix\u00e9 dans le contexte des tranches et contr\u00f4l\u00e9 \u00e0 la fin ; v\u00e9rifi\u00e9 avant tout tirage",
                    length(TEXTE_CRITERE_612), if (ok_b) "pr\u00e9sent \u00e0 l'identique" else "ABSENT OU MODIFI\u00c9", PROTOCOLE, m,
-                   if (identical(m, MD5_PROTOCOLE_PA1)) "identique" else "diff\u00e9rent", MD5_PROTOCOLE_PA1))
+                   if (ok_m) "identique au" else "DIFF\u00c9RENT du", MD5_PROTOCOLE_PA1))
 }
 # (v0), (v2) : V0 (resp. V2) du script identical() a run_engine() (meme
 # substitution) sur les 13 p_mc des triangles du pre-vol : premier triangle
@@ -1109,7 +1267,7 @@ if (MODE == "prevol") {
       sprintf("Unit\u00e9s de d\u00e9bit : md5 des p_mc et \u03c3* de l'unit\u00e9 %s ; identiques dans les %d ex\u00e9cutions : %s.",
               md5_texte(EMP_U[1]), length(EMP_U), if (UNITES_IDENTIQUES) "oui" else "NON"), "",
       "### Contr\u00f4les", "",
-      vapply(CTRL, function(k) sprintf("- %s : %s -- %s", k$code, if (k$ok) "OK" else "\u00c9CHEC", k$detail), ""), "",
+      lignes_ctrl(), "",
       "### Bootstraps par niveau (par. 9)", "",
       entete_md(c("Niveau", "bootstraps \u00e0 B = 999")),
       vapply(plan, function(x) ligne_md(x$niveau, format(x$boot)), ""))
@@ -1131,8 +1289,8 @@ if (MODE == "prevol") {
            if (!is.na(niveau)) sprintf("**Niveau retenu : %s, %s h, %d segment(s) de 1,8 h** (hypoth\u00e8se [H] : co\u00fbt lin\u00e9aire par triangle ; agr\u00e9gation finale et queues de groupes non compt\u00e9es).",
                                        niveau, num(plan[[niveau]]$total / 3600, 2), plan[[niveau]]$nseg)
            else "**Aucun niveau ne tient dans le budget de PA-1 : retour au mainteneur.**", "",
-           sprintf("Commande d'un segment (arbre propre) : LC_ALL=C.UTF-8 Rscript %s --niveau %s --processus %d --duree-max 1.8 --travail DOSSIER [--ecrire]",
-                   SCRIPT_DEPOT, if (is.na(niveau)) "?" else niveau, k_plan),
+           sprintf("Ordre conseill\u00e9 (arbre fig\u00e9 au commit de mesure ; --aide) : (1) bloc S en premier : LC_ALL=C.UTF-8 Rscript %s --niveau %s --bloc S --processus %d --travail DOSSIER ; (2) segments : LC_ALL=C.UTF-8 Rscript %s --niveau %s --processus %d --duree-max 1.8 --travail DOSSIER ; (3) dernier segment et tout segment avec --ecrire : --duree-max 1.6 (marge d'agr\u00e9gation finale) [--ecrire]",
+                   SCRIPT_DEPOT, if (is.na(niveau)) "?" else niveau, k_plan, SCRIPT_DEPOT, if (is.na(niveau)) "?" else niveau, k_plan),
            sprintf("PREVOL612\t%s\t%s\t%s\t%s", paste(sprintf("%.4f", c1m), collapse = "\t"), paste(sprintf("%.4f", P_k), collapse = "\t"),
                    paste(vapply(plan, function(x) sprintf("%.0f", x$total), ""), collapse = "\t"), if (is.na(niveau)) "NA" else niveau),
            sprintf("Dur\u00e9e du pr\u00e9-vol : %s s.", num(secs(t_debut), 0)))
@@ -1228,7 +1386,7 @@ REMPLACES <- NULL
 if (OPT_ECRIRE) REMPLACES <- garde_ecrasement(CIBLES, remplacer = OPT_REMPLACER)
 arret_integrite <- function(titre) {
   ecrire_console(c(sprintf("## INTEGRITE ECHEC %s", titre), "",
-                   vapply(CTRL, function(k) sprintf("- %s : %s -- %s", k$code, if (k$ok) "OK" else "\u00c9CHEC", k$detail), ""), "",
+                   lignes_ctrl(), "",
                    sprintf("INTEGRITE ECHEC : %s", paste(unique(INTEGRITE), collapse = ", "))))
   ecrire_fichier(JOURNAL_T, sprintf("- INTEGRITE ECHEC %s : %s ; %s", titre, horodatage(), paste(unique(INTEGRITE), collapse = ", ")), mode = "ab")
   nettoyer_essai()
@@ -1499,7 +1657,7 @@ DUREE_MAX_S <- OPT_DUREE_MAX * 3600
 # un seul appel de mclapply (ordonnancement dynamique) : OPT_PROC tranches
 # (10 pour les oracles). Chaque ligne ne depend que de ses graines : le
 # resultat ne depend ni des groupes ni du nombre de processus.
-for (bl in BLOCS_CONNUS) {
+for (bl in ORDRE_CALCUL) {
   if (INTERROMPU) break
   if (!bl %in% OPT_BLOCS) next
   a_faire <- unlist(lapply(Filter(function(x) x$type == bl, CELLULES), function(cel)
@@ -1547,9 +1705,26 @@ for (bl in BLOCS_CONNUS) {
 INCOMPLET <- any(vapply(CELLULES, function(cel) length(manquantes_de(cel)) > 0L, logical(1)))
 if (INTERROMPU || INCOMPLET) {
   reste <- sum(vapply(CELLULES, function(cel) length(manquantes_de(cel)), 1L))
+  # Bloc S complet (R4 : lance en premier) : tableau et regle du constat (1)
+  # imprimes et ecrits dans le dossier de travail, a titre provisoire.
+  CEL_S <- Filter(function(cel) cel$type == "S", CELLULES)
+  if (length(CEL_S) && !any(vapply(CEL_S, function(cel) length(manquantes_de(cel)) > 0L, logical(1)))) {
+    SON_P <- do.call(rbind, unlist(lapply(CEL_S, function(cel) lapply(tranches_de(cel), function(tr) lire_tranche(fichier_tranche(cel, tr), cel, tr))), recursive = FALSE))
+    EV_P <- evaluer_sonde(SON_P)
+    C1 <- c(sprintf("## Constat (1), bloc S complet -- PROVISOIRE (mesure #612 incompl\u00e8te%s)", if (OPT_ESSAI) " ; ESSAI, non versionnable" else ""), "",
+            sprintf("B = %s ; SHA %s ; md5 R/engine.R %s ; script %s ; protocole md5 %s. Contr\u00f4les avant tout tirage : OK. Les contr\u00f4les sur les lignes calcul\u00e9es et (1) fin ne sont \u00e9valu\u00e9s qu'\u00e0 la mesure compl\u00e8te.",
+                    format(B_RUN), SHA_DEBUT, MD5_MOTEUR_DEBUT, MD5_SCRIPT, MD5_PROTOCOLE_T0), "",
+            lignes_constat_1(EV_P))
+    F_C1 <- file.path(TRAVAIL, "constat-1-sonde.md")
+    ecrire_fichier(F_C1, C1)
+    ecrire_console(C1)
+    ecrire_fichier(JOURNAL_T, sprintf("- Constat (1) (bloc S complet, provisoire) : %s ; r\u00e8gle : %s ; %s md5 %s",
+                                      horodatage(), if (is.na(EV_P$regle)) "non \u00e9valuable" else if (EV_P$regle) "CORRECTION" else "constat document\u00e9, mineur",
+                                      basename(F_C1), md5_fichier(F_C1)), mode = "ab")
+  }
   ecrire_fichier(JOURNAL_T, sprintf("- Segment interrompu : %s ; %d tranche(s) calcul\u00e9e(s) dans ce segment, %d restante(s) (--duree-max %s h ; blocs %s)",
                                     horodatage(), N_TR_CALC, reste, format(OPT_DUREE_MAX), paste(OPT_BLOCS, collapse = ",")), mode = "ab")
-  ecrire_console(c(sprintf("Segment : %d tranche(s) calcul\u00e9e(s), %d restante(s) ; dur\u00e9e %s s ; relancer la m\u00eame commande (m\u00eame --travail) pour reprendre.",
+  ecrire_console(c(sprintf("Segment : %d tranche(s) calcul\u00e9e(s), %d restante(s) ; dur\u00e9e %s s ; relancer avec le m\u00eame --travail (sans --bloc, ou avec les blocs restants) pour reprendre ; si le reste tient dans un segment, --duree-max 1.6 (marge d'agr\u00e9gation finale, R7).",
                            N_TR_CALC, reste, num(secs(t_debut), 0)), "SEGMENT INTERROMPU"))
   if (TRAVAIL_TEMP) { GARDER_TRAVAIL <- TRUE; message("dossier d'essai temporaire conserve pour la reprise : ", TRAVAIL) }
   quit(status = 3L)
@@ -1678,12 +1853,13 @@ local({
                    length(unique(cles_lignes(ci[ci$i1 %in% 1, ]))), n_ctl))
 })
 # (o) : carre, statistiques observees du 8 x 8 identical() a celles du 8 x 7
-# tronque, par triangle.
+# tronque, par triangle. Critere de K0 (C2) : un defaut declenche R0, sans
+# INTEGRITE ECHEC.
 local({
   d <- ADM[ADM$bloc == "C" & ADM$statut == "admis", , drop = FALSE]
-  if (!nrow(d)) { controle("(o)", TRUE, "sans objet (aucun carr\u00e9 au niveau)"); return(invisible()) }
-  controle("(o)", all(d$o8 %in% 1), sprintf("carr\u00e9 8 x 8 : statistiques observ\u00e9es identical() \u00e0 celles du 8 x 7 tronqu\u00e9 (m\u00eame t\u00e9moin) : %d / %d triangles ; 8 x 7 tronqu\u00e9 non ajustable : %d",
-                                           sum(d$o8 %in% 1), nrow(d), sum(is.na(d$o8))))
+  if (!nrow(d)) { controle("(o)", TRUE, "sans objet (aucun carr\u00e9 au niveau)", nature = "k0"); return(invisible()) }
+  controle("(o)", all(d$o8 %in% 1), sprintf("crit\u00e8re de K0 : carr\u00e9 8 x 8 : statistiques observ\u00e9es identical() \u00e0 celles du 8 x 7 tronqu\u00e9 (m\u00eame t\u00e9moin) : %d / %d triangles ; 8 x 7 tronqu\u00e9 non ajustable : %d",
+                                           sum(d$o8 %in% 1), nrow(d), sum(is.na(d$o8))), nature = "k0")
 })
 # (so) et (inv) : apparier V0 et V2 par triangle.
 paires <- function(G_, blocs, loi) {
@@ -1692,8 +1868,6 @@ paires <- function(G_, blocs, loi) {
   b <- intersect(v2$b, v0$b)
   list(v2 = v2[match(b, v2$b), , drop = FALSE], v0 = v0[match(b, v0$b), , drop = FALSE], b = b)
 }
-chaine <- function(d, cols) if (!NROW(d)) character(0) else
-  do.call(paste, c(lapply(cols, function(c) vapply(d[[c]], fv, "")), sep = " "))
 CEL_M <- list("8x5" = "M5", "8x6" = "M6", "8x7" = c("M7a", "M7b"))
 INV <- list()
 local({
@@ -1717,41 +1891,65 @@ local({
                                   if (length(t)) paste0(" ; \u00e9carts : ", paste(sprintf("%s %d", names(t), as.integer(t)), collapse = ", ")) else ""))
   }
   controle("(so)", ok_so && length(det_so) > 0L, sprintf("statistiques observ\u00e9es (13 cl\u00e9s) identiques entre V0 et V2, par triangle admis : %s", paste(det_so, collapse = " ; ")))
+  # (inv) : critere de K0 (C2), un defaut declenche R0 sans INTEGRITE ECHEC.
   controle("(inv)", ok_inv && length(det_inv) > 0L,
-           sprintf("crit\u00e8re K0, invariance : p_mc des cl\u00e9s autres que PenteIntra et Alpha (autres que PenteIntra sur 8 x 7) identiques entre V0 et V2 sur au moins %s des triangles de chaque (G, \u2113) : %s",
-                   "99,5 %", paste(det_inv, collapse = " ; ")))
+           sprintf("crit\u00e8re de K0, invariance : p_mc des cl\u00e9s autres que PenteIntra et Alpha (autres que PenteIntra sur 8 x 7) identiques entre V0 et V2 sur au moins %s des triangles de chaque (G, \u2113) : %s",
+                   "99,5 %", paste(det_inv, collapse = " ; ")), nature = "k0")
 })
 # (dc) : carre et D, une execution : le predicat de simulation directe vaut
-# la meme chose sous V0 et sous V2 (meme simulation).
+# la meme chose sous V0 et sous V2 (meme simulation). Decision C2 : sur le
+# carre, critere de K0 (defaut -> R0, sans INTEGRITE ECHEC) ; sur le bloc D,
+# un defaut rend les constats (3) et (4) non evaluables, sans R0.
 local({
-  d <- ADM[ADM$bloc %in% c("C", "D") & ADM$statut == "admis", , drop = FALSE]
-  if (!nrow(d)) { controle("(dc)", TRUE, "sans objet (ni carr\u00e9 ni bloc D au niveau)"); return(invisible()) }
-  ok <- all(d$sim_dir == d$sim_dir_v2)
-  dd <- d[d$bloc == "D", , drop = FALSE]
-  controle("(dc)", ok, sprintf("carr\u00e9 et bloc D : pr\u00e9dicat .mw_simulation_sigma_direct() identique sous V0 et V2 (simulation identique) : %d / %d ; bloc D au cas M-1 (b) (pr\u00e9dicat vrai) : %d / %d ; carr\u00e9 (pr\u00e9dicat faux) : %d / %d",
-                                 sum(d$sim_dir == d$sim_dir_v2), nrow(d), sum(dd$sim_dir %in% 1), nrow(dd),
-                                 sum(d$sim_dir[d$bloc == "C"] %in% 0), sum(d$bloc == "C")))
+  meme <- function(x) (x$sim_dir == x$sim_dir_v2) %in% TRUE
+  dc <- ADM[ADM$bloc == "C" & ADM$statut == "admis", , drop = FALSE]
+  if (!nrow(dc)) controle("(dc) carr\u00e9", TRUE, "sans objet (aucun carr\u00e9 au niveau)", nature = "k0") else
+    controle("(dc) carr\u00e9", all(meme(dc)),
+             sprintf("crit\u00e8re de K0 : carr\u00e9 : pr\u00e9dicat .mw_simulation_sigma_direct() identique sous V0 et V2 (simulation identique, une ex\u00e9cution) : %d / %d ; pr\u00e9dicat faux : %d / %d",
+                     sum(meme(dc)), nrow(dc), sum(dc$sim_dir %in% 0), nrow(dc)), nature = "k0")
+  dd <- ADM[ADM$bloc == "D" & ADM$statut == "admis", , drop = FALSE]
+  if (!nrow(dd)) controle("(dc) D", TRUE, "sans objet (aucun bloc D au niveau)", nature = "constat") else
+    controle("(dc) D", all(meme(dd)),
+             sprintf("bloc D (constats (3) et (4)) : pr\u00e9dicat .mw_simulation_sigma_direct() identique sous V0 et V2 (simulation identique, une ex\u00e9cution) : %d / %d ; cas M-1 (b) (pr\u00e9dicat vrai) : %d / %d ; un d\u00e9faut rend les constats (3) et (4) non \u00e9valuables, sans R0",
+                     sum(meme(dd)), nrow(dd), sum(dd$sim_dir %in% 1), nrow(dd)), nature = "constat")
 })
 # (oracle) : rho et tailles du temoin de #567 reproduits aux cinq decimales
-# imprimees (78 lignes) ; md5 du fichier au format de #567. Sans objet en
-# essai (N0 et B reduits).
-local({
-  if (OPT_ESSAI) { controle("(oracle)", TRUE, sprintf("sans objet en essai (N0 = %d, B = %s) ; md5 oracle-567.tsv %s", N0_ESSAI, format(B_RUN), MD5_ORACLE)); return(invisible()) }
+# imprimees (78 lignes) ; md5 du fichier au format de #567. Lecture du
+# tableau de #567 commune a l'essai et a la mesure (R1) : 78 lignes, une par
+# (G, loi, cle) des trapezes, sans doublon, quatre champs numeriques a cinq
+# decimales (rho a 0,10 et 0,05, tailles a 0,10 et 0,05). En essai (N0 et B
+# reduits), seule la lecture est controlee, sans comparaison des valeurs.
+lire_tableau_oracle_567 <- function() {
   tx <- readLines(file.path(RACINE, TABLEAU_567), warn = FALSE, encoding = "UTF-8")
   rx <- "^\\| (8x[567]) \\| ([NE]) \\| ([A-Za-z0-9]+) \\([a-z]+\\) \\| [0-9]+ / [0-9]+ \\|"
   l <- tx[grepl(rx, tx)]
-  n_ok <- 0L; n_l <- 0L; ecarts <- character(0)
-  for (x in l) {
+  lapply(l, function(x) {
     f <- trimws(strsplit(x, "|", fixed = TRUE)[[1]])[-1]
-    G <- f[1]; loi <- f[2]; s <- sub(" .*", "", f[3])
-    o <- OR[[paste(G, loi)]]; n_l <- n_l + 1L
-    calc <- if (is.null(o)) rep("?", 4) else c(num(o[[s]]$rho[["a10"]], 5), num(o[[s]]$rho[["a05"]], 5), num(o[[s]]$taille_or[["a10"]], 5), num(o[[s]]$taille_or[["a05"]], 5))
-    lu <- sub(" \\(.*$", "", f[8:11])
-    if (identical(calc, lu)) n_ok <- n_ok + 1L else ecarts <- c(ecarts, sprintf("%s %s %s", G, loi, s))
+    list(G = f[1], loi = f[2], s = sub(" .*", "", f[3]), lu = sub(" \\(.*$", "", f[8:11]))
+  })
+}
+local({
+  T567 <- lire_tableau_oracle_567()
+  n_l <- length(T567)
+  champs_ok <- vapply(T567, function(x) length(x$lu) == 4L && !anyNA(x$lu) && all(grepl("^[0-9]+,[0-9]{5}$", x$lu)) &&
+                        x$G %in% GEOM$code && x$loi %in% names(LOIS) && x$s %in% CLES, logical(1))
+  cles_t <- vapply(T567, function(x) paste(x$G, x$loi, x$s), "")
+  lecture_ok <- n_l == 78L && all(champs_ok) && !anyDuplicated(cles_t)
+  txt_lecture <- sprintf("lecture du tableau de #567 (%s) : %d ligne(s) (78 attendues), %d \u00e0 quatre champs num\u00e9riques \u00e0 cinq d\u00e9cimales et (G, \u2113, cl\u00e9) connus, %d (G, \u2113, cl\u00e9) distincts",
+                         TABLEAU_567, n_l, sum(champs_ok), length(unique(cles_t)))
+  if (OPT_ESSAI) {
+    controle("(oracle)", lecture_ok, sprintf("essai (N0 = %d, B = %s) : valeurs non compar\u00e9es ; %s ; md5 oracle-567.tsv %s", N0_ESSAI, format(B_RUN), txt_lecture, MD5_ORACLE))
+    return(invisible())
   }
-  ok <- n_l == 78L && n_ok == 78L
-  controle("(oracle)", ok, sprintf("\u03c1 (0,10 ; 0,05) et tailles du t\u00e9moin de #567 reproduits aux cinq d\u00e9cimales : %d / %d lignes de %s ; md5 oracle-567.tsv %s (#567 : %s, %s) ; \u00e9carts : %s",
-                                   n_ok, n_l, TABLEAU_567, MD5_ORACLE, MD5_ORACLE_567, if (identical(MD5_ORACLE, MD5_ORACLE_567)) "identique" else "diff\u00e9rent",
+  n_ok <- 0L; ecarts <- character(0)
+  for (x in T567) {
+    o <- OR[[paste(x$G, x$loi)]]; s <- x$s
+    calc <- if (is.null(o) || is.null(o[[s]])) rep("?", 4) else c(num(o[[s]]$rho[["a10"]], 5), num(o[[s]]$rho[["a05"]], 5), num(o[[s]]$taille_or[["a10"]], 5), num(o[[s]]$taille_or[["a05"]], 5))
+    if (identical(calc, x$lu)) n_ok <- n_ok + 1L else ecarts <- c(ecarts, sprintf("%s %s %s", x$G, x$loi, s))
+  }
+  ok <- lecture_ok && n_ok == 78L
+  controle("(oracle)", ok, sprintf("\u03c1 (0,10 ; 0,05) et tailles du t\u00e9moin de #567 reproduits aux cinq d\u00e9cimales : %d / %d lignes ; %s ; md5 oracle-567.tsv %s (#567 : %s, %s) ; \u00e9carts : %s",
+                                   n_ok, n_l, txt_lecture, MD5_ORACLE, MD5_ORACLE_567, if (identical(MD5_ORACLE, MD5_ORACLE_567)) "identique" else "diff\u00e9rent",
                                    if (length(ecarts)) paste(utils::head(ecarts, 10), collapse = ", ") else "aucun"))
 })
 # (bal) : point k = 1 identique a V2, point "regle" identique a V0 (p_mc des
@@ -1792,10 +1990,25 @@ C_REP <- parallel::mclapply(seq_len(NROW(REP_ECH)), function(i) {
   nrow(ref) == length(l) && identical(vapply(l, format_ligne, "", cols = COLS_REP),
                                       vapply(seq_len(nrow(ref)), function(j) format_ligne(as.list(ref[j, , drop = FALSE]), COLS_REP), ""))
 }, mc.cores = OPT_PROC, mc.preschedule = FALSE)
+# (rep), oracles (R2) : premier et dernier k de chaque cellule des blocs OR et
+# OD recalcules par un_oracle() ; lignes identiques hors duree (statut,
+# motif et 13 statistiques, %.17g).
+REP_ORA <- do.call(rbind, lapply(Filter(function(c_) c_$type %in% c("OR", "OD"), CELLULES), function(cel)
+  data.frame(type = cel$type, cle = if (cel$type == "OD") "D" else cel$G, loi = cel$loi, k = unique(c(cel$b1, cel$b2)), stringsAsFactors = FALSE)))
+COLS_REP_ORA <- setdiff(COLONNES_ORA, "duree_s")
+C_REP_ORA <- parallel::mclapply(seq_len(NROW(REP_ORA)), function(i) {
+  x <- REP_ORA[i, ]
+  l <- un_oracle(x$cle, x$loi, x$k)
+  ref <- ORA[ORA$G == x$cle & ORA$loi == x$loi & ORA$k == x$k, , drop = FALSE]
+  nrow(ref) == 1L && identical(format_ligne(l, COLS_REP_ORA, COL_TEXTE_ORA), format_ligne(as.list(ref[1, , drop = FALSE]), COLS_REP_ORA, COL_TEXTE_ORA))
+}, mc.cores = OPT_PROC, mc.preschedule = FALSE)
 DUREE_REP <- secs(t_rep)
-controle("(rep)", NROW(REP_ECH) > 0L && all(vapply(C_REP, isTRUE, logical(1))),
-         sprintf("premier et dernier triangles admis de chaque cellule (blocs M7a, M7b, M5, M6, C, D) recalcul\u00e9s : %d / %d triangles aux lignes identiques, hors dur\u00e9e",
-                 sum(vapply(C_REP, isTRUE, logical(1))), NROW(REP_ECH)))
+local({
+  ok_t <- vapply(C_REP, isTRUE, logical(1)); ok_o <- vapply(C_REP_ORA, isTRUE, logical(1))
+  controle("(rep)", NROW(REP_ECH) > 0L && all(ok_t) && NROW(REP_ORA) > 0L && all(ok_o),
+           sprintf("premier et dernier triangles admis de chaque cellule (blocs M7a, M7b, M5, M6, C, D) recalcul\u00e9s : %d / %d triangles aux lignes identiques, hors dur\u00e9e ; premier et dernier k de chaque cellule des oracles (OR, OD) recalcul\u00e9s : %d / %d lignes identiques, hors dur\u00e9e",
+                   sum(ok_t), NROW(REP_ECH), sum(ok_o), NROW(REP_ORA)))
+})
 # (1) fin.
 MD5_MOTEUR_FIN <- md5_fichier(file.path(RACINE, "R", "engine.R"))
 SHA_FIN <- sha_head()
@@ -1814,7 +2027,7 @@ local({
                                    length(FICHIERS_TR), if (ok_ctx) "oui" else "NON"))
 })
 ORDRE_CTRL <- c("(1) d\u00e9but", "(1) fin", "(t)", "(e)", "(a)", "(v0)", "(v2)", "(r567) initial", "(r567)", "(g)", "(g')", "(c)",
-                "(graines)", "(m)", "(i1)", "(al)", "(so)", "(inv)", "(o)", "(dc)", "(oracle)", "(bal)", "(rep)")
+                "(graines)", "(m)", "(i1)", "(al)", "(so)", "(inv)", "(o)", "(dc) carr\u00e9", "(dc) D", "(oracle)", "(bal)", "(rep)")
 CTRL <- CTRL[order(match(vapply(CTRL, function(k) k$code, ""), ORDRE_CTRL))]
 
 ###############################################################################
@@ -1855,7 +2068,19 @@ K0_TAB <- do.call(rbind, lapply(Filter(function(c_) c_$type %in% BLOCS_TRI, CELL
   }))
 }))
 K0_TAB$ok <- is.finite(K0_TAB$part_refus) & K0_TAB$part_refus <= SEUIL_K0 & is.finite(K0_TAB$part_abs) & K0_TAB$part_abs <= SEUIL_K0
-K0 <- !length(INTEGRITE) && all(K0_TAB$ok) && all(vapply(INV, function(x) x$ok, logical(1)))
+# R3 : le bloc D (plan d'actuary-10, constats (3) et (4)) est affiche mais
+# n'entre pas dans le verdict K0 sur les refus et les p absentes.
+K0_TAB$verdict <- K0_TAB$bloc != "D"
+K0_REFUS_KO <- K0_TAB[K0_TAB$verdict & !K0_TAB$ok, , drop = FALSE]
+# K0 (par. 4) : controles d'integrite OK ; criteres de K0 (inv), (o), (dc)
+# carre (decision C2) ; refus et p absentes <= 1 % par (bloc, G, loi,
+# variante), bloc D exclu (R3). MOTIFS_K0 : causes du defaut, en clair.
+MOTIFS_K0 <- c(if (length(INTEGRITE)) sprintf("contr\u00f4les d'int\u00e9grit\u00e9 en \u00e9chec (%s)", paste(unique(INTEGRITE), collapse = ", ")),
+               if (length(DEFAUTS_K0)) sprintf("crit\u00e8res de K0 en d\u00e9faut : %s", paste(unique(DEFAUTS_K0), collapse = ", ")),
+               if (nrow(K0_REFUS_KO)) sprintf("refus ou p absentes > 1 %% : %s",
+                                              paste(sprintf("%s %s %s %s", K0_REFUS_KO$bloc, K0_REFUS_KO$G, K0_REFUS_KO$loi, K0_REFUS_KO$variante), collapse = ", ")))
+K0 <- !length(MOTIFS_K0)
+TXT_MOTIFS_K0 <- if (length(MOTIFS_K0)) paste(MOTIFS_K0, collapse = " ; ") else "aucun"
 # K1 : M7b, PenteIntra a 0,05, V0 contre temoin, McNemar exact par loi, Holm.
 K1_TAB <- lapply(names(LOIS), function(loi) { pr <- pop_trap("8x7", loi, "M7b"); dd <- dec_pop(pr, "PenteIntra", SEUILS[["a05"]])
   c(list(loi = loi), apparier(dd$V0, dd$T)) })
@@ -1908,15 +2133,23 @@ nc <- function(lo, hi, cible) !(is.finite(lo) & is.finite(hi) & lo <= cible & ci
 K4_TAB <- list()
 for (G in GEOM$code) for (loi in names(LOIS)) {
   pr <- pop_trap(G, loi)
-  def <- is.finite(pr$v2$q05) & is.finite(pr$v0$q05)
+  def2 <- is.finite(pr$v2$q05); def0 <- is.finite(pr$v0$q05)
+  def <- def2 & def0
   v2 <- pr$v2[def, , drop = FALSE]; v0 <- pr$v0[def, , drop = FALSE]; cib <- SIGMA_A_REGLE[[G]]
   x <- apparier(nc(v2$q05, v2$q95, cib), nc(v0$q05, v0$q95, cib))
+  # R6 : triangles sans intervalle ventiles par variante (V2 seule, V0
+  # seule, les deux) ; descriptif : difference appariee sur tous les
+  # triangles apparies, un triangle sans intervalle compte comme une
+  # non-couverture (nc() rend TRUE sur une borne non finie).
+  sans <- c(V2 = sum(!def2 & def0), V0 = sum(def2 & !def0), deux = sum(!def2 & !def0))
+  x_tous <- apparier(nc(pr$v2$q05, pr$v2$q95, cib), nc(pr$v0$q05, pr$v0$q95, cib))
   desc <- lapply(list(V2 = v2, V0 = v0), function(d) list(
     nc90 = mean(nc(d$q05, d$q95, cib)), nc95 = mean(nc(d$q025, d$q975, cib)),
     haute90 = mean(d$q95 < cib), basse90 = mean(d$q05 > cib), larg90 = mean(d$q95 - d$q05), larg95 = mean(d$q975 - d$q025),
     nc90_vrai = mean(nc(d$q05, d$q95, SIGMA_A_VRAI[[G]])),
     nc90_B = { k <- is.finite(d$sigma_B); if (any(k)) mean(nc(d$q05[k], d$q95[k], d$sigma_B[k])) else NA_real_ }))
-  K4_TAB[[paste(G, loi)]] <- list(G = G, loi = loi, x = x, sans = sum(!def), ok = is.finite(x$ic[2]) && x$ic[2] <= MARGE_K4 && x$n > 0, desc = desc)
+  K4_TAB[[paste(G, loi)]] <- list(G = G, loi = loi, x = x, sans = sum(!def), sans_v = sans, x_tous = x_tous,
+                                  ok = is.finite(x$ic[2]) && x$ic[2] <= MARGE_K4 && x$n > 0, desc = desc)
 }
 K4 <- all(vapply(K4_TAB, function(x) x$ok, logical(1)))
 REGLE <- local({
@@ -1930,24 +2163,8 @@ REGLE <- local({
 ###############################################################################
 #  CONSTATS (1) A (4) (par. 5), DESCRIPTIFS
 ###############################################################################
-# (1) Sonde.
-SONDE_TAB <- if (is.null(SON)) NULL else do.call(rbind, lapply(split(SON, paste(SON$cfg, SON$rho, SON$variante)), function(d) {
-  co <- d[d$mode == "courant", , drop = FALSE]; p1 <- d[d$mode == "P1", , drop = FALSE]
-  if (nrow(co) != 1L || nrow(p1) != 1L) return(NULL)
-  pc <- unlist(co[, paste0("p:", CLES)]); pp <- unlist(p1[, paste0("p:", CLES)]); er <- unlist(co[, paste0("err:", CLES)])
-  dp <- abs(pc - pp); ratio <- ifelse(dp == 0, 0, dp / er)
-  data.frame(cfg = co$cfg, base = co$base, jstar = co$jstar, rho = co$rho, variante = co$variante, statut = co$statut,
-             jd = co$jd, deg_jstar = co$deg_jstar, part = co$n_tri_touches / B_RUN, appels = co$n_appels, touches = co$n_touches,
-             obs_ident = identical(chaine(co, paste0("obs:", CLES)), chaine(p1, paste0("obs:", CLES))),
-             dp_max = suppressWarnings(max(dp, na.rm = TRUE)), ratio_max = suppressWarnings(max(ratio, na.rm = TRUE)),
-             cle_max = if (all(is.na(ratio))) "-" else CLES[which.max(replace(ratio, is.na(ratio), -1))], stringsAsFactors = FALSE)
-}))
-if (!is.null(SONDE_TAB)) SONDE_TAB <- SONDE_TAB[order(SONDE_TAB$cfg, SONDE_TAB$rho, SONDE_TAB$variante), , drop = FALSE]
-SONDE_REGLE <- if (is.null(SONDE_TAB)) NA else {
-  pl <- SONDE_TAB$rho >= PLAGE_RHO_S[1] & SONDE_TAB$rho <= PLAGE_RHO_S[2]
-  any(pl & SONDE_TAB$part > 0 & is.finite(SONDE_TAB$ratio_max) & SONDE_TAB$ratio_max > 2) ||
-    any(pl & SONDE_TAB$part > 0 & is.infinite(SONDE_TAB$ratio_max))
-}
+# (1) Sonde (evaluer_sonde(), definie avant le calcul par tranches).
+EV_SONDE <- evaluer_sonde(SON)
 # (2) Stratification par quartile de log r (donnees de M, N et E reunies).
 STRATES <- list()
 for (x in list(c("8x7", "PenteIntra"), c("8x5", "Alpha"), c("8x6", "Alpha"))) {
@@ -1976,12 +2193,16 @@ for (s in c("Alpha", "MinP4")) for (loi in names(LOIS)) for (ia in names(SEUILS)
   CONST_D[[paste(s, loi, ia)]] <- c(list(s = s, loi = loi, ia = ia), lect_bloc(d, "D", loi, s, ia))
 }
 cote_D <- function(s) unique(stats::na.omit(vapply(Filter(function(x) x$s == s, CONST_D), function(x) if (isTRUE(x$c$disj)) x$c$cote else NA_character_, "")))
-REGLE_3 <- if (!length(Filter(function(x) x$s == "Alpha", CONST_D))) "non \u00e9valuable (bloc D absent)" else {
+# Decision C2 : (dc) en defaut sur le bloc D -> constats (3) et (4) non
+# evaluables, sans R0.
+DC_D_KO <- "(dc) D" %in% DEFAUTS_CONSTAT
+TXT_DC_D <- "non \u00e9valuable : (dc) en d\u00e9faut sur le bloc D (simulation non identique sous V0 et V2), sans R0"
+REGLE_3 <- if (DC_D_KO) TXT_DC_D else if (!length(Filter(function(x) x$s == "Alpha", CONST_D))) "non \u00e9valuable (bloc D absent)" else {
   co <- cote_D("Alpha")
   if ("conservateur" %in% co) "distorsion mat\u00e9rielle conservatrice dans D : r\u00e9serve \u00ab un OK d'Alpha est une preuve faible quand la r\u00e8gle est nulle \u00bb" else
     if ("lib\u00e9ral" %in% co) "distorsion lib\u00e9rale dans D : constat gard\u00e9 (E3), tri\u00e9 par la session (ADR 0018)" else "constat clos"
 }
-REGLE_4 <- if (!length(Filter(function(x) x$s == "MinP4", CONST_D))) "non \u00e9valuable (bloc D absent)" else {
+REGLE_4 <- if (DC_D_KO) TXT_DC_D else if (!length(Filter(function(x) x$s == "MinP4", CONST_D))) "non \u00e9valuable (bloc D absent)" else {
   if ("lib\u00e9ral" %in% cote_D("MinP4")) "distorsion mat\u00e9rielle lib\u00e9rale dans D : constat gard\u00e9 (E3), hors de #612, tri\u00e9 par la session" else
     "(4) s'explique par la r\u00e9f\u00e9rence nominale et B = 199, et se cl\u00f4t"
 }
@@ -2045,11 +2266,13 @@ S <- c(sprintf("## Mesure #612 (A2) : simulation de la colonne J\u22121 d'un tra
        ligne_md("Locale (LC_CTYPE)", sprintf("%s \u2192 %s", LOCALE_ORIGINE, LOCALE_TRAVAIL)),
        ligne_md("Tranches", sprintf("%d (taille %d)", length(FICHIERS_TR), TAILLE_TRANCHE)),
        ligne_md("Sorties", paste(NOMS_SORTIES, collapse = " ; ")),
-       ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) paste("\u00c9CHEC :", paste(unique(INTEGRITE), collapse = ", ")) else "OK"), "",
+       ligne_md("Contr\u00f4les d'int\u00e9grit\u00e9", if (length(INTEGRITE)) paste("\u00c9CHEC :", paste(unique(INTEGRITE), collapse = ", ")) else "OK"),
+       ligne_md("K0 (crit\u00e8res (inv), (o), (dc) carr\u00e9 ; refus et p absentes)", if (K0) "tenu" else sprintf("**EN D\u00c9FAUT : %s \u2192 R0**", TXT_MOTIFS_K0)),
+       ligne_md("(dc) sur le bloc D", if (DC_D_KO) "**EN D\u00c9FAUT : constats (3) et (4) non \u00e9valuables, sans R0**" else "OK ou sans objet"), "",
        "### Crit\u00e8res et r\u00e8gles (protocole, par. 4), report\u00e9s sans modification", "", TEXTE_CRITERE_612, "")
 if (length(REMPLACES)) S <- inserer_t0(S, ligne_remplacement(REMPLACES, CIBLES[1]))
 S <- c(S, "### Contr\u00f4les d'int\u00e9grit\u00e9 (par. 8)", "", entete_md(c("Contr\u00f4le", "R\u00e9sultat", "D\u00e9tail")),
-       vapply(CTRL, function(k) ligne_md(k$code, if (k$ok) "OK" else "\u00c9CHEC", k$detail), ""), "")
+       vapply(CTRL, function(k) ligne_md(k$code, etat_ctrl(k), k$detail), ""), "")
 S <- c(S, "### Cibles de couverture (par. 1)", "", entete_md(c("G", "\u03c3_A^r\u00e8gle (cible principale)", "\u03c3_A^vrai (descriptive)", "\u03c3\u00b2_(J\u22121) de la r\u00e8gle", "\u03c3\u00b2_(J\u22121) vrai")),
        vapply(GEOM$code, function(G) ligne_md(G, num(SIGMA_A_REGLE[[G]], 6), num(SIGMA_A_VRAI[[G]], 6), num(S2_REGLE_GEN[[G]], 6), num(S2_VRAI[[G]], 7)), ""), "")
 S <- c(S, "### R\u00e9f\u00e9rence \u03c1 par oracle et loi", "",
@@ -2058,12 +2281,14 @@ S <- c(S, "### R\u00e9f\u00e9rence \u03c1 par oracle et loi", "",
        vapply(names(OR), function(nm) { o <- OR[[nm]]; do.call(ligne_md, c(list(sub(" .*", "", nm), sub(".* ", "", nm), sprintf("%d / %d", o$n_adm, o$n_tire)),
          lapply(CLES, function(s) num(o[[s]]$rho[["a05"]], 5)))) }, ""), "")
 # K0.
-S <- c(S, sprintf("### K0 (int\u00e9grit\u00e9) : %s", if (isTRUE(K0)) "**tenu**" else "**en d\u00e9faut**"), "",
-       sprintf("Contr\u00f4les : %s. Refus et p absentes (au moins une des 13 p_mc) au plus 1 %% par (bloc, G, \u2113, variante) ; invariance : contr\u00f4le (inv).",
-               if (length(INTEGRITE)) paste("\u00c9CHEC", paste(unique(INTEGRITE), collapse = ", ")) else "OK"), "",
-       entete_md(c("Bloc", "G", "Loi", "Variante", "tir\u00e9s", "admis", "\u00e9checs", "refus", "part des refus", "p absentes", "part", "rempli")),
+S <- c(S, sprintf("### K0 (int\u00e9grit\u00e9) : %s", if (isTRUE(K0)) "**tenu**" else sprintf("**en d\u00e9faut** (%s)", TXT_MOTIFS_K0)), "",
+       sprintf("Contr\u00f4les d'int\u00e9grit\u00e9 : %s. Crit\u00e8res de K0 (d\u00e9cision C2 du mainteneur : d\u00e9faut \u2192 R0, sans INTEGRITE ECHEC) : (inv) invariance, (o) carr\u00e9, (dc) carr\u00e9 : %s. Refus et p absentes (au moins une des 13 p_mc) au plus 1 %% par (bloc, G, \u2113, variante), bloc D affich\u00e9 hors verdict (R3).",
+               if (length(INTEGRITE)) paste("\u00c9CHEC", paste(unique(INTEGRITE), collapse = ", ")) else "OK",
+               if (length(DEFAUTS_K0)) paste("**EN D\u00c9FAUT :**", paste(unique(DEFAUTS_K0), collapse = ", ")) else "OK"), "",
+       entete_md(c("Bloc", "G", "Loi", "Variante", "tir\u00e9s", "admis", "\u00e9checs", "refus", "part des refus", "p absentes", "part", "rempli", "dans le verdict K0")),
        vapply(seq_len(nrow(K0_TAB)), function(i) { x <- K0_TAB[i, ]
-         ligne_md(x$bloc, x$G, x$loi, x$variante, x$tires, x$admis, x$echec, x$refus, num(x$part_refus, 4), x$absentes, num(x$part_abs, 4), if (x$ok) "oui" else "**non**") }, ""), "",
+         ligne_md(x$bloc, x$G, x$loi, x$variante, x$tires, x$admis, x$echec, x$refus, num(x$part_refus, 4), x$absentes, num(x$part_abs, 4), if (x$ok) "oui" else "**non**",
+                  if (x$verdict) "oui" else "non (bloc D, R3)") }, ""), "",
        entete_md(c("G", "Loi", "triangles appari\u00e9s", "p_mc invariantes", "part", "\u00e9carts par cause", "\u2265 99,5 %")),
        vapply(INV, function(x) ligne_md(x$G, x$loi, x$n, x$ident, num(x$part, 4),
                                         if (length(x$causes)) paste(sprintf("%s %d", names(x$causes), as.integer(x$causes)), collapse = ", ") else "aucun", if (x$ok) "oui" else "**non**"), ""), "")
@@ -2091,9 +2316,14 @@ S <- c(S, sprintf("### K3 (non-d\u00e9gradation) : %s", oui_non(K3)), "",
                                            txt_classe(x$c2), txt_classe(x$c0), if (x$ok) "oui" else "**non**"), ""), "")
 # K4.
 S <- c(S, sprintf("### K4 (couverture, comparative) : %s", oui_non(K4)), "",
-       sprintf("Intervalle percentile \u00e0 90 %% [q_0,05 ; q_0,95] de \u03c3* (ic_bootstrap \u00e0 la transformation affine pr\u00e8s), cible \u03c3_A^r\u00e8gle ; triangles admis aux deux intervalles d\u00e9finis (plus de %d \u03c3*), les autres compt\u00e9s \u00e0 part. V0 des blocs M7a, M5, M6 : boucle all\u00e9g\u00e9e ; M7b : mw_bootstrap().", MIN_SIGMA), "",
-       entete_md(c("G", "Loi", "n", "sans intervalle", "non-couverture V2", "non-couverture V0", "V2 \u2212 V0 \u0394\u0302 [IC 90 %]", "borne haute \u2264 0,02")),
-       vapply(K4_TAB, function(x) ligne_md(x$G, x$loi, x$x$n, x$sans, num(x$desc$V2$nc90, 4), num(x$desc$V0$nc90, 4), txt_ap(x$x), if (x$ok) "oui" else "**non**"), ""), "",
+       sprintf("Intervalle percentile \u00e0 90 %% [q_0,05 ; q_0,95] de \u03c3* (ic_bootstrap \u00e0 la transformation affine pr\u00e8s), cible \u03c3_A^r\u00e8gle ; triangles admis aux deux intervalles d\u00e9finis (plus de %d \u03c3*), les autres compt\u00e9s \u00e0 part, ventil\u00e9s par variante sans intervalle (V2 seule, V0 seule, les deux). V0 des blocs M7a, M5, M6 : boucle all\u00e9g\u00e9e ; M7b : mw_bootstrap().", MIN_SIGMA), "",
+       entete_md(c("G", "Loi", "n", "sans intervalle (V2 seule / V0 seule / les deux)", "non-couverture V2", "non-couverture V0", "V2 \u2212 V0 \u0394\u0302 [IC 90 %]", "borne haute \u2264 0,02")),
+       vapply(K4_TAB, function(x) ligne_md(x$G, x$loi, x$x$n, sprintf("%d (%d / %d / %d)", x$sans, x$sans_v[["V2"]], x$sans_v[["V0"]], x$sans_v[["deux"]]),
+                                           num(x$desc$V2$nc90, 4), num(x$desc$V0$nc90, 4), txt_ap(x$x), if (x$ok) "oui" else "**non**"), ""), "",
+       "Descriptif (hors crit\u00e8re K4) : tous les triangles appari\u00e9s, un triangle sans intervalle comptant comme une non-couverture.", "",
+       entete_md(c("G", "Loi", "n", "non-couverture V2", "non-couverture V0", "V2 \u2212 V0 \u0394\u0302 [IC 90 %]")),
+       vapply(K4_TAB, function(x) ligne_md(x$G, x$loi, x$x_tous$n, num(if (x$x_tous$n) x$x_tous$kA / x$x_tous$n else NA, 4), num(if (x$x_tous$n) x$x_tous$kB / x$x_tous$n else NA, 4),
+                                           txt_ap(x$x_tous)), ""), "",
        "Descriptif : non-couverture \u00e0 95 %, queues s\u00e9par\u00e9es \u00e0 90 % (haute : q_0,95 < cible ; basse : q_0,05 > cible), largeurs moyennes, cibles \u03c3_A^vrai et \u03c3_B.", "",
        entete_md(c("G", "Loi", "Variante", "nc 95 %", "queue haute 90 %", "queue basse 90 %", "largeur 90 %", "largeur 95 %", "nc 90 % (\u03c3_A^vrai)", "nc 90 % (\u03c3_B)")),
        unlist(lapply(K4_TAB, function(x) vapply(c("V2", "V0"), function(v) { d <- x$desc[[v]]
@@ -2102,7 +2332,8 @@ S <- c(S, sprintf("### K4 (couverture, comparative) : %s", oui_non(K4)), "",
 S <- c(S, "### R\u00e8gles (par. 4), \u00e9valu\u00e9es m\u00e9caniquement, sans conclure", "",
        entete_md(c("Crit\u00e8re", "K0", "K1", "K2", "K2\u2032", "K3", "K4")),
        ligne_md("tenu", oui_non(K0), oui_non(K1), oui_non(K2), oui_non(K2P), oui_non(K3), oui_non(K4)), "",
-       sprintf("**R\u00e8gle d\u00e9clench\u00e9e m\u00e9caniquement : %s.** Lecture par actuary (\u00e9tape 4), d\u00e9cision du mainteneur (PA-2). V1 se lit en composite : tests de V2 (K1 \u00e0 K3), \u03c3_boot de V0 (couverture V0 ci-dessus).", REGLE), "")
+       sprintf("**R\u00e8gle d\u00e9clench\u00e9e m\u00e9caniquement : %s.** Lecture par actuary (\u00e9tape 4), d\u00e9cision du mainteneur (PA-2). V1 se lit en composite : tests de V2 (K1 \u00e0 K3), \u03c3_boot de V0 (couverture V0 ci-dessus).",
+               if (K0) REGLE else sprintf("%s -- K0 en d\u00e9faut : %s", REGLE, TXT_MOTIFS_K0)), "")
 # Tables des 13 cles.
 S <- c(S, "### Tables des 13 cl\u00e9s : \u03c4_V2, \u03c4_V0, \u03c4 du t\u00e9moin, \u03c1, \u0394\u0302 appari\u00e9s", "",
        entete_md(c("G", "Loi", "\u03b1", "Cl\u00e9", "n", "\u03c4_V2", "\u03c4_V0", "\u03c4_T", "\u03c1", "classe \u03c4_V2", "\u0394\u0302 V2 \u2212 T [IC 90 %]", "\u0394\u0302 V0 \u2212 T [IC 90 %]")))
@@ -2121,14 +2352,7 @@ for (bl in c("C", "D")) for (loi in names(LOIS)) for (ia in names(SEUILS)) {
 }
 S <- c(S, "")
 # Constats.
-S <- c(S, "### Constat (1) : sonde de la plage de dispersion relative 1e-12 \u00e0 1e-10 (bloc S)", "",
-       sprintf("Part touch\u00e9e : r\u00e9plications o\u00f9 une colonne hors de l'ensemble fig\u00e9, d\u00e9g\u00e9n\u00e9r\u00e9e au sens de .mw_colonne_degeneree(), garde des r\u00e9sidus (code courant) ; |\u0394p| max entre code courant et prototype P1 rapport\u00e9 \u00e0 err_mc du code courant. R\u00e8gle (plage %s \u00e0 %s) : %s.",
-               format(PLAGE_RHO_S[1]), format(PLAGE_RHO_S[2]),
-               if (is.na(SONDE_REGLE)) "non \u00e9valuable" else if (SONDE_REGLE) "**correction (part touch\u00e9e non nulle et |\u0394p| > 2 err_mc dans la plage)**" else "constat document\u00e9, mineur (ADR 0018)"), "")
-if (!is.null(SONDE_TAB)) S <- c(S, entete_md(c("Colonne sond\u00e9e", "\u03c1", "Variante", "statut", "colonnes fig\u00e9es", "j* d\u00e9g\u00e9n\u00e9r\u00e9e", "part touch\u00e9e", "appels touch\u00e9s / appels", "stats_obs identiques", "|\u0394p| max", "|\u0394p| / err_mc max (cl\u00e9)")),
-  vapply(seq_len(nrow(SONDE_TAB)), function(i) { x <- SONDE_TAB[i, ]
-    ligne_md(SONDE_CFG$lib[x$cfg], format(x$rho), x$variante, x$statut, x$jd, x$deg_jstar, num(x$part, 4), sprintf("%s / %s", format(x$touches), format(x$appels)),
-             if (isTRUE(x$obs_ident)) "oui" else "**non**", num(x$dp_max, 5), sprintf("%s (%s)", num(x$ratio_max, 2), x$cle_max)) }, ""), "")
+S <- c(S, lignes_constat_1(EV_SONDE))
 S <- c(S, "### Constat (2) : balayage du \u03c3\u00b2 de simulation de J\u22121 (bloc BAL) et lecture stratifi\u00e9e", "")
 if (!is.null(BAL_TAB)) S <- c(S, entete_md(c("G", "Loi", "point", "n", "m\u00e9diane p PenteIntra", "rejets 0,05", "m\u00e9diane p Alpha", "rejets 0,05", "autres cl\u00e9s diff\u00e9rentes de k = 1 (triangles)", "retirage")),
   vapply(seq_len(nrow(BAL_TAB)), function(i) { x <- BAL_TAB[i, ]
@@ -2150,7 +2374,10 @@ S <- c(S, "### p de famille et p globale (descriptif, K-T7 de #567)", "",
 for (G in GEOM$code) for (loi in names(LOIS)) { pr <- pop_trap(G, loi)
   for (v in c("V2", "V0")) { d <- if (v == "V2") pr$v2 else pr$v0
     for (f in FAM) { p <- d[[paste0("pf:", f)]]; S <- c(S, ligne_md(G, loi, v, f, length(p), num(if (length(p)) mean(dec(p, 0.10)) else NA, 4), num(if (length(p)) mean(dec(p, 0.05)) else NA, 4))) } } }
-S <- c(S, "", sprintf("Bilan : %s", if (length(INTEGRITE)) sprintf("\u00c9CHEC (%s)", paste(unique(INTEGRITE), collapse = ", ")) else "OK"), "")
+S <- c(S, "", sprintf("Bilan : int\u00e9grit\u00e9 %s ; K0 %s ; r\u00e8gle %s ; constats (3) et (4) : %s",
+                      if (length(INTEGRITE)) sprintf("\u00c9CHEC (%s)", paste(unique(INTEGRITE), collapse = ", ")) else "OK",
+                      if (K0) "tenu" else sprintf("EN D\u00c9FAUT (%s)", TXT_MOTIFS_K0), REGLE,
+                      if (DC_D_KO) "non \u00e9valuables ((dc) D en d\u00e9faut)" else "\u00e9valu\u00e9s ou sans objet"), "")
 duree_cumulee <- sum(D$duree_s, na.rm = TRUE) + sum(ORA$duree_s, na.rm = TRUE) + sum(BAL$duree_s, na.rm = TRUE) + sum(SON$duree_s, na.rm = TRUE)
 S_EXEC <- c("### Ex\u00e9cution (varie d'une ex\u00e9cution \u00e0 l'autre)", "",
             sprintf("- Lancement (JOURNAL) : %s ; fin : %s", J0$lancement, horodatage()),
@@ -2171,11 +2398,12 @@ ecrire_fichier(f_out[["md"]], MD_FINAL)
 ecrire_fichier(f_out[["brut"]], brut_de(D, COLONNES_BRUT, COL_TEXTE))
 ecrire_fichier(f_out[["bal"]], brut_de(BAL, setdiff(COLONNES_BAL, "duree_s"), COL_TEXTE_BAL))
 ecrire_fichier(f_out[["sonde"]], brut_de(SON, setdiff(COLONNES_S, "duree_s"), COL_TEXTE_S))
-ecrire_fichier(JOURNAL_T, c(sprintf("- Fin : %s ; SHA \u00e0 la fin %s ; md5 R/engine.R \u00e0 la fin %s ; INTEGRITE %s",
-                                    horodatage(), SHA_FIN, MD5_MOTEUR_FIN, if (length(INTEGRITE)) "ECHEC" else "OK"),
+ecrire_fichier(JOURNAL_T, c(sprintf("- Fin : %s ; SHA \u00e0 la fin %s ; md5 R/engine.R \u00e0 la fin %s ; INTEGRITE %s ; K0 %s ; r\u00e8gle %s",
+                                    horodatage(), SHA_FIN, MD5_MOTEUR_FIN, if (length(INTEGRITE)) "ECHEC" else "OK",
+                                    if (K0) "tenu" else sprintf("EN D\u00c9FAUT (%s)", TXT_MOTIFS_K0), REGLE),
                             sprintf("- Sortie %s : md5 %s", NOMS_SORTIES[c("md", "brut", "bal", "sonde")], vapply(f_out[c("md", "brut", "bal", "sonde")], md5_fichier, "")),
                             sprintf("- Oracles (non versionn\u00e9s) : oracle-567.tsv md5 %s ; oracle-D.tsv md5 %s", MD5_ORACLE, MD5_ORACLE_D)), mode = "ab")
-file.copy(JOURNAL_T, f_out[["jnl"]], overwrite = TRUE)
+invisible(file.copy(JOURNAL_T, f_out[["jnl"]], overwrite = TRUE))
 ecrire_console(MD_FINAL)
 ecrire_console(sprintf("Sorties (dossier de travail, hors du d\u00e9p\u00f4t) : %s", paste(basename(f_out), collapse = " ; ")))
 REFUS_ECRITURE <- FALSE
@@ -2208,5 +2436,8 @@ if (OPT_ECRIRE) {
   }
 }
 if (TRAVAIL_TEMP) { nettoyer_essai(); ecrire_console("Dossier d'essai temporaire supprim\u00e9.") }
+# Derniere ligne : INTEGRITE ECHEC (code 1) ; sinon INTEGRITE OK, suivie, sous
+# --ecrire refuse, d'une derniere ligne distincte ECRITURE REFUSEE (code 1).
 ecrire_console(paste("INTEGRITE", if (length(INTEGRITE)) "ECHEC" else "OK"))
+if (!length(INTEGRITE) && REFUS_ECRITURE) ecrire_console("ECRITURE REFUSEE")
 quit(status = if (length(INTEGRITE) || REFUS_ECRITURE) 1L else 0L)
