@@ -8946,9 +8946,18 @@ engine_lire_triangle <- function(df) {
 # absolue sans dossier que R sache lire, dont normalizePath(".") rendrait
 # getwd()) rend le chemin tel quel : c'est la forme "X:f.xlsx", que
 # engine_ecrire_xlsx() refuse avant sous Windows (#603), de sorte que cette
-# branche n'est plus atteinte par l'ecrivain. Le resultat ne depend pas de getwd() (il
-# depend de wd, de HOME pour "~" et, par normalizePath(), des liens du dossier
-# s'il existe) ; aucun fichier ni dossier n'est lu, cree ni ecrit.
+# branche n'est plus atteinte par l'ecrivain. Le resultat depend de wd, de
+# HOME pour "~" et, par normalizePath(), des liens du dossier s'il existe.
+# Sous Windows, il depend aussi du repertoire courant (getwd()) au moment de
+# l'appel pour un chemin a barre initiale unique ("\d\f.xlsx", "/d/f.xlsx") :
+# normalizePath() le complete avec le lecteur courant, et non avec wd ;
+# engine_ecrire_xlsx() appelle donc cette fonction avant setwd(d), avec
+# wd = getwd(). Dossier absent compris, la cible garde ce lecteur et ne se
+# resout pas sur celui de tempdir() apres setwd(d) (#608) : releve au poste
+# Windows le 23/11/2026 (R 4.3.3 ucrt, un seul poste, lecteur courant cree par
+# subst), docs/revues/20261123-a2-creneau/sortie_mesure_608.txt, commit
+# 9fbe3f5 ; non mesure sur deux lecteurs physiques. Aucun fichier ni dossier
+# n'est lu, cree ni ecrit.
 .xlsx_chemin_sortie <- function(chemin, wd) {
   chemin <- path.expand(chemin)
   unix <- .Platform$OS.type == "unix"
@@ -9214,7 +9223,8 @@ engine_ecrire_xlsx <- function(df, chemin, feuille = "Donnees") {
                           "zip, ou openxlsx qui l'importe)."))
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nc <- ncol(df); nr <- nrow(df)
-  # Chemin de sortie resolu ici, avant setwd(d) plus bas (#580)
+  # Chemin de sortie resolu ici, avant setwd(d) plus bas (#580) ; voir l'en-tete
+  # de .xlsx_chemin_sortie() pour la barre initiale unique sous Windows (#608)
   cible <- .xlsx_chemin_sortie(chemin, getwd())
   # Cible qui est un dossier existant (un nom en .xlsx peut en etre un) : refus,
   # le fichier ne peut pas le remplacer
