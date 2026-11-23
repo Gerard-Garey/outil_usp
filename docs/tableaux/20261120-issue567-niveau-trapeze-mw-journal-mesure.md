@@ -1,0 +1,36 @@
+# JOURNAL de la mesure #567 (S6, étape 5 (b) : niveau à T = 8 des tests de Merz-Wüthrich sur 8 x 5, 8 x 6, 8 x 7)
+
+- Lancement : 2026-11-20T20:10:25Z
+- Date des sorties : 20261120
+- R par G et loi : 8x5=2000,8x6=2000,8x7=1000,N0=20000
+- Niveau : L0 (pré-vol, P4)
+- B : 999
+- Processus : 4 ; taille des tranches : 100
+- SHA (git rev-parse HEAD) au lancement : 425c1c938e973bc0f8c538d299b0cecf6ff9db6b
+- Commit (commit_depot()) : 425c1c938e973bc0f8c538d299b0cecf6ff9db6b
+- md5 R/engine.R au lancement : faf36c545999c147087759155a2bd38a
+- Empreinte sans commentaires de R/engine.R : 307e07604e7d87b23173f48daebb9383
+- Empreintes md5 du code exécuté : R/engine.R faf36c545999c147087759155a2bd38a ; tests/outils_tests.R chargé (dépôt) cdf8f7da242e2c6281fadcb4108aab63 ; script exécuté (dépôt) d7d1a0e6907953ca9a055a228c21554b
+- md5 protocole (docs/revues/20261120-s6-trapeze/actuary-2a-specification-567.md) : 00317e14a9d4c6115a4651f53537fd2b
+- Archive ChainLadder : ChainLadder_0.2.21.tar.gz, md5 2a1fc0fcc593ec99529a40399274a088
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale : LC_ALL=C.UTF-8 ; LC_CTYPE=C.UTF-8
+- Dossier de travail : issue567-travail-L0 (hors du dépôt)
+- Commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Contexte des tranches : B=999 || sha=425c1c938e973bc0f8c538d299b0cecf6ff9db6b || md5_moteur=faf36c545999c147087759155a2bd38a || md5_script=d7d1a0e6907953ca9a055a228c21554b || empreinte=307e07604e7d87b23173f48daebb9383 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=100
+- Segment interrompu : 2026-11-20T21:36:54Z ; 1212 tranche(s) calculée(s) dans ce segment, 88 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-20T21:37:05Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-20T23:09:01Z ; 16 tranche(s) calculée(s) dans ce segment, 72 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-20T23:09:12Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-21T00:38:52Z ; 16 tranche(s) calculée(s) dans ce segment, 56 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T00:39:01Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-21T02:10:41Z ; 16 tranche(s) calculée(s) dans ce segment, 40 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T02:10:51Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-21T03:43:14Z ; 16 tranche(s) calculée(s) dans ce segment, 24 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T03:43:24Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Segment interrompu : 2026-11-21T05:09:16Z ; 14 tranche(s) calculée(s) dans ce segment, 10 restante(s) (--duree-max 1.8 h)
+- Reprise : 2026-11-21T05:09:26Z ; commande : Rscript tests/niveau_mw_trapeze_t8.R --niveau L0 --archive-cl ChainLadder_0.2.21.tar.gz --processus 4 --duree-max 1.8 --ecrire
+- Fin : 2026-11-21T06:14:53Z ; SHA à la fin 425c1c938e973bc0f8c538d299b0cecf6ff9db6b ; md5 R/engine.R à la fin faf36c545999c147087759155a2bd38a ; INTEGRITE OK
+- Sortie 20261120-issue567-niveau-trapeze-mw.md : md5 adf5de226021c2521cb564757086e26b
+- Sortie 20261120-issue567-niveau-trapeze-mw-brut.tsv : md5 9fcb59cd24212f7f1c851e7634a34e3f
+- Oracle (oracle.tsv, non versionné) : md5 5bdafe159cd5624fee6ba906896d4f40

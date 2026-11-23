@@ -45,8 +45,8 @@
 \newcommand{\annee}{2026}
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
-\newcommand{\datedoc}{20~novembre 2026}
-\newcommand{\versiondoc}{4.3}
+\newcommand{\datedoc}{22~novembre 2026}
+\newcommand{\versiondoc}{4.4}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
@@ -541,7 +541,7 @@ $B = 99$ (\code{B\_MIN\_USAGE})~: une fonction \code{c()} de l'environnement glo
 les nombres réels par $1 + 10^{-3}$ laisse $\sigma_{\mathrm{USP}}$ à
 $0{,}1073524114$ sous le chargeur, et la porte à $0{,}1138150042$, sans aucun signal, quand le
 moteur est chargé par \code{source("R/engine.R")} dans l'environnement global. Le mode de
-chargement est sans effet sur les résultats~: sur les six cas de contrôle de la
+chargement est sans effet sur les résultats~: sur les sept cas de contrôle de la
 section~\ref{sec:graines}, les objets rendus par \code{run\_engine()} sous le chargeur et sous
 \code{source()} sont identiques au bit près (\code{identical()}, hors horodatage, durée et
 version de R, retirés par \code{nettoyer()}). Le moteur reste chargeable par
@@ -810,8 +810,13 @@ hors du domaine numérique, un seul motif par triangle~; refus d'un nom de ligne
 initiaux et finaux, un triangle sans noms de ligne restant admis~; refus d'un nom
 de ligne déclaré d'encodage \code{"bytes"}, par un motif propre, un par ligne, qui ne cite pas le
 nom, ce nom étant exclu des contrôles de nom manquant et de doublon, ses caractères n'étant pas
-déterminés~; avertissement des cellules $i + j > I$ renseignées, non lues par le calcul~;
+déterminés~; avertissement de géométrie d'un trapèze $I > J$, en tête des avertissements
+(§\ref{sec:controles})~; avertissement des cellules $i + j > I$ renseignées, non lues par le calcul~;
 avertissement de crédibilité partielle sur $c(I + 1, \text{barème appliqué}) < 1$ \\
+\code{mw\_cellules\_}\newline\code{observees()} & \code{tri} & matrice logique de la dimension de
+\code{tri}, \code{TRUE} si et seulement si $i + j \le I$ (cellules observées, $j \le \min(I - i, J)$
+sur un trapèze), sans lire les valeurs~; règle lue par la grille de saisie de l'application~;
+point d'entrée (section~\ref{sec:notations}, «~Graphie des textes produits par le moteur~») \\
 \code{mw\_valider\_ajustement()} & \code{aj} (sortie de \code{mw\_ajuster()}),
 \code{msep} (champ \code{\$msep} de \code{mw\_msep()}) &
 \code{\$ok}, \code{\$erreurs}, \code{\$avertissements}, \code{\$reserve},
@@ -1648,7 +1653,9 @@ réserve simulée $\le 0$, MSEP simulée en erreur, non finie ou négative~; éc
 \code{sigma\_boot} seul, gardées dans \code{stats\_boot}~; \code{0L} sans tirage), \code{p\_min\_mc}, et, en
 dernier, \code{stats\_boot}, matrice
 des $B$ réplications passée à \code{.mc\_p\_values()} (\code{NA} pour une réplication écartée), lue
-par \code{engine\_p\_famille()} \\
+par \code{engine\_p\_famille()}~; triangles tirés sur une copie de \code{aj} dont
+$\hat\sigma^2_{J-1}$ est l'estimateur direct quand \code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}
+est vrai, sur \code{aj} sinon (section~\ref{sec:boot-mw}) \\
 \code{usp\_tests()} & \code{fit}, \code{boot}, \code{alpha} (0,10),
 \code{theta\_equiv} (0,10), \code{delta\_equiv}, \code{robustesse} (\code{NULL}),
 \code{lr\_delta} (\code{NULL}~; sortie d'\code{usp\_lr\_delta()}),
@@ -1748,7 +1755,7 @@ défaut)~; noms de \code{res\$ic\_bootstrap}, de \code{res\$ic\_bootstrap\_restr
 lignes de \code{res\$plots\_data\$qq2ech} (section~\ref{sec:notations},
 «~Graphie des textes produits par le moteur~») \\
 \code{.engine\_point\_}\newline\code{decimal()} & \code{envir} (cadre de l'appelant) & aucune
-valeur~; appelée en première instruction de chacun des dix-sept points d'entrée que l'application
+valeur~; appelée en première instruction de chacun des dix-huit points d'entrée que l'application
 appelle directement, pose \code{options(OutDec = ".")} et enregistre dans le cadre de l'appelant
 la restauration de l'option antérieure, exécutée à sa sortie, normale ou sur erreur~; erreur si
 elle est appelée au niveau global, où la restauration serait sans effet~; aucun calcul
@@ -1757,8 +1764,11 @@ elle est appelée au niveau global, où la restauration serait sans effet~; aucu
 $\sigma_{\mathrm{USP}}$ et ses composantes \\
 \multicolumn{3}{@{}l@{}}{\textit{\textcolor{financeblue}{Chaîne Merz--Wüthrich (section~D, §\ref{sec:mw})}}} \\
 \code{mw\_ajuster()} & \code{tri} &
-$I$, $J$, $\hat f_j$, $\hat\sigma^2_j$, $Q_j$, $S_j$, $S'_j$, $\hat C(i,j)$,
-réserve par année et totale \\
+$I$, $J$, $\hat f_j$, $\hat\sigma^2_j$, $Q_j$, $S_j$, $S'_j$, $\hat C(i,j)$, dernier cumul
+observé $C(i, \min(I-i, J))$, réserve par année et totale (convention~(B) pour $I > J$,
+§\ref{sec:mw})~; pour $I > J$ seulement, en fin de liste, l'estimateur direct de
+$\sigma^2_{J-1}$ (champ \code{sigma2\_Jm1\_direct}, absent sur un carré), qui n'entre ni dans
+$\hat f_j$, ni dans $\hat C$, ni dans $Q_j$ \\
 \code{mw\_extrapolation\_sigma2()} & \code{aj}, \code{tol} ($10^{-12}$) &
 valeur de $\hat\sigma^2_{J-1}$, trois arguments du minimum et \code{\$retenu}
 (argument qui l'atteint, au sens littéral)~; critère de dégénérescence par
@@ -1767,6 +1777,20 @@ colonne, \code{\$degeneree\_Jm3} (champs \code{\$colonne},
 \code{\$degeneree\_Jm2} (\code{\$nb\_facteurs\_Jm2},
 \code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
 \code{\$degeneree} \\
+\code{.mw\_simulation\_}\newline\code{sigma\_direct()} & \code{aj}~; \code{MW\_TOL\_SIGMA\_}\allowbreak\code{SIMULATION}
+($10^{-10}$) & booléen, vrai si et seulement si \code{aj} est un trapèze, sa colonne $J-1$ n'est
+pas dégénérée (\code{.mw\_colonne\_degeneree()}) et la règle de minimum est nulle
+(\code{\$degeneree} de \code{mw\_extrapolation\_sigma2()}) ou au plus
+$10^{-10}\,\hat f_{J-1}\sqrt{\min_{0 \le i \le I-J} C(i,J-1)}$ en écart type (dispersion relative simulée
+d'au plus $10^{-10}$ sur chaque ligne)~; lu par
+\code{mw\_bootstrap()}, qui simule alors la colonne $J-1$ avec l'estimateur direct
+(section~\ref{sec:boot-mw}) \\
+\code{.mw\_cas\_}\newline\code{sigma\_direct()},\newline \code{.mw\_usage\_sigma()} & \code{aj} &
+cas de la colonne $J-1$~: \code{"carre"} (champ \code{sigma2\_Jm1\_direct} absent),
+\code{"degenere"} (colonne $J-1$ dégénérée), \code{"simulation"}
+(\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()} vrai), \code{"general"} sinon~; lu par
+\code{mw\_tests()} pour le gabarit de la mention de la ligne M6 (fiche~\ref{mw:m6sig}) et par
+\code{.mw\_usage\_sigma()}, qui en tire les légendes de \code{plots\_data\$usage\_sigma} \\
 \code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
 \code{.mw\_colonnes\_}\newline\code{degenerees()},\newline \code{.mw\_degeneree\_}\newline\code{courante()} & \code{aj}, $j$, \code{tol} ($10^{-12}$)~;
 pour la dernière, \code{aj}, $j$, \code{degeneres\_aj} (\code{NULL}) & écart relatif
@@ -1832,6 +1856,21 @@ d'exclusion de M1 \\
 la cellule aberrante (fiche~\ref{mw:m4gr}), lu par \code{add()} dans \code{mw\_tests()} et par
 la constante \code{.MW\_LIGNES\_COLONNES\_ECARTEES}, que lit l'avertissement des colonnes
 dégénérées de \code{mw\_valider\_ajustement()} (§\ref{sec:controles}) \\
+\code{FORMAT\_MENTION\_}\newline\code{MW\_SIGMA\_DIRECT},\newline
+\code{FORMAT\_MENTION\_}\newline\code{MW\_SIGMA\_DIRECT\_}\newline\code{DEGENERE},\newline
+\code{FORMAT\_MENTION\_}\newline\code{MW\_SIGMA\_DIRECT\_}\newline\code{SIMULATION} & constantes (gabarits \code{sprintf()}, mêmes
+trois arguments) &
+mention jointe par \code{mw\_tests()} au commentaire de la ligne M6 d'extrapolation de
+$\hat\sigma^2_{J-1}$, sur un trapèze seulement~: nombre de facteurs de la colonne $J-1$,
+estimateur direct de $\sigma^2_{J-1}$ lu dans \code{mw\_ajuster()} et ses degrés de liberté, aucun
+nombre issu du bootstrap~; gabarit choisi par \code{.mw\_cas\_}\allowbreak\code{sigma\_direct()}~: cas
+général, colonne $J-1$ dégénérée, simulation sur l'estimateur direct (fiche~\ref{mw:m6sig}) \\
+\code{MW\_USAGE\_SIGMA},\newline \code{MW\_USAGE\_SIGMA\_}\newline\code{SIMULATION},\newline
+\code{MW\_USAGE\_SIGMA\_}\newline\code{DEGENERE} & constantes (deux chaînes nommées \code{sigma} et \code{sigma\_residus}) &
+usage des deux $\hat\sigma_{J-1}$ d'un trapèze, choisi par \code{.mw\_usage\_sigma()} selon le cas
+de la colonne $J-1$ (la première pour un carré et dans le cas général) et restitué dans
+\code{plots\_data\$usage\_sigma}~; légendes des deux points lues par \code{plot\_mw\_facteurs()}
+sur un trapèze (section~\ref{sec:graphiques}) \\
 \code{.MW\_LIGNES\_COLONNES\_}\newline\code{ECARTEES} & constante (liste nommée par famille) &
 noms des lignes de \code{mw\_tests()} qui écartent les colonnes dégénérées de leur calcul, par
 famille~: une ligne y figure si elle reçoit l'ensemble
@@ -1884,7 +1923,13 @@ sensibilité ne figurant pas dans le commentaire de la ligne, sans effet sur
 $\sigma_{(\text{res},s,\mathrm{USP})}$ (fiche~\ref{mw:m6sig}) \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
 \code{aj}) & \code{data.frame} des résidus de Mack
-$r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}, écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()} \\
+$r(i,j)$, colonnes dégénérées exclues et consignées dans l'attribut \code{colonnes\_exclues}, écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()}, $\hat\sigma_j$ par \code{.mw\_sigma2\_residus()} \\
+\code{.mw\_sigma2\_}\newline\code{residus()} & \code{aj} & vecteur des $\hat\sigma^2_j$ qui réduisent
+les résidus de Mack~: \code{aj\$sigma2}, sauf $\hat\sigma^2_{J-1}$ remplacé, sur un trapèze, par
+l'estimateur direct~; lu par \code{mw\_residus()}, \code{mw\_influence()} et
+\code{mw\_identifiabilite\_intra()} seulement, la MSEP gardant la valeur de la règle de minimum,
+et la simulation du bootstrap aussi, hors du cas de \code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}
+(§\ref{sec:trapeze-niveau}) \\
 \code{.mw\_ecart\_}\newline\code{facteur\_stable()} & cumuls $C(\cdot,j)$ et $C(\cdot,j+1)$ d'une
 colonne & vecteur des $F(i,j) - \hat f_j$ par l'identité exacte
 $\sum_{k \neq i} C(k,j)\big(F(i,j) - F(k,j)\big)/S_j$, sans annulation pour une cellule dominante,
@@ -1928,8 +1973,8 @@ dans le flux de \code{mw\_bootstrap()}, partagée avec les boucles des tests uni
 reproduisent (section~\ref{sec:boot-mw}). L'acceptation lit
 l'indicateur \code{complet} de \code{.mw\_simuler\_}\allowbreak\code{triangle\_etat()}~;
 \code{.mw\_triangle\_}\allowbreak\code{incomplet()} reste le contrôle des tests unitaires~: sur
-un triangle carré à première colonne complète, seul admis par \code{mw\_valider\_triangle()}, la
-partie supérieure balayée est exactement la première colonne et les cellules tirées, d'où la même
+un triangle à première colonne complète, carré ou trapèze, la partie observée $i + j \le I$
+qu'il balaie est exactement la première colonne et les cellules tirées, d'où la même
 décision \\
 \code{.mw\_un\_moins\_h()} & \code{aj}, résidus de Mack \code{res} (sortie de
 \code{mw\_residus()}) & vecteur des $1 - h_{ij} = (S_j - C(i,j))/S_j$ des cellules de \code{res},
@@ -2302,17 +2347,23 @@ distance n'est pas finie (fiche~\ref{fiche:cook}) \\
 \code{sigma\_usp\_boot}, \code{ic}, \code{sigma\_usp},\newline \code{sigma\_standard},
 \code{alpha} (dernier argument, obligatoire, sans valeur par défaut~;
 passé par \code{.run\_engine\_mw()}) &
-toutes les quantités tracées (branche Merz--Wüthrich), dont la colonne
-logique \code{facteurs\$sigma\_regle\_minimum}, en dernière position de \code{facteurs}~:
+toutes les quantités tracées (branche Merz--Wüthrich), dont, en fin de \code{facteurs}, la colonne
+logique \code{facteurs\$sigma\_regle\_minimum}~:
 \code{TRUE} en $j = J-1$ seulement, dont $\hat\sigma_j$ est fixé par la règle de minimum de
-D(5)(d)(ii), \code{FALSE} partout si la règle n'est pas applicable~; en fin
+D(5)(d)(ii), \code{FALSE} partout si la règle n'est pas applicable, puis
+\code{facteurs\$sigma\_residus}, le $\hat\sigma_j$ qui réduit les résidus de Mack
+(\code{.mw\_sigma2\_residus()}), égal à \code{sigma} sauf en $j = J-1$ d'un trapèze, où il porte
+l'estimateur direct, et \code{facteurs\$sigma\_residus\_direct}, \code{TRUE} en $j = J-1$
+seulement quand cet estimateur existe, posé par la géométrie et non par comparaison des deux
+colonnes (\code{FALSE} partout sur un carré)~; en fin
 de liste, les tables \code{residus\_acc\_groupes} et \code{residus\_cal\_groupes} des
 nuages de résidus~; la table \code{qqnorm} porte les résidus redressés par
 le levier (\code{mw\_residus\_redresses()}) et les quantiles $\mathcal{N}(0,1)$ de leurs rangs, et
 la feuille \code{qqline} (ordonnée~0, pente~1), droite de référence du QQ-plot, est ajoutée en
 fin de liste~; en fin de liste, \code{sigma\_usp\_boot} et
 \code{boot\_reperes} (distribution bootstrap de $\sigma_{\mathrm{USP}}$, sans régime ni intervalle
-«~basic~», fiche~\ref{fiche:ic-bootstrap})~; la colonne logique
+«~basic~», fiche~\ref{fiche:ic-bootstrap}), puis, en toute fin de liste, la feuille
+\code{usage\_sigma} (légendes de \code{.mw\_usage\_sigma()} selon le cas de la colonne $J-1$)~; la colonne logique
 \code{influence\$plus\_influente}, en fin de table \code{influence}~: \code{TRUE} pour la seule
 cellule de plus grand $|\mathrm{DFBETAS}|$ défini (la première dans l'ordre de
 \code{mw\_influence()} en cas d'égalité exacte, sans tolérance), \code{FALSE} partout si aucun
@@ -2427,7 +2478,9 @@ tête de l'annexe~XVII, section~D, paragraphe~5, diffère en revanche de celle p
 aucun marqueur, et l'acte correcteur n'est pas identifié~: aucun des cinq rectificatifs
 qu'énumère le texte consolidé ne porte sur la section~D. L'outil applique ce libellé consolidé
 (§\ref{sec:mw}), identiquement égal à l'erreur de prédiction à un an de Merz--Wüthrich
-(2008)~; l'égalité est vérifiée numériquement (section~\ref{sec:verif}). Les articles~117 et~148
+(2008)~; l'égalité est vérifiée numériquement (section~\ref{sec:verif})~; sur un trapèze $I > J$,
+calculé sous une convention de l'outil, elle n'est établie que par concordance numérique avec
+l'implémentation de l'auteur (encadré «~Géométrie $I > J$~», §\ref{sec:mw}). Les articles~117 et~148
 dans leur version modifiée par le règlement délégué (UE)~2026/269, postérieure à cette version
 consolidée, sont lus dans le texte publié au \emph{Journal officiel} (paragraphe «~Date de
 référence du calcul et texte applicable~», ci-dessous)~; cet acte ne modifie ni les articles~218
@@ -3069,11 +3122,13 @@ pour chacune des trois méthodes. Un code appelant qui tire ses propres nombres 
 du générateur normal de Box--Muller exposée ci-dessus.
 
 Le script \code{tests/test\_reproductibilite.R} vérifie, pour chacune des trois
-méthodes, deux propriétés qu'il ne faut pas confondre. Ses six cas de contrôle
+méthodes, deux propriétés qu'il ne faut pas confondre. Ses sept cas de contrôle
 (\code{CAS} de \code{tests/outils\_tests.R}) sont la méthode de primes au segment~1 de
 l'annexe~II sur données déclarées brutes, la même sur données déclarées nettes, la
 méthode de primes au segment~6 sur données déclarées brutes, la méthode de réserve n\textsuperscript{o}~1, la méthode de
-réserve n\textsuperscript{o}~2 et la méthode de primes au segment~1 de
+réserve n\textsuperscript{o}~2 sur le triangle de contrôle ($8\times8$), la même sur un trapèze
+$8\times6$ (\code{tests/donnees/}\allowbreak\code{triangle\_mw\_trapeze.csv}, colonnes~0 à~5 du
+triangle de contrôle, cas \code{reserve2\_trapeze}, §\ref{sec:mw}) et la méthode de primes au segment~1 de
 l'annexe~II sur données brutes du jeu J2 à $\hat\delta$ intérieur ($\hat\delta = 0{,}664$,
 \code{tests/donnees/donnees\_ln\_interieur.csv}, cas \code{premium\_interieur}), seul cas où la p-value de Monte-Carlo conditionnelle au régime de $\hat\delta$ et le
 flux complémentaire sont calculés~; les quatre autres cas lognormaux sont à $\hat\delta = 1$.
@@ -3158,8 +3213,8 @@ l'image du système, consignée, peut aussi en produire un. Il n'est pas une mar
 dépasser sans défaut (ci-après).
 
 Mesurée en confrontant un poste Windows (Windows~11, R~4.3.3, BLAS et LAPACK de R) aux
-références de la CI (\code{tests/comparer\_references.R}, option \code{--deux-parts}, six cas
-de contrôle), la dérive atteint au plus $3{,}454\cdot 10^{-8}$ en relatif dans les quatre cas
+références de la CI (\code{tests/comparer\_references.R}, option \code{--deux-parts}, sur les six
+cas de contrôle autres que \code{reserve2\_trapeze}, hors de cette mesure), la dérive atteint au plus $3{,}454\cdot 10^{-8}$ en relatif dans les quatre cas
 lognormaux à $\hat\delta = 1$ et vaut au plus $4{,}545\cdot 10^{-16}$ sur la branche
 Merz--Wüthrich (8 valeurs sur 18\,725, tirages bootstrap)~; aucune valeur de
 \code{parametre\_final}, donc aucun $\sigma_{\mathrm{USP}}$, ne s'écarte de sa référence, fût-ce
@@ -3287,8 +3342,8 @@ les cas mesurés, tient à une colonne devenue dégénérée au voisinage de la 
 relative~; triangle construit perturbé de $9\cdot 10^{-13}$)~; sur un triangle construit voisin,
 \code{B\_effectif} a varié de $749$ à $537$ puis à $649$ avec les versions du moteur
 (fiche~\ref{mw:m1a}), signe de la sensibilité de ce compte au détail du calcul. Il est absent des
-six références, où $B_{\text{eff}} = B$ sur les treize statistiques de Monte-Carlo de
-\code{reserve2}, et aucune comparaison aux références n'en dépend. Toute autre
+sept références, où $B_{\text{eff}} = B$ sur les treize statistiques de Monte-Carlo de
+\code{reserve2} et de \code{reserve2\_trapeze}, et aucune comparaison aux références n'en dépend. Toute autre
 phrase portant un nombre issu du bootstrap exige une nouvelle règle, inscrite ici.
 
 \begin{encadre}
@@ -3620,6 +3675,8 @@ Lilliefors sur résidus de Mack & \ref{mw:m5li} & \code{stat\_lilliefors()} &
 Extrapolation de $\hat\sigma^2_{J-1}$ & \ref{mw:m6sig} &
 \code{mw\_ajuster()} (champ \code{\$sigma2})~; restitution des trois arguments du
 minimum par \code{mw\_extrapolation\_sigma2()} et \code{.mw\_detail\_extrapolation()}~;
+sur un trapèze, mention de l'estimateur direct par le gabarit que choisit
+\code{.mw\_cas\_}\allowbreak\code{sigma\_direct()}~;
 sensibilité indicative de $\sqrt{\mathrm{MSEP}}$, hors commentaire, par
 \code{mw\_sensibilite\_}\allowbreak\code{sigma2\_dernier()} &
 diagnostic, aucune p-value & --- \\
@@ -3644,7 +3701,8 @@ Résidus standardisés de Mack & \S\ref{sec:mw} & \code{mw\_residus()} &
 sans objet & --- \\
 Bootstrap semi-paramétrique & \S\ref{sec:boot-mw} & \code{mw\_bootstrap()}
 (via \code{.mw\_pool\_residus()}, \code{mw\_simuler\_triangle()} et \code{.mw\_stats()}~;
-retirage par \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}) &
+retirage par \code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}~; colonne $J-1$ d'un
+trapèze selon \code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}) &
 sans objet & toutes les clés ci-dessus \\
 Leviers, DFBETA et DFBETAS du triangle & \ref{mw:influence} & \code{mw\_influence()} &
 diagnostic, aucune p-value & --- \\
@@ -4334,7 +4392,7 @@ commentaire (§\ref{sec:graines}, règle des libellés). Champ placé après \co
 auditable, après \code{p\_min} (\code{NA} pour un objet résultat antérieur au champ). Mesuré sur
 les cas de référence~: champ fini sur cinq vérifications à $p_{\min}$ de
 \code{premium\_interieur} (quatre de type test, et Cox--Stuart, que la règle~R1 restitue en
-diagnostic) et sur cinq de \code{reserve2}, toutes de type test, \code{NA} sur les quatre cas à
+diagnostic) et sur cinq de \code{reserve2} comme de \code{reserve2\_trapeze}, toutes de type test, \code{NA} sur les quatre cas à
 $\hat\delta = 1$. \\
 \code{mc\_nom} & \textbf{Nom de la statistique de Monte-Carlo de la ligne}~:
 argument \code{mc\_nom} d'\code{add()}, recopié tel quel, nom d'une entrée
@@ -4348,7 +4406,7 @@ régime. Il relie la ligne à son entrée de \code{bootstrap\$granularite\_stat}
 l'affichage (colonne «~granularité MC~», section~\ref{sec:archi}), et, pour la p-value de famille, à sa colonne de la matrice des réplications. Dernier champ de la ligne~; colonne \code{mc\_nom} de la table
 auditable, juste après \code{p\_min\_mc} (\code{NA} pour un objet résultat antérieur au champ).
 Mesuré sur les cas de référence~: champ renseigné 31 fois sur 53 dans chaque cas lognormal et
-13 fois sur 25 pour \code{reserve2}, chaque nom n'y figurant qu'une fois, \code{NA} ailleurs. \\
+13 fois sur 25 pour \code{reserve2} et pour \code{reserve2\_trapeze}, chaque nom n'y figurant qu'une fois, \code{NA} ailleurs. \\
 \bottomrule
 \end{longtable}
 }
@@ -4379,7 +4437,7 @@ rester dans \code{stat}~: le moteur l'assure ligne par ligne, sans règle géné
 \code{loi} à \code{NA}, dans les deux méthodes. Le test d'invariant
 \code{tests/unitaires/test\_non\_applicable.R} le vérifie sur les jeux à volumes constants, à
 pertes constantes, du garde-fou~R12 et à ajustement exact, lignes de lecture conjointe exceptées,
-et, pour \code{loi}, aussi sur les six cas de référence.
+et, pour \code{loi}, aussi sur les sept cas de référence.
 La procédure ESD de Rosner, qui décide au niveau $\alpha$ sans produire de p-value, est un
 diagnostic par décision dans les deux méthodes (fiches~\ref{fiche:rosner-esd}
 et~\ref{mw:m4ros}).
@@ -4400,7 +4458,7 @@ section~\ref{sec:boot-mw}) et \emph{mentions de régime}, une phrase chacune, po
 aux données ($\hat\pi_t$ variable, constant à la tolérance près, constant parce que
 $\hat\delta = 1$ ou parce que les volumes sont constants, section~\ref{sec:base-residus}~; $T > 9$
 pour Spearman et pour le test de Pitman, fiches~\ref{fiche:spearman}
-et~\ref{fiche:student-pente}). Le gabarit est vérifié sur les six cas de référence et sur les
+et~\ref{fiche:student-pente}). Le gabarit est vérifié sur les sept cas de référence et sur les
 branches rares par \code{tests/unitaires/test\_detail\_deux\_phrases.R}.
 Le champ \code{sens} indique enfin si l'on souhaite rejeter ou ne pas rejeter $H_0$~: pour le
 test de Pitman sur la pente et pour le TOST, un $p$ faible est un \emph{bon} résultat, et le
@@ -4414,7 +4472,7 @@ validation, libellés des dérogations et des étapes de calibration, motifs des
 l'option de session qui fixe le séparateur décimal (\code{getOption("OutDec")}, dont la valeur
 par défaut est le point~; l'interface et le rapport figé la posent
 à la virgule le temps d'un tracé de graphique en base~R). La garantie est posée à la racine~:
-chacun des dix-sept points d'entrée du moteur que l'application appelle directement
+chacun des dix-huit points d'entrée du moteur que l'application appelle directement
 (\code{run\_engine()}, les lecteurs \code{engine\_lire\_donnees\_csv()},
 \code{engine\_lire\_triangle()} et \code{engine\_lire\_xlsx()}, les écrivains
 \code{engine\_ecrire\_xlsx()} et \code{engine\_ecrire\_csv()}, les validateurs
@@ -4422,8 +4480,9 @@ chacun des dix-sept points d'entrée du moteur que l'application appelle directe
 \code{engine\_valider\_serie\_retenue()} et \code{mw\_valider\_triangle()}, puis
 \code{engine\_motif\_b\_alpha()}, \code{engine\_table\_tests()}, \code{engine\_derogations()},
 \code{engine\_empreinte()}, \code{engine\_parametre\_standard()},
-\code{engine\_regle\_verdicts()} et \code{engine\_valider\_declarations()}) pose l'option au point en première instruction, par
-\code{.engine\_point\_decimal()}, et restaure en sortie celle de l'appelant, y compris sur
+\code{engine\_regle\_verdicts()}, \code{engine\_valider\_declarations()} et
+\code{mw\_cellules\_}\allowbreak\code{observees()}) pose l'option au point en première instruction, par
+\code{.engine\_point\_}\allowbreak\code{decimal()}, et restaure en sortie celle de l'appelant, y compris sur
 erreur~; le moteur ne modifie donc pas l'option de l'appelant. \code{format()},
 \code{paste()}, \code{as.character()} et \code{sprintf("\%s")} suivent cette option, non les
 formats numériques de \code{sprintf()} (mesuré en R~4.3.3~: sous \code{options(OutDec = ",")},
@@ -4512,7 +4571,8 @@ La méthode Merz--Wüthrich en compte donc \textbf{deux}, appelées à deux mome
 distincts de la chaîne. \code{mw\_valider\_triangle()} s'exécute \emph{avant}
 l'ajustement et ne lit aucune grandeur estimée~: elle porte sur les données fournies
 (dimensions, complétude de la partie observée, positivité des cumulés, domaine numérique des
-cellules observées, noms de ligne, cellules renseignées sous la diagonale, signalées sans refus),
+cellules observées, noms de ligne, cellules renseignées sous la diagonale, signalées sans refus,
+géométrie d'un trapèze $I > J$, signalée sans refus),
 puis sur le barème, le
 segment et l'annexe transmis, dont une valeur invalide est une erreur bloquante, sans erreur~R. Ce second contrôle vient après celui des cellules, qu'il ne masque pas~: les
 erreurs s'additionnent, comme dans \code{engine\_valider\_donnees()} (mesuré sur le triangle de
@@ -4520,10 +4580,11 @@ contrôle muni d'une cellule observée manquante, d'un cumul négatif et du segm
 restituées). \code{mw\_valider\_ajustement()}
 s'exécute \emph{après} \code{mw\_ajuster()} et \code{mw\_msep()}, parce que les
 deux grandeurs dont elle contrôle le domaine --- la réserve chain-ladder totale
-$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ et la MSEP --- ne sont
+$\hat R = \sum_{i=0}^{I}\big(\hat C(i,J) - C(i,I-i)\big)$ (convention~(B) pour $I > J$,
+§\ref{sec:mw}) et la MSEP --- ne sont
 pas connues avant lui~; elle précède en revanche le calcul du paramètre propre et
 le bootstrap. Elle refuse aussi un triangle \emph{totalement dégénéré},
-dont toutes les colonnes de développement ont des facteurs individuels identiques (texte sous le
+dont chaque colonne de développement $j = 0, \ldots, J-2$ a des facteurs individuels identiques (texte sous le
 tableau Merz--Wüthrich). Elle émet en outre, sans refuser le calcul, trois avertissements décrits dans
 le tableau ci-dessous~: colonne $J-3$ ou $J-2$ à facteurs individuels tous égaux (justifié au
 §\ref{sec:mw}), colonnes sans résidu de Mack, réserve faible devant son incertitude.
@@ -5860,15 +5921,19 @@ contrôle d'\code{engine\_valider\_}\allowbreak\code{declarations()}, commun aux
 Années de survenance & $I + 1 \ge 5$ & D(2)(b). Bloquant. \\
 Années de développement & $J + 1 \ge 5$ & D(2)(c). Bloquant. \\
 Forme du triangle & $I + 1 \ge J + 1$ & D(2)(e). Bloquant. \\
-Géométrie carrée & $I = J$ (motif émis si $I > J$) & Restriction d'implémentation~: les
-formules des paragraphes~4 et~5 ne se calculent à la lettre que si $I = J$~; elles font
-intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du paragraphe~5 aussi $\hat Q_{I-i}$,
-indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà de $j = J-1$), termes qui
-ne concernent que les années d'accident ayant atteint l'année de développement~$J$. Le domaine
-de l'outil est plus étroit que celui de D(2)(e), qui admet $I > J$~: le refus est le choix d'une
-lecture stricte retenue par l'outil, non une exigence du texte~; un triangle $I < J$ ne relève que
-du contrôle de forme (D(2)(e)). Qualification complète~: encadré «~Restriction
-d'implémentation~» (§\ref{sec:mw}). Bloquant. \\
+Géométrie d'un trapèze & $I > J$ & \textbf{Avertissement}, non bloquant, en tête des
+avertissements, convention de l'outil~: les formules des paragraphes~4 et~5 ne se calculent à la
+lettre que si $I = J$~; elles font intervenir $C(i,I-i)$, indéfinie si $I - i > J$, et celle du
+paragraphe~5 aussi $\hat Q_{I-i}$, indéfini si $I - i > J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$
+au-delà de $j = J-1$), termes qui ne concernent que les années d'accident ayant atteint l'année de
+développement~$J$. L'outil les fixe par la convention~(B), lecture retenue par l'outil et non
+exigence du texte, et calcule le triangle~; le domaine de l'outil est celui de D(2)(e), un
+triangle $I < J$ ne relevant que du contrôle de forme. L'avertissement demande de vérifier
+qu'aucune année de développement ne manque (un triangle carré privé de ses dernières colonnes a
+la même forme) et déclare l'hypothèse de la convention, à justifier par l'entreprise~: le
+développement des années $i = 0, \ldots, I - J$ est achevé à l'année~$J$, ce que D(2)(d) n'exige
+que de la première année d'accident. Qualification complète~: encadré «~Géométrie $I > J$~»
+(§\ref{sec:mw}). \\
 Cellules observées & aucune valeur manquante ni non finie pour $i + j \le I$ & Le
 chain-ladder exige la partie supérieure gauche complète~; une valeur non finie est un
 motif distinct d'une cellule manquante. \\
@@ -5922,7 +5987,7 @@ $\max_i \big|F(i,j)/\hat f_{j} - 1\big| \le 10^{-12}$, ou facteurs que l'aplatis
 \ae quo à cette tolérance rend tous égaux (prédicat unique), pour $j = J-3$ ou
 $j = J-2$ &
 \textbf{Avertissement}, non bloquant, jamais un refus à lui seul (un triangle dont toutes
-les colonnes sont dégénérées est refusé, ligne précédente, sans cet avertissement)~: les facteurs
+les colonnes $j = 0, \ldots, J-2$ sont dégénérées est refusé, ligne précédente, sans cet avertissement)~: les facteurs
 individuels de la colonne sont égaux à $\hat f_j$ à la tolérance de l'outil, donc
 $\hat\sigma^2_{J-3}$ ou $\hat\sigma^2_{J-2}$ est nul ou numériquement nul et, par application
 littérale de D(5)(d)(ii), $\hat\sigma^2_{J-1}$ aussi --- la MSEP ne porte alors aucune variance sur la
@@ -6003,9 +6068,10 @@ qu'en appel direct, avec une matrice nommée.
 \emph{Triangle totalement dégénéré.} Après \code{mw\_msep()}, avant le paramètre
 et le bootstrap, \code{mw\_valider\_}\allowbreak\code{ajustement()} refuse le triangle quand toutes les colonnes
 $j = 0, \ldots, J-2$ sont dégénérées au sens du prédicat unique de colonne dégénérée
-(\code{.mw\_colonne\_degeneree()}, fiche~\ref{mw:m1a})~; la colonne $J-1$, qui n'a
-qu'un facteur individuel pour $I = J$, seule géométrie admise par \code{mw\_valider\_triangle()},
-n'entre pas dans le prédicat. Le refus a la forme d'un
+(\code{.mw\_colonne\_degeneree()}, fiche~\ref{mw:m1a})~; la colonne $J-1$ n'entre pas dans le
+prédicat~: elle n'a qu'un facteur individuel sur un carré, et, sur un trapèze, où elle en a
+$I - J + 1$, sa variance est écartée de la MSEP par la règle de minimum de D(5)(d)(ii), nulle ou
+négligeable dès que $\hat\sigma^2_{J-2}$ ou $\hat\sigma^2_{J-3}$ l'est (§\ref{sec:mw}). Le refus a la forme d'un
 refus de données~: \code{ok = FALSE}, motif ajouté à \code{validation\$erreurs}, \textbf{sans}
 \code{validation\$erreur\_r}, objet réduit aux champs \code{ok}, \code{validation} et
 \code{metadata} (horodatage et méthode), aucun résultat partiel. Un seul motif~: les avertissements de colonnes de \code{mw\_valider\_ajustement()}
@@ -6024,12 +6090,21 @@ D(2)(a), exigences rendues obligatoires par l'article~219, paragraphe~1, point~d
 n'applique donc pas la méthode du risque de réserve n\textsuperscript{o}~2 à ce triangle,
 article~220, paragraphe~1, point~b)) et une vérification à faire (paiements cumulés observés,
 D(1), et non montants projetés ou lissés)~; son texte exact est vérifié par
-\code{tests/unitaires/test\_merz\_wuthrich.R}.
+\code{tests/unitaires/test\_merz\_wuthrich.R}. Sur un trapèze dont la colonne $J-1$ porte des
+résidus de Mack (\code{mw\_residus()} en retient au moins un, colonne non dégénérée à estimateur
+direct strictement positif), le motif dit qu'aucun résidu n'est retenu sur les années
+$j = 0, \ldots, J-2$, que seule l'année $J-1$ ($I - J + 1$ facteurs) porte des facteurs distincts
+et des résidus, mais que sa variance n'entre pas dans la MSEP, et précise que cette seule année ne
+suffit pas à éprouver D(2)(h)(iv) et que la variabilité qu'elle montre est absente de la MSEP
+(D(2)(a))~; sinon, le motif est celui du carré, au caractère près (variante vérifiée par
+\code{tests/unitaires/}\allowbreak\code{test\_merz\_wuthrich\_trapeze.R}).
 
 \emph{Fondement.} Le texte n'impose ni n'interdit ce refus, et deux lectures en sont possibles.
 Lecture~L1~: une constante de proportionnalité nulle, $\sigma_j^2 = 0$, est formellement admise
 par D(2)(h)(iv), qui ne l'exclut pas~; la lettre de D(4) et de D(5) donne alors un paramètre.
-Lecture~L2~: des données dont aucune colonne ne présente de variance ne permettent d'établir ni
+Lecture~L2~: des données dont aucune colonne ne présente de variance (sur un trapèze, aucune
+autre que la colonne $J-1$, qui seule ne suffit pas à éprouver la proportionnalité de la variance
+et dont la variance est absente de la MSEP) ne permettent d'établir ni
 qu'elles «~sont cohérentes avec les hypothèses suivantes concernant la nature stochastique des
 montants de sinistres cumulés~» (D(2)(h)), ni qu'elles «~sont représentatives du risque de
 réserve auquel l'entreprise d'assurance ou de réassurance est exposée pour les douze mois à
@@ -6150,11 +6225,11 @@ amplitude des volumes), et, par le domaine numérique, sur la seule capacité du
 virgule flottante à traiter les montants, sans jugement économique~; ce domaine
 vaut aussi pour les cellules du triangle. Ceux de la méthode Merz--Wüthrich portent d'abord sur la
 \emph{géométrie} du triangle, dont dépend l'application des formules~:
-un triangle incomplet ne permet pas d'appliquer les formules des paragraphes~4 et~5, un
+un triangle incomplet ne permet pas d'appliquer les formules des paragraphes~4 et~5 et un
 triangle à moins d'années d'accident que d'années de développement ($I < J$) est exclu par
-D(2)(e), et un triangle $I > J$, admis par D(2)(e), ne permet pas de les appliquer à la lettre
-(§\ref{sec:mw}). C'est pourquoi la plupart sont bloquants et non de simples
-avertissements.
+D(2)(e)~; c'est pourquoi la plupart sont bloquants et non de simples avertissements. Un triangle
+$I > J$, admis par D(2)(e), ne permet pas de les appliquer à la lettre~: l'outil le calcule sous
+une convention et le signale par un avertissement (§\ref{sec:mw}).
 
 \smallskip
 Le contrôle d'applicabilité de D(4) fait cependant exception à cette
@@ -6450,7 +6525,10 @@ l'ensemble figé à l'observé, en sont exclus (§\ref{sec:mw}).
 \emph{Hypothèse nulle des p-values de Monte-Carlo.} Chaque triangle simulé conserve la première
 colonne observée et engendre les suivantes par $C(i,j+1) = \hat f_j\,C(i,j) + e\,\hat\sigma_j
 \sqrt{C(i,j)}$, où $e$ est tiré avec remise dans le vivier commun à toutes les colonnes
-(\code{mw\_simuler\_triangle()}), puis il est réajusté et les statistiques sont recalculées
+(\code{mw\_simuler\_triangle()}) et où $\hat\sigma_{J-1}$ est la valeur de la règle de minimum,
+y compris sur un trapèze, dont les résidus de la colonne $J-1$ sont pourtant réduits par un autre
+estimateur (§\ref{sec:trapeze-niveau}), hors du cas d'une règle nulle ou négligeable décrit
+ci-dessous, puis il est réajusté et les statistiques sont recalculées
 (\code{mw\_bootstrap()}). La loi simulée est donc celle du \textbf{modèle de Mack complet
 ajusté}~: proportionnalité des cumulés (M1), variance proportionnelle au cumulé (M2) et
 indépendance des erreurs (M3) à la fois, avec des erreurs de même loi pour toutes les cellules et
@@ -6460,6 +6538,38 @@ première colonne observée et à des cumuls simulés strictement positifs, et n
 est rangée~: chaque ligne teste le modèle complet dans la direction de sa statistique. Un rejet
 dit que le triangle est atypique de ce modèle dans cette direction~; il n'attribue pas l'écart
 à l'hypothèse que la ligne vise.
+
+\emph{Colonne $J-1$ d'un trapèze à règle nulle ou négligeable.} Quand la règle de minimum est
+nulle (colonne $J-3$ ou $J-2$ dégénérée, §\ref{sec:mw}) ou négligeable, $\hat\sigma_{J-1} \le
+10^{-10}\,\hat f_{J-1}\sqrt{\min_{0 \le i \le I-J} C(i,J-1)}$ (\code{MW\_TOL\_SIGMA\_SIMULATION},
+convention numérique et non seuil statistique), c'est-à-dire une dispersion relative simulée
+$\hat\sigma_{J-1}/(\hat f_{J-1}\sqrt{C(i,J-1)})$ du facteur $F(i,J-1)$ d'au plus $10^{-10}$ sur
+chaque ligne $i$ (la ligne du plus petit cumul, la plus dispersée, gouverne la dégénérescence de la
+colonne, que \code{.mw\_colonne\_degeneree()} juge sur l'écart maximal entre lignes), alors que la colonne $J-1$ d'un trapèze n'est pas
+dégénérée, le modèle simulé avec cette valeur rend la colonne $J-1$ déterministe~: les données
+observées, où elle est dispersée, y sont de probabilité nulle, la loi de référence n'a pas le
+support de la statistique observée, et chaque réplication y voit une colonne $J-1$ dégénérée.
+Dans ce cas seulement (\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}),
+\code{mw\_bootstrap()} tire les triangles avec l'estimateur direct de $\sigma^2_{J-1}$
+(§\ref{sec:trapeze-niveau})~: \textbf{convention de l'outil, non réglementaire}, le règlement ne
+traitant pas de la simulation des tests. Pour chaque triangle tiré, mêmes appels à
+\code{sample()}, dans le même ordre~; seul le retirage d'un triangle simulé à cumul non
+strictement positif peut dépendre de l'écart type de la colonne $J-1$. Vivier,
+statistiques observées, ensembles figés, ajustement et MSEP des réplications inchangés, comme la
+MSEP et $\sigma_{\mathrm{USP}}$, qui ne lisent pas la simulation. À tirages égaux, multiplier
+l'écart type simulé de la colonne $J-1$, qui n'alimente aucune autre colonne, multiplie par le
+même facteur les écarts $F(i,J-1) - \hat f_{J-1}$ de la réplication et la racine de son
+estimateur direct~: onze des treize statistiques simulées, qui ne lisent cette colonne que par des grandeurs
+réduites colonne par colonne ou par des rangs, n'en dépendent pas (propriété d'échelle des
+statistiques, tant que ce retirage n'en dépend pas), et la convention ne fait pour
+elles que remplacer la valeur~$0$ par une valeur strictement positive. La pente relative
+(fiche~\ref{mw:m1}) et la famille~$\alpha$ (fiche~\ref{mw:m1d}), qui combinent les colonnes
+entre elles, en dépendent, comme \code{sigma\_boot} et \code{res\$ic\_bootstrap}~: pour elles, la
+convention n'est pas la limite d'une simulation à règle faible mais non négligeable.
+\emph{Statut}~: p-values de Monte-Carlo d'un bootstrap semi-paramétrique à paramètres estimés~;
+aucun théorème ne couvre cette convention, et le document n'en mesure pas le niveau à $T = 8$,
+le constat de niveau d'un trapèze (§\ref{sec:trapeze-niveau}) portant sur un plan dont la règle,
+au triangle générateur, n'est ni nulle ni négligeable.
 
 \emph{Redressement du vivier par le levier.} Les résidus de Mack ne sont pas d'échelle unitaire. Sous le modèle de Mack à
 $\sigma_j$ connu, conditionnellement aux cumuls $C(\cdot,j)$ de la colonne, avec
@@ -6567,6 +6677,37 @@ est inclus dans la procédure mesurée~; l'erreur de substitution (plan et loi p
 n'est pas quantifiée. \emph{Statut}~: constat de simulation sous ces deux modèles, conditionnel à
 l'admission ($\hat R > 0$) et à $R^{*} > 0$~; aucune source lue ne chiffre ces couvertures à
 $n = 8$.
+
+\emph{Intervalles calibrés par bootstrap imbriqué, mesurés et non restitués.} Deux intervalles
+candidats ont été mesurés sur le triangle de contrôle, au même critère (classes et intervalles de
+Clopper--Pearson, fixés avant l'exécution~; script
+\code{tests/}\allowbreak\code{couverture\_ic\_sigma\_mw\_imbrique\_t8.R}, sortie
+\code{docs/tableaux/}\allowbreak\code{20261120-}\allowbreak\code{issue610-}\allowbreak\code{couverture-ic-sigma-mw-imbrique.md},
+valeurs brutes de même préfixe), avec $B_1 = 999$ réplications de premier niveau et, pour chacune,
+$B_2 = 199$ réplications de second niveau tirées sous le modèle ajusté à la réplication~: C1,
+l'intervalle «~basic~» logarithmique $[\hat\sigma^2/Q^{*}_{1-\alpha}~;~\hat\sigma^2/Q^{*}_{\alpha}]$
+dont chaque borne est calibrée par la proportion des réplications de second niveau qui la
+respectent, queues calibrées séparément~; C2, l'intervalle studentisé sur $\ln\sigma$, l'écart-type
+de chaque réplication étant estimé par son second niveau. Le principe de la calibration par double
+bootstrap est celui que décrivent J.~Chang et P.~Hall (2015, section~\ref{sec:biblio})~; son application à
+chaque borne d'un intervalle bilatéral est une construction de l'outil. \emph{Résultats}, à
+90~\%, 1\,000 triangles par loi~: C1 couvre $0{,}671$ (E) et $0{,}729$ (N), C2 $0{,}669$ et
+$0{,}719$, tous en distorsion matérielle libérale, l'intervalle de Clopper--Pearson du taux de
+non-couverture restant à $0{,}09$ au moins du bord haut de la bande~; à 95~\%, de $0{,}78$ à
+$0{,}80$. Les manques sont surtout au-dessus de la borne haute ($0{,}226$ à $0{,}293$ des
+triangles à 90~\%, contre $0{,}036$ à $0{,}055$ sous la borne basse)~: la calibration ramène la
+queue basse au voisinage du nominal, non la queue haute. Le percentile calibré n'est pas
+candidat~: ses bornes restent dans $[\min\sigma^{*}~;~\max\sigma^{*}]$, et $\sigma_A$ dépasse
+$\max\sigma^{*}$ dans $0{,}187$ (E) et $0{,}181$ (N) des triangles~; mesuré à titre descriptif, il
+couvre $0{,}704$ (E) et $0{,}739$ (N) à 90~\%. \textbf{Le bootstrap imbriqué ne rétablit donc pas le niveau nominal}, et aucun
+de ces intervalles n'est restitué par le moteur~; l'intervalle de percentile reste le seul
+intervalle restitué en méthode Merz--Wüthrich, avec la réserve ci-dessus. \emph{Statut}~: constat
+de simulation sous le modèle ajusté au triangle de contrôle (première colonne fixée), pour une
+loi d'erreurs donnée, conditionnel à l'admission ($\hat R > 0$) et à $R^{*} > 0$~; les intervalles
+de Clopper--Pearson ne mesurent que l'erreur de simulation en nombre de triangles, les effets de
+$B_1$ et $B_2$ étant inclus dans la procédure mesurée~; l'écart au nominal est l'erreur à
+$T = 8$ de la procédure, objet mesuré, que les ordres asymptotiques du double bootstrap ne
+chiffrent pas~; aucune mesure ne porte sur un trapèze.
 
 \emph{Écart au facteur sous forme stable.} Quand une cellule domine sa colonne, $\hat f_j$ est égal à son facteur individuel
 à l'arrondi près, et la différence directe $F(i,j) - \hat f_j$ perd ses chiffres significatifs par
@@ -7844,12 +7985,15 @@ jeux de données vaut, pour $B$ grand, environ $4\,f(s)\,\text{err}_{\text{mc}}(
 densité en $s$, supposée continue et non nulle, de la p-value à $B$ infini sur ces jeux~: elle
 décroît alors en $1/\sqrt{B}$ (argument élémentaire, sans référence). Quand cette p-value a un
 atome voisin de $s$, la décroissance n'intervient qu'une fois la bande plus étroite que la
-distance de l'atome au seuil. Mesuré sur les six cas de référence
-(\code{tests/reference/})~: trois occurrences, toutes au seuil
-$\alpha = 0{,}10$, aucune à $\alpha/2$~: Grubbs sur \code{premium\_interieur} ($p = 0{,}105$,
+distance de l'atome au seuil. Mesuré sur les sept cas de référence
+(\code{tests/reference/})~: six occurrences, quatre au seuil
+$\alpha = 0{,}10$ et deux à $\alpha/2$~: Grubbs sur \code{premium\_interieur} ($p = 0{,}105$,
 \code{err\_mc} $= 0{,}0097$, \code{OK})~; nullité de l'ordonnée à l'origine ($0{,}085$, $0{,}0088$,
 \code{ALERTE}) et pente intra-colonne relative ($0{,}090$, $0{,}0131$,
-\code{ALERTE}, fiche~\ref{mw:m1}) sur \code{reserve2}. Les diagnostics par décision ne la portent
+\code{ALERTE}, fiche~\ref{mw:m1}) sur \code{reserve2}~; sur \code{reserve2\_trapeze}, nullité de
+l'ordonnée à l'origine ($0{,}083$, $0{,}0087$, \code{ALERTE}) au seuil $0{,}10$, pente
+intra-colonne relative ($0{,}058$, $0{,}0106$) et homogénéité de $f_j$ ($0{,}065$, $0{,}0078$),
+toutes deux \code{ALERTE}, au seuil $\alpha/2$. Les diagnostics par décision ne la portent
 pas, la phrase étant exclue des diagnostics~: Breusch--Pagan original ($p = 0{,}090$,
 \code{err\_mc} $= 0{,}0091$) et homogénéité des dispersions par la médiane ($0{,}104$, $0{,}0097$),
 sur chacun des cas \code{premium}, \code{premium\_ii6}, \code{premium\_net} et \code{reserve1},
@@ -8177,7 +8321,7 @@ Stephens, Dallal--Wilkinson, D'Agostino, Anscombe--Glynn), une loi sous un modè
 gaussien ou l'approximation normale d'une loi de rangs. Une seule vérification retient une p
 de la famille~(ii), faute de p-value exacte et de p-value de Monte-Carlo~: Anscombe--Glynn, à
 $T \ge 20$ et à $\hat\pi_t$ constant seulement~; sa nature est \code{approximation a n fini
-sous i.i.d. normal}. Mesuré sur les six cas de référence
+sous i.i.d. normal}. Mesuré sur les sept cas de référence
 (\code{tests/reference/}, champ \code{nature\_p})~: aucune ligne ne porte cette nature, ni la
 nature \code{asymptotique}.
 
@@ -8453,7 +8597,7 @@ percentile sous-couvre nettement (constat de simulation, deux plans, fiche~\ref{
 non-convergence au bord établie par Andrews (2000) pour une moyenne contrainte, transposition à
 $\hat\delta$ non démontrée. En méthode Merz--Wüthrich, l'intervalle de percentile, restitué sans
 ligne de test, sous-couvre aussi (constat de simulation, deux triangles), et aucun intervalle
-«~basic~» mesuré ne rétablit le niveau \\
+mesuré, «~basic~» ou calibré par bootstrap imbriqué, ne rétablit le niveau \\
 
 
 \multicolumn{9}{@{}l@{}}{\textbf{\textcolor{financeblue}{Méthode Merz--Wüthrich --- M1 : proportionnalité des cumulés}}} \\
@@ -8647,10 +8791,10 @@ Lorsque les deux coexistent, ils sont documentés sur deux lignes distinctes. Le
 blocs (A), (B) et (D) concernent la méthode lognormale~; le bloc (C) est propre à
 la méthode Merz--Wüthrich, où la profondeur pertinente n'est plus $T$ mais le
 nombre $n_j = I - j$ de facteurs individuels observés dans chaque colonne du triangle, qui décroît
-de $I$ (colonne~0) à~1 (colonne~$J-1$, le triangle étant carré)~: $\hat f_{J-1}$ repose sur un
+de $I$ (colonne~0) à $I - J + 1$ (colonne~$J-1$)~: sur un triangle carré, $\hat f_{J-1}$ repose sur un
 seul facteur, et les dernières variances estimées, $\hat\sigma^2_{J-3}$ et $\hat\sigma^2_{J-2}$,
-sur 2 et 1 degrés de liberté, $\hat\sigma^2_{J-1}$ étant fixée par la règle de minimum de
-D(5)(d)(ii).
+sur 2 et 1 degrés de liberté (sur un trapèze, $I - J + 2$ et $I - J + 1$), $\hat\sigma^2_{J-1}$
+étant fixée par la règle de minimum de D(5)(d)(ii) dans les deux géométries.
 
 \begin{landscape}
 \begin{center}
@@ -9114,7 +9258,8 @@ Couverture mesurée à $T = 8$ sous deux plans (constat de simulation)~: de $0{,
 90~\% pour le percentile et l'IC restreint, $0{,}886$ et $0{,}895$ pour l'intervalle «~basic~»
 logarithmique~; IC restreint conditionnel à $\hat\delta$ (fiche~\ref{fiche:ic-bootstrap})~; en
 méthode Merz--Wüthrich (percentile sans ligne de test), $0{,}573$ et $0{,}617$ à 90~\% sur le
-triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$ \\
+triangle de contrôle, aucun intervalle «~basic~» mesuré ne dépassant $0{,}733$, ni aucun
+intervalle calibré par bootstrap imbriqué $0{,}739$ \\
 
 \end{longtable}
 \end{center}
@@ -9256,11 +9401,15 @@ ligne sur un jeu donné~; les rubriques~7 ne les répètent pas.
 \noindent\emph{Méthode Merz--Wüthrich.} Six vérifications de \code{mw\_tests()} reçoivent
 une $p_{\min}$, calculée par la règle ci-dessus sur une loi de référence combinatoire, aux
 effectifs observés, dans le sens du catalogue \code{MW\_CATALOGUE\_MC} et avec le doublement des
-lignes bilatérales. Le tableau ci-dessous en donne les valeurs pour un triangle complet de
+lignes bilatérales. Le tableau ci-dessous en donne les valeurs pour un triangle carré complet de
 $T = I + 1$ années de survenance, sans colonne dégénérée ni ex \ae quo~: les effectifs ne
 dépendent alors que de la géométrie, sauf pour l'effet calendaire, dont la colonne est mesurée
 sur les sous-triangles $T \times T$ du triangle de contrôle (\code{tests/donnees/triangle\_mw.csv},
-qui n'en compte que huit). La rubrique~7 des fiches correspondantes y renvoie.
+qui n'en compte que huit). La rubrique~7 des fiches correspondantes y renvoie. Sur un trapèze
+$I > J$, les effectifs diffèrent et la $p_{\min}$ est celle du champ \code{p\_min} de la ligne~:
+sur le trapèze $8\times6$ de référence (\code{reserve2\_trapeze}), celles de l'effet calendaire,
+de l'homogénéité entre années et des suites diffèrent du carré, et toutes les six restent
+inférieures à $2\cdot 10^{-5}$.
 
 \begin{center}
 \small
@@ -14589,8 +14738,8 @@ en $T$~; l'extension à un autre $T$ ou à des données réelles est une \emph{h
 
 \emph{Couverture à $T = 8$, méthode Merz--Wüthrich.} Sous les modèles ajustés à deux triangles,
 \textbf{le percentile couvre nettement moins que son niveau nominal} ($0{,}52$ à $0{,}62$ pour
-90~\%~; $\hat\sigma$ sous-estimé, borne haute dépassée), \textbf{et aucun «~basic~» mesuré ne
-rétablit ce niveau}~: constat de simulation, même critère (section~\ref{sec:boot-mw}).
+90~\%~; $\hat\sigma$ sous-estimé, borne haute dépassée), \textbf{et aucun intervalle mesuré,
+«~basic~» ou calibré par bootstrap imbriqué, ne rétablit ce niveau}~: constat de simulation, même critère (section~\ref{sec:boot-mw}).
 
 \emph{Biais.} Sur les références, la moyenne des $\hat\sigma^{(b)}$ est inférieure à $\hat\sigma$
 de $11{,}2~\%$ (jeu de contrôle), $13{,}9~\%$ (\code{premium\_interieur}) et $11{,}3~\%$
@@ -14772,8 +14921,9 @@ $\hat\beta$~: une dérive contredit la constance de $\beta$. \\
 résiduelle après pondération. \\
 \code{plot\_mw\_facteurs()} & MW & M6 & Deux panneaux sur le même axe $j$~:
 facteurs $\hat f_j$ et référence $f = 1$ (cadence de liquidation)~; écarts types $\hat\sigma_j$,
-le point $j = J-1$, fixé par la règle de minimum (\code{facteurs\$sigma\_regle\_minimum}),
-marqué à part (fiche~\ref{mw:m6sig}). \\
+le point $j = J-1$, fixé par la règle de minimum, marqué à part (fiche~\ref{mw:m6sig})~; sur
+un trapèze, second point creux en $j = J-1$ (\code{facteurs\$sigma\_residus}), légendes lues
+dans \code{plots\_data\$usage\_sigma}, selon le cas de la colonne $J-1$. \\
 \code{plot\_mw\_reserve()} & MW & M6 & Réserve par année de survenance~: montre
 la concentration sur les années récentes. \\
 \multicolumn{4}{@{}l@{}}{\textit{\textcolor{financeblue}{Structure de variance}}} \\
@@ -15604,12 +15754,17 @@ valeur non prescrite et \emph{supérieure} à la borne $\hat\sigma_{J-3}^2 = 0$ 
 impose~: ce constat doit être porté au dossier tel quel. Un tel repli, non prescrit, n'est pas
 retenu~; il introduirait de plus une \emph{discontinuité}, deux triangles numériquement
 indiscernables au dernier bit des cumulés produisant deux lois simulées différentes. Constat sur
-un triangle construit (colonne $J-3$ dégénérée, hors des jeux de référence~; \code{run\_engine()},
+un triangle carré construit (colonne $J-3$ dégénérée, hors des jeux de référence~; \code{run\_engine()},
 $B = 999$)~: la règle littérale et le repli y donnent les mêmes p-values de Monte-Carlo et les
 mêmes verdicts~; raison~: $\hat\sigma_{J-1}^2$ n'entre pas dans les résidus de Mack qui portent les
 statistiques simulées --- la dernière colonne de développement, qui ne compte qu'un facteur
 individuel, ne fournit aucun résidu ---, mais dans la MSEP et dans le diagnostic de
-la fiche~\ref{mw:m6sig}. Le triangle de contrôle n'est pas dégénéré.
+la fiche~\ref{mw:m6sig}. Sur un trapèze, la colonne $J-1$ fournit des résidus, réduits par un
+autre estimateur (§\ref{sec:trapeze-niveau})~; si elle n'est pas dégénérée, elle est alors
+simulée avec cet estimateur et non avec la valeur nulle de la règle (section~\ref{sec:boot-mw})~;
+cette convention, qui ne touche ni la MSEP ni $\sigma_{\mathrm{USP}}$, garde au seuil de la règle
+négligeable une discontinuité pour la pente relative, la famille~$\alpha$ et
+\code{sigma\_boot}. Le triangle de contrôle n'est pas dégénéré.
 
 Parce que la variance ainsi annulée n'est, en général, pas nulle en réalité,
 \code{mw\_valider\_ajustement()} émet un \emph{avertissement} --- et non un
@@ -15828,7 +15983,9 @@ lecture du texte.
 données.} Quand les facteurs individuels de chaque colonne $j = 0, \ldots, J-2$ sont identiques,
 la MSEP est nulle en arithmétique exacte et D(4) donne
 $\sigma_{(\text{res},s,\mathrm{USP})} = (1-c)\,\sigma_{(\text{res},s)}$~: l'expression est définie,
-mais elle ne tire aucune information des données. Le refus ne procède ni de l'arithmétique ni du
+mais le paramètre ne tire aucune information des données~; sur un trapèze, la variabilité que peut
+montrer la colonne $J-1$ est écartée de la MSEP par la règle de minimum, et cette seule colonne
+ne suffit pas à éprouver D(2)(h)(iv). Le refus ne procède ni de l'arithmétique ni du
 $0/0$ du quotient de D(5)(d)(ii), sans effet sur le minimum (ci-dessus), mais des exigences de
 données de D(2)(h) et D(2)(a), que ces données ne permettent pas d'établir (prédicat, motif,
 lectures du texte et frontière~: section~\ref{sec:controles}).
@@ -15847,28 +16004,60 @@ donnent lieu qu'à l'avertissement sur les cumulés décroissants
 (section~\ref{sec:controles}).
 
 \begin{encadre}
-\textbf{Restriction d'implémentation.} D(2)(e) autorise $I \ge J$, mais
+\textbf{Géométrie $I > J$ (trapèze)~: convention de l'outil.} D(2)(e) admet $I \ge J$, mais
 les formules des paragraphes~4 et~5 ne se calculent à la lettre que si $I = J$~: elles font
 intervenir $C(i, I-i)$, qui n'est définie que si $I - i \le J$, et celle du paragraphe~5 aussi
 $\hat Q_{I-i}$, qui ne l'est que si $I - i \le J - 1$ (ni $\hat f_j$ ni $\hat\sigma^2_j$ au-delà
-de $j = J-1$). Pour $I > J$, deux termes sont donc indéfinis, $C(i, I-i)$ pour $i < I - J$ et
-$\hat Q_{I-i}$ pour $1 \le i \le I - J$~; ils ne concernent que les années d'accident ayant
-atteint l'année de développement~$J$. Le moteur impose $I = J$ (triangle carré) et refuse un
-triangle $I > J$ plutôt que de lui appliquer une convention que le texte ne prévoit pas~: ce
-refus est le choix d'une lecture stricte retenue par l'outil, non une exigence du texte, et le
-domaine de l'outil est plus étroit que celui de D(2)(e). Un triangle $I < J$ ne relève que du
-contrôle de D(2)(e). Se ramener à un triangle carré exclut des années d'accident~: cette
-exclusion est à justifier, l'article~219, paragraphe~1, point~a) rendant applicable
-l'article~19, paragraphe~1, point~b), selon lequel aucune donnée pertinente n'est exclue sans
-justification~; après cette exclusion des années d'accident les plus anciennes, D(2)(d)
-s'applique à la nouvelle première année d'accident, dont le montant cumulé à l'année de
-développement~$J$ doit inclure tous ses paiements à une différence non significative près, ce que
-D(2)(d) vérifié sur l'ancienne première année n'établit pas.
-La méthode du risque de réserve n\textsuperscript{o}~1 est l'autre méthode standard de
-l'article~220, paragraphe~1, point~b), sous ses propres exigences de données (section~C)~; le
-choix entre les deux méthodes relève de l'article~220, paragraphe~2. M.~Merz et M.\,V. Wüthrich
-(2008, p.~546, section~\ref{sec:biblio}) supposent aussi $I = J$, par simplicité, et notent que
-leurs résultats se généralisent au cas $I > J$, sans en imprimer la formule.
+de $j = J-1$). Pour $I > J$, trois termes sont donc indéfinis, $C(i, I-i)$ pour $i < I - J$,
+$\hat Q_{I-i}$ pour $1 \le i \le I - J$ et $S_{I-i}$ pour $1 \le i \le I - J - 1$, qui n'entre que
+par le quotient $\hat Q_{I-i}/S_{I-i}$~; ils ne concernent que les années d'accident ayant
+atteint l'année de développement~$J$. L'outil calcule un tel triangle sous une convention, la
+\emph{convention~(B)}, lecture retenue par l'outil et non prescrite par le texte, qui en fixe les
+deux éléments pour les années $i \le I - J$~: au paragraphe~4, $\hat C(i,J) = C(i,J)$, cumul
+observé (comme pour $i = I - J$, où le produit de $\hat f$ est vide), et $C(i, I-i)$ est lu
+$C(i,J)$~; au paragraphe~5, $\hat Q_j = 0$ pour $j \ge J$, le quotient $\hat Q_{I-i}/S_{I-i}$
+étant lu nul là où $S_{I-i}$ n'est pas défini. La réserve et la contribution à la
+MSEP de ces années sont nulles~; les $\hat f_j$ et les $\hat\sigma^2_j$ restent estimés sur toutes
+les lignes (\code{mw\_ajuster()}, dernier cumul observé $C(i, \min(I-i, J))$). Dans la forme
+consolidée de la MSEP, seule appliquée, la convention équivaut exactement à restreindre les sommes
+de $\hat R$ et de la MSEP aux années $I - J + 1, \ldots, I$~; elle n'a pas cet effet sur la
+formule publiée en 2015 (double somme sur $k = 1, \ldots, I$, sans facteur~2), où des termes
+$\hat C(i,J)\,\hat C(k,J)\,\Delta_i$ restent définis et non nuls pour $i > I - J$ et
+$1 \le k \le I - J$~: cette formule ne s'étend pas au trapèze sans une convention de plus sur~$k$.
+Restent inchangés pour $I > J$~: la règle de minimum, que D(5)(d)(ii) prescrit pour $j = J-1$
+quel que soit~$I$ (fiche~\ref{mw:m6sig})~; la durée $I + 1$ de G(3)(c), nombre d'années
+d'accident~; le refus de $\hat R \le 0$ (points~(i) et~(ii) ci-dessus), auquel les années
+$i \le I - J$ contribuent zéro~; D(2)(c), $J + 1 \ge 5$, seule autre condition de dimension. Une
+lecture stricte, qui refuserait un triangle $I > J$, reste admissible~; ce n'est pas celle de
+l'outil.
+
+\medskip
+Sur tout trapèze, \code{mw\_valider\_triangle()} émet un \emph{avertissement} non bloquant, en
+tête des avertissements (§\ref{sec:controles})~: vérifier qu'aucune année de développement ne
+manque en fin de tableau, un triangle carré privé de ses dernières colonnes ayant la même forme,
+que rien ne distingue d'un vrai trapèze~; le calcul tient pour achevé à l'année~$J$ le
+développement des années $i = 0, \ldots, I - J$ (réserve nulle), hypothèse que l'entreprise doit
+justifier, D(2)(d) ne l'exigeant que de la première année d'accident. Tronquer le triangle exclut
+des années d'accident~: cette exclusion est à justifier, l'article~219, paragraphe~1, point~a),
+rendant applicable l'article~19, paragraphe~1, point~b), selon lequel aucune donnée pertinente
+n'est exclue sans justification~; après l'exclusion des années les plus anciennes, D(2)(d)
+s'applique à la nouvelle première année d'accident, ce que D(2)(d) vérifié sur l'ancienne
+n'établit pas. La méthode du risque de réserve n\textsuperscript{o}~1 est l'autre
+méthode standard de l'article~220, paragraphe~1, point~b), sous ses propres exigences de données
+(section~C)~; le choix entre les deux méthodes relève de l'article~220, paragraphe~2.
+
+\medskip
+\textbf{Limites sur un trapèze.} (i)~Le résultat repose sur la formule de la MSEP de la version
+consolidée, référence de lecture sans effet juridique propre, celle de 2015 ne s'étendant pas au
+trapèze (ci-dessus). (ii)~M.~Merz et M.\,V. Wüthrich (2008, p.~546, section~\ref{sec:biblio})
+supposent $I = J$, par simplicité, et notent que leurs résultats se généralisent au cas $I > J$,
+sans en imprimer la formule~; aucune source relue n'établit l'égalité de la MSEP restreinte avec
+leur erreur de prédiction à un an sur un trapèze~: elle l'est par une concordance numérique avec
+l'implémentation de l'auteur (section~\ref{sec:verif}), qui établit que le moteur calcule la même
+convention, non que cette convention est celle du règlement. (iii)~Le niveau des tests est un
+constat de simulation sous un plan, à $T = 8$ (§\ref{sec:trapeze-niveau}). (iv)~La couverture de
+l'intervalle bootstrap de $\sigma$ n'est pas mesurée sur un trapèze~; elle dépend du même choix de
+simulation de la colonne $J-1$ que la réserve sur la pente relative (§\ref{sec:trapeze-niveau}).
 \end{encadre}
 
 \subsection{Hypothèses testables et résidus}
@@ -15914,6 +16103,57 @@ $F(i,j) - \hat f_j$ calculé sous une forme stable équivalente, section~\ref{se
 trois propriétés portent sur le \emph{modèle}~: l'échelle \emph{observée} est,
 elle, contrainte par construction, la somme des carrés des résidus d'une colonne
 valant exactement $n_j - 1$ (fiche~\ref{mw:m2var}).
+
+\paragraph{Trapèze~: résidus de la colonne $J-1$ et niveau des tests.}
+\label{sec:trapeze-niveau}
+Sur un trapèze, la colonne $J-1$ porte $n_{J-1} = I - J + 1 \ge 2$ facteurs individuels. Ses
+résidus sont réduits par l'\emph{estimateur direct} de $\sigma^2_{J-1}$, première ligne de
+D(5)(d)(ii) appliquée à $j = J-1$ ($I - J$ degrés de liberté), et non par la valeur de la règle de
+minimum~: le $\hat\sigma_j$ de $r(i,j)$ est, en $j = J-1$ d'un trapèze, cet estimateur
+(\code{.mw\_sigma2\_residus()}), et la colonne suit la règle commune ($\sum_i r(i,J-1)^2 =
+n_{J-1} - 1$). Il sert aux lignes fondées sur les résidus, au vivier du bootstrap, à
+\code{mw\_influence()} et à l'identifiabilité intra-colonne~; il n'entre ni dans $\hat f_j$, ni
+dans $\hat C$, ni dans $\hat Q_j$, ni dans la MSEP, qui gardent la valeur de la règle
+(fiche~\ref{mw:m6sig}), ni dans la simulation du bootstrap, sauf si la règle est nulle ou
+négligeable sur une colonne $J-1$ non dégénérée (section~\ref{sec:boot-mw}). Les deux valeurs peuvent différer
+fortement, dans un sens ou dans l'autre~: sous le plan décrit ci-dessous, la règle surestime
+$\sigma^2_{J-1}$ en moyenne sur $8\times5$ et $8\times6$, et vaut en médiane $0{,}09$ (N) et
+$0{,}11$ (E) fois le vrai $\sigma^2_{J-1}$ sur $8\times7$, où la $\sqrt{\mathrm{MSEP}}$ de la règle
+est inférieure de plus de $10~\%$ à celle que donnerait l'estimateur direct dans $37{,}2~\%$ (N) et
+$41{,}5~\%$ (E) des triangles (tableau K-T4 et valeurs brutes du fichier cité ci-dessous). C'est une
+propriété de la formule prescrite sous ce plan, non un défaut d'implémentation~; l'estimateur
+direct, à $I - J$ degrés de liberté, est lui-même très bruité, et aucune publication retrouvée ne
+départage les deux à $T = 8$.
+
+\emph{Niveau des tests.} Sur un trapèze, le niveau des p-values de Monte-Carlo est un
+\textbf{constat de simulation sous un plan}~: modèle de Mack ajusté au triangle de contrôle,
+tronqué en $8\times5$, $8\times6$ et $8\times7$ ($T = I + 1 = 8$), lois N et E de la
+section~\ref{sec:calib-mc-mw}, $B = 999$, 2\,000 triangles par loi sur $8\times5$ et $8\times6$,
+1\,000 sur $8\times7$, chaque taux de rejet étant comparé à la taille $\rho$ du test de
+Monte-Carlo idéal sur les mêmes lois (script \code{tests/}\allowbreak\code{niveau\_mw\_trapeze\_t8.R},
+sortie \code{docs/tableaux/}\allowbreak\code{20261120-}\allowbreak\code{issue567-}\allowbreak\code{niveau-trapeze-mw.md},
+valeurs brutes de même préfixe). Il ne se transpose ni à d'autres paramètres ni à d'autres
+géométries, et aucun théorème ne couvre ces tests bootstrap à $T = 8$. Les intervalles sont de
+Clopper--Pearson à 95~\% et ne mesurent que l'erreur Monte-Carlo en nombre de triangles~; l'écart
+à $\rho$ est l'erreur d'approximation à $T = 8$ du test bootstrap, objet mesuré~; l'erreur de
+substitution (plan et loi pris pour vrais) n'est pas quantifiée. Sur $8\times5$ et $8\times6$,
+aucune distorsion matérielle n'est classée, le seul écart non tranché étant celui de la cellule
+aberrante~; deux réserves~:
+\begin{itemize}[itemsep=1pt]
+\item \emph{cellule aberrante} (fiche~\ref{mw:m4gr}), \textbf{conservatrice}~: sous N à $0{,}05$,
+  $0{,}021$ $[0{,}015~;~0{,}028]$ sur $8\times5$ et $0{,}022$ $[0{,}016~;~0{,}029]$ sur $8\times6$,
+  pour $\rho = 0{,}049$ (écart non tranché, du côté conservateur), conservatisme déjà mesuré sur
+  le carré~: un \code{OK} de la ligne est une preuve faible~;
+\item \emph{pente relative} (fiche~\ref{mw:m1}), \textbf{libérale sur $8\times7$}~: à $0{,}05$,
+  $0{,}072$ $[0{,}057~;~0{,}090]$ sous N et $0{,}075$ $[0{,}059~;~0{,}093]$ sous E, pour
+  $\rho = 0{,}048$ (écart non tranché, du côté libéral)~; rien de tel sur $8\times5$ ni
+  $8\times6$. Mécanisme proposé, à l'état d'\emph{hypothèse}~: le bootstrap simule la colonne
+  $J-1$ avec la valeur de la règle, et la pente relative, de poids $C(i,j)\,\hat f_j^2/\hat\sigma_j^2$, n'est pas
+  invariante par un changement d'échelle d'une seule colonne~; sous ce plan, la règle sous-estime
+  fortement $\sigma^2_{J-1}$ sur $8\times7$ (ci-dessus). L'ampleur et le signe de l'écart
+  dépendent donc du profil des $\sigma_j$ du triangle~: sur un trapèze, une \code{ALERTE} ou un
+  \code{ECHEC} de la ligne peut surestimer la preuve.
+\end{itemize}
 
 \begin{encadre}
 \textbf{La normalité n'est pas une hypothèse de la méthode.} D(2)(h)
@@ -16311,7 +16551,8 @@ souvent sous un plan à cumuls plus dispersés (rubrique~7)~; aucune des deux ne
 triangle de contrôle dont la ligne~$0$ est multipliée par $10^{-14}$, la ligne est \code{OK}
 (section~\ref{sec:boot-mw}, qui donne les p-values et leurs conditions de mesure)~; ce verdict
 n'atteste pas l'adéquation du triangle, dont la ligne d'hétéroscédasticité rejette la structure de
-variance M2. Membre, quand elle est de type test, de la p de famille de M1 et de la p globale
+variance M2. Sur un trapèze, son niveau, libéral sur le $8\times7$ du plan mesuré, dépend du profil des
+$\sigma_j$~: une \code{ALERTE} ou un \code{ECHEC} peut y surestimer la preuve (§\ref{sec:trapeze-niveau}). Membre, quand elle est de type test, de la p de famille de M1 et de la p globale
 (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), par sa p-value de Monte-Carlo~; verdict
 inchangé.
 \Pertinence
@@ -16319,7 +16560,7 @@ inchangé.
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$. \emph{Niveau} de la
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ et sur un trapèze (niveau sur trapèze~: rubrique~6). \emph{Niveau} de la
 p-value de Monte-Carlo, sur les triangles et sous les graines de la mesure de calibration
 (tableau~T1 de \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md},
 section~\ref{sec:calib-mc-mw})~: à $0{,}10$, $0{,}1115$ $[0{,}098~;~0{,}126]$ (N), $0{,}1105$ (E),
@@ -17573,11 +17814,13 @@ sommant sur les colonnes, $\sum_{i,j} r(i,j)^2 = N - k$. Sur le triangle de
 contrôle ($I = J = 7$, soit un triangle $8\times8$), les six colonnes
 retenues donnent $\sum_i r(i,j)^2 = 6,\ 5,\ 4,\ 3,\ 2,\ 1$ pour
 $n_j = 7,\ 6,\ 5,\ 4,\ 3,\ 2$,
-soit $N = 27$, $k = 6$ et $N - k = 21$. La dernière colonne ($j = J-1$) ne
-fournit qu'un seul facteur individuel --- c'est d'ailleurs pourquoi
-$\hat\sigma^2_{J-1}$ y est fixée par la règle de minimum et non estimée (fiche~\ref{mw:m6sig}) ---
-et n'entre donc pas dans les résidus~: sur un triangle carré $n\times n$ sans
-colonne dégénérée, $N = n(n-1)/2 - 1$ et $k = n-2$. L'identité est vérifiée
+soit $N = 27$, $k = 6$ et $N - k = 21$. Sur un carré, la dernière colonne ($j = J-1$), dont la
+variance est fixée par la règle de minimum (fiche~\ref{mw:m6sig}), ne fournit qu'un seul facteur
+individuel et n'entre donc pas dans les résidus~: sur un triangle carré $n\times n$ sans
+colonne dégénérée, $N = n(n-1)/2 - 1$ et $k = n-2$. Sur un trapèze, elle en fournit $I - J + 1$,
+réduits par l'estimateur direct de $\sigma^2_{J-1}$, et l'identité vaut aussi pour elle
+(§\ref{sec:trapeze-niveau})~: sans colonne dégénérée, $k = J$ et $N = \sum_{j=0}^{J-1}(I - j)$
+($N = 25$ et $k = 5$ sur le trapèze $8\times6$ de référence). L'identité est vérifiée
 colonne par colonne par la batterie de tests unitaires
 (section~\ref{sec:verif}).
 \Hzero
@@ -18440,8 +18683,8 @@ celle de la colonne entière et $\varepsilon_{\text{machine}} = 2{,}2\cdot 10^{-
 (triangle de six années des tests unitaires dont les facteurs égaux des années $i = 1$ et $i = 3$
 de la colonne $j = 0$ sont multipliés par $1 + \epsilon$ et $1 - \epsilon$)~: cellule déclarée non bornée
 jusqu'à $\epsilon = 2\cdot 10^{-8}$~; dès $\epsilon = 3\cdot 10^{-8}$, p-value de Monte-Carlo à
-son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$)~; la frontière dépend des cellules perturbées (années $i = 0$ et~1~: encore non bornée à $3\cdot 10^{-8}$, bornée dès $4\cdot 10^{-8}$). Au voisinage immédiat de la tolérance, $s^2_{(i)}$
-résulte d'une annulation, et le classement peut différer d'une plateforme à l'autre~; les six cas
+son plancher et verdict \code{ECHEC} (\code{run\_engine()}, $B = 99$)~; la frontière dépend des cellules perturbées. Au voisinage immédiat de la tolérance, $s^2_{(i)}$
+résulte d'une annulation, et le classement peut différer d'une plateforme à l'autre~; les cas
 de référence en sont loin. Dans les deux régimes, le signal tient d'abord à la dispersion quasi
 nulle des autres cellules de la colonne, qui rend significatif n'importe quel écart de la cellule
 nommée~: un \code{ECHEC} de cette origine ne désigne pas une cellule aberrante au sens métier, et
@@ -18511,7 +18754,8 @@ M3 et avec le graphique d'influence (rubrique~1). Membre, quand elle est de type
 
 \textbf{Table.} Sans objet (loi continue).
 
-\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$~; test sans p-value
+\textbf{Pertinence à $T = 8$.} Ligne de type test sur le triangle $8\times 8$ et sur un trapèze,
+où un \code{OK} est aussi une preuve faible (§\ref{sec:trapeze-niveau})~; test sans p-value
 retenue (\code{INFO}) quand une cellule retenue a une influence non bornée (rubrique~1).
 \emph{Puissance} (constat de simulation sous le plan du triangle de contrôle, loi N, $B = 999$,
 1\,000 triangles par valeur de $\lambda$, 500 contre une cellule multipliée par~4 et contre
@@ -18831,11 +19075,14 @@ section~\ref{sec:notations-mw}.
 \label{mw:m6sig}
 \refl{Annexe XVII, D(5)(d)(ii), seconde ligne.}
 \Cadre
-La variance de la dernière année de développement ne peut être estimée, faute
-de degré de liberté~: sous la contrainte $I = J$ imposée par \code{mw\_valider\_triangle()}
-(section~\ref{sec:controles}), la colonne $J-1$ ne porte qu'un facteur individuel, $F(0,J-1)$,
-soit $I - (J-1) - 1 = 0$ degré de liberté. Sa valeur est \emph{fixée par la règle de minimum}
-de l'annexe~XVII, D(5)(d)(ii), seconde ligne, et non estimée. \textbf{Diagnostic, non test.}
+Sur un triangle carré, la variance de la dernière année de développement ne peut être estimée~: la
+colonne $J-1$ ne porte qu'un facteur individuel, $F(0,J-1)$, soit $I - (J-1) - 1 = 0$ degré de
+liberté. Sur un trapèze $I > J$, elle en porte $I - J + 1$, et la première ligne de D(5)(d)(ii) y
+serait calculable avec $I - J$ degrés de liberté~; la règle s'applique pourtant \textbf{par
+prescription} du texte, dont les deux formules sont indexées sur $J$ seul ($j \le J-2$, puis
+$j = J-1$), et non faute de degré de liberté (§\ref{sec:mw}). Dans les deux géométries, la valeur
+est \emph{fixée par la règle de minimum} de l'annexe~XVII, D(5)(d)(ii), seconde ligne, et non
+estimée. \textbf{Diagnostic, non test.}
 \Hzero
 Sans objet.
 \Stat
@@ -18861,6 +19108,17 @@ aequo s'ils sont plusieurs. Le champ \code{detail} s'ouvre par
 suivi du minimum et de ses trois arguments à six chiffres significatifs, de la cause et, si une
 colonne $J-3$ ou $J-2$ est dégénérée, du renvoi à l'avertissement sur les données~; quand la règle
 n'est pas applicable, de «~\code{la regle ne lit que les deux dernieres variances estimees.}~».
+Sur un trapèze seulement, une mention finale rappelle que la règle s'applique par prescription
+et donne, pour information, le nombre de facteurs de la colonne $J-1$, l'estimateur direct de
+$\sigma^2_{J-1}$ (champ \code{sigma2\_Jm1\_direct} de \code{res\$ajustement}) et ses $I - J$
+degrés de liberté~; l'\code{estim} de la ligne reste la valeur de la règle, et cet estimateur
+n'entre pas dans la MSEP (§\ref{sec:trapeze-niveau}). Son gabarit suit le cas de la colonne
+$J-1$ (\code{.mw\_cas\_sigma\_direct()})~: \code{FORMAT\_MENTION\_}\allowbreak\code{MW\_SIGMA\_DIRECT}
+en général, l'estimateur ne réduisant que les résidus de la colonne~;
+\code{FORMAT\_MENTION\_}\allowbreak\code{MW\_SIGMA\_DIRECT\_}\allowbreak\code{DEGENERE}, colonne
+$J-1$ dégénérée, sans résidu retenu~; \code{FORMAT\_MENTION\_}\allowbreak\code{MW\_SIGMA\_DIRECT\_}\allowbreak\code{SIMULATION},
+règle nulle ou négligeable sur une colonne $J-1$ non dégénérée, où l'estimateur remplace aussi la
+règle dans la simulation du bootstrap, par convention de l'outil (section~\ref{sec:boot-mw}).
 
 \emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$.} La sensibilité de $\sqrt{\mathrm{MSEP}}$ à
 la valeur de $\hat\sigma^2_{J-1}$ ne figure pas dans le champ \code{detail}~; elle est rendue par
@@ -18877,7 +19135,7 @@ signale seulement que la règle de minimum est contraignante, le quotient
 $\hat\sigma^4_{J-2}/\hat\sigma^2_{J-3}$ croissant sans borne quand $\hat\sigma^2_{J-3}$ devient
 petit devant $\hat\sigma^2_{J-2}$. Le phénomène est continu en la dispersion de la colonne $J-3$
 et ne relève pas de la tolérance $10^{-12}$ de l'outil~: aucun seuil statistique distinct n'est
-retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté à $T = 8$ (sous l'hypothèse
+retenu, $\hat\sigma^2_{J-3}$ n'ayant que deux degrés de liberté sur un carré à $T = 8$ (sous l'hypothèse
 auxiliaire d'erreurs gaussiennes, que le modèle de Mack ne fait pas,
 $2\hat\sigma^2_{J-3}/\sigma^2_{J-3}$ suit exactement une loi $\chi^2(2)$, dont les quantiles à
 $5~\%$ et $95~\%$ sont dans un rapport de~58~: une petite valeur de $\hat\sigma^2_{J-3}$ n'a rien
@@ -18897,10 +19155,11 @@ Aucune.
 Ce diagnostic existe pour rendre visible dans le dossier un point que le calcul
 masque~: une des entrées de la MSEP ne provient pas d'une estimation mais de la
 règle de minimum du règlement, qui ne lit que deux colonnes. Le terme
-$\hat Q_{J-1}$ entre dans la MSEP de \textbf{toutes} les années de survenance
-$i = 1, \ldots, I$ (formule du paragraphe~5, §\ref{sec:mw})~: pour $i = 1$, par
-$\hat Q_{I-i}/C(i,I-i)$ et $\hat Q_{I-i}/S_{I-i}$, puisque $I - 1 = J - 1$~; pour
-$i \ge 2$, par le terme $j = J-1$ de la somme $\sum_{j=I-i+1}^{J-1}$, et par lui dans la
+$\hat Q_{J-1}$ entre dans la MSEP de \textbf{toutes} les années de survenance qui y
+contribuent, $i = I - J + 1, \ldots, I$ ($i = 1, \ldots, I$ sur un carré~; formule du
+paragraphe~5 et convention~(B), §\ref{sec:mw})~: pour $i = I - J + 1$, par
+$\hat Q_{I-i}/C(i,I-i)$ et $\hat Q_{I-i}/S_{I-i}$, puisque $I - i = J - 1$~; pour
+$i \ge I - J + 2$, par le terme $j = J-1$ de la somme $\sum_{j=I-i+1}^{J-1}$, et par lui dans la
 double somme des termes croisés. La valeur fixée par la règle pèse donc sur toute la MSEP, et
 non sur les seules années de survenance récentes (conséquence de la formule, chaque $\Delta_i$
 contenant un terme positif en $\hat Q_{J-1}$~; sur le triangle de contrôle, doubler $\hat Q_{J-1}$
@@ -18938,11 +19197,14 @@ de données, sans aléa, et non un ordre de grandeur général~; elles sont indi
 et sans effet sur $\sigma_{(\text{res},s,\mathrm{USP})}$, qui reste celui de la règle
 ($0{,}04977646$ sur ce triangle).
 
-À $T = 8$, c'est-à-dire sur un triangle $8\times8$, les deux quantités que lit
+Sur un triangle $8\times8$ ($T = 8$), les deux quantités que lit
 la règle sont les plus mal estimées de toutes~: $\hat\sigma^2_{J-2}$
 repose sur deux facteurs individuels et un degré de liberté,
-$\hat\sigma^2_{J-3}$ sur trois facteurs et deux degrés de liberté. La valeur
-fixée par la règle hérite de cette imprécision, qu'aucune p-value ne mesure ici.
+$\hat\sigma^2_{J-3}$ sur trois facteurs et deux degrés de liberté (sur un trapèze, $I - J + 2$ et
+$I - J + 3$ facteurs). La valeur
+fixée par la règle hérite de cette imprécision, qu'aucune p-value ne mesure ici. Sur un trapèze,
+elle peut s'écarter fortement de l'estimateur direct, dans un sens ou dans l'autre (constat de
+simulation, §\ref{sec:trapeze-niveau}).
 
 \medskip
 \textbf{Diagnostic, sans verdict.} La ligne est restituée \code{INFO}~: elle
@@ -19232,7 +19494,7 @@ minimum. \emph{Asymptotique}~: aucune~; le moteur n'emploie aucune loi limite du
 \emph{Monte-Carlo}~: calculée et restituée, mais non retenue, parce que la ligne est un
 diagnostic par nature (rubrique~6). Ce n'est donc pas une p-value manquante remplacée par une
 autre~: aucun repli n'est possible. \emph{B effectif de famille}~: $n$, au plus égal au plus
-petit $B$ effectif des membres~; il vaut 999 sur chaque ligne des six cas de référence. Sous
+petit $B$ effectif des membres~; il vaut 999 sur chaque ligne des sept cas de référence. Sous
 \code{B\_MIN\_DEGENERESCENCE} $= 50$, aucune p-value n'est calculée (\code{p\_monte\_carlo} à
 \code{NA}) et le commentaire commence par le texte T-3b~; quand $n$ est inférieur au $B$
 effectif d'au moins un membre, le texte T-3a est joint (textes en tête de section). Le
@@ -19277,7 +19539,7 @@ toutes les familles de la méthode, familles d'un seul membre comprises (C. et M
 méthode, posée après les lignes de famille, si la batterie compte au moins deux membres. Famille et
 préfixe~: tête de section~; groupe «~Lecture conjointe de la batterie~» de l'affichage. Nombre de
 membres sur les cas de référence (\code{tests/reference/})~: 17 sur les quatre cas à $\hat\delta = 1$, 22 sur \code{premium\_interieur}, 12 sur
-\code{reserve2}~; 13 à volumes constants (même mesure que la fiche précédente, sans
+\code{reserve2} et sur \code{reserve2\_trapeze}~; 13 à volumes constants (même mesure que la fiche précédente, sans
 ligne de famille B.). La présence de la ligne dépend des données comme celle d'une ligne de
 famille (fiche précédente, rubrique~1).
 \Hzero
@@ -20031,6 +20293,21 @@ n'étant pas dégénéré, le contrôle ne porte que sur le cas
 $\hat\sigma^2_{J-3} > 0$ et $\hat\sigma^2_{J-2} > 0$~; les cas $\hat\sigma^2_{J-3} = 0$ et
 $\hat\sigma^2_{J-2} = 0$ (§\ref{sec:mw}) sont vérifiés séparément, sur des triangles construits à cet effet, par la batterie de
 tests unitaires du dépôt.
+
+\emph{Trapèze $I > J$.} La MSEP et la réserve d'un trapèze, calculées sous la convention~(B)
+(§\ref{sec:mw}), sont confrontées à \code{CL\_MSEPs}, fonction interne du paquet
+\code{ChainLadder} 0.2.21 qui porte l'en-tête de M.\,V. Wüthrich, alimentée par une
+transcription de D(4)(c) et D(5)(d)(ii) écrite sans lire le moteur, à laquelle sont comparés les
+$\hat f_j$, les $\hat\sigma^2_j$ et l'estimateur direct du moteur, sur huit jeux, troncatures du triangle de
+contrôle ($8\times8$ à $8\times5$) et du triangle de Taylor \& Ashe ($10\times10$, $10\times9$,
+$10\times7$, $10\times5$), dont six trapèzes (script \code{tests/}\allowbreak\code{msep\_trapeze\_mw.R},
+sortie \code{docs/tableaux/}\allowbreak\code{20261120-}\allowbreak\code{issue567-}\allowbreak\code{msep-trapeze.md})~:
+écart relatif de la MSEP au plus $4{,}2\times10^{-16}$, pour une tolérance fixée d'avance à
+$10^{-12}$. C'est une \textbf{concordance numérique entre implémentations}, non une formule
+publiée~: elle établit que le moteur calcule la convention de l'implémentation de l'auteur, non que
+cette convention est celle du règlement, et aucune source imprimant le cas $I > J$ n'a été relue.
+L'identité $\sum_i r(i,j)^2 = n_j - 1$ vaut aussi pour la colonne $J-1$ d'un trapèze, réduite par
+l'estimateur direct (écart maximal $8{,}9\times10^{-16}$ sur la référence \code{reserve2\_trapeze}).
 
 \medskip
 \begin{encadre}
@@ -20938,6 +21215,23 @@ soutient dans le présent document.
   vérifiée~; contenu lu sur la version de travail (Cowles Foundation Discussion Paper~1157,
   1997), le texte publié n'ayant pas pu être relu.
 
+  \item J.~Chang, P.~Hall, \emph{Double-bootstrap methods that use a single double-bootstrap
+  simulation}, \emph{Biometrika}, 102(1), 2015, p.~203--214.
+  \emph{Portée.} Le double bootstrap conventionnel réduit l'erreur de couverture d'un intervalle
+  de confiance d'un facteur $\mathcal{O}(n^{-1/2})$ en unilatéral et $\mathcal{O}(n^{-1})$ en
+  bilatéral~: ce sont des ordres asymptotiques, rappelés p.~1, et valables dans le cadre où se
+  place l'article, un estimateur fonction lisse d'une moyenne (éq.~(1) et~(2), p.~2--3), cadre dont ne relève pas $\sqrt{\mathrm{MSEP}}/\hat R$,
+  et qui ne disent rien à $T = 8$. La calibration du niveau nominal d'une borne par la proportion
+  des intervalles de second niveau qui couvrent l'estimation (éq.~(9) à~(11), p.~6, écrites pour une
+  seule réplication de second niveau, forme dont l'article montre qu'elle ne réduit pas l'ordre de
+  l'erreur de couverture, p.~2) fonde le principe des intervalles calibrés par bootstrap imbriqué
+  mesurés en méthode Merz--Wüthrich (section~\ref{sec:boot-mw}), qui emploient le double bootstrap
+  conventionnel~; les mêmes pages notent qu'une racine studentisée demande l'écart-type recalculé
+  dans chaque réplication (p.~6). L'article ne chiffre aucune couverture à $n = 8$. Statut~:
+  contenu lu sur la prépublication (arXiv:1408.6327v1, 2014), dont sont tirées les pages citées~;
+  référence de la version publiée relevée sur la notice de la prépublication, texte publié non
+  relu.
+
   \item C.\,M. Crainiceanu, D.~Ruppert, \emph{Likelihood ratio tests in linear
   mixed models with one variance component}, \emph{Journal of the Royal
   Statistical Society, Series B}, 66(1), 2004, p.~165--185.
@@ -21430,11 +21724,12 @@ table \code{TEXTES\_APPLICABLES}~; champs \code{\$metadata\$date\_reference},
 \code{\$metadata\$cdd\_qualifiante}, posés par \code{run\_engine()} et relus par
 \code{.engine\_trace\_sigma()} \\
 Merz--Wüthrich~: facteurs $\hat f_j$, variances $\hat\sigma_j^2$, cumulés
-projetés $\hat C(i,J)$, réserve (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
+projetés $\hat C(i,J)$, réserve, convention~(B) d'un trapèze (§\ref{sec:mw}) & \code{mw\_ajuster()} \\
 Merz--Wüthrich~: extrapolation de $\hat\sigma^2_{J-1}$ (§\ref{sec:mw},
 fiche~\ref{mw:m6sig}) & \code{mw\_ajuster()}~: valeur retenue (\code{\$sigma2})~;\newline
 \code{mw\_extrapolation\_sigma2()}~: trois arguments du minimum~;\newline
-\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6~;\newline
+\code{.mw\_detail\_extrapolation()}~: champ \code{detail} de la ligne M6, complété sur un
+trapèze par le gabarit que choisit \code{.mw\_cas\_}\allowbreak\code{sigma\_direct()}~;\newline
 \code{mw\_sensibilite\_sigma2\_dernier()}~: sensibilité indicative de $\sqrt{\mathrm{MSEP}}$,
 recalculée hors commentaire \\
 Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
@@ -21442,7 +21737,8 @@ Merz--Wüthrich~: erreur de prédiction à un an, D(5) (§\ref{sec:mw}) &
 Merz--Wüthrich~: paramètre propre $\sigma_{(\text{res},s,\mathrm{USP})}$ et
 crédibilité (§\ref{sec:mw}) & \code{mw\_parametre()}, \code{usp\_credibilite()} \\
 Merz--Wüthrich~: résidus standardisés de Mack (§\ref{sec:mw}) &
-\code{mw\_residus()}, \code{.mw\_ecart\_facteur\_stable()} (écart au facteur sous forme
+\code{mw\_residus()}, \code{.mw\_sigma2\_residus()} (estimateur direct de la colonne $J-1$ d'un
+trapèze), \code{.mw\_ecart\_facteur\_stable()} (écart au facteur sous forme
 stable) \\
 Merz--Wüthrich~: bootstrap semi-paramétrique et p-values de Monte-Carlo
 (§\ref{sec:boot-mw}) & \code{mw\_bootstrap()}, \code{.mw\_pool\_residus()} (vivier redressé
@@ -21450,7 +21746,9 @@ par le levier), \code{mw\_simuler\_triangle()}, \code{.mw\_stats()}~; ensembles 
 colonnes figés à l'observé, objet unique de \code{.mw\_ensembles\_figes()}, contrôlé par
 \code{.mw\_verifier\_figes()}~; retirage
 des triangles simulés à cumul non strictement positif par
-\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, plafond \code{FACTEUR\_B\_MAX\_MW} \\
+\code{.mw\_tirer\_triangle\_}\allowbreak\code{valide()}, plafond \code{FACTEUR\_B\_MAX\_MW}~;
+colonne $J-1$ d'un trapèze simulée avec l'estimateur direct si
+\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()} est vrai \\
 Merz--Wüthrich~: tests et diagnostics M1 à M6 (sections~\ref{sec:mwm1}
 à~\ref{sec:mwm6}) & \code{mw\_tests()}~; phrases du retirage par
 \code{.mw\_phrases\_}\allowbreak\code{retirage()}~; phrase de $B$ effectif inférieur à $B$ par \code{.mw\_phrase\_b\_effectif()}
@@ -21462,7 +21760,8 @@ Merz--Wüthrich~: leviers, DFBETA, DFBETAS et contributions par année de surven
 Contrôles de validité (§\ref{sec:controles}) & \code{engine\_valider\_donnees()}, \code{usp\_controle\_donnees()},
 \code{usp\_valider\_ajustement()} (après l'ajustement lognormal~; borne de $\gamma$
 par \code{usp\_gamma\_bord()}),
-\code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}~;\newline lecture des
+\code{mw\_valider\_triangle()}, \code{mw\_valider\_ajustement()}, cellules observées d'un
+triangle (carré ou trapèze) par \code{mw\_cellules\_observees()}~;\newline lecture des
 fichiers~: \code{engine\_lire\_donnees\_csv()}, \code{usp\_lire\_vecteur()},
 \code{engine\_lire\_triangle()}, en-têtes de la colonne~$t$ et de la colonne \code{i} par
 \code{.entete\_designe()}, suite d'en-têtes en chiffres romains par \code{.suite\_entetes\_romains()}, valeurs de la colonne \code{i} par \code{.motifs\_colonne\_i()}, lignes et colonnes vides par
@@ -21631,7 +21930,10 @@ modèle et un mode d'inférence différents.
   $\sqrt{\mathrm{MSEP}}_{\text{1 an}} < \sqrt{\mathrm{MSEP}}_{\text{ultime}}$ que
   nous avons vérifié numériquement en découle. C'est également l'implémentation
   publique de cet article (\code{ChainLadder::CDR}) qui fournit la valeur de
-  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}). Ses hypothèses~2.1
+  comparaison externe de notre MSEP à un an (section~\ref{sec:verif}). L'article suppose
+  $I = J$, par simplicité, et annonce l'extension au cas $I > J$ sans en imprimer la formule
+  (p.~546)~: sur un trapèze, la MSEP de l'outil n'est confrontée qu'à l'implémentation
+  \code{CL\_MSEPs} de l'auteur, par concordance numérique (section~\ref{sec:verif}). Ses hypothèses~2.1
   (éq.~(2.6), p.~547, et~(2.7), p.~548~: constantes $f_j$ et $\sigma_j$ communes à toutes les
   années de survenance) sont citées pour la formalisation retenue par l'outil des points~(iii)
   et~(iv) de D(2)(h), qui est une interprétation de l'outil et non la lettre du texte
@@ -21717,7 +22019,8 @@ littérature consultée.
   $\hat\sigma/\sigma$, qui fonde l'intervalle «~basic~» sur l'échelle logarithmique, est une
   hypothèse, étayée sur les deux plans lognormaux seulement~; en méthode Merz--Wüthrich, les
   chiffres mesurés étayent au contraire une hypothèse de non-pivotalité
-  (section~\ref{sec:boot-mw}), et aucun intervalle «~basic~» mesuré ne rétablit le niveau.
+  (section~\ref{sec:boot-mw}), et aucun intervalle mesuré, «~basic~» ou calibré par bootstrap
+  imbriqué, ne rétablit le niveau.
   \item \textbf{La loi exacte de la statistique agrégée $Z$} du test des effets
   d'année calendaire n'est pas établie. Les moments de chaque $Z_k$ sont exacts,
   mais la normalité de leur somme sur un nombre réduit de diagonales n'est
@@ -21977,7 +22280,8 @@ modèle de Mack ajusté au triangle de contrôle (option \code{--seulement mw} d
         sous-couvrant nettement à $T = 8$ (constat de simulation sous deux plans par méthode), il se lit,
         en méthode lognormale, avec l'intervalle «~basic~» sur l'échelle logarithmique restitué
         en regard~; en méthode Merz--Wüthrich, aucun intervalle de remplacement n'est restitué,
-        et ses manques de couverture mesurés sont presque tous au-dessus de sa borne haute
+        aucun de ceux qui ont été mesurés, calibrés par bootstrap imbriqué compris, ne rétablissant
+        le niveau, et ses manques de couverture mesurés sont presque tous au-dessus de sa borne haute
         (fiche~\ref{fiche:ic-bootstrap}).
   \item \textbf{Position de $\hat\delta$ et rapport de vraisemblance aux bornes}
         (fiches~\ref{fiche:position-delta} et~\ref{fiche:rv-delta}, diagnostics sans verdict) --
@@ -22763,7 +23067,15 @@ cette fonction atteindrait à la fois le graphique d'influence et cette ligne~; 
 d'hétéroscédasticité et à la cellule aberrante~; le vivier et
 la ligne d'hétéroscédasticité en tirent $1 - h_{ij}$ par une même fonction,
 \code{.mw\_un\_moins\_h()}, dont une anomalie atteindrait à la fois les p-values de Monte-Carlo de
-la méthode et la statistique observée de cette ligne.
+la méthode et la statistique observée de cette ligne. Sur un trapèze,
+\code{.mw\_sigma2\_residus()} fournit le $\hat\sigma_{J-1}$ qui réduit les résidus de la
+colonne $J-1$ à \code{mw\_residus()}, \code{mw\_influence()} et
+\code{mw\_identifiabilite\_intra()}~: une anomalie y atteindrait les lignes fondées sur les
+résidus, le vivier et la cellule aberrante, mais ni la MSEP ni $\sigma_{\mathrm{USP}}$, qui ne la
+lisent pas.
+Une anomalie de \code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()} changerait, sur un trapèze, la
+loi simulée de la colonne $J-1$, donc les p-values de Monte-Carlo et \code{sigma\_boot}, mais ni
+la MSEP ni $\sigma_{\mathrm{USP}}$.
 \code{engine\_p\_famille()} et \code{.engine\_minp\_rangs()}, qui calculent les lignes de lecture
 conjointe des deux méthodes (fiches~\ref{fiche:p-famille} et~\ref{fiche:p-globale}), relèvent
 aussi des fonctions communes aux deux dispositifs~: une anomalie y atteindrait les p de famille et

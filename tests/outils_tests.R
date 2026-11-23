@@ -79,6 +79,16 @@ TOLERANCE <- 1e-6
   storage.mode(m) <- "double"
   unname(m)
 })
+# Trapeze 8 x 6 (I = 7 > J = 5 ; issue #567, decision Q-F1 (a) du mainteneur,
+# E-21/11 (D2)) : colonnes i et j0 a j5 de triangle_mw.csv, texte des cellules
+# repris a l'identique (egalite testee dans
+# tests/unitaires/test_merz_wuthrich_trapeze.R), lu comme .tri.
+.tri_trapeze <- local({
+  df <- utils::read.csv(file.path(RACINE, "tests", "donnees", "triangle_mw_trapeze.csv"))
+  m <- as.matrix(df[, setdiff(names(df), "i")])
+  storage.mode(m) <- "double"
+  unname(m)
+})
 
 # Chaque cas est un appel complet de run_engine() avec ses parametres par
 # defaut (B = 999, graine 20260831, alpha = 0,10).
@@ -127,7 +137,15 @@ CAS <- list(
   # creee par la CI (mode creation, M31, M30).
   premium_interieur = function() run_engine(xt = .ln_int$xt, yt = .ln_int$yt, methode = "premium",
                                             segment = 1, annexe = "II", nature_donnees = "brutes",
-                                            date_reference = DATE_REFERENCE_TESTS)
+                                            date_reference = DATE_REFERENCE_TESTS),
+  # Trapeze I > J (issue #567, levee du motif MW-04 a l'etape 6 de S6,
+  # convention (B) ; ADR 0005 annote le 21/11/2026) : meme appel que
+  # reserve2, sur le 8 x 6 de tests/donnees/triangle_mw_trapeze.csv
+  # (decision Q-F1 (a) du mainteneur, E-21/11 (D2)). Reference creee par la
+  # CI (mode creation, M31, M30).
+  reserve2_trapeze = function() run_engine(methode = "reserve2", triangle = .tri_trapeze,
+                                           segment = 1, annexe = "II",
+                                           date_reference = DATE_REFERENCE_TESTS)
 )
 
 # Retire les champs qui varient d'un appel a l'autre ou d'une machine a

@@ -8201,10 +8201,10 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 #    cellules d'un triangle decale d'une colonne et celles d'un triangle dont
 #    la colonne 0 est vide sans en-tete sont les memes (mesure M1 de l'avis
 #    amont d'actuary sur K2), ce que le motif dit par son alternative. Ce
-#    motif precede mw_valider_triangle() et tient lieu du motif "Triangle
-#    non carre". Exception : une colonne vide sans en-tete placee avant une
-#    colonne i qui precede les donnees reste retiree sans refus (tableau
-#    decale) ;
+#    motif precede mw_valider_triangle() ; il tenait lieu du motif "Triangle
+#    non carre" (MW-04), retire depuis par #567. Exception : une colonne
+#    vide sans en-tete placee avant une colonne i qui precede les donnees
+#    reste retiree sans refus (tableau decale) ;
 #  - triangle : une colonne entierement vide intercalee est refusee comme
 #    annee de developpement manquante presumee ; une colonne vide portant un
 #    en-tete, en bord, comme annee de developpement sans valeur (motif
@@ -8258,10 +8258,11 @@ usp_tests <- function(fit, boot, alpha = 0.10,
 # consecutives (#568). Comme l'en-tete I designe la colonne i (regle N,
 # .entete_designe()), des colonnes de developpement titrees en chiffres
 # romains faisaient lire la premiere comme la colonne i, d'ou un refus sur ses
-# valeurs ("Colonne i non entiere ...", "Triangle non carre") ou, derriere une
-# vraie colonne i, le refus H1 "present plusieurs fois" : surs, mais au motif
-# trompeur. La suite commence a I et chaque en-tete suivant est le chiffre
-# romain suivant ; elle compte au moins deux en-tetes (I et II) : un I seul
+# valeurs ("Colonne i non entiere ...", ou "Triangle non carre" avant le
+# retrait de ce motif par #567) ou, derriere une vraie colonne i, le refus
+# H1 "present plusieurs fois" : surs, mais au motif trompeur. La suite
+# commence a I et chaque en-tete suivant est le chiffre romain suivant ;
+# elle compte au moins deux en-tetes (I et II) : un I seul
 # garde les motifs actuels (colonne i). Blancs de bord ignores comme par la
 # regle N ; majuscules (I, II, ...) ou minuscules (i, ii, ...), comme i ou I
 # pour la colonne i, sans melange dans un meme en-tete ("Ii" n'est pas lu) ni
@@ -8723,7 +8724,12 @@ engine_lire_donnees_csv <- function(df) {
 # (issue #518) : sous-ensemble propre au fichier lu, que la validation d'une
 # saisie restreinte a i + j <= I ne peut pas voir, soit le seul motif des
 # cellules renseignees sous la diagonale (.mw_avert_sous_diagonale(), #491) ;
-# character(0) pour un refus ou un triangle sans telle cellule.
+# character(0) pour un refus ou un triangle sans telle cellule. Un triangle
+# I > J (trapeze, plus d'annees d'accident que de developpement) est accepte
+# depuis le retrait du motif MW-04 (#567) : l'avertissement de geometrie de
+# mw_valider_triangle() est dans avertissements, non dans
+# avertissements_lecture (la validation d'une saisie le voit aussi). Un carre
+# prive de ses dernieres colonnes a la meme forme et n'est pas distingue.
 engine_lire_triangle <- function(df) {
   .engine_point_decimal()
   refus <- function(e) list(ok = FALSE, erreurs = e, avertissements = character(0),
@@ -8785,8 +8791,9 @@ engine_lire_triangle <- function(df) {
   #   d'origine, donc independants du retrait des colonnes vides qui suit.
   #   Residu : si les montants de cette colonne I sont par hasard des
   #   entiers consecutifs croissants, .motifs_colonne_i() ne renvoie rien,
-  #   le flux continue et le motif generique tombe en aval (forme du
-  #   triangle, mw_valider_triangle()).
+  #   le flux continue et le refus tombe en aval, dans mw_valider_triangle()
+  #   (cellules observees manquantes du triangle prive de sa colonne 0 ;
+  #   motif "Triangle non carre" avant son retrait par #567).
   kr <- .suite_entetes_romains(names(df))
   ki <- which(.entete_designe(names(df), "i"))
   motif_romains <- if (length(kr))
@@ -13061,20 +13068,49 @@ engine_plots_data <- function(fit, boot, profil, jackknife = NULL,
 ##     Le triangle est stocke dans une matrice (I+1) x (J+1), les cellules non
 ##     observees (i + j > I) valant NA.
 ##
-##     RESTRICTION D'IMPLEMENTATION : on impose I = J (triangle carre). Le
-##     paragraphe 2(e) autorise I >= J, mais les formules des paragraphes 4 et
-##     5 ne se calculent a la lettre que si I = J : elles font intervenir
-##     C(i, I-i), qui n'est definie que si I - i <= J, et celle du paragraphe
-##     5 aussi Q_(I-i), qui ne l'est que si I - i <= J - 1 (ni f_j ni
-##     sigma2_j au-dela de j = J-1). Le domaine de l'outil est donc plus
-##     etroit que celui de D(2)(e) : le refus d'un triangle I > J (motif
-##     "Triangle non carre") est le choix de la lecture stricte (A), non une
-##     exigence du texte (ADR 0005, annotations du 13/11/2026 et du 13/11/2026
-##     (bis), #540) ; se ramener a un triangle carre exclut des annees
-##     d'accident, exclusion a justifier (art. 219(1)(a) et 19(1)(b)). Un
-##     triangle I < J ne recoit que le motif D(2)(e), sans "Triangle non
-##     carre" (remarque R-1).
+##     DOMAINE : I >= J, celui du paragraphe 2(e) (#567 ; ADR 0005, annotation
+##     du 21/11/2026, lecture (B) retenue au point d'arret D2 de S6). Un
+##     triangle I < J ne recoit que le motif D(2)(e) (remarque R-1). Pour
+##     I > J (trapeze), les formules des paragraphes 4 et 5 ne se calculent
+##     pas a la lettre : elles font intervenir C(i, I-i), qui n'est definie
+##     que si I - i <= J, et celle du paragraphe 5 aussi Q_(I-i), qui ne l'est
+##     que si I - i <= J - 1 (ni f_j ni sigma2_j au-dela de j = J-1).
+##     CONVENTION (B) : pour les annees i <= I-J, observees jusqu'a J,
+##     C_chapeau(i,J) = C(i,J), C(i, I-i) est lu C(i,J) au paragraphe 4 et
+##     Q_j vaut 0 pour j >= J au paragraphe 5 ; leur reserve et leur
+##     contribution a la MSEP sont nulles, f_j et sigma2_j restent estimes sur
+##     toutes les lignes. Dans la forme consolidee de la MSEP (mw_msep()),
+##     seule appliquee, elle revient exactement a restreindre les sommes de R
+##     et de la MSEP aux annees I-J+1..I ; la forme de 2015 n'a pas
+##     d'extension naturelle au trapeze (ADR 0005, meme annotation, point 3).
+##     La regle de minimum de sigma2_(J-1) (paragraphe 5(d)(ii), seconde
+##     ligne) s'applique quel que soit I ; l'estimateur direct de
+##     sigma2_(J-1) d'un trapeze ne sert qu'aux residus de la colonne J-1
+##     et, dans le seul cas de .mw_simulation_sigma_direct() (regle nulle
+##     ou negligeable, colonne J-1 non degeneree), a la simulation de la
+##     colonne J-1 par mw_bootstrap().
+##     Un trapeze recoit de mw_valider_triangle() un avertissement non
+##     bloquant (geometrie, colonne de developpement perdue, hypothese portee
+##     par la convention pour les annees 0..I-J), et non plus le refus
+##     "Triangle non carre" (motif MW-04, retire, #567). Pour I = J, la
+##     convention est sans objet.
 ## =============================================================================
+
+# Cellules observees d'un triangle (I+1) x (J+1) (#567, etape 6 de S6,
+# consigne d'architect par. 1.2, point 4) : matrice logique de la dimension
+# de tri, TRUE si et seulement si i + j <= I (i = ligne - 1, j = colonne - 1,
+# I = nrow(tri) - 1), soit j <= min(I - i, J) quand I > J. Seule la forme de
+# tri est lue, jamais ses valeurs. Regle unique offerte a l'affichage ; les
+# trois emplois internes du moteur (.mw_avert_sous_diagonale(),
+# .mw_triangle_incomplet(), .run_engine_mw()) gardent leur propre
+# expression de la meme regle (ou de son complement, i + j > I). Point
+# d'entree de l'application (app.R) : .engine_point_decimal() en premiere
+# instruction, comme les autres points d'entree (#439), bien qu'aucun nombre
+# n'y soit mis en texte (valeur rendue inchangee).
+mw_cellules_observees <- function(tri) {
+  .engine_point_decimal()
+  row(tri) + col(tri) - 2L <= nrow(tri) - 1L
+}
 
 # Cellules renseignees sous la diagonale (issue #491, decision du mainteneur
 # du 08/11/2026, Q-55-3 (ii)) : toute cellule i + j > I renseignee (non NA,
@@ -13142,16 +13178,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                           T_min, ncol(tri)))
   if (nrow(tri) < ncol(tri))
     err <- c(err, "D(2)(e) : le nombre d'annees d'accident ne peut etre inferieur au nombre d'annees de developpement.")
-  # MW-04 : emis si I > J seulement (remarque R-1, ADR 0005, annotation du
-  # 13/11/2026 (bis)) ; I < J ne recoit que MW-03. Les deux %d sont des
-  # comptes (nrow(tri), ncol(tri)), non les indices I et J.
-  if (I > J)
-    err <- c(err, sprintf(paste("Triangle non carre (%d annees d'accident, %d annees de developpement) :",
-                                "admis par l'annexe XVII, section D, point (2)(e), mais refuse par l'outil,",
-                                "les formules des paragraphes 4 et 5 de cette section ne se calculant a la",
-                                "lettre que pour un triangle carre. Se ramener a un triangle carre exclut",
-                                "des annees d'accident : exclusion a justifier (art. 219(1)(a) et 19(1)(b))."),
-                          nrow(tri), ncol(tri)))
+  # Motif MW-04 ("Triangle non carre", refus de I > J) retire (#567 ; ADR
+  # 0005, annotation du 21/11/2026) : un trapeze I > J est calcule sous la
+  # convention (B) et recoit l'avertissement de geometrie plus bas. Les
+  # numeros MW-05 a MW-08 des motifs suivants sont gardes.
   if (!length(err)) {
     # Cellules observees finies strictement positives hors du domaine
     # numerique (issue #185), relevees dans la boucle, signalees apres elle.
@@ -13316,6 +13346,24 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
                   error = function(e) conditionMessage(e))
   if (!is.null(msg)) err <- c(err, msg)
   if (!length(err)) {
+    # Trapeze I > J (#567, decision Q-2a-6 du mainteneur ; texte (t1) fixe en
+    # T0 de l'etape 6 de S6, docs/revues/20261120-s6-trapeze/
+    # t0-textes-etape6.md) : avertissement non bloquant, en tete, a la place
+    # de l'ancien refus MW-04. Les deux premiers %d sont des comptes
+    # (nrow(tri), ncol(tri)), non les indices I et J ; le troisieme vaut
+    # I - J, derniere annee d'accident a reserve nulle sous la convention
+    # (B). Source unique : il n'est pas repris dans avertissements_lecture
+    # d'engine_lire_triangle(), que #518 reserve a ce que la validation d'une
+    # saisie ne peut pas voir.
+    if (I > J)
+      avt <- c(avt, sprintf(paste(
+        "Triangle a %d annees d'accident et %d annees de developpement : verifier qu'aucune",
+        "annee de developpement ne manque en fin de tableau (un triangle carre prive de ses",
+        "dernieres colonnes a la meme forme). Le calcul tient pour acheve a la derniere annee",
+        "de developpement fournie le developpement des annees d'accident i = 0 a %d (reserve",
+        "nulle) : hypothese a justifier par l'entreprise, l'annexe XVII, section D, point",
+        "(2)(d), ne l'exigeant que de la premiere annee d'accident."),
+        nrow(tri), ncol(tri), nrow(tri) - ncol(tri)))
     # Cellules renseignees sous la diagonale (issue #491) : avertissement de
     # .mw_avert_sous_diagonale(), seul avertissement propre au fichier lu,
     # repris par engine_lire_triangle() (champ avertissements_lecture, #518).
@@ -13326,8 +13374,10 @@ mw_valider_triangle <- function(tri, T_min = 5, bareme = NULL, segment = NULL,
     # et ne contraint pas le facteur f_j a etre >= 1. Le texte ne dit donc
     # rien des cumules decroissants. Un recul traduit un boni de liquidation
     # ou un recouvrement, licite : on le signale sans refuser.
+    # Partie observee de la ligne i : colonnes 0..min(I-i, J) ; min() ne
+    # joue que pour un trapeze I > J (lignes i < I-J, #567).
     for (i in 0:I) {
-      d <- I - i
+      d <- min(I - i, J)
       if (d >= 1) {
         v <- tri[i + 1, 1:(d + 1)]
         if (any(diff(v) < 0))
@@ -13414,11 +13464,38 @@ mw_ajuster <- function(tri) {
   } else if (J >= 2 && is.finite(s2[J - 1])) {
     # Seul cas restant : J < 3 (sigma2_{J-3} n'existe pas) ou sigma2 non fini.
     # Le texte ne couvre pas J < 3 ; run_engine() ne peut pas l'atteindre
-    # (mw_valider_triangle impose T >= 5 et I = J, donc J >= 4).
+    # (mw_valider_triangle() impose J + 1 >= 5, D(2)(c), donc J >= 4, pour
+    # un carre comme pour un trapeze I > J).
     s2[J] <- s2[J - 1]
   }
 
-  # C_chapeau(i,j) : observe si j <= I-i, projete au-dela   [par. 4(c)]
+  # Estimateur direct de sigma2_{J-1} (#567, specification d'actuary 2a,
+  # par. 1.2 ; decisions Q-2a-1 (c) et Q-2a-4 du mainteneur, 20/11/2026) :
+  # premiere ligne de D(5)(d)(ii) appliquee a j = J-1, sur les I - J + 1
+  # facteurs de la colonne (I - J degres de liberte), seulement pour un
+  # trapeze I > J (la colonne J-1 d'un carre n'a qu'un facteur). Meme
+  # expression, dans le meme ordre, que la boucle j <= J-2 ci-dessus. Il
+  # n'entre ni dans f, ni dans C_chapeau, ni dans Q, donc pas dans la MSEP,
+  # qui garde la valeur de la regle de minimum (prescrite pour j = J-1 quel
+  # que soit I). Il reduit les residus de la colonne J-1
+  # (.mw_sigma2_residus()) ; la simulation du bootstrap garde la valeur de
+  # la regle, sauf quand celle-ci est nulle ou negligeable alors que la
+  # colonne J-1 n'est pas degeneree : mw_bootstrap() simule alors la
+  # colonne J-1 avec cet estimateur (.mw_simulation_sigma_direct(), constat
+  # M-1 de la revue finale de #567, option (b), decision du mainteneur du
+  # 22/11/2026). Champ sigma2_Jm1_direct ajoute en fin de liste pour I > J
+  # seulement : l'objet d'un carre est inchange.
+  s2_dir <- NULL
+  if (I > J) {
+    j <- J - 1L
+    idx <- 0:(I - j - 1)
+    s2_dir <- sum(tri[idx + 1, j + 1] *
+                  (tri[idx + 1, j + 2] / tri[idx + 1, j + 1] - f[j + 1])^2) / (I - j - 1)
+  }
+
+  # C_chapeau(i,j) : observe si j <= I-i, projete au-dela   [par. 4(c)]. Pour
+  # un trapeze, les lignes i <= I-J sont observees jusqu'a j = J et ne sont pas
+  # projetees (d >= J) : C_chapeau(i,J) = C(i,J).
   Ch <- tri
   for (i in 0:I) {
     d <- I - i
@@ -13435,12 +13512,40 @@ mw_ajuster <- function(tri) {
     Sp[j + 1] <- sum(tri[(0:(I - j)) + 1, j + 1])
   }
 
-  derniers <- vapply(0:I, function(i) tri[i + 1, I - i + 1], numeric(1))
+  # Dernier cumul observe C(i, min(I-i, J)) : la diagonale C(i, I-i) d'un
+  # carre (I - i <= J pour toute ligne) ; pour un trapeze, les lignes
+  # i <= I-J s'arretent a la colonne J (#567, convention (B) de D(4) :
+  # C(i,I-i) := C(i,J)), d'ou une reserve exactement nulle sur ces lignes
+  # (C(i,J) - C(i,J)).
+  derniers <- vapply(0:I, function(i) tri[i + 1, min(I - i, J) + 1], numeric(1))
   ultimes  <- Ch[, J + 1]
-  list(I = I, J = J, tri = tri, f = f, sigma2 = s2, Q = Q, S = S, Sp = Sp,
-       C_chapeau = Ch, dernier_observe = derniers, ultime = ultimes,
-       reserve_par_annee = ultimes - derniers,
-       reserve = sum(ultimes - derniers))
+  out <- list(I = I, J = J, tri = tri, f = f, sigma2 = s2, Q = Q, S = S, Sp = Sp,
+              C_chapeau = Ch, dernier_observe = derniers, ultime = ultimes,
+              reserve_par_annee = ultimes - derniers,
+              reserve = sum(ultimes - derniers))
+  if (!is.null(s2_dir)) out$sigma2_Jm1_direct <- s2_dir
+  out
+}
+
+# Variances de colonne qui reduisent les residus de Mack (#567, decision
+# Q-2a-1 (c) du mainteneur du 20/11/2026, specification d'actuary 2a,
+# par. 2) : aj$sigma2, sauf sigma2_{J-1} remplace par l'estimateur direct
+# aj$sigma2_Jm1_direct quand il existe (trapeze I > J). La colonne J-1 d'un
+# trapeze est ainsi traitee par la regle generique de toutes les colonnes :
+# somme_i r(i,J-1)^2 = n_(J-1) - 1, variance unitaire des residus redresses
+# du vivier. Lue par mw_residus(), mw_influence(),
+# mw_identifiabilite_intra() et mw_plots_data() (colonne sigma_residus)
+# seulement ; f, C_chapeau et la MSEP gardent
+# aj$sigma2 (regle de minimum), la simulation du bootstrap aussi, sauf dans
+# le cas de .mw_simulation_sigma_direct() (regle nulle ou negligeable,
+# colonne J-1 non degeneree), ou mw_bootstrap() simule la colonne J-1 avec
+# l'estimateur direct. Pour un carre, le champ est absent et le vecteur
+# rendu est aj$sigma2 tel quel.
+.mw_sigma2_residus <- function(aj) {
+  s2 <- aj$sigma2
+  d <- aj[["sigma2_Jm1_direct"]]
+  if (!is.null(d)) s2[aj$J] <- d
+  s2
 }
 
 # --- Colonne de developpement degeneree : predicat unique (issue #56) --------
@@ -13528,7 +13633,13 @@ mw_ajuster <- function(tri) {
 # MSEP sont nuls ou negligeables a la tolerance de l'outil (residus d'arrondi
 # ou ecarts relatifs entre facteurs de l'ordre de 1e-12) et cette egalite tient
 # a un ecart negligeable pres. La colonne J-1 (un seul facteur si I = J)
-# n'entre pas dans le predicat. FALSE pour un objet d'ajustement reduit
+# n'entre pas dans le predicat. Pour un trapeze I > J (#567, specification
+# d'actuary 2a, par. 9, cas (s5)), elle a I - J + 1 facteurs et peut ne pas
+# etre degeneree ; le predicat reste pourtant sur j = 0..J-2 : sigma2_(J-1)
+# y est fixe par la regle de minimum de D(5)(d)(ii), nulle ou negligeable des
+# que sigma2_(J-2) et sigma2_(J-3) le sont, et la MSEP l'est comme pour le
+# carre ; l'estimateur direct de la colonne J-1 (aj$sigma2_Jm1_direct) n'entre
+# pas dans la MSEP. FALSE pour un objet d'ajustement reduit
 # (I et reserve seuls, fonction publique) et pour J < 2 (aucune colonne a
 # examiner).
 .mw_triangle_totalement_degenere <- function(aj) {
@@ -13697,6 +13808,136 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
   detail
 }
 
+# --- Simulation de la colonne J-1 d'un trapeze : regle nulle ou negligeable -
+# Constat M-1 de la revue finale de #567 (audit, etape 10 de S6) ; avis
+# d'actuary docs/revues/20261120-s6-trapeze/actuary-10-avis-m1-bootstrap-jm1.md,
+# option (b) ; decision du mainteneur du 22/11/2026 (derogation a Q-2a-2
+# dans ce seul cas). Convention de l'outil, non reglementaire.
+# Pour un trapeze I > J, la colonne J-1 porte I - J + 1 facteurs observes,
+# mais sa variance est fixee par la regle de minimum de D(5)(d)(ii), seconde
+# ligne. Quand cette regle est nulle (colonne J-3 ou J-2 degeneree) ou
+# numeriquement negligeable, alors que la colonne J-1 observee est dispersee,
+# le modele simule rend la colonne J-1 deterministe : les donnees observees
+# y sont de probabilite nulle (loi de reference de support disjoint de
+# l'observe) et chaque replication y voit une colonne J-1 degeneree. Dans ce
+# cas seulement, mw_bootstrap() tire les triangles avec l'estimateur direct
+# aj$sigma2_Jm1_direct au lieu de la valeur de la regle ; la MSEP, sigma_USP,
+# l'estimation de M6 et tout le calcul observe gardent la valeur de la regle.
+# Predicat sur aj seul, vrai si et seulement si les trois conditions sont
+# reunies :
+#   1. aj$sigma2_Jm1_direct existe (trapeze I > J) ;
+#   2. la colonne J-1 n'est pas degeneree (.mw_colonne_degeneree()) : une
+#      colonne J-1 degeneree est figee a l'observe, sans residu, et son
+#      estimateur direct est lui aussi nul ou negligeable : le substituer a
+#      une regle nulle ou negligeable ne changerait rien ;
+#   3. la regle est nulle par degenerescence d'un de ses arguments
+#      (mw_extrapolation_sigma2(aj)$degeneree), ou negligeable :
+#      sigma_(J-1) <= MW_TOL_SIGMA_SIMULATION * f_(J-1) * racine(min_i C(i,J-1)),
+#      i = 0..I-J, c'est-a-dire une dispersion relative simulee
+#      sigma_(J-1) / (f_(J-1) racine(C(i,J-1))) de F(i,J-1) d'au plus
+#      MW_TOL_SIGMA_SIMULATION sur chaque ligne ; la plus dispersee est celle
+#      du plus petit cumul, et c'est elle qui gouverne .mw_colonne_degeneree()
+#      (ecart maximal sur les lignes) : predicat faux, elle garde une
+#      dispersion relative superieure a 1e-10, cent fois la tolerance 1e-12
+#      (avis d'actuary actuary-11-erratum-clause-min.md, erratum de
+#      l'avis actuary-10 : min et non max). La clause numerique couvre une
+#      regle rendue negligeable par le quotient sigma2_(J-2)^2 / sigma2_(J-3)
+#      sans colonne degeneree
+#      (colonne J-2 d'ecart relatif de l'ordre de 1e-9, par exemple).
+# MW_TOL_SIGMA_SIMULATION = 1e-10 : convention numerique, non seuil
+# statistique. Mesure d'actuary (rho_min.R, 500 replications par point,
+# graine 1), refaite le 22/11/2026 a l'echelle du plus petit cumul :
+# replications dont la colonne J-1 sort degeneree au sens de
+# .mw_colonne_degeneree() (tolerance 1e-12), cas (s2) de l'audit
+# (C_max/C_min = 1,09), 250 / 7 / 0 replications degenerees sur 500 a
+# 1e-12 / 1e-11 / 1e-10 ; variante a ligne 0 multipliee par 100
+# (C_max/C_min = 97), 269 / 1 / 0, contre 1 / 0 / 0 a l'echelle du plus
+# gros cumul, qui ne gouverne pas la degenerescence. D'ou 1e-10, marge
+# de 1e-2 sur l'amplitude des residus tires.
+MW_TOL_SIGMA_SIMULATION <- 1e-10
+.mw_simulation_sigma_direct <- function(aj) {
+  if (is.null(aj[["sigma2_Jm1_direct"]])) return(FALSE)
+  I <- aj$I; J <- aj$J
+  if (.mw_colonne_degeneree(aj, J - 1L)) return(FALSE)
+  isTRUE(mw_extrapolation_sigma2(aj)$degeneree) ||
+    isTRUE(sqrt(aj$sigma2[J]) <=
+             MW_TOL_SIGMA_SIMULATION * aj$f[J] * sqrt(min(aj$tri[seq_len(I - J + 1), J])))
+}
+
+# Cas de la colonne J-1 lu par la mention M6 et par plots_data$usage_sigma
+# (constat m-1 de la revue finale de #567, avis d'actuary, par. m-1 ;
+# decision du mainteneur du 22/11/2026) : "carre" (champ
+# sigma2_Jm1_direct absent), "degenere" (trapeze, colonne J-1 degeneree au
+# sens de .mw_colonne_degeneree()), "simulation" (trapeze,
+# .mw_simulation_sigma_direct() vrai), "general" sinon. Une seule
+# definition, partagee par mw_tests() et .mw_usage_sigma().
+.mw_cas_sigma_direct <- function(aj) {
+  if (is.null(aj[["sigma2_Jm1_direct"]])) return("carre")
+  if (.mw_colonne_degeneree(aj, aj$J - 1L)) return("degenere")
+  if (.mw_simulation_sigma_direct(aj)) return("simulation")
+  "general"
+}
+
+# Mention conditionnelle du detail M6 pour un trapeze I > J (#567, etape 6
+# de S6, texte (t2) fixe par actuary, renvoi controle par regulatory,
+# docs/revues/20261120-s6-trapeze/t0-textes-etape6.md) : gabarit sprintf,
+# %d = I - J + 1 facteurs de la colonne J-1, %s = aj$sigma2_Jm1_direct
+# (format(digits = 6)), %d = I - J degres de liberte. Jointe par
+# .engine_joindre() en fin de detail par mw_tests(), seulement quand
+# aj$sigma2_Jm1_direct existe ; hors du compte des deux phrases de #514
+# (mention M23 des tests). Valeur lue dans mw_ajuster(), aucun nombre issu
+# du bootstrap (regle #76). Gabarit du cas "general" de
+# .mw_cas_sigma_direct() ; les cas "degenere" et "simulation" ont chacun le
+# leur ci-dessous (constat m-1 de la revue finale de #567, textes d'actuary),
+# avec les memes trois arguments dans le meme ordre.
+FORMAT_MENTION_MW_SIGMA_DIRECT <- paste(
+  "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
+  "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
+  "facteurs, dont l'estimateur direct, %s a %d degre(s) de liberte, reduit les",
+  "residus de cette colonne (tests, influence, vivier du bootstrap) sans entrer dans",
+  "la MSEP ni dans la simulation : valeur donnee pour information.")
+# Cas "degenere" : colonne J-1 degeneree, sans residu ; l'estimateur direct
+# n'entre ni dans la MSEP ni dans la simulation.
+FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE <- paste(
+  "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
+  "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
+  "facteurs, dont l'estimateur direct vaut %s a %d degre(s) de liberte ; cette",
+  "colonne etant degeneree (voir l'avertissement sur les donnees), aucun de ses",
+  "residus n'est retenu (tests, influence, vivier du bootstrap) et l'estimateur",
+  "n'entre ni dans la MSEP ni dans la simulation : valeur donnee pour information.")
+# Cas "simulation" : regle nulle ou negligeable, colonne J-1 non degeneree ;
+# l'estimateur direct remplace la regle dans la simulation du bootstrap
+# (.mw_simulation_sigma_direct()).
+FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION <- paste(
+  "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
+  "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
+  "facteurs, dont l'estimateur direct, %s a %d degre(s) de liberte, reduit les",
+  "residus de cette colonne (tests, influence, vivier du bootstrap) et remplace dans",
+  "la simulation du bootstrap la valeur de la regle, ici nulle ou negligeable, sans",
+  "entrer dans la MSEP : valeur donnee pour information.")
+
+# Usage des deux sigma_j de plots_data$facteurs (#567, forme (ii) de Q-A1,
+# texte (t3) fixe par actuary) : legendes restituees dans
+# plots_data$usage_sigma ; l'affichage y lit les legendes au lieu de les
+# ecrire (coupees au premier " : " par le graphique plotly). MW_USAGE_SIGMA :
+# carre et cas "general" de .mw_cas_sigma_direct() ; les cas "simulation"
+# et "degenere" ont les leurs (constat m-1 de la revue finale de #567,
+# textes d'actuary), memes noms d'elements, choisies par .mw_usage_sigma().
+MW_USAGE_SIGMA <- c(
+  sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP et simulation",
+  sigma_residus = "sigma_(J-1) estime directement : residus de Mack et tests")
+MW_USAGE_SIGMA_SIMULATION <- c(
+  sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP",
+  sigma_residus = "sigma_(J-1) estime directement : residus, tests et simulation")
+MW_USAGE_SIGMA_DEGENERE <- c(
+  sigma = MW_USAGE_SIGMA[["sigma"]],
+  sigma_residus = "sigma_(J-1) estime directement : colonne degeneree, sans residu")
+.mw_usage_sigma <- function(aj)
+  switch(.mw_cas_sigma_direct(aj),
+         simulation = MW_USAGE_SIGMA_SIMULATION,
+         degenere = MW_USAGE_SIGMA_DEGENERE,
+         MW_USAGE_SIGMA)
+
 # --- Erreur quadratique moyenne de prediction : paragraphe 5 -----------------
 # Formule telle qu'imprimee au paragraphe 5 de la version consolidee retenue
 # par l'outil comme reference de lecture, sans effet juridique propre
@@ -13733,7 +13974,19 @@ mw_msep <- function(aj) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   Ch <- aj$C_chapeau; Q <- aj$Q; S <- aj$S; Sp <- aj$Sp
   Cu <- Ch[, J + 1]                                  # C^(i,J)
-  Cd <- aj$dernier_observe                           # C(i, I-i)
+  Cd <- aj$dernier_observe                           # C(i, min(I-i, J))
+  # Annees sommees (#567, convention (B), forme consolidee) : i = I-J+1..I,
+  # seules annees d'accident qui n'ont pas atteint l'annee de developpement
+  # J. Pour un carre (I = J), 1..I : meme sequence, meme ordre de sommation,
+  # memes bits. Pour un trapeze, les annees i <= I-J ont une reserve nulle et
+  # leurs termes, sous la convention Q_j := 0 pour j >= J et
+  # C^(i,J) := C(i,J), s'annulent dans la forme consolidee : la restriction
+  # des sommes y est exacte, et Q_(I-i) et S_(I-i) ne sont lus que pour
+  # I - i <= J - 1 (lecture de regulatory, 20/11/2026, point 4b ; MSEP
+  # confrontee a CL_MSEPs de ChainLadder 0.2.21, specification d'actuary 2a,
+  # par. 1.3). Elle ne se transpose pas a la forme de 2015 sans convention de
+  # plus.
+  ii <- (I - J + 1L):I
 
   # Delta_i : crochet d'erreur d'estimation de l'annee d'accident i.
   # Attention : en R, a:b produit une sequence DESCENDANTE lorsque a > b. La
@@ -13744,18 +13997,19 @@ mw_msep <- function(aj) {
       v <- v + (tri[I - j + 1, j + 1] / Sp[j + 1]) * (Q[j + 1] / S[j + 1])
     v
   }
-  Dl <- vapply(1:I, Delta, numeric(1))               # Dl[i] = Delta_i
+  Dl <- rep(NA_real_, I)                             # Dl[i] = Delta_i, i dans ii
+  Dl[ii] <- vapply(ii, Delta, numeric(1))
 
   # Variance de processus : somme_i C^(i,J)^2 * Q_{I-i} / C(i,I-i)
   t1 <- 0
-  for (i in 1:I) t1 <- t1 + Cu[i + 1]^2 * Q[I - i + 1] / Cd[i + 1]
+  for (i in ii) t1 <- t1 + Cu[i + 1]^2 * Q[I - i + 1] / Cd[i + 1]
 
   # Erreur d'estimation : termes diagonaux C^(i,J)^2 * Delta_i ...
   t2 <- 0
-  for (i in 1:I) t2 <- t2 + Cu[i + 1]^2 * Dl[i]
+  for (i in ii) t2 <- t2 + Cu[i + 1]^2 * Dl[i]
   # ... puis les termes croises, comptes une fois et doubles (meme piege sur
   # (i+1):I lorsque i = I : la borne est testee avant d'entrer dans la boucle).
-  for (i in 1:I) if (i < I) for (k in (i + 1):I)
+  for (i in ii) if (i < I) for (k in (i + 1):I)
     t2 <- t2 + 2 * Cu[i + 1] * Cu[k + 1] * Dl[i]
 
   # Sommes sur le segment, sans nom (issue #319) : Cu porte les noms de ligne
@@ -13958,9 +14212,22 @@ mw_valider_ajustement <- function(aj, msep) {
   # donnees existantes, rendues obligatoires par l'article 219, par. 1, d) :
   # coherence avec les hypotheses sur la nature stochastique des cumules
   # (D(2)(h), en particulier iv) et representativite du risque de reserve
-  # (D(2)(a)), inverifiables quand aucune variance n'est observee. La
-  # tolerance 1e-12 du predicat est une convention de l'outil. Motif evalue
-  # seulement en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
+  # (D(2)(a)), inverifiables quand aucune variance n'est observee sur
+  # j = 0..J-2. Sur un trapeze I > J (#567), la colonne J-1 porte I - J + 1
+  # facteurs et peut montrer de la variance : quand elle n'est pas degeneree
+  # et que son estimateur direct aj$sigma2_Jm1_direct est strictement positif,
+  # mw_residus() en retient les residus ; cette variance est pourtant ecartee
+  # de la MSEP par D(5)(d)(ii), ou sigma2_(J-1) est fixe par la regle de
+  # minimum, nulle ou negligeable des que sigma2_(J-2) ou sigma2_(J-3) l'est.
+  # Le refus est maintenu ; seul le texte du motif change, sous la condition
+  # nrow(mw_residus(aj)) > 0, qui suit le code sans predicat nouveau (constat
+  # m1 de l'etape 7 de S6 ; avis d'actuary et decision du mainteneur du
+  # 21/11/2026, option (i)) : la coherence avec D(2)(h)(iv) ne s'eprouve pas
+  # sur la seule colonne J-1, et la variabilite qu'elle montre est absente de
+  # la MSEP (D(2)(a)). Carre, et trapeze dont la colonne J-1 est aussi
+  # degeneree : aucun residu retenu, motif du carre inchange. La tolerance
+  # 1e-12 du predicat est une convention de l'outil. Motif evalue seulement
+  # en l'absence d'autre refus : avec R <= 0 (tous les f_j = 1, par
   # exemple), sigma(res,s,USP) n'est pas defini et le motif de la reserve
   # suffit. Un seul motif : les avertissements de colonnes (extrapolation de
   # sigma2_(J-1), colonnes exclues des residus) ne sont pas emis en plus
@@ -13968,25 +14235,43 @@ mw_valider_ajustement <- function(aj, msep) {
   # cumules) : inchanges, sous la doctrine de l'avertissement (Q-E2r-192-3).
   complet <- is.list(aj) && all(c("I", "J", "sigma2", "f", "tri") %in% names(aj))
   degenere <- !length(err) && complet && .mw_triangle_totalement_degenere(aj)
-  if (degenere)
-    err <- c(err, sprintf(paste0(
+  if (degenere) {
+    # Variante du trapeze (constat m1, specification d'actuary, par. 4) : les
+    # fragments [A] et [B] remplacent leur equivalent du motif du carre, le
+    # reste est commun ; motif du carre inchange au caractere pres.
+    jm1 <- nrow(mw_residus(aj)) > 0L
+    a_carre <- paste0(
+      "aucun residu ",
+      "de Mack n'est retenu et, par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a ",
+      "un ecart negligeable pres, sans contribution significative des donnees. ")
+    a_trapeze <- sprintf(paste0(
+      "aucun residu de Mack n'est retenu sur les annees j = 0..J-2 et, par D(4), ",
+      "sigma(res,s,USP) = (1 - c) * sigma(res,s) a un ecart negligeable pres, sans ",
+      "contribution significative des donnees. Seule l'annee de developpement J-1 ",
+      "(%d facteurs individuels, I - J + 1) porte des facteurs distincts et des residus ",
+      "de Mack ; sa variance n'entre pas dans la MSEP, ou sigma2_(J-1) est fixe par la ",
+      "regle de minimum de D(5)(d)(ii), nulle ou negligeable des que sigma2_(J-2) ou ",
+      "sigma2_(J-3) l'est. "), as.integer(aj$I - aj$J + 1L))
+    b1 <- if (jm1) ", que la seule annee J-1 ne suffit pas a eprouver" else ""
+    b2 <- if (jm1) ", la variabilite observee sur l'annee J-1 etant absente de la MSEP" else ""
+    err <- c(err, paste0(
       "Triangle totalement degenere : pour chaque annee de developpement j = 0..J-2, ",
       "les facteurs individuels C(i,j+1)/C(i,j) sont identiques (a la tolerance ",
       "relative 1e-12 de l'outil pres : ", .MW_PREDICAT_DEGENERE_TEXTE, "). ",
       "Pour des facteurs exactement egaux, en arithmetique exacte, sigma2_j = 0 ",
       "(annexe XVII, D(5)(d)(ii)) et MSEP = 0 ; ici sigma2_j et la MSEP (valeur ",
-      "calculee : %s) sont nuls ou negligeables a la tolerance de l'outil (residus ",
-      "d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), aucun residu ",
-      "de Mack n'est retenu et, par D(4), sigma(res,s,USP) = (1 - c) * sigma(res,s) a ",
-      "un ecart negligeable pres, sans contribution significative des donnees. ",
+      "calculee : ", format(msep, digits = 3, decimal.mark = "."),
+      ") sont nuls ou negligeables a la tolerance de l'outil (residus ",
+      "d'arrondi ou ecarts relatifs entre facteurs de l'ordre de 1e-12), ",
+      if (jm1) a_trapeze else a_carre,
       "Ces donnees ne permettent pas d'etablir leur coherence avec les hypotheses sur la ",
       "nature stochastique des montants de sinistres cumules (D(2)(h), en particulier iv : ",
-      "variance proportionnelle au cumul precedent), ni leur representativite du risque ",
-      "de reserve (D(2)(a)) ; exigences de donnees rendues obligatoires par l'article 219, ",
+      "variance proportionnelle au cumul precedent)", b1, ", ni leur representativite du risque ",
+      "de reserve (D(2)(a))", b2, " ; exigences de donnees rendues obligatoires par l'article 219, ",
       "paragraphe 1, point d). L'outil n'applique donc pas a ce triangle la methode du ",
       "risque de reserve no 2 (article 220, paragraphe 1, point b)). Verifier qu'il ",
-      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."),
-      format(msep, digits = 3, decimal.mark = ".")))
+      "s'agit de paiements cumules observes (D(1)) et non de montants projetes ou lisses."))
+  }
   # Avertissement (et non refus) : sigma2_{J-1} = 0 par application litterale
   # du par. 5(d)(ii), ce qui arrive si et seulement si la colonne J-3 ou la
   # colonne J-2 est degeneree, facteurs individuels egaux a f_j a la tolerance
@@ -14289,12 +14574,17 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # L'exclusion n'est pas silencieuse : l'attribut "colonnes_exclues"
 # (data.frame j, n_facteurs) la consigne, et mw_valider_ajustement() en fait
 # un avertissement. .run_engine_mw() retire l'attribut avant de stocker les
-# residus (aucun champ nouveau dans le resultat). La colonne J-1 (un seul
-# facteur si I = J) n'a jamais de residu et n'est pas comptee comme exclue :
+# residus (aucun champ nouveau dans le resultat). La colonne J-1 d'un carre
+# (un seul facteur) n'a jamais de residu et n'est pas comptee comme exclue :
 # le test du nombre de facteurs precede celui de la degenerescence, que la
-# colonne J-1 verifie trivialement.
+# colonne J-1 verifie trivialement. Celle d'un trapeze I > J (#567, I - J + 1
+# facteurs) suit la regle de toutes les colonnes, ses residus etant reduits
+# par l'estimateur direct de sigma2_(J-1) et non par la valeur de la regle
+# de minimum (decision Q-2a-1 (c), .mw_sigma2_residus()) ; sigma_j de la
+# table porte alors cet estimateur pour j = J-1.
 mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  s2 <- .mw_sigma2_residus(aj)
   jd <- .mw_j_exclues(aj, j_degeneres)
   # Table vide construite une fois au chargement (.MW_DF_VIDE_J_N, #513),
   # meme objet que data.frame(j = integer(0), n_facteurs = integer(0)),
@@ -14307,7 +14597,7 @@ mw_residus <- function(aj, j_degeneres = NULL) {
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
     if (length(idx) < 2) next
-    if (!is.finite(aj$sigma2[j + 1]) || aj$sigma2[j + 1] <= 0 || j %in% jd) {
+    if (!is.finite(s2[j + 1]) || s2[j + 1] <= 0 || j %in% jd) {
       exclues[nrow(exclues) + 1L, ] <- list(as.integer(j), length(idx))
       next
     }
@@ -14315,9 +14605,9 @@ mw_residus <- function(aj, j_degeneres = NULL) {
     n <- length(idx)
     blocs[[length(blocs) + 1L]] <- list(
       i = idx, j = rep(j, n), calendrier = idx + j, C = Cij, F = Cij1 / Cij,
-      f_chapeau = rep(aj$f[j + 1], n), sigma_j = rep(sqrt(aj$sigma2[j + 1]), n),
+      f_chapeau = rep(aj$f[j + 1], n), sigma_j = rep(sqrt(s2[j + 1]), n),
       residu = sqrt(Cij) * .mw_ecart_facteur_stable(Cij, Cij1) /
-        sqrt(aj$sigma2[j + 1]))
+        sqrt(s2[j + 1]))
   }
   out <- .mw_empiler(blocs, source_noms = "C")
   attr(out, "colonnes_exclues") <- exclues
@@ -15443,6 +15733,12 @@ MW_COMBN_N_MAX <- 20L
 #                     colonnes non identifiables de l'ordonnee a l'origine,
 #                     apres degeneres
 #                     (.mw_colonnes_origine_non_identifiables(), #273).
+# Geometrie (#567) : les trois predicats lisent n_j = I - j et ne supposent
+# pas I = J. La colonne J-1 d'un carre (un seul facteur) est toujours dans
+# degeneres ; celle d'un trapeze I > J (I - J + 1 facteurs) n'y est que si
+# ses facteurs sont egaux au sens de .mw_colonne_degeneree(), et peut entrer
+# dans non_identifiables (n_(J-1) >= 4) ou origine_non_identifiables
+# (n_(J-1) >= 3).
 # Un ensemble fige nouveau s'ajoute ici comme element ; la fonction du test
 # qui le lit le recoit en argument, de sa fermeture du catalogue et de
 # mw_tests() ; mw_bootstrap(), le contexte et .mw_stats() n'en changent pas.
@@ -15589,7 +15885,9 @@ mw_famille_alpha <- function(aj) {
 #   CV_j  = sd(C0) / mean(C0)            (ecart-type a n_j - 1)
 #   R_j   = max(C0) / min(C0)
 #   e_a,j = sigma_j sqrt(S_j / D_j) / mean(C1), sigma_j = sqrt(aj$sigma2[j + 1])
-#           (estimateur de Mack), S_j = somme C0,
+#           (estimateur de Mack ; pour j = J-1 d'un trapeze I > J, estimateur
+#           direct aj$sigma2_Jm1_direct, .mw_sigma2_residus(), #567),
+#           S_j = somme C0,
 #           D_j = S_j somme(1/C0) - n_j^2 = somme_{a<b} ((C0_a - C0_b)/sqrt(C0_a)/sqrt(C0_b))^2.
 # S_j / D_j est l'element (1, 1) de (X'WX)^-1 de la regression ponderee
 # C1 ~ a_j + b_j C0, poids W = 1/C0 (det(X'WX) = D_j) : sigma_j^2 S_j / D_j
@@ -15598,8 +15896,8 @@ mw_famille_alpha <- function(aj) {
 # par paire) : chaque terme est positif, sans annulation entre les grandeurs
 # d'ordre n_j^2 de la forme S_j somme(1/C0) - n_j^2, ni debordement de
 # C0_a C0_b. D_j = 0 si et seulement si C0 est constant : e_a,j = NA.
-# Lit aj$tri, aj$I, aj$J, aj$sigma2 et (via .mw_j_exclues()) aj$f ; ne lit pas
-# mw_residus().
+# Lit aj$tri, aj$I, aj$J, aj$sigma2 (et aj$sigma2_Jm1_direct s'il existe) et
+# (via .mw_j_exclues()) aj$f ; ne lit pas mw_residus().
 # Avec j_degeneres = integer(0) impose, une colonne degeneree est retenue et
 # donne sigma_j nul ou numeriquement nul, donc e_a,j = 0 ou negligeable ; cas
 # hors du chemin de mw_tests(). Retour :
@@ -15608,6 +15906,7 @@ mw_famille_alpha <- function(aj) {
 # vide sinon).
 mw_identifiabilite_intra <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  s2 <- .mw_sigma2_residus(aj)
   jd <- .mw_j_exclues(aj, j_degeneres)
   blocs <- list()
   for (j in 0:(J - 1)) {
@@ -15618,7 +15917,7 @@ mw_identifiabilite_intra <- function(aj, j_degeneres = NULL) {
     q <- outer(seq_along(C0), seq_along(C0),
                function(a, b) (C0[a] - C0[b]) / rc[a] / rc[b])
     D <- sum(q[upper.tri(q)]^2)
-    e_a <- if (D > 0) sqrt(aj$sigma2[j + 1]) * sqrt(sum(C0) / D) / mean(C1) else NA_real_
+    e_a <- if (D > 0) sqrt(s2[j + 1]) * sqrt(sum(C0) / D) / mean(C1) else NA_real_
     blocs[[length(blocs) + 1L]] <- list(j = as.integer(j), n = length(idx),
                                         cv = stats::sd(C0) / mean(C0),
                                         R = max(C0) / min(C0), e_a = e_a)
@@ -15891,6 +16190,14 @@ mw_simuler_triangle <- function(aj, res_pool) .mw_simuler_triangle_etat(aj, res_
   tri[, 1] <- aj$tri[, 1]                       # premiere colonne conservee
   for (j in 0:(J - 1)) {
     idx <- 0:(I - j - 1)
+    # sigma_j lu dans aj$sigma2 tel que l'appelant le passe, sans choix
+    # propre a cette fonction. mw_bootstrap() y passe la valeur de la regle
+    # de minimum pour j = J-1, y compris pour un trapeze I > J (#567,
+    # decision Q-2a-2 du mainteneur du 20/11/2026 : modele de D(5)(d)(ii)
+    # qui produit la MSEP), sauf dans le cas de .mw_simulation_sigma_direct()
+    # (regle nulle ou negligeable, colonne J-1 non degeneree), ou il passe
+    # une copie dont sigma2_(J-1) est l'estimateur direct (constat M-1 de
+    # la revue finale de #567, option (b), decision du 22/11/2026).
     sg <- sqrt(aj$sigma2[j + 1])
     if (!is.finite(sg)) sg <- 0
     e <- sample(res_pool, length(idx), replace = TRUE)
@@ -15938,12 +16245,17 @@ FACTEUR_B_MAX_MW <- 25
 # boucles des tests unitaires qui la reproduisent.
 # Acceptation lue sur l'indicateur complet de .mw_simuler_triangle_etat()
 # (#278), sans second balayage par .mw_triangle_incomplet() : sur un triangle
-# carre (I = J, seul admis par mw_valider_triangle()) a premiere colonne
-# observee complete, la partie superieure que balaie .mw_triangle_incomplet()
-# est exactement la premiere colonne observee et les cellules tirees, d'ou la
-# meme decision. .mw_triangle_incomplet() reste le controle des tests.
+# a premiere colonne observee complete, la partie observee i + j <= I que
+# balaie .mw_triangle_incomplet() est exactement la premiere colonne et les
+# cellules tirees (lignes 0..I-j-1 de la colonne j + 1, j = 0..J-1), d'ou la
+# meme decision ; pour un carre comme pour un trapeze I > J (#567).
+# .mw_triangle_incomplet() reste le controle des tests. Masque
+# row + col - 2 <= I (#567) : le meme ensemble de cellules que l'ancien
+# upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))] pour une matrice
+# carree, et la partie observee d'un trapeze, que l'ancien masque bornait a
+# i + j <= J.
 .mw_triangle_incomplet <- function(tb)
-  anyNA(tb[upper.tri(tb, diag = TRUE)[, rev(seq_len(ncol(tb)))]])
+  anyNA(tb[row(tb) + col(tb) - 2L <= nrow(tb) - 1L])
 .mw_tirer_triangle_valide <- function(aj, pool, reste) {
   n <- 0
   while (n < reste) {
@@ -16076,6 +16388,18 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     # Pool : residus de Mack retenus du triangle observe, colonnes degenerees
     # exclues (#60), redresses par le levier puis recentres (#46).
     pool <- .mw_pool_residus(aj, figes$degeneres)
+    # Ajustement des seuls tirages (constat M-1 de la revue finale de #567,
+    # option (b), decision du mainteneur du 22/11/2026) : copie de aj dont
+    # sigma2_(J-1) est l'estimateur direct quand .mw_simulation_sigma_direct()
+    # est vrai (regle nulle ou negligeable, colonne J-1 non degeneree), aj
+    # sinon. Seul .mw_tirer_triangle_valide() la lit : vivier, contexte et
+    # statistiques observes, ensembles figes, ajustement et MSEP des
+    # replications restent sur aj ou sur le triangle simule. Pour chaque
+    # triangle tire, memes appels a sample(), dans le meme ordre : seul
+    # l'ecart-type de la colonne J-1 change (le retirage d'un triangle a
+    # cumul non strictement positif, #257, peut en dependre).
+    aj_sim <- aj
+    if (.mw_simulation_sigma_direct(aj)) aj_sim$sigma2[aj$J] <- aj$sigma2_Jm1_direct
     # Contexte observe conserve pour les conditions du catalogue (#44).
     e_obs <- .mw_contexte_mc(aj, figes, combn)
     obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
@@ -16097,7 +16421,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
     n_tires <- 0; cumuls_retires <- FALSE; plafond_cumuls <- FALSE
     n_sans_sigma <- 0L
     for (b in seq_len(B)) {
-      tir <- .mw_tirer_triangle_valide(aj, pool, n_max - n_tires)
+      tir <- .mw_tirer_triangle_valide(aj_sim, pool, n_max - n_tires)
       n_tires <- n_tires + tir$n
       if (tir$rejets > 0) cumuls_retires <- TRUE
       if (is.null(tir$tri)) { plafond_cumuls <- TRUE; next }
@@ -17075,11 +17399,26 @@ mw_tests <- function(aj, boot, alpha = 0.10, figes = NULL) {
   # La sensibilite de racine(MSEP) a sigma2_(J-1) (#310) n'est plus restituee
   # (#514, Q-3) : elle se recalcule par mw_sensibilite_sigma2_dernier(aj).
   ex <- mw_extrapolation_sigma2(aj)
+  # Trapeze I > J (#567, texte (t2)) : estimateur direct de sigma2_(J-1)
+  # donne pour information en fin de detail, estim inchange (valeur de la
+  # regle). Gabarit choisi par .mw_cas_sigma_direct() (constat m-1 de la
+  # revue finale de #567) : general, colonne J-1 degeneree, ou simulation
+  # sur l'estimateur direct. Carre : champ absent, mention vide, detail
+  # identique a l'octet (.engine_joindre(a, "") rend a).
+  s2_dir <- aj[["sigma2_Jm1_direct"]]
+  gabarit_dir <- switch(.mw_cas_sigma_direct(aj),
+                        carre = NULL,
+                        degenere = FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE,
+                        simulation = FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION,
+                        FORMAT_MENTION_MW_SIGMA_DIRECT)
+  mention_dir <- if (is.null(gabarit_dir)) "" else
+    sprintf(gabarit_dir, aj$I - aj$J + 1L,
+            format(s2_dir, digits = 6, decimal.mark = "."), aj$I - aj$J)
   add(fam, "Extrapolation de sigma pour la derniere annee de developpement",
       fonction = "mw_ajuster",
       "Annexe XVII, D(5)(d)(ii), seconde ligne", type = "diagnostic",
       estim_nom = "sigma2_(J-1)", estim = aj$sigma2[aj$J],
-      detail = .mw_detail_extrapolation(ex))
+      detail = .engine_joindre(.mw_detail_extrapolation(ex), mention_dir))
   # ADR 0001 : un diagnostic n'a pas de verdict (il est affiche INFO). Le seuil
   # de 40 % qui figurait ici n'est ni un niveau de test ni une regle de
   # l'annexe XVII : le rendre en ALERTE / OK donnait a une convention
@@ -17716,7 +18055,8 @@ engine_regle_verdicts <- function(alpha) {
 # Gardes (NA, jamais NaN ni Inf ; residu recoit la meme garde de colonne) :
 # - colonne exclue au sens du predicat unique des colonnes degenerees
 #   (.mw_j_exclues(aj, NULL), comme mw_residus() et M1-M6, #60), ou
-#   sigma2_j (aj$sigma2) non fini ou nul : dfbetas et residu NA ;
+#   sigma2_j (aj$sigma2, estimateur direct pour j = J-1 d'un trapeze,
+#   .mw_sigma2_residus(), #567) non fini ou nul : dfbetas et residu NA ;
 # - n_j = 2 (s2_(i) sans degre de liberte) : dfbetas NA ;
 # - s2_(i) <= 1e2 eps (n - 1) sigma2_j : les cellules restantes sont
 #   proportionnelles a environ 1e-7 pres de la dispersion de la colonne
@@ -17732,6 +18072,10 @@ engine_regle_verdicts <- function(alpha) {
 # (.mw_j_exclues(aj, NULL), meme ensemble).
 mw_influence <- function(aj, degeneres_aj = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
+  # Variances de reduction du residu et de la garde de colonne : celles de
+  # mw_residus() (.mw_sigma2_residus(), estimateur direct pour j = J-1 d'un
+  # trapeze, #567, Q-2a-1 (c)).
+  s2r <- .mw_sigma2_residus(aj)
   jd <- if (is.null(degeneres_aj)) .mw_j_exclues(aj, NULL) else degeneres_aj
   # Un bloc par colonne, empile par .mw_empiler() (#260), comme les tables
   # de M1-M6 depuis #239 : memes colonnes, types et noms de lignes (noms de
@@ -17752,11 +18096,11 @@ mw_influence <- function(aj, degeneres_aj = NULL) {
     S_sans <- .mw_sommes_autres(Cij)
     S1_sans <- .mw_sommes_autres(Cij1)
     f_sans <- S1_sans / S_sans
-    retenue <- is.finite(aj$sigma2[j + 1]) && aj$sigma2[j + 1] > 0 && !(j %in% jd)
+    retenue <- is.finite(s2r[j + 1]) && s2r[j + 1] > 0 && !(j %in% jd)
     # F(i,j) - f_j sous forme stable (#233), commune au residu et a e_i.
     ecart_f <- .mw_ecart_facteur_stable(Cij, Cij1)
     resid <- if (retenue)
-      sqrt(Cij) * ecart_f / sqrt(aj$sigma2[j + 1])
+      sqrt(Cij) * ecart_f / sqrt(s2r[j + 1])
     else rep(NA_real_, length(idx))
     n <- length(idx)
     dfbetas <- rep(NA_real_, n)
@@ -17914,7 +18258,9 @@ mw_contributions <- function(aj, msep) {
   I <- aj$I; J <- aj$J
   Cu <- aj$C_chapeau[, J + 1]; Cd <- aj$dernier_observe
   vterme <- rep(0, I + 1)
-  for (i in 1:I) vterme[i + 1] <- Cu[i + 1]^2 * aj$Q[I - i + 1] / Cd[i + 1]
+  # Memes annees que mw_msep() (#567) : i = I-J+1..I ; terme nul (0) pour les
+  # annees i <= I-J d'un trapeze, a reserve nulle. 1..I pour un carre.
+  for (i in (I - J + 1L):I) vterme[i + 1] <- Cu[i + 1]^2 * aj$Q[I - i + 1] / Cd[i + 1]
   data.frame(
     i = 0:I,
     reserve = aj$reserve_par_annee,
@@ -18040,10 +18386,20 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     # pour j = J - 1 seulement, dont sigma est fixe par la regle de minimum de
     # D(5)(d)(ii), seconde ligne, et non estime ; FALSE partout si la regle
     # n'est pas applicable (mw_extrapolation_sigma2()$applicable).
+    # sigma_residus et sigma_residus_direct (#567, forme (ii) de Q-A1,
+    # colonnes ajoutees en fin) : sigma_j qui reduit les residus de Mack
+    # (.mw_sigma2_residus()), egal a sigma partout sauf en j = J - 1 d'un
+    # trapeze I > J, ou il porte l'estimateur direct ; drapeau TRUE en
+    # j = J - 1 seulement quand aj$sigma2_Jm1_direct existe, pose par la
+    # geometrie et non par comparaison des deux colonnes. Carre :
+    # sigma_residus identique a sigma, drapeau FALSE partout.
     facteurs = data.frame(j = 0:(aj$J - 1), f = aj$f,
                           sigma = sqrt(aj$sigma2),
                           sigma_regle_minimum = (0:(aj$J - 1)) == aj$J - 1 &
-                            isTRUE(mw_extrapolation_sigma2(aj)$applicable)),
+                            isTRUE(mw_extrapolation_sigma2(aj)$applicable),
+                          sigma_residus = sqrt(.mw_sigma2_residus(aj)),
+                          sigma_residus_direct = (0:(aj$J - 1)) == aj$J - 1 &
+                            !is.null(aj[["sigma2_Jm1_direct"]])),
     reserve_par_annee = data.frame(i = 0:aj$I,
                                    dernier = aj$dernier_observe,
                                    ultime = aj$ultime,
@@ -18122,6 +18478,11 @@ mw_plots_data <- function(aj, res, boot, msep = NULL, sigma_usp_boot = NULL,
     pd$sigma_usp_boot <- sigma_usp_boot
     pd$boot_reperes <- .engine_boot_reperes(sigma_usp_boot, ic, sigma_usp, sigma_standard)
   }
+  # Usage des deux sigma_j de facteurs (#567, texte (t3)), en toute fin de
+  # liste : aucune feuille existante n'est deplacee. Legendes selon le cas
+  # de la colonne J-1 (.mw_usage_sigma(), constat m-1 de la revue finale de
+  # #567) ; MW_USAGE_SIGMA pour un carre.
+  pd$usage_sigma <- .mw_usage_sigma(aj)
   pd
 }
 

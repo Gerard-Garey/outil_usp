@@ -1641,9 +1641,9 @@ verifier("run_engine() : inoperant <=> prefixe TEST INOPERANT sur toutes les lig
            else isTRUE(cs10$inoperant) && identical(cs12$inoperant, FALSE) &&
              any(vapply(res_ln$tests, function(l) l$inoperant, logical(1)))
          })
-verifier("References versionnees (5 cas) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant, p_min_mc",
+verifier("References versionnees (6 cas, dont reserve2_trapeze, #567) : inoperant <=> prefixe TEST INOPERANT, jamais NA, derniers champs p_min, fonction, inoperant, p_min_mc",
          {
-           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net")
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "reserve2_trapeze")
            v <- lapply(cas, function(k) {
              f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
              if (!file.exists(f)) "reference absente" else inv_inop(readRDS(f)$tests)

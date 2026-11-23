@@ -1,0 +1,38 @@
+# JOURNAL de la mesure #610 (S6, étape 4 : couverture à T = 8 des intervalles de σ calibrés par bootstrap imbriqué, Merz-Wüthrich)
+
+- Lancement : 2026-11-20T10:56:09Z
+- Date des sorties : 20261120
+- R par profil : P1=1000,P2=1000,P3=500
+- Niveau : M1+P3 (--niveau explicite ; pré-vol, P7)
+- B1 ; B2 ; variantes : 999 ; 199 ; C1=99,C2=50
+- Processus : 4 ; taille des tranches : 20
+- SHA (git rev-parse HEAD) au lancement : f573ddccf43211e980b0936b37924beeeae834c8
+- Commit (commit_depot()) : f573ddccf43211e980b0936b37924beeeae834c8
+- md5 R/engine.R au lancement : faf36c545999c147087759155a2bd38a
+- Empreinte sans commentaires de R/engine.R : 307e07604e7d87b23173f48daebb9383
+- Empreintes md5 du code exécuté : R/engine.R faf36c545999c147087759155a2bd38a ; tests/outils_tests.R chargé (dépôt) cdf8f7da242e2c6281fadcb4108aab63 ; script exécuté (dépôt) 725f005af894a4bdb3e54fdf879e9d30
+- md5 protocole (docs/revues/20261120-s6-trapeze/actuary-2b-protocole-610.md) : 032a3948d02f246688b9f09b1c7efe1b
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale : LC_ALL=C.UTF-8 ; LC_CTYPE=C.UTF-8
+- Dossier de travail : issue610-travail-M1-P3 (hors du dépôt)
+- Commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Contexte des tranches : B1=999 || B2=199 || variantes=C1=99,C2=50 || sha=f573ddccf43211e980b0936b37924beeeae834c8 || md5_moteur=faf36c545999c147087759155a2bd38a || md5_script=725f005af894a4bdb3e54fdf879e9d30 || empreinte=307e07604e7d87b23173f48daebb9383 || empreintes_code=R/engine.R faf36c545999c147087759155a2bd38a ; tests/outils_tests.R chargé (dépôt) cdf8f7da242e2c6281fadcb4108aab63 ; script exécuté (dépôt) 725f005af894a4bdb3e54fdf879e9d30 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=20
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 1 (échelle P7) : M1+P3, M1, M3, M4 ; premier niveau dont la durée prévue tient dans 12 h ; sous M1, confirmation du mainteneur requise et aucun lancement implicite (--niveau explicite) ; M4 retire C1 de K-610-1 (décision du mainteneur).
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 2 (formation) : C1 et C0 si plus de 20 b à n_b > 20 ; C2 si plus de 20 b à n_b > 20 et se*_b fini et > 1e-12, et si se externe est fini et > 1e-12 (sinon C2 non formé et compté) ; C1-99 et C2-50 : mêmes règles sur les 99 et 50 premiers σ**.
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 3 (W) : C1 : saturation haute Q_w(α) = 0 à 90 % seule (/ triangles où C1 est formé) et b exclues (n_b ≤ 20, / σ* finis cumulés) ; C2 : se*_b dégénérés (/ b à n_b > 20 cumulées) et b exclues ; chaque taux comparé séparément à 0,01, proportion non arrondie sans IC, P1 et P2 séparément ; W-a si tous les taux sont au plus 0,01.
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 4 (saturations basses) : C1 Q_w(1 − α) = 1, C0 Q_u(α) = 0 : descriptives (K-610-2), séparées de la haute, à 90 % et 95 %, hors W et Θ0.
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 5 (Θ0) : trois taux distincts, chacun comparé à 0,01 sur P1 et P2 : refus / tirés ; triangles sans intervalle (admis où au moins un de I1, I4, C1, C2 à 90 % n'est pas formé) / admis ; b exclues / σ* finis ; les se*_b dégénérés relèvent de W.
+- Règles de lecture (actuary, 20/11/2026 ; taux de W comparés séparément à 0,01) : Règle 6 (préférence) : (i) calculée mécaniquement sur les estimations ponctuelles des queues (classes sur les valeurs non arrondies) ; (ii) non discriminante : coûts égaux à B2 = 199 ; le script ne désigne aucun candidat préféré.
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T12:31:04Z ; tranches calculées par ce segment : 24 ; tranches restantes : 101
+- Reprise : 2026-11-20T12:31:28Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T14:03:53Z ; tranches calculées par ce segment : 20 ; tranches restantes : 81
+- Reprise : 2026-11-20T14:04:08Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T15:50:20Z ; tranches calculées par ce segment : 22 ; tranches restantes : 59
+- Reprise : 2026-11-20T15:50:31Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T17:21:41Z ; tranches calculées par ce segment : 20 ; tranches restantes : 39
+- Reprise : 2026-11-20T17:21:52Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Segment arrêté (--arret-apres 90 min) : 2026-11-20T18:54:40Z ; tranches calculées par ce segment : 22 ; tranches restantes : 17
+- Reprise : 2026-11-20T18:54:50Z ; commande : Rscript tests/couverture_ic_sigma_mw_imbrique_t8.R --niveau M1+P3 --processus 4 --arret-apres 90 --ecrire
+- Fin : 2026-11-20T20:06:21Z ; SHA à la fin f573ddccf43211e980b0936b37924beeeae834c8 ; md5 R/engine.R à la fin faf36c545999c147087759155a2bd38a ; INTEGRITE OK
+- Sortie 20261120-issue610-couverture-ic-sigma-mw-imbrique.md : md5 51fd2c4a1b038ed824d9fdd5f9933927
+- Sortie 20261120-issue610-couverture-ic-sigma-mw-imbrique-brut.tsv : md5 de803ba3d262ef83cb8c03b09524a101

@@ -17,14 +17,17 @@
 #       paquet zip est simulee en posant requireNamespace() dans
 #       environment(run_engine), jamais dans l'environnement global (ADR
 #       0016) : l'archive passe alors par utils::zip().
-#    3. garantie a la racine (#439) : chacun des 17 points d'entree que
+#    3. garantie a la racine (#439) : chacun des 18 points d'entree que
 #       l'application appelle (app.R, R/display_helpers.R ; pour
 #       engine_valider_declarations(), a partir du commit (d2) de S3, #504) pose
 #       options(OutDec = ".") par .engine_point_decimal() et restaure l'option
 #       de l'appelant en sortie, normale ou sur erreur (ADR 0004, par analogie).
 #       Les decimal.mark appel par appel (#428) restent : les sections 1 et 2
 #       les exercent encore, par des fonctions qui ne sont pas des points
-#       d'entree (.engine_quantile()).
+#       d'entree (.engine_quantile()). mw_cellules_observees(), citee par
+#       l'application depuis le commit app: C2 de l'etape 6 de S6, est un
+#       point d'entree depuis le commit moteur: C3 (#567), qui retire la
+#       liste fermee des fonctions citees hors des points d'entree.
 ###############################################################################
 
 if (!exists("verifier", mode = "function")) {
@@ -225,12 +228,17 @@ if (nzchar(Sys.which("zip"))) {
 env_moteur439 <- environment(run_engine)
 pe_moteur439 <- get(".engine_point_decimal", envir = env_moteur439)
 
-# Les 17 points d'entree : les fonctions du moteur que app.R et
+# Les 18 points d'entree : les fonctions du moteur que app.R et
 # R/display_helpers.R appellent directement (inventaire de l'etape 1 de K2,
-# 12 + 7 dont 3 communes, plus engine_ecrire_csv(), nee en K2, #488), et
+# 12 + 7 dont 3 communes, plus engine_ecrire_csv(), nee en K2, #488),
 # engine_valider_declarations(), point d'entree depuis le commit (b3) de S3
 # (decision du mainteneur du 17/11/2026 sur les motifs d'avant clic, #504),
-# que app.R appelle depuis le commit (d2) (motifs d'avant clic). Les appels
+# que app.R appelle depuis le commit (d2) (motifs d'avant clic), et
+# mw_cellules_observees(), regle des cellules observees que la grille du
+# triangle lit dans le moteur (#567 ; citee par app.R depuis le commit app:
+# C2 de l'etape 6 de S6, point d'entree depuis le commit moteur: C3, decision
+# de la session : elle ne met aucun nombre en texte, mais la garde #439 vaut
+# pour toute fonction du moteur citee par l'application). Les appels
 # directs documentes de fonctions qui n'en sont pas (test_mann_kendall(),
 # dw_p_exacte()...) ne sont pas enveloppes : les decimal.mark y suffisent.
 PE439 <- c("run_engine", "engine_lire_xlsx", "engine_lire_donnees_csv",
@@ -239,7 +247,7 @@ PE439 <- c("run_engine", "engine_lire_xlsx", "engine_lire_donnees_csv",
            "engine_valider_profondeur", "mw_valider_triangle",
            "engine_motif_b_alpha", "engine_table_tests", "engine_derogations",
            "engine_empreinte", "engine_parametre_standard", "engine_regle_verdicts",
-           "engine_valider_declarations")
+           "engine_valider_declarations", "mw_cellules_observees")
 
 # 3a. Garde structurelle : toute fonction du moteur citee par l'application ou
 # par l'affichage est un point d'entree de la liste, et chacun commence par
@@ -257,7 +265,7 @@ citees439 <- intersect(unique(unlist(lapply(
 # qui fait appeler engine_valider_declarations() par app.R : l'egalite est
 # alors setequal(citees439, PE439).
 PE_NON_CITES439 <- character(0)
-verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 17 attendues",
+verifier("point d'entree : les fonctions du moteur citees par app.R et display_helpers.R sont les 18 attendues",
          all(PE_NON_CITES439 %in% PE439) &&
            setequal(citees439, setdiff(PE439, PE_NON_CITES439)))
 for (nm in PE439) {
@@ -292,7 +300,7 @@ reg_pt <- new.env(); sonde439(reg_pt)
 verifier(".engine_point_decimal() : sous \".\", l'option reste \".\" dedans et a la sortie",
          identical(reg_pt$dedans, ".") && identical(getOption("OutDec"), "."))
 
-# 3c. Restauration de l'option de l'appelant par chacun des 17 points d'entree :
+# 3c. Restauration de l'option de l'appelant par chacun des 18 points d'entree :
 # (i) sortie normale, appel valide sous OutDec = "," ; (ii) sortie sur erreur,
 # appel sans argument (l'erreur d'argument manquant est levee dans le corps, donc
 # apres la pose : .engine_point_decimal() est la premiere instruction, 3a).
@@ -326,8 +334,9 @@ valides439 <- list(
   engine_parametre_standard = function() engine_parametre_standard(ln_pt),
   engine_regle_verdicts = function() engine_regle_verdicts(0.037),
   engine_valider_declarations = function()
-    engine_valider_declarations("premium", 1, "II", "nettes", DATE_REFERENCE_TESTS))
-verifier("point d'entree : un appel valide prepare pour chacun des 17",
+    engine_valider_declarations("premium", 1, "II", "nettes", DATE_REFERENCE_TESTS),
+  mw_cellules_observees = function() mw_cellules_observees(tri428))
+verifier("point d'entree : un appel valide prepare pour chacun des 18",
          identical(sort(names(valides439)), sort(PE439)))
 # La restitution seule serait vraie d'une fonction qui ne touche pas a l'option :
 # .engine_point_decimal() est donc remplace, dans l'environnement du moteur

@@ -164,6 +164,10 @@ DONNEES_DEFAUT <- data.frame(
 # (issue #108) : f[j - 1] valait NA et le NA gagnait la partie observee du
 # triangle, refusee au clic par mw_valider_triangle(). Triangle identique
 # pour T <= 11. Donnees de demonstration synthetiques.
+# Triangle carre T x T, comme triangle_vide() (#567, decision Q-F2 (a)) : la
+# reinitialisation ne produit qu'un carre ; un triangle a plus d'annees
+# d'accident que de developpement (I > J) n'entre que par import ou par le
+# fichier de demarrage.
 triangle_defaut <- function(T = 8) {
   f <- c(3.20, 1.65, 1.32, 1.14, 1.08, 1.05, 1.02, 1.01, 1.005, 1.003)
   base <- seq(300, 380, length.out = T)
@@ -186,7 +190,8 @@ triangle_defaut <- function(T = 8) {
 # avertissements : avertissements non bloquants du moteur propres au fichier
 # lu, champ avertissements_lecture du lecteur (triangle :
 # engine_lire_triangle(), #518, soit les cellules renseignees sous la
-# diagonale de #491, que la grille i + j <= I ne montre pas ; series :
+# diagonale de #491, que la grille des cellules observees
+# (mw_cellules_observees(), i + j <= I, carre ou I > J) ne montre pas ; series :
 # engine_lire_donnees_csv(), #569, soit l'information de lignes rangees par
 # t croissante, que la grille t = 1..n ne montre pas), restitues sous le
 # statut par statut_ui() ; vides pour un refus (aucune donnee chargee).
@@ -357,8 +362,9 @@ charger_mw <- function() {
   r <- engine_lire_triangle(lu$df)
   if (!r$ok) return(refus(r$erreurs))
   # Triangle de plus de PROFONDEUR_MAX annees : meme refus qu'a l'import
-  # (refus_dimension_triangle(), issue #212), grille vide 8 x 8.
-  rd <- refus_dimension_triangle(nrow(r$triangle))
+  # (refus_dimension_triangle(), issue #212, deux dimensions depuis #567),
+  # grille vide 8 x 8.
+  rd <- refus_dimension_triangle(nrow(r$triangle), ncol(r$triangle))
   if (length(rd)) return(refus(rd))
   list(valeur = r$triangle,
        statut = statut_fichier(TRUE, src, sprintf("charge au demarrage (triangle %d x %d).",
@@ -389,12 +395,16 @@ CHOIX_METHODE <- c("Risque de prime (section B)" = "premium",
 # etre plafonne comme le T saisi sans ecarter des donnees : il est refuse,
 # avec un motif qui nomme sa dimension et la limite. Sans ce refus, l'import
 # d'un triangle 100 x 100 figeait l'application 12 s sur le rendu de la
-# grille (mesure par testServer, issue #212). Retourne le motif,
-# character(0) si le triangle de n annees est dans la limite ; la suite
-# (triangle courant garde a l'import, grille vide au demarrage) est ajoutee
-# par l'appelant.
-refus_dimension_triangle <- function(n, T_max = PROFONDEUR_MAX)
-  refus_dimension(n, T_max, sprintf("Triangle %d x %d", as.integer(n), as.integer(n)),
+# grille (mesure par testServer, issue #212). Deux dimensions (#567, etape
+# 6 de S6) : n_acc annees d'accident (lignes), n_dev annees de
+# developpement (colonnes), n_dev = n_acc par defaut (carre) ; le motif les
+# nomme toutes deux, et le refus porte sur la plus grande. Retourne le motif,
+# character(0) si le triangle est dans la limite ; la suite (triangle
+# courant garde a l'import, grille vide au demarrage) est ajoutee par
+# l'appelant.
+refus_dimension_triangle <- function(n_acc, n_dev = n_acc, T_max = PROFONDEUR_MAX)
+  refus_dimension(max(n_acc, n_dev), T_max,
+                  sprintf("Triangle %d x %d", as.integer(n_acc), as.integer(n_dev)),
                   "annees d'accident, rendu de la grille")
 
 # Refus de series de plus de T_max annees, importees ou lues au demarrage
@@ -760,6 +770,16 @@ ui <- fluidPage(
               ),
               uiOutput("statut_demarrage"),
               uiOutput("import_statut"),
+              # Apercu des controles de validite du moteur, sous les statuts
+              # et au-dessus de la grille (#567, constat d'app-review sur
+              # rendu reel) : place sous la grille, dans le bloc "Controles de
+              # validite", il etait hors de vue apres un import (avertissement
+              # de geometrie (t1) d'un trapeze I > J, haut de l'apercu a
+              # y = 882 en 1280 x 900, sous le bas de la fenetre en
+              # 1366 x 768). Contenu inchange, source unique
+              # (mw_valider_triangle(), engine_valider_serie_retenue()) ; le
+              # statut d'import garde les seuls avertissements_lecture (#518).
+              uiOutput("validation_live"),
               conditionalPanel("input.methode == 'reserve2'",
                 helpText(paste("Le triangle garde la dimension lue, importee ou saisie :",
                                "la profondeur T du panneau de droite ne le modifie pas.",
@@ -781,12 +801,13 @@ ui <- fluidPage(
               h4("Controles de validite"),
               helpText(paste("Ces controles ont une signification statistique et",
                              "actuarielle : ils sont implementes dans engine.R",
-                             "et non dans l'interface. Apres le calcul, la table",
+                             "et non dans l'interface. Leur apercu avant le",
+                             "calcul (refus et avertissements du moteur)",
+                             "s'affiche au-dessus de la grille. Apres le calcul, la table",
                              "comprend aussi les controles numeriques de",
                              "l'estimation (famille H : condition du premier",
                              "ordre, convergence multi-demarrages) ; un ECHEC y",
                              "est signale sans bloquer le calcul.")),
-              uiOutput("validation_live"),
               tableOutput("tab_controles"))
         ),
 
@@ -1316,8 +1337,8 @@ server <- function(input, output, session) {
 
   output$aide_methode <- renderText({
     if (est_mw())
-      paste("Entree : triangle de paiements cumules (n annees d'accident x n annees de",
-            "developpement), de la dimension lue, importee ou saisie.")
+      paste("Entree : triangle de paiements cumules (n annees d'accident x m annees de",
+            "developpement, n \u2265 m), de la dimension lue, importee ou saisie.")
     else paste("Entree : deux vecteurs x_t et y_t sur n annees ; le moteur retient",
                "les T annees les plus recentes.")
   })
@@ -1328,8 +1349,10 @@ server <- function(input, output, session) {
     if (est_mw())
       helpText(HTML(paste("Lignes : annees d'accident i = 0..I. Colonnes : annees de",
         "developpement j = 0..J. Seule la partie superieure gauche (i + j &le; I) est",
-        "observee ; les cellules restantes sont laiss&eacute;es vides. Le fichier",
-        "d'echange est <code>", FICHIER_MW, "</code>.")))
+        "observee ; les cellules restantes sont laiss&eacute;es vides. Un triangle a",
+        "plus d'annees d'accident que de developpement (I &gt; J) s'obtient par import",
+        "ou par le fichier de demarrage ; la reinitialisation charge un triangle carre.",
+        "Le fichier d'echange est <code>", FICHIER_MW, "</code>.")))
     else
       helpText(HTML(paste("Methode risque de prime : x_t = primes acquises, y_t = pertes",
         "agregees. Methode risque de reserve 1 : x_t = provision d'ouverture,",
@@ -1398,12 +1421,17 @@ server <- function(input, output, session) {
     # donnees() ou de triangle().
     version <- version_grille()
     if (est_mw()) {
-      tri <- triangle(); T <- nrow(tri)
+      # Grille de la dimension du triangle courant (#567, etape 6 de S6) :
+      # nrow(tri) lignes i = 0..I, ncol(tri) colonnes j = 0..J (J <= I, un
+      # trapeze I > J entrant par import ou fichier de demarrage) ; cellule
+      # saisissable si et seulement si mw_cellules_observees() (moteur) la
+      # dit observee, aucune regle de forme portee ici.
+      tri <- triangle(); obs <- mw_cellules_observees(tri)
       # Tableau HTML plutot que la grille Bootstrap : column(1, ...) alloue un
       # douzieme de la largeur, insuffisant pour afficher des cumules a sept
       # chiffres, et inutilisable au-dela de onze annees de developpement. Le
       # tableau fixe la largeur des cellules et defile horizontalement si
-      # necessaire, quelle que soit la valeur de T.
+      # necessaire, quelle que soit la dimension du triangle.
       # Largeur adaptee au nombre de chiffres reellement presents. On evite
       # formatC(format = "d"), qui coerce en entier et deborde au-dela de
       # 2,1 milliards ; format(scientific = FALSE) n'a pas cette limite.
@@ -1417,13 +1445,13 @@ server <- function(input, output, session) {
           class = "triangle",
           tags$thead(tags$tr(
             tags$th("i \\ j"),
-            lapply(0:(T - 1), function(j) tags$th(j)))),
-          tags$tbody(lapply(seq_len(T), function(i)
+            lapply(0:(ncol(tri) - 1), function(j) tags$th(j)))),
+          tags$tbody(lapply(seq_len(nrow(tri)), function(i)
             tags$tr(
               tags$th(i - 1),
-              lapply(0:(T - 1), function(j) {
+              lapply(0:(ncol(tri) - 1), function(j) {
                 id <- paste0("c_", i - 1, "_", j)
-                if (i - 1 + j <= T - 1)
+                if (obs[i, j + 1])
                   tags$td(numericInput(id, NULL, value = tri[i, j + 1],
                                        step = 1, width = largeur))
                 else tags$td(class = "vide", "\u2014")
@@ -1452,17 +1480,28 @@ server <- function(input, output, session) {
     list(xt = xt, yt = yt)
   }
 
-  # Lecture du triangle saisi. Aucune transformation quantitative : seules les
-  # cellules observees (i + j <= I) sont relues, les autres restent NA.
-  lire_triangle <- function() {
-    T <- nrow(triangle())
-    m <- matrix(NA_real_, T, T)
-    for (i in 0:(T - 1)) for (j in 0:(T - 1)) if (i + j <= T - 1) {
-      v <- input[[paste0("c_", i, "_", j)]]
-      m[i + 1, j + 1] <- if (is.null(v)) NA_real_ else as.numeric(v)
+  # Champs c_i_j de la grille du triangle (#567, etape 6 de S6), aide unique
+  # de la lecture et de la recopie au changement de methode : cellules
+  # observees du triangle courant, selon mw_cellules_observees() (moteur),
+  # dans une matrice de dim(triangle()). Les deux emplois ne different que
+  # par le sort d'un champ absent (jamais rendu) : NA (base = NULL, lecture)
+  # ou valeur stockee (base = triangle(), recopie). Hors des cellules
+  # observees, la matrice garde la valeur de base (NA pour la lecture).
+  # Aucune transformation quantitative.
+  champs_triangle <- function(base = NULL) {
+    tri <- triangle(); obs <- mw_cellules_observees(tri)
+    m <- if (is.null(base)) matrix(NA_real_, nrow(tri), ncol(tri)) else base
+    for (i in seq_len(nrow(tri))) for (j in seq_len(ncol(tri))) if (obs[i, j]) {
+      v <- input[[paste0("c_", i - 1L, "_", j - 1L)]]
+      if (!is.null(v)) m[i, j] <- as.numeric(v)
     }
     m
   }
+
+  # Lecture du triangle saisi. Aucune transformation quantitative : seules les
+  # cellules observees (mw_cellules_observees(), i + j <= I, j <= J) sont
+  # relues, les autres restent NA ; matrice de dim(triangle()).
+  lire_triangle <- function() champs_triangle()
 
   # Conservation de la saisie au changement de methode (issue #497). La grille
   # se redessine a chaque changement de methode (le rendu depend de est_mw(),
@@ -1476,7 +1515,9 @@ server <- function(input, output, session) {
   # les champs de la grille quittee sont recopies dans donnees() ou
   # triangle(), comme le font deja "Ajouter une annee" et "Retirer la derniere
   # ligne" (saisie_courante()). Recopie sans calcul. Un champ jamais rendu
-  # (entree absente) garde la valeur stockee, au lieu d'etre vide. Import et
+  # (entree absente) garde la valeur stockee, au lieu d'etre vide (pour le
+  # triangle, champs_triangle(), sur les cellules observees de tout
+  # triangle I >= J, #567). Import et
   # reinitialisation ecrivent donnees() ou triangle() puis redessinent la
   # grille : ils remplacent toujours la saisie, la recopie ne s'executant
   # qu'au changement de methode.
@@ -1486,12 +1527,7 @@ server <- function(input, output, session) {
     methode_grille(input$methode)
     if (is.null(prec)) return()
     if (identical(prec, "reserve2")) {
-      tri <- triangle(); T <- nrow(tri)
-      for (i in 0:(T - 1)) for (j in 0:(T - 1)) if (i + j <= T - 1) {
-        v <- input[[paste0("c_", i, "_", j)]]
-        if (!is.null(v)) tri[i + 1, j + 1] <- as.numeric(v)
-      }
-      triangle(tri)
+      triangle(champs_triangle(base = triangle()))
     } else {
       d <- donnees()
       for (i in seq_len(nrow(d))) {
@@ -1627,8 +1663,9 @@ server <- function(input, output, session) {
       # lognormales), qu'un import de triangle n'a pas a modifier.
       m <- v$triangle
       # Triangle de plus de PROFONDEUR_MAX annees : refus motive, meme borne
-      # que la reinitialisation (refus_dimension_triangle(), issue #212).
-      rd <- refus_dimension_triangle(nrow(m))
+      # que la reinitialisation (refus_dimension_triangle(), issue #212,
+      # deux dimensions depuis #567).
+      rd <- refus_dimension_triangle(nrow(m), ncol(m))
       if (length(rd)) {
         refuser_import(rd); return()
       }

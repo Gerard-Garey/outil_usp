@@ -1909,6 +1909,15 @@ plot_mw_qq <- function(pd) {
 # depuis 0 (sigma_j peut valoir 0). Legende hors du trace, sous le panneau du
 # bas. Colonne absente (resultat anterieur a #310) : serie legendee
 # "sigma_j", aucun point distingue.
+# Trapeze I > J (#567, etape 6 de S6, forme (ii) de Q-A1) : la colonne
+# logique sigma_residus_direct du moteur, posee par la geometrie, designe le
+# j = J - 1 ou l'estimateur direct de sigma_(J-1) (pd$facteurs$sigma_residus)
+# reduit les residus ; il y est trace en second point (losange creux,
+# meme couleur que le losange plein de la regle), compris dans l'axe des
+# sigma_j, et les deux points J - 1 sont legendes par les libelles d'usage du
+# moteur (pd$usage_sigma, noms sigma et sigma_residus), lus tels quels. Sans
+# drapeau TRUE (carre), sans les colonnes (resultat anterieur a #567) ou sans
+# pd$usage_sigma : aucun second point, legende T-5 inchangee.
 .LEGENDE_SIGMA_REGLE <- "sigma_(J-1) fixe par la regle de minimum (annexe XVII, D(5)(d)(ii)), non estime"
 # Legende plotly coupee en deux lignes apres "regle de minimum" : sur une
 # ligne, elle est tronquee sous environ 395 px de large (constat
@@ -1922,13 +1931,24 @@ plot_mw_facteurs <- function(pd) {
   regle <- if (is.null(d$sigma_regle_minimum)) rep(FALSE, nrow(d))
            else d$sigma_regle_minimum %in% TRUE
   marque <- any(regle)
+  # [[ ]] et non $ : un data.frame complete partiellement les noms par $, et
+  # d$sigma_residus rendrait sigma_residus_direct si seule cette colonne
+  # existait.
+  direct <- if (is.null(d[["sigma_residus"]]) || is.null(d[["sigma_residus_direct"]]) ||
+                is.null(pd$usage_sigma)) rep(FALSE, nrow(d))
+            else d[["sigma_residus_direct"]] %in% TRUE
+  deux <- any(direct)
+  # Libelles des points J - 1 : usage lu dans le moteur si un second point
+  # est trace, T-5 sinon (rendu d'un carre inchange).
+  leg_regle <- if (deux) unname(pd$usage_sigma[["sigma"]]) else .LEGENDE_SIGMA_REGLE
+  leg_direct <- if (deux) unname(pd$usage_sigma[["sigma_residus"]])
   nom_sigma <- if (marque) "sigma_j estime" else "sigma_j"
   titre <- "Facteurs chain-ladder f_j et ecarts-types sigma_j (M6)"
   # Titre plotly sur deux lignes : sur une ligne, il debordait de la figure a
   # 330 px de large (#500).
   titre_plotly <- .titre_sup("Facteurs chain-ladder f_j", "et ecarts-types sigma_j (M6)")
   xlab <- "annee de developpement j"
-  smax <- suppressWarnings(max(d$sigma, na.rm = TRUE))
+  smax <- suppressWarnings(max(c(d$sigma, d[["sigma_residus"]][direct]), na.rm = TRUE))
   if (!is.finite(smax) || smax <= 0) smax <- 1
   ylim_sigma <- c(0, 1.05 * smax)
   if (!.plotly_dispo()) {
@@ -1956,6 +1976,9 @@ plot_mw_facteurs <- function(pd) {
     if (marque)
       graphics::points(d$j[regle], d$sigma[regle], pch = 23, cex = 1.4,
                        col = COUL$regle, bg = COUL$regle)
+    if (deux)
+      graphics::points(d$j[direct], d[["sigma_residus"]][direct], pch = 5, cex = 1.4,
+                       col = COUL$regle, lwd = 1.5)
     graphics::mtext(titre, side = 3, outer = TRUE, line = 0.3, col = COUL$pt)
     graphics::mtext(xlab, side = 1, outer = TRUE, line = 0.2)
     # Legende dans la marge externe basse, sous l'intitule de l'axe j : son
@@ -1966,10 +1989,11 @@ plot_mw_facteurs <- function(pd) {
     graphics::legend(graphics::grconvertX(0.01, "ndc", "user"),
                      graphics::grconvertY(haut_leg, "ndc", "user"),
                      xjust = 0, yjust = 1, bty = "n", cex = 0.7,
-                     legend = c(nom_sigma, if (marque) .LEGENDE_SIGMA_REGLE),
-                     pch = c(1, if (marque) 23), lty = c(3, if (marque) NA),
-                     col = c(COUL$ref_texte, if (marque) COUL$regle),
-                     pt.bg = c(NA, if (marque) COUL$regle))
+                     legend = c(nom_sigma, if (marque) leg_regle, if (deux) leg_direct),
+                     pch = c(1, if (marque) 23, if (deux) 5),
+                     lty = c(3, if (marque) NA, if (deux) NA),
+                     col = c(COUL$ref_texte, if (marque) COUL$regle, if (deux) COUL$regle),
+                     pt.bg = c(NA, if (marque) COUL$regle, if (deux) NA))
     return(invisible())
   }
   axe <- function(titre_axe, ...) list(title = titre_axe, zeroline = FALSE, gridcolor = "#EEEEEE", ...)
@@ -1987,18 +2011,36 @@ plot_mw_facteurs <- function(pd) {
          line = list(color = COUL$ref_texte, dash = "dot"),
          marker = list(size = 8, color = COUL$fond, line = list(color = COUL$ref_texte, width = 1.5)),
          hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<extra></extra>")
+  # Libelles d'usage (#567) coupes au premier " : " (textes (t3) de T0), T-5
+  # apres "regle de minimum".
   if (marque)
     pb <- plotly::add_trace(pb, x = d$j[regle], y = d$sigma[regle], type = "scatter",
-           mode = "markers", name = .LEGENDE_SIGMA_REGLE_PLOTLY,
+           mode = "markers",
+           name = if (deux) sub(" : ", "<br>", leg_regle, fixed = TRUE) else .LEGENDE_SIGMA_REGLE_PLOTLY,
            marker = list(size = 11, symbol = "diamond", color = COUL$regle),
            hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<br>fixe par la regle de minimum<extra></extra>")
+  if (deux)
+    pb <- plotly::add_trace(pb, x = d$j[direct], y = d[["sigma_residus"]][direct], type = "scatter",
+           mode = "markers", name = sub(" : ", "<br>", leg_direct, fixed = TRUE),
+           marker = list(size = 11, symbol = "diamond-open", color = COUL$regle,
+                         line = list(color = COUL$regle, width = 1.5)),
+           hovertemplate = "j = %{x}<br>sigma = %{y:.5f}<br>estime directement<extra></extra>")
   pb <- plotly::layout(pb, xaxis = axe(xlab), yaxis = axe("sigma_j", range = ylim_sigma))
   p <- plotly::subplot(ph, pb, nrows = 2, shareX = TRUE, titleX = TRUE, titleY = TRUE,
                        margin = 0.03)
+  # Haut de la legende sous le titre de l'axe j. plotly.js agrandit la marge
+  # basse pour loger la legende (la marge b = 80 n'est qu'un minimum), et le
+  # decalage y, fraction de la zone de trace, diminue avec elle. Deux entrees
+  # (carre) : y = -0,30, rendu inchange. Trois entrees (trapeze, #567), dont
+  # deux sur deux lignes, plus hautes : a y = -0,30, la premiere recouvrait le
+  # titre de l'axe ; y = -0,55 l'en ecarte (mesure d'app-review, puis du
+  # correctif, sous Chromium, plotly.js 2.25.2, figure de 330 px de haut,
+  # largeurs 270 a 584 px).
   plotly::layout(p, separators = .SEPARATEURS_PLOTLY,
                  title = .titre_plotly(titre_plotly),
                  showlegend = TRUE,
-                 legend = list(orientation = "h", x = 0, xanchor = "left", y = -0.30,
+                 legend = list(orientation = "h", x = 0, xanchor = "left",
+                               y = if (deux) -0.55 else -0.30,
                                yanchor = "top", font = list(size = 10)),
                  paper_bgcolor = COUL$fond, plot_bgcolor = COUL$fond,
                  margin = list(t = .marge_sous_titre(1L), b = 80))
@@ -2489,8 +2531,22 @@ plot_mw_alpha <- function(pd) {
 #    racine(MSEP) a la reserve chain-ladder totale, sans correction de taille
 #    finie (res$parametre_final$correction_taille vaut 1) ; la duree de
 #    credibilite est I + 1 (section G(3)(c)), soit res$metadata$T.
+#    Trapeze I > J (#567, etape 6 de S6 ; texte (t4) de T0, corrige par
+#    regulatory) : variante qui ecrit C(i, min(I-i, J)), convention de
+#    l'outil, et nomme les annees d'accident i = 0 a I - J, sans
+#    contribution a R ; m$I et m$J sont lus dans l'objet. Carre (ou objet
+#    sans I ni J) : texte inchange.
 texte_formule <- function(res) {
   p <- res$parametre_final; m <- res$metadata
+  if (identical(m$methode, "reserve2") && isTRUE(m$I > m$J))
+    return(sprintf(paste(
+      "Formule appliquee (annexe XVII, section D, paragraphe 4) :",
+      "sigma_USP = c x racine(MSEP) / R + (1-c) x sigma_standard,",
+      "o\u00f9 R = somme_i (C^(i,J) - C(i,min(I-i,J))) est la reserve chain-ladder totale",
+      "(min(I-i,J) : convention de l'outil pour I > J, le texte ecrivant C(i,I-i)),",
+      "a laquelle les annees d'accident i = 0 a %d, observees jusqu'a J, ne contribuent pas,",
+      "sans correction de taille finie, avec c = %.0f %% (bareme %s, duree %d ans)."),
+      as.integer(m$I - m$J), 100 * p$credibilite, m$bareme, as.integer(m$T)))
   if (identical(m$methode, "reserve2"))
     return(sprintf(paste(
       "Formule appliquee (annexe XVII, section D, paragraphe 4) :",

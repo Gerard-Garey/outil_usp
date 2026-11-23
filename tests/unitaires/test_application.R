@@ -38,7 +38,8 @@
 #     reinitialisation sur des donnees deja par defaut (series et triangle)
 #     et par un second import du meme fichier ;
 #   - portee de PROFONDEUR_MAX, regle "T = donnees chargees" (issue #212,
-#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() et
+#     decision du mainteneur du 14/10/2026) : refus_dimension_triangle() (a
+#     deux dimensions depuis #567, motif "Triangle n_acc x n_dev") et
 #     profondeur_apres_reinitialisation() hors Shiny ; avec shiny, import
 #     d'un triangle 41 x 41 refuse avec motif (triangle courant garde),
 #     charger_mw() refusant au demarrage un fichier de 41 annees,
@@ -133,6 +134,17 @@
 #     permutees, donnees valides ou hors controles de validite ; aucun pour
 #     un fichier range ni pour un refus) et, avec shiny, a l'import (CSV et
 #     xlsx, rendu sous le titre Avertissements, memes cas).
+#   - trapeze I > J (issue #567, etape 6 de S6, C4) : avec shiny, import du
+#     8 x 6 du cas reserve2_trapeze (statut, notification d'import ordinaire,
+#     avertissement de geometrie (t1) hors avertissements_lecture) ;
+#     identifiants c_i_j de la grille pour les seules cellules observees ;
+#     lire_triangle() identical() a l'import ; apercu avec (t1) une fois ;
+#     recopie au changement de methode a la dimension 8 x 6 ; clic et calcul
+#     abouti (sigma_USP du cas reserve2_trapeze) ; import d'un 41 x 8 refuse
+#     par refus_dimension_triangle(), triangle courant garde ; apercu
+#     validation_live au-dessus de la grille, sous les statuts (ordre des
+#     sorties de l'interface) ; legende plotly du graphique des facteurs a
+#     y = -0,55 pour les trois entrees du trapeze, -0,30 pour le carre.
 #  La partie Shiny tourne dans un processus R distinct : app.R attache shiny
 #  et recharge le moteur dans l'environnement global, ce qui ne doit pas
 #  toucher les fichiers de tests suivants.
@@ -398,6 +410,19 @@ verifier("refus_dimension_triangle() : 41 et 100 annees refusees, motif qui nomm
                    "Triangle 41 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
            identical(.env$refus_dimension_triangle(100L),
                      "Triangle 100 x 100 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille)."))
+# Deux dimensions (#567, etape 6 de S6, consigne d'architect par. 1.3,
+# point 2) : motif "Triangle n_acc x n_dev", refus sur la plus grande ;
+# appel a un argument identique a l'appel (n, n).
+verifier("refus_dimension_triangle(n_acc, n_dev) : 8 x 6 et 40 x 39 sans motif, 41 x 8 et 8 x 41 refuses avec les deux dimensions, un argument = (n, n) (#567)",
+         identical(.env$refus_dimension_triangle(8L, 6L), character(0)) &&
+           identical(.env$refus_dimension_triangle(40L, 39L), character(0)) &&
+           identical(.env$refus_dimension_triangle(41L, 8L),
+                     "Triangle 41 x 8 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(8L, 41L),
+                     "Triangle 8 x 41 : au-dela de la limite de l'application (40 annees d'accident, rendu de la grille).") &&
+           identical(.env$refus_dimension_triangle(41L), .env$refus_dimension_triangle(41L, 41L)) &&
+           identical(.env$refus_dimension_triangle(10L, 8L, T_max = 9L),
+                     "Triangle 10 x 8 : au-dela de la limite de l'application (9 annees d'accident, rendu de la grille)."))
 # Demarrage sur un fichier de triangle de 41 annees (issue #212, M2 de la
 # revue) : charger_mw() est evaluee avec ses dependances d'app.R, FICHIER_MW
 # pointant vers un fichier ecrit dans un repertoire temporaire (le depot
@@ -2034,7 +2059,7 @@ testServer(app, {
   session$setInputs(fichier_import = dt)
   lu556 <- engine_lire_triangle(utils::read.csv(dt$datapath, colClasses = "character", check.names = FALSE,
                                                 na.strings = character(0), row.names = NULL))
-  a("import de triangle refuse par la recevabilite du moteur (triangle non carre) : meme forme, notification unique, triangle gardee (#556)",
+  a("import de triangle refuse par la recevabilite du moteur (triangle 4 x 3 : D(2)(b) et D(2)(c) ; aussi MW-04 avant #567) : meme forme, notification unique, triangle gardee (#556)",
     !lu556$ok && identical(statut_import()$msg, paste0(ent556(dt, "CSV"), paste(lu556$erreurs, collapse = " "))) &&
       une_notif556() && identical(triangle(), t0) && identical(donnees(), d0))
 })
@@ -2436,6 +2461,128 @@ testServer(app, {
       identical(ref$motifs, c(dv2, vt$erreurs)))
 })
 )---"
+  # Trapeze I > J dans l'application (issue #567, etape 6 de S6, C4 ;
+  # consigne d'architect, par. 1.5) : import du 8 x 6 du cas reserve2_trapeze
+  # (tests/donnees/triangle_mw_trapeze.csv) ; grille aux seules cellules
+  # observees ; lecture et recopie au changement de methode a la dimension
+  # 8 x 6 ; calcul au clic ; refus de dimension d'un 41 x 8 ; place de
+  # l'apercu et legende du graphique des facteurs (constats d'app-review sur
+  # rendu reel). Le navigateur
+  # renvoie les champs de la grille rendue : tri_champs() (bloc de #497) le
+  # reproduit. showNotification() est remplace, dans l'environnement d'app.R,
+  # par un releve, retire en sortie.
+  .bloc_567 <- r"---(
+## Trapeze I > J : import, grille, lecture, recopie, calcul, refus 41 x 8 (issue #567)
+notifs567 <- character(0)
+assign("showNotification", function(ui, ...) {
+  notifs567 <<- c(notifs567, paste(as.character(ui), collapse = "")); invisible("id")
+}, envir = ea)
+depot567 <- function(f, nom = basename(f))
+  data.frame(name = nom, size = file.size(f), type = "text/csv", datapath = f, stringsAsFactors = FALSE)
+f567 <- local({
+  f <- tempfile(fileext = ".csv")
+  invisible(file.copy(file.path("tests", "donnees", "triangle_mw_trapeze.csv"), f))
+  depot567(f, "triangle_mw_trapeze.csv")
+})
+# Trapeze 41 x 8 : colonnes 0 a 7 du triangle par defaut 41 x 41 (partie
+# observee i + j <= 40), recevable par le moteur, au-dela de la limite de
+# 40 annees de l'application.
+f41_567 <- local({
+  f <- tempfile(fileext = ".csv")
+  d <- data.frame(i = 0:40, ea$triangle_defaut(41)[, 1:8]); names(d) <- c("i", paste0("j", 0:7))
+  utils::write.csv(d, f, row.names = FALSE, na = "")
+  depot567(f)
+})
+T1_567 <- "Triangle a 8 annees d'accident et 6 annees de developpement : "
+# Apercu des controles au-dessus de la grille (#567, constat d'app-review
+# sur rendu reel : sous la grille, l'avertissement (t1) etait hors de vue
+# apres l'import, en 1280 x 900 comme en 1366 x 768) : ordre des sorties dans
+# l'interface, une seule sortie validation_live, hors du bloc "Controles de
+# validite" (titre et table des controles apres la grille).
+ui567 <- paste(as.character(ea$ui), collapse = "")
+pos567 <- function(motif) gregexpr(motif, ui567, fixed = TRUE)[[1]]
+a("interface : apercu validation_live unique, sous les statuts de demarrage et d'import et au-dessus de la grille ; titre \"Controles de validite\" et table des controles apres la grille (#567)",
+  length(pos567('id="validation_live"')) == 1L &&
+    all(vapply(c('id="statut_demarrage"', 'id="import_statut"', 'id="validation_live"',
+                 'id="grille_donnees"', "<h4>Controles de validite</h4>", 'id="tab_controles"'),
+               function(m) length(pos567(m)) == 1L && pos567(m) > 0L, NA)) &&
+    !is.unsorted(vapply(c('id="statut_demarrage"', 'id="import_statut"', 'id="validation_live"',
+                          'id="grille_donnees"', "<h4>Controles de validite</h4>",
+                          'id="tab_controles"'), pos567, 0L), strictly = TRUE))
+testServer(app, {
+  do.call(session$setInputs, modifyList(base, list(methode = "reserve2")))
+  imp <- engine_lire_triangle(utils::read.csv(f567$datapath, colClasses = "character", check.names = FALSE,
+                                              na.strings = character(0), row.names = NULL))$triangle
+  notifs567 <<- character(0)
+  session$setInputs(fichier_import = f567)
+  a("trapeze 8 x 6 importe : triangle() 8 x 6 identical() a la lecture du moteur, statut \"Triangle 8 x 6 importe\" sans avertissement de lecture ((t1) hors avertissements_lecture), notification d'import ordinaire (#567)",
+    identical(dim(imp), c(8L, 6L)) && identical(triangle(), imp) && isTRUE(statut_import()$ok) &&
+      identical(statut_import()$msg, "Triangle 8 x 6 importe depuis triangle_mw_trapeze.csv (CSV).") &&
+      !length(statut_import()$avertissements) && identical(notifs567, "Donnees importees."))
+  h <- grille_html(output)
+  obs <- outer(0:7, 0:5, "+") <= 7L
+  pres <- outer(0:7, 0:5, Vectorize(function(i, j) a_id(h, sprintf("c_%d_%d", i, j))))
+  a("trapeze 8 x 6 : identifiants c_i_j de la grille pour les seules cellules observees (i + j <= 7, j <= 5 : 33 champs), ni colonne j = 6 ni ligne i = 8 (#567)",
+    identical(pres, obs) && sum(pres) == 33L && identical(pres, unname(mw_cellules_observees(imp))) &&
+      !a_id(h, "c_0_6") && !a_id(h, "c_8_0"))
+  do.call(session$setInputs, tri_champs(imp))
+  a("trapeze 8 x 6 : lire_triangle() identical() au triangle importe (#567)",
+    identical(lire_triangle(), imp))
+  ap <- apercu(output)
+  a("trapeze 8 x 6 : apercu de validation sans refus, avertissement de geometrie (t1) une fois (#567)",
+    is.character(ap) && !grepl("class=\"err\"", ap, fixed = TRUE) &&
+      lengths(regmatches(ap, gregexpr(T1_567, ap, fixed = TRUE))) == 1L)
+  session$setInputs(c_0_0 = 12345, c_2_5 = 54321)
+  session$setInputs(methode = "reserve1")
+  session$setInputs(methode = "reserve2")
+  att <- imp; att[1, 1] <- 12345; att[3, 6] <- 54321
+  h <- grille_html(output)
+  a("trapeze 8 x 6 : c_0_0 et c_2_5 (colonne J) recopies au changement de methode reserve2 -> reserve1 -> reserve2, triangle 8 x 6 a jour, grille redessinee a la meme dimension (#567, #497)",
+    identical(triangle(), att) && a_val(h, "c_0_0", "12345") && a_val(h, "c_2_5", "54321") &&
+      a_id(h, "c_7_0") && !a_id(h, "c_7_1") && !a_id(h, "c_0_6"))
+  session$setInputs(c_0_0 = imp[1, 1], c_2_5 = imp[3, 6])
+  session$setInputs(go = 1)
+  r <- resultat()
+  a("trapeze 8 x 6 : clic, calcul abouti sur le triangle importe (T = I + 1 = 8, I = 7, J = 5 ; sigma_USP du cas reserve2_trapeze a 1e-12 ; (t1) une fois ; bloc Etat rendu) (#567)",
+    isTRUE(r$ok) && identical(r$triangle, imp) && identical(r$metadata$T, 8L) &&
+      identical(r$metadata$I, 7L) && identical(r$metadata$J, 5L) &&
+      abs(r$parametre$sigma_usp / 0.0475797067089398 - 1) < 1e-12 &&
+      sum(startsWith(r$validation$avertissements, T1_567)) == 1L &&
+      grepl("sigma_USP", as.character(output$etat$html), fixed = TRUE))
+  # Legende plotly du graphique des facteurs (#567, constat d'app-review sur
+  # rendu reel : a y = -0,30, la premiere des trois entrees du trapeze
+  # recouvrait le titre de l'axe j a 395 px) : y = -0,55 a trois entrees
+  # (trapeze calcule ci-dessus), y = -0,30 inchange a deux entrees (carre
+  # par defaut 8 x 8, plots_data construit par les fonctions du moteur).
+  if (requireNamespace("plotly", quietly = TRUE)) {
+    leg567 <- function(pd) {
+      b <- suppressWarnings(plotly::plotly_build(plot_mw_facteurs(pd)))$x
+      list(y = b$layout$legend$y,
+           n = sum(vapply(b$data, function(t) !identical(t$showlegend, FALSE), NA)))
+    }
+    pd_carre567 <- local({
+      aj <- mw_ajuster(ea$triangle_defaut(8))
+      mw_plots_data(aj, mw_residus(aj), list(sigma_boot = numeric(0)), mw_msep(aj), alpha = 0.10)
+    })
+    lt <- leg567(r$plots_data); lc <- leg567(pd_carre567)
+    a("graphique des facteurs, plotly : legende a y = -0,55 pour les trois entrees du trapeze calcule, y = -0,30 inchange pour les deux entrees du carre 8 x 8 (#567)",
+      identical(lt$n, 3L) && identical(lt$y, -0.55) && identical(lc$n, 2L) && identical(lc$y, -0.30))
+  } else a("graphique des facteurs, plotly : legende du trapeze et du carre : saute (plotly absent)", TRUE)
+  t_av <- triangle()
+  notifs567 <<- character(0)
+  session$setInputs(fichier_import = f41_567)
+  h <- grille_html(output)
+  a("trapeze 41 x 8 importe : refuse par refus_dimension_triangle() (motif \"Triangle 41 x 8\"), statut au texte unique, notification unique, triangle 8 x 6 et grille gardes (#567, #212, #556)",
+    identical(statut_import()$ok, FALSE) &&
+      identical(statut_import()$msg,
+                sprintf("Import du fichier %s (CSV) refuse ; donnees courantes conservees. Motif : %s",
+                        f41_567$name, ea$refus_dimension_triangle(41L, 8L))) &&
+      startsWith(ea$refus_dimension_triangle(41L, 8L), "Triangle 41 x 8 : ") &&
+      identical(notifs567, "Import refuse ; donnees courantes conservees : voir le statut d'import.") &&
+      identical(triangle(), t_av) && a_id(h, "c_7_0") && !a_id(h, "c_8_0") && !a_id(h, "c_0_6"))
+})
+rm("showNotification", envir = ea)
+)---"
   .script <- tempfile(fileext = ".R")
   writeLines(c(
     'suppressMessages(library(shiny))',
@@ -2572,7 +2719,7 @@ testServer(app, {
     '    nrow(donnees()) == 4L && identical(statut_import()$ok, FALSE) &&',
     '      is.null(profondeur_import()) && is.character(ap) &&',
     '      grepl("Profondeur T = 8 superieure au nombre d\'annees fournies (4).", ap, fixed = TRUE))',
-    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556, .bloc_504, .bloc_569), .script)
+    '})', .bloc_155, .bloc_212, .bloc_212_garde, .bloc_236_base, .bloc_199, .bloc_240, .bloc_498, .bloc_226, .bloc_236, .bloc_380, .bloc_412, .bloc_483, .bloc_499, .bloc_497, .bloc_518, .bloc_488, .bloc_556, .bloc_504, .bloc_569, .bloc_567), .script)
   # Processus fils lance depuis la racine du depot : app.R y source
   # R/engine.R par chemin relatif. --vanilla ignore .Renviron et .Rprofile :
   # les bibliotheques de ce processus (.libPaths()) lui sont transmises par
@@ -2589,8 +2736,8 @@ testServer(app, {
                         setwd(.ici)
                       })
   .lignes <- grep("^ASSERT\t", .sortie, value = TRUE)
-  verifier("processus Shiny : 176 assertions rendues", length(.lignes) == 176L)
-  if (length(.lignes) != 176L) cat(utils::tail(.sortie, 10), sep = "\n")
+  verifier("processus Shiny : 185 assertions rendues", length(.lignes) == 185L)
+  if (length(.lignes) != 185L) cat(utils::tail(.sortie, 10), sep = "\n")
   for (.l in strsplit(.lignes, "\t", fixed = TRUE))
     verifier(paste("Application :", .l[2]), identical(.l[3], "TRUE"))
 } else {

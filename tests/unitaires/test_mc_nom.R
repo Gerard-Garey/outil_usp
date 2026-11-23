@@ -48,15 +48,18 @@ inv330 <- function(tt, catalogue, boot) {
   TRUE
 }
 
-## --- Six cas de reference versionnes -----------------------------------------
-verifier("#330 references : mc_nom cinquieme champ de fin de ligne, chaine du catalogue ou NA, p et erreur MC lues au bootstrap pour sa statistique",
+## --- Sept cas de reference versionnes ----------------------------------------
+# Catalogue MW_CATALOGUE_MC pour les deux cas Merz-Wuthrich (reserve2,
+# reserve2_trapeze, #567), USP_CATALOGUE_MC pour les cinq cas lognormaux.
+verifier("#330 references (7 cas) : mc_nom cinquieme champ de fin de ligne, chaine du catalogue ou NA, p et erreur MC lues au bootstrap pour sa statistique",
          {
-           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "premium_interieur")
+           cas <- c("premium", "reserve1", "reserve2", "premium_ii6", "premium_net", "premium_interieur",
+                    "reserve2_trapeze")
            v <- lapply(cas, function(k) {
              f <- file.path(RACINE, "tests", "reference", paste0(k, ".rds"))
              if (!file.exists(f)) return("reference absente")
              r <- readRDS(f)
-             inv330(r$tests, if (identical(k, "reserve2")) MW_CATALOGUE_MC else USP_CATALOGUE_MC, r$bootstrap)
+             inv330(r$tests, if (startsWith(k, "reserve2")) MW_CATALOGUE_MC else USP_CATALOGUE_MC, r$bootstrap)
            })
            ok <- vapply(v, isTRUE, logical(1))
            if (all(ok)) TRUE else paste(cas[!ok], unlist(v[!ok]), collapse = " ; ")

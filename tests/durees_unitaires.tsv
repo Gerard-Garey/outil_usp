@@ -64,3 +64,7 @@ test_comparer_references.R	1.5
 test_patcher_reference.R	1.1
 test_regle_verdicts.R	0.8
 test_jonction_detail.R	0.5
+# test_merz_wuthrich_trapeze.R : duree mesuree en session, fichier lance seul (issue #567,
+# etape 6 de S6, C4 : 42,1 s, contre 28,0 s a la tete precedente f9eaff7 ; constat M-1
+# de la revue finale : 46,9 s), non moyenne CI.
+test_merz_wuthrich_trapeze.R	46.9
