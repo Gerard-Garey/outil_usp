@@ -1,0 +1,279 @@
+MESURE DE #617 -- JS2, etape 2b -- protocole actuary-1-protocole-617.md, par. 5
+B = 999 ; graine = 20260831 ; triangles = T1,T2,T0
+I5 au depart : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 : OK ; git status vide : OK
+
+TRIANGLE T1
+-----------
+Triangle (format 17 chiffres), I = 7, J = 5 :
+   j0                  j1                  j2                  j3                  j4                  j5                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2296.09999999999991 2513.51033763696660
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2408.09999999999991 2636.11525807394219
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2584.98999999999978 2829.75440428909087
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2751.32000000000016                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.31477879897625310 ; 0.14192783039124957
+sigma2_(J-1), regle de minimum : 0.14192783039124957
+sigma2_(J-1), estimateur direct : 0
+figes$degeneres : {4}
+figes$non_identifiables : {}
+figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3
+n_{J-1} = 3
+
+Preconditions
+-------------
+P2 (I > J) : OK (I = 7, J = 5)
+P3 (J-1 dans figes$degeneres) : OK
+P4 (cas "degenere") : OK (cas = degenere)
+P5 (regle > 1e-6) : OK (regle = 0.141928)
+P6 (n_{J-1} >= 3) : OK (n = 3)
+
+Executions
+----------
+run_engine() sans crochets : 14.1 s
+P1 (ok = TRUE) : OK
+run_engine() avec crochets : 11.1 s
+
+Controles d'integrite (I1 a I4)
+-------------------------------
+I1 : identical(res$bootstrap) : OK ; identical(engine_table_tests) : OK
+I4 : crochets retires (.mw_stats et .mw_tirer_triangle_valide identiques aux originaux) : OK
+|R| (replications au journal) = 999 ; lignes de stats_boot non entierement NA = 999 ; B = 999
+I2 : |R| = nombre de lignes non NA : OK ; 13 statistiques identiques, dans l'ordre : OK (13 statistiques)
+I3 : .mw_stats(replique = TRUE, combn neuf) sur les 50 premieres replications redonne le journal : OK
+I5 : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 (attendu 723277ddfa5736d7411838d15d8dad00) : OK ; git status --porcelain -- R/ tests/ app.R vide : OK
+
+Controles de doctrine (D1 a D3)
+-------------------------------
+D1 : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle de l'observe (0.14192783039124957) a chaque appel : OK (999 appels ; appels egaux a l'estimateur direct : 0)
+D2 : figes recu par .mw_stats() identique a .mw_ensembles_figes(aj) observe, dans les 999 replications : OK
+D3 : longueur du vivier = nrow(mw_residus(aj, figes$degeneres)) = 22 a chaque appel, sans ligne j dans figes$degeneres : OK (longueurs vues : 22)
+    (info) vivier identique a .mw_pool_residus(aj, figes$degeneres) : OK
+D4 : 12 cles hors Alpha, journal vs triangle de la replication avec C*(i,J) := C*(i,J-1) f*_(J-1), i = 0..I-J :
+     identique : 999 ; tolerance (<= 1e-12 relatif, sans bascule) : 0 ; echec : 0 ; sur |R| = 999 : OK
+     (info) Alpha : replications dont la valeur change entre journal et triangle degenere : 999 / 999
+D5 (lecture) : ligne j = J-1 de poids n_{J-1} = 3 dans mw_famille_alpha(ab)$detail : 999 / 999 replications
+     (info) stat de mw_famille_alpha(ab) identique a la valeur Alpha du journal : 999 / 999
+
+M1 : part des replications ou la colonne figee reste degeneree (.mw_colonne_degeneree)
+--------------------------------------------------------------------------------------
+j = 4 (= J-1) : pi = 0/999 = 0.0000 ; Clopper-Pearson 95 % [0.0000 ; 0.0037]
+    volets : ecart <= 1e-12 : 0 ; aplatissement : 0 ; non degeneree : 999
+    log10(ecart relatif max) : q0.00 = -4.187 ; q0.01 = -3.317 ; q0.50 = -2.150 ; q0.99 = -1.874 ; q1.00 = -1.849
+    ecarts non finis : 0
+
+M2 : famille Alpha avec et sans les colonnes de figes$degeneres
+---------------------------------------------------------------
+stats_obs$Alpha identique a mw_famille_alpha(aj)$stat : OK
+A_obs = 0.0010801674129796576 ; A^sans_obs = 0.0012274629692950656
+p_moteur (res$bootstrap$p_mc[["Alpha"]]) = 0.0080000000000000002 ; err_mc = 0.0028185 ; B_eff = 999 ; recalcul par engine_p_mc : OK
+p_sans (engine_p_mc, queue haute) = 0.0070000000000000001 ; err_mc = 0.00263779 ; B_eff = 999
+Delta p = p_moteur - p_sans = 0.001
+N_moteur = #(A* >= A_obs) = 7 ; N_sans = #(A^sans* >= A^sans_obs) = 6 ; N_moteur - N_sans = 1
+bascules (indicateur de depassement different) : 1 (compte avec seulement : 1 ; compte sans seulement : 0)
+(info) propriete exacte p_moteur >= p_sans : OK
+q_b = n_{J-1} a*_{J-1} / somme n_j a*_j : 999 valeurs finies sur 999 (non finies : denominateur nul ou ligne absente) ; quantiles (type 7) 0, 0.01, 0.5, 0.99, 1 : 3.74948e-05 ; 0.000633941 ; 0.0418507 ; 0.26821 ; 0.401396
+(info) ligne Alpha de engine_table_tests(res0) : verdict = ECHEC ; p_retenue = 0.008 ; famille = M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii)) ; test = Stabilite du facteur selon la ponderation (famille alpha)
+(info) seuils de verdict : p < 0.10 : moteur TRUE, sans TRUE -> meme cote ; p < 0.05 : moteur TRUE, sans TRUE -> meme cote
+
+Issue mecanique (par. 4.3) pour ce triangle
+-------------------------------------------
+critere P1 a P6 : OK ; I1 a I5 : OK ; D1 a D4 : OK
+critere pi sur J-1 : pi_4 = 0 (< 1 : TRUE)
+critere Delta p = 0 : FALSE (Delta p = 0.001)
+ISSUE POUR T1 : 2b (E3)
+  (constat ADR 0018 : E3)
+
+TRIANGLE T2
+-----------
+Triangle (format 17 chiffres), I = 7, J = 4 :
+   j0                  j1                  j2                  j3                  j4                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2025.44000000000005 2330.11489613481763
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2084.96999999999980 2398.59964007534654
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2223.53999999999996 2558.01390125188209
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2393.71000000000004 2753.78156253795441
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2509.96999999999980                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 0.72404040319674878 ; 0.71209194038563495 ; 0.69814138644820289 ; 0.68446413704368803
+sigma2_(J-1), regle de minimum : 0.68446413704368803
+sigma2_(J-1), estimateur direct : 0
+figes$degeneres : {3}
+figes$non_identifiables : {}
+figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4
+n_{J-1} = 4
+
+Preconditions
+-------------
+P2 (I > J) : OK (I = 7, J = 4)
+P3 (J-1 dans figes$degeneres) : OK
+P4 (cas "degenere") : OK (cas = degenere)
+P5 (regle > 1e-6) : OK (regle = 0.684464)
+P6 (n_{J-1} >= 3) : OK (n = 4)
+
+Executions
+----------
+run_engine() sans crochets : 9.8 s
+P1 (ok = TRUE) : OK
+run_engine() avec crochets : 9.3 s
+
+Controles d'integrite (I1 a I4)
+-------------------------------
+I1 : identical(res$bootstrap) : OK ; identical(engine_table_tests) : OK
+I4 : crochets retires (.mw_stats et .mw_tirer_triangle_valide identiques aux originaux) : OK
+|R| (replications au journal) = 999 ; lignes de stats_boot non entierement NA = 999 ; B = 999
+I2 : |R| = nombre de lignes non NA : OK ; 13 statistiques identiques, dans l'ordre : OK (13 statistiques)
+I3 : .mw_stats(replique = TRUE, combn neuf) sur les 50 premieres replications redonne le journal : OK
+I5 : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 (attendu 723277ddfa5736d7411838d15d8dad00) : OK ; git status --porcelain -- R/ tests/ app.R vide : OK
+
+Controles de doctrine (D1 a D3)
+-------------------------------
+D1 : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle de l'observe (0.68446413704368803) a chaque appel : OK (999 appels ; appels egaux a l'estimateur direct : 0)
+D2 : figes recu par .mw_stats() identique a .mw_ensembles_figes(aj) observe, dans les 999 replications : OK
+D3 : longueur du vivier = nrow(mw_residus(aj, figes$degeneres)) = 18 a chaque appel, sans ligne j dans figes$degeneres : OK (longueurs vues : 18)
+    (info) vivier identique a .mw_pool_residus(aj, figes$degeneres) : OK
+D4 : 12 cles hors Alpha, journal vs triangle de la replication avec C*(i,J) := C*(i,J-1) f*_(J-1), i = 0..I-J :
+     identique : 999 ; tolerance (<= 1e-12 relatif, sans bascule) : 0 ; echec : 0 ; sur |R| = 999 : OK
+     (info) Alpha : replications dont la valeur change entre journal et triangle degenere : 999 / 999
+D5 (lecture) : ligne j = J-1 de poids n_{J-1} = 4 dans mw_famille_alpha(ab)$detail : 999 / 999 replications
+     (info) stat de mw_famille_alpha(ab) identique a la valeur Alpha du journal : 999 / 999
+
+M1 : part des replications ou la colonne figee reste degeneree (.mw_colonne_degeneree)
+--------------------------------------------------------------------------------------
+j = 3 (= J-1) : pi = 0/999 = 0.0000 ; Clopper-Pearson 95 % [0.0000 ; 0.0037]
+    volets : ecart <= 1e-12 : 0 ; aplatissement : 0 ; non degeneree : 999
+    log10(ecart relatif max) : q0.00 = -3.026 ; q0.01 = -2.402 ; q0.50 = -1.716 ; q0.99 = -1.504 ; q1.00 = -1.465
+    ecarts non finis : 0
+
+M2 : famille Alpha avec et sans les colonnes de figes$degeneres
+---------------------------------------------------------------
+stats_obs$Alpha identique a mw_famille_alpha(aj)$stat : OK
+A_obs = 0.0011413288851484973 ; A^sans_obs = 0.0013949575262926079
+p_moteur (res$bootstrap$p_mc[["Alpha"]]) = 0.023 ; err_mc = 0.00474273 ; B_eff = 999 ; recalcul par engine_p_mc : OK
+p_sans (engine_p_mc, queue haute) = 0.01 ; err_mc = 0.003148 ; B_eff = 999
+Delta p = p_moteur - p_sans = 0.012999999999999999
+N_moteur = #(A* >= A_obs) = 22 ; N_sans = #(A^sans* >= A^sans_obs) = 9 ; N_moteur - N_sans = 13
+bascules (indicateur de depassement different) : 13 (compte avec seulement : 13 ; compte sans seulement : 0)
+(info) propriete exacte p_moteur >= p_sans : OK
+q_b = n_{J-1} a*_{J-1} / somme n_j a*_j : 999 valeurs finies sur 999 (non finies : denominateur nul ou ligne absente) ; quantiles (type 7) 0, 0.01, 0.5, 0.99, 1 : 0.0015446 ; 0.00474448 ; 0.149837 ; 0.584253 ; 0.805702
+(info) ligne Alpha de engine_table_tests(res0) : verdict = ECHEC ; p_retenue = 0.023 ; famille = M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii)) ; test = Stabilite du facteur selon la ponderation (famille alpha)
+(info) seuils de verdict : p < 0.10 : moteur TRUE, sans TRUE -> meme cote ; p < 0.05 : moteur TRUE, sans TRUE -> meme cote
+
+Issue mecanique (par. 4.3) pour ce triangle
+-------------------------------------------
+critere P1 a P6 : OK ; I1 a I5 : OK ; D1 a D4 : OK
+critere pi sur J-1 : pi_3 = 0 (< 1 : TRUE)
+critere Delta p = 0 : FALSE (Delta p = 0.012999999999999999)
+ISSUE POUR T2 : 2b (E3)
+  (constat ADR 0018 : E3)
+
+TRIANGLE T0
+-----------
+Triangle (format 17 chiffres), I = 7, J = 5 :
+   j0                  j1                  j2                  j3                  j4                  j5                 
+i0  300.00000000000000  962.71000000000004 1564.43000000000006 2073.25358574518305 2350.30292589734290 2572.84556457531517
+i1  311.42857142857099  981.49000000000001 1588.40000000000009 2105.01971682826843 2431.25703491856211 2661.46495828596517
+i2  322.85714285714300 1013.33000000000004 1662.65000000000009 2203.41918420078173 2561.59842277052758 2804.14795370770844
+i3  334.28571428571399 1063.74000000000001 1778.23000000000002 2356.59104196394674 2708.65562895097810                  NA
+i4  345.71428571428601 1120.81999999999994 1885.95000000000005 2499.34647126181926                  NA                  NA
+i5  357.14285714285700 1165.47000000000003 1938.88000000000011                  NA                  NA                  NA
+i6  368.57142857142901 1189.15000000000009                  NA                  NA                  NA                  NA
+i7  380.00000000000000                  NA                  NA                  NA                  NA                  NA
+sigma2_j (j = 0..J-1) : 7.2404040319674878e-01 ; 7.1209194038563495e-01 ; 7.8314166365815951e-29 ; 3.1838018744941560e-01 ; 7.8314166365815951e-29
+sigma2_(J-1), regle de minimum : 7.8314166365815951e-29
+sigma2_(J-1), estimateur direct : 1.2108771700832641e-28
+figes$degeneres : {2, 4}
+figes$non_identifiables : {}
+figes$origine_non_identifiables : {}
+n_j (j = 0..J-1) : 7 ; 6 ; 5 ; 4 ; 3
+n_{J-1} = 3
+
+Preconditions
+-------------
+P2 (I > J) : OK (I = 7, J = 5)
+P3 (J-1 dans figes$degeneres) : OK
+P4 (cas "degenere") : OK (cas = degenere)
+P5 (regle <= 1e-20) : OK (regle = 7.83142e-29)
+P6 (n_{J-1} >= 3) : OK (n = 3)
+
+Executions
+----------
+run_engine() sans crochets : 10.1 s
+P1 (ok = TRUE) : OK
+run_engine() avec crochets : 9.4 s
+
+Controles d'integrite (I1 a I4)
+-------------------------------
+I1 : identical(res$bootstrap) : OK ; identical(engine_table_tests) : OK
+I4 : crochets retires (.mw_stats et .mw_tirer_triangle_valide identiques aux originaux) : OK
+|R| (replications au journal) = 999 ; lignes de stats_boot non entierement NA = 999 ; B = 999
+I2 : |R| = nombre de lignes non NA : OK ; 13 statistiques identiques, dans l'ordre : OK (13 statistiques)
+I3 : .mw_stats(replique = TRUE, combn neuf) sur les 50 premieres replications redonne le journal : OK
+I5 : md5 de R/engine.R = 723277ddfa5736d7411838d15d8dad00 (attendu 723277ddfa5736d7411838d15d8dad00) : OK ; git status --porcelain -- R/ tests/ app.R vide : OK
+
+Controles de doctrine (D1 a D3)
+-------------------------------
+D1 : aj$sigma2[J] recu par .mw_tirer_triangle_valide() = regle de l'observe (7.8314166365815951e-29) a chaque appel : OK (999 appels ; appels egaux a l'estimateur direct : 0)
+D2 : figes recu par .mw_stats() identique a .mw_ensembles_figes(aj) observe, dans les 999 replications : OK
+D3 : longueur du vivier = nrow(mw_residus(aj, figes$degeneres)) = 17 a chaque appel, sans ligne j dans figes$degeneres : OK (longueurs vues : 17)
+    (info) vivier identique a .mw_pool_residus(aj, figes$degeneres) : OK
+D4 : 12 cles hors Alpha, journal vs triangle de la replication avec C*(i,J) := C*(i,J-1) f*_(J-1), i = 0..I-J :
+     identique : 999 ; tolerance (<= 1e-12 relatif, sans bascule) : 0 ; echec : 0 ; sur |R| = 999 : OK
+     (info) Alpha : replications dont la valeur change entre journal et triangle degenere : 400 / 999
+D5 (lecture) : ligne j = J-1 de poids n_{J-1} = 3 dans mw_famille_alpha(ab)$detail : 999 / 999 replications
+     (info) stat de mw_famille_alpha(ab) identique a la valeur Alpha du journal : 999 / 999
+
+M1 : part des replications ou la colonne figee reste degeneree (.mw_colonne_degeneree)
+--------------------------------------------------------------------------------------
+j = 2 : pi = 999/999 = 1.0000 ; Clopper-Pearson 95 % [0.9963 ; 1.0000]
+    volets : ecart <= 1e-12 : 999 ; aplatissement : 0 ; non degeneree : 0
+    log10(ecart relatif max) : q0.00 = 0 ; q0.01 = -15.776 ; q0.50 = -15.475 ; q0.99 = -15.299 ; q1.00 = -15.299
+    ecarts non finis : 0
+j = 4 (= J-1) : pi = 999/999 = 1.0000 ; Clopper-Pearson 95 % [0.9963 ; 1.0000]
+    volets : ecart <= 1e-12 : 999 ; aplatissement : 0 ; non degeneree : 0
+    log10(ecart relatif max) : q0.00 = 0 ; q0.01 = 0 ; q0.50 = -15.693 ; q0.99 = -15.392 ; q1.00 = -15.392
+    ecarts non finis : 0
+
+M2 : famille Alpha avec et sans les colonnes de figes$degeneres
+---------------------------------------------------------------
+stats_obs$Alpha identique a mw_famille_alpha(aj)$stat : OK
+A_obs = 0.00078018879548024181 ; A^sans_obs = 0.0011473364639414964
+p_moteur (res$bootstrap$p_mc[["Alpha"]]) = 0.016 ; err_mc = 0.00396986 ; B_eff = 999 ; recalcul par engine_p_mc : OK
+p_sans (engine_p_mc, queue haute) = 0.016 ; err_mc = 0.00396986 ; B_eff = 999
+Delta p = p_moteur - p_sans = 0
+N_moteur = #(A* >= A_obs) = 15 ; N_sans = #(A^sans* >= A^sans_obs) = 15 ; N_moteur - N_sans = 0
+bascules (indicateur de depassement different) : 0 (compte avec seulement : 0 ; compte sans seulement : 0)
+(info) propriete exacte p_moteur >= p_sans : OK
+q_b = n_{J-1} a*_{J-1} / somme n_j a*_j : 999 valeurs finies sur 999 (non finies : denominateur nul ou ligne absente) ; quantiles (type 7) 0, 0.01, 0.5, 0.99, 1 : 0 ; 0 ; 3.64856e-14 ; 2.78355e-13 ; 5.78918e-13
+(info) ligne Alpha de engine_table_tests(res0) : verdict = ECHEC ; p_retenue = 0.016 ; famille = M1. proportionnalite des cumules (annexe XVII D(2)(h)(iii)) ; test = Stabilite du facteur selon la ponderation (famille alpha)
+(info) seuils de verdict : p < 0.10 : moteur TRUE, sans TRUE -> meme cote ; p < 0.05 : moteur TRUE, sans TRUE -> meme cote
+
+Issue mecanique (par. 4.3) pour ce triangle
+-------------------------------------------
+critere P1 a P6 : OK ; I1 a I5 : OK ; D1 a D4 : OK
+critere pi sur toutes les colonnes figees : pi_2 = 1, pi_4 = 1 (< 1 : FALSE)
+critere Delta p = 0 : TRUE (Delta p = 0)
+ISSUE POUR T0 : 1
+
+SYNTHESE
+--------
+I5 a la fin : md5 de R/engine.R : OK ; git status vide : OK
+T1 : issue 2b ; Delta p = 0.001 (p_moteur 0.008, p_sans 0.007) ; pi_4 = 0
+T2 : issue 2b ; Delta p = 0.013 (p_moteur 0.023, p_sans 0.01) ; pi_3 = 0
+T0 : issue 1 ; Delta p = 0 (p_moteur 0.016, p_sans 0.016) ; pi_2 = 1, pi_4 = 1
+ISSUE GLOBALE : 2b
+
+PIED
+----
+duree : 95.9 s
+R version 4.3.3 (2024-02-29)
+RNGkind() : Mersenne-Twister, Inversion, Rejection
+git rev-parse HEAD : 17367cc5a3633c52eaa6dee85f27c0b2c3cf8d5b
+md5 R/engine.R : 723277ddfa5736d7411838d15d8dad00
+md5 R/charger_moteur.R : 5ed6226c768d5ad781ea03a7306ccc11
+md5 mesure_617.R : 724bfa8181f3b3b454acc07c1511d475
