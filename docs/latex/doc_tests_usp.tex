@@ -1494,11 +1494,10 @@ contexte des fonctions de calcul du catalogue~: ratios $r_t$ et ratios centrés 
 vecteur $\hat\pi_t$ de l'ajustement (de l'observé, ou de la réplication), lu par
 l'entrée \code{Intercept} pour les poids de la régression pondérée~;
 ensemble des colonnes dégénérées (figé à l'observé par \code{mw\_bootstrap()}, calculé sur
-\code{aj} s'il n'est pas fourni) et résidus de Mack calculés sans les colonnes de cet ensemble ni
-celles de \code{degeneres\_aj} (réunion, §\ref{sec:mw}), vecteur des résidus
-vide (\code{numeric(0)}) quand aucun n'est retenu, lus
-par les entrées \code{ExpVar} et \code{KruskalAcc}, qui ne les recalculent
-pas~; ensemble des colonnes non identifiables de la courbure, figé de
+\code{aj} s'il n'est pas fourni) et résidus de Mack calculés avec cet ensemble (§\ref{sec:mw}),
+vecteur des résidus vide (\code{numeric(0)}) quand aucun n'est retenu, lus par les entrées
+fondées sur les résidus (\code{BP}, \code{DW}, \code{Runs}, \code{PenteIntra}, \code{ExpVar} et
+\code{KruskalAcc}), qui ne les recalculent pas~; ensemble des colonnes non identifiables de la courbure, figé de
 même, lu par l'entrée \code{Courbure} (fiche~\ref{mw:m1c})~; ensemble des
 colonnes non identifiables de l'ordonnée à l'origine, figé de même, lu par l'entrée
 \code{Origine} (fiche~\ref{mw:m1a}). Ces ensembles forment un objet unique, l'élément
@@ -1509,9 +1508,9 @@ combinaisons (élément \code{combn}, présent seulement quand \code{mw\_bootstr
 transmise par l'entrée \code{Courbure} à \code{mw\_test\_courbure()} (voir, dans cet index,
 \code{.mw\_combinaisons()})~; élément \code{degeneres\_aj}, colonnes dégénérées de l'ajustement
 courant lui-même (\code{.mw\_colonnes\_degenerees(aj)}, distinctes de l'ensemble figé dans une
-réplication), calculées une fois par contexte, passées à \code{mw\_residus()} et, par les entrées \code{MinP4},
-\code{Origine}, \code{HomogF} et \code{Courbure}, à l'argument \code{degeneres\_aj} de leur
-fonction de test \\
+réplication), calculées une fois par contexte et passées par les entrées \code{MinP4},
+\code{Origine}, \code{HomogF} et \code{Courbure} à l'argument \code{degeneres\_aj} de leur
+fonction de test, les résidus de Mack n'en dépendant pas \\
 \code{.mc\_evaluer()} & catalogue, contexte & vecteur nommé dans l'ordre du catalogue~; erreur
 qui nomme la statistique si une entrée ne rend pas une valeur de longueur~1 \\
 \code{engine\_p\_mc()} & valeurs simulées, valeur observée, sens du rejet, \code{extremes}
@@ -1934,10 +1933,9 @@ contrefactuel $\sigma^2_{J-1} = 0$~; voie de recalcul, que \code{run\_engine()} 
 sensibilité ne figurant pas dans le commentaire de la ligne, sans effet sur
 $\sigma_{(\text{res},s,\mathrm{USP})}$ (fiche~\ref{mw:m6sig}) \\
 \code{mw\_residus()} & \code{aj}, \code{j\_degeneres} (\code{NULL}~: ensemble calculé sur
-\code{aj}), \code{degeneres\_aj} (\code{NULL}~: colonnes dégénérées de \code{aj}, calculées
-ici) & \code{data.frame} des résidus de Mack
-$r(i,j)$, colonnes dégénérées exclues (réunion de \code{j\_degeneres} et des colonnes dégénérées de
-\code{aj}, §\ref{sec:mw}) consignées dans l'attribut \code{colonnes\_exclues}, écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()}, $\hat\sigma_j$ par \code{.mw\_sigma2\_residus()} \\
+\code{aj}) & \code{data.frame} des résidus de Mack
+$r(i,j)$, colonnes de \code{j\_degeneres} et colonnes à $\hat\sigma^2_j$ non fini ou $\le 0$
+exclues (§\ref{sec:mw}) et consignées dans l'attribut \code{colonnes\_exclues}, écart $F(i,j) - \hat f_j$ par \code{.mw\_ecart\_facteur\_stable()}, $\hat\sigma_j$ par \code{.mw\_sigma2\_residus()} \\
 \code{.mw\_sigma2\_}\newline\code{residus()} & \code{aj} & vecteur des $\hat\sigma^2_j$ qui réduisent
 les résidus de Mack~: \code{aj\$sigma2}, sauf $\hat\sigma^2_{J-1}$ remplacé, sur un trapèze, par
 l'estimateur direct~; lu par \code{mw\_residus()}, \code{mw\_influence()},
@@ -6542,10 +6540,9 @@ n'est possible. Le moteur emploie un rééchantillonnage des résidus standardis
 ne suppose que leur échangeabilité~: les p-values correspondantes sont donc
 \emph{semi-paramétriques} et non paramétriques. Le vivier ne contient que les résidus retenus par
 \code{mw\_residus()}~: ceux des colonnes dégénérées, au sens du prédicat unique et selon
-l'ensemble figé à l'observé, en sont exclus (§\ref{sec:mw}). Dans une réplication, les résidus
-excluent en outre les colonnes devenues dégénérées (§\ref{sec:mw})~; une
-réplication qui n'a plus aucun résidu est gardée, ses statistiques fondées sur les résidus étant
-non finies et hors de $B_{\text{eff}}$ pour leur seule clé.
+l'ensemble figé à l'observé, en sont exclus (§\ref{sec:mw}), dans le vivier comme dans les
+résidus de chaque réplication~; une réplication qui n'a aucun résidu est gardée, ses statistiques
+fondées sur les résidus étant non finies et hors de $B_{\text{eff}}$ pour leur seule clé.
 
 \emph{Hypothèse nulle des p-values de Monte-Carlo.} Chaque triangle simulé conserve la première
 colonne observée et engendre les suivantes par $C(i,j+1) = \hat f_j\,C(i,j) + e\,\hat\sigma_j
@@ -6577,8 +6574,8 @@ par \code{mw\_msep()} sur le triangle réajusté, donc avec la règle de la rép
 dégénérée, ou triangle carré, qui n'a pas d'estimateur direct~: simulation avec la valeur de la
 règle. \emph{Fondement.} Simuler la colonne $J-1$ avec la variance qui en réduit les résidus
 observés tire les réplications sous le modèle dont ces résidus sont issus~; la valeur de la règle,
-prescrite pour la MSEP, n'estime pas la variance de la colonne~: elle s'en écarte fortement, dans
-un sens ou dans l'autre, sous le plan mesuré (§\ref{sec:trapeze-niveau}), et, nulle ou
+prescrite pour la MSEP, n'est pas tirée des facteurs de cette colonne et peut s'écarter fortement
+de sa variance, dans un sens ou dans l'autre, sous le plan mesuré (§\ref{sec:trapeze-niveau}), et, nulle ou
 négligeable alors que la colonne observée est dispersée, elle rendrait la colonne simulée
 déterministe, les données observées étant alors de probabilité nulle sous la loi de référence. Le
 choix repose sur une mesure sous un plan, à $T = 8$, et non sur un théorème
@@ -6586,7 +6583,7 @@ choix repose sur une mesure sous un plan, à $T = 8$, et non sur un théorème
 sur $8\times7$ à celui du carré dont le trapèze est la troncature, ne dégrade celui d'aucune ligne
 sur $8\times5$ et $8\times6$ au-delà d'une marge fixée avant la mesure, ne laisse aucune
 distorsion matérielle libérale dans un cas à règle nulle, et laisse la couverture de l'intervalle
-bootstrap inchangée. Pour chaque triangle
+bootstrap pratiquement inchangée. Pour chaque triangle
 tiré, mêmes appels à
 \code{sample()}, dans le même ordre~; seul le retirage d'un triangle simulé à cumul non
 strictement positif peut dépendre de l'écart type de la colonne $J-1$. Vivier,
@@ -15817,21 +15814,20 @@ triangle de Taylor \& Ashe dont la colonne $j = 4$ est perturbée de $\pm 10^{-1
 dans les lignes fondées sur les résidus et dans le vivier du bootstrap. Le résidu d'une
 colonne dégénérée vaut $0/0$ si les facteurs sont exactement égaux~; sinon, il n'est que le
 rapport d'écarts négligeables à la tolérance de l'outil. L'ensemble est calculé une fois sur le
-triangle observé par \code{mw\_bootstrap()} et figé, comme pour M1 (section~\ref{sec:mwm1},
-règle~(1)). Les résidus d'une réplication (\code{.mw\_contexte\_mc()}) excluent la réunion de cet ensemble figé et des colonnes
-dégénérées de la réplication elle-même, au sens du même prédicat~: à l'inverse des colonnes non
-identifiables de M1 (section~\ref{sec:mwm1}, règle~(2)), le modèle simulé produit ici ce qui
-déclenche la sélection (colonne $J-2$ du triangle de contrôle portée à une dispersion relative de
-$2\cdot 10^{-12}$~: dégénérée dans 396 réplications sur 999, fichier
-\code{docs/tableaux/}\allowbreak\code{20261123-}\allowbreak\code{issue612-}\allowbreak\code{simulation-jm1-trapeze.md},
-constat (1)), et les résidus d'une telle colonne n'y seraient qu'un bruit d'arrondi normé.
-L'ensemble figé contenant les colonnes dégénérées de l'observé, la statistique reste la même
-fonction du triangle à l'observé et dans chaque réplication~; la réplication est gardée, une
-statistique sans résidus suffisants étant non finie pour sa seule clé
-(section~\ref{sec:boot-mw}). À la différence des vérifications de M1, dont la statistique devient
-non définie, le nombre de résidus et le nombre $K$ d'une combinaison par colonne peuvent donc
-différer entre l'observé et une réplication (fiche~\ref{mw:m2b})~; argument élémentaire, adossé
-à aucune référence publiée. Le vivier ne contient que les résidus retenus à l'observé. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
+triangle observé par \code{mw\_bootstrap()} et figé pour les résidus de chaque réplication,
+comme pour M1 (section~\ref{sec:mwm1}, règle~(1))~: la sélection est une convention fixée à
+l'observé, et la statistique reste la même fonction du triangle dans chaque réplication. Le
+bruit d'arrondi normé décrit ci-dessus est celui d'une colonne de cet ensemble. Une colonne hors
+de l'ensemble figé qui devient dégénérée dans une réplication, au sens du même prédicat, garde
+ses résidus~: ses facteurs simulés sont de vrais tirages du modèle, et leurs écarts
+$F(i,j) - \hat f_j$, calculés en double précision, gardent leurs signes et leurs rangs exacts,
+l'erreur d'arrondi restant petite devant le plus grand écart de la colonne (\emph{constat de
+calcul} en arithmétique rationnelle exacte sur des colonnes construites à une dispersion relative
+de $5\cdot 10^{-13}$ à $10^{-11}$, non une borne générale). Le nombre de résidus d'une réplication est donc celui de l'observé, sauf pour une colonne dont le
+$\hat\sigma^2_j$ simulé n'est pas strictement positif (résidu non défini, colonne exclue), et le
+nombre $K$ d'une combinaison par colonne aussi, hors de la garde d'aplatissement propre à la ligne
+d'exposant de variance (fiche~\ref{mw:m2b})~; argument élémentaire, adossé à aucune référence
+publiée. Le vivier ne contient que les résidus retenus à l'observé. \code{mw\_residus()} consigne ces colonnes dans l'attribut \code{colonnes\_exclues}
 (retiré avant le stockage des résidus dans le résultat, dont la structure est inchangée), et
 \code{mw\_valider\_ajustement()} nomme chacune, compte les résidus exclus et retenus et cite les
 dix lignes de M1 à M5 qui consomment ces résidus (constante \code{.MW\_LIGNES\_RESIDUS})~: M1, absence de
@@ -16099,9 +16095,9 @@ leur erreur de prédiction à un an sur un trapèze~: elle l'est par une concord
 l'implémentation de l'auteur (section~\ref{sec:verif}), qui établit que le moteur calcule la même
 convention, non que cette convention est celle du règlement. (iii)~Le niveau des tests est un
 constat de simulation sous un plan, à $T = 8$ (§\ref{sec:trapeze-niveau}). (iv)~La couverture de
-l'intervalle bootstrap de $\sigma$, mesurée sous le même plan sans résultat exact, est nettement
-inférieure au nominal, comme sur le carré, et insensible à la simulation de la colonne $J-1$
-(§\ref{sec:trapeze-niveau}).
+l'intervalle bootstrap de $\sigma$, mesurée sous le même plan sans résultat exact, est inférieure
+au nominal, sauf sous E sur $8\times6$ et $8\times7$, où elle l'atteint~; elle dépend de la cible,
+non de la simulation de la colonne $J-1$ (§\ref{sec:trapeze-niveau}).
 \end{encadre}
 
 \subsection{Hypothèses testables et résidus}
@@ -16202,14 +16198,16 @@ n'est classée sur les trois trapèzes~; trois réserves~:
   changement d'échelle d'une seule colonne~; simulée avec la valeur de la règle, qui sous-estime
   ici fortement $\sigma^2_{J-1}$ (ci-dessus), la colonne $J-1$ porterait l'excès à $+0{,}0195$ (N)
   et $+0{,}0275$ (E)~; la convention aligne la ligne sur le carré, aux deux seuils et sous les deux
-  lois, à un reste près dans le quart des triangles où le rapport de la règle à l'estimateur direct
-  est le plus petit ($+0{,}024$ sur le témoin à $0{,}05$, N et E réunis, lecture faite après la
-  mesure). Une \code{ALERTE} ou un \code{ECHEC} de la ligne peut donc surestimer la preuve, sur
+  lois. Par quart du rapport de la règle à l'estimateur direct (lecture descriptive faite après la
+  mesure, N et E réunis, à $0{,}05$), l'excès sur le témoin passe, de la valeur de la règle à la
+  convention, de $+0{,}062$ à $+0{,}024$ dans le premier quart et de $+0{,}013$ à $+0{,}027$ dans
+  le dernier. Une \code{ALERTE} ou un \code{ECHEC} de la ligne peut donc surestimer la preuve, sur
   un trapèze comme sur le carré~;
 \item \emph{famille~$\alpha$} (fiche~\ref{mw:m1d}), \textbf{légèrement libérale sur $8\times6$
   sous E à $0{,}10$}~: excès sur le témoin de $+0{,}0135$ $[0{,}004~;~0{,}022]$ (classe compatible),
   contre $+0{,}0045$ sous la valeur de la règle, dans la marge fixée avant la mesure~; la
-  convention réduit en revanche la dépendance de la ligne à ce rapport.
+  convention réduit en revanche la dépendance de la ligne au rapport de la règle à l'estimateur
+  direct (même lecture descriptive par quart).
 \end{itemize}
 
 \emph{Couverture de l'intervalle bootstrap} (même plan~; percentile à 90~\% de \code{res\$ic\_bootstrap},
@@ -16226,14 +16224,18 @@ simulation}, sans résultat exact. Taux de non-couverture et intervalle de Clopp
 \textcolor{financeblue}{\textbf{Loi N}} &
 \textcolor{financeblue}{\textbf{Loi E}} \\
 $8\times5$ & $0{,}3545$ $[0{,}334~;~0{,}376]$ & $0{,}2645$ $[0{,}245~;~0{,}284]$ \\
-$8\times6$ & $0{,}1920$ $[0{,}175~;~0{,}210]$ & $0{,}1090$ $[0{,}096~;~0{,}124]$ \\
+$8\times6$ & $0{,}1920$ $[0{,}175~;~0{,}210]$ & $0{,}1090$ $[0{,}096~;~0{,}123]$ \\
 $8\times7$ & $0{,}1625$ $[0{,}147~;~0{,}179]$ & $0{,}0940$ $[0{,}082~;~0{,}108]$ \\
 \end{tabular}
 \end{center}
-La sous-couverture vient presque entière de la queue haute (borne haute sous la cible), comme sur
-le carré (section~\ref{sec:boot-mw})~; elle est insensible à la simulation de la colonne $J-1$
-(écart apparié entre la convention et la valeur de la règle de $-0{,}002$ à $0$, pour un seuil de
-$+0{,}02$ fixé avant la mesure).
+La sous-couverture, là où elle existe, vient presque entière de la queue haute (borne haute sous
+la cible), comme sur le carré, où elle est plus forte (section~\ref{sec:boot-mw}). Elle dépend de
+la cible~: contre le $\sigma_A$ calculé avec la valeur de $\sigma^2_{J-1}$ sous laquelle le plan tire
+les triangles, et non avec celle de la règle, la non-couverture vaut sur $8\times7$ $0{,}3625$ (N)
+et $0{,}3345$ (E), la règle y sous-estimant $\sigma^2_{J-1}$ (ci-dessus). Elle est insensible à la
+simulation de la colonne $J-1$~: écart apparié entre la convention et la valeur de la règle de
+$-0{,}002$ à $0$, borne haute de son intervalle à 90~\% au plus $0{,}0016$, pour un seuil de
+$+0{,}02$ sur cette borne, fixé avant la mesure.
 
 \begin{encadre}
 \textbf{La normalité n'est pas une hypothèse de la méthode.} D(2)(h)
@@ -16405,12 +16407,11 @@ individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est 
 L'ensemble est déterminé une fois sur le triangle observé et conservé dans chaque réplication
 (\code{.mw\_colonnes\_degenerees()}, élément \code{degeneres} de l'objet des ensembles figés
 \code{.mw\_ensembles\_figes()}, argument \code{j\_degeneres} des fonctions de test), de sorte que
-$K$ est identique entre statistique observée et simulée. Les résidus de Mack de chaque réplication
-(entrées \code{ExpVar} et \code{KruskalAcc} du catalogue \code{MW\_CATALOGUE\_MC}) excluent la
-réunion de cet ensemble figé et des colonnes dégénérées de la réplication (§\ref{sec:mw})~; le
-seul ensemble figé est transmis, par extension, règle de l'outil, au test calendaire et à la
-corrélation entre années adjacentes (entrées \code{Calendrier} et \code{CorrDev},
-fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
+$K$ est identique entre statistique observée et simulée. Le même ensemble figé est transmis aux
+résidus de Mack de chaque réplication (contexte de \code{.mw\_contexte\_mc()}, lu par les
+entrées du catalogue \code{MW\_CATALOGUE\_MC} fondées sur les résidus, §\ref{sec:mw}) et, par
+extension, règle de l'outil, au test calendaire et à la corrélation entre années adjacentes
+(entrées \code{Calendrier} et \code{CorrDev}, fiches~\ref{mw:m3cal} et~\ref{mw:m3cor}).
 
 \emph{(2) Ensembles figés des colonnes non identifiables.} La courbure et l'ordonnée à l'origine
 ont chacune un ensemble de colonnes non identifiables, distinct de celui des colonnes dégénérées~:
@@ -16550,7 +16551,7 @@ F.\,V. Waugh, \emph{Partial time regressions as compared with individual trends}
 \emph{Econometrica}, 1(4), 1933, p.~387--401.}
 \Cadre
 Régression auxiliaire sur les cellules qui portent un résidu de Mack (colonnes dégénérées exclues
-selon la règle commune, section~\ref{sec:mwm1}, règle~(1)), en unités relatives~:
+selon l'ensemble figé, règle commune, section~\ref{sec:mwm1}), en unités relatives~:
 \[
   \frac{F(i,j)}{\hat f_j} = \mu_j + b\,\frac{C(i,j) - \bar C_j}{\bar C_j} + \varepsilon_{ij},
   \qquad \text{poids } w_{ij} = \frac{C(i,j)\,\hat f_j^{\,2}}{\hat\sigma_j^2},
@@ -17555,7 +17556,7 @@ Partialisation des effets fixes de colonne par le théorème de R.~Frisch, F.\,V
 une construction de l'outil pour des résidus de Mack, et non un test publié.}
 \Cadre
 Résidus de Mack $r(i,j)$ (section~\ref{sec:notations-mw}), colonnes dégénérées exclues selon
-la règle commune (section~\ref{sec:mwm1}, règle~(1)), redressés par le levier comme le vivier du bootstrap
+l'ensemble figé (règle commune, section~\ref{sec:mwm1}), redressés par le levier comme le vivier du bootstrap
 (section~\ref{sec:boot-mw})~:
 \[
   \tilde r(i,j) = \frac{r(i,j)}{\sqrt{1 - h_{ij}}}, \qquad h_{ij} = \frac{C(i,j)}{S_j},
@@ -17703,8 +17704,8 @@ corrélation de rang entre $|r(i,j)|$ et $C(i,j)$, après aplatissement des ex \
 garde $\mathrm{sd}(C) = 0$~; §\ref{sec:ex-aequo}). Une colonne dont les cumuls ou les valeurs
 absolues des résidus sont constants après aplatissement n'a pas de corrélation de rang définie et
 est écartée de la combinaison, comme une colonne trop courte~; les résidus sont ceux de
-\code{mw\_residus()}, colonnes dégénérées exclues selon la règle commune
-(section~\ref{sec:mwm1}, règle~(1)).
+\code{mw\_residus()}, colonnes dégénérées exclues selon l'ensemble figé (règle commune,
+section~\ref{sec:mwm1}).
 \Hzero
 $H_0$ (libellé de la ligne)~: la variance est proportionnelle à $C(i,j)$,
 $\operatorname{Var}[C(i,j+1)\mid C(i,j)] = \sigma_j^2\,C(i,j)$, avec une constante $\sigma_j^2$
@@ -17787,8 +17788,8 @@ $0{,}544$, restituée, non retenue. Les résidus de chaque réplication
 levier de la rubrique~2, sous l'interprétation de l'outil ($f_j$ et $\sigma_j^2$ communs aux
 années), ce que la p $\chi^2(2K)$ et la plus petite p-value atteignable, fondées sur une loi
 échangeable, ignorent~; le commentaire de la ligne dit seulement que le lien est lu au-delà de
-l'effet de levier. Réserve~: $K$ peut différer entre l'observé et une réplication (colonne
-devenue dégénérée ou constante après aplatissement, §\ref{sec:mw}), à la différence de M1~; effet non mesuré.
+l'effet de levier. Réserve~: la garde d'aplatissement (rubrique~1) peut écarter une colonne à
+l'observé seul (sens conservateur) ou dans une réplication seule (sens libéral)~; ampleur non mesurée.
 \Usage
 La ligne d'hétéroscédasticité de la fiche précédente agrège les colonnes en une pente commune,
 à colonne donnée~; ce test-ci localise. Un rejet signale un lien entre $|r(i,j)|$ et $C(i,j)$ que
