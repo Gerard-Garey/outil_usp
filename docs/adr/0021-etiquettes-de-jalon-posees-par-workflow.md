@@ -1,11 +1,11 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-25
 ---
 
 # L'étiquette annotée d'un jalon est posée par le workflow `etiquettes.yml`, à la fusion d'une PR courte qui verse son message ; c'est le seul workflow du dépôt qui écrit, et il n'écrit que des étiquettes
 
-> *Rédigé par l'agent architect (IA), fiche `architect-approfondi` (ADR d'organisation : jugement, `docs/agents/routage.md`, § 3 ; modèle annoncé par l'environnement de la consultation : `claude-opus-5-5`), le 25/11/2026, soixante-quinzième point d'étape, partie 2, sur la branche de travail `claude/creneau-a3` (tête `2ddca5a`, `main` `c105f62`). Rédigé sur la décision Q-75-2 (a) du mainteneur du 25/11/2026 (`docs/feuille-de-route.md`, § 4, E-25/11 (Q-75)). **Statut : proposé** ; l'acceptation revient au mainteneur (Q-75-7, § 5). Aucun fichier de code, de test, de workflow ni de documentation LaTeX n'est modifié par cette proposition.*
+> *Rédigé par l'agent architect (IA), fiche `architect-approfondi` (ADR d'organisation : jugement, `docs/agents/routage.md`, § 3 ; modèle annoncé par l'environnement de la consultation : `claude-opus-5-5`), le 25/11/2026, soixante-quinzième point d'étape, partie 2, sur la branche de travail `claude/creneau-a3` (tête `2ddca5a`, `main` `c105f62`). Rédigé sur la décision Q-75-2 (a) du mainteneur du 25/11/2026 (`docs/feuille-de-route.md`, § 4, E-25/11 (Q-75)). **Statut : accepté le 25/11/2026** (rubrique « Acceptation » ; d'abord proposé, question Q-75-7). Aucun fichier de code, de test, de workflow ni de documentation LaTeX n'est modifié par cette proposition.*
 
 ## Contexte
 
@@ -112,3 +112,9 @@ Le principe 2 de l'ADR 0010 vise les **workflows d'agents** de `.claude/workflow
 - Issue #621 ; PR #622 (`94f5220`, fusion `c105f62`) ; exécution 45710044766 ; étiquette `v3.1.0` (objet `5f1605d`).
 - `docs/feuille-de-route.md` : § 4, E-08/11 (54e point) (Q-54-4), E-18/11 (Q-67) (Q-67-2, Q-67-8), E-25/11 (JS2, 11-12), E-25/11 (Q-75) ; § 5, soixante-quinzième point (Q-75-2, Q-75-7, Q-75-8) ; § 6, lignes #619 et #622, bilan de JS2.
 - ADR 0006 (critère de la batterie), ADR 0007 (points 3 et 6), ADR 0010 (principe 2), ADR 0011 (références par la CI), ADR 0018 (§ 5.1, issue urgente).
+
+## Acceptation
+
+**Accepté** par le mainteneur le 25/11/2026, tel que proposé, sans amendement (**Q-75-7 (a)**, `docs/feuille-de-route.md`, § 4, E-25/11 (Q-75, suite) ; consigné par l'agent architect (IA), routine, étape 1 du créneau A3, sur `claude/creneau-a3`). Le statut `accepted` est porté par un commit `docs:` d'A3, hors du circuit de #620. L'étape d'étiquette du jalon court éventuel après A3 et celle de JS3 suivent les § 1 et 2.
+
+**Q-75-8 (a)** : la ligne de `CLAUDE.md` proposée sous « Conséquences » est décidée, sous « Git et GitHub » ; posée par la session principale par le commit `claude:` `9fd81f5` d'A3.
