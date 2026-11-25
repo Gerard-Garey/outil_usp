@@ -16176,7 +16176,11 @@ apparié) et à celle du carré $8\times8$ dont le $8\times7$ est la troncature~
 à règle nulle, le $8\times6$ dont la colonne $J-3$ est dégénérée (1\,000 triangles par loi).
 Script \code{tests/}\allowbreak\code{simulation\_jm1\_trapeze\_t8.R}, sortie
 \code{docs/tableaux/}\allowbreak\code{20261123-}\allowbreak\code{issue612-}\allowbreak\code{simulation-jm1-trapeze.md},
-valeurs brutes de même préfixe. Le constat ne se transpose ni à d'autres paramètres ni à
+valeurs brutes de même préfixe. La mesure a été faite sur un état figé du code, identifié dans
+l'en-tête du fichier de sortie par les empreintes du moteur et du script, et ne se refait qu'à cet
+état~: sur le moteur que décrit ce document, les contrôles d'intégrité du script l'arrêtent avant
+tout tirage, notamment parce que la simulation avec la valeur de la règle, à laquelle il compare la
+convention, n'y est pas celle du moteur. Le constat ne se transpose ni à d'autres paramètres ni à
 d'autres géométries~; aucun théorème ni aucune littérature retrouvée ne couvre ces tests bootstrap
 à $T = 8$. L'erreur Monte-Carlo en $B$ ($0{,}0069$ environ à $p = 0{,}05$) fait partie de la
 procédure mesurée, celle en nombre de triangles est lue dans les intervalles (Clopper--Pearson à
