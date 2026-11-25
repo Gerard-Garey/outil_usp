@@ -1,0 +1,25 @@
+cible 3dae8bb372c240bcacba4af4faae1b51668bc590
+
+v3.1.0 — jalon JS2
+
+Version : 3.1.0 (DESCRIPTION).
+Commit de fusion : 3dae8bb (PR #619).
+SHA de la batterie : 1ac9581 ; R/, app.R, DESCRIPTION et tests/ gelés depuis,
+sauf tests/controle_doc_nd.R l. 137 (12000L -> 12800L, dérogation 34d07f0,
+sans effet sur les résultats).
+md5 : R/engine.R 723277ddfa5736d7411838d15d8dad00 ;
+      R/charger_moteur.R 5ed6226c768d5ad781ea03a7306ccc11.
+PDF : 8ed0e4b, \versiondoc 4.7, 477 pages (MiKTeX pdfTeX-1.40.29),
+      depuis le .tex de 886de47.
+\dateconsultation : 25 novembre 2026, cinq sources sur cinq consultées
+      (18:48:37-18:54:17 UTC), sans limite.
+Dernière régénération par cas :
+  premium, premium_ii6, premium_interieur, premium_net, reserve1 : 73fd059
+  (17/11, antérieure à c013568) ; reserve2 : b232cbe (21/11) ;
+  reserve2_trapeze : 8c808af (25/11).
+Batterie au poste Windows et relevés : docs/revues/20261125-js2-jalon/poste-windows/
+  (critère de l'ADR 0006 accepté sur sept cas).
+Limites : trapèze traité selon la convention (B), constats de simulation
+  sous un plan ; mesure de #612 refaisable à son commit seulement ;
+  #620 ouverte (famille alpha : une colonne J-1 dégénérée d'un trapèze
+  majore la p-value Monte-Carlo, sens conservateur).
