@@ -14558,37 +14558,32 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # et le residu calcule n'est alors qu'un bruit d'arrondi norme, que le
 # critere sigma2_j = 0 exact laissait entrer dans les lignes fondees sur les
 # residus et dans le pool du bootstrap.
-# Ensemble des colonnes degenerees exclues (issue #615, specification
-# d'actuary du 25/11/2026, variante P1, decision du mainteneur E-25/11
-# (PA-2)) : reunion de deux ensembles, lus avec le meme predicat
-# .mw_colonne_degeneree() et sa tolerance (aucun seuil propre ici).
-#   - j_degeneres s'il est fourni : ensemble FIGE au triangle observe par
-#     mw_bootstrap() et transmis aux statistiques de chaque replication,
-#     comme pour M1 (#56) : la colonne exclue a l'observe l'est dans chaque
-#     replication, ou le facteur simule C * f_j / C peut differer de f_j au
-#     bit pres et donner un sigma2_j de bruit strictement positif (mesure
-#     sur ta_deg des tests, colonne j = 4 : 18 replications sur 50, sigma2_4
-#     au plus 2,6e-25). NULL : rien de plus que l'ensemble suivant.
-#   - les colonnes degenerees de aj LUI-MEME : degeneres_aj s'il est fourni
-#     (il vaut alors .mw_colonnes_degenerees(aj), calcule une fois par
-#     .mw_contexte_mc() pour toute la replication, #445, piste B3), sinon
-#     .mw_colonnes_degenerees(aj), calcule ici. Dans une replication, une
-#     colonne hors de l'ensemble fige peut devenir degeneree ; son sigma2_j
-#     simule, en general strictement positif par l'arrondi, ne l'ecartait
-#     pas avant #615, et ses residus, simple bruit d'arrondi norme, entraient
-#     dans les statistiques fondees sur les residus (sonde du constat (1) de
-#     #612, issue #615 : 396 replications sur 999 pour la colonne J-2 du
-#     carre a dispersion relative 2e-12). Elle est ecartee comme l'est deja
-#     une colonne hors de l'ensemble fige dont le sigma2_j simule n'est pas
-#     strictement positif (residu non defini) : le nombre de residus d'une
-#     replication peut donc differer de celui de l'observe.
-# Sur le triangle observe, l'ensemble fige de mw_bootstrap() est calcule sur
-# ce meme triangle (.mw_ensembles_figes()) et contient ses colonnes
-# degenerees : la reunion est l'ensemble fige, les residus observes sont
-# ceux d'avant #615. PRECONDITION : un j_degeneres impose autrement, qui ne
-# contient pas toutes les colonnes degenerees de aj, ne les fait plus
-# entrer dans les residus ; ceux-ci peuvent alors differer de ceux d'avant
-# #615.
+# Ensemble des colonnes degenerees : j_degeneres s'il est fourni (ensemble
+# FIGE au triangle observe par mw_bootstrap() et transmis aux statistiques
+# de chaque replication, comme pour M1, #56 : la colonne exclue a l'observe
+# l'est dans chaque replication, ou le facteur simule C * f_j / C peut
+# differer de f_j au bit pres et donner un sigma2_j de bruit strictement
+# positif -- mesure sur ta_deg des tests, colonne j = 4 : 18 replications sur
+# 50, sigma2_4 au plus 2,6e-25 ; le nombre de residus est ainsi le meme a
+# l'observe et dans les replications), sinon calcule sur aj lui-meme
+# (.mw_colonnes_degenerees(), appel sur le triangle observe). Une colonne
+# hors de l'ensemble fige reste ecartee dans une replication si son sigma2_j
+# simule n'est pas strictement positif (residu non defini), seul cas ou le
+# nombre de residus d'une replication differe de celui de l'observe.
+# Une colonne hors de l'ensemble fige qui devient degeneree ou quasi
+# degeneree dans une replication (facteurs simules a une dispersion relative
+# de l'ordre de la tolerance 1e-12) garde ses residus : ses facteurs sont de
+# vrais tirages du modele, non un bruit d'arrondi (ecarts F - f_j calcules
+# a une erreur relative de l'ordre de 2e-4 au plus, rangs exacts, pour une
+# dispersion relative de 5e-13 a 1e-11 : 1,9e-4 a 2,7e-6 selon l'avis
+# d'actuary-approfondi, etape 8 d'A2 ; 2,3e-4 a 4,5e-6 mesure en
+# arithmetique rationnelle exacte sur une colonne de cinq facteurs), et
+# l'ensemble des colonnes portant des residus, donc le K qui en depend, reste
+# celui de l'observe (doctrine de M1 ; la garde d'ecart-type nul apres
+# aplatissement de mw_test_exposant_variance() peut encore ecarter une
+# colonne de sa combinaison). Decision du mainteneur du 25/11/2026, issue
+# #615 : retour a cette regle apres la variante P1 (e4ecb16), qui excluait
+# aussi les colonnes degenerees de la replication et faisait varier K.
 # L'exclusion n'est pas silencieuse : l'attribut "colonnes_exclues"
 # (data.frame j, n_facteurs) la consigne, et mw_valider_ajustement() en fait
 # un avertissement. .run_engine_mw() retire l'attribut avant de stocker les
@@ -14600,15 +14595,10 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # par l'estimateur direct de sigma2_(J-1) et non par la valeur de la regle
 # de minimum (decision Q-2a-1 (c), .mw_sigma2_residus()) ; sigma_j de la
 # table porte alors cet estimateur pour j = J-1.
-mw_residus <- function(aj, j_degeneres = NULL, degeneres_aj = NULL) {
+mw_residus <- function(aj, j_degeneres = NULL) {
   I <- aj$I; J <- aj$J; tri <- aj$tri
   s2 <- .mw_sigma2_residus(aj)
-  # Colonnes degenerees de aj lui-meme (#615) ; reunies a l'ensemble fige
-  # s'il est fourni, seules sinon (.mw_j_exclues(aj, NULL) les rendrait
-  # deja : pas de second calcul).
-  if (is.null(degeneres_aj)) degeneres_aj <- .mw_colonnes_degenerees(aj)
-  jd <- if (is.null(j_degeneres)) degeneres_aj else
-    union(.mw_j_exclues(aj, j_degeneres), degeneres_aj)
+  jd <- .mw_j_exclues(aj, j_degeneres)
   # Table vide construite une fois au chargement (.MW_DF_VIDE_J_N, #513),
   # meme objet que data.frame(j = integer(0), n_facteurs = integer(0)),
   # appele a chaque replication avant #445 (piste B2) ; copiee a l'ecriture.
@@ -14942,8 +14932,7 @@ mw_stat_correlation_dev <- function(aj, j_degeneres = NULL) {
 #   cellules des colonnes de n_j >= 3 seulement (a n_j = 2, |r~| = 1
 #   identiquement, ecart mesure 2,2e-16 sur reserve2, et r~^2 ne porte aucune
 #   information) ; colonnes degenerees deja ecartees par
-#   mw_residus(aj, j_degeneres) (ensemble fige, #60, reuni aux colonnes
-#   degenerees de aj, #615).
+#   mw_residus(aj, j_degeneres) (ensemble fige, #60).
 # Construction de l'outil pour des residus de Mack, parallele a la pente
 # relative (.mw_pente_relative(), #119, #307), et non un test publie :
 # la p chi2(1) n'est qu'une p non simulee (jamais retenue, #181) ; la p de
@@ -16551,7 +16540,7 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # de la courbure, #270, et de l'ordonnee a l'origine, #273), figes a
 # l'observe par mw_bootstrap(), calcules sur aj
 # s'ils ne sont pas fournis ; residus de Mack (mw_residus(), calcules une
-# fois) et leur vecteur r. Un objet qui n'est
+# fois avec les colonnes degenerees) et leur vecteur r. Un objet qui n'est
 # pas une liste (vecteur d'entiers de l'ancienne signature, avant #278) est
 # refuse. degeneres_aj (#445, piste B3) : colonnes degenerees de aj LUI-MEME
 # (.mw_colonnes_degenerees(aj)), distinctes de l'ensemble fige
@@ -16559,25 +16548,20 @@ mw_bootstrap <- function(aj, B = 999, seed = 20260831, figes = NULL) {
 # l'etre par colonne dans mw_test_ordonnee_origine(), mw_test_homogeneite_f(),
 # mw_test_courbure() et pour toutes les colonnes dans mw_influence() (via
 # mw_test_cellule_aberrante()), qui les lisent par l'argument degeneres_aj
-# (meme predicat, memes resultats au bit pres). Depuis #615 (variante P1),
-# degeneres_aj est aussi passe a mw_residus() : les residus excluent la
-# reunion de figes$degeneres et de degeneres_aj (en-tete de mw_residus()) ;
-# les verifications de M1 gardent leur regle (statistique NA quand une
-# colonne retenue a l'observe devient degeneree, #278). PRECONDITION : figes
-# est celui de l'aj observe (mw_bootstrap()) ; impose autrement, les residus
-# observes peuvent differer de ceux d'avant #615.
+# (meme predicat, memes resultats au bit pres). Les residus n'en dependent
+# pas : ils excluent l'ensemble fige figes$degeneres seul (en-tete de
+# mw_residus(), decision du 25/11/2026, issue #615).
 .mw_contexte_mc <- function(aj, figes = NULL, combn = NULL) {
   if (is.null(figes)) figes <- .mw_ensembles_figes(aj)
   .mw_verifier_figes(figes, ".mw_contexte_mc()", aj$J)
-  degeneres_aj <- .mw_colonnes_degenerees(aj)
-  res <- mw_residus(aj, figes$degeneres, degeneres_aj)
-  # Aucun residu retenu (#615, audit M1) : la table vide de .mw_empiler()
+  res <- mw_residus(aj, figes$degeneres)
+  # Aucun residu retenu (audit M1 de #615) : la table vide de .mw_empiler()
   # n'a pas de colonne residu, res$residu vaudrait NULL, test_runs(NULL)
   # leverait une erreur (stat_dw(NULL) rend NaN) et mw_bootstrap()
   # ecarterait la replication entiere ; r = numeric(0) laisse chaque
   # statistique a sa garde (valeur non finie pour la seule cle concernee).
   e <- list(aj = aj, res = res, r = if (nrow(res)) res$residu else numeric(0),
-            figes = figes, degeneres_aj = degeneres_aj)
+            figes = figes, degeneres_aj = .mw_colonnes_degenerees(aj))
   # Table d'appel des combinaisons (#432, point 3), posee par mw_bootstrap()
   # seulement : absente du contexte sinon.
   if (!is.null(combn)) e$combn <- combn

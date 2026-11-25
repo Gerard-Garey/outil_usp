@@ -27,9 +27,7 @@
 #  sous la forme de #276, queue basse : la comparaison
 #  porte sur l'assemblage des tables, objet de #239 ; ensembles figes rendus
 #  par le contexte dans l'element figes, forme de l'objet de
-#  .mw_ensembles_figes(), et moteur appele par l'adaptateur moteur(), #278 ;
-#  colonnes exclues de mw_residus() reunies aux colonnes degenerees de aj
-#  lui-meme, regle de #615),
+#  .mw_ensembles_figes(), et moteur appele par l'adaptateur moteur(), #278),
 #  evaluee dans un
 #  environnement dedie dont le parent
 #  est celui du moteur : les fonctions non modifiees (mw_stat_correlation_dev(),
@@ -103,14 +101,7 @@ ANCIEN <- new.env(parent = environment(mw_ajuster))
 local({
   mw_residus <- function(aj, j_degeneres = NULL) {
     I <- aj$I; J <- aj$J; tri <- aj$tri
-    # #615 (variante P1) : regle d'exclusion reportee dans l'ancienne forme,
-    # reunion de l'ensemble fourni et des colonnes degenerees de aj lui-meme
-    # (seul l'ensemble change ; l'assemblage compare par #239 est inchange).
-    # Sans ce report, ta_bruit et le tirage 12 sous jd = integer(0) et T3b
-    # sous jd = 6 (colonne degeneree hors de l'ensemble impose, au moins deux
-    # facteurs, sigma2_j > 0 d'arrondi) gardaient ici des residus que le
-    # moteur exclut.
-    jd <- union(.mw_j_exclues(aj, j_degeneres), .mw_colonnes_degenerees(aj))
+    jd <- .mw_j_exclues(aj, j_degeneres)
     out <- data.frame()
     exclues <- data.frame(j = integer(0), n_facteurs = integer(0))
     for (j in 0:(J - 1)) {
@@ -386,8 +377,8 @@ local({
     # les statistiques de M1 et M4 ; meme definition qu'au moteur (predicat
     # unique), sans effet sur les statistiques de cette reecriture, qui ne
     # le lisent pas.
-    # Element r (#615, audit M1) : numeric(0) et non NULL quand aucun residu
-    # n'est retenu (triangle 2 x 2 de ce fichier), comme au moteur.
+    # Element r (audit M1 de #615) : numeric(0) et non NULL quand aucun
+    # residu n'est retenu (triangle 2 x 2 de ce fichier), comme au moteur.
     list(aj = aj, res = res, r = if (nrow(res)) res$residu else numeric(0),
          figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno),
          degeneres_aj = .mw_colonnes_degenerees(aj))
@@ -901,10 +892,8 @@ verifier("Une evaluation de .mw_stats() appelle mw_residus() une seule fois (#23
            n <- 0L
            orig <- mw_residus
            env <- environment(mw_residus)
-           # Signature du moteur depuis #615 (argument degeneres_aj, passe
-           # par .mw_contexte_mc()).
-           assign("mw_residus", function(aj, j_degeneres = NULL, degeneres_aj = NULL) {
-             n <<- n + 1L; orig(aj, j_degeneres, degeneres_aj) }, envir = env)
+           assign("mw_residus", function(aj, j_degeneres = NULL) {
+             n <<- n + 1L; orig(aj, j_degeneres) }, envir = env)
            a <- mw_ajuster(tri_ref)
            tryCatch(.mw_stats(a, .mw_ensembles_figes(a, 4L)),
                     finally = assign("mw_residus", orig, envir = env))
