@@ -377,7 +377,9 @@ local({
     # les statistiques de M1 et M4 ; meme definition qu'au moteur (predicat
     # unique), sans effet sur les statistiques de cette reecriture, qui ne
     # le lisent pas.
-    list(aj = aj, res = res, r = res$residu,
+    # Element r (audit M1 de #615) : numeric(0) et non NULL quand aucun
+    # residu n'est retenu (triangle 2 x 2 de ce fichier), comme au moteur.
+    list(aj = aj, res = res, r = if (nrow(res)) res$residu else numeric(0),
          figes = list(degeneres = jd, non_identifiables = jni, origine_non_identifiables = jno),
          degeneres_aj = .mw_colonnes_degenerees(aj))
   }

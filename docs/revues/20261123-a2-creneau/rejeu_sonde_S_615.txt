@@ -1,0 +1,75 @@
+md5 R/engine.R : 730fc4d72b8e22dbabed7c0b0362b643 
+ cfg             base jstar   rho variante p_egal_P1 err_egal_P1 obs_egal_P1
+   1         reserve2     5 5e-13       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 2e-12       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 5e-12       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 1e-11       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 3e-11       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 1e-10       V0      TRUE        TRUE        TRUE
+   1         reserve2     5 3e-10       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 5e-13       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 2e-12       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 5e-12       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 1e-11       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 3e-11       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 1e-10       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 3e-10       V0      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 5e-13       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 2e-12       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 5e-12       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 1e-11       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 3e-11       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 1e-10       V2      TRUE        TRUE        TRUE
+   2 reserve2_trapeze     3 3e-10       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 5e-13       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 2e-12       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 5e-12       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 1e-11       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 3e-11       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 1e-10       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 3e-10       V0      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 5e-13       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 2e-12       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 5e-12       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 1e-11       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 3e-11       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 1e-10       V2      TRUE        TRUE        TRUE
+   3 reserve2_trapeze     4 3e-10       V2      TRUE        TRUE        TRUE
+ maxdp_P1 maxdp_courant cle_maxdp_courant Beff_min Beff_min_P1
+        0         0.000        Calendrier      999         999
+        0         0.094        PenteIntra      999         999
+        0         0.034        PenteIntra      999         999
+        0         0.018        PenteIntra      999         999
+        0         0.002              Runs      999         999
+        0         0.002              Runs      999         999
+        0         0.002        PenteIntra      999         999
+        0         0.000        Calendrier      999         999
+        0         0.022            ExpVar      894         894
+        0         0.004              Runs      985         985
+        0         0.000        Calendrier      996         996
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.022            ExpVar      894         894
+        0         0.004              Runs      985         985
+        0         0.000        Calendrier      996         996
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+        0         0.004              Runs      812         812
+        0         0.008        PenteIntra      974         974
+        0         0.002        PenteIntra      990         990
+        0         0.000        Calendrier      997         997
+        0         0.000        Calendrier      999         999
+        0         0.000        Calendrier      999         999
+
+Lignes : 35  p = P1 (identical) : 35  err = P1 : 35  obs = P1 : 35  max |dp| vs P1 : 0 

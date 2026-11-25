@@ -3068,10 +3068,12 @@ releve567 <- function(pd, l) {
   # Points de la legende (sous le panneau du bas, y < usr[3]) ecartes.
   list(leg = e$leg, pts = Filter(function(p) p$y[1] >= p$usr[3], e$pts))
 }
-verifier("Graphique des facteurs, trapeze 8 x 6 : colonnes du moteur presentes, un seul drapeau direct en j = J - 1 = 4, sigma_residus distinct de sigma en ce point (#567)",
+# Legendes du cas "simulation" : colonne J-1 du 8 x 6 non degeneree, simulee
+# avec l'estimateur direct depuis la variante V2 de #612.
+verifier("Graphique des facteurs, trapeze 8 x 6 : colonnes du moteur presentes, un seul drapeau direct en j = J - 1 = 4, sigma_residus distinct de sigma en ce point, legendes du cas simulation (#567, #612)",
          identical(pd567$facteurs$sigma_residus_direct, c(FALSE, FALSE, FALSE, FALSE, TRUE)) &&
            pd567$facteurs$sigma_residus[5] != pd567$facteurs$sigma[5] &&
-           identical(pd567$usage_sigma, MW_USAGE_SIGMA))
+           identical(pd567$usage_sigma, MW_USAGE_SIGMA_SIMULATION))
 verifier("Graphique des facteurs, base R, trapeze 8 x 6 (395 et 480 x 330 px) : losange plein (sigma) et losange creux (sigma_residus) en j = 4, trois entrees de legende lues dans usage_sigma, legende dans le peripherique (#567)",
          all(vapply(c(395, 480), function(l) {
            r <- releve567(pd567, l); f <- pd567$facteurs

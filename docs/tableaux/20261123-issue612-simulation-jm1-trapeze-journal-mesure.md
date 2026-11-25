@@ -1,0 +1,79 @@
+# JOURNAL de la mesure #612 (A2, étape 3 : simulation de la colonne J−1 d'un trapèze, V0 contre V2)
+
+- Lancement : 2026-11-23T17:42:27Z
+- Date des sorties : 20261123
+- R par bloc et loi : M7a=1000/1000,M7b=1000/1000,M5=2000/2000,M6=2000/2000,C=2000/2000,D=1000/1000,BAL=20/20,S=1,OR=20000/20000,OD=20000/20000
+- Niveau : L-A (pré-vol, PA-1)
+- B : 999
+- Processus : 4 ; taille des tranches : 100
+- SHA (git rev-parse HEAD) au lancement : d6ff8846b9516761dddd2c7de253ad863d79d268
+- Commit (commit_depot()) : d6ff8846b9516761dddd2c7de253ad863d79d268
+- md5 R/engine.R au lancement : 5bffa72279b34a7ab12bd5b9f13abc15
+- Empreinte sans commentaires de R/engine.R : 87c53faa030fd1bb58dffe61e51aba69
+- Empreintes md5 du code exécuté : R/engine.R 5bffa72279b34a7ab12bd5b9f13abc15 ; tests/outils_tests.R chargé (dépôt) cd6f78dd811f125f1755acc55e1fd228 ; script exécuté (dépôt) 1e320e8e1b765dfd8ff64ad4b97df1ba
+- md5 protocole (docs/revues/20261123-a2-creneau/actuary-1-protocole-612.md) : 70176c2e3ded10922eeb81971b533ae7
+- Plateforme : R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0)
+- Locale : LC_ALL=C.UTF-8 ; LC_CTYPE=C.UTF-8
+- Dossier de travail : travail-LA (hors du dépôt)
+- Commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --bloc S --processus 4 --travail (dossier hors du dépôt)
+- Contexte des tranches : B=999 || sha=d6ff8846b9516761dddd2c7de253ad863d79d268 || md5_moteur=5bffa72279b34a7ab12bd5b9f13abc15 || md5_script=1e320e8e1b765dfd8ff64ad4b97df1ba || empreinte=87c53faa030fd1bb58dffe61e51aba69 || md5_protocole=70176c2e3ded10922eeb81971b533ae7 || plateforme=R version 4.3.3 (2024-02-29) ; Ubuntu 24.04.5 LTS ; Linux, x86_64 ; BLAS : libblas.so.3.12.0 ; LAPACK : liblapack.so.3.12.0 (version 3.12.0) || essai=non || taille_tranche=100
+- Constat (1) (bloc S complet, provisoire) : 2026-11-23T17:49:28Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-23T17:49:28Z ; 1 tranche(s) calculée(s) dans ce segment, 1786 restante(s) (--duree-max Inf h ; blocs S)
+- Reprise : 2026-11-23T17:51:27Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-23T19:28:04Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-23T19:28:04Z ; 1212 tranche(s) calculée(s) dans ce segment, 574 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-23T19:28:30Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-23T21:11:20Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-23T21:11:20Z ; 12 tranche(s) calculée(s) dans ce segment, 562 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-23T21:11:46Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-23T22:44:29Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-23T22:44:29Z ; 8 tranche(s) calculée(s) dans ce segment, 554 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-23T22:50:10Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Reprise : 2026-11-24T05:56:44Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T06:53:47Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T06:53:47Z ; 4 tranche(s) calculée(s) dans ce segment, 550 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T06:54:05Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T08:16:56Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T08:16:56Z ; 8 tranche(s) calculée(s) dans ce segment, 542 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T08:17:34Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T09:40:49Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T09:40:49Z ; 12 tranche(s) calculée(s) dans ce segment, 530 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T09:41:04Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T11:07:21Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T11:07:21Z ; 12 tranche(s) calculée(s) dans ce segment, 518 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T11:07:33Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Reprise : 2026-11-24T11:07:47Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T13:00:15Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T13:00:15Z ; 16 tranche(s) calculée(s) dans ce segment, 502 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T13:00:32Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T14:30:44Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T14:30:44Z ; 12 tranche(s) calculée(s) dans ce segment, 490 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T14:30:58Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T16:01:51Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T16:01:51Z ; 12 tranche(s) calculée(s) dans ce segment, 478 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T16:02:06Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T17:30:39Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T17:30:39Z ; 12 tranche(s) calculée(s) dans ce segment, 466 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T17:30:53Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T18:57:34Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T18:57:34Z ; 12 tranche(s) calculée(s) dans ce segment, 454 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T18:57:53Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T20:25:40Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T20:25:40Z ; 12 tranche(s) calculée(s) dans ce segment, 442 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T20:25:53Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T21:52:06Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T21:52:06Z ; 12 tranche(s) calculée(s) dans ce segment, 430 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T21:52:19Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.8 --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-24T23:16:55Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-24T23:16:55Z ; 412 tranche(s) calculée(s) dans ce segment, 18 restante(s) (--duree-max 1.8 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-24T23:17:15Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.6 --ecrire --travail (dossier hors du dépôt)
+- Constat (1) (bloc S complet, provisoire) : 2026-11-25T00:29:27Z ; règle : CORRECTION ; constat-1-sonde.md md5 22dd83960a05fbca9bb40ee02f3e6df5
+- Segment interrompu : 2026-11-25T00:29:27Z ; 12 tranche(s) calculée(s) dans ce segment, 6 restante(s) (--duree-max 1.6 h ; blocs OR,M7a,M7b,M5,M6,C,OD,D,BAL,S)
+- Reprise : 2026-11-25T00:29:42Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.6 --ecrire --travail (dossier hors du dépôt)
+- Reprise : 2026-11-25T01:33:49Z ; commande : Rscript tests/simulation_jm1_trapeze_t8.R --niveau L-A --processus 4 --duree-max 1.6 --ecrire --travail (dossier hors du dépôt)
+- Fin : 2026-11-25T02:06:57Z ; SHA à la fin d6ff8846b9516761dddd2c7de253ad863d79d268 ; md5 R/engine.R à la fin 5bffa72279b34a7ab12bd5b9f13abc15 ; INTEGRITE OK ; K0 tenu ; règle R-V2
+- Sortie 20261123-issue612-simulation-jm1-trapeze.md : md5 16efc346db3273314a40cafe0eeaaa5b
+- Sortie 20261123-issue612-simulation-jm1-trapeze-brut.tsv : md5 121e4254aa2a1ee5139755fb32dd3009
+- Sortie 20261123-issue612-simulation-jm1-trapeze-balayage-brut.tsv : md5 a23aa6f442e59109f39172b84ca9a042
+- Sortie 20261123-issue612-simulation-jm1-trapeze-sonde.tsv : md5 4a6fd61614b87b31d9baab37d7e5a760
+- Oracles (non versionnés) : oracle-567.tsv md5 5bdafe159cd5624fee6ba906896d4f40 ; oracle-D.tsv md5 ef76d8b8a7f46549d80024f34967af5c

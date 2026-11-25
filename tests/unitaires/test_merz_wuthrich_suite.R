@@ -2213,4 +2213,124 @@ local({
                        "chi2(2K) approx. -> Monte-Carlo"))
 })
 
+## --- Colonne degeneree dans une replication : residus gardes (#615) -------
+# Decision du mainteneur du 25/11/2026 (avis d'actuary-approfondi, etape 8
+# d'A2) : retour a la regle d'avant #615 apres la variante P1 (e4ecb16).
+# mw_residus(aj, j_degeneres) exclut l'ensemble fige seul (plus les colonnes
+# a sigma2_j simule non strictement positif) ; une colonne hors de l'ensemble
+# fige qui devient degeneree dans une replication garde ses residus, vrais
+# tirages du modele, et le nombre de residus reste celui de l'observe.
+# Triangles : reserve2 (tri_ref),
+# colonne j* = 5 (J-2 du carre) recomposee selon la recette de la sonde de
+# #612 (tests/simulation_jm1_trapeze_t8.R, tri_sonde()) :
+# C(i,6) = C(i,5) f_5 (1 + rho u_i), u = seq(-1, 1), colonnes suivantes
+# recomposees avec leurs facteurs d'origine ; rho = 2e-12 a l'observe (colonne
+# non degeneree, ecart relatif 2e-12), 5e-13 (degeneree au premier volet) en
+# guise de replication.
+tri615 <- function(rho, jstar = 5L, t = tri_ref) {
+  I <- nrow(t) - 1L; J <- ncol(t) - 1L
+  f <- mw_ajuster(t)$f[jstar + 1L]
+  F0 <- t[, -1L, drop = FALSE] / t[, -ncol(t), drop = FALSE]
+  n <- I - jstar; u <- seq(-1, 1, length.out = n)
+  nt <- t
+  nt[seq_len(n), jstar + 2L] <- nt[seq_len(n), jstar + 1L] * f * (1 + rho * u)
+  if (jstar + 1L <= J - 1L) for (j in (jstar + 1L):(J - 1L)) {
+    r <- seq_len(I - j)
+    nt[r, j + 2L] <- nt[r, j + 1L] * F0[r, j + 1L]
+  }
+  nt
+}
+a615_obs <- mw_ajuster(tri615(2e-12))
+fg615 <- .mw_ensembles_figes(a615_obs)
+CLES615 <- c("PenteIntra", "BP", "ExpVar", "KruskalAcc", "DW", "Runs")
+verifier("#615 garde : colonne j = 5 du triangle observe (rho = 2e-12) hors de l'ensemble fige, qui contient la colonne J-1 = 6 (un facteur)",
+         !(5L %in% fg615$degeneres) && !.mw_colonne_degeneree(a615_obs, 5L) &&
+           identical(fg615$degeneres, 6L))
+verifier("#615 : colonne devenue degeneree dans la replication (rho = 5e-13, sigma2_5 > 0) gardee dans les residus sous l'ensemble fige, meme nombre de residus qu'a l'observe ; contexte = mw_residus(aj, fige)",
+         {
+           a <- mw_ajuster(tri615(5e-13)); s2 <- .mw_sigma2_residus(a)
+           r <- mw_residus(a, fg615$degeneres)
+           .mw_colonne_degeneree(a, 5L) && is.finite(s2[6]) && s2[6] > 0 &&
+             sum(r$j == 5L) == 2L && !(5L %in% attr(r, "colonnes_exclues")$j) &&
+             nrow(r) == nrow(mw_residus(a615_obs, fg615$degeneres)) &&
+             identical(.mw_contexte_mc(a, fg615)$res, r)
+         })
+# Temoin a graine egale, B = 99 : boucle de mw_bootstrap() reproduite (memes
+# appels, meme graine) ; dans chaque replication, residus sous l'ensemble
+# fige (regle retenue) et sous la reunion avec les colonnes degenerees de la
+# replication (variante P1 ecartee) ; compte des replications ou la colonne 5
+# est degeneree avec sigma2_5 > 0 fini (touchees).
+local({
+  a <- a615_obs; fg <- fg615; B <- 99L
+  n_obs <- nrow(mw_residus(a, fg$degeneres))
+  bt <- mw_bootstrap(a, B = B, seed = 20260831, figes = fg)
+  rep <- engine_sous_graine(20260831, {
+    combn <- new.env(parent = emptyenv())
+    pool <- .mw_pool_residus(a, fg$degeneres)
+    a_sim <- a
+    if (.mw_simulation_sigma_direct(a)) a_sim$sigma2[a$J] <- a$sigma2_Jm1_direct
+    e_obs <- .mw_contexte_mc(a, fg, combn)
+    obs <- .mc_evaluer(MW_CATALOGUE_MC, e_obs)
+    sim <- sim_p1 <- matrix(NA_real_, B, length(obs), dimnames = list(NULL, names(obs)))
+    n_max <- FACTEUR_B_MAX_MW * (B + 1); n <- 0
+    touche <- logical(B); k_constant <- rep(NA, B)
+    ctx <- function(ab, res) list(aj = ab, res = res,
+                                  r = if (nrow(res)) res$residu else numeric(0),
+                                  figes = fg, degeneres_aj = .mw_colonnes_degenerees(ab),
+                                  combn = combn, replique = TRUE)
+    for (b in seq_len(B)) {
+      tir <- .mw_tirer_triangle_valide(a_sim, pool, n_max - n); n <- n + tir$n
+      if (is.null(tir$tri)) next
+      ab <- try(mw_ajuster(tir$tri), silent = TRUE)
+      if (inherits(ab, "try-error")) next
+      deg <- .mw_colonnes_degenerees(ab); s2 <- .mw_sigma2_residus(ab)
+      touche[b] <- 5L %in% deg && is.finite(s2[6]) && s2[6] > 0
+      res <- mw_residus(ab, fg$degeneres)
+      if (touche[b]) k_constant[b] <- nrow(res) == n_obs && sum(res$j == 5L) == 2L
+      sb <- try(.mc_evaluer(MW_CATALOGUE_MC, ctx(ab, res)), silent = TRUE)
+      if (!inherits(sb, "try-error")) sim[b, ] <- sb[colnames(sim)]
+      sp <- try(.mc_evaluer(MW_CATALOGUE_MC,
+                            ctx(ab, mw_residus(ab, union(fg$degeneres, deg)))), silent = TRUE)
+      if (!inherits(sp, "try-error")) sim_p1[b, ] <- sp[colnames(sim_p1)]
+    }
+    list(sim = sim, sim_p1 = sim_p1, touche = touche, k_constant = k_constant)
+  })
+  verifier("#615 temoin mw_bootstrap(B = 99) : au moins une replication touchee, colonne 5 gardee (2 residus) et nombre de residus egal a l'observe dans chacune ; stats_boot identical a la boucle reproduite sous l'ensemble fige seul",
+           sum(rep$touche) >= 1L && all(rep$k_constant[rep$touche]) &&
+             identical(bt$stats_boot, rep$sim))
+  verifier("#615 temoin : la variante P1 (reunion avec les colonnes degenerees de la replication) aurait change stats_boot sur au moins une cle fondee sur les residus, replications touchees seulement",
+           {
+             diff <- vapply(seq_len(nrow(rep$sim)), function(b)
+               !identical(rep$sim[b, CLES615], rep$sim_p1[b, CLES615]), logical(1))
+             any(diff) && all(rep$touche[diff])
+           })
+})
+# Garde de .mw_contexte_mc() (audit M1 de #615) : aucun residu retenu. Colonnes
+# 0 a 5 recomposees a rho = 5e-13 (toutes degenerees a l'observe), ensemble
+# fige calcule sur ce triangle : il les contient toutes, mw_residus() rend
+# 0 ligne. .mw_stats() sans erreur (r = NULL faisait echouer Runs et
+# mw_bootstrap() ecartait la replication entiere), les six cles fondees sur
+# les residus non finies, Alpha (hors residus) calculee.
+t615c <- tri_ref; for (j in 0:6) t615c <- tri615(5e-13, j, t615c)
+a615c <- mw_ajuster(t615c)
+fg615c <- .mw_ensembles_figes(a615c)
+verifier("#615 garde : toutes les colonnes degenerees et figees -> mw_residus() rend 0 ligne sans erreur, colonnes 0 a 5 consignees",
+         {
+           r <- tryCatch(mw_residus(a615c, fg615c$degeneres), error = function(e) NULL)
+           identical(fg615c$degeneres, 0:6) &&
+             !is.null(r) && nrow(r) == 0L && identical(attr(r, "colonnes_exclues")$j, 0:5)
+         })
+verifier("#615 garde : .mw_stats(replique = TRUE) sans erreur, residus vides -> r = numeric(0) ; six cles (PenteIntra, BP, ExpVar, KruskalAcc, DW, Runs) non finies, Alpha finie",
+         {
+           s <- tryCatch(.mw_stats(a615c, fg615c, replique = TRUE), error = function(e) NULL)
+           !is.null(s) && identical(.mw_contexte_mc(a615c, fg615c)$r, numeric(0)) &&
+             !any(is.finite(unlist(s[CLES615]))) && is.finite(s[["Alpha"]])
+         })
+verifier("#615 : sous l'ensemble fige de reserve2 (colonne 6 seule), les colonnes 0 a 5 devenues degenerees gardent leurs residus (sigma2_j > 0 d'arrondi)",
+         {
+           s2 <- .mw_sigma2_residus(a615c); r <- mw_residus(a615c, fg615$degeneres)
+           identical(.mw_colonnes_degenerees(a615c), 0:6) && all(is.finite(s2[1:6]) & s2[1:6] > 0) &&
+             identical(sort(unique(r$j)), 0:5) && nrow(attr(r, "colonnes_exclues")) == 0L
+         })
+
 fin_fichier()
