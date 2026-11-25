@@ -1,0 +1,64 @@
+name: Étiquettes annotées
+
+# Issue #621 : une session cloud ne peut pas pousser d'étiquette (le proxy git
+# de la session n'admet que sa branche assignée). Une étiquette annotée de
+# jalon se pose donc par une PR courte qui ajoute .github/etiquettes/<nom>.txt :
+#   ligne 1 : « cible <SHA complet du commit à étiqueter> » ;
+#   ligne 2 : vide ;
+#   lignes suivantes : message de l'étiquette.
+# À la fusion sur main (par le mainteneur seul), ce workflow pose chaque
+# étiquette absente du dépôt, puis s'arrête ; une étiquette déjà présente
+# n'est jamais déplacée ni réécrite. Le fichier reste versionné : il trace le
+# message exact de l'étiquette.
+on:
+  push:
+    branches: [main]
+    paths: [".github/etiquettes/*.txt"]
+
+# Seul workflow du dépôt qui écrit : il ne pousse que des étiquettes
+# (refs/tags/...), jamais une branche.
+permissions:
+  contents: write
+
+concurrency:
+  group: etiquettes
+  cancel-in-progress: false
+
+jobs:
+  etiquettes:
+    name: etiquettes
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Pose des étiquettes absentes
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          git config user.name "Claude"
+          git config user.email "noreply@anthropic.com"
+          for f in .github/etiquettes/*.txt; do
+            nom=$(basename "$f" .txt)
+            if ! [[ "$nom" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error file=$f::nom d'étiquette invalide : $nom"; exit 1
+            fi
+            cible=$(sed -n '1s/^cible[[:space:]]\{1,\}\([0-9a-f]\{40\}\)[[:space:]]*$/\1/p' "$f")
+            if [ -z "$cible" ] || [ -n "$(sed -n '2p' "$f")" ]; then
+              echo "::error file=$f::ligne 1 « cible <SHA de 40 caractères> » et ligne 2 vide attendues"; exit 1
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/$nom" > /dev/null; then
+              echo "$nom existe déjà : laissée telle quelle."
+              continue
+            fi
+            if ! git merge-base --is-ancestor "$cible" HEAD; then
+              echo "::error file=$f::$cible n'est pas un ancêtre de main"; exit 1
+            fi
+            tail -n +3 "$f" > "$RUNNER_TEMP/message.txt"
+            git tag -a "$nom" "$cible" -F "$RUNNER_TEMP/message.txt"
+            git push origin "refs/tags/$nom"
+            echo "::notice title=Étiquette::$nom posée sur $cible"
+            git cat-file -p "$nom" | head -n 4
+          done
