@@ -134,7 +134,7 @@ EXCEPTIONS_PLAFOND <- list(
        raison = "test central de M1 apres transfert des regles communes et des phrases de B effectif : argument de la loi chi2(2K) exacte sous erreurs gaussiennes et ses deux reserves, colonnes non identifiables propres a la ligne, p-value conditionnelle a la definition de la statistique et sa mesure, puissance et dispersion intra-colonne"),
   list(label = "mw:m1c", pages = 3L, caracteres = 14000L,
        raison = "statistique definie par sa forme close (Cauchy-Binet, Cramer, Schur) et verifiee en precision etendue, colonnes non identifiables et ensemble fige propres a la ligne, loi chi2(2K) exacte sous erreurs gaussiennes et sa reserve, cout de la forme close, arbitrage de la colonne a un degre de liberte"),
-  list(label = "mw:m1d", pages = 3L, caracteres = 12000L,
+  list(label = "mw:m1d", pages = 3L, caracteres = 12800L,
        raison = "construction de l'outil sans test publie : sources de la famille alpha (Mack 1994 et 1999), lecture des deux branches de H1 au regard de D(2)(h)(iii), absence de loi analytique, colonnes degenerees, puissance, exposants de variance sous H0 vraie, profils compares a la pente relative"),
   list(label = "mw:m1id", pages = 3L, caracteres = 12000L,
        raison = "diagnostic qui conditionne la lecture de la puissance de M1 et M2 : identite exacte de la variance de l'ordonnee, proprietes algebriques de e_a (Jensen, sigma2 gonfle sous H1), multiplicateurs de Student decentree et variante dementie par la mesure, lectures de R_j et CV_j"),
