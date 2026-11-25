@@ -14574,10 +14574,12 @@ mw_parametre <- function(aj, msep, sigma_standard, bareme = "court") {
 # degeneree dans une replication (facteurs simules a une dispersion relative
 # de l'ordre de la tolerance 1e-12) garde ses residus : ses facteurs sont de
 # vrais tirages du modele, non un bruit d'arrondi (ecarts F - f_j calcules
-# a une erreur relative de l'ordre de 2e-4 au plus, rangs exacts, pour une
-# dispersion relative de 5e-13 a 1e-11 : 1,9e-4 a 2,7e-6 selon l'avis
-# d'actuary-approfondi, etape 8 d'A2 ; 2,3e-4 a 4,5e-6 mesure en
-# arithmetique rationnelle exacte sur une colonne de cinq facteurs), et
+# en double avec des rangs exacts, pour une dispersion relative de 5e-13 a
+# 1e-11 ; erreur relative rapportee au plus grand ecart de la colonne : de
+# l'ordre de 1e-4 au plus ; element par element, jusqu'a 2e-3 sur le
+# facteur central d'une colonne de cinq facteurs a 5e-13, au plus 3,5e-5 a
+# 1e-11 ; mesures en arithmetique rationnelle exacte versees dans
+# docs/revues/20261123-a2-creneau/, avis actuary-7 et mesure-ecarts-615), et
 # l'ensemble des colonnes portant des residus, donc le K qui en depend, reste
 # celui de l'observe (doctrine de M1 ; la garde d'ecart-type nul apres
 # aplatissement de mw_test_exposant_variance() peut encore ecarter une
