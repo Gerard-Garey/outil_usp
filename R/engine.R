@@ -13890,15 +13890,17 @@ mw_extrapolation_sigma2 <- function(aj, tol = 1e-12) {
 FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION <- paste(
   "Trapeze (I > J) : la regle de minimum s'applique a sigma2_(J-1) par prescription",
   "de l'annexe XVII, D(5)(d)(ii), seconde ligne, bien que la colonne J-1 porte %d",
-  "facteurs ; sa valeur entre, par Q_(J-1) (D(5)(d)), dans la MSEP de D(5) et, par",
-  "elle, dans sigma(res,s,USP) de D(4), et donne l'estimation de cette ligne ;",
-  "appliquee a chaque triangle reajuste, elle entre aussi dans le sigma de chaque",
-  "replication du bootstrap. L'estimateur direct vaut %s a %d degre(s) de liberte ;",
-  "il reduit les residus de cette colonne (tests, influence, vivier du bootstrap) et,",
-  "par convention de l'outil, non reglementaire, sert a simuler la colonne J-1 des",
-  "triangles tires par le bootstrap, sans entrer dans la MSEP ni dans",
-  "sigma(res,s,USP) : valeur restituee pour information, sans sigma ni",
-  "racine(MSEP) alternatifs.")
+  "facteurs. La valeur de sigma2_(J-1) donnee par la regle de minimum entre, par",
+  "Q_(J-1) (D(5)(d)), dans la MSEP de D(5) et, par elle, dans sigma(res,s,USP) de",
+  "D(4), et donne l'estimation restituee par ce diagnostic. La valeur de la regle",
+  "de minimum, recalculee sur chaque triangle reajuste, entre dans le sigma de",
+  "chaque replication du bootstrap. L'estimateur direct de sigma2_(J-1) vaut %s a",
+  "%d degre(s) de liberte. L'estimateur direct de sigma2_(J-1) reduit les residus",
+  "de la colonne J-1 (tests, influence, vivier du bootstrap). Par convention de",
+  "l'outil, non reglementaire, l'estimateur direct de sigma2_(J-1) sert a simuler",
+  "la colonne J-1 des triangles tires par le bootstrap. L'estimateur direct de",
+  "sigma2_(J-1) n'entre ni dans la MSEP ni dans sigma(res,s,USP) : sa valeur est",
+  "restituee pour information, sans sigma ni racine(MSEP) alternatifs.")
 # Cas "degenere" : colonne J-1 degeneree, sans residu, simulee avec la
 # valeur de la regle ; l'estimateur direct n'entre ni dans la MSEP ni dans
 # la simulation.
@@ -13922,8 +13924,8 @@ MW_USAGE_SIGMA <- c(
   sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP et simulation",
   sigma_residus = "sigma_(J-1) estime directement : residus de Mack et tests")
 MW_USAGE_SIGMA_SIMULATION <- c(
-  sigma = "sigma_(J-1) de la regle de minimum (D(5)(d)(ii)) : MSEP, sigma_USP et sigma des replications",
-  sigma_residus = "sigma_(J-1) estime directement : residus, tests et simulation (convention de l'outil)")
+  sigma = "sigma_(J-1) regle de minimum : MSEP, sigma_USP, replications",
+  sigma_residus = "sigma_(J-1) direct : residus, tests, simulation (convention)")
 MW_USAGE_SIGMA_DEGENERE <- c(
   sigma = MW_USAGE_SIGMA[["sigma"]],
   sigma_residus = "sigma_(J-1) estime directement : colonne degeneree, sans residu")
