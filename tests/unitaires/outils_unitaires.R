@@ -267,12 +267,12 @@ MENTIONS <- local({
     M20b = rx_fixe(MENTION_VOLUMES_CONSTANTS),
     M21 = rx_fixe(MENTION_EDGEWORTH),
     M22 = rx_fixe(MENTION_PERMUTATIONS_ALEATOIRES),
-    # Mention M6 d'un trapeze I > J (#567, texte (t2)) : gabarit du moteur,
+    # Mention M6 d'un trapeze I > J (#567, texte (t2)) : gabarits du moteur,
     # %d -> \d+ (facteurs, degres de liberte), %s -> .rx_num (estimateur
-    # direct de sigma2_(J-1)). Variantes de la colonne J-1 degeneree et de la
-    # simulation sur l'estimateur direct (constat m-1 de la revue finale de
-    # #567, .mw_cas_sigma_direct()), memes substitutions.
-    M23 = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT),
+    # direct de sigma2_(J-1)), un par cas de .mw_cas_sigma_direct() hors
+    # carre : colonne J-1 degeneree, colonne J-1 simulee avec l'estimateur
+    # direct (constat m-1 de la revue finale de #567 ; le gabarit du cas
+    # general est retire avec ce cas par la variante V2 de #612).
     M23_degenere = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT_DEGENERE),
     M23_simulation = .rx_gabarit_m23(FORMAT_MENTION_MW_SIGMA_DIRECT_SIMULATION))
 })
