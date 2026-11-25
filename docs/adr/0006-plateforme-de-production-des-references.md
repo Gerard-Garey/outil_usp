@@ -184,3 +184,13 @@ Toute autre feuille au-delà du seuil, ou toute p Monte-Carlo différente d'un p
 **Conséquences** : aucun résultat ne change ; aucune référence n'est régénérée ; `TOLERANCE` (`tests/outils_tests.R`) est inchangée. L'ADR 0011 (plateforme de production) n'est pas rouvert. Le relevé de la batterie sous Windows de KR est déposé sur #548 et versé dans `docs/revues/` ; la branche KR porte la ligne de fermeture de #548.
 
 Issues : #548 ; décisions Q-59-6 (a) et Q-60-7 (a) (`docs/feuille-de-route.md`, § 4, E-11/11 (59e point) et E-12/11 (60e point)).
+
+> *Note du 25 novembre 2026 sur l'annotation du 14 novembre 2026 — lecture du critère sur sept cas. Rédigée par `architect` à l'étape 0 du jalon JS2, sur décision du mainteneur du 25/11/2026 (Q-74-8 (a), `docs/feuille-de-route.md`, § 4, E-25/11 (Q-74, suite)). Note de lecture : le texte de l'annotation n'est pas réécrit et le critère ne change pas.*
+>
+> - **« six cas de `CAS` »** est le compte de `CAS` (`tests/outils_tests.R`) au 14/11/2026, non une restriction du critère.
+> - **Depuis `f9eaff7`** (S6, #567), `CAS` compte sept cas, dont `reserve2_trapeze` ; `Rscript tests/comparer_references.R --deux-parts` les prend tous par défaut. Le critère s'applique tel quel aux sept cas.
+> - **Première mesure au poste de `reserve2_trapeze`** : la batterie de JS2 (étape 4a) ; la dernière mesure du poste (étape P de S5, 19/11/2026) précède S6.
+> - Les points 1 à 5 sont inchangés, **sans extension d'avance du point 5** : une feuille de `reserve2_trapeze` au-delà du seuil hors du point 5 (`ic_bootstrap` par exemple) arrête la batterie, et l'écart est porté comme le prévoit l'annotation ; `actuary` le reprendrait alors sur mesure.
+> - S'y ajoute un **relevé informatif** de `tests/unitaires/test_controles_entree.R` (S7 a changé le texte de refus ; le dernier rejeu sous Windows précède S6 et S7), qui n'est pas une condition d'acceptation.
+>
+> Issues : #548 (critère) ; #567 (`reserve2_trapeze`) ; #617 et #618 (JS2). Voir `docs/feuille-de-route.md`, fiche « Jalon JS2 » et § 5, Q-74-8.
