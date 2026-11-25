@@ -1,0 +1,3 @@
+﻿comparer_references --deux-parts : code 1 (2026-11-25T18:48:05.3288618Z -> 2026-11-25T18:50:01.1483122Z)
+test_reproductibilite : code 1 (2026-11-25T18:50:01.1483122Z -> 2026-11-25T18:53:31.6278098Z)
+test_controles_entree : code 0 (2026-11-25T18:48:05.6820187Z -> 2026-11-25T18:54:43.2531142Z)

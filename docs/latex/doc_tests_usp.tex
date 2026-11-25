@@ -46,11 +46,11 @@
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
 \newcommand{\datedoc}{25~novembre 2026}
-\newcommand{\versiondoc}{4.6}
+\newcommand{\versiondoc}{4.7}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
-\newcommand{\dateconsultation}{18~novembre 2026}
+\newcommand{\dateconsultation}{25~novembre 2026}
 \newcommand{\statutdoc}{Projet}
 % Titre court du pied de page (fancyhdr).
 \newcommand{\titredoc}{Documentation de l'outil de calibrage USP}
@@ -10597,11 +10597,18 @@ publication de l'AEAPP)~; la conformité continue y devient
 l'orientation~5 (§§~13 à~15). Au \dateconsultation{} (date de consultation des sources), la
 même page donne ces traductions, présentées comme produites par intelligence artificielle et non
 datées, et indique
-toujours que les orientations de 2015 s'appliquent jusqu'à l'échéance~: la date d'application n'est donc pas établie, et aucune
-déclaration de conformité de l'ACPR à ces nouvelles orientations n'a été trouvée~; la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
+toujours que les orientations de 2015 s'appliquent jusqu'à l'échéance~: la date d'application n'est donc pas établie.
+À la même date, un avis du registre officiel de l'ACPR (section~\ref{sec:biblio}) déclare
+l'ACPR conforme aux orientations EIOPA-BoS-25/249 et les dit applicables aux organismes, qui
+doivent tout mettre en œuvre pour les respecter (article~16 du règlement (UE)
+n\textsuperscript{o}~1094/2010), sans fixer de date d'application ni rien dire des orientations
+de 2015 ou de la notice~: la date d'application reste non établie par les sources consultées~;
+la version applicable est celle en vigueur à la date de référence du calcul. L'exigence de tests statistiques
 lors de la demande puis chaque année, avec leurs résultats dans le rapport ORSA, provient de la
-notice de l'ACPR (§~171), non des orientations~; elle incombe à l'entreprise, que l'outil sert
-sans la porter.
+notice de l'ACPR (§~171), non des orientations~; une fois les orientations EIOPA-BoS-25/249
+applicables, ce §~171 renvoie à une orientation abrogée (l'orientation~6 de 2015), et
+l'exigence reste celle de la notice tant que celle-ci n'est pas révisée. Elle incombe à
+l'entreprise, que l'outil sert sans la porter.
 
 % =============================================================================
 \section{Hypothèse H1 --- linéarité et proportionnalité}
@@ -16176,7 +16183,11 @@ apparié) et à celle du carré $8\times8$ dont le $8\times7$ est la troncature~
 à règle nulle, le $8\times6$ dont la colonne $J-3$ est dégénérée (1\,000 triangles par loi).
 Script \code{tests/}\allowbreak\code{simulation\_jm1\_trapeze\_t8.R}, sortie
 \code{docs/tableaux/}\allowbreak\code{20261123-}\allowbreak\code{issue612-}\allowbreak\code{simulation-jm1-trapeze.md},
-valeurs brutes de même préfixe. Le constat ne se transpose ni à d'autres paramètres ni à
+valeurs brutes de même préfixe. La mesure a été faite sur un état figé du code, identifié dans
+l'en-tête du fichier de sortie par les empreintes du moteur et du script, et ne se refait qu'à cet
+état~: sur le moteur que décrit ce document, les contrôles d'intégrité du script l'arrêtent avant
+tout tirage, notamment parce que la simulation avec la valeur de la règle, à laquelle il compare la
+convention, n'y est pas celle du moteur. Le constat ne se transpose ni à d'autres paramètres ni à
 d'autres géométries~; aucun théorème ni aucune littérature retrouvée ne couvre ces tests bootstrap
 à $T = 8$. L'erreur Monte-Carlo en $B$ ($0{,}0069$ environ à $p = 0{,}05$) fait partie de la
 procédure mesurée, celle en nombre de triangles est lue dans les intervalles (Clopper--Pearson à
@@ -16402,8 +16413,9 @@ trop courte, et nommée dans le libellé de la ligne («~\code{K = \dots{} colon
 \dots{} eligible(s)}~», clause omise quand la statistique observée n'est pas définie, $K$ valant
 alors \code{NA}), sans champ nouveau~; l'exclusion ne vaut pas preuve de proportionnalité. Le seuil
 $10^{-12}$ est une convention de restitution, environ $4\,500$ fois l'epsilon machine
-($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne, qui n'a qu'un facteur
-individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est jamais éligible.
+($2{,}2\cdot 10^{-16}$), et non un seuil statistique. La dernière colonne d'un carré, qui n'a qu'un
+facteur individuel, appartient trivialement à l'ensemble, sans effet puisqu'elle n'est jamais
+éligible~; celle d'un trapèze n'y entre que si elle est dégénérée.
 L'ensemble est déterminé une fois sur le triangle observé et conservé dans chaque réplication
 (\code{.mw\_colonnes\_degenerees()}, élément \code{degeneres} de l'objet des ensembles figés
 \code{.mw\_ensembles\_figes()}, argument \code{j\_degeneres} des fonctions de test), de sorte que
@@ -17283,17 +17295,21 @@ matériel faible.
 \emph{Colonnes dégénérées.} \code{mw\_famille\_alpha()} ne reçoit pas l'ensemble figé des colonnes
 dégénérées (règle commune, section~\ref{sec:mwm1})~: elle garde ces colonnes dans $A$, avec leur
 poids $n_j$, et l'avertissement des colonnes dégénérées ne nomme pas la ligne parmi celles qui les
-écartent (§\ref{sec:controles}). L'amplitude d'une telle colonne, au plus
-$\big(\max_i F(i,j) - \min_i F(i,j)\big)/\hat f_j^{(1)}$, est nulle ou de l'ordre de la tolérance
-$10^{-12}$ (au plus $2\cdot 10^{-12}$ par le premier volet du prédicat, environ
-$(n_j-1)\cdot 10^{-12}$ par le second), mais son poids reste au dénominateur~: la statistique
-observée et chaque statistique simulée (la colonne, tirée avec $\hat\sigma_j^2$ nul ou négligeable,
-restant dégénérée, section~\ref{sec:boot-mw}) sont multipliées par $\sum' n_j/\sum_j n_j$, la somme
-$\sum'$ portant sur les colonnes non dégénérées. La p-value de Monte-Carlo n'en est pas modifiée, à
-des égalités près de l'ordre de la tolérance~; seule la valeur restituée de $A$ est diminuée et ne se
-lit plus comme l'amplitude moyenne des seules colonnes non dégénérées (triangle de six années des
-tests unitaires dont la colonne $j = 0$ est dégénérée, $B = 999$, graine 20260831~: rapport $7/12$ à
-l'observé comme dans chaque réplication, p-value de Monte-Carlo $0{,}514$ avec ou sans la colonne).
+écartent (§\ref{sec:controles}). L'amplitude observée d'une telle colonne est nulle ou de l'ordre
+de la tolérance $10^{-12}$ du prédicat, mais son poids reste au dénominateur. Tirée avec un
+$\hat\sigma_j^2$ nul ou négligeable (colonne $j \le J-2$, ou $J-1$ quand la règle de minimum l'est,
+section~\ref{sec:boot-mw}), la colonne garde une amplitude négligeable dans les réplications
+(dégénérée dans chaque réplication mesurée, rubrique~7)~: $A$ observée et simulées sont
+multipliées par $\sum' n_j/\sum_j n_j$ ($\sum'$ sur les colonnes non dégénérées)~; la p-value de
+Monte-Carlo n'en est pas modifiée, à des égalités près de l'ordre de la tolérance, et seule la
+valeur restituée de $A$, diminuée, ne se lit plus comme l'amplitude moyenne des colonnes non
+dégénérées. La colonne $J-1$ d'un trapèze, tirée avec la valeur de la règle de minimum, n'est en
+général plus dégénérée quand cette valeur n'est pas négligeable~; avec au moins trois facteurs,
+son amplitude, nulle à l'observé, entre alors dans chaque $A$ simulée, et la p-value de
+Monte-Carlo est au moins égale à celle de $A$ calculée sans la colonne (propriété exacte, les
+amplitudes étant positives ou nulles)~: écart dans le sens conservateur, de grandeur non
+transposable, d'effet sur le niveau et la puissance non mesuré. Avec moins de trois facteurs,
+carré compris, la colonne $J-1$ n'entre pas dans $A$.
 
 Sur un trapèze, son niveau est légèrement libéral sur le $8\times6$ du plan mesuré, sous E au seuil
 $0{,}10$ (§\ref{sec:trapeze-niveau}).
@@ -17348,7 +17364,15 @@ retrait de la ligne au motif qu'elle viserait la même alternative que la pente.
 Mack ajusté au triangle de contrôle, plans P1 à P3), non transposables à une autre géométrie ni à
 un autre paramétrage~; intervalles de Clopper--Pearson fonction du nombre de triangles, distincts
 de l'erreur de Monte-Carlo en $B$~; p-values de McNemar exactes sur les décisions simulées, sans
-correction de multiplicité~; corrélations de rang~: descriptives. Identité de covariance~: exacte.
+correction de multiplicité~; corrélations de rang~: descriptives. Colonnes dégénérées
+(rubrique~6~; $B = 999$, graine 20260831, triangles construits)~: constats de simulation, non
+transposables. Colonnes tirées avec $\hat\sigma_j^2$ nul ou négligeable (triangle de six années,
+$j = 0$~; trapèze de référence modifié, $j = 2$ et $J-1$, $\hat\sigma_j^2$ voisin de
+$10^{-28}$)~: dégénérées dans chaque réplication, p-value inchangée sans la colonne. Colonne
+$J-1$ tirée avec une règle de minimum de $0{,}14$ (trapèze de référence modifié, $8\times6$, trois
+facteurs) ou de $0{,}68$ (triangle de contrôle réduit et modifié, $8\times5$, quatre)~: dégénérée
+dans aucune réplication~; p-value $0{,}008$ et $0{,}023$, contre $0{,}007$ et $0{,}010$ sans la
+colonne. Identité de covariance~: exacte.
 \end{fiche}
 
 \begin{fiche}{M1 --- Identifiabilité intra-colonne (dispersion des cumuls par colonne, diagnostic)}
@@ -17360,9 +17384,8 @@ l'origine de l'outil (fiche~\ref{mw:m1a})~; estimateur $\hat\sigma_j^2$~: T.~Mac
 \emph{op.\ cit.}, section~3, p.~217. Quantiles de la loi de Student décentrée~: calcul numérique,
 sans référence externe.}
 \Cadre
-Ligne de la famille M1, placée par \code{mw\_tests()} juste après la famille $\alpha$ et calculée
-par \code{mw\_identifiabilite\_intra()}. Elle restitue, colonne par
-colonne, la dispersion des cumuls $C(i,j)$ à année de développement donnée, dont dépend la
+Ligne de la famille M1, calculée par \code{mw\_identifiabilite\_intra()}~; elle restitue, colonne
+par colonne, la dispersion des cumuls $C(i,j)$ à année de développement donnée, dont dépend la
 puissance des lignes de M1 qui comparent des cellules d'une même colonne (ordonnée à l'origine,
 fiche~\ref{mw:m1a}~; pente relative, fiche~\ref{mw:m1}) et de celles de M2 qui lisent
 l'échelle des résidus à colonne donnée (fiches~\ref{mw:m2bp} et~\ref{mw:m2b}). \emph{Colonnes
@@ -17381,8 +17404,7 @@ $\hat\sigma_j$ la racine de l'estimateur de Mack $\hat\sigma_j^2$ (section~\ref{
   D_j = S_j \sum_i \frac{1}{C_0(i)} - n_j^2
       = \sum_{a < b} \frac{\big(C_0(a) - C_0(b)\big)^2}{C_0(a)\,C_0(b)} .
 \]
-Le moteur calcule $D_j$ sous la seconde forme, somme de termes positifs sans annulation ni
-débordement~; $D_j = 0$ si et seulement si $C_0$ est constant, et $e_{a,j}$ n'est alors pas défini.
+Le moteur calcule $D_j$ sous la seconde forme, sans annulation~; $D_j = 0$ si et seulement si $C_0$ est constant, et $e_{a,j}$ n'est alors pas défini.
 \emph{Identité exacte.} Dans la régression pondérée $C_1 = a_j + b_j C_0 + \varepsilon$, de poids
 $1/C_0$,
 \[
@@ -17397,17 +17419,14 @@ dégénérées (§\ref{sec:controles}). Les trois
 grandeurs sont sans dimension et invariantes par changement d'unité des cumulés.
 \Hzero
 Aucune hypothèse nulle~: la ligne est un diagnostic. Le «~\code{sous H0}~» du libellé
-\code{reference} désigne l'hypothèse nulle de l'ordonnée à l'origine ($a_j = 0$,
-fiche~\ref{mw:m1a}), sous laquelle $\hat\sigma_j$ de Mack est un estimateur convenable de
+\code{reference} désigne l'hypothèse nulle de l'ordonnée à l'origine ($a_j = 0$), sous laquelle $\hat\sigma_j$ de Mack est un estimateur convenable de
 $\sigma_j$ (rubrique~4)~; la ligne ne la teste pas.
 \Stat
 Aucune statistique de test (\code{stat} à \code{NA}). L'estimation restituée est la moyenne des
 $\mathrm{CV}_j$ des colonnes retenues («~\code{CV moyen des colonnes retenues}~», \code{NA} sans
-colonne retenue)~; le commentaire dit l'usage du diagnostic et nomme les lignes dont il borne la
-puissance, sans valeur par colonne, ou constate qu'aucune colonne n'est retenue. La table par colonne, $j$, $n_j$, $\mathrm{CV}_j$, $R_j$ et
+colonne retenue). La table par colonne, $j$, $n_j$, $\mathrm{CV}_j$, $R_j$ et
 $e_{a,j}$ (\code{NA} si $D_j = 0$), est l'élément \code{detail} de
-\code{mw\_identifiabilite\_}\allowbreak\code{intra()}, appelée sur \code{res\$ajustement} et
-l'ensemble des colonnes dégénérées (\code{.mw\_colonnes\_degenerees()}). Toutes ces grandeurs
+\code{mw\_identifiabilite\_}\allowbreak\code{intra()}. Toutes ces grandeurs
 sont calculées sur le triangle observé~; aucune n'est issue du bootstrap (§\ref{sec:graines}), et
 elles ne sont pas arrondies. Sur le triangle de contrôle
 (\code{run\_engine()}, méthode \code{reserve2})~: estimation $0{,}0730$, et, par colonne, avec les
@@ -17432,7 +17451,6 @@ multiplicateurs et les effets minimaux détectables de la rubrique~6~:
 Les trois dernières colonnes ne sont pas restituées par le moteur (rubrique~6)~; la dernière
 est l'effet minimal détectable obtenu en remplaçant $e_{a,j}$ par l'erreur type observée de
 $\hat a_j$ (celle de \code{lm()}, à $n_j - 2$ degrés de liberté) rapportée à $\bar C_{j+1}$.
-Fonction nommée~: \code{mw\_identifiabilite\_intra()}.
 \Loi
 Sans objet~: aucune statistique de test. Statut des grandeurs. $\mathrm{CV}_j$ et $R_j$ sont des
 valeurs exactes, descriptives, de l'observé~; $S_j/D_j$ est une identité algébrique exacte
@@ -17458,11 +17476,7 @@ $\hat a_j$ rapportée à $\bar C_{j+1}$~: la lecture de $e_{a,j}$ est conservatr
 difficulté de détection) au sens de l'espérance de son carré seulement, ni triangle par triangle,
 $\hat\sigma_j^2$ n'ayant que $n_j - 1$ degrés de liberté, ni pour $e_{a,j}$ lui-même quand $a_j$
 est petit~: l'espérance d'une racine étant au plus la racine de l'espérance (inégalité de Jensen),
-$e_{a,j}$ sous-estime en moyenne l'erreur type vraie sous $H_0$. Ordre de grandeur, à paramètres
-pris égaux aux estimations du triangle de contrôle et à cumuls de la colonne fixés~: en colonne
-$j = 1$ ($n_j = 6$), une ordonnée $a_j = 0{,}20\,\hat f_j\,\bar C_j$ porte l'espérance de
-$\hat\sigma_j^2$ de $0{,}712$ à $1{,}371$, en unité du triangle, soit un facteur $1{,}93$ (calcul
-exact par la formule ci-dessus). La normalisation par la
+$e_{a,j}$ sous-estime en moyenne l'erreur type vraie sous $H_0$. La normalisation par la
 moyenne observée $\bar C_{j+1}$ est une convention de lecture de l'outil.
 \Pval
 Aucune p-value~: la ligne est de type \code{diagnostic}, restituée \code{INFO}, \code{p\_retenue}
@@ -17471,33 +17485,31 @@ statistique, aucune voie de la hiérarchie n'a d'objet.
 \Usage
 Diagnostic par nature, sans verdict (même section)~: il ne dit rien de la conformité du triangle au
 modèle réglementaire, mais de la capacité des lignes de M1 et de M2 à la mettre en défaut sur ce
-triangle. Aucun repère n'y est attaché.
-
-\emph{Lecture de $e_{a,j}$.} Une ordonnée à l'origine de l'ordre de $e_{a,j}$ n'est pas détectable
+triangle. Aucun repère n'y est attaché. \emph{Lecture de $e_{a,j}$.} Une ordonnée à l'origine de l'ordre de $e_{a,j}$ n'est pas détectable
 dans sa colonne~; sa détection fiable en exige plusieurs fois $e_{a,j}$, d'autant plus que $n_j$
 est petit. Sous erreurs gaussiennes, à $C(\cdot,j)$ donné, le $t_j$ de Student de la colonne
 (fiche~\ref{mw:m1a}) suit exactement la loi de Student décentrée à $n_j - 2$ degrés de liberté,
 de paramètre $a_j/\mathrm{se}(\hat a_j)$, $\mathrm{se}$ vraie. Le multiplicateur $m_{n_j}$ est la
 valeur de ce paramètre pour laquelle le test bilatéral de la colonne au seuil $0{,}10$ a une
-puissance de $0{,}80$~: $2{,}905$ ($n_j = 7$), $3{,}040$ (6), $3{,}299$ (5), $3{,}979$ (4),
-$8{,}192$ (3) (calcul numérique par \code{stats::pt(, ncp = )} et recherche de racine, valeurs
-arrondies au millième~; exactes sous ce modèle gaussien à paramètre vrai). L'effet minimal
-détectable de $a_j$, en part de $\bar C_{j+1}$, est alors voisin de $m_{n_j}\,e_{a,j}$~: une
-\emph{estimation}, puisque $e_{a,j}$ en est une. Sur le triangle de contrôle, il vaut $23$, $28$,
-$32$, $32$ et $56~\%$ (rubrique~3)~: un verdict \code{OK} de la ligne de l'ordonnée à l'origine n'y
-écarte pas une ordonnée d'un cinquième du cumul moyen suivant. Ces multiplicateurs portent sur le
+puissance de $0{,}80$ (tableau de la rubrique~3~; calcul numérique par \code{stats::pt(, ncp = )}
+et recherche de racine, valeurs arrondies au millième~; exactes sous ce modèle gaussien à paramètre
+vrai). L'effet minimal détectable de $a_j$, en part de $\bar C_{j+1}$, est alors voisin de
+$m_{n_j}\,e_{a,j}$~: une \emph{estimation}, puisque $e_{a,j}$ en est une. Sur le triangle de
+contrôle, il dépasse $20~\%$ dans chaque colonne (même tableau)~: un verdict \code{OK} de la ligne
+de l'ordonnée à l'origine n'y écarte pas une ordonnée d'un cinquième du cumul moyen suivant. Ces multiplicateurs portent sur le
 test de Student d'une colonne, non sur la combinaison de Fisher ni sur sa p-value de Monte-Carlo,
 dont la puissance est mesurée par simulation (fiche~\ref{mw:m1a}, rubrique~7). Le moteur ne
 restitue pas l'effet minimal détectable (règle de l'outil)~: il dépend du seuil, de la puissance
-visée, du modèle auxiliaire gaussien et du $\sigma_j$ substitué. Une variante à erreur type observée ($20$ à $67~\%$, dernière colonne du tableau de la
-rubrique~3) est démentie par la mesure~: sous le plan du triangle de contrôle (tableau T7~(d) de
+visée, du modèle auxiliaire gaussien et du $\sigma_j$ substitué. La variante à erreur type observée
+(dernière colonne du tableau) est démentie par la mesure~: sous le plan du triangle de contrôle
+(tableau T7~(d) de
 \code{docs/tableaux/}\allowbreak\code{20261021-}\allowbreak\code{issue309-puissance-mw.md}~; loi N),
 contre une ordonnée de $20~\%$ du cumul moyen suivant, le test de Student de la colonne rejette au
-seuil $0{,}10$ dans $0{,}695$, $0{,}343$, $0{,}211$, $0{,}187$ et $0{,}157$ des triangles pour
-$j = 0$ à~4, soit $0{,}343$ en colonne~1, où cette variante annonçait $0{,}80$ dès $16~\%$~:
-l'erreur type observée, estimée à $n_j - 2$ degrés de liberté, est trop bruitée~; les effets minimaux
-calculés avec $\hat\sigma_j$ de Mack ($23$ à $56~\%$) sont compatibles en ordre de grandeur avec ces
-taux, sans plus (constat de simulation sous ce plan).
+seuil $0{,}10$ dans $0{,}695$ ($j = 0$) à $0{,}157$ ($j = 4$) des triangles, $0{,}343$ en
+colonne~1, où cette variante annonçait $0{,}80$ dès $16~\%$~: l'erreur type observée, estimée à
+$n_j - 2$ degrés de liberté, est trop bruitée~; les effets minimaux calculés avec $\hat\sigma_j$ de
+Mack sont compatibles en ordre de grandeur avec ces taux, sans plus (constat de simulation sous ce
+plan).
 
 \emph{Lecture de $R_j$.} Sous un exposant de variance $k$, $\operatorname{Var}\big(C(i,j+1)
 \mid C(i,j)\big) = \sigma_j^2\,C(i,j)^k$, le résidu de Mack $\big(C(i,j+1) - f_j C(i,j)\big)/
@@ -17507,9 +17519,7 @@ exactement $R_j^{\,k-1}$. Sur le triangle de contrôle, $R_j \le 1{,}229$~: cont
 ou~2, ce rapport reste entre $0{,}81$ et $1{,}23$, écart que les lignes de M2 ne peuvent guère voir
 sur trois à sept résidus par colonne (fiches~\ref{mw:m2bp} et~\ref{mw:m2b}, rubrique~7).
 \emph{Lecture de $\mathrm{CV}_j$.} La puissance des lignes de M1 croît avec la dispersion
-intra-colonne (fiche~\ref{mw:m1a}, rubrique~7~: sous P2, $\mathrm{CV}$ moyen $0{,}229$, l'ordonnée à
-l'origine est rejetée dans $1{,}000$ des triangles contre $0{,}683$ sous P1, $\mathrm{CV}$ $0{,}063$),
-alors que la famille M2 reste sans puissance mesurable dans la même plage (fiche~\ref{mw:m2bp},
+intra-colonne (fiche~\ref{mw:m1a}, rubrique~7, plans P1 et P2), alors que la famille M2 reste sans puissance mesurable dans la même plage (fiche~\ref{mw:m2bp},
 rubrique~7). À $T = 8$, la ligne n'a de valeur qu'appariée à ces rubriques~7~: elle situe le
 triangle examiné par rapport aux plans mesurés, sans transposer leurs taux.
 \end{fiche}
@@ -21647,7 +21657,8 @@ partie~III).
   \item Autorité européenne des assurances et des pensions professionnelles (AEAPP),
   \emph{Orientations sur les paramètres propres à l'entreprise}, EIOPA-BoS-14/178, 2015.
   \emph{Portée.} Orientation~6 (conformité continue), à laquelle renvoie le §~171 de la notice de
-  l'ACPR~; version à laquelle l'ACPR s'est déclarée conforme (notice, §~2).
+  l'ACPR~; version à laquelle l'ACPR s'est déclarée conforme selon la notice (§~2)~; sa
+  conformité aux orientations EIOPA-BoS-25/249 est déclarée par l'avis cité ci-après.
 
   \item AEAPP, \emph{Orientations sur les paramètres propres à l'entreprise}, EIOPA-BoS-25/249,
   adoptées le 25~juin 2025, qui abrogent et remplacent EIOPA-BoS-14/178 (§~6). Page de l'AEAPP
@@ -21658,9 +21669,27 @@ partie~III).
   \emph{Portée.} Conformité continue à l'orientation~5 (§§~13 à~15), sans tests statistiques ni
   périodicité~; orientations~2, 8 et~12 de 2015 supprimées. Applicables deux mois après la
   publication des traductions dans toutes les langues officielles~; jusque-là, les orientations
-  de 2015 s'appliquent. Date de cette publication non établie, et aucune déclaration de conformité de l'ACPR
-  trouvée, au \dateconsultation{}. C'est le texte des
+  de 2015 s'appliquent. Date de cette publication non établie au \dateconsultation{}~; l'avis de
+  conformité de l'ACPR (entrée suivante) n'en fixe pas. C'est le texte des
   orientations qui fait référence, non le rapport final, qui garde l'ancienne numérotation.
+
+  \item Autorité de contrôle prudentiel et de résolution, avis \emph{Mise en œuvre des
+  orientations de l'Autorité Européenne des Assurances et Pensions Professionnelles concernant
+  les paramètres propres à l'entreprise d'assurance (EIOPA-BoS-25/249) en vertu de la directive
+  2009/138/CE, du règlement délégué 2015/35 et du règlement d'exécution (UE) 2015/498},
+  registre officiel, page\newline
+  % URL longues : texte affiché coupé à la main (\newline), cible exacte dans \href.
+  \href{https://acpr.banque-france.fr/fr/publications-et-statistiques/publications/mise-en-oeuvre-des-orientations-de-lautorite-europeenne-des-assurances-et-pensions-professionnelles-1}{\texttt{https://acpr.banque-france.fr/fr/publications-et-statistiques/\newline publications/mise-en-oeuvre-des-orientations-de-lautorite-\newline europeenne-des-assurances-et-pensions-professionnelles-1}}
+  (mise à jour affichée du 12.11.2026) et avis en PDF d'une page,\newline
+  \href{https://acpr.banque-france.fr/system/files/2026-11/20261110_avis_conformit%C3%A9_GLs_Specific_Parameters.pdf}{\texttt{https://acpr.banque-france.fr/system/files/2026-11/\newline 20261110\_avis\_conformit\%C3\%A9\_GLs\_Specific\_Parameters.pdf}}
+  (non daté dans son corps~; fichier daté du 10.11.2026 par son nom et ses métadonnées),
+  consultés le \dateconsultation{}. \emph{Portée.} Déclaration de conformité de l'ACPR aux
+  orientations EIOPA-BoS-25/249, dites applicables aux organismes d'assurance et de réassurance,
+  qui doivent tout mettre en œuvre pour les respecter, conformément à l'article~16 du règlement
+  (UE) n\textsuperscript{o}~1094/2010. L'avis ne fixe aucune date d'application et ne dit rien
+  des orientations EIOPA-BoS-14/178 ni de la notice de l'ACPR~; ni la date de la déclaration
+  ni celle de la première mise en ligne ne sont établies par ces pièces. Relu sur la page et
+  sur le PDF.
 
   \item AEAPP, \emph{Q\&A on regulation}, question~2580 (règlement délégué (UE)~2015/35,
   article~31 et annexe~XVII~; statut «~Final~»~; question soumise le 13~février 2023),

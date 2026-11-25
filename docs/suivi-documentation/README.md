@@ -149,6 +149,7 @@ Une ligne par entrée, dans l'ordre du `.tex`.
 | Relecture de la partie III-M (entrée transversale) | `III-M.md` | Relecture de la partie III-M (étape 8 de JF) | III |
 | Commentaires en deux phrases (entrée transversale) | `III-M.md` | Commentaires des lignes de test en deux phrases (#514) | III |
 | `sec:mw` | `III-M.md` | Méthode Merz–Wüthrich, cadre et spécification | III |
+| `sec:trapeze-niveau` | `III-M.md` | Trapèze : résidus de la colonne J−1 et niveau des tests | III |
 | `mw:m1` | `III-M.md` | Absence de tendance des facteurs avec le cumulé | III |
 | `mw:m1a` | `III-M.md` | Nullité de l'ordonnée à l'origine, colonne par colonne | III |
 | `mw:m1b` | `III-M.md` | Homogénéité de f_j entre années de survenance | III |
