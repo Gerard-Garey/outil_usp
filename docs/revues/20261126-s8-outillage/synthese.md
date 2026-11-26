@@ -10,7 +10,7 @@ Branche `claude/outillage-ci-et-controles`, PR #626, partie de `main` `b084e13`.
 
 Suites données à la revue finale :
 
-- **M1** : critère d'équilibre des lots de #561 reformulé par le mainteneur le 26/11/2026 (charges estimées par `repartir_lots()` à partir de la table mesurée, écart 0,1 %) ; `Closes #561` maintenu. Durées de CI observées consignées dans la PR et la feuille de route (E-26/11 (critère d'équilibre de #561, S8)).
+- **M1** : critère d'équilibre des lots de #561 reformulé par le mainteneur le 26/11/2026 (charges estimées par `repartir_lots()` à partir de la table mesurée, écart 0,1 %) ; la ligne de fermeture de #561 est maintenue dans la PR. Durées de CI observées consignées dans la PR et la feuille de route (E-26/11 (critère d'équilibre de #561, S8)).
 - **m1** : faux positif A1 du contrôle ND après un `%` d'argument de `\url` ou de `\href`, corrigé (`8ae5655`), `CONVENTIONS.md` aligné (`c0e4afe`).
 - **m2** : message de refus de `--fichiers`, corrigé (`918c62f`).
 - Audit léger de ces corrections : conforme ; la réserve sur `CONVENTIONS.md` est levée par `c0e4afe`.
