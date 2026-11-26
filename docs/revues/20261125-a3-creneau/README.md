@@ -4,7 +4,9 @@ Branche de travail `claude/creneau-a3`, PR brouillon #623. Plan : fiche « Crén
 
 | Pièce | Étape | Auteur | Statut |
 |---|---|---|---|
-| `actuary-1-specification-620.md` | 2 : spécification et protocole | `actuary-approfondi`, 25/11/2026 | versée telle quelle ; **PA-1 en attente** |
+| `actuary-1-specification-620.md` | 2 : spécification et protocole | `actuary-approfondi`, 25/11/2026 | versée telle quelle ; PA-1 décidé le 26/11 (E-26/11 (PA-1 d'A3)) |
+| `mesure-620/mesure_620.R`, `mesure-620/sortie_mesure_620.txt` | 3 et 4 : script de mesure et sortie à B = 999 | `coder-approfondi` (`high`), 26/11/2026 ; exécution par la session | versés ; R0 vert, (b) et (a) admissibles, choix mécanique (b) |
+| `actuary-2-lecture-mesure-620.md` | 5 : lecture de la mesure | `actuary-approfondi`, 26/11/2026 | versée telle quelle ; **PA-2 en attente** |
 
 ## Synthèse de la spécification (étape 2)
 
@@ -42,3 +44,12 @@ Branche de travail `claude/creneau-a3`, PR brouillon #623. Plan : fiche « Crén
   - changement de résultat sous (a) et sous (b) ;
   - validité à T = 8 non mesurable.
 - **Constats mineurs écartés (ADR 0018)** : C1, C2 et C5 (§ 5 de la spécification), aucun critère. Il n'y a aucun constat marquant.
+
+## Synthèse de la mesure et de sa lecture (étapes 3 à 5)
+
+- **Script** : une reprise ciblée après le contrôle de conformité d'`actuary` (ordre des exécutions, § 3.4) ; deux audits légers sans bloquant ni majeur. Trois mineurs du chemin d'échec de Va, non exercé, écartés (ADR 0018).
+- **Sortie** (B = 999, 562 s, md5 de `R/engine.R` inchangé) : R0 vert ; Gb1-Gb4 et Ga1-Ga4 verts ; choix mécanique (b).
+- **Effets de (b)** (constats de simulation) : p d'Alpha T1 0,008 → 0,007, T2 0,023 → 0,010 ; p de famille M1 inchangée ; p globale T2 0,022 → 0,023 (un compte, sens non garanti) ; σ_boot et intervalle à 0,25 % relatif au plus ; aucun verdict changé à 0,10 ; σ_USP inchangé (exact).
+- **H5** en partie fausse sur `inoperant` (erreur de prédiction, pas de constat E3).
+- **`mw:m1d` sous (b)** : 12 479 caractères sur 12 800.
+- **PA-2** : sept questions au § 7 de la lecture ; recommandation (b), plafond gardé, jalon court 3.1.1, annotation de l'ADR 0005 avant le code, textes restitués du § 4.3.
