@@ -1,0 +1,16 @@
+premium     sigma_USP = 0.1114524114  (22 s)
+            CONFORME : 57022 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+reserve1    sigma_USP = 0.1073524114  (19 s)
+            CONFORME : 57021 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+reserve2    sigma_USP = 0.0497764613  (32 s)
+            CONFORME : 18746 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+premium_ii6 sigma_USP = 0.1483524114  (19 s)
+            CONFORME : 57022 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+premium_net sigma_USP = 0.1032524114  (19 s)
+            CONFORME : 57022 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+premium_interieur sigma_USP = 0.0871308679  (36 s)
+            CONFORME : 57022 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+reserve2_trapeze sigma_USP = 0.0475797067  (31 s)
+            CONFORME : 18573 feuille(s), 0 non strictement identique(s), 0 en ecart au seuil 1e-06 ; ecart maximal 0.000e+00
+
+OK : reproductibilite et non-regression verifiees pour 7 cas.
