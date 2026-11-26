@@ -6,7 +6,9 @@ Branche de travail `claude/creneau-a3`, PR brouillon #623. Plan : fiche « Crén
 |---|---|---|---|
 | `actuary-1-specification-620.md` | 2 : spécification et protocole | `actuary-approfondi`, 25/11/2026 | versée telle quelle ; PA-1 décidé le 26/11 (E-26/11 (PA-1 d'A3)) |
 | `mesure-620/mesure_620.R`, `mesure-620/sortie_mesure_620.txt` | 3 et 4 : script de mesure et sortie à B = 999 | `coder-approfondi` (`high`), 26/11/2026 ; exécution par la session | versés ; R0 vert, (b) et (a) admissibles, choix mécanique (b) |
-| `actuary-2-lecture-mesure-620.md` | 5 : lecture de la mesure | `actuary-approfondi`, 26/11/2026 | versée telle quelle ; **PA-2 en attente** |
+| `actuary-2-lecture-mesure-620.md` | 5 : lecture de la mesure | `actuary-approfondi`, 26/11/2026 | versée telle quelle ; PA-2 décidé le 26/11 (E-26/11 (PA-2 d'A3)) : piste (b) |
+| `regulatory-1-conformite-620.md` | 7 : conformité des passages citant D(4), D(5), D(5)(d)(ii) | `regulatory` (routine), 26/11/2026 | versée telle quelle ; conforme |
+| `actuary-3-visa-tex-620.md` | 8 : visa du diff du `.tex` (`a147700`) | `actuary-approfondi`, 26/11/2026 | versée telle quelle ; validé sans reprise |
 
 ## Synthèse de la spécification (étape 2)
 
@@ -53,3 +55,10 @@ Branche de travail `claude/creneau-a3`, PR brouillon #623. Plan : fiche « Crén
 - **H5** en partie fausse sur `inoperant` (erreur de prédiction, pas de constat E3).
 - **`mw:m1d` sous (b)** : 12 479 caractères sur 12 800.
 - **PA-2** : sept questions au § 7 de la lecture ; recommandation (b), plafond gardé, jalon court 3.1.1, annotation de l'ADR 0005 avant le code, textes restitués du § 4.3.
+
+## Synthèse du code, de la documentation et des visas (étapes 6 à 8)
+
+- **Code** (piste (b), PA-2-1) : `32d9895` (`moteur:`, tableau `docs/tableaux/20261126-issue620-colonne-jm1-degeneree.md`), `aa4f663` (`tests:`). Sept références au seuil 0 ; σ_USP inchangé ; moteur égal au prototype Vb (Δp = 0). Visa du mainteneur sur les verdicts changés à α saisi, visa d'`actuary` sur les autres p.
+- **Documentation** : `a147700` (`docwriter`, `high`) ; `mw:m1d` à 12 479 caractères, plafond 12 800 gardé.
+- **`regulatory`** : conforme. **`actuary-approfondi`** : `.tex` validé sans reprise.
+- **Constats mineurs écartés (ADR 0018)** : voir le corps de la PR #623.
