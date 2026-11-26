@@ -1,0 +1,156 @@
+###############################################################################
+#  tests/calculer_durees_unitaires.R  --  TABLE DES DUREES DES TESTS UNITAIRES
+#
+#  Ecrit tests/durees_unitaires.tsv, lue par tests/test_unitaires.R pour
+#  repartir les fichiers en lots (--lot=k/n) et ordonner --parallele (issue
+#  #561, Q-72-5 (a)). Procede rejouable : la table n'est jamais retouchee a la
+#  main, elle se recalcule, sur de nouvelles executions de la CI, par
+#      Rscript tests/calculer_durees_unitaires.R ID [ID ...]
+#  avec l'identifiant de chaque execution de ci.yml (nombre apres /runs/ dans
+#  l'adresse de l'execution sur GitHub). Options :
+#      --depot=proprietaire/nom   (defaut : Gerard-Garey/outil_usp)
+#      --sortie=chemin            (defaut : tests/durees_unitaires.tsv)
+#  Prerequis : la commande gh (GitHub CLI), authentifiee, et l'acces reseau ;
+#  R base uniquement. Aucun calcul du moteur, aucun tirage.
+#
+#  Procede :
+#   1. Pour chaque execution, les jobs Tests unitaires (lot k/n), termines
+#      avec succes (gh api .../runs/ID/jobs) ; une execution sans lot reussi
+#      (commit sans moteur, echec) est refusee.
+#   2. Pour chaque job, son journal (gh api .../jobs/ID/logs) : les lignes
+#      ##### [i/n] fichier.R : OK, N assertions, X s du lanceur en mode
+#      --parallele ; X est la duree du fichier sous quatre processus.
+#   3. Duree d'un fichier = moyenne arithmetique de ses X sur les executions
+#      (une execution par fichier et par lot : un fichier est dans un lot et
+#      un seul). Un fichier en echec (ECHEC) dans une execution n'est pas
+#      retenu pour cette execution.
+#   4. Fichiers issus d'une coupe (PARTAGE ci-dessous) : tant que les journaux
+#      ne contiennent aucune partie, la duree du fichier d'origine est repartie
+#      entre ses parties au prorata d'une mesure locale (PARTAGE, ci-dessous) ;
+#      des que les journaux contiennent les parties
+#      (executions posterieures a la coupe), la regle est sans objet et les
+#      durees sont celles mesurees. Ne pas melanger dans un meme appel des
+#      executions d'avant et d'apres la coupe : la moyenne d'un fichier
+#      d'origine mesure en un bloc et en une partie n'aurait pas de sens.
+#   5. Controle : chaque fichier tests/unitaires/test_*.R du disque a une
+#      duree, et chaque ligne ecrite correspond a un fichier du disque ; sinon
+#      erreur, jamais de repli silencieux.
+#  La table est ecrite par duree decroissante, nom croissant a egalite ; son
+#  en-tete consigne les executions et leur nombre.
+###############################################################################
+
+DEPOT_DEFAUT <- "Gerard-Garey/outil_usp"
+
+# Fichiers issus d'une coupe (issue #561, etape 4 de S8) : pour chaque fichier
+# d'origine, ses parties (la premiere garde le nom de l'origine) et la fraction
+# de sa duree portee par chacune. Fractions = duree de chaque partie rapportee a
+# la somme des durees des parties, relevee dans une meme execution du lanceur
+# sur les six parties (Rscript tests/test_unitaires.R --parallele
+# --fichiers=...), quatre processus, R 4.3.3, 4 coeurs, 26/11/2026 :
+#   test_controles_entree.R   104,5 s et 116,9 s (somme 221,4 s) ;
+#   test_application.R        117,8 s et 108,2 s (somme 226,0 s) ;
+#   test_p_mc_regime.R         70,7 s et  73,1 s (somme 143,8 s).
+PARTAGE <- list(
+  test_controles_entree.R = c(test_controles_entree.R = 0.472, test_controles_entree_partie_2.R = 0.528),
+  test_application.R = c(test_application.R = 0.521, test_application_partie_2.R = 0.479),
+  test_p_mc_regime.R = c(test_p_mc_regime.R = 0.492, test_p_mc_regime_partie_2.R = 0.508))
+
+arguments <- commandArgs(trailingOnly = TRUE)
+depot <- DEPOT_DEFAUT
+sortie <- "tests/durees_unitaires.tsv"
+ids <- character(0)
+for (a in arguments) {
+  if (grepl("^--depot=", a)) depot <- sub("^--depot=", "", a)
+  else if (grepl("^--sortie=", a)) sortie <- sub("^--sortie=", "", a)
+  else if (grepl("^[0-9]+$", a)) ids <- c(ids, a)
+  else stop("Argument inconnu : ", a, "\nUsage : Rscript tests/calculer_durees_unitaires.R [--depot=p/n] [--sortie=chemin] ID [ID ...]")
+}
+if (!length(ids)) stop("Aucune execution : donner au moins un identifiant d'execution de ci.yml.")
+if (anyDuplicated(ids)) stop("Identifiant d'execution repete : ", paste(ids[duplicated(ids)], collapse = " "))
+if (!nzchar(Sys.which("gh"))) stop("La commande gh est introuvable.")
+
+gh <- function(chemin, ...) {
+  r <- suppressWarnings(system2("gh", c("api", chemin, ...), stdout = TRUE, stderr = TRUE))
+  statut <- attr(r, "status")
+  if (!is.null(statut) && statut != 0L)
+    stop("gh api ", chemin, " : code ", statut, "\n", paste(utils::head(r, 5L), collapse = "\n"))
+  r
+}
+
+RX_FICHIER <- "^[^ ]+ ##### \\[[0-9]+/[0-9]+\\] ([^ ]+[.]R) : (OK|ECHEC), [0-9]+ assertions, ([0-9.]+) s$"
+mesures <- list()
+for (id in ids) {
+  jobs <- gh(sprintf("repos/%s/actions/runs/%s/jobs", depot, id), "--paginate",
+             "--jq", shQuote('.jobs[] | select((.name | startswith("Tests unitaires (lot")) and .conclusion == "success") | .id'))
+  jobs <- jobs[nzchar(jobs)]
+  if (!length(jobs)) stop("Execution ", id, " : aucun job Tests unitaires (lot k/n) termine avec succes.")
+  for (j in jobs) {
+    journal <- gh(sprintf("repos/%s/actions/jobs/%s/logs", depot, j))
+    m <- regmatches(journal, regexec(RX_FICHIER, journal, useBytes = TRUE))
+    m <- Filter(length, m)
+    if (!length(m)) stop("Execution ", id, ", job ", j, " : aucune ligne de fichier dans le journal.")
+    mesures[[length(mesures) + 1L]] <- data.frame(
+      execution = id, fichier = vapply(m, `[`, "", 2L), statut = vapply(m, `[`, "", 3L),
+      duree = as.numeric(vapply(m, `[`, "", 4L)), stringsAsFactors = FALSE)
+  }
+}
+mesures <- do.call(rbind, mesures)
+mesures <- mesures[mesures$statut == "OK", ]
+if (anyDuplicated(mesures[c("execution", "fichier")]))
+  stop("Un fichier figure deux fois dans une meme execution : ", paste(unique(mesures$fichier[duplicated(mesures[c("execution", "fichier")])]), collapse = " "))
+moy <- tapply(mesures$duree, mesures$fichier, mean)
+n_exec <- tapply(mesures$execution, mesures$fichier, function(e) length(unique(e)))
+
+# Fichiers du disque (nom, comme le lanceur).
+dossier <- if (dir.exists("tests/unitaires")) "tests/unitaires" else "unitaires"
+disque <- sort(basename(list.files(dossier, pattern = "^test_.*[.]R$")))
+
+# Coupes : repartition au prorata tant que les parties ne sont pas dans les journaux.
+partage_applique <- character(0)
+for (o in names(PARTAGE)) {
+  p <- PARTAGE[[o]]
+  autres <- setdiff(names(p), o)
+  if (any(autres %in% names(moy))) next
+  if (!o %in% names(moy)) stop("Fichier d'origine ", o, " absent des journaux : coupe non repartissable.")
+  if (abs(sum(p) - 1) > 1e-9) stop("Fractions de ", o, " : somme ", sum(p), " au lieu de 1.")
+  d <- unname(moy[o]); ne <- unname(n_exec[o])
+  for (nom in names(p)) { moy[nom] <- d * p[[nom]]; n_exec[nom] <- ne }
+  partage_applique <- c(partage_applique, o)
+}
+
+absents <- setdiff(disque, names(moy))
+en_trop <- setdiff(names(moy), disque)
+if (length(absents)) stop("Fichier(s) du disque sans duree dans les journaux : ", paste(absents, collapse = " "))
+if (length(en_trop)) cat("Fichier(s) des journaux absent(s) du disque, non ecrit(s) :", paste(en_trop, collapse = " "), "\n")
+moy <- moy[disque]; n_exec <- n_exec[disque]
+ordre <- order(-round(moy, 1), names(moy), method = "radix")
+moy <- moy[ordre]; n_exec <- n_exec[ordre]
+if (any(round(moy, 1) <= 0)) stop("Duree nulle apres arrondi : ", paste(names(moy)[round(moy, 1) <= 0], collapse = " "))
+
+entete <- c(
+  "# Durees des fichiers de tests/unitaires/ (secondes), lues par tests/test_unitaires.R",
+  "# pour repartir les fichiers en lots (--lot=k/n, LPT) et pour ordonner --parallele",
+  "# (plus longs d'abord). Format : nom du fichier, tabulation, duree ; les lignes",
+  "# vides et les lignes commencant par # sont ignorees. Un fichier absent de cette",
+  "# table prend 60 s ; une ligne sans fichier sur le disque est ignoree.",
+  "# FICHIER ECRIT PAR tests/calculer_durees_unitaires.R (procede decrit en tete de",
+  "# ce script, rejouable ; ne pas retoucher a la main). Une ligne par fichier",
+  "# tests/unitaires/test_*.R.",
+  "# Source (issue #561) : moyenne, fichier par fichier, des durees lues dans les",
+  "# journaux des jobs Tests unitaires (lot k/n), ligne ##### [i/n] fichier : OK,",
+  sprintf("# N assertions, X s (quatre processus par lot), de %d executions reussies de", length(ids)),
+  sprintf("# ci.yml : %s.", paste(ids, collapse = ", ")),
+  "# Les durees d'un meme fichier varient de 0,6 a 1,9 fois d'une execution a l'autre",
+  "# (fichiers concurrents du meme lot) : la moyenne attenue ce bruit sans l'annuler.")
+if (length(partage_applique)) {
+  entete <- c(entete,
+    "# Fichiers coupes depuis ces executions (issue #561) : la duree du fichier",
+    "# d'origine y est repartie entre ses parties au prorata de leurs durees dans une",
+    "# meme execution locale du lanceur (PARTAGE, dans le script) ; elle se remplace",
+    "# par la mesure des journaux a la prochaine mise a jour sur des executions",
+    "# posterieures a la coupe. Parties concernees :",
+    sprintf("#   %s.", unlist(lapply(partage_applique, function(o) paste(names(PARTAGE[[o]]), collapse = ", ")))))
+}
+lignes <- sprintf("%s\t%.1f", names(moy), moy)
+writeLines(c(entete, lignes), sortie, useBytes = TRUE)
+cat(sprintf("%s : %d fichiers, %d executions, somme %.1f s.\n", sortie, length(lignes), length(ids), sum(round(moy, 1))))
