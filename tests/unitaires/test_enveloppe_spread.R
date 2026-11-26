@@ -150,9 +150,10 @@ verifier("Matrice jouet : taux_global_ponctuel = proportion des lignes ayant une
 # courbes obtenues (quantiles de type 7, k* par (4.17), boot::envelope,
 # emboitement) et ne figent aucune valeur propre au tirage ; elles exigent
 # seulement B_eff >= ENVELOPPE_QQ_B_MIN_SIM = 500 pour que la bande simultanee
-# existe, avec une marge de 99 lignes au-dessus du seuil. Les assertions qui
-# dependent de B = 999 par construction (comparaison aux references .rds)
-# restent au bloc des cinq cas lognormaux de reference plus bas.
+# existe, avec une marge de 99 lignes au-dessus du seuil. La comparaison aux
+# references .rds (B = 999 par construction) n'est plus faite ici : elle est
+# portee par tests/test_reproductibilite.R, qui compare l'objet entier des
+# sept cas (plots_data compris) a TOLERANCE (retrait de #561).
 B_SPREAD <- 599L
 rB <- run_engine(xt = x, yt = y, methode = "premium", segment = 1, annexe = "II",
                    B = B_SPREAD, seed = GRAINE, nature_donnees = "brutes",
@@ -208,30 +209,6 @@ verifier("Niveau fixe : alpha = 0,05 ne change pas spread_enveloppe (B = 99)",
                             date_reference = DATE_REFERENCE_TESTS)
            identical(ra$plots_data$spread_enveloppe, rb$plots_data$spread_enveloppe)
          })
-
-# --- Chemins existants inchanges sur les cinq cas lognormaux de reference -----
-# spread_lisse et qq_enveloppe recalcules par run_engine() (CAS de
-# tests/outils_tests.R) contre tests/reference/<cas>.rds. Comparaison par
-# comparer_objets() a TOLERANCE, seul comparateur aux references (ADR 0006,
-# second amendement ; ADR 0011) : un identical() echouerait sur une autre
-# plateforme que celle de la CI par la seule derive d'optimiseur. Le nombre
-# de feuilles non strictement identiques est rapporte (0 attendu sur la
-# plateforme des references).
-outils306 <- new.env(parent = globalenv())
-sys.source(file.path(if (exists("RACINE", inherits = TRUE)) RACINE else ".", "tests", "outils_tests.R"),
-           envir = outils306)
-CAS_LN306 <- c("premium", "reserve1", "premium_ii6", "premium_net", "premium_interieur")
-comp306 <- lapply(CAS_LN306, function(cas) {
-  ref <- readRDS(outils306$chemin_reference(cas))$plots_data
-  obt <- outils306$executer_cas(cas)$plots_data
-  champs <- c("spread_lisse", "qq_enveloppe")
-  list(cas = cas, comp = outils306$comparer_objets(ref[champs], obt[champs]),
-       identiques = identical(ref[champs], obt[champs]))
-})
-verifier(sprintf("Cinq cas lognormaux : spread_lisse et qq_enveloppe conformes a tests/reference/<cas>.rds a TOLERANCE (identical() : %s)",
-                 paste(vapply(comp306, function(r) sprintf("%s %s", r$cas, r$identiques), ""),
-                       collapse = ", ")),
-         all(vapply(comp306, function(r) isTRUE(r$comp$conforme), logical(1))))
 
 # --- Aucun tirage -------------------------------------------------------------
 verifier("engine_enveloppe_spread() et engine_plots_data() laissent .Random.seed intact et n'appellent pas engine_sous_graine()",
