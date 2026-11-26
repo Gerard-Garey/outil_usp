@@ -45,8 +45,8 @@
 \newcommand{\annee}{2026}
 % Date d'établissement du document, figée au jour où la version est établie
 % (seule la page de garde s'y ancre) ; ne se recalcule pas.
-\newcommand{\datedoc}{25~novembre 2026}
-\newcommand{\versiondoc}{4.7}
+\newcommand{\datedoc}{26~novembre 2026}
+\newcommand{\versiondoc}{4.8}
 % Date de la dernière consultation consignée des sources dont le document
 % constate l'état (introduction de la partie III, sec:biblio), distincte de
 % \datedoc ; ne se recalcule pas.
@@ -1793,14 +1793,13 @@ colonne, \code{\$degeneree\_Jm3} (champs \code{\$colonne},
 \code{\$ecart\_relatif\_Jm2}, \code{\$f\_colonne\_Jm2}), et leur union
 \code{\$degeneree} \\
 \code{.mw\_simulation\_}\newline\code{sigma\_direct()} & \code{aj} & booléen, vrai si et
-seulement si \code{aj} est un trapèze (champ \code{sigma2\_Jm1\_direct} présent) dont la colonne
-$J-1$ n'est pas dégénérée (\code{.mw\_colonne\_degeneree()})~; lu par \code{mw\_bootstrap()}, qui
-simule alors la colonne $J-1$ avec l'estimateur direct, et par \code{.mw\_cas\_}\allowbreak\code{sigma\_direct()}
-(section~\ref{sec:boot-mw}) \\
+seulement si \code{aj} est un trapèze (champ \code{sigma2\_Jm1\_direct} présent), colonne $J-1$
+dégénérée comprise~; lu par \code{mw\_bootstrap()} seul, qui simule alors la colonne $J-1$ avec
+l'estimateur direct (section~\ref{sec:boot-mw}) \\
 \code{.mw\_cas\_}\newline\code{sigma\_direct()},\newline \code{.mw\_usage\_sigma()} & \code{aj} &
 cas de la colonne $J-1$~: \code{"carre"} (champ \code{sigma2\_Jm1\_direct} absent),
-\code{"simulation"} (\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()} vrai),
-\code{"degenere"} sinon (trapèze dont la colonne $J-1$ est dégénérée)~; lu par
+\code{"degenere"} (trapèze dont la colonne $J-1$ est dégénérée, lu par
+\code{.mw\_colonne\_degeneree()}), \code{"simulation"} (autre trapèze)~; lu par
 \code{mw\_tests()} pour le gabarit de la mention de la ligne M6 (fiche~\ref{mw:m6sig}) et par
 \code{.mw\_usage\_sigma()}, qui en tire les légendes de \code{plots\_data\$usage\_sigma} \\
 \code{.mw\_ecart\_facteurs()},\newline \code{.mw\_colonne\_degeneree()},\newline
@@ -1875,7 +1874,8 @@ mention jointe par \code{mw\_tests()} au commentaire de la ligne M6 d'extrapolat
 $\hat\sigma^2_{J-1}$, sur un trapèze seulement~: nombre de facteurs de la colonne $J-1$,
 estimateur direct de $\sigma^2_{J-1}$ lu dans \code{mw\_ajuster()} et ses degrés de liberté, aucun
 nombre issu du bootstrap~; gabarit choisi par \code{.mw\_cas\_}\allowbreak\code{sigma\_direct()}~:
-colonne $J-1$ simulée avec l'estimateur direct, ou colonne $J-1$ dégénérée (fiche~\ref{mw:m6sig}) \\
+colonne $J-1$ non dégénérée, ou dégénérée, simulée dans les deux cas avec l'estimateur direct
+(fiche~\ref{mw:m6sig}) \\
 \code{MW\_USAGE\_SIGMA},\newline \code{MW\_USAGE\_SIGMA\_}\newline\code{SIMULATION},\newline
 \code{MW\_USAGE\_SIGMA\_}\newline\code{DEGENERE} & constantes (deux chaînes nommées \code{sigma} et \code{sigma\_residus}) &
 usage des deux $\hat\sigma_{J-1}$ d'un trapèze, choisi par \code{.mw\_usage\_sigma()} selon le cas
@@ -6547,9 +6547,8 @@ fondées sur les résidus étant non finies et hors de $B_{\text{eff}}$ pour leu
 \emph{Hypothèse nulle des p-values de Monte-Carlo.} Chaque triangle simulé conserve la première
 colonne observée et engendre les suivantes par $C(i,j+1) = \hat f_j\,C(i,j) + e\,\hat\sigma_j
 \sqrt{C(i,j)}$, où $e$ est tiré avec remise dans le vivier commun à toutes les colonnes
-(\code{mw\_simuler\_triangle()}) et où $\hat\sigma_{J-1}$ est la valeur de la règle de minimum,
-sauf sur un trapèze dont la colonne $J-1$ n'est pas dégénérée, simulée avec l'estimateur direct
-qui en réduit les résidus (§\ref{sec:trapeze-niveau}, et ci-dessous), puis il est réajusté et les statistiques sont recalculées
+(\code{mw\_simuler\_triangle()}) et où $\hat\sigma_{J-1}$ est la valeur de la règle de minimum
+sur un carré et, sur un trapèze, l'estimateur direct (§\ref{sec:trapeze-niveau}, et ci-dessous), puis il est réajusté et les statistiques sont recalculées
 (\code{mw\_bootstrap()}). La loi simulée est donc celle du \textbf{modèle de Mack complet
 ajusté}~: proportionnalité des cumulés (M1), variance proportionnelle au cumulé (M2) et
 indépendance des erreurs (M3) à la fois, avec des erreurs de même loi pour toutes les cellules et
@@ -6560,19 +6559,23 @@ est rangée~: chaque ligne teste le modèle complet dans la direction de sa stat
 dit que le triangle est atypique de ce modèle dans cette direction~; il n'attribue pas l'écart
 à l'hypothèse que la ligne vise.
 
-\emph{Colonne $J-1$ d'un trapèze.} Sur un trapèze $I > J$ dont la colonne $J-1$ n'est pas
-dégénérée (\code{.mw\_colonne\_degeneree()}), \code{mw\_bootstrap()} tire les triangles avec
-l'estimateur direct de $\sigma^2_{J-1}$, celui qui réduit les résidus observés de cette colonne
-(§\ref{sec:trapeze-niveau}), et non avec la valeur de la règle de minimum
+\emph{Colonne $J-1$ d'un trapèze.} Sur un trapèze $I > J$, \code{mw\_bootstrap()} tire les
+triangles avec l'estimateur direct de $\sigma^2_{J-1}$, celui qui réduit les résidus observés de
+cette colonne quand elle n'est pas dégénérée (§\ref{sec:trapeze-niveau}), et non avec la valeur
+de la règle de minimum
 (\code{.mw\_simulation\_}\allowbreak\code{sigma\_direct()}), pour toute la simulation~: toutes les
 statistiques simulées et \code{sigma\_boot}. \textbf{Convention de l'outil, non réglementaire}~: le
 règlement ne traite pas de la simulation des tests, et la règle de minimum reste appliquée partout
 où elle entre dans le calcul de D(4) et D(5)~: $\hat f_j$, $\hat C$, $\hat Q_{J-1}$, la MSEP,
 $\sigma_{\mathrm{USP}}$, l'estimation de la ligne M6 (fiche~\ref{mw:m6sig}), tout le calcul
 observé et le $\sigma^{*}$ de chaque réplication, $\sqrt{\mathrm{MSEP}^{*}}/\hat R^{*}$ calculé
-par \code{mw\_msep()} sur le triangle réajusté, donc avec la règle de la réplication. Colonne $J-1$
-dégénérée, ou triangle carré, qui n'a pas d'estimateur direct~: simulation avec la valeur de la
-règle. \emph{Fondement.} Simuler la colonne $J-1$ avec la variance qui en réduit les résidus
+par \code{mw\_msep()} sur le triangle réajusté, donc avec la règle de la réplication. Triangle
+carré, qui n'a pas d'estimateur direct~: simulation avec la valeur de la règle. Colonne $J-1$
+dégénérée d'un trapèze (\code{.mw\_colonne\_degeneree()})~: son estimateur direct la garde
+d'amplitude négligeable dans les réplications, comme une colonne $j \le J-2$ dégénérée tirée avec
+son propre $\hat\sigma_j^2$~; tirée avec la valeur de la règle, quand celle-ci n'est pas
+négligeable, elle cesserait de l'être, et le triangle observé serait de probabilité pratiquement
+nulle sous la loi de référence. \emph{Fondement.} Simuler la colonne $J-1$ avec la variance qui en réduit les résidus
 observés tire les réplications sous le modèle dont ces résidus sont issus~; la valeur de la règle,
 prescrite pour la MSEP, n'est pas tirée des facteurs de cette colonne et peut s'écarter fortement
 de sa variance, dans un sens ou dans l'autre, sous le plan mesuré (§\ref{sec:trapeze-niveau}), et, nulle ou
@@ -6599,7 +6602,8 @@ entre elles, en dépendent, comme \code{sigma\_boot} et \code{res\$ic\_bootstrap
 \emph{Statut}~: p-values de Monte-Carlo d'un bootstrap semi-paramétrique à paramètres estimés~;
 aucun théorème ne couvre cette convention à $T = 8$, et son niveau n'est connu que par le
 constat de simulation sous un plan de §\ref{sec:trapeze-niveau}, qui ne se transpose ni à
-d'autres paramètres ni à d'autres géométries.
+d'autres paramètres ni à d'autres géométries~; il n'est pas mesuré quand la colonne $J-1$ est
+dégénérée.
 
 \emph{Redressement du vivier par le levier.} Les résidus de Mack ne sont pas d'échelle unitaire. Sous le modèle de Mack à
 $\sigma_j$ connu, conditionnellement aux cumuls $C(\cdot,j)$ de la colonne, avec
@@ -15797,7 +15801,7 @@ mêmes verdicts~; raison~: $\hat\sigma_{J-1}^2$ n'entre pas dans les résidus de
 statistiques simulées --- la dernière colonne de développement, qui ne compte qu'un facteur
 individuel, ne fournit aucun résidu ---, mais dans la MSEP et dans le diagnostic de
 la fiche~\ref{mw:m6sig}. Sur un trapèze, la colonne $J-1$ fournit des résidus, réduits par un
-autre estimateur (§\ref{sec:trapeze-niveau})~; si elle n'est pas dégénérée, elle est simulée
+autre estimateur (§\ref{sec:trapeze-niveau})~; elle est simulée
 avec cet estimateur, que la règle soit nulle ou non (section~\ref{sec:boot-mw})~; cette
 convention ne touche ni la MSEP ni $\sigma_{\mathrm{USP}}$. Le triangle de contrôle n'est pas dégénéré.
 
@@ -16159,8 +16163,8 @@ D(5)(d)(ii) appliquée à $j = J-1$ ($I - J$ degrés de liberté), et non par la
 minimum~: le $\hat\sigma_j$ de $r(i,j)$ est, en $j = J-1$ d'un trapèze, cet estimateur
 (\code{.mw\_sigma2\_residus()}), et la colonne suit la règle commune ($\sum_i r(i,J-1)^2 =
 n_{J-1} - 1$). Il sert aux lignes fondées sur les résidus, au vivier du bootstrap, à
-\code{mw\_influence()} et à l'identifiabilité intra-colonne et, si la colonne $J-1$ n'est pas
-dégénérée, à la simulation de cette colonne par le bootstrap, par convention de l'outil
+\code{mw\_influence()}, à l'identifiabilité intra-colonne et à la simulation de cette colonne
+par le bootstrap, par convention de l'outil
 (section~\ref{sec:boot-mw})~; il n'entre ni dans $\hat f_j$, ni dans $\hat C$, ni dans
 $\hat Q_j$, ni dans la MSEP, ni dans $\sigma_{\mathrm{USP}}$, qui gardent la valeur de la règle
 (fiche~\ref{mw:m6sig}). Les deux valeurs peuvent différer
@@ -17297,19 +17301,14 @@ dégénérées (règle commune, section~\ref{sec:mwm1})~: elle garde ces colonne
 poids $n_j$, et l'avertissement des colonnes dégénérées ne nomme pas la ligne parmi celles qui les
 écartent (§\ref{sec:controles}). L'amplitude observée d'une telle colonne est nulle ou de l'ordre
 de la tolérance $10^{-12}$ du prédicat, mais son poids reste au dénominateur. Tirée avec un
-$\hat\sigma_j^2$ nul ou négligeable (colonne $j \le J-2$, ou $J-1$ quand la règle de minimum l'est,
-section~\ref{sec:boot-mw}), la colonne garde une amplitude négligeable dans les réplications
-(dégénérée dans chaque réplication mesurée, rubrique~7)~: $A$ observée et simulées sont
-multipliées par $\sum' n_j/\sum_j n_j$ ($\sum'$ sur les colonnes non dégénérées)~; la p-value de
-Monte-Carlo n'en est pas modifiée, à des égalités près de l'ordre de la tolérance, et seule la
-valeur restituée de $A$, diminuée, ne se lit plus comme l'amplitude moyenne des colonnes non
-dégénérées. La colonne $J-1$ d'un trapèze, tirée avec la valeur de la règle de minimum, n'est en
-général plus dégénérée quand cette valeur n'est pas négligeable~; avec au moins trois facteurs,
-son amplitude, nulle à l'observé, entre alors dans chaque $A$ simulée, et la p-value de
-Monte-Carlo est au moins égale à celle de $A$ calculée sans la colonne (propriété exacte, les
-amplitudes étant positives ou nulles)~: écart dans le sens conservateur, de grandeur non
-transposable, d'effet sur le niveau et la puissance non mesuré. Avec moins de trois facteurs,
-carré compris, la colonne $J-1$ n'entre pas dans $A$.
+$\hat\sigma_j^2$ nul ou négligeable (le sien pour $j \le J-2$, l'estimateur direct pour la colonne
+$J-1$ d'un trapèze, section~\ref{sec:boot-mw}), la colonne garde une amplitude négligeable dans les
+réplications (dégénérée dans chaque réplication mesurée, rubrique~7)~: $A$ observée et simulées
+sont multipliées par $\sum' n_j/\sum_j n_j$ ($\sum'$ sur les colonnes non dégénérées)~; la p-value
+de Monte-Carlo, comme la p de famille de M1 et la p globale, n'en est pas modifiée, à des égalités
+près de l'ordre de la tolérance, et seule la valeur restituée de $A$, diminuée, ne se lit plus
+comme l'amplitude moyenne des colonnes non dégénérées. La colonne $J-1$ d'un carré, qui n'a qu'un
+facteur, ou d'un trapèze à moins de trois facteurs n'entre pas dans $A$.
 
 Sur un trapèze, son niveau est légèrement libéral sur le $8\times6$ du plan mesuré, sous E au seuil
 $0{,}10$ (§\ref{sec:trapeze-niveau}).
@@ -17367,12 +17366,13 @@ de l'erreur de Monte-Carlo en $B$~; p-values de McNemar exactes sur les décisio
 correction de multiplicité~; corrélations de rang~: descriptives. Colonnes dégénérées
 (rubrique~6~; $B = 999$, graine 20260831, triangles construits)~: constats de simulation, non
 transposables. Colonnes tirées avec $\hat\sigma_j^2$ nul ou négligeable (triangle de six années,
-$j = 0$~; trapèze de référence modifié, $j = 2$ et $J-1$, $\hat\sigma_j^2$ voisin de
-$10^{-28}$)~: dégénérées dans chaque réplication, p-value inchangée sans la colonne. Colonne
-$J-1$ tirée avec une règle de minimum de $0{,}14$ (trapèze de référence modifié, $8\times6$, trois
-facteurs) ou de $0{,}68$ (triangle de contrôle réduit et modifié, $8\times5$, quatre)~: dégénérée
-dans aucune réplication~; p-value $0{,}008$ et $0{,}023$, contre $0{,}007$ et $0{,}010$ sans la
-colonne. Identité de covariance~: exacte.
+$j = 0$~; trapèze de référence modifié, $j = 2$ et $J-1$~; colonne $J-1$ de deux trapèzes
+construits, $8\times6$ et $8\times5$, estimateur direct nul)~: dégénérées dans chaque réplication,
+p-value inchangée sans la colonne. Tirée avec la règle de minimum ($0{,}14$ et $0{,}68$), la
+colonne $J-1$ de ces deux trapèzes ne serait dégénérée dans aucune réplication~: p-value
+$0{,}008$ et $0{,}023$ au lieu de $0{,}007$ et $0{,}010$~; p de famille de M1 inchangée
+($0{,}015$ et $0{,}019$)~; p globale $0{,}027$ et $0{,}022$ au lieu de $0{,}027$ et $0{,}023$,
+écart sans sens garanti. Identité de covariance~: exacte.
 \end{fiche}
 
 \begin{fiche}{M1 --- Identifiabilité intra-colonne (dispersion des cumuls par colonne, diagnostic)}
@@ -19217,7 +19217,7 @@ $\sigma_{(\text{res},s,\mathrm{USP})}$ de D(4) et, recalculée sur chaque triang
 le $\sigma^{*}$ de chaque réplication~; l'estimateur réduit les résidus de la colonne et sert à
 la simuler, par convention de l'outil, non réglementaire (section~\ref{sec:boot-mw}). Colonne
 dégénérée, \code{FORMAT\_MENTION\_}\allowbreak\code{MW\_SIGMA\_DIRECT\_}\allowbreak\code{DEGENERE}~:
-aucun résidu retenu, estimateur hors de la simulation.
+aucun résidu retenu~; l'estimateur sert aussi à la simuler.
 
 \emph{Sensibilité indicative de $\sqrt{\mathrm{MSEP}}$.} La sensibilité de $\sqrt{\mathrm{MSEP}}$ à
 la valeur de $\hat\sigma^2_{J-1}$ ne figure pas dans le champ \code{detail}~; elle est rendue par
