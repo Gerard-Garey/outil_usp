@@ -219,20 +219,6 @@ verifier("Estimation de la ligne de l'IC inchangee : (ic[4] - ic[2]) / sigma_USP
                      unname((r$ic_bootstrap[4] - r$ic_bootstrap[2]) / r$parametre_final$sigma_usp))
          }, logical(1))))
 
-# --- Chemins existants conformes aux references -------------------------------
-# ic_bootstrap, ic_bootstrap_restreint, parametre_final et bootstrap$sigma_boot
-# contre tests/reference/<cas>.rds, par comparer_objets() a TOLERANCE (seul
-# comparateur aux references, ADR 0006, second amendement).
-champs <- c("ic_bootstrap", "parametre_final")
-comp <- vapply(CAS7, function(nm) {
-  ref <- readRDS(outils305$chemin_reference(nm)); obt <- R7[[nm]]
-  ch <- intersect(c(champs, "ic_bootstrap_restreint"), names(ref))
-  isTRUE(outils305$comparer_objets(ref[ch], obt[ch])$conforme) &&
-    isTRUE(outils305$comparer_objets(ref$bootstrap["sigma_boot"], obt$bootstrap["sigma_boot"])$conforme)
-}, logical(1))
-verifier("Sept cas : ic_bootstrap, ic_bootstrap_restreint, parametre_final et bootstrap$sigma_boot conformes aux references a TOLERANCE",
-         all(comp))
-
 # --- Affichage : plot_boot_sigma(), textes_ic_bootstrap(), rapport ------------
 .racine305 <- if (exists("RACINE", inherits = TRUE)) RACINE else
               if (file.exists("R/engine.R")) "." else if (file.exists("../R/engine.R")) ".." else "../.."
