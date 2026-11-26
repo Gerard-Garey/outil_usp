@@ -9,14 +9,21 @@
 #  avec l'identifiant de chaque execution de ci.yml (nombre apres /runs/ dans
 #  l'adresse de l'execution sur GitHub). Options :
 #      --depot=proprietaire/nom   (defaut : Gerard-Garey/outil_usp)
-#      --sortie=chemin            (defaut : tests/durees_unitaires.tsv)
+#      --sortie=chemin            (defaut : durees_unitaires.tsv a cote du dossier
+#                                  unitaires/ resolu depuis ce script, soit
+#                                  tests/durees_unitaires.tsv, comme le lit
+#                                  tests/test_unitaires.R)
 #  Prerequis : la commande gh (GitHub CLI), authentifiee, et l'acces reseau ;
 #  R base uniquement. Aucun calcul du moteur, aucun tirage.
 #
 #  Procede :
-#   1. Pour chaque execution, les jobs Tests unitaires (lot k/n), termines
-#      avec succes (gh api .../runs/ID/jobs) ; une execution sans lot reussi
-#      (commit sans moteur, echec) est refusee.
+#   1. Pour chaque execution, les jobs Tests unitaires (lot k/n), listes sans
+#      filtre de conclusion (gh api .../runs/ID/jobs) ; n est lu dans le nom des
+#      jobs. L'execution n'est acceptee que si les n lots 1/n a n/n sont tous
+#      presents et tous termines avec succes ; sinon (aucun lot : commit sans
+#      moteur ; lot en echec, en cours, annule ou manquant) elle est refusee par
+#      un message : un lot en echec retire ses fichiers de la moyenne et fausse,
+#      selon l'execution, la regle de la coupe (etape 4).
 #   2. Pour chaque job, son journal (gh api .../jobs/ID/logs) : les lignes
 #      ##### [i/n] fichier.R : OK, N assertions, X s du lanceur en mode
 #      --parallele ; X est la duree du fichier sous quatre processus.
@@ -57,9 +64,17 @@ PARTAGE <- list(
   test_application.R = c(test_application.R = 0.521, test_application_partie_2.R = 0.479),
   test_p_mc_regime.R = c(test_p_mc_regime.R = 0.492, test_p_mc_regime_partie_2.R = 0.508))
 
+# Dossier des tests unitaires, resolu depuis le chemin du script (--file=, comme
+# tests/test_unitaires.R), pas depuis le repertoire courant. Rscript code les
+# espaces du chemin en ~+~ dans --file= : decodes avant tout usage.
+script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+script <- gsub("~+~", " ", script, fixed = TRUE)
+dossier <- if (length(script)) file.path(dirname(script[1L]), "unitaires") else
+           if (dir.exists("tests/unitaires")) "tests/unitaires" else "unitaires"
+
 arguments <- commandArgs(trailingOnly = TRUE)
 depot <- DEPOT_DEFAUT
-sortie <- "tests/durees_unitaires.tsv"
+sortie <- file.path(dirname(dossier), "durees_unitaires.tsv")
 ids <- character(0)
 for (a in arguments) {
   if (grepl("^--depot=", a)) depot <- sub("^--depot=", "", a)
@@ -82,10 +97,33 @@ gh <- function(chemin, ...) {
 RX_FICHIER <- "^[^ ]+ ##### \\[[0-9]+/[0-9]+\\] ([^ ]+[.]R) : (OK|ECHEC), [0-9]+ assertions, ([0-9.]+) s$"
 mesures <- list()
 for (id in ids) {
-  jobs <- gh(sprintf("repos/%s/actions/runs/%s/jobs", depot, id), "--paginate",
-             "--jq", shQuote('.jobs[] | select((.name | startswith("Tests unitaires (lot")) and .conclusion == "success") | .id'))
-  jobs <- jobs[nzchar(jobs)]
-  if (!length(jobs)) stop("Execution ", id, " : aucun job Tests unitaires (lot k/n) termine avec succes.")
+  # Tous les jobs de lot, sans filtre de conclusion : identifiant, nom, conclusion
+  # (null tant que le job n'est pas termine).
+  liste <- gh(sprintf("repos/%s/actions/runs/%s/jobs", depot, id), "--paginate",
+              "--jq", shQuote('.jobs[] | select(.name | startswith("Tests unitaires (lot")) | [.id, .name, (.conclusion // "null")] | @tsv'))
+  liste <- liste[nzchar(liste)]
+  if (!length(liste)) stop("Execution ", id, " : aucun job Tests unitaires (lot k/n).")
+  champs <- strsplit(liste, "\t")
+  if (!all(lengths(champs) == 3L)) stop("Execution ", id, " : liste des jobs illisible : ", paste(liste, collapse = " | "))
+  jobs <- vapply(champs, `[`, "", 1L)
+  noms <- vapply(champs, `[`, "", 2L)
+  conclusions <- vapply(champs, `[`, "", 3L)
+  rx_lot <- "^Tests unitaires \\(lot ([0-9]+)/([0-9]+)\\)$"
+  if (!all(grepl(rx_lot, noms))) stop("Execution ", id, " : nom de job de lot illisible : ", paste(noms[!grepl(rx_lot, noms)], collapse = " | "))
+  lot_k <- as.integer(sub(rx_lot, "\\1", noms))
+  lot_n <- as.integer(sub(rx_lot, "\\2", noms))
+  if (length(unique(lot_n)) != 1L) stop("Execution ", id, " : nombres de lots discordants dans les noms de jobs : ", paste(noms, collapse = " | "))
+  n_lots <- lot_n[1L]
+  manquants <- setdiff(seq_len(n_lots), lot_k)
+  if (anyDuplicated(lot_k) || any(lot_k < 1L | lot_k > n_lots))
+    stop("Execution ", id, " : numeros de lot incoherents avec n = ", n_lots, " : ", paste(noms, collapse = " | "))
+  if (length(manquants))
+    stop("Execution ", id, " refusee : lot(s) ", paste0(manquants, "/", n_lots, collapse = ", "), " absent(s) de la liste des jobs.")
+  pas_reussis <- conclusions != "success"
+  if (any(pas_reussis))
+    stop("Execution ", id, " refusee : lot(s) non termine(s) avec succes (",
+         paste0(lot_k[pas_reussis], "/", n_lots, " : ", conclusions[pas_reussis], collapse = ", "),
+         "). Une execution n'est acceptee que si ses ", n_lots, " lots ont reussi.")
   for (j in jobs) {
     journal <- gh(sprintf("repos/%s/actions/jobs/%s/logs", depot, j))
     m <- regmatches(journal, regexec(RX_FICHIER, journal, useBytes = TRUE))
@@ -105,12 +143,8 @@ moy <- tapply(mesures$duree, mesures$fichier, mean)
 # sert a l'en-tete de la table.
 rapport <- mesures$duree / moy[mesures$fichier]
 
-# Fichiers du disque (nom, comme le lanceur), dossier resolu depuis le chemin
-# du script (--file=, comme tests/test_unitaires.R), pas depuis le repertoire
-# courant ; sans dossier ou sans fichier test_*.R, erreur.
-script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-dossier <- if (length(script)) file.path(dirname(script[1L]), "unitaires") else
-           if (dir.exists("tests/unitaires")) "tests/unitaires" else "unitaires"
+# Fichiers du disque (nom, comme le lanceur), dossier resolu plus haut ; sans
+# dossier ou sans fichier test_*.R, erreur.
 if (!dir.exists(dossier)) stop("Dossier des tests unitaires introuvable : ", dossier)
 disque <- sort(basename(list.files(dossier, pattern = "^test_.*[.]R$")))
 if (!length(disque)) stop("Aucun fichier test_*.R dans ", dossier)
