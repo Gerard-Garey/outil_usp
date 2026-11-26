@@ -1,7 +1,7 @@
 ###############################################################################
 #  tests/mesure_independance_tj_t8.R  --  INDEPENDANCE DES t_j ET LOI DES
 #  p-VALUES DE L'ORDONNEE A L'ORIGINE ET DE LA COURBURE (M1) SOUS UN MODELE DE
-#  MACK GAUSSIEN, A T = 8 (issue #448, suite du point 2 de #424)
+#  MACK GAUSSIEN, A T = 8 (issue #470 ; filiation : #448, suite du point 2 de #424)
 #
 #  OUTIL DE MESURE HORS CI : ce script n'est ni une batterie de tests ni un
 #  generateur de references. Il n'est lance ni par la CI, ni par
@@ -83,15 +83,19 @@
 #    resumes que la mesure complete, dont la paire et le seuil de Spearman.
 #  --coeurs n : processus paralleles (parallel::mclapply, une tache par bloc de
 #    2 500 triangles d'un plan ; defaut 3 ; 1 sous Windows).
-#  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue448-independance-tj.md.
+#  --ecrire : ecrit docs/tableaux/<AAAAMMJJ>-issue470-independance-tj.md.
 #    AAAAMMJJ est la date de DEBUT d'execution (t_debut), prise une fois : le
 #    nom du fichier et la ligne "Date" du tableau portent la meme date, meme si
 #    le calcul franchit minuit. REFUSE (message, code de sortie 1, rien
 #    d'ecrit) : pilote ; dossier docs/tableaux absent ; fichier cible deja
 #    suivi par git (garde_ecrasement(), #173) ; arbre de travail modifie,
 #    script non suivi ou git indisponible (motifs_non_versionnable() sur
-#    commit_depot(), comme les autres scripts de mesure, #205, #470). Ces
-#    gardes passent des l'analyse des options, avant tout calcul, puis de
+#    commit_depot(), comme les autres scripts de mesure, #205, #470) ; script
+#    execute ou tests/outils_tests.R charge qui n'est pas le fichier du depot
+#    (RACINE/tests/mesure_independance_tj_t8.R, RACINE/tests/outils_tests.R :
+#    copie modifiee, copie non suivie, copie hors du depot ; empreinte "hors
+#    depot" passee a motifs_non_versionnable(), comme les scripts freres).
+#    Ces gardes passent des l'analyse des options, avant tout calcul, puis de
 #    nouveau avant d'ecrire (l'etat du depot peut changer pendant le calcul) ;
 #    le second passage refuse aussi un commit different de celui du depart
 #    (la ligne "Commit" du tableau doit citer le commit de l'execution). La
@@ -141,10 +145,9 @@ if (is.na(COEURS) || COEURS < 1L) stop("--coeurs : entier >= 1 attendu")
 if (.Platform$OS.type == "windows") COEURS <- 1L
 
 # --- Chargement du moteur et des outils --------------------------------------
-DOSSIER_SCRIPT <- local({
-  f <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
-  if (length(f) == 1L) dirname(f) else if (file.exists("tests/outils_tests.R")) "tests" else "."
-})
+FICHIER_EXEC <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+DOSSIER_SCRIPT <- if (length(FICHIER_EXEC) == 1L) dirname(FICHIER_EXEC) else
+  if (file.exists("tests/outils_tests.R")) "tests" else "."
 source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 
 # Date de la sortie : date de DEBUT d'execution, prise une fois (t_debut) ; elle
@@ -152,14 +155,25 @@ source(file.path(DOSSIER_SCRIPT, "outils_tests.R"))
 # si le calcul franchit minuit).
 DATE_SORTIE <- format(t_debut, "%Y%m%d")
 DATE_AFFICHEE <- format(t_debut, "%d/%m/%Y")
-NOM_FICHIER <- sprintf("%s-issue448-independance-tj.md", DATE_SORTIE)
+NOM_FICHIER <- sprintf("%s-issue470-independance-tj.md", DATE_SORTIE)
 CHEMIN_ECRIT <- file.path(RACINE, "docs", "tableaux", NOM_FICHIER)
 COMMIT <- commit_depot(SCRIPT)
 # Garde de --ecrire (#470) : arbre de travail modifie, script non suivi ou git
-# indisponible refusent l'ecriture (code 1, rien d'ecrit). commit : resultat de
-# commit_depot() a l'instant du controle ; depart : commit pris au debut.
+# indisponible refusent l'ecriture (code 1, rien d'ecrit), de meme que le script
+# execute ou le tests/outils_tests.R charge qui ne sont pas les fichiers du depot
+# (copie modifiee non suivie, copie hors du depot : la constante SCRIPT, seule,
+# ne les distingue pas). commit : resultat de commit_depot() a l'instant du
+# controle ; depart : commit pris au debut. meme_fichier() : copie declaree de
+# tests/calibration_mc_mw_t8.R (ne rend jamais NA).
+meme_fichier <- function(a, b) length(a) == 1L && !is.na(a) && file.exists(a) && file.exists(b) &&
+  identical(normalizePath(a), normalizePath(b))
+empreintes_lieu <- function() {
+  lieu <- function(f, ref) if (meme_fichier(f, file.path(RACINE, ref))) "d\u00e9p\u00f4t" else "hors d\u00e9p\u00f4t"
+  sprintf("tests/outils_tests.R charg\u00e9 (%s) ; script ex\u00e9cut\u00e9 (%s)",
+          lieu(file.path(DOSSIER_SCRIPT, "outils_tests.R"), "tests/outils_tests.R"), lieu(FICHIER_EXEC, SCRIPT))
+}
 refuser_si_non_versionnable <- function(commit, quand, depart = commit) {
-  nv <- motifs_non_versionnable(commit, "", "de l'execution")
+  nv <- motifs_non_versionnable(commit, empreintes_lieu(), "de l'execution")
   if (!length(nv) && !identical(commit, depart))
     nv <- sprintf("commit de l'execution %s, different de celui du depart (%s)", commit, depart)
   if (length(nv)) {
@@ -173,7 +187,6 @@ if (OPT_ECRIRE) {
   refuser_si_non_versionnable(COMMIT, "avant tout calcul")
   garde_ecrasement(CHEMIN_ECRIT, FALSE, RACINE)
 }
-FICHIER_EXEC <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
 MD5_SCRIPT <- if (length(FICHIER_EXEC) == 1L && file.exists(FICHIER_EXEC)) unname(tools::md5sum(FICHIER_EXEC)) else "inconnu"
 MD5_MOTEUR <- unname(tools::md5sum(file.path(RACINE, "R", "engine.R")))
 
@@ -354,8 +367,8 @@ analyser <- function(M, ligne) {
   }
   rt <- rho_paires(Tm); ra <- rho_paires(abs(Tm))
   resume_rho <- function(r) {
-    i <- which.max(r$ratio)
-    list(max = max(abs(r$rho)), paire = c(r$a[i], r$b[i]), rho_ratio_max = r$rho[i], seuil = r$seuil[i],
+    i <- which.max(abs(r$rho))
+    list(max = max(abs(r$rho)), paire = c(r$a[i], r$b[i]), rho = r$rho[i], seuil = r$seuil[i],
          n_rej = sum(r$ratio > 1), npaires = nrow(r), ok = all(r$ratio <= 1))
   }
   rho_t <- resume_rho(rt); rho_a <- resume_rho(ra)
@@ -391,7 +404,7 @@ if (OPT_PILOTE) {
     sprintf("- Dur\u00e9e projet\u00e9e du calcul de la mesure compl\u00e8te (3 plans x 100 000 triangles, %d c\u0153ur(s)) : %s, extrapolation lin\u00e9aire de l'essai, hors analyse et \u00e9criture ; la dur\u00e9e r\u00e9elle peut s'en \u00e9carter.",
             COEURS, fmt_duree(proj)),
     sprintf("- Contr\u00f4le des degr\u00e9s de libert\u00e9 : \u00e9cart absolu maximal sur p_j = %s (tol\u00e9rance %s) : %s.",
-            sprintf("%.2e", ECART_DF_MAX), sprintf("%.0e", TOL_DF), if (DF_OK) "tenu" else "EN \u00c9CHEC"), ""))
+            virg(sprintf("%.2e", ECART_DF_MAX)), virg(sprintf("%.0e", TOL_DF)), if (DF_OK) "tenu" else "EN \u00c9CHEC"), ""))
   for (pl in PLANS) for (l in names(LIGNES)) {
     r <- RES[[pl]][[l]]
     ecrire_console(sprintf("%s, %s : tir\u00e9s %d, \u00e9cart\u00e9s cumul %d, ajustement %d, stat. non d\u00e9finie %d, admis %d ; K : %s ; m = %d ; taux %s ; KS p = %s ; max|rho(t)| = %s (paire (%d, %d), seuil %s) ; max|rho(|t|)| = %s (paire (%d, %d), seuil %s) ; contr\u00f4les rejet\u00e9s : %d",
@@ -446,9 +459,8 @@ add(sprintf("## Ind\u00e9pendance des t_j et loi des p-values de l'ordonn\u00e9e
 add("### En-t\u00eate", "",
     ligne_md("Param\u00e8tre | Valeur"), ligne_md("--- | ---"),
     ligne_md("Date (d\u00e9but de l'ex\u00e9cution)", DATE_AFFICHEE),
-    ligne_md("Plan", "plan d'`actuary`, accept\u00e9 par le mainteneur le 06/11/2026 (issue #448) ; script `tests/mesure_independance_tj_t8.R`"),
-    ligne_md("Commit", sprintf("`%s`%s", COMMIT, if (grepl("^[0-9a-f]{40}$", COMMIT)) "" else
-              " \u2014 ex\u00e9cution sur un arbre de travail non propre ou un script non encore suivi ; le md5 du script ci-dessous identifie le code ex\u00e9cut\u00e9")),
+    ligne_md("Plan", "plan d'`actuary`, accept\u00e9 par le mainteneur le 06/11/2026 (issue #448) ; mesure vers\u00e9e sous l'issue #470 ; script `tests/mesure_independance_tj_t8.R`"),
+    ligne_md("Commit", sprintf("`%s`", COMMIT)),
     ligne_md("md5 du script", sprintf("`%s`", MD5_SCRIPT)),
     ligne_md("md5 de `R/engine.R`", sprintf("`%s`", MD5_MOTEUR)),
     ligne_md("Plateforme", plateforme_calcul()),
