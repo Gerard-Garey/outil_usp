@@ -193,7 +193,9 @@ MOTIFS_A <- list(
   #     trois chiffres, pour que "a l'issue" / "8 annees" ne soit pas un faux positif et que
   #     "a l'issue" / "452 reste" reste releve ; sur une seule ligne, la regex 4 la lit toujours.
   #     A12 lit la meme fenetre (voir A12) : un numero en tete de la ligne suivante releve d'A1,
-  #     jamais aussi d'A12 (point 8).
+  #     jamais aussi d'A12 (point 8). Le quantificateur de "issues?" est possessif (issues?+) :
+  #     sinon, quand la negation (?![~\\s]+[0-9]{3}) echoue sur "a l'issues" / "452", le retour
+  #     arriere ramene "issues?" a "issue", la negation passe devant le "s" et (*SKIP) saute.
   # Limites : (i) un # a un chiffre dans un commentaire est lu comme un numero d'issue (le
   # commentaire "% le parametre #1 est le titre" est releve, ainsi que le corps #1 d'une
   # definition de macro commentee) ; (ii) le commentaire final d'une ligne de definition de macro
@@ -208,7 +210,7 @@ MOTIFS_A <- list(
                  paste0(.ligne_definition, "|", .arg_url, "(*SKIP)(*FAIL)|(?<![\\\\#])#[0-9]{2,}"),
                  paste0(.ligne_definition, "|(?:^(?:", .arg_url, "|[^\\\\%#]|\\\\.)*+%|(?!^)\\G).*?\\K(?<![\\\\#])#[0-9]+"),
                  "\\b(?:(?i:issues?)|PR)[~\\s]+[0-9]+",
-                 paste0("\\b[\u00e0\u00c0][~\\s]+l'(?i:issues?)(?![~\\s]+[0-9]{3})(*SKIP)(*FAIL)|",
+                 paste0("\\b[\u00e0\u00c0][~\\s]+l'(?i:issues?+)(?![~\\s]+[0-9]{3})(*SKIP)(*FAIL)|",
                         "(?:\\b(?i:issues?)|\\bPR)[~\\s]+[0-9]+"))),
   list(id = "A2", desc = "identifiant de commentaire de PR",
        regex = "\\bcommentaires?[~\\s]+[0-9]{8,}\\b"),

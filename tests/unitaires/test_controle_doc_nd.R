@@ -274,6 +274,16 @@ verifier("#544-7 : \"a l'issue\" / \"12 mois\" (nombre a deux chiffres) : aucun 
          identical(nd$nd_chercher(c("à  l'issue", "1000 répétitions"), rep("Partie I", 2L), nd$MOTIFS_A)$motif, "A1"))
 verifier("#544-7 : \"voila l'issue\" / \"8 annees\" : ce n'est pas la locution (mot en \"a\" non isole), A1 relevee comme avant",
          "A1" %in% motifs(c("voilà l'issue", "8 années")))
+# Pluriel : "issues?" possessif, sans retour arriere sur "issue" (#544, m5).
+verifier("#544-7 : \"a l'issues\" / \"452\" (pluriel, numero a trois chiffres en ligne suivante) : A1 seul, une occurrence",
+         identical(motifs(c("à l'issues", "452")), "A1") &&
+         identical(nd$nd_chercher(c("à l'issues", "452"), rep("Partie I", 2L), nd$MOTIFS_A)$motif, "A1") &&
+         identical(motifs(c("à~l'issues", "452 reste")), "A1") && identical(motifs(c("À l'issues", "452")), "A1") &&
+         identical(motifs(c("à  l'issues", "1000 répétitions")), "A1"))
+verifier("#544-7 : \"a l'issues\" / nombre d'un ou deux chiffres, ou sans nombre : aucun motif (comme le singulier) ; sur une ligne, \"a l'issues 452\" : A1",
+         identical(motifs(c("à l'issues", "12 mois")), character(0)) && identical(motifs(c("à l'issues", "8 années")), character(0)) &&
+         identical(motifs(c("à l'issues de", "452")), character(0)) && identical(motifs(c("à l'issues", "du calcul")), character(0)) &&
+         identical(motifs("à l'issues 452"), "A1"))
 
 # Point 8 : A1 et A12 apparies sur deux lignes, jamais comptes ensemble.
 .m8 <- function(x) nd$nd_chercher(x, rep("Partie I", length(x)), nd$MOTIFS_A)
