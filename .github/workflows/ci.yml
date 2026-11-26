@@ -99,15 +99,16 @@ jobs:
   # comprise (setup-r 39 s, BLAS 5 s, paquets de l'application 7 s avec le
   # cache), 417 s à 2 lots, 296 s à 3 lots, 246 s à 4 lots (au lieu de 992 s
   # en un job). Trois lots : le 4e ne gagne qu'une cinquantaine de secondes,
-  # borné par test_application (195 s en CI) et par la préparation, pour une
+  # borné par le fichier le plus long (test_application, 137,0 s dans
+  # tests/durees_unitaires.tsv) et par la préparation, pour une
   # minute et demie de runner de plus et un setup-r lent de plus à courir
   # (14 min 36 s le 04/11/2026). La répartition (LPT sur
   # tests/durees_unitaires.tsv) est celle de tests/test_unitaires.R --lot=k/n :
   # chaque fichier est dans un lot et un seul, la réunion des lots est la
   # batterie complète. Le lot 1 contient seul les fichiers qui exigent shiny
-  # ou plotly (test_application, test_rapport_html, test_enveloppe_qq,
-  # test_enveloppe_spread, test_incertitude_bootstrap), regroupés pour
-  # l'ordonnancement ; shiny et plotly sont néanmoins installés dans les trois
+  # ou plotly (test_application, test_application_partie_2, test_rapport_html,
+  # test_enveloppe_qq, test_enveloppe_spread, test_incertitude_bootstrap),
+  # regroupés pour l'ordonnancement ; shiny et plotly sont néanmoins installés dans les trois
   # lots (cache commun, quelques secondes sur un hit), pour qu'un fichier qui
   # les exigerait sans que la détection du lanceur (motif sur son texte) le voie
   # ne saute pas ses blocs en silence dans un lot sans eux.
@@ -151,9 +152,9 @@ jobs:
           # au relevé du 07/11/2026, issue #435 ; issue #505).
           r-version: ${{ env.VERSION_R }}
       # Issue #391 (R27) : shiny et plotly, pour que tests/unitaires/
-      # test_application.R (bloc testServer) et les tests plotly de
-      # test_rapport_html.R, test_enveloppe_qq.R, test_enveloppe_spread.R et
-      # test_incertitude_bootstrap.R s'exécutent en CI au lieu de sauter
+      # test_application.R et test_application_partie_2.R (blocs testServer) et
+      # les tests plotly de test_rapport_html.R, test_enveloppe_qq.R,
+      # test_enveloppe_spread.R et test_incertitude_bootstrap.R s'exécutent en CI au lieu de sauter
       # (requireNamespace() faux). Issue #512 : dans chaque lot de la matrice.
       # Versions épinglées par un instantané daté
       # de Posit Package Manager (binaires Ubuntu 22.04 : CRAN au 15/02/2024,
@@ -228,8 +229,8 @@ jobs:
       # Contrôle bloquant dans un processus R NEUF, sans .libPaths() : il voit
       # exactement ce que verront les Rscript des étapes suivantes. Un
       # écart (version, chargement, bibliothèque non lue) échoue ici ; sans
-      # lui, test_application.R sauterait son bloc shiny en silence. Il s'exécute
-      # aussi quand les paquets viennent du cache.
+      # lui, test_application.R et test_application_partie_2.R sauteraient leurs
+      # blocs shiny en silence. Il s'exécute aussi quand les paquets viennent du cache.
       - name: Contrôle des paquets R de l'application
         run: |
           Rscript -e '
@@ -475,8 +476,8 @@ jobs:
       # openxlsx et zip : c'est lui qui empêche un paquet absent de faire sauter
       # des tests, et lui seul pour les voies qui sautent sans écrire « [saute] »
       # (test_controles_entree.R : classeurs écrits par openxlsx::write.xlsx()
-      # du test D-S1-37 ; test_application.R : export par zip (#522), test plotly #236, note
-      # shiny absent #199) ;
+      # du test D-S1-37 ; test_application.R et test_application_partie_2.R :
+      # export par zip (#522), test plotly #236, note shiny absent #199) ;
       # le grep de l'étape des tests n'attrape que les lignes « [saute] »
       # explicites. Il détecte aussi une version différente de celle attendue.
       - name: Contrôle des paquets R
