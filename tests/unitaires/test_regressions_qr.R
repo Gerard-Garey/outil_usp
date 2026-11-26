@@ -182,7 +182,7 @@ verifier("Echelles extremes : x, y, u x 1e-160 et 1e160 (J1 et J2), six regressi
 # L'issue de lm() sur ces entrees depend de la plateforme (commentaire de
 # test_tost_intercept(), #153) : le motif du TOST n'est pas fige ici. Sa
 # coherence avec lm() est controlee, independamment de la plateforme, par
-# test_controles_entree.R (#153) ; ce test exige l'identite au calcul par
+# test_controles_entree_partie_2.R (#153) ; ce test exige l'identite au calcul par
 # lm() et l'absence d'erreur R, et note le motif obtenu.
 MOTIFS_SN <- character(0)
 verifier("Entrees sous-normales (x et y x 1e-320, 5e-324, J2) : .usp_lm_pondere() identique au calcul par lm(), constante et TOST sans erreur R",

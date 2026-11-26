@@ -590,7 +590,7 @@ verifier("Rapport, T = 12 : aucun repere de profondeur, ni dans le moteur ni dan
 # de R, lm() y rend des residus exactement nuls ou un bruit d'arrondi
 # (mesure, R 4.3.3 et OpenBLAS 0.3.20 de la CI : max D_t NaN avec les
 # routines Zen, Haswell et le BLAS de reference, 0,0029 avec SkylakeX ;
-# voir test_controles_entree.R). La garde est donc atteinte a coup sur par
+# voir test_controles_entree_partie_2.R). La garde est donc atteinte a coup sur par
 # injection dans l'environnement du moteur : .usp_echelle_exacte() rend
 # y = 0 pour les donnees de test (residus exactement nuls sous tout BLAS),
 # et engine_plots_data() pose le motif ; le cas de l'issue est garde pour

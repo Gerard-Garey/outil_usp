@@ -31,7 +31,9 @@
 #      (executions posterieures a la coupe), la regle est sans objet et les
 #      durees sont celles mesurees. Ne pas melanger dans un meme appel des
 #      executions d'avant et d'apres la coupe : la moyenne d'un fichier
-#      d'origine mesure en un bloc et en une partie n'aurait pas de sens.
+#      d'origine mesure en un bloc et en une partie n'aurait pas de sens ; le
+#      script le refuse (erreur) quand, pour une origine, une execution porte
+#      des parties et une autre n'en porte aucune.
 #   5. Controle : chaque fichier tests/unitaires/test_*.R du disque a une
 #      duree, et chaque ligne ecrite correspond a un fichier du disque ; sinon
 #      erreur, jamais de repli silencieux.
@@ -99,22 +101,39 @@ mesures <- mesures[mesures$statut == "OK", ]
 if (anyDuplicated(mesures[c("execution", "fichier")]))
   stop("Un fichier figure deux fois dans une meme execution : ", paste(unique(mesures$fichier[duplicated(mesures[c("execution", "fichier")])]), collapse = " "))
 moy <- tapply(mesures$duree, mesures$fichier, mean)
-n_exec <- tapply(mesures$execution, mesures$fichier, function(e) length(unique(e)))
+# Rapport de chaque duree a la moyenne de son fichier (avant toute repartition) :
+# sert a l'en-tete de la table.
+rapport <- mesures$duree / moy[mesures$fichier]
 
-# Fichiers du disque (nom, comme le lanceur).
-dossier <- if (dir.exists("tests/unitaires")) "tests/unitaires" else "unitaires"
+# Fichiers du disque (nom, comme le lanceur), dossier resolu depuis le chemin
+# du script (--file=, comme tests/test_unitaires.R), pas depuis le repertoire
+# courant ; sans dossier ou sans fichier test_*.R, erreur.
+script <- sub("^--file=", "", grep("^--file=", commandArgs(FALSE), value = TRUE))
+dossier <- if (length(script)) file.path(dirname(script[1L]), "unitaires") else
+           if (dir.exists("tests/unitaires")) "tests/unitaires" else "unitaires"
+if (!dir.exists(dossier)) stop("Dossier des tests unitaires introuvable : ", dossier)
 disque <- sort(basename(list.files(dossier, pattern = "^test_.*[.]R$")))
+if (!length(disque)) stop("Aucun fichier test_*.R dans ", dossier)
 
 # Coupes : repartition au prorata tant que les parties ne sont pas dans les journaux.
 partage_applique <- character(0)
 for (o in names(PARTAGE)) {
   p <- PARTAGE[[o]]
   autres <- setdiff(names(p), o)
+  # Executions qui portent l'origine ou l'une de ses parties : toutes doivent
+  # porter des parties, ou aucune (jamais un fichier entier moyenne avec une moitie).
+  concernees <- unique(mesures$execution[mesures$fichier %in% names(p)])
+  avec_parties <- vapply(concernees, function(e) any(autres %in% mesures$fichier[mesures$execution == e]), NA)
+  if (any(avec_parties) && !all(avec_parties))
+    stop("Executions d'avant et d'apres la coupe de ", o, " melangees : parties presentes dans ",
+         paste(concernees[avec_parties], collapse = " "), ", absentes de ",
+         paste(concernees[!avec_parties], collapse = " "),
+         ". Donner des executions toutes anterieures, ou toutes posterieures, a la coupe.")
   if (any(autres %in% names(moy))) next
   if (!o %in% names(moy)) stop("Fichier d'origine ", o, " absent des journaux : coupe non repartissable.")
   if (abs(sum(p) - 1) > 1e-9) stop("Fractions de ", o, " : somme ", sum(p), " au lieu de 1.")
-  d <- unname(moy[o]); ne <- unname(n_exec[o])
-  for (nom in names(p)) { moy[nom] <- d * p[[nom]]; n_exec[nom] <- ne }
+  d <- unname(moy[o])
+  for (nom in names(p)) moy[nom] <- d * p[[nom]]
   partage_applique <- c(partage_applique, o)
 }
 
@@ -122,9 +141,9 @@ absents <- setdiff(disque, names(moy))
 en_trop <- setdiff(names(moy), disque)
 if (length(absents)) stop("Fichier(s) du disque sans duree dans les journaux : ", paste(absents, collapse = " "))
 if (length(en_trop)) cat("Fichier(s) des journaux absent(s) du disque, non ecrit(s) :", paste(en_trop, collapse = " "), "\n")
-moy <- moy[disque]; n_exec <- n_exec[disque]
+moy <- moy[disque]
 ordre <- order(-round(moy, 1), names(moy), method = "radix")
-moy <- moy[ordre]; n_exec <- n_exec[ordre]
+moy <- moy[ordre]
 if (any(round(moy, 1) <= 0)) stop("Duree nulle apres arrondi : ", paste(names(moy)[round(moy, 1) <= 0], collapse = " "))
 
 entete <- c(
@@ -140,8 +159,11 @@ entete <- c(
   "# journaux des jobs Tests unitaires (lot k/n), ligne ##### [i/n] fichier : OK,",
   sprintf("# N assertions, X s (quatre processus par lot), de %d executions reussies de", length(ids)),
   sprintf("# ci.yml : %s.", paste(ids, collapse = ", ")),
-  "# Les durees d'un meme fichier varient de 0,6 a 1,9 fois d'une execution a l'autre",
-  "# (fichiers concurrents du meme lot) : la moyenne attenue ce bruit sans l'annuler.")
+  if (length(ids) > 1L) c(
+    sprintf("# Rapport de la duree d'un fichier a sa moyenne, sur ces executions : de %s a %s ;",
+            format(floor(round(min(rapport) * 10, 6)) / 10, nsmall = 1L, decimal.mark = ","),
+            format(ceiling(round(max(rapport) * 10, 6)) / 10, nsmall = 1L, decimal.mark = ",")),
+    "# la moyenne attenue cette variation sans l'annuler."))
 if (length(partage_applique)) {
   entete <- c(entete,
     "# Fichiers coupes depuis ces executions (issue #561) : la duree du fichier",

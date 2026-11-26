@@ -325,7 +325,7 @@ verifier("U10 ic_bootstrap_restreint = quantiles de c sigma*_r sqrt((T+1)/(T-1))
 
 # --- U11 : echec isole sur l'observe et chemins d'echec du bootstrap restreint (#161) ---
 # Erreur injectee dans l'environnement du moteur (comme #145,
-# test_controles_entree.R), sans argument nouveau de run_engine() :
+# test_controles_entree_partie_2.R), sans argument nouveau de run_engine() :
 # usp_ajuster_contraint() en echec sur les seules donnees OBSERVEES a une
 # borne (J2, delta interieur : les deux bornes appellent l'ajustement
 # contraint sur l'observe) ; usp_objectif() en echec dans usp_profil()
